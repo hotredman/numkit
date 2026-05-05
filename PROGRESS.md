@@ -1578,11 +1578,11 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `adaptthresh` | ✅ | 0.008 |  | 63.86× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `cmap2gray` | ❌ | 0.003 | 157.35× |  | OK | Sig: gmap = cmap2gray(cmap). N×3 RGB cmap → N×3 grayscale (replicated y across R/G/B), inv(YIQ→RGB) row weights (0.298936/0.587043/0.114021), clipped to [0,1]. MATLAB R2020b+; Octave-image 2.18.2 doesn't ship it. |
-| `getrangefromclass` | ❌ | 0.003 |  | 31.43× | OK | Sig: r = getrangefromclass(I). Returns [intmin intmax] for integer classes; [0 1] for logical/single/double. Always double output. Octave-image has it. |
-| `gray2ind` | ❌ | 0.006 |  | 35.67× | OK | Sig: [ind, map] = gray2ind(I [, n]). Default n=64 (or 2 for logical). uint8 if n<=256 else uint16. Octave-image has gray2ind. |
+| `cmap2gray` | ✅ | 0.003 | 182.30× |  | OK | Sig: gmap = cmap2gray(cmap). N×3 RGB cmap → N×3 grayscale (replicated y across R/G/B), inv(YIQ→RGB) row weights (0.298936/0.587043/0.114021), clipped to [0,1]. MATLAB R2020b+; Octave-image 2.18.2 doesn't ship it. |
+| `getrangefromclass` | ✅ | 0.003 | 94.05× | 56.02× | OK | Sig: r = getrangefromclass(I). Returns [intmin intmax] for integer classes; [0 1] for logical/single/double. Always double output. Octave-image has it. |
+| `gray2ind` | ✅ | 0.003 | 578.25× | 35.72× | OK | Sig: [ind, map] = gray2ind(I [, n]). Default n=64 (or 2 for logical). uint8 if n<=256 else uint16. Octave-image has gray2ind. |
 | `graythresh` | ✅ | 0.005 |  | 133.52× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `grayslice` | ❌ | 0.004 |  | 43.86× | OK | Sig: G = grayslice(I [, N|V]). Multilevel intensity thresholding. Default N=10. Output uint8 if levels < 256, else double + 1 (1-based). Octave-image has grayslice. |
+| `grayslice` | ✅ | 0.003 | 204.79× | 60.84× | OK | Sig: G = grayslice(I [, N|V]). Multilevel intensity thresholding. Default N=10. Output uint8 if levels < 256, else double + 1 (1-based). Octave-image has grayslice. |
 | `im2bw` | ✅ | 0.003 |  | 52.74× | OK | Sig: BW = im2bw(I, level). Scalar threshold at 0.5 → [0 0 0 1 1 1]. |
 | `im2double` | ✅ | 0.003 |  | 20.00× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `im2gray` | ✅ | 0.003 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
@@ -1594,9 +1594,9 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `imquantize` | ✅ | 0.003 |  | 85.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imsplit` | ✅ |  |  |  | OK | split H×W×P volume into P planes (multi-output, byte-perfect copy) |
 | `ind2gray` | ❌ |  |  |  |  |  |
-| `ind2rgb` | ❌ | 0.005 |  | 35.79× | OK | Sig: rgb = ind2rgb(idx, map). Float idx 1-based, integer 0-based. Out-of-range clipped. Octave has ind2rgb. |
-| `iptnum2ordinal` | ❌ | 0.003 |  | 170.72× | OK | Sig: ord = iptnum2ordinal(num). 1..20 word form; 21+ digit-suffix. Output is char. Octave-image has iptnum2ordinal. |
-| `label2rgb` | ❌ | 0.003 |  | 157.82× | OK | Sig: RGB = label2rgb(L, cmap [, background]). Caller passes an explicit N-by-3 colormap (we don't yet have the colormap-name / function-handle defaults). Octave-image has label2rgb. |
+| `ind2rgb` | ✅ | 0.003 | 188.96× | 61.49× | OK | Sig: rgb = ind2rgb(idx, map). Float idx 1-based, integer 0-based. Out-of-range clipped. Octave has ind2rgb. |
+| `iptnum2ordinal` | ✅ | 0.003 | 73.82× | 193.87× | OK | Sig: ord = iptnum2ordinal(num). 1..20 word form; 21+ digit-suffix. Output is char. Octave-image has iptnum2ordinal. |
+| `label2rgb` | ✅ | 0.003 | 714.04× | 168.46× | OK | Sig: RGB = label2rgb(L, cmap [, background]). Caller passes an explicit N-by-3 colormap (we don't yet have the colormap-name / function-handle defaults). Octave-image has label2rgb. |
 | `mat2gray` | ✅ | 0.003 |  | 65.69× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `multithresh` | ✅ | 13.193 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `otsuthresh` | ✅ | 0.003 |  | 96.59× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
@@ -1612,35 +1612,35 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `chromadapt` | ❌ |  |  |  |  | Bradford/von Kries chromatic adapt |
-| `colorangle` | ❌ | 0.003 |  | 92.90× | OK | Sig: ang = colorangle(rgb1, rgb2). Angle in degrees between RGB colours; broadcasts N×3 vs 1×3. Octave-image has colorangle. |
-| `deltaE` | ❌ | 0.004 | 384.49× |  | OK | Sig: delE = deltaE(I1, I2[, 'isInputLab', tf]). CIE76 distance in CIELAB. We test the Lab-input path (skips rgb2lab to avoid the known sRGB-vs-linear divergence between numkit and MATLAB). |
+| `colorangle` | ✅ | 0.003 |  | 121.41× | OK | Sig: ang = colorangle(rgb1, rgb2). Angle in degrees between RGB colours; broadcasts N×3 vs 1×3. Octave-image has colorangle. |
+| `deltaE` | ✅ | 0.003 | 435.72× |  | OK | Sig: delE = deltaE(I1, I2[, 'isInputLab', tf]). CIE76 distance in CIELAB. We test the Lab-input path (skips rgb2lab to avoid the known sRGB-vs-linear divergence between numkit and MATLAB). |
 | `hsv2rgb` | ✅ | 0.003 |  | 104.82× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `illumgray` | ❌ |  |  |  |  | grey-world illumination |
 | `illumpca` | ❌ |  |  |  |  |  |
 | `illumwhite` | ❌ |  |  |  |  | white-patch |
 | `imapprox` | ❌ |  |  |  |  | reduce indexed-image colors |
 | `imcolordiff` | ❌ |  |  |  |  | CIE94/CIEDE2000 |
-| `lab2double` | ❌ | 0.003 |  | 28.24× | OK | Sig: lab_dbl = lab2double(lab). uint8 LAB → double: L *= 100/255, a/b -= 128. Octave-image has lab2double. |
+| `lab2double` | ✅ | 0.003 | 472.91× | 65.47× | OK | Sig: lab_dbl = lab2double(lab). uint8 LAB → double: L *= 100/255, a/b -= 128. Octave-image has lab2double. |
 | `lab2rgb` | ✅ | 0.003 |  | 94.01× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
 | `lab2uint16` | ❌ |  |  |  |  |  |
-| `lab2uint8` | ❌ | 0.002 |  | 90.17× | OK | Sig: lab_u8 = lab2uint8(lab). double LAB → uint8: L *= 255/100, a/b += 128. NaN → 255. Octave-image has lab2uint8. |
+| `lab2uint8` | ❌ | 0.002 | 433.29× | 34.02× | MISMATCH | Sig: lab_u8 = lab2uint8(lab). double LAB → uint8: L *= 255/100, a/b += 128. NaN → 255. Octave-image has lab2uint8. |
 | `lab2xyz` | ✅ |  |  |  | OK | CIELAB → XYZ (D65) |
-| `lin2rgb` | ❌ | 0.003 | 568.88× |  | OK | Sig: B = lin2rgb(A). Linear → sRGB forward gamma. MATLAB R2025b. Octave-image doesn't ship lin2rgb; harness ranks MATLAB above Octave so OK is expected with octave=N/A. |
-| `ntsc2rgb` | ❌ | 0.003 |  | 58.09× | OK | Sig: rgb = ntsc2rgb(yiq). Inverse of rgb2ntsc 3-sig-fig matrix. Octave-image has ntsc2rgb. |
+| `lin2rgb` | ✅ | 0.003 | 601.81× |  | OK | Sig: B = lin2rgb(A). Linear → sRGB forward gamma. MATLAB R2025b. Octave-image doesn't ship lin2rgb; harness ranks MATLAB above Octave so OK is expected with octave=N/A. |
+| `ntsc2rgb` | ❌ | 0.003 | 184.61× | 58.30× | MISMATCH | Sig: rgb = ntsc2rgb(yiq). Inverse of rgb2ntsc 3-sig-fig matrix. Octave-image has ntsc2rgb. |
 | `rgb2hsv` | ✅ | 0.003 |  | 54.51× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `rgb2lab` | ✅ | 0.016 | 920.06× | 59.27× | MISMATCH | Verify our rgb2lab matches MATLAB. |
-| `rgb2lin` | ❌ | 0.003 | 555.64× |  | OK | Sig: B = rgb2lin(A). sRGB inverse gamma (piecewise linear|^2.4). MATLAB R2025b. Octave-image doesn't ship rgb2lin; harness ranks MATLAB above Octave so OK is expected even with octave=N/A. |
-| `rgb2ntsc` | ❌ | 0.003 |  | 57.90× | OK | Sig: yiq = rgb2ntsc(rgb). Linear matrix; 3-sig-fig from Wikipedia/MATLAB. Octave-image has rgb2ntsc. |
+| `rgb2lin` | ✅ | 0.003 | 635.56× |  | OK | Sig: B = rgb2lin(A). sRGB inverse gamma (piecewise linear|^2.4). MATLAB R2025b. Octave-image doesn't ship rgb2lin; harness ranks MATLAB above Octave so OK is expected even with octave=N/A. |
+| `rgb2ntsc` | ❌ | 0.002 | 178.88× | 36.86× | MISMATCH | Sig: yiq = rgb2ntsc(rgb). Linear matrix; 3-sig-fig from Wikipedia/MATLAB. Octave-image has rgb2ntsc. |
 | `rgb2xyz` | ✅ | 0.003 |  | 28.55× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
 | `rgb2ycbcr` | ✅ | 0.003 |  | 47.60× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
 | `rgbwide2xyz` | ❌ |  |  |  |  | wide-gamut HDR |
 | `rgbwide2ycbcr` | ❌ |  |  |  |  |  |
-| `whitepoint` | ❌ | 0.005 | 150.33× |  | OK | Sig: wp = whitepoint([illuminant]). 1×3 XYZ tristimulus of CIE reference illuminant. Supports a/c/d50/d55/d65/e/icc; default 'icc'. MATLAB R2025b. Octave-image doesn't ship whitepoint. |
-| `xyz2double` | ❌ | 0.003 | 394.55× |  | OK | Sig: xyzd = xyz2double(xyz). uint16 XYZ → double via ICC.1:2001-4 (32768 ↔ 1.0). Double input passthrough. MATLAB R2025b. Octave-image doesn't ship xyz2double. |
+| `whitepoint` | ✅ | 0.005 | 134.32× |  | OK | Sig: wp = whitepoint([illuminant]). 1×3 XYZ tristimulus of CIE reference illuminant. Supports a/c/d50/d55/d65/e/icc; default 'icc'. MATLAB R2025b. Octave-image doesn't ship whitepoint. |
+| `xyz2double` | ✅ | 0.002 | 465.36× |  | OK | Sig: xyzd = xyz2double(xyz). uint16 XYZ → double via ICC.1:2001-4 (32768 ↔ 1.0). Double input passthrough. MATLAB R2025b. Octave-image doesn't ship xyz2double. |
 | `xyz2lab` | ✅ |  |  |  | OK |  |
 | `xyz2rgb` | ✅ | 0.003 |  | 57.01× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
 | `xyz2rgbwide` | ❌ |  |  |  |  |  |
-| `xyz2uint16` | ❌ | 0.003 | 455.90× |  | OK | Sig: xyzu16 = xyz2uint16(xyz). Double XYZ → uint16 ICC (round(x*32768) clipped to [0,65535]). MATLAB R2025b. Octave-image doesn't ship xyz2uint16. |
+| `xyz2uint16` | ✅ | 0.003 | 399.10× |  | OK | Sig: xyzu16 = xyz2uint16(xyz). Double XYZ → uint16 ICC (round(x*32768) clipped to [0,65535]). MATLAB R2025b. Octave-image doesn't ship xyz2uint16. |
 | `ycbcr2rgb` | ✅ | 0.003 |  | 59.93× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
 | `ycbcr2rgbwide` | ❌ |  |  |  |  |  |
 
@@ -1652,9 +1652,9 @@ Display ones (`imshow`, `montage`, …) need graphics; synthesis is pure algorit
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `checkerboard` | ❌ | 0.005 |  | 66.61× | OK | Sig: I = checkerboard(side [, M [, N]]). 2*M*side x 2*N*side double image; right half dimmed to 0.7. Octave-image has checkerboard. |
+| `checkerboard` | ✅ | 0.005 | 129.02× | 85.28× | OK | Sig: I = checkerboard(side [, M [, N]]). 2*M*side x 2*N*side double image; right half dimmed to 0.7. Octave-image has checkerboard. |
 | `imnoise` | ✅ |  |  |  | OK | gaussian / localvar / salt&pepper / speckle / poisson; shares numkit::builtin RNG |
-| `phantom` | ❌ | 0.069 |  | 20.01× | OK | Sig: P = phantom([model | E] [, n]). Modified Shepp-Logan default; 64x64 reference test. Octave-image has phantom. |
+| `phantom` | ✅ | 0.068 | 17.70× | 19.71× | OK | Sig: P = phantom([model | E] [, n]). Modified Shepp-Logan default; 64x64 reference test. Octave-image has phantom. |
 | `imshow` | ❌ |  |  |  |  | needs graphics |
 | `imfuse` | ❌ |  |  |  |  |  |
 | `imshowpair` | ❌ |  |  |  |  |  |
@@ -1673,7 +1673,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `fitgeotrans` | ❌ |  |  |  |  | fit transform from cp pairs |
 | `imcrop` | ✅ | 0.003 |  | 55.29× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imcrop3` | ❌ |  |  |  |  |  |
-| `impyramid` | ❌ | 0.006 |  | 168.78× | OK | Sig: B = impyramid(A, type). type='reduce' or 'expand'. Burt-Adelson 5-tap separable kernel; replicate boundary. Output: ceil(M/2)xceil(N/2) for reduce, (2M-1)x(2N-1) for expand. Octave-image has impyramid; cross-check expected OK. |
+| `impyramid` | ❌ | 0.004 | 1344.42× | 230.50× | MISMATCH | Sig: B = impyramid(A, type). type='reduce' or 'expand'. Burt-Adelson 5-tap separable kernel; replicate boundary. Output: ceil(M/2)xceil(N/2) for reduce, (2M-1)x(2N-1) for expand. Octave-image has impyramid; cross-check expected OK. |
 | `imresize` | ✅ | 0.003 |  | 434.70× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imresize3` | ❌ |  |  |  |  |  |
 | `imrotate` | ✅ | 0.003 |  | 92.45× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
@@ -1696,7 +1696,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imregister` | ❌ |  |  |  |  |  |
 | `imregmtb` | ❌ |  |  |  |  | median-threshold-bitmap |
 | `imregtform` | ❌ |  |  |  |  |  |
-| `normxcorr2` | ❌ | 0.011 |  | 38.41× | OK | Sig: c = normxcorr2(template, img). Output (M+m-1)x(N+n-1) double in [-1, 1]. Octave-image has normxcorr2. |
+| `normxcorr2` | ❌ | 0.004 | 698.56× | 80.39× | MISMATCH | Sig: c = normxcorr2(template, img). Output (M+m-1)x(N+n-1) double in [-1, 1]. Octave-image has normxcorr2. |
 
 ### Image Filtering
 
@@ -1704,8 +1704,8 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `convmtx2` | ❌ | 0.003 | 36.24× |  | OK | Sig: T = convmtx2(h, m, n). Convolution matrix for 2-D 'full' convolution. MATLAB returns sparse, we return dense — wrap in full() in MATLAB so dim and values match. Octave-image doesn't ship convmtx2. |
-| `entropyfilt` | ❌ | 0.007 |  | 89.83× | OK | Sig: E = entropyfilt(I [, domain]). Local Shannon entropy in bits; default 9x9 ones, symmetric pad. Octave-image has entropyfilt. |
+| `convmtx2` | ✅ | 0.002 | 46.37× |  | OK | Sig: T = convmtx2(h, m, n). Convolution matrix for 2-D 'full' convolution. MATLAB returns sparse, we return dense — wrap in full() in MATLAB so dim and values match. Octave-image doesn't ship convmtx2. |
+| `entropyfilt` | ✅ | 0.007 | 449.12× | 85.99× | OK | Sig: E = entropyfilt(I [, domain]). Local Shannon entropy in bits; default 9x9 ones, symmetric pad. Octave-image has entropyfilt. |
 | `fibermetric` | ❌ |  |  |  |  |  |
 | `freqspace` | ✅ | 0.003 | 31.49× |  | OK | Sig: [f1, f2] = freqspace(N|[N M]) or f = freqspace(N[, 'whole']). Now supports 2-output centered form and 2-vec [N M] input (via libs/builtin extension). |
 | `freqz2` | ❌ |  |  |  |  | 2-D freq response |
@@ -1718,28 +1718,28 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `gabor` | ❌ |  |  |  |  | Gabor filter bank |
 | `imbilatfilt` | ✅ | 0.021 |  | 80.24× | OK | Sig: B = imbilatfilt(I, dos, sigma). Step image, tight range Gaussian (preserves edge). Tol relaxed: kernel-window-size differences plus per-pixel exp-rounding propagate. |
 | `imboxfilt` | ✅ | 0.004 |  | 193.49× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imboxfilt3` | ❌ | 0.007 |  |  | N/A | Sig: J = imboxfilt3(V [, FilterSize]). 3-D box (mean) filter over a volume, replicate boundary on all 3 axes. MATLAB R2020a+; Octave-image doesn't have it → correctness=N/A. |
+| `imboxfilt3` | ❌ | 0.007 | 306.82× |  | MISMATCH | Sig: J = imboxfilt3(V [, FilterSize]). 3-D box (mean) filter over a volume, replicate boundary on all 3 axes. MATLAB R2020a+; Octave-image doesn't have it → correctness=N/A. |
 | `imdiffusefilt` | ❌ |  |  |  |  | anisotropic diffusion |
 | `imfilter` | ✅ | 0.003 |  | 116.15× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imgaborfilt` | ❌ |  |  |  |  |  |
 | `imgaussfilt` | ✅ | 0.007 |  | 110.10× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imgaussfilt3` | ❌ | 0.008 | 320.13× |  | OK | Sig: J = imgaussfilt3(V[, sigma]). 3-D Gaussian filter, separable, replicate boundary. Sigma scalar or 3-vec. Filter size = 2*ceil(2σ)+1 per axis. MATLAB R2017+; Octave-image doesn't ship imgaussfilt3. |
+| `imgaussfilt3` | ✅ | 0.006 | 392.83× |  | OK | Sig: J = imgaussfilt3(V[, sigma]). 3-D Gaussian filter, separable, replicate boundary. Sigma scalar or 3-vec. Filter size = 2*ceil(2σ)+1 per axis. MATLAB R2017+; Octave-image doesn't ship imgaussfilt3. |
 | `imguidedfilter` | ❌ |  |  |  |  |  |
 | `imnlmfilt` | ❌ |  |  |  |  | non-local means |
 | `integralBoxFilter` | ❌ |  |  |  |  |  |
 | `integralBoxFilter3` | ❌ |  |  |  |  |  |
-| `integralImage` | ❌ | 0.003 |  | 89.33× | OK | Sig: J = integralImage(I). Summed-area table with (M+1)x(N+1) zero-padded leading row/col. Octave-image has integralImage; cross-check expected OK. |
-| `integralImage3` | ❌ | 0.003 |  | 56.66× | OK | Sig: J = integralImage3(V). 3-D summed-volume table with leading zero plane/row/col. Octave-image may not have integralImage3 → may report N/A. |
+| `integralImage` | ✅ | 0.003 | 321.42× | 127.21× | OK | Sig: J = integralImage(I). Summed-area table with (M+1)x(N+1) zero-padded leading row/col. Octave-image has integralImage; cross-check expected OK. |
+| `integralImage3` | ✅ | 0.003 | 173.37× | 131.83× | OK | Sig: J = integralImage3(V). 3-D summed-volume table with leading zero plane/row/col. Octave-image may not have integralImage3 → may report N/A. |
 | `medfilt2` | ✅ | 0.004 |  | 80.09× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `medfilt3` | ❌ | 0.032 | 57.47× |  | OK | Sig: J = medfilt3(V[, [M N P]]). 3-D median filter, default 3x3x3, symmetric pad. MATLAB R2017+; Octave-image doesn't ship medfilt3. |
+| `medfilt3` | ✅ | 0.030 | 65.50× |  | OK | Sig: J = medfilt3(V[, [M N P]]). 3-D median filter, default 3x3x3, symmetric pad. MATLAB R2017+; Octave-image doesn't ship medfilt3. |
 | `modefilt` | ❌ |  |  |  |  |  |
 | `nlfilter` | ❌ |  |  |  |  | generic neighborhood op |
-| `ordfilt2` | ❌ | 0.004 |  | 81.89× | OK | Sig: B = ordfilt2(A, nth, domain [, S] [, padding]). Order-statistic filter; 1-based nth. Octave-image has ordfilt2. |
+| `ordfilt2` | ✅ | 0.004 | 671.59× | 87.58× | OK | Sig: B = ordfilt2(A, nth, domain [, S] [, padding]). Order-statistic filter; 1-based nth. Octave-image has ordfilt2. |
 | `padarray` | ✅ | 0.003 |  | 102.54× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `rangefilt` | ❌ | 0.003 |  | 186.94× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
+| `rangefilt` | ✅ | 0.003 | 961.97× | 167.28× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
 | `roifilt2` | ❌ |  |  |  |  |  |
-| `stdfilt` | ❌ | 0.004 |  | 158.96× | OK | Sig: S = stdfilt(I [, domain]). Local sample std (N-1 norm). Default 3x3 ones, symmetric pad. Uses Octave-source test vector G. |
-| `wiener2` | ❌ | 0.003 |  | 100.11× | OK | Sig: J = wiener2(I [, nhood [, noise]]). Adaptive Wiener filter (Lim 1989, eq. 9.26-9.29). Default 3x3, zero-pad. Octave-image has wiener2. |
+| `stdfilt` | ✅ | 0.004 | 211.15× | 169.60× | OK | Sig: S = stdfilt(I [, domain]). Local sample std (N-1 norm). Default 3x3 ones, symmetric pad. Uses Octave-source test vector G. |
+| `wiener2` | ✅ | 0.003 | 346.38× | 136.93× | OK | Sig: J = wiener2(I [, nhood [, noise]]). Adaptive Wiener filter (Lim 1989, eq. 9.26-9.29). Default 3x3, zero-pad. Octave-image has wiener2. |
 
 ### Contrast Adjustment
 
@@ -1751,14 +1751,14 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `decorrstretch` | ❌ |  |  |  |  | decorrelation stretch |
 | `histeq` | ✅ | 0.004 | 495.84× |  | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imadjust` | ✅ | 0.005 |  | 134.01× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imadjustn` | ❌ | 0.005 |  |  | N/A | Sig: imadjustn(I). N-D variant of imadjust; we alias since imadjust already handles 3-D. Octave-image does not have imadjustn so cross-check may report N/A — depends on stretchlim like the imadjust spec. |
-| `imflatfield` | ❌ | 4.227 |  |  | N/A | Sig: imflatfield(I, sigma [, mask]). Smooth synthetic shading on a 32x32 double image. Octave-image has imflatfield (recent versions); cross-check expected to be OK or N/A depending on package availability. |
+| `imadjustn` | ❌ | 0.005 | 566.15× |  | MISMATCH | Sig: imadjustn(I). N-D variant of imadjust; we alias since imadjust already handles 3-D. Octave-image does not have imadjustn so cross-check may report N/A — depends on stretchlim like the imadjust spec. |
+| `imflatfield` | ❌ | 4.163 | 1.30× |  | MISMATCH | Sig: imflatfield(I, sigma [, mask]). Smooth synthetic shading on a 32x32 double image. Octave-image 11.1.0 does not have imflatfield so cross-check reports correctness=N/A. Algorithm: F = imgaussfilt(im2double(I), sigma); B = im2cls((I_double./F) * mean(F)). 3-D inputs are processed per-page. |
 | `imhistmatch` | ✅ | 0.004 |  |  | N/A | Sig: J = imhistmatch(I, ref, nbins). [0,0.5] source CDF-matched to [0,1] reference. Tol relaxed: bin discretisation differs slightly across implementations. |
-| `imhistmatchn` | ❌ | 0.006 |  |  | N/A | Sig: imhistmatchn(I, ref [, nbins]). N-D histogram match (single histogram across volume). Aliased to imhistmatch which uses the same single-histogram semantics. Octave-image may not have imhistmatchn (introduced in MATLAB R2017a) → cross-check may report N/A. |
+| `imhistmatchn` | ✅ | 0.005 | 582.59× |  | OK | Sig: imhistmatchn(I, ref [, nbins]). N-D histogram match (single histogram across volume). Aliased to imhistmatch which uses the same single-histogram semantics. Octave-image 11.1.0 has no imhistmatchn → correctness=N/A as documented. |
 | `imlocalbrighten` | ❌ |  |  |  |  |  |
 | `imreducehaze` | ❌ |  |  |  |  |  |
 | `imsharpen` | ✅ | 0.021 |  | 80.53× | OK | Sig: B = imsharpen(I). Defaults Radius=1, Amount=0.8, Threshold=0. Step image. Tol relaxed: tiny boundary-condition diffs in the imgaussfilt convolution propagate. |
-| `intlut` | ❌ | 0.002 |  | 76.91× | OK | Sig: B = intlut(A, LUT). Pure pointwise table lookup. uint8 in / uint8 out via inversion LUT. Output class follows class(LUT). |
+| `intlut` | ✅ | 0.002 | 295.79× | 11.76× | OK | Sig: B = intlut(A, LUT). Pure pointwise table lookup. uint8 in / uint8 out via inversion LUT. Output class follows class(LUT). |
 | `localcontrast` | ❌ |  |  |  |  |  |
 | `locallapfilt` | ❌ |  |  |  |  | local Laplacian |
 | `stretchlim` | ✅ | 0.003 |  | 79.71× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
@@ -1776,7 +1776,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `poly2mask` | ❌ |  |  |  |  |  |
 | `reducepoly` | ❌ |  |  |  |  | Douglas-Peucker simplify |
 | `regionfill` | ❌ |  |  |  |  | smooth fill of bw mask |
-| `roicolor` | ❌ | 0.003 |  | 19.63× | OK | Sig: BW = roicolor(A, low, high) range form, or roicolor(A, v) set-membership. Output logical, same shape as A. Octave-image has roicolor. |
+| `roicolor` | ✅ | 0.002 | 79.31× | 38.22× | OK | Sig: BW = roicolor(A, low, high) range form, or roicolor(A, v) set-membership. Output logical, same shape as A. Octave-image has roicolor. |
 | `roifill` | ❌ |  |  |  |  | legacy alias |
 | `roipoly` | ❌ |  |  |  |  |  |
 
@@ -1786,12 +1786,12 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `applylut` | ❌ | 0.005 |  | 26.08× | OK | Sig: A = applylut(BW, LUT). LUT length = 2^(n*n). Octave-image has applylut. |
-| `bwhitmiss` | ❌ | 0.005 |  | 90.26× | OK | Sig: J = bwhitmiss(BW, se1, se2) or bwhitmiss(BW, interval). Hit-or-miss: imerode(BW, se1) & imerode(~BW, se2). Octave-image has bwhitmiss. |
+| `applylut` | ✅ | 0.003 | 169.55× | 42.24× | OK | Sig: A = applylut(BW, LUT). LUT length = 2^(n*n). Octave-image has applylut. |
+| `bwhitmiss` | ✅ | 0.004 | 1353.97× | 92.25× | OK | Sig: J = bwhitmiss(BW, se1, se2) or bwhitmiss(BW, interval). Hit-or-miss: imerode(BW, se1) & imerode(~BW, se2). Octave-image has bwhitmiss. |
 | `bwlookup` | ❌ |  |  |  |  |  |
 | `bwmorph` | ❌ |  |  |  |  | 2-D morphology dispatch |
 | `bwmorph3` | ❌ |  |  |  |  |  |
-| `bwpack` | ❌ | 0.004 |  | 61.12× | OK | Sig: BWP = bwpack(BW). Pack 32 binary rows into one uint32 (LSB = row 0). Octave-image has bwpack. |
+| `bwpack` | ✅ | 0.003 | 106.93× | 59.67× | OK | Sig: BWP = bwpack(BW). Pack 32 binary rows into one uint32 (LSB = row 0). Octave-image has bwpack. |
 | `bwperim` | ✅ | 0.003 |  | 154.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `bwskel` | ❌ |  |  |  |  | skeletonize |
 | `bwulterode` | ❌ |  |  |  |  | ultimate erosion |
@@ -1830,7 +1830,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `deconvwnr` | ❌ |  |  |  |  | Wiener |
 | `edgetaper` | ❌ |  |  |  |  |  |
 | `otf2psf` | ❌ |  |  |  |  |  |
-| `psf2otf` | ❌ | 0.005 |  | 56.46× | OK | Sig: otf = psf2otf(psf [, outsize]). FFT of circshift(zeropad(psf), -floor(size/2)). Octave-image has psf2otf. |
+| `psf2otf` | ✅ | 0.005 | 751.25× | 56.86× | OK | Sig: otf = psf2otf(psf [, outsize]). FFT of circshift(zeropad(psf), -floor(size/2)). Octave-image has psf2otf. |
 
 ### Neighborhood and Block Processing
 
@@ -1838,7 +1838,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bestblk` | ❌ | 0.005 |  | 22.59× | OK | Sig: siz = bestblk(IMS [, k]). Best block size minimising mod-padding within [ceil(min(dim/10, k/2)), k]. Octave-image has bestblk. |
+| `bestblk` | ✅ | 0.003 | 120.81× | 20.79× | OK | Sig: siz = bestblk(IMS [, k]). Best block size minimising mod-padding within [ceil(min(dim/10, k/2)), k]. Octave-image has bestblk. |
 | `blockproc` | ❌ |  |  |  |  | block-wise processing |
 | `col2im` | ✅ | 0.003 |  | 79.94× | OK | Sig: A = col2im(B, [m n], [mm nn], 'distinct'). Round-trip im2col→col2im rebuilds 4x4 (clean multiples). |
 | `colfilt` | ❌ |  |  |  |  |  |
@@ -1926,33 +1926,33 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `bwarea` | ✅ | 0.002 |  | 38.03× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `bwareafilt` | ❌ | 0.005 |  | 213.01× | OK | Sig: J = bwareafilt(BW, range|n [, keep] [, conn]). Range [lo hi] or top-N selection ('largest' default). Octave-image has bwareafilt. |
+| `bwareafilt` | ✅ | 0.004 |  | 231.24× | OK | Sig: J = bwareafilt(BW, range|n [, keep] [, conn]). Range [lo hi] or top-N selection ('largest' default). Octave-image has bwareafilt. |
 | `bwareaopen` | ✅ | 0.003 |  | 61.61× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `bwconncomp` | ✅ |  |  |  | OK | connectivity / size / count / pixel-list |
 | `bwconvhull` | ❌ |  |  |  |  |  |
 | `bwdist` | ✅ | 0.004 |  | 19.43× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-6: tiny FP precision delta on Euclidean sqrt. |
 | `bwdistgeodesic` | ❌ |  |  |  |  |  |
-| `bweuler` | ❌ | 0.004 |  | 91.29× | OK | Sig: e = bweuler(BW [, n]). Euler number (objects − holes) via Pratt bit-quad LUT. Octave-image has bweuler. |
+| `bweuler` | ✅ | 0.004 | 589.22× | 71.04× | OK | Sig: e = bweuler(BW [, n]). Euler number (objects − holes) via Pratt bit-quad LUT. Octave-image has bweuler. |
 | `bwferet` | ❌ |  |  |  |  | Feret diameters |
 | `bwlabel` | ✅ | 0.003 |  | 43.65× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `bwlabeln` | ❌ |  |  |  |  |  |
 | `bwperim` | ✅ | 0.003 |  | 154.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `bwpropfilt` | ❌ |  |  |  |  |  |
-| `bwselect` | ❌ | 0.004 |  | 51.05× | OK | Sig: [BW2, idx] = bwselect(BW, cols, rows[, conn]). Keep all components that contain any seed pixel. Octave-image has bwselect. |
+| `bwselect` | ✅ | 0.004 | 916.09× | 45.60× | OK | Sig: [BW2, idx] = bwselect(BW, cols, rows[, conn]). Keep all components that contain any seed pixel. Octave-image has bwselect. |
 | `bwselect3` | ❌ |  |  |  |  |  |
 | `cc2bw` | ❌ |  |  |  |  |  |
-| `corr2` | ❌ | 0.003 |  | 158.83× | OK | Sig: r = corr2(A, B). Pearson correlation coefficient over all elements (flat). Octave-image has corr2. |
+| `corr2` | ✅ | 0.003 | 254.34× | 160.16× | OK | Sig: r = corr2(A, B). Pearson correlation coefficient over all elements (flat). Octave-image has corr2. |
 | `graydist` | ❌ |  |  |  |  |  |
 | `imcontour` | ❌ |  |  |  |  |  |
 | `imhist` | ✅ | 0.004 |  | 64.89× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `impixel` | ❌ |  |  |  |  |  |
 | `improfile` | ❌ |  |  |  |  |  |
 | `labelmatrix` | ❌ |  |  |  |  |  |
-| `mean2` | ❌ | 0.002 |  | 58.74× | OK | Sig: m = mean2(A). Mean of all elements (flat). Octave-image has mean2. |
+| `mean2` | ✅ | 0.002 | 115.99× | 63.66× | OK | Sig: m = mean2(A). Mean of all elements (flat). Octave-image has mean2. |
 | `poly2label` | ❌ |  |  |  |  |  |
 | `regionprops` | ✅ |  |  |  | OK | Area / Centroid / BoundingBox; struct array out, BW or label input |
 | `regionprops3` | ❌ |  |  |  |  |  |
-| `std2` | ❌ | 0.004 |  | 60.05× | OK | Sig: s = std2(A). Std of all elements normalized by N (population). Octave-image has std2. |
+| `std2` | ✅ | 0.003 | 280.70× | 55.24× | OK | Sig: s = std2(A). Std of all elements normalized by N (population). Octave-image has std2. |
 
 ### Texture Analysis
 
@@ -1960,12 +1960,12 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `entropy` | ❌ | 0.004 |  | 61.15× | OK | Sig: E = entropy(I [, nbins]). Shannon entropy in bits over imhist of im2uint8(I) (256 bins by default). Octave-image has entropy. |
-| `entropyfilt` | ❌ | 0.007 |  | 89.83× | OK | Sig: E = entropyfilt(I [, domain]). Local Shannon entropy in bits; default 9x9 ones, symmetric pad. Octave-image has entropyfilt. |
+| `entropy` | ✅ | 0.004 | 338.82× | 62.73× | OK | Sig: E = entropy(I [, nbins]). Shannon entropy in bits over imhist of im2uint8(I) (256 bins by default). Octave-image has entropy. |
+| `entropyfilt` | ✅ | 0.007 | 449.12× | 85.99× | OK | Sig: E = entropyfilt(I [, domain]). Local Shannon entropy in bits; default 9x9 ones, symmetric pad. Octave-image has entropyfilt. |
 | `graycomatrix` | ❌ |  |  |  |  | GLCM |
 | `graycoprops` | ❌ |  |  |  |  |  |
-| `rangefilt` | ❌ | 0.003 |  | 186.94× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
-| `stdfilt` | ❌ | 0.004 |  | 158.96× | OK | Sig: S = stdfilt(I [, domain]). Local sample std (N-1 norm). Default 3x3 ones, symmetric pad. Uses Octave-source test vector G. |
+| `rangefilt` | ✅ | 0.003 | 961.97× | 167.28× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
+| `stdfilt` | ✅ | 0.004 | 211.15× | 169.60× | OK | Sig: S = stdfilt(I [, domain]). Local sample std (N-1 norm). Default 3x3 ones, symmetric pad. Uses Octave-source test vector G. |
 
 ### Image Quality
 
@@ -3361,7 +3361,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `dyadup` | ❌ |  |  |  |  | upsample with zero insertion |
 | `wkeep` | ❌ |  |  |  |  | extract central part |
 | `wextend` | ❌ |  |  |  |  | extend signal |
-| `wcodemat` | ❌ | 0.005 |  |  | N/A | Sig: Y = wcodemat(X [, nb [, opt [, absol]]]). Quantize/scale to [1, nb] integer codes (default nb=16, mat, absol=1). Wavelet Toolbox helper; Octave-image doesn't have it → correctness=N/A. |
+| `wcodemat` | ✅ | 0.003 | 166.80× |  | OK | Sig: Y = wcodemat(X [, nb [, opt [, absol]]]). Quantize/scale to [1, nb] integer codes (default nb=16, mat, absol=1). Wavelet Toolbox helper; Octave-image doesn't have it → correctness=N/A. |
 | `haart` | ❌ |  |  |  |  | Haar wavelet transform |
 | `ihaart` | ❌ |  |  |  |  | inverse Haar |
 | `wmaxlev` | ❌ |  |  |  |  | maximum decomposition level |
