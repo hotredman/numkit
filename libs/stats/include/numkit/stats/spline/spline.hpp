@@ -7,6 +7,7 @@
 #include <memory_resource>
 #include <numkit/core/value.hpp>
 
+#include <string>
 #include <tuple>
 
 namespace numkit::stats {
@@ -55,5 +56,11 @@ Value fnint(std::pmr::memory_resource *mr, const Value &pp);
 /// Returns a pp-form spline of order 4 that interpolates (x, y) and
 /// is C² with continuous third derivatives at x(2) and x(end-1).
 Value csapi(std::pmr::memory_resource *mr, const Value &x, const Value &y);
+
+/// `out = fnbrk(pp, part)` — extract a named part from a pp-form
+/// spline: 'breaks', 'coefs', 'pieces' (or 'l'), 'order' (or 'k'),
+/// 'dim', 'form'. Interval-restriction form is not yet supported.
+Value fnbrk(std::pmr::memory_resource *mr, const Value &pp,
+            const std::string &part);
 
 } // namespace numkit::stats

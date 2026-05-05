@@ -1350,7 +1350,7 @@ omitted — interactive / Simulink / OOP.
 
 ### Splines
 
-**Namespace:** `cfit.splines.*` — 13 ✅ + 0 ⚠️ / 49 = 27%
+**Namespace:** `cfit.splines.*` — 14 ✅ + 0 ⚠️ / 49 = 29%
 
 OOP `fittype`/`fit`/`cfit`/`sfit`/`fitoptions`/`excludedata` and the
 GUI tools (`sftool`, `bspligui`, `splinetool`, `getcurve`) intentionally
@@ -1376,7 +1376,7 @@ construction / postprocessing primitives — those are all flat functions.
 | `spmak` | ❌ |  |  |  |  | B-spline form constructor |
 | `stmak` | ❌ |  |  |  |  | stform constructor (2-D scattered) |
 | `fn2fm` | ❌ |  |  |  |  | convert between spline forms |
-| `fnbrk` | ❌ |  |  |  |  | extract part / break info |
+| `fnbrk` | ✅ | 0.003 | 209.81× |  | OK | Sig: out = fnbrk(pp, part). Extract a named part from a pp-form spline. Supports {breaks, coefs, pieces|l, order|k, dim|d, form}. |
 | `fnchg` | ❌ |  |  |  |  | change spline properties |
 | `fncmb` | ❌ |  |  |  |  | combine splines |
 | `fnder` | ✅ | 0.004 | 482.37× |  | OK | Sig: dpp = fnder(pp[, order]). Differentiate pp-form spline `order` times. Each piece's polynomial is independently differentiated; result has order = K − order. |
