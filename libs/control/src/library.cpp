@@ -20,6 +20,9 @@ void ss_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void tfdata_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void zpkdata_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ssdata_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void filt_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void frd_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void frdata_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 // props/props.cpp
 void isct_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void isdt_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -85,6 +88,9 @@ void ControlLibrary::install(Engine &engine)
     reg("lti", "tfdata",  &control::detail::tfdata_reg);
     reg("lti", "zpkdata", &control::detail::zpkdata_reg);
     reg("lti", "ssdata",  &control::detail::ssdata_reg);
+    reg("lti", "filt",    &control::detail::filt_reg);
+    reg("lti", "frd",     &control::detail::frd_reg);
+    reg("lti", "frdata",  &control::detail::frdata_reg);
 
     reg("props", "isct",     &control::detail::isct_reg);
     reg("props", "isdt",     &control::detail::isdt_reg);

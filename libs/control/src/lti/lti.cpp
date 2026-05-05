@@ -95,8 +95,49 @@ Value ss(std::pmr::memory_resource *mr,
     return s;
 }
 
+Value filt(std::pmr::memory_resource *mr,
+           const Value &num, const Value &den, double Ts)
+{
+    if (den.numel() == 0)
+        throw Error("filt: denominator must not be empty",
+                    0, 0, "filt", "", "m:filt:den");
+    Value s = tagStruct(mr, "tf", Ts);
+    s.field("num") = rowVec(mr, num);
+    s.field("den") = rowVec(mr, den);
+    s.field("variable") = Value::fromString("z^-1", mr);
+    return s;
+}
+
+Value frd(std::pmr::memory_resource *mr,
+          const Value &response, const Value &frequency, double Ts)
+{
+    if (response.numel() != frequency.numel())
+        throw Error("frd: response and frequency must have the same length",
+                    0, 0, "frd", "", "m:frd:size");
+    Value s = tagStruct(mr, "frd", Ts);
+    const size_t N = frequency.numel();
+    // resp may be complex; copy as column vector.
+    if (response.type() == ValueType::COMPLEX) {
+        Value rv = Value::matrix(N, 1, ValueType::COMPLEX, mr);
+        const std::complex<double> *src = response.complexData();
+        std::complex<double> *rd = rv.complexDataMut();
+        for (size_t i = 0; i < N; ++i) rd[i] = src[i];
+        s.field("resp") = std::move(rv);
+    } else {
+        Value rv = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+        double *rd = rv.doubleDataMut();
+        for (size_t i = 0; i < N; ++i) rd[i] = response.elemAsDouble(i);
+        s.field("resp") = std::move(rv);
+    }
+    Value fv = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+    double *fd = fv.doubleDataMut();
+    for (size_t i = 0; i < N; ++i) fd[i] = frequency.elemAsDouble(i);
+    s.field("freq") = std::move(fv);
+    return s;
+}
+
 // ──────────────────────────────────────────────────────────────────────
-// Extractors: tfdata / zpkdata / ssdata
+// Extractors: tfdata / zpkdata / ssdata / frdata
 // ──────────────────────────────────────────────────────────────────────
 
 namespace {
@@ -224,6 +265,34 @@ ssdata(std::pmr::memory_resource *mr, const Value &sys)
     return {std::move(A), std::move(B), std::move(C), std::move(D)};
 }
 
+std::tuple<Value, Value>
+frdata(std::pmr::memory_resource *mr, const Value &sys)
+{
+    if (kindOf(sys) != "frd")
+        throw Error("frdata: input must be an frd model",
+                    0, 0, "frdata", "", "m:frdata:kind");
+    // Shallow copy through the user resource; resp / freq are already
+    // stored as column vectors by frd().
+    Value resp = sys.field("resp");
+    Value freq = sys.field("freq");
+    // Defensive copy so callers don't observe aliasing into the struct.
+    auto copyV = [&](const Value &v) -> Value {
+        const size_t N = v.numel();
+        if (v.type() == ValueType::COMPLEX) {
+            Value out = Value::matrix(N, 1, ValueType::COMPLEX, mr);
+            const std::complex<double> *src = v.complexData();
+            std::complex<double> *od = out.complexDataMut();
+            for (size_t i = 0; i < N; ++i) od[i] = src[i];
+            return out;
+        }
+        Value out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        for (size_t i = 0; i < N; ++i) od[i] = v.elemAsDouble(i);
+        return out;
+    };
+    return {copyV(resp), copyV(freq)};
+}
+
 namespace detail {
 
 static double argTs(Span<const Value> args, size_t pos) {
@@ -258,6 +327,27 @@ void ss_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                     0, 0, "ss", "", "m:ss:nargin");
     outs[0] = ss(ctx.engine->resource(),
                  args[0], args[1], args[2], args[3], argTs(args, 4));
+}
+
+void filt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+              CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("filt: requires (num, den [, Ts])",
+                    0, 0, "filt", "", "m:filt:nargin");
+    // MATLAB default Ts for filt is -1 (unspecified discrete).
+    const double Ts = (args.size() >= 3 && !args[2].isEmpty())
+                      ? args[2].toScalar() : -1.0;
+    outs[0] = filt(ctx.engine->resource(), args[0], args[1], Ts);
+}
+
+void frd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+             CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("frd: requires (response, frequency [, Ts])",
+                    0, 0, "frd", "", "m:frd:nargin");
+    outs[0] = frd(ctx.engine->resource(), args[0], args[1], argTs(args, 2));
 }
 
 static bool wantVector(Span<const Value> args, size_t pos) {
@@ -302,6 +392,20 @@ void ssdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     if (nargout > 1) outs[1] = std::move(B);
     if (nargout > 2) outs[2] = std::move(C);
     if (nargout > 3) outs[3] = std::move(D);
+}
+
+void frdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+                CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("frdata: requires (sys [, 'v'])",
+                    0, 0, "frdata", "", "m:frdata:nargin");
+    // 'v' flag accepted for MATLAB compatibility; frdata always returns
+    // column vectors regardless (we don't model SISO 1×1×N tensors).
+    (void)wantVector(args, 1);
+    auto [resp, freq] = frdata(ctx.engine->resource(), args[0]);
+    outs[0] = std::move(resp);
+    if (nargout > 1) outs[1] = std::move(freq);
 }
 
 } // namespace detail
