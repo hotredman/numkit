@@ -176,6 +176,10 @@ export default function InteractivePlot({
         </clipPath>
       </defs>
 
+      {/* Full viewBox background so any "letterbox" margins from
+          preserveAspectRatio="meet" don't show through to the body's
+          panel-coloured background underneath. */}
+      <rect x={0} y={0} width={width} height={height} fill="var(--bg-1)" />
       <rect x={padL} y={padT} width={W} height={H} fill="var(--plot-bg)" />
 
       {minor && xTicks.minor.map((v, i) => (
