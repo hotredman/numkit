@@ -1530,7 +1530,9 @@ input, select { font-family: inherit; color: inherit; }
 .ve-table {
   border-collapse: separate;
   border-spacing: 0;
-  min-width: 100%;
+  /* Natural content width — `min-width: 100%` would stretch a single
+     column to fill the wrap, which looked terrible for vectors. */
+  width: max-content;
 }
 .ve-table thead th {
   position: sticky; top: 0;
