@@ -2876,7 +2876,7 @@ intentionally omitted — flat solver functions only.
 
 ### Probability Distributions
 
-**Namespace:** `stats.dist.*` — 100 ✅ + 0 ⚠️ / 130+ = 77%
+**Namespace:** `stats.dist.*` — 105 ✅ + 0 ⚠️ / 130+ = 81%
 
 Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) / `*rnd` / `*stat`. All `rnd` functions share `numkit::builtin::sharedEngine()` so `rng(seed)` reseeds them. Discrete `*inv` use one-ULP relative tolerance against the public cdf so `inv(cdf(k))=k` round-trips don't overshoot.
 
@@ -2982,11 +2982,11 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `gpinv` | ✅ | 0.003 | 291.99× | 97.75× | OK | Sig: x = gpinv(p, k, sigma, theta). |
 | `gprnd` | ✅ |  |  |  |  |  |
 | `gpstat` | ✅ | 0.003 | 318.16× | 56.26× | OK | Sig: [m, v] = gpstat(k, sigma, theta). mean = theta + sigma/(1-k); var = sigma²/((1-k)²·(1-2k)). |
-| `nakapdf` | ❌ |  |  |  |  | Nakagami |
-| `nakacdf` | ❌ |  |  |  |  |  |
-| `nakainv` | ❌ |  |  |  |  |  |
-| `nakarnd` | ❌ |  |  |  |  |  |
-| `nakastat` | ❌ |  |  |  |  |  |
+| `nakapdf` | ✅ | 0.004 |  | 64.72× | OK | Sig: y = nakapdf(x, mu, omega). Nakagami PDF: (2μ^μ/Γ(μ)Ω^μ)·x^(2μ−1)·exp(−μx²/Ω). Octave's statistics package has direct names; MATLAB exposes via pdf('Nakagami', ...). Direct numkit + Octave parity. |
+| `nakacdf` | ✅ |  |  |  |  |  |
+| `nakainv` | ✅ |  |  |  |  |  |
+| `nakarnd` | ✅ |  |  |  |  |  |
+| `nakastat` | ✅ |  |  |  |  |  |
 | `ricepdf` | ❌ |  |  |  |  | Rician |
 | `ricecdf` | ❌ |  |  |  |  |  |
 | `riceinv` | ❌ |  |  |  |  |  |

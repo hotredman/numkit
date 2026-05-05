@@ -26,6 +26,7 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/geometric.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/negbin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/hypergeom.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/distributions/nakagami.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/distance.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/kmeans.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/kmedoids.cpp

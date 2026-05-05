@@ -117,6 +117,13 @@ void gpinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void gprnd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void gpstat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// distributions/nakagami.cpp
+void nakapdf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void nakacdf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void nakainv_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void nakarnd_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void nakastat_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // distributions/uniform.cpp
 void unifpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void unifcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -387,6 +394,12 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "gpinv",    &stats::detail::gpinv_reg);
     reg("dist", "gprnd",    &stats::detail::gprnd_reg);
     reg("dist", "gpstat",   &stats::detail::gpstat_reg);
+
+    reg("dist", "nakapdf",  &stats::detail::nakapdf_reg);
+    reg("dist", "nakacdf",  &stats::detail::nakacdf_reg);
+    reg("dist", "nakainv",  &stats::detail::nakainv_reg);
+    reg("dist", "nakarnd",  &stats::detail::nakarnd_reg);
+    reg("dist", "nakastat", &stats::detail::nakastat_reg);
 
     reg("dist", "unifpdf",  &stats::detail::unifpdf_reg);
     reg("dist", "unifcdf",  &stats::detail::unifcdf_reg);
