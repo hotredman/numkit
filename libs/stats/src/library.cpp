@@ -29,6 +29,7 @@ void mink_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rmse_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mape_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ecdf_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void datastats_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void ecdfhist_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void normalize_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void rescale_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -259,6 +260,7 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "rmse",      &stats::detail::rmse_reg);
     reg("descriptive", "mape",      &stats::detail::mape_reg);
     reg("descriptive", "ecdf",      &stats::detail::ecdf_reg);
+    reg("descriptive", "datastats", &stats::detail::datastats_reg);
     reg("descriptive", "ecdfhist",  &stats::detail::ecdfhist_reg);
     reg("descriptive", "normalize", &stats::detail::normalize_reg);
     reg("descriptive", "rescale",   &stats::detail::rescale_reg);

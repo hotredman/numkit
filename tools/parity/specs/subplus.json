@@ -1,0 +1,15 @@
+{
+  "name": "subplus",
+  "namespace": "builtin",
+  "setup": "x = [-3 -1 0 1 2 3];",
+  "expr": "y = subplus(x);",
+  "iters": 5,
+  "tol": 1e-15,
+  "fingerprint": [
+    "y(1)",
+    "y(3)",
+    "y(6)",
+    "sum(y)"
+  ],
+  "comment": "Sig: y = subplus(x). Truncated power: max(x, 0) elementwise. NaN passes through."
+}

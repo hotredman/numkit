@@ -22,4 +22,7 @@ Value fix(std::pmr::memory_resource *mr, const Value &x);
 
 Value sign(std::pmr::memory_resource *mr, const Value &x);
 
+/// subplus(x) — truncated positive part: max(x, 0). NaN passes through.
+Value subplus(std::pmr::memory_resource *mr, const Value &x);
+
 } // namespace numkit::builtin
