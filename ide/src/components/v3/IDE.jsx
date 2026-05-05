@@ -565,10 +565,10 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     setPanels((p) => ({ ...p, terminal: true }));
     setDebugLine(null);
     setDebugState(null);
-    addOutput([
-      { type: 'system', text: `── Running ${tab.name} ──` },
-      { type: 'input',  text: tab.code },
-    ]);
+    // Just announce the run — the source is already in the editor pane,
+    // dumping it into the console is noise that pushes useful output off
+    // the visible area.
+    addOutput([{ type: 'system', text: `── Running ${tab.name} ──` }]);
     setConsoleNotify(true);
     runCode(tab.code);
     setTabs((p) => p.map((t) => (t.id === activeTab ? { ...t, modified: false } : t)));
