@@ -23,7 +23,7 @@ multiple sections; all occurrences refresh together).
 
 - **Builtin** — MATLAB base (Mathematics + Language Fundamentals + Programming).
   Self-contained: no dependency on toolbox libs.
-- **Toolbox libs** — mirror MATLAB toolboxes: Signal / Image / Stats /
+- **Toolbox libs** — mirror MATLAB toolboxes: Signal / Image / Statistics /
   Communications / Control / Wavelet / Graphics / IO / Fitting.
 - **Future-lib placeholders** — Linear Algebra / ODE / Optimization. Functions
   may currently live under Builtin physically; they will migrate to their own
@@ -143,7 +143,7 @@ multiple sections; all occurrences refresh together).
   - [Signal Descriptive Statistics](#signal-descriptive-statistics)
   - [Smoothing and Denoising](#smoothing-and-denoising)
   - [Vibration Analysis](#vibration-analysis)
-- [**Stats**](#stats)
+- [**Statistics**](#statistics)
   - [Descriptive Statistics](#descriptive-statistics)
   - [Descriptive Statistics — extras](#descriptive-statistics--extras)
   - [Probability Distributions](#probability-distributions)
@@ -657,7 +657,7 @@ multiple sections; all occurrences refresh together).
 | `sec` | ✅ | 2.690 | 0.33× | 4.47× | OK | Sig: Y = sec(X). 1M-pt on [-1.5, 1.5] (avoid π/2). 20 iters. Element-wise SAVE. |
 | `secd` | ✅ | 2.798 | 0.29× | 10.67× | OK | Sig: Y = secd(X). 1M-pt on [-89°, 89°]. 20 iters. Element-wise SAVE. |
 | `sech` | ✅ | 3.418 | 0.31× | 3.92× | OK | Sig: Y = sech(X). 1M-pt on [-5, 5]. 20 iters. Element-wise SAVE. |
-| `sin` | ✅ | 0.836 | 1.08× | 5.61× | OK | Sig: Y = sin(X). 1M-point sweep over 4π. 20 iters. Element-wise SAVE. |
+| `sin` | ✅ | 0.836 |  |  | N/A | Sig: Y = sin(X). 1M-point sweep over 4π. 20 iters. Element-wise SAVE. |
 | `sind` | ✅ | 2.597 | 0.32× | 7.95× | OK | Sig: Y = sind(X). 1M-pt sweep on [-720°, 720°]. degree variant. 20 iters. Element-wise SAVE. |
 | `sinh` | ✅ | 3.105 | 0.35× | 1.87× | OK | Sig: Y = sinh(X). 1M-pt sweep on [-3, 3]. 20 iters. Element-wise SAVE. |
 | `sinpi` | ✅ | 2.577 | 0.27× | 6.71× | OK | Sig: Y = sinpi(X) = sin(π·X). 1M-pt sweep on [-2, 2]. 20 iters. Element-wise SAVE. |
@@ -2801,7 +2801,7 @@ intentionally omitted — flat solver functions only.
 | `tachorpm` | ✅ |  |  |  |  | tachometer→RPM |
 | `tsa` | ✅ |  |  |  |  |  |
 
-## Stats
+## Statistics
 
 ### Descriptive Statistics
 

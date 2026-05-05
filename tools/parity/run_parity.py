@@ -4,7 +4,7 @@ Parity harness for numkit-m.
 
 Runs a function spec against three engines (numkit native, MATLAB R2025b,
 Octave 11.1.0), compares output for correctness, measures wall-clock time,
-and appends a row to PARITY_PROGRESS.md.
+and appends a row to PROGRESS.md.
 
 Usage:
     python tools/parity/run_parity.py specs/erf.json
@@ -38,7 +38,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 NUMKIT_EXE = ROOT / "build-desktop-fast" / "Release" / "numkit_example.exe"
 MATLAB_EXE = "matlab"  # on PATH
 OCTAVE_EXE = r"C:\Program Files\GNU Octave\Octave-11.1.0\mingw64\bin\octave-cli.exe"
-PROGRESS_MD = ROOT / "PARITY_PROGRESS.md"
+PROGRESS_MD = ROOT / "PROGRESS.md"
 
 
 # ───────────────────────────── spec ──────────────────────────────────
@@ -411,7 +411,7 @@ def save_close(a: SaveBlock, b: SaveBlock, tol: float) -> tuple[bool, str]:
 
 # ─────────────────────────── log writer ──────────────────────────────
 #
-# PARITY_PROGRESS.md is the live parity map: grouped by MATLAB-doc
+# PROGRESS.md is the live parity map: grouped by MATLAB-doc
 # section, one row per function, one ✅/❌/⚠️ status per function.
 # Each spec run updates the row(s) for its function in place by
 # regex-matching the function name. The same function may appear in
@@ -433,7 +433,7 @@ def fmt_ratio(num: float | None, den: float | None) -> str:
     return f"{num / den:.2f}×"
 
 
-# Match a function's row in PARITY_PROGRESS.md. Capture the leading
+# Match a function's row in PROGRESS.md. Capture the leading
 # `| `fn` | status |` so we keep the existing TODO-derived status mark.
 def make_row_finder(name: str) -> re.Pattern:
     return re.compile(
@@ -447,7 +447,7 @@ def make_row_finder(name: str) -> re.Pattern:
 def update_row(*, name: str, nk: Result | None,
                ml: Result | None, oc: Result | None,
                correctness: str, comment: str) -> int:
-    """Update every row in PARITY_PROGRESS.md whose function-name matches
+    """Update every row in PROGRESS.md whose function-name matches
     `name`. Returns the number of rows touched. If the function isn't in
     the journal yet (new entry not yet added by regenerate_progress.py),
     we append a row to a "Misc / unclassified" section at EOF."""

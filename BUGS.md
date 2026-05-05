@@ -714,7 +714,7 @@ mldivide(A, B)
 mrdivide(A, B')   % same — "not implemented"
 mpower(A, 2)      % same
 ```
-**Symptom:** numkit ✅-marks these in PARITY_PROGRESS as "named-fn form
+**Symptom:** numkit ✅-marks these in PROGRESS as "named-fn form
 added in Pack 11" but the actual function body throws "not implemented".
 The `\` and `/` and `^` operator dispatch may work; only the named-fn
 adapters are stubs.
@@ -795,7 +795,7 @@ shape parsing. Bare `true`/`false` resolve to scalar logicals via
 % Even with workaround, interpn(...) returns nothing usable.
 ```
 **MATLAB:** `interpn(X1, X2, ..., V, Xq1, Xq2, ...)` is N-D linear
-interpolation. Marked ✅ in PARITY_PROGRESS but the function call
+interpolation. Marked ✅ in PROGRESS but the function call
 fails (probably tied to BUGS #23 — meshgrid 3-arg missing — and
 the underlying interp infrastructure not generalized to N-D).
 **Where:** [libs/builtin/src/](libs/builtin/) `interpn` adapter.

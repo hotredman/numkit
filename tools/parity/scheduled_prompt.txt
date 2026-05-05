@@ -10,14 +10,14 @@
 3. C:/Users/User/.claude/projects/c--Users-User-Projects-numkit-m/memory/project_parity_cycle_progress.md
    ← *** Главный документ: что сделано, текущая цель, правила ***
 4. BUGS.md (8+ known issues — не считать их регрессиями)
-5. PARITY_PROGRESS.md (живая карта парити; ищешь строки с пустыми ячейками)
+5. PROGRESS.md (живая карта парити; ищешь строки с пустыми ячейками)
 
 ═══════════════════════════════════════════════════════════════════════════
 ТЕКУЩАЯ ЦЕЛЬ
 ═══════════════════════════════════════════════════════════════════════════
 
 Honest per-signature bulk-bench. НЕ реализовывать новые функции. Для
-каждой ✅ функции из PARITY_PROGRESS.md протестировать **каждую
+каждой ✅ функции из PROGRESS.md протестировать **каждую
 документированную сигнатуру** и записать честный результат в
 {OK | MISMATCH | THROW | MISSING | SKIP}.
 
@@ -33,7 +33,7 @@ A. Подготовка
    3. Прочитать BUGS.md и project_parity_cycle_progress.md полностью.
 
 B. Выбор работы
-   4. Из PARITY_PROGRESS.md выбери **до 30 функций со статусом ✅ и
+   4. Из PROGRESS.md выбери **до 30 функций со статусом ✅ и
       пустой ячейкой numkit_ms** (приоритет: верхние секции,
       Trigonometry / Arithmetic / Special Functions). Пропусти
       секции с namespace `categorical.*`, `table.*`, `datetime.*`,
@@ -117,12 +117,12 @@ F. Commit + push
 * MATLAB или Octave не запускается (см. paths в memory/reference_matlab_octave_paths.md)
 * контекст близок к лимиту — лучше commit + push текущего прогресса
   и завершиться, следующий cron-запуск продолжит с актуального
-  PARITY_PROGRESS.md
+  PROGRESS.md
 
 Завершайся успешно если:
 
 * Все 30 функций раунда обработаны.
-* PARITY_PROGRESS.md показывает: 100% строк ✅ имеют либо numkit_ms
+* PROGRESS.md показывает: 100% строк ✅ имеют либо numkit_ms
   замер, либо явный SKIP comment. Если так — отметь в commit message
   "SWEEP COMPLETE" — следующие запуски будут no-op.
 

@@ -1,7 +1,7 @@
-"""Diff local MATLAB reference against numkit's PARITY_PROGRESS.md.
+"""Diff local MATLAB reference against numkit's PROGRESS.md.
 
 Categorizes every MATLAB function as:
-  HAVE   — listed in PARITY_PROGRESS.md (regardless of ✅/❌ status)
+  HAVE   — listed in PROGRESS.md (regardless of ✅/❌ status)
   MISS   — not listed at all
   SKIP   — explicitly out-of-scope (UI / Java / quantum / OOP / etc.)
 
@@ -23,7 +23,7 @@ TOC_FILES = [
     Path(r"C:/Program Files/MATLAB/R2025b/help/signal/helpfuncbycat.xml"),
     Path(r"C:/Program Files/MATLAB/R2025b/help/stats/helpfuncbycat.xml"),
 ]
-PROGRESS = ROOT / "PARITY_PROGRESS.md"
+PROGRESS = ROOT / "PROGRESS.md"
 
 # ── Out-of-scope ────────────────────────────────────────────────────
 # Top-level sections to drop entirely (per project decision: numkit is
