@@ -1,10 +1,10 @@
 {
   "name": "normlike",
   "namespace": "stats",
-  "setup": "x = [1 2 3 4 5]';",
-  "expr": "nL = normlike([3, 2], x);",
+  "setup": "x = [1.2 2.4 3.1 4.5 5.0 6.2 7.1]'; cens = [0 0 0 0 0 1 1]'; freq = [2 2 2 1 1 1 1]';",
+  "expr": "nL_basic = normlike([3, 1.5], x); nL_cens = normlike([3, 1.5], x, cens); nL_freq = normlike([3, 1.5], x, [], freq); nL_both = normlike([3, 1.5], x, cens, freq); nL_empty = normlike([3, 1.5], []); nL_sig0 = normlike([3, 0], x);",
   "iters": 5,
-  "tol": 1e-9,
-  "fingerprint": ["nL"],
-  "comment": "Sig: nL = normlike(params=[mu sigma], x). Negative log-likelihood. Used to verify the closed-form formula vs MATLAB. Second output (avar) intentionally not implemented yet."
+  "tol": 1e-10,
+  "fingerprint": ["nL_basic", "nL_cens", "nL_freq", "nL_both", "nL_empty", "nL_sig0"],
+  "comment": "Sig: nL = normlike([mu sigma], data[, cens, freq]). Default + censoring (right-censored => -log(S(z))) + freq weights + empty + invalid-sigma (=> NaN). Second output `avar` (inverse observed-Fisher info) NOT implemented — MATLAB compatibility holds for one-output form only."
 }

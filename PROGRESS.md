@@ -3020,28 +3020,28 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `mle` | ❌ |  |  |  |  | generic MLE for arbitrary pdf |
 | `mlecov` | ❌ |  |  |  |  | covariance of MLE estimates |
 | `betafit` | ❌ |  |  |  |  |  |
-| `betalike` | ✅ | 0.003 | 196.43× | 86.42× | OK | Sig: nL = betalike([a b], x). Negative log-likelihood for Beta(a, b). |
+| `betalike` | ✅ | 0.003 | 196.43× | 86.42× | OK | Sig: nL = betalike([a b], x). Negative log-likelihood for Beta(a, b). Default-path only — no `freq`, `censoring`, or `avar` second output. |
 | `binofit` | ✅ | 0.005 | 299.42× | 795.49× | OK | Sig: [phat, pci] = binofit(x, n[, alpha]). Clopper-Pearson exact binomial CI. Vector inputs return Nx1 phat + Nx2 pci. |
 | `evfit` | ❌ |  |  |  |  | extreme value |
-| `evlike` | ✅ | 0.003 | 148.54× | 61.75× | OK | Sig: nL = evlike([mu sigma], x). Negative log-likelihood for Type-I extreme value (Gumbel min). MATLAB convention: f(x) = (1/sigma)·exp((x−mu)/sigma)·exp(−exp((x−mu)/sigma)). |
+| `evlike` | ✅ | 0.003 | 148.54× | 61.75× | OK | Sig: nL = evlike([mu sigma], x). Negative log-likelihood for Type-I extreme value (Gumbel min). MATLAB convention: f(x) = (1/sigma)·exp((x−mu)/sigma)·exp(−exp((x−mu)/sigma)). Default-path only — no `freq`, `censoring`, or `avar` second output. |
 | `expfit` | ✅ | 0.004 | 204.70× | 1973.86× | OK | Sig: [muhat, muci] = expfit(x[, alpha]). MLE for exponential: mu=mean(x). Exact CI: 2N·muhat ~ μ·χ²(2N). |
-| `explike` | ✅ | 0.002 | 188.87× | 52.87× | OK | Sig: nL = explike(mu, x). Negative log-likelihood for Exp(mu). Closed form: N·log(mu) + Σx/mu. |
+| `explike` | ✅ | 0.002 | 188.87× | 52.87× | OK | Sig: nL = explike(mu, x). Negative log-likelihood for Exp(mu). Closed form: N·log(mu) + Σx/mu. Default-path only — no `freq`, `censoring`, or `avar` second output. |
 | `gamfit` | ❌ |  |  |  |  |  |
-| `gamlike` | ✅ | 0.003 | 140.59× | 33.68× | OK | Sig: nL = gamlike([a b], x). Negative log-likelihood for Gamma(a, b) with shape a and scale b. |
+| `gamlike` | ✅ | 0.003 | 140.59× | 33.68× | OK | Sig: nL = gamlike([a b], x). Negative log-likelihood for Gamma(a, b) with shape a and scale b. Default-path only — no `freq`, `censoring`, or `avar` second output. |
 | `gevfit` | ❌ |  |  |  |  | generalised extreme value |
-| `gevlike` | ✅ | 0.003 | 137.82× | 61.48× | OK | Sig: nL = gevlike([k sigma mu], x). Generalised Extreme Value negative log-likelihood; closed form for k=0 (Gumbel-MAX limit) and k≠0. |
+| `gevlike` | ✅ | 0.003 | 137.82× | 61.48× | OK | Sig: nL = gevlike([k sigma mu], x). Generalised Extreme Value negative log-likelihood; closed form for k=0 (Gumbel-MAX limit) and k≠0. Default-path only — no `freq`, `censoring`, or `avar` second output. |
 | `gpfit` | ❌ |  |  |  |  | generalised Pareto |
-| `gplike` | ✅ | 0.003 | 127.14× |  | OK | Sig: nL = gplike([k sigma], x). Generalised Pareto nLogL; theta is implicitly 0. |
+| `gplike` | ✅ | 0.003 | 127.14× |  | OK | Sig: nL = gplike([k sigma], x). Generalised Pareto nLogL; theta is implicitly 0. Default-path only — no `freq`, `censoring`, or `avar` second output. |
 | `lognfit` | ✅ | 0.006 | 482.94× | 1234.73× | OK | Sig: [parm, pci] = lognfit(x[, alpha]). Lognormal MLE: parm=[mu sigma] of log(x). pci is 2x2: column 1 = mu CI, column 2 = sigma CI. |
-| `lognlike` | ✅ | 0.003 | 186.33× | 35.92× | OK | Sig: nL = lognlike([mu sigma], x). Negative log-likelihood for lognormal. |
+| `lognlike` | ✅ | 0.003 | 186.33× | 35.92× | OK | Sig: nL = lognlike([mu sigma], x). Negative log-likelihood for lognormal. Default-path only — no `freq`, `censoring`, or `avar` second output. |
 | `nbinfit` | ❌ |  |  |  |  |  |
 | `normfit` | ✅ | 0.006 | 466.90× | 1219.64× | OK | Sig: [mu, sd, muci, sdci] = normfit(x[, alpha]). MLE for normal: mu=mean, sd=sample std (N-1). t-CI for mu, chi² CI for sigma. Default alpha=0.05. |
-| `normlike` | ✅ | 0.003 | 110.58× | 20.34× | OK | Sig: nL = normlike(params=[mu sigma], x). Negative log-likelihood. Used to verify the closed-form formula vs MATLAB. Second output (avar) intentionally not implemented yet. |
+| `normlike` | ✅ | 0.006 | 257.53× |  | OK | Sig: nL = normlike([mu sigma], data[, cens, freq]). Default + censoring (right-censored => -log(S(z))) + freq weights + empty + invalid-sigma (=> NaN). Second output `avar` (inverse observed-Fisher info) NOT implemented — MATLAB compatibility holds for one-output form only. |
 | `poissfit` | ✅ | 0.004 | 335.07× | 2256.85× | OK | Sig: [lhat, lci] = poissfit(x[, alpha]). MLE for Poisson: lambda=mean(x). Exact CI via chi² inversion (Garwood). |
 | `raylfit` | ✅ | 0.004 | 405.25× | 1443.27× | OK | Sig: [shat, sci] = raylfit(x[, alpha]). Rayleigh MLE: σ = √(Σx²/(2N)); CI from chi² inversion 2N·σ̂² ~ σ²·χ²(2N). |
 | `unifit` | ✅ | 0.004 | 84.69× |  | OK | Sig: [a, b, aci, bci] = unifit(x[, alpha]). MLE for U(a,b): a=min, b=max. CI extension delta = (b-a)·(α^(-1/n) − 1). |
 | `wblfit` | ❌ |  |  |  |  |  |
-| `wbllike` | ✅ | 0.003 | 203.33× | 68.33× | OK | Sig: nL = wbllike([scale shape], x). Negative log-likelihood for Weibull(a, b). |
+| `wbllike` | ✅ | 0.003 | 203.33× | 68.33× | OK | Sig: nL = wbllike([scale shape], x). Negative log-likelihood for Weibull(a, b). Default-path only — no `freq`, `censoring`, or `avar` second output. |
 
 ### Multivariate Distributions
 

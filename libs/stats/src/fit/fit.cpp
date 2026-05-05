@@ -279,17 +279,44 @@ constexpr double kLog2Pi = 1.8378770664093454835606594728112352;
 }
 
 double normlike(std::pmr::memory_resource * /*mr*/, double mu, double sigma,
-                const Value &x)
+                const Value &x, const Value &cens, const Value &freq)
 {
     const size_t N = x.numel();
-    if (N == 0 || sigma <= 0.0) return std::numeric_limits<double>::infinity();
-    double ss = 0.0;
+    if (N == 0) return 0.0;
+    if (!(sigma > 0.0)) return std::numeric_limits<double>::quiet_NaN();
+    const bool useC = cens.numel() > 0;
+    const bool useF = freq.numel() > 0;
+    if (useC && cens.numel() != N)
+        throw Error("normlike: censoring must match the data length",
+                    0, 0, "normlike", "", "m:normlike:cens");
+    if (useF && freq.numel() != N)
+        throw Error("normlike: freq must match the data length",
+                    0, 0, "normlike", "", "m:normlike:freq");
+
+    const double inv_s   = 1.0 / sigma;
+    const double inv_2s2 = 0.5 * inv_s * inv_s;
+    const double logS    = std::log(sigma);
+    const double halfLog2pi = 0.5 * kLog2Pi;
+    const double sqrt2_inv  = 1.0 / std::sqrt(2.0);
+    double nL = 0.0;
     for (size_t i = 0; i < N; ++i) {
-        const double d = x.elemAsDouble(i) - mu;
-        ss += d * d;
+        const double w = useF ? freq.elemAsDouble(i) : 1.0;
+        if (w == 0.0) continue;                                  // MATLAB drops zero-freq rows
+        const double xi = x.elemAsDouble(i);
+        if (std::isnan(xi)) return std::numeric_limits<double>::quiet_NaN();
+        const double d = xi - mu;
+        const double z = d * inv_s;
+        const bool censored = useC && (cens.elemAsDouble(i) != 0.0);
+        if (censored) {
+            // -log(S(z)) = -log(0.5·erfc(z/sqrt(2)))
+            const double s = 0.5 * std::erfc(z * sqrt2_inv);
+            nL += w * (-std::log(s));
+        } else {
+            // -log(f(z)) = log(σ) + 0.5·log(2π) + 0.5·z²
+            nL += w * (logS + halfLog2pi + d * d * inv_2s2);
+        }
     }
-    return double(N) * std::log(sigma) + 0.5 * double(N) * kLog2Pi
-         + ss / (2.0 * sigma * sigma);
+    return nL;
 }
 
 double explike(std::pmr::memory_resource * /*mr*/, double mu, const Value &x)
@@ -553,7 +580,19 @@ static void like2_reg(const char *fn,
 
 void normlike_reg(Span<const Value> args, size_t /*nargout*/,
                   Span<Value> outs, CallContext &ctx)
-{ like2_reg("normlike", &normlike, args, outs, ctx); }
+{
+    if (args.size() < 2 || args[0].numel() < 2)
+        throw Error("normlike: requires (params=[mu sigma], data[, cens, freq])",
+                    0, 0, "normlike", "", "m:normlike:nargin");
+    const double mu    = args[0].elemAsDouble(0);
+    const double sigma = args[0].elemAsDouble(1);
+    Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, ctx.engine->resource());
+    const Value &cens = (args.size() >= 3) ? args[2] : emptyVal;
+    const Value &freq = (args.size() >= 4) ? args[3] : emptyVal;
+    const double nL = normlike(ctx.engine->resource(), mu, sigma, args[1],
+                               cens, freq);
+    outs[0] = Value::scalar(nL, ctx.engine->resource());
+}
 
 void lognlike_reg(Span<const Value> args, size_t /*nargout*/,
                   Span<Value> outs, CallContext &ctx)
