@@ -252,6 +252,7 @@ void raylfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 // mvdist/mvdist.cpp
 void mvnpdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mnpdf_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void mvtpdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -469,6 +470,7 @@ void StatsLibrary::install(Engine &engine)
 
     reg("mvdist", "mvnpdf", &stats::detail::mvnpdf_reg);
     reg("mvdist", "mnpdf",  &stats::detail::mnpdf_reg);
+    reg("mvdist", "mvtpdf", &stats::detail::mvtpdf_reg);
 }
 
 } // namespace numkit
