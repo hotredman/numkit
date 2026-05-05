@@ -569,6 +569,51 @@ signtest(std::pmr::memory_resource *mr, const Value &x,
 }
 
 // ════════════════════════════════════════════════════════════════════
+// chi2gof — chi-squared goodness-of-fit (frequency form)
+// ════════════════════════════════════════════════════════════════════
+
+std::tuple<Value, Value, Value, Value>
+chi2gof(std::pmr::memory_resource *mr,
+        const Value &observed, const Value &expected,
+        int nparams, double alpha)
+{
+    const size_t K = observed.numel();
+    if (expected.numel() != K)
+        throw Error("chi2gof: observed and expected must have same length",
+                    0, 0, "chi2gof", "", "m:chi2gof:size");
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    if (K < 2)
+        return std::make_tuple(Value::scalar(nan, mr),
+                               Value::scalar(0.0, mr),
+                               Value::scalar(nan, mr),
+                               Value::scalar(0.0, mr));
+
+    double chi2 = 0.0;
+    for (size_t i = 0; i < K; ++i) {
+        const double O = observed.elemAsDouble(i);
+        const double E = expected.elemAsDouble(i);
+        if (E <= 0.0) continue;
+        const double d = O - E;
+        chi2 += d * d / E;
+    }
+    const double df = double(K) - 1.0 - double(nparams);
+    if (df <= 0.0)
+        return std::make_tuple(Value::scalar(nan, mr),
+                               Value::scalar(0.0, mr),
+                               Value::scalar(chi2, mr),
+                               Value::scalar(df, mr));
+
+    Value xv = Value::scalar(chi2, mr);
+    const double cdf = chi2cdf(mr, xv, df).toScalar();
+    const double p = std::max(0.0, 1.0 - cdf);
+    const int h = (p < alpha) ? 1 : 0;
+    return std::make_tuple(Value::scalar(p, mr),
+                           Value::scalar(double(h), mr),
+                           Value::scalar(chi2, mr),
+                           Value::scalar(df, mr));
+}
+
+// ════════════════════════════════════════════════════════════════════
 // vartestn — Bartlett's k-sample variance test
 // ════════════════════════════════════════════════════════════════════
 
@@ -1248,6 +1293,49 @@ void jbtest_reg(Span<const Value> args, size_t nargout,
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(JB);
     if (nargout > 3) outs[3] = std::move(cv);
+}
+
+void chi2gof_reg(Span<const Value> args, size_t nargout,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("chi2gof: requires X[, 'Frequency', f, 'Expected', e, "
+                    "'NParams', np, 'Alpha', a]",
+                    0, 0, "chi2gof", "", "m:chi2gof:nargin");
+    auto *mr = ctx.engine->resource();
+
+    Value freq, expected;
+    int nparams = 0;
+    double alpha = 0.05;
+
+    // First arg may be the data vector (auto-binned form, NYI) or just
+    // a category-label vector that pairs with Frequency / Expected. We
+    // require Frequency + Expected to be supplied via name-value.
+    for (size_t i = 1; i + 1 < args.size(); i += 2) {
+        if (!args[i].isChar() && !args[i].isString()) break;
+        std::string name = args[i].toString();
+        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        const Value &v = args[i + 1];
+        if      (name == "frequency") freq = v;
+        else if (name == "expected")  expected = v;
+        else if (name == "nparams")   nparams = static_cast<int>(v.toScalar());
+        else if (name == "alpha")     alpha = v.toScalar();
+        // 'edges', 'nbins', 'ctype', 'emin', etc. silently ignored
+    }
+    if (freq.isEmpty() || expected.isEmpty())
+        throw Error("chi2gof: numkit currently requires explicit "
+                    "'Frequency' and 'Expected' name-value arguments.",
+                    0, 0, "chi2gof", "", "m:chi2gof:auto");
+
+    auto [p, h, chi2, df] = chi2gof(mr, freq, expected, nparams, alpha);
+    outs[0] = std::move(h);
+    if (nargout > 1) outs[1] = std::move(p);
+    if (nargout > 2) {
+        Value s = Value::structure(mr);
+        s.field("chi2stat") = chi2;
+        s.field("df")       = df;
+        outs[2] = std::move(s);
+    }
 }
 
 void vartestn_reg(Span<const Value> args, size_t nargout,

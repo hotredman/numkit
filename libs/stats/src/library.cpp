@@ -246,6 +246,7 @@ void signrank_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ranksum_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void runstest_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void vartestn_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void chi2gof_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // resample/resample.cpp
 void randsample_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -498,6 +499,7 @@ void StatsLibrary::install(Engine &engine)
     reg("test", "ranksum",  &stats::detail::ranksum_reg);
     reg("test", "runstest", &stats::detail::runstest_reg);
     reg("test", "vartestn", &stats::detail::vartestn_reg);
+    reg("test", "chi2gof",  &stats::detail::chi2gof_reg);
 
     reg("resample", "randsample", &stats::detail::randsample_reg);
     reg("resample", "datasample", &stats::detail::datasample_reg);
