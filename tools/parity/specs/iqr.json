@@ -1,13 +1,15 @@
 {
   "name": "iqr",
-  "namespace": "core",
-  "setup": "x = sin(linspace(0, 100, 1000000));",
-  "expr": "y = iqr(x);",
-  "iters": 50,
+  "namespace": "stats",
+  "setup": "A = [1 4 7; 2 5 8; 3 6 9; 4 7 10; 5 8 11];",
+  "expr": "r1 = iqr([1:10]'); rA = iqr(A); rD2 = iqr(A, 2); r_all = iqr(A, 'all'); r_vec = iqr(A, [1 2]);",
+  "iters": 5,
   "tol": 1e-10,
-  "comment": "Sig: R = iqr(X). 1M-pt inter-quartile. 50 iters.",
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r1",
+    "rA(1)", "rA(2)", "rA(3)",
+    "rD2(1)", "rD2(3)", "rD2(5)",
+    "r_all", "r_vec"
+  ],
+  "comment": "Sig: r = iqr(A[, dim | 'all' | vecdim]). MATLAB R2025b uses midpoint (R2007a) interpolation: iqr = prctile(A, 75) - prctile(A, 25). Closes audit/findings/stats/iqr.md (joint with quantile + prctile)."
 }

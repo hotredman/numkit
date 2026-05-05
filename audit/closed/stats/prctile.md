@@ -51,3 +51,8 @@ swap. `tol = 1e-9`.
 ## Out of scope for this ТЗ
 
 - N/A — joint fix with `quantile`.
+
+## Closed
+- Closed in commit: PENDING (joint quantile/prctile/iqr fix)
+- Closed date: 2026-05-06
+- Notes: switched default interpolation to MATLAB R2025b "midpoint" (R2007a / Type-5, positions (k-0.5)/N). Method N-V pair accepts {midpoint|inclusive|exclusive|approximate}. Added 'all' string and full-flatten vecdim dispatch. Approximate method falls back to midpoint (no t-digest yet). Integer-n quantile form (quantile(A, n)) NOT supported — pass an explicit p vector. Partial vecdim NOT supported — only full-flatten coverage.

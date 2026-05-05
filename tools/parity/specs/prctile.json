@@ -1,10 +1,16 @@
 {
   "name": "prctile",
-  "namespace": "core",
-  "setup": "x = sin(linspace(0, 100, 1000000)); p = [25 50 75 90];",
-  "expr": "y = prctile(x, p);",
-  "iters": 50,
+  "namespace": "stats",
+  "setup": "A = [1 4 7; 2 5 8; 3 6 9; 4 7 10; 5 8 11]; v10 = [1:10]';",
+  "expr": "p1 = prctile(v10, 25); p2 = prctile(v10, [25 50 75]); pA = prctile(A, 50); p_all = prctile(A, 50, 'all'); p_inc = prctile(v10, 25, 'Method', 'inclusive');",
+  "iters": 5,
   "tol": 1e-10,
-  "comment": "Sig: Y = prctile(X, P). 1M-pt at 4 percentiles. 50 iters.",
-  "out_var": "y"
+  "fingerprint": [
+    "p1",
+    "p2(1)", "p2(2)", "p2(3)",
+    "pA(1)", "pA(2)", "pA(3)",
+    "p_all",
+    "p_inc"
+  ],
+  "comment": "Sig: P = prctile(A, p [, dim | 'all' | vecdim] [, Method=method]). Same surface as quantile but p in [0, 100]. Closes audit/findings/stats/prctile.md."
 }

@@ -1,10 +1,17 @@
 {
   "name": "quantile",
-  "namespace": "core",
-  "setup": "x = sin(linspace(0, 100, 1000000)); q = [0.25 0.5 0.75 0.9];",
-  "expr": "y = quantile(x, q);",
-  "iters": 50,
+  "namespace": "stats",
+  "setup": "A = [1 4 7; 2 5 8; 3 6 9; 4 7 10; 5 8 11]; v10 = [1:10]';",
+  "expr": "q1 = quantile(v10, 0.25); q2 = quantile(v10, 0.5); q3 = quantile(v10, 0.75); qv = quantile(v10, [0.25 0.5 0.75]); qA = quantile(A, 0.5); qD2 = quantile(A, 0.5, 2); q_all = quantile(A, 0.5, 'all'); q_vec = quantile(A, 0.5, [1 2]); q_inc = quantile(v10, 0.25, 'Method', 'inclusive'); q_exc = quantile(v10, 0.25, 'Method', 'exclusive');",
+  "iters": 5,
   "tol": 1e-10,
-  "comment": "Sig: Y = quantile(X, Q). 1M-pt at 4 quantiles. 50 iters.",
-  "out_var": "y"
+  "fingerprint": [
+    "q1", "q2", "q3",
+    "qv(1)", "qv(2)", "qv(3)",
+    "qA(1)", "qA(2)", "qA(3)",
+    "qD2(1)", "qD2(3)", "qD2(5)",
+    "q_all", "q_vec",
+    "q_inc", "q_exc"
+  ],
+  "comment": "Sig: Q = quantile(A, p [, dim | 'all' | vecdim] [, Method=method]). Default = 'midpoint' (MATLAB R2025b R2007a algorithm), positions (k-0.5)/N. Methods: midpoint (default) | inclusive (Type-7) | exclusive (Type-6) | approximate (falls back to midpoint). Integer-n form (quantile(A, n) for evenly-spaced quantiles) NOT yet supported — pass an explicit p vector. Closes audit/findings/stats/quantile.md."
 }

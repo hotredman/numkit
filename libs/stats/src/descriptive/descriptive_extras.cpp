@@ -50,16 +50,19 @@ double sliceMax(const double *s, size_t n)
 }
 
 // Linear-interpolation quantile of a slice (MATLAB default, type 7).
+// MATLAB R2025b default ("midpoint" / R2007a / Type-5):
+//   positions (k-0.5)/N for k=1..N → q = p*N + 0.5, clamped to [1, N].
 double sliceQuantile(double *s, size_t n, double p)
 {
     if (n == 0) return std::numeric_limits<double>::quiet_NaN();
     std::sort(s, s + n);
     if (n == 1) return s[0];
-    const double h = p * (static_cast<double>(n) - 1.0);
-    const size_t lo = static_cast<size_t>(std::floor(h));
-    const size_t hi = std::min(lo + 1, n - 1);
-    const double frac = h - static_cast<double>(lo);
-    return s[lo] + frac * (s[hi] - s[lo]);
+    const double q = p * static_cast<double>(n) + 0.5;
+    if (q <= 1.0) return s[0];
+    if (q >= static_cast<double>(n)) return s[n - 1];
+    const size_t lo = static_cast<size_t>(std::floor(q)) - 1;
+    const double frac = q - std::floor(q);
+    return s[lo] + frac * (s[lo + 1] - s[lo]);
 }
 
 } // namespace
@@ -640,8 +643,54 @@ void iqr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     if (args.empty())
         throw Error("iqr: requires at least 1 argument",
                      0, 0, "iqr", "", "m:iqr:nargin");
-    const int dim = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
-    outs[0] = iqr(ctx.engine->resource(), args[0], dim);
+    int dim = 0;
+    bool flatten = false;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const Value &a = args[1];
+        if (a.isChar() || a.isString()) {
+            std::string s = a.toString();
+            std::transform(s.begin(), s.end(), s.begin(),
+                           [](unsigned char c) { return std::tolower(c); });
+            if (s == "all") flatten = true;
+            else throw Error("iqr: unknown flag '" + s + "'",
+                              0, 0, "iqr", "", "m:iqr:badFlag");
+        } else if (a.numel() == 1) {
+            dim = static_cast<int>(a.toScalar());
+        } else {
+            // vecdim: only full-flatten coverage supported
+            std::vector<int> dims;
+            for (size_t i = 0; i < a.numel(); ++i)
+                dims.push_back(static_cast<int>(a.elemAsDouble(i)));
+            const int rank = args[0].dims().is3D() ? 3
+                              : (args[0].dims().isVector() || args[0].isScalar() ? 1 : 2);
+            std::vector<bool> seen(rank + 1, false);
+            for (int d : dims) {
+                if (d < 1 || d > rank)
+                    throw Error("iqr: vecdim entries out of range",
+                                0, 0, "iqr", "", "m:iqr:vecdim");
+                seen[d] = true;
+            }
+            bool allCovered = true;
+            for (int d = 1; d <= rank; ++d) if (!seen[d]) allCovered = false;
+            if (!allCovered)
+                throw Error("iqr: partial vecdim reduction is not yet "
+                            "supported (only full-flatten vecdim like [1 2])",
+                            0, 0, "iqr", "", "m:iqr:vecdim");
+            flatten = true;
+        }
+    }
+    auto *mr = ctx.engine->resource();
+    if (flatten) {
+        // Flatten and compute on the 1×N row.
+        Value flat = Value::matrix(1, args[0].numel(), ValueType::DOUBLE, mr);
+        if (args[0].numel() > 0) {
+            const double *src = args[0].doubleData();
+            std::copy(src, src + args[0].numel(), flat.doubleDataMut());
+        }
+        outs[0] = iqr(mr, flat, 2);
+    } else {
+        outs[0] = iqr(mr, args[0], dim);
+    }
 }
 
 void maxk_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

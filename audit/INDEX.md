@@ -49,10 +49,7 @@ Status legend:
 | [findings/stats/signtest.md](findings/stats/signtest.md) | signtest | stats.test | low | small | 69fab7c |
 | [findings/stats/cummax.md](findings/stats/cummax.md) | cummax | builtin | high | medium | 4f021db |
 | [findings/stats/cummin.md](findings/stats/cummin.md) | cummin | builtin | high | medium | 4f021db |
-| [findings/stats/iqr.md](findings/stats/iqr.md) | iqr | stats.descriptive | high | small | ba142e6 |
 | [findings/stats/median.md](findings/stats/median.md) | median | stats.descriptive | high | medium | ba142e6 |
-| [findings/stats/prctile.md](findings/stats/prctile.md) | prctile | stats.descriptive | high | small | ba142e6 |
-| [findings/stats/quantile.md](findings/stats/quantile.md) | quantile | stats.descriptive | high | medium | ba142e6 |
 | [findings/stats/std.md](findings/stats/std.md) | std | stats.descriptive | high | small | ba142e6 |
 | [findings/stats/var.md](findings/stats/var.md) | var | stats.descriptive | high | medium | ba142e6 |
 | [findings/stats/bounds.md](findings/stats/bounds.md) | bounds | stats.descriptive | medium | small | ba142e6 |
@@ -225,6 +222,9 @@ Status legend:
 | [closed/stats/movmad.md](closed/stats/movmad.md) | movmad | PENDING | 2026-05-06 |
 | [closed/stats/movstd.md](closed/stats/movstd.md) | movstd | PENDING | 2026-05-06 |
 | [closed/stats/movvar.md](closed/stats/movvar.md) | movvar | PENDING | 2026-05-06 |
+| [closed/stats/iqr.md](closed/stats/iqr.md) | iqr | PENDING | 2026-05-06 |
+| [closed/stats/quantile.md](closed/stats/quantile.md) | quantile | PENDING | 2026-05-06 |
+| [closed/stats/prctile.md](closed/stats/prctile.md) | prctile | PENDING | 2026-05-06 |
 
 ---
 
