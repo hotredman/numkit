@@ -51,167 +51,21 @@ else()
 endif()
 
 # ──────────────────────────────────────────────
-# Основная библиотека
+# Sources — assembled from per-area CMakeLists
 # ──────────────────────────────────────────────
+#
+# core/CMakeLists.txt   exports NUMKIT_CORE_SOURCES / NUMKIT_CORE_HEADERS
+#                              / NUMKIT_CORE_INCLUDE_DIRS
+# libs/CMakeLists.txt   exports NUMKIT_LIBS_SOURCES / NUMKIT_LIBS_HEADERS
+#                              / NUMKIT_LIBS_INCLUDE_DIRS
+# Each lib has its own libs/<name>/CMakeLists.txt for per-lib worker
+# ownership (see COORDINATION.md).
 
-set(NUMKIT_CORE_SOURCES
-    # value / environment
-    core/src/value_type.cpp
-    core/src/dims.cpp
-    core/src/data_buffer.cpp
-    core/src/heap_object.cpp
-    core/src/value.cpp
-    core/src/environment.cpp
-    core/src/engine.cpp
-    core/src/vfs.cpp
-    # lexer / parser / AST / compiler
-    core/src/lexer.cpp
-    core/src/parser.cpp
-    core/src/ast.cpp
-    core/src/compiler.cpp
-    # execution backends
-    core/src/tree_walker.cpp
-    core/src/vm.cpp
-    # debugger
-    core/src/debugger.cpp
-    core/src/debug_session.cpp
-    core/src/debug_workspace.cpp
-)
+add_subdirectory(core)
+add_subdirectory(libs)
 
-if(NUMKIT_WITH_THREADS)
-    list(APPEND NUMKIT_CORE_SOURCES core/src/thread_pool.cpp)
-endif()
-
-# Each library defines its own source list (STDLIB_SOURCES, SIGNALLIB_SOURCES, ...)
-add_subdirectory(libs/builtin/src)
-add_subdirectory(libs/signal/src)
-add_subdirectory(libs/stats/src)
-add_subdirectory(libs/image/src)
-add_subdirectory(libs/comm/src)
-add_subdirectory(libs/wavelet/src)
-add_subdirectory(libs/control/src)
-add_subdirectory(libs/graphics/src)
-add_subdirectory(libs/io/src)
-add_subdirectory(libs/optim/src)
-
-set(NUMKIT_SOURCES
-    ${NUMKIT_CORE_SOURCES}
-    ${STDLIB_SOURCES}
-    ${SIGNALLIB_SOURCES}
-    ${STATSLIB_SOURCES}
-    ${IMAGELIB_SOURCES}
-    ${COMMLIB_SOURCES}
-    ${WAVELETLIB_SOURCES}
-    ${CONTROLLIB_SOURCES}
-    ${GRAPHICSLIB_SOURCES}
-    ${IOLIB_SOURCES}
-    ${OPTIMLIB_SOURCES}
-)
-
-set(NUMKIT_HEADERS
-    # core (runtime + frontend + backend + debug all live here)
-    core/include/numkit/core/ast.hpp
-    core/include/numkit/core/branding.hpp
-    core/include/numkit/core/bytecode.hpp
-    core/include/numkit/core/compiler.hpp
-    core/include/numkit/core/data_buffer.hpp
-    core/include/numkit/core/debugger.hpp
-    core/include/numkit/core/debug_session.hpp
-    core/include/numkit/core/debug_workspace.hpp
-    core/include/numkit/core/dims.hpp
-    core/include/numkit/core/engine.hpp
-    core/include/numkit/core/environment.hpp
-    core/include/numkit/core/figure_manager.hpp
-    core/include/numkit/core/heap_object.hpp
-    core/include/numkit/core/lexer.hpp
-    core/include/numkit/core/parser.hpp
-    core/include/numkit/core/parallel_for.hpp
-    core/include/numkit/core/scratch.hpp
-    core/include/numkit/core/shape_ops.hpp
-    core/include/numkit/core/span.hpp
-    core/include/numkit/core/thread_pool.hpp
-    core/include/numkit/core/tree_walker.hpp
-    core/include/numkit/core/value_type.hpp
-    core/include/numkit/core/types.hpp
-    core/include/numkit/core/vm.hpp
-    core/include/numkit/core/value.hpp
-    core/include/numkit/core/vfs.hpp
-    # libs
-    libs/builtin/include/numkit/builtin/library.hpp
-    libs/builtin/include/numkit/builtin/math/trig/trigonometry.hpp
-    libs/builtin/include/numkit/builtin/math/exp_log/exponents.hpp
-    libs/builtin/include/numkit/builtin/math/arithmetic/rounding.hpp
-    libs/builtin/include/numkit/builtin/math/arithmetic/misc.hpp
-    libs/builtin/include/numkit/builtin/math/special/special.hpp
-    libs/builtin/include/numkit/builtin/math/arithmetic/reductions.hpp
-    libs/builtin/include/numkit/builtin/math/discrete/discrete.hpp
-    libs/builtin/include/numkit/builtin/language/cells/cell.hpp
-    libs/builtin/include/numkit/builtin/language/structures/struct.hpp
-    libs/builtin/include/numkit/builtin/language/strings/strings.hpp
-    libs/builtin/include/numkit/builtin/language/strings/regex.hpp
-    libs/builtin/include/numkit/builtin/math/integration/integration.hpp
-    libs/builtin/include/numkit/builtin/language/commands/env.hpp
-    libs/builtin/include/numkit/builtin/language/operators/binary_ops.hpp
-    libs/builtin/include/numkit/builtin/language/operators/unary_ops.hpp
-    libs/builtin/include/numkit/builtin/language/arrays/matrix.hpp
-    libs/builtin/include/numkit/builtin/language/arrays/manip.hpp
-    libs/builtin/include/numkit/builtin/language/arrays/nd_manip.hpp
-    libs/builtin/include/numkit/builtin/language/arrays/accum.hpp
-    libs/builtin/include/numkit/builtin/math/random/rng.hpp
-    libs/builtin/include/numkit/builtin/math/complex/complex.hpp
-    libs/builtin/include/numkit/builtin/math/poly/polynomials.hpp
-    libs/io/include/numkit/io/library.hpp
-    libs/io/include/numkit/io/text/csv.hpp
-    libs/io/include/numkit/io/text/extras.hpp
-    libs/io/include/numkit/io/file_io/fileio.hpp
-    libs/io/include/numkit/io/paths/paths.hpp
-    libs/io/include/numkit/io/workspace/saveload.hpp
-    libs/builtin/include/numkit/builtin/language/types/types.hpp
-    libs/builtin/include/numkit/builtin/language/bitwise/int_math.hpp
-    libs/builtin/include/numkit/builtin/language/strings/format.hpp
-    libs/builtin/include/numkit/builtin/language/strings/print.hpp
-    libs/builtin/include/numkit/builtin/language/strings/scan.hpp
-    libs/builtin/include/numkit/builtin/programming/errors/diagnostics.hpp
-    libs/stats/include/numkit/stats/descriptive/descriptive.hpp
-    libs/signal/include/numkit/signal/library.hpp
-    libs/signal/include/numkit/signal/waveform_generation/waveform_generation.hpp
-    libs/signal/include/numkit/signal/filter_design/filter_design.hpp
-    libs/signal/include/numkit/signal/filter_analysis/frequency_response.hpp
-    libs/signal/include/numkit/signal/filter_analysis/unwrap.hpp
-    libs/signal/include/numkit/signal/filter_analysis/responses.hpp
-    libs/signal/include/numkit/signal/filter_analysis/predicates.hpp
-    libs/signal/include/numkit/signal/digital_filtering/filter.hpp
-    libs/signal/include/numkit/signal/digital_filtering/sosfilt.hpp
-    libs/signal/include/numkit/signal/digital_filtering/spec_driven.hpp
-    libs/signal/include/numkit/signal/filter_implementation/conversions.hpp
-    libs/signal/include/numkit/signal/filter_implementation/conversions_extras.hpp
-    libs/signal/include/numkit/signal/multirate/multirate.hpp
-    libs/signal/include/numkit/signal/multirate/extras.hpp
-    libs/signal/include/numkit/signal/convolution/convolution.hpp
-    libs/signal/include/numkit/signal/convolution/extras.hpp
-    libs/signal/include/numkit/signal/transforms/fft.hpp
-    libs/signal/include/numkit/signal/transforms/hilbert.hpp
-    libs/signal/include/numkit/signal/transforms/dct.hpp
-    libs/signal/include/numkit/signal/transforms/goertzel.hpp
-    libs/signal/include/numkit/signal/transforms/transform_helpers.hpp
-    libs/signal/include/numkit/signal/transforms/extras.hpp
-    libs/signal/include/numkit/signal/smoothing/sgolay.hpp
-    libs/signal/include/numkit/signal/smoothing/medfilt.hpp
-    libs/signal/include/numkit/signal/measurements/findpeaks.hpp
-    libs/signal/include/numkit/signal/measurements/dbconv.hpp
-    libs/signal/include/numkit/signal/measurements/signal_stats.hpp
-    libs/signal/include/numkit/signal/spectral_analysis/periodogram_pwelch.hpp
-    libs/signal/include/numkit/signal/time_frequency/spectrogram.hpp
-    libs/signal/include/numkit/signal/windows/windows.hpp
-    libs/builtin/include/numkit/builtin/math/interp/interp.hpp
-    libs/stats/include/numkit/stats/library.hpp
-    libs/stats/include/numkit/stats/moments/moments.hpp
-    libs/stats/include/numkit/stats/nan_aware/nan_aware.hpp
-    libs/stats/include/numkit/stats/moving/moving.hpp
-    libs/graphics/include/numkit/graphics/library.hpp
-    libs/optim/include/numkit/optim/library.hpp
-    libs/optim/include/numkit/optim/local/fzero.hpp
-)
+set(NUMKIT_SOURCES ${NUMKIT_CORE_SOURCES} ${NUMKIT_LIBS_SOURCES})
+set(NUMKIT_HEADERS ${NUMKIT_CORE_HEADERS} ${NUMKIT_LIBS_HEADERS})
 
 if(NUMKIT_BUILD_SHARED)
     add_library(numkit SHARED ${NUMKIT_SOURCES} ${NUMKIT_HEADERS})
@@ -223,20 +77,14 @@ endif()
 # same `numkit::numkit` target as find_package() consumers do.
 add_library(numkit::numkit ALIAS numkit)
 
+# Public include paths — collected from per-area CMakeLists. Wrap each
+# in BUILD_INTERFACE so the export set stays clean for find_package.
+foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS})
+    target_include_directories(numkit PUBLIC $<BUILD_INTERFACE:${_dir}>)
+endforeach()
+target_include_directories(numkit PUBLIC $<INSTALL_INTERFACE:include>)
+
 target_include_directories(numkit
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/builtin/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/signal/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/stats/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/image/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/comm/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/wavelet/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/control/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/graphics/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/io/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/optim/include>
-        $<INSTALL_INTERFACE:include>
     PRIVATE
         # Shared library-internal helpers (helpers.hpp under libs/*/src/)
         # AND the resolution root for every Highway HWY_TARGET_INCLUDE string
@@ -332,14 +180,14 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     enable_testing()
 
     # tests/ creates the numkit_tests target; per-component tests/ dirs
-    # contribute their sources via target_sources(numkit_tests PRIVATE ...)
+    # contribute their sources via target_sources(numkit_tests PRIVATE ...).
     add_subdirectory(tests)
     add_subdirectory(core/tests)
-    add_subdirectory(libs/builtin/tests)
-    add_subdirectory(libs/signal/tests)
-    add_subdirectory(libs/stats/tests)
-    add_subdirectory(libs/graphics/tests)
-    add_subdirectory(libs/io/tests)
+    foreach(_test_lib builtin signal stats graphics io)
+        if(EXISTS ${CMAKE_SOURCE_DIR}/libs/${_test_lib}/tests/CMakeLists.txt)
+            add_subdirectory(libs/${_test_lib}/tests)
+        endif()
+    endforeach()
 endif()
 
 # ──────────────────────────────────────────────
@@ -404,13 +252,10 @@ if(NUMKIT_INSTALL AND NOT EMSCRIPTEN)
         RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
 
-    # Public headers — every component ships its own numkit/<name>/ subtree
-    install(DIRECTORY core/include/numkit          DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(DIRECTORY libs/builtin/include/numkit  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(DIRECTORY libs/signal/include/numkit   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(DIRECTORY libs/stats/include/numkit    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(DIRECTORY libs/graphics/include/numkit DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(DIRECTORY libs/optim/include/numkit    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    # Public headers — install each per-area include-dir's numkit/ subtree
+    foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS})
+        install(DIRECTORY ${_dir}/numkit DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    endforeach()
 
     install(EXPORT numkitTargets
         FILE        numkitTargets.cmake
