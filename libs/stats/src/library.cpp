@@ -308,6 +308,7 @@ void dummyvar_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 // regress/regress.cpp
 void regress_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lscov_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ridge_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // lda/lda.cpp
 void classify_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -576,6 +577,7 @@ void StatsLibrary::install(Engine &engine)
 
     reg("regress", "regress", &stats::detail::regress_reg);
     reg("regress", "lscov",   &stats::detail::lscov_reg);
+    reg("regress", "ridge",   &stats::detail::ridge_reg);
 
     reg("lda", "classify", &stats::detail::classify_reg);
 }

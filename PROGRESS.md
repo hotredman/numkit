@@ -3174,7 +3174,7 @@ OOP `anova` class and `fitrm` repeated-measures model intentionally omitted; onl
 
 ### Linear Regression (function-form)
 
-**Namespace:** `stats.regress.*` — 2 ✅ + 0 ⚠️ / 13 = 15%
+**Namespace:** `stats.regress.*` — 3 ✅ + 0 ⚠️ / 13 = 23%
 
 OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. Only the legacy command-form entry points that return numerics (coeffs, residuals, CIs).
 
@@ -3189,7 +3189,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 | `mvregress` | ❌ |  |  |  |  | multivariate regression |
 | `mvregresslike` | ❌ |  |  |  |  |  |
 | `plsregress` | ❌ |  |  |  |  | partial least squares |
-| `ridge` | ❌ |  |  |  |  |  |
+| `ridge` | ✅ | 0.004 | 344.06× | 108.76× | OK | Sig: B = ridge(y, X, k[, scaled]). Ridge regression on standardised X (centered + N-1 std). Default scaled=1 returns coefficients in standardised space; scaled=0 returns (p+1)-row matrix with intercept in original units. |
 | `lasso` | ❌ |  |  |  |  |  |
 | `lassoglm` | ❌ |  |  |  |  |  |
 | `polyconf` | ❌ |  |  |  |  | polynomial CI prediction |
