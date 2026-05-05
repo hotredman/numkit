@@ -39,36 +39,91 @@ surface to the user**. Do not silently work on top of someone else's work.
   the usual `import compat.*` and the body. This ensures no leftover
   workspace state from a prior run leaks into the test.
 
-## Cross-check against MATLAB / Octave (mandatory)
+## Each /loop cycle ships FOUR artefacts (mandatory)
 
-A smoke alone proves the implementation matches **my** expectations,
-not MATLAB's. For every new function you add:
+Every function added in a /loop cycle produces all four of these. Three
+artefacts is incomplete and must be flagged before the cycle is closed.
 
-1. Write a JSON spec in `tools/parity/specs/<name>.json`. Minimal:
-   ```json
-   {
-     "name": "<fn>",
-     "namespace": "<lib>",
-     "setup": "...inputs...",
-     "expr": "y = <fn>(...);",
-     "iters": 5,
-     "tol": 1e-12,
-     "out_var": "y",
-     "comment": "Sig + brief input description."
-   }
-   ```
-2. Run `python tools/parity/run_parity.py tools/parity/specs/<name>.json
-   --no-matlab` (or omit `--no-matlab` if MATLAB is licenced + on PATH).
-3. **Must report `correctness=OK`**. If it reports `MISMATCH`, the
-   numkit implementation is wrong (or has a different convention than
-   MATLAB) — fix BEFORE landing the cycle. Smoke alone is not enough.
-4. If MATLAB / Octave doesn't have the function, the run reports
-   `correctness=N/A`. Document that in the spec's comment so future
-   runs don't think the harness is broken.
+### 1. C++ implementation
+In `libs/<lib>/src/...` and `libs/<lib>/include/...`. Probe MATLAB
+(`help fnname` + `doc fnname`) before writing code; implement every
+documented branch or document the gap explicitly in PROGRESS.md.
 
-Three real bugs in cycles 65-75 were caught only by this cross-check —
+### 2. Parity spec — `tools/parity/specs/<name>.json`
+Cross-engine validation against MATLAB R2025b (and Octave when it ships
+the function). Minimum shape:
+```json
+{
+  "name": "<fn>",
+  "namespace": "<lib>",
+  "setup": "...inputs...",
+  "expr": "y = <fn>(...);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["y(1)", "y(end)", "..."],
+  "comment": "Sig + every covered branch + any deferred branch."
+}
+```
+Run `python tools/parity/run_parity.py tools/parity/specs/<name>.json`
+(no `--no-matlab` flag — we always validate against MATLAB). Must
+report `correctness=OK` before commit. If MATLAB / Octave doesn't ship
+the function the run reports `correctness=N/A` — document that in the
+spec comment.
+
+### 3. gtest unit test — `libs/<lib>/tests/<name>_test.cpp`
+Offline regression guard with hardcoded expected values. Pattern (used
+across libs/stats, libs/builtin, libs/signal):
+```cpp
+#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
+#include <gtest/gtest.h>
+
+class HaartTest : public ::testing::Test {
+public:
+    numkit::Engine engine;
+    void SetUp() override { engine.eval("import compat.*;"); }
+    numkit::Value eval(const std::string &c) { return engine.eval(c); }
+    double evalScalar(const std::string &c) { return eval(c).toScalar(); }
+};
+
+TEST_F(HaartTest, Level1Vector) {
+    eval("[a, d] = haart([1 2 3 4 5 6 7 8], 1);");
+    EXPECT_NEAR(evalScalar("a(1)"), 2.121320343559643, 1e-12);
+    // ...one TEST_F per documented branch.
+}
+```
+Wire via `libs/<lib>/tests/CMakeLists.txt` (create if missing — pattern
+`target_sources(numkit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/...)`).
+Tests must pass under `numkit_tests.exe`. At least one TEST_F per
+documented branch.
+
+### 4. Smoke `.m` — `libs/<lib>/tests/smoke/<name>_smoke.m`
+Hand-runnable demo. **Every smoke MUST start with `clear` on the first
+line**, then `import compat.*`, then the body. Use `fprintf` to print
+expected values inline ("expect ~..."). Run via
+`build-desktop-fast/Release/numkit_example.exe libs/<lib>/tests/smoke/<name>_smoke.m`.
+
+Three real bugs in cycles 65-75 were caught only by parity cross-check —
 hand-written smokes had passed all three. Don't trust your own
 expected values: trust the reference engine.
+
+## Backfill «по дороге» (in-flight)
+
+The full 4-artefact rule started 2026-05-04. ~17 functions shipped
+before that ([list in audit/BACKFILL_QUEUE.md](audit/BACKFILL_QUEUE.md))
+have only the C++ + parity spec — no gtest, no smoke. Each /loop cycle
+now closes one item from that queue alongside the new function:
+
+  cycle = (1 NEW function with 4 artefacts) + (1 BACKFILL: gtest+smoke for one queue entry)
+
+The queue file lists priority order (simpler functions first). When you
+backfill an entry, move it from "open" to "closed" in
+`audit/BACKFILL_QUEUE.md` and reference both the new function and the
+backfill in the commit message:
+```
+wavelet: implement <new> + backfill gtest+smoke for <old>
+```
+When the queue empties, the rule continues for new functions only.
 
 ## Audit findings (`audit/`)
 

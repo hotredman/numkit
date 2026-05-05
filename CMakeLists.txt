@@ -183,7 +183,7 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     # contribute their sources via target_sources(numkit_tests PRIVATE ...).
     add_subdirectory(tests)
     add_subdirectory(core/tests)
-    foreach(_test_lib builtin signal stats graphics io)
+    foreach(_test_lib builtin signal stats graphics io wavelet comm control image)
         if(EXISTS ${CMAKE_SOURCE_DIR}/libs/${_test_lib}/tests/CMakeLists.txt)
             add_subdirectory(libs/${_test_lib}/tests)
         endif()
