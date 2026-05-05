@@ -155,6 +155,15 @@ datastats(std::pmr::memory_resource *mr, const Value &x);
 std::tuple<Value, Value>
 ecdf(std::pmr::memory_resource *mr, const Value &y);
 
+// ── ksdensity ──────────────────────────────────────────────────────────
+// [f, xi, bw] = ksdensity(x[, pts, 'Bandwidth', bw]) — Gaussian kernel
+// density estimate. Default 100-point grid centred on the data range,
+// Silverman's-rule bandwidth (might differ slightly from MATLAB's
+// internal heuristic). Empty `pts` requests the auto grid.
+std::tuple<Value, Value, Value>
+ksdensity(std::pmr::memory_resource *mr, const Value &x, const Value &pts,
+          double bw_user);
+
 // ── ecdfhist ───────────────────────────────────────────────────────────
 // [n, c] = ecdfhist(f, x [, m]) — convert empirical CDF (`[f, x]`
 // from `ecdf`) into a probability-density histogram. m is the number
