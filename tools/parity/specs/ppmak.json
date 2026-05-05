@@ -1,0 +1,10 @@
+{
+  "name": "ppmak",
+  "namespace": "stats",
+  "setup": "breaks = [0 1 2 3]; coefs = [1 0; 2 -1; -1 1]; pp = ppmak(breaks, coefs, 1);",
+  "expr": "y = fnval(pp, [0.5 1.5 2.5]);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["y(1)", "y(2)", "y(3)", "pp.pieces", "pp.order"],
+  "comment": "Sig: pp = ppmak(breaks, coefs[, d]). Piecewise-polynomial constructor. Pair with fnval. Univariate-only (d=1) tested here."
+}
