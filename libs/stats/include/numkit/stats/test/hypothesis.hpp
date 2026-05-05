@@ -76,6 +76,15 @@ std::tuple<Value, Value, Value>
 signtest(std::pmr::memory_resource *mr, const Value &x,
          const Value &y_or_m, double alpha, TestTail tail);
 
+/// runstest(x[, v][, alpha, tail][, method]) — Wald-Wolfowitz runs
+/// test for randomness. Default `v` = median(x); values exactly equal
+/// to v are dropped. Default `method` = "exact". Returns
+/// (p, h, nruns, n1, n0, zval) — the engine wrapper packs everything
+/// after `h` into a stats struct (zval omitted in exact mode).
+std::tuple<Value, Value, Value, Value, Value, Value>
+runstest(std::pmr::memory_resource *mr, const Value &x, double v,
+         double alpha, TestTail tail, const std::string &method);
+
 /// ranksum(x, y[, alpha, tail][, method]) — Wilcoxon rank-sum
 /// (Mann-Whitney U). H0: median(x) = median(y).
 /// Default `method` = "exact" iff both samples have < 10 observations,
