@@ -58,6 +58,18 @@ Status legend:
 | [findings/stats/movvar.md](findings/stats/movvar.md) | movvar | stats.moving | critical | small | 4f021db |
 | [findings/stats/cummax.md](findings/stats/cummax.md) | cummax | builtin | high | medium | 4f021db |
 | [findings/stats/cummin.md](findings/stats/cummin.md) | cummin | builtin | high | medium | 4f021db |
+| [findings/stats/iqr.md](findings/stats/iqr.md) | iqr | stats.descriptive | high | small | ba142e6 |
+| [findings/stats/median.md](findings/stats/median.md) | median | stats.descriptive | high | medium | ba142e6 |
+| [findings/stats/prctile.md](findings/stats/prctile.md) | prctile | stats.descriptive | high | small | ba142e6 |
+| [findings/stats/quantile.md](findings/stats/quantile.md) | quantile | stats.descriptive | high | medium | ba142e6 |
+| [findings/stats/std.md](findings/stats/std.md) | std | stats.descriptive | high | small | ba142e6 |
+| [findings/stats/var.md](findings/stats/var.md) | var | stats.descriptive | high | medium | ba142e6 |
+| [findings/stats/bounds.md](findings/stats/bounds.md) | bounds | stats.descriptive | medium | small | ba142e6 |
+| [findings/stats/mape.md](findings/stats/mape.md) | mape | stats.descriptive | medium | small | ba142e6 |
+| [findings/stats/maxk.md](findings/stats/maxk.md) | maxk | stats.descriptive | medium | small | ba142e6 |
+| [findings/stats/mink.md](findings/stats/mink.md) | mink | stats.descriptive | medium | small | ba142e6 |
+| [findings/stats/mode.md](findings/stats/mode.md) | mode | stats.descriptive | medium | small | ba142e6 |
+| [findings/stats/rmse.md](findings/stats/rmse.md) | rmse | stats.descriptive | medium | small | ba142e6 |
 
 ## Closed ТЗ
 
