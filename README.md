@@ -1,21 +1,21 @@
-# Matrix-Scripting Interpreter in C++
+# Numkit — Matrix-Scripting Interpreter in C++
 
-A lightweight interpreter for a matrix-oriented scripting language — scalars and matrices, complex numbers, cell arrays, structs, function handles, plotting, DSP and fitting libraries. Written in modern C++17 with column-major storage and copy-on-write value semantics. Ships with a browser-based IDE (mIDE) compiled to WebAssembly. Designed to embed scientific scripting into C++ applications with full control over memory allocation, I/O, and extensibility.
-
-<a href="https://numkit.github.io/numkit-m/">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="brand/numkit-mide-logo-dark.svg">
-    <img src="brand/numkit-mide-logo-light.svg" alt="Try mIDE in browser" width="280">
-  </picture>
-</a>
-
-**[Launch mIDE in Browser →](https://numkit.github.io/numkit-m/)**
+A lightweight interpreter for a matrix-oriented scripting language — scalars and matrices, complex numbers, cell arrays, structs, function handles, plotting, DSP and fitting libraries. Written in modern C++17 with column-major storage and copy-on-write value semantics. Ships with a browser-based IDE compiled to WebAssembly. Designed to embed scientific scripting into C++ applications, or use the same numerical libraries directly from C++ — with full control over memory allocation, I/O, and extensibility.
 
 ---
 
 ## Web IDE
 
-mIDE is built with React + Vite and runs the C++ engine via WebAssembly:
+<a href="https://numkit.github.io/numkit-m/">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/numkit-mide-logo-dark.svg">
+    <img src="brand/numkit-mide-logo-light.svg" alt="Launch Numkit IDE in browser" width="280">
+  </picture>
+</a>
+
+**[Launch IDE in Browser →](https://numkit.github.io/numkit-m/)**
+
+Numkit IDE is built with React + Vite and runs the C++ engine via WebAssembly:
 
 - **Syntax highlighting** — keywords, builtins, constants, strings, comments
 - **Dark / Light theme** — single-source theming via React Context
@@ -29,6 +29,13 @@ mIDE is built with React + Vite and runs the C++ engine via WebAssembly:
 ---
 
 ## Features
+
+Live function-by-function status, native runtime, and side-by-side
+performance against MATLAB R2025b and Octave 11.x is tracked in
+**[PROGRESS.md](PROGRESS.md)**.
+
+Known issues, behavioural deviations, and open bugs are tracked in
+**[BUGS.md](BUGS.md)**.
 
 ### Library Surface
 
@@ -49,16 +56,9 @@ libraries that mirror the structure of MATLAB / Octave toolboxes:
 | **Optimization** | `fzero`, `fminbnd`, `fminsearch` (constrained / global solvers landing) |
 | **Fitting** | Splines |
 
-Live function-by-function status, native runtime, and side-by-side
-performance against MATLAB R2025b and Octave 11.x is tracked in
-**[PROGRESS.md](PROGRESS.md)**.
-
-Known issues, behavioural deviations, and open bugs are tracked in
-**[BUGS.md](BUGS.md)**.
-
 ### Debugger
 
-mIDE includes a full-featured debugger with pause/resume support:
+Numkit IDE includes a full-featured debugger with pause/resume support:
 
 - **Breakpoints** — click gutter to set; supported on all statement lines including `end`
 - **Step over / Step into / Step out / Continue** — standard stepping controls
@@ -176,6 +176,52 @@ int main()
     return 0;
 }
 ```
+
+### Library-only usage (no interpreter)
+
+The numerical libraries can be called directly as a C++ API — no
+parser, no VM, no `Engine`. This is the path for embedders who want
+numkit as a math library, not a scripting runtime.
+
+```c++
+#include <numkit/core/value.hpp>
+#include <numkit/signal/transforms/fft.hpp>
+
+#include <cmath>
+#include <iostream>
+#include <memory_resource>
+
+int main()
+{
+    auto *mr = std::pmr::get_default_resource();
+
+    // Build a 1024-sample sine wave at 50 Hz, fs = 1 kHz.
+    constexpr size_t N  = 1024;
+    constexpr double fs = 1000.0;
+    constexpr double f  = 50.0;
+
+    numkit::Value x = numkit::Value::matrix(1, N, numkit::ValueType::DOUBLE, mr);
+    double *xd = x.doubleDataMut();
+    for (size_t i = 0; i < N; ++i)
+        xd[i] = std::sin(2.0 * M_PI * f * i / fs);
+
+    // Direct C++ call — same FFT path the interpreter would dispatch to.
+    numkit::Value X = numkit::signal::fft(mr, x);
+
+    // Read back the complex spectrum and find peak bins.
+    const numkit::Complex *Xd = X.complexData();
+    for (size_t i = 0; i < N / 2; ++i) {
+        const double mag = std::abs(Xd[i]);
+        if (mag > 100.0)
+            std::cout << "Peak " << (i * fs / N) << " Hz  mag=" << mag << '\n';
+    }
+}
+```
+
+Every documented function in `libs/<lib>/include/numkit/<lib>/...` is
+a pure C++ entry point with the same signature pattern: `Value
+fn(memory_resource *mr, ...)`. The script-side registrations in each
+`XLibrary::install` are thin adapters over these.
 
 ### Custom heap (memory_resource)
 
@@ -346,7 +392,7 @@ libs/                                 # Domain libraries (one per H2 in PROGRESS
 tests/                                # Top-level integration & cross-cutting tests
 
 wasm/                                 # WebAssembly REPL bindings (Emscripten)
-ide/                                  # mIDE — React + Vite frontend
+ide/                                  # Numkit IDE — React + Vite frontend
     src/components/                   # IDE.jsx · Console · Figures · FileBrowser · …
     src/engine.js                     # WASM engine wrapper
     desktop/                          # Electron shell
