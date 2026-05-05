@@ -13,6 +13,7 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/stats/moments/moments.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/stats/moving/moving.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/stats/nan_aware/nan_aware.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/stats/fit/fit.hpp
 )
 
 set(NUMKIT_LIBS_SOURCES      ${NUMKIT_LIBS_SOURCES}      PARENT_SCOPE)

@@ -232,6 +232,12 @@ void datasample_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bootstrp_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void jackknife_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void combnk_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// fit/fit.cpp
+void normfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void poissfit_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void expfit_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void unifit_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -431,6 +437,11 @@ void StatsLibrary::install(Engine &engine)
     reg("resample", "bootstrp",   &stats::detail::bootstrp_reg);
     reg("resample", "jackknife",  &stats::detail::jackknife_reg);
     reg("resample", "combnk",     &stats::detail::combnk_reg);
+
+    reg("fit", "normfit",  &stats::detail::normfit_reg);
+    reg("fit", "poissfit", &stats::detail::poissfit_reg);
+    reg("fit", "expfit",   &stats::detail::expfit_reg);
+    reg("fit", "unifit",   &stats::detail::unifit_reg);
 }
 
 } // namespace numkit
