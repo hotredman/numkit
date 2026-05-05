@@ -47,11 +47,15 @@ struct Window {
 
 Window decodeWindow(const Value &k, const char *fn)
 {
+    auto badK = [&]() {
+        throw Error(std::string(fn) + ": Window length must be a finite, "
+                    "positive, real scalar or 2-element vector of finite, "
+                    "nonnegative, real scalars.",
+                    0, 0, fn, "", std::string("m:") + fn + ":badK");
+    };
     if (k.isScalar()) {
         const double v = k.toScalar();
-        if (!(v >= 0) || std::floor(v) != v)
-            throw Error(std::string(fn) + ": window size must be a non-negative integer",
-                         0, 0, fn, "", std::string("m:") + fn + ":badK");
+        if (!std::isfinite(v) || v <= 0 || std::floor(v) != v) badK();
         const long n = static_cast<long>(v);
         // MATLAB: centred window — leading floor((k-1)/2), trailing floor(k/2).
         return {(n - 1) / 2, n / 2};
@@ -59,13 +63,107 @@ Window decodeWindow(const Value &k, const char *fn)
     if (k.numel() == 2) {
         const double a = k.elemAsDouble(0);
         const double b = k.elemAsDouble(1);
-        if (a < 0 || b < 0 || std::floor(a) != a || std::floor(b) != b)
-            throw Error(std::string(fn) + ": [kb kf] must be non-negative integers",
-                         0, 0, fn, "", std::string("m:") + fn + ":badK");
+        if (!std::isfinite(a) || !std::isfinite(b) ||
+            a < 0 || b < 0 || std::floor(a) != a || std::floor(b) != b) badK();
         return {static_cast<long>(a), static_cast<long>(b)};
     }
-    throw Error(std::string(fn) + ": k must be a scalar or 2-element vector",
-                 0, 0, fn, "", std::string("m:") + fn + ":badK");
+    badK();
+    return {0, 0}; // unreachable
+}
+
+// ── Mov-extras options (nanflag + Endpoints + SamplePoints) ───────────
+//
+// Parses the trailing args of mov*(x, k, ...). Supports MATLAB R2025b:
+//   * positional `dim` (numeric scalar, before any string)
+//   * positional `nanflag` ∈ {"includemissing","includenan",
+//                              "omitmissing","omitnan"}; default "includenan"
+//   * Name-Value pairs: `Endpoints` ∈ {"shrink","discard","fill"} | scalar
+//   * SamplePoints: NOT IMPLEMENTED (throws if requested) — see TODO.
+enum class EndpointMode { Shrink, Discard, Fill, Scalar };
+
+struct MovOpts {
+    int dim = 0;
+    bool omit_nan = false;       // default = includenan
+    EndpointMode ep = EndpointMode::Shrink;
+    double ep_fill = std::numeric_limits<double>::quiet_NaN();
+};
+
+inline std::string toLower(std::string s)
+{
+    for (auto &c : s)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return s;
+}
+
+MovOpts parseMovExtras(Span<const Value> args, size_t start, const char *fn)
+{
+    MovOpts o;
+    size_t i = start;
+
+    // Optional positional `dim`: numeric scalar that's not a string and
+    // appears before any string argument.
+    if (i < args.size() && !args[i].isChar() && !args[i].isString()
+        && !args[i].isEmpty() && args[i].isScalar()) {
+        o.dim = static_cast<int>(args[i].toScalar());
+        ++i;
+    }
+
+    // Optional positional `nanflag`.
+    if (i < args.size() && (args[i].isChar() || args[i].isString())) {
+        const std::string s = toLower(args[i].toString());
+        if (s == "omitnan" || s == "omitmissing") {
+            o.omit_nan = true; ++i;
+        } else if (s == "includenan" || s == "includemissing") {
+            o.omit_nan = false; ++i;
+        }
+        // else fall through — could be 'Endpoints' Name-Value pair.
+    }
+
+    // Name-Value pairs.
+    while (i + 1 < args.size()) {
+        if (!args[i].isChar() && !args[i].isString())
+            throw Error(std::string(fn) + ": expected a Name-Value pair",
+                        0, 0, fn, "", std::string("m:") + fn + ":nv");
+        const std::string name = toLower(args[i].toString());
+        const Value &val = args[i + 1];
+        if (name == "endpoints") {
+            if (val.isChar() || val.isString()) {
+                const std::string s = toLower(val.toString());
+                if      (s == "shrink")  o.ep = EndpointMode::Shrink;
+                else if (s == "discard") o.ep = EndpointMode::Discard;
+                else if (s == "fill")    { o.ep = EndpointMode::Fill;
+                                           o.ep_fill = std::numeric_limits<double>::quiet_NaN(); }
+                else
+                    throw Error(std::string(fn) + ": Endpoints must be "
+                                "'shrink', 'discard', 'fill' or a scalar",
+                                0, 0, fn, "", std::string("m:") + fn + ":ep");
+            } else if (val.isScalar()) {
+                o.ep = EndpointMode::Scalar;
+                o.ep_fill = val.toScalar();
+            } else {
+                throw Error(std::string(fn) + ": Endpoints must be a string "
+                            "or numeric scalar",
+                            0, 0, fn, "", std::string("m:") + fn + ":ep");
+            }
+        } else if (name == "samplepoints") {
+            throw Error(std::string(fn) + ": 'SamplePoints' is not yet "
+                        "supported in numkit (parity gap; see audit findings)",
+                        0, 0, fn, "", std::string("m:") + fn + ":samplePts");
+        } else if (name == "datavariables" || name == "replacevalues") {
+            throw Error(std::string(fn) + ": '" + name + "' is for table/"
+                        "timetable inputs (numkit does not implement those)",
+                        0, 0, fn, "", std::string("m:") + fn + ":tableOnly");
+        } else {
+            throw Error(std::string(fn) + ": unknown Name-Value '" + name + "'",
+                        0, 0, fn, "", std::string("m:") + fn + ":nv");
+        }
+        i += 2;
+    }
+    if (i != args.size())
+        throw Error(std::string(fn) + ": dangling argument at position " +
+                    std::to_string(i + 1),
+                    0, 0, fn, "", std::string("m:") + fn + ":nargin");
+    return o;
 }
 
 // Allocate a same-shape DOUBLE output via createLike.
@@ -77,46 +175,120 @@ Value allocSameShape(std::pmr::memory_resource *mr, const Value &x)
 // Apply per-window reducer F over a 1-D run [src, src+n) with stride
 // `step` (in elements). Output written to dst with the same stride.
 // F has signature `double(const double *win, size_t winLen)`.
+//
+// `ep` controls how out-of-range window positions are filled:
+//   Shrink — drop missing positions, the window shrinks at edges
+//   Fill   — pad missing positions with NaN (window keeps full length)
+//   Scalar — pad missing positions with `ep_fill`
+//   Discard — handled in driver, never reaches here
+//
+// `omit_nan == true` filters NaN out of the (possibly already padded)
+// window before the reducer; an empty filtered window collapses to NaN.
 template <typename F>
 void runMoving(const double *src, size_t n, ptrdiff_t step,
-               double *dst, const Window &w, ScratchArena &scratch, F &&fn)
+               double *dst, const Window &w, ScratchArena &scratch,
+               bool omit_nan, EndpointMode ep, double ep_fill, F &&fn)
 {
     if (n == 0) return;
-    auto buf = ScratchVec<double>(static_cast<size_t>(w.kb + w.kf + 1), &scratch);
-    for (long i = 0; i < static_cast<long>(n); ++i) {
-        const long lo = std::max<long>(0, i - w.kb);
-        const long hi = std::min<long>(static_cast<long>(n) - 1, i + w.kf);
-        const long len = hi - lo + 1;
-        if (len <= 0) {
-            dst[i * step] = std::numeric_limits<double>::quiet_NaN();
-            continue;
+    const long N = static_cast<long>(n);
+    const long fullLen = w.kb + w.kf + 1;
+    auto buf = ScratchVec<double>(static_cast<size_t>(fullLen), &scratch);
+    for (long i = 0; i < N; ++i) {
+        size_t bufN = 0;
+        for (long j = -w.kb; j <= w.kf; ++j) {
+            const long pos = i + j;
+            double v;
+            if (pos >= 0 && pos < N) {
+                v = src[pos * step];
+            } else if (ep == EndpointMode::Fill) {
+                v = std::numeric_limits<double>::quiet_NaN();
+            } else if (ep == EndpointMode::Scalar) {
+                v = ep_fill;
+            } else {
+                continue;   // Shrink — drop the missing position
+            }
+            if (omit_nan && std::isnan(v)) continue;
+            buf[bufN++] = v;
         }
-        for (long j = 0; j < len; ++j)
-            buf[static_cast<size_t>(j)] = src[(lo + j) * step];
-        dst[i * step] = fn(buf.data(), static_cast<size_t>(len));
+        dst[i * step] = (bufN == 0) ? std::numeric_limits<double>::quiet_NaN()
+                                    : fn(buf.data(), bufN);
     }
 }
 
-// Driver with explicit dim. Handles vector / 2-D / 3-D.
+// Driver with explicit dim + MovOpts. Handles vector / 2-D / 3-D.
+//
+// For Endpoints == Discard, output is shorter along the operating dim by
+// (kb + kf) elements. For Shrink/Fill/Scalar the output keeps the same
+// shape as input.
 template <typename F>
 Value movingDriverDim(std::pmr::memory_resource *mr, const Value &x,
-                      const Window &w, int dim, F &&fn)
+                      const Window &w, int dim, const MovOpts &opt, F &&fn)
 {
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if (x.isScalar()) {
         auto out = Value::scalar(0.0, mr);
         const double v = x.toScalar();
-        out.doubleDataMut()[0] = fn(&v, 1);
+        // Single-element window: 'Discard' would empty out — but a scalar
+        // input is a degenerate case; mirror Shrink for consistency.
+        out.doubleDataMut()[0] = (opt.omit_nan && std::isnan(v))
+                                     ? std::numeric_limits<double>::quiet_NaN()
+                                     : fn(&v, 1);
         return out;
     }
-    auto out = allocSameShape(mr, x);
     ScratchArena scratch(mr);
     const double *src = x.doubleData();
-    double *dst = out.doubleDataMut();
+
+    auto runDiscard = [&](const double *colSrc, size_t n, ptrdiff_t step,
+                          double *colDst) {
+        // Discard: emit only positions i where the window is fully in-bounds,
+        // i.e. i in [kb, n-1-kf]. Output length = n - (kb+kf) (or 0).
+        const long kb = w.kb, kf = w.kf;
+        const long fullLen = kb + kf + 1;
+        if (static_cast<long>(n) < fullLen) return;
+        auto buf = ScratchVec<double>(static_cast<size_t>(fullLen), &scratch);
+        long outI = 0;
+        for (long i = kb; i + kf < static_cast<long>(n); ++i) {
+            size_t bufN = 0;
+            if (opt.omit_nan) {
+                for (long j = -kb; j <= kf; ++j) {
+                    const double v = colSrc[(i + j) * step];
+                    if (!std::isnan(v)) buf[bufN++] = v;
+                }
+            } else {
+                for (long j = -kb; j <= kf; ++j)
+                    buf[static_cast<size_t>(j + kb)] = colSrc[(i + j) * step];
+                bufN = static_cast<size_t>(fullLen);
+            }
+            colDst[outI * step] = (bufN == 0)
+                                      ? std::numeric_limits<double>::quiet_NaN()
+                                      : fn(buf.data(), bufN);
+            ++outI;
+        }
+    };
+
+    // Compute output dims for Discard mode.
+    auto reducedLen = [&](size_t L) -> size_t {
+        const long delta = w.kb + w.kf;
+        if (static_cast<long>(L) <= delta) return 0;
+        return L - static_cast<size_t>(delta);
+    };
 
     if (x.dims().isVector()) {
-        runMoving(src, x.numel(), /*step=*/1, dst, w, scratch, fn);
+        const size_t N = x.numel();
+        size_t outN = N;
+        if (opt.ep == EndpointMode::Discard) outN = reducedLen(N);
+        const size_t r = (x.dims().rows() > 1) ? outN : 1;
+        const size_t c = (x.dims().rows() > 1) ? 1    : outN;
+        Value out = Value::matrix(r, c, ValueType::DOUBLE, mr);
+        if (outN == 0) return out;
+        double *dst = out.doubleDataMut();
+        if (opt.ep == EndpointMode::Discard) {
+            runDiscard(src, N, /*step=*/1, dst);
+        } else {
+            runMoving(src, N, /*step=*/1, dst, w, scratch,
+                      opt.omit_nan, opt.ep, opt.ep_fill, fn);
+        }
         return out;
     }
 
@@ -125,34 +297,50 @@ Value movingDriverDim(std::pmr::memory_resource *mr, const Value &x,
     const size_t P = d.is3D() ? d.pages() : 1;
     const size_t pageStride = R * C;
 
+    // Determine output dims.
+    size_t outR = R, outC = C, outP = P;
+    if (opt.ep == EndpointMode::Discard) {
+        if      (dim == 1) outR = reducedLen(R);
+        else if (dim == 2) outC = reducedLen(C);
+        else if (dim == 3) outP = reducedLen(P);
+    }
+    Value out;
+    if (d.is3D()) out = Value::matrix3d(outR, outC, outP, ValueType::DOUBLE, mr);
+    else          out = Value::matrix(outR, outC, ValueType::DOUBLE, mr);
+    if (out.numel() == 0) return out;
+    double *dst = out.doubleDataMut();
+    const size_t outPageStride = outR * outC;
+
+    auto run = [&](const double *colSrc, size_t inLen, ptrdiff_t step,
+                   double *colDst) {
+        if (opt.ep == EndpointMode::Discard) runDiscard(colSrc, inLen, step, colDst);
+        else                                 runMoving(colSrc, inLen, step, colDst, w, scratch,
+                                                       opt.omit_nan, opt.ep, opt.ep_fill, fn);
+    };
+
     if (dim == 1) {
-        // Down columns (column-major: stride = 1, length = R, per col & page).
         for (size_t p = 0; p < P; ++p)
             for (size_t c = 0; c < C; ++c) {
                 const double *colSrc = src + p * pageStride + c * R;
-                double       *colDst = dst + p * pageStride + c * R;
-                runMoving(colSrc, R, /*step=*/1, colDst, w, scratch, fn);
+                double       *colDst = dst + p * outPageStride + c * outR;
+                run(colSrc, R, /*step=*/1, colDst);
             }
     } else if (dim == 2) {
-        // Across rows (stride = R, length = C, per row & page).
         for (size_t p = 0; p < P; ++p)
             for (size_t r = 0; r < R; ++r) {
                 const double *rowSrc = src + p * pageStride + r;
-                double       *rowDst = dst + p * pageStride + r;
-                runMoving(rowSrc, C, /*step=*/static_cast<ptrdiff_t>(R),
-                          rowDst, w, scratch, fn);
+                double       *rowDst = dst + p * outPageStride + r;
+                run(rowSrc, C, /*step=*/static_cast<ptrdiff_t>(R), rowDst);
             }
     } else if (dim == 3 && d.is3D()) {
-        // Across pages (stride = R*C, length = P, per (r, c)).
         for (size_t c = 0; c < C; ++c)
             for (size_t r = 0; r < R; ++r) {
                 const double *pgSrc = src + c * R + r;
-                double       *pgDst = dst + c * R + r;
-                runMoving(pgSrc, P, /*step=*/static_cast<ptrdiff_t>(pageStride),
-                          pgDst, w, scratch, fn);
+                double       *pgDst = dst + c * outR + r;
+                run(pgSrc, P, /*step=*/static_cast<ptrdiff_t>(pageStride), pgDst);
             }
     } else {
-        // Trailing-singleton or out-of-rank: identity copy.
+        // Trailing-singleton or out-of-rank: identity copy (legacy behaviour).
         std::copy(src, src + x.numel(), dst);
     }
     return out;
@@ -247,56 +435,61 @@ double winMadInPlace(double *w, size_t n, ScratchArena &scratch)
 
 } // namespace
 
-// ── public API ────────────────────────────────────────────────────────
+// ── internal *_impl with full MovOpts ─────────────────────────────────
 
-Value movmean(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
+namespace {
+
+Value movmean_impl(std::pmr::memory_resource *mr, const Value &x,
+                   const Value &k, const MovOpts &opt)
 {
     const auto w = decodeWindow(k, "movmean");
-    const int d = resolveDim(x, dim, "movmean");
-    return movingDriverDim(mr, x, w, d,
+    const int d = resolveDim(x, opt.dim, "movmean");
+    return movingDriverDim(mr, x, w, d, opt,
         [](const double *win, size_t n) { return winMean(win, n); });
 }
 
-Value movsum(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
+Value movsum_impl(std::pmr::memory_resource *mr, const Value &x,
+                  const Value &k, const MovOpts &opt)
 {
     const auto w = decodeWindow(k, "movsum");
-    const int d = resolveDim(x, dim, "movsum");
-    return movingDriverDim(mr, x, w, d,
+    const int d = resolveDim(x, opt.dim, "movsum");
+    return movingDriverDim(mr, x, w, d, opt,
         [](const double *win, size_t n) { return winSum(win, n); });
 }
 
-Value movmin(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
+Value movmin_impl(std::pmr::memory_resource *mr, const Value &x,
+                  const Value &k, const MovOpts &opt)
 {
     const auto w = decodeWindow(k, "movmin");
-    const int d = resolveDim(x, dim, "movmin");
-    return movingDriverDim(mr, x, w, d,
+    const int d = resolveDim(x, opt.dim, "movmin");
+    return movingDriverDim(mr, x, w, d, opt,
         [](const double *win, size_t n) { return winMin(win, n); });
 }
 
-Value movmax(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
+Value movmax_impl(std::pmr::memory_resource *mr, const Value &x,
+                  const Value &k, const MovOpts &opt)
 {
     const auto w = decodeWindow(k, "movmax");
-    const int d = resolveDim(x, dim, "movmax");
-    return movingDriverDim(mr, x, w, d,
+    const int d = resolveDim(x, opt.dim, "movmax");
+    return movingDriverDim(mr, x, w, d, opt,
         [](const double *win, size_t n) { return winMax(win, n); });
 }
 
-Value movprod(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
+Value movprod_impl(std::pmr::memory_resource *mr, const Value &x,
+                   const Value &k, const MovOpts &opt)
 {
     const auto w = decodeWindow(k, "movprod");
-    const int d = resolveDim(x, dim, "movprod");
-    return movingDriverDim(mr, x, w, d,
+    const int d = resolveDim(x, opt.dim, "movprod");
+    return movingDriverDim(mr, x, w, d, opt,
         [](const double *win, size_t n) { return winProd(win, n); });
 }
 
-Value movmedian(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
+Value movmedian_impl(std::pmr::memory_resource *mr, const Value &x,
+                     const Value &k, const MovOpts &opt)
 {
     const auto w = decodeWindow(k, "movmedian");
-    const int d = resolveDim(x, dim, "movmedian");
-    // The reducer needs to mutate its window — the runMoving copy buffer
-    // is owned by the driver, but we wrote it as `const`. Make a local
-    // mutable copy per call (the windows are short).
-    return movingDriverDim(mr, x, w, d,
+    const int d = resolveDim(x, opt.dim, "movmedian");
+    return movingDriverDim(mr, x, w, d, opt,
         [](const double *win, size_t n) {
             double tmp[1024];   // typical k <= a few hundred
             if (n <= sizeof(tmp) / sizeof(tmp[0])) {
@@ -308,22 +501,22 @@ Value movmedian(std::pmr::memory_resource *mr, const Value &x, const Value &k, i
         });
 }
 
-Value movvar(std::pmr::memory_resource *mr, const Value &x, const Value &k,
-             int normFlag, int dim)
+Value movvar_impl(std::pmr::memory_resource *mr, const Value &x,
+                  const Value &k, int normFlag, const MovOpts &opt)
 {
     if (normFlag != 0 && normFlag != 1)
         throw Error("movvar: normFlag must be 0 or 1",
                      0, 0, "movvar", "", "m:movvar:badNormFlag");
     const auto w = decodeWindow(k, "movvar");
-    const int d = resolveDim(x, dim, "movvar");
-    return movingDriverDim(mr, x, w, d,
+    const int d = resolveDim(x, opt.dim, "movvar");
+    return movingDriverDim(mr, x, w, d, opt,
         [normFlag](const double *win, size_t n) { return winVar(win, n, normFlag); });
 }
 
-Value movstd(std::pmr::memory_resource *mr, const Value &x, const Value &k,
-             int normFlag, int dim)
+Value movstd_impl(std::pmr::memory_resource *mr, const Value &x,
+                  const Value &k, int normFlag, const MovOpts &opt)
 {
-    auto v = movvar(mr, x, k, normFlag, dim);
+    auto v = movvar_impl(mr, x, k, normFlag, opt);
     double *p = v.doubleDataMut();
     const size_t n = v.numel();
     for (size_t i = 0; i < n; ++i)
@@ -331,20 +524,44 @@ Value movstd(std::pmr::memory_resource *mr, const Value &x, const Value &k,
     return v;
 }
 
-Value movmad(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
+Value movmad_impl(std::pmr::memory_resource *mr, const Value &x,
+                  const Value &k, const MovOpts &opt)
 {
     const auto w = decodeWindow(k, "movmad");
-    const int d = resolveDim(x, dim, "movmad");
-    return movingDriverDim(mr, x, w, d,
+    const int d = resolveDim(x, opt.dim, "movmad");
+    return movingDriverDim(mr, x, w, d, opt,
         [mr](const double *win, size_t n) -> double {
-            // Independent per-window arena — small windows fit the inline
-            // 64 KiB easily; cleared by ScratchArena dtor at function exit.
             ScratchArena local(mr);
             auto buf = ScratchVec<double>(n, &local);
             std::copy(win, win + n, buf.data());
             return winMadInPlace(buf.data(), n, local);
         });
 }
+
+} // anonymous
+
+// ── public API (legacy dim-only sigs; defaults for extras) ────────────
+
+Value movmean(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
+{ MovOpts o; o.dim = dim; return movmean_impl(mr, x, k, o); }
+Value movsum(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
+{ MovOpts o; o.dim = dim; return movsum_impl(mr, x, k, o); }
+Value movmin(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
+{ MovOpts o; o.dim = dim; return movmin_impl(mr, x, k, o); }
+Value movmax(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
+{ MovOpts o; o.dim = dim; return movmax_impl(mr, x, k, o); }
+Value movprod(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
+{ MovOpts o; o.dim = dim; return movprod_impl(mr, x, k, o); }
+Value movmedian(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
+{ MovOpts o; o.dim = dim; return movmedian_impl(mr, x, k, o); }
+Value movvar(std::pmr::memory_resource *mr, const Value &x, const Value &k,
+             int normFlag, int dim)
+{ MovOpts o; o.dim = dim; return movvar_impl(mr, x, k, normFlag, o); }
+Value movstd(std::pmr::memory_resource *mr, const Value &x, const Value &k,
+             int normFlag, int dim)
+{ MovOpts o; o.dim = dim; return movstd_impl(mr, x, k, normFlag, o); }
+Value movmad(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
+{ MovOpts o; o.dim = dim; return movmad_impl(mr, x, k, o); }
 
 // ── smoothdata ────────────────────────────────────────────────────────
 Value smoothdata(std::pmr::memory_resource *mr, const Value &x,
@@ -366,17 +583,19 @@ Value smoothdata(std::pmr::memory_resource *mr, const Value &x,
     }
     auto kVal = Value::scalar(static_cast<double>(k), mr);
 
+    MovOpts opt;
+    opt.dim = dim;
     if (m == "movmean" || m.empty())
-        return movmean(mr, x, kVal, dim);
+        return movmean_impl(mr, x, kVal, opt);
     if (m == "movmedian")
-        return movmedian(mr, x, kVal, dim);
+        return movmedian_impl(mr, x, kVal, opt);
     if (m == "gaussian") {
         // Gaussian-weighted moving mean — use sigma = (k-1)/4 (MATLAB heuristic).
         const auto w = decodeWindow(kVal, "smoothdata");
         const int d = resolveDim(x, dim, "smoothdata");
         const double sigma = (k > 1) ? static_cast<double>(k - 1) / 4.0 : 1.0;
         const long kb = w.kb;
-        return movingDriverDim(mr, x, w, d,
+        return movingDriverDim(mr, x, w, d, opt,
             [sigma, kb](const double *win, size_t n) {
                 double sw = 0.0, ssum = 0.0;
                 for (size_t i = 0; i < n; ++i) {
@@ -440,19 +659,24 @@ Value hampel(std::pmr::memory_resource *mr, const Value &x, int k, double nsigma
 }
 
 // ── Engine adapters ───────────────────────────────────────────────────
-namespace detail {
+//
+// All mov*_reg adapters share the same trailing-argument grammar:
+//   mov*(x, k [, dim] [, nanflag] [, Name, Value]...)
+// where nanflag is one of {includemissing|includenan|omitmissing|omitnan}
+// and Name-Value pairs are {Endpoints} (SamplePoints currently throws).
+//
+// movvar / movstd insert one extra positional `normFlag` (numeric scalar
+// 0 or 1) between `k` and the optional trailing dim/nanflag/Name-Value.
 
-static int dimFromArg(Span<const Value> args, size_t pos)
-{
-    return (args.size() > pos) ? static_cast<int>(args[pos].toScalar()) : 0;
-}
+namespace detail {
 
 void movmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("movmean: requires at least 2 arguments (x, k)",
                      0, 0, "movmean", "", "m:movmean:nargin");
-    outs[0] = movmean(ctx.engine->resource(), args[0], args[1], dimFromArg(args, 2));
+    auto opt = parseMovExtras(args, 2, "movmean");
+    outs[0] = movmean_impl(ctx.engine->resource(), args[0], args[1], opt);
 }
 
 void movsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -460,7 +684,8 @@ void movsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 2)
         throw Error("movsum: requires at least 2 arguments (x, k)",
                      0, 0, "movsum", "", "m:movsum:nargin");
-    outs[0] = movsum(ctx.engine->resource(), args[0], args[1], dimFromArg(args, 2));
+    auto opt = parseMovExtras(args, 2, "movsum");
+    outs[0] = movsum_impl(ctx.engine->resource(), args[0], args[1], opt);
 }
 
 void movmin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -468,7 +693,8 @@ void movmin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 2)
         throw Error("movmin: requires at least 2 arguments (x, k)",
                      0, 0, "movmin", "", "m:movmin:nargin");
-    outs[0] = movmin(ctx.engine->resource(), args[0], args[1], dimFromArg(args, 2));
+    auto opt = parseMovExtras(args, 2, "movmin");
+    outs[0] = movmin_impl(ctx.engine->resource(), args[0], args[1], opt);
 }
 
 void movmax_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -476,7 +702,8 @@ void movmax_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 2)
         throw Error("movmax: requires at least 2 arguments (x, k)",
                      0, 0, "movmax", "", "m:movmax:nargin");
-    outs[0] = movmax(ctx.engine->resource(), args[0], args[1], dimFromArg(args, 2));
+    auto opt = parseMovExtras(args, 2, "movmax");
+    outs[0] = movmax_impl(ctx.engine->resource(), args[0], args[1], opt);
 }
 
 void movprod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -484,7 +711,8 @@ void movprod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() < 2)
         throw Error("movprod: requires at least 2 arguments (x, k)",
                      0, 0, "movprod", "", "m:movprod:nargin");
-    outs[0] = movprod(ctx.engine->resource(), args[0], args[1], dimFromArg(args, 2));
+    auto opt = parseMovExtras(args, 2, "movprod");
+    outs[0] = movprod_impl(ctx.engine->resource(), args[0], args[1], opt);
 }
 
 void movmedian_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -492,7 +720,8 @@ void movmedian_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("movmedian: requires at least 2 arguments (x, k)",
                      0, 0, "movmedian", "", "m:movmedian:nargin");
-    outs[0] = movmedian(ctx.engine->resource(), args[0], args[1], dimFromArg(args, 2));
+    auto opt = parseMovExtras(args, 2, "movmedian");
+    outs[0] = movmedian_impl(ctx.engine->resource(), args[0], args[1], opt);
 }
 
 void movvar_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -500,9 +729,19 @@ void movvar_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 2)
         throw Error("movvar: requires at least 2 arguments (x, k)",
                      0, 0, "movvar", "", "m:movvar:nargin");
-    const int normFlag = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
-    const int dim = dimFromArg(args, 3);
-    outs[0] = movvar(ctx.engine->resource(), args[0], args[1], normFlag, dim);
+    int normFlag = 0;
+    size_t extras_start = 2;
+    if (args.size() >= 3 && !args[2].isChar() && !args[2].isString()
+        && args[2].isScalar()) {
+        // Could be normFlag or dim — disambiguate: normFlag is 0 or 1.
+        const double v = args[2].toScalar();
+        if (v == 0.0 || v == 1.0) {
+            normFlag = static_cast<int>(v);
+            extras_start = 3;
+        }
+    }
+    auto opt = parseMovExtras(args, extras_start, "movvar");
+    outs[0] = movvar_impl(ctx.engine->resource(), args[0], args[1], normFlag, opt);
 }
 
 void movstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -510,9 +749,18 @@ void movstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 2)
         throw Error("movstd: requires at least 2 arguments (x, k)",
                      0, 0, "movstd", "", "m:movstd:nargin");
-    const int normFlag = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
-    const int dim = dimFromArg(args, 3);
-    outs[0] = movstd(ctx.engine->resource(), args[0], args[1], normFlag, dim);
+    int normFlag = 0;
+    size_t extras_start = 2;
+    if (args.size() >= 3 && !args[2].isChar() && !args[2].isString()
+        && args[2].isScalar()) {
+        const double v = args[2].toScalar();
+        if (v == 0.0 || v == 1.0) {
+            normFlag = static_cast<int>(v);
+            extras_start = 3;
+        }
+    }
+    auto opt = parseMovExtras(args, extras_start, "movstd");
+    outs[0] = movstd_impl(ctx.engine->resource(), args[0], args[1], normFlag, opt);
 }
 
 void movmad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -520,7 +768,8 @@ void movmad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 2)
         throw Error("movmad: requires at least 2 arguments (x, k)",
                      0, 0, "movmad", "", "m:movmad:nargin");
-    outs[0] = movmad(ctx.engine->resource(), args[0], args[1], dimFromArg(args, 2));
+    auto opt = parseMovExtras(args, 2, "movmad");
+    outs[0] = movmad_impl(ctx.engine->resource(), args[0], args[1], opt);
 }
 
 void smoothdata_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

@@ -1,10 +1,19 @@
 {
   "name": "movmean",
-  "namespace": "core",
-  "setup": "x = linspace(0, 1, 1000000); k = 5;",
-  "expr": "y = movmean(x, k);",
-  "iters": 100,
+  "namespace": "stats",
+  "setup": "A = [1 3 2 5 4 6 NaN 8 7 10]'; A2 = (1:9)'; M2 = [A2 A2*2];",
+  "expr": "y_def = movmean(A, 3); y_omit = movmean(A, 3, 'omitnan'); y_omiss = movmean(A, 3, 'omitmissing'); y_inc = movmean(A, 3, 'includenan'); y_disc = movmean(A2, 3, 'Endpoints', 'discard'); y_fill = movmean(A2, 3, 'Endpoints', 'fill'); y_sca = movmean(A2, 3, 'Endpoints', 0); y_mat = movmean(M2, 3, 1, 'omitnan', 'Endpoints', 'discard');",
+  "iters": 5,
   "tol": 1e-10,
-  "comment": "Sig: M = movmean(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE.",
-  "out_var": "y"
+  "fingerprint": [
+    "y_def(1)", "y_def(5)", "y_def(7)", "y_def(10)",
+    "y_omit(7)", "y_omit(8)",
+    "y_omiss(7)",
+    "y_inc(7)",
+    "numel(y_disc)", "y_disc(1)", "y_disc(7)",
+    "y_fill(1)", "y_fill(2)", "y_fill(9)",
+    "y_sca(1)", "y_sca(2)", "y_sca(9)",
+    "size(y_mat,1)", "size(y_mat,2)", "y_mat(1,1)", "y_mat(7,2)"
+  ],
+  "comment": "Sig: M = movmean(A, k[, dim] [, nanflag] [, Name, Value]). nanflag in {includemissing|includenan (default)|omitmissing|omitnan}. Endpoints in {shrink (default)|discard|fill|scalar}. SamplePoints not yet implemented (parity gap, throws with documented error). DataVariables/ReplaceValues are table-only and throw too. k=0 throws MATLAB-matching error. Verified: NaN propagation default, omitnan/omitmissing alias, includenan explicit, all four Endpoints modes, combined matrix+dim+nanflag+endpoints. Closes audit/findings/stats/movmean.md."
 }

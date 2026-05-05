@@ -137,3 +137,8 @@ t  = [0 1 2 3 4 5 7 8 9]'   % non-uniform sample positions
   identical adapter rewrite. A factored helper
   (`parse_mov_extras(...)`) would let the eight adapters share the
   same code.
+
+## Closed
+- Closed in commit: PENDING (joint mov* family fix)
+- Closed date: 2026-05-06
+- Notes: nanflag {includemissing|includenan|omitmissing|omitnan} + Endpoints {shrink|discard|fill|scalar} + k=0 error all implemented in libs/stats/src/moving/moving.cpp via shared parseMovExtras helper. SamplePoints/DataVariables/ReplaceValues throw with documented messages.

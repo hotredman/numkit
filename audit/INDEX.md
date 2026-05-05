@@ -47,15 +47,6 @@ Status legend:
 | [findings/stats/ranksum.md](findings/stats/ranksum.md) | ranksum | stats.test | low | small | 69fab7c |
 | [findings/stats/signrank.md](findings/stats/signrank.md) | signrank | stats.test | low | small | 69fab7c |
 | [findings/stats/signtest.md](findings/stats/signtest.md) | signtest | stats.test | low | small | 69fab7c |
-| [findings/stats/movmad.md](findings/stats/movmad.md) | movmad | stats.moving | critical | small | 4f021db |
-| [findings/stats/movmax.md](findings/stats/movmax.md) | movmax | stats.moving | critical | small | 4f021db |
-| [findings/stats/movmean.md](findings/stats/movmean.md) | movmean | stats.moving | critical | large | 4f021db |
-| [findings/stats/movmedian.md](findings/stats/movmedian.md) | movmedian | stats.moving | critical | small | 4f021db |
-| [findings/stats/movmin.md](findings/stats/movmin.md) | movmin | stats.moving | critical | small | 4f021db |
-| [findings/stats/movprod.md](findings/stats/movprod.md) | movprod | stats.moving | critical | small | 4f021db |
-| [findings/stats/movstd.md](findings/stats/movstd.md) | movstd | stats.moving | critical | small | 4f021db |
-| [findings/stats/movsum.md](findings/stats/movsum.md) | movsum | stats.moving | critical | small | 4f021db |
-| [findings/stats/movvar.md](findings/stats/movvar.md) | movvar | stats.moving | critical | small | 4f021db |
 | [findings/stats/cummax.md](findings/stats/cummax.md) | cummax | builtin | high | medium | 4f021db |
 | [findings/stats/cummin.md](findings/stats/cummin.md) | cummin | builtin | high | medium | 4f021db |
 | [findings/stats/iqr.md](findings/stats/iqr.md) | iqr | stats.descriptive | high | small | ba142e6 |
@@ -225,7 +216,15 @@ Status legend:
 
 | File | Function | Closed in commit | Closed date |
 |---|---|---|---|
-| _none yet_ | | | |
+| [closed/stats/movmean.md](closed/stats/movmean.md) | movmean | PENDING | 2026-05-06 |
+| [closed/stats/movmedian.md](closed/stats/movmedian.md) | movmedian | PENDING | 2026-05-06 |
+| [closed/stats/movsum.md](closed/stats/movsum.md) | movsum | PENDING | 2026-05-06 |
+| [closed/stats/movmin.md](closed/stats/movmin.md) | movmin | PENDING | 2026-05-06 |
+| [closed/stats/movmax.md](closed/stats/movmax.md) | movmax | PENDING | 2026-05-06 |
+| [closed/stats/movprod.md](closed/stats/movprod.md) | movprod | PENDING | 2026-05-06 |
+| [closed/stats/movmad.md](closed/stats/movmad.md) | movmad | PENDING | 2026-05-06 |
+| [closed/stats/movstd.md](closed/stats/movstd.md) | movstd | PENDING | 2026-05-06 |
+| [closed/stats/movvar.md](closed/stats/movvar.md) | movvar | PENDING | 2026-05-06 |
 
 ---
 

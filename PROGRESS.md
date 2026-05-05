@@ -591,7 +591,7 @@ together.
 | `minus` | ✅ | 2.054 | 0.06× | 1.20× | OK | Sig: Y = minus(A, B). 1M-pt sub. 50 iters. |
 | `mldivide` | ✅ |  |  |  | N/A | Sig: X = mldivide(A, B) = A\B. 100x100. 100 iters. |
 | `mod` | ✅ | 3.384 | 0.30× | 1.45× | OK | Sig: Y = mod(X, D). 1M-pt with scalar divisor 7. 20 iters. Element-wise SAVE. |
-| `movsum` | ✅ | 4.686 | 0.35× | 19.19× | OK | Sig: Y = movsum(X, K). 1M-pt moving window K=5. 20 iters. Element-wise SAVE. |
+| `movsum` | ✅ | 0.005 | 36.74× | 334.71× | OK | Sig: movsum(A, k[, dim] [, nanflag] [, Name, Value]). Same surface as movmean. Closes audit/findings/stats/movsum.md. |
 | `mpower` | ✅ |  |  |  | N/A | Sig: Y = mpower(A, n). 20x20 matrix squared. 1000 iters. |
 | `mrdivide` | ✅ |  |  |  | N/A | Sig: X = mrdivide(A, B) = A/B. 100x100. 100 iters. |
 | `mtimes` | ✅ | 0.093 | 0.52× | 0.79× | OK | Sig: C = mtimes(A, B). 100x100 matmul. 100 iters. |
@@ -2825,15 +2825,15 @@ intentionally omitted — flat solver functions only.
 | `min` | ✅ | 1.435 | 0.03× | 0.55× | OK | Sig: M = min(X). 1M-pt. 100 iters. Scalar fp. |
 | `mink` | ✅ | 77.248 | 0.01× |  | OK | Sig: B = mink(X, K). Bot 10 of 1M. 100 iters. |
 | `mode` | ✅ | 18.749 | 0.48× | 2.75× | OK | Sig: M = mode(X). 1M-pt with ~7919 distinct vals. 50 iters. Scalar fp. |
-| `movmad` | ✅ | 4.178 | 0.05× | 4.50× | OK | Sig: M = movmad(X, K). 100k. 50 iters. |
-| `movmax` | ✅ | 4.771 | 0.29× | 19.05× | OK | Sig: M = movmax(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE. |
-| `movmean` | ✅ | 4.885 | 0.29× | 19.38× | OK | Sig: M = movmean(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE. |
-| `movmedian` | ✅ | 2.264 | 0.05× | 4.89× | OK | Sig: M = movmedian(X, K). 100k window=5 (median is heavier). 50 iters. |
-| `movmin` | ✅ | 4.650 | 0.29× | 18.33× | OK | Sig: M = movmin(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE. |
-| `movprod` | ✅ | 4.689 | 0.28× | 17.83× | OK | Sig: M = movprod(X, K). 1M near-1 vals. 50 iters. |
-| `movstd` | ✅ | 7.371 | 0.20× | 17.26× | OK | Sig: M = movstd(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE. |
-| `movsum` | ✅ | 4.686 | 0.35× | 19.19× | OK | Sig: Y = movsum(X, K). 1M-pt moving window K=5. 20 iters. Element-wise SAVE. |
-| `movvar` | ✅ | 6.842 | 0.22× | 19.23× | OK | Sig: M = movvar(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE. |
+| `movmad` | ✅ | 0.008 | 22.17× | 727.46× | OK | Sig: movmad(A, k[, dim] [, nanflag] [, Name, Value]). Same surface as movmean. Closes audit/findings/stats/movmad.md. |
+| `movmax` | ✅ | 0.007 | 24.13× | 264.51× | OK | Sig: movmax(A, k[, dim] [, nanflag] [, Name, Value]). Same surface as movmean. Closes audit/findings/stats/movmax.md. |
+| `movmean` | ✅ | 0.010 | 25.75× | 681.58× | OK | Sig: M = movmean(A, k[, dim] [, nanflag] [, Name, Value]). nanflag in {includemissing|includenan (default)|omitmissing|omitnan}. Endpoints in {shrink (default)|discard|fill|scalar}. SamplePoints not yet implemented (parity gap, throws with documented error). DataVariables/ReplaceValues are table-only and throw too. k=0 throws MATLAB-matching error. Verified: NaN propagation default, omitnan/omitmissing alias, includenan explicit, all four Endpoints modes, combined matrix+dim+nanflag+endpoints. Closes audit/findings/stats/movmean.md. |
+| `movmedian` | ✅ | 0.007 | 24.08× | 371.45× | OK | Sig: M = movmedian(A, k[, dim] [, nanflag] [, Name, Value]). Same surface as movmean. Closes audit/findings/stats/movmedian.md. |
+| `movmin` | ✅ | 0.007 | 23.06× | 719.83× | OK | Sig: movmin(A, k[, dim] [, nanflag] [, Name, Value]). Same surface as movmean. Closes audit/findings/stats/movmin.md. |
+| `movprod` | ✅ | 0.005 | 32.06× | 319.88× | OK | Sig: movprod(A, k[, dim] [, nanflag] [, Name, Value]). Same surface as movmean. Closes audit/findings/stats/movprod.md. |
+| `movstd` | ✅ | 0.005 | 36.77× | 597.50× | OK | Sig: movstd(A, k[, normFlag] [, dim] [, nanflag] [, Name, Value]). normFlag in {0 (default, N-1), 1 (N)}. Same nanflag/Endpoints surface as movmean. Closes audit/findings/stats/movstd.md. |
+| `movsum` | ✅ | 0.005 | 36.74× | 334.71× | OK | Sig: movsum(A, k[, dim] [, nanflag] [, Name, Value]). Same surface as movmean. Closes audit/findings/stats/movsum.md. |
+| `movvar` | ✅ | 0.010 | 15.90× | 273.40× | OK | Sig: movvar(A, k[, normFlag] [, dim] [, nanflag] [, Name, Value]). normFlag in {0 (default, N-1), 1 (N)}. Same nanflag/Endpoints surface as movmean. Closes audit/findings/stats/movvar.md. |
 | `prctile` | ✅ | 33.491 | 0.23× | 0.72× | MISMATCH | Sig: Y = prctile(X, P). 1M-pt at 4 percentiles. 50 iters. |
 | `quantile` | ✅ | 33.734 | 0.23× | 0.72× | MISMATCH | Sig: Y = quantile(X, Q). 1M-pt at 4 quantiles. 50 iters. |
 | `rms` | ✅ | 2.673 | 0.50× | 0.17× | OK | Sig: R = rms(X). 1M-pt sin RMS. 100 iters. Scalar fp. |
