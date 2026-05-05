@@ -1702,6 +1702,62 @@ Value rangefilt(std::pmr::memory_resource *mr,
     return out;
 }
 
+std::tuple<Value, Value, Value>
+freqz2(std::pmr::memory_resource *mr, const Value &h, size_t M, size_t N)
+{
+    if (h.dims().is3D())
+        throw Error("freqz2: kernel must be 2-D",
+                    0, 0, "freqz2", "", "m:freqz2:dims");
+    const size_t P = h.dims().rows();
+    const size_t Q = h.dims().cols();
+    if (M == 0) M = 64;
+    if (N == 0) N = 64;
+
+    // freqspace-style row/col frequency grids: f[k] = -1 + 2(k-1)/N for
+    // k = 1..N. (Even N: starts at -1 and stops at 1 - 2/N.)
+    Value f1V = Value::matrix(M, 1, ValueType::DOUBLE, mr);
+    Value f2V = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+    double *f1 = f1V.doubleDataMut();
+    double *f2 = f2V.doubleDataMut();
+    for (size_t i = 0; i < M; ++i) f1[i] = -1.0 + 2.0 * static_cast<double>(i) / static_cast<double>(M);
+    for (size_t j = 0; j < N; ++j) f2[j] = -1.0 + 2.0 * static_cast<double>(j) / static_cast<double>(N);
+
+    Value HV = Value::matrix(M, N, ValueType::COMPLEX, mr);
+    if (P == 0 || Q == 0) return {std::move(HV), std::move(f1V), std::move(f2V)};
+    Complex *Hd = HV.complexDataMut();
+
+    // H[i, j] = Σ_p Σ_q h[p,q] · exp(+iπ·(f1[i]·(p - cp) + f2[j]·(q - cq)))
+    // where (cp, cq) = (⌊(P-1)/2⌋, ⌊(Q-1)/2⌋) are the kernel centre
+    // offsets. Matches MATLAB: real for symmetric h, complex otherwise.
+    const double cp = static_cast<double>((P > 0 ? (P - 1) / 2 : 0));
+    const double cq = static_cast<double>((Q > 0 ? (Q - 1) / 2 : 0));
+    std::vector<Complex> phase_p_i(M * P), phase_q_j(N * Q);
+    for (size_t i = 0; i < M; ++i)
+        for (size_t p = 0; p < P; ++p) {
+            const double a = M_PI * f1[i] * (static_cast<double>(p) - cp);
+            phase_p_i[p + i * P] = {std::cos(a), std::sin(a)};
+        }
+    for (size_t j = 0; j < N; ++j)
+        for (size_t q = 0; q < Q; ++q) {
+            const double a = M_PI * f2[j] * (static_cast<double>(q) - cq);
+            phase_q_j[q + j * Q] = {std::cos(a), std::sin(a)};
+        }
+    for (size_t j = 0; j < N; ++j) {
+        for (size_t i = 0; i < M; ++i) {
+            Complex sum{0.0, 0.0};
+            for (size_t q = 0; q < Q; ++q) {
+                const Complex pq = phase_q_j[q + j * Q];
+                for (size_t p = 0; p < P; ++p) {
+                    const double hpq = h.elemAsDouble(p + q * P);
+                    sum += hpq * (phase_p_i[p + i * P] * pq);
+                }
+            }
+            Hd[i + j * M] = sum;
+        }
+    }
+    return {std::move(HV), std::move(f1V), std::move(f2V)};
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -1935,6 +1991,30 @@ void imboxfilt3_reg(Span<const Value> args, size_t /*nargout*/,
         }
     }
     outs[0] = imboxfilt3(ctx.engine->resource(), args[0], fH, fW, fP);
+}
+
+void freqz2_reg(Span<const Value> args, size_t nargout,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("freqz2: requires (h [, M, N])",
+                    0, 0, "freqz2", "", "m:freqz2:nargin");
+    size_t M = 64, N = 64;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const Value &v = args[1];
+        if (v.numel() == 1) {
+            M = N = static_cast<size_t>(v.toScalar());
+        } else if (v.numel() >= 2) {
+            M = static_cast<size_t>(v.elemAsDouble(0));
+            N = static_cast<size_t>(v.elemAsDouble(1));
+        }
+    }
+    if (args.size() >= 3 && !args[2].isEmpty())
+        N = static_cast<size_t>(args[2].toScalar());
+    auto [H, f1, f2] = freqz2(ctx.engine->resource(), args[0], M, N);
+    outs[0] = std::move(H);
+    if (nargout > 1) outs[1] = std::move(f1);
+    if (nargout > 2) outs[2] = std::move(f2);
 }
 
 void medfilt2_reg(Span<const Value> args, size_t /*nargout*/,

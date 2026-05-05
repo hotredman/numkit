@@ -1,0 +1,17 @@
+{
+  "name": "freqz2",
+  "namespace": "image",
+  "setup": "h = ones(3,3) / 9;",
+  "expr": "[H, f1, f2] = freqz2(h, 8, 8);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "real(H(1,1))",
+    "real(H(4,4))",
+    "real(H(5,5))",
+    "f1(1)",
+    "f1(end)",
+    "f2(end)"
+  ],
+  "comment": "Sig: [H, f1, f2] = freqz2(h[, M, N]). 2-D frequency response on freqspace M×N grid. Centred kernel: H[i,j] = Σ h[p,q]·exp(+iπ·(f1[i]·(p-cp) + f2[j]·(q-cq))) with cp = ⌊(P-1)/2⌋."
+}

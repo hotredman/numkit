@@ -172,6 +172,13 @@ Value ordfilt2(std::pmr::memory_resource *mr,
                const Value &A, int nth, const Value &domain,
                const Value &S, PadMode boundary, double pad_value);
 
+/// freqz2(h [, M, N]) — 2-D frequency response of filter h on a
+/// freqspace-style M×N grid (default 64×64). Returns (H, f1, f2)
+/// where H[i,j] = Σ_p Σ_q h[p,q] · exp(-iπ·(f1[i]·p + f2[j]·q)) and
+/// f1 / f2 are the row/column frequency vectors from freqspace.
+std::tuple<Value, Value, Value>
+freqz2(std::pmr::memory_resource *mr, const Value &h, size_t M, size_t N);
+
 /// wiener2(I [, nh, nw [, noise]]) — adaptive Wiener noise reduction
 /// (Lim 1989, eq. 9.26-9.29). Local mean μ and variance σ² in an
 /// nh×nw box neighbourhood (default 3×3, zero-pad boundary). When
