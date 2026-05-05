@@ -696,6 +696,7 @@ input, select { font-family: inherit; color: inherit; }
   padding: 6px 14px;
   border-top: 1px solid var(--line-soft);
   font-family: var(--font-mono);
+  flex-shrink: 0;   /* keep the prompt visible even when output grows */
 }
 .con-prompt { color: var(--accent); }
 .console-input input {
