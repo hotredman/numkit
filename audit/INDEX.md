@@ -145,6 +145,16 @@ Status legend:
 | [findings/stats/expstat.md](findings/stats/expstat.md) | expstat | stats.dist | low | small | 301e5a5 |
 | [findings/stats/gaminv.md](findings/stats/gaminv.md) | gaminv | stats.dist | low | small | 301e5a5 |
 | [findings/stats/gamstat.md](findings/stats/gamstat.md) | gamstat | stats.dist | low | small | 301e5a5 |
+| [findings/signal/fftshift.md](findings/signal/fftshift.md) | fftshift | core (builtin) | critical | small | 9bce106 |
+| [findings/signal/hilbert.md](findings/signal/hilbert.md) | hilbert | signal.transforms | critical | small | 9bce106 |
+| [findings/signal/ifftshift.md](findings/signal/ifftshift.md) | ifftshift | core (builtin) | critical | small | 9bce106 |
+| [findings/signal/envelope.md](findings/signal/envelope.md) | envelope | signal.transforms | critical | medium | 9bce106 |
+| [findings/signal/dct.md](findings/signal/dct.md) | dct | signal.transforms | high | medium | 9bce106 |
+| [findings/signal/idct.md](findings/signal/idct.md) | idct | signal.transforms | medium | small | 9bce106 |
+| [findings/signal/bitrevorder.md](findings/signal/bitrevorder.md) | bitrevorder | signal.transforms | medium | small | 9bce106 |
+| [findings/signal/dftmtx.md](findings/signal/dftmtx.md) | dftmtx | signal.transforms | low | small | 9bce106 |
+| [findings/signal/interpft.md](findings/signal/interpft.md) | interpft | signal.transforms | low | small | 9bce106 |
+| [findings/signal/nextpow2.md](findings/signal/nextpow2.md) | nextpow2 | core (builtin) | low | small | 9bce106 |
 
 ## Closed ТЗ
 
