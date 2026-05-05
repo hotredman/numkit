@@ -640,7 +640,7 @@ function InlinePlot({ data, rows, cols, onClose }) {
 /* ======================================================================== */
 /* Variable Editor — modal table with notation/precision/heatmap/plot       */
 /* ======================================================================== */
-export function VariableEditor({ variable, onClose }) {
+export function VariableEditor({ variable, onClose, engine }) {
   const [precision, setPrecision] = useState(4);
   const [notation, setNotation]   = useState('fixed');
   const [heatmap, setHeatmap]     = useState(false);
@@ -650,10 +650,38 @@ export function VariableEditor({ variable, onClose }) {
   const [editing, setEditing]     = useState(null);
   const [editVal, setEditVal]     = useState('');
   const [data, setData]           = useState(variable.data);
+  const [loading, setLoading]     = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const tableRef = useRef(null);
   const inputRef = useRef(null);
 
-  useEffect(() => { setData(variable.data); setActiveCell({ r: 0, c: 0 }); }, [variable]);
+  // On open (and on variable swap), seed with the cheap preview, then ask
+  // the engine for the variable's full numeric data and replace. The
+  // preview renders instantly; the full fetch keeps the table responsive
+  // for big arrays without blocking the UI.
+  useEffect(() => {
+    setData(variable.data);
+    setActiveCell({ r: 0, c: 0 });
+    setLoadError(null);
+    if (!engine || typeof engine.getVarData !== 'function') return;
+    setLoading(true);
+    // Defer to next microtask so the modal paints first with the preview,
+    // then the WASM fetch swaps in the full data. Avoid requestIdleCallback
+    // — it can take seconds in some headless environments.
+    const handle = setTimeout(() => {
+      try {
+        const r = engine.getVarData(variable.name);
+        if (!r) { setLoading(false); return; }
+        if (r.error) { setLoadError(r.error); setLoading(false); return; }
+        if (Array.isArray(r.data) && r.data.length > 0) setData(r.data);
+        setLoading(false);
+      } catch (e) {
+        setLoadError(e?.message || String(e));
+        setLoading(false);
+      }
+    }, 0);
+    return () => clearTimeout(handle);
+  }, [variable, engine]);
 
   const rows = data.length;
   const cols = data[0]?.length || 0;
@@ -742,6 +770,17 @@ export function VariableEditor({ variable, onClose }) {
             <span className="ve-dim">{variable.size}</span>
           </div>
           <div className="ve-title-right">
+            {loading && (
+              <span className="ve-meta" style={{ color: 'var(--accent)' }}>
+                loading full data…
+              </span>
+            )}
+            {loadError && (
+              <span className="ve-meta" style={{ color: 'var(--danger)' }}
+                title={loadError}>
+                preview only
+              </span>
+            )}
             <span className="ve-meta">{variable.bytes} B · {rows * cols} elements</span>
             <button className="ve-close" onClick={onClose} aria-label="Close">×</button>
           </div>
