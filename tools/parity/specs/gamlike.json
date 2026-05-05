@@ -1,0 +1,10 @@
+{
+  "name": "gamlike",
+  "namespace": "stats",
+  "setup": "x = [1 2 3 4 5]';",
+  "expr": "nL = gamlike([2, 1], x);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["nL"],
+  "comment": "Sig: nL = gamlike([a b], x). Negative log-likelihood for Gamma(a, b) with shape a and scale b."
+}

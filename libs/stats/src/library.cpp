@@ -238,6 +238,13 @@ void normfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void poissfit_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void expfit_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void unifit_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void normlike_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void explike_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lognlike_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gamlike_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void betalike_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void wbllike_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void evlike_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -442,6 +449,13 @@ void StatsLibrary::install(Engine &engine)
     reg("fit", "poissfit", &stats::detail::poissfit_reg);
     reg("fit", "expfit",   &stats::detail::expfit_reg);
     reg("fit", "unifit",   &stats::detail::unifit_reg);
+    reg("fit", "normlike", &stats::detail::normlike_reg);
+    reg("fit", "explike",  &stats::detail::explike_reg);
+    reg("fit", "lognlike", &stats::detail::lognlike_reg);
+    reg("fit", "gamlike",  &stats::detail::gamlike_reg);
+    reg("fit", "betalike", &stats::detail::betalike_reg);
+    reg("fit", "wbllike",  &stats::detail::wbllike_reg);
+    reg("fit", "evlike",   &stats::detail::evlike_reg);
 }
 
 } // namespace numkit

@@ -1,0 +1,10 @@
+{
+  "name": "lognlike",
+  "namespace": "stats",
+  "setup": "x = [1 2 3 4 5]';",
+  "expr": "nL = lognlike([0, 1], x);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["nL"],
+  "comment": "Sig: nL = lognlike([mu sigma], x). Negative log-likelihood for lognormal."
+}
