@@ -108,6 +108,21 @@ Status legend:
 | [findings/wavelet/meyeraux.md](findings/wavelet/meyeraux.md) | meyeraux | wavelet.shape | low | small | ddf4218 |
 | [findings/wavelet/morlet.md](findings/wavelet/morlet.md) | morlet | wavelet.shape | low | small | ddf4218 |
 | [findings/wavelet/shanwavf.md](findings/wavelet/shanwavf.md) | shanwavf | wavelet.shape | low | small | ddf4218 |
+| [findings/stats/chi2cdf.md](findings/stats/chi2cdf.md) | chi2cdf | stats.dist | high | small | 8e48677 |
+| [findings/stats/normcdf.md](findings/stats/normcdf.md) | normcdf | stats.dist | high | small | 8e48677 |
+| [findings/stats/normrnd.md](findings/stats/normrnd.md) | normrnd | stats.dist | high | medium | 8e48677 |
+| [findings/stats/tcdf.md](findings/stats/tcdf.md) | tcdf | stats.dist | high | small | 8e48677 |
+| [findings/stats/chi2rnd.md](findings/stats/chi2rnd.md) | chi2rnd | stats.dist | medium | small | 8e48677 |
+| [findings/stats/tpdf.md](findings/stats/tpdf.md) | tpdf | stats.dist | medium | small | 8e48677 |
+| [findings/stats/trnd.md](findings/stats/trnd.md) | trnd | stats.dist | medium | small | 8e48677 |
+| [findings/stats/tstat.md](findings/stats/tstat.md) | tstat | stats.dist | medium | small | 8e48677 |
+| [findings/stats/chi2inv.md](findings/stats/chi2inv.md) | chi2inv | stats.dist | low | small | 8e48677 |
+| [findings/stats/chi2pdf.md](findings/stats/chi2pdf.md) | chi2pdf | stats.dist | low | small | 8e48677 |
+| [findings/stats/chi2stat.md](findings/stats/chi2stat.md) | chi2stat | stats.dist | low | small | 8e48677 |
+| [findings/stats/norminv.md](findings/stats/norminv.md) | norminv | stats.dist | low | small | 8e48677 |
+| [findings/stats/normpdf.md](findings/stats/normpdf.md) | normpdf | stats.dist | low | small | 8e48677 |
+| [findings/stats/normstat.md](findings/stats/normstat.md) | normstat | stats.dist | low | small | 8e48677 |
+| [findings/stats/tinv.md](findings/stats/tinv.md) | tinv | stats.dist | low | small | 8e48677 |
 
 ## Closed ТЗ
 
