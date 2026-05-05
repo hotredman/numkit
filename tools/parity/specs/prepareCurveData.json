@@ -1,0 +1,15 @@
+{
+  "name": "prepareCurveData",
+  "namespace": "stats",
+  "setup": "x = [1 2 NaN 4 5]; y = [1 4 9 Inf 25];",
+  "expr": "[xo, yo] = prepareCurveData(x, y);",
+  "iters": 5,
+  "tol": 1e-15,
+  "fingerprint": [
+    "size(xo, 1)",
+    "size(xo, 2)",
+    "sum(xo)",
+    "sum(yo)"
+  ],
+  "comment": "Sig: [xo, yo[, wo]] = prepareCurveData(x, y[, w]). Strips rows where any of x, y, w is NaN/Inf; returns column vectors. w == 0 rows are KEPT (only finiteness matters)."
+}

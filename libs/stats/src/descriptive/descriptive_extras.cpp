@@ -291,6 +291,121 @@ Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
         }, mr);
 }
 
+// ── prepareCurveData / prepareSurfaceData ─────────────────────────────
+
+namespace {
+
+inline bool finite_double(double v) {
+    return !std::isnan(v) && !std::isinf(v);
+}
+
+// Flatten + filter helper. `srcs` give pointer/numel pairs (already
+// linearised), `keep_mask[i]` indicates whether row i survives.
+Value pack_filtered(std::pmr::memory_resource *mr,
+                    const std::vector<double> &src,
+                    const std::vector<uint8_t> &keep)
+{
+    size_t kept = 0;
+    for (uint8_t k : keep) if (k) ++kept;
+    Value out = Value::matrix(kept, 1, ValueType::DOUBLE, mr);
+    if (kept == 0) return out;
+    double *od = out.doubleDataMut();
+    size_t j = 0;
+    for (size_t i = 0; i < src.size(); ++i)
+        if (keep[i]) od[j++] = src[i];
+    return out;
+}
+
+} // anonymous
+
+std::tuple<Value, Value, Value>
+prepareCurveData(std::pmr::memory_resource *mr,
+                 const Value &x, const Value &y, const Value &w)
+{
+    const size_t Nx = x.numel();
+    const size_t Ny = y.numel();
+    const bool   hasW = !w.isEmpty();
+    const size_t Nw = hasW ? w.numel() : Nx;
+    if (Nx != Ny || (hasW && Nw != Nx))
+        throw Error("prepareCurveData: x, y" +
+                    std::string(hasW ? ", w" : "") + " must be same length",
+                    0, 0, "prepareCurveData", "", "m:prepCD:size");
+
+    std::vector<double> xv(Nx), yv(Nx), wv(hasW ? Nx : 0);
+    std::vector<uint8_t> keep(Nx, 1);
+    for (size_t i = 0; i < Nx; ++i) {
+        xv[i] = x.elemAsDouble(i);
+        yv[i] = y.elemAsDouble(i);
+        if (hasW) wv[i] = w.elemAsDouble(i);
+        if (!finite_double(xv[i]) || !finite_double(yv[i]) ||
+            (hasW && !finite_double(wv[i])))
+            keep[i] = 0;
+    }
+
+    Value xo = pack_filtered(mr, xv, keep);
+    Value yo = pack_filtered(mr, yv, keep);
+    Value wo = hasW ? pack_filtered(mr, wv, keep)
+                    : Value::matrix(0, 1, ValueType::DOUBLE, mr);
+    return {std::move(xo), std::move(yo), std::move(wo)};
+}
+
+std::tuple<Value, Value, Value>
+prepareSurfaceData(std::pmr::memory_resource *mr,
+                   const Value &x, const Value &y, const Value &z)
+{
+    // For surface fits MATLAB lets x and y be either vectors of length
+    // numel(z), or matrices the same shape as z (meshgrid). Normalise
+    // by linearising in column-major order; numel must match.
+    const size_t Nz = z.numel();
+    const size_t Nx = x.numel();
+    const size_t Ny = y.numel();
+
+    auto broadcastTo = [&](const Value &v, size_t target) -> std::vector<double> {
+        std::vector<double> out(target);
+        if (v.numel() == target) {
+            for (size_t i = 0; i < target; ++i) out[i] = v.elemAsDouble(i);
+        } else {
+            // Allow x = row of length cols, y = col of length rows for
+            // implicit meshgrid (matches MATLAB behaviour).
+            const auto &dz = z.dims();
+            const size_t rows = dz.rows();
+            const size_t cols = dz.cols();
+            if (v.numel() == cols) {
+                // treat as x-coords per column
+                for (size_t c = 0; c < cols; ++c)
+                    for (size_t r = 0; r < rows; ++r)
+                        out[r + c * rows] = v.elemAsDouble(c);
+            } else if (v.numel() == rows) {
+                for (size_t c = 0; c < cols; ++c)
+                    for (size_t r = 0; r < rows; ++r)
+                        out[r + c * rows] = v.elemAsDouble(r);
+            } else {
+                throw Error("prepareSurfaceData: x, y, z size mismatch",
+                            0, 0, "prepareSurfaceData", "", "m:prepSD:size");
+            }
+        }
+        return out;
+    };
+
+    std::vector<double> xv = broadcastTo(x, Nz);
+    std::vector<double> yv = broadcastTo(y, Nz);
+    std::vector<double> zv(Nz);
+    for (size_t i = 0; i < Nz; ++i) zv[i] = z.elemAsDouble(i);
+
+    std::vector<uint8_t> keep(Nz, 1);
+    for (size_t i = 0; i < Nz; ++i) {
+        if (!finite_double(xv[i]) || !finite_double(yv[i]) ||
+            !finite_double(zv[i]))
+            keep[i] = 0;
+    }
+
+    Value xo = pack_filtered(mr, xv, keep);
+    Value yo = pack_filtered(mr, yv, keep);
+    Value zo = pack_filtered(mr, zv, keep);
+    (void)Nx; (void)Ny;
+    return {std::move(xo), std::move(yo), std::move(zo)};
+}
+
 // ── datastats ─────────────────────────────────────────────────────────
 
 std::tuple<Value, Value, Value, Value, Value, Value, Value>
@@ -345,6 +460,34 @@ datastats(std::pmr::memory_resource *mr, const Value &x)
 
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
+
+void prepareCurveData_reg(Span<const Value> args, size_t nargout,
+                          Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("prepareCurveData: requires (X, Y[, W])",
+                    0, 0, "prepareCurveData", "", "m:prepCD:nargin");
+    auto *mr = ctx.engine->resource();
+    Value w_empty = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    const Value &w = (args.size() >= 3) ? args[2] : w_empty;
+    auto [xo, yo, wo] = prepareCurveData(mr, args[0], args[1], w);
+    outs[0] = std::move(xo);
+    if (nargout > 1) outs[1] = std::move(yo);
+    if (nargout > 2) outs[2] = std::move(wo);
+}
+
+void prepareSurfaceData_reg(Span<const Value> args, size_t nargout,
+                            Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("prepareSurfaceData: requires (X, Y, Z)",
+                    0, 0, "prepareSurfaceData", "", "m:prepSD:nargin");
+    auto [xo, yo, zo] = prepareSurfaceData(ctx.engine->resource(),
+                                            args[0], args[1], args[2]);
+    outs[0] = std::move(xo);
+    if (nargout > 1) outs[1] = std::move(yo);
+    if (nargout > 2) outs[2] = std::move(zo);
+}
 
 void datastats_reg(Span<const Value> args, size_t /*nargout*/,
                    Span<Value> outs, CallContext &ctx)
