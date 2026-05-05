@@ -363,7 +363,82 @@ void ecdf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     if (nargout > 1) outs[1] = std::move(x);
 }
 
+void ecdfhist_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("ecdfhist: requires (f, x [, m])",
+                     0, 0, "ecdfhist", "", "m:ecdfhist:nargin");
+    int m = 10;
+    if (args.size() >= 3 && !args[2].isEmpty())
+        m = static_cast<int>(args[2].toScalar());
+    auto [n, c] = ecdfhist(ctx.engine->resource(), args[0], args[1], m);
+    outs[0] = std::move(n);
+    if (nargout > 1) outs[1] = std::move(c);
+}
+
 } // namespace detail
+
+// ── ecdfhist ─────────────────────────────────────────────────────────
+// Convert (f, x) from ecdf into a probability-density histogram.
+// Algorithm: probs[k] = f[k+1] - f[k]; vals[k] = x[k+1] (the unique
+// data values). Bin into m equal-width bins over [min(x), max(x)],
+// each height = sum(probs in bin) / bin_width.
+std::tuple<Value, Value>
+ecdfhist(std::pmr::memory_resource *mr, const Value &f, const Value &x, int m)
+{
+    if (m < 1)
+        throw Error("ecdfhist: number of bins must be >= 1",
+                    0, 0, "ecdfhist", "", "m:ecdfhist:nbins");
+    const size_t Lf = f.numel();
+    const size_t Lx = x.numel();
+    if (Lf != Lx)
+        throw Error("ecdfhist: f and x must have the same length",
+                    0, 0, "ecdfhist", "", "m:ecdfhist:size");
+    if (Lf < 2) {
+        Value n_empty = Value::matrix(1, static_cast<size_t>(m), ValueType::DOUBLE, mr);
+        Value c_empty = Value::matrix(1, static_cast<size_t>(m), ValueType::DOUBLE, mr);
+        return {std::move(n_empty), std::move(c_empty)};
+    }
+
+    // Build (vals, probs) from the ecdf step structure.
+    const size_t K = Lf - 1;
+    std::vector<double> vals(K), probs(K);
+    for (size_t k = 0; k < K; ++k) {
+        vals[k]  = x.elemAsDouble(k + 1);
+        probs[k] = f.elemAsDouble(k + 1) - f.elemAsDouble(k);
+    }
+
+    const double xmin = vals.front();
+    const double xmax = vals.back();
+    const double width = (xmax > xmin)
+        ? (xmax - xmin) / static_cast<double>(m)
+        : 1.0;  // degenerate single-value case: arbitrary width=1
+
+    Value n_out = Value::matrix(1, static_cast<size_t>(m), ValueType::DOUBLE, mr);
+    Value c_out = Value::matrix(1, static_cast<size_t>(m), ValueType::DOUBLE, mr);
+    double *nd = n_out.doubleDataMut();
+    double *cd = c_out.doubleDataMut();
+
+    for (int k = 0; k < m; ++k) {
+        cd[k] = xmin + (k + 0.5) * width;
+        nd[k] = 0.0;
+    }
+    if (xmax <= xmin) {
+        // All-equal data: drop full mass into the centre bin.
+        nd[m / 2] = 1.0 / width;
+        return {std::move(n_out), std::move(c_out)};
+    }
+
+    for (size_t k = 0; k < K; ++k) {
+        const double v = vals[k];
+        int bin = static_cast<int>(std::floor((v - xmin) / width));
+        if (bin >= m) bin = m - 1;  // last bin includes right edge
+        if (bin < 0)  bin = 0;
+        nd[bin] += probs[k];
+    }
+    for (int k = 0; k < m; ++k) nd[k] /= width;
+    return {std::move(n_out), std::move(c_out)};
+}
 
 // ── ecdf ─────────────────────────────────────────────────────────────
 // Empirical CDF. Sort data, drop NaN, then for each unique value produce
