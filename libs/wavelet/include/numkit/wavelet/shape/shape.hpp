@@ -44,4 +44,15 @@ std::tuple<Value, Value>
 fbspwavf(std::pmr::memory_resource *mr, double lb, double ub, size_t N,
          int m, double fb, double fc);
 
+/// gauswavf(LB, UB, N[, p]) — real Gaussian wavelet of order p (default 1).
+/// ψ_p(t) is a normalised p-th derivative of exp(-t²); analytical L² norm.
+std::tuple<Value, Value>
+gauswavf(std::pmr::memory_resource *mr, double lb, double ub, size_t N, int p);
+
+/// cgauwavf(LB, UB, N[, p]) — complex Gaussian wavelet of order p
+/// (default 1). The L² norm is computed by trapezoidal rule on the
+/// requested grid (this matches MATLAB's grid-dependent normalisation).
+std::tuple<Value, Value>
+cgauwavf(std::pmr::memory_resource *mr, double lb, double ub, size_t N, int p);
+
 } // namespace numkit::wavelet

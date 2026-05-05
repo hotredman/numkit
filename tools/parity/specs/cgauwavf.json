@@ -1,0 +1,10 @@
+{
+  "name": "cgauwavf",
+  "namespace": "wavelet",
+  "setup": "",
+  "expr": "[p1, x] = cgauwavf(-5, 5, 11); [p2, ~] = cgauwavf(-5, 5, 11, 2); r1 = real(p1); i1 = imag(p1); r2 = real(p2); i2 = imag(p2);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["r1(5)", "i1(5)", "i1(6)", "r2(6)", "r2(5)", "i2(5)", "x(1)", "x(11)"],
+  "comment": "Sig: [psi, x] = cgauwavf(LB, UB, N[, p]). Complex Gaussian wavelet (-1)^p · H_p(t + i/2) · exp(-t² - i·t). Trapezoidal L² normalization on the requested grid (matches MATLAB's grid-dependent normalization)."
+}

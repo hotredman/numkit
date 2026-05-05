@@ -10,6 +10,7 @@ set(WAVELETLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/wkeep_wextend.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/denoise/denoise.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shape/shape.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shape/gauss.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/swt/swt.cpp
 )
 

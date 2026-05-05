@@ -3468,7 +3468,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 ### Continuous Wavelet Shapes
 
-**Namespace:** `wavelet.shape.*` — 6 ✅ + 0 ⚠️ / 11 = 55%
+**Namespace:** `wavelet.shape.*` — 8 ✅ + 0 ⚠️ / 11 = 73%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3476,10 +3476,10 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `meyeraux` | ✅ | 0.003 | 178.46× | 62.01× | OK | Sig: y = meyeraux(x). Polynomial 35x⁴ − 84x⁵ + 70x⁶ − 20x⁷; element-wise. Endpoints meyeraux(0)=0, meyeraux(1)=1, meyeraux(0.5)=0.5. |
 | `mexihat` | ✅ | 0.004 | 199.54× | 27.70× | OK | Sig: [psi, x] = mexihat(LB, UB, N). ψ(t) = (2/√3)·π^(-1/4)·(1-t²)·exp(-t²/2). Even, peaks at 0, zero crossings at ±1. |
 | `morlet` | ✅ | 0.005 | 83.85× | 14.95× | OK | Sig: [psi, x] = morlet(LB, UB, N). Real Morlet ψ(t) = exp(-t²/2)·cos(5t). |
-| `cgauwavf` | ❌ |  |  |  |  | complex Gaussian |
+| `cgauwavf` | ✅ | 0.007 | 168.64× |  | OK | Sig: [psi, x] = cgauwavf(LB, UB, N[, p]). Complex Gaussian wavelet (-1)^p · H_p(t + i/2) · exp(-t² - i·t). Trapezoidal L² normalization on the requested grid (matches MATLAB's grid-dependent normalization). |
 | `cmorwavf` | ✅ | 0.005 | 136.37× | 9.72× | OK | Sig: [psi, x] = cmorwavf(LB, UB, N, fb, fc). Complex Morlet ψ(t) = (1/√(π·fb))·exp(2πi·fc·t)·exp(-t²/fb). |
 | `fbspwavf` | ✅ | 0.005 | 154.18× |  | OK | Sig: [psi, x] = fbspwavf(LB, UB, N, m, fb, fc). Frequency B-spline ψ(t) = √fb·(sinc(fb·t/m))^m · exp(2πi·fc·t). |
-| `gauswavf` | ❌ |  |  |  |  | real Gaussian wavelet |
+| `gauswavf` | ✅ | 0.006 | 193.88× |  | OK | Sig: [psi, x] = gauswavf(LB, UB, N[, p]). Real Gaussian wavelet ψ_p = sgn_p · |α_p| · H_p(t)·exp(-t²) with sgn_p = (-1)^ceil(p/2), |α_p|² = 1/((2p-1)!!·sqrt(π/2)). Default p = 1. |
 | `intwave` | ❌ |  |  |  |  | wavelet integral |
 | `pat2cwav` | ❌ |  |  |  |  | pattern → custom wavelet |
 | `shanwavf` | ✅ | 0.007 | 199.53× | 9.67× | OK | Sig: [psi, x] = shanwavf(LB, UB, N, fb, fc). Shannon wavelet ψ(t) = √fb·sinc(fb·t)·exp(2πi·fc·t). |
