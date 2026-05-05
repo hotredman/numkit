@@ -261,6 +261,37 @@ ac2rc(std::pmr::memory_resource *mr, const Value &R)
                            Value::scalar(rv.empty() ? 0.0 : rv[0], mr));
 }
 
+Value schurrc(std::pmr::memory_resource *mr, const Value &R)
+{
+    // Standalone Schur / Levinson reflection-coeff recursion. Does NOT
+    // bail on negative residual energy — schurrc returns the math-valid
+    // reflection coefficients even when |k| > 1 (non-PSD R, i.e. an
+    // unstable AR model). levinsonCore early-exits on e<=0 to keep the
+    // fitted poly stable; schurrc doesn't want that.
+    auto rv = readVec(R);
+    const int p = static_cast<int>(rv.size()) - 1;
+    if (p <= 0) return colVec(mr, std::vector<double>{});
+
+    std::vector<double> k(p, 0.0);
+    std::vector<double> a_prev(p + 1, 0.0); a_prev[0] = 1.0;
+    double e = rv[0];
+
+    for (int i = 1; i <= p; ++i) {
+        double num = rv[i];
+        for (int j = 1; j < i; ++j) num += a_prev[j] * rv[i - j];
+        const double ki = (e != 0.0) ? -num / e : 0.0;
+        k[i - 1] = ki;
+
+        std::vector<double> a_new(p + 1, 0.0); a_new[0] = 1.0;
+        for (int j = 1; j < i; ++j)
+            a_new[j] = a_prev[j] + ki * a_prev[i - j];
+        a_new[i] = ki;
+        a_prev = std::move(a_new);
+        e *= (1.0 - ki * ki);
+    }
+    return colVec(mr, k);
+}
+
 Value rc2ac(std::pmr::memory_resource *mr, const Value &k, double r0)
 {
     auto kv = readVec(k);
@@ -881,6 +912,12 @@ void ac2rc_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     auto [k, r0] = ac2rc(ctx.engine->resource(), args[0]);
     outs[0] = std::move(k);
     if (nargout > 1) outs[1] = std::move(r0);
+}
+
+void schurrc_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty()) throw Error("schurrc: requires 1 argument (R)", 0, 0, "schurrc", "", "m:schurrc:nargin");
+    outs[0] = schurrc(ctx.engine->resource(), args[0]);
 }
 
 void rc2ac_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

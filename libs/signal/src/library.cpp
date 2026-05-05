@@ -211,6 +211,7 @@ void invfreqz_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ac2poly_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void poly2ac_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ac2rc_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void schurrc_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rc2ac_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void poly2rc_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rc2poly_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -445,6 +446,7 @@ void SignalLibrary::install(Engine &engine)
     reg("parametric", "ac2poly",   &signal::detail::ac2poly_reg);
     reg("parametric", "poly2ac",   &signal::detail::poly2ac_reg);
     reg("parametric", "ac2rc",     &signal::detail::ac2rc_reg);
+    reg("parametric", "schurrc",   &signal::detail::schurrc_reg);
     reg("parametric", "rc2ac",     &signal::detail::rc2ac_reg);
     reg("parametric", "poly2rc",   &signal::detail::poly2rc_reg);
     reg("parametric", "rc2poly",   &signal::detail::rc2poly_reg);
