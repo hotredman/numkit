@@ -1,0 +1,16 @@
+{
+  "name": "shanwavf",
+  "namespace": "wavelet",
+  "setup": "lb = -4; ub = 4; N = 33; fb = 1; fc = 1;",
+  "expr": "[psi, x] = shanwavf(lb, ub, N, fb, fc);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "real(psi(1))",
+    "imag(psi(1))",
+    "real(psi(17))",
+    "imag(psi(17))",
+    "abs(psi(8))"
+  ],
+  "comment": "Sig: [psi, x] = shanwavf(LB, UB, N, fb, fc). Shannon wavelet ψ(t) = √fb·sinc(fb·t)·exp(2πi·fc·t)."
+}

@@ -3468,7 +3468,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 ### Continuous Wavelet Shapes
 
-**Namespace:** `wavelet.shape.*` — 3 ✅ + 0 ⚠️ / 11 = 27%
+**Namespace:** `wavelet.shape.*` — 6 ✅ + 0 ⚠️ / 11 = 55%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3477,12 +3477,12 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `mexihat` | ✅ | 0.004 | 199.54× | 27.70× | OK | Sig: [psi, x] = mexihat(LB, UB, N). ψ(t) = (2/√3)·π^(-1/4)·(1-t²)·exp(-t²/2). Even, peaks at 0, zero crossings at ±1. |
 | `morlet` | ✅ | 0.005 | 83.85× | 14.95× | OK | Sig: [psi, x] = morlet(LB, UB, N). Real Morlet ψ(t) = exp(-t²/2)·cos(5t). |
 | `cgauwavf` | ❌ |  |  |  |  | complex Gaussian |
-| `cmorwavf` | ❌ |  |  |  |  | complex Morlet |
-| `fbspwavf` | ❌ |  |  |  |  | frequency B-spline |
+| `cmorwavf` | ✅ | 0.005 | 136.37× | 9.72× | OK | Sig: [psi, x] = cmorwavf(LB, UB, N, fb, fc). Complex Morlet ψ(t) = (1/√(π·fb))·exp(2πi·fc·t)·exp(-t²/fb). |
+| `fbspwavf` | ✅ | 0.005 | 154.18× |  | OK | Sig: [psi, x] = fbspwavf(LB, UB, N, m, fb, fc). Frequency B-spline ψ(t) = √fb·(sinc(fb·t/m))^m · exp(2πi·fc·t). |
 | `gauswavf` | ❌ |  |  |  |  | real Gaussian wavelet |
 | `intwave` | ❌ |  |  |  |  | wavelet integral |
 | `pat2cwav` | ❌ |  |  |  |  | pattern → custom wavelet |
-| `shanwavf` | ❌ |  |  |  |  | Shannon wavelet |
+| `shanwavf` | ✅ | 0.007 | 199.53× | 9.67× | OK | Sig: [psi, x] = shanwavf(LB, UB, N, fb, fc). Shannon wavelet ψ(t) = √fb·sinc(fb·t)·exp(2πi·fc·t). |
 
 ### Lifting
 

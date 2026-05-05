@@ -1,0 +1,15 @@
+{
+  "name": "cmorwavf",
+  "namespace": "wavelet",
+  "setup": "lb = -4; ub = 4; N = 33; fb = 1; fc = 1;",
+  "expr": "[psi, x] = cmorwavf(lb, ub, N, fb, fc);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "real(psi(17))",
+    "imag(psi(17))",
+    "abs(psi(1))",
+    "abs(psi(end))"
+  ],
+  "comment": "Sig: [psi, x] = cmorwavf(LB, UB, N, fb, fc). Complex Morlet ψ(t) = (1/√(π·fb))·exp(2πi·fc·t)·exp(-t²/fb)."
+}

@@ -35,6 +35,9 @@ void imodwt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mexihat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void morlet_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void meyeraux_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void shanwavf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cmorwavf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fbspwavf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::wavelet::detail
 
 namespace numkit {
@@ -68,6 +71,9 @@ void WaveletLibrary::install(Engine &engine)
     reg("shape", "mexihat",  &wavelet::detail::mexihat_reg);
     reg("shape", "morlet",   &wavelet::detail::morlet_reg);
     reg("shape", "meyeraux", &wavelet::detail::meyeraux_reg);
+    reg("shape", "shanwavf", &wavelet::detail::shanwavf_reg);
+    reg("shape", "cmorwavf", &wavelet::detail::cmorwavf_reg);
+    reg("shape", "fbspwavf", &wavelet::detail::fbspwavf_reg);
 }
 
 } // namespace numkit
