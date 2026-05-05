@@ -1,0 +1,10 @@
+{
+  "name": "wkeep",
+  "namespace": "wavelet",
+  "setup": "x = 1:10;",
+  "expr": "yc = wkeep(x, 4); yl = wkeep(x, 4, 'l'); yr = wkeep(x, 4, 'r'); yf = wkeep(x, 4, 3);",
+  "iters": 5,
+  "tol": 1e-15,
+  "fingerprint": ["yc(1)", "yc(4)", "yl(1)", "yl(4)", "yr(1)", "yr(4)", "yf(1)", "yf(4)"],
+  "comment": "Sig: y = wkeep(x, n[, OPT]). Default 'c' central window with start = floor((N-n)/2)+1 (1-based). 'l'/'r' first/last n; numeric FIRST gives x(FIRST:FIRST+n-1)."
+}
