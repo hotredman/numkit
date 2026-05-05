@@ -2876,7 +2876,7 @@ intentionally omitted — flat solver functions only.
 
 ### Probability Distributions
 
-**Namespace:** `stats.dist.*` — 110 ✅ + 0 ⚠️ / 130+ = 85%
+**Namespace:** `stats.dist.*` — 115 ✅ + 0 ⚠️ / 130+ = 88%
 
 Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) / `*rnd` / `*stat`. All `rnd` functions share `numkit::builtin::sharedEngine()` so `rng(seed)` reseeds them. Discrete `*inv` use one-ULP relative tolerance against the public cdf so `inv(cdf(k))=k` round-trips don't overshoot.
 
@@ -3002,11 +3002,11 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `nctinv` | ❌ |  |  |  |  |  |
 | `nctrnd` | ❌ |  |  |  |  |  |
 | `nctstat` | ❌ |  |  |  |  |  |
-| `ncx2pdf` | ❌ |  |  |  |  | noncentral chi-squared |
-| `ncx2cdf` | ❌ |  |  |  |  |  |
-| `ncx2inv` | ❌ |  |  |  |  |  |
-| `ncx2rnd` | ❌ |  |  |  |  |  |
-| `ncx2stat` | ❌ |  |  |  |  |  |
+| `ncx2pdf` | ✅ | 0.004 | 838.12× | 142.11× | OK | Sig: y = ncx2pdf(x, k, lambda). Noncentral χ²(k, λ) PDF: ½·exp(−(x+λ)/2)·(x/λ)^((k−2)/4)·I_{(k−2)/2}(√(λx)); λ=0 reduces to chi2pdf(x, k). |
+| `ncx2cdf` | ✅ | 0.006 | 778.10× | 728.80× | OK | Sig: y = ncx2cdf(x, k, lambda). Poisson-mixture: Σ_j Poisson(j; λ/2)·gammainc(x/2, k/2 + j); truncated when contribution drops below 1e-16 of running sum. |
+| `ncx2inv` | ✅ |  |  |  |  |  |
+| `ncx2rnd` | ✅ |  |  |  |  |  |
+| `ncx2stat` | ✅ |  |  |  |  |  |
 
 ### Distribution Fitting (MLE / likelihood)
 

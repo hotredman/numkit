@@ -131,6 +131,13 @@ void riceinv_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ricernd_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ricestat_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// distributions/ncx2.cpp
+void ncx2pdf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ncx2cdf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ncx2inv_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ncx2rnd_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ncx2stat_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // distributions/uniform.cpp
 void unifpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void unifcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -413,6 +420,12 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "riceinv",  &stats::detail::riceinv_reg);
     reg("dist", "ricernd",  &stats::detail::ricernd_reg);
     reg("dist", "ricestat", &stats::detail::ricestat_reg);
+
+    reg("dist", "ncx2pdf",  &stats::detail::ncx2pdf_reg);
+    reg("dist", "ncx2cdf",  &stats::detail::ncx2cdf_reg);
+    reg("dist", "ncx2inv",  &stats::detail::ncx2inv_reg);
+    reg("dist", "ncx2rnd",  &stats::detail::ncx2rnd_reg);
+    reg("dist", "ncx2stat", &stats::detail::ncx2stat_reg);
 
     reg("dist", "unifpdf",  &stats::detail::unifpdf_reg);
     reg("dist", "unifcdf",  &stats::detail::unifcdf_reg);
