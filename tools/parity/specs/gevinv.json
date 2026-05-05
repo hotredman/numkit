@@ -1,0 +1,10 @@
+{
+  "name": "gevinv",
+  "namespace": "stats",
+  "setup": "p = [0.1 0.5 0.9];",
+  "expr": "x = gevinv(p, 0.5, 1, 0);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["x(1)", "x(2)", "x(3)", "gevinv(0.5, 0, 1, 0)"],
+  "comment": "Sig: x = gevinv(p, k, sigma, mu)."
+}

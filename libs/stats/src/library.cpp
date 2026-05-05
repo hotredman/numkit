@@ -103,6 +103,20 @@ void evinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void evrnd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void evstat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// distributions/gev.cpp
+void gevpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gevcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gevinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gevrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gevstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// distributions/gp.cpp
+void gppdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gpcdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gpinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gprnd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gpstat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // distributions/uniform.cpp
 void unifpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void unifcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -345,6 +359,18 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "evinv",    &stats::detail::evinv_reg);
     reg("dist", "evrnd",    &stats::detail::evrnd_reg);
     reg("dist", "evstat",   &stats::detail::evstat_reg);
+
+    reg("dist", "gevpdf",   &stats::detail::gevpdf_reg);
+    reg("dist", "gevcdf",   &stats::detail::gevcdf_reg);
+    reg("dist", "gevinv",   &stats::detail::gevinv_reg);
+    reg("dist", "gevrnd",   &stats::detail::gevrnd_reg);
+    reg("dist", "gevstat",  &stats::detail::gevstat_reg);
+
+    reg("dist", "gppdf",    &stats::detail::gppdf_reg);
+    reg("dist", "gpcdf",    &stats::detail::gpcdf_reg);
+    reg("dist", "gpinv",    &stats::detail::gpinv_reg);
+    reg("dist", "gprnd",    &stats::detail::gprnd_reg);
+    reg("dist", "gpstat",   &stats::detail::gpstat_reg);
 
     reg("dist", "unifpdf",  &stats::detail::unifpdf_reg);
     reg("dist", "unifcdf",  &stats::detail::unifcdf_reg);

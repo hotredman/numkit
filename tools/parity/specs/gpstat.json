@@ -1,0 +1,10 @@
+{
+  "name": "gpstat",
+  "namespace": "stats",
+  "setup": "k = 0.3; sigma = 1; theta = 0;",
+  "expr": "[m, v] = gpstat(k, sigma, theta);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["m", "v"],
+  "comment": "Sig: [m, v] = gpstat(k, sigma, theta). mean = theta + sigma/(1-k); var = sigma²/((1-k)²·(1-2k))."
+}
