@@ -3092,14 +3092,14 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 ### Hypothesis Tests
 
-**Namespace:** `stats.test.*` — 13 ✅ + 0 ⚠️ / 25 = 52%
+**Namespace:** `stats.test.*` — 14 ✅ + 0 ⚠️ / 25 = 56%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `adtest` | ❌ |  |  |  |  | Anderson-Darling normality |
 | `ansaribradley` | ❌ |  |  |  |  | scale test |
 | `barttest` | ❌ |  |  |  |  | Bartlett's sphericity |
-| `chi2gof` | ❌ |  |  |  |  | chi-squared goodness-of-fit |
+| `chi2gof` | ✅ | 0.005 | 570.92× | 219.96× | OK | Sig: [h, p, stats] = chi2gof(x, 'Frequency', O, 'Expected', E[, 'NParams', np]). chi² = Σ(O−E)²/E; df = k−1−np. Auto-binned distribution-fit form intentionally not implemented in this release. |
 | `dwtest` | ❌ |  |  |  |  | Durbin-Watson |
 | `fishertest` | ❌ |  |  |  |  | Fisher's exact (2×2) |
 | `friedman` | ❌ |  |  |  |  | non-parametric repeated-measures |

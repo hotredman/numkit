@@ -1,0 +1,15 @@
+{
+  "name": "chi2gof",
+  "namespace": "stats",
+  "setup": "x = [1 2 3 4 5 6]; f = [10 12 9 11 8 10]; e = [10 10 10 10 10 10];",
+  "expr": "[h, p, stats] = chi2gof(x, 'Frequency', f, 'Expected', e);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "h",
+    "p",
+    "stats.chi2stat",
+    "stats.df"
+  ],
+  "comment": "Sig: [h, p, stats] = chi2gof(x, 'Frequency', O, 'Expected', E[, 'NParams', np]). chi² = Σ(O−E)²/E; df = k−1−np. Auto-binned distribution-fit form intentionally not implemented in this release."
+}

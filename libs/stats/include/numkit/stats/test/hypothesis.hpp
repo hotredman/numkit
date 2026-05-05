@@ -82,6 +82,15 @@ std::tuple<Value, Value, Value>
 vartestn(std::pmr::memory_resource *mr, const Value &x, const Value &group,
          double alpha);
 
+/// chi2gof — frequency form: given Observed counts and Expected counts,
+/// compute chi² goodness-of-fit. df = k − 1 − nparams.
+/// (Auto-binned distribution-fit form — chi2gof(x) without Frequency —
+///  is intentionally not supported in this release.)
+std::tuple<Value, Value, Value, Value>
+chi2gof(std::pmr::memory_resource *mr,
+        const Value &observed, const Value &expected,
+        int nparams, double alpha);
+
 /// runstest(x[, v][, alpha, tail][, method]) — Wald-Wolfowitz runs
 /// test for randomness. Default `v` = median(x); values exactly equal
 /// to v are dropped. Default `method` = "exact". Returns
