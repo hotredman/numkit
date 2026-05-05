@@ -1,0 +1,14 @@
+{
+  "name": "poissfit",
+  "namespace": "stats",
+  "setup": "x = [3 4 5 4 5 6 7 5 4 3 5 6 4 3 5]';",
+  "expr": "[lhat, lci] = poissfit(x);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "lhat",
+    "lci(1)",
+    "lci(2)"
+  ],
+  "comment": "Sig: [lhat, lci] = poissfit(x[, alpha]). MLE for Poisson: lambda=mean(x). Exact CI via chi² inversion (Garwood)."
+}

@@ -1,0 +1,15 @@
+{
+  "name": "unifit",
+  "namespace": "stats",
+  "setup": "x = [2 5 3 7 4 6 8 1 9 5]';",
+  "expr": "[a, b, aci, bci] = unifit(x);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "a",
+    "b",
+    "aci(1)",
+    "bci(2)"
+  ],
+  "comment": "Sig: [a, b, aci, bci] = unifit(x[, alpha]). MLE for U(a,b): a=min, b=max. CI extension delta = (b-a)·(α^(-1/n) − 1)."
+}

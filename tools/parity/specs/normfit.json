@@ -1,0 +1,17 @@
+{
+  "name": "normfit",
+  "namespace": "stats",
+  "setup": "x = [1 2 3 4 5 6 7 8 9 10]';",
+  "expr": "[mu, sd, muci, sdci] = normfit(x);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "mu",
+    "sd",
+    "muci(1)",
+    "muci(2)",
+    "sdci(1)",
+    "sdci(2)"
+  ],
+  "comment": "Sig: [mu, sd, muci, sdci] = normfit(x[, alpha]). MLE for normal: mu=mean, sd=sample std (N-1). t-CI for mu, chi² CI for sigma. Default alpha=0.05."
+}
