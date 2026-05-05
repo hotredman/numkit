@@ -1,0 +1,10 @@
+{
+  "name": "dbwavf",
+  "namespace": "wavelet",
+  "setup": "",
+  "expr": "h1 = dbwavf('db1'); h2 = dbwavf('db2'); h4 = dbwavf('db4');",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["numel(h1)", "h1(1)", "numel(h2)", "h2(1)", "h2(4)", "numel(h4)", "h4(1)", "h4(8)"],
+  "comment": "Sig: h = dbwavf(wname). Daubechies scaling filter: Lo_R / sqrt(2). Length 2N for 'dbN'. Sum(h) = 1."
+}

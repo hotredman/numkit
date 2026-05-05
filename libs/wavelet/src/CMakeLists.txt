@@ -2,6 +2,7 @@ set(WAVELETLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/library.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/wfilters.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/qmf.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter/families.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dwt.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/multilevel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dwt2.cpp

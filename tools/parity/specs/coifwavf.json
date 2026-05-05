@@ -1,0 +1,10 @@
+{
+  "name": "coifwavf",
+  "namespace": "wavelet",
+  "setup": "",
+  "expr": "h = coifwavf('coif1');",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["numel(h)", "h(1)", "h(2)", "h(3)", "h(6)"],
+  "comment": "Sig: h = coifwavf(wname). Coiflet scaling filter: Lo_R / sqrt(2). Length 6K for 'coifK'."
+}
