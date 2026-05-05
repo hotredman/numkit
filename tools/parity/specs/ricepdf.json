@@ -1,0 +1,14 @@
+{
+  "name": "ricepdf",
+  "namespace": "stats",
+  "setup": "x = [0.5 1 2]; s = 1; sigma = 1;",
+  "expr": "y = ricepdf(x, s, sigma);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "y(1)",
+    "y(2)",
+    "y(3)"
+  ],
+  "comment": "Sig: y = ricepdf(x, s, sigma). Rice PDF (x/σ²)·exp(−(x²+s²)/(2σ²))·I_0(x·s/σ²). Octave stats package has direct names; MATLAB exposes via pdf('Rician', ...)."
+}

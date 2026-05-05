@@ -2876,7 +2876,7 @@ intentionally omitted — flat solver functions only.
 
 ### Probability Distributions
 
-**Namespace:** `stats.dist.*` — 105 ✅ + 0 ⚠️ / 130+ = 81%
+**Namespace:** `stats.dist.*` — 110 ✅ + 0 ⚠️ / 130+ = 85%
 
 Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) / `*rnd` / `*stat`. All `rnd` functions share `numkit::builtin::sharedEngine()` so `rng(seed)` reseeds them. Discrete `*inv` use one-ULP relative tolerance against the public cdf so `inv(cdf(k))=k` round-trips don't overshoot.
 
@@ -2987,11 +2987,11 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `nakainv` | ✅ |  |  |  |  |  |
 | `nakarnd` | ✅ |  |  |  |  |  |
 | `nakastat` | ✅ |  |  |  |  |  |
-| `ricepdf` | ❌ |  |  |  |  | Rician |
-| `ricecdf` | ❌ |  |  |  |  |  |
-| `riceinv` | ❌ |  |  |  |  |  |
-| `ricernd` | ❌ |  |  |  |  |  |
-| `ricestat` | ❌ |  |  |  |  |  |
+| `ricepdf` | ✅ | 0.004 |  | 67.79× | OK | Sig: y = ricepdf(x, s, sigma). Rice PDF (x/σ²)·exp(−(x²+s²)/(2σ²))·I_0(x·s/σ²). Octave stats package has direct names; MATLAB exposes via pdf('Rician', ...). |
+| `ricecdf` | ✅ |  |  |  |  |  |
+| `riceinv` | ✅ |  |  |  |  |  |
+| `ricernd` | ✅ |  |  |  |  |  |
+| `ricestat` | ✅ |  |  |  |  |  |
 | `ncfpdf` | ❌ |  |  |  |  | noncentral F |
 | `ncfcdf` | ❌ |  |  |  |  |  |
 | `ncfinv` | ❌ |  |  |  |  |  |
