@@ -11,6 +11,10 @@
 #include <limits>
 #include <vector>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 namespace numkit::stats {
 
 namespace {
@@ -113,6 +117,75 @@ Value mvnpdf(std::pmr::memory_resource *mr, const Value &X,
     return out;
 }
 
+Value mvtpdf(std::pmr::memory_resource *mr, const Value &X,
+             const Value &C, double df)
+{
+    if (X.numel() == 0)
+        return Value::matrix(0, 1, ValueType::DOUBLE, mr);
+    const size_t Nrows = X.dims().rows();
+    const size_t d     = X.dims().cols();
+    if (d == 0)
+        return Value::matrix(0, 1, ValueType::DOUBLE, mr);
+    if (!(df > 0.0))
+        throw Error("mvtpdf: df must be positive",
+                    0, 0, "mvtpdf", "", "m:mvtpdf:df");
+
+    // Build C matrix (d×d). Allow length-d row → diag.
+    std::vector<double> Cm(d * d, 0.0);
+    if (C.numel() == d) {
+        for (size_t i = 0; i < d; ++i) Cm[i + i * d] = C.elemAsDouble(i);
+    } else {
+        if (C.dims().rows() != d || C.dims().cols() != d)
+            throw Error("mvtpdf: C must be d×d (or 1×d diag)",
+                        0, 0, "mvtpdf", "", "m:mvtpdf:C");
+        for (size_t j = 0; j < d; ++j)
+            for (size_t i = 0; i < d; ++i)
+                Cm[i + j * d] = C.elemAsDouble(i + j * d);
+    }
+
+    // Normalise C → correlation matrix R = D^{-1/2} · C · D^{-1/2}
+    // (matches MATLAB's mvtpdf behaviour even when input has non-unit diag).
+    std::vector<double> diagSqrt(d);
+    for (size_t i = 0; i < d; ++i) {
+        const double v = Cm[i + i * d];
+        if (!(v > 0.0))
+            throw Error("mvtpdf: diagonal of C must be positive",
+                        0, 0, "mvtpdf", "", "m:mvtpdf:diag");
+        diagSqrt[i] = std::sqrt(v);
+    }
+    std::vector<double> R(d * d, 0.0);
+    for (size_t j = 0; j < d; ++j)
+        for (size_t i = 0; i < d; ++i)
+            R[i + j * d] = Cm[i + j * d] / (diagSqrt[i] * diagSqrt[j]);
+
+    std::vector<double> L(d * d, 0.0);
+    if (!cholesky(R.data(), L.data(), d))
+        throw Error("mvtpdf: correlation matrix must be positive definite",
+                    0, 0, "mvtpdf", "", "m:mvtpdf:psd");
+    double sumLogDiag = 0.0;
+    for (size_t i = 0; i < d; ++i) sumLogDiag += std::log(L[i + i * d]);
+
+    const double logCoef = std::lgamma((df + double(d)) / 2.0)
+                         - std::lgamma(df / 2.0)
+                         - 0.5 * double(d) * std::log(df * M_PI)
+                         - sumLogDiag;
+
+    Value out = Value::matrix(Nrows, 1, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    std::vector<double> z(d);
+    for (size_t row = 0; row < Nrows; ++row) {
+        std::vector<double> dx(d);
+        for (size_t i = 0; i < d; ++i) dx[i] = X.elemAsDouble(row + i * Nrows);
+        forward_solve(L.data(), z.data(), dx.data(), d);
+        double q = 0.0;
+        for (size_t i = 0; i < d; ++i) q += z[i] * z[i];
+        const double logpdf = logCoef
+            - ((df + double(d)) / 2.0) * std::log1p(q / df);
+        od[row] = std::exp(logpdf);
+    }
+    return out;
+}
+
 Value mnpdf(std::pmr::memory_resource *mr, const Value &X, const Value &P)
 {
     // X is 1×k or N×k of integer counts. P is 1×k probability vector.
@@ -176,6 +249,16 @@ void mnpdf_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("mnpdf: requires (X, P)",
                     0, 0, "mnpdf", "", "m:mnpdf:nargin");
     outs[0] = mnpdf(ctx.engine->resource(), args[0], args[1]);
+}
+
+void mvtpdf_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("mvtpdf: requires (X, C, df)",
+                    0, 0, "mvtpdf", "", "m:mvtpdf:nargin");
+    const double df = args[2].toScalar();
+    outs[0] = mvtpdf(ctx.engine->resource(), args[0], args[1], df);
 }
 
 } // namespace detail

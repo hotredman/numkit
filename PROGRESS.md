@@ -3045,7 +3045,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 ### Multivariate Distributions
 
-**Namespace:** `stats.mvdist.*` — 2 ✅ + 0 ⚠️ / 14 = 14%
+**Namespace:** `stats.mvdist.*` — 3 ✅ + 0 ⚠️ / 14 = 21%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3053,7 +3053,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `mvnpdf` | ✅ | 0.004 | 206.00× | 44.45× | OK | Sig: p = mvnpdf(X[, mu, Sigma]). Multivariate normal PDF. Default mu=zeros, Sigma=I. Cholesky-based to handle |Σ|^(-1/2) and Σ^(-1) accurately. |
 | `mvnrnd` | ❌ |  |  |  |  |  |
 | `mvtcdf` | ❌ |  |  |  |  | multivariate t |
-| `mvtpdf` | ❌ |  |  |  |  |  |
+| `mvtpdf` | ✅ | 0.004 | 268.85× | 60.17× | OK | Sig: p = mvtpdf(X, C, df). Multivariate t PDF; C is treated as a correlation matrix (input is normalised to correlation form to match MATLAB). Cholesky-based determinant + quadratic form. |
 | `mvtrnd` | ❌ |  |  |  |  |  |
 | `mnpdf` | ✅ | 0.003 | 196.13× | 49.38× | OK | Sig: p = mnpdf(X, P). Multinomial PMF: n!/(Πx_i!)·Π p_i^x_i. Computed in log-space via lgamma. |
 | `mnrnd` | ❌ |  |  |  |  |  |
