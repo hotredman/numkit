@@ -82,6 +82,18 @@ Status legend:
 | [findings/signal/parzenwin.md](findings/signal/parzenwin.md) | parzenwin | signal.windows | low | small | 0e043c5 |
 | [findings/signal/rectwin.md](findings/signal/rectwin.md) | rectwin | signal.windows | low | small | 0e043c5 |
 | [findings/signal/triang.md](findings/signal/triang.md) | triang | signal.windows | low | small | 0e043c5 |
+| [findings/wavelet/dwt.md](findings/wavelet/dwt.md) | dwt | wavelet.dwt | critical | large | 0e895fe |
+| [findings/wavelet/idwt.md](findings/wavelet/idwt.md) | idwt | wavelet.dwt | critical | large | 0e895fe |
+| [findings/wavelet/wavedec.md](findings/wavelet/wavedec.md) | wavedec | wavelet.dwt | critical | medium | 0e895fe |
+| [findings/wavelet/waverec.md](findings/wavelet/waverec.md) | waverec | wavelet.dwt | critical | small | 0e895fe |
+| [findings/wavelet/appcoef.md](findings/wavelet/appcoef.md) | appcoef | wavelet.dwt | medium | small | 0e895fe |
+| [findings/wavelet/detcoef.md](findings/wavelet/detcoef.md) | detcoef | wavelet.dwt | medium | small | 0e895fe |
+| [findings/wavelet/dyaddown.md](findings/wavelet/dyaddown.md) | dyaddown | wavelet.dwt | medium | small | 0e895fe |
+| [findings/wavelet/dyadup.md](findings/wavelet/dyadup.md) | dyadup | wavelet.dwt | medium | small | 0e895fe |
+| [findings/wavelet/wextend.md](findings/wavelet/wextend.md) | wextend | wavelet.dwt | medium | small | 0e895fe |
+| [findings/wavelet/wcodemat.md](findings/wavelet/wcodemat.md) | wcodemat | wavelet.dwt | low | small | 0e895fe |
+| [findings/wavelet/wkeep.md](findings/wavelet/wkeep.md) | wkeep | wavelet.dwt | low | small | 0e895fe |
+| [findings/wavelet/wmaxlev.md](findings/wavelet/wmaxlev.md) | wmaxlev | wavelet.dwt | low | small | 0e895fe |
 
 ## Closed ТЗ
 
