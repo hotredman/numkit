@@ -551,19 +551,30 @@ Value normxcorr2(std::pmr::memory_resource *mr,
     const size_t bW = img.dims().cols();
     const size_t mN = mH * mW;
 
-    // Build double-centered template (a) and image (b).
+    // Build:
+    //   a = templ - mean(templ)  (centered template)
+    //   b = img                  (uncentered — see note below)
+    //
+    // Note on centering: MATLAB's normxcorr2 uses LOCAL-mean centering
+    // (per output position). Globally centering `b` and convolving with
+    // a centered `a` does NOT match local-mean correlation when the
+    // 'full' mode zero-pads out-of-bounds image regions: the implicit
+    // zero pad inherits 0 instead of -mean_global, which biases corner
+    // outputs by sign. Keeping `b` uncentered while `a` is centered
+    // (Σ a = 0) gives the correct numerator: Σ img · a_centered, which
+    // equals Σ (img − local_mean) · a_centered because local_mean · Σa
+    // is zero. The denominator (sum_b_sq, sum_b) is invariant under
+    // global centering, so we can also drop it there for clarity.
     Value a = Value::matrix(mH, mW, ValueType::DOUBLE, mr);
     Value b = Value::matrix(bH, bW, ValueType::DOUBLE, mr);
     double *ad = a.doubleDataMut();
     double *bd = b.doubleDataMut();
 
-    long double sa = 0.0L, sb = 0.0L;
+    long double sa = 0.0L;
     for (size_t i = 0; i < mN; ++i) sa += templ.elemAsDouble(i);
-    for (size_t i = 0; i < bH * bW; ++i) sb += img.elemAsDouble(i);
-    const double ma = (mN     > 0) ? static_cast<double>(sa / static_cast<long double>(mN))     : 0.0;
-    const double mb = (bH * bW > 0) ? static_cast<double>(sb / static_cast<long double>(bH * bW)) : 0.0;
+    const double ma = (mN > 0) ? static_cast<double>(sa / static_cast<long double>(mN)) : 0.0;
     for (size_t i = 0; i < mN; ++i)     ad[i] = templ.elemAsDouble(i) - ma;
-    for (size_t i = 0; i < bH * bW; ++i) bd[i] = img.elemAsDouble(i)  - mb;
+    for (size_t i = 0; i < bH * bW; ++i) bd[i] = img.elemAsDouble(i);
 
     // Reversed template ar = rot180(a). Column-major: ar[(mW-1-c)*mH + (mH-1-r)] = a[c*mH + r].
     Value ar = Value::matrix(mH, mW, ValueType::DOUBLE, mr);

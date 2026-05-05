@@ -1696,7 +1696,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imregister` | ❌ |  |  |  |  |  |
 | `imregmtb` | ❌ |  |  |  |  | median-threshold-bitmap |
 | `imregtform` | ❌ |  |  |  |  |  |
-| `normxcorr2` | ❌ | 0.004 | 698.56× | 80.39× | MISMATCH | Sig: c = normxcorr2(template, img). Output (M+m-1)x(N+n-1) double in [-1, 1]. Octave-image has normxcorr2. |
+| `normxcorr2` | ✅ | 0.005 | 630.83× | 92.43× | OK | Sig: c = normxcorr2(template, img). Output (M+m-1)x(N+n-1) double in [-1, 1]. Octave-image has normxcorr2. |
 
 ### Image Filtering
 
