@@ -144,6 +144,64 @@ function hasMatchingDescendant(node, filter) {
   return false;
 }
 
+/* ─────────────── examples backend (read-only, fetched from /public) ─────── */
+//
+// Mirrors public/examples/manifest.json into a virtual tree. Files are
+// fetched on demand, and on open we mirror the example folder into tempFS
+// at /Examples/<Folder>/<file> so sibling .m lookups (helper.m next to
+// caller.m) work without addpath.
+async function loadExamplesTree() {
+  const base = import.meta.env.BASE_URL || '/';
+  try {
+    const res = await fetch(`${base}examples/manifest.json`);
+    if (!res.ok) throw new Error('manifest not found');
+    const manifest = await res.json();
+    return manifest.folders.map((folder) => ({
+      name: folder.name.replace(/_/g, ' '),
+      path: `/examples/${folder.name}`,
+      type: 'folder',
+      children: folder.files.map((f) => ({
+        name: f,
+        path: `/examples/${folder.name}/${f}`,
+        type: 'file',
+        _fetchPath: `${base}examples/${folder.name}/${f}`,
+      })),
+    }));
+  } catch (e) {
+    console.warn('[Sidebar] examples manifest load failed:', e);
+    return [];
+  }
+}
+
+async function openExample(node, tree, vfsAdapters) {
+  if (node.type !== 'file' || !node._fetchPath) return null;
+  const res = await fetch(node._fetchPath);
+  if (!res.ok) throw new Error('fetch failed');
+  const content = await res.text();
+
+  // Mirror folder into tempFS at /Examples/<Folder>/<file> so sibling
+  // .m lookup works for multi-file examples.
+  let vfsPath = null;
+  const m = node.path.match(/^\/examples\/([^/]+)\/(.+)$/);
+  if (m && vfsAdapters?.temp) {
+    const [, folder, fname] = m;
+    const folderNode = tree.find((n) => n.path === `/examples/${folder}`);
+    const siblings = folderNode?.children?.filter((c) => c.type === 'file') || [];
+    await Promise.all(siblings.map(async (sib) => {
+      const sibVfsPath = `/Examples/${folder}/${sib.name}`;
+      if (sib.name === fname) return;
+      if (vfsAdapters.temp.exists(sibVfsPath)) return;
+      try {
+        const sr = await fetch(sib._fetchPath);
+        if (sr.ok) vfsAdapters.temp.writeFile(sibVfsPath, await sr.text());
+      } catch { /* per-file fetch failure tolerated */ }
+    }));
+    vfsPath = `/Examples/${folder}/${fname}`;
+    vfsAdapters.temp.writeFile(vfsPath, content);
+  }
+  return { content, vfsPath };
+}
+
 /* ─────────────── source-specific operations ─────────────── */
 function makeOps(source) {
   const fs = source === 'localFolder' ? localFS : tempFS;
@@ -167,7 +225,7 @@ export default function Sidebar({
   vfsAdapters,
 }) {
   const localAvailable = typeof localFS !== 'undefined' && localFS.isAvailable?.();
-  const [source, setSource] = usePersistedState('numkit.ide.sidebar.source', 'temporary');
+  const [source, setSource] = usePersistedState('numkit.ide.sidebar.source', 'examples');
   const [tree, setTree] = useState([]);
   const [expanded, setExpanded] = usePersistedState(`numkit.ide.fb.expanded.${source}`, {});
   const [selected, setSelected] = useState(null);
@@ -178,12 +236,15 @@ export default function Sidebar({
   const [localMountName, setLocalMountName] = useState(null);
   const [localStatus, setLocalStatus] = useState('idle'); // idle|connecting|connected|denied
 
-  const ops = useMemo(() => makeOps(source), [source]);
+  const isExamples = source === 'examples';
+  const ops = useMemo(() => makeOps(source === 'examples' ? 'temporary' : source), [source]);
 
   const loadTree = useCallback(async () => {
-    try { setTree(await ops.listTree()); }
-    catch (e) { console.error('[Sidebar] listTree failed', e); }
-  }, [ops]);
+    try {
+      if (isExamples) setTree(await loadExamplesTree());
+      else setTree(await ops.listTree());
+    } catch (e) { console.error('[Sidebar] listTree failed', e); }
+  }, [ops, isExamples]);
 
   // Reload on source change + on external write signal
   useEffect(() => { loadTree(); }, [loadTree, vfsRefreshKey]);
@@ -248,9 +309,16 @@ export default function Sidebar({
   /* ─── file ops ─── */
   const handleFileOpen = useCallback(async (node) => {
     if (node.type !== 'file') return;
+    if (isExamples) {
+      try {
+        const r = await openExample(node, tree, vfsAdapters);
+        if (r) onOpenFile?.(node.name, r.content, r.vfsPath, 'examples');
+      } catch (e) { console.error('[Sidebar] openExample', e); }
+      return;
+    }
     const content = await ops.readFile(node.path);
     onOpenFile?.(node.name, content !== null ? content : '', node.path, source);
-  }, [ops, onOpenFile, source]);
+  }, [ops, onOpenFile, source, isExamples, tree, vfsAdapters]);
 
   const handleCreate = useCallback(async (name) => {
     if (!name || !creating) { setCreating(null); return; }
@@ -350,6 +418,15 @@ export default function Sidebar({
   const handleContextMenu = useCallback((e, node) => {
     e.preventDefault();
     e.stopPropagation();
+    // Examples are read-only — only "Open" makes sense for files, no actions for folders.
+    if (isExamples) {
+      if (node.type !== 'file') return;
+      setContextMenu({
+        x: e.clientX, y: e.clientY,
+        items: [{ icon: '📝', label: 'Open in Editor', action: () => handleFileOpen(node) }],
+      });
+      return;
+    }
     const items = [];
     if (node.type === 'folder') {
       items.push({ icon: '📄', label: 'New file…',
@@ -368,10 +445,11 @@ export default function Sidebar({
     items.push({ icon: '✏', label: 'Rename', action: () => setRenaming(node.path) });
     items.push({ icon: '🗑', label: 'Delete', danger: true, action: () => handleDelete(node) });
     setContextMenu({ x: e.clientX, y: e.clientY, items });
-  }, [setExpanded, handleImport, handleFileOpen, handleDuplicate, handleDownload, handleDelete]);
+  }, [isExamples, setExpanded, handleImport, handleFileOpen, handleDuplicate, handleDownload, handleDelete]);
 
   const handleRootContextMenu = useCallback((e) => {
     e.preventDefault();
+    if (isExamples) return; // read-only — no root menu
     setContextMenu({
       x: e.clientX, y: e.clientY,
       items: [
@@ -380,7 +458,7 @@ export default function Sidebar({
         { icon: '📥', label: 'Import file(s)…',   action: () => handleImport('') },
       ],
     });
-  }, [handleImport]);
+  }, [isExamples, handleImport]);
 
   /* ─── render ─── */
   const isLocalUnmounted = source === 'localFolder' && localStatus !== 'connected';
@@ -392,15 +470,18 @@ export default function Sidebar({
         <select className="ws-picker"
           value={source}
           onChange={(e) => switchSource(e.target.value)}>
+          <option value="examples">Examples</option>
           <option value="temporary">Temporary</option>
           {localAvailable && <option value="localFolder">Local Folder</option>}
         </select>
-        <button className="sidebar-icon" title="New file"
-          onClick={() => setCreating({ parentPath: '', type: 'file' })}>
-          <svg width="11" height="11" viewBox="0 0 12 12">
-            <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-          </svg>
-        </button>
+        {!isExamples && (
+          <button className="sidebar-icon" title="New file"
+            onClick={() => setCreating({ parentPath: '', type: 'file' })}>
+            <svg width="11" height="11" viewBox="0 0 12 12">
+              <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Search */}
