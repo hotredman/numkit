@@ -76,4 +76,14 @@ std::tuple<Value, Value, Value>
 signtest(std::pmr::memory_resource *mr, const Value &x,
          const Value &y_or_m, double alpha, TestTail tail);
 
+/// signrank(x[, m | y][, alpha, tail][, method]) — Wilcoxon signed-rank.
+/// H0: median(x - m₀) = 0 (or median(x - y) = 0 for paired).
+/// `method` ∈ {"exact", "approximate"}. Default: "exact" if n_eff ≤ 15,
+/// otherwise "approximate". Returns (p, h, signedrank, zval). `zval` is
+/// NaN unless approximate mode was used.
+std::tuple<Value, Value, Value, Value>
+signrank(std::pmr::memory_resource *mr, const Value &x,
+         const Value &y_or_m, double alpha, TestTail tail,
+         const std::string &method);
+
 } // namespace numkit::stats

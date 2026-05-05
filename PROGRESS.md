@@ -3092,7 +3092,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 ### Hypothesis Tests
 
-**Namespace:** `stats.test.*` — 9 ✅ + 0 ⚠️ / 25 = 36%
+**Namespace:** `stats.test.*` — 10 ✅ + 0 ⚠️ / 25 = 40%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3115,7 +3115,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `ranksum` | ❌ |  |  |  |  | Wilcoxon rank-sum |
 | `runstest` | ❌ |  |  |  |  | runs test for randomness |
 | `sampsizepwr` | ❌ |  |  |  |  | sample-size / power |
-| `signrank` | ❌ |  |  |  |  | Wilcoxon signed-rank |
+| `signrank` | ✅ | 0.004 | 625.70× | 74.62× | OK | Sig: [p, h, stats] = signrank(x[, m | y][, alpha, tail | name-value]). Wilcoxon signed-rank: rank |d_i| with mid-rank tie averaging, W+ = Σ ranks of positive d. Default exact for n_eff ≤ 15 (subset-sum convolution); approximate uses tie-corrected normal. |
 | `signtest` | ✅ | 0.004 | 790.44× | 101.31× | OK | Sig: [p, h, stats] = signtest(x[, m | y][, alpha, tail | name-value]). Paired sample test: 5 positives over 5 non-zero diffs, two-sided p = 2·(0.5)^5 = 0.0625 (binomial). |
 | `ttest` | ✅ |  |  |  | OK | one-sample, returns (h, p, ci, tstat) |
 | `ttest2` | ✅ |  |  |  | OK | Welch (default) or pooled-variance |

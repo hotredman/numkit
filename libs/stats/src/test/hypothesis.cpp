@@ -569,6 +569,133 @@ signtest(std::pmr::memory_resource *mr, const Value &x,
 }
 
 // ════════════════════════════════════════════════════════════════════
+// signrank — Wilcoxon signed-rank
+// ════════════════════════════════════════════════════════════════════
+
+std::tuple<Value, Value, Value, Value>
+signrank(std::pmr::memory_resource *mr, const Value &x,
+         const Value &y_or_m, double alpha, TestTail tail,
+         const std::string &method_in)
+{
+    const size_t Nx = x.numel();
+    const bool paired = (!y_or_m.isEmpty() && !y_or_m.isScalar());
+    if (paired && y_or_m.numel() != Nx)
+        throw Error("signrank: X and Y must have the same length",
+                    0, 0, "signrank", "", "m:signrank:size");
+    const double m0 = (paired || y_or_m.isEmpty()) ? 0.0 : y_or_m.toScalar();
+
+    // Collect (|d|, sign) for non-zero diffs.
+    struct DSign { double absd; int sign; };
+    std::vector<DSign> ds;
+    ds.reserve(Nx);
+    for (size_t i = 0; i < Nx; ++i) {
+        const double xi = x.elemAsDouble(i);
+        const double yi = paired ? y_or_m.elemAsDouble(i) : m0;
+        if (std::isnan(xi) || std::isnan(yi)) continue;
+        const double d = xi - yi;
+        if (d == 0.0) continue;
+        ds.push_back({std::fabs(d), d > 0 ? +1 : -1});
+    }
+    const size_t n = ds.size();
+
+    // Edge case: nothing to rank.
+    if (n == 0) {
+        return std::make_tuple(Value::scalar(1.0, mr),
+                               Value::scalar(0.0, mr),
+                               Value::scalar(0.0, mr),
+                               Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr));
+    }
+
+    // Sort by |d| ascending; assign mid-ranks for ties.
+    std::vector<size_t> ord(n);
+    for (size_t i = 0; i < n; ++i) ord[i] = i;
+    std::sort(ord.begin(), ord.end(),
+              [&](size_t a, size_t b) { return ds[a].absd < ds[b].absd; });
+
+    std::vector<double> ranks(n);
+    std::vector<size_t> tieGroupSizes;
+    size_t i = 0;
+    while (i < n) {
+        size_t j = i + 1;
+        while (j < n && ds[ord[j]].absd == ds[ord[i]].absd) ++j;
+        const double avg = (static_cast<double>(i + j + 1)) / 2.0;  // mean of (i+1)..j
+        for (size_t k = i; k < j; ++k) ranks[ord[k]] = avg;
+        if (j - i > 1) tieGroupSizes.push_back(j - i);
+        i = j;
+    }
+
+    // W+ = sum of ranks where d > 0.
+    double Wplus = 0.0;
+    for (size_t k = 0; k < n; ++k)
+        if (ds[k].sign > 0) Wplus += ranks[k];
+
+    // Choose method.
+    std::string method = method_in;
+    for (auto &c : method) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    bool exact;
+    if      (method == "exact")       exact = true;
+    else if (method == "approximate") exact = false;
+    else                              exact = (n <= 15);  // MATLAB default
+
+    double p = 1.0;
+    double zval = std::numeric_limits<double>::quiet_NaN();
+
+    if (exact) {
+        // Convolve subset-sum count polynomial. Scale ranks by 2 so all
+        // (mid-rank averaged) values are integers.
+        std::vector<long long> rk2(n);
+        long long total2 = 0;
+        for (size_t k = 0; k < n; ++k) {
+            rk2[k] = static_cast<long long>(std::llround(ranks[k] * 2.0));
+            total2 += rk2[k];
+        }
+        std::vector<double> P(static_cast<size_t>(total2 + 1), 0.0);
+        P[0] = 1.0;
+        long long cur = 0;
+        for (size_t k = 0; k < n; ++k) {
+            const long long r = rk2[k];
+            for (long long s = cur + r; s >= r; --s) P[s] += P[s - r];
+            cur += r;
+        }
+        const long long W2 = static_cast<long long>(std::llround(Wplus * 2.0));
+        const double total = std::pow(2.0, static_cast<double>(n));
+        // P(W ≤ W+) and P(W ≥ W+).
+        double cdfLE = 0.0;
+        for (long long s = 0; s <= W2; ++s) cdfLE += P[s];
+        cdfLE /= total;
+        double cdfGE = 0.0;
+        for (long long s = W2; s <= total2; ++s) cdfGE += P[s];
+        cdfGE /= total;
+        switch (tail) {
+            case TestTail::Both:  p = std::min(1.0, 2.0 * std::min(cdfLE, cdfGE)); break;
+            case TestTail::Right: p = cdfGE; break;
+            case TestTail::Left:  p = cdfLE; break;
+        }
+    } else {
+        // Normal approximation with tie correction.
+        const double mean = static_cast<double>(n) * (n + 1) / 4.0;
+        double var = static_cast<double>(n) * (n + 1) * (2 * n + 1) / 24.0;
+        for (size_t t : tieGroupSizes)
+            var -= static_cast<double>(t * t * t - t) / 48.0;
+        const double sd = std::sqrt(var);
+        zval = (sd > 0.0) ? (Wplus - mean) / sd : 0.0;
+        Value zV = Value::scalar(zval, mr);
+        const double cdf = normcdf(mr, zV, 0.0, 1.0).toScalar();
+        switch (tail) {
+            case TestTail::Both:  p = 2.0 * std::min(cdf, 1.0 - cdf); break;
+            case TestTail::Right: p = 1.0 - cdf; break;
+            case TestTail::Left:  p = cdf; break;
+        }
+    }
+
+    const int h = (p < alpha) ? 1 : 0;
+    return std::make_tuple(Value::scalar(p, mr),
+                           Value::scalar(double(h), mr),
+                           Value::scalar(Wplus, mr),
+                           Value::scalar(zval, mr));
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -741,6 +868,52 @@ void jbtest_reg(Span<const Value> args, size_t nargout,
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(JB);
     if (nargout > 3) outs[3] = std::move(cv);
+}
+
+void signrank_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("signrank: requires X[, m | y][, alpha, tail or "
+                    "name-value]", 0, 0, "signrank", "", "m:signrank:nargin");
+    auto *mr = ctx.engine->resource();
+
+    Value y_or_m = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    size_t i = 1;
+    if (i < args.size() && !args[i].isChar() && !args[i].isString()) {
+        y_or_m = args[i];
+        ++i;
+    }
+
+    double alpha = 0.05;
+    TestTail tail = TestTail::Both;
+    std::string method;
+
+    if (i < args.size() && !args[i].isChar() && !args[i].isString()) {
+        alpha = args[i].toScalar();
+        ++i;
+    }
+    while (i + 1 < args.size()) {
+        if (!args[i].isChar() && !args[i].isString()) break;
+        std::string name = args[i].toString();
+        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        const Value &v = args[i + 1];
+        if      (name == "alpha")  alpha = v.toScalar();
+        else if (name == "tail")   tail  = parse_tail(v.toString(), TestTail::Both);
+        else if (name == "method") method = v.toString();
+        i += 2;
+    }
+
+    auto [p, h, sr, z] = signrank(mr, args[0], y_or_m, alpha, tail, method);
+    outs[0] = std::move(p);
+    if (nargout > 1) outs[1] = std::move(h);
+    if (nargout > 2) {
+        Value s = Value::structure(mr);
+        s.field("signedrank") = sr;
+        // zval only present for approximate method (NaN otherwise).
+        if (!std::isnan(z.toScalar())) s.field("zval") = z;
+        outs[2] = std::move(s);
+    }
 }
 
 void signtest_reg(Span<const Value> args, size_t nargout,
