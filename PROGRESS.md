@@ -1350,7 +1350,7 @@ omitted — interactive / Simulink / OOP.
 
 ### Splines
 
-**Namespace:** `cfit.splines.*` — 12 ✅ + 0 ⚠️ / 49 = 24%
+**Namespace:** `cfit.splines.*` — 13 ✅ + 0 ⚠️ / 49 = 27%
 
 OOP `fittype`/`fit`/`cfit`/`sfit`/`fitoptions`/`excludedata` and the
 GUI tools (`sftool`, `bspligui`, `splinetool`, `getcurve`) intentionally
@@ -1361,7 +1361,7 @@ construction / postprocessing primitives — those are all flat functions.
 |---|:---:|---:|---:|---:|:---:|---|
 | `bspline` | ❌ |  |  |  |  | B-spline of given order |
 | `csape` | ❌ |  |  |  |  | cubic spline w/ end-conditions |
-| `csapi` | ❌ |  |  |  |  | cubic spline interpolation |
+| `csapi` | ✅ | 0.004 | 480.48× |  | OK | Sig: pp = csapi(x, y). Not-a-knot cubic spline interpolation. Returns pp-form spline of order 4 that passes through all (x,y) and is C² with continuous third derivative at x(2) and x(end-1). |
 | `csaps` | ❌ |  |  |  |  | cubic smoothing spline |
 | `cscvn` | ❌ |  |  |  |  | natural cubic curve through points |
 | `rscvn` | ❌ |  |  |  |  | rational cubic curve |

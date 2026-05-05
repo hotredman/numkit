@@ -313,6 +313,113 @@ Value fnint(std::pmr::memory_resource *mr, const Value &pp)
     return buildPP(mr, v.breaks, nc, cR, newK, v.L, v.d);
 }
 
+Value csapi(std::pmr::memory_resource *mr, const Value &x, const Value &y)
+{
+    const size_t N = x.numel();
+    if (y.numel() != N || N < 2)
+        throw Error("csapi: x and y must be vectors of the same length ≥ 2",
+                    0, 0, "csapi", "", "m:csapi:size");
+    std::vector<double> xv(N), yv(N);
+    for (size_t i = 0; i < N; ++i) {
+        xv[i] = x.elemAsDouble(i);
+        yv[i] = y.elemAsDouble(i);
+    }
+
+    if (N == 2) {
+        Value bv = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+        bv.doubleDataMut()[0] = xv[0];
+        bv.doubleDataMut()[1] = xv[1];
+        std::vector<double> coefs(4, 0.0);
+        coefs[0] = 0.0;
+        coefs[1] = 0.0;
+        coefs[2] = (yv[1] - yv[0]) / (xv[1] - xv[0]);
+        coefs[3] = yv[0];
+        return buildPP(mr, bv, coefs, 1, 4, 1, 1);
+    }
+
+    const size_t L = N - 1;
+    std::vector<double> h(L);
+    for (size_t i = 0; i < L; ++i) h[i] = xv[i + 1] - xv[i];
+
+    std::vector<double> A(N * N, 0.0), rhs(N, 0.0);
+    auto idx = [&](size_t r, size_t c) -> double & { return A[r + c * N]; };
+
+    if (L >= 2) {
+        idx(0, 0) = h[1];
+        idx(0, 1) = -(h[0] + h[1]);
+        idx(0, 2) = h[0];
+        rhs[0] = 0.0;
+    }
+    for (size_t i = 1; i + 1 < N; ++i) {
+        idx(i, i - 1) = h[i - 1];
+        idx(i, i)     = 2.0 * (h[i - 1] + h[i]);
+        idx(i, i + 1) = h[i];
+        rhs[i] = 6.0 * ((yv[i + 1] - yv[i]) / h[i] - (yv[i] - yv[i - 1]) / h[i - 1]);
+    }
+    if (L >= 2) {
+        const size_t r = N - 1;
+        idx(r, r - 2) = h[L - 1];
+        idx(r, r - 1) = -(h[L - 2] + h[L - 1]);
+        idx(r, r)     = h[L - 2];
+        rhs[r] = 0.0;
+    }
+
+    std::vector<int> perm(N);
+    for (size_t i = 0; i < N; ++i) perm[i] = static_cast<int>(i);
+    for (size_t k = 0; k < N; ++k) {
+        size_t piv = k;
+        double best = std::fabs(A[k + k * N]);
+        for (size_t i = k + 1; i < N; ++i) {
+            const double vv = std::fabs(A[i + k * N]);
+            if (vv > best) { best = vv; piv = i; }
+        }
+        if (best == 0.0)
+            throw Error("csapi: singular system (duplicate breaks?)",
+                        0, 0, "csapi", "", "m:csapi:singular");
+        if (piv != k) {
+            for (size_t j = 0; j < N; ++j)
+                std::swap(A[k + j * N], A[piv + j * N]);
+            std::swap(perm[k], perm[piv]);
+        }
+        const double pv = A[k + k * N];
+        for (size_t i = k + 1; i < N; ++i) {
+            const double m = A[i + k * N] / pv;
+            A[i + k * N] = m;
+            for (size_t j = k + 1; j < N; ++j)
+                A[i + j * N] -= m * A[k + j * N];
+        }
+    }
+    std::vector<double> z(N), Mvec(N);
+    for (size_t i = 0; i < N; ++i) z[i] = rhs[perm[i]];
+    for (size_t i = 0; i < N; ++i) {
+        double s = z[i];
+        for (size_t j = 0; j < i; ++j) s -= A[i + j * N] * z[j];
+        z[i] = s;
+    }
+    for (size_t i = N; i-- > 0;) {
+        double s = z[i];
+        for (size_t j = i + 1; j < N; ++j) s -= A[i + j * N] * Mvec[j];
+        Mvec[i] = s / A[i + i * N];
+    }
+
+    Value bv = Value::matrix(1, N, ValueType::DOUBLE, mr);
+    {
+        double *bd = bv.doubleDataMut();
+        for (size_t i = 0; i < N; ++i) bd[i] = xv[i];
+    }
+    std::vector<double> coefs(L * 4, 0.0);
+    for (size_t i = 0; i < L; ++i) {
+        const double Mi  = Mvec[i];
+        const double Mn  = Mvec[i + 1];
+        const double hi  = h[i];
+        coefs[i + 0 * L] = (Mn - Mi) / (6.0 * hi);
+        coefs[i + 1 * L] = Mi / 2.0;
+        coefs[i + 2 * L] = (yv[i + 1] - yv[i]) / hi - hi * (2.0 * Mi + Mn) / 6.0;
+        coefs[i + 3 * L] = yv[i];
+    }
+    return buildPP(mr, bv, coefs, L, 4, L, 1);
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -388,6 +495,15 @@ void fnint_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("fnint: requires (pp)",
                     0, 0, "fnint", "", "m:fnint:nargin");
     outs[0] = fnint(ctx.engine->resource(), args[0]);
+}
+
+void csapi_reg(Span<const Value> args, size_t /*nargout*/,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("csapi: requires (x, y)",
+                    0, 0, "csapi", "", "m:csapi:nargin");
+    outs[0] = csapi(ctx.engine->resource(), args[0], args[1]);
 }
 
 void knt2brk_reg(Span<const Value> args, size_t nargout,

@@ -51,4 +51,9 @@ Value fnder(std::pmr::memory_resource *mr, const Value &pp, int order);
 /// at the first break and is continuous at piece boundaries.
 Value fnint(std::pmr::memory_resource *mr, const Value &pp);
 
+/// `pp = csapi(x, y)` — not-a-knot cubic spline interpolation.
+/// Returns a pp-form spline of order 4 that interpolates (x, y) and
+/// is C² with continuous third derivatives at x(2) and x(end-1).
+Value csapi(std::pmr::memory_resource *mr, const Value &x, const Value &y);
+
 } // namespace numkit::stats
