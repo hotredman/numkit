@@ -353,6 +353,63 @@ void rmse_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     outs[0] = rmse(ctx.engine->resource(), args[0], args[1], dim);
 }
 
+void ecdf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("ecdf: requires 1 argument (y)",
+                     0, 0, "ecdf", "", "m:ecdf:nargin");
+    auto [f, x] = ecdf(ctx.engine->resource(), args[0]);
+    outs[0] = std::move(f);
+    if (nargout > 1) outs[1] = std::move(x);
+}
+
 } // namespace detail
+
+// ── ecdf ─────────────────────────────────────────────────────────────
+// Empirical CDF. Sort data, drop NaN, then for each unique value produce
+// a (cumcount/N) jump. Output: 2 column vectors of length K+1.
+std::tuple<Value, Value>
+ecdf(std::pmr::memory_resource *mr, const Value &y)
+{
+    const size_t n = y.numel();
+    std::vector<double> v;
+    v.reserve(n);
+    for (size_t i = 0; i < n; ++i) {
+        const double s = y.elemAsDouble(i);
+        if (!std::isnan(s)) v.push_back(s);
+    }
+    const size_t N = v.size();
+    if (N == 0) {
+        // MATLAB returns empty 0x1 columns on all-NaN / empty input.
+        Value fEmpty = Value::matrix(0, 1, ValueType::DOUBLE, mr);
+        Value xEmpty = Value::matrix(0, 1, ValueType::DOUBLE, mr);
+        return {std::move(fEmpty), std::move(xEmpty)};
+    }
+    std::sort(v.begin(), v.end());
+
+    // Walk through sorted v and emit (cumulative count, value) at each
+    // value transition. Output size = K + 1, where K is the number of
+    // distinct values.
+    std::vector<double> fs, xs;
+    fs.push_back(0.0);
+    xs.push_back(v[0]);  // F = 0 at x = min(y)
+    size_t i = 0;
+    while (i < N) {
+        size_t j = i + 1;
+        while (j < N && v[j] == v[i]) ++j;
+        // j - i copies of v[i]; cumulative count after this group is j.
+        fs.push_back(static_cast<double>(j) / static_cast<double>(N));
+        xs.push_back(v[i]);
+        i = j;
+    }
+
+    const size_t L = fs.size();
+    Value fOut = Value::matrix(L, 1, ValueType::DOUBLE, mr);
+    Value xOut = Value::matrix(L, 1, ValueType::DOUBLE, mr);
+    double *fd = fOut.doubleDataMut();
+    double *xd = xOut.doubleDataMut();
+    for (size_t k = 0; k < L; ++k) { fd[k] = fs[k]; xd[k] = xs[k]; }
+    return {std::move(fOut), std::move(xOut)};
+}
 
 } // namespace numkit::stats

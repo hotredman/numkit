@@ -28,6 +28,7 @@ void maxk_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mink_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rmse_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mape_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ecdf_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void normalize_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void rescale_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void zscore_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -244,6 +245,7 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "mink",      &stats::detail::mink_reg);
     reg("descriptive", "rmse",      &stats::detail::rmse_reg);
     reg("descriptive", "mape",      &stats::detail::mape_reg);
+    reg("descriptive", "ecdf",      &stats::detail::ecdf_reg);
     reg("descriptive", "normalize", &stats::detail::normalize_reg);
     reg("descriptive", "rescale",   &stats::detail::rescale_reg);
     reg("descriptive", "zscore",    &stats::detail::zscore_reg);
