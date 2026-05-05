@@ -70,6 +70,40 @@ Three real bugs in cycles 65-75 were caught only by this cross-check —
 hand-written smokes had passed all three. Don't trust your own
 expected values: trust the reference engine.
 
+## Audit findings (`audit/`)
+
+Parallel parity-auditor worker (running in `../numkit-m-audit/` worktree
+on branch `audit/findings`) writes ТЗ — technical-debt tickets — under
+`audit/findings/<namespace>/<fn>.md`. Each ТЗ describes a parity gap
+found in an already-shipped function, with reference outputs from MATLAB
+already captured.
+
+**Main worker rules for `audit/`:**
+
+- `audit/AUDITOR_GUIDE.md` is the auditor's manual — do not edit (read
+  if you need to understand what it produces).
+- `audit/findings/**` — pick up a ТЗ when you want to close a parity
+  gap. Implement the fix in `libs/`, verify against the ТЗ's reference
+  outputs, then **move the file** to `audit/closed/<ns>/<fn>.md` and
+  add a closing block at the bottom of the file:
+  ```
+  ## Closed
+  - Closed in commit: <hash>
+  - Closed date: YYYY-MM-DD
+  - Notes: [one-line summary of what changed]
+  ```
+- `audit/INDEX.md` — update the row when you close a ТЗ (move from
+  "Open ТЗ" to "Closed ТЗ").
+- Never write **new** files in `audit/findings/**` from the main
+  worker. That's the auditor's job.
+
+In commit messages reference the ТЗ path explicitly:
+```
+stats: close audit ТЗ stats/normlike — add freq + censoring
+
+Implements audit/findings/stats/normlike.md.
+```
+
 ## Memory
 
 Auto-memory at
