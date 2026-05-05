@@ -1,0 +1,14 @@
+{
+  "name": "ranksum",
+  "namespace": "stats",
+  "setup": "x = [1 3 5 7 9]; y = [2 4 6 8 10];",
+  "expr": "[p, h, stats] = ranksum(x, y);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "p",
+    "h",
+    "stats.ranksum"
+  ],
+  "comment": "Sig: [p, h, stats] = ranksum(x, y[, alpha, tail | name-value]). Wilcoxon rank-sum (Mann-Whitney U). Default exact iff both samples have <10 obs (size-k subset-sum DP); else approximate with continuity + tie correction."
+}

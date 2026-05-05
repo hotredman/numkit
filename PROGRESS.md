@@ -3092,7 +3092,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 ### Hypothesis Tests
 
-**Namespace:** `stats.test.*` — 10 ✅ + 0 ⚠️ / 25 = 40%
+**Namespace:** `stats.test.*` — 11 ✅ + 0 ⚠️ / 25 = 44%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3112,7 +3112,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `meanEffectSize` | ❌ |  |  |  |  | Cohen's d, Hedges' g |
 | `mmdtest` | ❌ |  |  |  |  | maximum mean discrepancy |
 | `multcompare` | ❌ |  |  |  |  | post-hoc multiple comparisons |
-| `ranksum` | ❌ |  |  |  |  | Wilcoxon rank-sum |
+| `ranksum` | ✅ | 0.007 | 697.44× | 1064.43× | OK | Sig: [p, h, stats] = ranksum(x, y[, alpha, tail | name-value]). Wilcoxon rank-sum (Mann-Whitney U). Default exact iff both samples have <10 obs (size-k subset-sum DP); else approximate with continuity + tie correction. |
 | `runstest` | ❌ |  |  |  |  | runs test for randomness |
 | `sampsizepwr` | ❌ |  |  |  |  | sample-size / power |
 | `signrank` | ✅ | 0.004 | 625.70× | 74.62× | OK | Sig: [p, h, stats] = signrank(x[, m | y][, alpha, tail | name-value]). Wilcoxon signed-rank: rank |d_i| with mid-rank tie averaging, W+ = Σ ranks of positive d. Default exact for n_eff ≤ 15 (subset-sum convolution); approximate uses tie-corrected normal. |
