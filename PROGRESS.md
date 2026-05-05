@@ -331,7 +331,7 @@ together.
 | `count` | ✅ | 0.005 | 1.06× |  | OK | Sig: N = count(S, PAT). 2.2k char string. 10k iters. |
 | `deblank` | ✅ | 0.000 | 4.21× | 145.71× | OK | Sig: S = deblank(S). Trim trailing space. 10000 iters. |
 | `double` | ✅ | 3.606 | 0.04× | 0.57× | OK | Sig: Y = double(X). 1M single → double. 50 iters. Element-wise SAVE. |
-| `endswith` | ❌ |  |  |  |  |  |
+| `endsWith` | ✅ | 0.000 | 1.15× | 954.80× | OK | Sig: TF = endsWith(S, PATTERN). Char + string-scalar pattern forms. Logical-scalar fingerprint (BUGS #14). |
 | `erase` | ✅ | 0.002 | 2.26× | 10.85× | OK | Sig: S2 = erase(S, PAT). 1.2k-char string remove 'bar '. 1000 iters. |
 | `erasebetween` | ✅ | 0.000 | 6.05× |  | OK | Sig: S2 = eraseBetween(S, A, B). 10000 iters. |
 | `extract` | ✅ | 0.104 | 0.82× |  | OK | Extract 'xyz' from 8000-char string with 1000 hits. 1000 iters. |
@@ -365,7 +365,7 @@ together.
 | `splitlines` | ✅ | 0.001 | 3.02× |  | OK | Sig: C = splitlines(S). 5-line input via sprintf '
 | `sprintf` | ✅ | 0.001 | 5.38× | 5.43× | OK | Sig: S = sprintf(FMT, ...). Format scalar+int. 100k iters. |
 | `sscanf` | ✅ | 0.000 | 5.16× | 80.00× | OK | Sig: A = sscanf(S, FMT). 5 floats. 100k iters. |
-| `startswith` | ❌ |  |  |  |  |  |
+| `startsWith` | ✅ | 0.000 | 1.82× | 349.61× | OK | Sig: TF = startsWith(S, PATTERN). Char + string-scalar pattern forms. Logical-scalar fingerprint (BUGS #14). |
 | `str2double` | ✅ | 0.000 | 24.98× | 16.03× | OK | Sig: V = str2double(S). 100k iters. |
 | `strcat` | ✅ | 0.001 | 26.76× | 84.88× | OK | Sig: S = strcat(A, B). 5k + 6k char concat. 1000 iters. |
 | `strcmp` | ✅ | 0.000 | 7.11× | 33.62× | OK | Sig: TF = strcmp(A, B). char-vs-char only. 100k iters. Logical-scalar fp (BUGS #14). |
