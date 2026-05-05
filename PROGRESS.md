@@ -1626,11 +1626,11 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `lab2uint8` | ✅ | 0.003 | 379.21× | 68.35× | OK | Sig: lab_u8 = lab2uint8(lab). double LAB → uint8: (L*255)/100, a/b += 128. NaN → 255. Octave-image has lab2uint8. |
 | `lab2xyz` | ✅ |  |  |  | OK | CIELAB → XYZ (D65) |
 | `lin2rgb` | ✅ | 0.003 | 601.81× |  | OK | Sig: B = lin2rgb(A). Linear → sRGB forward gamma. MATLAB R2025b. Octave-image doesn't ship lin2rgb; harness ranks MATLAB above Octave so OK is expected with octave=N/A. |
-| `ntsc2rgb` | ❌ | 0.003 | 313.36× | 93.83× | OK | Sig: rgb = ntsc2rgb(yiq). Inverse of rgb2ntsc 3-sig-fig matrix. Octave-image has ntsc2rgb. |
+| `ntsc2rgb` | ✅ | 0.003 | 313.36× | 93.83× | OK | Sig: rgb = ntsc2rgb(yiq). Inverse of rgb2ntsc 3-sig-fig matrix. Octave-image has ntsc2rgb. |
 | `rgb2hsv` | ✅ | 0.003 |  | 54.51× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `rgb2lab` | ✅ | 0.016 | 920.06× | 59.27× | MISMATCH | Verify our rgb2lab matches MATLAB. |
 | `rgb2lin` | ✅ | 0.003 | 635.56× |  | OK | Sig: B = rgb2lin(A). sRGB inverse gamma (piecewise linear|^2.4). MATLAB R2025b. Octave-image doesn't ship rgb2lin; harness ranks MATLAB above Octave so OK is expected even with octave=N/A. |
-| `rgb2ntsc` | ❌ | 0.003 | 133.74× | 83.13× | OK | Sig: yiq = rgb2ntsc(rgb). Linear matrix; 3-sig-fig from Wikipedia/MATLAB. Octave-image has rgb2ntsc. |
+| `rgb2ntsc` | ✅ | 0.003 | 133.74× | 83.13× | OK | Sig: yiq = rgb2ntsc(rgb). Linear matrix; 3-sig-fig from Wikipedia/MATLAB. Octave-image has rgb2ntsc. |
 | `rgb2xyz` | ✅ | 0.003 |  | 28.55× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
 | `rgb2ycbcr` | ✅ | 0.003 |  | 47.60× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
 | `rgbwide2xyz` | ❌ |  |  |  |  | wide-gamut HDR |
