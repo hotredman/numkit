@@ -1,0 +1,10 @@
+{
+  "name": "wmaxlev",
+  "namespace": "wavelet",
+  "setup": "",
+  "expr": "L1 = wmaxlev(64, 'db2'); L2 = wmaxlev(64, 'db1'); L3 = wmaxlev(1024, 'db4'); L4 = wmaxlev([8 8], 'db1');",
+  "iters": 5,
+  "tol": 1e-15,
+  "fingerprint": ["L1", "L2", "L3", "L4"],
+  "comment": "Sig: L = wmaxlev(N, wname). Maximum decomposition level. L = floor(log2(N / (Lf - 1))) where Lf is the wavelet filter length. For a 2-vector N, MATLAB uses min(N)."
+}

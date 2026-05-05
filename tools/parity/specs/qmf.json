@@ -1,0 +1,10 @@
+{
+  "name": "qmf",
+  "namespace": "wavelet",
+  "setup": "x = [1 2 3 4 5];",
+  "expr": "y = qmf(x); z = qmf(x, 1);",
+  "iters": 5,
+  "tol": 1e-15,
+  "fingerprint": ["y(1)", "y(2)", "y(3)", "y(4)", "y(5)", "z(1)", "z(2)"],
+  "comment": "Sig: y = qmf(x[, p]). Quadrature mirror filter. y(k) = (-1)^(k-1+p) * x(N-k+1). Default p = 0 (identity-sign on the first element); p = 1 negates."
+}

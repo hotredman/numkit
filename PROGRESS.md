@@ -3345,7 +3345,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 ### Discrete Wavelet Transforms (1-D)
 
-**Namespace:** `wavelet.dwt.*` — 6 ✅ + 0 ⚠️ / 18 = 33%
+**Namespace:** `wavelet.dwt.*` — 9 ✅ + 0 ⚠️ / 18 = 50%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3357,14 +3357,14 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `detcoef` | ✅ |  |  |  | OK | 1-based level (1=finest, n=coarsest) |
 | `wrcoef` | ❌ |  |  |  |  | reconstruct from one band |
 | `dwtmode` | ❌ |  |  |  |  | extension mode |
-| `dyaddown` | ❌ |  |  |  |  | downsample by 2 |
-| `dyadup` | ❌ |  |  |  |  | upsample with zero insertion |
+| `dyaddown` | ✅ | 0.003 | 205.08× |  | OK | Sig: y = dyaddown(x[, ODD]). Dyadic downsample. ODD = 0 (default) → x(2:2:end); ODD = 1 → x(1:2:end). |
+| `dyadup` | ✅ | 0.003 | 350.96× |  | OK | Sig: y = dyadup(x[, ODD]). Zero insertion between samples. Default ODD = 1 → [0 x(1) 0 x(2) 0 ... x(N) 0] (length 2N+1); ODD = 0 → [x(1) 0 x(2) 0 ... x(N)] (length 2N-1). |
 | `wkeep` | ❌ |  |  |  |  | extract central part |
 | `wextend` | ❌ |  |  |  |  | extend signal |
 | `wcodemat` | ✅ | 0.003 | 166.80× |  | OK | Sig: Y = wcodemat(X [, nb [, opt [, absol]]]). Quantize/scale to [1, nb] integer codes (default nb=16, mat, absol=1). Wavelet Toolbox helper; Octave-image doesn't have it → correctness=N/A. |
 | `haart` | ❌ |  |  |  |  | Haar wavelet transform |
 | `ihaart` | ❌ |  |  |  |  | inverse Haar |
-| `wmaxlev` | ❌ |  |  |  |  | maximum decomposition level |
+| `wmaxlev` | ✅ | 0.005 | 407.51× |  | OK | Sig: L = wmaxlev(N, wname). Maximum decomposition level. L = floor(log2(N / (Lf - 1))) where Lf is the wavelet filter length. For a 2-vector N, MATLAB uses min(N). |
 | `dwpt` | ❌ |  |  |  |  | discrete wavelet packet transform |
 | `idwpt` | ❌ |  |  |  |  | inverse DWPT |
 
@@ -3439,13 +3439,13 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 ### Filter Banks and Wavelet Families
 
-**Namespace:** `wavelet.filt.*` — 1 ✅ + 0 ⚠️ / 22 = 5%
+**Namespace:** `wavelet.filt.*` — 3 ✅ + 0 ⚠️ / 22 = 14%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `wfilters` | ✅ |  |  |  | OK | haar / db1..db4 / sym2 / sym4 / coif1; 4-out form + 'd'/'r'/'l'/'h' |
 | `orthfilt` | ❌ |  |  |  |  | orthogonal filter quadruple |
-| `qmf` | ❌ |  |  |  |  | quadrature mirror filter |
+| `qmf` | ✅ | 0.004 | 109.04× |  | OK | Sig: y = qmf(x[, p]). Quadrature mirror filter. y(k) = (-1)^(k-1+p) * x(N-k+1). Default p = 0 (identity-sign on the first element); p = 1 negates. |
 | `biorfilt` | ❌ |  |  |  |  | biorthogonal filter quadruple |
 | `dbwavf` | ❌ |  |  |  |  | Daubechies scaling filter |
 | `coifwavf` | ❌ |  |  |  |  | Coiflets |
@@ -3459,7 +3459,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `hanscalf` | ❌ |  |  |  |  | Han scaling filter |
 | `blscalf` | ❌ |  |  |  |  | Beylkin |
 | `bswfun` | ❌ |  |  |  |  | biorthogonal scaling/wavelet via cascade |
-| `wrev` | ❌ |  |  |  |  | reverse a vector |
+| `wrev` | ✅ | 0.003 | 48.27× | 56.85× | OK | Sig: y = wrev(x). Reverse a vector (Wavelet Toolbox helper, equivalent to fliplr/flipud on a vector). |
 | `isbiorthwfb` | ❌ |  |  |  |  | check biorthogonal filter bank |
 | `isorthwfb` | ❌ |  |  |  |  | check orthogonal filter bank |
 | `wavelets` | ❌ |  |  |  |  | list available wavelet names |
