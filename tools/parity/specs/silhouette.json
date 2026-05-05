@@ -1,0 +1,10 @@
+{
+  "name": "silhouette",
+  "namespace": "stats",
+  "setup": "X = [1 1; 1 2; 2 1; 8 8; 9 8; 8 9]; clust = [1 1 1 2 2 2]';",
+  "expr": "s = silhouette(X, clust);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "s",
+  "comment": "Sig: s = silhouette(X, clust). Default metric sqEuclidean. 6 points, 2 well-separated clusters of 3. Element-wise SAVE; values near 0.99 indicating tight clusters with large inter-cluster gap."
+}

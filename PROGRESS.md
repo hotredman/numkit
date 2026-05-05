@@ -3248,7 +3248,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `silhouette` | ❌ |  |  |  |  | silhouette plot/values |
+| `silhouette` | ✅ | 0.004 | 984.05× | 19497.99× | OK | Sig: s = silhouette(X, clust). Default metric sqEuclidean. 6 points, 2 well-separated clusters of 3. Element-wise SAVE; values near 0.99 indicating tight clusters with large inter-cluster gap. |
 | `evalclusters` | ❌ |  |  |  |  | CalinskiHarabasz / DaviesBouldin / gap / silhouette |
 | `manovacluster` | ❌ |  |  |  |  | dendrogram from MANOVA |
 

@@ -27,6 +27,7 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/kmeans.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/kmedoids.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/linkage.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cluster/silhouette.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dim/pca.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test/hypothesis.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/resample/resample.cpp

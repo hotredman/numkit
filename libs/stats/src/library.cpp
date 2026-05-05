@@ -193,6 +193,9 @@ void linkage_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cluster_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void clusterdata_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cophenet_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// cluster/silhouette.cpp
+void silhouette_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void inconsistent_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // dim/pca.cpp
@@ -384,6 +387,7 @@ void StatsLibrary::install(Engine &engine)
     reg("cluster", "clusterdata",&stats::detail::clusterdata_reg);
     reg("cluster", "cophenet",   &stats::detail::cophenet_reg);
     reg("cluster", "inconsistent", &stats::detail::inconsistent_reg);
+    reg("cluster", "silhouette", &stats::detail::silhouette_reg);
 
     reg("dim", "pca",     &stats::detail::pca_reg);
     reg("dim", "pcacov",  &stats::detail::pcacov_reg);
