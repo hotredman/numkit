@@ -259,6 +259,122 @@ public:
         }
     }
 
+    /**
+     * Serialise a single workspace variable as a JSON object containing its
+     * full numeric data, suitable for the Variable Editor table:
+     *
+     *   { "name":"x", "type":"double", "rows":M, "cols":N,
+     *     "data":[[r0c0, r0c1, ...], [r1c0, ...], ...] }
+     *
+     * For non-numeric types we fall back to a single-cell preview string.
+     * Storage in numkit is column-major (MATLAB convention) — we transpose
+     * to row-major here so the table reads naturally.
+     */
+    std::string getVarFullJSON(const std::string &name) {
+        try {
+            using numkit::ValueType;
+            // During debug, prefer the paused frame's variable.
+            const numkit::Value *valPtr = nullptr;
+            if (debugSession_ && debugSession_->isActive()) {
+                auto snap = debugSession_->snapshot();
+                for (auto &v : snap.variables) {
+                    if (v.name == name && v.value) { valPtr = v.value; break; }
+                }
+            }
+            if (!valPtr) valPtr = engine_->getVariable(name);
+            if (!valPtr) {
+                return "{\"error\":\"variable '" + escapeJSON(name) + "' not found\"}";
+            }
+            const auto &val = *valPtr;
+            const auto &d = val.dims();
+            const size_t rows = d.rows();
+            const size_t cols = d.cols();
+
+            std::ostringstream os;
+            os << "{\"name\":\"" << escapeJSON(name) << "\""
+               << ",\"type\":\"" << numkit::mtypeName(val.type()) << "\""
+               << ",\"rows\":" << rows
+               << ",\"cols\":" << cols
+               << ",\"data\":[";
+
+            auto fmtNum = [](double v) -> std::string {
+                if (std::isnan(v))  return "null";
+                if (std::isinf(v))  return v > 0 ? "\"Inf\"" : "\"-Inf\"";
+                std::ostringstream s;
+                s.precision(17);
+                s << v;
+                return s.str();
+            };
+
+            // CHAR: render as a single row of characters split per cell.
+            if (val.type() == ValueType::CHAR) {
+                std::string str = val.toString();
+                os << "[";
+                for (size_t i = 0; i < str.size(); ++i) {
+                    if (i) os << ",";
+                    char c = str[i];
+                    os << "\"" << escapeJSON(std::string(1, c)) << "\"";
+                }
+                os << "]";
+                os << "]}";
+                return os.str();
+            }
+
+            if (val.type() == ValueType::DOUBLE) {
+                const double *p = val.doubleData();
+                for (size_t r = 0; r < rows; ++r) {
+                    if (r) os << ",";
+                    os << "[";
+                    for (size_t c = 0; c < cols; ++c) {
+                        if (c) os << ",";
+                        // column-major storage → flat index = c*rows + r
+                        os << fmtNum(p[c * rows + r]);
+                    }
+                    os << "]";
+                }
+            } else if (val.type() == ValueType::LOGICAL) {
+                const uint8_t *p = val.logicalData();
+                for (size_t r = 0; r < rows; ++r) {
+                    if (r) os << ",";
+                    os << "[";
+                    for (size_t c = 0; c < cols; ++c) {
+                        if (c) os << ",";
+                        os << (p[c * rows + r] ? "true" : "false");
+                    }
+                    os << "]";
+                }
+            } else if (val.type() == ValueType::COMPLEX) {
+                const numkit::Complex *p = val.complexData();
+                for (size_t r = 0; r < rows; ++r) {
+                    if (r) os << ",";
+                    os << "[";
+                    for (size_t c = 0; c < cols; ++c) {
+                        if (c) os << ",";
+                        const auto &z = p[c * rows + r];
+                        // Render complex as a string "a+bi" so the table cell
+                        // reads naturally; rich complex editing isn't supported.
+                        std::ostringstream s;
+                        s.precision(12);
+                        s << z.real();
+                        if (z.imag() >= 0) s << "+";
+                        s << z.imag() << "i";
+                        os << "\"" << s.str() << "\"";
+                    }
+                    os << "]";
+                }
+            } else {
+                // CELL / STRUCT / FUNC / unknown — fall back to a preview cell.
+                os << "[\"" << escapeJSON(valuePreview(val)) << "\"]";
+            }
+            os << "]}";
+            return os.str();
+        } catch (const std::exception &e) {
+            return std::string("{\"error\":\"") + escapeJSON(e.what()) + "\"}";
+        } catch (...) {
+            return "{\"error\":\"unknown error\"}";
+        }
+    }
+
     std::string getDebugFrameVarsJSON() {
         try {
             auto snap = debugSession_->snapshot();
@@ -492,6 +608,11 @@ std::string repl_get_vars() {
     return "__VARS__:" + g_session->getWorkspaceJSON();
 }
 
+std::string repl_get_var_data(const std::string &name) {
+    if (!g_session) return "{\"error\":\"no session\"}";
+    return g_session->getVarFullJSON(name);
+}
+
 std::string repl_version() {
     if (!g_session) repl_init();
     return g_session->version();
@@ -573,7 +694,8 @@ EMSCRIPTEN_BINDINGS(numkit_ide) {
     emscripten::function("repl_complete",  &repl_complete);
     emscripten::function("repl_reset",     &repl_reset);
     emscripten::function("repl_workspace", &repl_workspace);
-    emscripten::function("repl_get_vars",  &repl_get_vars);
+    emscripten::function("repl_get_vars",     &repl_get_vars);
+    emscripten::function("repl_get_var_data", &repl_get_var_data);
     emscripten::function("repl_version",   &repl_version);
     emscripten::function("repl_debug_set_breakpoints", &repl_debug_set_breakpoints);
     emscripten::function("repl_debug_start",           &repl_debug_start);

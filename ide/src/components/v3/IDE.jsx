@@ -824,7 +824,8 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       />
 
       {openVar && (
-        <VariableEditor variable={openVar} onClose={() => setOpenVar(null)} />
+        <VariableEditor variable={openVar} engine={engine}
+          onClose={() => setOpenVar(null)} />
       )}
       {openFigure && (
         <FigureWindow figure={openFigure} onClose={() => setOpenFigure(null)} />

@@ -251,6 +251,23 @@ export async function createWasmEngine(createModule) {
       return {};
     },
 
+    // Full matrix data for the Variable Editor table. Returns:
+    //   { name, type, rows, cols, data: number[][] | string[][] | null[][] }
+    // or { error: '...' } on failure (variable missing, stale WASM, etc.).
+    // The repl_get_var_data binding was added in the v3 IDE; older WASM
+    // builds simply lack it and we return null so the caller can fall back
+    // to the preview-only data already in workspace().
+    getVarData(name) {
+      if (typeof Module.repl_get_var_data !== 'function') return null;
+      try {
+        const raw = Module.repl_get_var_data(name);
+        return JSON.parse(raw);
+      } catch (e) {
+        console.warn('[engine] getVarData failed for', name, e);
+        return { error: e?.message || String(e) };
+      }
+    },
+
     // ── Debug API ──
     get hasDebugger() {
       return typeof Module.repl_debug_start === 'function';
@@ -370,6 +387,27 @@ export function createFallbackEngine() {
       return keys.join(', ');
     },
     getVars() { return interp.getVars(); },
+    getVarData(name) {
+      // Fallback engine stores plain JS values — coerce to mockup shape.
+      const vars = interp.getVars();
+      const v = vars[name];
+      if (v == null) return { error: `variable '${name}' not found` };
+      if (typeof v === 'number') {
+        return { name, type: 'double', rows: 1, cols: 1, data: [[v]] };
+      }
+      if (typeof v === 'string') {
+        return { name, type: 'char', rows: 1, cols: v.length,
+                 data: [v.split('').map((c) => c)] };
+      }
+      if (Array.isArray(v)) {
+        if (v.length && Array.isArray(v[0])) {
+          return { name, type: 'double', rows: v.length, cols: v[0].length,
+                   data: v.map((r) => r.slice()) };
+        }
+        return { name, type: 'double', rows: 1, cols: v.length, data: [v.slice()] };
+      }
+      return { name, type: typeof v, rows: 1, cols: 1, data: [[String(v)]] };
+    },
 
     // ── Debug API (stub for fallback) ──
     get hasDebugger() { return false; },
