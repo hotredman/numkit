@@ -1,0 +1,16 @@
+{
+  "name": "morlet",
+  "namespace": "wavelet",
+  "setup": "lb = -4; ub = 4; N = 65;",
+  "expr": "[psi, x] = morlet(lb, ub, N);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "psi(1)",
+    "psi(33)",
+    "x(1)",
+    "x(end)",
+    "sum(psi)"
+  ],
+  "comment": "Sig: [psi, x] = morlet(LB, UB, N). Real Morlet ψ(t) = exp(-t²/2)·cos(5t)."
+}

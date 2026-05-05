@@ -1,0 +1,15 @@
+{
+  "name": "meyeraux",
+  "namespace": "wavelet",
+  "setup": "x = linspace(0, 1, 11);",
+  "expr": "y = meyeraux(x);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "meyeraux(0)",
+    "meyeraux(0.5)",
+    "meyeraux(1)",
+    "sum(meyeraux(linspace(0,1,11)))"
+  ],
+  "comment": "Sig: y = meyeraux(x). Polynomial 35x⁴ − 84x⁵ + 70x⁶ − 20x⁷; element-wise. Endpoints meyeraux(0)=0, meyeraux(1)=1, meyeraux(0.5)=0.5."
+}
