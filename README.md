@@ -19,7 +19,7 @@ mIDE is built with React + Vite and runs the C++ engine via WebAssembly:
 
 - **Syntax highlighting** — keywords, builtins, constants, strings, comments
 - **Dark / Light theme** — single-source theming via React Context
-- **File browser** — local virtual FS, bundled examples (68 scripts), GitHub repo browser
+- **File browser** — local virtual FS, bundled examples (80 scripts), GitHub repo browser
 - **Multi-tab editor** — context menu, scroll arrows, rename, close all/others
 - **Interactive figures** — SVG-rendered plots with resize, subplot, polar, imagesc
 - **Console** — command history, tab completion, inline help
@@ -72,95 +72,31 @@ mIDE is built with React + Vite and runs the C++ engine via WebAssembly:
 | Line continuation (`...`) | Done |
 | Comments (`%`) and block comments (`%{ %}`) | Done |
 
-### Built-in Functions
+### Library Surface
 
-#### Math
-`sqrt`, `abs`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`,
-`exp`, `log`, `log2`, `log10`, `floor`, `ceil`, `round`, `fix`,
-`mod`, `rem`, `sign`, `max`, `min`, `sum`, `prod`, `mean`, `cumsum`,
-`linspace`, `logspace`, `rand`, `randn`, `deg2rad`, `rad2deg`
+numkit ships a substantial function surface organized into namespaced
+libraries that mirror the structure of MATLAB / Octave toolboxes:
 
-#### Matrix
-`zeros`, `ones`, `eye`, `size`, `length`, `numel`, `ndims`, `reshape`,
-`transpose`, `diag`, `sort`, `find`, `horzcat`, `vertcat`,
-`cross`, `dot`, `meshgrid`
+| Library | Coverage |
+|---|---|
+| **Builtin** | Language fundamentals, math (arithmetic, trig, exp/log, special, polynomials, RNG, interpolation), workspace, error handling |
+| **Signal** | FFT family, filter design / analysis / implementation, windows, spectral estimation, transforms, time-frequency, multirate, smoothing, vibration analysis |
+| **Statistics** | Descriptive stats, distributions, hypothesis tests, regression, clustering, dimensionality reduction, NaN-aware reductions |
+| **Image** | I/O, type & color conversion, filtering, morphology, segmentation, registration, geometric transforms, deblurring, region/object analysis |
+| **Communications** | Modulation, source / channel coding, interleaving, equalization, RF impairments, performance analysis |
+| **Control** | LTI models, state-space, conversion, interconnections, time / frequency response, stability, PID |
+| **Wavelet** | CWT / DWT (1-D / 2-D / 3-D), MODWT, denoising, filter banks, lifting, decomposition trees |
+| **Graphics** | Line / polar / contour / vector / surface / volume / geographic plots; figure & subplot management |
+| **IO** | Low-level file I/O, CSV / dlm / readtable, spreadsheets, workspace save/load |
+| **Optimization** | `fzero`, `fminbnd`, `fminsearch` (constrained / global solvers landing) |
+| **Fitting** | Splines |
 
-#### I/O
-`disp`, `fprintf`, `sprintf`, `sscanf`, `error`, `warning`, `assert`, `rethrow`, `throw`
+Live function-by-function status, native runtime, and side-by-side
+performance against MATLAB R2025b and Octave 11.x is tracked in
+**[PROGRESS.md](PROGRESS.md)**.
 
-#### File I/O
-`fopen`, `fclose`, `fread`, `fwrite`, `fgetl`, `fgets`, `fscanf`, `feof`, `ferror`,
-`ftell`, `fseek`, `frewind`, `textscan`, `csvread`, `csvwrite`, `save`, `load`,
-`setenv`, `getenv`
-
-#### Type Queries
-`double`, `logical`, `char`, `isnumeric`, `islogical`, `ischar`,
-`iscell`, `isstruct`, `isempty`, `isscalar`, `isreal`, `isnan`, `isinf`
-
-#### String
-`num2str`, `str2num`, `str2double`, `strcmp`, `strcmpi`,
-`upper`, `lower`, `strtrim`, `strsplit`, `strcat`
-
-#### Cell & Struct
-`struct`, `fieldnames`, `isfield`, `rmfield`, `cell`
-
-#### Complex
-`real`, `imag`, `conj`, `complex`, `angle`
-
-#### Workspace
-`clear`, `who`, `whos`, `which`, `exist`, `class`
-
-#### Constants
-`pi`, `eps`, `inf`, `Inf`, `nan`, `NaN`, `i`, `j`, `true`, `false`
-
-### Signal Processing (DSP Library)
-
-#### Transforms
-`fft`, `ifft`, `fftshift`, `ifftshift`, `hilbert`, `unwrap`, `envelope`
-
-#### Filtering
-`filter`, `filtfilt`, `conv`, `deconv`, `xcorr`
-
-#### Filter Design
-`butter`, `fir1`, `freqz`
-
-#### Windows
-`hamming`, `hanning`, `blackman`, `kaiser`, `rectwin`, `bartlett`
-
-#### Spectral Analysis
-`periodogram`, `pwelch`, `spectrogram`
-
-#### Resampling
-`downsample`, `upsample`, `decimate`, `resample`
-
-#### Utility
-`nextpow2`
-
-### Interpolation & Fitting (Fit Library)
-
-`interp1` (linear, nearest, spline, pchip), `spline`, `pchip`,
-`polyfit`, `polyval`, `trapz`
-
-### Plotting
-
-Plot data is emitted as JSON and rendered as SVG in mIDE.
-
-#### Plot Types
-`plot`, `bar`, `scatter`, `stem`, `stairs`, `hist`, `imagesc`,
-`polarplot`, `semilogx`, `semilogy`, `loglog`
-
-#### Figure Management
-`figure`, `close`, `clf`, `subplot`
-
-#### Plot Configuration
-`title`, `xlabel`, `ylabel`, `legend`, `xlim`, `ylim`, `clim`, `colormap`,
-`grid` (on/off/minor), `hold` (on/off), `axis` (equal/tight/ij/xy)
-
-#### Polar Configuration
-`rlim`, `thetalim`, `thetadir`, `thetazero`
-
-#### Style
-Style strings (`'r--o'`, `'b:'`, `'g-.'`) and name-value pairs (`'LineWidth'`, `'MarkerSize'`)
+Known issues, behavioural deviations, and open bugs are tracked in
+**[BUGS.md](BUGS.md)**.
 
 ### Debugger
 
@@ -188,25 +124,31 @@ Source Code → Lexer → Tokens → Parser → AST → Compiler → Bytecode �
 
 All classes live in `namespace numkit`.
 
-| Module | Files | Responsibility |
+| Module | Class | Responsibility |
 |---|---|---|
-| **Lexer** | `MLexer` | Tokenization with implicit comma insertion inside `[]` |
-| **Parser** | `MParser` | Recursive descent parser producing AST |
-| **AST** | `MAst` | Node types, `unique_ptr`-based tree with `cloneNode()` |
-| **Compiler** | `MCompiler`, `MBytecode` | AST → bytecode compiler with source maps |
-| **VM** | `MVM` | Non-recursive bytecode interpreter with explicit call stack |
-| **TreeWalker** | `MTreeWalker` | AST-walking interpreter (automatic fallback) |
+| **Lexer** | `Lexer` | Tokenization with implicit comma insertion inside `[]` |
+| **Parser** | `Parser` | Recursive-descent parser producing AST |
+| **AST** | `Ast` | Node types, `unique_ptr`-based tree with `cloneNode()` |
+| **Compiler** | `Compiler`, `Bytecode` | AST → bytecode compiler with source maps |
+| **VM** | `VM` | Non-recursive bytecode interpreter with explicit call stack |
+| **TreeWalker** | `TreeWalker` | AST-walking interpreter (automatic fallback) |
 | **Engine** | `Engine` | Dual-backend orchestrator, function registry, variable store |
-| **Debugger** | `MDebugger` | Breakpoints, stepping, call stack, debug observer protocol |
-| **DebugSession** | `MDebugSession` | Pausable execution, expression eval in context, VM state save/restore |
+| **Debugger** | `Debugger` | Breakpoints, stepping, call stack, debug observer protocol |
+| **DebugSession** | `DebugSession` | Pausable execution, expression eval in context, VM state save/restore |
 | **Value** | `Value` | Copy-on-write value system (double, complex, logical, char, cell, struct, function_handle) |
-| **Environment** | `MEnvironment` | Scoped variable storage with global store |
+| **Environment** | `Environment` | Scoped variable storage with global store |
 | **Memory** | `std::pmr::memory_resource*` | Pluggable heap (passed to Engine ctor; embedders subclass `std::pmr::memory_resource` for custom policy) |
-| **BuiltinLibrary** | `BuiltinLibrary` | Math, matrix, I/O, string, type built-ins (base MATLAB) |
-| **SignalLibrary** | `MSignalLibrary` | Signal Processing Toolbox: FFT, filtering, windows, spectral analysis |
-| **StatsLibrary** | `MStatsLibrary` | Statistics Toolbox: skewness/kurtosis, nan-aware reductions |
-| **GraphicsLibrary** | `MGraphicsLibrary` | Plot commands, figure/close/clf/subplot |
-| **FigureManager** | `MFigureManager` | Plot state management with subplot/axes support |
+| **BuiltinLibrary** | `BuiltinLibrary` | Base layer: language fundamentals, math, programming primitives |
+| **SignalLibrary** | `SignalLibrary` | DSP: FFT, filter design / analysis / implementation, windows, spectral, transforms, multirate |
+| **StatsLibrary** | `StatsLibrary` | Statistics: descriptive, distributions, hypothesis tests, regression, clustering |
+| **ImageLibrary** | `ImageLibrary` | Image processing: I/O, filtering, morphology, segmentation, color, transforms |
+| **CommLibrary** | `CommLibrary` | Communications: modulation, coding, equalization, channel impairments |
+| **ControlLibrary** | `ControlLibrary` | Control systems: LTI models, state-space, frequency response, stability |
+| **WaveletLibrary** | `WaveletLibrary` | Wavelets: CWT / DWT, MODWT, denoising, filter banks |
+| **GraphicsLibrary** | `GraphicsLibrary` | Plot commands, figure / subplot management |
+| **IoLibrary** | `IoLibrary` | File I/O: low-level, CSV, spreadsheets, workspace save/load |
+| **OptimLibrary** | `OptimLibrary` | Optimization: `fzero`, `fminbnd`, `fminsearch` |
+| **FigureManager** | `FigureManager` | Plot state management with subplot/axes support |
 
 ### Key Design Decisions
 
@@ -247,7 +189,7 @@ Or use the wrapper scripts: `./build.sh` (Linux/macOS) or `build.bat` (Windows).
 
 ```bash
 ctest --preset=portable
-# 3512 tests across 140 suites
+# 6382 / 6387 tests passing (1 skipped, 4 disabled)
 ```
 
 ### Build Web IDE (WebAssembly)
@@ -459,82 +401,69 @@ disp(fieldnames(config))    % {'db', 'server'}
 
 ## Limitations
 
-- No linear algebra beyond `cross`/`dot` (`det`, `inv`, `eig`, `norm` not implemented)
-- No sparse matrix support
-- No object-oriented programming (classdef)
-- No regular expressions (`regexp`)
-- No GUI functions
-- Matrix left division (`\`) only for scalars
-- Matrix power (`^`) only for scalars
-- 3D plot functions registered as no-ops (`surf`, `mesh`, `contour`, `scatter3`)
-- No `saveas` / figure export
+- **Linear algebra** — basic factorisations only (`mldivide`, `mrdivide`,
+  `inv`, `det`, named-fn variants); BLAS/LAPACK-grade `eig` / `svd` /
+  `qr` / `chol` are work-in-progress. Tracked under `## Linear Algebra`
+  in [PROGRESS.md](PROGRESS.md).
+- **Sparse matrices** — no sparse value type yet.
+- **Datetime / Tables / Categorical** — datatype scaffolding only,
+  not feature-complete.
+- **OOP (`classdef`)** — not supported.
+- **GUI** — no `uifigure` / `uicontrol` / dialog functions.
+- **Figure export** — no `saveas` / `print` to file (figures emit JSON
+  for the IDE's SVG renderer).
+
+Behavioural deviations from MATLAB R2025b on individual functions are
+tracked in **[BUGS.md](BUGS.md)** alongside their fix queue. Function-
+level coverage is in **[PROGRESS.md](PROGRESS.md)**.
 
 ---
 
 ## Project Structure
 
 ```
-include/                        # Public headers (namespace numkit)
-    engine.hpp                 # Dual-backend engine
-    vm.hpp                     # Bytecode virtual machine
-    compiler.hpp               # AST -> bytecode compiler
-    bytecode.hpp               # Bytecode instruction set
-    tree_walker.hpp             # AST interpreter (fallback)
-    debugger.hpp               # Breakpoints, stepping, debug controller
-    debug_session.hpp           # Pausable debug execution
-    value.hpp                  # Copy-on-write value system
-    ast.hpp                    # AST node types
-    lexer.hpp                  # Tokenizer
-    parser.hpp                 # Recursive descent parser
-    environment.hpp            # Scoped variable storage
-    allocator.hpp              # Pluggable allocator
-    figure_manager.hpp          # Plot state management
-    library.hpp             # Standard library (base MATLAB)
-    signal/library.hpp          # Signal Processing Toolbox
-    stats/library.hpp           # Statistics Toolbox
-    graphics/library.hpp        # Plot / figure library
-    vfs.hpp                    # Virtual filesystem (IDE hooks)
-    branding.hpp               # Env-var prefix (NUMKIT_FS, …)
-    types.hpp                  # Shared types (CallContext, Span)
-src/
-    engine.cpp                 # Engine orchestration
-    vm.cpp                     # VM dispatch loop
-    compiler.cpp               # Bytecode compilation
-    tree_walker.cpp             # Tree-walking interpreter
-    debugger.cpp               # Debug controller logic
-    debug_session.cpp           # Debug session (pause/resume/eval)
-    value.cpp                  # Value operations
-    lexer.cpp                  # Lexer
-    parser.cpp                 # Parser
-    environment.cpp            # Environment
-    ast.cpp                    # AST utilities
-    vfs.cpp                    # Virtual filesystem
-    stdlib/                     # Standard library (math, I/O, types, file I/O, CSV)
-    dsplib/                     # DSP library
-    fitlib/                     # Fit library
-    pltlib/                     # Plot library
-tests/                          # 3512 tests, 140 suites
-    stdlib/                     # Language + standard library
-    backend/                    # VM, TreeWalker, benchmarks
-    diagnostics/                # Debugger, error messages
-    compat/                     # Parity reference scripts
-wasm/                           # WebAssembly build
-    src/repl_bindings.cpp       # Emscripten bindings
-ide/                            # mIDE (React + Vite)
-    src/
-        components/
-            IDE.jsx             # Main IDE layout
-            Console.jsx         # Command console
-            Figures.jsx         # SVG plot renderer (D3)
-            FileBrowser.jsx     # Local / Examples / GitHub browser
-            SyntaxEditor.jsx    # Syntax highlighting
-            Workspace.jsx       # Variable inspector
-            Reference.jsx       # Cheat sheet
-        engine.js               # WASM engine wrapper
-        temporary.js            # IndexedDB-backed scratch VFS
-        theme.jsx               # Dark / Light theme
-    desktop/                    # Electron shell
-    public/examples/            # 68 example .m scripts
+core/                                 # Runtime: parser → AST → VM / TreeWalker
+    include/numkit/core/              # Public headers (namespace numkit)
+        engine.hpp · value.hpp · environment.hpp · vm.hpp · compiler.hpp
+        tree_walker.hpp · ast.hpp · lexer.hpp · parser.hpp
+        debugger.hpp · debug_session.hpp · figure_manager.hpp
+        scratch.hpp · vfs.hpp · types.hpp · branding.hpp
+    src/                              # Implementations matching the headers
+    tests/                            # Frontend / backend / debugger tests
+
+libs/                                 # Domain libraries (one per H2 in PROGRESS.md)
+    builtin/                          # Base layer — language fundamentals + math
+        include/numkit/builtin/{language,math,programming}/
+        src/{language,math,programming}/
+    signal/                           # DSP toolbox (12 sub-domains)
+    stats/                            # Statistics
+    image/                            # Image processing
+    comm/                             # Communications
+    control/                          # Control systems
+    wavelet/                          # Wavelet transforms
+    graphics/                         # Plotting commands
+    io/                               # File I/O
+    optim/                            # Optimization (fzero / fminbnd / fminsearch)
+    <each lib>/{include,src,tests}/   # Same layout per library
+
+tests/                                # Top-level integration & cross-cutting tests
+
+wasm/                                 # WebAssembly REPL bindings (Emscripten)
+ide/                                  # mIDE — React + Vite frontend
+    src/components/                   # IDE.jsx · Console · Figures · FileBrowser · …
+    src/engine.js                     # WASM engine wrapper
+    desktop/                          # Electron shell
+    public/examples/                  # 80 example .m scripts
+
+tools/parity/                         # Parity harness — runs MATLAB / Octave / numkit
+    run_parity.py                     # Per-spec runner; updates PROGRESS.md rows
+    diff_local_ref.py                 # MATLAB-doc TOC vs PROGRESS.md gap report
+    specs/                            # JSON spec per function (input setup + tol)
+
+PROGRESS.md                           # Live function-by-function parity map
+BUGS.md                               # Behavioural deviations + fix queue
+NAMESPACE_DESIGN.md                   # Lib namespace conventions
+COORDINATION.md                       # Multi-session protocol (currently dormant)
 ```
 
 ## License
