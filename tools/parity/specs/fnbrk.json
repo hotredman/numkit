@@ -1,0 +1,16 @@
+{
+  "name": "fnbrk",
+  "namespace": "stats",
+  "setup": "pp = ppmak([0 1 2 3], [1 0; 2 -1; -1 1], 1);",
+  "expr": "b = fnbrk(pp, 'breaks');",
+  "iters": 5,
+  "tol": 1e-15,
+  "fingerprint": [
+    "b(1)",
+    "b(end)",
+    "fnbrk(pp, 'pieces')",
+    "fnbrk(pp, 'order')",
+    "fnbrk(pp, 'dim')"
+  ],
+  "comment": "Sig: out = fnbrk(pp, part). Extract a named part from a pp-form spline. Supports {breaks, coefs, pieces|l, order|k, dim|d, form}."
+}

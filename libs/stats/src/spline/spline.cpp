@@ -420,6 +420,38 @@ Value csapi(std::pmr::memory_resource *mr, const Value &x, const Value &y)
     return buildPP(mr, bv, coefs, L, 4, L, 1);
 }
 
+Value fnbrk(std::pmr::memory_resource *mr, const Value &pp,
+            const std::string &part_in)
+{
+    if (!pp.hasField("form"))
+        throw Error("fnbrk: input must be a spline struct",
+                    0, 0, "fnbrk", "", "m:fnbrk:struct");
+    std::string part = part_in;
+    for (auto &c : part) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    auto copyV = [&](const Value &v) {
+        if (v.type() == ValueType::CHAR || v.isString())
+            return Value::fromString(v.toString(), mr);
+        const auto &d = v.dims();
+        Value out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+        const size_t n = v.numel();
+        if (n == 0) return out;
+        double *od = out.doubleDataMut();
+        for (size_t i = 0; i < n; ++i) od[i] = v.elemAsDouble(i);
+        return out;
+    };
+    if (part == "form")   return copyV(pp.field("form"));
+    if (part == "breaks") return copyV(pp.field("breaks"));
+    if (part == "coefs")  return copyV(pp.field("coefs"));
+    if (part == "pieces" || part == "l")
+        return Value::scalar(pp.field("pieces").toScalar(), mr);
+    if (part == "order"  || part == "k")
+        return Value::scalar(pp.field("order").toScalar(), mr);
+    if (part == "dim"    || part == "d")
+        return Value::scalar(pp.field("dim").toScalar(), mr);
+    throw Error("fnbrk: unknown part '" + part_in + "'",
+                0, 0, "fnbrk", "", "m:fnbrk:part");
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -504,6 +536,18 @@ void csapi_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("csapi: requires (x, y)",
                     0, 0, "csapi", "", "m:csapi:nargin");
     outs[0] = csapi(ctx.engine->resource(), args[0], args[1]);
+}
+
+void fnbrk_reg(Span<const Value> args, size_t /*nargout*/,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("fnbrk: requires (pp, part)",
+                    0, 0, "fnbrk", "", "m:fnbrk:nargin");
+    if (!args[1].isChar() && !args[1].isString())
+        throw Error("fnbrk: numkit only supports the named-part form",
+                    0, 0, "fnbrk", "", "m:fnbrk:type");
+    outs[0] = fnbrk(ctx.engine->resource(), args[0], args[1].toString());
 }
 
 void knt2brk_reg(Span<const Value> args, size_t nargout,

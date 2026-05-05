@@ -323,6 +323,7 @@ void fnval_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void fnder_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void fnint_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void csapi_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fnbrk_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -601,6 +602,7 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "fnder",   &stats::detail::fnder_reg);
     reg("descriptive", "fnint",   &stats::detail::fnint_reg);
     reg("descriptive", "csapi",   &stats::detail::csapi_reg);
+    reg("descriptive", "fnbrk",   &stats::detail::fnbrk_reg);
 }
 
 } // namespace numkit
