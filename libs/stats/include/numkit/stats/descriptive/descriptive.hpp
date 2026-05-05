@@ -116,6 +116,18 @@ Value rmse(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
 // the Inf).
 Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int dim = 0);
 
+// ── ecdf ───────────────────────────────────────────────────────────────
+// ecdf(y) — empirical cumulative distribution function. Returns a pair
+// (f, x) of column vectors of length K+1, where K is the number of
+// unique values in y. f starts at 0 (at x = min(y)) and steps up to 1
+// at x = max(y). Each subsequent jump is at a unique data value with
+// height = (cumulative count) / N.
+//
+// Matches MATLAB's `[f, x] = ecdf(y)`. NaN values are excluded before
+// counting (MATLAB skips them silently; we do the same).
+std::tuple<Value, Value>
+ecdf(std::pmr::memory_resource *mr, const Value &y);
+
 // ── normalize ──────────────────────────────────────────────────────────
 // normalize(A[, method]) — column-wise data normalisation.
 //   method ∈ {"zscore" (default), "norm", "range", "center", "scale",

@@ -3085,7 +3085,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `ecdf` | ❌ |  |  |  |  | empirical cdf |
+| `ecdf` | ✅ | 0.003 | 889.16× | 85.32× | OK | Sig: [f, x] = ecdf(y). Empirical CDF — column vectors of length K+1 where K is the number of distinct y values. f(1)=0 at x=min(y); subsequent f(k)=cumcount(k)/N at each unique value. NaN excluded from N. Element-wise SAVE on f. |
 | `ecdfhist` | ❌ |  |  |  |  | hist from ecdf |
 | `ksdensity` | ❌ |  |  |  |  | kernel density estimation |
 | `mvksdensity` | ❌ |  |  |  |  | multivariate KDE |

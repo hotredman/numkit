@@ -1,0 +1,10 @@
+{
+  "name": "ecdf",
+  "namespace": "stats",
+  "setup": "y = [1 2 2 3 3 3 5 8];",
+  "expr": "[f, x] = ecdf(y);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "f",
+  "comment": "Sig: [f, x] = ecdf(y). Empirical CDF — column vectors of length K+1 where K is the number of distinct y values. f(1)=0 at x=min(y); subsequent f(k)=cumcount(k)/N at each unique value. NaN excluded from N. Element-wise SAVE on f."
+}
