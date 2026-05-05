@@ -111,6 +111,96 @@ knt2brk(std::pmr::memory_resource *mr, const Value &knots)
     return {std::move(bv), std::move(mv)};
 }
 
+Value ppmak(std::pmr::memory_resource *mr, const Value &breaks,
+            const Value &coefs, int d)
+{
+    const size_t L1 = breaks.numel();
+    if (L1 < 2)
+        throw Error("ppmak: breaks must have at least 2 entries",
+                    0, 0, "ppmak", "", "m:ppmak:breaks");
+    const size_t L  = L1 - 1;
+    const size_t cR = coefs.dims().rows();
+    const size_t cC = coefs.dims().cols();
+    if (d < 1) d = 1;
+    if (cR != static_cast<size_t>(d) * L)
+        throw Error("ppmak: coefs must be d·L × K (rows = dim·pieces)",
+                    0, 0, "ppmak", "", "m:ppmak:coefs");
+
+    Value bv = Value::matrix(1, L1, ValueType::DOUBLE, mr);
+    {
+        double *bd = bv.doubleDataMut();
+        for (size_t i = 0; i < L1; ++i) bd[i] = breaks.elemAsDouble(i);
+    }
+    Value cv = Value::matrix(cR, cC, ValueType::DOUBLE, mr);
+    {
+        double *cd = cv.doubleDataMut();
+        for (size_t i = 0; i < cR * cC; ++i) cd[i] = coefs.elemAsDouble(i);
+    }
+
+    Value s = Value::structure(mr);
+    s.field("form")   = Value::fromString("pp", mr);
+    s.field("breaks") = std::move(bv);
+    s.field("coefs")  = std::move(cv);
+    s.field("pieces") = Value::scalar(double(L),  mr);
+    s.field("order")  = Value::scalar(double(cC), mr);
+    s.field("dim")    = Value::scalar(double(d),  mr);
+    return s;
+}
+
+Value fnval(std::pmr::memory_resource *mr, const Value &pp, const Value &xv)
+{
+    if (!pp.hasField("form") || pp.field("form").toString() != "pp")
+        throw Error("fnval: only pp form supported in this release",
+                    0, 0, "fnval", "", "m:fnval:form");
+    const Value &breaks = pp.field("breaks");
+    const Value &coefs  = pp.field("coefs");
+    const size_t L  = static_cast<size_t>(pp.field("pieces").toScalar());
+    const size_t K  = static_cast<size_t>(pp.field("order").toScalar());
+    const size_t d  = static_cast<size_t>(pp.field("dim").toScalar());
+    const size_t cR = coefs.dims().rows();
+    if (cR != d * L || coefs.dims().cols() != K || breaks.numel() != L + 1)
+        throw Error("fnval: pp struct fields are inconsistent",
+                    0, 0, "fnval", "", "m:fnval:struct");
+
+    const size_t Nx = xv.numel();
+    Value out;
+    if (d == 1) {
+        const auto &dx = xv.dims();
+        out = Value::matrix(dx.rows(), dx.cols(), ValueType::DOUBLE, mr);
+    } else {
+        out = Value::matrix(d, Nx, ValueType::DOUBLE, mr);
+    }
+    if (Nx == 0) return out;
+    double *od = out.doubleDataMut();
+
+    auto findPiece = [&](double x) -> size_t {
+        if (x <= breaks.elemAsDouble(0)) return 0;
+        if (x >= breaks.elemAsDouble(L)) return L - 1;
+        size_t lo = 0, hi = L - 1;
+        while (lo < hi) {
+            const size_t m = (lo + hi + 1) / 2;
+            if (breaks.elemAsDouble(m) <= x) lo = m;
+            else                              hi = m - 1;
+        }
+        return lo;
+    };
+
+    for (size_t i = 0; i < Nx; ++i) {
+        const double x = xv.elemAsDouble(i);
+        const size_t j = findPiece(x);
+        const double dx = x - breaks.elemAsDouble(j);
+        for (size_t r = 0; r < d; ++r) {
+            const size_t row = r + j * d;
+            double y = coefs.elemAsDouble(row + 0 * cR);
+            for (size_t m = 1; m < K; ++m)
+                y = y * dx + coefs.elemAsDouble(row + m * cR);
+            if (d == 1) od[i] = y;
+            else        od[r + i * d] = y;
+        }
+    }
+    return out;
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -144,6 +234,27 @@ void brk2knt_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("brk2knt: requires (breaks, mults)",
                     0, 0, "brk2knt", "", "m:brk2knt:nargin");
     outs[0] = brk2knt(ctx.engine->resource(), args[0], args[1]);
+}
+
+void ppmak_reg(Span<const Value> args, size_t /*nargout*/,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("ppmak: requires (breaks, coefs[, d])",
+                    0, 0, "ppmak", "", "m:ppmak:nargin");
+    int d = 1;
+    if (args.size() >= 3 && !args[2].isEmpty())
+        d = static_cast<int>(args[2].toScalar());
+    outs[0] = ppmak(ctx.engine->resource(), args[0], args[1], d);
+}
+
+void fnval_reg(Span<const Value> args, size_t /*nargout*/,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("fnval: requires (pp, x)",
+                    0, 0, "fnval", "", "m:fnval:nargin");
+    outs[0] = fnval(ctx.engine->resource(), args[0], args[1]);
 }
 
 void knt2brk_reg(Span<const Value> args, size_t nargout,

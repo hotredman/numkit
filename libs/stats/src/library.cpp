@@ -318,6 +318,8 @@ void aveknt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void augknt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void brk2knt_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void knt2brk_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ppmak_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fnval_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -591,6 +593,8 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "augknt",  &stats::detail::augknt_reg);
     reg("descriptive", "brk2knt", &stats::detail::brk2knt_reg);
     reg("descriptive", "knt2brk", &stats::detail::knt2brk_reg);
+    reg("descriptive", "ppmak",   &stats::detail::ppmak_reg);
+    reg("descriptive", "fnval",   &stats::detail::fnval_reg);
 }
 
 } // namespace numkit

@@ -1350,7 +1350,7 @@ omitted — interactive / Simulink / OOP.
 
 ### Splines
 
-**Namespace:** `cfit.splines.*` — 8 ✅ + 0 ⚠️ / 49 = 16%
+**Namespace:** `cfit.splines.*` — 10 ✅ + 0 ⚠️ / 49 = 20%
 
 OOP `fittype`/`fit`/`cfit`/`sfit`/`fitoptions`/`excludedata` and the
 GUI tools (`sftool`, `bspligui`, `splinetool`, `getcurve`) intentionally
@@ -1370,7 +1370,7 @@ construction / postprocessing primitives — those are all flat functions.
 | `spap2` | ❌ |  |  |  |  | least-squares spline fit |
 | `spcrv` | ❌ |  |  |  |  | uniform B-spline curve |
 | `tpaps` | ❌ |  |  |  |  | thin-plate smoothing spline (2-D) |
-| `ppmak` | ❌ |  |  |  |  | piecewise-polynomial form constructor |
+| `ppmak` | ✅ | 0.004 | 530.84× |  | OK | Sig: pp = ppmak(breaks, coefs[, d]). Piecewise-polynomial constructor. Pair with fnval. Univariate-only (d=1) tested here. |
 | `rpmak` | ❌ |  |  |  |  | rational pp form |
 | `rsmak` | ❌ |  |  |  |  | rational spline |
 | `spmak` | ❌ |  |  |  |  | B-spline form constructor |
@@ -1387,7 +1387,7 @@ construction / postprocessing primitives — those are all flat functions.
 | `fnplt` | ❌ |  |  |  |  | display |
 | `fnrfn` | ❌ |  |  |  |  | refine knots |
 | `fntlr` | ❌ |  |  |  |  | Taylor coefficients |
-| `fnval` | ❌ |  |  |  |  | evaluate at points |
+| `fnval` | ✅ |  |  |  |  | evaluate at points |
 | `fnxtr` | ❌ |  |  |  |  | extrapolate |
 | `fnzeros` | ❌ |  |  |  |  | zeros of spline |
 | `bkbrk` | ❌ |  |  |  |  | break-and-coefs |

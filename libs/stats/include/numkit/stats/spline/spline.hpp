@@ -31,4 +31,15 @@ Value brk2knt(std::pmr::memory_resource *mr, const Value &breaks, const Value &m
 std::tuple<Value, Value>
 knt2brk(std::pmr::memory_resource *mr, const Value &knots);
 
+/// `pp = ppmak(breaks, coefs[, d])` — piecewise-polynomial constructor.
+/// `breaks` is a length-(L+1) vector; `coefs` is L×K (univariate, d=1)
+/// or d·L×K (vector-valued). The struct carries fields {form='pp',
+/// breaks, coefs, pieces=L, order=K, dim=d}.
+Value ppmak(std::pmr::memory_resource *mr, const Value &breaks,
+            const Value &coefs, int d);
+
+/// `y = fnval(pp, x)` — evaluate a pp-form spline at x via Horner.
+/// Handles only `form='pp'` for now; B-spline form is deferred.
+Value fnval(std::pmr::memory_resource *mr, const Value &pp, const Value &x);
+
 } // namespace numkit::stats
