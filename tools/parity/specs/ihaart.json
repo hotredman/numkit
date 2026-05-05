@@ -1,0 +1,20 @@
+{
+  "name": "ihaart",
+  "namespace": "wavelet",
+  "setup": "x8 = [1 2 3 4 5 6 7 8]; xi = [10 20 30 40 50 60 70 80]; M = [1 2 3 4; 5 6 7 8; 9 10 11 12; 13 14 15 16];",
+  "expr": "[a, d]    = haart(x8, 1);    xr_l1 = ihaart(a, d); [a, d]    = haart(x8);       xr_full = ihaart(a, d); xr_p1 = ihaart(a, d, 1); xr_p2 = ihaart(a, d, 2); [a, d]    = haart(xi, 3, 'integer'); xr_int = ihaart(a, d, 'integer'); xr_intp1 = ihaart(a, d, 1, 'integer'); xr_intp2 = ihaart(a, d, 2, 'integer'); [a, d]    = haart(M, 1);     xr_m  = ihaart(a, d); [a, d]    = haart(M);        xr_mp = ihaart(a, d, 1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "xr_l1(1)", "xr_l1(8)", "size(xr_l1, 1)", "size(xr_l1, 2)",
+    "xr_full(1)", "xr_full(8)",
+    "xr_p1(1)", "xr_p1(2)", "xr_p1(8)",
+    "xr_p2(1)", "xr_p2(4)", "xr_p2(8)",
+    "xr_int(1)", "xr_int(8)",
+    "xr_intp1(1)", "xr_intp1(8)",
+    "xr_intp2(1)", "xr_intp2(4)", "xr_intp2(8)",
+    "xr_m(1,1)", "xr_m(4,4)",
+    "xr_mp(1,1)", "xr_mp(2,2)", "xr_mp(4,4)"
+  ],
+  "comment": "Sig: xrec = ihaart(a, d[, level[, integerflag]]). Inverse Haar 1-D DWT. Default level=0 (lossless reconstruction). When level=K (in [0, Nlevels)) the K finest detail bands d{1..K} are zeroed BEFORE reconstruction (xrec stays full-length). Inverse formulas: noninteger uses (a±d)/sqrt(2); integer uses lifting x[2k]=a[k]-floor(d[k]/2), x[2k+1]=x[2k]+d[k]. d MUST be real even when a is complex (MATLAB validateattributes on D). d may be a plain matrix at level=1 or a length-Nlevels cell array. Vector-shaped a returns column; matrix returns matrix. Verified: level=1, full multi-level, partial reconstruction (zero-out 1 and 2 bands), integer mode + partial, matrix full + partial."
+}
