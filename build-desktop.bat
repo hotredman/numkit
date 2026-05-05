@@ -17,9 +17,9 @@ if errorlevel 1 (
 )
 
 :: Copy WASM artifacts
-if exist "%WASM_DIST%\numkit_mide.wasm" (
-    copy /y "%WASM_DIST%\numkit_mide.js"   "%IDE_DIR%\public\" >nul
-    copy /y "%WASM_DIST%\numkit_mide.wasm" "%IDE_DIR%\public\" >nul
+if exist "%WASM_DIST%\numkit_ide.wasm" (
+    copy /y "%WASM_DIST%\numkit_ide.js"   "%IDE_DIR%\public\" >nul
+    copy /y "%WASM_DIST%\numkit_ide.wasm" "%IDE_DIR%\public\" >nul
     echo [1/4] WASM engine copied
 ) else (
     echo [1/4] WARNING: WASM not built — app will run in demo mode

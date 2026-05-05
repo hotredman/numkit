@@ -40,14 +40,14 @@ cmake --build --preset=browser
 ```
 
 This produces two files under `build-browser/wasm/dist/`:
-- `numkit_mide.js`   (Emscripten glue code)
-- `numkit_mide.wasm` (compiled binary)
+- `numkit_ide.js`   (Emscripten glue code)
+- `numkit_ide.wasm` (compiled binary)
 
 ### Step 2 — Copy into Vite project
 
 ```bash
-cp build-browser/wasm/dist/numkit_mide.js   ide/public/
-cp build-browser/wasm/dist/numkit_mide.wasm ide/public/
+cp build-browser/wasm/dist/numkit_ide.js   ide/public/
+cp build-browser/wasm/dist/numkit_ide.wasm ide/public/
 ```
 
 Alternatively just run `./build.sh --wasm` (Linux/macOS) or `build.bat --wasm` (Windows), then `./dev.sh` / `dev.bat` — the dev-run scripts copy the artifacts automatically.
@@ -59,7 +59,7 @@ cd repl-vite
 npm run dev
 ```
 
-The app auto-detects `window.createNumkitMideModule` and switches from
+The app auto-detects `window.createNumkitIdeModule` and switches from
 fallback mode to the real WASM engine.
 
 ## Production Build
@@ -75,14 +75,14 @@ GitHub Pages, your own server).
 ## Project Structure
 
 ```
-numkit-mide-vite/
+numkit-ide-vite/
 ├── index.html              # Entry point (loads WASM script + React)
 ├── package.json
 ├── vite.config.js
 ├── public/
 │   ├── favicon.svg
-│   ├── numkit_mide.js        # ← copy WASM glue here (optional)
-│   └── numkit_mide.wasm      # ← copy WASM binary here (optional)
+│   ├── numkit_ide.js        # ← copy WASM glue here (optional)
+│   └── numkit_ide.wasm      # ← copy WASM binary here (optional)
 └── src/
     ├── main.jsx             # React root
     ├── index.css            # Global styles

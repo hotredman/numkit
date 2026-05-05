@@ -20,14 +20,14 @@ if errorlevel 1 (
 
 :: Build WASM if emsdk available and not yet built
 if exist "%EMCC_DIR%\emcc.bat" (
-    if not exist "%WASM_DIST%\numkit_mide.wasm" (
+    if not exist "%WASM_DIST%\numkit_ide.wasm" (
         echo Building WASM...
         call "%PROJECT_DIR%build.bat" --wasm
         if errorlevel 1 exit /b 1
     )
     echo Copying WASM files into ide\public\...
-    copy /y "%WASM_DIST%\numkit_mide.js"   "%IDE_DIR%\public\" >nul
-    copy /y "%WASM_DIST%\numkit_mide.wasm" "%IDE_DIR%\public\" >nul
+    copy /y "%WASM_DIST%\numkit_ide.js"   "%IDE_DIR%\public\" >nul
+    copy /y "%WASM_DIST%\numkit_ide.wasm" "%IDE_DIR%\public\" >nul
 ) else (
     echo emsdk not found — building without WASM (fallback mode only)
 )

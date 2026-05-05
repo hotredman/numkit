@@ -567,7 +567,7 @@ void repl_pop_script_origin() {
     g_session->popScriptOrigin();
 }
 
-EMSCRIPTEN_BINDINGS(numkit_mide) {
+EMSCRIPTEN_BINDINGS(numkit_ide) {
     emscripten::function("repl_init",      &repl_init);
     emscripten::function("repl_execute",   &repl_execute);
     emscripten::function("repl_complete",  &repl_complete);

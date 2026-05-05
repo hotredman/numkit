@@ -8,8 +8,8 @@ A lightweight interpreter for a matrix-oriented scripting language — scalars a
 
 <a href="https://numkit.github.io/numkit-m/">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="brand/numkit-mide-logo-dark.svg">
-    <img src="brand/numkit-mide-logo-light.svg" alt="Launch Numkit IDE in browser" width="280">
+    <source media="(prefers-color-scheme: dark)" srcset="brand/numkit-ide-logo-dark.svg">
+    <img src="brand/numkit-ide-logo-light.svg" alt="Launch Numkit IDE in browser" width="280">
   </picture>
 </a>
 

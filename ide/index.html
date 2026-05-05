@@ -11,23 +11,23 @@
 
   <!--
     Emscripten WASM glue. Must load BEFORE React.
-    With MODULARIZE=1 + EXPORT_NAME=createNumkitMideModule,
-    Emscripten creates a `createNumkitMideModule` function.
+    With MODULARIZE=1 + EXPORT_NAME=createNumkitIdeModule,
+    Emscripten creates a `createNumkitIdeModule` function.
     We ensure it lands on `window` so React can find it.
   -->
   <script>window.__WASM_GLUE_LOADED__ = false;</script>
-  <script src="numkit_mide.js"
+  <script src="numkit_ide.js"
           onerror="console.log('[REPL] WASM glue not found — fallback mode')">
   </script>
   <script>
     // Emscripten MODULARIZE assigns to `var`, not `window`.
     // Patch it onto window so App.jsx can detect it.
-    if (typeof createNumkitMideModule !== 'undefined') {
-      window.createNumkitMideModule = createNumkitMideModule;
+    if (typeof createNumkitIdeModule !== 'undefined') {
+      window.createNumkitIdeModule = createNumkitIdeModule;
       window.__WASM_GLUE_LOADED__ = true;
       console.log('[REPL] WASM glue loaded OK');
     } else {
-      console.log('[REPL] createNumkitMideModule not defined after script load');
+      console.log('[REPL] createNumkitIdeModule not defined after script load');
     }
   </script>
 </head>
