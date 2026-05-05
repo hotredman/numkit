@@ -13,7 +13,7 @@ stats, graphics, linalg, sparse, ode, table, …) и numkit-специфичны
    numkit-only от MATLAB-mirror)
 
 Связанные документы:
-- [PARITY_PROGRESS.md](PARITY_PROGRESS.md) — живая карта парити со
+- [PROGRESS.md](PROGRESS.md) — живая карта парити со
   всеми функциями MATLAB-doc, разбитая по секциям/namespace. Колонки:
   status (✅/❌/⚠️), numkit_ms, vs_MATLAB, vs_Octave, correctness.
 
