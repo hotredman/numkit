@@ -41,6 +41,8 @@ void ricianchan_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // eq/pulse.cpp
 void rcosdesign_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gaussdesign_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void rectpulse_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // eq/scrambler.cpp
 void scrambler_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -86,6 +88,8 @@ void CommLibrary::install(Engine &engine)
     reg("rf", "ricianchan",   &comm::detail::ricianchan_reg);
 
     reg("eq", "rcosdesign",  &comm::detail::rcosdesign_reg);
+    reg("eq", "gaussdesign", &comm::detail::gaussdesign_reg);
+    reg("eq", "rectpulse",   &comm::detail::rectpulse_reg);
     reg("eq", "scrambler",   &comm::detail::scrambler_reg);
     reg("eq", "descrambler", &comm::detail::descrambler_reg);
 }
