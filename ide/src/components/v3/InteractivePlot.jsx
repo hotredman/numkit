@@ -154,8 +154,9 @@ export default function InteractivePlot({
   return (
     <svg
       ref={svgRef}
-      width={width} height={height}
+      width="100%" height="100%"
       viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="xMidYMid meet"
       style={{
         display: 'block',
         cursor: interactive ? 'grab' : 'default',
