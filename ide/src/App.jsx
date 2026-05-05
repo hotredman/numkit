@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import IDE from './components/IDE';
+import IDE from './components/v3/IDE';
 import { createWasmEngine, createFallbackEngine } from './engine';
 import tempFS from './temporary';
 import { installVfsAdapters, installLocalAdapter } from './fs/vfs-adapter';
+import './styles/numkit-ide.css';
 
 /**
  * App — initialises Temporary FS + numkit engine (WASM or fallback).

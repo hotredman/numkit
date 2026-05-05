@@ -98,7 +98,10 @@ export function ThemeProvider({ children }) {
 
   const theme = themes[themeName] || dark;
 
-  // Apply CSS variables whenever theme changes
+  // Apply CSS variables whenever theme changes. Two parallel systems:
+  //   --c-* (legacy inline-style consumers via useTheme())
+  //   data-theme attribute on <html> (mockup CSS via [data-theme="light"])
+  // Setting both keeps old + new components in lockstep with one toggle.
   useEffect(() => {
     const root = document.documentElement;
     for (const [key, val] of Object.entries(theme)) {
@@ -107,9 +110,8 @@ export function ThemeProvider({ children }) {
     }
     root.style.setProperty('--font-mono', FONT);
     root.style.setProperty('--font-ui', FONT_UI);
-    document.body.style.background = theme.bg0;
-    document.body.style.color = theme.text;
-    try { localStorage.setItem(THEME_KEY, themeName); } catch {}
+    root.setAttribute('data-theme', themeName);
+    try { localStorage.setItem(THEME_KEY, themeName); } catch { /* private mode */ }
   }, [theme, themeName]);
 
   const toggle = useCallback(() => {
