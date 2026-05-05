@@ -569,6 +569,149 @@ signtest(std::pmr::memory_resource *mr, const Value &x,
 }
 
 // ════════════════════════════════════════════════════════════════════
+// runstest — Wald-Wolfowitz runs test for randomness
+// ════════════════════════════════════════════════════════════════════
+
+namespace {
+
+inline double log_binom(double n, double k) {
+    if (k < 0.0 || k > n) return -std::numeric_limits<double>::infinity();
+    return std::lgamma(n + 1.0) - std::lgamma(k + 1.0) - std::lgamma(n - k + 1.0);
+}
+
+// Exact P(R = r) under H0 for a sequence with n1 ones and n0 zeros.
+// r in [1, n1+n0]; returns 0 outside the support.
+double exact_runs_pmf(int r, int n1, int n0)
+{
+    if (r < 2) return 0.0;
+    const double logC = log_binom(double(n1 + n0), double(n1));
+    if (r % 2 == 0) {
+        const int k = r / 2;
+        if (k < 1 || k > n1 || k > n0) return 0.0;
+        const double lp = std::log(2.0) + log_binom(double(n1 - 1), double(k - 1))
+                        + log_binom(double(n0 - 1), double(k - 1)) - logC;
+        return std::exp(lp);
+    }
+    const int k = (r - 1) / 2;            // r = 2k+1
+    double t1 = -std::numeric_limits<double>::infinity();
+    double t2 = -std::numeric_limits<double>::infinity();
+    // Start with 1: (k+1) ones-blocks, k zero-blocks → C(n1-1, k)·C(n0-1, k-1)
+    if (k <= n1 - 1 && k - 1 >= 0 && k - 1 <= n0 - 1)
+        t1 = log_binom(double(n1 - 1), double(k))
+           + log_binom(double(n0 - 1), double(k - 1));
+    // Start with 0: k ones-blocks, (k+1) zero-blocks → C(n1-1, k-1)·C(n0-1, k)
+    if (k - 1 >= 0 && k - 1 <= n1 - 1 && k <= n0 - 1)
+        t2 = log_binom(double(n1 - 1), double(k - 1))
+           + log_binom(double(n0 - 1), double(k));
+    if (std::isinf(t1) && std::isinf(t2)) return 0.0;
+    const double lmax = std::max(t1, t2);
+    const double lsum = lmax + std::log(
+          (std::isinf(t1) ? 0.0 : std::exp(t1 - lmax))
+        + (std::isinf(t2) ? 0.0 : std::exp(t2 - lmax)));
+    return std::exp(lsum - logC);
+}
+
+} // anonymous
+
+std::tuple<Value, Value, Value, Value, Value, Value>
+runstest(std::pmr::memory_resource *mr, const Value &x, double v_in,
+         double alpha, TestTail tail, const std::string &method_in)
+{
+    const size_t Nx = x.numel();
+
+    // Default v = median(x).
+    double v = v_in;
+    if (std::isnan(v_in)) {
+        std::vector<double> sorted;
+        sorted.reserve(Nx);
+        for (size_t i = 0; i < Nx; ++i) {
+            const double xi = x.elemAsDouble(i);
+            if (!std::isnan(xi)) sorted.push_back(xi);
+        }
+        std::sort(sorted.begin(), sorted.end());
+        const size_t M = sorted.size();
+        if (M == 0) v = 0.0;
+        else if (M % 2 == 1) v = sorted[M / 2];
+        else                 v = 0.5 * (sorted[M / 2 - 1] + sorted[M / 2]);
+    }
+
+    // Build binary sequence; drop values equal to v.
+    std::vector<int> bin;
+    bin.reserve(Nx);
+    for (size_t i = 0; i < Nx; ++i) {
+        const double xi = x.elemAsDouble(i);
+        if (std::isnan(xi)) continue;
+        if (xi > v)      bin.push_back(1);
+        else if (xi < v) bin.push_back(0);
+        // == v → drop
+    }
+    int n1 = 0, n0 = 0;
+    for (int b : bin) (b ? n1 : n0) += 1;
+    int R = 0;
+    int prev = -1;
+    for (int b : bin) { if (b != prev) { ++R; prev = b; } }
+
+    const auto retNan = [&]() {
+        return std::make_tuple(Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr),
+                               Value::scalar(0.0, mr),
+                               Value::scalar(double(R),  mr),
+                               Value::scalar(double(n1), mr),
+                               Value::scalar(double(n0), mr),
+                               Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr));
+    };
+    if (n1 == 0 || n0 == 0) return retNan();
+
+    std::string method = method_in;
+    for (auto &c : method) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    bool exact;
+    if      (method == "approximate") exact = false;
+    else                              exact = true;  // MATLAB default
+
+    double p = 1.0;
+    double zval = std::numeric_limits<double>::quiet_NaN();
+
+    if (exact) {
+        // P(R ≤ R_obs) and P(R ≥ R_obs) by enumeration.
+        const int N = n1 + n0;
+        double cdfLE = 0.0, cdfGE = 0.0;
+        for (int r = 2; r <= N; ++r) {
+            const double pr = exact_runs_pmf(r, n1, n0);
+            if (r <= R) cdfLE += pr;
+            if (r >= R) cdfGE += pr;
+        }
+        switch (tail) {
+            case TestTail::Both:  p = std::min(1.0, 2.0 * std::min(cdfLE, cdfGE)); break;
+            case TestTail::Right: p = cdfGE; break;
+            case TestTail::Left:  p = cdfLE; break;
+        }
+    } else {
+        const double Nd = double(n1 + n0);
+        const double mean = 2.0 * n1 * n0 / Nd + 1.0;
+        const double var  = 2.0 * n1 * n0 * (2.0 * n1 * n0 - Nd) / (Nd * Nd * (Nd - 1.0));
+        const double sd = std::sqrt(std::max(var, 0.0));
+        double cc = 0.0;
+        if      (R > mean) cc = +0.5;
+        else if (R < mean) cc = -0.5;
+        zval = (sd > 0.0) ? (R - mean - cc) / sd : 0.0;
+        Value zV = Value::scalar(zval, mr);
+        const double cdf = normcdf(mr, zV, 0.0, 1.0).toScalar();
+        switch (tail) {
+            case TestTail::Both:  p = 2.0 * std::min(cdf, 1.0 - cdf); break;
+            case TestTail::Right: p = 1.0 - cdf; break;
+            case TestTail::Left:  p = cdf; break;
+        }
+    }
+
+    const int h = (p < alpha) ? 1 : 0;
+    return std::make_tuple(Value::scalar(p, mr),
+                           Value::scalar(double(h), mr),
+                           Value::scalar(double(R),  mr),
+                           Value::scalar(double(n1), mr),
+                           Value::scalar(double(n0), mr),
+                           Value::scalar(zval, mr));
+}
+
+// ════════════════════════════════════════════════════════════════════
 // ranksum — Wilcoxon rank-sum (Mann-Whitney U)
 // ════════════════════════════════════════════════════════════════════
 
@@ -1012,6 +1155,50 @@ void jbtest_reg(Span<const Value> args, size_t nargout,
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(JB);
     if (nargout > 3) outs[3] = std::move(cv);
+}
+
+void runstest_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("runstest: requires X[, v][, alpha, tail | name-value]",
+                    0, 0, "runstest", "", "m:runstest:nargin");
+    auto *mr = ctx.engine->resource();
+
+    // arg[1] is positional v (scalar) or a name-value start.
+    double v = std::numeric_limits<double>::quiet_NaN();   // sentinel: use median(x)
+    size_t i = 1;
+    if (i < args.size() && !args[i].isChar() && !args[i].isString() && !args[i].isEmpty()) {
+        v = args[i].toScalar();
+        ++i;
+    }
+
+    double alpha = 0.05;
+    TestTail tail = TestTail::Both;
+    std::string method;
+
+    while (i + 1 < args.size()) {
+        if (!args[i].isChar() && !args[i].isString()) break;
+        std::string name = args[i].toString();
+        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        const Value &val = args[i + 1];
+        if      (name == "alpha")  alpha = val.toScalar();
+        else if (name == "tail")   tail  = parse_tail(val.toString(), TestTail::Both);
+        else if (name == "method") method = val.toString();
+        i += 2;
+    }
+
+    auto [p, h, R, n1, n0, z] = runstest(mr, args[0], v, alpha, tail, method);
+    outs[0] = std::move(h);
+    if (nargout > 1) outs[1] = std::move(p);
+    if (nargout > 2) {
+        Value s = Value::structure(mr);
+        s.field("nruns") = R;
+        s.field("n1")    = n1;
+        s.field("n0")    = n0;
+        if (!std::isnan(z.toScalar())) s.field("z") = z;
+        outs[2] = std::move(s);
+    }
 }
 
 void ranksum_reg(Span<const Value> args, size_t nargout,

@@ -1,0 +1,16 @@
+{
+  "name": "runstest",
+  "namespace": "stats",
+  "setup": "x = [5 1 8 2 9 3 7 4 6 0];",
+  "expr": "[h, p, stats] = runstest(x);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "p",
+    "h",
+    "stats.nruns",
+    "stats.n1",
+    "stats.n0"
+  ],
+  "comment": "Sig: [h, p, stats] = runstest(x[, v][, alpha, tail | name-value]). Wald-Wolfowitz runs test. Default v=median(x); values == v dropped. Exact dist by default via combinatorial PMF; approximate uses continuity-corrected normal."
+}
