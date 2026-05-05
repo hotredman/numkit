@@ -3092,7 +3092,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 ### Hypothesis Tests
 
-**Namespace:** `stats.test.*` — 8 ✅ + 0 ⚠️ / 25 = 32%
+**Namespace:** `stats.test.*` — 9 ✅ + 0 ⚠️ / 25 = 36%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3116,7 +3116,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `runstest` | ❌ |  |  |  |  | runs test for randomness |
 | `sampsizepwr` | ❌ |  |  |  |  | sample-size / power |
 | `signrank` | ❌ |  |  |  |  | Wilcoxon signed-rank |
-| `signtest` | ❌ |  |  |  |  | sign test |
+| `signtest` | ✅ | 0.004 | 790.44× | 101.31× | OK | Sig: [p, h, stats] = signtest(x[, m | y][, alpha, tail | name-value]). Paired sample test: 5 positives over 5 non-zero diffs, two-sided p = 2·(0.5)^5 = 0.0625 (binomial). |
 | `ttest` | ✅ |  |  |  | OK | one-sample, returns (h, p, ci, tstat) |
 | `ttest2` | ✅ |  |  |  | OK | Welch (default) or pooled-variance |
 | `vartest` | ✅ |  |  |  | OK | chi-squared one-sample variance test |

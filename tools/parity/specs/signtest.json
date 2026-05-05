@@ -1,0 +1,14 @@
+{
+  "name": "signtest",
+  "namespace": "stats",
+  "setup": "x = [5 7 9 8 6]; y = [4 6 8 7 5];",
+  "expr": "[p, h, stats] = signtest(x, y);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "p",
+    "h",
+    "stats.sign"
+  ],
+  "comment": "Sig: [p, h, stats] = signtest(x[, m | y][, alpha, tail | name-value]). Paired sample test: 5 positives over 5 non-zero diffs, two-sided p = 2·(0.5)^5 = 0.0625 (binomial)."
+}
