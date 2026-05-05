@@ -1297,10 +1297,10 @@ input, select { font-family: inherit; color: inherit; }
 .fw-canvas-wrap {
   position: relative;
   background: var(--bg-0);
-  overflow: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow: hidden;
+  /* Inner positioned wrapper (filled via width/height: 100%) holds the
+     fluid SVG, so this can simply be a sized box. */
+  padding: 16px;
 }
 .fw-canvas {
   position: relative;

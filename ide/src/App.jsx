@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import IDE from './components/v3/IDE';
+import ErrorBoundary from './components/v3/ErrorBoundary';
 import { createWasmEngine, createFallbackEngine } from './engine';
 import tempFS from './temporary';
 import { installVfsAdapters, installLocalAdapter } from './fs/vfs-adapter';
@@ -107,12 +108,14 @@ export default function App() {
   }
 
   return (
-    <IDE
-      engine={engine}
-      status={status}
-      initMessage={initMessage}
-      vfsAdapters={vfsAdapters}
-      onLocalMount={handleLocalMount}
-    />
+    <ErrorBoundary>
+      <IDE
+        engine={engine}
+        status={status}
+        initMessage={initMessage}
+        vfsAdapters={vfsAdapters}
+        onLocalMount={handleLocalMount}
+      />
+    </ErrorBoundary>
   );
 }

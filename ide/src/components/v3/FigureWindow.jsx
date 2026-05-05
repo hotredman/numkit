@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import InteractivePlot from './InteractivePlot';
 
 function computeFitViewport(series, mode, axisMode, currentVp, figDefault) {
@@ -97,38 +97,43 @@ export default function FigureWindow({ figure, onClose }) {
     return () => document.removeEventListener('mousedown', onDoc);
   }, []);
 
-  // Re-measure on every layout pass that might change the modal area:
-  // window resize (modal is `width: 85vw / height: 80vh`) plus ResizeObserver
-  // as the primary signal in modern browsers.
+  // Synchronous measure before paint so the SVG is sized correctly on the
+  // very first frame the modal opens.
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (!r.width) return;
+    setSize((prev) => {
+      const w = Math.max(400, Math.round(r.width  - 32));
+      const h = Math.max(300, Math.round(r.height - 32));
+      return (Math.abs(prev.w - w) > 0.5 || Math.abs(prev.h - h) > 0.5) ? { w, h } : prev;
+    });
+  });
+
+  // Re-measure on resize signals: window resize (modal is 85vw / 80vh) plus
+  // ResizeObserver in modern browsers.
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    let raf = 0;
     const remeasure = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const r = el.getBoundingClientRect();
-        if (!r.width) return;
-        setSize((prev) => {
-          const w = Math.max(400, Math.round(r.width  - 32));
-          const h = Math.max(300, Math.round(r.height - 32));
-          return (Math.abs(prev.w - w) > 0.5 || Math.abs(prev.h - h) > 0.5) ? { w, h } : prev;
-        });
+      const r = el.getBoundingClientRect();
+      if (!r.width) return;
+      setSize((prev) => {
+        const w = Math.max(400, Math.round(r.width  - 32));
+        const h = Math.max(300, Math.round(r.height - 32));
+        return (Math.abs(prev.w - w) > 0.5 || Math.abs(prev.h - h) > 0.5) ? { w, h } : prev;
       });
     };
-    remeasure();
     let ro = null;
     if (typeof ResizeObserver !== 'undefined') {
       ro = new ResizeObserver(remeasure);
       ro.observe(el);
     }
     window.addEventListener('resize', remeasure);
-    const t = setTimeout(remeasure, 50);
     return () => {
-      cancelAnimationFrame(raf);
       ro?.disconnect();
       window.removeEventListener('resize', remeasure);
-      clearTimeout(t);
     };
   }, []);
 
@@ -295,7 +300,7 @@ export default function FigureWindow({ figure, onClose }) {
         </div>
 
         <div className="fw-canvas-wrap" ref={wrapRef}>
-          <div style={{ position: 'relative' }}>
+          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
             <InteractivePlot
               figure={figure}
               width={size.w} height={size.h}
