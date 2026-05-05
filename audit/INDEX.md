@@ -130,6 +130,21 @@ Status legend:
 | [findings/wavelet/orthfilt.md](findings/wavelet/orthfilt.md) | orthfilt | wavelet.filt | low | small | 1c2df89 |
 | [findings/wavelet/qmf.md](findings/wavelet/qmf.md) | qmf | wavelet.filt | low | small | 1c2df89 |
 | [findings/wavelet/wrev.md](findings/wavelet/wrev.md) | wrev | wavelet.filt | low | small | 1c2df89 |
+| [findings/stats/betacdf.md](findings/stats/betacdf.md) | betacdf | stats.dist | high | small | 301e5a5 |
+| [findings/stats/expcdf.md](findings/stats/expcdf.md) | expcdf | stats.dist | high | small | 301e5a5 |
+| [findings/stats/gamcdf.md](findings/stats/gamcdf.md) | gamcdf | stats.dist | high | small | 301e5a5 |
+| [findings/stats/betarnd.md](findings/stats/betarnd.md) | betarnd | stats.dist | medium | small | 301e5a5 |
+| [findings/stats/exppdf.md](findings/stats/exppdf.md) | exppdf | stats.dist | medium | small | 301e5a5 |
+| [findings/stats/exprnd.md](findings/stats/exprnd.md) | exprnd | stats.dist | medium | small | 301e5a5 |
+| [findings/stats/expinv.md](findings/stats/expinv.md) | expinv | stats.dist | medium | small | 301e5a5 |
+| [findings/stats/gampdf.md](findings/stats/gampdf.md) | gampdf | stats.dist | medium | small | 301e5a5 |
+| [findings/stats/gamrnd.md](findings/stats/gamrnd.md) | gamrnd | stats.dist | medium | small | 301e5a5 |
+| [findings/stats/betainv.md](findings/stats/betainv.md) | betainv | stats.dist | low | small | 301e5a5 |
+| [findings/stats/betapdf.md](findings/stats/betapdf.md) | betapdf | stats.dist | low | small | 301e5a5 |
+| [findings/stats/betastat.md](findings/stats/betastat.md) | betastat | stats.dist | low | small | 301e5a5 |
+| [findings/stats/expstat.md](findings/stats/expstat.md) | expstat | stats.dist | low | small | 301e5a5 |
+| [findings/stats/gaminv.md](findings/stats/gaminv.md) | gaminv | stats.dist | low | small | 301e5a5 |
+| [findings/stats/gamstat.md](findings/stats/gamstat.md) | gamstat | stats.dist | low | small | 301e5a5 |
 
 ## Closed ТЗ
 
