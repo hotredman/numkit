@@ -1,0 +1,19 @@
+{
+  "name": "haart",
+  "namespace": "wavelet",
+  "setup": "x8 = [1 2 3 4 5 6 7 8]; xi = [10 20 30 40 50 60 70 80]; M = [1 2 3 4; 5 6 7 8; 9 10 11 12; 13 14 15 16]; x12 = 1:12; xd = [1.5 2.5 3.5 4.5];",
+  "expr": "[a1, dL1] = haart(x8, 1); [aD, dD] = haart(x8); aD2 = dD{2}; aD3 = dD{3}; [aint, dint] = haart(xi, 1, 'integer'); [am, dm] = haart(M, 1); [a12, d12] = haart(x12); aD12_1 = d12{1}; aD12_2 = d12{2}; [adi, ddi] = haart(xd, 1, 'integer'); [arow, ~] = haart([1 2 3 4]); [acol, ~] = haart([1; 2; 3; 4]);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "a1(1)", "a1(4)", "dL1(1)", "dL1(4)",
+    "aD",
+    "aD2(1)", "aD2(2)", "aD3(1)",
+    "aint(1)", "aint(4)", "dint(1)",
+    "am(1,1)", "am(2,4)", "dm(1,1)", "dm(2,4)",
+    "a12(1)", "a12(3)", "aD12_1(1)", "aD12_2(1)", "aD12_2(3)",
+    "adi(1)", "adi(2)", "ddi(1)",
+    "size(arow,1)", "size(arow,2)", "size(acol,1)", "size(acol,2)"
+  ],
+  "comment": "Sig: [a, d] = haart(x[, level[, integerflag]]). Haar 1-D DWT. Default level = max k such that 2^k divides length(x). 'noninteger' uses 1/sqrt(2) Haar pair; 'integer' uses lifting (a = x[2k] + floor((x[2k+1]-x[2k])/2)). Output is always column for vector input. d is plain when level=1, cell array d{1..L} when level>1 (d{1} finest). Matrix input processes columns independently. Verified: level=1, default-level (cell), integer mode (signed-floor), matrix, complex, row->col coercion, integer+double, N=12 partial level."
+}

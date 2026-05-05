@@ -3345,7 +3345,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 ### Discrete Wavelet Transforms (1-D)
 
-**Namespace:** `wavelet.dwt.*` — 11 ✅ + 0 ⚠️ / 18 = 61%
+**Namespace:** `wavelet.dwt.*` — 12 ✅ + 0 ⚠️ / 18 = 67%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3362,7 +3362,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `wkeep` | ✅ | 0.005 | 498.49× |  | OK | Sig: y = wkeep(x, n[, OPT]). Default 'c' central window with start = floor((N-n)/2)+1 (1-based). 'l'/'r' first/last n; numeric FIRST gives x(FIRST:FIRST+n-1). |
 | `wextend` | ✅ | 0.006 | 305.97× |  | OK | Sig: y = wextend(1, mode, x, lf[, side]). Modes: sym (whole-point symm with edge), per (periodic with edge-pad on odd N), zpd (zero pad), ppd (true periodic). For odd-N periodic MATLAB pre-pads x with x(end) to even length, then wraps. |
 | `wcodemat` | ✅ | 0.003 | 166.80× |  | OK | Sig: Y = wcodemat(X [, nb [, opt [, absol]]]). Quantize/scale to [1, nb] integer codes (default nb=16, mat, absol=1). Wavelet Toolbox helper; Octave-image doesn't have it → correctness=N/A. |
-| `haart` | ❌ |  |  |  |  | Haar wavelet transform |
+| `haart` | ✅ | 0.013 | 150.78× |  | OK | Sig: [a, d] = haart(x[, level[, integerflag]]). Haar 1-D DWT. Default level = max k such that 2^k divides length(x). 'noninteger' uses 1/sqrt(2) Haar pair; 'integer' uses lifting (a = x[2k] + floor((x[2k+1]-x[2k])/2)). Output is always column for vector input. d is plain when level=1, cell array d{1..L} when level>1 (d{1} finest). Matrix input processes columns independently. Verified: level=1, default-level (cell), integer mode (signed-floor), matrix, complex, row->col coercion, integer+double, N=12 partial level. |
 | `ihaart` | ❌ |  |  |  |  | inverse Haar |
 | `wmaxlev` | ✅ | 0.005 | 407.51× |  | OK | Sig: L = wmaxlev(N, wname). Maximum decomposition level. L = floor(log2(N / (Lf - 1))) where Lf is the wavelet filter length. For a 2-vector N, MATLAB uses min(N). |
 | `dwpt` | ❌ |  |  |  |  | discrete wavelet packet transform |
