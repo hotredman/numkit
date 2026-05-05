@@ -57,8 +57,8 @@ cmake --build --preset=browser
 if errorlevel 1 exit /b 1
 
 echo WASM build OK
-echo Output: build-browser\wasm\dist\numkit_mide.js
-echo         build-browser\wasm\dist\numkit_mide.wasm
+echo Output: build-browser\wasm\dist\numkit_ide.js
+echo         build-browser\wasm\dist\numkit_ide.wasm
 goto end
 
 :end

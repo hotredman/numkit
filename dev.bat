@@ -13,9 +13,9 @@ if errorlevel 1 (
 )
 
 :: Copy WASM artifacts if available
-if exist "%WASM_DIST%\numkit_mide.wasm" (
-    copy /y "%WASM_DIST%\numkit_mide.js"   "%IDE_DIR%\public\" >nul
-    copy /y "%WASM_DIST%\numkit_mide.wasm" "%IDE_DIR%\public\" >nul
+if exist "%WASM_DIST%\numkit_ide.wasm" (
+    copy /y "%WASM_DIST%\numkit_ide.js"   "%IDE_DIR%\public\" >nul
+    copy /y "%WASM_DIST%\numkit_ide.wasm" "%IDE_DIR%\public\" >nul
     echo WASM engine found
 ) else (
     echo WASM not built — fallback mode
