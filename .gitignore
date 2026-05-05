@@ -60,3 +60,10 @@ desktop.ini
 # ── Python (parity harness etc.) ──────────────────────
 __pycache__/
 *.pyc
+
+# ── Temporary MATLAB / Octave probe scripts ───────────
+# Throwaway .m files used to probe reference output during dev
+# (probe_*.m and any scratch-named .m at repo root). Real .m fixtures
+# live under ide/public/examples/ and tools/parity/specs/.
+/probe_*.m
+/scratch*.m
