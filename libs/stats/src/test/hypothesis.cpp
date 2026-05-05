@@ -569,6 +569,99 @@ signtest(std::pmr::memory_resource *mr, const Value &x,
 }
 
 // ════════════════════════════════════════════════════════════════════
+// vartestn — Bartlett's k-sample variance test
+// ════════════════════════════════════════════════════════════════════
+
+std::tuple<Value, Value, Value>
+vartestn(std::pmr::memory_resource *mr, const Value &x, const Value &group,
+         double /*alpha*/)
+{
+    const size_t Nx = x.numel();
+    if (Nx == 0 || group.numel() != Nx)
+        throw Error("vartestn: x and group must be same length",
+                    0, 0, "vartestn", "", "m:vartestn:size");
+
+    // Bucket observations by group label. Use string keys (covers numeric,
+    // char, and string labels uniformly via toString conversion semantics
+    // expected by callers — see partition logic below).
+    std::vector<double> labels(Nx);
+    std::vector<double> values(Nx);
+    for (size_t i = 0; i < Nx; ++i) {
+        labels[i] = group.elemAsDouble(i);
+        values[i] = x.elemAsDouble(i);
+    }
+
+    // Group by label.
+    std::vector<std::pair<double, std::vector<double>>> groups;
+    for (size_t i = 0; i < Nx; ++i) {
+        const double xi = values[i];
+        if (std::isnan(xi) || std::isnan(labels[i])) continue;
+        bool found = false;
+        for (auto &g : groups) {
+            if (g.first == labels[i]) {
+                g.second.push_back(xi);
+                found = true;
+                break;
+            }
+        }
+        if (!found) groups.push_back({labels[i], {xi}});
+    }
+
+    // Collect (n_i, var_i).
+    std::vector<size_t> ns;
+    std::vector<double> vars;
+    size_t N = 0;
+    for (auto &g : groups) {
+        const auto &vec = g.second;
+        const size_t n = vec.size();
+        if (n < 2) continue;  // group with <2 obs has no sample variance
+        double mean = 0.0;
+        for (double v : vec) mean += v;
+        mean /= double(n);
+        double s2 = 0.0;
+        for (double v : vec) { const double d = v - mean; s2 += d * d; }
+        s2 /= double(n - 1);
+        ns.push_back(n);
+        vars.push_back(s2);
+        N += n;
+    }
+    const size_t k = ns.size();
+    if (k < 2) {
+        // Fewer than 2 groups with ≥2 obs → degenerate, no test.
+        return std::make_tuple(Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr),
+                               Value::scalar(0.0, mr),
+                               Value::scalar(double(k > 0 ? k - 1 : 0), mr));
+    }
+
+    // Pooled sample variance.
+    double Sp2_num = 0.0;
+    for (size_t i = 0; i < k; ++i) Sp2_num += double(ns[i] - 1) * vars[i];
+    const double Sp2 = Sp2_num / double(N - k);
+
+    // Q.
+    double Q = double(N - k) * std::log(Sp2);
+    for (size_t i = 0; i < k; ++i) Q -= double(ns[i] - 1) * std::log(vars[i]);
+
+    // C.
+    double inv_sum = 0.0;
+    for (size_t i = 0; i < k; ++i) inv_sum += 1.0 / double(ns[i] - 1);
+    inv_sum -= 1.0 / double(N - k);
+    const double C = 1.0 + inv_sum / (3.0 * double(k - 1));
+
+    const double chisq = Q / C;
+    const double df = double(k - 1);
+
+    // p = 1 - chi2cdf(chisq, df).
+    Value xv = Value::scalar(chisq, mr);
+    const double cdf = chi2cdf(mr, xv, df).toScalar();
+    const double p = std::max(0.0, 1.0 - cdf);
+
+    return std::make_tuple(Value::scalar(p, mr),
+                           Value::scalar(chisq, mr),
+                           Value::scalar(df, mr));
+}
+
+// ════════════════════════════════════════════════════════════════════
 // runstest — Wald-Wolfowitz runs test for randomness
 // ════════════════════════════════════════════════════════════════════
 
@@ -1155,6 +1248,34 @@ void jbtest_reg(Span<const Value> args, size_t nargout,
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(JB);
     if (nargout > 3) outs[3] = std::move(cv);
+}
+
+void vartestn_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("vartestn: requires (X, GROUP)",
+                    0, 0, "vartestn", "", "m:vartestn:nargin");
+    auto *mr = ctx.engine->resource();
+
+    double alpha = 0.05;
+    // Skip name-value pairs (Display, TestType, etc.) — only Bartlett supported.
+    for (size_t i = 2; i + 1 < args.size(); i += 2) {
+        if (!args[i].isChar() && !args[i].isString()) break;
+        std::string name = args[i].toString();
+        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (name == "alpha") alpha = args[i + 1].toScalar();
+        // 'display' / 'testtype' silently ignored
+    }
+
+    auto [p, chisq, df] = vartestn(mr, args[0], args[1], alpha);
+    outs[0] = std::move(p);
+    if (nargout > 1) {
+        Value s = Value::structure(mr);
+        s.field("chisqstat") = chisq;
+        s.field("df")        = df;
+        outs[1] = std::move(s);
+    }
 }
 
 void runstest_reg(Span<const Value> args, size_t nargout,
