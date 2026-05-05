@@ -1,0 +1,10 @@
+{
+  "name": "wrev",
+  "namespace": "wavelet",
+  "setup": "x = [1 2 3 4 5];",
+  "expr": "y = wrev(x);",
+  "iters": 5,
+  "tol": 1e-15,
+  "fingerprint": ["y(1)", "y(2)", "y(3)", "y(4)", "y(5)"],
+  "comment": "Sig: y = wrev(x). Reverse a vector (Wavelet Toolbox helper, equivalent to fliplr/flipud on a vector)."
+}

@@ -1,9 +1,11 @@
 set(WAVELETLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/library.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/wfilters.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter/qmf.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dwt.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/multilevel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dwt2.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dyad.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/denoise/denoise.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shape/shape.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/swt/swt.cpp

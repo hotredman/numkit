@@ -11,6 +11,9 @@
 namespace numkit::wavelet::detail {
 // filter/wfilters.cpp
 void wfilters_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+// filter/qmf.cpp
+void qmf_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void wrev_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 // dwt/dwt.cpp
 void dwt_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void idwt_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -22,6 +25,10 @@ void detcoef_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 // dwt/dwt2.cpp
 void dwt2_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void idwt2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+// dwt/dyad.cpp
+void dyaddown_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void dyadup_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void wmaxlev_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 // denoise/denoise.cpp
 void wthresh_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void wnoisest_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -50,12 +57,17 @@ void WaveletLibrary::install(Engine &engine)
     };
 
     reg("filt", "wfilters", &wavelet::detail::wfilters_reg);
+    reg("filt", "qmf",      &wavelet::detail::qmf_reg);
+    reg("filt", "wrev",     &wavelet::detail::wrev_reg);
     reg("dwt",  "dwt",      &wavelet::detail::dwt_reg);
     reg("dwt",  "idwt",     &wavelet::detail::idwt_reg);
     reg("dwt",  "wavedec",  &wavelet::detail::wavedec_reg);
     reg("dwt",  "waverec",  &wavelet::detail::waverec_reg);
     reg("dwt",  "appcoef",  &wavelet::detail::appcoef_reg);
     reg("dwt",  "detcoef",  &wavelet::detail::detcoef_reg);
+    reg("dwt",  "dyaddown", &wavelet::detail::dyaddown_reg);
+    reg("dwt",  "dyadup",   &wavelet::detail::dyadup_reg);
+    reg("dwt",  "wmaxlev",  &wavelet::detail::wmaxlev_reg);
     reg("dwt2", "dwt2",     &wavelet::detail::dwt2_reg);
     reg("dwt2", "idwt2",    &wavelet::detail::idwt2_reg);
 

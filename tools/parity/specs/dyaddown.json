@@ -1,0 +1,10 @@
+{
+  "name": "dyaddown",
+  "namespace": "wavelet",
+  "setup": "x = [10 20 30 40 50 60 70];",
+  "expr": "y = dyaddown(x); z = dyaddown(x, 1);",
+  "iters": 5,
+  "tol": 1e-15,
+  "fingerprint": ["numel(y)", "y(1)", "y(2)", "y(3)", "numel(z)", "z(1)", "z(4)"],
+  "comment": "Sig: y = dyaddown(x[, ODD]). Dyadic downsample. ODD = 0 (default) → x(2:2:end); ODD = 1 → x(1:2:end)."
+}

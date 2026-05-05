@@ -1,0 +1,10 @@
+{
+  "name": "dyadup",
+  "namespace": "wavelet",
+  "setup": "x = [1 2 3];",
+  "expr": "y = dyadup(x); z = dyadup(x, 0);",
+  "iters": 5,
+  "tol": 1e-15,
+  "fingerprint": ["numel(y)", "y(1)", "y(2)", "y(7)", "numel(z)", "z(1)", "z(5)"],
+  "comment": "Sig: y = dyadup(x[, ODD]). Zero insertion between samples. Default ODD = 1 → [0 x(1) 0 x(2) 0 ... x(N) 0] (length 2N+1); ODD = 0 → [x(1) 0 x(2) 0 ... x(N)] (length 2N-1)."
+}
