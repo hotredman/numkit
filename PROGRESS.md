@@ -3092,7 +3092,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 ### Hypothesis Tests
 
-**Namespace:** `stats.test.*` — 14 ✅ + 0 ⚠️ / 25 = 56%
+**Namespace:** `stats.test.*` — 15 ✅ + 0 ⚠️ / 25 = 60%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3101,7 +3101,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `barttest` | ❌ |  |  |  |  | Bartlett's sphericity |
 | `chi2gof` | ✅ | 0.005 | 570.92× | 219.96× | OK | Sig: [h, p, stats] = chi2gof(x, 'Frequency', O, 'Expected', E[, 'NParams', np]). chi² = Σ(O−E)²/E; df = k−1−np. Auto-binned distribution-fit form intentionally not implemented in this release. |
 | `dwtest` | ❌ |  |  |  |  | Durbin-Watson |
-| `fishertest` | ❌ |  |  |  |  | Fisher's exact (2×2) |
+| `fishertest` | ✅ | 0.005 | 1128.35× | 100.45× | OK | Sig: [h, p, stats] = fishertest(T[, 'Tail', t, 'Alpha', a]). Fisher's exact test for 2×2 contingency. Two-sided p sums hypergeometric pmf cells with P(X=k) ≤ P(X=obs). OR = a·d/(b·c); CI is the Woolf log-OR ± z·SE. |
 | `friedman` | ❌ |  |  |  |  | non-parametric repeated-measures |
 | `jbtest` | ✅ |  |  |  | OK | Jarque-Bera, JB ~ χ²(2) |
 | `knntest` | ❌ |  |  |  |  | k-NN two-sample test |
