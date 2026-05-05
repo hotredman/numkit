@@ -3309,11 +3309,11 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 ### Linear Discriminant Analysis (function-form)
 
-**Namespace:** `stats.lda.*` — 0 ✅ + 0 ⚠️ / 1 = 0%
+**Namespace:** `stats.lda.*` — 1 ✅ + 0 ⚠️ / 1 = **100%**
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `classify` | ❌ |  |  |  |  | LDA / QDA classification (function-form) |
+| `classify` | ✅ | 0.006 | 862.14× |  | OK | Sig: [c, err, post, logp] = classify(sample, training, group[, type]). LDA (default 'linear') or QDA ('quadratic'); also 'diaglinear', 'diagquadratic'. Empirical priors n_k/N. Cholesky-factor approach for numerical stability. |
 
 ## Wavelet
 
