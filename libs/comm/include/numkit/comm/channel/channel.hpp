@@ -6,6 +6,7 @@
 #include <numkit/core/value.hpp>
 
 #include <string>
+#include <tuple>
 
 namespace numkit::comm {
 
@@ -46,6 +47,13 @@ Value berawgn(std::pmr::memory_resource *mr, const Value &EbNo_dB,
 /// LTI filter (num/den) sampled at fs.
 Value noisebw(std::pmr::memory_resource *mr, const Value &num, const Value &den,
               int Nsamp, double fs);
+
+/// berconfint(numErrs, numBits[, level]) — Clopper–Pearson exact binomial
+/// confidence interval for a measured BER. Returns (ber, ci) where ber =
+/// numErrs/numBits and ci = [lo hi].
+std::tuple<Value, Value>
+berconfint(std::pmr::memory_resource *mr,
+           double numErrs, double numBits, double level);
 
 /// convertSNR(snr_in_dB, in_type, 'BitsPerSymbol', k[, options])
 /// Convert between Eb/No, Es/No, and SNR. Without options just returns
