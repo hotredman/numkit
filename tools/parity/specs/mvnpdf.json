@@ -1,0 +1,16 @@
+{
+  "name": "mvnpdf",
+  "namespace": "stats",
+  "setup": "X = [0 0; 1 1; -1 1]; mu = [0 0]; Sigma = [2 1; 1 2];",
+  "expr": "p = mvnpdf(X, mu, Sigma);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "p(1)",
+    "p(2)",
+    "p(3)",
+    "mvnpdf([0 0])",
+    "mvnpdf(1, 0, 1)"
+  ],
+  "comment": "Sig: p = mvnpdf(X[, mu, Sigma]). Multivariate normal PDF. Default mu=zeros, Sigma=I. Cholesky-based to handle |Σ|^(-1/2) and Σ^(-1) accurately."
+}

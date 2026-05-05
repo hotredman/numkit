@@ -3045,17 +3045,17 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 ### Multivariate Distributions
 
-**Namespace:** `stats.mvdist.*` — 0 ✅ + 0 ⚠️ / 14 = 0%
+**Namespace:** `stats.mvdist.*` — 2 ✅ + 0 ⚠️ / 14 = 14%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `mvncdf` | ❌ |  |  |  |  | multivariate normal |
-| `mvnpdf` | ❌ |  |  |  |  |  |
+| `mvnpdf` | ✅ | 0.004 | 206.00× | 44.45× | OK | Sig: p = mvnpdf(X[, mu, Sigma]). Multivariate normal PDF. Default mu=zeros, Sigma=I. Cholesky-based to handle |Σ|^(-1/2) and Σ^(-1) accurately. |
 | `mvnrnd` | ❌ |  |  |  |  |  |
 | `mvtcdf` | ❌ |  |  |  |  | multivariate t |
 | `mvtpdf` | ❌ |  |  |  |  |  |
 | `mvtrnd` | ❌ |  |  |  |  |  |
-| `mnpdf` | ❌ |  |  |  |  | multinomial |
+| `mnpdf` | ✅ | 0.003 | 196.13× | 49.38× | OK | Sig: p = mnpdf(X, P). Multinomial PMF: n!/(Πx_i!)·Π p_i^x_i. Computed in log-space via lgamma. |
 | `mnrnd` | ❌ |  |  |  |  |  |
 | `wishrnd` | ❌ |  |  |  |  | Wishart |
 | `iwishrnd` | ❌ |  |  |  |  | inverse Wishart |
