@@ -37,4 +37,19 @@ bool islinphase(const Value &b, const Value &a);
 /// algebraic test: a == flip(b) (within tol).
 bool isallpass(const Value &b, const Value &a);
 
+/// filtord(b) / filtord(b, a) — filter order. Returns:
+///   FIR (a omitted or [1]): length(b_trimmed) - 1
+///   IIR:                    max(length(b_trimmed), length(a_trimmed)) - 1
+/// Trailing zeros are trimmed before counting. Returns int (as double).
+int filtord(const Value &b);
+int filtord(const Value &b, const Value &a);
+
+/// firtype(b) — FIR filter type per MATLAB convention:
+///   Type 1: even order (odd length), b symmetric
+///   Type 2: odd  order (even length), b symmetric
+///   Type 3: even order (odd length), b antisymmetric
+///   Type 4: odd  order (even length), b antisymmetric
+/// Throws if b is neither symmetric nor antisymmetric within tol.
+int firtype(const Value &b);
+
 } // namespace numkit::signal

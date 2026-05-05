@@ -210,6 +210,62 @@ void isallpass_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     outs[0] = boolVal(isallpass(args[0], args[1]), ctx.engine->resource());
 }
 
+void filtord_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("filtord: requires at least 1 argument (b)",
+                     0, 0, "filtord", "", "m:filtord:nargin");
+    int n = (args.size() >= 2)
+        ? filtord(args[0], args[1])
+        : filtord(args[0]);
+    outs[0] = Value::scalar(static_cast<double>(n), ctx.engine->resource());
+}
+
+void firtype_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("firtype: requires 1 argument (b)",
+                     0, 0, "firtype", "", "m:firtype:nargin");
+    outs[0] = Value::scalar(static_cast<double>(firtype(args[0])), ctx.engine->resource());
+}
+
 } // namespace detail
+
+// ── filtord ────────────────────────────────────────────────────────
+int filtord(const Value &b)
+{
+    auto bv = trimTrailingZeros(b);
+    if (bv.empty()) return 0;
+    return static_cast<int>(bv.size()) - 1;
+}
+
+int filtord(const Value &b, const Value &a)
+{
+    auto bv = trimTrailingZeros(b);
+    auto av = trimTrailingZeros(a);
+    const size_t lb = bv.empty() ? 0 : bv.size();
+    const size_t la = av.empty() ? 0 : av.size();
+    const size_t n  = std::max(lb, la);
+    return (n == 0) ? 0 : static_cast<int>(n) - 1;
+}
+
+// ── firtype ────────────────────────────────────────────────────────
+int firtype(const Value &b)
+{
+    auto v = trimTrailingZeros(b);
+    if (v.size() < 2)
+        throw Error("firtype: filter must have at least 2 coefficients",
+                     0, 0, "firtype", "", "m:firtype:short");
+    const bool sym  = isSymmetric(v, +1.0);
+    const bool anti = isSymmetric(v, -1.0);
+    if (!sym && !anti)
+        throw Error("firtype: filter is not (anti)symmetric — not a "
+                    "linear-phase FIR",
+                     0, 0, "firtype", "", "m:firtype:notlinphase");
+    const int order = static_cast<int>(v.size()) - 1;  // L = order + 1
+    const bool order_even = (order % 2 == 0);
+    if (sym)  return order_even ? 1 : 2;
+    /* anti */ return order_even ? 3 : 4;
+}
 
 } // namespace numkit::signal

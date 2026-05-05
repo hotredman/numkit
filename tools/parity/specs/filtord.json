@@ -1,0 +1,14 @@
+{
+  "name": "filtord",
+  "namespace": "signal",
+  "setup": "b = [1 -.5 .25]; a = [1 -.3];",
+  "expr": "n = filtord(b, a);",
+  "iters": 1000,
+  "tol": 0,
+  "fingerprint": [
+    "n",
+    "filtord([1 -2 1])",
+    "filtord([1 2 3 4 5])"
+  ],
+  "comment": "Sig: n = filtord(b[, a]). FIR (single arg or trivial a) → length(b)-1; IIR → max(len_b, len_a)-1 with trailing zeros trimmed. fingerprint covers IIR + 2 FIR cases."
+}

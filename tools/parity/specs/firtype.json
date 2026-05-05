@@ -1,0 +1,15 @@
+{
+  "name": "firtype",
+  "namespace": "signal",
+  "setup": "b1 = [1 2 3 2 1]; b2 = [1 2 2 1]; b3 = [1 -2 0 2 -1]; b4 = [1 2 -2 -1];",
+  "expr": "t = firtype(b1);",
+  "iters": 1000,
+  "tol": 0,
+  "fingerprint": [
+    "firtype(b1)",
+    "firtype(b2)",
+    "firtype(b3)",
+    "firtype(b4)"
+  ],
+  "comment": "Sig: t = firtype(b). FIR linear-phase classification per MATLAB: 1 = sym/odd-len, 2 = sym/even-len, 3 = anti/odd-len, 4 = anti/even-len. Fingerprint covers all 4 types."
+}
