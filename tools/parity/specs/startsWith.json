@@ -1,0 +1,13 @@
+{
+  "name": "startsWith",
+  "namespace": "core",
+  "setup": "s = 'apple banana cherry'; p = 'apple';",
+  "expr": "y = startsWith(s, p);",
+  "iters": 10000,
+  "tol": 1e-10,
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ],
+  "comment": "Sig: TF = startsWith(S, PATTERN). Char + string-scalar pattern forms. Logical-scalar fingerprint (BUGS #14)."
+}
