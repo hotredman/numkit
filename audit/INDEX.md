@@ -70,6 +70,18 @@ Status legend:
 | [findings/stats/mink.md](findings/stats/mink.md) | mink | stats.descriptive | medium | small | ba142e6 |
 | [findings/stats/mode.md](findings/stats/mode.md) | mode | stats.descriptive | medium | small | ba142e6 |
 | [findings/stats/rmse.md](findings/stats/rmse.md) | rmse | stats.descriptive | medium | small | ba142e6 |
+| [findings/signal/blackman.md](findings/signal/blackman.md) | blackman | signal.windows | high | small | 0e043c5 |
+| [findings/signal/blackmanharris.md](findings/signal/blackmanharris.md) | blackmanharris | signal.windows | high | small | 0e043c5 |
+| [findings/signal/flattopwin.md](findings/signal/flattopwin.md) | flattopwin | signal.windows | high | small | 0e043c5 |
+| [findings/signal/hamming.md](findings/signal/hamming.md) | hamming | signal.windows | high | small | 0e043c5 |
+| [findings/signal/hann.md](findings/signal/hann.md) | hann | signal.windows | high | small | 0e043c5 |
+| [findings/signal/nuttallwin.md](findings/signal/nuttallwin.md) | nuttallwin | signal.windows | high | small | 0e043c5 |
+| [findings/signal/barthannwin.md](findings/signal/barthannwin.md) | barthannwin | signal.windows | low | small | 0e043c5 |
+| [findings/signal/bartlett.md](findings/signal/bartlett.md) | bartlett | signal.windows | low | small | 0e043c5 |
+| [findings/signal/bohmanwin.md](findings/signal/bohmanwin.md) | bohmanwin | signal.windows | low | small | 0e043c5 |
+| [findings/signal/parzenwin.md](findings/signal/parzenwin.md) | parzenwin | signal.windows | low | small | 0e043c5 |
+| [findings/signal/rectwin.md](findings/signal/rectwin.md) | rectwin | signal.windows | low | small | 0e043c5 |
+| [findings/signal/triang.md](findings/signal/triang.md) | triang | signal.windows | low | small | 0e043c5 |
 
 ## Closed ТЗ
 
