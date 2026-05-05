@@ -1,0 +1,10 @@
+{
+  "name": "ecdfhist",
+  "namespace": "stats",
+  "setup": "y = [1 2 2 3 3 3 5 8]; [f, x] = ecdf(y);",
+  "expr": "n = ecdfhist(f, x);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "n",
+  "comment": "Sig: [n, c] = ecdfhist(f, x [, m]). Probability-density histogram from ecdf data. Default m=10 bins. Element-wise SAVE on n."
+}

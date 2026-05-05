@@ -128,6 +128,17 @@ Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
 std::tuple<Value, Value>
 ecdf(std::pmr::memory_resource *mr, const Value &y);
 
+// ── ecdfhist ───────────────────────────────────────────────────────────
+// [n, c] = ecdfhist(f, x [, m]) — convert empirical CDF (`[f, x]`
+// from `ecdf`) into a probability-density histogram. m is the number
+// of bins (default 10). Returns:
+//   n — bin heights (probability density, sums × width = 1)
+//   c — bin centers
+// Each bin spans equal width (range/m). Last bin includes its right
+// edge; other bins are [a, b). NaN-safe for empty inputs.
+std::tuple<Value, Value>
+ecdfhist(std::pmr::memory_resource *mr, const Value &f, const Value &x, int m = 10);
+
 // ── normalize ──────────────────────────────────────────────────────────
 // normalize(A[, method]) — column-wise data normalisation.
 //   method ∈ {"zscore" (default), "norm", "range", "center", "scale",
