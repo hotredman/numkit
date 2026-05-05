@@ -1,0 +1,17 @@
+{
+  "name": "fncmb",
+  "namespace": "stats",
+  "setup": "pp1 = ppmak([0 1 2], [1 0; 2 0], 1); pp2 = ppmak([0 1 2], [1 1; 1 1], 1); pp = fncmb(pp1, 1, pp2, -1);",
+  "expr": "y = fnval(pp, [0.5 1.5]);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "y(1)",
+    "y(2)",
+    "pp.coefs(1,1)",
+    "pp.coefs(1,2)",
+    "pp.coefs(2,1)",
+    "pp.coefs(2,2)"
+  ],
+  "comment": "Sig: pp = fncmb(pp1, c) | fncmb(c, pp1) | fncmb(pp1, c1, pp2, c2). Linear combination of pp-form splines on shared breaks. Pure coef arithmetic."
+}

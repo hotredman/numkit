@@ -1350,7 +1350,7 @@ omitted — interactive / Simulink / OOP.
 
 ### Splines
 
-**Namespace:** `cfit.splines.*` — 14 ✅ + 0 ⚠️ / 49 = 29%
+**Namespace:** `cfit.splines.*` — 15 ✅ + 0 ⚠️ / 49 = 31%
 
 OOP `fittype`/`fit`/`cfit`/`sfit`/`fitoptions`/`excludedata` and the
 GUI tools (`sftool`, `bspligui`, `splinetool`, `getcurve`) intentionally
@@ -1378,7 +1378,7 @@ construction / postprocessing primitives — those are all flat functions.
 | `fn2fm` | ❌ |  |  |  |  | convert between spline forms |
 | `fnbrk` | ✅ | 0.003 | 209.81× |  | OK | Sig: out = fnbrk(pp, part). Extract a named part from a pp-form spline. Supports {breaks, coefs, pieces|l, order|k, dim|d, form}. |
 | `fnchg` | ❌ |  |  |  |  | change spline properties |
-| `fncmb` | ❌ |  |  |  |  | combine splines |
+| `fncmb` | ✅ | 0.003 | 363.28× |  | OK | Sig: pp = fncmb(pp1, c) | fncmb(c, pp1) | fncmb(pp1, c1, pp2, c2). Linear combination of pp-form splines on shared breaks. Pure coef arithmetic. |
 | `fnder` | ✅ | 0.004 | 482.37× |  | OK | Sig: dpp = fnder(pp[, order]). Differentiate pp-form spline `order` times. Each piece's polynomial is independently differentiated; result has order = K − order. |
 | `fndir` | ❌ |  |  |  |  | directional derivative |
 | `fnint` | ✅ | 0.003 | 538.67× |  | OK | Sig: ipp = fnint(pp). Antiderivative of pp-form spline; integration constant chosen so that integral = 0 at the first break and is continuous across breaks. |
