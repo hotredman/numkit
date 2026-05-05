@@ -15,7 +15,22 @@ Status legend:
 
 | File | Function | Namespace | Priority | Effort | Audit commit |
 |---|---|---|---|---|---|
-| _none yet — first batch in progress_ | | | | | |
+| [findings/stats/betalike.md](findings/stats/betalike.md) | betalike | stats.fit | medium | small | bfda361 |
+| [findings/stats/evlike.md](findings/stats/evlike.md) | evlike | stats.fit | medium | medium | bfda361 |
+| [findings/stats/expfit.md](findings/stats/expfit.md) | expfit | stats.fit | medium | medium | bfda361 |
+| [findings/stats/explike.md](findings/stats/explike.md) | explike | stats.fit | medium | medium | bfda361 |
+| [findings/stats/gamlike.md](findings/stats/gamlike.md) | gamlike | stats.fit | medium | small | bfda361 |
+| [findings/stats/gevlike.md](findings/stats/gevlike.md) | gevlike | stats.fit | medium | small | bfda361 |
+| [findings/stats/gplike.md](findings/stats/gplike.md) | gplike | stats.fit | medium | small | bfda361 |
+| [findings/stats/lognfit.md](findings/stats/lognfit.md) | lognfit | stats.fit | medium | medium | bfda361 |
+| [findings/stats/lognlike.md](findings/stats/lognlike.md) | lognlike | stats.fit | medium | medium | bfda361 |
+| [findings/stats/normfit.md](findings/stats/normfit.md) | normfit | stats.fit | medium | medium | bfda361 |
+| [findings/stats/normlike.md](findings/stats/normlike.md) | normlike | stats.fit | medium | medium | bfda361 |
+| [findings/stats/wbllike.md](findings/stats/wbllike.md) | wbllike | stats.fit | medium | medium | bfda361 |
+| [findings/stats/binofit.md](findings/stats/binofit.md) | binofit | stats.fit | low | small | bfda361 |
+| [findings/stats/poissfit.md](findings/stats/poissfit.md) | poissfit | stats.fit | low | small | bfda361 |
+| [findings/stats/raylfit.md](findings/stats/raylfit.md) | raylfit | stats.fit | low | small | bfda361 |
+| [findings/stats/unifit.md](findings/stats/unifit.md) | unifit | stats.fit | low | small | bfda361 |
 
 ## Closed ТЗ
 
