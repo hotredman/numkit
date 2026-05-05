@@ -16,6 +16,32 @@
 
 namespace numkit::builtin {
 
+// Emscripten / libc++ stub for C++17 special-math Bessel family.
+// libc++ does not implement P0226 mathematical special functions, so
+// std::cyl_bessel_j / cyl_bessel_i / cyl_bessel_k / cyl_neumann are
+// missing on the WASM build. The desktop build (MSVC / libstdc++) has
+// them. Until we ship a portable implementation (BUGS.md entry), the
+// WASM build throws a clear runtime error.
+namespace special_compat {
+#ifdef __EMSCRIPTEN__
+[[noreturn]] inline void bessel_unsupported(const char *name) {
+    throw Error(std::string(name) + ": Bessel family not yet supported "
+                "in the WASM build (libc++ lacks std::cyl_bessel_*); "
+                "use the desktop build for now.",
+                 0, 0, name, "", "m:bessel:wasmStub");
+}
+inline double cyl_bessel_j(double, double) { bessel_unsupported("besselj"); }
+inline double cyl_bessel_i(double, double) { bessel_unsupported("besseli"); }
+inline double cyl_bessel_k(double, double) { bessel_unsupported("besselk"); }
+inline double cyl_neumann (double, double) { bessel_unsupported("bessely"); }
+#else
+using std::cyl_bessel_j;
+using std::cyl_bessel_i;
+using std::cyl_bessel_k;
+using std::cyl_neumann;
+#endif
+} // namespace special_compat
+
 namespace {
 
 // Inverse error function via Winitzki's approximation + 3 Newton steps.
@@ -405,25 +431,25 @@ Value legendre(std::pmr::memory_resource *mr, int n, const Value &x)
 Value besselj(std::pmr::memory_resource *mr, const Value &nu, const Value &x)
 {
     return elementwiseDouble(nu, x,
-        [](double n, double xx) { return std::cyl_bessel_j(n, xx); }, mr);
+        [](double n, double xx) { return special_compat::cyl_bessel_j(n, xx); }, mr);
 }
 
 Value bessely(std::pmr::memory_resource *mr, const Value &nu, const Value &x)
 {
     return elementwiseDouble(nu, x,
-        [](double n, double xx) { return std::cyl_neumann(n, xx); }, mr);
+        [](double n, double xx) { return special_compat::cyl_neumann(n, xx); }, mr);
 }
 
 Value besseli(std::pmr::memory_resource *mr, const Value &nu, const Value &x)
 {
     return elementwiseDouble(nu, x,
-        [](double n, double xx) { return std::cyl_bessel_i(n, xx); }, mr);
+        [](double n, double xx) { return special_compat::cyl_bessel_i(n, xx); }, mr);
 }
 
 Value besselk(std::pmr::memory_resource *mr, const Value &nu, const Value &x)
 {
     return elementwiseDouble(nu, x,
-        [](double n, double xx) { return std::cyl_bessel_k(n, xx); }, mr);
+        [](double n, double xx) { return special_compat::cyl_bessel_k(n, xx); }, mr);
 }
 
 // ── Pack 28: Hankel + complete elliptic integrals ────────────────────
@@ -440,8 +466,8 @@ Value besselh(std::pmr::memory_resource *mr,
     if (nu.isScalar() && x.isScalar()) {
         const double n = nu.toScalar();
         const double xx = x.toScalar();
-        const double j = std::cyl_bessel_j(n, xx);
-        const double y = std::cyl_neumann(n, xx);
+        const double j = special_compat::cyl_bessel_j(n, xx);
+        const double y = special_compat::cyl_neumann(n, xx);
         const double sign = (k == 1) ? 1.0 : -1.0;
         return Value::complexScalar(Complex(j, sign * y), mr);
     }
@@ -456,8 +482,8 @@ Value besselh(std::pmr::memory_resource *mr,
                                          : nu.doubleData()[i];
         const double xx = x.isScalar() ? x.toScalar()
                                        : x.doubleData()[i];
-        dst[i] = Complex(std::cyl_bessel_j(n, xx),
-                         sign * std::cyl_neumann(n, xx));
+        dst[i] = Complex(special_compat::cyl_bessel_j(n, xx),
+                         sign * special_compat::cyl_neumann(n, xx));
     }
     return r;
 }
@@ -561,12 +587,12 @@ double airyScalar(int k, double x)
         // ζ = (2/3) x^{3/2}
         const double zeta = (2.0 / 3.0) * x * std::sqrt(x);
         const double sx3  = std::sqrt(x / 3.0);          // sqrt(x/3)
-        const double i13p = std::cyl_bessel_i( 1.0/3.0, zeta);
-        const double i13m = std::cyl_bessel_i(-1.0/3.0, zeta);
-        const double i23p = std::cyl_bessel_i( 2.0/3.0, zeta);
-        const double i23m = std::cyl_bessel_i(-2.0/3.0, zeta);
-        const double k13  = std::cyl_bessel_k( 1.0/3.0, zeta);
-        const double k23  = std::cyl_bessel_k( 2.0/3.0, zeta);
+        const double i13p = special_compat::cyl_bessel_i( 1.0/3.0, zeta);
+        const double i13m = special_compat::cyl_bessel_i(-1.0/3.0, zeta);
+        const double i23p = special_compat::cyl_bessel_i( 2.0/3.0, zeta);
+        const double i23m = special_compat::cyl_bessel_i(-2.0/3.0, zeta);
+        const double k13  = special_compat::cyl_bessel_k( 1.0/3.0, zeta);
+        const double k23  = special_compat::cyl_bessel_k( 2.0/3.0, zeta);
         switch (k) {
             case 0: return kInvPi * sx3 * k13;
             case 1: return -(x * kInvSqrt3) * kInvPi * k23;
@@ -580,10 +606,10 @@ double airyScalar(int k, double x)
     const double ax   = -x;
     const double zeta = (2.0 / 3.0) * ax * std::sqrt(ax);
     const double sax  = std::sqrt(ax);
-    const double j13p = std::cyl_bessel_j( 1.0/3.0, zeta);
-    const double j13m = std::cyl_bessel_j(-1.0/3.0, zeta);
-    const double j23p = std::cyl_bessel_j( 2.0/3.0, zeta);
-    const double j23m = std::cyl_bessel_j(-2.0/3.0, zeta);
+    const double j13p = special_compat::cyl_bessel_j( 1.0/3.0, zeta);
+    const double j13m = special_compat::cyl_bessel_j(-1.0/3.0, zeta);
+    const double j23p = special_compat::cyl_bessel_j( 2.0/3.0, zeta);
+    const double j23m = special_compat::cyl_bessel_j(-2.0/3.0, zeta);
     // Sign of Ai'(x<0) follows Abramowitz & Stegun 10.4.18:
     //   Ai'(-z) = (z/3) (J_{2/3}(ζ) - J_{-2/3}(ζ)).
     // (DLMF 9.6.7 prepends an extra minus that disagrees with MATLAB

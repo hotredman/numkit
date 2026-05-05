@@ -901,6 +901,36 @@ to assert the MATLAB-shape conventions (was numkit-bug shape).
 
 ---
 
+## 36. WASM: Bessel family throws at runtime — `std::cyl_bessel_*` not in libc++ — **P2**
+
+**Functions:** `besselj`, `bessely`, `besseli`, `besselk`, `besselh`,
+`airy` (Airy via Bessel), `ellipke` (uses Bessel internally) — every
+caller of `std::cyl_bessel_j / i / k` and `std::cyl_neumann` in
+[libs/builtin/src/math/special/special.cpp](libs/builtin/src/math/special/special.cpp).
+
+**Symptom:** On the WASM browser build only, calling any Bessel-family
+function throws `Error("besselj: Bessel family not yet supported in
+the WASM build…")`. Desktop build (MSVC / libstdc++) works correctly.
+
+**Root cause:** C++17 special math (P0226) is an **optional** part of
+`<cmath>`. Microsoft STL and libstdc++ implement it; **libc++ (used by
+Emscripten) does not**. The functions were added in commit `78f63d0`
+("special: add Bessel family via C++17 std::cyl_*") which compiled and
+tested only on MSVC desktop, breaking the WASM build silently until
+the first WASM rebuild attempt months later.
+
+**Workaround (current):** runtime stub on `#ifdef __EMSCRIPTEN__` in
+`libs/builtin/src/math/special/special.cpp` — throws a clear
+`m:bessel:wasmStub` error so the WASM build compiles and the rest of
+the IDE works in the browser.
+
+**Real fix:** ship a portable Bessel implementation (power series for
+small `x`, asymptotic expansion for large `x`, recurrence for integer
+orders). ~200-300 lines, accuracy target 1e-12. Until then desktop is
+the only platform with working Bessel.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one
