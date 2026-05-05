@@ -30,48 +30,6 @@ mIDE is built with React + Vite and runs the C++ engine via WebAssembly:
 
 ## Features
 
-### Language Support
-
-| Feature | Status |
-|---|---|
-| Scalar and matrix arithmetic | Done |
-| Complex numbers (`3+4i`, `2.5j`) | Done |
-| Element-wise operators (`.*`, `./`, `.^`) | Done |
-| Matrix multiplication (`*`) | Done |
-| Conjugate transpose (`'`) and transpose (`.'`) | Done |
-| Comparison operators (`==`, `~=`, `<`, `>`, `<=`, `>=`) | Done |
-| Logical operators (`&`, `\|`, `~`, `&&`, `\|\|`) | Done |
-| Short-circuit evaluation (`&&`, `\|\|`) | Done |
-| Colon expressions (`1:10`, `0:0.5:5`, `10:-1:1`) | Done |
-| String literals (single and double quoted) | Done |
-| String concatenation (`['Hello' ' ' 'World']`) | Done |
-| Matrix literals (`[1 2; 3 4]`) | Done |
-| Cell arrays (`{1, 'hello'; [1 2], true}`) | Done |
-| Structs and nested structs | Done |
-| Function handles (`@func`, `@(x) x^2`) | Done |
-| Closures with environment capture | Done |
-| `if` / `elseif` / `else` / `end` | Done |
-| `for` / `end` (numeric, char, cell, logical) | Done |
-| `while` / `end` | Done |
-| `switch` / `case` / `otherwise` / `end` | Done |
-| `case {1, 2, 3}` (cell matching in switch) | Done |
-| `break`, `continue`, `return` | Done |
-| `try` / `catch` / `end` | Done |
-| `global` / `persistent` | Done |
-| User-defined functions with `nargin`/`nargout` | Done |
-| Multiple return values (`[a, b] = func(...)`) | Done |
-| Recursive functions | Done |
-| Anonymous functions with closures | Done |
-| `end` keyword in indexing (`A(end)`, `A(end-1)`) | Done |
-| Linear and subscript indexing | Done |
-| Logical indexing | Done |
-| Element deletion (`A(idx) = []`) | Done |
-| 2D and 3D array support | Done |
-| Command-style syntax (`clear all`, `grid on`) | Done |
-| Implicit semicolon suppression | Done |
-| Line continuation (`...`) | Done |
-| Comments (`%`) and block comments (`%{ %}`) | Done |
-
 ### Library Surface
 
 numkit ships a substantial function surface organized into namespaced
@@ -138,16 +96,7 @@ All classes live in `namespace numkit`.
 | **Value** | `Value` | Copy-on-write value system (double, complex, logical, char, cell, struct, function_handle) |
 | **Environment** | `Environment` | Scoped variable storage with global store |
 | **Memory** | `std::pmr::memory_resource*` | Pluggable heap (passed to Engine ctor; embedders subclass `std::pmr::memory_resource` for custom policy) |
-| **BuiltinLibrary** | `BuiltinLibrary` | Base layer: language fundamentals, math, programming primitives |
-| **SignalLibrary** | `SignalLibrary` | DSP: FFT, filter design / analysis / implementation, windows, spectral, transforms, multirate |
-| **StatsLibrary** | `StatsLibrary` | Statistics: descriptive, distributions, hypothesis tests, regression, clustering |
-| **ImageLibrary** | `ImageLibrary` | Image processing: I/O, filtering, morphology, segmentation, color, transforms |
-| **CommLibrary** | `CommLibrary` | Communications: modulation, coding, equalization, channel impairments |
-| **ControlLibrary** | `ControlLibrary` | Control systems: LTI models, state-space, frequency response, stability |
-| **WaveletLibrary** | `WaveletLibrary` | Wavelets: CWT / DWT, MODWT, denoising, filter banks |
-| **GraphicsLibrary** | `GraphicsLibrary` | Plot commands, figure / subplot management |
-| **IoLibrary** | `IoLibrary` | File I/O: low-level, CSV, spreadsheets, workspace save/load |
-| **OptimLibrary** | `OptimLibrary` | Optimization: `fzero`, `fminbnd`, `fminsearch` |
+| **Libraries** | `BuiltinLibrary`, `SignalLibrary`, `StatsLibrary`, `ImageLibrary`, `CommLibrary`, `ControlLibrary`, `WaveletLibrary`, `GraphicsLibrary`, `IoLibrary`, `OptimLibrary` | Domain-specific function packs; each installed via `XLibrary::install(engine)` (see Library Surface above) |
 | **FigureManager** | `FigureManager` | Plot state management with subplot/axes support |
 
 ### Key Design Decisions
@@ -320,22 +269,6 @@ engine.eval(R"(
 )");
 ```
 
-### Signal Processing
-
-```octave
-% Design a low-pass Butterworth filter
-[b, a] = butter(4, 0.3);
-y = filter(b, a, x);
-
-% FFT analysis
-X = fft(x);
-f = (0:length(X)-1) / length(X);
-plot(f, abs(X));
-
-% Spectrogram
-spectrogram(x, hamming(256), 128, 512, fs);
-```
-
 ### Debugger (C++ API)
 
 ```c++
@@ -359,42 +292,6 @@ auto snap = session.snapshot();
 std::string result = session.eval("x + 1");  // evaluate in paused context
 
 status = session.resume(DebugAction::StepOver);
-```
-
-### Complex Numbers
-
-```octave
-z = 3 + 4i;
-disp(abs(z))      % 5
-disp(real(z))     % 3
-disp(imag(z))     % 4
-disp(conj(z))     % 3 - 4i
-disp(angle(z))    % 0.9273
-```
-
-### Closures
-
-```octave
-function h = make_adder(n)
-    h = @(x) x + n;
-end
-
-add5 = make_adder(5);
-disp(add5(10))  % 15
-disp(add5(20))  % 25
-```
-
-### Structs
-
-```octave
-config.server.host = 'localhost';
-config.server.port = 8080;
-config.db.pool.min = 5;
-config.db.pool.max = 20;
-
-disp(config.server.host)    % localhost
-disp(config.db.pool.max)    % 20
-disp(fieldnames(config))    % {'db', 'server'}
 ```
 
 ---
