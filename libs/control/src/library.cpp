@@ -17,6 +17,9 @@ namespace numkit::control::detail {
 void tf_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void zpk_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ss_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void tfdata_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void zpkdata_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ssdata_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 // props/props.cpp
 void isct_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void isdt_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -76,9 +79,12 @@ void ControlLibrary::install(Engine &engine)
         engine.registerFunction(std::string("control.") + sub, name, fn);
     };
 
-    reg("lti", "tf",  &control::detail::tf_reg);
-    reg("lti", "zpk", &control::detail::zpk_reg);
-    reg("lti", "ss",  &control::detail::ss_reg);
+    reg("lti", "tf",      &control::detail::tf_reg);
+    reg("lti", "zpk",     &control::detail::zpk_reg);
+    reg("lti", "ss",      &control::detail::ss_reg);
+    reg("lti", "tfdata",  &control::detail::tfdata_reg);
+    reg("lti", "zpkdata", &control::detail::zpkdata_reg);
+    reg("lti", "ssdata",  &control::detail::ssdata_reg);
 
     reg("props", "isct",     &control::detail::isct_reg);
     reg("props", "isdt",     &control::detail::isdt_reg);

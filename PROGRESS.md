@@ -1152,7 +1152,7 @@ vector path-loss models and coordinate transforms.
 
 ### LTI Models
 
-**Namespace:** `control.lti.*` — 3 ✅ + 0 ⚠️ / 19 = 16%
+**Namespace:** `control.lti.*` — 6 ✅ + 0 ⚠️ / 19 = 32%
 
 `tf`/`zpk`/`ss`/`frd` are object constructors in MATLAB; we treat them
 as flat structure-returning functions (returning a struct with fields
@@ -1176,9 +1176,9 @@ intentionally omitted.
 | `pidstd2` | ❌ |  |  |  |  | 2-DOF standard PID |
 | `rss` | ❌ |  |  |  |  | random stable continuous SS |
 | `drss` | ❌ |  |  |  |  | random stable discrete SS |
-| `tfdata` | ❌ |  |  |  |  | extract num/den |
-| `zpkdata` | ❌ |  |  |  |  | extract z/p/k |
-| `ssdata` | ❌ |  |  |  |  | extract A/B/C/D |
+| `tfdata` | ✅ | 0.003 | 312.76× | 289.94× | OK | Sig: [num, den] = tfdata(sys[, 'v']). Extracts numerator/denominator coefficient vectors. With 'v' returns numeric row vectors; pads num with leading zeros so length matches den. Accepts tf / zpk / ss inputs. |
+| `zpkdata` | ✅ | 0.003 | 472.67× | 393.13× | OK | Sig: [z, p, k] = zpkdata(sys[, 'v']). Extracts zeros / poles / gain. With 'v' returns column vectors (z, p) and scalar (k). Accepts tf / zpk / ss inputs. |
+| `ssdata` | ✅ | 0.003 | 497.68× | 97.80× | OK | Sig: [A, B, C, D] = ssdata(sys). Extracts state-space matrices. Accepts tf / zpk / ss inputs (the former two get realised via tf2ss controllable canonical form). |
 | `frdata` | ❌ |  |  |  |  | extract response/freq |
 | `dssdata` | ❌ |  |  |  |  | extract A/B/C/D/E |
 | `piddata` | ❌ |  |  |  |  |  |

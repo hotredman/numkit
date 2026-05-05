@@ -1,0 +1,16 @@
+{
+  "name": "zpkdata",
+  "namespace": "control",
+  "setup": "sys = zpk(-1, [-2 -3], 5);",
+  "expr": "[z, p, k] = zpkdata(sys, 'v');",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "numel(z)",
+    "z(1)",
+    "p(1)",
+    "p(2)",
+    "k"
+  ],
+  "comment": "Sig: [z, p, k] = zpkdata(sys[, 'v']). Extracts zeros / poles / gain. With 'v' returns column vectors (z, p) and scalar (k). Accepts tf / zpk / ss inputs."
+}
