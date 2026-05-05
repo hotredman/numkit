@@ -1,0 +1,10 @@
+{
+  "name": "fnder",
+  "namespace": "stats",
+  "setup": "pp = ppmak([0 1 2 3], [1 0; 2 -1; -1 1], 1); dpp = fnder(pp);",
+  "expr": "y = fnval(dpp, [0.5 1.5 2.5]);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["y(1)", "y(2)", "y(3)", "dpp.order"],
+  "comment": "Sig: dpp = fnder(pp[, order]). Differentiate pp-form spline `order` times. Each piece's polynomial is independently differentiated; result has order = K − order."
+}
