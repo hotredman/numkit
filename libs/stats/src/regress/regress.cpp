@@ -268,6 +268,96 @@ lscov(std::pmr::memory_resource *mr, const Value &A, const Value &b,
     return {std::move(xV), std::move(stdxV), std::move(mseV), std::move(SV)};
 }
 
+Value ridge(std::pmr::memory_resource *mr, const Value &y, const Value &X,
+            const Value &kVec, bool scaled)
+{
+    const size_t N = y.numel();
+    const size_t p = X.dims().cols();
+    if (X.dims().rows() != N || N == 0 || p == 0)
+        throw Error("ridge: X must be N×p with same N as y",
+                    0, 0, "ridge", "", "m:ridge:size");
+    const size_t Nk = kVec.numel();
+    if (Nk == 0)
+        throw Error("ridge: k must be non-empty",
+                    0, 0, "ridge", "", "m:ridge:k");
+
+    // Center y, X by column mean.
+    double yMean = 0.0;
+    for (size_t i = 0; i < N; ++i) yMean += y.elemAsDouble(i);
+    yMean /= double(N);
+    std::vector<double> yc(N);
+    for (size_t i = 0; i < N; ++i) yc[i] = y.elemAsDouble(i) - yMean;
+
+    std::vector<double> xMean(p, 0.0), xStd(p, 0.0);
+    for (size_t j = 0; j < p; ++j) {
+        for (size_t i = 0; i < N; ++i) xMean[j] += X.elemAsDouble(i + j * N);
+        xMean[j] /= double(N);
+    }
+    std::vector<double> Xs(N * p);
+    for (size_t j = 0; j < p; ++j) {
+        double sq = 0.0;
+        for (size_t i = 0; i < N; ++i) {
+            const double d = X.elemAsDouble(i + j * N) - xMean[j];
+            Xs[i + j * N] = d;
+            sq += d * d;
+        }
+        // Sample std with N-1 normalisation (matches MATLAB ridge).
+        const double s = (N > 1) ? std::sqrt(sq / double(N - 1)) : 1.0;
+        xStd[j] = s;
+        if (s > 0.0)
+            for (size_t i = 0; i < N; ++i) Xs[i + j * N] /= s;
+    }
+
+    // X_s' X_s and X_s' y_c.
+    std::vector<double> XtX(p * p, 0.0);
+    std::vector<double> Xty(p, 0.0);
+    for (size_t i = 0; i < N; ++i) {
+        const double yi = yc[i];
+        for (size_t j = 0; j < p; ++j) {
+            const double xij = Xs[i + j * N];
+            Xty[j] += xij * yi;
+            for (size_t kk = j; kk < p; ++kk) {
+                const double xik = Xs[i + kk * N];
+                XtX[kk + j * p] += xij * xik;
+            }
+        }
+    }
+    for (size_t j = 0; j < p; ++j)
+        for (size_t kk = 0; kk < j; ++kk)
+            XtX[kk + j * p] = XtX[j + kk * p];
+
+    // Allocate output
+    const size_t outRows = scaled ? p : (p + 1);
+    Value B = Value::matrix(outRows, Nk, ValueType::DOUBLE, mr);
+    double *Bd = B.doubleDataMut();
+
+    std::vector<double> M(p * p), L(p * p), beta(p), z(p);
+    for (size_t kIdx = 0; kIdx < Nk; ++kIdx) {
+        const double k = kVec.elemAsDouble(kIdx);
+        // M = XtX + k*I
+        for (size_t j = 0; j < p * p; ++j) M[j] = XtX[j];
+        for (size_t j = 0; j < p; ++j) M[j + j * p] += k;
+        if (!cholesky(M.data(), L.data(), p))
+            throw Error("ridge: regularised normal equations not PD",
+                        0, 0, "ridge", "", "m:ridge:psd");
+        fwd_solve(L.data(), z.data(), Xty.data(), p);
+        back_solve(L.data(), beta.data(), z.data(), p);
+        if (scaled) {
+            for (size_t j = 0; j < p; ++j) Bd[j + kIdx * outRows] = beta[j];
+        } else {
+            // Rescale to original units; prepend intercept = mean(y) - Σ β_j·mean(X_j).
+            double intercept = yMean;
+            for (size_t j = 0; j < p; ++j) {
+                const double bj = (xStd[j] > 0.0) ? beta[j] / xStd[j] : 0.0;
+                Bd[(j + 1) + kIdx * outRows] = bj;
+                intercept -= bj * xMean[j];
+            }
+            Bd[0 + kIdx * outRows] = intercept;
+        }
+    }
+    return B;
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -290,6 +380,18 @@ void regress_reg(Span<const Value> args, size_t nargout,
     if (nargout > 3) outs[3] = Value::matrix(0, 0, ValueType::DOUBLE,
                                              ctx.engine->resource());  // rint placeholder
     if (nargout > 4) outs[4] = std::move(stats);
+}
+
+void ridge_reg(Span<const Value> args, size_t /*nargout*/,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("ridge: requires (y, X, k[, scaled])",
+                    0, 0, "ridge", "", "m:ridge:nargin");
+    bool scaled = true;
+    if (args.size() >= 4 && !args[3].isEmpty())
+        scaled = (args[3].toScalar() != 0.0);
+    outs[0] = ridge(ctx.engine->resource(), args[0], args[1], args[2], scaled);
 }
 
 void lscov_reg(Span<const Value> args, size_t nargout,

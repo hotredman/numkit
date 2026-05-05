@@ -23,6 +23,15 @@ std::tuple<Value, Value, Value, Value>
 regress(std::pmr::memory_resource *mr, const Value &y, const Value &X,
         double alpha);
 
+/// `B = ridge(y, X, k[, scaled])` — ridge regression. `k` may be a
+/// scalar or vector of regularisation parameters; output has one
+/// column per k. `scaled` (default 1) returns coefficients in the
+/// standardised feature space (centred + unit-variance X). With
+/// `scaled = 0` the output is in the original units, with an
+/// intercept prepended (size = (p+1)×length(k)).
+Value ridge(std::pmr::memory_resource *mr, const Value &y, const Value &X,
+            const Value &k, bool scaled);
+
 /// `[x, stdx, mse, S] = lscov(A, b[, w])` — weighted least squares.
 /// `w` is an optional length-N vector of (positive) row weights;
 /// omit / empty means uniform weights (= regular OLS).
