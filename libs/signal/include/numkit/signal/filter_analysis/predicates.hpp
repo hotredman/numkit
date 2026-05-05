@@ -52,4 +52,11 @@ int filtord(const Value &b, const Value &a);
 /// Throws if b is neither symmetric nor antisymmetric within tol.
 int firtype(const Value &b);
 
+/// filternorm(b, a [, pnorm]) — filter L_p norm.
+///   pnorm = 2   (default): sqrt((1/π) ∫_0^π |H(e^{jw})|² dw)
+///   pnorm = inf:           max_w |H(e^{jw})|
+/// Both via freqz on a default 8192-point grid.
+double filternorm(std::pmr::memory_resource *mr,
+                  const Value &b, const Value &a, double pnorm = 2.0);
+
 } // namespace numkit::signal

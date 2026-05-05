@@ -1,0 +1,14 @@
+{
+  "name": "filternorm",
+  "namespace": "signal",
+  "setup": "b = [0.1 0.2 0.3 0.2 0.1]; bI = [1 0.5]; aI = [1 -0.3];",
+  "expr": "n = filternorm(b, 1);",
+  "iters": 5,
+  "tol": 1e-6,
+  "fingerprint": [
+    "filternorm(b, 1)",
+    "filternorm(bI, aI)",
+    "filternorm(bI, aI, inf)"
+  ],
+  "comment": "Sig: norm = filternorm(b, a [, pnorm]). FIR L2 (default), IIR L2, IIR L_inf via 8192-point freqz integration. Tolerance 1e-6 for the trapezoidal approximation."
+}

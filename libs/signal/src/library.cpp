@@ -64,6 +64,7 @@ void islinphase_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void isallpass_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void filtord_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void firtype_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void filternorm_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void downsample_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void upsample_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void decimate_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -330,6 +331,7 @@ void SignalLibrary::install(Engine &engine)
     reg("filter_analysis", "isallpass",  &signal::detail::isallpass_reg);
     reg("filter_analysis", "filtord",    &signal::detail::filtord_reg);
     reg("filter_analysis", "firtype",    &signal::detail::firtype_reg);
+    reg("filter_analysis", "filternorm", &signal::detail::filternorm_reg);
 
     // ── Filter implementation (form conversions: TF/SOS/ZPK/SS) ────────
     reg("filter_implementation", "tf2sos", &signal::detail::tf2sos_reg);
