@@ -326,6 +326,10 @@ void fnint_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void csapi_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void fnbrk_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void fncmb_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// qmc/qmc.cpp
+void haltonset_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void net_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -607,6 +611,9 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "csapi",   &stats::detail::csapi_reg);
     reg("descriptive", "fnbrk",   &stats::detail::fnbrk_reg);
     reg("descriptive", "fncmb",   &stats::detail::fncmb_reg);
+
+    reg("qmc", "haltonset", &stats::detail::haltonset_reg);
+    reg("qmc", "net",       &stats::detail::net_reg);
 }
 
 } // namespace numkit
