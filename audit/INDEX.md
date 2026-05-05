@@ -170,6 +170,18 @@ Status legend:
 | [findings/stats/unifinv.md](findings/stats/unifinv.md) | unifinv | stats.dist | low | small | e580a5c |
 | [findings/stats/unifpdf.md](findings/stats/unifpdf.md) | unifpdf | stats.dist | low | small | e580a5c |
 | [findings/stats/unifstat.md](findings/stats/unifstat.md) | unifstat | stats.dist | low | small | e580a5c |
+| [findings/cluster/cluster.md](findings/cluster/cluster.md) | cluster | stats.cluster | medium | small | b2f133b |
+| [findings/cluster/linkage.md](findings/cluster/linkage.md) | linkage | stats.cluster | medium | small | b2f133b |
+| [findings/cluster/pdist.md](findings/cluster/pdist.md) | pdist | stats.cluster | medium | small | b2f133b |
+| [findings/cluster/pdist2.md](findings/cluster/pdist2.md) | pdist2 | stats.cluster | medium | small | b2f133b |
+| [findings/cluster/clusterdata.md](findings/cluster/clusterdata.md) | clusterdata | stats.cluster | low | small | b2f133b |
+| [findings/cluster/cophenet.md](findings/cluster/cophenet.md) | cophenet | stats.cluster | low | small | b2f133b |
+| [findings/cluster/dbscan.md](findings/cluster/dbscan.md) | dbscan | stats.cluster | low | small | b2f133b |
+| [findings/cluster/inconsistent.md](findings/cluster/inconsistent.md) | inconsistent | stats.cluster | low | small | b2f133b |
+| [findings/cluster/kmeans.md](findings/cluster/kmeans.md) | kmeans | stats.cluster | low | small | b2f133b |
+| [findings/cluster/kmedoids.md](findings/cluster/kmedoids.md) | kmedoids | stats.cluster | low | small | b2f133b |
+| [findings/cluster/mahal.md](findings/cluster/mahal.md) | mahal | stats.cluster | low | small | b2f133b |
+| [findings/cluster/squareform.md](findings/cluster/squareform.md) | squareform | stats.cluster | low | small | b2f133b |
 
 ## Closed ТЗ
 
