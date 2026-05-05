@@ -210,6 +210,16 @@ Status legend:
 | [findings/mvdist/mnpdf.md](findings/mvdist/mnpdf.md) | mnpdf | stats.mvdist | low | small | f92087f |
 | [findings/mvdist/mvnpdf.md](findings/mvdist/mvnpdf.md) | mvnpdf | stats.mvdist | low | small | f92087f |
 | [findings/mvdist/mvtpdf.md](findings/mvdist/mvtpdf.md) | mvtpdf | stats.mvdist | low | small | f92087f |
+| [findings/stats/logncdf.md](findings/stats/logncdf.md) | logncdf | stats.dist | high | small | 105c2b4 |
+| [findings/stats/wblcdf.md](findings/stats/wblcdf.md) | wblcdf | stats.dist | high | small | 105c2b4 |
+| [findings/stats/lognrnd.md](findings/stats/lognrnd.md) | lognrnd | stats.dist | medium | small | 105c2b4 |
+| [findings/stats/wblrnd.md](findings/stats/wblrnd.md) | wblrnd | stats.dist | medium | small | 105c2b4 |
+| [findings/stats/logninv.md](findings/stats/logninv.md) | logninv | stats.dist | low | small | 105c2b4 |
+| [findings/stats/lognpdf.md](findings/stats/lognpdf.md) | lognpdf | stats.dist | low | small | 105c2b4 |
+| [findings/stats/lognstat.md](findings/stats/lognstat.md) | lognstat | stats.dist | low | small | 105c2b4 |
+| [findings/stats/wblinv.md](findings/stats/wblinv.md) | wblinv | stats.dist | low | small | 105c2b4 |
+| [findings/stats/wblpdf.md](findings/stats/wblpdf.md) | wblpdf | stats.dist | low | small | 105c2b4 |
+| [findings/stats/wblstat.md](findings/stats/wblstat.md) | wblstat | stats.dist | low | small | 105c2b4 |
 
 ## Closed ТЗ
 
