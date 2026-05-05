@@ -153,16 +153,81 @@ function flatten(fig) {
 }
 
 /**
- * Convert one engine figure → mockup figure shape. Returns null if the
- * figure has no plottable line/scatter datasets (e.g. pure heatmap).
+ * Convert one engine figure → mockup figure shape. Returns an object with a
+ * `kind` field that the caller uses to pick a renderer:
+ *   { kind: 'line',    series, ... }              → InteractivePlot
+ *   { kind: 'heatmap', z, cmin, cmax, ... }       → Heatmap
+ *   { kind: 'polar',   series, thetaDir, ... }    → PolarPlot
+ *   null                                          → not renderable yet
  */
 export function adaptFigure(fig) {
   if (!fig) return null;
   const { datasets, cfg } = flatten(fig);
 
-  // Map dataset types → render mode the new InteractivePlot understands.
-  // Anything else (heatmap, surface, quiver) lands in `unsupported` so the
-  // caller can show an explicit fallback.
+  // Heatmap / imagesc — single z-matrix dataset.
+  const imgDs = datasets.find((d) => (d.type || '').toLowerCase() === 'imagesc');
+  if (imgDs && imgDs.z) {
+    const z = imgDs.z;
+    const nR = z.length;
+    const nC = z[0]?.length || 0;
+    const xr = imgDs.x || [0, Math.max(0, nC - 1)];
+    const yr = imgDs.y || [0, Math.max(0, nR - 1)];
+    const x0 = xr[0], x1 = xr[xr.length - 1];
+    const y0 = yr[0], y1 = yr[yr.length - 1];
+    const cW = nC > 1 ? (x1 - x0) / (nC - 1) : 1;
+    const cH = nR > 1 ? (y1 - y0) / (nR - 1) : 1;
+    let cmin = Infinity, cmax = -Infinity;
+    for (let r = 0; r < nR; r++) for (let c = 0; c < nC; c++) {
+      const v = z[r][c];
+      if (v == null || !Number.isFinite(v)) continue;
+      if (v < cmin) cmin = v;
+      if (v > cmax) cmax = v;
+    }
+    if (Array.isArray(cfg.clim) && cfg.clim.length === 2) {
+      cmin = cfg.clim[0]; cmax = cfg.clim[1];
+    }
+    if (!Number.isFinite(cmin) || !Number.isFinite(cmax) || cmin === cmax) {
+      cmin = 0; cmax = 1;
+    }
+    return {
+      kind: 'heatmap',
+      id: fig.id,
+      title:  cfg.title  || `Figure ${fig.id}`,
+      xLabel: cfg.xlabel || '',
+      yLabel: cfg.ylabel || '',
+      xRange: [x0 - cW / 2, x1 + cW / 2],
+      yRange: [y0 - cH / 2, y1 + cH / 2],
+      z, cmin, cmax,
+      colormap: cfg.colormap || 'parula',
+      _raw: fig,
+    };
+  }
+
+  // Polar — cfg.polar=true, datasets carry (theta, rho) as (x, y).
+  if (cfg.polar) {
+    const series = datasets.map((d, i) => {
+      const styleObj = typeof d.style === 'string' ? parseLineSpec(d.style) : (d.style || {});
+      return {
+        name: d.label || `series ${i + 1}`,
+        theta: Array.isArray(d.x) ? d.x.map(Number) : [],
+        rho:   Array.isArray(d.y) ? d.y.map(Number) : [],
+        color: styleObj.color || d.color || KIND_PALETTE[i % KIND_PALETTE.length],
+        width: d.lineWidth || styleObj.lineWidth || 1.6,
+      };
+    });
+    return {
+      kind: 'polar',
+      id: fig.id,
+      title: cfg.title || `Figure ${fig.id}`,
+      thetaDir: cfg.thetaDir || 'counterclockwise',
+      thetaZeroLocation: cfg.thetaZeroLocation || 'right',
+      rlim: cfg.rlim,
+      series,
+      _raw: fig,
+    };
+  }
+
+  // Map dataset types → render mode the InteractivePlot understands.
   const supported = new Set(['line', 'scatter', 'stem', 'stairs',
     'bar', 'hist', 'semilogx', 'semilogy', 'loglog']);
   const lineish = datasets.filter((d) => supported.has((d.type || 'line').toLowerCase()));
@@ -221,6 +286,7 @@ export function adaptFigure(fig) {
   }
 
   return {
+    kind: 'line',
     id: fig.id,
     title:  cfg.title || `Figure ${fig.id}`,
     xLabel: cfg.xlabel || '',

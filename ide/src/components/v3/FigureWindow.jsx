@@ -1,5 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import InteractivePlot from './InteractivePlot';
+import Heatmap from './Heatmap';
+import PolarPlot from './PolarPlot';
+
+function renderFigure(figure, props) {
+  if (figure.kind === 'heatmap') return <Heatmap figure={figure} {...props} />;
+  if (figure.kind === 'polar')   return <PolarPlot figure={figure} {...props} />;
+  return <InteractivePlot figure={figure} {...props} />;
+}
 
 function computeFitViewport(series, mode, axisMode, currentVp, figDefault) {
   const list = mode === 'all' ? series : series.filter((s) => s.name === mode);
@@ -67,7 +75,12 @@ function NumberInput({ value, onCommit, width = 88 }) {
 }
 
 export default function FigureWindow({ figure, onClose }) {
-  const figDefault = { x: figure.xRange.slice(), y: figure.yRange.slice() };
+  // Polar plots have no Cartesian viewport — fall back to a unit box so the
+  // viewport-related controls in the toolbar stay rendered (they no-op for
+  // polar) without crashing on figure.xRange.slice().
+  const figDefault = (figure.xRange && figure.yRange)
+    ? { x: figure.xRange.slice(), y: figure.yRange.slice() }
+    : { x: [-1, 1], y: [-1, 1] };
   const [viewport, setViewport]   = useState(figDefault);
   const [showMajor, setShowMajor] = useState(true);
   const [showMinor, setShowMinor] = useState(true);
@@ -170,30 +183,56 @@ export default function FigureWindow({ figure, onClose }) {
     };
     img.src = url;
   }
+  // Heatmap exports its z-matrix as a CSV/TSV grid (not series-shape).
   function exportCsv() {
+    if (figure.kind === 'heatmap') {
+      const rows = figure.z.map((row) => row.map((v) => v == null ? '' : v).join(','));
+      downloadBlob(new Blob([rows.join('\n')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
+      return;
+    }
     const rows = ['name,x,y'];
-    figure.series.forEach((s) => {
-      for (let i = 0; i < s.x.length; i++) rows.push(`${s.name},${s.x[i]},${s.y[i]}`);
+    (figure.series || []).forEach((s) => {
+      const xs = s.x || s.theta || [];
+      const ys = s.y || s.rho   || [];
+      for (let i = 0; i < xs.length; i++) rows.push(`${s.name},${xs[i]},${ys[i]}`);
     });
     downloadBlob(new Blob([rows.join('\n')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
   }
   function exportTsv() {
+    if (figure.kind === 'heatmap') {
+      const rows = figure.z.map((row) => row.map((v) => v == null ? '' : v).join('\t'));
+      downloadBlob(new Blob([rows.join('\n')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
+      return;
+    }
     const rows = ['name\tx\ty'];
-    figure.series.forEach((s) => {
-      for (let i = 0; i < s.x.length; i++) rows.push(`${s.name}\t${s.x[i]}\t${s.y[i]}`);
+    (figure.series || []).forEach((s) => {
+      const xs = s.x || s.theta || [];
+      const ys = s.y || s.rho   || [];
+      for (let i = 0; i < xs.length; i++) rows.push(`${s.name}\t${xs[i]}\t${ys[i]}`);
     });
     downloadBlob(new Blob([rows.join('\n')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
   }
   function exportJson() {
+    if (figure.kind === 'heatmap') {
+      const obj = { id: figure.id, kind: 'heatmap', title: figure.title,
+        xRange: figure.xRange, yRange: figure.yRange,
+        cmin: figure.cmin, cmax: figure.cmax, colormap: figure.colormap, z: figure.z };
+      downloadBlob(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), `figure_${figure.id}.json`);
+      return;
+    }
     const obj = {
-      id: figure.id, title: figure.title,
+      id: figure.id, kind: figure.kind, title: figure.title,
       xLabel: figure.xLabel, yLabel: figure.yLabel,
-      series: figure.series.map((s) => ({ name: s.name, color: s.color, x: s.x, y: s.y })),
+      series: (figure.series || []).map((s) => ({
+        name: s.name, color: s.color,
+        x: s.x ?? s.theta, y: s.y ?? s.rho,
+      })),
     };
     downloadBlob(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), `figure_${figure.id}.json`);
   }
 
   function applyFit(mode, axisMode) {
+    if (!figure.series) return;            // no-op for heatmap
     setViewport(computeFitViewport(figure.series, mode, axisMode, viewport, figDefault));
     setFitOpen(false);
   }
@@ -215,7 +254,9 @@ export default function FigureWindow({ figure, onClose }) {
           </div>
           <div className="fw-title-right">
             <span className="fw-meta">
-              {figure.series.length} series · {figure.series.reduce((s, x) => s + x.x.length, 0)} points
+              {figure.kind === 'heatmap'
+                ? `${figure.z?.length ?? 0} × ${figure.z?.[0]?.length ?? 0} cells · range [${Number(figure.cmin).toPrecision(3)} … ${Number(figure.cmax).toPrecision(3)}]`
+                : `${figure.series?.length ?? 0} series · ${(figure.series || []).reduce((s, x) => s + (x.x?.length ?? x.theta?.length ?? 0), 0)} points`}
             </span>
             <button className="ve-close" onClick={onClose} aria-label="Close">×</button>
           </div>
@@ -237,7 +278,7 @@ export default function FigureWindow({ figure, onClose }) {
                   <button onClick={() => applyFit('all', 'x')}>X only</button>
                   <button onClick={() => applyFit('all', 'y')}>Y only</button>
                 </div>
-                {figure.series.length > 1 && (
+                {Array.isArray(figure.series) && figure.series.length > 1 && (
                   <div className="fw-pop-section">
                     <div className="fw-pop-head">single curve</div>
                     {figure.series.map((s) => (
@@ -304,15 +345,13 @@ export default function FigureWindow({ figure, onClose }) {
 
         <div className="fw-canvas-wrap" ref={wrapRef}>
           <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-            <InteractivePlot
-              figure={figure}
-              width={size.w} height={size.h}
-              viewport={viewport} setViewport={setViewport}
-              major={showMajor}
-              minor={showMinor}
-              fontScale={1.15}
-            />
-            {showLegend && figure.series.length > 0 && (
+            {renderFigure(figure, {
+              width: size.w, height: size.h,
+              viewport, setViewport,
+              major: showMajor, minor: showMinor,
+              fontScale: 1.15,
+            })}
+            {showLegend && Array.isArray(figure.series) && figure.series.length > 0 && (
               <div className="fw-legend">
                 {figure.series.map((s) => (
                   <div key={s.name} className="fw-legend-item">
