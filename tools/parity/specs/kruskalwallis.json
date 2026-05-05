@@ -1,0 +1,14 @@
+{
+  "name": "kruskalwallis",
+  "namespace": "stats",
+  "setup": "y = [1 2 3 4 5 6 7 8 9]'; g = [1 1 1 2 2 2 3 3 3]';",
+  "expr": "[p, tbl] = kruskalwallis(y, g, 'off');",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "p",
+    "tbl{2,3}",
+    "tbl{2,5}"
+  ],
+  "comment": "Sig: [p, tbl, stats] = kruskalwallis(y, group[, 'off']). Non-parametric one-way ANOVA: H = (12/(N(N+1)))·Σ R_g²/n_g − 3(N+1), tie-corrected by 1 − Σ(t³−t)/(N³−N). df = k−1; p = 1 − chi2cdf(H, df)."
+}

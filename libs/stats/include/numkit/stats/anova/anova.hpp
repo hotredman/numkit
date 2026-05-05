@@ -18,6 +18,11 @@ namespace numkit::stats {
 std::tuple<double, double, double, double, double, double>
 anova1(std::pmr::memory_resource *mr, const Value &y, const Value &group);
 
+/// `kruskalwallis(y, group)` — Kruskal-Wallis non-parametric one-way
+/// ANOVA. Returns (p, H, df, ssRanks). Tie-corrected H statistic.
+std::tuple<Value, Value, Value, Value>
+kruskalwallis(std::pmr::memory_resource *mr, const Value &y, const Value &group);
+
 /// `dummyvar(group)` — convert categorical labels to indicator columns.
 /// `group` is a length-N vector of integer / numeric labels (or string
 /// labels — we normalise via toString conversion). Result is N×K where

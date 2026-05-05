@@ -280,8 +280,9 @@ void mnpdf_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mvtpdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // anova/anova.cpp
-void anova1_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void dummyvar_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void anova1_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void kruskalwallis_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void dummyvar_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // regress/regress.cpp
 void regress_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -530,8 +531,9 @@ void StatsLibrary::install(Engine &engine)
     reg("mvdist", "mnpdf",  &stats::detail::mnpdf_reg);
     reg("mvdist", "mvtpdf", &stats::detail::mvtpdf_reg);
 
-    reg("anova", "anova1",   &stats::detail::anova1_reg);
-    reg("anova", "dummyvar", &stats::detail::dummyvar_reg);
+    reg("anova", "anova1",        &stats::detail::anova1_reg);
+    reg("anova", "kruskalwallis", &stats::detail::kruskalwallis_reg);
+    reg("anova", "dummyvar",      &stats::detail::dummyvar_reg);
 
     reg("regress", "regress", &stats::detail::regress_reg);
     reg("regress", "lscov",   &stats::detail::lscov_reg);
