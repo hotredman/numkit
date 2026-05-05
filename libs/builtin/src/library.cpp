@@ -113,9 +113,7 @@ void unmkpp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void polyfit_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void polyval_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void trapz_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void fzero_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void fminbnd_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void fminsearch_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// fzero / fminbnd / fminsearch moved to libs/optim (see OptimLibrary::install)
 void integral_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void roots_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void polyder_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -568,9 +566,8 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("polyfit",   &builtin::detail::polyfit_reg);
     engine.registerFunction("polyval",   &builtin::detail::polyval_reg);
     engine.registerFunction("trapz",     &builtin::detail::trapz_reg);
-    engine.registerFunction("fzero",     &builtin::detail::fzero_reg);
-    engine.registerFunction("fminbnd",   &builtin::detail::fminbnd_reg);
-    engine.registerFunction("fminsearch",&builtin::detail::fminsearch_reg);
+    // fzero / fminbnd / fminsearch registered by OptimLibrary::install()
+    // (libs/optim) with cross-domain top-level promotion to keep MATLAB-base UX.
 
     // optimset / optimget — option struct utility, implemented as
     // lambdas (no public API needed).

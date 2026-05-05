@@ -1,4 +1,4 @@
-// libs/builtin/include/numkit/builtin/math/optim/fzero.hpp
+// libs/optim/include/numkit/optim/local/fzero.hpp
 #pragma once
 
 #include <memory_resource>
@@ -6,7 +6,7 @@
 
 namespace numkit { class Engine; }
 
-namespace numkit::builtin {
+namespace numkit::optim {
 
 using ::numkit::Engine;
 
@@ -20,7 +20,6 @@ using ::numkit::Engine;
 Value fzero(std::pmr::memory_resource *mr, const Value &fn, const Value &x0OrInterval,
              Engine *engine);
 
-// ── Pack 20: minimize ────────────────────────────────────────────────
 /// fminbnd(fn, lo, hi[, tol]) — bounded scalar minimum on [lo, hi]
 /// using Brent's golden-section / parabolic-interpolation hybrid.
 Value fminbnd(std::pmr::memory_resource *mr, const Value &fn,
@@ -31,4 +30,4 @@ Value fminbnd(std::pmr::memory_resource *mr, const Value &fn,
 Value fminsearch(std::pmr::memory_resource *mr, const Value &fn,
                  const Value &x0, double tol, Engine *engine);
 
-} // namespace numkit::builtin
+} // namespace numkit::optim

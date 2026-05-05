@@ -92,6 +92,7 @@ add_subdirectory(libs/wavelet/src)
 add_subdirectory(libs/control/src)
 add_subdirectory(libs/graphics/src)
 add_subdirectory(libs/io/src)
+add_subdirectory(libs/optim/src)
 
 set(NUMKIT_SOURCES
     ${NUMKIT_CORE_SOURCES}
@@ -104,6 +105,7 @@ set(NUMKIT_SOURCES
     ${CONTROLLIB_SOURCES}
     ${GRAPHICSLIB_SOURCES}
     ${IOLIB_SOURCES}
+    ${OPTIMLIB_SOURCES}
 )
 
 set(NUMKIT_HEADERS
@@ -148,7 +150,6 @@ set(NUMKIT_HEADERS
     libs/builtin/include/numkit/builtin/language/strings/strings.hpp
     libs/builtin/include/numkit/builtin/language/strings/regex.hpp
     libs/builtin/include/numkit/builtin/math/integration/integration.hpp
-    libs/builtin/include/numkit/builtin/math/optim/fzero.hpp
     libs/builtin/include/numkit/builtin/language/commands/env.hpp
     libs/builtin/include/numkit/builtin/language/operators/binary_ops.hpp
     libs/builtin/include/numkit/builtin/language/operators/unary_ops.hpp
@@ -208,6 +209,8 @@ set(NUMKIT_HEADERS
     libs/stats/include/numkit/stats/nan_aware/nan_aware.hpp
     libs/stats/include/numkit/stats/moving/moving.hpp
     libs/graphics/include/numkit/graphics/library.hpp
+    libs/optim/include/numkit/optim/library.hpp
+    libs/optim/include/numkit/optim/local/fzero.hpp
 )
 
 if(NUMKIT_BUILD_SHARED)
@@ -232,6 +235,7 @@ target_include_directories(numkit
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/control/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/graphics/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/io/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/optim/include>
         $<INSTALL_INTERFACE:include>
     PRIVATE
         # Shared library-internal helpers (helpers.hpp under libs/*/src/)
@@ -406,6 +410,7 @@ if(NUMKIT_INSTALL AND NOT EMSCRIPTEN)
     install(DIRECTORY libs/signal/include/numkit   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     install(DIRECTORY libs/stats/include/numkit    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     install(DIRECTORY libs/graphics/include/numkit DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY libs/optim/include/numkit    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
     install(EXPORT numkitTargets
         FILE        numkitTargets.cmake

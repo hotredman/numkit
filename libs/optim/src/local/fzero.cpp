@@ -1,10 +1,16 @@
-// libs/builtin/src/math/optim/fzero.cpp
+// libs/optim/src/local/fzero.cpp
 //
 // fzero — scalar root finding via Brent's method (with outward bracket
-// expansion for the x0-only form). Shares the engine-callback helper
-// with integral.cpp via the inline header below.
+// expansion for the x0-only form).
+// fminbnd — bounded scalar minimum via Brent's golden-section + parabolic
+// interpolation hybrid.
+// fminsearch — multi-dimensional unconstrained minimum via Nelder-Mead.
+//
+// All three use the engine's function-handle-callback API for objective
+// evaluation. Callback helper lives next to this TU under the same
+// `numkit::optim` namespace tree (see _callback_helpers.hpp).
 
-#include <numkit/builtin/math/optim/fzero.hpp>
+#include <numkit/optim/local/fzero.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
@@ -16,9 +22,9 @@
 #include <cmath>
 #include <utility>
 
-namespace numkit::builtin {
+namespace numkit::optim {
 
-namespace cb = ::numkit::builtin::detail::callback;
+namespace cb = ::numkit::optim::detail::callback;
 
 namespace {
 
@@ -153,7 +159,7 @@ Value fzero(std::pmr::memory_resource *mr, const Value &fn, const Value &x0OrInt
     return Value::scalar(brent(engine, fn, a, b), mr);
 }
 
-// ── Pack 20: fminbnd / fminsearch ────────────────────────────────────
+// ── fminbnd / fminsearch ─────────────────────────────────────────────
 //
 // fminbnd uses Brent's variant of golden-section + parabolic
 // interpolation, classic NR / SciPy-style implementation. fminsearch
@@ -403,4 +409,4 @@ void fminsearch_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace numkit::optim
