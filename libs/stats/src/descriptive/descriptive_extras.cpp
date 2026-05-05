@@ -291,6 +291,84 @@ Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
         }, mr);
 }
 
+// ── ksdensity ─────────────────────────────────────────────────────────
+
+std::tuple<Value, Value, Value>
+ksdensity(std::pmr::memory_resource *mr, const Value &x, const Value &pts,
+          double bw_user)
+{
+    const size_t N = x.numel();
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    if (N == 0)
+        return std::make_tuple(Value::matrix(0, 0, ValueType::DOUBLE, mr),
+                               Value::matrix(0, 0, ValueType::DOUBLE, mr),
+                               Value::scalar(nan, mr));
+    std::vector<double> xv(N);
+    for (size_t i = 0; i < N; ++i) xv[i] = x.elemAsDouble(i);
+    std::sort(xv.begin(), xv.end());
+
+    // Silverman's-rule bandwidth.
+    double bw = bw_user;
+    if (!(bw > 0.0)) {
+        double mean = 0.0;
+        for (double v : xv) mean += v;
+        mean /= double(N);
+        double sq = 0.0;
+        for (double v : xv) { const double dd = v - mean; sq += dd * dd; }
+        const double sd = (N > 1) ? std::sqrt(sq / double(N - 1)) : 1.0;
+        // IQR via 25/75 percentiles (linear interp).
+        auto pct = [&](double p) {
+            const double pos = p * (double(N) - 1.0);
+            const size_t lo = static_cast<size_t>(std::floor(pos));
+            const size_t hi = static_cast<size_t>(std::ceil (pos));
+            const double t = pos - double(lo);
+            return xv[lo] * (1.0 - t) + xv[hi] * t;
+        };
+        const double iqr = pct(0.75) - pct(0.25);
+        const double sigma = (iqr > 0.0) ? std::min(sd, iqr / 1.34) : sd;
+        bw = std::pow(4.0 / (3.0 * double(N)), 0.2) * sigma;
+        if (!(bw > 0.0)) bw = 1.0;
+    }
+
+    // Build evaluation grid.
+    std::vector<double> grid;
+    if (pts.isEmpty()) {
+        const size_t M = 100;
+        const double xmin = xv.front() - 3.0 * bw;
+        const double xmax = xv.back()  + 3.0 * bw;
+        grid.resize(M);
+        if (M == 1) grid[0] = xmin;
+        else {
+            const double step = (xmax - xmin) / double(M - 1);
+            for (size_t i = 0; i < M; ++i) grid[i] = xmin + step * double(i);
+            grid[M - 1] = xmax;
+        }
+    } else {
+        const size_t M = pts.numel();
+        grid.resize(M);
+        for (size_t i = 0; i < M; ++i) grid[i] = pts.elemAsDouble(i);
+    }
+
+    const size_t M = grid.size();
+    Value fv = Value::matrix(1, M, ValueType::DOUBLE, mr);
+    double *fd = fv.doubleDataMut();
+    const double inv_h = 1.0 / bw;
+    const double inv_sqrt2pi = 0.3989422804014327;
+    for (size_t j = 0; j < M; ++j) {
+        double sum = 0.0;
+        for (size_t i = 0; i < N; ++i) {
+            const double u = (grid[j] - xv[i]) * inv_h;
+            sum += inv_sqrt2pi * std::exp(-0.5 * u * u);
+        }
+        fd[j] = sum * inv_h / double(N);
+    }
+    Value xiV = Value::matrix(1, M, ValueType::DOUBLE, mr);
+    double *xd = xiV.doubleDataMut();
+    for (size_t i = 0; i < M; ++i) xd[i] = grid[i];
+    return std::make_tuple(std::move(fv), std::move(xiV),
+                           Value::scalar(bw, mr));
+}
+
 // ── prepareCurveData / prepareSurfaceData ─────────────────────────────
 
 namespace {
@@ -487,6 +565,36 @@ void prepareSurfaceData_reg(Span<const Value> args, size_t nargout,
     outs[0] = std::move(xo);
     if (nargout > 1) outs[1] = std::move(yo);
     if (nargout > 2) outs[2] = std::move(zo);
+}
+
+void ksdensity_reg(Span<const Value> args, size_t nargout,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("ksdensity: requires (x[, pts, 'Bandwidth', bw])",
+                    0, 0, "ksdensity", "", "m:ksdensity:nargin");
+    auto *mr = ctx.engine->resource();
+    Value pts = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    double bw_user = 0.0;
+    size_t i = 1;
+    if (i < args.size() && !args[i].isChar() && !args[i].isString()
+        && !args[i].isEmpty()) {
+        pts = args[i];
+        ++i;
+    }
+    while (i + 1 < args.size()) {
+        if (!args[i].isChar() && !args[i].isString()) break;
+        std::string name = args[i].toString();
+        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        const Value &v = args[i + 1];
+        if (name == "bandwidth" || name == "width") bw_user = v.toScalar();
+        // 'kernel', 'support', etc. silently ignored
+        i += 2;
+    }
+    auto [f, xi, bw] = ksdensity(mr, args[0], pts, bw_user);
+    outs[0] = std::move(f);
+    if (nargout > 1) outs[1] = std::move(xi);
+    if (nargout > 2) outs[2] = std::move(bw);
 }
 
 void datastats_reg(Span<const Value> args, size_t /*nargout*/,

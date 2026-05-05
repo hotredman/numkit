@@ -30,6 +30,7 @@ void rmse_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mape_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ecdf_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void datastats_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void ksdensity_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void prepareCurveData_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void prepareSurfaceData_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void ecdfhist_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -356,6 +357,7 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "mape",      &stats::detail::mape_reg);
     reg("descriptive", "ecdf",      &stats::detail::ecdf_reg);
     reg("descriptive", "datastats", &stats::detail::datastats_reg);
+    reg("descriptive", "ksdensity", &stats::detail::ksdensity_reg);
     reg("descriptive", "prepareCurveData",   &stats::detail::prepareCurveData_reg);
     reg("descriptive", "prepareSurfaceData", &stats::detail::prepareSurfaceData_reg);
     reg("descriptive", "ecdfhist",  &stats::detail::ecdfhist_reg);

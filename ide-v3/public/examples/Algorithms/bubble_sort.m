@@ -1,0 +1,28 @@
+% Bubble Sort — Sort with swap counter
+% Classic O(n^2) sorting algorithm that counts the number of swaps.
+% Pull toolbox functions (signal, stats, graphics, io) into scope so we
+% can call them by short name (fft, butter, plot, std, ...). Without this,
+% we'd need fully qualified names like signal.transforms.fft(...).
+import compat.*;
+
+clear
+
+function result = bubbleSort(arr)
+    n = length(arr);
+    swaps = 0;
+    for i = 1:n-1
+        for j = 1:n-i
+            if arr(j) > arr(j+1)
+                temp = arr(j);
+                arr(j) = arr(j+1);
+                arr(j+1) = temp;
+                swaps = swaps + 1;
+            end
+        end
+    end
+    result.sorted = arr;
+    result.swaps  = swaps;
+end
+
+info = bubbleSort([64 34 25 12 22 11 90]);
+disp(info.sorted)
