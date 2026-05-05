@@ -283,6 +283,7 @@ void dummyvar_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // regress/regress.cpp
 void regress_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lscov_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -526,6 +527,7 @@ void StatsLibrary::install(Engine &engine)
     reg("anova", "dummyvar", &stats::detail::dummyvar_reg);
 
     reg("regress", "regress", &stats::detail::regress_reg);
+    reg("regress", "lscov",   &stats::detail::lscov_reg);
 }
 
 } // namespace numkit
