@@ -4,7 +4,8 @@
 
 #include <numkit/signal/filter_analysis/predicates.hpp>
 
-#include <numkit/builtin/math/poly/polynomials.hpp>     // roots()
+#include <numkit/builtin/math/poly/polynomials.hpp>             // roots()
+#include <numkit/signal/filter_analysis/frequency_response.hpp> // freqz()
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
@@ -229,6 +230,17 @@ void firtype_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     outs[0] = Value::scalar(static_cast<double>(firtype(args[0])), ctx.engine->resource());
 }
 
+void filternorm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("filternorm: requires (b, a [, pnorm])",
+                     0, 0, "filternorm", "", "m:filternorm:nargin");
+    double p = 2.0;
+    if (args.size() >= 3 && !args[2].isEmpty()) p = args[2].toScalar();
+    outs[0] = Value::scalar(filternorm(ctx.engine->resource(), args[0], args[1], p),
+                            ctx.engine->resource());
+}
+
 } // namespace detail
 
 // ── filtord ────────────────────────────────────────────────────────
@@ -266,6 +278,37 @@ int firtype(const Value &b)
     const bool order_even = (order % 2 == 0);
     if (sym)  return order_even ? 1 : 2;
     /* anti */ return order_even ? 3 : 4;
+}
+
+// ── filternorm ─────────────────────────────────────────────────────
+double filternorm(std::pmr::memory_resource *mr,
+                  const Value &b, const Value &a, double pnorm)
+{
+    constexpr size_t kNpts = 8192;
+    auto [H, W] = freqz(mr, b, a, kNpts);
+    const Complex *hd = H.complexData();
+
+    if (std::isinf(pnorm)) {
+        // L∞: max |H(e^{jw})| over the freqz grid.
+        double mx = 0.0;
+        for (size_t k = 0; k < kNpts; ++k) {
+            const double m = std::abs(hd[k]);
+            if (m > mx) mx = m;
+        }
+        return mx;
+    }
+    if (pnorm != 2.0)
+        throw Error("filternorm: only pnorm = 2 or inf supported",
+                     0, 0, "filternorm", "", "m:filternorm:p");
+    // L2: sqrt((1/π) ∫_0^π |H|² dw) via trapezoidal rule on freqz grid.
+    // freqz returns npts samples on [0, π] inclusive — Δw = π/(npts-1).
+    double sum = 0.0;
+    for (size_t k = 0; k < kNpts; ++k) {
+        const double mag2 = std::norm(hd[k]);  // |z|² for complex
+        const double w = (k == 0 || k == kNpts - 1) ? 0.5 : 1.0;
+        sum += w * mag2;
+    }
+    return std::sqrt(sum / static_cast<double>(kNpts - 1));
 }
 
 } // namespace numkit::signal
