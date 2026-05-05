@@ -3174,13 +3174,13 @@ OOP `anova` class and `fitrm` repeated-measures model intentionally omitted; onl
 
 ### Linear Regression (function-form)
 
-**Namespace:** `stats.regress.*` — 0 ✅ + 0 ⚠️ / 13 = 0%
+**Namespace:** `stats.regress.*` — 1 ✅ + 0 ⚠️ / 13 = 8%
 
 OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. Only the legacy command-form entry points that return numerics (coeffs, residuals, CIs).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `regress` | ❌ |  |  |  |  | OLS multiple regression |
+| `regress` | ✅ | 0.006 | 476.12× | 403.15× | OK | Sig: [b, bint, r, rint, stats] = regress(y, X[, alpha]). OLS multiple regression via Cholesky on X'X. stats = [R², F, p_F, sigma²]. The 4th output `rint` (residual-outlier intervals) is currently a placeholder. |
 | `robustfit` | ❌ |  |  |  |  | robust (M-estimator) regression |
 | `lscov` | ❌ |  |  |  |  | weighted/general LSQ |
 | `stepwisefit` | ❌ |  |  |  |  | stepwise selection |

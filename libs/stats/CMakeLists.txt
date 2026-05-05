@@ -16,6 +16,7 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/stats/fit/fit.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/stats/mvdist/mvdist.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/stats/anova/anova.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/stats/regress/regress.hpp
 )
 
 set(NUMKIT_LIBS_SOURCES      ${NUMKIT_LIBS_SOURCES}      PARENT_SCOPE)
