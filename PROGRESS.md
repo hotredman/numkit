@@ -1673,7 +1673,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `fitgeotrans` | ❌ |  |  |  |  | fit transform from cp pairs |
 | `imcrop` | ✅ | 0.003 |  | 55.29× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imcrop3` | ❌ |  |  |  |  |  |
-| `impyramid` | ❌ | 0.004 | 1264.05× | 199.64× | MISMATCH | Sig: B = impyramid(A, type). type='reduce' or 'expand'. Burt-Adelson 5-tap separable kernel; replicate boundary. Output: ceil(M/2)xceil(N/2) for reduce, (2M-1)x(2N-1) for expand. Octave-image has impyramid; cross-check expected OK. |
+| `impyramid` | ✅ | 0.004 | 1334.70× | 221.67× | OK | Sig: B = impyramid(A, type). type='reduce' or 'expand'. Burt-Adelson 5-tap separable kernel; replicate boundary. Output: ceil(M/2)xceil(N/2) for reduce, (2M-1)x(2N-1) for expand. Octave-image has impyramid; cross-check expected OK. |
 | `imresize` | ✅ | 0.003 |  | 434.70× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imresize3` | ❌ |  |  |  |  |  |
 | `imrotate` | ✅ | 0.003 |  | 92.45× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
@@ -1718,11 +1718,11 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `gabor` | ❌ |  |  |  |  | Gabor filter bank |
 | `imbilatfilt` | ✅ | 0.021 |  | 80.24× | OK | Sig: B = imbilatfilt(I, dos, sigma). Step image, tight range Gaussian (preserves edge). Tol relaxed: kernel-window-size differences plus per-pixel exp-rounding propagate. |
 | `imboxfilt` | ✅ | 0.004 |  | 193.49× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imboxfilt3` | ❌ | 0.006 | 310.23× |  | MISMATCH | Sig: J = imboxfilt3(V [, FilterSize]). 3-D box (mean) filter over a volume, replicate boundary on all 3 axes. MATLAB R2020a+; Octave-image doesn't have it → correctness=N/A. |
+| `imboxfilt3` | ✅ | 0.007 | 271.02× |  | OK | Sig: J = imboxfilt3(V [, FilterSize]). 3-D box (mean) filter over a volume, replicate boundary on all 3 axes. MATLAB R2020a+; Octave-image doesn't have it → correctness=N/A. Deterministic input (1:245 reshape) — `rng(0); rand` would diverge between engines. |
 | `imdiffusefilt` | ❌ |  |  |  |  | anisotropic diffusion |
 | `imfilter` | ✅ | 0.003 |  | 116.15× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imgaborfilt` | ❌ |  |  |  |  |  |
-| `imgaussfilt` | ✅ | 0.007 |  | 110.10× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imgaussfilt` | ✅ | 0.006 | 365.89× | 120.93× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imgaussfilt3` | ✅ | 0.006 | 392.83× |  | OK | Sig: J = imgaussfilt3(V[, sigma]). 3-D Gaussian filter, separable, replicate boundary. Sigma scalar or 3-vec. Filter size = 2*ceil(2σ)+1 per axis. MATLAB R2017+; Octave-image doesn't ship imgaussfilt3. |
 | `imguidedfilter` | ❌ |  |  |  |  |  |
 | `imnlmfilt` | ❌ |  |  |  |  | non-local means |
@@ -1752,7 +1752,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `histeq` | ✅ | 0.004 | 495.84× |  | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imadjust` | ✅ | 0.005 | 467.60× | 107.88× | OK | Sig + small deterministic input. Auto-generated for parity sweep. KNOWN: depends on stretchlim — same fix. |
 | `imadjustn` | ✅ | 0.005 | 522.22× |  | OK | Sig: imadjustn(I). N-D variant of imadjust; we alias since imadjust already handles 3-D. Octave-image does not have imadjustn so cross-check may report N/A — depends on stretchlim like the imadjust spec. |
-| `imflatfield` | ❌ | 4.162 | 1.23× |  | MISMATCH | Sig: imflatfield(I, sigma [, mask]). Smooth synthetic shading on a 32x32 double image. Octave-image 11.1.0 does not have imflatfield so cross-check reports correctness=N/A. Algorithm: F = imgaussfilt(im2double(I), sigma); B = im2cls((I_double./F) * mean(F)). 3-D inputs are processed per-page. |
+| `imflatfield` | ✅ | 4.275 | 1.27× |  | OK | Sig: imflatfield(I, sigma [, mask]). Smooth synthetic shading on a 32x32 double image. Octave-image 11.1.0 does not have imflatfield so cross-check reports correctness=N/A. Algorithm: F = imgaussfilt(im2double(I), sigma); B = im2cls((I_double./F) * mean(F)). 3-D inputs are processed per-page. |
 | `imhistmatch` | ✅ | 0.004 |  |  | N/A | Sig: J = imhistmatch(I, ref, nbins). [0,0.5] source CDF-matched to [0,1] reference. Tol relaxed: bin discretisation differs slightly across implementations. |
 | `imhistmatchn` | ✅ | 0.005 | 582.59× |  | OK | Sig: imhistmatchn(I, ref [, nbins]). N-D histogram match (single histogram across volume). Aliased to imhistmatch which uses the same single-histogram semantics. Octave-image 11.1.0 has no imhistmatchn → correctness=N/A as documented. |
 | `imlocalbrighten` | ❌ |  |  |  |  |  |
