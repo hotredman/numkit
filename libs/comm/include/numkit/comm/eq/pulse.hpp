@@ -24,4 +24,21 @@ Value rcosdesign(std::pmr::memory_resource *mr,
                  double beta, int span, int sps,
                  const std::string &shape);
 
+/// `h = gaussdesign(BT, span, sps)` — design a Gaussian FIR pulse-
+/// shaping filter.
+///   BT    : 3-dB bandwidth × symbol period (typical values 0.1..0.5)
+///   span  : filter span in symbol periods (positive integer)
+///   sps   : samples per symbol (positive integer)
+/// Returns a row vector of length `span * sps + 1`, sum-normalised
+/// to 1 (matches MATLAB R2025b's gaussdesign).
+Value gaussdesign(std::pmr::memory_resource *mr,
+                  double BT, int span, int sps);
+
+/// `y = rectpulse(x, n)` — rectangular pulse shaping. Each input
+/// sample is repeated `n` times along the leading non-singleton
+/// dimension. For an L×1 column input → (L·n)×1 output; for 1×L row
+/// → 1×(L·n); for matrices each column is repeated row-wise (matches
+/// MATLAB R2025b's rectpulse).
+Value rectpulse(std::pmr::memory_resource *mr, const Value &x, int n);
+
 } // namespace numkit::comm

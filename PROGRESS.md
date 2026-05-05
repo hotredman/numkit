@@ -1075,9 +1075,9 @@ MLSE entry is exposed.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `gaussdesign` | ❌ |  |  |  |  | Gaussian pulse-shaping filter |
+| `gaussdesign` | ✅ | 0.004 | 250.45× |  | OK | Sig: h = gaussdesign(BT, span, sps). Gaussian FIR pulse-shaping filter, length span*sps+1, sum-normalized to 1. Element-wise SAVE. |
 | `rcosdesign` | ✅ |  |  |  | OK | raised-cosine ('normal') and root-raised-cosine ('sqrt'); unit-energy normalised |
-| `rectpulse` | ❌ |  |  |  |  | rectangular pulse shaper |
+| `rectpulse` | ✅ | 0.003 | 110.13× |  | OK | Sig: y = rectpulse(x, n). Each sample of x repeats n times. 5x1 column → 20x1; n=4. Element-wise SAVE. |
 | `intdump` | ❌ |  |  |  |  | integrate & dump |
 | `mlseeq` | ❌ |  |  |  |  | maximum-likelihood sequence equaliser |
 | `ofdmEqualize` | ❌ |  |  |  |  | OFDM zero-forcing / MMSE equalise |
@@ -2350,7 +2350,7 @@ intentionally omitted — flat solver functions only.
 | `firls` | ❌ |  |  |  |  | least-squares FIR |
 | `firpm` | ❌ |  |  |  |  | Parks-McClellan FIR |
 | `firpmord` | ❌ |  |  |  |  | order estimator |
-| `gaussdesign` | ❌ |  |  |  |  |  |
+| `gaussdesign` | ✅ | 0.004 | 250.45× |  | OK | Sig: h = gaussdesign(BT, span, sps). Gaussian FIR pulse-shaping filter, length span*sps+1, sum-normalized to 1. Element-wise SAVE. |
 | `info` | ❌ |  |  |  |  |  |
 | `intfilt` | ✅ | 0.001 | 465.68× |  | MISMATCH | Sig: H = intfilt(R, L, ALPHA). FIR coeffs (alpha=0.5). 1000 iters. |
 | `isdouble` | ❌ |  |  |  |  |  |

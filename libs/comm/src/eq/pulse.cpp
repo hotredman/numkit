@@ -114,6 +114,98 @@ Value rcosdesign(std::pmr::memory_resource *mr,
     return r;
 }
 
+// ── gaussdesign ─────────────────────────────────────────────────────
+// Per MATLAB R2025b's gaussdesign.m:
+//   filtLen = span*sps + 1
+//   t       = ((1:filtLen) - mean(1:filtLen)) / sps
+//   alpha   = sqrt(log(2)/2) / BT
+//   h       = (sqrt(pi)/alpha) * exp(-(pi*t/alpha).^2)
+//   h       = h / sum(h)                                (unit-area)
+Value gaussdesign(std::pmr::memory_resource *mr,
+                  double BT, int span, int sps)
+{
+    if (!(BT > 0.0))
+        throw Error("gaussdesign: BT must be positive",
+                    0, 0, "gaussdesign", "", "m:gaussdesign:BT");
+    if (span <= 0)
+        throw Error("gaussdesign: span must be a positive integer",
+                    0, 0, "gaussdesign", "", "m:gaussdesign:span");
+    if (sps <= 0)
+        throw Error("gaussdesign: sps must be a positive integer",
+                    0, 0, "gaussdesign", "", "m:gaussdesign:sps");
+
+    const int N = span * sps + 1;
+    const double centre = 0.5 * (1 + N);  // mean(1:N)
+    const double alpha = std::sqrt(std::log(2.0) / 2.0) / BT;
+    const double pre = std::sqrt(M_PI) / alpha;
+
+    std::vector<double> h(static_cast<size_t>(N));
+    double s = 0.0;
+    for (int k = 1; k <= N; ++k) {
+        const double t = (static_cast<double>(k) - centre) / sps;
+        const double arg = M_PI * t / alpha;
+        const double v = pre * std::exp(-(arg * arg));
+        h[static_cast<size_t>(k - 1)] = v;
+        s += v;
+    }
+    if (s > 0.0) {
+        const double inv = 1.0 / s;
+        for (auto &v : h) v *= inv;
+    }
+
+    Value r = Value::matrix(1, static_cast<size_t>(N), ValueType::DOUBLE, mr);
+    if (N > 0) std::copy(h.begin(), h.end(), r.doubleDataMut());
+    return r;
+}
+
+// ── rectpulse ───────────────────────────────────────────────────────
+// rectpulse(x, n) repeats each sample of x n times along the leading
+// non-singleton dimension. Vector inputs preserve orientation; matrix
+// inputs repeat each row n times (column count unchanged).
+Value rectpulse(std::pmr::memory_resource *mr, const Value &x, int n)
+{
+    if (n <= 0)
+        throw Error("rectpulse: n must be a positive integer",
+                    0, 0, "rectpulse", "", "m:rectpulse:n");
+
+    const auto &d = x.dims();
+    const size_t H = d.rows();
+    const size_t W = d.cols();
+    const bool is_row = (H == 1 && W >= 1);
+    const bool is_col = (W == 1 && H >= 1);
+
+    Value out;
+    if (is_row) {
+        out = Value::matrix(1, W * static_cast<size_t>(n), ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        for (size_t c = 0; c < W; ++c) {
+            const double v = x.elemAsDouble(c);
+            for (int k = 0; k < n; ++k)
+                od[c * static_cast<size_t>(n) + static_cast<size_t>(k)] = v;
+        }
+    } else if (is_col) {
+        out = Value::matrix(H * static_cast<size_t>(n), 1, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        for (size_t r = 0; r < H; ++r) {
+            const double v = x.elemAsDouble(r);
+            for (int k = 0; k < n; ++k)
+                od[r * static_cast<size_t>(n) + static_cast<size_t>(k)] = v;
+        }
+    } else {
+        const size_t Nh = H * static_cast<size_t>(n);
+        out = Value::matrix(Nh, W, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        for (size_t c = 0; c < W; ++c) {
+            for (size_t r = 0; r < H; ++r) {
+                const double v = x.elemAsDouble(c * H + r);
+                for (int k = 0; k < n; ++k)
+                    od[c * Nh + r * static_cast<size_t>(n) + static_cast<size_t>(k)] = v;
+            }
+        }
+    }
+    return out;
+}
+
 namespace detail {
 
 void rcosdesign_reg(Span<const Value> args, size_t /*nargout*/,
@@ -133,6 +225,28 @@ void rcosdesign_reg(Span<const Value> args, size_t /*nargout*/,
         shape = args[3].toString();
     }
     outs[0] = rcosdesign(ctx.engine->resource(), beta, span, sps, shape);
+}
+
+void gaussdesign_reg(Span<const Value> args, size_t /*nargout*/,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("gaussdesign: requires (BT, span, sps)",
+                    0, 0, "gaussdesign", "", "m:gaussdesign:nargin");
+    const double BT  = args[0].toScalar();
+    const int span   = static_cast<int>(args[1].toScalar());
+    const int sps    = static_cast<int>(args[2].toScalar());
+    outs[0] = gaussdesign(ctx.engine->resource(), BT, span, sps);
+}
+
+void rectpulse_reg(Span<const Value> args, size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("rectpulse: requires (x, n)",
+                    0, 0, "rectpulse", "", "m:rectpulse:nargin");
+    const int n = static_cast<int>(args[1].toScalar());
+    outs[0] = rectpulse(ctx.engine->resource(), args[0], n);
 }
 
 } // namespace detail
