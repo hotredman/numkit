@@ -606,7 +606,19 @@ Value imflatfield(std::pmr::memory_resource *mr,
     double *idd = Idbl.doubleDataMut();
     for (size_t i = 0; i < N; ++i) idd[i] = element_to_unit(I, i);
 
-    // Gaussian low-pass per plane (imgaussfilt itself is 2-D-only).
+    // Gaussian low-pass per plane. MATLAB R2025b imflatfield uses
+    // symmetric padding internally — NOT the imgaussfilt default
+    // (replicate). For sigma=8 on a 32×32 image the kernel (size 33)
+    // exceeds the image, so the boundary mode dominates the result.
+    // Build the kernel via fspecial("gaussian") and apply with
+    // PadMode::Symmetric directly via imfilter.
+    int filter_size = 2 * static_cast<int>(std::ceil(2.0 * sigma)) + 1;
+    if (filter_size < 3) filter_size = 3;
+    // fspecial("gaussian", {rows, cols, sigma}) — three-param form
+    Value gk = fspecial(mr, "gaussian",
+                        {static_cast<double>(filter_size),
+                         static_cast<double>(filter_size), sigma});
+
     Value F;
     if (d.is3D())  F = Value::matrix3d(H, W, pages, ValueType::DOUBLE, mr);
     else           F = Value::matrix(H, W, ValueType::DOUBLE, mr);
@@ -620,43 +632,47 @@ Value imflatfield(std::pmr::memory_resource *mr,
             std::memcpy(plane2d.doubleDataMut(), idd + p * plane,
                         plane * sizeof(double));
         }
-        Value blurred = imgaussfilt(mr, plane2d, sigma, 0);
+        Value blurred = imfilter(mr, plane2d, gk,
+                                 PadMode::Symmetric, 0.0,
+                                 /*full=*/false, /*flip_kernel=*/false);
         std::memcpy(fd + p * plane, blurred.doubleData(),
                     plane * sizeof(double));
     }
 
-    // Per-page mean of F (within mask if provided, replicated across pages).
+    // Per-page mean of A (NOT F) — MATLAB normalizes by mean(A).
+    // mean(F) ≈ mean(A) for full-image mean (Gaussian preserves mean),
+    // but with a mask the difference matters.
     const bool have_mask = (mask.numel() > 0);
     if (have_mask && (mask.dims().rows() != H || mask.dims().cols() != W))
         throw Error("imflatfield: mask must match spatial dims of I",
                     0, 0, "imflatfield", "", "m:imflatfield:masksize");
-    std::vector<double> meanF(pages, 0.0);
+    std::vector<double> meanA(pages, 0.0);
     for (size_t p = 0; p < pages; ++p) {
-        const double *fp = fd + p * plane;
+        const double *ap = idd + p * plane;
         if (have_mask) {
             size_t cnt = 0;
             double acc = 0.0;
             for (size_t i = 0; i < plane; ++i)
-                if (mask.elemAsDouble(i) != 0.0) { acc += fp[i]; ++cnt; }
-            meanF[p] = (cnt > 0) ? acc / static_cast<double>(cnt) : 0.0;
+                if (mask.elemAsDouble(i) != 0.0) { acc += ap[i]; ++cnt; }
+            meanA[p] = (cnt > 0) ? acc / static_cast<double>(cnt) : 0.0;
         } else if (plane > 0) {
             double acc = 0.0;
-            for (size_t i = 0; i < plane; ++i) acc += fp[i];
-            meanF[p] = acc / static_cast<double>(plane);
+            for (size_t i = 0; i < plane; ++i) acc += ap[i];
+            meanA[p] = acc / static_cast<double>(plane);
         }
     }
 
-    // Output: per-page (Idbl ./ F) * meanF, with eps guard for degenerate F.
+    // Output: per-page A * meanA / F, with eps guard for degenerate F.
     Value out;
     if (d.is3D())  out = Value::matrix3d(H, W, pages, classin, mr);
     else           out = Value::matrix(H, W, classin, mr);
     constexpr double EPS = 1e-12;
     for (size_t p = 0; p < pages; ++p) {
-        const double mF = meanF[p];
+        const double mA = meanA[p];
         for (size_t i = 0; i < plane; ++i) {
             const size_t idx = p * plane + i;
             const double f = fd[idx];
-            const double v = (f > EPS) ? (idd[idx] / f) * mF : idd[idx];
+            const double v = (f > EPS) ? idd[idx] * mA / f : idd[idx];
             store_classed(out, idx, v, classin);
         }
     }

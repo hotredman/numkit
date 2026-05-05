@@ -365,6 +365,18 @@ Value impyramid(std::pmr::memory_resource *mr,
         if (i >= N) return N - 1;
         return i;
     };
+    // MATLAB's impyramid 'reduce' pads with symmetric (mirror without
+    // edge), NOT replicate: padded[-k] = original[k-1] for k>=1, and
+    // padded[N+k-1] = original[N-k] for k>=1. Octave-image uses
+    // replicate, so for reduce we follow MATLAB per source-of-truth.
+    auto sym_i = [](int i, int N) {
+        if (N <= 1) return 0;
+        if (i < 0)  return -1 - i;
+        if (i >= N) return 2 * N - 1 - i;
+        return i;
+    };
+    (void)clamp_i;  // 'expand' branch below references sym_i; clamp_i
+                    // kept around for potential future variants.
 
     if (reduce) {
         for (size_t c = 0; c < s.C; ++c) {
@@ -374,7 +386,7 @@ Value impyramid(std::pmr::memory_resource *mr,
                 for (size_t cc = 0; cc < s.W; ++cc) {
                     double acc = 0;
                     for (int k = -2; k <= 2; ++k) {
-                        const int cs = clamp_i((int)cc + k, (int)s.W);
+                        const int cs = sym_i((int)cc + k, (int)s.W);
                         acc += kBurt[k + 2] *
                                A.elemAsDouble(idx3D(s, r, (size_t)cs, c));
                     }
@@ -388,7 +400,7 @@ Value impyramid(std::pmr::memory_resource *mr,
                     const size_t xs = 2 * xo;
                     double acc = 0;
                     for (int k = -2; k <= 2; ++k) {
-                        const int rs = clamp_i((int)ys + k, (int)s.H);
+                        const int rs = sym_i((int)ys + k, (int)s.H);
                         acc += kBurt[k + 2] * tmp[xs * s.H + (size_t)rs];
                     }
                     writePixel(B, sd, yo, xo, c, acc, t);
