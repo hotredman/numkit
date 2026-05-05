@@ -116,6 +116,24 @@ Value rmse(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
 // the Inf).
 Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int dim = 0);
 
+// ── prepareCurveData ───────────────────────────────────────────────────
+// prepareCurveData(x, y[, w]) — strip NaN/Inf rows from paired data and
+// return column vectors. With three arguments, weights w are also
+// filtered (w == 0 is kept; only NaN/Inf in any of x/y/w drop the row).
+// Always returns column vectors; empty input → 0×1 columns.
+std::tuple<Value, Value, Value>
+prepareCurveData(std::pmr::memory_resource *mr,
+                 const Value &x, const Value &y, const Value &w);
+
+// ── prepareSurfaceData ─────────────────────────────────────────────────
+// prepareSurfaceData(x, y, z) — strip NaN/Inf entries from three-way
+// data and return column vectors. Inputs may be vectors of equal length
+// or matrices that share a shape (e.g. meshgrid output). All three are
+// linearised in column-major order before filtering.
+std::tuple<Value, Value, Value>
+prepareSurfaceData(std::pmr::memory_resource *mr,
+                   const Value &x, const Value &y, const Value &z);
+
 // ── datastats ──────────────────────────────────────────────────────────
 // datastats(x) — descriptive struct for a single dataset; engine-side
 // wraps the 7 returned scalars into a struct {num, max, min, mean,

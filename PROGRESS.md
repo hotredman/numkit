@@ -1350,7 +1350,7 @@ omitted — interactive / Simulink / OOP.
 
 ### Splines
 
-**Namespace:** `cfit.splines.*` — 2 ✅ + 0 ⚠️ / 49 = 4%
+**Namespace:** `cfit.splines.*` — 4 ✅ + 0 ⚠️ / 49 = 8%
 
 OOP `fittype`/`fit`/`cfit`/`sfit`/`fitoptions`/`excludedata` and the
 GUI tools (`sftool`, `bspligui`, `splinetool`, `getcurve`) intentionally
@@ -1405,8 +1405,8 @@ construction / postprocessing primitives — those are all flat functions.
 | `optknt` | ❌ |  |  |  |  | optimal knot distribution |
 | `smooth` | ❌ |  |  |  |  | data smoothing (already partially in core) |
 | `datastats` | ✅ | 0.003 | 493.04× |  | OK | Sig: s = datastats(x). Returns struct {num, max, min, mean, median, range, std} for the column-vector input. Sample std (N-1). |
-| `prepareCurveData` | ❌ |  |  |  |  | sanitise (NaN, Inf, complex) |
-| `prepareSurfaceData` | ❌ |  |  |  |  | 2-D variant |
+| `prepareCurveData` | ✅ | 0.004 | 467.69× |  | OK | Sig: [xo, yo[, wo]] = prepareCurveData(x, y[, w]). Strips rows where any of x, y, w is NaN/Inf; returns column vectors. w == 0 rows are KEPT (only finiteness matters). |
+| `prepareSurfaceData` | ✅ | 0.004 | 500.11× |  | OK | Sig: [xo, yo, zo] = prepareSurfaceData(X, Y, Z). Linearises (column-major) and drops rows where any of x, y, z is NaN/Inf. Returns column vectors. |
 | `quad2d` | ❌ |  |  |  |  | 2-D quadrature (also in core) |
 
 ## Graphics
