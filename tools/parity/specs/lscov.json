@@ -1,0 +1,18 @@
+{
+  "name": "lscov",
+  "namespace": "stats",
+  "setup": "A = [ones(4,1) (1:4)']; b = [1.1; 2.0; 3.05; 3.95];",
+  "expr": "[x, stdx, mse, S] = lscov(A, b);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "x(1)",
+    "x(2)",
+    "stdx(1)",
+    "stdx(2)",
+    "mse",
+    "S(1,1)",
+    "S(2,2)"
+  ],
+  "comment": "Sig: [x, stdx, mse, S] = lscov(A, b[, w]). Weighted least squares. With identity weights = OLS. mse = SSR/(N-p); S = mse·(A'WA)^(-1). Full N×N covariance V intentionally not yet supported."
+}

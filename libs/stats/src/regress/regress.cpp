@@ -174,6 +174,100 @@ regress(std::pmr::memory_resource *mr, const Value &y, const Value &X,
     return {std::move(bV), std::move(bintV), std::move(rV), std::move(statsV)};
 }
 
+std::tuple<Value, Value, Value, Value>
+lscov(std::pmr::memory_resource *mr, const Value &A, const Value &b,
+      const Value &w)
+{
+    const size_t N = b.numel();
+    const size_t p = A.dims().cols();
+    if (A.dims().rows() != N || N == 0 || p == 0)
+        throw Error("lscov: A must be N×p with same N as b",
+                    0, 0, "lscov", "", "m:lscov:size");
+
+    const bool weighted = !w.isEmpty();
+    if (weighted) {
+        if (w.numel() == N * N)
+            throw Error("lscov: full covariance V not yet supported",
+                        0, 0, "lscov", "", "m:lscov:fullV");
+        if (w.numel() != N)
+            throw Error("lscov: w must be a length-N vector",
+                        0, 0, "lscov", "", "m:lscov:w");
+    }
+
+    auto wi = [&](size_t i) {
+        return weighted ? w.elemAsDouble(i) : 1.0;
+    };
+
+    // Build XtWX and XtWy with weights baked in (W = diag(w)).
+    std::vector<double> XtWX(p * p, 0.0);
+    std::vector<double> XtWy(p, 0.0);
+    for (size_t i = 0; i < N; ++i) {
+        const double wii = wi(i);
+        const double bi  = b.elemAsDouble(i);
+        for (size_t j = 0; j < p; ++j) {
+            const double xij = A.elemAsDouble(i + j * N);
+            XtWy[j] += wii * xij * bi;
+            for (size_t k = j; k < p; ++k) {
+                const double xik = A.elemAsDouble(i + k * N);
+                XtWX[k + j * p] += wii * xij * xik;
+            }
+        }
+    }
+    for (size_t j = 0; j < p; ++j)
+        for (size_t k = 0; k < j; ++k)
+            XtWX[k + j * p] = XtWX[j + k * p];
+
+    std::vector<double> L(p * p, 0.0);
+    if (!cholesky(XtWX.data(), L.data(), p))
+        throw Error("lscov: design matrix is rank-deficient",
+                    0, 0, "lscov", "", "m:lscov:rank");
+
+    std::vector<double> beta(p), z(p);
+    fwd_solve(L.data(), z.data(), XtWy.data(), p);
+    back_solve(L.data(), beta.data(), z.data(), p);
+
+    // weighted residuals + SSR
+    double SSRw = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        double pred = 0.0;
+        for (size_t j = 0; j < p; ++j) pred += A.elemAsDouble(i + j * N) * beta[j];
+        const double ri = b.elemAsDouble(i) - pred;
+        SSRw += wi(i) * ri * ri;
+    }
+    const double dfErr = double(N) - double(p);
+    const double mse = (dfErr > 0.0) ? SSRw / dfErr
+                                     : std::numeric_limits<double>::quiet_NaN();
+
+    // (XtWX)⁻¹ then S = mse · (XtWX)⁻¹
+    std::vector<double> Sm(p * p, 0.0);
+    {
+        std::vector<double> ej(p), zj(p), mj(p);
+        for (size_t j = 0; j < p; ++j) {
+            std::fill(ej.begin(), ej.end(), 0.0);
+            ej[j] = 1.0;
+            fwd_solve(L.data(), zj.data(), ej.data(), p);
+            back_solve(L.data(), mj.data(), zj.data(), p);
+            for (size_t i = 0; i < p; ++i)
+                Sm[i + j * p] = mse * mj[i];
+        }
+    }
+
+    Value xV    = Value::matrix(p, 1, ValueType::DOUBLE, mr);
+    Value stdxV = Value::matrix(p, 1, ValueType::DOUBLE, mr);
+    Value mseV  = Value::scalar(mse, mr);
+    Value SV    = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    double *xd  = xV.doubleDataMut();
+    double *sxd = stdxV.doubleDataMut();
+    double *Sd  = SV.doubleDataMut();
+    for (size_t j = 0; j < p; ++j) {
+        xd[j]  = beta[j];
+        sxd[j] = std::sqrt(std::max(Sm[j + j * p], 0.0));
+    }
+    for (size_t i = 0; i < p * p; ++i) Sd[i] = Sm[i];
+
+    return {std::move(xV), std::move(stdxV), std::move(mseV), std::move(SV)};
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -196,6 +290,22 @@ void regress_reg(Span<const Value> args, size_t nargout,
     if (nargout > 3) outs[3] = Value::matrix(0, 0, ValueType::DOUBLE,
                                              ctx.engine->resource());  // rint placeholder
     if (nargout > 4) outs[4] = std::move(stats);
+}
+
+void lscov_reg(Span<const Value> args, size_t nargout,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("lscov: requires (A, b[, w])",
+                    0, 0, "lscov", "", "m:lscov:nargin");
+    auto *mr = ctx.engine->resource();
+    Value w_empty = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    const Value &w = (args.size() >= 3) ? args[2] : w_empty;
+    auto [x, stdx, mse, S] = lscov(mr, args[0], args[1], w);
+    outs[0] = std::move(x);
+    if (nargout > 1) outs[1] = std::move(stdx);
+    if (nargout > 2) outs[2] = std::move(mse);
+    if (nargout > 3) outs[3] = std::move(S);
 }
 
 } // namespace detail

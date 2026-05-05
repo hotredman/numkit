@@ -23,4 +23,12 @@ std::tuple<Value, Value, Value, Value>
 regress(std::pmr::memory_resource *mr, const Value &y, const Value &X,
         double alpha);
 
+/// `[x, stdx, mse, S] = lscov(A, b[, w])` — weighted least squares.
+/// `w` is an optional length-N vector of (positive) row weights;
+/// omit / empty means uniform weights (= regular OLS).
+/// Full N×N covariance form V intentionally not yet supported.
+std::tuple<Value, Value, Value, Value>
+lscov(std::pmr::memory_resource *mr, const Value &A, const Value &b,
+      const Value &w);
+
 } // namespace numkit::stats

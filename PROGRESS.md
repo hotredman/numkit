@@ -2133,7 +2133,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `ldl` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `linsolve` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `logm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `lscov` | ❌ |  |  |  |  |  |
+| `lscov` | ✅ | 0.004 | 201.24× | 10.25× | OK | Sig: [x, stdx, mse, S] = lscov(A, b[, w]). Weighted least squares. With identity weights = OLS. mse = SSR/(N-p); S = mse·(A'WA)^(-1). Full N×N covariance V intentionally not yet supported. |
 | `lsqminnorm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `lsqnonneg` | ❌ |  |  |  |  |  |
 | `lu` | ❌ |  |  |  |  | **deferred — libs/linalg** |
@@ -3174,7 +3174,7 @@ OOP `anova` class and `fitrm` repeated-measures model intentionally omitted; onl
 
 ### Linear Regression (function-form)
 
-**Namespace:** `stats.regress.*` — 1 ✅ + 0 ⚠️ / 13 = 8%
+**Namespace:** `stats.regress.*` — 2 ✅ + 0 ⚠️ / 13 = 15%
 
 OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. Only the legacy command-form entry points that return numerics (coeffs, residuals, CIs).
 
@@ -3182,7 +3182,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 |---|:---:|---:|---:|---:|:---:|---|
 | `regress` | ✅ | 0.006 | 476.12× | 403.15× | OK | Sig: [b, bint, r, rint, stats] = regress(y, X[, alpha]). OLS multiple regression via Cholesky on X'X. stats = [R², F, p_F, sigma²]. The 4th output `rint` (residual-outlier intervals) is currently a placeholder. |
 | `robustfit` | ❌ |  |  |  |  | robust (M-estimator) regression |
-| `lscov` | ❌ |  |  |  |  | weighted/general LSQ |
+| `lscov` | ✅ | 0.004 | 201.24× | 10.25× | OK | Sig: [x, stdx, mse, S] = lscov(A, b[, w]). Weighted least squares. With identity weights = OLS. mse = SSR/(N-p); S = mse·(A'WA)^(-1). Full N×N covariance V intentionally not yet supported. |
 | `stepwisefit` | ❌ |  |  |  |  | stepwise selection |
 | `glmfit` | ❌ |  |  |  |  | generalised linear model |
 | `glmval` | ❌ |  |  |  |  | predict from glmfit |
