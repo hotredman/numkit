@@ -261,36 +261,63 @@ Value median(std::pmr::memory_resource *mr, const Value &x, int dim)
 // quantile / prctile
 // ────────────────────────────────────────────────────────────────────
 //
-// Default linear-interpolation method (MATLAB's default for quantile
-// and prctile). For probability p in [0,1] and a slice of length n,
-// position h = p*(n-1) (0-based). Lower index = floor(h), upper =
-// ceil(h), result = lower_val + (h - floor(h)) * (upper_val - lower_val).
+// Three interpolation methods are supported, matching MATLAB R2025b
+// (`help quantile` → method ∈ {midpoint, inclusive, exclusive,
+// approximate}):
 //
-// Implementation note: when p is a vector, the slice is fully sorted
-// once and then queried at each p. When p is a scalar, nth_element on
-// floor(h) and ceil(h) is faster, but the difference is small for the
-// typical use case.
+//   * Midpoint  (default; R2007a algorithm, Type-5 in Hyndman/Fan)
+//                positions: (k-0.5)/N for k = 1..N
+//                inverse:   q = p*N + 0.5, clamp [1, N], linear interp
+//
+//   * Inclusive (Type-7; numkit's old default)
+//                positions: (k-1)/(N-1)
+//                inverse:   q = p*(N-1) + 1, clamp [1, N], linear interp
+//
+//   * Exclusive (Type-6; Weibull)
+//                positions: k/(N+1)
+//                inverse:   q = p*(N+1), clamp [1, N], linear interp
+//
+//   * Approximate — t-digest, currently falls back to Midpoint
+//     (no functional gap, just signature compatibility).
 namespace {
 
-double quantileFromSortedSlice(const double *sorted, size_t n, double p)
+enum class QMethod { Midpoint, Inclusive, Exclusive, Approximate };
+
+double quantileFromSortedSlice(const double *sorted, size_t n, double p,
+                               QMethod method)
 {
     if (n == 0) return std::nan("");
     if (n == 1) return sorted[0];
     if (!std::isfinite(p)) return std::nan("");
-    if (p <= 0.0) return sorted[0];
-    if (p >= 1.0) return sorted[n - 1];
-    const double h = p * static_cast<double>(n - 1);
-    const size_t lo = static_cast<size_t>(std::floor(h));
-    const size_t hi = static_cast<size_t>(std::ceil(h));
-    const double frac = h - static_cast<double>(lo);
+
+    // Compute 1-based real-valued position q according to the method.
+    double q;
+    switch (method) {
+        case QMethod::Midpoint:
+        case QMethod::Approximate:                     // fallback
+            q = p * static_cast<double>(n) + 0.5;
+            break;
+        case QMethod::Inclusive:
+            q = p * static_cast<double>(n - 1) + 1.0;
+            break;
+        case QMethod::Exclusive:
+            q = p * static_cast<double>(n + 1);
+            break;
+    }
+    if (q <= 1.0) return sorted[0];
+    if (q >= static_cast<double>(n)) return sorted[n - 1];
+    const size_t lo = static_cast<size_t>(std::floor(q)) - 1; // → 0-based
+    const size_t hi = lo + 1;
+    const double frac = q - std::floor(q);
     return sorted[lo] + frac * (sorted[hi] - sorted[lo]);
 }
 
 // quantile/prctile share the bulk of the logic. `pScale` converts the
 // raw user input to a [0,1] probability (1.0 for quantile, 1/100 for
-// prctile).
+// prctile). `method` selects the interpolation rule (default Midpoint
+// = MATLAB R2025b default).
 Value quantileImpl(std::pmr::memory_resource *mr, const Value &x, const Value &p,
-                    int dim, double pScale, const char *fn)
+                    int dim, double pScale, QMethod method, const char *fn)
 {
     if (p.numel() == 0)
         throw Error(std::string(fn) + ": p must be non-empty",
@@ -315,9 +342,9 @@ Value quantileImpl(std::pmr::memory_resource *mr, const Value &x, const Value &p
     if (k == 1) {
         const double pp = probs[0];
         return applyAlongDim(x, d,
-            [pp](size_t, double *slice, size_t n) {
+            [pp, method](size_t, double *slice, size_t n) {
                 std::sort(slice, slice + n);
-                return quantileFromSortedSlice(slice, n, pp);
+                return quantileFromSortedSlice(slice, n, pp, method);
             }, mr);
     }
 
@@ -336,7 +363,8 @@ Value quantileImpl(std::pmr::memory_resource *mr, const Value &x, const Value &p
         for (size_t i = 0; i < k; ++i)
             out.doubleDataMut()[i] = quantileFromSortedSlice(sorted.data(),
                                                               sorted.size(),
-                                                              probs[i]);
+                                                              probs[i],
+                                                              method);
         return out;
     }
 
@@ -373,7 +401,7 @@ Value quantileImpl(std::pmr::memory_resource *mr, const Value &x, const Value &p
                 std::sort(sorted.begin(), sorted.end());
                 for (size_t i = 0; i < k; ++i)
                     writeOut(i, c, pp,
-                             quantileFromSortedSlice(sorted.data(), N, probs[i]));
+                             quantileFromSortedSlice(sorted.data(), N, probs[i], method));
             }
     } else if (d == 2) {
         for (size_t pp = 0; pp < P; ++pp)
@@ -383,7 +411,7 @@ Value quantileImpl(std::pmr::memory_resource *mr, const Value &x, const Value &p
                 std::sort(sorted.begin(), sorted.end());
                 for (size_t i = 0; i < k; ++i)
                     writeOut(r, i, pp,
-                             quantileFromSortedSlice(sorted.data(), N, probs[i]));
+                             quantileFromSortedSlice(sorted.data(), N, probs[i], method));
             }
     } else if (d == 3) {
         for (size_t c = 0; c < C; ++c)
@@ -393,7 +421,7 @@ Value quantileImpl(std::pmr::memory_resource *mr, const Value &x, const Value &p
                 std::sort(sorted.begin(), sorted.end());
                 for (size_t i = 0; i < k; ++i)
                     writeOut(r, c, i,
-                             quantileFromSortedSlice(sorted.data(), N, probs[i]));
+                             quantileFromSortedSlice(sorted.data(), N, probs[i], method));
             }
     }
     return out;
@@ -403,12 +431,32 @@ Value quantileImpl(std::pmr::memory_resource *mr, const Value &x, const Value &p
 
 Value quantile(std::pmr::memory_resource *mr, const Value &x, const Value &p, int dim)
 {
-    return quantileImpl(mr, x, p, dim, 1.0, "quantile");
+    return quantileImpl(mr, x, p, dim, 1.0, QMethod::Midpoint, "quantile");
 }
 
 Value prctile(std::pmr::memory_resource *mr, const Value &x, const Value &p, int dim)
 {
-    return quantileImpl(mr, x, p, dim, 0.01, "prctile");
+    return quantileImpl(mr, x, p, dim, 0.01, QMethod::Midpoint, "prctile");
+}
+
+// Internal entry point used by registration adapters which parsed
+// 'all' / vecdim / Method themselves. `flatten = true` collapses x to
+// a flat row vector before reduction; `method` selects the algorithm.
+Value quantileWithOpts(std::pmr::memory_resource *mr, const Value &x,
+                       const Value &p, int dim, bool flatten,
+                       QMethod method, double pScale, const char *fn)
+{
+    if (flatten) {
+        // Reshape into a 1×N row, then reduce along dim 2 (the only
+        // non-singleton dim — gives the canonical "all" semantics).
+        Value flat = Value::matrix(1, x.numel(), ValueType::DOUBLE, mr);
+        if (x.numel() > 0) {
+            const double *src = x.doubleData();
+            std::copy(src, src + x.numel(), flat.doubleDataMut());
+        }
+        return quantileImpl(mr, flat, p, 2, pScale, method, fn);
+    }
+    return quantileImpl(mr, x, p, dim, pScale, method, fn);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -1027,28 +1075,117 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     outs[0] = median(ctx.engine->resource(), args[0], dim);
 }
 
+// Common parser for the trailing args of quantile/prctile:
+//   fn(X, p[, dim] [, Method=method])
+//
+// Handles:
+//   * 'all' (string) — flatten input
+//   * scalar dim
+//   * vecdim — only [1 2] / [1 2 3] / etc. covering ALL dims is supported
+//     as a synonym for 'all'; partial reductions throw a documented error.
+//   * Method N-V pair: 'midpoint' (default) | 'inclusive' | 'exclusive'
+//                       | 'approximate' (falls back to midpoint).
+struct QArgs {
+    int dim = 0;
+    bool flatten = false;
+    QMethod method = QMethod::Midpoint;
+};
+
+QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
+                 const char *fn)
+{
+    QArgs q;
+    size_t i = start;
+    if (i < args.size() && !args[i].isChar() && !args[i].isString()
+        && !args[i].isEmpty()) {
+        if (args[i].numel() == 1) {
+            q.dim = static_cast<int>(args[i].toScalar());
+        } else {
+            // Vecdim: covers-all-dims → flatten; otherwise error.
+            std::vector<int> dims;
+            for (size_t j = 0; j < args[i].numel(); ++j)
+                dims.push_back(static_cast<int>(args[i].elemAsDouble(j)));
+            const int rank = x.dims().is3D() ? 3
+                              : (x.dims().isVector() || x.isScalar() ? 1 : 2);
+            std::vector<bool> seen(rank + 1, false);
+            for (int d : dims) {
+                if (d < 1 || d > rank)
+                    throw Error(std::string(fn) + ": vecdim entries out of range",
+                                0, 0, fn, "", std::string("m:") + fn + ":vecdim");
+                seen[d] = true;
+            }
+            bool allCovered = true;
+            for (int d = 1; d <= rank; ++d) if (!seen[d]) allCovered = false;
+            if (!allCovered)
+                throw Error(std::string(fn) + ": partial vecdim reduction is "
+                            "not yet supported in numkit (only full-flatten "
+                            "vecdim like [1 2] or 'all')",
+                            0, 0, fn, "", std::string("m:") + fn + ":vecdim");
+            q.flatten = true;
+        }
+        ++i;
+    } else if (i < args.size() && (args[i].isChar() || args[i].isString())) {
+        std::string s = args[i].toString();
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        if (s == "all") {
+            q.flatten = true;
+            ++i;
+        }
+        // else: leave for the Name-Value loop below ("Method=...")
+    }
+
+    while (i + 1 < args.size()) {
+        if (!args[i].isChar() && !args[i].isString())
+            throw Error(std::string(fn) + ": expected Name-Value pair",
+                        0, 0, fn, "", std::string("m:") + fn + ":nv");
+        std::string name = args[i].toString();
+        std::transform(name.begin(), name.end(), name.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        if (name == "method") {
+            if (!args[i + 1].isChar() && !args[i + 1].isString())
+                throw Error(std::string(fn) + ": Method must be a string",
+                            0, 0, fn, "", std::string("m:") + fn + ":method");
+            std::string m = args[i + 1].toString();
+            std::transform(m.begin(), m.end(), m.begin(),
+                           [](unsigned char c) { return std::tolower(c); });
+            if      (m == "midpoint")    q.method = QMethod::Midpoint;
+            else if (m == "inclusive")   q.method = QMethod::Inclusive;
+            else if (m == "exclusive")   q.method = QMethod::Exclusive;
+            else if (m == "approximate") q.method = QMethod::Approximate;
+            else
+                throw Error(std::string(fn) + ": Method must be one of "
+                            "{midpoint, inclusive, exclusive, approximate}",
+                            0, 0, fn, "", std::string("m:") + fn + ":method");
+        } else {
+            throw Error(std::string(fn) + ": unknown Name-Value '" + name + "'",
+                        0, 0, fn, "", std::string("m:") + fn + ":nv");
+        }
+        i += 2;
+    }
+    return q;
+}
+
 void quantile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                   CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("quantile: requires (X, p[, dim])",
+        throw Error("quantile: requires (X, p[, dim] [, Method=method])",
                      0, 0, "quantile", "", "m:quantile:nargin");
-    int dim = 0;
-    if (args.size() >= 3 && !args[2].isEmpty())
-        dim = static_cast<int>(args[2].toScalar());
-    outs[0] = quantile(ctx.engine->resource(), args[0], args[1], dim);
+    auto q = parseQArgs(args, 2, args[0], "quantile");
+    outs[0] = quantileWithOpts(ctx.engine->resource(), args[0], args[1],
+                                q.dim, q.flatten, q.method, 1.0, "quantile");
 }
 
 void prctile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                  CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("prctile: requires (X, p[, dim])",
+        throw Error("prctile: requires (X, p[, dim] [, Method=method])",
                      0, 0, "prctile", "", "m:prctile:nargin");
-    int dim = 0;
-    if (args.size() >= 3 && !args[2].isEmpty())
-        dim = static_cast<int>(args[2].toScalar());
-    outs[0] = prctile(ctx.engine->resource(), args[0], args[1], dim);
+    auto q = parseQArgs(args, 2, args[0], "prctile");
+    outs[0] = quantileWithOpts(ctx.engine->resource(), args[0], args[1],
+                                q.dim, q.flatten, q.method, 0.01, "prctile");
 }
 
 void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,

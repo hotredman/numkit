@@ -7,4 +7,5 @@
 target_sources(numkit_tests PRIVATE
     # ── filter helpers ──────────────────────────────────────────
     ${CMAKE_CURRENT_SOURCE_DIR}/wrev_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/qmf_test.cpp
 )

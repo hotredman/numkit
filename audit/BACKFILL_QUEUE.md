@@ -16,7 +16,6 @@ gtest assertions against probe-captured values).
 
 | # | Namespace | Function | Notes |
 |---|---|---|---|
-| 2 | wavelet.filt | `qmf` | y(k) = (-1)^(k-1+p) · x(N-k+1) |
 | 3 | wavelet.dwt  | `dyaddown` | x(2:2:end) or x(1:2:end) |
 | 4 | wavelet.dwt  | `dyadup` | zero-insert |
 | 5 | wavelet.dwt  | `wmaxlev` | floor(log2(N/(Lf-1))) |
@@ -38,6 +37,7 @@ gtest assertions against probe-captured values).
 | Function | Closed in commit | gtest TU | smoke .m |
 |---|---|---|---|
 | `wrev` | PENDING | libs/wavelet/tests/wrev_test.cpp | libs/wavelet/tests/smoke/wrev_smoke.m |
+| `qmf` | PENDING | libs/wavelet/tests/qmf_test.cpp | libs/wavelet/tests/smoke/qmf_smoke.m |
 
 ---
 
