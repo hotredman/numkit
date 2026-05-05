@@ -1152,7 +1152,7 @@ vector path-loss models and coordinate transforms.
 
 ### LTI Models
 
-**Namespace:** `control.lti.*` — 6 ✅ + 0 ⚠️ / 19 = 32%
+**Namespace:** `control.lti.*` — 9 ✅ + 0 ⚠️ / 19 = 47%
 
 `tf`/`zpk`/`ss`/`frd` are object constructors in MATLAB; we treat them
 as flat structure-returning functions (returning a struct with fields
@@ -1167,9 +1167,9 @@ intentionally omitted.
 | `tf` | ✅ |  |  |  | OK | transfer function — struct {kind='tf', num, den, Ts} |
 | `zpk` | ✅ |  |  |  | OK | zero-pole-gain — struct {kind='zpk', z, p, k, Ts} |
 | `ss` | ✅ |  |  |  | OK | state-space — struct {kind='ss', A, B, C, D, Ts} |
-| `frd` | ❌ |  |  |  |  | freq-response data — struct {resp, freq} |
+| `frd` | ✅ | 0.003 | 828.82× | 103.57× | OK | Sig: sys = frd(response, frequency[, Ts]). Frequency-response data model. Stores resp + freq as column vectors. Companion frdata(sys) extracts both. |
 | `dss` | ❌ |  |  |  |  | descriptor state-space (E·xdot = Ax + Bu) |
-| `filt` | ❌ |  |  |  |  | discrete tf with z⁻¹ ordering |
+| `filt` | ✅ | 0.003 | 353.66× | 256.47× | OK | Sig: f = filt(num, den[, Ts]). Discrete tf with z^-1 ordering convention. Default Ts = -1 (unspecified discrete). Internally same coefficients as tf(num, den, Ts) — the variable convention only affects display. |
 | `pid` | ❌ |  |  |  |  | parallel-form PID controller |
 | `pid2` | ❌ |  |  |  |  | 2-DOF PID |
 | `pidstd` | ❌ |  |  |  |  | standard-form PID |
@@ -1179,7 +1179,7 @@ intentionally omitted.
 | `tfdata` | ✅ | 0.003 | 312.76× | 289.94× | OK | Sig: [num, den] = tfdata(sys[, 'v']). Extracts numerator/denominator coefficient vectors. With 'v' returns numeric row vectors; pads num with leading zeros so length matches den. Accepts tf / zpk / ss inputs. |
 | `zpkdata` | ✅ | 0.003 | 472.67× | 393.13× | OK | Sig: [z, p, k] = zpkdata(sys[, 'v']). Extracts zeros / poles / gain. With 'v' returns column vectors (z, p) and scalar (k). Accepts tf / zpk / ss inputs. |
 | `ssdata` | ✅ | 0.003 | 497.68× | 97.80× | OK | Sig: [A, B, C, D] = ssdata(sys). Extracts state-space matrices. Accepts tf / zpk / ss inputs (the former two get realised via tf2ss controllable canonical form). |
-| `frdata` | ❌ |  |  |  |  | extract response/freq |
+| `frdata` | ✅ |  |  |  | OK | column-vector form (`'v'` flag accepted; SISO 1×1×N tensor not modeled). Tested via `frd` spec. |
 | `dssdata` | ❌ |  |  |  |  | extract A/B/C/D/E |
 | `piddata` | ❌ |  |  |  |  |  |
 | `pidstddata` | ❌ |  |  |  |  |  |

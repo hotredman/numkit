@@ -27,6 +27,24 @@ Value ss(std::pmr::memory_resource *mr,
          const Value &A, const Value &B,
          const Value &C, const Value &D, double Ts);
 
+/// `filt(num, den [, Ts])` — discrete tf with z^-1 variable convention.
+/// Numerator and denominator coefficients are kept as-is; the only
+/// difference vs `tf` is the default Ts (-1, "unspecified discrete")
+/// and an informational `variable` field set to "z^-1".
+Value filt(std::pmr::memory_resource *mr,
+           const Value &num, const Value &den, double Ts);
+
+/// `frd(response, frequency [, Ts])` — frequency-response data model.
+/// Builds a struct {kind='frd', resp, freq, Ts}. `response` may be
+/// complex; `frequency` is a real vector. Both stored as column
+/// vectors to match MATLAB's convention.
+Value frd(std::pmr::memory_resource *mr,
+          const Value &response, const Value &frequency, double Ts);
+
+/// `frdata(sys)` — extract response / frequency vectors from an frd.
+std::tuple<Value, Value>
+frdata(std::pmr::memory_resource *mr, const Value &sys);
+
 /// `tfdata(sys[, 'v'])` — extract num/den. With 'v' returns numeric row
 /// vectors padded so num and den have equal length (leading zeros on
 /// num); without 'v', wraps each row vector in a 1×1 cell.
