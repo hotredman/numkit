@@ -155,6 +155,21 @@ Status legend:
 | [findings/signal/dftmtx.md](findings/signal/dftmtx.md) | dftmtx | signal.transforms | low | small | 9bce106 |
 | [findings/signal/interpft.md](findings/signal/interpft.md) | interpft | signal.transforms | low | small | 9bce106 |
 | [findings/signal/nextpow2.md](findings/signal/nextpow2.md) | nextpow2 | core (builtin) | low | small | 9bce106 |
+| [findings/stats/fcdf.md](findings/stats/fcdf.md) | fcdf | stats.dist | high | small | e580a5c |
+| [findings/stats/raylcdf.md](findings/stats/raylcdf.md) | raylcdf | stats.dist | high | small | e580a5c |
+| [findings/stats/unifcdf.md](findings/stats/unifcdf.md) | unifcdf | stats.dist | high | small | e580a5c |
+| [findings/stats/frnd.md](findings/stats/frnd.md) | frnd | stats.dist | medium | small | e580a5c |
+| [findings/stats/raylrnd.md](findings/stats/raylrnd.md) | raylrnd | stats.dist | medium | small | e580a5c |
+| [findings/stats/unifrnd.md](findings/stats/unifrnd.md) | unifrnd | stats.dist | medium | small | e580a5c |
+| [findings/stats/finv.md](findings/stats/finv.md) | finv | stats.dist | low | small | e580a5c |
+| [findings/stats/fpdf.md](findings/stats/fpdf.md) | fpdf | stats.dist | low | small | e580a5c |
+| [findings/stats/fstat.md](findings/stats/fstat.md) | fstat | stats.dist | low | small | e580a5c |
+| [findings/stats/raylinv.md](findings/stats/raylinv.md) | raylinv | stats.dist | low | small | e580a5c |
+| [findings/stats/raylpdf.md](findings/stats/raylpdf.md) | raylpdf | stats.dist | low | small | e580a5c |
+| [findings/stats/raylstat.md](findings/stats/raylstat.md) | raylstat | stats.dist | low | small | e580a5c |
+| [findings/stats/unifinv.md](findings/stats/unifinv.md) | unifinv | stats.dist | low | small | e580a5c |
+| [findings/stats/unifpdf.md](findings/stats/unifpdf.md) | unifpdf | stats.dist | low | small | e580a5c |
+| [findings/stats/unifstat.md](findings/stats/unifstat.md) | unifstat | stats.dist | low | small | e580a5c |
 
 ## Closed ТЗ
 
