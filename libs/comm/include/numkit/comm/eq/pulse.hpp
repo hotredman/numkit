@@ -41,4 +41,10 @@ Value gaussdesign(std::pmr::memory_resource *mr,
 /// MATLAB R2025b's rectpulse).
 Value rectpulse(std::pmr::memory_resource *mr, const Value &x, int n);
 
+/// `y = intdump(x, n)` — integrate-and-dump. Average each `n`
+/// consecutive samples of `x` along the leading non-singleton
+/// dimension. Inverse of rectpulse for length-divisible inputs.
+/// Throws if the relevant dimension is not divisible by `n`.
+Value intdump(std::pmr::memory_resource *mr, const Value &x, int n);
+
 } // namespace numkit::comm

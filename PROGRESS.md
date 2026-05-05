@@ -1078,7 +1078,7 @@ MLSE entry is exposed.
 | `gaussdesign` | ✅ | 0.004 | 250.45× |  | OK | Sig: h = gaussdesign(BT, span, sps). Gaussian FIR pulse-shaping filter, length span*sps+1, sum-normalized to 1. Element-wise SAVE. |
 | `rcosdesign` | ✅ |  |  |  | OK | raised-cosine ('normal') and root-raised-cosine ('sqrt'); unit-energy normalised |
 | `rectpulse` | ✅ | 0.003 | 110.13× |  | OK | Sig: y = rectpulse(x, n). Each sample of x repeats n times. 5x1 column → 20x1; n=4. Element-wise SAVE. |
-| `intdump` | ❌ |  |  |  |  | integrate & dump |
+| `intdump` | ✅ | 0.002 | 219.44× |  | OK | Sig: y = intdump(x, n). Inverse of rectpulse — averages each n consecutive samples along the leading non-singleton dim. 12x1 column → 4x1 averages [2;5;8;11]. Element-wise SAVE. |
 | `mlseeq` | ❌ |  |  |  |  | maximum-likelihood sequence equaliser |
 | `ofdmEqualize` | ❌ |  |  |  |  | OFDM zero-forcing / MMSE equalise |
 | `blkdiagbfweights` | ❌ |  |  |  |  | block-diagonalisation BF weights |
