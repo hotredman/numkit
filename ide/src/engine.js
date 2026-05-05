@@ -349,7 +349,7 @@ export function createFallbackEngine() {
   const interp = createInterpreter();
   return {
     type: 'fallback',
-    init() { return 'numkit mIDE v2.5 — Demo Mode'; },
+    init() { return 'Numkit IDE v2.5 — Demo Mode'; },
 
     execute(code) {
       const result = interp.execute(code);

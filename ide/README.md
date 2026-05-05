@@ -1,4 +1,4 @@
-# numkit mIDE — React + Vite Edition
+# Numkit IDE — React + Vite Edition
 
 Web-based REPL for the numkit (MATLAB-like) interpreter, built with React + Vite.
 

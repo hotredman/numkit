@@ -1,5 +1,5 @@
 /**
- * theme.js — Single source of truth for numkit mIDE theming.
+ * theme.js — Single source of truth for Numkit IDE theming.
  *
  * Usage in components:
  *   import { useTheme, FONT, FONT_UI } from '../theme';

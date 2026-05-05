@@ -10,7 +10,7 @@
   },
   "build": {
     "appId": "com.numkit.mide",
-    "productName": "numkit mIDE",
+    "productName": "Numkit IDE",
     "directories": {
       "output": "release"
     },

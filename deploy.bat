@@ -8,7 +8,7 @@ set PAGES_DIR=%PROJECT_DIR%docs
 set EMSDK=C:\Users\User\Repo\emsdk
 set EMCC_DIR=%EMSDK%\upstream\emscripten
 
-echo === mIDE Deploy to GitHub Pages ===
+echo === Numkit IDE Deploy to GitHub Pages ===
 echo.
 
 :: Check Node.js

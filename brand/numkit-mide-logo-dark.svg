@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 160" width="600" height="160" role="img" aria-label="numkit mIDE">
-  <title>numkit mIDE</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 160" width="600" height="160" role="img" aria-label="Numkit IDE">
+  <title>Numkit IDE</title>
   <!-- [nₖ] mark — indigo (dark-mode tone) -->
   <g fill="#818cf8">
     <g transform="translate(-9.304, 121.6)">
@@ -15,6 +15,6 @@
       <path transform="scale(0.08, -0.08)" d="M317 -105V1327Q317 1358 301 1371.5Q285 1385 252 1385H79Q22 1385 22 1432Q22 1453 36 1465.5Q50 1478 79 1478H468Q508 1478 525.5 1459Q543 1440 543 1400V-177Q543 -218 525.5 -237Q508 -256 468 -256H79Q50 -256 36 -243Q22 -230 22 -209Q22 -162 79 -162H252Q285 -162 301 -149Q317 -136 317 -105Z"/>
     </g>
   </g>
-  <!-- mIDE wordmark — near-white -->
-  <text x="290" y="130" font-family="Outfit, 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif" font-size="110" font-weight="700" letter-spacing="-2" fill="#f1f5f9">mIDE</text>
+  <!-- IDE wordmark — near-white -->
+  <text x="290" y="130" font-family="Outfit, 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif" font-size="110" font-weight="700" letter-spacing="-2" fill="#f1f5f9">IDE</text>
 </svg>
