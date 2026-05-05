@@ -62,6 +62,11 @@ Value poly2ac(std::pmr::memory_resource *mr, const Value &a, double e);
 std::tuple<Value, Value>
 ac2rc(std::pmr::memory_resource *mr, const Value &R);
 
+/// schurrc(R) — Schur reflection coefficients from autocorrelation.
+/// Equivalent to the first output of ac2rc; matches MATLAB's schurrc.
+/// Returns a column vector of length numel(R) - 1.
+Value schurrc(std::pmr::memory_resource *mr, const Value &R);
+
 /// rc2ac(k, r0) — reflection coefficients + r[0] → autocorrelation.
 Value rc2ac(std::pmr::memory_resource *mr, const Value &k, double r0);
 

@@ -2509,7 +2509,7 @@ intentionally omitted — flat solver functions only.
 | `rc2lar` | ✅ |  |  |  |  |  |
 | `rc2poly` | ✅ |  |  |  |  |  |
 | `rlevinson` | ✅ |  |  |  |  | reverse Levinson |
-| `schurrc` | ❌ |  |  |  |  | Schur recursion |
+| `schurrc` | ✅ | 0.003 | 226.65× |  | OK | Sig: K = schurrc(R). Schur reflection coefficients from autocorrelation R, length numel(R)-1. Element-wise SAVE. |
 | `stmcb` | ❌ |  |  |  |  | Steiglitz-McBride |
 
 ### Correlation and Convolution

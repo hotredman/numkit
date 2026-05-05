@@ -1,0 +1,10 @@
+{
+  "name": "schurrc",
+  "namespace": "signal",
+  "setup": "R = [4 -2 -3 1 1.5];",
+  "expr": "K = schurrc(R);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "K",
+  "comment": "Sig: K = schurrc(R). Schur reflection coefficients from autocorrelation R, length numel(R)-1. Element-wise SAVE."
+}

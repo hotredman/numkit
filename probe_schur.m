@@ -1,0 +1,10 @@
+R = [4 -2 -3 1 1.5];
+K = schurrc(R);
+fprintf('K (schurrc):\n');
+disp(K);
+[a, e, k] = levinson(R);
+fprintf('k (levinson):\n');
+disp(k);
+fprintf('a:\n');
+disp(a);
+fprintf('e: %.10f\n', e);
