@@ -245,6 +245,9 @@ void gamlike_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void betalike_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void wbllike_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void evlike_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lognfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void binofit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void raylfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -456,6 +459,9 @@ void StatsLibrary::install(Engine &engine)
     reg("fit", "betalike", &stats::detail::betalike_reg);
     reg("fit", "wbllike",  &stats::detail::wbllike_reg);
     reg("fit", "evlike",   &stats::detail::evlike_reg);
+    reg("fit", "lognfit",  &stats::detail::lognfit_reg);
+    reg("fit", "binofit",  &stats::detail::binofit_reg);
+    reg("fit", "raylfit",  &stats::detail::raylfit_reg);
 }
 
 } // namespace numkit

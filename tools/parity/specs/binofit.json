@@ -1,0 +1,14 @@
+{
+  "name": "binofit",
+  "namespace": "stats",
+  "setup": "k = 7; n = 10;",
+  "expr": "[phat, pci] = binofit(k, n);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "phat",
+    "pci(1)",
+    "pci(2)"
+  ],
+  "comment": "Sig: [phat, pci] = binofit(x, n[, alpha]). Clopper-Pearson exact binomial CI. Vector inputs return Nx1 phat + Nx2 pci."
+}

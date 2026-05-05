@@ -35,6 +35,24 @@ expfit(std::pmr::memory_resource *mr, const Value &x, double alpha);
 std::tuple<Value, Value, Value, Value>
 unifit(std::pmr::memory_resource *mr, const Value &x, double alpha);
 
+/// `[parm, pci] = lognfit(x[, alpha])` — lognormal MLE: muhat / sigmahat
+/// of log(x). Returns parm = 1×2 row, pci = 2×2 (column 1 = mu CI,
+/// column 2 = sigma CI; row 1 = lower, row 2 = upper).
+std::tuple<Value, Value>
+lognfit(std::pmr::memory_resource *mr, const Value &x, double alpha);
+
+/// `[phat, pci] = binofit(x, n[, alpha])` — Clopper–Pearson exact
+/// binomial CI for `x` successes out of `n` trials. Vector inputs
+/// (same length) produce a column vector phat and Nx2 pci.
+std::tuple<Value, Value>
+binofit(std::pmr::memory_resource *mr, const Value &x, const Value &n,
+        double alpha);
+
+/// `[shat, sci] = raylfit(x[, alpha])` — Rayleigh MLE:
+/// σ̂ = √(Σx² / (2N)); CI from chi² inversion of 2N·σ̂² ~ σ²·χ²(2N).
+std::tuple<Value, Value>
+raylfit(std::pmr::memory_resource *mr, const Value &x, double alpha);
+
 // ── Negative log-likelihoods ───────────────────────────────────────────
 // Each *like(params, data) returns the scalar nLogL = −Σ log f(x_i; θ).
 // `params` is a 1×k row vector; `data` is the sample vector. avar (the

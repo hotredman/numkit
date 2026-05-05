@@ -1,0 +1,14 @@
+{
+  "name": "raylfit",
+  "namespace": "stats",
+  "setup": "x = [1.5 2.3 0.8 3.1 1.7 2.0 1.4 2.8 1.9 2.2]';",
+  "expr": "[shat, sci] = raylfit(x);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "shat",
+    "sci(1)",
+    "sci(2)"
+  ],
+  "comment": "Sig: [shat, sci] = raylfit(x[, alpha]). Rayleigh MLE: σ = √(Σx²/(2N)); CI from chi² inversion 2N·σ̂² ~ σ²·χ²(2N)."
+}
