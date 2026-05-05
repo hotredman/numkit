@@ -124,6 +124,13 @@ void nakainv_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nakarnd_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nakastat_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// distributions/rician.cpp
+void ricepdf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ricecdf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void riceinv_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ricernd_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ricestat_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // distributions/uniform.cpp
 void unifpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void unifcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -400,6 +407,12 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "nakainv",  &stats::detail::nakainv_reg);
     reg("dist", "nakarnd",  &stats::detail::nakarnd_reg);
     reg("dist", "nakastat", &stats::detail::nakastat_reg);
+
+    reg("dist", "ricepdf",  &stats::detail::ricepdf_reg);
+    reg("dist", "ricecdf",  &stats::detail::ricecdf_reg);
+    reg("dist", "riceinv",  &stats::detail::riceinv_reg);
+    reg("dist", "ricernd",  &stats::detail::ricernd_reg);
+    reg("dist", "ricestat", &stats::detail::ricestat_reg);
 
     reg("dist", "unifpdf",  &stats::detail::unifpdf_reg);
     reg("dist", "unifcdf",  &stats::detail::unifcdf_reg);
