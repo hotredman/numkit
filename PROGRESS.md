@@ -3092,7 +3092,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 ### Hypothesis Tests
 
-**Namespace:** `stats.test.*` — 15 ✅ + 0 ⚠️ / 25 = 60%
+**Namespace:** `stats.test.*` — 16 ✅ + 0 ⚠️ / 25 = 64%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3105,7 +3105,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `friedman` | ❌ |  |  |  |  | non-parametric repeated-measures |
 | `jbtest` | ✅ |  |  |  | OK | Jarque-Bera, JB ~ χ²(2) |
 | `knntest` | ❌ |  |  |  |  | k-NN two-sample test |
-| `kruskalwallis` | ❌ |  |  |  |  | non-parametric ANOVA |
+| `kruskalwallis` | ✅ | 0.006 | 865.19× | 349.46× | OK | Sig: [p, tbl, stats] = kruskalwallis(y, group[, 'off']). Non-parametric one-way ANOVA: H = (12/(N(N+1)))·Σ R_g²/n_g − 3(N+1), tie-corrected by 1 − Σ(t³−t)/(N³−N). df = k−1; p = 1 − chi2cdf(H, df). |
 | `kstest` | ✅ |  |  |  | OK | one-sample KS via asymptotic Smirnov series |
 | `kstest2` | ✅ |  |  |  | OK | two-sample KS |
 | `lillietest` | ❌ |  |  |  |  | Lilliefors |

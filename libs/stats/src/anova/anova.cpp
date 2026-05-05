@@ -3,6 +3,7 @@
 #include <numkit/stats/anova/anova.hpp>
 
 #include <numkit/stats/distributions/fisher_f.hpp>
+#include <numkit/stats/distributions/chi2.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -95,6 +96,83 @@ anova1(std::pmr::memory_resource *mr, const Value &y, const Value &group)
     return std::make_tuple(p, F, dfB, dfW, ssB, ssW);
 }
 
+std::tuple<Value, Value, Value, Value>
+kruskalwallis(std::pmr::memory_resource *mr, const Value &y, const Value &group)
+{
+    auto buckets = bucket(y, group);
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    if (buckets.size() < 2)
+        return std::make_tuple(Value::scalar(nan, mr),
+                               Value::scalar(nan, mr),
+                               Value::scalar(0.0, mr),
+                               Value::scalar(0.0, mr));
+
+    // Flatten to single (value, group_idx) array for ranking.
+    struct V { double val; size_t g; };
+    std::vector<V> all;
+    size_t N = 0;
+    for (size_t k = 0; k < buckets.size(); ++k) {
+        for (double v : buckets[k].values) all.push_back({v, k});
+        N += buckets[k].values.size();
+    }
+    if (N == 0) return std::make_tuple(Value::scalar(nan, mr),
+                                       Value::scalar(nan, mr),
+                                       Value::scalar(0.0, mr),
+                                       Value::scalar(0.0, mr));
+
+    std::vector<size_t> ord(N);
+    for (size_t i = 0; i < N; ++i) ord[i] = i;
+    std::sort(ord.begin(), ord.end(),
+              [&](size_t a, size_t b) { return all[a].val < all[b].val; });
+
+    // Assign mid-ranks for ties.
+    std::vector<double> ranks(N);
+    std::vector<size_t> tieGroupSizes;
+    size_t i = 0;
+    while (i < N) {
+        size_t j = i + 1;
+        while (j < N && all[ord[j]].val == all[ord[i]].val) ++j;
+        const double avg = static_cast<double>(i + j + 1) / 2.0;
+        for (size_t k = i; k < j; ++k) ranks[ord[k]] = avg;
+        if (j - i > 1) tieGroupSizes.push_back(j - i);
+        i = j;
+    }
+
+    // Sum ranks by group.
+    std::vector<double> R(buckets.size(), 0.0);
+    std::vector<size_t> ng(buckets.size(), 0);
+    for (size_t k = 0; k < N; ++k) {
+        R[all[k].g] += ranks[k];
+        ng[all[k].g]++;
+    }
+
+    double sumR2_n = 0.0;
+    for (size_t g = 0; g < buckets.size(); ++g)
+        if (ng[g] > 0) sumR2_n += R[g] * R[g] / double(ng[g]);
+
+    const double Nd = double(N);
+    double H = (12.0 / (Nd * (Nd + 1.0))) * sumR2_n - 3.0 * (Nd + 1.0);
+
+    // Tie correction.
+    double tieSum = 0.0;
+    for (size_t t : tieGroupSizes) {
+        const double td = double(t);
+        tieSum += td * td * td - td;
+    }
+    if (tieSum > 0.0 && Nd > 1.0)
+        H /= (1.0 - tieSum / (Nd * Nd * Nd - Nd));
+
+    const double df = double(buckets.size() - 1);
+    Value Hv = Value::scalar(H, mr);
+    const double cdf = chi2cdf(mr, Hv, df).toScalar();
+    const double p = std::max(0.0, 1.0 - cdf);
+
+    return std::make_tuple(Value::scalar(p, mr),
+                           Value::scalar(H, mr),
+                           Value::scalar(df, mr),
+                           Value::scalar(sumR2_n, mr));
+}
+
 Value dummyvar(std::pmr::memory_resource *mr, const Value &group)
 {
     const size_t N = group.numel();
@@ -180,6 +258,52 @@ void anova1_reg(Span<const Value> args, size_t nargout,
         Value s = Value::structure(mr);
         s.field("F")        = Value::scalar(F, mr);
         s.field("df")       = Value::scalar(dfW, mr);
+        outs[2] = std::move(s);
+    }
+}
+
+void kruskalwallis_reg(Span<const Value> args, size_t nargout,
+                       Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("kruskalwallis: requires (y, group[, 'off'])",
+                    0, 0, "kruskalwallis", "", "m:kruskalwallis:nargin");
+    auto *mr = ctx.engine->resource();
+    auto [p, H, df, sumR2] = kruskalwallis(mr, args[0], args[1]);
+    outs[0] = std::move(p);
+    if (nargout > 1) {
+        // 4×6 cell table { Source, SS, df, MS, Chi-sq, Prob>Chi-sq } —
+        // mirror MATLAB shape; SS / MS pieces aren't strictly defined for
+        // the K-W rank statistic, but populate what we can.
+        Value tbl = Value::cell(4, 6, mr);
+        const double nan = std::numeric_limits<double>::quiet_NaN();
+        auto strV = [&](const char *s){ return Value::fromString(s, mr); };
+        auto numV = [&](double v){ return Value::scalar(v, mr); };
+        auto setCell = [&](size_t r, size_t c, const Value &v) {
+            tbl.cellAt(r + c * 4) = v;
+        };
+        setCell(0, 0, strV("Source"));
+        setCell(0, 1, strV("SS"));
+        setCell(0, 2, strV("df"));
+        setCell(0, 3, strV("MS"));
+        setCell(0, 4, strV("Chi-sq"));
+        setCell(0, 5, strV("Prob>Chi-sq"));
+        setCell(1, 0, strV("Groups"));
+        setCell(1, 1, sumR2);
+        setCell(1, 2, df);
+        setCell(1, 3, numV(nan));
+        setCell(1, 4, H);
+        setCell(1, 5, p);
+        setCell(2, 0, strV("Error"));
+        for (size_t c = 1; c < 6; ++c) setCell(2, c, numV(nan));
+        setCell(3, 0, strV("Total"));
+        for (size_t c = 1; c < 6; ++c) setCell(3, c, numV(nan));
+        outs[1] = std::move(tbl);
+    }
+    if (nargout > 2) {
+        Value s = Value::structure(mr);
+        s.field("chi2stat") = H;
+        s.field("df") = df;
         outs[2] = std::move(s);
     }
 }
