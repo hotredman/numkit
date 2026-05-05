@@ -3092,7 +3092,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 ### Hypothesis Tests
 
-**Namespace:** `stats.test.*` — 12 ✅ + 0 ⚠️ / 25 = 48%
+**Namespace:** `stats.test.*` — 13 ✅ + 0 ⚠️ / 25 = 52%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3121,7 +3121,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `ttest2` | ✅ |  |  |  | OK | Welch (default) or pooled-variance |
 | `vartest` | ✅ |  |  |  | OK | chi-squared one-sample variance test |
 | `vartest2` | ✅ |  |  |  | OK | F-test for equality of variances |
-| `vartestn` | ❌ |  |  |  |  | n-sample variance |
+| `vartestn` | ✅ | 0.005 | 1284.84× | 835.74× | OK | Sig: [p, stats] = vartestn(x, group[, 'Display', 'off']). Bartlett's k-sample variance equality test. Q = (N-k)·ln(S²) - Σ(n_i-1)·ln(s_i²); T = Q/C; p = 1 - chi2cdf(T, k-1). Levene/BrownForsythe TestType deferred. |
 | `ztest` | ✅ |  |  |  | OK | known-σ z-test |
 
 ### Resampling Techniques

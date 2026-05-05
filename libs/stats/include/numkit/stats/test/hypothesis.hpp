@@ -76,6 +76,12 @@ std::tuple<Value, Value, Value>
 signtest(std::pmr::memory_resource *mr, const Value &x,
          const Value &y_or_m, double alpha, TestTail tail);
 
+/// vartestn(x, group[, alpha]) — Bartlett's k-sample variance test.
+/// H0: all group variances are equal. Returns (p, chisqstat, df).
+std::tuple<Value, Value, Value>
+vartestn(std::pmr::memory_resource *mr, const Value &x, const Value &group,
+         double alpha);
+
 /// runstest(x[, v][, alpha, tail][, method]) — Wald-Wolfowitz runs
 /// test for randomness. Default `v` = median(x); values exactly equal
 /// to v are dropped. Default `method` = "exact". Returns

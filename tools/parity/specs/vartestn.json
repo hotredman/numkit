@@ -1,0 +1,14 @@
+{
+  "name": "vartestn",
+  "namespace": "stats",
+  "setup": "x = [1 2 3 1.5 2.5 3.5 5 6 7 8 9]'; g = [1 1 1 2 2 2 3 3 3 3 3]';",
+  "expr": "[p, st] = vartestn(x, g, 'Display', 'off');",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "p",
+    "st.chisqstat",
+    "st.df"
+  ],
+  "comment": "Sig: [p, stats] = vartestn(x, group[, 'Display', 'off']). Bartlett's k-sample variance equality test. Q = (N-k)·ln(S²) - Σ(n_i-1)·ln(s_i²); T = Q/C; p = 1 - chi2cdf(T, k-1). Levene/BrownForsythe TestType deferred."
+}
