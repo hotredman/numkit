@@ -548,7 +548,11 @@ Value lab2uint8(std::pmr::memory_resource *mr, const Value &lab)
                 case ValueType::SINGLE:
                 case ValueType::DOUBLE: {
                     if (std::isnan(v)) { w = 255.0; break; }
-                    w = (ch == 0) ? v * (255.0 / 100.0)
+                    // MATLAB-compat: (v * 255) / 100 (exact for integer L)
+                    // vs v * (255/100) where 255/100 = 2.5499… in double
+                    // — half-cases (e.g. L=50 → 127.5) round to 128 only
+                    // with the multiply-first form.
+                    w = (ch == 0) ? (v * 255.0) / 100.0
                                   : v + 128.0;
                     break;
                 }
@@ -584,7 +588,11 @@ Value lab2uint16(std::pmr::memory_resource *mr, const Value &lab)
                 case ValueType::SINGLE:
                 case ValueType::DOUBLE: {
                     if (std::isnan(v)) { w = 65535.0; break; }
-                    w = (ch == 0) ? v * (65280.0 / 100.0)
+                    // MATLAB-compat: multiply first to keep integer L
+                    // exact (v * 65280 / 100). Same fix as lab2uint8.
+                    // For a/b: 65280/255 = 256 exact, so order doesn't
+                    // matter — kept as-is.
+                    w = (ch == 0) ? (v * 65280.0) / 100.0
                                   : (v + 128.0) * (65280.0 / 255.0);
                     break;
                 }

@@ -1,0 +1,10 @@
+{
+  "name": "lab2uint16",
+  "namespace": "image",
+  "setup": "cm = [0 -128 -128; 50 0 0; 100 127 127];",
+  "expr": "y = lab2uint16(cm);",
+  "iters": 5,
+  "tol": 0,
+  "out_var": "y",
+  "comment": "Sig: lab_u16 = lab2uint16(lab). double LAB → uint16: (L*65280)/100, (a+128)*256, (b+128)*256. NaN → 65535. Octave-image has lab2uint16."
+}
