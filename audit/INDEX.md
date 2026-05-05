@@ -182,6 +182,21 @@ Status legend:
 | [findings/cluster/kmedoids.md](findings/cluster/kmedoids.md) | kmedoids | stats.cluster | low | small | b2f133b |
 | [findings/cluster/mahal.md](findings/cluster/mahal.md) | mahal | stats.cluster | low | small | b2f133b |
 | [findings/cluster/squareform.md](findings/cluster/squareform.md) | squareform | stats.cluster | low | small | b2f133b |
+| [findings/stats/binocdf.md](findings/stats/binocdf.md) | binocdf | stats.dist | high | small | 1525319 |
+| [findings/stats/poisscdf.md](findings/stats/poisscdf.md) | poisscdf | stats.dist | high | small | 1525319 |
+| [findings/stats/unidcdf.md](findings/stats/unidcdf.md) | unidcdf | stats.dist | high | small | 1525319 |
+| [findings/stats/binoinv.md](findings/stats/binoinv.md) | binoinv | stats.dist | low | small | 1525319 |
+| [findings/stats/binopdf.md](findings/stats/binopdf.md) | binopdf | stats.dist | low | small | 1525319 |
+| [findings/stats/binornd.md](findings/stats/binornd.md) | binornd | stats.dist | low | small | 1525319 |
+| [findings/stats/binostat.md](findings/stats/binostat.md) | binostat | stats.dist | low | small | 1525319 |
+| [findings/stats/poissinv.md](findings/stats/poissinv.md) | poissinv | stats.dist | low | small | 1525319 |
+| [findings/stats/poisspdf.md](findings/stats/poisspdf.md) | poisspdf | stats.dist | low | small | 1525319 |
+| [findings/stats/poissrnd.md](findings/stats/poissrnd.md) | poissrnd | stats.dist | low | small | 1525319 |
+| [findings/stats/poisstat.md](findings/stats/poisstat.md) | poisstat | stats.dist | low | small | 1525319 |
+| [findings/stats/unidinv.md](findings/stats/unidinv.md) | unidinv | stats.dist | low | small | 1525319 |
+| [findings/stats/unidpdf.md](findings/stats/unidpdf.md) | unidpdf | stats.dist | low | small | 1525319 |
+| [findings/stats/unidrnd.md](findings/stats/unidrnd.md) | unidrnd | stats.dist | low | small | 1525319 |
+| [findings/stats/unidstat.md](findings/stats/unidstat.md) | unidstat | stats.dist | low | small | 1525319 |
 
 ## Closed ТЗ
 
