@@ -1350,7 +1350,7 @@ omitted — interactive / Simulink / OOP.
 
 ### Splines
 
-**Namespace:** `cfit.splines.*` — 10 ✅ + 0 ⚠️ / 49 = 20%
+**Namespace:** `cfit.splines.*` — 12 ✅ + 0 ⚠️ / 49 = 24%
 
 OOP `fittype`/`fit`/`cfit`/`sfit`/`fitoptions`/`excludedata` and the
 GUI tools (`sftool`, `bspligui`, `splinetool`, `getcurve`) intentionally
@@ -1379,9 +1379,9 @@ construction / postprocessing primitives — those are all flat functions.
 | `fnbrk` | ❌ |  |  |  |  | extract part / break info |
 | `fnchg` | ❌ |  |  |  |  | change spline properties |
 | `fncmb` | ❌ |  |  |  |  | combine splines |
-| `fnder` | ❌ |  |  |  |  | derivative of spline |
+| `fnder` | ✅ | 0.004 | 482.37× |  | OK | Sig: dpp = fnder(pp[, order]). Differentiate pp-form spline `order` times. Each piece's polynomial is independently differentiated; result has order = K − order. |
 | `fndir` | ❌ |  |  |  |  | directional derivative |
-| `fnint` | ❌ |  |  |  |  | integral of spline |
+| `fnint` | ✅ | 0.003 | 538.67× |  | OK | Sig: ipp = fnint(pp). Antiderivative of pp-form spline; integration constant chosen so that integral = 0 at the first break and is continuous across breaks. |
 | `fnjmp` | ❌ |  |  |  |  | jump value at discontinuities |
 | `fnmin` | ❌ |  |  |  |  | min of spline |
 | `fnplt` | ❌ |  |  |  |  | display |

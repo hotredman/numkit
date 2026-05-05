@@ -1,0 +1,10 @@
+{
+  "name": "fnint",
+  "namespace": "stats",
+  "setup": "pp = ppmak([0 1], [1 0 0], 1); ipp = fnint(pp);",
+  "expr": "y = fnval(ipp, [0.25 0.5 0.75 1]);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["y(1)", "y(2)", "y(3)", "y(4)", "ipp.order"],
+  "comment": "Sig: ipp = fnint(pp). Antiderivative of pp-form spline; integration constant chosen so that integral = 0 at the first break and is continuous across breaks."
+}

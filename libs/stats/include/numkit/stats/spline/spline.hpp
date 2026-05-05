@@ -42,4 +42,13 @@ Value ppmak(std::pmr::memory_resource *mr, const Value &breaks,
 /// Handles only `form='pp'` for now; B-spline form is deferred.
 Value fnval(std::pmr::memory_resource *mr, const Value &pp, const Value &x);
 
+/// `dpp = fnder(pp[, order])` — differentiate a pp-form spline `order`
+/// times (default 1). Result has order = K − order.
+Value fnder(std::pmr::memory_resource *mr, const Value &pp, int order);
+
+/// `ipp = fnint(pp)` — antiderivative of a pp-form spline, with
+/// integration constant chosen so that the integral evaluates to 0
+/// at the first break and is continuous at piece boundaries.
+Value fnint(std::pmr::memory_resource *mr, const Value &pp);
+
 } // namespace numkit::stats

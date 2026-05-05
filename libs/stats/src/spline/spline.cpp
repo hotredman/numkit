@@ -201,6 +201,118 @@ Value fnval(std::pmr::memory_resource *mr, const Value &pp, const Value &xv)
     return out;
 }
 
+namespace {
+
+struct PPView {
+    Value breaks;
+    Value coefs;
+    size_t L, K, d;
+};
+
+PPView readPP(const Value &pp)
+{
+    if (!pp.hasField("form") || pp.field("form").toString() != "pp")
+        throw Error("fnder/fnint: only pp form supported",
+                    0, 0, "fn", "", "m:fn:form");
+    PPView v;
+    v.breaks = pp.field("breaks");
+    v.coefs  = pp.field("coefs");
+    v.L = static_cast<size_t>(pp.field("pieces").toScalar());
+    v.K = static_cast<size_t>(pp.field("order").toScalar());
+    v.d = static_cast<size_t>(pp.field("dim").toScalar());
+    return v;
+}
+
+Value buildPP(std::pmr::memory_resource *mr, const Value &breaks,
+              const std::vector<double> &coefsCM, size_t cR, size_t cC,
+              size_t L, size_t d)
+{
+    Value bv = Value::matrix(1, breaks.numel(), ValueType::DOUBLE, mr);
+    {
+        double *bd = bv.doubleDataMut();
+        for (size_t i = 0; i < breaks.numel(); ++i) bd[i] = breaks.elemAsDouble(i);
+    }
+    Value cv = Value::matrix(cR, cC, ValueType::DOUBLE, mr);
+    {
+        double *cd = cv.doubleDataMut();
+        for (size_t i = 0; i < cR * cC; ++i) cd[i] = coefsCM[i];
+    }
+    Value s = Value::structure(mr);
+    s.field("form")   = Value::fromString("pp", mr);
+    s.field("breaks") = std::move(bv);
+    s.field("coefs")  = std::move(cv);
+    s.field("pieces") = Value::scalar(double(L), mr);
+    s.field("order")  = Value::scalar(double(cC), mr);
+    s.field("dim")    = Value::scalar(double(d), mr);
+    return s;
+}
+
+} // anonymous
+
+Value fnder(std::pmr::memory_resource *mr, const Value &pp, int order)
+{
+    if (order < 0)
+        throw Error("fnder: order must be >= 0",
+                    0, 0, "fnder", "", "m:fnder:order");
+    PPView v = readPP(pp);
+    if (order == 0) {
+        std::vector<double> coefs(v.coefs.numel());
+        for (size_t i = 0; i < coefs.size(); ++i) coefs[i] = v.coefs.elemAsDouble(i);
+        return buildPP(mr, v.breaks, coefs, v.coefs.dims().rows(),
+                       v.coefs.dims().cols(), v.L, v.d);
+    }
+    if (static_cast<size_t>(order) >= v.K) {
+        const size_t cR = v.d * v.L;
+        std::vector<double> zero(cR, 0.0);
+        return buildPP(mr, v.breaks, zero, cR, 1, v.L, v.d);
+    }
+    const size_t cR = v.d * v.L;
+    const size_t newK = v.K - static_cast<size_t>(order);
+    std::vector<double> nc(cR * newK, 0.0);
+
+    for (size_t r = 0; r < cR; ++r) {
+        std::vector<double> cur(v.K);
+        for (size_t m = 0; m < v.K; ++m) cur[m] = v.coefs.elemAsDouble(r + m * cR);
+        size_t curK = v.K;
+        for (int it = 0; it < order; ++it) {
+            std::vector<double> nxt(curK - 1, 0.0);
+            for (size_t m = 0; m + 1 < curK; ++m)
+                nxt[m] = cur[m] * double(curK - 1 - m);
+            cur = std::move(nxt);
+            --curK;
+        }
+        for (size_t m = 0; m < newK; ++m) nc[r + m * cR] = cur[m];
+    }
+    return buildPP(mr, v.breaks, nc, cR, newK, v.L, v.d);
+}
+
+Value fnint(std::pmr::memory_resource *mr, const Value &pp)
+{
+    PPView v = readPP(pp);
+    const size_t cR = v.d * v.L;
+    const size_t newK = v.K + 1;
+    std::vector<double> nc(cR * newK, 0.0);
+    for (size_t r = 0; r < v.d; ++r) {
+        double prev_const = 0.0;
+        for (size_t j = 0; j < v.L; ++j) {
+            const size_t row = r + j * v.d;
+            for (size_t m = 0; m < v.K; ++m) {
+                nc[row + m * cR] = v.coefs.elemAsDouble(row + m * cR)
+                                   / double(v.K - m);
+            }
+            nc[row + v.K * cR] = prev_const;
+            const double h = v.breaks.elemAsDouble(j + 1) - v.breaks.elemAsDouble(j);
+            // Q(b_{j+1}) = prev_const + Σ_{m=0..K-1} new_c[m]·h^(K-m)
+            double y = nc[row + 0 * cR];
+            for (size_t m = 1; m < v.K; ++m)
+                y = y * h + nc[row + m * cR];
+            y = y * h;
+            prev_const += y;
+        }
+    }
+    return buildPP(mr, v.breaks, nc, cR, newK, v.L, v.d);
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -255,6 +367,27 @@ void fnval_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("fnval: requires (pp, x)",
                     0, 0, "fnval", "", "m:fnval:nargin");
     outs[0] = fnval(ctx.engine->resource(), args[0], args[1]);
+}
+
+void fnder_reg(Span<const Value> args, size_t /*nargout*/,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("fnder: requires (pp[, order])",
+                    0, 0, "fnder", "", "m:fnder:nargin");
+    int order = 1;
+    if (args.size() >= 2 && !args[1].isEmpty())
+        order = static_cast<int>(args[1].toScalar());
+    outs[0] = fnder(ctx.engine->resource(), args[0], order);
+}
+
+void fnint_reg(Span<const Value> args, size_t /*nargout*/,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("fnint: requires (pp)",
+                    0, 0, "fnint", "", "m:fnint:nargin");
+    outs[0] = fnint(ctx.engine->resource(), args[0]);
 }
 
 void knt2brk_reg(Span<const Value> args, size_t nargout,
