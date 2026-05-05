@@ -63,4 +63,12 @@ Value csapi(std::pmr::memory_resource *mr, const Value &x, const Value &y);
 Value fnbrk(std::pmr::memory_resource *mr, const Value &pp,
             const std::string &part);
 
+/// `pp = fncmb(pp1, c)`            — c·pp1 (scalar multiply).
+/// `pp = fncmb(pp1, c1, pp2, c2)`  — c1·pp1 + c2·pp2 on shared breaks.
+/// `pp2` may be null (unused) for the scalar-multiply form. The 4-arg
+/// form requires pp1 and pp2 to share breaks / order / dim.
+Value fncmb(std::pmr::memory_resource *mr,
+            const Value &pp1, double c1,
+            const Value *pp2, double c2);
+
 } // namespace numkit::stats

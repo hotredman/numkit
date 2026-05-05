@@ -420,6 +420,35 @@ Value csapi(std::pmr::memory_resource *mr, const Value &x, const Value &y)
     return buildPP(mr, bv, coefs, L, 4, L, 1);
 }
 
+Value fncmb(std::pmr::memory_resource *mr,
+            const Value &pp1, double c1,
+            const Value *pp2, double c2)
+{
+    PPView v1 = readPP(pp1);
+    const size_t cR = v1.coefs.dims().rows();
+    const size_t cC = v1.coefs.dims().cols();
+    std::vector<double> nc(cR * cC, 0.0);
+    if (pp2 == nullptr) {
+        for (size_t i = 0; i < cR * cC; ++i)
+            nc[i] = c1 * v1.coefs.elemAsDouble(i);
+        return buildPP(mr, v1.breaks, nc, cR, cC, v1.L, v1.d);
+    }
+    PPView v2 = readPP(*pp2);
+    if (v2.L != v1.L || v2.K != v1.K || v2.d != v1.d)
+        throw Error("fncmb: pp1 and pp2 must share pieces / order / dim",
+                    0, 0, "fncmb", "", "m:fncmb:shape");
+    if (v1.breaks.numel() != v2.breaks.numel())
+        throw Error("fncmb: pp1 and pp2 must have same breaks",
+                    0, 0, "fncmb", "", "m:fncmb:breaks");
+    for (size_t i = 0; i < v1.breaks.numel(); ++i)
+        if (v1.breaks.elemAsDouble(i) != v2.breaks.elemAsDouble(i))
+            throw Error("fncmb: pp1 and pp2 must have same breaks",
+                        0, 0, "fncmb", "", "m:fncmb:breaks");
+    for (size_t i = 0; i < cR * cC; ++i)
+        nc[i] = c1 * v1.coefs.elemAsDouble(i) + c2 * v2.coefs.elemAsDouble(i);
+    return buildPP(mr, v1.breaks, nc, cR, cC, v1.L, v1.d);
+}
+
 Value fnbrk(std::pmr::memory_resource *mr, const Value &pp,
             const std::string &part_in)
 {
@@ -536,6 +565,32 @@ void csapi_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("csapi: requires (x, y)",
                     0, 0, "csapi", "", "m:csapi:nargin");
     outs[0] = csapi(ctx.engine->resource(), args[0], args[1]);
+}
+
+void fncmb_reg(Span<const Value> args, size_t /*nargout*/,
+               Span<Value> outs, CallContext &ctx)
+{
+    auto *mr = ctx.engine->resource();
+    auto isStruct = [](const Value &v) { return v.isStruct(); };
+    if (args.size() == 2) {
+        // fncmb(pp, c) or fncmb(c, pp)
+        if (isStruct(args[0]) && !isStruct(args[1])) {
+            outs[0] = fncmb(mr, args[0], args[1].toScalar(), nullptr, 0.0);
+        } else if (!isStruct(args[0]) && isStruct(args[1])) {
+            outs[0] = fncmb(mr, args[1], args[0].toScalar(), nullptr, 0.0);
+        } else {
+            throw Error("fncmb: 2-arg form requires (pp, scalar) or (scalar, pp)",
+                        0, 0, "fncmb", "", "m:fncmb:nargin");
+        }
+        return;
+    }
+    if (args.size() == 4) {
+        outs[0] = fncmb(mr, args[0], args[1].toScalar(),
+                         &args[2], args[3].toScalar());
+        return;
+    }
+    throw Error("fncmb: requires (pp, c) or (pp1, c1, pp2, c2)",
+                0, 0, "fncmb", "", "m:fncmb:nargin");
 }
 
 void fnbrk_reg(Span<const Value> args, size_t /*nargout*/,
