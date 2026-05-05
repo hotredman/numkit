@@ -47,6 +47,17 @@ Status legend:
 | [findings/stats/ranksum.md](findings/stats/ranksum.md) | ranksum | stats.test | low | small | 69fab7c |
 | [findings/stats/signrank.md](findings/stats/signrank.md) | signrank | stats.test | low | small | 69fab7c |
 | [findings/stats/signtest.md](findings/stats/signtest.md) | signtest | stats.test | low | small | 69fab7c |
+| [findings/stats/movmad.md](findings/stats/movmad.md) | movmad | stats.moving | critical | small | 4f021db |
+| [findings/stats/movmax.md](findings/stats/movmax.md) | movmax | stats.moving | critical | small | 4f021db |
+| [findings/stats/movmean.md](findings/stats/movmean.md) | movmean | stats.moving | critical | large | 4f021db |
+| [findings/stats/movmedian.md](findings/stats/movmedian.md) | movmedian | stats.moving | critical | small | 4f021db |
+| [findings/stats/movmin.md](findings/stats/movmin.md) | movmin | stats.moving | critical | small | 4f021db |
+| [findings/stats/movprod.md](findings/stats/movprod.md) | movprod | stats.moving | critical | small | 4f021db |
+| [findings/stats/movstd.md](findings/stats/movstd.md) | movstd | stats.moving | critical | small | 4f021db |
+| [findings/stats/movsum.md](findings/stats/movsum.md) | movsum | stats.moving | critical | small | 4f021db |
+| [findings/stats/movvar.md](findings/stats/movvar.md) | movvar | stats.moving | critical | small | 4f021db |
+| [findings/stats/cummax.md](findings/stats/cummax.md) | cummax | builtin | high | medium | 4f021db |
+| [findings/stats/cummin.md](findings/stats/cummin.md) | cummin | builtin | high | medium | 4f021db |
 
 ## Closed ТЗ
 
