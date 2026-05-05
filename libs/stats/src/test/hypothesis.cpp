@@ -569,6 +569,150 @@ signtest(std::pmr::memory_resource *mr, const Value &x,
 }
 
 // ════════════════════════════════════════════════════════════════════
+// ranksum — Wilcoxon rank-sum (Mann-Whitney U)
+// ════════════════════════════════════════════════════════════════════
+
+std::tuple<Value, Value, Value, Value>
+ranksum(std::pmr::memory_resource *mr, const Value &x, const Value &y,
+        double alpha, TestTail tail, const std::string &method_in)
+{
+    const size_t nx = x.numel();
+    const size_t ny = y.numel();
+    const size_t N = nx + ny;
+    if (N == 0) {
+        return std::make_tuple(Value::scalar(1.0, mr),
+                               Value::scalar(0.0, mr),
+                               Value::scalar(0.0, mr),
+                               Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr));
+    }
+
+    // Combine: store (value, is_x). NaN values are dropped.
+    struct Item { double v; bool is_x; };
+    std::vector<Item> items;
+    items.reserve(N);
+    for (size_t i = 0; i < nx; ++i) {
+        const double v = x.elemAsDouble(i);
+        if (!std::isnan(v)) items.push_back({v, true});
+    }
+    for (size_t i = 0; i < ny; ++i) {
+        const double v = y.elemAsDouble(i);
+        if (!std::isnan(v)) items.push_back({v, false});
+    }
+    const size_t Neff = items.size();
+    size_t nx_eff = 0, ny_eff = 0;
+    for (auto &it : items) (it.is_x ? nx_eff : ny_eff) += 1;
+    if (Neff == 0 || nx_eff == 0 || ny_eff == 0) {
+        // Degenerate: no comparison possible.
+        return std::make_tuple(Value::scalar(1.0, mr),
+                               Value::scalar(0.0, mr),
+                               Value::scalar(0.0, mr),
+                               Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr));
+    }
+
+    // Sort + assign mid-ranks.
+    std::vector<size_t> ord(Neff);
+    for (size_t i = 0; i < Neff; ++i) ord[i] = i;
+    std::sort(ord.begin(), ord.end(),
+              [&](size_t a, size_t b) { return items[a].v < items[b].v; });
+
+    std::vector<double> ranks(Neff);
+    std::vector<size_t> tieGroupSizes;
+    size_t i = 0;
+    while (i < Neff) {
+        size_t j = i + 1;
+        while (j < Neff && items[ord[j]].v == items[ord[i]].v) ++j;
+        const double avg = static_cast<double>(i + j + 1) / 2.0;  // mean of (i+1)..j
+        for (size_t k = i; k < j; ++k) ranks[ord[k]] = avg;
+        if (j - i > 1) tieGroupSizes.push_back(j - i);
+        i = j;
+    }
+
+    // W_x = sum of x's ranks.
+    double Wx = 0.0;
+    for (size_t k = 0; k < Neff; ++k)
+        if (items[k].is_x) Wx += ranks[k];
+
+    // Choose method.
+    std::string method = method_in;
+    for (auto &c : method) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    bool exact;
+    if      (method == "exact")       exact = true;
+    else if (method == "approximate") exact = false;
+    else                              exact = (nx_eff < 10 && ny_eff < 10);  // MATLAB default
+
+    double p = 1.0;
+    double zval = std::numeric_limits<double>::quiet_NaN();
+
+    if (exact) {
+        // 2D DP: dp[k][s] = # size-k subsets of (2·ranks) summing to s.
+        std::vector<long long> rk2(Neff);
+        long long total2 = 0;
+        for (size_t k = 0; k < Neff; ++k) {
+            rk2[k] = static_cast<long long>(std::llround(ranks[k] * 2.0));
+            total2 += rk2[k];
+        }
+        const size_t S = static_cast<size_t>(total2 + 1);
+        std::vector<std::vector<double>> dp(nx_eff + 1, std::vector<double>(S, 0.0));
+        dp[0][0] = 1.0;
+        for (size_t k = 0; k < Neff; ++k) {
+            const long long r = rk2[k];
+            for (long long kk = static_cast<long long>(nx_eff) - 1; kk >= 0; --kk) {
+                for (long long s = static_cast<long long>(S) - 1; s >= r; --s)
+                    dp[kk + 1][s] += dp[kk][s - r];
+            }
+        }
+        const long long Wx2 = static_cast<long long>(std::llround(Wx * 2.0));
+        double total = 0.0;
+        for (size_t s = 0; s < S; ++s) total += dp[nx_eff][s];
+        double cdfLE = 0.0, cdfGE = 0.0;
+        for (long long s = 0; s <= Wx2 && s < static_cast<long long>(S); ++s)
+            cdfLE += dp[nx_eff][s];
+        for (long long s = Wx2; s < static_cast<long long>(S); ++s)
+            cdfGE += dp[nx_eff][s];
+        cdfLE /= total;
+        cdfGE /= total;
+        switch (tail) {
+            case TestTail::Both:  p = std::min(1.0, 2.0 * std::min(cdfLE, cdfGE)); break;
+            case TestTail::Right: p = cdfGE; break;
+            case TestTail::Left:  p = cdfLE; break;
+        }
+    } else {
+        const double Nd = static_cast<double>(Neff);
+        const double mean = static_cast<double>(nx_eff) * (Nd + 1) / 2.0;
+        double var = static_cast<double>(nx_eff) * static_cast<double>(ny_eff)
+                     * (Nd + 1) / 12.0;
+        if (Nd > 1.0) {
+            double tieSum = 0.0;
+            for (size_t t : tieGroupSizes) {
+                const double td = static_cast<double>(t);
+                tieSum += td * td * td - td;
+            }
+            var -= static_cast<double>(nx_eff) * static_cast<double>(ny_eff)
+                   / (12.0 * Nd * (Nd - 1.0)) * tieSum;
+        }
+        const double sd = std::sqrt(std::max(var, 0.0));
+        // Continuity correction: shift W toward mean by 0.5.
+        double cc = 0.0;
+        if      (Wx > mean) cc = +0.5;
+        else if (Wx < mean) cc = -0.5;
+        zval = (sd > 0.0) ? (Wx - mean - cc) / sd : 0.0;
+        Value zV = Value::scalar(zval, mr);
+        const double cdf = normcdf(mr, zV, 0.0, 1.0).toScalar();
+        switch (tail) {
+            case TestTail::Both:  p = 2.0 * std::min(cdf, 1.0 - cdf); break;
+            case TestTail::Right: p = 1.0 - cdf; break;
+            case TestTail::Left:  p = cdf; break;
+        }
+    }
+
+    const int h = (p < alpha) ? 1 : 0;
+    return std::make_tuple(Value::scalar(p, mr),
+                           Value::scalar(double(h), mr),
+                           Value::scalar(Wx, mr),
+                           Value::scalar(zval, mr));
+}
+
+// ════════════════════════════════════════════════════════════════════
 // signrank — Wilcoxon signed-rank
 // ════════════════════════════════════════════════════════════════════
 
@@ -868,6 +1012,45 @@ void jbtest_reg(Span<const Value> args, size_t nargout,
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(JB);
     if (nargout > 3) outs[3] = std::move(cv);
+}
+
+void ranksum_reg(Span<const Value> args, size_t nargout,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("ranksum: requires (X, Y[, alpha, tail | name-value])",
+                    0, 0, "ranksum", "", "m:ranksum:nargin");
+    auto *mr = ctx.engine->resource();
+
+    double alpha = 0.05;
+    TestTail tail = TestTail::Both;
+    std::string method;
+
+    size_t i = 2;
+    if (i < args.size() && !args[i].isChar() && !args[i].isString()) {
+        alpha = args[i].toScalar();
+        ++i;
+    }
+    while (i + 1 < args.size()) {
+        if (!args[i].isChar() && !args[i].isString()) break;
+        std::string name = args[i].toString();
+        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        const Value &v = args[i + 1];
+        if      (name == "alpha")  alpha = v.toScalar();
+        else if (name == "tail")   tail  = parse_tail(v.toString(), TestTail::Both);
+        else if (name == "method") method = v.toString();
+        i += 2;
+    }
+
+    auto [p, h, rs, z] = ranksum(mr, args[0], args[1], alpha, tail, method);
+    outs[0] = std::move(p);
+    if (nargout > 1) outs[1] = std::move(h);
+    if (nargout > 2) {
+        Value s = Value::structure(mr);
+        if (!std::isnan(z.toScalar())) s.field("zval") = z;
+        s.field("ranksum") = rs;
+        outs[2] = std::move(s);
+    }
 }
 
 void signrank_reg(Span<const Value> args, size_t nargout,

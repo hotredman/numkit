@@ -76,6 +76,15 @@ std::tuple<Value, Value, Value>
 signtest(std::pmr::memory_resource *mr, const Value &x,
          const Value &y_or_m, double alpha, TestTail tail);
 
+/// ranksum(x, y[, alpha, tail][, method]) — Wilcoxon rank-sum
+/// (Mann-Whitney U). H0: median(x) = median(y).
+/// Default `method` = "exact" iff both samples have < 10 observations,
+/// else "approximate" (normal w/ tie + continuity correction).
+/// Returns (p, h, ranksum_x, zval). zval is NaN unless approximate.
+std::tuple<Value, Value, Value, Value>
+ranksum(std::pmr::memory_resource *mr, const Value &x, const Value &y,
+        double alpha, TestTail tail, const std::string &method);
+
 /// signrank(x[, m | y][, alpha, tail][, method]) — Wilcoxon signed-rank.
 /// H0: median(x - m₀) = 0 (or median(x - y) = 0 for paired).
 /// `method` ∈ {"exact", "approximate"}. Default: "exact" if n_eff ≤ 15,
