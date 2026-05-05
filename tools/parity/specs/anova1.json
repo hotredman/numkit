@@ -1,0 +1,17 @@
+{
+  "name": "anova1",
+  "namespace": "stats",
+  "setup": "y = [1 2 3 4 5 6 7 8 9]'; g = [1 1 1 2 2 2 3 3 3]';",
+  "expr": "[p, tbl] = anova1(y, g, 'off');",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "p",
+    "tbl{2,2}",
+    "tbl{2,3}",
+    "tbl{2,4}",
+    "tbl{2,5}",
+    "tbl{3,2}"
+  ],
+  "comment": "Sig: [p, tbl, stats] = anova1(y, group[, 'off']). One-way ANOVA; F = MS_groups/MS_error; p = 1 - fcdf(F, k-1, N-k). tbl is 4×6 cell array (Source, SS, df, MS, F, Prob>F)."
+}

@@ -1,0 +1,18 @@
+{
+  "name": "dummyvar",
+  "namespace": "stats",
+  "setup": "g = [1 2 3 1 2 3 1]';",
+  "expr": "D = dummyvar(g);",
+  "iters": 5,
+  "tol": 1e-15,
+  "fingerprint": [
+    "size(D, 1)",
+    "size(D, 2)",
+    "D(1, 1)",
+    "D(2, 2)",
+    "D(3, 3)",
+    "D(7, 1)",
+    "sum(D(:))"
+  ],
+  "comment": "Sig: D = dummyvar(group). Indicator-coding: N×K matrix with 1 in column k for samples whose label is the k-th unique value (sorted ascending)."
+}
