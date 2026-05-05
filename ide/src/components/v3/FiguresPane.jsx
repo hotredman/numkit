@@ -1,5 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import InteractivePlot from './InteractivePlot';
+import Heatmap from './Heatmap';
+import PolarPlot from './PolarPlot';
+
+/** Pick the right renderer for a figure based on its `kind`. */
+function renderFigure(figure, props) {
+  if (figure.kind === 'heatmap') return <Heatmap figure={figure} {...props} />;
+  if (figure.kind === 'polar')   return <PolarPlot figure={figure} {...props} />;
+  return <InteractivePlot figure={figure} {...props} />;
+}
 
 /**
  * Preview card. The body uses CSS `aspect-ratio` so it fills the pane width
@@ -11,7 +20,11 @@ import InteractivePlot from './InteractivePlot';
 const PREVIEW_ASPECT  = 1.7; // width / height — keep in sync with CSS rule below
 
 function FigurePreviewCard({ figure, onExpand, onClose }) {
-  const [viewport, setViewport] = useState({ x: figure.xRange.slice(), y: figure.yRange.slice() });
+  // Polar plots don't pan/zoom — they have no Cartesian viewport to track.
+  const initialVp = (figure.xRange && figure.yRange)
+    ? { x: figure.xRange.slice(), y: figure.yRange.slice() }
+    : { x: [-1, 1], y: [-1, 1] };
+  const [viewport, setViewport] = useState(initialVp);
   const ref = useRef(null);
   const [size, setSize] = useState({ w: 320, h: Math.round(320 / PREVIEW_ASPECT) });
 
@@ -76,9 +89,11 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
         {/* SVG is positioned absolutely so its intrinsic pixel size doesn't
             override the body's aspect-ratio-driven height. */}
         <div style={{ position: 'absolute', inset: 0 }}>
-          <InteractivePlot figure={figure} width={size.w} height={size.h}
-            viewport={viewport} setViewport={setViewport}
-            minor={true} fontScale={0.9} interactive={false} />
+          {renderFigure(figure, {
+            width: size.w, height: size.h,
+            viewport, setViewport,
+            minor: true, fontScale: 0.9, interactive: false,
+          })}
         </div>
       </div>
     </div>
