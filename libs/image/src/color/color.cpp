@@ -173,23 +173,30 @@ Value hsv2rgb(std::pmr::memory_resource *mr, const Value &x) {
 // ════════════════════════════════════════════════════════════════════
 
 Value rgb2ntsc(std::pmr::memory_resource *mr, const Value &x) {
+    // MATLAB R2025b forward coefficients (16-digit, probed via
+    // rgb2ntsc(eye(3)). Octave-image uses lower-precision 3-sig-fig
+    // matrix; we follow MATLAB per the source-of-truth rule.
     return pixel_transform(mr, x, "rgb2ntsc", [](double r, double g, double b) {
-        const double y = 0.299 * r + 0.587 * g + 0.114 * b;
-        const double i = 0.596 * r - 0.274 * g - 0.322 * b;
-        const double q = 0.211 * r - 0.523 * g + 0.312 * b;
+        const double y = 0.2989360212937755 * r + 0.5870430744511212 * g + 0.1140209042551033 * b;
+        const double i = 0.5959457430707994 * r - 0.2743886357457893 * g - 0.3215571073250100 * b;
+        const double q = 0.2114973403068283 * r - 0.5229106903029738 * g + 0.3114133499961453 * b;
         return std::array<double, 3>{y, i, q};
     });
 }
 
 Value ntsc2rgb(std::pmr::memory_resource *mr, const Value &x) {
-    // Octave-image's exact inverse (5 sig figs); built so that
-    // rgb2ntsc/ntsc2rgb round-trip back to the input. Negatives are
-    // clipped to 0 and per-pixel overshoot above 1 is scaled down by
-    // the row max — Matlab compatibility tweak from ntsc2rgb.m.
+    // MATLAB R2025b inverse coefficients (the canonical 3-digit set:
+    // 0.956 / 0.621 / -0.272 / -0.647 / -1.106 / 1.703). Note that
+    // these are NOT exactly inv(rgb2ntsc-forward); MATLAB stores the
+    // forward and inverse independently, so round-trip is not bit-
+    // exact but matches MATLAB output.
+    //
+    // Post-process: negatives → 0 and per-pixel overshoot above 1 is
+    // scaled down by the row max (MATLAB-compat clip / normalize).
     return pixel_transform_raw(mr, x, "ntsc2rgb", [](double y, double i, double q) {
-        double r = y + 0.95617 * i + 0.62143 * q;
-        double g = y - 0.27269 * i - 0.64681 * q;
-        double b = y - 1.10374 * i + 1.70062 * q;
+        double r = y + 0.956 * i + 0.621 * q;
+        double g = y - 0.272 * i - 0.647 * q;
+        double b = y - 1.106 * i + 1.703 * q;
         if (r < 0.0) r = 0.0;
         if (g < 0.0) g = 0.0;
         if (b < 0.0) b = 0.0;
