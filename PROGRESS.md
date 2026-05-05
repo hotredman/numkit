@@ -3345,7 +3345,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 ### Discrete Wavelet Transforms (1-D)
 
-**Namespace:** `wavelet.dwt.*` — 9 ✅ + 0 ⚠️ / 18 = 50%
+**Namespace:** `wavelet.dwt.*` — 11 ✅ + 0 ⚠️ / 18 = 61%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3359,8 +3359,8 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `dwtmode` | ❌ |  |  |  |  | extension mode |
 | `dyaddown` | ✅ | 0.003 | 205.08× |  | OK | Sig: y = dyaddown(x[, ODD]). Dyadic downsample. ODD = 0 (default) → x(2:2:end); ODD = 1 → x(1:2:end). |
 | `dyadup` | ✅ | 0.003 | 350.96× |  | OK | Sig: y = dyadup(x[, ODD]). Zero insertion between samples. Default ODD = 1 → [0 x(1) 0 x(2) 0 ... x(N) 0] (length 2N+1); ODD = 0 → [x(1) 0 x(2) 0 ... x(N)] (length 2N-1). |
-| `wkeep` | ❌ |  |  |  |  | extract central part |
-| `wextend` | ❌ |  |  |  |  | extend signal |
+| `wkeep` | ✅ | 0.005 | 498.49× |  | OK | Sig: y = wkeep(x, n[, OPT]). Default 'c' central window with start = floor((N-n)/2)+1 (1-based). 'l'/'r' first/last n; numeric FIRST gives x(FIRST:FIRST+n-1). |
+| `wextend` | ✅ | 0.006 | 305.97× |  | OK | Sig: y = wextend(1, mode, x, lf[, side]). Modes: sym (whole-point symm with edge), per (periodic with edge-pad on odd N), zpd (zero pad), ppd (true periodic). For odd-N periodic MATLAB pre-pads x with x(end) to even length, then wraps. |
 | `wcodemat` | ✅ | 0.003 | 166.80× |  | OK | Sig: Y = wcodemat(X [, nb [, opt [, absol]]]). Quantize/scale to [1, nb] integer codes (default nb=16, mat, absol=1). Wavelet Toolbox helper; Octave-image doesn't have it → correctness=N/A. |
 | `haart` | ❌ |  |  |  |  | Haar wavelet transform |
 | `ihaart` | ❌ |  |  |  |  | inverse Haar |

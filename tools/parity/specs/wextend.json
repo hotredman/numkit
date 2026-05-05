@@ -1,0 +1,10 @@
+{
+  "name": "wextend",
+  "namespace": "wavelet",
+  "setup": "x = [1 2 3 4 5];",
+  "expr": "ys = wextend(1, 'sym', x, 2); yp = wextend(1, 'per', x, 2); yz = wextend(1, 'zpd', x, 2); yd = wextend(1, 'ppd', x, 2);",
+  "iters": 5,
+  "tol": 1e-15,
+  "fingerprint": ["numel(ys)", "ys(1)", "ys(2)", "ys(end)", "numel(yp)", "yp(1)", "yp(end)", "numel(yz)", "yz(1)", "numel(yd)", "yd(1)", "yd(end)"],
+  "comment": "Sig: y = wextend(1, mode, x, lf[, side]). Modes: sym (whole-point symm with edge), per (periodic with edge-pad on odd N), zpd (zero pad), ppd (true periodic). For odd-N periodic MATLAB pre-pads x with x(end) to even length, then wraps."
+}

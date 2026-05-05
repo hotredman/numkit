@@ -29,6 +29,9 @@ void idwt2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dyaddown_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dyadup_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void wmaxlev_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+// dwt/wkeep_wextend.cpp
+void wkeep_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void wextend_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 // denoise/denoise.cpp
 void wthresh_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void wnoisest_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -68,6 +71,8 @@ void WaveletLibrary::install(Engine &engine)
     reg("dwt",  "dyaddown", &wavelet::detail::dyaddown_reg);
     reg("dwt",  "dyadup",   &wavelet::detail::dyadup_reg);
     reg("dwt",  "wmaxlev",  &wavelet::detail::wmaxlev_reg);
+    reg("dwt",  "wkeep",    &wavelet::detail::wkeep_reg);
+    reg("dwt",  "wextend",  &wavelet::detail::wextend_reg);
     reg("dwt2", "dwt2",     &wavelet::detail::dwt2_reg);
     reg("dwt2", "idwt2",    &wavelet::detail::idwt2_reg);
 
