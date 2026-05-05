@@ -206,6 +206,70 @@ Value rectpulse(std::pmr::memory_resource *mr, const Value &x, int n)
     return out;
 }
 
+// ── intdump ─────────────────────────────────────────────────────────
+// Inverse of rectpulse: average each n consecutive samples along the
+// leading non-singleton dimension. Length along that axis must be
+// divisible by n.
+Value intdump(std::pmr::memory_resource *mr, const Value &x, int n)
+{
+    if (n <= 0)
+        throw Error("intdump: n must be a positive integer",
+                    0, 0, "intdump", "", "m:intdump:n");
+
+    const auto &d = x.dims();
+    const size_t H = d.rows();
+    const size_t W = d.cols();
+    const bool is_row = (H == 1 && W >= 1);
+    const bool is_col = (W == 1 && H >= 1);
+    const size_t un = static_cast<size_t>(n);
+
+    Value out;
+    if (is_row) {
+        if (W % un != 0)
+            throw Error("intdump: row length must be a multiple of n",
+                        0, 0, "intdump", "", "m:intdump:size");
+        const size_t Wo = W / un;
+        out = Value::matrix(1, Wo, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        for (size_t c = 0; c < Wo; ++c) {
+            double s = 0.0;
+            for (size_t k = 0; k < un; ++k)
+                s += x.elemAsDouble(c * un + k);
+            od[c] = s / static_cast<double>(un);
+        }
+    } else if (is_col) {
+        if (H % un != 0)
+            throw Error("intdump: column length must be a multiple of n",
+                        0, 0, "intdump", "", "m:intdump:size");
+        const size_t Ho = H / un;
+        out = Value::matrix(Ho, 1, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        for (size_t r = 0; r < Ho; ++r) {
+            double s = 0.0;
+            for (size_t k = 0; k < un; ++k)
+                s += x.elemAsDouble(r * un + k);
+            od[r] = s / static_cast<double>(un);
+        }
+    } else {
+        // Matrix: average n consecutive rows per column.
+        if (H % un != 0)
+            throw Error("intdump: row count must be a multiple of n",
+                        0, 0, "intdump", "", "m:intdump:size");
+        const size_t Ho = H / un;
+        out = Value::matrix(Ho, W, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        for (size_t c = 0; c < W; ++c) {
+            for (size_t r = 0; r < Ho; ++r) {
+                double s = 0.0;
+                for (size_t k = 0; k < un; ++k)
+                    s += x.elemAsDouble(c * H + r * un + k);
+                od[c * Ho + r] = s / static_cast<double>(un);
+            }
+        }
+    }
+    return out;
+}
+
 namespace detail {
 
 void rcosdesign_reg(Span<const Value> args, size_t /*nargout*/,
@@ -247,6 +311,16 @@ void rectpulse_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "rectpulse", "", "m:rectpulse:nargin");
     const int n = static_cast<int>(args[1].toScalar());
     outs[0] = rectpulse(ctx.engine->resource(), args[0], n);
+}
+
+void intdump_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("intdump: requires (x, n)",
+                    0, 0, "intdump", "", "m:intdump:nargin");
+    const int n = static_cast<int>(args[1].toScalar());
+    outs[0] = intdump(ctx.engine->resource(), args[0], n);
 }
 
 } // namespace detail
