@@ -2876,7 +2876,7 @@ intentionally omitted — flat solver functions only.
 
 ### Probability Distributions
 
-**Namespace:** `stats.dist.*` — 90 ✅ + 0 ⚠️ / 130+ = 69%
+**Namespace:** `stats.dist.*` — 100 ✅ + 0 ⚠️ / 130+ = 77%
 
 Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) / `*rnd` / `*stat`. All `rnd` functions share `numkit::builtin::sharedEngine()` so `rng(seed)` reseeds them. Discrete `*inv` use one-ULP relative tolerance against the public cdf so `inv(cdf(k))=k` round-trips don't overshoot.
 
@@ -2972,16 +2972,16 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `evinv` | ✅ | 0.003 | 162.03× | 55.86× | OK | Sig: x = evinv(p[, mu, sigma]). x = μ + σ·log(−log1p(−p)). |
 | `evrnd` | ✅ |  |  |  |  |  |
 | `evstat` | ✅ | 0.003 | 83.95× | 61.95× | OK | Sig: [m, v] = evstat(mu, sigma). Type-I extreme value mean = μ − σ·γ_E and variance = σ²·π²/6. |
-| `gevpdf` | ❌ |  |  |  |  | generalized extreme value |
-| `gevcdf` | ❌ |  |  |  |  |  |
-| `gevinv` | ❌ |  |  |  |  |  |
-| `gevrnd` | ❌ |  |  |  |  |  |
-| `gevstat` | ❌ |  |  |  |  |  |
-| `gppdf` | ❌ |  |  |  |  | generalized Pareto |
-| `gpcdf` | ❌ |  |  |  |  |  |
-| `gpinv` | ❌ |  |  |  |  |  |
-| `gprnd` | ❌ |  |  |  |  |  |
-| `gpstat` | ❌ |  |  |  |  |  |
+| `gevpdf` | ✅ | 0.004 | 218.14× | 61.53× | OK | Sig: p = gevpdf(x, k, sigma, mu). Generalised extreme value PDF; k=0 is Gumbel-MAX (limit). |
+| `gevcdf` | ✅ | 0.003 | 384.47× | 93.98× | OK | Sig: p = gevcdf(x, k, sigma, mu). |
+| `gevinv` | ✅ | 0.003 | 273.88× | 69.80× | OK | Sig: x = gevinv(p, k, sigma, mu). |
+| `gevrnd` | ✅ |  |  |  |  |  |
+| `gevstat` | ✅ | 0.004 | 360.41× | 20.10× | OK | Sig: [m, v] = gevstat(k, sigma, mu). mean = mu + sigma·(Γ(1−k)−1)/k for k∈(0,1); k=0 limit = mu+σ·γ_E. |
+| `gppdf` | ✅ | 0.003 | 281.24× | 98.79× | OK | Sig: p = gppdf(x, k, sigma, theta). Generalised Pareto. |
+| `gpcdf` | ✅ | 0.003 | 405.90× | 55.74× | OK | Sig: p = gpcdf(x, k, sigma, theta). |
+| `gpinv` | ✅ | 0.003 | 291.99× | 97.75× | OK | Sig: x = gpinv(p, k, sigma, theta). |
+| `gprnd` | ✅ |  |  |  |  |  |
+| `gpstat` | ✅ | 0.003 | 318.16× | 56.26× | OK | Sig: [m, v] = gpstat(k, sigma, theta). mean = theta + sigma/(1-k); var = sigma²/((1-k)²·(1-2k)). |
 | `nakapdf` | ❌ |  |  |  |  | Nakagami |
 | `nakacdf` | ❌ |  |  |  |  |  |
 | `nakainv` | ❌ |  |  |  |  |  |

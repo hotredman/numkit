@@ -1,0 +1,10 @@
+{
+  "name": "gevstat",
+  "namespace": "stats",
+  "setup": "k = 0.2; sigma = 1; mu = 0;",
+  "expr": "[m, v] = gevstat(k, sigma, mu);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["m", "v"],
+  "comment": "Sig: [m, v] = gevstat(k, sigma, mu). mean = mu + sigma·(Γ(1−k)−1)/k for k∈(0,1); k=0 limit = mu+σ·γ_E."
+}
