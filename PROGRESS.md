@@ -3156,18 +3156,18 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 ### ANOVA / MANOVA / Correlation
 
-**Namespace:** `stats.anova.*` — 0 ✅ + 0 ⚠️ / 9 = 0%
+**Namespace:** `stats.anova.*` — 2 ✅ + 0 ⚠️ / 9 = 22%
 
 OOP `anova` class and `fitrm` repeated-measures model intentionally omitted; only the legacy function-form entry points (anova1/anova2/anovan) which return F-statistic and p-value tables.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `anova1` | ❌ |  |  |  |  | one-way ANOVA |
+| `anova1` | ✅ | 0.006 | 804.36× | 420.59× | OK | Sig: [p, tbl, stats] = anova1(y, group[, 'off']). One-way ANOVA; F = MS_groups/MS_error; p = 1 - fcdf(F, k-1, N-k). tbl is 4×6 cell array (Source, SS, df, MS, F, Prob>F). |
 | `anova2` | ❌ |  |  |  |  | two-way balanced |
 | `anovan` | ❌ |  |  |  |  | n-way |
 | `manova1` | ❌ |  |  |  |  | one-way MANOVA |
 | `canoncorr` | ❌ |  |  |  |  | canonical correlation |
-| `dummyvar` | ❌ |  |  |  |  | dummy-coding categorical |
+| `dummyvar` | ✅ | 0.003 | 251.23× | 78.07× | OK | Sig: D = dummyvar(group). Indicator-coding: N×K matrix with 1 in column k for samples whose label is the k-th unique value (sorted ascending). |
 | `aoctool` | ❌ |  |  |  |  | analysis of covariance (interactive — defer) |
 | `mauchly` | ❌ |  |  |  |  | Mauchly's sphericity |
 | `epsilon` | ❌ |  |  |  |  | sphericity adjustments |

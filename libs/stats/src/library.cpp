@@ -276,6 +276,10 @@ void gplike_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mvnpdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mnpdf_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mvtpdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// anova/anova.cpp
+void anova1_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void dummyvar_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -514,6 +518,9 @@ void StatsLibrary::install(Engine &engine)
     reg("mvdist", "mvnpdf", &stats::detail::mvnpdf_reg);
     reg("mvdist", "mnpdf",  &stats::detail::mnpdf_reg);
     reg("mvdist", "mvtpdf", &stats::detail::mvtpdf_reg);
+
+    reg("anova", "anova1",   &stats::detail::anova1_reg);
+    reg("anova", "dummyvar", &stats::detail::dummyvar_reg);
 }
 
 } // namespace numkit
