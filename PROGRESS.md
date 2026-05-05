@@ -2397,8 +2397,8 @@ intentionally omitted — flat solver functions only.
 |---|:---:|---:|---:|---:|:---:|---|
 | `filteranalyzer` | ❌ |  |  |  |  |  |
 | `filternorm` | ❌ |  |  |  |  |  |
-| `filtord` | ❌ |  |  |  |  |  |
-| `firtype` | ❌ |  |  |  |  |  |
+| `filtord` | ✅ | 0.000 | 97.29× | 92.24× | OK | Sig: n = filtord(b[, a]). FIR (single arg or trivial a) → length(b)-1; IIR → max(len_b, len_a)-1 with trailing zeros trimmed. fingerprint covers IIR + 2 FIR cases. |
+| `firtype` | ✅ | 0.000 | 864.02× |  | OK | Sig: t = firtype(b). FIR linear-phase classification per MATLAB: 1 = sym/odd-len, 2 = sym/even-len, 3 = anti/odd-len, 4 = anti/even-len. Fingerprint covers all 4 types. |
 | `freqz` | ✅ | 0.004 | 21.99× | 51.25× | MISMATCH | Sig: [H,W] = freqz(B,A,N). 256-pt freq response. 1000 iters. |
 | `grpdelay` | ✅ | 0.006 | 29.69× | 26.74× | MISMATCH | Sig: [G,W] = grpdelay(B,A,N). Group delay. 1000 iters. |
 | `impz` | ✅ | 0.002 | 38.13× | 13.46× | OK | Sig: [H,T] = impz(B,A,N). Impulse response. 1000 iters. |
