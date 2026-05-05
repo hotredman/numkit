@@ -1,0 +1,16 @@
+{
+  "name": "ncx2pdf",
+  "namespace": "stats",
+  "setup": "x = [0.5 1 2 5]; k = 4; lambda = 2;",
+  "expr": "y = ncx2pdf(x, k, lambda);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "y(1)",
+    "y(2)",
+    "y(3)",
+    "y(4)",
+    "ncx2pdf(1, 2, 0)"
+  ],
+  "comment": "Sig: y = ncx2pdf(x, k, lambda). Noncentral χ²(k, λ) PDF: ½·exp(−(x+λ)/2)·(x/λ)^((k−2)/4)·I_{(k−2)/2}(√(λx)); λ=0 reduces to chi2pdf(x, k)."
+}

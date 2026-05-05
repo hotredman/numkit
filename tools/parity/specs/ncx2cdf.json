@@ -1,0 +1,10 @@
+{
+  "name": "ncx2cdf",
+  "namespace": "stats",
+  "setup": "x = [0.5 1 2 5]; k = 4; lambda = 2;",
+  "expr": "y = ncx2cdf(x, k, lambda);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["y(1)", "y(2)", "y(3)", "y(4)"],
+  "comment": "Sig: y = ncx2cdf(x, k, lambda). Poisson-mixture: Σ_j Poisson(j; λ/2)·gammainc(x/2, k/2 + j); truncated when contribution drops below 1e-16 of running sum."
+}
