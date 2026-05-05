@@ -3468,14 +3468,14 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 ### Continuous Wavelet Shapes
 
-**Namespace:** `wavelet.shape.*` — 0 ✅ + 0 ⚠️ / 11 = 0%
+**Namespace:** `wavelet.shape.*` — 3 ✅ + 0 ⚠️ / 11 = 27%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `meyer` | ❌ |  |  |  |  | Meyer wavelet |
-| `meyeraux` | ❌ |  |  |  |  | auxiliary fcn |
-| `mexihat` | ❌ |  |  |  |  | Mexican hat |
-| `morlet` | ❌ |  |  |  |  | Morlet wavelet |
+| `meyeraux` | ✅ | 0.003 | 178.46× | 62.01× | OK | Sig: y = meyeraux(x). Polynomial 35x⁴ − 84x⁵ + 70x⁶ − 20x⁷; element-wise. Endpoints meyeraux(0)=0, meyeraux(1)=1, meyeraux(0.5)=0.5. |
+| `mexihat` | ✅ | 0.004 | 199.54× | 27.70× | OK | Sig: [psi, x] = mexihat(LB, UB, N). ψ(t) = (2/√3)·π^(-1/4)·(1-t²)·exp(-t²/2). Even, peaks at 0, zero crossings at ±1. |
+| `morlet` | ✅ | 0.005 | 83.85× | 14.95× | OK | Sig: [psi, x] = morlet(LB, UB, N). Real Morlet ψ(t) = exp(-t²/2)·cos(5t). |
 | `cgauwavf` | ❌ |  |  |  |  | complex Gaussian |
 | `cmorwavf` | ❌ |  |  |  |  | complex Morlet |
 | `fbspwavf` | ❌ |  |  |  |  | frequency B-spline |

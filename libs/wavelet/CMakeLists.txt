@@ -14,6 +14,7 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/wavelet/dwt/dwt2.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/wavelet/dwt/multilevel.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/wavelet/filter/wfilters.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/wavelet/shape/shape.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/wavelet/swt/swt.hpp
 )
 

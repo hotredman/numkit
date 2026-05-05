@@ -31,6 +31,10 @@ void swt_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void iswt_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void modwt_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imodwt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+// shape/shape.cpp
+void mexihat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void morlet_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void meyeraux_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::wavelet::detail
 
 namespace numkit {
@@ -60,6 +64,10 @@ void WaveletLibrary::install(Engine &engine)
     reg("swt", "iswt",   &wavelet::detail::iswt_reg);
     reg("swt", "modwt",  &wavelet::detail::modwt_reg);
     reg("swt", "imodwt", &wavelet::detail::imodwt_reg);
+
+    reg("shape", "mexihat",  &wavelet::detail::mexihat_reg);
+    reg("shape", "morlet",   &wavelet::detail::morlet_reg);
+    reg("shape", "meyeraux", &wavelet::detail::meyeraux_reg);
 }
 
 } // namespace numkit
