@@ -965,31 +965,195 @@ inline void rejectComplexOmitNan(const Value &x, const char *fn)
 
 namespace detail {
 
+// Helper: weighted variance / std on a flat 1-D array.
+//   normFlag = 0  → divide by Σw - 0 (default for scalar w=0; sample)
+//   normFlag = 1  → divide by Σw     (population; ML estimate)
+//
+// MATLAB's documented denominator for weighted variance is Σw (the
+// "default" for vector weights — equivalent to normFlag=1 semantics).
+// var(A, W, ...) with vector W therefore implies normFlag=1.
+double weightedVarFlat(const double *x, const double *w, size_t n,
+                       bool sqrtIt, bool omitNan)
+{
+    if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+    double sw = 0.0, sxw = 0.0;
+    for (size_t i = 0; i < n; ++i) {
+        const double xi = x[i], wi = w[i];
+        if (omitNan && std::isnan(xi)) continue;
+        if (wi < 0.0)
+            throw Error("var/std: weights must be non-negative",
+                        0, 0, "var/std", "", "m:varstd:negWeight");
+        sw  += wi;
+        sxw += wi * xi;
+    }
+    if (sw == 0.0) return std::numeric_limits<double>::quiet_NaN();
+    const double mean = sxw / sw;
+    double ss = 0.0;
+    for (size_t i = 0; i < n; ++i) {
+        const double xi = x[i], wi = w[i];
+        if (omitNan && std::isnan(xi)) continue;
+        const double d = xi - mean;
+        ss += wi * d * d;
+    }
+    const double v = ss / sw;
+    return sqrtIt ? std::sqrt(v) : v;
+}
+
+// Helper: scalar-normFlag variance/std on a flat 1-D array.
+double scalarVarFlat(const double *x, size_t n, int normFlag,
+                     bool sqrtIt, bool omitNan)
+{
+    if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+    double s = 0.0;
+    size_t cnt = 0;
+    for (size_t i = 0; i < n; ++i) {
+        if (omitNan && std::isnan(x[i])) continue;
+        s += x[i]; ++cnt;
+    }
+    if (cnt == 0) return std::numeric_limits<double>::quiet_NaN();
+    if (cnt == 1) return (normFlag == 1) ? 0.0
+                                         : std::numeric_limits<double>::quiet_NaN();
+    const double mean = s / static_cast<double>(cnt);
+    double ss = 0.0;
+    for (size_t i = 0; i < n; ++i) {
+        if (omitNan && std::isnan(x[i])) continue;
+        const double d = x[i] - mean;
+        ss += d * d;
+    }
+    const double denom = (normFlag == 1) ? static_cast<double>(cnt)
+                                         : static_cast<double>(cnt - 1);
+    const double v = ss / denom;
+    return sqrtIt ? std::sqrt(v) : v;
+}
+
+// Convert a Value to a flat row (used for 'all' / vecdim full-flatten /
+// weight-vector inputs). Skips no elements.
+std::vector<double> flatten(const Value &x)
+{
+    std::vector<double> out(x.numel());
+    for (size_t i = 0; i < x.numel(); ++i) out[i] = x.elemAsDouble(i);
+    return out;
+}
+
+// Common var/std driver — handles every variant (scalar w + scalar dim,
+// 'all', vecdim full-flatten, weight vector).
+//
+// `sqrtIt = true` makes this `std`.
+Value varStdDispatch(std::pmr::memory_resource *mr, Span<const Value> args,
+                     bool sqrtIt, const char *fn)
+{
+    bool omitNan = false;
+    size_t n = stripNanFlag(args, omitNan, fn);
+
+    const Value &x = args[0];
+
+    // Parse args[1] (w) and args[2] (dim/'all'/vecdim) into a normalised
+    // shape: scalar normFlag (0 or 1), or weight vector + flatten flag.
+    int normFlag = 0;
+    bool isWeightVec = false;
+    const Value *wVec = nullptr;
+
+    if (n >= 2 && !args[1].isEmpty()) {
+        if (args[1].numel() == 1 && args[1].isNumeric()) {
+            normFlag = static_cast<int>(args[1].toScalar());
+            if (normFlag != 0 && normFlag != 1)
+                throw Error(std::string(fn) + ": w must be 0 or 1, or a "
+                            "weight vector",
+                            0, 0, fn, "", std::string("m:") + fn + ":w");
+        } else {
+            isWeightVec = true;
+            wVec = &args[1];
+        }
+    }
+
+    int dim = 0;
+    bool flattenAll = false;
+    if (n >= 3 && !args[2].isEmpty()) {
+        const Value &a = args[2];
+        if (a.isChar() || a.isString()) {
+            std::string s = a.toString();
+            std::transform(s.begin(), s.end(), s.begin(),
+                           [](unsigned char c) { return std::tolower(c); });
+            if (s == "all") flattenAll = true;
+            else throw Error(std::string(fn) + ": unknown dim flag '" + s + "'",
+                              0, 0, fn, "", std::string("m:") + fn + ":dim");
+        } else if (a.numel() == 1) {
+            dim = static_cast<int>(a.toScalar());
+        } else {
+            // vecdim: only full-flatten coverage supported
+            std::vector<int> dims;
+            for (size_t i = 0; i < a.numel(); ++i)
+                dims.push_back(static_cast<int>(a.elemAsDouble(i)));
+            const int rank = x.dims().is3D() ? 3
+                              : (x.dims().isVector() || x.isScalar() ? 1 : 2);
+            std::vector<bool> seen(rank + 1, false);
+            for (int d : dims) {
+                if (d < 1 || d > rank)
+                    throw Error(std::string(fn) + ": vecdim entries out of range",
+                                0, 0, fn, "", std::string("m:") + fn + ":vecdim");
+                seen[d] = true;
+            }
+            bool allCovered = true;
+            for (int d = 1; d <= rank; ++d) if (!seen[d]) allCovered = false;
+            if (!allCovered)
+                throw Error(std::string(fn) + ": partial vecdim reduction is "
+                            "not yet supported (only full-flatten vecdim)",
+                            0, 0, fn, "", std::string("m:") + fn + ":vecdim");
+            flattenAll = true;
+        }
+    }
+
+    // ── Weighted-vector path ──────────────────────────────────────────
+    if (isWeightVec) {
+        if (flattenAll || dim == 0) {
+            // Vector input or 'all': flatten + run weightedVarFlat.
+            auto xv = flatten(x);
+            auto wv = flatten(*wVec);
+            if (xv.size() != wv.size())
+                throw Error(std::string(fn) + ": weight vector length must "
+                            "match number of elements",
+                            0, 0, fn, "", std::string("m:") + fn + ":wlen");
+            const double v = weightedVarFlat(xv.data(), wv.data(),
+                                             xv.size(), sqrtIt, omitNan);
+            return Value::scalar(v, mr);
+        }
+        // For matrix + weight + dim: defer (out of scope this cycle).
+        throw Error(std::string(fn) + ": weight vector with non-flat dim "
+                    "not yet supported",
+                    0, 0, fn, "", std::string("m:") + fn + ":wDim");
+    }
+
+    // ── Flatten 'all' / vecdim path ───────────────────────────────────
+    if (flattenAll) {
+        auto xv = flatten(x);
+        const double v = scalarVarFlat(xv.data(), xv.size(), normFlag,
+                                       sqrtIt, omitNan);
+        return Value::scalar(v, mr);
+    }
+
+    // ── Standard scalar-dim path ──────────────────────────────────────
+    if (omitNan) {
+        if (x.type() == ValueType::COMPLEX) {
+            return varianceComplex(x, normFlag, dim, mr, sqrtIt, true);
+        }
+        Value r = sqrtIt
+                    ? ::numkit::stats::nanstdev(mr, x, normFlag, dim)
+                    : ::numkit::stats::nanvar  (mr, x, normFlag, dim);
+        if (x.type() == ValueType::SINGLE)
+            r = narrowToSingle(std::move(r), mr);
+        return r;
+    }
+    return sqrtIt ? stdev(mr, x, normFlag, dim) : var(mr, x, normFlag, dim);
+}
+
 void var_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
              CallContext &ctx)
 {
     if (args.empty())
         throw Error("var: requires at least 1 argument",
                      0, 0, "var", "", "m:var:nargin");
-    bool omitNan = false;
-    const size_t n = stripNanFlag(args, omitNan, "var");
-    int w = 0, dim = 0;
-    if (n >= 2 && !args[1].isEmpty()) w = static_cast<int>(args[1].toScalar());
-    if (n >= 3 && !args[2].isEmpty()) dim = static_cast<int>(args[2].toScalar());
-    if (omitNan) {
-        if (args[0].type() == ValueType::COMPLEX) {
-            outs[0] = varianceComplex(args[0], w, dim,
-                                      ctx.engine->resource(),
-                                      /*sqrtIt=*/false, /*omitNan=*/true);
-            return;
-        }
-        Value r = ::numkit::stats::nanvar(ctx.engine->resource(), args[0], w, dim);
-        if (args[0].type() == ValueType::SINGLE)
-            r = narrowToSingle(std::move(r), ctx.engine->resource());
-        outs[0] = std::move(r);
-        return;
-    }
-    outs[0] = var(ctx.engine->resource(), args[0], w, dim);
+    outs[0] = varStdDispatch(ctx.engine->resource(), args,
+                             /*sqrtIt=*/false, "var");
 }
 
 void std_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -998,25 +1162,8 @@ void std_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("std: requires at least 1 argument",
                      0, 0, "std", "", "m:std:nargin");
-    bool omitNan = false;
-    const size_t n = stripNanFlag(args, omitNan, "std");
-    int w = 0, dim = 0;
-    if (n >= 2 && !args[1].isEmpty()) w = static_cast<int>(args[1].toScalar());
-    if (n >= 3 && !args[2].isEmpty()) dim = static_cast<int>(args[2].toScalar());
-    if (omitNan) {
-        if (args[0].type() == ValueType::COMPLEX) {
-            outs[0] = varianceComplex(args[0], w, dim,
-                                      ctx.engine->resource(),
-                                      /*sqrtIt=*/true, /*omitNan=*/true);
-            return;
-        }
-        Value r = ::numkit::stats::nanstdev(ctx.engine->resource(), args[0], w, dim);
-        if (args[0].type() == ValueType::SINGLE)
-            r = narrowToSingle(std::move(r), ctx.engine->resource());
-        outs[0] = std::move(r);
-        return;
-    }
-    outs[0] = stdev(ctx.engine->resource(), args[0], w, dim);
+    outs[0] = varStdDispatch(ctx.engine->resource(), args,
+                             /*sqrtIt=*/true, "std");
 }
 
 void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,

@@ -90,3 +90,8 @@ v = [2 5 3 7 4 6 NaN 8 1 9]'
 - `var` on `single` precision still goes through the same C++
   path — extending numkit's narrow-output handling for vecdim is
   one extra `narrowToSingle` call.
+
+## Closed
+- Closed in commit: PENDING (joint var/std fix)
+- Closed date: 2026-05-06
+- Notes: Adapter rewritten via varStdDispatch helper. Supports 'all' string, full-flatten vecdim ([1 2] / [1 2 3]), and weight-vector W (denominator = sum(W)). Default nanflag remains 'includenan' (NaN poisons) — matches MATLAB R2025b documented default for double; auditor's R2023b-default-omitnan claim was incorrect (verified via probe). Partial vecdim and weight + non-flat dim not yet supported (documented).

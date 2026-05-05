@@ -50,8 +50,6 @@ Status legend:
 | [findings/stats/cummax.md](findings/stats/cummax.md) | cummax | builtin | high | medium | 4f021db |
 | [findings/stats/cummin.md](findings/stats/cummin.md) | cummin | builtin | high | medium | 4f021db |
 | [findings/stats/median.md](findings/stats/median.md) | median | stats.descriptive | high | medium | ba142e6 |
-| [findings/stats/std.md](findings/stats/std.md) | std | stats.descriptive | high | small | ba142e6 |
-| [findings/stats/var.md](findings/stats/var.md) | var | stats.descriptive | high | medium | ba142e6 |
 | [findings/stats/bounds.md](findings/stats/bounds.md) | bounds | stats.descriptive | medium | small | ba142e6 |
 | [findings/stats/mape.md](findings/stats/mape.md) | mape | stats.descriptive | medium | small | ba142e6 |
 | [findings/stats/maxk.md](findings/stats/maxk.md) | maxk | stats.descriptive | medium | small | ba142e6 |
@@ -225,6 +223,8 @@ Status legend:
 | [closed/stats/iqr.md](closed/stats/iqr.md) | iqr | PENDING | 2026-05-06 |
 | [closed/stats/quantile.md](closed/stats/quantile.md) | quantile | PENDING | 2026-05-06 |
 | [closed/stats/prctile.md](closed/stats/prctile.md) | prctile | PENDING | 2026-05-06 |
+| [closed/stats/var.md](closed/stats/var.md) | var | PENDING | 2026-05-06 |
+| [closed/stats/std.md](closed/stats/std.md) | std | PENDING | 2026-05-06 |
 
 ---
 

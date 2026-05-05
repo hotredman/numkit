@@ -1,13 +1,16 @@
 {
   "name": "var",
-  "namespace": "core",
-  "setup": "x = sin(linspace(0, 100, 1000000));",
-  "expr": "y = var(x);",
-  "iters": 100,
+  "namespace": "stats",
+  "setup": "A = [1 4 7; 2 5 8; 3 6 9; 4 7 10; 5 8 11]; v8 = [1 2 3 4 5]'; W = [1 2 1 2 1]'; v = [2 5 3 7 4 6 NaN 8 1 9]';",
+  "expr": "vA = var(A); vA1 = var(A, 1); vA2 = var(A, 0, 2); v_all = var(A, 0, 'all'); v_vec = var(A, 0, [1 2]); v_w = var(v8, W); v_om = var(v, 0, 'omitnan'); v_inc = var(v, 0, 'includenan');",
+  "iters": 5,
   "tol": 1e-10,
-  "comment": "Sig: V = var(X). 1M-pt. 100 iters. Scalar fp.",
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "vA(1)", "vA(2)", "vA(3)",
+    "vA1(1)", "vA1(2)",
+    "vA2(1)", "vA2(3)", "vA2(5)",
+    "v_all", "v_vec", "v_w",
+    "v_om", "v_inc"
+  ],
+  "comment": "Sig: V = var(A[, w | W][, dim | 'all' | vecdim][, nanflag]). w in {0, 1} or vector W (weighted; denominator = sum(W)). 'all' / full-flatten vecdim flatten input. Default nanflag = includenan (NaN poisons; matches MATLAB R2025b for double). Closes audit/findings/stats/var.md."
 }

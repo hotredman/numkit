@@ -2838,9 +2838,9 @@ intentionally omitted — flat solver functions only.
 | `quantile` | ✅ | 0.011 | 524.51× |  | OK | Sig: Q = quantile(A, p [, dim | 'all' | vecdim] [, Method=method]). Default = 'midpoint' (MATLAB R2025b R2007a algorithm), positions (k-0.5)/N. Methods: midpoint (default) | inclusive (Type-7) | exclusive (Type-6) | approximate (falls back to midpoint). Integer-n form (quantile(A, n) for evenly-spaced quantiles) NOT yet supported — pass an explicit p vector. Closes audit/findings/stats/quantile.md. |
 | `rms` | ✅ | 2.673 | 0.50× | 0.17× | OK | Sig: R = rms(X). 1M-pt sin RMS. 100 iters. Scalar fp. |
 | `rmse` | ✅ | 8.994 | 0.26× | 2.19× | OK | Sig: R = rmse(F, A). 1M-pt. 100 iters. |
-| `std` | ✅ | 0.323 | 4.70× | 26.33× | OK | Sig: S = std(X). 1M-pt. 100 iters. Scalar fp. |
+| `std` | ✅ | 0.008 | 256.96× | 81.61× | OK | Sig: S = std(A[, w | W][, dim | 'all' | vecdim][, nanflag]). Same surface as var. Closes audit/findings/stats/std.md. |
 | `summary` | ❌ |  |  |  |  |  |
-| `var` | ✅ | 0.326 | 4.46× | 26.48× | OK | Sig: V = var(X). 1M-pt. 100 iters. Scalar fp. |
+| `var` | ✅ | 0.012 | 171.62× | 73.92× | OK | Sig: V = var(A[, w | W][, dim | 'all' | vecdim][, nanflag]). w in {0, 1} or vector W (weighted; denominator = sum(W)). 'all' / full-flatten vecdim flatten input. Default nanflag = includenan (NaN poisons; matches MATLAB R2025b for double). Closes audit/findings/stats/var.md. |
 | `xcorr` | ✅ | 0.959 | 0.20× | 1.08× | OK | Sig: C = xcorr(X). Auto-correlation 5k-pt. 100 iters. |
 | `xcov` | ✅ | 1.011 | 0.36× | 0.99× | OK | Cross-cov of 5k-pt sine. 50 iters. |
 
