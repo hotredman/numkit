@@ -100,6 +100,14 @@ Status legend:
 | [findings/signal/gausswin.md](findings/signal/gausswin.md) | gausswin | signal.windows | low | small | 69ef496 |
 | [findings/signal/kaiser.md](findings/signal/kaiser.md) | kaiser | signal.windows | low | small | 69ef496 |
 | [findings/signal/tukeywin.md](findings/signal/tukeywin.md) | tukeywin | signal.windows | low | small | 69ef496 |
+| [findings/wavelet/cgauwavf.md](findings/wavelet/cgauwavf.md) | cgauwavf | wavelet.shape | medium | small | ddf4218 |
+| [findings/wavelet/cmorwavf.md](findings/wavelet/cmorwavf.md) | cmorwavf | wavelet.shape | medium | small | ddf4218 |
+| [findings/wavelet/gauswavf.md](findings/wavelet/gauswavf.md) | gauswavf | wavelet.shape | medium | small | ddf4218 |
+| [findings/wavelet/fbspwavf.md](findings/wavelet/fbspwavf.md) | fbspwavf | wavelet.shape | low | small | ddf4218 |
+| [findings/wavelet/mexihat.md](findings/wavelet/mexihat.md) | mexihat | wavelet.shape | low | small | ddf4218 |
+| [findings/wavelet/meyeraux.md](findings/wavelet/meyeraux.md) | meyeraux | wavelet.shape | low | small | ddf4218 |
+| [findings/wavelet/morlet.md](findings/wavelet/morlet.md) | morlet | wavelet.shape | low | small | ddf4218 |
+| [findings/wavelet/shanwavf.md](findings/wavelet/shanwavf.md) | shanwavf | wavelet.shape | low | small | ddf4218 |
 
 ## Closed ТЗ
 
