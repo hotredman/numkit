@@ -1,0 +1,15 @@
+{
+  "name": "rangesearch",
+  "namespace": "stats",
+  "setup": "X = [1 1; 1 2; 2 1; 8 8; 9 8; 8 9]; Y = [1.5 1.5];",
+  "expr": "[idxC, dC] = rangesearch(X, Y, 1.0); idx = idxC{1};",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "sum(idx(:))",
+    "idx(1)",
+    "idx(end)"
+  ],
+  "out_var": "idx",
+  "comment": "Sig: [Idx, D] = rangesearch(X, Y, r). Cell-array output unwrapped to a numeric row in SAVE (idx = idxC{1}). All 3 points in cluster 1 are within r=1.0 of (1.5, 1.5). Explicit fingerprint avoids sum on the cell."
+}

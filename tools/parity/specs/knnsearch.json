@@ -1,0 +1,10 @@
+{
+  "name": "knnsearch",
+  "namespace": "stats",
+  "setup": "X = [1 1; 1 2; 2 1; 8 8; 9 8; 8 9]; Y = [1.5 1.5; 8.5 8.5];",
+  "expr": "[idx, D] = knnsearch(X, Y, 'K', 3);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "idx",
+  "comment": "Sig: [Idx, D] = knnsearch(X, Y, 'K', K). Brute-force k-nearest neighbour. 6-point X, 2-query Y, K=3, default Euclidean. Element-wise SAVE on idx (1-based row indices)."
+}

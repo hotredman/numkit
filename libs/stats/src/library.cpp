@@ -197,6 +197,10 @@ void cophenet_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // cluster/silhouette.cpp
 void silhouette_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// cluster/knnsearch.cpp
+void knnsearch_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void rangesearch_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void inconsistent_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // dim/pca.cpp
@@ -390,6 +394,8 @@ void StatsLibrary::install(Engine &engine)
     reg("cluster", "cophenet",   &stats::detail::cophenet_reg);
     reg("cluster", "inconsistent", &stats::detail::inconsistent_reg);
     reg("cluster", "silhouette", &stats::detail::silhouette_reg);
+    reg("cluster", "knnsearch",  &stats::detail::knnsearch_reg);
+    reg("cluster", "rangesearch",&stats::detail::rangesearch_reg);
 
     reg("dim", "pca",     &stats::detail::pca_reg);
     reg("dim", "pcacov",  &stats::detail::pcacov_reg);
