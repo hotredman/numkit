@@ -76,6 +76,15 @@ Value sign(std::pmr::memory_resource *mr, const Value &x)
                        mr);
 }
 
+Value subplus(std::pmr::memory_resource *mr, const Value &x)
+{
+    return unaryDouble(x,
+                       [](double v) {
+                           return std::isnan(v) ? v : std::max(v, 0.0);
+                       },
+                       mr);
+}
+
 // ── Engine adapters ──────────────────────────────────────────────────
 namespace detail {
 
@@ -89,11 +98,12 @@ namespace detail {
         outs[0] = fn(ctx.engine->resource(), args[0]);                          \
     }
 
-NK_UNARY_ADAPTER(floor, floor)
-NK_UNARY_ADAPTER(ceil,  ceil)
-NK_UNARY_ADAPTER(round, round)
-NK_UNARY_ADAPTER(fix,   fix)
-NK_UNARY_ADAPTER(sign,  sign)
+NK_UNARY_ADAPTER(floor,   floor)
+NK_UNARY_ADAPTER(ceil,    ceil)
+NK_UNARY_ADAPTER(round,   round)
+NK_UNARY_ADAPTER(fix,     fix)
+NK_UNARY_ADAPTER(sign,    sign)
+NK_UNARY_ADAPTER(subplus, subplus)
 
 #undef NK_UNARY_ADAPTER
 

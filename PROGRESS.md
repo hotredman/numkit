@@ -1350,7 +1350,7 @@ omitted — interactive / Simulink / OOP.
 
 ### Splines
 
-**Namespace:** `cfit.splines.*` — 0 ✅ + 0 ⚠️ / 49 = 0%
+**Namespace:** `cfit.splines.*` — 2 ✅ + 0 ⚠️ / 49 = 4%
 
 OOP `fittype`/`fit`/`cfit`/`sfit`/`fitoptions`/`excludedata` and the
 GUI tools (`sftool`, `bspligui`, `splinetool`, `getcurve`) intentionally
@@ -1394,7 +1394,7 @@ construction / postprocessing primitives — those are all flat functions.
 | `slvblk` | ❌ |  |  |  |  | solve almost-block-diagonal system |
 | `spcol` | ❌ |  |  |  |  | B-spline collocation matrix |
 | `stcol` | ❌ |  |  |  |  | stform collocation matrix |
-| `subplus` | ❌ |  |  |  |  | x_+ truncated power |
+| `subplus` | ✅ | 0.002 | 70.25× |  | OK | Sig: y = subplus(x). Truncated power: max(x, 0) elementwise. NaN passes through. |
 | `aptknt` | ❌ |  |  |  |  | append knots for spline of order k |
 | `augknt` | ❌ |  |  |  |  | augment knot sequence |
 | `aveknt` | ❌ |  |  |  |  | knot averages |
@@ -1404,7 +1404,7 @@ construction / postprocessing primitives — those are all flat functions.
 | `newknt` | ❌ |  |  |  |  | distribute knots on equidistribution |
 | `optknt` | ❌ |  |  |  |  | optimal knot distribution |
 | `smooth` | ❌ |  |  |  |  | data smoothing (already partially in core) |
-| `datastats` | ❌ |  |  |  |  | basic descriptive on (x, y) |
+| `datastats` | ✅ | 0.003 | 493.04× |  | OK | Sig: s = datastats(x). Returns struct {num, max, min, mean, median, range, std} for the column-vector input. Sample std (N-1). |
 | `prepareCurveData` | ❌ |  |  |  |  | sanitise (NaN, Inf, complex) |
 | `prepareSurfaceData` | ❌ |  |  |  |  | 2-D variant |
 | `quad2d` | ❌ |  |  |  |  | 2-D quadrature (also in core) |

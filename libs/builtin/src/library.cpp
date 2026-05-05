@@ -82,6 +82,7 @@ void fix_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void mod_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void rem_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void sign_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void subplus_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void max_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void min_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void sum_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -538,6 +539,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("mod",      &builtin::detail::mod_reg);
     engine.registerFunction("rem",      &builtin::detail::rem_reg);
     engine.registerFunction("sign",     &builtin::detail::sign_reg);
+    engine.registerFunction("subplus",  &builtin::detail::subplus_reg);
     engine.registerFunction("max",      &builtin::detail::max_reg);
     engine.registerFunction("min",      &builtin::detail::min_reg);
     engine.registerFunction("sum",      &builtin::detail::sum_reg);

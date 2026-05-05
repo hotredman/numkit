@@ -291,8 +291,87 @@ Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
         }, mr);
 }
 
+// ── datastats ─────────────────────────────────────────────────────────
+
+std::tuple<Value, Value, Value, Value, Value, Value, Value>
+datastats(std::pmr::memory_resource *mr, const Value &x)
+{
+    const size_t N = x.numel();
+    std::vector<double> v;
+    v.reserve(N);
+    for (size_t i = 0; i < N; ++i) v.push_back(x.elemAsDouble(i));
+
+    const auto nan = std::numeric_limits<double>::quiet_NaN();
+    if (N == 0) {
+        return std::make_tuple(Value::scalar(0.0, mr),
+                               Value::scalar(nan, mr),
+                               Value::scalar(nan, mr),
+                               Value::scalar(nan, mr),
+                               Value::scalar(nan, mr),
+                               Value::scalar(nan, mr),
+                               Value::scalar(nan, mr));
+    }
+
+    double mn = v[0], mx = v[0], sum = 0.0;
+    for (double vi : v) {
+        if (vi < mn) mn = vi;
+        if (vi > mx) mx = vi;
+        sum += vi;
+    }
+    const double mean = sum / static_cast<double>(N);
+
+    std::vector<double> sorted = v;
+    std::sort(sorted.begin(), sorted.end());
+    double median;
+    if (N % 2 == 1) median = sorted[N / 2];
+    else            median = 0.5 * (sorted[N / 2 - 1] + sorted[N / 2]);
+
+    double sd = 0.0;
+    if (N > 1) {
+        double sq = 0.0;
+        for (double vi : v) { const double d = vi - mean; sq += d * d; }
+        sd = std::sqrt(sq / static_cast<double>(N - 1));
+    }
+    const double range = mx - mn;
+
+    return std::make_tuple(Value::scalar(static_cast<double>(N), mr),
+                           Value::scalar(mx,     mr),
+                           Value::scalar(mn,     mr),
+                           Value::scalar(mean,   mr),
+                           Value::scalar(median, mr),
+                           Value::scalar(range,  mr),
+                           Value::scalar(sd,     mr));
+}
+
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
+
+void datastats_reg(Span<const Value> args, size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("datastats: requires X[, Y]",
+                    0, 0, "datastats", "", "m:datastats:nargin");
+    auto build = [&](const Value &v) {
+        auto [num, mx, mn, me, md, rg, sd] =
+            datastats(ctx.engine->resource(), v);
+        Value s = Value::structure(ctx.engine->resource());
+        s.field("num")    = num;
+        s.field("max")    = mx;
+        s.field("min")    = mn;
+        s.field("mean")   = me;
+        s.field("median") = md;
+        s.field("range")  = rg;
+        s.field("std")    = sd;
+        return s;
+    };
+    outs[0] = build(args[0]);
+    // Two-arg form returns separate stats structs for x and y.
+    // We only fill outs[1] if a second argument was supplied AND the
+    // caller actually requested two outputs (otherwise it's a no-op).
+    if (args.size() >= 2 && outs.size() > 1)
+        outs[1] = build(args[1]);
+}
 
 void bounds_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {

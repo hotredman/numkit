@@ -116,6 +116,15 @@ Value rmse(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
 // the Inf).
 Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int dim = 0);
 
+// ── datastats ──────────────────────────────────────────────────────────
+// datastats(x) — descriptive struct for a single dataset; engine-side
+// wraps the 7 returned scalars into a struct {num, max, min, mean,
+// median, range, std}. Matches Curve Fitting Toolbox conventions.
+// NaN values in `x` propagate via the underlying reductions (matching
+// MATLAB's datastats behaviour).
+std::tuple<Value, Value, Value, Value, Value, Value, Value>
+datastats(std::pmr::memory_resource *mr, const Value &x);
+
 // ── ecdf ───────────────────────────────────────────────────────────────
 // ecdf(y) — empirical cumulative distribution function. Returns a pair
 // (f, x) of column vectors of length K+1, where K is the number of
