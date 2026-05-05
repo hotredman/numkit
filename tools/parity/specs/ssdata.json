@@ -1,0 +1,16 @@
+{
+  "name": "ssdata",
+  "namespace": "control",
+  "setup": "sys = ss([0 1; -2 -3], [0; 1], [1 0], 0);",
+  "expr": "[A, B, C, D] = ssdata(sys);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "A(1,1)",
+    "A(2,2)",
+    "B(2,1)",
+    "C(1,1)",
+    "D"
+  ],
+  "comment": "Sig: [A, B, C, D] = ssdata(sys). Extracts state-space matrices. Accepts tf / zpk / ss inputs (the former two get realised via tf2ss controllable canonical form)."
+}

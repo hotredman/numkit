@@ -27,4 +27,22 @@ Value ss(std::pmr::memory_resource *mr,
          const Value &A, const Value &B,
          const Value &C, const Value &D, double Ts);
 
+/// `tfdata(sys[, 'v'])` — extract num/den. With 'v' returns numeric row
+/// vectors padded so num and den have equal length (leading zeros on
+/// num); without 'v', wraps each row vector in a 1×1 cell.
+/// Accepts tf or zpk / ss inputs (the latter are converted via the
+/// existing zp2tf / ss2tf paths).
+std::tuple<Value, Value>
+tfdata(std::pmr::memory_resource *mr, const Value &sys, bool asVector);
+
+/// `zpkdata(sys[, 'v'])` — extract zeros / poles / gain. `z` and `p`
+/// are returned as column vectors (or 1×1 cells without 'v'). `k` is
+/// always a numeric scalar.
+std::tuple<Value, Value, Value>
+zpkdata(std::pmr::memory_resource *mr, const Value &sys, bool asVector);
+
+/// `ssdata(sys)` — extract A, B, C, D matrices.
+std::tuple<Value, Value, Value, Value>
+ssdata(std::pmr::memory_resource *mr, const Value &sys);
+
 } // namespace numkit::control
