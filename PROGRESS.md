@@ -1350,7 +1350,7 @@ omitted — interactive / Simulink / OOP.
 
 ### Splines
 
-**Namespace:** `cfit.splines.*` — 4 ✅ + 0 ⚠️ / 49 = 8%
+**Namespace:** `cfit.splines.*` — 8 ✅ + 0 ⚠️ / 49 = 16%
 
 OOP `fittype`/`fit`/`cfit`/`sfit`/`fitoptions`/`excludedata` and the
 GUI tools (`sftool`, `bspligui`, `splinetool`, `getcurve`) intentionally
@@ -1396,11 +1396,11 @@ construction / postprocessing primitives — those are all flat functions.
 | `stcol` | ❌ |  |  |  |  | stform collocation matrix |
 | `subplus` | ✅ | 0.002 | 70.25× |  | OK | Sig: y = subplus(x). Truncated power: max(x, 0) elementwise. NaN passes through. |
 | `aptknt` | ❌ |  |  |  |  | append knots for spline of order k |
-| `augknt` | ❌ |  |  |  |  | augment knot sequence |
-| `aveknt` | ❌ |  |  |  |  | knot averages |
-| `brk2knt` | ❌ |  |  |  |  | breaks → knots with given multiplicity |
+| `augknt` | ✅ | 0.003 | 189.77× |  | OK | Sig: out = augknt(knots, k). Endpoint multiplicity-k augmentation; size = N + 2(k-1). |
+| `aveknt` | ✅ | 0.003 | 106.08× |  | OK | Sig: y = aveknt(t, k). Greville sites: y(i) = mean(t(i+1)..t(i+k-1)). Result length = length(t) - k. |
+| `brk2knt` | ✅ | 0.006 | 58.62× |  | OK | Sig: knots = brk2knt(breaks, mults). Replicate each break by its multiplicity. |
 | `chbpnt` | ❌ |  |  |  |  | Chebyshev sites |
-| `knt2brk` | ❌ |  |  |  |  | knots → breaks + multiplicities |
+| `knt2brk` | ✅ | 0.004 | 81.02× |  | OK | Sig: [breaks, mults] = knt2brk(knots). Inverse of brk2knt: distinct knots + multiplicities. |
 | `newknt` | ❌ |  |  |  |  | distribute knots on equidistribution |
 | `optknt` | ❌ |  |  |  |  | optimal knot distribution |
 | `smooth` | ❌ |  |  |  |  | data smoothing (already partially in core) |

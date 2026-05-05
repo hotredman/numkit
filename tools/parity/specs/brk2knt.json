@@ -1,0 +1,10 @@
+{
+  "name": "brk2knt",
+  "namespace": "stats",
+  "setup": "breaks = [0 1 2 3]; mults = [2 1 3 1];",
+  "expr": "knots = brk2knt(breaks, mults);",
+  "iters": 5,
+  "tol": 1e-15,
+  "fingerprint": ["numel(knots)", "knots(1)", "knots(2)", "knots(end)"],
+  "comment": "Sig: knots = brk2knt(breaks, mults). Replicate each break by its multiplicity."
+}
