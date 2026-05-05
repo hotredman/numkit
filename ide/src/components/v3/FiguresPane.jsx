@@ -20,11 +20,14 @@ function renderFigure(figure, props) {
 const PREVIEW_ASPECT  = 1.7; // width / height — keep in sync with CSS rule below
 
 function FigurePreviewCard({ figure, onExpand, onClose }) {
-  // Polar plots don't pan/zoom — they have no Cartesian viewport to track.
-  const initialVp = (figure.xRange && figure.yRange)
-    ? { x: figure.xRange.slice(), y: figure.yRange.slice() }
+  // Preview is non-interactive (no pan/zoom), so derive the viewport directly
+  // from the figure's data extent on every render — useState would freeze it
+  // at mount and stale ranges from a previous run would leak in when the
+  // figure is replaced by a new script execution under the same id.
+  const viewport = (figure.xRange && figure.yRange)
+    ? { x: figure.xRange, y: figure.yRange }
     : { x: [-1, 1], y: [-1, 1] };
-  const [viewport, setViewport] = useState(initialVp);
+  const setViewport = () => {};   // no-op for non-interactive preview
   const ref = useRef(null);
   const [size, setSize] = useState({ w: 320, h: Math.round(320 / PREVIEW_ASPECT) });
 
