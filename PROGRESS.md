@@ -1750,8 +1750,8 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `adapthisteq` | ❌ |  |  |  |  | CLAHE |
 | `decorrstretch` | ❌ |  |  |  |  | decorrelation stretch |
 | `histeq` | ✅ | 0.004 | 495.84× |  | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imadjust` | ✅ | 0.005 |  | 134.01× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imadjustn` | ❌ | 0.005 | 603.67× |  | MISMATCH | Sig: imadjustn(I). N-D variant of imadjust; we alias since imadjust already handles 3-D. Octave-image does not have imadjustn so cross-check may report N/A — depends on stretchlim like the imadjust spec. |
+| `imadjust` | ✅ | 0.005 | 467.60× | 107.88× | OK | Sig + small deterministic input. Auto-generated for parity sweep. KNOWN: depends on stretchlim — same fix. |
+| `imadjustn` | ✅ | 0.005 | 522.22× |  | OK | Sig: imadjustn(I). N-D variant of imadjust; we alias since imadjust already handles 3-D. Octave-image does not have imadjustn so cross-check may report N/A — depends on stretchlim like the imadjust spec. |
 | `imflatfield` | ❌ | 4.162 | 1.23× |  | MISMATCH | Sig: imflatfield(I, sigma [, mask]). Smooth synthetic shading on a 32x32 double image. Octave-image 11.1.0 does not have imflatfield so cross-check reports correctness=N/A. Algorithm: F = imgaussfilt(im2double(I), sigma); B = im2cls((I_double./F) * mean(F)). 3-D inputs are processed per-page. |
 | `imhistmatch` | ✅ | 0.004 |  |  | N/A | Sig: J = imhistmatch(I, ref, nbins). [0,0.5] source CDF-matched to [0,1] reference. Tol relaxed: bin discretisation differs slightly across implementations. |
 | `imhistmatchn` | ✅ | 0.005 | 582.59× |  | OK | Sig: imhistmatchn(I, ref [, nbins]). N-D histogram match (single histogram across volume). Aliased to imhistmatch which uses the same single-histogram semantics. Octave-image 11.1.0 has no imhistmatchn → correctness=N/A as documented. |
@@ -1761,7 +1761,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `intlut` | ✅ | 0.002 | 295.79× | 11.76× | OK | Sig: B = intlut(A, LUT). Pure pointwise table lookup. uint8 in / uint8 out via inversion LUT. Output class follows class(LUT). |
 | `localcontrast` | ❌ |  |  |  |  |  |
 | `locallapfilt` | ❌ |  |  |  |  | local Laplacian |
-| `stretchlim` | ✅ | 0.003 |  | 79.71× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `stretchlim` | ✅ | 0.003 | 440.27× | 109.49× | OK | Sig + small deterministic input. Auto-generated for parity sweep. KNOWN: percentile interpolation differs (numkit uses bin counts, MATLAB uses linear interpolation between bin edges). |
 
 ### ROI-Based Processing
 

@@ -111,16 +111,46 @@ Value stretchlim(std::pmr::memory_resource *mr, const Value &I,
     Value out = Value::matrix(2, channels, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
 
-    std::vector<double> samples(plane);
+    // MATLAB's stretchlim uses a 256-bin histogram with strict-greater
+    // cumulative thresholds, NOT sample-percentile. For uint8 the bin
+    // index is the value directly; for uint16 / float the input is
+    // normalized to [0,1] and rebinned. The two algorithms diverge for
+    // discrete data: e.g. uint8(0:99) yields stretchlim = [1/255, 98/255]
+    // (bin-based, MATLAB) vs [0/255, 99/255] (sample percentile).
+    constexpr int NBINS = 256;
+    std::vector<std::size_t> hist(NBINS, 0);
+    std::vector<std::size_t> cumhist(NBINS, 0);
+    const double N = static_cast<double>(plane);
+
     for (int ch = 0; ch < channels; ++ch) {
-        for (size_t i = 0; i < plane; ++i) {
-            samples[i] = element_to_unit(I, ch * plane + i);
+        std::fill(hist.begin(), hist.end(), 0);
+        for (std::size_t i = 0; i < plane; ++i) {
+            const double u = element_to_unit(I, ch * plane + i);
+            int bin = static_cast<int>(std::lround(u * (NBINS - 1)));
+            if (bin < 0) bin = 0;
+            if (bin >= NBINS) bin = NBINS - 1;
+            ++hist[bin];
         }
-        std::sort(samples.begin(), samples.end());
-        const size_t lo_idx = (size_t)std::floor(low_tol  * (plane - 1));
-        const size_t hi_idx = (size_t)std::ceil (high_tol * (plane - 1));
-        od[(size_t)ch * 2 + 0] = samples[lo_idx];
-        od[(size_t)ch * 2 + 1] = samples[std::min(hi_idx, plane - 1)];
+        cumhist[0] = hist[0];
+        for (int k = 1; k < NBINS; ++k) cumhist[k] = cumhist[k - 1] + hist[k];
+
+        // low: smallest bin k where cumhist[k] > low_tol * N (strict).
+        int low = NBINS - 1;
+        for (int k = 0; k < NBINS; ++k) {
+            if (static_cast<double>(cumhist[k]) > low_tol * N) { low = k; break; }
+        }
+        // high: smallest bin k where cumhist[k] >= high_tol * N.
+        int high = NBINS - 1;
+        for (int k = 0; k < NBINS; ++k) {
+            if (static_cast<double>(cumhist[k]) >= high_tol * N) { high = k; break; }
+        }
+        // Guard: if histogram is degenerate (all in one bin), spread by 1.
+        if (high <= low) high = std::min(NBINS - 1, low + 1);
+
+        od[static_cast<std::size_t>(ch) * 2 + 0] =
+            static_cast<double>(low)  / static_cast<double>(NBINS - 1);
+        od[static_cast<std::size_t>(ch) * 2 + 1] =
+            static_cast<double>(high) / static_cast<double>(NBINS - 1);
     }
     return out;
 }
