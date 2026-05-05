@@ -32,6 +32,7 @@ void qfunc_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void qfuncinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void marcumq_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void berawgn_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void berconfint_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void noisebw_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void convertSNR_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
@@ -81,8 +82,9 @@ void CommLibrary::install(Engine &engine)
     reg("perf", "qfunc",     &comm::detail::qfunc_reg);
     reg("perf", "qfuncinv",  &comm::detail::qfuncinv_reg);
     reg("perf", "marcumq",   &comm::detail::marcumq_reg);
-    reg("perf", "berawgn",   &comm::detail::berawgn_reg);
-    reg("perf", "noisebw",   &comm::detail::noisebw_reg);
+    reg("perf", "berawgn",     &comm::detail::berawgn_reg);
+    reg("perf", "berconfint",  &comm::detail::berconfint_reg);
+    reg("perf", "noisebw",     &comm::detail::noisebw_reg);
     reg("perf", "convertSNR",&comm::detail::convertSNR_reg);
 
     reg("rf", "rayleighchan", &comm::detail::rayleighchan_reg);

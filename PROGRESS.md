@@ -1132,13 +1132,13 @@ vector path-loss models and coordinate transforms.
 
 ### Performance Analysis
 
-**Namespace:** `comm.perf.*` — 5 ✅ + 0 ⚠️ / 11 = 45%
+**Namespace:** `comm.perf.*` — 6 ✅ + 0 ⚠️ / 11 = 55%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `berawgn` | ✅ |  |  |  | OK | psk/qam/pam/fsk/dpsk; Gray-coded BER approximation |
 | `bercoding` | ❌ |  |  |  |  | with coding gain |
-| `berconfint` | ❌ |  |  |  |  | confidence interval |
+| `berconfint` | ✅ | 0.005 | 258.02× |  | OK | Sig: [ber, ci] = berconfint(numErrs, numBits[, level]). Clopper-Pearson exact binomial CI via betaincinv. Edge cases: k=0 (lo=0), k=n (hi=1). |
 | `berfading` | ❌ |  |  |  |  | over Rayleigh / Rician fading |
 | `berfit` | ❌ |  |  |  |  | curve fit BER vs Eb/No |
 | `bersync` | ❌ |  |  |  |  | with imperfect sync |

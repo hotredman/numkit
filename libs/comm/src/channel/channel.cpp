@@ -3,6 +3,7 @@
 #include <numkit/comm/channel/channel.hpp>
 
 #include <numkit/builtin/math/random/rng.hpp>
+#include <numkit/builtin/math/special/special.hpp>     // betaincinv
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -340,6 +341,53 @@ Value noisebw(std::pmr::memory_resource *mr, const Value &num, const Value &den,
     return Value::scalar(bw, mr);
 }
 
+// Inverse regularized incomplete beta scalar wrapper (uses builtin Newton-iter
+// implementation that operates on Value).
+static double betaincinv_scalar(std::pmr::memory_resource *mr,
+                                double p, double a, double b)
+{
+    if (a <= 0.0 || b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    if (p <= 0.0) return 0.0;
+    if (p >= 1.0) return 1.0;
+    Value pV = Value::scalar(p, mr);
+    Value aV = Value::scalar(a, mr);
+    Value bV = Value::scalar(b, mr);
+    return ::numkit::builtin::betaincinv(mr, pV, aV, bV).toScalar();
+}
+
+std::tuple<Value, Value>
+berconfint(std::pmr::memory_resource *mr,
+           double numErrs, double numBits, double level)
+{
+    if (!(numBits > 0.0))
+        throw Error("berconfint: numBits must be positive",
+                    0, 0, "berconfint", "", "m:berconfint:nbits");
+    if (numErrs < 0.0 || numErrs > numBits)
+        throw Error("berconfint: numErrs must satisfy 0 ≤ numErrs ≤ numBits",
+                    0, 0, "berconfint", "", "m:berconfint:nerrs");
+    if (!(level > 0.0 && level < 1.0))
+        throw Error("berconfint: level must lie in (0, 1)",
+                    0, 0, "berconfint", "", "m:berconfint:level");
+
+    const double k = numErrs;
+    const double n = numBits;
+    const double ber = k / n;
+    const double alpha = 1.0 - level;
+
+    // Clopper-Pearson exact binomial CI.
+    double lo = (k == 0.0) ? 0.0
+                           : betaincinv_scalar(mr, alpha / 2.0, k, n - k + 1.0);
+    double hi = (k == n)   ? 1.0
+                           : betaincinv_scalar(mr, 1.0 - alpha / 2.0, k + 1.0, n - k);
+
+    Value berV = Value::scalar(ber, mr);
+    Value ciV  = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+    double *cd = ciV.doubleDataMut();
+    cd[0] = lo;
+    cd[1] = hi;
+    return {std::move(berV), std::move(ciV)};
+}
+
 Value convertSNR(std::pmr::memory_resource *mr, const Value &snr_in,
                  const std::string &in_type, const std::string &out_type,
                  int bits_per_symbol)
@@ -460,6 +508,21 @@ void noisebw_reg(Span<const Value> args, size_t /*nargout*/,
     const int    n  = (int)args[2].toScalar();
     const double fs = args[3].toScalar();
     outs[0] = noisebw(ctx.engine->resource(), args[0], args[1], n, fs);
+}
+
+void berconfint_reg(Span<const Value> args, size_t nargout,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("berconfint: requires (numErrs, numBits[, level])",
+                    0, 0, "berconfint", "", "m:berconfint:nargin");
+    const double k     = args[0].toScalar();
+    const double n     = args[1].toScalar();
+    const double level = (args.size() >= 3 && !args[2].isEmpty())
+                         ? args[2].toScalar() : 0.95;
+    auto [ber, ci] = berconfint(ctx.engine->resource(), k, n, level);
+    outs[0] = std::move(ber);
+    if (nargout > 1) outs[1] = std::move(ci);
 }
 
 void convertSNR_reg(Span<const Value> args, size_t /*nargout*/,

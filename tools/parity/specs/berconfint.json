@@ -1,0 +1,15 @@
+{
+  "name": "berconfint",
+  "namespace": "comm",
+  "setup": "k = 10; n = 1000;",
+  "expr": "[ber, ci] = berconfint(k, n);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "berconfint(0, 100)",
+    "berconfint(10, 1000)",
+    "berconfint(50, 100, 0.99)",
+    "ci"
+  ],
+  "comment": "Sig: [ber, ci] = berconfint(numErrs, numBits[, level]). Clopper-Pearson exact binomial CI via betaincinv. Edge cases: k=0 (lo=0), k=n (hi=1)."
+}
