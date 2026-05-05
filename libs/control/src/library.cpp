@@ -23,6 +23,7 @@ void ssdata_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void filt_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void frd_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void frdata_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ss2ss_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 // props/props.cpp
 void isct_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void isdt_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -91,6 +92,8 @@ void ControlLibrary::install(Engine &engine)
     reg("lti", "filt",    &control::detail::filt_reg);
     reg("lti", "frd",     &control::detail::frd_reg);
     reg("lti", "frdata",  &control::detail::frdata_reg);
+
+    reg("convert", "ss2ss", &control::detail::ss2ss_reg);
 
     reg("props", "isct",     &control::detail::isct_reg);
     reg("props", "isdt",     &control::detail::isdt_reg);
