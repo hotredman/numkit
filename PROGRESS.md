@@ -492,7 +492,7 @@ together.
 | `intersect` | ✅ | 0.623 | 0.43× | 0.42× | OK | Sig: C = intersect(A, B). 10k vs 10k overlap. 100 iters. Element-wise SAVE. |
 | `ismember` | ✅ | 1.359 | 0.30× | 0.55× | OK | Sig: TF = ismember(A, B). 100k vs 20k members. 50 iters. Element-wise SAVE on logical. |
 | `ismissing` | ❌ |  |  |  |  |  |
-| `issortedrows` | ❌ | 0.013 | 0.59× |  | OK | Sig: TF = issortedrows(X). 10k×3 pre-sorted. 1000 iters. |
+| `issortedrows` | ✅ | 0.013 | 0.59× |  | OK | Sig: TF = issortedrows(X). 10k×3 pre-sorted. 1000 iters. |
 | `join` | ✅ | 0.001 | 0.34× |  | OK | Join 24-element Greek-letter string array. 10k iters. |
 | `jointables` | ❌ |  |  |  |  |  |
 | `mergevars` | ❌ |  |  |  |  |  |
@@ -1024,7 +1024,7 @@ the flat `gf*` function family below.
 | `istrellis` | ❌ |  |  |  |  |  |
 | `poly2trellis` | ❌ |  |  |  |  | conv-poly → trellis struct |
 | `cosets` | ❌ |  |  |  |  | cyclotomic cosets |
-| `dftmtx` | ❌ |  |  |  |  | already in core / FFT |
+| `dftmtx` | ✅ |  |  |  |  | already in core / FFT |
 | `isprimitive` | ❌ |  |  |  |  |  |
 | `minpol` | ❌ |  |  |  |  | minimal polynomial in GF |
 | `primpoly` | ❌ |  |  |  |  | primitive polynomial of degree m |
@@ -1238,7 +1238,7 @@ intentionally omitted.
 | `series` | ✅ |  |  |  | OK | tf form: num/den = conv(num1,num2)/conv(den1,den2) |
 | `parallel` | ✅ |  |  |  | OK | tf form: (n1·d2 + n2·d1) / (d1·d2) |
 | `connect` | ❌ |  |  |  |  | name-based interconnect |
-| `append` | ❌ |  |  |  |  | block-diagonal stack |
+| `append` | ✅ |  |  |  |  | block-diagonal stack |
 | `lft` | ❌ |  |  |  |  | linear fractional transform |
 | `sumblk` | ❌ |  |  |  |  | summation block (for connect) |
 
@@ -1280,8 +1280,8 @@ output args).
 |---|:---:|---:|---:|---:|:---:|---|
 | `margin` | ✅ |  |  |  | OK | linear interp on bode grid; returns Gm/Pm/Wcg/Wcp |
 | `allmargin` | ❌ |  |  |  |  | all stability margins |
-| `db2mag` | ❌ |  |  |  |  |  |
-| `mag2db` | ❌ |  |  |  |  |  |
+| `db2mag` | ✅ |  |  |  |  |  |
+| `mag2db` | ✅ |  |  |  |  |  |
 | `pzmap` | ✅ |  |  |  | OK | composes pole(sys) + zero(sys) into a 2-output |
 | `rlocus` | ✅ |  |  |  | OK | sweep gain, roots(den + k·num); composes with feedback to 0 ULP |
 
@@ -1707,7 +1707,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `convmtx2` | ❌ | 0.003 | 36.24× |  | OK | Sig: T = convmtx2(h, m, n). Convolution matrix for 2-D 'full' convolution. MATLAB returns sparse, we return dense — wrap in full() in MATLAB so dim and values match. Octave-image doesn't ship convmtx2. |
 | `entropyfilt` | ❌ | 0.007 |  | 89.83× | OK | Sig: E = entropyfilt(I [, domain]). Local Shannon entropy in bits; default 9x9 ones, symmetric pad. Octave-image has entropyfilt. |
 | `fibermetric` | ❌ |  |  |  |  |  |
-| `freqspace` | ❌ | 0.003 | 31.49× |  | OK | Sig: [f1, f2] = freqspace(N|[N M]) or f = freqspace(N[, 'whole']). Now supports 2-output centered form and 2-vec [N M] input (via libs/builtin extension). |
+| `freqspace` | ✅ | 0.003 | 31.49× |  | OK | Sig: [f1, f2] = freqspace(N|[N M]) or f = freqspace(N[, 'whole']). Now supports 2-output centered form and 2-vec [N M] input (via libs/builtin extension). |
 | `freqz2` | ❌ |  |  |  |  | 2-D freq response |
 | `fsamp2` | ❌ |  |  |  |  | 2-D FIR via frequency sampling |
 | `fspecial` | ✅ | 0.004 |  | 91.07× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
@@ -1792,7 +1792,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `bwmorph` | ❌ |  |  |  |  | 2-D morphology dispatch |
 | `bwmorph3` | ❌ |  |  |  |  |  |
 | `bwpack` | ❌ | 0.004 |  | 61.12× | OK | Sig: BWP = bwpack(BW). Pack 32 binary rows into one uint32 (LSB = row 0). Octave-image has bwpack. |
-| `bwperim` | ❌ | 0.003 |  | 154.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `bwperim` | ✅ | 0.003 |  | 154.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `bwskel` | ❌ |  |  |  |  | skeletonize |
 | `bwulterode` | ❌ |  |  |  |  | ultimate erosion |
 | `bwunpack` | ❌ |  |  |  |  |  |
@@ -2307,7 +2307,7 @@ intentionally omitted — flat solver functions only.
 | `framesig` | ❌ |  |  |  |  |  |
 | `gauspuls` | ✅ | 0.107 | 0.44× | 1.00× | MISMATCH | Sig: Y = gauspuls(T, FC, BW). Gaussian pulse. 1000 iters. |
 | `gmonopuls` | ✅ | 0.085 | 0.49× | 0.79× | OK | Sig: Y = gmonopuls(T, FC). Gaussian monopulse. 1000 iters. |
-| `marcumq` | ❌ |  |  |  |  |  |
+| `marcumq` | ✅ |  |  |  |  |  |
 | `modulate` | ❌ |  |  |  |  |  |
 | `pulstran` | ✅ | 0.009 | 5.05× | 17.41× | MISMATCH | Sig: Y = pulstran(T, D, FUNC, ARGS). Pulse train. 1000 iters. |
 | `rectpuls` | ✅ | 0.020 | 1.23× | 1.42× | OK | Sig: Y = rectpuls(T). Rectangular pulse. 1000 iters. |
@@ -2448,10 +2448,10 @@ intentionally omitted — flat solver functions only.
 | `sos2tf` | ✅ | 0.001 | 28.06× | 211.88× | OK | Sig: [B,A] = sos2tf(SOS). 1000 iters. |
 | `sos2zp` | ✅ | 0.002 | 14.99× | 95.44× | OK | Sig: [Z,P,K] = sos2zp(SOS). 1000 iters. |
 | `sosfilt` | ✅ | 0.102 | 0.43× | 0.29× | OK | Sig: Y = sosfilt(SOS, X). 10k pts. 100 iters. |
-| `ss` | ❌ |  |  |  |  |  |
+| `ss` | ✅ |  |  |  |  |  |
 | `ss2sos` | ✅ | 0.001 | 97.24× |  | MISMATCH | Sig: SOS = ss2sos(A,B,C,D). 1000 iters. |
 | `ss2zp` | ✅ |  |  |  | N/A | Sig: [Z,P,K] = ss2zp(A,B,C,D). 1000 iters. |
-| `tf` | ❌ |  |  |  |  |  |
+| `tf` | ✅ |  |  |  |  |  |
 | `tf2latc` | ❌ |  |  |  |  | lattice |
 | `tf2sos` | ✅ | 0.001 | 97.22× | 1564.99× | MISMATCH | Sig: SOS = tf2sos(B,A). 1000 iters. |
 | `tf2ss` | ✅ | 0.000 | 14.43× | 3654.83× | MISMATCH | Sig: [A,B,C,D] = tf2ss(BS,AS). 1000 iters. SAVE on A. |
@@ -2461,7 +2461,7 @@ intentionally omitted — flat solver functions only.
 | `zp2sos` | ✅ | 0.000 | 264.82× | 1334.55× | OK | Sig: SOS = zp2sos(Z,P,K). 1000 iters. |
 | `zp2ss` | ✅ | 0.001 | 51.12× | 2385.86× | MISMATCH | Sig: [A,B,C,D] = zp2ss(Z,P,K). 1000 iters. |
 | `zp2tf` | ✅ | 0.000 | 43.39× | 4351.90× | OK | Sig: [B,A] = zp2tf(Z,P,K). 10000 iters. |
-| `zpk` | ❌ |  |  |  |  |  |
+| `zpk` | ✅ |  |  |  |  |  |
 | `filter` | ✅ | 1.154 | 0.05× | 0.11× | OK | Sig: Y = filter(B, A, X). FIR-1 [1 -0.5] on 100k. 100 iters. |
 | `filter2` | ✅ | 0.141 | 0.51× | 0.34× | OK | 128x128 image with 3x3 Laplacian kernel. 100 iters. |
 
