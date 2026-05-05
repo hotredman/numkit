@@ -1,0 +1,10 @@
+{
+  "name": "augknt",
+  "namespace": "stats",
+  "setup": "knots = [0 0.5 1]; k = 4;",
+  "expr": "out = augknt(knots, k);",
+  "iters": 5,
+  "tol": 1e-15,
+  "fingerprint": ["numel(out)", "out(1)", "out(end)", "out(5)"],
+  "comment": "Sig: out = augknt(knots, k). Endpoint multiplicity-k augmentation; size = N + 2(k-1)."
+}

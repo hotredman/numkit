@@ -1,0 +1,10 @@
+{
+  "name": "knt2brk",
+  "namespace": "stats",
+  "setup": "knots = [0 0 1 2 2 2 3];",
+  "expr": "[b, m] = knt2brk(knots);",
+  "iters": 5,
+  "tol": 1e-15,
+  "fingerprint": ["numel(b)", "b(1)", "b(end)", "m(1)", "m(3)"],
+  "comment": "Sig: [breaks, mults] = knt2brk(knots). Inverse of brk2knt: distinct knots + multiplicities."
+}

@@ -312,6 +312,12 @@ void ridge_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // lda/lda.cpp
 void classify_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// spline/spline.cpp
+void aveknt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void augknt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void brk2knt_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void knt2brk_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -580,6 +586,11 @@ void StatsLibrary::install(Engine &engine)
     reg("regress", "ridge",   &stats::detail::ridge_reg);
 
     reg("lda", "classify", &stats::detail::classify_reg);
+
+    reg("descriptive", "aveknt",  &stats::detail::aveknt_reg);
+    reg("descriptive", "augknt",  &stats::detail::augknt_reg);
+    reg("descriptive", "brk2knt", &stats::detail::brk2knt_reg);
+    reg("descriptive", "knt2brk", &stats::detail::knt2brk_reg);
 }
 
 } // namespace numkit
