@@ -14,6 +14,11 @@ void wfilters_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // filter/qmf.cpp
 void qmf_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void wrev_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+// filter/families.cpp
+void dbwavf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void coifwavf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void symwavf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void orthfilt_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // dwt/dwt.cpp
 void dwt_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void idwt_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -62,6 +67,10 @@ void WaveletLibrary::install(Engine &engine)
     reg("filt", "wfilters", &wavelet::detail::wfilters_reg);
     reg("filt", "qmf",      &wavelet::detail::qmf_reg);
     reg("filt", "wrev",     &wavelet::detail::wrev_reg);
+    reg("filt", "dbwavf",   &wavelet::detail::dbwavf_reg);
+    reg("filt", "coifwavf", &wavelet::detail::coifwavf_reg);
+    reg("filt", "symwavf",  &wavelet::detail::symwavf_reg);
+    reg("filt", "orthfilt", &wavelet::detail::orthfilt_reg);
     reg("dwt",  "dwt",      &wavelet::detail::dwt_reg);
     reg("dwt",  "idwt",     &wavelet::detail::idwt_reg);
     reg("dwt",  "wavedec",  &wavelet::detail::wavedec_reg);

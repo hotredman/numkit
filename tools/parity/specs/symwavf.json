@@ -1,0 +1,10 @@
+{
+  "name": "symwavf",
+  "namespace": "wavelet",
+  "setup": "",
+  "expr": "h2 = symwavf('sym2'); h4 = symwavf('sym4');",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["numel(h2)", "h2(1)", "h2(4)", "numel(h4)", "h4(1)", "h4(4)", "h4(8)"],
+  "comment": "Sig: h = symwavf(wname). Symlet scaling filter: Lo_R / sqrt(2). Length 2N for 'symN'."
+}

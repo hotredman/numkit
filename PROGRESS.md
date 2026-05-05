@@ -3439,17 +3439,17 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 ### Filter Banks and Wavelet Families
 
-**Namespace:** `wavelet.filt.*` — 3 ✅ + 0 ⚠️ / 22 = 14%
+**Namespace:** `wavelet.filt.*` — 7 ✅ + 0 ⚠️ / 22 = 32%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `wfilters` | ✅ |  |  |  | OK | haar / db1..db4 / sym2 / sym4 / coif1; 4-out form + 'd'/'r'/'l'/'h' |
-| `orthfilt` | ❌ |  |  |  |  | orthogonal filter quadruple |
+| `orthfilt` | ✅ | 0.004 | 105.74× |  | OK | Sig: [Lo_D, Hi_D, Lo_R, Hi_R] = orthfilt(W). Quadruple from a unit-norm scaling filter W (sum(W)=1). Lo_R = W*sqrt(2); Lo_D = reverse(Lo_R); Hi_R[k] = (-1)^k * Lo_R[N-1-k]; Hi_D = reverse(Hi_R). |
 | `qmf` | ✅ | 0.004 | 109.04× |  | OK | Sig: y = qmf(x[, p]). Quadrature mirror filter. y(k) = (-1)^(k-1+p) * x(N-k+1). Default p = 0 (identity-sign on the first element); p = 1 negates. |
 | `biorfilt` | ❌ |  |  |  |  | biorthogonal filter quadruple |
-| `dbwavf` | ❌ |  |  |  |  | Daubechies scaling filter |
-| `coifwavf` | ❌ |  |  |  |  | Coiflets |
-| `symwavf` | ❌ |  |  |  |  | symlets |
+| `dbwavf` | ✅ | 0.006 | 130.99× |  | OK | Sig: h = dbwavf(wname). Daubechies scaling filter: Lo_R / sqrt(2). Length 2N for 'dbN'. Sum(h) = 1. |
+| `coifwavf` | ✅ | 0.003 | 184.30× |  | OK | Sig: h = coifwavf(wname). Coiflet scaling filter: Lo_R / sqrt(2). Length 6K for 'coifK'. |
+| `symwavf` | ✅ | 0.004 | 158.56× |  | OK | Sig: h = symwavf(wname). Symlet scaling filter: Lo_R / sqrt(2). Length 2N for 'symN'. |
 | `dbaux` | ❌ |  |  |  |  | Daubechies aux |
 | `symaux` | ❌ |  |  |  |  | symlet aux |
 | `biorwavf` | ❌ |  |  |  |  | biorthogonal scaling filter |
