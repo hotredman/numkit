@@ -38,6 +38,7 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/fit/fit.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/mvdist/mvdist.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/anova/anova.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/regress/regress.cpp
 )
 
 # Backend-split functions: one definition per TU, picked at configure

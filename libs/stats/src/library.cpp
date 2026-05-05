@@ -280,6 +280,9 @@ void mvtpdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 // anova/anova.cpp
 void anova1_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dummyvar_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// regress/regress.cpp
+void regress_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -521,6 +524,8 @@ void StatsLibrary::install(Engine &engine)
 
     reg("anova", "anova1",   &stats::detail::anova1_reg);
     reg("anova", "dummyvar", &stats::detail::dummyvar_reg);
+
+    reg("regress", "regress", &stats::detail::regress_reg);
 }
 
 } // namespace numkit
