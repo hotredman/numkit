@@ -197,6 +197,19 @@ Status legend:
 | [findings/stats/unidpdf.md](findings/stats/unidpdf.md) | unidpdf | stats.dist | low | small | 1525319 |
 | [findings/stats/unidrnd.md](findings/stats/unidrnd.md) | unidrnd | stats.dist | low | small | 1525319 |
 | [findings/stats/unidstat.md](findings/stats/unidstat.md) | unidstat | stats.dist | low | small | 1525319 |
+| [findings/regress/regress.md](findings/regress/regress.md) | regress | stats.regress | high | medium | f92087f |
+| [findings/regress/lscov.md](findings/regress/lscov.md) | lscov | stats.regress | low | small | f92087f |
+| [findings/regress/ridge.md](findings/regress/ridge.md) | ridge | stats.regress | low | small | f92087f |
+| [findings/dim/pca.md](findings/dim/pca.md) | pca | stats.dim | low | small | f92087f |
+| [findings/dim/pcacov.md](findings/dim/pcacov.md) | pcacov | stats.dim | low | small | f92087f |
+| [findings/dim/pcares.md](findings/dim/pcares.md) | pcares | stats.dim | low | small | f92087f |
+| [findings/empirical/ecdf.md](findings/empirical/ecdf.md) | ecdf | stats.empirical | low | small | f92087f |
+| [findings/empirical/ecdfhist.md](findings/empirical/ecdfhist.md) | ecdfhist | stats.empirical | low | small | f92087f |
+| [findings/empirical/ksdensity.md](findings/empirical/ksdensity.md) | ksdensity | stats.empirical | low | small | f92087f |
+| [findings/lda/classify.md](findings/lda/classify.md) | classify | stats.lda | low | small | f92087f |
+| [findings/mvdist/mnpdf.md](findings/mvdist/mnpdf.md) | mnpdf | stats.mvdist | low | small | f92087f |
+| [findings/mvdist/mvnpdf.md](findings/mvdist/mvnpdf.md) | mvnpdf | stats.mvdist | low | small | f92087f |
+| [findings/mvdist/mvtpdf.md](findings/mvdist/mvtpdf.md) | mvtpdf | stats.mvdist | low | small | f92087f |
 
 ## Closed ТЗ
 
