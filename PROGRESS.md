@@ -1700,7 +1700,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 
 ### Image Filtering
 
-**Namespace:** `image.filter.*` — 6 ✅ + 0 ⚠️ / 36 = 17%
+**Namespace:** `image.filter.*` — 7 ✅ + 0 ⚠️ / 36 = 19%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -1708,7 +1708,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `entropyfilt` | ✅ | 0.007 | 449.12× | 85.99× | OK | Sig: E = entropyfilt(I [, domain]). Local Shannon entropy in bits; default 9x9 ones, symmetric pad. Octave-image has entropyfilt. |
 | `fibermetric` | ❌ |  |  |  |  |  |
 | `freqspace` | ✅ | 0.003 | 31.49× |  | OK | Sig: [f1, f2] = freqspace(N|[N M]) or f = freqspace(N[, 'whole']). Now supports 2-output centered form and 2-vec [N M] input (via libs/builtin extension). |
-| `freqz2` | ❌ |  |  |  |  | 2-D freq response |
+| `freqz2` | ✅ | 0.006 | 260.88× |  | OK | Sig: [H, f1, f2] = freqz2(h[, M, N]). 2-D frequency response on freqspace M×N grid. Centred kernel: H[i,j] = Σ h[p,q]·exp(+iπ·(f1[i]·(p-cp) + f2[j]·(q-cq))) with cp = ⌊(P-1)/2⌋. |
 | `fsamp2` | ❌ |  |  |  |  | 2-D FIR via frequency sampling |
 | `fspecial` | ✅ | 0.004 |  | 91.07× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `fspecial3` | ❌ |  |  |  |  |  |
