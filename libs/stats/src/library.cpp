@@ -217,6 +217,7 @@ void vartest2_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void kstest_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void kstest2_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void jbtest_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void signtest_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // resample/resample.cpp
 void randsample_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -409,6 +410,7 @@ void StatsLibrary::install(Engine &engine)
     reg("test", "kstest",   &stats::detail::kstest_reg);
     reg("test", "kstest2",  &stats::detail::kstest2_reg);
     reg("test", "jbtest",   &stats::detail::jbtest_reg);
+    reg("test", "signtest", &stats::detail::signtest_reg);
 
     reg("resample", "randsample", &stats::detail::randsample_reg);
     reg("resample", "datasample", &stats::detail::datasample_reg);

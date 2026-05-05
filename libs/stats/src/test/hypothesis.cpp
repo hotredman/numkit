@@ -6,6 +6,7 @@
 #include <numkit/stats/distributions/normal.hpp>
 #include <numkit/stats/distributions/chi2.hpp>
 #include <numkit/stats/distributions/fisher_f.hpp>
+#include <numkit/stats/distributions/binomial.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -516,6 +517,58 @@ jbtest(std::pmr::memory_resource *mr, const Value &x, double alpha)
 }
 
 // ════════════════════════════════════════════════════════════════════
+// signtest — non-parametric sign test
+// ════════════════════════════════════════════════════════════════════
+
+std::tuple<Value, Value, Value>
+signtest(std::pmr::memory_resource *mr, const Value &x,
+         const Value &y_or_m, double alpha, TestTail tail)
+{
+    const size_t Nx = x.numel();
+    const bool paired = (!y_or_m.isEmpty() && !y_or_m.isScalar());
+    if (paired && y_or_m.numel() != Nx)
+        throw Error("signtest: X and Y must have the same length",
+                    0, 0, "signtest", "", "m:signtest:size");
+    const double m0 = (paired || y_or_m.isEmpty()) ? 0.0 : y_or_m.toScalar();
+
+    // Count positive and non-zero diffs.
+    long long n_pos = 0;
+    long long n_eff = 0;
+    for (size_t i = 0; i < Nx; ++i) {
+        const double xi = x.elemAsDouble(i);
+        const double yi = paired ? y_or_m.elemAsDouble(i) : m0;
+        if (std::isnan(xi) || std::isnan(yi)) continue;
+        const double d = xi - yi;
+        if (d == 0.0) continue;
+        ++n_eff;
+        if (d > 0.0) ++n_pos;
+    }
+
+    double p = 1.0;
+    if (n_eff > 0) {
+        // Binomial(n_eff, 0.5) tail probabilities via existing binocdf.
+        Value kPos = Value::scalar(double(n_pos), mr);
+        Value kPosM1 = Value::scalar(double(n_pos - 1), mr);
+        const double cdfLE = binocdf(mr, kPos, double(n_eff), 0.5).toScalar();
+        const double cdfLT = (n_pos > 0)
+                           ? binocdf(mr, kPosM1, double(n_eff), 0.5).toScalar()
+                           : 0.0;
+        const double pLeft  = cdfLE;            // P(X ≤ n_pos)
+        const double pRight = 1.0 - cdfLT;      // P(X ≥ n_pos)
+        switch (tail) {
+            case TestTail::Both:  p = std::min(1.0, 2.0 * std::min(pLeft, pRight)); break;
+            case TestTail::Right: p = pRight; break;
+            case TestTail::Left:  p = pLeft;  break;
+        }
+    }
+
+    const int h = (p < alpha) ? 1 : 0;
+    return std::make_tuple(Value::scalar(p, mr),
+                           Value::scalar(double(h), mr),
+                           Value::scalar(double(n_pos), mr));
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -688,6 +741,52 @@ void jbtest_reg(Span<const Value> args, size_t nargout,
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(JB);
     if (nargout > 3) outs[3] = std::move(cv);
+}
+
+void signtest_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("signtest: requires X[, m | y][, alpha, tail or "
+                    "name-value]", 0, 0, "signtest", "", "m:signtest:nargin");
+    auto *mr = ctx.engine->resource();
+
+    // arg[1] may be: missing, scalar median, or paired y vector. Skip it
+    // if it's a string (start of name-value list).
+    Value y_or_m = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    size_t i = 1;
+    if (i < args.size() && !args[i].isChar() && !args[i].isString()) {
+        y_or_m = args[i];
+        ++i;
+    }
+
+    double alpha = 0.05;
+    TestTail tail = TestTail::Both;
+
+    // Optional positional alpha next (legacy 3-arg form), then name-value.
+    if (i < args.size() && !args[i].isChar() && !args[i].isString()) {
+        alpha = args[i].toScalar();
+        ++i;
+    }
+    while (i + 1 < args.size()) {
+        if (!args[i].isChar() && !args[i].isString()) break;
+        std::string name = args[i].toString();
+        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        const Value &v = args[i + 1];
+        if      (name == "alpha")  alpha = v.toScalar();
+        else if (name == "tail")   tail  = parse_tail(v.toString(), TestTail::Both);
+        else if (name == "method") { /* exact / approximate — both rely on binocdf */ }
+        i += 2;
+    }
+
+    auto [p, h, sig] = signtest(mr, args[0], y_or_m, alpha, tail);
+    outs[0] = std::move(p);
+    if (nargout > 1) outs[1] = std::move(h);
+    if (nargout > 2) {
+        Value s = Value::structure(mr);
+        s.field("sign") = sig;
+        outs[2] = std::move(s);
+    }
 }
 
 } // namespace detail

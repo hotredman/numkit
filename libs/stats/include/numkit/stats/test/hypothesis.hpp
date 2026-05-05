@@ -68,4 +68,12 @@ kstest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
 std::tuple<Value, Value, Value, Value>
 jbtest(std::pmr::memory_resource *mr, const Value &x, double alpha);
 
+/// signtest(x[, m | y][, alpha, tail]) — non-parametric sign test.
+/// H0: median(x - m₀) = 0 (or median(x - y) = 0 for paired).
+/// Returns (p, h, sign) where `sign` = number of positive differences;
+/// engine-side wraps `sign` (and other diagnostics) into a struct.
+std::tuple<Value, Value, Value>
+signtest(std::pmr::memory_resource *mr, const Value &x,
+         const Value &y_or_m, double alpha, TestTail tail);
+
 } // namespace numkit::stats
