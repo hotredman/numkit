@@ -63,4 +63,9 @@ zpkdata(std::pmr::memory_resource *mr, const Value &sys, bool asVector);
 std::tuple<Value, Value, Value, Value>
 ssdata(std::pmr::memory_resource *mr, const Value &sys);
 
+/// `ss2ss(sys, T)` — similarity transform of a state-space model.
+///   A' = T·A·T⁻¹,  B' = T·B,  C' = C·T⁻¹,  D' = D
+/// Returns a new ss struct. T must be invertible.
+Value ss2ss(std::pmr::memory_resource *mr, const Value &sys, const Value &T);
+
 } // namespace numkit::control

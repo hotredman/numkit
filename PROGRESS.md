@@ -1204,7 +1204,7 @@ intentionally omitted.
 
 ### Model Conversion & Reduction
 
-**Namespace:** `control.convert.*` — 2 ✅ + 0 ⚠️ / 18 = 11%
+**Namespace:** `control.convert.*` — 3 ✅ + 0 ⚠️ / 18 = 17%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -1214,7 +1214,7 @@ intentionally omitted.
 | `d2cOptions` | ❌ |  |  |  |  |  |
 | `d2d` | ❌ |  |  |  |  | resample discrete |
 | `d2dOptions` | ❌ |  |  |  |  |  |
-| `ss2ss` | ❌ |  |  |  |  | similarity transform |
+| `ss2ss` | ✅ | 0.006 | 313.49× | 96.25× | OK | Sig: sys2 = ss2ss(sys, T). Similarity transform A' = T·A·T⁻¹, B' = T·B, C' = C·T⁻¹, D' = D. Inline LU (partial pivoting) for T⁻¹. |
 | `canon` | ❌ |  |  |  |  | canonical realisation |
 | `balreal` | ❌ |  |  |  |  | balanced realisation |
 | `prescale` | ❌ |  |  |  |  | improve numerics by scaling |
