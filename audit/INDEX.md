@@ -123,6 +123,13 @@ Status legend:
 | [findings/stats/normpdf.md](findings/stats/normpdf.md) | normpdf | stats.dist | low | small | 8e48677 |
 | [findings/stats/normstat.md](findings/stats/normstat.md) | normstat | stats.dist | low | small | 8e48677 |
 | [findings/stats/tinv.md](findings/stats/tinv.md) | tinv | stats.dist | low | small | 8e48677 |
+| [findings/wavelet/wfilters.md](findings/wavelet/wfilters.md) | wfilters | wavelet.filt | critical | medium | 1c2df89 |
+| [findings/wavelet/coifwavf.md](findings/wavelet/coifwavf.md) | coifwavf | wavelet.filt | medium | small | 1c2df89 |
+| [findings/wavelet/dbwavf.md](findings/wavelet/dbwavf.md) | dbwavf | wavelet.filt | medium | medium | 1c2df89 |
+| [findings/wavelet/symwavf.md](findings/wavelet/symwavf.md) | symwavf | wavelet.filt | medium | medium | 1c2df89 |
+| [findings/wavelet/orthfilt.md](findings/wavelet/orthfilt.md) | orthfilt | wavelet.filt | low | small | 1c2df89 |
+| [findings/wavelet/qmf.md](findings/wavelet/qmf.md) | qmf | wavelet.filt | low | small | 1c2df89 |
+| [findings/wavelet/wrev.md](findings/wavelet/wrev.md) | wrev | wavelet.filt | low | small | 1c2df89 |
 
 ## Closed ТЗ
 
