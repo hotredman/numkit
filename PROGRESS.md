@@ -3010,7 +3010,7 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 
 ### Distribution Fitting (MLE / likelihood)
 
-**Namespace:** `stats.fit.*` — 14 ✅ + 0 ⚠️ / 24 = 58%
+**Namespace:** `stats.fit.*` — 16 ✅ + 0 ⚠️ / 24 = 67%
 
 OOP `fitdist` / `makedist` family intentionally omitted — only flat
 function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
@@ -3029,9 +3029,9 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `gamfit` | ❌ |  |  |  |  |  |
 | `gamlike` | ✅ | 0.003 | 140.59× | 33.68× | OK | Sig: nL = gamlike([a b], x). Negative log-likelihood for Gamma(a, b) with shape a and scale b. |
 | `gevfit` | ❌ |  |  |  |  | generalised extreme value |
-| `gevlike` | ❌ |  |  |  |  |  |
+| `gevlike` | ✅ | 0.003 | 137.82× | 61.48× | OK | Sig: nL = gevlike([k sigma mu], x). Generalised Extreme Value negative log-likelihood; closed form for k=0 (Gumbel-MAX limit) and k≠0. |
 | `gpfit` | ❌ |  |  |  |  | generalised Pareto |
-| `gplike` | ❌ |  |  |  |  |  |
+| `gplike` | ✅ | 0.003 | 127.14× |  | OK | Sig: nL = gplike([k sigma], x). Generalised Pareto nLogL; theta is implicitly 0. |
 | `lognfit` | ✅ | 0.006 | 482.94× | 1234.73× | OK | Sig: [parm, pci] = lognfit(x[, alpha]). Lognormal MLE: parm=[mu sigma] of log(x). pci is 2x2: column 1 = mu CI, column 2 = sigma CI. |
 | `lognlike` | ✅ | 0.003 | 186.33× | 35.92× | OK | Sig: nL = lognlike([mu sigma], x). Negative log-likelihood for lognormal. |
 | `nbinfit` | ❌ |  |  |  |  |  |
