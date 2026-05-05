@@ -3010,7 +3010,7 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 
 ### Distribution Fitting (MLE / likelihood)
 
-**Namespace:** `stats.fit.*` — 11 ✅ + 0 ⚠️ / 24 = 46%
+**Namespace:** `stats.fit.*` — 14 ✅ + 0 ⚠️ / 24 = 58%
 
 OOP `fitdist` / `makedist` family intentionally omitted — only flat
 function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
@@ -3021,7 +3021,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `mlecov` | ❌ |  |  |  |  | covariance of MLE estimates |
 | `betafit` | ❌ |  |  |  |  |  |
 | `betalike` | ✅ | 0.003 | 196.43× | 86.42× | OK | Sig: nL = betalike([a b], x). Negative log-likelihood for Beta(a, b). |
-| `binofit` | ❌ |  |  |  |  |  |
+| `binofit` | ✅ | 0.005 | 299.42× | 795.49× | OK | Sig: [phat, pci] = binofit(x, n[, alpha]). Clopper-Pearson exact binomial CI. Vector inputs return Nx1 phat + Nx2 pci. |
 | `evfit` | ❌ |  |  |  |  | extreme value |
 | `evlike` | ✅ | 0.003 | 148.54× | 61.75× | OK | Sig: nL = evlike([mu sigma], x). Negative log-likelihood for Type-I extreme value (Gumbel min). MATLAB convention: f(x) = (1/sigma)·exp((x−mu)/sigma)·exp(−exp((x−mu)/sigma)). |
 | `expfit` | ✅ | 0.004 | 204.70× | 1973.86× | OK | Sig: [muhat, muci] = expfit(x[, alpha]). MLE for exponential: mu=mean(x). Exact CI: 2N·muhat ~ μ·χ²(2N). |
@@ -3032,13 +3032,13 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `gevlike` | ❌ |  |  |  |  |  |
 | `gpfit` | ❌ |  |  |  |  | generalised Pareto |
 | `gplike` | ❌ |  |  |  |  |  |
-| `lognfit` | ❌ |  |  |  |  |  |
+| `lognfit` | ✅ | 0.006 | 482.94× | 1234.73× | OK | Sig: [parm, pci] = lognfit(x[, alpha]). Lognormal MLE: parm=[mu sigma] of log(x). pci is 2x2: column 1 = mu CI, column 2 = sigma CI. |
 | `lognlike` | ✅ | 0.003 | 186.33× | 35.92× | OK | Sig: nL = lognlike([mu sigma], x). Negative log-likelihood for lognormal. |
 | `nbinfit` | ❌ |  |  |  |  |  |
 | `normfit` | ✅ | 0.006 | 466.90× | 1219.64× | OK | Sig: [mu, sd, muci, sdci] = normfit(x[, alpha]). MLE for normal: mu=mean, sd=sample std (N-1). t-CI for mu, chi² CI for sigma. Default alpha=0.05. |
 | `normlike` | ✅ | 0.003 | 110.58× | 20.34× | OK | Sig: nL = normlike(params=[mu sigma], x). Negative log-likelihood. Used to verify the closed-form formula vs MATLAB. Second output (avar) intentionally not implemented yet. |
 | `poissfit` | ✅ | 0.004 | 335.07× | 2256.85× | OK | Sig: [lhat, lci] = poissfit(x[, alpha]). MLE for Poisson: lambda=mean(x). Exact CI via chi² inversion (Garwood). |
-| `raylfit` | ❌ |  |  |  |  |  |
+| `raylfit` | ✅ | 0.004 | 405.25× | 1443.27× | OK | Sig: [shat, sci] = raylfit(x[, alpha]). Rayleigh MLE: σ = √(Σx²/(2N)); CI from chi² inversion 2N·σ̂² ~ σ²·χ²(2N). |
 | `unifit` | ✅ | 0.004 | 84.69× |  | OK | Sig: [a, b, aci, bci] = unifit(x[, alpha]). MLE for U(a,b): a=min, b=max. CI extension delta = (b-a)·(α^(-1/n) − 1). |
 | `wblfit` | ❌ |  |  |  |  |  |
 | `wbllike` | ✅ | 0.003 | 203.33× | 68.33× | OK | Sig: nL = wbllike([scale shape], x). Negative log-likelihood for Weibull(a, b). |

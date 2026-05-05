@@ -6,6 +6,7 @@
 
 #include <numkit/stats/distributions/chi2.hpp>
 #include <numkit/stats/distributions/students_t.hpp>
+#include <numkit/stats/distributions/beta.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -136,6 +137,139 @@ unifit(std::pmr::memory_resource *mr, const Value &x, double alpha)
             Value::scalar(mx, mr),
             rowCI(mr, mn - delta, mn),
             rowCI(mr, mx, mx + delta)};
+}
+
+// ── lognfit ───────────────────────────────────────────────────────────
+
+std::tuple<Value, Value>
+lognfit(std::pmr::memory_resource *mr, const Value &x, double alpha)
+{
+    const size_t N = x.numel();
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    Value parm = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+    Value pci  = Value::matrix(2, 2, ValueType::DOUBLE, mr);
+    double *pd = parm.doubleDataMut();
+    double *cd = pci.doubleDataMut();
+    if (N < 2) {
+        for (int i = 0; i < 2; ++i) pd[i] = nan;
+        for (int i = 0; i < 4; ++i) cd[i] = nan;
+        return {std::move(parm), std::move(pci)};
+    }
+    // Compute on log(x). Reject non-positive x by NaN.
+    double s = 0.0;
+    std::vector<double> lx(N);
+    for (size_t i = 0; i < N; ++i) {
+        const double xi = x.elemAsDouble(i);
+        if (!(xi > 0.0)) {
+            for (int j = 0; j < 2; ++j) pd[j] = nan;
+            for (int j = 0; j < 4; ++j) cd[j] = nan;
+            return {std::move(parm), std::move(pci)};
+        }
+        lx[i] = std::log(xi);
+        s += lx[i];
+    }
+    const double mu = s / double(N);
+    double sq = 0.0;
+    for (double v : lx) { const double d = v - mu; sq += d * d; }
+    const double var = sq / double(N - 1);
+    const double sd  = std::sqrt(var);
+    pd[0] = mu;  pd[1] = sd;
+
+    const double t = tinv_scalar(mr, 1.0 - alpha / 2.0, double(N - 1));
+    const double sem = sd / std::sqrt(double(N));
+    const double mu_lo = mu - t * sem;
+    const double mu_hi = mu + t * sem;
+    const double chiU = chi2inv_scalar(mr, 1.0 - alpha / 2.0, double(N - 1));
+    const double chiL = chi2inv_scalar(mr,       alpha / 2.0, double(N - 1));
+    const double s_lo = std::sqrt(double(N - 1) * var / chiU);
+    const double s_hi = std::sqrt(double(N - 1) * var / chiL);
+
+    // pci is column-major: [mu_lo, mu_hi; sigma_lo, sigma_hi] is stored as
+    // pci(1,1)=mu_lo pci(2,1)=mu_hi pci(1,2)=sigma_lo pci(2,2)=sigma_hi.
+    cd[0] = mu_lo;  // (1,1)
+    cd[1] = mu_hi;  // (2,1)
+    cd[2] = s_lo;   // (1,2)
+    cd[3] = s_hi;   // (2,2)
+    return {std::move(parm), std::move(pci)};
+}
+
+// ── binofit ───────────────────────────────────────────────────────────
+
+namespace {
+double betainv_scalar2(std::pmr::memory_resource *mr,
+                       double p, double a, double b)
+{
+    if (a <= 0.0 || b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    if (p <= 0.0) return 0.0;
+    if (p >= 1.0) return 1.0;
+    return betainv(mr, Value::scalar(p, mr), a, b).toScalar();
+}
+}
+
+std::tuple<Value, Value>
+binofit(std::pmr::memory_resource *mr, const Value &x, const Value &n,
+        double alpha)
+{
+    const size_t Nx = x.numel();
+    const size_t Nn = n.numel();
+    const bool scalarN = (Nn == 1);
+    if (!scalarN && Nn != Nx)
+        throw Error("binofit: x and n must be the same length",
+                    0, 0, "binofit", "", "m:binofit:size");
+
+    Value phat = Value::matrix(Nx, 1, ValueType::DOUBLE, mr);
+    Value pci  = Value::matrix(Nx, 2, ValueType::DOUBLE, mr);
+    double *pd = phat.doubleDataMut();
+    double *cd = pci.doubleDataMut();
+
+    for (size_t i = 0; i < Nx; ++i) {
+        const double k = x.elemAsDouble(i);
+        const double N = scalarN ? n.elemAsDouble(0) : n.elemAsDouble(i);
+        if (!(N > 0.0)) {
+            const double nan = std::numeric_limits<double>::quiet_NaN();
+            pd[i] = nan;
+            cd[i]      = nan;
+            cd[i + Nx] = nan;
+            continue;
+        }
+        const double p = k / N;
+        pd[i] = p;
+        // Clopper-Pearson exact CI.
+        const double lo = (k == 0.0) ? 0.0
+                                     : betainv_scalar2(mr, alpha / 2.0, k, N - k + 1.0);
+        const double hi = (k == N)   ? 1.0
+                                     : betainv_scalar2(mr, 1.0 - alpha / 2.0, k + 1.0, N - k);
+        // Column-major: pci(:,1) = lower, pci(:,2) = upper.
+        cd[i]       = lo;
+        cd[i + Nx]  = hi;
+    }
+    if (Nx == 1) {
+        // Collapse phat to a true scalar to match MATLAB's [phat,pci] = binofit(x,n).
+        phat = Value::scalar(pd[0], mr);
+    }
+    return {std::move(phat), std::move(pci)};
+}
+
+// ── raylfit ───────────────────────────────────────────────────────────
+
+std::tuple<Value, Value>
+raylfit(std::pmr::memory_resource *mr, const Value &x, double alpha)
+{
+    const size_t N = x.numel();
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    if (N == 0)
+        return {Value::scalar(nan, mr), rowCI(mr, nan, nan)};
+    double s2 = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double xi = x.elemAsDouble(i);
+        s2 += xi * xi;
+    }
+    const double sigma = std::sqrt(s2 / (2.0 * double(N)));
+    const double chiU = chi2inv_scalar(mr, 1.0 - alpha / 2.0, 2.0 * double(N));
+    const double chiL = chi2inv_scalar(mr,       alpha / 2.0, 2.0 * double(N));
+    const double lo = sigma * std::sqrt(2.0 * double(N) / chiU);
+    const double hi = sigma * std::sqrt(2.0 * double(N) / chiL);
+    return {Value::scalar(sigma, mr), rowCI(mr, lo, hi)};
 }
 
 // ── Negative log-likelihoods ──────────────────────────────────────────
@@ -312,6 +446,42 @@ void unifit_reg(Span<const Value> args, size_t nargout,
     if (nargout > 1) outs[1] = std::move(b);
     if (nargout > 2) outs[2] = std::move(aci);
     if (nargout > 3) outs[3] = std::move(bci);
+}
+
+void lognfit_reg(Span<const Value> args, size_t nargout,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("lognfit: requires X[, alpha]",
+                    0, 0, "lognfit", "", "m:lognfit:nargin");
+    const double alpha = parse_alpha_arg(args, 1, 0.05);
+    auto [parm, pci] = lognfit(ctx.engine->resource(), args[0], alpha);
+    outs[0] = std::move(parm);
+    if (nargout > 1) outs[1] = std::move(pci);
+}
+
+void binofit_reg(Span<const Value> args, size_t nargout,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("binofit: requires (X, N[, alpha])",
+                    0, 0, "binofit", "", "m:binofit:nargin");
+    const double alpha = parse_alpha_arg(args, 2, 0.05);
+    auto [phat, pci] = binofit(ctx.engine->resource(), args[0], args[1], alpha);
+    outs[0] = std::move(phat);
+    if (nargout > 1) outs[1] = std::move(pci);
+}
+
+void raylfit_reg(Span<const Value> args, size_t nargout,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("raylfit: requires X[, alpha]",
+                    0, 0, "raylfit", "", "m:raylfit:nargin");
+    const double alpha = parse_alpha_arg(args, 1, 0.05);
+    auto [shat, sci] = raylfit(ctx.engine->resource(), args[0], alpha);
+    outs[0] = std::move(shat);
+    if (nargout > 1) outs[1] = std::move(sci);
 }
 
 // ─── *like adapters ───────────────────────────────────────────────────
