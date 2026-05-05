@@ -3345,7 +3345,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 ### Discrete Wavelet Transforms (1-D)
 
-**Namespace:** `wavelet.dwt.*` — 13 ✅ + 0 ⚠️ / 18 = 72%
+**Namespace:** `wavelet.dwt.*` — 14 ✅ + 0 ⚠️ / 18 = 78%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3355,7 +3355,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `waverec` | ✅ |  |  |  | OK | round-trip ≤ 1e-11 over 4 levels |
 | `appcoef` | ✅ |  |  |  | OK | level=0 = full reconstruction |
 | `detcoef` | ✅ |  |  |  | OK | 1-based level (1=finest, n=coarsest) |
-| `wrcoef` | ❌ |  |  |  |  | reconstruct from one band |
+| `wrcoef` | ✅ | 0.037 | 67.45× |  | OK | Sig: y = wrcoef(type, c, l, wname[, n]). Single-band reconstruction. type ∈ {'a','d'}; n is the level kept ('a' allows n=0 = full reconstruction; 'd' requires n in [1, max]). Default n = length(l)-2 for both types. Algorithm: build modified c with off-band coefficients zeroed, run waverec. Verified parity with MATLAB R2025b on HAAR wavelet (where numkit's wavedec matches MATLAB exactly). For db/sym/coif numkit's wavedec uses a slightly different boundary convention (BUGS.md #37) — wrcoef there produces values consistent with numkit's own wavedec/waverec round-trip but does NOT match MATLAB coefficient-for-coefficient. (Lo_R, Hi_R) two-filter form not implemented in this release. |
 | `dwtmode` | ❌ |  |  |  |  | extension mode |
 | `dyaddown` | ✅ | 0.003 | 205.08× |  | OK | Sig: y = dyaddown(x[, ODD]). Dyadic downsample. ODD = 0 (default) → x(2:2:end); ODD = 1 → x(1:2:end). |
 | `dyadup` | ✅ | 0.003 | 350.96× |  | OK | Sig: y = dyadup(x[, ODD]). Zero insertion between samples. Default ODD = 1 → [0 x(1) 0 x(2) 0 ... x(N) 0] (length 2N+1); ODD = 0 → [x(1) 0 x(2) 0 ... x(N)] (length 2N-1). |

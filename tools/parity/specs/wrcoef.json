@@ -1,0 +1,21 @@
+{
+  "name": "wrcoef",
+  "namespace": "wavelet",
+  "setup": "x = 1:16; [c, l] = wavedec(x, 3, 'haar');",
+  "expr": "a3 = wrcoef('a', c, l, 'haar', 3); a2 = wrcoef('a', c, l, 'haar', 2); a1 = wrcoef('a', c, l, 'haar', 1); a0 = wrcoef('a', c, l, 'haar', 0); d3 = wrcoef('d', c, l, 'haar', 3); d2 = wrcoef('d', c, l, 'haar', 2); d1 = wrcoef('d', c, l, 'haar', 1); a_def = wrcoef('a', c, l, 'haar'); d_def = wrcoef('d', c, l, 'haar'); recon = a3 + d1 + d2 + d3; ident_max = max(abs(recon - a0));",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "a3(1)", "a3(8)", "a3(9)", "a3(16)",
+    "a2(1)", "a2(8)", "a2(9)",
+    "a1(1)", "a1(8)", "a1(16)",
+    "a0(1)", "a0(8)", "a0(16)",
+    "d1(1)", "d1(8)",
+    "d2(1)", "d2(8)",
+    "d3(1)", "d3(8)",
+    "max(abs(a_def - a3))",
+    "max(abs(d_def - d3))",
+    "ident_max < 1e-10"
+  ],
+  "comment": "Sig: y = wrcoef(type, c, l, wname[, n]). Single-band reconstruction. type ∈ {'a','d'}; n is the level kept ('a' allows n=0 = full reconstruction; 'd' requires n in [1, max]). Default n = length(l)-2 for both types. Algorithm: build modified c with off-band coefficients zeroed, run waverec. Verified parity with MATLAB R2025b on HAAR wavelet (where numkit's wavedec matches MATLAB exactly). For db/sym/coif numkit's wavedec uses a slightly different boundary convention (BUGS.md #37) — wrcoef there produces values consistent with numkit's own wavedec/waverec round-trip but does NOT match MATLAB coefficient-for-coefficient. (Lo_R, Hi_R) two-filter form not implemented in this release."
+}
