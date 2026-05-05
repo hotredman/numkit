@@ -1,38 +1,39 @@
-# Numkit parity progress
+# Numkit progress
 
-This is the live parity map of numkit's MATLAB compatibility surface.
-Every documented MATLAB function gets a row here, organized by
-MATLAB-doc section + namespace. Empty cells mean "not yet benched";
-filled cells reflect the most recent harness run.
+Live progress map for numkit. Each row tracks one function:
+implementation status, native runtime, and side-by-side numbers
+against MATLAB and Octave as reference engines. Empty cells mean
+"not yet measured"; filled cells reflect the most recent harness run.
 
 Updated by `tools/parity/run_parity.py` — each spec run rewrites the
-row(s) for its function in place (the same function may appear in
-multiple sections; all occurrences refresh together).
+row(s) for its function in place. The same function may appear in
+multiple sections when it spans topics; all occurrences refresh
+together.
 
 **Columns:**
-- `function` — MATLAB-doc name
+- `function` — function name
 - `status` — ✅ implemented · ❌ missing · ⚠️ partial / operator-only
 - `numkit_ms` — single-iteration mean (ms) on numkit native build
 - `vs_MATLAB` — MATLAB_ms / numkit_ms (>1× = numkit faster)
-- `vs_Octave` — same against Octave
-- `correctness` — `OK` element-wise vs MATLAB · `MISMATCH` · `N/A` if
-  the comparison engine doesn't support the function
+- `vs_Octave` — Octave_ms / numkit_ms (>1× = numkit faster)
+- `correctness` — `OK` element-wise match against the reference ·
+  `MISMATCH` · `N/A` if neither reference engine supports the function
 - `comment` — input size / notes / deviations
 
 **Library layout** (each H2 below maps to a numkit lib or a future-lib placeholder):
 
-- **Builtin** — MATLAB base (Mathematics + Language Fundamentals + Programming).
+- **Builtin** — base layer (language fundamentals + math + programming).
   Self-contained: no dependency on toolbox libs.
-- **Toolbox libs** — mirror MATLAB toolboxes: Signal / Image / Statistics /
-  Communications / Control / Wavelet / Graphics / IO / Fitting.
-- **Future-lib placeholders** — Linear Algebra / ODE / Optimization. Functions
-  may currently live under Builtin physically; they will migrate to their own
-  libs as those land.
+- **Toolbox libs** — Signal / Image / Statistics / Communications /
+  Control / Wavelet / Graphics / IO / Fitting.
+- **Future-lib placeholders** — Linear Algebra / ODE / Optimization.
+  Functions may currently live under Builtin physically; they will
+  migrate to their own libs as those land.
 - **Cross-lib deps** — `Image` / `Control` / `Communications` depend on
   `Signal` for DSP primitives (conv, FFT, DCT). All toolboxes depend on
   `Builtin`. **`Builtin` has no toolbox dependencies (invariant).**
-- A function may appear in multiple H3 sections when MATLAB-doc places it in
-  multiple topics; the harness updates every occurrence in lock-step.
+- A function may appear in multiple H3 sections when it belongs to more
+  than one topic; the harness updates every occurrence in lock-step.
 
 ## Table of Contents
 
