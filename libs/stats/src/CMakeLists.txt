@@ -33,6 +33,7 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/test/hypothesis.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/resample/resample.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fit/fit.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mvdist/mvdist.cpp
 )
 
 # Backend-split functions: one definition per TU, picked at configure

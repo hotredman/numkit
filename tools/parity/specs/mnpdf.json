@@ -1,0 +1,15 @@
+{
+  "name": "mnpdf",
+  "namespace": "stats",
+  "setup": "X = [1 2 3]; P = [0.2 0.3 0.5];",
+  "expr": "p = mnpdf(X, P);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "p",
+    "mnpdf([2 3], [0.4 0.6])",
+    "mnpdf([0 5], [0.5 0.5])",
+    "mnpdf([5 0], [0.5 0.5])"
+  ],
+  "comment": "Sig: p = mnpdf(X, P). Multinomial PMF: n!/(Πx_i!)·Π p_i^x_i. Computed in log-space via lgamma."
+}
