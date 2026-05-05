@@ -38,4 +38,12 @@ Value appcoef(std::pmr::memory_resource *mr,
 Value detcoef(std::pmr::memory_resource *mr,
               const Value &C, const Value &L, int level);
 
+/// `wrcoef(type, c, l, wname[, n])` — single-band reconstruction.
+/// type ∈ {'a', 'd'}; n is the level (default = max = length(l)-2;
+/// 'a' allows n=0 for full reconstruction; 'd' requires n ∈ [1, max]).
+/// Pass n = -1 to request the default. Output is a row of length |x|.
+Value wrcoef(std::pmr::memory_resource *mr,
+             const std::string &type, const Value &c, const Value &l,
+             const std::string &wname, int n);
+
 } // namespace numkit::wavelet

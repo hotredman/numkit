@@ -931,6 +931,49 @@ the only platform with working Bessel.
 
 ---
 
+## 37. `libs/wavelet`: `wavedec`/`dwt` produce non-MATLAB coefficients on db/sym/coif — **P2**
+
+**Reproducer:**
+```matlab
+x = 1:16;
+[c, l] = wavedec(x, 3, 'db2');
+disp(c(1:4))           % cA_3
+% MATLAB:  3.883280   3.625881  21.410324  42.756277
+% numkit:  8.093341  32.790118  44.527383  42.450090
+```
+Round-trip `waverec(c, l, 'db2')` recovers `x` to ≤1e-11 in both
+engines, so numkit's transform is internally consistent — but the
+coefficients themselves differ from MATLAB (different boundary /
+downsampling offset convention in the underlying `dwt`).
+
+**Impact:** Anything that exposes the (c, l) pair to user code — or
+that compares numkit coefficients to MATLAB — breaks parity for db /
+sym / coif wavelets. **Haar matches** (boundary handling is trivial
+for filter length 2). Functions affected: `wavedec`, `dwt`, `appcoef`,
+`detcoef`, `wrcoef`, `wdenoise`, anything that relies on coefficient
+values.
+
+**Where:** [libs/wavelet/src/dwt/dwt.cpp](libs/wavelet/src/dwt/dwt.cpp)
+— the symmetric-extension boundary path. Specifically the
+"`cA[k] = y[Lf + 2k]`" downsampling rule (lines 112-126) chooses a
+different output-keep offset than MATLAB's `dwt`. Round-trip works
+because `idwt` mirrors the choice exactly, but it breaks one-sided
+parity with MATLAB.
+
+**Fix sketch:** rebase the dwt boundary handling on MATLAB's exact
+convention. The MATLAB doc points to "periodised" or "symmetric whole-
+point" with start offset depending on filter length parity; verifying
+against MATLAB's documented `dwt('db2', x)` output for several short
+inputs would pin down the offset rule. Then idwt mirrors.
+
+**Discovered:** 2026-05-04 while implementing `wrcoef` (commit
+`184f04a` HEAD). wrcoef parity is therefore verified only against
+MATLAB on `'haar'`; on `db2` the spec checks the round-trip identity
+`a3 + sum(d_i) == x` (which numkit satisfies internally) instead of
+direct value comparison.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one

@@ -41,6 +41,8 @@ void wextend_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void haart_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 // dwt/ihaart.cpp
 void ihaart_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+// dwt/wrcoef.cpp
+void wrcoef_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 // denoise/denoise.cpp
 void wthresh_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void wnoisest_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -90,6 +92,7 @@ void WaveletLibrary::install(Engine &engine)
     reg("dwt",  "wextend",  &wavelet::detail::wextend_reg);
     reg("dwt",  "haart",    &wavelet::detail::haart_reg);
     reg("dwt",  "ihaart",   &wavelet::detail::ihaart_reg);
+    reg("dwt",  "wrcoef",   &wavelet::detail::wrcoef_reg);
     reg("dwt2", "dwt2",     &wavelet::detail::dwt2_reg);
     reg("dwt2", "idwt2",    &wavelet::detail::idwt2_reg);
 
