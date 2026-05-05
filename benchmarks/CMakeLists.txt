@@ -1,44 +1,33 @@
-# benchmarks/CMakeLists.txt — single numkit_bench executable
+# benchmarks/CMakeLists.txt — owner of the single numkit_bench executable.
 #
-# Mirrors the numkit_tests layout: one binary, one source file per hot path.
-# benchmark::benchmark_main provides main() that discovers BENCHMARK()
-# macros from every TU linked in, so no custom main.cpp is needed.
+# Mirrors the numkit_tests pattern: this directory creates the target;
+# per-lib libs/<name>/benchmarks/CMakeLists.txt contributes sources via
+#   target_sources(numkit_bench PRIVATE ...)
+# (and may also extend target_include_directories — fft_bench needs
+# libs/signal/src for kernel internals).
 #
 # Enabled by NUMKIT_BUILD_BENCHMARKS=ON at configure time. Run examples:
 #   ./numkit_bench                                  # all benches
 #   ./numkit_bench --benchmark_filter=BM_Fft.*      # fft family only
 #   ./numkit_bench --benchmark_min_time=0.5s        # shorter / longer runs
 #   ./numkit_bench --benchmark_out=results.json \
-#             --benchmark_out_format=json      # machine-readable output
+#             --benchmark_out_format=json           # machine-readable output
 
-add_executable(numkit_bench
-    fft_bench.cpp
-    matmul_bench.cpp
-    conv_bench.cpp
-    elementwise_bench.cpp
-    binaryops_bench.cpp
-    sort_bench.cpp
-    # Phase 10 — sweep across the parity-expansion functions (Phase 1-9).
-    reductions_bench.cpp
-    manipulation_bench.cpp
-    setops_bench.cpp
-    dsp_bench.cpp
-    interp_bench.cpp
+add_executable(numkit_bench)
+
+target_link_libraries(numkit_bench PRIVATE
+    numkit::numkit
+    benchmark::benchmark_main
 )
 
-target_link_libraries(numkit_bench
-    PRIVATE
-        numkit::numkit
-        benchmark::benchmark_main
-)
-
-# Some bench TUs (fft_bench) probe internal kernels — fftRadix2Impl,
-# fillFftTwiddles — to attribute time between the public wrapper and
-# the inner FFT loop without going through the pmr allocator. The
-# headers live in libs/signal/src, so expose that path to the bench.
-target_include_directories(numkit_bench PRIVATE
-    "${CMAKE_SOURCE_DIR}/libs/signal/src"
-)
+# Pull in per-lib benchmark sources. Each lib that contributes benches
+# has libs/<name>/benchmarks/CMakeLists.txt with target_sources() calls.
+foreach(_bench_lib builtin signal stats image comm control wavelet graphics io optim)
+    if(EXISTS ${CMAKE_SOURCE_DIR}/libs/${_bench_lib}/benchmarks/CMakeLists.txt)
+        add_subdirectory(${CMAKE_SOURCE_DIR}/libs/${_bench_lib}/benchmarks
+                         ${CMAKE_BINARY_DIR}/libs/${_bench_lib}/benchmarks)
+    endif()
+endforeach()
 
 if(EMSCRIPTEN)
     # Emscripten ships a Node-runnable .js loader + .wasm sidecar when the
