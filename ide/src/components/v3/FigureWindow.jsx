@@ -98,7 +98,10 @@ export default function FigureWindow({ figure, onClose }) {
   }, []);
 
   // Synchronous measure before paint so the SVG is sized correctly on the
-  // very first frame the modal opens.
+  // very first frame the modal opens. `[]` deps so this only runs once at
+  // mount — without it React would rerun the effect after every state
+  // change, feeding setSize back into another render and tripping the
+  // "Maximum update depth exceeded" guard.
   useLayoutEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -109,7 +112,7 @@ export default function FigureWindow({ figure, onClose }) {
       const h = Math.max(300, Math.round(r.height - 32));
       return (Math.abs(prev.w - w) > 0.5 || Math.abs(prev.h - h) > 0.5) ? { w, h } : prev;
     });
-  });
+  }, []);
 
   // Re-measure on resize signals: window resize (modal is 85vw / 80vh) plus
   // ResizeObserver in modern browsers.

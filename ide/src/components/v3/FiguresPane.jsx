@@ -15,9 +15,11 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
   const ref = useRef(null);
   const [size, setSize] = useState({ w: 320, h: Math.round(320 / PREVIEW_ASPECT) });
 
-  // useLayoutEffect runs synchronously AFTER the DOM is updated, BEFORE the
-  // browser paints. We measure here so the SVG renders at the correct pixel
-  // size on the very first frame — no flash of wrong-sized chart.
+  // Single measure pipeline — used both for the initial mount-time read
+  // (useLayoutEffect, runs synchronously before paint) and for resize signals
+  // (ResizeObserver / window.resize). Both deps arrays are `[]` so the effect
+  // bodies don't rerun on every render, which would otherwise feed back into
+  // setSize and trip React's "Maximum update depth exceeded" check.
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -27,10 +29,8 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
     const hh = Math.max(120, Math.round(ww / PREVIEW_ASPECT));
     setSize((prev) => (Math.abs(prev.w - ww) > 0.5 || Math.abs(prev.h - hh) > 0.5
       ? { w: ww, h: hh } : prev));
-  });
+  }, []);
 
-  // Re-measure on resize signals: ResizeObserver in modern browsers, plus
-  // window.resize as a belt-and-braces fallback.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
