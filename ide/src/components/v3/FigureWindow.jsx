@@ -71,9 +71,16 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   // toolbar fit menu and the panel's ПКМ menu share one state. null = use
   // figure.cmin/cmax directly.
   const [colorOverride, setColorOverride] = useState(null);
-  // Reset on figure identity change — old override doesn't apply to a
+  // Colormap override — null falls back to figure.colormap. The toolbar
+  // combo lets the user switch palettes at runtime without changing the
+  // script.
+  const [colormapOverride, setColormapOverride] = useState(null);
+  // Reset both on figure identity change — old overrides don't apply to a
   // freshly emitted dataset.
-  useEffect(() => { setColorOverride(null); }, [figure._raw?.id, figure.id]);
+  useEffect(() => {
+    setColorOverride(null);
+    setColormapOverride(null);
+  }, [figure._raw?.id, figure.id]);
 
   // Compute new color override from a coarse-LOD scan of the visible
   // source-rect. Mirrors Heatmap.fitColorsToVisible. Lives here so the
@@ -565,6 +572,18 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   onClick={() => toggleAxisLog('y')}
                   disabled={figure.yRange[1] <= 0}
                   title="Log Y axis (also: ПКМ → Axes → Y axis · log)">y log</button>
+                <select
+                  className="ve-btn fw-cmap-select"
+                  value={colormapOverride ?? figure.colormap ?? 'parula'}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setColormapOverride(v === (figure.colormap ?? 'parula') ? null : v);
+                  }}
+                  title="Colormap (overrides script-level colormap())">
+                  {['parula', 'jet', 'hot', 'cool', 'gray', 'bone', 'copper',
+                    'spring', 'summer', 'autumn', 'winter', 'hsv', 'viridis']
+                    .map((cm) => <option key={cm} value={cm}>{cm}</option>)}
+                </select>
               </>
             )}
             <button className={`ve-btn ${showLegend ? 'is-active' : ''}`} onClick={() => setShowLegend((g) => !g)}>legend</button>
@@ -614,6 +633,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               xLog, yLog,
               setXLog, setYLog,
               colorOverride, setColorOverride,
+              colormapOverride,
             })}
             {showLegend && Array.isArray(figure.series) && figure.series.length > 0 && (
               <div className="fw-legend">
