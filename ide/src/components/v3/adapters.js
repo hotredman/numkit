@@ -195,6 +195,15 @@ function adaptAxes(figId, cellId, datasets, cfg) {
       yRange: [y0 - cH / 2, y1 + cH / 2],
       z, cmin, cmax,
       colormap: cfg.colormap || 'parula',
+      // ── large-imagesc contract (Phase 1 of the imagesc-tile pipeline):
+      // when the engine downsampled z before serialisation, these surface
+      // the original dimensions so the IDE can show a "preview" banner and
+      // (Phase 2) request higher-LOD tiles for zoom-in. Default-undefined
+      // when the engine hasn't shipped them yet — IDE silently treats it as
+      // a normal full-resolution heatmap.
+      downsampled:   imgDs.downsampled === true,
+      originalRows:  imgDs.originalRows  || nR,
+      originalCols:  imgDs.originalCols  || nC,
     };
   }
 
