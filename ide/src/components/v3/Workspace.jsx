@@ -1118,11 +1118,12 @@ export function VariableEditor({ variable, onClose, engine }) {
             </span>
             <span className="ve-name">{variable.name}</span>
             <span className="ve-dim">{variable.size}</span>
-          </div>
-          <div className="ve-title-right">
+            <span className="ve-meta" title={`${variable.bytes} B · ${rows * cols} elements`}>
+              {variable.bytes} B · {rows * cols} elements
+            </span>
             {loading && (
               <span className="ve-meta" style={{ color: 'var(--accent)' }}>
-                loading full data…
+                loading…
               </span>
             )}
             {loadError && (
@@ -1131,7 +1132,8 @@ export function VariableEditor({ variable, onClose, engine }) {
                 preview only
               </span>
             )}
-            <span className="ve-meta">{variable.bytes} B · {rows * cols} elements</span>
+          </div>
+          <div className="ve-title-right">
             <button className="ve-close" onClick={() => setMaximized((m) => !m)}
               title={maximized ? 'Restore' : 'Maximise'} aria-label="Maximise">
               {maximized ? (
