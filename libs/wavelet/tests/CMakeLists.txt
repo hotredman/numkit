@@ -18,4 +18,6 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/wmaxlev_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wkeep_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wextend_test.cpp
+    # ── shapes ──────────────────────────────────────────────────
+    ${CMAKE_CURRENT_SOURCE_DIR}/gauswavf_test.cpp
 )

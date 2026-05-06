@@ -36,8 +36,6 @@ Status legend:
 | [findings/stats/kruskalwallis.md](findings/stats/kruskalwallis.md) | kruskalwallis | stats.test | medium | medium | 69fab7c |
 | [findings/stats/runstest.md](findings/stats/runstest.md) | runstest | stats.test | high | medium | 69fab7c |
 | [findings/stats/vartestn.md](findings/stats/vartestn.md) | vartestn | stats.test | medium | medium | 69fab7c |
-| [findings/stats/cummax.md](findings/stats/cummax.md) | cummax | builtin | high | medium | 4f021db |
-| [findings/stats/cummin.md](findings/stats/cummin.md) | cummin | builtin | high | medium | 4f021db |
 | [findings/stats/median.md](findings/stats/median.md) | median | stats.descriptive | high | medium | ba142e6 |
 | [findings/stats/mape.md](findings/stats/mape.md) | mape | stats.descriptive | medium | small | ba142e6 |
 | [findings/stats/maxk.md](findings/stats/maxk.md) | maxk | stats.descriptive | medium | small | ba142e6 |
@@ -225,6 +223,8 @@ Status legend:
 | [closed/stats/fishertest.md](closed/stats/fishertest.md) | fishertest | PENDING | 2026-05-06 |
 | [closed/stats/bounds.md](closed/stats/bounds.md) | bounds | PENDING (partial) | 2026-05-06 |
 | [closed/stats/mode.md](closed/stats/mode.md) | mode | PENDING (partial) | 2026-05-06 |
+| [closed/stats/cummax.md](closed/stats/cummax.md) | cummax | PENDING | 2026-05-06 |
+| [closed/stats/cummin.md](closed/stats/cummin.md) | cummin | PENDING | 2026-05-06 |
 
 ---
 
