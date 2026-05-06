@@ -173,10 +173,14 @@ export default function InteractivePlot({
       const py = (e.clientY - rect.top)  * (height / rect.height);
       const cx = isx(px), cy = isy(py);
       const factor = Math.exp(e.deltaY * 0.0015);
-      setViewport({
-        x: [cx - (cx - xMin) * factor, cx + (xMax - cx) * factor],
-        y: [cy - (cy - yMin) * factor, cy + (yMax - cy) * factor],
-      });
+      // plain wheel = zoom both, Ctrl = X only, Shift = Y only.
+      const onlyX = e.ctrlKey  && !e.shiftKey;
+      const onlyY = e.shiftKey && !e.ctrlKey;
+      const nx = onlyY ? viewport.x
+                       : [cx - (cx - xMin) * factor, cx + (xMax - cx) * factor];
+      const ny = onlyX ? viewport.y
+                       : [cy - (cy - yMin) * factor, cy + (yMax - cy) * factor];
+      setViewport({ x: nx, y: ny });
     }
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
