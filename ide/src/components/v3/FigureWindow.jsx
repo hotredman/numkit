@@ -3,54 +3,13 @@ import InteractivePlot from './InteractivePlot';
 import Heatmap from './Heatmap';
 import PolarPlot, { defaultPolarViewport, nicePolarMax } from './PolarPlot';
 import SubplotGrid from './SubplotGrid';
+import { computeFitViewport } from './plotUtils';
 
 function renderFigure(figure, props) {
   if (figure.kind === 'subplot') return <SubplotGrid figure={figure} {...props} />;
   if (figure.kind === 'heatmap') return <Heatmap figure={figure} {...props} />;
   if (figure.kind === 'polar')   return <PolarPlot figure={figure} {...props} />;
   return <InteractivePlot figure={figure} {...props} />;
-}
-
-function computeFitViewport(series, mode, axisMode, currentVp, figDefault) {
-  const list = mode === 'all' ? series : series.filter((s) => s.name === mode);
-  let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
-
-  const xLo = Math.min(currentVp.x[0], currentVp.x[1]);
-  const xHi = Math.max(currentVp.x[0], currentVp.x[1]);
-  const yLo = Math.min(currentVp.y[0], currentVp.y[1]);
-  const yHi = Math.max(currentVp.y[0], currentVp.y[1]);
-
-  list.forEach((s) => {
-    for (let i = 0; i < s.x.length; i++) {
-      const xv = s.x[i], yv = s.y[i];
-      if (!Number.isFinite(xv) || !Number.isFinite(yv)) continue;
-      const passYWindow = axisMode === 'x' ? (yv >= yLo && yv <= yHi) : true;
-      if (passYWindow) {
-        if (xv < xMin) xMin = xv;
-        if (xv > xMax) xMax = xv;
-      }
-      const passXWindow = axisMode === 'y' ? (xv >= xLo && xv <= xHi) : true;
-      if (passXWindow) {
-        if (yv < yMin) yMin = yv;
-        if (yv > yMax) yMax = yv;
-      }
-    }
-  });
-
-  const next = { x: currentVp.x.slice(), y: currentVp.y.slice() };
-  if (axisMode === 'both' || axisMode === 'x') {
-    if (Number.isFinite(xMin) && Number.isFinite(xMax)) {
-      const padX = (xMax - xMin) * 0.04 || Math.abs(xMin) * 0.05 || 0.5;
-      next.x = [xMin - padX, xMax + padX];
-    } else next.x = figDefault.x.slice();
-  }
-  if (axisMode === 'both' || axisMode === 'y') {
-    if (Number.isFinite(yMin) && Number.isFinite(yMax)) {
-      const padY = (yMax - yMin) * 0.06 || Math.abs(yMin) * 0.05 || 0.5;
-      next.y = [yMin - padY, yMax + padY];
-    } else next.y = figDefault.y.slice();
-  }
-  return next;
 }
 
 function NumberInput({ value, onCommit, width = 88 }) {

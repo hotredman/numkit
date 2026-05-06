@@ -13,6 +13,8 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { renderHeatmapDataURL, getColormap } from './colormaps';
+import ContextMenu from './ContextMenu';
+import { exportSvgNode, exportPngNode } from './plotUtils';
 
 export default function Heatmap({
   figure,
@@ -27,6 +29,7 @@ export default function Heatmap({
 }) {
   const svgRef = useRef(null);
   const [hover, setHover] = useState(null);
+  const [ctxMenu, setCtxMenu] = useState(null);
   const dragRef = useRef(null);
 
   const padL = 60 * fontScale;
@@ -105,6 +108,20 @@ export default function Heatmap({
   function onMouseUp(e)    { dragRef.current = null; if (e.currentTarget) e.currentTarget.style.cursor = 'grab'; }
   function onMouseLeave(e) { setHover(null); onMouseUp(e); }
   function onDblClick()    { if (interactive) setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() }); }
+  function onContextMenu(e) {
+    if (!interactive) return;
+    e.preventDefault();
+    setCtxMenu({ x: e.clientX, y: e.clientY });
+  }
+  const ctxItems = [
+    { label: 'Reset to default',
+      onClick: () => setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() }) },
+    { separator: true },
+    { label: 'Save panel as SVG',
+      onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
+    { label: 'Save panel as PNG @2×',
+      onClick: () => exportPngNode(svgRef.current, width, height, 2, `figure_${figure.id}.png`) },
+  ];
 
   useEffect(() => {
     if (!interactive) return;
@@ -144,6 +161,11 @@ export default function Heatmap({
   const cbarGradId = `cbar-${figure.id}-${Math.round(width)}`;
 
   return (
+    <>
+    {ctxMenu && (
+      <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={ctxItems}
+        onClose={() => setCtxMenu(null)} />
+    )}
     <svg
       ref={svgRef}
       width="100%" height="100%"
@@ -161,6 +183,7 @@ export default function Heatmap({
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseLeave}
       onDoubleClick={onDblClick}
+      onContextMenu={onContextMenu}
     >
       <defs>
         <clipPath id={clipId}>
@@ -277,5 +300,6 @@ export default function Heatmap({
         </g>
       )}
     </svg>
+    </>
   );
 }
