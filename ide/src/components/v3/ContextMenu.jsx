@@ -29,16 +29,21 @@ export default function ContextMenu({ x, y, items, onClose }) {
       if (ref.current && !ref.current.contains(e.target)) onClose();
     }
     function onKey(e) { if (e.key === 'Escape') onClose(); }
-    function onScroll() { onClose(); }
+    function onOuterScroll(e) {
+      // Internal scroll inside the menu (overflow-y) bubbles to window; only
+      // close on scrolls that originate outside.
+      if (ref.current && ref.current.contains(e.target)) return;
+      onClose();
+    }
     document.addEventListener('mousedown', onDocDown);
     document.addEventListener('keydown', onKey);
-    window.addEventListener('scroll', onScroll, true);
-    window.addEventListener('resize', onScroll);
+    window.addEventListener('scroll', onOuterScroll, true);
+    window.addEventListener('resize', onClose);
     return () => {
       document.removeEventListener('mousedown', onDocDown);
       document.removeEventListener('keydown', onKey);
-      window.removeEventListener('scroll', onScroll, true);
-      window.removeEventListener('resize', onScroll);
+      window.removeEventListener('scroll', onOuterScroll, true);
+      window.removeEventListener('resize', onClose);
     };
   }, [onClose]);
 
