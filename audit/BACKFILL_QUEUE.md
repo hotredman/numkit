@@ -16,7 +16,6 @@ gtest assertions against probe-captured values).
 
 | # | Namespace | Function | Notes |
 |---|---|---|---|
-| 9 | wavelet.filt | `coifwavf` | same |
 | 10 | wavelet.filt | `symwavf` | same |
 | 11 | wavelet.filt | `orthfilt` | quadruple from scaling filter |
 | 12 | wavelet.shape | `gauswavf` | real Gaussian wavelet |
@@ -38,6 +37,7 @@ gtest assertions against probe-captured values).
 | `wkeep` | PENDING | libs/wavelet/tests/wkeep_test.cpp | libs/wavelet/tests/smoke/wkeep_smoke.m |
 | `wextend` | PENDING | libs/wavelet/tests/wextend_test.cpp | libs/wavelet/tests/smoke/wextend_smoke.m |
 | `dbwavf` | PENDING | libs/wavelet/tests/dbwavf_test.cpp | libs/wavelet/tests/smoke/dbwavf_smoke.m |
+| `coifwavf` | PENDING | libs/wavelet/tests/coifwavf_test.cpp | libs/wavelet/tests/smoke/coifwavf_smoke.m |
 
 ---
 
