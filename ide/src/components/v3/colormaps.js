@@ -203,8 +203,13 @@ export function renderHeatmapDataURLFromIndices(zRows, lut) {
 }
 
 /** Render a flat Uint8Array (row-major) version — for tile overlay.
- *  Same vertical flip applied as renderHeatmapDataURLFromIndices. */
+ *  Same vertical flip applied as renderHeatmapDataURLFromIndices.
+ *  rows / cols MUST be integers — fractional dims (from non-integer panel
+ *  measurements) silently produce diagonal stripes because srcOff drifts
+ *  by 0.5 × row each iteration when cols is fractional. Coerce defensively. */
 export function renderHeatmapDataURLFromFlat(arr, rows, cols, lut) {
+  rows = rows | 0;
+  cols = cols | 0;
   if (!rows || !cols) return null;
   const canvas = document.createElement('canvas');
   canvas.width  = cols;

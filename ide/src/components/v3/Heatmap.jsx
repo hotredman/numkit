@@ -110,8 +110,11 @@ export default function Heatmap({
   const padR = 70 * fontScale;  // wider to fit the colorbar
   const padT = 36 * fontScale;
   const padB = 44 * fontScale;
-  const W = Math.max(50, width - padL - padR);
-  const H = Math.max(50, height - padT - padB);
+  // Force integer dims — non-integer panel sizes from fractional fontScale
+  // would produce a diagonal-stripe artefact in the tile renderer because
+  // row strides drift by frac-cols each iteration when arr is indexed.
+  const W = Math.max(50, Math.floor(width - padL - padR));
+  const H = Math.max(50, Math.floor(height - padT - padB));
 
   const [xMin, xMax] = viewport.x;
   const [yMin, yMax] = viewport.y;
