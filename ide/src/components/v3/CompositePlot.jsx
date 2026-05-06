@@ -1,23 +1,36 @@
 /**
- * Heatmap (imagesc) renderer. Mirrors InteractivePlot's outer shape — same
- * SVG / viewBox / pan-zoom hooks — but renders a pixel image inside the
- * plot area instead of line paths.
+ * CompositePlot — universal 2-D renderer.
  *
- * Figure shape it expects (built by adapters.adaptFigure when type='imagesc'):
+ * Holds the shared infrastructure (sx/sy with linear/log mapping, pan &
+ * zoom with modifier keys, tick generation, ПКМ menu, hover crosshair,
+ * tile-fetch + LOD pyramid, color override, colormap selection, keyboard
+ * shortcuts) and walks `figure.layers[]` rendering each layer through a
+ * dedicated draw function:
+ *
+ *   layer.kind === 'heatmap'  → image + colorbar + tile overlay
+ *   layer.kind === 'series'   → line / scatter / stem / stairs / bar
+ *                              (mode field discriminates)
+ *   layer.kind === 'text'     → SVG <text> annotation
+ *
+ * Heatmap-specific UI (colorbar, color autoscale, colormap select) is
+ * conditional on whether any heatmap layer is present in the array. A
+ * pure line plot or annotation-only figure simply skips those branches.
+ *
+ * Figure shape (built by adapters.adaptFigure for non-polar/non-subplot):
  *   {
- *     id, title, xLabel, yLabel,
- *     xRange, yRange,           // matrix coordinate extents
- *     z: number[][],            // rows × cols
- *     cmin, cmax, colormap,     // value-range and colormap name
+ *     kind: 'composite', id, title, xLabel, yLabel,
+ *     xRange, yRange,
+ *     grid, xscale, yscale,
+ *     layers: [...],               // heterogeneous, see above
  *   }
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { buildHeatmapLUT, renderHeatmapDataURLFromIndices,
          renderHeatmapDataURLFromFlat, getColormap } from './colormaps';
 import ContextMenu from './ContextMenu';
-import { exportSvgNode, exportPngNode, exportPngForPrint } from './plotUtils';
+import { computeFitViewport, exportSvgNode, exportPngNode, exportPngForPrint } from './plotUtils';
 
-export default function Heatmap({
+export default function CompositePlot({
   figure,
   width,
   height,
@@ -25,6 +38,7 @@ export default function Heatmap({
   setViewport,
   major = true,
   minor = true,
+  showLegend = true,
   fontScale = 1,
   interactive = true,
   engine = null,
@@ -39,9 +53,41 @@ export default function Heatmap({
   setColorOverride: setColorOverrideProp,
   colormapOverride = null,
 }) {
-  // Effective colormap — runtime override (toolbar combo) wins over the
-  // figure's script-level colormap.
-  const effectiveColormap = colormapOverride || figure.colormap;
+  // Layers — empty array if none. The renderer walks them in order so the
+  // user controls z-order via call sequence (heatmap first, scatter on top,
+  // text labels last — exactly mirroring `imagesc; hold on; scatter; text`).
+  const layers = Array.isArray(figure.layers) ? figure.layers : [];
+  const heatmapLayer = layers.find((l) => l.kind === 'heatmap') || null;
+  const seriesLayers = layers.filter((l) => l.kind === 'series');
+  const textLayers = layers.filter((l) => l.kind === 'text');
+  const hasHeatmap = !!heatmapLayer;
+
+  // Effective colormap: runtime override (toolbar combo) > script-level
+  // colormap on the heatmap layer > default 'parula'.
+  const effectiveColormap = colormapOverride
+    || heatmapLayer?.colormap
+    || 'parula';
+
+  // ── Heatmap-layer field aliases ─────────────────────────────────────
+  // Aliases for the heatmap layer's data/metadata fields so the existing
+  // render code (originally written for a flat figure shape with `figure.z`,
+  // `hcminOrig`, etc.) reads naturally. All access is guarded — pure
+  // line/scatter composites have heatmapLayer === null and these aliases
+  // fall through to safe defaults; the heatmap-specific render blocks gate
+  // on `hasHeatmap` to avoid touching them.
+  const hZ              = heatmapLayer?.z;
+  const hcmin           = heatmapLayer?.cmin ?? 0;
+  const hcmax           = heatmapLayer?.cmax ?? 1;
+  const hcminOrig       = heatmapLayer?.cminOrig ?? hcmin;
+  const hcmaxOrig       = heatmapLayer?.cmaxOrig ?? hcmax;
+  const hColorScaleBaked= heatmapLayer?.colorScaleBaked;
+  const hFullRows       = heatmapLayer?.originalRows ?? 0;
+  const hFullCols       = heatmapLayer?.originalCols ?? 0;
+  const hFigId          = heatmapLayer?._figId ?? -1;
+  const hAxIdx          = heatmapLayer?._axIdx ?? 0;
+  const hDsIdx          = heatmapLayer?._dsIdx ?? 0;
+  const hDownsampled    = heatmapLayer?.downsampled;
+
   const svgRef = useRef(null);
   const [hover, setHover] = useState(null);
   const [ctxMenu, setCtxMenu] = useState(null);
@@ -80,7 +126,7 @@ export default function Heatmap({
   // ── Color-limit override ────────────────────────────────────────────
   // "Fit colors to visible" pulls cmin/cmax from the currently-visible
   // source-rect via getFigureTile, so a low-contrast region zoomed in
-  // gets full colormap dynamic range. null = use figure.cminOrig/cmaxOrig.
+  // gets full colormap dynamic range. null = use hcminOrig/cmaxOrig.
   // The override is a window/level remap on top of the engine-baked
   // quantization range — no requantization, just a different LUT.
   // Use parent-owned override when supplied (FigureWindow holds it so the
@@ -88,10 +134,10 @@ export default function Heatmap({
   const [colorOverrideLocal, setColorOverrideLocal] = useState(null);
   const colorOverride = (colorOverrideProp !== undefined) ? colorOverrideProp : colorOverrideLocal;
   const setColorOverride = setColorOverrideProp || setColorOverrideLocal;
-  const cminEff = colorOverride ? colorOverride.cmin : figure.cminOrig ?? figure.cmin;
-  const cmaxEff = colorOverride ? colorOverride.cmax : figure.cmaxOrig ?? figure.cmax;
-  const cminOrig = figure.cminOrig ?? figure.cmin;
-  const cmaxOrig = figure.cmaxOrig ?? figure.cmax;
+  const cminEff = colorOverride ? colorOverride.cmin : hcminOrig;
+  const cmaxEff = colorOverride ? colorOverride.cmax : hcmaxOrig;
+  const cminOrig = hcminOrig;
+  const cmaxOrig = hcmaxOrig;
 
   // 256-entry RGBA LUT — rebuilt only when colormap or window/level changes.
   const lut = useMemo(
@@ -100,7 +146,7 @@ export default function Heatmap({
   );
 
   const padL = 60 * fontScale;
-  const padR = 70 * fontScale;  // wider to fit the colorbar
+  const padR = hasHeatmap ? 70 * fontScale : 18;  // wider when colorbar is shown
   const padT = 36 * fontScale;
   const padB = 44 * fontScale;
   // Force integer dims — non-integer panel sizes from fractional fontScale
@@ -132,11 +178,12 @@ export default function Heatmap({
 
   // Pre-render the inline preview to a dataURL via the LUT. uint8 indices
   // are stable; only the LUT changes on window/level — so we keep a separate
-  // memo on (z) and another on (lut) chained together.
+  // memo on (z) and another on (lut) chained together. Skips entirely if
+  // there's no heatmap layer.
   const dataURL = useMemo(() => {
-    if (!figure.z) return null;
-    return renderHeatmapDataURLFromIndices(figure.z, lut);
-  }, [figure.z, lut]);
+    if (!hZ) return null;
+    return renderHeatmapDataURLFromIndices(hZ, lut);
+  }, [hZ, lut]);
 
   function niceTicks(min, max, target = 6) {
     const range = max - min;
@@ -234,15 +281,15 @@ export default function Heatmap({
   function fitAxes(axisMode) {
     const next = { x: viewport.x.slice(), y: viewport.y.slice() };
     // Under log mode the figure's natural xRange/yRange straddle zero
-    // (cellH/2 padding), so plain `figure.xRange.slice()` would push
-    // yMin below zero and silently flip yLogActive false → axis snaps
-    // to linear despite yscale('log'). Clamp the lo bound to half a
-    // cell-width above zero to keep log valid.
+    // for heatmap (cellH/2 padding). Clamp the lo bound to half-cell so
+    // log doesn't silently snap back to linear. For pure-series figures
+    // there's no half-cell; use a small positive seed.
     if (axisMode === 'both' || axisMode === 'x') {
       if (xLog) {
-        const fullCols = figure.originalCols || 1;
-        const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
-        const lo = Math.max(cellW * 0.5, 1e-6);
+        const cellW = hFullCols > 0
+          ? (figure.xRange[1] - figure.xRange[0]) / hFullCols
+          : 0;
+        const lo = Math.max(cellW * 0.5, figure.xRange[0] > 0 ? figure.xRange[0] : 1e-6);
         next.x = [lo, Math.max(lo * 10, figure.xRange[1])];
       } else {
         next.x = figure.xRange.slice();
@@ -250,9 +297,10 @@ export default function Heatmap({
     }
     if (axisMode === 'both' || axisMode === 'y') {
       if (yLog) {
-        const fullRows = figure.originalRows || 1;
-        const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
-        const lo = Math.max(cellH * 0.5, 1e-6);
+        const cellH = hFullRows > 0
+          ? (figure.yRange[1] - figure.yRange[0]) / hFullRows
+          : 0;
+        const lo = Math.max(cellH * 0.5, figure.yRange[0] > 0 ? figure.yRange[0] : 1e-6);
         next.y = [lo, Math.max(lo * 10, figure.yRange[1])];
       } else {
         next.y = figure.yRange.slice();
@@ -267,25 +315,23 @@ export default function Heatmap({
   // No requantization happens — the override is a window/level remap of
   // the LUT (see buildHeatmapLUT). 256-level resolution is the cap.
   function fitColorsToVisible() {
+    if (!hasHeatmap) return;
     if (!engine || typeof engine.getFigureTile !== 'function') return;
-    if (typeof figure._figId !== 'number' || figure._figId < 0) return;
-    if (!figure.originalRows || !figure.originalCols) return;
+    if (hFigId < 0 || !hFullRows || !hFullCols) return;
 
-    const fullCols = figure.originalCols;
-    const fullRows = figure.originalRows;
     const xExt = figure.xRange[1] - figure.xRange[0];
     const yExt = figure.yRange[1] - figure.yRange[0];
-    const colsPerUnit = fullCols / (xExt || 1);
-    const rowsPerUnit = fullRows / (yExt || 1);
+    const colsPerUnit = hFullCols / (xExt || 1);
+    const rowsPerUnit = hFullRows / (yExt || 1);
     const c0 = Math.max(0, Math.floor((Math.min(xMin, xMax) - figure.xRange[0]) * colsPerUnit));
-    const c1 = Math.min(fullCols, Math.ceil((Math.max(xMin, xMax) - figure.xRange[0]) * colsPerUnit));
+    const c1 = Math.min(hFullCols, Math.ceil((Math.max(xMin, xMax) - figure.xRange[0]) * colsPerUnit));
     const r0 = Math.max(0, Math.floor((figure.yRange[1] - Math.max(yMin, yMax)) * rowsPerUnit));
-    const r1 = Math.min(fullRows, Math.ceil((figure.yRange[1] - Math.min(yMin, yMax)) * rowsPerUnit));
+    const r1 = Math.min(hFullRows, Math.ceil((figure.yRange[1] - Math.min(yMin, yMax)) * rowsPerUnit));
     const tileW = c1 - c0, tileH = r1 - r0;
     if (tileW <= 0 || tileH <= 0) return;
 
     const lod = Math.max(1, Math.ceil(Math.max(tileH, tileW) / 256));
-    const tile = engine.getFigureTile(figure._figId, figure._axIdx, figure._dsIdx,
+    const tile = engine.getFigureTile(hFigId, hAxIdx, hDsIdx,
                                       r0, c0, tileH, tileW, lod);
     if (!tile || tile.error || !tile.data) return;
 
@@ -306,6 +352,24 @@ export default function Heatmap({
     setColorOverride({ cmin: newMin, cmax: newMax });
   }
   function resetColors() { setColorOverride(null); }
+  // Per-series fit (line / scatter): scan x/y of selected layer and shrink
+  // viewport to its data extent. Mirrors InteractivePlot's "Fit single
+  // curve". `axisMode` is 'both' / 'x' / 'y'.
+  function applyFitSeries(seriesIdx, axisMode) {
+    const ly = seriesLayers[seriesIdx];
+    if (!ly) return;
+    const figDefault = { x: figure.xRange.slice(), y: figure.yRange.slice() };
+    setViewport(computeFitViewport([{ name: ly.name, x: ly.x, y: ly.y }],
+                                   ly.name, axisMode, viewport, figDefault));
+  }
+  function applyFitAllSeries(axisMode) {
+    if (seriesLayers.length === 0) return fitAxes(axisMode);
+    const figDefault = { x: figure.xRange.slice(), y: figure.yRange.slice() };
+    const all = seriesLayers.map((s) => ({ name: s.name, x: s.x, y: s.y }));
+    setViewport(computeFitViewport(all, 'all', axisMode, viewport, figDefault));
+  }
+
+  const multiSeries = seriesLayers.length > 1;
   const ctxItems = [
     { label: 'Reset to default',
       onClick: () => {
@@ -326,30 +390,54 @@ export default function Heatmap({
     { label: 'PNG · A4 width (210 mm)',
       onClick: () => exportPngForPrint(svgRef.current, width, height, 210, 300, `figure_${figure.id}`) },
     { separator: true },
-    { head: 'Fit data extent' },
-    { label: 'Fit both axes', onClick: () => fitAxes('both') },
-    { label: 'Fit X only',    onClick: () => fitAxes('x') },
-    { label: 'Fit Y only',    onClick: () => fitAxes('y') },
-    { head: 'Color range' },
-    { label: 'Fit colors to visible',
-      onClick: fitColorsToVisible,
-      disabled: !engine || typeof engine.getFigureTile !== 'function'
-                || typeof figure._figId !== 'number' || figure._figId < 0 },
-    { label: colorOverride
-        ? `Reset colors (${Number(figure.cmin).toPrecision(3)} … ${Number(figure.cmax).toPrecision(3)})`
-        : 'Reset colors',
-      onClick: resetColors,
-      disabled: !colorOverride },
+    // For figures with series layers (line/scatter), surface "fit all curves"
+    // and per-curve rows like InteractivePlot did. Falls back to data-extent
+    // fit when there are no series (pure heatmap / annotations only).
+    ...(seriesLayers.length > 0 ? [
+      { head: multiSeries ? 'Fit all curves' : 'Fit data extent' },
+      { label: 'Fit both axes', onClick: () => applyFitAllSeries('both') },
+      { label: 'Fit X only',    onClick: () => applyFitAllSeries('x') },
+      { label: 'Fit Y only',    onClick: () => applyFitAllSeries('y') },
+      ...(multiSeries ? [
+        { head: 'Fit single curve' },
+        ...seriesLayers.map((s, i) => ({
+          row: true, color: s.color, name: s.name || `series ${i + 1}`,
+          buttons: [
+            { label: 'xy', onClick: () => applyFitSeries(i, 'both') },
+            { label: 'x',  onClick: () => applyFitSeries(i, 'x') },
+            { label: 'y',  onClick: () => applyFitSeries(i, 'y') },
+          ],
+        })),
+      ] : []),
+    ] : [
+      { head: 'Fit data extent' },
+      { label: 'Fit both axes', onClick: () => fitAxes('both') },
+      { label: 'Fit X only',    onClick: () => fitAxes('x') },
+      { label: 'Fit Y only',    onClick: () => fitAxes('y') },
+    ]),
+    // Color range — only meaningful for heatmap layers.
+    ...(hasHeatmap ? [
+      { head: 'Color range' },
+      { label: 'Fit colors to visible',
+        onClick: fitColorsToVisible,
+        disabled: !engine || typeof engine.getFigureTile !== 'function'
+                  || hFigId < 0 },
+      { label: colorOverride
+          ? `Reset colors (${Number(hcmin).toPrecision(3)} … ${Number(hcmax).toPrecision(3)})`
+          : 'Reset colors',
+        onClick: resetColors,
+        disabled: !colorOverride },
+    ] : []),
     { head: 'Axes' },
     { label: xLog ? '✓ X axis · log' : 'X axis · log',
       onClick: () => {
         // Switching to log requires a strictly-positive xMin. Clamp viewport
         // up to half-cell-width (the lowest positive cell-centre worth showing)
-        // when currently viewing through zero.
+        // when currently viewing through zero. For pure-series figures with
+        // no cell grid, fall back to a small positive seed.
         if (!xLog && (xMin <= 0 || xMax <= 0)) {
-          const fullCols = figure.originalCols || 1;
-          const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
-          const safeLo = Math.max(cellW * 0.5, 1e-6);
+          const cellW = hFullCols > 0 ? (figure.xRange[1] - figure.xRange[0]) / hFullCols : 0;
+          const safeLo = Math.max(cellW * 0.5, figure.xRange[0] > 0 ? figure.xRange[0] : 1e-6);
           const safeHi = Math.max(safeLo * 10, figure.xRange[1]);
           setViewport({ ...viewport, x: [safeLo, safeHi] });
         }
@@ -360,9 +448,8 @@ export default function Heatmap({
     { label: yLog ? '✓ Y axis · log' : 'Y axis · log',
       onClick: () => {
         if (!yLog && (yMin <= 0 || yMax <= 0)) {
-          const fullRows = figure.originalRows || 1;
-          const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
-          const safeLo = Math.max(cellH * 0.5, 1e-6);
+          const cellH = hFullRows > 0 ? (figure.yRange[1] - figure.yRange[0]) / hFullRows : 0;
+          const safeLo = Math.max(cellH * 0.5, figure.yRange[0] > 0 ? figure.yRange[0] : 1e-6);
           const safeHi = Math.max(safeLo * 10, figure.yRange[1]);
           setViewport({ ...viewport, y: [safeLo, safeHi] });
         }
@@ -415,16 +502,16 @@ export default function Heatmap({
   useEffect(() => {
     if (!interactive) return;
     if (!engine || typeof engine.getFigureDisplayTile !== 'function') return;
-    if (typeof figure._figId !== 'number' || figure._figId < 0) return;
-    if (!figure.originalRows || !figure.originalCols) return;
+    if (hFigId < 0) return;
+    if (!hFullRows || !hFullCols) return;
     if (W < 4 || H < 4) return;
 
     const handle = setTimeout(() => {
       // Map viewport (in original-data coords) to fractional source-cell
       // indices. xRange/yRange always span the source extent, regardless
       // of inline-preview downsampling.
-      const fullCols = figure.originalCols;
-      const fullRows = figure.originalRows;
+      const fullCols = hFullCols;
+      const fullRows = hFullRows;
       const xExt = figure.xRange[1] - figure.xRange[0];
       const yExt = figure.yRange[1] - figure.yRange[0];
       const colsPerUnit = fullCols / (xExt || 1);
@@ -458,7 +545,7 @@ export default function Heatmap({
       if (srcH <= 0 || srcW <= 0) { setTileOverlay(null); return; }
 
       const buf = engine.getFigureDisplayTile(
-        figure._figId, figure._axIdx, figure._dsIdx,
+        hFigId, hAxIdx, hDsIdx,
         srcR0, srcC0, srcH, srcW,
         H, W,
         xLogActive, yLogActive
@@ -473,8 +560,8 @@ export default function Heatmap({
     }, 60);
 
     return () => clearTimeout(handle);
-  }, [interactive, engine, figure._figId, figure._axIdx, figure._dsIdx,
-      figure.originalRows, figure.originalCols,
+  }, [interactive, engine, hFigId, hAxIdx, hDsIdx,
+      hFullRows, hFullCols,
       figure.xRange, figure.yRange,
       xMin, xMax, yMin, yMax, xLogActive, yLogActive,
       W, H, lut]);
@@ -505,9 +592,9 @@ export default function Heatmap({
       <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={ctxItems}
         onClose={() => setCtxMenu(null)} />
     )}
-    {figure.downsampled && (
+    {hDownsampled && (
       <div className="hm-preview-banner" title="Engine downsampled this figure to keep the inline preview small. Zoom-in detail will arrive once tile-fetch lands.">
-        preview · downsampled from {figure.originalRows}×{figure.originalCols}
+        preview · downsampled from {hFullRows}×{hFullCols}
       </div>
     )}
     <svg
@@ -567,8 +654,8 @@ export default function Heatmap({
             // is tyLow, at high end is tyHigh. The renderer's vertical flip
             // (in renderHeatmapDataURLFromFlat) makes canvas row 0 represent
             // the high-cell-index = top of the plot.
-            const fullCols = figure.originalCols || 1;
-            const fullRows = figure.originalRows || 1;
+            const fullCols = hFullCols || 1;
+            const fullRows = hFullRows || 1;
             const xExt = figure.xRange[1] - figure.xRange[0];
             const yExt = figure.yRange[1] - figure.yRange[0];
             // Inverse of the -0.5 shift applied in tile-fetch: data y at a
@@ -647,74 +734,105 @@ export default function Heatmap({
         );
       })}
 
-      {/* Overlay layers — scatter/line/stem/text accumulated via `hold on`
-          after imagesc. Each layer's data-coords go through the panel's
-          current sx/sy so they track pan/zoom + log axes automatically.
-          Clipped to plot area so off-screen markers don't bleed into the
-          colorbar / axis area. */}
-      {Array.isArray(figure.overlays) && figure.overlays.length > 0 && (
+      {/* Series + text layers — drawn in original z-order (= call order in
+          script: imagesc → hold on → scatter → text). Coordinates go
+          through the panel's current sx/sy so they track pan/zoom + log
+          axes automatically. Clipped to plot area so off-screen content
+          doesn't bleed into colorbar / axis margins. */}
+      {(seriesLayers.length > 0 || textLayers.length > 0) && (
         <g clipPath={`url(#${clipId})`}>
-          {figure.overlays.map((ov, idx) => {
-            if (ov.type === 'scatter') {
-              return (
-                <g key={`ov${idx}`}>
-                  {ov.x.map((xv, i) => {
-                    const yv = ov.y[i];
-                    if (!Number.isFinite(xv) || !Number.isFinite(yv)) return null;
-                    const px = sx(xv), py = sy(yv);
-                    if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
-                    return <circle key={i} cx={px} cy={py} r={ov.size}
-                      fill={ov.color} stroke="var(--plot-frame)" strokeWidth="0.6" />;
-                  })}
-                </g>
-              );
-            }
-            if (ov.type === 'line') {
+          {layers.map((ly, idx) => {
+            if (ly.kind === 'heatmap') return null;            // image already drawn above
+            if (ly.kind === 'series') {
+              const mode = ly.mode || 'line';
+              const w = ly.width || 1.5;
+              const op = ly.opacity ?? 1;
+              if (mode === 'scatter') {
+                return (
+                  <g key={`ly${idx}`} opacity={op}>
+                    {ly.x.map((xv, i) => {
+                      const yv = ly.y[i];
+                      if (!Number.isFinite(xv) || !Number.isFinite(yv)) return null;
+                      const px = sx(xv), py = sy(yv);
+                      if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
+                      return <circle key={i} cx={px} cy={py} r={ly.size || 3}
+                        fill={ly.color} stroke="var(--plot-frame)" strokeWidth="0.6" />;
+                    })}
+                  </g>
+                );
+              }
+              if (mode === 'stem') {
+                return (
+                  <g key={`ly${idx}`} opacity={op}>
+                    {ly.x.map((xv, i) => {
+                      const yv = ly.y[i];
+                      if (!Number.isFinite(xv) || !Number.isFinite(yv)) return null;
+                      const px = sx(xv), py = sy(yv);
+                      const py0 = sy(yLogActive ? yMin : 0);
+                      if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
+                      return (
+                        <g key={i}>
+                          <line x1={px} x2={px} y1={py0} y2={py}
+                            stroke={ly.color} strokeWidth={w * 0.7} />
+                          <circle cx={px} cy={py} r={2.5} fill={ly.color} />
+                        </g>
+                      );
+                    })}
+                  </g>
+                );
+              }
+              if (mode === 'bar') {
+                // Bar mode: filled rects centred on x; width derived from
+                // inter-x spacing. Per-series offset spreads multiple bar
+                // layers so they don't overlap exactly.
+                const xs = ly.x.filter(Number.isFinite);
+                let bw = 8;
+                if (xs.length > 1) {
+                  const spacing = Math.abs(sx(xs[1]) - sx(xs[0]));
+                  bw = Math.max(2, spacing * 0.7);
+                }
+                const baseY = sy(yLogActive ? yMin : Math.max(0, yMin));
+                const sIdx = seriesLayers.indexOf(ly);
+                const off = (sIdx - (seriesLayers.length - 1) / 2) * bw * 1.05;
+                return (
+                  <g key={`ly${idx}`} opacity={op}>
+                    {ly.x.map((xv, i) => {
+                      const px = sx(xv) + off, py = sy(ly.y[i]);
+                      if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
+                      const top = Math.min(py, baseY);
+                      const h = Math.abs(py - baseY);
+                      return <rect key={i} x={px - bw / 2} y={top}
+                        width={bw} height={h} fill={ly.color} stroke="none" />;
+                    })}
+                  </g>
+                );
+              }
+              // 'line' or 'stairs'
               let d = '';
               let started = false;
-              for (let i = 0; i < ov.x.length; i++) {
-                const xv = ov.x[i], yv = ov.y[i];
+              for (let i = 0; i < ly.x.length; i++) {
+                const xv = ly.x[i], yv = ly.y[i];
                 if (!Number.isFinite(xv) || !Number.isFinite(yv)) { started = false; continue; }
                 const px = sx(xv), py = sy(yv);
                 if (!Number.isFinite(px) || !Number.isFinite(py)) { started = false; continue; }
-                if (ov.stairs && started) {
-                  d += `L${px.toFixed(2)},${(sy(ov.y[i - 1])).toFixed(2)} `;
+                if (mode === 'stairs' && started) {
+                  d += `L${px.toFixed(2)},${(sy(ly.y[i - 1])).toFixed(2)} `;
                 }
                 d += (started ? 'L' : 'M') + px.toFixed(2) + ',' + py.toFixed(2) + ' ';
                 started = true;
               }
-              return <path key={`ov${idx}`} d={d} stroke={ov.color} fill="none"
-                strokeWidth={ov.width} opacity={ov.opacity ?? 1}
+              return <path key={`ly${idx}`} d={d} stroke={ly.color} fill="none"
+                strokeWidth={w} opacity={op}
                 strokeLinejoin="round" strokeLinecap="round" />;
             }
-            if (ov.type === 'stem') {
-              return (
-                <g key={`ov${idx}`}>
-                  {ov.x.map((xv, i) => {
-                    const yv = ov.y[i];
-                    if (!Number.isFinite(xv) || !Number.isFinite(yv)) return null;
-                    const px = sx(xv), py = sy(yv);
-                    const py0 = sy(yLogActive ? yMin : 0);
-                    if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
-                    return (
-                      <g key={i}>
-                        <line x1={px} x2={px} y1={py0} y2={py}
-                          stroke={ov.color} strokeWidth={ov.width * 0.7} />
-                        <circle cx={px} cy={py} r={2.5} fill={ov.color} />
-                      </g>
-                    );
-                  })}
-                </g>
-              );
-            }
-            if (ov.type === 'text') {
-              const px = sx(ov.x), py = sy(ov.y);
+            if (ly.kind === 'text') {
+              const px = sx(ly.x), py = sy(ly.y);
               if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
               return (
-                <text key={`ov${idx}`} x={px} y={py}
-                  fill={ov.color} fontSize={ov.fontSize * fontScale}
+                <text key={`ly${idx}`} x={px} y={py}
+                  fill={ly.color} fontSize={(ly.fontSize || 11) * fontScale}
                   className="hm-overlay-text"
-                  pointerEvents="none">{ov.text}</text>
+                  pointerEvents="none">{ly.text}</text>
               );
             }
             return null;
@@ -722,20 +840,25 @@ export default function Heatmap({
         </g>
       )}
 
-      {/* Colorbar */}
-      <rect x={cbarX} y={padT} width={cbarW} height={cbarH}
-        fill={`url(#${cbarGradId})`}
-        stroke="var(--plot-frame)" strokeWidth="0.5" />
-      {cbarTicks.major.map((v, i) => {
-        const y = padT + cbarH - ((v - cminEff) / (cmaxEff - cminEff)) * cbarH;
-        if (y < padT - 1 || y > padT + cbarH + 1) return null;
-        return (
-          <g key={`cb${i}`}>
-            <line x1={cbarX + cbarW} x2={cbarX + cbarW + 3} y1={y} y2={y} stroke="var(--plot-tick)" />
-            <text x={cbarX + cbarW + 6} y={y + 3} fill="var(--plot-text)" fontSize={9 * fontScale} textAnchor="start">{fmtTick(v)}</text>
-          </g>
-        );
-      })}
+      {/* Colorbar — only rendered when there's a heatmap layer. Pure
+          line/scatter composites skip it (their legend lives on series). */}
+      {hasHeatmap && (
+        <>
+          <rect x={cbarX} y={padT} width={cbarW} height={cbarH}
+            fill={`url(#${cbarGradId})`}
+            stroke="var(--plot-frame)" strokeWidth="0.5" />
+          {cbarTicks.major.map((v, i) => {
+            const y = padT + cbarH - ((v - cminEff) / (cmaxEff - cminEff)) * cbarH;
+            if (y < padT - 1 || y > padT + cbarH + 1) return null;
+            return (
+              <g key={`cb${i}`}>
+                <line x1={cbarX + cbarW} x2={cbarX + cbarW + 3} y1={y} y2={y} stroke="var(--plot-tick)" />
+                <text x={cbarX + cbarW + 6} y={y + 3} fill="var(--plot-text)" fontSize={9 * fontScale} textAnchor="start">{fmtTick(v)}</text>
+              </g>
+            );
+          })}
+        </>
+      )}
 
       {/* Axis titles */}
       {figure.xLabel && (
@@ -754,25 +877,25 @@ export default function Heatmap({
         <g pointerEvents="none">
           <line x1={hover.px} x2={hover.px} y1={padT} y2={padT + H} stroke="var(--plot-cross)" strokeDasharray="2 3"/>
           <line x1={padL} x2={padL + W} y1={hover.py} y2={hover.py} stroke="var(--plot-cross)" strokeDasharray="2 3"/>
-          {/* Sample uint8 idx (row, col) closest to cursor; reconstruct
+          {/* Heatmap path: sample the cell at the cursor, reconstruct the
               original-domain value via cminOrig + (idx/254) * range. If
-              colorScaleBaked === 'log', the reconstructed value is in
-              log10 space — show 10^v as the "real" scalar. */}
-          {(() => {
-            if (!figure.z) return null;
-            const nR = figure.z.length, nC = figure.z[0]?.length || 0;
+              colorScaleBaked === 'log', the reconstructed value is in log10
+              space — show 10^v as the "real" scalar. */}
+          {hasHeatmap && (() => {
+            if (!hZ) return null;
+            const nR = hZ.length, nC = hZ[0]?.length || 0;
             if (!nR || !nC) return null;
             const u = (hover.x - figure.xRange[0]) / (figure.xRange[1] - figure.xRange[0]);
             const v = (figure.yRange[1] - hover.y) / (figure.yRange[1] - figure.yRange[0]);
             const c = Math.max(0, Math.min(nC - 1, Math.floor(u * nC)));
             const r = Math.max(0, Math.floor(v * nR));
             const rr = Math.max(0, Math.min(nR - 1, r));
-            const idx = figure.z[rr]?.[c];
+            const idx = hZ[rr]?.[c];
             let zStr = '—';
             if (idx != null && idx !== 255) {
               const range = cmaxOrig - cminOrig;
               const reconstructed = cminOrig + (idx / 254) * range;
-              if (figure.colorScaleBaked === 'log') {
+              if (hColorScaleBaked === 'log') {
                 zStr = `10^${fmtTick(reconstructed)} ≈ ${fmtTick(Math.pow(10, reconstructed))}`;
               } else {
                 zStr = fmtTick(reconstructed);
@@ -785,6 +908,31 @@ export default function Heatmap({
                 <text x="6" y="22" fill="var(--plot-tip-text)" fontSize="10">y = {fmtTick(hover.y)}</text>
                 <text x="6" y="33" fill="var(--plot-tip-text)" fontSize="10">z = {zStr}</text>
               </g>
+            );
+          })()}
+
+          {/* Series path (no heatmap): snap to nearest x-point on the
+              first series layer. Renders a marker + (x, y) tooltip. */}
+          {!hasHeatmap && seriesLayers.length > 0 && (() => {
+            const s = seriesLayers[0];
+            if (!s.x?.length) return null;
+            let bestI = 0, bestD = Infinity;
+            for (let i = 0; i < s.x.length; i++) {
+              const d = Math.abs(s.x[i] - hover.x);
+              if (d < bestD) { bestD = d; bestI = i; }
+            }
+            const hx = s.x[bestI], hy = s.y[bestI];
+            if (!Number.isFinite(hx) || !Number.isFinite(hy)) return null;
+            return (
+              <>
+                <circle cx={sx(hx)} cy={sy(hy)} r="3"
+                  fill={s.color} stroke="white" strokeWidth="1" />
+                <g transform={`translate(${Math.min(hover.px + 8, padL + W - 110)}, ${Math.max(hover.py - 28, padT + 4)})`}>
+                  <rect width="104" height="26" fill="var(--plot-tip-bg)" stroke="var(--plot-cross)" rx="3" />
+                  <text x="6" y="11" fill="var(--plot-tip-text)" fontSize="10">x = {fmtTick(hx)}</text>
+                  <text x="6" y="22" fill="var(--plot-tip-text)" fontSize="10">y = {fmtTick(hy)}</text>
+                </g>
+              </>
             );
           })()}
         </g>

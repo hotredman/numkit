@@ -1,15 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import InteractivePlot from './InteractivePlot';
-import Heatmap from './Heatmap';
+import CompositePlot from './CompositePlot';
 import PolarPlot, { defaultPolarViewport } from './PolarPlot';
 import SubplotGrid from './SubplotGrid';
 
 /** Pick the right renderer for a figure based on its `kind`. */
 function renderFigure(figure, props) {
-  if (figure.kind === 'subplot') return <SubplotGrid figure={figure} {...props} />;
-  if (figure.kind === 'heatmap') return <Heatmap figure={figure} {...props} />;
-  if (figure.kind === 'polar')   return <PolarPlot figure={figure} {...props} />;
-  return <InteractivePlot figure={figure} {...props} />;
+  if (figure.kind === 'subplot')   return <SubplotGrid figure={figure} {...props} />;
+  if (figure.kind === 'composite') return <CompositePlot figure={figure} {...props} />;
+  if (figure.kind === 'polar')     return <PolarPlot figure={figure} {...props} />;
+  return <CompositePlot figure={figure} {...props} />;
 }
 
 /**
