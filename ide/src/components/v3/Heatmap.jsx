@@ -116,7 +116,6 @@ export default function Heatmap({
   const ctxItems = [
     { label: 'Reset to default',
       onClick: () => setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() }) },
-    { separator: true },
     { label: 'Save as SVG',
       onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
     { label: 'Save as PNG @2×',
