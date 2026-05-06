@@ -193,6 +193,8 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
       cmin: cminOrig, cmax: cmaxOrig, // aliases for existing UI
       cminOrig, cmaxOrig,
       colorScaleBaked: imgDs.colorScaleBaked || null,   // 'log' | null
+      xscale: cfg.xscale || 'linear',                    // 'log' | 'linear'
+      yscale: cfg.yscale || 'linear',                    // 'log' | 'linear'
       colormap: cfg.colormap || 'parula',
       downsampled:   imgDs.downsampled === true,
       originalRows:  imgDs.originalRows  || nR,

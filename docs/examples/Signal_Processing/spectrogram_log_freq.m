@@ -71,11 +71,14 @@ time_s  = T / Fs;
 figure
 colorscale('log');               % ← bake log10 into the quantization
 imagesc(time_s, freq_hz, P)
+yscale('log');                   % ← log frequency axis (call after imagesc,
+                                 %    just like MATLAB's set(gca,'YScale','log'))
 colormap('viridis')
-title('Octave-spaced tones · log color, switch to log Y via right-click')
+title('Octave-spaced tones · log color · log Y')
 xlabel('Time (s)')
 ylabel('Frequency (Hz)')
 
-% Now right-click the figure → "Axes → Y axis · log" to see the
-% octaves spread evenly across the panel. The image resamples without
-% reloading data; pan/zoom in log space stays interactive.
+% Octaves now spread evenly across the panel. You can toggle log/linear
+% axes interactively via right-click on the figure → "Axes → X/Y axis
+% · log". Image resamples without reloading data; pan/zoom in log space
+% stays interactive.

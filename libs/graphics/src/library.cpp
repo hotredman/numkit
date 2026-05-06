@@ -811,6 +811,31 @@ void GraphicsLibrary::install(Engine &engine)
             outs[0] = Value::empty();
         });
 
+    // xscale / yscale('log' | 'linear') — set the axis scale of the current
+    // axes. Mirrors `set(gca, 'XScale', 'log')` from MATLAB. Unlike colorscale
+    // these do NOT survive prepareForPlot — they're meant to be set AFTER
+    // the plot, like in MATLAB. The IDE-side renderer (Heatmap, Interactive-
+    // Plot) reads figure.xscale / figure.yscale to drive log-axis display.
+    auto regAxisScale = [&](const char *fnName, std::string AxesState::*field) {
+        reg("layout", fnName,
+            [field](Span<const Value> args, size_t nargout, Span<Value> outs,
+                    CallContext &ctx) {
+                auto &fm = ctx.engine->figureManager();
+                std::string mode = "linear";
+                if (!args.empty() && args[0].isChar()) {
+                    std::string m = args[0].toString();
+                    for (auto &c : m) c = std::tolower(c);
+                    if (m == "log" || m == "linear") mode = m;
+                }
+                fm.currentAxes().*field = mode;
+                fm.current().modified = true;
+                fm.emitModified();
+                outs[0] = Value::empty();
+            });
+    };
+    regAxisScale("xscale", &AxesState::xscale);
+    regAxisScale("yscale", &AxesState::yscale);
+
     // ================================================================
     // GUI no-ops (not yet implemented)
     // ================================================================
