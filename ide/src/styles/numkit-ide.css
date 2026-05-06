@@ -1180,10 +1180,13 @@ input, select { font-family: inherit; color: inherit; }
   border: none;
 }
 /* Title bar must not let the meta + close + maximise group be pushed off
-   the right edge by a long variable-name on the left. */
+   the right edge. Title-left truncates first; if more space is needed,
+   title-right's `.ve-meta` can also truncate (its CSS allows it).
+   The two buttons keep their natural size. */
 .ve-titlebar { gap: 8px; }
 .ve-title-left  { min-width: 0; flex: 1 1 auto; overflow: hidden; }
-.ve-title-right { flex-shrink: 0; }
+.ve-title-right { min-width: 0; flex: 0 1 auto; }
+.ve-title-right .ve-close { flex-shrink: 0; }
 
 /* Body holds table + optional inline plot */
 .ve-body {
@@ -1319,7 +1322,8 @@ input, select { font-family: inherit; color: inherit; }
 }
 /* Title-bar parts can't get pushed off the right edge by long titles. */
 .fw-title-left  { min-width: 0; flex: 1 1 auto; overflow: hidden; }
-.fw-title-right { flex-shrink: 0; }
+.fw-title-right { min-width: 0; flex: 0 1 auto; }
+.fw-title-right .ve-close { flex-shrink: 0; }
 .fw-titlebar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 12px;
@@ -1330,7 +1334,11 @@ input, select { font-family: inherit; color: inherit; }
 .fw-title-left { display: flex; align-items: center; gap: 10px; }
 .fw-title-right { display: flex; align-items: center; gap: 10px; }
 .fw-name { color: var(--fg-0); font-size: 14px; font-weight: 500; }
-.fw-meta { color: var(--fg-3); font-size: 11px; }
+.fw-meta {
+  color: var(--fg-3); font-size: 11px;
+  min-width: 0; flex: 0 1 auto;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .fw-toolbar {
   display: flex; align-items: center; gap: 14px;
   padding: 0 14px;
@@ -1481,7 +1489,13 @@ input, select { font-family: inherit; color: inherit; }
 }
 .ve-name { color: var(--fg-0); font-size: 14px; font-weight: 500; }
 .ve-dim  { color: var(--fg-3); font-size: 11.5px; }
-.ve-meta { color: var(--fg-3); font-size: 11px; }
+.ve-meta {
+  color: var(--fg-3); font-size: 11px;
+  /* Truncate (rather than push the maximise/close buttons off-screen)
+     when the meta string is long and the modal is narrow. */
+  min-width: 0; flex: 0 1 auto;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 .ve-close {
   background: transparent; border: none;
