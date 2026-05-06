@@ -2,8 +2,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import InteractivePlot from './InteractivePlot';
 import Heatmap from './Heatmap';
 import PolarPlot, { defaultPolarViewport, nicePolarMax } from './PolarPlot';
+import SubplotGrid from './SubplotGrid';
 
 function renderFigure(figure, props) {
+  if (figure.kind === 'subplot') return <SubplotGrid figure={figure} {...props} />;
   if (figure.kind === 'heatmap') return <Heatmap figure={figure} {...props} />;
   if (figure.kind === 'polar')   return <PolarPlot figure={figure} {...props} />;
   return <InteractivePlot figure={figure} {...props} />;
@@ -75,14 +77,18 @@ function NumberInput({ value, onCommit, width = 88 }) {
 }
 
 export default function FigureWindow({ figure, onClose }) {
-  const isPolar = figure.kind === 'polar';
-  // Polar plots use {r:[lo,hi]}; cartesian plots use {x:[…], y:[…]}. We never
-  // mix the two — the toolbar branches on `isPolar` to render the right inputs.
-  const figDefault = isPolar
-    ? defaultPolarViewport(figure)
-    : (figure.xRange && figure.yRange)
-      ? { x: figure.xRange.slice(), y: figure.yRange.slice() }
-      : { x: [-1, 1], y: [-1, 1] };
+  const isPolar   = figure.kind === 'polar';
+  const isSubplot = figure.kind === 'subplot';
+  // Polar plots use {r:[lo,hi]}; cartesian use {x:[…], y:[…]}; subplots have
+  // per-cell viewports managed inside SubplotGrid, so the top-level viewport
+  // is just a placeholder that the toolbar's range/status helpers branch off.
+  const figDefault = isSubplot
+    ? null
+    : isPolar
+      ? defaultPolarViewport(figure)
+      : (figure.xRange && figure.yRange)
+        ? { x: figure.xRange.slice(), y: figure.yRange.slice() }
+        : { x: [-1, 1], y: [-1, 1] };
   const [viewport, setViewport]   = useState(figDefault);
   // Major grid defaults to on (a plot without it is unreadable). Minor grid
   // follows the engine's gridMode strictly: only on when the script called
@@ -101,7 +107,7 @@ export default function FigureWindow({ figure, onClose }) {
   useEffect(() => {
     function onKey(e) {
       if (e.key === 'Escape') onClose();
-      if (e.key === '0') setViewport(figDefault);
+      if (e.key === '0' && figDefault) setViewport(figDefault);
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -189,20 +195,33 @@ export default function FigureWindow({ figure, onClose }) {
     };
     img.src = url;
   }
-  // Heatmap exports its z-matrix as a CSV/TSV grid (not series-shape).
+  // Build a CSV/TSV "name<sep>x<sep>y" body for one series-bearing figure.
+  function seriesBody(fig, sep) {
+    const rows = [`name${sep}x${sep}y`];
+    (fig.series || []).forEach((s) => {
+      const xs = s.x || s.theta || [];
+      const ys = s.y || s.rho   || [];
+      for (let i = 0; i < xs.length; i++) rows.push(`${s.name}${sep}${xs[i]}${ys[i] != null ? sep + ys[i] : ''}`);
+    });
+    return rows.join('\n');
+  }
   function exportCsv() {
     if (figure.kind === 'heatmap') {
       const rows = figure.z.map((row) => row.map((v) => v == null ? '' : v).join(','));
       downloadBlob(new Blob([rows.join('\n')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
       return;
     }
-    const rows = ['name,x,y'];
-    (figure.series || []).forEach((s) => {
-      const xs = s.x || s.theta || [];
-      const ys = s.y || s.rho   || [];
-      for (let i = 0; i < xs.length; i++) rows.push(`${s.name},${xs[i]},${ys[i]}`);
-    });
-    downloadBlob(new Blob([rows.join('\n')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
+    if (figure.kind === 'subplot') {
+      // One CSV section per cell, blank-line separated and prefixed by a tag.
+      const parts = figure.cells.map((c, i) => {
+        const tag = `# subplot ${c.subplotIndex || i + 1} — ${c.title || c.kind}`;
+        if (c.kind === 'heatmap') return `${tag}\n` + c.z.map((row) => row.join(',')).join('\n');
+        return `${tag}\n` + seriesBody(c, ',');
+      });
+      downloadBlob(new Blob([parts.join('\n\n')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
+      return;
+    }
+    downloadBlob(new Blob([seriesBody(figure, ',')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
   }
   function exportTsv() {
     if (figure.kind === 'heatmap') {
@@ -210,19 +229,41 @@ export default function FigureWindow({ figure, onClose }) {
       downloadBlob(new Blob([rows.join('\n')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
       return;
     }
-    const rows = ['name\tx\ty'];
-    (figure.series || []).forEach((s) => {
-      const xs = s.x || s.theta || [];
-      const ys = s.y || s.rho   || [];
-      for (let i = 0; i < xs.length; i++) rows.push(`${s.name}\t${xs[i]}\t${ys[i]}`);
-    });
-    downloadBlob(new Blob([rows.join('\n')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
+    if (figure.kind === 'subplot') {
+      const parts = figure.cells.map((c, i) => {
+        const tag = `# subplot ${c.subplotIndex || i + 1} — ${c.title || c.kind}`;
+        if (c.kind === 'heatmap') return `${tag}\n` + c.z.map((row) => row.join('\t')).join('\n');
+        return `${tag}\n` + seriesBody(c, '\t');
+      });
+      downloadBlob(new Blob([parts.join('\n\n')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
+      return;
+    }
+    downloadBlob(new Blob([seriesBody(figure, '\t')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
   }
   function exportJson() {
     if (figure.kind === 'heatmap') {
       const obj = { id: figure.id, kind: 'heatmap', title: figure.title,
         xRange: figure.xRange, yRange: figure.yRange,
         cmin: figure.cmin, cmax: figure.cmax, colormap: figure.colormap, z: figure.z };
+      downloadBlob(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), `figure_${figure.id}.json`);
+      return;
+    }
+    if (figure.kind === 'subplot') {
+      const obj = {
+        id: figure.id, kind: 'subplot', title: figure.title, grid: figure.grid,
+        cells: figure.cells.map((c) => {
+          if (c.kind === 'heatmap') {
+            return { subplotIndex: c.subplotIndex, kind: 'heatmap', title: c.title,
+              xRange: c.xRange, yRange: c.yRange, z: c.z };
+          }
+          return { subplotIndex: c.subplotIndex, kind: c.kind, title: c.title,
+            xLabel: c.xLabel, yLabel: c.yLabel,
+            series: (c.series || []).map((s) => ({
+              name: s.name, color: s.color, x: s.x ?? s.theta, y: s.y ?? s.rho,
+            })),
+          };
+        }),
+      };
       downloadBlob(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), `figure_${figure.id}.json`);
       return;
     }
@@ -238,6 +279,7 @@ export default function FigureWindow({ figure, onClose }) {
   }
 
   function applyFit(mode, axisMode) {
+    if (isSubplot) return;                 // subplot fit lives per-cell; close menu
     if (!figure.series) return;            // no-op for heatmap
     if (isPolar) {
       // Polar fit: pick max |rho| across selected series, round up to a nice
@@ -275,7 +317,9 @@ export default function FigureWindow({ figure, onClose }) {
             <span className="fw-meta">
               {figure.kind === 'heatmap'
                 ? `${figure.z?.length ?? 0} × ${figure.z?.[0]?.length ?? 0} cells · range [${Number(figure.cmin).toPrecision(3)} … ${Number(figure.cmax).toPrecision(3)}]`
-                : `${figure.series?.length ?? 0} series · ${(figure.series || []).reduce((s, x) => s + (x.x?.length ?? x.theta?.length ?? 0), 0)} points`}
+                : figure.kind === 'subplot'
+                  ? `subplot ${figure.grid[0]}×${figure.grid[1]} · ${figure.cells.length} axes`
+                  : `${figure.series?.length ?? 0} series · ${(figure.series || []).reduce((s, x) => s + (x.x?.length ?? x.theta?.length ?? 0), 0)} points`}
             </span>
           </div>
           <div className="fw-title-right">
@@ -299,6 +343,7 @@ export default function FigureWindow({ figure, onClose }) {
         </div>
 
         <div className="fw-toolbar">
+          {!isSubplot && (
           <div className="ve-tools-group" ref={fitRef}>
             <button className="ve-btn" onClick={() => setFitOpen((o) => !o)} title="Fit viewport">
               <svg width="11" height="11" viewBox="0 0 12 12">
@@ -354,8 +399,9 @@ export default function FigureWindow({ figure, onClose }) {
               </div>
             ))}
           </div>
+          )}
 
-          {isPolar ? (
+          {isSubplot ? null : isPolar ? (
             <div className="ve-tools-group fw-range-group">
               <span className="ve-label">r</span>
               <NumberInput value={viewport.r[0]} onCommit={(n) => setViewport({ r: [n, viewport.r[1]] })} />
@@ -431,7 +477,9 @@ export default function FigureWindow({ figure, onClose }) {
         </div>
 
         <div className="fw-status">
-          {isPolar ? (
+          {isSubplot ? (
+            <span>{figure.cells.length} axes · per-cell pan/zoom</span>
+          ) : isPolar ? (
             <span>r ∈ [{fmtVp(viewport.r[0])}, {fmtVp(viewport.r[1])}]</span>
           ) : (
             <>
