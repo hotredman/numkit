@@ -15,7 +15,9 @@
  * Viewport (controlled from the parent so fit / range inputs can mutate it):
  *   { r: [rMin, rMax] }
  */
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import ContextMenu from './ContextMenu';
+import { exportSvgNode, exportPngNode } from './plotUtils';
 
 const PALETTE = ['#7fd99a', '#5fb3d4', '#e9b870', '#9b8cf2', '#e26a6a',
                  '#d4a5e6', '#f2a37e', '#6fcfbf'];
@@ -75,6 +77,7 @@ export default function PolarPlot({
 }) {
   const svgRef  = useRef(null);
   const dragRef = useRef(null);
+  const [ctxMenu, setCtxMenu] = useState(null);
   const dirSign = figure.thetaDir === 'clockwise' ? -1 : 1;
   const zero    = thetaZeroOffset(figure.thetaZeroLocation);
 
@@ -156,6 +159,34 @@ export default function PolarPlot({
     if (!interactive || !setViewport) return;
     setViewport(defaultPolarViewport(figure));
   }
+  function onContextMenu(e) {
+    if (!interactive) return;
+    e.preventDefault();
+    setCtxMenu({ x: e.clientX, y: e.clientY });
+  }
+  const ctxItems = [
+    { label: 'Fit r-range',
+      onClick: () => {
+        if (!setViewport) return;
+        let m = 0;
+        figure.series?.forEach((s) => s.rho?.forEach((v) => {
+          if (Number.isFinite(v) && Math.abs(v) > m) m = Math.abs(v);
+        }));
+        setViewport({ r: [vp.r[0], nicePolarMax(m || 1)] });
+      },
+      disabled: !setViewport,
+    },
+    { separator: true },
+    { label: 'Reset to default',
+      onClick: () => setViewport && setViewport(defaultPolarViewport(figure)),
+      disabled: !setViewport,
+    },
+    { separator: true },
+    { label: 'Save panel as SVG',
+      onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
+    { label: 'Save panel as PNG @2×',
+      onClick: () => exportPngNode(svgRef.current, width, height, 2, `figure_${figure.id}.png`) },
+  ];
 
   // Wheel listener attached imperatively because React's onWheel is passive.
   useEffect(() => {
@@ -174,6 +205,11 @@ export default function PolarPlot({
   });
 
   return (
+    <>
+    {ctxMenu && (
+      <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={ctxItems}
+        onClose={() => setCtxMenu(null)} />
+    )}
     <svg
       ref={svgRef}
       width="100%" height="100%"
@@ -191,6 +227,7 @@ export default function PolarPlot({
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseLeave}
       onDoubleClick={onDblClick}
+      onContextMenu={onContextMenu}
     >
       <rect x={0} y={0} width={width} height={height} fill="var(--bg-1)" />
 
@@ -285,5 +322,6 @@ export default function PolarPlot({
         </g>
       </g>
     </svg>
+    </>
   );
 }

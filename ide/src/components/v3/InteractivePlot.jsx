@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import ContextMenu from './ContextMenu';
+import { computeFitViewport, exportSvgNode, exportPngNode } from './plotUtils';
 
 /**
  * Pan/zoom interactive plot used in figure preview cards and the FigureWindow modal.
@@ -23,6 +25,7 @@ export default function InteractivePlot({
 }) {
   const svgRef = useRef(null);
   const [hover, setHover] = useState(null);
+  const [ctxMenu, setCtxMenu] = useState(null);
   const dragRef = useRef(null);
 
   const padL = 60 * fontScale;
@@ -116,6 +119,28 @@ export default function InteractivePlot({
     if (!interactive) return;
     setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() });
   }
+  function onContextMenu(e) {
+    if (!interactive) return;
+    e.preventDefault();
+    setCtxMenu({ x: e.clientX, y: e.clientY });
+  }
+  function applyFit(axisMode) {
+    const figDefault = { x: figure.xRange.slice(), y: figure.yRange.slice() };
+    setViewport(computeFitViewport(figure.series, 'all', axisMode, viewport, figDefault));
+  }
+  const ctxItems = [
+    { label: 'Fit both axes', onClick: () => applyFit('both') },
+    { label: 'Fit X only',    onClick: () => applyFit('x') },
+    { label: 'Fit Y only',    onClick: () => applyFit('y') },
+    { separator: true },
+    { label: 'Reset to default',
+      onClick: () => setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() }) },
+    { separator: true },
+    { label: 'Save panel as SVG',
+      onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
+    { label: 'Save panel as PNG @2×',
+      onClick: () => exportPngNode(svgRef.current, width, height, 2, `figure_${figure.id}.png`) },
+  ];
 
   // wheel listener attached imperatively because React's onWheel is passive.
   useEffect(() => {
@@ -152,6 +177,11 @@ export default function InteractivePlot({
   }
 
   return (
+    <>
+    {ctxMenu && (
+      <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={ctxItems}
+        onClose={() => setCtxMenu(null)} />
+    )}
     <svg
       ref={svgRef}
       width="100%" height="100%"
@@ -169,6 +199,7 @@ export default function InteractivePlot({
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseLeave}
       onDoubleClick={onDblClick}
+      onContextMenu={onContextMenu}
     >
       <defs>
         <clipPath id={clipId}>
@@ -346,5 +377,6 @@ export default function InteractivePlot({
         </g>
       )}
     </svg>
+    </>
   );
 }

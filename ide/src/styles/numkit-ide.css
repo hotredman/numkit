@@ -1727,3 +1727,30 @@ input, select { font-family: inherit; color: inherit; }
   border: 2px solid var(--bg-1);
 }
 ::-webkit-scrollbar-thumb:hover { background: oklch(0.4 0.014 220 / 0.8); }
+
+/* ---------- Right-click context menu (plot panels, heatmap, polar) ---------- */
+.ctx-menu {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 0;
+  min-width: 180px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--fg-1);
+}
+.ctx-item {
+  display: block;
+  width: 100%;
+  padding: 5px 14px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--fg-1);
+  font: inherit;
+  cursor: pointer;
+}
+.ctx-item:hover:not(:disabled) { background: var(--bg-3); color: var(--fg-0); }
+.ctx-item:disabled { opacity: 0.4; cursor: not-allowed; }
+.ctx-sep { height: 1px; background: var(--line-soft); margin: 4px 0; }
