@@ -153,140 +153,92 @@ function flatten(fig) {
 }
 
 /**
- * Pull overlay datasets (scatter / line / stem / text / bar) out of a
- * heatmap-bearing axes. Used to render annotations on top of imagesc:
- *
- *   imagesc(t, freq, P)
- *   hold on
- *   scatter(t_peaks, f_peaks, 30, 'r')
- *   text(t1, f1, 'peak A', 'Color', 'white')
- *
- * Returns an array of { type, x, y, color, width?, size?, text?, fontSize? }
- * preserving original order (= z-order on render). The `imgDsIdx` argument
- * is the index of the imagesc dataset to skip.
+ * Convert one engine dataset into a CompositePlot layer object. Returns
+ * null for unsupported types. Layers carry data in original-data coords;
+ * the renderer maps them through current sx/sy at draw time.
  */
-function extractOverlays(datasets, imgDsIdx) {
-  const overlays = [];
-  for (let i = 0; i < datasets.length; i++) {
-    if (i === imgDsIdx) continue;
-    const d = datasets[i];
-    const t = (d.type || '').toLowerCase();
-    if (t === 'imagesc') continue;       // multiple imagesc in one axes — only first
+function datasetToLayer(d, palette_idx, ctx) {
+  const t = (d.type || '').toLowerCase();
+  const styleObj = typeof d.style === 'string' ? parseLineSpec(d.style)
+                 : (d.style || {});
+  const baseColor = styleObj.color || d.color || KIND_PALETTE[palette_idx % KIND_PALETTE.length];
 
-    const styleObj = typeof d.style === 'string' ? parseLineSpec(d.style)
-                   : (d.style || {});
-    const baseColor = styleObj.color || d.color || KIND_PALETTE[overlays.length % KIND_PALETTE.length];
-
-    if (t === 'text') {
-      // Engine packs name-value extras into ds.style as "key=val;key=val".
-      // Parse it on this side — easier than threading dedicated JSON fields.
-      const extras = {};
-      if (typeof d.style === 'string') {
-        for (const kv of d.style.split(';')) {
-          const [k, v] = kv.split('=');
-          if (k && v) extras[k.trim()] = v.trim();
-        }
-      }
-      overlays.push({
-        type: 'text',
-        x: Number(d.x?.[0] ?? 0),
-        y: Number(d.y?.[0] ?? 0),
-        text:  d.label || '',
-        color: extras.color || 'white',
-        fontSize: extras.fontSize ? Number(extras.fontSize) : 11,
-      });
-      continue;
-    }
-
-    const x = Array.isArray(d.x) ? d.x.map(Number) : [];
-    const y = Array.isArray(d.y) ? d.y.map(Number) : [];
-    if (t === 'scatter') {
-      overlays.push({
-        type: 'scatter',
-        x, y,
-        color: baseColor,
-        size: d.markerSize || styleObj.markerSize || 4,
-        label: d.label || '',
-      });
-    } else if (t === 'stem') {
-      overlays.push({
-        type: 'stem',
-        x, y,
-        color: baseColor,
-        width: d.lineWidth || styleObj.lineWidth || 1.2,
-      });
-    } else if (t === 'line' || t === 'plot' || t === 'stairs') {
-      overlays.push({
-        type: 'line',
-        x, y,
-        color: baseColor,
-        width: d.lineWidth || styleObj.lineWidth || 1.5,
-        opacity: d.style?.opacity ?? 1,
-        stairs: t === 'stairs',
-      });
-    }
-    // bar/hist over imagesc is unusual; skipping for now.
+  if (t === 'imagesc') {
+    if (!d.z) return null;
+    const z = d.z;
+    const nR = z.length;
+    const nC = z[0]?.length || 0;
+    const cminOrig = (typeof d.cminOrig === 'number') ? d.cminOrig : 0;
+    const cmaxOrig = (typeof d.cmaxOrig === 'number') ? d.cmaxOrig : 1;
+    return {
+      kind: 'heatmap',
+      z,                                                  // uint8 indices, row-major 2-D
+      cmin: cminOrig, cmax: cmaxOrig,                     // aliases used by status / exports
+      cminOrig, cmaxOrig,
+      colorScaleBaked: d.colorScaleBaked || null,         // 'log' | null
+      colormap: ctx.cfg.colormap || 'parula',
+      downsampled: d.downsampled === true,
+      originalRows: d.originalRows || nR,
+      originalCols: d.originalCols || nC,
+      _figId: ctx.figId,
+      _axIdx: ctx.axIdx,
+      _dsIdx: ctx.dsIdx,
+    };
   }
-  return overlays;
+
+  if (t === 'text') {
+    // Engine packs name-value extras into ds.style as "key=val;key=val".
+    const extras = {};
+    if (typeof d.style === 'string') {
+      for (const kv of d.style.split(';')) {
+        const [k, v] = kv.split('=');
+        if (k && v) extras[k.trim()] = v.trim();
+      }
+    }
+    return {
+      kind: 'text',
+      x: Number(d.x?.[0] ?? 0),
+      y: Number(d.y?.[0] ?? 0),
+      text:  d.label || '',
+      color: extras.color || 'white',
+      fontSize: extras.fontSize ? Number(extras.fontSize) : 11,
+    };
+  }
+
+  const supported = ['line', 'plot', 'scatter', 'stem', 'stairs',
+                     'bar', 'hist', 'semilogx', 'semilogy', 'loglog'];
+  if (!supported.includes(t)) return null;
+  const x = Array.isArray(d.x) ? d.x.map(Number) : [];
+  const y = Array.isArray(d.y) ? d.y.map(Number) : [];
+  let mode = 'line';
+  if (t === 'scatter') mode = 'scatter';
+  else if (t === 'stem') mode = 'stem';
+  else if (t === 'bar' || t === 'hist') mode = 'bar';
+  else if (t === 'stairs') mode = 'stairs';
+  return {
+    kind: 'series',
+    mode,
+    name: d.label || `series ${palette_idx + 1}`,
+    x, y,
+    color: baseColor,
+    width: d.lineWidth || styleObj.lineWidth || styleObj.width || 1.5,
+    size:  d.markerSize || styleObj.markerSize || 3,
+    opacity: d.style?.opacity ?? 1,
+  };
 }
 
 /**
  * Adapt one axes (datasets + config) into a renderable cell. Used both by
  * single-axes figures and by every cell of a subplot grid.
  *
- * `figId` and `cellId` together build a unique React key + clip-path id —
- * subplots reuse the same fig.id across cells, so we suffix the cell.
+ * Composite output: `kind: 'composite'` carrying a `layers[]` array of
+ * heterogeneous layer objects (heatmap, series, text). Polar plots take
+ * a separate path because their coordinate system is fundamentally
+ * different.
  */
 function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
-  // Heatmap / imagesc — single z-matrix dataset, optionally with overlays
-  // (scatter / line / stem / text) accumulated via `hold on`.
-  const imgDsIdx = datasets.findIndex((d) => (d.type || '').toLowerCase() === 'imagesc');
-  const imgDs = imgDsIdx >= 0 ? datasets[imgDsIdx] : null;
-  if (imgDs && imgDs.z) {
-    const z = imgDs.z;
-    const nR = z.length;
-    const nC = z[0]?.length || 0;
-    const xr = imgDs.x || [0, Math.max(0, nC - 1)];
-    const yr = imgDs.y || [0, Math.max(0, nR - 1)];
-    const x0 = xr[0], x1 = xr[xr.length - 1];
-    const y0 = yr[0], y1 = yr[yr.length - 1];
-    const cW = nC > 1 ? (x1 - x0) / (nC - 1) : 1;
-    const cH = nR > 1 ? (y1 - y0) / (nR - 1) : 1;
-    // Quantization range from the engine. cmin/cmax are aliases used by
-    // existing code paths (status bar, exports, hover) — they reflect the
-    // original-data scale so user-visible numbers are correct.
-    const cminOrig = (typeof imgDs.cminOrig === 'number') ? imgDs.cminOrig : 0;
-    const cmaxOrig = (typeof imgDs.cmaxOrig === 'number') ? imgDs.cmaxOrig : 1;
-    return {
-      kind: 'heatmap',
-      id: cellId,
-      title:  cfg.title  || '',
-      xLabel: cfg.xlabel || '',
-      yLabel: cfg.ylabel || '',
-      xRange: [x0 - cW / 2, x1 + cW / 2],
-      yRange: [y0 - cH / 2, y1 + cH / 2],
-      z,                              // uint8 indices, rows-major 2-D array
-      cmin: cminOrig, cmax: cmaxOrig, // aliases for existing UI
-      cminOrig, cmaxOrig,
-      colorScaleBaked: imgDs.colorScaleBaked || null,   // 'log' | null
-      xscale: cfg.xscale || 'linear',                    // 'log' | 'linear'
-      yscale: cfg.yscale || 'linear',                    // 'log' | 'linear'
-      colormap: cfg.colormap || 'parula',
-      downsampled:   imgDs.downsampled === true,
-      originalRows:  imgDs.originalRows  || nR,
-      originalCols:  imgDs.originalCols  || nC,
-      _figId: figId,
-      _axIdx: axIdx,
-      _dsIdx: imgDsIdx,
-      // Overlay layers — anything in this axes that isn't the imagesc itself.
-      // Renderer draws them after the image / tile, before the colorbar.
-      // Each layer carries its own (x,y) in DATA coords; the panel's sx/sy
-      // remap them on every render so they track pan/zoom + log axes.
-      overlays: extractOverlays(datasets, imgDsIdx),
-    };
-  }
-
   // Polar — cfg.polar=true, datasets carry (theta, rho) as (x, y).
+  // Lives outside the composite path because polar coords aren't (x, y).
   if (cfg.polar) {
     const series = datasets.map((d, i) => {
       const styleObj = typeof d.style === 'string' ? parseLineSpec(d.style) : (d.style || {});
@@ -310,77 +262,83 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     };
   }
 
-  // Line-ish kinds.
-  const supported = new Set(['line', 'scatter', 'stem', 'stairs',
-    'bar', 'hist', 'semilogx', 'semilogy', 'loglog']);
-  const lineish = datasets.filter((d) => supported.has((d.type || 'line').toLowerCase()));
-  if (lineish.length === 0) return null;
-
-  const series = lineish.map((d, i) => {
-    const xArr = Array.isArray(d.x) ? d.x.map(Number) : [];
-    const yArr = Array.isArray(d.y) ? d.y.map(Number) : [];
-    const styleObj = typeof d.style === 'string' ? parseLineSpec(d.style)
-                   : (d.style || {});
-    const color = styleObj.color || d.color || KIND_PALETTE[i % KIND_PALETTE.length];
-    const width = d.lineWidth || styleObj.lineWidth || styleObj.width || 1.5;
-    const t = (d.type || 'line').toLowerCase();
-    let mode = 'line';
-    if (t === 'scatter')   mode = 'scatter';
-    else if (t === 'stem') mode = 'stem';
-    else if (t === 'bar' || t === 'hist') mode = 'bar';
-    else if (t === 'stairs') mode = 'stairs';
-    return {
-      name: d.label || `series ${i + 1}`,
-      x: xArr, y: yArr,
-      color, width, mode,
-      opacity: d.style?.opacity ?? 1,
-    };
-  });
-
-  let xLo = Infinity, xHi = -Infinity, yLo = Infinity, yHi = -Infinity;
-  series.forEach((s) => {
-    const [a, b] = rangeFromArr(s.x);
-    const [c, d] = rangeFromArr(s.y);
-    if (a < xLo) xLo = a;
-    if (b > xHi) xHi = b;
-    if (c < yLo) yLo = c;
-    if (d > yHi) yHi = d;
-  });
-
-  const xRange = (Array.isArray(cfg.xlim) && cfg.xlim.length === 2)
-    ? cfg.xlim.slice()
-    : [Number.isFinite(xLo) ? xLo : -1, Number.isFinite(xHi) ? xHi : 1];
-  const yRange = (Array.isArray(cfg.ylim) && cfg.ylim.length === 2)
-    ? cfg.ylim.slice()
-    : [Number.isFinite(yLo) ? yLo : -1, Number.isFinite(yHi) ? yHi : 1];
-
-  if (!cfg.xlim) {
-    const pad = (xRange[1] - xRange[0]) * 0.04 || 0.5;
-    xRange[0] -= pad; xRange[1] += pad;
+  // Composite path — heterogeneous layers in original z-order.
+  const layers = [];
+  let paletteIdx = 0;
+  for (let i = 0; i < datasets.length; i++) {
+    const ly = datasetToLayer(datasets[i], paletteIdx,
+                              { cfg, figId, axIdx, dsIdx: i });
+    if (!ly) continue;
+    if (ly.kind === 'series') paletteIdx++;
+    layers.push(ly);
   }
-  if (!cfg.ylim) {
-    const pad = (yRange[1] - yRange[0]) * 0.06 || 0.5;
-    yRange[0] -= pad; yRange[1] += pad;
+  if (layers.length === 0) return null;
+
+  const heatmapLy = layers.find((l) => l.kind === 'heatmap');
+
+  // Compute xRange / yRange. With a heatmap layer, use the imagesc x/y
+  // vector extents (they fully bound the matrix). Otherwise scan series.
+  let xRange, yRange;
+  if (heatmapLy) {
+    // Pull x/y vectors back off the original imagesc dataset.
+    const dsIdx = heatmapLy._dsIdx;
+    const d = datasets[dsIdx];
+    const nR = heatmapLy.originalRows, nC = heatmapLy.originalCols;
+    const xr = d.x || [0, Math.max(0, nC - 1)];
+    const yr = d.y || [0, Math.max(0, nR - 1)];
+    const x0 = xr[0], x1 = xr[xr.length - 1];
+    const y0 = yr[0], y1 = yr[yr.length - 1];
+    const cW = nC > 1 ? (x1 - x0) / (nC - 1) : 1;
+    const cH = nR > 1 ? (y1 - y0) / (nR - 1) : 1;
+    xRange = [x0 - cW / 2, x1 + cW / 2];
+    yRange = [y0 - cH / 2, y1 + cH / 2];
+  } else {
+    let xLo = Infinity, xHi = -Infinity, yLo = Infinity, yHi = -Infinity;
+    for (const ly of layers) {
+      if (ly.kind !== 'series') continue;
+      const [a, b] = rangeFromArr(ly.x);
+      const [c, d] = rangeFromArr(ly.y);
+      if (a < xLo) xLo = a;
+      if (b > xHi) xHi = b;
+      if (c < yLo) yLo = c;
+      if (d > yHi) yHi = d;
+    }
+    xRange = (Array.isArray(cfg.xlim) && cfg.xlim.length === 2)
+      ? cfg.xlim.slice()
+      : [Number.isFinite(xLo) ? xLo : -1, Number.isFinite(xHi) ? xHi : 1];
+    yRange = (Array.isArray(cfg.ylim) && cfg.ylim.length === 2)
+      ? cfg.ylim.slice()
+      : [Number.isFinite(yLo) ? yLo : -1, Number.isFinite(yHi) ? yHi : 1];
+    if (!cfg.xlim) {
+      const pad = (xRange[1] - xRange[0]) * 0.04 || 0.5;
+      xRange[0] -= pad; xRange[1] += pad;
+    }
+    if (!cfg.ylim) {
+      const pad = (yRange[1] - yRange[0]) * 0.06 || 0.5;
+      yRange[0] -= pad; yRange[1] += pad;
+    }
   }
 
   return {
-    kind: 'line',
+    kind: 'composite',
     id: cellId,
-    title:  cfg.title || '',
+    title:  cfg.title  || '',
     xLabel: cfg.xlabel || '',
     yLabel: cfg.ylabel || '',
     xRange, yRange,
     grid: cfg.grid || '',
-    series,
+    xscale: cfg.xscale || 'linear',
+    yscale: cfg.yscale || 'linear',
+    layers,
   };
 }
 
 /**
- * Convert one engine figure → mockup figure shape. Returns an object with a
+ * Convert one engine figure → IDE figure shape. Returns an object with a
  * `kind` field that the caller uses to pick a renderer:
- *   { kind: 'line',    series, ... }              → InteractivePlot
- *   { kind: 'heatmap', z, cmin, cmax, ... }       → Heatmap
- *   { kind: 'polar',   series, thetaDir, ... }    → PolarPlot
+ *   { kind: 'composite', layers, ... }            → CompositePlot
+ *   { kind: 'polar',     series, thetaDir, ... }  → PolarPlot
+ *   { kind: 'subplot',   cells, grid, ... }       → SubplotGrid
  *   null                                          → not renderable yet
  */
 export function adaptFigure(fig) {

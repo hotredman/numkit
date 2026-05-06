@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import InteractivePlot from './InteractivePlot';
-import Heatmap from './Heatmap';
+import CompositePlot from './CompositePlot';
 import PolarPlot, { defaultPolarViewport, nicePolarMax } from './PolarPlot';
 import SubplotGrid from './SubplotGrid';
 import { computeFitViewport,
@@ -8,10 +7,10 @@ import { computeFitViewport,
   downloadBlob as utilDownloadBlob } from './plotUtils';
 
 function renderFigure(figure, props) {
-  if (figure.kind === 'subplot') return <SubplotGrid figure={figure} {...props} />;
-  if (figure.kind === 'heatmap') return <Heatmap figure={figure} {...props} />;
-  if (figure.kind === 'polar')   return <PolarPlot figure={figure} {...props} />;
-  return <InteractivePlot figure={figure} {...props} />;
+  if (figure.kind === 'subplot')   return <SubplotGrid figure={figure} {...props} />;
+  if (figure.kind === 'composite') return <CompositePlot figure={figure} {...props} />;
+  if (figure.kind === 'polar')     return <PolarPlot figure={figure} {...props} />;
+  return <CompositePlot figure={figure} {...props} />;
 }
 
 function NumberInput({ value, onCommit, width = 88 }) {
@@ -40,7 +39,16 @@ function NumberInput({ value, onCommit, width = 88 }) {
 export default function FigureWindow({ figure, onClose, engine = null }) {
   const isPolar   = figure.kind === 'polar';
   const isSubplot = figure.kind === 'subplot';
-  const isHeatmap = figure.kind === 'heatmap';
+  const isComposite = figure.kind === 'composite';
+  // Composite figures carry a heterogeneous layers[] array. Heatmap-specific
+  // toolbar bits (color autoscale, colormap select, log toggle) gate on the
+  // presence of a heatmap layer; the rest of the toolbar (fit, legend, range)
+  // works off the series layers.
+  const compositeLayers = isComposite && Array.isArray(figure.layers) ? figure.layers : [];
+  const heatmapLayer = compositeLayers.find((l) => l.kind === 'heatmap') || null;
+  const seriesLayers = compositeLayers.filter((l) => l.kind === 'series');
+  const isHeatmap = !!heatmapLayer;
+  const hasSeries = seriesLayers.length > 0;
   // Polar plots use {r:[lo,hi]}; cartesian use {x:[…], y:[…]}; subplots have
   // per-cell viewports managed inside SubplotGrid, so the top-level viewport
   // is just a placeholder that the toolbar's range/status helpers branch off.
@@ -87,11 +95,12 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   // toolbar fit menu can invoke it without lifting / via callback ref.
   function fitColorsToVisible() {
     if (!engine || typeof engine.getFigureTile !== 'function') return;
-    if (!isHeatmap) return;
-    if (typeof figure._figId !== 'number' || figure._figId < 0) return;
-    if (!figure.originalRows || !figure.originalCols) return;
-    const fullCols = figure.originalCols;
-    const fullRows = figure.originalRows;
+    if (!heatmapLayer) return;
+    const figId = heatmapLayer._figId;
+    if (typeof figId !== 'number' || figId < 0) return;
+    const fullCols = heatmapLayer.originalCols;
+    const fullRows = heatmapLayer.originalRows;
+    if (!fullCols || !fullRows) return;
     const xExt = figure.xRange[1] - figure.xRange[0];
     const yExt = figure.yRange[1] - figure.yRange[0];
     const colsPerUnit = fullCols / (xExt || 1);
@@ -105,7 +114,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     const tileW = c1 - c0, tileH = r1 - r0;
     if (tileW <= 0 || tileH <= 0) return;
     const lod = Math.max(1, Math.ceil(Math.max(tileH, tileW) / 256));
-    const tile = engine.getFigureTile(figure._figId, figure._axIdx, figure._dsIdx,
+    const tile = engine.getFigureTile(figId, heatmapLayer._axIdx, heatmapLayer._dsIdx,
                                       r0, c0, tileH, tileW, lod);
     if (!tile || tile.error || !tile.data) return;
     let idxMn = 256, idxMx = -1;
@@ -116,8 +125,8 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       if (idx > idxMx) idxMx = idx;
     }
     if (idxMn > 254 || idxMx < 0 || idxMn === idxMx) return;
-    const cminOrig = figure.cminOrig ?? figure.cmin;
-    const cmaxOrig = figure.cmaxOrig ?? figure.cmax;
+    const cminOrig = heatmapLayer.cminOrig ?? heatmapLayer.cmin;
+    const cmaxOrig = heatmapLayer.cmaxOrig ?? heatmapLayer.cmax;
     const range = cmaxOrig - cminOrig;
     setColorOverride({
       cmin: cminOrig + (idxMn / 254) * range,
@@ -133,7 +142,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     if (axis === 'x') {
       const next = !xLog;
       if (next && (viewport.x[0] <= 0 || viewport.x[1] <= 0)) {
-        const fullCols = figure.originalCols || 1;
+        const fullCols = heatmapLayer?.originalCols || 1;
         const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
         const lo = Math.max(cellW * 0.5, 1e-6);
         setViewport({ ...viewport, x: [lo, Math.max(lo * 10, figure.xRange[1])] });
@@ -142,7 +151,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     } else {
       const next = !yLog;
       if (next && (viewport.y[0] <= 0 || viewport.y[1] <= 0)) {
-        const fullRows = figure.originalRows || 1;
+        const fullRows = heatmapLayer?.originalRows || 1;
         const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
         const lo = Math.max(cellH * 0.5, 1e-6);
         setViewport({ ...viewport, y: [lo, Math.max(lo * 10, figure.yRange[1])] });
@@ -273,66 +282,97 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     const scale = targetPx / g.w;
     exportPngString(g.xml, g.w, g.h, scale, `figure_${figure.id}_${mmWidth}mm.png`);
   }
-  // Build a CSV/TSV "name<sep>x<sep>y" body for one series-bearing figure.
-  function seriesBody(fig, sep) {
+  // Build a CSV/TSV "name<sep>x<sep>y" body from a series source. Accepts
+  // either a polar figure (`series` with theta/rho) or an array of series
+  // layers (`x`, `y`).
+  function seriesBody(source, sep) {
     const rows = [`name${sep}x${sep}y`];
-    (fig.series || []).forEach((s) => {
+    const list = Array.isArray(source) ? source : (source.series || []);
+    list.forEach((s) => {
       const xs = s.x || s.theta || [];
       const ys = s.y || s.rho   || [];
       for (let i = 0; i < xs.length; i++) rows.push(`${s.name}${sep}${xs[i]}${ys[i] != null ? sep + ys[i] : ''}`);
     });
     return rows.join('\n');
   }
+  // Composite cell exporter — pulls heatmap layer's z if present, else series.
+  function compositeCellBody(cell, sep) {
+    const layers = cell.layers || [];
+    const hl = layers.find((l) => l.kind === 'heatmap');
+    if (hl) return hl.z.map((row) => row.map((v) => v == null ? '' : v).join(sep)).join('\n');
+    return seriesBody(layers.filter((l) => l.kind === 'series'), sep);
+  }
   function exportCsv() {
-    if (figure.kind === 'heatmap') {
-      const rows = figure.z.map((row) => row.map((v) => v == null ? '' : v).join(','));
+    if (isHeatmap) {
+      const z = heatmapLayer.z;
+      const rows = z.map((row) => row.map((v) => v == null ? '' : v).join(','));
       downloadBlob(new Blob([rows.join('\n')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
       return;
     }
-    if (figure.kind === 'subplot') {
-      // One CSV section per cell, blank-line separated and prefixed by a tag.
+    if (isSubplot) {
       const parts = figure.cells.map((c, i) => {
         const tag = `# subplot ${c.subplotIndex || i + 1} — ${c.title || c.kind}`;
-        if (c.kind === 'heatmap') return `${tag}\n` + c.z.map((row) => row.join(',')).join('\n');
+        if (c.kind === 'composite') return `${tag}\n` + compositeCellBody(c, ',');
         return `${tag}\n` + seriesBody(c, ',');
       });
       downloadBlob(new Blob([parts.join('\n\n')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
       return;
     }
+    if (isComposite) {
+      downloadBlob(new Blob([seriesBody(seriesLayers, ',')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
+      return;
+    }
     downloadBlob(new Blob([seriesBody(figure, ',')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
   }
   function exportTsv() {
-    if (figure.kind === 'heatmap') {
-      const rows = figure.z.map((row) => row.map((v) => v == null ? '' : v).join('\t'));
+    if (isHeatmap) {
+      const z = heatmapLayer.z;
+      const rows = z.map((row) => row.map((v) => v == null ? '' : v).join('\t'));
       downloadBlob(new Blob([rows.join('\n')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
       return;
     }
-    if (figure.kind === 'subplot') {
+    if (isSubplot) {
       const parts = figure.cells.map((c, i) => {
         const tag = `# subplot ${c.subplotIndex || i + 1} — ${c.title || c.kind}`;
-        if (c.kind === 'heatmap') return `${tag}\n` + c.z.map((row) => row.join('\t')).join('\n');
+        if (c.kind === 'composite') return `${tag}\n` + compositeCellBody(c, '\t');
         return `${tag}\n` + seriesBody(c, '\t');
       });
       downloadBlob(new Blob([parts.join('\n\n')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
       return;
     }
+    if (isComposite) {
+      downloadBlob(new Blob([seriesBody(seriesLayers, '\t')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
+      return;
+    }
     downloadBlob(new Blob([seriesBody(figure, '\t')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
   }
   function exportJson() {
-    if (figure.kind === 'heatmap') {
-      const obj = { id: figure.id, kind: 'heatmap', title: figure.title,
+    if (isHeatmap) {
+      const obj = {
+        id: figure.id, kind: 'heatmap', title: figure.title,
         xRange: figure.xRange, yRange: figure.yRange,
-        cmin: figure.cmin, cmax: figure.cmax, colormap: figure.colormap, z: figure.z };
+        cmin: heatmapLayer.cmin, cmax: heatmapLayer.cmax,
+        colormap: heatmapLayer.colormap, z: heatmapLayer.z,
+      };
       downloadBlob(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), `figure_${figure.id}.json`);
       return;
     }
-    if (figure.kind === 'subplot') {
+    if (isSubplot) {
       const obj = {
         id: figure.id, kind: 'subplot', title: figure.title, grid: figure.grid,
         cells: figure.cells.map((c) => {
-          if (c.kind === 'heatmap') {
-            return { subplotIndex: c.subplotIndex, kind: 'heatmap', title: c.title,
-              xRange: c.xRange, yRange: c.yRange, z: c.z };
+          if (c.kind === 'composite') {
+            const layers = c.layers || [];
+            return {
+              subplotIndex: c.subplotIndex, kind: 'composite', title: c.title,
+              xLabel: c.xLabel, yLabel: c.yLabel,
+              xRange: c.xRange, yRange: c.yRange,
+              layers: layers.map((ly) => {
+                if (ly.kind === 'heatmap') return { kind: 'heatmap', z: ly.z, cmin: ly.cmin, cmax: ly.cmax };
+                if (ly.kind === 'series')  return { kind: 'series', mode: ly.mode, name: ly.name, color: ly.color, x: ly.x, y: ly.y };
+                return { ...ly };
+              }),
+            };
           }
           return { subplotIndex: c.subplotIndex, kind: c.kind, title: c.title,
             xLabel: c.xLabel, yLabel: c.yLabel,
@@ -340,6 +380,20 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               name: s.name, color: s.color, x: s.x ?? s.theta, y: s.y ?? s.rho,
             })),
           };
+        }),
+      };
+      downloadBlob(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), `figure_${figure.id}.json`);
+      return;
+    }
+    if (isComposite) {
+      const obj = {
+        id: figure.id, kind: 'composite', title: figure.title,
+        xLabel: figure.xLabel, yLabel: figure.yLabel,
+        xRange: figure.xRange, yRange: figure.yRange,
+        layers: compositeLayers.map((ly) => {
+          if (ly.kind === 'heatmap') return { kind: 'heatmap', z: ly.z, cmin: ly.cmin, cmax: ly.cmax, colormap: ly.colormap };
+          if (ly.kind === 'series')  return { kind: 'series', mode: ly.mode, name: ly.name, color: ly.color, x: ly.x, y: ly.y };
+          return { ...ly };
         }),
       };
       downloadBlob(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), `figure_${figure.id}.json`);
@@ -358,39 +412,6 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
 
   function applyFit(mode, axisMode) {
     if (isSubplot) return;                 // subplot fit lives per-cell; close menu
-    if (isHeatmap) {
-      // Heatmap has no series — its X/Y data extent is figure.xRange/yRange.
-      // Under a log axis (figure.xscale/yscale === 'log') the natural extent
-      // straddles zero (cellH/2 padding) and would silently flip the axis
-      // back to linear. Clamp the lo bound to half-cell-width when log.
-      const xLog = figure.xscale === 'log';
-      const yLog = figure.yscale === 'log';
-      const next = { x: viewport.x.slice(), y: viewport.y.slice() };
-      if (axisMode === 'both' || axisMode === 'x') {
-        if (xLog) {
-          const fullCols = figure.originalCols || 1;
-          const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
-          const lo = Math.max(cellW * 0.5, 1e-6);
-          next.x = [lo, Math.max(lo * 10, figure.xRange[1])];
-        } else {
-          next.x = figure.xRange.slice();
-        }
-      }
-      if (axisMode === 'both' || axisMode === 'y') {
-        if (yLog) {
-          const fullRows = figure.originalRows || 1;
-          const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
-          const lo = Math.max(cellH * 0.5, 1e-6);
-          next.y = [lo, Math.max(lo * 10, figure.yRange[1])];
-        } else {
-          next.y = figure.yRange.slice();
-        }
-      }
-      setViewport(next);
-      setFitOpen(false);
-      return;
-    }
-    if (!figure.series) return;            // no-op for heatmap (now handled above)
     if (isPolar) {
       // Polar fit: pick max |rho| across selected series, round up to a nice
       // multiple, keep rMin at 0 (or whatever the figure's existing inner
@@ -405,6 +426,47 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       setFitOpen(false);
       return;
     }
+    if (isComposite && isHeatmap && !hasSeries) {
+      // Pure-heatmap composite: data extent is figure.xRange/yRange. Under
+      // a log axis the natural extent straddles zero (cellH/2 padding) and
+      // would silently flip back to linear. Clamp lo bound to half-cell.
+      const xLogNow = figure.xscale === 'log';
+      const yLogNow = figure.yscale === 'log';
+      const next = { x: viewport.x.slice(), y: viewport.y.slice() };
+      if (axisMode === 'both' || axisMode === 'x') {
+        if (xLogNow) {
+          const fullCols = heatmapLayer.originalCols || 1;
+          const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
+          const lo = Math.max(cellW * 0.5, 1e-6);
+          next.x = [lo, Math.max(lo * 10, figure.xRange[1])];
+        } else {
+          next.x = figure.xRange.slice();
+        }
+      }
+      if (axisMode === 'both' || axisMode === 'y') {
+        if (yLogNow) {
+          const fullRows = heatmapLayer.originalRows || 1;
+          const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
+          const lo = Math.max(cellH * 0.5, 1e-6);
+          next.y = [lo, Math.max(lo * 10, figure.yRange[1])];
+        } else {
+          next.y = figure.yRange.slice();
+        }
+      }
+      setViewport(next);
+      setFitOpen(false);
+      return;
+    }
+    if (isComposite) {
+      // Series composite (with or without heatmap underlay): fit to selected
+      // series. computeFitViewport accepts the series list — layer.x/y match
+      // the legacy series shape closely enough.
+      if (seriesLayers.length === 0) { setFitOpen(false); return; }
+      setViewport(computeFitViewport(seriesLayers, mode, axisMode, viewport, figDefault));
+      setFitOpen(false);
+      return;
+    }
+    if (!figure.series) return;
     setViewport(computeFitViewport(figure.series, mode, axisMode, viewport, figDefault));
     setFitOpen(false);
   }
@@ -425,11 +487,13 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
             <span className="fw-name">Figure {figure.id}</span>
             <span className="ve-dim">{figure.title}</span>
             <span className="fw-meta">
-              {figure.kind === 'heatmap'
-                ? `${figure.z?.length ?? 0} × ${figure.z?.[0]?.length ?? 0} cells · range [${Number(figure.cmin).toPrecision(3)} … ${Number(figure.cmax).toPrecision(3)}]`
-                : figure.kind === 'subplot'
-                  ? `subplot ${figure.grid[0]}×${figure.grid[1]} · ${figure.cells.length} axes`
-                  : `${figure.series?.length ?? 0} series · ${(figure.series || []).reduce((s, x) => s + (x.x?.length ?? x.theta?.length ?? 0), 0)} points`}
+              {isSubplot
+                ? `subplot ${figure.grid[0]}×${figure.grid[1]} · ${figure.cells.length} axes`
+                : isPolar
+                  ? `${figure.series?.length ?? 0} series · ${(figure.series || []).reduce((s, x) => s + (x.theta?.length ?? 0), 0)} points`
+                  : isHeatmap
+                    ? `${heatmapLayer.z?.length ?? 0} × ${heatmapLayer.z?.[0]?.length ?? 0} cells · range [${Number(heatmapLayer.cmin).toPrecision(3)} … ${Number(heatmapLayer.cmax).toPrecision(3)}]${hasSeries ? ` · ${seriesLayers.length} overlay${seriesLayers.length === 1 ? '' : 's'}` : ''}`
+                    : `${seriesLayers.length} series · ${seriesLayers.reduce((s, x) => s + (x.x?.length ?? 0), 0)} points`}
             </span>
           </div>
           <div className="fw-title-right">
@@ -477,7 +541,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   <button
                     onClick={() => { fitColorsToVisible(); setFitOpen(false); }}
                     disabled={!engine || typeof engine.getFigureTile !== 'function'
-                              || typeof figure._figId !== 'number' || figure._figId < 0}>
+                              || !heatmapLayer || heatmapLayer._figId < 0}>
                     fit to visible
                   </button>
                   <button
@@ -519,10 +583,10 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   <button onClick={() => applyFit('all', 'x')}>X only</button>
                   <button onClick={() => applyFit('all', 'y')}>Y only</button>
                 </div>
-                {Array.isArray(figure.series) && figure.series.length > 1 && (
+                {seriesLayers.length > 1 && (
                   <div className="fw-pop-section">
                     <div className="fw-pop-head">single curve</div>
-                    {figure.series.map((s) => (
+                    {seriesLayers.map((s) => (
                       <div key={s.name} className="fw-pop-row">
                         <span className="fw-pop-name"><i style={{ background: s.color }} />{s.name}</span>
                         <button onClick={() => applyFit(s.name, 'both')}>xy</button>
@@ -574,10 +638,10 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   title="Log Y axis (also: ПКМ → Axes → Y axis · log)">y log</button>
                 <select
                   className="ve-btn fw-cmap-select"
-                  value={colormapOverride ?? figure.colormap ?? 'parula'}
+                  value={colormapOverride ?? heatmapLayer.colormap ?? 'parula'}
                   onChange={(e) => {
                     const v = e.target.value;
-                    setColormapOverride(v === (figure.colormap ?? 'parula') ? null : v);
+                    setColormapOverride(v === (heatmapLayer.colormap ?? 'parula') ? null : v);
                   }}
                   title="Colormap (overrides script-level colormap())">
                   {['parula', 'jet', 'hot', 'cool', 'gray', 'bone', 'copper',
@@ -586,9 +650,10 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 </select>
               </>
             )}
-            {/* Legend toggle is meaningless for heatmap — there are no series,
-                the colorbar on the right of the panel is the legend. */}
-            {!isHeatmap && (
+            {/* Legend toggle hidden for pure heatmap (colorbar IS the legend),
+                shown when at least one series layer exists or the figure is
+                a legacy line/polar shape. */}
+            {(hasSeries || (!isHeatmap && !isComposite)) && (
               <button className={`ve-btn ${showLegend ? 'is-active' : ''}`} onClick={() => setShowLegend((g) => !g)}>legend</button>
             )}
           </div>
@@ -639,16 +704,22 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               colorOverride, setColorOverride,
               colormapOverride,
             })}
-            {showLegend && Array.isArray(figure.series) && figure.series.length > 0 && (
-              <div className="fw-legend">
-                {figure.series.map((s) => (
-                  <div key={s.name} className="fw-legend-item">
-                    <i style={{ background: s.color }} />
-                    <span>{s.name}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            {showLegend && (() => {
+              const list = isComposite
+                ? seriesLayers
+                : (Array.isArray(figure.series) ? figure.series : []);
+              if (list.length === 0) return null;
+              return (
+                <div className="fw-legend">
+                  {list.map((s) => (
+                    <div key={s.name} className="fw-legend-item">
+                      <i style={{ background: s.color }} />
+                      <span>{s.name}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         </div>
 

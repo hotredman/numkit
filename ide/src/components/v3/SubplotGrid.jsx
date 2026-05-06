@@ -1,22 +1,21 @@
 /**
  * Subplot grid renderer. Lays out adapted cells in a rows×cols tile and
- * forwards each cell to the right per-kind renderer (InteractivePlot,
- * Heatmap, PolarPlot). Each cell keeps its own viewport so pan/zoom is
- * independent per panel.
+ * forwards each cell to the right per-kind renderer (CompositePlot for the
+ * unified 2-D path, PolarPlot for polar). Each cell keeps its own viewport
+ * so pan/zoom is independent per panel.
  *
  * Figure shape:
  *   { kind: 'subplot', id, title, grid:[rows, cols],
  *     cells: [{ ...adaptedFigure, subplotIndex }] }
  */
 import { useState } from 'react';
-import InteractivePlot from './InteractivePlot';
-import Heatmap from './Heatmap';
+import CompositePlot from './CompositePlot';
 import PolarPlot, { defaultPolarViewport } from './PolarPlot';
 
 function renderCell(cell, props) {
-  if (cell.kind === 'heatmap') return <Heatmap figure={cell} {...props} />;
-  if (cell.kind === 'polar')   return <PolarPlot figure={cell} {...props} />;
-  return <InteractivePlot figure={cell} {...props} />;
+  if (cell.kind === 'composite') return <CompositePlot figure={cell} {...props} />;
+  if (cell.kind === 'polar')     return <PolarPlot figure={cell} {...props} />;
+  return <CompositePlot figure={cell} {...props} />;
 }
 
 function defaultViewport(cell) {
