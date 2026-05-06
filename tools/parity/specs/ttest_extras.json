@@ -1,0 +1,15 @@
+{
+  "name": "ttest_extras",
+  "namespace": "stats",
+  "setup": "x = [1.2 2.4 3.1 4.5 5.0]'; y = [0.8 1.9 2.7 4.0 4.5]';",
+  "expr": "[h_p, p_p, ci_p] = ttest(x, y); [h95, p95, ci95] = ttest(x, 4, 'Alpha', 0.05); [h99, p99, ci99] = ttest(x, 4, 'Alpha', 0.01); [h2_eq, p2_eq, ci2_eq] = ttest2(x, y); [h2_un, p2_un, ci2_un] = ttest2(x, y, 'Vartype', 'unequal');",
+  "iters": 5,
+  "tol": 1e-6,
+  "fingerprint": [
+    "h_p", "p_p", "ci_p(1)", "ci_p(2)",
+    "ci95(2) - ci95(1)", "ci99(2) - ci99(1)",
+    "h2_eq", "p2_eq",
+    "h2_un", "p2_un"
+  ],
+  "comment": "Sig: ttest(x, y[, NV]) paired form; ttest2 default Vartype=equal (pooled). NV pairs: Alpha, Tail, Vartype, Dim (Dim throws). 4th output struct (tstat/df/sd) NOT yet implemented — fingerprints stay on first 3 outputs. Closes audit/findings/stats/{ttest,ttest2}.md (partial — 4th-output struct, matrix input, Dim, n<2 NaN remain as documented gaps in spec comment)."
+}
