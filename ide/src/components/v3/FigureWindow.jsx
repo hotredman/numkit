@@ -3,7 +3,9 @@ import InteractivePlot from './InteractivePlot';
 import Heatmap from './Heatmap';
 import PolarPlot, { defaultPolarViewport, nicePolarMax } from './PolarPlot';
 import SubplotGrid from './SubplotGrid';
-import { computeFitViewport } from './plotUtils';
+import { computeFitViewport,
+  composeSvgsToString, exportSvgString, exportPngString,
+  downloadBlob as utilDownloadBlob } from './plotUtils';
 
 function renderFigure(figure, props) {
   if (figure.kind === 'subplot') return <SubplotGrid figure={figure} {...props} />;
@@ -124,40 +126,59 @@ export default function FigureWindow({ figure, onClose }) {
     };
   }, []);
 
-  function downloadBlob(blob, name) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = name; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 100);
+  // Local downloadBlob for CSV/TSV/JSON paths below — image exports go through
+  // plotUtils helpers so they share the light-theme + variable-resolution
+  // logic with the per-plot ПКМ menus.
+  const downloadBlob = utilDownloadBlob;
+
+  /**
+   * For subplot figures, gather every cell <svg> + its position relative to
+   * the canvas wrap, and compose them into a single SVG string. Otherwise
+   * just serialise the one SVG inside the wrap. Returns { xml, w, h } or
+   * null if nothing's there yet.
+   */
+  function gatherFigureSvg() {
+    const wrap = wrapRef.current;
+    if (!wrap) return null;
+    if (figure.kind === 'subplot') {
+      const svgs = wrap.querySelectorAll('svg');
+      if (svgs.length === 0) return null;
+      const wrapRect = wrap.getBoundingClientRect();
+      const layouts = Array.from(svgs).map((s) => {
+        const r = s.getBoundingClientRect();
+        return {
+          x: r.left - wrapRect.left, y: r.top - wrapRect.top,
+          w: r.width, h: r.height,
+        };
+      });
+      return {
+        xml: composeSvgsToString(svgs, layouts, wrapRect.width, wrapRect.height),
+        w: wrapRect.width, h: wrapRect.height,
+      };
+    }
+    const svg = wrap.querySelector('svg');
+    if (!svg) return null;
+    return {
+      xml: new XMLSerializer().serializeToString(svg),
+      w: size.w, h: size.h,
+    };
   }
   function exportSvg() {
-    const svg = wrapRef.current?.querySelector('svg');
-    if (!svg) return;
-    const xml = new XMLSerializer().serializeToString(svg);
-    downloadBlob(new Blob([xml], { type: 'image/svg+xml' }), `figure_${figure.id}.svg`);
+    const g = gatherFigureSvg();
+    if (!g) return;
+    exportSvgString(g.xml, `figure_${figure.id}.svg`);
   }
   function exportPng(scale = 2, suffix = '') {
-    const svg = wrapRef.current?.querySelector('svg');
-    if (!svg) return;
-    const xml = new XMLSerializer().serializeToString(svg);
-    const w = size.w * scale, h = size.h * scale;
-    const img = new Image();
-    const url = URL.createObjectURL(new Blob([xml], { type: 'image/svg+xml' }));
-    img.onload = () => {
-      const c = document.createElement('canvas');
-      c.width = w; c.height = h;
-      const ctx = c.getContext('2d');
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--plot-bg') || '#1a1f24';
-      ctx.fillRect(0, 0, w, h);
-      ctx.drawImage(img, 0, 0, w, h);
-      c.toBlob((b) => { downloadBlob(b, `figure_${figure.id}${suffix}.png`); URL.revokeObjectURL(url); });
-    };
-    img.src = url;
+    const g = gatherFigureSvg();
+    if (!g) return;
+    exportPngString(g.xml, g.w, g.h, scale, `figure_${figure.id}${suffix}.png`);
   }
   function exportPngPrint(mmWidth, dpi = 300) {
+    const g = gatherFigureSvg();
+    if (!g) return;
     const targetPx = (mmWidth / 25.4) * dpi;
-    const scale = targetPx / size.w;
-    exportPng(scale, `_${mmWidth}mm`);
+    const scale = targetPx / g.w;
+    exportPngString(g.xml, g.w, g.h, scale, `figure_${figure.id}_${mmWidth}mm.png`);
   }
   // Build a CSV/TSV "name<sep>x<sep>y" body for one series-bearing figure.
   function seriesBody(fig, sep) {
