@@ -85,3 +85,11 @@ be guarded.
 
 - `Method` keyword (`'Wilson'`, etc.) — MATLAB's `binofit` does not
   support method selection; it's hard-coded to Clopper–Pearson.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-06
+- Notes: No code change needed (impl already matched). Parity spec
+  extended to cover scalar / vector / x=0 / x=n / alpha=0.01 paths.
+  7 TEST_F gtest + smoke .m added. Parity OK numkit ↔ MATLAB ↔ Octave
+  across all 19 fingerprint values.

@@ -1,14 +1,30 @@
 {
   "name": "binofit",
   "namespace": "stats",
-  "setup": "k = 7; n = 10;",
-  "expr": "[phat, pci] = binofit(k, n);",
+  "setup": "k = 7; n = 10; xV = [3 5 7]'; nV = [10 10 10]';",
+  "expr": "[ph_s, pci_s] = binofit(k, n); [ph_v, pci_v] = binofit(xV, nV); [ph_z, pci_z] = binofit(0, 10); [ph_f, pci_f] = binofit(10, 10); [ph_a, pci_a] = binofit(k, n, 0.01);",
   "iters": 5,
   "tol": 1e-9,
   "fingerprint": [
-    "phat",
-    "pci(1)",
-    "pci(2)"
+    "ph_s",
+    "pci_s(1)",
+    "pci_s(2)",
+    "ph_v(1)",
+    "ph_v(2)",
+    "ph_v(3)",
+    "pci_v(1,1)",
+    "pci_v(1,2)",
+    "pci_v(3,1)",
+    "pci_v(3,2)",
+    "ph_z",
+    "pci_z(1)",
+    "pci_z(2)",
+    "ph_f",
+    "pci_f(1)",
+    "pci_f(2)",
+    "ph_a",
+    "pci_a(1)",
+    "pci_a(2)"
   ],
-  "comment": "Sig: [phat, pci] = binofit(x, n[, alpha]). Clopper-Pearson exact binomial CI. Vector inputs return Nx1 phat + Nx2 pci."
+  "comment": "Sig: [phat, pci] = binofit(x, n[, alpha]). Clopper-Pearson exact binomial CI. Covers: scalar (k=7,n=10), vector ([3 5 7]'), edges x=0 + x=n, non-default alpha=0.01. No 'Method' kw — MATLAB binofit hard-codes Clopper-Pearson."
 }
