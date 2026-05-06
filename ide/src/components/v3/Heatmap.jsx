@@ -134,6 +134,12 @@ export default function Heatmap({
     e.preventDefault();
     setCtxMenu({ x: e.clientX, y: e.clientY });
   }
+  function fitAxes(axisMode) {
+    const next = { x: viewport.x.slice(), y: viewport.y.slice() };
+    if (axisMode === 'both' || axisMode === 'x') next.x = figure.xRange.slice();
+    if (axisMode === 'both' || axisMode === 'y') next.y = figure.yRange.slice();
+    setViewport(next);
+  }
   const ctxItems = [
     { label: 'Reset to default',
       onClick: () => setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() }) },
@@ -148,6 +154,11 @@ export default function Heatmap({
       onClick: () => exportPngForPrint(svgRef.current, width, height, 170, 300, `figure_${figure.id}`) },
     { label: 'PNG · A4 width (210 mm)',
       onClick: () => exportPngForPrint(svgRef.current, width, height, 210, 300, `figure_${figure.id}`) },
+    { separator: true },
+    { head: 'Fit data extent' },
+    { label: 'Fit both axes', onClick: () => fitAxes('both') },
+    { label: 'Fit X only',    onClick: () => fitAxes('x') },
+    { label: 'Fit Y only',    onClick: () => fitAxes('y') },
   ];
 
   useEffect(() => {
