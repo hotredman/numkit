@@ -563,14 +563,24 @@ function PlotControls({ rows, cols,
 }
 
 function InlinePlot({ getSlice, rows, cols, onClose }) {
-  const [mAxis, setMAxis] = useState('col');
+  // Auto-pick the slice axis from the matrix shape:
+  //   1×N row vector → 'row' (the single row, cols entries)
+  //   N×1 col vector → 'col' (the single col, rows entries)
+  //   M×N matrix     → axis whose slice is LONGER.
+  //                    'row' → cols entries per slice
+  //                    'col' → rows entries per slice
+  //                    cols ≥ rows → 'row' (rows are at least as long)
+  // Mirrors what a MATLAB user expects: a few long curves, not many tiny ones.
+  const defaultAxis = (r, c) => (c >= r ? 'row' : 'col');
+
+  const [mAxis, setMAxis] = useState(() => defaultAxis(rows, cols));
   const [mSel, setMSel]   = useState(() => new Set([0]));
   const [mXMode, setMXMode] = useState('index');
-  const [mXSrc, setMXSrc]   = useState({ axis: 'col', idx: 0 });
+  const [mXSrc, setMXSrc]   = useState(() => ({ axis: defaultAxis(rows, cols), idx: 0 }));
   const [pickerQuery, setPickerQuery] = useState('');
 
   useEffect(() => {
-    const def = cols >= rows ? 'col' : 'row';
+    const def = defaultAxis(rows, cols);
     setMAxis(def);
     setMSel(new Set([0]));
     setMXMode('index');
