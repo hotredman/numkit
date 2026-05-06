@@ -164,27 +164,40 @@ export default function PolarPlot({
     e.preventDefault();
     setCtxMenu({ x: e.clientX, y: e.clientY });
   }
+  function fitRho(seriesName) {
+    if (!setViewport) return;
+    const list = seriesName === 'all'
+      ? figure.series
+      : figure.series.filter((s) => s.name === seriesName);
+    let m = 0;
+    list?.forEach((s) => s.rho?.forEach((v) => {
+      if (Number.isFinite(v) && Math.abs(v) > m) m = Math.abs(v);
+    }));
+    setViewport({ r: [vp.r[0], nicePolarMax(m || 1)] });
+  }
+  const multiSeries = Array.isArray(figure.series) && figure.series.length > 1;
   const ctxItems = [
     { label: 'Fit r-range',
-      onClick: () => {
-        if (!setViewport) return;
-        let m = 0;
-        figure.series?.forEach((s) => s.rho?.forEach((v) => {
-          if (Number.isFinite(v) && Math.abs(v) > m) m = Math.abs(v);
-        }));
-        setViewport({ r: [vp.r[0], nicePolarMax(m || 1)] });
-      },
+      onClick: () => fitRho('all'),
       disabled: !setViewport,
     },
+    ...(multiSeries ? [
+      { separator: true },
+      { head: 'Fit single curve' },
+      ...figure.series.map((s) => ({
+        row: true, color: s.color, name: s.name,
+        buttons: [{ label: 'fit', onClick: () => fitRho(s.name), disabled: !setViewport }],
+      })),
+    ] : []),
     { separator: true },
     { label: 'Reset to default',
       onClick: () => setViewport && setViewport(defaultPolarViewport(figure)),
       disabled: !setViewport,
     },
     { separator: true },
-    { label: 'Save panel as SVG',
+    { label: 'Save as SVG',
       onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
-    { label: 'Save panel as PNG @2×',
+    { label: 'Save as PNG @2×',
       onClick: () => exportPngNode(svgRef.current, width, height, 2, `figure_${figure.id}.png`) },
   ];
 

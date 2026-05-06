@@ -49,6 +49,24 @@ export default function ContextMenu({ x, y, items, onClose }) {
     >
       {items.map((it, i) => {
         if (it.separator) return <div key={i} className="ctx-sep" />;
+        if (it.head)      return <div key={i} className="ctx-head">{it.head}</div>;
+        if (it.row) {
+          return (
+            <div key={i} className="ctx-row">
+              <span className="ctx-name">
+                {it.color && <i style={{ background: it.color }} />}
+                <span>{it.name}</span>
+              </span>
+              {it.buttons.map((b, j) => (
+                <button key={j} className="ctx-row-btn" disabled={!!b.disabled}
+                  onClick={(e) => { e.stopPropagation(); b.onClick?.(); onClose(); }}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
+          );
+        }
         return (
           <button key={i} className="ctx-item" disabled={!!it.disabled}
             onClick={(e) => {
