@@ -34,26 +34,28 @@ export default function Heatmap({
   const [ctxMenu, setCtxMenu] = useState(null);
   const dragRef = useRef(null);
 
-  // ── tile-fetch state for huge imagesc datasets ─────────────────────
-  // tileCache: Map<key, dataURL> — keyed by `${lod}|${r0}|${c0}|${h}|${w}`.
-  //            Capped at 8 entries LRU-style (insertion order).
-  // tileOverlay: { dataURL, r0, c0, h, w } — currently displayed overlay
-  //              positioned in source-coords, rendered as an SVG <image>
-  //              that lives above the preview.
-  const tileCacheRef = useRef(new Map());
+  // ── display-tile state ──────────────────────────────────────────────
+  // tileOverlay holds the most recent display-pixel-grid sample of the
+  // visible source-rect. Rendered as an SVG <image> filling the plot area.
+  // Reset on figure identity change (new dataset → stale tile is wrong).
   const [tileOverlay, setTileOverlay] = useState(null);
   const figIdRef = useRef(figure._raw?.id ?? figure.id);
-  // Reset cache + overlay whenever the figure identity changes — new dataset
-  // means stale tiles aren't comparable.
   useEffect(() => {
     const fid = figure._raw?.id ?? figure.id;
     if (figIdRef.current !== fid) {
-      tileCacheRef.current.clear();
       setTileOverlay(null);
       setColorOverride(null);
       figIdRef.current = fid;
     }
   }, [figure._raw?.id, figure.id]);
+
+  // ── Log-axis state ─────────────────────────────────────────────────
+  // Per-Heatmap toggle (independent of figure-level xscale/yscale config —
+  // the user can switch a linear-emit imagesc to log axes interactively
+  // without recreating the figure). When set, getFigureDisplayTile applies
+  // log10 inverse to that axis when resampling.
+  const [xLog, setXLog] = useState(false);
+  const [yLog, setYLog] = useState(false);
 
   // ── Color-limit override ────────────────────────────────────────────
   // "Fit colors to visible" pulls cmin/cmax from the currently-visible
@@ -82,10 +84,24 @@ export default function Heatmap({
 
   const [xMin, xMax] = viewport.x;
   const [yMin, yMax] = viewport.y;
-  const sx  = (v) => padL + ((v - xMin) / (xMax - xMin)) * W;
-  const sy  = (v) => padT + H - ((v - yMin) / (yMax - yMin)) * H;
-  const isx = (px) => xMin + ((px - padL) / W) * (xMax - xMin);
-  const isy = (py) => yMax - ((py - padT) / H) * (yMax - yMin);
+  // Log axes: viewport bounds are still in original-data coordinates
+  // (xMin..xMax = the user-visible range). The screen-mapping is log when
+  // the corresponding axis flag is on. Requires lo > 0 — we sanitise by
+  // clamping at the call sites that set viewport.
+  const xLogActive = xLog && xMin > 0 && xMax > 0;
+  const yLogActive = yLog && yMin > 0 && yMax > 0;
+  const sx = xLogActive
+    ? (v) => padL + (Math.log(v / xMin) / Math.log(xMax / xMin)) * W
+    : (v) => padL + ((v - xMin) / (xMax - xMin)) * W;
+  const sy = yLogActive
+    ? (v) => padT + H - (Math.log(v / yMin) / Math.log(yMax / yMin)) * H
+    : (v) => padT + H - ((v - yMin) / (yMax - yMin)) * H;
+  const isx = xLogActive
+    ? (px) => xMin * Math.exp(((px - padL) / W) * Math.log(xMax / xMin))
+    : (px) => xMin + ((px - padL) / W) * (xMax - xMin);
+  const isy = yLogActive
+    ? (py) => yMin * Math.exp(((padT + H - py) / H) * Math.log(yMax / yMin))
+    : (py) => yMax - ((py - padT) / H) * (yMax - yMin);
 
   // Pre-render the inline preview to a dataURL via the LUT. uint8 indices
   // are stable; only the LUT changes on window/level — so we keep a separate
@@ -112,8 +128,25 @@ export default function Heatmap({
     }
     return { major: majorArr, minor: minorArr };
   }
-  const xTicks = niceTicks(xMin, xMax, 8);
-  const yTicks = niceTicks(yMin, yMax, 6);
+  // Log-axis tick generator: powers of 10 as major, intermediate 2..9
+  // multiples as minor. Used when {x,y}LogActive.
+  function logTicks(min, max) {
+    if (min <= 0 || max <= 0 || max <= min) return { major: [], minor: [] };
+    const lmin = Math.floor(Math.log10(min));
+    const lmax = Math.ceil(Math.log10(max));
+    const major = [], minor = [];
+    for (let p = lmin; p <= lmax; p++) {
+      const base = Math.pow(10, p);
+      if (base >= min && base <= max) major.push(base);
+      for (let m = 2; m <= 9; m++) {
+        const v = base * m;
+        if (v >= min && v <= max) minor.push(v);
+      }
+    }
+    return { major, minor };
+  }
+  const xTicks = xLogActive ? logTicks(xMin, xMax) : niceTicks(xMin, xMax, 8);
+  const yTicks = yLogActive ? logTicks(yMin, yMax) : niceTicks(yMin, yMax, 6);
 
   function fmtTick(v) {
     const a = Math.abs(v);
@@ -141,11 +174,27 @@ export default function Heatmap({
     } else setHover(null);
     if (!dragRef.current) return;
     const d = dragRef.current;
-    const sxRatio = (d.x0[1] - d.x0[0]) / (d.W * (rect.width / width));
-    const syRatio = (d.y0[1] - d.y0[0]) / (d.H * (rect.height / height));
-    const dx = (e.clientX - d.sx) * sxRatio;
-    const dy = (e.clientY - d.sy) * syRatio;
-    setViewport({ x: [d.x0[0] - dx, d.x0[1] - dx], y: [d.y0[0] + dy, d.y0[1] + dy] });
+    const xPxFrac = (e.clientX - d.sx) / (d.W * (rect.width / width));
+    const yPxFrac = (e.clientY - d.sy) / (d.H * (rect.height / height));
+    // Pan: linear axes translate additively, log axes translate multiplicatively
+    // (a constant screen-pixel delta = a constant log-space delta = a fixed ratio
+    // applied to both bounds).
+    let nx, ny;
+    if (xLogActive) {
+      const ratio = Math.exp(-xPxFrac * Math.log(d.x0[1] / d.x0[0]));
+      nx = [d.x0[0] * ratio, d.x0[1] * ratio];
+    } else {
+      const dx = xPxFrac * (d.x0[1] - d.x0[0]);
+      nx = [d.x0[0] - dx, d.x0[1] - dx];
+    }
+    if (yLogActive) {
+      const ratio = Math.exp(yPxFrac * Math.log(d.y0[1] / d.y0[0]));
+      ny = [d.y0[0] * ratio, d.y0[1] * ratio];
+    } else {
+      const dy = yPxFrac * (d.y0[1] - d.y0[0]);
+      ny = [d.y0[0] + dy, d.y0[1] + dy];
+    }
+    setViewport({ x: nx, y: ny });
   }
   function onMouseUp(e)    { dragRef.current = null; if (e.currentTarget) e.currentTarget.style.cursor = 'grab'; }
   function onMouseLeave(e) { setHover(null); onMouseUp(e); }
@@ -212,6 +261,8 @@ export default function Heatmap({
       onClick: () => {
         setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() });
         setColorOverride(null);
+        setXLog(false);
+        setYLog(false);
       } },
     { label: 'Save as SVG (vector)',
       onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
@@ -239,6 +290,31 @@ export default function Heatmap({
         : 'Reset colors',
       onClick: resetColors,
       disabled: !colorOverride },
+    { head: 'Axes' },
+    { label: xLog ? '✓ X axis · log' : 'X axis · log',
+      onClick: () => {
+        // Switching to log requires a strictly-positive xMin. Clamp viewport
+        // up if the user is currently viewing through zero.
+        if (!xLog && (xMin <= 0 || xMax <= 0)) {
+          const safeLo = Math.max(figure.xRange[0], 1e-6);
+          const safeHi = Math.max(safeLo * 10, figure.xRange[1]);
+          setViewport({ ...viewport, x: [safeLo, safeHi] });
+        }
+        setXLog((v) => !v);
+      },
+      disabled: figure.xRange[1] <= 0,
+    },
+    { label: yLog ? '✓ Y axis · log' : 'Y axis · log',
+      onClick: () => {
+        if (!yLog && (yMin <= 0 || yMax <= 0)) {
+          const safeLo = Math.max(figure.yRange[0], 1e-6);
+          const safeHi = Math.max(safeLo * 10, figure.yRange[1]);
+          setViewport({ ...viewport, y: [safeLo, safeHi] });
+        }
+        setYLog((v) => !v);
+      },
+      disabled: figure.yRange[1] <= 0,
+    },
   ];
 
   useEffect(() => {
@@ -251,27 +327,43 @@ export default function Heatmap({
       const py = (e.clientY - rect.top)  * (height / rect.height);
       const cx = isx(px), cy = isy(py);
       const factor = Math.exp(e.deltaY * 0.0015);
-      setViewport({ x: [cx - (cx - xMin) * factor, cx + (xMax - cx) * factor],
-                    y: [cy - (cy - yMin) * factor, cy + (yMax - cy) * factor] });
+      // Linear: zoom in around cursor by `factor`. Log: same idea but
+      // ratios apply multiplicatively in log space so the cursor's data
+      // value stays put on screen.
+      let nx, ny;
+      if (xLogActive) {
+        nx = [cx * Math.pow(xMin / cx, factor), cx * Math.pow(xMax / cx, factor)];
+      } else {
+        nx = [cx - (cx - xMin) * factor, cx + (xMax - cx) * factor];
+      }
+      if (yLogActive) {
+        ny = [cy * Math.pow(yMin / cy, factor), cy * Math.pow(yMax / cy, factor)];
+      } else {
+        ny = [cy - (cy - yMin) * factor, cy + (yMax - cy) * factor];
+      }
+      setViewport({ x: nx, y: ny });
     }
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   });
 
-  // ── tile-fetch on viewport changes ───────────────────────────────────
-  // When the user zooms in past the preview's resolution, refetch a tile
-  // covering the visible region at a finer LOD. Debounced 200 ms so the
-  // engine isn't hammered during continuous wheel-zoom.
+  // ── display-tile fetch on viewport / log / panel-size changes ──────
+  // The engine resamples its zQuantized to the panel's W×H pixel grid in
+  // one pass, applying log10 inverse on either axis when active. The
+  // returned uint8 buffer is colormapped via the LUT and blitted as an
+  // SVG <image> filling the plot area. Debounced 100 ms so continuous
+  // wheel-zoom doesn't hammer the engine.
   useEffect(() => {
     if (!interactive) return;
-    if (!engine || typeof engine.getFigureTile !== 'function') return;
+    if (!engine || typeof engine.getFigureDisplayTile !== 'function') return;
     if (typeof figure._figId !== 'number' || figure._figId < 0) return;
     if (!figure.originalRows || !figure.originalCols) return;
+    if (W < 4 || H < 4) return;
 
     const handle = setTimeout(() => {
-      // Map the current viewport to source-cell indices. xRange / yRange are
-      // in *source* coordinates (the engine emits them spanning the matrix
-      // extent regardless of downsampling).
+      // Map viewport (in original-data coords) to fractional source-cell
+      // indices. xRange/yRange always span the source extent, regardless
+      // of inline-preview downsampling.
       const fullCols = figure.originalCols;
       const fullRows = figure.originalRows;
       const xExt = figure.xRange[1] - figure.xRange[0];
@@ -279,69 +371,43 @@ export default function Heatmap({
       const colsPerUnit = fullCols / (xExt || 1);
       const rowsPerUnit = fullRows / (yExt || 1);
 
-      const c0 = Math.max(0, Math.floor((Math.min(xMin, xMax) - figure.xRange[0]) * colsPerUnit));
-      const c1 = Math.min(fullCols, Math.ceil((Math.max(xMin, xMax) - figure.xRange[0]) * colsPerUnit));
-      const r0 = Math.max(0, Math.floor((figure.yRange[1] - Math.max(yMin, yMax)) * rowsPerUnit));
-      const r1 = Math.min(fullRows, Math.ceil((figure.yRange[1] - Math.min(yMin, yMax)) * rowsPerUnit));
+      const xLo = Math.min(xMin, xMax);
+      const xHi = Math.max(xMin, xMax);
+      const yLo = Math.min(yMin, yMax);
+      const yHi = Math.max(yMin, yMax);
+      let srcC0 = (xLo - figure.xRange[0]) * colsPerUnit;
+      let srcC1 = (xHi - figure.xRange[0]) * colsPerUnit;
+      // y axis: yRange[1] is at the TOP of the matrix (row 0), yRange[0] at bottom
+      let srcR0 = (figure.yRange[1] - yHi) * rowsPerUnit;
+      let srcR1 = (figure.yRange[1] - yLo) * rowsPerUnit;
 
-      const tileW = c1 - c0;
-      const tileH = r1 - r0;
-      if (tileW <= 0 || tileH <= 0) { setTileOverlay(null); return; }
+      // Clamp to source bounds; log axes need strictly positive lo.
+      srcC0 = Math.max(xLogActive ? 1e-6 : 0, srcC0);
+      srcR0 = Math.max(yLogActive ? 1e-6 : 0, srcR0);
+      srcC1 = Math.min(fullCols, srcC1);
+      srcR1 = Math.min(fullRows, srcR1);
+      const srcH = srcR1 - srcR0;
+      const srcW = srcC1 - srcC0;
+      if (srcH <= 0 || srcW <= 0) { setTileOverlay(null); return; }
 
-      // Pick LOD so the tile maps roughly 1 source-cell per panel-pixel.
-      // Higher LOD = coarser pooling; LOD=1 means full resolution.
-      const lod = Math.max(1, Math.ceil(Math.max(tileW / W, tileH / H)));
+      const buf = engine.getFigureDisplayTile(
+        figure._figId, figure._axIdx, figure._dsIdx,
+        srcR0, srcC0, srcH, srcW,
+        H, W,
+        xLogActive, yLogActive
+      );
+      if (!buf) { setTileOverlay(null); return; }
 
-      // Skip refetch if the preview already provides this LOD's resolution.
-      // Preview's effective LOD on full extent ≈ ceil(max(rows, cols) / 1448).
-      const previewLod = Math.max(1, Math.ceil(Math.max(fullRows, fullCols) / 1448));
-      if (lod >= previewLod && tileW >= fullCols * 0.95 && tileH >= fullRows * 0.95) {
-        // Looking at (nearly) full extent at preview-or-coarser LOD — preview is fine.
-        setTileOverlay(null);
-        return;
-      }
-
-      const key = `${lod}|${r0}|${c0}|${tileH}|${tileW}`;
-      const cache = tileCacheRef.current;
-      if (cache.has(key)) {
-        const cached = cache.get(key);
-        // LRU touch: re-insert at the end.
-        cache.delete(key); cache.set(key, cached);
-        setTileOverlay({ ...cached, key });
-        return;
-      }
-
-      const tile = engine.getFigureTile(figure._figId, figure._axIdx, figure._dsIdx,
-                                        r0, c0, tileH, tileW, lod);
-      if (!tile || tile.error || !tile.data) { setTileOverlay(null); return; }
-
-      // Engine returns row-major uint8 indices (0..254 + 255 NaN). Convert
-      // the JSON array → Uint8Array → dataURL via the precomputed LUT.
-      const arr = tile.data instanceof Uint8Array ? tile.data : Uint8Array.from(tile.data);
-      const dataURL = renderHeatmapDataURLFromFlat(arr, tile.rows, tile.cols, lut);
-
-      const entry = { dataURL, r0, c0, h: tileH, w: tileW, lod };
-      cache.set(key, entry);
-      // LRU: cap at 8 entries.
-      while (cache.size > 8) {
-        const firstKey = cache.keys().next().value;
-        cache.delete(firstKey);
-      }
-      setTileOverlay({ ...entry, key });
-    }, 200);
+      const dataURL = renderHeatmapDataURLFromFlat(buf, H, W, lut);
+      setTileOverlay({ dataURL });
+    }, 100);
 
     return () => clearTimeout(handle);
   }, [interactive, engine, figure._figId, figure._axIdx, figure._dsIdx,
-      figure.originalRows, figure.originalCols, cminEff, cmaxEff, figure.colormap,
+      figure.originalRows, figure.originalCols,
       figure.xRange, figure.yRange,
-      xMin, xMax, yMin, yMax, W, H]);
-
-  // Invalidate the tile cache when the colour override changes — cached
-  // dataURLs are baked with the previous (cmin, cmax), so they'd render
-  // with stale colors otherwise.
-  useEffect(() => {
-    tileCacheRef.current.clear();
-  }, [cminEff, cmaxEff]);
+      xMin, xMax, yMin, yMax, xLogActive, yLogActive,
+      W, H, lut]);
 
   const clipId = `clip-h-${figure.id}-${Math.round(width)}`;
   // The heatmap image is stretched to fill the figure's xRange × yRange in
@@ -405,39 +471,23 @@ export default function Heatmap({
       <rect x={0} y={0} width={width} height={height} fill="var(--bg-1)" />
       <rect x={padL} y={padT} width={W} height={H} fill="var(--plot-bg)" />
 
-      {/* Heatmap image — pixel data, scaled to viewport. preserveAspectRatio="none"
-          stretches in both axes to match the data extent. The optional
-          tileOverlay sits on top, painted at the right LOD for the current
-          zoom over the visible source-region. */}
+      {/* Heatmap image — base preview (the inline-JSON uint8 grid) is drawn
+          stretched across the data extent. The display-tile overlay, when
+          present, fills the plot area at panel-pixel resolution with log/
+          linear axes already applied — so it always matches what the axes
+          ticks claim, including under log y or log x. */}
       {dataURL && (
         <g clipPath={`url(#${clipId})`}>
           <image href={dataURL}
             x={imgX} y={imgY} width={imgW} height={imgH}
             preserveAspectRatio="none"
             imageRendering="pixelated" />
-          {tileOverlay && (() => {
-            // Map tile's (r0,c0,h,w) source-cell rect back to screen-space.
-            // xRange/yRange span the full source extent; we linearly interpolate.
-            const fullCols = figure.originalCols || 1;
-            const fullRows = figure.originalRows || 1;
-            const xExt = figure.xRange[1] - figure.xRange[0];
-            const yExt = figure.yRange[1] - figure.yRange[0];
-            const tx0 = figure.xRange[0] + (tileOverlay.c0           / fullCols) * xExt;
-            const tx1 = figure.xRange[0] + ((tileOverlay.c0 + tileOverlay.w) / fullCols) * xExt;
-            // y axis is inverted in screen space (yRange[1] is at top).
-            const ty0 = figure.yRange[1] - (tileOverlay.r0           / fullRows) * yExt;
-            const ty1 = figure.yRange[1] - ((tileOverlay.r0 + tileOverlay.h) / fullRows) * yExt;
-            const ox = sx(tx0);
-            const oy = sy(ty0);
-            const ow = sx(tx1) - sx(tx0);
-            const oh = sy(ty1) - sy(ty0);
-            return (
-              <image href={tileOverlay.dataURL}
-                x={ox} y={oy} width={ow} height={oh}
-                preserveAspectRatio="none"
-                imageRendering="pixelated" />
-            );
-          })()}
+          {tileOverlay && tileOverlay.dataURL && (
+            <image href={tileOverlay.dataURL}
+              x={padL} y={padT} width={W} height={H}
+              preserveAspectRatio="none"
+              imageRendering="pixelated" />
+          )}
         </g>
       )}
 

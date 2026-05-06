@@ -351,14 +351,112 @@ public:
     const std::map<int, FigureState> &figures() const { return figures_; }
 
     /**
-     * Tile fetcher for huge imagesc datasets. Reads a sub-rectangle
-     *   rows [r0, r0+h) × cols [c0, c0+w)
-     * from the dataset's zQuantized (uint8 indices), mean-pools by `lod×lod`,
-     * writes row-major uint8 indices to `out`. Index 255 = NaN sentinel.
+     * Display-grid tile resampler. Fills a displayH × displayW row-major
+     * uint8 buffer with mean-pooled samples from the dataset's zQuantized,
+     * applying optional log10 inverse on either axis so the buffer can be
+     * blitted directly to the panel's pixel grid.
      *
-     * Returns true with output dims via outRows/outCols, or false if the
-     * request is out of range / dataset isn't an imagesc / no zQuantized.
-     * Caller allocates `out` lazily — function .resize()s it.
+     *   srcR0, srcC0, srcH, srcW : visible source-rect in source-cell coords
+     *                              (fractional allowed for log inverse)
+     *   xLog, yLog               : log10 axis transforms — when set, the
+     *                              source-cell at display-pixel u (or v) is
+     *                              srcC0 * (srcC1/srcC0)^(u/displayW), etc.
+     *                              Requires srcC0 > 0 (yLog: srcR0 > 0).
+     *   out                      : caller-allocated, size ≥ displayH*displayW
+     *
+     * Per display pixel:
+     *  - compute its source-cell centre via linear or log map
+     *  - mean-pool over a small ⌈srcStep⌉×⌈cStep⌉ block centred there
+     *  - skip NaN sentinels (idx 255), write 255 if the block is all-NaN
+     *
+     * Cost: O(displayH * displayW * ⌈rStep⌉ * ⌈cStep⌉) — for a 800×600 panel
+     * showing the full 10000² extent that's ~30M ops, ~30ms in WASM. The
+     * upcoming Stage D LOD pyramid drops this to ~3 ms by reading from a
+     * pre-pooled level rather than the L0 source.
+     *
+     * Returns false if request is out of range / not imagesc / no zQuantized
+     * / log requested with non-positive source coords.
+     */
+    bool getFigureDisplayTile(int figId, int axIdx, int dsIdx,
+                              double srcR0, double srcC0,
+                              double srcH, double srcW,
+                              int displayH, int displayW,
+                              bool xLog, bool yLog,
+                              uint8_t *out) const
+    {
+        if (!out || displayH <= 0 || displayW <= 0) return false;
+
+        auto figIt = figures_.find(figId);
+        if (figIt == figures_.end()) return false;
+        const auto &fig = figIt->second;
+        if (axIdx < 0 || axIdx >= static_cast<int>(fig.axes.size())) return false;
+        const auto &axState = fig.axes[axIdx];
+        if (dsIdx < 0 || dsIdx >= static_cast<int>(axState.datasets.size())) return false;
+        const auto &ds = axState.datasets[dsIdx];
+        if (ds.zQuantized.empty() || ds.type != "imagesc") return false;
+
+        const size_t fullRows = ds.originalRows;
+        const size_t fullCols = ds.originalCols;
+        if (fullRows == 0 || fullCols == 0) return false;
+        if (ds.zQuantized.size() < fullRows * fullCols) return false;
+
+        // Clamp source-rect to the dataset bounds.
+        if (srcR0 < 0) { srcH += srcR0; srcR0 = 0; }
+        if (srcC0 < 0) { srcW += srcC0; srcC0 = 0; }
+        const double srcR1 = std::min(static_cast<double>(fullRows), srcR0 + srcH);
+        const double srcC1 = std::min(static_cast<double>(fullCols), srcC0 + srcW);
+        if (srcR1 <= srcR0 || srcC1 <= srcC0) return false;
+
+        // Log axes need a strictly-positive lower bound.
+        if (yLog && srcR0 <= 0) return false;
+        if (xLog && srcC0 <= 0) return false;
+
+        const double rStep = (srcR1 - srcR0) / displayH;
+        const double cStep = (srcC1 - srcC0) / displayW;
+        const int rBlock = std::max(1, static_cast<int>(std::ceil(rStep)));
+        const int cBlock = std::max(1, static_cast<int>(std::ceil(cStep)));
+
+        // Precompute log-ratios for fast inverse.
+        const double yLogRatio = yLog ? std::log(srcR1 / srcR0) : 0.0;
+        const double xLogRatio = xLog ? std::log(srcC1 / srcC0) : 0.0;
+
+        for (int orow = 0; orow < displayH; ++orow) {
+            const double v = (orow + 0.5) / displayH;
+            const double rCenter = yLog
+                ? srcR0 * std::exp(v * yLogRatio)
+                : srcR0 + v * (srcR1 - srcR0);
+            const int rA = std::max(0, static_cast<int>(rCenter) - rBlock / 2);
+            const int rB = std::min(static_cast<int>(fullRows),
+                                    rA + rBlock);
+            for (int ocol = 0; ocol < displayW; ++ocol) {
+                const double u = (ocol + 0.5) / displayW;
+                const double cCenter = xLog
+                    ? srcC0 * std::exp(u * xLogRatio)
+                    : srcC0 + u * (srcC1 - srcC0);
+                const int cA = std::max(0, static_cast<int>(cCenter) - cBlock / 2);
+                const int cB = std::min(static_cast<int>(fullCols),
+                                        cA + cBlock);
+                int sum = 0, n = 0;
+                for (int cc = cA; cc < cB; ++cc) {
+                    for (int rr = rA; rr < rB; ++rr) {
+                        const uint8_t q = ds.zQuantized[cc * fullRows + rr];
+                        if (q != 255) { sum += q; ++n; }
+                    }
+                }
+                out[orow * displayW + ocol] = (n > 0)
+                    ? static_cast<uint8_t>((sum + n / 2) / n)
+                    : uint8_t{255};
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Source-grid tile fetcher (kept for Stage A/B compat tests). Reads a
+     * sub-rectangle rows [r0, r0+h) × cols [c0, c0+w) from zQuantized,
+     * mean-pools by `lod×lod`, writes row-major uint8 indices to `out`.
+     * Stage C uses getFigureDisplayTile instead — that one resamples to
+     * display-pixel grid in one pass.
      */
     bool getFigureTile(int figId, int axIdx, int dsIdx,
                        int r0, int c0, int h, int w, int lod,
