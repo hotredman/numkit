@@ -167,6 +167,13 @@ export function buildHeatmapLUT(colormap, cminOrig, cmaxOrig, cminEff, cmaxEff) 
  * Render a uint8-quantized heatmap (rows × cols indices 0..254 / 255 NaN) to
  * a data: URL via an offscreen canvas + the precomputed LUT from
  * buildHeatmapLUT(). Three-table indirection per pixel — fast (no float math).
+ *
+ * Vertical FLIP applied: canvas row 0 = source row (rows-1). This puts
+ * matrix row 0 at the BOTTOM of the rendered image, matching the IDE's
+ * axis-xy y-axis convention (yMin at bottom, yMax at top). Without the
+ * flip, low-data-y rows would show at the top of the plot while the
+ * y-axis label there says "high data y" — the source of the "image
+ * slides relative to grid" symptom under log axes.
  */
 export function renderHeatmapDataURLFromIndices(zRows, lut) {
   const numRows = zRows.length;
@@ -179,7 +186,7 @@ export function renderHeatmapDataURLFromIndices(zRows, lut) {
   const img = ctx.createImageData(numCols, numRows);
   const px  = img.data;
   for (let r = 0; r < numRows; r++) {
-    const row = zRows[r];
+    const row = zRows[numRows - 1 - r];   // ← vertical flip
     const off = r * numCols * 4;
     for (let c = 0; c < numCols; c++) {
       const idx = row[c];
@@ -195,7 +202,8 @@ export function renderHeatmapDataURLFromIndices(zRows, lut) {
   return canvas.toDataURL();
 }
 
-/** Render a flat Uint8Array (row-major) version — for tile overlay. */
+/** Render a flat Uint8Array (row-major) version — for tile overlay.
+ *  Same vertical flip applied as renderHeatmapDataURLFromIndices. */
 export function renderHeatmapDataURLFromFlat(arr, rows, cols, lut) {
   if (!rows || !cols) return null;
   const canvas = document.createElement('canvas');
@@ -204,14 +212,19 @@ export function renderHeatmapDataURLFromFlat(arr, rows, cols, lut) {
   const ctx = canvas.getContext('2d');
   const img = ctx.createImageData(cols, rows);
   const px  = img.data;
-  for (let i = 0; i < arr.length; i++) {
-    const idx = arr[i];
-    const o = i * 4;
-    const li = idx * 4;
-    px[o]     = lut[li];
-    px[o + 1] = lut[li + 1];
-    px[o + 2] = lut[li + 2];
-    px[o + 3] = lut[li + 3];
+  for (let r = 0; r < rows; r++) {
+    const srcRow = rows - 1 - r;          // ← vertical flip
+    const srcOff = srcRow * cols;
+    const dstOff = r * cols;
+    for (let c = 0; c < cols; c++) {
+      const idx = arr[srcOff + c];
+      const o = (dstOff + c) * 4;
+      const li = idx * 4;
+      px[o]     = lut[li];
+      px[o + 1] = lut[li + 1];
+      px[o + 2] = lut[li + 2];
+      px[o + 3] = lut[li + 3];
+    }
   }
   ctx.putImageData(img, 0, 0);
   return canvas.toDataURL();

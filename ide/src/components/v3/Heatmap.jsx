@@ -413,9 +413,11 @@ export default function Heatmap({
       const yHi = Math.max(yMin, yMax);
       let srcC0 = (xLo - figure.xRange[0]) * colsPerUnit;
       let srcC1 = (xHi - figure.xRange[0]) * colsPerUnit;
-      // y axis: yRange[1] is at the TOP of the matrix (row 0), yRange[0] at bottom
-      let srcR0 = (figure.yRange[1] - yHi) * rowsPerUnit;
-      let srcR1 = (figure.yRange[1] - yLo) * rowsPerUnit;
+      // axis-xy: low cell index = low data y = bottom of plot. We always
+      // ship cell-indices ascending to the engine; the renderer's vertical
+      // flip puts cell-index 0 at the bottom of the canvas (matching).
+      let srcR0 = (yLo - figure.yRange[0]) * rowsPerUnit;
+      let srcR1 = (yHi - figure.yRange[0]) * rowsPerUnit;
 
       // Clamp to source bounds; log axes need strictly positive lo.
       srcC0 = Math.max(xLogActive ? 1e-6 : 0, srcC0);
@@ -531,42 +533,39 @@ export default function Heatmap({
             && tileOverlay.xLog === xLogActive
             && tileOverlay.yLog === yLogActive
             && (() => {
-            // Map the tile's source-rect (in cell coords) back through the
-            // figure's data extent, then through current sx/sy. yRange[1]
-            // is at the top (row 0), so the tile's r0 maps to the top edge.
+            // axis-xy: cell-index 0 = data y bottom, cell-index N = data y top.
+            // tile spans [srcR0, srcR0+srcH] in cell coords; data-y at low end
+            // is tyLow, at high end is tyHigh. The renderer's vertical flip
+            // (in renderHeatmapDataURLFromFlat) makes canvas row 0 represent
+            // the high-cell-index = top of the plot.
             const fullCols = figure.originalCols || 1;
             const fullRows = figure.originalRows || 1;
             const xExt = figure.xRange[1] - figure.xRange[0];
             const yExt = figure.yRange[1] - figure.yRange[0];
             let tx0 = figure.xRange[0] + (tileOverlay.srcC0                  / fullCols) * xExt;
             let tx1 = figure.xRange[0] + ((tileOverlay.srcC0 + tileOverlay.srcW) / fullCols) * xExt;
-            let ty0 = figure.yRange[1] - (tileOverlay.srcR0                  / fullRows) * yExt;
-            let ty1 = figure.yRange[1] - ((tileOverlay.srcR0 + tileOverlay.srcH) / fullRows) * yExt;
-            // Under log axes the tile's source-rect can extend slightly past
-            // the visible viewport (tile was fetched up to srcR1 which maps
-            // to data y near zero, beyond the log axis's lower bound). sx/sy
-            // would return NaN on log(0) / log(negative), which makes the
-            // <image> height/width NaN and the tile flicker on/off as the
-            // viewport jitters by floating-point dust during pan/zoom.
-            // Clamp to the visible bounds so sx/sy stay finite — content
-            // mismatch is bounded by the tile's edge pixels which engine's
-            // log inverse already snapped to the boundary.
+            let tyLow  = figure.yRange[0] + (tileOverlay.srcR0                  / fullRows) * yExt;
+            let tyHigh = figure.yRange[0] + ((tileOverlay.srcR0 + tileOverlay.srcH) / fullRows) * yExt;
+            // Under log axes data-coord ≤ 0 is undefined; clamp to the
+            // visible viewport bound so sx/sy stay finite. Edge pixels
+            // were already snapped to the boundary by the engine's log
+            // inverse, so no content shifts.
             if (xLogActive) {
               if (tx0 <= 0) tx0 = xMin;
               if (tx1 <= 0) tx1 = xMin;
             }
             if (yLogActive) {
-              if (ty0 <= 0) ty0 = yMin;
-              if (ty1 <= 0) ty1 = yMin;
+              if (tyLow  <= 0) tyLow  = yMin;
+              if (tyHigh <= 0) tyHigh = yMin;
             }
             const sx0 = sx(tx0);
             const sx1 = sx(tx1);
-            const sy0 = sy(ty0);
-            const sy1 = sy(ty1);
+            const syTop = sy(tyHigh);     // top of element = high data y
+            const syBot = sy(tyLow);      // bottom = low data y
             const ox = Math.min(sx0, sx1);
-            const oy = Math.min(sy0, sy1);
+            const oy = Math.min(syTop, syBot);
             const ow = Math.abs(sx1 - sx0);
-            const oh = Math.abs(sy1 - sy0);
+            const oh = Math.abs(syBot - syTop);
             if (!Number.isFinite(ow) || !Number.isFinite(oh) || ow <= 0 || oh <= 0) return null;
             return (
               <image href={tileOverlay.dataURL}
