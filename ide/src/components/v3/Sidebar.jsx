@@ -418,13 +418,15 @@ export default function Sidebar({
   const handleContextMenu = useCallback((e, node) => {
     e.preventDefault();
     e.stopPropagation();
-    // Examples are read-only — only "Open" makes sense for files, no actions for folders.
+    // Examples are read-only — only "Open" / "Refresh" make sense.
     if (isExamples) {
-      if (node.type !== 'file') return;
-      setContextMenu({
-        x: e.clientX, y: e.clientY,
-        items: [{ icon: '📝', label: 'Open in Editor', action: () => handleFileOpen(node) }],
-      });
+      const items = [];
+      if (node.type === 'file') {
+        items.push({ icon: '📝', label: 'Open in Editor', action: () => handleFileOpen(node) });
+        items.push({ separator: true });
+      }
+      items.push({ icon: '🔄', label: 'Refresh', action: () => loadTree() });
+      setContextMenu({ x: e.clientX, y: e.clientY, items });
       return;
     }
     const items = [];
@@ -444,21 +446,33 @@ export default function Sidebar({
     }
     items.push({ icon: '✏', label: 'Rename', action: () => setRenaming(node.path) });
     items.push({ icon: '🗑', label: 'Delete', danger: true, action: () => handleDelete(node) });
+    items.push({ separator: true });
+    items.push({ icon: '🔄', label: 'Refresh', action: () => loadTree() });
     setContextMenu({ x: e.clientX, y: e.clientY, items });
-  }, [isExamples, setExpanded, handleImport, handleFileOpen, handleDuplicate, handleDownload, handleDelete]);
+  }, [isExamples, setExpanded, handleImport, handleFileOpen, handleDuplicate, handleDownload, handleDelete, loadTree]);
 
   const handleRootContextMenu = useCallback((e) => {
     e.preventDefault();
-    if (isExamples) return; // read-only — no root menu
+    if (isExamples) {
+      // Examples folder is read-only on disk, but the user may want to
+      // re-pull the manifest if it was edited externally.
+      setContextMenu({
+        x: e.clientX, y: e.clientY,
+        items: [{ icon: '🔄', label: 'Refresh', action: () => loadTree() }],
+      });
+      return;
+    }
     setContextMenu({
       x: e.clientX, y: e.clientY,
       items: [
         { icon: '📄', label: 'New file…',         action: () => setCreating({ parentPath: '', type: 'file' }) },
         { icon: '📁', label: 'New folder…',       action: () => setCreating({ parentPath: '', type: 'folder' }) },
         { icon: '📥', label: 'Import file(s)…',   action: () => handleImport('') },
+        { separator: true },
+        { icon: '🔄', label: 'Refresh',           action: () => loadTree() },
       ],
     });
-  }, [isExamples, handleImport]);
+  }, [isExamples, handleImport, loadTree]);
 
   /* ─── render ─── */
   const isLocalUnmounted = source === 'localFolder' && localStatus !== 'connected';
