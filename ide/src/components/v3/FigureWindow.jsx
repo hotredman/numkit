@@ -87,6 +87,7 @@ export default function FigureWindow({ figure, onClose }) {
   const [showLegend, setShowLegend] = useState(true);
   const [fitOpen, setFitOpen]     = useState(false);
   const [saveOpen, setSaveOpen]   = useState(false);
+  const [maximized, setMaximized] = useState(false);
   const fitRef  = useRef(null);
   const saveRef = useRef(null);
   const wrapRef = useRef(null);
@@ -241,7 +242,8 @@ export default function FigureWindow({ figure, onClose }) {
 
   return (
     <div className="fw-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="fw-window" role="dialog" aria-label={`Figure ${figure.id}`}>
+      <div className={`fw-window ${maximized ? 'is-max' : ''}`}
+        role="dialog" aria-label={`Figure ${figure.id}`}>
         <div className="fw-titlebar">
           <div className="fw-title-left">
             <span className="ve-tag" style={{
@@ -258,6 +260,19 @@ export default function FigureWindow({ figure, onClose }) {
                 ? `${figure.z?.length ?? 0} × ${figure.z?.[0]?.length ?? 0} cells · range [${Number(figure.cmin).toPrecision(3)} … ${Number(figure.cmax).toPrecision(3)}]`
                 : `${figure.series?.length ?? 0} series · ${(figure.series || []).reduce((s, x) => s + (x.x?.length ?? x.theta?.length ?? 0), 0)} points`}
             </span>
+            <button className="ve-close" onClick={() => setMaximized((m) => !m)}
+              title={maximized ? 'Restore' : 'Maximise'} aria-label="Maximise">
+              {maximized ? (
+                <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
+                  <rect x="3.5" y="1.5" width="7" height="7" stroke="currentColor" strokeWidth="1.2"/>
+                  <path d="M1.5 3.5h2v-2 M1.5 8.5v2h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ) : (
+                <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
+                  <rect x="1.5" y="1.5" width="9" height="9" stroke="currentColor" strokeWidth="1.2"/>
+                </svg>
+              )}
+            </button>
             <button className="ve-close" onClick={onClose} aria-label="Close">×</button>
           </div>
         </div>

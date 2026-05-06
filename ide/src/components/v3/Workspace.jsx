@@ -816,6 +816,7 @@ export function VariableEditor({ variable, onClose, engine }) {
   const [heatmap, setHeatmap]     = useState(false);
   const [showPlot, setShowPlot]   = useState(false);
   const [saveOpen, setSaveOpen]   = useState(false);
+  const [maximized, setMaximized] = useState(false);
   const [activeCell, setActiveCell] = useState({ r: 0, c: 0 });
   const [editing, setEditing]     = useState(null);
   const [editVal, setEditVal]     = useState('');
@@ -1108,7 +1109,8 @@ export function VariableEditor({ variable, onClose, engine }) {
 
   return (
     <div className="ve-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="ve-window" role="dialog" aria-label={`Variable Editor: ${variable.name}`}>
+      <div className={`ve-window ${maximized ? 'is-max' : ''}`}
+        role="dialog" aria-label={`Variable Editor: ${variable.name}`}>
         <div className="ve-titlebar">
           <div className="ve-title-left">
             <span className="ve-tag" style={{ color: tone.fg, background: tone.bg, borderColor: tone.border }}>
@@ -1130,6 +1132,19 @@ export function VariableEditor({ variable, onClose, engine }) {
               </span>
             )}
             <span className="ve-meta">{variable.bytes} B · {rows * cols} elements</span>
+            <button className="ve-close" onClick={() => setMaximized((m) => !m)}
+              title={maximized ? 'Restore' : 'Maximise'} aria-label="Maximise">
+              {maximized ? (
+                <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
+                  <rect x="3.5" y="1.5" width="7" height="7" stroke="currentColor" strokeWidth="1.2"/>
+                  <path d="M1.5 3.5h2v-2 M1.5 8.5v2h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ) : (
+                <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
+                  <rect x="1.5" y="1.5" width="9" height="9" stroke="currentColor" strokeWidth="1.2"/>
+                </svg>
+              )}
+            </button>
             <button className="ve-close" onClick={onClose} aria-label="Close">×</button>
           </div>
         </div>
