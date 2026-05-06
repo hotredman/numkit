@@ -767,6 +767,8 @@ function VirtualTable({
                     onDoubleClick={() => {
                       setActiveCell({ r, c });
                       if (readOnly) return;
+                      // Same loaded-value guard as Enter / F2.
+                      if (v === null || v === undefined) return;
                       setEditing({ r, c });
                       setEditVal(typeof v === 'number' ? String(v) : '');
                     }}
@@ -1015,22 +1017,45 @@ export function VariableEditor({ variable, onClose, engine }) {
     return String(v);
   }
 
-  function commitEdit() {
+  // useCallback so handleKey (which lists it in deps) gets a fresh reference
+  // whenever editVal changes — without this Enter committed with the value
+  // the input had at the moment commitEdit was first defined.
+  const commitEdit = useCallback(() => {
     if (!editing) return;
-    // Tile-mode is read-only (no engine write-back yet) — `data` here
-    // is just the cheap preview, so blindly indexing it would trip on
-    // any cell outside the preview. Drop the edit silently.
-    if (shape.tileMode) { setEditing(null); return; }
     const parsed = parseFloat(editVal);
-    if (!Number.isNaN(parsed)) {
+    if (Number.isNaN(parsed)) { setEditing(null); return; }
+    const { r, c } = editing;
+
+    // Write back to the engine via a MATLAB-style assignment. The engine's
+    // parser handles 1-based indexing, type coercion, and persistent
+    // workspace storage. With the workspace touched the IDE's regular
+    // post-execute refresh picks up the new value on its next sync.
+    if (engine && typeof engine.execute === 'function') {
+      try {
+        engine.execute(`${variable.name}(${r + 1},${c + 1}) = ${parsed};`);
+      } catch (e) {
+        console.warn('[VariableEditor] write-back failed:', e);
+      }
+    }
+
+    if (shape.tileMode) {
+      // Drop the affected tile + slice caches so the next render re-fetches
+      // fresh values from the engine.
+      const tR = Math.floor(r / TILE), tC = Math.floor(c / TILE);
+      tileCache.current.delete(`${tR},${tC}`);
+      sliceCache.current.delete(`col:${c}`);
+      sliceCache.current.delete(`row:${r}`);
+      setTileBump((n) => n + 1);
+    } else {
+      // Full mode: update the local mirror so the cell repaints immediately.
       setData((d) => {
-        const copy = d.map((r) => r.slice());
-        if (copy[editing.r]) copy[editing.r][editing.c] = parsed;
+        const copy = d.map((row) => row.slice());
+        if (copy[r]) copy[r][c] = parsed;
         return copy;
       });
     }
     setEditing(null);
-  }
+  }, [editing, editVal, engine, variable.name, shape.tileMode]);
 
   useEffect(() => {
     if (editing && inputRef.current) {
@@ -1047,11 +1072,11 @@ export function VariableEditor({ variable, onClose, engine }) {
     }
     if (e.key === 'Escape') { onClose(); return; }
     if (e.key === 'Enter' || e.key === 'F2') {
-      // Tile-mode is read-only — editing would require a write-back
-      // binding the engine doesn't expose yet. Show the cell value via
-      // the address bar but skip entering edit mode.
-      if (shape.tileMode) return;
+      // Don't prompt on a placeholder cell whose tile hasn't loaded yet —
+      // editing it would seed the input with "—" which the user has to
+      // erase first. Wait for the value.
       const v = getCellValue(activeCell.r, activeCell.c);
+      if (v === null || v === undefined) return;
       setEditing({ ...activeCell });
       setEditVal(typeof v === 'number' ? String(v) : '');
       e.preventDefault();
@@ -1070,7 +1095,7 @@ export function VariableEditor({ variable, onClose, engine }) {
       setActiveCell({ r, c });
       e.preventDefault();
     }
-  }, [activeCell, rows, cols, editing, getCellValue, onClose, shape.tileMode]);
+  }, [activeCell, rows, cols, editing, getCellValue, onClose, shape.tileMode, commitEdit]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKey);
@@ -1208,7 +1233,7 @@ export function VariableEditor({ variable, onClose, engine }) {
             inputRef={inputRef}
             heatmap={heatmap} stats={stats}
             format={format}
-            readOnly={shape.tileMode}
+            readOnly={false}
           />
           {showPlot && (
             <InlinePlot
