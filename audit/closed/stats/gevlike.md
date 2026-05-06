@@ -81,3 +81,22 @@ data = [1 2 3 4 5]'
 
 - `cens`/`freq` — not in MATLAB's `gevlike` contract.
 - The `gevfit` companion (currently ❌ in PROGRESS) — separate work.
+
+## Closed (PARTIAL)
+- Closed in commit: PENDING
+- Closed date: 2026-05-06
+- Notes:
+  - **k != 0:** ACOV computed via central-difference Hessian (new
+    `fill_fd_avar3` 3×3 helper, 18 nL evaluations + closed-form
+    cofactor inversion). Matches MATLAB to ~3e-7 across all 6
+    upper-triangle entries at [k=0.5, σ=1, μ=0], x=[1..5].
+  - **Edge:** sigma<=0 and per-point support violation (1+k*z<=0)
+    now return NaN (was +Inf), matching MATLAB R2025b.
+  - **Known gap (k=0 exactly):** MATLAB uses an analytical
+    Gumbel-limit Hessian; FD straddling k=0 reports a different
+    ACOV (FD-on-MATLAB's-own-gevlike confirms ~0.030, 0.098, -1.622
+    rather than MATLAB's 0.003, 4e-5, 1.376). Implementing the
+    analytical Gumbel-limit Hessian (with k-derivatives via Taylor
+    expansion of (1/k+1)·log(1+kz) + (1+kz)^(-1/k) around k=0) is
+    significant work; deferred. nL at k=0 still matches exactly.
+  - 6 TEST_F gtest + smoke .m. Parity OK numkit ↔ MATLAB at tol=1e-6.
