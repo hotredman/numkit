@@ -85,3 +85,20 @@ data = [1 2 3 4 5]'
 - The `theta` (location/threshold) parameter — MATLAB's `gplike` is
   documented as taking `[k sigma]` only with implicit `theta=0`.
 - The `gpfit` companion (currently ❌ in PROGRESS) — separate work.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-06
+- Notes:
+  - gplike_reg specialized to honour nargout >= 2; emits 2×2 inverse
+    observed-Fisher matrix via shared `fill_fd_avar2` helper. Matches
+    MATLAB to ~3e-7 (k>0) and ~2e-6 (k=0).
+  - Dropped the bogus `xi < 0` early-exit. MATLAB does NOT enforce
+    x>=0 globally — only the per-point support `1 + k*x/sigma > 0`.
+    Verified: gplike([0.5,1], [-1 1 2]') now returns 1.2163953243.
+  - **Edges (asymmetric vs gevlike — verified by direct probe):**
+    sigma == 0 → NaN; sigma < 0 → -Inf; per-point support violation
+    → +Inf (NOT NaN). The ТЗ's guess (NaN) was wrong; numkit now
+    matches MATLAB R2025b exactly.
+  - Spec extended (10 fingerprint values, tol=1e-5).
+  - 9 TEST_F gtest + smoke .m. Parity OK numkit ↔ MATLAB.

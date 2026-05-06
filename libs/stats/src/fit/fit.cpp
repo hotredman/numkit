@@ -443,21 +443,26 @@ double gevlike(std::pmr::memory_resource * /*mr*/, double k, double sigma,
 double gplike(std::pmr::memory_resource * /*mr*/, double k, double sigma,
               const Value &x)
 {
+    // MATLAB's gplike does NOT enforce x >= 0 — it only requires the
+    // per-point support condition `1 + k*x/sigma > 0`. With k>0 that
+    // permits negative x close enough to 0; with k=0 (exponential
+    // limit) the formula admits any finite x. Edges (matching MATLAB
+    // R2025b probe — note the asymmetry vs gevlike):
+    //   sigma == 0 → NaN
+    //   sigma  < 0 → -Inf
+    //   per-point support violation → +Inf (not NaN)
     const size_t N = x.numel();
-    if (N == 0 || sigma <= 0.0) return std::numeric_limits<double>::infinity();
+    if (N == 0) return std::numeric_limits<double>::infinity();
+    if (sigma == 0.0) return std::numeric_limits<double>::quiet_NaN();
+    if (sigma  < 0.0) return -std::numeric_limits<double>::infinity();
     if (k == 0.0) {
         double sX = 0.0;
-        for (size_t i = 0; i < N; ++i) {
-            const double xi = x.elemAsDouble(i);
-            if (xi < 0.0) return std::numeric_limits<double>::infinity();
-            sX += xi;
-        }
+        for (size_t i = 0; i < N; ++i) sX += x.elemAsDouble(i);
         return double(N) * std::log(sigma) + sX / sigma;
     }
     double sLogT = 0.0;
     for (size_t i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
-        if (xi < 0.0) return std::numeric_limits<double>::infinity();
         const double t = 1.0 + k * xi / sigma;
         if (t <= 0.0) return std::numeric_limits<double>::infinity();
         sLogT += std::log(t);
@@ -893,16 +898,24 @@ void gevlike_reg(Span<const Value> args, size_t nargout,
     }
 }
 
-void gplike_reg(Span<const Value> args, size_t /*nargout*/,
+void gplike_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2 || args[0].numel() < 2)
         throw Error("gplike: requires (params=[k sigma], data)",
                     0, 0, "gplike", "", "m:gplike:nargin");
+    auto *mr = ctx.engine->resource();
     const double k     = args[0].elemAsDouble(0);
     const double sigma = args[0].elemAsDouble(1);
-    const double nL = gplike(ctx.engine->resource(), k, sigma, args[1]);
-    outs[0] = Value::scalar(nL, ctx.engine->resource());
+    const Value &x     = args[1];
+    const double nL = gplike(mr, k, sigma, x);
+    outs[0] = Value::scalar(nL, mr);
+    if (nargout >= 2) {
+        Value ac = Value::matrix(2, 2, ValueType::DOUBLE, mr);
+        fill_fd_avar2(ac.doubleDataMut(), k, sigma, nL,
+                      [&](double kk, double ss) { return gplike(mr, kk, ss, x); });
+        outs[1] = std::move(ac);
+    }
 }
 
 } // namespace detail
