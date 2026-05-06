@@ -159,9 +159,10 @@ function flatten(fig) {
  * `figId` and `cellId` together build a unique React key + clip-path id —
  * subplots reuse the same fig.id across cells, so we suffix the cell.
  */
-function adaptAxes(figId, cellId, datasets, cfg) {
+function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
   // Heatmap / imagesc — single z-matrix dataset.
-  const imgDs = datasets.find((d) => (d.type || '').toLowerCase() === 'imagesc');
+  const imgDsIdx = datasets.findIndex((d) => (d.type || '').toLowerCase() === 'imagesc');
+  const imgDs = imgDsIdx >= 0 ? datasets[imgDsIdx] : null;
   if (imgDs && imgDs.z) {
     const z = imgDs.z;
     const nR = z.length;
@@ -204,6 +205,10 @@ function adaptAxes(figId, cellId, datasets, cfg) {
       downsampled:   imgDs.downsampled === true,
       originalRows:  imgDs.originalRows  || nR,
       originalCols:  imgDs.originalCols  || nC,
+      // Engine-side coordinates so Heatmap can call getFigureTile().
+      _figId: figId,
+      _axIdx: axIdx,
+      _dsIdx: imgDsIdx,
     };
   }
 
@@ -314,7 +319,7 @@ export function adaptFigure(fig) {
     const [rows, cols] = fig.subplotGrid;
     const cells = [];
     fig.axes.forEach((ax, i) => {
-      const cell = adaptAxes(fig.id, `${fig.id}-${i}`, ax.datasets || [], ax.config || {});
+      const cell = adaptAxes(fig.id, `${fig.id}-${i}`, ax.datasets || [], ax.config || {}, i);
       if (cell) {
         cell.subplotIndex = ax.subplotIndex || (i + 1);
         cells.push(cell);

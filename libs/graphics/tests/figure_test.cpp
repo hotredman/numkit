@@ -964,3 +964,95 @@ TEST_F(ImagescTileTest, SmallMatrixOmitsDownsampleFields)
     EXPECT_EQ(capturedOutput.find("\"downsampled\""), std::string::npos);
     EXPECT_EQ(capturedOutput.find("\"originalRows\""), std::string::npos);
 }
+
+// ============================================================
+// FigureManager::getFigureTile — sub-rect read with LOD pooling
+// ============================================================
+
+class FigureTileTest : public FigureEngineTest {};
+
+TEST_F(FigureTileTest, FullExtentLod1)
+{
+    // 100×100 eye matrix, fetch the full extent at lod=1 — should match
+    // zRaw exactly (column-major source → row-major output).
+    eval("imagesc(eye(100));");
+    int figId = fm().currentFigureId();
+    std::vector<float> tile;
+    size_t oRows = 0, oCols = 0;
+    bool ok = fm().getFigureTile(figId, 0, 0, 0, 0, 100, 100, 1, tile, oRows, oCols);
+    ASSERT_TRUE(ok);
+    EXPECT_EQ(oRows, 100u);
+    EXPECT_EQ(oCols, 100u);
+    EXPECT_EQ(tile.size(), 100u * 100u);
+    // Row 0, col 0 of eye(100) is 1; row 0, col 1 is 0.
+    EXPECT_FLOAT_EQ(tile[0], 1.0f);
+    EXPECT_FLOAT_EQ(tile[1], 0.0f);
+    // Row 1, col 1 is 1.
+    EXPECT_FLOAT_EQ(tile[1 * 100 + 1], 1.0f);
+}
+
+TEST_F(FigureTileTest, SubRectExtractsCorrectRegion)
+{
+    // ones(3000), fetch a 200×200 region from offset (1000, 1000) — every
+    // value is 1, output mean is 1.
+    eval("imagesc(ones(3000));");
+    int figId = fm().currentFigureId();
+    std::vector<float> tile;
+    size_t oRows = 0, oCols = 0;
+    bool ok = fm().getFigureTile(figId, 0, 0, 1000, 1000, 200, 200, 1, tile, oRows, oCols);
+    ASSERT_TRUE(ok);
+    EXPECT_EQ(oRows, 200u);
+    EXPECT_EQ(oCols, 200u);
+    for (float v : tile) EXPECT_FLOAT_EQ(v, 1.0f);
+}
+
+TEST_F(FigureTileTest, LodPoolingHalvesDimensions)
+{
+    // ones(1000), fetch full extent at lod=4 — expect 250×250 output, all 1s.
+    eval("imagesc(ones(1000));");
+    int figId = fm().currentFigureId();
+    std::vector<float> tile;
+    size_t oRows = 0, oCols = 0;
+    bool ok = fm().getFigureTile(figId, 0, 0, 0, 0, 1000, 1000, 4, tile, oRows, oCols);
+    ASSERT_TRUE(ok);
+    EXPECT_EQ(oRows, 250u);
+    EXPECT_EQ(oCols, 250u);
+    for (float v : tile) EXPECT_FLOAT_EQ(v, 1.0f);
+}
+
+TEST_F(FigureTileTest, OutOfRangeReturnsFalse)
+{
+    eval("imagesc(eye(100));");
+    int figId = fm().currentFigureId();
+    std::vector<float> tile;
+    size_t oRows = 0, oCols = 0;
+    EXPECT_FALSE(fm().getFigureTile(figId, 0, 0, 200, 0, 10, 10, 1, tile, oRows, oCols));
+    EXPECT_FALSE(fm().getFigureTile(figId, 0, 0, 0, 0, 10, 10, 1, tile, oRows, oCols)
+                 == false  /* on-range succeeds */);
+}
+
+TEST_F(FigureTileTest, NonImagescReturnsFalse)
+{
+    // plot(...) creates a line dataset, not imagesc — getFigureTile should refuse.
+    eval("plot([1 2 3], [1 4 9]);");
+    int figId = fm().currentFigureId();
+    std::vector<float> tile;
+    size_t oRows = 0, oCols = 0;
+    EXPECT_FALSE(fm().getFigureTile(figId, 0, 0, 0, 0, 1, 1, 1, tile, oRows, oCols));
+}
+
+TEST_F(FigureTileTest, OversizedMatrixServesFullResolutionTile)
+{
+    // After Phase 1 cap, a 3000×3000 imagesc has a downsampled JSON preview
+    // but zRaw still holds the full 9M cells. A tile request reads zRaw,
+    // not the preview — so we get exact data even when the preview is mean-pooled.
+    eval("imagesc(ones(3000));");
+    int figId = fm().currentFigureId();
+    std::vector<float> tile;
+    size_t oRows = 0, oCols = 0;
+    bool ok = fm().getFigureTile(figId, 0, 0, 1500, 1500, 100, 100, 1, tile, oRows, oCols);
+    ASSERT_TRUE(ok);
+    EXPECT_EQ(oRows, 100u);
+    EXPECT_EQ(oCols, 100u);
+    for (float v : tile) EXPECT_FLOAT_EQ(v, 1.0f);
+}

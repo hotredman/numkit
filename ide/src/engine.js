@@ -304,6 +304,37 @@ export async function createWasmEngine(createModule) {
       }
     },
 
+    // Tile fetcher for huge imagesc datasets. Returns
+    //   { rows, cols, data: Float32Array }
+    // or { error: ... } when out of range / not an imagesc dataset.
+    // Heatmap calls this on zoom-end with a recomputed LOD so the visible
+    // area gets the right detail without ever shipping the full matrix.
+    getFigureTile(figId, axIdx, dsIdx, r0, c0, h, w, lod) {
+      if (typeof Module.repl_get_figure_tile !== 'function') return null;
+      try {
+        const raw = Module.repl_get_figure_tile(figId|0, axIdx|0, dsIdx|0,
+                                                r0|0, c0|0, h|0, w|0, lod|0);
+        const obj = JSON.parse(raw);
+        if (obj.error) return obj;
+        // Convert plain array → Float32Array; null (NaN) becomes NaN, "Inf"/"-Inf"
+        // become ±Infinity. Saves a memcpy when the consumer treats it as
+        // typed-array (canvas blit etc.).
+        const N = (obj.data || []).length;
+        const arr = new Float32Array(N);
+        for (let i = 0; i < N; i++) {
+          const v = obj.data[i];
+          arr[i] = v == null ? NaN
+                 : v === 'Inf' ? Infinity
+                 : v === '-Inf' ? -Infinity
+                 : Number(v);
+        }
+        return { rows: obj.rows, cols: obj.cols, data: arr };
+      } catch (e) {
+        console.warn('[engine] getFigureTile failed', e);
+        return { error: e?.message || String(e) };
+      }
+    },
+
     // ── Debug API ──
     get hasDebugger() {
       return typeof Module.repl_debug_start === 'function';
@@ -477,6 +508,7 @@ export function createFallbackEngine() {
       return { rows: r.rows, cols: r.cols, n, min: n ? mn : null,
                max: n ? mx : null, mean: n ? sum / n : null, hasNaN };
     },
+    getFigureTile() { return null; },   // fallback engine doesn't track figures
 
     // ── Debug API (stub for fallback) ──
     get hasDebugger() { return false; },

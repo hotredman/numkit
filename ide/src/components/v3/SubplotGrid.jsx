@@ -33,6 +33,7 @@ export default function SubplotGrid({
   major = true,
   minor = false,
   interactive = true,
+  engine = null,
 }) {
   const [rows, cols] = figure.grid;
   const cellW = Math.floor(width  / cols);
@@ -78,6 +79,7 @@ export default function SubplotGrid({
               major, minor,
               fontScale: subFont,
               interactive,
+              engine,
             })}
           </div>
         );

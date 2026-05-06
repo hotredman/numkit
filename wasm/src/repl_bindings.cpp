@@ -677,6 +677,47 @@ public:
         engine_->setOutputFunc([this](const std::string &s) { outputBuf_ += s; });
     }
 
+    /* ---- Tile-fetcher for huge imagesc datasets ----
+     *
+     * Reads a sub-rectangle (r0..r0+h, c0..c0+w) from the figure's zRaw,
+     * mean-pooled by lod×lod, returns row-major float JSON:
+     *
+     *   { rows: <oH>, cols: <oW>, data: [v0, v1, ...] }
+     *
+     * The IDE Heatmap calls this on zoom-end to refetch the visible area
+     * at the right LOD, then blits the result over the inline preview.
+     */
+    std::string getFigureTileJSON(int figId, int axIdx, int dsIdx,
+                                  int r0, int c0, int h, int w, int lod) {
+        try {
+            const auto &fm = engine_->figureManager();
+            std::vector<float> tile;
+            size_t outRows = 0, outCols = 0;
+            bool ok = fm.getFigureTile(figId, axIdx, dsIdx, r0, c0, h, w, lod,
+                                       tile, outRows, outCols);
+            if (!ok) {
+                return "{\"error\":\"out of range or no zRaw\"}";
+            }
+
+            std::ostringstream os;
+            os << "{\"rows\":" << outRows
+               << ",\"cols\":" << outCols
+               << ",\"data\":[";
+            os.precision(7);
+            for (size_t i = 0; i < tile.size(); ++i) {
+                if (i) os << ",";
+                const float v = tile[i];
+                if (std::isnan(v))      os << "null";
+                else if (std::isinf(v)) os << (v > 0 ? "\"Inf\"" : "\"-Inf\"");
+                else                    os << v;
+            }
+            os << "]}";
+            return os.str();
+        } catch (const std::exception &e) {
+            return std::string("{\"error\":\"") + e.what() + "\"}";
+        }
+    }
+
 private:
     std::unique_ptr<numkit::Engine> engine_;
     std::string outputBuf_;
@@ -853,6 +894,12 @@ std::string repl_get_var_stats(const std::string &name) {
     return g_session->getVarStatsJSON(name);
 }
 
+std::string repl_get_figure_tile(int figId, int axIdx, int dsIdx,
+                                 int r0, int c0, int h, int w, int lod) {
+    if (!g_session) return "{\"error\":\"no session\"}";
+    return g_session->getFigureTileJSON(figId, axIdx, dsIdx, r0, c0, h, w, lod);
+}
+
 std::string repl_version() {
     if (!g_session) repl_init();
     return g_session->version();
@@ -939,6 +986,7 @@ EMSCRIPTEN_BINDINGS(numkit_ide) {
     emscripten::function("repl_get_var_shape", &repl_get_var_shape);
     emscripten::function("repl_get_var_tile",  &repl_get_var_tile);
     emscripten::function("repl_get_var_stats", &repl_get_var_stats);
+    emscripten::function("repl_get_figure_tile", &repl_get_figure_tile);
     emscripten::function("repl_version",   &repl_version);
     emscripten::function("repl_debug_set_breakpoints", &repl_debug_set_breakpoints);
     emscripten::function("repl_debug_start",           &repl_debug_start);
