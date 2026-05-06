@@ -264,8 +264,10 @@ export default function FigureWindow({ figure, onClose }) {
               title={maximized ? 'Restore' : 'Maximise'} aria-label="Maximise">
               {maximized ? (
                 <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
-                  <rect x="3.5" y="1.5" width="7" height="7" stroke="currentColor" strokeWidth="1.2"/>
-                  <path d="M1.5 3.5h2v-2 M1.5 8.5v2h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <rect x="1.5" y="3.5" width="7" height="7"
+                    stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
+                  <rect x="3.5" y="1.5" width="7" height="7"
+                    stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
                 </svg>
               ) : (
                 <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
