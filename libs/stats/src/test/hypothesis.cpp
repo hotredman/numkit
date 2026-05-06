@@ -1318,15 +1318,26 @@ void ztest_reg(Span<const Value> args, size_t nargout,
                Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("ztest: requires (X, m, sigma[, alpha, tail])",
+        throw Error("ztest: requires (X, m, sigma[, alpha, tail | name-value])",
                     0, 0, "ztest", "", "m:ztest:nargin");
     const double m     = args[1].toScalar();
     const double sigma = args[2].toScalar();
-    double alpha = parse_alpha(args, 3, 0.05);
+    double alpha = 0.05;
     TestTail tail = TestTail::Both;
-    for (size_t i = 3; i < args.size(); ++i)
-        if (args[i].isChar() || args[i].isString())
-            tail = parse_tail(args[i].toString(), TestTail::Both);
+    size_t i = 3;
+    while (i < args.size()) {
+        const Value &a = args[i];
+        if (a.isChar() || a.isString()) {
+            std::string sl = a.toString();
+            for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (sl == "alpha" && i + 1 < args.size()) { alpha = args[i + 1].toScalar(); i += 2; }
+            else if (sl == "tail" && i + 1 < args.size()) { tail = parse_tail(args[i + 1].toString(), tail); i += 2; }
+            else if (sl == "dim")
+                throw Error("ztest: 'Dim' not yet supported (parity gap)",
+                            0, 0, "ztest", "", "m:ztest:dim");
+            else { tail = parse_tail(sl, tail); ++i; }
+        } else { alpha = a.toScalar(); ++i; }
+    }
     auto [h, p, ci, z] = ztest(ctx.engine->resource(), args[0], m, sigma, alpha, tail);
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);

@@ -76,3 +76,8 @@ x = [1.2 2.4 3.1 4.5 5.0 6.2 7.1]', m = 4, sigma = 1.5
 
 - The `Dim` keyword for non-default reduction — covered conceptually
   by the matrix-input gap, can be added incrementally.
+
+## Closed (partial)
+- Closed in commit: PENDING (ztest NV fix)
+- Closed date: 2026-05-06
+- Notes: Adapter rewritten with proper Name-Value parsing for Alpha/Tail (case-insensitive). 'Dim' N-V throws with parity-gap message. 4th output is scalar zval (already matches MATLAB; no struct here). Verified vs MATLAB R2025b on 7 fingerprints (3-engine match). Matrix input + Dim still not supported.

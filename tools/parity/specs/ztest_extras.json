@@ -1,0 +1,14 @@
+{
+  "name": "ztest_extras",
+  "namespace": "stats",
+  "setup": "x = [1.2 2.4 3.1 4.5 5.0]';",
+  "expr": "[h95,p,c95,z] = ztest(x, 3, 1, 'Alpha', 0.05); [h99,~,c99,~] = ztest(x, 3, 1, 'Alpha', 0.01); [hr, pr, ~] = ztest(x, 3, 1, 'Tail', 'right');",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "h95", "p", "z",
+    "c95(2) - c95(1)", "c99(2) - c99(1)",
+    "hr", "pr"
+  ],
+  "comment": "Sig: ztest(x, m, sigma[, NV]). Alpha/Tail Name-Value pairs (case-insensitive). 'Dim' N-V throws (parity gap). 4th output is scalar zval (matches MATLAB which doesn't return a struct here). Closes audit/findings/stats/ztest.md."
+}
