@@ -251,6 +251,107 @@ export async function createWasmEngine(createModule) {
       return {};
     },
 
+    // Full matrix data for the Variable Editor table. Returns:
+    //   { name, type, rows, cols, data: number[][] | string[][] | null[][] }
+    // or { error: '...' } on failure (variable missing, stale WASM, etc.).
+    // The repl_get_var_data binding was added in the v3 IDE; older WASM
+    // builds simply lack it and we return null so the caller can fall back
+    // to the preview-only data already in workspace().
+    getVarData(name) {
+      if (typeof Module.repl_get_var_data !== 'function') return null;
+      try {
+        const raw = Module.repl_get_var_data(name);
+        return JSON.parse(raw);
+      } catch (e) {
+        console.warn('[engine] getVarData failed for', name, e);
+        return { error: e?.message || String(e) };
+      }
+    },
+
+    // Cheap dimension-only query — used to size the editor grid before
+    // we know whether full or tile-mode fetching makes sense.
+    //   { name, type, rows, cols, numel } | { error }
+    getVarShape(name) {
+      if (typeof Module.repl_get_var_shape !== 'function') return null;
+      try { return JSON.parse(Module.repl_get_var_shape(name)); }
+      catch (e) {
+        console.warn('[engine] getVarShape failed for', name, e);
+        return { error: e?.message || String(e) };
+      }
+    },
+
+    // Tile fetch — returns a rectangular submatrix
+    //   [r0..r0+rows) × [c0..c0+cols)  →  { r0, c0, rows, cols, type, data }
+    // Used by VariableEditor for huge matrices where a full fetch would OOM.
+    getVarTile(name, r0, c0, rows, cols) {
+      if (typeof Module.repl_get_var_tile !== 'function') return null;
+      try { return JSON.parse(Module.repl_get_var_tile(name, r0|0, c0|0, rows|0, cols|0)); }
+      catch (e) {
+        console.warn('[engine] getVarTile failed for', name, e);
+        return { error: e?.message || String(e) };
+      }
+    },
+
+    // Aggregate stats — { rows, cols, n, min, max, mean, hasNaN }.
+    // Used by the VariableEditor heatmap in tile-mode where loading every
+    // cell to JS would be impractical.
+    getVarStats(name) {
+      if (typeof Module.repl_get_var_stats !== 'function') return null;
+      try { return JSON.parse(Module.repl_get_var_stats(name)); }
+      catch (e) {
+        console.warn('[engine] getVarStats failed for', name, e);
+        return { error: e?.message || String(e) };
+      }
+    },
+
+    // Source-grid tile fetcher (legacy JSON path). Returns
+    //   { rows, cols, data: Uint8Array }
+    // Stage C added the binary getFigureDisplayTile below — the IDE Heatmap
+    // now uses that one. This stays callable for code that wants a source-
+    // grid tile without resampling (e.g. fitColorsToVisible scans for stats).
+    getFigureTile(figId, axIdx, dsIdx, r0, c0, h, w, lod) {
+      if (typeof Module.repl_get_figure_tile !== 'function') return null;
+      try {
+        const raw = Module.repl_get_figure_tile(figId|0, axIdx|0, dsIdx|0,
+                                                r0|0, c0|0, h|0, w|0, lod|0);
+        const obj = JSON.parse(raw);
+        if (obj.error) return obj;
+        // After Stage A obj.data is a plain JSON array of uint8 indices.
+        return { rows: obj.rows, cols: obj.cols,
+                 data: Uint8Array.from(obj.data || []) };
+      } catch (e) {
+        console.warn('[engine] getFigureTile failed', e);
+        return { error: e?.message || String(e) };
+      }
+    },
+
+    // Display-grid tile fetcher with binary transit. Returns a fresh
+    // Uint8Array of size displayH × displayW row-major (idx 255 = NaN).
+    // The engine resamples zQuantized to display resolution in one pass,
+    // applying log10 axis transforms when xLog/yLog is set.
+    //
+    // Behind the scenes: WASM returns a typed_memory_view INTO an engine-
+    // side buffer that gets reused on the next call — we copy it into a
+    // standalone Uint8Array so the consumer can hold it without races.
+    getFigureDisplayTile(figId, axIdx, dsIdx,
+                         srcR0, srcC0, srcH, srcW,
+                         displayH, displayW, xLog, yLog) {
+      if (typeof Module.repl_get_figure_display_tile !== 'function') return null;
+      try {
+        const view = Module.repl_get_figure_display_tile(
+          figId|0, axIdx|0, dsIdx|0,
+          +srcR0, +srcC0, +srcH, +srcW,
+          displayH|0, displayW|0,
+          !!xLog, !!yLog);
+        if (!view) return null;
+        // Copy the heap view into a standalone Uint8Array.
+        return new Uint8Array(view);
+      } catch (e) {
+        console.warn('[engine] getFigureDisplayTile failed', e);
+        return null;
+      }
+    },
+
     // ── Debug API ──
     get hasDebugger() {
       return typeof Module.repl_debug_start === 'function';
@@ -370,6 +471,62 @@ export function createFallbackEngine() {
       return keys.join(', ');
     },
     getVars() { return interp.getVars(); },
+    getVarData(name) {
+      // Fallback engine stores plain JS values — coerce to mockup shape.
+      const vars = interp.getVars();
+      const v = vars[name];
+      if (v == null) return { error: `variable '${name}' not found` };
+      if (typeof v === 'number') {
+        return { name, type: 'double', rows: 1, cols: 1, data: [[v]] };
+      }
+      if (typeof v === 'string') {
+        return { name, type: 'char', rows: 1, cols: v.length,
+                 data: [v.split('').map((c) => c)] };
+      }
+      if (Array.isArray(v)) {
+        if (v.length && Array.isArray(v[0])) {
+          return { name, type: 'double', rows: v.length, cols: v[0].length,
+                   data: v.map((r) => r.slice()) };
+        }
+        return { name, type: 'double', rows: 1, cols: v.length, data: [v.slice()] };
+      }
+      return { name, type: typeof v, rows: 1, cols: 1, data: [[String(v)]] };
+    },
+    getVarShape(name) {
+      const r = this.getVarData(name);
+      if (!r || r.error) return r;
+      return { name, type: r.type, rows: r.rows, cols: r.cols, numel: r.rows * r.cols };
+    },
+    getVarTile(name, r0, c0, rows, cols) {
+      const full = this.getVarData(name);
+      if (!full || full.error) return full;
+      const rEnd = Math.min(full.rows, r0 + rows);
+      const cEnd = Math.min(full.cols, c0 + cols);
+      const data = [];
+      for (let r = r0; r < rEnd; r++) {
+        const row = [];
+        for (let c = c0; c < cEnd; c++) row.push(full.data[r]?.[c]);
+        data.push(row);
+      }
+      return { r0, c0, rows: rEnd - r0, cols: cEnd - c0, type: full.type, data };
+    },
+    getVarStats(name) {
+      const r = this.getVarData(name);
+      if (!r || r.error) return r;
+      let mn = Infinity, mx = -Infinity, sum = 0, n = 0, hasNaN = false;
+      for (const row of r.data) for (const v of row) {
+        if (typeof v !== 'number') continue;
+        if (Number.isNaN(v)) { hasNaN = true; continue; }
+        if (!Number.isFinite(v)) continue;
+        if (v < mn) mn = v;
+        if (v > mx) mx = v;
+        sum += v; n++;
+      }
+      return { rows: r.rows, cols: r.cols, n, min: n ? mn : null,
+               max: n ? mx : null, mean: n ? sum / n : null, hasNaN };
+    },
+    getFigureTile() { return null; },          // fallback engine doesn't track figures
+    getFigureDisplayTile() { return null; },
 
     // ── Debug API (stub for fallback) ──
     get hasDebugger() { return false; },

@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <sstream>
 
 namespace numkit {
@@ -350,29 +351,146 @@ void GraphicsLibrary::install(Engine &engine)
                 return;
             }
 
-            std::ostringstream zs;
-            zs << "[";
-            for (size_t r = 0; r < rows; ++r) {
-                if (r)
-                    zs << ",";
-                zs << "[";
-                for (size_t c = 0; c < cols; ++c) {
-                    if (c)
-                        zs << ",";
-                    double val;
-                    if (C_arg->isComplex()) {
-                        val = std::abs(C_arg->complexData()[c * rows + r]);
-                    } else {
-                        val = C_arg->doubleData()[c * rows + r];
-                    }
-                    doubleToJson(zs, val);
-                }
-                zs << "]";
-            }
-            zs << "]";
-
             DatasetInfo ds;
             ds.type = "imagesc";
+            ds.originalRows = rows;
+            ds.originalCols = cols;
+
+            // colorScale axes-state was set by `colorscale('log')` *before*
+            // this imagesc — bake log10 into the quantization. Non-positive
+            // and non-finite values become NaN (rendered transparent), not
+            // clamped to a fake "very negative dB" — clamping would skew
+            // cmin and waste the colour range on phantom data.
+            const bool logColor = (fm.currentAxes().colorScale == "log");
+            ds.colorScaleBaked = logColor;
+
+            const auto getRaw = [&](size_t idx) -> double {
+                if (C_arg->isComplex())
+                    return std::abs(C_arg->complexData()[idx]);
+                return C_arg->doubleData()[idx];
+            };
+            const auto getVal = [&](size_t idx) -> double {
+                const double r = getRaw(idx);
+                if (!std::isfinite(r)) return std::numeric_limits<double>::quiet_NaN();
+                if (!logColor) return r;
+                if (r <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+                return std::log10(r);
+            };
+
+            // Pass 1: scan for cmin/cmax (skipping NaN/Inf). When logColor
+            // is on these are already in log10 space.
+            double cmin = std::numeric_limits<double>::infinity();
+            double cmax = -std::numeric_limits<double>::infinity();
+            for (size_t i = 0; i < rows * cols; ++i) {
+                const double v = getVal(i);
+                if (std::isfinite(v)) {
+                    if (v < cmin) cmin = v;
+                    if (v > cmax) cmax = v;
+                }
+            }
+            // climJson if set has shape "[a,b]" — parse it for the user
+            // override. clim is in original-domain values; in log mode we
+            // need to take log10 of both limits for the quantization range.
+            if (!fm.currentAxes().climJson.empty()) {
+                const std::string &s = fm.currentAxes().climJson;
+                size_t lb = s.find('[');
+                size_t comma = s.find(',', lb);
+                size_t rb = s.find(']', comma);
+                if (lb != std::string::npos && comma != std::string::npos
+                    && rb != std::string::npos) {
+                    try {
+                        double a = std::stod(s.substr(lb + 1, comma - lb - 1));
+                        double b = std::stod(s.substr(comma + 1, rb - comma - 1));
+                        if (logColor) {
+                            if (a > 0 && b > 0) {
+                                cmin = std::log10(a);
+                                cmax = std::log10(b);
+                            }
+                            // else: keep scanned (log) values — user set bad clim for log
+                        } else {
+                            cmin = a;
+                            cmax = b;
+                        }
+                    } catch (...) { /* keep scanned values */ }
+                }
+            }
+            if (!std::isfinite(cmin) || !std::isfinite(cmax) || cmin == cmax) {
+                cmin = 0.0;
+                cmax = 1.0;
+            }
+            ds.cminOrig = cmin;
+            ds.cmaxOrig = cmax;
+            // ds.colorScaleBaked already set above based on logColor flag.
+
+            // Pass 2: quantize every cell to uint8. Index 0..254 = data range,
+            // 255 = NaN/Inf sentinel. Column-major to match MATLAB.
+            const double range = cmax - cmin;
+            const double qScale = (range > 0) ? 254.0 / range : 0.0;
+            ds.zQuantized.resize(rows * cols);
+            for (size_t i = 0; i < rows * cols; ++i) {
+                const double v = getVal(i);
+                if (!std::isfinite(v)) {
+                    ds.zQuantized[i] = 255;
+                } else {
+                    double t = (v - cmin) * qScale;
+                    if (t < 0) t = 0;
+                    else if (t > 254) t = 254;
+                    ds.zQuantized[i] = static_cast<uint8_t>(t + 0.5);
+                }
+            }
+
+            // Inline-JSON preview: emit uint8 indices (1-3 chars per cell)
+            // rather than doubles. Same ≤2M-cells cap as before — large
+            // matrices get mean-pooled in index space (idx 255 NaN-skipped).
+            constexpr size_t MAX_INLINE_CELLS = 2'000'000;
+            const size_t totalCells = rows * cols;
+            std::ostringstream zs;
+            zs << "[";
+
+            if (totalCells <= MAX_INLINE_CELLS) {
+                for (size_t r = 0; r < rows; ++r) {
+                    if (r) zs << ",";
+                    zs << "[";
+                    for (size_t c = 0; c < cols; ++c) {
+                        if (c) zs << ",";
+                        zs << static_cast<int>(ds.zQuantized[c * rows + r]);
+                    }
+                    zs << "]";
+                }
+            } else {
+                size_t step = 1;
+                while ((rows + step - 1) / step * ((cols + step - 1) / step) > MAX_INLINE_CELLS) {
+                    ++step;
+                }
+                const size_t dr = step;
+                const size_t dc = step;
+                const size_t outRows = (rows + dr - 1) / dr;
+                const size_t outCols = (cols + dc - 1) / dc;
+
+                for (size_t orow = 0; orow < outRows; ++orow) {
+                    if (orow) zs << ",";
+                    zs << "[";
+                    const size_t r0 = orow * dr;
+                    const size_t r1 = std::min(rows, r0 + dr);
+                    for (size_t ocol = 0; ocol < outCols; ++ocol) {
+                        if (ocol) zs << ",";
+                        const size_t c0 = ocol * dc;
+                        const size_t c1 = std::min(cols, c0 + dc);
+                        int sum = 0;
+                        int n = 0;
+                        for (size_t c = c0; c < c1; ++c) {
+                            for (size_t r = r0; r < r1; ++r) {
+                                const uint8_t q = ds.zQuantized[c * rows + r];
+                                if (q != 255) { sum += q; ++n; }
+                            }
+                        }
+                        zs << ((n > 0) ? (sum + n / 2) / n : 255);
+                    }
+                    zs << "]";
+                }
+                ds.downsampled = true;
+            }
+            zs << "]";
             ds.zJson = zs.str();
 
             if (x_arg && x_arg->numel() >= 2) {
@@ -512,6 +630,55 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.current().modified = true;
                 fm.emitModified();
             }
+            outs[0] = Value::empty();
+        });
+
+    // text(x, y, str, ...) — annotation overlay. Each call appends ONE
+    // text dataset (single-point) to the current axes. For arrays, the
+    // user iterates via for-loop in script. Trailing name-value pairs
+    // (Color, FontSize) parsed minimally — extra pairs are ignored.
+    //
+    // The IDE renders text overlays after the image / line layers so
+    // labels stay on top of imagesc / scatter.
+    reg("layout", "text",
+        [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            if (args.size() < 3) { outs[0] = Value::empty(); return; }
+            const Value &xv = args[0];
+            const Value &yv = args[1];
+            if (!xv.numel() || !yv.numel()) { outs[0] = Value::empty(); return; }
+            auto &fm = ctx.engine->figureManager();
+            // text() does NOT call prepareForPlot — it's an annotation,
+            // it should append to whatever's already there even without
+            // explicit `hold on`.
+            DatasetInfo ds;
+            ds.type = "text";
+            std::ostringstream xs, ys;
+            xs << "[" << xv.doubleData()[0] << "]";
+            ys << "[" << yv.doubleData()[0] << "]";
+            ds.xJson = xs.str();
+            ds.yJson = ys.str();
+            ds.label = argStr(args[2]);
+            // Parse trailing name-value pairs for color / fontsize.
+            // Pack into ds.style as a compact "color=#rrggbb;fontSize=N" string
+            // — IDE side knows to split it.
+            std::string extras;
+            for (size_t i = 3; i + 1 < args.size(); i += 2) {
+                std::string key = argStr(args[i]);
+                for (auto &c : key) c = std::tolower(c);
+                if (key == "color") {
+                    if (!extras.empty()) extras += ";";
+                    extras += "color=" + argStr(args[i + 1]);
+                } else if (key == "fontsize") {
+                    if (!extras.empty()) extras += ";";
+                    std::ostringstream fs;
+                    fs << "fontSize=" << args[i + 1].doubleData()[0];
+                    extras += fs.str();
+                }
+            }
+            ds.style = extras;
+            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.current().modified = true;
+            fm.emitModified();
             outs[0] = Value::empty();
         });
 
@@ -672,6 +839,51 @@ void GraphicsLibrary::install(Engine &engine)
             }
             outs[0] = Value::empty();
         });
+
+    // colorscale('log' | 'linear') — must be called BEFORE imagesc(M).
+    // Sets the axes' colorScale state, which survives prepareForPlot so
+    // the next imagesc bakes log10 into its quantization (one-shot —
+    // toggling after imagesc does nothing because the data is already
+    // quantized).
+    reg("layout", "colorscale",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            auto &fm = ctx.engine->figureManager();
+            if (args.empty()) {
+                fm.currentAxes().colorScale = "linear";
+            } else if (args[0].isChar()) {
+                std::string mode = args[0].toString();
+                for (auto &c : mode) c = std::tolower(c);
+                if (mode == "log" || mode == "linear") {
+                    fm.currentAxes().colorScale = mode;
+                }
+            }
+            outs[0] = Value::empty();
+        });
+
+    // xscale / yscale('log' | 'linear') — set the axis scale of the current
+    // axes. Mirrors `set(gca, 'XScale', 'log')` from MATLAB. Unlike colorscale
+    // these do NOT survive prepareForPlot — they're meant to be set AFTER
+    // the plot, like in MATLAB. The IDE-side renderer (Heatmap, Interactive-
+    // Plot) reads figure.xscale / figure.yscale to drive log-axis display.
+    auto regAxisScale = [&](const char *fnName, std::string AxesState::*field) {
+        reg("layout", fnName,
+            [field](Span<const Value> args, size_t nargout, Span<Value> outs,
+                    CallContext &ctx) {
+                auto &fm = ctx.engine->figureManager();
+                std::string mode = "linear";
+                if (!args.empty() && args[0].isChar()) {
+                    std::string m = args[0].toString();
+                    for (auto &c : m) c = std::tolower(c);
+                    if (m == "log" || m == "linear") mode = m;
+                }
+                fm.currentAxes().*field = mode;
+                fm.current().modified = true;
+                fm.emitModified();
+                outs[0] = Value::empty();
+            });
+    };
+    regAxisScale("xscale", &AxesState::xscale);
+    regAxisScale("yscale", &AxesState::yscale);
 
     // ================================================================
     // GUI no-ops (not yet implemented)
