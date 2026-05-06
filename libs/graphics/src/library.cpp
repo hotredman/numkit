@@ -356,16 +356,31 @@ void GraphicsLibrary::install(Engine &engine)
             ds.originalRows = rows;
             ds.originalCols = cols;
 
-            // Pass 1: scan for cmin/cmax (skipping NaN/Inf). Use clim from
-            // the axes if it was already set (imagesc(C,clim) syntax) — this
-            // bakes that clim into the quantization range.
-            double cmin = std::numeric_limits<double>::infinity();
-            double cmax = -std::numeric_limits<double>::infinity();
-            const auto getVal = [&](size_t idx) -> double {
+            // colorScale axes-state was set by `colorscale('log')` *before*
+            // this imagesc — bake log10 into the quantization. Non-positive
+            // and non-finite values become NaN (rendered transparent), not
+            // clamped to a fake "very negative dB" — clamping would skew
+            // cmin and waste the colour range on phantom data.
+            const bool logColor = (fm.currentAxes().colorScale == "log");
+            ds.colorScaleBaked = logColor;
+
+            const auto getRaw = [&](size_t idx) -> double {
                 if (C_arg->isComplex())
                     return std::abs(C_arg->complexData()[idx]);
                 return C_arg->doubleData()[idx];
             };
+            const auto getVal = [&](size_t idx) -> double {
+                const double r = getRaw(idx);
+                if (!std::isfinite(r)) return std::numeric_limits<double>::quiet_NaN();
+                if (!logColor) return r;
+                if (r <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+                return std::log10(r);
+            };
+
+            // Pass 1: scan for cmin/cmax (skipping NaN/Inf). When logColor
+            // is on these are already in log10 space.
+            double cmin = std::numeric_limits<double>::infinity();
+            double cmax = -std::numeric_limits<double>::infinity();
             for (size_t i = 0; i < rows * cols; ++i) {
                 const double v = getVal(i);
                 if (std::isfinite(v)) {
@@ -374,7 +389,8 @@ void GraphicsLibrary::install(Engine &engine)
                 }
             }
             // climJson if set has shape "[a,b]" — parse it for the user
-            // override. Cheap micro-parser since we own the format.
+            // override. clim is in original-domain values; in log mode we
+            // need to take log10 of both limits for the quantization range.
             if (!fm.currentAxes().climJson.empty()) {
                 const std::string &s = fm.currentAxes().climJson;
                 size_t lb = s.find('[');
@@ -383,8 +399,18 @@ void GraphicsLibrary::install(Engine &engine)
                 if (lb != std::string::npos && comma != std::string::npos
                     && rb != std::string::npos) {
                     try {
-                        cmin = std::stod(s.substr(lb + 1, comma - lb - 1));
-                        cmax = std::stod(s.substr(comma + 1, rb - comma - 1));
+                        double a = std::stod(s.substr(lb + 1, comma - lb - 1));
+                        double b = std::stod(s.substr(comma + 1, rb - comma - 1));
+                        if (logColor) {
+                            if (a > 0 && b > 0) {
+                                cmin = std::log10(a);
+                                cmax = std::log10(b);
+                            }
+                            // else: keep scanned (log) values — user set bad clim for log
+                        } else {
+                            cmin = a;
+                            cmax = b;
+                        }
                     } catch (...) { /* keep scanned values */ }
                 }
             }
@@ -394,7 +420,7 @@ void GraphicsLibrary::install(Engine &engine)
             }
             ds.cminOrig = cmin;
             ds.cmaxOrig = cmax;
-            ds.colorScaleBaked = false;   // Stage B will set true on log
+            // ds.colorScaleBaked already set above based on logColor flag.
 
             // Pass 2: quantize every cell to uint8. Index 0..254 = data range,
             // 255 = NaN/Inf sentinel. Column-major to match MATLAB.
@@ -761,6 +787,26 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.currentAxes().colormapName = name;
                 fm.current().modified = true;
                 fm.emitModified();
+            }
+            outs[0] = Value::empty();
+        });
+
+    // colorscale('log' | 'linear') — must be called BEFORE imagesc(M).
+    // Sets the axes' colorScale state, which survives prepareForPlot so
+    // the next imagesc bakes log10 into its quantization (one-shot —
+    // toggling after imagesc does nothing because the data is already
+    // quantized).
+    reg("layout", "colorscale",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            auto &fm = ctx.engine->figureManager();
+            if (args.empty()) {
+                fm.currentAxes().colorScale = "linear";
+            } else if (args[0].isChar()) {
+                std::string mode = args[0].toString();
+                for (auto &c : mode) c = std::tolower(c);
+                if (mode == "log" || mode == "linear") {
+                    fm.currentAxes().colorScale = mode;
+                }
             }
             outs[0] = Value::empty();
         });

@@ -70,6 +70,7 @@ struct AxesState
 
     std::string xscale = "linear";
     std::string yscale = "linear";
+    std::string colorScale = "linear";  // 'linear' | 'log' — survives prepareForPlot
     std::string axisMode;
 
     std::string thetaDir = "counterclockwise";
@@ -194,9 +195,14 @@ public:
     {
         auto &ax = currentAxes();
         if (!ax.holdOn) {
+            // Preserve fields that "survive a fresh plot" — subplot position
+            // and colorScale (the latter so `colorscale('log'); imagesc(M)`
+            // bakes log into the new dataset's quantization).
             int savedSubplot = ax.subplotIndex;
+            std::string savedColorScale = ax.colorScale;
             ax = AxesState{};
             ax.subplotIndex = savedSubplot;
+            ax.colorScale = savedColorScale;
         }
         current().modified = true;
     }
