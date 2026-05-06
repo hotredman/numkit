@@ -562,7 +562,7 @@ function PlotControls({ rows, cols,
   );
 }
 
-function InlinePlot({ data, rows, cols, onClose }) {
+function InlinePlot({ getSlice, rows, cols, onClose }) {
   const [mAxis, setMAxis] = useState('col');
   const [mSel, setMSel]   = useState(() => new Set([0]));
   const [mXMode, setMXMode] = useState('index');
@@ -580,9 +580,11 @@ function InlinePlot({ data, rows, cols, onClose }) {
 
   const palette = ['#7fd99a', '#5fb3d4', '#e9b870', '#9b8cf2', '#e26a6a', '#d4a5e6', '#f2a37e', '#6fcfbf'];
 
+  // Slice fetcher provided by the parent — synchronous in full mode
+  // (just reads the data array), tile-mode returns the slice from the
+  // engine via a single column/row tile fetch.
   function sliceArr(src) {
-    if (src.axis === 'row') return data[src.idx] || [];
-    return data.map((r) => r[src.idx]);
+    return getSlice(src.axis, src.idx) || [];
   }
 
   const limit = mAxis === 'col' ? cols : rows;
@@ -592,7 +594,7 @@ function InlinePlot({ data, rows, cols, onClose }) {
     ? `${mXSrc.axis} ${mXSrc.idx + 1}`
     : 'index';
   const curves = ids.map((k, i) => {
-    const ys = (mAxis === 'col' ? data.map((r) => r[k]) : (data[k] || [])).map(Number);
+    const ys = (getSlice(mAxis, k) || []).map(Number);
     const length = ys.length;
     const xs = xShared ? xShared.slice(0, length) : ys.map((_, j) => j + 1);
     const x = [], y = [];
@@ -838,6 +840,7 @@ export function VariableEditor({ variable, onClose, engine }) {
     setActiveCell({ r: 0, c: 0 });
     setLoadError(null);
     tileCache.current = new Map();
+    sliceCache.current = new Map();
     if (!engine || typeof engine.getVarData !== 'function') {
       setShape({ rows: variable.data?.length || 1, cols: variable.data?.[0]?.length || 1, tileMode: false });
       return;
@@ -880,6 +883,34 @@ export function VariableEditor({ variable, onClose, engine }) {
     }, 0);
     return () => clearTimeout(handle);
   }, [variable, engine]);
+
+  /* ─── slice cache (for InlinePlot in both modes) ─── */
+  // Keyed by `${axis}:${idx}`. In tile-mode each miss triggers a single
+  // 10000×1 (or 1×10000) tile fetch — fast because numkit storage is
+  // column-major, so a column slice is a single contiguous read.
+  const sliceCache = useRef(new Map());
+  const getSlice = useCallback((axis, idx) => {
+    if (!shape.tileMode) {
+      return axis === 'row' ? (data[idx] || []) : data.map((r) => r[idx]);
+    }
+    const key = `${axis}:${idx}`;
+    const cached = sliceCache.current.get(key);
+    if (cached) return cached;
+    if (!engine || typeof engine.getVarTile !== 'function') return [];
+    let res;
+    if (axis === 'row') {
+      res = engine.getVarTile(variable.name, idx, 0, 1, shape.cols);
+    } else {
+      res = engine.getVarTile(variable.name, 0, idx, shape.rows, 1);
+    }
+    if (!res || res.error || !Array.isArray(res.data)) return [];
+    // Flatten — tile.data is rows×cols; slice is one row or one col.
+    const out = (axis === 'row')
+      ? (res.data[0] || [])
+      : res.data.map((r) => r[0]);
+    sliceCache.current.set(key, out);
+    return out;
+  }, [shape.tileMode, shape.rows, shape.cols, data, engine, variable.name]);
 
   /* ─── tile-mode cell accessor ─── */
   // Returns the value at (r, c). For full-mode this is just data[r][c].
@@ -924,17 +955,33 @@ export function VariableEditor({ variable, onClose, engine }) {
   const rows = shape.rows;
   const cols = shape.cols;
 
-  // Stats are only computed in full-mode — in tile-mode we'd need to walk
-  // every tile which is exactly what tile-mode is meant to avoid. The
-  // header pill collapses gracefully when stats is null.
+  // Tile-mode stats are computed natively in the engine via getVarStats.
+  // Stored in state so the heatmap can light up as soon as the result
+  // arrives (typically <100 ms even for 100M cells).
+  const [tileStats, setTileStats] = useState(null);
+  useEffect(() => {
+    if (!shape.tileMode || !engine || typeof engine.getVarStats !== 'function') {
+      setTileStats(null);
+      return;
+    }
+    let cancelled = false;
+    setTimeout(() => {
+      const s = engine.getVarStats(variable.name);
+      if (cancelled) return;
+      if (s && !s.error) setTileStats(s);
+    }, 0);
+    return () => { cancelled = true; };
+  }, [shape.tileMode, engine, variable.name]);
+
+  // Full-mode stats are computed locally over the in-memory data array.
   const stats = useMemo(() => {
-    if (shape.tileMode) return null;
+    if (shape.tileMode) return tileStats;
     let min = Infinity, max = -Infinity, sum = 0, n = 0;
     for (const row of data) for (const v of row) {
       if (typeof v === 'number') { if (v < min) min = v; if (v > max) max = v; sum += v; n++; }
     }
     return n ? { min, max, mean: sum / n, n } : null;
-  }, [data, shape.tileMode]);
+  }, [data, shape.tileMode, tileStats]);
 
   // Format a single number with the active notation/precision settings.
   function formatNum(n) {
@@ -1093,8 +1140,7 @@ export function VariableEditor({ variable, onClose, engine }) {
               copy csv
             </button>
             <button className={`ve-btn ${showPlot ? 'is-active' : ''}`}
-              title={shape.tileMode ? 'inline plot disabled for huge matrices' : 'Toggle inline plot'}
-              disabled={shape.tileMode}
+              title="Toggle inline plot"
               onClick={() => setShowPlot((p) => !p)}>
               <svg width="11" height="11" viewBox="0 0 12 12">
                 <polyline points="1,9 4,5 7,7 11,2" stroke="currentColor" fill="none" strokeWidth="1.4"/>
@@ -1155,7 +1201,7 @@ export function VariableEditor({ variable, onClose, engine }) {
           />
           {showPlot && (
             <InlinePlot
-              data={data}
+              getSlice={getSlice}
               rows={rows}
               cols={cols}
               onClose={() => setShowPlot(false)}

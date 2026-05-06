@@ -298,6 +298,90 @@ public:
         } catch (...) { return "{\"error\":\"unknown\"}"; }
     }
 
+    /* ---- Aggregate stats over the full matrix (no copy, native speed) ---- */
+    //
+    // Used by VariableEditor to drive heatmap colouring on huge matrices
+    // where loading every cell into JS would be too expensive. Walks the
+    // backing array once at C++ speed and returns:
+    //   { rows, cols, min, max, mean, n, hasNaN }
+    // For LOGICAL true=1 / false=0; for COMPLEX |z|; non-numeric returns
+    // {error}.
+    std::string getVarStatsJSON(const std::string &name) {
+        try {
+            using numkit::ValueType;
+            const numkit::Value *valPtr = nullptr;
+            if (debugSession_ && debugSession_->isActive()) {
+                auto snap = debugSession_->snapshot();
+                for (auto &v : snap.variables) {
+                    if (v.name == name && v.value) { valPtr = v.value; break; }
+                }
+            }
+            if (!valPtr) valPtr = engine_->getVariable(name);
+            if (!valPtr) return "{\"error\":\"variable not found\"}";
+            const auto &val = *valPtr;
+            const auto &d = val.dims();
+            const size_t totalRows = d.rows();
+            const size_t totalCols = d.cols();
+            const size_t numel = val.numel();
+            double mn = std::numeric_limits<double>::infinity();
+            double mx = -std::numeric_limits<double>::infinity();
+            double sum = 0.0;
+            size_t n = 0;
+            bool hasNaN = false;
+            if (val.type() == ValueType::DOUBLE) {
+                const double *p = val.doubleData();
+                for (size_t i = 0; i < numel; ++i) {
+                    double v = p[i];
+                    if (std::isnan(v)) { hasNaN = true; continue; }
+                    if (!std::isfinite(v)) continue;
+                    if (v < mn) mn = v;
+                    if (v > mx) mx = v;
+                    sum += v;
+                    ++n;
+                }
+            } else if (val.type() == ValueType::LOGICAL) {
+                const uint8_t *p = val.logicalData();
+                for (size_t i = 0; i < numel; ++i) {
+                    double v = p[i] ? 1.0 : 0.0;
+                    if (v < mn) mn = v;
+                    if (v > mx) mx = v;
+                    sum += v;
+                    ++n;
+                }
+            } else if (val.type() == ValueType::COMPLEX) {
+                const numkit::Complex *p = val.complexData();
+                for (size_t i = 0; i < numel; ++i) {
+                    double mag = std::hypot(p[i].real(), p[i].imag());
+                    if (std::isnan(mag)) { hasNaN = true; continue; }
+                    if (!std::isfinite(mag)) continue;
+                    if (mag < mn) mn = mag;
+                    if (mag > mx) mx = mag;
+                    sum += mag;
+                    ++n;
+                }
+            } else {
+                return "{\"error\":\"non-numeric type\"}";
+            }
+            std::ostringstream os;
+            os.precision(17);
+            os << "{\"rows\":" << totalRows
+               << ",\"cols\":" << totalCols
+               << ",\"n\":" << n
+               << ",\"hasNaN\":" << (hasNaN ? "true" : "false");
+            if (n > 0) {
+                os << ",\"min\":" << mn
+                   << ",\"max\":" << mx
+                   << ",\"mean\":" << (sum / n);
+            } else {
+                os << ",\"min\":null,\"max\":null,\"mean\":null";
+            }
+            os << "}";
+            return os.str();
+        } catch (const std::exception &e) {
+            return std::string("{\"error\":\"") + escapeJSON(e.what()) + "\"}";
+        } catch (...) { return "{\"error\":\"unknown\"}"; }
+    }
+
     /* ---- Tile fetch — only the requested rectangle of cells ---- */
     std::string getVarTileJSON(const std::string &name, int r0, int c0, int rowsIn, int colsIn) {
         try {
@@ -764,6 +848,11 @@ std::string repl_get_var_tile(const std::string &name, int r0, int c0, int rows,
     return g_session->getVarTileJSON(name, r0, c0, rows, cols);
 }
 
+std::string repl_get_var_stats(const std::string &name) {
+    if (!g_session) return "{\"error\":\"no session\"}";
+    return g_session->getVarStatsJSON(name);
+}
+
 std::string repl_version() {
     if (!g_session) repl_init();
     return g_session->version();
@@ -849,6 +938,7 @@ EMSCRIPTEN_BINDINGS(numkit_ide) {
     emscripten::function("repl_get_var_data",  &repl_get_var_data);
     emscripten::function("repl_get_var_shape", &repl_get_var_shape);
     emscripten::function("repl_get_var_tile",  &repl_get_var_tile);
+    emscripten::function("repl_get_var_stats", &repl_get_var_stats);
     emscripten::function("repl_version",   &repl_version);
     emscripten::function("repl_debug_set_breakpoints", &repl_debug_set_breakpoints);
     emscripten::function("repl_debug_start",           &repl_debug_start);
