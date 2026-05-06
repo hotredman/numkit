@@ -292,6 +292,18 @@ export async function createWasmEngine(createModule) {
       }
     },
 
+    // Aggregate stats — { rows, cols, n, min, max, mean, hasNaN }.
+    // Used by the VariableEditor heatmap in tile-mode where loading every
+    // cell to JS would be impractical.
+    getVarStats(name) {
+      if (typeof Module.repl_get_var_stats !== 'function') return null;
+      try { return JSON.parse(Module.repl_get_var_stats(name)); }
+      catch (e) {
+        console.warn('[engine] getVarStats failed for', name, e);
+        return { error: e?.message || String(e) };
+      }
+    },
+
     // ── Debug API ──
     get hasDebugger() {
       return typeof Module.repl_debug_start === 'function';
@@ -449,6 +461,21 @@ export function createFallbackEngine() {
         data.push(row);
       }
       return { r0, c0, rows: rEnd - r0, cols: cEnd - c0, type: full.type, data };
+    },
+    getVarStats(name) {
+      const r = this.getVarData(name);
+      if (!r || r.error) return r;
+      let mn = Infinity, mx = -Infinity, sum = 0, n = 0, hasNaN = false;
+      for (const row of r.data) for (const v of row) {
+        if (typeof v !== 'number') continue;
+        if (Number.isNaN(v)) { hasNaN = true; continue; }
+        if (!Number.isFinite(v)) continue;
+        if (v < mn) mn = v;
+        if (v > mx) mx = v;
+        sum += v; n++;
+      }
+      return { rows: r.rows, cols: r.cols, n, min: n ? mn : null,
+               max: n ? mx : null, mean: n ? sum / n : null, hasNaN };
     },
 
     // ── Debug API (stub for fallback) ──
