@@ -1171,7 +1171,19 @@ input, select { font-family: inherit; color: inherit; }
   grid-template-rows: 38px 40px 28px 1fr 22px;
   overflow: hidden;
   animation: scalein 160ms ease;
+  transition: width 140ms ease, height 140ms ease, border-radius 140ms ease;
 }
+.ve-window.is-max {
+  width:  100vw;
+  height: 100vh;
+  border-radius: 0;
+  border: none;
+}
+/* Title bar must not let the meta + close + maximise group be pushed off
+   the right edge by a long variable-name on the left. */
+.ve-titlebar { gap: 8px; }
+.ve-title-left  { min-width: 0; flex: 1 1 auto; overflow: hidden; }
+.ve-title-right { flex-shrink: 0; }
 
 /* Body holds table + optional inline plot */
 .ve-body {
@@ -1297,7 +1309,17 @@ input, select { font-family: inherit; color: inherit; }
   grid-template-rows: 38px 40px 1fr 22px;
   overflow: hidden;
   animation: scalein 160ms ease;
+  transition: width 140ms ease, height 140ms ease, border-radius 140ms ease;
 }
+.fw-window.is-max {
+  width:  100vw;
+  height: 100vh;
+  border-radius: 0;
+  border: none;
+}
+/* Title-bar parts can't get pushed off the right edge by long titles. */
+.fw-title-left  { min-width: 0; flex: 1 1 auto; overflow: hidden; }
+.fw-title-right { flex-shrink: 0; }
 .fw-titlebar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 12px;
