@@ -28,6 +28,13 @@ export default function Heatmap({
   fontScale = 1,
   interactive = true,
   engine = null,
+  // Log axis state owned by FigureWindow so the toolbar buttons + the
+  // ПКМ menu inside the panel stay in sync. Defaults respect the
+  // figure's xscale/yscale config when no parent provides setters.
+  xLog: xLogProp,
+  yLog: yLogProp,
+  setXLog: setXLogProp,
+  setYLog: setYLogProp,
 }) {
   const svgRef = useRef(null);
   const [hover, setHover] = useState(null);
@@ -50,43 +57,16 @@ export default function Heatmap({
   }, [figure._raw?.id, figure.id]);
 
   // ── Log-axis state ─────────────────────────────────────────────────
-  // Initial value comes from figure.xscale/yscale (set in MATLAB via
-  // xscale('log') / yscale('log')); user can toggle interactively via
-  // the ПКМ menu. When set, getFigureDisplayTile applies log10 inverse
-  // to that axis when resampling.
-  const [xLog, setXLog] = useState(figure.xscale === 'log');
-  const [yLog, setYLog] = useState(figure.yscale === 'log');
-  // When figure.{x,y}scale changes (e.g. script calls yscale('log') after
-  // imagesc), pick up the new value AND auto-clamp the viewport bound to
-  // the smallest positive cell-centre. Without the clamp, viewport from
-  // imagesc(t, freq, P) with freq starting at 0 would have yMin = -cellH/2
-  // (negative), making yLogActive = (yMin > 0) → false; the panel would
-  // silently stay linear despite yscale('log'). Auto-clamp on first log
-  // entry behaves like the ПКМ toggle.
-  useEffect(() => {
-    const wantLog = figure.xscale === 'log';
-    setXLog(wantLog);
-    if (wantLog && (xMin <= 0 || xMax <= 0)) {
-      const fullCols = figure.originalCols || 1;
-      const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
-      const safeLo = Math.max(cellW * 0.5, 1e-6);
-      const safeHi = Math.max(safeLo * 10, figure.xRange[1]);
-      setViewport({ ...viewport, x: [safeLo, safeHi] });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [figure.xscale]);
-  useEffect(() => {
-    const wantLog = figure.yscale === 'log';
-    setYLog(wantLog);
-    if (wantLog && (yMin <= 0 || yMax <= 0)) {
-      const fullRows = figure.originalRows || 1;
-      const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
-      const safeLo = Math.max(cellH * 0.5, 1e-6);
-      const safeHi = Math.max(safeLo * 10, figure.yRange[1]);
-      setViewport({ ...viewport, y: [safeLo, safeHi] });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [figure.yscale]);
+  // Owned by the parent (FigureWindow) when it supplies setXLog/setYLog
+  // so the toolbar buttons and ПКМ menu stay in sync. Otherwise (preview
+  // cards, fallback callers) fall back to local state seeded from
+  // figure.xscale/yscale.
+  const [xLogLocal, setXLogLocal] = useState(figure.xscale === 'log');
+  const [yLogLocal, setYLogLocal] = useState(figure.yscale === 'log');
+  const xLog = (xLogProp !== undefined) ? xLogProp : xLogLocal;
+  const yLog = (yLogProp !== undefined) ? yLogProp : yLogLocal;
+  const setXLog = setXLogProp || setXLogLocal;
+  const setYLog = setYLogProp || setYLogLocal;
 
   // ── Color-limit override ────────────────────────────────────────────
   // "Fit colors to visible" pulls cmin/cmax from the currently-visible
