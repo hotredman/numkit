@@ -62,3 +62,8 @@ Inputs: `A = [1 4 7; 2 5 8; 3 6 9; 4 7 10; 5 8 11]`
 ## Out of scope for this ТЗ
 
 - `mode` on `categorical`/`string` data — needs OOP type support.
+
+## Closed (partial)
+- Closed in commit: PENDING
+- Closed date: 2026-05-06
+- Notes: Adapter rewritten with 'all' string + full-flatten vecdim dispatch (mirrors iqr/var/std pattern). Partial vecdim throws documented error. mode 3rd output (cell of all tied modes) deferred — current 2-output form covers typical use.

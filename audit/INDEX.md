@@ -39,11 +39,9 @@ Status legend:
 | [findings/stats/cummax.md](findings/stats/cummax.md) | cummax | builtin | high | medium | 4f021db |
 | [findings/stats/cummin.md](findings/stats/cummin.md) | cummin | builtin | high | medium | 4f021db |
 | [findings/stats/median.md](findings/stats/median.md) | median | stats.descriptive | high | medium | ba142e6 |
-| [findings/stats/bounds.md](findings/stats/bounds.md) | bounds | stats.descriptive | medium | small | ba142e6 |
 | [findings/stats/mape.md](findings/stats/mape.md) | mape | stats.descriptive | medium | small | ba142e6 |
 | [findings/stats/maxk.md](findings/stats/maxk.md) | maxk | stats.descriptive | medium | small | ba142e6 |
 | [findings/stats/mink.md](findings/stats/mink.md) | mink | stats.descriptive | medium | small | ba142e6 |
-| [findings/stats/mode.md](findings/stats/mode.md) | mode | stats.descriptive | medium | small | ba142e6 |
 | [findings/stats/rmse.md](findings/stats/rmse.md) | rmse | stats.descriptive | medium | small | ba142e6 |
 | [findings/wavelet/dwt.md](findings/wavelet/dwt.md) | dwt | wavelet.dwt | critical | large | 0e895fe |
 | [findings/wavelet/idwt.md](findings/wavelet/idwt.md) | idwt | wavelet.dwt | critical | large | 0e895fe |
@@ -225,6 +223,8 @@ Status legend:
 | [closed/stats/signrank.md](closed/stats/signrank.md) | signrank | PENDING | 2026-05-06 |
 | [closed/stats/ranksum.md](closed/stats/ranksum.md) | ranksum | PENDING | 2026-05-06 |
 | [closed/stats/fishertest.md](closed/stats/fishertest.md) | fishertest | PENDING | 2026-05-06 |
+| [closed/stats/bounds.md](closed/stats/bounds.md) | bounds | PENDING (partial) | 2026-05-06 |
+| [closed/stats/mode.md](closed/stats/mode.md) | mode | PENDING (partial) | 2026-05-06 |
 
 ---
 

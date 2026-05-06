@@ -16,7 +16,6 @@ gtest assertions against probe-captured values).
 
 | # | Namespace | Function | Notes |
 |---|---|---|---|
-| 11 | wavelet.filt | `orthfilt` | quadruple from scaling filter |
 | 12 | wavelet.shape | `gauswavf` | real Gaussian wavelet |
 | 13 | wavelet.shape | `cgauwavf` | complex Gaussian wavelet |
 | 14 | wavelet.dwt | `haart` | full multi-level + integer + matrix branches |
@@ -38,6 +37,7 @@ gtest assertions against probe-captured values).
 | `dbwavf` | PENDING | libs/wavelet/tests/dbwavf_test.cpp | libs/wavelet/tests/smoke/dbwavf_smoke.m |
 | `coifwavf` | PENDING | libs/wavelet/tests/coifwavf_test.cpp | libs/wavelet/tests/smoke/coifwavf_smoke.m |
 | `symwavf` | PENDING | libs/wavelet/tests/symwavf_test.cpp | libs/wavelet/tests/smoke/symwavf_smoke.m |
+| `orthfilt` | PENDING | libs/wavelet/tests/orthfilt_test.cpp | libs/wavelet/tests/smoke/orthfilt_smoke.m |
 
 ---
 
