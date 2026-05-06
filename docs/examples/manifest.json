@@ -144,6 +144,7 @@
         "resampling_demo.m",
         "spectrogram_chirp.m",
         "spectrogram_log_freq.m",
+        "spectrogram_overlay.m",
         "unwrap_demo.m",
         "window_functions.m",
         "xcorr_demo.m"
