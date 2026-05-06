@@ -56,10 +56,37 @@ export default function Heatmap({
   // to that axis when resampling.
   const [xLog, setXLog] = useState(figure.xscale === 'log');
   const [yLog, setYLog] = useState(figure.yscale === 'log');
-  // If the figure config changes (e.g. user calls yscale('log') after
-  // imagesc), pick up the new value so the panel re-renders log-axis.
-  useEffect(() => { setXLog(figure.xscale === 'log'); }, [figure.xscale]);
-  useEffect(() => { setYLog(figure.yscale === 'log'); }, [figure.yscale]);
+  // When figure.{x,y}scale changes (e.g. script calls yscale('log') after
+  // imagesc), pick up the new value AND auto-clamp the viewport bound to
+  // the smallest positive cell-centre. Without the clamp, viewport from
+  // imagesc(t, freq, P) with freq starting at 0 would have yMin = -cellH/2
+  // (negative), making yLogActive = (yMin > 0) → false; the panel would
+  // silently stay linear despite yscale('log'). Auto-clamp on first log
+  // entry behaves like the ПКМ toggle.
+  useEffect(() => {
+    const wantLog = figure.xscale === 'log';
+    setXLog(wantLog);
+    if (wantLog && (xMin <= 0 || xMax <= 0)) {
+      const fullCols = figure.originalCols || 1;
+      const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
+      const safeLo = Math.max(cellW * 0.5, 1e-6);
+      const safeHi = Math.max(safeLo * 10, figure.xRange[1]);
+      setViewport({ ...viewport, x: [safeLo, safeHi] });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [figure.xscale]);
+  useEffect(() => {
+    const wantLog = figure.yscale === 'log';
+    setYLog(wantLog);
+    if (wantLog && (yMin <= 0 || yMax <= 0)) {
+      const fullRows = figure.originalRows || 1;
+      const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
+      const safeLo = Math.max(cellH * 0.5, 1e-6);
+      const safeHi = Math.max(safeLo * 10, figure.yRange[1]);
+      setViewport({ ...viewport, y: [safeLo, safeHi] });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [figure.yscale]);
 
   // ── Color-limit override ────────────────────────────────────────────
   // "Fit colors to visible" pulls cmin/cmax from the currently-visible
@@ -298,9 +325,12 @@ export default function Heatmap({
     { label: xLog ? '✓ X axis · log' : 'X axis · log',
       onClick: () => {
         // Switching to log requires a strictly-positive xMin. Clamp viewport
-        // up if the user is currently viewing through zero.
+        // up to half-cell-width (the lowest positive cell-centre worth showing)
+        // when currently viewing through zero.
         if (!xLog && (xMin <= 0 || xMax <= 0)) {
-          const safeLo = Math.max(figure.xRange[0], 1e-6);
+          const fullCols = figure.originalCols || 1;
+          const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
+          const safeLo = Math.max(cellW * 0.5, 1e-6);
           const safeHi = Math.max(safeLo * 10, figure.xRange[1]);
           setViewport({ ...viewport, x: [safeLo, safeHi] });
         }
@@ -311,7 +341,9 @@ export default function Heatmap({
     { label: yLog ? '✓ Y axis · log' : 'Y axis · log',
       onClick: () => {
         if (!yLog && (yMin <= 0 || yMax <= 0)) {
-          const safeLo = Math.max(figure.yRange[0], 1e-6);
+          const fullRows = figure.originalRows || 1;
+          const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
+          const safeLo = Math.max(cellH * 0.5, 1e-6);
           const safeHi = Math.max(safeLo * 10, figure.yRange[1]);
           setViewport({ ...viewport, y: [safeLo, safeHi] });
         }
@@ -506,10 +538,27 @@ export default function Heatmap({
             const fullRows = figure.originalRows || 1;
             const xExt = figure.xRange[1] - figure.xRange[0];
             const yExt = figure.yRange[1] - figure.yRange[0];
-            const tx0 = figure.xRange[0] + (tileOverlay.srcC0                  / fullCols) * xExt;
-            const tx1 = figure.xRange[0] + ((tileOverlay.srcC0 + tileOverlay.srcW) / fullCols) * xExt;
-            const ty0 = figure.yRange[1] - (tileOverlay.srcR0                  / fullRows) * yExt;
-            const ty1 = figure.yRange[1] - ((tileOverlay.srcR0 + tileOverlay.srcH) / fullRows) * yExt;
+            let tx0 = figure.xRange[0] + (tileOverlay.srcC0                  / fullCols) * xExt;
+            let tx1 = figure.xRange[0] + ((tileOverlay.srcC0 + tileOverlay.srcW) / fullCols) * xExt;
+            let ty0 = figure.yRange[1] - (tileOverlay.srcR0                  / fullRows) * yExt;
+            let ty1 = figure.yRange[1] - ((tileOverlay.srcR0 + tileOverlay.srcH) / fullRows) * yExt;
+            // Under log axes the tile's source-rect can extend slightly past
+            // the visible viewport (tile was fetched up to srcR1 which maps
+            // to data y near zero, beyond the log axis's lower bound). sx/sy
+            // would return NaN on log(0) / log(negative), which makes the
+            // <image> height/width NaN and the tile flicker on/off as the
+            // viewport jitters by floating-point dust during pan/zoom.
+            // Clamp to the visible bounds so sx/sy stay finite — content
+            // mismatch is bounded by the tile's edge pixels which engine's
+            // log inverse already snapped to the boundary.
+            if (xLogActive) {
+              if (tx0 <= 0) tx0 = xMin;
+              if (tx1 <= 0) tx1 = xMin;
+            }
+            if (yLogActive) {
+              if (ty0 <= 0) ty0 = yMin;
+              if (ty1 <= 0) ty1 = yMin;
+            }
             const sx0 = sx(tx0);
             const sx1 = sx(tx1);
             const sy0 = sy(ty0);
