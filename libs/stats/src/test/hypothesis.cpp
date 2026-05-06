@@ -1768,6 +1768,10 @@ void signtest_reg(Span<const Value> args, size_t nargout,
     if (nargout > 1) outs[1] = std::move(h);
     if (nargout > 2) {
         Value s = Value::structure(mr);
+        // MATLAB R2025b stats struct shape: {zval, sign}. zval is NaN
+        // for the exact (binomial) path — currently always taken;
+        // 'approximate' would populate zval with the normal-approx z.
+        s.field("zval") = Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr);
         s.field("sign") = sig;
         outs[2] = std::move(s);
     }

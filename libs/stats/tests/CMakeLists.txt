@@ -7,4 +7,6 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/kstest_extras_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ttest_extras_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/vartest_extras_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ztest_extras_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sign_extras_test.cpp
 )
