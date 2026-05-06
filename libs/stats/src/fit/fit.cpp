@@ -578,7 +578,7 @@ static void like2_reg(const char *fn,
     outs[0] = Value::scalar(nL, ctx.engine->resource());
 }
 
-void normlike_reg(Span<const Value> args, size_t /*nargout*/,
+void normlike_reg(Span<const Value> args, size_t nargout,
                   Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2 || args[0].numel() < 2)
@@ -592,6 +592,73 @@ void normlike_reg(Span<const Value> args, size_t /*nargout*/,
     const double nL = normlike(ctx.engine->resource(), mu, sigma, args[1],
                                cens, freq);
     outs[0] = Value::scalar(nL, ctx.engine->resource());
+
+    // Second output: aVar = inv(observed Fisher information).
+    // Order [mu, sigma]; symmetric 2×2.
+    if (nargout >= 2) {
+        const Value &x = args[1];
+        const size_t N = x.numel();
+        const bool useC = cens.numel() > 0;
+        const bool useF = freq.numel() > 0;
+        // Observed information I (= positive Hessian of nL):
+        //   uncensored row, weight w:
+        //     I_μμ += w / σ²
+        //     I_σσ += w · (-1/σ² + 3·d²/σ⁴)
+        //     I_μσ += w · 2·d/σ³            (d = x-μ)
+        //   right-censored row, weight w (h=φ(z)/S(z), h'=h(h-z)):
+        //     I_μμ += w · h'/σ²
+        //     I_σσ += w · (2z·h + z²·h')/σ²
+        //     I_μσ += w · (z·h' + h)/σ²
+        const double inv_s   = 1.0 / sigma;
+        const double inv_s2  = inv_s * inv_s;
+        const double inv_s3  = inv_s2 * inv_s;
+        const double inv_s4  = inv_s2 * inv_s2;
+        const double sqrt2pi_inv = 1.0 / std::sqrt(2.0 * 3.14159265358979323846);
+        const double sqrt2_inv   = 1.0 / std::sqrt(2.0);
+        double I00 = 0.0, I01 = 0.0, I11 = 0.0;
+        bool nanSeen = false;
+        for (size_t i = 0; i < N; ++i) {
+            const double w = useF ? freq.elemAsDouble(i) : 1.0;
+            if (w == 0.0) continue;
+            const double xi = x.elemAsDouble(i);
+            if (std::isnan(xi)) { nanSeen = true; break; }
+            const double d = xi - mu;
+            const double z = d * inv_s;
+            const bool censored = useC && (cens.elemAsDouble(i) != 0.0);
+            if (!censored) {
+                I00 += w * inv_s2;
+                I11 += w * (-inv_s2 + 3.0 * d * d * inv_s4);
+                I01 += w * 2.0 * d * inv_s3;
+            } else {
+                const double phi = sqrt2pi_inv * std::exp(-0.5 * z * z);
+                const double S   = 0.5 * std::erfc(z * sqrt2_inv);
+                const double h   = phi / S;
+                const double hp  = h * (h - z);
+                I00 += w * hp * inv_s2;
+                I11 += w * (2.0 * z * h + z * z * hp) * inv_s2;
+                I01 += w * (z * hp + h) * inv_s2;
+            }
+        }
+        const double NaNd = std::numeric_limits<double>::quiet_NaN();
+        Value av = Value::matrix(2, 2, ValueType::DOUBLE, ctx.engine->resource());
+        double *p = av.doubleDataMut();
+        if (nanSeen || N == 0 || !(sigma > 0.0)) {
+            p[0] = NaNd; p[1] = NaNd; p[2] = NaNd; p[3] = NaNd;
+        } else {
+            const double det = I00 * I11 - I01 * I01;
+            if (det == 0.0 || !std::isfinite(det)) {
+                p[0] = NaNd; p[1] = NaNd; p[2] = NaNd; p[3] = NaNd;
+            } else {
+                const double inv = 1.0 / det;
+                // column-major 2×2: stored [a, b, c, d] = [(1,1), (2,1), (1,2), (2,2)]
+                p[0] =  I11 * inv;
+                p[1] = -I01 * inv;
+                p[2] = -I01 * inv;
+                p[3] =  I00 * inv;
+            }
+        }
+        outs[1] = std::move(av);
+    }
 }
 
 void lognlike_reg(Span<const Value> args, size_t /*nargout*/,
