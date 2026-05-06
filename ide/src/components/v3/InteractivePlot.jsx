@@ -137,11 +137,11 @@ export default function InteractivePlot({
     { label: 'Save as PNG @2×',
       onClick: () => exportPngNode(svgRef.current, width, height, 2, `figure_${figure.id}.png`) },
     { separator: true },
+    { head: 'Fit all curves' },
     { label: 'Fit both axes', onClick: () => applyFit('all', 'both') },
     { label: 'Fit X only',    onClick: () => applyFit('all', 'x') },
     { label: 'Fit Y only',    onClick: () => applyFit('all', 'y') },
     ...(multiSeries ? [
-      { separator: true },
       { head: 'Fit single curve' },
       ...figure.series.map((s) => ({
         row: true, color: s.color, name: s.name,
