@@ -253,13 +253,13 @@ export default function FigureWindow({ figure, onClose }) {
             }}>▦ figure</span>
             <span className="fw-name">Figure {figure.id}</span>
             <span className="ve-dim">{figure.title}</span>
-          </div>
-          <div className="fw-title-right">
             <span className="fw-meta">
               {figure.kind === 'heatmap'
                 ? `${figure.z?.length ?? 0} × ${figure.z?.[0]?.length ?? 0} cells · range [${Number(figure.cmin).toPrecision(3)} … ${Number(figure.cmax).toPrecision(3)}]`
                 : `${figure.series?.length ?? 0} series · ${(figure.series || []).reduce((s, x) => s + (x.x?.length ?? x.theta?.length ?? 0), 0)} points`}
             </span>
+          </div>
+          <div className="fw-title-right">
             <button className="ve-close" onClick={() => setMaximized((m) => !m)}
               title={maximized ? 'Restore' : 'Maximise'} aria-label="Maximise">
               {maximized ? (

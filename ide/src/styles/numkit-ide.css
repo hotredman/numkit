@@ -1179,14 +1179,12 @@ input, select { font-family: inherit; color: inherit; }
   border-radius: 0;
   border: none;
 }
-/* Title bar must not let the meta + close + maximise group be pushed off
-   the right edge. Title-left truncates first; if more space is needed,
-   title-right's `.ve-meta` can also truncate (its CSS allows it).
-   The two buttons keep their natural size. */
+/* Title bar: meta lives in title-left (alongside name/dim, can truncate
+   together). Title-right holds ONLY the maximise + close buttons —
+   never shrinks, never gets pushed off-screen. */
 .ve-titlebar { gap: 8px; }
 .ve-title-left  { min-width: 0; flex: 1 1 auto; overflow: hidden; }
-.ve-title-right { min-width: 0; flex: 0 1 auto; }
-.ve-title-right .ve-close { flex-shrink: 0; }
+.ve-title-right { flex-shrink: 0; }
 
 /* Body holds table + optional inline plot */
 .ve-body {
@@ -1320,10 +1318,10 @@ input, select { font-family: inherit; color: inherit; }
   border-radius: 0;
   border: none;
 }
-/* Title-bar parts can't get pushed off the right edge by long titles. */
+/* Same shrink chain as .ve-titlebar — meta is part of title-left, the
+   right group only holds buttons that never shrink. */
 .fw-title-left  { min-width: 0; flex: 1 1 auto; overflow: hidden; }
-.fw-title-right { min-width: 0; flex: 0 1 auto; }
-.fw-title-right .ve-close { flex-shrink: 0; }
+.fw-title-right { flex-shrink: 0; }
 .fw-titlebar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 12px;
