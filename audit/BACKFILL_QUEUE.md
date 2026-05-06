@@ -16,7 +16,6 @@ gtest assertions against probe-captured values).
 
 | # | Namespace | Function | Notes |
 |---|---|---|---|
-| 7 | wavelet.dwt  | `wextend` | sym / per / zpd / ppd |
 | 8 | wavelet.filt | `dbwavf` | reverse(LO_R) / sqrt(2) |
 | 9 | wavelet.filt | `coifwavf` | same |
 | 10 | wavelet.filt | `symwavf` | same |
@@ -38,6 +37,7 @@ gtest assertions against probe-captured values).
 | `dyadup` | PENDING | libs/wavelet/tests/dyadup_test.cpp | libs/wavelet/tests/smoke/dyadup_smoke.m |
 | `wmaxlev` | PENDING | libs/wavelet/tests/wmaxlev_test.cpp | libs/wavelet/tests/smoke/wmaxlev_smoke.m |
 | `wkeep` | PENDING | libs/wavelet/tests/wkeep_test.cpp | libs/wavelet/tests/smoke/wkeep_smoke.m |
+| `wextend` | PENDING | libs/wavelet/tests/wextend_test.cpp | libs/wavelet/tests/smoke/wextend_smoke.m |
 
 ---
 

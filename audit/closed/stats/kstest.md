@@ -106,3 +106,8 @@ cdfM = [xx normcdf(xx, 0.5, 1.0)]
 
 - `ProbabilityDistribution` object form for `CDF` — numkit doesn't
   have the OOP distribution type yet.
+
+## Closed
+- Closed in commit: PENDING (joint kstest/kstest2 fix)
+- Closed date: 2026-05-06
+- Notes: parse_tail extended with kstest aliases (unequal/larger/smaller -> Both/Right/Left). kstest_reg + kstest2_reg rewritten for proper Name-Value parsing ('Alpha', val | 'Tail', val) plus legacy positional alpha+tail. The 4th `cv` output is preserved (extra vs MATLAB; harmless to scripts using only first 3 outputs). 9 gtest + 3-engine parity confirm.

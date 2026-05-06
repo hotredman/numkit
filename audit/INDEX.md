@@ -34,8 +34,6 @@ Status legend:
 | [findings/stats/chi2gof.md](findings/stats/chi2gof.md) | chi2gof | stats.test | medium | large | 69fab7c |
 | [findings/stats/jbtest.md](findings/stats/jbtest.md) | jbtest | stats.test | medium | medium | 69fab7c |
 | [findings/stats/kruskalwallis.md](findings/stats/kruskalwallis.md) | kruskalwallis | stats.test | medium | medium | 69fab7c |
-| [findings/stats/kstest.md](findings/stats/kstest.md) | kstest | stats.test | high | medium | 69fab7c |
-| [findings/stats/kstest2.md](findings/stats/kstest2.md) | kstest2 | stats.test | high | small | 69fab7c |
 | [findings/stats/runstest.md](findings/stats/runstest.md) | runstest | stats.test | high | medium | 69fab7c |
 | [findings/stats/ttest.md](findings/stats/ttest.md) | ttest | stats.test | high | medium | 69fab7c |
 | [findings/stats/ttest2.md](findings/stats/ttest2.md) | ttest2 | stats.test | high | medium | 69fab7c |
@@ -225,6 +223,8 @@ Status legend:
 | [closed/signal/barthannwin.md](closed/signal/barthannwin.md) | barthannwin | PENDING | 2026-05-06 |
 | [closed/signal/rectwin.md](closed/signal/rectwin.md) | rectwin | PENDING | 2026-05-06 |
 | [closed/signal/hilbert.md](closed/signal/hilbert.md) | hilbert | PENDING | 2026-05-06 |
+| [closed/stats/kstest.md](closed/stats/kstest.md) | kstest | PENDING | 2026-05-06 |
+| [closed/stats/kstest2.md](closed/stats/kstest2.md) | kstest2 | PENDING | 2026-05-06 |
 
 ---
 

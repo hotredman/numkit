@@ -68,3 +68,8 @@ y = [0.8 1.9 2.7 4.0 4.5 5.7 6.4]'
 
 - Exact two-sample p-value for small n — the asymptotic series is
   accurate to ~1e-5 even at n=7, far better than MATLAB-script needs.
+
+## Closed
+- Closed in commit: PENDING (joint kstest/kstest2 fix)
+- Closed date: 2026-05-06
+- Notes: parse_tail extended with kstest aliases (unequal/larger/smaller -> Both/Right/Left). kstest_reg + kstest2_reg rewritten for proper Name-Value parsing ('Alpha', val | 'Tail', val) plus legacy positional alpha+tail. The 4th `cv` output is preserved (extra vs MATLAB; harmless to scripts using only first 3 outputs). 9 gtest + 3-engine parity confirm.

@@ -1,0 +1,16 @@
+{
+  "name": "kstest_extras",
+  "namespace": "stats",
+  "setup": "x = [1.2 2.4 3.1 4.5 5.0 6.2 7.1]'; y = [0.8 1.9 2.7 4.0 4.5 5.7 6.4]';",
+  "expr": "[h_def, p_def, D_def] = kstest2(x, y); [h_lg, p_lg, D_lg] = kstest2(x, y, 'Tail', 'larger'); [h_sm, p_sm, D_sm] = kstest2(x, y, 'Tail', 'smaller'); [h_un, p_un, D_un] = kstest2(x, y, 'Tail', 'unequal'); [h_a, p_a, D_a] = kstest2(x, y, 'Alpha', 0.01);",
+  "iters": 5,
+  "tol": 1e-6,
+  "fingerprint": [
+    "h_def", "D_def",
+    "h_lg", "D_lg", "p_lg",
+    "h_sm", "D_sm",
+    "h_un", "D_un",
+    "h_a", "D_a"
+  ],
+  "comment": "Sig: kstest2(x, y[, alpha, tail | name-value]). Tail accepts 'unequal' (default), 'larger', 'smaller' (synonyms for 'both', 'right', 'left' from kstest). Name-Value pairs: 'Alpha', 'Tail'. Closes audit/findings/stats/{kstest,kstest2}.md."
+}
