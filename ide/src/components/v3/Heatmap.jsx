@@ -49,9 +49,19 @@ export default function Heatmap({
     if (figIdRef.current !== fid) {
       tileCacheRef.current.clear();
       setTileOverlay(null);
+      setColorOverride(null);
       figIdRef.current = fid;
     }
   }, [figure._raw?.id, figure.id]);
+
+  // ── Color-limit override ────────────────────────────────────────────
+  // "Fit colors to visible" pulls cmin/cmax from the currently-visible
+  // source-rect via getFigureTile, so a low-contrast region zoomed in
+  // gets full colormap dynamic range instead of being washed out by
+  // outliers elsewhere in the matrix. null = use figure.cmin/cmax.
+  const [colorOverride, setColorOverride] = useState(null);
+  const cminEff = colorOverride ? colorOverride.cmin : figure.cmin;
+  const cmaxEff = colorOverride ? colorOverride.cmax : figure.cmax;
 
   const padL = 60 * fontScale;
   const padR = 70 * fontScale;  // wider to fit the colorbar
@@ -67,12 +77,13 @@ export default function Heatmap({
   const isx = (px) => xMin + ((px - padL) / W) * (xMax - xMin);
   const isy = (py) => yMax - ((py - padT) / H) * (yMax - yMin);
 
-  // Pre-render the heatmap to a data URL (cached on the figure/colormap).
-  // Memoised on z reference + range so panning doesn't re-rasterise.
+  // Pre-render the heatmap to a data URL. Memoised on z + range + override.
+  // Override invalidates: when "Fit colors to visible" is in effect we want
+  // the preview to repaint with the new clim too.
   const dataURL = useMemo(() => {
     if (!figure.z) return null;
-    return renderHeatmapDataURL(figure.z, figure.cmin, figure.cmax, figure.colormap);
-  }, [figure.z, figure.cmin, figure.cmax, figure.colormap]);
+    return renderHeatmapDataURL(figure.z, cminEff, cmaxEff, figure.colormap);
+  }, [figure.z, cminEff, cmaxEff, figure.colormap]);
 
   function niceTicks(min, max, target = 6) {
     const range = max - min;
@@ -140,9 +151,53 @@ export default function Heatmap({
     if (axisMode === 'both' || axisMode === 'y') next.y = figure.yRange.slice();
     setViewport(next);
   }
+
+  // Recompute cmin/cmax from the currently-visible source-rect. Pulls a
+  // coarse-LOD tile (~256² target) since we only need stats, not pixel
+  // detail; engine returns full-resolution data via mean-pooled aggregates,
+  // so the min/max captured matches what's on screen modulo pooling.
+  // No-op if engine isn't available (preview mode / fallback engine).
+  function fitColorsToVisible() {
+    if (!engine || typeof engine.getFigureTile !== 'function') return;
+    if (typeof figure._figId !== 'number' || figure._figId < 0) return;
+    if (!figure.originalRows || !figure.originalCols) return;
+
+    const fullCols = figure.originalCols;
+    const fullRows = figure.originalRows;
+    const xExt = figure.xRange[1] - figure.xRange[0];
+    const yExt = figure.yRange[1] - figure.yRange[0];
+    const colsPerUnit = fullCols / (xExt || 1);
+    const rowsPerUnit = fullRows / (yExt || 1);
+    const c0 = Math.max(0, Math.floor((Math.min(xMin, xMax) - figure.xRange[0]) * colsPerUnit));
+    const c1 = Math.min(fullCols, Math.ceil((Math.max(xMin, xMax) - figure.xRange[0]) * colsPerUnit));
+    const r0 = Math.max(0, Math.floor((figure.yRange[1] - Math.max(yMin, yMax)) * rowsPerUnit));
+    const r1 = Math.min(fullRows, Math.ceil((figure.yRange[1] - Math.min(yMin, yMax)) * rowsPerUnit));
+    const tileW = c1 - c0, tileH = r1 - r0;
+    if (tileW <= 0 || tileH <= 0) return;
+
+    // Coarse LOD — we just need ~256² samples for stats.
+    const lod = Math.max(1, Math.ceil(Math.max(tileH, tileW) / 256));
+    const tile = engine.getFigureTile(figure._figId, figure._axIdx, figure._dsIdx,
+                                      r0, c0, tileH, tileW, lod);
+    if (!tile || tile.error) return;
+    let mn = Infinity, mx = -Infinity;
+    for (let i = 0; i < tile.data.length; i++) {
+      const v = tile.data[i];
+      if (Number.isFinite(v)) {
+        if (v < mn) mn = v;
+        if (v > mx) mx = v;
+      }
+    }
+    if (!Number.isFinite(mn) || !Number.isFinite(mx) || mn === mx) return;
+    setColorOverride({ cmin: mn, cmax: mx });
+  }
+  function resetColors() { setColorOverride(null); }
   const ctxItems = [
     { label: 'Reset to default',
-      onClick: () => setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() }) },
+      onClick: () => {
+        setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() });
+        setColorOverride(null);
+      } },
     { label: 'Save as SVG (vector)',
       onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
     { label: 'Save as PNG (screen 2×)',
@@ -159,6 +214,16 @@ export default function Heatmap({
     { label: 'Fit both axes', onClick: () => fitAxes('both') },
     { label: 'Fit X only',    onClick: () => fitAxes('x') },
     { label: 'Fit Y only',    onClick: () => fitAxes('y') },
+    { head: 'Color range' },
+    { label: 'Fit colors to visible',
+      onClick: fitColorsToVisible,
+      disabled: !engine || typeof engine.getFigureTile !== 'function'
+                || typeof figure._figId !== 'number' || figure._figId < 0 },
+    { label: colorOverride
+        ? `Reset colors (${Number(figure.cmin).toPrecision(3)} … ${Number(figure.cmax).toPrecision(3)})`
+        : 'Reset colors',
+      onClick: resetColors,
+      disabled: !colorOverride },
   ];
 
   useEffect(() => {
@@ -241,7 +306,7 @@ export default function Heatmap({
       canvas.width = tile.cols; canvas.height = tile.rows;
       const ctx = canvas.getContext('2d');
       const img = ctx.createImageData(tile.cols, tile.rows);
-      const cmin = figure.cmin, cmax = figure.cmax;
+      const cmin = cminEff, cmax = cmaxEff;
       const range = (cmax - cmin) || 1;
       for (let i = 0; i < tile.data.length; i++) {
         const v = tile.data[i];
@@ -284,9 +349,16 @@ export default function Heatmap({
 
     return () => clearTimeout(handle);
   }, [interactive, engine, figure._figId, figure._axIdx, figure._dsIdx,
-      figure.originalRows, figure.originalCols, figure.cmin, figure.cmax, figure.colormap,
+      figure.originalRows, figure.originalCols, cminEff, cmaxEff, figure.colormap,
       figure.xRange, figure.yRange,
       xMin, xMax, yMin, yMax, W, H]);
+
+  // Invalidate the tile cache when the colour override changes — cached
+  // dataURLs are baked with the previous (cmin, cmax), so they'd render
+  // with stale colors otherwise.
+  useEffect(() => {
+    tileCacheRef.current.clear();
+  }, [cminEff, cmaxEff]);
 
   const clipId = `clip-h-${figure.id}-${Math.round(width)}`;
   // The heatmap image is stretched to fill the figure's xRange × yRange in
@@ -300,7 +372,7 @@ export default function Heatmap({
   const cbarW = 12;
   const cbarX = padL + W + 14;
   const cbarH = H;
-  const cbarTicks = niceTicks(figure.cmin, figure.cmax, 5);
+  const cbarTicks = niceTicks(cminEff, cmaxEff, 5);
   const cbarInterp = getColormap(figure.colormap);
   const cbarStops = Array.from({ length: 11 }, (_, i) => ({
     offset: `${i * 10}%`,
@@ -429,7 +501,7 @@ export default function Heatmap({
         fill={`url(#${cbarGradId})`}
         stroke="var(--plot-frame)" strokeWidth="0.5" />
       {cbarTicks.major.map((v, i) => {
-        const y = padT + cbarH - ((v - figure.cmin) / (figure.cmax - figure.cmin)) * cbarH;
+        const y = padT + cbarH - ((v - cminEff) / (cmaxEff - cminEff)) * cbarH;
         if (y < padT - 1 || y > padT + cbarH + 1) return null;
         return (
           <g key={`cb${i}`}>
