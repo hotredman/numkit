@@ -1,10 +1,14 @@
 {
   "name": "lognlike",
   "namespace": "stats",
-  "setup": "x = [1 2 3 4 5]';",
-  "expr": "nL = lognlike([0, 1], x);",
+  "setup": "x = [1 2 3 4 5 6 7 8 9 10]'; cens = [0 0 0 0 0 0 0 1 1 1]'; freq = [2 2 2 1 1 1 1 1 1 1]';",
+  "expr": "[nL_basic, av_basic] = lognlike([0, 1], x); nL_cens = lognlike([0, 1], x, cens); nL_freq = lognlike([0, 1], x, [], freq); nL_both = lognlike([0, 1], x, cens, freq); nL_sig0 = lognlike([0, 0], [1 2 3 4 5]'); nL_xneg = lognlike([0, 1], [-1 2 3]'); nL_empty = lognlike([0, 1], []);",
   "iters": 5,
   "tol": 1e-9,
-  "fingerprint": ["nL"],
-  "comment": "Sig: nL = lognlike([mu sigma], x). Negative log-likelihood for lognormal."
+  "fingerprint": [
+    "nL_basic", "av_basic(1,1)", "av_basic(1,2)", "av_basic(2,2)",
+    "nL_cens", "nL_freq", "nL_both",
+    "nL_sig0", "nL_xneg", "nL_empty"
+  ],
+  "comment": "Sig: [nL, aVar] = lognlike([mu sigma], x[, cens, freq]). NLL for lognormal. Hessian wrt (mu, sigma) is structurally identical to the normal Hessian on log(x). aVar (column-major 2×2) reflects cens/freq weighting; can have negative diagonal entries at non-MLE params (observed Fisher, not expected). Edge: sigma<=0 or x<=0 => NaN; empty data => 0."
 }
