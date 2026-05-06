@@ -186,12 +186,12 @@ export default function PolarPlot({
     { label: 'Save as PNG @2×',
       onClick: () => exportPngNode(svgRef.current, width, height, 2, `figure_${figure.id}.png`) },
     { separator: true },
+    { head: 'Fit all curves' },
     { label: 'Fit r-range',
       onClick: () => fitRho('all'),
       disabled: !setViewport,
     },
     ...(multiSeries ? [
-      { separator: true },
       { head: 'Fit single curve' },
       ...figure.series.map((s) => ({
         row: true, color: s.color, name: s.name,
