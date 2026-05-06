@@ -1179,12 +1179,22 @@ input, select { font-family: inherit; color: inherit; }
   border-radius: 0;
   border: none;
 }
-/* Title bar: meta lives in title-left (alongside name/dim, can truncate
-   together). Title-right holds ONLY the maximise + close buttons —
-   never shrinks, never gets pushed off-screen. */
-.ve-titlebar { gap: 8px; }
-.ve-title-left  { min-width: 0; flex: 1 1 auto; overflow: hidden; }
-.ve-title-right { flex-shrink: 0; }
+/* Title bar: meta lives in title-left and can truncate. The buttons
+   are absolutely pinned to the top-right corner, completely outside
+   the flex flow — no amount of left-side content can push them off. */
+.ve-titlebar { position: relative; gap: 8px; }
+.ve-title-left {
+  min-width: 0; flex: 1 1 auto; overflow: hidden;
+  white-space: nowrap; text-overflow: ellipsis;
+  /* room for the absolutely-positioned button group on the right */
+  padding-right: 70px;
+}
+.ve-title-right {
+  position: absolute; top: 0; right: 12px; bottom: 0;
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg-2);
+  z-index: 1;
+}
 
 /* Body holds table + optional inline plot */
 .ve-body {
@@ -1318,10 +1328,19 @@ input, select { font-family: inherit; color: inherit; }
   border-radius: 0;
   border: none;
 }
-/* Same shrink chain as .ve-titlebar — meta is part of title-left, the
-   right group only holds buttons that never shrink. */
-.fw-title-left  { min-width: 0; flex: 1 1 auto; overflow: hidden; }
-.fw-title-right { flex-shrink: 0; }
+/* Same approach as .ve-titlebar — pin the right-side buttons. */
+.fw-titlebar { position: relative; }
+.fw-title-left {
+  min-width: 0; flex: 1 1 auto; overflow: hidden;
+  white-space: nowrap; text-overflow: ellipsis;
+  padding-right: 70px;
+}
+.fw-title-right {
+  position: absolute; top: 0; right: 12px; bottom: 0;
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg-2);
+  z-index: 1;
+}
 .fw-titlebar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 12px;
