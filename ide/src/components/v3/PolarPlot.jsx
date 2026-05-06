@@ -177,6 +177,11 @@ export default function PolarPlot({
   }
   const multiSeries = Array.isArray(figure.series) && figure.series.length > 1;
   const ctxItems = [
+    { label: 'Reset to default',
+      onClick: () => setViewport && setViewport(defaultPolarViewport(figure)),
+      disabled: !setViewport,
+    },
+    { separator: true },
     { label: 'Fit r-range',
       onClick: () => fitRho('all'),
       disabled: !setViewport,
@@ -189,11 +194,6 @@ export default function PolarPlot({
         buttons: [{ label: 'fit', onClick: () => fitRho(s.name), disabled: !setViewport }],
       })),
     ] : []),
-    { separator: true },
-    { label: 'Reset to default',
-      onClick: () => setViewport && setViewport(defaultPolarViewport(figure)),
-      disabled: !setViewport,
-    },
     { separator: true },
     { label: 'Save as SVG',
       onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },

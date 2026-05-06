@@ -130,6 +130,9 @@ export default function InteractivePlot({
   }
   const multiSeries = Array.isArray(figure.series) && figure.series.length > 1;
   const ctxItems = [
+    { label: 'Reset to default',
+      onClick: () => setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() }) },
+    { separator: true },
     { label: 'Fit both axes', onClick: () => applyFit('all', 'both') },
     { label: 'Fit X only',    onClick: () => applyFit('all', 'x') },
     { label: 'Fit Y only',    onClick: () => applyFit('all', 'y') },
@@ -145,9 +148,6 @@ export default function InteractivePlot({
         ],
       })),
     ] : []),
-    { separator: true },
-    { label: 'Reset to default',
-      onClick: () => setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() }) },
     { separator: true },
     { label: 'Save as SVG',
       onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },

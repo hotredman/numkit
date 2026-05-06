@@ -313,6 +313,9 @@ export default function FigureWindow({ figure, onClose }) {
             {fitOpen && (isPolar ? (
               <div className="fw-pop">
                 <div className="fw-pop-section">
+                  <button onClick={() => { setViewport(figDefault); setFitOpen(false); }}>reset to default</button>
+                </div>
+                <div className="fw-pop-section">
                   <div className="fw-pop-head">all curves</div>
                   <button onClick={() => applyFit('all', 'both')}>fit r-range</button>
                 </div>
@@ -327,12 +330,12 @@ export default function FigureWindow({ figure, onClose }) {
                     ))}
                   </div>
                 )}
-                <div className="fw-pop-section">
-                  <button onClick={() => { setViewport(figDefault); setFitOpen(false); }}>reset to default</button>
-                </div>
               </div>
             ) : (
               <div className="fw-pop">
+                <div className="fw-pop-section">
+                  <button onClick={() => { setViewport(figDefault); setFitOpen(false); }}>reset to default</button>
+                </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">all curves</div>
                   <button onClick={() => applyFit('all', 'both')}>both axes</button>
@@ -352,9 +355,6 @@ export default function FigureWindow({ figure, onClose }) {
                     ))}
                   </div>
                 )}
-                <div className="fw-pop-section">
-                  <button onClick={() => { setViewport(figDefault); setFitOpen(false); }}>reset to default</button>
-                </div>
               </div>
             ))}
           </div>
