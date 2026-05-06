@@ -501,9 +501,12 @@ export default function Sidebar({
             but cheap enough to keep for every source). */}
         <button className="sidebar-icon" title="Refresh tree"
           onClick={() => loadTree()}>
-          <svg width="11" height="11" viewBox="0 0 12 12">
-            <path d="M3 6a3 3 0 1 1 1 2.2L2 10 M2 6V3l1 1"
-              stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M10 6a4 4 0 1 1-1.17-2.83"
+              stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+            <path d="M10 1.5V4H7.5"
+              stroke="currentColor" strokeWidth="1.3"
+              strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
       </div>
