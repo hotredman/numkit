@@ -181,6 +181,10 @@ export default function PolarPlot({
       onClick: () => setViewport && setViewport(defaultPolarViewport(figure)),
       disabled: !setViewport,
     },
+    { label: 'Save as SVG',
+      onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
+    { label: 'Save as PNG @2×',
+      onClick: () => exportPngNode(svgRef.current, width, height, 2, `figure_${figure.id}.png`) },
     { separator: true },
     { label: 'Fit r-range',
       onClick: () => fitRho('all'),
@@ -194,11 +198,6 @@ export default function PolarPlot({
         buttons: [{ label: 'fit', onClick: () => fitRho(s.name), disabled: !setViewport }],
       })),
     ] : []),
-    { separator: true },
-    { label: 'Save as SVG',
-      onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
-    { label: 'Save as PNG @2×',
-      onClick: () => exportPngNode(svgRef.current, width, height, 2, `figure_${figure.id}.png`) },
   ];
 
   // Wheel listener attached imperatively because React's onWheel is passive.

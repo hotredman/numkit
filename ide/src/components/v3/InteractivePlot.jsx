@@ -132,6 +132,10 @@ export default function InteractivePlot({
   const ctxItems = [
     { label: 'Reset to default',
       onClick: () => setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() }) },
+    { label: 'Save as SVG',
+      onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
+    { label: 'Save as PNG @2×',
+      onClick: () => exportPngNode(svgRef.current, width, height, 2, `figure_${figure.id}.png`) },
     { separator: true },
     { label: 'Fit both axes', onClick: () => applyFit('all', 'both') },
     { label: 'Fit X only',    onClick: () => applyFit('all', 'x') },
@@ -148,11 +152,6 @@ export default function InteractivePlot({
         ],
       })),
     ] : []),
-    { separator: true },
-    { label: 'Save as SVG',
-      onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
-    { label: 'Save as PNG @2×',
-      onClick: () => exportPngNode(svgRef.current, width, height, 2, `figure_${figure.id}.png`) },
   ];
 
   // wheel listener attached imperatively because React's onWheel is passive.
