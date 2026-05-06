@@ -270,6 +270,147 @@ public:
      * Storage in numkit is column-major (MATLAB convention) — we transpose
      * to row-major here so the table reads naturally.
      */
+    /* ---- Cheap dimension-only query (no data) ---- */
+    std::string getVarShapeJSON(const std::string &name) {
+        try {
+            const numkit::Value *valPtr = nullptr;
+            if (debugSession_ && debugSession_->isActive()) {
+                auto snap = debugSession_->snapshot();
+                for (auto &v : snap.variables) {
+                    if (v.name == name && v.value) { valPtr = v.value; break; }
+                }
+            }
+            if (!valPtr) valPtr = engine_->getVariable(name);
+            if (!valPtr) {
+                return "{\"error\":\"variable '" + escapeJSON(name) + "' not found\"}";
+            }
+            const auto &val = *valPtr;
+            const auto &d = val.dims();
+            std::ostringstream os;
+            os << "{\"name\":\"" << escapeJSON(name) << "\""
+               << ",\"type\":\"" << numkit::mtypeName(val.type()) << "\""
+               << ",\"rows\":" << d.rows()
+               << ",\"cols\":" << d.cols()
+               << ",\"numel\":" << val.numel() << "}";
+            return os.str();
+        } catch (const std::exception &e) {
+            return std::string("{\"error\":\"") + escapeJSON(e.what()) + "\"}";
+        } catch (...) { return "{\"error\":\"unknown\"}"; }
+    }
+
+    /* ---- Tile fetch — only the requested rectangle of cells ---- */
+    std::string getVarTileJSON(const std::string &name, int r0, int c0, int rowsIn, int colsIn) {
+        try {
+            using numkit::ValueType;
+            const numkit::Value *valPtr = nullptr;
+            if (debugSession_ && debugSession_->isActive()) {
+                auto snap = debugSession_->snapshot();
+                for (auto &v : snap.variables) {
+                    if (v.name == name && v.value) { valPtr = v.value; break; }
+                }
+            }
+            if (!valPtr) valPtr = engine_->getVariable(name);
+            if (!valPtr) return "{\"error\":\"variable not found\"}";
+            const auto &val = *valPtr;
+            const auto &d = val.dims();
+            const size_t totalRows = d.rows();
+            const size_t totalCols = d.cols();
+            if (r0 < 0) r0 = 0;
+            if (c0 < 0) c0 = 0;
+            const size_t rEnd = std::min(totalRows, (size_t)(r0 + rowsIn));
+            const size_t cEnd = std::min(totalCols, (size_t)(c0 + colsIn));
+            if ((size_t)r0 >= totalRows || (size_t)c0 >= totalCols
+                || rEnd <= (size_t)r0 || cEnd <= (size_t)c0) {
+                return "{\"error\":\"out of range\",\"r0\":" + std::to_string(r0)
+                     + ",\"c0\":" + std::to_string(c0) + "}";
+            }
+
+            auto fmtNum = [](double v) -> std::string {
+                if (std::isnan(v))  return "null";
+                if (std::isinf(v))  return v > 0 ? "\"Inf\"" : "\"-Inf\"";
+                std::ostringstream s;
+                s.precision(17);
+                s << v;
+                return s.str();
+            };
+
+            std::ostringstream os;
+            os << "{\"r0\":" << r0
+               << ",\"c0\":" << c0
+               << ",\"rows\":" << (rEnd - r0)
+               << ",\"cols\":" << (cEnd - c0)
+               << ",\"type\":\"" << numkit::mtypeName(val.type()) << "\""
+               << ",\"data\":[";
+
+            if (val.type() == ValueType::DOUBLE) {
+                const double *p = val.doubleData();
+                for (size_t r = (size_t)r0; r < rEnd; ++r) {
+                    if (r > (size_t)r0) os << ",";
+                    os << "[";
+                    for (size_t c = (size_t)c0; c < cEnd; ++c) {
+                        if (c > (size_t)c0) os << ",";
+                        os << fmtNum(p[c * totalRows + r]);
+                    }
+                    os << "]";
+                }
+            } else if (val.type() == ValueType::LOGICAL) {
+                const uint8_t *p = val.logicalData();
+                for (size_t r = (size_t)r0; r < rEnd; ++r) {
+                    if (r > (size_t)r0) os << ",";
+                    os << "[";
+                    for (size_t c = (size_t)c0; c < cEnd; ++c) {
+                        if (c > (size_t)c0) os << ",";
+                        os << (p[c * totalRows + r] ? "true" : "false");
+                    }
+                    os << "]";
+                }
+            } else if (val.type() == ValueType::COMPLEX) {
+                const numkit::Complex *p = val.complexData();
+                for (size_t r = (size_t)r0; r < rEnd; ++r) {
+                    if (r > (size_t)r0) os << ",";
+                    os << "[";
+                    for (size_t c = (size_t)c0; c < cEnd; ++c) {
+                        if (c > (size_t)c0) os << ",";
+                        const auto &z = p[c * totalRows + r];
+                        std::ostringstream s;
+                        s.precision(12);
+                        s << z.real();
+                        if (z.imag() >= 0) s << "+";
+                        s << z.imag() << "i";
+                        os << "\"" << s.str() << "\"";
+                    }
+                    os << "]";
+                }
+            } else if (val.type() == ValueType::CHAR) {
+                const char *p = val.charData();
+                for (size_t r = (size_t)r0; r < rEnd; ++r) {
+                    if (r > (size_t)r0) os << ",";
+                    os << "[";
+                    for (size_t c = (size_t)c0; c < cEnd; ++c) {
+                        if (c > (size_t)c0) os << ",";
+                        char ch = p[c * totalRows + r];
+                        os << "\"" << escapeJSON(std::string(1, ch)) << "\"";
+                    }
+                    os << "]";
+                }
+            } else {
+                for (size_t r = (size_t)r0; r < rEnd; ++r) {
+                    if (r > (size_t)r0) os << ",";
+                    os << "[";
+                    for (size_t c = (size_t)c0; c < cEnd; ++c) {
+                        if (c > (size_t)c0) os << ",";
+                        os << "\"—\"";
+                    }
+                    os << "]";
+                }
+            }
+            os << "]}";
+            return os.str();
+        } catch (const std::exception &e) {
+            return std::string("{\"error\":\"") + escapeJSON(e.what()) + "\"}";
+        } catch (...) { return "{\"error\":\"unknown\"}"; }
+    }
+
     std::string getVarFullJSON(const std::string &name) {
         try {
             using numkit::ValueType;
@@ -613,6 +754,16 @@ std::string repl_get_var_data(const std::string &name) {
     return g_session->getVarFullJSON(name);
 }
 
+std::string repl_get_var_shape(const std::string &name) {
+    if (!g_session) return "{\"error\":\"no session\"}";
+    return g_session->getVarShapeJSON(name);
+}
+
+std::string repl_get_var_tile(const std::string &name, int r0, int c0, int rows, int cols) {
+    if (!g_session) return "{\"error\":\"no session\"}";
+    return g_session->getVarTileJSON(name, r0, c0, rows, cols);
+}
+
 std::string repl_version() {
     if (!g_session) repl_init();
     return g_session->version();
@@ -695,7 +846,9 @@ EMSCRIPTEN_BINDINGS(numkit_ide) {
     emscripten::function("repl_reset",     &repl_reset);
     emscripten::function("repl_workspace", &repl_workspace);
     emscripten::function("repl_get_vars",     &repl_get_vars);
-    emscripten::function("repl_get_var_data", &repl_get_var_data);
+    emscripten::function("repl_get_var_data",  &repl_get_var_data);
+    emscripten::function("repl_get_var_shape", &repl_get_var_shape);
+    emscripten::function("repl_get_var_tile",  &repl_get_var_tile);
     emscripten::function("repl_version",   &repl_version);
     emscripten::function("repl_debug_set_breakpoints", &repl_debug_set_breakpoints);
     emscripten::function("repl_debug_start",           &repl_debug_start);
