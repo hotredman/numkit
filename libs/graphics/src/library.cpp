@@ -354,9 +354,12 @@ void GraphicsLibrary::install(Engine &engine)
             DatasetInfo ds;
             ds.type = "imagesc";
 
-            // Always populate zRaw — full-resolution backing store (column-major
-            // float32, MATLAB-style) the IDE will read via getFigureTile() for
-            // zoom-in detail on huge matrices.
+            // Always populate zRaw + originalRows/Cols — full-resolution backing
+            // store (column-major float32, MATLAB-style) for getFigureTile() to
+            // serve zoom-in tile requests at any LOD. originalRows/Cols describe
+            // zRaw's shape regardless of whether the inline JSON was downsampled.
+            ds.originalRows = rows;
+            ds.originalCols = cols;
             ds.zRaw.resize(rows * cols);
             for (size_t c = 0; c < cols; ++c) {
                 for (size_t r = 0; r < rows; ++r) {
@@ -436,8 +439,6 @@ void GraphicsLibrary::install(Engine &engine)
                 }
 
                 ds.downsampled  = true;
-                ds.originalRows = rows;
-                ds.originalCols = cols;
             }
             zs << "]";
             ds.zJson = zs.str();

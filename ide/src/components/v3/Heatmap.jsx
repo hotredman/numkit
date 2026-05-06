@@ -26,11 +26,32 @@ export default function Heatmap({
   minor = true,
   fontScale = 1,
   interactive = true,
+  engine = null,
 }) {
   const svgRef = useRef(null);
   const [hover, setHover] = useState(null);
   const [ctxMenu, setCtxMenu] = useState(null);
   const dragRef = useRef(null);
+
+  // ── tile-fetch state for huge imagesc datasets ─────────────────────
+  // tileCache: Map<key, dataURL> — keyed by `${lod}|${r0}|${c0}|${h}|${w}`.
+  //            Capped at 8 entries LRU-style (insertion order).
+  // tileOverlay: { dataURL, r0, c0, h, w } — currently displayed overlay
+  //              positioned in source-coords, rendered as an SVG <image>
+  //              that lives above the preview.
+  const tileCacheRef = useRef(new Map());
+  const [tileOverlay, setTileOverlay] = useState(null);
+  const figIdRef = useRef(figure._raw?.id ?? figure.id);
+  // Reset cache + overlay whenever the figure identity changes — new dataset
+  // means stale tiles aren't comparable.
+  useEffect(() => {
+    const fid = figure._raw?.id ?? figure.id;
+    if (figIdRef.current !== fid) {
+      tileCacheRef.current.clear();
+      setTileOverlay(null);
+      figIdRef.current = fid;
+    }
+  }, [figure._raw?.id, figure.id]);
 
   const padL = 60 * fontScale;
   const padR = 70 * fontScale;  // wider to fit the colorbar
@@ -146,6 +167,116 @@ export default function Heatmap({
     return () => el.removeEventListener('wheel', onWheel);
   });
 
+  // ── tile-fetch on viewport changes ───────────────────────────────────
+  // When the user zooms in past the preview's resolution, refetch a tile
+  // covering the visible region at a finer LOD. Debounced 200 ms so the
+  // engine isn't hammered during continuous wheel-zoom.
+  useEffect(() => {
+    if (!interactive) return;
+    if (!engine || typeof engine.getFigureTile !== 'function') return;
+    if (typeof figure._figId !== 'number' || figure._figId < 0) return;
+    if (!figure.originalRows || !figure.originalCols) return;
+
+    const handle = setTimeout(() => {
+      // Map the current viewport to source-cell indices. xRange / yRange are
+      // in *source* coordinates (the engine emits them spanning the matrix
+      // extent regardless of downsampling).
+      const fullCols = figure.originalCols;
+      const fullRows = figure.originalRows;
+      const xExt = figure.xRange[1] - figure.xRange[0];
+      const yExt = figure.yRange[1] - figure.yRange[0];
+      const colsPerUnit = fullCols / (xExt || 1);
+      const rowsPerUnit = fullRows / (yExt || 1);
+
+      const c0 = Math.max(0, Math.floor((Math.min(xMin, xMax) - figure.xRange[0]) * colsPerUnit));
+      const c1 = Math.min(fullCols, Math.ceil((Math.max(xMin, xMax) - figure.xRange[0]) * colsPerUnit));
+      const r0 = Math.max(0, Math.floor((figure.yRange[1] - Math.max(yMin, yMax)) * rowsPerUnit));
+      const r1 = Math.min(fullRows, Math.ceil((figure.yRange[1] - Math.min(yMin, yMax)) * rowsPerUnit));
+
+      const tileW = c1 - c0;
+      const tileH = r1 - r0;
+      if (tileW <= 0 || tileH <= 0) { setTileOverlay(null); return; }
+
+      // Pick LOD so the tile maps roughly 1 source-cell per panel-pixel.
+      // Higher LOD = coarser pooling; LOD=1 means full resolution.
+      const lod = Math.max(1, Math.ceil(Math.max(tileW / W, tileH / H)));
+
+      // Skip refetch if the preview already provides this LOD's resolution.
+      // Preview's effective LOD on full extent ≈ ceil(max(rows, cols) / 1448).
+      const previewLod = Math.max(1, Math.ceil(Math.max(fullRows, fullCols) / 1448));
+      if (lod >= previewLod && tileW >= fullCols * 0.95 && tileH >= fullRows * 0.95) {
+        // Looking at (nearly) full extent at preview-or-coarser LOD — preview is fine.
+        setTileOverlay(null);
+        return;
+      }
+
+      const key = `${lod}|${r0}|${c0}|${tileH}|${tileW}`;
+      const cache = tileCacheRef.current;
+      if (cache.has(key)) {
+        const cached = cache.get(key);
+        // LRU touch: re-insert at the end.
+        cache.delete(key); cache.set(key, cached);
+        setTileOverlay({ ...cached, key });
+        return;
+      }
+
+      const tile = engine.getFigureTile(figure._figId, figure._axIdx, figure._dsIdx,
+                                        r0, c0, tileH, tileW, lod);
+      if (!tile || tile.error) { setTileOverlay(null); return; }
+
+      // Colormap the float tile to a PNG dataURL via canvas.
+      const interp = getColormap(figure.colormap);
+      const canvas = document.createElement('canvas');
+      canvas.width = tile.cols; canvas.height = tile.rows;
+      const ctx = canvas.getContext('2d');
+      const img = ctx.createImageData(tile.cols, tile.rows);
+      const cmin = figure.cmin, cmax = figure.cmax;
+      const range = (cmax - cmin) || 1;
+      for (let i = 0; i < tile.data.length; i++) {
+        const v = tile.data[i];
+        const o = i * 4;
+        if (!Number.isFinite(v)) {
+          img.data[o] = 0; img.data[o + 1] = 0; img.data[o + 2] = 0; img.data[o + 3] = 0;
+        } else {
+          const t = Math.max(0, Math.min(1, (v - cmin) / range));
+          const rgb = interp(t);
+          // interp returns either {r,g,b} or array — handle both.
+          const cr = Array.isArray(rgb) ? rgb[0] : rgb.r ?? 0;
+          const cg = Array.isArray(rgb) ? rgb[1] : rgb.g ?? 0;
+          const cb = Array.isArray(rgb) ? rgb[2] : rgb.b ?? 0;
+          // colormap may already be 0-255 or a CSS color; we call interp(t)
+          // which returns a CSS string — parse it.
+          if (typeof rgb === 'string') {
+            // crude rgb(...) parser; falls back to filling the image
+            const m = rgb.match(/(\d+),\s*(\d+),\s*(\d+)/);
+            if (m) {
+              img.data[o] = +m[1]; img.data[o + 1] = +m[2]; img.data[o + 2] = +m[3];
+            }
+          } else {
+            img.data[o] = cr; img.data[o + 1] = cg; img.data[o + 2] = cb;
+          }
+          img.data[o + 3] = 255;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      const dataURL = canvas.toDataURL();
+
+      const entry = { dataURL, r0, c0, h: tileH, w: tileW, lod };
+      cache.set(key, entry);
+      // LRU: cap at 8 entries.
+      while (cache.size > 8) {
+        const firstKey = cache.keys().next().value;
+        cache.delete(firstKey);
+      }
+      setTileOverlay({ ...entry, key });
+    }, 200);
+
+    return () => clearTimeout(handle);
+  }, [interactive, engine, figure._figId, figure._axIdx, figure._dsIdx,
+      figure.originalRows, figure.originalCols, figure.cmin, figure.cmax, figure.colormap,
+      figure.xRange, figure.yRange,
+      xMin, xMax, yMin, yMax, W, H]);
+
   const clipId = `clip-h-${figure.id}-${Math.round(width)}`;
   // The heatmap image is stretched to fill the figure's xRange × yRange in
   // viewport coordinates — pan/zoom moves the SVG rect, the image follows.
@@ -209,13 +340,38 @@ export default function Heatmap({
       <rect x={padL} y={padT} width={W} height={H} fill="var(--plot-bg)" />
 
       {/* Heatmap image — pixel data, scaled to viewport. preserveAspectRatio="none"
-          stretches in both axes to match the data extent. */}
+          stretches in both axes to match the data extent. The optional
+          tileOverlay sits on top, painted at the right LOD for the current
+          zoom over the visible source-region. */}
       {dataURL && (
         <g clipPath={`url(#${clipId})`}>
           <image href={dataURL}
             x={imgX} y={imgY} width={imgW} height={imgH}
             preserveAspectRatio="none"
             imageRendering="pixelated" />
+          {tileOverlay && (() => {
+            // Map tile's (r0,c0,h,w) source-cell rect back to screen-space.
+            // xRange/yRange span the full source extent; we linearly interpolate.
+            const fullCols = figure.originalCols || 1;
+            const fullRows = figure.originalRows || 1;
+            const xExt = figure.xRange[1] - figure.xRange[0];
+            const yExt = figure.yRange[1] - figure.yRange[0];
+            const tx0 = figure.xRange[0] + (tileOverlay.c0           / fullCols) * xExt;
+            const tx1 = figure.xRange[0] + ((tileOverlay.c0 + tileOverlay.w) / fullCols) * xExt;
+            // y axis is inverted in screen space (yRange[1] is at top).
+            const ty0 = figure.yRange[1] - (tileOverlay.r0           / fullRows) * yExt;
+            const ty1 = figure.yRange[1] - ((tileOverlay.r0 + tileOverlay.h) / fullRows) * yExt;
+            const ox = sx(tx0);
+            const oy = sy(ty0);
+            const ow = sx(tx1) - sx(tx0);
+            const oh = sy(ty1) - sy(ty0);
+            return (
+              <image href={tileOverlay.dataURL}
+                x={ox} y={oy} width={ow} height={oh}
+                preserveAspectRatio="none"
+                imageRendering="pixelated" />
+            );
+          })()}
         </g>
       )}
 

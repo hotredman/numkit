@@ -323,6 +323,90 @@ public:
 
     const std::map<int, FigureState> &figures() const { return figures_; }
 
+    /**
+     * Tile fetcher for huge imagesc datasets. Reads a sub-rectangle
+     *   rows [r0, r0+h) × cols [c0, c0+w)
+     * from `figures_[figId].axes[axIdx].datasets[dsIdx].zRaw`, mean-pools by
+     * `lod×lod` integer factor, and writes the result row-major to `out`.
+     *
+     * Returns the *output* dimensions (after pooling) via outRows/outCols, or
+     * 0/0 if the request is out of range / dataset isn't an imagesc / no zRaw.
+     * Caller-side allocates `out` of size at least ⌈h/lod⌉ × ⌈w/lod⌉.
+     */
+    bool getFigureTile(int figId, int axIdx, int dsIdx,
+                       int r0, int c0, int h, int w, int lod,
+                       std::vector<float> &out,
+                       size_t &outRows, size_t &outCols) const
+    {
+        outRows = 0;
+        outCols = 0;
+        out.clear();
+
+        auto figIt = figures_.find(figId);
+        if (figIt == figures_.end()) return false;
+        const auto &fig = figIt->second;
+        if (axIdx < 0 || axIdx >= static_cast<int>(fig.axes.size())) return false;
+        const auto &axState = fig.axes[axIdx];
+        if (dsIdx < 0 || dsIdx >= static_cast<int>(axState.datasets.size())) return false;
+        const auto &ds = axState.datasets[dsIdx];
+        if (ds.zRaw.empty() || ds.type != "imagesc") return false;
+
+        // imagesc always populates originalRows/Cols regardless of whether
+        // the inline JSON was downsampled — they describe zRaw's shape.
+        const size_t fullRows = ds.originalRows;
+        const size_t fullCols = ds.originalCols;
+        if (fullRows == 0 || fullCols == 0) return false;
+        if (ds.zRaw.size() < fullRows * fullCols) return false;
+
+        if (lod < 1) lod = 1;
+        if (r0 < 0) r0 = 0;
+        if (c0 < 0) c0 = 0;
+        if (h < 0 || w < 0) return false;
+
+        const size_t rEnd = std::min(fullRows, static_cast<size_t>(r0) + static_cast<size_t>(h));
+        const size_t cEnd = std::min(fullCols, static_cast<size_t>(c0) + static_cast<size_t>(w));
+        if (static_cast<size_t>(r0) >= fullRows || static_cast<size_t>(c0) >= fullCols
+            || rEnd <= static_cast<size_t>(r0) || cEnd <= static_cast<size_t>(c0)) {
+            return false;
+        }
+
+        const size_t srcH = rEnd - static_cast<size_t>(r0);
+        const size_t srcW = cEnd - static_cast<size_t>(c0);
+        const size_t L = static_cast<size_t>(lod);
+        const size_t oH = (srcH + L - 1) / L;
+        const size_t oW = (srcW + L - 1) / L;
+
+        out.resize(oH * oW);
+
+        // Mean-pool over L×L blocks. Row-major output (suits canvas blit).
+        // zRaw is column-major (MATLAB convention).
+        for (size_t orow = 0; orow < oH; ++orow) {
+            const size_t rA = static_cast<size_t>(r0) + orow * L;
+            const size_t rB = std::min(rEnd, rA + L);
+            for (size_t ocol = 0; ocol < oW; ++ocol) {
+                const size_t cA = static_cast<size_t>(c0) + ocol * L;
+                const size_t cB = std::min(cEnd, cA + L);
+                double sum = 0.0;
+                size_t n = 0;
+                for (size_t cc = cA; cc < cB; ++cc) {
+                    for (size_t rr = rA; rr < rB; ++rr) {
+                        const float v = ds.zRaw[cc * fullRows + rr];
+                        if (std::isfinite(v)) {
+                            sum += static_cast<double>(v);
+                            ++n;
+                        }
+                    }
+                }
+                out[orow * oW + ocol] = (n > 0) ? static_cast<float>(sum / n)
+                                                : std::numeric_limits<float>::quiet_NaN();
+            }
+        }
+
+        outRows = oH;
+        outCols = oW;
+        return true;
+    }
+
 private:
     std::map<int, FigureState> figures_;
     int currentFigure_ = 1;

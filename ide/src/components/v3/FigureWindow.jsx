@@ -37,7 +37,7 @@ function NumberInput({ value, onCommit, width = 88 }) {
   );
 }
 
-export default function FigureWindow({ figure, onClose }) {
+export default function FigureWindow({ figure, onClose, engine = null }) {
   const isPolar   = figure.kind === 'polar';
   const isSubplot = figure.kind === 'subplot';
   // Polar plots use {r:[lo,hi]}; cartesian use {x:[…], y:[…]}; subplots have
@@ -452,6 +452,7 @@ export default function FigureWindow({ figure, onClose }) {
               viewport, setViewport,
               major: showMajor, minor: showMinor,
               fontScale: 1.15,
+              engine,
             })}
             {showLegend && Array.isArray(figure.series) && figure.series.length > 0 && (
               <div className="fw-legend">

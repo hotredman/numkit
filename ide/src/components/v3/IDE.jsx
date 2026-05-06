@@ -824,6 +824,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
             onExpand={(fig) => setOpenFigure(fig)}
             onCloseFigure={handleCloseFigure}
             onCloseAll={handleCloseAllFigures}
+            engine={engine}
           />
         )}
       </div>
@@ -844,7 +845,8 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
           onClose={() => setOpenVar(null)} />
       )}
       {openFigure && (
-        <FigureWindow figure={openFigure} onClose={() => setOpenFigure(null)} />
+        <FigureWindow figure={openFigure} engine={engine}
+          onClose={() => setOpenFigure(null)} />
       )}
 
       {/* Legacy d3 renderer — full-screen modal for unsupported plot types */}
