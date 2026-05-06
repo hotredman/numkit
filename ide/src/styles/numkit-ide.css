@@ -1170,6 +1170,7 @@ input, select { font-family: inherit; color: inherit; }
   display: grid;
   grid-template-rows: 38px 40px 28px 1fr 22px;
   overflow: hidden;
+  position: relative;   /* anchor for the absolutely-pinned title-right */
   animation: scalein 160ms ease;
   transition: width 140ms ease, height 140ms ease, border-radius 140ms ease;
 }
@@ -1179,21 +1180,22 @@ input, select { font-family: inherit; color: inherit; }
   border-radius: 0;
   border: none;
 }
-/* Title bar: meta lives in title-left and can truncate. The buttons
-   are absolutely pinned to the top-right corner, completely outside
-   the flex flow — no amount of left-side content can push them off. */
-.ve-titlebar { position: relative; gap: 8px; }
+/* Title bar: meta lives in title-left and can truncate. Buttons are
+   pinned to the modal's top-right corner (anchored on .ve-window, not
+   the title-bar) so they stay reachable even if the title-bar layout
+   gets weird. */
+.ve-titlebar { gap: 8px; }
 .ve-title-left {
   min-width: 0; flex: 1 1 auto; overflow: hidden;
   white-space: nowrap; text-overflow: ellipsis;
-  /* room for the absolutely-positioned button group on the right */
-  padding-right: 70px;
+  padding-right: 80px;   /* reserved space for the pinned buttons */
 }
 .ve-title-right {
-  position: absolute; top: 0; right: 12px; bottom: 0;
-  display: flex; align-items: center; gap: 6px;
+  position: absolute; top: 7px; right: 10px;
+  display: flex; align-items: center; gap: 4px;
   background: var(--bg-2);
-  z-index: 1;
+  padding: 0 4px; border-radius: var(--r-sm);
+  z-index: 10;
 }
 
 /* Body holds table + optional inline plot */
@@ -1319,6 +1321,7 @@ input, select { font-family: inherit; color: inherit; }
   display: grid;
   grid-template-rows: 38px 40px 1fr 22px;
   overflow: hidden;
+  position: relative;   /* anchor for the absolutely-pinned title-right */
   animation: scalein 160ms ease;
   transition: width 140ms ease, height 140ms ease, border-radius 140ms ease;
 }
@@ -1328,18 +1331,18 @@ input, select { font-family: inherit; color: inherit; }
   border-radius: 0;
   border: none;
 }
-/* Same approach as .ve-titlebar — pin the right-side buttons. */
-.fw-titlebar { position: relative; }
+/* Buttons pinned to the modal corner (anchored on .fw-window). */
 .fw-title-left {
   min-width: 0; flex: 1 1 auto; overflow: hidden;
   white-space: nowrap; text-overflow: ellipsis;
-  padding-right: 70px;
+  padding-right: 80px;
 }
 .fw-title-right {
-  position: absolute; top: 0; right: 12px; bottom: 0;
-  display: flex; align-items: center; gap: 6px;
+  position: absolute; top: 7px; right: 10px;
+  display: flex; align-items: center; gap: 4px;
   background: var(--bg-2);
-  z-index: 1;
+  padding: 0 4px; border-radius: var(--r-sm);
+  z-index: 10;
 }
 .fw-titlebar {
   display: flex; align-items: center; justify-content: space-between;
