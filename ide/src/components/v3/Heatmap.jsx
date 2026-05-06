@@ -240,8 +240,31 @@ export default function Heatmap({
   }
   function fitAxes(axisMode) {
     const next = { x: viewport.x.slice(), y: viewport.y.slice() };
-    if (axisMode === 'both' || axisMode === 'x') next.x = figure.xRange.slice();
-    if (axisMode === 'both' || axisMode === 'y') next.y = figure.yRange.slice();
+    // Under log mode the figure's natural xRange/yRange straddle zero
+    // (cellH/2 padding), so plain `figure.xRange.slice()` would push
+    // yMin below zero and silently flip yLogActive false → axis snaps
+    // to linear despite yscale('log'). Clamp the lo bound to half a
+    // cell-width above zero to keep log valid.
+    if (axisMode === 'both' || axisMode === 'x') {
+      if (xLog) {
+        const fullCols = figure.originalCols || 1;
+        const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
+        const lo = Math.max(cellW * 0.5, 1e-6);
+        next.x = [lo, Math.max(lo * 10, figure.xRange[1])];
+      } else {
+        next.x = figure.xRange.slice();
+      }
+    }
+    if (axisMode === 'both' || axisMode === 'y') {
+      if (yLog) {
+        const fullRows = figure.originalRows || 1;
+        const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
+        const lo = Math.max(cellH * 0.5, 1e-6);
+        next.y = [lo, Math.max(lo * 10, figure.yRange[1])];
+      } else {
+        next.y = figure.yRange.slice();
+      }
+    }
     setViewport(next);
   }
 

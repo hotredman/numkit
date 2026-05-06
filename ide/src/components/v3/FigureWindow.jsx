@@ -268,10 +268,32 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     if (isSubplot) return;                 // subplot fit lives per-cell; close menu
     if (isHeatmap) {
       // Heatmap has no series — its X/Y data extent is figure.xRange/yRange.
-      // axisMode picks which axis (or both) gets reset to data extent.
+      // Under a log axis (figure.xscale/yscale === 'log') the natural extent
+      // straddles zero (cellH/2 padding) and would silently flip the axis
+      // back to linear. Clamp the lo bound to half-cell-width when log.
+      const xLog = figure.xscale === 'log';
+      const yLog = figure.yscale === 'log';
       const next = { x: viewport.x.slice(), y: viewport.y.slice() };
-      if (axisMode === 'both' || axisMode === 'x') next.x = figure.xRange.slice();
-      if (axisMode === 'both' || axisMode === 'y') next.y = figure.yRange.slice();
+      if (axisMode === 'both' || axisMode === 'x') {
+        if (xLog) {
+          const fullCols = figure.originalCols || 1;
+          const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
+          const lo = Math.max(cellW * 0.5, 1e-6);
+          next.x = [lo, Math.max(lo * 10, figure.xRange[1])];
+        } else {
+          next.x = figure.xRange.slice();
+        }
+      }
+      if (axisMode === 'both' || axisMode === 'y') {
+        if (yLog) {
+          const fullRows = figure.originalRows || 1;
+          const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
+          const lo = Math.max(cellH * 0.5, 1e-6);
+          next.y = [lo, Math.max(lo * 10, figure.yRange[1])];
+        } else {
+          next.y = figure.yRange.slice();
+        }
+      }
       setViewport(next);
       setFitOpen(false);
       return;
