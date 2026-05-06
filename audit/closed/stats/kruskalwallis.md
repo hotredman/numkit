@@ -86,3 +86,11 @@ g  = [1 1 1 2 2 2 3 3 3]'
   console output remains text-only; gracefully ignore `'on'`.
 - `multcompare` integration — separate function (currently ❌ in
   PROGRESS).
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-06
+- Notes: `kruskalwallis_reg` extended with matrix-only form (infer
+  groups from columns of `args[0]`) + full stats struct emission
+  (`{gnames, n, source, meanranks, sumt}` plus retained legacy
+  `chi2stat`, `df`). 5 TEST_F gtest + smoke .m added.

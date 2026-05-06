@@ -16,7 +16,9 @@ gtest assertions against probe-captured values).
 
 | # | Namespace | Function | Notes |
 |---|---|---|---|
-| 17 | stats.fit | `normlike` | upgrade: censoring + freq + edge cases |
+
+_(empty — backfill queue closed 2026-05-06; the 4-artefact rule
+continues for new functions only.)_
 
 ## Closed
 
@@ -38,6 +40,7 @@ gtest assertions against probe-captured values).
 | `haart` | PENDING | libs/wavelet/tests/haart_test.cpp | libs/wavelet/tests/smoke/haart_smoke.m |
 | `ihaart` | PENDING | libs/wavelet/tests/ihaart_test.cpp | libs/wavelet/tests/smoke/ihaart_smoke.m |
 | `wrcoef` | PENDING | libs/wavelet/tests/wrcoef_test.cpp | libs/wavelet/tests/smoke/wrcoef_smoke.m |
+| `normlike` | PENDING | libs/stats/tests/normlike_upgrade_test.cpp | libs/stats/tests/smoke/normlike_upgrade_smoke.m |
 
 ---
 

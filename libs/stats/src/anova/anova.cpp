@@ -265,11 +265,44 @@ void anova1_reg(Span<const Value> args, size_t nargout,
 void kruskalwallis_reg(Span<const Value> args, size_t nargout,
                        Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("kruskalwallis: requires (y, group[, 'off'])",
+    if (args.empty())
+        throw Error("kruskalwallis: requires (y[, group][, 'off'])",
                     0, 0, "kruskalwallis", "", "m:kruskalwallis:nargin");
     auto *mr = ctx.engine->resource();
-    auto [p, H, df, sumR2] = kruskalwallis(mr, args[0], args[1]);
+
+    // Matrix-only form: when group is omitted (or the 2nd arg is the
+    // 'off'/'on' display flag string), infer groups from columns. Build
+    // a flat y column and a same-length group index column.
+    Value yArg = args[0];
+    Value gArg;
+    bool haveExplicitGroup = false;
+    size_t flagPos = 1;
+    if (args.size() >= 2 && !args[1].isChar() && !args[1].isString()
+        && !args[1].isEmpty()) {
+        gArg = args[1];
+        haveExplicitGroup = true;
+        flagPos = 2;
+    }
+    if (!haveExplicitGroup && !args[0].dims().isVector() && !args[0].isScalar()) {
+        const auto &dd = args[0].dims();
+        const size_t R = dd.rows(), C = dd.cols();
+        Value yFlat = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
+        Value gFlat = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
+        double *yp = yFlat.doubleDataMut();
+        double *gp = gFlat.doubleDataMut();
+        for (size_t c = 0; c < C; ++c)
+            for (size_t r = 0; r < R; ++r) {
+                yp[c * R + r] = args[0].elemAsDouble(c * R + r);
+                gp[c * R + r] = static_cast<double>(c + 1);
+            }
+        yArg = std::move(yFlat);
+        gArg = std::move(gFlat);
+    } else if (!haveExplicitGroup) {
+        throw Error("kruskalwallis: vector y requires explicit group argument",
+                    0, 0, "kruskalwallis", "", "m:kruskalwallis:noGroup");
+    }
+    (void)flagPos;   // 'off'/'on' display flag accepted but ignored
+    auto [p, H, df, sumR2] = kruskalwallis(mr, yArg, gArg);
     outs[0] = std::move(p);
     if (nargout > 1) {
         // 4×6 cell table { Source, SS, df, MS, Chi-sq, Prob>Chi-sq } —
@@ -301,9 +334,75 @@ void kruskalwallis_reg(Span<const Value> args, size_t nargout,
         outs[1] = std::move(tbl);
     }
     if (nargout > 2) {
+        // Compute per-group n[] and meanRanks[] for the documented stats
+        // struct shape {gnames, n, source, meanranks, sumt}.
+        const size_t N = yArg.numel();
+        struct Pair { double v; size_t idx; double g; };
+        std::vector<Pair> all;
+        all.reserve(N);
+        for (size_t i = 0; i < N; ++i) {
+            const double v = yArg.elemAsDouble(i);
+            const double g = gArg.elemAsDouble(i);
+            if (std::isnan(v) || std::isnan(g)) continue;
+            all.push_back({v, i, g});
+        }
+        const size_t M = all.size();
+        std::vector<size_t> ord(M);
+        for (size_t i = 0; i < M; ++i) ord[i] = i;
+        std::sort(ord.begin(), ord.end(),
+                  [&](size_t a, size_t b){ return all[a].v < all[b].v; });
+        std::vector<double> rk(M);
+        std::vector<size_t> tieSizes;
+        size_t i = 0;
+        while (i < M) {
+            size_t j = i + 1;
+            while (j < M && all[ord[j]].v == all[ord[i]].v) ++j;
+            const double avg = static_cast<double>(i + j + 1) / 2.0;
+            for (size_t k = i; k < j; ++k) rk[ord[k]] = avg;
+            if (j - i > 1) tieSizes.push_back(j - i);
+            i = j;
+        }
+        // Bucket per group label (sorted unique).
+        std::vector<double> uniq;
+        uniq.reserve(M);
+        for (auto &p : all) uniq.push_back(p.g);
+        std::sort(uniq.begin(), uniq.end());
+        uniq.erase(std::unique(uniq.begin(), uniq.end()), uniq.end());
+        const size_t K = uniq.size();
+        std::vector<size_t> n(K, 0);
+        std::vector<double> sumR(K, 0.0);
+        for (size_t k = 0; k < M; ++k) {
+            auto it = std::lower_bound(uniq.begin(), uniq.end(), all[k].g);
+            const size_t gi = static_cast<size_t>(it - uniq.begin());
+            n[gi] += 1;
+            sumR[gi] += rk[k];
+        }
+        double sumt = 0.0;
+        for (size_t t : tieSizes) {
+            const double td = static_cast<double>(t);
+            sumt += td * td * td - td;
+        }
+
+        Value nVec = Value::matrix(K, 1, ValueType::DOUBLE, mr);
+        Value mrVec = Value::matrix(K, 1, ValueType::DOUBLE, mr);
+        Value gnames = Value::cell(K, 1, mr);
+        for (size_t k = 0; k < K; ++k) {
+            nVec.doubleDataMut()[k] = static_cast<double>(n[k]);
+            mrVec.doubleDataMut()[k] = (n[k] > 0) ? sumR[k] / static_cast<double>(n[k]) : 0.0;
+            // gnames as decimal string of the label (matches MATLAB)
+            char buf[64];
+            std::snprintf(buf, sizeof(buf), "%g", uniq[k]);
+            gnames.cellAt(k) = Value::fromString(buf, mr);
+        }
         Value s = Value::structure(mr);
-        s.field("chi2stat") = H;
-        s.field("df") = df;
+        s.field("gnames")    = std::move(gnames);
+        s.field("n")         = std::move(nVec);
+        s.field("source")    = Value::fromString("kruskalwallis", mr);
+        s.field("meanranks") = std::move(mrVec);
+        s.field("sumt")      = Value::scalar(sumt, mr);
+        // Keep legacy fields for callers that already used them.
+        s.field("chi2stat")  = H;
+        s.field("df")        = df;
         outs[2] = std::move(s);
     }
 }
