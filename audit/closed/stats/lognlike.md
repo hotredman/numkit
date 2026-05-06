@@ -97,3 +97,22 @@ characteristic of the API contract.
 
 - Per-point clipping of log(x) for very small x — leave to future BUGS
   ticket if numerical stability surfaces.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-06
+- Notes:
+  - New `lognlike_full` helper handles cens + freq + 2×2 aVar in one
+    pass. Hessian wrt (mu, sigma) is structurally identical to the
+    normal Hessian on y=log x (the per-row `log x_i` baseline is a
+    constant in (mu, sigma)). Same uncensored / right-censored split
+    as normlike (h=φ(z)/S(z), h'=h(h-z) for censored rows).
+  - `lognlike_reg` rewritten standalone (no longer via `like2_reg`).
+  - **Edges fixed (matching MATLAB R2025b):** sigma<=0 => NaN,
+    x<=0 => NaN, empty data => 0 (was +Inf in all three).
+  - Reproduces all 4 reference nL values (basic / cens / freq / both)
+    and all 3 aVar entries to ≤ 1e-9. aVar can be non-PD at non-MLE
+    params (observed Fisher, not expected) — the reference's negative
+    diagonals are matched.
+  - Spec extended (10 fingerprints); parity OK numkit ↔ MATLAB.
+  - 9 TEST_F gtest + smoke .m.
