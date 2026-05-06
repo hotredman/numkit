@@ -660,8 +660,12 @@ const HEADER_H = 26;     // sticky thead row height
 const CORNER_W = 60;     // corner cell + row-head width
 const OVERSCAN = 6;      // extra rows/cols above/below to make scroll look continuous
 
+// Tile-based fetch state for huge matrices. The cache is keyed by
+// `${tileR},${tileC}` (in tile units, not cell coords).
+const TILE = 64;
+
 function VirtualTable({
-  tableRef, rows, cols, data,
+  tableRef, rows, cols, getCellValue,
   activeCell, setActiveCell,
   editing, setEditing, editVal, setEditVal, commitEdit, inputRef,
   heatmap, stats, format,
@@ -746,7 +750,7 @@ function VirtualTable({
               <th className={`ve-rowhead ${r === activeCell.r ? 'is-active' : ''}`}>{r + 1}</th>
               {leftPadW > 0 && <td aria-hidden="true" style={{ minWidth: leftPadW, padding: 0, border: 'none' }} />}
               {visibleCols.map((c) => {
-                const v = data[r]?.[c];
+                const v = getCellValue(r, c);
                 const isActive  = activeCell.r === r && activeCell.c === c;
                 const isEditing = editing && editing.r === r && editing.c === c;
                 const bg = (heatmap && stats && typeof v === 'number')
@@ -794,6 +798,12 @@ function VirtualTable({
 /* ======================================================================== */
 /* Variable Editor — modal table with notation/precision/heatmap/plot       */
 /* ======================================================================== */
+// Switch to tile-mode for matrices with more cells than this. A 500×500
+// matrix is the rough boundary where full-fetch JSON becomes expensive
+// (~250k values, several MB of JSON, sluggish parsing); above it we
+// only fetch what's visible.
+const TILE_MODE_THRESHOLD = 250000;
+
 export function VariableEditor({ variable, onClose, engine }) {
   const [precision, setPrecision] = useState(4);
   const [notation, setNotation]   = useState('fixed');
@@ -803,31 +813,65 @@ export function VariableEditor({ variable, onClose, engine }) {
   const [activeCell, setActiveCell] = useState({ r: 0, c: 0 });
   const [editing, setEditing]     = useState(null);
   const [editVal, setEditVal]     = useState('');
+  // dimensions: { rows, cols, tileMode } — populated from getVarShape
+  const initialShape = (() => {
+    const r = variable.data?.length || 1;
+    const c = variable.data?.[0]?.length || 1;
+    return { rows: r, cols: c, tileMode: false };
+  })();
+  const [shape, setShape] = useState(initialShape);
+  // Full-mode data (small matrices). For tile-mode we don't use this.
   const [data, setData]           = useState(variable.data);
+  // Tile cache + pending set (tile-mode only). Map<"tR,tC", number[][] | 'pending' | 'error'>
+  const tileCache = useRef(new Map());
+  const [, setTileBump] = useState(0);  // bump to re-render after tile arrives
   const [loading, setLoading]     = useState(false);
   const [loadError, setLoadError] = useState(null);
   const tableRef = useRef(null);
   const inputRef = useRef(null);
 
-  // On open (and on variable swap), seed with the cheap preview, then ask
-  // the engine for the variable's full numeric data and replace. The
-  // preview renders instantly; the full fetch keeps the table responsive
-  // for big arrays without blocking the UI.
+  // On open (and on variable swap), pick a fetch strategy:
+  //   - small matrix → full fetch (existing path) — responsive precision/heatmap
+  //   - huge matrix  → tile mode — only the viewport is read from the engine
   useEffect(() => {
     setData(variable.data);
     setActiveCell({ r: 0, c: 0 });
     setLoadError(null);
-    if (!engine || typeof engine.getVarData !== 'function') return;
+    tileCache.current = new Map();
+    if (!engine || typeof engine.getVarData !== 'function') {
+      setShape({ rows: variable.data?.length || 1, cols: variable.data?.[0]?.length || 1, tileMode: false });
+      return;
+    }
     setLoading(true);
-    // Defer to next microtask so the modal paints first with the preview,
-    // then the WASM fetch swaps in the full data. Avoid requestIdleCallback
-    // — it can take seconds in some headless environments.
     const handle = setTimeout(() => {
       try {
+        // Cheap dimension probe first.
+        const sh = (typeof engine.getVarShape === 'function')
+          ? engine.getVarShape(variable.name)
+          : null;
+        if (sh && !sh.error) {
+          const numel = sh.rows * sh.cols;
+          const tileMode = numel > TILE_MODE_THRESHOLD
+                        && typeof engine.getVarTile === 'function';
+          setShape({ rows: sh.rows, cols: sh.cols, tileMode });
+          if (tileMode) {
+            // Don't full-fetch. The virtual table will request tiles on demand.
+            setLoading(false);
+            return;
+          }
+        }
+        // Small enough: full fetch.
         const r = engine.getVarData(variable.name);
         if (!r) { setLoading(false); return; }
         if (r.error) { setLoadError(r.error); setLoading(false); return; }
-        if (Array.isArray(r.data) && r.data.length > 0) setData(r.data);
+        if (Array.isArray(r.data) && r.data.length > 0) {
+          setData(r.data);
+          setShape({
+            rows: r.rows ?? r.data.length,
+            cols: r.cols ?? (r.data[0]?.length || 0),
+            tileMode: false,
+          });
+        }
         setLoading(false);
       } catch (e) {
         setLoadError(e?.message || String(e));
@@ -837,16 +881,60 @@ export function VariableEditor({ variable, onClose, engine }) {
     return () => clearTimeout(handle);
   }, [variable, engine]);
 
-  const rows = data.length;
-  const cols = data[0]?.length || 0;
+  /* ─── tile-mode cell accessor ─── */
+  // Returns the value at (r, c). For full-mode this is just data[r][c].
+  // For tile-mode it consults the tile cache, kicking off a fetch if the
+  // tile is missing. While the tile is in flight we return null and the
+  // cell renders "—".
+  const getCellValue = useCallback((r, c) => {
+    if (!shape.tileMode) return data[r]?.[c];
+    const tR = Math.floor(r / TILE);
+    const tC = Math.floor(c / TILE);
+    const key = `${tR},${tC}`;
+    const tile = tileCache.current.get(key);
+    if (tile && tile !== 'pending' && tile !== 'error') {
+      return tile[r - tR * TILE]?.[c - tC * TILE];
+    }
+    if (tile === undefined) {
+      // First time we ask for this tile — kick off fetch. Mark pending so
+      // we don't re-trigger on every cell render.
+      tileCache.current.set(key, 'pending');
+      const r0 = tR * TILE, c0 = tC * TILE;
+      // Defer to a microtask so React's render pass isn't blocked.
+      Promise.resolve().then(() => {
+        try {
+          const res = engine.getVarTile(variable.name, r0, c0, TILE, TILE);
+          if (!res || res.error || !Array.isArray(res.data)) {
+            tileCache.current.set(key, 'error');
+          } else {
+            tileCache.current.set(key, res.data);
+          }
+        } catch {
+          tileCache.current.set(key, 'error');
+        }
+        // Bump state to trigger re-render.
+        setTileBump((n) => n + 1);
+      });
+    }
+    return null;
+  }, [shape.tileMode, data, engine, variable.name]);
 
+  // Dimensions come from `shape` (set on open via getVarShape) so tile-mode
+  // matrices size their grid correctly even before any tile arrives.
+  const rows = shape.rows;
+  const cols = shape.cols;
+
+  // Stats are only computed in full-mode — in tile-mode we'd need to walk
+  // every tile which is exactly what tile-mode is meant to avoid. The
+  // header pill collapses gracefully when stats is null.
   const stats = useMemo(() => {
+    if (shape.tileMode) return null;
     let min = Infinity, max = -Infinity, sum = 0, n = 0;
     for (const row of data) for (const v of row) {
       if (typeof v === 'number') { if (v < min) min = v; if (v > max) max = v; sum += v; n++; }
     }
     return n ? { min, max, mean: sum / n, n } : null;
-  }, [data]);
+  }, [data, shape.tileMode]);
 
   // Format a single number with the active notation/precision settings.
   function formatNum(n) {
@@ -863,6 +951,7 @@ export function VariableEditor({ variable, onClose, engine }) {
   // string if parsing fails so unrecognized cells aren't garbled.
   const COMPLEX_RE = /^\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*([+-])\s*(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)i\s*$/;
   function format(v) {
+    if (v === null || v === undefined) return '—';   // tile not yet loaded
     if (typeof v === 'number') return formatNum(v);
     if (typeof v === 'string') {
       const m = v.match(COMPLEX_RE);
@@ -905,7 +994,7 @@ export function VariableEditor({ variable, onClose, engine }) {
     }
     if (e.key === 'Escape') { onClose(); return; }
     if (e.key === 'Enter' || e.key === 'F2') {
-      const v = data[activeCell.r][activeCell.c];
+      const v = getCellValue(activeCell.r, activeCell.c);
       setEditing({ ...activeCell });
       setEditVal(typeof v === 'number' ? String(v) : '');
       e.preventDefault();
@@ -924,7 +1013,7 @@ export function VariableEditor({ variable, onClose, engine }) {
       setActiveCell({ r, c });
       e.preventDefault();
     }
-  }, [activeCell, rows, cols, editing, data, onClose]);
+  }, [activeCell, rows, cols, editing, getCellValue, onClose]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKey);
@@ -1004,7 +1093,8 @@ export function VariableEditor({ variable, onClose, engine }) {
               copy csv
             </button>
             <button className={`ve-btn ${showPlot ? 'is-active' : ''}`}
-              title="Toggle inline plot"
+              title={shape.tileMode ? 'inline plot disabled for huge matrices' : 'Toggle inline plot'}
+              disabled={shape.tileMode}
               onClick={() => setShowPlot((p) => !p)}>
               <svg width="11" height="11" viewBox="0 0 12 12">
                 <polyline points="1,9 4,5 7,7 11,2" stroke="currentColor" fill="none" strokeWidth="1.4"/>
@@ -1013,7 +1103,8 @@ export function VariableEditor({ variable, onClose, engine }) {
             </button>
             <div className="ve-saveas-wrap">
               <button className="ve-btn ve-saveas-trigger"
-                title="Save variable to file"
+                title={shape.tileMode ? 'save disabled for huge matrices' : 'Save variable to file'}
+                disabled={shape.tileMode}
                 onClick={() => setSaveOpen((s) => !s)}>
                 <svg width="11" height="11" viewBox="0 0 12 12">
                   <path d="M2 2h6l2 2v6H2z M4 2v3h4V2 M4 8h4v2H4z" stroke="currentColor" fill="none"/>
@@ -1045,14 +1136,14 @@ export function VariableEditor({ variable, onClose, engine }) {
         <div className="ve-address">
           <span className="ve-cell-ref">{variable.name}({activeCell.r + 1}, {activeCell.c + 1})</span>
           <span className="ve-eq">=</span>
-          <span className="ve-cell-val">{format(data[activeCell.r]?.[activeCell.c])}</span>
+          <span className="ve-cell-val">{format(getCellValue(activeCell.r, activeCell.c))}</span>
         </div>
 
         <div className={`ve-body ${showPlot ? 'has-plot' : ''}`}>
           <VirtualTable
             tableRef={tableRef}
             rows={rows} cols={cols}
-            data={data}
+            getCellValue={getCellValue}
             activeCell={activeCell}
             setActiveCell={setActiveCell}
             editing={editing} setEditing={setEditing}

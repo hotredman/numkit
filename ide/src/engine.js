@@ -268,6 +268,30 @@ export async function createWasmEngine(createModule) {
       }
     },
 
+    // Cheap dimension-only query — used to size the editor grid before
+    // we know whether full or tile-mode fetching makes sense.
+    //   { name, type, rows, cols, numel } | { error }
+    getVarShape(name) {
+      if (typeof Module.repl_get_var_shape !== 'function') return null;
+      try { return JSON.parse(Module.repl_get_var_shape(name)); }
+      catch (e) {
+        console.warn('[engine] getVarShape failed for', name, e);
+        return { error: e?.message || String(e) };
+      }
+    },
+
+    // Tile fetch — returns a rectangular submatrix
+    //   [r0..r0+rows) × [c0..c0+cols)  →  { r0, c0, rows, cols, type, data }
+    // Used by VariableEditor for huge matrices where a full fetch would OOM.
+    getVarTile(name, r0, c0, rows, cols) {
+      if (typeof Module.repl_get_var_tile !== 'function') return null;
+      try { return JSON.parse(Module.repl_get_var_tile(name, r0|0, c0|0, rows|0, cols|0)); }
+      catch (e) {
+        console.warn('[engine] getVarTile failed for', name, e);
+        return { error: e?.message || String(e) };
+      }
+    },
+
     // ── Debug API ──
     get hasDebugger() {
       return typeof Module.repl_debug_start === 'function';
@@ -407,6 +431,24 @@ export function createFallbackEngine() {
         return { name, type: 'double', rows: 1, cols: v.length, data: [v.slice()] };
       }
       return { name, type: typeof v, rows: 1, cols: 1, data: [[String(v)]] };
+    },
+    getVarShape(name) {
+      const r = this.getVarData(name);
+      if (!r || r.error) return r;
+      return { name, type: r.type, rows: r.rows, cols: r.cols, numel: r.rows * r.cols };
+    },
+    getVarTile(name, r0, c0, rows, cols) {
+      const full = this.getVarData(name);
+      if (!full || full.error) return full;
+      const rEnd = Math.min(full.rows, r0 + rows);
+      const cEnd = Math.min(full.cols, c0 + cols);
+      const data = [];
+      for (let r = r0; r < rEnd; r++) {
+        const row = [];
+        for (let c = c0; c < cEnd; c++) row.push(full.data[r]?.[c]);
+        data.push(row);
+      }
+      return { r0, c0, rows: rEnd - r0, cols: cEnd - c0, type: full.type, data };
     },
 
     // ── Debug API (stub for fallback) ──
