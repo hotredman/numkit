@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import InteractivePlot from './InteractivePlot';
 import Heatmap from './Heatmap';
-import PolarPlot from './PolarPlot';
+import PolarPlot, { defaultPolarViewport } from './PolarPlot';
 
 /** Pick the right renderer for a figure based on its `kind`. */
 function renderFigure(figure, props) {
@@ -24,9 +24,11 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
   // from the figure's data extent on every render — useState would freeze it
   // at mount and stale ranges from a previous run would leak in when the
   // figure is replaced by a new script execution under the same id.
-  const viewport = (figure.xRange && figure.yRange)
-    ? { x: figure.xRange, y: figure.yRange }
-    : { x: [-1, 1], y: [-1, 1] };
+  const viewport = figure.kind === 'polar'
+    ? defaultPolarViewport(figure)
+    : (figure.xRange && figure.yRange)
+      ? { x: figure.xRange, y: figure.yRange }
+      : { x: [-1, 1], y: [-1, 1] };
   const setViewport = () => {};   // no-op for non-interactive preview
   const ref = useRef(null);
   const [size, setSize] = useState({ w: 320, h: Math.round(320 / PREVIEW_ASPECT) });
