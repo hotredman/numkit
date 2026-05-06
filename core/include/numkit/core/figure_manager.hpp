@@ -48,6 +48,21 @@ struct DatasetInfo
     bool   downsampled  = false;
     size_t originalRows = 0;
     size_t originalCols = 0;
+
+    // ── Lazy LOD pyramid ───────────────────────────────────────────────
+    // L0 is zQuantized itself (originalRows × originalCols, column-major).
+    // Level k≥1 is lodLevels[k-1] with shape lodDims[k-1], built by 2×2
+    // mean-pooling the previous level (NaN sentinel propagates: only finite
+    // children contribute to a parent block, all-NaN block stays 255).
+    //
+    // Built lazily on getFigureDisplayTile when the resampler picks a
+    // level higher than what's already cached. Bounded by ~10 levels —
+    // beyond that the matrix is < 64×64 and further pooling is pointless.
+    //
+    // Memory cost: 4/3× original (geometric series). For 16k×42k uint8 =
+    // 670 MB → pyramid total ~890 MB.
+    mutable std::vector<std::vector<uint8_t>> lodLevels;
+    mutable std::vector<std::pair<size_t, size_t>> lodDims;
 };
 
 /** Per-axes state — one subplot panel has one AxesState */
@@ -411,35 +426,74 @@ public:
         if (yLog && srcR0 <= 0) return false;
         if (xLog && srcC0 <= 0) return false;
 
-        const double rStep = (srcR1 - srcR0) / displayH;
-        const double cStep = (srcC1 - srcC0) / displayW;
+        // ── LOD pyramid: pick the smallest level whose cells are ≤1 per
+        // display-pixel. At level k each cell covers 2^k × 2^k of L0, so
+        // the optimal level is floor(log2(min(rStep, cStep))) clamped to
+        // [0, 10]. Building higher levels lazily — first zoom-out builds
+        // up the tree once, subsequent zooms reuse cached levels.
+        const double rStep0 = (srcR1 - srcR0) / displayH;
+        const double cStep0 = (srcC1 - srcC0) / displayW;
+        const double minStep = std::min(rStep0, cStep0);
+        int level = 0;
+        if (minStep > 1.5) {
+            level = static_cast<int>(std::floor(std::log2(minStep)));
+            if (level < 0) level = 0;
+            if (level > 10) level = 10;
+        }
+        ensureLOD(ds, level);
+
+        // Resolve the chosen level's data + dims.
+        const uint8_t *lvlData;
+        size_t lvlRows, lvlCols;
+        if (level == 0) {
+            lvlData = ds.zQuantized.data();
+            lvlRows = fullRows;
+            lvlCols = fullCols;
+        } else if (level <= static_cast<int>(ds.lodLevels.size())) {
+            lvlData = ds.lodLevels[level - 1].data();
+            lvlRows = ds.lodDims[level - 1].first;
+            lvlCols = ds.lodDims[level - 1].second;
+        } else {
+            // ensureLOD couldn't build (e.g. dataset too small) — fall back to L0.
+            lvlData = ds.zQuantized.data();
+            lvlRows = fullRows;
+            lvlCols = fullCols;
+            level = 0;
+        }
+
+        // Map source-rect from L0 coords to the chosen level's coords.
+        const double scaleFactor = static_cast<double>(1 << level);
+        const double lvlR0 = srcR0 / scaleFactor;
+        const double lvlC0 = srcC0 / scaleFactor;
+        const double lvlR1 = srcR1 / scaleFactor;
+        const double lvlC1 = srcC1 / scaleFactor;
+        const double rStep = (lvlR1 - lvlR0) / displayH;
+        const double cStep = (lvlC1 - lvlC0) / displayW;
         const int rBlock = std::max(1, static_cast<int>(std::ceil(rStep)));
         const int cBlock = std::max(1, static_cast<int>(std::ceil(cStep)));
 
-        // Precompute log-ratios for fast inverse.
-        const double yLogRatio = yLog ? std::log(srcR1 / srcR0) : 0.0;
-        const double xLogRatio = xLog ? std::log(srcC1 / srcC0) : 0.0;
+        // Log-ratios computed in level coords (log preserves ratios).
+        const double yLogRatio = yLog ? std::log(lvlR1 / lvlR0) : 0.0;
+        const double xLogRatio = xLog ? std::log(lvlC1 / lvlC0) : 0.0;
 
         for (int orow = 0; orow < displayH; ++orow) {
             const double v = (orow + 0.5) / displayH;
             const double rCenter = yLog
-                ? srcR0 * std::exp(v * yLogRatio)
-                : srcR0 + v * (srcR1 - srcR0);
+                ? lvlR0 * std::exp(v * yLogRatio)
+                : lvlR0 + v * (lvlR1 - lvlR0);
             const int rA = std::max(0, static_cast<int>(rCenter) - rBlock / 2);
-            const int rB = std::min(static_cast<int>(fullRows),
-                                    rA + rBlock);
+            const int rB = std::min(static_cast<int>(lvlRows), rA + rBlock);
             for (int ocol = 0; ocol < displayW; ++ocol) {
                 const double u = (ocol + 0.5) / displayW;
                 const double cCenter = xLog
-                    ? srcC0 * std::exp(u * xLogRatio)
-                    : srcC0 + u * (srcC1 - srcC0);
+                    ? lvlC0 * std::exp(u * xLogRatio)
+                    : lvlC0 + u * (lvlC1 - lvlC0);
                 const int cA = std::max(0, static_cast<int>(cCenter) - cBlock / 2);
-                const int cB = std::min(static_cast<int>(fullCols),
-                                        cA + cBlock);
+                const int cB = std::min(static_cast<int>(lvlCols), cA + cBlock);
                 int sum = 0, n = 0;
                 for (int cc = cA; cc < cB; ++cc) {
                     for (int rr = rA; rr < rB; ++rr) {
-                        const uint8_t q = ds.zQuantized[cc * fullRows + rr];
+                        const uint8_t q = lvlData[cc * lvlRows + rr];
                         if (q != 255) { sum += q; ++n; }
                     }
                 }
@@ -449,6 +503,57 @@ public:
             }
         }
         return true;
+    }
+
+    /**
+     * Build the LOD pyramid up to `targetLevel` if it isn't already cached.
+     * Each level halves dims via 2×2 mean-pooling of the parent (NaN-skip).
+     * Idempotent — repeated calls with smaller targetLevel are no-ops.
+     *
+     * Stops early if a level would shrink below 32×32 (further pooling is
+     * useless detail-wise) or if memory allocation throws.
+     */
+    void ensureLOD(const DatasetInfo &ds, int targetLevel) const
+    {
+        while (static_cast<int>(ds.lodLevels.size()) < targetLevel) {
+            size_t pRows, pCols;
+            const uint8_t *parent;
+            if (ds.lodLevels.empty()) {
+                parent = ds.zQuantized.data();
+                pRows  = ds.originalRows;
+                pCols  = ds.originalCols;
+            } else {
+                const auto &dims = ds.lodDims.back();
+                pRows = dims.first;
+                pCols = dims.second;
+                parent = ds.lodLevels.back().data();
+            }
+            const size_t cRows = (pRows + 1) / 2;
+            const size_t cCols = (pCols + 1) / 2;
+            if (cRows < 32 || cCols < 32) break;       // stop refining
+
+            std::vector<uint8_t> child(cRows * cCols);
+            for (size_t cc = 0; cc < cCols; ++cc) {
+                const size_t pc0 = 2 * cc;
+                const size_t pc1 = std::min(pCols, pc0 + 2);
+                for (size_t rr = 0; rr < cRows; ++rr) {
+                    const size_t pr0 = 2 * rr;
+                    const size_t pr1 = std::min(pRows, pr0 + 2);
+                    int sum = 0, n = 0;
+                    for (size_t pc = pc0; pc < pc1; ++pc) {
+                        for (size_t pr = pr0; pr < pr1; ++pr) {
+                            const uint8_t q = parent[pc * pRows + pr];
+                            if (q != 255) { sum += q; ++n; }
+                        }
+                    }
+                    child[cc * cRows + rr] = (n > 0)
+                        ? static_cast<uint8_t>((sum + n / 2) / n)
+                        : uint8_t{255};
+                }
+            }
+            ds.lodLevels.push_back(std::move(child));
+            ds.lodDims.emplace_back(cRows, cCols);
+        }
     }
 
     /**
