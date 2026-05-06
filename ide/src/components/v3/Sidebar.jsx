@@ -256,6 +256,227 @@ async function openExample(node, tree, vfsAdapters) {
   return { content, vfsPath };
 }
 
+/* ─────────────── GitHub backend ─────────────── */
+//
+// Browses a public GitHub repo via the REST API. No auth — relies on the
+// 60 req/hour anonymous limit, which is plenty for one user clicking through
+// a tree. The repo URL, branch, and which folders are expanded are persisted
+// per-source so reopening the IDE restores the last view.
+
+function parseGhRepo(url) {
+  if (!url) return null;
+  const c = url.trim().replace(/\/+$/, '').replace(/\.git$/, '');
+  let m = c.match(/github\.com\/([^/]+)\/([^/]+)/);
+  if (m) return { owner: m[1], repo: m[2] };
+  m = c.match(/^([^/\s]+)\/([^/\s]+)$/);
+  if (m) return { owner: m[1], repo: m[2] };
+  return null;
+}
+
+async function ghFetchTree(owner, repo, ref) {
+  const meta = await fetch(`https://api.github.com/repos/${owner}/${repo}`).then((r) => r.json());
+  const branch = ref || meta.default_branch || 'main';
+  const treeResp = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`);
+  if (!treeResp.ok) throw new Error(`tree ${treeResp.status}`);
+  const data = await treeResp.json();
+  return { meta, branch, flat: data.tree || [] };
+}
+
+async function ghFetchBranches(owner, repo) {
+  const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/branches?per_page=30`);
+  return r.ok ? (await r.json()).map((b) => b.name) : [];
+}
+
+async function ghFetchFile(owner, repo, branch, path) {
+  const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`);
+  if (!r.ok) throw new Error(`file ${r.status}`);
+  const d = await r.json();
+  return d.encoding === 'base64' ? atob(d.content) : (d.content || '');
+}
+
+// Build a hierarchical tree from a flat GitHub tree array.
+function buildGhTree(flat) {
+  const root = { children: {} };
+  for (const it of flat) {
+    const parts = it.path.split('/');
+    let cur = root;
+    for (let i = 0; i < parts.length; i++) {
+      const seg = parts[i];
+      if (!cur.children[seg]) cur.children[seg] = {
+        name: seg,
+        path: parts.slice(0, i + 1).join('/'),
+        type: i === parts.length - 1 ? (it.type === 'tree' ? 'folder' : 'file') : 'folder',
+        children: {},
+      };
+      cur = cur.children[seg];
+    }
+  }
+  const flatten = (obj) => Object.values(obj)
+    .sort((a, b) => {
+      if (a.type === 'folder' && b.type !== 'folder') return -1;
+      if (a.type !== 'folder' && b.type === 'folder') return 1;
+      return a.name.localeCompare(b.name);
+    })
+    .map((n) => ({ ...n, children: n.children ? flatten(n.children) : undefined }));
+  return flatten(root.children);
+}
+
+/* GitHub browser pane — replaces the regular tree UI when source === 'github'. */
+function GitHubBrowser({ onOpenFile, defaultRepo }) {
+  const [repoUrl, setRepoUrl] = usePersistedState('numkit.ide.fb.github.repoUrl', defaultRepo || '');
+  const [branch, setBranch]   = usePersistedState('numkit.ide.fb.github.branch', '');
+  const [tree, setTree]       = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [meta, setMeta]       = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState('');
+  const [expanded, setExpanded] = usePersistedState('numkit.ide.fb.github.expanded', {});
+  const [filter, setFilter]   = useState('');
+
+  const load = useCallback(async (urlOverride, branchOverride) => {
+    const url = urlOverride ?? repoUrl;
+    const p = parseGhRepo(url);
+    if (!p) { setError('Use: owner/repo'); return; }
+    setLoading(true); setError('');
+    try {
+      const { meta: m, branch: br, flat } = await ghFetchTree(p.owner, p.repo, branchOverride);
+      setMeta(m);
+      setBranch(br);
+      setTree(buildGhTree(flat));
+      const brs = await ghFetchBranches(p.owner, p.repo);
+      setBranches(brs);
+    } catch (e) {
+      setError(String(e?.message || e));
+      setTree([]); setBranches([]); setMeta(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [repoUrl, setBranch]);
+
+  // Auto-load on mount if a repo is already remembered
+  useEffect(() => {
+    if (repoUrl && !tree.length && !loading) load(repoUrl, branch || undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleOpen = useCallback(async (node) => {
+    if (node.type !== 'file') return;
+    const p = parseGhRepo(repoUrl);
+    if (!p) return;
+    try {
+      const content = await ghFetchFile(p.owner, p.repo, branch, node.path);
+      onOpenFile?.(node.name, content, null, 'github');
+    } catch (e) {
+      console.error('[Sidebar] gh fetch file', e);
+    }
+  }, [repoUrl, branch, onOpenFile]);
+
+  return (
+    <>
+      <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--line-soft)' }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <input value={repoUrl}
+            onChange={(e) => setRepoUrl(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && load()}
+            placeholder="owner/repo"
+            style={{
+              flex: 1, padding: '4px 8px', borderRadius: 4, fontSize: 11,
+              background: 'var(--bg-0)', color: 'var(--fg-0)',
+              border: '1px solid var(--line)',
+              fontFamily: 'var(--font-mono)', outline: 'none',
+            }} />
+          <button onClick={() => load()}
+            disabled={loading || !repoUrl.trim()}
+            style={{
+              padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+              background: 'var(--accent)', color: '#fff', border: 'none',
+              cursor: loading ? 'default' : 'pointer',
+              opacity: loading || !repoUrl.trim() ? 0.45 : 1,
+            }}>{loading ? '…' : 'Load'}</button>
+        </div>
+        {branches.length > 0 && (
+          <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 10, color: 'var(--fg-3)' }}>Branch:</span>
+            <select value={branch}
+              onChange={(e) => load(repoUrl, e.target.value)}
+              style={{
+                flex: 1, padding: '2px 4px', borderRadius: 3, fontSize: 11,
+                background: 'var(--bg-0)', color: 'var(--fg-0)',
+                border: '1px solid var(--line)',
+                fontFamily: 'var(--font-mono)',
+              }}>
+              {branches.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </div>
+        )}
+        {meta && (
+          <div style={{
+            marginTop: 4, fontSize: 10, color: 'var(--fg-3)',
+            display: 'flex', gap: 8, fontFamily: 'var(--font-mono)',
+          }}>
+            <span>★ {meta.stargazers_count}</span>
+            <span>⑂ {meta.forks_count}</span>
+            {meta.language && <span>{meta.language}</span>}
+          </div>
+        )}
+        {error && (
+          <div style={{ color: 'var(--danger)', fontSize: 10, marginTop: 4, fontFamily: 'var(--font-mono)' }}>{error}</div>
+        )}
+      </div>
+      <div className="sidebar-search">
+        <svg width="10" height="10" viewBox="0 0 12 12">
+          <circle cx="5" cy="5" r="3.2" stroke="currentColor" fill="none"/>
+          <path d="M7.4 7.4L10 10" stroke="currentColor"/>
+        </svg>
+        {filter ? (
+          <input value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="filter files…" spellCheck={false}
+            style={{
+              flex: 1, background: 'transparent', border: 'none', outline: 'none',
+              color: 'inherit', font: 'inherit', padding: 0,
+            }}/>
+        ) : (
+          <span className="sidebar-search-hint" onClick={() => setFilter(' ')}>
+            Double-click to open file
+          </span>
+        )}
+        {filter && (
+          <button onClick={() => setFilter('')} title="Clear"
+            style={{
+              background: 'transparent', border: 'none',
+              color: 'var(--fg-3)', cursor: 'pointer', padding: 0,
+              fontSize: 13, lineHeight: 1,
+            }}>×</button>
+        )}
+      </div>
+      <div className="sidebar-tree">
+        {loading && tree.length === 0 && (
+          <div style={{ padding: 16, textAlign: 'center', color: 'var(--fg-3)', fontSize: 11 }}>Loading…</div>
+        )}
+        {!loading && tree.length === 0 && !error && (
+          <div style={{ padding: 16, textAlign: 'center', color: 'var(--fg-3)', fontSize: 11, lineHeight: 1.5 }}>
+            Enter a GitHub repo<br/>(e.g. <code>numkit/numkit-m</code>) and press Load.
+          </div>
+        )}
+        {tree.map((node) => (
+          <TreeRow key={node.path}
+            node={node} depth={0}
+            expanded={expanded} setExpanded={setExpanded}
+            selected={null} setSelected={() => {}}
+            onOpenFile={handleOpen}
+            onContextMenu={() => {}}
+            renaming={null}
+            onRenameSubmit={() => {}}
+            onRenameCancel={() => {}}
+            filter={filter.trim()}
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
 /* ─────────────── source-specific operations ─────────────── */
 function makeOps(source) {
   const fs = source === 'localFolder' ? localFS : tempFS;
@@ -291,14 +512,18 @@ export default function Sidebar({
   const [localStatus, setLocalStatus] = useState('idle'); // idle|connecting|connected|denied
 
   const isExamples = source === 'examples';
-  const ops = useMemo(() => makeOps(source === 'examples' ? 'temporary' : source), [source]);
+  const isGithub   = source === 'github';
+  const ops = useMemo(() =>
+    makeOps((source === 'examples' || source === 'github') ? 'temporary' : source),
+  [source]);
 
   const loadTree = useCallback(async () => {
     try {
       if (isExamples) setTree(await loadExamplesTree());
+      else if (isGithub) { /* GitHubBrowser owns its own tree state */ }
       else setTree(await ops.listTree());
     } catch (e) { console.error('[Sidebar] listTree failed', e); }
-  }, [ops, isExamples]);
+  }, [ops, isExamples, isGithub]);
 
   // Reload on source change + on external write signal
   useEffect(() => { loadTree(); }, [loadTree, vfsRefreshKey]);
@@ -541,8 +766,9 @@ export default function Sidebar({
           <option value="examples">Examples</option>
           <option value="temporary">Temporary</option>
           {localAvailable && <option value="localFolder">Local Folder</option>}
+          <option value="github">GitHub</option>
         </select>
-        {!isExamples && (
+        {!isExamples && !isGithub && (
           <button className="sidebar-icon" title="New file"
             onClick={() => setCreating({ parentPath: '', type: 'file' })}>
             <svg width="11" height="11" viewBox="0 0 12 12">
@@ -565,6 +791,13 @@ export default function Sidebar({
         </button>
       </div>
 
+      {/* GitHub source — owns its own search/tree below */}
+      {isGithub && (
+        <GitHubBrowser onOpenFile={onOpenFile} defaultRepo="numkit/numkit-m" />
+      )}
+
+      {!isGithub && (
+        <>
       {/* Search */}
       <div className="sidebar-search">
         <svg width="10" height="10" viewBox="0 0 12 12">
@@ -667,6 +900,8 @@ export default function Sidebar({
             </div>
           )}
         </div>
+      )}
+        </>
       )}
 
       {contextMenu && (
