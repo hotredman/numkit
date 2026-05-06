@@ -84,8 +84,11 @@ export default function FigureWindow({ figure, onClose }) {
       ? { x: figure.xRange.slice(), y: figure.yRange.slice() }
       : { x: [-1, 1], y: [-1, 1] };
   const [viewport, setViewport]   = useState(figDefault);
+  // Major grid defaults to on (a plot without it is unreadable). Minor grid
+  // follows the engine's gridMode strictly: only on when the script called
+  // `grid minor`, off after `grid on` / no call. Matches MATLAB.
   const [showMajor, setShowMajor] = useState(true);
-  const [showMinor, setShowMinor] = useState(true);
+  const [showMinor, setShowMinor] = useState(figure.grid === 'minor');
   const [showLegend, setShowLegend] = useState(true);
   const [fitOpen, setFitOpen]     = useState(false);
   const [saveOpen, setSaveOpen]   = useState(false);
