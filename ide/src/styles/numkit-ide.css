@@ -224,14 +224,21 @@ input, select { font-family: inherit; color: inherit; }
   font-size: 12px;
 }
 .sidebar-icon {
-  background: transparent; color: var(--fg-2);
+  background: var(--bg-2);
+  color: var(--fg-1);
   border: 1px solid var(--line);
-  width: 22px; height: 22px;
+  width: 24px; height: 24px;
   border-radius: var(--r-sm);
   display: inline-flex; align-items: center; justify-content: center;
   cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.sidebar-icon:hover { background: var(--bg-3); color: var(--fg-0); }
+.sidebar-icon:hover {
+  background: var(--bg-3);
+  color: var(--accent);
+  border-color: var(--accent);
+}
 
 .sidebar-search {
   display: flex; align-items: center; gap: 6px;
