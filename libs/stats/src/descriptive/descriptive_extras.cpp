@@ -746,7 +746,40 @@ void maxk_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         throw Error("maxk: requires at least 2 arguments (x, k)",
                      0, 0, "maxk", "", "m:maxk:nargin");
     const int k = static_cast<int>(args[1].toScalar());
-    const int dim = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
+    int dim = 0;
+    // Optional positional dim (numeric scalar that's not a string).
+    size_t i = 2;
+    if (i < args.size() && !args[i].isChar() && !args[i].isString()
+        && !args[i].isEmpty()) {
+        dim = static_cast<int>(args[i].toScalar()); ++i;
+    }
+    // Remaining args may be Name-Value pairs; only 'ComparisonMethod'
+    // is documented (real|abs|auto). All real-valued operations match
+    // 'auto' = 'real' since complex maxk on real input is identical.
+    while (i + 1 < args.size()) {
+        if (!args[i].isChar() && !args[i].isString())
+            throw Error("maxk: expected Name-Value pair",
+                        0, 0, "maxk", "", "m:maxk:nv");
+        std::string name = args[i].toString();
+        std::transform(name.begin(), name.end(), name.begin(),
+                       [](unsigned char c){ return std::tolower(c); });
+        if (name == "comparisonmethod") {
+            std::string m = args[i + 1].toString();
+            std::transform(m.begin(), m.end(), m.begin(),
+                           [](unsigned char c){ return std::tolower(c); });
+            if (m != "real" && m != "abs" && m != "auto")
+                throw Error("maxk: ComparisonMethod must be 'real', 'abs' or 'auto'",
+                            0, 0, "maxk", "", "m:maxk:cm");
+            // For real input 'auto'/'real' identical; 'abs' is a parity gap.
+            if (m == "abs")
+                throw Error("maxk: ComparisonMethod='abs' not yet supported",
+                            0, 0, "maxk", "", "m:maxk:cmAbs");
+        } else {
+            throw Error("maxk: unknown Name-Value '" + name + "'",
+                        0, 0, "maxk", "", "m:maxk:nv");
+        }
+        i += 2;
+    }
     outs[0] = maxk(ctx.engine->resource(), args[0], k, dim);
 }
 
@@ -756,7 +789,35 @@ void mink_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         throw Error("mink: requires at least 2 arguments (x, k)",
                      0, 0, "mink", "", "m:mink:nargin");
     const int k = static_cast<int>(args[1].toScalar());
-    const int dim = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
+    int dim = 0;
+    size_t i = 2;
+    if (i < args.size() && !args[i].isChar() && !args[i].isString()
+        && !args[i].isEmpty()) {
+        dim = static_cast<int>(args[i].toScalar()); ++i;
+    }
+    while (i + 1 < args.size()) {
+        if (!args[i].isChar() && !args[i].isString())
+            throw Error("mink: expected Name-Value pair",
+                        0, 0, "mink", "", "m:mink:nv");
+        std::string name = args[i].toString();
+        std::transform(name.begin(), name.end(), name.begin(),
+                       [](unsigned char c){ return std::tolower(c); });
+        if (name == "comparisonmethod") {
+            std::string m = args[i + 1].toString();
+            std::transform(m.begin(), m.end(), m.begin(),
+                           [](unsigned char c){ return std::tolower(c); });
+            if (m != "real" && m != "abs" && m != "auto")
+                throw Error("mink: ComparisonMethod must be 'real', 'abs' or 'auto'",
+                            0, 0, "mink", "", "m:mink:cm");
+            if (m == "abs")
+                throw Error("mink: ComparisonMethod='abs' not yet supported",
+                            0, 0, "mink", "", "m:mink:cmAbs");
+        } else {
+            throw Error("mink: unknown Name-Value '" + name + "'",
+                        0, 0, "mink", "", "m:mink:nv");
+        }
+        i += 2;
+    }
     outs[0] = mink(ctx.engine->resource(), args[0], k, dim);
 }
 

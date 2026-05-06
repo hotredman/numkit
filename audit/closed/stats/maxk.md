@@ -71,3 +71,8 @@ Documented signatures (`help maxk`):
 ## Out of scope for this ТЗ
 
 - The 2-output `[B, I] = maxk(...)` index form (not in MATLAB doc).
+
+## Closed (partial)
+- Closed in commit: PENDING
+- Closed date: 2026-05-06
+- Notes: Adapter rewritten with optional positional dim + ComparisonMethod Name-Value parsing. Accepts 'real'/'auto' (no-op since real-valued maxk/mink already match); throws on 'abs' (deferred — needs |z| comparator for complex). 6 gtest cover regression + NV branches.
