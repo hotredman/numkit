@@ -37,7 +37,11 @@ export default function Heatmap({
   setYLog: setYLogProp,
   colorOverride: colorOverrideProp,
   setColorOverride: setColorOverrideProp,
+  colormapOverride = null,
 }) {
+  // Effective colormap — runtime override (toolbar combo) wins over the
+  // figure's script-level colormap.
+  const effectiveColormap = colormapOverride || figure.colormap;
   const svgRef = useRef(null);
   const [hover, setHover] = useState(null);
   const [ctxMenu, setCtxMenu] = useState(null);
@@ -91,8 +95,8 @@ export default function Heatmap({
 
   // 256-entry RGBA LUT — rebuilt only when colormap or window/level changes.
   const lut = useMemo(
-    () => buildHeatmapLUT(figure.colormap, cminOrig, cmaxOrig, cminEff, cmaxEff),
-    [figure.colormap, cminOrig, cmaxOrig, cminEff, cmaxEff]
+    () => buildHeatmapLUT(effectiveColormap, cminOrig, cmaxOrig, cminEff, cmaxEff),
+    [effectiveColormap, cminOrig, cmaxOrig, cminEff, cmaxEff]
   );
 
   const padL = 60 * fontScale;
@@ -488,7 +492,7 @@ export default function Heatmap({
   const cbarX = padL + W + 14;
   const cbarH = H;
   const cbarTicks = niceTicks(cminEff, cmaxEff, 5);
-  const cbarInterp = getColormap(figure.colormap);
+  const cbarInterp = getColormap(effectiveColormap);
   const cbarStops = Array.from({ length: 11 }, (_, i) => ({
     offset: `${i * 10}%`,
     color:  cbarInterp(i / 10),

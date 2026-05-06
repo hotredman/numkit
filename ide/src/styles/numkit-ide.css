@@ -1583,6 +1583,13 @@ input, select { font-family: inherit; color: inherit; }
 }
 .ve-btn:hover { background: var(--bg-3); }
 .ve-btn.is-active { color: var(--accent); border-color: var(--accent); }
+/* Colormap <select> reuses .ve-btn styling so it sits flush with the
+   neighbouring toggle buttons. Native chevron stays for affordance. */
+select.ve-btn.fw-cmap-select {
+  padding-right: 4px;
+  appearance: auto;
+  cursor: pointer;
+}
 .ve-stats {
   display: flex; gap: 14px;
   color: var(--fg-2);
