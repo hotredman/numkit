@@ -1338,14 +1338,25 @@ void vartest_reg(Span<const Value> args, size_t nargout,
                  Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("vartest: requires (X, v[, alpha, tail])",
+        throw Error("vartest: requires (X, v[, alpha, tail | name-value])",
                     0, 0, "vartest", "", "m:vartest:nargin");
     const double v = args[1].toScalar();
-    double alpha = parse_alpha(args, 2, 0.05);
+    double alpha = 0.05;
     TestTail tail = TestTail::Both;
-    for (size_t i = 2; i < args.size(); ++i)
-        if (args[i].isChar() || args[i].isString())
-            tail = parse_tail(args[i].toString(), TestTail::Both);
+    size_t i = 2;
+    while (i < args.size()) {
+        const Value &a = args[i];
+        if (a.isChar() || a.isString()) {
+            std::string sl = a.toString();
+            for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (sl == "alpha" && i + 1 < args.size()) { alpha = args[i + 1].toScalar(); i += 2; }
+            else if (sl == "tail" && i + 1 < args.size()) { tail = parse_tail(args[i + 1].toString(), tail); i += 2; }
+            else if (sl == "dim")
+                throw Error("vartest: 'Dim' not yet supported (parity gap)",
+                            0, 0, "vartest", "", "m:vartest:dim");
+            else { tail = parse_tail(sl, tail); ++i; }
+        } else { alpha = a.toScalar(); ++i; }
+    }
     auto [h, p, ci, T] = vartest(ctx.engine->resource(), args[0], v, alpha, tail);
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
@@ -1357,13 +1368,24 @@ void vartest2_reg(Span<const Value> args, size_t nargout,
                   Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("vartest2: requires (X, Y[, alpha, tail])",
+        throw Error("vartest2: requires (X, Y[, alpha, tail | name-value])",
                     0, 0, "vartest2", "", "m:vartest2:nargin");
-    double alpha = parse_alpha(args, 2, 0.05);
+    double alpha = 0.05;
     TestTail tail = TestTail::Both;
-    for (size_t i = 2; i < args.size(); ++i)
-        if (args[i].isChar() || args[i].isString())
-            tail = parse_tail(args[i].toString(), TestTail::Both);
+    size_t i = 2;
+    while (i < args.size()) {
+        const Value &a = args[i];
+        if (a.isChar() || a.isString()) {
+            std::string sl = a.toString();
+            for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (sl == "alpha" && i + 1 < args.size()) { alpha = args[i + 1].toScalar(); i += 2; }
+            else if (sl == "tail" && i + 1 < args.size()) { tail = parse_tail(args[i + 1].toString(), tail); i += 2; }
+            else if (sl == "dim")
+                throw Error("vartest2: 'Dim' not yet supported (parity gap)",
+                            0, 0, "vartest2", "", "m:vartest2:dim");
+            else { tail = parse_tail(sl, tail); ++i; }
+        } else { alpha = a.toScalar(); ++i; }
+    }
     auto [h, p, ci, F] = vartest2(ctx.engine->resource(), args[0], args[1],
                                    alpha, tail);
     outs[0] = std::move(h);
