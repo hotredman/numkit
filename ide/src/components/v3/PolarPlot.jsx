@@ -11,8 +11,11 @@
  *     rlim,              // [rmin, rmax] — auto-computed when undefined
  *     series: [{ name, theta:Number[], rho:Number[], color, width? }],
  *   }
+ *
+ * Viewport (controlled from the parent so fit / range inputs can mutate it):
+ *   { r: [rMin, rMax] }
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 const PALETTE = ['#7fd99a', '#5fb3d4', '#e9b870', '#9b8cf2', '#e26a6a',
                  '#d4a5e6', '#f2a37e', '#6fcfbf'];
@@ -26,31 +29,60 @@ function thetaZeroOffset(loc) {
   }
 }
 
-function niceMax(v) {
-  if (v <= 0) return 1;
-  const pow = Math.pow(10, Math.floor(Math.log10(v)));
-  const norm = v / pow;
-  let step;
-  if (norm < 1.5) step = 1.5 * pow;
-  else if (norm < 3) step = 3 * pow;
-  else if (norm < 7) step = 7 * pow;
-  else step = 10 * pow;
-  return Math.ceil(v / (step / 4)) * (step / 4);
+/**
+ * Pick a "nice" step for splitting a range into ~target divisions, using the
+ * 1 / 2 / 2.5 / 5 / 10 multiplier set. The 2.5 step is what produces the
+ * 0.25 / 0.5 / 0.75 / 1 series readers expect on a polar grid.
+ */
+function niceStep(range, target = 4) {
+  if (range <= 0) return 1;
+  const rough = range / target;
+  const pow = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / pow;
+  if (norm < 1.5)  return 1   * pow;
+  if (norm < 2.25) return 2   * pow;
+  if (norm < 3.75) return 2.5 * pow;
+  if (norm < 7)    return 5   * pow;
+  return 10 * pow;
 }
 
-export default function PolarPlot({ figure, width, height, fontScale = 1 }) {
+/** Round `v` upwards to the nearest "nice" rMax — 0.25 / 0.5 / 1 / 2.5 / 5 / 10 / … */
+export function nicePolarMax(v) {
+  if (!Number.isFinite(v) || v <= 0) return 1;
+  const step = niceStep(v, 4);
+  return Math.ceil(v / step) * step;
+}
+
+/** Default viewport for a figure — polar uses {r:[…]}, cartesian {x,y}. */
+export function defaultPolarViewport(figure) {
+  if (Array.isArray(figure.rlim) && figure.rlim.length === 2) {
+    return { r: figure.rlim.slice() };
+  }
+  let m = 0;
+  figure.series?.forEach((s) => s.rho?.forEach((v) => {
+    if (Number.isFinite(v) && Math.abs(v) > m) m = Math.abs(v);
+  }));
+  return { r: [0, nicePolarMax(m || 1)] };
+}
+
+export default function PolarPlot({
+  figure, width, height,
+  viewport, setViewport,
+  fontScale = 1,
+  interactive = true,
+}) {
+  const svgRef  = useRef(null);
+  const dragRef = useRef(null);
   const dirSign = figure.thetaDir === 'clockwise' ? -1 : 1;
   const zero    = thetaZeroOffset(figure.thetaZeroLocation);
 
-  const rMax = useMemo(() => {
-    if (Array.isArray(figure.rlim) && figure.rlim.length === 2) return figure.rlim[1];
-    let m = 0;
-    figure.series?.forEach((s) => s.rho?.forEach((v) => {
-      if (v != null && Math.abs(v) > m) m = Math.abs(v);
-    }));
-    return niceMax(m || 1);
-  }, [figure]);
-  const rMin = Array.isArray(figure.rlim) && figure.rlim.length === 2 ? figure.rlim[0] : 0;
+  // Resolve viewport: prefer controlled prop, else fall back to figure.rlim,
+  // else auto from data extent.
+  const fallback = useMemo(() => defaultPolarViewport(figure), [figure]);
+  const vp = (viewport && Array.isArray(viewport.r) && viewport.r.length === 2)
+    ? viewport
+    : fallback;
+  const [rMin, rMax] = vp.r;
 
   const padTop = (figure.title ? 28 : 12) * fontScale;
   const padBot = 12 * fontScale;
@@ -59,14 +91,19 @@ export default function PolarPlot({ figure, width, height, fontScale = 1 }) {
   const cy = padTop + (height - padTop - padBot) / 2;
   const radius = Math.max(20, Math.min(width / 2 - padX - 30, (height - padTop - padBot) / 2 - 28));
 
-  const rScale = (rho) => ((rho - rMin) / (rMax - rMin || 1)) * radius;
+  const span = (rMax - rMin) || 1;
+  const rScale = (rho) => ((rho - rMin) / span) * radius;
 
-  const rTicks = (() => {
-    // 4 evenly spaced rings from rMin (inner) to rMax (outer). Skip the centre ring.
+  // Rings on every nice step, skipping the centre tick (rMin).
+  const rTicks = useMemo(() => {
+    const step = niceStep(span, 4);
     const arr = [];
-    for (let i = 1; i <= 4; i++) arr.push(rMin + ((rMax - rMin) * i) / 4);
+    const start = Math.ceil(rMin / step) * step;
+    for (let v = start; v <= rMax + step * 1e-6; v += step) {
+      if (Math.abs(v - rMin) > step * 1e-6) arr.push(+v.toFixed(12));
+    }
     return arr;
-  })();
+  }, [rMin, rMax, span]);
 
   function fmtR(v) {
     const a = Math.abs(v);
@@ -83,12 +120,66 @@ export default function PolarPlot({ figure, width, height, fontScale = 1 }) {
     return [Math.cos(a) * r, -Math.sin(a) * r];
   }
 
+  // ── interaction ───────────────────────────────────────────────────────
+  function onMouseDown(e) {
+    if (!interactive || !setViewport || e.button !== 0) return;
+    dragRef.current = { sy: e.clientY, r0: vp.r.slice() };
+    e.currentTarget.style.cursor = 'grabbing';
+  }
+  function onMouseMove(e) {
+    if (!dragRef.current || !setViewport) return;
+    const d = dragRef.current;
+    // Drag-up shrinks rMax (zoom in), drag-down grows it (zoom out).
+    // Sensitivity: full-modal-height drag ≈ 2× change.
+    const factor = Math.exp((e.clientY - d.sy) / Math.max(150, height));
+    const lo = d.r0[0];
+    const hi = d.r0[1];
+    setViewport({ r: [lo, lo + (hi - lo) * factor] });
+  }
+  function onMouseUp(e) {
+    dragRef.current = null;
+    if (e.currentTarget) e.currentTarget.style.cursor = 'grab';
+  }
+  function onMouseLeave(e) { onMouseUp(e); }
+  function onDblClick() {
+    if (!interactive || !setViewport) return;
+    setViewport(defaultPolarViewport(figure));
+  }
+
+  // Wheel listener attached imperatively because React's onWheel is passive.
+  useEffect(() => {
+    if (!interactive || !setViewport) return;
+    const el = svgRef.current;
+    if (!el) return;
+    function onWheel(e) {
+      e.preventDefault();
+      const factor = Math.exp(e.deltaY * 0.0015);
+      const lo = vp.r[0];
+      const hi = vp.r[1];
+      setViewport({ r: [lo, lo + (hi - lo) * factor] });
+    }
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  });
+
   return (
     <svg
+      ref={svgRef}
       width="100%" height="100%"
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="xMidYMid meet"
-      style={{ display: 'block', userSelect: 'none', fontFamily: 'JetBrains Mono, monospace' }}
+      style={{
+        display: 'block',
+        cursor: interactive && setViewport ? 'grab' : 'default',
+        userSelect: 'none',
+        fontFamily: 'JetBrains Mono, monospace',
+        pointerEvents: interactive ? 'auto' : 'none',
+      }}
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseLeave}
+      onDoubleClick={onDblClick}
     >
       <rect x={0} y={0} width={width} height={height} fill="var(--bg-1)" />
 
@@ -102,6 +193,7 @@ export default function PolarPlot({ figure, width, height, fontScale = 1 }) {
         {/* Radial grid: concentric circles + tick labels */}
         {rTicks.map((rho, i) => {
           const r = rScale(rho);
+          if (r <= 0 || r > radius + 0.5) return null;
           return (
             <g key={`rt${i}`}>
               <circle cx={0} cy={0} r={r} fill="none" stroke="var(--plot-grid)" strokeDasharray="2 4" />
@@ -130,28 +222,33 @@ export default function PolarPlot({ figure, width, height, fontScale = 1 }) {
           );
         })}
 
-        {/* Series — polylines */}
-        {figure.series?.map((s, idx) => {
-          if (!s.theta?.length || !s.rho?.length) return null;
-          const color = s.color || PALETTE[idx % PALETTE.length];
-          let d = '';
-          let started = false;
-          for (let i = 0; i < s.theta.length; i++) {
-            const rho = s.rho[i];
-            if (rho == null || !Number.isFinite(rho)) continue;
-            const [x, y] = ptFor(s.theta[i], rho);
-            d += (started ? 'L' : 'M') + x.toFixed(2) + ',' + y.toFixed(2) + ' ';
-            started = true;
-          }
-          // Close the path if theta sweeps a full revolution
-          const range = Math.abs(s.theta[s.theta.length - 1] - s.theta[0]);
-          if (range >= Math.PI * 1.95) d += 'Z';
-          return (
-            <path key={s.name} d={d} stroke={color} fill="none"
-              strokeWidth={s.width || 1.6}
-              strokeLinejoin="round" strokeLinecap="round" />
-          );
-        })}
+        {/* Series — polylines, clipped against rMax */}
+        <clipPath id={`pclip-${figure.id}-${Math.round(width)}`}>
+          <circle cx={0} cy={0} r={radius} />
+        </clipPath>
+        <g clipPath={`url(#pclip-${figure.id}-${Math.round(width)})`}>
+          {figure.series?.map((s, idx) => {
+            if (!s.theta?.length || !s.rho?.length) return null;
+            const color = s.color || PALETTE[idx % PALETTE.length];
+            let d = '';
+            let started = false;
+            for (let i = 0; i < s.theta.length; i++) {
+              const rho = s.rho[i];
+              if (rho == null || !Number.isFinite(rho)) { started = false; continue; }
+              const [x, y] = ptFor(s.theta[i], rho);
+              d += (started ? 'L' : 'M') + x.toFixed(2) + ',' + y.toFixed(2) + ' ';
+              started = true;
+            }
+            // Close the path if theta sweeps a full revolution
+            const range = Math.abs(s.theta[s.theta.length - 1] - s.theta[0]);
+            if (range >= Math.PI * 1.95) d += 'Z';
+            return (
+              <path key={s.name} d={d} stroke={color} fill="none"
+                strokeWidth={s.width || 1.6}
+                strokeLinejoin="round" strokeLinecap="round" />
+            );
+          })}
+        </g>
       </g>
     </svg>
   );

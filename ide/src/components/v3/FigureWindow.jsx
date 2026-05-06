@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import InteractivePlot from './InteractivePlot';
 import Heatmap from './Heatmap';
-import PolarPlot from './PolarPlot';
+import PolarPlot, { defaultPolarViewport, nicePolarMax } from './PolarPlot';
 
 function renderFigure(figure, props) {
   if (figure.kind === 'heatmap') return <Heatmap figure={figure} {...props} />;
@@ -75,12 +75,14 @@ function NumberInput({ value, onCommit, width = 88 }) {
 }
 
 export default function FigureWindow({ figure, onClose }) {
-  // Polar plots have no Cartesian viewport — fall back to a unit box so the
-  // viewport-related controls in the toolbar stay rendered (they no-op for
-  // polar) without crashing on figure.xRange.slice().
-  const figDefault = (figure.xRange && figure.yRange)
-    ? { x: figure.xRange.slice(), y: figure.yRange.slice() }
-    : { x: [-1, 1], y: [-1, 1] };
+  const isPolar = figure.kind === 'polar';
+  // Polar plots use {r:[lo,hi]}; cartesian plots use {x:[…], y:[…]}. We never
+  // mix the two — the toolbar branches on `isPolar` to render the right inputs.
+  const figDefault = isPolar
+    ? defaultPolarViewport(figure)
+    : (figure.xRange && figure.yRange)
+      ? { x: figure.xRange.slice(), y: figure.yRange.slice() }
+      : { x: [-1, 1], y: [-1, 1] };
   const [viewport, setViewport]   = useState(figDefault);
   const [showMajor, setShowMajor] = useState(true);
   const [showMinor, setShowMinor] = useState(true);
@@ -234,6 +236,20 @@ export default function FigureWindow({ figure, onClose }) {
 
   function applyFit(mode, axisMode) {
     if (!figure.series) return;            // no-op for heatmap
+    if (isPolar) {
+      // Polar fit: pick max |rho| across selected series, round up to a nice
+      // multiple, keep rMin at 0 (or whatever the figure's existing inner
+      // ring is). axisMode is ignored — there's only one axis.
+      const list = mode === 'all' ? figure.series : figure.series.filter((s) => s.name === mode);
+      let m = 0;
+      list.forEach((s) => s.rho?.forEach((v) => {
+        if (Number.isFinite(v) && Math.abs(v) > m) m = Math.abs(v);
+      }));
+      const lo = (Array.isArray(figure.rlim) && figure.rlim.length === 2) ? figure.rlim[0] : 0;
+      setViewport({ r: [lo, nicePolarMax(m || 1)] });
+      setFitOpen(false);
+      return;
+    }
     setViewport(computeFitViewport(figure.series, mode, axisMode, viewport, figDefault));
     setFitOpen(false);
   }
@@ -315,16 +331,25 @@ export default function FigureWindow({ figure, onClose }) {
             )}
           </div>
 
-          <div className="ve-tools-group fw-range-group">
-            <span className="ve-label">x</span>
-            <NumberInput value={viewport.x[0]} onCommit={(n) => setViewport({ ...viewport, x: [n, viewport.x[1]] })} />
-            <span className="fw-range-sep">→</span>
-            <NumberInput value={viewport.x[1]} onCommit={(n) => setViewport({ ...viewport, x: [viewport.x[0], n] })} />
-            <span className="ve-label" style={{ marginLeft: 6 }}>y</span>
-            <NumberInput value={viewport.y[0]} onCommit={(n) => setViewport({ ...viewport, y: [n, viewport.y[1]] })} />
-            <span className="fw-range-sep">→</span>
-            <NumberInput value={viewport.y[1]} onCommit={(n) => setViewport({ ...viewport, y: [viewport.y[0], n] })} />
-          </div>
+          {isPolar ? (
+            <div className="ve-tools-group fw-range-group">
+              <span className="ve-label">r</span>
+              <NumberInput value={viewport.r[0]} onCommit={(n) => setViewport({ r: [n, viewport.r[1]] })} />
+              <span className="fw-range-sep">→</span>
+              <NumberInput value={viewport.r[1]} onCommit={(n) => setViewport({ r: [viewport.r[0], n] })} />
+            </div>
+          ) : (
+            <div className="ve-tools-group fw-range-group">
+              <span className="ve-label">x</span>
+              <NumberInput value={viewport.x[0]} onCommit={(n) => setViewport({ ...viewport, x: [n, viewport.x[1]] })} />
+              <span className="fw-range-sep">→</span>
+              <NumberInput value={viewport.x[1]} onCommit={(n) => setViewport({ ...viewport, x: [viewport.x[0], n] })} />
+              <span className="ve-label" style={{ marginLeft: 6 }}>y</span>
+              <NumberInput value={viewport.y[0]} onCommit={(n) => setViewport({ ...viewport, y: [n, viewport.y[1]] })} />
+              <span className="fw-range-sep">→</span>
+              <NumberInput value={viewport.y[1]} onCommit={(n) => setViewport({ ...viewport, y: [viewport.y[0], n] })} />
+            </div>
+          )}
 
           <div className="ve-tools-group">
             <button className={`ve-btn ${showMajor ? 'is-active' : ''}`} onClick={() => setShowMajor((g) => !g)} title="Major grid">grid</button>
@@ -382,11 +407,17 @@ export default function FigureWindow({ figure, onClose }) {
         </div>
 
         <div className="fw-status">
-          <span>x ∈ [{fmtVp(viewport.x[0])}, {fmtVp(viewport.x[1])}]</span>
-          <span className="ve-sep" />
-          <span>y ∈ [{fmtVp(viewport.y[0])}, {fmtVp(viewport.y[1])}]</span>
+          {isPolar ? (
+            <span>r ∈ [{fmtVp(viewport.r[0])}, {fmtVp(viewport.r[1])}]</span>
+          ) : (
+            <>
+              <span>x ∈ [{fmtVp(viewport.x[0])}, {fmtVp(viewport.x[1])}]</span>
+              <span className="ve-sep" />
+              <span>y ∈ [{fmtVp(viewport.y[0])}, {fmtVp(viewport.y[1])}]</span>
+            </>
+          )}
           <span className="ve-spacer" />
-          <span>drag · pan</span>
+          <span>{isPolar ? 'drag · zoom rMax' : 'drag · pan'}</span>
           <span className="ve-sep" />
           <span>wheel · zoom</span>
           <span className="ve-sep" />
