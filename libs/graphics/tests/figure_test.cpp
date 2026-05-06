@@ -988,6 +988,65 @@ TEST_F(ImagescTileTest, NaNQuantizesToSentinel)
 }
 
 // ============================================================
+// imagesc colorScale='log' — log10 baked into quantization
+// ============================================================
+
+class ImagescLogColorTest : public FigureEngineTest {};
+
+TEST_F(ImagescLogColorTest, LinearByDefault)
+{
+    eval("imagesc(ones(10));");
+    EXPECT_FALSE(ax().datasets[0].colorScaleBaked);
+}
+
+TEST_F(ImagescLogColorTest, ColorscaleLogBakesIntoQuantization)
+{
+    // colorscale('log') BEFORE imagesc — survives prepareForPlot.
+    // Powers of 10 should be evenly spaced in the quantization.
+    eval("colorscale('log'); imagesc([1, 10, 100, 1000]);");
+    const auto &ds = ax().datasets[0];
+    ASSERT_TRUE(ds.colorScaleBaked);
+    // cmin = log10(1) = 0, cmax = log10(1000) = 3
+    EXPECT_DOUBLE_EQ(ds.cminOrig, 0.0);
+    EXPECT_DOUBLE_EQ(ds.cmaxOrig, 3.0);
+    // Powers of 10 are evenly spaced in log10 — idx should step by 254/3 ≈ 85.
+    // Layout: 1×4 row vector → cols=4, rows=1, col-major → idx[c*rows+r]=idx[c]
+    // So zQuantized[0]=q(1)=0, zQuantized[1]=q(10)≈85, zQuantized[2]≈169, zQuantized[3]=254.
+    EXPECT_EQ(ds.zQuantized[0], 0);                  // log10(1)/3 * 254 = 0
+    EXPECT_NEAR(ds.zQuantized[1], 85,  1);           // log10(10)/3 * 254 ≈ 84.7
+    EXPECT_NEAR(ds.zQuantized[2], 169, 1);           // log10(100)/3 * 254 ≈ 169.3
+    EXPECT_EQ(ds.zQuantized[3], 254);                // log10(1000)/3 * 254 = 254
+}
+
+TEST_F(ImagescLogColorTest, NonPositiveValuesBecomeNaNInLogMode)
+{
+    eval("colorscale('log'); imagesc([1 0 -5 100]);");
+    const auto &ds = ax().datasets[0];
+    ASSERT_TRUE(ds.colorScaleBaked);
+    // 0 and -5 are not log-able → NaN sentinel
+    EXPECT_EQ(ds.zQuantized[1], 255);
+    EXPECT_EQ(ds.zQuantized[2], 255);
+    // 1 and 100 are valid log-able values
+    EXPECT_NE(ds.zQuantized[0], 255);
+    EXPECT_NE(ds.zQuantized[3], 255);
+}
+
+TEST_F(ImagescLogColorTest, JsonExposesColorScaleBaked)
+{
+    eval("colorscale('log'); imagesc([1 10 100]);");
+    EXPECT_NE(capturedOutput.find("\"colorScaleBaked\":\"log\""), std::string::npos);
+}
+
+TEST_F(ImagescLogColorTest, ColorscaleSurvivesPrepareForPlot)
+{
+    // The colorScale state is set BEFORE imagesc. prepareForPlot resets
+    // axes state — verify colorScale survives like subplotIndex does.
+    eval("colorscale('log'); imagesc([1 10]); imagesc([100 1000]);");
+    // Second imagesc should also be in log mode (colorScale persists).
+    EXPECT_TRUE(ax().datasets[0].colorScaleBaked);
+}
+
+// ============================================================
 // FigureManager::getFigureTile — sub-rect read with LOD pooling
 // ============================================================
 
