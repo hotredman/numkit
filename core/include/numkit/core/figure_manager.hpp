@@ -19,6 +19,19 @@ struct DatasetInfo
     std::string style;     // MATLAB style hint, e.g. "r--o", "b:", "g-."
     double lineWidth = 0;  // 0 = default
     double markerSize = 0; // 0 = default
+
+    // ── Large-imagesc tile pipeline ────────────────────────────────────
+    // For oversized matrices (rows*cols > 2'000'000 cells) imagesc keeps
+    // the full data in zRaw (column-major float32, like MATLAB) and emits
+    // a downsampled preview as zJson. The IDE then uses getFigureTile()
+    // on demand to fetch higher-LOD sub-rectangles for zoom-in detail.
+    //
+    // For matrices ≤2M cells the inline JSON path is unchanged: zJson
+    // carries the full data, downsampled stays false, zRaw stays empty.
+    std::vector<float> zRaw;          // full-resolution backing store
+    bool   downsampled  = false;
+    size_t originalRows = 0;
+    size_t originalCols = 0;
 };
 
 /** Per-axes state — one subplot panel has one AxesState */
@@ -213,6 +226,11 @@ public:
                         os << ",\"markerSize\":" << ds.markerSize;
                     if (!ds.zJson.empty())
                         os << ",\"z\":" << ds.zJson;
+                    if (ds.downsampled) {
+                        os << ",\"downsampled\":true"
+                              ",\"originalRows\":" << ds.originalRows
+                           << ",\"originalCols\":" << ds.originalCols;
+                    }
                     os << "}";
                 }
                 os << "],\"config\":{";

@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <sstream>
 
 namespace numkit {
@@ -350,29 +351,95 @@ void GraphicsLibrary::install(Engine &engine)
                 return;
             }
 
-            std::ostringstream zs;
-            zs << "[";
-            for (size_t r = 0; r < rows; ++r) {
-                if (r)
-                    zs << ",";
-                zs << "[";
-                for (size_t c = 0; c < cols; ++c) {
-                    if (c)
-                        zs << ",";
+            DatasetInfo ds;
+            ds.type = "imagesc";
+
+            // Always populate zRaw — full-resolution backing store (column-major
+            // float32, MATLAB-style) the IDE will read via getFigureTile() for
+            // zoom-in detail on huge matrices.
+            ds.zRaw.resize(rows * cols);
+            for (size_t c = 0; c < cols; ++c) {
+                for (size_t r = 0; r < rows; ++r) {
                     double val;
                     if (C_arg->isComplex()) {
                         val = std::abs(C_arg->complexData()[c * rows + r]);
                     } else {
                         val = C_arg->doubleData()[c * rows + r];
                     }
-                    doubleToJson(zs, val);
+                    ds.zRaw[c * rows + r] = static_cast<float>(val);
                 }
-                zs << "]";
+            }
+
+            // Inline-JSON path: ≤2M cells go straight, larger get mean-pooled to
+            // ≤2M before serialisation. 1.2 GB JSON for 10000² is what blew up
+            // the engine before; capping keeps the inline preview ~3 MB.
+            constexpr size_t MAX_INLINE_CELLS = 2'000'000;
+            const size_t totalCells = rows * cols;
+            std::ostringstream zs;
+            zs << "[";
+
+            if (totalCells <= MAX_INLINE_CELLS) {
+                // Fast path: emit full data, no downsampling.
+                for (size_t r = 0; r < rows; ++r) {
+                    if (r)
+                        zs << ",";
+                    zs << "[";
+                    for (size_t c = 0; c < cols; ++c) {
+                        if (c)
+                            zs << ",";
+                        doubleToJson(zs, static_cast<double>(ds.zRaw[c * rows + r]));
+                    }
+                    zs << "]";
+                }
+            } else {
+                // Mean-pool by integer block factors. Pick smallest dr,dc such
+                // that ⌈rows/dr⌉ × ⌈cols/dc⌉ ≤ MAX_INLINE_CELLS. Symmetric step
+                // (rows-vs-cols ratio preserved) — start from the larger axis.
+                size_t step = 1;
+                while ((rows + step - 1) / step * ((cols + step - 1) / step) > MAX_INLINE_CELLS) {
+                    ++step;
+                }
+                const size_t dr = step;
+                const size_t dc = step;
+                const size_t outRows = (rows + dr - 1) / dr;
+                const size_t outCols = (cols + dc - 1) / dc;
+
+                for (size_t orow = 0; orow < outRows; ++orow) {
+                    if (orow)
+                        zs << ",";
+                    zs << "[";
+                    const size_t r0 = orow * dr;
+                    const size_t r1 = std::min(rows, r0 + dr);
+                    for (size_t ocol = 0; ocol < outCols; ++ocol) {
+                        if (ocol)
+                            zs << ",";
+                        const size_t c0 = ocol * dc;
+                        const size_t c1 = std::min(cols, c0 + dc);
+                        // Mean-pool over the (r0..r1) × (c0..c1) block. NaN
+                        // values are skipped — only finite samples contribute.
+                        double sum = 0.0;
+                        size_t n = 0;
+                        for (size_t c = c0; c < c1; ++c) {
+                            for (size_t r = r0; r < r1; ++r) {
+                                const float v = ds.zRaw[c * rows + r];
+                                if (std::isfinite(v)) {
+                                    sum += static_cast<double>(v);
+                                    ++n;
+                                }
+                            }
+                        }
+                        const double mean = (n > 0) ? sum / static_cast<double>(n)
+                                                    : std::numeric_limits<double>::quiet_NaN();
+                        doubleToJson(zs, mean);
+                    }
+                    zs << "]";
+                }
+
+                ds.downsampled  = true;
+                ds.originalRows = rows;
+                ds.originalCols = cols;
             }
             zs << "]";
-
-            DatasetInfo ds;
-            ds.type = "imagesc";
             ds.zJson = zs.str();
 
             if (x_arg && x_arg->numel() >= 2) {

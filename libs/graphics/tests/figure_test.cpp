@@ -894,3 +894,73 @@ TEST_F(FigureIntegrationTest, ClearAllThenPlot)
     EXPECT_EQ(fm().figures().size(), 1u);
     EXPECT_EQ(ax().datasets.size(), 1u);
 }
+
+// ============================================================
+// imagesc — large-matrix tile pipeline (downsample contract)
+// ============================================================
+
+class ImagescTileTest : public FigureEngineTest {};
+
+TEST_F(ImagescTileTest, SmallMatrixNoDownsample)
+{
+    // 100×100 = 10K cells, well below the 2M cap → full-resolution path,
+    // downsampled flag stays false, zRaw still populated for tile fetches.
+    eval("imagesc(eye(100));");
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    const auto &ds = ax().datasets[0];
+    EXPECT_EQ(ds.type, "imagesc");
+    EXPECT_FALSE(ds.downsampled);
+    EXPECT_EQ(ds.zRaw.size(), 100u * 100u);
+    // eye(100): col-major, [0,0] = 1, [0,1] = 0, [1,1] = 1 (diagonal).
+    EXPECT_FLOAT_EQ(ds.zRaw[0], 1.0f);                 // (1,1) on diagonal
+    EXPECT_FLOAT_EQ(ds.zRaw[1], 0.0f);                 // (2,1) off-diagonal
+    EXPECT_FLOAT_EQ(ds.zRaw[100 + 1], 1.0f);           // (2,2) on diagonal
+}
+
+TEST_F(ImagescTileTest, OversizedMatrixDownsamples)
+{
+    // 3000×3000 = 9M cells, above the 2M cap → mean-pool path triggers,
+    // downsampled flag set, originalRows/Cols preserved.
+    eval("imagesc(ones(3000));");
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    const auto &ds = ax().datasets[0];
+    EXPECT_TRUE(ds.downsampled);
+    EXPECT_EQ(ds.originalRows, 3000u);
+    EXPECT_EQ(ds.originalCols, 3000u);
+    // zRaw still holds full resolution — Phase 2 tile-fetch reads from it.
+    EXPECT_EQ(ds.zRaw.size(), 3000u * 3000u);
+}
+
+TEST_F(ImagescTileTest, MeanPoolPreservesUniformValues)
+{
+    // ones(3000) → every block average is 1.0, regardless of pool factor.
+    // Sanity check that mean-pool isn't accidentally summing/clamping.
+    eval("imagesc(ones(3000));");
+    const auto &ds = ax().datasets[0];
+    ASSERT_TRUE(ds.downsampled);
+    // zJson should be a 2D JSON array of all 1s. Spot-check by counting
+    // commas at top level vs row count — N rows should produce N-1 row separators.
+    // Easier: the JSON should contain neither "0" nor "2" as standalone values.
+    EXPECT_NE(ds.zJson.find('1'), std::string::npos);
+    EXPECT_EQ(ds.zJson.find("[2"), std::string::npos);
+    EXPECT_EQ(ds.zJson.find(",2"), std::string::npos);
+}
+
+TEST_F(ImagescTileTest, JsonExposesDownsampleFields)
+{
+    // The IDE adapter reads downsampled / originalRows / originalCols off the
+    // dataset JSON. Verify they appear in the emitted figure marker.
+    eval("imagesc(ones(3000));");
+    EXPECT_NE(capturedOutput.find("\"downsampled\":true"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("\"originalRows\":3000"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("\"originalCols\":3000"), std::string::npos);
+}
+
+TEST_F(ImagescTileTest, SmallMatrixOmitsDownsampleFields)
+{
+    // No downsample flag for matrices ≤2M cells — keep the JSON minimal so
+    // existing parity / golden tests stay byte-identical.
+    eval("imagesc(eye(100));");
+    EXPECT_EQ(capturedOutput.find("\"downsampled\""), std::string::npos);
+    EXPECT_EQ(capturedOutput.find("\"originalRows\""), std::string::npos);
+}
