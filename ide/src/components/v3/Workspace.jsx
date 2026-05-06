@@ -694,11 +694,33 @@ export function VariableEditor({ variable, onClose, engine }) {
     return n ? { min, max, mean: sum / n, n } : null;
   }, [data]);
 
+  // Format a single number with the active notation/precision settings.
+  function formatNum(n) {
+    if (!Number.isFinite(n)) return String(n);
+    if (notation === 'exp')   return n.toExponential(precision);
+    if (notation === 'fixed') return n.toFixed(precision);
+    return fmt(n, { fix: precision, exp: precision });
+  }
+
+  // Complex values arrive as "a+bi" strings from the WASM binding (it keeps
+  // doubleData precision in real/imag separately, but JS doesn't have a
+  // native complex type so we render as a string). Parse, reformat each
+  // half through formatNum, reassemble. Falls through to the original
+  // string if parsing fails so unrecognized cells aren't garbled.
+  const COMPLEX_RE = /^\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*([+-])\s*(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)i\s*$/;
   function format(v) {
-    if (typeof v !== 'number') return String(v);
-    if (notation === 'exp') return v.toExponential(precision);
-    if (notation === 'fixed') return v.toFixed(precision);
-    return fmt(v, { fix: precision, exp: precision });
+    if (typeof v === 'number') return formatNum(v);
+    if (typeof v === 'string') {
+      const m = v.match(COMPLEX_RE);
+      if (m) {
+        const re = parseFloat(m[1]);
+        const im = parseFloat(m[3]) * (m[2] === '-' ? -1 : 1);
+        const reStr = formatNum(re);
+        const imStr = formatNum(Math.abs(im));
+        return `${reStr}${im >= 0 ? '+' : '-'}${imStr}i`;
+      }
+    }
+    return String(v);
   }
 
   function commitEdit() {
