@@ -70,3 +70,8 @@ T = [8 2; 1 5]
 
 - The `categorical`/`table` input form — deferred to broader OOP
   type support in core.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-06
+- Notes: Three of these (signrank/ranksum/fishertest) had NO behavioural gap per the audit reference table — closed with regression gtest only. signtest required adding zval=NaN to its stats struct (always exact path; 'approximate' method would populate zval but currently both routes go through binocdf and the numbers are identical).

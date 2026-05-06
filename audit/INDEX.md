@@ -36,10 +36,6 @@ Status legend:
 | [findings/stats/kruskalwallis.md](findings/stats/kruskalwallis.md) | kruskalwallis | stats.test | medium | medium | 69fab7c |
 | [findings/stats/runstest.md](findings/stats/runstest.md) | runstest | stats.test | high | medium | 69fab7c |
 | [findings/stats/vartestn.md](findings/stats/vartestn.md) | vartestn | stats.test | medium | medium | 69fab7c |
-| [findings/stats/fishertest.md](findings/stats/fishertest.md) | fishertest | stats.test | low | small | 69fab7c |
-| [findings/stats/ranksum.md](findings/stats/ranksum.md) | ranksum | stats.test | low | small | 69fab7c |
-| [findings/stats/signrank.md](findings/stats/signrank.md) | signrank | stats.test | low | small | 69fab7c |
-| [findings/stats/signtest.md](findings/stats/signtest.md) | signtest | stats.test | low | small | 69fab7c |
 | [findings/stats/cummax.md](findings/stats/cummax.md) | cummax | builtin | high | medium | 4f021db |
 | [findings/stats/cummin.md](findings/stats/cummin.md) | cummin | builtin | high | medium | 4f021db |
 | [findings/stats/median.md](findings/stats/median.md) | median | stats.descriptive | high | medium | ba142e6 |
@@ -225,6 +221,10 @@ Status legend:
 | [closed/stats/vartest.md](closed/stats/vartest.md) | vartest | PENDING (partial) | 2026-05-06 |
 | [closed/stats/vartest2.md](closed/stats/vartest2.md) | vartest2 | PENDING (partial) | 2026-05-06 |
 | [closed/stats/ztest.md](closed/stats/ztest.md) | ztest | PENDING (partial) | 2026-05-06 |
+| [closed/stats/signtest.md](closed/stats/signtest.md) | signtest | PENDING | 2026-05-06 |
+| [closed/stats/signrank.md](closed/stats/signrank.md) | signrank | PENDING | 2026-05-06 |
+| [closed/stats/ranksum.md](closed/stats/ranksum.md) | ranksum | PENDING | 2026-05-06 |
+| [closed/stats/fishertest.md](closed/stats/fishertest.md) | fishertest | PENDING | 2026-05-06 |
 
 ---
 

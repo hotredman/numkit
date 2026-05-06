@@ -62,3 +62,8 @@ y = [0.8 1.9 2.7 4.0 4.5 5.7 6.4]'
 
 - Adding the legacy positional `tail` 4th-arg form — MATLAB's docs
   only list N-V; numkit already supports both, no need to remove.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-06
+- Notes: Three of these (signrank/ranksum/fishertest) had NO behavioural gap per the audit reference table — closed with regression gtest only. signtest required adding zval=NaN to its stats struct (always exact path; 'approximate' method would populate zval but currently both routes go through binocdf and the numbers are identical).

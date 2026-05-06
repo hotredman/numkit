@@ -76,3 +76,8 @@ y = [0.8 1.9 2.7 4.0 4.5 5.7 6.4]'
 
 - Continuity-correction toggle — MATLAB applies it implicitly in
   approximate mode; no user override.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-06
+- Notes: Three of these (signrank/ranksum/fishertest) had NO behavioural gap per the audit reference table — closed with regression gtest only. signtest required adding zval=NaN to its stats struct (always exact path; 'approximate' method would populate zval but currently both routes go through binocdf and the numbers are identical).
