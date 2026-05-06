@@ -85,3 +85,8 @@ xs = [-1 1 -1 1 -1 1 -1 1]'
 
 - 'Method', 'approximate-tied' — the documented MATLAB API is just
   exact / approximate; no third method.
+
+## Closed (partial)
+- Closed in commit: PENDING
+- Closed date: 2026-05-06
+- Notes: Adapter rewritten to recognise positional 'ud' string for up-down test. Implementation: pre-transform x → sign(diff(x)) and run standard runs test with v=0. Standard cases match MATLAB. Edge case (monotonic input → n0=0 or n1=0) returns NaN p-value — MATLAB returns small finite p via exact pmf; current numkit impl short-circuits on degenerate counts. Documented as remaining gap.

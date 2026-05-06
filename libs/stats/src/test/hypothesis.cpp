@@ -1602,14 +1602,22 @@ void runstest_reg(Span<const Value> args, size_t nargout,
                   Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("runstest: requires X[, v][, alpha, tail | name-value]",
+        throw Error("runstest: requires X[, v | 'ud'][, alpha, tail | name-value]",
                     0, 0, "runstest", "", "m:runstest:nargin");
     auto *mr = ctx.engine->resource();
 
-    // arg[1] is positional v (scalar) or a name-value start.
+    // arg[1] is positional v (scalar), 'ud' string for up-down test, or a
+    // name-value start.
     double v = std::numeric_limits<double>::quiet_NaN();   // sentinel: use median(x)
+    bool up_down = false;
     size_t i = 1;
-    if (i < args.size() && !args[i].isChar() && !args[i].isString() && !args[i].isEmpty()) {
+    if (i < args.size() && (args[i].isChar() || args[i].isString())) {
+        std::string s = args[i].toString();
+        std::string sl = s;
+        for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (sl == "ud") { up_down = true; ++i; }
+        // otherwise leave for the Name-Value loop below.
+    } else if (i < args.size() && !args[i].isEmpty()) {
         v = args[i].toScalar();
         ++i;
     }
@@ -1629,7 +1637,34 @@ void runstest_reg(Span<const Value> args, size_t nargout,
         i += 2;
     }
 
-    auto [p, h, R, n1, n0, z] = runstest(mr, args[0], v, alpha, tail, method);
+    // For 'ud' (up-down test): replace x with sign(diff(x)) — the
+    // resulting binary sequence above/below 0 counts ascent/descent
+    // runs, which is exactly what MATLAB's runstest('ud') does.
+    Value xUsed = args[0];
+    if (up_down) {
+        const Value &x = args[0];
+        const size_t Nx = x.numel();
+        if (Nx < 2) {
+            Value diffSign = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+            xUsed = std::move(diffSign);
+        } else {
+            std::vector<double> diffs;
+            diffs.reserve(Nx - 1);
+            for (size_t k = 1; k < Nx; ++k) {
+                const double xa = x.elemAsDouble(k - 1);
+                const double xb = x.elemAsDouble(k);
+                if (std::isnan(xa) || std::isnan(xb)) continue;
+                diffs.push_back((xb > xa) ? 1.0 : ((xb < xa) ? -1.0 : 0.0));
+            }
+            Value sgn = Value::matrix(1, diffs.size(), ValueType::DOUBLE, mr);
+            if (!diffs.empty())
+                std::copy(diffs.begin(), diffs.end(), sgn.doubleDataMut());
+            xUsed = std::move(sgn);
+        }
+        v = 0.0;       // reference value for the sign sequence
+    }
+
+    auto [p, h, R, n1, n0, z] = runstest(mr, xUsed, v, alpha, tail, method);
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) {
