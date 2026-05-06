@@ -67,6 +67,57 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   useEffect(() => { setXLog(figure.xscale === 'log'); }, [figure.xscale]);
   useEffect(() => { setYLog(figure.yscale === 'log'); }, [figure.yscale]);
 
+  // Color-limit override for heatmap window/level autoscale. Lifted so the
+  // toolbar fit menu and the panel's ПКМ menu share one state. null = use
+  // figure.cmin/cmax directly.
+  const [colorOverride, setColorOverride] = useState(null);
+  // Reset on figure identity change — old override doesn't apply to a
+  // freshly emitted dataset.
+  useEffect(() => { setColorOverride(null); }, [figure._raw?.id, figure.id]);
+
+  // Compute new color override from a coarse-LOD scan of the visible
+  // source-rect. Mirrors Heatmap.fitColorsToVisible. Lives here so the
+  // toolbar fit menu can invoke it without lifting / via callback ref.
+  function fitColorsToVisible() {
+    if (!engine || typeof engine.getFigureTile !== 'function') return;
+    if (!isHeatmap) return;
+    if (typeof figure._figId !== 'number' || figure._figId < 0) return;
+    if (!figure.originalRows || !figure.originalCols) return;
+    const fullCols = figure.originalCols;
+    const fullRows = figure.originalRows;
+    const xExt = figure.xRange[1] - figure.xRange[0];
+    const yExt = figure.yRange[1] - figure.yRange[0];
+    const colsPerUnit = fullCols / (xExt || 1);
+    const rowsPerUnit = fullRows / (yExt || 1);
+    const xMin = viewport.x[0], xMax = viewport.x[1];
+    const yMin = viewport.y[0], yMax = viewport.y[1];
+    const c0 = Math.max(0, Math.floor((Math.min(xMin, xMax) - figure.xRange[0]) * colsPerUnit));
+    const c1 = Math.min(fullCols, Math.ceil((Math.max(xMin, xMax) - figure.xRange[0]) * colsPerUnit));
+    const r0 = Math.max(0, Math.floor((Math.min(yMin, yMax) - figure.yRange[0]) * rowsPerUnit));
+    const r1 = Math.min(fullRows, Math.ceil((Math.max(yMin, yMax) - figure.yRange[0]) * rowsPerUnit));
+    const tileW = c1 - c0, tileH = r1 - r0;
+    if (tileW <= 0 || tileH <= 0) return;
+    const lod = Math.max(1, Math.ceil(Math.max(tileH, tileW) / 256));
+    const tile = engine.getFigureTile(figure._figId, figure._axIdx, figure._dsIdx,
+                                      r0, c0, tileH, tileW, lod);
+    if (!tile || tile.error || !tile.data) return;
+    let idxMn = 256, idxMx = -1;
+    for (let i = 0; i < tile.data.length; i++) {
+      const idx = tile.data[i];
+      if (idx === 255) continue;
+      if (idx < idxMn) idxMn = idx;
+      if (idx > idxMx) idxMx = idx;
+    }
+    if (idxMn > 254 || idxMx < 0 || idxMn === idxMx) return;
+    const cminOrig = figure.cminOrig ?? figure.cmin;
+    const cmaxOrig = figure.cmaxOrig ?? figure.cmax;
+    const range = cmaxOrig - cminOrig;
+    setColorOverride({
+      cmin: cminOrig + (idxMn / 254) * range,
+      cmax: cminOrig + (idxMx / 254) * range,
+    });
+  }
+
   // Toggle that also auto-clamps the viewport's lo bound to the smallest
   // positive cell-centre when entering log mode (yRange[0] is typically
   // -cellH/2 due to imagesc padding — log of that is undefined).
@@ -406,13 +457,27 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
             {fitOpen && (isHeatmap ? (
               <div className="fw-pop">
                 <div className="fw-pop-section">
-                  <button onClick={() => { setViewport(figDefault); setFitOpen(false); }}>reset to default</button>
+                  <button onClick={() => { setViewport(figDefault); setColorOverride(null); setFitOpen(false); }}>reset to default</button>
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">data extent</div>
                   <button onClick={() => applyFit('all', 'both')}>both axes</button>
                   <button onClick={() => applyFit('all', 'x')}>X only</button>
                   <button onClick={() => applyFit('all', 'y')}>Y only</button>
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">colors</div>
+                  <button
+                    onClick={() => { fitColorsToVisible(); setFitOpen(false); }}
+                    disabled={!engine || typeof engine.getFigureTile !== 'function'
+                              || typeof figure._figId !== 'number' || figure._figId < 0}>
+                    fit to visible
+                  </button>
+                  <button
+                    onClick={() => { setColorOverride(null); setFitOpen(false); }}
+                    disabled={!colorOverride}>
+                    reset colors
+                  </button>
                 </div>
               </div>
             ) : isPolar ? (
@@ -548,6 +613,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               engine,
               xLog, yLog,
               setXLog, setYLog,
+              colorOverride, setColorOverride,
             })}
             {showLegend && Array.isArray(figure.series) && figure.series.length > 0 && (
               <div className="fw-legend">
