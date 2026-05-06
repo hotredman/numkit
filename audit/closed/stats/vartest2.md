@@ -60,3 +60,8 @@ y = [0.8 1.9 2.7 4.0 4.5 5.7 6.4]'
 ## Out of scope for this ТЗ
 
 - N-D input.
+
+## Closed (partial)
+- Closed in commit: PENDING (joint vartest/vartest2 fix)
+- Closed date: 2026-05-06
+- Notes: Adapter rewritten with proper Name-Value parsing for Alpha/Tail (case-insensitive). 'Dim' N-V throws with parity-gap message. Verified vs MATLAB R2025b on 10 fingerprints (3-engine match). 4th output remains scalar (struct deferred); matrix input + Dim still not supported.

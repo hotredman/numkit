@@ -1,0 +1,16 @@
+{
+  "name": "vartest_extras",
+  "namespace": "stats",
+  "setup": "x = [1.2 2.4 3.1 4.5 5.0]'; y = [0.8 1.9 2.7 4.0 4.5]';",
+  "expr": "[h95, p95, c95] = vartest(x, 1, 'Alpha', 0.05); [h99, p99, c99] = vartest(x, 1, 'Alpha', 0.01); [h_r, p_r, c_r] = vartest(x, 1, 'Tail', 'right'); [h2, p2, c2] = vartest2(x, y, 'Alpha', 0.01); [h2t, p2t] = vartest2(x, y, 'Tail', 'right');",
+  "iters": 5,
+  "tol": 1e-6,
+  "fingerprint": [
+    "h95", "p95",
+    "c95(2) - c95(1)", "c99(2) - c99(1)",
+    "h_r", "p_r",
+    "h2", "p2",
+    "h2t", "p2t"
+  ],
+  "comment": "Sig: vartest(x, v[, NV]) and vartest2(x, y[, NV]). Both adapters now parse Alpha and Tail Name-Value pairs (case-insensitive). 'Dim' N-V throws (parity gap). 4th output remains scalar T/F (struct deferred). Closes audit/findings/stats/{vartest,vartest2}.md (partial)."
+}
