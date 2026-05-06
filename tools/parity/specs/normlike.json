@@ -2,9 +2,15 @@
   "name": "normlike",
   "namespace": "stats",
   "setup": "x = [1.2 2.4 3.1 4.5 5.0 6.2 7.1]'; cens = [0 0 0 0 0 1 1]'; freq = [2 2 2 1 1 1 1]';",
-  "expr": "nL_basic = normlike([3, 1.5], x); nL_cens = normlike([3, 1.5], x, cens); nL_freq = normlike([3, 1.5], x, [], freq); nL_both = normlike([3, 1.5], x, cens, freq); nL_empty = normlike([3, 1.5], []); nL_sig0 = normlike([3, 0], x);",
+  "expr": "[nL_basic, av_basic] = normlike([3, 1.5], x); [nL_cens, av_cens] = normlike([3, 1.5], x, cens); [nL_freq, av_freq] = normlike([3, 1.5], x, [], freq); [nL_both, av_both] = normlike([3, 1.5], x, cens, freq); nL_empty = normlike([3, 1.5], []); nL_sig0 = normlike([3, 0], x);",
   "iters": 5,
-  "tol": 1e-10,
-  "fingerprint": ["nL_basic", "nL_cens", "nL_freq", "nL_both", "nL_empty", "nL_sig0"],
-  "comment": "Sig: nL = normlike([mu sigma], data[, cens, freq]). Default + censoring (right-censored => -log(S(z))) + freq weights + empty + invalid-sigma (=> NaN). Second output `avar` (inverse observed-Fisher info) NOT implemented — MATLAB compatibility holds for one-output form only."
+  "tol": 1e-9,
+  "fingerprint": [
+    "nL_basic", "av_basic(1,1)", "av_basic(1,2)", "av_basic(2,2)",
+    "nL_cens",  "av_cens(1,1)",  "av_cens(1,2)",  "av_cens(2,2)",
+    "nL_freq",  "av_freq(1,1)",  "av_freq(1,2)",  "av_freq(2,2)",
+    "nL_both",  "av_both(1,1)",  "av_both(1,2)",  "av_both(2,2)",
+    "nL_empty", "nL_sig0"
+  ],
+  "comment": "Sig: [nL, aVar] = normlike([mu sigma], data[, cens, freq]). Default + censoring (right-censored => -log(S(z))) + freq weights + empty + invalid-sigma (=> NaN). Second output aVar = inverse 2×2 observed-Fisher information matrix at [mu, sigma]; reflects cens/freq weighting."
 }

@@ -13,3 +13,11 @@ fprintf('cens+freq: %.6f (expect 23.461248)\n', normlike([3, 1.5], x, cens, freq
 fprintf('empty    : %.6f (expect 0)\n', normlike([3, 1.5], []));
 fprintf('sigma=0  : %g (expect NaN)\n', normlike([3, 0], x));
 fprintf('NaN data : %g (expect NaN)\n', normlike([3, 1.5], [1 2 NaN 4]'));
+
+fprintf('\n--- aVar (inverse observed-Fisher, 2x2) ---\n');
+[~, av] = normlike([3, 1.5], x);
+fprintf('basic   av = [%.6f %.6f; %.6f %.6f]\n', av(1,1), av(1,2), av(2,1), av(2,2));
+fprintf('  expect:  [ 0.568576 -0.152650; -0.152650  0.094284]\n');
+[~, av] = normlike([3, 1.5], x, cens, freq);
+fprintf('cens+freq av = [%.6f %.6f; %.6f %.6f]\n', av(1,1), av(1,2), av(2,1), av(2,2));
+fprintf('  expect:    [ 0.270478 -0.047669; -0.047669  0.055147]\n');

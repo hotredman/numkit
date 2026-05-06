@@ -56,9 +56,8 @@ raylfit(std::pmr::memory_resource *mr, const Value &x, double alpha);
 // ── Negative log-likelihoods ───────────────────────────────────────────
 // Each *like(params, data) returns the scalar nLogL = −Σ log f(x_i; θ).
 // `params` is a 1×k row vector; `data` is the sample vector. The second
-// MATLAB output `avar` (inverse observed-Fisher information) is NOT
-// implemented — calls that only need nLogL match exactly across all
-// branches; calls that ask for the 2-output form get only nLogL.
+// MATLAB output `avar` (inverse observed-Fisher information) is wired up
+// for `normlike` only; the other *like fitters return only nLogL today.
 //
 // `normlike` additionally honours MATLAB's `(censoring, freq)` optional
 // args:

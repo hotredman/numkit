@@ -96,3 +96,15 @@ params = [3, 1.5]
   ТЗ is about adding the second output, not redefining input handling.
 - Vector-of-`params` broadcasting (MATLAB `params` is documented as a
   fixed 2-element vector).
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-06
+- Notes: `normlike_reg` honours `nargout >= 2` and emits the 2×2
+  inverse observed-Fisher matrix in column-major order (parameter
+  order [mu, sigma]). Analytical Hessian implemented for both
+  uncensored (`I_μμ = w/σ²`, etc.) and right-censored
+  (using hazard `h = φ(z)/S(z)`, `h' = h(h-z)`) terms with freq
+  weighting. Reproduces the 16 reference aVar entries from the ТЗ
+  to ≤ 1e-9 across basic / cens / freq / both. Spec extended; gtest
+  +4 TEST_F (13 total in suite); smoke updated.

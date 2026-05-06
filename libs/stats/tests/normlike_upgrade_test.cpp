@@ -70,3 +70,38 @@ TEST_F(NormlikeUpgradeTest, ZeroFreqDropsElement)
     eval("y2 = normlike([3, 1.5], x(1:6));");
     EXPECT_DOUBLE_EQ(evalScalar("y1"), evalScalar("y2"));
 }
+
+// ── aVar (2nd output: inverse observed-Fisher 2×2) ──────────────────
+
+TEST_F(NormlikeUpgradeTest, AVarBasic)
+{
+    eval("[nL, av] = normlike([3, 1.5], x);");
+    EXPECT_NEAR(evalScalar("av(1,1)"),  0.5685760656, 1e-9);
+    EXPECT_NEAR(evalScalar("av(1,2)"), -0.1526499228, 1e-9);
+    EXPECT_NEAR(evalScalar("av(2,1)"), -0.1526499228, 1e-9);  // symmetry
+    EXPECT_NEAR(evalScalar("av(2,2)"),  0.0942837759, 1e-9);
+}
+
+TEST_F(NormlikeUpgradeTest, AVarWithCensoring)
+{
+    eval("[nL, av] = normlike([3, 1.5], x, cens);");
+    EXPECT_NEAR(evalScalar("av(1,1)"),  0.5719686586, 1e-9);
+    EXPECT_NEAR(evalScalar("av(1,2)"), -0.1426189548, 1e-9);
+    EXPECT_NEAR(evalScalar("av(2,2)"),  0.0841378833, 1e-9);
+}
+
+TEST_F(NormlikeUpgradeTest, AVarWithFreq)
+{
+    eval("[nL, av] = normlike([3, 1.5], x, [], freq);");
+    EXPECT_NEAR(evalScalar("av(1,1)"),  0.2663412361, 1e-9);
+    EXPECT_NEAR(evalScalar("av(1,2)"), -0.0500095598, 1e-9);
+    EXPECT_NEAR(evalScalar("av(2,2)"),  0.0604954352, 1e-9);
+}
+
+TEST_F(NormlikeUpgradeTest, AVarCensoringPlusFreq)
+{
+    eval("[nL, av] = normlike([3, 1.5], x, cens, freq);");
+    EXPECT_NEAR(evalScalar("av(1,1)"),  0.2704780402, 1e-9);
+    EXPECT_NEAR(evalScalar("av(1,2)"), -0.0476691396, 1e-9);
+    EXPECT_NEAR(evalScalar("av(2,2)"),  0.0551473719, 1e-9);
+}

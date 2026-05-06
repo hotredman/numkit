@@ -25,7 +25,6 @@ Status legend:
 | [findings/stats/lognfit.md](findings/stats/lognfit.md) | lognfit | stats.fit | medium | medium | bfda361 |
 | [findings/stats/lognlike.md](findings/stats/lognlike.md) | lognlike | stats.fit | medium | medium | bfda361 |
 | [findings/stats/normfit.md](findings/stats/normfit.md) | normfit | stats.fit | medium | medium | bfda361 |
-| [findings/stats/normlike.md](findings/stats/normlike.md) | normlike | stats.fit | medium | medium | bfda361 |
 | [findings/stats/wbllike.md](findings/stats/wbllike.md) | wbllike | stats.fit | medium | medium | bfda361 |
 | [findings/stats/poissfit.md](findings/stats/poissfit.md) | poissfit | stats.fit | low | small | bfda361 |
 | [findings/stats/raylfit.md](findings/stats/raylfit.md) | raylfit | stats.fit | low | small | bfda361 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/median.md](closed/stats/median.md) | median | PENDING (partial) | 2026-05-06 |
 | [closed/stats/kruskalwallis.md](closed/stats/kruskalwallis.md) | kruskalwallis | PENDING | 2026-05-06 |
 | [closed/stats/binofit.md](closed/stats/binofit.md) | binofit | PENDING | 2026-05-06 |
+| [closed/stats/normlike.md](closed/stats/normlike.md) | normlike | PENDING | 2026-05-06 |
 
 ---
 
