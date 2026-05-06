@@ -505,7 +505,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
           <span className="ve-spacer" />
           <span>{isPolar ? 'drag · zoom rMax' : 'drag · pan'}</span>
           <span className="ve-sep" />
-          <span>wheel · zoom</span>
+          <span>{isPolar ? 'wheel · zoom' : 'wheel · zoom xy · ⌃ x · ⇧ y'}</span>
           <span className="ve-sep" />
           <span>dbl-click · reset</span>
           <span className="ve-sep" />

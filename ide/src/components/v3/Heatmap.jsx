@@ -366,19 +366,23 @@ export default function Heatmap({
       const py = (e.clientY - rect.top)  * (height / rect.height);
       const cx = isx(px), cy = isy(py);
       const factor = Math.exp(e.deltaY * 0.0015);
-      // Linear: zoom in around cursor by `factor`. Log: same idea but
-      // ratios apply multiplicatively in log space so the cursor's data
-      // value stays put on screen.
-      let nx, ny;
-      if (xLogActive) {
-        nx = [cx * Math.pow(xMin / cx, factor), cx * Math.pow(xMax / cx, factor)];
-      } else {
-        nx = [cx - (cx - xMin) * factor, cx + (xMax - cx) * factor];
+      // Modifier convention:
+      //   plain wheel  → zoom both axes
+      //   Ctrl + wheel → zoom X only
+      //   Shift+ wheel → zoom Y only
+      // (Ctrl+Shift falls through to "both" — not worth a third gesture.)
+      const onlyX = e.ctrlKey  && !e.shiftKey;
+      const onlyY = e.shiftKey && !e.ctrlKey;
+      let nx = viewport.x, ny = viewport.y;
+      if (!onlyY) {
+        nx = xLogActive
+          ? [cx * Math.pow(xMin / cx, factor), cx * Math.pow(xMax / cx, factor)]
+          : [cx - (cx - xMin) * factor, cx + (xMax - cx) * factor];
       }
-      if (yLogActive) {
-        ny = [cy * Math.pow(yMin / cy, factor), cy * Math.pow(yMax / cy, factor)];
-      } else {
-        ny = [cy - (cy - yMin) * factor, cy + (yMax - cy) * factor];
+      if (!onlyX) {
+        ny = yLogActive
+          ? [cy * Math.pow(yMin / cy, factor), cy * Math.pow(yMax / cy, factor)]
+          : [cy - (cy - yMin) * factor, cy + (yMax - cy) * factor];
       }
       setViewport({ x: nx, y: ny });
     }
