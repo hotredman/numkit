@@ -13,6 +13,48 @@ import { usePersistedState } from '../../ui-state';
 
 const isMFile = (name) => /\.(m|n)$/i.test(name);
 
+/* ─────────────── icon set (uniform with sidebar header buttons) ─────────── */
+const ICON_PROPS = {
+  width: 12, height: 12, viewBox: '0 0 12 12',
+  fill: 'none', stroke: 'currentColor',
+  strokeWidth: 1.3, strokeLinecap: 'round', strokeLinejoin: 'round',
+};
+const Icons = {
+  file:    () => (
+    <svg {...ICON_PROPS}><path d="M3 1.5h4L9 3.5V10.5H3z"/><path d="M7 1.5V3.5H9"/></svg>
+  ),
+  fileNew: () => (
+    <svg {...ICON_PROPS}><path d="M3 1.5h4L9 3.5V10.5H3z"/><path d="M7 1.5V3.5H9"/><path d="M6 6v3 M4.5 7.5h3"/></svg>
+  ),
+  folder:  () => (
+    <svg {...ICON_PROPS}><path d="M1.5 3.5h3l1 1h5V10H1.5z"/></svg>
+  ),
+  folderNew: () => (
+    <svg {...ICON_PROPS}><path d="M1.5 3.5h3l1 1h5V10H1.5z"/><path d="M6 6v3 M4.5 7.5h3"/></svg>
+  ),
+  open:    () => (
+    <svg {...ICON_PROPS}><path d="M2 3.5h3l1 1h4V10H2z"/><path d="M2 6h8"/></svg>
+  ),
+  duplicate: () => (
+    <svg {...ICON_PROPS}><rect x="2" y="2" width="6" height="7"/><path d="M4 4.5V11h6V5"/></svg>
+  ),
+  download: () => (
+    <svg {...ICON_PROPS}><path d="M6 1.5V8 M3 5.5l3 3 3-3 M2 10.5h8"/></svg>
+  ),
+  upload: () => (
+    <svg {...ICON_PROPS}><path d="M6 8.5V2 M3 4.5l3-3 3 3 M2 10.5h8"/></svg>
+  ),
+  rename: () => (
+    <svg {...ICON_PROPS}><path d="M2 9.5L8.5 3 10 4.5 3.5 11 2 11z"/><path d="M7 4.5l1.5 1.5"/></svg>
+  ),
+  trash:  () => (
+    <svg {...ICON_PROPS}><path d="M2 3.5h8 M4 3.5V2.5h4v1 M3 3.5L3.5 10.5h5L9 3.5"/></svg>
+  ),
+  refresh: () => (
+    <svg {...ICON_PROPS}><path d="M10 6a4 4 0 1 1-1.17-2.83"/><path d="M10 1.5V4H7.5"/></svg>
+  ),
+};
+
 /* ─────────────── inline rename input ─────────────── */
 function InlineInput({ defaultValue, onSubmit, onCancel, placeholder }) {
   const [val, setVal] = useState(defaultValue || '');
@@ -56,13 +98,25 @@ function ContextMenu({ x, y, items, onClose }) {
           <div key={i}
             onClick={() => { item.action?.(); onClose(); }}
             style={{
-              padding: '5px 12px', fontSize: 11,
+              padding: '5px 12px', fontSize: 11.5,
               color: item.danger ? 'var(--danger)' : 'var(--fg-1)',
               cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 8,
+              fontFamily: 'var(--font-mono)',
             }}
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-4)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
-            {item.icon && <span style={{ marginRight: 6 }}>{item.icon}</span>}{item.label}
+            {item.icon && (
+              <span style={{
+                width: 14, height: 14,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                color: item.danger ? 'var(--danger)' : 'var(--fg-2)',
+                flexShrink: 0,
+              }}>
+                {typeof item.icon === 'function' ? item.icon() : item.icon}
+              </span>
+            )}
+            {item.label}
           </div>
         )
       )}
@@ -422,32 +476,32 @@ export default function Sidebar({
     if (isExamples) {
       const items = [];
       if (node.type === 'file') {
-        items.push({ icon: '📝', label: 'Open in Editor', action: () => handleFileOpen(node) });
+        items.push({ icon: Icons.open, label: 'Open in Editor', action: () => handleFileOpen(node) });
         items.push({ separator: true });
       }
-      items.push({ icon: '🔄', label: 'Refresh', action: () => loadTree() });
+      items.push({ icon: Icons.refresh, label: 'Refresh', action: () => loadTree() });
       setContextMenu({ x: e.clientX, y: e.clientY, items });
       return;
     }
     const items = [];
     if (node.type === 'folder') {
-      items.push({ icon: '📄', label: 'New file…',
+      items.push({ icon: Icons.fileNew, label: 'New file…',
         action: () => { setExpanded((p) => ({ ...p, [node.path]: true })); setCreating({ parentPath: node.path, type: 'file' }); } });
-      items.push({ icon: '📁', label: 'New folder…',
+      items.push({ icon: Icons.folderNew, label: 'New folder…',
         action: () => { setExpanded((p) => ({ ...p, [node.path]: true })); setCreating({ parentPath: node.path, type: 'folder' }); } });
-      items.push({ icon: '📥', label: 'Import file(s) here…',
+      items.push({ icon: Icons.upload, label: 'Import file(s) here…',
         action: () => handleImport(node.path) });
       items.push({ separator: true });
     } else {
-      items.push({ icon: '📝', label: 'Open in Editor', action: () => handleFileOpen(node) });
-      items.push({ icon: '📋', label: 'Duplicate', action: () => handleDuplicate(node) });
-      items.push({ icon: '⬇',  label: 'Download',   action: () => handleDownload(node) });
+      items.push({ icon: Icons.open,      label: 'Open in Editor', action: () => handleFileOpen(node) });
+      items.push({ icon: Icons.duplicate, label: 'Duplicate',      action: () => handleDuplicate(node) });
+      items.push({ icon: Icons.download,  label: 'Download',       action: () => handleDownload(node) });
       items.push({ separator: true });
     }
-    items.push({ icon: '✏', label: 'Rename', action: () => setRenaming(node.path) });
-    items.push({ icon: '🗑', label: 'Delete', danger: true, action: () => handleDelete(node) });
+    items.push({ icon: Icons.rename, label: 'Rename', action: () => setRenaming(node.path) });
+    items.push({ icon: Icons.trash, label: 'Delete', danger: true, action: () => handleDelete(node) });
     items.push({ separator: true });
-    items.push({ icon: '🔄', label: 'Refresh', action: () => loadTree() });
+    items.push({ icon: Icons.refresh, label: 'Refresh', action: () => loadTree() });
     setContextMenu({ x: e.clientX, y: e.clientY, items });
   }, [isExamples, setExpanded, handleImport, handleFileOpen, handleDuplicate, handleDownload, handleDelete, loadTree]);
 
@@ -458,18 +512,18 @@ export default function Sidebar({
       // re-pull the manifest if it was edited externally.
       setContextMenu({
         x: e.clientX, y: e.clientY,
-        items: [{ icon: '🔄', label: 'Refresh', action: () => loadTree() }],
+        items: [{ icon: Icons.refresh, label: 'Refresh', action: () => loadTree() }],
       });
       return;
     }
     setContextMenu({
       x: e.clientX, y: e.clientY,
       items: [
-        { icon: '📄', label: 'New file…',         action: () => setCreating({ parentPath: '', type: 'file' }) },
-        { icon: '📁', label: 'New folder…',       action: () => setCreating({ parentPath: '', type: 'folder' }) },
-        { icon: '📥', label: 'Import file(s)…',   action: () => handleImport('') },
+        { icon: Icons.fileNew,   label: 'New file…',       action: () => setCreating({ parentPath: '', type: 'file' }) },
+        { icon: Icons.folderNew, label: 'New folder…',     action: () => setCreating({ parentPath: '', type: 'folder' }) },
+        { icon: Icons.upload,    label: 'Import file(s)…', action: () => handleImport('') },
         { separator: true },
-        { icon: '🔄', label: 'Refresh',           action: () => loadTree() },
+        { icon: Icons.refresh,   label: 'Refresh',         action: () => loadTree() },
       ],
     });
   }, [isExamples, handleImport, loadTree]);
