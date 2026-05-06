@@ -671,6 +671,7 @@ function VirtualTable({
   activeCell, setActiveCell,
   editing, setEditing, editVal, setEditVal, commitEdit, inputRef,
   heatmap, stats, format,
+  readOnly = false,
 }) {
   const [scroll, setScroll] = useState({ top: 0, left: 0, viewW: 800, viewH: 400 });
 
@@ -765,6 +766,7 @@ function VirtualTable({
                     onClick={() => setActiveCell({ r, c })}
                     onDoubleClick={() => {
                       setActiveCell({ r, c });
+                      if (readOnly) return;
                       setEditing({ r, c });
                       setEditVal(typeof v === 'number' ? String(v) : '');
                     }}
@@ -1015,11 +1017,15 @@ export function VariableEditor({ variable, onClose, engine }) {
 
   function commitEdit() {
     if (!editing) return;
+    // Tile-mode is read-only (no engine write-back yet) — `data` here
+    // is just the cheap preview, so blindly indexing it would trip on
+    // any cell outside the preview. Drop the edit silently.
+    if (shape.tileMode) { setEditing(null); return; }
     const parsed = parseFloat(editVal);
     if (!Number.isNaN(parsed)) {
       setData((d) => {
         const copy = d.map((r) => r.slice());
-        copy[editing.r][editing.c] = parsed;
+        if (copy[editing.r]) copy[editing.r][editing.c] = parsed;
         return copy;
       });
     }
@@ -1041,6 +1047,10 @@ export function VariableEditor({ variable, onClose, engine }) {
     }
     if (e.key === 'Escape') { onClose(); return; }
     if (e.key === 'Enter' || e.key === 'F2') {
+      // Tile-mode is read-only — editing would require a write-back
+      // binding the engine doesn't expose yet. Show the cell value via
+      // the address bar but skip entering edit mode.
+      if (shape.tileMode) return;
       const v = getCellValue(activeCell.r, activeCell.c);
       setEditing({ ...activeCell });
       setEditVal(typeof v === 'number' ? String(v) : '');
@@ -1060,7 +1070,7 @@ export function VariableEditor({ variable, onClose, engine }) {
       setActiveCell({ r, c });
       e.preventDefault();
     }
-  }, [activeCell, rows, cols, editing, getCellValue, onClose]);
+  }, [activeCell, rows, cols, editing, getCellValue, onClose, shape.tileMode]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKey);
@@ -1198,6 +1208,7 @@ export function VariableEditor({ variable, onClose, engine }) {
             inputRef={inputRef}
             heatmap={heatmap} stats={stats}
             format={format}
+            readOnly={shape.tileMode}
           />
           {showPlot && (
             <InlinePlot
