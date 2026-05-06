@@ -23,4 +23,5 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/cgauwavf_test.cpp
     # ── haar transform ──────────────────────────────────────────
     ${CMAKE_CURRENT_SOURCE_DIR}/haart_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ihaart_test.cpp
 )
