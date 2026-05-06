@@ -20,6 +20,7 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/convolution_extras_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/multirate_extras_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/transforms_extras_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/windows_sflag_test.cpp
 )
 
 # fft_public_api_test reaches into libs/signal/src/transforms/backends/

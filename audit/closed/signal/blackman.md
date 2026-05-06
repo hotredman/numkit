@@ -43,3 +43,8 @@ Joint with `audit/findings/stats/hann.md`. `tol = 1e-12`.
 ## Out of scope for this ТЗ
 
 - N/A — joint fix.
+
+## Closed
+- Closed in commit: PENDING (joint windows sflag batch)
+- Closed date: 2026-05-06
+- Notes: Adapter rewritten with parseSflag/applySflag (6 windows accept 'periodic') or parseTypeNameOnly (6 windows reject 'periodic', accept only 'double'/'single'). Periodic implementation = take symmetric(N+1) and drop last sample (universal trick, no per-window code change). 'single' typeName silently uses double precision (parity gap noted). Verified vs MATLAB R2025b: 12 fingerprints match across numkit/MATLAB/Octave.

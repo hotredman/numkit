@@ -16,7 +16,6 @@ gtest assertions against probe-captured values).
 
 | # | Namespace | Function | Notes |
 |---|---|---|---|
-| 5 | wavelet.dwt  | `wmaxlev` | floor(log2(N/(Lf-1))) |
 | 6 | wavelet.dwt  | `wkeep` | central / left / right / numeric-FIRST |
 | 7 | wavelet.dwt  | `wextend` | sym / per / zpd / ppd |
 | 8 | wavelet.filt | `dbwavf` | reverse(LO_R) / sqrt(2) |
@@ -38,6 +37,7 @@ gtest assertions against probe-captured values).
 | `qmf` | PENDING | libs/wavelet/tests/qmf_test.cpp | libs/wavelet/tests/smoke/qmf_smoke.m |
 | `dyaddown` | PENDING | libs/wavelet/tests/dyaddown_test.cpp | libs/wavelet/tests/smoke/dyaddown_smoke.m |
 | `dyadup` | PENDING | libs/wavelet/tests/dyadup_test.cpp | libs/wavelet/tests/smoke/dyadup_smoke.m |
+| `wmaxlev` | PENDING | libs/wavelet/tests/wmaxlev_test.cpp | libs/wavelet/tests/smoke/wmaxlev_smoke.m |
 
 ---
 

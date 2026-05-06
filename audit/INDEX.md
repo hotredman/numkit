@@ -56,18 +56,6 @@ Status legend:
 | [findings/stats/mink.md](findings/stats/mink.md) | mink | stats.descriptive | medium | small | ba142e6 |
 | [findings/stats/mode.md](findings/stats/mode.md) | mode | stats.descriptive | medium | small | ba142e6 |
 | [findings/stats/rmse.md](findings/stats/rmse.md) | rmse | stats.descriptive | medium | small | ba142e6 |
-| [findings/signal/blackman.md](findings/signal/blackman.md) | blackman | signal.windows | high | small | 0e043c5 |
-| [findings/signal/blackmanharris.md](findings/signal/blackmanharris.md) | blackmanharris | signal.windows | high | small | 0e043c5 |
-| [findings/signal/flattopwin.md](findings/signal/flattopwin.md) | flattopwin | signal.windows | high | small | 0e043c5 |
-| [findings/signal/hamming.md](findings/signal/hamming.md) | hamming | signal.windows | high | small | 0e043c5 |
-| [findings/signal/hann.md](findings/signal/hann.md) | hann | signal.windows | high | small | 0e043c5 |
-| [findings/signal/nuttallwin.md](findings/signal/nuttallwin.md) | nuttallwin | signal.windows | high | small | 0e043c5 |
-| [findings/signal/barthannwin.md](findings/signal/barthannwin.md) | barthannwin | signal.windows | low | small | 0e043c5 |
-| [findings/signal/bartlett.md](findings/signal/bartlett.md) | bartlett | signal.windows | low | small | 0e043c5 |
-| [findings/signal/bohmanwin.md](findings/signal/bohmanwin.md) | bohmanwin | signal.windows | low | small | 0e043c5 |
-| [findings/signal/parzenwin.md](findings/signal/parzenwin.md) | parzenwin | signal.windows | low | small | 0e043c5 |
-| [findings/signal/rectwin.md](findings/signal/rectwin.md) | rectwin | signal.windows | low | small | 0e043c5 |
-| [findings/signal/triang.md](findings/signal/triang.md) | triang | signal.windows | low | small | 0e043c5 |
 | [findings/wavelet/dwt.md](findings/wavelet/dwt.md) | dwt | wavelet.dwt | critical | large | 0e895fe |
 | [findings/wavelet/idwt.md](findings/wavelet/idwt.md) | idwt | wavelet.dwt | critical | large | 0e895fe |
 | [findings/wavelet/wavedec.md](findings/wavelet/wavedec.md) | wavedec | wavelet.dwt | critical | medium | 0e895fe |
@@ -225,6 +213,18 @@ Status legend:
 | [closed/stats/unidcdf.md](closed/stats/unidcdf.md) | unidcdf | PENDING | 2026-05-06 |
 | [closed/stats/binocdf.md](closed/stats/binocdf.md) | binocdf | PENDING | 2026-05-06 |
 | [closed/stats/poisscdf.md](closed/stats/poisscdf.md) | poisscdf | PENDING | 2026-05-06 |
+| [closed/signal/hamming.md](closed/signal/hamming.md) | hamming | PENDING | 2026-05-06 |
+| [closed/signal/hann.md](closed/signal/hann.md) | hann | PENDING | 2026-05-06 |
+| [closed/signal/blackman.md](closed/signal/blackman.md) | blackman | PENDING | 2026-05-06 |
+| [closed/signal/blackmanharris.md](closed/signal/blackmanharris.md) | blackmanharris | PENDING | 2026-05-06 |
+| [closed/signal/flattopwin.md](closed/signal/flattopwin.md) | flattopwin | PENDING | 2026-05-06 |
+| [closed/signal/nuttallwin.md](closed/signal/nuttallwin.md) | nuttallwin | PENDING | 2026-05-06 |
+| [closed/signal/bartlett.md](closed/signal/bartlett.md) | bartlett | PENDING | 2026-05-06 |
+| [closed/signal/triang.md](closed/signal/triang.md) | triang | PENDING | 2026-05-06 |
+| [closed/signal/parzenwin.md](closed/signal/parzenwin.md) | parzenwin | PENDING | 2026-05-06 |
+| [closed/signal/bohmanwin.md](closed/signal/bohmanwin.md) | bohmanwin | PENDING | 2026-05-06 |
+| [closed/signal/barthannwin.md](closed/signal/barthannwin.md) | barthannwin | PENDING | 2026-05-06 |
+| [closed/signal/rectwin.md](closed/signal/rectwin.md) | rectwin | PENDING | 2026-05-06 |
 
 ---
 

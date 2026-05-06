@@ -1,0 +1,17 @@
+{
+  "name": "windows_sflag",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "ham_s = hamming(8); ham_p = hamming(8, 'periodic'); hn_s = hann(8); hn_p = hann(8, 'periodic'); bk_s = blackman(8); bk_p = blackman(8, 'periodic'); bh_s = blackmanharris(8); bh_p = blackmanharris(8, 'periodic'); ft_s = flattopwin(8); ft_p = flattopwin(8, 'periodic'); nu_s = nuttallwin(8); nu_p = nuttallwin(8, 'periodic');",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "ham_s(2)", "ham_p(2)",
+    "hn_s(2)",  "hn_p(2)",
+    "bk_s(2)",  "bk_p(2)",
+    "bh_s(2)",  "bh_p(2)",
+    "ft_s(2)",  "ft_p(2)",
+    "nu_s(2)",  "nu_p(2)"
+  ],
+  "comment": "Joint 'periodic' / 'symmetric' (default) sflag verification across 6 signal.windows that accept it. Implementation trick: periodic(N) = first N samples of symmetric(N+1) — works for any window. The other 6 windows (bartlett/triang/parzenwin/bohmanwin/barthannwin/rectwin) accept ONLY 'double'/'single' typeName and throw on 'periodic' (gtest covers that branch). Closes audit/findings/signal/{hamming,hann,blackman,blackmanharris,flattopwin,nuttallwin,bartlett,triang,parzenwin,bohmanwin,barthannwin,rectwin}.md."
+}
