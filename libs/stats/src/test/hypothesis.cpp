@@ -1227,19 +1227,61 @@ void ttest_reg(Span<const Value> args, size_t nargout,
                Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("ttest: requires (X[, m, alpha, tail])", 0, 0, "ttest", "",
-                    "m:ttest:nargin");
-    double m     = (args.size() >= 2 && !args[1].isEmpty()) ? args[1].toScalar() : 0.0;
-    double alpha = parse_alpha(args, 2, 0.05);
+        throw Error("ttest: requires (X[, m | y][, alpha, tail | name-value])",
+                    0, 0, "ttest", "", "m:ttest:nargin");
+    auto *mr = ctx.engine->resource();
+
+    // Detect paired form: ttest(x, y) where y is a non-scalar numeric
+    // vector matching x's length. Pre-difference x - y and run vs m=0.
+    Value xData = args[0];
+    bool pairedConsumed = false;
+    if (args.size() >= 2 && !args[1].isChar() && !args[1].isString()
+        && !args[1].isEmpty() && args[1].numel() > 1) {
+        // Build paired difference x - y in a fresh DOUBLE row.
+        const Value &y = args[1];
+        if (y.numel() != args[0].numel())
+            throw Error("ttest: paired vectors must have equal length",
+                        0, 0, "ttest", "", "m:ttest:pairedLen");
+        Value diff = Value::matrix(1, y.numel(), ValueType::DOUBLE, mr);
+        double *dst = diff.doubleDataMut();
+        for (size_t i = 0; i < y.numel(); ++i)
+            dst[i] = args[0].elemAsDouble(i) - y.elemAsDouble(i);
+        xData = std::move(diff);
+        pairedConsumed = true;
+    }
+
+    double m = 0.0;
+    if (!pairedConsumed && args.size() >= 2 && !args[1].isChar()
+        && !args[1].isString() && !args[1].isEmpty()) {
+        m = args[1].toScalar();
+    }
+    double alpha = 0.05;
     TestTail tail = TestTail::Both;
-    for (size_t i = 2; i < args.size(); ++i)
-        if (args[i].isChar() || args[i].isString())
-            tail = parse_tail(args[i].toString(), TestTail::Both);
-    auto [h, p, ci, t] = ttest(ctx.engine->resource(), args[0], m, alpha, tail);
+    size_t i = (args.size() >= 2 && (args[1].isChar() || args[1].isString())) ? 1 : 2;
+    while (i < args.size()) {
+        const Value &a = args[i];
+        if (a.isChar() || a.isString()) {
+            std::string sl = a.toString();
+            for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (sl == "alpha" && i + 1 < args.size()) {
+                alpha = args[i + 1].toScalar(); i += 2;
+            } else if (sl == "tail" && i + 1 < args.size()) {
+                tail = parse_tail(args[i + 1].toString(), tail); i += 2;
+            } else if (sl == "dim") {
+                throw Error("ttest: 'Dim' not yet supported (parity gap)",
+                            0, 0, "ttest", "", "m:ttest:dim");
+            } else {
+                tail = parse_tail(sl, tail); ++i;
+            }
+        } else {
+            alpha = a.toScalar(); ++i;
+        }
+    }
+    auto [h, p, ci, t] = ttest(mr, xData, m, alpha, tail);
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(ci);
-    if (nargout > 3) outs[3] = std::move(t);
+    if (nargout > 3) outs[3] = std::move(t);   // scalar tstat (struct form deferred)
 }
 
 void ttest2_reg(Span<const Value> args, size_t nargout,
@@ -1250,13 +1292,18 @@ void ttest2_reg(Span<const Value> args, size_t nargout,
                     0, 0, "ttest2", "", "m:ttest2:nargin");
     double alpha = parse_alpha(args, 2, 0.05);
     TestTail tail = TestTail::Both;
-    std::string vartype = "unequal";
+    // MATLAB R2025b default is 'equal' (pooled variance), NOT Welch.
+    std::string vartype = "equal";
     for (size_t i = 2; i + 1 < args.size(); ++i) {
         if (args[i].isChar() || args[i].isString()) {
-            const auto k = args[i].toString();
-            if (k == "Tail")    tail = parse_tail(args[i + 1].toString(), TestTail::Both);
-            else if (k == "Vartype" || k == "VarType") vartype = args[i + 1].toString();
-            else if (k == "Alpha") alpha = args[i + 1].toScalar();
+            std::string k = args[i].toString();
+            for (auto &c : k) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if      (k == "tail")    tail = parse_tail(args[i + 1].toString(), TestTail::Both);
+            else if (k == "vartype") vartype = args[i + 1].toString();
+            else if (k == "alpha")   alpha = args[i + 1].toScalar();
+            else if (k == "dim")
+                throw Error("ttest2: 'Dim' not yet supported (parity gap)",
+                            0, 0, "ttest2", "", "m:ttest2:dim");
         }
     }
     auto [h, p, ci, t] = ttest2(ctx.engine->resource(), args[0], args[1],

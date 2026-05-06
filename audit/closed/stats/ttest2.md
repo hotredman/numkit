@@ -85,3 +85,14 @@ dangerous parity bug class.
 
 - The N-D array input case (more than matrix). Defer until matrix
   form is in place.
+
+## Closed (partial)
+- Closed in commit: PENDING (joint ttest/ttest2 fix)
+- Closed date: 2026-05-06
+- Notes: ttest_reg now detects paired form (2nd arg is non-scalar vector) and runs paired t on x-y vs m=0. Both adapters now parse Alpha/Tail/Vartype as Name-Value (case-insensitive). ttest2 default Vartype switched from 'unequal' to 'equal' (pooled, matches MATLAB R2025b documented default). Dim N-V throws with parity-gap note.
+
+REMAINING gaps (deferred):
+- 4th output is still scalar tstat (not struct {tstat, df, sd})
+- matrix / N-D input not supported (single-vector tests only)
+- Dim Name-Value not implemented
+- n < 2 throws (MATLAB returns NaN)

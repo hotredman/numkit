@@ -35,8 +35,6 @@ Status legend:
 | [findings/stats/jbtest.md](findings/stats/jbtest.md) | jbtest | stats.test | medium | medium | 69fab7c |
 | [findings/stats/kruskalwallis.md](findings/stats/kruskalwallis.md) | kruskalwallis | stats.test | medium | medium | 69fab7c |
 | [findings/stats/runstest.md](findings/stats/runstest.md) | runstest | stats.test | high | medium | 69fab7c |
-| [findings/stats/ttest.md](findings/stats/ttest.md) | ttest | stats.test | high | medium | 69fab7c |
-| [findings/stats/ttest2.md](findings/stats/ttest2.md) | ttest2 | stats.test | high | medium | 69fab7c |
 | [findings/stats/vartest.md](findings/stats/vartest.md) | vartest | stats.test | medium | small | 69fab7c |
 | [findings/stats/vartest2.md](findings/stats/vartest2.md) | vartest2 | stats.test | medium | small | 69fab7c |
 | [findings/stats/vartestn.md](findings/stats/vartestn.md) | vartestn | stats.test | medium | medium | 69fab7c |
@@ -225,6 +223,8 @@ Status legend:
 | [closed/signal/hilbert.md](closed/signal/hilbert.md) | hilbert | PENDING | 2026-05-06 |
 | [closed/stats/kstest.md](closed/stats/kstest.md) | kstest | PENDING | 2026-05-06 |
 | [closed/stats/kstest2.md](closed/stats/kstest2.md) | kstest2 | PENDING | 2026-05-06 |
+| [closed/stats/ttest.md](closed/stats/ttest.md) | ttest | PENDING (partial) | 2026-05-06 |
+| [closed/stats/ttest2.md](closed/stats/ttest2.md) | ttest2 | PENDING (partial) | 2026-05-06 |
 
 ---
 

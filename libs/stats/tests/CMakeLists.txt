@@ -5,4 +5,5 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/var_std_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cdf_upper_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/kstest_extras_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ttest_extras_test.cpp
 )
