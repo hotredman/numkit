@@ -136,7 +136,7 @@ export default function FigureWindow({ figure, onClose }) {
     const xml = new XMLSerializer().serializeToString(svg);
     downloadBlob(new Blob([xml], { type: 'image/svg+xml' }), `figure_${figure.id}.svg`);
   }
-  function exportPng(scale = 2) {
+  function exportPng(scale = 2, suffix = '') {
     const svg = wrapRef.current?.querySelector('svg');
     if (!svg) return;
     const xml = new XMLSerializer().serializeToString(svg);
@@ -150,9 +150,14 @@ export default function FigureWindow({ figure, onClose }) {
       ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--plot-bg') || '#1a1f24';
       ctx.fillRect(0, 0, w, h);
       ctx.drawImage(img, 0, 0, w, h);
-      c.toBlob((b) => { downloadBlob(b, `figure_${figure.id}.png`); URL.revokeObjectURL(url); });
+      c.toBlob((b) => { downloadBlob(b, `figure_${figure.id}${suffix}.png`); URL.revokeObjectURL(url); });
     };
     img.src = url;
+  }
+  function exportPngPrint(mmWidth, dpi = 300) {
+    const targetPx = (mmWidth / 25.4) * dpi;
+    const scale = targetPx / size.w;
+    exportPng(scale, `_${mmWidth}mm`);
   }
   // Build a CSV/TSV "name<sep>x<sep>y" body for one series-bearing figure.
   function seriesBody(fig, sep) {
@@ -398,10 +403,15 @@ export default function FigureWindow({ figure, onClose }) {
             {saveOpen && (
               <div className="fw-pop fw-pop-right">
                 <div className="fw-pop-section">
-                  <div className="fw-pop-head">image</div>
+                  <div className="fw-pop-head">image · screen</div>
                   <button onClick={() => { exportSvg(); setSaveOpen(false); }}>SVG (vector)</button>
                   <button onClick={() => { exportPng(2); setSaveOpen(false); }}>PNG @2×</button>
-                  <button onClick={() => { exportPng(4); setSaveOpen(false); }}>PNG @4×</button>
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">image · print (300 DPI)</div>
+                  <button onClick={() => { exportPngPrint(85);  setSaveOpen(false); }}>PNG · 1 column (85 mm)</button>
+                  <button onClick={() => { exportPngPrint(170); setSaveOpen(false); }}>PNG · 2 columns (170 mm)</button>
+                  <button onClick={() => { exportPngPrint(210); setSaveOpen(false); }}>PNG · A4 width (210 mm)</button>
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">data</div>
