@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useTheme } from '../../theme';
 
 /* ======================================================================== */
 /* Type metadata + tone palette                                             */
@@ -21,9 +22,8 @@ const TONE = {
             fgL: '#6639ba', bgL: '#fbefff', borderL: '#c297ff66' },
 };
 
-function pickTone(t) {
-  const isLight = typeof document !== 'undefined'
-    && document.documentElement.getAttribute('data-theme') === 'light';
+function pickTone(t, themeName) {
+  const isLight = themeName === 'light';
   return isLight
     ? { fg: t.fgL, bg: t.bgL, border: t.borderL }
     : { fg: t.fg,  bg: t.bg,  border: t.border  };
@@ -49,8 +49,9 @@ function heatColor(v, min, max) {
 /* Card / row                                                               */
 /* ======================================================================== */
 function VariableCard({ v, selected, onSelect, onOpen }) {
+  const { themeName } = useTheme();
   const meta = KIND_META[v.kind] || KIND_META.matrix;
-  const tone = pickTone(TONE[meta.tone] || TONE.amber);
+  const tone = pickTone(TONE[meta.tone] || TONE.amber, themeName);
   return (
     <div
       className={`var-card ${selected ? 'is-selected' : ''}`}
@@ -85,8 +86,9 @@ function VariableCard({ v, selected, onSelect, onOpen }) {
 }
 
 function VariableRow({ v, selected, onSelect, onOpen }) {
+  const { themeName } = useTheme();
   const meta = KIND_META[v.kind] || KIND_META.matrix;
-  const tone = pickTone(TONE[meta.tone] || TONE.amber);
+  const tone = pickTone(TONE[meta.tone] || TONE.amber, themeName);
   return (
     <div
       className={`var-row ${selected ? 'is-selected' : ''}`}
@@ -777,8 +779,9 @@ export function VariableEditor({ variable, onClose, engine }) {
     return () => window.removeEventListener('keydown', handleKey);
   }, [handleKey]);
 
+  const { themeName: veThemeName } = useTheme();
   const meta = KIND_META[variable.kind] || KIND_META.matrix;
-  const tone = pickTone(TONE[meta.tone] || TONE.amber);
+  const tone = pickTone(TONE[meta.tone] || TONE.amber, veThemeName);
 
   return (
     <div className="ve-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
