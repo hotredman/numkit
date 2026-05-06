@@ -16,7 +16,6 @@ gtest assertions against probe-captured values).
 
 | # | Namespace | Function | Notes |
 |---|---|---|---|
-| 13 | wavelet.shape | `cgauwavf` | complex Gaussian wavelet |
 | 14 | wavelet.dwt | `haart` | full multi-level + integer + matrix branches |
 | 15 | wavelet.dwt | `ihaart` | inverse + partial level + integer + matrix |
 | 16 | wavelet.dwt | `wrcoef` | single-band reconstruction (haar parity) |
@@ -38,6 +37,7 @@ gtest assertions against probe-captured values).
 | `symwavf` | PENDING | libs/wavelet/tests/symwavf_test.cpp | libs/wavelet/tests/smoke/symwavf_smoke.m |
 | `orthfilt` | PENDING | libs/wavelet/tests/orthfilt_test.cpp | libs/wavelet/tests/smoke/orthfilt_smoke.m |
 | `gauswavf` | PENDING | libs/wavelet/tests/gauswavf_test.cpp | libs/wavelet/tests/smoke/gauswavf_smoke.m |
+| `cgauwavf` | PENDING | libs/wavelet/tests/cgauwavf_test.cpp | libs/wavelet/tests/smoke/cgauwavf_smoke.m |
 
 ---
 

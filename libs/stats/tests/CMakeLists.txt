@@ -11,4 +11,5 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/sign_extras_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/bounds_mode_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cummax_cummin_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/rmse_mape_test.cpp
 )
