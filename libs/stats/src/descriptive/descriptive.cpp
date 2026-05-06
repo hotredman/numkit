@@ -1342,9 +1342,51 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         throw Error("mode: requires at least 1 argument",
                      0, 0, "mode", "", "m:mode:nargin");
     int dim = 0;
-    if (args.size() >= 2 && !args[1].isEmpty())
-        dim = static_cast<int>(args[1].toScalar());
-    auto [v, c] = mode(ctx.engine->resource(), args[0], dim);
+    bool flatten = false;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const Value &a = args[1];
+        if (a.isChar() || a.isString()) {
+            std::string s = a.toString();
+            std::transform(s.begin(), s.end(), s.begin(),
+                           [](unsigned char c){ return std::tolower(c); });
+            if (s == "all") flatten = true;
+            else throw Error("mode: unknown flag '" + s + "'",
+                             0, 0, "mode", "", "m:mode:badFlag");
+        } else if (a.numel() == 1) {
+            dim = static_cast<int>(a.toScalar());
+        } else {
+            // vecdim — full-flatten only
+            const int rank = args[0].dims().is3D() ? 3
+                              : (args[0].dims().isVector() || args[0].isScalar() ? 1 : 2);
+            std::vector<bool> seen(rank + 1, false);
+            for (size_t i = 0; i < a.numel(); ++i) {
+                int d = static_cast<int>(a.elemAsDouble(i));
+                if (d < 1 || d > rank)
+                    throw Error("mode: vecdim entries out of range",
+                                0, 0, "mode", "", "m:mode:vecdim");
+                seen[d] = true;
+            }
+            bool allCovered = true;
+            for (int d = 1; d <= rank; ++d) if (!seen[d]) allCovered = false;
+            if (!allCovered)
+                throw Error("mode: partial vecdim reduction not yet supported",
+                            0, 0, "mode", "", "m:mode:vecdim");
+            flatten = true;
+        }
+    }
+    auto *mr = ctx.engine->resource();
+    if (flatten) {
+        Value flat = Value::matrix(1, args[0].numel(), ValueType::DOUBLE, mr);
+        if (args[0].numel() > 0) {
+            const double *src = args[0].doubleData();
+            std::copy(src, src + args[0].numel(), flat.doubleDataMut());
+        }
+        auto [v, c] = mode(mr, flat, 2);
+        outs[0] = std::move(v);
+        if (nargout > 1) outs[1] = std::move(c);
+        return;
+    }
+    auto [v, c] = mode(mr, args[0], dim);
     outs[0] = std::move(v);
     if (nargout > 1)
         outs[1] = std::move(c);

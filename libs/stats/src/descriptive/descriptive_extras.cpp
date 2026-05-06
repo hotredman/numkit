@@ -632,10 +632,57 @@ void bounds_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
     if (args.empty())
         throw Error("bounds: requires at least 1 argument",
                      0, 0, "bounds", "", "m:bounds:nargin");
-    const int dim = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
-    auto [lo, hi] = bounds(ctx.engine->resource(), args[0], dim);
-    outs[0] = std::move(lo);
-    if (nargout > 1) outs[1] = std::move(hi);
+    int dim = 0;
+    bool flatten = false;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const Value &a = args[1];
+        if (a.isChar() || a.isString()) {
+            std::string s = a.toString();
+            std::transform(s.begin(), s.end(), s.begin(),
+                           [](unsigned char c){ return std::tolower(c); });
+            if (s == "all") flatten = true;
+            else throw Error("bounds: unknown flag '" + s + "'",
+                             0, 0, "bounds", "", "m:bounds:badFlag");
+        } else if (a.numel() == 1) {
+            dim = static_cast<int>(a.toScalar());
+        } else {
+            // vecdim: full-flatten only
+            std::vector<int> dims;
+            for (size_t i = 0; i < a.numel(); ++i)
+                dims.push_back(static_cast<int>(a.elemAsDouble(i)));
+            const int rank = args[0].dims().is3D() ? 3
+                              : (args[0].dims().isVector() || args[0].isScalar() ? 1 : 2);
+            std::vector<bool> seen(rank + 1, false);
+            for (int d : dims) {
+                if (d < 1 || d > rank)
+                    throw Error("bounds: vecdim entries out of range",
+                                0, 0, "bounds", "", "m:bounds:vecdim");
+                seen[d] = true;
+            }
+            bool allCovered = true;
+            for (int d = 1; d <= rank; ++d) if (!seen[d]) allCovered = false;
+            if (!allCovered)
+                throw Error("bounds: partial vecdim reduction is not yet "
+                            "supported (only full-flatten vecdim)",
+                            0, 0, "bounds", "", "m:bounds:vecdim");
+            flatten = true;
+        }
+    }
+    auto *mr = ctx.engine->resource();
+    if (flatten) {
+        Value flat = Value::matrix(1, args[0].numel(), ValueType::DOUBLE, mr);
+        if (args[0].numel() > 0) {
+            const double *src = args[0].doubleData();
+            std::copy(src, src + args[0].numel(), flat.doubleDataMut());
+        }
+        auto [lo, hi] = bounds(mr, flat, 2);
+        outs[0] = std::move(lo);
+        if (nargout > 1) outs[1] = std::move(hi);
+    } else {
+        auto [lo, hi] = bounds(mr, args[0], dim);
+        outs[0] = std::move(lo);
+        if (nargout > 1) outs[1] = std::move(hi);
+    }
 }
 
 void iqr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
