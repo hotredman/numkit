@@ -40,6 +40,7 @@ function NumberInput({ value, onCommit, width = 88 }) {
 export default function FigureWindow({ figure, onClose, engine = null }) {
   const isPolar   = figure.kind === 'polar';
   const isSubplot = figure.kind === 'subplot';
+  const isHeatmap = figure.kind === 'heatmap';
   // Polar plots use {r:[lo,hi]}; cartesian use {x:[…], y:[…]}; subplots have
   // per-cell viewports managed inside SubplotGrid, so the top-level viewport
   // is just a placeholder that the toolbar's range/status helpers branch off.
@@ -265,7 +266,17 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
 
   function applyFit(mode, axisMode) {
     if (isSubplot) return;                 // subplot fit lives per-cell; close menu
-    if (!figure.series) return;            // no-op for heatmap
+    if (isHeatmap) {
+      // Heatmap has no series — its X/Y data extent is figure.xRange/yRange.
+      // axisMode picks which axis (or both) gets reset to data extent.
+      const next = { x: viewport.x.slice(), y: viewport.y.slice() };
+      if (axisMode === 'both' || axisMode === 'x') next.x = figure.xRange.slice();
+      if (axisMode === 'both' || axisMode === 'y') next.y = figure.yRange.slice();
+      setViewport(next);
+      setFitOpen(false);
+      return;
+    }
+    if (!figure.series) return;            // no-op for heatmap (now handled above)
     if (isPolar) {
       // Polar fit: pick max |rho| across selected series, round up to a nice
       // multiple, keep rMin at 0 (or whatever the figure's existing inner
@@ -336,7 +347,19 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               </svg>
               fit ▾
             </button>
-            {fitOpen && (isPolar ? (
+            {fitOpen && (isHeatmap ? (
+              <div className="fw-pop">
+                <div className="fw-pop-section">
+                  <button onClick={() => { setViewport(figDefault); setFitOpen(false); }}>reset to default</button>
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">data extent</div>
+                  <button onClick={() => applyFit('all', 'both')}>both axes</button>
+                  <button onClick={() => applyFit('all', 'x')}>X only</button>
+                  <button onClick={() => applyFit('all', 'y')}>Y only</button>
+                </div>
+              </div>
+            ) : isPolar ? (
               <div className="fw-pop">
                 <div className="fw-pop-section">
                   <button onClick={() => { setViewport(figDefault); setFitOpen(false); }}>reset to default</button>
