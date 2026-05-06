@@ -304,11 +304,11 @@ export async function createWasmEngine(createModule) {
       }
     },
 
-    // Tile fetcher for huge imagesc datasets. Returns
-    //   { rows, cols, data: Float32Array }
-    // or { error: ... } when out of range / not an imagesc dataset.
-    // Heatmap calls this on zoom-end with a recomputed LOD so the visible
-    // area gets the right detail without ever shipping the full matrix.
+    // Source-grid tile fetcher (legacy JSON path). Returns
+    //   { rows, cols, data: Uint8Array }
+    // Stage C added the binary getFigureDisplayTile below — the IDE Heatmap
+    // now uses that one. This stays callable for code that wants a source-
+    // grid tile without resampling (e.g. fitColorsToVisible scans for stats).
     getFigureTile(figId, axIdx, dsIdx, r0, c0, h, w, lod) {
       if (typeof Module.repl_get_figure_tile !== 'function') return null;
       try {
@@ -316,22 +316,39 @@ export async function createWasmEngine(createModule) {
                                                 r0|0, c0|0, h|0, w|0, lod|0);
         const obj = JSON.parse(raw);
         if (obj.error) return obj;
-        // Convert plain array → Float32Array; null (NaN) becomes NaN, "Inf"/"-Inf"
-        // become ±Infinity. Saves a memcpy when the consumer treats it as
-        // typed-array (canvas blit etc.).
-        const N = (obj.data || []).length;
-        const arr = new Float32Array(N);
-        for (let i = 0; i < N; i++) {
-          const v = obj.data[i];
-          arr[i] = v == null ? NaN
-                 : v === 'Inf' ? Infinity
-                 : v === '-Inf' ? -Infinity
-                 : Number(v);
-        }
-        return { rows: obj.rows, cols: obj.cols, data: arr };
+        // After Stage A obj.data is a plain JSON array of uint8 indices.
+        return { rows: obj.rows, cols: obj.cols,
+                 data: Uint8Array.from(obj.data || []) };
       } catch (e) {
         console.warn('[engine] getFigureTile failed', e);
         return { error: e?.message || String(e) };
+      }
+    },
+
+    // Display-grid tile fetcher with binary transit. Returns a fresh
+    // Uint8Array of size displayH × displayW row-major (idx 255 = NaN).
+    // The engine resamples zQuantized to display resolution in one pass,
+    // applying log10 axis transforms when xLog/yLog is set.
+    //
+    // Behind the scenes: WASM returns a typed_memory_view INTO an engine-
+    // side buffer that gets reused on the next call — we copy it into a
+    // standalone Uint8Array so the consumer can hold it without races.
+    getFigureDisplayTile(figId, axIdx, dsIdx,
+                         srcR0, srcC0, srcH, srcW,
+                         displayH, displayW, xLog, yLog) {
+      if (typeof Module.repl_get_figure_display_tile !== 'function') return null;
+      try {
+        const view = Module.repl_get_figure_display_tile(
+          figId|0, axIdx|0, dsIdx|0,
+          +srcR0, +srcC0, +srcH, +srcW,
+          displayH|0, displayW|0,
+          !!xLog, !!yLog);
+        if (!view) return null;
+        // Copy the heap view into a standalone Uint8Array.
+        return new Uint8Array(view);
+      } catch (e) {
+        console.warn('[engine] getFigureDisplayTile failed', e);
+        return null;
       }
     },
 
@@ -508,7 +525,8 @@ export function createFallbackEngine() {
       return { rows: r.rows, cols: r.cols, n, min: n ? mn : null,
                max: n ? mx : null, mean: n ? sum / n : null, hasNaN };
     },
-    getFigureTile() { return null; },   // fallback engine doesn't track figures
+    getFigureTile() { return null; },          // fallback engine doesn't track figures
+    getFigureDisplayTile() { return null; },
 
     // ── Debug API (stub for fallback) ──
     get hasDebugger() { return false; },

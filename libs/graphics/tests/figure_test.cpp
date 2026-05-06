@@ -1047,6 +1047,112 @@ TEST_F(ImagescLogColorTest, ColorscaleSurvivesPrepareForPlot)
 }
 
 // ============================================================
+// FigureManager::getFigureDisplayTile — display-grid resampler with log
+// ============================================================
+
+class FigureDisplayTileTest : public FigureEngineTest {};
+
+TEST_F(FigureDisplayTileTest, LinearFullExtent)
+{
+    // 100×100 eye matrix, ask for 100×100 display tile of the full extent
+    // → identity remap, every diagonal pixel should be 254, others 0.
+    eval("imagesc(eye(100));");
+    int figId = fm().currentFigureId();
+    std::vector<uint8_t> out(100 * 100);
+    bool ok = fm().getFigureDisplayTile(figId, 0, 0,
+                                        0, 0, 100, 100,
+                                        100, 100, false, false, out.data());
+    ASSERT_TRUE(ok);
+    EXPECT_EQ(out[0], 254);              // (0,0) on diagonal
+    EXPECT_EQ(out[1], 0);                // (0,1) off-diagonal
+    EXPECT_EQ(out[1 * 100 + 1], 254);    // (1,1) on diagonal
+}
+
+TEST_F(FigureDisplayTileTest, LinearDownsampleViaMeanPool)
+{
+    // ones(1000), 250×250 display → each output pixel pools 4×4 source cells.
+    // All-1s → all 254. Sanity check no edge pollution.
+    eval("imagesc(ones(1000));");
+    int figId = fm().currentFigureId();
+    std::vector<uint8_t> out(250 * 250);
+    bool ok = fm().getFigureDisplayTile(figId, 0, 0,
+                                        0, 0, 1000, 1000,
+                                        250, 250, false, false, out.data());
+    ASSERT_TRUE(ok);
+    for (uint8_t v : out) EXPECT_EQ(v, 254);
+}
+
+TEST_F(FigureDisplayTileTest, LinearUpsampleViaNearest)
+{
+    // 10×10 source → 100×100 display: every 10×10 block of output pixels
+    // samples the same source cell. Magic check via diagonal.
+    eval("imagesc(eye(10));");
+    int figId = fm().currentFigureId();
+    std::vector<uint8_t> out(100 * 100);
+    bool ok = fm().getFigureDisplayTile(figId, 0, 0,
+                                        0, 0, 10, 10,
+                                        100, 100, false, false, out.data());
+    ASSERT_TRUE(ok);
+    // The 10×10 block at (0..10, 0..10) corresponds to source (0,0)=1 → 254
+    EXPECT_EQ(out[5 * 100 + 5], 254);
+    // Block at (0..10, 10..20) corresponds to source (0,1)=0 → 0
+    EXPECT_EQ(out[5 * 100 + 15], 0);
+}
+
+TEST_F(FigureDisplayTileTest, SubRect)
+{
+    // ones(100), display tile of source-rect [50..70, 30..60] at 50×100.
+    // All-1s → all 254.
+    eval("imagesc(ones(100));");
+    int figId = fm().currentFigureId();
+    std::vector<uint8_t> out(50 * 100);
+    bool ok = fm().getFigureDisplayTile(figId, 0, 0,
+                                        50, 30, 20, 30,
+                                        50, 100, false, false, out.data());
+    ASSERT_TRUE(ok);
+    for (uint8_t v : out) EXPECT_EQ(v, 254);
+}
+
+TEST_F(FigureDisplayTileTest, LogYAxisRefuses0)
+{
+    // Log axis can't include 0 in the source range.
+    eval("imagesc(ones(100));");
+    int figId = fm().currentFigureId();
+    std::vector<uint8_t> out(50 * 50);
+    EXPECT_FALSE(fm().getFigureDisplayTile(figId, 0, 0,
+                                           0, 0, 100, 100,    // srcR0=0
+                                           50, 50, false, true, out.data()));
+}
+
+TEST_F(FigureDisplayTileTest, LogYAxisCompressesUpperRows)
+{
+    // Source: 100 rows of distinct gradient values (0..99 column-major).
+    // Test that log y inverse pulls more samples from the upper (low-row)
+    // region — i.e., display-row 0 maps near srcRow=1 (smallest value),
+    // bottom display row maps near 100 (largest value).
+    eval("M = repmat((1:100)', 1, 5); imagesc(M);");
+    int figId = fm().currentFigureId();
+    std::vector<uint8_t> out(10 * 5);
+    bool ok = fm().getFigureDisplayTile(figId, 0, 0,
+                                        1, 0, 99, 5,    // srcR0=1 to allow log
+                                        10, 5, false, true, out.data());
+    ASSERT_TRUE(ok);
+    // Display row 0 should sample low source rows (small values, low idx),
+    // last display row should sample high source rows (high values, high idx).
+    EXPECT_LT(out[0], out[(10 - 1) * 5]);
+}
+
+TEST_F(FigureDisplayTileTest, NotImagescReturnsFalse)
+{
+    eval("plot([1 2 3], [1 4 9]);");
+    int figId = fm().currentFigureId();
+    std::vector<uint8_t> out(10);
+    EXPECT_FALSE(fm().getFigureDisplayTile(figId, 0, 0,
+                                           0, 0, 1, 1,
+                                           10, 1, false, false, out.data()));
+}
+
+// ============================================================
 // FigureManager::getFigureTile — sub-rect read with LOD pooling
 // ============================================================
 

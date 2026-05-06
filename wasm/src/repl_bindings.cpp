@@ -677,16 +677,43 @@ public:
         engine_->setOutputFunc([this](const std::string &s) { outputBuf_ += s; });
     }
 
-    /* ---- Tile-fetcher for huge imagesc datasets ----
+    /* ---- Display-grid tile fetcher with binary transit ----
+     *
+     * Returns a Uint8Array VIEW into a thread-local engine-side buffer
+     * containing display-pixel-grid uint8 indices. Zero-copy: the JS side
+     * reads typed-memory directly from the WASM heap. Caller must consume
+     * the data before the next call (the buffer is reused).
+     *
+     * srcR0/srcC0/srcH/srcW are the visible source-rect (fractional OK
+     * for log inverse). xLog/yLog enable log10 axis transforms.
+     *
+     * On error returns null (no buffer allocated).
+     */
+    emscripten::val getFigureDisplayTile(int figId, int axIdx, int dsIdx,
+                                         double srcR0, double srcC0,
+                                         double srcH, double srcW,
+                                         int displayH, int displayW,
+                                         bool xLog, bool yLog) {
+        try {
+            const auto &fm = engine_->figureManager();
+            displayTileBuf_.resize(static_cast<size_t>(displayH) * displayW);
+            const bool ok = fm.getFigureDisplayTile(
+                figId, axIdx, dsIdx,
+                srcR0, srcC0, srcH, srcW,
+                displayH, displayW, xLog, yLog,
+                displayTileBuf_.data());
+            if (!ok) return emscripten::val::null();
+            return emscripten::val(emscripten::typed_memory_view(
+                displayTileBuf_.size(), displayTileBuf_.data()));
+        } catch (...) {
+            return emscripten::val::null();
+        }
+    }
+
+    /* ---- Source-grid tile-fetcher (kept for legacy callers) ----
      *
      * Reads a sub-rectangle (r0..r0+h, c0..c0+w) from the figure's zQuantized
-     * (uint8 indices), mean-pooled by lod×lod, returns row-major uint8 JSON:
-     *
-     *   { rows: <oH>, cols: <oW>, data: [i0, i1, ...] }
-     *
-     * Index 255 is the NaN/Inf sentinel; the IDE renders it as transparent.
-     * Stage C will replace this JSON path with a binary Emscripten-heap
-     * Uint8Array view for zero-copy transit.
+     * (uint8 indices), mean-pooled by lod×lod, returns row-major uint8 JSON.
      */
     std::string getFigureTileJSON(int figId, int axIdx, int dsIdx,
                                   int r0, int c0, int h, int w, int lod) {
@@ -720,6 +747,9 @@ private:
     std::string outputBuf_;
     std::unique_ptr<numkit::DebugSession> debugSession_;
     std::vector<uint16_t> breakpointLines_;
+    // Reused buffer for getFigureDisplayTile — JS gets a typed_memory_view
+    // straight into here, so it must persist until the next call.
+    std::vector<uint8_t> displayTileBuf_;
     std::map<std::string, emscripten::val> fsHandlers_;
 
     void installFs(const std::string &name, emscripten::val handler) {
@@ -897,6 +927,17 @@ std::string repl_get_figure_tile(int figId, int axIdx, int dsIdx,
     return g_session->getFigureTileJSON(figId, axIdx, dsIdx, r0, c0, h, w, lod);
 }
 
+emscripten::val repl_get_figure_display_tile(int figId, int axIdx, int dsIdx,
+                                             double srcR0, double srcC0,
+                                             double srcH, double srcW,
+                                             int displayH, int displayW,
+                                             bool xLog, bool yLog) {
+    if (!g_session) return emscripten::val::null();
+    return g_session->getFigureDisplayTile(figId, axIdx, dsIdx,
+                                           srcR0, srcC0, srcH, srcW,
+                                           displayH, displayW, xLog, yLog);
+}
+
 std::string repl_version() {
     if (!g_session) repl_init();
     return g_session->version();
@@ -984,6 +1025,7 @@ EMSCRIPTEN_BINDINGS(numkit_ide) {
     emscripten::function("repl_get_var_tile",  &repl_get_var_tile);
     emscripten::function("repl_get_var_stats", &repl_get_var_stats);
     emscripten::function("repl_get_figure_tile", &repl_get_figure_tile);
+    emscripten::function("repl_get_figure_display_tile", &repl_get_figure_display_tile);
     emscripten::function("repl_version",   &repl_version);
     emscripten::function("repl_debug_set_breakpoints", &repl_debug_set_breakpoints);
     emscripten::function("repl_debug_start",           &repl_debug_start);
