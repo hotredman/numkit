@@ -11,6 +11,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <cstring>
 #include <mutex>
@@ -114,9 +116,13 @@ void chi2pdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void chi2cdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("chi2cdf: requires (x, k)", 0, 0, "chi2cdf", "", "m:chi2cdf:nargin");
-    outs[0] = chi2cdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    bool upper = false;
+    const size_t n = stripUpperFlag(args, upper);
+    if (n < 2)
+        throw Error("chi2cdf: requires (x, k[, 'upper'])", 0, 0, "chi2cdf", "", "m:chi2cdf:nargin");
+    Value v = chi2cdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
 }
 
 void chi2inv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

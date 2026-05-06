@@ -13,6 +13,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"            // stripUpperFlag / applyUpperInPlace
+
 #include <cmath>
 #include <cstring>
 #include <mutex>
@@ -167,8 +169,12 @@ void normcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.empty())
         throw Error("normcdf: requires at least 1 argument",
                      0, 0, "normcdf", "", "m:normcdf:nargin");
-    auto [mu, sigma] = parseMuSigma(args, 1);
-    outs[0] = normcdf(ctx.engine->resource(), args[0], mu, sigma);
+    bool upper = false;
+    const size_t n = stripUpperFlag(args, upper);
+    auto [mu, sigma] = parseMuSigma(args.subspan(0, n), 1);
+    Value v = normcdf(ctx.engine->resource(), args[0], mu, sigma);
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
 }
 
 void norminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

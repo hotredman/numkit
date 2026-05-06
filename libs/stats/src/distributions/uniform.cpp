@@ -7,6 +7,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <limits>
 #include <mutex>
@@ -115,9 +117,14 @@ void unifpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void unifcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.empty())
-        throw Error("unifcdf: requires (x[, a, b])", 0, 0, "unifcdf", "", "m:unifcdf:nargin");
-    outs[0] = unifcdf(ctx.engine->resource(), args[0], argA(args, 1), argB(args, 2));
+    bool upper = false;
+    const Span<const Value> stripped = args.subspan(0, stripUpperFlag(args, upper));
+    if (stripped.empty())
+        throw Error("unifcdf: requires (x[, a, b][, 'upper'])", 0, 0, "unifcdf", "", "m:unifcdf:nargin");
+    Value v = unifcdf(ctx.engine->resource(), stripped[0],
+                      argA(stripped, 1), argB(stripped, 2));
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
 }
 
 void unifinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

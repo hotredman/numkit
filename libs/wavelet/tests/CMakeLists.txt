@@ -10,4 +10,5 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/qmf_test.cpp
     # ── dwt helpers ─────────────────────────────────────────────
     ${CMAKE_CURRENT_SOURCE_DIR}/dyaddown_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dyadup_test.cpp
 )

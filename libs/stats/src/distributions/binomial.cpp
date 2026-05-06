@@ -8,6 +8,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <limits>
 #include <mutex>
@@ -133,9 +135,13 @@ void binopdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void binocdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 3)
-        throw Error("binocdf: requires (k, n, p)", 0, 0, "binocdf", "", "m:binocdf:nargin");
-    outs[0] = binocdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    bool upper = false;
+    const size_t n = stripUpperFlag(args, upper);
+    if (n < 3)
+        throw Error("binocdf: requires (k, n, p[, 'upper'])", 0, 0, "binocdf", "", "m:binocdf:nargin");
+    Value v = binocdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
 }
 
 void binoinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

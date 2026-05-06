@@ -11,6 +11,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <limits>
 #include <mutex>
@@ -127,9 +129,13 @@ void betapdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void betacdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 3)
-        throw Error("betacdf: requires (x, a, b)", 0, 0, "betacdf", "", "m:betacdf:nargin");
-    outs[0] = betacdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    bool upper = false;
+    const size_t n = stripUpperFlag(args, upper);
+    if (n < 3)
+        throw Error("betacdf: requires (x, a, b[, 'upper'])", 0, 0, "betacdf", "", "m:betacdf:nargin");
+    Value v = betacdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
 }
 
 void betainv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

@@ -8,6 +8,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <limits>
 #include <mutex>
@@ -229,9 +231,13 @@ void poisspdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 
 void poisscdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("poisscdf: requires (k, lambda)", 0, 0, "poisscdf", "", "m:poisscdf:nargin");
-    outs[0] = poisscdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    bool upper = false;
+    const size_t n = stripUpperFlag(args, upper);
+    if (n < 2)
+        throw Error("poisscdf: requires (k, lambda[, 'upper'])", 0, 0, "poisscdf", "", "m:poisscdf:nargin");
+    Value v = poisscdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
 }
 
 void poissinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
