@@ -407,7 +407,7 @@ export default function Heatmap({
       // changes during the next debounce window the tile is repositioned
       // so the image tracks the gridlines instead of lagging behind.
       setTileOverlay({ dataURL, srcR0, srcC0, srcH, srcW, xLog: xLogActive, yLog: yLogActive });
-    }, 100);
+    }, 60);
 
     return () => clearTimeout(handle);
   }, [interactive, engine, figure._figId, figure._axIdx, figure._dsIdx,
@@ -479,19 +479,22 @@ export default function Heatmap({
       <rect x={padL} y={padT} width={W} height={H} fill="var(--plot-bg)" />
 
       {/* Heatmap image — base preview (the inline-JSON uint8 grid) is drawn
-          stretched across the data extent. The display-tile overlay, when
-          present, sits on top at panel-pixel resolution with log/linear
-          axes already applied. To keep the tile in sync with the gridlines
-          during pan/zoom (between debounced refetches), it's positioned by
-          mapping its remembered source-rect through the CURRENT sx/sy.
-          The tile thus tracks the data as the viewport changes; the
-          inline preview shows through any uncovered margin. */}
+          stretched LINEARLY across the data extent. Under a log axis the
+          preview's row/col grid no longer aligns with the gridlines (which
+          are logarithmically spaced via sx/sy), so we hide it whenever
+          either axis is in log mode and let the display-tile (which the
+          engine resamples log-aware) carry the image alone. During the
+          ~60 ms refetch gap that follows a log-toggle the user briefly
+          sees the empty plot background — acceptable, vs. showing a
+          visibly-misaligned preview. */}
       {dataURL && (
         <g clipPath={`url(#${clipId})`}>
-          <image href={dataURL}
-            x={imgX} y={imgY} width={imgW} height={imgH}
-            preserveAspectRatio="none"
-            imageRendering="pixelated" />
+          {!xLogActive && !yLogActive && (
+            <image href={dataURL}
+              x={imgX} y={imgY} width={imgW} height={imgH}
+              preserveAspectRatio="none"
+              imageRendering="pixelated" />
+          )}
           {tileOverlay && tileOverlay.dataURL
             && tileOverlay.xLog === xLogActive
             && tileOverlay.yLog === yLogActive
