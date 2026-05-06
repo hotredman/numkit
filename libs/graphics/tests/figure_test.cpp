@@ -901,68 +901,90 @@ TEST_F(FigureIntegrationTest, ClearAllThenPlot)
 
 class ImagescTileTest : public FigureEngineTest {};
 
-TEST_F(ImagescTileTest, SmallMatrixNoDownsample)
+TEST_F(ImagescTileTest, SmallMatrixQuantizes)
 {
-    // 100×100 = 10K cells, well below the 2M cap → full-resolution path,
-    // downsampled flag stays false, zRaw still populated for tile fetches.
+    // 100×100 = 10K cells, well below the 2M cap → full-resolution inline
+    // preview, downsampled stays false. zQuantized always populated.
     eval("imagesc(eye(100));");
     ASSERT_EQ(ax().datasets.size(), 1u);
     const auto &ds = ax().datasets[0];
     EXPECT_EQ(ds.type, "imagesc");
     EXPECT_FALSE(ds.downsampled);
-    EXPECT_EQ(ds.zRaw.size(), 100u * 100u);
-    // eye(100): col-major, [0,0] = 1, [0,1] = 0, [1,1] = 1 (diagonal).
-    EXPECT_FLOAT_EQ(ds.zRaw[0], 1.0f);                 // (1,1) on diagonal
-    EXPECT_FLOAT_EQ(ds.zRaw[1], 0.0f);                 // (2,1) off-diagonal
-    EXPECT_FLOAT_EQ(ds.zRaw[100 + 1], 1.0f);           // (2,2) on diagonal
+    EXPECT_EQ(ds.zQuantized.size(), 100u * 100u);
+    // eye(100): cmin=0, cmax=1 (diagonal=1, off=0). Quantization scale 254.
+    // Diagonal (1,1) → q ≈ 254. Off-diagonal (2,1) → q = 0.
+    EXPECT_EQ(ds.zQuantized[0], 254);                  // (1,1) on diagonal
+    EXPECT_EQ(ds.zQuantized[1], 0);                    // (2,1) off-diagonal
+    EXPECT_EQ(ds.zQuantized[100 + 1], 254);            // (2,2) on diagonal
+    EXPECT_DOUBLE_EQ(ds.cminOrig, 0.0);
+    EXPECT_DOUBLE_EQ(ds.cmaxOrig, 1.0);
+    EXPECT_FALSE(ds.colorScaleBaked);
 }
 
-TEST_F(ImagescTileTest, OversizedMatrixDownsamples)
+TEST_F(ImagescTileTest, OversizedMatrixDownsamplesPreview)
 {
-    // 3000×3000 = 9M cells, above the 2M cap → mean-pool path triggers,
-    // downsampled flag set, originalRows/Cols preserved.
+    // 3000×3000 = 9M cells, above 2M cap → preview mean-pooled in index
+    // space, downsampled flag set, zQuantized still holds full resolution.
     eval("imagesc(ones(3000));");
     ASSERT_EQ(ax().datasets.size(), 1u);
     const auto &ds = ax().datasets[0];
     EXPECT_TRUE(ds.downsampled);
     EXPECT_EQ(ds.originalRows, 3000u);
     EXPECT_EQ(ds.originalCols, 3000u);
-    // zRaw still holds full resolution — Phase 2 tile-fetch reads from it.
-    EXPECT_EQ(ds.zRaw.size(), 3000u * 3000u);
+    EXPECT_EQ(ds.zQuantized.size(), 3000u * 3000u);
+    // ones(3000) → cmin = cmax = 1 → range falls back to [0,1], every cell
+    // quantizes to 254 (top of the index range).
+    EXPECT_EQ(ds.zQuantized[0], 254);
+    EXPECT_EQ(ds.zQuantized[3000u * 3000u - 1], 254);
 }
 
-TEST_F(ImagescTileTest, MeanPoolPreservesUniformValues)
+TEST_F(ImagescTileTest, MeanPoolPreservesUniformIndices)
 {
-    // ones(3000) → every block average is 1.0, regardless of pool factor.
-    // Sanity check that mean-pool isn't accidentally summing/clamping.
+    // ones(3000) all cells → idx 254. Mean-pool of 254s = 254. JSON shouldn't
+    // contain other index values.
     eval("imagesc(ones(3000));");
     const auto &ds = ax().datasets[0];
     ASSERT_TRUE(ds.downsampled);
-    // zJson should be a 2D JSON array of all 1s. Spot-check by counting
-    // commas at top level vs row count — N rows should produce N-1 row separators.
-    // Easier: the JSON should contain neither "0" nor "2" as standalone values.
-    EXPECT_NE(ds.zJson.find('1'), std::string::npos);
-    EXPECT_EQ(ds.zJson.find("[2"), std::string::npos);
-    EXPECT_EQ(ds.zJson.find(",2"), std::string::npos);
+    EXPECT_NE(ds.zJson.find("254"), std::string::npos);
+    EXPECT_EQ(ds.zJson.find("[0,"), std::string::npos);
+    EXPECT_EQ(ds.zJson.find("100"), std::string::npos);  // no half-pooled values
 }
 
-TEST_F(ImagescTileTest, JsonExposesDownsampleFields)
+TEST_F(ImagescTileTest, JsonExposesQuantizationFields)
 {
-    // The IDE adapter reads downsampled / originalRows / originalCols off the
-    // dataset JSON. Verify they appear in the emitted figure marker.
+    // IDE adapter reads cminOrig/cmaxOrig + downsampled/originalRows/Cols
+    // off each imagesc dataset. Verify they appear in the figure marker.
     eval("imagesc(ones(3000));");
-    EXPECT_NE(capturedOutput.find("\"downsampled\":true"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("\"cminOrig\":"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("\"cmaxOrig\":"), std::string::npos);
     EXPECT_NE(capturedOutput.find("\"originalRows\":3000"), std::string::npos);
     EXPECT_NE(capturedOutput.find("\"originalCols\":3000"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("\"downsampled\":true"), std::string::npos);
+    // colorScaleBaked emitted only when log was applied (Stage B).
+    EXPECT_EQ(capturedOutput.find("\"colorScaleBaked\""), std::string::npos);
 }
 
-TEST_F(ImagescTileTest, SmallMatrixOmitsDownsampleFields)
+TEST_F(ImagescTileTest, SmallMatrixOmitsDownsampleFlag)
 {
-    // No downsample flag for matrices ≤2M cells — keep the JSON minimal so
-    // existing parity / golden tests stay byte-identical.
+    // No "downsampled" key for ≤2M cells, but cminOrig/cmaxOrig +
+    // originalRows/Cols are always present so the IDE always knows the
+    // quantization range and source shape.
     eval("imagesc(eye(100));");
     EXPECT_EQ(capturedOutput.find("\"downsampled\""), std::string::npos);
-    EXPECT_EQ(capturedOutput.find("\"originalRows\""), std::string::npos);
+    EXPECT_NE(capturedOutput.find("\"cminOrig\":"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("\"originalRows\":100"), std::string::npos);
+}
+
+TEST_F(ImagescTileTest, NaNQuantizesToSentinel)
+{
+    // NaN cells become 255 (sentinel index, transparent in the LUT).
+    eval("M = ones(10); M(5,5) = NaN; imagesc(M);");
+    const auto &ds = ax().datasets[0];
+    ASSERT_EQ(ds.zQuantized.size(), 100u);
+    // (5,5) col-major → 4*10 + 4 = 44
+    EXPECT_EQ(ds.zQuantized[44], 255);
+    // Other cells are non-NaN
+    EXPECT_NE(ds.zQuantized[0], 255);
 }
 
 // ============================================================
@@ -973,86 +995,80 @@ class FigureTileTest : public FigureEngineTest {};
 
 TEST_F(FigureTileTest, FullExtentLod1)
 {
-    // 100×100 eye matrix, fetch the full extent at lod=1 — should match
-    // zRaw exactly (column-major source → row-major output).
+    // eye(100): cmin=0, cmax=1 → diag=254, off=0. Full-extent tile reads
+    // zQuantized exactly (column-major source → row-major output).
     eval("imagesc(eye(100));");
     int figId = fm().currentFigureId();
-    std::vector<float> tile;
+    std::vector<uint8_t> tile;
     size_t oRows = 0, oCols = 0;
     bool ok = fm().getFigureTile(figId, 0, 0, 0, 0, 100, 100, 1, tile, oRows, oCols);
     ASSERT_TRUE(ok);
     EXPECT_EQ(oRows, 100u);
     EXPECT_EQ(oCols, 100u);
     EXPECT_EQ(tile.size(), 100u * 100u);
-    // Row 0, col 0 of eye(100) is 1; row 0, col 1 is 0.
-    EXPECT_FLOAT_EQ(tile[0], 1.0f);
-    EXPECT_FLOAT_EQ(tile[1], 0.0f);
-    // Row 1, col 1 is 1.
-    EXPECT_FLOAT_EQ(tile[1 * 100 + 1], 1.0f);
+    EXPECT_EQ(tile[0], 254);              // (1,1) on diagonal → max idx
+    EXPECT_EQ(tile[1], 0);                // (1,2) off-diagonal → min idx
+    EXPECT_EQ(tile[1 * 100 + 1], 254);    // (2,2) on diagonal
 }
 
 TEST_F(FigureTileTest, SubRectExtractsCorrectRegion)
 {
-    // ones(3000), fetch a 200×200 region from offset (1000, 1000) — every
-    // value is 1, output mean is 1.
+    // ones(3000) all idx 254. 200×200 tile at offset (1000,1000) — every
+    // value is 254 (the only non-NaN possibility for a uniform matrix).
     eval("imagesc(ones(3000));");
     int figId = fm().currentFigureId();
-    std::vector<float> tile;
+    std::vector<uint8_t> tile;
     size_t oRows = 0, oCols = 0;
     bool ok = fm().getFigureTile(figId, 0, 0, 1000, 1000, 200, 200, 1, tile, oRows, oCols);
     ASSERT_TRUE(ok);
     EXPECT_EQ(oRows, 200u);
     EXPECT_EQ(oCols, 200u);
-    for (float v : tile) EXPECT_FLOAT_EQ(v, 1.0f);
+    for (uint8_t v : tile) EXPECT_EQ(v, 254);
 }
 
 TEST_F(FigureTileTest, LodPoolingHalvesDimensions)
 {
-    // ones(1000), fetch full extent at lod=4 — expect 250×250 output, all 1s.
     eval("imagesc(ones(1000));");
     int figId = fm().currentFigureId();
-    std::vector<float> tile;
+    std::vector<uint8_t> tile;
     size_t oRows = 0, oCols = 0;
     bool ok = fm().getFigureTile(figId, 0, 0, 0, 0, 1000, 1000, 4, tile, oRows, oCols);
     ASSERT_TRUE(ok);
     EXPECT_EQ(oRows, 250u);
     EXPECT_EQ(oCols, 250u);
-    for (float v : tile) EXPECT_FLOAT_EQ(v, 1.0f);
+    for (uint8_t v : tile) EXPECT_EQ(v, 254);
 }
 
 TEST_F(FigureTileTest, OutOfRangeReturnsFalse)
 {
     eval("imagesc(eye(100));");
     int figId = fm().currentFigureId();
-    std::vector<float> tile;
+    std::vector<uint8_t> tile;
     size_t oRows = 0, oCols = 0;
     EXPECT_FALSE(fm().getFigureTile(figId, 0, 0, 200, 0, 10, 10, 1, tile, oRows, oCols));
-    EXPECT_FALSE(fm().getFigureTile(figId, 0, 0, 0, 0, 10, 10, 1, tile, oRows, oCols)
-                 == false  /* on-range succeeds */);
+    EXPECT_TRUE(fm().getFigureTile(figId, 0, 0, 0, 0, 10, 10, 1, tile, oRows, oCols));
 }
 
 TEST_F(FigureTileTest, NonImagescReturnsFalse)
 {
-    // plot(...) creates a line dataset, not imagesc — getFigureTile should refuse.
     eval("plot([1 2 3], [1 4 9]);");
     int figId = fm().currentFigureId();
-    std::vector<float> tile;
+    std::vector<uint8_t> tile;
     size_t oRows = 0, oCols = 0;
     EXPECT_FALSE(fm().getFigureTile(figId, 0, 0, 0, 0, 1, 1, 1, tile, oRows, oCols));
 }
 
 TEST_F(FigureTileTest, OversizedMatrixServesFullResolutionTile)
 {
-    // After Phase 1 cap, a 3000×3000 imagesc has a downsampled JSON preview
-    // but zRaw still holds the full 9M cells. A tile request reads zRaw,
-    // not the preview — so we get exact data even when the preview is mean-pooled.
+    // 3000² has a downsampled inline preview; zQuantized still holds full
+    // resolution → tile fetch returns exact data at lod=1.
     eval("imagesc(ones(3000));");
     int figId = fm().currentFigureId();
-    std::vector<float> tile;
+    std::vector<uint8_t> tile;
     size_t oRows = 0, oCols = 0;
     bool ok = fm().getFigureTile(figId, 0, 0, 1500, 1500, 100, 100, 1, tile, oRows, oCols);
     ASSERT_TRUE(ok);
     EXPECT_EQ(oRows, 100u);
     EXPECT_EQ(oCols, 100u);
-    for (float v : tile) EXPECT_FLOAT_EQ(v, 1.0f);
+    for (uint8_t v : tile) EXPECT_EQ(v, 254);
 }

@@ -679,37 +679,34 @@ public:
 
     /* ---- Tile-fetcher for huge imagesc datasets ----
      *
-     * Reads a sub-rectangle (r0..r0+h, c0..c0+w) from the figure's zRaw,
-     * mean-pooled by lod×lod, returns row-major float JSON:
+     * Reads a sub-rectangle (r0..r0+h, c0..c0+w) from the figure's zQuantized
+     * (uint8 indices), mean-pooled by lod×lod, returns row-major uint8 JSON:
      *
-     *   { rows: <oH>, cols: <oW>, data: [v0, v1, ...] }
+     *   { rows: <oH>, cols: <oW>, data: [i0, i1, ...] }
      *
-     * The IDE Heatmap calls this on zoom-end to refetch the visible area
-     * at the right LOD, then blits the result over the inline preview.
+     * Index 255 is the NaN/Inf sentinel; the IDE renders it as transparent.
+     * Stage C will replace this JSON path with a binary Emscripten-heap
+     * Uint8Array view for zero-copy transit.
      */
     std::string getFigureTileJSON(int figId, int axIdx, int dsIdx,
                                   int r0, int c0, int h, int w, int lod) {
         try {
             const auto &fm = engine_->figureManager();
-            std::vector<float> tile;
+            std::vector<uint8_t> tile;
             size_t outRows = 0, outCols = 0;
             bool ok = fm.getFigureTile(figId, axIdx, dsIdx, r0, c0, h, w, lod,
                                        tile, outRows, outCols);
             if (!ok) {
-                return "{\"error\":\"out of range or no zRaw\"}";
+                return "{\"error\":\"out of range or no zQuantized\"}";
             }
 
             std::ostringstream os;
             os << "{\"rows\":" << outRows
                << ",\"cols\":" << outCols
                << ",\"data\":[";
-            os.precision(7);
             for (size_t i = 0; i < tile.size(); ++i) {
                 if (i) os << ",";
-                const float v = tile[i];
-                if (std::isnan(v))      os << "null";
-                else if (std::isinf(v)) os << (v > 0 ? "\"Inf\"" : "\"-Inf\"");
-                else                    os << v;
+                os << static_cast<int>(tile[i]);
             }
             os << "]}";
             return os.str();

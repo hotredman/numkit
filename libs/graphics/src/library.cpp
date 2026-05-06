@@ -353,51 +353,85 @@ void GraphicsLibrary::install(Engine &engine)
 
             DatasetInfo ds;
             ds.type = "imagesc";
-
-            // Always populate zRaw + originalRows/Cols — full-resolution backing
-            // store (column-major float32, MATLAB-style) for getFigureTile() to
-            // serve zoom-in tile requests at any LOD. originalRows/Cols describe
-            // zRaw's shape regardless of whether the inline JSON was downsampled.
             ds.originalRows = rows;
             ds.originalCols = cols;
-            ds.zRaw.resize(rows * cols);
-            for (size_t c = 0; c < cols; ++c) {
-                for (size_t r = 0; r < rows; ++r) {
-                    double val;
-                    if (C_arg->isComplex()) {
-                        val = std::abs(C_arg->complexData()[c * rows + r]);
-                    } else {
-                        val = C_arg->doubleData()[c * rows + r];
-                    }
-                    ds.zRaw[c * rows + r] = static_cast<float>(val);
+
+            // Pass 1: scan for cmin/cmax (skipping NaN/Inf). Use clim from
+            // the axes if it was already set (imagesc(C,clim) syntax) — this
+            // bakes that clim into the quantization range.
+            double cmin = std::numeric_limits<double>::infinity();
+            double cmax = -std::numeric_limits<double>::infinity();
+            const auto getVal = [&](size_t idx) -> double {
+                if (C_arg->isComplex())
+                    return std::abs(C_arg->complexData()[idx]);
+                return C_arg->doubleData()[idx];
+            };
+            for (size_t i = 0; i < rows * cols; ++i) {
+                const double v = getVal(i);
+                if (std::isfinite(v)) {
+                    if (v < cmin) cmin = v;
+                    if (v > cmax) cmax = v;
+                }
+            }
+            // climJson if set has shape "[a,b]" — parse it for the user
+            // override. Cheap micro-parser since we own the format.
+            if (!fm.currentAxes().climJson.empty()) {
+                const std::string &s = fm.currentAxes().climJson;
+                size_t lb = s.find('[');
+                size_t comma = s.find(',', lb);
+                size_t rb = s.find(']', comma);
+                if (lb != std::string::npos && comma != std::string::npos
+                    && rb != std::string::npos) {
+                    try {
+                        cmin = std::stod(s.substr(lb + 1, comma - lb - 1));
+                        cmax = std::stod(s.substr(comma + 1, rb - comma - 1));
+                    } catch (...) { /* keep scanned values */ }
+                }
+            }
+            if (!std::isfinite(cmin) || !std::isfinite(cmax) || cmin == cmax) {
+                cmin = 0.0;
+                cmax = 1.0;
+            }
+            ds.cminOrig = cmin;
+            ds.cmaxOrig = cmax;
+            ds.colorScaleBaked = false;   // Stage B will set true on log
+
+            // Pass 2: quantize every cell to uint8. Index 0..254 = data range,
+            // 255 = NaN/Inf sentinel. Column-major to match MATLAB.
+            const double range = cmax - cmin;
+            const double qScale = (range > 0) ? 254.0 / range : 0.0;
+            ds.zQuantized.resize(rows * cols);
+            for (size_t i = 0; i < rows * cols; ++i) {
+                const double v = getVal(i);
+                if (!std::isfinite(v)) {
+                    ds.zQuantized[i] = 255;
+                } else {
+                    double t = (v - cmin) * qScale;
+                    if (t < 0) t = 0;
+                    else if (t > 254) t = 254;
+                    ds.zQuantized[i] = static_cast<uint8_t>(t + 0.5);
                 }
             }
 
-            // Inline-JSON path: ≤2M cells go straight, larger get mean-pooled to
-            // ≤2M before serialisation. 1.2 GB JSON for 10000² is what blew up
-            // the engine before; capping keeps the inline preview ~3 MB.
+            // Inline-JSON preview: emit uint8 indices (1-3 chars per cell)
+            // rather than doubles. Same ≤2M-cells cap as before — large
+            // matrices get mean-pooled in index space (idx 255 NaN-skipped).
             constexpr size_t MAX_INLINE_CELLS = 2'000'000;
             const size_t totalCells = rows * cols;
             std::ostringstream zs;
             zs << "[";
 
             if (totalCells <= MAX_INLINE_CELLS) {
-                // Fast path: emit full data, no downsampling.
                 for (size_t r = 0; r < rows; ++r) {
-                    if (r)
-                        zs << ",";
+                    if (r) zs << ",";
                     zs << "[";
                     for (size_t c = 0; c < cols; ++c) {
-                        if (c)
-                            zs << ",";
-                        doubleToJson(zs, static_cast<double>(ds.zRaw[c * rows + r]));
+                        if (c) zs << ",";
+                        zs << static_cast<int>(ds.zQuantized[c * rows + r]);
                     }
                     zs << "]";
                 }
             } else {
-                // Mean-pool by integer block factors. Pick smallest dr,dc such
-                // that ⌈rows/dr⌉ × ⌈cols/dc⌉ ≤ MAX_INLINE_CELLS. Symmetric step
-                // (rows-vs-cols ratio preserved) — start from the larger axis.
                 size_t step = 1;
                 while ((rows + step - 1) / step * ((cols + step - 1) / step) > MAX_INLINE_CELLS) {
                     ++step;
@@ -408,37 +442,27 @@ void GraphicsLibrary::install(Engine &engine)
                 const size_t outCols = (cols + dc - 1) / dc;
 
                 for (size_t orow = 0; orow < outRows; ++orow) {
-                    if (orow)
-                        zs << ",";
+                    if (orow) zs << ",";
                     zs << "[";
                     const size_t r0 = orow * dr;
                     const size_t r1 = std::min(rows, r0 + dr);
                     for (size_t ocol = 0; ocol < outCols; ++ocol) {
-                        if (ocol)
-                            zs << ",";
+                        if (ocol) zs << ",";
                         const size_t c0 = ocol * dc;
                         const size_t c1 = std::min(cols, c0 + dc);
-                        // Mean-pool over the (r0..r1) × (c0..c1) block. NaN
-                        // values are skipped — only finite samples contribute.
-                        double sum = 0.0;
-                        size_t n = 0;
+                        int sum = 0;
+                        int n = 0;
                         for (size_t c = c0; c < c1; ++c) {
                             for (size_t r = r0; r < r1; ++r) {
-                                const float v = ds.zRaw[c * rows + r];
-                                if (std::isfinite(v)) {
-                                    sum += static_cast<double>(v);
-                                    ++n;
-                                }
+                                const uint8_t q = ds.zQuantized[c * rows + r];
+                                if (q != 255) { sum += q; ++n; }
                             }
                         }
-                        const double mean = (n > 0) ? sum / static_cast<double>(n)
-                                                    : std::numeric_limits<double>::quiet_NaN();
-                        doubleToJson(zs, mean);
+                        zs << ((n > 0) ? (sum + n / 2) / n : 255);
                     }
                     zs << "]";
                 }
-
-                ds.downsampled  = true;
+                ds.downsampled = true;
             }
             zs << "]";
             ds.zJson = zs.str();

@@ -123,14 +123,54 @@ export function getLUT(interp) {
 }
 
 /**
- * Render a 2D z-matrix to a data: URL via an offscreen canvas. Z is rows × cols
- * of numeric values, mapped through `colormap` (a name or interpolator) over
- * [cmin, cmax]. Returns a data:image/png;base64,… string suitable for SVG <image>.
+ * Build a 256-entry RGBA LUT for a colormap, optionally remapped via a
+ * window/level overlay (cminEff/cmaxEff) over the original quantization
+ * range (cminOrig/cmaxOrig). Index 255 is the NaN sentinel — always RGBA 0.
+ *
+ * When colorScaleBaked === 'log' the original values were log10()'d before
+ * quantization, so the cminEff/cmaxEff values are already in log space —
+ * the linear remap inside the LUT is the right thing.
+ *
+ *   uint8_data[idx] → lut[idx*4 .. idx*4+3] = (R, G, B, A)
+ *
+ * Returns Uint8Array of length 1024 (256 entries × 4 channels).
  */
-export function renderHeatmapDataURL(z, cmin, cmax, colormap = 'parula') {
+export function buildHeatmapLUT(colormap, cminOrig, cmaxOrig, cminEff, cmaxEff) {
   const interp = typeof colormap === 'function' ? colormap : getColormap(colormap);
-  const numRows = z.length;
-  const numCols = z[0]?.length || 0;
+  const lut = new Uint8Array(256 * 4);
+  const colors = getLUT(interp);  // 256 × 3 RGB
+  const origRange = cmaxOrig - cminOrig || 1;
+  const effRange  = cmaxEff  - cminEff  || 1;
+
+  for (let i = 0; i < 255; i++) {
+    // The original value this index represents (linear interp inside the
+    // baked quantization range — assumes 254 levels span [cminOrig..cmaxOrig]).
+    const origValue = cminOrig + (i / 254) * origRange;
+    // Where this falls in the effective display window:
+    let t = (origValue - cminEff) / effRange;
+    if (t < 0) t = 0;
+    else if (t > 1) t = 1;
+    // Quantize back into the colormap's 256 sample points.
+    const ci = Math.min(255, Math.max(0, Math.round(t * 255)));
+    const off = i * 4;
+    lut[off]     = colors[ci * 3];
+    lut[off + 1] = colors[ci * 3 + 1];
+    lut[off + 2] = colors[ci * 3 + 2];
+    lut[off + 3] = 255;
+  }
+  // 255 = NaN sentinel → transparent
+  lut[255 * 4 + 3] = 0;
+  return lut;
+}
+
+/**
+ * Render a uint8-quantized heatmap (rows × cols indices 0..254 / 255 NaN) to
+ * a data: URL via an offscreen canvas + the precomputed LUT from
+ * buildHeatmapLUT(). Three-table indirection per pixel — fast (no float math).
+ */
+export function renderHeatmapDataURLFromIndices(zRows, lut) {
+  const numRows = zRows.length;
+  const numCols = zRows[0]?.length || 0;
   if (!numRows || !numCols) return null;
   const canvas = document.createElement('canvas');
   canvas.width  = numCols;
@@ -138,27 +178,40 @@ export function renderHeatmapDataURL(z, cmin, cmax, colormap = 'parula') {
   const ctx = canvas.getContext('2d');
   const img = ctx.createImageData(numCols, numRows);
   const px  = img.data;
-  const lut = getLUT(interp);
-  const range = cmax - cmin || 1;
-  const inv = 255 / range;
   for (let r = 0; r < numRows; r++) {
-    const row = z[r];
+    const row = zRows[r];
     const off = r * numCols * 4;
     for (let c = 0; c < numCols; c++) {
-      const v = row[c];
+      const idx = row[c];
       const o = off + c * 4;
-      if (v == null || !Number.isFinite(v)) {
-        px[o] = 0; px[o + 1] = 0; px[o + 2] = 0; px[o + 3] = 0;
-      } else {
-        let i = ((v - cmin) * inv) | 0;
-        if (i < 0) i = 0; else if (i > 255) i = 255;
-        const li = i * 3;
-        px[o]     = lut[li];
-        px[o + 1] = lut[li + 1];
-        px[o + 2] = lut[li + 2];
-        px[o + 3] = 255;
-      }
+      const li = idx * 4;
+      px[o]     = lut[li];
+      px[o + 1] = lut[li + 1];
+      px[o + 2] = lut[li + 2];
+      px[o + 3] = lut[li + 3];
     }
+  }
+  ctx.putImageData(img, 0, 0);
+  return canvas.toDataURL();
+}
+
+/** Render a flat Uint8Array (row-major) version — for tile overlay. */
+export function renderHeatmapDataURLFromFlat(arr, rows, cols, lut) {
+  if (!rows || !cols) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width  = cols;
+  canvas.height = rows;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(cols, rows);
+  const px  = img.data;
+  for (let i = 0; i < arr.length; i++) {
+    const idx = arr[i];
+    const o = i * 4;
+    const li = idx * 4;
+    px[o]     = lut[li];
+    px[o + 1] = lut[li + 1];
+    px[o + 2] = lut[li + 2];
+    px[o + 3] = lut[li + 3];
   }
   ctx.putImageData(img, 0, 0);
   return canvas.toDataURL();

@@ -20,15 +20,31 @@ struct DatasetInfo
     double lineWidth = 0;  // 0 = default
     double markerSize = 0; // 0 = default
 
-    // ── Large-imagesc tile pipeline ────────────────────────────────────
-    // For oversized matrices (rows*cols > 2'000'000 cells) imagesc keeps
-    // the full data in zRaw (column-major float32, like MATLAB) and emits
-    // a downsampled preview as zJson. The IDE then uses getFigureTile()
-    // on demand to fetch higher-LOD sub-rectangles for zoom-in detail.
+    // ── Imagesc storage (uint8 quantized) ──────────────────────────────
+    // Display path is fundamentally indexed: each pixel is a colormap
+    // index 0..255. Storing the full-precision float is overkill — for a
+    // 16k×42k spectrogram the float32 backing store would be 2.7 GB and
+    // wouldn't fit in the WASM heap. Quantizing once at imagesc-time
+    // brings storage down to ~890 MB (with the LOD pyramid) for the same
+    // shape and enables fast LUT-based rendering.
     //
-    // For matrices ≤2M cells the inline JSON path is unchanged: zJson
-    // carries the full data, downsampled stays false, zRaw stays empty.
-    std::vector<float> zRaw;          // full-resolution backing store
+    // Quantization: idx = clamp(round((v - cminOrig) / range * 254), 0, 254)
+    //               idx 255 = NaN / Inf sentinel
+    //
+    // Layout: column-major (MATLAB convention), idx = c * rows + r.
+    //
+    // colorScaleBaked is true when log10 was applied before quantization
+    // — toggling color scale post-imagesc requires re-emitting the figure.
+    // Hover values reconstruct via cminOrig + (idx/254) * range; the
+    // 256-level resolution gives ≤0.4% step on a typical [cmin..cmax].
+    std::vector<uint8_t> zQuantized;
+    double cminOrig = 0.0;
+    double cmaxOrig = 1.0;
+    bool   colorScaleBaked = false;   // log10 applied before quantization?
+
+    // Set by imagesc when rows*cols > 2M and the inline JSON preview was
+    // mean-pooled. originalRows/Cols always describe zQuantized's shape
+    // regardless of whether the inline preview was downsampled.
     bool   downsampled  = false;
     size_t originalRows = 0;
     size_t originalCols = 0;
@@ -226,10 +242,15 @@ public:
                         os << ",\"markerSize\":" << ds.markerSize;
                     if (!ds.zJson.empty())
                         os << ",\"z\":" << ds.zJson;
-                    if (ds.downsampled) {
-                        os << ",\"downsampled\":true"
-                              ",\"originalRows\":" << ds.originalRows
+                    if (!ds.zQuantized.empty()) {
+                        os << ",\"cminOrig\":" << ds.cminOrig
+                           << ",\"cmaxOrig\":" << ds.cmaxOrig;
+                        if (ds.colorScaleBaked)
+                            os << ",\"colorScaleBaked\":\"log\"";
+                        os << ",\"originalRows\":" << ds.originalRows
                            << ",\"originalCols\":" << ds.originalCols;
+                        if (ds.downsampled)
+                            os << ",\"downsampled\":true";
                     }
                     os << "}";
                 }
@@ -326,16 +347,16 @@ public:
     /**
      * Tile fetcher for huge imagesc datasets. Reads a sub-rectangle
      *   rows [r0, r0+h) × cols [c0, c0+w)
-     * from `figures_[figId].axes[axIdx].datasets[dsIdx].zRaw`, mean-pools by
-     * `lod×lod` integer factor, and writes the result row-major to `out`.
+     * from the dataset's zQuantized (uint8 indices), mean-pools by `lod×lod`,
+     * writes row-major uint8 indices to `out`. Index 255 = NaN sentinel.
      *
-     * Returns the *output* dimensions (after pooling) via outRows/outCols, or
-     * 0/0 if the request is out of range / dataset isn't an imagesc / no zRaw.
-     * Caller-side allocates `out` of size at least ⌈h/lod⌉ × ⌈w/lod⌉.
+     * Returns true with output dims via outRows/outCols, or false if the
+     * request is out of range / dataset isn't an imagesc / no zQuantized.
+     * Caller allocates `out` lazily — function .resize()s it.
      */
     bool getFigureTile(int figId, int axIdx, int dsIdx,
                        int r0, int c0, int h, int w, int lod,
-                       std::vector<float> &out,
+                       std::vector<uint8_t> &out,
                        size_t &outRows, size_t &outCols) const
     {
         outRows = 0;
@@ -349,14 +370,12 @@ public:
         const auto &axState = fig.axes[axIdx];
         if (dsIdx < 0 || dsIdx >= static_cast<int>(axState.datasets.size())) return false;
         const auto &ds = axState.datasets[dsIdx];
-        if (ds.zRaw.empty() || ds.type != "imagesc") return false;
+        if (ds.zQuantized.empty() || ds.type != "imagesc") return false;
 
-        // imagesc always populates originalRows/Cols regardless of whether
-        // the inline JSON was downsampled — they describe zRaw's shape.
         const size_t fullRows = ds.originalRows;
         const size_t fullCols = ds.originalCols;
         if (fullRows == 0 || fullCols == 0) return false;
-        if (ds.zRaw.size() < fullRows * fullCols) return false;
+        if (ds.zQuantized.size() < fullRows * fullCols) return false;
 
         if (lod < 1) lod = 1;
         if (r0 < 0) r0 = 0;
@@ -378,27 +397,28 @@ public:
 
         out.resize(oH * oW);
 
-        // Mean-pool over L×L blocks. Row-major output (suits canvas blit).
-        // zRaw is column-major (MATLAB convention).
+        // Mean-pool indices over L×L blocks. Index 255 = NaN, skipped.
+        // Row-major output (suits canvas blit). zQuantized is column-major.
         for (size_t orow = 0; orow < oH; ++orow) {
             const size_t rA = static_cast<size_t>(r0) + orow * L;
             const size_t rB = std::min(rEnd, rA + L);
             for (size_t ocol = 0; ocol < oW; ++ocol) {
                 const size_t cA = static_cast<size_t>(c0) + ocol * L;
                 const size_t cB = std::min(cEnd, cA + L);
-                double sum = 0.0;
-                size_t n = 0;
+                int sum = 0;
+                int n = 0;
                 for (size_t cc = cA; cc < cB; ++cc) {
                     for (size_t rr = rA; rr < rB; ++rr) {
-                        const float v = ds.zRaw[cc * fullRows + rr];
-                        if (std::isfinite(v)) {
-                            sum += static_cast<double>(v);
+                        const uint8_t q = ds.zQuantized[cc * fullRows + rr];
+                        if (q != 255) {
+                            sum += q;
                             ++n;
                         }
                     }
                 }
-                out[orow * oW + ocol] = (n > 0) ? static_cast<float>(sum / n)
-                                                : std::numeric_limits<float>::quiet_NaN();
+                out[orow * oW + ocol] = (n > 0)
+                    ? static_cast<uint8_t>((sum + n / 2) / n)
+                    : uint8_t{255};
             }
         }
 

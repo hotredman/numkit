@@ -12,7 +12,8 @@
  *   }
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { renderHeatmapDataURL, getColormap } from './colormaps';
+import { buildHeatmapLUT, renderHeatmapDataURLFromIndices,
+         renderHeatmapDataURLFromFlat, getColormap } from './colormaps';
 import ContextMenu from './ContextMenu';
 import { exportSvgNode, exportPngNode, exportPngForPrint } from './plotUtils';
 
@@ -57,11 +58,20 @@ export default function Heatmap({
   // ── Color-limit override ────────────────────────────────────────────
   // "Fit colors to visible" pulls cmin/cmax from the currently-visible
   // source-rect via getFigureTile, so a low-contrast region zoomed in
-  // gets full colormap dynamic range instead of being washed out by
-  // outliers elsewhere in the matrix. null = use figure.cmin/cmax.
+  // gets full colormap dynamic range. null = use figure.cminOrig/cmaxOrig.
+  // The override is a window/level remap on top of the engine-baked
+  // quantization range — no requantization, just a different LUT.
   const [colorOverride, setColorOverride] = useState(null);
-  const cminEff = colorOverride ? colorOverride.cmin : figure.cmin;
-  const cmaxEff = colorOverride ? colorOverride.cmax : figure.cmax;
+  const cminEff = colorOverride ? colorOverride.cmin : figure.cminOrig ?? figure.cmin;
+  const cmaxEff = colorOverride ? colorOverride.cmax : figure.cmaxOrig ?? figure.cmax;
+  const cminOrig = figure.cminOrig ?? figure.cmin;
+  const cmaxOrig = figure.cmaxOrig ?? figure.cmax;
+
+  // 256-entry RGBA LUT — rebuilt only when colormap or window/level changes.
+  const lut = useMemo(
+    () => buildHeatmapLUT(figure.colormap, cminOrig, cmaxOrig, cminEff, cmaxEff),
+    [figure.colormap, cminOrig, cmaxOrig, cminEff, cmaxEff]
+  );
 
   const padL = 60 * fontScale;
   const padR = 70 * fontScale;  // wider to fit the colorbar
@@ -77,13 +87,13 @@ export default function Heatmap({
   const isx = (px) => xMin + ((px - padL) / W) * (xMax - xMin);
   const isy = (py) => yMax - ((py - padT) / H) * (yMax - yMin);
 
-  // Pre-render the heatmap to a data URL. Memoised on z + range + override.
-  // Override invalidates: when "Fit colors to visible" is in effect we want
-  // the preview to repaint with the new clim too.
+  // Pre-render the inline preview to a dataURL via the LUT. uint8 indices
+  // are stable; only the LUT changes on window/level — so we keep a separate
+  // memo on (z) and another on (lut) chained together.
   const dataURL = useMemo(() => {
     if (!figure.z) return null;
-    return renderHeatmapDataURL(figure.z, cminEff, cmaxEff, figure.colormap);
-  }, [figure.z, cminEff, cmaxEff, figure.colormap]);
+    return renderHeatmapDataURLFromIndices(figure.z, lut);
+  }, [figure.z, lut]);
 
   function niceTicks(min, max, target = 6) {
     const range = max - min;
@@ -153,10 +163,10 @@ export default function Heatmap({
   }
 
   // Recompute cmin/cmax from the currently-visible source-rect. Pulls a
-  // coarse-LOD tile (~256² target) since we only need stats, not pixel
-  // detail; engine returns full-resolution data via mean-pooled aggregates,
-  // so the min/max captured matches what's on screen modulo pooling.
-  // No-op if engine isn't available (preview mode / fallback engine).
+  // coarse-LOD tile of uint8 indices, finds idxMin/idxMax, maps them back
+  // through the engine's quantization range to original-domain values.
+  // No requantization happens — the override is a window/level remap of
+  // the LUT (see buildHeatmapLUT). 256-level resolution is the cap.
   function fitColorsToVisible() {
     if (!engine || typeof engine.getFigureTile !== 'function') return;
     if (typeof figure._figId !== 'number' || figure._figId < 0) return;
@@ -175,21 +185,26 @@ export default function Heatmap({
     const tileW = c1 - c0, tileH = r1 - r0;
     if (tileW <= 0 || tileH <= 0) return;
 
-    // Coarse LOD — we just need ~256² samples for stats.
     const lod = Math.max(1, Math.ceil(Math.max(tileH, tileW) / 256));
     const tile = engine.getFigureTile(figure._figId, figure._axIdx, figure._dsIdx,
                                       r0, c0, tileH, tileW, lod);
-    if (!tile || tile.error) return;
-    let mn = Infinity, mx = -Infinity;
+    if (!tile || tile.error || !tile.data) return;
+
+    // Find min/max indices, skipping the NaN sentinel (255).
+    let idxMn = 256, idxMx = -1;
     for (let i = 0; i < tile.data.length; i++) {
-      const v = tile.data[i];
-      if (Number.isFinite(v)) {
-        if (v < mn) mn = v;
-        if (v > mx) mx = v;
-      }
+      const idx = tile.data[i];
+      if (idx === 255) continue;
+      if (idx < idxMn) idxMn = idx;
+      if (idx > idxMx) idxMx = idx;
     }
-    if (!Number.isFinite(mn) || !Number.isFinite(mx) || mn === mx) return;
-    setColorOverride({ cmin: mn, cmax: mx });
+    if (idxMn > 254 || idxMx < 0 || idxMn === idxMx) return;
+    // Map indices back to original-domain values via the engine's
+    // quantization range. Resolution: cmaxOrig - cminOrig per 254 levels.
+    const range = cmaxOrig - cminOrig;
+    const newMin = cminOrig + (idxMn / 254) * range;
+    const newMax = cminOrig + (idxMx / 254) * range;
+    setColorOverride({ cmin: newMin, cmax: newMax });
   }
   function resetColors() { setColorOverride(null); }
   const ctxItems = [
@@ -298,44 +313,12 @@ export default function Heatmap({
 
       const tile = engine.getFigureTile(figure._figId, figure._axIdx, figure._dsIdx,
                                         r0, c0, tileH, tileW, lod);
-      if (!tile || tile.error) { setTileOverlay(null); return; }
+      if (!tile || tile.error || !tile.data) { setTileOverlay(null); return; }
 
-      // Colormap the float tile to a PNG dataURL via canvas.
-      const interp = getColormap(figure.colormap);
-      const canvas = document.createElement('canvas');
-      canvas.width = tile.cols; canvas.height = tile.rows;
-      const ctx = canvas.getContext('2d');
-      const img = ctx.createImageData(tile.cols, tile.rows);
-      const cmin = cminEff, cmax = cmaxEff;
-      const range = (cmax - cmin) || 1;
-      for (let i = 0; i < tile.data.length; i++) {
-        const v = tile.data[i];
-        const o = i * 4;
-        if (!Number.isFinite(v)) {
-          img.data[o] = 0; img.data[o + 1] = 0; img.data[o + 2] = 0; img.data[o + 3] = 0;
-        } else {
-          const t = Math.max(0, Math.min(1, (v - cmin) / range));
-          const rgb = interp(t);
-          // interp returns either {r,g,b} or array — handle both.
-          const cr = Array.isArray(rgb) ? rgb[0] : rgb.r ?? 0;
-          const cg = Array.isArray(rgb) ? rgb[1] : rgb.g ?? 0;
-          const cb = Array.isArray(rgb) ? rgb[2] : rgb.b ?? 0;
-          // colormap may already be 0-255 or a CSS color; we call interp(t)
-          // which returns a CSS string — parse it.
-          if (typeof rgb === 'string') {
-            // crude rgb(...) parser; falls back to filling the image
-            const m = rgb.match(/(\d+),\s*(\d+),\s*(\d+)/);
-            if (m) {
-              img.data[o] = +m[1]; img.data[o + 1] = +m[2]; img.data[o + 2] = +m[3];
-            }
-          } else {
-            img.data[o] = cr; img.data[o + 1] = cg; img.data[o + 2] = cb;
-          }
-          img.data[o + 3] = 255;
-        }
-      }
-      ctx.putImageData(img, 0, 0);
-      const dataURL = canvas.toDataURL();
+      // Engine returns row-major uint8 indices (0..254 + 255 NaN). Convert
+      // the JSON array → Uint8Array → dataURL via the precomputed LUT.
+      const arr = tile.data instanceof Uint8Array ? tile.data : Uint8Array.from(tile.data);
+      const dataURL = renderHeatmapDataURLFromFlat(arr, tile.rows, tile.cols, lut);
 
       const entry = { dataURL, r0, c0, h: tileH, w: tileW, lod };
       cache.set(key, entry);
@@ -528,7 +511,10 @@ export default function Heatmap({
         <g pointerEvents="none">
           <line x1={hover.px} x2={hover.px} y1={padT} y2={padT + H} stroke="var(--plot-cross)" strokeDasharray="2 3"/>
           <line x1={padL} x2={padL + W} y1={hover.py} y2={hover.py} stroke="var(--plot-cross)" strokeDasharray="2 3"/>
-          {/* Sample z(row, col) closest to cursor in data coords */}
+          {/* Sample uint8 idx (row, col) closest to cursor; reconstruct
+              original-domain value via cminOrig + (idx/254) * range. If
+              colorScaleBaked === 'log', the reconstructed value is in
+              log10 space — show 10^v as the "real" scalar. */}
           {(() => {
             if (!figure.z) return null;
             const nR = figure.z.length, nC = figure.z[0]?.length || 0;
@@ -536,14 +522,25 @@ export default function Heatmap({
             const u = (hover.x - figure.xRange[0]) / (figure.xRange[1] - figure.xRange[0]);
             const v = (figure.yRange[1] - hover.y) / (figure.yRange[1] - figure.yRange[0]);
             const c = Math.max(0, Math.min(nC - 1, Math.floor(u * nC)));
-            const r = Math.max(0, Math.min(nR - 1, Math.floor(v * nR)));
-            const z = figure.z[r]?.[c];
+            const r = Math.max(0, Math.floor(v * nR));
+            const rr = Math.max(0, Math.min(nR - 1, r));
+            const idx = figure.z[rr]?.[c];
+            let zStr = '—';
+            if (idx != null && idx !== 255) {
+              const range = cmaxOrig - cminOrig;
+              const reconstructed = cminOrig + (idx / 254) * range;
+              if (figure.colorScaleBaked === 'log') {
+                zStr = `10^${fmtTick(reconstructed)} ≈ ${fmtTick(Math.pow(10, reconstructed))}`;
+              } else {
+                zStr = fmtTick(reconstructed);
+              }
+            }
             return (
               <g transform={`translate(${Math.min(hover.px + 8, padL + W - 110)}, ${Math.max(hover.py - 38, padT + 4)})`}>
                 <rect width="104" height="36" fill="var(--plot-tip-bg)" stroke="var(--plot-cross)" rx="3" />
                 <text x="6" y="11" fill="var(--plot-tip-text)" fontSize="10">x = {fmtTick(hover.x)}</text>
                 <text x="6" y="22" fill="var(--plot-tip-text)" fontSize="10">y = {fmtTick(hover.y)}</text>
-                <text x="6" y="33" fill="var(--plot-tip-text)" fontSize="10">z = {z != null ? fmtTick(z) : '—'}</text>
+                <text x="6" y="33" fill="var(--plot-tip-text)" fontSize="10">z = {zStr}</text>
               </g>
             );
           })()}

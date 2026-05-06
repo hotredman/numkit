@@ -161,6 +161,9 @@ function flatten(fig) {
  */
 function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
   // Heatmap / imagesc — single z-matrix dataset.
+  // After Stage A the engine ships uint8 indices (0..254 + 255 NaN sentinel)
+  // plus quantization range (cminOrig/cmaxOrig). The IDE renders via a
+  // 256-entry LUT — no float→colour math in the hot path.
   const imgDsIdx = datasets.findIndex((d) => (d.type || '').toLowerCase() === 'imagesc');
   const imgDs = imgDsIdx >= 0 ? datasets[imgDsIdx] : null;
   if (imgDs && imgDs.z) {
@@ -173,19 +176,11 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     const y0 = yr[0], y1 = yr[yr.length - 1];
     const cW = nC > 1 ? (x1 - x0) / (nC - 1) : 1;
     const cH = nR > 1 ? (y1 - y0) / (nR - 1) : 1;
-    let cmin = Infinity, cmax = -Infinity;
-    for (let r = 0; r < nR; r++) for (let c = 0; c < nC; c++) {
-      const v = z[r][c];
-      if (v == null || !Number.isFinite(v)) continue;
-      if (v < cmin) cmin = v;
-      if (v > cmax) cmax = v;
-    }
-    if (Array.isArray(cfg.clim) && cfg.clim.length === 2) {
-      cmin = cfg.clim[0]; cmax = cfg.clim[1];
-    }
-    if (!Number.isFinite(cmin) || !Number.isFinite(cmax) || cmin === cmax) {
-      cmin = 0; cmax = 1;
-    }
+    // Quantization range from the engine. cmin/cmax are aliases used by
+    // existing code paths (status bar, exports, hover) — they reflect the
+    // original-data scale so user-visible numbers are correct.
+    const cminOrig = (typeof imgDs.cminOrig === 'number') ? imgDs.cminOrig : 0;
+    const cmaxOrig = (typeof imgDs.cmaxOrig === 'number') ? imgDs.cmaxOrig : 1;
     return {
       kind: 'heatmap',
       id: cellId,
@@ -194,18 +189,14 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
       yLabel: cfg.ylabel || '',
       xRange: [x0 - cW / 2, x1 + cW / 2],
       yRange: [y0 - cH / 2, y1 + cH / 2],
-      z, cmin, cmax,
+      z,                              // uint8 indices, rows-major 2-D array
+      cmin: cminOrig, cmax: cmaxOrig, // aliases for existing UI
+      cminOrig, cmaxOrig,
+      colorScaleBaked: imgDs.colorScaleBaked || null,   // 'log' | null
       colormap: cfg.colormap || 'parula',
-      // ── large-imagesc contract (Phase 1 of the imagesc-tile pipeline):
-      // when the engine downsampled z before serialisation, these surface
-      // the original dimensions so the IDE can show a "preview" banner and
-      // (Phase 2) request higher-LOD tiles for zoom-in. Default-undefined
-      // when the engine hasn't shipped them yet — IDE silently treats it as
-      // a normal full-resolution heatmap.
       downsampled:   imgDs.downsampled === true,
       originalRows:  imgDs.originalRows  || nR,
       originalCols:  imgDs.originalCols  || nC,
-      // Engine-side coordinates so Heatmap can call getFigureTile().
       _figId: figId,
       _axIdx: axIdx,
       _dsIdx: imgDsIdx,
