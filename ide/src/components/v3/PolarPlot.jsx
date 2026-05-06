@@ -68,6 +68,8 @@ export function defaultPolarViewport(figure) {
 export default function PolarPlot({
   figure, width, height,
   viewport, setViewport,
+  major = true,
+  minor = true,
   fontScale = 1,
   interactive = true,
 }) {
@@ -94,15 +96,24 @@ export default function PolarPlot({
   const span = (rMax - rMin) || 1;
   const rScale = (rho) => ((rho - rMin) / span) * radius;
 
-  // Rings on every nice step, skipping the centre tick (rMin).
-  const rTicks = useMemo(() => {
+  // Major rings on every nice step (skipping the centre at rMin) plus minor
+  // rings at step/5 spacing — matches InteractivePlot's tick split.
+  const { rTicksMajor, rTicksMinor } = useMemo(() => {
     const step = niceStep(span, 4);
-    const arr = [];
+    const majorArr = [];
     const start = Math.ceil(rMin / step) * step;
     for (let v = start; v <= rMax + step * 1e-6; v += step) {
-      if (Math.abs(v - rMin) > step * 1e-6) arr.push(+v.toFixed(12));
+      if (Math.abs(v - rMin) > step * 1e-6) majorArr.push(+v.toFixed(12));
     }
-    return arr;
+    const minorStep = step / 5;
+    const minorArr = [];
+    for (let v = Math.ceil(rMin / minorStep) * minorStep; v <= rMax + minorStep * 1e-6; v += minorStep) {
+      if (Math.abs(((v - start) / step) - Math.round((v - start) / step)) > 1e-6
+        && Math.abs(v - rMin) > minorStep * 1e-6) {
+        minorArr.push(+v.toFixed(12));
+      }
+    }
+    return { rTicksMajor: majorArr, rTicksMinor: minorArr };
   }, [rMin, rMax, span]);
 
   function fmtR(v) {
@@ -190,8 +201,28 @@ export default function PolarPlot({
       )}
 
       <g transform={`translate(${cx}, ${cy})`}>
-        {/* Radial grid: concentric circles + tick labels */}
-        {rTicks.map((rho, i) => {
+        {/* Minor rings: faint, no labels */}
+        {minor && rTicksMinor.map((rho, i) => {
+          const r = rScale(rho);
+          if (r <= 0 || r > radius + 0.5) return null;
+          return (
+            <circle key={`rm${i}`} cx={0} cy={0} r={r} fill="none"
+              stroke="var(--plot-grid-min)" />
+          );
+        })}
+        {/* Minor spokes — every 15°, between the 30° majors */}
+        {minor && Array.from({ length: 12 }, (_, k) => k * 30 + 15).map((deg) => {
+          const a = zero + dirSign * (deg * Math.PI / 180);
+          const x = Math.cos(a) * radius;
+          const y = -Math.sin(a) * radius;
+          return (
+            <line key={`smn${deg}`} x1={0} y1={0} x2={x} y2={y}
+              stroke="var(--plot-grid-min)" />
+          );
+        })}
+
+        {/* Major rings + radial tick labels */}
+        {major && rTicksMajor.map((rho, i) => {
           const r = rScale(rho);
           if (r <= 0 || r > radius + 0.5) return null;
           return (
@@ -206,7 +237,7 @@ export default function PolarPlot({
         {/* Outer frame circle */}
         <circle cx={0} cy={0} r={radius} fill="none" stroke="var(--plot-frame)" />
 
-        {/* Angular spokes every 30° */}
+        {/* Major angular spokes every 30° + degree labels */}
         {Array.from({ length: 12 }, (_, k) => k * 30).map((deg) => {
           const a = zero + dirSign * (deg * Math.PI / 180);
           const x = Math.cos(a) * radius;
@@ -215,7 +246,10 @@ export default function PolarPlot({
           const yt = -Math.sin(a) * (radius + 14);
           return (
             <g key={`sp${deg}`}>
-              <line x1={0} y1={0} x2={x} y2={y} stroke="var(--plot-grid)" strokeDasharray="2 4" />
+              {major && (
+                <line x1={0} y1={0} x2={x} y2={y}
+                  stroke="var(--plot-grid)" strokeDasharray="2 4" />
+              )}
               <text x={xt} y={yt + 3} fill="var(--plot-text)" fontSize={9 * fontScale}
                 textAnchor="middle">{deg}°</text>
             </g>
