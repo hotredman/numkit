@@ -50,12 +50,16 @@ export default function Heatmap({
   }, [figure._raw?.id, figure.id]);
 
   // ── Log-axis state ─────────────────────────────────────────────────
-  // Per-Heatmap toggle (independent of figure-level xscale/yscale config —
-  // the user can switch a linear-emit imagesc to log axes interactively
-  // without recreating the figure). When set, getFigureDisplayTile applies
-  // log10 inverse to that axis when resampling.
-  const [xLog, setXLog] = useState(false);
-  const [yLog, setYLog] = useState(false);
+  // Initial value comes from figure.xscale/yscale (set in MATLAB via
+  // xscale('log') / yscale('log')); user can toggle interactively via
+  // the ПКМ menu. When set, getFigureDisplayTile applies log10 inverse
+  // to that axis when resampling.
+  const [xLog, setXLog] = useState(figure.xscale === 'log');
+  const [yLog, setYLog] = useState(figure.yscale === 'log');
+  // If the figure config changes (e.g. user calls yscale('log') after
+  // imagesc), pick up the new value so the panel re-renders log-axis.
+  useEffect(() => { setXLog(figure.xscale === 'log'); }, [figure.xscale]);
+  useEffect(() => { setYLog(figure.yscale === 'log'); }, [figure.yscale]);
 
   // ── Color-limit override ────────────────────────────────────────────
   // "Fit colors to visible" pulls cmin/cmax from the currently-visible
