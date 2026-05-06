@@ -1153,6 +1153,70 @@ TEST_F(FigureDisplayTileTest, NotImagescReturnsFalse)
 }
 
 // ============================================================
+// LOD pyramid — built lazily on getFigureDisplayTile
+// ============================================================
+
+class FigureLODTest : public FigureEngineTest {};
+
+TEST_F(FigureLODTest, NoPyramidBeforeFirstResample)
+{
+    eval("imagesc(ones(2000));");
+    EXPECT_TRUE(ax().datasets[0].lodLevels.empty());
+}
+
+TEST_F(FigureLODTest, ZoomOutBuildsPyramid)
+{
+    // Full extent on a 2000×2000 source rendered to 100×100 panel: each
+    // display pixel covers 20×20 source cells → optimal LOD = 4 (16× pool).
+    eval("imagesc(ones(2000));");
+    int figId = fm().currentFigureId();
+    std::vector<uint8_t> out(100 * 100);
+    bool ok = fm().getFigureDisplayTile(figId, 0, 0, 0, 0, 2000, 2000,
+                                        100, 100, false, false, out.data());
+    ASSERT_TRUE(ok);
+    // Should have built at least L1..L4 lazily.
+    const auto &ds = ax().datasets[0];
+    EXPECT_GE(ds.lodLevels.size(), 4u);
+    EXPECT_EQ(ds.lodDims[0].first, 1000u);   // L1: 2000/2
+    EXPECT_EQ(ds.lodDims[1].first, 500u);    // L2: 250
+    // Mean-pool of all 254 → 254 (uniform input, uniform output)
+    for (uint8_t v : out) EXPECT_EQ(v, 254);
+}
+
+TEST_F(FigureLODTest, ZoomInDoesNotBuildPyramid)
+{
+    // Zoom in to a 50×50 source-rect on 100×100 panel → display pixel
+    // covers 0.5 source cells → no pooling needed, level 0 only.
+    eval("imagesc(ones(2000));");
+    int figId = fm().currentFigureId();
+    std::vector<uint8_t> out(100 * 100);
+    bool ok = fm().getFigureDisplayTile(figId, 0, 0, 100, 100, 50, 50,
+                                        100, 100, false, false, out.data());
+    ASSERT_TRUE(ok);
+    EXPECT_TRUE(ax().datasets[0].lodLevels.empty());
+}
+
+TEST_F(FigureLODTest, EnsureLODIdempotent)
+{
+    eval("imagesc(ones(1000));");
+    const auto &ds = ax().datasets[0];
+    fm().ensureLOD(ds, 3);
+    const size_t after3 = ds.lodLevels.size();
+    EXPECT_GE(after3, 3u);
+    fm().ensureLOD(ds, 2);  // smaller — no-op
+    EXPECT_EQ(ds.lodLevels.size(), after3);
+}
+
+TEST_F(FigureLODTest, PyramidStopsBelow32px)
+{
+    // A 70×70 source has L1=35×35, L2=18×18 (<32) — pyramid should cap at L1.
+    eval("imagesc(ones(70));");
+    const auto &ds = ax().datasets[0];
+    fm().ensureLOD(ds, 10);   // request way more than possible
+    EXPECT_LE(ds.lodLevels.size(), 1u);
+}
+
+// ============================================================
 // FigureManager::getFigureTile — sub-rect read with LOD pooling
 // ============================================================
 
