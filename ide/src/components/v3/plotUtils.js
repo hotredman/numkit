@@ -80,17 +80,61 @@ export function downloadBlob(blob, name) {
   setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 
+/**
+ * Light-theme palette baked for export. Two reasons we need this:
+ *  1. Plots are nearly always reused on white paper / light slides.
+ *     Saving a dark-theme plot just to white-correct it later is annoying.
+ *  2. When the SVG is loaded via Image() for PNG rasterisation, it runs in
+ *     its OWN document context — the host page's CSS variables are gone.
+ *     Without an inlined `<style>`, every `var(--plot-grid)` etc. resolves
+ *     to nothing, so grids / text / frames disappear.
+ *
+ * Opacities are slightly stronger than the on-screen light theme to
+ * survive print compression / low-end laser printers.
+ */
+const EXPORT_LIGHT_STYLE = `
+  :root, svg {
+    --bg-0: #ffffff;
+    --bg-1: #ffffff;
+    --bg-2: #f6f8fa;
+    --bg-3: #eaeef2;
+    --line: #d0d7de;
+    --line-soft: #e5e8eb;
+    --fg-0: #1f2328;
+    --fg-1: #2c3137;
+    --fg-2: #57606a;
+    --fg-3: #818b96;
+    --plot-bg:          #ffffff;
+    --plot-frame:       rgba(31, 35, 40, 0.55);
+    --plot-grid:        rgba(31, 35, 40, 0.22);
+    --plot-grid-min:    rgba(31, 35, 40, 0.09);
+    --plot-tick:        rgba(31, 35, 40, 0.70);
+    --plot-text:        rgba(31, 35, 40, 0.85);
+    --plot-text-strong: rgba(31, 35, 40, 0.95);
+    --plot-cross:       rgba(31, 35, 40, 0.25);
+    --plot-tip-bg:      #ffffff;
+    --plot-tip-stroke:  rgba(31, 35, 40, 0.35);
+    --plot-tip-text:    rgba(31, 35, 40, 0.92);
+  }
+`;
+const EXPORT_BG = '#ffffff';
+
+/** Inject the light-theme `<style>` block right after `<svg ...>`. */
+function withLightTheme(xml) {
+  return xml.replace(/<svg([^>]*)>/, (_, attrs) => `<svg${attrs}><style>${EXPORT_LIGHT_STYLE}</style>`);
+}
+
 /** Serialise a single SVG node and trigger an SVG download. */
 export function exportSvgNode(svgEl, name) {
   if (!svgEl) return;
-  const xml = new XMLSerializer().serializeToString(svgEl);
+  const xml = withLightTheme(new XMLSerializer().serializeToString(svgEl));
   downloadBlob(new Blob([xml], { type: 'image/svg+xml' }), name);
 }
 
-/** Rasterise an SVG node to PNG at `scale`× and download. */
+/** Rasterise an SVG node to PNG at `scale`× and download. Always light-themed. */
 export function exportPngNode(svgEl, w, h, scale, name) {
   if (!svgEl) return;
-  const xml = new XMLSerializer().serializeToString(svgEl);
+  const xml = withLightTheme(new XMLSerializer().serializeToString(svgEl));
   const ww = Math.max(1, Math.round(w * scale));
   const hh = Math.max(1, Math.round(h * scale));
   const img = new Image();
@@ -99,8 +143,7 @@ export function exportPngNode(svgEl, w, h, scale, name) {
     const c = document.createElement('canvas');
     c.width = ww; c.height = hh;
     const ctx = c.getContext('2d');
-    const bg = getComputedStyle(document.documentElement).getPropertyValue('--plot-bg').trim() || '#1a1f24';
-    ctx.fillStyle = bg;
+    ctx.fillStyle = EXPORT_BG;
     ctx.fillRect(0, 0, ww, hh);
     ctx.drawImage(img, 0, 0, ww, hh);
     c.toBlob((b) => { downloadBlob(b, name); URL.revokeObjectURL(url); });
@@ -120,4 +163,62 @@ export function exportPngForPrint(svgEl, w, h, mmWidth, dpi, baseName) {
   const scale = targetPx / w;
   const safeBase = baseName.replace(/\.png$/i, '');
   exportPngNode(svgEl, w, h, scale, `${safeBase}_${mmWidth}mm.png`);
+}
+
+/**
+ * Build one composite SVG string from many side-by-side SVGs (used for
+ * subplot figures: each cell is its own <svg>). `layouts` is an array of
+ * { x, y, w, h } in container-local coordinates that mirror the screen
+ * positioning of each cell.
+ *
+ * Inner <svg> elements are cloned and have their width/height set to the
+ * cell's pixel size — left at "100%" they'd all stretch to fill the outer
+ * viewBox and overlap.
+ */
+export function composeSvgsToString(svgs, layouts, totalW, totalH) {
+  const inner = Array.from(svgs).map((svg, i) => {
+    const { x, y, w, h } = layouts[i];
+    const cloned = svg.cloneNode(true);
+    cloned.setAttribute('width',  String(w));
+    cloned.setAttribute('height', String(h));
+    cloned.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    const xml = new XMLSerializer().serializeToString(cloned);
+    return `<g transform="translate(${x},${y})">${xml}</g>`;
+  }).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${totalH}" viewBox="0 0 ${totalW} ${totalH}"><rect width="${totalW}" height="${totalH}" fill="${EXPORT_BG}"/>${inner}</svg>`;
+}
+
+/**
+ * Wrap a serialised XML string with the light-theme style block. Useful
+ * when a caller already has its own composed SVG string (subplot exports
+ * in FigureWindow) and wants the same theme override that exportSvgNode
+ * applies for single-SVG flows.
+ */
+export function applyLightTheme(xml) { return withLightTheme(xml); }
+
+/** Save a pre-built SVG XML string as .svg, applying the light theme. */
+export function exportSvgString(xml, name) {
+  downloadBlob(new Blob([withLightTheme(xml)], { type: 'image/svg+xml' }), name);
+}
+
+/**
+ * Rasterise a pre-built SVG XML string to PNG. Used for subplot composite
+ * exports where there's no single source SVG element.
+ */
+export function exportPngString(xml, w, h, scale, name) {
+  const themed = withLightTheme(xml);
+  const ww = Math.max(1, Math.round(w * scale));
+  const hh = Math.max(1, Math.round(h * scale));
+  const img = new Image();
+  const url = URL.createObjectURL(new Blob([themed], { type: 'image/svg+xml' }));
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = ww; c.height = hh;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = EXPORT_BG;
+    ctx.fillRect(0, 0, ww, hh);
+    ctx.drawImage(img, 0, 0, ww, hh);
+    c.toBlob((b) => { downloadBlob(b, name); URL.revokeObjectURL(url); });
+  };
+  img.src = url;
 }
