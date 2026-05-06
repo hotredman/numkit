@@ -39,9 +39,13 @@ void mean_var(const Value &x, double &mean_out, double &var_out, size_t &n_out) 
 }
 
 inline TestTail parse_tail(const std::string &s, TestTail def) {
-    if (s == "both")  return TestTail::Both;
-    if (s == "right") return TestTail::Right;
-    if (s == "left")  return TestTail::Left;
+    if (s == "both")     return TestTail::Both;
+    if (s == "right")    return TestTail::Right;
+    if (s == "left")     return TestTail::Left;
+    // kstest / kstest2 aliases:
+    if (s == "unequal")  return TestTail::Both;
+    if (s == "larger")   return TestTail::Right;
+    if (s == "smaller")  return TestTail::Left;
     return def;
 }
 
@@ -1327,12 +1331,36 @@ void kstest_reg(Span<const Value> args, size_t nargout,
     if (args.empty())
         throw Error("kstest: requires X", 0, 0, "kstest", "",
                     "m:kstest:nargin");
-    Value cdf = (args.size() >= 2) ? args[1] : Value();  // empty default
-    double alpha = parse_alpha(args, 2, 0.05);
+    Value cdf = (args.size() >= 2 && !(args[1].isChar() || args[1].isString()))
+                  ? args[1] : Value();  // empty default
+    double alpha = 0.05;
     TestTail tail = TestTail::Both;
-    for (size_t i = 2; i < args.size(); ++i)
-        if (args[i].isChar() || args[i].isString())
-            tail = parse_tail(args[i].toString(), TestTail::Both);
+    // Walk trailing args: positional alpha (numeric scalar), positional
+    // tail string, and Name-Value pairs ('Alpha', value | 'Tail', value).
+    size_t i = (cdf.numel() > 0 || (args.size() >= 2 && (args[1].isChar() || args[1].isString()))) ? 2 : 1;
+    while (i < args.size()) {
+        const Value &a = args[i];
+        if (a.isChar() || a.isString()) {
+            std::string s = a.toString();
+            std::string sl = s;
+            for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (sl == "alpha" && i + 1 < args.size()) {
+                alpha = args[i + 1].toScalar();
+                i += 2;
+            } else if (sl == "tail" && i + 1 < args.size()) {
+                tail = parse_tail(args[i + 1].toString(), tail);
+                i += 2;
+            } else {
+                // positional tail string
+                tail = parse_tail(sl, tail);
+                ++i;
+            }
+        } else {
+            // positional alpha
+            alpha = a.toScalar();
+            ++i;
+        }
+    }
     auto [h, p, D, cv] = kstest(ctx.engine->resource(), args[0], cdf, alpha, tail);
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
@@ -1344,13 +1372,27 @@ void kstest2_reg(Span<const Value> args, size_t nargout,
                  Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("kstest2: requires (X, Y[, alpha, tail])",
+        throw Error("kstest2: requires (X, Y[, alpha, tail | name-value])",
                     0, 0, "kstest2", "", "m:kstest2:nargin");
-    double alpha = parse_alpha(args, 2, 0.05);
+    double alpha = 0.05;
     TestTail tail = TestTail::Both;
-    for (size_t i = 2; i < args.size(); ++i)
-        if (args[i].isChar() || args[i].isString())
-            tail = parse_tail(args[i].toString(), TestTail::Both);
+    size_t i = 2;
+    while (i < args.size()) {
+        const Value &a = args[i];
+        if (a.isChar() || a.isString()) {
+            std::string sl = a.toString();
+            for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (sl == "alpha" && i + 1 < args.size()) {
+                alpha = args[i + 1].toScalar(); i += 2;
+            } else if (sl == "tail" && i + 1 < args.size()) {
+                tail = parse_tail(args[i + 1].toString(), tail); i += 2;
+            } else {
+                tail = parse_tail(sl, tail); ++i;
+            }
+        } else {
+            alpha = a.toScalar(); ++i;
+        }
+    }
     auto [h, p, D, cv] = kstest2(ctx.engine->resource(), args[0], args[1],
                                   alpha, tail);
     outs[0] = std::move(h);
