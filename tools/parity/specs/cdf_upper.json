@@ -1,0 +1,15 @@
+{
+  "name": "cdf_upper",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "n_lo = normcdf(1.96); n_up = normcdf(1.96, 0, 1, 'upper'); c_up = chi2cdf(3.84, 1, 'upper'); t_up = tcdf(2.0, 10, 'upper'); f_up = fcdf(2, 5, 10, 'upper'); b_up = betacdf(0.5, 2, 3, 'upper'); g_up = gamcdf(2, 1, 1, 'upper'); e_up = expcdf(1, 1, 'upper'); r_up = raylcdf(1, 1, 'upper'); ln_up = logncdf(1, 0, 1, 'upper'); w_up = wblcdf(1, 1, 1, 'upper'); uf_up = unifcdf(0.3, 0, 1, 'upper'); ud_up = unidcdf(3, 5, 'upper'); bn_up = binocdf(2, 5, 0.3, 'upper'); p_up = poisscdf(2, 3, 'upper');",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "n_lo", "n_up",
+    "c_up", "t_up", "f_up", "b_up", "g_up",
+    "e_up", "r_up", "ln_up", "w_up", "uf_up",
+    "ud_up", "bn_up", "p_up"
+  ],
+  "comment": "Joint 'upper' flag verification across 14 CDFs (closes 14 audit ТЗ in stats.dist). MATLAB R2025b: every *cdf accepts trailing 'upper' string and returns 1 - F(x). normcdf double-checks lower tail unchanged. tol = 1e-9. Closes audit/findings/stats/{normcdf,chi2cdf,tcdf,fcdf,betacdf,gamcdf,expcdf,raylcdf,logncdf,wblcdf,unifcdf,unidcdf,binocdf,poisscdf}.md."
+}

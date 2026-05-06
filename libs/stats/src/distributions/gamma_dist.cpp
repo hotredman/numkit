@@ -13,6 +13,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <limits>
 #include <mutex>
@@ -119,9 +121,13 @@ void gampdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 
 void gamcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 3)
-        throw Error("gamcdf: requires (x, a, b)", 0, 0, "gamcdf", "", "m:gamcdf:nargin");
-    outs[0] = gamcdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    bool upper = false;
+    const size_t n = stripUpperFlag(args, upper);
+    if (n < 3)
+        throw Error("gamcdf: requires (x, a, b[, 'upper'])", 0, 0, "gamcdf", "", "m:gamcdf:nargin");
+    Value v = gamcdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
 }
 
 void gaminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

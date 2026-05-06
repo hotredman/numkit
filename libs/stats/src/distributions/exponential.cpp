@@ -7,6 +7,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <limits>
 #include <mutex>
@@ -104,9 +106,13 @@ void exppdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 
 void expcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("expcdf: requires (x, mu)", 0, 0, "expcdf", "", "m:expcdf:nargin");
-    outs[0] = expcdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    bool upper = false;
+    const size_t n = stripUpperFlag(args, upper);
+    if (n < 2)
+        throw Error("expcdf: requires (x, mu[, 'upper'])", 0, 0, "expcdf", "", "m:expcdf:nargin");
+    Value v = expcdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
 }
 
 void expinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

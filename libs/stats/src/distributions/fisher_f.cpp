@@ -12,6 +12,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -138,9 +140,13 @@ void fpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 
 void fcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 3)
-        throw Error("fcdf: requires (x, v1, v2)", 0, 0, "fcdf", "", "m:fcdf:nargin");
-    outs[0] = fcdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    bool upper = false;
+    const size_t n = stripUpperFlag(args, upper);
+    if (n < 3)
+        throw Error("fcdf: requires (x, v1, v2[, 'upper'])", 0, 0, "fcdf", "", "m:fcdf:nargin");
+    Value v = fcdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
 }
 
 void finv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

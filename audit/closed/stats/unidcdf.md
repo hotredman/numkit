@@ -29,3 +29,8 @@ A single shared parser update closes all 12.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING (joint CDF 'upper' batch)
+- Closed date: 2026-05-06
+- Notes: 'upper' string flag detected via shared stripUpperFlag/applyUpperInPlace helpers in libs/stats/src/distributions/dist_helpers.hpp. Implementation: 1 - F(x) (no erfc-tail-precision optimisation; matches MATLAB to ≤1e-9 across 3 engines on every probed input).

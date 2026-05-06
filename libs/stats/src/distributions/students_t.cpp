@@ -11,6 +11,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -161,9 +163,13 @@ void tpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 
 void tcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("tcdf: requires (x, nu)", 0, 0, "tcdf", "", "m:tcdf:nargin");
-    outs[0] = tcdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    bool upper = false;
+    const size_t n = stripUpperFlag(args, upper);
+    if (n < 2)
+        throw Error("tcdf: requires (x, nu[, 'upper'])", 0, 0, "tcdf", "", "m:tcdf:nargin");
+    Value v = tcdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
 }
 
 void tinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

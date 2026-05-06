@@ -7,6 +7,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <limits>
 #include <mutex>
@@ -124,9 +126,14 @@ void wblpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 
 void wblcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.empty())
-        throw Error("wblcdf: requires (x[, a, b])", 0, 0, "wblcdf", "", "m:wblcdf:nargin");
-    outs[0] = wblcdf(ctx.engine->resource(), args[0], argA(args, 1), argB(args, 2));
+    bool upper = false;
+    const Span<const Value> stripped = args.subspan(0, stripUpperFlag(args, upper));
+    if (stripped.empty())
+        throw Error("wblcdf: requires (x[, a, b][, 'upper'])", 0, 0, "wblcdf", "", "m:wblcdf:nargin");
+    Value v = wblcdf(ctx.engine->resource(), stripped[0],
+                     argA(stripped, 1), argB(stripped, 2));
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
 }
 
 void wblinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

@@ -94,10 +94,7 @@ Status legend:
 | [findings/wavelet/meyeraux.md](findings/wavelet/meyeraux.md) | meyeraux | wavelet.shape | low | small | ddf4218 |
 | [findings/wavelet/morlet.md](findings/wavelet/morlet.md) | morlet | wavelet.shape | low | small | ddf4218 |
 | [findings/wavelet/shanwavf.md](findings/wavelet/shanwavf.md) | shanwavf | wavelet.shape | low | small | ddf4218 |
-| [findings/stats/chi2cdf.md](findings/stats/chi2cdf.md) | chi2cdf | stats.dist | high | small | 8e48677 |
-| [findings/stats/normcdf.md](findings/stats/normcdf.md) | normcdf | stats.dist | high | small | 8e48677 |
 | [findings/stats/normrnd.md](findings/stats/normrnd.md) | normrnd | stats.dist | high | medium | 8e48677 |
-| [findings/stats/tcdf.md](findings/stats/tcdf.md) | tcdf | stats.dist | high | small | 8e48677 |
 | [findings/stats/chi2rnd.md](findings/stats/chi2rnd.md) | chi2rnd | stats.dist | medium | small | 8e48677 |
 | [findings/stats/tpdf.md](findings/stats/tpdf.md) | tpdf | stats.dist | medium | small | 8e48677 |
 | [findings/stats/trnd.md](findings/stats/trnd.md) | trnd | stats.dist | medium | small | 8e48677 |
@@ -116,9 +113,6 @@ Status legend:
 | [findings/wavelet/orthfilt.md](findings/wavelet/orthfilt.md) | orthfilt | wavelet.filt | low | small | 1c2df89 |
 | [findings/wavelet/qmf.md](findings/wavelet/qmf.md) | qmf | wavelet.filt | low | small | 1c2df89 |
 | [findings/wavelet/wrev.md](findings/wavelet/wrev.md) | wrev | wavelet.filt | low | small | 1c2df89 |
-| [findings/stats/betacdf.md](findings/stats/betacdf.md) | betacdf | stats.dist | high | small | 301e5a5 |
-| [findings/stats/expcdf.md](findings/stats/expcdf.md) | expcdf | stats.dist | high | small | 301e5a5 |
-| [findings/stats/gamcdf.md](findings/stats/gamcdf.md) | gamcdf | stats.dist | high | small | 301e5a5 |
 | [findings/stats/betarnd.md](findings/stats/betarnd.md) | betarnd | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/exppdf.md](findings/stats/exppdf.md) | exppdf | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/exprnd.md](findings/stats/exprnd.md) | exprnd | stats.dist | medium | small | 301e5a5 |
@@ -141,9 +135,6 @@ Status legend:
 | [findings/signal/dftmtx.md](findings/signal/dftmtx.md) | dftmtx | signal.transforms | low | small | 9bce106 |
 | [findings/signal/interpft.md](findings/signal/interpft.md) | interpft | signal.transforms | low | small | 9bce106 |
 | [findings/signal/nextpow2.md](findings/signal/nextpow2.md) | nextpow2 | core (builtin) | low | small | 9bce106 |
-| [findings/stats/fcdf.md](findings/stats/fcdf.md) | fcdf | stats.dist | high | small | e580a5c |
-| [findings/stats/raylcdf.md](findings/stats/raylcdf.md) | raylcdf | stats.dist | high | small | e580a5c |
-| [findings/stats/unifcdf.md](findings/stats/unifcdf.md) | unifcdf | stats.dist | high | small | e580a5c |
 | [findings/stats/frnd.md](findings/stats/frnd.md) | frnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/raylrnd.md](findings/stats/raylrnd.md) | raylrnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/unifrnd.md](findings/stats/unifrnd.md) | unifrnd | stats.dist | medium | small | e580a5c |
@@ -168,9 +159,6 @@ Status legend:
 | [findings/cluster/kmedoids.md](findings/cluster/kmedoids.md) | kmedoids | stats.cluster | low | small | b2f133b |
 | [findings/cluster/mahal.md](findings/cluster/mahal.md) | mahal | stats.cluster | low | small | b2f133b |
 | [findings/cluster/squareform.md](findings/cluster/squareform.md) | squareform | stats.cluster | low | small | b2f133b |
-| [findings/stats/binocdf.md](findings/stats/binocdf.md) | binocdf | stats.dist | high | small | 1525319 |
-| [findings/stats/poisscdf.md](findings/stats/poisscdf.md) | poisscdf | stats.dist | high | small | 1525319 |
-| [findings/stats/unidcdf.md](findings/stats/unidcdf.md) | unidcdf | stats.dist | high | small | 1525319 |
 | [findings/stats/binoinv.md](findings/stats/binoinv.md) | binoinv | stats.dist | low | small | 1525319 |
 | [findings/stats/binopdf.md](findings/stats/binopdf.md) | binopdf | stats.dist | low | small | 1525319 |
 | [findings/stats/binornd.md](findings/stats/binornd.md) | binornd | stats.dist | low | small | 1525319 |
@@ -196,8 +184,6 @@ Status legend:
 | [findings/mvdist/mnpdf.md](findings/mvdist/mnpdf.md) | mnpdf | stats.mvdist | low | small | f92087f |
 | [findings/mvdist/mvnpdf.md](findings/mvdist/mvnpdf.md) | mvnpdf | stats.mvdist | low | small | f92087f |
 | [findings/mvdist/mvtpdf.md](findings/mvdist/mvtpdf.md) | mvtpdf | stats.mvdist | low | small | f92087f |
-| [findings/stats/logncdf.md](findings/stats/logncdf.md) | logncdf | stats.dist | high | small | 105c2b4 |
-| [findings/stats/wblcdf.md](findings/stats/wblcdf.md) | wblcdf | stats.dist | high | small | 105c2b4 |
 | [findings/stats/lognrnd.md](findings/stats/lognrnd.md) | lognrnd | stats.dist | medium | small | 105c2b4 |
 | [findings/stats/wblrnd.md](findings/stats/wblrnd.md) | wblrnd | stats.dist | medium | small | 105c2b4 |
 | [findings/stats/logninv.md](findings/stats/logninv.md) | logninv | stats.dist | low | small | 105c2b4 |
@@ -225,6 +211,20 @@ Status legend:
 | [closed/stats/prctile.md](closed/stats/prctile.md) | prctile | PENDING | 2026-05-06 |
 | [closed/stats/var.md](closed/stats/var.md) | var | PENDING | 2026-05-06 |
 | [closed/stats/std.md](closed/stats/std.md) | std | PENDING | 2026-05-06 |
+| [closed/stats/normcdf.md](closed/stats/normcdf.md) | normcdf | PENDING | 2026-05-06 |
+| [closed/stats/chi2cdf.md](closed/stats/chi2cdf.md) | chi2cdf | PENDING | 2026-05-06 |
+| [closed/stats/tcdf.md](closed/stats/tcdf.md) | tcdf | PENDING | 2026-05-06 |
+| [closed/stats/fcdf.md](closed/stats/fcdf.md) | fcdf | PENDING | 2026-05-06 |
+| [closed/stats/betacdf.md](closed/stats/betacdf.md) | betacdf | PENDING | 2026-05-06 |
+| [closed/stats/gamcdf.md](closed/stats/gamcdf.md) | gamcdf | PENDING | 2026-05-06 |
+| [closed/stats/expcdf.md](closed/stats/expcdf.md) | expcdf | PENDING | 2026-05-06 |
+| [closed/stats/raylcdf.md](closed/stats/raylcdf.md) | raylcdf | PENDING | 2026-05-06 |
+| [closed/stats/logncdf.md](closed/stats/logncdf.md) | logncdf | PENDING | 2026-05-06 |
+| [closed/stats/wblcdf.md](closed/stats/wblcdf.md) | wblcdf | PENDING | 2026-05-06 |
+| [closed/stats/unifcdf.md](closed/stats/unifcdf.md) | unifcdf | PENDING | 2026-05-06 |
+| [closed/stats/unidcdf.md](closed/stats/unidcdf.md) | unidcdf | PENDING | 2026-05-06 |
+| [closed/stats/binocdf.md](closed/stats/binocdf.md) | binocdf | PENDING | 2026-05-06 |
+| [closed/stats/poisscdf.md](closed/stats/poisscdf.md) | poisscdf | PENDING | 2026-05-06 |
 
 ---
 

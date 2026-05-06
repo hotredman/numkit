@@ -7,6 +7,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <limits>
 #include <mutex>
@@ -171,9 +173,14 @@ void lognpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void logncdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.empty())
-        throw Error("logncdf: requires (x[, mu, sigma])", 0, 0, "logncdf", "", "m:logncdf:nargin");
-    outs[0] = logncdf(ctx.engine->resource(), args[0], argMu(args, 1), argSigma(args, 2));
+    bool upper = false;
+    const Span<const Value> stripped = args.subspan(0, stripUpperFlag(args, upper));
+    if (stripped.empty())
+        throw Error("logncdf: requires (x[, mu, sigma][, 'upper'])", 0, 0, "logncdf", "", "m:logncdf:nargin");
+    Value v = logncdf(ctx.engine->resource(), stripped[0],
+                      argMu(stripped, 1), argSigma(stripped, 2));
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
 }
 
 void logninv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
