@@ -27,7 +27,6 @@ export default function Toolbar({
           <span className="brand-k">k</span>
           <span className="brand-bracket">]</span>
         </span>
-        <span className="brand-name">numkit</span>
       </div>
 
       <div className="toolbar-center">
