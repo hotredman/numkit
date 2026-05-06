@@ -22,4 +22,5 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/betalike_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gevlike_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gplike_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/explike_test.cpp
 )
