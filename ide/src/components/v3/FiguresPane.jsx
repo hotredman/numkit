@@ -97,7 +97,7 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
           {renderFigure(figure, {
             width: size.w, height: size.h,
             viewport, setViewport,
-            minor: true, fontScale: 0.9, interactive: false,
+            minor: figure.grid === 'minor', fontScale: 0.9, interactive: false,
           })}
         </div>
       </div>

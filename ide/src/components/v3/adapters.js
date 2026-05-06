@@ -222,6 +222,7 @@ export function adaptFigure(fig) {
       thetaDir: cfg.thetaDir || 'counterclockwise',
       thetaZeroLocation: cfg.thetaZeroLocation || 'right',
       rlim: cfg.rlim,
+      grid: cfg.grid || '',           // "" | "on" | "minor"
       series,
       _raw: fig,
     };
@@ -292,6 +293,7 @@ export function adaptFigure(fig) {
     xLabel: cfg.xlabel || '',
     yLabel: cfg.ylabel || '',
     xRange, yRange,
+    grid: cfg.grid || '',             // "" | "on" | "minor"
     series,
     /* Pass through original config so the modal's status bar / fallback can
        inspect grid / legend settings if needed. */
