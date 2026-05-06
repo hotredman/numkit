@@ -586,7 +586,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 </select>
               </>
             )}
-            <button className={`ve-btn ${showLegend ? 'is-active' : ''}`} onClick={() => setShowLegend((g) => !g)}>legend</button>
+            {/* Legend toggle is meaningless for heatmap — there are no series,
+                the colorbar on the right of the panel is the legend. */}
+            {!isHeatmap && (
+              <button className={`ve-btn ${showLegend ? 'is-active' : ''}`} onClick={() => setShowLegend((g) => !g)}>legend</button>
+            )}
           </div>
 
           <div className="ve-tools-spacer" />
