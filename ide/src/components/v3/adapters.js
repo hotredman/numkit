@@ -153,17 +153,13 @@ function flatten(fig) {
 }
 
 /**
- * Convert one engine figure → mockup figure shape. Returns an object with a
- * `kind` field that the caller uses to pick a renderer:
- *   { kind: 'line',    series, ... }              → InteractivePlot
- *   { kind: 'heatmap', z, cmin, cmax, ... }       → Heatmap
- *   { kind: 'polar',   series, thetaDir, ... }    → PolarPlot
- *   null                                          → not renderable yet
+ * Adapt one axes (datasets + config) into a renderable cell. Used both by
+ * single-axes figures and by every cell of a subplot grid.
+ *
+ * `figId` and `cellId` together build a unique React key + clip-path id —
+ * subplots reuse the same fig.id across cells, so we suffix the cell.
  */
-export function adaptFigure(fig) {
-  if (!fig) return null;
-  const { datasets, cfg } = flatten(fig);
-
+function adaptAxes(figId, cellId, datasets, cfg) {
   // Heatmap / imagesc — single z-matrix dataset.
   const imgDs = datasets.find((d) => (d.type || '').toLowerCase() === 'imagesc');
   if (imgDs && imgDs.z) {
@@ -191,15 +187,14 @@ export function adaptFigure(fig) {
     }
     return {
       kind: 'heatmap',
-      id: fig.id,
-      title:  cfg.title  || `Figure ${fig.id}`,
+      id: cellId,
+      title:  cfg.title  || '',
       xLabel: cfg.xlabel || '',
       yLabel: cfg.ylabel || '',
       xRange: [x0 - cW / 2, x1 + cW / 2],
       yRange: [y0 - cH / 2, y1 + cH / 2],
       z, cmin, cmax,
       colormap: cfg.colormap || 'parula',
-      _raw: fig,
     };
   }
 
@@ -217,18 +212,17 @@ export function adaptFigure(fig) {
     });
     return {
       kind: 'polar',
-      id: fig.id,
-      title: cfg.title || `Figure ${fig.id}`,
+      id: cellId,
+      title: cfg.title || '',
       thetaDir: cfg.thetaDir || 'counterclockwise',
       thetaZeroLocation: cfg.thetaZeroLocation || 'right',
       rlim: cfg.rlim,
-      grid: cfg.grid || '',           // "" | "on" | "minor"
+      grid: cfg.grid || '',
       series,
-      _raw: fig,
     };
   }
 
-  // Map dataset types → render mode the InteractivePlot understands.
+  // Line-ish kinds.
   const supported = new Set(['line', 'scatter', 'stem', 'stairs',
     'bar', 'hist', 'semilogx', 'semilogy', 'loglog']);
   const lineish = datasets.filter((d) => supported.has((d.type || 'line').toLowerCase()));
@@ -237,7 +231,6 @@ export function adaptFigure(fig) {
   const series = lineish.map((d, i) => {
     const xArr = Array.isArray(d.x) ? d.x.map(Number) : [];
     const yArr = Array.isArray(d.y) ? d.y.map(Number) : [];
-    // style can be either a string ('r--o') or an object ({ color, lineWidth, ... })
     const styleObj = typeof d.style === 'string' ? parseLineSpec(d.style)
                    : (d.style || {});
     const color = styleObj.color || d.color || KIND_PALETTE[i % KIND_PALETTE.length];
@@ -250,15 +243,12 @@ export function adaptFigure(fig) {
     else if (t === 'stairs') mode = 'stairs';
     return {
       name: d.label || `series ${i + 1}`,
-      x: xArr,
-      y: yArr,
-      color, width,
-      mode,
+      x: xArr, y: yArr,
+      color, width, mode,
       opacity: d.style?.opacity ?? 1,
     };
   });
 
-  // Aggregate ranges across all series so a default fit shows everything
   let xLo = Infinity, xHi = -Infinity, yLo = Infinity, yHi = -Infinity;
   series.forEach((s) => {
     const [a, b] = rangeFromArr(s.x);
@@ -276,7 +266,6 @@ export function adaptFigure(fig) {
     ? cfg.ylim.slice()
     : [Number.isFinite(yLo) ? yLo : -1, Number.isFinite(yHi) ? yHi : 1];
 
-  // 4% padding on auto-ranges so curves don't touch axes
   if (!cfg.xlim) {
     const pad = (xRange[1] - xRange[0]) * 0.04 || 0.5;
     xRange[0] -= pad; xRange[1] += pad;
@@ -288,17 +277,58 @@ export function adaptFigure(fig) {
 
   return {
     kind: 'line',
-    id: fig.id,
-    title:  cfg.title || `Figure ${fig.id}`,
+    id: cellId,
+    title:  cfg.title || '',
     xLabel: cfg.xlabel || '',
     yLabel: cfg.ylabel || '',
     xRange, yRange,
-    grid: cfg.grid || '',             // "" | "on" | "minor"
+    grid: cfg.grid || '',
     series,
-    /* Pass through original config so the modal's status bar / fallback can
-       inspect grid / legend settings if needed. */
-    _raw: fig,
   };
+}
+
+/**
+ * Convert one engine figure → mockup figure shape. Returns an object with a
+ * `kind` field that the caller uses to pick a renderer:
+ *   { kind: 'line',    series, ... }              → InteractivePlot
+ *   { kind: 'heatmap', z, cmin, cmax, ... }       → Heatmap
+ *   { kind: 'polar',   series, thetaDir, ... }    → PolarPlot
+ *   null                                          → not renderable yet
+ */
+export function adaptFigure(fig) {
+  if (!fig) return null;
+
+  // Subplot grid — multiple axes laid out as a [rows, cols] tile. Each axes
+  // is recursively adapted into one cell of the grid.
+  if (Array.isArray(fig.subplotGrid) && fig.subplotGrid.length === 2
+      && Array.isArray(fig.axes) && fig.axes.length > 0) {
+    const [rows, cols] = fig.subplotGrid;
+    const cells = [];
+    fig.axes.forEach((ax, i) => {
+      const cell = adaptAxes(fig.id, `${fig.id}-${i}`, ax.datasets || [], ax.config || {});
+      if (cell) {
+        cell.subplotIndex = ax.subplotIndex || (i + 1);
+        cells.push(cell);
+      }
+    });
+    if (cells.length === 0) return null;
+    return {
+      kind: 'subplot',
+      id: fig.id,
+      title: `Figure ${fig.id}`,
+      grid: [rows, cols],
+      cells,
+      _raw: fig,
+    };
+  }
+
+  // Single-axes figure — adapt directly.
+  const { datasets, cfg } = flatten(fig);
+  const adapted = adaptAxes(fig.id, fig.id, datasets, cfg);
+  if (!adapted) return null;
+  if (!adapted.title) adapted.title = `Figure ${fig.id}`;
+  adapted._raw = fig;
+  return adapted;
 }
 
 export function adaptFigures(figs) {
