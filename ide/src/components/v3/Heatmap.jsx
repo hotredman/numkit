@@ -172,6 +172,11 @@ export default function Heatmap({
       <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={ctxItems}
         onClose={() => setCtxMenu(null)} />
     )}
+    {figure.downsampled && (
+      <div className="hm-preview-banner" title="Engine downsampled this figure to keep the inline preview small. Zoom-in detail will arrive once tile-fetch lands.">
+        preview · downsampled from {figure.originalRows}×{figure.originalCols}
+      </div>
+    )}
     <svg
       ref={svgRef}
       width="100%" height="100%"

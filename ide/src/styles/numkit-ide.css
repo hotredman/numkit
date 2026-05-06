@@ -1805,3 +1805,25 @@ input, select { font-family: inherit; color: inherit; }
   border-color: var(--accent);
 }
 .ctx-row-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ---------- Heatmap "preview · downsampled" banner ---------- */
+/* Surfaces when the engine downsampled an oversized imagesc matrix
+   (rows*cols > 2'000'000) to keep the inline JSON tractable. Floats
+   in the top-right of the panel; pointer-events:none so it never
+   eats pan/zoom or right-click. */
+.hm-preview-banner {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(232, 165, 0, 0.92);
+  color: #1a1f24;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 3px 9px;
+  border-radius: 3px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  z-index: 5;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
+}
