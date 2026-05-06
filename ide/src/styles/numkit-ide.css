@@ -1818,6 +1818,19 @@ select.ve-btn.fw-cmap-select {
    (rows*cols > 2'000'000) to keep the inline JSON tractable. Floats
    in the top-right of the panel; pointer-events:none so it never
    eats pan/zoom or right-click. */
+/* Heatmap overlay text labels — annotations placed via `text(x, y, 'label')`
+   after imagesc. Black 0.5-px stroke under the fill keeps the label
+   readable over any colormap. */
+.hm-overlay-text {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.65);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  user-select: none;
+}
+
 .hm-preview-banner {
   position: absolute;
   top: 8px;

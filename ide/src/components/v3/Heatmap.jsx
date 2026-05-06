@@ -647,6 +647,81 @@ export default function Heatmap({
         );
       })}
 
+      {/* Overlay layers — scatter/line/stem/text accumulated via `hold on`
+          after imagesc. Each layer's data-coords go through the panel's
+          current sx/sy so they track pan/zoom + log axes automatically.
+          Clipped to plot area so off-screen markers don't bleed into the
+          colorbar / axis area. */}
+      {Array.isArray(figure.overlays) && figure.overlays.length > 0 && (
+        <g clipPath={`url(#${clipId})`}>
+          {figure.overlays.map((ov, idx) => {
+            if (ov.type === 'scatter') {
+              return (
+                <g key={`ov${idx}`}>
+                  {ov.x.map((xv, i) => {
+                    const yv = ov.y[i];
+                    if (!Number.isFinite(xv) || !Number.isFinite(yv)) return null;
+                    const px = sx(xv), py = sy(yv);
+                    if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
+                    return <circle key={i} cx={px} cy={py} r={ov.size}
+                      fill={ov.color} stroke="var(--plot-frame)" strokeWidth="0.6" />;
+                  })}
+                </g>
+              );
+            }
+            if (ov.type === 'line') {
+              let d = '';
+              let started = false;
+              for (let i = 0; i < ov.x.length; i++) {
+                const xv = ov.x[i], yv = ov.y[i];
+                if (!Number.isFinite(xv) || !Number.isFinite(yv)) { started = false; continue; }
+                const px = sx(xv), py = sy(yv);
+                if (!Number.isFinite(px) || !Number.isFinite(py)) { started = false; continue; }
+                if (ov.stairs && started) {
+                  d += `L${px.toFixed(2)},${(sy(ov.y[i - 1])).toFixed(2)} `;
+                }
+                d += (started ? 'L' : 'M') + px.toFixed(2) + ',' + py.toFixed(2) + ' ';
+                started = true;
+              }
+              return <path key={`ov${idx}`} d={d} stroke={ov.color} fill="none"
+                strokeWidth={ov.width} opacity={ov.opacity ?? 1}
+                strokeLinejoin="round" strokeLinecap="round" />;
+            }
+            if (ov.type === 'stem') {
+              return (
+                <g key={`ov${idx}`}>
+                  {ov.x.map((xv, i) => {
+                    const yv = ov.y[i];
+                    if (!Number.isFinite(xv) || !Number.isFinite(yv)) return null;
+                    const px = sx(xv), py = sy(yv);
+                    const py0 = sy(yLogActive ? yMin : 0);
+                    if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
+                    return (
+                      <g key={i}>
+                        <line x1={px} x2={px} y1={py0} y2={py}
+                          stroke={ov.color} strokeWidth={ov.width * 0.7} />
+                        <circle cx={px} cy={py} r={2.5} fill={ov.color} />
+                      </g>
+                    );
+                  })}
+                </g>
+              );
+            }
+            if (ov.type === 'text') {
+              const px = sx(ov.x), py = sy(ov.y);
+              if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
+              return (
+                <text key={`ov${idx}`} x={px} y={py}
+                  fill={ov.color} fontSize={ov.fontSize * fontScale}
+                  className="hm-overlay-text"
+                  pointerEvents="none">{ov.text}</text>
+              );
+            }
+            return null;
+          })}
+        </g>
+      )}
+
       {/* Colorbar */}
       <rect x={cbarX} y={padT} width={cbarW} height={cbarH}
         fill={`url(#${cbarGradId})`}

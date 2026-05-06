@@ -633,6 +633,55 @@ void GraphicsLibrary::install(Engine &engine)
             outs[0] = Value::empty();
         });
 
+    // text(x, y, str, ...) — annotation overlay. Each call appends ONE
+    // text dataset (single-point) to the current axes. For arrays, the
+    // user iterates via for-loop in script. Trailing name-value pairs
+    // (Color, FontSize) parsed minimally — extra pairs are ignored.
+    //
+    // The IDE renders text overlays after the image / line layers so
+    // labels stay on top of imagesc / scatter.
+    reg("layout", "text",
+        [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            if (args.size() < 3) { outs[0] = Value::empty(); return; }
+            const Value &xv = args[0];
+            const Value &yv = args[1];
+            if (!xv.numel() || !yv.numel()) { outs[0] = Value::empty(); return; }
+            auto &fm = ctx.engine->figureManager();
+            // text() does NOT call prepareForPlot — it's an annotation,
+            // it should append to whatever's already there even without
+            // explicit `hold on`.
+            DatasetInfo ds;
+            ds.type = "text";
+            std::ostringstream xs, ys;
+            xs << "[" << xv.doubleData()[0] << "]";
+            ys << "[" << yv.doubleData()[0] << "]";
+            ds.xJson = xs.str();
+            ds.yJson = ys.str();
+            ds.label = argStr(args[2]);
+            // Parse trailing name-value pairs for color / fontsize.
+            // Pack into ds.style as a compact "color=#rrggbb;fontSize=N" string
+            // — IDE side knows to split it.
+            std::string extras;
+            for (size_t i = 3; i + 1 < args.size(); i += 2) {
+                std::string key = argStr(args[i]);
+                for (auto &c : key) c = std::tolower(c);
+                if (key == "color") {
+                    if (!extras.empty()) extras += ";";
+                    extras += "color=" + argStr(args[i + 1]);
+                } else if (key == "fontsize") {
+                    if (!extras.empty()) extras += ";";
+                    std::ostringstream fs;
+                    fs << "fontSize=" << args[i + 1].doubleData()[0];
+                    extras += fs.str();
+                }
+            }
+            ds.style = extras;
+            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
     reg("layout", "ylabel",
         [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             if (!args.empty()) {

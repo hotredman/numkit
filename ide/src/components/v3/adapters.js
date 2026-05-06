@@ -153,6 +153,84 @@ function flatten(fig) {
 }
 
 /**
+ * Pull overlay datasets (scatter / line / stem / text / bar) out of a
+ * heatmap-bearing axes. Used to render annotations on top of imagesc:
+ *
+ *   imagesc(t, freq, P)
+ *   hold on
+ *   scatter(t_peaks, f_peaks, 30, 'r')
+ *   text(t1, f1, 'peak A', 'Color', 'white')
+ *
+ * Returns an array of { type, x, y, color, width?, size?, text?, fontSize? }
+ * preserving original order (= z-order on render). The `imgDsIdx` argument
+ * is the index of the imagesc dataset to skip.
+ */
+function extractOverlays(datasets, imgDsIdx) {
+  const overlays = [];
+  for (let i = 0; i < datasets.length; i++) {
+    if (i === imgDsIdx) continue;
+    const d = datasets[i];
+    const t = (d.type || '').toLowerCase();
+    if (t === 'imagesc') continue;       // multiple imagesc in one axes — only first
+
+    const styleObj = typeof d.style === 'string' ? parseLineSpec(d.style)
+                   : (d.style || {});
+    const baseColor = styleObj.color || d.color || KIND_PALETTE[overlays.length % KIND_PALETTE.length];
+
+    if (t === 'text') {
+      // Engine packs name-value extras into ds.style as "key=val;key=val".
+      // Parse it on this side — easier than threading dedicated JSON fields.
+      const extras = {};
+      if (typeof d.style === 'string') {
+        for (const kv of d.style.split(';')) {
+          const [k, v] = kv.split('=');
+          if (k && v) extras[k.trim()] = v.trim();
+        }
+      }
+      overlays.push({
+        type: 'text',
+        x: Number(d.x?.[0] ?? 0),
+        y: Number(d.y?.[0] ?? 0),
+        text:  d.label || '',
+        color: extras.color || 'white',
+        fontSize: extras.fontSize ? Number(extras.fontSize) : 11,
+      });
+      continue;
+    }
+
+    const x = Array.isArray(d.x) ? d.x.map(Number) : [];
+    const y = Array.isArray(d.y) ? d.y.map(Number) : [];
+    if (t === 'scatter') {
+      overlays.push({
+        type: 'scatter',
+        x, y,
+        color: baseColor,
+        size: d.markerSize || styleObj.markerSize || 4,
+        label: d.label || '',
+      });
+    } else if (t === 'stem') {
+      overlays.push({
+        type: 'stem',
+        x, y,
+        color: baseColor,
+        width: d.lineWidth || styleObj.lineWidth || 1.2,
+      });
+    } else if (t === 'line' || t === 'plot' || t === 'stairs') {
+      overlays.push({
+        type: 'line',
+        x, y,
+        color: baseColor,
+        width: d.lineWidth || styleObj.lineWidth || 1.5,
+        opacity: d.style?.opacity ?? 1,
+        stairs: t === 'stairs',
+      });
+    }
+    // bar/hist over imagesc is unusual; skipping for now.
+  }
+  return overlays;
+}
+
+/**
  * Adapt one axes (datasets + config) into a renderable cell. Used both by
  * single-axes figures and by every cell of a subplot grid.
  *
@@ -160,10 +238,8 @@ function flatten(fig) {
  * subplots reuse the same fig.id across cells, so we suffix the cell.
  */
 function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
-  // Heatmap / imagesc — single z-matrix dataset.
-  // After Stage A the engine ships uint8 indices (0..254 + 255 NaN sentinel)
-  // plus quantization range (cminOrig/cmaxOrig). The IDE renders via a
-  // 256-entry LUT — no float→colour math in the hot path.
+  // Heatmap / imagesc — single z-matrix dataset, optionally with overlays
+  // (scatter / line / stem / text) accumulated via `hold on`.
   const imgDsIdx = datasets.findIndex((d) => (d.type || '').toLowerCase() === 'imagesc');
   const imgDs = imgDsIdx >= 0 ? datasets[imgDsIdx] : null;
   if (imgDs && imgDs.z) {
@@ -202,6 +278,11 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
       _figId: figId,
       _axIdx: axIdx,
       _dsIdx: imgDsIdx,
+      // Overlay layers — anything in this axes that isn't the imagesc itself.
+      // Renderer draws them after the image / tile, before the colorbar.
+      // Each layer carries its own (x,y) in DATA coords; the panel's sx/sy
+      // remap them on every render so they track pan/zoom + log axes.
+      overlays: extractOverlays(datasets, imgDsIdx),
     };
   }
 
