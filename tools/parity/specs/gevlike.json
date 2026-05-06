@@ -1,10 +1,15 @@
 {
   "name": "gevlike",
   "namespace": "stats",
-  "setup": "x = [1 2 3 4 5]';",
-  "expr": "nL = gevlike([0.5, 1, 0], x);",
+  "setup": "x = [1 2 3 4 5]'; oos = [-100; -1; 0];",
+  "expr": "[nL_kpos, ac] = gevlike([0.5, 1, 0], x); nL_k0 = gevlike([0, 1, 0], x); nL_oos = gevlike([0.5, 1, 0], oos); nL_sigbad = gevlike([0.5, -1, 0], x);",
   "iters": 5,
-  "tol": 1e-9,
-  "fingerprint": ["nL", "gevlike([0, 1, 0], x)"],
-  "comment": "Sig: nL = gevlike([k sigma mu], x). Generalised Extreme Value negative log-likelihood; closed form for k=0 (Gumbel-MAX limit) and k≠0."
+  "tol": 1e-6,
+  "fingerprint": [
+    "nL_kpos", "nL_k0",
+    "ac(1,1)", "ac(1,2)", "ac(1,3)",
+    "ac(2,2)", "ac(2,3)", "ac(3,3)",
+    "nL_oos", "nL_sigbad"
+  ],
+  "comment": "Sig: [nL, ACOV] = gevlike([k sigma mu], x). GEV NLL with Gumbel-MAX limit at k=0. ACOV is the 3×3 inverse observed-Fisher matrix at [k,sigma,mu], computed via central-difference Hessian (tol=1e-6 reflects FD precision). Edge: sigma<=0 or per-point support violation (1+k*z<=0) => NaN. Known gap: at exactly k=0 MATLAB uses an analytical Gumbel-limit Hessian that differs from FD straddling — numkit's FD reproduces the value of FD-on-MATLAB's-own-gevlike (~0.030, 0.098, -1.622), not MATLAB's reported analytical ACOV."
 }

@@ -20,4 +20,5 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/binofit_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gamlike_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/betalike_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/gevlike_test.cpp
 )

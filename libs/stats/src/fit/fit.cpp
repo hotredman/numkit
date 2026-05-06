@@ -418,7 +418,8 @@ double gevlike(std::pmr::memory_resource * /*mr*/, double k, double sigma,
                double mu, const Value &x)
 {
     const size_t N = x.numel();
-    if (N == 0 || sigma <= 0.0) return std::numeric_limits<double>::infinity();
+    if (N == 0) return std::numeric_limits<double>::infinity();
+    if (sigma <= 0.0) return std::numeric_limits<double>::quiet_NaN();
     if (k == 0.0) {
         double sZ = 0.0, sExp = 0.0;
         for (size_t i = 0; i < N; ++i) {
@@ -432,7 +433,7 @@ double gevlike(std::pmr::memory_resource * /*mr*/, double k, double sigma,
     for (size_t i = 0; i < N; ++i) {
         const double z = (x.elemAsDouble(i) - mu) / sigma;
         const double t = 1.0 + k * z;
-        if (t <= 0.0) return std::numeric_limits<double>::infinity();
+        if (t <= 0.0) return std::numeric_limits<double>::quiet_NaN();
         sLogT  += std::log(t);
         sTinvk += std::pow(t, -1.0 / k);
     }
@@ -615,6 +616,57 @@ static void fill_fd_avar2(double *p, double p0, double p1,
         p[2] = -I01 * inv;
         p[3] =  I00 * inv;
     }
+}
+
+// 3-parameter analogue of `fill_fd_avar2`. Fills a 3×3 column-major
+// inverse observed-Fisher matrix at `(p0, p1, p2)`. 18 nL evaluations.
+template <class Eval>
+static void fill_fd_avar3(double *p, double p0, double p1, double p2,
+                          double nL, Eval eval_nL)
+{
+    const double NaNd = std::numeric_limits<double>::quiet_NaN();
+    auto setNaN = [&]() {
+        for (int i = 0; i < 9; ++i) p[i] = NaNd;
+    };
+    if (!std::isfinite(nL)) { setNaN(); return; }
+
+    const double h0 = std::max(1e-4, 1e-4 * std::abs(p0));
+    const double h1 = std::max(1e-4, 1e-4 * std::abs(p1));
+    const double h2 = std::max(1e-4, 1e-4 * std::abs(p2));
+    auto e = [&](double q0, double q1, double q2) { return eval_nL(q0, q1, q2); };
+    // Diagonal entries.
+    const double H00 = (e(p0+h0,p1,p2) - 2.0*nL + e(p0-h0,p1,p2)) / (h0*h0);
+    const double H11 = (e(p0,p1+h1,p2) - 2.0*nL + e(p0,p1-h1,p2)) / (h1*h1);
+    const double H22 = (e(p0,p1,p2+h2) - 2.0*nL + e(p0,p1,p2-h2)) / (h2*h2);
+    // Off-diagonals via 4-point stencil.
+    auto cross = [&](int a, int b) {
+        double da[3] = {0.0, 0.0, 0.0}, db[3] = {0.0, 0.0, 0.0};
+        const double ha = (a == 0 ? h0 : (a == 1 ? h1 : h2));
+        const double hb = (b == 0 ? h0 : (b == 1 ? h1 : h2));
+        da[a] = ha; db[b] = hb;
+        const double pp = e(p0+da[0]+db[0], p1+da[1]+db[1], p2+da[2]+db[2]);
+        const double pm = e(p0+da[0]-db[0], p1+da[1]-db[1], p2+da[2]-db[2]);
+        const double mp = e(p0-da[0]+db[0], p1-da[1]+db[1], p2-da[2]+db[2]);
+        const double mm = e(p0-da[0]-db[0], p1-da[1]-db[1], p2-da[2]-db[2]);
+        return (pp - pm - mp + mm) / (4.0 * ha * hb);
+    };
+    const double H01 = cross(0, 1);
+    const double H02 = cross(0, 2);
+    const double H12 = cross(1, 2);
+    // 3×3 cofactor inversion. Symmetric: H10=H01, H20=H02, H21=H12.
+    const double C00 = H11*H22 - H12*H12;
+    const double C01 = -(H01*H22 - H12*H02);
+    const double C02 = H01*H12 - H11*H02;
+    const double C11 = H00*H22 - H02*H02;
+    const double C12 = -(H00*H12 - H01*H02);
+    const double C22 = H00*H11 - H01*H01;
+    const double det = H00 * C00 + H01 * C01 + H02 * C02;
+    if (det == 0.0 || !std::isfinite(det)) { setNaN(); return; }
+    const double inv = 1.0 / det;
+    // Column-major 3×3, parameter order [p0, p1, p2].
+    p[0] = C00 * inv; p[1] = C01 * inv; p[2] = C02 * inv;  // col 0
+    p[3] = C01 * inv; p[4] = C11 * inv; p[5] = C12 * inv;  // col 1
+    p[6] = C02 * inv; p[7] = C12 * inv; p[8] = C22 * inv;  // col 2
 }
 
 static void like2_reg(const char *fn,
@@ -818,17 +870,27 @@ void explike_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = Value::scalar(nL, ctx.engine->resource());
 }
 
-void gevlike_reg(Span<const Value> args, size_t /*nargout*/,
+void gevlike_reg(Span<const Value> args, size_t nargout,
                  Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2 || args[0].numel() < 3)
         throw Error("gevlike: requires (params=[k sigma mu], data)",
                     0, 0, "gevlike", "", "m:gevlike:nargin");
+    auto *mr = ctx.engine->resource();
     const double k     = args[0].elemAsDouble(0);
     const double sigma = args[0].elemAsDouble(1);
     const double mu    = args[0].elemAsDouble(2);
-    const double nL = gevlike(ctx.engine->resource(), k, sigma, mu, args[1]);
-    outs[0] = Value::scalar(nL, ctx.engine->resource());
+    const Value &x     = args[1];
+    const double nL = gevlike(mr, k, sigma, mu, x);
+    outs[0] = Value::scalar(nL, mr);
+    if (nargout >= 2) {
+        Value ac = Value::matrix(3, 3, ValueType::DOUBLE, mr);
+        fill_fd_avar3(ac.doubleDataMut(), k, sigma, mu, nL,
+                      [&](double kk, double ss, double mm) {
+                          return gevlike(mr, kk, ss, mm, x);
+                      });
+        outs[1] = std::move(ac);
+    }
 }
 
 void gplike_reg(Span<const Value> args, size_t /*nargout*/,

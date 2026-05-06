@@ -18,7 +18,6 @@ Status legend:
 | [findings/stats/evlike.md](findings/stats/evlike.md) | evlike | stats.fit | medium | medium | bfda361 |
 | [findings/stats/expfit.md](findings/stats/expfit.md) | expfit | stats.fit | medium | medium | bfda361 |
 | [findings/stats/explike.md](findings/stats/explike.md) | explike | stats.fit | medium | medium | bfda361 |
-| [findings/stats/gevlike.md](findings/stats/gevlike.md) | gevlike | stats.fit | medium | small | bfda361 |
 | [findings/stats/gplike.md](findings/stats/gplike.md) | gplike | stats.fit | medium | small | bfda361 |
 | [findings/stats/lognfit.md](findings/stats/lognfit.md) | lognfit | stats.fit | medium | medium | bfda361 |
 | [findings/stats/lognlike.md](findings/stats/lognlike.md) | lognlike | stats.fit | medium | medium | bfda361 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/normlike.md](closed/stats/normlike.md) | normlike | PENDING | 2026-05-06 |
 | [closed/stats/gamlike.md](closed/stats/gamlike.md) | gamlike | PENDING | 2026-05-06 |
 | [closed/stats/betalike.md](closed/stats/betalike.md) | betalike | PENDING | 2026-05-06 |
+| [closed/stats/gevlike.md](closed/stats/gevlike.md) | gevlike | PENDING (partial) | 2026-05-06 |
 
 ---
 
