@@ -16,7 +16,6 @@ gtest assertions against probe-captured values).
 
 | # | Namespace | Function | Notes |
 |---|---|---|---|
-| 16 | wavelet.dwt | `wrcoef` | single-band reconstruction (haar parity) |
 | 17 | stats.fit | `normlike` | upgrade: censoring + freq + edge cases |
 
 ## Closed
@@ -38,6 +37,7 @@ gtest assertions against probe-captured values).
 | `cgauwavf` | PENDING | libs/wavelet/tests/cgauwavf_test.cpp | libs/wavelet/tests/smoke/cgauwavf_smoke.m |
 | `haart` | PENDING | libs/wavelet/tests/haart_test.cpp | libs/wavelet/tests/smoke/haart_smoke.m |
 | `ihaart` | PENDING | libs/wavelet/tests/ihaart_test.cpp | libs/wavelet/tests/smoke/ihaart_smoke.m |
+| `wrcoef` | PENDING | libs/wavelet/tests/wrcoef_test.cpp | libs/wavelet/tests/smoke/wrcoef_smoke.m |
 
 ---
 

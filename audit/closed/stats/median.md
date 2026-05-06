@@ -81,3 +81,8 @@ contracts; numkit matches none.
 
 - The `mediano f differences` form for paired data (n/a — that's
   a different test, e.g. `signrank`).
+
+## Closed (partial)
+- Closed in commit: PENDING
+- Closed date: 2026-05-06
+- Notes: Three fixes: (1) medianFromSlice now poisons NaN by default (was returning omitnan-equivalent silently), matching MATLAB R2025b documented default; (2) adapter accepts STRING-type 'all' (was CHAR-only); (3) full-flatten vecdim dispatch added. Weights name-value (R2023b+) deferred — needs weighted-median kernel.

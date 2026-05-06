@@ -228,13 +228,15 @@ double medianFromSlice(double *data, size_t n)
 {
     if (n == 0) return std::nan("");
     if (n == 1) return data[0];
+    // MATLAB R2025b default: NaN poisons (median(v) where v has NaN
+    // returns NaN; 'omitnan' is opt-in via the explicit nanflag, which
+    // routes to nanmedian instead of this kernel).
+    for (size_t i = 0; i < n; ++i)
+        if (std::isnan(data[i])) return std::nan("");
     const size_t mid = n / 2;
     std::nth_element(data, data + mid, data + n);
     if (n % 2 == 1)
         return data[mid];
-    // Even count: average of the two middles. The "lower middle" is
-    // max(data[0..mid-1]) after partial sort: nth_element guarantees
-    // data[0..mid-1] all <= data[mid]; we need the largest of those.
     const double upper = data[mid];
     const double lower = *std::max_element(data, data + mid);
     return 0.5 * (lower + upper);
@@ -1178,15 +1180,33 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     bool isAll = false;
     if (n >= 2 && !args[1].isEmpty()) {
         const Value &a = args[1];
-        if (a.type() == ValueType::CHAR) {
+        if (a.isChar() || a.isString()) {
             std::string s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
                            [](unsigned char c) { return std::tolower(c); });
             if (s == "all") isAll = true;
             else throw Error("median: unknown flag '" + s + "'",
                               0, 0, "median", "", "m:median:badFlag");
-        } else {
+        } else if (a.numel() == 1) {
             dim = static_cast<int>(a.toScalar());
+        } else {
+            // vecdim — full-flatten only
+            const int rank = args[0].dims().is3D() ? 3
+                              : (args[0].dims().isVector() || args[0].isScalar() ? 1 : 2);
+            std::vector<bool> seen(rank + 1, false);
+            for (size_t i = 0; i < a.numel(); ++i) {
+                int d = static_cast<int>(a.elemAsDouble(i));
+                if (d < 1 || d > rank)
+                    throw Error("median: vecdim entries out of range",
+                                0, 0, "median", "", "m:median:vecdim");
+                seen[d] = true;
+            }
+            bool allCovered = true;
+            for (int d = 1; d <= rank; ++d) if (!seen[d]) allCovered = false;
+            if (!allCovered)
+                throw Error("median: partial vecdim reduction not supported",
+                            0, 0, "median", "", "m:median:vecdim");
+            isAll = true;
         }
     }
     if (isAll) {

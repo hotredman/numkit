@@ -35,7 +35,6 @@ Status legend:
 | [findings/stats/jbtest.md](findings/stats/jbtest.md) | jbtest | stats.test | medium | medium | 69fab7c |
 | [findings/stats/kruskalwallis.md](findings/stats/kruskalwallis.md) | kruskalwallis | stats.test | medium | medium | 69fab7c |
 | [findings/stats/vartestn.md](findings/stats/vartestn.md) | vartestn | stats.test | medium | medium | 69fab7c |
-| [findings/stats/median.md](findings/stats/median.md) | median | stats.descriptive | high | medium | ba142e6 |
 | [findings/wavelet/dwt.md](findings/wavelet/dwt.md) | dwt | wavelet.dwt | critical | large | 0e895fe |
 | [findings/wavelet/idwt.md](findings/wavelet/idwt.md) | idwt | wavelet.dwt | critical | large | 0e895fe |
 | [findings/wavelet/wavedec.md](findings/wavelet/wavedec.md) | wavedec | wavelet.dwt | critical | medium | 0e895fe |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/maxk.md](closed/stats/maxk.md) | maxk | PENDING (partial) | 2026-05-06 |
 | [closed/stats/mink.md](closed/stats/mink.md) | mink | PENDING (partial) | 2026-05-06 |
 | [closed/stats/runstest.md](closed/stats/runstest.md) | runstest | PENDING (partial) | 2026-05-06 |
+| [closed/stats/median.md](closed/stats/median.md) | median | PENDING (partial) | 2026-05-06 |
 
 ---
 
