@@ -107,3 +107,17 @@ export function exportPngNode(svgEl, w, h, scale, name) {
   };
   img.src = url;
 }
+
+/**
+ * Print-ready PNG export. `mmWidth` is the physical width of the figure on
+ * paper, `dpi` the dot density (300 is the de-facto standard for journals).
+ * Height auto-derives from the on-screen aspect ratio so the data isn't
+ * stretched. Filename is suffixed with `_<mm>mm` for traceability.
+ */
+export function exportPngForPrint(svgEl, w, h, mmWidth, dpi, baseName) {
+  if (!svgEl) return;
+  const targetPx = (mmWidth / 25.4) * dpi;
+  const scale = targetPx / w;
+  const safeBase = baseName.replace(/\.png$/i, '');
+  exportPngNode(svgEl, w, h, scale, `${safeBase}_${mmWidth}mm.png`);
+}

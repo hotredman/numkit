@@ -17,7 +17,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ContextMenu from './ContextMenu';
-import { exportSvgNode, exportPngNode } from './plotUtils';
+import { exportSvgNode, exportPngNode, exportPngForPrint } from './plotUtils';
 
 const PALETTE = ['#7fd99a', '#5fb3d4', '#e9b870', '#9b8cf2', '#e26a6a',
                  '#d4a5e6', '#f2a37e', '#6fcfbf'];
@@ -181,10 +181,17 @@ export default function PolarPlot({
       onClick: () => setViewport && setViewport(defaultPolarViewport(figure)),
       disabled: !setViewport,
     },
-    { label: 'Save as SVG',
+    { label: 'Save as SVG (vector)',
       onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
-    { label: 'Save as PNG @2×',
+    { label: 'Save as PNG (screen 2×)',
       onClick: () => exportPngNode(svgRef.current, width, height, 2, `figure_${figure.id}.png`) },
+    { head: 'Save for print (300 DPI)' },
+    { label: 'PNG · 1 column (85 mm)',
+      onClick: () => exportPngForPrint(svgRef.current, width, height, 85, 300, `figure_${figure.id}`) },
+    { label: 'PNG · 2 columns (170 mm)',
+      onClick: () => exportPngForPrint(svgRef.current, width, height, 170, 300, `figure_${figure.id}`) },
+    { label: 'PNG · A4 width (210 mm)',
+      onClick: () => exportPngForPrint(svgRef.current, width, height, 210, 300, `figure_${figure.id}`) },
     { separator: true },
     { head: 'Fit all curves' },
     { label: 'Fit r-range',
