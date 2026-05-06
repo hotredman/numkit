@@ -17,4 +17,5 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/median_extras_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/kruskalwallis_extras_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/normlike_upgrade_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/binofit_test.cpp
 )
