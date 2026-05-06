@@ -2552,7 +2552,7 @@ intentionally omitted — flat solver functions only.
 | `fwht` | ❌ |  |  |  |  | fast Walsh-Hadamard |
 | `goertzel` | ✅ | 0.066 | 2.56× |  | OK | Sig: Y = goertzel(X, F). 41 freq bins. 100 iters. |
 | `hht` | ❌ |  |  |  |  | Hilbert-Huang |
-| `hilbert` | ✅ | 0.020 | 3.65× | 12.54× | OK | Sig: H = hilbert(X). Analytic signal real part. 1000 iters. |
+| `hilbert` | ✅ | 0.004 | 179.00× | 26.58× | OK | Sig: H = hilbert(X). Analytic signal: real(H)=X, imag(H)=+H{X}. MATLAB R2025b sign convention: positive frequencies multiplied by +i. After fix in libs/signal/src/transforms/hilbert.cpp (added trailing conjugation to compensate for numkit's IFFT-direction FFT primitive). Closes audit/findings/signal/hilbert.md. |
 | `icceps` | ✅ | 0.034 | 2.11× |  | OK | Sig: Y = icceps(C). Inverse complex cepstrum. 100 iters. |
 | `idct` | ✅ | 3.917 | 0.02× | 0.03× | OK | Sig: y = idct(X). Inverse DCT 1024-pt. 1000 iters. |
 | `ifsst` | ❌ |  |  |  |  |  |

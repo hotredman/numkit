@@ -12,4 +12,5 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/dyaddown_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dyadup_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wmaxlev_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/wkeep_test.cpp
 )

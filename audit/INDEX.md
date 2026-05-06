@@ -114,7 +114,6 @@ Status legend:
 | [findings/stats/gaminv.md](findings/stats/gaminv.md) | gaminv | stats.dist | low | small | 301e5a5 |
 | [findings/stats/gamstat.md](findings/stats/gamstat.md) | gamstat | stats.dist | low | small | 301e5a5 |
 | [findings/signal/fftshift.md](findings/signal/fftshift.md) | fftshift | core (builtin) | critical | small | 9bce106 |
-| [findings/signal/hilbert.md](findings/signal/hilbert.md) | hilbert | signal.transforms | critical | small | 9bce106 |
 | [findings/signal/ifftshift.md](findings/signal/ifftshift.md) | ifftshift | core (builtin) | critical | small | 9bce106 |
 | [findings/signal/envelope.md](findings/signal/envelope.md) | envelope | signal.transforms | critical | medium | 9bce106 |
 | [findings/signal/dct.md](findings/signal/dct.md) | dct | signal.transforms | high | medium | 9bce106 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/signal/bohmanwin.md](closed/signal/bohmanwin.md) | bohmanwin | PENDING | 2026-05-06 |
 | [closed/signal/barthannwin.md](closed/signal/barthannwin.md) | barthannwin | PENDING | 2026-05-06 |
 | [closed/signal/rectwin.md](closed/signal/rectwin.md) | rectwin | PENDING | 2026-05-06 |
+| [closed/signal/hilbert.md](closed/signal/hilbert.md) | hilbert | PENDING | 2026-05-06 |
 
 ---
 
