@@ -37,8 +37,6 @@ Status legend:
 | [findings/stats/runstest.md](findings/stats/runstest.md) | runstest | stats.test | high | medium | 69fab7c |
 | [findings/stats/vartestn.md](findings/stats/vartestn.md) | vartestn | stats.test | medium | medium | 69fab7c |
 | [findings/stats/median.md](findings/stats/median.md) | median | stats.descriptive | high | medium | ba142e6 |
-| [findings/stats/maxk.md](findings/stats/maxk.md) | maxk | stats.descriptive | medium | small | ba142e6 |
-| [findings/stats/mink.md](findings/stats/mink.md) | mink | stats.descriptive | medium | small | ba142e6 |
 | [findings/wavelet/dwt.md](findings/wavelet/dwt.md) | dwt | wavelet.dwt | critical | large | 0e895fe |
 | [findings/wavelet/idwt.md](findings/wavelet/idwt.md) | idwt | wavelet.dwt | critical | large | 0e895fe |
 | [findings/wavelet/wavedec.md](findings/wavelet/wavedec.md) | wavedec | wavelet.dwt | critical | medium | 0e895fe |
@@ -225,6 +223,8 @@ Status legend:
 | [closed/stats/cummin.md](closed/stats/cummin.md) | cummin | PENDING | 2026-05-06 |
 | [closed/stats/rmse.md](closed/stats/rmse.md) | rmse | PENDING (partial) | 2026-05-06 |
 | [closed/stats/mape.md](closed/stats/mape.md) | mape | PENDING (partial) | 2026-05-06 |
+| [closed/stats/maxk.md](closed/stats/maxk.md) | maxk | PENDING (partial) | 2026-05-06 |
+| [closed/stats/mink.md](closed/stats/mink.md) | mink | PENDING (partial) | 2026-05-06 |
 
 ---
 
