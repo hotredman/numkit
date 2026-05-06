@@ -640,6 +640,158 @@ function InlinePlot({ data, rows, cols, onClose }) {
 }
 
 /* ======================================================================== */
+/* Virtualised Variable Editor table                                        */
+/* ======================================================================== */
+//
+// Renders only the cells currently visible in the scroll viewport. With a
+// 512×512 matrix that drops the live DOM-cell count from 262144 to ~30×10
+// regardless of total size, which is the difference between an unusable
+// editor and instant precision-slider response.
+//
+// Sizing is fixed per cell (ROW_H × COL_W) so we can compute the visible
+// window from scroll offsets alone — no per-row measurement needed. Spacer
+// rows (top/bottom) and spacer cells (left/right) preserve the natural
+// scroll height/width so the browser's native scrollbar still tracks the
+// full extent.
+
+const ROW_H    = 22;     // matches CSS .ve-table tbody td natural height
+const COL_W    = 88;     // matches CSS min-width: 88px
+const HEADER_H = 26;     // sticky thead row height
+const CORNER_W = 60;     // corner cell + row-head width
+const OVERSCAN = 6;      // extra rows/cols above/below to make scroll look continuous
+
+function VirtualTable({
+  tableRef, rows, cols, data,
+  activeCell, setActiveCell,
+  editing, setEditing, editVal, setEditVal, commitEdit, inputRef,
+  heatmap, stats, format,
+}) {
+  const [scroll, setScroll] = useState({ top: 0, left: 0, viewW: 800, viewH: 400 });
+
+  // Scroll + resize listeners on the wrap. ResizeObserver catches both modal
+  // resize and the inline-plot toggle that shrinks the table area.
+  useEffect(() => {
+    const wrap = tableRef.current;
+    if (!wrap) return;
+    let raf = 0;
+    const update = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        setScroll({
+          top:   wrap.scrollTop,
+          left:  wrap.scrollLeft,
+          viewW: wrap.clientWidth,
+          viewH: wrap.clientHeight,
+        });
+      });
+    };
+    update();
+    wrap.addEventListener('scroll', update, { passive: true });
+    const ro = (typeof ResizeObserver !== 'undefined') ? new ResizeObserver(update) : null;
+    ro?.observe(wrap);
+    return () => {
+      cancelAnimationFrame(raf);
+      wrap.removeEventListener('scroll', update);
+      ro?.disconnect();
+    };
+  }, [tableRef]);
+
+  // Compute visible row/col window. Below 200 rows / 200 cols just render
+  // everything — the virtualisation overhead isn't worth it.
+  const fullRender = rows < 200 && cols < 200;
+
+  const firstRow = fullRender ? 0
+    : Math.max(0, Math.floor(scroll.top / ROW_H) - OVERSCAN);
+  const lastRow  = fullRender ? rows - 1
+    : Math.min(rows - 1, Math.ceil((scroll.top + scroll.viewH) / ROW_H) + OVERSCAN);
+
+  const colScrollLeft = Math.max(0, scroll.left - CORNER_W);
+  const firstCol = fullRender ? 0
+    : Math.max(0, Math.floor(colScrollLeft / COL_W) - OVERSCAN);
+  const lastCol  = fullRender ? cols - 1
+    : Math.min(cols - 1, Math.ceil((colScrollLeft + scroll.viewW) / COL_W) + OVERSCAN);
+
+  const topPadH    = firstRow * ROW_H;
+  const bottomPadH = (rows - 1 - lastRow) * ROW_H;
+  const leftPadW   = firstCol * COL_W;
+  const rightPadW  = (cols - 1 - lastCol) * COL_W;
+
+  const visibleRows = [];
+  for (let r = firstRow; r <= lastRow; r++) visibleRows.push(r);
+  const visibleCols = [];
+  for (let c = firstCol; c <= lastCol; c++) visibleCols.push(c);
+
+  return (
+    <div className="ve-table-wrap" ref={tableRef}>
+      <table className="ve-table">
+        <thead>
+          <tr>
+            <th className="ve-corner">{rows}×{cols}</th>
+            {leftPadW > 0 && <th aria-hidden="true" style={{ minWidth: leftPadW, padding: 0, border: 'none' }} />}
+            {visibleCols.map((c) => (
+              <th key={c} className={c === activeCell.c ? 'is-active' : ''}
+                style={{ minWidth: COL_W }}>{c + 1}</th>
+            ))}
+            {rightPadW > 0 && <th aria-hidden="true" style={{ minWidth: rightPadW, padding: 0, border: 'none' }} />}
+          </tr>
+        </thead>
+        <tbody>
+          {topPadH > 0 && (
+            <tr aria-hidden="true" style={{ height: topPadH }}>
+              <td colSpan={visibleCols.length + 3} style={{ padding: 0, border: 'none' }} />
+            </tr>
+          )}
+          {visibleRows.map((r) => (
+            <tr key={r} style={{ height: ROW_H }}>
+              <th className={`ve-rowhead ${r === activeCell.r ? 'is-active' : ''}`}>{r + 1}</th>
+              {leftPadW > 0 && <td aria-hidden="true" style={{ minWidth: leftPadW, padding: 0, border: 'none' }} />}
+              {visibleCols.map((c) => {
+                const v = data[r]?.[c];
+                const isActive  = activeCell.r === r && activeCell.c === c;
+                const isEditing = editing && editing.r === r && editing.c === c;
+                const bg = (heatmap && stats && typeof v === 'number')
+                  ? heatColor(v, stats.min, stats.max) : undefined;
+                return (
+                  <td
+                    key={c}
+                    className={isActive ? 'is-active' : ''}
+                    style={{ background: bg, minWidth: COL_W }}
+                    onClick={() => setActiveCell({ r, c })}
+                    onDoubleClick={() => {
+                      setActiveCell({ r, c });
+                      setEditing({ r, c });
+                      setEditVal(typeof v === 'number' ? String(v) : '');
+                    }}
+                  >
+                    {isEditing ? (
+                      <input
+                        ref={inputRef}
+                        value={editVal}
+                        onChange={(e) => setEditVal(e.target.value)}
+                        onBlur={commitEdit}
+                        className="ve-cell-input"
+                      />
+                    ) : (
+                      <span className={typeof v !== 'number' ? 've-string' : ''}>{format(v)}</span>
+                    )}
+                  </td>
+                );
+              })}
+              {rightPadW > 0 && <td aria-hidden="true" style={{ minWidth: rightPadW, padding: 0, border: 'none' }} />}
+            </tr>
+          ))}
+          {bottomPadH > 0 && (
+            <tr aria-hidden="true" style={{ height: bottomPadH }}>
+              <td colSpan={visibleCols.length + 3} style={{ padding: 0, border: 'none' }} />
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/* ======================================================================== */
 /* Variable Editor — modal table with notation/precision/heatmap/plot       */
 /* ======================================================================== */
 export function VariableEditor({ variable, onClose, engine }) {
@@ -897,56 +1049,19 @@ export function VariableEditor({ variable, onClose, engine }) {
         </div>
 
         <div className={`ve-body ${showPlot ? 'has-plot' : ''}`}>
-          <div className="ve-table-wrap" ref={tableRef}>
-            <table className="ve-table">
-              <thead>
-                <tr>
-                  <th className="ve-corner">{rows}×{cols}</th>
-                  {Array.from({ length: cols }, (_, c) => (
-                    <th key={c} className={c === activeCell.c ? 'is-active' : ''}>{c + 1}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((row, r) => (
-                  <tr key={r}>
-                    <th className={`ve-rowhead ${r === activeCell.r ? 'is-active' : ''}`}>{r + 1}</th>
-                    {row.map((v, c) => {
-                      const isActive  = activeCell.r === r && activeCell.c === c;
-                      const isEditing = editing && editing.r === r && editing.c === c;
-                      const bg = (heatmap && stats && typeof v === 'number')
-                        ? heatColor(v, stats.min, stats.max) : undefined;
-                      return (
-                        <td
-                          key={c}
-                          className={isActive ? 'is-active' : ''}
-                          style={{ background: bg }}
-                          onClick={() => setActiveCell({ r, c })}
-                          onDoubleClick={() => {
-                            setActiveCell({ r, c });
-                            setEditing({ r, c });
-                            setEditVal(typeof v === 'number' ? String(v) : '');
-                          }}
-                        >
-                          {isEditing ? (
-                            <input
-                              ref={inputRef}
-                              value={editVal}
-                              onChange={(e) => setEditVal(e.target.value)}
-                              onBlur={commitEdit}
-                              className="ve-cell-input"
-                            />
-                          ) : (
-                            <span className={typeof v !== 'number' ? 've-string' : ''}>{format(v)}</span>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <VirtualTable
+            tableRef={tableRef}
+            rows={rows} cols={cols}
+            data={data}
+            activeCell={activeCell}
+            setActiveCell={setActiveCell}
+            editing={editing} setEditing={setEditing}
+            editVal={editVal} setEditVal={setEditVal}
+            commitEdit={commitEdit}
+            inputRef={inputRef}
+            heatmap={heatmap} stats={stats}
+            format={format}
+          />
           {showPlot && (
             <InlinePlot
               data={data}
