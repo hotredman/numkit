@@ -1,10 +1,15 @@
 {
   "name": "gplike",
   "namespace": "stats",
-  "setup": "x = [1 2 3 4 5]';",
-  "expr": "nL = gplike([0.5, 1], x);",
+  "setup": "x = [1 2 3 4 5]'; xneg = [-1 1 2]';",
+  "expr": "[nL_kpos, ac_kpos] = gplike([0.5, 1], x); [nL_k0, ac_k0] = gplike([0, 1], x); nL_xneg = gplike([0.5, 1], xneg); nL_oos = gplike([-1, 1], 10); nL_sigbad = gplike([0.5, -1], x);",
   "iters": 5,
-  "tol": 1e-9,
-  "fingerprint": ["nL", "gplike([0, 1], x)"],
-  "comment": "Sig: nL = gplike([k sigma], x). Generalised Pareto nLogL; theta is implicitly 0."
+  "tol": 1e-5,
+  "fingerprint": [
+    "nL_kpos", "nL_k0",
+    "ac_kpos(1,1)", "ac_kpos(1,2)", "ac_kpos(2,2)",
+    "ac_k0(1,1)",   "ac_k0(2,2)",
+    "nL_xneg", "nL_oos", "nL_sigbad"
+  ],
+  "comment": "Sig: [nL, acov] = gplike([k sigma], x). GP NLL with implicit theta=0. acov is the 2×2 inverse observed-Fisher matrix at [k, sigma], computed via central-difference Hessian (tol=1e-5 reflects FD precision; k=0 stride is the worst case at ~2e-6). Edges: sigma<=0 or per-point support violation (1+k*x/sigma<=0) => NaN. MATLAB does NOT enforce x>=0 globally — only the per-point support check; numkit matches (e.g. gplike([0.5,1], [-1 1 2]') returns 1.2163...)."
 }
