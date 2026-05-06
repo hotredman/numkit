@@ -403,7 +403,10 @@ export default function Heatmap({
       if (!buf) { setTileOverlay(null); return; }
 
       const dataURL = renderHeatmapDataURLFromFlat(buf, H, W, lut);
-      setTileOverlay({ dataURL });
+      // Remember the source-rect this tile covers — when the viewport
+      // changes during the next debounce window the tile is repositioned
+      // so the image tracks the gridlines instead of lagging behind.
+      setTileOverlay({ dataURL, srcR0, srcC0, srcH, srcW, xLog: xLogActive, yLog: yLogActive });
     }, 100);
 
     return () => clearTimeout(handle);
@@ -477,21 +480,49 @@ export default function Heatmap({
 
       {/* Heatmap image — base preview (the inline-JSON uint8 grid) is drawn
           stretched across the data extent. The display-tile overlay, when
-          present, fills the plot area at panel-pixel resolution with log/
-          linear axes already applied — so it always matches what the axes
-          ticks claim, including under log y or log x. */}
+          present, sits on top at panel-pixel resolution with log/linear
+          axes already applied. To keep the tile in sync with the gridlines
+          during pan/zoom (between debounced refetches), it's positioned by
+          mapping its remembered source-rect through the CURRENT sx/sy.
+          The tile thus tracks the data as the viewport changes; the
+          inline preview shows through any uncovered margin. */}
       {dataURL && (
         <g clipPath={`url(#${clipId})`}>
           <image href={dataURL}
             x={imgX} y={imgY} width={imgW} height={imgH}
             preserveAspectRatio="none"
             imageRendering="pixelated" />
-          {tileOverlay && tileOverlay.dataURL && (
-            <image href={tileOverlay.dataURL}
-              x={padL} y={padT} width={W} height={H}
-              preserveAspectRatio="none"
-              imageRendering="pixelated" />
-          )}
+          {tileOverlay && tileOverlay.dataURL
+            && tileOverlay.xLog === xLogActive
+            && tileOverlay.yLog === yLogActive
+            && (() => {
+            // Map the tile's source-rect (in cell coords) back through the
+            // figure's data extent, then through current sx/sy. yRange[1]
+            // is at the top (row 0), so the tile's r0 maps to the top edge.
+            const fullCols = figure.originalCols || 1;
+            const fullRows = figure.originalRows || 1;
+            const xExt = figure.xRange[1] - figure.xRange[0];
+            const yExt = figure.yRange[1] - figure.yRange[0];
+            const tx0 = figure.xRange[0] + (tileOverlay.srcC0                  / fullCols) * xExt;
+            const tx1 = figure.xRange[0] + ((tileOverlay.srcC0 + tileOverlay.srcW) / fullCols) * xExt;
+            const ty0 = figure.yRange[1] - (tileOverlay.srcR0                  / fullRows) * yExt;
+            const ty1 = figure.yRange[1] - ((tileOverlay.srcR0 + tileOverlay.srcH) / fullRows) * yExt;
+            const sx0 = sx(tx0);
+            const sx1 = sx(tx1);
+            const sy0 = sy(ty0);
+            const sy1 = sy(ty1);
+            const ox = Math.min(sx0, sx1);
+            const oy = Math.min(sy0, sy1);
+            const ow = Math.abs(sx1 - sx0);
+            const oh = Math.abs(sy1 - sy0);
+            if (!Number.isFinite(ow) || !Number.isFinite(oh) || ow <= 0 || oh <= 0) return null;
+            return (
+              <image href={tileOverlay.dataURL}
+                x={ox} y={oy} width={ow} height={oh}
+                preserveAspectRatio="none"
+                imageRendering="pixelated" />
+            );
+          })()}
         </g>
       )}
 
