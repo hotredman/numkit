@@ -33,7 +33,6 @@ Status legend:
 | [findings/stats/unifit.md](findings/stats/unifit.md) | unifit | stats.fit | low | small | bfda361 |
 | [findings/stats/chi2gof.md](findings/stats/chi2gof.md) | chi2gof | stats.test | medium | large | 69fab7c |
 | [findings/stats/jbtest.md](findings/stats/jbtest.md) | jbtest | stats.test | medium | medium | 69fab7c |
-| [findings/stats/kruskalwallis.md](findings/stats/kruskalwallis.md) | kruskalwallis | stats.test | medium | medium | 69fab7c |
 | [findings/stats/vartestn.md](findings/stats/vartestn.md) | vartestn | stats.test | medium | medium | 69fab7c |
 | [findings/wavelet/dwt.md](findings/wavelet/dwt.md) | dwt | wavelet.dwt | critical | large | 0e895fe |
 | [findings/wavelet/idwt.md](findings/wavelet/idwt.md) | idwt | wavelet.dwt | critical | large | 0e895fe |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/mink.md](closed/stats/mink.md) | mink | PENDING (partial) | 2026-05-06 |
 | [closed/stats/runstest.md](closed/stats/runstest.md) | runstest | PENDING (partial) | 2026-05-06 |
 | [closed/stats/median.md](closed/stats/median.md) | median | PENDING (partial) | 2026-05-06 |
+| [closed/stats/kruskalwallis.md](closed/stats/kruskalwallis.md) | kruskalwallis | PENDING | 2026-05-06 |
 
 ---
 
