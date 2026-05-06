@@ -57,3 +57,8 @@ Spec extension same as `cummax.md` but with min semantics.
 ## Out of scope for this ТЗ
 
 - `[M, I] = cummin(...)` 2-output index form — not documented.
+
+## Closed
+- Closed in commit: PENDING (joint cummax/cummin fix)
+- Closed date: 2026-05-06
+- Notes: Adapter rewritten with parseCumDirNan helper. Supports positional 'forward' (default) / 'reverse' direction and 'omitnan' (default) / 'includenan' nanflag in any combination after optional dim. Implementation tricks: 'reverse' = flip + cum + flip (universal); 'includenan' = post-pass propagateNanFromSrc using NaN positions in the input. Verified vs MATLAB R2025b on 8 fingerprints (gtest).

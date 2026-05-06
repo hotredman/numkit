@@ -12,6 +12,8 @@
 #include "language/operators/backends/binary_ops_loops.hpp"
 #include "math/arithmetic/cumsum.hpp"
 
+#include <numkit/builtin/language/arrays/manip.hpp>     // flip()
+
 #include <algorithm>
 #include <cmath>
 #include <complex>
@@ -2166,8 +2168,129 @@ void cumsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     }
 
 NK_CUM_REG(cumprod)
-NK_CUM_REG(cummax)
-NK_CUM_REG(cummin)
+
+// MATLAB cummax / cummin accept positional 'reverse' / 'omitnan' /
+// 'includenan' string flags after the optional dim. Trick: 'reverse'
+// = flip + cum + flip; 'includenan' propagation requires a second pass
+// that fills NaN forward from the first NaN onwards (since the cum*
+// kernel itself already skips NaN per omitnan default).
+namespace {
+
+void parseCumDirNan(Span<const Value> args, size_t start,
+                    int &dim, bool &reverse, bool &include_nan)
+{
+    dim = 0;
+    reverse = false;
+    include_nan = false;        // matches numkit default = MATLAB default
+    size_t i = start;
+    if (i < args.size() && !args[i].isChar() && !args[i].isString()
+        && !args[i].isEmpty()) {
+        dim = static_cast<int>(args[i].toScalar()); ++i;
+    }
+    while (i < args.size()) {
+        if (!(args[i].isChar() || args[i].isString())) {
+            throw Error("cummax/cummin: trailing positional must be a string flag",
+                        0, 0, "cummax/cummin", "", "m:cum:badArg");
+        }
+        std::string s = args[i].toString();
+        for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if      (s == "reverse")    reverse = true;
+        else if (s == "forward")    reverse = false;
+        else if (s == "omitnan")    include_nan = false;
+        else if (s == "includenan") include_nan = true;
+        else
+            throw Error("cummax/cummin: unknown flag '" + s + "'",
+                        0, 0, "cummax/cummin", "", "m:cum:flag");
+        ++i;
+    }
+}
+
+// Propagate NaN forward in `out` based on the NaN positions in the
+// (already same-shape) `src` input. Used to implement 'includenan'
+// for cummax/cummin: once a NaN is hit in src along the operating
+// dim, every subsequent output entry is set to NaN.
+void propagateNanFromSrc(Value &out, const Value &src, int dim1Based)
+{
+    const auto &dd = out.dims();
+    const int nd = dd.ndim();
+    const int d = dim1Based;
+    if (d < 1 || d > nd) return;
+    size_t inner = 1;
+    for (int i = 0; i < d - 1; ++i) inner *= dd.dim(i);
+    size_t outer = 1;
+    for (int i = d; i < nd; ++i) outer *= dd.dim(i);
+    const size_t L = dd.dim(d - 1);
+    double *o = out.doubleDataMut();
+    const double *s = src.doubleData();
+    for (size_t oc = 0; oc < outer; ++oc)
+        for (size_t b = 0; b < inner; ++b) {
+            const size_t base = oc * inner * L + b;
+            bool seenNaN = false;
+            for (size_t k = 0; k < L; ++k) {
+                if (!seenNaN && std::isnan(s[base + k * inner]))
+                    seenNaN = true;
+                if (seenNaN)
+                    o[base + k * inner] = std::numeric_limits<double>::quiet_NaN();
+            }
+        }
+}
+
+template <typename Fn>
+Value runCumWithFlags(std::pmr::memory_resource *mr, const Value &x,
+                      Span<const Value> args, Fn impl)
+{
+    int dim; bool reverse; bool include_nan;
+    parseCumDirNan(args, 1, dim, reverse, include_nan);
+    Value src = x;
+    if (reverse) src = flip(mr, src, dim);
+    Value out = (dim > 0) ? impl(mr, src, dim) : impl(mr, src, 0);
+    if (include_nan) {
+        // Determine effective dim (firstNonSingleton when dim=0).
+        int effDim = dim;
+        if (effDim <= 0) {
+            const auto &dd = out.dims();
+            effDim = 1;
+            for (int k = 0; k < dd.ndim(); ++k)
+                if (dd.dim(k) > 1) { effDim = k + 1; break; }
+        }
+        propagateNanFromSrc(out, src, effDim);
+    }
+    if (reverse) {
+        int effDim = dim;
+        if (effDim <= 0) {
+            const auto &dd = out.dims();
+            effDim = 1;
+            for (int k = 0; k < dd.ndim(); ++k)
+                if (dd.dim(k) > 1) { effDim = k + 1; break; }
+        }
+        out = flip(mr, out, effDim);
+    }
+    return out;
+}
+
+} // anonymous
+
+void cummax_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("cummax: requires at least 1 argument",
+                     0, 0, "cummax", "", "m:cummax:nargin");
+    outs[0] = runCumWithFlags(ctx.engine->resource(), args[0], args,
+                              [](std::pmr::memory_resource *mr, const Value &v, int d) {
+                                  return cummax(mr, v, d);
+                              });
+}
+
+void cummin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("cummin: requires at least 1 argument",
+                     0, 0, "cummin", "", "m:cummin:nargin");
+    outs[0] = runCumWithFlags(ctx.engine->resource(), args[0], args,
+                              [](std::pmr::memory_resource *mr, const Value &v, int d) {
+                                  return cummin(mr, v, d);
+                              });
+}
 
 void diff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {

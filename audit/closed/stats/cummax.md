@@ -89,3 +89,8 @@ Inputs: `A = [1 3 2 5 4 6 NaN 8 7 10]'`
 - The 1-output-only API: MATLAB's `[M, I] = cummax(...)` 2-output
   form returning indices doesn't appear in the help — numkit can
   stay 1-output.
+
+## Closed
+- Closed in commit: PENDING (joint cummax/cummin fix)
+- Closed date: 2026-05-06
+- Notes: Adapter rewritten with parseCumDirNan helper. Supports positional 'forward' (default) / 'reverse' direction and 'omitnan' (default) / 'includenan' nanflag in any combination after optional dim. Implementation tricks: 'reverse' = flip + cum + flip (universal); 'includenan' = post-pass propagateNanFromSrc using NaN positions in the input. Verified vs MATLAB R2025b on 8 fingerprints (gtest).
