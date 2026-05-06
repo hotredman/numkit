@@ -368,13 +368,14 @@ double betalike(std::pmr::memory_resource * /*mr*/, double a, double b,
                 const Value &x)
 {
     const size_t N = x.numel();
-    if (N == 0 || a <= 0.0 || b <= 0.0)
-        return std::numeric_limits<double>::infinity();
+    if (N == 0) return std::numeric_limits<double>::infinity();
+    if (a <= 0.0 || b <= 0.0)
+        return std::numeric_limits<double>::quiet_NaN();
     double sumLog = 0.0, sumLog1m = 0.0;
     for (size_t i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
         if (xi <= 0.0 || xi >= 1.0)
-            return std::numeric_limits<double>::infinity();
+            return std::numeric_limits<double>::quiet_NaN();
         sumLog   += std::log(xi);
         sumLog1m += std::log1p(-xi);
     }
@@ -564,6 +565,58 @@ void raylfit_reg(Span<const Value> args, size_t nargout,
 
 // ─── *like adapters ───────────────────────────────────────────────────
 
+// Digamma ψ(z) for z > 0 — recurrence to z>=8 then asymptotic series.
+static double digamma(double z)
+{
+    double r = 0.0;
+    while (z < 8.0) { r -= 1.0 / z; z += 1.0; }
+    const double inv  = 1.0 / z;
+    const double inv2 = inv * inv;
+    r += std::log(z) - 0.5 * inv;
+    r -= inv2 * (1.0/12.0 - inv2 * (1.0/120.0 - inv2 * 1.0/252.0));
+    return r;
+}
+
+// Fill a 2×2 inverse observed-Fisher matrix `p` (column-major,
+// parameter order [p0, p1]) for a 2-parameter likelihood. Uses central
+// differences (no in-tree trigamma); step h ≈ eps^(1/4) ≈ 1e-4 is the
+// optimal balance between truncation O(h²) and roundoff O(eps/h²).
+// Caller must have already verified that `nL` is finite — we do not
+// re-validate inputs.
+template <class Eval>
+static void fill_fd_avar2(double *p, double p0, double p1,
+                          double nL, Eval eval_nL)
+{
+    const double NaNd = std::numeric_limits<double>::quiet_NaN();
+    if (!std::isfinite(nL)) {
+        p[0] = NaNd; p[1] = NaNd; p[2] = NaNd; p[3] = NaNd;
+        return;
+    }
+    const double h0 = std::max(1e-4, 1e-4 * std::abs(p0));
+    const double h1 = std::max(1e-4, 1e-4 * std::abs(p1));
+    const double f_p0 = eval_nL(p0 + h0, p1);
+    const double f_m0 = eval_nL(p0 - h0, p1);
+    const double f_p1 = eval_nL(p0, p1 + h1);
+    const double f_m1 = eval_nL(p0, p1 - h1);
+    const double f_pp = eval_nL(p0 + h0, p1 + h1);
+    const double f_pm = eval_nL(p0 + h0, p1 - h1);
+    const double f_mp = eval_nL(p0 - h0, p1 + h1);
+    const double f_mm = eval_nL(p0 - h0, p1 - h1);
+    const double I00 = (f_p0 - 2.0 * nL + f_m0) / (h0 * h0);
+    const double I11 = (f_p1 - 2.0 * nL + f_m1) / (h1 * h1);
+    const double I01 = (f_pp - f_pm - f_mp + f_mm) / (4.0 * h0 * h1);
+    const double det = I00 * I11 - I01 * I01;
+    if (det == 0.0 || !std::isfinite(det)) {
+        p[0] = NaNd; p[1] = NaNd; p[2] = NaNd; p[3] = NaNd;
+    } else {
+        const double inv = 1.0 / det;
+        p[0] =  I11 * inv;
+        p[1] = -I01 * inv;
+        p[2] = -I01 * inv;
+        p[3] =  I00 * inv;
+    }
+}
+
 static void like2_reg(const char *fn,
                       double (*impl)(std::pmr::memory_resource *,
                                      double, double, const Value &),
@@ -679,36 +732,60 @@ void gamlike_reg(Span<const Value> args, size_t nargout,
     const double nL = gamlike(mr, a, b, x);
     outs[0] = Value::scalar(nL, mr);
 
-    // Second output: 2×2 inverse observed-Fisher info, parameter
-    // order [a, b]. Computed via central-difference Hessian; no
-    // trigamma helper in tree.
+    // Second output: 2×2 inverse observed-Fisher info, parameter order
+    // [a, b]. Computed via central-difference Hessian (no trigamma).
+    if (nargout >= 2) {
+        Value av = Value::matrix(2, 2, ValueType::DOUBLE, mr);
+        fill_fd_avar2(av.doubleDataMut(), a, b, nL,
+                      [&](double aa, double bb) { return gamlike(mr, aa, bb, x); });
+        outs[1] = std::move(av);
+    }
+}
+
+void betalike_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2 || args[0].numel() < 2)
+        throw Error("betalike: requires (params=[a b], data)",
+                    0, 0, "betalike", "", "m:betalike:nargin");
+    auto *mr = ctx.engine->resource();
+    const double a  = args[0].elemAsDouble(0);
+    const double b  = args[0].elemAsDouble(1);
+    const Value &x  = args[1];
+    const double nL = betalike(mr, a, b, x);
+    outs[0] = Value::scalar(nL, mr);
+
+    // Second output: 2×2 inverse Fisher info, parameter order [a, b].
+    // MATLAB's betalike uses BHHH (outer-product-of-gradients) — the
+    // sum of per-row score outer products — NOT the Hessian. Verified
+    // by direct probe: at user-supplied params (away from MLE) the two
+    // estimators differ; MATLAB / Octave both report the BHHH form.
+    // Score per row:
+    //   ∂log f/∂a = log x_i  - ψ(a) + ψ(a+b)
+    //   ∂log f/∂b = log(1-x_i) - ψ(b) + ψ(a+b)
     if (nargout >= 2) {
         Value av = Value::matrix(2, 2, ValueType::DOUBLE, mr);
         double *p = av.doubleDataMut();
         const double NaNd = std::numeric_limits<double>::quiet_NaN();
-        if (!(a > 0.0) || !(b > 0.0) || x.numel() == 0 || !std::isfinite(nL)) {
+        const size_t N = x.numel();
+        if (!std::isfinite(nL) || !(a > 0.0) || !(b > 0.0) || N == 0) {
             p[0] = NaNd; p[1] = NaNd; p[2] = NaNd; p[3] = NaNd;
         } else {
-            // Step ~ eps^(1/4) is optimal for central-diff 2nd derivative
-            // (truncation O(h²) vs roundoff O(eps/h²)).
-            const double ha = std::max(1e-4, 1e-4 * std::abs(a));
-            const double hb = std::max(1e-4, 1e-4 * std::abs(b));
-            // Diagonal:  H_ii = (f(+h) - 2 f(0) + f(-h)) / h²
-            const double f_pa = gamlike(mr, a + ha, b, x);
-            const double f_ma = gamlike(mr, a - ha, b, x);
-            const double f_pb = gamlike(mr, a, b + hb, x);
-            const double f_mb = gamlike(mr, a, b - hb, x);
-            // Off-diagonal: H_ab =
-            //  (f(+ha,+hb) - f(+ha,-hb) - f(-ha,+hb) + f(-ha,-hb))/(4 ha hb)
-            const double f_pp = gamlike(mr, a + ha, b + hb, x);
-            const double f_pm = gamlike(mr, a + ha, b - hb, x);
-            const double f_mp = gamlike(mr, a - ha, b + hb, x);
-            const double f_mm = gamlike(mr, a - ha, b - hb, x);
-            const double Iaa = (f_pa - 2.0 * nL + f_ma) / (ha * ha);
-            const double Ibb = (f_pb - 2.0 * nL + f_mb) / (hb * hb);
-            const double Iab = (f_pp - f_pm - f_mp + f_mm) / (4.0 * ha * hb);
+            const double Ca = -digamma(a) + digamma(a + b);
+            const double Cb = -digamma(b) + digamma(a + b);
+            double Iaa = 0.0, Ibb = 0.0, Iab = 0.0;
+            bool bad = false;
+            for (size_t i = 0; i < N; ++i) {
+                const double xi = x.elemAsDouble(i);
+                if (xi <= 0.0 || xi >= 1.0) { bad = true; break; }
+                const double sa = std::log(xi)    + Ca;
+                const double sb = std::log1p(-xi) + Cb;
+                Iaa += sa * sa;
+                Ibb += sb * sb;
+                Iab += sa * sb;
+            }
             const double det = Iaa * Ibb - Iab * Iab;
-            if (det == 0.0 || !std::isfinite(det)) {
+            if (bad || det == 0.0 || !std::isfinite(det)) {
                 p[0] = NaNd; p[1] = NaNd; p[2] = NaNd; p[3] = NaNd;
             } else {
                 const double inv = 1.0 / det;
@@ -721,10 +798,6 @@ void gamlike_reg(Span<const Value> args, size_t nargout,
         outs[1] = std::move(av);
     }
 }
-
-void betalike_reg(Span<const Value> args, size_t /*nargout*/,
-                  Span<Value> outs, CallContext &ctx)
-{ like2_reg("betalike", &betalike, args, outs, ctx); }
 
 void wbllike_reg(Span<const Value> args, size_t /*nargout*/,
                  Span<Value> outs, CallContext &ctx)

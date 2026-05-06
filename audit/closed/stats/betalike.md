@@ -74,3 +74,17 @@ symmetric Beta — informative confirmation that the contract is the
 
 - `cens`/`freq` — not documented for MATLAB's `betalike`.
 - The `betafit` companion (currently ❌ in PROGRESS) — separate work.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-06
+- Notes: betalike_reg specialized; emits 2×2 inverse Fisher info on
+  `nargout >= 2`. **Gotcha:** MATLAB's betalike uses BHHH
+  (outer-product-of-gradients), NOT the Hessian — this was found by
+  direct probe (betalike([2,2], x) returns aVar(1,1)=0.9234 while
+  the analytical / FD Hessian gives 1.4489). Implementation uses
+  the per-row score `[log x - ψ(a) + ψ(a+b),  log(1-x) - ψ(b) + ψ(a+b)]`
+  via an inline `digamma()` helper (recurrence to z>=8 + asymptotic
+  series). Reproduces MATLAB to 1e-9. Edge convention: invalid params
+  or x outside (0,1) => NaN (was +Inf). Spec extended; 5 TEST_F gtest
+  + smoke .m. Parity OK numkit ↔ MATLAB.
