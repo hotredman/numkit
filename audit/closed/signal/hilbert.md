@@ -56,3 +56,8 @@ follows this convention; the imag part of `hilbert([1:8])` is
 - The downstream `envelope` / `instfreq` cascade — those will
   inherit a sign flip until `hilbert` is fixed. After the fix,
   re-probe the dependents.
+
+## Closed
+- Closed in commit: PENDING (hilbert sign-flip fix)
+- Closed date: 2026-05-06
+- Notes: Added a single std::conj(buf[i]) pass at the end of hilbertBuf in libs/signal/src/transforms/hilbert.cpp. Root cause: numkit's fftRadix2(dir=+1) uses W[k]=exp(+2πi·k/N), which is MATLAB's IFFT sign convention. The "double positive bins" rule in the algorithm assumed standard FFT sign, so the analytic signal's imag part came out flipped. Trailing conjugation flips imag back without affecting real (real(x)=real(conj(x))). 'envelope' (sibling ТЗ) is unaffected — |z|=|conj(z)| — but its other gaps (2nd output, 'rms'/'peak' modes, filter-length) remain open in audit/findings/signal/envelope.md.

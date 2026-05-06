@@ -1,10 +1,13 @@
 {
   "name": "hilbert",
-  "namespace": "core",
-  "setup": "x = sin(linspace(0, 100, 1024));",
-  "expr": "y = real(hilbert(x));",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: H = hilbert(X). Analytic signal real part. 1000 iters.",
-  "out_var": "y"
+  "namespace": "signal",
+  "setup": "x = (1:8)';",
+  "expr": "h = hilbert(x); r = real(h); im = imag(h);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "r(1)", "r(2)", "r(8)",
+    "im(1)", "im(2)", "im(4)", "im(5)", "im(8)"
+  ],
+  "comment": "Sig: H = hilbert(X). Analytic signal: real(H)=X, imag(H)=+H{X}. MATLAB R2025b sign convention: positive frequencies multiplied by +i. After fix in libs/signal/src/transforms/hilbert.cpp (added trailing conjugation to compensate for numkit's IFFT-direction FFT primitive). Closes audit/findings/signal/hilbert.md."
 }

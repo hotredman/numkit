@@ -46,6 +46,15 @@ ScratchVec<Complex> hilbertBuf(std::pmr::memory_resource *mr, const Value &x)
     for (auto &v : buf)
         v = std::conj(v) * invN;
 
+    // numkit's fftRadix2(dir=+1) uses MATLAB's IFFT sign convention
+    // (W[k] = exp(+2πi·k/N) instead of exp(-2πi·k/N)). With "positive
+    // frequencies" doubled at indices [1, N/2-1], the output's
+    // imaginary part comes out with the wrong sign (real part is
+    // unaffected because real(x) is invariant under conjugation).
+    // The fix: conjugate the output to flip the imaginary sign.
+    for (auto &v : buf)
+        v = std::conj(v);
+
     return buf;
 }
 
