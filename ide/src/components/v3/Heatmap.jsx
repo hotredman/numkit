@@ -35,6 +35,8 @@ export default function Heatmap({
   yLog: yLogProp,
   setXLog: setXLogProp,
   setYLog: setYLogProp,
+  colorOverride: colorOverrideProp,
+  setColorOverride: setColorOverrideProp,
 }) {
   const svgRef = useRef(null);
   const [hover, setHover] = useState(null);
@@ -51,10 +53,13 @@ export default function Heatmap({
     const fid = figure._raw?.id ?? figure.id;
     if (figIdRef.current !== fid) {
       setTileOverlay(null);
-      setColorOverride(null);
+      // colorOverride reset is owned by FigureWindow when interactive
+      // (it has its own useEffect on figure id). Reset local fallback
+      // here for preview / non-interactive paths.
+      if (setColorOverrideProp === undefined) setColorOverrideLocal(null);
       figIdRef.current = fid;
     }
-  }, [figure._raw?.id, figure.id]);
+  }, [figure._raw?.id, figure.id, setColorOverrideProp]);
 
   // ── Log-axis state ─────────────────────────────────────────────────
   // Owned by the parent (FigureWindow) when it supplies setXLog/setYLog
@@ -74,7 +79,11 @@ export default function Heatmap({
   // gets full colormap dynamic range. null = use figure.cminOrig/cmaxOrig.
   // The override is a window/level remap on top of the engine-baked
   // quantization range — no requantization, just a different LUT.
-  const [colorOverride, setColorOverride] = useState(null);
+  // Use parent-owned override when supplied (FigureWindow holds it so the
+  // toolbar fit menu and ПКМ menu share state). Else fall back to local.
+  const [colorOverrideLocal, setColorOverrideLocal] = useState(null);
+  const colorOverride = (colorOverrideProp !== undefined) ? colorOverrideProp : colorOverrideLocal;
+  const setColorOverride = setColorOverrideProp || setColorOverrideLocal;
   const cminEff = colorOverride ? colorOverride.cmin : figure.cminOrig ?? figure.cmin;
   const cmaxEff = colorOverride ? colorOverride.cmax : figure.cmaxOrig ?? figure.cmax;
   const cminOrig = figure.cminOrig ?? figure.cmin;
