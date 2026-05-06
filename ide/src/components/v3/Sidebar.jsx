@@ -479,7 +479,7 @@ export default function Sidebar({
 
   return (
     <aside className="sidebar">
-      {/* Source picker + new-file button */}
+      {/* Source picker + new-file + refresh */}
       <div className="sidebar-head">
         <select className="ws-picker"
           value={source}
@@ -496,6 +496,16 @@ export default function Sidebar({
             </svg>
           </button>
         )}
+        {/* Always-visible refresh — picks up changes made on disk by other
+            tools (only meaningful for the real-disk Local Folder backend,
+            but cheap enough to keep for every source). */}
+        <button className="sidebar-icon" title="Refresh tree"
+          onClick={() => loadTree()}>
+          <svg width="11" height="11" viewBox="0 0 12 12">
+            <path d="M3 6a3 3 0 1 1 1 2.2L2 10 M2 6V3l1 1"
+              stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
+          </svg>
+        </button>
       </div>
 
       {/* Search */}
