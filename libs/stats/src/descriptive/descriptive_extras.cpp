@@ -760,14 +760,69 @@ void mink_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     outs[0] = mink(ctx.engine->resource(), args[0], k, dim);
 }
 
+// Common parser for mape/rmse trailing args: optional dim ('all', vecdim,
+// integer scalar). Returns (dim, flatten). Vector inputs to mape/rmse
+// are inherently 1-D so flatten and dim=0 produce the same result.
+namespace {
+void parseDimOrAll(const Value &x, Span<const Value> args, size_t pos,
+                   int &dim, bool &flatten, const char *fn)
+{
+    dim = 0; flatten = false;
+    if (pos >= args.size() || args[pos].isEmpty()) return;
+    const Value &a = args[pos];
+    if (a.isChar() || a.isString()) {
+        std::string s = a.toString();
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char c){ return std::tolower(c); });
+        if (s == "all") { flatten = true; return; }
+        throw Error(std::string(fn) + ": unknown flag '" + s + "'",
+                    0, 0, fn, "", std::string("m:") + fn + ":badFlag");
+    }
+    if (a.numel() == 1) { dim = static_cast<int>(a.toScalar()); return; }
+    // vecdim — full-flatten only
+    const int rank = x.dims().is3D() ? 3
+                      : (x.dims().isVector() || x.isScalar() ? 1 : 2);
+    std::vector<bool> seen(rank + 1, false);
+    for (size_t i = 0; i < a.numel(); ++i) {
+        int d = static_cast<int>(a.elemAsDouble(i));
+        if (d < 1 || d > rank)
+            throw Error(std::string(fn) + ": vecdim entries out of range",
+                        0, 0, fn, "", std::string("m:") + fn + ":vecdim");
+        seen[d] = true;
+    }
+    bool allCovered = true;
+    for (int d = 1; d <= rank; ++d) if (!seen[d]) allCovered = false;
+    if (!allCovered)
+        throw Error(std::string(fn) + ": partial vecdim reduction not supported",
+                    0, 0, fn, "", std::string("m:") + fn + ":vecdim");
+    flatten = true;
+}
+
+Value flattenToRow(std::pmr::memory_resource *mr, const Value &x)
+{
+    Value flat = Value::matrix(1, x.numel(), ValueType::DOUBLE, mr);
+    if (x.numel() > 0) {
+        const double *src = x.doubleData();
+        std::copy(src, src + x.numel(), flat.doubleDataMut());
+    }
+    return flat;
+}
+} // anonymous
+
 void mape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
               CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("mape: requires 2 arguments (F, A)",
                      0, 0, "mape", "", "m:mape:nargin");
-    const int dim = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
-    outs[0] = mape(ctx.engine->resource(), args[0], args[1], dim);
+    int dim = 0; bool flatten = false;
+    parseDimOrAll(args[0], args, 2, dim, flatten, "mape");
+    auto *mr = ctx.engine->resource();
+    if (flatten) {
+        outs[0] = mape(mr, flattenToRow(mr, args[0]), flattenToRow(mr, args[1]), 2);
+    } else {
+        outs[0] = mape(mr, args[0], args[1], dim);
+    }
 }
 
 void rmse_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -775,8 +830,14 @@ void rmse_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.size() < 2)
         throw Error("rmse: requires at least 2 arguments (F, A)",
                      0, 0, "rmse", "", "m:rmse:nargin");
-    const int dim = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
-    outs[0] = rmse(ctx.engine->resource(), args[0], args[1], dim);
+    int dim = 0; bool flatten = false;
+    parseDimOrAll(args[0], args, 2, dim, flatten, "rmse");
+    auto *mr = ctx.engine->resource();
+    if (flatten) {
+        outs[0] = rmse(mr, flattenToRow(mr, args[0]), flattenToRow(mr, args[1]), 2);
+    } else {
+        outs[0] = rmse(mr, args[0], args[1], dim);
+    }
 }
 
 void ecdf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

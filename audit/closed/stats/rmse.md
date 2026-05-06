@@ -66,3 +66,8 @@ fc = [1 NaN 3 4 5]', ac = [2 4 6 8 10]'
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed (partial)
+- Closed in commit: PENDING
+- Closed date: 2026-05-06
+- Notes: Adapter rewritten with parseDimOrAll helper (shared between rmse/mape). Supports 'all' string + full-flatten vecdim. Verified vs MATLAB R2025b. omitnan / Weights / mape zero-handling deferred (low-medium impact gaps).
