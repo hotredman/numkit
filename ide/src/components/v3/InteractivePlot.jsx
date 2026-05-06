@@ -124,21 +124,34 @@ export default function InteractivePlot({
     e.preventDefault();
     setCtxMenu({ x: e.clientX, y: e.clientY });
   }
-  function applyFit(axisMode) {
+  function applyFit(mode, axisMode) {
     const figDefault = { x: figure.xRange.slice(), y: figure.yRange.slice() };
-    setViewport(computeFitViewport(figure.series, 'all', axisMode, viewport, figDefault));
+    setViewport(computeFitViewport(figure.series, mode, axisMode, viewport, figDefault));
   }
+  const multiSeries = Array.isArray(figure.series) && figure.series.length > 1;
   const ctxItems = [
-    { label: 'Fit both axes', onClick: () => applyFit('both') },
-    { label: 'Fit X only',    onClick: () => applyFit('x') },
-    { label: 'Fit Y only',    onClick: () => applyFit('y') },
+    { label: 'Fit both axes', onClick: () => applyFit('all', 'both') },
+    { label: 'Fit X only',    onClick: () => applyFit('all', 'x') },
+    { label: 'Fit Y only',    onClick: () => applyFit('all', 'y') },
+    ...(multiSeries ? [
+      { separator: true },
+      { head: 'Fit single curve' },
+      ...figure.series.map((s) => ({
+        row: true, color: s.color, name: s.name,
+        buttons: [
+          { label: 'xy', onClick: () => applyFit(s.name, 'both') },
+          { label: 'x',  onClick: () => applyFit(s.name, 'x') },
+          { label: 'y',  onClick: () => applyFit(s.name, 'y') },
+        ],
+      })),
+    ] : []),
     { separator: true },
     { label: 'Reset to default',
       onClick: () => setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() }) },
     { separator: true },
-    { label: 'Save panel as SVG',
+    { label: 'Save as SVG',
       onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
-    { label: 'Save panel as PNG @2×',
+    { label: 'Save as PNG @2×',
       onClick: () => exportPngNode(svgRef.current, width, height, 2, `figure_${figure.id}.png`) },
   ];
 

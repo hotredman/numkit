@@ -117,9 +117,9 @@ export default function Heatmap({
     { label: 'Reset to default',
       onClick: () => setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() }) },
     { separator: true },
-    { label: 'Save panel as SVG',
+    { label: 'Save as SVG',
       onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
-    { label: 'Save panel as PNG @2×',
+    { label: 'Save as PNG @2×',
       onClick: () => exportPngNode(svgRef.current, width, height, 2, `figure_${figure.id}.png`) },
   ];
 
