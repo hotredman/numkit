@@ -1,10 +1,16 @@
 {
   "name": "explike",
   "namespace": "stats",
-  "setup": "x = [1 2 3 4 5]';",
-  "expr": "nL = explike(2, x);",
+  "setup": "x = [1 2 3 4 5]'; cens = [0 0 0 1 1]'; freq = [2 2 1 1 1]';",
+  "expr": "[nL_basic, av_basic] = explike(2, x); [nL_cens, av_cens] = explike(2, x, cens); [nL_freq, av_freq] = explike(2, x, [], freq); [nL_both, av_both] = explike(2, x, cens, freq); nL_neg = explike(-1, x); nL_zero = explike(0, x); nL_empty = explike(2, []);",
   "iters": 5,
   "tol": 1e-9,
-  "fingerprint": ["nL"],
-  "comment": "Sig: nL = explike(mu, x). Negative log-likelihood for Exp(mu). Closed form: N·log(mu) + Σx/mu."
+  "fingerprint": [
+    "nL_basic", "av_basic",
+    "nL_cens",  "av_cens",
+    "nL_freq",  "av_freq",
+    "nL_both",  "av_both",
+    "nL_neg", "nL_zero", "nL_empty"
+  ],
+  "comment": "Sig: [nL, avar] = explike(mu, x[, cens, freq]). NLL for Exp(mu). avar (scalar) = 1/I where I = Σ w_i ∂²nL_i/∂μ² (uncens: -1/μ²+2x/μ³; right-cens: 2x/μ³). Edge: mu<=0 => NaN; empty data => 0."
 }

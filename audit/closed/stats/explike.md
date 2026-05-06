@@ -86,3 +86,23 @@ above is the contract regardless of formula.
 
 - Adapting `like2_reg` to support `cens/freq` — `explike` has a single
   parameter, so it should not share that scaffold; keep it dedicated.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-06
+- Notes:
+  - New `explike_full` helper handles cens + freq + scalar avar in
+    one pass. Two-arg `explike()` still exposed for direct callers.
+  - `explike_reg` rewritten to accept up to 4 args + honour nargout.
+  - **Edges fixed:** `mu <= 0` → NaN (was +Inf); empty data → 0
+    (was +Inf). Matches MATLAB R2025b.
+  - **avar formula** (analytical, since exp likelihood Hessian is
+    closed-form):
+        I = Σ w_i ∂²nL_i/∂μ²
+        uncens row: -1/μ² + 2x/μ³
+        cens   row: 2x/μ³
+        avar = 1/I
+    Reproduces the 4 reference avar values (0.4, 1/3, 4/11, 4/13)
+    exactly (1e-12).
+  - Spec extended to 11 fingerprint values; parity OK numkit ↔ MATLAB.
+  - 8 TEST_F gtest + smoke .m.

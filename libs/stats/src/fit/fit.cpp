@@ -321,11 +321,75 @@ double normlike(std::pmr::memory_resource * /*mr*/, double mu, double sigma,
 
 double explike(std::pmr::memory_resource * /*mr*/, double mu, const Value &x)
 {
+    // Two-arg form: empty data ⇒ 0 (matches MATLAB R2025b),
+    //               mu <= 0   ⇒ NaN.
     const size_t N = x.numel();
-    if (N == 0 || mu <= 0.0) return std::numeric_limits<double>::infinity();
+    if (N == 0) return 0.0;
+    if (mu <= 0.0) return std::numeric_limits<double>::quiet_NaN();
     double sx = 0.0;
     for (size_t i = 0; i < N; ++i) sx += x.elemAsDouble(i);
     return double(N) * std::log(mu) + sx / mu;
+}
+
+// Extended form for the adapter: cens + freq + scalar avar.
+// Returns nL via the function value; if `avarOut` is non-null, fills
+// it with the inverse observed Fisher info (1/I).
+//
+// Uncensored row, weight w:  contributes w·(log μ + x/μ)
+//   ∂²nL/∂μ² += w · (-1/μ² + 2 x / μ³)
+// Right-censored row, weight w: contributes w·(x/μ)
+//   ∂²nL/∂μ² += w · (2 x / μ³)
+// Empty (after freq=0 drops) ⇒ 0.
+static double explike_full(double mu, const Value &x,
+                           const Value &cens, const Value &freq,
+                           double *avarOut)
+{
+    const size_t N = x.numel();
+    if (N == 0) {
+        if (avarOut) *avarOut = std::numeric_limits<double>::quiet_NaN();
+        return 0.0;
+    }
+    if (mu <= 0.0) {
+        if (avarOut) *avarOut = std::numeric_limits<double>::quiet_NaN();
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+    const bool useC = cens.numel() > 0;
+    const bool useF = freq.numel() > 0;
+    if (useC && cens.numel() != N)
+        throw Error("explike: censoring must match the data length",
+                    0, 0, "explike", "", "m:explike:cens");
+    if (useF && freq.numel() != N)
+        throw Error("explike: freq must match the data length",
+                    0, 0, "explike", "", "m:explike:freq");
+
+    const double inv_mu  = 1.0 / mu;
+    const double inv_mu2 = inv_mu * inv_mu;
+    const double inv_mu3 = inv_mu2 * inv_mu;
+    const double logMu   = std::log(mu);
+
+    double nL = 0.0, I = 0.0;
+    bool any = false;
+    for (size_t i = 0; i < N; ++i) {
+        const double w = useF ? freq.elemAsDouble(i) : 1.0;
+        if (w == 0.0) continue;
+        any = true;
+        const double xi = x.elemAsDouble(i);
+        const bool censored = useC && (cens.elemAsDouble(i) != 0.0);
+        if (censored) {
+            nL += w * (xi * inv_mu);
+            I  += w * (2.0 * xi * inv_mu3);
+        } else {
+            nL += w * (logMu + xi * inv_mu);
+            I  += w * (-inv_mu2 + 2.0 * xi * inv_mu3);
+        }
+    }
+    if (avarOut) {
+        if (!any || I == 0.0 || !std::isfinite(I))
+            *avarOut = std::numeric_limits<double>::quiet_NaN();
+        else
+            *avarOut = 1.0 / I;
+    }
+    return any ? nL : 0.0;
 }
 
 double lognlike(std::pmr::memory_resource * /*mr*/, double mu, double sigma,
@@ -864,15 +928,22 @@ void evlike_reg(Span<const Value> args, size_t /*nargout*/,
                 Span<Value> outs, CallContext &ctx)
 { like2_reg("evlike", &evlike, args, outs, ctx); }
 
-void explike_reg(Span<const Value> args, size_t /*nargout*/,
+void explike_reg(Span<const Value> args, size_t nargout,
                  Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("explike: requires (mu, data)",
+        throw Error("explike: requires (mu, data[, cens, freq])",
                     0, 0, "explike", "", "m:explike:nargin");
+    auto *mr = ctx.engine->resource();
     const double mu = args[0].toScalar();
-    const double nL = explike(ctx.engine->resource(), mu, args[1]);
-    outs[0] = Value::scalar(nL, ctx.engine->resource());
+    Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    const Value &cens = (args.size() >= 3) ? args[2] : emptyVal;
+    const Value &freq = (args.size() >= 4) ? args[3] : emptyVal;
+    double avar = std::numeric_limits<double>::quiet_NaN();
+    const double nL = explike_full(mu, args[1], cens, freq,
+                                   nargout >= 2 ? &avar : nullptr);
+    outs[0] = Value::scalar(nL, mr);
+    if (nargout >= 2) outs[1] = Value::scalar(avar, mr);
 }
 
 void gevlike_reg(Span<const Value> args, size_t nargout,
