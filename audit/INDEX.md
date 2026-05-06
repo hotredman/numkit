@@ -19,7 +19,6 @@ Status legend:
 | [findings/stats/evlike.md](findings/stats/evlike.md) | evlike | stats.fit | medium | medium | bfda361 |
 | [findings/stats/expfit.md](findings/stats/expfit.md) | expfit | stats.fit | medium | medium | bfda361 |
 | [findings/stats/explike.md](findings/stats/explike.md) | explike | stats.fit | medium | medium | bfda361 |
-| [findings/stats/gamlike.md](findings/stats/gamlike.md) | gamlike | stats.fit | medium | small | bfda361 |
 | [findings/stats/gevlike.md](findings/stats/gevlike.md) | gevlike | stats.fit | medium | small | bfda361 |
 | [findings/stats/gplike.md](findings/stats/gplike.md) | gplike | stats.fit | medium | small | bfda361 |
 | [findings/stats/lognfit.md](findings/stats/lognfit.md) | lognfit | stats.fit | medium | medium | bfda361 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/kruskalwallis.md](closed/stats/kruskalwallis.md) | kruskalwallis | PENDING | 2026-05-06 |
 | [closed/stats/binofit.md](closed/stats/binofit.md) | binofit | PENDING | 2026-05-06 |
 | [closed/stats/normlike.md](closed/stats/normlike.md) | normlike | PENDING | 2026-05-06 |
+| [closed/stats/gamlike.md](closed/stats/gamlike.md) | gamlike | PENDING | 2026-05-06 |
 
 ---
 

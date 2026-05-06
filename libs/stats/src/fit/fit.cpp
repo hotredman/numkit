@@ -350,8 +350,9 @@ double gamlike(std::pmr::memory_resource * /*mr*/, double a, double b,
                const Value &x)
 {
     const size_t N = x.numel();
-    if (N == 0 || a <= 0.0 || b <= 0.0)
-        return std::numeric_limits<double>::infinity();
+    if (N == 0) return std::numeric_limits<double>::infinity();
+    if (a <= 0.0 || b <= 0.0)
+        return std::numeric_limits<double>::quiet_NaN();
     double sumLogX = 0.0, sx = 0.0;
     for (size_t i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
@@ -665,9 +666,61 @@ void lognlike_reg(Span<const Value> args, size_t /*nargout*/,
                   Span<Value> outs, CallContext &ctx)
 { like2_reg("lognlike", &lognlike, args, outs, ctx); }
 
-void gamlike_reg(Span<const Value> args, size_t /*nargout*/,
+void gamlike_reg(Span<const Value> args, size_t nargout,
                  Span<Value> outs, CallContext &ctx)
-{ like2_reg("gamlike", &gamlike, args, outs, ctx); }
+{
+    if (args.size() < 2 || args[0].numel() < 2)
+        throw Error("gamlike: requires (params=[a b], data)",
+                    0, 0, "gamlike", "", "m:gamlike:nargin");
+    auto *mr = ctx.engine->resource();
+    const double a  = args[0].elemAsDouble(0);
+    const double b  = args[0].elemAsDouble(1);
+    const Value &x  = args[1];
+    const double nL = gamlike(mr, a, b, x);
+    outs[0] = Value::scalar(nL, mr);
+
+    // Second output: 2×2 inverse observed-Fisher info, parameter
+    // order [a, b]. Computed via central-difference Hessian; no
+    // trigamma helper in tree.
+    if (nargout >= 2) {
+        Value av = Value::matrix(2, 2, ValueType::DOUBLE, mr);
+        double *p = av.doubleDataMut();
+        const double NaNd = std::numeric_limits<double>::quiet_NaN();
+        if (!(a > 0.0) || !(b > 0.0) || x.numel() == 0 || !std::isfinite(nL)) {
+            p[0] = NaNd; p[1] = NaNd; p[2] = NaNd; p[3] = NaNd;
+        } else {
+            // Step ~ eps^(1/4) is optimal for central-diff 2nd derivative
+            // (truncation O(h²) vs roundoff O(eps/h²)).
+            const double ha = std::max(1e-4, 1e-4 * std::abs(a));
+            const double hb = std::max(1e-4, 1e-4 * std::abs(b));
+            // Diagonal:  H_ii = (f(+h) - 2 f(0) + f(-h)) / h²
+            const double f_pa = gamlike(mr, a + ha, b, x);
+            const double f_ma = gamlike(mr, a - ha, b, x);
+            const double f_pb = gamlike(mr, a, b + hb, x);
+            const double f_mb = gamlike(mr, a, b - hb, x);
+            // Off-diagonal: H_ab =
+            //  (f(+ha,+hb) - f(+ha,-hb) - f(-ha,+hb) + f(-ha,-hb))/(4 ha hb)
+            const double f_pp = gamlike(mr, a + ha, b + hb, x);
+            const double f_pm = gamlike(mr, a + ha, b - hb, x);
+            const double f_mp = gamlike(mr, a - ha, b + hb, x);
+            const double f_mm = gamlike(mr, a - ha, b - hb, x);
+            const double Iaa = (f_pa - 2.0 * nL + f_ma) / (ha * ha);
+            const double Ibb = (f_pb - 2.0 * nL + f_mb) / (hb * hb);
+            const double Iab = (f_pp - f_pm - f_mp + f_mm) / (4.0 * ha * hb);
+            const double det = Iaa * Ibb - Iab * Iab;
+            if (det == 0.0 || !std::isfinite(det)) {
+                p[0] = NaNd; p[1] = NaNd; p[2] = NaNd; p[3] = NaNd;
+            } else {
+                const double inv = 1.0 / det;
+                p[0] =  Ibb * inv;
+                p[1] = -Iab * inv;
+                p[2] = -Iab * inv;
+                p[3] =  Iaa * inv;
+            }
+        }
+        outs[1] = std::move(av);
+    }
+}
 
 void betalike_reg(Span<const Value> args, size_t /*nargout*/,
                   Span<Value> outs, CallContext &ctx)

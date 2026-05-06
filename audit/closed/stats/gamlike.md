@@ -71,3 +71,13 @@ params = [a=2, b=1]
 
 - `cens`/`freq` — not documented for MATLAB's `gamlike`.
 - The `gamfit` companion (currently ❌ in PROGRESS) — separate work.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-06
+- Notes: gamlike_reg specialized (no longer via like2_reg) and emits
+  the 2×2 inverse observed-Fisher matrix when `nargout >= 2`.
+  Hessian computed via central differences (no in-tree trigamma);
+  step h ≈ 1e-4 (eps^(1/4)) yields ~5e-8 absolute on the basic
+  reference. Edge convention switched: a≤0 or b≤0 now returns NaN
+  (was +Inf). Spec extended (tol=1e-7); 6 TEST_F gtest + smoke .m.
