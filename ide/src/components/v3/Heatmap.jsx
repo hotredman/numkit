@@ -414,13 +414,19 @@ export default function Heatmap({
       const xHi = Math.max(xMin, xMax);
       const yLo = Math.min(yMin, yMax);
       const yHi = Math.max(yMin, yMax);
-      let srcC0 = (xLo - figure.xRange[0]) * colsPerUnit;
-      let srcC1 = (xHi - figure.xRange[0]) * colsPerUnit;
-      // axis-xy: low cell index = low data y = bottom of plot. We always
-      // ship cell-indices ascending to the engine; the renderer's vertical
-      // flip puts cell-index 0 at the bottom of the canvas (matching).
-      let srcR0 = (yLo - figure.yRange[0]) * rowsPerUnit;
-      let srcR1 = (yHi - figure.yRange[0]) * rowsPerUnit;
+      // Cell-index in a system where cell 0 = first cell-CENTRE (= y0, the
+      // first y-vector value). Subtract 0.5 from the naïve "yLo - yRange[0]"
+      // calc because yRange[0] = y0 - cellH/2 (the cell's lower edge).
+      // Critical for log mode: the engine log-distributes cell-indices, and
+      // log(cellIdx_shifted) is a linear shift of log(data_y), so cell-log
+      // and data-y-log distributions agree pixel-for-pixel. Without this
+      // shift, the small-data-y end of the tile drifts relative to the
+      // gridlines as the viewport pans through log space.
+      // axis-xy: low cell index = low data y = bottom of plot.
+      let srcC0 = (xLo - figure.xRange[0]) * colsPerUnit - 0.5;
+      let srcC1 = (xHi - figure.xRange[0]) * colsPerUnit - 0.5;
+      let srcR0 = (yLo - figure.yRange[0]) * rowsPerUnit - 0.5;
+      let srcR1 = (yHi - figure.yRange[0]) * rowsPerUnit - 0.5;
 
       // Clamp to source bounds; log axes need strictly positive lo.
       srcC0 = Math.max(xLogActive ? 1e-6 : 0, srcC0);
@@ -545,10 +551,13 @@ export default function Heatmap({
             const fullRows = figure.originalRows || 1;
             const xExt = figure.xRange[1] - figure.xRange[0];
             const yExt = figure.yRange[1] - figure.yRange[0];
-            let tx0 = figure.xRange[0] + (tileOverlay.srcC0                  / fullCols) * xExt;
-            let tx1 = figure.xRange[0] + ((tileOverlay.srcC0 + tileOverlay.srcW) / fullCols) * xExt;
-            let tyLow  = figure.yRange[0] + (tileOverlay.srcR0                  / fullRows) * yExt;
-            let tyHigh = figure.yRange[0] + ((tileOverlay.srcR0 + tileOverlay.srcH) / fullRows) * yExt;
+            // Inverse of the -0.5 shift applied in tile-fetch: data y at a
+            // cell-index c (in the shifted system) is yRange[0] + (c+0.5) *
+            // cellH = yRange[0] + (c+0.5)/fullRows * yExt.
+            let tx0 = figure.xRange[0] + (tileOverlay.srcC0                  + 0.5) / fullCols * xExt;
+            let tx1 = figure.xRange[0] + (tileOverlay.srcC0 + tileOverlay.srcW + 0.5) / fullCols * xExt;
+            let tyLow  = figure.yRange[0] + (tileOverlay.srcR0                  + 0.5) / fullRows * yExt;
+            let tyHigh = figure.yRange[0] + (tileOverlay.srcR0 + tileOverlay.srcH + 0.5) / fullRows * yExt;
             // Under log axes data-coord ≤ 0 is undefined; clamp to the
             // visible viewport bound so sx/sy stay finite. Edge pixels
             // were already snapped to the boundary by the engine's log
