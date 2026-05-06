@@ -58,6 +58,40 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   const [showMajor, setShowMajor] = useState(true);
   const [showMinor, setShowMinor] = useState(figure.grid === 'minor');
   const [showLegend, setShowLegend] = useState(true);
+  // Log axis toggles — lifted from Heatmap so the toolbar can flip them
+  // alongside grid/minor and the ПКМ menu inside the panel can mirror.
+  // Initialised from figure.xscale/yscale (set by xscale('log') /
+  // yscale('log')) and re-synced when those props change at script time.
+  const [xLog, setXLog] = useState(figure.xscale === 'log');
+  const [yLog, setYLog] = useState(figure.yscale === 'log');
+  useEffect(() => { setXLog(figure.xscale === 'log'); }, [figure.xscale]);
+  useEffect(() => { setYLog(figure.yscale === 'log'); }, [figure.yscale]);
+
+  // Toggle that also auto-clamps the viewport's lo bound to the smallest
+  // positive cell-centre when entering log mode (yRange[0] is typically
+  // -cellH/2 due to imagesc padding — log of that is undefined).
+  function toggleAxisLog(axis) {
+    if (!isHeatmap) return;          // log toggles only meaningful for heatmap toolbar
+    if (axis === 'x') {
+      const next = !xLog;
+      if (next && (viewport.x[0] <= 0 || viewport.x[1] <= 0)) {
+        const fullCols = figure.originalCols || 1;
+        const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
+        const lo = Math.max(cellW * 0.5, 1e-6);
+        setViewport({ ...viewport, x: [lo, Math.max(lo * 10, figure.xRange[1])] });
+      }
+      setXLog(next);
+    } else {
+      const next = !yLog;
+      if (next && (viewport.y[0] <= 0 || viewport.y[1] <= 0)) {
+        const fullRows = figure.originalRows || 1;
+        const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
+        const lo = Math.max(cellH * 0.5, 1e-6);
+        setViewport({ ...viewport, y: [lo, Math.max(lo * 10, figure.yRange[1])] });
+      }
+      setYLog(next);
+    }
+  }
   const [fitOpen, setFitOpen]     = useState(false);
   const [saveOpen, setSaveOpen]   = useState(false);
   const [maximized, setMaximized] = useState(false);
@@ -454,6 +488,20 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
           <div className="ve-tools-group">
             <button className={`ve-btn ${showMajor ? 'is-active' : ''}`} onClick={() => setShowMajor((g) => !g)} title="Major grid">grid</button>
             <button className={`ve-btn ${showMinor ? 'is-active' : ''}`} onClick={() => setShowMinor((g) => !g)} title="Minor grid">minor</button>
+            {isHeatmap && (
+              <>
+                <button
+                  className={`ve-btn ${xLog ? 'is-active' : ''}`}
+                  onClick={() => toggleAxisLog('x')}
+                  disabled={figure.xRange[1] <= 0}
+                  title="Log X axis (also: ПКМ → Axes → X axis · log)">x log</button>
+                <button
+                  className={`ve-btn ${yLog ? 'is-active' : ''}`}
+                  onClick={() => toggleAxisLog('y')}
+                  disabled={figure.yRange[1] <= 0}
+                  title="Log Y axis (also: ПКМ → Axes → Y axis · log)">y log</button>
+              </>
+            )}
             <button className={`ve-btn ${showLegend ? 'is-active' : ''}`} onClick={() => setShowLegend((g) => !g)}>legend</button>
           </div>
 
@@ -498,6 +546,8 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               major: showMajor, minor: showMinor,
               fontScale: 1.15,
               engine,
+              xLog, yLog,
+              setXLog, setYLog,
             })}
             {showLegend && Array.isArray(figure.series) && figure.series.length > 0 && (
               <div className="fw-legend">
