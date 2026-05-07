@@ -132,34 +132,8 @@ if(NUMKIT_WITH_THREADS)
     target_compile_definitions(numkit PUBLIC NUMKIT_WITH_THREADS=1)
 endif()
 
-# ──────────────────────────────────────────────
-# Smoke runner — runs `.m` smoke scripts with the numkit engine.
-# Used by libs/<name>/tests/smoke/*_smoke.m. Not an "example app";
-# it's a thin REPL-less runner of MATLAB-flavoured scripts.
-# ──────────────────────────────────────────────
-
-if(NUMKIT_BUILD_EXAMPLE)
-    add_executable(numkit_smokes smokes/main.cpp)
-    target_link_libraries(numkit_smokes PRIVATE numkit)
-
-    if(EMSCRIPTEN)
-        # Emscripten produces a Node-runnable .js loader + .wasm sidecar
-        # when the output ends in .js. NODERAWFS lets argv paths resolve
-        # against the real host filesystem:
-        #   node build-browser/smokes/numkit_smokes.js path/to/script.m
-        set_target_properties(numkit_smokes PROPERTIES SUFFIX ".js")
-        target_compile_options(numkit_smokes PRIVATE -fexceptions)
-        target_link_options(numkit_smokes PRIVATE
-            -fexceptions
-            "SHELL:-s ALLOW_MEMORY_GROWTH=1"
-            "SHELL:-s INITIAL_MEMORY=67108864"
-            "SHELL:-s STACK_SIZE=4194304"
-            "SHELL:-s EXIT_RUNTIME=1"
-            "SHELL:-s NODERAWFS=1"
-            "SHELL:-s DISABLE_EXCEPTION_CATCHING=0"
-        )
-    endif()
-endif()
+# Smoke binary (numkit_smoke) is now owned by tests/smoke/CMakeLists.txt;
+# add_subdirectory(tests) below pulls it in via tests/CMakeLists.txt.
 
 # ──────────────────────────────────────────────
 # Тесты (Google Test)
@@ -181,8 +155,9 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
 
     enable_testing()
 
-    # tests/ creates the numkit_gtests target; per-component tests/ dirs
-    # contribute their sources via target_sources(numkit_gtests PRIVATE ...).
+    # tests/ owns numkit_gtest (in tests/gtest/) and numkit_smoke (in
+    # tests/smoke/). Per-component tests/ dirs contribute their gtest
+    # sources via target_sources(numkit_gtest PRIVATE ...).
     add_subdirectory(tests)
     add_subdirectory(core/tests)
     foreach(_test_lib builtin signal stats graphics io wavelet comm control image)
