@@ -143,9 +143,12 @@ Value trnd(std::pmr::memory_resource *mr, double nu, size_t rows, size_t cols)
 
 std::tuple<double, double> tstat(double nu)
 {
-    const double v = (nu > 2.0) ? (nu / (nu - 2.0))
-                                : std::numeric_limits<double>::quiet_NaN();
-    return std::make_tuple(0.0, v);
+    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    if (nu <= 0.0) return std::make_tuple(NaN, NaN);
+    // mean defined only for nu > 1; variance only for nu > 2.
+    const double m = (nu > 1.0) ? 0.0 : NaN;
+    const double v = (nu > 2.0) ? (nu / (nu - 2.0)) : NaN;
+    return std::make_tuple(m, v);
 }
 
 // ════════════════════════════════════════════════════════════════════
