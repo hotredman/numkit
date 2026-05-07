@@ -21,3 +21,12 @@ RNG family).
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-07
+- Notes: Two fixes:
+  - Vectorisation via emit_vec_stat_1arg (sweep commit 5dd32c38).
+  - poisstat(0) returned (0, 0); MATLAB returns NaN/NaN (degenerate).
+    Fixed: lambda <= 0 ⇒ NaN.
+  3 TEST_F gtest + smoke .m. Parity OK numkit ↔ MATLAB ↔ Octave.

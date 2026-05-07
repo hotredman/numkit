@@ -109,7 +109,6 @@ Status legend:
 | [findings/stats/poissinv.md](findings/stats/poissinv.md) | poissinv | stats.dist | low | small | 1525319 |
 | [findings/stats/poisspdf.md](findings/stats/poisspdf.md) | poisspdf | stats.dist | low | small | 1525319 |
 | [findings/stats/poissrnd.md](findings/stats/poissrnd.md) | poissrnd | stats.dist | low | small | 1525319 |
-| [findings/stats/poisstat.md](findings/stats/poisstat.md) | poisstat | stats.dist | low | small | 1525319 |
 | [findings/stats/unidinv.md](findings/stats/unidinv.md) | unidinv | stats.dist | low | small | 1525319 |
 | [findings/stats/unidpdf.md](findings/stats/unidpdf.md) | unidpdf | stats.dist | low | small | 1525319 |
 | [findings/stats/unidrnd.md](findings/stats/unidrnd.md) | unidrnd | stats.dist | low | small | 1525319 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/norminv.md](closed/stats/norminv.md) | norminv | PENDING | 2026-05-07 |
 | [closed/stats/normpdf.md](closed/stats/normpdf.md) | normpdf | PENDING | 2026-05-07 |
 | [closed/stats/normstat.md](closed/stats/normstat.md) | normstat | PENDING | 2026-05-07 |
+| [closed/stats/poisstat.md](closed/stats/poisstat.md) | poisstat | PENDING | 2026-05-07 |
 
 ---
 

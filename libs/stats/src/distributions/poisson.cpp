@@ -209,7 +209,8 @@ Value poissrnd(std::pmr::memory_resource *mr, double lambda, size_t rows, size_t
 
 std::tuple<double, double> poisstat(double lambda)
 {
-    if (lambda < 0.0) {
+    // MATLAB convention: lambda <= 0 ⇒ NaN/NaN (degenerate at 0).
+    if (lambda <= 0.0) {
         const double nan = std::numeric_limits<double>::quiet_NaN();
         return std::make_tuple(nan, nan);
     }
