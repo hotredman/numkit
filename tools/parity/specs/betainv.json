@@ -1,0 +1,16 @@
+{
+  "name": "betainv",
+  "namespace": "stats",
+  "setup": "ps = [0.05 0.5 0.95];",
+  "expr": "x_uniform = betainv(ps, 1, 1); x_sym05 = betainv(ps, 0.5, 0.5); x_25 = betainv(ps, 2, 5); x_1010 = betainv(ps, 10, 10); x_p0 = betainv(0.0, 2, 3); x_p1 = betainv(1.0, 2, 3); x_pneg = betainv(-0.1, 2, 3); x_a0 = betainv(0.5, 0, 3);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "x_uniform(1)", "x_uniform(2)", "x_uniform(3)",
+    "x_sym05(1)",   "x_sym05(2)",   "x_sym05(3)",
+    "x_25(1)",      "x_25(2)",      "x_25(3)",
+    "x_1010(1)",    "x_1010(2)",    "x_1010(3)",
+    "x_p0", "x_p1", "x_pneg", "x_a0"
+  ],
+  "comment": "Sig: x = betainv(p, a, b). Inverse Beta CDF. Covers (a,b) ∈ {(1,1) uniform, (0.5,0.5) U-shaped, (2,5), (10,10)} × p ∈ {0.05, 0.5, 0.95}. Edges: p=0 => 0; p=1 => 1; p outside [0,1] => NaN; invalid shape => NaN."
+}

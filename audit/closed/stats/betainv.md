@@ -31,3 +31,12 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-07
+- Notes: Pure spec coverage (impl already matched). New
+  `tools/parity/specs/betainv.json` with 16 fingerprint values
+  covering Beta(1,1)/Beta(0.5,0.5)/Beta(2,5)/Beta(10,10) × p ∈
+  {0.05, 0.5, 0.95} + boundary p∈{0,1} + invalid (p<0, a≤0). 7 TEST_F
+  gtest + smoke .m. Parity OK numkit ↔ MATLAB ↔ Octave at tol=1e-9.
