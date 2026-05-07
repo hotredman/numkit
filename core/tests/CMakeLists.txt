@@ -1,4 +1,4 @@
-target_sources(numkit_gtests PRIVATE
+target_sources(numkit_gtest PRIVATE
     # lexer / parser / compiler
     ${CMAKE_CURRENT_SOURCE_DIR}/lexer_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/parser_test.cpp

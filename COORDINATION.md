@@ -100,7 +100,7 @@ git push origin --delete feature/libs-signal   # remote (if pushed)
 
 - **Full test suite** must pass:
   ```bash
-  ./build-desktop-fast/tests/Release/numkit_gtests.exe --gtest_brief=1
+  ./build-desktop-fast/tests/gtest/Release/numkit_gtest.exe --gtest_brief=1
   ```
   All 6300+ tests except the 1 documented skip + 4 disabled.
 - For an API-breaking change in `libs/<area>/include/`: also rebuild any
@@ -145,7 +145,7 @@ cd C:/Users/User/Projects/numkit-m   # main worktree
 git fetch
 git merge --no-ff origin/feature/libs-signal
 # resolve conflicts if any, then:
-./build-desktop-fast/tests/Release/numkit_gtests.exe --gtest_brief=1
+./build-desktop-fast/tests/gtest/Release/numkit_gtest.exe --gtest_brief=1
 git push origin main
 ```
 
