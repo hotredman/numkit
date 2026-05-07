@@ -11,7 +11,7 @@ anything else.
 
 | Rule | Why |
 |---|---|
-| Do not modify `libs/`, `core/`, `tests/`, `tools/`, `ide-v3/` | Code changes belong to the main worker |
+| Do not modify `libs/`, `core/`, `tests/`, `tools/`, `ide/` | Code changes belong to the main worker |
 | Do not modify `tools/parity/specs/**` | Same — improvements ship via ТЗ, not direct edits |
 | Do not modify `PROGRESS.md` | Same — ТЗ proposes the new wording |
 | Do not modify `BUGS.md` | Same — ТЗ flags the bug |
