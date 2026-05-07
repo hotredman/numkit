@@ -1,0 +1,16 @@
+{
+  "name": "chi2inv",
+  "namespace": "stats",
+  "setup": "ps = [0.05 0.5 0.95];",
+  "expr": "x_k1 = chi2inv(ps, 1); x_k5 = chi2inv(ps, 5); x_k30 = chi2inv(ps, 30); x_p0 = chi2inv(0.0, 5); x_p1 = chi2inv(1.0, 5); x_pneg = chi2inv(-0.1, 5); x_pover = chi2inv(1.5, 5); x_kbad = chi2inv(0.5, 0); x_kneg = chi2inv(0.5, -1);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "x_k1(1)",  "x_k1(2)",  "x_k1(3)",
+    "x_k5(1)",  "x_k5(2)",  "x_k5(3)",
+    "x_k30(1)", "x_k30(2)", "x_k30(3)",
+    "x_p0", "x_p1", "x_pneg", "x_pover",
+    "x_kbad", "x_kneg"
+  ],
+  "comment": "Sig: x = chi2inv(p, k). Inverse Chi² CDF with k dof. Covers k ∈ {1, 5, 30} × p ∈ {0.05, 0.5, 0.95} + p=0 (=> 0) + p=1 (=> Inf) + p outside [0,1] (=> NaN) + k<=0 (=> NaN)."
+}

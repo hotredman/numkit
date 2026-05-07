@@ -76,8 +76,15 @@ Value chi2cdf(std::pmr::memory_resource *mr, const Value &x, double k)
 
 Value chi2inv(std::pmr::memory_resource *mr, const Value &p, double k)
 {
-    if (k <= 0.0)
+    // MATLAB convention: k < 0 ⇒ NaN; k == 0 ⇒ degenerate, quantile is 0
+    // for any p in [0, 1] (out-of-range p still NaN).
+    if (k < 0.0)
         return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+    if (k == 0.0)
+        return elementwise(mr, p, [](double pi){
+            return (pi >= 0.0 && pi <= 1.0) ? 0.0
+                                            : std::numeric_limits<double>::quiet_NaN();
+        });
     Value ar = Value::scalar(0.5 * k, mr);
     Value q = ::numkit::builtin::gammaincinv(mr, p, ar);
     // x = 2 * gammaincinv(p, k/2)
