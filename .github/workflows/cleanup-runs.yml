@@ -1,0 +1,75 @@
+# Bulk-delete old workflow runs from this repo.
+#
+# Why a workflow and not a local script?
+#   The personal-token rate limit is too small for an 800+ delete
+#   storm. The runner's GITHUB_TOKEN has its own (much larger) pool
+#   and does the work in-place — no need to expose a PAT.
+#
+# Usage:
+#   Actions → "Cleanup workflow runs" → Run workflow → keep=N (default 5)
+#
+# It deletes EVERY run except:
+#   - the most recent `keep` runs (per the input)
+#   - this cleanup run itself
+
+name: Cleanup workflow runs
+
+on:
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: "How many most-recent runs to keep"
+        required: true
+        default: "5"
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old runs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const keep   = parseInt('${{ inputs.keep }}', 10) || 5;
+            const owner  = context.repo.owner;
+            const repo   = context.repo.repo;
+            const meRun  = context.runId;
+
+            // Page through every workflow run.
+            const all = [];
+            let page = 1;
+            while (true) {
+              const { data } = await github.rest.actions.listWorkflowRunsForRepo({
+                owner, repo, per_page: 100, page,
+              });
+              all.push(...data.workflow_runs);
+              if (data.workflow_runs.length < 100) break;
+              page += 1;
+            }
+            core.info(`Total workflow runs: ${all.length}`);
+
+            // Keep newest N + the current run.
+            all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            const keepSet = new Set(all.slice(0, keep).map(r => r.id));
+            keepSet.add(meRun);
+            const doomed = all.filter(r => !keepSet.has(r.id));
+            core.info(`Keeping ${keepSet.size} (incl. self); deleting ${doomed.length}`);
+
+            let ok = 0, fail = 0;
+            for (const r of doomed) {
+              try {
+                await github.rest.actions.deleteWorkflowRun({
+                  owner, repo, run_id: r.id,
+                });
+                ok += 1;
+                if (ok % 50 === 0) core.info(`  progress: ${ok}/${doomed.length}`);
+              } catch (e) {
+                fail += 1;
+                core.warning(`run ${r.id} (${r.name}): ${e.message}`);
+              }
+            }
+            core.info(`Done: deleted=${ok} failed=${fail}`);
