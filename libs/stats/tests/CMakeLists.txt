@@ -45,4 +45,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/geostat_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/lognstat_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gamstat_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/unifstat_test.cpp
 )
