@@ -193,11 +193,8 @@ void trnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 
 void tstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.empty())
-        throw Error("tstat: requires nu", 0, 0, "tstat", "", "m:tstat:nargin");
-    auto [m, v] = tstat(args[0].toScalar());
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    emit_vec_stat_1arg(args, nargout, outs, ctx, "tstat",
+                       [](double nu) { return tstat(nu); });
 }
 
 } // namespace detail

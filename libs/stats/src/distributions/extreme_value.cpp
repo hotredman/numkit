@@ -7,6 +7,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <limits>
 #include <mutex>
@@ -158,12 +160,8 @@ void evrnd_reg(Span<const Value> args, size_t /*nargout*/,
 void evstat_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("evstat: requires (mu, sigma)",
-                    0, 0, "evstat", "", "m:evstat:nargin");
-    auto [m, v] = evstat(args[0].toScalar(), args[1].toScalar());
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    emit_vec_stat_2arg(args, nargout, outs, ctx, "evstat",
+                       [](double mu, double sigma) { return evstat(mu, sigma); });
 }
 
 } // namespace detail

@@ -8,6 +8,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <limits>
 #include <mutex>
@@ -210,12 +212,8 @@ void ncx2rnd_reg(Span<const Value> args, size_t /*nargout*/,
 void ncx2stat_reg(Span<const Value> args, size_t nargout,
                   Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("ncx2stat: requires (k, lambda)",
-                    0, 0, "ncx2stat", "", "m:ncx2stat:nargin");
-    auto [m, v] = ncx2stat(args[0].toScalar(), args[1].toScalar());
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    emit_vec_stat_2arg(args, nargout, outs, ctx, "ncx2stat",
+                       [](double k, double lambda) { return ncx2stat(k, lambda); });
 }
 
 } // namespace detail

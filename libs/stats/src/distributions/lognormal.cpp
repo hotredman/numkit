@@ -203,9 +203,8 @@ void lognrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void lognstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    auto [m, v] = lognstat(argMu(args, 0), argSigma(args, 1));
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    emit_vec_stat_2arg(args, nargout, outs, ctx, "lognstat",
+                       [](double mu, double sigma) { return lognstat(mu, sigma); });
 }
 
 } // namespace detail

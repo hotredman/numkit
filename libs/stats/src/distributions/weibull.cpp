@@ -156,9 +156,8 @@ void wblrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 
 void wblstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    auto [m, v] = wblstat(argA(args, 0), argB(args, 1));
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    emit_vec_stat_2arg(args, nargout, outs, ctx, "wblstat",
+                       [](double a, double b) { return wblstat(a, b); });
 }
 
 } // namespace detail

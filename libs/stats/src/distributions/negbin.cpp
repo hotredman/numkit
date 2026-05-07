@@ -8,6 +8,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <limits>
 #include <mutex>
@@ -168,11 +170,8 @@ void nbinrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void nbinstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("nbinstat: requires (r, p)", 0, 0, "nbinstat", "", "m:nbinstat:nargin");
-    auto [m, v] = nbinstat(args[0].toScalar(), args[1].toScalar());
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    emit_vec_stat_2arg(args, nargout, outs, ctx, "nbinstat",
+                       [](double r, double p) { return nbinstat(r, p); });
 }
 
 } // namespace detail

@@ -166,11 +166,8 @@ void binornd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void binostat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("binostat: requires (n, p)", 0, 0, "binostat", "", "m:binostat:nargin");
-    auto [m, v] = binostat(args[0].toScalar(), args[1].toScalar());
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    emit_vec_stat_2arg(args, nargout, outs, ctx, "binostat",
+                       [](double n, double p) { return binostat(n, p); });
 }
 
 } // namespace detail

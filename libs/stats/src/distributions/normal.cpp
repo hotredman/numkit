@@ -209,13 +209,8 @@ void normrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void normstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.empty())
-        throw Error("normstat: requires (mu, sigma)",
-                     0, 0, "normstat", "", "m:normstat:nargin");
-    auto [mu, sigma] = parseMuSigma(args, 0);
-    auto [m, v] = normstat(mu, sigma);
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    emit_vec_stat_2arg(args, nargout, outs, ctx, "normstat",
+                       [](double mu, double sigma) { return normstat(mu, sigma); });
 }
 
 } // namespace detail

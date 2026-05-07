@@ -149,9 +149,8 @@ void unifrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void unifstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    auto [m, v] = unifstat(argA(args, 0), argB(args, 1));
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    emit_vec_stat_2arg(args, nargout, outs, ctx, "unifstat",
+                       [](double a, double b) { return unifstat(a, b); });
 }
 
 } // namespace detail

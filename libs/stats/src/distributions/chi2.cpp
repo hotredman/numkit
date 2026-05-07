@@ -161,34 +161,8 @@ void chi2rnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void chi2stat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.empty())
-        throw Error("chi2stat: requires k", 0, 0, "chi2stat", "", "m:chi2stat:nargin");
-    auto *mr = ctx.engine->resource();
-    const Value &kv = args[0];
-    if (kv.isScalar()) {
-        auto [m, v] = chi2stat(kv.toScalar());
-        outs[0] = Value::scalar(m, mr);
-        if (nargout > 1) outs[1] = Value::scalar(v, mr);
-        return;
-    }
-    // MATLAB-style elementwise on vector / matrix k.
-    const auto &d = kv.dims();
-    Value out_m = d.is3D()
-        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
-        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    Value out_v = d.is3D()
-        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
-        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    double *pm = out_m.doubleDataMut();
-    double *pv = out_v.doubleDataMut();
-    const size_t n = kv.numel();
-    for (size_t i = 0; i < n; ++i) {
-        auto [m, v] = chi2stat(kv.elemAsDouble(i));
-        pm[i] = m;
-        pv[i] = v;
-    }
-    outs[0] = std::move(out_m);
-    if (nargout > 1) outs[1] = std::move(out_v);
+    emit_vec_stat_1arg(args, nargout, outs, ctx, "chi2stat",
+                       [](double k) { return chi2stat(k); });
 }
 
 } // namespace detail

@@ -10,6 +10,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -192,11 +194,10 @@ void hygernd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void hygestat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 3)
-        throw Error("hygestat: requires (M, K, N)", 0, 0, "hygestat", "", "m:hygestat:nargin");
-    auto [m, v] = hygestat(args[0].toScalar(), args[1].toScalar(), args[2].toScalar());
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    emit_vec_stat_3arg(args, nargout, outs, ctx, "hygestat",
+                       [](double M, double K, double N) {
+                           return hygestat(M, K, N);
+                       });
 }
 
 } // namespace detail

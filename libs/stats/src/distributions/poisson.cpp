@@ -261,11 +261,8 @@ void poissrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 
 void poisstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.empty())
-        throw Error("poisstat: requires lambda", 0, 0, "poisstat", "", "m:poisstat:nargin");
-    auto [m, v] = poisstat(args[0].toScalar());
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    emit_vec_stat_1arg(args, nargout, outs, ctx, "poisstat",
+                       [](double lambda) { return poisstat(lambda); });
 }
 
 } // namespace detail
