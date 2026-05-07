@@ -127,7 +127,6 @@ Status legend:
 | [findings/stats/wblrnd.md](findings/stats/wblrnd.md) | wblrnd | stats.dist | medium | small | 105c2b4 |
 | [findings/stats/logninv.md](findings/stats/logninv.md) | logninv | stats.dist | low | small | 105c2b4 |
 | [findings/stats/lognpdf.md](findings/stats/lognpdf.md) | lognpdf | stats.dist | low | small | 105c2b4 |
-| [findings/stats/lognstat.md](findings/stats/lognstat.md) | lognstat | stats.dist | low | small | 105c2b4 |
 | [findings/stats/wblinv.md](findings/stats/wblinv.md) | wblinv | stats.dist | low | small | 105c2b4 |
 | [findings/stats/wblpdf.md](findings/stats/wblpdf.md) | wblpdf | stats.dist | low | small | 105c2b4 |
 | [findings/stats/wblstat.md](findings/stats/wblstat.md) | wblstat | stats.dist | low | small | 105c2b4 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/raylstat.md](closed/stats/raylstat.md) | raylstat | PENDING | 2026-05-07 |
 | [closed/stats/tstat.md](closed/stats/tstat.md) | tstat | PENDING | 2026-05-07 |
 | [closed/stats/unidstat.md](closed/stats/unidstat.md) | unidstat | PENDING | 2026-05-07 |
+| [closed/stats/lognstat.md](closed/stats/lognstat.md) | lognstat | PENDING | 2026-05-07 |
 
 ---
 
