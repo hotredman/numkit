@@ -117,9 +117,11 @@ void expcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 
 void expinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("expinv: requires (p, mu)", 0, 0, "expinv", "", "m:expinv:nargin");
-    outs[0] = expinv(ctx.engine->resource(), args[0], args[1].toScalar());
+    if (args.empty())
+        throw Error("expinv: requires (p[, mu])", 0, 0, "expinv", "", "m:expinv:nargin");
+    // MATLAB default: expinv(p) ≡ expinv(p, 1).
+    const double mu = (args.size() >= 2) ? args[1].toScalar() : 1.0;
+    outs[0] = expinv(ctx.engine->resource(), args[0], mu);
 }
 
 void exprnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
