@@ -6,7 +6,7 @@
       "name": "portable",
       "displayName": "Portable (reference, no optimizations)",
       "description": "Minimal build — all NUMKIT_WITH_* features OFF. Baseline reference that compiles anywhere; used for CI sanity and exotic platforms.",
-      "binaryDir": "${sourceDir}/build-portable",
+      "binaryDir": "${sourceDir}/build/portable",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
@@ -16,7 +16,7 @@
       "inherits": "portable",
       "displayName": "Desktop x86_64 (Highway SIMD)",
       "description": "Native desktop build for Windows/Linux x86_64. Enables Highway dynamic-dispatch SIMD — picks the best ISA (SSE4 / AVX2 / AVX-512 / …) at runtime on first call to any vectorised kernel.",
-      "binaryDir": "${sourceDir}/build-desktop-fast",
+      "binaryDir": "${sourceDir}/build/desktop-fast",
       "cacheVariables": {
         "NUMKIT_WITH_SIMD": "ON"
       }
@@ -26,7 +26,7 @@
       "inherits": "portable",
       "displayName": "Apple Silicon (ARM64 macOS)",
       "description": "ARM64 macOS build. Targets Highway with NEON/SVE2 when the SIMD backends are implemented.",
-      "binaryDir": "${sourceDir}/build-apple-m",
+      "binaryDir": "${sourceDir}/build/apple-m",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -41,7 +41,7 @@
       "inherits": "portable",
       "displayName": "Bench (portable + Google Benchmark)",
       "description": "Release build with NUMKIT_BUILD_BENCHMARKS=ON. Produces the numkit_bench executable for baseline performance numbers before any SIMD work.",
-      "binaryDir": "${sourceDir}/build-bench",
+      "binaryDir": "${sourceDir}/build/bench",
       "cacheVariables": {
         "NUMKIT_BUILD_BENCHMARKS": "ON"
       }
@@ -51,7 +51,7 @@
       "inherits": "desktop-fast",
       "displayName": "Bench with Highway SIMD",
       "description": "desktop-fast preset plus NUMKIT_BUILD_BENCHMARKS=ON. Use this to compare against the plain 'bench' preset and measure SIMD speedups.",
-      "binaryDir": "${sourceDir}/build-bench-simd",
+      "binaryDir": "${sourceDir}/build/bench-simd",
       "cacheVariables": {
         "NUMKIT_BUILD_BENCHMARKS": "ON"
       }
@@ -61,7 +61,7 @@
       "inherits": "desktop-fast",
       "displayName": "Desktop x86_64 (Highway SIMD + thread pool)",
       "description": "desktop-fast plus NUMKIT_WITH_THREADS=ON. Routes the elementwise SIMD kernels (+ - .* ./ abs sin cos exp log) through a persistent std::thread pool above per-kernel parallel thresholds; below the thresholds the kernels stay single-threaded. Bit-identical to desktop-fast for the supported ops.",
-      "binaryDir": "${sourceDir}/build-desktop-fast-threads",
+      "binaryDir": "${sourceDir}/build/desktop-fast-threads",
       "cacheVariables": {
         "NUMKIT_WITH_THREADS": "ON"
       }
@@ -71,7 +71,7 @@
       "inherits": "bench-simd",
       "displayName": "Bench with Highway SIMD + thread pool",
       "description": "bench-simd plus NUMKIT_WITH_THREADS=ON. Apples-to-apples comparison against bench-simd to see what multi-threading buys on the elementwise SIMD kernels.",
-      "binaryDir": "${sourceDir}/build-bench-simd-threads",
+      "binaryDir": "${sourceDir}/build/bench-simd-threads",
       "cacheVariables": {
         "NUMKIT_WITH_THREADS": "ON"
       }
@@ -80,7 +80,7 @@
       "name": "browser",
       "displayName": "Browser (WASM via Emscripten + SIMD128)",
       "description": "WebAssembly build for the Numkit IDE browser UI. Requires EMSDK env var pointing to an Emscripten SDK install. Uses the Emscripten toolchain file directly — no need to launch via emcmake if EMSDK is set. Highway is ON and targets WASM SIMD128 via -msimd128 -mrelaxed-simd; requires Chromium 91+ / Firefox 89+ / Safari 16.4+. Electron 33 (Chromium 130) supports this fully.",
-      "binaryDir": "${sourceDir}/build-browser",
+      "binaryDir": "${sourceDir}/build/browser",
       "generator": "Ninja",
       "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
       "cacheVariables": {
@@ -96,7 +96,7 @@
       "inherits": "bench",
       "displayName": "Bench with clang-cl (no Highway SIMD)",
       "description": "Drives the Visual Studio 17 2022 generator through the ClangCL toolset (clang-cl shipped with VS 2022 Professional). Highway is DISABLED — this preset exists to measure clang-cl's own autovectoriser and register allocator against MSVC's. On FFT in particular, clang-cl without Highway matches or beats MSVC *with* Highway, confirming the MSVC-codegen cliff documented in feedback_fft_msvc_limits.",
-      "binaryDir": "${sourceDir}/build-bench-clang",
+      "binaryDir": "${sourceDir}/build/bench-clang",
       "toolset": "ClangCL"
     },
     {
@@ -104,7 +104,7 @@
       "inherits": "bench-simd",
       "displayName": "Bench with clang-cl toolset + Highway SIMD",
       "description": "Same matrix as bench-simd (NUMKIT_WITH_SIMD=ON) but compiled with clang-cl. Useful for measuring codegen + Highway integration differences against MSVC on the same machine. Requires VS 2022 Professional (ships clang-cl at VC/Tools/Llvm/x64/bin/clang-cl.exe).",
-      "binaryDir": "${sourceDir}/build-bench-simd-clang",
+      "binaryDir": "${sourceDir}/build/bench-simd-clang",
       "toolset": "ClangCL"
     },
     {
@@ -112,7 +112,7 @@
       "inherits": "browser",
       "displayName": "Bench WASM (Emscripten + Highway WASM SIMD128)",
       "description": "WebAssembly benchmark build. Enables Highway WASM-SIMD128 backend and compiles the numkit_bench Google-Benchmark driver for Node.js. Run after building with: node build-bench-wasm/benchmarks/numkit_bench.js",
-      "binaryDir": "${sourceDir}/build-bench-wasm",
+      "binaryDir": "${sourceDir}/build/bench-wasm",
       "cacheVariables": {
         "NUMKIT_BUILD_REPL":        "OFF",
         "NUMKIT_BUILD_TESTS":       "OFF",
@@ -129,7 +129,7 @@
       "inherits": "browser",
       "displayName": "Browser WASM (SIMD128 + pthreads)",
       "description": "Same as 'browser' but adds Emscripten pthreads. Each pthread becomes a Web Worker; shared memory uses SharedArrayBuffer + Atomics. Requires the host page to be served with COOP=same-origin and COEP=require-corp (or to run in Electron with sharedArrayBufferAvailable). PTHREAD_POOL_SIZE pre-spawns workers at startup so the parallel SIMD kernels don't pay Worker spawn latency. Memory is fixed-size (no growth) — em++ warns that ALLOW_MEMORY_GROWTH + pthread runs non-wasm code slowly because every access checks shared state; we trade growth for the perf.",
-      "binaryDir": "${sourceDir}/build-browser-threads",
+      "binaryDir": "${sourceDir}/build/browser-threads",
       "cacheVariables": {
         "NUMKIT_BUILD_TESTS":   "OFF",
         "NUMKIT_WITH_THREADS":    "ON",
@@ -142,7 +142,7 @@
       "inherits": "bench-wasm",
       "displayName": "Bench WASM with pthreads (SIMD128 + threads)",
       "description": "Same as bench-wasm but enables Emscripten pthreads to run the Highway parallel-SIMD kernels across Web Workers. Apples-to-apples vs bench-wasm to see what threading buys on WASM. Run with: node --experimental-wasm-threads build-bench-wasm-threads/benchmarks/numkit_bench.js (recent Node has it on by default).",
-      "binaryDir": "${sourceDir}/build-bench-wasm-threads",
+      "binaryDir": "${sourceDir}/build/bench-wasm-threads",
       "cacheVariables": {
         "NUMKIT_WITH_THREADS":    "ON",
         "CMAKE_CXX_FLAGS":        "-msimd128 -mrelaxed-simd -fexceptions -pthread",
