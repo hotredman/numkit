@@ -1,6 +1,11 @@
 # ── Build directories ─────────────────────────────────
+# All cmake outputs live under /build/<preset>/. Old build-<preset>/
+# layout from before the consolidation is also covered by build*/.
+/build/
 build*/
 !build.sh
+!build.bat
+!build-desktop.bat
 .qtcreator
 
 # ── Compiled artefacts ────────────────────────────────

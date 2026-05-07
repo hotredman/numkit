@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-NUMKIT_EXE = ROOT / "build-desktop-fast" / "tests" / "smoke" / "Release" / "numkit_smoke.exe"
+NUMKIT_EXE = ROOT / "build" / "desktop-fast" / "tests" / "smoke" / "Release" / "numkit_smoke.exe"
 MATLAB_EXE = "matlab"  # on PATH
 OCTAVE_EXE = r"C:\Program Files\GNU Octave\Octave-11.1.0\mingw64\bin\octave-cli.exe"
 PROGRESS_MD = ROOT / "PROGRESS.md"
