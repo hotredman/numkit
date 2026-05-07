@@ -29,4 +29,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/betastat_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/chi2pdf_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/chi2inv_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/chi2stat_test.cpp
 )

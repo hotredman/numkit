@@ -33,3 +33,15 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-07
+- Notes: Same vectorisation gap as betastat. ТЗ said "no major gap"
+  but two real fixes needed:
+    1. chi2stat_reg was scalar-only (`args[0].toScalar()`) — added
+       elementwise vectorisation matching MATLAB's vector contract.
+    2. chi2stat(0) returned `(0, 0)` — MATLAB returns NaN/NaN
+       (moments undefined for degenerate). Fixed: k <= 0 ⇒ NaN.
+  12-fingerprint spec covers scalar / vector / k=0 / k<0. 3 TEST_F
+  gtest + smoke .m. Parity OK numkit ↔ MATLAB ↔ Octave.
