@@ -1,0 +1,17 @@
+{
+  "name": "expinv",
+  "namespace": "stats",
+  "setup": "ps = [0.05 0.5 0.95];",
+  "expr": "x_default = expinv(ps); x_mu2 = expinv(ps, 2); x_mu5 = expinv(0.5, 5); x_p0 = expinv(0.0, 1); x_p1 = expinv(1.0, 1); x_pneg = expinv(-0.1, 1); x_pover = expinv(1.5, 1); x_mubad = expinv(0.5, 0); x_muneg = expinv(0.5, -1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "x_default(1)", "x_default(2)", "x_default(3)",
+    "x_mu2(1)",     "x_mu2(2)",     "x_mu2(3)",
+    "x_mu5",
+    "x_p0", "x_p1",
+    "x_pneg", "x_pover",
+    "x_mubad", "x_muneg"
+  ],
+  "comment": "Sig: x = expinv(p[, mu]). Inverse exponential CDF: x = -mu*log(1-p). Default mu=1. Covers default form + non-default mu + boundaries (p=0,1) + invalid (p<0, p>1, mu<=0)."
+}

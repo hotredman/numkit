@@ -27,3 +27,12 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-07
+- Notes: 1-arg form added. expinv_reg now defaults `mu=1` when only
+  `p` supplied (was throwing "requires (p, mu)"). Spec covers default
+  + non-default mu + p∈{0,1} boundaries + p out-of-range + mu<=0
+  invalid. 5 TEST_F gtest + smoke .m. Parity OK numkit ↔ MATLAB ↔
+  Octave at tol=1e-12.
