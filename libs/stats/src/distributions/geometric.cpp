@@ -7,6 +7,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <limits>
 #include <mutex>
@@ -147,11 +149,8 @@ void geornd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 
 void geostat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.empty())
-        throw Error("geostat: requires p", 0, 0, "geostat", "", "m:geostat:nargin");
-    auto [m, v] = geostat(args[0].toScalar());
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    emit_vec_stat_1arg(args, nargout, outs, ctx, "geostat",
+                       [](double p) { return geostat(p); });
 }
 
 } // namespace detail

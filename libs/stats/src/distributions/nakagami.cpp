@@ -8,6 +8,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <limits>
 #include <mutex>
@@ -170,12 +172,8 @@ void nakarnd_reg(Span<const Value> args, size_t /*nargout*/,
 void nakastat_reg(Span<const Value> args, size_t nargout,
                   Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("nakastat: requires (mu, omega)",
-                    0, 0, "nakastat", "", "m:nakastat:nargin");
-    auto [m, v] = nakastat(args[0].toScalar(), args[1].toScalar());
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    emit_vec_stat_2arg(args, nargout, outs, ctx, "nakastat",
+                       [](double mu, double omega) { return nakastat(mu, omega); });
 }
 
 } // namespace detail

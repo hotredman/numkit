@@ -7,6 +7,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <limits>
 #include <mutex>
@@ -173,12 +175,10 @@ void gprnd_reg(Span<const Value> args, size_t /*nargout*/,
 void gpstat_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 3)
-        throw Error("gpstat: requires (k, sigma, theta)",
-                    0, 0, "gpstat", "", "m:gpstat:nargin");
-    auto [m, v] = gpstat(args[0].toScalar(), args[1].toScalar(), args[2].toScalar());
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    emit_vec_stat_3arg(args, nargout, outs, ctx, "gpstat",
+                       [](double k, double sigma, double theta) {
+                           return gpstat(k, sigma, theta);
+                       });
 }
 
 } // namespace detail

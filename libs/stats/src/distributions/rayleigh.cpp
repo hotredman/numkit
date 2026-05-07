@@ -148,11 +148,8 @@ void raylrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void raylstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.empty())
-        throw Error("raylstat: requires b", 0, 0, "raylstat", "", "m:raylstat:nargin");
-    auto [m, v] = raylstat(args[0].toScalar());
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    emit_vec_stat_1arg(args, nargout, outs, ctx, "raylstat",
+                       [](double b) { return raylstat(b); });
 }
 
 } // namespace detail

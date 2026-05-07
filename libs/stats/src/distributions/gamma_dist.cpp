@@ -152,11 +152,8 @@ void gamrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 
 void gamstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("gamstat: requires (a, b)", 0, 0, "gamstat", "", "m:gamstat:nargin");
-    auto [m, v] = gamstat(args[0].toScalar(), args[1].toScalar());
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    emit_vec_stat_2arg(args, nargout, outs, ctx, "gamstat",
+                       [](double a, double b) { return gamstat(a, b); });
 }
 
 } // namespace detail

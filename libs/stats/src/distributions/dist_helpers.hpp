@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 
@@ -16,6 +17,8 @@
 #include <cctype>
 #include <cmath>
 #include <string>
+#include <tuple>
+#include <utility>
 
 namespace numkit::stats::detail {
 
@@ -50,6 +53,140 @@ inline void applyUpperInPlace(Value &y)
         const double v = d[i];
         if (!std::isnan(v)) d[i] = 1.0 - v;
     }
+}
+
+// ── *stat vectorisation helpers ───────────────────────────────────────
+//
+// Every `<dist>stat(args...)` returns `tuple<double, double>` (mean,
+// variance). MATLAB vectorises these element-wise with broadcasting
+// (equal sizes OR one scalar). The helpers below take a scalar impl
+// and apply the broadcasting boilerplate once.
+//
+// Edge: 0-dim scalar inputs use a fast path (no allocation).
+
+template <class Stat1>
+inline void emit_vec_stat_1arg(Span<const Value> args, size_t nargout,
+                                Span<Value> outs, CallContext &ctx,
+                                const char *fnName, Stat1 stat_impl)
+{
+    if (args.empty())
+        throw Error(std::string(fnName) + ": requires 1 arg",
+                    0, 0, fnName, "", "m:nargin");
+    auto *mr = ctx.engine->resource();
+    const Value &p = args[0];
+    if (p.isScalar()) {
+        auto [m, v] = stat_impl(p.toScalar());
+        outs[0] = Value::scalar(m, mr);
+        if (nargout > 1) outs[1] = Value::scalar(v, mr);
+        return;
+    }
+    const auto &d = p.dims();
+    Value out_m = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    Value out_v = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    double *pm = out_m.doubleDataMut();
+    double *pv = out_v.doubleDataMut();
+    const size_t n = p.numel();
+    for (size_t i = 0; i < n; ++i) {
+        auto [m, v] = stat_impl(p.elemAsDouble(i));
+        pm[i] = m;
+        pv[i] = v;
+    }
+    outs[0] = std::move(out_m);
+    if (nargout > 1) outs[1] = std::move(out_v);
+}
+
+template <class Stat2>
+inline void emit_vec_stat_2arg(Span<const Value> args, size_t nargout,
+                                Span<Value> outs, CallContext &ctx,
+                                const char *fnName, Stat2 stat_impl)
+{
+    if (args.size() < 2)
+        throw Error(std::string(fnName) + ": requires 2 args",
+                    0, 0, fnName, "", "m:nargin");
+    auto *mr = ctx.engine->resource();
+    const Value &av = args[0];
+    const Value &bv = args[1];
+    const size_t na = av.numel();
+    const size_t nb = bv.numel();
+    if (na == 1 && nb == 1) {
+        auto [m, v] = stat_impl(av.toScalar(), bv.toScalar());
+        outs[0] = Value::scalar(m, mr);
+        if (nargout > 1) outs[1] = Value::scalar(v, mr);
+        return;
+    }
+    if (na > 1 && nb > 1 && na != nb)
+        throw Error(std::string(fnName) + ": args must be same size or scalar",
+                    0, 0, fnName, "", "m:dim");
+    const Value &ref = (na >= nb) ? av : bv;
+    const auto &d = ref.dims();
+    Value out_m = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    Value out_v = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    double *pm = out_m.doubleDataMut();
+    double *pv = out_v.doubleDataMut();
+    const size_t n = ref.numel();
+    for (size_t i = 0; i < n; ++i) {
+        const double a = av.elemAsDouble(na == 1 ? 0 : i);
+        const double b = bv.elemAsDouble(nb == 1 ? 0 : i);
+        auto [m, v] = stat_impl(a, b);
+        pm[i] = m;
+        pv[i] = v;
+    }
+    outs[0] = std::move(out_m);
+    if (nargout > 1) outs[1] = std::move(out_v);
+}
+
+template <class Stat3>
+inline void emit_vec_stat_3arg(Span<const Value> args, size_t nargout,
+                                Span<Value> outs, CallContext &ctx,
+                                const char *fnName, Stat3 stat_impl)
+{
+    if (args.size() < 3)
+        throw Error(std::string(fnName) + ": requires 3 args",
+                    0, 0, fnName, "", "m:nargin");
+    auto *mr = ctx.engine->resource();
+    const Value &av = args[0];
+    const Value &bv = args[1];
+    const Value &cv = args[2];
+    const size_t na = av.numel(), nb = bv.numel(), nc = cv.numel();
+    const size_t nmax = std::max({na, nb, nc});
+    if (nmax == 1) {
+        auto [m, v] = stat_impl(av.toScalar(), bv.toScalar(), cv.toScalar());
+        outs[0] = Value::scalar(m, mr);
+        if (nargout > 1) outs[1] = Value::scalar(v, mr);
+        return;
+    }
+    auto sizeOK = [&](size_t n){ return n == 1 || n == nmax; };
+    if (!sizeOK(na) || !sizeOK(nb) || !sizeOK(nc))
+        throw Error(std::string(fnName) + ": args must be same size or scalar",
+                    0, 0, fnName, "", "m:dim");
+    const Value &ref = (na == nmax) ? av : (nb == nmax ? bv : cv);
+    const auto &d = ref.dims();
+    Value out_m = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    Value out_v = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    double *pm = out_m.doubleDataMut();
+    double *pv = out_v.doubleDataMut();
+    for (size_t i = 0; i < nmax; ++i) {
+        const double a = av.elemAsDouble(na == 1 ? 0 : i);
+        const double b = bv.elemAsDouble(nb == 1 ? 0 : i);
+        const double c = cv.elemAsDouble(nc == 1 ? 0 : i);
+        auto [m, v] = stat_impl(a, b, c);
+        pm[i] = m;
+        pv[i] = v;
+    }
+    outs[0] = std::move(out_m);
+    if (nargout > 1) outs[1] = std::move(out_v);
 }
 
 } // namespace numkit::stats::detail

@@ -187,46 +187,8 @@ void frnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 
 void fstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("fstat: requires (v1, v2)", 0, 0, "fstat", "", "m:fstat:nargin");
-    auto *mr = ctx.engine->resource();
-    const Value &v1v = args[0];
-    const Value &v2v = args[1];
-    const size_t n1 = v1v.numel();
-    const size_t n2 = v2v.numel();
-
-    // Scalar fast path.
-    if (n1 == 1 && n2 == 1) {
-        auto [m, v] = fstat(v1v.toScalar(), v2v.toScalar());
-        outs[0] = Value::scalar(m, mr);
-        if (nargout > 1) outs[1] = Value::scalar(v, mr);
-        return;
-    }
-    // MATLAB-style broadcasting: equal sizes OR one scalar.
-    if (n1 > 1 && n2 > 1 && n1 != n2)
-        throw Error("fstat: v1 and v2 must be same size or scalar",
-                    0, 0, "fstat", "", "m:fstat:dim");
-
-    const Value &ref = (n1 >= n2) ? v1v : v2v;
-    const auto &d = ref.dims();
-    Value out_m = d.is3D()
-        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
-        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    Value out_v = d.is3D()
-        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
-        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    double *pm = out_m.doubleDataMut();
-    double *pv = out_v.doubleDataMut();
-    const size_t n = ref.numel();
-    for (size_t i = 0; i < n; ++i) {
-        const double a = v1v.elemAsDouble(n1 == 1 ? 0 : i);
-        const double b = v2v.elemAsDouble(n2 == 1 ? 0 : i);
-        auto [m, v] = fstat(a, b);
-        pm[i] = m;
-        pv[i] = v;
-    }
-    outs[0] = std::move(out_m);
-    if (nargout > 1) outs[1] = std::move(out_v);
+    emit_vec_stat_2arg(args, nargout, outs, ctx, "fstat",
+                       [](double v1, double v2) { return fstat(v1, v2); });
 }
 
 } // namespace detail

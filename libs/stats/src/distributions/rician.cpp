@@ -9,6 +9,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <limits>
 #include <mutex>
@@ -206,13 +208,9 @@ void ricernd_reg(Span<const Value> args, size_t /*nargout*/,
 void ricestat_reg(Span<const Value> args, size_t nargout,
                   Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("ricestat: requires (s, sigma)",
-                    0, 0, "ricestat", "", "m:ricestat:nargin");
-    auto [m, v] = ricestat(ctx.engine->resource(),
-                            args[0].toScalar(), args[1].toScalar());
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    emit_vec_stat_2arg(args, nargout, outs, ctx, "ricestat",
+                       [mr](double s, double sigma) { return ricestat(mr, s, sigma); });
 }
 
 } // namespace detail

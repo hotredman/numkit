@@ -7,6 +7,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include "dist_helpers.hpp"
+
 #include <cmath>
 #include <limits>
 #include <mutex>
@@ -184,12 +186,11 @@ void gevrnd_reg(Span<const Value> args, size_t /*nargout*/,
 void gevstat_reg(Span<const Value> args, size_t nargout,
                  Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 3)
-        throw Error("gevstat: requires (k, sigma, mu)",
-                    0, 0, "gevstat", "", "m:gevstat:nargin");
-    auto [m, v] = gevstat(args[0].toScalar(), args[1].toScalar(), args[2].toScalar());
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    emit_vec_stat_3arg(args, nargout, outs, ctx, "gevstat",
+                       [](double k, double sigma, double mu) {
+                           return gevstat(k, sigma, mu);
+                       });
+    return;
 }
 
 } // namespace detail
