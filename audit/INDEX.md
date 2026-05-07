@@ -78,7 +78,6 @@ Status legend:
 | [findings/stats/gampdf.md](findings/stats/gampdf.md) | gampdf | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/gamrnd.md](findings/stats/gamrnd.md) | gamrnd | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/betainv.md](findings/stats/betainv.md) | betainv | stats.dist | low | small | 301e5a5 |
-| [findings/stats/betapdf.md](findings/stats/betapdf.md) | betapdf | stats.dist | low | small | 301e5a5 |
 | [findings/stats/betastat.md](findings/stats/betastat.md) | betastat | stats.dist | low | small | 301e5a5 |
 | [findings/stats/expstat.md](findings/stats/expstat.md) | expstat | stats.dist | low | small | 301e5a5 |
 | [findings/stats/gaminv.md](findings/stats/gaminv.md) | gaminv | stats.dist | low | small | 301e5a5 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/gplike.md](closed/stats/gplike.md) | gplike | PENDING | 2026-05-06 |
 | [closed/stats/explike.md](closed/stats/explike.md) | explike | PENDING | 2026-05-06 |
 | [closed/stats/lognlike.md](closed/stats/lognlike.md) | lognlike | PENDING | 2026-05-06 |
+| [closed/stats/betapdf.md](closed/stats/betapdf.md) | betapdf | PENDING | 2026-05-07 |
 
 ---
 

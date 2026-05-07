@@ -38,3 +38,12 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-07
+- Notes: Pure spec coverage (impl already matched). New
+  `tools/parity/specs/betapdf.json` with 12 fingerprint values
+  covering scalar / vector / out-of-(0,1) edges (x<0, x=0, x=1,
+  x>1) / invalid shape (a<=0, b<=0). 4 TEST_F gtest + smoke .m.
+  Parity OK numkit ↔ MATLAB ↔ Octave at tol=1e-12.
