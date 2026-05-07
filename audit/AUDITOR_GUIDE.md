@@ -31,7 +31,7 @@ For each function in scope:
    *is* in your write-scope as scratch — but never commit anything from
    it). Cover every documented signature, every output, every edge case.
 3. **Compare numkit to MATLAB** by running both on identical inputs
-   (numkit via `build-desktop-fast/Release/numkit_example.exe`).
+   (numkit via `build-desktop-fast/Release/numkit_smokes.exe`).
 4. **Write the ТЗ** in `audit/findings/<namespace>/<fnname>.md` using
    the template below. One file per function.
 5. **Update `audit/INDEX.md`** to register the new ТЗ.

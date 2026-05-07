@@ -21,7 +21,7 @@ surface to the user**. Do not silently work on top of someone else's work.
   `portable`, `apple-m`, `browser` (WASM via emsdk).
 - Build dir = `build-<preset>/` per source root; runs of cmake never share
   binaryDir between worktrees.
-- Test runner: `build-<preset>/tests/Release/numkit_tests.exe`.
+- Test runner: `build-<preset>/tests/Release/numkit_gtests.exe`.
 - WASM: `build.sh --wasm` with emsdk env sourced; redeploy IDE via `deploy.sh`.
 
 ## Commits
@@ -34,7 +34,7 @@ surface to the user**. Do not silently work on top of someone else's work.
 
 - Hand-runnable `.m` smokes live in `libs/<name>/tests/smoke/*_smoke.m`
   (one per public function or related cluster). Run via
-  `build-desktop-fast/Release/numkit_example.exe <path>`.
+  `build-desktop-fast/Release/numkit_smokes.exe <path>`.
 - **Every smoke MUST start with `clear` on the very first line**, then
   the usual `import compat.*` and the body. This ensures no leftover
   workspace state from a prior run leaks into the test.
@@ -93,15 +93,15 @@ TEST_F(HaartTest, Level1Vector) {
 }
 ```
 Wire via `libs/<lib>/tests/CMakeLists.txt` (create if missing — pattern
-`target_sources(numkit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/...)`).
-Tests must pass under `numkit_tests.exe`. At least one TEST_F per
+`target_sources(numkit_gtests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/...)`).
+Tests must pass under `numkit_gtests.exe`. At least one TEST_F per
 documented branch.
 
 ### 4. Smoke `.m` — `libs/<lib>/tests/smoke/<name>_smoke.m`
 Hand-runnable demo. **Every smoke MUST start with `clear` on the first
 line**, then `import compat.*`, then the body. Use `fprintf` to print
 expected values inline ("expect ~..."). Run via
-`build-desktop-fast/Release/numkit_example.exe libs/<lib>/tests/smoke/<name>_smoke.m`.
+`build-desktop-fast/Release/numkit_smokes.exe libs/<lib>/tests/smoke/<name>_smoke.m`.
 
 Three real bugs in cycles 65-75 were caught only by parity cross-check —
 hand-written smokes had passed all three. Don't trust your own

@@ -133,21 +133,23 @@ if(NUMKIT_WITH_THREADS)
 endif()
 
 # ──────────────────────────────────────────────
-# Example
+# Smoke runner — runs `.m` smoke scripts with the numkit engine.
+# Used by libs/<name>/tests/smoke/*_smoke.m. Not an "example app";
+# it's a thin REPL-less runner of MATLAB-flavoured scripts.
 # ──────────────────────────────────────────────
 
 if(NUMKIT_BUILD_EXAMPLE)
-    add_executable(numkit_example example/main.cpp)
-    target_link_libraries(numkit_example PRIVATE numkit)
+    add_executable(numkit_smokes smokes/main.cpp)
+    target_link_libraries(numkit_smokes PRIVATE numkit)
 
     if(EMSCRIPTEN)
         # Emscripten produces a Node-runnable .js loader + .wasm sidecar
         # when the output ends in .js. NODERAWFS lets argv paths resolve
         # against the real host filesystem:
-        #   node build-browser/example/numkit_example.js path/to/script.m
-        set_target_properties(numkit_example PROPERTIES SUFFIX ".js")
-        target_compile_options(numkit_example PRIVATE -fexceptions)
-        target_link_options(numkit_example PRIVATE
+        #   node build-browser/smokes/numkit_smokes.js path/to/script.m
+        set_target_properties(numkit_smokes PROPERTIES SUFFIX ".js")
+        target_compile_options(numkit_smokes PRIVATE -fexceptions)
+        target_link_options(numkit_smokes PRIVATE
             -fexceptions
             "SHELL:-s ALLOW_MEMORY_GROWTH=1"
             "SHELL:-s INITIAL_MEMORY=67108864"
@@ -179,8 +181,8 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
 
     enable_testing()
 
-    # tests/ creates the numkit_tests target; per-component tests/ dirs
-    # contribute their sources via target_sources(numkit_tests PRIVATE ...).
+    # tests/ creates the numkit_gtests target; per-component tests/ dirs
+    # contribute their sources via target_sources(numkit_gtests PRIVATE ...).
     add_subdirectory(tests)
     add_subdirectory(core/tests)
     foreach(_test_lib builtin signal stats graphics io wavelet comm control image)
