@@ -67,3 +67,6 @@ __pycache__/
 # live under ide/public/examples/ and tools/parity/specs/.
 /probe_*.m
 /scratch*.m
+# Per-cycle scratch probe directory (main worker dumps .m files
+# here while iterating on parity refs).
+tools/probe_tmp/
