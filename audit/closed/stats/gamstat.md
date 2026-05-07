@@ -23,3 +23,10 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-07
+- Notes: Vectorisation via emit_vec_stat_2arg (sweep 5dd32c38).
+  Impl edges already correct (a<=0 / b<=0 → NaN). 14-fingerprint
+  spec; 4 TEST_F gtest + smoke. Parity OK numkit ↔ MATLAB ↔ Octave.
