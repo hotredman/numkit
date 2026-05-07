@@ -45,9 +45,12 @@ Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
 
 Value chi2pdf(std::pmr::memory_resource *mr, const Value &x, double k)
 {
-    if (k <= 0.0) {
+    // MATLAB convention: k < 0 ⇒ NaN; k == 0 ⇒ 0 (degenerate Chi²(0)
+    // has all mass at 0, so density is 0 almost everywhere).
+    if (k < 0.0)
         return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    }
+    if (k == 0.0)
+        return elementwise(mr, x, [](double){ return 0.0; });
     // pdf(x; k) = (1/(2^(k/2) Γ(k/2))) x^(k/2-1) e^(-x/2), x ≥ 0
     // Compute log-pdf and exp to avoid overflow on small/large k.
     const double half_k = 0.5 * k;
