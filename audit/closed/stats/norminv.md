@@ -39,3 +39,16 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-07
+- Notes: ТЗ said "no major gap" but spec extension surfaced an
+  out-of-range mismatch:
+    numkit returned -Inf for p<0 and +Inf for p>1
+    MATLAB / Octave both return NaN for p outside [0, 1]
+  Fixed: norminv now distinguishes p == 0 / p == 1 (boundary,
+  ±Inf) from p outside [0, 1] (NaN). NaN-input also propagates.
+  18-fingerprint spec covering default + non-default mu/sigma +
+  p=0/p=1 boundaries + p<0/p>1 invalid + sigma<=0 invalid.
+  6 TEST_F gtest + smoke .m. Parity OK numkit ↔ MATLAB ↔ Octave.

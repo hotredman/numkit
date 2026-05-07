@@ -107,8 +107,12 @@ Value norminv(std::pmr::memory_resource *mr, const Value &p, double mu, double s
             return std::numeric_limits<double>::quiet_NaN();
         });
     return elementwise(mr, p, [=](double pi) {
-        if (pi <= 0.0) return -std::numeric_limits<double>::infinity();
-        if (pi >= 1.0) return  std::numeric_limits<double>::infinity();
+        // Boundary p ∈ {0, 1} → ±Inf; out-of-range or NaN p → NaN
+        // (matches MATLAB R2025b — Octave too).
+        if (std::isnan(pi) || pi < 0.0 || pi > 1.0)
+            return std::numeric_limits<double>::quiet_NaN();
+        if (pi == 0.0) return -std::numeric_limits<double>::infinity();
+        if (pi == 1.0) return  std::numeric_limits<double>::infinity();
         return mu + sigma * kSqrt2 * erfinvScalar(2.0 * pi - 1.0);
     });
 }

@@ -57,7 +57,6 @@ Status legend:
 | [findings/stats/tpdf.md](findings/stats/tpdf.md) | tpdf | stats.dist | medium | small | 8e48677 |
 | [findings/stats/trnd.md](findings/stats/trnd.md) | trnd | stats.dist | medium | small | 8e48677 |
 | [findings/stats/tstat.md](findings/stats/tstat.md) | tstat | stats.dist | medium | small | 8e48677 |
-| [findings/stats/norminv.md](findings/stats/norminv.md) | norminv | stats.dist | low | small | 8e48677 |
 | [findings/stats/normpdf.md](findings/stats/normpdf.md) | normpdf | stats.dist | low | small | 8e48677 |
 | [findings/stats/normstat.md](findings/stats/normstat.md) | normstat | stats.dist | low | small | 8e48677 |
 | [findings/stats/tinv.md](findings/stats/tinv.md) | tinv | stats.dist | low | small | 8e48677 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/finv.md](closed/stats/finv.md) | finv | PENDING | 2026-05-07 |
 | [closed/stats/fpdf.md](closed/stats/fpdf.md) | fpdf | PENDING | 2026-05-07 |
 | [closed/stats/fstat.md](closed/stats/fstat.md) | fstat | PENDING | 2026-05-07 |
+| [closed/stats/norminv.md](closed/stats/norminv.md) | norminv | PENDING | 2026-05-07 |
 
 ---
 
