@@ -162,9 +162,45 @@ void betastat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("betastat: requires (a, b)", 0, 0, "betastat", "", "m:betastat:nargin");
-    auto [m, v] = betastat(args[0].toScalar(), args[1].toScalar());
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &av = args[0];
+    const Value &bv = args[1];
+    const size_t na = av.numel();
+    const size_t nb = bv.numel();
+
+    // Scalar fast path — preserve old behaviour.
+    if (na == 1 && nb == 1) {
+        auto [m, v] = betastat(av.toScalar(), bv.toScalar());
+        outs[0] = Value::scalar(m, mr);
+        if (nargout > 1) outs[1] = Value::scalar(v, mr);
+        return;
+    }
+
+    // MATLAB-style broadcasting: equal sizes OR one scalar.
+    if (na > 1 && nb > 1 && na != nb)
+        throw Error("betastat: a and b must be same size or scalar",
+                    0, 0, "betastat", "", "m:betastat:dim");
+
+    const Value &ref = (na >= nb) ? av : bv;
+    const auto &d = ref.dims();
+    const size_t n = ref.numel();
+    Value out_m = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    Value out_v = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    double *pm = out_m.doubleDataMut();
+    double *pv = out_v.doubleDataMut();
+    for (size_t i = 0; i < n; ++i) {
+        const double a = av.elemAsDouble(na == 1 ? 0 : i);
+        const double b = bv.elemAsDouble(nb == 1 ? 0 : i);
+        auto [m, v] = betastat(a, b);
+        pm[i] = m;
+        pv[i] = v;
+    }
+    outs[0] = std::move(out_m);
+    if (nargout > 1) outs[1] = std::move(out_v);
 }
 
 } // namespace detail

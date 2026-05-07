@@ -1,0 +1,15 @@
+{
+  "name": "betastat",
+  "namespace": "stats",
+  "setup": "as = [0.5 1 2 5 10]; bs = [0.5 1 5 5 10];",
+  "expr": "[m, v] = betastat(as, bs); [m_neg, v_neg] = betastat(0, 3); [m_uni, v_uni] = betastat(1, 1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "m(1)", "m(2)", "m(3)", "m(4)", "m(5)",
+    "v(1)", "v(2)", "v(3)", "v(4)", "v(5)",
+    "m_neg", "v_neg",
+    "m_uni", "v_uni"
+  ],
+  "comment": "Sig: [m, v] = betastat(a, b). Beta(a,b) mean a/(a+b) and variance ab/((a+b)^2(a+b+1)). Vectorised. Invalid params (a<=0 or b<=0) => NaN. Beta(1,1) is uniform: m=0.5, v=1/12."
+}
