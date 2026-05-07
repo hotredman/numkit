@@ -1,0 +1,17 @@
+{
+  "name": "finv",
+  "namespace": "stats",
+  "setup": "ps = [0.05 0.5 0.95];",
+  "expr": "x_1_1 = finv(ps, 1, 1); x_5_10 = finv(ps, 5, 10); x_10_30 = finv(ps, 10, 30); x_p0 = finv(0.0, 5, 10); x_p1 = finv(1.0, 5, 10); x_pneg = finv(-0.1, 5, 10); x_pover = finv(1.5, 5, 10); x_v1bad = finv(0.5, 0, 10); x_v2bad = finv(0.5, 5, 0); x_v1neg = finv(0.5, -1, 10);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "x_1_1(1)",   "x_1_1(2)",   "x_1_1(3)",
+    "x_5_10(1)",  "x_5_10(2)",  "x_5_10(3)",
+    "x_10_30(1)", "x_10_30(2)", "x_10_30(3)",
+    "x_p0", "x_p1",
+    "x_pneg", "x_pover",
+    "x_v1bad", "x_v2bad", "x_v1neg"
+  ],
+  "comment": "Sig: x = finv(p, v1, v2). Inverse F CDF. Covers (v1, v2) ∈ {(1,1), (5,10), (10,30)} × p ∈ {0.05, 0.5, 0.95} + p=0 (=> 0) + p=1 (=> Inf) + p outside [0,1] (=> NaN) + v1<=0 / v2<=0 (=> NaN)."
+}
