@@ -35,3 +35,13 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-07
+- Notes: Same edge mismatch as chi2pdf — ТЗ said "no major gap"
+  but `chi2inv(p, 0)` returned NaN; MATLAB returns 0 (degenerate
+  distribution → all mass at 0). Fixed: `k < 0` → NaN, `k == 0` →
+  0 for p∈[0,1] / NaN otherwise. Spec covers k∈{1,5,30} × p∈{0.05,
+  0.5, 0.95} + p=0/p=1 boundaries + p out-of-range + k=0/k<0 edges.
+  7 TEST_F gtest + smoke .m. Parity OK numkit ↔ MATLAB at tol=1e-9.

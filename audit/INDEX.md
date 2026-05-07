@@ -57,7 +57,6 @@ Status legend:
 | [findings/stats/tpdf.md](findings/stats/tpdf.md) | tpdf | stats.dist | medium | small | 8e48677 |
 | [findings/stats/trnd.md](findings/stats/trnd.md) | trnd | stats.dist | medium | small | 8e48677 |
 | [findings/stats/tstat.md](findings/stats/tstat.md) | tstat | stats.dist | medium | small | 8e48677 |
-| [findings/stats/chi2inv.md](findings/stats/chi2inv.md) | chi2inv | stats.dist | low | small | 8e48677 |
 | [findings/stats/chi2stat.md](findings/stats/chi2stat.md) | chi2stat | stats.dist | low | small | 8e48677 |
 | [findings/stats/norminv.md](findings/stats/norminv.md) | norminv | stats.dist | low | small | 8e48677 |
 | [findings/stats/normpdf.md](findings/stats/normpdf.md) | normpdf | stats.dist | low | small | 8e48677 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/betainv.md](closed/stats/betainv.md) | betainv | PENDING | 2026-05-07 |
 | [closed/stats/betastat.md](closed/stats/betastat.md) | betastat | PENDING | 2026-05-07 |
 | [closed/stats/chi2pdf.md](closed/stats/chi2pdf.md) | chi2pdf | PENDING | 2026-05-07 |
+| [closed/stats/chi2inv.md](closed/stats/chi2inv.md) | chi2inv | PENDING | 2026-05-07 |
 
 ---
 
