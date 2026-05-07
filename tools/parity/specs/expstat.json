@@ -1,0 +1,15 @@
+{
+  "name": "expstat",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "[m_s, v_s] = expstat(2); [m_v, v_v] = expstat([1 2 5 10]); m_mu0 = expstat(0); m_muneg = expstat(-1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "m_s", "v_s",
+    "m_v(1)", "m_v(2)", "m_v(3)", "m_v(4)",
+    "v_v(1)", "v_v(2)", "v_v(3)", "v_v(4)",
+    "m_mu0", "m_muneg"
+  ],
+  "comment": "Sig: [m, v] = expstat(mu). Exponential mean=mu, variance=mu^2. Vectorised. mu<=0 => NaN."
+}

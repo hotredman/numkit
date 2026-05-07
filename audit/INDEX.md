@@ -73,7 +73,6 @@ Status legend:
 | [findings/stats/exprnd.md](findings/stats/exprnd.md) | exprnd | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/gampdf.md](findings/stats/gampdf.md) | gampdf | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/gamrnd.md](findings/stats/gamrnd.md) | gamrnd | stats.dist | medium | small | 301e5a5 |
-| [findings/stats/expstat.md](findings/stats/expstat.md) | expstat | stats.dist | low | small | 301e5a5 |
 | [findings/stats/gaminv.md](findings/stats/gaminv.md) | gaminv | stats.dist | low | small | 301e5a5 |
 | [findings/stats/gamstat.md](findings/stats/gamstat.md) | gamstat | stats.dist | low | small | 301e5a5 |
 | [findings/signal/fftshift.md](findings/signal/fftshift.md) | fftshift | core (builtin) | critical | small | 9bce106 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/chi2inv.md](closed/stats/chi2inv.md) | chi2inv | PENDING | 2026-05-07 |
 | [closed/stats/chi2stat.md](closed/stats/chi2stat.md) | chi2stat | PENDING | 2026-05-07 |
 | [closed/stats/expinv.md](closed/stats/expinv.md) | expinv | PENDING | 2026-05-07 |
+| [closed/stats/expstat.md](closed/stats/expstat.md) | expstat | PENDING | 2026-05-07 |
 
 ---
 

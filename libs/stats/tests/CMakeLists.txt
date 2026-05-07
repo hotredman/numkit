@@ -31,4 +31,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/chi2inv_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/chi2stat_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/expinv_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/expstat_test.cpp
 )
