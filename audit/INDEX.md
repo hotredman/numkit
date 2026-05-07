@@ -70,7 +70,6 @@ Status legend:
 | [findings/stats/gampdf.md](findings/stats/gampdf.md) | gampdf | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/gamrnd.md](findings/stats/gamrnd.md) | gamrnd | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/gaminv.md](findings/stats/gaminv.md) | gaminv | stats.dist | low | small | 301e5a5 |
-| [findings/stats/gamstat.md](findings/stats/gamstat.md) | gamstat | stats.dist | low | small | 301e5a5 |
 | [findings/signal/fftshift.md](findings/signal/fftshift.md) | fftshift | core (builtin) | critical | small | 9bce106 |
 | [findings/signal/ifftshift.md](findings/signal/ifftshift.md) | ifftshift | core (builtin) | critical | small | 9bce106 |
 | [findings/signal/envelope.md](findings/signal/envelope.md) | envelope | signal.transforms | critical | medium | 9bce106 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/tstat.md](closed/stats/tstat.md) | tstat | PENDING | 2026-05-07 |
 | [closed/stats/unidstat.md](closed/stats/unidstat.md) | unidstat | PENDING | 2026-05-07 |
 | [closed/stats/lognstat.md](closed/stats/lognstat.md) | lognstat | PENDING | 2026-05-07 |
+| [closed/stats/gamstat.md](closed/stats/gamstat.md) | gamstat | PENDING | 2026-05-07 |
 
 ---
 
