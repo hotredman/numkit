@@ -134,6 +134,11 @@ Value normrnd(std::pmr::memory_resource *mr, double mu, double sigma,
 
 std::tuple<double, double> normstat(double mu, double sigma)
 {
+    // MATLAB convention: sigma <= 0 ⇒ NaN/NaN (matches Octave too).
+    if (sigma <= 0.0) {
+        const double NaN = std::numeric_limits<double>::quiet_NaN();
+        return std::make_tuple(NaN, NaN);
+    }
     return std::make_tuple(mu, sigma * sigma);
 }
 

@@ -36,3 +36,16 @@ inputs supported (returns same-shape arrays).
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-07
+- Notes: Two fixes (ТЗ said "no major gap", spec extension surfaced
+  both):
+    1. Adapter was scalar-only — vectorisation now via shared
+       `emit_vec_stat_2arg` helper (added in earlier sweep commit).
+    2. Impl returned `(0, 0)` for sigma=0 instead of NaN/NaN; MATLAB
+       and Octave both return NaN here. Fixed: sigma <= 0 ⇒ NaN/NaN.
+  16-fingerprint spec covers scalar / vector / scalar+vector
+  broadcasting / sigma=0 / sigma<0. 4 TEST_F gtest + smoke .m.
+  Parity OK numkit ↔ MATLAB ↔ Octave at tol=1e-12.

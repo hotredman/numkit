@@ -1,0 +1,17 @@
+{
+  "name": "normstat",
+  "namespace": "stats",
+  "setup": "mus = [0 1 -2]; sigs = [1 2 0.5];",
+  "expr": "[m_s, v_s] = normstat(0, 1); [m_v, v_v] = normstat(mus, sigs); [m_b, v_b] = normstat(0, [1 2 5]); m_sigbad = normstat(0, 0); m_signeg = normstat(0, -1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "m_s", "v_s",
+    "m_v(1)", "m_v(2)", "m_v(3)",
+    "v_v(1)", "v_v(2)", "v_v(3)",
+    "m_b(1)", "m_b(2)", "m_b(3)",
+    "v_b(1)", "v_b(2)", "v_b(3)",
+    "m_sigbad", "m_signeg"
+  ],
+  "comment": "Sig: [m, v] = normstat(mu, sigma). Trivially m=mu, v=sigma². Vectorised with broadcasting (equal sizes or one scalar). sigma<=0 => NaN."
+}
