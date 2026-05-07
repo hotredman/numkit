@@ -1,0 +1,15 @@
+{
+  "name": "unidstat",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "[m_s, v_s] = unidstat(5); [m_v, v_v] = unidstat([3 5 10]); m_zero = unidstat(0); m_neg = unidstat(-1); m_frac = unidstat(2.5);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "m_s", "v_s",
+    "m_v(1)", "m_v(2)", "m_v(3)",
+    "v_v(1)", "v_v(2)", "v_v(3)",
+    "m_zero", "m_neg", "m_frac"
+  ],
+  "comment": "Sig: [m, v] = unidstat(N). Discrete uniform on {1..N}: m = (N+1)/2, v = (N²-1)/12. Vectorised. N<1 or non-integer => NaN."
+}
