@@ -1,0 +1,16 @@
+{
+  "name": "fpdf",
+  "namespace": "stats",
+  "setup": "xv = [0.5 1 2 5]'; xneg = [-1 -0.1 0 0.5];",
+  "expr": "p_basic = fpdf(2, 5, 10); p_vec = fpdf(xv, 5, 10); p_neg = fpdf(xneg, 5, 10); p_v1bad = fpdf(2, 0, 10); p_v2bad = fpdf(2, 5, 0); p_v1neg = fpdf(2, -1, 10); p_at0_v1eq2 = fpdf(0, 2, 10);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "p_basic",
+    "p_vec(1)", "p_vec(2)", "p_vec(3)", "p_vec(4)",
+    "p_neg(1)", "p_neg(2)", "p_neg(3)", "p_neg(4)",
+    "p_v1bad", "p_v2bad", "p_v1neg",
+    "p_at0_v1eq2"
+  ],
+  "comment": "Sig: y = fpdf(x, v1, v2). F-distribution PDF. x < 0 => 0; v1 <= 0 or v2 <= 0 => NaN. Covers: scalar (v1=5,v2=10), vector x, x<0/x=0 edges, invalid v1/v2, F(2,10) at 0 (= v1/(v1+v2-2)/B(...) finite for v1=2)."
+}
