@@ -56,7 +56,21 @@ Value fpdf(std::pmr::memory_resource *mr, const Value &x, double v1, double v2)
     const double log_v1 = std::log(v1);
     const double log_v2 = std::log(v2);
     return elementwise(mr, x, [=](double xi) {
-        if (xi <= 0.0) return 0.0;
+        if (xi < 0.0) return 0.0;
+        if (xi == 0.0) {
+            // Density at 0 has three regimes (limit of x^(v1/2 - 1) as x → 0+):
+            //   v1 < 2  →  +Inf
+            //   v1 == 2 →  finite, value computed without the (a-1)·log x term
+            //   v1 > 2  →  0
+            if (v1 <  2.0) return std::numeric_limits<double>::infinity();
+            if (v1 == 2.0) {
+                const double lp0 = a * log_v1 + b * log_v2
+                                 - (a + b) * std::log(v2)
+                                 - lbeta;
+                return std::exp(lp0);
+            }
+            return 0.0;
+        }
         const double lp = a * log_v1 + b * log_v2
                         + (a - 1.0) * std::log(xi)
                         - (a + b) * std::log(v2 + v1 * xi)
