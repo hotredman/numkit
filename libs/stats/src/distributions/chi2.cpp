@@ -108,6 +108,11 @@ Value chi2rnd(std::pmr::memory_resource *mr, double k, size_t rows, size_t cols)
 
 std::tuple<double, double> chi2stat(double k)
 {
+    // MATLAB convention: k <= 0 ⇒ moments NaN (degenerate distribution).
+    if (k <= 0.0) {
+        const double nan = std::numeric_limits<double>::quiet_NaN();
+        return std::make_tuple(nan, nan);
+    }
     return std::make_tuple(k, 2.0 * k);
 }
 
@@ -158,9 +163,32 @@ void chi2stat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("chi2stat: requires k", 0, 0, "chi2stat", "", "m:chi2stat:nargin");
-    auto [m, v] = chi2stat(args[0].toScalar());
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &kv = args[0];
+    if (kv.isScalar()) {
+        auto [m, v] = chi2stat(kv.toScalar());
+        outs[0] = Value::scalar(m, mr);
+        if (nargout > 1) outs[1] = Value::scalar(v, mr);
+        return;
+    }
+    // MATLAB-style elementwise on vector / matrix k.
+    const auto &d = kv.dims();
+    Value out_m = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    Value out_v = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    double *pm = out_m.doubleDataMut();
+    double *pv = out_v.doubleDataMut();
+    const size_t n = kv.numel();
+    for (size_t i = 0; i < n; ++i) {
+        auto [m, v] = chi2stat(kv.elemAsDouble(i));
+        pm[i] = m;
+        pv[i] = v;
+    }
+    outs[0] = std::move(out_m);
+    if (nargout > 1) outs[1] = std::move(out_v);
 }
 
 } // namespace detail
