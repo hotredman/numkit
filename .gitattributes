@@ -1,0 +1,35 @@
+# Default: detect text vs binary, normalise to LF in the index, check out
+# with the platform's native EOL. Keeps cross-platform diffs sane.
+* text=auto
+
+# Generated JSON (vite + manifest) is written by Node with LF — pin it so
+# core.autocrlf=true on Windows doesn't flag every regen as "modified".
+*.json text eol=lf
+
+# Source code: pin to LF too so editors / formatters stay aligned across
+# Windows and macOS / Linux contributors.
+*.js   text eol=lf
+*.jsx  text eol=lf
+*.ts   text eol=lf
+*.tsx  text eol=lf
+*.cpp  text eol=lf
+*.hpp  text eol=lf
+*.h    text eol=lf
+*.cmake text eol=lf
+*.md   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.sh   text eol=lf
+
+# Windows-only scripts must stay CRLF.
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# SVG is XML — normalise to LF so it diffs/merges as text.
+*.svg  text eol=lf
+
+# Binary artefacts — keep raw, no diff / merge / EOL conversion.
+*.wasm binary
+*.png  binary
+*.jpg  binary
+*.ico  binary
