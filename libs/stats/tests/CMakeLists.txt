@@ -39,4 +39,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/normpdf_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/normstat_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/poisstat_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/raylstat_test.cpp
 )
