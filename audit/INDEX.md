@@ -56,7 +56,6 @@ Status legend:
 | [findings/stats/chi2rnd.md](findings/stats/chi2rnd.md) | chi2rnd | stats.dist | medium | small | 8e48677 |
 | [findings/stats/tpdf.md](findings/stats/tpdf.md) | tpdf | stats.dist | medium | small | 8e48677 |
 | [findings/stats/trnd.md](findings/stats/trnd.md) | trnd | stats.dist | medium | small | 8e48677 |
-| [findings/stats/tstat.md](findings/stats/tstat.md) | tstat | stats.dist | medium | small | 8e48677 |
 | [findings/stats/tinv.md](findings/stats/tinv.md) | tinv | stats.dist | low | small | 8e48677 |
 | [findings/wavelet/wfilters.md](findings/wavelet/wfilters.md) | wfilters | wavelet.filt | critical | medium | 1c2df89 |
 | [findings/wavelet/coifwavf.md](findings/wavelet/coifwavf.md) | coifwavf | wavelet.filt | medium | small | 1c2df89 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/normstat.md](closed/stats/normstat.md) | normstat | PENDING | 2026-05-07 |
 | [closed/stats/poisstat.md](closed/stats/poisstat.md) | poisstat | PENDING | 2026-05-07 |
 | [closed/stats/raylstat.md](closed/stats/raylstat.md) | raylstat | PENDING | 2026-05-07 |
+| [closed/stats/tstat.md](closed/stats/tstat.md) | tstat | PENDING | 2026-05-07 |
 
 ---
 

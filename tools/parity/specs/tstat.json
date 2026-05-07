@@ -1,0 +1,16 @@
+{
+  "name": "tstat",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "[m_s, v_s] = tstat(5); [m_v, v_v] = tstat([3 5 10]); [m_2, v_2] = tstat(2); m_1 = tstat(1); m_0 = tstat(0); m_neg = tstat(-1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "m_s", "v_s",
+    "m_v(1)", "m_v(2)", "m_v(3)",
+    "v_v(1)", "v_v(2)", "v_v(3)",
+    "m_2", "v_2",
+    "m_1", "m_0", "m_neg"
+  ],
+  "comment": "Sig: [m, v] = tstat(nu). Student's t: m=0 if nu>1, v=nu/(nu-2) if nu>2. Vectorised. nu<=0 => NaN/NaN; 0<nu<=1 => m=NaN,v=NaN; 1<nu<=2 => m=0, v=NaN."
+}

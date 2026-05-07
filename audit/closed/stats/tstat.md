@@ -48,3 +48,14 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-07
+- Notes: Three fixes:
+  - Vectorisation via emit_vec_stat_1arg (sweep 5dd32c38).
+  - mean was always `0.0` even for nu ≤ 1 (Cauchy has no mean).
+    Fixed: m = NaN for nu ≤ 1.
+  - nu = 0 / nu < 0 returned (0, NaN); MATLAB gives NaN/NaN. Fixed.
+  13-fingerprint spec; 5 TEST_F gtest + smoke. Parity OK numkit ↔
+  MATLAB at tol=1e-12.
