@@ -1,0 +1,16 @@
+{
+  "name": "lognstat",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "[m_s, v_s] = lognstat(0, 1); [m_v, v_v] = lognstat([0 1 2], [1 0.5 1]); [m_b, v_b] = lognstat(0, [0.5 1 2]); m_sig0 = lognstat(0, 0); m_signeg = lognstat(0, -1);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "m_s", "v_s",
+    "m_v(1)", "m_v(2)", "m_v(3)",
+    "v_v(1)", "v_v(2)", "v_v(3)",
+    "m_b(1)", "m_b(2)", "m_b(3)",
+    "m_sig0", "m_signeg"
+  ],
+  "comment": "Sig: [m, v] = lognstat(mu, sigma). Lognormal: m = exp(mu + sigma²/2), v = (exp(sigma²)-1)·exp(2mu + sigma²). Vectorised. sigma<=0 => NaN."
+}
