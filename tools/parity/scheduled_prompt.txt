@@ -69,7 +69,7 @@ D. Прогон
 E. Валидация
    9. Полный test suite (с отфильтрованными известными flake'ами):
       ```
-      build-desktop-fast/tests/Release/numkit_tests.exe \
+      build-desktop-fast/tests/Release/numkit_gtests.exe \
         --gtest_filter="-TW_VM/MFileResolverTest.MultiOutputMFileResolves/*:\
         TW_VM/EvalRegressionTest.AssignmentCaptureSuppressesInnerAns/*:\
         TW_VM/EvalRegressionTest.BracketConcatInLoopInsideFunction/*" \

@@ -1,6 +1,6 @@
 # benchmarks/CMakeLists.txt — owner of the single numkit_bench executable.
 #
-# Mirrors the numkit_tests pattern: this directory creates the target;
+# Mirrors the numkit_gtests pattern: this directory creates the target;
 # per-lib libs/<name>/benchmarks/CMakeLists.txt contributes sources via
 #   target_sources(numkit_bench PRIVATE ...)
 # (and may also extend target_include_directories — fft_bench needs
