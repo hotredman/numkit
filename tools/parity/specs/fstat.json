@@ -1,0 +1,17 @@
+{
+  "name": "fstat",
+  "namespace": "stats",
+  "setup": "v1s = [5 5 5]; v2s = [3 5 10];",
+  "expr": "[m_s, v_s] = fstat(5, 10); [m_v, v_v] = fstat(v1s, v2s); [m_v2small, v_v2small] = fstat(5, 3); [m_v2eq2, v_v2eq2] = fstat(5, 2); m_v1bad = fstat(0, 10); m_v2bad = fstat(5, 0); m_v1neg = fstat(-1, 10);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "m_s", "v_s",
+    "m_v(1)", "m_v(2)", "m_v(3)",
+    "v_v(1)", "v_v(2)", "v_v(3)",
+    "m_v2small", "v_v2small",
+    "m_v2eq2", "v_v2eq2",
+    "m_v1bad", "m_v2bad", "m_v1neg"
+  ],
+  "comment": "Sig: [m, v] = fstat(v1, v2). F-distribution mean = v2/(v2-2) for v2>2 else NaN; variance = 2*v2²(v1+v2-2)/(v1(v2-2)²(v2-4)) for v2>4 else NaN. Vectorised. v1<=0 or v2<=0 => NaN/NaN."
+}

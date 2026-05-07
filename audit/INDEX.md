@@ -87,7 +87,6 @@ Status legend:
 | [findings/stats/frnd.md](findings/stats/frnd.md) | frnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/raylrnd.md](findings/stats/raylrnd.md) | raylrnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/unifrnd.md](findings/stats/unifrnd.md) | unifrnd | stats.dist | medium | small | e580a5c |
-| [findings/stats/fstat.md](findings/stats/fstat.md) | fstat | stats.dist | low | small | e580a5c |
 | [findings/stats/raylinv.md](findings/stats/raylinv.md) | raylinv | stats.dist | low | small | e580a5c |
 | [findings/stats/raylpdf.md](findings/stats/raylpdf.md) | raylpdf | stats.dist | low | small | e580a5c |
 | [findings/stats/raylstat.md](findings/stats/raylstat.md) | raylstat | stats.dist | low | small | e580a5c |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/expstat.md](closed/stats/expstat.md) | expstat | PENDING | 2026-05-07 |
 | [closed/stats/finv.md](closed/stats/finv.md) | finv | PENDING | 2026-05-07 |
 | [closed/stats/fpdf.md](closed/stats/fpdf.md) | fpdf | PENDING | 2026-05-07 |
+| [closed/stats/fstat.md](closed/stats/fstat.md) | fstat | PENDING | 2026-05-07 |
 
 ---
 
