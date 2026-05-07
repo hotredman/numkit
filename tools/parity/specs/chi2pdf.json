@@ -1,0 +1,16 @@
+{
+  "name": "chi2pdf",
+  "namespace": "stats",
+  "setup": "xv = [0.5 1 2 5]'; xneg = [-1 -0.1 0 0.5];",
+  "expr": "p_basic = chi2pdf(2, 3); p_zero_k2 = chi2pdf(0, 2); p_vec = chi2pdf(xv, 3); p_neg = chi2pdf(xneg, 3); p_k1 = chi2pdf(2, 1); p_k30 = chi2pdf(30, 30); p_kbad = chi2pdf(2, 0); p_kneg = chi2pdf(2, -1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "p_basic", "p_zero_k2",
+    "p_vec(1)", "p_vec(2)", "p_vec(3)", "p_vec(4)",
+    "p_neg(1)", "p_neg(2)", "p_neg(3)", "p_neg(4)",
+    "p_k1", "p_k30",
+    "p_kbad", "p_kneg"
+  ],
+  "comment": "Sig: y = chi2pdf(x, k). Chi-squared PDF with k dof. x < 0 => 0; k <= 0 => NaN. Covers: scalar, vector x, x<0 + x=0 edges, k=1 (special: x^(-1/2)·exp(-x/2)/√(2π)), k=30 large dof."
+}

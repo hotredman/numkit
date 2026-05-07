@@ -37,3 +37,17 @@ otherwise.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-07
+- Notes: ТЗ said "no major gap" but spec extension surfaced a real
+  edge-case mismatch: numkit returned `NaN` for `k = 0`, MATLAB
+  returns `0` (degenerate Chi²(0)). Fixed:
+  - chi2pdf now distinguishes `k < 0` (NaN) from `k == 0` (0)
+    matching MATLAB R2025b. Octave returns NaN for k==0 — we picked
+    MATLAB's convention.
+  - New tools/parity/specs/chi2pdf.json with 14 fingerprints
+    (scalar / k=2 zero density / vector x / x<0 / k=1 / k=30 large /
+    k=0 / k<0). 7 TEST_F gtest + smoke .m.
+  - Parity OK numkit ↔ MATLAB at tol=1e-12.
