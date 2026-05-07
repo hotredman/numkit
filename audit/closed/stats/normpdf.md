@@ -40,3 +40,12 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-07
+- Notes: Pure spec coverage (impl already matched). New
+  tools/parity/specs/normpdf.json with 14 fingerprints covering
+  default + non-default mu/sigma + symmetric vector + peak tests
+  + sigma<=0 NaN. 5 TEST_F gtest + smoke .m. Parity OK numkit ↔
+  MATLAB ↔ Octave at tol=1e-12.
