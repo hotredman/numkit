@@ -110,7 +110,6 @@ Status legend:
 | [findings/stats/unidinv.md](findings/stats/unidinv.md) | unidinv | stats.dist | low | small | 1525319 |
 | [findings/stats/unidpdf.md](findings/stats/unidpdf.md) | unidpdf | stats.dist | low | small | 1525319 |
 | [findings/stats/unidrnd.md](findings/stats/unidrnd.md) | unidrnd | stats.dist | low | small | 1525319 |
-| [findings/stats/unidstat.md](findings/stats/unidstat.md) | unidstat | stats.dist | low | small | 1525319 |
 | [findings/regress/regress.md](findings/regress/regress.md) | regress | stats.regress | high | medium | f92087f |
 | [findings/regress/lscov.md](findings/regress/lscov.md) | lscov | stats.regress | low | small | f92087f |
 | [findings/regress/ridge.md](findings/regress/ridge.md) | ridge | stats.regress | low | small | f92087f |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/poisstat.md](closed/stats/poisstat.md) | poisstat | PENDING | 2026-05-07 |
 | [closed/stats/raylstat.md](closed/stats/raylstat.md) | raylstat | PENDING | 2026-05-07 |
 | [closed/stats/tstat.md](closed/stats/tstat.md) | tstat | PENDING | 2026-05-07 |
+| [closed/stats/unidstat.md](closed/stats/unidstat.md) | unidstat | PENDING | 2026-05-07 |
 
 ---
 

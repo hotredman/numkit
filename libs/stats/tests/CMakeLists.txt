@@ -41,4 +41,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/poisstat_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/raylstat_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tstat_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/unidstat_test.cpp
 )
