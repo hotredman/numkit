@@ -1,0 +1,15 @@
+{
+  "name": "poisstat",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "[m_s, v_s] = poisstat(2); [m_v, v_v] = poisstat([1 2 5 10]); m_lam0 = poisstat(0); m_neg = poisstat(-1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "m_s", "v_s",
+    "m_v(1)", "m_v(2)", "m_v(3)", "m_v(4)",
+    "v_v(1)", "v_v(2)", "v_v(3)", "v_v(4)",
+    "m_lam0", "m_neg"
+  ],
+  "comment": "Sig: [m, v] = poisstat(lambda). Poisson mean=variance=lambda. Vectorised. lambda<=0 => NaN."
+}
