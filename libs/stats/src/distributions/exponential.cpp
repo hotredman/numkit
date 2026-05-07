@@ -140,9 +140,32 @@ void expstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.empty())
         throw Error("expstat: requires mu", 0, 0, "expstat", "", "m:expstat:nargin");
-    auto [m, v] = expstat(args[0].toScalar());
-    outs[0] = Value::scalar(m, ctx.engine->resource());
-    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &muv = args[0];
+    if (muv.isScalar()) {
+        auto [m, v] = expstat(muv.toScalar());
+        outs[0] = Value::scalar(m, mr);
+        if (nargout > 1) outs[1] = Value::scalar(v, mr);
+        return;
+    }
+    // MATLAB-style elementwise on vector / matrix mu.
+    const auto &d = muv.dims();
+    Value out_m = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    Value out_v = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    double *pm = out_m.doubleDataMut();
+    double *pv = out_v.doubleDataMut();
+    const size_t n = muv.numel();
+    for (size_t i = 0; i < n; ++i) {
+        auto [m, v] = expstat(muv.elemAsDouble(i));
+        pm[i] = m;
+        pv[i] = v;
+    }
+    outs[0] = std::move(out_m);
+    if (nargout > 1) outs[1] = std::move(out_v);
 }
 
 } // namespace detail
