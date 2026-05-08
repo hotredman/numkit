@@ -36,6 +36,14 @@ function makeSyncAdapter({ backend, name }) {
   const dirty = new Set();      // paths pending async persist
   let persistPromise = Promise.resolve();
   let seeded = false;
+  // Set when a write/remove happens between flushes; flush() returns this
+  // so the caller can decide whether to invalidate UI state. Cleared on
+  // each flush() call. Without this signal IDE.jsx was bumping
+  // vfsRefreshKey on every script run regardless of whether anything
+  // changed — and that triggers a full Sidebar tree-rebuild + recursive
+  // listTree IPC walk, which on a populated local-folder mount was the
+  // proven path to V8 OOM.
+  let dirtySinceFlush = false;
 
   async function seedFrom(tree) {
     for (const node of tree) {
@@ -51,6 +59,7 @@ function makeSyncAdapter({ backend, name }) {
   // Serialise write-backs so we don't race IndexedDB transactions.
   function schedulePersist(path) {
     dirty.add(path);
+    dirtySinceFlush = true;
     persistPromise = persistPromise.then(async () => {
       if (!dirty.has(path)) return;
       dirty.delete(path);
@@ -82,8 +91,14 @@ function makeSyncAdapter({ backend, name }) {
     },
 
     // Flush any pending writes and wait for them — use before shutdown.
+    // Resolves to `true` if anything was written/removed since the last
+    // flush, `false` otherwise. Callers use the boolean to skip a noisy
+    // tree-rebuild when nothing changed.
     async flush() {
-      return persistPromise;
+      const wasDirty = dirtySinceFlush;
+      dirtySinceFlush = false;
+      await persistPromise;
+      return wasDirty;
     },
 
     // ── Sync hooks wired into the engine via CallbackFS ──
