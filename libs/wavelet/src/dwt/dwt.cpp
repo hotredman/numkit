@@ -105,21 +105,16 @@ void dwt(std::pmr::memory_resource *mr,
 
     auto convAndDown = [&](const std::vector<double> &h) {
         auto y = conv_full(ext, h);
-        // Full conv length = ext.size() + Lf - 1 = N + 3*Lf - 3.
-        // MATLAB's 'sym' DWT downsampling rule (verified by inverse
-        // round-trip identity against post-zero idwt):
-        //
-        //   cA[k] = y[Lf + 2k]   for k = 0..outLen-1
-        //
-        // i.e. drop the first Lf samples from the full convolution,
-        // then take every other sample. This pairs exactly with the
-        // idwt's "u[2i+1] = c[i] then crop at offset Lf-1" rule —
-        // making haar / db / sym / coif round-trips numerically
-        // identity (≤ 1e-13 on randn signals).
+        // 2026-05-08 audit ТЗ wavelet/dwt fix: aligned with MATLAB
+        // R2025b convention (Mallat 1989). After symmetric extension
+        // and full conv with the analysis filter, MATLAB downsamples
+        // taking samples at indices [Lf-1, Lf+1, Lf+3, ...] — offset
+        // Lf-1, NOT Lf. Pairs with the new idwt crop offset to keep
+        // round-trips exact under MATLAB labelling.
         std::vector<double> z;
         z.reserve(outLen);
         for (size_t k = 0; k < outLen; ++k) {
-            const size_t idx = Lf + 2 * k;
+            const size_t idx = (Lf - 1) + 2 * k + 1;  // Lf, Lf+2, ... (1-indexed Lf, Lf+2)
             z.push_back(idx < y.size() ? y[idx] : 0.0);
         }
         return z;

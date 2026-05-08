@@ -484,20 +484,32 @@ FilterBank wavelet_filters(const std::string &name) {
                     0, 0, "wfilters", "", "m:wfilters:name");
     const int N = s->len;
 
+    // 2026-05-08 audit ТЗ wavelet/wfilters fix: previously the stored
+    // constant `s->Lo_R[]` (which holds the MATLAB-Lo_D-ordered
+    // coefficients) was being assigned to `fb.Lo_R`, leaving numkit's
+    // Lo_D / Lo_R labels SWAPPED relative to MATLAB R2025b. This was
+    // the root cause of the dwt/wavedec value mismatch. Now we treat
+    // the stored constant as Lo_D and derive Lo_R / Hi_R / Hi_D in
+    // the standard MATLAB convention:
+    //   Lo_R[k] = wrev(Lo_D)[k] = Lo_D[N-1-k]
+    //   Hi_R[k] = (-1)^k · Lo_R[N-1-k] = (-1)^k · Lo_D[k]
+    //   Hi_D[k] = wrev(Hi_R)[k] = Hi_R[N-1-k]
     FilterBank fb;
-    fb.Lo_R.assign(s->Lo_R, s->Lo_R + N);
-    fb.Lo_D.resize(N);
+    fb.Lo_D.assign(s->Lo_R, s->Lo_R + N);   // stored values = MATLAB Lo_D
+    fb.Lo_R.resize(N);
     fb.Hi_R.resize(N);
     fb.Hi_D.resize(N);
+    // Compute Lo_R = wrev(Lo_D) FIRST (in a separate pass, since Hi_R
+    // reads Lo_R below).
+    for (int k = 0; k < N; ++k) fb.Lo_R[k] = fb.Lo_D[N - 1 - k];
+    // Hi_R[k] = (-1)^k · Lo_R[N-1-k]    = (-1)^k · Lo_D[k]   (QMF on Lo_R)
+    // Hi_D[k] = wrev(Hi_R)[k]           = Hi_R[N-1-k]
     for (int k = 0; k < N; ++k) {
-        // analysis lowpass = time-reversed synthesis lowpass
-        fb.Lo_D[k] = fb.Lo_R[N - 1 - k];
-        // synthesis highpass: QMF, alternating-sign reversal
-        const double sgnR = (k % 2 == 0) ? 1.0 : -1.0;
-        fb.Hi_R[k] = sgnR * fb.Lo_R[N - 1 - k];
-        // analysis highpass: QMF on Lo_R direct
-        const double sgnD = (k % 2 == 0) ? -1.0 : 1.0;
-        fb.Hi_D[k] = sgnD * fb.Lo_R[k];
+        const double sgn = (k % 2 == 0) ? 1.0 : -1.0;
+        fb.Hi_R[k] = sgn * fb.Lo_R[N - 1 - k];
+    }
+    for (int k = 0; k < N; ++k) {
+        fb.Hi_D[k] = fb.Hi_R[N - 1 - k];
     }
     return fb;
 }
@@ -555,16 +567,27 @@ void wfilters_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     Value a, b, c, d;
     wfilters(mr, name, kind, &a, &b, &c, &d);
 
-    // Number of outputs depends on `kind`.
     if (kind.empty()) {
+        // 4-output form: [Lo_D, Hi_D, Lo_R, Hi_R].
         if (outs.size() >= 1) outs[0] = a;
         if (outs.size() >= 2) outs[1] = b;
         if (outs.size() >= 3) outs[2] = c;
         if (outs.size() >= 4) outs[3] = d;
         (void)nargout;
     } else {
-        if (outs.size() >= 1) outs[0] = a;
-        if (outs.size() >= 2) outs[1] = b;
+        // 2026-05-08 audit ТЗ wavelet/wfilters fix: single-output form
+        // returns a 2×Lf matrix `[a; b]` (per MATLAB R2025b), not two
+        // separate row vectors. Pack column-major.
+        const size_t Lf = (size_t)a.numel();
+        Value M = Value::matrix(2, Lf, ValueType::DOUBLE, mr);
+        double *mp = M.doubleDataMut();
+        const double *ap = a.doubleData();
+        const double *bp = b.doubleData();
+        for (size_t k = 0; k < Lf; ++k) {
+            mp[k * 2 + 0] = ap[k];
+            mp[k * 2 + 1] = bp[k];
+        }
+        outs[0] = std::move(M);
     }
 }
 

@@ -23,7 +23,6 @@ Status legend:
 | [findings/stats/normrnd.md](findings/stats/normrnd.md) | normrnd | stats.dist | high | medium | 8e48677 |
 | [findings/stats/chi2rnd.md](findings/stats/chi2rnd.md) | chi2rnd | stats.dist | medium | small | 8e48677 |
 | [findings/stats/trnd.md](findings/stats/trnd.md) | trnd | stats.dist | medium | small | 8e48677 |
-| [findings/wavelet/wfilters.md](findings/wavelet/wfilters.md) | wfilters | wavelet.filt | critical | medium | 1c2df89 |
 | [findings/stats/betarnd.md](findings/stats/betarnd.md) | betarnd | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/exprnd.md](findings/stats/exprnd.md) | exprnd | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/gamrnd.md](findings/stats/gamrnd.md) | gamrnd | stats.dist | medium | small | 301e5a5 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/jbtest.md](closed/stats/jbtest.md) | jbtest | PENDING | 2026-05-08 |
 | [closed/stats/vartestn.md](closed/stats/vartestn.md) | vartestn | PENDING | 2026-05-08 |
 | [closed/stats/chi2gof.md](closed/stats/chi2gof.md) | chi2gof | PENDING (partial) | 2026-05-08 |
+| [closed/wavelet/wfilters.md](closed/wavelet/wfilters.md) | wfilters | PENDING | 2026-05-08 |
 
 ---
 
