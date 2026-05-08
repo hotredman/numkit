@@ -1,6 +1,6 @@
 # stats/normfit — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** medium
 **Effort:** medium
 **Audited at commit:** bfda361
@@ -96,3 +96,18 @@ numbers without warning.
 - The `paramci` API and `NormalDistribution` object form — MATLAB
   channels the same calculation through several wrappers; numkit only
   needs the flat function form.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-08
+- Notes: All four signatures bit-identical to MATLAB R2025b: basic;
+  cens-only; freq-only; cens+freq. Implementation reuses the
+  `normal_fit_mle()` helper extracted from lognfit (same code path:
+  closed-form weighted moments when no censoring; EM iteration on
+  truncated-normal moments + analytic Fisher info Wald CI when
+  censored). PMR rule applied to scratch buffers (y, fr, cn).
+
+  4 artefacts shipped (impl + 24-fp parity spec + 4 gtests + smoke).
+  Parity OK numkit ↔ MATLAB ↔ Octave at tol=1e-7 across all 24
+  fingerprints (4 cases × 6 outputs each).
+
