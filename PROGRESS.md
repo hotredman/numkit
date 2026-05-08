@@ -2917,7 +2917,7 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `expinv` | ✅ | 0.007 | 112.71× | 110.87× | OK | Sig: x = expinv(p[, mu]). Inverse exponential CDF: x = -mu*log(1-p). Default mu=1. Covers default form + non-default mu + boundaries (p=0,1) + invalid (p<0, p>1, mu<=0). |
 | `exprnd` | ✅ |  |  |  | OK |  |
 | `expstat` | ✅ | 0.006 | 57.24× | 11.58× | OK | Sig: [m, v] = expstat(mu). Exponential mean=mu, variance=mu^2. Vectorised. mu<=0 => NaN. |
-| `unifpdf` | ✅ |  |  |  | OK | continuous uniform [a, b]; defaults a=0, b=1 |
+| `unifpdf` | ✅ | 0.009 | 107.97× |  | OK | Sig: y = unifpdf(x[, a, b]). Continuous uniform PDF on [a, b]; defaults a=0, b=1. y = 1/(b-a) for x in [a,b], else 0. Edges: b<=a -> NaN; NaN x -> NaN; NaN a/b -> 0 (NaN comparisons false, MATLAB convention). |
 | `unifcdf` | ✅ |  |  |  | OK |  |
 | `unifinv` | ✅ |  |  |  | OK |  |
 | `unifrnd` | ✅ |  |  |  | OK |  |
