@@ -49,4 +49,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/wblstat_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/evstat_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/binostat_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nbinstat_test.cpp
 )

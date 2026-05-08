@@ -1,0 +1,18 @@
+{
+  "name": "nbinstat",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "[m_s, v_s] = nbinstat(5, 0.3); [m_v, v_v] = nbinstat([3 5 10], 0.5); [m_b, v_b] = nbinstat(5, [0.2 0.5 0.8]); [m_p1, v_p1] = nbinstat(5, 1); [m_frac, v_frac] = nbinstat(2.5, 0.5); m_p0 = nbinstat(5, 0); m_r0 = nbinstat(0, 0.5); m_rneg = nbinstat(-1, 0.5); m_pover = nbinstat(5, 1.5);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "m_s", "v_s",
+    "m_v(1)", "m_v(2)", "m_v(3)",
+    "v_v(1)", "v_v(2)", "v_v(3)",
+    "m_b(1)", "m_b(2)", "m_b(3)",
+    "m_p1", "v_p1",
+    "m_frac", "v_frac",
+    "m_p0", "m_r0", "m_rneg", "m_pover"
+  ],
+  "comment": "Sig: [m, v] = nbinstat(r, p). Negative binomial (number of failures): m = r·(1-p)/p, v = m/p. Vectorised. r<=0 / p<=0 / p>1 => NaN. r non-integer is OK (Pólya generalisation). p=1 → m=v=0."
+}
