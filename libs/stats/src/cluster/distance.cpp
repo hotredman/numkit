@@ -3,6 +3,7 @@
 #include <numkit/stats/cluster/distance.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
@@ -10,7 +11,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
-#include <vector>
+#include <memory_resource>
 
 namespace numkit::stats {
 
@@ -40,12 +41,13 @@ Metric parse_metric(const std::string &raw) {
                 "m:pdist:badmetric");
 }
 
-// Invert a small dense matrix in-place (D × D, column-major in `A`,
-// stored as row-major in `A_flat[r * D + c]` for ease) using
-// Gauss-Jordan with partial pivoting. Throws on singular matrix.
-inline void invert_small(std::vector<double> &A, size_t D)
+// Invert a small dense matrix in-place (D × D, row-major in `A`) using
+// Gauss-Jordan with partial pivoting. Uses the supplied scratch arena
+// for the 2D-wide augmented matrix. Throws on singular matrix.
+inline void invert_small(double *A, size_t D,
+                         std::pmr::memory_resource *scratch_mr)
 {
-    std::vector<double> aug(D * 2 * D, 0.0);
+    ScratchVec<double> aug(D * 2 * D, 0.0, scratch_mr);
     // Build augmented [A | I].
     for (size_t r = 0; r < D; ++r) {
         for (size_t c = 0; c < D; ++c) aug[r * 2 * D + c] = A[r * D + c];
@@ -84,37 +86,35 @@ inline void invert_small(std::vector<double> &A, size_t D)
 }
 
 // Compute the unbiased covariance matrix of the M×D data `X` (column-major
-// in the Value), returned in row-major `D*D` buffer.
-std::vector<double> data_cov(const Value &X)
+// in the Value) into the supplied D*D row-major buffer.
+void data_cov(const Value &X, double *cov_out,
+              std::pmr::memory_resource *scratch_mr)
 {
     const size_t M = X.dims().rows();
     const size_t D = X.dims().cols();
-    std::vector<double> mean(D, 0.0);
+    ScratchVec<double> mean(D, 0.0, scratch_mr);
     for (size_t c = 0; c < D; ++c) {
         for (size_t r = 0; r < M; ++r) mean[c] += X.elemAsDouble(c * M + r);
         mean[c] /= static_cast<double>(M);
     }
-    std::vector<double> cov(D * D, 0.0);
+    std::fill(cov_out, cov_out + D * D, 0.0);
+    ScratchVec<double> dev(D, scratch_mr);
     for (size_t r = 0; r < M; ++r) {
-        std::vector<double> dev(D);
         for (size_t c = 0; c < D; ++c)
             dev[c] = X.elemAsDouble(c * M + r) - mean[c];
         for (size_t a = 0; a < D; ++a)
             for (size_t b = 0; b < D; ++b)
-                cov[a * D + b] += dev[a] * dev[b];
+                cov_out[a * D + b] += dev[a] * dev[b];
     }
     const double inv_dof = (M > 1) ? 1.0 / static_cast<double>(M - 1) : 1.0;
-    for (auto &v : cov) v *= inv_dof;
-    return cov;
+    for (size_t i = 0; i < D * D; ++i) cov_out[i] *= inv_dof;
 }
 
-// Mahalanobis distance: d = sqrt((u - v)ᵀ · C_inv · (u - v)).
-inline double mahal_distance(const std::vector<double> &u,
-                              const std::vector<double> &v,
-                              const std::vector<double> &Cinv)
+// Mahalanobis distance: d = sqrt((u - v)ᵀ · C_inv · (u - v)). Uses the
+// caller's `diff` scratch buffer to avoid per-call allocation.
+inline double mahal_distance(const double *u, const double *v, size_t D,
+                              const double *Cinv, double *diff)
 {
-    const size_t D = u.size();
-    std::vector<double> diff(D);
     for (size_t k = 0; k < D; ++k) diff[k] = u[k] - v[k];
     double s = 0.0;
     for (size_t a = 0; a < D; ++a) {
@@ -125,11 +125,9 @@ inline double mahal_distance(const std::vector<double> &u,
     return std::sqrt(std::max(0.0, s));
 }
 
-inline double row_distance(const std::vector<double> &x,
-                           const std::vector<double> &y,
+inline double row_distance(const double *x, const double *y, size_t D,
                            Metric m, double p)
 {
-    const size_t D = x.size();
     switch (m) {
         case Metric::Euclidean: {
             double s = 0.0;
@@ -204,11 +202,10 @@ inline double row_distance(const std::vector<double> &x,
     return 0.0;
 }
 
-// Read row r of an M×D Value into a buffer. Column-major storage.
-inline void read_row(const Value &X, size_t r, std::vector<double> &out) {
+// Read row r of an M×D Value into a flat raw buffer. Column-major storage.
+inline void read_row(const Value &X, size_t r, double *out) {
     const size_t M = X.dims().rows();
     const size_t D = X.dims().cols();
-    out.resize(D);
     for (size_t k = 0; k < D; ++k) out[k] = X.elemAsDouble(k * M + r);
 }
 
@@ -226,30 +223,32 @@ Value pdist(std::pmr::memory_resource *mr, const Value &X,
     Value out = Value::matrix(1, Npairs, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
 
-    std::vector<double> xi(D), xj(D);
+    ScratchArena scratch(mr);
+    ScratchVec<double> xi(D, &scratch), xj(D, &scratch);
 
     if (m == Metric::Mahalanobis) {
         // Build Cinv once.
-        std::vector<double> Cinv;
+        ScratchVec<double> Cinv(D * D, 0.0, &scratch);
         if (C_opt) {
             const Value &C = *C_opt;
             if (C.dims().rows() != D || C.dims().cols() != D)
                 throw Error("pdist: mahalanobis covariance C must be D×D",
                             0, 0, "pdist", "", "m:pdist:mahal");
-            Cinv.assign(D * D, 0.0);
             for (size_t r = 0; r < D; ++r)
                 for (size_t c = 0; c < D; ++c)
                     Cinv[r * D + c] = C.elemAsDouble(c * D + r);
         } else {
-            Cinv = data_cov(X);
+            data_cov(X, Cinv.data(), &scratch);
         }
-        invert_small(Cinv, D);
+        invert_small(Cinv.data(), D, &scratch);
+        ScratchVec<double> diff(D, &scratch);
         size_t idx = 0;
         for (size_t i = 0; i < M; ++i) {
-            read_row(X, i, xi);
+            read_row(X, i, xi.data());
             for (size_t j = i + 1; j < M; ++j) {
-                read_row(X, j, xj);
-                od[idx++] = mahal_distance(xi, xj, Cinv);
+                read_row(X, j, xj.data());
+                od[idx++] = mahal_distance(xi.data(), xj.data(), D,
+                                           Cinv.data(), diff.data());
             }
         }
         return out;
@@ -257,10 +256,10 @@ Value pdist(std::pmr::memory_resource *mr, const Value &X,
 
     size_t idx = 0;
     for (size_t i = 0; i < M; ++i) {
-        read_row(X, i, xi);
+        read_row(X, i, xi.data());
         for (size_t j = i + 1; j < M; ++j) {
-            read_row(X, j, xj);
-            od[idx++] = row_distance(xi, xj, m, p);
+            read_row(X, j, xj.data());
+            od[idx++] = row_distance(xi.data(), xj.data(), D, m, p);
         }
     }
     return out;
@@ -289,40 +288,42 @@ Value pdist2(std::pmr::memory_resource *mr, const Value &X, const Value &Y,
     if (Mx == 0 || My == 0) return out;
     double *od = out.doubleDataMut();
 
-    std::vector<double> xi(Dx), yj(Dy);
+    ScratchArena scratch(mr);
+    ScratchVec<double> xi(Dx, &scratch), yj(Dy, &scratch);
 
     if (m == Metric::Mahalanobis) {
         // For pdist2 with Mahalanobis, MATLAB uses cov(X) by default
         // (the *first* arg). Verified via R2025b probe.
-        std::vector<double> Cinv;
+        ScratchVec<double> Cinv(Dx * Dx, 0.0, &scratch);
         if (C_opt) {
             const Value &C = *C_opt;
             if (C.dims().rows() != Dx || C.dims().cols() != Dx)
                 throw Error("pdist2: mahalanobis covariance C must be D×D",
                             0, 0, "pdist2", "", "m:pdist2:mahal");
-            Cinv.assign(Dx * Dx, 0.0);
             for (size_t r = 0; r < Dx; ++r)
                 for (size_t c = 0; c < Dx; ++c)
                     Cinv[r * Dx + c] = C.elemAsDouble(c * Dx + r);
         } else {
-            Cinv = data_cov(X);
+            data_cov(X, Cinv.data(), &scratch);
         }
-        invert_small(Cinv, Dx);
+        invert_small(Cinv.data(), Dx, &scratch);
+        ScratchVec<double> diff(Dx, &scratch);
         for (size_t j = 0; j < My; ++j) {
-            read_row(Y, j, yj);
+            read_row(Y, j, yj.data());
             for (size_t i = 0; i < Mx; ++i) {
-                read_row(X, i, xi);
-                od[j * Mx + i] = mahal_distance(xi, yj, Cinv);
+                read_row(X, i, xi.data());
+                od[j * Mx + i] = mahal_distance(xi.data(), yj.data(), Dx,
+                                                Cinv.data(), diff.data());
             }
         }
         return out;
     }
 
     for (size_t j = 0; j < My; ++j) {
-        read_row(Y, j, yj);
+        read_row(Y, j, yj.data());
         for (size_t i = 0; i < Mx; ++i) {
-            read_row(X, i, xi);
-            od[j * Mx + i] = row_distance(xi, yj, m, p);
+            read_row(X, i, xi.data());
+            od[j * Mx + i] = row_distance(xi.data(), yj.data(), Dx, m, p);
         }
     }
     return out;
@@ -352,7 +353,8 @@ void pdist2_topk(std::pmr::memory_resource *mr, const Value &X, const Value &Y,
     const double *fd = full.doubleData();
 
     // Per-column sort.
-    std::vector<std::pair<double, size_t>> col(Mx);
+    ScratchArena scratch(mr);
+    ScratchVec<std::pair<double, size_t>> col(Mx, &scratch);
     for (size_t j = 0; j < My; ++j) {
         for (size_t i = 0; i < Mx; ++i) {
             col[i].first = fd[j * Mx + i];
@@ -428,16 +430,18 @@ Value mahal(std::pmr::memory_resource *mr, const Value &Y, const Value &X)
         throw Error("mahal: X must have at least 2 rows for covariance",
                     0, 0, "mahal", "", "m:mahal:size");
 
+    ScratchArena scratch(mr);
+
     // Mean of X.
-    std::vector<double> mu(D, 0.0);
+    ScratchVec<double> mu(D, 0.0, &scratch);
     for (size_t i = 0; i < Mx; ++i)
         for (size_t k = 0; k < D; ++k) mu[k] += X.elemAsDouble(k * Mx + i);
     for (auto &m : mu) m /= double(Mx);
 
     // Sample covariance (unbiased, divisor n-1).
-    std::vector<double> C(D * D, 0.0);
+    ScratchVec<double> C(D * D, 0.0, &scratch);
+    ScratchVec<double> dx(D, &scratch);
     for (size_t i = 0; i < Mx; ++i) {
-        std::vector<double> dx(D);
         for (size_t k = 0; k < D; ++k) dx[k] = X.elemAsDouble(k * Mx + i) - mu[k];
         for (size_t a = 0; a < D; ++a)
             for (size_t b = 0; b < D; ++b)
@@ -448,7 +452,7 @@ Value mahal(std::pmr::memory_resource *mr, const Value &Y, const Value &X)
 
     // Cholesky decomposition: C = L · Lᵀ. Solve L · z = (y - μ) and return
     // |z|² (Mahalanobis distance squared).
-    std::vector<double> L(D * D, 0.0);
+    ScratchVec<double> L(D * D, 0.0, &scratch);
     for (size_t i = 0; i < D; ++i) {
         for (size_t j = 0; j <= i; ++j) {
             double s = C[i * D + j];
@@ -466,11 +470,12 @@ Value mahal(std::pmr::memory_resource *mr, const Value &Y, const Value &X)
 
     Value out = Value::matrix(My, 1, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
+    ScratchVec<double> dy(D, &scratch);
+    ScratchVec<double> z(D, 0.0, &scratch);
     for (size_t r = 0; r < My; ++r) {
-        std::vector<double> dy(D);
         for (size_t k = 0; k < D; ++k) dy[k] = Y.elemAsDouble(k * My + r) - mu[k];
         // Forward substitution: L · z = dy.
-        std::vector<double> z(D, 0.0);
+        std::fill(z.begin(), z.end(), 0.0);
         for (size_t i = 0; i < D; ++i) {
             double s = dy[i];
             for (size_t k = 0; k < i; ++k) s -= L[i * D + k] * z[k];
@@ -530,7 +535,8 @@ void pdist2_reg(Span<const Value> args, size_t /*nargout*/,
 
     // Walk args[2..]: extract optional 'Smallest'/'Largest' N-V pair, then
     // pass the rest to the standard metric/p/C parser.
-    std::vector<Value> filtered;
+    ScratchArena scratch(ctx.engine->resource());
+    std::pmr::vector<Value> filtered(&scratch);
     filtered.reserve(args.size());
     bool topk_mode = false;
     bool largest = false;
