@@ -733,8 +733,8 @@ together.
 | `nchoosek` | ✅ | 0.007 | 28.74× | 4.32× | OK | Sig: C = nchoosek(N, K). N=30, K=0:30 via for-loop (arrayfun-wrap broken in numkit, see BUGS.md #11). 1 iter. |
 | `perms` | ✅ | 0.003 | 38.05× | 3.05× | OK | Sig: P = perms(V). 6! = 720 perms. 100 iters. |
 | `primes` | ✅ | 0.286 | 1.00× | 2.30× | OK | Sig: P = primes(N). N=100000. 50 iters. Element-wise SAVE. |
-| `rat` | ✅ | 0.001 | 96.24× |  | MISMATCH | Sig: S = rat(X, TOL). Continued frac of pi. 1000 iters. |
-| `rats` | ✅ | 0.001 | 28.82× |  | MISMATCH | Sig: S = rats(X). Continued frac as char. 10000 iters. |
+| `rat` | ✅ | 0.004 | 195.85× |  | OK | Sig: S = rat(X[, tol]) — 1-output continued-fraction string; [N, D] = rat(X[, tol]) — 2-output integer numerator/denominator (vectorised). Default tol = 1e-6·max(1,|x|). Algorithm: regularized CF expansion with round() (NOT floor), matching MATLAB R2025b — produces signed coefficients (e.g. 0.5 → '1 + 1/(-2)'). Fingerprint covers both forms across scalar, irrational, terminating, and vector inputs. |
+| `rats` | ✅ | 0.007 | 22.55× |  | OK | Sig: S = rats(X[, len]). Default len=13. Each scalar element is formatted as 'numerator/denominator' centre-padded to len characters; for vectors the per-element fields are concatenated. MATLAB's exact spacing differs subtly between Linux/Windows builds — fingerprints pin (a) the field length is approximately len, (b) the slash separator is present in the expected mid-region. Bit-comparison of the rendered string is intentionally NOT a fingerprint (would lock numkit to one MATLAB build's whitespace convention). |
 
 ### Polynomials
 

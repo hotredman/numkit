@@ -1,12 +1,12 @@
 {
   "name": "rats",
-  "namespace": "core",
-  "setup": "x = pi;",
-  "expr": "y = rats(x);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: S = rats(X). Continued frac as char. 10000 iters.",
+  "namespace": "builtin",
+  "setup": "sH = rats(0.5); sP = rats(pi); sT = rats(1/3);",
+  "expr": "lenH = double(strlength(sH)); lenP = double(strlength(sP)); lenT = double(strlength(sT)); ix = strfind(sP, '/'); slashPos = double(ix(1));",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(strlength(y))"
-  ]
+    "lenH", "lenP", "lenT", "slashPos"
+  ],
+  "comment": "Sig: S = rats(X[, len]). Default len=13. Each scalar element is formatted as 'numerator/denominator' centre-padded to len characters; for vectors the per-element fields are concatenated. MATLAB's exact spacing differs subtly between Linux/Windows builds — fingerprints pin (a) the field length is approximately len, (b) the slash separator is present in the expected mid-region. Bit-comparison of the rendered string is intentionally NOT a fingerprint (would lock numkit to one MATLAB build's whitespace convention)."
 }
