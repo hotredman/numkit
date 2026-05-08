@@ -2610,7 +2610,7 @@ intentionally omitted — flat solver functions only.
 | `nuttallwin` | ✅ | 0.010 | 2.43× | 3.99× | OK | Sig: W = nuttallwin(N). 10000 iters. |
 | `parzenwin` | ✅ | 0.001 | 43.75× | 39.21× | OK | Sig: W = parzenwin(N). 10000 iters. |
 | `rectwin` | ✅ | 0.001 | 1.62× | 7.42× | OK | Sig: W = rectwin(N). All-ones. 10000 iters. |
-| `taylorwin` | ✅ | 0.013 | 3.16× | 7.12× | MISMATCH | Sig: W = taylorwin(N). 1024-pt Taylor window. 1000 iters. |
+| `taylorwin` | ✅ | 0.006 | 29.33× | 3.18× | OK | Sig: w = taylorwin(N[, nbar, sll]). Taylor window for radar pulse-compression. Defaults: nbar=4, sll=-30 dB. Bug fix 2026-05-08: previous impl used (-1)^m sign instead of (-1)^(m+1) — inverted output (peak at edges, dip at center). Also incorrectly normalised peak to 1; MATLAB does NOT normalise (peak ≈ 1.52 for default params). |
 | `triang` | ✅ | 0.001 | 8.97× | 15.16× | OK | Sig: W = triang(N). Triangular. 10000 iters. |
 | `tukeywin` | ✅ | 0.007 | 33.62× | 29.85× | OK | Sig: w = tukeywin(N[, r]). Tukey (cosine-tapered) window; r is cosine fraction in [0, 1]. r=0 -> rectwin (all ones); r=1 -> Hann. Default r=0.5. Coverage: r ∈ {0, 0.25, 0.5, 0.75, 1} × selected sample points + N=1 single-point. |
 | `wvtool` | ❌ |  |  |  |  | GUI |

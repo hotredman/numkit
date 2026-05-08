@@ -171,10 +171,47 @@ TEST_F(WindowsExtrasTest, NuttallEndpointSmall)
 // ── taylorwin ─────────────────────────────────────────────────────────
 TEST_F(WindowsExtrasTest, TaylorSymmetric) { expectSymmetric(*this, "taylorwin(32, 4, -30)", 32, 1e-9); }
 
-TEST_F(WindowsExtrasTest, TaylorPeakIsOne)
+// Bug fix 2026-05-08: previous impl was inverted (peak at edges) and
+// wrongly normalised peak to 1. MATLAB does NOT normalise — peak depends
+// on (nbar, sll). For the default (4, -30) peak ≈ 1.52.
+TEST_F(WindowsExtrasTest, TaylorPeakNotNormalised)
 {
     eval("w = taylorwin(31, 4, -30);");
-    EXPECT_NEAR(evalScalar("max(w)"), 1.0, 1e-9);
+    // Peak should be > 1 (NOT 1) — actual ≈ 1.56 for this (N=31, nbar=4, sll=-30).
+    const double peak = evalScalar("max(w)");
+    EXPECT_GT(peak, 1.5);
+    EXPECT_LT(peak, 1.6);
+}
+
+TEST_F(WindowsExtrasTest, TaylorReferenceValues8)
+{
+    // Regression against MATLAB R2025b high-precision values.
+    eval("w = taylorwin(8);");  // default (4, -30)
+    EXPECT_NEAR(evalScalar("w(1)"), 0.4352513132673068, 1e-12);
+    EXPECT_NEAR(evalScalar("w(4)"), 1.5201054982893085, 1e-12);
+    // Symmetric -> w(8) == w(1), w(5) == w(4).
+    EXPECT_NEAR(evalScalar("w(8)"), 0.4352513132673068, 1e-12);
+    EXPECT_NEAR(evalScalar("w(5)"), 1.5201054982893085, 1e-12);
+}
+
+TEST_F(WindowsExtrasTest, TaylorLowerSll)
+{
+    // sll=-40 dB -> deeper sidelobes, larger peak (~1.69), smaller endpoints.
+    eval("w = taylorwin(8, 4, -40);");
+    EXPECT_NEAR(evalScalar("w(1)"), 0.2794267088477139, 1e-12);
+    EXPECT_NEAR(evalScalar("w(4)"), 1.6923187329261840, 1e-12);
+}
+
+TEST_F(WindowsExtrasTest, TaylorPeakAtCentre)
+{
+    // Sanity: in a centered Taylor window, peak should be near the middle,
+    // not at the edges (the inverted-shape bug).
+    eval("w = taylorwin(31, 4, -30);");
+    const double centre = evalScalar("w(16)");  // (31+1)/2 = 16
+    const double left   = evalScalar("w(1)");
+    const double right  = evalScalar("w(31)");
+    EXPECT_GT(centre, left);
+    EXPECT_GT(centre, right);
 }
 
 // ── blackmanharris ────────────────────────────────────────────────────
