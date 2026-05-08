@@ -51,4 +51,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/binostat_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nbinstat_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ncx2stat_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nakastat_test.cpp
 )
