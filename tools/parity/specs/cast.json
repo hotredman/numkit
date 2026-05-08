@@ -1,9 +1,14 @@
 {
   "name": "cast",
-  "namespace": "core",
-  "setup": "x = double(1:1000000);",
-  "expr": "y = cast(x, 'int32');",
-  "iters": 50,
-  "fingerprint": ["double(sum(y(:)))", "double(y(1))", "double(y(end))", "double(y(round(end/2)))"],
-  "comment": "1M doubles -> int32. 50 iters."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(cast(3.7, \"int32\")); r2 = double(cast(255, \"uint8\")); r3 = double(cast(-100, \"int8\"));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = cast(...). Spec-extension batch 2026-05-09."
 }

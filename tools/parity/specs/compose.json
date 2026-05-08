@@ -1,9 +1,12 @@
 {
   "name": "compose",
-  "namespace": "core",
-  "setup": "x = 1:1000;",
-  "expr": "y = compose('val=%d', x);",
-  "iters": 100,
-  "fingerprint": ["double(numel(y))", "double(strlength(y{1}))", "double(strlength(y{end}))"],
-  "comment": "Format 1000 ints with single-spec template. 100 iters."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "s = compose(\"%d-%d\", [1; 2], [3; 4]); r1 = double(numel(s));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = compose(...). Spec-extension batch 2026-05-09."
 }

@@ -1,6 +1,6 @@
-# builtin/ellipj — ТЗ for completion
+# builtin/erfcx — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** 03244f9
@@ -19,3 +19,9 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Misc batch 2 (string-extras + special-fn + helpers, 20 funcs).
+  Bit-identical MATLAB R2025b on probed inputs. See misc2_batch_test.cpp.

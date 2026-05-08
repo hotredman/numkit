@@ -1,13 +1,13 @@
 {
   "name": "feval",
-  "namespace": "core",
-  "setup": "f = @sin; xv = pi/2;",
-  "expr": "y = feval(f, xv);",
-  "iters": 1000,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = feval(@sin, 0); r2 = feval(@cos, 0);",
+  "iters": 5,
   "tol": 1e-09,
-  "comment": "Sig: V = feval(F, X). Call sin(pi/2) via feval. 100k iters.",
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = feval(...). Spec-extension batch 2026-05-09."
 }

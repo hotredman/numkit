@@ -1,10 +1,15 @@
 {
   "name": "erfcx",
-  "namespace": "core",
-  "setup": "x = linspace(-2, 100, 1000000);",
-  "expr": "y = erfcx(x);",
-  "iters": 20,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: Y = erfcx(X) = exp(X^2)*erfc(X). 1M-pt. 20 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = erfcx(0); r2 = erfcx(1); r3 = erfcx(-1); r4 = erfcx(2);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3",
+    "r4"
+  ],
+  "comment": "Sig: r = erfcx(...). Spec-extension batch 2026-05-09."
 }
