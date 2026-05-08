@@ -1,0 +1,17 @@
+{
+  "name": "binopdf",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "y_s = binopdf(3, 10, 0.3); y_v = binopdf([0 3 5 10], 10, 0.3); y_frac = binopdf(3.5, 10, 0.3); y_neg = binopdf(-1, 10, 0.3); y_over = binopdf(11, 10, 0.3); y_p0 = binopdf(0, 10, 0); y_p0pos = binopdf(3, 10, 0); y_p1n = binopdf(10, 10, 1); y_p1lo = binopdf(3, 10, 1); y_nbad = binopdf(3, -1, 0.3); y_pbad = binopdf(3, 10, -0.1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "y_s",
+    "y_v(1)", "y_v(2)", "y_v(3)", "y_v(4)",
+    "y_frac", "y_neg", "y_over",
+    "y_p0", "y_p0pos",
+    "y_p1n", "y_p1lo",
+    "y_nbad", "y_pbad"
+  ],
+  "comment": "Sig: y = binopdf(k, n, p). Binomial PMF. Out-of-support k (negative, > n, non-integer) → 0. p=0: only k=0 → 1. p=1: only k=n → 1. Invalid n / p out of [0,1] → NaN."
+}
