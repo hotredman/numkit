@@ -50,3 +50,18 @@ TEST_F(CgauwavfTest, GridDependentNormalisation)
     eval("[a,~] = cgauwavf(-5, 5, 11); [b,~] = cgauwavf(-5, 5, 101);");
     EXPECT_NE(evalScalar("real(a(5))"), evalScalar("real(b(41))"));
 }
+
+// Bug fix 2026-05-08 — added 'cgauN' wname form.
+
+TEST_F(CgauwavfTest, WnameForm)
+{
+    eval("[psi, x] = cgauwavf(-5, 5, 8, 'cgau3');");
+    EXPECT_NEAR(evalScalar("real(psi(4))"), -0.4766724202, 1e-9);
+}
+
+TEST_F(CgauwavfTest, WnameMatchesIntegerForm)
+{
+    eval("[a, ~] = cgauwavf(-5, 5, 16, 4); [b, ~] = cgauwavf(-5, 5, 16, 'cgau4');");
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(real(a - b)))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(imag(a - b)))"), 0.0);
+}

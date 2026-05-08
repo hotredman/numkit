@@ -50,3 +50,14 @@ the wname form. `tol = 1e-12`.
 ## Out of scope for this ТЗ
 
 - N/A — joint fix.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Joint closure with audit/closed/wavelet/gauswavf.md.
+  Same fix shape: 'cgauN' wname form was throwing; now parses N.
+  See gauswavf's Closed block for the parseGaussOrder helper
+  details. Spec extended from 8 to 8 fingerprints (p ∈ {1, 2, 4}
+  + 'cgau3' wname). Parity OK numkit ↔ MATLAB at tol=1e-9. 6
+  TEST_F gtest (existing 4 + 2 new WnameForm /
+  WnameMatchesIntegerForm).

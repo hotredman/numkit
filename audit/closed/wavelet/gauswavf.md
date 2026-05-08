@@ -55,3 +55,23 @@ Documented signatures (`help gauswavf`):
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Joint closure with audit/closed/wavelet/cgauwavf.md.
+
+  Bug fix: 4th arg as `'gausN'` string was throwing "Cannot
+  convert char to scalar". Adapter now branches on
+  `isChar()/isString()`: for strings, strips the `gaus` prefix
+  and parses the trailing integer; bad strings throw cleanly.
+  Same fix shape for `cgauwavf` with `cgau` prefix.
+
+  New shared helper `parseGaussOrder(arg, prefix, fn)` handles
+  both adapters.
+
+  Spec extended from 7 to 7 fingerprints (refactored coverage to
+  cover p ∈ {1, 2, 4, 8} integer + 'gaus3' wname). Parity OK
+  numkit ↔ MATLAB at tol=1e-9. Octave doesn't ship `gauswavf`/
+  `cgauwavf`. 7 TEST_F gtest (existing 4 + 3 new WnameForm /
+  WnameMatchesIntegerForm / WnameRejectsBadString).

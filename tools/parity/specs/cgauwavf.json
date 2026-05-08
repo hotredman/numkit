@@ -1,10 +1,15 @@
 {
   "name": "cgauwavf",
   "namespace": "wavelet",
-  "setup": "",
-  "expr": "[p1, x] = cgauwavf(-5, 5, 11); [p2, ~] = cgauwavf(-5, 5, 11, 2); r1 = real(p1); i1 = imag(p1); r2 = real(p2); i2 = imag(p2);",
+  "setup": "[c1, x1] = cgauwavf(-5, 5, 8); [c2, x2] = cgauwavf(-5, 5, 8, 2); [c4, x4] = cgauwavf(-5, 5, 8, 4); [cw, xw] = cgauwavf(-5, 5, 8, 'cgau3');",
+  "expr": "r1 = real(c1(4)); i1 = imag(c1(4)); r2 = real(c2(4)); i2 = imag(c2(4)); r4 = real(c4(4)); i4 = imag(c4(4)); rw = real(cw(4)); iw = imag(cw(4));",
   "iters": 5,
   "tol": 1e-9,
-  "fingerprint": ["r1(5)", "i1(5)", "i1(6)", "r2(6)", "r2(5)", "i2(5)", "x(1)", "x(11)"],
-  "comment": "Sig: [psi, x] = cgauwavf(LB, UB, N[, p]). Complex Gaussian wavelet (-1)^p · H_p(t + i/2) · exp(-t² - i·t). Trapezoidal L² normalization on the requested grid (matches MATLAB's grid-dependent normalization)."
+  "fingerprint": [
+    "r1", "i1",
+    "r2", "i2",
+    "r4", "i4",
+    "rw", "iw"
+  ],
+  "comment": "Sig: [psi, x] = cgauwavf(LB, UB, N[, p|'cgauN']). Complex Gaussian wavelet (-1)^p · H_p(t + i/2) · exp(-t² - i·t). Bug fix 2026-05-08: 'cgauN' wname form was throwing 'Cannot convert char to scalar'."
 }
