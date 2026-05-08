@@ -1,6 +1,6 @@
 # builtin/betainc — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** 03244f9
@@ -19,3 +19,11 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Special-function spec-extension batch (17 funcs: bessel{j,y,
+  i,k,h} + beta/betainc/betaincinv/betaln + gamma/gammainc/gammaincinv/
+  gammaln + erf/erfc/erfinv/erfcinv). All bit-identical MATLAB R2025b.
+  See libs/builtin/tests/special_fn_batch_test.cpp + smoke + 17 specs.

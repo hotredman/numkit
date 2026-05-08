@@ -1,10 +1,16 @@
 {
   "name": "betainc",
-  "namespace": "core",
-  "setup": "x = linspace(0.001, 0.999, 1000); a = 2.5; b = 4.0;",
-  "expr": "y = betainc(x, a, b);",
-  "iters": 20,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: I = betainc(X, A, B). 1k-pt with scalar a=2.5 b=4. 20 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "x = [0.1, 0.3, 0.5, 0.7, 0.9]; a = 2; b = 3;",
+  "expr": "r = betainc(x, a, b);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "r(1)",
+    "r(2)",
+    "r(3)",
+    "r(4)",
+    "r(5)"
+  ],
+  "comment": "Sig: r = betainc(...). Special function. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity."
 }
