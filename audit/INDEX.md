@@ -101,7 +101,6 @@ Status legend:
 | [findings/stats/binoinv.md](findings/stats/binoinv.md) | binoinv | stats.dist | low | small | 1525319 |
 | [findings/stats/binopdf.md](findings/stats/binopdf.md) | binopdf | stats.dist | low | small | 1525319 |
 | [findings/stats/binornd.md](findings/stats/binornd.md) | binornd | stats.dist | low | small | 1525319 |
-| [findings/stats/binostat.md](findings/stats/binostat.md) | binostat | stats.dist | low | small | 1525319 |
 | [findings/stats/poissinv.md](findings/stats/poissinv.md) | poissinv | stats.dist | low | small | 1525319 |
 | [findings/stats/poisspdf.md](findings/stats/poisspdf.md) | poisspdf | stats.dist | low | small | 1525319 |
 | [findings/stats/poissrnd.md](findings/stats/poissrnd.md) | poissrnd | stats.dist | low | small | 1525319 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/gamstat.md](closed/stats/gamstat.md) | gamstat | PENDING | 2026-05-07 |
 | [closed/stats/unifstat.md](closed/stats/unifstat.md) | unifstat | PENDING | 2026-05-07 |
 | [closed/stats/wblstat.md](closed/stats/wblstat.md) | wblstat | PENDING | 2026-05-07 |
+| [closed/stats/binostat.md](closed/stats/binostat.md) | binostat | PENDING | 2026-05-07 |
 
 ---
 

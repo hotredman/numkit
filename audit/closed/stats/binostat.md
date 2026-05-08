@@ -21,3 +21,12 @@ RNG family).
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-07
+- Notes: Vectorisation via emit_vec_stat_2arg (sweep 5dd32c38).
+  Impl edges already correct (n<0 / non-integer / p<0 / p>1 → NaN).
+  21-fingerprint spec covers scalar / vector n / vector p / boundary
+  p∈{0,1} / n=0 valid / all invalid combos. 5 TEST_F gtest + smoke.
+  Parity OK numkit ↔ MATLAB (Octave divergent on n=0 → NaN; we follow MATLAB).
