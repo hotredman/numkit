@@ -187,9 +187,13 @@ Value linkage(std::pmr::memory_resource *mr, const Value &Y,
 // cluster — flatten a linkage tree
 // ════════════════════════════════════════════════════════════════════
 
+// Forward decl for inconsistency cutoff.
+Value inconsistent(std::pmr::memory_resource *mr, const Value &Z, int depth);
+
 Value cluster_from_linkage(std::pmr::memory_resource *mr, const Value &Z,
                            int maxclust, double cutoff,
-                           const std::string &criterion)
+                           const std::string &criterion,
+                           int depth)
 {
     const size_t M = Z.dims().rows();
     if (Z.dims().cols() != 3)
@@ -204,67 +208,126 @@ Value cluster_from_linkage(std::pmr::memory_resource *mr, const Value &Z,
         d[i] = Z.doubleData()[2 * M + i];
     }
 
-    // Active cluster representatives. Each step merges a[i] and b[i] into
-    // a new cluster N + i; we want to know, for each original sample, which
-    // top-level cluster it ends up in (after applying maxclust / cutoff).
-    int merges = (int)M;
-    if (maxclust > 0 && maxclust >= 1 && (size_t)maxclust <= N)
-        merges = (int)N - maxclust;
-    else if (cutoff > 0.0 && criterion == "distance") {
-        merges = 0;
-        for (size_t i = 0; i < M; ++i) {
-            if (d[i] > cutoff) break;
-            ++merges;
+    // Determine cluster assignment via tree-walk for the inconsistency
+    // criterion (MATLAB default for 'cutoff'); use distance threshold for
+    // 'distance'; use prefix merges for maxclust.
+    std::vector<int> labels(N, 0);
+
+    if (maxclust > 0 && maxclust >= 1 && (size_t)maxclust <= N) {
+        const int merges = (int)N - maxclust;
+        // Union-find.
+        std::vector<int> parent(N + M);
+        for (size_t i = 0; i < parent.size(); ++i) parent[i] = (int)i;
+        std::function<int(int)> find = [&](int x) {
+            while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; }
+            return x;
+        };
+        for (int i = 0; i < merges; ++i) {
+            const int newid = (int)N + i;
+            int x = find(a[i]), y = find(newid);
+            if (x != y) parent[x] = y;
+            x = find(b[i]); y = find(newid);
+            if (x != y) parent[x] = y;
         }
+        std::vector<int> root2lab;
+        for (size_t i = 0; i < N; ++i) {
+            const int r = find((int)i);
+            int lab = -1;
+            for (size_t j = 0; j < root2lab.size(); ++j)
+                if (root2lab[j] == r) { lab = (int)j; break; }
+            if (lab < 0) { lab = (int)root2lab.size(); root2lab.push_back(r); }
+            labels[i] = lab + 1;
+        }
+    } else if (cutoff > 0.0 && criterion == "distance") {
+        // A non-leaf node id (= N + i) is "kept" iff its merge distance d[i]
+        // is <= cutoff. Walk top-down: at each node, if kept then collect
+        // all leaves under it into one cluster; else recurse into children.
+        int next_label = 0;
+        std::function<void(int, int)> assign = [&](int id, int lab) {
+            if ((size_t)id < N) { labels[(size_t)id] = lab; return; }
+            assign(a[(size_t)id - N], lab);
+            assign(b[(size_t)id - N], lab);
+        };
+        std::function<void(int)> walk = [&](int id) {
+            if ((size_t)id < N) {
+                labels[(size_t)id] = ++next_label;
+                return;
+            }
+            const size_t i = (size_t)id - N;
+            if (d[i] <= cutoff) {
+                ++next_label;
+                assign(id, next_label);
+            } else {
+                walk(a[i]);
+                walk(b[i]);
+            }
+        };
+        walk((int)N + (int)M - 1);
     } else if (cutoff > 0.0) {
-        // Inconsistency-coefficient cutoff: use inconsistent() and apply.
-        // For first cut we treat cutoff as distance threshold only.
-        merges = 0;
-        for (size_t i = 0; i < M; ++i) {
-            if (d[i] > cutoff) break;
-            ++merges;
-        }
+        // Inconsistency criterion (MATLAB default).
+        Value Yinc = inconsistent(mr, Z, depth);
+        const double *yi = Yinc.doubleData();
+        // inc per non-leaf node: column 4 (= 3 in 0-based), row layout col-major M×4.
+        std::vector<double> inc(M);
+        for (size_t i = 0; i < M; ++i) inc[i] = yi[3 * M + i];
+        int next_label = 0;
+        std::function<void(int, int)> assign = [&](int id, int lab) {
+            if ((size_t)id < N) { labels[(size_t)id] = lab; return; }
+            assign(a[(size_t)id - N], lab);
+            assign(b[(size_t)id - N], lab);
+        };
+        std::function<void(int)> walk = [&](int id) {
+            if ((size_t)id < N) {
+                labels[(size_t)id] = ++next_label;
+                return;
+            }
+            const size_t i = (size_t)id - N;
+            if (inc[i] <= cutoff) {
+                ++next_label;
+                assign(id, next_label);
+            } else {
+                walk(a[i]);
+                walk(b[i]);
+            }
+        };
+        walk((int)N + (int)M - 1);
+    } else {
+        // No criterion — every leaf is its own cluster.
+        for (size_t i = 0; i < N; ++i) labels[i] = (int)i + 1;
     }
-    if (merges < 0) merges = 0;
-    if ((size_t)merges > M) merges = (int)M;
 
-    // Union-Find.
-    std::vector<int> parent(N + M);
-    for (size_t i = 0; i < parent.size(); ++i) parent[i] = (int)i;
-    std::function<int(int)> find = [&](int x) {
-        while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; }
-        return x;
-    };
-    auto unite = [&](int x, int y) {
-        x = find(x); y = find(y);
-        if (x != y) parent[x] = y;
-    };
-
-    for (int i = 0; i < merges; ++i) {
-        const int newid = (int)N + i;
-        unite(a[i], newid);
-        unite(b[i], newid);
-    }
-
-    // Relabel each sample's root to a contiguous 1..K range.
-    std::vector<int> labels(N);
-    std::vector<int> root2lab;
-    root2lab.reserve(8);
+    // Compact labels to 1..K in first-encountered order.
+    std::vector<int> remap(N + 1, 0);
+    int next = 0;
+    std::vector<int> compact(N);
     for (size_t i = 0; i < N; ++i) {
-        const int r = find((int)i);
-        // Find existing or assign new label.
-        int lab = -1;
-        for (size_t j = 0; j < root2lab.size(); ++j) {
-            if (root2lab[j] == r) { lab = (int)j; break; }
-        }
-        if (lab < 0) { lab = (int)root2lab.size(); root2lab.push_back(r); }
-        labels[i] = lab + 1;  // 1-based
+        if (remap[(size_t)labels[i]] == 0) remap[(size_t)labels[i]] = ++next;
+        compact[i] = remap[(size_t)labels[i]];
     }
 
     Value out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
-    for (size_t i = 0; i < N; ++i) od[i] = double(labels[i]);
+    for (size_t i = 0; i < N; ++i) od[i] = double(compact[i]);
     return out;
+}
+
+// Backward-compat wrapper without depth.
+Value cluster_from_linkage(std::pmr::memory_resource *mr, const Value &Z,
+                           int maxclust, double cutoff,
+                           const std::string &criterion)
+{
+    return cluster_from_linkage(mr, Z, maxclust, cutoff, criterion, 2);
+}
+
+Value clusterdata(std::pmr::memory_resource *mr, const Value &X,
+                  int maxclust, double cutoff,
+                  const std::string &linkage_method,
+                  const std::string &criterion,
+                  int depth)
+{
+    Value Y = pdist(mr, X, "euclidean", 2.0);
+    Value Z = linkage(mr, Y, linkage_method);
+    return cluster_from_linkage(mr, Z, maxclust, cutoff, criterion, depth);
 }
 
 Value clusterdata(std::pmr::memory_resource *mr, const Value &X,
@@ -272,9 +335,7 @@ Value clusterdata(std::pmr::memory_resource *mr, const Value &X,
                   const std::string &linkage_method,
                   const std::string &criterion)
 {
-    Value Y = pdist(mr, X, "euclidean", 2.0);
-    Value Z = linkage(mr, Y, linkage_method);
-    return cluster_from_linkage(mr, Z, maxclust, cutoff, criterion);
+    return clusterdata(mr, X, maxclust, cutoff, linkage_method, criterion, 2);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -439,17 +500,24 @@ void cluster_reg(Span<const Value> args, size_t /*nargout*/,
                     "m:cluster:nargin");
     int maxclust = -1;
     double cutoff = -1.0;
+    int depth = 2;
+    // MATLAB default 'cutoff' criterion is 'inconsistent'.
     std::string criterion = "inconsistent";
+    auto lower = [](std::string s) {
+        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        return s;
+    };
     for (size_t i = 1; i + 1 < args.size(); ++i) {
         if (args[i].isChar() || args[i].isString()) {
-            const auto s = args[i].toString();
-            if      (s == "maxclust") maxclust = (int)args[i + 1].toScalar();
-            else if (s == "cutoff")   cutoff   = args[i + 1].toScalar();
-            else if (s == "criterion") criterion = args[i + 1].toString();
+            const auto s = lower(args[i].toString());
+            if      (s == "maxclust")  maxclust  = (int)args[i + 1].toScalar();
+            else if (s == "cutoff")    cutoff    = args[i + 1].toScalar();
+            else if (s == "criterion") criterion = lower(args[i + 1].toString());
+            else if (s == "depth")     depth     = (int)args[i + 1].toScalar();
         }
     }
     outs[0] = cluster_from_linkage(ctx.engine->resource(), args[0],
-                                    maxclust, cutoff, criterion);
+                                    maxclust, cutoff, criterion, depth);
 }
 
 void clusterdata_reg(Span<const Value> args, size_t /*nargout*/,

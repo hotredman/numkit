@@ -33,12 +33,21 @@ Value linkage(std::pmr::memory_resource *mr, const Value &Y,
 Value cluster_from_linkage(std::pmr::memory_resource *mr, const Value &Z,
                            int maxclust, double cutoff,
                            const std::string &criterion);
+Value cluster_from_linkage(std::pmr::memory_resource *mr, const Value &Z,
+                           int maxclust, double cutoff,
+                           const std::string &criterion,
+                           int depth);
 
 /// clusterdata(X, …) — convenience: pdist + linkage + cluster.
 Value clusterdata(std::pmr::memory_resource *mr, const Value &X,
                   int maxclust, double cutoff,
                   const std::string &linkage_method,
                   const std::string &criterion);
+Value clusterdata(std::pmr::memory_resource *mr, const Value &X,
+                  int maxclust, double cutoff,
+                  const std::string &linkage_method,
+                  const std::string &criterion,
+                  int depth);
 
 /// cophenet(Z, Y) — cophenetic correlation coefficient between linkage
 /// distances and original pdist distances. Returns a scalar.

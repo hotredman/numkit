@@ -1,6 +1,6 @@
 # stats.cluster/cluster — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** medium
 **Effort:** small
 **Audited at commit:** b2f133b
@@ -54,3 +54,15 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-08
+- Notes: Refactored `cluster_from_linkage` to walk the linkage tree
+  top-down using inconsistency coefficients (depth-configurable) for
+  the default 'cutoff' criterion. Added 'criterion' N-V (distance vs
+  inconsistent) and 'depth' N-V parsing. Parity OK across MATLAB /
+  Octave / numkit using label-permutation-invariant fingerprints
+  (cluster counts + same-cluster boolean tests) — actual cluster ID
+  numbering still differs between engines but the partition matches.
+
