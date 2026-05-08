@@ -1,5 +1,6 @@
 target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/arithmetic_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mldivide_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/variables_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/controlflow_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/functions_test.cpp

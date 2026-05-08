@@ -1,10 +1,14 @@
 {
   "name": "mrdivide",
-  "namespace": "core",
-  "setup": "B = eye(100) + 0.01*reshape(1:10000, 100, 100); A = (1:100);",
-  "expr": "y = mrdivide(A, B);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: X = mrdivide(A, B) = A/B. 100x100. 100 iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "A2 = [1 2; 3 4]; B2 = [5 6; 7 8]; A3 = [1 2 3]; B3 = [4 1 2; 1 5 3; 2 3 6];",
+  "expr": "R22 = mrdivide(A2, B2); R31 = mrdivide(A3, B3); Rsc = mrdivide([4 6 8], 2);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "R22(1,1)", "R22(1,2)", "R22(2,1)", "R22(2,2)",
+    "R31(1)", "R31(2)", "R31(3)",
+    "Rsc(1)", "Rsc(2)", "Rsc(3)"
+  ],
+  "comment": "Sig: X = mrdivide(A,B) ↔ A/B  ↔ X·B = A. Composes via the standard transpose trick X = (B'\\A')'. So uses the same LU/QR primitives as mldivide. matrix/scalar is elementwise. scalar/matrix ERRORS with m:mrdivide:dim per MATLAB R2025b (verified: `2/[1 2; 3 4]` → 'Matrix dimensions must agree')."
 }
