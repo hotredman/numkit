@@ -22,12 +22,17 @@ app.commandLine.appendSwitch('js-flags', '--max-old-space-size=4096 --expose-gc'
 // electron-builder packs `--win portable` exes as the GUI subsystem,
 // so stdout/stderr are detached from any launching terminal. The
 // renderer's [heap-trace] is visible in DevTools, but [mem-trace]
-// from the main process otherwise has nowhere to go. Write to a
-// rolling file next to the exe so the user can attach it post-mortem.
-const LOG_PATH = path.join(
-  app.isPackaged ? path.dirname(process.execPath) : __dirname,
-  'numkit-ide.log'
-);
+// from the main process otherwise has nowhere to go.
+//
+// Write to a STABLE per-user location, never next to the exe:
+// portable mode extracts the exe into %TEMP%/<random>/ on launch
+// and deletes that whole directory at exit, so a log file there
+// vanishes the moment the process dies. app.getPath('userData')
+// resolves to %APPDATA%/<productName>/ on Windows and survives
+// across launches and crashes.
+const LOG_DIR = app.isPackaged ? app.getPath('userData') : __dirname;
+fs.mkdirSync(LOG_DIR, { recursive: true });
+const LOG_PATH = path.join(LOG_DIR, 'numkit-ide.log');
 function logToFile(level, ...args) {
   try {
     const line = `[${new Date().toISOString()}] [${level}] ${args.map(a =>
