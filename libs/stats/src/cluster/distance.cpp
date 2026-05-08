@@ -18,7 +18,7 @@ namespace {
 
 // Distance metric IDs.
 enum class Metric { Euclidean, SqEuclidean, Cityblock, Chebychev, Minkowski,
-                    Cosine, Correlation, Hamming, Jaccard };
+                    Cosine, Correlation, Hamming, Jaccard, Mahalanobis };
 
 Metric parse_metric(const std::string &raw) {
     // Case-insensitive + accept MATLAB-style aliases (e.g. 'sqEuclidean'
@@ -35,8 +35,94 @@ Metric parse_metric(const std::string &raw) {
     if (s == "correlation")      return Metric::Correlation;
     if (s == "hamming")          return Metric::Hamming;
     if (s == "jaccard")          return Metric::Jaccard;
+    if (s == "mahalanobis")      return Metric::Mahalanobis;
     throw Error("pdist: unknown metric '" + raw + "'", 0, 0, "pdist", "",
                 "m:pdist:badmetric");
+}
+
+// Invert a small dense matrix in-place (D × D, column-major in `A`,
+// stored as row-major in `A_flat[r * D + c]` for ease) using
+// Gauss-Jordan with partial pivoting. Throws on singular matrix.
+inline void invert_small(std::vector<double> &A, size_t D)
+{
+    std::vector<double> aug(D * 2 * D, 0.0);
+    // Build augmented [A | I].
+    for (size_t r = 0; r < D; ++r) {
+        for (size_t c = 0; c < D; ++c) aug[r * 2 * D + c] = A[r * D + c];
+        aug[r * 2 * D + D + r] = 1.0;
+    }
+    for (size_t k = 0; k < D; ++k) {
+        // Partial pivot.
+        size_t piv = k;
+        double pmax = std::fabs(aug[k * 2 * D + k]);
+        for (size_t r = k + 1; r < D; ++r) {
+            const double v = std::fabs(aug[r * 2 * D + k]);
+            if (v > pmax) { pmax = v; piv = r; }
+        }
+        if (pmax < 1e-14)
+            throw Error("pdist: covariance matrix is singular for "
+                        "Mahalanobis distance",
+                        0, 0, "pdist", "", "m:pdist:singular");
+        if (piv != k) {
+            for (size_t c = 0; c < 2 * D; ++c)
+                std::swap(aug[k * 2 * D + c], aug[piv * 2 * D + c]);
+        }
+        const double pivval = aug[k * 2 * D + k];
+        const double inv_pivval = 1.0 / pivval;
+        for (size_t c = 0; c < 2 * D; ++c) aug[k * 2 * D + c] *= inv_pivval;
+        for (size_t r = 0; r < D; ++r) {
+            if (r == k) continue;
+            const double factor = aug[r * 2 * D + k];
+            if (factor == 0.0) continue;
+            for (size_t c = 0; c < 2 * D; ++c)
+                aug[r * 2 * D + c] -= factor * aug[k * 2 * D + c];
+        }
+    }
+    for (size_t r = 0; r < D; ++r)
+        for (size_t c = 0; c < D; ++c)
+            A[r * D + c] = aug[r * 2 * D + D + c];
+}
+
+// Compute the unbiased covariance matrix of the M×D data `X` (column-major
+// in the Value), returned in row-major `D*D` buffer.
+std::vector<double> data_cov(const Value &X)
+{
+    const size_t M = X.dims().rows();
+    const size_t D = X.dims().cols();
+    std::vector<double> mean(D, 0.0);
+    for (size_t c = 0; c < D; ++c) {
+        for (size_t r = 0; r < M; ++r) mean[c] += X.elemAsDouble(c * M + r);
+        mean[c] /= static_cast<double>(M);
+    }
+    std::vector<double> cov(D * D, 0.0);
+    for (size_t r = 0; r < M; ++r) {
+        std::vector<double> dev(D);
+        for (size_t c = 0; c < D; ++c)
+            dev[c] = X.elemAsDouble(c * M + r) - mean[c];
+        for (size_t a = 0; a < D; ++a)
+            for (size_t b = 0; b < D; ++b)
+                cov[a * D + b] += dev[a] * dev[b];
+    }
+    const double inv_dof = (M > 1) ? 1.0 / static_cast<double>(M - 1) : 1.0;
+    for (auto &v : cov) v *= inv_dof;
+    return cov;
+}
+
+// Mahalanobis distance: d = sqrt((u - v)ᵀ · C_inv · (u - v)).
+inline double mahal_distance(const std::vector<double> &u,
+                              const std::vector<double> &v,
+                              const std::vector<double> &Cinv)
+{
+    const size_t D = u.size();
+    std::vector<double> diff(D);
+    for (size_t k = 0; k < D; ++k) diff[k] = u[k] - v[k];
+    double s = 0.0;
+    for (size_t a = 0; a < D; ++a) {
+        double row = 0.0;
+        for (size_t b = 0; b < D; ++b) row += Cinv[a * D + b] * diff[b];
+        s += diff[a] * row;
+    }
+    return std::sqrt(std::max(0.0, s));
 }
 
 inline double row_distance(const std::vector<double> &x,
@@ -129,7 +215,8 @@ inline void read_row(const Value &X, size_t r, std::vector<double> &out) {
 } // anonymous
 
 Value pdist(std::pmr::memory_resource *mr, const Value &X,
-            const std::string &metric, double p)
+            const std::string &metric, double p,
+            const Value *C_opt)
 {
     const Metric m = parse_metric(metric);
     const size_t M = X.dims().rows();
@@ -140,6 +227,34 @@ Value pdist(std::pmr::memory_resource *mr, const Value &X,
     double *od = out.doubleDataMut();
 
     std::vector<double> xi(D), xj(D);
+
+    if (m == Metric::Mahalanobis) {
+        // Build Cinv once.
+        std::vector<double> Cinv;
+        if (C_opt) {
+            const Value &C = *C_opt;
+            if (C.dims().rows() != D || C.dims().cols() != D)
+                throw Error("pdist: mahalanobis covariance C must be D×D",
+                            0, 0, "pdist", "", "m:pdist:mahal");
+            Cinv.assign(D * D, 0.0);
+            for (size_t r = 0; r < D; ++r)
+                for (size_t c = 0; c < D; ++c)
+                    Cinv[r * D + c] = C.elemAsDouble(c * D + r);
+        } else {
+            Cinv = data_cov(X);
+        }
+        invert_small(Cinv, D);
+        size_t idx = 0;
+        for (size_t i = 0; i < M; ++i) {
+            read_row(X, i, xi);
+            for (size_t j = i + 1; j < M; ++j) {
+                read_row(X, j, xj);
+                od[idx++] = mahal_distance(xi, xj, Cinv);
+            }
+        }
+        return out;
+    }
+
     size_t idx = 0;
     for (size_t i = 0; i < M; ++i) {
         read_row(X, i, xi);
@@ -151,8 +266,16 @@ Value pdist(std::pmr::memory_resource *mr, const Value &X,
     return out;
 }
 
+// Backward-compat wrapper without C.
+Value pdist(std::pmr::memory_resource *mr, const Value &X,
+            const std::string &metric, double p)
+{
+    return pdist(mr, X, metric, p, nullptr);
+}
+
 Value pdist2(std::pmr::memory_resource *mr, const Value &X, const Value &Y,
-             const std::string &metric, double p)
+             const std::string &metric, double p,
+             const Value *C_opt)
 {
     const Metric m = parse_metric(metric);
     const size_t Mx = X.dims().rows();
@@ -167,6 +290,33 @@ Value pdist2(std::pmr::memory_resource *mr, const Value &X, const Value &Y,
     double *od = out.doubleDataMut();
 
     std::vector<double> xi(Dx), yj(Dy);
+
+    if (m == Metric::Mahalanobis) {
+        // For pdist2 with Mahalanobis, MATLAB uses cov(Y) by default.
+        std::vector<double> Cinv;
+        if (C_opt) {
+            const Value &C = *C_opt;
+            if (C.dims().rows() != Dx || C.dims().cols() != Dx)
+                throw Error("pdist2: mahalanobis covariance C must be D×D",
+                            0, 0, "pdist2", "", "m:pdist2:mahal");
+            Cinv.assign(Dx * Dx, 0.0);
+            for (size_t r = 0; r < Dx; ++r)
+                for (size_t c = 0; c < Dx; ++c)
+                    Cinv[r * Dx + c] = C.elemAsDouble(c * Dx + r);
+        } else {
+            Cinv = data_cov(Y);
+        }
+        invert_small(Cinv, Dx);
+        for (size_t j = 0; j < My; ++j) {
+            read_row(Y, j, yj);
+            for (size_t i = 0; i < Mx; ++i) {
+                read_row(X, i, xi);
+                od[j * Mx + i] = mahal_distance(xi, yj, Cinv);
+            }
+        }
+        return out;
+    }
+
     for (size_t j = 0; j < My; ++j) {
         read_row(Y, j, yj);
         for (size_t i = 0; i < Mx; ++i) {
@@ -175,6 +325,12 @@ Value pdist2(std::pmr::memory_resource *mr, const Value &X, const Value &Y,
         }
     }
     return out;
+}
+
+Value pdist2(std::pmr::memory_resource *mr, const Value &X, const Value &Y,
+             const std::string &metric, double p)
+{
+    return pdist2(mr, X, Y, metric, p, nullptr);
 }
 
 Value squareform(std::pmr::memory_resource *mr, const Value &d) {
@@ -289,17 +445,24 @@ Value mahal(std::pmr::memory_resource *mr, const Value &Y, const Value &X)
 namespace detail {
 
 namespace {
-std::pair<std::string, double> parse_metric_args(Span<const Value> args, size_t start) {
-    std::string metric = "euclidean";
-    double p = 2.0;
+struct MetricArgs {
+    std::string metric;
+    double p;
+    const Value *C;       // Mahalanobis covariance (nullable).
+};
+MetricArgs parse_metric_args(Span<const Value> args, size_t start) {
+    MetricArgs out{"euclidean", 2.0, nullptr};
     for (size_t i = start; i < args.size(); ++i) {
         if (args[i].isChar() || args[i].isString()) {
-            metric = args[i].toString();
+            out.metric = args[i].toString();
         } else if (args[i].numel() == 1) {
-            p = args[i].toScalar();
+            out.p = args[i].toScalar();
+        } else if (args[i].numel() > 1) {
+            // Multi-element arg: treated as Mahalanobis covariance C.
+            out.C = &args[i];
         }
     }
-    return {metric, p};
+    return out;
 }
 } // anonymous
 
@@ -307,20 +470,20 @@ void pdist_reg(Span<const Value> args, size_t /*nargout*/,
                Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("pdist: requires X[, metric, p]", 0, 0, "pdist", "",
+        throw Error("pdist: requires X[, metric[, p|C]]", 0, 0, "pdist", "",
                     "m:pdist:nargin");
-    auto [m, p] = parse_metric_args(args, 1);
-    outs[0] = pdist(ctx.engine->resource(), args[0], m, p);
+    auto a = parse_metric_args(args, 1);
+    outs[0] = pdist(ctx.engine->resource(), args[0], a.metric, a.p, a.C);
 }
 
 void pdist2_reg(Span<const Value> args, size_t /*nargout*/,
                 Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("pdist2: requires (X, Y[, metric, p])", 0, 0, "pdist2", "",
+        throw Error("pdist2: requires (X, Y[, metric[, p|C]])", 0, 0, "pdist2", "",
                     "m:pdist2:nargin");
-    auto [m, p] = parse_metric_args(args, 2);
-    outs[0] = pdist2(ctx.engine->resource(), args[0], args[1], m, p);
+    auto a = parse_metric_args(args, 2);
+    outs[0] = pdist2(ctx.engine->resource(), args[0], args[1], a.metric, a.p, a.C);
 }
 
 void squareform_reg(Span<const Value> args, size_t /*nargout*/,
