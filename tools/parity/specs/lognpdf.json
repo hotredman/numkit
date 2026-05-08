@@ -1,0 +1,15 @@
+{
+  "name": "lognpdf",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "y_def = lognpdf(2); y_s = lognpdf(2, 0, 1); y_v = lognpdf([0 1 2 5], 0, 1); y_neg = lognpdf(-1, 0, 1); y_at0 = lognpdf(0, 0, 1); y_sig0 = lognpdf(2, 0, 0); y_signeg = lognpdf(2, 0, -1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "y_def", "y_s",
+    "y_v(1)", "y_v(2)", "y_v(3)", "y_v(4)",
+    "y_neg", "y_at0",
+    "y_sig0", "y_signeg"
+  ],
+  "comment": "Sig: y = lognpdf(x[, mu, sigma]). Lognormal PDF. Defaults mu=0, sigma=1. x<=0 → 0. sigma<=0 → NaN."
+}
