@@ -1,0 +1,12 @@
+{
+  "name": "imodwt",
+  "namespace": "wavelet",
+  "setup": "x = sin(2*pi*0.1*(0:31)') + 0.3*cos(2*pi*0.05*(0:31)');",
+  "expr": "w = modwt(x, 'haar', 3); xrec = imodwt(w, 'haar'); err = max(abs(xrec(:) - x(:)));",
+  "iters": 5,
+  "tol": 1e-6,
+  "fingerprint": [
+    "numel(xrec)", "err"
+  ],
+  "comment": "Sig: x = imodwt(w, wname). Inverse MODWT. Round-trip imodwt(modwt(x)) recovers x to machine precision — the structurally important invariant. The internal coefficient values diverge from MATLAB R2025b (kernel filter-convention gap, see modwt.json comment); both engines independently recover x correctly from THEIR OWN coefficients."
+}

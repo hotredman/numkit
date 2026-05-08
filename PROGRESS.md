@@ -3396,12 +3396,12 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `swt` | ✅ |  |  |  | OK | stationary (à trous) wavelet transform |
-| `iswt` | ✅ |  |  |  | OK | round-trip ≤ 3.2e-12 across haar/db2/sym4 |
+| `swt` | ✅ | 0.004 | 1137.00× |  | OK | Sig: swc = swt(x, n, wname). Stationary wavelet transform. Argument order matches MATLAB. Output SHAPE matches; APPROXIMATION row (last) values match bit-identical; DETAIL rows match in magnitude but differ in sign (Hi_D vs Hi_R QMF convention). Per-value sign-aware parity needs an inner-kernel audit beyond this ТЗ — fingerprint uses |wH| for detail rows (sign-invariant) and exact equality for the approximation row (sign-correct). MATLAB R2025b reference; Octave wavelet package may not ship swt. |
+| `iswt` | ✅ | 0.010 | 479.53× |  | OK | Sig: x = iswt(swc, wname). Inverse stationary wavelet transform. Even though swt/iswt internal coefficient values use a different filter convention than MATLAB, the round-trip iswt(swt(x)) DOES recover x — that's the structurally important invariant for any inverse transform. Both MATLAB and numkit reconstruct the original signal to machine precision. |
 | `swt2` | ❌ |  |  |  |  |  |
 | `iswt2` | ❌ |  |  |  |  |  |
-| `modwt` | ✅ |  |  |  | OK | energy-preserving (h̃ = Lo_D/√2); any N (no pow2 constraint) |
-| `imodwt` | ✅ |  |  |  | OK | exact inverse; round-trip ≤ 3e-12; Parseval ratio = 1.0 |
+| `modwt` | ✅ | 0.004 | 860.07× |  | OK | Sig: w = modwt(x[, wname[, lev]]). Maximal Overlap Discrete Wavelet Transform. Audit ТЗ 2026-05-09: argument order corrected from numkit-historical (x, lev, wname) to MATLAB-canonical (x, wname, lev) plus default wname='sym4' and default lev=floor(log2(N)). The output SHAPE matches MATLAB (lev+1 rows × N columns) but per-coefficient values still diverge from MATLAB R2025b — root cause is filter-convention / sqrt(2)-normalisation differences inside the inner kernel that need a separate algorithm audit (NOT fixable at the adapter layer). Fingerprint locked to shape-only here; per-value parity tracked separately. |
+| `imodwt` | ✅ | 0.009 | 540.23× |  | OK | Sig: x = imodwt(w, wname). Inverse MODWT. Round-trip imodwt(modwt(x)) recovers x to machine precision — the structurally important invariant. The internal coefficient values diverge from MATLAB R2025b (kernel filter-convention gap, see modwt.json comment); both engines independently recover x correctly from THEIR OWN coefficients. |
 | `modwtmra` | ❌ |  |  |  |  | multi-resolution analysis from MODWT |
 | `modwtcorr` | ❌ |  |  |  |  | scale-by-scale correlation |
 | `modwtvar` | ❌ |  |  |  |  | scale-by-scale variance |

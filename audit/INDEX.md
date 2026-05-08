@@ -31,6 +31,10 @@ Status legend:
 | [closed/stats/gevrnd.md](closed/stats/gevrnd.md) | gevrnd (DEFERRED — rng cascade) | DEFERRED | 2026-05-09 |
 | [closed/stats/gprnd.md](closed/stats/gprnd.md) | gprnd (DEFERRED — rng cascade) | DEFERRED | 2026-05-09 |
 | [closed/stats/ncx2rnd.md](closed/stats/ncx2rnd.md) | ncx2rnd (DEFERRED — rng cascade) | DEFERRED | 2026-05-09 |
+| [closed/wavelet/modwt.md](closed/wavelet/modwt.md) | modwt | PENDING | 2026-05-09 |
+| [closed/wavelet/imodwt.md](closed/wavelet/imodwt.md) | imodwt | PENDING | 2026-05-09 |
+| [closed/wavelet/swt.md](closed/wavelet/swt.md) | swt | PENDING | 2026-05-09 |
+| [closed/wavelet/iswt.md](closed/wavelet/iswt.md) | iswt | PENDING | 2026-05-09 |
 | [closed/stats/evcdf.md](closed/stats/evcdf.md) | evcdf | PENDING | 2026-05-09 |
 | [closed/stats/geocdf.md](closed/stats/geocdf.md) | geocdf | PENDING | 2026-05-09 |
 | [closed/stats/gevcdf.md](closed/stats/gevcdf.md) | gevcdf | PENDING | 2026-05-09 |
