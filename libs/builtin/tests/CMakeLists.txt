@@ -16,6 +16,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/arith_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/construct_search_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/predicates2_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cell_struct_numtheory_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/variables_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/controlflow_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/functions_test.cpp

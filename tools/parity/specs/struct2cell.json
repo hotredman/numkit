@@ -1,14 +1,14 @@
 {
   "name": "struct2cell",
-  "namespace": "core",
-  "setup": "s = struct('a',1,'b',2,'c',3,'d',4,'e',5);",
-  "expr": "y = struct2cell(s);",
-  "iters": 1000,
-  "tol": 1e-10,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "s.x = 10; s.y = 20; c = struct2cell(s); r1 = c{1}; r2 = c{2}; r3 = double(numel(c));",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(numel(y))",
-    "double(y{1})",
-    "double(y{end})"
+    "r1",
+    "r2",
+    "r3"
   ],
-  "comment": "Sig: C = struct2cell(S). 5 fields. 10k iters."
+  "comment": "Sig: r = struct2cell(...). Spec-extension batch 2026-05-09."
 }

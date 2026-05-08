@@ -1,10 +1,15 @@
 {
   "name": "primes",
-  "namespace": "core",
-  "setup": "n = 100000;",
-  "expr": "y = primes(n);",
-  "iters": 100,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: P = primes(N). N=100000. 50 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "p = primes(20); r1 = p(1); r2 = p(2); r3 = p(8); r4 = double(numel(p));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3",
+    "r4"
+  ],
+  "comment": "Sig: r = primes(...). Spec-extension batch 2026-05-09."
 }

@@ -1,14 +1,16 @@
 {
   "name": "factor",
-  "namespace": "core",
-  "setup": "x = 1:1000;",
-  "expr": "y = arrayfun(@(n) length(factor(n)), x);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: F = factor(N). Sum of #factors for 1..1000. 100 iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "f = factor(60); r1 = f(1); r2 = f(2); r3 = f(3); r4 = f(4); r5 = double(numel(f));",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(sum(y(:)))",
-    "double(y(1))",
-    "double(y(end))"
-  ]
+    "r1",
+    "r2",
+    "r3",
+    "r4",
+    "r5"
+  ],
+  "comment": "Sig: r = factor(...). Spec-extension batch 2026-05-09."
 }

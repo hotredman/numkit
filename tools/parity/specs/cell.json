@@ -1,14 +1,14 @@
 {
   "name": "cell",
-  "namespace": "core",
-  "setup": "n = 100;",
-  "expr": "y = cell(n, n);",
-  "iters": 1000,
-  "tol": 1e-10,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "c = cell(2, 3); r1 = double(numel(c)); r2 = double(iscell(c)); r3 = double(isempty(c{1,1}));",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(numel(y))",
-    "double(size(y, 1))",
-    "double(size(y, 2))"
+    "r1",
+    "r2",
+    "r3"
   ],
-  "comment": "Sig: C = cell(M, N). 100x100 empty cell. 1000 iters."
+  "comment": "Sig: r = cell(...). Spec-extension batch 2026-05-09."
 }

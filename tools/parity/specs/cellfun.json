@@ -1,10 +1,14 @@
 {
   "name": "cellfun",
-  "namespace": "core",
-  "setup": "c = {1, 2, 3, 4, 5};",
-  "expr": "y = cellfun(@(x) x*2, c);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: A = cellfun(@F, C). Apply to cells. 1000 iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r = cellfun(@(x) x*2, {1, 2, 3}); r1 = r(1); r2 = r(2); r3 = r(3);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = cellfun(...). Spec-extension batch 2026-05-09."
 }

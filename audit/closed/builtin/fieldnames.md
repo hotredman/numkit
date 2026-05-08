@@ -1,6 +1,6 @@
 # builtin/fieldnames — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** medium (PROGRESS notes `correctness=MISMATCH`)
 **Effort:** small
 **Audited at commit:** 780c049
@@ -20,3 +20,9 @@ field-name ordering or cell layout difference.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Cell+struct + number-theory batch (18 funcs). All bit-identical
+  MATLAB R2025b. See cell_struct_numtheory_batch_test.cpp.

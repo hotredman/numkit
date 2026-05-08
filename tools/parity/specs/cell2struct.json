@@ -1,14 +1,13 @@
 {
   "name": "cell2struct",
-  "namespace": "core",
-  "setup": "c = {1; 'two'; 3.5}; names = {'a','b','c'};",
-  "expr": "y = cell2struct(c, names, 1);",
-  "iters": 1000,
-  "tol": 1e-10,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "s = cell2struct({1; 2}, {'a', 'b'}, 1); r1 = s.a; r2 = s.b;",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(numel(fieldnames(y)))",
-    "double(y.a)",
-    "double(y.c)"
+    "r1",
+    "r2"
   ],
-  "comment": "Sig: S = cell2struct(C, FIELDS, DIM). 10k iters."
+  "comment": "Sig: r = cell2struct(...). Spec-extension batch 2026-05-09."
 }

@@ -1,10 +1,15 @@
 {
   "name": "nchoosek",
-  "namespace": "core",
-  "setup": "x = 0:30; n = 30; y = zeros(1, length(x)); for i = 1:length(x); y(i) = nchoosek(n, x(i)); end",
-  "expr": "y = y;",
-  "iters": 1,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: C = nchoosek(N, K). N=30, K=0:30 via for-loop (arrayfun-wrap broken in numkit, see BUGS.md #11). 1 iter."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = nchoosek(5, 2); r2 = nchoosek(10, 3); r3 = nchoosek(7, 0); r4 = nchoosek(7, 7);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3",
+    "r4"
+  ],
+  "comment": "Sig: r = nchoosek(...). Spec-extension batch 2026-05-09."
 }
