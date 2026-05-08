@@ -79,3 +79,17 @@ numkit basic matches; other three silently ignore extras.
 
 - `expfit` does not document an `options` argument.
 - The `distributed/expfit` overload — out of scope.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Implemented all three missing branches:
+  1. Censored: `mu = sum(x)/sum(1-cens)`, dof = 2·sum(1-cens).
+  2. Frequency-weighted: `mu = sum(freq.*x)/sum(freq)`, dof = 2·sum(freq).
+  3. Combined: `mu = sum(freq.*x)/sum(freq.*(1-cens))`, dof = 2·sum(freq.*(1-cens)).
+  Unified path: T = Σ(freq·x), D = Σ(freq·(1-cens)), mu = T/D, CI
+  = [2T/χ²₁₋α/2(2D), 2T/χ²_α/2(2D)]. Edge: D <= 0 (all censored)
+  -> NaN. Adapter passes args[2..3] as optional pointers; empty
+  Value `[]` from MATLAB acts as "use default". Spec extended to
+  12 fingerprints (4 modes × {mu, ci_lo, ci_hi}). Parity OK
+  numkit ↔ MATLAB ↔ Octave at tol=1e-9. 5 TEST_F gtest + smoke.

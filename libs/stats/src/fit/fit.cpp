@@ -100,19 +100,37 @@ poissfit(std::pmr::memory_resource *mr, const Value &x, double alpha)
 }
 
 std::tuple<Value, Value>
-expfit(std::pmr::memory_resource *mr, const Value &x, double alpha)
+expfit(std::pmr::memory_resource *mr, const Value &x, double alpha,
+       const Value *cens, const Value *freq)
 {
     const size_t N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
     if (N == 0) return {Value::scalar(nan, mr), rowCI(mr, nan, nan)};
-    double S = 0.0;
-    for (size_t i = 0; i < N; ++i) S += x.elemAsDouble(i);
-    const double mu = S / double(N);
-    // Exact CI: 2·N·muhat ~ μ·χ²(2N).
-    const double chiU = chi2inv_scalar(mr, 1.0 - alpha / 2.0, 2.0 * double(N));
-    const double chiL = chi2inv_scalar(mr,       alpha / 2.0, 2.0 * double(N));
-    const double lo = 2.0 * double(N) * mu / chiU;
-    const double hi = 2.0 * double(N) * mu / chiL;
+    // Validate optional vector lengths.
+    if (cens && cens->numel() != 0 && cens->numel() != N)
+        return {Value::scalar(nan, mr), rowCI(mr, nan, nan)};
+    if (freq && freq->numel() != 0 && freq->numel() != N)
+        return {Value::scalar(nan, mr), rowCI(mr, nan, nan)};
+    const bool has_cens = (cens && cens->numel() == N);
+    const bool has_freq = (freq && freq->numel() == N);
+    // Total observation time T = Σ(freq · x); event count D = Σ(freq · (1-cens)).
+    double T = 0.0, D = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double xi = x.elemAsDouble(i);
+        const double fi = has_freq ? freq->elemAsDouble(i) : 1.0;
+        const double ci = has_cens ? cens->elemAsDouble(i) : 0.0;
+        T += fi * xi;
+        D += fi * (1.0 - ci);
+    }
+    if (!(D > 0.0))
+        return {Value::scalar(nan, mr), rowCI(mr, nan, nan)};
+    const double mu = T / D;
+    // Exact CI via χ²(2D): 2T/μ̂ ~ χ²(2D); CI[μ] = [2T/χ²₁₋α/₂, 2T/χ²_α/₂].
+    const double dof  = 2.0 * D;
+    const double chiU = chi2inv_scalar(mr, 1.0 - alpha / 2.0, dof);
+    const double chiL = chi2inv_scalar(mr,       alpha / 2.0, dof);
+    const double lo = 2.0 * T / chiU;
+    const double hi = 2.0 * T / chiL;
     return {Value::scalar(mu, mr), rowCI(mr, lo, hi)};
 }
 
@@ -669,10 +687,12 @@ void expfit_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("expfit: requires X[, alpha]",
+        throw Error("expfit: requires X[, alpha[, censoring[, freq]]]",
                     0, 0, "expfit", "", "m:expfit:nargin");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
-    auto [mu, ci] = expfit(ctx.engine->resource(), args[0], alpha);
+    const Value *cens = (args.size() > 2) ? &args[2] : nullptr;
+    const Value *freq = (args.size() > 3) ? &args[3] : nullptr;
+    auto [mu, ci] = expfit(ctx.engine->resource(), args[0], alpha, cens, freq);
     outs[0] = std::move(mu);
     if (nargout > 1) outs[1] = std::move(ci);
 }

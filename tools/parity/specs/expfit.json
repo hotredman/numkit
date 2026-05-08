@@ -1,14 +1,15 @@
 {
   "name": "expfit",
   "namespace": "stats",
-  "setup": "x = [1.5 2.3 0.8 3.1 1.7 2.0 1.4 2.8 1.9 2.2]';",
-  "expr": "[muhat, muci] = expfit(x);",
+  "setup": "x = [1 2 3 4 5 6 7 8 9 10]'; cens = [0 0 0 0 0 0 0 1 1 1]'; freq = [2 2 2 1 1 1 1 1 1 1]';",
+  "expr": "[mu_b, ci_b] = expfit(x); [mu_c, ci_c] = expfit(x, 0.05, cens); [mu_f, ci_f] = expfit(x, 0.05, [], freq); [mu_cf, ci_cf] = expfit(x, 0.05, cens, freq);",
   "iters": 5,
   "tol": 1e-9,
   "fingerprint": [
-    "muhat",
-    "muci(1)",
-    "muci(2)"
+    "mu_b",  "ci_b(1)",  "ci_b(2)",
+    "mu_c",  "ci_c(1)",  "ci_c(2)",
+    "mu_f",  "ci_f(1)",  "ci_f(2)",
+    "mu_cf", "ci_cf(1)", "ci_cf(2)"
   ],
-  "comment": "Sig: [muhat, muci] = expfit(x[, alpha]). MLE for exponential: mu=mean(x). Exact CI: 2N·muhat ~ μ·χ²(2N)."
+  "comment": "Sig: [muhat, muci] = expfit(x[, alpha[, censoring[, freq]]]). MLE for exponential: T = Σ(freq·x), D = Σ(freq·(1-cens)), mu = T/D. Exact CI via χ²(2D): [2T/χ²₁₋α/2, 2T/χ²_α/2]. Defaults: cens=0, freq=1."
 }
