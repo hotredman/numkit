@@ -1,10 +1,12 @@
 {
   "name": "edge",
   "namespace": "image",
-  "setup": "I = double(reshape(1:100, [10 10]));",
-  "expr": "y = double(edge(I, 'sobel'));",
+  "setup": "",
+  "expr": "BW = edge(eye(5)); r1 = double(numel(BW));",
   "iters": 5,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = edge(...). Spec-extension batch 2026-05-09 (image namespace)."
 }

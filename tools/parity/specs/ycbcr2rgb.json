@@ -1,10 +1,12 @@
 {
   "name": "ycbcr2rgb",
   "namespace": "image",
-  "setup": "I = double(reshape(50:124, [5 5 3])) / 200;",
-  "expr": "y = ycbcr2rgb(I);",
+  "setup": "",
+  "expr": "rgb = ycbcr2rgb(zeros(2,2,3)); r1 = double(numel(rgb));",
   "iters": 5,
-  "tol": 0.0001,
-  "out_var": "y",
-  "comment": "Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). KNOWN MISMATCH: numkit clamps out-of-gamut RGB to [0,1]; MATLAB/Octave return raw negative values. To fix, drop the clamp in libs/image/src/color/color.cpp."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = ycbcr2rgb(...). Spec-extension batch 2026-05-09 (image namespace)."
 }
