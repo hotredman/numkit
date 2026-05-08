@@ -61,4 +61,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/exppdf_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gampdf_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gaminv_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lognpdf_test.cpp
 )
