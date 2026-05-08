@@ -35,3 +35,16 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Auditor "no major gap" wrong on three counts. Real bugs
+  fixed:
+  1. `nu = Inf` returned NaN; now Gaussian limit (`norminv(p)`).
+  2. `p < 0` returned `-Inf`; now `NaN`.
+  3. `p > 1` returned `+Inf`; now `NaN`.
+  Spec extended to 14 fingerprints (median + tails + small ν + Inf +
+  4 boundary cases). Parity OK numkit ↔ MATLAB ↔ Octave at tol=1e-9
+  (Gaussian-limit Newton-2 ~6e-13 from MATLAB reference). 6 TEST_F
+  gtest + smoke.

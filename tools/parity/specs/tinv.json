@@ -1,0 +1,18 @@
+{
+  "name": "tinv",
+  "namespace": "stats",
+  "setup": "ps = [0.05 0.5 0.975];",
+  "expr": "x_s = tinv(0.975, 5); x_v = tinv(ps, 10); x_n1 = tinv(0.975, 1); x_n2 = tinv(0.975, 2); x_inf = tinv(0.975, Inf); x_med_inf = tinv(0.5, Inf); x_p0 = tinv(0, 5); x_p1 = tinv(1, 5); x_pneg = tinv(-0.1, 5); x_pover = tinv(1.5, 5); x_n0 = tinv(0.5, 0); x_nneg = tinv(0.5, -1);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "x_s",
+    "x_v(1)", "x_v(2)", "x_v(3)",
+    "x_n1", "x_n2",
+    "x_inf", "x_med_inf",
+    "x_p0", "x_p1",
+    "x_pneg", "x_pover",
+    "x_n0", "x_nneg"
+  ],
+  "comment": "Sig: x = tinv(p, nu). Inverse Student's t-CDF. Uses betaincinv(2(1-p) or 2p, nu/2, 1/2) and signs by p<>0.5. nu=Inf -> Gaussian limit (norminv(p)). Edges: p=0 -> -Inf; p=1 -> +Inf; p outside [0,1] -> NaN; nu<=0 -> NaN."
+}
