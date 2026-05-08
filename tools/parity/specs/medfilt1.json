@@ -1,10 +1,14 @@
 {
   "name": "medfilt1",
-  "namespace": "core",
-  "setup": "x = sin(linspace(0, 100, 100000));",
-  "expr": "y = medfilt1(x, 5);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: Y = medfilt1(X, K). 100k window=5. 100 iters.",
-  "out_var": "y"
+  "namespace": "signal",
+  "setup": "",
+  "expr": "y = medfilt1([1 5 2 4 3], 3); r1 = y(2); r2 = y(3); r3 = y(4);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = medfilt1(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }

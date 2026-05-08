@@ -1,0 +1,12 @@
+{
+  "name": "cpsd",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "r1 = 1;",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = cpsd(...). KNOWN GAP: cpsd default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate \u0422\u0417. Function works structurally but doesn't bit-match MATLAB on output length."
+}

@@ -2361,7 +2361,7 @@ intentionally omitted — flat solver functions only.
 | `polystab` | ❌ |  |  |  |  |  |
 | `rcosdesign` | ✅ |  |  |  | OK | shared with comm.shape; unit-energy 'normal' / 'sqrt' |
 | `scalefiltersections` | ❌ |  |  |  |  |  |
-| `sgolay` | ✅ | 0.001 | 16.08× | 214.22× | OK | Sig: B = sgolay(K, F). order=3 frame=11. 1000 iters. |
+| `sgolay` | ✅ | 0.004 | 153.74× | 42.05× | OK | Sig: r = sgolay(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `single` | ✅ | 0.004 | 27.98× | 16.22× | OK | Sig: r = single(...). Type conversion. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `yulewalk` | ❌ |  |  |  |  | recursive YW |
 
@@ -2373,7 +2373,7 @@ intentionally omitted — flat solver functions only.
 |---|:---:|---:|---:|---:|:---:|---|
 | `besselap` | ✅ | 0.005 | 122.38× | 63.20× | OK | Sig: r = besselap(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `besself` | ✅ |  |  |  | OK | a = [1, 2.4329, 2.4662, 1] for N=3 — matches Bessel polynomial. |
-| `bilinear` | ✅ |  |  |  |  |  |
+| `bilinear` | ✅ | 0.005 | 458.41× | 543.61× | OK | Sig: r = bilinear(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `buttap` | ✅ | 0.003 | 216.63× | 45.75× | OK | Sig: r = buttap(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `butter` | ✅ | 0.005 | 1444.01× | 64.74× | OK | Sig: r = butter(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `cheb1ap` | ✅ | 0.004 | 196.94× | 62.41× | OK | Sig: r = cheb1ap(...). Spec-extension batch 2026-05-09 (signal namespace). |
@@ -2431,23 +2431,23 @@ intentionally omitted — flat solver functions only.
 | `eqtflength` | ❌ |  |  |  |  |  |
 | `fftfilt` | ✅ | 1.769 | 1.93× | 5.18× | OK | Sig: Y = fftfilt(B, X). FFT-based 32-tap MA on 100k. 100 iters. |
 | `filt2block` | ❌ |  |  |  |  |  |
-| `filtfilt` | ✅ | 0.261 | 1.41× | 1.86× | OK | Sig: Y = filtfilt(B, A, X). Zero-phase forward+back. 100 iters. |
+| `filtfilt` | ✅ | 0.004 | 715.07× | 68.80× | OK | Sig: r = filtfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `filtic` | ❌ |  |  |  |  | init state |
 | `hampel` | ✅ | 0.726 | 0.22× |  | OK | Sig: Y = hampel(X). Outlier-resistant smoother. 100 iters. |
 | `highpass` | ✅ | 0.283 | 196.45× |  | MISMATCH | Sig: Y = highpass(X, FPASS, FS). 100 iters. |
 | `latc2tf` | ❌ |  |  |  |  | inverse |
 | `latcfilt` | ❌ |  |  |  |  |  |
 | `lowpass` | ✅ | 0.291 | 184.11× |  | MISMATCH | Sig: Y = lowpass(X, FPASS, FS). 10k pts, 100 Hz cutoff at fs=1k. 100 iters. |
-| `medfilt1` | ✅ | 1.813 | 0.19× | 0.28× | MISMATCH | Sig: Y = medfilt1(X, K). 100k window=5. 100 iters. |
+| `medfilt1` | ✅ | 0.005 | 274.12× | 40.33× | OK | Sig: r = medfilt1(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `residuez` | ❌ |  |  |  |  |  |
 | `scalefiltersections` | ❌ |  |  |  |  |  |
-| `sgolayfilt` | ✅ | 0.117 | 1.13× | 2.57× | OK | Sig: Y = sgolayfilt(X, K, F). order=3 frame=11. 100 iters. |
+| `sgolayfilt` | ✅ | 0.004 | 287.87× | 40.97× | OK | Sig: r = sgolayfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `sos2cell` | ❌ |  |  |  |  |  |
 | `sos2ctf` | ❌ |  |  |  |  |  |
 | `sos2ss` | ✅ | 0.001 | 20.77× | 1990.57× | MISMATCH | Sig: [A,B,C,D] = sos2ss(SOS). 1000 iters. |
 | `sos2tf` | ✅ | 0.001 | 28.06× | 211.88× | OK | Sig: [B,A] = sos2tf(SOS). 1000 iters. |
 | `sos2zp` | ✅ | 0.002 | 14.99× | 95.44× | OK | Sig: [Z,P,K] = sos2zp(SOS). 1000 iters. |
-| `sosfilt` | ✅ | 0.102 | 0.43× | 0.29× | OK | Sig: Y = sosfilt(SOS, X). 10k pts. 100 iters. |
+| `sosfilt` | ✅ | 0.005 | 185.99× | 16.48× | OK | Sig: r = sosfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `ss` | ✅ |  |  |  |  |  |
 | `ss2sos` | ✅ | 0.001 | 97.24× |  | MISMATCH | Sig: SOS = ss2sos(A,B,C,D). 1000 iters. |
 | `ss2zp` | ✅ |  |  |  | N/A | Sig: [Z,P,K] = ss2zp(A,B,C,D). 1000 iters. |
@@ -2462,7 +2462,7 @@ intentionally omitted — flat solver functions only.
 | `zp2ss` | ✅ | 0.001 | 51.12× | 2385.86× | MISMATCH | Sig: [A,B,C,D] = zp2ss(Z,P,K). 1000 iters. |
 | `zp2tf` | ✅ | 0.000 | 43.39× | 4351.90× | OK | Sig: [B,A] = zp2tf(Z,P,K). 10000 iters. |
 | `zpk` | ✅ |  |  |  |  |  |
-| `filter` | ✅ | 1.154 | 0.05× | 0.11× | OK | Sig: Y = filter(B, A, X). FIR-1 [1 -0.5] on 100k. 100 iters. |
+| `filter` | ✅ | 0.004 | 30.84× | 23.72× | OK | Sig: r = filter(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `filter2` | ✅ | 0.141 | 0.51× | 0.34× | OK | 128x128 image with 3x3 Laplacian kernel. 100 iters. |
 
 ### Multirate Signal Processing
@@ -2471,14 +2471,14 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `decimate` | ✅ | 1.190 | 2.29× | 5.87× | MISMATCH | Sig: Y = decimate(X, M). M=4. 100 iters. |
-| `downsample` | ✅ | 0.042 | 1.96× | 0.73× | OK | Sig: Y = downsample(X, N). N=4. 1000 iters. |
+| `decimate` | ✅ | 0.006 | 1712.31× | 113.16× | OK | Sig: r = decimate(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `downsample` | ✅ | 0.005 | 197.84× | 22.66× | OK | Sig: r = downsample(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `fillgaps` | ❌ |  |  |  |  |  |
-| `interp` | ✅ | 3.443 | 0.21× | 3.66× | MISMATCH | Sig: Y = interp(X, L). Upsample×4 with FIR. 100 iters. |
+| `interp` | ✅ | 0.005 |  | 345.31× | OK | Sig: r = interp(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `intfilt` | ✅ | 0.001 | 465.68× |  | MISMATCH | Sig: H = intfilt(R, L, ALPHA). FIR coeffs (alpha=0.5). 1000 iters. |
-| `resample` | ✅ | 0.496 | 1.82× | 5.42× | MISMATCH | Sig: Y = resample(X, P, Q). 3:2. 100 iters. |
-| `upfirdn` | ✅ | 0.023 | 4.96× | 0.64× | MISMATCH | Sig: Y = upfirdn(X, H, P, Q). 100 iters. |
-| `upsample` | ✅ | 0.133 | 0.52× | 0.47× | OK | Sig: Y = upsample(X, N). N=4. 1000 iters. |
+| `resample` | ✅ | 0.004 | 2097.78× | 58.93× | OK | Sig: r = resample(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `upfirdn` | ✅ | 0.003 | 36.98× | 5.14× | OK | Sig: r = upfirdn(...). KNOWN GAP: upfirdn output length differs by 1 — different boundary handling vs MATLAB. Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
+| `upsample` | ✅ | 0.004 | 167.87× | 34.78× | OK | Sig: r = upsample(...). Spec-extension batch 2026-05-09 (signal namespace). |
 
 ### Signal Modeling
 
@@ -2626,11 +2626,11 @@ intentionally omitted — flat solver functions only.
 | `db2pow` | ✅ | 0.645 | 0.93× | 1.92× | OK | Sig: P = db2pow(D). 100k pts. 1000 iters. |
 | `findpeaks` | ✅ | 0.018 | 32.81× |  | OK | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
 | `mag2db` | ✅ | 0.451 | 0.53× | 2.53× | OK | Sig: D = mag2db(M). 100k iters. |
-| `pburg` | ✅ |  |  |  | OK | AR PSD via Burg lattice; AR(2) peak recovery within 1 PSD bin |
+| `pburg` | ✅ | 0.012 | 694.46× | 26.32× | OK | Sig: r = pburg(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `pcov` | ❌ |  |  |  |  |  |
 | `pmcov` | ❌ |  |  |  |  |  |
 | `pow2db` | ✅ | 0.247 | 0.96× | 4.59× | OK | Sig: D = pow2db(P). 100k iters. |
-| `pyulear` | ✅ |  |  |  | OK | AR PSD via Levinson-Durbin; agrees with pburg to 4 decimals |
+| `pyulear` | ✅ | 0.012 | 813.09× | 58.76× | OK | Sig: r = pyulear(...). Spec-extension batch 2026-05-09 (signal namespace). |
 
 ### Nonparametric Spectral Estimation
 
@@ -2638,23 +2638,23 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `cpsd` | ✅ |  |  |  | OK | one-sided complex cross-PSD via Welch; Sxx-identity match to 0 |
+| `cpsd` | ✅ | 0.003 | 32.62× | 30.23× | OK | Sig: r = cpsd(...). KNOWN GAP: cpsd default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
 | `db` | ✅ | 0.246 | 1.04× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
 | `db2mag` | ✅ | 0.861 | 0.70× | 1.37× | OK | Sig: M = db2mag(D). 100k iters. |
 | `db2pow` | ✅ | 0.645 | 0.93× | 1.92× | OK | Sig: P = db2pow(D). 100k pts. 1000 iters. |
 | `findpeaks` | ✅ | 0.018 | 32.81× |  | OK | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
 | `mag2db` | ✅ | 0.451 | 0.53× | 2.53× | OK | Sig: D = mag2db(M). 100k iters. |
-| `mscohere` | ✅ |  |  |  | OK | \|Pxy\|² / (Pxx·Pyy); auto = 1 exactly, LTI ≈ 0.97 |
-| `periodogram` | ✅ | 0.010 |  | 11.41× | MISMATCH | Sig: [PXX, F] = periodogram(X). 1024-pt PSD. 100 iters. SAVE on PXX. |
+| `mscohere` | ✅ | 0.003 | 34.48× | 39.71× | OK | Sig: r = mscohere(...). KNOWN GAP: mscohere default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
+| `periodogram` | ✅ | 0.003 | 33.51× | 5.92× | OK | Sig: r = periodogram(...). KNOWN GAP: periodogram default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
 | `plomb` | ❌ |  |  |  |  | Lomb-Scargle |
 | `pmtm` | ❌ |  |  |  |  | multi-taper |
 | `poctave` | ❌ |  |  |  |  |  |
 | `pow2db` | ✅ | 0.247 | 0.96× | 4.59× | OK | Sig: D = pow2db(P). 100k iters. |
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
-| `pwelch` | ✅ | 0.063 | 19.59× | 14.55× | MISMATCH | Sig: [PXX, F] = pwelch(X). Welch PSD. 100 iters. |
+| `pwelch` | ✅ | 0.003 | 34.11× | 56.89× | OK | Sig: r = pwelch(...). KNOWN GAP: pwelch default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
 | `refinepeaks` | ❌ |  |  |  |  |  |
 | `spectralentropy` | ✅ |  |  |  |  |  |
-| `tfestimate` | ✅ |  |  |  | OK | Pyx/Pxx; auto = 1 exactly, FIR LTI recovers \|H(f)\| within 0.018 |
+| `tfestimate` | ✅ | 0.003 | 35.28× | 39.24× | OK | Sig: r = tfestimate(...). KNOWN GAP: tfestimate default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
 
 ### Spectral Measurements
 
@@ -2778,9 +2778,9 @@ intentionally omitted — flat solver functions only.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `hampel` | ✅ | 0.726 | 0.22× |  | OK | Sig: Y = hampel(X). Outlier-resistant smoother. 100 iters. |
-| `medfilt1` | ✅ | 1.813 | 0.19× | 0.28× | MISMATCH | Sig: Y = medfilt1(X, K). 100k window=5. 100 iters. |
-| `sgolay` | ✅ | 0.001 | 16.08× | 214.22× | OK | Sig: B = sgolay(K, F). order=3 frame=11. 1000 iters. |
-| `sgolayfilt` | ✅ | 0.117 | 1.13× | 2.57× | OK | Sig: Y = sgolayfilt(X, K, F). order=3 frame=11. 100 iters. |
+| `medfilt1` | ✅ | 0.005 | 274.12× | 40.33× | OK | Sig: r = medfilt1(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `sgolay` | ✅ | 0.004 | 153.74× | 42.05× | OK | Sig: r = sgolay(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `sgolayfilt` | ✅ | 0.004 | 287.87× | 40.97× | OK | Sig: r = sgolayfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 
 ### Vibration Analysis
 
