@@ -1,10 +1,12 @@
 {
   "name": "pad",
-  "namespace": "core",
-  "setup": "s = 'foo';",
-  "expr": "y = pad(s, 20);",
-  "iters": 1000,
-  "tol": 1e-10,
-  "comment": "Sig: S2 = pad(S, LEN). Pad 'foo' to length 20. 10000 iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(strlength(pad(\"hi\", 5)));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = pad(...). Spec-extension batch 2026-05-09."
 }

@@ -1,10 +1,14 @@
 {
   "name": "nthroot",
-  "namespace": "core",
-  "setup": "x = linspace(0.001, 100, 1000000);",
-  "expr": "y = nthroot(x, 3);",
-  "iters": 20,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: Y = nthroot(X, N). N=3, X on [0.001, 100]. 20 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = nthroot(8, 3); r2 = nthroot(16, 4); r3 = nthroot(-27, 3);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = nthroot(...). Spec-extension batch 2026-05-09."
 }

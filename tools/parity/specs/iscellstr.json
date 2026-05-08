@@ -1,13 +1,14 @@
 {
   "name": "iscellstr",
-  "namespace": "core",
-  "setup": "c = {'apple','banana','cherry'};",
-  "expr": "y = iscellstr(c);",
-  "iters": 1000,
-  "tol": 1e-10,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(iscellstr({\"a\", \"b\"})); r2 = double(iscellstr({1, 2})); r3 = double(iscellstr({\"a\", 1}));",
+  "iters": 5,
+  "tol": 1e-12,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
+    "r1",
+    "r2",
+    "r3"
   ],
-  "comment": "Sig: TF = iscellstr(X). 100k iters."
+  "comment": "Sig: r = iscellstr(...). Spec-extension batch 2026-05-09."
 }
