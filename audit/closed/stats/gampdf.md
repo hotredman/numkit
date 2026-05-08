@@ -38,3 +38,12 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-07
+- Notes: Fixed a=0 edge: numkit returned NaN, MATLAB returns 0
+  (degenerate at all x>0). Now: a<0 → NaN, a=0 → 0, b<=0 → NaN.
+  Density at 0 already correct (Inf for a<1, 1/b for a=1, 0 for
+  a>1). 12 fingerprints; 5 TEST_F gtest + smoke. Parity OK
+  numkit ↔ MATLAB.

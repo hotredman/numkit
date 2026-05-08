@@ -1,0 +1,17 @@
+{
+  "name": "gampdf",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "y_s = gampdf(2, 2, 1); y_v = gampdf([0 1 2 5], 2, 1); y_neg = gampdf(-1, 2, 1); y_alt1 = gampdf(0, 0.5, 1); y_aeq1 = gampdf(0, 1, 1); y_agt1 = gampdf(0, 2, 1); y_a0 = gampdf(2, 0, 1); y_aneg = gampdf(2, -1, 1); y_b0 = gampdf(2, 2, 0);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "y_s",
+    "y_v(1)", "y_v(2)", "y_v(3)", "y_v(4)",
+    "y_neg",
+    "y_alt1", "y_aeq1", "y_agt1",
+    "y_a0",
+    "y_aneg", "y_b0"
+  ],
+  "comment": "Sig: y = gampdf(x, a, b). Gamma(shape=a, scale=b) PDF. Density at 0: a<1 → Inf, a=1 → 1/b, a>1 → 0. x<0 → 0. a<0 or b<=0 → NaN. a=0 → 0 (degenerate)."
+}
