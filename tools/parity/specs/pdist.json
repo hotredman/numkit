@@ -1,0 +1,17 @@
+{
+  "name": "pdist",
+  "namespace": "stats",
+  "setup": "X = [1 1; 2 2; 3 3; 6 5; 7 4]; C = eye(2);",
+  "expr": "d_e = pdist(X); d_c = pdist(X, 'cityblock'); d_m = pdist(X, 'minkowski', 3); d_cos = pdist(X, 'cosine'); d_mh = pdist(X, 'mahalanobis'); d_mhI = pdist(X, 'mahalanobis', C);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "d_e(1)", "d_e(2)", "d_e(4)", "d_e(10)",
+    "d_c(1)", "d_c(4)",
+    "d_m(1)", "d_m(3)", "d_m(4)",
+    "d_cos(3)", "d_cos(4)",
+    "d_mh(1)", "d_mh(2)", "d_mh(4)", "d_mh(10)",
+    "d_mhI(1)", "d_mhI(4)"
+  ],
+  "comment": "Sig: D = pdist(X[, metric[, p|C]]). Pairwise distances. Coverage: euclidean, cityblock, minkowski(p=3), cosine, mahalanobis(default cov(X)), mahalanobis with explicit C. Bug fix 2026-05-08: mahalanobis was throwing 'unknown metric'. Function-handle metric still not supported (separate gap)."
+}

@@ -51,3 +51,33 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed (partial)
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Closed gap #2 (mahalanobis); deferred gap #1 (fn_handle).
+
+  **Mahalanobis (gap #2):** previously threw "unknown metric".
+  Added `Metric::Mahalanobis` to the enum + parser. Implemented:
+  - `data_cov(X)` helper for default covariance from X.
+  - `invert_small(A, D)` Gauss-Jordan inverse with partial pivot.
+  - `mahal_distance(u, v, Cinv)` per-pair quadratic form.
+  - `pdist(X, 'mahalanobis')` defaults to cov(X).
+  - `pdist(X, 'mahalanobis', C)` accepts explicit D×D cov.
+  - `pdist2(X, Y, 'mahalanobis')` defaults to cov(Y).
+
+  Adapter arg parser updated: scalar (numel==1) is `p`, multi-
+  element matrix is `C`.
+
+  Same Mahalanobis path added to pdist2 — both functions share
+  the impl.
+
+  **Deferred — function-handle metric (gap #1):** `pdist(X, @fn)`
+  needs the engine to invoke a Value-typed handle from C++; this
+  is a cross-cutting integration with the function-handle
+  dispatcher that's out of scope for a single fix.
+
+  Spec created (didn't exist) with 17 fingerprints (euclidean,
+  cityblock, minkowski, cosine, mahalanobis default + with C).
+  Parity OK numkit ↔ MATLAB ↔ Octave at tol=1e-9. 7 TEST_F gtest
+  (new file).

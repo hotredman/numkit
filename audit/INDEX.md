@@ -38,7 +38,6 @@ Status legend:
 | [findings/stats/unifrnd.md](findings/stats/unifrnd.md) | unifrnd | stats.dist | medium | small | e580a5c |
 | [findings/cluster/cluster.md](findings/cluster/cluster.md) | cluster | stats.cluster | medium | small | b2f133b |
 | [findings/cluster/linkage.md](findings/cluster/linkage.md) | linkage | stats.cluster | medium | small | b2f133b |
-| [findings/cluster/pdist.md](findings/cluster/pdist.md) | pdist | stats.cluster | medium | small | b2f133b |
 | [findings/cluster/pdist2.md](findings/cluster/pdist2.md) | pdist2 | stats.cluster | medium | small | b2f133b |
 | [findings/cluster/clusterdata.md](findings/cluster/clusterdata.md) | clusterdata | stats.cluster | low | small | b2f133b |
 | [findings/cluster/dbscan.md](findings/cluster/dbscan.md) | dbscan | stats.cluster | low | small | b2f133b |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/cluster/inconsistent.md](closed/cluster/inconsistent.md) | inconsistent | PENDING | 2026-05-08 |
 | [closed/cluster/cophenet.md](closed/cluster/cophenet.md) | cophenet | PENDING | 2026-05-08 |
 | [closed/cluster/mahal.md](closed/cluster/mahal.md) | mahal | PENDING | 2026-05-08 |
+| [closed/cluster/pdist.md](closed/cluster/pdist.md) | pdist | PENDING (partial) | 2026-05-08 |
 
 ---
 
