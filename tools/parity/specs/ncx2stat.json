@@ -1,0 +1,17 @@
+{
+  "name": "ncx2stat",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "[m_s, v_s] = ncx2stat(5, 2); [m_v, v_v] = ncx2stat([3 5 10], 2); [m_b, v_b] = ncx2stat(5, [0 1 5]); [m_lam0, v_lam0] = ncx2stat(5, 0); m_k0 = ncx2stat(0, 2); m_kneg = ncx2stat(-1, 2); m_lneg = ncx2stat(5, -1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "m_s", "v_s",
+    "m_v(1)", "m_v(2)", "m_v(3)",
+    "v_v(1)", "v_v(2)", "v_v(3)",
+    "m_b(1)", "m_b(2)", "m_b(3)",
+    "m_lam0", "v_lam0",
+    "m_k0", "m_kneg", "m_lneg"
+  ],
+  "comment": "Sig: [m, v] = ncx2stat(k, lambda). Non-central χ²: m = k+λ, v = 2(k+2λ). Vectorised. k<=0 / λ<0 => NaN. λ=0 reduces to central χ²(k)."
+}
