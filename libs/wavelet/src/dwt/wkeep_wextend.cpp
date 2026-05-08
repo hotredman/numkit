@@ -44,28 +44,74 @@ std::string lower(std::string s)
 
 namespace detail {
 
-// y = wkeep(x, n[, OPT])
+// y = wkeep(x, n[, OPT])             — 1-D form
+// y = wkeep(x, [R C][, [fr fc]])     — 2-D form (matrix sub-extraction)
 //   OPT == 'c' (default) → centred:   start = floor((N-n)/2) + 1   (1-based)
 //   OPT == 'l'           → first n
 //   OPT == 'r'           → last n
 //   OPT numeric (FIRST)  → x(FIRST : FIRST+n-1)   (1-based start)
 //
+// 2-D: when args[1] has numel()==2, we extract a central [R x C] sub-matrix
+// (default) or an explicit corner [fr fc] when args[2] is a 2-vector.
+//
 // Verified vs MATLAB R2025b:
-//   wkeep(1:10, 4)         → [4 5 6 7]
-//   wkeep(1:10, 4, 'l')    → [1 2 3 4]
-//   wkeep(1:10, 4, 'r')    → [7 8 9 10]
-//   wkeep(1:10, 4, 3)      → [3 4 5 6]
-//   wkeep(1:9,  4)         → [3 4 5 6]    (even-n on odd-N — start = 3)
-//   wkeep(1:11, 5)         → [4 5 6 7 8]  (odd-n on odd-N — start = 4)
+//   wkeep(1:10, 4)            → [4 5 6 7]
+//   wkeep(1:10, 4, 'l')       → [1 2 3 4]
+//   wkeep(magic(5), [3 3])    → [5 7 14; 6 13 20; 12 19 21]   (central)
+//   wkeep(magic(5), [3 3], [1 1]) → [17 24 1; 23 5 7; 4 6 13] (top-left)
+//
+// Bug fix 2026-05-08: 2-D form was throwing "Cannot convert double to scalar"
+// because adapter did args[1].toScalar() unconditionally.
 void wkeep_reg(Span<const Value> args, size_t /*nargout*/,
                Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("wkeep: requires (x, n[, OPT])",
+        throw Error("wkeep: requires (x, n[, OPT]) or (X, [R C][, [fr fc]])",
                     0, 0, "wkeep", "", "m:wkeep:nargin");
     const Value &x = args[0];
+    auto *mr = ctx.engine->resource();
     size_t rows, cols;
     readShape(x, rows, cols);
+
+    // Detect 2-D form: args[1] is a 2-element vector.
+    if (args[1].numel() == 2) {
+        const long long R = static_cast<long long>(args[1].elemAsDouble(0));
+        const long long C = static_cast<long long>(args[1].elemAsDouble(1));
+        if (R < 0 || C < 0 ||
+            static_cast<size_t>(R) > rows || static_cast<size_t>(C) > cols)
+            throw Error("wkeep: requested [R C] out of bounds",
+                        0, 0, "wkeep", "", "m:wkeep:range");
+        long long fr1, fc1;  // 1-based corners
+        if (args.size() >= 3 && args[2].numel() == 2) {
+            fr1 = static_cast<long long>(args[2].elemAsDouble(0));
+            fc1 = static_cast<long long>(args[2].elemAsDouble(1));
+        } else {
+            // Central — same formula as 1-D: floor((N - n) / 2) + 1.
+            fr1 = static_cast<long long>((rows - static_cast<size_t>(R)) / 2) + 1;
+            fc1 = static_cast<long long>((cols - static_cast<size_t>(C)) / 2) + 1;
+        }
+        if (fr1 < 1 || fc1 < 1 ||
+            fr1 + R - 1 > static_cast<long long>(rows) ||
+            fc1 + C - 1 > static_cast<long long>(cols))
+            throw Error("wkeep: 2-D window out of range",
+                        0, 0, "wkeep", "", "m:wkeep:range");
+        Value y = Value::matrix(static_cast<size_t>(R),
+                                static_cast<size_t>(C), ValueType::DOUBLE, mr);
+        if (R == 0 || C == 0) { outs[0] = y; return; }
+        double *yd = y.doubleDataMut();
+        // Column-major copy.
+        for (long long c = 0; c < C; ++c) {
+            const size_t srcC = static_cast<size_t>(fc1 - 1 + c);
+            for (long long r = 0; r < R; ++r) {
+                const size_t srcR = static_cast<size_t>(fr1 - 1 + r);
+                yd[c * R + r] = x.elemAsDouble(srcC * rows + srcR);
+            }
+        }
+        outs[0] = y;
+        return;
+    }
+
+    // 1-D form (original logic).
     const size_t N = rows * cols;
     const long long n = static_cast<long long>(args[1].toScalar());
     if (n < 0 || static_cast<size_t>(n) > N)
@@ -100,8 +146,7 @@ void wkeep_reg(Span<const Value> args, size_t /*nargout*/,
     const bool col = isCol(rows, cols);
     size_t outRows, outCols;
     outShape(col, static_cast<size_t>(n), outRows, outCols);
-    Value y = Value::matrix(outRows, outCols, ValueType::DOUBLE,
-                            ctx.engine->resource());
+    Value y = Value::matrix(outRows, outCols, ValueType::DOUBLE, mr);
     if (n == 0) { outs[0] = y; return; }
     double *yd = y.doubleDataMut();
     for (long long k = 0; k < n; ++k)

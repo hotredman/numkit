@@ -1,10 +1,18 @@
 {
   "name": "wkeep",
   "namespace": "wavelet",
-  "setup": "x = 1:10;",
-  "expr": "yc = wkeep(x, 4); yl = wkeep(x, 4, 'l'); yr = wkeep(x, 4, 'r'); yf = wkeep(x, 4, 3);",
+  "setup": "x = 1:10; M = [17 24 1 8 15; 23 5 7 14 16; 4 6 13 20 22; 10 12 19 21 3; 11 18 25 2 9];",
+  "expr": "yc = wkeep(x, 4); yl = wkeep(x, 4, 'l'); yr = wkeep(x, 4, 'r'); yf = wkeep(x, 4, 3); y2c = wkeep(M, [3 3]); y2tl = wkeep(M, [3 3], [1 1]); y2br = wkeep(M, [3 3], [3 3]);",
   "iters": 5,
-  "tol": 1e-15,
-  "fingerprint": ["yc(1)", "yc(4)", "yl(1)", "yl(4)", "yr(1)", "yr(4)", "yf(1)", "yf(4)"],
-  "comment": "Sig: y = wkeep(x, n[, OPT]). Default 'c' central window with start = floor((N-n)/2)+1 (1-based). 'l'/'r' first/last n; numeric FIRST gives x(FIRST:FIRST+n-1)."
+  "tol": 0,
+  "fingerprint": [
+    "yc(1)", "yc(4)",
+    "yl(1)", "yl(4)",
+    "yr(1)", "yr(4)",
+    "yf(1)", "yf(4)",
+    "y2c(1,1)", "y2c(2,2)", "y2c(3,3)",
+    "y2tl(1,1)", "y2tl(3,3)",
+    "y2br(1,1)", "y2br(3,3)"
+  ],
+  "comment": "Sig: y = wkeep(x, n[, OPT]) (1-D) or y = wkeep(X, [R C][, [fr fc]]) (2-D). 1-D: 'c'/'l'/'r' or numeric start. 2-D: central [R C] sub-matrix or explicit corner. Bug fix 2026-05-08: 2-D form was throwing 'Cannot convert double to scalar' (adapter did toScalar on the size vec). tol=0."
 }
