@@ -80,3 +80,27 @@ TEST_F(QmfTest, EvenP1FlipsSign)
     eval("y_ref = -qmf(x);");
     EXPECT_DOUBLE_EQ(evalScalar("max(abs(qmf(x, 1) - y_ref))"), 0.0);
 }
+
+TEST_F(QmfTest, EvenLength8)
+{
+    // qmf(1:8) = [8 -7 6 -5 4 -3 2 -1]
+    eval("y = qmf(1:8);");
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"),  8);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2)"), -7);
+    EXPECT_DOUBLE_EQ(evalScalar("y(4)"), -5);
+    EXPECT_DOUBLE_EQ(evalScalar("y(8)"), -1);
+}
+
+TEST_F(QmfTest, Length4DefaultAndP1)
+{
+    // qmf([1 2 3 4]) = [4 -3 2 -1]
+    eval("y0 = qmf([1 2 3 4]);");
+    EXPECT_DOUBLE_EQ(evalScalar("y0(1)"),  4);
+    EXPECT_DOUBLE_EQ(evalScalar("y0(2)"), -3);
+    EXPECT_DOUBLE_EQ(evalScalar("y0(3)"),  2);
+    EXPECT_DOUBLE_EQ(evalScalar("y0(4)"), -1);
+    // qmf([1 2 3 4], 1) = [-4 3 -2 1]
+    eval("y1 = qmf([1 2 3 4], 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("y1(1)"), -4);
+    EXPECT_DOUBLE_EQ(evalScalar("y1(2)"),  3);
+}
