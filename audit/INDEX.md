@@ -117,7 +117,6 @@ Status legend:
 | [findings/mvdist/mvtpdf.md](findings/mvdist/mvtpdf.md) | mvtpdf | stats.mvdist | low | small | f92087f |
 | [findings/stats/lognrnd.md](findings/stats/lognrnd.md) | lognrnd | stats.dist | medium | small | 105c2b4 |
 | [findings/stats/wblrnd.md](findings/stats/wblrnd.md) | wblrnd | stats.dist | medium | small | 105c2b4 |
-| [findings/stats/logninv.md](findings/stats/logninv.md) | logninv | stats.dist | low | small | 105c2b4 |
 | [findings/stats/wblinv.md](findings/stats/wblinv.md) | wblinv | stats.dist | low | small | 105c2b4 |
 | [findings/stats/wblpdf.md](findings/stats/wblpdf.md) | wblpdf | stats.dist | low | small | 105c2b4 |
 
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/gampdf.md](closed/stats/gampdf.md) | gampdf | PENDING | 2026-05-07 |
 | [closed/stats/gaminv.md](closed/stats/gaminv.md) | gaminv | PENDING | 2026-05-07 |
 | [closed/stats/lognpdf.md](closed/stats/lognpdf.md) | lognpdf | PENDING | 2026-05-07 |
+| [closed/stats/logninv.md](closed/stats/logninv.md) | logninv | PENDING | 2026-05-07 |
 
 ---
 
