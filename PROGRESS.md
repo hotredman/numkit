@@ -3473,7 +3473,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `meyer` | ❌ |  |  |  |  | Meyer wavelet |
-| `meyeraux` | ✅ | 0.003 | 178.46× | 62.01× | OK | Sig: y = meyeraux(x). Polynomial 35x⁴ − 84x⁵ + 70x⁶ − 20x⁷; element-wise. Endpoints meyeraux(0)=0, meyeraux(1)=1, meyeraux(0.5)=0.5. |
+| `meyeraux` | ✅ | 0.008 | 111.44× | 23.22× | OK | Sig: y = meyeraux(x). Element-wise auxiliary polynomial 35x⁴ − 84x⁵ + 70x⁶ − 20x⁷. MATLAB clips outside [0, 1]: x<=0 -> 0, x>=1 -> 1. Bug fix 2026-05-08: numkit was applying the raw polynomial outside [0, 1] (e.g. meyeraux(2) = -208 instead of MATLAB's 1). |
 | `mexihat` | ✅ | 0.007 | 22.37× | 4.38× | OK | Sig: [psi, x] = mexihat(LB, UB, N). Mexican-hat wavelet ψ(t) = (2/√3)·π^(-1/4)·(1-t²)·exp(-t²/2). Even, peaks at 0, zeros at ±1. Coverage: N ∈ {8, 16, 64} on [-5, 5] + asymmetric range [0, 5]. |
 | `morlet` | ✅ | 0.005 | 29.79× | 33.36× | OK | Sig: [psi, x] = morlet(LB, UB, N). Real Morlet ψ(t) = exp(-t²/2)·cos(5t). Coverage: N ∈ {8, 16, 64} on [-5, 5] + asymmetric range [0, 5]. |
 | `cgauwavf` | ✅ | 0.007 | 168.64× |  | OK | Sig: [psi, x] = cgauwavf(LB, UB, N[, p]). Complex Gaussian wavelet (-1)^p · H_p(t + i/2) · exp(-t² - i·t). Trapezoidal L² normalization on the requested grid (matches MATLAB's grid-dependent normalization). |

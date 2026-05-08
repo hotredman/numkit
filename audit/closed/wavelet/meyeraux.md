@@ -45,3 +45,23 @@ Polynomial: `35x⁴ − 84x⁵ + 70x⁶ − 20x⁷` evaluated element-wise.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: **Auditor's "no major gap" + "MATLAB doesn't clip" both
+  WRONG.** Probe revealed MATLAB R2025b clips outside [0, 1]:
+  meyeraux(-0.5) = 0, meyeraux(2) = 1. Numkit was applying the
+  raw polynomial (returning 6.0625 and -208 respectively) — a
+  real bug.
+
+  Fix: add `if (v <= 0.0) return 0.0;` and `if (v >= 1.0) return
+  1.0;` guards in the per-element lambda. Auditor recommendation
+  #2 ("note that the function does NOT clip") was based on the
+  same wrong probe — REVERSED in this fix.
+
+  Spec extended from 4 to 13 fingerprints (vector + matrix +
+  out-of-support clipping + mixed). Parity OK numkit ↔ MATLAB
+  at tol=1e-12. Octave doesn't clip (matches numkit's old buggy
+  behavior — Octave bug); we follow MATLAB. 6 TEST_F gtest +
+  smoke documenting the bug fix.

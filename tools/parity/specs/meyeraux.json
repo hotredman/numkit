@@ -1,15 +1,16 @@
 {
   "name": "meyeraux",
   "namespace": "wavelet",
-  "setup": "x = linspace(0, 1, 11);",
-  "expr": "y = meyeraux(x);",
+  "setup": "M = [0 0.5; 0.25 0.75];",
+  "expr": "v = meyeraux([0 0.25 0.5 0.75 1]); m_neg = meyeraux(-0.5); m_big = meyeraux(2); mM = meyeraux(M); m0 = meyeraux(0); m1 = meyeraux(1); ssum = sum(meyeraux(linspace(0, 1, 11)));",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
-    "meyeraux(0)",
-    "meyeraux(0.5)",
-    "meyeraux(1)",
-    "sum(meyeraux(linspace(0,1,11)))"
+    "v(1)", "v(2)", "v(3)", "v(4)", "v(5)",
+    "m_neg", "m_big",
+    "mM(1,1)", "mM(2,1)", "mM(2,2)",
+    "m0", "m1",
+    "ssum"
   ],
-  "comment": "Sig: y = meyeraux(x). Polynomial 35x⁴ − 84x⁵ + 70x⁶ − 20x⁷; element-wise. Endpoints meyeraux(0)=0, meyeraux(1)=1, meyeraux(0.5)=0.5."
+  "comment": "Sig: y = meyeraux(x). Element-wise auxiliary polynomial 35x⁴ − 84x⁵ + 70x⁶ − 20x⁷. MATLAB clips outside [0, 1]: x<=0 -> 0, x>=1 -> 1. Bug fix 2026-05-08: numkit was applying the raw polynomial outside [0, 1] (e.g. meyeraux(2) = -208 instead of MATLAB's 1)."
 }

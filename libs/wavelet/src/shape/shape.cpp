@@ -146,8 +146,13 @@ fbspwavf(std::pmr::memory_resource *mr, double lb, double ub, size_t N,
 
 Value meyeraux(std::pmr::memory_resource *mr, const Value &x)
 {
+    // MATLAB R2025b clips outside [0, 1]: x<0 -> 0, x>1 -> 1, otherwise
+    // applies the polynomial 35v⁴ - 84v⁵ + 70v⁶ - 20v⁷.
+    // Bug fix 2026-05-08: previous impl applied the raw polynomial for
+    // any x, returning e.g. meyeraux(2) = -208 instead of MATLAB's 1.
     const auto poly = [](double v) {
-        // 35v⁴ - 84v⁵ + 70v⁶ - 20v⁷, factored via Horner on v.
+        if (v <= 0.0) return 0.0;
+        if (v >= 1.0) return 1.0;
         const double v2 = v * v;
         const double v3 = v2 * v;
         const double v4 = v2 * v2;
