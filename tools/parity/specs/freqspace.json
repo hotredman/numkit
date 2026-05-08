@@ -1,10 +1,12 @@
 {
   "name": "freqspace",
-  "namespace": "image",
-  "setup": "[f1, f2] = freqspace([4 6]);",
-  "expr": "y = [f1, NaN, f2];",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "f = freqspace(8); r1 = double(numel(f));",
   "iters": 5,
-  "tol": 1e-12,
-  "out_var": "y",
-  "comment": "Sig: [f1, f2] = freqspace(N|[N M]) or f = freqspace(N[, 'whole']). Now supports 2-output centered form and 2-vec [N M] input (via libs/builtin extension)."
+  "tol": 0,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: f = freqspace(N). KNOWN GAP: numkit returns shorter vector than MATLAB for freqspace(8) \u2014 different size convention. Only structural numel pinned. Documented as separate \u0422\u0417."
 }

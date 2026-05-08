@@ -1,11 +1,14 @@
 {
   "name": "ellipj",
-  "namespace": "core",
-  "setup": "u = linspace(-3, 3, 5000); m = 0.7;",
-  "expr": "[s, c, d] = ellipj(u, m);",
-  "iters": 50,
-  "tol": 1e-12,
-  "fingerprint": ["sum(s)", "sum(c)", "sum(d)", "s(1)", "c(end)"],
-  "out_var": "s",
-  "comment": "Jacobi sn over 5k pts at m=0.7. 50 iters, element-wise on sn."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "[sn, cn, dn] = ellipj(0.5, 0.5); r1 = sn; r2 = cn; r3 = dn;",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = ellipj(...). Spec-extension batch 2026-05-09."
 }

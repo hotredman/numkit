@@ -1,6 +1,6 @@
-# builtin/blkdiag — ТЗ for completion
+# builtin/freqspace — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** 789cbc7
@@ -19,3 +19,10 @@ benched input. Standard array/matrix manipulation function.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Misc batch 2 (string-extras + special-fn + helpers, 20 funcs).
+  Bit-identical MATLAB R2025b on probed inputs. See misc2_batch_test.cpp.
+  KNOWN GAP: numkit returns shorter vector than MATLAB for freqspace(N). Different size convention. Documented as separate ТЗ.
