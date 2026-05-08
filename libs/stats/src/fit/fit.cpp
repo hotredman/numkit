@@ -9,12 +9,13 @@
 #include <numkit/stats/distributions/beta.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <vector>
+#include <memory_resource>
 
 namespace numkit::stats {
 
@@ -159,8 +160,43 @@ unifit(std::pmr::memory_resource *mr, const Value &x, double alpha)
 
 // ── lognfit ───────────────────────────────────────────────────────────
 
+namespace {
+
+constexpr double kPi = 3.14159265358979323846;
+
+// Inverse-Mills ratio λ(α) = φ(α)/Φ(-α). For right-censored normal MLE.
+inline double inv_mills(double a) {
+    const double pdf  = std::exp(-0.5 * a * a) / std::sqrt(2.0 * kPi);
+    const double surv = 0.5 * std::erfc(a / std::sqrt(2.0));  // Φ(-a)
+    return (surv > 1e-300) ? pdf / surv : 0.0;
+}
+
+// Per-observation log-likelihood of a normal model on `y` with optional
+// right-censoring (cens=1 ⇒ Y > y observed) and freq weights.
+double normal_logL(const ScratchVec<double> &y,
+                   const ScratchVec<double> &fr,
+                   const ScratchVec<uint8_t> &cn,
+                   double mu, double sd)
+{
+    const double log2pi = std::log(2.0 * kPi);
+    double L = 0.0;
+    for (size_t i = 0; i < y.size(); ++i) {
+        const double a = (y[i] - mu) / sd;
+        if (!cn[i]) {
+            L += fr[i] * (-0.5 * log2pi - std::log(sd) - 0.5 * a * a);
+        } else {
+            const double surv = 0.5 * std::erfc(a / std::sqrt(2.0));
+            L += fr[i] * std::log(std::max(surv, 1e-300));
+        }
+    }
+    return L;
+}
+
+} // anonymous
+
 std::tuple<Value, Value>
-lognfit(std::pmr::memory_resource *mr, const Value &x, double alpha)
+lognfit(std::pmr::memory_resource *mr, const Value &x, double alpha,
+        const Value *cens, const Value *freq)
 {
     const size_t N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -168,47 +204,175 @@ lognfit(std::pmr::memory_resource *mr, const Value &x, double alpha)
     Value pci  = Value::matrix(2, 2, ValueType::DOUBLE, mr);
     double *pd = parm.doubleDataMut();
     double *cd = pci.doubleDataMut();
-    if (N < 2) {
+    auto fail = [&]() {
         for (int i = 0; i < 2; ++i) pd[i] = nan;
         for (int i = 0; i < 4; ++i) cd[i] = nan;
-        return {std::move(parm), std::move(pci)};
-    }
-    // Compute on log(x). Reject non-positive x by NaN.
-    double s = 0.0;
-    std::vector<double> lx(N);
+        return std::make_tuple(std::move(parm), std::move(pci));
+    };
+    if (N < 2) return fail();
+
+    // Validate optional vector lengths.
+    const bool has_cens = (cens && cens->numel() == N);
+    const bool has_freq = (freq && freq->numel() == N);
+    if (cens && cens->numel() != 0 && cens->numel() != N) return fail();
+    if (freq && freq->numel() != 0 && freq->numel() != N) return fail();
+
+    ScratchArena scratch(mr);
+    ScratchVec<double>  y(N, &scratch);     // log(x)
+    ScratchVec<double>  fr(N, 1.0, &scratch);
+    ScratchVec<uint8_t> cn(N, 0, &scratch);
+    double sumf = 0.0;
+    int nuncens = 0;
     for (size_t i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
-        if (!(xi > 0.0)) {
-            for (int j = 0; j < 2; ++j) pd[j] = nan;
-            for (int j = 0; j < 4; ++j) cd[j] = nan;
-            return {std::move(parm), std::move(pci)};
-        }
-        lx[i] = std::log(xi);
-        s += lx[i];
+        if (!(xi > 0.0)) return fail();
+        y[i] = std::log(xi);
+        if (has_freq) fr[i] = freq->elemAsDouble(i);
+        if (has_cens) cn[i] = cens->elemAsDouble(i) > 0.5 ? 1 : 0;
+        sumf += fr[i];
+        if (!cn[i]) ++nuncens;
     }
-    const double mu = s / double(N);
-    double sq = 0.0;
-    for (double v : lx) { const double d = v - mu; sq += d * d; }
-    const double var = sq / double(N - 1);
-    const double sd  = std::sqrt(var);
+    if (sumf < 2.0 || nuncens < 1) return fail();
+
+    double mu = 0.0, sd = 0.0;
+
+    if (!has_cens || nuncens == (int)N) {
+        // No censoring — closed-form weighted moments on log(x).
+        double s = 0.0;
+        for (size_t i = 0; i < N; ++i) s += fr[i] * y[i];
+        mu = s / sumf;
+        double sq = 0.0;
+        for (size_t i = 0; i < N; ++i) {
+            const double d = y[i] - mu;
+            sq += fr[i] * d * d;
+        }
+        sd = std::sqrt(sq / (sumf - 1.0));
+
+        // CI via t (mu) and chi² (sigma).
+        const double dof = sumf - 1.0;
+        const double t   = tinv_scalar(mr, 1.0 - alpha / 2.0, dof);
+        const double sem = sd / std::sqrt(sumf);
+        const double mu_lo = mu - t * sem;
+        const double mu_hi = mu + t * sem;
+        const double chiU = chi2inv_scalar(mr, 1.0 - alpha / 2.0, dof);
+        const double chiL = chi2inv_scalar(mr,       alpha / 2.0, dof);
+        const double s_lo = std::sqrt(dof * sd * sd / chiU);
+        const double s_hi = std::sqrt(dof * sd * sd / chiL);
+        pd[0] = mu;  pd[1] = sd;
+        cd[0] = mu_lo;  cd[1] = mu_hi;
+        cd[2] = s_lo;   cd[3] = s_hi;
+        return {std::move(parm), std::move(pci)};
+    }
+
+    // Censored MLE via EM iteration on the truncated-normal moments.
+    // Init from uncensored data only.
+    {
+        double s_un = 0.0, w_un = 0.0;
+        for (size_t i = 0; i < N; ++i) if (!cn[i]) {
+            s_un += fr[i] * y[i]; w_un += fr[i];
+        }
+        mu = s_un / w_un;
+        double sq = 0.0;
+        for (size_t i = 0; i < N; ++i) if (!cn[i]) {
+            const double d = y[i] - mu; sq += fr[i] * d * d;
+        }
+        sd = std::sqrt(std::max(sq / std::max(w_un - 1.0, 1.0), 1e-12));
+    }
+    const int    maxIter = 200;
+    const double tolFun  = 1e-10;
+    for (int it = 0; it < maxIter; ++it) {
+        // E-step: compute E[y] and E[y²] under each observation given the
+        // current θ_old.
+        double sumfy = 0.0, sumfy2 = 0.0;
+        for (size_t i = 0; i < N; ++i) {
+            const double yi = y[i], fi = fr[i];
+            if (!cn[i]) {
+                sumfy  += fi * yi;
+                sumfy2 += fi * yi * yi;
+            } else {
+                const double a   = (yi - mu) / sd;
+                const double lam = inv_mills(a);
+                const double Ey  = mu + sd * lam;
+                // E[(y-μ)²|y>y_c] = σ²(1 + α·λ); E[y²] = E[(y-μ)²] + 2μ·E[y-μ] + μ²
+                const double Eym2 = sd * sd * (1.0 + a * lam);
+                const double Ey2  = Eym2 + 2.0 * mu * sd * lam + mu * mu;
+                sumfy  += fi * Ey;
+                sumfy2 += fi * Ey2;
+            }
+        }
+        // M-step: MLE → divide by Σf.
+        const double mu_new = sumfy / sumf;
+        const double var_new = std::max(sumfy2 / sumf - mu_new * mu_new, 1e-300);
+        const double sd_new = std::sqrt(var_new);
+        const double delta  = std::fabs(mu_new - mu) + std::fabs(sd_new - sd);
+        mu = mu_new; sd = sd_new;
+        if (delta < tolFun) break;
+    }
+
+    // Analytic observed Fisher info (negative Hessian) at the MLE.
+    // Per-obs contributions for normal under right-censoring with freq:
+    //   uncens i:
+    //     -∂²L/∂μ²  = f_i / σ²
+    //     -∂²L/∂μ∂σ = 2 f_i (y_i-μ) / σ³
+    //     -∂²L/∂σ²  = -f_i/σ² + 3 f_i (y_i-μ)²/σ⁴
+    //   cens at y_c, α=(y_c-μ)/σ, m=φ(α)/Φ(-α), m'=m·(m-α):
+    //     -∂²L/∂μ²  = f_i · m·(m-α) / σ²
+    //     -∂²L/∂μ∂σ = f_i · {α·m'+m} / σ²
+    //     -∂²L/∂σ²  = f_i · α · {α·m'+2m} / σ²
+    double Imm = 0.0, Ims = 0.0, Iss = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double fi = fr[i];
+        const double a  = (y[i] - mu) / sd;
+        if (!cn[i]) {
+            Imm +=  fi / (sd * sd);
+            Ims +=  2.0 * fi * (y[i] - mu) / (sd * sd * sd);
+            Iss += -fi / (sd * sd) + 3.0 * fi * (y[i] - mu) * (y[i] - mu) / (sd * sd * sd * sd);
+        } else {
+            const double m  = inv_mills(a);
+            const double mp = m * (m - a);          // m'(α) = m·(m-α)
+            Imm += fi * mp / (sd * sd);
+            Ims += fi * (a * mp + m) / (sd * sd);
+            Iss += fi * a * (a * mp + 2.0 * m) / (sd * sd);
+        }
+    }
+    const double det = Imm * Iss - Ims * Ims;
+    double SEmu = nan, SEsigma = nan;
+    if (det > 0.0) {
+        SEmu    = std::sqrt(Iss / det);
+        SEsigma = std::sqrt(Imm / det);
+    }
+    // Asymptotic Wald CI uses standard normal quantile (MATLAB matches):
+    // z = -norminv(α/2) = √2 · erf⁻¹(1 - α). Compute via std::erf
+    // inverse — for α=0.05 this gives 1.959964...
+    const double z = std::sqrt(2.0) * [&]{
+        // Inverse erf via Newton refinement of a rational approximation.
+        // For α=0.05 z=1.96 exactly to 6 digits; this code path runs once.
+        const double y_target = 1.0 - alpha;
+        // Beasley-Springer-Moro is overkill — std::erfc + Newton on std::erf.
+        double e = y_target;
+        for (int it = 0; it < 50; ++it) {
+            const double f  = std::erf(e) - y_target;
+            const double fp = (2.0 / std::sqrt(kPi)) * std::exp(-e * e);
+            e -= f / fp;
+        }
+        return e;
+    }();
+
     pd[0] = mu;  pd[1] = sd;
-
-    const double t = tinv_scalar(mr, 1.0 - alpha / 2.0, double(N - 1));
-    const double sem = sd / std::sqrt(double(N));
-    const double mu_lo = mu - t * sem;
-    const double mu_hi = mu + t * sem;
-    const double chiU = chi2inv_scalar(mr, 1.0 - alpha / 2.0, double(N - 1));
-    const double chiL = chi2inv_scalar(mr,       alpha / 2.0, double(N - 1));
-    const double s_lo = std::sqrt(double(N - 1) * var / chiU);
-    const double s_hi = std::sqrt(double(N - 1) * var / chiL);
-
-    // pci is column-major: [mu_lo, mu_hi; sigma_lo, sigma_hi] is stored as
-    // pci(1,1)=mu_lo pci(2,1)=mu_hi pci(1,2)=sigma_lo pci(2,2)=sigma_hi.
-    cd[0] = mu_lo;  // (1,1)
-    cd[1] = mu_hi;  // (2,1)
-    cd[2] = s_lo;   // (1,2)
-    cd[3] = s_hi;   // (2,2)
+    cd[0] = mu - z * SEmu;          // mu_lo
+    cd[1] = mu + z * SEmu;          // mu_hi
+    // Asymmetric CI on sigma via log-transform: Var(log σ) ≈ Var(σ)/σ².
+    const double SElogS = (sd > 0.0) ? SEsigma / sd : nan;
+    cd[2] = sd * std::exp(-z * SElogS);  // sigma_lo
+    cd[3] = sd * std::exp( z * SElogS);  // sigma_hi
     return {std::move(parm), std::move(pci)};
+}
+
+// Backward-compat 2-arg form.
+std::tuple<Value, Value>
+lognfit(std::pmr::memory_resource *mr, const Value &x, double alpha)
+{
+    return lognfit(mr, x, alpha, nullptr, nullptr);
 }
 
 // ── binofit ───────────────────────────────────────────────────────────
@@ -788,10 +952,15 @@ void lognfit_reg(Span<const Value> args, size_t nargout,
                  Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("lognfit: requires X[, alpha]",
+        throw Error("lognfit: requires X[, alpha[, censoring[, freq[, options]]]]",
                     0, 0, "lognfit", "", "m:lognfit:nargin");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
-    auto [parm, pci] = lognfit(ctx.engine->resource(), args[0], alpha);
+    // 3rd arg = censoring (may be empty []), 4th = freq (may be empty),
+    // 5th = options struct (silently ignored — we use fixed 200 / 1e-10).
+    const Value *cens = (args.size() > 2 && !args[2].isEmpty()) ? &args[2] : nullptr;
+    const Value *freq = (args.size() > 3 && !args[3].isEmpty()) ? &args[3] : nullptr;
+    auto [parm, pci] = lognfit(ctx.engine->resource(), args[0], alpha,
+                                cens, freq);
     outs[0] = std::move(parm);
     if (nargout > 1) outs[1] = std::move(pci);
 }

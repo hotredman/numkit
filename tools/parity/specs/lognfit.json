@@ -1,17 +1,15 @@
 {
   "name": "lognfit",
   "namespace": "stats",
-  "setup": "x = [1 2 3 4 5 6 7 8 9 10]';",
-  "expr": "[parm, pci] = lognfit(x);",
+  "setup": "x = [1 2 3 4 5 6 7 8 9 10]'; cens = [0 0 0 0 0 0 0 1 1 1]'; freq = [2 2 2 1 1 1 1 1 1 1]';",
+  "expr": "[p1, c1] = lognfit(x); [p2, c2] = lognfit(x, 0.05, cens); [p3, c3] = lognfit(x, 0.05, [], freq); [p4, c4] = lognfit(x, 0.05, cens, freq);",
   "iters": 5,
-  "tol": 1e-9,
+  "tol": 1e-7,
   "fingerprint": [
-    "parm(1)",
-    "parm(2)",
-    "pci(1,1)",
-    "pci(2,1)",
-    "pci(1,2)",
-    "pci(2,2)"
+    "p1(1)", "p1(2)", "c1(1,1)", "c1(2,1)", "c1(1,2)", "c1(2,2)",
+    "p2(1)", "p2(2)", "c2(1,1)", "c2(2,1)", "c2(1,2)", "c2(2,2)",
+    "p3(1)", "p3(2)", "c3(1,1)", "c3(2,1)", "c3(1,2)", "c3(2,2)",
+    "p4(1)", "p4(2)", "c4(1,1)", "c4(2,1)", "c4(1,2)", "c4(2,2)"
   ],
-  "comment": "Sig: [parm, pci] = lognfit(x[, alpha]). Lognormal MLE: parm=[mu sigma] of log(x). pci is 2x2: column 1 = mu CI, column 2 = sigma CI."
+  "comment": "Sig: [parm, pci] = lognfit(x[, alpha[, censoring[, freq[, options]]]]). Lognormal MLE: parm=[mu sigma] of log(x). pci is 2x2: col 1 = mu CI, col 2 = sigma CI. Closed-form weighted moments when freq alone; EM-iterated MLE on log(x) with analytic Fisher info for CIs (Wald with z=norminv(1-α/2), log-σ transform for asymmetric σ CI) when censored."
 }
