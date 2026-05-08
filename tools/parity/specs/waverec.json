@@ -1,0 +1,15 @@
+{
+  "name": "waverec",
+  "namespace": "wavelet",
+  "setup": "x = (1:16)'; [c, l] = wavedec(x, 3, 'db2'); xL = (1:32)'; [c2, l2] = wavedec(xL, 4, 'sym4');",
+  "expr": "xr = waverec(c, l, 'db2'); xr2 = waverec(c2, l2, 'sym4');",
+  "iters": 3,
+  "tol": 1e-10,
+  "fingerprint": [
+    "xr(1)", "xr(2)", "xr(8)", "xr(16)",
+    "double(numel(xr))",
+    "xr2(1)", "xr2(16)", "xr2(32)",
+    "double(numel(xr2))"
+  ],
+  "comment": "Sig: x = waverec(c, l, wname). Multi-level inverse DWT. Round-trips wavedec at ~1e-10 after the wfilters label-swap fix. Custom (Lo_R, Hi_R) form deferred."
+}
