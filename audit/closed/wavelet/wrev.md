@@ -46,3 +46,29 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Two real bugs caught by spec extension:
+
+  **1. Matrix path was full-flip not flipud** — previous impl
+  treated input as a flat numel-vector and reversed in column-
+  major order. For 2×3 [1 2 3; 4 5 6] that gave [6 5 4; 3 2 1]
+  (full reversal). MATLAB returns flipud → [4 5 6; 1 2 3] (each
+  column reversed independently).
+
+  **2. Complex input dropped imaginary parts** — used
+  `elemAsDouble(...) -> doubleDataMut[]`, which silently coerces
+  to real. Now branches on `isComplex()` and uses
+  `complexData()/complexDataMut()`.
+
+  Rewrote with two paths (row-vec linear reverse; matrix per-
+  column flipud), each having a real and complex branch.
+
+  Spec extended from 5 to 13 fingerprints (row + col + matrix +
+  complex + single-element). Parity OK numkit ↔ MATLAB at tol=0.
+  Octave's wrev rejects matrices (its own limitation); we follow
+  MATLAB. 8 TEST_F gtest (existing 6 + 2 new MatrixIsFlipud /
+  ComplexPreservesImaginary). 22 wavelet-suite tests still pass —
+  no regression.
