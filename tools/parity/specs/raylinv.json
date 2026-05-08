@@ -1,0 +1,16 @@
+{
+  "name": "raylinv",
+  "namespace": "stats",
+  "setup": "qs = [0.05 0.5 0.95];",
+  "expr": "x_s = raylinv(0.5, 1); x_v = raylinv(qs, 1); x_q0 = raylinv(0, 1); x_q1 = raylinv(1, 1); x_qneg = raylinv(-0.1, 1); x_qover = raylinv(1.5, 1); x_b0 = raylinv(0.5, 0); x_bneg = raylinv(0.5, -1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "x_s",
+    "x_v(1)", "x_v(2)", "x_v(3)",
+    "x_q0", "x_q1",
+    "x_qneg", "x_qover",
+    "x_b0", "x_bneg"
+  ],
+  "comment": "Sig: x = raylinv(p, b). Inverse Rayleigh CDF: x = b·sqrt(-2·ln(1-p)). q=0 → 0; q=1 → Inf; q outside [0,1] → NaN. b<=0 → NaN."
+}
