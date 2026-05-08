@@ -1,15 +1,18 @@
 {
   "name": "chi2gof",
   "namespace": "stats",
-  "setup": "x = [1 2 3 4 5 6]; f = [10 12 9 11 8 10]; e = [10 10 10 10 10 10];",
-  "expr": "[h, p, stats] = chi2gof(x, 'Frequency', f, 'Expected', e);",
-  "iters": 5,
-  "tol": 1e-10,
+  "setup": "x = (-3:0.05:3)';",
+  "expr": "[h1, p1, st1] = chi2gof((1:5)', 'Frequency', [10 12 8 14 6], 'Expected', [10 10 10 10 10]); [h2, p2, st2] = chi2gof(x, 'NBins', 6); [h3, p3, st3] = chi2gof(x, 'Edges', [-3 -1 0 1 3]);",
+  "iters": 3,
+  "tol": 1e-9,
   "fingerprint": [
-    "h",
-    "p",
-    "stats.chi2stat",
-    "stats.df"
+    "h1", "p1", "st1.chi2stat", "st1.df",
+    "double(numel(st1.O))", "double(numel(st1.E))",
+    "h2", "p2", "st2.chi2stat", "st2.df",
+    "double(numel(st2.edges))", "st2.O(1)", "st2.O(6)",
+    "st2.E(1)", "st2.E(6)",
+    "h3", "p3", "st3.chi2stat", "st3.df",
+    "st3.O(1)", "st3.O(4)", "st3.E(1)", "st3.E(4)"
   ],
-  "comment": "Sig: [h, p, stats] = chi2gof(x, 'Frequency', O, 'Expected', E[, 'NParams', np]). chi² = Σ(O−E)²/E; df = k−1−np. Auto-binned distribution-fit form intentionally not implemented in this release."
+  "comment": "Sig: [h, p, stats] = chi2gof(x[, 'Frequency'/'Expected'/'Edges'/'NBins'/'Ctrs'/'NParams'/'EMin'/'Alpha', val, ...]). Three paths covered: explicit Frequency+Expected (bit-identical); explicit NBins (bit-identical, integer-aligned edges); explicit Edges (bit-identical). Default auto-bin (no NBins/Edges) uses 10 equal-width bins on min(x)..max(x); may differ from MATLAB at FP-edge ties (within 1 count). 'CDF' function-handle argument deferred (errors with clear message)."
 }

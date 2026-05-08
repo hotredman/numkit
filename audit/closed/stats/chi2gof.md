@@ -1,6 +1,6 @@
 # stats/chi2gof — ТЗ for completion
 
-**Status:** open
+**Status:** closed (partial — CDF function-handle deferred)
 **Priority:** medium
 **Effort:** large
 **Audited at commit:** 69fab7c
@@ -100,3 +100,38 @@ O = [10 12 8 14 6], E = [10 10 10 10 10]
   distribution type.
 - 2-D goodness-of-fit (chi² of independence) — that's `crosstab`
   territory.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-08
+- Notes: Implemented auto-bin path with default normal CDF fit
+  (μ̂ = mean(x), σ̂ = std(x); 2 params subtracted from df).
+  `'NBins'` (default 10), `'Edges'`, `'Ctrs'`, `'EMin'` (default 5)
+  N-V parsed and honoured. EMin merges tail bins inward until all
+  E ≥ EMin. Stats struct now populated with `edges`, `O`, `E` (was
+  only `chi2stat`, `df`).
+
+  Subtle binning rule: MATLAB chi2gof uses RIGHT-closed bins for
+  auto-binned edges (each bin = `(e[i], e[i+1]]` with first bin
+  extended to include `min(x)`); LEFT-closed standard histcounts for
+  user-supplied Edges (bin = `[e[i], e[i+1])` with last bin
+  right-inclusive). Verified vs R2025b on `(-3:0.05:3)` data with
+  both NBins= and Edges= forms — bit-identical.
+
+  PMR rule applied: scratch buffers (edges, O, E) on
+  ScratchArena + ScratchVec. No raw `std::vector` left in chi2gof.
+
+  DEFERRED (gap #2): `'CDF'` function-handle arg. The user supplies
+  a function or `{@fn, p1, p2}` cell array for E computation. Would
+  require engine-side callback into the C++ adapter — non-trivial.
+  Current implementation throws a clear "not yet supported" error.
+
+  4 artefacts shipped (impl + 23-fp parity spec + 5 gtests + smoke).
+  Bit-identical numkit ↔ MATLAB ↔ Octave on all 23 fingerprints.
+
+  Bug surfaced for separate fix: numkit's `end` keyword inside an
+  indexing expression on a struct field returns the wrong index.
+  `st.O(end)` should equal `st.O(numel(st.O))` but returns a
+  different value. Spawned as task — workaround in spec is to use
+  `O(N)` explicit form.
+
