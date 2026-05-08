@@ -79,8 +79,14 @@ Value gamcdf(std::pmr::memory_resource *mr, const Value &x, double a, double b)
 
 Value gaminv(std::pmr::memory_resource *mr, const Value &p, double a, double b)
 {
-    if (a <= 0.0 || b <= 0.0)
+    // MATLAB: a<0 / b<=0 → NaN; a==0 → 0 for p∈[0,1] (degenerate quantile = 0).
+    if (a < 0.0 || b <= 0.0)
         return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+    if (a == 0.0)
+        return elementwise(mr, p, [](double pi) {
+            return (pi >= 0.0 && pi <= 1.0) ? 0.0
+                                            : std::numeric_limits<double>::quiet_NaN();
+        });
     Value av = Value::scalar(a, mr);
     Value q  = ::numkit::builtin::gammaincinv(mr, p, av);
     return elementwise(mr, q, [=](double qi){ return b * qi; });

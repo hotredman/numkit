@@ -67,7 +67,6 @@ Status legend:
 | [findings/stats/betarnd.md](findings/stats/betarnd.md) | betarnd | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/exprnd.md](findings/stats/exprnd.md) | exprnd | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/gamrnd.md](findings/stats/gamrnd.md) | gamrnd | stats.dist | medium | small | 301e5a5 |
-| [findings/stats/gaminv.md](findings/stats/gaminv.md) | gaminv | stats.dist | low | small | 301e5a5 |
 | [findings/signal/fftshift.md](findings/signal/fftshift.md) | fftshift | core (builtin) | critical | small | 9bce106 |
 | [findings/signal/ifftshift.md](findings/signal/ifftshift.md) | ifftshift | core (builtin) | critical | small | 9bce106 |
 | [findings/signal/envelope.md](findings/signal/envelope.md) | envelope | signal.transforms | critical | medium | 9bce106 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/binopdf.md](closed/stats/binopdf.md) | binopdf | PENDING | 2026-05-07 |
 | [closed/stats/exppdf.md](closed/stats/exppdf.md) | exppdf | PENDING | 2026-05-07 |
 | [closed/stats/gampdf.md](closed/stats/gampdf.md) | gampdf | PENDING | 2026-05-07 |
+| [closed/stats/gaminv.md](closed/stats/gaminv.md) | gaminv | PENDING | 2026-05-07 |
 
 ---
 
