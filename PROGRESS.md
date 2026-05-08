@@ -2601,7 +2601,7 @@ intentionally omitted — flat solver functions only.
 | `dpssdir` | ❌ |  |  |  |  | cache |
 | `dpssload` | ❌ |  |  |  |  | cache |
 | `dpsssave` | ❌ |  |  |  |  | cache |
-| `enbw` | ✅ |  |  |  |  | equivalent noise BW |
+| `enbw` | ✅ | 0.006 | 90.57× |  | OK | Sig: bw = enbw(window[, fs]). Equivalent noise bandwidth: N · Σ(w²) / (Σw)². With fs, scales output by fs/N. tol=1e-12. Specs covers hamming/hann/rectwin/blackman + fs-scaled forms. |
 | `flattopwin` | ✅ | 0.013 | 2.99× | 3.20× | OK | Sig: W = flattopwin(N). Flat-top. 10000 iters. |
 | `gausswin` | ✅ | 0.004 | 5.68× | 5.12× | OK | Sig: W = gausswin(N). Gaussian. 10000 iters. |
 | `hamming` | ✅ | 0.004 | 6.66× | 4.44× | OK | Sig: W = hamming(N). 1024-pt Hamming. 10000 iters. |
@@ -2663,7 +2663,7 @@ intentionally omitted — flat solver functions only.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `bandpower` | ✅ |  |  |  |  |  |
-| `enbw` | ✅ |  |  |  |  | equivalent noise BW |
+| `enbw` | ✅ | 0.006 | 90.57× |  | OK | Sig: bw = enbw(window[, fs]). Equivalent noise bandwidth: N · Σ(w²) / (Σw)². With fs, scales output by fs/N. tol=1e-12. Specs covers hamming/hann/rectwin/blackman + fs-scaled forms. |
 | `instbw` | ✅ |  |  |  |  |  |
 | `instfreq` | ✅ |  |  |  |  | instantaneous frequency |
 | `meanfreq` | ✅ |  |  |  |  | mean frequency |

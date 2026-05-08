@@ -50,3 +50,15 @@ including the `fs`-scaled form.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Pure spec creation, no impl change. Numkit enbw already
+  matched MATLAB exactly across hamming / hann / rectwin /
+  blackman with and without `fs`-scaled form.
+
+  New spec at tools/parity/specs/enbw.json (didn't exist before)
+  with 7 fingerprints. Parity OK numkit ↔ MATLAB at tol=1e-12.
+  Octave's signal package does not yet implement enbw; we follow
+  MATLAB. 5 TEST_F gtest + smoke.

@@ -34,7 +34,6 @@ Status legend:
 | [findings/wavelet/wmaxlev.md](findings/wavelet/wmaxlev.md) | wmaxlev | wavelet.dwt | low | small | 0e895fe |
 | [findings/signal/chebwin.md](findings/signal/chebwin.md) | chebwin | signal.windows | critical | medium | 69ef496 |
 | [findings/signal/taylorwin.md](findings/signal/taylorwin.md) | taylorwin | signal.windows | critical | medium | 69ef496 |
-| [findings/signal/enbw.md](findings/signal/enbw.md) | enbw | signal.windows | low | small | 69ef496 |
 | [findings/signal/gausswin.md](findings/signal/gausswin.md) | gausswin | signal.windows | low | small | 69ef496 |
 | [findings/signal/kaiser.md](findings/signal/kaiser.md) | kaiser | signal.windows | low | small | 69ef496 |
 | [findings/signal/tukeywin.md](findings/signal/tukeywin.md) | tukeywin | signal.windows | low | small | 69ef496 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/signal/bitrevorder.md](closed/signal/bitrevorder.md) | bitrevorder | PENDING | 2026-05-08 |
 | [closed/signal/dct.md](closed/signal/dct.md) | dct | PENDING (partial) | 2026-05-08 |
 | [closed/signal/idct.md](closed/signal/idct.md) | idct | PENDING (partial) | 2026-05-08 |
+| [closed/signal/enbw.md](closed/signal/enbw.md) | enbw | PENDING | 2026-05-08 |
 
 ---
 
