@@ -26,11 +26,25 @@ function HeapBadge({ outputCount }) {
 
   useEffect(() => {
     if (!supported) return;
-    const tick = () => setStats({
-      used: performance.memory.usedJSHeapSize,
-      limit: performance.memory.jsHeapSizeLimit,
-    });
-    const id = setInterval(tick, 2000);
+    const tick = () => {
+      const used = performance.memory.usedJSHeapSize;
+      const limit = performance.memory.jsHeapSizeLimit;
+      setStats({ used, limit });
+      // Cheap drift detector: log a single line every 30 s so a passive
+      // observer (devtools console) can spot idle-time growth. Format
+      // chosen for grep: `[heap-trace] used=NNN MB limit=NNN MB`.
+      if (typeof window !== 'undefined' && !window.__heapTraceCounter) window.__heapTraceCounter = 0;
+      if (typeof window !== 'undefined') {
+        window.__heapTraceCounter++;
+        if ((window.__heapTraceCounter % 6) === 0) {
+          // 6 ticks × 5 s = 30 s
+          // eslint-disable-next-line no-console
+          console.log(`[heap-trace] used=${Math.round(used/1048576)} MB limit=${Math.round(limit/1048576)} MB pct=${(used/limit*100).toFixed(1)}`);
+        }
+      }
+    };
+    tick();
+    const id = setInterval(tick, 5000);
     return () => clearInterval(id);
   }, [supported]);
 

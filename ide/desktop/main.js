@@ -9,6 +9,15 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const http = require('http');
 
+// Bump V8's renderer-process heap limit. The default on 64-bit
+// Chromium is roughly 4 GB but actual cap depends on the Electron
+// build and OS — empirically the Numkit renderer was hitting OOM
+// well below 2 GB. Bumping to 4 GB gives breathing room for big
+// scripts (large matrices, long REPL sessions); WASM still grows
+// inside this limit. `--js-flags` MUST be set before app.ready, so
+// we set it at module top.
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=4096 --expose-gc');
+
 const IDE_DIR = path.resolve(__dirname, '..');
 const DIST_DIR = path.join(__dirname, 'dist');
 const IS_PROD = fs.existsSync(path.join(DIST_DIR, 'index.html'));
