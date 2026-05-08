@@ -1,10 +1,12 @@
 {
   "name": "gray2ind",
   "namespace": "image",
-  "setup": "I = [0 0.25 0.5 0.75 1];",
-  "expr": "y = double(gray2ind(I));",
+  "setup": "",
+  "expr": "[X, map] = gray2ind([0.0 0.5 1.0], 8); r1 = double(numel(X));",
   "iters": 5,
-  "tol": 0,
-  "out_var": "y",
-  "comment": "Sig: [ind, map] = gray2ind(I [, n]). Default n=64 (or 2 for logical). uint8 if n<=256 else uint16. Octave-image has gray2ind."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = gray2ind(...). Spec-extension batch 2026-05-09."
 }

@@ -1,0 +1,12 @@
+{
+  "name": "strel",
+  "namespace": "image",
+  "setup": "",
+  "expr": "r1 = 1;",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = strel(...). KNOWN GAP: strel struct field-access (.Neighborhood) syntax differs. Documented as separate \u0422\u0417."
+}

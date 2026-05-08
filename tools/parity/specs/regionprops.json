@@ -1,0 +1,12 @@
+{
+  "name": "regionprops",
+  "namespace": "image",
+  "setup": "",
+  "expr": "p = regionprops(eye(4)); r1 = double(numel(p));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = regionprops(...). Spec-extension batch 2026-05-09."
+}
