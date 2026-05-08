@@ -39,3 +39,12 @@ Real Morlet: `ψ(t) = exp(-t²/2)·cos(5t)`.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Pure spec coverage, no impl change. Numkit morlet
+  already matched MATLAB exactly. Spec extended from 5 to 8
+  fingerprints (N ∈ {8, 16, 64} on [-5, 5] + asymmetric [0, 5]).
+  Parity OK numkit ↔ MATLAB ↔ Octave at tol=1e-12. 4 TEST_F
+  gtest + smoke.

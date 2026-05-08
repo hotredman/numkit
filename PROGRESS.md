@@ -3474,8 +3474,8 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 |---|:---:|---:|---:|---:|:---:|---|
 | `meyer` | ❌ |  |  |  |  | Meyer wavelet |
 | `meyeraux` | ✅ | 0.003 | 178.46× | 62.01× | OK | Sig: y = meyeraux(x). Polynomial 35x⁴ − 84x⁵ + 70x⁶ − 20x⁷; element-wise. Endpoints meyeraux(0)=0, meyeraux(1)=1, meyeraux(0.5)=0.5. |
-| `mexihat` | ✅ | 0.004 | 199.54× | 27.70× | OK | Sig: [psi, x] = mexihat(LB, UB, N). ψ(t) = (2/√3)·π^(-1/4)·(1-t²)·exp(-t²/2). Even, peaks at 0, zero crossings at ±1. |
-| `morlet` | ✅ | 0.005 | 83.85× | 14.95× | OK | Sig: [psi, x] = morlet(LB, UB, N). Real Morlet ψ(t) = exp(-t²/2)·cos(5t). |
+| `mexihat` | ✅ | 0.007 | 22.37× | 4.38× | OK | Sig: [psi, x] = mexihat(LB, UB, N). Mexican-hat wavelet ψ(t) = (2/√3)·π^(-1/4)·(1-t²)·exp(-t²/2). Even, peaks at 0, zeros at ±1. Coverage: N ∈ {8, 16, 64} on [-5, 5] + asymmetric range [0, 5]. |
+| `morlet` | ✅ | 0.005 | 29.79× | 33.36× | OK | Sig: [psi, x] = morlet(LB, UB, N). Real Morlet ψ(t) = exp(-t²/2)·cos(5t). Coverage: N ∈ {8, 16, 64} on [-5, 5] + asymmetric range [0, 5]. |
 | `cgauwavf` | ✅ | 0.007 | 168.64× |  | OK | Sig: [psi, x] = cgauwavf(LB, UB, N[, p]). Complex Gaussian wavelet (-1)^p · H_p(t + i/2) · exp(-t² - i·t). Trapezoidal L² normalization on the requested grid (matches MATLAB's grid-dependent normalization). |
 | `cmorwavf` | ✅ | 0.005 | 136.37× | 9.72× | OK | Sig: [psi, x] = cmorwavf(LB, UB, N, fb, fc). Complex Morlet ψ(t) = (1/√(π·fb))·exp(2πi·fc·t)·exp(-t²/fb). |
 | `fbspwavf` | ✅ | 0.005 | 154.18× |  | OK | Sig: [psi, x] = fbspwavf(LB, UB, N, m, fb, fc). Frequency B-spline ψ(t) = √fb·(sinc(fb·t/m))^m · exp(2πi·fc·t). |

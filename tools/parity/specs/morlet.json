@@ -1,16 +1,16 @@
 {
   "name": "morlet",
   "namespace": "wavelet",
-  "setup": "lb = -4; ub = 4; N = 65;",
-  "expr": "[psi, x] = morlet(lb, ub, N);",
+  "setup": "[psi8, x8] = morlet(-5, 5, 8); [psi16, x16] = morlet(-5, 5, 16); [psi64, x64] = morlet(-5, 5, 64); [psi_a, x_a] = morlet(0, 5, 16);",
+  "expr": "p8_1 = psi8(1); p8_4 = psi8(4); p16_8 = psi16(8); p64_32 = psi64(32); pa_1 = psi_a(1); pa_e = psi_a(16); xa_1 = x_a(1); xa_e = x_a(16);",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
-    "psi(1)",
-    "psi(33)",
-    "x(1)",
-    "x(end)",
-    "sum(psi)"
+    "p8_1", "p8_4",
+    "p16_8",
+    "p64_32",
+    "pa_1", "pa_e",
+    "xa_1", "xa_e"
   ],
-  "comment": "Sig: [psi, x] = morlet(LB, UB, N). Real Morlet ψ(t) = exp(-t²/2)·cos(5t)."
+  "comment": "Sig: [psi, x] = morlet(LB, UB, N). Real Morlet ψ(t) = exp(-t²/2)·cos(5t). Coverage: N ∈ {8, 16, 64} on [-5, 5] + asymmetric range [0, 5]."
 }
