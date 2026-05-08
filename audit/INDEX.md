@@ -33,10 +33,6 @@ Status legend:
 | [findings/dim/pca.md](findings/dim/pca.md) | pca | stats.dim | low | small | f92087f |
 | [findings/dim/pcacov.md](findings/dim/pcacov.md) | pcacov | stats.dim | low | small | f92087f |
 | [findings/dim/pcares.md](findings/dim/pcares.md) | pcares | stats.dim | low | small | f92087f |
-| [findings/lda/classify.md](findings/lda/classify.md) | classify | stats.lda | low | small | f92087f |
-| [findings/mvdist/mnpdf.md](findings/mvdist/mnpdf.md) | mnpdf | stats.mvdist | low | small | f92087f |
-| [findings/mvdist/mvnpdf.md](findings/mvdist/mvnpdf.md) | mvnpdf | stats.mvdist | low | small | f92087f |
-| [findings/mvdist/mvtpdf.md](findings/mvdist/mvtpdf.md) | mvtpdf | stats.mvdist | low | small | f92087f |
 | [findings/stats/lognrnd.md](findings/stats/lognrnd.md) | lognrnd | stats.dist | medium | small | 105c2b4 |
 | [findings/stats/wblrnd.md](findings/stats/wblrnd.md) | wblrnd | stats.dist | medium | small | 105c2b4 |
 
@@ -225,6 +221,10 @@ Status legend:
 | [closed/signal/envelope.md](closed/signal/envelope.md) | envelope | PENDING (partial) | 2026-05-08 |
 | [closed/empirical/ecdf.md](closed/empirical/ecdf.md) | ecdf | PENDING | 2026-05-08 |
 | [closed/empirical/ksdensity.md](closed/empirical/ksdensity.md) | ksdensity | PENDING | 2026-05-08 |
+| [closed/lda/classify.md](closed/lda/classify.md) | classify | PENDING | 2026-05-08 |
+| [closed/mvdist/mnpdf.md](closed/mvdist/mnpdf.md) | mnpdf | PENDING | 2026-05-08 |
+| [closed/mvdist/mvnpdf.md](closed/mvdist/mvnpdf.md) | mvnpdf | PENDING | 2026-05-08 |
+| [closed/mvdist/mvtpdf.md](closed/mvdist/mvtpdf.md) | mvtpdf | PENDING | 2026-05-08 |
 
 ---
 
