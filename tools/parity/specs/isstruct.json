@@ -1,13 +1,14 @@
 {
   "name": "isstruct",
-  "namespace": "core",
-  "setup": "s = struct('a',1,'b',2);",
-  "expr": "y = isstruct(s);",
-  "iters": 1000,
-  "tol": 1e-10,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "s.x = 1; r1 = double(isstruct(s)); r2 = double(isstruct(5)); r3 = double(isstruct([]));",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
+    "r1",
+    "r2",
+    "r3"
   ],
-  "comment": "Sig: TF = isstruct(S). Returns scalar logical. 100k iters."
+  "comment": "Sig: r = isstruct(...). Predicate. Spec-extension batch 2026-05-09."
 }

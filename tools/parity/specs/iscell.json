@@ -1,13 +1,14 @@
 {
   "name": "iscell",
-  "namespace": "core",
-  "setup": "c = {1, 'a', [1 2]};",
-  "expr": "y = iscell(c);",
-  "iters": 1000,
-  "tol": 1e-10,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "c = {1, 2}; r1 = double(iscell(c)); r2 = double(iscell(5)); r3 = double(iscell([]));",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
+    "r1",
+    "r2",
+    "r3"
   ],
-  "comment": "Sig: TF = iscell(X). 100k iters."
+  "comment": "Sig: r = iscell(...). Predicate. Spec-extension batch 2026-05-09."
 }

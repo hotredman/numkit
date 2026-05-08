@@ -1,13 +1,14 @@
 {
   "name": "isrow",
-  "namespace": "core",
-  "setup": "x = 1:1000;",
-  "expr": "y = isrow(x);",
-  "iters": 100,
-  "tol": 1e-10,
-  "comment": "Sig: TF = isrow(X). 1k row. 100k iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(isrow([1 2 3])); r2 = double(isrow([1; 2])); r3 = double(isrow([1]));",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = isrow(...). Predicate. Spec-extension batch 2026-05-09."
 }
