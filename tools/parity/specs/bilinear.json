@@ -1,0 +1,13 @@
+{
+  "name": "bilinear",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[bz, az] = bilinear([1], [1 1], 100); r1 = double(numel(bz)); r2 = double(numel(az));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = bilinear(...). Spec-extension batch 2026-05-09 (signal namespace)."
+}

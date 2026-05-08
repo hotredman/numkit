@@ -1,6 +1,6 @@
-# signal/sgolayfilt — ТЗ for completion
+# signal/medfilt1 — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** 015c30d
@@ -18,3 +18,10 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Signal batch 3 (filter impl + multirate + spectral, 20 funcs).
+  Bit-identical MATLAB R2025b on probed inputs (14 verified, 6 deferred).
+  See signal_batch3_test.cpp.

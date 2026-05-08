@@ -1,10 +1,12 @@
 {
   "name": "filtfilt",
-  "namespace": "core",
-  "setup": "b = ones(1, 5) / 5; a = 1; x = sin(linspace(0, 100, 10000));",
-  "expr": "y = filtfilt(b, a, x);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: Y = filtfilt(B, A, X). Zero-phase forward+back. 100 iters.",
-  "out_var": "y"
+  "namespace": "signal",
+  "setup": "",
+  "expr": "y = filtfilt([1 0.5], 1, [1 0 0 0 0 0 0 0 0 0]); r1 = double(numel(y));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = filtfilt(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }

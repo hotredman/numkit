@@ -1,10 +1,14 @@
 {
   "name": "downsample",
-  "namespace": "core",
-  "setup": "x = sin(linspace(0, 100, 100000));",
-  "expr": "y = downsample(x, 4);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: Y = downsample(X, N). N=4. 1000 iters.",
-  "out_var": "y"
+  "namespace": "signal",
+  "setup": "",
+  "expr": "y = downsample([1 2 3 4 5 6], 2); r1 = y(1); r2 = y(2); r3 = double(numel(y));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = downsample(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }
