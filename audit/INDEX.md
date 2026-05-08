@@ -62,7 +62,6 @@ Status legend:
 | [findings/signal/envelope.md](findings/signal/envelope.md) | envelope | signal.transforms | critical | medium | 9bce106 |
 | [findings/signal/dct.md](findings/signal/dct.md) | dct | signal.transforms | high | medium | 9bce106 |
 | [findings/signal/idct.md](findings/signal/idct.md) | idct | signal.transforms | medium | small | 9bce106 |
-| [findings/signal/bitrevorder.md](findings/signal/bitrevorder.md) | bitrevorder | signal.transforms | medium | small | 9bce106 |
 | [findings/stats/frnd.md](findings/stats/frnd.md) | frnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/raylrnd.md](findings/stats/raylrnd.md) | raylrnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/unifrnd.md](findings/stats/unifrnd.md) | unifrnd | stats.dist | medium | small | e580a5c |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/signal/nextpow2.md](closed/signal/nextpow2.md) | nextpow2 | PENDING | 2026-05-08 |
 | [closed/signal/dftmtx.md](closed/signal/dftmtx.md) | dftmtx | PENDING | 2026-05-08 |
 | [closed/signal/interpft.md](closed/signal/interpft.md) | interpft | PENDING | 2026-05-08 |
+| [closed/signal/bitrevorder.md](closed/signal/bitrevorder.md) | bitrevorder | PENDING | 2026-05-08 |
 
 ---
 

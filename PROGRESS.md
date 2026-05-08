@@ -2538,7 +2538,7 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bitrevorder` | ✅ | 0.003 | 133.74× | 204.18× | OK | Sig: Y = bitrevorder(X). Bit-reverse permutation. 10000 iters. |
+| `bitrevorder` | ✅ | 0.006 | 284.93× | 173.25× | OK | Sig: [Y, I] = bitrevorder(X). Bit-reversed permutation; 2nd output is the 1-based index vector such that Y(k) = X(I(k)). Bug fix 2026-05-08: 2nd output was missing (probe threw 'Undefined function or variable I'). Now both outputs match MATLAB exactly. tol=0 (integer-stable). |
 | `cceps` | ✅ | 0.029 | 5.63× | 3.79× | OK | Sig: Y = cceps(X). Complex cepstrum. 100 iters. |
 | `czt` | ❌ |  |  |  |  | chirp Z-transform |
 | `dct` | ✅ | 3.978 | 0.02× | 0.02× | OK | Sig: Y = dct(X). 1024-pt DCT. 1000 iters. |

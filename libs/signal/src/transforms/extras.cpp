@@ -216,12 +216,34 @@ void dftmtx_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     outs[0] = dftmtx(ctx.engine->resource(), static_cast<size_t>(args[0].toScalar()));
 }
 
-void bitrevorder_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void bitrevorder_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("bitrevorder: requires x",
                      0, 0, "bitrevorder", "", "m:bitrevorder:nargin");
-    outs[0] = bitrevorder(ctx.engine->resource(), args[0]);
+    auto *mr = ctx.engine->resource();
+    outs[0] = bitrevorder(mr, args[0]);
+    // 2nd output: 1-based index vector I such that Y(k) = X(I(k)).
+    // Same permutation applied to (1:N), preserving the input shape.
+    if (nargout > 1) {
+        const size_t n = args[0].numel();
+        if (n == 0) {
+            outs[1] = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+            return;
+        }
+        size_t bits = 0;
+        for (size_t v = n; v > 1; v >>= 1) ++bits;
+        const bool isRow = (args[0].dims().rows() == 1);
+        Value I = isRow
+                    ? Value::matrix(1, n, ValueType::DOUBLE, mr)
+                    : Value::matrix(n, 1, ValueType::DOUBLE, mr);
+        double *id = I.doubleDataMut();
+        for (size_t i = 0; i < n; ++i) {
+            // dst[bitReverse(i, bits)] = i+1 (1-based MATLAB index).
+            id[bitReverse(i, bits)] = static_cast<double>(i + 1);
+        }
+        outs[1] = std::move(I);
+    }
 }
 
 void dst_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
