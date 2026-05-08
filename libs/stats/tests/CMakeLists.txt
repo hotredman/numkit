@@ -64,4 +64,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/lognpdf_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/logninv_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/poisspdf_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/poissinv_test.cpp
 )

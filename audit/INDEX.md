@@ -96,7 +96,6 @@ Status legend:
 | [findings/cluster/mahal.md](findings/cluster/mahal.md) | mahal | stats.cluster | low | small | b2f133b |
 | [findings/cluster/squareform.md](findings/cluster/squareform.md) | squareform | stats.cluster | low | small | b2f133b |
 | [findings/stats/binornd.md](findings/stats/binornd.md) | binornd | stats.dist | low | small | 1525319 |
-| [findings/stats/poissinv.md](findings/stats/poissinv.md) | poissinv | stats.dist | low | small | 1525319 |
 | [findings/stats/poissrnd.md](findings/stats/poissrnd.md) | poissrnd | stats.dist | low | small | 1525319 |
 | [findings/stats/unidinv.md](findings/stats/unidinv.md) | unidinv | stats.dist | low | small | 1525319 |
 | [findings/stats/unidpdf.md](findings/stats/unidpdf.md) | unidpdf | stats.dist | low | small | 1525319 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/lognpdf.md](closed/stats/lognpdf.md) | lognpdf | PENDING | 2026-05-07 |
 | [closed/stats/logninv.md](closed/stats/logninv.md) | logninv | PENDING | 2026-05-07 |
 | [closed/stats/poisspdf.md](closed/stats/poisspdf.md) | poisspdf | PENDING | 2026-05-07 |
+| [closed/stats/poissinv.md](closed/stats/poissinv.md) | poissinv | PENDING | 2026-05-07 |
 
 ---
 

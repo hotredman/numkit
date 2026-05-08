@@ -1,0 +1,16 @@
+{
+  "name": "poissinv",
+  "namespace": "stats",
+  "setup": "qs = [0.05 0.5 0.95];",
+  "expr": "x_s = poissinv(0.5, 2); x_v = poissinv(qs, 2); x_q0 = poissinv(0, 2); x_q1 = poissinv(1, 2); x_qneg = poissinv(-0.1, 2); x_qover = poissinv(1.5, 2); x_lam0 = poissinv(0.5, 0); x_lamneg = poissinv(0.5, -1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "x_s",
+    "x_v(1)", "x_v(2)", "x_v(3)",
+    "x_q0", "x_q1",
+    "x_qneg", "x_qover",
+    "x_lam0", "x_lamneg"
+  ],
+  "comment": "Sig: x = poissinv(p, lambda). Inverse Poisson CDF. q=0 → 0; q=1 → Inf; q outside [0,1] → NaN. lambda=0 → 0 (degenerate). lambda<0 → NaN."
+}
