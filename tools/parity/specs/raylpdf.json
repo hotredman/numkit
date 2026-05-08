@@ -1,0 +1,15 @@
+{
+  "name": "raylpdf",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "y_s = raylpdf(2, 1); y_v = raylpdf([0 1 2 5], 1); y_neg = raylpdf(-1, 1); y_at0 = raylpdf(0, 1); y_b0 = raylpdf(2, 0); y_bneg = raylpdf(2, -1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "y_s",
+    "y_v(1)", "y_v(2)", "y_v(3)", "y_v(4)",
+    "y_neg", "y_at0",
+    "y_b0", "y_bneg"
+  ],
+  "comment": "Sig: y = raylpdf(x, b). Rayleigh PDF. x<0 → 0; x=0 → 0 (density at origin is 0). b<=0 → NaN."
+}
