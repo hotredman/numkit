@@ -2,9 +2,12 @@
   "name": "gevcdf",
   "namespace": "stats",
   "setup": "x = [0 1 2];",
-  "expr": "p = gevcdf(x, 0.5, 1, 0);",
+  "expr": "p = gevcdf(x, 0.5, 1, 0); pu = gevcdf(x, 0.5, 1, 0, 'upper');",
   "iters": 5,
   "tol": 1e-12,
-  "fingerprint": ["p(1)", "p(2)", "p(3)", "gevcdf(0, 0, 1, 0)"],
-  "comment": "Sig: p = gevcdf(x, k, sigma, mu)."
+  "fingerprint": [
+    "p(1)", "p(2)", "p(3)", "gevcdf(0, 0, 1, 0)",
+    "pu(1)", "pu(2)", "pu(3)"
+  ],
+  "comment": "Sig: p = gevcdf(x, k, sigma, mu[, 'upper']). 'upper' returns 1 - F(x)."
 }

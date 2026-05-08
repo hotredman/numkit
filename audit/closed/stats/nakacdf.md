@@ -1,6 +1,6 @@
-# stats.dist/ricecdf — ТЗ for completion
+# stats.dist/nakacdf — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** d68c22b
@@ -27,3 +27,14 @@ Numbers match.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: 'upper' string flag now stripped via shared
+  numkit::stats::detail::stripUpperFlag and applied via
+  applyUpperInPlace (see libs/stats/src/distributions/dist_helpers.hpp).
+  Implementation: 1 - F(x) — no erfc-tail-precision optimisation; matches
+  MATLAB R2025b (Octave fallback when MATLAB doesn't ship the function)
+  to specified tol on every probed input. Closed jointly with 8 sibling
+  cdf functions in one cycle (the gap was identical across all of them).

@@ -150,11 +150,15 @@ void gevpdf_reg(Span<const Value> args, size_t /*nargout*/,
 void gevcdf_reg(Span<const Value> args, size_t /*nargout*/,
                 Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 4)
-        throw Error("gevcdf: requires (x, k, sigma, mu)",
+    bool upper = false;
+    const size_t n = stripUpperFlag(args, upper);
+    if (n < 4)
+        throw Error("gevcdf: requires (x, k, sigma, mu[, 'upper'])",
                     0, 0, "gevcdf", "", "m:gevcdf:nargin");
-    outs[0] = gevcdf(ctx.engine->resource(), args[0],
+    Value v = gevcdf(ctx.engine->resource(), args[0],
                      args[1].toScalar(), args[2].toScalar(), args[3].toScalar());
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
 }
 
 void gevinv_reg(Span<const Value> args, size_t /*nargout*/,

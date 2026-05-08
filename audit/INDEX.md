@@ -21,6 +21,15 @@ Status legend:
 | File | Function | Closed in commit | Closed date |
 |---|---|---|---|
 | [closed/builtin/mrdivide.md](closed/builtin/mrdivide.md) | mrdivide / mldivide | PENDING | 2026-05-08 |
+| [closed/stats/evcdf.md](closed/stats/evcdf.md) | evcdf | PENDING | 2026-05-09 |
+| [closed/stats/geocdf.md](closed/stats/geocdf.md) | geocdf | PENDING | 2026-05-09 |
+| [closed/stats/gevcdf.md](closed/stats/gevcdf.md) | gevcdf | PENDING | 2026-05-09 |
+| [closed/stats/gpcdf.md](closed/stats/gpcdf.md) | gpcdf | PENDING | 2026-05-09 |
+| [closed/stats/hygecdf.md](closed/stats/hygecdf.md) | hygecdf | PENDING | 2026-05-09 |
+| [closed/stats/nakacdf.md](closed/stats/nakacdf.md) | nakacdf | PENDING | 2026-05-09 |
+| [closed/stats/nbincdf.md](closed/stats/nbincdf.md) | nbincdf | PENDING | 2026-05-09 |
+| [closed/stats/ncx2cdf.md](closed/stats/ncx2cdf.md) | ncx2cdf | PENDING | 2026-05-09 |
+| [closed/stats/ricecdf.md](closed/stats/ricecdf.md) | ricecdf | PENDING | 2026-05-09 |
 | [closed/stats/movmean.md](closed/stats/movmean.md) | movmean | PENDING | 2026-05-06 |
 | [closed/stats/movmedian.md](closed/stats/movmedian.md) | movmedian | PENDING | 2026-05-06 |
 | [closed/stats/movsum.md](closed/stats/movsum.md) | movsum | PENDING | 2026-05-06 |

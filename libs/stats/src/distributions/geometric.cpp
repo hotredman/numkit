@@ -123,9 +123,13 @@ void geopdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 
 void geocdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("geocdf: requires (k, p)", 0, 0, "geocdf", "", "m:geocdf:nargin");
-    outs[0] = geocdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    bool upper = false;
+    const size_t n = stripUpperFlag(args, upper);
+    if (n < 2)
+        throw Error("geocdf: requires (k, p[, 'upper'])", 0, 0, "geocdf", "", "m:geocdf:nargin");
+    Value v = geocdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
 }
 
 void geoinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
