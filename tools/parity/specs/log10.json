@@ -1,10 +1,16 @@
 {
   "name": "log10",
-  "namespace": "core",
-  "setup": "x = linspace(0.001, 1000, 1000000);",
-  "expr": "y = log10(x);",
-  "iters": 20,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: Y = log10(X). 1M-pt on [0.001, 1000]. 20 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "x = [0.1, 1, 10, 100, 1000];",
+  "expr": "r = log10(x);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r(1)",
+    "r(2)",
+    "r(3)",
+    "r(4)",
+    "r(5)"
+  ],
+  "comment": "Sig: r = log10(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b."
 }

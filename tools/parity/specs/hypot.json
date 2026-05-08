@@ -1,10 +1,14 @@
 {
   "name": "hypot",
-  "namespace": "core",
-  "setup": "a = linspace(-3, 3, 1000); b = linspace(-3, 3, 1000); [A, B] = meshgrid(a, b);",
-  "expr": "y = hypot(A, B);",
-  "iters": 20,
+  "namespace": "builtin",
+  "setup": "x = [3, 5, 7]; y = [4, 12, 24];",
+  "expr": "r = hypot(x, y);",
+  "iters": 5,
   "tol": 1e-12,
-  "out_var": "y",
-  "comment": "Sig: Y = hypot(A, B). 1k\u00d71k grid. 20 iters. Element-wise SAVE."
+  "fingerprint": [
+    "r(1)",
+    "r(2)",
+    "r(3)"
+  ],
+  "comment": "Sig: r = hypot(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b."
 }

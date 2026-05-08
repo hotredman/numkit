@@ -1,6 +1,6 @@
-# builtin/floor — ТЗ for completion
+# builtin/ceil — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** 42e1ec3
@@ -18,3 +18,10 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Transcendentals + rounding spec-extension batch (14 funcs).
+  All libm-backed, bit-identical MATLAB R2025b. See libs/builtin/tests/
+  transcendentals_batch_test.cpp + smoke + 14 parity specs.
