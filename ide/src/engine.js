@@ -214,11 +214,18 @@ export async function createWasmEngine(createModule) {
     repl_pop_script_origin: typeof Module.repl_pop_script_origin,
   });
 
-  // Dev-only: expose the instance on window so devtools can poke it.
-  // Gated on Vite's DEV flag so production builds don't leak it into
-  // the global namespace.
-  if (import.meta.env?.DEV && typeof window !== 'undefined')
-    window.__numkitIdeModule = Module;
+  // Expose the Emscripten Module on window so the heap-trace probe
+  // (StatusBar HeapBadge) can read Module.HEAP8.byteLength to track
+  // WASM linear memory growth — performance.memory ONLY reports V8's
+  // JS heap and hides WASM allocations entirely, which is the
+  // diagnostic gap the round-2 heap badge had on its own. Dev mode
+  // additionally keeps the legacy `__numkitIdeModule` name for
+  // hand-poking from devtools.
+  if (typeof window !== 'undefined') {
+    window.numkit = window.numkit || {};
+    window.numkit.__module = Module;
+    if (import.meta.env?.DEV) window.__numkitIdeModule = Module;
+  }
 
   return {
     type: 'wasm',
