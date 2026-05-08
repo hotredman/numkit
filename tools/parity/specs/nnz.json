@@ -1,13 +1,14 @@
 {
   "name": "nnz",
-  "namespace": "core",
-  "setup": "x = mod(1:1000000, 13) == 0;",
-  "expr": "y = nnz(x);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: N = nnz(X). 1M-pt count. 1000 iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = nnz([1 0 2 0 3]); r2 = nnz([0 0 0]); r3 = nnz(eye(4));",
+  "iters": 5,
+  "tol": 1e-12,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = nnz(...). Spec-extension batch 2026-05-09."
 }
