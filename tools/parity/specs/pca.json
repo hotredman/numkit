@@ -1,0 +1,16 @@
+{
+  "name": "pca",
+  "namespace": "stats",
+  "setup": "X = [1 2 3; 2 1 5; 3 4 1; 5 6 2; 7 5 4];",
+  "expr": "[coeff, score, latent, tsquared, explained, mu] = pca(X);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "abs(coeff(1,1))", "abs(coeff(2,2))", "abs(coeff(3,3))",
+    "latent(1)", "latent(2)", "latent(3)",
+    "explained(1)", "explained(2)", "explained(3)",
+    "mu(1)", "mu(2)", "mu(3)",
+    "tsquared(1)", "tsquared(5)"
+  ],
+  "comment": "Sig: [coeff, score, latent, tsquared, explained, mu] = pca(X). Eigendecomposition of cov(X) for principal components. coeff is signed-undefined (eigenvector orientation), so abs() is taken in fingerprints. Bit-identical to MATLAB R2025b on |coeff|, latent, explained, mu, tsquared."
+}

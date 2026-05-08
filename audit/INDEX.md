@@ -30,9 +30,6 @@ Status legend:
 | [findings/regress/regress.md](findings/regress/regress.md) | regress | stats.regress | high | medium | f92087f |
 | [findings/regress/lscov.md](findings/regress/lscov.md) | lscov | stats.regress | low | small | f92087f |
 | [findings/regress/ridge.md](findings/regress/ridge.md) | ridge | stats.regress | low | small | f92087f |
-| [findings/dim/pca.md](findings/dim/pca.md) | pca | stats.dim | low | small | f92087f |
-| [findings/dim/pcacov.md](findings/dim/pcacov.md) | pcacov | stats.dim | low | small | f92087f |
-| [findings/dim/pcares.md](findings/dim/pcares.md) | pcares | stats.dim | low | small | f92087f |
 | [findings/stats/lognrnd.md](findings/stats/lognrnd.md) | lognrnd | stats.dist | medium | small | 105c2b4 |
 | [findings/stats/wblrnd.md](findings/stats/wblrnd.md) | wblrnd | stats.dist | medium | small | 105c2b4 |
 
@@ -225,6 +222,9 @@ Status legend:
 | [closed/mvdist/mnpdf.md](closed/mvdist/mnpdf.md) | mnpdf | PENDING | 2026-05-08 |
 | [closed/mvdist/mvnpdf.md](closed/mvdist/mvnpdf.md) | mvnpdf | PENDING | 2026-05-08 |
 | [closed/mvdist/mvtpdf.md](closed/mvdist/mvtpdf.md) | mvtpdf | PENDING | 2026-05-08 |
+| [closed/dim/pca.md](closed/dim/pca.md) | pca | PENDING | 2026-05-08 |
+| [closed/dim/pcacov.md](closed/dim/pcacov.md) | pcacov | PENDING | 2026-05-08 |
+| [closed/dim/pcares.md](closed/dim/pcares.md) | pcares | PENDING | 2026-05-08 |
 
 ---
 
