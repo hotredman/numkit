@@ -1,6 +1,6 @@
 # builtin/pol2cart — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** a6e4264
@@ -21,3 +21,9 @@ bit-for-bit on probed inputs.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Misc batch 6 (rng/shape/typecast/strings, 11 funcs).
+  Bit-identical MATLAB R2025b. See misc6_batch_test.cpp.

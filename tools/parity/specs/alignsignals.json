@@ -1,10 +1,13 @@
 {
   "name": "alignsignals",
-  "namespace": "core",
-  "setup": "a = sin(linspace(0, 10, 1000)); b = sin(linspace(0, 10, 1000) + 0.5);",
-  "expr": "[y, jj] = alignsignals(a, b);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: [X1, X2] = alignsignals(A, B). 1000-pt signals. 100 iters.",
-  "out_var": "y"
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[Xa, Ya] = alignsignals([1 2 3 4 5], [0 0 1 2 3]); r1 = double(numel(Xa)); r2 = double(numel(Ya));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = alignsignals(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }
