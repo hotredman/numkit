@@ -44,3 +44,13 @@ MATLAB returns the Gaussian limit `0.3989422804` for `tpdf(0, Inf)`.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Fixed `tpdf(x, Inf)` returning NaN — now delegates to
+  Gaussian-limit form `(1/√(2π))·exp(-x²/2)`. Also tightened the
+  guard to `!(nu > 0)` so NaN nu propagates as NaN. Spec covers
+  scalar/vector + Gaussian limit + nu=1e10 (matches MATLAB at 1e-6,
+  Octave at 1e-5). 12 fingerprints; 6 TEST_F gtest + smoke. Parity
+  OK numkit ↔ MATLAB ↔ Octave at tol=1e-12.
