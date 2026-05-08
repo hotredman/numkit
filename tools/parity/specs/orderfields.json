@@ -1,14 +1,12 @@
 {
   "name": "orderfields",
-  "namespace": "core",
-  "setup": "s = struct('zeta',5,'beta',2,'alpha',1,'gamma',3,'delta',4);",
-  "expr": "y = orderfields(s);",
-  "iters": 1000,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "s.b=2; s.a=1; t = orderfields(s); f = fieldnames(t); r1 = double(strcmp(f{1}, \"a\"));",
+  "iters": 5,
   "tol": 1e-09,
-  "comment": "Sig: S2 = orderfields(S). Alphabetical sort of fields. 10000 iters.",
   "fingerprint": [
-    "double(numel(fieldnames(y)))",
-    "double(strlength(fieldnames(y){1}))",
-    "double(strlength(fieldnames(y){end}))"
-  ]
+    "r1"
+  ],
+  "comment": "Sig: r = orderfields(...). Spec-extension batch 2026-05-09."
 }

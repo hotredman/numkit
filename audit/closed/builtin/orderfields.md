@@ -1,6 +1,6 @@
-# builtin/rmfield — ТЗ for completion
+# builtin/orderfields — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** 780c049
@@ -17,3 +17,9 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Misc batch 5 (poly + string-extras2 + math2 + error-handling, 19 funcs).
+  Bit-identical MATLAB R2025b. See misc5_batch_test.cpp.

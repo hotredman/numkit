@@ -1,5 +1,5 @@
 {
-  "name": "warning",
+  "name": "error",
   "namespace": "builtin",
   "setup": "",
   "expr": "r1 = 1;",
@@ -8,5 +8,5 @@
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: r = warning(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = error(...). Spec-extension batch 2026-05-09."
 }

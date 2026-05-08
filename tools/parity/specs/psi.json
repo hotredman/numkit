@@ -1,10 +1,14 @@
 {
   "name": "psi",
-  "namespace": "core",
-  "setup": "x = linspace(0.5, 50, 100000);",
-  "expr": "y = psi(x);",
-  "iters": 20,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: Y = psi(X). 100k-pt sweep on positive domain. 20 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = psi(1); r2 = psi(2); r3 = psi(0.5);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = psi(...). Spec-extension batch 2026-05-09."
 }

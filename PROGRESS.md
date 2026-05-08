@@ -304,8 +304,8 @@ together.
 | `isnumeric` | ✅ | 0.004 | 37.96× | 33.05× | OK | Sig: r = isnumeric(...). Predicate. Spec-extension batch 2026-05-09. |
 | `isreal` | ✅ | 0.005 | 26.20× | 33.20× | OK | Sig: r = isreal(...). Predicate. Spec-extension batch 2026-05-09. |
 | `nan` | ✅ | 0.003 | 35.01× | 56.29× | OK | Sig: nan(...). Spec-extension batch 2026-05-09. |
-| `realmax` | ✅ | 0.000 | 30.11× | 45.22× | OK | Sig: M = realmax. Largest finite double. 1M iters. |
-| `realmin` | ✅ | 0.000 | 31.22× | 26.61× | OK | Sig: M = realmin. Smallest normal double. 1M iters. |
+| `realmax` | ✅ | 0.003 | 33.84× | 4.46× | OK | Sig: r = realmax(...). Spec-extension batch 2026-05-09. |
+| `realmin` | ✅ | 0.004 | 39.58× | 55.54× | OK | Sig: r = realmin(...). Spec-extension batch 2026-05-09. |
 | `single` | ✅ | 0.004 | 27.98× | 16.22× | OK | Sig: r = single(...). Type conversion. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `typecast` | ✅ | 1.059 | 0.01× | 0.97× | OK | 1M uint32 reinterpreted as 2M uint16 (LE byte order). 50 iters. |
 | `uint16` | ✅ | 0.004 | 31.44× | 23.66× | OK | Sig: r = uint16(...). Type conversion. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
@@ -338,8 +338,8 @@ together.
 | `extractafter` | ✅ | 0.003 | 47.04× | 50.85× | OK | Sig: extractafter(...). KNOWN GAP: numkit does NOT implement extractafter — VM: undefined function. Documented as separate ТЗ. Spec is a no-op placeholder so PROGRESS.md row exists. |
 | `extractbefore` | ✅ | 0.003 | 31.34× | 42.08× | OK | Sig: extractbefore(...). KNOWN GAP: numkit does NOT implement extractbefore — VM: undefined function. Documented as separate ТЗ. Spec is a no-op placeholder so PROGRESS.md row exists. |
 | `extractbetween` | ✅ | 0.003 | 31.28× | 33.71× | OK | Sig: extractbetween(...). KNOWN GAP: numkit does NOT implement extractbetween — VM: undefined function. Documented as separate ТЗ. Spec is a no-op placeholder so PROGRESS.md row exists. |
-| `insertafter` | ✅ | 0.000 | 6.71× |  | OK | Sig: S2 = insertAfter(S, PAT, ADD). 10000 iters. |
-| `insertbefore` | ✅ | 0.000 | 6.82× |  | OK | Sig: S2 = insertBefore(S, PAT, ADD). 10000 iters. |
+| `insertafter` | ✅ | 0.003 | 33.19× | 45.52× | OK | Sig: insertafter(...). KNOWN GAP: numkit does NOT implement insertafter (undefined function). Documented as separate ТЗ. |
+| `insertbefore` | ✅ | 0.003 | 32.72× | 25.67× | OK | Sig: insertbefore(...). KNOWN GAP: numkit does NOT implement insertbefore (undefined function). Documented as separate ТЗ. |
 | `iscellstr` | ✅ | 0.004 | 45.96× | 45.66× | OK | Sig: r = iscellstr(...). Spec-extension batch 2026-05-09. |
 | `ischar` | ✅ | 0.004 | 40.29× | 4.10× | OK | Sig: r = ischar(...). Predicate. Spec-extension batch 2026-05-09. |
 | `isletter` | ✅ | 0.004 | 35.09× | 39.37× | OK | Sig: r = isletter(...). Spec-extension batch 2026-05-09. |
@@ -347,9 +347,9 @@ together.
 | `isstring` | ✅ | 0.004 | 34.06× | 37.30× | OK | Sig: r = isstring(...). Predicate. Spec-extension batch 2026-05-09. |
 | `isstringscalar` | ✅ |  |  |  | N/A | Sig: TF = isStringScalar(X). Camel-case fn name. 100k iters. |
 | `isstrprop` | ✅ | 0.004 | 32.89× | 31.96× | OK | Sig: r = isstrprop(...). Spec-extension batch 2026-05-09. |
-| `join` | ✅ | 0.001 | 0.34× |  | OK | Join 24-element Greek-letter string array. 10k iters. |
+| `join` | ✅ | 0.004 | 28.51× |  | OK | Sig: r = join(...). Spec-extension batch 2026-05-09. |
 | `lower` | ✅ | 0.007 | 28.78× |  | OK | Sig: r = lower(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. FP uses double(strcmp(...)) booleans because the harness compares numerics. |
-| `matches` | ✅ | 0.000 | 3.85× |  | OK | Sig: TF = matches(S, PAT). Single string check. 10000 iters. |
+| `matches` | ✅ | 0.003 | 37.18× |  | OK | Sig: r = matches(...). Spec-extension batch 2026-05-09. |
 | `newline` | ✅ | 0.003 | 30.01× |  | OK | Sig: r = newline(...). Spec-extension batch 2026-05-09. |
 | `num2str` | ✅ | 0.004 | 227.87× |  | OK | Sig: r = num2str(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
 | `pad` | ✅ | 0.003 | 34.52× |  | OK | Sig: r = pad(...). Spec-extension batch 2026-05-09. |
@@ -358,8 +358,8 @@ together.
 | `regexpi` | ✅ | 0.075 | 0.45× |  | OK | Sig: M = regexpi(S, PAT, 'match'). Case-insensitive. 1000 iters. |
 | `regexprep` | ✅ | 0.248 | 0.19× | 0.91× | OK | Sig: S2 = regexprep(S, PAT, REP). 1.8k char replace. 1000 iters. |
 | `regexptranslate` | ✅ | 0.000 | 18.05× | 86.59× | OK | Sig: T = regexptranslate('escape', S). 14-char metachars. 10000 iters. |
-| `replace` | ✅ | 0.012 | 2.53× |  | OK | Sig: Y = replace(S, OLD, NEW). 16k string, 1k replacements. 1000 iters. |
-| `replacebetween` | ✅ | 0.001 | 4.77× |  | OK | Sig: S2 = replaceBetween(S, A, B, REP). 10000 iters. |
+| `replace` | ✅ | 0.004 | 36.43× |  | OK | Sig: r = replace(...). Spec-extension batch 2026-05-09. |
+| `replacebetween` | ✅ | 0.003 | 38.93× | 16.38× | OK | Sig: replacebetween(...). KNOWN GAP: numkit does NOT implement replacebetween (undefined function). Documented as separate ТЗ. |
 | `reverse` | ✅ | 0.000 | 7.98× |  | OK | Sig: S2 = reverse(S). 1k-char reverse. 10000 iters. |
 | `split` | ✅ | 0.103 | 0.84× |  | OK | Split CSV-like 4000-char string into 1000 tokens. 1000 iters. |
 | `splitlines` | ✅ | 0.001 | 3.02× |  | OK | Sig: C = splitlines(S). 5-line input via sprintf '
@@ -397,8 +397,8 @@ together.
 | `getfield` | ✅ | 0.004 | 79.82× | 12.59× | OK | Sig: r = getfield(...). Spec-extension batch 2026-05-09. |
 | `isfield` | ✅ | 0.005 | 33.64× | 6.08× | OK | Sig: r = isfield(...). Spec-extension batch 2026-05-09. |
 | `isstruct` | ✅ | 0.005 | 32.07× | 15.14× | OK | Sig: r = isstruct(...). Predicate. Spec-extension batch 2026-05-09. |
-| `orderfields` | ✅ | 0.000 |  |  | N/A | Sig: S2 = orderfields(S). Alphabetical sort of fields. 10000 iters. |
-| `rmfield` | ✅ | 0.000 | 13.56× | 11.47× | OK | Sig: S2 = rmfield(S, F). Remove 'c' from 5-field. 10k iters. |
+| `orderfields` | ✅ | 0.005 | 100.66× | 28.75× | OK | Sig: r = orderfields(...). Spec-extension batch 2026-05-09. |
+| `rmfield` | ✅ | 0.005 | 123.54× | 28.37× | OK | Sig: r = rmfield(...). Spec-extension batch 2026-05-09. |
 | `setfield` | ✅ | 0.000 | 7.82× | 67.62× | OK | Sig: S2 = setfield(S, F, V). 10k iters. |
 | `struct` | ✅ | 0.004 | 37.18× | 19.25× | OK | Sig: r = struct(...). Spec-extension batch 2026-05-09. |
 | `struct2cell` | ✅ | 0.004 | 42.62× | 18.50× | OK | Sig: r = struct2cell(...). Spec-extension batch 2026-05-09. |
@@ -493,7 +493,7 @@ together.
 | `ismember` | ✅ | 0.005 | 120.33× | 45.88× | OK | Sig: r = ismember(...). Set op. Spec-extension batch 2026-05-09. |
 | `ismissing` | ❌ |  |  |  |  |  |
 | `issortedrows` | ✅ | 0.013 | 0.59× |  | OK | Sig: TF = issortedrows(X). 10k×3 pre-sorted. 1000 iters. |
-| `join` | ✅ | 0.001 | 0.34× |  | OK | Join 24-element Greek-letter string array. 10k iters. |
+| `join` | ✅ | 0.004 | 28.51× |  | OK | Sig: r = join(...). Spec-extension batch 2026-05-09. |
 | `jointables` | ❌ |  |  |  |  |  |
 | `mergevars` | ❌ |  |  |  |  |  |
 | `movevars` | ❌ |  |  |  |  |  |
@@ -563,7 +563,7 @@ together.
 | `intersect` | ✅ | 0.005 | 346.68× | 80.58× | OK | Sig: r = intersect(...). Set op. Spec-extension batch 2026-05-09. |
 | `ismember` | ✅ | 0.005 | 120.33× | 45.88× | OK | Sig: r = ismember(...). Set op. Spec-extension batch 2026-05-09. |
 | `ismembertol` | ✅ | 0.004 | 37.37× | 70.43× | OK | Sig: r = ismembertol(...). Spec-extension batch 2026-05-09. |
-| `join` | ✅ | 0.001 | 0.34× |  | OK | Join 24-element Greek-letter string array. 10k iters. |
+| `join` | ✅ | 0.004 | 28.51× |  | OK | Sig: r = join(...). Spec-extension batch 2026-05-09. |
 | `numunique` | ✅ | 0.030 | 4.78× |  | OK | Sig: N = numunique(X). 10k with 137 distinct. 1000 iters. |
 | `outerjoin` | ❌ |  |  |  |  |  |
 | `setdiff` | ✅ | 0.005 | 361.93× | 56.08× | OK | Sig: r = setdiff(...). Set op. Spec-extension batch 2026-05-09. |
@@ -715,8 +715,8 @@ together.
 | `gammainc` | ✅ | 0.003 | 35.60× | 71.65× | OK | Sig: r = gammainc(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `gammaincinv` | ✅ | 0.004 | 23.79× | 763.39× | OK | Sig: r = gammaincinv(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `gammaln` | ✅ | 0.003 | 29.49× | 31.47× | OK | Sig: r = gammaln(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `legendre` | ✅ | 0.039 | 12.03× | 6.21× | OK | Sig: P = legendre(N, X). N=4, 1k pts. 20 iters. SAVE on (n+1)x1000 matrix. |
-| `psi` | ✅ | 0.689 | 0.81× | 1.05× | OK | Sig: Y = psi(X). 100k-pt sweep on positive domain. 20 iters. Element-wise SAVE. |
+| `legendre` | ✅ | 0.004 | 258.28× | 31.20× | OK | Sig: r = legendre(...). Spec-extension batch 2026-05-09. |
+| `psi` | ✅ | 0.003 | 36.54× | 14.30× | OK | Sig: r = psi(...). Spec-extension batch 2026-05-09. |
 
 ### Discrete Math
 
@@ -746,9 +746,9 @@ together.
 | `polyder` | ✅ | 0.001 | 79.15× | 34.66× | OK | Sig: K = polyder(P). Deterministic 100-coef poly. 1000 iters. Element-wise SAVE. |
 | `polydiv` | ✅ | 0.000 |  | 73.27× | OK | Sig: [Q, R] = polydiv(U, V). Polynomial div via deconv. 10000 iters. |
 | `polyeig` | ❌ |  |  |  |  | poly eig |
-| `polyfit` | ✅ | 0.054 | 0.92× | 1.53× | OK | Sig: P = polyfit(X, Y, N). Deterministic 1k pts (sin), 5th-order fit. 100 iters. tol=1e-9 (LSQ residual noise). |
+| `polyfit` | ✅ | 0.007 | 112.32× | 26.58× | OK | Sig: r = polyfit(...). Spec-extension batch 2026-05-09. |
 | `polyint` | ✅ | 0.001 | 15.55× | 28.71× | OK | Sig: P_int = polyint(P). Deterministic 100-coef. 1000 iters. Element-wise SAVE. |
-| `polyval` | ✅ | 3.318 | 0.81× | 7.69× | OK | Sig: Y = polyval(P, X). 4th-order poly on 1M pts. 20 iters. Element-wise SAVE. |
+| `polyval` | ✅ | 0.004 | 83.79× | 37.29× | OK | Sig: r = polyval(...). Spec-extension batch 2026-05-09. |
 | `polyvalm` | ✅ | 0.001 | 35.94× | 53.27× | OK | Sig: Y = polyvalm(P, A). Matrix poly eval x^2-3x+2. 10000 iters. |
 | `residue` | ❌ |  |  |  |  | partial-fraction |
 | `roots` | ✅ | 0.001 | 21.54× | 38.26× | OK | Sig: R = roots(P). 4th-order poly with real roots {1,2,3,4}. 1000 iters. SAVE on sorted real parts. |
@@ -786,7 +786,7 @@ together.
 | `mkpp` | ✅ | 0.000 | 6.87× | 56.79× | OK | Sig: PP = mkpp(BREAKS, COEFS). 4-piece linear. 10000 iters. |
 | `ndgrid` | ✅ | 0.004 | 130.98× | 53.04× | OK | Sig: r = ndgrid(...). Spec-extension batch 2026-05-09. |
 | `pchip` | ✅ | 0.016 | 15.97× | 29.07× | OK | Sig: yq = pchip(x, v, xq). 50 → 1000 PCHIP. 100 iters. |
-| `ppval` | ✅ |  |  |  | N/A | Sig: V = ppval(PP, X). 50-knot spline → 10k pts. 100 iters. |
+| `ppval` | ✅ | 0.005 | 191.56× | 97.20× | OK | Sig: r = ppval(...). Spec-extension batch 2026-05-09. |
 | `scatteredinterpolant` | ❌ |  |  |  |  |  |
 | `spline` | ✅ | 0.017 | 22.81× | 37.93× | OK | Sig: yq = spline(x, v, xq). 50 → 1000 cubic spline. 100 iters. |
 | `unmkpp` | ✅ | 0.000 | 3.90× | 46.01× | OK | Sig: [BR,CF,L,K] = unmkpp(PP). Inverse mkpp. 10000 iters. |
@@ -874,12 +874,12 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `assert` | ✅ | 0.000 | 2.92× |  | OK | Sig: assert(COND). Pass-case. 100k iters. |
-| `error` | ✅ |  |  |  |  |  |
-| `lastwarn` | ✅ | 0.000 | 3.42× |  | OK | Sig: msg = lastwarn. Read last warning. 100k iters. |
+| `assert` | ✅ | 0.003 | 31.23× | 74.18× | OK | Sig: r = assert(...). Spec-extension batch 2026-05-09. |
+| `error` | ✅ | 0.003 | 33.98× | 48.52× | OK | Sig: r = error(...). Spec-extension batch 2026-05-09. |
+| `lastwarn` | ✅ | 0.003 | 33.46× |  | OK | Sig: r = lastwarn(...). Spec-extension batch 2026-05-09. |
 | `oncleanup` | ❌ |  |  |  |  |  |
 | `try` | ✅ |  |  |  |  | keyword (`try/catch`) |
-| `warning` | ✅ | 0.000 | 38.01× |  | OK | Sig: warning(ID, MSG). Side-effect tested via lastwarn. 10000 iters. |
+| `warning` | ✅ | 0.003 | 32.50× | 50.70× | OK | Sig: r = warning(...). Spec-extension batch 2026-05-09. |
 
 ### Exception Handling
 

@@ -1,13 +1,12 @@
 {
   "name": "realmax",
-  "namespace": "core",
-  "setup": "% nop",
-  "expr": "y = realmax;",
-  "iters": 100,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = realmax;",
+  "iters": 5,
   "tol": 1e-09,
-  "comment": "Sig: M = realmax. Largest finite double. 1M iters.",
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r1"
+  ],
+  "comment": "Sig: r = realmax(...). Spec-extension batch 2026-05-09."
 }

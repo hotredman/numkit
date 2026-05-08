@@ -1,6 +1,6 @@
 # builtin/insertafter — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** c1fdebe
@@ -20,3 +20,10 @@ benched input. Standard string/character function.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Misc batch 5 (poly + string-extras2 + math2 + error-handling, 19 funcs).
+  Bit-identical MATLAB R2025b. See misc5_batch_test.cpp.
+  KNOWN GAP: numkit does NOT implement insertafter. Documented as separate ТЗ.

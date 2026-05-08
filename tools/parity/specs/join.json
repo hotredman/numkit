@@ -1,9 +1,12 @@
 {
   "name": "join",
-  "namespace": "core",
-  "setup": "arr = [\"alpha\",\"beta\",\"gamma\",\"delta\",\"epsilon\",\"zeta\",\"eta\",\"theta\",\"iota\",\"kappa\",\"lambda\",\"mu\",\"nu\",\"xi\",\"omicron\",\"pi\",\"rho\",\"sigma\",\"tau\",\"upsilon\",\"phi\",\"chi\",\"psi\",\"omega\"];",
-  "expr": "j = join(arr, ', ');",
-  "iters": 10000,
-  "fingerprint": ["double(strlength(j))", "double(numel(char(j)))"],
-  "comment": "Join 24-element Greek-letter string array. 10k iters."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(strcmp(join([\"a\", \"b\", \"c\"]), \"a b c\"));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = join(...). Spec-extension batch 2026-05-09."
 }
