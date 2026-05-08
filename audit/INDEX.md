@@ -35,6 +35,15 @@ Status legend:
 | [closed/wavelet/imodwt.md](closed/wavelet/imodwt.md) | imodwt | PENDING | 2026-05-09 |
 | [closed/wavelet/swt.md](closed/wavelet/swt.md) | swt | PENDING | 2026-05-09 |
 | [closed/wavelet/iswt.md](closed/wavelet/iswt.md) | iswt | PENDING | 2026-05-09 |
+| [closed/builtin/acos.md](closed/builtin/acos.md) | acos | PENDING | 2026-05-09 |
+| [closed/builtin/acosd.md](closed/builtin/acosd.md) | acosd | PENDING | 2026-05-09 |
+| [closed/builtin/acosh.md](closed/builtin/acosh.md) | acosh | PENDING | 2026-05-09 |
+| [closed/builtin/acot.md](closed/builtin/acot.md) | acot | PENDING | 2026-05-09 |
+| [closed/builtin/acotd.md](closed/builtin/acotd.md) | acotd | PENDING | 2026-05-09 |
+| [closed/builtin/acoth.md](closed/builtin/acoth.md) | acoth | PENDING | 2026-05-09 |
+| [closed/builtin/acsc.md](closed/builtin/acsc.md) | acsc | PENDING | 2026-05-09 |
+| [closed/builtin/acscd.md](closed/builtin/acscd.md) | acscd | PENDING | 2026-05-09 |
+| [closed/builtin/acsch.md](closed/builtin/acsch.md) | acsch | PENDING | 2026-05-09 |
 | [closed/stats/evcdf.md](closed/stats/evcdf.md) | evcdf | PENDING | 2026-05-09 |
 | [closed/stats/geocdf.md](closed/stats/geocdf.md) | geocdf | PENDING | 2026-05-09 |
 | [closed/stats/gevcdf.md](closed/stats/gevcdf.md) | gevcdf | PENDING | 2026-05-09 |
