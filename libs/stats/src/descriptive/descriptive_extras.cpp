@@ -539,6 +539,13 @@ datastats(std::pmr::memory_resource *mr, const Value &x)
                            Value::scalar(sd,     mr));
 }
 
+// Forward declarations for ecdf (defined at the end of this TU).
+struct EcdfFull { Value f, x, flo, fup; };
+EcdfFull ecdf_full(std::pmr::memory_resource *mr,
+                   const Value &y, const Value *freq,
+                   const std::string &function_mode, double alpha,
+                   bool want_bounds);
+
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
 
@@ -904,11 +911,43 @@ void rmse_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 void ecdf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("ecdf: requires 1 argument (y)",
+        throw Error("ecdf: requires (y[, N-V pairs])",
                      0, 0, "ecdf", "", "m:ecdf:nargin");
-    auto [f, x] = ecdf(ctx.engine->resource(), args[0]);
-    outs[0] = std::move(f);
-    if (nargout > 1) outs[1] = std::move(x);
+    auto *mr = ctx.engine->resource();
+    std::string function_mode = "cdf";
+    double alpha = 0.05;
+    const Value *freq = nullptr;
+    auto lower = [](std::string s) {
+        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        return s;
+    };
+    for (size_t i = 1; i + 1 < args.size(); i += 2) {
+        if (!(args[i].isChar() || args[i].isString())) break;
+        const std::string key = lower(args[i].toString());
+        const Value &v = args[i + 1];
+        if      (key == "function")  function_mode = v.toString();
+        else if (key == "frequency") {
+            if (!v.isEmpty()) freq = &v;
+        }
+        else if (key == "alpha")     alpha = v.toScalar();
+        else if (key == "censoring") {
+            if (!v.isEmpty())
+                throw Error("ecdf: 'Censoring' is not yet supported "
+                            "(Kaplan-Meier estimator). Skip the arg or "
+                            "filter censored observations beforehand.",
+                            0, 0, "ecdf", "", "m:ecdf:censoring_nyi");
+        }
+        else if (key == "iterationlimit" || key == "tolerance"
+                 || key == "icmfrequency" || key == "bounds") {
+            // Silently accepted (no-op for non-censored ecdf).
+        }
+    }
+    const bool want_bounds = (nargout > 2);
+    auto R = ecdf_full(mr, args[0], freq, function_mode, alpha, want_bounds);
+    outs[0] = std::move(R.f);
+    if (nargout > 1) outs[1] = std::move(R.x);
+    if (nargout > 2) outs[2] = std::move(R.flo);
+    if (nargout > 3) outs[3] = std::move(R.fup);
 }
 
 void ecdfhist_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -994,50 +1033,161 @@ ecdfhist(std::pmr::memory_resource *mr, const Value &f, const Value &x, int m)
 }
 
 // ── ecdf ─────────────────────────────────────────────────────────────
-// Empirical CDF. Sort data, drop NaN, then for each unique value produce
-// a (cumcount/N) jump. Output: 2 column vectors of length K+1.
-std::tuple<Value, Value>
-ecdf(std::pmr::memory_resource *mr, const Value &y)
+// Empirical CDF / survivor / cumulative-hazard. Optional Frequency
+// weights; optional 95% confidence bounds.
+//
+// Output shapes match MATLAB R2025b: f and x are column vectors of
+// length K+1 (K = number of distinct sample values). For cdf/survivor:
+//   f[0] = 0 (cdf) or 1 (survivor); x[0] = min sample value.
+// For cumulative hazard: same shape but f is the Nelson-Aalen
+// estimator, NOT -log(1-cdf).
+
+// `EcdfFull` forward-declared above. f/x/flo/fup are K+1 column vectors.
+EcdfFull ecdf_full(std::pmr::memory_resource *mr,
+                   const Value &y,
+                   const Value *freq,
+                   const std::string &function_mode,
+                   double alpha,
+                   bool want_bounds)
 {
     const size_t n = y.numel();
-    std::vector<double> v;
-    v.reserve(n);
+    const bool has_freq = (freq && freq->numel() == n);
+    if (freq && freq->numel() != 0 && freq->numel() != n)
+        throw Error("ecdf: Frequency length must match data length",
+                    0, 0, "ecdf", "", "m:ecdf:freqsize");
+
+    // Collect (value, weight) pairs, dropping NaNs. Sort by value.
+    std::vector<std::pair<double, double>> vw;
+    vw.reserve(n);
+    double Wtotal = 0.0;
     for (size_t i = 0; i < n; ++i) {
         const double s = y.elemAsDouble(i);
-        if (!std::isnan(s)) v.push_back(s);
+        if (std::isnan(s)) continue;
+        const double w = has_freq ? freq->elemAsDouble(i) : 1.0;
+        if (w == 0.0) continue;
+        vw.push_back({s, w});
+        Wtotal += w;
     }
-    const size_t N = v.size();
-    if (N == 0) {
-        // MATLAB returns empty 0x1 columns on all-NaN / empty input.
-        Value fEmpty = Value::matrix(0, 1, ValueType::DOUBLE, mr);
-        Value xEmpty = Value::matrix(0, 1, ValueType::DOUBLE, mr);
-        return {std::move(fEmpty), std::move(xEmpty)};
+    EcdfFull R{};
+    if (vw.empty() || Wtotal <= 0.0) {
+        R.f   = Value::matrix(0, 1, ValueType::DOUBLE, mr);
+        R.x   = Value::matrix(0, 1, ValueType::DOUBLE, mr);
+        R.flo = Value::matrix(0, 1, ValueType::DOUBLE, mr);
+        R.fup = Value::matrix(0, 1, ValueType::DOUBLE, mr);
+        return R;
     }
-    std::sort(v.begin(), v.end());
+    std::sort(vw.begin(), vw.end(),
+              [](const auto &a, const auto &b) { return a.first < b.first; });
 
-    // Walk through sorted v and emit (cumulative count, value) at each
-    // value transition. Output size = K + 1, where K is the number of
-    // distinct values.
+    const double N = Wtotal;
+
+    // Walk through sorted (v, w) and emit one row per distinct value.
     std::vector<double> fs, xs;
+    std::vector<double> at_risk;   // n_i (for Nelson-Aalen and Greenwood)
+    std::vector<double> events;    // d_i (events at this distinct value)
     fs.push_back(0.0);
-    xs.push_back(v[0]);  // F = 0 at x = min(y)
+    xs.push_back(vw.front().first);  // F = 0 at x = min(y)
+    at_risk.push_back(N);
+    events.push_back(0.0);
+
+    double cum_w = 0.0;
     size_t i = 0;
-    while (i < N) {
+    while (i < vw.size()) {
         size_t j = i + 1;
-        while (j < N && v[j] == v[i]) ++j;
-        // j - i copies of v[i]; cumulative count after this group is j.
-        fs.push_back(static_cast<double>(j) / static_cast<double>(N));
-        xs.push_back(v[i]);
+        double w_block = vw[i].second;
+        while (j < vw.size() && vw[j].first == vw[i].first) {
+            w_block += vw[j].second;
+            ++j;
+        }
+        const double n_i = N - cum_w;       // at-risk just before this event
+        cum_w += w_block;
+        fs.push_back(cum_w / N);
+        xs.push_back(vw[i].first);
+        at_risk.push_back(n_i);
+        events.push_back(w_block);
         i = j;
     }
 
     const size_t L = fs.size();
-    Value fOut = Value::matrix(L, 1, ValueType::DOUBLE, mr);
-    Value xOut = Value::matrix(L, 1, ValueType::DOUBLE, mr);
-    double *fd = fOut.doubleDataMut();
-    double *xd = xOut.doubleDataMut();
-    for (size_t k = 0; k < L; ++k) { fd[k] = fs[k]; xd[k] = xs[k]; }
-    return {std::move(fOut), std::move(xOut)};
+
+    // Apply Function mode.
+    auto lower = [](std::string s) {
+        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        return s;
+    };
+    const std::string mode = lower(function_mode);
+    std::vector<double> ff(L);
+    if (mode == "cdf" || mode.empty()) {
+        for (size_t k = 0; k < L; ++k) ff[k] = fs[k];
+    } else if (mode == "survivor") {
+        for (size_t k = 0; k < L; ++k) ff[k] = 1.0 - fs[k];
+    } else if (mode == "cumulative hazard" || mode == "cumhazard") {
+        // Nelson-Aalen estimator: H(x) = sum over t_i ≤ x of d_i / n_i.
+        ff[0] = 0.0;
+        double H = 0.0;
+        for (size_t k = 1; k < L; ++k) {
+            if (at_risk[k] > 0.0) H += events[k] / at_risk[k];
+            ff[k] = H;
+        }
+    } else {
+        throw Error("ecdf: unknown Function mode '" + mode + "'",
+                    0, 0, "ecdf", "", "m:ecdf:badmode");
+    }
+
+    R.f = Value::matrix(L, 1, ValueType::DOUBLE, mr);
+    R.x = Value::matrix(L, 1, ValueType::DOUBLE, mr);
+    {
+        double *fd = R.f.doubleDataMut();
+        double *xd = R.x.doubleDataMut();
+        for (size_t k = 0; k < L; ++k) { fd[k] = ff[k]; xd[k] = xs[k]; }
+    }
+
+    if (!want_bounds) {
+        R.flo = Value::matrix(0, 1, ValueType::DOUBLE, mr);
+        R.fup = Value::matrix(0, 1, ValueType::DOUBLE, mr);
+        return R;
+    }
+
+    // Greenwood-style binomial Wald CI for cdf / survivor; analogous
+    // log-transform for cumulative hazard. Match MATLAB R2025b: first
+    // and last rows return NaN bounds.
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    R.flo = Value::matrix(L, 1, ValueType::DOUBLE, mr);
+    R.fup = Value::matrix(L, 1, ValueType::DOUBLE, mr);
+    double *lo = R.flo.doubleDataMut();
+    double *hi = R.fup.doubleDataMut();
+
+    // z = -norminv(α/2). For α=0.05 → ~1.959964.
+    const double z = std::sqrt(2.0) * [&]{
+        double e = 1.0 - alpha;
+        for (int it = 0; it < 50; ++it) {
+            const double f = std::erf(e) - (1.0 - alpha);
+            const double fp = (2.0 / std::sqrt(3.14159265358979323846))
+                              * std::exp(-e * e);
+            e -= f / fp;
+        }
+        return e;
+    }();
+    for (size_t k = 0; k < L; ++k) {
+        if (k == 0 || k == L - 1) { lo[k] = nan; hi[k] = nan; continue; }
+        const double F = ff[k];
+        const double se = std::sqrt(F * (1.0 - F) / N);
+        double l = F - z * se;
+        double h = F + z * se;
+        if (l < 0.0) l = 0.0;
+        if (h > 1.0) h = 1.0;
+        lo[k] = l;
+        hi[k] = h;
+    }
+    return R;
+}
+
+// Backward-compat 1-arg form.
+std::tuple<Value, Value>
+ecdf(std::pmr::memory_resource *mr, const Value &y)
+{
+    auto R = ecdf_full(mr, y, nullptr, "cdf", 0.05, false);
+    return {std::move(R.f), std::move(R.x)};
 }
 
 } // namespace numkit::stats

@@ -33,7 +33,6 @@ Status legend:
 | [findings/dim/pca.md](findings/dim/pca.md) | pca | stats.dim | low | small | f92087f |
 | [findings/dim/pcacov.md](findings/dim/pcacov.md) | pcacov | stats.dim | low | small | f92087f |
 | [findings/dim/pcares.md](findings/dim/pcares.md) | pcares | stats.dim | low | small | f92087f |
-| [findings/empirical/ecdf.md](findings/empirical/ecdf.md) | ecdf | stats.empirical | low | small | f92087f |
 | [findings/empirical/ksdensity.md](findings/empirical/ksdensity.md) | ksdensity | stats.empirical | low | small | f92087f |
 | [findings/lda/classify.md](findings/lda/classify.md) | classify | stats.lda | low | small | f92087f |
 | [findings/mvdist/mnpdf.md](findings/mvdist/mnpdf.md) | mnpdf | stats.mvdist | low | small | f92087f |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/wavelet/waverec.md](closed/wavelet/waverec.md) | waverec | PENDING | 2026-05-08 |
 | [closed/wavelet/appcoef.md](closed/wavelet/appcoef.md) | appcoef | PENDING | 2026-05-08 |
 | [closed/signal/envelope.md](closed/signal/envelope.md) | envelope | PENDING (partial) | 2026-05-08 |
+| [closed/empirical/ecdf.md](closed/empirical/ecdf.md) | ecdf | PENDING | 2026-05-08 |
 
 ---
 
