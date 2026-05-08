@@ -41,3 +41,12 @@ Mexican hat: `ψ(t) = (2/√3)·π^(-1/4)·(1-t²)·exp(-t²/2)`.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Pure spec coverage, no impl change. Numkit mexihat
+  already matched MATLAB exactly across all probed (LB, UB, N).
+  Spec extended from 4 to 9 fingerprints (N ∈ {8, 16, 64} on
+  [-5, 5] + asymmetric range [0, 5]). Parity OK numkit ↔ MATLAB
+  ↔ Octave at tol=1e-12. 4 TEST_F gtest + smoke.

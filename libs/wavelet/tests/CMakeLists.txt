@@ -21,6 +21,8 @@ target_sources(numkit_gtest PRIVATE
     # ── shapes ──────────────────────────────────────────────────
     ${CMAKE_CURRENT_SOURCE_DIR}/gauswavf_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cgauwavf_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mexihat_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/morlet_test.cpp
     # ── haar transform ──────────────────────────────────────────
     ${CMAKE_CURRENT_SOURCE_DIR}/haart_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ihaart_test.cpp
