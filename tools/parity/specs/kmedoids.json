@@ -1,0 +1,22 @@
+{
+  "name": "kmedoids",
+  "namespace": "stats",
+  "setup": "X = [0 0; 0.1 0; 0 0.1; 0.1 0.1; 5 5; 5.1 5; 5 5.1; 5.1 5.1; 10 0; 10.1 0; 10 0.1; 10.1 0.1];",
+  "expr": "[idx, C, sumd, D, midx, info] = kmedoids(X, 3); [idx2] = kmedoids(X, 3, 'Distance', 'cityblock'); [idx3, ~, sumd3] = kmedoids(X, 3, 'Replicates', 2);",
+  "iters": 3,
+  "tol": 1e-9,
+  "fingerprint": [
+    "numel(unique(idx))",
+    "double(idx(1)==idx(2))", "double(idx(1)==idx(3))", "double(idx(1)==idx(4))",
+    "double(idx(5)==idx(6))", "double(idx(5)==idx(7))", "double(idx(5)==idx(8))",
+    "double(idx(9)==idx(10))", "double(idx(9)==idx(11))", "double(idx(9)==idx(12))",
+    "double(idx(1)==idx(5))",
+    "size(C, 1)", "size(C, 2)",
+    "size(D, 1)", "size(D, 2)",
+    "size(midx, 1)",
+    "numel(unique(idx2))",
+    "double(idx2(1)==idx2(2))", "double(idx2(5)==idx2(6))",
+    "numel(unique(idx3))"
+  ],
+  "comment": "Sig: [idx, C, sumd, D, midx, info] = kmedoids(X, K, 'Distance'/'MaxIter'/'Replicates'/'Algorithm'/'Start', val, ...). Default Distance is 'sqeuclidean' (per R2025b — not 'euclidean'). Fingerprints are label-permutation-invariant (cluster counts + same-cluster boolean tests + output shapes) because RNG init differs between engines (joint with normrnd ТЗ for full label parity)."
+}
