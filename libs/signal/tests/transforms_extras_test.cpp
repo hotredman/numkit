@@ -87,6 +87,38 @@ TEST_F(TransformsExtrasTest, BitrevorderLength8)
     EXPECT_DOUBLE_EQ(evalScalar("y(8)"), 80.0);   // index 7 → 7
 }
 
+TEST_F(TransformsExtrasTest, BitrevorderTwoOutputs)
+{
+    // Bug fix 2026-05-08: 2nd output `I` was missing; now produces
+    // 1-based index vector such that Y(k) = X(I(k)).
+    eval("[Y, I] = bitrevorder([10 20 30 40 50 60 70 80]);");
+    EXPECT_DOUBLE_EQ(evalScalar("Y(1)"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("Y(2)"), 50.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(2)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(3)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(4)"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(5)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(8)"), 8.0);
+    // Algebraic identity: Y == X(I).
+    eval("X = [10 20 30 40 50 60 70 80]; diff = Y - X(I);");
+    for (int k = 1; k <= 8; ++k)
+        EXPECT_DOUBLE_EQ(evalScalar("diff(" + std::to_string(k) + ")"), 0.0);
+}
+
+TEST_F(TransformsExtrasTest, BitrevorderTwoOutputsLength4)
+{
+    eval("[Y, I] = bitrevorder([100 200 300 400]);");
+    EXPECT_DOUBLE_EQ(evalScalar("Y(1)"), 100.0);
+    EXPECT_DOUBLE_EQ(evalScalar("Y(2)"), 300.0);
+    EXPECT_DOUBLE_EQ(evalScalar("Y(3)"), 200.0);
+    EXPECT_DOUBLE_EQ(evalScalar("Y(4)"), 400.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(2)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(3)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(4)"), 4.0);
+}
+
 TEST_F(TransformsExtrasTest, BitrevorderRejectsNonPow2)
 {
     bool threw = false;

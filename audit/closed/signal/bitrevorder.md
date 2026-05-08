@@ -41,3 +41,16 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Implemented 2nd output `I` (gap #1). Adapter now reads
+  nargout and emits the 1-based index vector such that
+  `Y(k) = X(I(k))`; built by applying the same bit-reversal to
+  (1:N). Verified algebraic identity `Y == X(I)` element-wise via
+  gtest.
+
+  Spec extended from 1 to 24 fingerprints (1-output + 2-output for
+  N=4 and N=8). Parity OK numkit ↔ MATLAB ↔ Octave at tol=0
+  (integer-stable). 4 TEST_F gtest (existing 2 + 2 new) + smoke.

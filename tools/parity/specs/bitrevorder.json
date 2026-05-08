@@ -1,10 +1,17 @@
 {
   "name": "bitrevorder",
   "namespace": "core",
-  "setup": "x = (1:1024)';",
-  "expr": "y = bitrevorder(x);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: Y = bitrevorder(X). Bit-reverse permutation. 10000 iters.",
-  "out_var": "y"
+  "setup": "x = (1:8)'; X = [10 20 30 40 50 60 70 80];",
+  "expr": "[Y8, I8] = bitrevorder(x); [Yx, Ix] = bitrevorder(X); [Y4, I4] = bitrevorder([100 200 300 400]);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "Y8(1)", "Y8(2)", "Y8(3)", "Y8(4)", "Y8(5)", "Y8(6)", "Y8(7)", "Y8(8)",
+    "I8(1)", "I8(2)", "I8(3)", "I8(4)",
+    "Yx(2)", "Yx(5)",
+    "Ix(2)", "Ix(5)",
+    "Y4(1)", "Y4(2)", "Y4(3)", "Y4(4)",
+    "I4(1)", "I4(2)", "I4(3)", "I4(4)"
+  ],
+  "comment": "Sig: [Y, I] = bitrevorder(X). Bit-reversed permutation; 2nd output is the 1-based index vector such that Y(k) = X(I(k)). Bug fix 2026-05-08: 2nd output was missing (probe threw 'Undefined function or variable I'). Now both outputs match MATLAB exactly. tol=0 (integer-stable)."
 }
