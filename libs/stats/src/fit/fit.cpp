@@ -580,7 +580,8 @@ double evlike(std::pmr::memory_resource * /*mr*/, double mu, double sigma,
               const Value &x)
 {
     const size_t N = x.numel();
-    if (N == 0 || sigma <= 0.0) return std::numeric_limits<double>::infinity();
+    if (N == 0) return 0.0;                                  // matches MATLAB convention
+    if (!(sigma > 0.0)) return std::numeric_limits<double>::quiet_NaN();
     double sLin = 0.0, sExp = 0.0;
     for (size_t i = 0; i < N; ++i) {
         const double t = (x.elemAsDouble(i) - mu) / sigma;
@@ -588,6 +589,41 @@ double evlike(std::pmr::memory_resource * /*mr*/, double mu, double sigma,
         sExp += std::exp(t);
     }
     return double(N) * std::log(sigma) - sLin + sExp;
+}
+
+// Extended form: cens + freq.
+//   Gumbel-min (Type-I extreme value): density f(z) = (1/σ)·exp(z)·exp(-exp(z)).
+//   Uncensored contribution: log(σ) - z + exp(z), weight w.
+//   Right-censored contribution: -log S(z) = exp(z), weight w.
+double evlike_full(std::pmr::memory_resource * /*mr*/, double mu, double sigma,
+                   const Value &x, const Value &cens, const Value &freq)
+{
+    const size_t N = x.numel();
+    if (N == 0) return 0.0;
+    if (!(sigma > 0.0)) return std::numeric_limits<double>::quiet_NaN();
+    const bool useC = cens.numel() > 0;
+    const bool useF = freq.numel() > 0;
+    if (useC && cens.numel() != N)
+        throw Error("evlike: censoring must match the data length",
+                    0, 0, "evlike", "", "m:evlike:cens");
+    if (useF && freq.numel() != N)
+        throw Error("evlike: freq must match the data length",
+                    0, 0, "evlike", "", "m:evlike:freq");
+    const double inv_s = 1.0 / sigma;
+    const double logS  = std::log(sigma);
+    double nL = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double w = useF ? freq.elemAsDouble(i) : 1.0;
+        if (w == 0.0) continue;
+        const double xi = x.elemAsDouble(i);
+        if (std::isnan(xi)) return std::numeric_limits<double>::quiet_NaN();
+        const double z  = (xi - mu) * inv_s;
+        const double ez = std::exp(z);
+        const bool censored = useC && (cens.elemAsDouble(i) != 0.0);
+        if (censored)  nL += w * ez;                           // -log S(z)
+        else           nL += w * (logS - z + ez);              // -log f(z)
+    }
+    return nL;
 }
 
 double gevlike(std::pmr::memory_resource * /*mr*/, double k, double sigma,
@@ -1055,7 +1091,21 @@ void wbllike_reg(Span<const Value> args, size_t /*nargout*/,
 
 void evlike_reg(Span<const Value> args, size_t /*nargout*/,
                 Span<Value> outs, CallContext &ctx)
-{ like2_reg("evlike", &evlike, args, outs, ctx); }
+{
+    if (args.size() < 2 || args[0].numel() < 2)
+        throw Error("evlike: requires (params=[mu sigma], data[, cens, freq])",
+                    0, 0, "evlike", "", "m:evlike:nargin");
+    const double mu    = args[0].elemAsDouble(0);
+    const double sigma = args[0].elemAsDouble(1);
+    Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, ctx.engine->resource());
+    const Value &cens = (args.size() >= 3) ? args[2] : emptyVal;
+    const Value &freq = (args.size() >= 4) ? args[3] : emptyVal;
+    const double nL = evlike_full(ctx.engine->resource(), mu, sigma, args[1], cens, freq);
+    outs[0] = Value::scalar(nL, ctx.engine->resource());
+    // AVAR (2-output form): not yet implemented — observed Fisher info
+    // for Gumbel-min has nontrivial cross-terms; deferred. See
+    // audit/closed/stats/evlike.md for the partial-closure note.
+}
 
 void explike_reg(Span<const Value> args, size_t nargout,
                  Span<Value> outs, CallContext &ctx)

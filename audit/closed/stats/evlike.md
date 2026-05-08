@@ -76,3 +76,28 @@ params = [0, 1]
 
 - Type-I extreme value of the **maximum** form (Gumbel-max) — MATLAB
   uses Gumbel-min as the documented `evlike`, this stays the contract.
+
+## Closed (partial)
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Closed gaps #1, #2, #3, #5. Deferred gap #4 (AVAR).
+
+  **Implemented:**
+  1. Censored: `-log S(z) = exp(z)` per row, weight w (gap #1).
+  2. Frequency: weight uncensored contribution by `freq(i)` (gap #2).
+  3. Combined cens + freq (gap #3).
+  4. Edge fix: σ <= 0 -> NaN (was +Inf); empty data -> 0 (was +Inf).
+     Both match MATLAB R2025b convention (gap #5).
+
+  **Deferred — gap #4 (AVAR / 2-output form):** observed Fisher info
+  for Gumbel-min has nontrivial mixed partials:
+    H_μμ = -e^z/σ², H_μσ = (e^z(1+z)−1)/σ², H_σσ = (-1−2z+2z·e^z+z²·e^z)/σ².
+  A separate ТЗ should derive + verify these against MATLAB. (When
+  evaluated away from the MLE, AVAR can have negative diagonal
+  entries — MATLAB returns those as-is, so any future implementation
+  must match that quirk.) Tracking: file new ТЗ if `paramci`/`fitdist`
+  consumers start needing it.
+
+  Spec extended from 1 to 7 fingerprints (4 modes + 2 invalid σ +
+  empty). Parity OK numkit ↔ MATLAB at tol=1e-9. Octave's evlike
+  errors on empty data; we follow MATLAB. 6 TEST_F gtest + smoke.
