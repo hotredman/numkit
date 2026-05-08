@@ -1,0 +1,16 @@
+{
+  "name": "tpdf",
+  "namespace": "stats",
+  "setup": "xs = [-2 -1 0 1 2];",
+  "expr": "y_s = tpdf(0, 5); y_t = tpdf(1, 5); y_v = tpdf(xs, 10); y_inf0 = tpdf(0, Inf); y_inf1 = tpdf(1, Inf); y_inf25 = tpdf(2.5, Inf); y_big = tpdf(0, 1e10); y_n0 = tpdf(0, 0); y_nneg = tpdf(0, -1); y_nan = tpdf(NaN, 5);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "y_s", "y_t",
+    "y_v(1)", "y_v(3)", "y_v(5)",
+    "y_inf0", "y_inf1", "y_inf25",
+    "y_big",
+    "y_n0", "y_nneg", "y_nan"
+  ],
+  "comment": "Sig: y = tpdf(x, nu). Student's t PDF via lgamma-stable form. nu=Inf -> Gaussian limit (1/sqrt(2π))·exp(-x²/2). nu<=0 or NaN -> NaN. NaN x -> NaN."
+}

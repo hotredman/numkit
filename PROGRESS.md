@@ -2892,7 +2892,7 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `chi2inv` | ✅ | 0.012 | 73.76× | 1836.34× | OK | Sig: x = chi2inv(p, k). Inverse Chi² CDF with k dof. Covers k ∈ {1, 5, 30} × p ∈ {0.05, 0.5, 0.95} + p=0 (=> 0) + p=1 (=> Inf) + p outside [0,1] (=> NaN) + k<=0 (=> NaN). |
 | `chi2rnd` | ✅ |  |  |  | OK |  |
 | `chi2stat` | ✅ | 0.004 | 101.27× | 15.99× | OK | Sig: [m, v] = chi2stat(k). Chi² mean=k and variance=2k. Vectorised. k<=0 => NaN (moments don't exist for degenerate). |
-| `tpdf` | ✅ |  |  |  | OK | Student's t |
+| `tpdf` | ✅ | 0.008 | 164.21× | 94.15× | OK | Sig: y = tpdf(x, nu). Student's t PDF via lgamma-stable form. nu=Inf -> Gaussian limit (1/sqrt(2π))·exp(-x²/2). nu<=0 or NaN -> NaN. NaN x -> NaN. |
 | `tcdf` | ✅ |  |  |  | OK | betainc on z = ν/(ν+x²), branch by sign |
 | `tinv` | ✅ | 0.015 | 128.05× | 551.50× | OK | Sig: x = tinv(p, nu). Inverse Student's t-CDF. Uses betaincinv(2(1-p) or 2p, nu/2, 1/2) and signs by p<>0.5. nu=Inf -> Gaussian limit (norminv(p)). Edges: p=0 -> -Inf; p=1 -> +Inf; p outside [0,1] -> NaN; nu<=0 -> NaN. |
 | `trnd` | ✅ |  |  |  | OK | Z/√(X/ν), Z~N(0,1), X~χ²(ν) |

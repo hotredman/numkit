@@ -50,8 +50,15 @@ double scalarOf(const Value &v) { return v.toScalar(); }
 
 Value tpdf(std::pmr::memory_resource *mr, const Value &x, double nu)
 {
-    if (nu <= 0.0)
+    if (!(nu > 0.0))  // nu <= 0 or NaN
         return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+    // Gaussian limit: as nu -> Inf, t-PDF -> N(0, 1) PDF.
+    if (std::isinf(nu)) {
+        const double inv = 1.0 / std::sqrt(2.0 * M_PI);
+        return elementwise(mr, x, [inv](double xi){
+            return inv * std::exp(-0.5 * xi * xi);
+        });
+    }
     // log f(x) = lgamma((ν+1)/2) - lgamma(ν/2) - 0.5*log(ν π)
     //          - ((ν+1)/2) * log(1 + x²/ν)
     const double log_norm = std::lgamma(0.5 * (nu + 1.0))
