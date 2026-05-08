@@ -1,18 +1,18 @@
 {
   "name": "lscov",
   "namespace": "stats",
-  "setup": "A = [ones(4,1) (1:4)']; b = [1.1; 2.0; 3.05; 3.95];",
-  "expr": "[x, stdx, mse, S] = lscov(A, b);",
+  "setup": "A = [ones(5,1) (1:5)' [1 4 9 16 25]']; b = [1.1; 2.0; 3.05; 3.95; 5.1]; w = [1; 2; 1; 0.5; 1];",
+  "expr": "[x, stdx, mse, S] = lscov(A, b); [xw, sxw, msew] = lscov(A, b, w);",
   "iters": 5,
   "tol": 1e-9,
   "fingerprint": [
-    "x(1)",
-    "x(2)",
-    "stdx(1)",
-    "stdx(2)",
+    "x(1)", "x(2)", "x(3)",
+    "stdx(1)", "stdx(2)", "stdx(3)",
     "mse",
-    "S(1,1)",
-    "S(2,2)"
+    "S(1,1)", "S(2,2)", "S(3,3)",
+    "xw(1)", "xw(2)", "xw(3)",
+    "sxw(1)", "sxw(2)",
+    "msew"
   ],
-  "comment": "Sig: [x, stdx, mse, S] = lscov(A, b[, w]). Weighted least squares. With identity weights = OLS. mse = SSR/(N-p); S = mse·(A'WA)^(-1). Full N×N covariance V intentionally not yet supported."
+  "comment": "Sig: [x, stdx, mse, S] = lscov(A, b[, w]). Weighted least squares. mse = SSR/(N-p); S = mse·(A'WA)^(-1). Full N×N covariance V deferred (errors). Bit-identical to MATLAB R2025b on OLS and weighted paths."
 }
