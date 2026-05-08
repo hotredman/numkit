@@ -74,4 +74,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/unifpdf_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/unifinv_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wblpdf_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/wblinv_test.cpp
 )

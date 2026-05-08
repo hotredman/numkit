@@ -2929,7 +2929,7 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `lognstat` | ✅ | 0.009 | 46.35× | 31.11× | OK | Sig: [m, v] = lognstat(mu, sigma). Lognormal: m = exp(mu + sigma²/2), v = (exp(sigma²)-1)·exp(2mu + sigma²). Vectorised. sigma<=0 => NaN. |
 | `wblpdf` | ✅ | 0.010 | 60.68× | 82.59× | OK | Sig: y = wblpdf(x[, a, b]). Weibull PDF with scale a, shape b. Defaults a=1, b=1 (= exponential). Edges: x<0 -> 0; x=0 -> b/a if b=1, Inf if b<1, 0 if b>1; a<=0 or b<=0 -> NaN; NaN -> NaN. |
 | `wblcdf` | ✅ |  |  |  | OK |  |
-| `wblinv` | ✅ |  |  |  | OK |  |
+| `wblinv` | ✅ | 0.009 | 78.92× | 110.55× | OK | Sig: x = wblinv(p[, a, b]). Inverse Weibull CDF: x = a · (-log(1-p))^(1/b). Defaults a=1, b=1 (= exponential -log(1-p)). p=0 -> 0; p=1 -> Inf; p outside [0,1] -> NaN; a<=0, b<=0 -> NaN; NaN -> NaN. |
 | `wblrnd` | ✅ |  |  |  | OK |  |
 | `wblstat` | ✅ | 0.007 | 99.87× | 55.78× | OK | Sig: [m, v] = wblstat(a, b). Weibull(scale=a, shape=b): m = a·Γ(1+1/b), v = a²·(Γ(1+2/b) - Γ(1+1/b)²). Vectorised. a<=0 or b<=0 => NaN. |
 | `raylpdf` | ✅ | 0.005 | 184.23× | 47.40× | OK | Sig: y = raylpdf(x, b). Rayleigh PDF. x<0 → 0; x=0 → 0 (density at origin is 0). b<=0 → NaN. |
