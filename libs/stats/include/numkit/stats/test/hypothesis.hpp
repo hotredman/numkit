@@ -90,6 +90,13 @@ std::tuple<Value, Value, Value>
 vartestn(std::pmr::memory_resource *mr, const Value &x, const Value &group,
          double alpha);
 
+/// Full vartestn API with TestType selection. Returns (p, stat, df1, df2).
+/// test 0=Bartlett, 1=LeveneQuadratic, 2=LeveneAbsolute, 3=BrownForsythe,
+/// 4=OBrien. For Bartlett, df2 is NaN; for others, df1 = k-1, df2 = N-k.
+std::tuple<Value, Value, Value, Value>
+vartestn_full(std::pmr::memory_resource *mr,
+              const Value &x, const Value &group, int test);
+
 /// fishertest(T[, alpha, tail]) — Fisher's exact test for a 2×2
 /// contingency table T = [a b; c d]. Returns (h, p, OR, ci_lo, ci_hi)
 /// where OR is the odds ratio a·d/(b·c) and the 95% (or 1−α) Woolf

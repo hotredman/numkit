@@ -778,96 +778,231 @@ chi2gof(std::pmr::memory_resource *mr,
 }
 
 // ════════════════════════════════════════════════════════════════════
-// vartestn — Bartlett's k-sample variance test
+// vartestn — k-sample variance equality test (5 variants)
 // ════════════════════════════════════════════════════════════════════
+
+namespace {
+
+// Group buckets: parallel `ns` (per-group sample size) and `data`
+// (concatenated values, with `offsets[i]..offsets[i+1]`).
+struct Groups {
+    ScratchVec<size_t>  ns;        // size k
+    ScratchVec<size_t>  offsets;   // size k+1
+    ScratchVec<double>  data;      // total N
+    explicit Groups(std::pmr::memory_resource *mr)
+        : ns(mr), offsets(mr), data(mr) {}
+};
+
+Groups bucket_by_group(std::pmr::memory_resource *scratch_mr,
+                       const Value &x, const Value &group)
+{
+    const size_t Nx = x.numel();
+    Groups G(scratch_mr);
+    // First pass: collect distinct labels (preserving first-encounter
+    // order) + per-label counts; ignore NaN values/labels.
+    ScratchVec<double> labels(scratch_mr);  // distinct group labels
+    labels.reserve(8);
+    ScratchVec<size_t> counts(scratch_mr);
+    counts.reserve(8);
+    ScratchVec<int> bucket_for(Nx, -1, scratch_mr);
+    for (size_t i = 0; i < Nx; ++i) {
+        const double xi = x.elemAsDouble(i);
+        const double gi = group.elemAsDouble(i);
+        if (std::isnan(xi) || std::isnan(gi)) continue;
+        int b = -1;
+        for (size_t j = 0; j < labels.size(); ++j)
+            if (labels[j] == gi) { b = (int)j; break; }
+        if (b < 0) {
+            b = (int)labels.size();
+            labels.push_back(gi);
+            counts.push_back(0);
+        }
+        bucket_for[i] = b;
+        ++counts[(size_t)b];
+    }
+    const size_t k = labels.size();
+    G.ns.assign(counts.begin(), counts.end());
+    G.offsets.resize(k + 1);
+    G.offsets[0] = 0;
+    for (size_t i = 0; i < k; ++i) G.offsets[i + 1] = G.offsets[i] + counts[i];
+    G.data.resize(G.offsets[k]);
+    ScratchVec<size_t> cursor(k, 0, scratch_mr);
+    for (size_t i = 0; i < Nx; ++i) {
+        const int b = bucket_for[i];
+        if (b < 0) continue;
+        G.data[G.offsets[b] + cursor[b]++] = x.elemAsDouble(i);
+    }
+    return G;
+}
+
+// One-way ANOVA on Z values stored in groups buckets. Returns
+// (F, df1, df2, p).
+struct AnovaOut { double F, df1, df2, p; };
+AnovaOut anova1_on_groups(std::pmr::memory_resource *mr,
+                          const ScratchVec<double> &Z,
+                          const ScratchVec<size_t> &offsets,
+                          const ScratchVec<size_t> &ns)
+{
+    const size_t k = ns.size();
+    size_t N = 0;
+    for (size_t i = 0; i < k; ++i) N += ns[i];
+
+    // Group means.
+    ScratchVec<double> Zbar(k, 0.0, Z.get_allocator().resource());
+    double grand = 0.0;
+    for (size_t g = 0; g < k; ++g) {
+        double s = 0.0;
+        for (size_t j = offsets[g]; j < offsets[g + 1]; ++j) s += Z[j];
+        Zbar[g] = (ns[g] > 0) ? s / double(ns[g]) : 0.0;
+        grand += s;
+    }
+    grand /= double(N);
+
+    double SSB = 0.0, SSW = 0.0;
+    for (size_t g = 0; g < k; ++g) {
+        const double db = Zbar[g] - grand;
+        SSB += double(ns[g]) * db * db;
+        for (size_t j = offsets[g]; j < offsets[g + 1]; ++j) {
+            const double dw = Z[j] - Zbar[g];
+            SSW += dw * dw;
+        }
+    }
+    const double df1 = double(k - 1);
+    const double df2 = double(N - k);
+    const double MSB = SSB / df1;
+    const double MSW = SSW / df2;
+    const double F = (MSW > 0.0) ? MSB / MSW : 0.0;
+    Value Fv = Value::scalar(F, mr);
+    const double cdf = fcdf(mr, Fv, df1, df2).toScalar();
+    return {F, df1, df2, std::max(0.0, 1.0 - cdf)};
+}
+
+inline double median_sorted(double *a, size_t n) {
+    std::sort(a, a + n);
+    if (n & 1u) return a[n / 2];
+    return 0.5 * (a[n / 2 - 1] + a[n / 2]);
+}
+
+} // anonymous
+
+// Public API. test = 0 Bartlett, 1 LeveneQuadratic, 2 LeveneAbsolute,
+// 3 BrownForsythe, 4 OBrien.
+std::tuple<Value, Value, Value, Value>
+vartestn_full(std::pmr::memory_resource *mr,
+              const Value &x, const Value &group, int test)
+{
+    const size_t Nx = x.numel();
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    if (Nx == 0 || group.numel() != Nx)
+        throw Error("vartestn: x and group must be same length",
+                    0, 0, "vartestn", "", "m:vartestn:size");
+
+    ScratchArena scratch(mr);
+    Groups G = bucket_by_group(&scratch, x, group);
+    // Drop groups with <2 observations (no sample variance / can't ANOVA).
+    ScratchVec<size_t> ns(&scratch);   ns.reserve(G.ns.size());
+    ScratchVec<size_t> offsets(&scratch); offsets.push_back(0);
+    ScratchVec<double> data(&scratch); data.reserve(G.data.size());
+    for (size_t g = 0; g < G.ns.size(); ++g) {
+        if (G.ns[g] < 2) continue;
+        ns.push_back(G.ns[g]);
+        for (size_t j = G.offsets[g]; j < G.offsets[g + 1]; ++j)
+            data.push_back(G.data[j]);
+        offsets.push_back(data.size());
+    }
+    const size_t k = ns.size();
+    if (k < 2) {
+        return std::make_tuple(Value::scalar(nan, mr),
+                               Value::scalar(0.0, mr),
+                               Value::scalar(double(k > 0 ? k - 1 : 0), mr),
+                               Value::scalar(nan, mr));
+    }
+    size_t N = 0;
+    for (auto n_i : ns) N += n_i;
+
+    // Per-group mean / median / variance.
+    ScratchVec<double> means(k, 0.0, &scratch);
+    ScratchVec<double> meds(k,  0.0, &scratch);
+    ScratchVec<double> vars(k,  0.0, &scratch);
+    for (size_t g = 0; g < k; ++g) {
+        const size_t lo = offsets[g], hi = offsets[g + 1];
+        double s = 0.0;
+        for (size_t j = lo; j < hi; ++j) s += data[j];
+        means[g] = s / double(ns[g]);
+        double s2 = 0.0;
+        for (size_t j = lo; j < hi; ++j) {
+            const double d = data[j] - means[g]; s2 += d * d;
+        }
+        vars[g] = s2 / double(ns[g] - 1);
+        // Median: copy + nth_element. Use scratch sort.
+        ScratchVec<double> tmp(data.begin() + lo, data.begin() + hi, &scratch);
+        meds[g] = median_sorted(tmp.data(), tmp.size());
+    }
+
+    if (test == 0) {
+        // Bartlett.
+        double Sp2_num = 0.0;
+        for (size_t i = 0; i < k; ++i) Sp2_num += double(ns[i] - 1) * vars[i];
+        const double Sp2 = Sp2_num / double(N - k);
+        double Q = double(N - k) * std::log(Sp2);
+        for (size_t i = 0; i < k; ++i) Q -= double(ns[i] - 1) * std::log(vars[i]);
+        double inv_sum = 0.0;
+        for (size_t i = 0; i < k; ++i) inv_sum += 1.0 / double(ns[i] - 1);
+        inv_sum -= 1.0 / double(N - k);
+        const double C = 1.0 + inv_sum / (3.0 * double(k - 1));
+        const double chisq = Q / C;
+        const double df = double(k - 1);
+        Value xv = Value::scalar(chisq, mr);
+        const double cdf = chi2cdf(mr, xv, df).toScalar();
+        const double p = std::max(0.0, 1.0 - cdf);
+        return std::make_tuple(Value::scalar(p, mr),
+                               Value::scalar(chisq, mr),
+                               Value::scalar(df, mr),
+                               Value::scalar(nan, mr));
+    }
+
+    // F-based tests: build Z values per observation.
+    ScratchVec<double> Z(data.size(), &scratch);
+    for (size_t g = 0; g < k; ++g) {
+        const size_t lo = offsets[g], hi = offsets[g + 1];
+        for (size_t j = lo; j < hi; ++j) {
+            const double v = data[j];
+            switch (test) {
+                case 1: { // LeveneQuadratic
+                    const double d = v - means[g]; Z[j] = d * d; break;
+                }
+                case 2: { // LeveneAbsolute
+                    Z[j] = std::fabs(v - means[g]); break;
+                }
+                case 3: { // BrownForsythe
+                    Z[j] = std::fabs(v - meds[g]); break;
+                }
+                case 4: { // OBrien
+                    const double n = double(ns[g]);
+                    const double dev = (v - means[g]) * (v - means[g]);
+                    Z[j] = ((n - 1.5) * n * dev - 0.5 * vars[g] * (n - 1.0))
+                           / ((n - 1.0) * (n - 2.0));
+                    break;
+                }
+                default:
+                    Z[j] = 0.0;
+            }
+        }
+    }
+    auto A = anova1_on_groups(mr, Z, offsets, ns);
+    return std::make_tuple(Value::scalar(A.p, mr),
+                           Value::scalar(A.F, mr),
+                           Value::scalar(A.df1, mr),
+                           Value::scalar(A.df2, mr));
+}
 
 std::tuple<Value, Value, Value>
 vartestn(std::pmr::memory_resource *mr, const Value &x, const Value &group,
          double /*alpha*/)
 {
-    const size_t Nx = x.numel();
-    if (Nx == 0 || group.numel() != Nx)
-        throw Error("vartestn: x and group must be same length",
-                    0, 0, "vartestn", "", "m:vartestn:size");
-
-    // Bucket observations by group label. Use string keys (covers numeric,
-    // char, and string labels uniformly via toString conversion semantics
-    // expected by callers — see partition logic below).
-    std::vector<double> labels(Nx);
-    std::vector<double> values(Nx);
-    for (size_t i = 0; i < Nx; ++i) {
-        labels[i] = group.elemAsDouble(i);
-        values[i] = x.elemAsDouble(i);
-    }
-
-    // Group by label.
-    std::vector<std::pair<double, std::vector<double>>> groups;
-    for (size_t i = 0; i < Nx; ++i) {
-        const double xi = values[i];
-        if (std::isnan(xi) || std::isnan(labels[i])) continue;
-        bool found = false;
-        for (auto &g : groups) {
-            if (g.first == labels[i]) {
-                g.second.push_back(xi);
-                found = true;
-                break;
-            }
-        }
-        if (!found) groups.push_back({labels[i], {xi}});
-    }
-
-    // Collect (n_i, var_i).
-    std::vector<size_t> ns;
-    std::vector<double> vars;
-    size_t N = 0;
-    for (auto &g : groups) {
-        const auto &vec = g.second;
-        const size_t n = vec.size();
-        if (n < 2) continue;  // group with <2 obs has no sample variance
-        double mean = 0.0;
-        for (double v : vec) mean += v;
-        mean /= double(n);
-        double s2 = 0.0;
-        for (double v : vec) { const double d = v - mean; s2 += d * d; }
-        s2 /= double(n - 1);
-        ns.push_back(n);
-        vars.push_back(s2);
-        N += n;
-    }
-    const size_t k = ns.size();
-    if (k < 2) {
-        // Fewer than 2 groups with ≥2 obs → degenerate, no test.
-        return std::make_tuple(Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr),
-                               Value::scalar(0.0, mr),
-                               Value::scalar(double(k > 0 ? k - 1 : 0), mr));
-    }
-
-    // Pooled sample variance.
-    double Sp2_num = 0.0;
-    for (size_t i = 0; i < k; ++i) Sp2_num += double(ns[i] - 1) * vars[i];
-    const double Sp2 = Sp2_num / double(N - k);
-
-    // Q.
-    double Q = double(N - k) * std::log(Sp2);
-    for (size_t i = 0; i < k; ++i) Q -= double(ns[i] - 1) * std::log(vars[i]);
-
-    // C.
-    double inv_sum = 0.0;
-    for (size_t i = 0; i < k; ++i) inv_sum += 1.0 / double(ns[i] - 1);
-    inv_sum -= 1.0 / double(N - k);
-    const double C = 1.0 + inv_sum / (3.0 * double(k - 1));
-
-    const double chisq = Q / C;
-    const double df = double(k - 1);
-
-    // p = 1 - chi2cdf(chisq, df).
-    Value xv = Value::scalar(chisq, mr);
-    const double cdf = chi2cdf(mr, xv, df).toScalar();
-    const double p = std::max(0.0, 1.0 - cdf);
-
-    return std::make_tuple(Value::scalar(p, mr),
-                           Value::scalar(chisq, mr),
-                           Value::scalar(df, mr));
+    auto [p, stat, df1, df2] = vartestn_full(mr, x, group, /*Bartlett*/ 0);
+    (void)df2;
+    return std::make_tuple(std::move(p), std::move(stat), std::move(df1));
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1660,27 +1795,84 @@ void chi2gof_reg(Span<const Value> args, size_t nargout,
 void vartestn_reg(Span<const Value> args, size_t nargout,
                   Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("vartestn: requires (X, GROUP)",
+    if (args.empty())
+        throw Error("vartestn: requires (X[, GROUP][, N-V pairs])",
                     0, 0, "vartestn", "", "m:vartestn:nargin");
     auto *mr = ctx.engine->resource();
-
-    double alpha = 0.05;
-    // Skip name-value pairs (Display, TestType, etc.) — only Bartlett supported.
-    for (size_t i = 2; i + 1 < args.size(); i += 2) {
+    auto lower = [](std::string s) {
+        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        return s;
+    };
+    // Parse: vartestn(X[, GROUP], N-V...). The 2nd arg is GROUP iff it's
+    // a non-string vector. If it's a string, no group given (matrix
+    // input form: each column = group).
+    int test = 0;  // Bartlett default
+    size_t nv_start = 1;
+    Value X = args[0];
+    Value G;
+    bool have_group = false;
+    if (args.size() >= 2 && !(args[1].isChar() || args[1].isString())) {
+        G = args[1];
+        have_group = true;
+        nv_start = 2;
+    }
+    for (size_t i = nv_start; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString()) break;
-        std::string name = args[i].toString();
-        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        if (name == "alpha") alpha = args[i + 1].toScalar();
-        // 'display' / 'testtype' silently ignored
+        const std::string name = lower(args[i].toString());
+        if (name == "testtype") {
+            const std::string v = lower(args[i + 1].toString());
+            if      (v == "bartlett")        test = 0;
+            else if (v == "levenequadratic") test = 1;
+            else if (v == "leveneabsolute")  test = 2;
+            else if (v == "brownforsythe")   test = 3;
+            else if (v == "obrien")          test = 4;
+            else throw Error("vartestn: unknown TestType '" + v + "'",
+                             0, 0, "vartestn", "", "m:vartestn:badtype");
+        }
+        // 'display' / 'alpha' silently ignored (Display has no console
+        // effect; alpha doesn't change p/stat output).
     }
 
-    auto [p, chisq, df] = vartestn(mr, args[0], args[1], alpha);
+    // Matrix-input form: build (values, group) where group encodes the
+    // column index of each observation.
+    if (!have_group) {
+        const size_t R = X.dims().rows();
+        const size_t C = X.dims().cols();
+        if (R == 0 || C < 2)
+            throw Error("vartestn: matrix input must have >=2 columns",
+                        0, 0, "vartestn", "", "m:vartestn:size");
+        ScratchArena scratch(mr);
+        ScratchVec<double> vv(R * C, &scratch);
+        ScratchVec<double> gg(R * C, &scratch);
+        for (size_t c = 0; c < C; ++c)
+            for (size_t r = 0; r < R; ++r) {
+                vv[c * R + r] = X.elemAsDouble(c * R + r);
+                gg[c * R + r] = double(c + 1);
+            }
+        Value Vx = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
+        Value Vg = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
+        std::copy(vv.begin(), vv.end(), Vx.doubleDataMut());
+        std::copy(gg.begin(), gg.end(), Vg.doubleDataMut());
+        X = std::move(Vx);
+        G = std::move(Vg);
+    }
+
+    auto [p, stat, df1, df2] = vartestn_full(mr, X, G, test);
     outs[0] = std::move(p);
     if (nargout > 1) {
         Value s = Value::structure(mr);
-        s.field("chisqstat") = chisq;
-        s.field("df")        = df;
+        if (test == 0) {
+            s.field("chisqstat") = stat;
+            s.field("df")        = df1;
+        } else {
+            s.field("fstat") = stat;
+            // df is a 1×2 row vector [df1 df2].
+            Value dfv = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+            double *dp = dfv.doubleDataMut();
+            dp[0] = df1.toScalar();
+            dp[1] = df2.toScalar();
+            s.field("df") = dfv;
+        }
         outs[1] = std::move(s);
     }
 }
