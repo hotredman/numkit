@@ -127,7 +127,6 @@ Status legend:
 | [findings/stats/lognpdf.md](findings/stats/lognpdf.md) | lognpdf | stats.dist | low | small | 105c2b4 |
 | [findings/stats/wblinv.md](findings/stats/wblinv.md) | wblinv | stats.dist | low | small | 105c2b4 |
 | [findings/stats/wblpdf.md](findings/stats/wblpdf.md) | wblpdf | stats.dist | low | small | 105c2b4 |
-| [findings/stats/wblstat.md](findings/stats/wblstat.md) | wblstat | stats.dist | low | small | 105c2b4 |
 
 ## Closed ТЗ
 
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/lognstat.md](closed/stats/lognstat.md) | lognstat | PENDING | 2026-05-07 |
 | [closed/stats/gamstat.md](closed/stats/gamstat.md) | gamstat | PENDING | 2026-05-07 |
 | [closed/stats/unifstat.md](closed/stats/unifstat.md) | unifstat | PENDING | 2026-05-07 |
+| [closed/stats/wblstat.md](closed/stats/wblstat.md) | wblstat | PENDING | 2026-05-07 |
 
 ---
 
