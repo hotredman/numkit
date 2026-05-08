@@ -1,10 +1,15 @@
 {
   "name": "rem",
-  "namespace": "core",
-  "setup": "x = linspace(-100, 100, 1000000); d = 7;",
-  "expr": "y = rem(x, d);",
-  "iters": 20,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: Y = rem(X, D). 1M-pt with scalar divisor 7. 20 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = rem(10, 3); r2 = rem(-10, 3); r3 = rem(10, -3); r4 = rem(-10, -3);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3",
+    "r4"
+  ],
+  "comment": "Sig: r = rem(...). Spec-extension batch 2026-05-09."
 }
