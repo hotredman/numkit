@@ -346,13 +346,14 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   }, [engineVersion]);
 
   /* ─────────────── helpers ─────────────── */
-  // Hard cap on console history. Without it, long REPL sessions or noisy
-  // scripts (especially loops with `disp` / `fprintf`) accumulate tens of
-  // thousands of <div>s in ConsolePane, which is the proven cause of the
-  // Electron renderer freezing into a white screen — V8 OOMs reconciling
-  // the React tree on every output append. 5000 lines is roughly the last
-  // 100 commands' worth of typical output.
+  // Hard caps. Without these, two state arrays in IDE grew unbounded and
+  // were the proven path to V8 OOM in long Electron sessions:
+  //   - `output` — ConsolePane renders one <div> per entry, so loops with
+  //     disp/fprintf push tens of thousands of nodes into the React tree.
+  //   - `figures` — each figure can hold a Z matrix or long x/y arrays;
+  //     scripts that forget `close all` accumulate them forever.
   const OUTPUT_CAP = 5000;
+  const FIGURE_CAP = 50;
   const addOutput = useCallback((items) => {
     setOutput((prev) => {
       for (const i of items) if (i.text === '__CLEAR__') return [];
@@ -417,7 +418,20 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       setFigures((prev) => {
         const map = new Map(prev.map((f) => [f.id, f]));
         for (const fig of result.figures) map.set(fig.id, fig);
-        return Array.from(map.values());
+        const list = Array.from(map.values());
+        // Hard cap to keep the renderer alive when scripts forget to
+        // `close all` between runs. Each figure can hold a Z matrix or
+        // long x/y arrays — accumulating without bound is the second
+        // most common path to V8 OOM after console output. Drop oldest
+        // (by arrival order: Map preserves insertion order) and warn so
+        // the user notices.
+        if (list.length > FIGURE_CAP) {
+          const dropped = list.length - FIGURE_CAP;
+          console.warn(`[IDE] Capped figures at ${FIGURE_CAP}; dropped ${dropped} oldest.`
+                     + ' Add `close all` between runs to avoid this.');
+          return list.slice(-FIGURE_CAP);
+        }
+        return list;
       });
       setPanels((p) => ({ ...p, figures: true }));
     }
@@ -481,7 +495,12 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       setFigures((prev) => {
         const map = new Map(prev.map((f) => [f.id, f]));
         for (const fig of result.figures) map.set(fig.id, fig);
-        return Array.from(map.values());
+        const list = Array.from(map.values());
+        if (list.length > FIGURE_CAP) {
+          console.warn(`[IDE] Capped figures at ${FIGURE_CAP} (debug); dropped ${list.length - FIGURE_CAP} oldest.`);
+          return list.slice(-FIGURE_CAP);
+        }
+        return list;
       });
       setPanels((p) => ({ ...p, figures: true }));
     }
@@ -845,6 +864,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
         activeTabName={activeTabData?.name}
         activeTabSource={activeTabData?.vfsPath ? activeTabData?.source : null}
         figureCount={figures.length}
+        outputCount={output.length}
         execTimeMs={execTimeMs}
         buildVersion={engineVersion}
         breakpointCount={activeBreakpoints.length}
