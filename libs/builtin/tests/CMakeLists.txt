@@ -10,6 +10,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/bitwise_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math_reductions_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/misc_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/strings_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/variables_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/controlflow_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/functions_test.cpp

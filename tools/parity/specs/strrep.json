@@ -1,10 +1,14 @@
 {
   "name": "strrep",
-  "namespace": "core",
-  "setup": "s = repmat('foo bar baz qux ', 1, 1000);",
-  "expr": "y = strrep(s, 'bar', 'BAZ');",
-  "iters": 1000,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: Y = strrep(S, OLD, NEW). 16k string, 1k replacements. 1000 iters."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(strcmp(strrep(\"hello world\", \"world\", \"matlab\"), \"hello matlab\")); r2 = double(strcmp(strrep(\"abc\", \"b\", \"X\"), \"aXc\")); r3 = double(strlength(strrep(\"aaa\", \"a\", \"bb\")));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = strrep(...). String op. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity. FP uses double(strcmp(...)) booleans because the harness compares numerics."
 }

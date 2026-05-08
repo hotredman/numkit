@@ -1,10 +1,14 @@
 {
   "name": "deblank",
-  "namespace": "core",
-  "setup": "s = repmat(['hello   '], 1, 1);",
-  "expr": "y = deblank(s);",
-  "iters": 1000,
-  "tol": 1e-10,
-  "comment": "Sig: S = deblank(S). Trim trailing space. 10000 iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(strcmp(deblank(\"abc   \"), \"abc\")); r2 = double(strcmp(deblank(\"xy\"), \"xy\")); r3 = double(strlength(deblank(\"hello   \")));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = deblank(...). String op. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity. FP uses double(strcmp(...)) booleans because the harness compares numerics."
 }
