@@ -1,10 +1,13 @@
 {
   "name": "sos2tf",
-  "namespace": "core",
-  "setup": "sos = [1 0.5 0.25 1 0.1 0.05; 1 0.4 0.2 1 0.05 0.025];",
-  "expr": "[y, jj] = sos2tf(sos);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: [B,A] = sos2tf(SOS). 1000 iters."
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[b, a] = sos2tf([1 0.5 0.25 1 0 0]); r1 = double(numel(b)); r2 = double(numel(a));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = sos2tf(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }

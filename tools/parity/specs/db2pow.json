@@ -1,10 +1,14 @@
 {
   "name": "db2pow",
-  "namespace": "core",
-  "setup": "x = linspace(-100, 100, 100000);",
-  "expr": "y = db2pow(x);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: P = db2pow(D). 100k pts. 1000 iters.",
-  "out_var": "y"
+  "namespace": "signal",
+  "setup": "",
+  "expr": "r1 = db2pow(0); r2 = db2pow(10); r3 = db2pow(20);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = db2pow(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }

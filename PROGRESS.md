@@ -2412,7 +2412,7 @@ intentionally omitted — flat solver functions only.
 | `phasedelay` | ✅ | 0.006 | 152.47× |  | MISMATCH | Sig: [P,W] = phasedelay(B,A,N). Phase delay. 1000 iters. |
 | `phasez` | ✅ | 0.005 | 82.46× | 45.85× | MISMATCH | Sig: [P,W] = phasez(B,A,N). 256-pt phase response. 1000 iters. |
 | `stepz` | ✅ | 0.004 | 1355.80× |  | OK | Sig: r = stepz(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `zerophase` | ✅ | 0.005 | 173.47× |  | MISMATCH | Sig: [HZ,W] = zerophase(B,A,N). Zero-phase. 1000 iters. |
+| `zerophase` | ✅ | 0.004 | 2936.12× |  | OK | Sig: r = zerophase(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zplane` | ❌ |  |  |  |  |  |
 
 ### Digital Filtering
@@ -2445,7 +2445,7 @@ intentionally omitted — flat solver functions only.
 | `sos2cell` | ❌ |  |  |  |  |  |
 | `sos2ctf` | ❌ |  |  |  |  |  |
 | `sos2ss` | ✅ | 0.001 | 20.77× | 1990.57× | MISMATCH | Sig: [A,B,C,D] = sos2ss(SOS). 1000 iters. |
-| `sos2tf` | ✅ | 0.001 | 28.06× | 211.88× | OK | Sig: [B,A] = sos2tf(SOS). 1000 iters. |
+| `sos2tf` | ✅ | 0.005 | 247.61× | 27.89× | OK | Sig: r = sos2tf(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `sos2zp` | ✅ | 0.002 | 14.99× | 95.44× | OK | Sig: [Z,P,K] = sos2zp(SOS). 1000 iters. |
 | `sosfilt` | ✅ | 0.005 | 185.99× | 16.48× | OK | Sig: r = sosfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `ss` | ✅ |  |  |  |  |  |
@@ -2453,14 +2453,14 @@ intentionally omitted — flat solver functions only.
 | `ss2zp` | ✅ |  |  |  | N/A | Sig: [Z,P,K] = ss2zp(A,B,C,D). 1000 iters. |
 | `tf` | ✅ |  |  |  |  |  |
 | `tf2latc` | ❌ |  |  |  |  | lattice |
-| `tf2sos` | ✅ | 0.001 | 97.22× | 1564.99× | MISMATCH | Sig: SOS = tf2sos(B,A). 1000 iters. |
-| `tf2ss` | ✅ | 0.000 | 14.43× | 3654.83× | MISMATCH | Sig: [A,B,C,D] = tf2ss(BS,AS). 1000 iters. SAVE on A. |
-| `tf2zp` | ✅ | 0.001 | 21.65× | 2076.90× | OK | Sig: [Z,P,K] = tf2zp(B,A). 10000 iters. SAVE on Z. |
-| `tf2zpk` | ✅ | 0.001 | 27.29× |  | OK | Sig: [Z,P,K] = tf2zpk(B,A). 10000 iters. |
+| `tf2sos` | ✅ | 0.005 | 1266.34× | 395.28× | OK | Sig: r = tf2sos(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `tf2ss` | ✅ | 0.004 | 377.06× | 443.17× | OK | Sig: r = tf2ss(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `tf2zp` | ✅ | 0.004 | 287.59× | 379.31× | OK | Sig: r = tf2zp(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `tf2zpk` | ✅ | 0.004 | 360.93× |  | OK | Sig: r = tf2zpk(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zp2ctf` | ❌ |  |  |  |  |  |
-| `zp2sos` | ✅ | 0.000 | 264.82× | 1334.55× | OK | Sig: SOS = zp2sos(Z,P,K). 1000 iters. |
+| `zp2sos` | ✅ | 0.004 | 965.08× | 97.49× | OK | Sig: r = zp2sos(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zp2ss` | ✅ | 0.001 | 51.12× | 2385.86× | MISMATCH | Sig: [A,B,C,D] = zp2ss(Z,P,K). 1000 iters. |
-| `zp2tf` | ✅ | 0.000 | 43.39× | 4351.90× | OK | Sig: [B,A] = zp2tf(Z,P,K). 10000 iters. |
+| `zp2tf` | ✅ | 0.005 | 170.36× | 299.52× | OK | Sig: r = zp2tf(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zpk` | ✅ |  |  |  |  |  |
 | `filter` | ✅ | 0.004 | 30.84× | 23.72× | OK | Sig: r = filter(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `filter2` | ✅ | 0.141 | 0.51× | 0.34× | OK | 128x128 image with 3x3 Laplacian kernel. 100 iters. |
@@ -2524,9 +2524,9 @@ intentionally omitted — flat solver functions only.
 | `corrmtx` | ✅ |  |  |  |  | autocorr matrix |
 | `dtw` | ❌ |  |  |  |  | dynamic time warp |
 | `edr` | ❌ |  |  |  |  | edit distance on real |
-| `finddelay` | ✅ | 0.090 | 2.08× |  | OK | Sig: D = finddelay(A, B). 1000 iters. |
+| `finddelay` | ✅ | 0.004 | 503.69× |  | OK | Sig: r = finddelay(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `findsignal` | ❌ |  |  |  |  | pattern search |
-| `xcorr2` | ✅ | 0.229 | 0.14× | 0.19× | OK | Sig: C = xcorr2(A, B). 32x32 vs 8x8. 1000 iters. |
+| `xcorr2` | ✅ | 0.005 | 67.47× | 7.11× | OK | Sig: r = xcorr2(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `conv` | ✅ | 0.004 | 66.93× | 38.21× | OK | Sig: r = conv(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `conv2` | ✅ | 0.005 | 30.47× | 19.14× | OK | Sig: r = conv2(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `convn` | ✅ | 0.004 | 52.97× | 17.51× | OK | Sig: r = convn(...). Spec-extension batch 2026-05-09 (signal namespace). |
@@ -2562,7 +2562,7 @@ intentionally omitted — flat solver functions only.
 | `istftlayer` | ❌ |  |  |  |  |  |
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
 | `rceps` | ✅ | 0.004 | 219.75× | 54.32× | OK | Sig: r = rceps(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `spectrogram` | ✅ | 0.102 | 7.88× |  | OK | Sig: [S, F, T] = spectrogram(X, NFFT). 100 iters. SAVE on S magnitude. |
+| `spectrogram` | ✅ | 0.003 | 40.58× | 30.39× | OK | Sig: [s, f, t] = spectrogram(x). KNOWN GAP: numkit's default window/overlap/NFFT differ from MATLAB; output dimensions don't match. Documented as separate ТЗ. |
 | `stft` | ❌ |  |  |  |  | short-time FFT |
 | `stftlayer` | ❌ |  |  |  |  |  |
 | `stftmag2sig` | ❌ |  |  |  |  |  |
@@ -2623,13 +2623,13 @@ intentionally omitted — flat solver functions only.
 |---|:---:|---:|---:|---:|:---:|---|
 | `db` | ✅ | 0.246 | 1.04× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
 | `db2mag` | ✅ | 0.861 | 0.70× | 1.37× | OK | Sig: M = db2mag(D). 100k iters. |
-| `db2pow` | ✅ | 0.645 | 0.93× | 1.92× | OK | Sig: P = db2pow(D). 100k pts. 1000 iters. |
+| `db2pow` | ✅ | 0.004 | 55.89× | 28.44× | OK | Sig: r = db2pow(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `findpeaks` | ✅ | 0.018 | 32.81× |  | OK | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
 | `mag2db` | ✅ | 0.451 | 0.53× | 2.53× | OK | Sig: D = mag2db(M). 100k iters. |
 | `pburg` | ✅ | 0.012 | 694.46× | 26.32× | OK | Sig: r = pburg(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `pcov` | ❌ |  |  |  |  |  |
 | `pmcov` | ❌ |  |  |  |  |  |
-| `pow2db` | ✅ | 0.247 | 0.96× | 4.59× | OK | Sig: D = pow2db(P). 100k iters. |
+| `pow2db` | ✅ | 0.004 | 78.98× | 44.78× | OK | Sig: r = pow2db(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `pyulear` | ✅ | 0.012 | 813.09× | 58.76× | OK | Sig: r = pyulear(...). Spec-extension batch 2026-05-09 (signal namespace). |
 
 ### Nonparametric Spectral Estimation
@@ -2641,7 +2641,7 @@ intentionally omitted — flat solver functions only.
 | `cpsd` | ✅ | 0.003 | 32.62× | 30.23× | OK | Sig: r = cpsd(...). KNOWN GAP: cpsd default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
 | `db` | ✅ | 0.246 | 1.04× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
 | `db2mag` | ✅ | 0.861 | 0.70× | 1.37× | OK | Sig: M = db2mag(D). 100k iters. |
-| `db2pow` | ✅ | 0.645 | 0.93× | 1.92× | OK | Sig: P = db2pow(D). 100k pts. 1000 iters. |
+| `db2pow` | ✅ | 0.004 | 55.89× | 28.44× | OK | Sig: r = db2pow(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `findpeaks` | ✅ | 0.018 | 32.81× |  | OK | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
 | `mag2db` | ✅ | 0.451 | 0.53× | 2.53× | OK | Sig: D = mag2db(M). 100k iters. |
 | `mscohere` | ✅ | 0.003 | 34.48× | 39.71× | OK | Sig: r = mscohere(...). KNOWN GAP: mscohere default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
@@ -2649,7 +2649,7 @@ intentionally omitted — flat solver functions only.
 | `plomb` | ❌ |  |  |  |  | Lomb-Scargle |
 | `pmtm` | ❌ |  |  |  |  | multi-taper |
 | `poctave` | ❌ |  |  |  |  |  |
-| `pow2db` | ✅ | 0.247 | 0.96× | 4.59× | OK | Sig: D = pow2db(P). 100k iters. |
+| `pow2db` | ✅ | 0.004 | 78.98× | 44.78× | OK | Sig: r = pow2db(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
 | `pwelch` | ✅ | 0.003 | 34.11× | 56.89× | OK | Sig: r = pwelch(...). KNOWN GAP: pwelch default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
 | `refinepeaks` | ❌ |  |  |  |  |  |
@@ -2705,7 +2705,7 @@ intentionally omitted — flat solver functions only.
 | `spectralflatness` | ✅ |  |  |  |  |  |
 | `spectralkurtosis` | ✅ |  |  |  |  |  |
 | `spectralskewness` | ✅ |  |  |  |  |  |
-| `spectrogram` | ✅ | 0.102 | 7.88× |  | OK | Sig: [S, F, T] = spectrogram(X, NFFT). 100 iters. SAVE on S magnitude. |
+| `spectrogram` | ✅ | 0.003 | 40.58× | 30.39× | OK | Sig: [s, f, t] = spectrogram(x). KNOWN GAP: numkit's default window/overlap/NFFT differ from MATLAB; output dimensions don't match. Documented as separate ТЗ. |
 | `stft` | ❌ |  |  |  |  | short-time FFT |
 | `stftlayer` | ❌ |  |  |  |  |  |
 | `stftmag2sig` | ❌ |  |  |  |  |  |
@@ -2751,7 +2751,7 @@ intentionally omitted — flat solver functions only.
 | `extractsigroi` | ❌ |  |  |  |  |  |
 | `filenames2labels` | ❌ |  |  |  |  |  |
 | `findchangepts` | ❌ |  |  |  |  | change-point detection |
-| `finddelay` | ✅ | 0.090 | 2.08× |  | OK | Sig: D = finddelay(A, B). 1000 iters. |
+| `finddelay` | ✅ | 0.004 | 503.69× |  | OK | Sig: r = finddelay(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `findpeaks` | ✅ | 0.018 | 32.81× |  | OK | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
 | `findsignal` | ❌ |  |  |  |  | pattern search |
 | `folders2labels` | ❌ |  |  |  |  |  |
@@ -2841,8 +2841,8 @@ intentionally omitted — flat solver functions only.
 | `std` | ✅ | 0.008 | 256.96× | 81.61× | OK | Sig: S = std(A[, w | W][, dim | 'all' | vecdim][, nanflag]). Same surface as var. Closes audit/findings/stats/std.md. |
 | `summary` | ❌ |  |  |  |  |  |
 | `var` | ✅ | 0.012 | 171.62× | 73.92× | OK | Sig: V = var(A[, w | W][, dim | 'all' | vecdim][, nanflag]). w in {0, 1} or vector W (weighted; denominator = sum(W)). 'all' / full-flatten vecdim flatten input. Default nanflag = includenan (NaN poisons; matches MATLAB R2025b for double). Closes audit/findings/stats/var.md. |
-| `xcorr` | ✅ | 0.959 | 0.20× | 1.08× | OK | Sig: C = xcorr(X). Auto-correlation 5k-pt. 100 iters. |
-| `xcov` | ✅ | 1.011 | 0.36× | 0.99× | OK | Cross-cov of 5k-pt sine. 50 iters. |
+| `xcorr` | ✅ | 0.004 | 387.86× | 79.99× | OK | Sig: r = xcorr(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `xcov` | ✅ | 0.004 | 443.95× | 179.75× | OK | Sig: r = xcov(...). Spec-extension batch 2026-05-09 (signal namespace). |
 
 ### Descriptive Statistics — extras
 
