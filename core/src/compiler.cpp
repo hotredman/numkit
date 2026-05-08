@@ -2343,13 +2343,25 @@ uint8_t Compiler::compileCall(const ASTNode *node)
         }
     }
 
-    // Non-identifier call target (e.g. anonymous func expression called directly)
+    // Non-identifier call target (e.g. anonymous func expression called
+    // directly, or a chained indexing form like `s.field(end)` / `f(x)(i)`).
+    // For the indexing case, `end` inside the arg list must bind to numel /
+    // dimSize of the call target — without this guard it leaks the outer
+    // (possibly zero-init) indexContextArr_ and resolves to the wrong size.
+    // For function-handle invocation `end` isn't legal in MATLAB anyway, so
+    // binding the guard to fhReg is harmless there.
     if (funcNode->type != NodeType::IDENTIFIER) {
         uint8_t fhReg = compileNode(funcNode);
-        // Compile arguments
+        const size_t nargs = node->children.size() - 1;
         std::vector<uint8_t> argRegs;
-        for (size_t i = 1; i < node->children.size(); ++i)
-            argRegs.push_back(compileNode(node->children[i].get()));
+        argRegs.reserve(nargs);
+        {
+            IndexContextGuard guard(*this, fhReg, static_cast<uint8_t>(nargs));
+            for (size_t i = 1; i < node->children.size(); ++i) {
+                guard.setDim(static_cast<uint8_t>(i - 1));
+                argRegs.push_back(compileNode(node->children[i].get()));
+            }
+        }
         uint8_t argBase = nextReg_;
         for (size_t i = 0; i < argRegs.size(); ++i) {
             uint8_t slot = tempReg();

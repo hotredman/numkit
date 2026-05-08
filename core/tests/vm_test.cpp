@@ -1483,6 +1483,48 @@ TEST_F(VMTest, StressEnd2DRowCol)
     EXPECT_DOUBLE_EQ(runScalar(code), 6.0);
 }
 
+// `end` inside indexing on a struct field array must bind to numel of
+// the field, not the struct or any outer register. Regression: the
+// non-IDENTIFIER call path skipped the IndexContextGuard, leaving the
+// LOAD_END opcode pointed at register 0 — which on a workspace-imported
+// chunk happens to be the struct itself (numel = 1), so `s.a(end)` would
+// silently return `s.a(1)`.
+TEST_F(VMTest, EndOnStructFieldArray)
+{
+    const char *code = R"(
+        s = struct('a', [10 20 30 40 50 60]);
+        r = s.a(end);
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 60.0);
+}
+
+TEST_F(VMTest, EndOnStructFieldArray2D)
+{
+    const char *code = R"(
+        s = struct('M', reshape(1:12, 3, 4));
+        r = s.M(end, end);
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 12.0);
+}
+
+TEST_F(VMTest, EndOnNestedStructFieldArray)
+{
+    const char *code = R"(
+        s = struct('b', struct('a', [7 8 9]));
+        r = s.b.a(end);
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 9.0);
+}
+
+TEST_F(VMTest, EndOnCellIndexedArray)
+{
+    const char *code = R"(
+        c = {[100 200 300]};
+        r = c{1}(end);
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 300.0);
+}
+
 // --- Complex number edge cases ---
 
 TEST_F(VMTest, StressComplexArithmetic)

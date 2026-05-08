@@ -9,10 +9,10 @@
     "h1", "p1", "st1.chi2stat", "st1.df",
     "double(numel(st1.O))", "double(numel(st1.E))",
     "h2", "p2", "st2.chi2stat", "st2.df",
-    "double(numel(st2.edges))", "st2.O(1)", "st2.O(6)",
-    "st2.E(1)", "st2.E(6)",
+    "double(numel(st2.edges))", "st2.O(1)", "st2.O(end)",
+    "st2.E(1)", "st2.E(end)",
     "h3", "p3", "st3.chi2stat", "st3.df",
-    "st3.O(1)", "st3.O(4)", "st3.E(1)", "st3.E(4)"
+    "st3.O(1)", "st3.O(end)", "st3.E(1)", "st3.E(end)"
   ],
   "comment": "Sig: [h, p, stats] = chi2gof(x[, 'Frequency'/'Expected'/'Edges'/'NBins'/'Ctrs'/'NParams'/'EMin'/'Alpha', val, ...]). Three paths covered: explicit Frequency+Expected (bit-identical); explicit NBins (bit-identical, integer-aligned edges); explicit Edges (bit-identical). Default auto-bin (no NBins/Edges) uses 10 equal-width bins on min(x)..max(x); may differ from MATLAB at FP-edge ties (within 1 count). 'CDF' function-handle argument deferred (errors with clear message)."
 }
