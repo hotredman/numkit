@@ -1,0 +1,19 @@
+{
+  "name": "hygestat",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "[m_s, v_s] = hygestat(50, 20, 10); [m_v, v_v] = hygestat([50 100], 20, 10); [m_b, v_b] = hygestat(50, [10 20 30], 10); [m_K0, v_K0] = hygestat(50, 0, 10); [m_KM, v_KM] = hygestat(50, 50, 10); [m_N0, v_N0] = hygestat(50, 20, 0); m_M0 = hygestat(0, 0, 10); m_KgtM = hygestat(50, 60, 10); m_NgtM = hygestat(50, 20, 60);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "m_s", "v_s",
+    "m_v(1)", "m_v(2)",
+    "v_v(1)", "v_v(2)",
+    "m_b(1)", "m_b(2)", "m_b(3)",
+    "m_K0", "v_K0",
+    "m_KM", "v_KM",
+    "m_N0", "v_N0",
+    "m_M0", "m_KgtM", "m_NgtM"
+  ],
+  "comment": "Sig: [m, v] = hygestat(M, K, N). Hypergeometric: m = N·K/M, v = N·K·(M-K)·(M-N)/(M²(M-1)). Vectorised. K=0 / K=M / N=0 valid; M=0 / K>M / N>M / negative => NaN."
+}
