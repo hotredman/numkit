@@ -18,6 +18,41 @@ const http = require('http');
 // we set it at module top.
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=4096 --expose-gc');
 
+// ── File-based main-process logger ──────────────────────────────
+// electron-builder packs `--win portable` exes as the GUI subsystem,
+// so stdout/stderr are detached from any launching terminal. The
+// renderer's [heap-trace] is visible in DevTools, but [mem-trace]
+// from the main process otherwise has nowhere to go. Write to a
+// rolling file next to the exe so the user can attach it post-mortem.
+const LOG_PATH = path.join(
+  app.isPackaged ? path.dirname(process.execPath) : __dirname,
+  'numkit-ide.log'
+);
+function logToFile(level, ...args) {
+  try {
+    const line = `[${new Date().toISOString()}] [${level}] ${args.map(a =>
+      typeof a === 'string' ? a : JSON.stringify(a)
+    ).join(' ')}\n`;
+    fs.appendFileSync(LOG_PATH, line);
+  } catch { /* disk full, AV blocked write, etc. — silent */ }
+}
+// Rotate-on-launch: truncate if > 5 MB so the log doesn't grow forever.
+try {
+  const st = fs.statSync(LOG_PATH);
+  if (st.size > 5 * 1024 * 1024) fs.truncateSync(LOG_PATH, 0);
+} catch { /* file doesn't exist — fine, will be created on first append */ }
+logToFile('boot', `Numkit IDE main starting; LOG_PATH=${LOG_PATH}`);
+
+// Mirror console.{log,warn,error} to the file so [mem-trace] /
+// renderer-gone diagnostics are captured even when the terminal
+// can't see stdout.
+const origLog = console.log.bind(console);
+const origWarn = console.warn.bind(console);
+const origErr = console.error.bind(console);
+console.log = (...a) => { logToFile('log', ...a); origLog(...a); };
+console.warn = (...a) => { logToFile('warn', ...a); origWarn(...a); };
+console.error = (...a) => { logToFile('error', ...a); origErr(...a); };
+
 const IDE_DIR = path.resolve(__dirname, '..');
 const DIST_DIR = path.join(__dirname, 'dist');
 const IS_PROD = fs.existsSync(path.join(DIST_DIR, 'index.html'));
