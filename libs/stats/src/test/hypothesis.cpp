@@ -9,13 +9,16 @@
 #include <numkit/stats/distributions/binomial.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <memory_resource>
 #include <numeric>
+#include <random>
 #include <vector>
 
 namespace numkit::stats {
@@ -479,22 +482,17 @@ kstest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
 // jbtest — Jarque-Bera normality
 // ════════════════════════════════════════════════════════════════════
 
-std::tuple<Value, Value, Value, Value>
-jbtest(std::pmr::memory_resource *mr, const Value &x, double alpha)
-{
-    if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
-    const size_t N = x.numel();
-    if (N < 4)
-        throw Error("jbtest: need at least 4 samples", 0, 0, "jbtest", "",
-                    "m:jbtest:nsamples");
+namespace {
 
-    // Sample skewness and kurtosis (population formula — MATLAB default).
+// Compute the JB statistic for a sample (used by both the main entry
+// point and the Monte-Carlo H₀ simulator).
+inline double jb_stat(const double *x, size_t N) {
     double mean = 0.0;
-    for (size_t i = 0; i < N; ++i) mean += x.elemAsDouble(i);
+    for (size_t i = 0; i < N; ++i) mean += x[i];
     mean /= double(N);
     double m2 = 0.0, m3 = 0.0, m4 = 0.0;
     for (size_t i = 0; i < N; ++i) {
-        const double d = x.elemAsDouble(i) - mean;
+        const double d = x[i] - mean;
         const double d2 = d * d;
         m2 += d2;
         m3 += d2 * d;
@@ -503,21 +501,105 @@ jbtest(std::pmr::memory_resource *mr, const Value &x, double alpha)
     m2 /= double(N); m3 /= double(N); m4 /= double(N);
     const double S = (m2 > 0.0) ? m3 / std::pow(m2, 1.5) : 0.0;
     const double K = (m2 > 0.0) ? m4 / (m2 * m2) : 0.0;
+    return double(N) / 6.0 * (S * S + 0.25 * (K - 3.0) * (K - 3.0));
+}
 
-    // JB = n/6 · (S² + (K-3)²/4)  ~  χ²(2)
-    const double JB = double(N) / 6.0 * (S * S + 0.25 * (K - 3.0) * (K - 3.0));
-    Value JBv = Value::scalar(JB, mr);
-    const double cdf = chi2cdf(mr, JBv, 2.0).toScalar();
-    const double p = 1.0 - cdf;
+// Monte-Carlo p / critval for JB at sample size N. Iterates batches
+// until SE(p̂) < mctol or until iter cap. Uses a deterministic seed
+// (so spec output is reproducible). Returns (p, critval) where p is
+// MATLAB-capped at 0.5.
+struct JBMCResult { double p; double cv; };
+JBMCResult jb_montecarlo(size_t N, double JB_obs, double alpha, double mctol)
+{
+    // Hard caps: at most 1e6 reps, at least 1000 batch.
+    const size_t batch     = 1000;
+    const size_t max_reps  = 1'000'000;
+    const double cap_p     = 0.5;  // MATLAB caps p at 0.5
+
+    std::mt19937_64 gen(12345ULL);  // deterministic
+    std::normal_distribution<double> nd(0.0, 1.0);
+    std::vector<double> buf(N);
+    std::vector<double> JB_h0;
+    JB_h0.reserve(batch);
+
+    size_t total = 0, exceeds = 0;
+    while (total < max_reps) {
+        const size_t this_batch = std::min(batch, max_reps - total);
+        for (size_t i = 0; i < this_batch; ++i) {
+            for (size_t k = 0; k < N; ++k) buf[k] = nd(gen);
+            const double j = jb_stat(buf.data(), N);
+            JB_h0.push_back(j);
+            if (j >= JB_obs) ++exceeds;
+        }
+        total += this_batch;
+        const double p_hat = double(exceeds) / double(total);
+        const double se = std::sqrt(std::max(p_hat * (1.0 - p_hat), 1.0 / double(total))
+                                    / double(total));
+        if (se < mctol && total >= 3 * batch) break;
+    }
+    // Critical value: (1-alpha) quantile of the empirical H₀ distribution.
+    std::sort(JB_h0.begin(), JB_h0.end());
+    const double rank = (1.0 - alpha) * (double(JB_h0.size()) - 1.0);
+    const size_t lo = (size_t)std::floor(rank);
+    const size_t hi = std::min(lo + 1, JB_h0.size() - 1);
+    const double frac = rank - double(lo);
+    const double cv = JB_h0[lo] * (1.0 - frac) + JB_h0[hi] * frac;
+
+    double p = double(exceeds) / double(total);
+    if (p > cap_p) p = cap_p;
+    return {p, cv};
+}
+
+} // anonymous
+
+std::tuple<Value, Value, Value, Value>
+jbtest(std::pmr::memory_resource *mr, const Value &x, double alpha,
+       double mctol)
+{
+    if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
+    const size_t N = x.numel();
+    if (N < 4)
+        throw Error("jbtest: need at least 4 samples", 0, 0, "jbtest", "",
+                    "m:jbtest:nsamples");
+
+    // Read sample into a flat scratch buffer.
+    ScratchArena scratch(mr);
+    ScratchVec<double> xv(N, &scratch);
+    for (size_t i = 0; i < N; ++i) xv[i] = x.elemAsDouble(i);
+
+    const double JB = jb_stat(xv.data(), N);
+
+    // Path selection: use Monte Carlo for small samples by default
+    // (matching MATLAB's tabulated-p behavior); use χ²(2) asymptotic
+    // for large n. mctol overrides — when supplied, always use MC.
+    double p, cv;
+    const bool use_mc = std::isfinite(mctol) || N < 2000;
+    const double mctol_eff = std::isfinite(mctol) ? mctol : 1e-3;
+    if (use_mc) {
+        auto R = jb_montecarlo(N, JB, alpha, mctol_eff);
+        p  = R.p;
+        cv = R.cv;
+    } else {
+        Value JBv = Value::scalar(JB, mr);
+        const double cdf = chi2cdf(mr, JBv, 2.0).toScalar();
+        p = 1.0 - cdf;
+        Value oneMinusAlpha = Value::scalar(1.0 - alpha, mr);
+        cv = chi2inv(mr, oneMinusAlpha, 2.0).toScalar();
+    }
     const int h = (p < alpha) ? 1 : 0;
-
-    Value oneMinusAlpha = Value::scalar(1.0 - alpha, mr);
-    const double cv = chi2inv(mr, oneMinusAlpha, 2.0).toScalar();
 
     return std::make_tuple(Value::scalar(double(h), mr),
                            Value::scalar(p, mr),
                            Value::scalar(JB, mr),
                            Value::scalar(cv, mr));
+}
+
+// Backward-compat 2-arg form — uses MC for small N (n < 2000).
+std::tuple<Value, Value, Value, Value>
+jbtest(std::pmr::memory_resource *mr, const Value &x, double alpha)
+{
+    return jbtest(mr, x, alpha,
+                  std::numeric_limits<double>::quiet_NaN());
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1485,10 +1567,15 @@ void jbtest_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("jbtest: requires X[, alpha]", 0, 0, "jbtest", "",
+        throw Error("jbtest: requires X[, alpha[, mctol]]", 0, 0, "jbtest", "",
                     "m:jbtest:nargin");
     double alpha = parse_alpha(args, 1, 0.05);
-    auto [h, p, JB, cv] = jbtest(ctx.engine->resource(), args[0], alpha);
+    // 3rd arg = mctol (Monte-Carlo standard-error tolerance).
+    const double mctol = (args.size() > 2 && !args[2].isEmpty())
+                         ? args[2].toScalar()
+                         : std::numeric_limits<double>::quiet_NaN();
+    auto [h, p, JB, cv] = jbtest(ctx.engine->resource(), args[0],
+                                  alpha, mctol);
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(JB);
