@@ -43,8 +43,11 @@ Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
 
 Value gampdf(std::pmr::memory_resource *mr, const Value &x, double a, double b)
 {
-    if (a <= 0.0 || b <= 0.0)
+    // MATLAB: a<0 or b<=0 → NaN; a==0 → 0 (degenerate, all mass at 0).
+    if (a < 0.0 || b <= 0.0)
         return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+    if (a == 0.0)
+        return elementwise(mr, x, [](double){ return 0.0; });
     // log f(x) = (a-1) log x - x/b - a log b - lgamma(a)
     const double log_b = std::log(b);
     const double lga   = std::lgamma(a);
