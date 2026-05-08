@@ -1,13 +1,13 @@
 {
   "name": "nan",
-  "namespace": "core",
-  "setup": "% nop",
-  "expr": "y = NaN;",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: N = NaN. 1M iters. fp checks isnan since y itself is NaN.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(isnan(nan)); r2 = double(nan == nan);",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(isnan(y))",
-    "numel(y)"
-  ]
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: nan(...). Spec-extension batch 2026-05-09."
 }

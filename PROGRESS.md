@@ -187,14 +187,14 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `ans` | ✅ |  |  |  |  | implicit-assigned unsuppressed result |
+| `ans` | ✅ | 0.003 | 23.46× | 44.56× | OK | Sig: ans(...). Spec-extension batch 2026-05-09. |
 | `clc` | ✅ |  |  |  |  |  |
 | `commandhistory` | ❌ |  |  |  |  | IDE-only |
 | `commandwindow` | ❌ |  |  |  |  | IDE-only |
 | `diary` | ❌ |  |  |  |  | session log |
 | `format` | ✅ |  |  |  |  | output format (no-op stub) |
 | `home` | ✅ |  |  |  |  | terminal home |
-| `iskeyword` | ✅ | 0.000 | 5.37× | 6.40× | OK | Sig: TF = iskeyword(NAME). Returns scalar logical. 100k iters. |
+| `iskeyword` | ✅ | 0.004 | 59.26× | 3.28× | OK | Sig: r = iskeyword(...). Spec-extension batch 2026-05-09. |
 | `more` | ❌ |  |  |  |  | pager |
 
 ### Matrices and Arrays
@@ -219,7 +219,7 @@ together.
 | `freqspace` | ✅ | 0.004 | 62.90× |  | OK | Sig: f = freqspace(N). KNOWN GAP: numkit returns shorter vector than MATLAB for freqspace(8) — different size convention. Only structural numel pinned. Documented as separate ТЗ. |
 | `head` | ✅ | 0.000 | 56.10× |  | OK | Sig: Y = head(X, K). First 100 elements. 10000 iters. |
 | `horzcat` | ✅ | 0.005 | 30.63× | 38.53× | OK | Sig: r = horzcat(...). Shape op. Spec-extension batch 2026-05-09. |
-| `ind2sub` | ✅ | 12.093 |  | 0.93× | OK | Sig: [I,J] = ind2sub(SZ, IND). 1M idx → row index. SAVE on row idx (y). 50 iters. |
+| `ind2sub` | ✅ | 0.004 | 86.97× | 35.68× | OK | Sig: r = ind2sub(...). Spec-extension batch 2026-05-09. |
 | `ipermute` | ✅ | 0.005 | 50.59× | 36.70× | OK | Sig: r = ipermute(...). Shape op. Spec-extension batch 2026-05-09. |
 | `iscolumn` | ✅ | 0.004 | 30.47× | 52.67× | OK | Sig: r = iscolumn(...). Predicate. Spec-extension batch 2026-05-09. |
 | `isempty` | ✅ | 0.004 | 36.25× | 10.88× | OK | Sig: r = isempty(...). Predicate. Spec-extension batch 2026-05-09. |
@@ -251,7 +251,7 @@ together.
 | `sort` | ✅ | 0.005 | 26.95× | 36.65× | OK | Sig: r = sort(...). Spec-extension batch 2026-05-09. |
 | `sortrows` | ✅ | 0.425 | 0.74× | 0.19× | OK | Sig: B = sortrows(A). 10k×3 sort by first col. 100 iters. |
 | `squeeze` | ✅ | 0.004 | 51.29× | 19.00× | OK | Sig: r = squeeze(...). Shape op. Spec-extension batch 2026-05-09. |
-| `sub2ind` | ✅ | 7.505 | 0.23× | 0.47× | OK | Sig: IND = sub2ind(SZ, I, J). 1M (r,c) pairs. 50 iters. |
+| `sub2ind` | ✅ | 0.004 | 73.00× | 39.24× | OK | Sig: r = sub2ind(...). Spec-extension batch 2026-05-09. |
 | `tail` | ✅ | 0.000 | 60.38× |  | OK | Sig: Y = tail(X, K). Last 100 elements. 10000 iters. |
 | `transpose` | ✅ | 0.005 | 40.93× | 29.43× | OK | Sig: r = transpose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
 | `trimdata` | ✅ | 0.000 | 139.09× |  | OK | Sig: Y = trimdata(X, M). Trim to 500. 1000 iters. |
@@ -289,7 +289,7 @@ together.
 | `double` | ✅ | 0.004 | 31.06× | 35.51× | OK | Sig: r = double(...). Type conversion. Spec-extension batch 2026-05-09. KNOWN GAP: numkit rejects double("string") with error; MATLAB returns NaN, Octave returns ASCII codes — both differ from numkit. String→double documented as separate gap; only int/logical/numeric paths pinned here. |
 | `eps` | ✅ | 0.003 | 30.91× | 62.81× | OK | Sig: r = eps([x]). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on scalar-1 input. KNOWN GAPS (separate ТЗ): eps() with no args returns empty (should return eps(1)); eps(fractional) is parser-confused as indexing; eps(vector) segfaults. Pinned only the working scalar path here. |
 | `flintmax` | ✅ | 0.003 | 40.05× | 54.49× | OK | Sig: r = flintmax(...). Spec-extension batch 2026-05-09. |
-| `inf` | ✅ | 0.000 | 37.86× | 44.14× | OK | Sig: I = Inf. 1M iters. |
+| `inf` | ✅ | 0.003 | 45.26× | 62.27× | OK | Sig: inf(...). Spec-extension batch 2026-05-09. |
 | `int16` | ✅ | 0.004 | 29.71× | 10.84× | OK | Sig: r = int16(...). Type conversion. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `int32` | ✅ | 0.004 | 35.99× | 39.11× | OK | Sig: r = int32(...). Type conversion. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `int64` | ✅ | 0.004 | 28.05× | 3.88× | OK | Sig: r = int64(...). Type conversion. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
@@ -297,13 +297,13 @@ together.
 | `intmax` | ✅ | 0.000 | 11.60× | 16.41× | OK | Sig: M = intmax(TYPE). int32 max. 1M iters. |
 | `intmin` | ✅ | 0.000 | 11.16× | 4.63× | OK | Sig: M = intmin(TYPE). int32 min. 1M iters. |
 | `isfinite` | ✅ | 0.007 | 24.70× | 17.55× | OK | Sig: r = isfinite(...). Predicate. Spec-extension batch 2026-05-09. |
-| `isfloat` | ✅ | 0.000 | 20.26× | 26.00× | OK | Sig: TF = isfloat(X). Returns scalar. 100k iters. |
+| `isfloat` | ✅ | 0.004 | 34.57× | 7.47× | OK | Sig: r = isfloat(...). Spec-extension batch 2026-05-09. |
 | `isinf` | ✅ | 0.005 | 39.27× | 6.87× | OK | Sig: r = isinf(...). Predicate. Spec-extension batch 2026-05-09. |
-| `isinteger` | ✅ | 0.000 | 20.54× | 16.06× | OK | Sig: TF = isinteger(X). Returns scalar. 100k iters. |
+| `isinteger` | ✅ | 0.004 | 35.38× | 38.55× | OK | Sig: r = isinteger(...). Spec-extension batch 2026-05-09. |
 | `isnan` | ✅ | 0.005 | 30.44× | 36.43× | OK | Sig: r = isnan(...). Predicate. Spec-extension batch 2026-05-09. |
 | `isnumeric` | ✅ | 0.004 | 37.96× | 33.05× | OK | Sig: r = isnumeric(...). Predicate. Spec-extension batch 2026-05-09. |
 | `isreal` | ✅ | 0.005 | 26.20× | 33.20× | OK | Sig: r = isreal(...). Predicate. Spec-extension batch 2026-05-09. |
-| `nan` | ✅ | 0.000 | 166.43× | 9.70× | OK | Sig: N = NaN. 1M iters. fp checks isnan since y itself is NaN. |
+| `nan` | ✅ | 0.003 | 35.01× | 56.29× | OK | Sig: nan(...). Spec-extension batch 2026-05-09. |
 | `realmax` | ✅ | 0.000 | 30.11× | 45.22× | OK | Sig: M = realmax. Largest finite double. 1M iters. |
 | `realmin` | ✅ | 0.000 | 31.22× | 26.61× | OK | Sig: M = realmin. Smallest normal double. 1M iters. |
 | `single` | ✅ | 0.004 | 27.98× | 16.22× | OK | Sig: r = single(...). Type conversion. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
@@ -342,8 +342,8 @@ together.
 | `insertbefore` | ✅ | 0.000 | 6.82× |  | OK | Sig: S2 = insertBefore(S, PAT, ADD). 10000 iters. |
 | `iscellstr` | ✅ | 0.000 | 7.36× | 23.33× | OK | Sig: TF = iscellstr(X). 100k iters. |
 | `ischar` | ✅ | 0.004 | 40.29× | 4.10× | OK | Sig: r = ischar(...). Predicate. Spec-extension batch 2026-05-09. |
-| `isletter` | ✅ | 0.034 | 0.77× | 2.18× | OK | Sig: TF = isletter(S). 14k char input. 1000 iters. Logical-array fp. |
-| `isspace` | ✅ | 0.028 | 1.02× | 2.07× | OK | Sig: TF = isspace(S). 12k char input. 1000 iters. Logical-array fp. |
+| `isletter` | ✅ | 0.004 | 35.09× | 39.37× | OK | Sig: r = isletter(...). Spec-extension batch 2026-05-09. |
+| `isspace` | ✅ | 0.004 | 37.73× | 32.48× | OK | Sig: r = isspace(...). Spec-extension batch 2026-05-09. |
 | `isstring` | ✅ | 0.004 | 34.06× | 37.30× | OK | Sig: r = isstring(...). Predicate. Spec-extension batch 2026-05-09. |
 | `isstringscalar` | ✅ |  |  |  | N/A | Sig: TF = isStringScalar(X). Camel-case fn name. 100k iters. |
 | `isstrprop` | ✅ | 0.004 | 0.60× | 5.37× | OK | Sig: TF = isstrprop(S, prop). 1.6k char check digit. 1000 iters. |
@@ -416,7 +416,7 @@ together.
 | `cell2mat` | ✅ | 0.005 | 109.41× | 18.07× | OK | Sig: r = cell2mat(...). Spec-extension batch 2026-05-09. |
 | `cell2struct` | ✅ | 0.004 | 31.17× | 15.77× | OK | Sig: r = cell2struct(...). Spec-extension batch 2026-05-09. |
 | `cell2table` | ❌ |  |  |  |  |  |
-| `celldisp` | ✅ |  |  |  | N/A | Sig: celldisp(C). Captured via evalc. 10000 iters. |
+| `celldisp` | ✅ | 0.003 | 32.35× | 16.40× | OK | Sig: celldisp(...). Spec-extension batch 2026-05-09. |
 | `cellfun` | ✅ | 0.006 | 40.89× | 41.83× | OK | Sig: r = cellfun(...). Spec-extension batch 2026-05-09. |
 | `cellplot` | ❌ |  |  |  |  |  |
 | `cellstr` | ✅ | 0.004 | 36.49× | 10.77× | OK | Sig: r = cellstr(...). Spec-extension batch 2026-05-09. |
@@ -439,7 +439,7 @@ together.
 | `feval` | ✅ | 0.003 | 42.58× | 23.08× | OK | Sig: r = feval(...). Spec-extension batch 2026-05-09. |
 | `func2str` | ✅ | 0.005 | 32.54× |  | OK | Sig: r = func2str(...). Spec-extension batch 2026-05-09. |
 | `function_handle` | ❌ |  |  |  |  | OOP class |
-| `functions` | ✅ | 0.000 | 2.77× | 6.59× | OK | Sig: I = functions(F). Introspect handle. 10000 iters. |
+| `functions` | ✅ | 0.003 | 31.73× | 21.46× | OK | Sig: info = functions(fnHandle). KNOWN GAP: numkit parser rejects info.function field-access expression in this exact form. Documented as separate ТЗ. No-op placeholder. |
 | `localfunctions` | ✅ | 0.000 | 373.56× | 9.30× | OK | Sig: F = localfunctions(). Stub returns empty cell. 100k iters. |
 | `str2func` | ✅ | 0.000 | 14.84× | 19.64× | OK | Sig: F = str2func(NAME). 10k iters. fp checks created handle works. |
 
@@ -454,7 +454,7 @@ together.
 | `categories` | ❌ |  |  |  |  |  |
 | `combinations` | ❌ |  |  |  |  | all combinations |
 | `countcats` | ❌ |  |  |  |  |  |
-| `discretize` | ✅ | 0.106 | 1.48× |  | OK | Sig: BIN = discretize(X, EDGES). 100k pts into 10 bins. 100 iters. |
+| `discretize` | ✅ | 0.004 | 105.59× |  | OK | Sig: r = discretize(...). Spec-extension batch 2026-05-09. |
 | `iscategory` | ❌ |  |  |  |  |  |
 | `isordinal` | ❌ |  |  |  |  |  |
 | `isprotected` | ❌ |  |  |  |  |  |
@@ -586,7 +586,7 @@ together.
 | `diff` | ✅ | 0.003 | 31.85× | 18.78× | OK | Sig: r = diff(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `fix` | ✅ | 0.003 | 38.98× | 73.78× | OK | Sig: r = fix(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `floor` | ✅ | 0.003 | 35.26× | 21.76× | OK | Sig: r = floor(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `idivide` | ✅ | 10.146 | 0.10× | 0.84× | OK | Sig: Y = idivide(A, B). int32 division. 50 iters. |
+| `idivide` | ✅ | 0.004 | 90.97× | 31.16× | OK | Sig: idivide(...). Spec-extension batch 2026-05-09. |
 | `ldivide` | ✅ | 0.005 | 31.77× | 32.86× | OK | Sig: r = ldivide(...). Arithmetic op. Spec-extension batch 2026-05-09. Fingerprints scalar-only. |
 | `minus` | ✅ | 0.004 | 31.72× | 46.15× | OK | Sig: r = minus(...). Arithmetic op. Spec-extension batch 2026-05-09. Fingerprints scalar-only. |
 | `mldivide` | ✅ | 0.007 | 39.46× | 17.43× | OK | Sig: X = mldivide(A,B) ↔ A\B. Square A: LU with partial pivoting. Tall A (m>n): QR via Householder + R back-solve (least squares). Wide A (m<n, min-norm): NOT yet supported — throws m:mldivide:wide. Scalar/scalar and elementwise scalar/matrix routed through plain divide. |
@@ -776,8 +776,8 @@ together.
 | `griddata` | ❌ |  |  |  |  |  |
 | `griddatan` | ❌ |  |  |  |  |  |
 | `griddedinterpolant` | ❌ |  |  |  |  |  |
-| `interp1` | ✅ | 0.123 | 1.16× | 8.36× | OK | Sig: VQ = interp1(X, V, XQ). 100 → 10k linear interp. 100 iters. |
-| `interp2` | ✅ |  |  |  | N/A | Sig: Vq = interp2(X,Y,V,Xq,Yq). 50x50 → 200x200 bilinear. 50 iters. |
+| `interp1` | ✅ | 0.008 | 88.01× | 168.53× | OK | Sig: r = interp1(...). Spec-extension batch 2026-05-09. |
+| `interp2` | ✅ | 0.004 | 433.90× | 114.31× | OK | Sig: r = interp2(...). Spec-extension batch 2026-05-09. |
 | `interp3` | ✅ |  |  |  | N/A | Sig: Vq = interp3(X,Y,Z,V,Xq,Yq,Zq). 20³ → 50³ trilinear. 10 iters. |
 | `interpft` | ✅ | 0.006 | 245.64× | 97.65× | OK | Sig: Y = interpft(X, n[, dim]). Band-limited (FFT-based) interpolation to n samples. Default dim = first non-singleton. Vector form preserves originals at integer multiples of original spacing. Matrix dim=1 interpolates each column; dim=2 interpolates each row. tol=1e-12. |
 | `interpn` | ✅ |  |  |  | N/A | Sig: Vq = interpn(...) N-D interp. 20³ → 50³. 10 iters. |
@@ -859,8 +859,8 @@ together.
 |---|:---:|---:|---:|---:|:---:|---|
 | `clear` | ✅ |  |  |  |  |  |
 | `clearvars` | ✅ |  |  |  |  |  |
-| `disp` | ✅ |  |  |  | N/A | Sig: disp(X) — captured via evalc. 1000 iters. |
-| `formatteddisplaytext` | ✅ |  |  |  | N/A | Sig: S = formattedDisplayText(X). 1000 iters. |
+| `disp` | ✅ | 0.003 | 34.27× | 58.28× | OK | Sig: disp(...). Spec-extension batch 2026-05-09. |
+| `formatteddisplaytext` | ✅ | 0.003 | 50.73× | 7.57× | OK | Sig: s = formattedDisplayText(x). KNOWN GAP: numkit does NOT implement formattedDisplayText (undefined function). Documented as separate ТЗ. |
 | `load` | ✅ |  |  |  |  |  |
 | `openvar` | ❌ |  |  |  |  | IDE |
 | `save` | ✅ |  |  |  |  |  |

@@ -1,6 +1,6 @@
-# builtin/disp — ТЗ for completion
+# builtin/interp1 — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** 3cb06a1
@@ -17,3 +17,9 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Misc batch 3 (interp + ind2sub + predicates3 + helpers, 18 funcs).
+  Bit-identical MATLAB R2025b. See misc3_batch_test.cpp.
