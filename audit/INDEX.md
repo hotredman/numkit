@@ -108,7 +108,6 @@ Status legend:
 | [findings/stats/lognrnd.md](findings/stats/lognrnd.md) | lognrnd | stats.dist | medium | small | 105c2b4 |
 | [findings/stats/wblrnd.md](findings/stats/wblrnd.md) | wblrnd | stats.dist | medium | small | 105c2b4 |
 | [findings/stats/wblinv.md](findings/stats/wblinv.md) | wblinv | stats.dist | low | small | 105c2b4 |
-| [findings/stats/wblpdf.md](findings/stats/wblpdf.md) | wblpdf | stats.dist | low | small | 105c2b4 |
 
 ## Closed ТЗ
 
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/unidinv.md](closed/stats/unidinv.md) | unidinv | PENDING | 2026-05-08 |
 | [closed/stats/unifpdf.md](closed/stats/unifpdf.md) | unifpdf | PENDING | 2026-05-08 |
 | [closed/stats/unifinv.md](closed/stats/unifinv.md) | unifinv | PENDING | 2026-05-08 |
+| [closed/stats/wblpdf.md](closed/stats/wblpdf.md) | wblpdf | PENDING | 2026-05-08 |
 
 ---
 
