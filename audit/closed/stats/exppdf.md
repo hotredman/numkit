@@ -41,3 +41,11 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-07
+- Notes: Added 1-arg form `exppdf(x)` with default mu=1. 10
+  fingerprint spec covers default + non-default mu + vector x +
+  x<0 → 0 + mu<=0 → NaN. 5 TEST_F gtest + smoke. Parity OK
+  numkit ↔ MATLAB.

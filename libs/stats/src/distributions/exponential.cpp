@@ -99,9 +99,11 @@ namespace detail {
 
 void exppdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("exppdf: requires (x, mu)", 0, 0, "exppdf", "", "m:exppdf:nargin");
-    outs[0] = exppdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    if (args.empty())
+        throw Error("exppdf: requires (x[, mu])", 0, 0, "exppdf", "", "m:exppdf:nargin");
+    // MATLAB default: exppdf(x) ≡ exppdf(x, 1).
+    const double mu = (args.size() >= 2) ? args[1].toScalar() : 1.0;
+    outs[0] = exppdf(ctx.engine->resource(), args[0], mu);
 }
 
 void expcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

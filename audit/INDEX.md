@@ -65,7 +65,6 @@ Status legend:
 | [findings/wavelet/qmf.md](findings/wavelet/qmf.md) | qmf | wavelet.filt | low | small | 1c2df89 |
 | [findings/wavelet/wrev.md](findings/wavelet/wrev.md) | wrev | wavelet.filt | low | small | 1c2df89 |
 | [findings/stats/betarnd.md](findings/stats/betarnd.md) | betarnd | stats.dist | medium | small | 301e5a5 |
-| [findings/stats/exppdf.md](findings/stats/exppdf.md) | exppdf | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/exprnd.md](findings/stats/exprnd.md) | exprnd | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/gampdf.md](findings/stats/gampdf.md) | gampdf | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/gamrnd.md](findings/stats/gamrnd.md) | gamrnd | stats.dist | medium | small | 301e5a5 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/binostat.md](closed/stats/binostat.md) | binostat | PENDING | 2026-05-07 |
 | [closed/stats/binoinv.md](closed/stats/binoinv.md) | binoinv | PENDING | 2026-05-07 |
 | [closed/stats/binopdf.md](closed/stats/binopdf.md) | binopdf | PENDING | 2026-05-07 |
+| [closed/stats/exppdf.md](closed/stats/exppdf.md) | exppdf | PENDING | 2026-05-07 |
 
 ---
 
