@@ -1,0 +1,25 @@
+{
+  "name": "cluster",
+  "namespace": "stats",
+  "setup": "X = [1 1; 1.5 1.5; 5 5; 5.5 5.5; 10 10; 1 2; 6 6; 11 11]; Z = linkage(pdist(X));",
+  "expr": "T1 = cluster(Z, 'maxclust', 3); T2 = cluster(Z, 'cutoff', 0.5); T3 = cluster(Z, 'cutoff', 5); T4 = cluster(Z, 'cutoff', 1.2); T5 = cluster(Z, 'cutoff', 2, 'criterion', 'distance'); T6 = cluster(Z, 'cutoff', 0.5, 'depth', 4); T7 = cluster(Z, 'cutoff', 0.5, 'criterion', 'distance');",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "numel(unique(T1))",
+    "double(T1(1)==T1(2))", "double(T1(1)==T1(6))", "double(T1(3)==T1(4))",
+    "double(T1(3)==T1(7))", "double(T1(5)==T1(8))", "double(T1(1)==T1(3))",
+    "double(T1(1)==T1(5))",
+    "numel(unique(T2))",
+    "double(T2(1)==T2(2))", "double(T2(1)==T2(6))", "double(T2(3)==T2(4))",
+    "double(T2(3)==T2(7))", "double(T2(5)==T2(8))",
+    "numel(unique(T3))",
+    "numel(unique(T4))",
+    "numel(unique(T5))",
+    "double(T5(1)==T5(2))", "double(T5(3)==T5(4))",
+    "numel(unique(T6))",
+    "double(T6(1)==T6(2))", "double(T6(3)==T6(4))",
+    "numel(unique(T7))"
+  ],
+  "comment": "Sig: T = cluster(Z, 'maxclust'|'cutoff', val[, 'criterion', 'distance'|'inconsistent'][, 'depth', d]). Fingerprints are label-permutation-invariant (cluster counts + same-cluster boolean tests) because MATLAB / numkit / Octave assign different label IDs for the same partition. Default 'cutoff' criterion is 'inconsistent' (R2025b)."
+}
