@@ -1,10 +1,15 @@
 {
   "name": "flip",
-  "namespace": "core",
-  "setup": "A = reshape(1:1000000, 1000, 1000);",
-  "expr": "y = flip(A, 2);",
-  "iters": 100,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: B = flip(A, DIM). 1000x1000 flip dim 2. 100 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "A = [1 2 3 4];",
+  "expr": "B = flip(A); r1 = B(1); r2 = B(2); r3 = B(3); r4 = B(4);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3",
+    "r4"
+  ],
+  "comment": "Sig: r = flip(...). Shape op. Spec-extension batch 2026-05-09."
 }

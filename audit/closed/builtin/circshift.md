@@ -1,6 +1,6 @@
-# builtin/rot90 — ТЗ for completion
+# builtin/circshift — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** 789cbc7
@@ -19,3 +19,9 @@ benched input. Standard array/matrix manipulation function.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Shape-ops spec-extension batch (16 funcs). All bit-identical
+  MATLAB R2025b. See shape_batch_test.cpp + smoke + 16 specs.
