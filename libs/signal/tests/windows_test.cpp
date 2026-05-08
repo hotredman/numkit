@@ -120,6 +120,43 @@ TEST_F(WindowsTest, KaiserBetaZeroIsRectangular)
     }
 }
 
+TEST_F(WindowsTest, KaiserDefaultBeta)
+{
+    // Default beta = 0.5 (undocumented but real).
+    eval("w = kaiser(8);");
+    EXPECT_NEAR(evalScalar("w(1)"), 0.9403061933191572, 1e-12);
+}
+
+TEST_F(WindowsTest, KaiserBeta5)
+{
+    // beta=5 is Hamming-like.
+    eval("w = kaiser(16, 5);");
+    EXPECT_NEAR(evalScalar("w(1)"), 0.0367108922712867, 1e-12);
+    EXPECT_NEAR(evalScalar("w(8)"), 0.9901131036615318, 1e-12);
+}
+
+TEST_F(WindowsTest, KaiserBeta86)
+{
+    // beta=8.6 is Blackman-like.
+    eval("w = kaiser(64, 8.6);");
+    EXPECT_NEAR(evalScalar("w(1)"),  0.0013325139979024, 1e-12);
+    EXPECT_NEAR(evalScalar("w(32)"), 0.9989821470221683, 1e-12);
+}
+
+TEST_F(WindowsTest, KaiserBeta12)
+{
+    eval("w = kaiser(64, 12);");
+    EXPECT_NEAR(evalScalar("w(1)"),  0.0000527734413201, 1e-12);
+    EXPECT_NEAR(evalScalar("w(32)"), 0.9985536713337064, 1e-12);
+}
+
+TEST_F(WindowsTest, KaiserSinglePoint)
+{
+    // Length-1 window: always [1] regardless of beta.
+    eval("w = kaiser(1, 5);");
+    EXPECT_DOUBLE_EQ(evalScalar("w(1)"), 1.0);
+}
+
 // --- rectwin ---
 
 TEST_F(WindowsTest, RectwinAllOnes)

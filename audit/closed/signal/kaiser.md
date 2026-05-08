@@ -47,3 +47,16 @@ accepts `kaiser(L)` with `beta=0.5`.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Pure spec coverage, no impl change. Numkit kaiser already
+  matched MATLAB exactly across all probed (beta, N) pairs.
+
+  Spec extended from 1 fingerprint (single beta=5 / N=1024 use)
+  to 10: beta ∈ {0, 1, 5, 8.6, 12} × N ∈ {8, 16, 64} sample
+  points + default-beta + N=1 (single-point window). Parity OK
+  numkit ↔ MATLAB ↔ Octave at tol=1e-12. 8 TEST_F gtest (existing
+  3 + 5 new for default / β=5 / β=8.6 / β=12 / single-point) +
+  smoke.
