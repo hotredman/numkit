@@ -8,6 +8,7 @@
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
+#include "la_solve.hpp"
 #include "backends/binary_ops_loops.hpp"
 #include "backends/compare.hpp"
 
@@ -237,6 +238,82 @@ Value rdivide(std::pmr::memory_resource *mr, const Value &a, const Value &b)
                  "m:rdivide:unsupportedTypes");
 }
 
+// Internal helper: solve A·X = B via square LU or tall QR. Returns the
+// X column (n×nrhs) on success; throws on size mismatch / singular /
+// rank-deficient / wide-system input. Caller is mldivide; mrdivide
+// composes via the standard transpose trick X = A/B = (B'\A')'.
+namespace {
+
+// Read an N-element column-major Value into a fresh row-by-row buffer.
+void copyColumnMajorDouble(const Value &v, double *dst)
+{
+    const std::size_t n = v.numel();
+    if (v.type() == ValueType::DOUBLE) {
+        const double *src = v.doubleData();
+        std::copy(src, src + n, dst);
+    } else {
+        for (std::size_t i = 0; i < n; ++i) dst[i] = v.elemAsDouble(i);
+    }
+}
+
+// Solve A·X = B via la_solve, packed up as Value math. A is m×n, B is m×k.
+// Output is n×k. Uses scratch arena; final result is placed on `mr`.
+Value matrixSolve(std::pmr::memory_resource *mr,
+                  const Value &A, const Value &B, const char *opname)
+{
+    const std::size_t m  = A.dims().rows();
+    const std::size_t n  = A.dims().cols();
+    const std::size_t bm = B.dims().rows();
+    const std::size_t k  = B.dims().cols();
+    if (bm != m)
+        throw Error(std::string(opname) + ": matrix dimensions must agree",
+                    0, 0, opname, "", std::string("m:") + opname + ":dim");
+    if (m < n)
+        throw Error(std::string(opname)
+                    + ": underdetermined (wide A, m<n) not yet supported",
+                    0, 0, opname, "",
+                    std::string("m:") + opname + ":wide");
+
+    ScratchArena arena(mr);
+    ScratchVec<double> A_buf(m * n, &arena);
+    ScratchVec<double> B_buf(m * k, &arena);
+    copyColumnMajorDouble(A, A_buf.data());
+    copyColumnMajorDouble(B, B_buf.data());
+
+    Value X = Value::matrix(n, k, ValueType::DOUBLE, mr);
+    double *Xd = X.doubleDataMut();
+    if (!detail::la_solve(&arena, A_buf.data(), m, n,
+                          B_buf.data(), k, Xd))
+        throw Error(std::string(opname)
+                    + ": matrix is singular or rank-deficient",
+                    0, 0, opname, "",
+                    std::string("m:") + opname + ":singular");
+    return X;
+}
+
+// Compute the transpose of an m×n DOUBLE Value (column-major) into a
+// new n×m DOUBLE Value on `mr`.
+Value transposeDouble(std::pmr::memory_resource *mr, const Value &A)
+{
+    const std::size_t m = A.dims().rows();
+    const std::size_t n = A.dims().cols();
+    Value T = Value::matrix(n, m, ValueType::DOUBLE, mr);
+    double *Td = T.doubleDataMut();
+    if (A.type() == ValueType::DOUBLE) {
+        const double *Ad = A.doubleData();
+        for (std::size_t j = 0; j < n; ++j)
+            for (std::size_t i = 0; i < m; ++i)
+                Td[j + i * n] = Ad[i + j * m];
+    } else {
+        for (std::size_t j = 0; j < n; ++j)
+            for (std::size_t i = 0; i < m; ++i)
+                Td[j + i * n] = A.elemAsDouble(i + j * m);
+    }
+    return T;
+}
+
+} // namespace
+
 Value mrdivide(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
     std::pmr::memory_resource *p = mr;
@@ -254,8 +331,21 @@ Value mrdivide(std::pmr::memory_resource *mr, const Value &a, const Value &b)
         return elementwiseDouble(a, b, std::divides<double>{}, p);
     if (a.isScalar() && b.isScalar())
         return Value::scalar(a.toScalar() / b.toScalar(), p);
-    throw Error("Matrix right division not implemented", 0, 0, "mrdivide", "",
-                 "m:mrdivide:notImplemented");
+    if (a.isScalar() && !b.isScalar()) {
+        // Per MATLAB R2025b: `2 / [1 2; 3 4]` errors with "Matrix
+        // dimensions must agree". Match that behavior — do NOT silently
+        // expand to scalar·inv(B).
+        throw Error("mrdivide: matrix dimensions must agree",
+                    0, 0, "mrdivide", "", "m:mrdivide:dim");
+    }
+    // Matrix right division: X = A / B  ↔  X · B = A.
+    // Standard identity: X = (B' \ A')'. Same LU/QR primitives as mldivide.
+    {
+        Value Bt = transposeDouble(p, b);
+        Value At = transposeDouble(p, a);
+        Value Y  = matrixSolve(p, Bt, At, "mrdivide");
+        return transposeDouble(p, Y);
+    }
 }
 
 Value mldivide(std::pmr::memory_resource *mr, const Value &a, const Value &b)
@@ -265,10 +355,17 @@ Value mldivide(std::pmr::memory_resource *mr, const Value &a, const Value &b)
         return emptyArithResult(a, b, p);
     if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
         return mldivide(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
+    if (a.isComplex() || b.isComplex())
+        throw Error("mldivide: complex matrix systems not yet supported",
+                    0, 0, "mldivide", "", "m:mldivide:complex");
     if (a.isScalar() && b.isScalar())
         return Value::scalar(b.toScalar() / a.toScalar(), p);
-    throw Error("Matrix left division not implemented", 0, 0, "mldivide", "",
-                 "m:mldivide:notImplemented");
+    if (a.isScalar() && !b.isScalar()) {
+        // Scalar A: X = B / A elementwise.
+        return elementwiseDouble(b, a, std::divides<double>{}, p);
+    }
+    // Matrix left division: A·X = B.  Square → LU; tall → QR (LSQ).
+    return matrixSolve(p, a, b, "mldivide");
 }
 
 Value power(std::pmr::memory_resource *mr, const Value &a, const Value &b)

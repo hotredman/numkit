@@ -589,11 +589,11 @@ together.
 | `idivide` | ✅ | 10.146 | 0.10× | 0.84× | OK | Sig: Y = idivide(A, B). int32 division. 50 iters. |
 | `ldivide` | ✅ | 2.120 | 0.06× | 1.25× | MISMATCH | Sig: Y = ldivide(A, B). 1M-pt left-div = B/A. 50 iters. |
 | `minus` | ✅ | 2.054 | 0.06× | 1.20× | OK | Sig: Y = minus(A, B). 1M-pt sub. 50 iters. |
-| `mldivide` | ✅ |  |  |  | N/A | Sig: X = mldivide(A, B) = A\B. 100x100. 100 iters. |
+| `mldivide` | ✅ | 0.007 | 39.46× | 17.43× | OK | Sig: X = mldivide(A,B) ↔ A\B. Square A: LU with partial pivoting. Tall A (m>n): QR via Householder + R back-solve (least squares). Wide A (m<n, min-norm): NOT yet supported — throws m:mldivide:wide. Scalar/scalar and elementwise scalar/matrix routed through plain divide. |
 | `mod` | ✅ | 3.384 | 0.30× | 1.45× | OK | Sig: Y = mod(X, D). 1M-pt with scalar divisor 7. 20 iters. Element-wise SAVE. |
 | `movsum` | ✅ | 0.005 | 36.74× | 334.71× | OK | Sig: movsum(A, k[, dim] [, nanflag] [, Name, Value]). Same surface as movmean. Closes audit/findings/stats/movsum.md. |
 | `mpower` | ✅ |  |  |  | N/A | Sig: Y = mpower(A, n). 20x20 matrix squared. 1000 iters. |
-| `mrdivide` | ✅ |  |  |  | N/A | Sig: X = mrdivide(A, B) = A/B. 100x100. 100 iters. |
+| `mrdivide` | ✅ | 0.006 | 35.46× | 36.18× | OK | Sig: X = mrdivide(A,B) ↔ A/B  ↔ X·B = A. Composes via the standard transpose trick X = (B'\A')'. So uses the same LU/QR primitives as mldivide. matrix/scalar is elementwise. scalar/matrix ERRORS with m:mrdivide:dim per MATLAB R2025b (verified: `2/[1 2; 3 4]` → 'Matrix dimensions must agree'). |
 | `mtimes` | ✅ | 0.093 | 0.52× | 0.79× | OK | Sig: C = mtimes(A, B). 100x100 matmul. 100 iters. |
 | `pagectranspose` | ✅ | 0.207 | 0.24× | 0.23× | OK | 128x64x8 real-valued — pagectranspose equals pagetranspose. 100 iters. |
 | `pagemldivide` | ❌ |  |  |  |  |  |
@@ -2137,9 +2137,9 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `lsqminnorm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `lsqnonneg` | ❌ |  |  |  |  |  |
 | `lu` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `mldivide` | ✅ |  |  |  | N/A | Sig: X = mldivide(A, B) = A\B. 100x100. 100 iters. |
+| `mldivide` | ✅ | 0.007 | 39.46× | 17.43× | OK | Sig: X = mldivide(A,B) ↔ A\B. Square A: LU with partial pivoting. Tall A (m>n): QR via Householder + R back-solve (least squares). Wide A (m<n, min-norm): NOT yet supported — throws m:mldivide:wide. Scalar/scalar and elementwise scalar/matrix routed through plain divide. |
 | `mpower` | ✅ |  |  |  | N/A | Sig: Y = mpower(A, n). 20x20 matrix squared. 1000 iters. |
-| `mrdivide` | ✅ |  |  |  | N/A | Sig: X = mrdivide(A, B) = A/B. 100x100. 100 iters. |
+| `mrdivide` | ✅ | 0.006 | 35.46× | 36.18× | OK | Sig: X = mrdivide(A,B) ↔ A/B  ↔ X·B = A. Composes via the standard transpose trick X = (B'\A')'. So uses the same LU/QR primitives as mldivide. matrix/scalar is elementwise. scalar/matrix ERRORS with m:mrdivide:dim per MATLAB R2025b (verified: `2/[1 2; 3 4]` → 'Matrix dimensions must agree'). |
 | `mtimes` | ✅ | 0.093 | 0.52× | 0.79× | OK | Sig: C = mtimes(A, B). 100x100 matmul. 100 iters. |
 | `norm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `normest` | ❌ |  |  |  |  | **deferred — libs/linalg** |
@@ -2264,7 +2264,7 @@ solver-based legacy API which is flat function-form.
 | `checkGradients` | ❌ |  |  |  |  | finite-diff gradient check |
 | `optimwarmstart` | ❌ |  |  |  |  | warm-start handle for lsqlin/quadprog |
 | `integerConstraint` | ❌ |  |  |  |  | helper for integer DOF |
-| `mldivide` | ✅ |  |  |  | OK | already in core (operator `\`) |
+| `mldivide` | ✅ | 0.007 | 39.46× | 17.43× | OK | Sig: X = mldivide(A,B) ↔ A\B. Square A: LU with partial pivoting. Tall A (m>n): QR via Householder + R back-solve (least squares). Wide A (m<n, min-norm): NOT yet supported — throws m:mldivide:wide. Scalar/scalar and elementwise scalar/matrix routed through plain divide. |
 
 ### Global
 

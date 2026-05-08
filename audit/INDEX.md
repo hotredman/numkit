@@ -20,6 +20,7 @@ Status legend:
 
 | File | Function | Closed in commit | Closed date |
 |---|---|---|---|
+| [closed/builtin/mrdivide.md](closed/builtin/mrdivide.md) | mrdivide / mldivide | PENDING | 2026-05-08 |
 | [closed/stats/movmean.md](closed/stats/movmean.md) | movmean | PENDING | 2026-05-06 |
 | [closed/stats/movmedian.md](closed/stats/movmedian.md) | movmedian | PENDING | 2026-05-06 |
 | [closed/stats/movsum.md](closed/stats/movsum.md) | movsum | PENDING | 2026-05-06 |
