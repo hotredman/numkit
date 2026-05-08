@@ -25,10 +25,14 @@ normfit(std::pmr::memory_resource *mr, const Value &x, double alpha);
 std::tuple<Value, Value>
 poissfit(std::pmr::memory_resource *mr, const Value &x, double alpha);
 
-/// `[muhat, muci] = expfit(x[, alpha])` — μ = mean(x); exact CI
-/// from chi² inversion of the gamma-distributed sum.
+/// `[muhat, muci] = expfit(x[, alpha[, censoring[, freq]]])` —
+/// MLE μ = Σ(freq·x) / Σ(freq·(1-cens)); exact CI via χ²(2D) where
+/// D = event count = Σ(freq·(1-cens)). cens / freq may be passed as
+/// nullptr (default: no censoring, freq=1) or empty Value to mean
+/// "use defaults". Lengths must match x.numel() when non-empty.
 std::tuple<Value, Value>
-expfit(std::pmr::memory_resource *mr, const Value &x, double alpha);
+expfit(std::pmr::memory_resource *mr, const Value &x, double alpha,
+       const Value *cens = nullptr, const Value *freq = nullptr);
 
 /// `[ahat, bhat, aci, bci] = unifit(x[, alpha])` — uniform U(a,b)
 /// MLE: a=min, b=max. CI based on (b-a) · (alpha^(-1/n) − 1).

@@ -3024,7 +3024,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `binofit` | ✅ | 0.019 | 121.88× | 978.39× | OK | Sig: [phat, pci] = binofit(x, n[, alpha]). Clopper-Pearson exact binomial CI. Covers: scalar (k=7,n=10), vector ([3 5 7]'), edges x=0 + x=n, non-default alpha=0.01. No 'Method' kw — MATLAB binofit hard-codes Clopper-Pearson. |
 | `evfit` | ❌ |  |  |  |  | extreme value |
 | `evlike` | ✅ | 0.003 | 148.54× | 61.75× | OK | Sig: nL = evlike([mu sigma], x). Negative log-likelihood for Type-I extreme value (Gumbel min). MATLAB convention: f(x) = (1/sigma)·exp((x−mu)/sigma)·exp(−exp((x−mu)/sigma)). Default-path only — no `freq`, `censoring`, or `avar` second output. |
-| `expfit` | ✅ | 0.004 | 204.70× | 1973.86× | OK | Sig: [muhat, muci] = expfit(x[, alpha]). MLE for exponential: mu=mean(x). Exact CI: 2N·muhat ~ μ·χ²(2N). |
+| `expfit` | ✅ | 0.012 | 216.59× | 2165.60× | OK | Sig: [muhat, muci] = expfit(x[, alpha[, censoring[, freq]]]). MLE for exponential: T = Σ(freq·x), D = Σ(freq·(1-cens)), mu = T/D. Exact CI via χ²(2D): [2T/χ²₁₋α/2, 2T/χ²_α/2]. Defaults: cens=0, freq=1. |
 | `explike` | ✅ | 0.006 | 175.22× |  | OK | Sig: [nL, avar] = explike(mu, x[, cens, freq]). NLL for Exp(mu). avar (scalar) = 1/I where I = Σ w_i ∂²nL_i/∂μ² (uncens: -1/μ²+2x/μ³; right-cens: 2x/μ³). Edge: mu<=0 => NaN; empty data => 0. |
 | `gamfit` | ❌ |  |  |  |  |  |
 | `gamlike` | ✅ | 0.005 | 157.37× | 32.86× | OK | Sig: [nL, AVAR] = gamlike([a b], x). NLL for Gamma(a, b). AVAR is the 2×2 inverse observed-Fisher info matrix at [a, b], computed via central-difference Hessian (no in-tree trigamma). Edge: invalid params (a<=0 or b<=0) => NaN. tol=1e-7 reflects FD precision (~5e-8 absolute on basic case). |

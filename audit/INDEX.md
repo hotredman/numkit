@@ -16,7 +16,6 @@ Status legend:
 | File | Function | Namespace | Priority | Effort | Audit commit |
 |---|---|---|---|---|---|
 | [findings/stats/evlike.md](findings/stats/evlike.md) | evlike | stats.fit | medium | medium | bfda361 |
-| [findings/stats/expfit.md](findings/stats/expfit.md) | expfit | stats.fit | medium | medium | bfda361 |
 | [findings/stats/lognfit.md](findings/stats/lognfit.md) | lognfit | stats.fit | medium | medium | bfda361 |
 | [findings/stats/normfit.md](findings/stats/normfit.md) | normfit | stats.fit | medium | medium | bfda361 |
 | [findings/stats/wbllike.md](findings/stats/wbllike.md) | wbllike | stats.fit | medium | medium | bfda361 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/unifinv.md](closed/stats/unifinv.md) | unifinv | PENDING | 2026-05-08 |
 | [closed/stats/wblpdf.md](closed/stats/wblpdf.md) | wblpdf | PENDING | 2026-05-08 |
 | [closed/stats/wblinv.md](closed/stats/wblinv.md) | wblinv | PENDING | 2026-05-08 |
+| [closed/stats/expfit.md](closed/stats/expfit.md) | expfit | PENDING | 2026-05-08 |
 
 ---
 
