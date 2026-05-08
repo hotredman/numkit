@@ -91,13 +91,40 @@ Value tcdf(std::pmr::memory_resource *mr, const Value &x, double nu)
 
 Value tinv(std::pmr::memory_resource *mr, const Value &p, double nu)
 {
-    if (nu <= 0.0)
-        return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    const double PINF = std::numeric_limits<double>::infinity();
+    const double NINF = -PINF;
+    if (!(nu > 0.0))  // nu <= 0 or NaN
+        return elementwise(mr, p, [NaN](double){ return NaN; });
+    // Gaussian limit: as nu -> Inf, t-distribution -> N(0, 1), so tinv(p, Inf) = norminv(p).
+    if (std::isinf(nu)) {
+        return elementwise(mr, p, [NaN, PINF, NINF](double pi){
+            if (std::isnan(pi) || pi < 0.0 || pi > 1.0) return NaN;
+            if (pi == 0.0) return NINF;
+            if (pi == 1.0) return PINF;
+            // norminv(p) = sqrt(2)·erfinv(2p - 1); local Winitzki + 2 Newton steps.
+            const double y = 2.0 * pi - 1.0;
+            if (y >= 1.0) return PINF;
+            if (y <= -1.0) return NINF;
+            const double a = 0.147;
+            const double ln1m = std::log(1.0 - y * y);
+            const double term = 2.0 / (M_PI * a) + 0.5 * ln1m;
+            double xv = std::copysign(std::sqrt(std::sqrt(term * term - ln1m / a) - term), y);
+            for (int it = 0; it < 2; ++it) {
+                const double e  = std::erf(xv) - y;
+                const double de = 2.0 * std::exp(-xv * xv) / std::sqrt(M_PI);
+                xv -= e / de;
+            }
+            return std::sqrt(2.0) * xv;
+        });
+    }
     // Use betaincinv: from p ↔ z via I_z(ν/2, 1/2) = q where:
     //   p ≥ 0.5: q = 2(1-p), x = +sqrt(ν · (1/z - 1))
     //   p < 0.5: q = 2p,     x = -sqrt(ν · (1/z - 1))
     const size_t n = p.numel();
     auto qv = elementwise(mr, p, [](double pi){
+        // Out-of-range / NaN handled later; clamp to a valid betaincinv arg here.
+        if (std::isnan(pi) || pi < 0.0 || pi > 1.0) return 0.5;
         return (pi >= 0.5) ? 2.0 * (1.0 - pi) : 2.0 * pi;
     });
     Value a = Value::scalar(0.5 * nu, mr);
@@ -111,11 +138,11 @@ Value tinv(std::pmr::memory_resource *mr, const Value &p, double nu)
     double *od = out.doubleDataMut();
     for (size_t i = 0; i < n; ++i) {
         const double pi = p.elemAsDouble(i);
-        if (pi <= 0.0) { od[i] = -std::numeric_limits<double>::infinity(); continue; }
-        if (pi >= 1.0) { od[i] =  std::numeric_limits<double>::infinity(); continue; }
+        if (std::isnan(pi) || pi < 0.0 || pi > 1.0) { od[i] = NaN; continue; }
+        if (pi == 0.0) { od[i] = NINF; continue; }
+        if (pi == 1.0) { od[i] = PINF; continue; }
         const double zi = zv.elemAsDouble(i);
-        if (zi <= 0.0) { od[i] = (pi >= 0.5) ? std::numeric_limits<double>::infinity()
-                                              : -std::numeric_limits<double>::infinity(); continue; }
+        if (zi <= 0.0) { od[i] = (pi >= 0.5) ? PINF : NINF; continue; }
         const double mag = std::sqrt(nu * (1.0 / zi - 1.0));
         od[i] = (pi >= 0.5) ? mag : -mag;
     }
