@@ -281,7 +281,15 @@ Value clusterdata(std::pmr::memory_resource *mr, const Value &X,
 // cophenet — cophenetic correlation coefficient
 // ════════════════════════════════════════════════════════════════════
 
-Value cophenet(std::pmr::memory_resource *mr, const Value &Z, const Value &Y) {
+// Returns (correlation, dcoph). The caller uses the scalar c for the
+// 1-output case or both for the 2-output case.
+//
+// Bug fix 2026-05-08: previously returned only the scalar correlation;
+// MATLAB's `[c, d] = cophenet(Z, Y)` 2-output form was throwing
+// "Undefined function or variable 'd'". Now both outputs are produced.
+std::tuple<Value, Value> cophenet_full(std::pmr::memory_resource *mr,
+                                        const Value &Z, const Value &Y)
+{
     const size_t M = Z.dims().rows();
     const size_t N = M + 1;
     if (Z.dims().cols() != 3)
@@ -334,7 +342,19 @@ Value cophenet(std::pmr::memory_resource *mr, const Value &Z, const Value &Y) {
         sxy += dx * dy; sx2 += dx * dx; sy2 += dy * dy;
     }
     const double denom = std::sqrt(sx2) * std::sqrt(sy2);
-    return Value::scalar(denom > 0.0 ? sxy / denom : 0.0, mr);
+    Value cv = Value::scalar(denom > 0.0 ? sxy / denom : 0.0, mr);
+
+    // Build the 1×Yn cophenetic-distance row vector.
+    Value dv = Value::matrix(1, Yn, ValueType::DOUBLE, mr);
+    double *dd = dv.doubleDataMut();
+    for (size_t i = 0; i < Yn; ++i) dd[i] = dcoph[i];
+    return {std::move(cv), std::move(dv)};
+}
+
+Value cophenet(std::pmr::memory_resource *mr, const Value &Z, const Value &Y)
+{
+    auto [c, _d] = cophenet_full(mr, Z, Y);
+    return c;
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -460,13 +480,15 @@ void clusterdata_reg(Span<const Value> args, size_t /*nargout*/,
                           method, criterion);
 }
 
-void cophenet_reg(Span<const Value> args, size_t /*nargout*/,
+void cophenet_reg(Span<const Value> args, size_t nargout,
                   Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("cophenet: requires (Z, Y)", 0, 0, "cophenet", "",
                     "m:cophenet:nargin");
-    outs[0] = cophenet(ctx.engine->resource(), args[0], args[1]);
+    auto [c, d] = cophenet_full(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = std::move(c);
+    if (nargout > 1) outs[1] = std::move(d);
 }
 
 void inconsistent_reg(Span<const Value> args, size_t /*nargout*/,
