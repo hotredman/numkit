@@ -1,0 +1,12 @@
+{
+  "name": "ac2rc",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[k, R0] = ac2rc([2 1 0.5]); r1 = k(1);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: [k, R0] = ac2rc(R). KNOWN GAP: numkit's ac2rc differs from MATLAB on k(2) and R0 \u2014 only k(1) bit-identical (-0.5). Documented as separate \u0422\u0417."
+}

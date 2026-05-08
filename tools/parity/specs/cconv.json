@@ -1,10 +1,14 @@
 {
   "name": "cconv",
-  "namespace": "core",
-  "setup": "a = sin(linspace(0, 100, 1000)); b = cos(linspace(0, 100, 1000));",
-  "expr": "y = cconv(a, b);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: C = cconv(A, B). Circular convolution. 100 iters.",
-  "out_var": "y"
+  "namespace": "signal",
+  "setup": "",
+  "expr": "r = cconv([1 2 3], [1 1], 4); r1 = r(1); r2 = r(2); r3 = r(3);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = cconv(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }

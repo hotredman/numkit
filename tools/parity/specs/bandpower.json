@@ -1,0 +1,12 @@
+{
+  "name": "bandpower",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "x = sin(2*pi*100*(0:999)/1000); r1 = bandpower(x);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = bandpower(...). Spec-extension batch 2026-05-09 (signal namespace)."
+}

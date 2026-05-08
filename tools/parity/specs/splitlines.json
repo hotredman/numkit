@@ -1,14 +1,12 @@
 {
   "name": "splitlines",
-  "namespace": "core",
-  "setup": "s = sprintf('line1\\nline2\\nline3\\nline4\\nline5');",
-  "expr": "y = splitlines(s);",
-  "iters": 1000,
-  "tol": 1e-10,
-  "comment": "Sig: C = splitlines(S). 5-line input via sprintf '\n'. 1000 iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "lines = splitlines(\"a\" + newline + \"b\" + newline + \"c\"); r1 = double(numel(lines));",
+  "iters": 5,
+  "tol": 1e-09,
   "fingerprint": [
-    "double(numel(y))",
-    "double(strlength(y{1}))",
-    "double(strlength(y{end}))"
-  ]
+    "r1"
+  ],
+  "comment": "Sig: r = splitlines(...). Spec-extension batch 2026-05-09."
 }

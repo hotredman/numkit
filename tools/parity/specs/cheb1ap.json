@@ -1,0 +1,13 @@
+{
+  "name": "cheb1ap",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[z, p, k] = cheb1ap(3, 0.5); r1 = double(numel(p)); r2 = k;",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = cheb1ap(...). Spec-extension batch 2026-05-09 (signal namespace)."
+}

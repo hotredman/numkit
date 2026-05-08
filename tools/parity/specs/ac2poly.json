@@ -1,0 +1,14 @@
+{
+  "name": "ac2poly",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "r = ac2poly([2 1 0.5]); r1 = r(1); r2 = r(2); r3 = r(3);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = ac2poly(...). Spec-extension batch 2026-05-09 (signal namespace)."
+}

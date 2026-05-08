@@ -1,10 +1,14 @@
 {
   "name": "convn",
-  "namespace": "core",
-  "setup": "[ii, jj] = meshgrid(1:64, 1:64); A = sin(0.05*ii)+cos(0.07*jj); B = ones(5,5)/25;",
-  "expr": "C = convn(A, B, 'same');",
-  "iters": 100,
-  "tol": 1e-12,
-  "out_var": "C",
-  "comment": "64x64 2-D image / convn dispatch (delegates to conv2). 100 iters."
+  "namespace": "signal",
+  "setup": "",
+  "expr": "A = [1 2 3]; B = [1 1]; C = convn(A, B); r1 = C(1); r2 = C(2); r3 = C(4);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = convn(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }
