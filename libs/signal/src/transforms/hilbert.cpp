@@ -80,6 +80,29 @@ Value envelope(std::pmr::memory_resource *mr, const Value &x)
     return r;
 }
 
+// 2-output form: returns symmetric (yupper, ylower=-yupper) for the
+// analytic-signal envelope. NB MATLAB's `envelope(x)` default uses
+// SPLINE-PEAK interpolation (asymmetric output) — that mode is
+// DEFERRED. Only the analytic mode + symmetric -upper lower is
+// produced here.
+void envelope_pair(std::pmr::memory_resource *mr, const Value &x,
+                   Value *yupper, Value *ylower)
+{
+    const size_t N = x.numel();
+    ScratchArena scratch(mr);
+    auto buf = hilbertBuf(&scratch, x);
+    auto up = createLike(x, ValueType::DOUBLE, mr);
+    for (size_t i = 0; i < N; ++i)
+        up.doubleDataMut()[i] = std::abs(buf[i]);
+    if (yupper) *yupper = up;
+    if (ylower) {
+        auto lo = createLike(x, ValueType::DOUBLE, mr);
+        for (size_t i = 0; i < N; ++i)
+            lo.doubleDataMut()[i] = -up.doubleData()[i];
+        *ylower = std::move(lo);
+    }
+}
+
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
 
@@ -91,12 +114,28 @@ void hilbert_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     outs[0] = hilbert(ctx.engine->resource(), args[0]);
 }
 
-void envelope_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void envelope_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("envelope: requires 1 argument",
                      0, 0, "envelope", "", "m:envelope:nargin");
-    outs[0] = envelope(ctx.engine->resource(), args[0]);
+    // Numeric 2nd / 3rd args (filter length, np) and string mode
+    // ('analytic' / 'rms' / 'peak') are NOT YET SUPPORTED. Currently
+    // only the FFT-based analytic-signal envelope is computed.
+    // MATLAB's default form uses spline-peak interpolation which gives
+    // ASYMMETRIC upper/lower envelopes — numkit returns lower = -upper
+    // (symmetric). Document this gap clearly when extra args appear.
+    if (args.size() > 1) {
+        // Tolerate but warn (clear error rather than silent divergence).
+        throw Error("envelope: filter-length / mode arguments are not "
+                    "yet supported (only FFT analytic-signal envelope)",
+                     0, 0, "envelope", "", "m:envelope:nyi");
+    }
+    auto *mr = ctx.engine->resource();
+    Value up, lo;
+    envelope_pair(mr, args[0], &up, &lo);
+    outs[0] = std::move(up);
+    if (nargout > 1) outs[1] = std::move(lo);
 }
 
 } // namespace detail

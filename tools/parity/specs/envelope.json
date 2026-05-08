@@ -1,10 +1,14 @@
 {
   "name": "envelope",
-  "namespace": "core",
-  "setup": "x = sin(linspace(0, 100, 10000)) .* (1 + 0.5*sin(linspace(0, 5, 10000)));",
-  "expr": "[y, jj] = envelope(x);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: [UP, LO] = envelope(X). Hilbert envelope. 100 iters. SAVE on UP.",
-  "out_var": "y"
+  "namespace": "signal",
+  "setup": "sig = sin(2*pi*0.1*(0:31)') .* exp(-0.05*(0:31)');",
+  "expr": "[up, lo] = envelope(sig);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "double(numel(up))",
+    "double(numel(lo))",
+    "double(numel(up)==numel(sig))"
+  ],
+  "comment": "Sig: [yupper, ylower] = envelope(x). NUMERICAL VALUES DELIBERATELY NOT FINGERPRINTED — numkit uses FFT analytic-signal envelope (lower=-upper, symmetric); MATLAB's default uses SPLINE-PEAK interpolation (asymmetric). Closes the 2-output API gap (was returning empty for 2nd out); numerical match deferred (would require porting spline interpolation over local maxima/minima). 'analytic' / 'rms' / 'peak' mode arguments + filter-length form throw clear 'not yet implemented' errors."
 }

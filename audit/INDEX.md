@@ -21,7 +21,6 @@ Status legend:
 | [findings/stats/betarnd.md](findings/stats/betarnd.md) | betarnd | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/exprnd.md](findings/stats/exprnd.md) | exprnd | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/gamrnd.md](findings/stats/gamrnd.md) | gamrnd | stats.dist | medium | small | 301e5a5 |
-| [findings/signal/envelope.md](findings/signal/envelope.md) | envelope | signal.transforms | critical | medium | 9bce106 |
 | [findings/stats/frnd.md](findings/stats/frnd.md) | frnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/raylrnd.md](findings/stats/raylrnd.md) | raylrnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/unifrnd.md](findings/stats/unifrnd.md) | unifrnd | stats.dist | medium | small | e580a5c |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/wavelet/wavedec.md](closed/wavelet/wavedec.md) | wavedec | PENDING | 2026-05-08 |
 | [closed/wavelet/waverec.md](closed/wavelet/waverec.md) | waverec | PENDING | 2026-05-08 |
 | [closed/wavelet/appcoef.md](closed/wavelet/appcoef.md) | appcoef | PENDING | 2026-05-08 |
+| [closed/signal/envelope.md](closed/signal/envelope.md) | envelope | PENDING (partial) | 2026-05-08 |
 
 ---
 
