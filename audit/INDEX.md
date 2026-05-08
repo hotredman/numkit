@@ -47,7 +47,6 @@ Status legend:
 | [findings/cluster/kmeans.md](findings/cluster/kmeans.md) | kmeans | stats.cluster | low | small | b2f133b |
 | [findings/cluster/kmedoids.md](findings/cluster/kmedoids.md) | kmedoids | stats.cluster | low | small | b2f133b |
 | [findings/cluster/mahal.md](findings/cluster/mahal.md) | mahal | stats.cluster | low | small | b2f133b |
-| [findings/cluster/squareform.md](findings/cluster/squareform.md) | squareform | stats.cluster | low | small | b2f133b |
 | [findings/stats/binornd.md](findings/stats/binornd.md) | binornd | stats.dist | low | small | 1525319 |
 | [findings/stats/poissrnd.md](findings/stats/poissrnd.md) | poissrnd | stats.dist | low | small | 1525319 |
 | [findings/stats/unidrnd.md](findings/stats/unidrnd.md) | unidrnd | stats.dist | low | small | 1525319 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/wavelet/wextend.md](closed/wavelet/wextend.md) | wextend | PENDING | 2026-05-08 |
 | [closed/wavelet/detcoef.md](closed/wavelet/detcoef.md) | detcoef | PENDING | 2026-05-08 |
 | [closed/empirical/ecdfhist.md](closed/empirical/ecdfhist.md) | ecdfhist | PENDING | 2026-05-08 |
+| [closed/cluster/squareform.md](closed/cluster/squareform.md) | squareform | PENDING | 2026-05-08 |
 
 ---
 

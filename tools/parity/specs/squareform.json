@@ -1,0 +1,17 @@
+{
+  "name": "squareform",
+  "namespace": "stats",
+  "setup": "d3 = [1 2 3]; M3 = [0 1 2; 1 0 3; 2 3 0]; d6 = [1 2 3 4 5 6];",
+  "expr": "M_from_v = squareform(d3); v_from_M = squareform(M3); M4 = squareform(d6); Md = squareform(d3, 'tomatrix'); vM = squareform(M3, 'tovector'); ze = squareform(0);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "M_from_v(1,1)", "M_from_v(1,2)", "M_from_v(2,3)", "M_from_v(3,3)",
+    "v_from_M(1)", "v_from_M(2)", "v_from_M(3)",
+    "M4(1,1)", "M4(2,3)", "M4(3,4)", "M4(4,4)",
+    "Md(1,2)", "Md(2,3)",
+    "vM(1)", "vM(3)",
+    "size(ze, 1)"
+  ],
+  "comment": "Sig: Y = squareform(X[, mode]). Convert pairwise distance vector ↔ symmetric distance matrix. tol=0 (integer-stable on integer inputs)."
+}
