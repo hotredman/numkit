@@ -63,3 +63,16 @@ x = [2 5 3 7 4 6 8 1 9 5]'
 ## Out of scope for this ТЗ
 
 - A `cens`/`freq` form for the uniform — MATLAB does not have one.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Pure spec coverage, no impl change. Spec extended from
+  4 to 12 fingerprints (basic + α=0.01 + single-element). Single-
+  element returns aci=bci=[x x] zero-width CI (matches MATLAB).
+  Empty input: convention difference — numkit returns NaN
+  (matches its *fit family); MATLAB returns empty arrays. Empty
+  not in fingerprint due to incompatible return shape; covered by
+  gtest with documented expectation. Parity OK numkit ↔ MATLAB at
+  tol=1e-9. Octave only supports nargout=2; we follow MATLAB.
+  4 TEST_F gtest + smoke.

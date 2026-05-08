@@ -20,7 +20,6 @@ Status legend:
 | [findings/stats/normfit.md](findings/stats/normfit.md) | normfit | stats.fit | medium | medium | bfda361 |
 | [findings/stats/wbllike.md](findings/stats/wbllike.md) | wbllike | stats.fit | medium | medium | bfda361 |
 | [findings/stats/raylfit.md](findings/stats/raylfit.md) | raylfit | stats.fit | low | small | bfda361 |
-| [findings/stats/unifit.md](findings/stats/unifit.md) | unifit | stats.fit | low | small | bfda361 |
 | [findings/stats/chi2gof.md](findings/stats/chi2gof.md) | chi2gof | stats.test | medium | large | 69fab7c |
 | [findings/stats/jbtest.md](findings/stats/jbtest.md) | jbtest | stats.test | medium | medium | 69fab7c |
 | [findings/stats/vartestn.md](findings/stats/vartestn.md) | vartestn | stats.test | medium | medium | 69fab7c |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/wblinv.md](closed/stats/wblinv.md) | wblinv | PENDING | 2026-05-08 |
 | [closed/stats/expfit.md](closed/stats/expfit.md) | expfit | PENDING | 2026-05-08 |
 | [closed/stats/poissfit.md](closed/stats/poissfit.md) | poissfit | PENDING | 2026-05-08 |
+| [closed/stats/unifit.md](closed/stats/unifit.md) | unifit | PENDING | 2026-05-08 |
 
 ---
 
