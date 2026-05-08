@@ -53,3 +53,42 @@ For matrix `X`, DCT operates **column-wise** by default.
 ## Out of scope for this ТЗ
 
 - N-D dct — covered conceptually by the dim arg.
+
+## Closed (partial)
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Closed gaps #1, #3, #4. Deferred gap #2 (DCT-I/III/IV
+  via 'Type'). Joint closure with audit/closed/signal/idct.md.
+
+  **Implemented:**
+  1. **Matrix column-wise** (gap #1): added `dct(mr, x, n, dim)`
+     overload that iterates over columns (default) or rows
+     (dim=2), runs the existing 1-D core per line. Fixes silent
+     "flat as N-vector" output to per-column behaviour matching
+     MATLAB.
+  2. **Length override** (gap #3): adapter parses `args[1]` as
+     `n`; per-line extraction pads with zeros / truncates to n
+     before the 1-D transform.
+  3. **Dim arg** (gap #4): `args[2]` selects axis; resolveDim()
+     handles the "first non-singleton" default.
+  4. **Type sanity**: `'Type'` N-V parsed but values other than 2
+     now explicitly error (was silently doing Type-II — worst kind
+     of divergence).
+
+  **Deferred — gap #2 ('Type' values 1/3/4):** DCT-I uses a
+  different formula (length-N+1 mirror), Type-III is the inverse
+  of Type-II (currently exposed as `idct`), Type-IV is the
+  Discrete Cosine of fourth kind. Implementing each requires a
+  separate kernel; medium-effort follow-up. Spec covers Type=2
+  only.
+
+  Cross-lib fix: `libs/image/src/transform/transform.cpp` had
+  `&numkit::signal::dct` resolving the now-ambiguous overload set
+  for `apply_along_columns(..., &dct)`. Added explicit function-
+  pointer typedef to disambiguate.
+
+  Spec extended from 1 to 16 fingerprints (vector + matrix dim=1
+  + length-override truncate/pad + dim=2 row-wise). Parity OK
+  numkit ↔ MATLAB at tol=1e-12. Octave's dct lacks the pad-to-n
+  branch (its own limitation); we follow MATLAB. 6 new TEST_P
+  gtests + smoke. Sanity check: all 20 DCT-domain tests pass.

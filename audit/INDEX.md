@@ -60,8 +60,6 @@ Status legend:
 | [findings/stats/exprnd.md](findings/stats/exprnd.md) | exprnd | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/gamrnd.md](findings/stats/gamrnd.md) | gamrnd | stats.dist | medium | small | 301e5a5 |
 | [findings/signal/envelope.md](findings/signal/envelope.md) | envelope | signal.transforms | critical | medium | 9bce106 |
-| [findings/signal/dct.md](findings/signal/dct.md) | dct | signal.transforms | high | medium | 9bce106 |
-| [findings/signal/idct.md](findings/signal/idct.md) | idct | signal.transforms | medium | small | 9bce106 |
 | [findings/stats/frnd.md](findings/stats/frnd.md) | frnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/raylrnd.md](findings/stats/raylrnd.md) | raylrnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/unifrnd.md](findings/stats/unifrnd.md) | unifrnd | stats.dist | medium | small | e580a5c |
@@ -225,6 +223,8 @@ Status legend:
 | [closed/signal/dftmtx.md](closed/signal/dftmtx.md) | dftmtx | PENDING | 2026-05-08 |
 | [closed/signal/interpft.md](closed/signal/interpft.md) | interpft | PENDING | 2026-05-08 |
 | [closed/signal/bitrevorder.md](closed/signal/bitrevorder.md) | bitrevorder | PENDING | 2026-05-08 |
+| [closed/signal/dct.md](closed/signal/dct.md) | dct | PENDING (partial) | 2026-05-08 |
+| [closed/signal/idct.md](closed/signal/idct.md) | idct | PENDING (partial) | 2026-05-08 |
 
 ---
 

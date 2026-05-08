@@ -187,24 +187,180 @@ Value idct(std::pmr::memory_resource *mr, const Value &x)
     return r;
 }
 
+// ── Matrix / length-override / dim wrappers ──────────────────────────
+//
+// Strategy: extract one "line" (column when dim=1, row when dim=2),
+// optionally pad/truncate to length n, run the existing 1-D dct/idct
+// core, then write the result back at the appropriate stride.
+
+namespace {
+
+// Extract a column (`dim`=1) or row (`dim`=2) into a contiguous length-N
+// 1-D Value, padding with zeros / truncating to `nOut`.
+Value extractLine(std::pmr::memory_resource *mr, const Value &x,
+                  int dim, size_t lineIdx, size_t nNative, size_t nOut)
+{
+    auto col = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
+    double *dst = col.doubleDataMut();
+    const double *src = x.doubleData();
+    const size_t R = x.dims().rows();
+    const size_t copyN = std::min(nOut, nNative);
+    if (dim == 1) {
+        // Column-major: column lineIdx starts at offset lineIdx*R.
+        const double *colSrc = src + lineIdx * R;
+        for (size_t i = 0; i < copyN; ++i) dst[i] = colSrc[i];
+    } else {  // dim == 2
+        // Row lineIdx: stride is R between consecutive elements.
+        for (size_t i = 0; i < copyN; ++i) dst[i] = src[lineIdx + i * R];
+    }
+    for (size_t i = copyN; i < nOut; ++i) dst[i] = 0.0;
+    return col;
+}
+
+// Write a transformed 1-D length-`nOut` line into the (dim, lineIdx)
+// slot of the destination matrix.
+void writeLine(Value &dst, const Value &line, int dim, size_t lineIdx)
+{
+    double *outd = dst.doubleDataMut();
+    const double *src = line.doubleData();
+    const size_t R = dst.dims().rows();
+    const size_t nOut = line.numel();
+    if (dim == 1) {
+        double *colDst = outd + lineIdx * R;
+        for (size_t i = 0; i < nOut; ++i) colDst[i] = src[i];
+    } else {
+        for (size_t i = 0; i < nOut; ++i) outd[lineIdx + i * R] = src[i];
+    }
+}
+
+// Resolve dim: 0 means "first non-singleton".
+int resolveDim(const Value &x, int dim)
+{
+    if (dim != 0) return dim;
+    return (x.dims().rows() > 1) ? 1 : 2;  // matches MATLAB default
+}
+
+} // anonymous
+
+Value dct(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
+{
+    if (x.numel() == 0) return createLike(x, ValueType::DOUBLE, mr);
+    const int d = resolveDim(x, dim);
+    const size_t R = x.dims().rows();
+    const size_t C = x.dims().cols();
+    const size_t nNative = (d == 1) ? R : C;
+    const size_t nOut    = (n > 0) ? static_cast<size_t>(n) : nNative;
+    const size_t nLines  = (d == 1) ? C : R;
+    Value out;
+    if (d == 1) out = Value::matrix(nOut, C, ValueType::DOUBLE, mr);
+    else        out = Value::matrix(R, nOut, ValueType::DOUBLE, mr);
+    for (size_t i = 0; i < nLines; ++i) {
+        Value line = extractLine(mr, x, d, i, nNative, nOut);
+        Value tr   = dct(mr, line);  // 1-D core
+        writeLine(out, tr, d, i);
+    }
+    return out;
+}
+
+Value idct(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
+{
+    if (x.numel() == 0) return createLike(x, ValueType::DOUBLE, mr);
+    const int d = resolveDim(x, dim);
+    const size_t R = x.dims().rows();
+    const size_t C = x.dims().cols();
+    const size_t nNative = (d == 1) ? R : C;
+    const size_t nOut    = (n > 0) ? static_cast<size_t>(n) : nNative;
+    const size_t nLines  = (d == 1) ? C : R;
+    Value out;
+    if (d == 1) out = Value::matrix(nOut, C, ValueType::DOUBLE, mr);
+    else        out = Value::matrix(R, nOut, ValueType::DOUBLE, mr);
+    for (size_t i = 0; i < nLines; ++i) {
+        Value line = extractLine(mr, x, d, i, nNative, nOut);
+        Value tr   = idct(mr, line);
+        writeLine(out, tr, d, i);
+    }
+    return out;
+}
+
 namespace detail {
+
+// Helper: detect whether the user passed a length override / dim arg.
+// MATLAB syntax: dct(X), dct(X, n), dct(X, n, dim). 'Type' name-value
+// is parsed separately (currently not implemented; explicit error to
+// surface the unsupported branch instead of silently doing Type-II).
+struct DctArgs { int n; int dim; bool hasType; double typeVal; };
+static DctArgs parseDctArgs(Span<const Value> args, const char *fn)
+{
+    DctArgs a{0, 0, false, 2.0};
+    size_t pos = 1;
+    while (pos < args.size()) {
+        if (args[pos].isChar() || args[pos].isString()) {
+            if (pos + 1 >= args.size())
+                throw Error(std::string(fn) + ": missing value after name",
+                             0, 0, fn, "", "m:dct:nv");
+            const std::string key = args[pos].toString();
+            if (key == "Type" || key == "type") {
+                a.hasType = true;
+                a.typeVal = args[pos + 1].toScalar();
+            }
+            // Unknown N-V keys are silently ignored.
+            pos += 2;
+            continue;
+        }
+        if (pos == 1) a.n = static_cast<int>(args[pos].toScalar());
+        else if (pos == 2) a.dim = static_cast<int>(args[pos].toScalar());
+        else
+            throw Error(std::string(fn) + ": too many positional arguments",
+                         0, 0, fn, "", "m:dct:nargin");
+        ++pos;
+    }
+    return a;
+}
 
 void dct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
              CallContext &ctx)
 {
     if (args.empty())
-        throw Error("dct: requires 1 argument",
+        throw Error("dct: requires at least 1 argument",
                      0, 0, "dct", "", "m:dct:nargin");
-    outs[0] = dct(ctx.engine->resource(), args[0]);
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 1) {
+        const auto &x = args[0];
+        if (x.dims().rows() > 1 && x.dims().cols() > 1) {
+            outs[0] = dct(mr, x, /*n=*/0, /*dim=*/0);  // matrix column-wise
+        } else {
+            outs[0] = dct(mr, x);  // 1-D fast path
+        }
+        return;
+    }
+    auto a = parseDctArgs(args, "dct");
+    if (a.hasType && a.typeVal != 2.0)
+        throw Error("dct: 'Type' values other than 2 are not yet implemented",
+                     0, 0, "dct", "", "m:dct:type");
+    outs[0] = dct(mr, args[0], a.n, a.dim);
 }
 
 void idct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
               CallContext &ctx)
 {
     if (args.empty())
-        throw Error("idct: requires 1 argument",
+        throw Error("idct: requires at least 1 argument",
                      0, 0, "idct", "", "m:idct:nargin");
-    outs[0] = idct(ctx.engine->resource(), args[0]);
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 1) {
+        const auto &x = args[0];
+        if (x.dims().rows() > 1 && x.dims().cols() > 1) {
+            outs[0] = idct(mr, x, /*n=*/0, /*dim=*/0);
+        } else {
+            outs[0] = idct(mr, x);
+        }
+        return;
+    }
+    auto a = parseDctArgs(args, "idct");
+    if (a.hasType && a.typeVal != 2.0)
+        throw Error("idct: 'Type' values other than 2 are not yet implemented",
+                     0, 0, "idct", "", "m:idct:type");
+    outs[0] = idct(mr, args[0], a.n, a.dim);
 }
 
 } // namespace detail

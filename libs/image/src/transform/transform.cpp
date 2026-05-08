@@ -88,14 +88,19 @@ Value dct2(std::pmr::memory_resource *mr, const Value &A)
 {
     // Two passes of orthonormal Type-II DCT (separable). Columns first,
     // then rows — output is identical either way.
-    Value Y = apply_along_columns(mr, A, &numkit::signal::dct);
-    return apply_along_rows(mr, Y, &numkit::signal::dct);
+    // Disambiguate the 1-D dct overload (a 4-arg matrix form also exists).
+    using Dct1D = Value (*)(std::pmr::memory_resource *, const Value &);
+    Dct1D dct1 = &numkit::signal::dct;
+    Value Y = apply_along_columns(mr, A, dct1);
+    return apply_along_rows(mr, Y, dct1);
 }
 
 Value idct2(std::pmr::memory_resource *mr, const Value &A)
 {
-    Value Y = apply_along_columns(mr, A, &numkit::signal::idct);
-    return apply_along_rows(mr, Y, &numkit::signal::idct);
+    using Idct1D = Value (*)(std::pmr::memory_resource *, const Value &);
+    Idct1D idct1 = &numkit::signal::idct;
+    Value Y = apply_along_columns(mr, A, idct1);
+    return apply_along_rows(mr, Y, idct1);
 }
 
 Value dctmtx(std::pmr::memory_resource *mr, double Nd)
