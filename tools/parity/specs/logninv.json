@@ -1,0 +1,16 @@
+{
+  "name": "logninv",
+  "namespace": "stats",
+  "setup": "qs = [0.05 0.5 0.95];",
+  "expr": "x_def = logninv(0.5); x_s = logninv(0.5, 0, 1); x_v = logninv(qs, 0, 1); x_q0 = logninv(0, 0, 1); x_q1 = logninv(1, 0, 1); x_qneg = logninv(-0.1, 0, 1); x_qover = logninv(1.5, 0, 1); x_sig0 = logninv(0.5, 0, 0); x_signeg = logninv(0.5, 0, -1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "x_def", "x_s",
+    "x_v(1)", "x_v(2)", "x_v(3)",
+    "x_q0", "x_q1",
+    "x_qneg", "x_qover",
+    "x_sig0", "x_signeg"
+  ],
+  "comment": "Sig: x = logninv(p[, mu, sigma]). Inverse Lognormal CDF. Defaults mu=0, sigma=1. q=0 → 0; q=1 → Inf; q outside [0,1] → NaN. sigma<=0 → NaN."
+}

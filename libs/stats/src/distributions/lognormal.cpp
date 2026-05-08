@@ -117,8 +117,10 @@ Value logninv(std::pmr::memory_resource *mr, const Value &p, double mu, double s
     if (sigma <= 0.0)
         return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
     return elementwise(mr, p, [=](double pi) {
-        if (pi <= 0.0) return 0.0;
-        if (pi >= 1.0) return std::numeric_limits<double>::infinity();
+        if (std::isnan(pi) || pi < 0.0 || pi > 1.0)
+            return std::numeric_limits<double>::quiet_NaN();
+        if (pi == 0.0) return 0.0;
+        if (pi == 1.0) return std::numeric_limits<double>::infinity();
         return std::exp(mu + sigma * phiInv(pi));
     });
 }
