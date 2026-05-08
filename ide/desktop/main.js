@@ -35,6 +35,37 @@ function createWindow(url) {
   } else {
     mainWindow.loadFile(url);
   }
+
+  // Renderer crash / hang surfaces — Electron used to silently swap to a
+  // blank white page. Catch both classes of failure here so the user
+  // gets a real dialog instead of guessing whether the app froze.
+  mainWindow.webContents.on('render-process-gone', (_e, details) => {
+    console.error('[Numkit IDE] Renderer gone:', details);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'error',
+        title: 'Numkit IDE — renderer crashed',
+        message: `Renderer process exited unexpectedly (reason: ${details.reason}, exitCode: ${details.exitCode}).`,
+        detail: 'Likely an out-of-memory event. The window can be reloaded; if it keeps happening, try clearing the console or running fewer figures at once.',
+        buttons: ['Reload', 'Quit'],
+        defaultId: 0,
+        cancelId: 1,
+      }).then((res) => {
+        if (res.response === 0 && mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.reload();
+        } else {
+          app.quit();
+        }
+      });
+    }
+  });
+  mainWindow.webContents.on('unresponsive', () => {
+    console.warn('[Numkit IDE] Renderer unresponsive — likely a long synchronous WASM call or runaway loop');
+  });
+  mainWindow.webContents.on('responsive', () => {
+    console.log('[Numkit IDE] Renderer responsive again');
+  });
+
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
