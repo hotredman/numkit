@@ -3227,7 +3227,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 | `cluster` | ✅ |  |  |  | OK | maxclust + cutoff (distance criterion) |
 | `clusterdata` | ✅ |  |  |  | OK | pdist + linkage + cluster one-shot |
 | `cophenet` | ✅ |  |  |  | OK | Pearson between Y and cophenetic distances |
-| `inconsistent` | ✅ |  |  |  | OK | (mean, std, count, inconsistency) at given depth |
+| `inconsistent` | ✅ | 0.004 | 73.08× | 391.41× | OK | Sig: Y = inconsistent(Z[, depth]). Inconsistency coefficient on a linkage tree Z. Each row [mean, std, count, inc_coeff] over the depth-d subtree below each non-leaf node. Default depth=2. |
 | `dendrogram` | ❌ |  |  |  |  | display |
 | `optimalleaforder` | ❌ |  |  |  |  | leaf permutation for visualisation |
 
