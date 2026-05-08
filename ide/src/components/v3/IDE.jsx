@@ -346,10 +346,21 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   }, [engineVersion]);
 
   /* ─────────────── helpers ─────────────── */
+  // Hard cap on console history. Without it, long REPL sessions or noisy
+  // scripts (especially loops with `disp` / `fprintf`) accumulate tens of
+  // thousands of <div>s in ConsolePane, which is the proven cause of the
+  // Electron renderer freezing into a white screen — V8 OOMs reconciling
+  // the React tree on every output append. 5000 lines is roughly the last
+  // 100 commands' worth of typical output.
+  const OUTPUT_CAP = 5000;
   const addOutput = useCallback((items) => {
     setOutput((prev) => {
       for (const i of items) if (i.text === '__CLEAR__') return [];
-      return [...prev, ...items.filter((i) => i.text !== '__CLEAR__')];
+      const filtered = items.filter((i) => i.text !== '__CLEAR__');
+      const next = prev.length + filtered.length > OUTPUT_CAP
+        ? [...prev, ...filtered].slice(-OUTPUT_CAP)
+        : [...prev, ...filtered];
+      return next;
     });
   }, []);
 
