@@ -1,0 +1,17 @@
+{
+  "name": "ricestat",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "[m_s, v_s] = ricestat(2, 1); [m_v, v_v] = ricestat([0 1 2], 1); [m_b, v_b] = ricestat(2, [0.5 1 2]); [m_s0, v_s0] = ricestat(0, 1); m_sig0 = ricestat(2, 0); m_sneg = ricestat(-1, 1); m_signeg = ricestat(2, -1);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "m_s", "v_s",
+    "m_v(1)", "m_v(2)", "m_v(3)",
+    "v_v(1)", "v_v(2)", "v_v(3)",
+    "m_b(1)", "m_b(2)", "m_b(3)",
+    "m_s0", "v_s0",
+    "m_sig0", "m_sneg", "m_signeg"
+  ],
+  "comment": "Sig: [m, v] = ricestat(s, sigma). Rician (Rice). s=0 reduces to Rayleigh: m = sigma·sqrt(π/2), v = sigma²·(2 - π/2). Vectorised. sigma<=0 / s<0 => NaN. MATLAB R2025b doesn't ship ricestat — Octave statistics package is the reference."
+}
