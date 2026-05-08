@@ -1,10 +1,17 @@
 {
   "name": "coifwavf",
   "namespace": "wavelet",
-  "setup": "",
-  "expr": "h = coifwavf('coif1');",
+  "setup": "h1 = coifwavf('coif1'); h2 = coifwavf('coif2'); h3 = coifwavf('coif3'); h4 = coifwavf('coif4'); h5 = coifwavf('coif5');",
+  "expr": "n1 = numel(h1); n2 = numel(h2); n3 = numel(h3); n4 = numel(h4); n5 = numel(h5); s1 = sum(h1); s2 = sum(h2); s3 = sum(h3); s4 = sum(h4); s5 = sum(h5); v2_1 = h2(1); v2_e = h2(12); v3_1 = h3(1); v5_1 = h5(1); v5_e = h5(30);",
   "iters": 5,
   "tol": 1e-12,
-  "fingerprint": ["numel(h)", "h(1)", "h(2)", "h(3)", "h(6)"],
-  "comment": "Sig: h = coifwavf(wname). Coiflet scaling filter: Lo_R / sqrt(2). Length 6K for 'coifK'."
+  "fingerprint": [
+    "n1", "n2", "n3", "n4", "n5",
+    "s1", "s2", "s3", "s4", "s5",
+    "h1(1)", "h1(6)",
+    "v2_1", "v2_e",
+    "v3_1",
+    "v5_1", "v5_e"
+  ],
+  "comment": "Sig: h = coifwavf(wname). Coiflet scaling filter: coifwavf*sqrt(2) = Lo_R, length 6K for coifK, sum(h) = 1. Coverage: coif1..coif5 (coif2..coif5 added 2026-05-08; was only coif1)."
 }

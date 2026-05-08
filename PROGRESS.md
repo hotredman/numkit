@@ -3448,8 +3448,8 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `qmf` | ✅ | 0.005 | 65.19× |  | OK | Sig: y = qmf(x[, p]). Quadrature mirror filter. y(k) = (-1)^(k-1+p) · x(N-k+1). Default p=0 (identity-sign on the first element); p=1 negates. Coverage: even/odd-length + p=0/1 + length-8 + column input + single element. tol=0 (integer-stable on integer inputs). |
 | `biorfilt` | ❌ |  |  |  |  | biorthogonal filter quadruple |
 | `dbwavf` | ✅ | 0.007 | 32.27× |  | OK | Sig: h = dbwavf(wname). Daubechies scaling filter: dbwavf*sqrt(2) = Lo_R, length 2N for dbN, sum(h) = 1. Coverage: db1, db2, db4, db5, db6, db8, db10. Bug fix 2026-05-08: previously only supported db1..db4; extended table to db5..db10. |
-| `coifwavf` | ✅ | 0.003 | 184.30× |  | OK | Sig: h = coifwavf(wname). Coiflet scaling filter: Lo_R / sqrt(2). Length 6K for 'coifK'. |
-| `symwavf` | ✅ | 0.004 | 158.56× |  | OK | Sig: h = symwavf(wname). Symlet scaling filter: Lo_R / sqrt(2). Length 2N for 'symN'. |
+| `coifwavf` | ✅ | 0.009 | 26.25× |  | OK | Sig: h = coifwavf(wname). Coiflet scaling filter: coifwavf*sqrt(2) = Lo_R, length 6K for coifK, sum(h) = 1. Coverage: coif1..coif5 (coif2..coif5 added 2026-05-08; was only coif1). |
+| `symwavf` | ✅ | 0.007 | 28.10× |  | OK | Sig: h = symwavf(wname). Symlet (least-asymmetric Daubechies) scaling filter: symwavf*sqrt(2) = Lo_R, length 2N for symN, sum(h) = 1. Coverage: sym2..sym10 (sym3 + sym5..sym10 added 2026-05-08; was only sym2/sym4). |
 | `dbaux` | ❌ |  |  |  |  | Daubechies aux |
 | `symaux` | ❌ |  |  |  |  | symlet aux |
 | `biorwavf` | ❌ |  |  |  |  | biorthogonal scaling filter |
