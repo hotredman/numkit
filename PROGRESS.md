@@ -2882,116 +2882,116 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `normpdf` | ✅ |  |  |  | OK | normal — Φ via 0.5·erfc(-z/√2) |
+| `normpdf` | ✅ | 0.006 | 78.86× | 87.33× | OK | Sig: y = normpdf(x[, mu, sigma]). Normal PDF: (1/(σ√(2π)))·exp(-(x-μ)²/(2σ²)). Defaults mu=0, sigma=1. sigma<=0 => NaN. Vectorised. |
 | `normcdf` | ✅ |  |  |  | OK |  |
-| `norminv` | ✅ |  |  |  | OK | Acklam approx + 1 Newton refinement |
+| `norminv` | ✅ | 0.008 | 70.50× | 79.36× | MISMATCH | Sig: x = norminv(p[, mu, sigma]). Inverse Normal CDF: x = mu + sigma*Φ⁻¹(p). Defaults mu=0, sigma=1. Edges: p=0 => -Inf; p=1 => +Inf; p outside [0,1] => NaN; sigma<=0 => NaN. |
 | `normrnd` | ✅ |  |  |  | OK |  |
-| `normstat` | ✅ |  |  |  | OK |  |
-| `chi2pdf` | ✅ |  |  |  | OK | chi-squared k DOF |
+| `normstat` | ✅ | 0.006 | 131.54× | 51.12× | OK | Sig: [m, v] = normstat(mu, sigma). Trivially m=mu, v=sigma². Vectorised with broadcasting (equal sizes or one scalar). sigma<=0 => NaN. |
+| `chi2pdf` | ✅ | 0.008 | 498.87× | 110.44× | OK | Sig: y = chi2pdf(x, k). Chi-squared PDF with k dof. x < 0 => 0; k <= 0 => NaN. Covers: scalar, vector x, x<0 + x=0 edges, k=1 (special: x^(-1/2)·exp(-x/2)/√(2π)), k=30 large dof. |
 | `chi2cdf` | ✅ |  |  |  | OK | gammainc(x/2, k/2) |
-| `chi2inv` | ✅ |  |  |  | OK | 2·gammaincinv(p, k/2) |
+| `chi2inv` | ✅ | 0.012 | 73.76× | 1836.34× | OK | Sig: x = chi2inv(p, k). Inverse Chi² CDF with k dof. Covers k ∈ {1, 5, 30} × p ∈ {0.05, 0.5, 0.95} + p=0 (=> 0) + p=1 (=> Inf) + p outside [0,1] (=> NaN) + k<=0 (=> NaN). |
 | `chi2rnd` | ✅ |  |  |  | OK |  |
-| `chi2stat` | ✅ |  |  |  | OK |  |
+| `chi2stat` | ✅ | 0.004 | 101.27× | 15.99× | OK | Sig: [m, v] = chi2stat(k). Chi² mean=k and variance=2k. Vectorised. k<=0 => NaN (moments don't exist for degenerate). |
 | `tpdf` | ✅ |  |  |  | OK | Student's t |
 | `tcdf` | ✅ |  |  |  | OK | betainc on z = ν/(ν+x²), branch by sign |
 | `tinv` | ✅ |  |  |  | OK |  |
 | `trnd` | ✅ |  |  |  | OK | Z/√(X/ν), Z~N(0,1), X~χ²(ν) |
-| `tstat` | ✅ |  |  |  | OK |  |
-| `fpdf` | ✅ |  |  |  | OK | Fisher F(v1, v2) |
+| `tstat` | ✅ | 0.006 | 99.65× | 58.77× | OK | Sig: [m, v] = tstat(nu). Student's t: m=0 if nu>1, v=nu/(nu-2) if nu>2. Vectorised. nu<=0 => NaN/NaN; 0<nu<=1 => m=NaN,v=NaN; 1<nu<=2 => m=0, v=NaN. |
+| `fpdf` | ✅ | 0.007 | 373.67× | 103.64× | OK | Sig: y = fpdf(x, v1, v2). F-distribution PDF. x < 0 => 0; v1 <= 0 or v2 <= 0 => NaN. Covers: scalar (v1=5,v2=10), vector x, x<0/x=0 edges, invalid v1/v2, F(2,10) at 0 (= v1/(v1+v2-2)/B(...) finite for v1=2). |
 | `fcdf` | ✅ |  |  |  | OK | betainc(v1·x/(v1·x+v2), v1/2, v2/2) |
-| `finv` | ✅ |  |  |  | OK |  |
+| `finv` | ✅ | 0.017 | 85.31× | 653.54× | OK | Sig: x = finv(p, v1, v2). Inverse F CDF. Covers (v1, v2) ∈ {(1,1), (5,10), (10,30)} × p ∈ {0.05, 0.5, 0.95} + p=0 (=> 0) + p=1 (=> Inf) + p outside [0,1] (=> NaN) + v1<=0 / v2<=0 (=> NaN). |
 | `frnd` | ✅ |  |  |  | OK | (X1/v1)/(X2/v2), Xi~χ²(vi) |
-| `fstat` | ✅ |  |  |  | OK |  |
-| `betapdf` | ✅ |  |  |  | OK | beta(a, b); log-form for stability |
+| `fstat` | ✅ | 0.006 | 275.20× | 58.40× | OK | Sig: [m, v] = fstat(v1, v2). F-distribution mean = v2/(v2-2) for v2>2 else NaN; variance = 2*v2²(v1+v2-2)/(v1(v2-2)²(v2-4)) for v2>4 else NaN. Vectorised. v1<=0 or v2<=0 => NaN/NaN. |
+| `betapdf` | ✅ | 0.007 | 415.31× | 86.47× | OK | Sig: y = betapdf(x, a, b). Beta PDF on (0,1). x outside (0,1) => 0; a<=0 or b<=0 => NaN. Covers: scalar, vector, out-of-(0,1) edges (x<0, x=0, x=0.5, x=1, x>1), invalid params. |
 | `betacdf` | ✅ |  |  |  | OK | I_x(a, b) directly |
-| `betainv` | ✅ |  |  |  | OK |  |
+| `betainv` | ✅ | 0.015 | 72.93× | 583.32× | OK | Sig: x = betainv(p, a, b). Inverse Beta CDF. Covers (a,b) ∈ {(1,1) uniform, (0.5,0.5) U-shaped, (2,5), (10,10)} × p ∈ {0.05, 0.5, 0.95}. Edges: p=0 => 0; p=1 => 1; p outside [0,1] => NaN; invalid shape => NaN. |
 | `betarnd` | ✅ |  |  |  | OK | U/(U+V), U~Gamma(a,1), V~Gamma(b,1) |
-| `betastat` | ✅ |  |  |  | OK |  |
-| `gampdf` | ✅ |  |  |  | OK | gamma(a=shape, b=scale); MATLAB convention |
+| `betastat` | ✅ | 0.006 | 202.07× | 24.93× | OK | Sig: [m, v] = betastat(a, b). Beta(a,b) mean a/(a+b) and variance ab/((a+b)^2(a+b+1)). Vectorised. Invalid params (a<=0 or b<=0) => NaN. Beta(1,1) is uniform: m=0.5, v=1/12. |
+| `gampdf` | ✅ | 0.008 | 573.85× | 82.04× | OK | Sig: y = gampdf(x, a, b). Gamma(shape=a, scale=b) PDF. Density at 0: a<1 → Inf, a=1 → 1/b, a>1 → 0. x<0 → 0. a<0 or b<=0 → NaN. a=0 → 0 (degenerate). |
 | `gamcdf` | ✅ |  |  |  | OK | gammainc(x/b, a) |
-| `gaminv` | ✅ |  |  |  | OK |  |
+| `gaminv` | ✅ | 0.009 | 83.28× | 772.17× | OK | Sig: x = gaminv(p, a, b). Inverse Gamma CDF. q=0 → 0; q=1 → Inf; q outside [0,1] → NaN. a=0 → 0 (degenerate); a<0 / b<=0 → NaN. |
 | `gamrnd` | ✅ |  |  |  | OK | std::gamma_distribution(a, b) |
-| `gamstat` | ✅ |  |  |  | OK |  |
-| `exppdf` | ✅ |  |  |  | OK | exponential — MATLAB uses MEAN μ (not rate) |
+| `gamstat` | ✅ | 0.006 | 73.72× | 65.48× | OK | Sig: [m, v] = gamstat(a, b). Gamma(shape, scale): m = a·b, v = a·b². Vectorised. a<=0 or b<=0 => NaN. |
+| `exppdf` | ✅ | 0.007 | 116.61× | 56.99× | OK | Sig: y = exppdf(x[, mu]). Exponential PDF: (1/mu)·exp(-x/mu). Default mu=1. x<0 → 0. mu<=0 → NaN. |
 | `expcdf` | ✅ |  |  |  | OK | -expm1(-x/μ) |
-| `expinv` | ✅ |  |  |  | OK |  |
+| `expinv` | ✅ | 0.007 | 112.71× | 110.87× | OK | Sig: x = expinv(p[, mu]). Inverse exponential CDF: x = -mu*log(1-p). Default mu=1. Covers default form + non-default mu + boundaries (p=0,1) + invalid (p<0, p>1, mu<=0). |
 | `exprnd` | ✅ |  |  |  | OK |  |
-| `expstat` | ✅ |  |  |  | OK |  |
+| `expstat` | ✅ | 0.006 | 57.24× | 11.58× | OK | Sig: [m, v] = expstat(mu). Exponential mean=mu, variance=mu^2. Vectorised. mu<=0 => NaN. |
 | `unifpdf` | ✅ |  |  |  | OK | continuous uniform [a, b]; defaults a=0, b=1 |
 | `unifcdf` | ✅ |  |  |  | OK |  |
 | `unifinv` | ✅ |  |  |  | OK |  |
 | `unifrnd` | ✅ |  |  |  | OK |  |
-| `unifstat` | ✅ |  |  |  | OK |  |
-| `lognpdf` | ✅ |  |  |  | OK | lognormal — params are μ, σ of underlying normal |
+| `unifstat` | ✅ | 0.008 | 142.54× | 39.18× | OK | Sig: [m, v] = unifstat(a, b). Continuous uniform on [a,b]: m=(a+b)/2, v=(b-a)²/12. Vectorised. b<=a => NaN. |
+| `lognpdf` | ✅ | 0.006 | 69.50× | 140.07× | OK | Sig: y = lognpdf(x[, mu, sigma]). Lognormal PDF. Defaults mu=0, sigma=1. x<=0 → 0. sigma<=0 → NaN. |
 | `logncdf` | ✅ |  |  |  | OK |  |
-| `logninv` | ✅ |  |  |  | OK |  |
+| `logninv` | ✅ | 0.007 | 85.48× | 88.35× | OK | Sig: x = logninv(p[, mu, sigma]). Inverse Lognormal CDF. Defaults mu=0, sigma=1. q=0 → 0; q=1 → Inf; q outside [0,1] → NaN. sigma<=0 → NaN. |
 | `lognrnd` | ✅ |  |  |  | OK |  |
-| `lognstat` | ✅ |  |  |  | OK | mean = e^(μ+σ²/2), var = expm1(σ²)·e^(2μ+σ²) |
+| `lognstat` | ✅ | 0.009 | 46.35× | 31.11× | OK | Sig: [m, v] = lognstat(mu, sigma). Lognormal: m = exp(mu + sigma²/2), v = (exp(sigma²)-1)·exp(2mu + sigma²). Vectorised. sigma<=0 => NaN. |
 | `wblpdf` | ✅ |  |  |  | OK | Weibull: a=scale, b=shape (MATLAB) — flip vs std order |
 | `wblcdf` | ✅ |  |  |  | OK |  |
 | `wblinv` | ✅ |  |  |  | OK |  |
 | `wblrnd` | ✅ |  |  |  | OK |  |
-| `wblstat` | ✅ |  |  |  | OK |  |
-| `raylpdf` | ✅ |  |  |  | OK | Rayleigh — single scale b > 0 |
+| `wblstat` | ✅ | 0.007 | 99.87× | 55.78× | OK | Sig: [m, v] = wblstat(a, b). Weibull(scale=a, shape=b): m = a·Γ(1+1/b), v = a²·(Γ(1+2/b) - Γ(1+1/b)²). Vectorised. a<=0 or b<=0 => NaN. |
+| `raylpdf` | ✅ | 0.005 | 184.23× | 47.40× | OK | Sig: y = raylpdf(x, b). Rayleigh PDF. x<0 → 0; x=0 → 0 (density at origin is 0). b<=0 → NaN. |
 | `raylcdf` | ✅ |  |  |  | OK |  |
-| `raylinv` | ✅ |  |  |  | OK |  |
+| `raylinv` | ✅ | 0.006 | 189.51× | 61.89× | OK | Sig: x = raylinv(p, b). Inverse Rayleigh CDF: x = b·sqrt(-2·ln(1-p)). q=0 → 0; q=1 → Inf; q outside [0,1] → NaN. b<=0 → NaN. |
 | `raylrnd` | ✅ |  |  |  | OK | inverse-cdf sampling |
-| `raylstat` | ✅ |  |  |  | OK |  |
-| `poisspdf` | ✅ |  |  |  | OK | Poisson |
+| `raylstat` | ✅ | 0.005 | 85.40× | 19.58× | OK | Sig: [m, v] = raylstat(b). Rayleigh: m = b·sqrt(π/2), v = b²·(2 - π/2). Vectorised. b<=0 => NaN. |
+| `poisspdf` | ✅ | 0.008 | 282.39× | 55.51× | OK | Sig: y = poisspdf(k, lambda). Poisson PMF. Out-of-support k (<0, non-integer) → 0. lambda=0 degenerate: only k=0 → 1. lambda<0 → NaN. |
 | `poisscdf` | ✅ |  |  |  | OK | F(k; λ) = 1 - gammainc(λ, ⌊k⌋+1) |
-| `poissinv` | ✅ |  |  |  | OK | normal-approx start, walk with 1-ULP tolerance |
+| `poissinv` | ✅ | 0.006 | 202.89× | 137.48× | OK | Sig: x = poissinv(p, lambda). Inverse Poisson CDF. q=0 → 0; q=1 → Inf; q outside [0,1] → NaN. lambda=0 → 0 (degenerate). lambda<0 → NaN. |
 | `poissrnd` | ✅ |  |  |  | OK |  |
-| `poisstat` | ✅ |  |  |  | OK | mean = var = λ |
-| `binopdf` | ✅ |  |  |  | OK | binomial |
+| `poisstat` | ✅ | 0.006 | 93.00× | 17.83× | OK | Sig: [m, v] = poisstat(lambda). Poisson mean=variance=lambda. Vectorised. lambda<=0 => NaN. |
+| `binopdf` | ✅ | 0.009 | 318.21× | 168.79× | OK | Sig: y = binopdf(k, n, p). Binomial PMF. Out-of-support k (negative, > n, non-integer) → 0. p=0: only k=0 → 1. p=1: only k=n → 1. Invalid n / p out of [0,1] → NaN. |
 | `binocdf` | ✅ |  |  |  | OK | I_{1-p}(n - ⌊k⌋, ⌊k⌋ + 1) |
-| `binoinv` | ✅ |  |  |  | OK |  |
+| `binoinv` | ✅ | 0.008 | 845.30× | 377.14× | OK | Sig: x = binoinv(q, n, p). Inverse Binomial CDF. q=0 → 0; q=1 → n. Invalid (q outside [0,1] / p outside [0,1] / n<0 / non-integer n) => NaN. |
 | `binornd` | ✅ |  |  |  | OK |  |
-| `binostat` | ✅ |  |  |  | OK |  |
+| `binostat` | ✅ | 0.008 | 209.42× | 57.77× | OK | Sig: [m, v] = binostat(n, p). Binomial: m=n·p, v=n·p·(1-p). Vectorised. n<0 / non-integer / p<0 / p>1 => NaN. p∈{0,1} are valid (variance becomes 0). |
 | `unidpdf` | ✅ |  |  |  | OK | discrete uniform on {1..N} |
 | `unidcdf` | ✅ |  |  |  | OK |  |
 | `unidinv` | ✅ |  |  |  | OK |  |
 | `unidrnd` | ✅ |  |  |  | OK |  |
-| `unidstat` | ✅ |  |  |  | OK |  |
+| `unidstat` | ✅ | 0.006 | 84.76× | 42.89× | OK | Sig: [m, v] = unidstat(N). Discrete uniform on {1..N}: m = (N+1)/2, v = (N²-1)/12. Vectorised. N<1 or non-integer => NaN. |
 | `geopdf` | ✅ |  |  |  | OK | geometric (failures before 1st success) |
 | `geocdf` | ✅ |  |  |  | OK | -expm1((⌊k⌋+1)·log1p(-p)) |
 | `geoinv` | ✅ |  |  |  | OK |  |
 | `geornd` | ✅ |  |  |  | OK |  |
-| `geostat` | ✅ |  |  |  | OK |  |
+| `geostat` | ✅ | 0.006 | 58.05× | 20.21× | OK | Sig: [m, v] = geostat(p). Geometric (number-of-failures form): m = (1-p)/p, v = (1-p)/p². p=1 → m=v=0. Vectorised. p<=0 or p>1 => NaN. |
 | `nbinpdf` | ✅ |  |  |  | OK | negative binomial |
 | `nbincdf` | ✅ |  |  |  | OK | I_p(r, ⌊k⌋ + 1) |
 | `nbininv` | ✅ |  |  |  | OK |  |
 | `nbinrnd` | ✅ |  |  |  | OK | Gamma-Poisson mixture; supports real r |
-| `nbinstat` | ✅ |  |  |  | OK |  |
+| `nbinstat` | ✅ | 0.009 | 156.17× | 46.33× | OK | Sig: [m, v] = nbinstat(r, p). Negative binomial (number of failures): m = r·(1-p)/p, v = m/p. Vectorised. r<=0 / p<=0 / p>1 => NaN. r non-integer is OK (Pólya generalisation). p=1 → m=v=0. |
 | `hygepdf` | ✅ |  |  |  | OK | hypergeometric (M, K, N) |
 | `hygecdf` | ✅ |  |  |  | OK | forward sum via pmf-recurrence |
 | `hygeinv` | ✅ |  |  |  | OK |  |
 | `hygernd` | ✅ |  |  |  | OK | inverse-cdf walk per draw |
-| `hygestat` | ✅ |  |  |  | OK |  |
+| `hygestat` | ✅ | 0.008 | 187.95× | 68.22× | OK | Sig: [m, v] = hygestat(M, K, N). Hypergeometric: m = N·K/M, v = N·K·(M-K)·(M-N)/(M²(M-1)). Vectorised. K=0 / K=M / N=0 valid; M=0 / K>M / N>M / negative => NaN. |
 | `evpdf` | ✅ | 0.004 | 70.18× | 28.19× | OK | Sig: p = evpdf(x[, mu, sigma]). Type-I extreme value (Gumbel min) PDF. Defaults mu=0, sigma=1. Formula: (1/σ)·exp(t)·exp(−exp(t)) where t=(x−μ)/σ. |
 | `evcdf` | ✅ | 0.003 | 170.98× | 89.45× | OK | Sig: p = evcdf(x[, mu, sigma]). F(x) = 1 − exp(−exp((x−μ)/σ)). |
 | `evinv` | ✅ | 0.003 | 162.03× | 55.86× | OK | Sig: x = evinv(p[, mu, sigma]). x = μ + σ·log(−log1p(−p)). |
 | `evrnd` | ✅ |  |  |  |  |  |
-| `evstat` | ✅ | 0.003 | 83.95× | 61.95× | OK | Sig: [m, v] = evstat(mu, sigma). Type-I extreme value mean = μ − σ·γ_E and variance = σ²·π²/6. |
+| `evstat` | ✅ | 0.009 | 59.72× | 32.29× | OK | Sig: [m, v] = evstat(mu, sigma). Type-I extreme value (Gumbel min): m = mu - sigma·γ (Euler), v = sigma²·π²/6. Vectorised. sigma<=0 => NaN. |
 | `gevpdf` | ✅ | 0.004 | 218.14× | 61.53× | OK | Sig: p = gevpdf(x, k, sigma, mu). Generalised extreme value PDF; k=0 is Gumbel-MAX (limit). |
 | `gevcdf` | ✅ | 0.003 | 384.47× | 93.98× | OK | Sig: p = gevcdf(x, k, sigma, mu). |
 | `gevinv` | ✅ | 0.003 | 273.88× | 69.80× | OK | Sig: x = gevinv(p, k, sigma, mu). |
 | `gevrnd` | ✅ |  |  |  |  |  |
-| `gevstat` | ✅ | 0.004 | 360.41× | 20.10× | OK | Sig: [m, v] = gevstat(k, sigma, mu). mean = mu + sigma·(Γ(1−k)−1)/k for k∈(0,1); k=0 limit = mu+σ·γ_E. |
+| `gevstat` | ✅ | 0.007 | 150.55× | 102.05× | OK | Sig: [m, v] = gevstat(k, sigma, mu). GEV moments: complex by k regime (k>=1 mean=Inf; 0.5<=k<1 mean finite/var=Inf; k<0.5 both finite; k=0 Gumbel limit). Vectorised. sigma<=0 => NaN. |
 | `gppdf` | ✅ | 0.003 | 281.24× | 98.79× | OK | Sig: p = gppdf(x, k, sigma, theta). Generalised Pareto. |
 | `gpcdf` | ✅ | 0.003 | 405.90× | 55.74× | OK | Sig: p = gpcdf(x, k, sigma, theta). |
 | `gpinv` | ✅ | 0.003 | 291.99× | 97.75× | OK | Sig: x = gpinv(p, k, sigma, theta). |
 | `gprnd` | ✅ |  |  |  |  |  |
-| `gpstat` | ✅ | 0.003 | 318.16× | 56.26× | OK | Sig: [m, v] = gpstat(k, sigma, theta). mean = theta + sigma/(1-k); var = sigma²/((1-k)²·(1-2k)). |
+| `gpstat` | ✅ | 0.007 | 124.74× | 72.78× | OK | Sig: [m, v] = gpstat(k, sigma, theta). GP moments by k regime: k≥1 → mean Inf; 0.5≤k<1 → var Inf; k<0.5 → finite. m = theta + sigma/(1-k); v = sigma²/((1-k)²(1-2k)). Vectorised. sigma<=0 => NaN. |
 | `nakapdf` | ✅ | 0.004 |  | 64.72× | OK | Sig: y = nakapdf(x, mu, omega). Nakagami PDF: (2μ^μ/Γ(μ)Ω^μ)·x^(2μ−1)·exp(−μx²/Ω). Octave's statistics package has direct names; MATLAB exposes via pdf('Nakagami', ...). Direct numkit + Octave parity. |
 | `nakacdf` | ✅ |  |  |  |  |  |
 | `nakainv` | ✅ |  |  |  |  |  |
 | `nakarnd` | ✅ |  |  |  |  |  |
-| `nakastat` | ✅ |  |  |  |  |  |
+| `nakastat` | ✅ | 0.007 |  | 48.85× | OK | Sig: [m, v] = nakastat(mu, omega). Nakagami: m = sqrt(omega/mu)·Γ(mu+0.5)/Γ(mu), v = omega·(1 - r²/mu) where r = Γ(mu+0.5)/Γ(mu). Vectorised. mu<=0 / omega<=0 => NaN. MATLAB R2025b does not ship nakastat — Octave statistics package is the reference. |
 | `ricepdf` | ✅ | 0.004 |  | 67.79× | OK | Sig: y = ricepdf(x, s, sigma). Rice PDF (x/σ²)·exp(−(x²+s²)/(2σ²))·I_0(x·s/σ²). Octave stats package has direct names; MATLAB exposes via pdf('Rician', ...). |
 | `ricecdf` | ✅ |  |  |  |  |  |
 | `riceinv` | ✅ |  |  |  |  |  |
 | `ricernd` | ✅ |  |  |  |  |  |
-| `ricestat` | ✅ |  |  |  |  |  |
+| `ricestat` | ✅ | 0.010 |  | 50.55× | OK | Sig: [m, v] = ricestat(s, sigma). Rician (Rice). s=0 reduces to Rayleigh: m = sigma·sqrt(π/2), v = sigma²·(2 - π/2). Vectorised. sigma<=0 / s<0 => NaN. MATLAB R2025b doesn't ship ricestat — Octave statistics package is the reference. |
 | `ncfpdf` | ❌ |  |  |  |  | noncentral F |
 | `ncfcdf` | ❌ |  |  |  |  |  |
 | `ncfinv` | ❌ |  |  |  |  |  |
@@ -3006,7 +3006,7 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `ncx2cdf` | ✅ | 0.006 | 778.10× | 728.80× | OK | Sig: y = ncx2cdf(x, k, lambda). Poisson-mixture: Σ_j Poisson(j; λ/2)·gammainc(x/2, k/2 + j); truncated when contribution drops below 1e-16 of running sum. |
 | `ncx2inv` | ✅ |  |  |  |  |  |
 | `ncx2rnd` | ✅ |  |  |  |  |  |
-| `ncx2stat` | ✅ |  |  |  |  |  |
+| `ncx2stat` | ✅ | 0.008 | 128.69× | 46.11× | OK | Sig: [m, v] = ncx2stat(k, lambda). Non-central χ²: m = k+λ, v = 2(k+2λ). Vectorised. k<=0 / λ<0 => NaN. λ=0 reduces to central χ²(k). |
 
 ### Distribution Fitting (MLE / likelihood)
 

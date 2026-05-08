@@ -79,7 +79,6 @@ Status legend:
 | [findings/stats/frnd.md](findings/stats/frnd.md) | frnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/raylrnd.md](findings/stats/raylrnd.md) | raylrnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/unifrnd.md](findings/stats/unifrnd.md) | unifrnd | stats.dist | medium | small | e580a5c |
-| [findings/stats/raylinv.md](findings/stats/raylinv.md) | raylinv | stats.dist | low | small | e580a5c |
 | [findings/stats/unifinv.md](findings/stats/unifinv.md) | unifinv | stats.dist | low | small | e580a5c |
 | [findings/stats/unifpdf.md](findings/stats/unifpdf.md) | unifpdf | stats.dist | low | small | e580a5c |
 | [findings/cluster/cluster.md](findings/cluster/cluster.md) | cluster | stats.cluster | medium | small | b2f133b |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/poisspdf.md](closed/stats/poisspdf.md) | poisspdf | PENDING | 2026-05-07 |
 | [closed/stats/poissinv.md](closed/stats/poissinv.md) | poissinv | PENDING | 2026-05-07 |
 | [closed/stats/raylpdf.md](closed/stats/raylpdf.md) | raylpdf | PENDING | 2026-05-07 |
+| [closed/stats/raylinv.md](closed/stats/raylinv.md) | raylinv | PENDING | 2026-05-08 |
 
 ---
 
