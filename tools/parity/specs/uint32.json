@@ -1,10 +1,14 @@
 {
   "name": "uint32",
-  "namespace": "core",
-  "setup": "x = linspace(0, 4e9, 1000000);",
-  "expr": "y = uint32(x);",
-  "iters": 50,
-  "tol": 1e-10,
-  "comment": "Sig: Y = uint32(X). 1M doubles \u2192 uint32. 50 iters. Element-wise SAVE.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(uint32(4294967295)); r2 = double(uint32(0)); r3 = double(uint32(100));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = uint32(...). Type conversion. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity."
 }

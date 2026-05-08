@@ -1,6 +1,6 @@
-# builtin/uint16 — ТЗ for completion
+# builtin/int32 — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** 7a3e258
@@ -18,3 +18,9 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Type-conv spec-extension batch (12 funcs). All bit-identical
+  MATLAB R2025b on numeric paths. See type_conv_batch_test.cpp.

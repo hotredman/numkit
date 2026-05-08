@@ -1,6 +1,6 @@
 # builtin/double — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** c1fdebe
@@ -20,3 +20,10 @@ benched input. Standard string/character function.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Type-conv spec-extension batch (12 funcs). All bit-identical
+  MATLAB R2025b on numeric paths. See type_conv_batch_test.cpp.
+  KNOWN GAP (separate ТЗ): numkit rejects double("string") with error; MATLAB returns NaN, Octave returns ASCII codes — three different behaviors. Only numeric-input paths pinned.

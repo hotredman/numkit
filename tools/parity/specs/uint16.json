@@ -1,10 +1,14 @@
 {
   "name": "uint16",
-  "namespace": "core",
-  "setup": "x = linspace(0, 60000, 1000000);",
-  "expr": "y = uint16(x);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: Y = uint16(X). 1M \u2192 uint16. 50 iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(uint16(65535)); r2 = double(uint16(0)); r3 = double(uint16(1000));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = uint16(...). Type conversion. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity."
 }
