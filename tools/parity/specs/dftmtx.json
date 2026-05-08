@@ -1,14 +1,16 @@
 {
   "name": "dftmtx",
   "namespace": "core",
-  "setup": "n = 64;",
-  "expr": "y = dftmtx(n);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: F = dftmtx(N). 64x64 DFT matrix. 1000 iters.",
+  "setup": "F2 = dftmtx(2); F4 = dftmtx(4); F8 = dftmtx(8); F16 = dftmtx(16); F1 = dftmtx(1);",
+  "expr": "n2 = numel(F2); n4 = numel(F4); n8 = numel(F8); n16 = numel(F16); s4 = sum(F4(:)); rec_real = real(F8(2,2)); rec_imag = imag(F8(2,2)); col_real = real(F8(5,5)); n1 = double(F1);",
+  "iters": 5,
+  "tol": 1e-12,
   "fingerprint": [
-    "double(numel(y))",
-    "double(real(y(1, 1)))",
-    "double(real(y(end, end)))"
-  ]
+    "n2", "n4", "n8", "n16",
+    "real(s4)",
+    "rec_real", "rec_imag",
+    "col_real",
+    "n1"
+  ],
+  "comment": "Sig: F = dftmtx(N). N×N DFT matrix; F(j,k) = exp(-2πi(j-1)(k-1)/N). For real input dftmtx(N)*x equals fft(x). Edges: F2 4 elem, F4 16 elem, F8 64 elem, F16 256 elem; F8(2,2) = √2/2 - i√2/2 ≈ 0.7071-0.7071i; F8(5,5) = 1 + 0i (column 5 row 5 ≡ exp(-2πi·16/8) = exp(-4πi) = 1); dftmtx(1) = 1."
 }

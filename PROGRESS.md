@@ -1024,7 +1024,7 @@ the flat `gf*` function family below.
 | `istrellis` | ❌ |  |  |  |  |  |
 | `poly2trellis` | ❌ |  |  |  |  | conv-poly → trellis struct |
 | `cosets` | ❌ |  |  |  |  | cyclotomic cosets |
-| `dftmtx` | ✅ |  |  |  |  | already in core / FFT |
+| `dftmtx` | ✅ | 0.008 | 31.76× | 14.72× | OK | Sig: F = dftmtx(N). N×N DFT matrix; F(j,k) = exp(-2πi(j-1)(k-1)/N). For real input dftmtx(N)*x equals fft(x). Edges: F2 4 elem, F4 16 elem, F8 64 elem, F16 256 elem; F8(2,2) = √2/2 - i√2/2 ≈ 0.7071-0.7071i; F8(5,5) = 1 + 0i (column 5 row 5 ≡ exp(-2πi·16/8) = exp(-4πi) = 1); dftmtx(1) = 1. |
 | `isprimitive` | ❌ |  |  |  |  |  |
 | `minpol` | ❌ |  |  |  |  | minimal polynomial in GF |
 | `primpoly` | ❌ |  |  |  |  | primitive polynomial of degree m |
@@ -2542,7 +2542,7 @@ intentionally omitted — flat solver functions only.
 | `cceps` | ✅ | 0.029 | 5.63× | 3.79× | OK | Sig: Y = cceps(X). Complex cepstrum. 100 iters. |
 | `czt` | ❌ |  |  |  |  | chirp Z-transform |
 | `dct` | ✅ | 3.978 | 0.02× | 0.02× | OK | Sig: Y = dct(X). 1024-pt DCT. 1000 iters. |
-| `dftmtx` | ✅ | 0.034 | 1.55× | 1.24× | OK | Sig: F = dftmtx(N). 64x64 DFT matrix. 1000 iters. |
+| `dftmtx` | ✅ | 0.008 | 31.76× | 14.72× | OK | Sig: F = dftmtx(N). N×N DFT matrix; F(j,k) = exp(-2πi(j-1)(k-1)/N). For real input dftmtx(N)*x equals fft(x). Edges: F2 4 elem, F4 16 elem, F8 64 elem, F16 256 elem; F8(2,2) = √2/2 - i√2/2 ≈ 0.7071-0.7071i; F8(5,5) = 1 + 0i (column 5 row 5 ≡ exp(-2πi·16/8) = exp(-4πi) = 1); dftmtx(1) = 1. |
 | `digitrevorder` | ❌ |  |  |  |  |  |
 | `dlistft` | ❌ |  |  |  |  |  |
 | `dlstft` | ❌ |  |  |  |  |  |

@@ -35,3 +35,14 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Pure spec coverage, no impl change. Numkit dftmtx already
+  matched MATLAB exactly modulo IEEE rounding noise on cells that
+  are algebraically zero (sub-1e-12). Spec extended from 3 to 9
+  fingerprints (N ∈ {1, 2, 4, 8, 16} sizes + algebraic identities
+  at off-diagonal cells). Parity OK numkit ↔ MATLAB ↔ Octave at
+  tol=1e-12. 6 TEST_F gtest (existing 3 + 3 new for N=1, N=2,
+  N=16) + smoke.

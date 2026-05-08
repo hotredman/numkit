@@ -63,7 +63,6 @@ Status legend:
 | [findings/signal/dct.md](findings/signal/dct.md) | dct | signal.transforms | high | medium | 9bce106 |
 | [findings/signal/idct.md](findings/signal/idct.md) | idct | signal.transforms | medium | small | 9bce106 |
 | [findings/signal/bitrevorder.md](findings/signal/bitrevorder.md) | bitrevorder | signal.transforms | medium | small | 9bce106 |
-| [findings/signal/dftmtx.md](findings/signal/dftmtx.md) | dftmtx | signal.transforms | low | small | 9bce106 |
 | [findings/signal/interpft.md](findings/signal/interpft.md) | interpft | signal.transforms | low | small | 9bce106 |
 | [findings/stats/frnd.md](findings/stats/frnd.md) | frnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/raylrnd.md](findings/stats/raylrnd.md) | raylrnd | stats.dist | medium | small | e580a5c |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/signal/fftshift.md](closed/signal/fftshift.md) | fftshift | PENDING | 2026-05-08 |
 | [closed/signal/ifftshift.md](closed/signal/ifftshift.md) | ifftshift | PENDING | 2026-05-08 |
 | [closed/signal/nextpow2.md](closed/signal/nextpow2.md) | nextpow2 | PENDING | 2026-05-08 |
+| [closed/signal/dftmtx.md](closed/signal/dftmtx.md) | dftmtx | PENDING | 2026-05-08 |
 
 ---
 
