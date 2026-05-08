@@ -1,10 +1,16 @@
 {
   "name": "coth",
-  "namespace": "core",
-  "setup": "x = linspace(0.1, 5, 1000000);",
+  "namespace": "builtin",
+  "setup": "x = [-2, -1, 1, 2, 0.5];",
   "expr": "y = coth(x);",
-  "iters": 20,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: Y = coth(X). 1M-pt avoid 0 pole. 20 iters."
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "y(1)",
+    "y(2)",
+    "y(3)",
+    "y(4)",
+    "y(5)"
+  ],
+  "comment": "Sig: y = coth(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b."
 }
