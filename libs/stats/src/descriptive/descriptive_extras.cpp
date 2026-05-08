@@ -296,49 +296,155 @@ Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
 
 // ── ksdensity ─────────────────────────────────────────────────────────
 
-std::tuple<Value, Value, Value>
-ksdensity(std::pmr::memory_resource *mr, const Value &x, const Value &pts,
-          double bw_user)
+namespace {
+// Per-kernel pdf K(u) and cdf F(u). All normalized so ∫K = 1 and the
+// kernel is supported on [-1, 1] for finite-support kernels (or all of
+// R for normal). Bandwidth is applied externally.
+enum class KsKernel { Normal, Box, Triangle, Epanechnikov };
+KsKernel parse_ks_kernel(const std::string &raw) {
+    std::string s; s.reserve(raw.size());
+    for (char c : raw) s.push_back((char)std::tolower((unsigned char)c));
+    if (s == "normal" || s == "gauss" || s == "gaussian") return KsKernel::Normal;
+    if (s == "box" || s == "rectangular" || s == "rect")   return KsKernel::Box;
+    if (s == "triangle" || s == "triangular")              return KsKernel::Triangle;
+    if (s == "epanechnikov" || s == "epan")                return KsKernel::Epanechnikov;
+    throw Error("ksdensity: unknown Kernel '" + raw + "'",
+                0, 0, "ksdensity", "", "m:ksdensity:kernel");
+}
+inline double ks_pdf(double u, KsKernel k) {
+    switch (k) {
+        case KsKernel::Normal:
+            return 0.3989422804014327 * std::exp(-0.5 * u * u);
+        case KsKernel::Box:
+            return (std::fabs(u) <= 1.0) ? 0.5 : 0.0;
+        case KsKernel::Triangle:
+            return (std::fabs(u) <= 1.0) ? (1.0 - std::fabs(u)) : 0.0;
+        case KsKernel::Epanechnikov:
+            return (std::fabs(u) <= 1.0) ? (0.75 * (1.0 - u * u)) : 0.0;
+    }
+    return 0.0;
+}
+// MATLAB-compat scaling: each kernel's "unit" form has variance σ² which
+// differs across kernel types. MATLAB normalizes the EFFECTIVE bandwidth
+// so that h has the same standard-deviation interpretation as the
+// normal kernel. Result: multiply h by 1/σ_unit for finite-support
+// kernels.
+//   Normal: σ²=1     → factor 1.0000
+//   Box:    σ²=1/3   → factor sqrt(3) ≈ 1.7321
+//   Tri:    σ²=1/6   → factor sqrt(6) ≈ 2.4495
+//   Epan:   σ²=1/5   → factor sqrt(5) ≈ 2.2361
+inline double ks_h_factor(KsKernel k) {
+    switch (k) {
+        case KsKernel::Normal:       return 1.0;
+        case KsKernel::Box:          return std::sqrt(3.0);
+        case KsKernel::Triangle:     return std::sqrt(6.0);
+        case KsKernel::Epanechnikov: return std::sqrt(5.0);
+    }
+    return 1.0;
+}
+inline double ks_cdf(double u, KsKernel k) {
+    switch (k) {
+        case KsKernel::Normal:
+            return 0.5 * (1.0 + std::erf(u / std::sqrt(2.0)));
+        case KsKernel::Box:
+            if (u <= -1.0) return 0.0;
+            if (u >=  1.0) return 1.0;
+            return 0.5 * (u + 1.0);
+        case KsKernel::Triangle:
+            if (u <= -1.0) return 0.0;
+            if (u >=  1.0) return 1.0;
+            if (u <= 0.0) return 0.5 * (u + 1.0) * (u + 1.0);
+            return 1.0 - 0.5 * (1.0 - u) * (1.0 - u);
+        case KsKernel::Epanechnikov:
+            if (u <= -1.0) return 0.0;
+            if (u >=  1.0) return 1.0;
+            return 0.5 + 0.75 * u - 0.25 * u * u * u;
+    }
+    return 0.0;
+}
+} // anonymous
+
+// Result struct for the extended ksdensity API. Forward-declared also
+// above the engine-adapter `ksdensity_reg` (in the outer namespace).
+struct KsdensityFull { Value f, xi, bw; };
+
+KsdensityFull
+ksdensity_full(std::pmr::memory_resource *mr,
+               const Value &x, const Value &pts,
+               double bw_user, const std::string &kernel_name,
+               const std::string &function_mode,
+               size_t numpoints,
+               const Value *weights)
 {
     const size_t N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
     if (N == 0)
-        return std::make_tuple(Value::matrix(0, 0, ValueType::DOUBLE, mr),
-                               Value::matrix(0, 0, ValueType::DOUBLE, mr),
-                               Value::scalar(nan, mr));
-    std::vector<double> xv(N);
-    for (size_t i = 0; i < N; ++i) xv[i] = x.elemAsDouble(i);
-    std::sort(xv.begin(), xv.end());
+        return {Value::matrix(0, 0, ValueType::DOUBLE, mr),
+                Value::matrix(0, 0, ValueType::DOUBLE, mr),
+                Value::scalar(nan, mr)};
 
-    // Silverman's-rule bandwidth.
+    const KsKernel kernel = parse_ks_kernel(kernel_name);
+
+    std::vector<double> xv(N);
+    std::vector<double> wv(N, 1.0);
+    if (weights && weights->numel() == N)
+        for (size_t i = 0; i < N; ++i) wv[i] = weights->elemAsDouble(i);
+    for (size_t i = 0; i < N; ++i) xv[i] = x.elemAsDouble(i);
+    // Normalize weights so Σw = 1 (matches MATLAB semantics).
+    double Wsum = 0.0;
+    for (double w : wv) Wsum += w;
+    if (!(Wsum > 0.0)) Wsum = double(N);
+    const double Winv = 1.0 / Wsum;
+
+    // Sort xv and wv jointly.
+    std::vector<size_t> idx(N);
+    for (size_t i = 0; i < N; ++i) idx[i] = i;
+    std::sort(idx.begin(), idx.end(),
+              [&](size_t a, size_t b) { return xv[a] < xv[b]; });
+    std::vector<double> xs(N), ws(N);
+    for (size_t i = 0; i < N; ++i) { xs[i] = xv[idx[i]]; ws[i] = wv[idx[i]]; }
+
+    // MATLAB's default bandwidth for the normal kernel:
+    //   sigma = mad(x, 1) / 0.6745 if positive, else iqr(x) / 1.349
+    //   bw    = sigma · (4 / (3·n))^(1/5)
     double bw = bw_user;
     if (!(bw > 0.0)) {
-        double mean = 0.0;
-        for (double v : xv) mean += v;
-        mean /= double(N);
-        double sq = 0.0;
-        for (double v : xv) { const double dd = v - mean; sq += dd * dd; }
-        const double sd = (N > 1) ? std::sqrt(sq / double(N - 1)) : 1.0;
-        // IQR via 25/75 percentiles (linear interp).
-        auto pct = [&](double p) {
-            const double pos = p * (double(N) - 1.0);
-            const size_t lo = static_cast<size_t>(std::floor(pos));
-            const size_t hi = static_cast<size_t>(std::ceil (pos));
-            const double t = pos - double(lo);
-            return xv[lo] * (1.0 - t) + xv[hi] * t;
-        };
-        const double iqr = pct(0.75) - pct(0.25);
-        const double sigma = (iqr > 0.0) ? std::min(sd, iqr / 1.34) : sd;
-        bw = std::pow(4.0 / (3.0 * double(N)), 0.2) * sigma;
+        // median absolute deviation
+        std::vector<double> tmp = xs;          // already sorted
+        const double med = (N % 2 == 1) ? tmp[N / 2]
+                                        : 0.5 * (tmp[N / 2 - 1] + tmp[N / 2]);
+        std::vector<double> dev(N);
+        for (size_t i = 0; i < N; ++i) dev[i] = std::fabs(xs[i] - med);
+        std::sort(dev.begin(), dev.end());
+        const double mad = (N % 2 == 1) ? dev[N / 2]
+                                        : 0.5 * (dev[N / 2 - 1] + dev[N / 2]);
+        double sigma = (mad > 0.0) ? mad / 0.6745 : 0.0;
+        if (!(sigma > 0.0)) {
+            // IQR fallback.
+            auto pct = [&](double p) {
+                const double pos = p * (double(N) - 1.0);
+                const size_t lo = (size_t)std::floor(pos);
+                const size_t hi = (size_t)std::ceil(pos);
+                const double t = pos - double(lo);
+                return xs[lo] * (1.0 - t) + xs[hi] * t;
+            };
+            const double iqr = pct(0.75) - pct(0.25);
+            sigma = (iqr > 0.0) ? iqr / 1.349 : 1.0;
+        }
+        bw = sigma * std::pow(4.0 / (3.0 * double(N)), 0.2);
         if (!(bw > 0.0)) bw = 1.0;
     }
+
+    // Apply kernel-specific bandwidth scaling so h has consistent
+    // standard-deviation semantics across kernels (MATLAB convention).
+    const double h_eff = bw * ks_h_factor(kernel);
 
     // Build evaluation grid.
     std::vector<double> grid;
     if (pts.isEmpty()) {
-        const size_t M = 100;
-        const double xmin = xv.front() - 3.0 * bw;
-        const double xmax = xv.back()  + 3.0 * bw;
+        const size_t M = (numpoints > 0) ? numpoints : 100;
+        const double xmin = xs.front() - 3.0 * h_eff;
+        const double xmax = xs.back()  + 3.0 * h_eff;
         grid.resize(M);
         if (M == 1) grid[0] = xmin;
         else {
@@ -353,23 +459,60 @@ ksdensity(std::pmr::memory_resource *mr, const Value &x, const Value &pts,
     }
 
     const size_t M = grid.size();
+    auto lower = [](std::string s) {
+        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        return s;
+    };
+    const std::string mode = function_mode.empty() ? "pdf"
+                                                    : lower(function_mode);
     Value fv = Value::matrix(1, M, ValueType::DOUBLE, mr);
     double *fd = fv.doubleDataMut();
-    const double inv_h = 1.0 / bw;
-    const double inv_sqrt2pi = 0.3989422804014327;
-    for (size_t j = 0; j < M; ++j) {
-        double sum = 0.0;
-        for (size_t i = 0; i < N; ++i) {
-            const double u = (grid[j] - xv[i]) * inv_h;
-            sum += inv_sqrt2pi * std::exp(-0.5 * u * u);
+    const double inv_h = 1.0 / h_eff;
+
+    if (mode == "pdf") {
+        for (size_t j = 0; j < M; ++j) {
+            double sum = 0.0;
+            for (size_t i = 0; i < N; ++i) {
+                const double u = (grid[j] - xs[i]) * inv_h;
+                sum += ws[i] * ks_pdf(u, kernel);
+            }
+            fd[j] = sum * inv_h * Winv;
         }
-        fd[j] = sum * inv_h / double(N);
+    } else if (mode == "cdf" || mode == "survivor" || mode == "cumhazard"
+               || mode == "cumulative hazard") {
+        for (size_t j = 0; j < M; ++j) {
+            double sum = 0.0;
+            for (size_t i = 0; i < N; ++i) {
+                const double u = (grid[j] - xs[i]) * inv_h;
+                sum += ws[i] * ks_cdf(u, kernel);
+            }
+            const double F = sum * Winv;
+            if      (mode == "cdf")      fd[j] = F;
+            else if (mode == "survivor") fd[j] = 1.0 - F;
+            else                         fd[j] = -std::log(std::max(1.0 - F, 1e-300));
+        }
+    } else if (mode == "icdf") {
+        throw Error("ksdensity: 'Function'='icdf' is not yet supported",
+                    0, 0, "ksdensity", "", "m:ksdensity:icdf_nyi");
+    } else {
+        throw Error("ksdensity: unknown Function '" + mode + "'",
+                    0, 0, "ksdensity", "", "m:ksdensity:badfn");
     }
+
     Value xiV = Value::matrix(1, M, ValueType::DOUBLE, mr);
     double *xd = xiV.doubleDataMut();
     for (size_t i = 0; i < M; ++i) xd[i] = grid[i];
-    return std::make_tuple(std::move(fv), std::move(xiV),
-                           Value::scalar(bw, mr));
+    return {std::move(fv), std::move(xiV), Value::scalar(bw, mr)};
+}
+
+// Backward-compat 4-arg form: pdf with normal kernel, default
+// numpoints=100, no weights.
+std::tuple<Value, Value, Value>
+ksdensity(std::pmr::memory_resource *mr, const Value &x, const Value &pts,
+          double bw_user)
+{
+    auto R = ksdensity_full(mr, x, pts, bw_user, "normal", "pdf", 100, nullptr);
+    return std::make_tuple(std::move(R.f), std::move(R.xi), std::move(R.bw));
 }
 
 // ── prepareCurveData / prepareSurfaceData ─────────────────────────────
@@ -546,6 +689,14 @@ EcdfFull ecdf_full(std::pmr::memory_resource *mr,
                    const std::string &function_mode, double alpha,
                    bool want_bounds);
 
+// Forward declaration for ksdensity_full. KsdensityFull is defined above.
+struct KsdensityFull;
+KsdensityFull ksdensity_full(std::pmr::memory_resource *mr,
+                             const Value &x, const Value &pts,
+                             double bw_user, const std::string &kernel_name,
+                             const std::string &function_mode,
+                             size_t numpoints, const Value *weights);
+
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
 
@@ -581,11 +732,19 @@ void ksdensity_reg(Span<const Value> args, size_t nargout,
                    Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("ksdensity: requires (x[, pts, 'Bandwidth', bw])",
+        throw Error("ksdensity: requires (x[, pts][, N-V pairs])",
                     0, 0, "ksdensity", "", "m:ksdensity:nargin");
     auto *mr = ctx.engine->resource();
     Value pts = Value::matrix(0, 0, ValueType::DOUBLE, mr);
     double bw_user = 0.0;
+    std::string kernel = "normal";
+    std::string function_mode = "pdf";
+    size_t numpoints = 100;
+    const Value *weights = nullptr;
+    auto lower = [](std::string s) {
+        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        return s;
+    };
     size_t i = 1;
     if (i < args.size() && !args[i].isChar() && !args[i].isString()
         && !args[i].isEmpty()) {
@@ -594,17 +753,39 @@ void ksdensity_reg(Span<const Value> args, size_t nargout,
     }
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString()) break;
-        std::string name = args[i].toString();
-        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        const std::string name = lower(args[i].toString());
         const Value &v = args[i + 1];
-        if (name == "bandwidth" || name == "width") bw_user = v.toScalar();
-        // 'kernel', 'support', etc. silently ignored
+        if      (name == "bandwidth" || name == "width") {
+            if (v.isChar() || v.isString()) {
+                // 'normal-approx' / 'plug-in' string forms — only
+                // 'normal-approx' (default behavior) is supported.
+                const std::string s = lower(v.toString());
+                if (s != "normal-approx" && s != "plug-in")
+                    throw Error("ksdensity: unknown Bandwidth string '" + s + "'",
+                                0, 0, "ksdensity", "", "m:ksdensity:bw");
+                bw_user = 0.0;
+            } else {
+                bw_user = v.toScalar();
+            }
+        }
+        else if (name == "kernel")    kernel = v.toString();
+        else if (name == "function")  function_mode = v.toString();
+        else if (name == "numpoints") numpoints = (size_t)v.toScalar();
+        else if (name == "weights")   { if (!v.isEmpty()) weights = &v; }
+        else if (name == "censoring" || name == "support"
+                 || name == "boundarycorrection") {
+            if (!v.isEmpty())
+                throw Error("ksdensity: '" + name + "' is not yet supported",
+                            0, 0, "ksdensity", "", "m:ksdensity:nyi");
+        }
+        // 'PlotFcn' silently ignored (no-op headless).
         i += 2;
     }
-    auto [f, xi, bw] = ksdensity(mr, args[0], pts, bw_user);
-    outs[0] = std::move(f);
-    if (nargout > 1) outs[1] = std::move(xi);
-    if (nargout > 2) outs[2] = std::move(bw);
+    auto R = ksdensity_full(mr, args[0], pts, bw_user, kernel,
+                            function_mode, numpoints, weights);
+    outs[0] = std::move(R.f);
+    if (nargout > 1) outs[1] = std::move(R.xi);
+    if (nargout > 2) outs[2] = std::move(R.bw);
 }
 
 void datastats_reg(Span<const Value> args, size_t /*nargout*/,

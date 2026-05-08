@@ -1,18 +1,18 @@
 {
   "name": "ksdensity",
   "namespace": "stats",
-  "setup": "x = [1 2 3 4 5]'; pts = [0 1 2 3 4 5 6];",
-  "expr": "[f, xi] = ksdensity(x, pts, 'Bandwidth', 1);",
-  "iters": 5,
-  "tol": 1e-9,
+  "setup": "x = [1 2 2.5 3 3.5 4 5 6 7 9]'; pts = (0:0.5:10)'; w = ones(10, 1); w(1:5) = 2;",
+  "expr": "[f, xi, bw] = ksdensity(x, pts); fb = ksdensity(x, pts, 'Kernel', 'box'); ft = ksdensity(x, pts, 'Kernel', 'triangle'); fe = ksdensity(x, pts, 'Kernel', 'epanechnikov'); fc = ksdensity(x, pts, 'Function', 'cdf'); fs = ksdensity(x, pts, 'Function', 'survivor'); fw = ksdensity(x, pts, 'Weights', w);",
+  "iters": 3,
+  "tol": 1e-5,
   "fingerprint": [
-    "f(1)",
-    "f(2)",
-    "f(3)",
-    "f(4)",
-    "f(end)",
-    "xi(1)",
-    "xi(end)"
+    "bw", "f(1)", "f(5)", "f(11)", "f(numel(f))",
+    "fb(1)", "fb(5)",
+    "ft(1)", "ft(5)",
+    "fe(1)", "fe(5)",
+    "fc(1)", "fc(5)", "fc(numel(fc))",
+    "fs(1)", "fs(5)",
+    "fw(1)", "fw(5)"
   ],
-  "comment": "Sig: [f, xi, bw] = ksdensity(x[, pts, 'Bandwidth', bw]). Gaussian kernel density estimate at user-specified pts (or 100-point auto grid). With explicit bw the kernel formula matches MATLAB exactly; the auto-bw heuristic uses Silverman's rule which differs slightly from MATLAB's internal."
+  "comment": "Sig: [f, xi, bw] = ksdensity(x[, pts][, 'Bandwidth'/'Kernel'/'Function'/'NumPoints'/'Weights', val, ...]). 4 kernels (normal/box/triangle/epanechnikov) with MATLAB-style σ²=1 bandwidth normalization (h × sqrt(unit-σ²-inverse) for finite-support kernels). Function modes: pdf (default), cdf, survivor, cumhazard. Weights normalized to sum to 1. Default bandwidth via mad(x)/0.6745 fallback to iqr(x)/1.349 (matches MATLAB's bw exactly). Censoring/Support/BoundaryCorrection deferred."
 }

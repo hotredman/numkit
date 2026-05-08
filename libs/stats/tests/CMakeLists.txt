@@ -98,5 +98,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/jbtest_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/vartestn_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ecdf_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ksdensity_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/chi2gof_test.cpp
 )
