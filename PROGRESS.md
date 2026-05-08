@@ -3041,7 +3041,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `raylfit` | ✅ | 0.009 | 241.10× |  | OK | Sig: [shat, sci] = raylfit(x[, alpha]). Rayleigh MLE: σ = √(Σx²/(2N)); CI from chi² inversion 2N·σ̂² ~ σ²·χ²(2N). Edges: non-default α; single-element x; empty input -> NaN. |
 | `unifit` | ✅ | 0.008 | 74.44× |  | OK | Sig: [a, b, aci, bci] = unifit(x[, alpha]). MLE for U(a,b): a=min, b=max. CI extension delta = (b-a)·(α^(-1/n) − 1). Single-element x: ACI=BCI=[x x] (zero-width). Empty input: numkit returns NaN; MATLAB returns empty arrays — convention difference, not in fingerprint. |
 | `wblfit` | ❌ |  |  |  |  |  |
-| `wbllike` | ✅ | 0.003 | 203.33× | 68.33× | OK | Sig: nL = wbllike([scale shape], x). Negative log-likelihood for Weibull(a, b). Default-path only — no `freq`, `censoring`, or `avar` second output. |
+| `wbllike` | ✅ | 0.008 | 276.96× | 58.63× | OK | Sig: nL = wbllike([scale shape], x[, cens, freq]). Weibull(a, b). Uncensored: -log(b) + b·log(a) - (b-1)·log(x) + (x/a)^b. Censored: (x/a)^b. With optional freq weights. Edges: scale<=0 or shape<=0 -> NaN (was Inf); x_i <= 0 -> NaN. Empty data: numkit returns 0 (consistent with our *like family); MATLAB errors `DATA must be a vector` — convention difference, not in fingerprint. AVAR (2-output form) deferred. |
 
 ### Multivariate Distributions
 

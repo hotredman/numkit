@@ -1,10 +1,13 @@
 {
   "name": "wbllike",
   "namespace": "stats",
-  "setup": "x = [1 2 3 4 5]';",
-  "expr": "nL = wbllike([1, 2], x);",
+  "setup": "x = [1 2 3 4 5]'; cens = [0 0 0 1 1]'; freq = [2 2 1 1 1]';",
+  "expr": "nL_b = wbllike([1, 2], x); nL_c = wbllike([1, 2], x, cens); nL_f = wbllike([1, 2], x, [], freq); nL_cf = wbllike([1, 2], x, cens, freq); nL_s0 = wbllike([0, 2], x); nL_kn = wbllike([1, -1], x);",
   "iters": 5,
   "tol": 1e-9,
-  "fingerprint": ["nL"],
-  "comment": "Sig: nL = wbllike([scale shape], x). Negative log-likelihood for Weibull(a, b)."
+  "fingerprint": [
+    "nL_b", "nL_c", "nL_f", "nL_cf",
+    "nL_s0", "nL_kn"
+  ],
+  "comment": "Sig: nL = wbllike([scale shape], x[, cens, freq]). Weibull(a, b). Uncensored: -log(b) + b·log(a) - (b-1)·log(x) + (x/a)^b. Censored: (x/a)^b. With optional freq weights. Edges: scale<=0 or shape<=0 -> NaN (was Inf); x_i <= 0 -> NaN. Empty data: numkit returns 0 (consistent with our *like family); MATLAB errors `DATA must be a vector` — convention difference, not in fingerprint. AVAR (2-output form) deferred."
 }
