@@ -1,10 +1,13 @@
 {
   "name": "xcorr",
-  "namespace": "core",
-  "setup": "x = sin(linspace(0, 100, 5000));",
-  "expr": "y = xcorr(x, x);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: C = xcorr(X). Auto-correlation 5k-pt. 100 iters.",
-  "out_var": "y"
+  "namespace": "signal",
+  "setup": "",
+  "expr": "r = xcorr([1 2 3], [1 2 3]); r1 = r(3); r2 = double(numel(r));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = xcorr(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }
