@@ -1,0 +1,16 @@
+{
+  "name": "wblstat",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "[m_s, v_s] = wblstat(1, 2); [m_v, v_v] = wblstat([1 2 3], [1 2 3]); [m_b, v_b] = wblstat(2, [0.5 1 2]); m_a0 = wblstat(0, 1); m_b0 = wblstat(1, 0); m_aneg = wblstat(-1, 1);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "m_s", "v_s",
+    "m_v(1)", "m_v(2)", "m_v(3)",
+    "v_v(1)", "v_v(2)", "v_v(3)",
+    "m_b(1)", "m_b(2)", "m_b(3)",
+    "m_a0", "m_b0", "m_aneg"
+  ],
+  "comment": "Sig: [m, v] = wblstat(a, b). Weibull(scale=a, shape=b): m = a·Γ(1+1/b), v = a²·(Γ(1+2/b) - Γ(1+1/b)²). Vectorised. a<=0 or b<=0 => NaN."
+}
