@@ -9,6 +9,15 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const http = require('http');
 
+// Bump V8's renderer-process heap limit. The default on 64-bit
+// Chromium is roughly 4 GB but actual cap depends on the Electron
+// build and OS — empirically the Numkit renderer was hitting OOM
+// well below 2 GB. Bumping to 4 GB gives breathing room for big
+// scripts (large matrices, long REPL sessions); WASM still grows
+// inside this limit. `--js-flags` MUST be set before app.ready, so
+// we set it at module top.
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=4096 --expose-gc');
+
 const IDE_DIR = path.resolve(__dirname, '..');
 const DIST_DIR = path.join(__dirname, 'dist');
 const IS_PROD = fs.existsSync(path.join(DIST_DIR, 'index.html'));
@@ -35,6 +44,37 @@ function createWindow(url) {
   } else {
     mainWindow.loadFile(url);
   }
+
+  // Renderer crash / hang surfaces — Electron used to silently swap to a
+  // blank white page. Catch both classes of failure here so the user
+  // gets a real dialog instead of guessing whether the app froze.
+  mainWindow.webContents.on('render-process-gone', (_e, details) => {
+    console.error('[Numkit IDE] Renderer gone:', details);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'error',
+        title: 'Numkit IDE — renderer crashed',
+        message: `Renderer process exited unexpectedly (reason: ${details.reason}, exitCode: ${details.exitCode}).`,
+        detail: 'Likely an out-of-memory event. The window can be reloaded; if it keeps happening, try clearing the console or running fewer figures at once.',
+        buttons: ['Reload', 'Quit'],
+        defaultId: 0,
+        cancelId: 1,
+      }).then((res) => {
+        if (res.response === 0 && mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.reload();
+        } else {
+          app.quit();
+        }
+      });
+    }
+  });
+  mainWindow.webContents.on('unresponsive', () => {
+    console.warn('[Numkit IDE] Renderer unresponsive — likely a long synchronous WASM call or runaway loop');
+  });
+  mainWindow.webContents.on('responsive', () => {
+    console.log('[Numkit IDE] Renderer responsive again');
+  });
+
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
@@ -162,13 +202,39 @@ ipcMain.handle('fs:pickDirectory', async () => {
   return result.filePaths[0];
 });
 
+// Folders that explode the tree without ever being useful in the IDE
+// explorer. Skipped during the recursive walk regardless of depth.
+const TREE_SKIP_DIRS = new Set([
+  'node_modules', '.git', '.svn', '.hg', '.idea', '.vscode',
+  'build', 'build-browser', 'build-bench-wasm', 'build-portable',
+  'build-desktop-fast', 'build-apple-m', 'dist', '.next', '.nuxt',
+  '.cache', '.parcel-cache', '.turbo', '.venv', 'venv', '__pycache__',
+  'target', '.gradle', 'cmake-build-debug', 'cmake-build-release',
+]);
+
+const TREE_MAX_ENTRIES = 8000;  // hard cap on total nodes returned
+const TREE_MAX_DEPTH = 12;      // hard cap on recursion depth
+
 ipcMain.handle('fs:listTree', async (_e, root) => {
-  async function walk(dir, rel) {
-    const list = await fsp.readdir(dir, { withFileTypes: true });
+  let total = 0;
+  let truncated = false;
+
+  async function walk(dir, rel, depth) {
+    if (depth > TREE_MAX_DEPTH) { truncated = true; return []; }
+    if (total >= TREE_MAX_ENTRIES) { truncated = true; return []; }
+    let list;
+    try { list = await fsp.readdir(dir, { withFileTypes: true }); }
+    catch { return []; }
     const entries = [];
     for (const d of list) {
+      if (total >= TREE_MAX_ENTRIES) { truncated = true; break; }
       // Skip obvious junk that shouldn't clutter the tree.
       if (d.name.startsWith('.DS_Store')) continue;
+      // Skip well-known noise dirs: every numkit-m worktree has these
+      // at the root and walking them was the proven cause of Electron
+      // renderer OOM (the serialised tree exceeded V8's heap when a
+      // user mounted a folder with a populated node_modules / build-*).
+      if (d.isDirectory() && TREE_SKIP_DIRS.has(d.name)) continue;
       const full = path.join(dir, d.name);
       const itemPath = rel === '/' ? `/${d.name}` : `${rel}/${d.name}`;
       const node = {
@@ -176,9 +242,10 @@ ipcMain.handle('fs:listTree', async (_e, root) => {
         path: itemPath,
         type: d.isDirectory() ? 'folder' : 'file',
       };
+      total++;
       if (d.isDirectory()) {
-        try { node.children = await walk(full, itemPath); }
-        catch (err) { node.children = []; }
+        try { node.children = await walk(full, itemPath, depth + 1); }
+        catch { node.children = []; }
       }
       entries.push(node);
     }
@@ -188,7 +255,13 @@ ipcMain.handle('fs:listTree', async (_e, root) => {
     });
     return entries;
   }
-  return walk(path.resolve(root), '/');
+
+  const tree = await walk(path.resolve(root), '/', 0);
+  if (truncated) {
+    console.warn(`[Numkit IDE] fs:listTree truncated: ${total} entries reached cap`
+               + ` (max ${TREE_MAX_ENTRIES}, depth ${TREE_MAX_DEPTH}). Some nested folders may be hidden.`);
+  }
+  return tree;
 });
 
 ipcMain.handle('fs:readFile', async (_e, root, relPath) => {
