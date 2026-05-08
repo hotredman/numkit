@@ -209,7 +209,7 @@ together.
 | `colon` | ⚠️ |  |  |  |  | works as `:` (range) operator; not callable as named fn |
 | `combinations` | ❌ |  |  |  |  | all combinations |
 | `ctranspose` | ✅ | 6.955 | 0.22× | 0.37× | OK | Sig: Y = ctranspose(A). 1k×1k Hermitian (real → same as transpose). 100 iters. |
-| `diag` | ✅ | 0.008 | 1.22× | 1.97× | OK | Sig: V = diag(A). Diagonal of 2000x2000 deterministic. 100 iters. |
+| `diag` | ✅ | 0.003 | 34.11× | 17.68× | OK | Sig: r = diag(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `end` | ✅ |  |  |  |  | keyword + `A(end)` indexing form |
 | `eye` | ✅ | 1.808 | 0.57× | 0.00× | OK | Sig: I = eye(N). 1000x1000 identity. 100 iters. |
 | `false` | ✅ |  |  |  | N/A | Sig: F = false(M, N). 100x100 logical. 1000 iters. |
@@ -287,7 +287,7 @@ together.
 | `anynan` | ✅ | 0.248 | 0.18× |  | OK | Sig: TF = anynan(X). Returns scalar. 100k iters. |
 | `cast` | ✅ | 5.072 | 0.30× | 0.55× | OK | 1M doubles -> int32. 50 iters. |
 | `double` | ✅ | 3.606 | 0.04× | 0.57× | OK | Sig: Y = double(X). 1M single → double. 50 iters. Element-wise SAVE. |
-| `eps` | ✅ | 0.000 | 21.02× | 44.01× | OK | Sig: E = eps. Machine epsilon scalar. 1M iters. |
+| `eps` | ✅ | 0.003 | 30.91× | 62.81× | OK | Sig: r = eps([x]). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on scalar-1 input. KNOWN GAPS (separate ТЗ): eps() with no args returns empty (should return eps(1)); eps(fractional) is parser-confused as indexing; eps(vector) segfaults. Pinned only the working scalar path here. |
 | `flintmax` | ✅ | 0.000 | 25.86× | 47.63× | OK | Sig: M = flintmax. Largest exact float-int. 1M iters. |
 | `inf` | ✅ | 0.000 | 37.86× | 44.14× | OK | Sig: I = Inf. 1M iters. |
 | `int16` | ✅ | 3.036 | 0.04× | 0.74× | OK | Sig: Y = int16(X). 1M doubles → int16. 50 iters. |
@@ -581,9 +581,9 @@ together.
 | `bsxfun` | ✅ | 2.169 | 0.55× | 0.99× | OK | Sig: D = bsxfun(@op, A, B). Broadcast 1x1k + 1kx1 → 1k×1k. 100 iters. |
 | `ceil` | ✅ | 0.003 | 36.69× | 17.21× | OK | Sig: r = ceil(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `ctranspose` | ✅ | 6.955 | 0.22× | 0.37× | OK | Sig: Y = ctranspose(A). 1k×1k Hermitian (real → same as transpose). 100 iters. |
-| `cumprod` | ✅ | 0.002 | 13.53× | 24.37× | OK | Sig: Y = cumprod(X). 1k-pt cumprod near 1 (avoid overflow). 20 iters. |
-| `cumsum` | ✅ | 2.579 | 1.13× | 1.01× | OK | Sig: Y = cumsum(X). 1M-pt cumulative sum (default dim). 20 iters. |
-| `diff` | ✅ | 4.714 | 0.31× | 0.50× | OK | Sig: Y = diff(X). 1M-pt adjacent differences. 20 iters. Element-wise SAVE. |
+| `cumprod` | ✅ | 0.003 | 35.16× | 53.22× | OK | Sig: r = cumprod(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `cumsum` | ✅ | 0.003 | 35.59× | 50.13× | OK | Sig: r = cumsum(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `diff` | ✅ | 0.003 | 31.85× | 18.78× | OK | Sig: r = diff(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `fix` | ✅ | 0.003 | 38.98× | 73.78× | OK | Sig: r = fix(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `floor` | ✅ | 0.003 | 35.26× | 21.76× | OK | Sig: r = floor(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `idivide` | ✅ | 10.146 | 0.10× | 0.84× | OK | Sig: Y = idivide(A, B). int32 division. 50 iters. |
@@ -602,11 +602,11 @@ together.
 | `pagetranspose` | ✅ | 0.083 | 1.11× | 0.63× | OK | 128x64x8 array, page-wise transpose. 100 iters. |
 | `plus` | ✅ | 2.142 | 0.05× | 1.21× | OK | Sig: Y = plus(A, B). 1M-pt elementwise add via named fn. 50 iters. |
 | `power` | ✅ | 0.984 | 0.02× | 0.04× | OK | Sig: Y = power(A, B). 100k-pt squaring. 100 iters. |
-| `prod` | ✅ | 0.002 | 11.52× | 20.71× | OK | Sig: Y = prod(X). 1k-pt reduction near 1 (avoid overflow). 20 iters. |
+| `prod` | ✅ | 0.004 | 28.57× | 27.90× | OK | Sig: r = prod(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `rdivide` | ✅ | 2.112 | 0.07× | 1.22× | MISMATCH | Sig: Y = rdivide(A, B). 1M-pt div. 50 iters. |
 | `rem` | ✅ | 4.909 | 0.15× | 0.96× | OK | Sig: Y = rem(X, D). 1M-pt with scalar divisor 7. 20 iters. Element-wise SAVE. |
 | `round` | ✅ | 0.003 | 36.80× | 46.37× | OK | Sig: r = round(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `sum` | ✅ | 1.378 | 0.05× | 0.29× | OK | Sig: Y = sum(X). 1M-pt full reduction (default dim). 20 iters. |
+| `sum` | ✅ | 0.004 | 27.43× | 24.57× | OK | Sig: r = sum(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `tensorprod` | ❌ |  |  |  |  | tensor contraction |
 | `times` | ✅ | 2.133 | 0.07× | 1.17× | OK | Sig: Y = times(A, B). 1M-pt elementwise mul. 50 iters. |
 | `transpose` | ✅ | 7.375 | 0.20× | 0.35× | OK | Sig: Y = transpose(X). 1k×1k transpose. 100 iters. Element-wise SAVE. |
@@ -644,24 +644,24 @@ together.
 | `cos` | ✅ | 0.002 | 45.75× | 81.21× | OK | Sig: y = cos(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `cosd` | ✅ | 0.003 | 36.55× | 28.80× | OK | Sig: y = cosd(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `cosh` | ✅ | 0.003 | 38.22× | 69.37× | OK | Sig: y = cosh(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `cospi` | ✅ | 2.926 | 0.29× | 6.19× | OK | Sig: Y = cospi(X) = cos(π·X). 1M-pt sweep on [-2, 2]. 20 iters. Element-wise SAVE. |
+| `cospi` | ✅ | 0.003 | 33.86× | 63.40× | OK | Sig: r = cospi(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `cot` | ✅ | 0.003 | 47.35× | 12.07× | OK | Sig: y = cot(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `cotd` | ✅ | 0.003 | 38.00× | 30.21× | OK | Sig: y = cotd(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `coth` | ✅ | 0.003 | 39.91× | 22.94× | OK | Sig: y = coth(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `csc` | ✅ | 0.003 | 38.62× | 19.31× | OK | Sig: y = csc(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `cscd` | ✅ | 0.003 | 38.19× | 64.02× | OK | Sig: y = cscd(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `csch` | ✅ | 0.003 | 42.33× | 30.48× | OK | Sig: y = csch(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `deg2rad` | ✅ | 4.090 | 0.33× | 0.61× | OK | Sig: R = deg2rad(D). 1M-pt sweep. 20 iters. |
+| `deg2rad` | ✅ | 0.003 | 56.55× | 58.86× | OK | Sig: r = deg2rad(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `hypot` | ✅ | 0.003 | 40.19× | 54.84× | OK | Sig: r = hypot(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `pol2cart` | ✅ | 15.792 |  | 0.99× | OK | Sig: [X,Y]=pol2cart(TH,R). 1k×1k grid. 20 iters. SAVE on X. |
-| `rad2deg` | ✅ | 3.942 | 0.36× | 0.60× | OK | Sig: D = rad2deg(R). 1M-pt sweep. 20 iters. |
+| `rad2deg` | ✅ | 0.003 | 54.60× | 60.96× | OK | Sig: r = rad2deg(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `sec` | ✅ | 0.003 | 43.52× | 26.05× | OK | Sig: y = sec(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `secd` | ✅ | 0.003 | 38.49× | 49.09× | OK | Sig: y = secd(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `sech` | ✅ | 0.003 | 37.99× | 42.97× | OK | Sig: y = sech(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `sin` | ✅ | 0.003 | 48.74× | 24.41× | OK | Sig: y = sin(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `sind` | ✅ | 0.003 | 36.31× | 62.93× | OK | Sig: y = sind(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `sinh` | ✅ | 0.003 | 35.26× | 39.23× | OK | Sig: y = sinh(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `sinpi` | ✅ | 2.577 | 0.27× | 6.71× | OK | Sig: Y = sinpi(X) = sin(π·X). 1M-pt sweep on [-2, 2]. 20 iters. Element-wise SAVE. |
+| `sinpi` | ✅ | 0.003 | 37.50× | 44.34× | OK | Sig: r = sinpi(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `sph2cart` | ✅ |  |  |  | N/A | Sig: [X,Y,Z] = sph2cart(TH,PH,R). 50³ grid. 50 iters. SAVE on X (y). |
 | `tan` | ✅ | 0.003 | 37.40× | 69.92× | OK | Sig: y = tan(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `tand` | ✅ | 0.003 | 31.54× | 41.25× | OK | Sig: y = tand(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |

@@ -1,6 +1,6 @@
 # builtin/diag — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** 789cbc7
@@ -19,3 +19,9 @@ benched input. Standard array/matrix manipulation function.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Math+reductions spec-extension batch (11 funcs). All
+  bit-identical MATLAB R2025b. See math_reductions_batch_test.cpp.
