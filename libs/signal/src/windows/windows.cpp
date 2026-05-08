@@ -231,8 +231,26 @@ Value gausswin(std::pmr::memory_resource *mr, size_t N, double alpha)
 
 // ── chebwin ───────────────────────────────────────────────────────────
 // Dolph-Chebyshev: equiripple sidelobes at `at` dB.
-// Frequency-domain construction → IDFT → real part → fftshift →
-// normalise to peak 1. `at` must be > 0.
+//
+// Algorithm (matches MATLAB R2025b — direct cosine-IDFT form):
+//   1. r    = 10^(at/20)                — ripple ratio
+//   2. M    = N - 1                     — Chebyshev polynomial order
+//   3. β    = cosh(acosh(r) / M)
+//   4. Spectrum samples W(k) = T_M(β·cos(πk/N)) for k = 0..floor(N/2),
+//      where T_n is computed branch-wise:
+//        T_n(x) = cos (n·acos x)         for |x| ≤ 1
+//        T_n(x) = cosh(n·acosh|x|)·sign(x)^n  for |x| > 1
+//   5. Time-domain coefficients via the real cosine inverse:
+//        w(n) = (1/N) · [W(0) + 2 · Σ_{k=1}^{K} W(k) · cos(2π·k·(n-N₀)/N)]
+//      with K = floor((N-1)/2) and N₀ = (N-1)/2.
+//      For even N, the k = N/2 term has T_M(0) = 0 (M is odd) so it is
+//      naturally absent. The cosine basis with the (n-N₀) offset
+//      produces a window symmetric about index N₀ (peak in the middle).
+//   6. Normalise peak to 1.
+//
+// Direct O(N²) — windows are small (N ≤ ~few thousand). Replaces the
+// previous FFT-based path that was numerically fragile on even N
+// (degenerate all-ones output) due to a half-bin offset bug.
 Value chebwin(std::pmr::memory_resource *mr, size_t N, double at)
 {
     if (at <= 0)
@@ -245,64 +263,45 @@ Value chebwin(std::pmr::memory_resource *mr, size_t N, double at)
     }
 
     ScratchArena scratch(mr);
-    const int order = static_cast<int>(N) - 1;
-    const double R = std::pow(10.0, at / 20.0);                    // ripple ratio
-    const double beta = std::cosh(std::acosh(R) / order);
-    const size_t fftLen = nextPow2(N);
+    const int M = static_cast<int>(N) - 1;
+    const double r_lin = std::pow(10.0, at / 20.0);
+    const double beta  = std::cosh(std::acosh(r_lin) / static_cast<double>(M));
 
-    auto W = ScratchVec<Complex>(fftLen, &scratch);
-    // Build symmetric spectrum |W[k]| = T_M(beta·cos(πk/N)) / R, k=0..N-1.
-    // For odd N use real samples; for even N alternate sign across k to
-    // align the IFFT phase so the time-domain window comes out real.
-    const bool nodd = (N % 2 != 0);
-    for (size_t k = 0; k < N; ++k) {
-        const double ck = beta * std::cos(M_PI * static_cast<double>(k) /
-                                          static_cast<double>(N));
-        double mag = chebyT(order, ck) / R;
-        if (!nodd && (k & 1))
-            mag = -mag;
-        W[k] = Complex(mag, 0.0);
+    auto cheb_T_M = [M](double x) -> double {
+        if (std::abs(x) <= 1.0)
+            return std::cos(static_cast<double>(M) * std::acos(x));
+        const double a = std::cosh(static_cast<double>(M) * std::acosh(std::abs(x)));
+        return (x < 0 && (M & 1)) ? -a : a;
+    };
+
+    // Build positive-frequency spectrum W(k) for k = 0..K.
+    const size_t K = (N - 1) / 2;  // floor((N-1)/2)
+    auto Wp = ScratchVec<double>(K + 1, &scratch);
+    for (size_t k = 0; k <= K; ++k) {
+        const double ck = beta * std::cos(M_PI * static_cast<double>(k)
+                                          / static_cast<double>(N));
+        Wp[k] = cheb_T_M(ck);
     }
-    // Hermitian-mirror — W[N-k] = conj(W[k]) (real spectrum here).
-    for (size_t k = N; k < fftLen; ++k)
-        W[k] = Complex(0.0, 0.0);
 
-    // Inverse FFT via conjugate trick: ifft(x) = conj(fft(conj(x))) / N
-    auto Wt = ScratchVec<Complex>(fftLen / 2, &scratch);
-    fillFftTwiddles(Wt.data(), fftLen, +1);
-    for (size_t i = 0; i < fftLen; ++i)
-        W[i] = std::conj(W[i]);
-    fftRadix2(W.data(), fftLen, Wt.data());
-    const double invN = 1.0 / static_cast<double>(fftLen);
-    for (size_t i = 0; i < fftLen; ++i)
-        W[i] = std::conj(W[i]) * invN;
-
-    // The window is centered around 0 in the IFFT output. For odd N pull
-    // the symmetric N samples as W[fftLen-N/2 .. fftLen-1] then W[0 .. N/2].
-    // For even N the samples come from W[fftLen-N/2 .. fftLen-1], W[0 .. N/2 - 1].
+    // Real cosine-IDFT centered on N₀ = (N-1)/2.
     double *dst = out.doubleDataMut();
-    if (nodd) {
-        const size_t M = N / 2;          // = (N-1)/2
-        for (size_t i = 0; i < M; ++i)
-            dst[i] = W[fftLen - M + i].real();
-        for (size_t i = 0; i <= M; ++i)
-            dst[M + i] = W[i].real();
-    } else {
-        const size_t M = N / 2;
-        for (size_t i = 0; i < M; ++i)
-            dst[i] = W[fftLen - M + i].real();
-        for (size_t i = 0; i < M; ++i)
-            dst[M + i] = W[i].real();
+    const double N0 = 0.5 * static_cast<double>(N - 1);
+    const double two_pi_over_N = 2.0 * M_PI / static_cast<double>(N);
+    for (size_t n = 0; n < N; ++n) {
+        double s = Wp[0];
+        const double phase_n = (static_cast<double>(n) - N0);
+        for (size_t k = 1; k <= K; ++k) {
+            s += 2.0 * Wp[k] * std::cos(two_pi_over_N * static_cast<double>(k) * phase_n);
+        }
+        dst[n] = s / static_cast<double>(N);
     }
 
     // Normalise peak to 1.
     double peak = 0.0;
-    for (size_t i = 0; i < N; ++i)
-        peak = std::max(peak, std::abs(dst[i]));
+    for (size_t i = 0; i < N; ++i) peak = std::max(peak, std::abs(dst[i]));
     if (peak > 0.0) {
         const double inv = 1.0 / peak;
-        for (size_t i = 0; i < N; ++i)
-            dst[i] *= inv;
+        for (size_t i = 0; i < N; ++i) dst[i] *= inv;
     }
     return out;
 }

@@ -2595,7 +2595,7 @@ intentionally omitted — flat solver functions only.
 | `blackman` | ✅ | 0.007 | 4.61× | 3.81× | OK | Sig: W = blackman(N). 1024-pt Blackman. 10000 iters. |
 | `blackmanharris` | ✅ | 0.010 | 2.84× | 3.91× | OK | Sig: W = blackmanharris(N). 4-term Blackman-Harris. 10000 iters. |
 | `bohmanwin` | ✅ | 0.007 | 3.52× | 5.92× | OK | Sig: W = bohmanwin(N). Bohman. 10000 iters. |
-| `chebwin` | ✅ | 0.024 | 0.83× | 7.41× | MISMATCH | Sig: W = chebwin(N, R). Dolph-Chebyshev. 1000 iters. |
+| `chebwin` | ✅ | 0.007 | 26.94× | 4.26× | OK | Sig: w = chebwin(N[, at]). Dolph-Chebyshev window with `at` dB sidelobe attenuation (default 100). Bug fix 2026-05-08: previous FFT-based impl returned all-ones for even N and a wrongly-shifted window for odd N. Rewrote as direct cosine-IDFT (O(N²)) with cosine basis centered on (N-1)/2. Coverage: N ∈ {1, 7, 8, 16, 64} × R ∈ {30, 60, 100, 120}. |
 | `dpss` | ❌ |  |  |  |  | discrete prolate spheroidal |
 | `dpssclear` | ❌ |  |  |  |  | cache |
 | `dpssdir` | ❌ |  |  |  |  | cache |

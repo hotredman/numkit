@@ -75,3 +75,38 @@ of the magnitude spectrum.
 
 - The 'symmetric'/'periodic' sflag — chebwin is symmetric by
   definition; no sflag.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: **CRITICAL bug fix.** Closes gaps #1, #2, #3.
+
+  **Root cause:** previous FFT-based implementation had a half-bin
+  symmetry bug. For even N (anti-symmetric Dolph-Chebyshev
+  spectrum), the (-1)^k weighting + zero-padded FFT collapsed to a
+  degenerate all-ones output. For odd N the IFFT centering was
+  off-by-one, producing a wrongly-shifted shape.
+
+  **Fix:** rewrote to use a direct cosine-IDFT formula:
+
+      w(n) = (1/N) · [W(0) + 2 · Σ_{k=1}^{K} W(k) · cos(2π·k·(n-N₀)/N)]
+
+  with K = floor((N-1)/2), N₀ = (N-1)/2, and W(k) = T_M(β·cos(πk/N))
+  using the branch-wise Chebyshev evaluation (cos for |x|≤1,
+  cosh+sign for |x|>1). For even N the k=N/2 term has T_M(0) = 0
+  (M is odd) so it drops naturally. The (n-N₀) offset centers the
+  window at the midpoint without needing a separate circular shift
+  for even vs odd N.
+
+  Direct O(N²) — windows are small (N ≤ ~few thousand), so this is
+  fine; ditched the FFT path entirely.
+
+  Spec extended from 1 to 12 fingerprints (N ∈ {1, 7, 8, 16, 64} ×
+  R ∈ {30, 60, 100, 120}). Parity OK numkit ↔ MATLAB ↔ Octave at
+  tol=1e-9. Existing 3 chebwin gtests (Symmetric / PeakIsOne) still
+  pass; added 4 new (even-N reference, odd-N reference, lower-R,
+  single-point). 34 windows-suite tests all pass — no regression.
+
+  `typeName` arg parsing (recommendation #3) deferred — same
+  cross-cutting refactor as gausswin's `'single'` typeName follow-
+  up.

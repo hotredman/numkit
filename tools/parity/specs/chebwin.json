@@ -1,10 +1,18 @@
 {
   "name": "chebwin",
   "namespace": "core",
-  "setup": "n = 1024; r = 100;",
-  "expr": "y = chebwin(n, r);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: W = chebwin(N, R). Dolph-Chebyshev. 1000 iters."
+  "setup": "w8_100 = chebwin(8, 100); w8_60 = chebwin(8, 60); w7_100 = chebwin(7, 100); w8_30 = chebwin(8, 30); w16_100 = chebwin(16, 100); w64_120 = chebwin(64, 120); w1 = chebwin(1, 100);",
+  "expr": "e8_100 = w8_100(1); c8_100 = w8_100(4); e8_60 = w8_60(1); c8_60 = w8_60(4); e7_100 = w7_100(1); c7_100 = w7_100(4); e8_30 = w8_30(1); e16_100 = w16_100(1); c16_100 = w16_100(8); e64_120 = w64_120(1); c64_120 = w64_120(32); single_pt = w1(1);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "e8_100", "c8_100",
+    "e8_60", "c8_60",
+    "e7_100", "c7_100",
+    "e8_30",
+    "e16_100", "c16_100",
+    "e64_120", "c64_120",
+    "single_pt"
+  ],
+  "comment": "Sig: w = chebwin(N[, at]). Dolph-Chebyshev window with `at` dB sidelobe attenuation (default 100). Bug fix 2026-05-08: previous FFT-based impl returned all-ones for even N and a wrongly-shifted window for odd N. Rewrote as direct cosine-IDFT (O(N²)) with cosine basis centered on (N-1)/2. Coverage: N ∈ {1, 7, 8, 16, 64} × R ∈ {30, 60, 100, 120}."
 }
