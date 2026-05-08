@@ -43,7 +43,6 @@ Status legend:
 | [findings/cluster/clusterdata.md](findings/cluster/clusterdata.md) | clusterdata | stats.cluster | low | small | b2f133b |
 | [findings/cluster/cophenet.md](findings/cluster/cophenet.md) | cophenet | stats.cluster | low | small | b2f133b |
 | [findings/cluster/dbscan.md](findings/cluster/dbscan.md) | dbscan | stats.cluster | low | small | b2f133b |
-| [findings/cluster/inconsistent.md](findings/cluster/inconsistent.md) | inconsistent | stats.cluster | low | small | b2f133b |
 | [findings/cluster/kmeans.md](findings/cluster/kmeans.md) | kmeans | stats.cluster | low | small | b2f133b |
 | [findings/cluster/kmedoids.md](findings/cluster/kmedoids.md) | kmedoids | stats.cluster | low | small | b2f133b |
 | [findings/cluster/mahal.md](findings/cluster/mahal.md) | mahal | stats.cluster | low | small | b2f133b |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/wavelet/detcoef.md](closed/wavelet/detcoef.md) | detcoef | PENDING | 2026-05-08 |
 | [closed/empirical/ecdfhist.md](closed/empirical/ecdfhist.md) | ecdfhist | PENDING | 2026-05-08 |
 | [closed/cluster/squareform.md](closed/cluster/squareform.md) | squareform | PENDING | 2026-05-08 |
+| [closed/cluster/inconsistent.md](closed/cluster/inconsistent.md) | inconsistent | PENDING | 2026-05-08 |
 
 ---
 
