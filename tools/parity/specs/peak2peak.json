@@ -1,13 +1,13 @@
 {
   "name": "peak2peak",
-  "namespace": "core",
-  "setup": "x = sin(linspace(0, 100, 1000000));",
-  "expr": "y = peak2peak(x);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: P = peak2peak(X). 1M-pt range. 100 iters.",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "r1 = peak2peak([1 5 2 -3 4]); r2 = peak2peak([0 0 0]);",
+  "iters": 5,
+  "tol": 1e-06,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = peak2peak(...). Spec-extension batch 2026-05-09."
 }

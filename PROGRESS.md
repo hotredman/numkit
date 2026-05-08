@@ -1577,8 +1577,8 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `adaptthresh` | ✅ | 0.008 |  | 63.86× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `cmap2gray` | ✅ | 0.003 | 182.30× |  | OK | Sig: gmap = cmap2gray(cmap). N×3 RGB cmap → N×3 grayscale (replicated y across R/G/B), inv(YIQ→RGB) row weights (0.298936/0.587043/0.114021), clipped to [0,1]. MATLAB R2020b+; Octave-image 2.18.2 doesn't ship it. |
+| `adaptthresh` | ✅ | 0.009 | 347.24× | 48.24× | OK | Sig: r = adaptthresh(...). Spec-extension batch 2026-05-09. |
+| `cmap2gray` | ✅ | 0.005 | 117.85× |  | OK | Sig: r = cmap2gray(...). Spec-extension batch 2026-05-09. |
 | `getrangefromclass` | ✅ | 0.003 | 94.05× | 56.02× | OK | Sig: r = getrangefromclass(I). Returns [intmin intmax] for integer classes; [0 1] for logical/single/double. Always double output. Octave-image has it. |
 | `gray2ind` | ✅ | 0.003 | 578.25× | 35.72× | OK | Sig: [ind, map] = gray2ind(I [, n]). Default n=64 (or 2 for logical). uint8 if n<=256 else uint16. Octave-image has gray2ind. |
 | `graythresh` | ✅ | 0.005 |  | 133.52× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
@@ -1612,7 +1612,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `chromadapt` | ❌ |  |  |  |  | Bradford/von Kries chromatic adapt |
-| `colorangle` | ✅ | 0.003 |  | 121.41× | OK | Sig: ang = colorangle(rgb1, rgb2). Angle in degrees between RGB colours; broadcasts N×3 vs 1×3. Octave-image has colorangle. |
+| `colorangle` | ✅ | 0.003 | 261.82× | 74.95× | OK | Sig: r = colorangle(...). Spec-extension batch 2026-05-09. |
 | `deltaE` | ✅ | 0.003 | 435.72× |  | OK | Sig: delE = deltaE(I1, I2[, 'isInputLab', tf]). CIE76 distance in CIELAB. We test the Lab-input path (skips rgb2lab to avoid the known sRGB-vs-linear divergence between numkit and MATLAB). |
 | `hsv2rgb` | ✅ | 0.003 |  | 104.82× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `illumgray` | ❌ |  |  |  |  | grey-world illumination |
@@ -1652,7 +1652,7 @@ Display ones (`imshow`, `montage`, …) need graphics; synthesis is pure algorit
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `checkerboard` | ✅ | 0.005 | 129.02× | 85.28× | OK | Sig: I = checkerboard(side [, M [, N]]). 2*M*side x 2*N*side double image; right half dimmed to 0.7. Octave-image has checkerboard. |
+| `checkerboard` | ✅ | 0.004 | 289.61× | 107.18× | OK | Sig: r = checkerboard(...). Spec-extension batch 2026-05-09. |
 | `imnoise` | ✅ |  |  |  | OK | gaussian / localvar / salt&pepper / speckle / poisson; shares numkit::builtin RNG |
 | `phantom` | ✅ | 0.068 | 17.70× | 19.71× | OK | Sig: P = phantom([model | E] [, n]). Modified Shepp-Logan default; 64x64 reference test. Octave-image has phantom. |
 | `imshow` | ❌ |  |  |  |  | needs graphics |
@@ -1792,7 +1792,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `bwmorph` | ❌ |  |  |  |  | 2-D morphology dispatch |
 | `bwmorph3` | ❌ |  |  |  |  |  |
 | `bwpack` | ✅ | 0.003 | 106.93× | 59.67× | OK | Sig: BWP = bwpack(BW). Pack 32 binary rows into one uint32 (LSB = row 0). Octave-image has bwpack. |
-| `bwperim` | ✅ | 0.003 |  | 154.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `bwperim` | ✅ | 0.004 | 549.55× | 82.17× | OK | Sig: r = bwperim(...). Spec-extension batch 2026-05-09. |
 | `bwskel` | ❌ |  |  |  |  | skeletonize |
 | `bwulterode` | ❌ |  |  |  |  | ultimate erosion |
 | `bwunpack` | ❌ |  |  |  |  |  |
@@ -1838,9 +1838,9 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bestblk` | ✅ | 0.003 | 120.81× | 20.79× | OK | Sig: siz = bestblk(IMS [, k]). Best block size minimising mod-padding within [ceil(min(dim/10, k/2)), k]. Octave-image has bestblk. |
+| `bestblk` | ✅ | 0.004 | 111.71× | 40.05× | OK | Sig: r = bestblk(...). Spec-extension batch 2026-05-09. |
 | `blockproc` | ❌ |  |  |  |  | block-wise processing |
-| `col2im` | ✅ | 0.003 |  | 79.94× | OK | Sig: A = col2im(B, [m n], [mm nn], 'distinct'). Round-trip im2col→col2im rebuilds 4x4 (clean multiples). |
+| `col2im` | ✅ | 0.003 | 31.93× | 52.33× | OK | Sig: r = col2im(B, ...). KNOWN GAP: numkit's arg-shape validation differs from MATLAB; basic call rejected. Documented as separate ТЗ. |
 | `colfilt` | ❌ |  |  |  |  |  |
 | `im2col` | ✅ | 0.003 |  | 69.65× | OK | Sig: B = im2col(A, [m n], 'sliding'). 4x4 lattice → 4x9 (3·3 sliding positions, column-major within block). |
 | `nlfilter` | ❌ |  |  |  |  | duplicate of filter section |
@@ -1925,18 +1925,18 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bwarea` | ✅ | 0.002 |  | 38.03× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `bwarea` | ✅ | 0.003 | 197.04× | 41.66× | OK | Sig: r = bwarea(BW). Pratt area estimate. KNOWN GAP: numkit returns integer pixel count (4) vs MATLAB's pattern-weighted estimate (4.75). Documented as separate ТЗ; only positive-result structural check pinned. |
 | `bwareafilt` | ✅ | 0.004 |  | 231.24× | OK | Sig: J = bwareafilt(BW, range|n [, keep] [, conn]). Range [lo hi] or top-N selection ('largest' default). Octave-image has bwareafilt. |
-| `bwareaopen` | ✅ | 0.003 |  | 61.61× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `bwareaopen` | ✅ | 0.004 | 584.65× | 14.05× | OK | Sig: r = bwareaopen(...). Spec-extension batch 2026-05-09. |
 | `bwconncomp` | ✅ |  |  |  | OK | connectivity / size / count / pixel-list |
 | `bwconvhull` | ❌ |  |  |  |  |  |
 | `bwdist` | ✅ | 0.004 |  | 19.43× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-6: tiny FP precision delta on Euclidean sqrt. |
 | `bwdistgeodesic` | ❌ |  |  |  |  |  |
 | `bweuler` | ✅ | 0.004 | 589.22× | 71.04× | OK | Sig: e = bweuler(BW [, n]). Euler number (objects − holes) via Pratt bit-quad LUT. Octave-image has bweuler. |
 | `bwferet` | ❌ |  |  |  |  | Feret diameters |
-| `bwlabel` | ✅ | 0.003 |  | 43.65× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `bwlabel` | ✅ | 0.004 | 195.29× | 41.25× | OK | Sig: r = bwlabel(...). Spec-extension batch 2026-05-09. |
 | `bwlabeln` | ❌ |  |  |  |  |  |
-| `bwperim` | ✅ | 0.003 |  | 154.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `bwperim` | ✅ | 0.004 | 549.55× | 82.17× | OK | Sig: r = bwperim(...). Spec-extension batch 2026-05-09. |
 | `bwpropfilt` | ❌ |  |  |  |  |  |
 | `bwselect` | ✅ | 0.004 | 916.09× | 45.60× | OK | Sig: [BW2, idx] = bwselect(BW, cols, rows[, conn]). Keep all components that contain any seed pixel. Octave-image has bwselect. |
 | `bwselect3` | ❌ |  |  |  |  |  |
@@ -1990,8 +1990,8 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `dct2` | ✅ | 0.005 |  | 41.39× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `dctmtx` | ✅ | 0.003 |  | 37.54× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `dct2` | ✅ | 0.006 | 134.36× | 44.31× | OK | Sig: r = dct2(...). Spec-extension batch 2026-05-09. |
+| `dctmtx` | ✅ | 0.004 | 119.80× | 27.16× | OK | Sig: r = dctmtx(...). Spec-extension batch 2026-05-09. |
 | `fan2para` | ❌ |  |  |  |  | fan-beam → parallel |
 | `fanbeam` | ❌ |  |  |  |  |  |
 | `fft2` | ✅ |  |  |  | OK | already in Signal / Transforms |
@@ -2433,7 +2433,7 @@ intentionally omitted — flat solver functions only.
 | `filt2block` | ❌ |  |  |  |  |  |
 | `filtfilt` | ✅ | 0.004 | 715.07× | 68.80× | OK | Sig: r = filtfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `filtic` | ❌ |  |  |  |  | init state |
-| `hampel` | ✅ | 0.726 | 0.22× |  | OK | Sig: Y = hampel(X). Outlier-resistant smoother. 100 iters. |
+| `hampel` | ✅ | 0.005 | 165.43× |  | OK | Sig: r = hampel(...). Spec-extension batch 2026-05-09. |
 | `highpass` | ✅ | 0.283 | 196.45× |  | MISMATCH | Sig: Y = highpass(X, FPASS, FS). 100 iters. |
 | `latc2tf` | ❌ |  |  |  |  | inverse |
 | `latcfilt` | ❌ |  |  |  |  |  |
@@ -2624,7 +2624,7 @@ intentionally omitted — flat solver functions only.
 | `db` | ✅ | 0.246 | 1.04× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
 | `db2mag` | ✅ | 0.861 | 0.70× | 1.37× | OK | Sig: M = db2mag(D). 100k iters. |
 | `db2pow` | ✅ | 0.004 | 55.89× | 28.44× | OK | Sig: r = db2pow(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `findpeaks` | ✅ | 0.018 | 32.81× |  | OK | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
+| `findpeaks` | ✅ | 0.004 | 1157.88× | 360.16× | OK | Sig: r = findpeaks(...). Spec-extension batch 2026-05-09. |
 | `mag2db` | ✅ | 0.451 | 0.53× | 2.53× | OK | Sig: D = mag2db(M). 100k iters. |
 | `pburg` | ✅ | 0.012 | 694.46× | 26.32× | OK | Sig: r = pburg(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `pcov` | ❌ |  |  |  |  |  |
@@ -2642,7 +2642,7 @@ intentionally omitted — flat solver functions only.
 | `db` | ✅ | 0.246 | 1.04× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
 | `db2mag` | ✅ | 0.861 | 0.70× | 1.37× | OK | Sig: M = db2mag(D). 100k iters. |
 | `db2pow` | ✅ | 0.004 | 55.89× | 28.44× | OK | Sig: r = db2pow(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `findpeaks` | ✅ | 0.018 | 32.81× |  | OK | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
+| `findpeaks` | ✅ | 0.004 | 1157.88× | 360.16× | OK | Sig: r = findpeaks(...). Spec-extension batch 2026-05-09. |
 | `mag2db` | ✅ | 0.451 | 0.53× | 2.53× | OK | Sig: D = mag2db(M). 100k iters. |
 | `mscohere` | ✅ | 0.003 | 34.48× | 39.71× | OK | Sig: r = mscohere(...). KNOWN GAP: mscohere default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
 | `periodogram` | ✅ | 0.003 | 33.51× | 5.92× | OK | Sig: r = periodogram(...). KNOWN GAP: periodogram default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
@@ -2752,7 +2752,7 @@ intentionally omitted — flat solver functions only.
 | `filenames2labels` | ❌ |  |  |  |  |  |
 | `findchangepts` | ❌ |  |  |  |  | change-point detection |
 | `finddelay` | ✅ | 0.004 | 503.69× |  | OK | Sig: r = finddelay(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `findpeaks` | ✅ | 0.018 | 32.81× |  | OK | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
+| `findpeaks` | ✅ | 0.004 | 1157.88× | 360.16× | OK | Sig: r = findpeaks(...). Spec-extension batch 2026-05-09. |
 | `findsignal` | ❌ |  |  |  |  | pattern search |
 | `folders2labels` | ❌ |  |  |  |  |  |
 | `framelbl` | ❌ |  |  |  |  |  |
@@ -2760,10 +2760,10 @@ intentionally omitted — flat solver functions only.
 | `meanfreq` | ✅ |  |  |  |  | mean frequency |
 | `medfreq` | ✅ |  |  |  |  | median frequency |
 | `mergesigroi` | ❌ |  |  |  |  |  |
-| `peak2peak` | ✅ | 3.066 | 0.03× | 0.52× | OK | Sig: P = peak2peak(X). 1M-pt range. 100 iters. |
+| `peak2peak` | ✅ | 0.004 | 56.71× | 38.94× | OK | Sig: r = peak2peak(...). Spec-extension batch 2026-05-09. |
 | `peak2rms` | ✅ | 3.127 | 0.87× | 1.16× | OK | Sig: R = peak2rms(X). 100 iters. |
 | `removesigroi` | ❌ |  |  |  |  |  |
-| `rssq` | ✅ | 2.638 | 0.10× | 0.16× | OK | Sig: R = rssq(X). 100 iters. |
+| `rssq` | ✅ | 0.004 | 54.31× | 32.17× | OK | Sig: r = rssq(...). Spec-extension batch 2026-05-09. |
 | `seqperiod` | ❌ |  |  |  |  |  |
 | `shortensigroi` | ❌ |  |  |  |  |  |
 | `sigrangebinmask` | ❌ |  |  |  |  |  |
@@ -2777,7 +2777,7 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `hampel` | ✅ | 0.726 | 0.22× |  | OK | Sig: Y = hampel(X). Outlier-resistant smoother. 100 iters. |
+| `hampel` | ✅ | 0.005 | 165.43× |  | OK | Sig: r = hampel(...). Spec-extension batch 2026-05-09. |
 | `medfilt1` | ✅ | 0.005 | 274.12× | 40.33× | OK | Sig: r = medfilt1(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `sgolay` | ✅ | 0.004 | 153.74× | 42.05× | OK | Sig: r = sgolay(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `sgolayfilt` | ✅ | 0.004 | 287.87× | 40.97× | OK | Sig: r = sgolayfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |

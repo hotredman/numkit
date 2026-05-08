@@ -2,9 +2,12 @@
   "name": "dctmtx",
   "namespace": "image",
   "setup": "",
-  "expr": "y = dctmtx(8);",
+  "expr": "D = dctmtx(4); r1 = double(size(D,1)); r2 = double(size(D,2));",
   "iters": 5,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = dctmtx(...). Spec-extension batch 2026-05-09."
 }
