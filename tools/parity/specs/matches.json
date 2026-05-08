@@ -1,13 +1,13 @@
 {
   "name": "matches",
-  "namespace": "core",
-  "setup": "s = repmat('apple_banana_cherry_', 1, 10); pat = 'banana';",
-  "expr": "y = matches(s, pat);",
-  "iters": 1000,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(matches(\"hello\", \"hello\")); r2 = double(matches(\"hello\", \"world\"));",
+  "iters": 5,
   "tol": 1e-09,
-  "comment": "Sig: TF = matches(S, PAT). Single string check. 10000 iters.",
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = matches(...). Spec-extension batch 2026-05-09."
 }

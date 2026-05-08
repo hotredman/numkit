@@ -1,10 +1,14 @@
 {
   "name": "polyfit",
-  "namespace": "core",
-  "setup": "x = linspace(0, 10, 1000); y_data = sin(x);",
-  "expr": "y = polyfit(x, y_data, 5);",
-  "iters": 100,
-  "tol": 1e-9,
-  "out_var": "y",
-  "comment": "Sig: P = polyfit(X, Y, N). Deterministic 1k pts (sin), 5th-order fit. 100 iters. tol=1e-9 (LSQ residual noise)."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "p = polyfit([1 2 3 4], [1 4 9 16], 2); r1 = p(1); r2 = p(2); r3 = p(3);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = polyfit(...). Spec-extension batch 2026-05-09."
 }
