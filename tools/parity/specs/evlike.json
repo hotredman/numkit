@@ -1,10 +1,14 @@
 {
   "name": "evlike",
   "namespace": "stats",
-  "setup": "x = [1 2 3 4 5]';",
-  "expr": "nL = evlike([0, 1], x);",
+  "setup": "x = [1 2 3 4 5]'; cens = [0 0 0 1 1]'; freq = [2 2 1 1 1]';",
+  "expr": "nL_b = evlike([0, 1], x); nL_c = evlike([0, 1], x, cens); nL_f = evlike([0, 1], x, [], freq); nL_cf = evlike([0, 1], x, cens, freq); nL_s0 = evlike([0, 0], x); nL_sneg = evlike([0, -1], x); nL_e = evlike([0, 1], []);",
   "iters": 5,
   "tol": 1e-9,
-  "fingerprint": ["nL"],
-  "comment": "Sig: nL = evlike([mu sigma], x). Negative log-likelihood for Type-I extreme value (Gumbel min). MATLAB convention: f(x) = (1/sigma)·exp((x−mu)/sigma)·exp(−exp((x−mu)/sigma))."
+  "fingerprint": [
+    "nL_b", "nL_c", "nL_f", "nL_cf",
+    "nL_s0", "nL_sneg",
+    "nL_e"
+  ],
+  "comment": "Sig: nL = evlike([mu sigma], x[, cens, freq]). Type-I extreme value (Gumbel min). Uncensored: log(σ) - z + e^z; censored: e^z; with optional freq weights. Edges: σ<=0 -> NaN (was Inf); empty data -> 0. AVAR (2-output form) deferred — observed Fisher info has nontrivial cross-terms."
 }
