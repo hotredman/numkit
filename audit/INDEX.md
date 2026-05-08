@@ -98,7 +98,6 @@ Status legend:
 | [findings/cluster/kmedoids.md](findings/cluster/kmedoids.md) | kmedoids | stats.cluster | low | small | b2f133b |
 | [findings/cluster/mahal.md](findings/cluster/mahal.md) | mahal | stats.cluster | low | small | b2f133b |
 | [findings/cluster/squareform.md](findings/cluster/squareform.md) | squareform | stats.cluster | low | small | b2f133b |
-| [findings/stats/binoinv.md](findings/stats/binoinv.md) | binoinv | stats.dist | low | small | 1525319 |
 | [findings/stats/binopdf.md](findings/stats/binopdf.md) | binopdf | stats.dist | low | small | 1525319 |
 | [findings/stats/binornd.md](findings/stats/binornd.md) | binornd | stats.dist | low | small | 1525319 |
 | [findings/stats/poissinv.md](findings/stats/poissinv.md) | poissinv | stats.dist | low | small | 1525319 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/unifstat.md](closed/stats/unifstat.md) | unifstat | PENDING | 2026-05-07 |
 | [closed/stats/wblstat.md](closed/stats/wblstat.md) | wblstat | PENDING | 2026-05-07 |
 | [closed/stats/binostat.md](closed/stats/binostat.md) | binostat | PENDING | 2026-05-07 |
+| [closed/stats/binoinv.md](closed/stats/binoinv.md) | binoinv | PENDING | 2026-05-07 |
 
 ---
 

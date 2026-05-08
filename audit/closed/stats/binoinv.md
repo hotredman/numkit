@@ -21,3 +21,11 @@ RNG family).
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-07
+- Notes: Pure spec coverage (impl already matched). 13-fingerprint
+  spec covers scalar / vector q / boundaries (q∈{0,1}, p∈{0,1}) /
+  invalid (q out of [0,1] / p out of [0,1] / n<0 / non-integer n).
+  5 TEST_F gtest + smoke. Parity OK numkit ↔ MATLAB ↔ Octave.
