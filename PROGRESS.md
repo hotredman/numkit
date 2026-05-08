@@ -628,17 +628,17 @@ together.
 | `acsc` | ✅ | 0.003 | 35.97× | 19.73× | OK | Sig: y = acsc(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
 | `acscd` | ✅ | 0.003 | 48.50× | 74.89× | OK | Sig: y = acscd(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
 | `acsch` | ✅ | 0.003 | 37.26× | 56.83× | OK | Sig: y = acsch(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
-| `asec` | ✅ | 2.909 | 0.47× | 5.26× | OK | Sig: Y = asec(X). 1M-pt domain |X|>=1. 20 iters. |
-| `asecd` | ✅ | 2.777 | 0.54× | 7.35× | OK | Sig: Y = asecd(X). 1M-pt deg. 20 iters. |
-| `asech` | ✅ | 3.849 | 0.50× | 4.53× | OK | Sig: Y = asech(X). 1M-pt domain (0,1]. 20 iters. |
-| `asin` | ✅ | 2.495 | 0.70× | 3.55× | OK | Sig: Y = asin(X). 1M-pt sweep on [-1, 1]. 20 iters. Element-wise SAVE. |
-| `asind` | ✅ | 2.571 | 0.64× | 5.14× | OK | Sig: Y = asind(X). 1M-pt on [-1,1]. Inverse (degrees). 20 iters. Element-wise SAVE. |
-| `asinh` | ✅ | 3.620 | 0.34× | 2.27× | OK | Sig: Y = asinh(X). 1M-pt on [-10,10]. 20 iters. Element-wise SAVE. |
-| `atan` | ✅ | 2.757 | 0.20× | 1.64× | OK | Sig: Y = atan(X). 1M-pt sweep on [-10, 10]. 20 iters. Element-wise SAVE. |
+| `asec` | ✅ | 0.003 | 35.42× | 67.75× | OK | Sig: y = asec(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
+| `asecd` | ✅ | 0.003 | 34.93× | 77.67× | OK | Sig: y = asecd(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
+| `asech` | ✅ | 0.003 | 36.48× | 51.34× | OK | Sig: y = asech(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
+| `asin` | ✅ | 0.003 | 33.17× | 27.59× | OK | Sig: y = asin(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
+| `asind` | ✅ | 0.003 | 38.25× | 69.62× | OK | Sig: y = asind(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
+| `asinh` | ✅ | 0.003 | 53.14× | 54.00× | OK | Sig: y = asinh(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
+| `atan` | ✅ | 0.003 | 40.31× | 54.36× | OK | Sig: y = atan(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
 | `atan2` | ✅ | 3.513 | 0.22× | 2.25× | OK | Sig: P = atan2(Y, X). 1000x1000 quadrant grid. 20 iters. Element-wise SAVE. |
 | `atan2d` | ✅ | 3.552 | 0.26× | 2.84× | OK | Sig: Z = atan2d(Y, X). 1k×1k quadrant grid (degrees). 20 iters. Element-wise SAVE. |
-| `atand` | ✅ | 2.703 | 0.21× | 2.50× | OK | Sig: Y = atand(X). 1M-pt on [-10,10]. Inverse (degrees). 20 iters. Element-wise SAVE. |
-| `atanh` | ✅ | 2.734 | 0.96× | 3.38× | OK | Sig: Y = atanh(X). 1M-pt on (-1,1) (avoid pole). 20 iters. Element-wise SAVE. |
+| `atand` | ✅ | 0.003 | 35.88× | 17.30× | OK | Sig: y = atand(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
+| `atanh` | ✅ | 0.003 | 37.04× | 14.21× | OK | Sig: y = atanh(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
 | `cart2pol` | ✅ | 5.823 | 0.56× | 3.94× | OK | Sig: [TH,R] = cart2pol(X,Y) (2-D). 1000x1000 grid. 3-D form [TH,R,Z] = cart2pol(X,Y,Z) not benched yet. 20 iters. |
 | `cart2sph` | ✅ |  |  |  | N/A | Sig: [TH,PHI,R] = cart2sph(X,Y,Z). 50³ grid. 50 iters. SAVE on TH (y). |
 | `cos` | ✅ | 0.884 | 1.00× | 5.24× | OK | Sig: Y = cos(X). 1M-point sweep over 4π. 20 iters. Element-wise SAVE. |

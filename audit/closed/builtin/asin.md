@@ -1,6 +1,6 @@
-# builtin/asinh — ТЗ for completion
+# builtin/asin — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** a6e4264
@@ -9,7 +9,7 @@
 ## Gaps
 
 **No major gap detected.** Element-wise scalar function based on
-`std::asinh` (or equivalent libm) — output matches MATLAB
+`std::asin` (or equivalent libm) — output matches MATLAB
 bit-for-bit on probed inputs.
 
 ## Recommended fixes
@@ -21,3 +21,11 @@ bit-for-bit on probed inputs.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Spec-extension paperwork batch 2 (sibling of inv_trig_batch).
+  Closed jointly: asin/asind/asinh + atan/atand/atanh + asec/asecd/asech.
+  All bit-identical to MATLAB R2025b. See libs/builtin/tests/
+  inv_trig_batch2_test.cpp + smoke + parity specs.
