@@ -2947,7 +2947,7 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `binoinv` | ✅ | 0.008 | 845.30× | 377.14× | OK | Sig: x = binoinv(q, n, p). Inverse Binomial CDF. q=0 → 0; q=1 → n. Invalid (q outside [0,1] / p outside [0,1] / n<0 / non-integer n) => NaN. |
 | `binornd` | ✅ |  |  |  | OK |  |
 | `binostat` | ✅ | 0.008 | 209.42× | 57.77× | OK | Sig: [m, v] = binostat(n, p). Binomial: m=n·p, v=n·p·(1-p). Vectorised. n<0 / non-integer / p<0 / p>1 => NaN. p∈{0,1} are valid (variance becomes 0). |
-| `unidpdf` | ✅ |  |  |  | OK | discrete uniform on {1..N} |
+| `unidpdf` | ✅ | 0.007 | 155.89× | 57.54× | OK | Sig: y = unidpdf(k, N). Discrete uniform PMF on {1..N}: 1/N if k in 1..N integer, else 0. N<=0 or non-integer N -> NaN. NaN N -> NaN. NaN k -> 0 (per MATLAB). tol=0 (integer-stable for discrete). |
 | `unidcdf` | ✅ |  |  |  | OK |  |
 | `unidinv` | ✅ |  |  |  | OK |  |
 | `unidrnd` | ✅ |  |  |  | OK |  |

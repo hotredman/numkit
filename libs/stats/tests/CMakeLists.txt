@@ -69,4 +69,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/raylinv_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tinv_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tpdf_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/unidpdf_test.cpp
 )

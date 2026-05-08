@@ -1,0 +1,16 @@
+{
+  "name": "unidpdf",
+  "namespace": "stats",
+  "setup": "ks = [1 2 3 4 5 6 7];",
+  "expr": "y_s = unidpdf(3, 6); y_v = unidpdf(ks, 6); y_lo = unidpdf(0, 6); y_hi = unidpdf(7, 6); y_frac = unidpdf(2.5, 6); y_n0 = unidpdf(3, 0); y_nneg = unidpdf(3, -1); y_nfrac = unidpdf(3, 6.5); y_nan = unidpdf(NaN, 6); y_nan2 = unidpdf(3, NaN);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "y_s",
+    "y_v(1)", "y_v(3)", "y_v(6)", "y_v(7)",
+    "y_lo", "y_hi", "y_frac",
+    "y_n0", "y_nneg", "y_nfrac",
+    "y_nan", "y_nan2"
+  ],
+  "comment": "Sig: y = unidpdf(k, N). Discrete uniform PMF on {1..N}: 1/N if k in 1..N integer, else 0. N<=0 or non-integer N -> NaN. NaN N -> NaN. NaN k -> 0 (per MATLAB). tol=0 (integer-stable for discrete)."
+}
