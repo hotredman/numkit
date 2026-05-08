@@ -50,10 +50,13 @@ Value rowVec(std::pmr::memory_resource *mr, const std::vector<double> &v)
 }
 
 // dbwavf / coifwavf / symwavf share the same body — emit Lo_R / sqrt(2).
+// 2026-05-08: with the wfilters Lo_D/Lo_R label fix, fb.Lo_R is now the
+// MATLAB Lo_R directly (was MATLAB Lo_D under numkit's old swapped
+// labels). No reversal needed anymore.
 Value family_scaling(std::pmr::memory_resource *mr, const std::string &name)
 {
     auto fb = wavelet_filters(name);   // throws on unsupported family
-    std::vector<double> v(fb.Lo_R.rbegin(), fb.Lo_R.rend());   // → MATLAB Lo_R
+    std::vector<double> v = fb.Lo_R;
     for (auto &x : v) x *= INV_SQRT2;
     return rowVec(mr, v);
 }

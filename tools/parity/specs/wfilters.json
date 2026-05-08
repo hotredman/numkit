@@ -1,0 +1,18 @@
+{
+  "name": "wfilters",
+  "namespace": "wavelet",
+  "setup": "",
+  "expr": "[Lo_D, Hi_D, Lo_R, Hi_R] = wfilters('db2'); [Lo_D4, Hi_D4, Lo_R4, Hi_R4] = wfilters('db4'); [Lo_Ds, Hi_Ds, Lo_Rs, Hi_Rs] = wfilters('sym4'); [Lo_Dc, Hi_Dc, Lo_Rc, Hi_Rc] = wfilters('coif1');",
+  "iters": 3,
+  "tol": 1e-12,
+  "fingerprint": [
+    "Lo_D(1)", "Lo_D(2)", "Lo_D(3)", "Lo_D(4)",
+    "Hi_D(1)", "Hi_D(2)", "Hi_D(3)", "Hi_D(4)",
+    "Lo_R(1)", "Lo_R(2)", "Lo_R(3)", "Lo_R(4)",
+    "Hi_R(1)", "Hi_R(2)", "Hi_R(3)", "Hi_R(4)",
+    "Lo_D4(1)", "Lo_D4(8)", "Hi_R4(1)", "Hi_R4(8)",
+    "Lo_Ds(1)", "Lo_Rs(8)",
+    "Lo_Dc(1)", "Hi_Rc(6)"
+  ],
+  "comment": "Sig: [Lo_D, Hi_D, Lo_R, Hi_R] = wfilters(wname). Standard MATLAB convention: Lo_D = wrev(Lo_R), Hi_R = (-1)^k · Lo_R[N-1-k] (QMF on Lo_R), Hi_D = wrev(Hi_R). 2026-05-08 fix: numkit's labels were swapped (numkit's Lo_D was MATLAB's Lo_R and vice versa) — root cause of dwt/wavedec value mismatch. Now bit-identical to MATLAB R2025b across haar/db1..db10/sym2..sym10/coif1..coif5."
+}
