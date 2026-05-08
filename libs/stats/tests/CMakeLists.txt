@@ -77,4 +77,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/wblinv_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/expfit_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/poissfit_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/unifit_test.cpp
 )

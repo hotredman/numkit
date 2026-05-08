@@ -1,15 +1,14 @@
 {
   "name": "unifit",
   "namespace": "stats",
-  "setup": "x = [2 5 3 7 4 6 8 1 9 5]';",
-  "expr": "[a, b, aci, bci] = unifit(x);",
+  "setup": "x = [2 5 3 7 4 6 8 1 9 5]'; xone = [5];",
+  "expr": "[a_b, b_b, aci_b, bci_b] = unifit(x); [a_a, b_a, aci_a, bci_a] = unifit(x, 0.01); [a_one, b_one, aci_one, bci_one] = unifit(xone);",
   "iters": 5,
   "tol": 1e-9,
   "fingerprint": [
-    "a",
-    "b",
-    "aci(1)",
-    "bci(2)"
+    "a_b",   "b_b",   "aci_b(1)",   "bci_b(2)",
+    "a_a",   "b_a",   "aci_a(1)",   "bci_a(2)",
+    "a_one", "b_one", "aci_one(1)", "bci_one(2)"
   ],
-  "comment": "Sig: [a, b, aci, bci] = unifit(x[, alpha]). MLE for U(a,b): a=min, b=max. CI extension delta = (b-a)·(α^(-1/n) − 1)."
+  "comment": "Sig: [a, b, aci, bci] = unifit(x[, alpha]). MLE for U(a,b): a=min, b=max. CI extension delta = (b-a)·(α^(-1/n) − 1). Single-element x: ACI=BCI=[x x] (zero-width). Empty input: numkit returns NaN; MATLAB returns empty arrays — convention difference, not in fingerprint."
 }
