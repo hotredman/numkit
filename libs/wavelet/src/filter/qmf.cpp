@@ -28,10 +28,18 @@ Value sameShape(std::pmr::memory_resource *mr,
 
 namespace detail {
 
-// y = wrev(x): reverse a vector (or, for matrices, every column read in
-// column-major order then written back element-wise reversed).  MATLAB
-// preserves the input shape; element k of the output equals element
-// N-k+1 of the input under linear (1-based) indexing.
+// y = wrev(x): reverse along the first non-singleton dimension. MATLAB
+// behaviour:
+//   row vector    -> reverse element order (= flip).
+//   col vector    -> reverse element order.
+//   matrix (M×N)  -> reverse each column independently (= flipud).
+//   complex input -> preserve complex type.
+//
+// Bug fix 2026-05-08: previous impl treated the input as a flat
+// numel-element vector and reversed in column-major order. For matrices
+// that gave a full reversal (rows AND cols flipped) instead of MATLAB's
+// per-column reverse. Also dropped imaginary parts on complex input
+// (used elemAsDouble + doubleDataMut).
 void wrev_reg(Span<const Value> args, size_t /*nargout*/,
               Span<Value> outs, CallContext &ctx)
 {
@@ -39,15 +47,49 @@ void wrev_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("wrev: requires one input vector",
                     0, 0, "wrev", "", "m:wrev:nargin");
     const Value &x = args[0];
+    auto *mr = ctx.engine->resource();
     size_t rows, cols;
     readShape(x, rows, cols);
     const size_t N = rows * cols;
-    Value y = sameShape(ctx.engine->resource(), rows, cols);
+    const bool cplx = x.isComplex();
+    Value y = cplx ? Value::complexMatrix(rows, cols, mr)
+                   : Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (N == 0) { outs[0] = y; return; }
-    double *yd = y.doubleDataMut();
-    for (size_t i = 0; i < N; ++i)
-        yd[i] = x.elemAsDouble(N - 1 - i);
-    outs[0] = y;
+
+    // Treat row vectors as 1-D reverse along cols; everything else is
+    // per-column reverse (= flipud).
+    const bool isRowVec = (rows == 1);
+    if (isRowVec) {
+        if (cplx) {
+            const Complex *src = x.complexData();
+            Complex *dst = y.complexDataMut();
+            for (size_t i = 0; i < N; ++i) dst[i] = src[N - 1 - i];
+        } else {
+            const double *src = x.doubleData();
+            double *dst = y.doubleDataMut();
+            for (size_t i = 0; i < N; ++i) dst[i] = src[N - 1 - i];
+        }
+    } else {
+        // Column-major: column c starts at offset c*rows; reverse each.
+        if (cplx) {
+            const Complex *src = x.complexData();
+            Complex *dst = y.complexDataMut();
+            for (size_t c = 0; c < cols; ++c) {
+                const size_t base = c * rows;
+                for (size_t r = 0; r < rows; ++r)
+                    dst[base + r] = src[base + (rows - 1 - r)];
+            }
+        } else {
+            const double *src = x.doubleData();
+            double *dst = y.doubleDataMut();
+            for (size_t c = 0; c < cols; ++c) {
+                const size_t base = c * rows;
+                for (size_t r = 0; r < rows; ++r)
+                    dst[base + r] = src[base + (rows - 1 - r)];
+            }
+        }
+    }
+    outs[0] = std::move(y);
 }
 
 // y = qmf(x[, p]): quadrature mirror filter.

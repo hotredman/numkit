@@ -49,7 +49,6 @@ Status legend:
 | [findings/wavelet/symwavf.md](findings/wavelet/symwavf.md) | symwavf | wavelet.filt | medium | medium | 1c2df89 |
 | [findings/wavelet/orthfilt.md](findings/wavelet/orthfilt.md) | orthfilt | wavelet.filt | low | small | 1c2df89 |
 | [findings/wavelet/qmf.md](findings/wavelet/qmf.md) | qmf | wavelet.filt | low | small | 1c2df89 |
-| [findings/wavelet/wrev.md](findings/wavelet/wrev.md) | wrev | wavelet.filt | low | small | 1c2df89 |
 | [findings/stats/betarnd.md](findings/stats/betarnd.md) | betarnd | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/exprnd.md](findings/stats/exprnd.md) | exprnd | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/gamrnd.md](findings/stats/gamrnd.md) | gamrnd | stats.dist | medium | small | 301e5a5 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/signal/tukeywin.md](closed/signal/tukeywin.md) | tukeywin | PENDING | 2026-05-08 |
 | [closed/signal/chebwin.md](closed/signal/chebwin.md) | chebwin | PENDING | 2026-05-08 |
 | [closed/signal/taylorwin.md](closed/signal/taylorwin.md) | taylorwin | PENDING | 2026-05-08 |
+| [closed/wavelet/wrev.md](closed/wavelet/wrev.md) | wrev | PENDING | 2026-05-08 |
 
 ---
 

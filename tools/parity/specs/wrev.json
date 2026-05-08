@@ -1,10 +1,17 @@
 {
   "name": "wrev",
   "namespace": "wavelet",
-  "setup": "x = [1 2 3 4 5];",
-  "expr": "y = wrev(x);",
+  "setup": "row = [1 2 3 4 5]; col = [1; 2; 3; 4; 5]; M = [1 2 3; 4 5 6]; z = [1+2i, 3-1i, -4+0.5i];",
+  "expr": "y_row = wrev(row); y_col = wrev(col); y_M = wrev(M); y_z = wrev(z); y_one = wrev([42]);",
   "iters": 5,
-  "tol": 1e-15,
-  "fingerprint": ["y(1)", "y(2)", "y(3)", "y(4)", "y(5)"],
-  "comment": "Sig: y = wrev(x). Reverse a vector (Wavelet Toolbox helper, equivalent to fliplr/flipud on a vector)."
+  "tol": 0,
+  "fingerprint": [
+    "y_row(1)", "y_row(5)",
+    "y_col(1)", "y_col(5)",
+    "y_M(1,1)", "y_M(1,2)", "y_M(2,1)", "y_M(2,3)",
+    "real(y_z(1))", "imag(y_z(1))",
+    "real(y_z(3))", "imag(y_z(3))",
+    "y_one"
+  ],
+  "comment": "Sig: y = wrev(x). Reverse along the first non-singleton dimension. Row vector / col vector -> reverse element order. Matrix M×N -> reverse each column independently (= flipud). Complex preserved. Bug fix 2026-05-08: matrix path was full-flip not flipud; complex input dropped imaginary parts. tol=0 (integer-stable on integer inputs)."
 }

@@ -3459,7 +3459,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `hanscalf` | ❌ |  |  |  |  | Han scaling filter |
 | `blscalf` | ❌ |  |  |  |  | Beylkin |
 | `bswfun` | ❌ |  |  |  |  | biorthogonal scaling/wavelet via cascade |
-| `wrev` | ✅ | 0.003 | 48.27× | 56.85× | OK | Sig: y = wrev(x). Reverse a vector (Wavelet Toolbox helper, equivalent to fliplr/flipud on a vector). |
+| `wrev` | ✅ | 0.005 | 59.46× |  | OK | Sig: y = wrev(x). Reverse along the first non-singleton dimension. Row vector / col vector -> reverse element order. Matrix M×N -> reverse each column independently (= flipud). Complex preserved. Bug fix 2026-05-08: matrix path was full-flip not flipud; complex input dropped imaginary parts. tol=0 (integer-stable on integer inputs). |
 | `isbiorthwfb` | ❌ |  |  |  |  | check biorthogonal filter bank |
 | `isorthwfb` | ❌ |  |  |  |  | check orthogonal filter bank |
 | `wavelets` | ❌ |  |  |  |  | list available wavelet names |
