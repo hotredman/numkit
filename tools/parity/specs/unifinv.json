@@ -1,0 +1,16 @@
+{
+  "name": "unifinv",
+  "namespace": "stats",
+  "setup": "ps = [0.05 0.5 0.95];",
+  "expr": "x_d = unifinv(0.5); x_d0 = unifinv(0); x_d1 = unifinv(1); x_dlo = unifinv(-0.1); x_dhi = unifinv(1.5); x_s = unifinv(0.5, 0, 1); x_w = unifinv(0.25, 1, 5); x_lo = unifinv(0, 1, 5); x_hi = unifinv(1, 1, 5); x_v = unifinv(ps, 0, 10); x_b0 = unifinv(0.5, 1, 0); x_brev = unifinv(0.5, 5, 1); x_eq = unifinv(0.5, 1, 1); x_nan = unifinv(NaN, 0, 1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "x_d", "x_d0", "x_d1", "x_dlo", "x_dhi",
+    "x_s", "x_w", "x_lo", "x_hi",
+    "x_v(1)", "x_v(2)", "x_v(3)",
+    "x_b0", "x_brev", "x_eq",
+    "x_nan"
+  ],
+  "comment": "Sig: x = unifinv(p[, a, b]). Inverse Continuous Uniform CDF on [a, b]: x = a + p*(b-a). Defaults a=0, b=1. p=0 -> a; p=1 -> b; p outside [0,1] -> NaN; b<=a -> NaN; NaN p -> NaN."
+}

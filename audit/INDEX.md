@@ -77,7 +77,6 @@ Status legend:
 | [findings/stats/frnd.md](findings/stats/frnd.md) | frnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/raylrnd.md](findings/stats/raylrnd.md) | raylrnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/unifrnd.md](findings/stats/unifrnd.md) | unifrnd | stats.dist | medium | small | e580a5c |
-| [findings/stats/unifinv.md](findings/stats/unifinv.md) | unifinv | stats.dist | low | small | e580a5c |
 | [findings/cluster/cluster.md](findings/cluster/cluster.md) | cluster | stats.cluster | medium | small | b2f133b |
 | [findings/cluster/linkage.md](findings/cluster/linkage.md) | linkage | stats.cluster | medium | small | b2f133b |
 | [findings/cluster/pdist.md](findings/cluster/pdist.md) | pdist | stats.cluster | medium | small | b2f133b |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/unidpdf.md](closed/stats/unidpdf.md) | unidpdf | PENDING | 2026-05-08 |
 | [closed/stats/unidinv.md](closed/stats/unidinv.md) | unidinv | PENDING | 2026-05-08 |
 | [closed/stats/unifpdf.md](closed/stats/unifpdf.md) | unifpdf | PENDING | 2026-05-08 |
+| [closed/stats/unifinv.md](closed/stats/unifinv.md) | unifinv | PENDING | 2026-05-08 |
 
 ---
 

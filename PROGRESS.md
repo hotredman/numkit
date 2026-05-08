@@ -2919,7 +2919,7 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `expstat` | ✅ | 0.006 | 57.24× | 11.58× | OK | Sig: [m, v] = expstat(mu). Exponential mean=mu, variance=mu^2. Vectorised. mu<=0 => NaN. |
 | `unifpdf` | ✅ | 0.009 | 107.97× |  | OK | Sig: y = unifpdf(x[, a, b]). Continuous uniform PDF on [a, b]; defaults a=0, b=1. y = 1/(b-a) for x in [a,b], else 0. Edges: b<=a -> NaN; NaN x -> NaN; NaN a/b -> 0 (NaN comparisons false, MATLAB convention). |
 | `unifcdf` | ✅ |  |  |  | OK |  |
-| `unifinv` | ✅ |  |  |  | OK |  |
+| `unifinv` | ✅ | 0.007 | 134.19× |  | OK | Sig: x = unifinv(p[, a, b]). Inverse Continuous Uniform CDF on [a, b]: x = a + p*(b-a). Defaults a=0, b=1. p=0 -> a; p=1 -> b; p outside [0,1] -> NaN; b<=a -> NaN; NaN p -> NaN. |
 | `unifrnd` | ✅ |  |  |  | OK |  |
 | `unifstat` | ✅ | 0.008 | 142.54× | 39.18× | OK | Sig: [m, v] = unifstat(a, b). Continuous uniform on [a,b]: m=(a+b)/2, v=(b-a)²/12. Vectorised. b<=a => NaN. |
 | `lognpdf` | ✅ | 0.006 | 69.50× | 140.07× | OK | Sig: y = lognpdf(x[, mu, sigma]). Lognormal PDF. Defaults mu=0, sigma=1. x<=0 → 0. sigma<=0 → NaN. |
