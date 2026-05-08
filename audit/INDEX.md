@@ -23,7 +23,10 @@ Status legend:
 | [closed/builtin/mrdivide.md](closed/builtin/mrdivide.md) | mrdivide / mldivide | PENDING | 2026-05-08 |
 | [closed/builtin/rat.md](closed/builtin/rat.md) | rat | PENDING | 2026-05-09 |
 | [closed/builtin/rats.md](closed/builtin/rats.md) | rats | PENDING | 2026-05-09 |
+| [closed/builtin/mldivide.md](closed/builtin/mldivide.md) | mldivide (joint w/ mrdivide) | 6b43f00a | 2026-05-08 |
+| [closed/builtin/rng.md](closed/builtin/rng.md) | rng (DEFERRED) | DEFERRED | 2026-05-09 |
 | [closed/signal/cceps.md](closed/signal/cceps.md) | cceps / icceps | PENDING | 2026-05-09 |
+| [closed/signal/goertzel.md](closed/signal/goertzel.md) | goertzel | PENDING | 2026-05-09 |
 | [closed/stats/evcdf.md](closed/stats/evcdf.md) | evcdf | PENDING | 2026-05-09 |
 | [closed/stats/geocdf.md](closed/stats/geocdf.md) | geocdf | PENDING | 2026-05-09 |
 | [closed/stats/gevcdf.md](closed/stats/gevcdf.md) | gevcdf | PENDING | 2026-05-09 |
