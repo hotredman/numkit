@@ -68,3 +68,23 @@ Documented signatures (`help dyaddown`):
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Joint closure with audit/closed/wavelet/dyadup.md.
+
+  **Bug:** matrix path silently flattened to a 1-D vector and
+  ignored the 3rd `type` arg. `dyaddown(M, 0)` returned numel/2
+  flat values instead of MATLAB's per-axis downsampling.
+
+  **Fix:** new `parseDyadArgs` helper handles `(X, evenodd[,
+  type])` in any positional order, then a 2-D matrix branch
+  applies the requested 'c' / 'r' / 'm' downsample (column-major
+  data layout) with proper output sizing.
+
+  Spec extended from 7 to 31 fingerprints (vector + matrix ×
+  ODD={0,1} × type ∈ {c, r, m}). Parity OK numkit ↔ MATLAB at
+  tol=0. Octave doesn't ship dyaddown; we follow MATLAB. 8 TEST_F
+  gtest (existing 4 + 4 new). 19 wavelet-suite dyad tests still
+  pass.

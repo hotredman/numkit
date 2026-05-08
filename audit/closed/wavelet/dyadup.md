@@ -47,3 +47,14 @@ type). `tol = 0`.
 ## Out of scope for this ТЗ
 
 - N/A — joint fix.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Joint closure with audit/closed/wavelet/dyaddown.md.
+  Same fix shape: matrix path now applies 'c' / 'r' / 'm'
+  upsampling (zero-insertion) instead of silently flattening.
+  Spec extended from 7 to 31 fingerprints. Parity OK numkit ↔
+  MATLAB at tol=0. Octave doesn't ship dyadup. 9 TEST_F gtest
+  (existing 6 + 3 new MatrixDefaultColumnUpsample / MatrixTypeR /
+  MatrixTypeM).

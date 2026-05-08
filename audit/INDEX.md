@@ -26,8 +26,6 @@ Status legend:
 | [findings/wavelet/waverec.md](findings/wavelet/waverec.md) | waverec | wavelet.dwt | critical | small | 0e895fe |
 | [findings/wavelet/appcoef.md](findings/wavelet/appcoef.md) | appcoef | wavelet.dwt | medium | small | 0e895fe |
 | [findings/wavelet/detcoef.md](findings/wavelet/detcoef.md) | detcoef | wavelet.dwt | medium | small | 0e895fe |
-| [findings/wavelet/dyaddown.md](findings/wavelet/dyaddown.md) | dyaddown | wavelet.dwt | medium | small | 0e895fe |
-| [findings/wavelet/dyadup.md](findings/wavelet/dyadup.md) | dyadup | wavelet.dwt | medium | small | 0e895fe |
 | [findings/wavelet/wextend.md](findings/wavelet/wextend.md) | wextend | wavelet.dwt | medium | small | 0e895fe |
 | [findings/wavelet/wcodemat.md](findings/wavelet/wcodemat.md) | wcodemat | wavelet.dwt | low | small | 0e895fe |
 | [findings/wavelet/wkeep.md](findings/wavelet/wkeep.md) | wkeep | wavelet.dwt | low | small | 0e895fe |
@@ -225,6 +223,8 @@ Status legend:
 | [closed/wavelet/wrev.md](closed/wavelet/wrev.md) | wrev | PENDING | 2026-05-08 |
 | [closed/wavelet/qmf.md](closed/wavelet/qmf.md) | qmf | PENDING | 2026-05-08 |
 | [closed/wavelet/orthfilt.md](closed/wavelet/orthfilt.md) | orthfilt | PENDING | 2026-05-08 |
+| [closed/wavelet/dyaddown.md](closed/wavelet/dyaddown.md) | dyaddown | PENDING | 2026-05-08 |
+| [closed/wavelet/dyadup.md](closed/wavelet/dyadup.md) | dyadup | PENDING | 2026-05-08 |
 
 ---
 
