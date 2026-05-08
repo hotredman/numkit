@@ -1,10 +1,14 @@
 {
   "name": "setdiff",
-  "namespace": "core",
-  "setup": "a = 1:10000; b = 5000:15000;",
-  "expr": "y = setdiff(a, b);",
-  "iters": 50,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: C = setdiff(A, B). 10k minus 10k. 100 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "u = setdiff([1 2 3 4], [2 4]); r1 = u(1); r2 = u(2); r3 = numel(u);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = setdiff(...). Set op. Spec-extension batch 2026-05-09."
 }

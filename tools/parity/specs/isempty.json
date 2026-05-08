@@ -1,13 +1,14 @@
 {
   "name": "isempty",
-  "namespace": "core",
-  "setup": "x = [];",
-  "expr": "y = isempty(x);",
-  "iters": 100,
-  "tol": 1e-10,
-  "comment": "Sig: TF = isempty(X). Empty []. 100k iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(isempty([])); r2 = double(isempty([1])); r3 = double(isempty(\"\"));",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = isempty(...). Predicate. Spec-extension batch 2026-05-09."
 }

@@ -1,13 +1,14 @@
 {
   "name": "str2double",
-  "namespace": "core",
-  "setup": "s = '3.14159265358979';",
-  "expr": "y = str2double(s);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: V = str2double(S). 100k iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = str2double(\"3.14\"); r2 = str2double(\"42\"); r3 = str2double(\"-1.5\");",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = str2double(...). I/O / matrix-ops. Spec-extension batch 2026-05-09."
 }

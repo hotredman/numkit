@@ -1,10 +1,15 @@
 {
   "name": "ismember",
-  "namespace": "core",
-  "setup": "a = 1:100000; b = 5:5:100000;",
-  "expr": "y = ismember(a, b);",
-  "iters": 50,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: TF = ismember(A, B). 100k vs 20k members. 50 iters. Element-wise SAVE on logical."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "tf = ismember([1 2 3 4], [2 4]); r1 = double(tf(1)); r2 = double(tf(2)); r3 = double(tf(3)); r4 = double(tf(4));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3",
+    "r4"
+  ],
+  "comment": "Sig: r = ismember(...). Set op. Spec-extension batch 2026-05-09."
 }

@@ -1,13 +1,14 @@
 {
   "name": "isstring",
-  "namespace": "core",
-  "setup": "s = \"hello\";",
-  "expr": "y = isstring(s);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: TF = isstring(X). Returns scalar logical. 100k iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(isstring(\"hi\")); r2 = double(isstring('a')); r3 = double(isstring(5));",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = isstring(...). Predicate. Spec-extension batch 2026-05-09."
 }

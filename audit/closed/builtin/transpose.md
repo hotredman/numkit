@@ -1,6 +1,6 @@
-# builtin/ctranspose — ТЗ for completion
+# builtin/transpose — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** 42e1ec3
@@ -18,3 +18,9 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Predicates2 + set-ops + format/transpose batch (26 funcs).
+  All bit-identical MATLAB R2025b. See predicates2_batch_test.cpp.
