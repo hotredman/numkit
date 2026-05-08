@@ -4,8 +4,12 @@ setlocal
 set PROJECT_DIR=%~dp0
 set IDE_DIR=%PROJECT_DIR%ide
 set DESKTOP_DIR=%IDE_DIR%\desktop
-:: cmake's `browser` preset writes to ${sourceDir}/build-browser, not /build/browser
-set WASM_DIST=%PROJECT_DIR%build-browser\wasm\dist
+:: cmake's `browser` preset writes to ${sourceDir}/build/browser/ (since the
+:: May 7 chore commit 50cc70df that consolidated all build-<preset>/ dirs
+:: under a single build/<preset>/ tree). deploy.sh / deploy.bat already track
+:: this path; this script previously had the legacy dashed name and silently
+:: copied the May-6 stale WASM into ide/public/ on every run.
+set WASM_DIST=%PROJECT_DIR%build\browser\wasm\dist
 
 :: Flags:
 ::   --skip-wasm  reuse the existing WASM in build-browser\wasm\dist (faster
