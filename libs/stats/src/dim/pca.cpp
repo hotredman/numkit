@@ -242,7 +242,9 @@ pcacov(std::pmr::memory_resource *mr, const Value &C) {
                            std::move(explained_v));
 }
 
-Value pcares(std::pmr::memory_resource *mr, const Value &X, int ndim) {
+// Internal: returns both residuals and reconstruction (MATLAB form).
+std::tuple<Value, Value>
+pcares_full(std::pmr::memory_resource *mr, const Value &X, int ndim) {
     auto [coeff, score, latent, tsq, explained, mu] = pca(mr, X);
     const size_t N = X.dims().rows();
     const size_t D = X.dims().cols();
@@ -250,21 +252,27 @@ Value pcares(std::pmr::memory_resource *mr, const Value &X, int ndim) {
         throw Error("pcares: ndim must be in 0..D", 0, 0, "pcares", "",
                     "m:pcares:badndim");
 
-    // Reconstruct data using only first ndim PCs:
-    //   X̂ = score(:, 1..ndim) · coeff(:, 1..ndim)' + μ
-    // Residual = X - X̂.
-    Value res = Value::matrix(N, D, ValueType::DOUBLE, mr);
+    Value res   = Value::matrix(N, D, ValueType::DOUBLE, mr);
+    Value recon = Value::matrix(N, D, ValueType::DOUBLE, mr);
     double *rd = res.doubleDataMut();
+    double *cd = recon.doubleDataMut();
 
     for (size_t i = 0; i < N; ++i)
         for (size_t j = 0; j < D; ++j) {
-            double recon = mu.elemAsDouble(j);
+            double r = mu.elemAsDouble(j);
             for (int k = 0; k < ndim; ++k) {
-                recon += score.elemAsDouble((size_t)k * N + i)
-                       * coeff.elemAsDouble((size_t)k * D + j);
+                r += score.elemAsDouble((size_t)k * N + i)
+                   * coeff.elemAsDouble((size_t)k * D + j);
             }
-            rd[j * N + i] = X.elemAsDouble(j * N + i) - recon;
+            cd[j * N + i] = r;
+            rd[j * N + i] = X.elemAsDouble(j * N + i) - r;
         }
+    return {std::move(res), std::move(recon)};
+}
+
+Value pcares(std::pmr::memory_resource *mr, const Value &X, int ndim) {
+    auto [res, recon] = pcares_full(mr, X, ndim);
+    (void)recon;
     return res;
 }
 
@@ -301,13 +309,16 @@ void pcacov_reg(Span<const Value> args, size_t nargout,
     if (nargout > 2) outs[2] = std::move(explained);
 }
 
-void pcares_reg(Span<const Value> args, size_t /*nargout*/,
+void pcares_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("pcares: requires (X, ndim)", 0, 0, "pcares", "",
                     "m:pcares:nargin");
-    outs[0] = pcares(ctx.engine->resource(), args[0], (int)args[1].toScalar());
+    auto [res, recon] = pcares_full(ctx.engine->resource(),
+                                    args[0], (int)args[1].toScalar());
+    outs[0] = std::move(res);
+    if (nargout > 1) outs[1] = std::move(recon);
 }
 
 } // namespace detail
