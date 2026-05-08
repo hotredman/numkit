@@ -1,0 +1,16 @@
+{
+  "name": "gaminv",
+  "namespace": "stats",
+  "setup": "qs = [0.05 0.5 0.95];",
+  "expr": "x_s = gaminv(0.5, 2, 1); x_v = gaminv(qs, 2, 1); x_q0 = gaminv(0, 2, 1); x_q1 = gaminv(1, 2, 1); x_qneg = gaminv(-0.1, 2, 1); x_qover = gaminv(1.5, 2, 1); x_a0 = gaminv(0.5, 0, 1); x_aneg = gaminv(0.5, -1, 1); x_b0 = gaminv(0.5, 2, 0);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "x_s",
+    "x_v(1)", "x_v(2)", "x_v(3)",
+    "x_q0", "x_q1",
+    "x_qneg", "x_qover",
+    "x_a0", "x_aneg", "x_b0"
+  ],
+  "comment": "Sig: x = gaminv(p, a, b). Inverse Gamma CDF. q=0 → 0; q=1 → Inf; q outside [0,1] → NaN. a=0 → 0 (degenerate); a<0 / b<=0 → NaN."
+}
