@@ -15,7 +15,6 @@ Status legend:
 
 | File | Function | Namespace | Priority | Effort | Audit commit |
 |---|---|---|---|---|---|
-| [findings/wavelet/appcoef.md](findings/wavelet/appcoef.md) | appcoef | wavelet.dwt | medium | small | 0e895fe |
 | [findings/stats/normrnd.md](findings/stats/normrnd.md) | normrnd | stats.dist | high | medium | 8e48677 |
 | [findings/stats/chi2rnd.md](findings/stats/chi2rnd.md) | chi2rnd | stats.dist | medium | small | 8e48677 |
 | [findings/stats/trnd.md](findings/stats/trnd.md) | trnd | stats.dist | medium | small | 8e48677 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/wavelet/idwt.md](closed/wavelet/idwt.md) | idwt | PENDING | 2026-05-08 |
 | [closed/wavelet/wavedec.md](closed/wavelet/wavedec.md) | wavedec | PENDING | 2026-05-08 |
 | [closed/wavelet/waverec.md](closed/wavelet/waverec.md) | waverec | PENDING | 2026-05-08 |
+| [closed/wavelet/appcoef.md](closed/wavelet/appcoef.md) | appcoef | PENDING | 2026-05-08 |
 
 ---
 

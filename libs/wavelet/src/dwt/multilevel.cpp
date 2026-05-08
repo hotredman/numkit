@@ -13,6 +13,7 @@
 
 #include <numkit/wavelet/dwt/multilevel.hpp>
 #include <numkit/wavelet/dwt/dwt.hpp>
+#include <numkit/wavelet/filter/wfilters.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -135,9 +136,12 @@ Value waverec(std::pmr::memory_resource *mr,
     return rowFromVec(mr, running);
 }
 
-Value appcoef(std::pmr::memory_resource *mr,
-              const Value &C, const Value &L, const std::string &wname,
-              int level)
+// Internal: appcoef with explicit Lo_R / Hi_R synthesis filters.
+static Value appcoef_with_filters(std::pmr::memory_resource *mr,
+                                  const Value &C, const Value &L,
+                                  const std::vector<double> &Lo_R,
+                                  const std::vector<double> &Hi_R,
+                                  int level)
 {
     const size_t Lcount = L.numel();
     if (Lcount < 3)
@@ -154,13 +158,9 @@ Value appcoef(std::pmr::memory_resource *mr,
         return static_cast<size_t>(L.elemAsDouble(idx));
     };
 
-    // Start from the coarsest cA_nMax stored at the head of C.
     std::vector<double> running(Cv.begin(), Cv.begin() + sliceLen(0));
     if (level == nMax) return rowFromVec(mr, running);
 
-    // We need to reconstruct upward: starting from cA at the deepest
-    // level, apply (nMax - level) steps of "idwt with the corresponding
-    // cD" — same as waverec but stop early.
     size_t off = sliceLen(0);
     for (int k = 0; k < nMax - level; ++k) {
         const size_t dLen = sliceLen(1 + k);
@@ -169,10 +169,19 @@ Value appcoef(std::pmr::memory_resource *mr,
         const size_t recLen = sliceLen(2 + k);
         Value cA = rowFromVec(mr, running);
         Value cD = rowFromVec(mr, detail);
-        Value next = idwt(mr, cA, cD, wname, static_cast<long long>(recLen));
+        Value next = idwt_with_filters_pub(mr, cA, cD, Lo_R, Hi_R,
+                                            static_cast<long long>(recLen));
         running = vecFromValue(next);
     }
     return rowFromVec(mr, running);
+}
+
+Value appcoef(std::pmr::memory_resource *mr,
+              const Value &C, const Value &L, const std::string &wname,
+              int level)
+{
+    auto fb = wavelet_filters(wname);
+    return appcoef_with_filters(mr, C, L, fb.Lo_R, fb.Hi_R, level);
 }
 
 Value detcoef(std::pmr::memory_resource *mr,
@@ -245,13 +254,67 @@ void appcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                  CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("appcoef: requires (C, L, wname [, level])",
+        throw Error("appcoef: requires (C, L, wname[, level]) or "
+                    "(C, L, Lo_R, Hi_R[, level])",
                     0, 0, "appcoef", "", "m:appcoef:nargin");
+    auto *mr = ctx.engine->resource();
+
+    // Parse trailing 'mode' / Mode= N-V: only 'sym' supported.
+    auto lower = [](std::string s) {
+        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        return s;
+    };
+    auto check_mode_at = [&](size_t start) {
+        for (size_t i = start; i + 1 < args.size(); i += 2) {
+            if (!(args[i].isChar() || args[i].isString())) break;
+            const std::string key = lower(args[i].toString());
+            if (key == "mode") {
+                const std::string m = lower(args[i + 1].toString());
+                if (m != "sym" && m != "symh")
+                    throw Error("appcoef: only 'mode'='sym' is implemented "
+                                "(got '" + m + "')",
+                                0, 0, "appcoef", "", "m:appcoef:mode_nyi");
+            }
+        }
+    };
+
     int level = -1;
-    if (args.size() >= 4 && !args[3].isEmpty())
-        level = static_cast<int>(args[3].toScalar());
-    outs[0] = appcoef(ctx.engine->resource(),
-                      args[0], args[1], argString(args[2]), level);
+    auto readVec = [](const Value &v) {
+        const size_t n = v.numel();
+        std::vector<double> out(n);
+        for (size_t i = 0; i < n; ++i) out[i] = v.elemAsDouble(i);
+        return out;
+    };
+
+    if (args[2].isChar() || args[2].isString()) {
+        // (C, L, wname[, level][, 'mode', extmode])
+        size_t i = 3;
+        if (i < args.size() && !args[i].isEmpty()
+            && args[i].numel() == 1
+            && !(args[i].isChar() || args[i].isString())) {
+            level = (int)args[i].toScalar();
+            ++i;
+        }
+        check_mode_at(i);
+        outs[0] = appcoef(mr, args[0], args[1], args[2].toString(), level);
+    } else {
+        // (C, L, Lo_R, Hi_R[, level][, 'mode', extmode])
+        if (args.size() < 4 || (args[3].isChar() || args[3].isString()))
+            throw Error("appcoef: custom-filter form requires "
+                        "(C, L, Lo_R, Hi_R)",
+                        0, 0, "appcoef", "", "m:appcoef:nargin");
+        size_t i = 4;
+        if (i < args.size() && !args[i].isEmpty()
+            && args[i].numel() == 1
+            && !(args[i].isChar() || args[i].isString())) {
+            level = (int)args[i].toScalar();
+            ++i;
+        }
+        check_mode_at(i);
+        outs[0] = appcoef_with_filters(mr, args[0], args[1],
+                                        readVec(args[2]), readVec(args[3]),
+                                        level);
+    }
 }
 
 void detcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
