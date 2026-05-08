@@ -19,17 +19,27 @@ namespace numkit::stats {
 
 namespace {
 
-enum class Metric { Euclidean, SqEuclidean, Cityblock, Chebychev };
+enum class Metric { Euclidean, SqEuclidean, Cityblock, Chebychev,
+                    Minkowski, Cosine, Hamming, Jaccard, Precomputed };
 
 Metric parse_metric(const std::string &s) {
-    if (s == "euclidean")        return Metric::Euclidean;
-    if (s == "squaredeuclidean") return Metric::SqEuclidean;
-    if (s == "cityblock")        return Metric::Cityblock;
-    if (s == "chebychev")        return Metric::Chebychev;
+    std::string sl; sl.reserve(s.size());
+    for (char c : s) sl.push_back((char)std::tolower((unsigned char)c));
+    if (sl == "euclidean")        return Metric::Euclidean;
+    if (sl == "squaredeuclidean" ||
+        sl == "sqeuclidean")      return Metric::SqEuclidean;
+    if (sl == "cityblock")        return Metric::Cityblock;
+    if (sl == "chebychev")        return Metric::Chebychev;
+    if (sl == "minkowski")        return Metric::Minkowski;
+    if (sl == "cosine")           return Metric::Cosine;
+    if (sl == "hamming")          return Metric::Hamming;
+    if (sl == "jaccard")          return Metric::Jaccard;
+    if (sl == "precomputed")      return Metric::Precomputed;
     return Metric::Euclidean;
 }
 
-inline double dist_pair(const double *a, const double *b, size_t D, Metric m) {
+inline double dist_pair(const double *a, const double *b, size_t D, Metric m,
+                        double p = 2.0) {
     switch (m) {
         case Metric::Euclidean: {
             double s = 0.0;
@@ -54,6 +64,42 @@ inline double dist_pair(const double *a, const double *b, size_t D, Metric m) {
             }
             return m_;
         }
+        case Metric::Minkowski: {
+            double s = 0.0;
+            for (size_t k = 0; k < D; ++k) {
+                double d = std::fabs(a[k] - b[k]);
+                s += std::pow(d, p);
+            }
+            return std::pow(s, 1.0 / p);
+        }
+        case Metric::Cosine: {
+            double xy = 0, xx = 0, yy = 0;
+            for (size_t k = 0; k < D; ++k) {
+                xy += a[k] * b[k];
+                xx += a[k] * a[k];
+                yy += b[k] * b[k];
+            }
+            const double denom = std::sqrt(xx) * std::sqrt(yy);
+            return (denom > 0.0) ? (1.0 - xy / denom) : 1.0;
+        }
+        case Metric::Hamming: {
+            int diff = 0;
+            for (size_t k = 0; k < D; ++k) if (a[k] != b[k]) ++diff;
+            return double(diff) / double(D);
+        }
+        case Metric::Jaccard: {
+            int diff = 0, considered = 0;
+            for (size_t k = 0; k < D; ++k) {
+                const bool xi = a[k] != 0.0, yi = b[k] != 0.0;
+                if (xi || yi) {
+                    ++considered;
+                    if (xi != yi) ++diff;
+                }
+            }
+            return considered > 0 ? double(diff) / double(considered) : 0.0;
+        }
+        case Metric::Precomputed:
+            return 0.0;  // never used through this dispatch
     }
     return 0.0;
 }
@@ -191,30 +237,50 @@ kmedoids(std::pmr::memory_resource *mr, const Value &X, int K,
 
 std::tuple<Value, Value>
 dbscan(std::pmr::memory_resource *mr, const Value &X,
-       double eps, int minpts, const std::string &metric_name)
+       double eps, int minpts, const std::string &metric_name,
+       double p)
 {
     if (eps <= 0.0)  throw Error("dbscan: eps must be positive",
                                  0, 0, "dbscan", "", "m:dbscan:badeps");
     if (minpts <= 0) minpts = 1;
     const Metric m = parse_metric(metric_name);
 
+    // For 'precomputed' the input is the N×N pairwise distance matrix
+    // directly. Otherwise X is N×D feature matrix.
+    const bool precomputed = (m == Metric::Precomputed);
     const size_t N = X.dims().rows();
-    const size_t D = X.dims().cols();
-    std::vector<double> Xv = read_rows(X);
 
-    // Compute all pairwise distances (N²·D — straightforward for first cut).
+    std::vector<double> Xv;
+    std::vector<double> Dmat;  // N×N row-major (precomputed only)
+    size_t D = 0;
+    if (precomputed) {
+        if (X.dims().cols() != N)
+            throw Error("dbscan: precomputed distance matrix must be N×N",
+                        0, 0, "dbscan", "", "m:dbscan:badprecomp");
+        Dmat.assign(N * N, 0.0);
+        for (size_t i = 0; i < N; ++i)
+            for (size_t j = 0; j < N; ++j)
+                Dmat[i * N + j] = X.elemAsDouble(j * N + i);
+    } else {
+        D = X.dims().cols();
+        Xv = read_rows(X);
+    }
+
+    // Neighbour lookup.
     auto neighbours = [&](size_t i) {
         std::vector<int> out;
         out.reserve(16);
         for (size_t j = 0; j < N; ++j) {
             if (j == i) { out.push_back((int)j); continue; }
-            const double d = dist_pair(&Xv[i * D], &Xv[j * D], D, m);
+            double d;
+            if (precomputed) d = Dmat[i * N + j];
+            else             d = dist_pair(&Xv[i * D], &Xv[j * D], D, m, p);
             if (d <= eps) out.push_back((int)j);
         }
         return out;
     };
 
-    std::vector<int>     labels(N, 0);   // 0 = unclassified-or-noise
+    std::vector<int>     labels(N, 0);   // 0 = unclassified
     std::vector<uint8_t> core(N, 0);
     int cluster = 0;
 
@@ -222,7 +288,7 @@ dbscan(std::pmr::memory_resource *mr, const Value &X,
         if (labels[i] != 0) continue;
         auto nbrs = neighbours(i);
         if ((int)nbrs.size() < minpts) {
-            labels[i] = -1;  // mark noise (will be remapped to 0 below)
+            labels[i] = -1;  // mark noise (MATLAB also uses -1)
             continue;
         }
         ++cluster;
@@ -247,17 +313,24 @@ dbscan(std::pmr::memory_resource *mr, const Value &X,
         }
     }
 
-    // Remap noise (-1) → 0 (MATLAB convention).
+    // MATLAB convention: noise = -1.
     Value idx = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     double *ip = idx.doubleDataMut();
-    for (size_t i = 0; i < N; ++i)
-        ip[i] = (labels[i] == -1) ? 0.0 : double(labels[i]);
+    for (size_t i = 0; i < N; ++i) ip[i] = double(labels[i]);
 
     Value core_v = Value::matrix(N, 1, ValueType::LOGICAL, mr);
     uint8_t *cp = core_v.logicalDataMut();
     for (size_t i = 0; i < N; ++i) cp[i] = core[i];
 
     return std::make_tuple(std::move(idx), std::move(core_v));
+}
+
+// Backward-compat without p.
+std::tuple<Value, Value>
+dbscan(std::pmr::memory_resource *mr, const Value &X,
+       double eps, int minpts, const std::string &metric_name)
+{
+    return dbscan(mr, X, eps, minpts, metric_name, 2.0);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -296,14 +369,37 @@ void dbscan_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("dbscan: requires (X, eps, minpts[, metric])",
+        throw Error("dbscan: requires (X, eps, minpts[, N-V pairs])",
                     0, 0, "dbscan", "", "m:dbscan:nargin");
     const double eps    = args[1].toScalar();
     const int    minpts = (int)args[2].toScalar();
     std::string metric  = "euclidean";
-    if (args.size() >= 4 && (args[3].isChar() || args[3].isString()))
-        metric = args[3].toString();
-    auto [idx, core] = dbscan(ctx.engine->resource(), args[0], eps, minpts, metric);
+    double p = 2.0;
+    auto lower = [](std::string s) {
+        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        return s;
+    };
+    // MATLAB requires N-V form; we also tolerate a 4th positional metric
+    // string for backward compat with prior numkit usage.
+    size_t i = 3;
+    if (i < args.size() && (args[i].isChar() || args[i].isString())) {
+        const std::string s = lower(args[i].toString());
+        if (s != "distance" && s != "p" && s != "cov" && s != "scale") {
+            metric = s;
+            ++i;
+        }
+    }
+    for (; i + 1 < args.size(); i += 2) {
+        if (!(args[i].isChar() || args[i].isString())) continue;
+        const std::string key = lower(args[i].toString());
+        const Value &val = args[i + 1];
+        if      (key == "distance") metric = lower(val.toString());
+        else if (key == "p")        p      = val.toScalar();
+        // 'Cov' and 'Scale' silently accepted but ignored — only matter
+        // for mahalanobis / seuclidean which dbscan() doesn't yet wire up.
+    }
+    auto [idx, core] = dbscan(ctx.engine->resource(), args[0],
+                              eps, minpts, metric, p);
     outs[0] = std::move(idx);
     if (nargout > 1) outs[1] = std::move(core);
 }
