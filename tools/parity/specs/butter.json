@@ -1,10 +1,14 @@
 {
   "name": "butter",
-  "namespace": "core",
-  "setup": "% nop",
-  "expr": "[y, jj] = butter(4, 0.4);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: [B,A] = butter(N, WN). 4th-order LPF. 1000 iters. SAVE on B.",
-  "out_var": "y"
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[b, a] = butter(4, 0.5); r1 = b(1); r2 = a(1); r3 = double(numel(b));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = butter(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }

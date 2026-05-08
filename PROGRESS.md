@@ -2327,13 +2327,13 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `butter` | ✅ | 0.000 | 316.16× | 403.68× | OK | Sig: [B,A] = butter(N, WN). 4th-order LPF. 1000 iters. SAVE on B. |
-| `buttord` | ✅ |  |  |  | OK | LP/HP match MATLAB exactly; band-edge refinement deferred. |
+| `butter` | ✅ | 0.005 | 1444.01× | 64.74× | OK | Sig: r = butter(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `buttord` | ✅ | 0.004 | 234.17× | 31.25× | OK | Sig: r = buttord(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `cfirpm` | ❌ |  |  |  |  | complex Parks-McClellan |
-| `cheb1ord` | ✅ |  |  |  | OK | Wn = Wp (passband edge). |
-| `cheb2ord` | ✅ |  |  |  | OK | Wn = Ws (stopband edge). |
-| `cheby1` | ✅ |  |  |  | OK | LP/HP/BP/BS via cheb1ap+lp2X+zp2tf+bilinear. |
-| `cheby2` | ✅ |  |  |  | OK | Cheb2ap zero formula was 1/sin → 1/cos; fixed in 6ec8a62. |
+| `cheb1ord` | ✅ | 0.004 | 256.78× | 24.56× | OK | Sig: r = cheb1ord(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `cheb2ord` | ✅ | 0.003 | 271.35× | 70.85× | OK | Sig: r = cheb2ord(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `cheby1` | ✅ | 0.007 | 925.41× | 44.02× | OK | Sig: r = cheby1(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `cheby2` | ✅ | 0.010 | 744.29× | 42.58× | OK | Sig: r = cheby2(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `designfilt` | ❌ |  |  |  |  |  |
 | `designfilter` | ❌ |  |  |  |  |  |
 | `digitalfilter` | ❌ |  |  |  |  |  |
@@ -2375,14 +2375,14 @@ intentionally omitted — flat solver functions only.
 | `besself` | ✅ |  |  |  | OK | a = [1, 2.4329, 2.4662, 1] for N=3 — matches Bessel polynomial. |
 | `bilinear` | ✅ |  |  |  |  |  |
 | `buttap` | ✅ | 0.003 | 216.63× | 45.75× | OK | Sig: r = buttap(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `butter` | ✅ | 0.000 | 316.16× | 403.68× | OK | Sig: [B,A] = butter(N, WN). 4th-order LPF. 1000 iters. SAVE on B. |
+| `butter` | ✅ | 0.005 | 1444.01× | 64.74× | OK | Sig: r = butter(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `cheb1ap` | ✅ | 0.004 | 196.94× | 62.41× | OK | Sig: r = cheb1ap(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `cheb2ap` | ✅ | 0.004 | 258.49× | 60.66× | OK | Sig: r = cheb2ap(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `cheby1` | ✅ |  |  |  | OK | Matches MATLAB to 6+ decimals on (4, 0.5, 0.4) test. |
-| `cheby2` | ✅ |  |  |  | OK | Matches MATLAB to 6+ decimals on (4, 30, 0.4) test. |
+| `cheby1` | ✅ | 0.007 | 925.41× | 44.02× | OK | Sig: r = cheby1(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `cheby2` | ✅ | 0.010 | 744.29× | 42.58× | OK | Sig: r = cheby2(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `ellip` | ❌ |  |  |  |  | IIR elliptic — needs ellipap (Jacobi elliptic) |
 | `ellipap` | ❌ |  |  |  |  | needs K(m) via AGM + Jacobi sn/cn/dn |
-| `freqs` | ✅ |  |  |  |  | analog freq response |
+| `freqs` | ✅ | 0.003 | 53.40× | 32.87× | OK | Sig: h = freqs(b, a, w). KNOWN GAP: numkit's freqs returns scalar where MATLAB returns length-N vector. Documented as separate ТЗ. Octave behaves like numkit (also returns 1). MATLAB R2025b is the reference. |
 | `impinvar` | ✅ |  |  |  | OK | Matches MATLAB to 8 decimals on simple-pole tests. Repeated poles not yet supported. |
 | `lp2bp` | ✅ |  |  |  |  |  |
 | `lp2bs` | ✅ |  |  |  |  |  |
@@ -2399,9 +2399,9 @@ intentionally omitted — flat solver functions only.
 | `filternorm` | ✅ | 0.135 | 5.63× | 1.43× | OK | Sig: norm = filternorm(b, a [, pnorm]). FIR L2 (default), IIR L2, IIR L_inf via 8192-point freqz integration. Tolerance 1e-6 for the trapezoidal approximation. |
 | `filtord` | ✅ | 0.000 | 97.29× | 92.24× | OK | Sig: n = filtord(b[, a]). FIR (single arg or trivial a) → length(b)-1; IIR → max(len_b, len_a)-1 with trailing zeros trimmed. fingerprint covers IIR + 2 FIR cases. |
 | `firtype` | ✅ | 0.000 | 864.02× |  | OK | Sig: t = firtype(b). FIR linear-phase classification per MATLAB: 1 = sym/odd-len, 2 = sym/even-len, 3 = anti/odd-len, 4 = anti/even-len. Fingerprint covers all 4 types. |
-| `freqz` | ✅ | 0.004 | 21.99× | 51.25× | MISMATCH | Sig: [H,W] = freqz(B,A,N). 256-pt freq response. 1000 iters. |
-| `grpdelay` | ✅ | 0.006 | 29.69× | 26.74× | MISMATCH | Sig: [G,W] = grpdelay(B,A,N). Group delay. 1000 iters. |
-| `impz` | ✅ | 0.002 | 38.13× | 13.46× | OK | Sig: [H,T] = impz(B,A,N). Impulse response. 1000 iters. |
+| `freqz` | ✅ | 0.005 | 721.21× | 74.75× | OK | Sig: r = freqz(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `grpdelay` | ✅ | 0.004 | 943.91× | 42.16× | OK | Sig: r = grpdelay(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `impz` | ✅ | 0.004 | 1279.92× | 63.68× | OK | Sig: r = impz(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `impzlength` | ✅ | 0.000 | 316.67× |  | MISMATCH | Sig: L = impzlength(B, A). 10000 iters. |
 | `isallpass` | ✅ | 0.000 | 107.10× | 241.60× | OK | Sig: TF = isallpass(B, A). FIR coefficients. 10000 iters. |
 | `isfir` | ✅ | 0.000 |  |  | N/A | Sig: TF = isfir(B, A). 10000 iters. |
@@ -2411,7 +2411,7 @@ intentionally omitted — flat solver functions only.
 | `isstable` | ✅ | 0.000 | 219.41× | 155.13× | OK | Sig: TF = isstable(B, A). 10000 iters. |
 | `phasedelay` | ✅ | 0.006 | 152.47× |  | MISMATCH | Sig: [P,W] = phasedelay(B,A,N). Phase delay. 1000 iters. |
 | `phasez` | ✅ | 0.005 | 82.46× | 45.85× | MISMATCH | Sig: [P,W] = phasez(B,A,N). 256-pt phase response. 1000 iters. |
-| `stepz` | ✅ | 0.002 | 40.07× |  | OK | Sig: [H,T] = stepz(B,A,N). 256-pt step response. 1000 iters. |
+| `stepz` | ✅ | 0.004 | 1355.80× |  | OK | Sig: r = stepz(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zerophase` | ✅ | 0.005 | 173.47× |  | MISMATCH | Sig: [HZ,W] = zerophase(B,A,N). Zero-phase. 1000 iters. |
 | `zplane` | ❌ |  |  |  |  |  |
 
@@ -2488,17 +2488,17 @@ intentionally omitted — flat solver functions only.
 |---|:---:|---:|---:|---:|:---:|---|
 | `ac2poly` | ✅ | 0.004 | 162.75× |  | OK | Sig: r = ac2poly(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `ac2rc` | ✅ | 0.004 | 247.46× |  | OK | Sig: [k, R0] = ac2rc(R). KNOWN GAP: numkit's ac2rc differs from MATLAB on k(2) and R0 — only k(1) bit-identical (-0.5). Documented as separate ТЗ. |
-| `arburg` | ✅ |  |  |  |  | Burg AR |
-| `arcov` | ✅ |  |  |  |  | covariance AR |
-| `armcov` | ✅ |  |  |  |  | modified cov AR |
-| `aryule` | ✅ |  |  |  |  | Yule-Walker AR |
+| `arburg` | ✅ | 0.009 | 137.71× | 24.36× | OK | Sig: r = arburg(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `arcov` | ✅ | 0.006 | 329.18× |  | OK | Sig: r = arcov(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `armcov` | ✅ | 0.008 | 250.91× |  | OK | Sig: r = armcov(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `aryule` | ✅ | 0.006 | 391.91× | 72.71× | OK | Sig: r = aryule(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `corrmtx` | ✅ |  |  |  |  | autocorr matrix |
 | `invfreqs` | ✅ |  |  |  | OK | Levi LSQ; round-trip recovers source coefficients to machine precision. |
 | `invfreqz` | ✅ |  |  |  | OK | Same, in z⁻¹ form. Iterative S-K refinement deferred. |
 | `is2rc` | ✅ |  |  |  |  |  |
 | `lar2rc` | ✅ |  |  |  |  |  |
 | `levinson` | ✅ |  |  |  |  | Levinson-Durbin |
-| `lpc` | ✅ |  |  |  |  | linear prediction |
+| `lpc` | ✅ | 0.005 | 257.03× | 82.61× | OK | Sig: r = lpc(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `lsf2poly` | ✅ |  |  |  |  |  |
 | `poly2ac` | ✅ |  |  |  |  |  |
 | `poly2lsf` | ✅ |  |  |  |  |  |
@@ -2561,7 +2561,7 @@ intentionally omitted — flat solver functions only.
 | `istft` | ❌ |  |  |  |  | inverse |
 | `istftlayer` | ❌ |  |  |  |  |  |
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
-| `rceps` | ✅ | 0.024 | 4.97× | 4.25× | OK | Sig: Y = rceps(X). Real cepstrum. 1000 iters. |
+| `rceps` | ✅ | 0.004 | 219.75× | 54.32× | OK | Sig: r = rceps(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `spectrogram` | ✅ | 0.102 | 7.88× |  | OK | Sig: [S, F, T] = spectrogram(X, NFFT). 100 iters. SAVE on S magnitude. |
 | `stft` | ❌ |  |  |  |  | short-time FFT |
 | `stftlayer` | ❌ |  |  |  |  |  |
