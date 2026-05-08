@@ -1,13 +1,14 @@
 {
   "name": "ndims",
-  "namespace": "core",
-  "setup": "x = reshape(1:60000, 100, 600);",
-  "expr": "y = ndims(x);",
-  "iters": 100,
-  "tol": 1e-10,
-  "comment": "Sig: N = ndims(X). 2D mat \u2192 2. 100k iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = ndims([1 2; 3 4]); r2 = ndims([1 2 3]); r3 = ndims(0);",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = ndims(...). Shape op. Spec-extension batch 2026-05-09."
 }
