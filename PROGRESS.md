@@ -3086,7 +3086,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `ecdf` | ✅ | 0.003 | 889.16× | 85.32× | OK | Sig: [f, x] = ecdf(y). Empirical CDF — column vectors of length K+1 where K is the number of distinct y values. f(1)=0 at x=min(y); subsequent f(k)=cumcount(k)/N at each unique value. NaN excluded from N. Element-wise SAVE on f. |
-| `ecdfhist` | ✅ | 0.003 | 341.03× |  | OK | Sig: [n, c] = ecdfhist(f, x [, m]). Probability-density histogram from ecdf data. Default m=10 bins. Element-wise SAVE on n. |
+| `ecdfhist` | ✅ | 0.008 | 141.16× |  | OK | Sig: [n, c] = ecdfhist(f, x[, m]). Probability-density histogram from ecdf step data. Default m=10 bins. n is the per-bin density (sum of jumps falling in that bin / bin_width); c is the bin centre. Coverage: m ∈ {3, 5, 10} × uniform/non-uniform input. |
 | `ksdensity` | ✅ | 0.004 | 2040.36× |  | OK | Sig: [f, xi, bw] = ksdensity(x[, pts, 'Bandwidth', bw]). Gaussian kernel density estimate at user-specified pts (or 100-point auto grid). With explicit bw the kernel formula matches MATLAB exactly; the auto-bw heuristic uses Silverman's rule which differs slightly from MATLAB's internal. |
 | `mvksdensity` | ❌ |  |  |  |  | multivariate KDE |
 
