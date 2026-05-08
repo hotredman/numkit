@@ -1,6 +1,6 @@
-# builtin/cosd — ТЗ for completion
+# builtin/tand — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** a6e4264
@@ -35,3 +35,10 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Forward-trig spec-extension batch (18 functions). All
+  libm-backed, bit-identical MATLAB R2025b. See libs/builtin/tests/
+  fwd_trig_batch_test.cpp + smoke + 18 parity specs.

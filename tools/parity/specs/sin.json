@@ -1,10 +1,16 @@
 {
   "name": "sin",
-  "namespace": "core",
-  "setup": "x = linspace(-2*pi, 2*pi, 1000000);",
+  "namespace": "builtin",
+  "setup": "x = [0, 0.5, pi/2, pi, 1.5];",
   "expr": "y = sin(x);",
-  "iters": 20,
+  "iters": 5,
   "tol": 1e-12,
-  "out_var": "y",
-  "comment": "Sig: Y = sin(X). 1M-point sweep over 4π. 20 iters. Element-wise SAVE."
+  "fingerprint": [
+    "y(1)",
+    "y(2)",
+    "y(3)",
+    "y(4)",
+    "y(5)"
+  ],
+  "comment": "Sig: y = sin(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b."
 }

@@ -44,6 +44,7 @@ Status legend:
 | [closed/builtin/acsc.md](closed/builtin/acsc.md) | acsc | PENDING | 2026-05-09 |
 | [closed/builtin/acscd.md](closed/builtin/acscd.md) | acscd | PENDING | 2026-05-09 |
 | [closed/builtin/acsch.md](closed/builtin/acsch.md) | acsch | PENDING | 2026-05-09 |
+| [closed/builtin/fwd_trig_batch](closed/builtin/sin.md) | sin/sind/sinh+cos/cosd/cosh+tan/tand/tanh+sec/secd/sech+csc/cscd/csch+cot/cotd/coth (FWD-TRIG BATCH 18) | PENDING | 2026-05-09 |
 | [closed/builtin/inv_trig_batch2](closed/builtin/asin.md) | asin/asind/asinh + atan/atand/atanh + asec/asecd/asech (BATCH 2) | PENDING | 2026-05-09 |
 | [closed/stats/evcdf.md](closed/stats/evcdf.md) | evcdf | PENDING | 2026-05-09 |
 | [closed/stats/geocdf.md](closed/stats/geocdf.md) | geocdf | PENDING | 2026-05-09 |
