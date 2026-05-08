@@ -51,3 +51,16 @@ produce MATLAB-compatible labels.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Pure spec coverage, no impl change. Numkit orthfilt
+  already matched MATLAB exactly across db2 (4-tap), db4 (8-tap),
+  and a 2-tap custom scaling filter.
+
+  Spec extended from 8 to 18 fingerprints (db2 + db4 longer +
+  custom 2-tap). Parity OK numkit ↔ MATLAB at tol=1e-12. Octave
+  doesn't ship `dbwavf` (Wavelet Toolbox); we follow MATLAB. 6
+  TEST_F gtest (existing 3 + 3 new high-precision db2 / db4 /
+  custom).

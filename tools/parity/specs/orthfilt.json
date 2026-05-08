@@ -1,10 +1,19 @@
 {
   "name": "orthfilt",
   "namespace": "wavelet",
-  "setup": "W = dbwavf('db2');",
-  "expr": "[Lo_D, Hi_D, Lo_R, Hi_R] = orthfilt(W);",
+  "setup": "W2 = dbwavf('db2'); W4 = dbwavf('db4'); Wcst = [0.4 0.6];",
+  "expr": "[L2D, H2D, L2R, H2R] = orthfilt(W2); [L4D, H4D, L4R, H4R] = orthfilt(W4); [LcD, HcD, LcR, HcR] = orthfilt(Wcst);",
   "iters": 5,
   "tol": 1e-12,
-  "fingerprint": ["Lo_D(1)", "Lo_D(4)", "Hi_D(1)", "Hi_D(4)", "Lo_R(1)", "Lo_R(4)", "Hi_R(1)", "Hi_R(4)"],
-  "comment": "Sig: [Lo_D, Hi_D, Lo_R, Hi_R] = orthfilt(W). Quadruple from a unit-norm scaling filter W (sum(W)=1). Lo_R = W*sqrt(2); Lo_D = reverse(Lo_R); Hi_R[k] = (-1)^k * Lo_R[N-1-k]; Hi_D = reverse(Hi_R)."
+  "fingerprint": [
+    "L2D(1)", "L2D(2)", "L2D(3)", "L2D(4)",
+    "H2D(1)", "H2D(4)",
+    "L2R(1)", "L2R(4)",
+    "H2R(1)", "H2R(4)",
+    "L4D(1)", "L4D(8)",
+    "H4D(1)", "H4D(8)",
+    "LcD(1)", "LcD(2)",
+    "HcD(1)", "HcD(2)"
+  ],
+  "comment": "Sig: [Lo_D, Hi_D, Lo_R, Hi_R] = orthfilt(W). Quadruple from a unit-norm scaling filter W (sum(W)=1, length even). Lo_R = W·√2; Lo_D = reverse(Lo_R); Hi_R[k] = (-1)^k · Lo_R[N-1-k]; Hi_D = reverse(Hi_R). Coverage: db2 (4-tap), db4 (8-tap), custom 2-tap."
 }
