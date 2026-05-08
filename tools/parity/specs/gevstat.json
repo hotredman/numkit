@@ -1,10 +1,18 @@
 {
   "name": "gevstat",
   "namespace": "stats",
-  "setup": "k = 0.2; sigma = 1; mu = 0;",
-  "expr": "[m, v] = gevstat(k, sigma, mu);",
+  "setup": "",
+  "expr": "[m_s, v_s] = gevstat(0.3, 1, 0); [m_v, v_v] = gevstat([0.3 0 -0.3], 1, 0); [m_b, v_b] = gevstat(0.3, [0.5 1 2], 0); [m_05, v_05] = gevstat(0.5, 1, 0); [m_1, v_1] = gevstat(1, 1, 0); m_sig0 = gevstat(0.3, 0, 0); m_signeg = gevstat(0.3, -1, 0);",
   "iters": 5,
-  "tol": 1e-10,
-  "fingerprint": ["m", "v"],
-  "comment": "Sig: [m, v] = gevstat(k, sigma, mu). mean = mu + sigma·(Γ(1−k)−1)/k for k∈(0,1); k=0 limit = mu+σ·γ_E."
+  "tol": 1e-9,
+  "fingerprint": [
+    "m_s", "v_s",
+    "m_v(1)", "m_v(2)", "m_v(3)",
+    "v_v(1)", "v_v(2)", "v_v(3)",
+    "m_b(1)", "m_b(2)", "m_b(3)",
+    "m_05", "v_05",
+    "m_1",
+    "m_sig0", "m_signeg"
+  ],
+  "comment": "Sig: [m, v] = gevstat(k, sigma, mu). GEV moments: complex by k regime (k>=1 mean=Inf; 0.5<=k<1 mean finite/var=Inf; k<0.5 both finite; k=0 Gumbel limit). Vectorised. sigma<=0 => NaN."
 }

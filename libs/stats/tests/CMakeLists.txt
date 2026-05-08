@@ -53,4 +53,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/ncx2stat_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nakastat_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ricestat_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/gevstat_test.cpp
 )
