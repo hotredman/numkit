@@ -48,7 +48,36 @@ function createWindow(url) {
   // Renderer crash / hang surfaces — Electron used to silently swap to a
   // blank white page. Catch both classes of failure here so the user
   // gets a real dialog instead of guessing whether the app froze.
+  // Periodic native-side memory probe. The renderer's V8 heap is small
+  // (the in-renderer [heap-trace] shows js=69 wasm=0) yet Chromium
+  // reports OOM and kills the process — that means the leak is in
+  // memory regions performance.memory cannot see (typed arrays, GPU
+  // textures, IPC buffers, etc.). app.getAppMetrics() returns per-
+  // process working-set + private bytes from Windows itself, which
+  // gives us the ground-truth view.
+  const metricsTimer = setInterval(() => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    try {
+      const all = app.getAppMetrics();
+      const renderer = all.find((m) => m.type === 'Tab' || m.type === 'renderer'
+                                    || (m.serviceName && m.serviceName.includes('Renderer')));
+      const fmt = (b) => Math.round(b / 1048576) + ' MB';
+      const lines = all.map((m) => `${m.type || 'unknown'}#${m.pid} ws=${fmt(m.memory?.workingSetSize * 1024 || 0)} priv=${fmt(m.memory?.privateBytes * 1024 || 0)}`);
+      console.log('[mem-trace]', lines.join(' | '));
+    } catch (e) {
+      console.warn('[mem-trace] failed:', e.message);
+    }
+  }, 30000);
+  mainWindow.on('closed', () => { clearInterval(metricsTimer); });
+
   mainWindow.webContents.on('render-process-gone', (_e, details) => {
+    // Capture one final memory snapshot before the process is gone
+    try {
+      const all = app.getAppMetrics();
+      const fmt = (b) => Math.round(b / 1048576) + ' MB';
+      console.error('[mem-trace at-crash]',
+        all.map((m) => `${m.type || 'unknown'}#${m.pid} ws=${fmt(m.memory?.workingSetSize * 1024 || 0)}`).join(' | '));
+    } catch { /* ignore */ }
     console.error('[Numkit IDE] Renderer gone:', details);
     if (mainWindow && !mainWindow.isDestroyed()) {
       dialog.showMessageBox(mainWindow, {
