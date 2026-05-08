@@ -1,0 +1,16 @@
+{
+  "name": "dbscan",
+  "namespace": "stats",
+  "setup": "X = [0 0; 0.1 0; 0 0.1; 0.1 0.1; 5 5; 5.1 5; 5 5.1; 5.1 5.1; 10 0; 10.1 0; 10 0.1; 20 20]; D = pdist2(X, X);",
+  "expr": "[idx, core] = dbscan(X, 0.5, 3); idx_pre = dbscan(D, 0.5, 3, 'Distance', 'precomputed'); idx_min = dbscan(X, 0.5, 3, 'Distance', 'minkowski', 'P', 3); idx_cb = dbscan(X, 1.0, 3, 'Distance', 'cityblock');",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "idx(1)", "idx(4)", "idx(5)", "idx(8)", "idx(9)", "idx(11)", "idx(12)",
+    "double(core(1))", "double(core(12))",
+    "idx_pre(1)", "idx_pre(5)", "idx_pre(12)",
+    "idx_min(1)", "idx_min(5)", "idx_min(12)",
+    "idx_cb(1)", "idx_cb(5)", "idx_cb(12)"
+  ],
+  "comment": "Sig: [idx, corepts] = dbscan(X, eps, minpts, 'Distance'|'P', val, ...). Coverage: euclidean default, precomputed, minkowski with P, cityblock. Noise = -1 (MATLAB R2025b convention)."
+}
