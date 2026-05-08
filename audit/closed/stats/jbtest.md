@@ -1,6 +1,6 @@
 # stats/jbtest — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** medium
 **Effort:** medium
 **Audited at commit:** 69fab7c
@@ -81,3 +81,28 @@ JB = 0.66481 (matches both)
 ## Out of scope for this ТЗ
 
 - Multivariate JB (not in the standard MATLAB API).
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-08
+- Notes: Implements MATLAB R2025b's tabulated-p behavior via Monte
+  Carlo simulation under H₀ (instead of embedding the actual
+  precomputed table — equivalent results, ~88ms cold compute):
+  - Default for n < 2000: MC with 1e6 reps and SE-target mctol=1e-3.
+    p capped at 0.5 like MATLAB.
+  - Default for n >= 2000: χ²(2) asymptotic (back-compat).
+  - 3rd argument `mctol` parsed: when supplied, controls the MC
+    standard-error target (smaller → more iterations, slower, more
+    accurate). NaN forces asymptotic.
+  - Deterministic seed (12345) → reproducible cv across runs.
+
+  Bit-identical to MATLAB on (h, p=0.5 cap, JB) for the small-sample
+  reference dataset; cv matches MATLAB's tabulated value to within
+  ~0.01 (MC noise). Octave doesn't ship `jbtest` so parity is
+  numkit ↔ MATLAB only.
+
+  PMR rule applied: scratch buffer for sample copy on
+  ScratchArena/ScratchVec.
+
+  4 artefacts shipped (impl + parity spec + 5 gtests + smoke).
+

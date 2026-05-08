@@ -16,7 +16,6 @@ Status legend:
 | File | Function | Namespace | Priority | Effort | Audit commit |
 |---|---|---|---|---|---|
 | [findings/stats/chi2gof.md](findings/stats/chi2gof.md) | chi2gof | stats.test | medium | large | 69fab7c |
-| [findings/stats/jbtest.md](findings/stats/jbtest.md) | jbtest | stats.test | medium | medium | 69fab7c |
 | [findings/stats/vartestn.md](findings/stats/vartestn.md) | vartestn | stats.test | medium | medium | 69fab7c |
 | [findings/wavelet/dwt.md](findings/wavelet/dwt.md) | dwt | wavelet.dwt | critical | large | 0e895fe |
 | [findings/wavelet/idwt.md](findings/wavelet/idwt.md) | idwt | wavelet.dwt | critical | large | 0e895fe |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/cluster/linkage.md](closed/cluster/linkage.md) | linkage | PENDING | 2026-05-08 |
 | [closed/stats/lognfit.md](closed/stats/lognfit.md) | lognfit | PENDING | 2026-05-08 |
 | [closed/stats/normfit.md](closed/stats/normfit.md) | normfit | PENDING | 2026-05-08 |
+| [closed/stats/jbtest.md](closed/stats/jbtest.md) | jbtest | PENDING | 2026-05-08 |
 
 ---
 

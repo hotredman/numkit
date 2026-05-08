@@ -63,10 +63,18 @@ std::tuple<Value, Value, Value, Value>
 kstest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
         double alpha, TestTail tail);
 
-/// jbtest(x[, alpha]) — Jarque-Bera normality test.
-/// Returns (h, p, jbstat, cv).
+/// jbtest(x[, alpha[, mctol]]) — Jarque-Bera normality test.
+/// Returns (h, p, jbstat, cv). For small samples (n < 2000) uses
+/// Monte-Carlo simulation under H₀ for the p-value (matching
+/// MATLAB R2025b's tabulated-p behavior); for large n the χ²(2)
+/// asymptotic. mctol: target MC standard-error tolerance (default
+/// 1e-3); supply NaN to force the asymptotic path even at small n.
+/// p is capped at 0.5 like MATLAB.
 std::tuple<Value, Value, Value, Value>
 jbtest(std::pmr::memory_resource *mr, const Value &x, double alpha);
+std::tuple<Value, Value, Value, Value>
+jbtest(std::pmr::memory_resource *mr, const Value &x, double alpha,
+       double mctol);
 
 /// signtest(x[, m | y][, alpha, tail]) — non-parametric sign test.
 /// H0: median(x - m₀) = 0 (or median(x - y) = 0 for paired).
