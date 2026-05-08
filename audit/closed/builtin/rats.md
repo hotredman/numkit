@@ -1,6 +1,6 @@
 # builtin/rats — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** **high** (PROGRESS notes `correctness=MISMATCH`)
 **Effort:** small
 **Audited at commit:** f82f380
@@ -20,3 +20,9 @@ upstream rat error; needs dedicated re-probe.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Joint closure with the sibling ТЗ (rat + rats batched).
+  See closed/builtin/rat.md for the full implementation summary.

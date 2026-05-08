@@ -597,11 +597,15 @@ TEST_P(BuiltinTest, Bin2DecHex2Dec)
 
 TEST_P(BuiltinTest, Rat)
 {
+    // After the audit ТЗ closure (2026-05-09) numkit's `rat()` returns
+    // MATLAB R2025b's nested continued-fraction string format using the
+    // regularized expansion (round() not floor()), e.g. 0.5 → '1 + 1/(-2)'
+    // (NOT the simple-CF '0 + 1/(2)'). See libs/builtin/tests/rat_test.cpp
+    // for the full coverage; these three regressions are kept as canaries.
     eval("r = rat(0.5);");
-    EXPECT_EQ(getVarPtr("r")->toString(), "1 / 2");
+    EXPECT_EQ(getVarPtr("r")->toString(), "1 + 1/(-2)");
     eval("r2 = rat(0.333333);");
-    // Should converge to 1/3 with default tol.
-    EXPECT_EQ(getVarPtr("r2")->toString(), "1 / 3");
+    EXPECT_EQ(getVarPtr("r2")->toString(), "0 + 1/(3)");
     eval("r3 = rat(2);");
     EXPECT_EQ(getVarPtr("r3")->toString(), "2");
 }
