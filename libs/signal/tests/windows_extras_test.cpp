@@ -112,6 +112,44 @@ TEST_F(WindowsExtrasTest, ChebwinPeakIsOne)
 TEST_F(WindowsExtrasTest, ChebwinSymmetricOdd) { expectSymmetric(*this, "chebwin(15, 80)", 15, 1e-9); }
 TEST_F(WindowsExtrasTest, ChebwinSymmetricEven) { expectSymmetric(*this, "chebwin(16, 80)", 16, 1e-9); }
 
+// Bug fix 2026-05-08 — previous FFT-based chebwin returned all-ones for
+// even N and a wrongly-shifted shape for odd N. Cover both branches.
+TEST_F(WindowsExtrasTest, ChebwinEvenN8At100dB)
+{
+    eval("w = chebwin(8, 100);");
+    EXPECT_NEAR(evalScalar("w(1)"), 0.0363836809033449, 1e-12);
+    EXPECT_NEAR(evalScalar("w(2)"), 0.2253550760453451, 1e-12);
+    EXPECT_NEAR(evalScalar("w(3)"), 0.6241595403271379, 1e-12);
+    EXPECT_NEAR(evalScalar("w(4)"), 1.0,                1e-12);
+    // Symmetric -> w(5..8) mirror w(4..1).
+    EXPECT_NEAR(evalScalar("w(5)"), 1.0,                1e-12);
+    EXPECT_NEAR(evalScalar("w(8)"), 0.0363836809033449, 1e-12);
+}
+
+TEST_F(WindowsExtrasTest, ChebwinOddN7At100dB)
+{
+    eval("w = chebwin(7, 100);");
+    EXPECT_NEAR(evalScalar("w(1)"), 0.0565040506285030, 1e-12);
+    EXPECT_NEAR(evalScalar("w(2)"), 0.3166085306484744, 1e-12);
+    EXPECT_NEAR(evalScalar("w(3)"), 0.7601208123539079, 1e-12);
+    EXPECT_NEAR(evalScalar("w(4)"), 1.0,                1e-12);
+    EXPECT_NEAR(evalScalar("w(7)"), 0.0565040506285030, 1e-12);
+}
+
+TEST_F(WindowsExtrasTest, ChebwinLowerR)
+{
+    // R=30 -> wider mainlobe, larger endpoints.
+    eval("w = chebwin(8, 30);");
+    EXPECT_NEAR(evalScalar("w(1)"), 0.2622164911915367, 1e-12);
+    EXPECT_NEAR(evalScalar("w(3)"), 0.8119600672627040, 1e-12);
+}
+
+TEST_F(WindowsExtrasTest, ChebwinSinglePoint)
+{
+    eval("w = chebwin(1, 100);");
+    EXPECT_DOUBLE_EQ(evalScalar("w(1)"), 1.0);
+}
+
 // ── parzenwin ─────────────────────────────────────────────────────────
 TEST_F(WindowsExtrasTest, ParzenSymmetric) { expectSymmetric(*this, "parzenwin(17)", 17); }
 
