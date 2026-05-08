@@ -83,3 +83,87 @@ TEST_F(WextendTest, SingleSideRight)
     EXPECT_DOUBLE_EQ(evalScalar("y(6)"), 5);
     EXPECT_DOUBLE_EQ(evalScalar("y(7)"), 4);
 }
+
+// Bug fix 2026-05-08 — added 'symw', 'asym', 'asymw', 'sp0', 'sp1' modes
+// and the 2-D forms (type=2 / 'ar' / 'ac').
+
+TEST_F(WextendTest, ModeSymw)
+{
+    // Whole-point symmetric: edge sample NOT replicated.
+    // [3 2 | 1 2 3 4 5 | 4 3]
+    eval("y = wextend(1, 'symw', [1 2 3 4 5], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 3);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2)"), 2);
+    EXPECT_DOUBLE_EQ(evalScalar("y(8)"), 4);
+    EXPECT_DOUBLE_EQ(evalScalar("y(9)"), 3);
+}
+
+TEST_F(WextendTest, ModeAsym)
+{
+    // [-2 -1 | 1 2 3 4 5 | -5 -4]
+    eval("y = wextend(1, 'asym', [1 2 3 4 5], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), -2);
+    EXPECT_DOUBLE_EQ(evalScalar("y(8)"), -5);
+}
+
+TEST_F(WextendTest, ModeAsymw)
+{
+    // Antisymmetric whole-point: pre = 2·x(1) - x(j) reversed.
+    // [-1 0 | 1 2 3 4 5 | 6 7]
+    eval("y = wextend(1, 'asymw', [1 2 3 4 5], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), -1);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2)"),  0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(8)"),  6);
+    EXPECT_DOUBLE_EQ(evalScalar("y(9)"),  7);
+}
+
+TEST_F(WextendTest, ModeSp0)
+{
+    eval("y = wextend(1, 'sp0', [1 2 3 4 5], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 1);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2)"), 1);
+    EXPECT_DOUBLE_EQ(evalScalar("y(8)"), 5);
+    EXPECT_DOUBLE_EQ(evalScalar("y(9)"), 5);
+}
+
+TEST_F(WextendTest, ModeSp1)
+{
+    // Linear extrapolation (slope x(2) - x(1)).
+    eval("y = wextend(1, 'sp1', [1 2 3 4 5], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), -1);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2)"),  0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(8)"),  6);
+    EXPECT_DOUBLE_EQ(evalScalar("y(9)"),  7);
+}
+
+TEST_F(WextendTest, Type2BothAxes)
+{
+    eval("y = wextend(2, 'zpd', [1 2; 3 4], 1);");
+    EXPECT_EQ(static_cast<size_t>(evalScalar("size(y, 1)")), 4u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("size(y, 2)")), 4u);
+    EXPECT_DOUBLE_EQ(evalScalar("y(1,1)"), 0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2,2)"), 1);
+    EXPECT_DOUBLE_EQ(evalScalar("y(3,3)"), 4);
+}
+
+TEST_F(WextendTest, TypeArAddsRows)
+{
+    // 'ar' = "along row direction" → ADDS ROWS (counter-intuitive MATLAB
+    // naming but matches `help wextend`).
+    eval("y = wextend('ar', 'zpd', [1 2; 3 4], 1);");
+    EXPECT_EQ(static_cast<size_t>(evalScalar("size(y, 1)")), 4u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("size(y, 2)")), 2u);
+    EXPECT_DOUBLE_EQ(evalScalar("y(1,1)"), 0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2,1)"), 1);
+    EXPECT_DOUBLE_EQ(evalScalar("y(4,2)"), 0);
+}
+
+TEST_F(WextendTest, TypeAcAddsCols)
+{
+    eval("y = wextend('ac', 'zpd', [1 2; 3 4], 1);");
+    EXPECT_EQ(static_cast<size_t>(evalScalar("size(y, 1)")), 2u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("size(y, 2)")), 4u);
+    EXPECT_DOUBLE_EQ(evalScalar("y(1,1)"), 0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(1,2)"), 1);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2,4)"), 0);
+}

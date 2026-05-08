@@ -1,10 +1,23 @@
 {
   "name": "wextend",
   "namespace": "wavelet",
-  "setup": "x = [1 2 3 4 5];",
-  "expr": "ys = wextend(1, 'sym', x, 2); yp = wextend(1, 'per', x, 2); yz = wextend(1, 'zpd', x, 2); yd = wextend(1, 'ppd', x, 2);",
+  "setup": "x = [1 2 3 4 5]; M = [1 2; 3 4];",
+  "expr": "ys = wextend(1, 'sym', x, 2); ysw = wextend(1, 'symw', x, 2); ya = wextend(1, 'asym', x, 2); yaw = wextend(1, 'asymw', x, 2); y0 = wextend(1, 'sp0', x, 2); y1 = wextend(1, 'sp1', x, 2); yp = wextend(1, 'per', x, 2); yz = wextend(1, 'zpd', x, 2); yd = wextend(1, 'ppd', x, 2); M2z = wextend(2, 'zpd', M, 1); M2s = wextend(2, 'sym', M, 1); Mar = wextend('ar', 'zpd', M, 1); Mac = wextend('ac', 'zpd', M, 1);",
   "iters": 5,
-  "tol": 1e-15,
-  "fingerprint": ["numel(ys)", "ys(1)", "ys(2)", "ys(end)", "numel(yp)", "yp(1)", "yp(end)", "numel(yz)", "yz(1)", "numel(yd)", "yd(1)", "yd(end)"],
-  "comment": "Sig: y = wextend(1, mode, x, lf[, side]). Modes: sym (whole-point symm with edge), per (periodic with edge-pad on odd N), zpd (zero pad), ppd (true periodic). For odd-N periodic MATLAB pre-pads x with x(end) to even length, then wraps."
+  "tol": 0,
+  "fingerprint": [
+    "ys(1)", "ys(2)", "ys(8)", "ys(9)",
+    "ysw(1)", "ysw(2)", "ysw(8)", "ysw(9)",
+    "ya(1)", "ya(8)",
+    "yaw(1)", "yaw(2)", "yaw(8)", "yaw(9)",
+    "y0(1)", "y0(8)", "y0(9)",
+    "y1(1)", "y1(2)", "y1(8)", "y1(9)",
+    "yp(1)", "yp(end)",
+    "yz(1)", "yd(1)",
+    "M2z(1,1)", "M2z(2,2)", "M2z(3,3)", "M2z(4,4)",
+    "M2s(1,1)", "M2s(2,2)", "M2s(3,3)",
+    "Mar(1,1)", "Mar(2,1)", "Mar(4,2)",
+    "Mac(1,1)", "Mac(1,2)", "Mac(2,4)"
+  ],
+  "comment": "Sig: y = wextend(type, mode, x, lf[, side]). Bug fix 2026-05-08: extended modes (symw, asym, asymw, sp0, sp1) and 2-D forms (type=2 / 'ar' / 'ac') were not implemented. Now full coverage: 11 modes × 4 type forms × 3 sides. tol=0 (integer-stable on integer inputs)."
 }

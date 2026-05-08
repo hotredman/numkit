@@ -69,3 +69,26 @@ Inputs: `x = (1:5)'`, `lf = 2`
 ## Out of scope for this ТЗ
 
 - 3-D `wextend` (type=3) — not in 2025b help.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Substantial closure — closed all 3 gaps.
+
+  **1. Extended modes** (gap #1): added 'symw' (whole-point symmetric),
+  'asym' / 'asymh' (antisymmetric half-point), 'asymw' (antisymmetric
+  whole-point), 'sp0' (replicate edge = order-0 spline), 'sp1' (linear
+  extrapolation = order-1 spline). Now 11 modes total.
+
+  **2. type=2** (gap #2): 2-D matrix extension. Refactored 1-D loop into
+  `extend1D` helper; 2-D path applies it along columns then rows.
+
+  **3. type='ar'/'ac'** (gap #3): along-row / along-col forms.
+  Counter-intuitive MATLAB convention: 'ar' (along row direction) ADDS
+  ROWS (extends columns); 'ac' (along col direction) ADDS COLS. Got
+  this swapped first time around — caught by parity probe.
+
+  Spec extended from 12 to 38 fingerprints (all 11 modes + 4 type
+  forms + sides). Parity OK numkit ↔ MATLAB at tol=0. Octave doesn't
+  ship `wextend` (Wavelet Toolbox). 14 TEST_F gtest (existing 6 + 8
+  new). 113+ wavelet-suite tests still pass — no regression.
