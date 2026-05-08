@@ -47,3 +47,17 @@ Documented signatures (`help wmaxlev`):
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Pure spec coverage, no impl change. Numkit wmaxlev
+  already matched MATLAB exactly across all probed cases.
+
+  Spec extended from 4 to 12 fingerprints across all documented
+  wavelet families (haar, db1, db2, db4, db10, sym4, coif2) ×
+  N ∈ {2, 8, 16, 64, 100, 1024, 2048} + 2-vector N (image-dim
+  form). Parity OK numkit ↔ MATLAB at tol=0. Octave doesn't ship
+  `wmaxlev` (Wavelet Toolbox); we follow MATLAB. 11 TEST_F gtest
+  (existing 5 + 6 new AllFamiliesAtN100 / LargerWavelet /
+  ImageDimsTakeMin / BoundaryShortSignal / LargeHaarPowerOfTwo).

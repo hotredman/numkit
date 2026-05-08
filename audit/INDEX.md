@@ -29,7 +29,6 @@ Status legend:
 | [findings/wavelet/wextend.md](findings/wavelet/wextend.md) | wextend | wavelet.dwt | medium | small | 0e895fe |
 | [findings/wavelet/wcodemat.md](findings/wavelet/wcodemat.md) | wcodemat | wavelet.dwt | low | small | 0e895fe |
 | [findings/wavelet/wkeep.md](findings/wavelet/wkeep.md) | wkeep | wavelet.dwt | low | small | 0e895fe |
-| [findings/wavelet/wmaxlev.md](findings/wavelet/wmaxlev.md) | wmaxlev | wavelet.dwt | low | small | 0e895fe |
 | [findings/wavelet/cgauwavf.md](findings/wavelet/cgauwavf.md) | cgauwavf | wavelet.shape | medium | small | ddf4218 |
 | [findings/wavelet/cmorwavf.md](findings/wavelet/cmorwavf.md) | cmorwavf | wavelet.shape | medium | small | ddf4218 |
 | [findings/wavelet/gauswavf.md](findings/wavelet/gauswavf.md) | gauswavf | wavelet.shape | medium | small | ddf4218 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/wavelet/dbwavf.md](closed/wavelet/dbwavf.md) | dbwavf | PENDING (partial) | 2026-05-08 |
 | [closed/wavelet/symwavf.md](closed/wavelet/symwavf.md) | symwavf | PENDING (partial) | 2026-05-08 |
 | [closed/wavelet/coifwavf.md](closed/wavelet/coifwavf.md) | coifwavf | PENDING | 2026-05-08 |
+| [closed/wavelet/wmaxlev.md](closed/wavelet/wmaxlev.md) | wmaxlev | PENDING | 2026-05-08 |
 
 ---
 
