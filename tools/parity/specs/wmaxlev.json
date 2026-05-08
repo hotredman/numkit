@@ -2,9 +2,14 @@
   "name": "wmaxlev",
   "namespace": "wavelet",
   "setup": "",
-  "expr": "L1 = wmaxlev(64, 'db2'); L2 = wmaxlev(64, 'db1'); L3 = wmaxlev(1024, 'db4'); L4 = wmaxlev([8 8], 'db1');",
+  "expr": "h100_4 = wmaxlev(100, 'db4'); h2v_4 = wmaxlev([50 100], 'db4'); h1024_h = wmaxlev(1024, 'haar'); h16_1 = wmaxlev(16, 'db1'); h16_4 = wmaxlev(16, 'db4'); h100_c2 = wmaxlev(100, 'coif2'); h100_s4 = wmaxlev(100, 'sym4'); h2048_d10 = wmaxlev(2048, 'db10'); h8_4 = wmaxlev(8, 'db4'); h2_1 = wmaxlev(2, 'db1'); h64_2 = wmaxlev(64, 'db2'); h_88_1 = wmaxlev([8 8], 'db1');",
   "iters": 5,
-  "tol": 1e-15,
-  "fingerprint": ["L1", "L2", "L3", "L4"],
-  "comment": "Sig: L = wmaxlev(N, wname). Maximum decomposition level. L = floor(log2(N / (Lf - 1))) where Lf is the wavelet filter length. For a 2-vector N, MATLAB uses min(N)."
+  "tol": 0,
+  "fingerprint": [
+    "h100_4", "h2v_4", "h1024_h", "h16_1", "h16_4",
+    "h100_c2", "h100_s4", "h2048_d10",
+    "h8_4", "h2_1",
+    "h64_2", "h_88_1"
+  ],
+  "comment": "Sig: L = wmaxlev(N, wname). Maximum DWT decomposition level: L = floor(log2(N / (Lf - 1))) where Lf is the wavelet filter length. Vector N (e.g., 2-D image dims) uses min(N). Coverage: wavelet ∈ {haar, db1, db2, db4, db10, sym4, coif2} × N ∈ {2, 8, 16, 64, 100, 1024, 2048} + 2-vector N. tol=0."
 }
