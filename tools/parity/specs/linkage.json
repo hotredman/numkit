@@ -1,0 +1,18 @@
+{
+  "name": "linkage",
+  "namespace": "stats",
+  "setup": "X = [1 1; 1.5 1.5; 5 5; 5.5 5.5; 10 10; 1 2; 6 6; 11 11];",
+  "expr": "Z1 = linkage(pdist(X), 'single'); Z2 = linkage(pdist(X), 'complete'); Z3 = linkage(pdist(X), 'average'); Z4 = linkage(pdist(X), 'ward'); Z5 = linkage(X); Z6 = linkage(X, 'single', 'cityblock');",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "Z1(1,1)", "Z1(1,2)", "Z1(1,3)",
+    "Z1(end,1)", "Z1(end,2)", "Z1(end,3)",
+    "Z2(end,3)",
+    "Z3(end,3)",
+    "Z4(1,3)", "Z4(end,3)",
+    "Z5(1,3)", "Z5(end,3)",
+    "Z6(1,3)", "Z6(end,3)"
+  ],
+  "comment": "Sig: Z = linkage(Y[, method[, metric]]). When Y is N×D matrix, computes pdist(Y, metric, p) internally; when Y is row vector (pdist output), uses it directly. 7 methods: single/complete/average/weighted/centroid/median/ward. 2026-05-08: tie-breaking aligned with MATLAB R2025b (prefers largest pair lex when distances tie); 3-arg form now routes metric to pdist (was hardcoded euclidean). Bit-identical to MATLAB on probed datasets."
+}

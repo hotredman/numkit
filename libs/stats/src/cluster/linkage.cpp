@@ -73,7 +73,8 @@ inline double lance_williams(LinkMethod m, double d_ak, double d_bk, double d_ab
 } // anonymous
 
 Value linkage(std::pmr::memory_resource *mr, const Value &Y,
-              const std::string &method)
+              const std::string &method,
+              const std::string &metric, double p)
 {
     const LinkMethod m = parse_link(method);
     ScratchArena scratch(mr);
@@ -93,10 +94,8 @@ Value linkage(std::pmr::memory_resource *mr, const Value &Y,
         D.resize(n);
         for (size_t i = 0; i < n; ++i) D[i] = Y.elemAsDouble(i);
     } else {
-        // Treat as raw data: compute pdist with Euclidean (the Value
-        // returned by pdist() is allocated on `mr`; copy values into the
-        // scratch vector so the temporary Value can be dropped).
-        Value Yp = pdist(mr, Y, "euclidean", 2.0);
+        // Treat as raw data: compute pdist with the requested metric.
+        Value Yp = pdist(mr, Y, metric, p);
         const size_t n = Yp.numel();
         N = Yrows;
         if (N * (N - 1) / 2 != n)
@@ -139,13 +138,16 @@ Value linkage(std::pmr::memory_resource *mr, const Value &Y,
 
     int next_id = (int)N;
     for (size_t step = 0; step + 1 < N; ++step) {
-        // Find smallest distance among active rows.
+        // Find smallest distance among active rows. On ties, prefer the
+        // pair with the largest (i, j) lex-order — MATLAB R2025b's
+        // linkage() picks ties this way (verified by probe), so we use
+        // `<=` instead of `<` to keep the last-scanned minimum.
         const size_t M = ids.size();
         size_t bi = 0, bj = 1;
         double bd = std::numeric_limits<double>::infinity();
         for (size_t i = 0; i < M; ++i)
             for (size_t j = i + 1; j < M; ++j)
-                if (dm[i * N + j] < bd) { bd = dm[i * N + j]; bi = i; bj = j; }
+                if (dm[i * N + j] <= bd) { bd = dm[i * N + j]; bi = i; bj = j; }
 
         // Record merge: lower id first (per MATLAB convention).
         int a_id = ids[bi];
@@ -193,6 +195,13 @@ Value linkage(std::pmr::memory_resource *mr, const Value &Y,
         zd[2 * rows + i] = Zflat[3 * i + 2];
     }
     return Z;
+}
+
+// Backward-compat 2-arg wrapper: defaults to euclidean.
+Value linkage(std::pmr::memory_resource *mr, const Value &Y,
+              const std::string &method)
+{
+    return linkage(mr, Y, method, "euclidean", 2.0);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -516,12 +525,26 @@ void linkage_reg(Span<const Value> args, size_t /*nargout*/,
                  Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("linkage: requires Y[, method]", 0, 0, "linkage", "",
-                    "m:linkage:nargin");
+        throw Error("linkage: requires Y[, method[, metric]]",
+                    0, 0, "linkage", "", "m:linkage:nargin");
+    auto lower = [](std::string s) {
+        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        return s;
+    };
     std::string method = "single";
+    std::string metric = "euclidean";
+    double      p      = 2.0;
     if (args.size() >= 2 && (args[1].isChar() || args[1].isString()))
-        method = args[1].toString();
-    outs[0] = linkage(ctx.engine->resource(), args[0], method);
+        method = lower(args[1].toString());
+    // 3rd arg: metric for the implicit pdist call when Y is raw N×D data.
+    if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
+        metric = lower(args[2].toString());
+    // 4th arg (Minkowski exponent): MATLAB doesn't pass p positionally
+    // here, but accept it as a fallback for the parity harness.
+    if (args.size() >= 4 && args[3].numel() == 1
+        && !(args[3].isChar() || args[3].isString()))
+        p = args[3].toScalar();
+    outs[0] = linkage(ctx.engine->resource(), args[0], method, metric, p);
 }
 
 void cluster_reg(Span<const Value> args, size_t /*nargout*/,

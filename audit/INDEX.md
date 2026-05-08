@@ -36,7 +36,6 @@ Status legend:
 | [findings/stats/frnd.md](findings/stats/frnd.md) | frnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/raylrnd.md](findings/stats/raylrnd.md) | raylrnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/unifrnd.md](findings/stats/unifrnd.md) | unifrnd | stats.dist | medium | small | e580a5c |
-| [findings/cluster/linkage.md](findings/cluster/linkage.md) | linkage | stats.cluster | medium | small | b2f133b |
 | [findings/stats/binornd.md](findings/stats/binornd.md) | binornd | stats.dist | low | small | 1525319 |
 | [findings/stats/poissrnd.md](findings/stats/poissrnd.md) | poissrnd | stats.dist | low | small | 1525319 |
 | [findings/stats/unidrnd.md](findings/stats/unidrnd.md) | unidrnd | stats.dist | low | small | 1525319 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/cluster/clusterdata.md](closed/cluster/clusterdata.md) | clusterdata | PENDING | 2026-05-08 |
 | [closed/cluster/kmedoids.md](closed/cluster/kmedoids.md) | kmedoids | PENDING (partial) | 2026-05-08 |
 | [closed/cluster/kmeans.md](closed/cluster/kmeans.md) | kmeans | PENDING | 2026-05-08 |
+| [closed/cluster/linkage.md](closed/cluster/linkage.md) | linkage | PENDING | 2026-05-08 |
 
 ---
 

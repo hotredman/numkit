@@ -23,6 +23,11 @@ namespace numkit::stats {
 /// formed by each merge.
 Value linkage(std::pmr::memory_resource *mr, const Value &Y,
               const std::string &method);
+/// 4-arg overload: when Y is a raw N×D data matrix, computes pdist(Y,
+/// metric, p) internally instead of defaulting to euclidean.
+Value linkage(std::pmr::memory_resource *mr, const Value &Y,
+              const std::string &method,
+              const std::string &metric, double p);
 
 /// cluster(Z, opts) — flatten a linkage tree into cluster labels.
 ///   opts.maxclust  — cap number of clusters (cuts at lowest distance

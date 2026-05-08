@@ -92,4 +92,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/clusterdata_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/kmedoids_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/kmeans_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/linkage_test.cpp
 )

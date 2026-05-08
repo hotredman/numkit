@@ -1,6 +1,6 @@
 # stats.cluster/linkage — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** medium
 **Effort:** small
 **Audited at commit:** b2f133b
@@ -57,3 +57,30 @@ lowest-index pair when distances tie.
 
 - The downstream `cluster()` and `cophenet()` results are
   invariant under tie-break differences — they match MATLAB.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-08
+- Notes: Three gaps closed:
+  1. Tie-break alignment — switched `<` to `<=` in the inner
+     find-min loop. With ascending i,j scan that prefers the
+     last-scanned (largest pair lex) — verified to match MATLAB
+     R2025b on the probe dataset and a separate tie-heavy 2x4-grid
+     dataset.
+  2. 3-arg `linkage(X, method, metric)` form — was silently
+     ignoring the metric (always defaulted to euclidean). Now
+     routes the metric (and optional p) to the implicit pdist call.
+     Public `linkage()` got a 4-arg overload with metric+p; 2-arg
+     wrapper preserved for back-compat.
+  3. `linkage(X)` direct from N×D data matrix — already worked.
+
+  Plus PMR refactor of `distance.cpp` (helpers `invert_small`,
+  `data_cov`, `mahal_distance`, `row_distance`, `read_row` switched
+  to raw-pointer style; pdist/pdist2/pdist2_topk/mahal callers use
+  ScratchArena + ScratchVec for all temporaries; pdist2_reg's
+  `filtered` Value vector is now `std::pmr::vector<Value>` on the
+  arena). Zero raw `std::vector` left in the file.
+
+  Bit-identical to MATLAB ↔ Octave on 14 fingerprints across all 7
+  linkage methods + 3-arg metric form.
+
