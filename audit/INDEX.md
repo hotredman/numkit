@@ -198,7 +198,7 @@ Status legend:
 | [closed/wavelet/wavedec.md](closed/wavelet/wavedec.md) | wavedec | PENDING | 2026-05-08 |
 | [closed/wavelet/waverec.md](closed/wavelet/waverec.md) | waverec | PENDING | 2026-05-08 |
 | [closed/wavelet/appcoef.md](closed/wavelet/appcoef.md) | appcoef | PENDING | 2026-05-08 |
-| [closed/signal/envelope.md](closed/signal/envelope.md) | envelope | PENDING (partial) | 2026-05-08 |
+| [closed/signal/envelope.md](closed/signal/envelope.md) | envelope | PENDING | 2026-05-08 |
 | [closed/empirical/ecdf.md](closed/empirical/ecdf.md) | ecdf | PENDING | 2026-05-08 |
 | [closed/empirical/ksdensity.md](closed/empirical/ksdensity.md) | ksdensity | PENDING | 2026-05-08 |
 | [closed/lda/classify.md](closed/lda/classify.md) | classify | PENDING | 2026-05-08 |
