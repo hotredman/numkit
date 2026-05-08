@@ -44,6 +44,37 @@ TEST_F(TransformsExtrasTest, DftmtxKnownEntry)
     EXPECT_NEAR(evalScalar("imag(F(2,2))"), -std::sqrt(2.0) / 2.0, 1e-12);
 }
 
+TEST_F(TransformsExtrasTest, DftmtxN1)
+{
+    // dftmtx(1) is the trivial 1×1 matrix [1].
+    eval("F = dftmtx(1);");
+    EXPECT_EQ(eval("F").dims().rows(), 1u);
+    EXPECT_EQ(eval("F").dims().cols(), 1u);
+    EXPECT_NEAR(evalScalar("real(F)"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("imag(F)"), 0.0, 1e-12);
+}
+
+TEST_F(TransformsExtrasTest, DftmtxN2)
+{
+    // dftmtx(2) = [1 1; 1 -1] (Hadamard with sign).
+    eval("F = dftmtx(2);");
+    EXPECT_NEAR(evalScalar("real(F(1,1))"),  1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("real(F(1,2))"),  1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("real(F(2,1))"),  1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("real(F(2,2))"), -1.0, 1e-12);
+}
+
+TEST_F(TransformsExtrasTest, DftmtxN16Diagonal)
+{
+    // F(5,5) for N=16 is exp(-2πi · 16/16) = exp(-2πi) = 1.
+    // Matches the algebraic identity F(j,k) = exp(-2πi·(j-1)(k-1)/N).
+    eval("F = dftmtx(16);");
+    EXPECT_EQ(eval("F").dims().rows(), 16u);
+    EXPECT_EQ(eval("F").dims().cols(), 16u);
+    EXPECT_NEAR(evalScalar("real(F(5,5))"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("imag(F(5,5))"), 0.0, 1e-12);
+}
+
 // ── bitrevorder ───────────────────────────────────────────────────────
 TEST_F(TransformsExtrasTest, BitrevorderLength8)
 {
