@@ -35,4 +35,27 @@ fprintf('--- kmeans single-cluster ---\n');
 fprintf('idx = '); disp(idx2');
 fprintf('C   = '); disp(C2);
 fprintf('sumd= %.4f\n', sumd2);
-fprintf('  expect: idx=[1;1;1], C=[3 4], sumd=8\n');
+fprintf('  expect: idx=[1;1;1], C=[3 4], sumd=8\n\n');
+
+% --- 2026-05-08 audit ТЗ closure: 4-output + N-V parsing ---
+Xs = [0 0; 0.1 0; 0 0.1; 0.1 0.1; ...
+      5 5; 5.1 5; 5 5.1; 5.1 5.1; ...
+      10 0; 10.1 0; 10 0.1; 10.1 0.1];
+
+fprintf('--- 4-output [idx, C, sumd, D] (D = N×K squared distances) ---\n');
+[idx3, ~, ~, D] = kmeans(Xs, 3, 'Replicates', 5);
+fprintf('idx = '); disp(idx3');
+fprintf('size(D) = [%d %d] (expect [12 3])\n\n', size(D, 1), size(D, 2));
+
+fprintf('--- mixed-case N-V + Display + EmptyAction silent ---\n');
+idx4 = kmeans(Xs, 3, 'maxiter', 200, 'Display', 'off', ...
+              'EmptyAction', 'singleton');
+disp(idx4');
+
+fprintf('--- explicit Distance=cityblock — clear error ---\n');
+try
+    kmeans(Xs, 3, 'Distance', 'cityblock');
+    fprintf('UNEXPECTED: no error\n');
+catch e
+    fprintf('OK: %s\n', e.message);
+end

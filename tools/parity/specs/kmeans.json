@@ -1,0 +1,19 @@
+{
+  "name": "kmeans",
+  "namespace": "stats",
+  "setup": "X = [0 0; 0.1 0; 0 0.1; 0.1 0.1; 5 5; 5.1 5; 5 5.1; 5.1 5.1; 10 0; 10.1 0; 10 0.1; 10.1 0.1];",
+  "expr": "[idx, C, sumd, D] = kmeans(X, 3, 'Replicates', 5); idx2 = kmeans(X, 3, 'MaxIter', 200, 'Display', 'off');",
+  "iters": 3,
+  "tol": 1e-9,
+  "fingerprint": [
+    "numel(unique(idx))",
+    "double(idx(1)==idx(2))", "double(idx(1)==idx(4))",
+    "double(idx(5)==idx(6))", "double(idx(5)==idx(8))",
+    "double(idx(9)==idx(10))", "double(idx(9)==idx(12))",
+    "double(idx(1)==idx(5))", "double(idx(1)==idx(9))",
+    "size(C, 1)", "size(C, 2)",
+    "size(D, 1)", "size(D, 2)",
+    "numel(unique(idx2))"
+  ],
+  "comment": "Sig: [idx, C, sumd, D] = kmeans(X, K, 'MaxIter'/'Replicates'/'Distance'/'Start'/'Display'/'EmptyAction', val, ...). Default Distance='sqeuclidean', Start='plus'. Fingerprints are label-permutation-invariant (cluster counts + same-cluster boolean tests + output shapes) because RNG init differs between engines."
+}

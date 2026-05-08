@@ -8,15 +8,17 @@
 #include <numkit/builtin/math/random/rng.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <memory_resource>
 #include <mutex>
 #include <random>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -30,16 +32,18 @@ inline double sq_dist(const double *a, const double *b, size_t D) {
 
 // k-means++ centroid initialisation. Returns K rows of D values each
 // (flattened K*D-length buffer).
-std::vector<double> kmeanspp_init(const std::vector<double> &X,
-                                  size_t N, size_t D, int K,
-                                  std::mt19937 &gen)
+ScratchVec<double> kmeanspp_init(const ScratchVec<double> &X,
+                                 size_t N, size_t D, int K,
+                                 std::mt19937 &gen,
+                                 std::pmr::memory_resource *scratch_mr)
 {
-    std::vector<double> C((size_t)K * D);
+    ScratchVec<double> C((size_t)K * D, scratch_mr);
     std::uniform_int_distribution<size_t> first(0, N - 1);
     const size_t i0 = first(gen);
     std::copy(X.begin() + i0 * D, X.begin() + (i0 + 1) * D, C.begin());
 
-    std::vector<double> dist(N, std::numeric_limits<double>::infinity());
+    ScratchVec<double> dist(N, std::numeric_limits<double>::infinity(),
+                            scratch_mr);
     for (int k = 1; k < K; ++k) {
         // Update each point's nearest-centroid distance against the new
         // centroid (k-1).
@@ -76,23 +80,27 @@ std::vector<double> kmeanspp_init(const std::vector<double> &X,
 // per cluster, total-WCSS). Stops when no assignment changes or when
 // max_iter reached.
 struct LloydResult {
-    std::vector<int>    idx;
-    std::vector<double> C;
-    std::vector<double> sumd;
-    double              total;
+    ScratchVec<int>    idx;
+    ScratchVec<double> C;
+    ScratchVec<double> sumd;
+    double             total{};
+
+    LloydResult(std::pmr::memory_resource *scratch_mr)
+        : idx(scratch_mr), C(scratch_mr), sumd(scratch_mr) {}
 };
 
-LloydResult lloyd(const std::vector<double> &X, size_t N, size_t D, int K,
-                  std::vector<double> C0, int max_iter)
+LloydResult lloyd(const ScratchVec<double> &X, size_t N, size_t D, int K,
+                  ScratchVec<double> &&C0, int max_iter,
+                  std::pmr::memory_resource *scratch_mr)
 {
-    LloydResult res;
+    LloydResult res(scratch_mr);
     res.idx.assign(N, 0);
     res.C    = std::move(C0);
     res.sumd.assign(K, 0.0);
     res.total = 0.0;
 
-    std::vector<int> counts(K, 0);
-    std::vector<double> Cnext((size_t)K * D, 0.0);
+    ScratchVec<int>    counts((size_t)K, 0, scratch_mr);
+    ScratchVec<double> Cnext((size_t)K * D, 0.0, scratch_mr);
 
     for (int iter = 0; iter < max_iter; ++iter) {
         // Assign each point to nearest centroid.
@@ -144,9 +152,17 @@ LloydResult lloyd(const std::vector<double> &X, size_t N, size_t D, int K,
 
 } // anonymous
 
-std::tuple<Value, Value, Value>
-kmeans(std::pmr::memory_resource *mr, const Value &X, int K,
-       int max_iter, int replicates)
+// Full kmeans with optional 4th D output (N×K squared distances).
+struct KmeansResult {
+    Value idx;
+    Value C;
+    Value sumd;
+    Value D;     // optional N×K
+};
+
+KmeansResult
+kmeans_full(std::pmr::memory_resource *mr, const Value &X, int K,
+            int max_iter, int replicates)
 {
     if (max_iter <= 0)   max_iter = 100;
     if (replicates <= 0) replicates = 1;
@@ -157,8 +173,10 @@ kmeans(std::pmr::memory_resource *mr, const Value &X, int K,
         throw Error("kmeans: K must be in 1..N", 0, 0, "kmeans", "",
                     "m:kmeans:badK");
 
-    // Read X into a flat row-major buffer.
-    std::vector<double> Xv(N * D);
+    ScratchArena scratch(mr);
+
+    // Read X into a flat row-major scratch buffer.
+    ScratchVec<double> Xv(N * D, &scratch);
     for (size_t r = 0; r < N; ++r)
         for (size_t c = 0; c < D; ++c)
             Xv[r * D + c] = X.elemAsDouble(c * N + r);
@@ -166,38 +184,64 @@ kmeans(std::pmr::memory_resource *mr, const Value &X, int K,
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
 
-    LloydResult best;
+    LloydResult best(&scratch);
     double best_total = std::numeric_limits<double>::infinity();
 
     for (int rep = 0; rep < replicates; ++rep) {
-        std::vector<double> C0;
+        ScratchVec<double> C0(&scratch);
         {
             std::lock_guard<std::mutex> lk(mtx);
-            C0 = kmeanspp_init(Xv, N, D, K, gen);
+            C0 = kmeanspp_init(Xv, N, D, K, gen, &scratch);
         }
-        LloydResult res = lloyd(Xv, N, D, K, std::move(C0), max_iter);
+        LloydResult res = lloyd(Xv, N, D, K, std::move(C0), max_iter, &scratch);
         if (res.total < best_total) {
             best_total = res.total;
             best = std::move(res);
         }
     }
 
-    // Pack outputs.
-    Value idx = Value::matrix(N, 1, ValueType::DOUBLE, mr);
-    double *ip = idx.doubleDataMut();
-    for (size_t i = 0; i < N; ++i) ip[i] = double(best.idx[i] + 1);  // 1-based
+    KmeansResult out;
 
-    Value Cout = Value::matrix(K, D, ValueType::DOUBLE, mr);
-    double *cp = Cout.doubleDataMut();
-    for (int k = 0; k < K; ++k)
-        for (size_t d = 0; d < D; ++d)
-            cp[d * K + k] = best.C[(size_t)k * D + d];   // column-major out
+    out.idx = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+    {
+        double *ip = out.idx.doubleDataMut();
+        for (size_t i = 0; i < N; ++i) ip[i] = double(best.idx[i] + 1);
+    }
 
-    Value sumd = Value::matrix(K, 1, ValueType::DOUBLE, mr);
-    double *sp = sumd.doubleDataMut();
-    for (int k = 0; k < K; ++k) sp[k] = best.sumd[k];
+    out.C = Value::matrix(K, D, ValueType::DOUBLE, mr);
+    {
+        double *cp = out.C.doubleDataMut();
+        for (int k = 0; k < K; ++k)
+            for (size_t d = 0; d < D; ++d)
+                cp[d * K + k] = best.C[(size_t)k * D + d];
+    }
 
-    return std::make_tuple(std::move(idx), std::move(Cout), std::move(sumd));
+    out.sumd = Value::matrix(K, 1, ValueType::DOUBLE, mr);
+    {
+        double *sp = out.sumd.doubleDataMut();
+        for (int k = 0; k < K; ++k) sp[k] = best.sumd[k];
+    }
+
+    // 4th output D — N×K squared distance from each point to each centroid.
+    out.D = Value::matrix(N, K, ValueType::DOUBLE, mr);
+    {
+        double *dp = out.D.doubleDataMut();
+        for (size_t i = 0; i < N; ++i)
+            for (int k = 0; k < K; ++k)
+                dp[k * N + i] = sq_dist(&Xv[i * D], &best.C[(size_t)k * D], D);
+    }
+
+    return out;
+}
+
+// Backward-compat 3-output wrapper.
+std::tuple<Value, Value, Value>
+kmeans(std::pmr::memory_resource *mr, const Value &X, int K,
+       int max_iter, int replicates)
+{
+    auto R = kmeans_full(mr, X, K, max_iter, replicates);
+    return std::make_tuple(std::move(R.idx), std::move(R.C),
+                           std::move(R.sumd));
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -210,25 +254,44 @@ void kmeans_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("kmeans: requires (X, K[, MaxIter, Replicates])",
+        throw Error("kmeans: requires (X, K[, N-V pairs])",
                     0, 0, "kmeans", "", "m:kmeans:nargin");
     const int K = (int)args[1].toScalar();
     int max_iter  = 100;
     int replicates = 1;
-    // Optional name-value or positional after K.
-    for (size_t i = 2; i + 1 < args.size(); ++i) {
-        if (args[i].isChar() || args[i].isString()) {
-            const auto s = args[i].toString();
-            const double v = args[i + 1].toScalar();
-            if      (s == "MaxIter")    max_iter  = (int)v;
-            else if (s == "Replicates") replicates = (int)v;
+    auto lower = [](std::string s) {
+        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        return s;
+    };
+    for (size_t i = 2; i + 1 < args.size(); i += 2) {
+        if (!(args[i].isChar() || args[i].isString())) continue;
+        const std::string key = lower(args[i].toString());
+        const Value &v = args[i + 1];
+        if      (key == "maxiter")    max_iter   = (int)v.toScalar();
+        else if (key == "replicates") replicates = (int)v.toScalar();
+        else if (key == "distance") {
+            const std::string dn = lower(v.toString());
+            if (dn != "sqeuclidean" && dn != "squaredeuclidean")
+                throw Error("kmeans: only Distance = 'sqeuclidean' is "
+                            "implemented (got '" + dn + "')",
+                            0, 0, "kmeans", "", "m:kmeans:distance");
         }
+        else if (key == "start") {
+            const std::string sn = lower(v.toString());
+            if (sn != "plus")
+                throw Error("kmeans: only Start = 'plus' is implemented "
+                            "(got '" + sn + "')",
+                            0, 0, "kmeans", "", "m:kmeans:start");
+        }
+        // 'Display' / 'EmptyAction' / 'OnlinePhase' / 'Options' silently
+        // accepted (no-op).
     }
-    auto [idx, C, sumd] = kmeans(ctx.engine->resource(), args[0], K,
-                                  max_iter, replicates);
-    outs[0] = std::move(idx);
-    if (nargout > 1) outs[1] = std::move(C);
-    if (nargout > 2) outs[2] = std::move(sumd);
+    auto R = kmeans_full(ctx.engine->resource(), args[0], K,
+                         max_iter, replicates);
+    outs[0] = std::move(R.idx);
+    if (nargout > 1) outs[1] = std::move(R.C);
+    if (nargout > 2) outs[2] = std::move(R.sumd);
+    if (nargout > 3) outs[3] = std::move(R.D);
 }
 
 } // namespace detail
