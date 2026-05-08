@@ -35,3 +35,16 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Pure spec coverage, no impl change. Numkit qmf already
+  matched MATLAB exactly across odd/even lengths, default and
+  p=1 modes, column input, and single-element.
+
+  Spec extended from 7 to 17 fingerprints (length-4 + length-5 +
+  length-8 + p=0/p=1 + column + scalar). Parity OK numkit ↔
+  MATLAB at tol=0 (integer-stable). Octave doesn't ship qmf
+  (Wavelet Toolbox function); we follow MATLAB. 9 TEST_F gtest
+  (existing 7 + 2 new EvenLength8 / Length4DefaultAndP1).
