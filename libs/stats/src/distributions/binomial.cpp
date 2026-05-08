@@ -154,13 +154,11 @@ void binoinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void binornd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("binornd: requires (n, p[, m, ncols])", 0, 0, "binornd", "", "m:binornd:nargin");
+        throw Error("binornd: requires (n, p[, sz...])", 0, 0, "binornd", "", "m:binornd:nargin");
     const double n = args[0].toScalar();
     const double p = args[1].toScalar();
-    size_t rows = 1, cols = 1;
-    if (args.size() >= 3 && !args[2].isEmpty()) rows = static_cast<size_t>(args[2].toScalar());
-    if (args.size() >= 4 && !args[3].isEmpty()) cols = static_cast<size_t>(args[3].toScalar());
-    else if (args.size() >= 3) cols = rows;
+    size_t rows, cols;
+    parse_rng_size(args, 2, rows, cols);
     outs[0] = binornd(ctx.engine->resource(), n, p, rows, cols);
 }
 

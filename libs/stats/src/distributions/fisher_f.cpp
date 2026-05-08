@@ -175,13 +175,11 @@ void finv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 void frnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("frnd: requires (v1, v2[, m, n])", 0, 0, "frnd", "", "m:frnd:nargin");
+        throw Error("frnd: requires (v1, v2[, sz...])", 0, 0, "frnd", "", "m:frnd:nargin");
     const double v1 = args[0].toScalar();
     const double v2 = args[1].toScalar();
-    size_t rows = 1, cols = 1;
-    if (args.size() >= 3 && !args[2].isEmpty()) rows = static_cast<size_t>(args[2].toScalar());
-    if (args.size() >= 4 && !args[3].isEmpty()) cols = static_cast<size_t>(args[3].toScalar());
-    else if (args.size() >= 3) cols = rows;
+    size_t rows, cols;
+    parse_rng_size(args, 2, rows, cols);
     outs[0] = frnd(ctx.engine->resource(), v1, v2, rows, cols);
 }
 

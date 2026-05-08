@@ -140,13 +140,11 @@ void unifinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void unifrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("unifrnd: requires (a, b[, m, n])", 0, 0, "unifrnd", "", "m:unifrnd:nargin");
+        throw Error("unifrnd: requires (a, b[, sz...])", 0, 0, "unifrnd", "", "m:unifrnd:nargin");
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
-    size_t rows = 1, cols = 1;
-    if (args.size() >= 3 && !args[2].isEmpty()) rows = static_cast<size_t>(args[2].toScalar());
-    if (args.size() >= 4 && !args[3].isEmpty()) cols = static_cast<size_t>(args[3].toScalar());
-    else if (args.size() >= 3) cols = rows;
+    size_t rows, cols;
+    parse_rng_size(args, 2, rows, cols);
     outs[0] = unifrnd(ctx.engine->resource(), a, b, rows, cols);
 }
 

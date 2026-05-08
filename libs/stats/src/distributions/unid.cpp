@@ -129,12 +129,10 @@ void unidinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void unidrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("unidrnd: requires N[, m, n]", 0, 0, "unidrnd", "", "m:unidrnd:nargin");
+        throw Error("unidrnd: requires N[, sz...]", 0, 0, "unidrnd", "", "m:unidrnd:nargin");
     const double N = args[0].toScalar();
-    size_t rows = 1, cols = 1;
-    if (args.size() >= 2 && !args[1].isEmpty()) rows = static_cast<size_t>(args[1].toScalar());
-    if (args.size() >= 3 && !args[2].isEmpty()) cols = static_cast<size_t>(args[2].toScalar());
-    else if (args.size() >= 2) cols = rows;
+    size_t rows, cols;
+    parse_rng_size(args, 1, rows, cols);
     outs[0] = unidrnd(ctx.engine->resource(), N, rows, cols);
 }
 

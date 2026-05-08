@@ -189,4 +189,52 @@ inline void emit_vec_stat_3arg(Span<const Value> args, size_t nargout,
     if (nargout > 1) outs[1] = std::move(out_v);
 }
 
+// ── RNG size-arg parser ──────────────────────────────────────────────
+// Parses MATLAB-style trailing size arguments shared by every *rnd
+// distribution adapter:
+//
+//   <fn>(...params)              → scalar (1×1)
+//   <fn>(...params, n)           → n × n
+//   <fn>(...params, [m n])       → m × n  (vector size)
+//   <fn>(...params, m, n)        → m × n  (multi-arg size)
+//
+// `start` is the index of the first size-argument candidate (0-based).
+// On exit, sets rows/cols. Throws on invalid input.
+inline void parse_rng_size(Span<const Value> args, size_t start,
+                            size_t &rows, size_t &cols)
+{
+    rows = 1;
+    cols = 1;
+    if (args.size() <= start) return;
+    const Value &a0 = args[start];
+    if (a0.isEmpty()) return;
+    // Vector size form: numel > 1.
+    if (a0.numel() > 1) {
+        const size_t n = a0.numel();
+        if (n == 1) {
+            rows = static_cast<size_t>(a0.elemAsDouble(0));
+            cols = rows;
+        } else if (n == 2) {
+            rows = static_cast<size_t>(a0.elemAsDouble(0));
+            cols = static_cast<size_t>(a0.elemAsDouble(1));
+        } else {
+            // 3+ dims: emit as flattened first×rest. MATLAB returns
+            // an N-D array; numkit's 2-D Value can only represent the
+            // first dim × product of the rest.
+            rows = static_cast<size_t>(a0.elemAsDouble(0));
+            cols = 1;
+            for (size_t i = 1; i < n; ++i)
+                cols *= static_cast<size_t>(a0.elemAsDouble(i));
+        }
+        return;
+    }
+    // Scalar size — 1 or 2 trailing args.
+    rows = static_cast<size_t>(a0.toScalar());
+    if (args.size() > start + 1 && !args[start + 1].isEmpty()) {
+        cols = static_cast<size_t>(args[start + 1].toScalar());
+    } else {
+        cols = rows;  // n×n
+    }
+}
+
 } // namespace numkit::stats::detail

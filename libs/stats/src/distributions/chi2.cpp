@@ -150,12 +150,10 @@ void chi2inv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void chi2rnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("chi2rnd: requires k[, m, n]", 0, 0, "chi2rnd", "", "m:chi2rnd:nargin");
+        throw Error("chi2rnd: requires k[, sz...]", 0, 0, "chi2rnd", "", "m:chi2rnd:nargin");
     const double k = args[0].toScalar();
-    size_t rows = 1, cols = 1;
-    if (args.size() >= 2 && !args[1].isEmpty()) rows = static_cast<size_t>(args[1].toScalar());
-    if (args.size() >= 3 && !args[2].isEmpty()) cols = static_cast<size_t>(args[2].toScalar());
-    else if (args.size() >= 2) cols = rows;
+    size_t rows, cols;
+    parse_rng_size(args, 1, rows, cols);
     outs[0] = chi2rnd(ctx.engine->resource(), k, rows, cols);
 }
 
