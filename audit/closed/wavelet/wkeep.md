@@ -57,3 +57,23 @@ Documented signatures (`help wkeep`):
 ## Out of scope for this ТЗ
 
 - 3-D `wkeep` (S is 3-element vector) — undocumented in 2025b help.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Auditor's table marked the matrix forms as "needs probe"
+  — when probed, both forms threw "Cannot convert double to
+  scalar" because the adapter did `args[1].toScalar()`
+  unconditionally, expecting a numeric scalar (1-D form).
+
+  Fix: detect `args[1].numel() == 2` → 2-D form. Extract central
+  [R x C] sub-matrix (default) or explicit-corner sub-matrix
+  when args[2] is also a 2-vector. Out-of-range corners throw
+  cleanly. Original 1-D path preserved unchanged.
+
+  Spec extended from 8 to 15 fingerprints (1-D + 2-D central +
+  2-D explicit corners at top-left and lower-right). Parity OK
+  numkit ↔ MATLAB at tol=0. Octave's wkeep doesn't support the
+  numeric-start arg in 1-D (its limitation); we follow MATLAB.
+  10 TEST_F gtest (existing 7 + 3 new MatrixCentral /
+  MatrixExplicitTopLeft / MatrixOutOfRangeThrows).
