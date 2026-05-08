@@ -58,7 +58,6 @@ Status legend:
 | [findings/dim/pcacov.md](findings/dim/pcacov.md) | pcacov | stats.dim | low | small | f92087f |
 | [findings/dim/pcares.md](findings/dim/pcares.md) | pcares | stats.dim | low | small | f92087f |
 | [findings/empirical/ecdf.md](findings/empirical/ecdf.md) | ecdf | stats.empirical | low | small | f92087f |
-| [findings/empirical/ecdfhist.md](findings/empirical/ecdfhist.md) | ecdfhist | stats.empirical | low | small | f92087f |
 | [findings/empirical/ksdensity.md](findings/empirical/ksdensity.md) | ksdensity | stats.empirical | low | small | f92087f |
 | [findings/lda/classify.md](findings/lda/classify.md) | classify | stats.lda | low | small | f92087f |
 | [findings/mvdist/mnpdf.md](findings/mvdist/mnpdf.md) | mnpdf | stats.mvdist | low | small | f92087f |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/wavelet/wcodemat.md](closed/wavelet/wcodemat.md) | wcodemat | PENDING | 2026-05-08 |
 | [closed/wavelet/wextend.md](closed/wavelet/wextend.md) | wextend | PENDING | 2026-05-08 |
 | [closed/wavelet/detcoef.md](closed/wavelet/detcoef.md) | detcoef | PENDING | 2026-05-08 |
+| [closed/empirical/ecdfhist.md](closed/empirical/ecdfhist.md) | ecdfhist | PENDING | 2026-05-08 |
 
 ---
 

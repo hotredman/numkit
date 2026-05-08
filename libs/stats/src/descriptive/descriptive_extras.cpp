@@ -977,11 +977,16 @@ ecdfhist(std::pmr::memory_resource *mr, const Value &f, const Value &x, int m)
         return {std::move(n_out), std::move(c_out)};
     }
 
+    // MATLAB convention: a value v at an edge belongs to the LOWER bin,
+    // i.e. bin k contains (edge[k-1], edge[k]] in 1-based indexing.
+    // Equivalent: `bin = ceil((v - xmin) / width) - 1` in 0-based.
+    // Bug fix 2026-05-08: previous impl used `floor`, which sent
+    // boundary values to the upper bin (off-by-one shift in counts).
     for (size_t k = 0; k < K; ++k) {
         const double v = vals[k];
-        int bin = static_cast<int>(std::floor((v - xmin) / width));
-        if (bin >= m) bin = m - 1;  // last bin includes right edge
+        int bin = static_cast<int>(std::ceil((v - xmin) / width)) - 1;
         if (bin < 0)  bin = 0;
+        if (bin >= m) bin = m - 1;
         nd[bin] += probs[k];
     }
     for (int k = 0; k < m; ++k) nd[k] /= width;
