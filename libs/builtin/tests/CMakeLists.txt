@@ -5,6 +5,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/inv_trig_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/inv_trig_batch2_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fwd_trig_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/transcendentals_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/variables_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/controlflow_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/functions_test.cpp

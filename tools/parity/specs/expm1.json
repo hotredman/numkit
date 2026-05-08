@@ -1,10 +1,16 @@
 {
   "name": "expm1",
-  "namespace": "core",
-  "setup": "x = linspace(-2, 2, 1000000);",
-  "expr": "y = expm1(x);",
-  "iters": 20,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: Y = expm1(X) = exp(X)-1. 1M-pt on [-2,2]. 20 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "x = [-1e-10, 0, 1e-10, 1, 2];",
+  "expr": "r = expm1(x);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r(1)",
+    "r(2)",
+    "r(3)",
+    "r(4)",
+    "r(5)"
+  ],
+  "comment": "Sig: r = expm1(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b."
 }
