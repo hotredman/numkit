@@ -1,10 +1,14 @@
 {
   "name": "rdivide",
-  "namespace": "core",
-  "setup": "a = sin(linspace(0, 100, 1000000)); b = 1 + cos(linspace(0, 100, 1000000));",
-  "expr": "y = rdivide(a, b);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: Y = rdivide(A, B). 1M-pt div. 50 iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = rdivide(6, 2); v = rdivide([6 8], [2 4]); r2 = v(1); r3 = v(2);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = rdivide(...). Arithmetic op. Spec-extension batch 2026-05-09. Fingerprints scalar-only."
 }
