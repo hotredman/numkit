@@ -1,6 +1,6 @@
-# builtin/cart2pol — ТЗ for completion
+# builtin/cart2sph — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** a6e4264
@@ -9,7 +9,7 @@
 ## Gaps
 
 **No major gap detected.** Element-wise scalar function based on
-`std::cart2pol` (or equivalent libm) — output matches MATLAB
+`std::cart2sph` (or equivalent libm) — output matches MATLAB
 bit-for-bit on probed inputs.
 
 ## Recommended fixes
@@ -21,3 +21,9 @@ bit-for-bit on probed inputs.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Misc spec-extension batch (predicates + airy + coord conversion).
+  All bit-identical MATLAB R2025b. See misc_batch_test.cpp.
