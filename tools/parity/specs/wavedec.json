@@ -1,0 +1,18 @@
+{
+  "name": "wavedec",
+  "namespace": "wavelet",
+  "setup": "x = (1:16)';",
+  "expr": "[c, l] = wavedec(x, 3, 'db2'); [c2, l2] = wavedec(x, 2, 'db4'); [c3, l3] = wavedec((1:32)', 4, 'sym4');",
+  "iters": 3,
+  "tol": 1e-10,
+  "fingerprint": [
+    "c(1)", "c(2)", "c(3)", "c(4)", "c(5)", "c(6)",
+    "l(1)", "l(2)", "l(3)", "l(4)", "l(5)",
+    "double(numel(c))",
+    "c2(1)", "c2(numel(c2))",
+    "double(numel(c2))",
+    "c3(1)", "double(numel(c3))",
+    "l3(1)", "l3(numel(l3))"
+  ],
+  "comment": "Sig: [c, l] = wavedec(x, n, wname). Multi-level DWT decomposition. After wfilters Lo_D/Lo_R label-swap fix landed, output is bit-identical to MATLAB R2025b. Custom (Lo_D, Hi_D) form deferred (rare for multi-level)."
+}

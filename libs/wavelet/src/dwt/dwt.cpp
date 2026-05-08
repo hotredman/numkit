@@ -76,14 +76,18 @@ std::vector<double> downsample_evens(const std::vector<double> &y) {
 
 } // anonymous
 
-void dwt(std::pmr::memory_resource *mr,
-         const Value &x, const std::string &wname,
-         Value *cA, Value *cD)
+// Internal entry point: takes Lo_D / Hi_D directly. Used by both the
+// `dwt(x, wname)` path (which looks up filters via wfilters) and the
+// `dwt(x, Lo_D, Hi_D)` custom-filter path.
+static void dwt_with_filters(std::pmr::memory_resource *mr,
+                             const Value &x,
+                             const std::vector<double> &Lo_D,
+                             const std::vector<double> &Hi_D,
+                             Value *cA, Value *cD)
 {
-    auto fb = wavelet_filters(wname);
-    const size_t Lf = fb.Lo_D.size();
-    if (Lf < 2)
-        throw Error("dwt: filter length < 2",
+    const size_t Lf = Lo_D.size();
+    if (Lf < 2 || Hi_D.size() != Lf)
+        throw Error("dwt: filter length < 2 or Lo_D/Hi_D length mismatch",
                     0, 0, "dwt", "", "m:dwt:filt");
 
     const size_t N = x.numel();
@@ -120,8 +124,8 @@ void dwt(std::pmr::memory_resource *mr,
         return z;
     };
 
-    auto a = convAndDown(fb.Lo_D);
-    auto d = convAndDown(fb.Hi_D);
+    auto a = convAndDown(Lo_D);
+    auto d = convAndDown(Hi_D);
 
     auto pack = [&](const std::vector<double> &v) {
         Value r = Value::matrix(1, v.size(), ValueType::DOUBLE, mr);
@@ -132,13 +136,26 @@ void dwt(std::pmr::memory_resource *mr,
     if (cD) *cD = pack(d);
 }
 
-Value idwt(std::pmr::memory_resource *mr,
-           const Value &cA, const Value &cD,
-           const std::string &wname,
-           long long len)
+// Public entry: wname → look up filters via wfilters, dispatch to helper.
+void dwt(std::pmr::memory_resource *mr,
+         const Value &x, const std::string &wname,
+         Value *cA, Value *cD)
 {
     auto fb = wavelet_filters(wname);
-    const size_t Lf = fb.Lo_R.size();
+    dwt_with_filters(mr, x, fb.Lo_D, fb.Hi_D, cA, cD);
+}
+
+// Internal entry: takes Lo_R / Hi_R directly.
+static Value idwt_with_filters(std::pmr::memory_resource *mr,
+                               const Value &cA, const Value &cD,
+                               const std::vector<double> &Lo_R,
+                               const std::vector<double> &Hi_R,
+                               long long len)
+{
+    const size_t Lf = Lo_R.size();
+    if (Lf < 2 || Hi_R.size() != Lf)
+        throw Error("idwt: filter length < 2 or Lo_R/Hi_R length mismatch",
+                    0, 0, "idwt", "", "m:idwt:filt");
 
     const size_t la = cA.numel();
     const size_t ld = cD.numel();
@@ -158,8 +175,8 @@ Value idwt(std::pmr::memory_resource *mr,
     auto upD = upsample(cD);
 
     // Convolve with synthesis filters (full).
-    auto yA = conv_full(upA, fb.Lo_R);
-    auto yD = conv_full(upD, fb.Hi_R);
+    auto yA = conv_full(upA, Lo_R);
+    auto yD = conv_full(upD, Hi_R);
 
     // Sum (lengths match: 2*L + Lf - 1).
     const size_t M = yA.size();
@@ -185,6 +202,16 @@ Value idwt(std::pmr::memory_resource *mr,
     return r;
 }
 
+// Public entry: wname → look up filters via wfilters, dispatch to helper.
+Value idwt(std::pmr::memory_resource *mr,
+           const Value &cA, const Value &cD,
+           const std::string &wname,
+           long long len)
+{
+    auto fb = wavelet_filters(wname);
+    return idwt_with_filters(mr, cA, cD, fb.Lo_R, fb.Hi_R, len);
+}
+
 namespace detail {
 
 static std::string argString(const Value &v) {
@@ -194,15 +221,60 @@ static std::string argString(const Value &v) {
     return v.toString();
 }
 
+// Read a Value (numeric vector) into a flat double buffer.
+static std::vector<double> readVec(const Value &v) {
+    const size_t n = v.numel();
+    std::vector<double> out(n);
+    for (size_t i = 0; i < n; ++i) out[i] = v.elemAsDouble(i);
+    return out;
+}
+
+// Walk trailing N-V pairs starting at args[start]; returns true if a
+// 'mode' arg specifies anything other than 'sym'. Throws on unsupported
+// boundary modes (only 'sym' implemented for now).
+static bool parse_mode_nv(Span<const Value> args, size_t start,
+                          const char *fn) {
+    auto lower = [](std::string s) {
+        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        return s;
+    };
+    for (size_t i = start; i + 1 < args.size(); i += 2) {
+        if (!(args[i].isChar() || args[i].isString())) break;
+        const std::string key = lower(args[i].toString());
+        if (key == "mode") {
+            const std::string m = lower(args[i + 1].toString());
+            if (m != "sym" && m != "symh") {
+                throw Error(std::string(fn) + ": only 'mode'='sym' is "
+                            "implemented (got '" + m + "')",
+                            0, 0, fn, "", "m:wavelet:mode_nyi");
+            }
+        }
+    }
+    return false;
+}
+
 void dwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
              CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("dwt: requires (x, wname)",
+        throw Error("dwt: requires (x, wname) or (x, Lo_D, Hi_D)",
                     0, 0, "dwt", "", "m:dwt:nargin");
     auto *mr = ctx.engine->resource();
     Value cA, cD;
-    dwt(mr, args[0], argString(args[1]), &cA, &cD);
+    if (args[1].isChar() || args[1].isString()) {
+        // dwt(x, wname[, 'mode', extmode])
+        parse_mode_nv(args, 2, "dwt");
+        dwt(mr, args[0], args[1].toString(), &cA, &cD);
+    } else {
+        // dwt(x, Lo_D, Hi_D[, 'mode', extmode])
+        if (args.size() < 3 || (args[2].isChar() || args[2].isString()))
+            throw Error("dwt: custom-filter form requires (x, Lo_D, Hi_D)",
+                        0, 0, "dwt", "", "m:dwt:nargin");
+        parse_mode_nv(args, 3, "dwt");
+        dwt_with_filters(mr, args[0],
+                         readVec(args[1]), readVec(args[2]),
+                         &cA, &cD);
+    }
     if (outs.size() >= 1) outs[0] = cA;
     if (outs.size() >= 2) outs[1] = cD;
 }
@@ -211,13 +283,41 @@ void idwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
               CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("idwt: requires (cA, cD, wname [, len])",
+        throw Error("idwt: requires (cA, cD, wname[, len]) or "
+                    "(cA, cD, Lo_R, Hi_R[, len])",
                     0, 0, "idwt", "", "m:idwt:nargin");
+    auto *mr = ctx.engine->resource();
     long long len = -1;
-    if (args.size() >= 4 && !args[3].isEmpty())
-        len = static_cast<long long>(args[3].toScalar());
-    outs[0] = idwt(ctx.engine->resource(),
-                   args[0], args[1], argString(args[2]), len);
+
+    if (args[2].isChar() || args[2].isString()) {
+        // idwt(cA, cD, wname[, len][, 'mode', extmode])
+        const std::string wname = args[2].toString();
+        size_t i = 3;
+        // Optional positional `len` (numeric scalar) BEFORE any N-V.
+        if (i < args.size() && args[i].numel() == 1
+            && !(args[i].isChar() || args[i].isString())) {
+            len = (long long)args[i].toScalar();
+            ++i;
+        }
+        parse_mode_nv(args, i, "idwt");
+        outs[0] = idwt(mr, args[0], args[1], wname, len);
+    } else {
+        // idwt(cA, cD, Lo_R, Hi_R[, len][, 'mode', extmode])
+        if (args.size() < 4 || (args[3].isChar() || args[3].isString()))
+            throw Error("idwt: custom-filter form requires "
+                        "(cA, cD, Lo_R, Hi_R)",
+                        0, 0, "idwt", "", "m:idwt:nargin");
+        size_t i = 4;
+        if (i < args.size() && args[i].numel() == 1
+            && !(args[i].isChar() || args[i].isString())) {
+            len = (long long)args[i].toScalar();
+            ++i;
+        }
+        parse_mode_nv(args, i, "idwt");
+        outs[0] = idwt_with_filters(mr, args[0], args[1],
+                                    readVec(args[2]), readVec(args[3]),
+                                    len);
+    }
 }
 
 } // namespace detail

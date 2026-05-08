@@ -1,0 +1,17 @@
+{
+  "name": "dwt",
+  "namespace": "wavelet",
+  "setup": "x = (1:8)'; xL = (1:16)'; [Lo_D, Hi_D, Lo_R, Hi_R] = wfilters('db2');",
+  "expr": "[cA, cD] = dwt(x, 'db2'); [cA4, cD4] = dwt(xL, 'db4'); [cAs, cDs] = dwt(xL, 'sym4'); [cAc, cDc] = dwt(xL, 'coif1'); [cAcust, cDcust] = dwt(x, Lo_D, Hi_D);",
+  "iters": 3,
+  "tol": 1e-10,
+  "fingerprint": [
+    "cA(1)", "cA(2)", "cA(3)", "cA(4)", "cA(5)",
+    "cD(1)", "cD(5)",
+    "cA4(1)", "cA4(numel(cA4))",
+    "cAs(1)", "cAs(numel(cAs))",
+    "cAc(1)", "cAc(numel(cAc))",
+    "cAcust(1)", "cAcust(5)"
+  ],
+  "comment": "Sig: [cA, cD] = dwt(x, wname) or (x, Lo_D, Hi_D), with optional 'mode' N-V (only 'sym' supported). 2026-05-08: bit-identical to MATLAB R2025b on the analysis filters after the wfilters Lo_D/Lo_R label-swap fix landed. Custom-filter form added in same commit. Boundary modes other than 'sym' deferred (errors with clear message)."
+}

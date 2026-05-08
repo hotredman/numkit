@@ -1,0 +1,15 @@
+{
+  "name": "idwt",
+  "namespace": "wavelet",
+  "setup": "x = (1:8)'; xL = (1:16)'; [Lo_D, Hi_D, Lo_R, Hi_R] = wfilters('db2'); [cA, cD] = dwt(x, 'db2'); [cA4, cD4] = dwt(xL, 'db4');",
+  "expr": "xr = idwt(cA, cD, 'db2'); xr4 = idwt(cA4, cD4, 'db4'); xr_cust = idwt(cA, cD, Lo_R, Hi_R); xr_len = idwt(cA, cD, 'db2', 8);",
+  "iters": 3,
+  "tol": 1e-10,
+  "fingerprint": [
+    "xr(1)", "xr(2)", "xr(3)", "xr(4)", "xr(5)", "xr(6)", "xr(7)", "xr(8)",
+    "xr4(1)", "xr4(8)", "xr4(16)",
+    "xr_cust(1)", "xr_cust(8)",
+    "xr_len(1)", "xr_len(8)"
+  ],
+  "comment": "Sig: x = idwt(cA, cD, wname) or (cA, cD, Lo_R, Hi_R), optional positional `len` and 'mode' N-V (only 'sym' supported). After wfilters label-swap fix + dwt downsample-offset fix, round-trip is bit-identical to MATLAB R2025b at ~1e-12. Custom synthesis-filter form added in the same commit."
+}
