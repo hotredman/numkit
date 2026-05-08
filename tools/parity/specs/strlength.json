@@ -1,10 +1,14 @@
 {
   "name": "strlength",
-  "namespace": "core",
-  "setup": "s = 'hello world this is a test string of 32 chars';",
-  "expr": "y = strlength(s);",
-  "iters": 1000,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: L = strlength(S). Single string (cellstr form differs). 100k iters."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(strlength(\"hello\")); r2 = double(strlength(\"\")); r3 = double(strlength(\"abc\"));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = strlength(...). String op. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity."
 }

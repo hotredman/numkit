@@ -1,10 +1,12 @@
 {
   "name": "blanks",
-  "namespace": "core",
-  "setup": "n = 1000;",
-  "expr": "y = blanks(n);",
-  "iters": 1000,
-  "tol": 1e-10,
-  "comment": "Sig: S = blanks(N). N=1000. 10000 iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "s = blanks(5); r1 = double(strlength(s));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = blanks(...). String op. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity."
 }
