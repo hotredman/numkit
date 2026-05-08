@@ -37,3 +37,18 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Auditor flagged `dim` arg as "likely not supported" but
+  numkit already implements it — confirmed via probe that
+  `interpft(M, n, dim)` works for both dim=1 (column-wise, default)
+  and dim=2 (row-wise) and matches MATLAB exactly. Pure spec
+  coverage; no impl change needed.
+
+  Spec extended from 1 to 11 fingerprints (vector originals at
+  integer steps + matrix dim=1 + matrix dim=2). Parity OK numkit ↔
+  MATLAB ↔ Octave at tol=1e-12. 3 new TEST_F (vector preservation,
+  matrix dim=1, matrix dim=2) added on top of existing 2 C-API
+  tests (length / pure-sinusoid). Smoke added.
