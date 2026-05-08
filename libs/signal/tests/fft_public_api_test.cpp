@@ -545,3 +545,51 @@ TEST(SignalFftPublicApi, InterpftPureSinusoidExact)
         EXPECT_NEAR(got, ref, 1e-10) << "i=" << i;
     }
 }
+
+// ── interpft script-level tests (matrix + dim arg) ────────────────────
+class InterpftScriptTest : public ::testing::Test
+{
+public:
+    numkit::Engine engine;
+    void SetUp() override { engine.eval("import compat.*;"); }
+    numkit::Value eval(const std::string &c) { return engine.eval(c); }
+    double evalScalar(const std::string &c) { return eval(c).toScalar(); }
+};
+
+TEST_F(InterpftScriptTest, VectorPreservesOriginalsAtIntegerSteps)
+{
+    // interpft of N samples at 2N grid: every 2nd point matches original.
+    eval("y = interpft((1:8)', 16);");
+    EXPECT_NEAR(evalScalar("y(1)"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("y(3)"), 2.0, 1e-12);
+    EXPECT_NEAR(evalScalar("y(5)"), 3.0, 1e-12);
+    EXPECT_NEAR(evalScalar("y(7)"), 4.0, 1e-12);
+    EXPECT_NEAR(evalScalar("y(9)"), 5.0, 1e-12);
+    EXPECT_NEAR(evalScalar("y(2)"), 0.4726605078741524, 1e-12);
+}
+
+TEST_F(InterpftScriptTest, MatrixDefaultDimIsColumns)
+{
+    // Default dim = 1 -> interpolates each column independently.
+    eval("M = [1 5; 2 6; 3 7; 4 8];");
+    eval("y = interpft(M, 8);");
+    EXPECT_EQ(eval("y").dims().rows(), 8u);
+    EXPECT_EQ(eval("y").dims().cols(), 2u);
+    EXPECT_NEAR(evalScalar("y(1,1)"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("y(3,1)"), 2.0, 1e-12);
+    EXPECT_NEAR(evalScalar("y(1,2)"), 5.0, 1e-12);
+    EXPECT_NEAR(evalScalar("y(3,2)"), 6.0, 1e-12);
+}
+
+TEST_F(InterpftScriptTest, MatrixDimArgRows)
+{
+    // dim=2 -> interpolates each row independently.
+    eval("M = [1 5; 2 6; 3 7; 4 8];");
+    eval("y2 = interpft(M, 4, 2);");
+    EXPECT_EQ(eval("y2").dims().rows(), 4u);
+    EXPECT_EQ(eval("y2").dims().cols(), 4u);
+    // Original endpoints preserved at integer multiples of original spacing.
+    EXPECT_NEAR(evalScalar("y2(1,1)"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("y2(1,3)"), 5.0, 1e-12);
+    EXPECT_NEAR(evalScalar("y2(2,3)"), 6.0, 1e-12);
+}
