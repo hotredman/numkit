@@ -1,0 +1,13 @@
+{
+  "name": "buttord",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[N, Wn] = buttord(0.4, 0.5, 1, 60); r1 = double(N); r2 = Wn;",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = buttord(...). Spec-extension batch 2026-05-09 (signal namespace)."
+}

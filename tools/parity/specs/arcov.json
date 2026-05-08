@@ -1,0 +1,12 @@
+{
+  "name": "arcov",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[a, e] = arcov(sin(2*pi*0.1*(0:99)), 4); r1 = double(numel(a));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = arcov(...). Spec-extension batch 2026-05-09 (signal namespace)."
+}

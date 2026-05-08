@@ -1,6 +1,6 @@
 # signal/rceps — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** d3d8da7
@@ -19,3 +19,9 @@ MATLAB on probed input.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Signal batch 2 (filter design + AR/LPC + cepstral + freq response,
+  17 funcs). Bit-identical MATLAB R2025b. See signal_batch2_test.cpp.
