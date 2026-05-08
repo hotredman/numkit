@@ -187,3 +187,74 @@ TEST_F(WindowsTest, BartlettPeakAtCenter)
     eval("w = bartlett(9);");
     EXPECT_NEAR(evalScalar("w(5)"), 1.0, 1e-10);
 }
+
+// --- gausswin ---
+
+TEST_F(WindowsTest, GausswinDefaultAlpha)
+{
+    // Default alpha = 2.5.
+    eval("w = gausswin(8);");
+    EXPECT_NEAR(evalScalar("w(1)"), 0.0439369336234074, 1e-12);
+    EXPECT_NEAR(evalScalar("w(4)"), 0.9382155957191078, 1e-12);
+}
+
+TEST_F(WindowsTest, GausswinNarrowAlpha)
+{
+    // Larger alpha -> tighter window (smaller endpoints).
+    eval("w = gausswin(8, 4);");
+    EXPECT_NEAR(evalScalar("w(1)"), 0.0003354626279025, 1e-12);
+}
+
+TEST_F(WindowsTest, GausswinWideAlpha)
+{
+    // Smaller alpha -> wider window (larger endpoints).
+    eval("w = gausswin(8, 1.5);");
+    EXPECT_NEAR(evalScalar("w(1)"), 0.3246524673583497, 1e-12);
+    EXPECT_NEAR(evalScalar("w(4)"), 0.9773023728519782, 1e-12);
+}
+
+TEST_F(WindowsTest, GausswinSinglePoint)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("gausswin(1, 4)"), 1.0);
+}
+
+// --- tukeywin ---
+
+TEST_F(WindowsTest, TukeywinR0IsRectangular)
+{
+    // r=0 -> rectwin (all ones).
+    eval("w = tukeywin(8, 0);");
+    for (int i = 1; i <= 8; ++i)
+        EXPECT_DOUBLE_EQ(evalScalar("w(" + std::to_string(i) + ")"), 1.0);
+}
+
+TEST_F(WindowsTest, TukeywinR1IsHann)
+{
+    // r=1 -> Hann window.
+    eval("w = tukeywin(8, 1);");
+    EXPECT_NEAR(evalScalar("w(1)"), 0.0,                1e-12);
+    EXPECT_NEAR(evalScalar("w(2)"), 0.1882550990706332, 1e-12);
+    EXPECT_NEAR(evalScalar("w(4)"), 0.9504844339512096, 1e-12);
+}
+
+TEST_F(WindowsTest, TukeywinDefaultR)
+{
+    // Default r=0.5: tapers ~25% on each end.
+    eval("w = tukeywin(8);");
+    EXPECT_NEAR(evalScalar("w(1)"), 0.0,             1e-12);
+    EXPECT_NEAR(evalScalar("w(2)"), 0.6112604669781,  1e-9);
+    EXPECT_NEAR(evalScalar("w(4)"), 1.0,              1e-12);
+}
+
+TEST_F(WindowsTest, TukeywinR025)
+{
+    // Small r -> mostly flat with tiny tapers.
+    eval("w = tukeywin(8, 0.25);");
+    EXPECT_NEAR(evalScalar("w(1)"), 0.0,  1e-12);
+    EXPECT_NEAR(evalScalar("w(2)"), 1.0,  1e-12);
+}
+
+TEST_F(WindowsTest, TukeywinSinglePoint)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("tukeywin(1, 0.5)"), 1.0);
+}

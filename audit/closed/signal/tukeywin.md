@@ -42,3 +42,14 @@ Documented signatures (`help tukeywin`):
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Pure spec coverage, no impl change. Numkit tukeywin
+  already matched MATLAB exactly across all (r, N) pairs including
+  r-edge cases (r=0 → rectwin, r=1 → Hann).
+
+  Spec extended from 1 to 12 fingerprints (r ∈ {0, 0.25, 0.5,
+  0.75, 1} sample points + N=1 single-point). Parity OK numkit ↔
+  MATLAB ↔ Octave at tol=1e-12. 5 TEST_F gtest + smoke.
