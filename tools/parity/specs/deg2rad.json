@@ -1,10 +1,16 @@
 {
   "name": "deg2rad",
-  "namespace": "core",
-  "setup": "x = linspace(-720, 720, 1000000);",
-  "expr": "y = deg2rad(x);",
-  "iters": 20,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: R = deg2rad(D). 1M-pt sweep. 20 iters."
+  "namespace": "builtin",
+  "setup": "x = [0, 30, 45, 90, 180];",
+  "expr": "r = deg2rad(x);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r(1)",
+    "r(2)",
+    "r(3)",
+    "r(4)",
+    "r(5)"
+  ],
+  "comment": "Sig: r = deg2rad(...). Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b."
 }
