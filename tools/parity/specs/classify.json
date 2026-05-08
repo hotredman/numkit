@@ -1,18 +1,19 @@
 {
   "name": "classify",
   "namespace": "stats",
-  "setup": "training = [1 1; 1 2; 2 1; 2 2; 5 5; 5 6; 6 5; 6 6]; group = [1; 1; 1; 1; 2; 2; 2; 2]; sample = [1.5 1.5; 4 4; 5.5 5.5; 3 3];",
-  "expr": "[c, err, post, logp] = classify(sample, training, group);",
-  "iters": 5,
+  "setup": "training = [1 1; 1 2; 2 1; 2 2; 5 5; 5 6; 6 5; 6 6; 9 0; 10 0; 10 1; 9 1]; group = [1 1 1 1 2 2 2 2 3 3 3 3]'; sample = [1.5 1.5; 5.5 5.5; 9.5 0.5; 3 3];",
+  "expr": "[cL, errL, postL, logpL] = classify(sample, training, group); [cQ, errQ] = classify(sample, training, group, 'quadratic'); [cDL] = classify(sample, training, group, 'diaglinear'); [cDQ] = classify(sample, training, group, 'diagquadratic');",
+  "iters": 3,
   "tol": 1e-9,
   "fingerprint": [
-    "c(1)",
-    "c(2)",
-    "c(3)",
-    "c(4)",
-    "err",
-    "logp(1)",
-    "logp(2)"
+    "cL(1)", "cL(2)", "cL(3)", "cL(4)",
+    "errL",
+    "logpL(1)", "logpL(4)",
+    "postL(1,1)", "postL(2,2)", "postL(3,3)", "postL(4,1)",
+    "cQ(1)", "cQ(2)", "cQ(3)", "cQ(4)",
+    "errQ",
+    "cDL(1)", "cDL(2)", "cDL(3)", "cDL(4)",
+    "cDQ(1)", "cDQ(2)", "cDQ(3)", "cDQ(4)"
   ],
-  "comment": "Sig: [c, err, post, logp] = classify(sample, training, group[, type]). LDA (default 'linear') or QDA ('quadratic'); also 'diaglinear', 'diagquadratic'. Empirical priors n_k/N. Cholesky-factor approach for numerical stability."
+  "comment": "Sig: [class, err, posterior, logp] = classify(sample, training, group[, type]). 4 discriminant types: linear (LDA, default), quadratic (QDA), diaglinear, diagquadratic. Empirical priors n_k/N. Cholesky-factor approach for numerical stability. Mahalanobis type DEFERRED."
 }

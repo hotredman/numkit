@@ -1,16 +1,15 @@
 {
   "name": "mvnpdf",
   "namespace": "stats",
-  "setup": "X = [0 0; 1 1; -1 1]; mu = [0 0]; Sigma = [2 1; 1 2];",
-  "expr": "p = mvnpdf(X, mu, Sigma);",
+  "setup": "X = [0 0; 1 0; 0 1; 1 1; -1 0]; mu1 = [0.5 0.5]; Sigma = [2 0.5; 0.5 1];",
+  "expr": "y1 = mvnpdf(X); y2 = mvnpdf(X, mu1); y3 = mvnpdf(X, [0 0], Sigma); s_def = mvnpdf([0 0]); s_1d = mvnpdf(1, 0, 1);",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
-    "p(1)",
-    "p(2)",
-    "p(3)",
-    "mvnpdf([0 0])",
-    "mvnpdf(1, 0, 1)"
+    "y1(1)", "y1(2)", "y1(4)", "y1(5)",
+    "y2(1)", "y2(2)", "y2(5)",
+    "y3(1)", "y3(2)", "y3(3)", "y3(5)",
+    "s_def", "s_1d"
   ],
-  "comment": "Sig: p = mvnpdf(X[, mu, Sigma]). Multivariate normal PDF. Default mu=zeros, Sigma=I. Cholesky-based to handle |Σ|^(-1/2) and Σ^(-1) accurately."
+  "comment": "Sig: p = mvnpdf(X[, mu[, Sigma]]). Multivariate normal PDF. Defaults: mu=zeros, Sigma=I. Cholesky-based |Σ|^(-1/2) and Σ^(-1) for numerical stability. Verified bit-identical to MATLAB R2025b on default / explicit mu / explicit Σ paths."
 }

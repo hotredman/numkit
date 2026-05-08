@@ -1,16 +1,15 @@
 {
   "name": "mvtpdf",
   "namespace": "stats",
-  "setup": "X = [0 0; 1 1; -1 1]; C = [1 0.5; 0.5 1]; df = 5;",
-  "expr": "p = mvtpdf(X, C, df);",
+  "setup": "X = [0 0; 1 0; 0 1; 1 1; -1 0]; C = [1 0.5; 0.5 1]; C2 = [2 0.5; 0.5 1.5];",
+  "expr": "y = mvtpdf(X, C, 5); y10 = mvtpdf(X, C, 10); y_cov = mvtpdf(X, C2, 5); s_1d = mvtpdf(1, 1, 5); s_iso = mvtpdf([1 1], eye(2), 5);",
   "iters": 5,
   "tol": 1e-10,
   "fingerprint": [
-    "p(1)",
-    "p(2)",
-    "p(3)",
-    "mvtpdf(1, 1, 5)",
-    "mvtpdf([1 1], eye(2), 5)"
+    "y(1)", "y(2)", "y(3)", "y(4)", "y(5)",
+    "y10(1)", "y10(2)",
+    "y_cov(1)", "y_cov(2)",
+    "s_1d", "s_iso"
   ],
-  "comment": "Sig: p = mvtpdf(X, C, df). Multivariate t PDF; C is treated as a correlation matrix (input is normalised to correlation form to match MATLAB). Cholesky-based determinant + quadratic form."
+  "comment": "Sig: p = mvtpdf(X, C, df). Multivariate Student-t PDF; C normalized to correlation matrix. Cholesky-based |C|^(-1/2) + quadratic form. Bit-identical to MATLAB R2025b."
 }
