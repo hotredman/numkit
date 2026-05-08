@@ -232,14 +232,15 @@ void shanwavf_reg(Span<const Value> args, size_t nargout,
 void cmorwavf_reg(Span<const Value> args, size_t nargout,
                   Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 5)
-        throw Error("cmorwavf: requires (LB, UB, N, fb, fc)",
+    if (args.size() < 3)
+        throw Error("cmorwavf: requires (LB, UB, N[, fb, fc])",
                     0, 0, "cmorwavf", "", "m:cmorwavf:nargin");
     const double lb = args[0].toScalar();
     const double ub = args[1].toScalar();
     const size_t N  = static_cast<size_t>(args[2].toScalar());
-    const double fb = args[3].toScalar();
-    const double fc = args[4].toScalar();
+    // MATLAB R2025b defaults when only 3 args supplied: fb = fc = 1.
+    const double fb = (args.size() >= 4) ? args[3].toScalar() : 1.0;
+    const double fc = (args.size() >= 5) ? args[4].toScalar() : 1.0;
     auto [psi, x] = cmorwavf(ctx.engine->resource(), lb, ub, N, fb, fc);
     outs[0] = std::move(psi);
     if (nargout > 1) outs[1] = std::move(x);

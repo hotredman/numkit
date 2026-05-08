@@ -39,3 +39,12 @@ Documented signatures (`help shanwavf`):
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Pure spec coverage, no impl change. Numkit shanwavf
+  already matched MATLAB exactly. Spec extended from 5 to 7
+  fingerprints (default fb=1/fc=1 + non-default fb=0.5/fc=2 +
+  N=33 peak). Parity OK numkit ↔ MATLAB ↔ Octave at tol=1e-10.
+  3 TEST_F gtest + smoke.

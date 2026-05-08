@@ -30,11 +30,8 @@ Status legend:
 | [findings/wavelet/wcodemat.md](findings/wavelet/wcodemat.md) | wcodemat | wavelet.dwt | low | small | 0e895fe |
 | [findings/wavelet/wkeep.md](findings/wavelet/wkeep.md) | wkeep | wavelet.dwt | low | small | 0e895fe |
 | [findings/wavelet/cgauwavf.md](findings/wavelet/cgauwavf.md) | cgauwavf | wavelet.shape | medium | small | ddf4218 |
-| [findings/wavelet/cmorwavf.md](findings/wavelet/cmorwavf.md) | cmorwavf | wavelet.shape | medium | small | ddf4218 |
 | [findings/wavelet/gauswavf.md](findings/wavelet/gauswavf.md) | gauswavf | wavelet.shape | medium | small | ddf4218 |
-| [findings/wavelet/fbspwavf.md](findings/wavelet/fbspwavf.md) | fbspwavf | wavelet.shape | low | small | ddf4218 |
 | [findings/wavelet/meyeraux.md](findings/wavelet/meyeraux.md) | meyeraux | wavelet.shape | low | small | ddf4218 |
-| [findings/wavelet/shanwavf.md](findings/wavelet/shanwavf.md) | shanwavf | wavelet.shape | low | small | ddf4218 |
 | [findings/stats/normrnd.md](findings/stats/normrnd.md) | normrnd | stats.dist | high | medium | 8e48677 |
 | [findings/stats/chi2rnd.md](findings/stats/chi2rnd.md) | chi2rnd | stats.dist | medium | small | 8e48677 |
 | [findings/stats/trnd.md](findings/stats/trnd.md) | trnd | stats.dist | medium | small | 8e48677 |
@@ -225,6 +222,9 @@ Status legend:
 | [closed/wavelet/wmaxlev.md](closed/wavelet/wmaxlev.md) | wmaxlev | PENDING | 2026-05-08 |
 | [closed/wavelet/mexihat.md](closed/wavelet/mexihat.md) | mexihat | PENDING | 2026-05-08 |
 | [closed/wavelet/morlet.md](closed/wavelet/morlet.md) | morlet | PENDING | 2026-05-08 |
+| [closed/wavelet/cmorwavf.md](closed/wavelet/cmorwavf.md) | cmorwavf | PENDING | 2026-05-08 |
+| [closed/wavelet/shanwavf.md](closed/wavelet/shanwavf.md) | shanwavf | PENDING | 2026-05-08 |
+| [closed/wavelet/fbspwavf.md](closed/wavelet/fbspwavf.md) | fbspwavf | PENDING | 2026-05-08 |
 
 ---
 

@@ -39,3 +39,13 @@ Documented signatures (`help fbspwavf`):
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Pure spec coverage, no impl change. Numkit fbspwavf
+  already matched MATLAB exactly. Spec extended from 4 to 6
+  fingerprints (m ∈ {2, 3} × (fb, fc) ∈ {(1,1), (0.5,2)} × N ∈
+  {8, 16, 33}). Parity OK numkit ↔ MATLAB at tol=1e-12. Octave
+  doesn't ship `fbspwavf` (Wavelet Toolbox); we follow MATLAB.
+  4 TEST_F gtest + smoke.

@@ -1,15 +1,14 @@
 {
   "name": "fbspwavf",
   "namespace": "wavelet",
-  "setup": "lb = -4; ub = 4; N = 33; m = 2; fb = 1; fc = 1;",
-  "expr": "[psi, x] = fbspwavf(lb, ub, N, m, fb, fc);",
+  "setup": "[p2, x2] = fbspwavf(-5, 5, 8, 2, 1, 1); [p3, x3] = fbspwavf(-5, 5, 16, 3, 1, 1); [p4, x4] = fbspwavf(-5, 5, 16, 2, 0.5, 2); [pmid, xmid] = fbspwavf(-4, 4, 33, 2, 1, 1);",
+  "expr": "r2 = real(p2(4)); r3 = real(p3(8)); r4 = real(p4(8)); rmid = real(pmid(17)); imid = imag(pmid(17)); amid = abs(pmid(15));",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
-    "real(psi(17))",
-    "imag(psi(17))",
-    "abs(psi(15))",
-    "abs(psi(19))"
+    "r2", "r3", "r4",
+    "rmid", "imid",
+    "amid"
   ],
-  "comment": "Sig: [psi, x] = fbspwavf(LB, UB, N, m, fb, fc). Frequency B-spline ψ(t) = √fb·(sinc(fb·t/m))^m · exp(2πi·fc·t)."
+  "comment": "Sig: [psi, x] = fbspwavf(LB, UB, N, m, fb, fc). Frequency B-spline ψ(t) = √fb · (sinc(fb·t/m))^m · exp(2πi·fc·t). Coverage: m ∈ {2, 3} × (fb, fc) ∈ {(1,1), (0.5,2)} × N ∈ {8, 16, 33}."
 }
