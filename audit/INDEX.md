@@ -25,7 +25,6 @@ Status legend:
 | [findings/wavelet/wavedec.md](findings/wavelet/wavedec.md) | wavedec | wavelet.dwt | critical | medium | 0e895fe |
 | [findings/wavelet/waverec.md](findings/wavelet/waverec.md) | waverec | wavelet.dwt | critical | small | 0e895fe |
 | [findings/wavelet/appcoef.md](findings/wavelet/appcoef.md) | appcoef | wavelet.dwt | medium | small | 0e895fe |
-| [findings/wavelet/detcoef.md](findings/wavelet/detcoef.md) | detcoef | wavelet.dwt | medium | small | 0e895fe |
 | [findings/stats/normrnd.md](findings/stats/normrnd.md) | normrnd | stats.dist | high | medium | 8e48677 |
 | [findings/stats/chi2rnd.md](findings/stats/chi2rnd.md) | chi2rnd | stats.dist | medium | small | 8e48677 |
 | [findings/stats/trnd.md](findings/stats/trnd.md) | trnd | stats.dist | medium | small | 8e48677 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/wavelet/wkeep.md](closed/wavelet/wkeep.md) | wkeep | PENDING | 2026-05-08 |
 | [closed/wavelet/wcodemat.md](closed/wavelet/wcodemat.md) | wcodemat | PENDING | 2026-05-08 |
 | [closed/wavelet/wextend.md](closed/wavelet/wextend.md) | wextend | PENDING | 2026-05-08 |
+| [closed/wavelet/detcoef.md](closed/wavelet/detcoef.md) | detcoef | PENDING | 2026-05-08 |
 
 ---
 

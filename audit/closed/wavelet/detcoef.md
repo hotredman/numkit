@@ -53,3 +53,29 @@ Documented signatures (`help detcoef`):
 
 - The `'cells'` form needs cell-array support in `Value`. Numkit
   has cells; the integration is purely adapter-level.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Two real bugs fixed.
+
+  **Gap #1 — default level form was throwing.** Auditor's note
+  said "default level=1 (finest)" — actually wrong: probe shows
+  MATLAB defaults to `numel(L) - 2` (the deepest decomposition
+  level). Fixed adapter to compute that fallback when args.size()
+  == 2.
+
+  **Gap #2 — 'cells' form was throwing.** Adapter now detects
+  string `'cells'` flag (case-insensitive) and the level vector,
+  builds a 1×k cell array, and fills each slot with the
+  per-level detail. Used `Value::cell(1, k)` + `cellAt(i)` from
+  the existing cell API.
+
+  Numeric-values cascade (gap #3) was a non-issue — numkit's dwt
+  already matches MATLAB at tol=1e-12.
+
+  Spec created (didn't exist before) with 15 fingerprints
+  (default + level=1 + level=3 + cells form mixed levels). Parity
+  OK numkit ↔ MATLAB at tol=1e-12. Octave doesn't ship `wavedec`/
+  `detcoef` (Wavelet Toolbox); we follow MATLAB. 5 TEST_F gtest
+  (new file).

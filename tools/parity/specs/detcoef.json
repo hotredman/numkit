@@ -1,0 +1,17 @@
+{
+  "name": "detcoef",
+  "namespace": "wavelet",
+  "setup": "[c, l] = wavedec(1:16, 3, 'db1');",
+  "expr": "d_default = detcoef(c, l); d1 = detcoef(c, l, 1); d2 = detcoef(c, l, 2); d3 = detcoef(c, l, 3); cellD = detcoef(c, l, [1 2], 'cells'); D1 = cellD{1}; D2 = cellD{2};",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "d_default(1)", "d_default(2)",
+    "numel(d1)", "d1(1)", "d1(8)",
+    "numel(d2)", "d2(1)", "d2(4)",
+    "numel(d3)", "d3(1)", "d3(2)",
+    "numel(D1)", "D1(1)",
+    "numel(D2)", "D2(1)"
+  ],
+  "comment": "Sig: D = detcoef(C, L[, level[, 'cells']]). Default level = numel(L) - 2 (deepest). Bug fix 2026-05-08: was throwing on 2-arg form (and previously the auditor said default = 1, but probe shows max-level). Added 'cells' form for vector levels."
+}

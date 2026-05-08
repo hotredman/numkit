@@ -18,6 +18,8 @@
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
+#include <cctype>
+#include <string>
 #include <vector>
 
 namespace numkit::wavelet {
@@ -255,11 +257,51 @@ void appcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 void detcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                  CallContext &ctx)
 {
-    if (args.size() < 3)
-        throw Error("detcoef: requires (C, L, level)",
+    if (args.size() < 2)
+        throw Error("detcoef: requires (C, L[, level[, 'cells']])",
                     0, 0, "detcoef", "", "m:detcoef:nargin");
-    int level = static_cast<int>(args[2].toScalar());
-    outs[0] = detcoef(ctx.engine->resource(), args[0], args[1], level);
+    auto *mr = ctx.engine->resource();
+    // Default level = max (deepest decomposition level) when not supplied.
+    // MATLAB R2025b: detcoef(c, l) returns the level numel(L) - 2 detail.
+    // Bug fix 2026-05-08: was throwing on the 2-arg form.
+    if (args.size() == 2) {
+        const long long maxLev =
+            static_cast<long long>(args[1].numel()) - 2;
+        if (maxLev < 1)
+            throw Error("detcoef: L is too short to infer a default level",
+                        0, 0, "detcoef", "", "m:detcoef:size");
+        outs[0] = detcoef(mr, args[0], args[1], static_cast<int>(maxLev));
+        return;
+    }
+
+    // Detect 'cells' form: levels arg is a vector AND 4th arg is 'cells'.
+    const Value &levArg = args[2];
+    const bool hasCellsFlag = (args.size() >= 4)
+        && (args[3].isChar() || args[3].isString())
+        && [&] {
+            std::string s = args[3].toString();
+            for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            return s == "cells";
+        }();
+
+    if (hasCellsFlag) {
+        // 'cells' form: build a cell array, one detail per requested level.
+        const size_t k = levArg.numel();
+        Value cellOut = Value::cell(1, k);
+        for (size_t i = 0; i < k; ++i) {
+            const int lev = static_cast<int>(levArg.elemAsDouble(i));
+            cellOut.cellAt(i) = detcoef(mr, args[0], args[1], lev);
+        }
+        outs[0] = std::move(cellOut);
+        return;
+    }
+
+    // Single-level scalar form (existing behavior).
+    if (levArg.numel() != 1)
+        throw Error("detcoef: level must be scalar (or use 'cells' form)",
+                    0, 0, "detcoef", "", "m:detcoef:level");
+    const int level = static_cast<int>(levArg.toScalar());
+    outs[0] = detcoef(mr, args[0], args[1], level);
 }
 
 } // namespace detail
