@@ -1,0 +1,17 @@
+{
+  "name": "unidinv",
+  "namespace": "stats",
+  "setup": "ps = [0.05 0.5 0.95];",
+  "expr": "x_s = unidinv(0.5, 6); x_lo = unidinv(0.1, 6); x_hi = unidinv(0.99, 6); x_v = unidinv(ps, 10); x_p0 = unidinv(0, 6); x_p1 = unidinv(1, 6); x_pneg = unidinv(-0.1, 6); x_pover = unidinv(1.5, 6); x_n0 = unidinv(0.5, 0); x_nneg = unidinv(0.5, -1); x_nfrac = unidinv(0.5, 6.5); x_nan = unidinv(NaN, 6); x_nan2 = unidinv(0.5, NaN);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "x_s", "x_lo", "x_hi",
+    "x_v(1)", "x_v(2)", "x_v(3)",
+    "x_p0", "x_p1",
+    "x_pneg", "x_pover",
+    "x_n0", "x_nneg", "x_nfrac",
+    "x_nan", "x_nan2"
+  ],
+  "comment": "Sig: x = unidinv(p, N). Inverse discrete-uniform CDF on {1..N}: x = ceil(p·N), clamped. Edges: p<=0 or p>1 -> NaN (p=0 has no integer pre-image); N<1 or non-integer N -> NaN; NaN p/N -> NaN. tol=0."
+}

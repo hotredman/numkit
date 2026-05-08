@@ -93,7 +93,6 @@ Status legend:
 | [findings/cluster/squareform.md](findings/cluster/squareform.md) | squareform | stats.cluster | low | small | b2f133b |
 | [findings/stats/binornd.md](findings/stats/binornd.md) | binornd | stats.dist | low | small | 1525319 |
 | [findings/stats/poissrnd.md](findings/stats/poissrnd.md) | poissrnd | stats.dist | low | small | 1525319 |
-| [findings/stats/unidinv.md](findings/stats/unidinv.md) | unidinv | stats.dist | low | small | 1525319 |
 | [findings/stats/unidrnd.md](findings/stats/unidrnd.md) | unidrnd | stats.dist | low | small | 1525319 |
 | [findings/regress/regress.md](findings/regress/regress.md) | regress | stats.regress | high | medium | f92087f |
 | [findings/regress/lscov.md](findings/regress/lscov.md) | lscov | stats.regress | low | small | f92087f |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/tinv.md](closed/stats/tinv.md) | tinv | PENDING | 2026-05-08 |
 | [closed/stats/tpdf.md](closed/stats/tpdf.md) | tpdf | PENDING | 2026-05-08 |
 | [closed/stats/unidpdf.md](closed/stats/unidpdf.md) | unidpdf | PENDING | 2026-05-08 |
+| [closed/stats/unidinv.md](closed/stats/unidinv.md) | unidinv | PENDING | 2026-05-08 |
 
 ---
 

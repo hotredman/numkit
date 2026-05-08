@@ -21,3 +21,14 @@ RNG family).
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Auditor "no major gap" wrong. Real bug found:
+  `unidinv(0, N)` returned 1, MATLAB returns NaN (p=0 has no
+  integer pre-image in {1..N}). Fixed: p<=0 or p>1 -> NaN; also
+  tightened N guard to `!(N >= 1.0)` to catch NaN N. Octave uses
+  a floor convention (gives 0/N-1 instead of ceil); we follow
+  MATLAB. 15 fingerprints; 5 TEST_F gtest + smoke. Parity OK
+  numkit ↔ MATLAB at tol=0.
