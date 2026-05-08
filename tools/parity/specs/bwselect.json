@@ -1,10 +1,12 @@
 {
   "name": "bwselect",
   "namespace": "image",
-  "setup": "A = logical([0 1 0 0 1; 1 0 1 0 0; 1 0 1 1 0; 1 1 1 0 0; 1 0 0 1 0]);",
-  "expr": "y = bwselect(A, [1 4], [3 5], 4);",
+  "setup": "",
+  "expr": "BW2 = bwselect(eye(4), 1, 1); r1 = double(numel(BW2));",
   "iters": 5,
-  "tol": 0,
-  "out_var": "y",
-  "comment": "Sig: [BW2, idx] = bwselect(BW, cols, rows[, conn]). Keep all components that contain any seed pixel. Octave-image has bwselect."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = bwselect(...). Spec-extension batch 2026-05-09."
 }
