@@ -65,3 +65,12 @@ x = [3 4 5 4 5 6 7 5 4 3 5 6 4 3 5]'
 - A `freq`-weighted form (would be useful for histogrammed Poisson
   counts) — MATLAB does not document one; treating it as missing here
   would be padding the API beyond MATLAB's contract.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Pure spec coverage, no impl change. Spec extended from
+  3 to 12 fingerprints across 4 cases (basic + all-zero + α=0.01
+  + empty). Parity OK numkit ↔ MATLAB at tol=1e-9. Octave's
+  poissfit has its own bug on empty input (`'lb' undefined`); we
+  follow MATLAB. 4 TEST_F gtest + smoke.

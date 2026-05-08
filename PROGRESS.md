@@ -3037,7 +3037,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `nbinfit` | ❌ |  |  |  |  |  |
 | `normfit` | ✅ | 0.006 | 466.90× | 1219.64× | OK | Sig: [mu, sd, muci, sdci] = normfit(x[, alpha]). MLE for normal: mu=mean, sd=sample std (N-1). t-CI for mu, chi² CI for sigma. Default alpha=0.05. |
 | `normlike` | ✅ | 0.009 | 233.30× |  | OK | Sig: [nL, aVar] = normlike([mu sigma], data[, cens, freq]). Default + censoring (right-censored => -log(S(z))) + freq weights + empty + invalid-sigma (=> NaN). Second output aVar = inverse 2×2 observed-Fisher information matrix at [mu, sigma]; reflects cens/freq weighting. |
-| `poissfit` | ✅ | 0.004 | 335.07× | 2256.85× | OK | Sig: [lhat, lci] = poissfit(x[, alpha]). MLE for Poisson: lambda=mean(x). Exact CI via chi² inversion (Garwood). |
+| `poissfit` | ✅ | 0.008 | 228.09× |  | OK | Sig: [lhat, lci] = poissfit(x[, alpha]). MLE for Poisson: lambda=mean(x). Exact CI via chi² inversion (Garwood). Edges: all-zero data -> lo=0; non-default alpha; empty input -> NaN. |
 | `raylfit` | ✅ | 0.004 | 405.25× | 1443.27× | OK | Sig: [shat, sci] = raylfit(x[, alpha]). Rayleigh MLE: σ = √(Σx²/(2N)); CI from chi² inversion 2N·σ̂² ~ σ²·χ²(2N). |
 | `unifit` | ✅ | 0.004 | 84.69× |  | OK | Sig: [a, b, aci, bci] = unifit(x[, alpha]). MLE for U(a,b): a=min, b=max. CI extension delta = (b-a)·(α^(-1/n) − 1). |
 | `wblfit` | ❌ |  |  |  |  |  |
