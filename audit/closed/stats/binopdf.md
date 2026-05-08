@@ -21,3 +21,11 @@ RNG family).
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-07
+- Notes: Pure spec coverage. 14-fingerprint covers scalar/vector,
+  out-of-support (k<0/k>n/non-integer → 0), boundary (p=0 only k=0,
+  p=1 only k=n → 1), invalid (n<0/p out of [0,1] → NaN). 5 TEST_F
+  gtest + smoke. Parity OK numkit ↔ MATLAB ↔ Octave at tol=1e-12.
