@@ -1,0 +1,16 @@
+{
+  "name": "unifpdf",
+  "namespace": "stats",
+  "setup": "xs = [-0.5 0 0.3 1 1.5];",
+  "expr": "y_d = unifpdf(0.5); y_d0 = unifpdf(0); y_d1 = unifpdf(1); y_dlo = unifpdf(-0.1); y_dhi = unifpdf(1.1); y_s = unifpdf(0.5, 0, 1); y_w = unifpdf(2, 1, 5); y_lo = unifpdf(0, 1, 5); y_hi = unifpdf(6, 1, 5); y_v = unifpdf(xs, 0, 1); y_b0 = unifpdf(0.5, 1, 0); y_brev = unifpdf(0.5, 5, 1); y_eq = unifpdf(0.5, 1, 1); y_nan = unifpdf(NaN, 0, 1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "y_d", "y_d0", "y_d1", "y_dlo", "y_dhi",
+    "y_s", "y_w", "y_lo", "y_hi",
+    "y_v(1)", "y_v(2)", "y_v(4)", "y_v(5)",
+    "y_b0", "y_brev", "y_eq",
+    "y_nan"
+  ],
+  "comment": "Sig: y = unifpdf(x[, a, b]). Continuous uniform PDF on [a, b]; defaults a=0, b=1. y = 1/(b-a) for x in [a,b], else 0. Edges: b<=a -> NaN; NaN x -> NaN; NaN a/b -> 0 (NaN comparisons false, MATLAB convention)."
+}

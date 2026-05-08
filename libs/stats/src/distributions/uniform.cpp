@@ -37,10 +37,13 @@ Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
 
 Value unifpdf(std::pmr::memory_resource *mr, const Value &x, double a, double b)
 {
+    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    // b <= a -> NaN (matches MATLAB; a==b is degenerate 0-width support).
     if (b <= a)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(mr, x, [NaN](double){ return NaN; });
     const double inv = 1.0 / (b - a);
     return elementwise(mr, x, [=](double xi) {
+        if (std::isnan(xi)) return NaN;  // propagate NaN x — matches MATLAB
         return (xi >= a && xi <= b) ? inv : 0.0;
     });
 }
