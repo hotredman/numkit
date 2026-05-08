@@ -1,0 +1,14 @@
+{
+  "name": "enbw",
+  "namespace": "core",
+  "setup": "wh = hamming(8); whann = hann(64); wrect = rectwin(64); wblack = blackman(64); wh64 = hamming(64);",
+  "expr": "b_h = enbw(wh); b_hann = enbw(whann); b_rect = enbw(wrect); b_black = enbw(wblack); b_fs = enbw(wh64, 100); b_fs2 = enbw(wh, 2); b_rect8 = enbw(rectwin(8));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "b_h", "b_hann", "b_rect", "b_black",
+    "b_fs", "b_fs2",
+    "b_rect8"
+  ],
+  "comment": "Sig: bw = enbw(window[, fs]). Equivalent noise bandwidth: N · Σ(w²) / (Σw)². With fs, scales output by fs/N. tol=1e-12. Specs covers hamming/hann/rectwin/blackman + fs-scaled forms."
+}
