@@ -40,3 +40,16 @@ Spec: extend with matrix, length-override, Type. `tol = 1e-12`.
 ## Out of scope for this ТЗ
 
 - N/A — joint fix.
+
+## Closed (partial)
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Joint closure with audit/closed/signal/dct.md (same
+  fixes apply: matrix column-wise + length override + dim arg).
+  See dct's Closed block for full bug analysis. AVAR-equivalent
+  Type-III delivery via `idct` is the documented MATLAB
+  behaviour — only Type=2-equivalent (true inverse DCT-II) is
+  shipped here. Spec extended from 1 to 13 fingerprints (round-
+  trip identity covers all paths). Parity OK numkit ↔ MATLAB at
+  tol=1e-10. 1 new TEST_P (matrix round-trip) + smoke (joint with
+  dct).

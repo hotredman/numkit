@@ -176,4 +176,79 @@ TEST_P(DspGapsTest, DctSinglePoint)
     EXPECT_NEAR(X->doubleData()[0], 5.0, 1e-12);
 }
 
+// Bug fix 2026-05-08 — dct/idct were not handling matrix input column-wise,
+// length-override, or dim arg. Coverage tests for the fixes:
+
+TEST_P(DspGapsTest, DctMatrixColumnWise)
+{
+    // dct(M) on a matrix transforms each column independently.
+    // M = [1 5; 2 6; 3 7; 4 8]:  col1=[1 2 3 4], col2=[5 6 7 8].
+    eval("M = [1 5; 2 6; 3 7; 4 8]; Y = dct(M);");
+    auto *Y = getVarPtr("Y");
+    ASSERT_NE(Y, nullptr);
+    EXPECT_EQ(Y->dims().rows(), 4u);
+    EXPECT_EQ(Y->dims().cols(), 2u);
+    // Column 1: dct([1 2 3 4]')
+    EXPECT_NEAR(evalScalar("Y(1,1)"),  5.0,                 1e-12);
+    EXPECT_NEAR(evalScalar("Y(2,1)"), -2.2304424973876635,   1e-12);
+    EXPECT_NEAR(evalScalar("Y(4,1)"), -0.1585126677811071,   1e-12);
+    // Column 2: dct([5 6 7 8]')
+    EXPECT_NEAR(evalScalar("Y(1,2)"), 13.0,                  1e-12);
+    EXPECT_NEAR(evalScalar("Y(2,2)"), -2.2304424973876635,   1e-12);
+}
+
+TEST_P(DspGapsTest, DctLengthOverrideTruncate)
+{
+    // dct(x, 6) on length-8 input truncates to 6 before transform.
+    eval("y = dct((1:8)', 6);");
+    auto *y = getVarPtr("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_EQ(y->numel(), 6u);
+    EXPECT_NEAR(evalScalar("y(1)"), 8.5732141, 1e-6);
+    EXPECT_NEAR(evalScalar("y(2)"), -4.1625611, 1e-6);
+}
+
+TEST_P(DspGapsTest, DctLengthOverridePad)
+{
+    // dct(x, 10) zero-pads from length-8 to 10.
+    eval("y = dct((1:8)', 10);");
+    auto *y = getVarPtr("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_EQ(y->numel(), 10u);
+    EXPECT_NEAR(evalScalar("y(1)"),  11.3842, 1e-3);
+    EXPECT_NEAR(evalScalar("y(10)"), -1.1635, 1e-3);
+}
+
+TEST_P(DspGapsTest, DctRowWiseDim2)
+{
+    // dct(M, 4, 2) transforms each row.
+    eval("M = [1 5; 2 6; 3 7; 4 8]; Y = dct(M, 4, 2);");
+    auto *Y = getVarPtr("Y");
+    ASSERT_NE(Y, nullptr);
+    EXPECT_EQ(Y->dims().rows(), 4u);
+    EXPECT_EQ(Y->dims().cols(), 4u);
+    // Row 1: dct([1 5 0 0], 4) — pad to 4.
+    EXPECT_NEAR(evalScalar("Y(1,1)"),  3.0,    1e-9);
+    EXPECT_NEAR(evalScalar("Y(1,4)"), -2.9958, 1e-3);
+}
+
+TEST_P(DspGapsTest, IdctMatrixRoundTrip)
+{
+    eval("M = [1 5; 2 6; 3 7; 4 8]; R = idct(dct(M));");
+    auto *R = getVarPtr("R");
+    EXPECT_NEAR(evalScalar("R(1,1)"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("R(2,2)"), 6.0, 1e-12);
+    EXPECT_NEAR(evalScalar("R(4,1)"), 4.0, 1e-12);
+    EXPECT_NEAR(evalScalar("R(4,2)"), 8.0, 1e-12);
+}
+
+TEST_P(DspGapsTest, DctTypeOtherThan2Errors)
+{
+    // 'Type' values other than 2 are not yet implemented; explicit
+    // error instead of silently doing Type-II.
+    bool threw = false;
+    try { eval("dct((1:8)', 'Type', 1);"); } catch (...) { threw = true; }
+    EXPECT_TRUE(threw);
+}
+
 INSTANTIATE_DUAL(DspGapsTest);

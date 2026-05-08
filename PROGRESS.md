@@ -2541,7 +2541,7 @@ intentionally omitted — flat solver functions only.
 | `bitrevorder` | ✅ | 0.006 | 284.93× | 173.25× | OK | Sig: [Y, I] = bitrevorder(X). Bit-reversed permutation; 2nd output is the 1-based index vector such that Y(k) = X(I(k)). Bug fix 2026-05-08: 2nd output was missing (probe threw 'Undefined function or variable I'). Now both outputs match MATLAB exactly. tol=0 (integer-stable). |
 | `cceps` | ✅ | 0.029 | 5.63× | 3.79× | OK | Sig: Y = cceps(X). Complex cepstrum. 100 iters. |
 | `czt` | ❌ |  |  |  |  | chirp Z-transform |
-| `dct` | ✅ | 3.978 | 0.02× | 0.02× | OK | Sig: Y = dct(X). 1024-pt DCT. 1000 iters. |
+| `dct` | ✅ | 0.012 | 141.14× |  | OK | Sig: Y = dct(X[, n[, dim]]). DCT-II (default Type=2). Bug fix 2026-05-08: matrix input was treated as flat numel-vector — now per-column (default) or per-row via dim=2; length override n pads/truncates; positive 'Type' values other than 2 explicitly error (was silently doing Type-II). |
 | `dftmtx` | ✅ | 0.008 | 31.76× | 14.72× | OK | Sig: F = dftmtx(N). N×N DFT matrix; F(j,k) = exp(-2πi(j-1)(k-1)/N). For real input dftmtx(N)*x equals fft(x). Edges: F2 4 elem, F4 16 elem, F8 64 elem, F16 256 elem; F8(2,2) = √2/2 - i√2/2 ≈ 0.7071-0.7071i; F8(5,5) = 1 + 0i (column 5 row 5 ≡ exp(-2πi·16/8) = exp(-4πi) = 1); dftmtx(1) = 1. |
 | `digitrevorder` | ❌ |  |  |  |  |  |
 | `dlistft` | ❌ |  |  |  |  |  |
@@ -2554,7 +2554,7 @@ intentionally omitted — flat solver functions only.
 | `hht` | ❌ |  |  |  |  | Hilbert-Huang |
 | `hilbert` | ✅ | 0.004 | 179.00× | 26.58× | OK | Sig: H = hilbert(X). Analytic signal: real(H)=X, imag(H)=+H{X}. MATLAB R2025b sign convention: positive frequencies multiplied by +i. After fix in libs/signal/src/transforms/hilbert.cpp (added trailing conjugation to compensate for numkit's IFFT-direction FFT primitive). Closes audit/findings/signal/hilbert.md. |
 | `icceps` | ✅ | 0.034 | 2.11× |  | OK | Sig: Y = icceps(C). Inverse complex cepstrum. 100 iters. |
-| `idct` | ✅ | 3.917 | 0.02× | 0.03× | OK | Sig: y = idct(X). Inverse DCT 1024-pt. 1000 iters. |
+| `idct` | ✅ | 0.019 | 210.77× |  | OK | Sig: y = idct(X[, n[, dim]]). Inverse DCT-II. Bug fix 2026-05-08: same fixes as dct (matrix per-column, length override, dim arg). Round-trip identity idct(dct(X)) == X covers all paths. |
 | `ifsst` | ❌ |  |  |  |  |  |
 | `ifwht` | ❌ |  |  |  |  | inverse |
 | `instfreq` | ✅ |  |  |  |  | instantaneous frequency |
