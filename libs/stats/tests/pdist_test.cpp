@@ -69,9 +69,51 @@ TEST_F(PdistTest, MahalanobisExplicitC)
 
 TEST_F(PdistTest, Pdist2MahalanobisDefault)
 {
-    // pdist2 uses cov(Y) by default for Mahalanobis.
-    eval("X = [1 1; 2 2]; Y = [1 1; 2 2; 3 3; 6 5; 7 4]; d = pdist2(X, Y, 'mahalanobis');");
-    EXPECT_EQ(static_cast<size_t>(evalScalar("size(d, 1)")), 2u);
-    EXPECT_EQ(static_cast<size_t>(evalScalar("size(d, 2)")), 5u);
-    // (Just check shape; numerical values verified via parity spec.)
+    // pdist2 uses cov(X) (the FIRST arg) by default for Mahalanobis.
+    // Verified via R2025b probe.
+    eval("X = [1 1; 2 2; 3 3; 6 5; 7 4]; Y = [0 0; 1 0]; d = pdist2(X, Y, 'mahalanobis');");
+    EXPECT_EQ(static_cast<size_t>(evalScalar("size(d, 1)")), 5u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("size(d, 2)")), 2u);
+}
+
+// 2026-05-08: pdist2 'Smallest'/'Largest' k mode (closes ТЗ
+// audit/findings/cluster/pdist2.md gaps #1-#2).
+
+TEST_F(PdistTest, Pdist2SmallestK)
+{
+    eval("A = [1 2; 3 4; 5 6; 7 8; 9 10]; B = [1 2; 5 5; 9 9];");
+    eval("[D, I] = pdist2(A, B, 'euclidean', 'Smallest', 2);");
+    EXPECT_EQ(static_cast<size_t>(evalScalar("size(D, 1)")), 2u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("size(D, 2)")), 3u);
+    // Per-column smallest (ascending).
+    EXPECT_NEAR(evalScalar("D(1,1)"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("D(2,1)"), 2.8284271247, 1e-9);
+    EXPECT_NEAR(evalScalar("D(1,2)"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("D(2,2)"), 2.2360679775, 1e-9);
+    EXPECT_NEAR(evalScalar("D(1,3)"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("D(2,3)"), 2.2360679775, 1e-9);
+    // Indices into A (1-based), per column.
+    EXPECT_DOUBLE_EQ(evalScalar("I(1,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(2,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(1,2)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(2,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(1,3)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(2,3)"), 4.0);
+}
+
+TEST_F(PdistTest, Pdist2LargestK)
+{
+    eval("A = [1 2; 3 4; 5 6; 7 8; 9 10]; B = [1 2; 5 5; 9 9];");
+    eval("[D, I] = pdist2(A, B, 'euclidean', 'Largest', 2);");
+    // Largest 2 per column, descending.
+    EXPECT_NEAR(evalScalar("D(1,1)"), 11.3137084990, 1e-9);
+    EXPECT_NEAR(evalScalar("D(2,1)"),  8.4852813742, 1e-9);
+    EXPECT_NEAR(evalScalar("D(1,2)"),  6.4031242374, 1e-9);
+    EXPECT_NEAR(evalScalar("D(2,2)"),  5.0, 1e-12);
+    EXPECT_NEAR(evalScalar("D(1,3)"), 10.6301458127, 1e-9);
+    EXPECT_NEAR(evalScalar("D(2,3)"),  7.8102496759, 1e-9);
+    EXPECT_DOUBLE_EQ(evalScalar("I(1,1)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(2,1)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(1,2)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(2,2)"), 1.0);
 }

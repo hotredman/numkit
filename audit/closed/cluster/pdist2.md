@@ -1,6 +1,6 @@
 # stats.cluster/pdist2 — ТЗ for completion
 
-**Status:** open
+**Status:** closed (partial — function-handle deferred)
 **Priority:** medium
 **Effort:** small
 **Audited at commit:** b2f133b
@@ -48,3 +48,14 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-08
+- Notes: Added 'Smallest'/'Largest' k N-V mode in `pdist2_reg`
+  (per-column partial_sort, returns k×My distance + 1-based index
+  matrix). Also fixed a latent bug: default Mahalanobis was using
+  cov(Y) but MATLAB R2025b uses cov(X) (the FIRST arg) — verified by
+  direct probe. Function-handle metric (gap #3) deferred — same
+  status as `pdist`.
+
