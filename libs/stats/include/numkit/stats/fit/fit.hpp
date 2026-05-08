@@ -39,11 +39,17 @@ expfit(std::pmr::memory_resource *mr, const Value &x, double alpha,
 std::tuple<Value, Value, Value, Value>
 unifit(std::pmr::memory_resource *mr, const Value &x, double alpha);
 
-/// `[parm, pci] = lognfit(x[, alpha])` — lognormal MLE: muhat / sigmahat
-/// of log(x). Returns parm = 1×2 row, pci = 2×2 (column 1 = mu CI,
-/// column 2 = sigma CI; row 1 = lower, row 2 = upper).
+/// `[parm, pci] = lognfit(x[, alpha[, cens[, freq]]])` — lognormal MLE
+/// of muhat / sigmahat of log(x). Closed-form weighted moments when
+/// freq is supplied without censoring; EM-iterated MLE on log(x) with
+/// numeric Hessian for CIs when right-censored. Returns parm = 1×2
+/// row, pci = 2×2 (column 1 = mu CI, column 2 = sigma CI; row 1 =
+/// lower, row 2 = upper).
 std::tuple<Value, Value>
 lognfit(std::pmr::memory_resource *mr, const Value &x, double alpha);
+std::tuple<Value, Value>
+lognfit(std::pmr::memory_resource *mr, const Value &x, double alpha,
+        const Value *cens, const Value *freq);
 
 /// `[phat, pci] = binofit(x, n[, alpha])` — Clopper–Pearson exact
 /// binomial CI for `x` successes out of `n` trials. Vector inputs

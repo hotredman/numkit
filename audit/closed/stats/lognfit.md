@@ -1,6 +1,6 @@
 # stats/lognfit — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** medium
 **Effort:** medium
 **Audited at commit:** bfda361
@@ -79,3 +79,30 @@ numkit basic call matches; other three return basic-call values
 
 - The `LognormalDistribution` object form and `paramci` wrapper —
   numkit only needs the flat function.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-08
+- Notes: All four signatures now bit-identical to MATLAB R2025b:
+  basic; cens-only; freq-only; cens+freq. Implementation:
+  - **Closed-form weighted moments** when `freq` alone (no cens).
+    `μ = Σf·log(x) / Σf`, `σ² = Σf·(log(x)-μ)² / (Σf-1)`. CIs use
+    t-quantile (μ) and chi² inversion (σ) with `dof = Σf-1`.
+  - **EM iteration** when censored (with or without freq). E-step
+    uses inverse Mills ratio λ(α) = φ(α)/Φ(-α) for the truncated-
+    normal moments E[y] and E[y²] of right-censored observations.
+    M-step is the MLE update (divide by Σf, not Σf-1).
+  - **CIs from analytic Fisher info** (Wald): hand-derived
+    `−∂²L/∂μ²`, `−∂²L/∂μ∂σ`, `−∂²L/∂σ²` per observation, summed,
+    inverted 2×2. SE(μ) = √(I_σσ/det), SE(σ) = √(I_μμ/det).
+    Quantile is **z** (standard normal `norminv(1-α/2)`), not t.
+    σ CI uses log-σ transform: `σ·exp(±z·SE(σ)/σ̂)` for asymmetric
+    interval matching MATLAB lognfit convention.
+
+  PMR: switched scratch buffers (`y` for log(x), `fr` for freq, `cn`
+  for cens) to ScratchArena + ScratchVec. No raw `std::vector` left
+  in the lognfit code path.
+
+  4 artefacts shipped (impl + 24-fp parity spec + 4 gtests + smoke).
+  Parity OK numkit ↔ MATLAB ↔ Octave at tol=1e-7.
+
