@@ -70,3 +70,14 @@ mandatory for parity.
 ## Out of scope for this ТЗ
 
 - A `cens`/`freq` form for Rayleigh — MATLAB does not have one.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Pure spec coverage, no impl change. Spec extended from
+  3 to 12 fingerprints (basic + α=0.01 + single-element + empty).
+  Parity OK numkit ↔ MATLAB at tol=1e-9. Octave's raylfit has its
+  own bug on empty input (`X must be a vector`); we follow MATLAB.
+  4 TEST_F gtest + smoke. Strict-nargin check (recommendation #2)
+  not implemented — numkit's lax behaviour matches Octave and is
+  consistent with the rest of the *fit family.

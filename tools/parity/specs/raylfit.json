@@ -1,14 +1,15 @@
 {
   "name": "raylfit",
   "namespace": "stats",
-  "setup": "x = [1.5 2.3 0.8 3.1 1.7 2.0 1.4 2.8 1.9 2.2]';",
-  "expr": "[shat, sci] = raylfit(x);",
+  "setup": "x = [1.5 2.3 0.8 3.1 1.7 2.0 1.4 2.8 1.9 2.2]'; xone = [2.5]';",
+  "expr": "[s_b, sc_b] = raylfit(x); [s_a, sc_a] = raylfit(x, 0.01); [s_one, sc_one] = raylfit(xone); [s_e, sc_e] = raylfit([]);",
   "iters": 5,
   "tol": 1e-9,
   "fingerprint": [
-    "shat",
-    "sci(1)",
-    "sci(2)"
+    "s_b",   "sc_b(1)",   "sc_b(2)",
+    "s_a",   "sc_a(1)",   "sc_a(2)",
+    "s_one", "sc_one(1)", "sc_one(2)",
+    "s_e",   "sc_e(1)",   "sc_e(2)"
   ],
-  "comment": "Sig: [shat, sci] = raylfit(x[, alpha]). Rayleigh MLE: σ = √(Σx²/(2N)); CI from chi² inversion 2N·σ̂² ~ σ²·χ²(2N)."
+  "comment": "Sig: [shat, sci] = raylfit(x[, alpha]). Rayleigh MLE: σ = √(Σx²/(2N)); CI from chi² inversion 2N·σ̂² ~ σ²·χ²(2N). Edges: non-default α; single-element x; empty input -> NaN."
 }
