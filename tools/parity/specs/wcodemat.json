@@ -1,10 +1,17 @@
 {
   "name": "wcodemat",
   "namespace": "image",
-  "setup": "X = [-2 -1 0 1 2];",
-  "expr": "y = wcodemat(X, 5, 'mat', 1);",
+  "setup": "M = [1 -2 3; 4 -5 6];",
+  "expr": "yd = wcodemat(M); y4 = wcodemat(M, 4); y0 = wcodemat(M, 16, 'mat', 0); yr = wcodemat(M, 16, 'row'); yc = wcodemat(M, 16, 'col'); ys = wcodemat([1 2 3 4 5]);",
   "iters": 5,
   "tol": 0,
-  "out_var": "y",
-  "comment": "Sig: Y = wcodemat(X [, nb [, opt [, absol]]]). Quantize/scale to [1, nb] integer codes (default nb=16, mat, absol=1). Wavelet Toolbox helper; Octave-image doesn't have it → correctness=N/A."
+  "fingerprint": [
+    "yd(1,1)", "yd(1,2)", "yd(2,3)",
+    "y4(1,1)", "y4(1,2)", "y4(2,1)", "y4(2,3)",
+    "y0(1,1)", "y0(2,1)", "y0(2,3)",
+    "yr(1,1)", "yr(1,3)", "yr(2,1)", "yr(2,3)",
+    "yc(1,1)", "yc(2,1)", "yc(2,3)",
+    "ys(1)", "ys(5)"
+  ],
+  "comment": "Sig: Y = wcodemat(X[, nb[, opt[, absol]]]). Quantize/scale to [1, nb] integer codes. opt ∈ {'mat'(default), 'row', 'col'}; absol=1 default uses |x|. Bug fix 2026-05-08: previous impl used `round` and multiplied by `nb-1`, producing off-by-one quantization on interior values. MATLAB uses floor((v-mn)/span * nb) + 1, with the upper edge clamped from nb+1 down to nb. tol=0 (integer-stable). Octave doesn't ship wcodemat."
 }

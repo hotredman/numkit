@@ -58,3 +58,29 @@ Inputs: `M = [1 -2 3; 4 -5 6]`
 
 - N/A — function appears mostly correct; this ТЗ is mostly spec
   coverage.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Real bug caught by spec extension. Auditor said "function
+  appears mostly correct"; probe revealed wrong quantization
+  formula:
+
+  numkit was using `round((v - mn)/span * (nb - 1)) + 1`. MATLAB
+  uses `floor((v - mn)/span * nb) + 1`, with the upper edge
+  (v == mx) clamped from nb+1 down to nb. This produced
+  off-by-one errors on interior values:
+    wcodemat([1 -2 3; 4 -5 6], 4)
+      numkit  = [1 2 2; 3 3 4]   (wrong)
+      MATLAB  = [1 1 2; 3 4 4]   (correct)
+  Same shape error in `'mat', absol=0`: numkit (2,1) = 13, MATLAB
+  = 14.
+
+  Fix: replaced `round` with `floor` and `(nb - 1)` with `nb` in
+  the encode lambda. `'row'`/`'col'` paths already worked
+  (auditor's main concern).
+
+  Spec extended from 1 to 19 fingerprints (default + nb=4 +
+  absol=0 + 'row' + 'col' + vector). Parity OK numkit ↔ MATLAB
+  at tol=0. Octave doesn't ship `wcodemat` (Wavelet Toolbox);
+  we follow MATLAB. 6 TEST_F gtest (new file) + smoke.

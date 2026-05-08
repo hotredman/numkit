@@ -706,12 +706,18 @@ Value wcodemat(std::pmr::memory_resource *mr, const Value &X,
     for (char c : opt) lo.push_back(static_cast<char>(std::tolower(c)));
     if (lo.empty()) lo = "mat";
 
+    // MATLAB R2025b formula: y = floor((v - mn) / span * nb) + 1, with the
+    // upper edge (v == mx) clamped from nb+1 down to nb.
+    // Bug fix 2026-05-08: previous impl used `round` and multiplied by
+    // `nb - 1`, producing off-by-one quantization errors on interior values
+    // (e.g., wcodemat([1 -2 3; 4 -5 6], 4) → numkit [1 2 2; 3 3 4] vs
+    //  MATLAB [1 1 2; 3 4 4]).
     auto encode = [&](double v, double mn, double mx) {
         const double span = mx - mn;
         if (span == 0.0) return 1.0;
-        double y = std::round((v - mn) / span * (nb - 1)) + 1.0;
-        if (y < 1.0)  y = 1.0;
-        if (y > nb)   y = nb;
+        double y = std::floor((v - mn) / span * static_cast<double>(nb)) + 1.0;
+        if (y < 1.0) y = 1.0;
+        if (y > nb)  y = static_cast<double>(nb);
         return y;
     };
 
