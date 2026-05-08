@@ -50,3 +50,26 @@ Sum = 1.
 ## Out of scope for this ТЗ
 
 - The biorthogonal/symlet/coiflet families — separate functions.
+
+## Closed (partial)
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Extended Daubechies coefficient table from db1..db4 to
+  db1..db10. Coefficients extracted from MATLAB R2025b
+  `flip(dbwavf('dbN')*sqrt(2))` (matches numkit's reversed Lo_R
+  storage convention) at 17-decimal precision. All sums verified
+  to equal 1 within 1e-12. Error message updated to reflect new
+  range.
+
+  **Deferred — db11..db45:** beyond the typical practical range
+  (db11+ becomes numerically ill-conditioned for filter design;
+  most real-world wavelet code uses db4..db10). Coefficients are
+  available from MATLAB if needed; can be added similarly when a
+  consumer requires them.
+
+  Spec extended from 8 to 18 fingerprints (lengths + sums + key
+  values across db1..db10). Parity OK numkit ↔ MATLAB at
+  tol=1e-12. Octave doesn't ship `dbwavf` (Wavelet Toolbox
+  function); we follow MATLAB. 9 TEST_F gtest (existing 5 + 4
+  new lengths / sums / db5 / db8). 65 wavelet-suite tests pass —
+  no regression.

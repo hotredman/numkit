@@ -1,10 +1,19 @@
 {
   "name": "dbwavf",
   "namespace": "wavelet",
-  "setup": "",
-  "expr": "h1 = dbwavf('db1'); h2 = dbwavf('db2'); h4 = dbwavf('db4');",
+  "setup": "h1 = dbwavf('db1'); h2 = dbwavf('db2'); h4 = dbwavf('db4'); h5 = dbwavf('db5'); h6 = dbwavf('db6'); h8 = dbwavf('db8'); h10 = dbwavf('db10');",
+  "expr": "n1 = numel(h1); n4 = numel(h4); n5 = numel(h5); n10 = numel(h10); s5 = sum(h5); s10 = sum(h10); v5_1 = h5(1); v5_e = h5(end); v8_1 = h8(1); v8_e = h8(end); v10_m = h10(10);",
   "iters": 5,
   "tol": 1e-12,
-  "fingerprint": ["numel(h1)", "h1(1)", "numel(h2)", "h2(1)", "h2(4)", "numel(h4)", "h4(1)", "h4(8)"],
-  "comment": "Sig: h = dbwavf(wname). Daubechies scaling filter: Lo_R / sqrt(2). Length 2N for 'dbN'. Sum(h) = 1."
+  "fingerprint": [
+    "n1", "n4", "n5", "n10",
+    "h1(1)", "h2(1)", "h2(4)",
+    "h4(1)", "h4(8)",
+    "v5_1", "v5_e",
+    "h6(1)", "h6(12)",
+    "v8_1", "v8_e",
+    "v10_m",
+    "s5", "s10"
+  ],
+  "comment": "Sig: h = dbwavf(wname). Daubechies scaling filter: dbwavf*sqrt(2) = Lo_R, length 2N for dbN, sum(h) = 1. Coverage: db1, db2, db4, db5, db6, db8, db10. Bug fix 2026-05-08: previously only supported db1..db4; extended table to db5..db10."
 }

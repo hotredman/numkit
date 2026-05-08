@@ -43,7 +43,6 @@ Status legend:
 | [findings/stats/trnd.md](findings/stats/trnd.md) | trnd | stats.dist | medium | small | 8e48677 |
 | [findings/wavelet/wfilters.md](findings/wavelet/wfilters.md) | wfilters | wavelet.filt | critical | medium | 1c2df89 |
 | [findings/wavelet/coifwavf.md](findings/wavelet/coifwavf.md) | coifwavf | wavelet.filt | medium | small | 1c2df89 |
-| [findings/wavelet/dbwavf.md](findings/wavelet/dbwavf.md) | dbwavf | wavelet.filt | medium | medium | 1c2df89 |
 | [findings/wavelet/symwavf.md](findings/wavelet/symwavf.md) | symwavf | wavelet.filt | medium | medium | 1c2df89 |
 | [findings/stats/betarnd.md](findings/stats/betarnd.md) | betarnd | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/exprnd.md](findings/stats/exprnd.md) | exprnd | stats.dist | medium | small | 301e5a5 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/wavelet/orthfilt.md](closed/wavelet/orthfilt.md) | orthfilt | PENDING | 2026-05-08 |
 | [closed/wavelet/dyaddown.md](closed/wavelet/dyaddown.md) | dyaddown | PENDING | 2026-05-08 |
 | [closed/wavelet/dyadup.md](closed/wavelet/dyadup.md) | dyadup | PENDING | 2026-05-08 |
+| [closed/wavelet/dbwavf.md](closed/wavelet/dbwavf.md) | dbwavf | PENDING (partial) | 2026-05-08 |
 
 ---
 
