@@ -5,6 +5,7 @@
 #include <numkit/stats/cluster/distance.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
@@ -12,7 +13,7 @@
 #include <cstring>
 #include <functional>
 #include <limits>
-#include <vector>
+#include <memory_resource>
 
 namespace numkit::stats {
 
@@ -75,12 +76,13 @@ Value linkage(std::pmr::memory_resource *mr, const Value &Y,
               const std::string &method)
 {
     const LinkMethod m = parse_link(method);
+    ScratchArena scratch(mr);
 
     // Determine N. Y is either pdist row (1×n*(n-1)/2) or NxD raw data.
     const size_t Yrows = Y.dims().rows();
     const size_t Ycols = Y.dims().cols();
     size_t N;
-    std::vector<double> D;  // upper-tri row-major, size N*(N-1)/2
+    ScratchVec<double> D(&scratch);  // upper-tri row-major
 
     if (Yrows == 1 || Ycols == 1) {
         const size_t n = Y.numel();
@@ -91,7 +93,9 @@ Value linkage(std::pmr::memory_resource *mr, const Value &Y,
         D.resize(n);
         for (size_t i = 0; i < n; ++i) D[i] = Y.elemAsDouble(i);
     } else {
-        // Treat as raw data: compute pdist with Euclidean.
+        // Treat as raw data: compute pdist with Euclidean (the Value
+        // returned by pdist() is allocated on `mr`; copy values into the
+        // scratch vector so the temporary Value can be dropped).
         Value Yp = pdist(mr, Y, "euclidean", 2.0);
         const size_t n = Yp.numel();
         N = Yrows;
@@ -104,7 +108,7 @@ Value linkage(std::pmr::memory_resource *mr, const Value &Y,
 
     if (N < 2) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
 
-    // Build a dense N×N distance matrix (row-major) from upper-tri row.
+    // Build a dense N×N distance matrix as flat row-major buffer.
     auto pdist_idx = [&](size_t i, size_t j) {
         if (i > j) std::swap(i, j);
         // pdist convention: index of pair (i, j) i<j among rows of an N×N
@@ -114,20 +118,24 @@ Value linkage(std::pmr::memory_resource *mr, const Value &Y,
         return i * N - (i * (i + 1)) / 2 + (j - i - 1);
     };
 
-    std::vector<std::vector<double>> dm((size_t)N, std::vector<double>((size_t)N, 0.0));
+    // dm is N×N flat row-major; we keep it that way and just track an
+    // active-row mask + count to avoid per-step erase shuffles.
+    ScratchVec<double> dm(N * N, 0.0, &scratch);
     for (size_t i = 0; i < N; ++i)
         for (size_t j = i + 1; j < N; ++j) {
             const double d = D[pdist_idx(i, j)];
-            dm[i][j] = d; dm[j][i] = d;
+            dm[i * N + j] = d;
+            dm[j * N + i] = d;
         }
 
-    // Active cluster set; each entry maps 0..N-1 → original cluster id.
-    std::vector<int> ids(N);
-    std::vector<int> sizes(N, 1);
+    // Active cluster set.
+    ScratchVec<int> ids(N, &scratch);
+    ScratchVec<int> sizes(N, 1, &scratch);
     for (size_t i = 0; i < N; ++i) ids[i] = (int)i;  // 0-based; emit 1-based later
 
-    std::vector<double> Zflat;
+    ScratchVec<double> Zflat(&scratch);
     Zflat.reserve(3 * (N - 1));
+    ScratchVec<double> newrow(N, &scratch);  // re-used per step
 
     int next_id = (int)N;
     for (size_t step = 0; step + 1 < N; ++step) {
@@ -137,7 +145,7 @@ Value linkage(std::pmr::memory_resource *mr, const Value &Y,
         double bd = std::numeric_limits<double>::infinity();
         for (size_t i = 0; i < M; ++i)
             for (size_t j = i + 1; j < M; ++j)
-                if (dm[i][j] < bd) { bd = dm[i][j]; bi = i; bj = j; }
+                if (dm[i * N + j] < bd) { bd = dm[i * N + j]; bi = i; bj = j; }
 
         // Record merge: lower id first (per MATLAB convention).
         int a_id = ids[bi];
@@ -149,11 +157,10 @@ Value linkage(std::pmr::memory_resource *mr, const Value &Y,
 
         // Build new row: distances from new cluster to every other.
         const int n_a = sizes[bi], n_b = sizes[bj];
-        std::vector<double> newrow(M, 0.0);
         for (size_t k = 0; k < M; ++k) {
-            if (k == bi || k == bj) continue;
-            const double d_ak = dm[bi][k];
-            const double d_bk = dm[bj][k];
+            if (k == bi || k == bj) { newrow[k] = 0.0; continue; }
+            const double d_ak = dm[bi * N + k];
+            const double d_bk = dm[bj * N + k];
             newrow[k] = lance_williams(m, d_ak, d_bk, bd, n_a, n_b, sizes[k]);
         }
 
@@ -161,14 +168,19 @@ Value linkage(std::pmr::memory_resource *mr, const Value &Y,
         ids[bi] = next_id++;
         sizes[bi] = n_a + n_b;
         for (size_t k = 0; k < M; ++k) {
-            dm[bi][k] = newrow[k];
-            dm[k][bi] = newrow[k];
+            dm[bi * N + k] = newrow[k];
+            dm[k * N + bi] = newrow[k];
         }
-        // Erase bj.
+        // Erase bj from ids/sizes and compact row/col bj of dm.
         ids.erase(ids.begin() + bj);
         sizes.erase(sizes.begin() + bj);
-        for (auto &row : dm) row.erase(row.begin() + bj);
-        dm.erase(dm.begin() + bj);
+        // Shift columns left for rows < M, then shift rows up.
+        for (size_t r = 0; r < M; ++r)
+            for (size_t c = bj; c + 1 < M; ++c)
+                dm[r * N + c] = dm[r * N + c + 1];
+        for (size_t r = bj; r + 1 < M; ++r)
+            for (size_t c = 0; c < M - 1; ++c)
+                dm[r * N + c] = dm[(r + 1) * N + c];
     }
 
     // Pack as (N-1)×3 column-major.
@@ -200,8 +212,9 @@ Value cluster_from_linkage(std::pmr::memory_resource *mr, const Value &Z,
         throw Error("cluster: Z must be (N-1)×3", 0, 0, "cluster", "",
                     "m:cluster:size");
     const size_t N = M + 1;
-    std::vector<int> a(M), b(M);
-    std::vector<double> d(M);
+    ScratchArena scratch(mr);
+    ScratchVec<int>    a(M, &scratch), b(M, &scratch);
+    ScratchVec<double> d(M, &scratch);
     for (size_t i = 0; i < M; ++i) {
         a[i] = (int)Z.doubleData()[0 * M + i] - 1;
         b[i] = (int)Z.doubleData()[1 * M + i] - 1;
@@ -211,12 +224,12 @@ Value cluster_from_linkage(std::pmr::memory_resource *mr, const Value &Z,
     // Determine cluster assignment via tree-walk for the inconsistency
     // criterion (MATLAB default for 'cutoff'); use distance threshold for
     // 'distance'; use prefix merges for maxclust.
-    std::vector<int> labels(N, 0);
+    ScratchVec<int> labels(N, 0, &scratch);
 
     if (maxclust > 0 && maxclust >= 1 && (size_t)maxclust <= N) {
         const int merges = (int)N - maxclust;
         // Union-find.
-        std::vector<int> parent(N + M);
+        ScratchVec<int> parent(N + M, &scratch);
         for (size_t i = 0; i < parent.size(); ++i) parent[i] = (int)i;
         std::function<int(int)> find = [&](int x) {
             while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; }
@@ -229,7 +242,7 @@ Value cluster_from_linkage(std::pmr::memory_resource *mr, const Value &Z,
             x = find(b[i]); y = find(newid);
             if (x != y) parent[x] = y;
         }
-        std::vector<int> root2lab;
+        ScratchVec<int> root2lab(&scratch);
         for (size_t i = 0; i < N; ++i) {
             const int r = find((int)i);
             int lab = -1;
@@ -268,7 +281,7 @@ Value cluster_from_linkage(std::pmr::memory_resource *mr, const Value &Z,
         Value Yinc = inconsistent(mr, Z, depth);
         const double *yi = Yinc.doubleData();
         // inc per non-leaf node: column 4 (= 3 in 0-based), row layout col-major M×4.
-        std::vector<double> inc(M);
+        ScratchVec<double> inc(M, &scratch);
         for (size_t i = 0; i < M; ++i) inc[i] = yi[3 * M + i];
         int next_label = 0;
         std::function<void(int, int)> assign = [&](int id, int lab) {
@@ -297,9 +310,9 @@ Value cluster_from_linkage(std::pmr::memory_resource *mr, const Value &Z,
     }
 
     // Compact labels to 1..K in first-encountered order.
-    std::vector<int> remap(N + 1, 0);
+    ScratchVec<int> remap(N + 1, 0, &scratch);
     int next = 0;
-    std::vector<int> compact(N);
+    ScratchVec<int> compact(N, &scratch);
     for (size_t i = 0; i < N; ++i) {
         if (remap[(size_t)labels[i]] == 0) remap[(size_t)labels[i]] = ++next;
         compact[i] = remap[(size_t)labels[i]];
@@ -323,11 +336,23 @@ Value clusterdata(std::pmr::memory_resource *mr, const Value &X,
                   int maxclust, double cutoff,
                   const std::string &linkage_method,
                   const std::string &criterion,
-                  int depth)
+                  int depth,
+                  const std::string &distance_metric,
+                  double p)
 {
-    Value Y = pdist(mr, X, "euclidean", 2.0);
+    Value Y = pdist(mr, X, distance_metric, p);
     Value Z = linkage(mr, Y, linkage_method);
     return cluster_from_linkage(mr, Z, maxclust, cutoff, criterion, depth);
+}
+
+Value clusterdata(std::pmr::memory_resource *mr, const Value &X,
+                  int maxclust, double cutoff,
+                  const std::string &linkage_method,
+                  const std::string &criterion,
+                  int depth)
+{
+    return clusterdata(mr, X, maxclust, cutoff, linkage_method, criterion,
+                       depth, "euclidean", 2.0);
 }
 
 Value clusterdata(std::pmr::memory_resource *mr, const Value &X,
@@ -361,8 +386,9 @@ std::tuple<Value, Value> cophenet_full(std::pmr::memory_resource *mr,
         throw Error("cophenet: Y / Z size mismatch", 0, 0, "cophenet", "",
                     "m:cophenet:size");
 
-    std::vector<int>    a(M), b(M);
-    std::vector<double> d(M);
+    ScratchArena scratch(mr);
+    ScratchVec<int>    a(M, &scratch), b(M, &scratch);
+    ScratchVec<double> d(M, &scratch);
     for (size_t i = 0; i < M; ++i) {
         a[i] = (int)Z.doubleData()[0 * M + i] - 1;
         b[i] = (int)Z.doubleData()[1 * M + i] - 1;
@@ -372,9 +398,14 @@ std::tuple<Value, Value> cophenet_full(std::pmr::memory_resource *mr,
     // Walk the merge tree to find the merge distance for every original
     // pair (i, j). Build cluster-membership lists: members[k] holds the
     // 0..N-1 indices in cluster k (0..N-1 are original; N..N+M-1 are merges).
-    std::vector<std::vector<int>> members(N + M);
+    // The outer container needs uses-allocator construction; plain
+    // std::pmr::vector<int> satisfies that (ScratchVec deletes copy ctor
+    // and breaks the trait — use plain pmr::vector for nested cases).
+    std::pmr::vector<std::pmr::vector<int>> members(N + M,
+                                                    std::pmr::vector<int>(&scratch),
+                                                    &scratch);
     for (size_t i = 0; i < N; ++i) members[i].push_back((int)i);
-    std::vector<double> dcoph(Yn, 0.0);
+    ScratchVec<double> dcoph(Yn, 0.0, &scratch);
 
     auto pdist_idx = [&](size_t i, size_t j) {
         if (i > j) std::swap(i, j);
@@ -430,8 +461,9 @@ Value inconsistent(std::pmr::memory_resource *mr, const Value &Z, int depth) {
     if (depth <= 0) depth = 2;
     const size_t N = M + 1;
 
-    std::vector<int>    a(M), b(M);
-    std::vector<double> d(M);
+    ScratchArena scratch(mr);
+    ScratchVec<int>    a(M, &scratch), b(M, &scratch);
+    ScratchVec<double> d(M, &scratch);
     for (size_t i = 0; i < M; ++i) {
         a[i] = (int)Z.doubleData()[0 * M + i] - 1;
         b[i] = (int)Z.doubleData()[1 * M + i] - 1;
@@ -445,8 +477,8 @@ Value inconsistent(std::pmr::memory_resource *mr, const Value &Z, int depth) {
 
     // For each merge node, walk down `depth` levels, collecting all link
     // distances; compute mean, std, count, inconsistency (= (d - mean)/std).
-    std::function<void(int, int, std::vector<double>&)> collect =
-        [&](int id, int rem, std::vector<double> &acc) {
+    std::function<void(int, int, ScratchVec<double>&)> collect =
+        [&](int id, int rem, ScratchVec<double> &acc) {
         if ((size_t)id < N) return;
         if (rem == 0) return;
         acc.push_back(d[(size_t)id - N]);
@@ -458,7 +490,7 @@ Value inconsistent(std::pmr::memory_resource *mr, const Value &Z, int depth) {
     double *od = out.doubleDataMut();
 
     for (size_t i = 0; i < M; ++i) {
-        std::vector<double> ds;
+        ScratchVec<double> ds(&scratch);
         collect((int)N + (int)i, depth, ds);
         const double n = double(ds.size());
         double mu = 0.0; for (double v : ds) mu += v; mu /= n;
@@ -528,24 +560,40 @@ void clusterdata_reg(Span<const Value> args, size_t /*nargout*/,
                     "m:clusterdata:nargin");
     int maxclust = -1;
     double cutoff = -1.0;
-    std::string method = "single";
-    std::string criterion = "inconsistent";
-    // If second arg is a scalar, treat as maxclust (MATLAB shortcut).
+    int depth = 2;
+    double p = 2.0;
+    std::string method     = "single";
+    std::string criterion  = "inconsistent";
+    std::string distance_metric = "euclidean";
+    auto lower = [](std::string s) {
+        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        return s;
+    };
+    // MATLAB scalar shortcut: clusterdata(X, c) where c is numeric.
+    //   c >= 2  → maxclust (rounded toward zero)
+    //   0 < c < 2 → cutoff (inconsistency criterion)
+    // Verified via R2025b probe.
     if (args.size() >= 2 && args[1].numel() == 1
         && !(args[1].isChar() || args[1].isString())) {
-        maxclust = (int)args[1].toScalar();
+        const double c = args[1].toScalar();
+        if (c >= 2.0) maxclust = (int)c;
+        else if (c > 0.0) cutoff = c;
     }
     for (size_t i = 1; i + 1 < args.size(); ++i) {
         if (args[i].isChar() || args[i].isString()) {
-            const auto s = args[i].toString();
+            const auto s = lower(args[i].toString());
             if      (s == "maxclust")  maxclust  = (int)args[i + 1].toScalar();
             else if (s == "cutoff")    cutoff    = args[i + 1].toScalar();
-            else if (s == "linkage")   method    = args[i + 1].toString();
-            else if (s == "criterion") criterion = args[i + 1].toString();
+            else if (s == "linkage")   method    = lower(args[i + 1].toString());
+            else if (s == "criterion") criterion = lower(args[i + 1].toString());
+            else if (s == "depth")     depth     = (int)args[i + 1].toScalar();
+            else if (s == "distance")  distance_metric = lower(args[i + 1].toString());
+            else if (s == "p")         p         = args[i + 1].toScalar();
+            // 'savememory' and other doc'd N-V silently ignored.
         }
     }
     outs[0] = clusterdata(ctx.engine->resource(), args[0], maxclust, cutoff,
-                          method, criterion);
+                          method, criterion, depth, distance_metric, p);
 }
 
 void cophenet_reg(Span<const Value> args, size_t nargout,

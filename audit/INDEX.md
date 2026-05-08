@@ -37,7 +37,6 @@ Status legend:
 | [findings/stats/raylrnd.md](findings/stats/raylrnd.md) | raylrnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/unifrnd.md](findings/stats/unifrnd.md) | unifrnd | stats.dist | medium | small | e580a5c |
 | [findings/cluster/linkage.md](findings/cluster/linkage.md) | linkage | stats.cluster | medium | small | b2f133b |
-| [findings/cluster/clusterdata.md](findings/cluster/clusterdata.md) | clusterdata | stats.cluster | low | small | b2f133b |
 | [findings/cluster/kmeans.md](findings/cluster/kmeans.md) | kmeans | stats.cluster | low | small | b2f133b |
 | [findings/cluster/kmedoids.md](findings/cluster/kmedoids.md) | kmedoids | stats.cluster | low | small | b2f133b |
 | [findings/stats/binornd.md](findings/stats/binornd.md) | binornd | stats.dist | low | small | 1525319 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/cluster/pdist2.md](closed/cluster/pdist2.md) | pdist2 | PENDING (partial) | 2026-05-08 |
 | [closed/cluster/cluster.md](closed/cluster/cluster.md) | cluster | PENDING | 2026-05-08 |
 | [closed/cluster/dbscan.md](closed/cluster/dbscan.md) | dbscan | PENDING | 2026-05-08 |
+| [closed/cluster/clusterdata.md](closed/cluster/clusterdata.md) | clusterdata | PENDING | 2026-05-08 |
 
 ---
 

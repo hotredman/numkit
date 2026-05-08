@@ -1,0 +1,23 @@
+{
+  "name": "clusterdata",
+  "namespace": "stats",
+  "setup": "X = [1 1; 1.5 1.5; 5 5; 5.5 5.5; 10 10; 1 2; 6 6; 11 11];",
+  "expr": "T1 = clusterdata(X, 0.5); T2 = clusterdata(X, 3); T3 = clusterdata(X, 1.5); T4 = clusterdata(X, 4); T5 = clusterdata(X, 'maxclust', 3); T6 = clusterdata(X, 'maxclust', 3, 'Linkage', 'ward'); T7 = clusterdata(X, 'Cutoff', 1.0, 'Criterion', 'distance'); T8 = clusterdata(X, 'maxclust', 3, 'Distance', 'cityblock');",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "numel(unique(T1))",
+    "double(T1(1)==T1(2))", "double(T1(3)==T1(4))", "double(T1(5)==T1(8))",
+    "numel(unique(T2))",
+    "double(T2(1)==T2(2))", "double(T2(3)==T2(4))",
+    "numel(unique(T3))",
+    "numel(unique(T4))",
+    "numel(unique(T5))",
+    "double(T5(1)==T5(6))",
+    "numel(unique(T6))",
+    "double(T6(1)==T6(2))",
+    "numel(unique(T7))",
+    "numel(unique(T8))"
+  ],
+  "comment": "Sig: T = clusterdata(X, c) with scalar shortcut: c>=2 maxclust, 0<c<2 cutoff (inconsistency). Or N-V form: 'MaxClust', 'Cutoff', 'Linkage', 'Distance', 'Criterion', 'Depth', 'P'. Fingerprints are label-permutation-invariant. Default 'Linkage' is 'single', default 'Distance' is 'euclidean', default 'cutoff' criterion is 'inconsistent' — all per MATLAB R2025b."
+}
