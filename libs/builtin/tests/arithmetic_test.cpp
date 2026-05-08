@@ -902,9 +902,11 @@ TEST_P(HeapSafety3DExtendedTest, Fftshift3DDoubleShapePreserved)
     EXPECT_EQ(Y->type(), ValueType::DOUBLE);
     EXPECT_TRUE(Y->dims().is3D());
     EXPECT_EQ(Y->numel(), 8u);
-    // Linear circular shift by N/2 = 4: output[0] = input[4] = 5.
-    EXPECT_DOUBLE_EQ(Y->doubleData()[0], 5.0);
-    EXPECT_DOUBLE_EQ(Y->doubleData()[4], 1.0);
+    // 2x2x2: every dim has extent 2 -> ceil(2/2) = 1 shift along every
+    // dim. All indices flip: Y(i,j,k) = X(3-i, 3-j, 3-k). Bug fix
+    // 2026-05-08: previously did flat numel/2 shift; now matches MATLAB.
+    EXPECT_DOUBLE_EQ(Y->doubleData()[0], 8.0);  // Y(1,1,1) = X(2,2,2)
+    EXPECT_DOUBLE_EQ(Y->doubleData()[7], 1.0);  // Y(2,2,2) = X(1,1,1)
 }
 
 TEST_P(HeapSafety3DExtendedTest, Fftshift3DComplexShapePreserved)

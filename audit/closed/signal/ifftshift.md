@@ -46,3 +46,11 @@ Spec: same shape — odd-N coverage. `tol = 0`.
 ## Out of scope for this ТЗ
 
 - N/A — joint fix.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Joint closure with audit/closed/signal/fftshift.md. See
+  fftshift's Closed block for the full bug analysis. Spec extended
+  to 17 fingerprints (vector even/odd + matrix + dim arg + round-
+  trip identity); tol=0. Parity OK numkit ↔ MATLAB ↔ Octave.

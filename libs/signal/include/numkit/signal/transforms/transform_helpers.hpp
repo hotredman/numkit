@@ -18,11 +18,20 @@ Value nextpow2(std::pmr::memory_resource *mr, double n);
 /// Returns a DOUBLE array with the same shape as `x`.
 Value nextpow2(std::pmr::memory_resource *mr, const Value &x);
 
-/// Cyclic shift by N/2 — zero-frequency bin moves to the center.
-/// For real and complex input. Operates element-wise across numel(x).
+/// Cyclic shift along every non-singleton dim by ceil(extent/2). For odd
+/// extents the first ceil(N/2) elements move to the back. Matches MATLAB
+/// R2025b for vectors, matrices, and 3-D arrays.
 Value fftshift(std::pmr::memory_resource *mr, const Value &x);
 
-/// Inverse of fftshift — cyclic shift by (N+1)/2.
+/// Inverse of fftshift — cyclic shift by floor(extent/2) along every
+/// non-singleton dim. fftshift and ifftshift are inverses for any extent.
 Value ifftshift(std::pmr::memory_resource *mr, const Value &x);
+
+/// Single-dim form: shift only along the requested dim (1=rows, 2=cols,
+/// 3=pages). MATLAB syntax: fftshift(X, dim).
+Value fftshift(std::pmr::memory_resource *mr, const Value &x, int dim);
+
+/// Single-dim form for ifftshift.
+Value ifftshift(std::pmr::memory_resource *mr, const Value &x, int dim);
 
 } // namespace numkit::signal

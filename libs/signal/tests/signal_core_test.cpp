@@ -212,11 +212,42 @@ TEST_F(SignalCoreTest, FftshiftEvenLength)
 
 TEST_F(SignalCoreTest, FftshiftOddLength)
 {
-    // [1 2 3 4 5] → [4 5 1 2 3] (shift by floor(5/2)=2)
+    // MATLAB R2025b: fftshift([1 2 3 4 5]) = [4 5 1 2 3]
+    // (shift = ceil(N/2) = 3, first 3 elements move to back).
+    // Bug fix 2026-05-08: numkit previously used floor(N/2) which
+    // is what MATLAB calls ifftshift — the two were swapped.
     eval("y = fftshift([1 2 3 4 5]);");
-    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 3.0);
-    EXPECT_DOUBLE_EQ(evalScalar("y(2)"), 4.0);
-    EXPECT_DOUBLE_EQ(evalScalar("y(3)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(3)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(4)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(5)"), 3.0);
+}
+
+TEST_F(SignalCoreTest, FftshiftMatrixShiftsBothDims)
+{
+    // MATLAB: fftshift([1 2 3; 4 5 6; 7 8 9]) = [9 7 8; 3 1 2; 6 4 5]
+    eval("M = [1 2 3; 4 5 6; 7 8 9];");
+    eval("y = fftshift(M);");
+    EXPECT_DOUBLE_EQ(evalScalar("y(1,1)"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(1,2)"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(3,3)"), 5.0);
+}
+
+TEST_F(SignalCoreTest, FftshiftDimArg)
+{
+    // fftshift(M, 1): shift only along rows (first dim).
+    eval("M = [1 2 3; 4 5 6; 7 8 9];");
+    eval("y = fftshift(M, 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("y(1,1)"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(3,1)"), 4.0);
+    // dim=2: shift only along cols.
+    eval("y2 = fftshift(M, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("y2(1,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y2(1,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y2(1,3)"), 2.0);
 }
 
 TEST_F(SignalCoreTest, IfftshiftInverse)

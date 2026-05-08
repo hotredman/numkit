@@ -61,3 +61,33 @@ Inputs:
 ## Out of scope for this ТЗ
 
 - N-D `fftshift` — the core algorithm is the same recursion.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: **Critical bug fix.** Joint closure with
+  audit/closed/signal/ifftshift.md.
+
+  **Three bugs fixed:**
+  1. **Odd-N split direction swapped** — numkit's fftshift used
+     `floor(N/2)` (= MATLAB's ifftshift); now uses `ceil(N/2)`. For
+     X=[1:7]: was [4 5 6 7 1 2 3], now [5 6 7 1 2 3 4]. (Even N
+     unaffected, hence the bug surviving until this audit sweep.)
+  2. **Matrix shifts only one axis** — numkit was doing a flat
+     numel-element cyclic shift; MATLAB shifts every non-singleton
+     dim independently. Rewrote core to apply per-dim shifts
+     sequentially using a scratch buffer.
+  3. **`dim` arg ignored** — added `fftshift(X, dim)` and
+     `ifftshift(X, dim)` overloads with adapter routing.
+
+  Existing gtests `FftshiftOddLength` and `Fftshift3DDoubleShape`
+  were validating the BUGGY behavior; updated to MATLAB-correct
+  expected values + added 2 new tests (matrix both-dims, dim arg).
+
+  Spec extended from 3 to 22 fingerprints (vector even/odd +
+  ifftshift odd + matrix + dim arg + round-trip identity); tol=0
+  (integer-stable). Parity OK numkit ↔ MATLAB ↔ Octave.
+
+  Sanity check: all 342 signal-domain gtests pass after the fix —
+  no consumer regressions. 6 fftshift smoke + 4 fftshift gtest
+  (existing + 2 new) + ifftshift coverage via existing tests.

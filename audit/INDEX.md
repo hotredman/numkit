@@ -59,8 +59,6 @@ Status legend:
 | [findings/stats/betarnd.md](findings/stats/betarnd.md) | betarnd | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/exprnd.md](findings/stats/exprnd.md) | exprnd | stats.dist | medium | small | 301e5a5 |
 | [findings/stats/gamrnd.md](findings/stats/gamrnd.md) | gamrnd | stats.dist | medium | small | 301e5a5 |
-| [findings/signal/fftshift.md](findings/signal/fftshift.md) | fftshift | core (builtin) | critical | small | 9bce106 |
-| [findings/signal/ifftshift.md](findings/signal/ifftshift.md) | ifftshift | core (builtin) | critical | small | 9bce106 |
 | [findings/signal/envelope.md](findings/signal/envelope.md) | envelope | signal.transforms | critical | medium | 9bce106 |
 | [findings/signal/dct.md](findings/signal/dct.md) | dct | signal.transforms | high | medium | 9bce106 |
 | [findings/signal/idct.md](findings/signal/idct.md) | idct | signal.transforms | medium | small | 9bce106 |
@@ -225,6 +223,8 @@ Status legend:
 | [closed/stats/raylfit.md](closed/stats/raylfit.md) | raylfit | PENDING | 2026-05-08 |
 | [closed/stats/evlike.md](closed/stats/evlike.md) | evlike | PENDING (partial) | 2026-05-08 |
 | [closed/stats/wbllike.md](closed/stats/wbllike.md) | wbllike | PENDING (partial) | 2026-05-08 |
+| [closed/signal/fftshift.md](closed/signal/fftshift.md) | fftshift | PENDING | 2026-05-08 |
+| [closed/signal/ifftshift.md](closed/signal/ifftshift.md) | ifftshift | PENDING | 2026-05-08 |
 
 ---
 
