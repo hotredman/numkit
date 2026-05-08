@@ -1,0 +1,15 @@
+{
+  "name": "exppdf",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "y_def = exppdf(2); y_s = exppdf(2, 3); y_v = exppdf([0 1 2 5], 2); y_at0 = exppdf(0, 2); y_neg = exppdf(-1, 2); y_mu0 = exppdf(2, 0); y_muneg = exppdf(2, -1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "y_def", "y_s",
+    "y_v(1)", "y_v(2)", "y_v(3)", "y_v(4)",
+    "y_at0", "y_neg",
+    "y_mu0", "y_muneg"
+  ],
+  "comment": "Sig: y = exppdf(x[, mu]). Exponential PDF: (1/mu)·exp(-x/mu). Default mu=1. x<0 → 0. mu<=0 → NaN."
+}
