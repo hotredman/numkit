@@ -59,3 +59,41 @@ TEST_F(DbwavfTest, HaarAlias)
     eval("a = dbwavf('haar'); b = dbwavf('db1');");
     EXPECT_DOUBLE_EQ(evalScalar("max(abs(a - b))"), 0.0);
 }
+
+// Bug fix 2026-05-08 — extended Daubechies table from db1..db4 to db1..db10.
+
+TEST_F(DbwavfTest, Db5ToDb10Lengths)
+{
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(dbwavf('db5'))")),  10u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(dbwavf('db6'))")),  12u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(dbwavf('db7'))")),  14u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(dbwavf('db8'))")),  16u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(dbwavf('db9'))")),  18u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(dbwavf('db10'))")), 20u);
+}
+
+TEST_F(DbwavfTest, Db5ToDb10SumsToOne)
+{
+    // All Daubechies scaling filters satisfy sum(h) = 1.
+    EXPECT_NEAR(evalScalar("sum(dbwavf('db5'))"),  1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("sum(dbwavf('db6'))"),  1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("sum(dbwavf('db7'))"),  1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("sum(dbwavf('db8'))"),  1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("sum(dbwavf('db9'))"),  1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("sum(dbwavf('db10'))"), 1.0, 1e-12);
+}
+
+TEST_F(DbwavfTest, Db5HighPrecision)
+{
+    eval("h = dbwavf('db5');");
+    // Reference: MATLAB R2025b dbwavf('db5').
+    EXPECT_NEAR(evalScalar("h(1)"),  0.11320949, 1e-7);
+    EXPECT_NEAR(evalScalar("h(10)"), 0.00235871, 1e-7);
+}
+
+TEST_F(DbwavfTest, Db8HighPrecision)
+{
+    eval("h = dbwavf('db8');");
+    EXPECT_NEAR(evalScalar("h(1)"),   0.03847781, 1e-7);
+    EXPECT_NEAR(evalScalar("h(16)"), -0.00008307, 1e-7);
+}

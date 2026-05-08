@@ -3447,7 +3447,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `orthfilt` | ✅ | 0.007 | 85.08× |  | OK | Sig: [Lo_D, Hi_D, Lo_R, Hi_R] = orthfilt(W). Quadruple from a unit-norm scaling filter W (sum(W)=1, length even). Lo_R = W·√2; Lo_D = reverse(Lo_R); Hi_R[k] = (-1)^k · Lo_R[N-1-k]; Hi_D = reverse(Hi_R). Coverage: db2 (4-tap), db4 (8-tap), custom 2-tap. |
 | `qmf` | ✅ | 0.005 | 65.19× |  | OK | Sig: y = qmf(x[, p]). Quadrature mirror filter. y(k) = (-1)^(k-1+p) · x(N-k+1). Default p=0 (identity-sign on the first element); p=1 negates. Coverage: even/odd-length + p=0/1 + length-8 + column input + single element. tol=0 (integer-stable on integer inputs). |
 | `biorfilt` | ❌ |  |  |  |  | biorthogonal filter quadruple |
-| `dbwavf` | ✅ | 0.006 | 130.99× |  | OK | Sig: h = dbwavf(wname). Daubechies scaling filter: Lo_R / sqrt(2). Length 2N for 'dbN'. Sum(h) = 1. |
+| `dbwavf` | ✅ | 0.007 | 32.27× |  | OK | Sig: h = dbwavf(wname). Daubechies scaling filter: dbwavf*sqrt(2) = Lo_R, length 2N for dbN, sum(h) = 1. Coverage: db1, db2, db4, db5, db6, db8, db10. Bug fix 2026-05-08: previously only supported db1..db4; extended table to db5..db10. |
 | `coifwavf` | ✅ | 0.003 | 184.30× |  | OK | Sig: h = coifwavf(wname). Coiflet scaling filter: Lo_R / sqrt(2). Length 6K for 'coifK'. |
 | `symwavf` | ✅ | 0.004 | 158.56× |  | OK | Sig: h = symwavf(wname). Symlet scaling filter: Lo_R / sqrt(2). Length 2N for 'symN'. |
 | `dbaux` | ❌ |  |  |  |  | Daubechies aux |
