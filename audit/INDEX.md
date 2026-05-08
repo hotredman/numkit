@@ -44,7 +44,6 @@ Status legend:
 | [findings/cluster/dbscan.md](findings/cluster/dbscan.md) | dbscan | stats.cluster | low | small | b2f133b |
 | [findings/cluster/kmeans.md](findings/cluster/kmeans.md) | kmeans | stats.cluster | low | small | b2f133b |
 | [findings/cluster/kmedoids.md](findings/cluster/kmedoids.md) | kmedoids | stats.cluster | low | small | b2f133b |
-| [findings/cluster/mahal.md](findings/cluster/mahal.md) | mahal | stats.cluster | low | small | b2f133b |
 | [findings/stats/binornd.md](findings/stats/binornd.md) | binornd | stats.dist | low | small | 1525319 |
 | [findings/stats/poissrnd.md](findings/stats/poissrnd.md) | poissrnd | stats.dist | low | small | 1525319 |
 | [findings/stats/unidrnd.md](findings/stats/unidrnd.md) | unidrnd | stats.dist | low | small | 1525319 |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/cluster/squareform.md](closed/cluster/squareform.md) | squareform | PENDING | 2026-05-08 |
 | [closed/cluster/inconsistent.md](closed/cluster/inconsistent.md) | inconsistent | PENDING | 2026-05-08 |
 | [closed/cluster/cophenet.md](closed/cluster/cophenet.md) | cophenet | PENDING | 2026-05-08 |
+| [closed/cluster/mahal.md](closed/cluster/mahal.md) | mahal | PENDING | 2026-05-08 |
 
 ---
 

@@ -3215,7 +3215,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 | `pdist` | ✅ |  |  |  | OK | euclidean / sqeuclidean / cityblock / chebychev / minkowski / cosine / correlation / hamming / jaccard |
 | `pdist2` | ✅ |  |  |  | OK | same metrics |
 | `squareform` | ✅ | 0.006 | 133.93× | 27.90× | OK | Sig: Y = squareform(X[, mode]). Convert pairwise distance vector ↔ symmetric distance matrix. tol=0 (integer-stable on integer inputs). |
-| `mahal` | ✅ |  |  |  | OK | Cholesky-based, throws on non-PSD covariance |
+| `mahal` | ✅ | 0.009 | 74.72× | 94.11× | OK | Sig: D = mahal(X, Y). Mahalanobis distance from each row of X to the centroid of Y, scaled by inverse of cov(Y). Coverage: 2-D well-conditioned, 3-D well-conditioned, centroid (=0), zero point, far point. |
 
 ### Hierarchical Clustering
 
