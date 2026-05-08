@@ -164,10 +164,14 @@ void hygepdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void hygecdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 4)
-        throw Error("hygecdf: requires (k, M, K, N)", 0, 0, "hygecdf", "", "m:hygecdf:nargin");
-    outs[0] = hygecdf(ctx.engine->resource(), args[0],
+    bool upper = false;
+    const size_t n = stripUpperFlag(args, upper);
+    if (n < 4)
+        throw Error("hygecdf: requires (k, M, K, N[, 'upper'])", 0, 0, "hygecdf", "", "m:hygecdf:nargin");
+    Value v = hygecdf(ctx.engine->resource(), args[0],
                       args[1].toScalar(), args[2].toScalar(), args[3].toScalar());
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
 }
 
 void hygeinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

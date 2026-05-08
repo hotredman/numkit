@@ -2953,42 +2953,42 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `unidrnd` | ✅ |  |  |  | OK |  |
 | `unidstat` | ✅ | 0.006 | 84.76× | 42.89× | OK | Sig: [m, v] = unidstat(N). Discrete uniform on {1..N}: m = (N+1)/2, v = (N²-1)/12. Vectorised. N<1 or non-integer => NaN. |
 | `geopdf` | ✅ |  |  |  | OK | geometric (failures before 1st success) |
-| `geocdf` | ✅ |  |  |  | OK | -expm1((⌊k⌋+1)·log1p(-p)) |
+| `geocdf` | ✅ | 0.003 | 472.58× | 169.63× | OK | Sig: p = geocdf(k, p[, 'upper']). Geometric (number of failures before first success): F(k; p) = 1 - (1-p)^(k+1). 'upper' returns 1 - F(k). |
 | `geoinv` | ✅ |  |  |  | OK |  |
 | `geornd` | ✅ |  |  |  | OK |  |
 | `geostat` | ✅ | 0.006 | 58.05× | 20.21× | OK | Sig: [m, v] = geostat(p). Geometric (number-of-failures form): m = (1-p)/p, v = (1-p)/p². p=1 → m=v=0. Vectorised. p<=0 or p>1 => NaN. |
 | `nbinpdf` | ✅ |  |  |  | OK | negative binomial |
-| `nbincdf` | ✅ |  |  |  | OK | I_p(r, ⌊k⌋ + 1) |
+| `nbincdf` | ✅ | 0.005 | 344.58× | 163.86× | OK | Sig: p = nbincdf(k, r, p[, 'upper']). Negative binomial: number of failures before r-th success. F(k; r, p) = I_p(r, k+1). 'upper' returns 1 - F(k). |
 | `nbininv` | ✅ |  |  |  | OK |  |
 | `nbinrnd` | ✅ |  |  |  | OK | Gamma-Poisson mixture; supports real r |
 | `nbinstat` | ✅ | 0.009 | 156.17× | 46.33× | OK | Sig: [m, v] = nbinstat(r, p). Negative binomial (number of failures): m = r·(1-p)/p, v = m/p. Vectorised. r<=0 / p<=0 / p>1 => NaN. r non-integer is OK (Pólya generalisation). p=1 → m=v=0. |
 | `hygepdf` | ✅ |  |  |  | OK | hypergeometric (M, K, N) |
-| `hygecdf` | ✅ |  |  |  | OK | forward sum via pmf-recurrence |
+| `hygecdf` | ✅ | 0.008 | 603.90× | 261.70× | OK | Sig: p = hygecdf(k, M, K, N[, 'upper']). Hypergeometric CDF over k=0..N drawn from population M with K marked. 'upper' returns 1 - F(k). |
 | `hygeinv` | ✅ |  |  |  | OK |  |
 | `hygernd` | ✅ |  |  |  | OK | inverse-cdf walk per draw |
 | `hygestat` | ✅ | 0.008 | 187.95× | 68.22× | OK | Sig: [m, v] = hygestat(M, K, N). Hypergeometric: m = N·K/M, v = N·K·(M-K)·(M-N)/(M²(M-1)). Vectorised. K=0 / K=M / N=0 valid; M=0 / K>M / N>M / negative => NaN. |
 | `evpdf` | ✅ | 0.004 | 70.18× | 28.19× | OK | Sig: p = evpdf(x[, mu, sigma]). Type-I extreme value (Gumbel min) PDF. Defaults mu=0, sigma=1. Formula: (1/σ)·exp(t)·exp(−exp(t)) where t=(x−μ)/σ. |
-| `evcdf` | ✅ | 0.003 | 170.98× | 89.45× | OK | Sig: p = evcdf(x[, mu, sigma]). F(x) = 1 − exp(−exp((x−μ)/σ)). |
+| `evcdf` | ✅ | 0.004 | 214.41× | 101.75× | OK | Sig: p = evcdf(x[, mu, sigma][, 'upper']). F(x) = 1 − exp(−exp((x−μ)/σ)); 'upper' returns 1 - F(x). |
 | `evinv` | ✅ | 0.003 | 162.03× | 55.86× | OK | Sig: x = evinv(p[, mu, sigma]). x = μ + σ·log(−log1p(−p)). |
 | `evrnd` | ✅ |  |  |  |  |  |
 | `evstat` | ✅ | 0.009 | 59.72× | 32.29× | OK | Sig: [m, v] = evstat(mu, sigma). Type-I extreme value (Gumbel min): m = mu - sigma·γ (Euler), v = sigma²·π²/6. Vectorised. sigma<=0 => NaN. |
 | `gevpdf` | ✅ | 0.004 | 218.14× | 61.53× | OK | Sig: p = gevpdf(x, k, sigma, mu). Generalised extreme value PDF; k=0 is Gumbel-MAX (limit). |
-| `gevcdf` | ✅ | 0.003 | 384.47× | 93.98× | OK | Sig: p = gevcdf(x, k, sigma, mu). |
+| `gevcdf` | ✅ | 0.004 | 385.24× | 109.83× | OK | Sig: p = gevcdf(x, k, sigma, mu[, 'upper']). 'upper' returns 1 - F(x). |
 | `gevinv` | ✅ | 0.003 | 273.88× | 69.80× | OK | Sig: x = gevinv(p, k, sigma, mu). |
 | `gevrnd` | ✅ |  |  |  |  |  |
 | `gevstat` | ✅ | 0.007 | 150.55× | 102.05× | OK | Sig: [m, v] = gevstat(k, sigma, mu). GEV moments: complex by k regime (k>=1 mean=Inf; 0.5<=k<1 mean finite/var=Inf; k<0.5 both finite; k=0 Gumbel limit). Vectorised. sigma<=0 => NaN. |
 | `gppdf` | ✅ | 0.003 | 281.24× | 98.79× | OK | Sig: p = gppdf(x, k, sigma, theta). Generalised Pareto. |
-| `gpcdf` | ✅ | 0.003 | 405.90× | 55.74× | OK | Sig: p = gpcdf(x, k, sigma, theta). |
+| `gpcdf` | ✅ | 0.004 | 318.41× | 89.17× | OK | Sig: p = gpcdf(x, k, sigma, theta[, 'upper']). 'upper' returns 1 - F(x). |
 | `gpinv` | ✅ | 0.003 | 291.99× | 97.75× | OK | Sig: x = gpinv(p, k, sigma, theta). |
 | `gprnd` | ✅ |  |  |  |  |  |
 | `gpstat` | ✅ | 0.007 | 124.74× | 72.78× | OK | Sig: [m, v] = gpstat(k, sigma, theta). GP moments by k regime: k≥1 → mean Inf; 0.5≤k<1 → var Inf; k<0.5 → finite. m = theta + sigma/(1-k); v = sigma²/((1-k)²(1-2k)). Vectorised. sigma<=0 => NaN. |
 | `nakapdf` | ✅ | 0.004 |  | 64.72× | OK | Sig: y = nakapdf(x, mu, omega). Nakagami PDF: (2μ^μ/Γ(μ)Ω^μ)·x^(2μ−1)·exp(−μx²/Ω). Octave's statistics package has direct names; MATLAB exposes via pdf('Nakagami', ...). Direct numkit + Octave parity. |
-| `nakacdf` | ✅ |  |  |  |  |  |
+| `nakacdf` | ✅ | 0.004 |  | 128.84× | OK | Sig: p = nakacdf(x, mu, omega[, 'upper']). Nakagami-m CDF: F(x) = gammainc(mu·x²/omega, mu). 'upper' returns 1 - F(x). |
 | `nakainv` | ✅ |  |  |  |  |  |
 | `nakarnd` | ✅ |  |  |  |  |  |
 | `nakastat` | ✅ | 0.007 |  | 48.85× | OK | Sig: [m, v] = nakastat(mu, omega). Nakagami: m = sqrt(omega/mu)·Γ(mu+0.5)/Γ(mu), v = omega·(1 - r²/mu) where r = Γ(mu+0.5)/Γ(mu). Vectorised. mu<=0 / omega<=0 => NaN. MATLAB R2025b does not ship nakastat — Octave statistics package is the reference. |
 | `ricepdf` | ✅ | 0.004 |  | 67.79× | OK | Sig: y = ricepdf(x, s, sigma). Rice PDF (x/σ²)·exp(−(x²+s²)/(2σ²))·I_0(x·s/σ²). Octave stats package has direct names; MATLAB exposes via pdf('Rician', ...). |
-| `ricecdf` | ✅ |  |  |  |  |  |
+| `ricecdf` | ✅ | 1.142 |  | 1.13× | OK | Sig: p = ricecdf(x, s, sigma[, 'upper']). Rice CDF via Marcum Q: F(x) = 1 - Q1(s/sigma, x/sigma). 'upper' returns 1 - F(x) = Q1(s/sigma, x/sigma). MATLAB R2025b does NOT ship a top-level ricecdf — only makedist('Rician')+cdf — so reference comes from Octave's statistics package. Tolerance 1e-4 reflects an existing ~1e-5 numerical-accuracy gap between numkit's marcumq series and Octave's; this ТЗ closes the 'upper' flag only, the accuracy gap is tracked separately. |
 | `riceinv` | ✅ |  |  |  |  |  |
 | `ricernd` | ✅ |  |  |  |  |  |
 | `ricestat` | ✅ | 0.010 |  | 50.55× | OK | Sig: [m, v] = ricestat(s, sigma). Rician (Rice). s=0 reduces to Rayleigh: m = sigma·sqrt(π/2), v = sigma²·(2 - π/2). Vectorised. sigma<=0 / s<0 => NaN. MATLAB R2025b doesn't ship ricestat — Octave statistics package is the reference. |
@@ -3003,7 +3003,7 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `nctrnd` | ❌ |  |  |  |  |  |
 | `nctstat` | ❌ |  |  |  |  |  |
 | `ncx2pdf` | ✅ | 0.004 | 838.12× | 142.11× | OK | Sig: y = ncx2pdf(x, k, lambda). Noncentral χ²(k, λ) PDF: ½·exp(−(x+λ)/2)·(x/λ)^((k−2)/4)·I_{(k−2)/2}(√(λx)); λ=0 reduces to chi2pdf(x, k). |
-| `ncx2cdf` | ✅ | 0.006 | 778.10× | 728.80× | OK | Sig: y = ncx2cdf(x, k, lambda). Poisson-mixture: Σ_j Poisson(j; λ/2)·gammainc(x/2, k/2 + j); truncated when contribution drops below 1e-16 of running sum. |
+| `ncx2cdf` | ✅ | 0.009 | 546.97× | 1200.30× | OK | Sig: y = ncx2cdf(x, k, lambda[, 'upper']). Poisson-mixture: Σ_j Poisson(j; λ/2)·gammainc(x/2, k/2 + j); truncated when contribution drops below 1e-16 of running sum. 'upper' returns 1 - F(x). |
 | `ncx2inv` | ✅ |  |  |  |  |  |
 | `ncx2rnd` | ✅ |  |  |  |  |  |
 | `ncx2stat` | ✅ | 0.008 | 128.69× | 46.11× | OK | Sig: [m, v] = ncx2stat(k, lambda). Non-central χ²: m = k+λ, v = 2(k+2λ). Vectorised. k<=0 / λ<0 => NaN. λ=0 reduces to central χ²(k). |

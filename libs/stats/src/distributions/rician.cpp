@@ -173,11 +173,15 @@ void ricepdf_reg(Span<const Value> args, size_t /*nargout*/,
 void ricecdf_reg(Span<const Value> args, size_t /*nargout*/,
                  Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 3)
-        throw Error("ricecdf: requires (x, s, sigma)",
+    bool upper = false;
+    const size_t n = stripUpperFlag(args, upper);
+    if (n < 3)
+        throw Error("ricecdf: requires (x, s, sigma[, 'upper'])",
                     0, 0, "ricecdf", "", "m:ricecdf:nargin");
-    outs[0] = ricecdf(ctx.engine->resource(), args[0],
+    Value v = ricecdf(ctx.engine->resource(), args[0],
                       args[1].toScalar(), args[2].toScalar());
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
 }
 
 void riceinv_reg(Span<const Value> args, size_t /*nargout*/,
