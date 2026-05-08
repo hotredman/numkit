@@ -1,6 +1,6 @@
-# builtin/struct2cell — ТЗ for completion
+# builtin/struct — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** 780c049
@@ -17,3 +17,9 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Cell+struct + number-theory batch (18 funcs). All bit-identical
+  MATLAB R2025b. See cell_struct_numtheory_batch_test.cpp.

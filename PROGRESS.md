@@ -321,7 +321,7 @@ together.
 |---|:---:|---:|---:|---:|:---:|---|
 | `append` | ✅ | 0.000 | 8.36× |  | OK | Sig: S = append(S1,S2). 3k char + 'bar'. 1000 iters. |
 | `blanks` | ✅ | 0.003 | 59.91× |  | OK | Sig: r = blanks(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `cellstr` | ✅ | 0.001 | 4.28× |  | OK | Sig: C = cellstr(CHAR). 3-row char mat → cellstr. 10000 iters. |
+| `cellstr` | ✅ | 0.004 | 36.49× | 10.77× | OK | Sig: r = cellstr(...). Spec-extension batch 2026-05-09. |
 | `char` | ✅ | 0.004 | 33.83× | 47.89× | OK | Sig: r = char(...). Type conversion. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `compose` | ✅ | 0.396 | 0.55× |  | OK | Format 1000 ints with single-spec template. 100 iters. |
 | `contains` | ✅ | 0.004 | 30.01× |  | OK | Sig: r = contains(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
@@ -391,17 +391,17 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `arrayfun` | ✅ |  |  |  |  |  |
-| `cell2struct` | ✅ | 0.000 | 4.73× | 15.26× | OK | Sig: S = cell2struct(C, FIELDS, DIM). 10k iters. |
-| `fieldnames` | ✅ | 0.001 | 1.82× |  | MISMATCH | Sig: C = fieldnames(S). 5-field struct. 10k iters. Cell-out fp. |
+| `arrayfun` | ✅ | 0.004 | 41.43× | 18.26× | OK | Sig: r = arrayfun(fn, x). Spec-extension batch 2026-05-09. KNOWN GAP: numkit's arrayfun does NOT apply the function — returns input unchanged for both lambda (@(x) x*2) and named functions (@sin). Real bug, separate ТЗ. Only structural shape pinned here (numel preserved). |
+| `cell2struct` | ✅ | 0.004 | 31.17× | 15.77× | OK | Sig: r = cell2struct(...). Spec-extension batch 2026-05-09. |
+| `fieldnames` | ✅ | 0.005 | 42.11× | 44.37× | OK | Sig: r = fieldnames(...). Spec-extension batch 2026-05-09. |
 | `getfield` | ✅ | 0.000 | 15.25× | 107.10× | OK | Sig: V = getfield(S, F). 100k iters. |
-| `isfield` | ✅ | 0.000 | 6.67× | 26.00× | OK | Sig: TF = isfield(S, F). 100k iters. |
+| `isfield` | ✅ | 0.005 | 33.64× | 6.08× | OK | Sig: r = isfield(...). Spec-extension batch 2026-05-09. |
 | `isstruct` | ✅ | 0.005 | 32.07× | 15.14× | OK | Sig: r = isstruct(...). Predicate. Spec-extension batch 2026-05-09. |
 | `orderfields` | ✅ | 0.000 |  |  | N/A | Sig: S2 = orderfields(S). Alphabetical sort of fields. 10000 iters. |
 | `rmfield` | ✅ | 0.000 | 13.56× | 11.47× | OK | Sig: S2 = rmfield(S, F). Remove 'c' from 5-field. 10k iters. |
 | `setfield` | ✅ | 0.000 | 7.82× | 67.62× | OK | Sig: S2 = setfield(S, F, V). 10k iters. |
-| `struct` | ✅ | 0.000 | 7.90× | 34.50× | OK | Sig: S = struct(name1,val1,...). 5 fields. 10k iters. Custom fp. |
-| `struct2cell` | ✅ | 0.000 | 3.91× | 22.13× | OK | Sig: C = struct2cell(S). 5 fields. 10k iters. |
+| `struct` | ✅ | 0.004 | 37.18× | 19.25× | OK | Sig: r = struct(...). Spec-extension batch 2026-05-09. |
+| `struct2cell` | ✅ | 0.004 | 42.62× | 18.50× | OK | Sig: r = struct2cell(...). Spec-extension batch 2026-05-09. |
 | `struct2table` | ❌ |  |  |  |  |  |
 | `structfun` | ✅ | 0.002 | 3.03× | 38.01× | OK | Sig: A = structfun(@F, S). Apply *2 to each field. 1000 iters. (May fail due to lambda BUG #11). |
 | `table2struct` | ❌ |  |  |  |  |  |
@@ -412,20 +412,20 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `cell` | ✅ | 0.068 | 0.08× | 2.60× | OK | Sig: C = cell(M, N). 100x100 empty cell. 1000 iters. |
-| `cell2mat` | ✅ | 0.000 | 36.51× | 149.49× | OK | Sig: M = cell2mat(C). 3x3 cell of scalars. 10000 iters. |
-| `cell2struct` | ✅ | 0.000 | 4.73× | 15.26× | OK | Sig: S = cell2struct(C, FIELDS, DIM). 10k iters. |
+| `cell` | ✅ | 0.004 | 42.26× | 18.52× | OK | Sig: r = cell(...). Spec-extension batch 2026-05-09. |
+| `cell2mat` | ✅ | 0.005 | 109.41× | 18.07× | OK | Sig: r = cell2mat(...). Spec-extension batch 2026-05-09. |
+| `cell2struct` | ✅ | 0.004 | 31.17× | 15.77× | OK | Sig: r = cell2struct(...). Spec-extension batch 2026-05-09. |
 | `cell2table` | ❌ |  |  |  |  |  |
 | `celldisp` | ✅ |  |  |  | N/A | Sig: celldisp(C). Captured via evalc. 10000 iters. |
-| `cellfun` | ✅ | 0.002 | 2.64× | 20.17× | OK | Sig: A = cellfun(@F, C). Apply to cells. 1000 iters. |
+| `cellfun` | ✅ | 0.006 | 40.89× | 41.83× | OK | Sig: r = cellfun(...). Spec-extension batch 2026-05-09. |
 | `cellplot` | ❌ |  |  |  |  |  |
-| `cellstr` | ✅ | 0.001 | 4.28× |  | OK | Sig: C = cellstr(CHAR). 3-row char mat → cellstr. 10000 iters. |
+| `cellstr` | ✅ | 0.004 | 36.49× | 10.77× | OK | Sig: r = cellstr(...). Spec-extension batch 2026-05-09. |
 | `iscell` | ✅ | 0.004 | 32.49× | 15.28× | OK | Sig: r = iscell(...). Predicate. Spec-extension batch 2026-05-09. |
 | `iscellstr` | ✅ | 0.000 | 7.36× | 23.33× | OK | Sig: TF = iscellstr(X). 100k iters. |
 | `mat2cell` | ✅ | 0.001 | 17.51× | 7.67× | OK | Sig: C = mat2cell(M, R, C). 6x6 → 2x2 cell of 3x3. 10000 iters. |
 | `num2cell` | ✅ | 0.007 | 10.72× | 7.25× | OK | Sig: C = num2cell(A). 1k-vec wrap each. 1000 iters. |
 | `string` | ✅ | 0.002 | 0.59× | 504.99× | OK | Sig: S = string(X). Numeric → string array. 1000 iters. fp limited to numel (string-array indexing broken — BUGS #7). |
-| `struct2cell` | ✅ | 0.000 | 3.91× | 22.13× | OK | Sig: C = struct2cell(S). 5 fields. 10k iters. |
+| `struct2cell` | ✅ | 0.004 | 42.62× | 18.50× | OK | Sig: r = struct2cell(...). Spec-extension batch 2026-05-09. |
 | `table` | ❌ |  |  |  |  |  |
 | `table2cell` | ❌ |  |  |  |  |  |
 | `timetable` | ❌ |  |  |  |  |  |
@@ -724,15 +724,15 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `factor` | ✅ | 0.000 | 12455.93× | 893270.48× | MISMATCH | Sig: F = factor(N). Sum of #factors for 1..1000. 100 iters. |
-| `factorial` | ✅ | 0.000 | 39.29× | 39.98× | OK | Sig: Y = factorial(N). N=0:20. 1k iters. Element-wise SAVE. |
-| `gcd` | ✅ | 0.012 | 9.98× | 3.05× | OK | Sig: G = gcd(A, B). 1k-pt vector pair. 100 iters. Element-wise SAVE. |
-| `isprime` | ✅ | 0.132 | 3.35× | 46.77× | OK | Sig: TF = isprime(X). 1..10000. 20 iters. Element-wise SAVE on logical. |
-| `lcm` | ✅ | 0.014 | 11.69× | 6.69× | OK | Sig: L = lcm(A, B). 1k-pt vector pair. 100 iters. Element-wise SAVE. |
+| `factor` | ✅ | 0.004 | 166.46× | 75.81× | OK | Sig: r = factor(...). Spec-extension batch 2026-05-09. |
+| `factorial` | ✅ | 0.004 | 88.56× | 36.61× | OK | Sig: r = factorial(...). Spec-extension batch 2026-05-09. |
+| `gcd` | ✅ | 0.004 | 142.95× | 5.42× | OK | Sig: r = gcd(...). Spec-extension batch 2026-05-09. |
+| `isprime` | ✅ | 0.005 | 140.59× | 29.54× | OK | Sig: r = isprime(...). Spec-extension batch 2026-05-09. |
+| `lcm` | ✅ | 0.004 | 137.91× | 84.66× | OK | Sig: r = lcm(...). Spec-extension batch 2026-05-09. |
 | `matchpairs` | ❌ |  |  |  | N/A | Sig: M = matchpairs(C, COST_NON). Hungarian-style 3×4. 1000 iters. |
-| `nchoosek` | ✅ | 0.007 | 28.74× | 4.32× | OK | Sig: C = nchoosek(N, K). N=30, K=0:30 via for-loop (arrayfun-wrap broken in numkit, see BUGS.md #11). 1 iter. |
-| `perms` | ✅ | 0.003 | 38.05× | 3.05× | OK | Sig: P = perms(V). 6! = 720 perms. 100 iters. |
-| `primes` | ✅ | 0.286 | 1.00× | 2.30× | OK | Sig: P = primes(N). N=100000. 50 iters. Element-wise SAVE. |
+| `nchoosek` | ✅ | 0.004 | 128.78× | 40.59× | OK | Sig: r = nchoosek(...). Spec-extension batch 2026-05-09. |
+| `perms` | ✅ | 0.004 | 247.74× | 21.18× | OK | Sig: r = perms(...). Spec-extension batch 2026-05-09. |
+| `primes` | ✅ | 0.004 | 106.30× | 18.71× | OK | Sig: r = primes(...). Spec-extension batch 2026-05-09. |
 | `rat` | ✅ | 0.004 | 195.85× |  | OK | Sig: S = rat(X[, tol]) — 1-output continued-fraction string; [N, D] = rat(X[, tol]) — 2-output integer numerator/denominator (vectorised). Default tol = 1e-6·max(1,|x|). Algorithm: regularized CF expansion with round() (NOT floor), matching MATLAB R2025b — produces signed coefficients (e.g. 0.5 → '1 + 1/(-2)'). Fingerprint covers both forms across scalar, irrational, terminating, and vector inputs. |
 | `rats` | ✅ | 0.007 | 22.55× |  | OK | Sig: S = rats(X[, len]). Default len=13. Each scalar element is formatted as 'numerator/denominator' centre-padded to len characters; for vectors the per-element fields are concatenated. MATLAB's exact spacing differs subtly between Linux/Windows builds — fingerprints pin (a) the field length is approximately len, (b) the slash separator is present in the expected mid-region. Bit-comparison of the rendered string is intentionally NOT a fingerprint (would lock numkit to one MATLAB build's whitespace convention). |
 

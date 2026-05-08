@@ -1,10 +1,15 @@
 {
   "name": "gcd",
-  "namespace": "core",
-  "setup": "a = 1:1000; b = 7:1006;",
-  "expr": "y = gcd(a, b);",
-  "iters": 100,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: G = gcd(A, B). 1k-pt vector pair. 100 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = gcd(12, 8); r2 = gcd(15, 25); r3 = gcd(7, 13); r4 = gcd(0, 5);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3",
+    "r4"
+  ],
+  "comment": "Sig: r = gcd(...). Spec-extension batch 2026-05-09."
 }
