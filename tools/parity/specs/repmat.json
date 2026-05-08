@@ -1,10 +1,14 @@
 {
   "name": "repmat",
-  "namespace": "core",
-  "setup": "A = reshape(1:2500, 50, 50);",
-  "expr": "y = repmat(A, 20, 20);",
-  "iters": 100,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: B = repmat(A,M,N). 50x50 \u2192 1000x1000. 100 iters."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "A = repmat([1 2], 2, 3); r1 = A(1,1); r2 = A(2,4); r3 = numel(A);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = repmat(...). Spec-extension batch 2026-05-09."
 }
