@@ -1,0 +1,17 @@
+{
+  "name": "wblinv",
+  "namespace": "stats",
+  "setup": "ps = [0.05 0.5 0.95];",
+  "expr": "x_d = wblinv(0.5); x_dlo = wblinv(0.05); x_dhi = wblinv(0.95); x_d0 = wblinv(0); x_d1 = wblinv(1); x_dneg = wblinv(-0.1); x_dover = wblinv(1.5); x_w = wblinv(0.5, 2, 3); x_klt1 = wblinv(0.5, 1, 0.5); x_kgt1 = wblinv(0.5, 1, 2); x_v = wblinv(ps, 1, 2); x_a0 = wblinv(0.5, 0, 1); x_aneg = wblinv(0.5, -1, 1); x_b0 = wblinv(0.5, 1, 0); x_bneg = wblinv(0.5, 1, -1); x_nan = wblinv(NaN, 1, 1); x_nan2 = wblinv(0.5, NaN, 1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "x_d", "x_dlo", "x_dhi", "x_d0", "x_d1",
+    "x_dneg", "x_dover",
+    "x_w", "x_klt1", "x_kgt1",
+    "x_v(1)", "x_v(2)", "x_v(3)",
+    "x_a0", "x_aneg", "x_b0", "x_bneg",
+    "x_nan", "x_nan2"
+  ],
+  "comment": "Sig: x = wblinv(p[, a, b]). Inverse Weibull CDF: x = a · (-log(1-p))^(1/b). Defaults a=1, b=1 (= exponential -log(1-p)). p=0 -> 0; p=1 -> Inf; p outside [0,1] -> NaN; a<=0, b<=0 -> NaN; NaN -> NaN."
+}

@@ -19,3 +19,12 @@ all probed inputs.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Pure spec coverage, no impl change. Numkit wblinv already
+  matched MATLAB exactly. 19 fingerprints (defaults via 1-arg form
+  + p=0/p=1 boundaries + p outside [0,1] + scaled + shape variants
+  + vector + 4 bad-params + NaN p/a). Parity OK numkit ↔ MATLAB ↔
+  Octave at tol=1e-12. 6 TEST_F gtest + smoke.
