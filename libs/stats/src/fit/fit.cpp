@@ -563,17 +563,54 @@ double wbllike(std::pmr::memory_resource * /*mr*/, double scale, double shape,
                const Value &x)
 {
     const size_t N = x.numel();
-    if (N == 0 || scale <= 0.0 || shape <= 0.0)
-        return std::numeric_limits<double>::infinity();
+    if (N == 0) return 0.0;
+    if (!(scale > 0.0) || !(shape > 0.0))
+        return std::numeric_limits<double>::quiet_NaN();
     double sumLogX = 0.0, sumPow = 0.0;
     for (size_t i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
-        if (xi <= 0.0) return std::numeric_limits<double>::infinity();
+        if (xi <= 0.0) return std::numeric_limits<double>::quiet_NaN();
         sumLogX += std::log(xi);
         sumPow  += std::pow(xi / scale, shape);
     }
     return -double(N) * std::log(shape) + double(N) * shape * std::log(scale)
          - (shape - 1.0) * sumLogX + sumPow;
+}
+
+// Extended form: cens + freq. Weibull(scale, shape).
+//   pdf:      f(x) = (shape/scale)·(x/scale)^(shape-1)·exp(-(x/scale)^shape)
+//   survival: S(x) = exp(-(x/scale)^shape)
+//   -log f:   -log(shape) + shape·log(scale) - (shape-1)·log(x) + (x/scale)^shape
+//   -log S:   (x/scale)^shape
+double wbllike_full(std::pmr::memory_resource * /*mr*/, double scale, double shape,
+                    const Value &x, const Value &cens, const Value &freq)
+{
+    const size_t N = x.numel();
+    if (N == 0) return 0.0;
+    if (!(scale > 0.0) || !(shape > 0.0))
+        return std::numeric_limits<double>::quiet_NaN();
+    const bool useC = cens.numel() > 0;
+    const bool useF = freq.numel() > 0;
+    if (useC && cens.numel() != N)
+        throw Error("wbllike: censoring must match the data length",
+                    0, 0, "wbllike", "", "m:wbllike:cens");
+    if (useF && freq.numel() != N)
+        throw Error("wbllike: freq must match the data length",
+                    0, 0, "wbllike", "", "m:wbllike:freq");
+    const double logA = std::log(scale);
+    const double logK = std::log(shape);
+    double nL = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double w = useF ? freq.elemAsDouble(i) : 1.0;
+        if (w == 0.0) continue;
+        const double xi = x.elemAsDouble(i);
+        if (!(xi > 0.0)) return std::numeric_limits<double>::quiet_NaN();
+        const double pow_term = std::pow(xi / scale, shape);
+        const bool censored = useC && (cens.elemAsDouble(i) != 0.0);
+        if (censored) nL += w * pow_term;
+        else          nL += w * (-logK + shape * logA - (shape - 1.0) * std::log(xi) + pow_term);
+    }
+    return nL;
 }
 
 double evlike(std::pmr::memory_resource * /*mr*/, double mu, double sigma,
@@ -1087,7 +1124,20 @@ void betalike_reg(Span<const Value> args, size_t nargout,
 
 void wbllike_reg(Span<const Value> args, size_t /*nargout*/,
                  Span<Value> outs, CallContext &ctx)
-{ like2_reg("wbllike", &wbllike, args, outs, ctx); }
+{
+    if (args.size() < 2 || args[0].numel() < 2)
+        throw Error("wbllike: requires (params=[scale shape], data[, cens, freq])",
+                    0, 0, "wbllike", "", "m:wbllike:nargin");
+    const double scale = args[0].elemAsDouble(0);
+    const double shape = args[0].elemAsDouble(1);
+    Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, ctx.engine->resource());
+    const Value &cens = (args.size() >= 3) ? args[2] : emptyVal;
+    const Value &freq = (args.size() >= 4) ? args[3] : emptyVal;
+    const double nL = wbllike_full(ctx.engine->resource(), scale, shape, args[1], cens, freq);
+    outs[0] = Value::scalar(nL, ctx.engine->resource());
+    // AVAR (2-output form): not yet implemented; observed Fisher info
+    // for Weibull has nontrivial mixed partials. Deferred.
+}
 
 void evlike_reg(Span<const Value> args, size_t /*nargout*/,
                 Span<Value> outs, CallContext &ctx)

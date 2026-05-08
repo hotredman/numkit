@@ -80,4 +80,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/unifit_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/raylfit_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/evlike_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/wbllike_test.cpp
 )
