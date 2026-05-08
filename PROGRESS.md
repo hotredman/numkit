@@ -2927,7 +2927,7 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `logninv` | ✅ | 0.007 | 85.48× | 88.35× | OK | Sig: x = logninv(p[, mu, sigma]). Inverse Lognormal CDF. Defaults mu=0, sigma=1. q=0 → 0; q=1 → Inf; q outside [0,1] → NaN. sigma<=0 → NaN. |
 | `lognrnd` | ✅ |  |  |  | OK |  |
 | `lognstat` | ✅ | 0.009 | 46.35× | 31.11× | OK | Sig: [m, v] = lognstat(mu, sigma). Lognormal: m = exp(mu + sigma²/2), v = (exp(sigma²)-1)·exp(2mu + sigma²). Vectorised. sigma<=0 => NaN. |
-| `wblpdf` | ✅ |  |  |  | OK | Weibull: a=scale, b=shape (MATLAB) — flip vs std order |
+| `wblpdf` | ✅ | 0.010 | 60.68× | 82.59× | OK | Sig: y = wblpdf(x[, a, b]). Weibull PDF with scale a, shape b. Defaults a=1, b=1 (= exponential). Edges: x<0 -> 0; x=0 -> b/a if b=1, Inf if b<1, 0 if b>1; a<=0 or b<=0 -> NaN; NaN -> NaN. |
 | `wblcdf` | ✅ |  |  |  | OK |  |
 | `wblinv` | ✅ |  |  |  | OK |  |
 | `wblrnd` | ✅ |  |  |  | OK |  |

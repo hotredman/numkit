@@ -1,0 +1,16 @@
+{
+  "name": "wblpdf",
+  "namespace": "stats",
+  "setup": "xs = [0 0.5 1 2 5];",
+  "expr": "y_d1 = wblpdf(1); y_dh = wblpdf(0.5); y_d0 = wblpdf(0); y_dn = wblpdf(-0.5); y_w = wblpdf(1, 2, 3); y_2 = wblpdf(2, 1, 1); y_z = wblpdf(0, 1, 1); y_zk_lt1 = wblpdf(0, 1, 0.5); y_zk_gt1 = wblpdf(0, 1, 2); y_v = wblpdf(xs, 1, 2); y_a0 = wblpdf(1, 0, 1); y_aneg = wblpdf(1, -1, 1); y_b0 = wblpdf(1, 1, 0); y_bneg = wblpdf(1, 1, -1); y_nan_x = wblpdf(NaN, 1, 1); y_nan_a = wblpdf(1, NaN, 1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "y_d1", "y_dh", "y_d0", "y_dn",
+    "y_w", "y_2", "y_z", "y_zk_lt1", "y_zk_gt1",
+    "y_v(2)", "y_v(3)", "y_v(4)",
+    "y_a0", "y_aneg", "y_b0", "y_bneg",
+    "y_nan_x", "y_nan_a"
+  ],
+  "comment": "Sig: y = wblpdf(x[, a, b]). Weibull PDF with scale a, shape b. Defaults a=1, b=1 (= exponential). Edges: x<0 -> 0; x=0 -> b/a if b=1, Inf if b<1, 0 if b>1; a<=0 or b<=0 -> NaN; NaN -> NaN."
+}

@@ -37,9 +37,11 @@ Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
 
 Value wblpdf(std::pmr::memory_resource *mr, const Value &x, double a, double b)
 {
-    if (a <= 0.0 || b <= 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    if (!(a > 0.0) || !(b > 0.0))  // also catches NaN params
+        return elementwise(mr, x, [NaN](double){ return NaN; });
     return elementwise(mr, x, [=](double xi) {
+        if (std::isnan(xi)) return NaN;       // propagate NaN x as quiet NaN
         if (xi < 0.0) return 0.0;
         if (xi == 0.0) {
             if (b < 1.0) return std::numeric_limits<double>::infinity();
