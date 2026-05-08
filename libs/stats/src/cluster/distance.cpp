@@ -292,7 +292,8 @@ Value pdist2(std::pmr::memory_resource *mr, const Value &X, const Value &Y,
     std::vector<double> xi(Dx), yj(Dy);
 
     if (m == Metric::Mahalanobis) {
-        // For pdist2 with Mahalanobis, MATLAB uses cov(Y) by default.
+        // For pdist2 with Mahalanobis, MATLAB uses cov(X) by default
+        // (the *first* arg). Verified via R2025b probe.
         std::vector<double> Cinv;
         if (C_opt) {
             const Value &C = *C_opt;
@@ -304,7 +305,7 @@ Value pdist2(std::pmr::memory_resource *mr, const Value &X, const Value &Y,
                 for (size_t c = 0; c < Dx; ++c)
                     Cinv[r * Dx + c] = C.elemAsDouble(c * Dx + r);
         } else {
-            Cinv = data_cov(Y);
+            Cinv = data_cov(X);
         }
         invert_small(Cinv, Dx);
         for (size_t j = 0; j < My; ++j) {
@@ -331,6 +332,50 @@ Value pdist2(std::pmr::memory_resource *mr, const Value &X, const Value &Y,
              const std::string &metric, double p)
 {
     return pdist2(mr, X, Y, metric, p, nullptr);
+}
+
+// pdist2 with per-column top-k selection ('Smallest' / 'Largest').
+// Returns D (k × My, sorted asc/desc) and I (k × My, 1-based row indices
+// into X). On exit, D and I are k × My or min(Mx,k) × My when Mx < k.
+void pdist2_topk(std::pmr::memory_resource *mr, const Value &X, const Value &Y,
+                 const std::string &metric, double p, const Value *C_opt,
+                 size_t k, bool largest, Value &Dout, Value &Iout)
+{
+    Value full = pdist2(mr, X, Y, metric, p, C_opt);
+    const size_t Mx = X.dims().rows();
+    const size_t My = Y.dims().rows();
+    const size_t kk = std::min(k, Mx);
+    Dout = Value::matrix(kk, My, ValueType::DOUBLE, mr);
+    Iout = Value::matrix(kk, My, ValueType::DOUBLE, mr);
+    double *dd = Dout.doubleDataMut();
+    double *ii = Iout.doubleDataMut();
+    const double *fd = full.doubleData();
+
+    // Per-column sort.
+    std::vector<std::pair<double, size_t>> col(Mx);
+    for (size_t j = 0; j < My; ++j) {
+        for (size_t i = 0; i < Mx; ++i) {
+            col[i].first = fd[j * Mx + i];
+            col[i].second = i;
+        }
+        if (largest) {
+            std::partial_sort(col.begin(), col.begin() + kk, col.end(),
+                [](const auto &a, const auto &b) {
+                    if (a.first != b.first) return a.first > b.first;
+                    return a.second < b.second;
+                });
+        } else {
+            std::partial_sort(col.begin(), col.begin() + kk, col.end(),
+                [](const auto &a, const auto &b) {
+                    if (a.first != b.first) return a.first < b.first;
+                    return a.second < b.second;
+                });
+        }
+        for (size_t r = 0; r < kk; ++r) {
+            dd[j * kk + r] = col[r].first;
+            ii[j * kk + r] = double(col[r].second + 1);
+        }
+    }
 }
 
 Value squareform(std::pmr::memory_resource *mr, const Value &d) {
@@ -482,8 +527,55 @@ void pdist2_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("pdist2: requires (X, Y[, metric[, p|C]])", 0, 0, "pdist2", "",
                     "m:pdist2:nargin");
-    auto a = parse_metric_args(args, 2);
-    outs[0] = pdist2(ctx.engine->resource(), args[0], args[1], a.metric, a.p, a.C);
+
+    // Walk args[2..]: extract optional 'Smallest'/'Largest' N-V pair, then
+    // pass the rest to the standard metric/p/C parser.
+    std::vector<Value> filtered;
+    filtered.reserve(args.size());
+    bool topk_mode = false;
+    bool largest = false;
+    size_t k = 0;
+    for (size_t i = 2; i < args.size(); ++i) {
+        if ((args[i].isChar() || args[i].isString()) && i + 1 < args.size()) {
+            const std::string s = args[i].toString();
+            std::string sl; sl.reserve(s.size());
+            for (char c : s) sl.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+            if (sl == "smallest" || sl == "largest") {
+                topk_mode = true;
+                largest = (sl == "largest");
+                k = static_cast<size_t>(args[i + 1].toScalar());
+                ++i; // skip value
+                continue;
+            }
+        }
+        filtered.push_back(args[i]);
+    }
+
+    // Build a mini-args view for parse_metric_args (using filtered).
+    // parse_metric_args expects a Span starting at offset; we re-use by
+    // creating a small temporary Vector of Values prepended with two dummies
+    // (skipped via start=2). Simpler: inline parse here on the filtered vec.
+    MetricArgs a{"euclidean", 2.0, nullptr};
+    for (size_t i = 0; i < filtered.size(); ++i) {
+        if (filtered[i].isChar() || filtered[i].isString()) {
+            a.metric = filtered[i].toString();
+        } else if (filtered[i].numel() == 1) {
+            a.p = filtered[i].toScalar();
+        } else if (filtered[i].numel() > 1) {
+            a.C = &filtered[i];
+        }
+    }
+
+    if (topk_mode) {
+        Value D, I;
+        pdist2_topk(ctx.engine->resource(), args[0], args[1],
+                    a.metric, a.p, a.C, k, largest, D, I);
+        outs[0] = D;
+        if (outs.size() > 1) outs[1] = I;
+    } else {
+        outs[0] = pdist2(ctx.engine->resource(), args[0], args[1],
+                         a.metric, a.p, a.C);
+    }
 }
 
 void squareform_reg(Span<const Value> args, size_t /*nargout*/,
