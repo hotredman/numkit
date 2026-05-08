@@ -1,10 +1,14 @@
 {
   "name": "gauswavf",
   "namespace": "wavelet",
-  "setup": "",
-  "expr": "[psi1, x] = gauswavf(-5, 5, 11); [psi2, ~] = gauswavf(-5, 5, 11, 2); [psi4, ~] = gauswavf(-5, 5, 11, 4);",
+  "setup": "[p1, x1] = gauswavf(-5, 5, 8); [p2, x2] = gauswavf(-5, 5, 8, 2); [p4, x4] = gauswavf(-5, 5, 8, 4); [p8, x8] = gauswavf(-5, 5, 8, 8); [pw, xw] = gauswavf(-5, 5, 8, 'gaus3');",
+  "expr": "v1 = p1(4); v2 = p2(4); v4 = p4(4); v8 = p8(4); vw = pw(4); xw1 = xw(1); xw_e = xw(8);",
   "iters": 5,
   "tol": 1e-9,
-  "fingerprint": ["psi1(5)", "psi1(7)", "psi2(6)", "psi2(5)", "psi4(6)", "x(1)", "x(11)"],
-  "comment": "Sig: [psi, x] = gauswavf(LB, UB, N[, p]). Real Gaussian wavelet ψ_p = sgn_p · |α_p| · H_p(t)·exp(-t²) with sgn_p = (-1)^ceil(p/2), |α_p|² = 1/((2p-1)!!·sqrt(π/2)). Default p = 1."
+  "fingerprint": [
+    "v1", "v2", "v4", "v8",
+    "vw",
+    "xw1", "xw_e"
+  ],
+  "comment": "Sig: [psi, x] = gauswavf(LB, UB, N[, p|'gausN']). p-th derivative Gaussian wavelet. Bug fix 2026-05-08: 'gausN' wname form was throwing 'Cannot convert char to scalar'; now parses N from string. Coverage: p ∈ {1, 2, 4, 8} integer + 'gaus3' wname."
 }

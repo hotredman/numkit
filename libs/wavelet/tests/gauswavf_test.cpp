@@ -50,3 +50,28 @@ TEST_F(GauswavfTest, GridLength)
     EXPECT_DOUBLE_EQ(evalScalar("x(1)"), -5);
     EXPECT_DOUBLE_EQ(evalScalar("x(11)"), 5);
 }
+
+// Bug fix 2026-05-08 — added 'gausN' wname form (was throwing
+// "Cannot convert char to scalar").
+
+TEST_F(GauswavfTest, WnameForm)
+{
+    eval("[psi, x] = gauswavf(-5, 5, 8, 'gaus3');");
+    EXPECT_NEAR(evalScalar("psi(4)"), 0.7831648619, 1e-9);
+}
+
+TEST_F(GauswavfTest, WnameMatchesIntegerForm)
+{
+    eval("[a, ~] = gauswavf(-5, 5, 16, 5); [b, ~] = gauswavf(-5, 5, 16, 'gaus5');");
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(a - b))"), 0.0);
+}
+
+TEST_F(GauswavfTest, WnameRejectsBadString)
+{
+    bool threw = false;
+    try { eval("gauswavf(-5, 5, 8, 'bogus');"); } catch (...) { threw = true; }
+    EXPECT_TRUE(threw);
+    threw = false;
+    try { eval("gauswavf(-5, 5, 8, 'gaus');"); } catch (...) { threw = true; }
+    EXPECT_TRUE(threw);
+}
