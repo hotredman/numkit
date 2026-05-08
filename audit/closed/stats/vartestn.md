@@ -1,6 +1,6 @@
 # stats/vartestn — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** medium
 **Effort:** medium
 **Audited at commit:** 69fab7c
@@ -96,3 +96,28 @@ wrong-test selection produces visibly different `p`.)
 - The `'Display','on'` box-plot path — MATLAB renders a figure;
   numkit's headless console doesn't, and that's fine (gracefully
   ignore `'on'` since `p` and `stats` are still returned).
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-08
+- Notes: All 5 TestType variants implemented: Bartlett (default,
+  χ² stat), LeveneQuadratic / LeveneAbsolute / BrownForsythe /
+  OBrien (all F-based via one-way ANOVA on transformed Z values).
+  Matrix-input form `vartestn(X)` (no group) added — each column
+  becomes a separate group. `stats` struct shape switches based on
+  TestType: Bartlett returns {chisqstat, df}; F-based tests return
+  {fstat, df=[k-1, N-k]}.
+
+  Public C++ API: new `vartestn_full(...)` returns
+  `(p, stat, df1, df2)`; old 3-tuple `vartestn` retained as a
+  Bartlett wrapper. Adapter parses 'TestType' N-V case-insensitively;
+  errors on unknown values.
+
+  PMR rule applied: scratch buffers (group buckets, Z values,
+  per-group means/medians/vars) on ScratchArena + ScratchVec. Full
+  refactor of the helper from `std::vector<std::pair<...>>`
+  cluster-mapping to flat CSR-style offsets+data ScratchVecs.
+
+  4 artefacts shipped (impl + 22-fp parity spec + 6 gtests + smoke).
+  Bit-identical numkit ↔ MATLAB ↔ Octave on all 22 fingerprints.
+

@@ -1,14 +1,17 @@
 {
   "name": "vartestn",
   "namespace": "stats",
-  "setup": "x = [1 2 3 1.5 2.5 3.5 5 6 7 8 9]'; g = [1 1 1 2 2 2 3 3 3 3 3]';",
-  "expr": "[p, st] = vartestn(x, g, 'Display', 'off');",
-  "iters": 5,
-  "tol": 1e-10,
+  "setup": "xg = [1.2 1.5 1.8 2.1 5.0 5.5 4.8 6.0 4.5 9.1 8.5 10.0 9.5]'; g = [1 1 1 1 2 2 2 2 2 3 3 3 3]'; M = [1 5 9; 2 6 10; 3 4 11; 4 5 12];",
+  "expr": "[pB, sB] = vartestn(xg, g, 'Display', 'off'); [pLA, sLA] = vartestn(xg, g, 'Display', 'off', 'TestType', 'LeveneAbsolute'); [pLQ, sLQ] = vartestn(xg, g, 'Display', 'off', 'TestType', 'LeveneQuadratic'); [pBF, sBF] = vartestn(xg, g, 'Display', 'off', 'TestType', 'BrownForsythe'); [pOB, sOB] = vartestn(xg, g, 'Display', 'off', 'TestType', 'OBrien'); [pM, sM] = vartestn(M, 'Display', 'off');",
+  "iters": 3,
+  "tol": 1e-9,
   "fingerprint": [
-    "p",
-    "st.chisqstat",
-    "st.df"
+    "pB", "sB.chisqstat", "sB.df",
+    "pLA", "sLA.fstat", "sLA.df(1)", "sLA.df(2)",
+    "pLQ", "sLQ.fstat", "sLQ.df(1)", "sLQ.df(2)",
+    "pBF", "sBF.fstat", "sBF.df(1)", "sBF.df(2)",
+    "pOB", "sOB.fstat", "sOB.df(1)", "sOB.df(2)",
+    "pM", "sM.chisqstat", "sM.df"
   ],
-  "comment": "Sig: [p, stats] = vartestn(x, group[, 'Display', 'off']). Bartlett's k-sample variance equality test. Q = (N-k)·ln(S²) - Σ(n_i-1)·ln(s_i²); T = Q/C; p = 1 - chi2cdf(T, k-1). Levene/BrownForsythe TestType deferred."
+  "comment": "Sig: [p, stats] = vartestn(x[, group][, 'Display', 'off'][, 'TestType', name]). Five test variants: Bartlett (default, χ² stat), LeveneQuadratic / LeveneAbsolute / BrownForsythe / OBrien (all F-based). When no group: matrix input where each column is treated as a separate group. Bartlett returns {chisqstat, df}; F-based tests return {fstat, df=[k-1, N-k]}."
 }
