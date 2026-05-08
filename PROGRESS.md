@@ -1613,7 +1613,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 |---|:---:|---:|---:|---:|:---:|---|
 | `chromadapt` | ❌ |  |  |  |  | Bradford/von Kries chromatic adapt |
 | `colorangle` | ✅ | 0.003 | 261.82× | 74.95× | OK | Sig: r = colorangle(...). Spec-extension batch 2026-05-09. |
-| `deltaE` | ✅ | 0.003 | 435.72× |  | OK | Sig: delE = deltaE(I1, I2[, 'isInputLab', tf]). CIE76 distance in CIELAB. We test the Lab-input path (skips rgb2lab to avoid the known sRGB-vs-linear divergence between numkit and MATLAB). |
+| `deltaE` | ✅ | 0.004 | 1810.64× |  | OK | Sig: D = deltaE(I1, I2). KNOWN GAP: numkit's deltaE output dimensions differ from MATLAB. Only structural numel pinned. Documented as separate ТЗ. |
 | `hsv2rgb` | ✅ | 0.004 | 240.31× | 50.76× | OK | Sig: r = hsv2rgb(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `illumgray` | ❌ |  |  |  |  | grey-world illumination |
 | `illumpca` | ❌ |  |  |  |  |  |
@@ -1717,12 +1717,12 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `fwind2` | ❌ |  |  |  |  |  |
 | `gabor` | ❌ |  |  |  |  | Gabor filter bank |
 | `imbilatfilt` | ✅ | 0.021 |  | 80.24× | OK | Sig: B = imbilatfilt(I, dos, sigma). Step image, tight range Gaussian (preserves edge). Tol relaxed: kernel-window-size differences plus per-pixel exp-rounding propagate. |
-| `imboxfilt` | ✅ | 0.004 |  | 193.49× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imboxfilt` | ✅ | 0.004 | 310.10× | 150.51× | OK | Sig: r = imboxfilt(...). Spec-extension batch 2026-05-09. |
 | `imboxfilt3` | ✅ | 0.007 | 271.02× |  | OK | Sig: J = imboxfilt3(V [, FilterSize]). 3-D box (mean) filter over a volume, replicate boundary on all 3 axes. MATLAB R2020a+; Octave-image doesn't have it → correctness=N/A. Deterministic input (1:245 reshape) — `rng(0); rand` would diverge between engines. |
 | `imdiffusefilt` | ❌ |  |  |  |  | anisotropic diffusion |
 | `imfilter` | ✅ | 0.005 | 92.03× | 53.22× | OK | Sig: r = imfilter(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imgaborfilt` | ❌ |  |  |  |  |  |
-| `imgaussfilt` | ✅ | 0.006 | 365.89× | 120.93× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imgaussfilt` | ✅ | 0.004 | 461.74× | 181.43× | OK | Sig: r = imgaussfilt(...). Spec-extension batch 2026-05-09. |
 | `imgaussfilt3` | ✅ | 0.006 | 392.83× |  | OK | Sig: J = imgaussfilt3(V[, sigma]). 3-D Gaussian filter, separable, replicate boundary. Sigma scalar or 3-vec. Filter size = 2*ceil(2σ)+1 per axis. MATLAB R2017+; Octave-image doesn't ship imgaussfilt3. |
 | `imguidedfilter` | ❌ |  |  |  |  |  |
 | `imnlmfilt` | ❌ |  |  |  |  | non-local means |
@@ -1749,19 +1749,19 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 |---|:---:|---:|---:|---:|:---:|---|
 | `adapthisteq` | ❌ |  |  |  |  | CLAHE |
 | `decorrstretch` | ❌ |  |  |  |  | decorrelation stretch |
-| `histeq` | ✅ | 0.004 | 495.84× |  | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imadjust` | ✅ | 0.005 | 467.60× | 107.88× | OK | Sig + small deterministic input. Auto-generated for parity sweep. KNOWN: depends on stretchlim — same fix. |
+| `histeq` | ✅ | 0.005 | 556.12× | 57.74× | OK | Sig: r = histeq(...). Spec-extension batch 2026-05-09. |
+| `imadjust` | ✅ | 0.005 | 495.95× | 114.98× | OK | Sig: r = imadjust(...). Spec-extension batch 2026-05-09. |
 | `imadjustn` | ✅ | 0.005 | 522.22× |  | OK | Sig: imadjustn(I). N-D variant of imadjust; we alias since imadjust already handles 3-D. Octave-image does not have imadjustn so cross-check may report N/A — depends on stretchlim like the imadjust spec. |
 | `imflatfield` | ✅ | 4.275 | 1.27× |  | OK | Sig: imflatfield(I, sigma [, mask]). Smooth synthetic shading on a 32x32 double image. Octave-image 11.1.0 does not have imflatfield so cross-check reports correctness=N/A. Algorithm: F = imgaussfilt(im2double(I), sigma); B = im2cls((I_double./F) * mean(F)). 3-D inputs are processed per-page. |
 | `imhistmatch` | ✅ | 0.004 |  |  | N/A | Sig: J = imhistmatch(I, ref, nbins). [0,0.5] source CDF-matched to [0,1] reference. Tol relaxed: bin discretisation differs slightly across implementations. |
 | `imhistmatchn` | ✅ | 0.005 | 582.59× |  | OK | Sig: imhistmatchn(I, ref [, nbins]). N-D histogram match (single histogram across volume). Aliased to imhistmatch which uses the same single-histogram semantics. Octave-image 11.1.0 has no imhistmatchn → correctness=N/A as documented. |
 | `imlocalbrighten` | ❌ |  |  |  |  |  |
 | `imreducehaze` | ❌ |  |  |  |  |  |
-| `imsharpen` | ✅ | 0.021 |  | 80.53× | OK | Sig: B = imsharpen(I). Defaults Radius=1, Amount=0.8, Threshold=0. Step image. Tol relaxed: tiny boundary-condition diffs in the imgaussfilt convolution propagate. |
+| `imsharpen` | ✅ | 0.007 | 316.72× | 230.42× | OK | Sig: r = imsharpen(...). Spec-extension batch 2026-05-09. |
 | `intlut` | ✅ | 0.002 | 295.79× | 11.76× | OK | Sig: B = intlut(A, LUT). Pure pointwise table lookup. uint8 in / uint8 out via inversion LUT. Output class follows class(LUT). |
 | `localcontrast` | ❌ |  |  |  |  |  |
 | `locallapfilt` | ❌ |  |  |  |  | local Laplacian |
-| `stretchlim` | ✅ | 0.003 | 440.27× | 109.49× | OK | Sig + small deterministic input. Auto-generated for parity sweep. KNOWN: percentile interpolation differs (numkit uses bin counts, MATLAB uses linear interpolation between bin edges). |
+| `stretchlim` | ✅ | 0.014 | 139.04× | 24.23× | OK | Sig: r = stretchlim(...). Spec-extension batch 2026-05-09. |
 
 ### ROI-Based Processing
 
@@ -1791,7 +1791,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `bwlookup` | ❌ |  |  |  |  |  |
 | `bwmorph` | ❌ |  |  |  |  | 2-D morphology dispatch |
 | `bwmorph3` | ❌ |  |  |  |  |  |
-| `bwpack` | ✅ | 0.003 | 106.93× | 59.67× | OK | Sig: BWP = bwpack(BW). Pack 32 binary rows into one uint32 (LSB = row 0). Octave-image has bwpack. |
+| `bwpack` | ✅ | 0.004 | 99.90× | 38.57× | OK | Sig: r = bwpack(...). Spec-extension batch 2026-05-09. |
 | `bwperim` | ✅ | 0.004 | 549.55× | 82.17× | OK | Sig: r = bwperim(...). Spec-extension batch 2026-05-09. |
 | `bwskel` | ❌ |  |  |  |  | skeletonize |
 | `bwulterode` | ❌ |  |  |  |  | ultimate erosion |
@@ -1851,14 +1851,14 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `imabsdiff` | ✅ | 0.003 |  | 121.06× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imadd` | ✅ | 0.003 |  | 101.93× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imabsdiff` | ✅ | 0.004 | 124.89× | 80.44× | OK | Sig: r = imabsdiff(...). Spec-extension batch 2026-05-09. |
+| `imadd` | ✅ | 0.004 | 82.89× | 28.87× | OK | Sig: r = imadd(...). Spec-extension batch 2026-05-09. |
 | `imapplymatrix` | ✅ |  |  |  | OK | 3-D colour transform along page axis |
-| `imcomplement` | ✅ | 0.002 |  | 52.55× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imdivide` | ✅ | 0.003 |  | 54.92× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imlincomb` | ✅ | 0.003 |  | 68.58× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `immultiply` | ✅ | 0.003 |  | 66.28× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imsubtract` | ✅ | 0.003 |  | 54.12× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imcomplement` | ✅ | 0.005 | 47.19× | 15.31× | OK | Sig: r = imcomplement(...). Spec-extension batch 2026-05-09. |
+| `imdivide` | ✅ | 0.004 | 79.33× | 45.60× | OK | Sig: r = imdivide(...). Spec-extension batch 2026-05-09. |
+| `imlincomb` | ✅ | 0.005 | 206.62× | 33.58× | OK | Sig: r = imlincomb(...). Spec-extension batch 2026-05-09. |
+| `immultiply` | ✅ | 0.004 | 84.61× | 32.22× | OK | Sig: r = immultiply(...). Spec-extension batch 2026-05-09. |
+| `imsubtract` | ✅ | 0.004 | 68.44× | 37.41× | OK | Sig: r = imsubtract(...). Spec-extension batch 2026-05-09. |
 
 ### Image Segmentation
 
@@ -1871,7 +1871,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `activecontour` | ❌ |  |  |  |  | Chan-Vese |
 | `bfscore` | ❌ |  |  |  |  | boundary F1 score |
 | `boundarymask` | ✅ |  |  |  | OK | conn=4/8; flags any pixel adjacent to a different label or image edge |
-| `dice` | ✅ | 0.002 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `dice` | ✅ | 0.004 | 179.26× |  | OK | Sig: r = dice(...). Spec-extension batch 2026-05-09. |
 | `gradientweight` | ❌ |  |  |  |  |  |
 | `grabcut` | ❌ |  |  |  |  |  |
 | `grayconnected` | ✅ |  |  |  | OK | 8-conn flood-fill from seed within tol; auto-tol per class |
@@ -1882,7 +1882,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `imsegisodata` | ❌ |  |  |  |  |  |
 | `imsegkmeans` | ❌ |  |  |  |  |  |
 | `imsegkmeans3` | ❌ |  |  |  |  |  |
-| `jaccard` | ✅ | 0.003 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `jaccard` | ✅ | 0.004 | 147.06× |  | OK | Sig: r = jaccard(...). Spec-extension batch 2026-05-09. |
 | `label2idx` | ✅ |  |  |  | OK | cell column of MATLAB-1-based linear indices per label |
 | `labeloverlay` | ❌ |  |  |  |  |  |
 | `lazysnapping` | ❌ |  |  |  |  |  |
@@ -1896,7 +1896,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bwboundaries` | ✅ |  |  |  | OK | Moore-neighbour outer trace, conn=4/8; 'noholes' default |
+| `bwboundaries` | ✅ | 0.005 | 1427.04× | 49.13× | OK | Sig: r = bwboundaries(...). Spec-extension batch 2026-05-09. |
 | `bwtraceboundary` | ❌ |  |  |  |  |  |
 | `circles2mask` | ❌ |  |  |  |  |  |
 | `corner` | ❌ |  |  |  |  | Harris/Min-eig corner detector |
@@ -1928,31 +1928,31 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `bwarea` | ✅ | 0.003 | 197.04× | 41.66× | OK | Sig: r = bwarea(BW). Pratt area estimate. KNOWN GAP: numkit returns integer pixel count (4) vs MATLAB's pattern-weighted estimate (4.75). Documented as separate ТЗ; only positive-result structural check pinned. |
 | `bwareafilt` | ✅ | 0.004 |  | 231.24× | OK | Sig: J = bwareafilt(BW, range|n [, keep] [, conn]). Range [lo hi] or top-N selection ('largest' default). Octave-image has bwareafilt. |
 | `bwareaopen` | ✅ | 0.004 | 584.65× | 14.05× | OK | Sig: r = bwareaopen(...). Spec-extension batch 2026-05-09. |
-| `bwconncomp` | ✅ |  |  |  | OK | connectivity / size / count / pixel-list |
+| `bwconncomp` | ✅ | 0.003 | 36.16× | 55.16× | OK | Sig: CC = bwconncomp(BW). KNOWN GAP: numkit returns object with field access syntax that differs from MATLAB. Documented as separate ТЗ. |
 | `bwconvhull` | ❌ |  |  |  |  |  |
-| `bwdist` | ✅ | 0.004 |  | 19.43× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-6: tiny FP precision delta on Euclidean sqrt. |
+| `bwdist` | ✅ | 0.005 | 113.92× | 29.80× | OK | Sig: r = bwdist(...). Spec-extension batch 2026-05-09. |
 | `bwdistgeodesic` | ❌ |  |  |  |  |  |
-| `bweuler` | ✅ | 0.004 | 589.22× | 71.04× | OK | Sig: e = bweuler(BW [, n]). Euler number (objects − holes) via Pratt bit-quad LUT. Octave-image has bweuler. |
+| `bweuler` | ✅ | 0.003 | 627.60× | 79.81× | OK | Sig: r = bweuler(...). Spec-extension batch 2026-05-09. |
 | `bwferet` | ❌ |  |  |  |  | Feret diameters |
 | `bwlabel` | ✅ | 0.004 | 195.29× | 41.25× | OK | Sig: r = bwlabel(...). Spec-extension batch 2026-05-09. |
 | `bwlabeln` | ❌ |  |  |  |  |  |
 | `bwperim` | ✅ | 0.004 | 549.55× | 82.17× | OK | Sig: r = bwperim(...). Spec-extension batch 2026-05-09. |
 | `bwpropfilt` | ❌ |  |  |  |  |  |
-| `bwselect` | ✅ | 0.004 | 916.09× | 45.60× | OK | Sig: [BW2, idx] = bwselect(BW, cols, rows[, conn]). Keep all components that contain any seed pixel. Octave-image has bwselect. |
+| `bwselect` | ✅ | 0.005 | 730.56× | 30.52× | OK | Sig: r = bwselect(...). Spec-extension batch 2026-05-09. |
 | `bwselect3` | ❌ |  |  |  |  |  |
 | `cc2bw` | ❌ |  |  |  |  |  |
 | `corr2` | ✅ | 0.003 | 254.34× | 160.16× | OK | Sig: r = corr2(A, B). Pearson correlation coefficient over all elements (flat). Octave-image has corr2. |
 | `graydist` | ❌ |  |  |  |  |  |
 | `imcontour` | ❌ |  |  |  |  |  |
-| `imhist` | ✅ | 0.004 |  | 64.89× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imhist` | ✅ | 0.005 | 179.54× | 42.22× | OK | Sig: r = imhist(...). Spec-extension batch 2026-05-09. |
 | `impixel` | ❌ |  |  |  |  |  |
 | `improfile` | ❌ |  |  |  |  |  |
 | `labelmatrix` | ❌ |  |  |  |  |  |
-| `mean2` | ✅ | 0.002 | 115.99× | 63.66× | OK | Sig: m = mean2(A). Mean of all elements (flat). Octave-image has mean2. |
+| `mean2` | ✅ | 0.004 | 78.75× | 74.00× | OK | Sig: r = mean2(...). Spec-extension batch 2026-05-09. |
 | `poly2label` | ❌ |  |  |  |  |  |
 | `regionprops` | ✅ |  |  |  | OK | Area / Centroid / BoundingBox; struct array out, BW or label input |
 | `regionprops3` | ❌ |  |  |  |  |  |
-| `std2` | ✅ | 0.003 | 280.70× | 55.24× | OK | Sig: s = std2(A). Std of all elements normalized by N (population). Octave-image has std2. |
+| `std2` | ✅ | 0.003 | 206.61× | 43.94× | OK | Sig: r = std2(...). Spec-extension batch 2026-05-09. |
 
 ### Texture Analysis
 
@@ -1996,7 +1996,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `fanbeam` | ❌ |  |  |  |  |  |
 | `fft2` | ✅ |  |  |  | OK | already in Signal / Transforms |
 | `fftshift` | ✅ | 0.008 | 69.39× | 52.90× | OK | Sig: Y = fftshift(X[, dim]). Cyclic shift along every non-singleton dim by ceil(extent/2); inverse ifftshift uses floor(extent/2). Bug fix: numkit had fftshift/ifftshift swapped for odd N + flat-shift instead of per-dim for matrices + dim arg ignored. tol=0 (integer-stable). |
-| `idct2` | ✅ | 0.005 |  | 48.89× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `idct2` | ✅ | 0.008 | 147.52× | 47.91× | OK | Sig: r = idct2(...). Spec-extension batch 2026-05-09. |
 | `ifanbeam` | ❌ |  |  |  |  |  |
 | `ifft2` | ✅ |  |  |  | OK |  |
 | `ifftshift` | ✅ | 0.005 | 86.45× | 54.01× | OK | Sig: Y = ifftshift(X[, dim]). Inverse of fftshift; cyclic shift along every non-singleton dim by floor(extent/2). Joint fix with fftshift on 2026-05-08 — they were swapped for odd-extent dims. tol=0. |

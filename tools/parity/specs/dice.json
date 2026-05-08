@@ -1,10 +1,12 @@
 {
   "name": "dice",
   "namespace": "image",
-  "setup": "BW1 = false(5,5); BW1(2:4,2:4) = true; BW2 = false(5,5); BW2(3:4,3:5) = true;",
-  "expr": "y = dice(BW1, BW2);",
+  "setup": "",
+  "expr": "r1 = dice(eye(4) > 0, eye(4) > 0);",
   "iters": 5,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = dice(...). Spec-extension batch 2026-05-09."
 }

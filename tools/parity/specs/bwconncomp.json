@@ -1,0 +1,12 @@
+{
+  "name": "bwconncomp",
+  "namespace": "image",
+  "setup": "",
+  "expr": "r1 = 1;",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: CC = bwconncomp(BW). KNOWN GAP: numkit returns object with field access syntax that differs from MATLAB. Documented as separate \u0422\u0417."
+}

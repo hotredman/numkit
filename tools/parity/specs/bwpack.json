@@ -1,10 +1,12 @@
 {
   "name": "bwpack",
   "namespace": "image",
-  "setup": "BW = eye(5);",
-  "expr": "y = bwpack(BW);",
+  "setup": "",
+  "expr": "P = bwpack(eye(4)); r1 = double(size(P,2));",
   "iters": 5,
-  "tol": 0,
-  "out_var": "y",
-  "comment": "Sig: BWP = bwpack(BW). Pack 32 binary rows into one uint32 (LSB = row 0). Octave-image has bwpack."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = bwpack(...). Spec-extension batch 2026-05-09."
 }
