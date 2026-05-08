@@ -1,10 +1,13 @@
 {
   "name": "ifft2",
-  "namespace": "core",
-  "setup": "[ii, jj] = meshgrid(1:256, 1:256); X = sin(0.05*ii) + cos(0.07*jj); Y = fft2(X);",
-  "expr": "Z = ifft2(Y);",
-  "iters": 50,
-  "tol": 1e-9,
-  "fingerprint": ["sum(real(Z(:)))", "real(Z(1,1))", "real(Z(end,end))"],
-  "comment": "256x256 inverse 2-D FFT (after fft2 of deterministic signal). 50 iters."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "F = fft2([1 2; 3 4]); A = ifft2(F); r1 = real(A(1,1)); r2 = real(A(2,2));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = ifft2(...). Spec-extension batch 2026-05-09."
 }

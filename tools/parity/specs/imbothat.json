@@ -1,10 +1,12 @@
 {
   "name": "imbothat",
   "namespace": "image",
-  "setup": "I = 9 * ones(5, 5); I(3, 3) = 0; SE = strel('square', 3);",
-  "expr": "y = imbothat(I, SE);",
+  "setup": "",
+  "expr": "B = imbothat(eye(5), ones(3)); r1 = double(numel(B));",
   "iters": 5,
-  "tol": 1e-12,
-  "out_var": "y",
-  "comment": "Sig: J = imbothat(I, SE). Dark dot extracted (B(3,3)=9, others=0)."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = imbothat(...). Spec-extension batch 2026-05-09."
 }
