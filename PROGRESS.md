@@ -2603,7 +2603,7 @@ intentionally omitted — flat solver functions only.
 | `dpsssave` | ❌ |  |  |  |  | cache |
 | `enbw` | ✅ | 0.006 | 90.57× |  | OK | Sig: bw = enbw(window[, fs]). Equivalent noise bandwidth: N · Σ(w²) / (Σw)². With fs, scales output by fs/N. tol=1e-12. Specs covers hamming/hann/rectwin/blackman + fs-scaled forms. |
 | `flattopwin` | ✅ | 0.013 | 2.99× | 3.20× | OK | Sig: W = flattopwin(N). Flat-top. 10000 iters. |
-| `gausswin` | ✅ | 0.004 | 5.68× | 5.12× | OK | Sig: W = gausswin(N). Gaussian. 10000 iters. |
+| `gausswin` | ✅ | 0.005 | 29.66× | 42.15× | OK | Sig: w = gausswin(N[, alpha]). Gaussian window with reciprocal-of-stddev shape param alpha (default 2.5). Larger alpha -> tighter / lower endpoints. Coverage: alpha ∈ {1.5, 2.5, 4, 8} × N ∈ {8, 16, 64} sample points + N=1 (single-point window). |
 | `hamming` | ✅ | 0.004 | 6.66× | 4.44× | OK | Sig: W = hamming(N). 1024-pt Hamming. 10000 iters. |
 | `hann` | ✅ | 0.004 | 7.54× | 6.01× | OK | Sig: W = hann(N). 1024-pt Hann window. 10000 iters. |
 | `kaiser` | ✅ | 0.005 | 31.55× | 37.86× | OK | Sig: w = kaiser(N[, beta]). Kaiser window with shape param beta. beta=0 -> rectangular (all ones); larger beta -> narrower mainlobe + lower sidelobes. Default beta=0.5. Coverage: beta ∈ {0, 1, 5, 8.6, 12} × N ∈ {8, 16, 64} + default + N=1 (single-point window). |
@@ -2612,7 +2612,7 @@ intentionally omitted — flat solver functions only.
 | `rectwin` | ✅ | 0.001 | 1.62× | 7.42× | OK | Sig: W = rectwin(N). All-ones. 10000 iters. |
 | `taylorwin` | ✅ | 0.013 | 3.16× | 7.12× | MISMATCH | Sig: W = taylorwin(N). 1024-pt Taylor window. 1000 iters. |
 | `triang` | ✅ | 0.001 | 8.97× | 15.16× | OK | Sig: W = triang(N). Triangular. 10000 iters. |
-| `tukeywin` | ✅ | 0.002 | 9.45× | 26.31× | OK | Sig: W = tukeywin(N, R). r=0.5. 10000 iters. |
+| `tukeywin` | ✅ | 0.007 | 33.62× | 29.85× | OK | Sig: w = tukeywin(N[, r]). Tukey (cosine-tapered) window; r is cosine fraction in [0, 1]. r=0 -> rectwin (all ones); r=1 -> Hann. Default r=0.5. Coverage: r ∈ {0, 0.25, 0.5, 0.75, 1} × selected sample points + N=1 single-point. |
 | `wvtool` | ❌ |  |  |  |  | GUI |
 
 ### Parametric Spectral Estimation

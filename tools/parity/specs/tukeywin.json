@@ -1,10 +1,18 @@
 {
   "name": "tukeywin",
   "namespace": "core",
-  "setup": "n = 1024; r = 0.5;",
-  "expr": "y = tukeywin(n, r);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: W = tukeywin(N, R). r=0.5. 10000 iters."
+  "setup": "w0 = tukeywin(8, 0); w25 = tukeywin(8, 0.25); w5 = tukeywin(8); w75 = tukeywin(16, 0.75); w1_full = tukeywin(8, 1); w64 = tukeywin(64, 0.5); w1pt = tukeywin(1, 0.5);",
+  "expr": "r0_a = w0(1); r0_b = w0(5); r25_a = w25(1); r25_b = w25(2); r5_a = w5(1); r5_b = w5(2); r75_a = w75(1); r75_b = w75(8); r1_a = w1_full(2); r1_b = w1_full(4); m64 = w64(32); single_pt = w1pt(1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r0_a", "r0_b",
+    "r25_a", "r25_b",
+    "r5_a", "r5_b",
+    "r75_a", "r75_b",
+    "r1_a", "r1_b",
+    "m64",
+    "single_pt"
+  ],
+  "comment": "Sig: w = tukeywin(N[, r]). Tukey (cosine-tapered) window; r is cosine fraction in [0, 1]. r=0 -> rectwin (all ones); r=1 -> Hann. Default r=0.5. Coverage: r ∈ {0, 0.25, 0.5, 0.75, 1} × selected sample points + N=1 single-point."
 }

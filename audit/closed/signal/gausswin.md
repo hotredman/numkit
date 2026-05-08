@@ -43,3 +43,16 @@ Documented signatures (`help gausswin`):
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Pure spec coverage, no impl change. Numkit gausswin
+  already matched MATLAB exactly across all (alpha, N) pairs.
+
+  Spec extended from 1 to 9 fingerprints (alpha ∈ {1.5, 2.5, 4,
+  8} × N ∈ {8, 16, 64} sample points + N=1 single-point). Parity
+  OK numkit ↔ MATLAB ↔ Octave at tol=1e-12. 4 TEST_F gtest +
+  smoke. Single-precision typeName (recommendation #2) deferred —
+  not yet implemented across the window family; would need a
+  cross-cutting refactor.
