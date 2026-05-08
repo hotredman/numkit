@@ -2949,7 +2949,7 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `binostat` | ✅ | 0.008 | 209.42× | 57.77× | OK | Sig: [m, v] = binostat(n, p). Binomial: m=n·p, v=n·p·(1-p). Vectorised. n<0 / non-integer / p<0 / p>1 => NaN. p∈{0,1} are valid (variance becomes 0). |
 | `unidpdf` | ✅ | 0.007 | 155.89× | 57.54× | OK | Sig: y = unidpdf(k, N). Discrete uniform PMF on {1..N}: 1/N if k in 1..N integer, else 0. N<=0 or non-integer N -> NaN. NaN N -> NaN. NaN k -> 0 (per MATLAB). tol=0 (integer-stable for discrete). |
 | `unidcdf` | ✅ |  |  |  | OK |  |
-| `unidinv` | ✅ |  |  |  | OK |  |
+| `unidinv` | ✅ | 0.008 | 137.04× | 47.62× | OK | Sig: x = unidinv(p, N). Inverse discrete-uniform CDF on {1..N}: x = ceil(p·N), clamped. Edges: p<=0 or p>1 -> NaN (p=0 has no integer pre-image); N<1 or non-integer N -> NaN; NaN p/N -> NaN. tol=0. |
 | `unidrnd` | ✅ |  |  |  | OK |  |
 | `unidstat` | ✅ | 0.006 | 84.76× | 42.89× | OK | Sig: [m, v] = unidstat(N). Discrete uniform on {1..N}: m = (N+1)/2, v = (N²-1)/12. Vectorised. N<1 or non-integer => NaN. |
 | `geopdf` | ✅ |  |  |  | OK | geometric (failures before 1st success) |

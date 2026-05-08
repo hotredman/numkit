@@ -60,14 +60,15 @@ Value unidcdf(std::pmr::memory_resource *mr, const Value &k, double N)
 
 Value unidinv(std::pmr::memory_resource *mr, const Value &p, double N)
 {
-    if (N < 1.0 || std::floor(N) != N)
+    if (!(N >= 1.0) || std::floor(N) != N)  // also catches NaN N
         return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
     return elementwise(mr, p, [=](double pi) {
-        if (!(pi >= 0.0 && pi <= 1.0)) return std::numeric_limits<double>::quiet_NaN();
-        if (pi == 0.0) return 1.0;
-        if (pi >= 1.0) return N;
+        // MATLAB convention: p outside (0, 1] -> NaN. p=0 has no
+        // integer pre-image in the support, so it is also NaN.
+        if (std::isnan(pi) || pi <= 0.0 || pi > 1.0)
+            return std::numeric_limits<double>::quiet_NaN();
         const double r = std::ceil(pi * N);
-        return r < 1.0 ? 1.0 : r;
+        return r < 1.0 ? 1.0 : (r > N ? N : r);
     });
 }
 
