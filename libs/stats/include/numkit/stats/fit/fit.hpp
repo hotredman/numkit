@@ -13,12 +13,15 @@
 
 namespace numkit::stats {
 
-/// `[muhat, sigmahat, muci, sigmaci] = normfit(x[, alpha])`.
+/// `[muhat, sigmahat, muci, sigmaci] = normfit(x[, alpha[, cens[, freq]]])`.
 /// muhat = mean(x); sigmahat = sample std (N−1). CIs: t-based for mu,
-/// chi² for sigma. NaN-free vector input expected (caller should
-/// pre-filter; matches MATLAB's behaviour for vector samples).
+/// chi² for sigma in the basic+freq case; Wald (analytic Fisher info)
+/// + log-σ transform for the censored case.
 std::tuple<Value, Value, Value, Value>
 normfit(std::pmr::memory_resource *mr, const Value &x, double alpha);
+std::tuple<Value, Value, Value, Value>
+normfit(std::pmr::memory_resource *mr, const Value &x, double alpha,
+        const Value *cens, const Value *freq);
 
 /// `[lhat, lci] = poissfit(x[, alpha])` — lambda = mean(x); exact CI
 /// from chi² inversion of cumulative Poisson tail.

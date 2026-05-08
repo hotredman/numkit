@@ -15,7 +15,6 @@ Status legend:
 
 | File | Function | Namespace | Priority | Effort | Audit commit |
 |---|---|---|---|---|---|
-| [findings/stats/normfit.md](findings/stats/normfit.md) | normfit | stats.fit | medium | medium | bfda361 |
 | [findings/stats/chi2gof.md](findings/stats/chi2gof.md) | chi2gof | stats.test | medium | large | 69fab7c |
 | [findings/stats/jbtest.md](findings/stats/jbtest.md) | jbtest | stats.test | medium | medium | 69fab7c |
 | [findings/stats/vartestn.md](findings/stats/vartestn.md) | vartestn | stats.test | medium | medium | 69fab7c |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/cluster/kmeans.md](closed/cluster/kmeans.md) | kmeans | PENDING | 2026-05-08 |
 | [closed/cluster/linkage.md](closed/cluster/linkage.md) | linkage | PENDING | 2026-05-08 |
 | [closed/stats/lognfit.md](closed/stats/lognfit.md) | lognfit | PENDING | 2026-05-08 |
+| [closed/stats/normfit.md](closed/stats/normfit.md) | normfit | PENDING | 2026-05-08 |
 
 ---
 

@@ -1,17 +1,15 @@
 {
   "name": "normfit",
   "namespace": "stats",
-  "setup": "x = [1 2 3 4 5 6 7 8 9 10]';",
-  "expr": "[mu, sd, muci, sdci] = normfit(x);",
+  "setup": "x = [1.2 2.4 3.1 4.5 5.0 6.2 7.1]'; cens = [0 0 0 0 0 1 1]'; freq = [2 2 2 1 1 1 1]';",
+  "expr": "[mu1, sd1, muci1, sdci1] = normfit(x); [mu2, sd2, muci2, sdci2] = normfit(x, 0.05, cens); [mu3, sd3, muci3, sdci3] = normfit(x, 0.05, [], freq); [mu4, sd4, muci4, sdci4] = normfit(x, 0.05, cens, freq);",
   "iters": 5,
-  "tol": 1e-9,
+  "tol": 1e-7,
   "fingerprint": [
-    "mu",
-    "sd",
-    "muci(1)",
-    "muci(2)",
-    "sdci(1)",
-    "sdci(2)"
+    "mu1", "sd1", "muci1(1)", "muci1(2)", "sdci1(1)", "sdci1(2)",
+    "mu2", "sd2", "muci2(1)", "muci2(2)", "sdci2(1)", "sdci2(2)",
+    "mu3", "sd3", "muci3(1)", "muci3(2)", "sdci3(1)", "sdci3(2)",
+    "mu4", "sd4", "muci4(1)", "muci4(2)", "sdci4(1)", "sdci4(2)"
   ],
-  "comment": "Sig: [mu, sd, muci, sdci] = normfit(x[, alpha]). MLE for normal: mu=mean, sd=sample std (N-1). t-CI for mu, chi² CI for sigma. Default alpha=0.05."
+  "comment": "Sig: [mu, sd, muci, sdci] = normfit(x[, alpha[, censoring[, freq[, options]]]]). MLE for normal: mu=mean, sd=sample std (N-1). Closed-form weighted moments when freq alone; EM iteration on truncated-normal moments + analytic Fisher info Wald CI when censored. Default alpha=0.05. Shares the `normal_fit_mle` helper with lognfit."
 }
