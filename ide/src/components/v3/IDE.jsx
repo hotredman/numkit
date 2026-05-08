@@ -438,8 +438,12 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     if (result.errorLine) setErrorLine(result.errorLine);
     setVariables(engine.getVars());
 
-    if (adapter) adapter.flush().then(() => {
-      if (mountedRef.current) setVfsRefreshKey((k) => k + 1);
+    if (adapter) adapter.flush().then((wasDirty) => {
+      // Only refresh the Sidebar tree if the script actually wrote
+      // something. Otherwise rebuilding triggers a recursive listTree
+      // IPC walk over the entire mounted folder for nothing — proven
+      // OOM source on populated local-folder mounts.
+      if (mountedRef.current && wasDirty) setVfsRefreshKey((k) => k + 1);
     });
   }, [engine, addOutput, tabs, activeTab, vfsAdapters]);
 
