@@ -251,12 +251,10 @@ void poissinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 void poissrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("poissrnd: requires lambda[, m, n]", 0, 0, "poissrnd", "", "m:poissrnd:nargin");
+        throw Error("poissrnd: requires lambda[, sz...]", 0, 0, "poissrnd", "", "m:poissrnd:nargin");
     const double lambda = args[0].toScalar();
-    size_t rows = 1, cols = 1;
-    if (args.size() >= 2 && !args[1].isEmpty()) rows = static_cast<size_t>(args[1].toScalar());
-    if (args.size() >= 3 && !args[2].isEmpty()) cols = static_cast<size_t>(args[2].toScalar());
-    else if (args.size() >= 2) cols = rows;
+    size_t rows, cols;
+    parse_rng_size(args, 1, rows, cols);
     outs[0] = poissrnd(ctx.engine->resource(), lambda, rows, cols);
 }
 

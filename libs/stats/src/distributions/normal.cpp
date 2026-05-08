@@ -198,17 +198,12 @@ void norminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void normrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("normrnd: requires (mu, sigma[, m, n])",
+        throw Error("normrnd: requires (mu, sigma[, sz...])",
                      0, 0, "normrnd", "", "m:normrnd:nargin");
     const double mu = args[0].toScalar();
     const double sigma = args[1].toScalar();
-    size_t rows = 1, cols = 1;
-    if (args.size() >= 3 && !args[2].isEmpty())
-        rows = static_cast<size_t>(args[2].toScalar());
-    if (args.size() >= 4 && !args[3].isEmpty())
-        cols = static_cast<size_t>(args[3].toScalar());
-    else if (args.size() >= 3)
-        cols = rows; // MATLAB: normrnd(mu, sigma, n) → n×n
+    size_t rows, cols;
+    parse_rng_size(args, 2, rows, cols);
     outs[0] = normrnd(ctx.engine->resource(), mu, sigma, rows, cols);
 }
 

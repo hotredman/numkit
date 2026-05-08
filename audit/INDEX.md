@@ -15,20 +15,6 @@ Status legend:
 
 | File | Function | Namespace | Priority | Effort | Audit commit |
 |---|---|---|---|---|---|
-| [findings/stats/normrnd.md](findings/stats/normrnd.md) | normrnd | stats.dist | high | medium | 8e48677 |
-| [findings/stats/chi2rnd.md](findings/stats/chi2rnd.md) | chi2rnd | stats.dist | medium | small | 8e48677 |
-| [findings/stats/trnd.md](findings/stats/trnd.md) | trnd | stats.dist | medium | small | 8e48677 |
-| [findings/stats/betarnd.md](findings/stats/betarnd.md) | betarnd | stats.dist | medium | small | 301e5a5 |
-| [findings/stats/exprnd.md](findings/stats/exprnd.md) | exprnd | stats.dist | medium | small | 301e5a5 |
-| [findings/stats/gamrnd.md](findings/stats/gamrnd.md) | gamrnd | stats.dist | medium | small | 301e5a5 |
-| [findings/stats/frnd.md](findings/stats/frnd.md) | frnd | stats.dist | medium | small | e580a5c |
-| [findings/stats/raylrnd.md](findings/stats/raylrnd.md) | raylrnd | stats.dist | medium | small | e580a5c |
-| [findings/stats/unifrnd.md](findings/stats/unifrnd.md) | unifrnd | stats.dist | medium | small | e580a5c |
-| [findings/stats/binornd.md](findings/stats/binornd.md) | binornd | stats.dist | low | small | 1525319 |
-| [findings/stats/poissrnd.md](findings/stats/poissrnd.md) | poissrnd | stats.dist | low | small | 1525319 |
-| [findings/stats/unidrnd.md](findings/stats/unidrnd.md) | unidrnd | stats.dist | low | small | 1525319 |
-| [findings/stats/lognrnd.md](findings/stats/lognrnd.md) | lognrnd | stats.dist | medium | small | 105c2b4 |
-| [findings/stats/wblrnd.md](findings/stats/wblrnd.md) | wblrnd | stats.dist | medium | small | 105c2b4 |
 
 ## Closed ТЗ
 
@@ -225,6 +211,20 @@ Status legend:
 | [closed/regress/regress.md](closed/regress/regress.md) | regress | PENDING (rint approximate) | 2026-05-08 |
 | [closed/regress/lscov.md](closed/regress/lscov.md) | lscov | PENDING | 2026-05-08 |
 | [closed/regress/ridge.md](closed/regress/ridge.md) | ridge | PENDING | 2026-05-08 |
+| [closed/stats/betarnd.md](closed/stats/betarnd.md) | betarnd | PENDING (vector-sz only) | 2026-05-08 |
+| [closed/stats/binornd.md](closed/stats/binornd.md) | binornd | PENDING (vector-sz only) | 2026-05-08 |
+| [closed/stats/chi2rnd.md](closed/stats/chi2rnd.md) | chi2rnd | PENDING (vector-sz only) | 2026-05-08 |
+| [closed/stats/exprnd.md](closed/stats/exprnd.md) | exprnd | PENDING (vector-sz only) | 2026-05-08 |
+| [closed/stats/frnd.md](closed/stats/frnd.md) | frnd | PENDING (vector-sz only) | 2026-05-08 |
+| [closed/stats/gamrnd.md](closed/stats/gamrnd.md) | gamrnd | PENDING (vector-sz only) | 2026-05-08 |
+| [closed/stats/lognrnd.md](closed/stats/lognrnd.md) | lognrnd | PENDING (vector-sz only) | 2026-05-08 |
+| [closed/stats/normrnd.md](closed/stats/normrnd.md) | normrnd | PENDING (vector-sz only) | 2026-05-08 |
+| [closed/stats/poissrnd.md](closed/stats/poissrnd.md) | poissrnd | PENDING (vector-sz only) | 2026-05-08 |
+| [closed/stats/raylrnd.md](closed/stats/raylrnd.md) | raylrnd | PENDING (vector-sz only) | 2026-05-08 |
+| [closed/stats/trnd.md](closed/stats/trnd.md) | trnd | PENDING (vector-sz only) | 2026-05-08 |
+| [closed/stats/unidrnd.md](closed/stats/unidrnd.md) | unidrnd | PENDING (vector-sz only) | 2026-05-08 |
+| [closed/stats/unifrnd.md](closed/stats/unifrnd.md) | unifrnd | PENDING (vector-sz only) | 2026-05-08 |
+| [closed/stats/wblrnd.md](closed/stats/wblrnd.md) | wblrnd | PENDING (vector-sz only) | 2026-05-08 |
 
 ---
 

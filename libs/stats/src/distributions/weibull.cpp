@@ -149,10 +149,8 @@ void wblrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     const double a = argA(args, 0);
     const double b = argB(args, 1);
-    size_t rows = 1, cols = 1;
-    if (args.size() >= 3 && !args[2].isEmpty()) rows = static_cast<size_t>(args[2].toScalar());
-    if (args.size() >= 4 && !args[3].isEmpty()) cols = static_cast<size_t>(args[3].toScalar());
-    else if (args.size() >= 3) cols = rows;
+    size_t rows, cols;
+    parse_rng_size(args, 2, rows, cols);
     outs[0] = wblrnd(ctx.engine->resource(), a, b, rows, cols);
 }
 

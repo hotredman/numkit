@@ -129,12 +129,10 @@ void expinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 void exprnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("exprnd: requires mu[, m, n]", 0, 0, "exprnd", "", "m:exprnd:nargin");
+        throw Error("exprnd: requires mu[, sz...]", 0, 0, "exprnd", "", "m:exprnd:nargin");
     const double mu = args[0].toScalar();
-    size_t rows = 1, cols = 1;
-    if (args.size() >= 2 && !args[1].isEmpty()) rows = static_cast<size_t>(args[1].toScalar());
-    if (args.size() >= 3 && !args[2].isEmpty()) cols = static_cast<size_t>(args[2].toScalar());
-    else if (args.size() >= 2) cols = rows;
+    size_t rows, cols;
+    parse_rng_size(args, 1, rows, cols);
     outs[0] = exprnd(ctx.engine->resource(), mu, rows, cols);
 }
 
