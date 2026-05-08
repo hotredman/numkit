@@ -66,3 +66,40 @@ compression for low-sidelobe Taylor weighting.
 ## Out of scope for this ТЗ
 
 - The single-precision `typeName` form — secondary.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: **CRITICAL bug fix.** Closes both gaps.
+
+  **Two real bugs in numkit's previous impl:**
+  1. **Sign inversion (gap #1):** F_m coefficients used `(-1)^m`
+     instead of `(-1)^(m+1)`. With the wrong sign, the cosine
+     correction subtracted from the constant 1 instead of adding,
+     yielding `1 - cosTaper(...)` — peak at edges, dip at center.
+     Off-by-π in the entire window shape.
+  2. **Wrong normalisation (gap #2):** code normalised peak to 1
+     after building the window. MATLAB does NOT normalise —
+     natural amplitude depends on (nbar, sll); for default
+     (4, -30) the peak is ≈1.52, NOT 1.
+
+  Also removed the `if (N == 1) return [1]` early-exit — MATLAB's
+  `taylorwin(1)` returns the formula evaluated at the single
+  index (≈ 1.5581 for default).
+
+  **Fix is local:** flip sign convention `(m & 1) ? -1.0 : 1.0`
+  → `(m & 1) ? +1.0 : -1.0`, and delete the peak-normalisation
+  block at the end. Algorithm structure was otherwise correct.
+
+  Spec extended from 1 to 11 fingerprints (N ∈ {1, 8, 16, 64} ×
+  nbar ∈ {4, 6, 8} × sll ∈ {-30, -40, -50, -60}). Parity OK
+  numkit ↔ MATLAB ↔ Octave at tol=1e-9 (all 11 fingerprints
+  match exactly to >1e-12 in fact).
+
+  Existing TaylorPeakIsOne test asserted the BUGGY behaviour
+  (peak normalised to 1); replaced with TaylorPeakNotNormalised
+  + TaylorReferenceValues8 + TaylorLowerSll + TaylorPeakAtCentre.
+  All 35 windows-extras tests still pass.
+
+  `typeName` arg parsing deferred (cross-cutting refactor across
+  the window family).

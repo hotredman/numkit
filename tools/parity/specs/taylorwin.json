@@ -1,10 +1,17 @@
 {
   "name": "taylorwin",
   "namespace": "core",
-  "setup": "n = 1024;",
-  "expr": "y = taylorwin(n);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: W = taylorwin(N). 1024-pt Taylor window. 1000 iters.",
-  "out_var": "y"
+  "setup": "wd = taylorwin(8); w40 = taylorwin(8, 4, -40); w6 = taylorwin(8, 6, -30); w16 = taylorwin(16, 6, -50); w64 = taylorwin(64, 8, -60); w1 = taylorwin(1);",
+  "expr": "ed = wd(1); cd = wd(4); e40 = w40(1); c40 = w40(4); e6 = w6(1); c6 = w6(4); e16 = w16(1); c16 = w16(8); e64 = w64(1); c64 = w64(32); single_pt = w1(1);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "ed", "cd",
+    "e40", "c40",
+    "e6", "c6",
+    "e16", "c16",
+    "e64", "c64",
+    "single_pt"
+  ],
+  "comment": "Sig: w = taylorwin(N[, nbar, sll]). Taylor window for radar pulse-compression. Defaults: nbar=4, sll=-30 dB. Bug fix 2026-05-08: previous impl used (-1)^m sign instead of (-1)^(m+1) — inverted output (peak at edges, dip at center). Also incorrectly normalised peak to 1; MATLAB does NOT normalise (peak ≈ 1.52 for default params)."
 }

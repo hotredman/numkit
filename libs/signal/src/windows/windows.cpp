@@ -355,6 +355,21 @@ Value nuttallwin(std::pmr::memory_resource *mr, size_t N)
 }
 
 // ── taylorwin ─────────────────────────────────────────────────────────
+//
+// Taylor window — tapered weighting used in radar pulse-compression.
+// Algorithm (matches MATLAB R2025b):
+//   R     = 10^(-sll/20)
+//   A     = (1/π) · acosh(R)
+//   σ²    = nbar² / (A² + (nbar - 0.5)²)
+//   F_m   = (-1)^(m+1) · prod_{n=1..nbar-1} (1 − m²/(σ²·(A² + (n-0.5)²)))
+//                       ───────────────────────────────────────────────────
+//                                    2 · prod_{n=1..nbar-1, n≠m} (1 − m²/n²)
+//   w(i)  = 1 + 2 · Σ_{m=1..nbar-1} F_m · cos(2π·m·(i - (N-1)/2)/N)
+// MATLAB does NOT normalise to peak=1 — peak depends on (nbar, sll).
+//
+// Bug fix 2026-05-08: previous impl used (-1)^m sign instead of
+// (-1)^(m+1), inverting the window (peak at edges, dip at centre);
+// also wrongly normalised peak to 1.
 Value taylorwin(std::pmr::memory_resource *mr, size_t N, int nbar, double sll)
 {
     if (sll >= 0)
@@ -364,10 +379,9 @@ Value taylorwin(std::pmr::memory_resource *mr, size_t N, int nbar, double sll)
         throw Error("taylorwin: nbar must be >= 2",
                      0, 0, "taylorwin", "", "m:taylorwin:badNbar");
     auto out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
-    if (N == 1) {
-        out.doubleDataMut()[0] = 1.0;
-        return out;
-    }
+    if (N == 0) return out;
+    // Note: N=1 takes the full formula path — MATLAB returns
+    // 1 + 2·Σ F_m for the single sample, NOT just 1.
     const double R = std::pow(10.0, -sll / 20.0);
     const double A = std::log(R + std::sqrt(R * R - 1.0)) / M_PI;
     const double sigma2 = static_cast<double>(nbar) * nbar /
@@ -385,7 +399,8 @@ Value taylorwin(std::pmr::memory_resource *mr, size_t N, int nbar, double sll)
             if (k == m) continue;
             den *= 1.0 - static_cast<double>(m * m) / static_cast<double>(k * k);
         }
-        const double sign = (m & 1) ? -1.0 : 1.0;     // (-1)^m / 2
+        // (-1)^(m+1): m=1 -> +1, m=2 -> -1, m=3 -> +1, ...
+        const double sign = (m & 1) ? +1.0 : -1.0;
         Fm[m - 1] = sign * 0.5 * num / den;
     }
 
@@ -399,15 +414,8 @@ Value taylorwin(std::pmr::memory_resource *mr, size_t N, int nbar, double sll)
         dst[i] = w;
     }
 
-    // Normalise peak to 1.
-    double peak = 0.0;
-    for (size_t i = 0; i < N; ++i)
-        peak = std::max(peak, std::abs(dst[i]));
-    if (peak > 0.0) {
-        const double inv = 1.0 / peak;
-        for (size_t i = 0; i < N; ++i)
-            dst[i] *= inv;
-    }
+    // (No peak normalisation — MATLAB taylorwin keeps the natural amplitude
+    // determined by (nbar, sll). Peak ≈ 1.52 for the default (4, -30).)
     return out;
 }
 
