@@ -84,4 +84,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/ecdfhist_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/squareform_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/inconsistent_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cophenet_test.cpp
 )

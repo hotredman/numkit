@@ -3226,7 +3226,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 | `linkage` | ✅ |  |  |  | OK | single/complete/average/weighted/centroid/median/ward |
 | `cluster` | ✅ |  |  |  | OK | maxclust + cutoff (distance criterion) |
 | `clusterdata` | ✅ |  |  |  | OK | pdist + linkage + cluster one-shot |
-| `cophenet` | ✅ |  |  |  | OK | Pearson between Y and cophenetic distances |
+| `cophenet` | ✅ | 0.005 | 88.43× | 185.77× | OK | Sig: c = cophenet(Z, Y) or [c, d] = cophenet(Z, Y). Cophenetic correlation between original distances Y and the merge-tree-derived cophenetic distances d. Bug fix 2026-05-08: 2-output form was throwing because adapter only emitted outs[0]; now both outputs are produced. |
 | `inconsistent` | ✅ | 0.004 | 73.08× | 391.41× | OK | Sig: Y = inconsistent(Z[, depth]). Inconsistency coefficient on a linkage tree Z. Each row [mean, std, count, inc_coeff] over the depth-d subtree below each non-leaf node. Default depth=2. |
 | `dendrogram` | ❌ |  |  |  |  | display |
 | `optimalleaforder` | ❌ |  |  |  |  | leaf permutation for visualisation |

@@ -1,0 +1,15 @@
+{
+  "name": "cophenet",
+  "namespace": "stats",
+  "setup": "X = [1 1; 1.5 1.5; 5 5; 5.5 5.5; 10 10]; Y = pdist(X); Z = linkage(Y);",
+  "expr": "c = cophenet(Z, Y); [c2, d] = cophenet(Z, Y);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "c", "c2",
+    "numel(d)",
+    "d(1)", "d(2)", "d(3)", "d(4)",
+    "d(8)", "d(10)"
+  ],
+  "comment": "Sig: c = cophenet(Z, Y) or [c, d] = cophenet(Z, Y). Cophenetic correlation between original distances Y and the merge-tree-derived cophenetic distances d. Bug fix 2026-05-08: 2-output form was throwing because adapter only emitted outs[0]; now both outputs are produced."
+}
