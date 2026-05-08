@@ -52,6 +52,46 @@ TEST_F(SignalCoreTest, Nextpow2Large)
     EXPECT_DOUBLE_EQ(evalScalar("nextpow2(1000)"), 10.0);
 }
 
+TEST_F(SignalCoreTest, Nextpow2Negative)
+{
+    // MATLAB uses |x|, so negative -> same as positive.
+    EXPECT_DOUBLE_EQ(evalScalar("nextpow2(-5)"),   3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nextpow2(-100)"), 7.0);
+}
+
+TEST_F(SignalCoreTest, Nextpow2Fractional)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("nextpow2(7.5)"),  3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nextpow2(0.5)"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nextpow2(0.25)"), -2.0);
+}
+
+TEST_F(SignalCoreTest, Nextpow2Complex)
+{
+    // Bug fix 2026-05-08: complex input previously threw; now uses |z|.
+    // |3+4i| = 5, log2(5) ≈ 2.32, ceil -> 3.
+    EXPECT_DOUBLE_EQ(evalScalar("nextpow2(3+4i)"), 3.0);
+}
+
+TEST_F(SignalCoreTest, Nextpow2NaNAndInf)
+{
+    EXPECT_TRUE(std::isnan(evalScalar("nextpow2(NaN)")));
+    EXPECT_TRUE(std::isinf(evalScalar("nextpow2(Inf)")));
+    EXPECT_GT(evalScalar("nextpow2(Inf)"), 0.0);
+    EXPECT_TRUE(std::isinf(evalScalar("nextpow2(-Inf)")));
+    EXPECT_GT(evalScalar("nextpow2(-Inf)"), 0.0);  // matches MATLAB: -Inf -> +Inf
+}
+
+TEST_F(SignalCoreTest, Nextpow2Vector)
+{
+    eval("y = nextpow2([1 5 100 1024 1025]);");
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(3)"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(4)"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(5)"), 11.0);
+}
+
 // ============================================================
 // fft — basic properties
 // ============================================================

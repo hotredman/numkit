@@ -104,27 +104,48 @@ Value cyclicShiftOneDim(const Value &x, int dim, int mode,
 
 } // anonymous namespace
 
-Value nextpow2(std::pmr::memory_resource *mr, double n)
+// Scalar element rule: smallest integer p such that 2^p >= |x|.
+// MATLAB R2025b conventions:
+//   |x| = 0 -> 0
+//   NaN    -> NaN
+//   ±Inf   -> +Inf
+//   else   -> ceil(log2(|x|))
+static double nextpow2Element(double v_abs)
 {
-    if (n <= 0)
-        return Value::scalar(0.0, mr);
-    return Value::scalar(std::ceil(std::log2(n)), mr);
+    if (std::isnan(v_abs)) return std::numeric_limits<double>::quiet_NaN();
+    if (std::isinf(v_abs)) return std::numeric_limits<double>::infinity();
+    if (v_abs == 0.0) return 0.0;
+    return std::ceil(std::log2(v_abs));
 }
 
-// Vectorized form: smallest integer p such that 2^p >= |x_i| for each
-// element. MATLAB documents elementwise behavior; the absolute value
-// rule mirrors MATLAB's handling of negatives. See BUGS.md #10.
+Value nextpow2(std::pmr::memory_resource *mr, double n)
+{
+    return Value::scalar(nextpow2Element(std::abs(n)), mr);
+}
+
+// Vectorized form: applies nextpow2 elementwise. For complex input we
+// use |z| = sqrt(re² + im²) per MATLAB's documented behavior.
 Value nextpow2(std::pmr::memory_resource *mr, const Value &x)
 {
     if (x.isEmpty()) return x;
-    if (x.isScalar()) return nextpow2(mr, std::abs(x.toScalar()));
+    if (x.isComplex()) {
+        if (x.isScalar()) {
+            const Complex z = x.complexData()[0];
+            return Value::scalar(nextpow2Element(std::abs(z)), mr);
+        }
+        auto out = createLike(x, ValueType::DOUBLE, mr);
+        double *dst = out.doubleDataMut();
+        const Complex *src = x.complexData();
+        const size_t n = x.numel();
+        for (size_t i = 0; i < n; ++i) dst[i] = nextpow2Element(std::abs(src[i]));
+        return out;
+    }
+    if (x.isScalar()) return Value::scalar(nextpow2Element(std::abs(x.toScalar())), mr);
     auto out = createLike(x, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     const size_t n = x.numel();
-    for (size_t i = 0; i < n; ++i) {
-        const double v = std::abs(x.elemAsDouble(i));
-        dst[i] = (v <= 0.0) ? 0.0 : std::ceil(std::log2(v));
-    }
+    for (size_t i = 0; i < n; ++i)
+        dst[i] = nextpow2Element(std::abs(x.elemAsDouble(i)));
     return out;
 }
 

@@ -38,3 +38,24 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Auditor "no major gap" wrong on three counts. Real bugs
+  caught by spec extension:
+  1. **Complex input threw** with `Cannot convert complex to
+     double`. MATLAB uses `|z|`. Fixed: handle complex path with
+     `std::abs(Complex)`.
+  2. **NaN input returned 0** (silent fall-through to `n <= 0`
+     branch). MATLAB returns NaN. Fixed: explicit `isnan` check.
+  3. **±Inf input returned 0**. MATLAB returns +Inf for both.
+     Fixed: explicit `isinf` check.
+
+  Refactored scalar element rule into `nextpow2Element` helper used
+  by both scalar and vector paths (real and complex).
+
+  Spec extended from 3 fingerprints to 14 (vector + 0/-/+/fractional
+  + complex + NaN/±Inf). Parity OK numkit ↔ MATLAB at tol=0. Octave
+  rejects complex input (its own limitation); we follow MATLAB.
+  9 TEST_F gtest (existing 4 + 5 new) + smoke.
