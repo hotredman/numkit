@@ -679,7 +679,7 @@ together.
 | `log10` | ✅ | 6.206 | 0.39× | 1.31× | OK | Sig: Y = log10(X). 1M-pt on [0.001, 1000]. 20 iters. Element-wise SAVE. |
 | `log1p` | ✅ | 6.747 | 0.29× | 1.33× | OK | Sig: Y = log1p(X) = log(1+X). 1M-pt on [-0.5, 5] (avoid X=-1). 20 iters. Element-wise SAVE. |
 | `log2` | ✅ | 8.248 | 0.30× | 1.90× | OK | Sig: Y = log2(X). 1M-pt on [0.001, 1024]. 20 iters. Element-wise SAVE. |
-| `nextpow2` | ✅ | 7.982 | 0.56× | 1.62× | OK | Sig: Y = nextpow2(X). 1M-pt integer-ish on [1, 1e6]. 20 iters. Element-wise SAVE. |
+| `nextpow2` | ✅ | 0.007 | 67.71× |  | OK | Sig: P = nextpow2(N). Smallest p such that 2^p >= |N|. Vectorised. Edges: |x|=0 -> 0; NaN -> NaN; ±Inf -> +Inf; complex z -> uses |z|. Bug fix 2026-05-08: complex input previously threw; NaN/Inf paths now match MATLAB. tol=0. |
 | `nthroot` | ✅ | 10.025 | 1.72× | 1.00× | OK | Sig: Y = nthroot(X, N). N=3, X on [0.001, 100]. 20 iters. Element-wise SAVE. |
 | `pow2` | ✅ | 5.549 | 0.74× | 0.61× | OK | Sig: Y = pow2(X) = 2.^X. 1M-pt on [-50, 50]. 20 iters. Element-wise SAVE. |
 | `reallog` | ✅ | 6.065 | 0.35× | 1.40× | OK | Sig: Y = reallog(X). Strict positive domain. 1M-pt on [0.001, 100]. 20 iters. Element-wise SAVE. |
@@ -2580,7 +2580,7 @@ intentionally omitted — flat solver functions only.
 | `ifftn` | ❌ |  |  |  |  | N-D FFT |
 | `ifftshift` | ✅ | 0.005 | 86.45× | 54.01× | OK | Sig: Y = ifftshift(X[, dim]). Inverse of fftshift; cyclic shift along every non-singleton dim by floor(extent/2). Joint fix with fftshift on 2026-05-08 — they were swapped for odd-extent dims. tol=0. |
 | `interpft` | ✅ | 0.012 | 2.33× | 16.15× | OK | 256-pt band-limited signal interpolated to 1024 points. 200 iters, element-wise. |
-| `nextpow2` | ✅ | 7.982 | 0.56× | 1.62× | OK | Sig: Y = nextpow2(X). 1M-pt integer-ish on [1, 1e6]. 20 iters. Element-wise SAVE. |
+| `nextpow2` | ✅ | 0.007 | 67.71× |  | OK | Sig: P = nextpow2(N). Smallest p such that 2^p >= |N|. Vectorised. Edges: |x|=0 -> 0; NaN -> NaN; ±Inf -> +Inf; complex z -> uses |z|. Bug fix 2026-05-08: complex input previously threw; NaN/Inf paths now match MATLAB. tol=0. |
 | `nufft` | ❌ |  |  |  |  | non-uniform |
 | `nufftn` | ❌ |  |  |  |  | non-uniform |
 

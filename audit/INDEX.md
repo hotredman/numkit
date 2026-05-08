@@ -65,7 +65,6 @@ Status legend:
 | [findings/signal/bitrevorder.md](findings/signal/bitrevorder.md) | bitrevorder | signal.transforms | medium | small | 9bce106 |
 | [findings/signal/dftmtx.md](findings/signal/dftmtx.md) | dftmtx | signal.transforms | low | small | 9bce106 |
 | [findings/signal/interpft.md](findings/signal/interpft.md) | interpft | signal.transforms | low | small | 9bce106 |
-| [findings/signal/nextpow2.md](findings/signal/nextpow2.md) | nextpow2 | core (builtin) | low | small | 9bce106 |
 | [findings/stats/frnd.md](findings/stats/frnd.md) | frnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/raylrnd.md](findings/stats/raylrnd.md) | raylrnd | stats.dist | medium | small | e580a5c |
 | [findings/stats/unifrnd.md](findings/stats/unifrnd.md) | unifrnd | stats.dist | medium | small | e580a5c |
@@ -225,6 +224,7 @@ Status legend:
 | [closed/stats/wbllike.md](closed/stats/wbllike.md) | wbllike | PENDING (partial) | 2026-05-08 |
 | [closed/signal/fftshift.md](closed/signal/fftshift.md) | fftshift | PENDING | 2026-05-08 |
 | [closed/signal/ifftshift.md](closed/signal/ifftshift.md) | ifftshift | PENDING | 2026-05-08 |
+| [closed/signal/nextpow2.md](closed/signal/nextpow2.md) | nextpow2 | PENDING | 2026-05-08 |
 
 ---
 
