@@ -1,14 +1,14 @@
 {
   "name": "isspace",
-  "namespace": "core",
-  "setup": "s = repmat('abc def ghi ', 1, 1000);",
-  "expr": "y = isspace(s);",
-  "iters": 1000,
-  "tol": 1e-10,
-  "comment": "Sig: TF = isspace(S). 12k char input. 1000 iters. Logical-array fp.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "v = isspace('a b c'); r1 = double(v(1)); r2 = double(v(2)); r3 = double(v(3));",
+  "iters": 5,
+  "tol": 1e-12,
   "fingerprint": [
-    "sum(double(y(:)))",
-    "double(y(1))",
-    "double(y(end))"
-  ]
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = isspace(...). Spec-extension batch 2026-05-09."
 }

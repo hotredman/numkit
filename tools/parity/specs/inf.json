@@ -1,13 +1,14 @@
 {
   "name": "inf",
-  "namespace": "core",
-  "setup": "% nop",
-  "expr": "y = Inf;",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: I = Inf. 1M iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(isinf(inf)); r2 = double(inf > 0); r3 = double(inf == inf);",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: inf(...). Spec-extension batch 2026-05-09."
 }
