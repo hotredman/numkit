@@ -2,13 +2,19 @@
   "name": "envelope",
   "namespace": "signal",
   "setup": "sig = sin(2*pi*0.1*(0:31)') .* exp(-0.05*(0:31)');",
-  "expr": "[up, lo] = envelope(sig);",
+  "expr": "[up, lo] = envelope(sig); [upa, loa] = envelope(sig, 8, 'analytic'); [upr, lor] = envelope(sig, 5, 'rms'); [upp, lop] = envelope(sig, 1, 'peak'); upn = envelope(sig, 4);",
   "iters": 5,
   "tol": 1e-9,
   "fingerprint": [
-    "double(numel(up))",
-    "double(numel(lo))",
-    "double(numel(up)==numel(sig))"
+    "up(1)", "up(6)", "up(16)", "up(32)",
+    "lo(1)", "lo(6)", "lo(32)",
+    "upa(1)", "upa(6)", "upa(16)",
+    "loa(1)", "loa(16)",
+    "upr(1)", "upr(6)", "upr(16)",
+    "lor(1)", "lor(6)",
+    "upp(1)", "upp(6)", "upp(16)",
+    "lop(1)", "lop(16)",
+    "upn(1)", "upn(6)"
   ],
-  "comment": "Sig: [yupper, ylower] = envelope(x). NUMERICAL VALUES DELIBERATELY NOT FINGERPRINTED — numkit uses FFT analytic-signal envelope (lower=-upper, symmetric); MATLAB's default uses SPLINE-PEAK interpolation (asymmetric). Closes the 2-output API gap (was returning empty for 2nd out); numerical match deferred (would require porting spline interpolation over local maxima/minima). 'analytic' / 'rms' / 'peak' mode arguments + filter-length form throw clear 'not yet implemented' errors."
+  "comment": "Sig: [yupper, ylower] = envelope(x[, n[, method]]). Four modes match MATLAB R2025b envelope.m exactly: default (no n) FFT |hilbert(x-mean)| with mean restored; 'analytic' n-tap Kaiser(8)-tapered Hilbert FIR; 'rms' sliding-window RMS; 'peak' spline (parabola for 3 knots, not-a-knot for 4+) through local maxima/minima with MinPeakDistance n. DC-removal applied for analytic/rms/default; not for peak."
 }

@@ -14,11 +14,22 @@ Value hilbert(std::pmr::memory_resource *mr, const Value &x);
 /// Value.
 Value envelope(std::pmr::memory_resource *mr, const Value &x);
 
-/// 2-output envelope: yupper = |analytic|, ylower = -yupper. Symmetric;
-/// MATLAB's default `envelope(x)` uses spline-peak interpolation
-/// (asymmetric output) — that mode is deferred. See
-/// audit/closed/signal/envelope.md.
+/// 2-output envelope (back-compat): dispatches to envelope_full with
+/// default mode. Returns yupper = mean + |hilbert(x-mean)|, ylower =
+/// mean - |hilbert(x-mean)| (symmetric around the signal mean).
 void envelope_pair(std::pmr::memory_resource *mr, const Value &x,
+                   Value *yupper, Value *ylower);
+
+/// Full multi-mode envelope (matches MATLAB R2025b `envelope.m`):
+///   mode=0 default — FFT |hilbert(x-mean)|
+///   mode=1 'analytic' — n-tap Kaiser-tapered Hilbert FIR
+///   mode=2 'rms' — sliding RMS over n-sample window
+///   mode=3 'peak' — spline through local maxima/minima with
+///                   MinPeakDistance n (no DC removal)
+/// For modes 0/1/2: yupper = mean + amplitude, ylower = mean - amplitude.
+/// For mode 3: spline-interpolated upper / lower envelopes (asymmetric).
+void envelope_full(std::pmr::memory_resource *mr, const Value &x,
+                   int mode, std::size_t n,
                    Value *yupper, Value *ylower);
 
 } // namespace numkit::signal

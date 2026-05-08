@@ -92,13 +92,14 @@ TEST_F(TransformTest, HilbertRealPartIsInput)
 
 TEST_F(TransformTest, HilbertCosineToSine)
 {
-    // Hilbert transform of cos gives analytic signal: cos - j*sin
-    // So imag(hilbert(cos)) ≈ -sin (negative sign is correct)
+    // MATLAB convention: hilbert(x) returns the analytic signal x + i·y
+    // where y is the Hilbert transform. H{cos(ωt)} = +sin(ωt), so
+    // imag(hilbert(cos)) ≈ +sin (verified vs MATLAB R2025b).
     eval("N = 64; n = 0:N-1;");
     eval("x = cos(2*pi*4*n/N);");
     eval("z = hilbert(x);");
     eval("h = imag(z);");
-    eval("expected = -sin(2*pi*4*n/N);"); // note: negative sign
+    eval("expected = sin(2*pi*4*n/N);");
     eval("err = abs(h - expected);");
     eval("mid_err = err(17:48);");
     double maxErr = evalScalar("max(mid_err)");

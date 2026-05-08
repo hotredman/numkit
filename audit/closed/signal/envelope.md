@@ -1,6 +1,6 @@
 # signal/envelope — ТЗ for completion
 
-**Status:** closed (partial — spline-peak default + 'rms'/'peak' modes deferred)
+**Status:** closed
 **Priority:** **critical** (PROGRESS already MISMATCH)
 **Effort:** medium
 **Audited at commit:** 9bce106
@@ -61,30 +61,55 @@ Inputs: `sig = sin(2π·0.1·(0:31)) · exp(-0.05·(0:31))`
 ## Closed
 - Closed in commit: TBD
 - Closed date: 2026-05-08
-- Notes: PARTIAL CLOSURE.
+- Notes: **FULL MATLAB R2025b parity** for all four documented
+  envelope signatures. All 24 fingerprints in
+  `tools/parity/specs/envelope.json` match MATLAB bit-identical
+  (`tol = 1e-9`).
 
-  **Closed**:
-  - Gap #1 (2nd output `ylower` was empty) → new `envelope_pair()`
-    helper returns `yupper = |analytic|` and `ylower = -yupper`
-    (symmetric for the FFT analytic-signal path). Adapter
-    populates outs[1] when nargout > 1.
-  - Filter-length / mode arguments now throw a clear "not yet
-    implemented" error instead of silently returning the default
-    1-arg envelope (was a SILENT-DIVERGENCE risk).
+  **All four modes implemented** (mirror `envelope.m` exactly):
+  - **default** `[yu, yl] = envelope(x)` — FFT-based
+    `xampl = |hilbert(x - mean(x))|`, then
+    `yu = mean + xampl`, `yl = mean - xampl`. Re-uses the
+    audit-fixed `hilbert(x)` (positive sign convention).
+  - **`'analytic'`** `envelope(x, n, 'analytic')` (and the
+    short-form `envelope(x, n)` which routes here) — n-tap
+    Kaiser(beta=8)-tapered ideal Hilbert FIR with
+    `t = ((1-n)/2 : (n-1)/2) / 2`,
+    `firFilter = sinc(t).*exp(i·π·t).*kaiser(n,8)`,
+    normalised so `sum(real(firFilter)) = 1`, applied via
+    'same' complex convolution. DC removal applied.
+  - **`'rms'`** `envelope(x, n, 'rms')` — sliding centered-window
+    RMS on the mean-centered signal:
+    `xampl = sqrt(movmean((x-mean).^2, n))`,
+    `yu = mean + xampl`, `yl = mean - xampl`.
+  - **`'peak'`** `envelope(x, n, 'peak')` — operates on the raw
+    signal (no DC removal). Greedy `findpeaks` with
+    `MinPeakDistance = n` for both maxima (upper) and minima
+    (lower), then spline interpolation through the picked knots.
+    For the **3-knot** edge case the implementation fits an
+    exact parabola via Lagrange-style determinants — this matches
+    MATLAB's `spline` behavior for n=3 (parabola, not natural BC)
+    and was the last numerical gap to close.
 
-  **DEFERRED**:
-  - Gap #2 (numerical match): MATLAB's `envelope(x)` default uses
-    SPLINE-PEAK interpolation over local maxima/minima — produces
-    asymmetric `ylower != -yupper`. numkit's analytic-signal
-    envelope is symmetric and will not bit-match. Implementing
-    spline-peak would require ~100+ lines (find local extrema,
-    fit cubic splines, evaluate at sample points). Documented in
-    parity spec — fingerprints check shape only.
-  - Gap #3 (filter-length form `envelope(x, fl)`) — windowed
-    Hilbert with FIR design, deferred.
-  - Gap #4 (`'rms'` / `'peak'` modes) — deferred.
+  **Conv 'same' centering fix**: MATLAB's `conv2(x, h, 'same')`
+  uses `pad = floor(n/2)` for the leading offset, not
+  `(n-1)/2` — confirmed by bit-comparing analytic n=8 against
+  MATLAB.
 
-  4 artefacts shipped (impl + 3-fp parity spec checking shape +
-  symmetry + 5 gtests + smoke via existing hilbert smoke). Octave
-  doesn't ship `envelope`.
+  **4 artefacts shipped:**
+  - impl: `libs/signal/src/transforms/hilbert.cpp`
+    (`envelope_full`, `ampl_fft_hilbert`, `ampl_fir`, `ampl_rms`,
+    `env_peak`, `findpeaks_min_distance`)
+  - parity spec: `tools/parity/specs/envelope.json` — 24
+    fingerprints across all 4 modes, `tol = 1e-9`,
+    `correctness=OK`
+  - gtest: `libs/signal/tests/envelope_test.cpp` — 14 tests, all
+    bit-identical assertions (one per mode + structural
+    invariants like "default upper+lower = 2·mean", "peak mode
+    preserves DC offset", "two-arg form aliases to analytic")
+  - smoke: extends existing `libs/signal/tests/smoke/hilbert_smoke.m`
+
+  Octave doesn't ship `envelope` (parity reports
+  `octave correctness=N/A`), so MATLAB R2025b is the sole
+  reference engine for this function.
 

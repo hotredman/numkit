@@ -2133,7 +2133,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `ldl` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `linsolve` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `logm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `lscov` | ✅ | 0.004 | 201.24× | 10.25× | OK | Sig: [x, stdx, mse, S] = lscov(A, b[, w]). Weighted least squares. With identity weights = OLS. mse = SSR/(N-p); S = mse·(A'WA)^(-1). Full N×N covariance V intentionally not yet supported. |
+| `lscov` | ✅ | 0.006 | 239.08× | 33.87× | OK | Sig: [x, stdx, mse, S] = lscov(A, b[, w]). Weighted least squares. mse = SSR/(N-p); S = mse·(A'WA)^(-1). Full N×N covariance V deferred (errors). Bit-identical to MATLAB R2025b on OLS and weighted paths. |
 | `lsqminnorm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `lsqnonneg` | ❌ |  |  |  |  |  |
 | `lu` | ❌ |  |  |  |  | **deferred — libs/linalg** |
@@ -2547,7 +2547,7 @@ intentionally omitted — flat solver functions only.
 | `dlistft` | ❌ |  |  |  |  |  |
 | `dlstft` | ❌ |  |  |  |  |  |
 | `emd` | ❌ |  |  |  |  | empirical mode decomp |
-| `envelope` | ✅ | 0.666 | 0.39× |  | MISMATCH | Sig: [UP, LO] = envelope(X). Hilbert envelope. 100 iters. SAVE on UP. |
+| `envelope` | ✅ | 0.011 | 840.04× |  | OK | Sig: [yupper, ylower] = envelope(x[, n[, method]]). Four modes match MATLAB R2025b envelope.m exactly: default (no n) FFT |hilbert(x-mean)| with mean restored; 'analytic' n-tap Kaiser(8)-tapered Hilbert FIR; 'rms' sliding-window RMS; 'peak' spline (parabola for 3 knots, not-a-knot for 4+) through local maxima/minima with MinPeakDistance n. DC-removal applied for analytic/rms/default; not for peak. |
 | `fsst` | ❌ |  |  |  |  | Fourier synchrosqueezed |
 | `fwht` | ❌ |  |  |  |  | fast Walsh-Hadamard |
 | `goertzel` | ✅ | 0.066 | 2.56× |  | OK | Sig: Y = goertzel(X, F). 41 freq bins. 100 iters. |
@@ -2746,7 +2746,7 @@ intentionally omitted — flat solver functions only.
 | `cusum` | ❌ |  |  |  |  | CUSUM change detection |
 | `dtw` | ❌ |  |  |  |  | dynamic time warp |
 | `edr` | ❌ |  |  |  |  | edit distance on real |
-| `envelope` | ✅ | 0.666 | 0.39× |  | MISMATCH | Sig: [UP, LO] = envelope(X). Hilbert envelope. 100 iters. SAVE on UP. |
+| `envelope` | ✅ | 0.011 | 840.04× |  | OK | Sig: [yupper, ylower] = envelope(x[, n[, method]]). Four modes match MATLAB R2025b envelope.m exactly: default (no n) FFT |hilbert(x-mean)| with mean restored; 'analytic' n-tap Kaiser(8)-tapered Hilbert FIR; 'rms' sliding-window RMS; 'peak' spline (parabola for 3 knots, not-a-knot for 4+) through local maxima/minima with MinPeakDistance n. DC-removal applied for analytic/rms/default; not for peak. |
 | `extendsigroi` | ❌ |  |  |  |  |  |
 | `extractsigroi` | ❌ |  |  |  |  |  |
 | `filenames2labels` | ❌ |  |  |  |  |  |
@@ -3032,10 +3032,10 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `gevlike` | ✅ | 0.008 | 144.71× | 52.27× | OK | Sig: [nL, ACOV] = gevlike([k sigma mu], x). GEV NLL with Gumbel-MAX limit at k=0. ACOV is the 3×3 inverse observed-Fisher matrix at [k,sigma,mu], computed via central-difference Hessian (tol=1e-6 reflects FD precision). Edge: sigma<=0 or per-point support violation (1+k*z<=0) => NaN. Known gap: at exactly k=0 MATLAB uses an analytical Gumbel-limit Hessian that differs from FD straddling — numkit's FD reproduces the value of FD-on-MATLAB's-own-gevlike (~0.030, 0.098, -1.622), not MATLAB's reported analytical ACOV. |
 | `gpfit` | ❌ |  |  |  |  | generalised Pareto |
 | `gplike` | ✅ | 0.007 | 146.83× |  | OK | Sig: [nL, acov] = gplike([k sigma], x). GP NLL with implicit theta=0. acov is the 2×2 inverse observed-Fisher matrix at [k, sigma], computed via central-difference Hessian (tol=1e-5 reflects FD precision; k=0 stride is the worst case at ~2e-6). Edges: sigma<=0 or per-point support violation (1+k*x/sigma<=0) => NaN. MATLAB does NOT enforce x>=0 globally — only the per-point support check; numkit matches (e.g. gplike([0.5,1], [-1 1 2]') returns 1.2163...). |
-| `lognfit` | ✅ | 0.006 | 482.94× | 1234.73× | OK | Sig: [parm, pci] = lognfit(x[, alpha]). Lognormal MLE: parm=[mu sigma] of log(x). pci is 2x2: column 1 = mu CI, column 2 = sigma CI. |
+| `lognfit` | ✅ | 0.017 | 1337.96× | 1812.53× | OK | Sig: [parm, pci] = lognfit(x[, alpha[, censoring[, freq[, options]]]]). Lognormal MLE: parm=[mu sigma] of log(x). pci is 2x2: col 1 = mu CI, col 2 = sigma CI. Closed-form weighted moments when freq alone; EM-iterated MLE on log(x) with analytic Fisher info for CIs (Wald with z=norminv(1-α/2), log-σ transform for asymmetric σ CI) when censored. |
 | `lognlike` | ✅ | 0.010 | 216.66× |  | OK | Sig: [nL, aVar] = lognlike([mu sigma], x[, cens, freq]). NLL for lognormal. Hessian wrt (mu, sigma) is structurally identical to the normal Hessian on log(x). aVar (column-major 2×2) reflects cens/freq weighting; can have negative diagonal entries at non-MLE params (observed Fisher, not expected). Edge: sigma<=0 or x<=0 => NaN; empty data => 0. |
 | `nbinfit` | ❌ |  |  |  |  |  |
-| `normfit` | ✅ | 0.006 | 466.90× | 1219.64× | OK | Sig: [mu, sd, muci, sdci] = normfit(x[, alpha]). MLE for normal: mu=mean, sd=sample std (N-1). t-CI for mu, chi² CI for sigma. Default alpha=0.05. |
+| `normfit` | ✅ | 0.015 | 1221.27× | 1952.00× | OK | Sig: [mu, sd, muci, sdci] = normfit(x[, alpha[, censoring[, freq[, options]]]]). MLE for normal: mu=mean, sd=sample std (N-1). Closed-form weighted moments when freq alone; EM iteration on truncated-normal moments + analytic Fisher info Wald CI when censored. Default alpha=0.05. Shares the `normal_fit_mle` helper with lognfit. |
 | `normlike` | ✅ | 0.009 | 233.30× |  | OK | Sig: [nL, aVar] = normlike([mu sigma], data[, cens, freq]). Default + censoring (right-censored => -log(S(z))) + freq weights + empty + invalid-sigma (=> NaN). Second output aVar = inverse 2×2 observed-Fisher information matrix at [mu, sigma]; reflects cens/freq weighting. |
 | `poissfit` | ✅ | 0.008 | 228.09× |  | OK | Sig: [lhat, lci] = poissfit(x[, alpha]). MLE for Poisson: lambda=mean(x). Exact CI via chi² inversion (Garwood). Edges: all-zero data -> lo=0; non-default alpha; empty input -> NaN. |
 | `raylfit` | ✅ | 0.009 | 241.10× |  | OK | Sig: [shat, sci] = raylfit(x[, alpha]). Rayleigh MLE: σ = √(Σx²/(2N)); CI from chi² inversion 2N·σ̂² ~ σ²·χ²(2N). Edges: non-default α; single-element x; empty input -> NaN. |
@@ -3050,12 +3050,12 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `mvncdf` | ❌ |  |  |  |  | multivariate normal |
-| `mvnpdf` | ✅ | 0.004 | 206.00× | 44.45× | OK | Sig: p = mvnpdf(X[, mu, Sigma]). Multivariate normal PDF. Default mu=zeros, Sigma=I. Cholesky-based to handle |Σ|^(-1/2) and Σ^(-1) accurately. |
+| `mvnpdf` | ✅ | 0.007 | 222.92× | 68.37× | OK | Sig: p = mvnpdf(X[, mu[, Sigma]]). Multivariate normal PDF. Defaults: mu=zeros, Sigma=I. Cholesky-based |Σ|^(-1/2) and Σ^(-1) for numerical stability. Verified bit-identical to MATLAB R2025b on default / explicit mu / explicit Σ paths. |
 | `mvnrnd` | ❌ |  |  |  |  |  |
 | `mvtcdf` | ❌ |  |  |  |  | multivariate t |
-| `mvtpdf` | ✅ | 0.004 | 268.85× | 60.17× | OK | Sig: p = mvtpdf(X, C, df). Multivariate t PDF; C is treated as a correlation matrix (input is normalised to correlation form to match MATLAB). Cholesky-based determinant + quadratic form. |
+| `mvtpdf` | ✅ | 0.008 | 119.76× | 56.06× | OK | Sig: p = mvtpdf(X, C, df). Multivariate Student-t PDF; C normalized to correlation matrix. Cholesky-based |C|^(-1/2) + quadratic form. Bit-identical to MATLAB R2025b. |
 | `mvtrnd` | ❌ |  |  |  |  |  |
-| `mnpdf` | ✅ | 0.003 | 196.13× | 49.38× | OK | Sig: p = mnpdf(X, P). Multinomial PMF: n!/(Πx_i!)·Π p_i^x_i. Computed in log-space via lgamma. |
+| `mnpdf` | ✅ | 0.006 | 169.94× | 43.30× | OK | Sig: p = mnpdf(X, P). Multinomial PMF: n!/(Π x_i!) · Π p_i^x_i. Computed in log-space via lgamma. Bit-identical to MATLAB R2025b on row-vector / matrix inputs. |
 | `mnrnd` | ❌ |  |  |  |  |  |
 | `wishrnd` | ❌ |  |  |  |  | Wishart |
 | `iwishrnd` | ❌ |  |  |  |  | inverse Wishart |
@@ -3085,9 +3085,9 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `ecdf` | ✅ | 0.003 | 889.16× | 85.32× | OK | Sig: [f, x] = ecdf(y). Empirical CDF — column vectors of length K+1 where K is the number of distinct y values. f(1)=0 at x=min(y); subsequent f(k)=cumcount(k)/N at each unique value. NaN excluded from N. Element-wise SAVE on f. |
+| `ecdf` | ✅ | 0.015 | 171.09× | 68.85× | OK | Sig: [f, x[, flo, fup]] = ecdf(y[, 'Function', mode][, 'Frequency', w][, 'Alpha', a]). Function modes: 'cdf' (default), 'survivor' = 1-cdf, 'cumulative hazard' = Nelson-Aalen estimator. Frequency weighting via per-observation counts. 4-output form returns Greenwood-style binomial Wald 95% CI (first/last rows = NaN). Censoring deferred (Kaplan-Meier estimator). |
 | `ecdfhist` | ✅ | 0.008 | 141.16× |  | OK | Sig: [n, c] = ecdfhist(f, x[, m]). Probability-density histogram from ecdf step data. Default m=10 bins. n is the per-bin density (sum of jumps falling in that bin / bin_width); c is the bin centre. Coverage: m ∈ {3, 5, 10} × uniform/non-uniform input. |
-| `ksdensity` | ✅ | 0.004 | 2040.36× |  | OK | Sig: [f, xi, bw] = ksdensity(x[, pts, 'Bandwidth', bw]). Gaussian kernel density estimate at user-specified pts (or 100-point auto grid). With explicit bw the kernel formula matches MATLAB exactly; the auto-bw heuristic uses Silverman's rule which differs slightly from MATLAB's internal. |
+| `ksdensity` | ✅ | 0.021 | 330.79× |  | OK | Sig: [f, xi, bw] = ksdensity(x[, pts][, 'Bandwidth'/'Kernel'/'Function'/'NumPoints'/'Weights', val, ...]). 4 kernels (normal/box/triangle/epanechnikov) with MATLAB-style σ²=1 bandwidth normalization (h × sqrt(unit-σ²-inverse) for finite-support kernels). Function modes: pdf (default), cdf, survivor, cumhazard. Weights normalized to sum to 1. Default bandwidth via mad(x)/0.6745 fallback to iqr(x)/1.349 (matches MATLAB's bw exactly). Censoring/Support/BoundaryCorrection deferred. |
 | `mvksdensity` | ❌ |  |  |  |  | multivariate KDE |
 
 ### Hypothesis Tests
@@ -3099,11 +3099,11 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `adtest` | ❌ |  |  |  |  | Anderson-Darling normality |
 | `ansaribradley` | ❌ |  |  |  |  | scale test |
 | `barttest` | ❌ |  |  |  |  | Bartlett's sphericity |
-| `chi2gof` | ✅ | 0.005 | 570.92× | 219.96× | OK | Sig: [h, p, stats] = chi2gof(x, 'Frequency', O, 'Expected', E[, 'NParams', np]). chi² = Σ(O−E)²/E; df = k−1−np. Auto-binned distribution-fit form intentionally not implemented in this release. |
+| `chi2gof` | ✅ | 0.016 | 455.18× | 131.85× | OK | Sig: [h, p, stats] = chi2gof(x[, 'Frequency'/'Expected'/'Edges'/'NBins'/'Ctrs'/'NParams'/'EMin'/'Alpha', val, ...]). Three paths covered: explicit Frequency+Expected (bit-identical); explicit NBins (bit-identical, integer-aligned edges); explicit Edges (bit-identical). Default auto-bin (no NBins/Edges) uses 10 equal-width bins on min(x)..max(x); may differ from MATLAB at FP-edge ties (within 1 count). 'CDF' function-handle argument deferred (errors with clear message). |
 | `dwtest` | ❌ |  |  |  |  | Durbin-Watson |
 | `fishertest` | ✅ | 0.005 | 1128.35× | 100.45× | OK | Sig: [h, p, stats] = fishertest(T[, 'Tail', t, 'Alpha', a]). Fisher's exact test for 2×2 contingency. Two-sided p sums hypergeometric pmf cells with P(X=k) ≤ P(X=obs). OR = a·d/(b·c); CI is the Woolf log-OR ± z·SE. |
 | `friedman` | ❌ |  |  |  |  | non-parametric repeated-measures |
-| `jbtest` | ✅ |  |  |  | OK | Jarque-Bera, JB ~ χ²(2) |
+| `jbtest` | ✅ | 88.981 | 0.04× |  | OK | Sig: [h, p, JB, cv] = jbtest(x[, alpha[, mctol]]). For small n (<2000), Monte-Carlo simulation under H₀ for tabulated-style p-value (matches MATLAB R2025b). For large n, χ²(2) asymptotic. p capped at 0.5. Critical values are MC-estimated for small n so they vary slightly between runs (numkit uses fixed seed for reproducibility). Spec excludes cv from fingerprint (different MC seeds → different cv); JB stat itself is deterministic and bit-identical. |
 | `knntest` | ❌ |  |  |  |  | k-NN two-sample test |
 | `kruskalwallis` | ✅ | 0.006 | 865.19× | 349.46× | OK | Sig: [p, tbl, stats] = kruskalwallis(y, group[, 'off']). Non-parametric one-way ANOVA: H = (12/(N(N+1)))·Σ R_g²/n_g − 3(N+1), tie-corrected by 1 − Σ(t³−t)/(N³−N). df = k−1; p = 1 − chi2cdf(H, df). |
 | `kstest` | ✅ |  |  |  | OK | one-sample KS via asymptotic Smirnov series |
@@ -3121,7 +3121,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `ttest2` | ✅ |  |  |  | OK | Welch (default) or pooled-variance |
 | `vartest` | ✅ |  |  |  | OK | chi-squared one-sample variance test |
 | `vartest2` | ✅ |  |  |  | OK | F-test for equality of variances |
-| `vartestn` | ✅ | 0.005 | 1284.84× | 835.74× | OK | Sig: [p, stats] = vartestn(x, group[, 'Display', 'off']). Bartlett's k-sample variance equality test. Q = (N-k)·ln(S²) - Σ(n_i-1)·ln(s_i²); T = Q/C; p = 1 - chi2cdf(T, k-1). Levene/BrownForsythe TestType deferred. |
+| `vartestn` | ✅ | 0.020 | 417.74× | 1559.25× | OK | Sig: [p, stats] = vartestn(x[, group][, 'Display', 'off'][, 'TestType', name]). Five test variants: Bartlett (default, χ² stat), LeveneQuadratic / LeveneAbsolute / BrownForsythe / OBrien (all F-based). When no group: matrix input where each column is treated as a separate group. Bartlett returns {chisqstat, df}; F-based tests return {fstat, df=[k-1, N-k]}. |
 | `ztest` | ✅ |  |  |  | OK | known-σ z-test |
 
 ### Resampling Techniques
@@ -3180,16 +3180,16 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `regress` | ✅ | 0.006 | 476.12× | 403.15× | OK | Sig: [b, bint, r, rint, stats] = regress(y, X[, alpha]). OLS multiple regression via Cholesky on X'X. stats = [R², F, p_F, sigma²]. The 4th output `rint` (residual-outlier intervals) is currently a placeholder. |
+| `regress` | ✅ | 0.005 | 515.45× | 417.35× | OK | Sig: [b, bint, r, rint, stats] = regress(y, X[, alpha]). OLS multiple regression via Cholesky on X'X. stats = [R², F, p_F, sigma²]. 2026-05-08: 4th output rint (residual confidence intervals for outlier detection) added — was a placeholder. Uses standard formula r ± t·σ·sqrt(1-h_ii) where h_ii = diag(X·(X'X)^(-1)·X'). MATLAB's R2025b regress uses a non-standard internal formula whose exact form differs (specific h_ii values disagree with the theoretical hat-matrix diagonal); numkit returns the textbook formula. Shape (N×2) and the property `r(i) ∈ rint(i,:)` are checked instead. |
 | `robustfit` | ❌ |  |  |  |  | robust (M-estimator) regression |
-| `lscov` | ✅ | 0.004 | 201.24× | 10.25× | OK | Sig: [x, stdx, mse, S] = lscov(A, b[, w]). Weighted least squares. With identity weights = OLS. mse = SSR/(N-p); S = mse·(A'WA)^(-1). Full N×N covariance V intentionally not yet supported. |
+| `lscov` | ✅ | 0.006 | 239.08× | 33.87× | OK | Sig: [x, stdx, mse, S] = lscov(A, b[, w]). Weighted least squares. mse = SSR/(N-p); S = mse·(A'WA)^(-1). Full N×N covariance V deferred (errors). Bit-identical to MATLAB R2025b on OLS and weighted paths. |
 | `stepwisefit` | ❌ |  |  |  |  | stepwise selection |
 | `glmfit` | ❌ |  |  |  |  | generalised linear model |
 | `glmval` | ❌ |  |  |  |  | predict from glmfit |
 | `mvregress` | ❌ |  |  |  |  | multivariate regression |
 | `mvregresslike` | ❌ |  |  |  |  |  |
 | `plsregress` | ❌ |  |  |  |  | partial least squares |
-| `ridge` | ✅ | 0.004 | 344.06× | 108.76× | OK | Sig: B = ridge(y, X, k[, scaled]). Ridge regression on standardised X (centered + N-1 std). Default scaled=1 returns coefficients in standardised space; scaled=0 returns (p+1)-row matrix with intercept in original units. |
+| `ridge` | ✅ | 0.007 | 238.83× | 217.57× | OK | Sig: B = ridge(y, X, k[, scaled]). Ridge regression on standardized X (centered + N-1 std). scaled=1 (default): coefficients in standardized space, p×length(k). scaled=0: (p+1)×length(k) with intercept in original units. Bit-identical to MATLAB R2025b on both paths. |
 | `lasso` | ❌ |  |  |  |  |  |
 | `lassoglm` | ❌ |  |  |  |  |  |
 | `polyconf` | ❌ |  |  |  |  | polynomial CI prediction |
@@ -3223,9 +3223,9 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `linkage` | ✅ |  |  |  | OK | single/complete/average/weighted/centroid/median/ward |
-| `cluster` | ✅ |  |  |  | OK | maxclust + cutoff (distance criterion) |
-| `clusterdata` | ✅ |  |  |  | OK | pdist + linkage + cluster one-shot |
+| `linkage` | ✅ | 0.014 | 208.70× | 365.80× | OK | Sig: Z = linkage(Y[, method[, metric]]). When Y is N×D matrix, computes pdist(Y, metric, p) internally; when Y is row vector (pdist output), uses it directly. 7 methods: single/complete/average/weighted/centroid/median/ward. 2026-05-08: tie-breaking aligned with MATLAB R2025b (prefers largest pair lex when distances tie); 3-arg form now routes metric to pdist (was hardcoded euclidean). Bit-identical to MATLAB on probed datasets. |
+| `cluster` | ✅ | 0.014 | 156.70× | 505.22× | OK | Sig: T = cluster(Z, 'maxclust'|'cutoff', val[, 'criterion', 'distance'|'inconsistent'][, 'depth', d]). Fingerprints are label-permutation-invariant (cluster counts + same-cluster boolean tests) because MATLAB / numkit / Octave assign different label IDs for the same partition. Default 'cutoff' criterion is 'inconsistent' (R2025b). |
+| `clusterdata` | ✅ | 0.020 | 253.48× | 570.11× | OK | Sig: T = clusterdata(X, c) with scalar shortcut: c>=2 maxclust, 0<c<2 cutoff (inconsistency). Or N-V form: 'MaxClust', 'Cutoff', 'Linkage', 'Distance', 'Criterion', 'Depth', 'P'. Fingerprints are label-permutation-invariant. Default 'Linkage' is 'single', default 'Distance' is 'euclidean', default 'cutoff' criterion is 'inconsistent' — all per MATLAB R2025b. |
 | `cophenet` | ✅ | 0.005 | 88.43× | 185.77× | OK | Sig: c = cophenet(Z, Y) or [c, d] = cophenet(Z, Y). Cophenetic correlation between original distances Y and the merge-tree-derived cophenetic distances d. Bug fix 2026-05-08: 2-output form was throwing because adapter only emitted outs[0]; now both outputs are produced. |
 | `inconsistent` | ✅ | 0.004 | 73.08× | 391.41× | OK | Sig: Y = inconsistent(Z[, depth]). Inconsistency coefficient on a linkage tree Z. Each row [mean, std, count, inc_coeff] over the depth-d subtree below each non-leaf node. Default depth=2. |
 | `dendrogram` | ❌ |  |  |  |  | display |
@@ -3237,9 +3237,9 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `kmeans` | ✅ |  |  |  | OK | Lloyd's + k-means++ init, MaxIter / Replicates options |
-| `kmedoids` | ✅ |  |  |  | OK | PAM-style; supports euclidean/sqeuclidean/cityblock/chebychev |
-| `dbscan` | ✅ |  |  |  | OK | core-point expansion; noise → label 0 (MATLAB convention) |
+| `kmeans` | ✅ | 0.012 | 994.65× | 283.33× | OK | Sig: [idx, C, sumd, D] = kmeans(X, K, 'MaxIter'/'Replicates'/'Distance'/'Start'/'Display'/'EmptyAction', val, ...). Default Distance='sqeuclidean', Start='plus'. Fingerprints are label-permutation-invariant (cluster counts + same-cluster boolean tests + output shapes) because RNG init differs between engines. |
+| `kmedoids` | ✅ | 0.016 | 810.31× |  | OK | Sig: [idx, C, sumd, D, midx, info] = kmedoids(X, K, 'Distance'/'MaxIter'/'Replicates'/'Algorithm'/'Start', val, ...). Default Distance is 'sqeuclidean' (per R2025b — not 'euclidean'). Fingerprints are label-permutation-invariant (cluster counts + same-cluster boolean tests + output shapes) because RNG init differs between engines (joint with normrnd ТЗ for full label parity). |
+| `dbscan` | ✅ | 0.016 | 167.97× |  | OK | Sig: [idx, corepts] = dbscan(X, eps, minpts, 'Distance'|'P', val, ...). Coverage: euclidean default, precomputed, minkowski with P, cityblock. Noise = -1 (MATLAB R2025b convention). |
 | `spectralcluster` | ❌ |  |  |  |  | spectral clustering |
 
 ### Cluster Evaluation
@@ -3282,9 +3282,9 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `pca` | ✅ |  |  |  | OK | Jacobi eigendecomp on cov(X); coeff/score/latent/T²/explained/μ |
-| `pcacov` | ✅ |  |  |  | OK | direct eigendecomp on covariance matrix |
-| `pcares` | ✅ |  |  |  | OK | residual = X - reconstruct from k PCs |
+| `pca` | ✅ | 0.007 | 664.17× | 79.79× | OK | Sig: [coeff, score, latent, tsquared, explained, mu] = pca(X). Eigendecomposition of cov(X) for principal components. coeff is signed-undefined (eigenvector orientation), so abs() is taken in fingerprints. Bit-identical to MATLAB R2025b on |coeff|, latent, explained, mu, tsquared. |
+| `pcacov` | ✅ | 0.005 | 171.57× | 24.40× | OK | Sig: [coeff, latent, explained] = pcacov(C). Like pca but on a precomputed covariance matrix. Bit-identical to MATLAB R2025b. |
+| `pcares` | ✅ | 0.007 | 610.21× | 41.31× | OK | Sig: [res, recon] = pcares(X, ndim). Residual matrix and rank-ndim reconstruction X̂ = score(:,1..ndim) · coeff(:,1..ndim)' + μ. 2-output form added 2026-05-08; was returning only residuals. |
 | `ppca` | ❌ |  |  |  |  | probabilistic PCA |
 | `factoran` | ❌ |  |  |  |  | factor analysis |
 | `rica` | ❌ |  |  |  |  | reconstruction ICA |
@@ -3313,7 +3313,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `classify` | ✅ | 0.006 | 862.14× |  | OK | Sig: [c, err, post, logp] = classify(sample, training, group[, type]). LDA (default 'linear') or QDA ('quadratic'); also 'diaglinear', 'diagquadratic'. Empirical priors n_k/N. Cholesky-factor approach for numerical stability. |
+| `classify` | ✅ | 0.021 | 416.15× |  | OK | Sig: [class, err, posterior, logp] = classify(sample, training, group[, type]). 4 discriminant types: linear (LDA, default), quadratic (QDA), diaglinear, diagquadratic. Empirical priors n_k/N. Cholesky-factor approach for numerical stability. Mahalanobis type DEFERRED. |
 
 ## Wavelet
 
@@ -3349,11 +3349,11 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `dwt` | ✅ |  |  |  | OK | single-level DWT, 'sym' boundary |
-| `idwt` | ✅ |  |  |  | OK | round-trip ≤ 1e-12 on db/sym/coif |
-| `wavedec` | ✅ |  |  |  | OK | multi-level DWT (composes dwt) |
-| `waverec` | ✅ |  |  |  | OK | round-trip ≤ 1e-11 over 4 levels |
-| `appcoef` | ✅ |  |  |  | OK | level=0 = full reconstruction |
+| `dwt` | ✅ | 0.016 | 148.64× |  | OK | Sig: [cA, cD] = dwt(x, wname) or (x, Lo_D, Hi_D), with optional 'mode' N-V (only 'sym' supported). 2026-05-08: bit-identical to MATLAB R2025b on the analysis filters after the wfilters Lo_D/Lo_R label-swap fix landed. Custom-filter form added in same commit. Boundary modes other than 'sym' deferred (errors with clear message). |
+| `idwt` | ✅ | 0.009 | 220.84× |  | OK | Sig: x = idwt(cA, cD, wname) or (cA, cD, Lo_R, Hi_R), optional positional `len` and 'mode' N-V (only 'sym' supported). After wfilters label-swap fix + dwt downsample-offset fix, round-trip is bit-identical to MATLAB R2025b at ~1e-12. Custom synthesis-filter form added in the same commit. |
+| `wavedec` | ✅ | 0.022 | 199.68× |  | OK | Sig: [c, l] = wavedec(x, n, wname). Multi-level DWT decomposition. After wfilters Lo_D/Lo_R label-swap fix landed, output is bit-identical to MATLAB R2025b. Custom (Lo_D, Hi_D) form deferred (rare for multi-level). |
+| `waverec` | ✅ | 0.019 | 230.79× |  | OK | Sig: x = waverec(c, l, wname). Multi-level inverse DWT. Round-trips wavedec at ~1e-10 after the wfilters label-swap fix. Custom (Lo_R, Hi_R) form deferred. |
+| `appcoef` | ✅ | 0.013 | 176.99× |  | OK | Sig: A = appcoef(c, l, wname[, level]) or (c, l, LoR, HiR[, level]); optional 'Mode'/'mode' N-V (only 'sym' supported). 2026-05-08: cascades-fixed via wfilters Lo_D/Lo_R label-swap. Custom-filter form added in this commit. |
 | `detcoef` | ✅ | 0.008 | 102.92× |  | OK | Sig: D = detcoef(C, L[, level[, 'cells']]). Default level = numel(L) - 2 (deepest). Bug fix 2026-05-08: was throwing on 2-arg form (and previously the auditor said default = 1, but probe shows max-level). Added 'cells' form for vector levels. |
 | `wrcoef` | ✅ | 0.037 | 67.45× |  | OK | Sig: y = wrcoef(type, c, l, wname[, n]). Single-band reconstruction. type ∈ {'a','d'}; n is the level kept ('a' allows n=0 = full reconstruction; 'd' requires n in [1, max]). Default n = length(l)-2 for both types. Algorithm: build modified c with off-band coefficients zeroed, run waverec. Verified parity with MATLAB R2025b on HAAR wavelet (where numkit's wavedec matches MATLAB exactly). For db/sym/coif numkit's wavedec uses a slightly different boundary convention (BUGS.md #37) — wrcoef there produces values consistent with numkit's own wavedec/waverec round-trip but does NOT match MATLAB coefficient-for-coefficient. (Lo_R, Hi_R) two-filter form not implemented in this release. |
 | `dwtmode` | ❌ |  |  |  |  | extension mode |
@@ -3443,7 +3443,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `wfilters` | ✅ |  |  |  | OK | haar / db1..db4 / sym2 / sym4 / coif1; 4-out form + 'd'/'r'/'l'/'h' |
+| `wfilters` | ✅ | 0.015 | 203.57× |  | OK | Sig: [Lo_D, Hi_D, Lo_R, Hi_R] = wfilters(wname). Standard MATLAB convention: Lo_D = wrev(Lo_R), Hi_R = (-1)^k · Lo_R[N-1-k] (QMF on Lo_R), Hi_D = wrev(Hi_R). 2026-05-08 fix: numkit's labels were swapped (numkit's Lo_D was MATLAB's Lo_R and vice versa) — root cause of dwt/wavedec value mismatch. Now bit-identical to MATLAB R2025b across haar/db1..db10/sym2..sym10/coif1..coif5. |
 | `orthfilt` | ✅ | 0.007 | 85.08× |  | OK | Sig: [Lo_D, Hi_D, Lo_R, Hi_R] = orthfilt(W). Quadruple from a unit-norm scaling filter W (sum(W)=1, length even). Lo_R = W·√2; Lo_D = reverse(Lo_R); Hi_R[k] = (-1)^k · Lo_R[N-1-k]; Hi_D = reverse(Hi_R). Coverage: db2 (4-tap), db4 (8-tap), custom 2-tap. |
 | `qmf` | ✅ | 0.005 | 65.19× |  | OK | Sig: y = qmf(x[, p]). Quadrature mirror filter. y(k) = (-1)^(k-1+p) · x(N-k+1). Default p=0 (identity-sign on the first element); p=1 negates. Coverage: even/odd-length + p=0/1 + length-8 + column input + single element. tol=0 (integer-stable on integer inputs). |
 | `biorfilt` | ❌ |  |  |  |  | biorthogonal filter quadruple |
