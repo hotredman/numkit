@@ -73,3 +73,46 @@ TEST_F(DyaddownTest, EvenLength)
     EXPECT_DOUBLE_EQ(evalScalar("y1(1)"), 1);
     EXPECT_DOUBLE_EQ(evalScalar("y1(2)"), 3);
 }
+
+// Bug fix 2026-05-08 — matrix path was a flat 1-D operation that
+// ignored the `type` arg. Now matches MATLAB dyaddown(M, evenodd, type).
+
+TEST_F(DyaddownTest, MatrixDefaultIsColumnDownsample)
+{
+    eval("M = [1 4; 2 5; 3 6; 4 7]; y = dyaddown(M);");
+    // type='c' default, ODD=0 → keep col 2 = [4;5;6;7].
+    EXPECT_EQ(static_cast<size_t>(evalScalar("size(y, 1)")), 4u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("size(y, 2)")), 1u);
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 4);
+    EXPECT_DOUBLE_EQ(evalScalar("y(4)"), 7);
+}
+
+TEST_F(DyaddownTest, MatrixTypeR)
+{
+    eval("M = [1 4; 2 5; 3 6; 4 7]; y = dyaddown(M, 0, 'r');");
+    // ODD=0, type='r' → keep rows 2, 4 → [2 5; 4 7].
+    EXPECT_EQ(static_cast<size_t>(evalScalar("size(y, 1)")), 2u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("size(y, 2)")), 2u);
+    EXPECT_DOUBLE_EQ(evalScalar("y(1,1)"), 2);
+    EXPECT_DOUBLE_EQ(evalScalar("y(1,2)"), 5);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2,1)"), 4);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2,2)"), 7);
+}
+
+TEST_F(DyaddownTest, MatrixTypeM)
+{
+    eval("M = [1 4; 2 5; 3 6; 4 7]; y = dyaddown(M, 0, 'm');");
+    // 'r' then 'c' → [5; 7] (col 2 of rows 2, 4).
+    EXPECT_EQ(static_cast<size_t>(evalScalar("size(y, 1)")), 2u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("size(y, 2)")), 1u);
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 5);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2)"), 7);
+}
+
+TEST_F(DyaddownTest, MatrixOddTypeC)
+{
+    eval("M = [1 4; 2 5; 3 6; 4 7]; y = dyaddown(M, 1, 'c');");
+    // ODD=1, type='c' → keep col 1 = [1;2;3;4].
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 1);
+    EXPECT_DOUBLE_EQ(evalScalar("y(4)"), 4);
+}

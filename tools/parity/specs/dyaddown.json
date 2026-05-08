@@ -1,10 +1,19 @@
 {
   "name": "dyaddown",
   "namespace": "wavelet",
-  "setup": "x = [10 20 30 40 50 60 70];",
-  "expr": "y = dyaddown(x); z = dyaddown(x, 1);",
+  "setup": "v = [10 20 30 40 50 60 70]; M = [1 4; 2 5; 3 6; 4 7];",
+  "expr": "yv = dyaddown(v); zv = dyaddown(v, 1); yM = dyaddown(M); ymc = dyaddown(M, 0, 'c'); ymr = dyaddown(M, 0, 'r'); ymm = dyaddown(M, 0, 'm'); ymc1 = dyaddown(M, 1, 'c'); ymr1 = dyaddown(M, 1, 'r');",
   "iters": 5,
-  "tol": 1e-15,
-  "fingerprint": ["numel(y)", "y(1)", "y(2)", "y(3)", "numel(z)", "z(1)", "z(4)"],
-  "comment": "Sig: y = dyaddown(x[, ODD]). Dyadic downsample. ODD = 0 (default) → x(2:2:end); ODD = 1 → x(1:2:end)."
+  "tol": 0,
+  "fingerprint": [
+    "numel(yv)", "yv(1)", "yv(2)", "yv(3)",
+    "numel(zv)", "zv(1)", "zv(4)",
+    "size(yM, 1)", "size(yM, 2)", "yM(1,1)", "yM(4,1)",
+    "size(ymc, 1)", "size(ymc, 2)", "ymc(1,1)", "ymc(4,1)",
+    "size(ymr, 1)", "size(ymr, 2)", "ymr(1,1)", "ymr(2,2)",
+    "size(ymm, 1)", "size(ymm, 2)", "ymm(1,1)", "ymm(2,1)",
+    "size(ymc1, 1)", "size(ymc1, 2)", "ymc1(1,1)", "ymc1(4,1)",
+    "size(ymr1, 1)", "size(ymr1, 2)", "ymr1(1,1)", "ymr1(2,2)"
+  ],
+  "comment": "Sig: y = dyaddown(x[, ODD][, type]). Dyadic downsample by 2. ODD=0 default → keep even-indexed; ODD=1 → keep odd-indexed. For matrices, type ∈ {c (default, columns), r (rows), m (both)}. Bug fix 2026-05-08: matrix path silently flattened to a 1-D vector + ignored the type arg. tol=0 (integer-stable on integer inputs)."
 }

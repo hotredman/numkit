@@ -1,10 +1,19 @@
 {
   "name": "dyadup",
   "namespace": "wavelet",
-  "setup": "x = [1 2 3];",
-  "expr": "y = dyadup(x); z = dyadup(x, 0);",
+  "setup": "v = [1 2 3]; M = [1 4; 2 5; 3 6];",
+  "expr": "yv = dyadup(v); zv = dyadup(v, 0); yM = dyadup(M); ymc = dyadup(M, 0, 'c'); ymr = dyadup(M, 0, 'r'); ymm = dyadup(M, 0, 'm'); ymc1 = dyadup(M, 1, 'c'); ymr1 = dyadup(M, 1, 'r');",
   "iters": 5,
-  "tol": 1e-15,
-  "fingerprint": ["numel(y)", "y(1)", "y(2)", "y(7)", "numel(z)", "z(1)", "z(5)"],
-  "comment": "Sig: y = dyadup(x[, ODD]). Zero insertion between samples. Default ODD = 1 → [0 x(1) 0 x(2) 0 ... x(N) 0] (length 2N+1); ODD = 0 → [x(1) 0 x(2) 0 ... x(N)] (length 2N-1)."
+  "tol": 0,
+  "fingerprint": [
+    "numel(yv)", "yv(1)", "yv(2)", "yv(7)",
+    "numel(zv)", "zv(1)", "zv(5)",
+    "size(yM, 1)", "size(yM, 2)", "yM(1,2)", "yM(2,4)",
+    "size(ymc, 1)", "size(ymc, 2)", "ymc(1,1)", "ymc(1,3)",
+    "size(ymr, 1)", "size(ymr, 2)", "ymr(1,1)", "ymr(2,1)",
+    "size(ymm, 1)", "size(ymm, 2)", "ymm(1,1)", "ymm(3,3)",
+    "size(ymc1, 1)", "size(ymc1, 2)", "ymc1(1,2)", "ymc1(3,4)",
+    "size(ymr1, 1)", "size(ymr1, 2)", "ymr1(1,1)", "ymr1(2,1)"
+  ],
+  "comment": "Sig: y = dyadup(x[, ODD][, type]). Zero insertion between samples (upsample by 2). Vector default ODD=1 → length 2N+1 with leading zero. ODD=0 → length 2N-1, no leading zero. For matrices, type ∈ {c (default, columns), r (rows), m (both)}. Bug fix 2026-05-08: matrix path silently flattened + ignored type arg. tol=0."
 }
