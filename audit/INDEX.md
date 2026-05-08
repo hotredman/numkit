@@ -27,9 +27,6 @@ Status legend:
 | [findings/stats/binornd.md](findings/stats/binornd.md) | binornd | stats.dist | low | small | 1525319 |
 | [findings/stats/poissrnd.md](findings/stats/poissrnd.md) | poissrnd | stats.dist | low | small | 1525319 |
 | [findings/stats/unidrnd.md](findings/stats/unidrnd.md) | unidrnd | stats.dist | low | small | 1525319 |
-| [findings/regress/regress.md](findings/regress/regress.md) | regress | stats.regress | high | medium | f92087f |
-| [findings/regress/lscov.md](findings/regress/lscov.md) | lscov | stats.regress | low | small | f92087f |
-| [findings/regress/ridge.md](findings/regress/ridge.md) | ridge | stats.regress | low | small | f92087f |
 | [findings/stats/lognrnd.md](findings/stats/lognrnd.md) | lognrnd | stats.dist | medium | small | 105c2b4 |
 | [findings/stats/wblrnd.md](findings/stats/wblrnd.md) | wblrnd | stats.dist | medium | small | 105c2b4 |
 
@@ -225,6 +222,9 @@ Status legend:
 | [closed/dim/pca.md](closed/dim/pca.md) | pca | PENDING | 2026-05-08 |
 | [closed/dim/pcacov.md](closed/dim/pcacov.md) | pcacov | PENDING | 2026-05-08 |
 | [closed/dim/pcares.md](closed/dim/pcares.md) | pcares | PENDING | 2026-05-08 |
+| [closed/regress/regress.md](closed/regress/regress.md) | regress | PENDING (rint approximate) | 2026-05-08 |
+| [closed/regress/lscov.md](closed/regress/lscov.md) | lscov | PENDING | 2026-05-08 |
+| [closed/regress/ridge.md](closed/regress/ridge.md) | ridge | PENDING | 2026-05-08 |
 
 ---
 

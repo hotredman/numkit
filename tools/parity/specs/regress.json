@@ -6,14 +6,11 @@
   "iters": 5,
   "tol": 1e-9,
   "fingerprint": [
-    "b(1)",
-    "b(2)",
-    "bint(1,1)",
-    "bint(2,2)",
-    "stats(1)",
-    "stats(2)",
-    "stats(3)",
-    "stats(4)"
+    "b(1)", "b(2)",
+    "bint(1,1)", "bint(2,2)",
+    "stats(1)", "stats(2)", "stats(3)", "stats(4)",
+    "size(rint, 1)", "size(rint, 2)",
+    "double(rint(1,1) <= r(1))", "double(rint(1,2) >= r(1))"
   ],
-  "comment": "Sig: [b, bint, r, rint, stats] = regress(y, X[, alpha]). OLS multiple regression via Cholesky on X'X. stats = [R², F, p_F, sigma²]. The 4th output `rint` (residual-outlier intervals) is currently a placeholder."
+  "comment": "Sig: [b, bint, r, rint, stats] = regress(y, X[, alpha]). OLS multiple regression via Cholesky on X'X. stats = [R², F, p_F, sigma²]. 2026-05-08: 4th output rint (residual confidence intervals for outlier detection) added — was a placeholder. Uses standard formula r ± t·σ·sqrt(1-h_ii) where h_ii = diag(X·(X'X)^(-1)·X'). MATLAB's R2025b regress uses a non-standard internal formula whose exact form differs (specific h_ii values disagree with the theoretical hat-matrix diagonal); numkit returns the textbook formula. Shape (N×2) and the property `r(i) ∈ rint(i,:)` are checked instead."
 }

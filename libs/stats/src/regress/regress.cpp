@@ -58,9 +58,11 @@ void back_solve(const double *L, double *x, const double *z, size_t d)
 
 } // anonymous
 
-std::tuple<Value, Value, Value, Value>
-regress(std::pmr::memory_resource *mr, const Value &y, const Value &X,
-        double alpha)
+// 5-output form: [b, bint, r, rint, stats]. rint = residual CI for
+// outlier detection — added 2026-05-08.
+std::tuple<Value, Value, Value, Value, Value>
+regress_full(std::pmr::memory_resource *mr, const Value &y, const Value &X,
+             double alpha)
 {
     const size_t N = y.numel();
     const size_t p = X.dims().cols();
@@ -111,7 +113,10 @@ regress(std::pmr::memory_resource *mr, const Value &y, const Value &X,
     const double sigma2 = (dfErr > 0) ? SSR / dfErr
                                       : std::numeric_limits<double>::quiet_NaN();
 
-    // Compute (XtX)^{-1} via solving XtX·M = I, column-by-column.
+    // Compute the FULL (XtX)^{-1} (p×p, column-major) so we can compute
+    // both the diagonal (for bint SE) and the leverage h_ii = X·M·X'
+    // for rint.
+    std::vector<double> invMat(p * p, 0.0);
     std::vector<double> invDiag(p, 0.0);
     {
         std::vector<double> ej(p), zj(p), mj(p);
@@ -120,6 +125,7 @@ regress(std::pmr::memory_resource *mr, const Value &y, const Value &X,
             ej[j] = 1.0;
             fwd_solve(L.data(), zj.data(), ej.data(), p);
             back_solve(L.data(), mj.data(), zj.data(), p);
+            for (size_t i = 0; i < p; ++i) invMat[i + j * p] = mj[i];
             invDiag[j] = mj[j];
         }
     }
@@ -171,7 +177,45 @@ regress(std::pmr::memory_resource *mr, const Value &y, const Value &X,
     double *sd = statsV.doubleDataMut();
     sd[0] = R2; sd[1] = F; sd[2] = pF; sd[3] = sigma2;
 
-    return {std::move(bV), std::move(bintV), std::move(rV), std::move(statsV)};
+    // rint: 100·(1-α)% CI for residuals. h_ii = X[i,:] · (XtX)^{-1} · X[i,:]'.
+    // rint(i,:) = r(i) ± t_crit · σ · sqrt(1 - h_ii).
+    // When h_ii ≥ 1 (perfect leverage), CI degenerates to [r(i), r(i)].
+    Value rintV = Value::matrix(N, 2, ValueType::DOUBLE, mr);
+    double *rid = rintV.doubleDataMut();
+    const double sigma = (sigma2 == sigma2 && sigma2 > 0.0)
+                         ? std::sqrt(sigma2) : 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        // h_ii = sum_{j,k} X[i,j] · invMat[j,k] · X[i,k].
+        double hii = 0.0;
+        for (size_t j = 0; j < p; ++j) {
+            double row = 0.0;
+            for (size_t k = 0; k < p; ++k)
+                row += invMat[j + k * p] * X.elemAsDouble(i + k * N);
+            hii += X.elemAsDouble(i + j * N) * row;
+        }
+        const double oneMinusH = 1.0 - hii;
+        if (oneMinusH > 0.0 && std::isfinite(oneMinusH)) {
+            const double sei = sigma * std::sqrt(oneMinusH);
+            rid[i]       = r[i] - tcrit * sei;
+            rid[i + N]   = r[i] + tcrit * sei;
+        } else {
+            rid[i]       = r[i];
+            rid[i + N]   = r[i];
+        }
+    }
+
+    return {std::move(bV), std::move(bintV), std::move(rV),
+            std::move(rintV), std::move(statsV)};
+}
+
+// Backward-compat 4-tuple wrapper (for legacy callers; rint dropped).
+std::tuple<Value, Value, Value, Value>
+regress(std::pmr::memory_resource *mr, const Value &y, const Value &X,
+        double alpha)
+{
+    auto [b, bint, r, rint, stats] = regress_full(mr, y, X, alpha);
+    (void)rint;
+    return {std::move(b), std::move(bint), std::move(r), std::move(stats)};
 }
 
 std::tuple<Value, Value, Value, Value>
@@ -372,13 +416,12 @@ void regress_reg(Span<const Value> args, size_t nargout,
                     0, 0, "regress", "", "m:regress:nargin");
     const double alpha = (args.size() >= 3 && !args[2].isEmpty())
                          ? args[2].toScalar() : 0.05;
-    auto [b, bint, r, stats] = regress(ctx.engine->resource(),
-                                        args[0], args[1], alpha);
+    auto [b, bint, r, rint, stats] = regress_full(ctx.engine->resource(),
+                                                   args[0], args[1], alpha);
     outs[0] = std::move(b);
     if (nargout > 1) outs[1] = std::move(bint);
     if (nargout > 2) outs[2] = std::move(r);
-    if (nargout > 3) outs[3] = Value::matrix(0, 0, ValueType::DOUBLE,
-                                             ctx.engine->resource());  // rint placeholder
+    if (nargout > 3) outs[3] = std::move(rint);
     if (nargout > 4) outs[4] = std::move(stats);
 }
 
