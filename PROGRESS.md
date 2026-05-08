@@ -3477,12 +3477,12 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `mexihat` | ✅ | 0.007 | 22.37× | 4.38× | OK | Sig: [psi, x] = mexihat(LB, UB, N). Mexican-hat wavelet ψ(t) = (2/√3)·π^(-1/4)·(1-t²)·exp(-t²/2). Even, peaks at 0, zeros at ±1. Coverage: N ∈ {8, 16, 64} on [-5, 5] + asymmetric range [0, 5]. |
 | `morlet` | ✅ | 0.005 | 29.79× | 33.36× | OK | Sig: [psi, x] = morlet(LB, UB, N). Real Morlet ψ(t) = exp(-t²/2)·cos(5t). Coverage: N ∈ {8, 16, 64} on [-5, 5] + asymmetric range [0, 5]. |
 | `cgauwavf` | ✅ | 0.007 | 168.64× |  | OK | Sig: [psi, x] = cgauwavf(LB, UB, N[, p]). Complex Gaussian wavelet (-1)^p · H_p(t + i/2) · exp(-t² - i·t). Trapezoidal L² normalization on the requested grid (matches MATLAB's grid-dependent normalization). |
-| `cmorwavf` | ✅ | 0.005 | 136.37× | 9.72× | OK | Sig: [psi, x] = cmorwavf(LB, UB, N, fb, fc). Complex Morlet ψ(t) = (1/√(π·fb))·exp(2πi·fc·t)·exp(-t²/fb). |
-| `fbspwavf` | ✅ | 0.005 | 154.18× |  | OK | Sig: [psi, x] = fbspwavf(LB, UB, N, m, fb, fc). Frequency B-spline ψ(t) = √fb·(sinc(fb·t/m))^m · exp(2πi·fc·t). |
+| `cmorwavf` | ✅ | 0.008 | 34.80× |  | OK | Sig: [psi, x] = cmorwavf(LB, UB, N[, fb, fc]). Complex Morlet ψ(t) = (1/√(π·fb))·exp(2πi·fc·t)·exp(-t²/fb). Bug fix 2026-05-08: 3-arg form was throwing instead of using defaults fb=1, fc=1. Coverage: default + custom (fb, fc) + N=33. |
+| `fbspwavf` | ✅ | 0.005 | 46.07× |  | OK | Sig: [psi, x] = fbspwavf(LB, UB, N, m, fb, fc). Frequency B-spline ψ(t) = √fb · (sinc(fb·t/m))^m · exp(2πi·fc·t). Coverage: m ∈ {2, 3} × (fb, fc) ∈ {(1,1), (0.5,2)} × N ∈ {8, 16, 33}. |
 | `gauswavf` | ✅ | 0.006 | 193.88× |  | OK | Sig: [psi, x] = gauswavf(LB, UB, N[, p]). Real Gaussian wavelet ψ_p = sgn_p · |α_p| · H_p(t)·exp(-t²) with sgn_p = (-1)^ceil(p/2), |α_p|² = 1/((2p-1)!!·sqrt(π/2)). Default p = 1. |
 | `intwave` | ❌ |  |  |  |  | wavelet integral |
 | `pat2cwav` | ❌ |  |  |  |  | pattern → custom wavelet |
-| `shanwavf` | ✅ | 0.007 | 199.53× | 9.67× | OK | Sig: [psi, x] = shanwavf(LB, UB, N, fb, fc). Shannon wavelet ψ(t) = √fb·sinc(fb·t)·exp(2πi·fc·t). |
+| `shanwavf` | ✅ | 0.006 | 36.87× | 29.72× | OK | Sig: [psi, x] = shanwavf(LB, UB, N, fb, fc). Shannon wavelet ψ(t) = √fb·sinc(fb·t)·exp(2πi·fc·t). Coverage: (fb, fc) ∈ {(1,1), (0.5,2)} × N ∈ {8, 16, 33}. |
 
 ### Lifting
 

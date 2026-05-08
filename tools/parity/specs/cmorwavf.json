@@ -1,15 +1,15 @@
 {
   "name": "cmorwavf",
   "namespace": "wavelet",
-  "setup": "lb = -4; ub = 4; N = 33; fb = 1; fc = 1;",
-  "expr": "[psi, x] = cmorwavf(lb, ub, N, fb, fc);",
+  "setup": "[pd, xd] = cmorwavf(-5, 5, 8); [pe, xe] = cmorwavf(-5, 5, 8, 1.5, 1); [p64, x64] = cmorwavf(-4, 4, 33, 1, 1);",
+  "expr": "rd = real(pd(4)); id = imag(pd(4)); re_ = real(pe(4)); ie_ = imag(pe(4)); rmid = real(p64(17)); imid = imag(p64(17)); a1 = abs(p64(1)); ae = abs(p64(33));",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
-    "real(psi(17))",
-    "imag(psi(17))",
-    "abs(psi(1))",
-    "abs(psi(end))"
+    "rd", "id",
+    "re_", "ie_",
+    "rmid", "imid",
+    "a1", "ae"
   ],
-  "comment": "Sig: [psi, x] = cmorwavf(LB, UB, N, fb, fc). Complex Morlet ψ(t) = (1/√(π·fb))·exp(2πi·fc·t)·exp(-t²/fb)."
+  "comment": "Sig: [psi, x] = cmorwavf(LB, UB, N[, fb, fc]). Complex Morlet ψ(t) = (1/√(π·fb))·exp(2πi·fc·t)·exp(-t²/fb). Bug fix 2026-05-08: 3-arg form was throwing instead of using defaults fb=1, fc=1. Coverage: default + custom (fb, fc) + N=33."
 }

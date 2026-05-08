@@ -23,6 +23,9 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/cgauwavf_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/mexihat_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/morlet_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmorwavf_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shanwavf_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/fbspwavf_test.cpp
     # ── haar transform ──────────────────────────────────────────
     ${CMAKE_CURRENT_SOURCE_DIR}/haart_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ihaart_test.cpp

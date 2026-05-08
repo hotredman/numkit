@@ -51,3 +51,15 @@ Complex Morlet: `ψ(t) = (1/√(π·fb))·exp(2πi·fc·t)·exp(-t²/fb)`.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Bug fix: 3-arg form `cmorwavf(LB, UB, N)` was throwing
+  "requires (LB, UB, N, fb, fc)". MATLAB R2025b documents
+  defaults `fb = fc = 1` for the 3-arg form. Fixed: adapter now
+  reads args[3]/args[4] only when present.
+
+  Spec extended from 4 to 8 fingerprints (default + custom (fb, fc)
+  + N=33 peak). Parity OK numkit ↔ MATLAB at tol=1e-12. 4 TEST_F
+  gtest + smoke. Implements audit/closed/wavelet/cmorwavf.md.
