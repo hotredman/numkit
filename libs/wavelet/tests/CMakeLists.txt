@@ -14,6 +14,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/orthfilt_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wfilters_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt_idwt_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/appcoef_test.cpp
     # ── dwt helpers ─────────────────────────────────────────────
     ${CMAKE_CURRENT_SOURCE_DIR}/dyaddown_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dyadup_test.cpp

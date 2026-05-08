@@ -1,0 +1,16 @@
+{
+  "name": "appcoef",
+  "namespace": "wavelet",
+  "setup": "x = (1:16)'; [c, l] = wavedec(x, 3, 'db2'); [~, ~, Lo_R, Hi_R] = wfilters('db2');",
+  "expr": "A_def = appcoef(c, l, 'db2'); A_l1 = appcoef(c, l, 'db2', 1); A_l2 = appcoef(c, l, 'db2', 2); A_cust = appcoef(c, l, Lo_R, Hi_R); A_cust_l1 = appcoef(c, l, Lo_R, Hi_R, 1);",
+  "iters": 3,
+  "tol": 1e-9,
+  "fingerprint": [
+    "A_def(1)", "A_def(2)", "A_def(3)", "A_def(4)",
+    "A_l1(1)", "A_l1(5)", "A_l1(numel(A_l1))",
+    "A_l2(1)", "A_l2(numel(A_l2))",
+    "A_cust(1)", "A_cust(4)",
+    "A_cust_l1(1)", "A_cust_l1(numel(A_cust_l1))"
+  ],
+  "comment": "Sig: A = appcoef(c, l, wname[, level]) or (c, l, LoR, HiR[, level]); optional 'Mode'/'mode' N-V (only 'sym' supported). 2026-05-08: cascades-fixed via wfilters Lo_D/Lo_R label-swap. Custom-filter form added in this commit."
+}
