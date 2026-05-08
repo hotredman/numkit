@@ -14,4 +14,11 @@ Value hilbert(std::pmr::memory_resource *mr, const Value &x);
 /// Value.
 Value envelope(std::pmr::memory_resource *mr, const Value &x);
 
+/// 2-output envelope: yupper = |analytic|, ylower = -yupper. Symmetric;
+/// MATLAB's default `envelope(x)` uses spline-peak interpolation
+/// (asymmetric output) — that mode is deferred. See
+/// audit/closed/signal/envelope.md.
+void envelope_pair(std::pmr::memory_resource *mr, const Value &x,
+                   Value *yupper, Value *ylower);
+
 } // namespace numkit::signal
