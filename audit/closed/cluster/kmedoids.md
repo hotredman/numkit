@@ -1,6 +1,6 @@
 # stats.cluster/kmedoids — ТЗ for completion
 
-**Status:** open
+**Status:** closed (partial — RNG-dependent label parity deferred)
 **Priority:** low
 **Effort:** small
 **Audited at commit:** b2f133b
@@ -59,3 +59,24 @@ points differently). Either:
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-08
+- Notes: Closed gaps #2 (4/5/6-output forms) and #3 ('Algorithm' /
+  'Start' / 'Replicates' N-V parsing). Plus extras surfaced by
+  re-probe: default Distance was 'euclidean', MATLAB R2025b uses
+  'sqeuclidean' — fixed. N-V keys are now case-insensitive.
+  6-output `info` struct emitted with algorithm/start/distance/
+  iterations/bestReplicate fields.
+
+  Gap #1 (RNG-seeded init label parity) DEFERRED — depends on
+  `audit/findings/stats/normrnd.md` closing first. Until base RNG
+  matches MATLAB, kmedoids returns the SAME PARTITION but different
+  cluster ID labels.
+
+  PMR refactor: kmedoids.cpp scratch buffers all moved to
+  ScratchArena + ScratchVec (kmedoids() + dbscan() + read_rows()).
+  Parity OK numkit ↔ MATLAB on 20 label-permutation-invariant
+  fingerprints; Octave does not ship kmedoids.
+
