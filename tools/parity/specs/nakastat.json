@@ -1,0 +1,16 @@
+{
+  "name": "nakastat",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "[m_s, v_s] = nakastat(1, 1); [m_v, v_v] = nakastat([0.5 1 2], 1); [m_b, v_b] = nakastat(1, [0.5 1 2]); m_mu0 = nakastat(0, 1); m_om0 = nakastat(1, 0); m_mneg = nakastat(-1, 1);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "m_s", "v_s",
+    "m_v(1)", "m_v(2)", "m_v(3)",
+    "v_v(1)", "v_v(2)", "v_v(3)",
+    "m_b(1)", "m_b(2)", "m_b(3)",
+    "m_mu0", "m_om0", "m_mneg"
+  ],
+  "comment": "Sig: [m, v] = nakastat(mu, omega). Nakagami: m = sqrt(omega/mu)·Γ(mu+0.5)/Γ(mu), v = omega·(1 - r²/mu) where r = Γ(mu+0.5)/Γ(mu). Vectorised. mu<=0 / omega<=0 => NaN. MATLAB R2025b does not ship nakastat — Octave statistics package is the reference."
+}
