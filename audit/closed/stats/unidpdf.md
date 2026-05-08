@@ -21,3 +21,12 @@ RNG family).
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Pure spec coverage, no impl change. 13 fingerprints
+  (in-support + vector across edge + 3 out-of-support k + 4 bad N
+  + NaN k/N). Parity OK numkit ↔ MATLAB at tol=0. Octave returns
+  NaN for NaN k while MATLAB returns 0; we follow MATLAB. 4 TEST_F
+  gtest + smoke.
