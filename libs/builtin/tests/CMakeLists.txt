@@ -7,6 +7,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/fwd_trig_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/transcendentals_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/special_fn_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bitwise_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/variables_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/controlflow_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/functions_test.cpp

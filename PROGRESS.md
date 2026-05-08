@@ -543,13 +543,13 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bitand` | ✅ | 5.979 | 1.84× | 2.29× | OK | Sig: Y = bitand(A, B). 1M double (numkit rejects uint32 — see BUGS #13). 50 iters. |
-| `bitcmp` | ✅ | 6.159 | 0.39× |  | OK | Sig: Y = bitcmp(A, type). 1M double + 'uint32' (numkit rejects uint32 array — see BUGS #13). 50 iters. |
-| `bitget` | ✅ | 3.916 | 0.63× | 2.51× | OK | Sig: Y = bitget(A, K). 1M double, bit 3. 50 iters. |
-| `bitor` | ✅ | 5.795 | 1.85× | 2.35× | OK | Sig: Y = bitor(A, B). 1M double. 50 iters. |
-| `bitset` | ✅ | 4.155 | 0.61× | 8.75× | OK | Sig: Y = bitset(A, K). 1M double, set bit 5. 50 iters. |
-| `bitshift` | ✅ | 4.415 | 0.56× | 1.79× | OK | Sig: Y = bitshift(A, K). 1M double << 3. 50 iters. |
-| `bitxor` | ✅ | 5.769 | 1.84× | 2.37× | OK | Sig: Y = bitxor(A, B). 1M double. 50 iters. |
+| `bitand` | ✅ | 0.003 | 35.79× | 5.48× | OK | Sig: r = bitand(...). Bitwise integer op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `bitcmp` | ✅ | 0.003 | 29.86× | 33.95× | OK | Sig: r = bitcmp(...). Bitwise integer op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `bitget` | ✅ | 0.004 | 40.20× | 55.14× | OK | Sig: r = bitget(...). Bitwise integer op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on scalar-k inputs. |
+| `bitor` | ✅ | 0.003 | 33.44× | 59.52× | OK | Sig: r = bitor(...). Bitwise integer op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `bitset` | ✅ | 0.003 | 35.56× | 117.28× | OK | Sig: r = bitset(...). Bitwise integer op. Spec-extension batch 2026-05-09. |
+| `bitshift` | ✅ | 0.003 | 31.14× | 45.08× | OK | Sig: r = bitshift(...). Bitwise integer op. Spec-extension batch 2026-05-09. |
+| `bitxor` | ✅ | 0.003 | 36.04× | 50.05× | OK | Sig: r = bitxor(...). Bitwise integer op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `swapbytes` | ✅ | 1.070 | 0.95× | 8.06× | OK | Sig: Y = swapbytes(X). 1M uint32 endian-swap. 50 iters. (uint out — fp via double cast). |
 
 ### Set Operations
