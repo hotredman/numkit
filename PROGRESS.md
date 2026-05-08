@@ -2606,7 +2606,7 @@ intentionally omitted — flat solver functions only.
 | `gausswin` | ✅ | 0.004 | 5.68× | 5.12× | OK | Sig: W = gausswin(N). Gaussian. 10000 iters. |
 | `hamming` | ✅ | 0.004 | 6.66× | 4.44× | OK | Sig: W = hamming(N). 1024-pt Hamming. 10000 iters. |
 | `hann` | ✅ | 0.004 | 7.54× | 6.01× | OK | Sig: W = hann(N). 1024-pt Hann window. 10000 iters. |
-| `kaiser` | ✅ | 0.019 | 1.63× | 13.62× | OK | Sig: W = kaiser(N, BETA). beta=5. 10000 iters. |
+| `kaiser` | ✅ | 0.005 | 31.55× | 37.86× | OK | Sig: w = kaiser(N[, beta]). Kaiser window with shape param beta. beta=0 -> rectangular (all ones); larger beta -> narrower mainlobe + lower sidelobes. Default beta=0.5. Coverage: beta ∈ {0, 1, 5, 8.6, 12} × N ∈ {8, 16, 64} + default + N=1 (single-point window). |
 | `nuttallwin` | ✅ | 0.010 | 2.43× | 3.99× | OK | Sig: W = nuttallwin(N). 10000 iters. |
 | `parzenwin` | ✅ | 0.001 | 43.75× | 39.21× | OK | Sig: W = parzenwin(N). 10000 iters. |
 | `rectwin` | ✅ | 0.001 | 1.62× | 7.42× | OK | Sig: W = rectwin(N). All-ones. 10000 iters. |

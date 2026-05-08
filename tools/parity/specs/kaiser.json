@@ -1,10 +1,17 @@
 {
   "name": "kaiser",
   "namespace": "core",
-  "setup": "n = 1024; b = 5;",
-  "expr": "y = kaiser(n, b);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: W = kaiser(N, BETA). beta=5. 10000 iters."
+  "setup": "w0 = kaiser(8, 0); w1 = kaiser(8, 1); w5 = kaiser(16, 5); w86 = kaiser(64, 8.6); w12 = kaiser(64, 12); wd = kaiser(8); w1pt = kaiser(1, 5);",
+  "expr": "c0 = w0(4); c1 = w1(4); c5 = w5(8); e5 = w5(1); c86 = w86(32); e86 = w86(1); c12 = w12(32); e12 = w12(1); d_default = wd(1); single_pt = w1pt(1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "c0", "c1",
+    "c5", "e5",
+    "c86", "e86",
+    "c12", "e12",
+    "d_default",
+    "single_pt"
+  ],
+  "comment": "Sig: w = kaiser(N[, beta]). Kaiser window with shape param beta. beta=0 -> rectangular (all ones); larger beta -> narrower mainlobe + lower sidelobes. Default beta=0.5. Coverage: beta ∈ {0, 1, 5, 8.6, 12} × N ∈ {8, 16, 64} + default + N=1 (single-point window)."
 }
