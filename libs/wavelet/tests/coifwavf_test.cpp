@@ -41,3 +41,31 @@ TEST_F(CoifwavfTest, RowOrientation)
     EXPECT_EQ(static_cast<size_t>(evalScalar("size(h, 1)")), 1u);
     EXPECT_EQ(static_cast<size_t>(evalScalar("size(h, 2)")), 6u);
 }
+
+// Bug fix 2026-05-08 — extended Coiflet table from coif1 to coif1..coif5.
+
+TEST_F(CoifwavfTest, Coif2ToCoif5Lengths)
+{
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(coifwavf('coif2'))")), 12u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(coifwavf('coif3'))")), 18u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(coifwavf('coif4'))")), 24u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(coifwavf('coif5'))")), 30u);
+}
+
+TEST_F(CoifwavfTest, ExtendedSumsToOne)
+{
+    // MATLAB's published Coiflet coefficients are decimal-truncated, so
+    // sums are within ~1e-10 of unity rather than full IEEE precision.
+    // (sum(coifwavf('coif5')) = 1.0000000001 in MATLAB itself.)
+    for (const std::string &name : {"coif2", "coif3", "coif4", "coif5"}) {
+        const std::string expr = "sum(coifwavf('" + name + "'))";
+        EXPECT_NEAR(evalScalar(expr), 1.0, 1e-9) << name;
+    }
+}
+
+TEST_F(CoifwavfTest, Coif2HighPrecision)
+{
+    eval("h = coifwavf('coif2');");
+    EXPECT_NEAR(evalScalar("h(1)"),   0.011587596739, 1e-9);
+    EXPECT_NEAR(evalScalar("h(12)"), -0.000509505400, 1e-9);
+}

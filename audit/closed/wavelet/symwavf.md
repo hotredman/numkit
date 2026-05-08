@@ -45,3 +45,19 @@ Length = 2N for `'symN'`.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed (partial)
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Extended Symlet table from sym2/sym4 to sym2..sym10 (no
+  sym3/sym5..sym10 previously). Coefficients extracted from
+  MATLAB R2025b `flip(symwavf('symN')*sqrt(2))` at 17-decimal
+  precision; sums verified to 1 ± 1e-12.
+
+  **Deferred — sym11..sym45:** beyond the typical practical range.
+  Easily addable when a consumer requires; same extraction recipe.
+
+  Spec extended from 7 to 16 fingerprints. Parity OK numkit ↔
+  MATLAB at tol=1e-12. Octave doesn't ship `symwavf` (Wavelet
+  Toolbox); we follow MATLAB. 7 TEST_F gtest (existing 5 + 2 new
+  Sym3ToSym10Lengths / ExtendedSumsToOne).

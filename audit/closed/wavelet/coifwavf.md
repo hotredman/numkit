@@ -41,3 +41,23 @@ Length = 6K for `'coifK'`.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: PENDING
+- Closed date: 2026-05-08
+- Notes: Extended Coiflet table from coif1 to coif1..coif5
+  (full MATLAB family — coiflets only go up to coif5). Coefficients
+  extracted from MATLAB R2025b `flip(coifwavf*sqrt(2))` at
+  17-decimal precision.
+
+  **Sum precision:** MATLAB's published Coiflet coefficients are
+  decimal-truncated, so `sum(coifwavf('coif5'))` in MATLAB itself
+  is 1.0000000001 (1e-10 error). Numkit reproduces the same
+  truncated values and matches MATLAB exactly within that
+  precision. The `ExtendedSumsToOne` gtest uses tol=1e-9 to
+  reflect this inherent limitation.
+
+  Spec extended from 5 to 17 fingerprints. Parity OK numkit ↔
+  MATLAB at tol=1e-12. Octave doesn't ship `coifwavf`. 7 TEST_F
+  gtest (existing 4 + 3 new Coif2ToCoif5Lengths /
+  ExtendedSumsToOne / Coif2HighPrecision).
