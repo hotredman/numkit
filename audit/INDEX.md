@@ -27,6 +27,10 @@ Status legend:
 | [closed/builtin/rng.md](closed/builtin/rng.md) | rng (DEFERRED) | DEFERRED | 2026-05-09 |
 | [closed/signal/cceps.md](closed/signal/cceps.md) | cceps / icceps | PENDING | 2026-05-09 |
 | [closed/signal/goertzel.md](closed/signal/goertzel.md) | goertzel | PENDING | 2026-05-09 |
+| [closed/stats/evrnd.md](closed/stats/evrnd.md) | evrnd (DEFERRED — rng cascade) | DEFERRED | 2026-05-09 |
+| [closed/stats/gevrnd.md](closed/stats/gevrnd.md) | gevrnd (DEFERRED — rng cascade) | DEFERRED | 2026-05-09 |
+| [closed/stats/gprnd.md](closed/stats/gprnd.md) | gprnd (DEFERRED — rng cascade) | DEFERRED | 2026-05-09 |
+| [closed/stats/ncx2rnd.md](closed/stats/ncx2rnd.md) | ncx2rnd (DEFERRED — rng cascade) | DEFERRED | 2026-05-09 |
 | [closed/stats/evcdf.md](closed/stats/evcdf.md) | evcdf | PENDING | 2026-05-09 |
 | [closed/stats/geocdf.md](closed/stats/geocdf.md) | geocdf | PENDING | 2026-05-09 |
 | [closed/stats/gevcdf.md](closed/stats/gevcdf.md) | gevcdf | PENDING | 2026-05-09 |
