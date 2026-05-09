@@ -11,10 +11,18 @@
 import { useState } from 'react';
 import CompositePlot from './CompositePlot';
 import Composite3DPlot from './Composite3DPlot';
+import FigureErrorBoundary from './FigureErrorBoundary';
 import PolarPlot, { defaultPolarViewport } from './PolarPlot';
 
 function renderCell(cell, props) {
-  if (cell.kind === 'composite3d') return <Composite3DPlot figure={cell} {...props} />;
+  if (cell.kind === 'composite3d') {
+    return (
+      <FigureErrorBoundary label="composite3d-cell" figureId={cell.id}
+        width={props.width} height={props.height}>
+        <Composite3DPlot figure={cell} {...props} />
+      </FigureErrorBoundary>
+    );
+  }
   if (cell.kind === 'composite')   return <CompositePlot   figure={cell} {...props} />;
   if (cell.kind === 'polar')       return <PolarPlot       figure={cell} {...props} />;
   return <CompositePlot figure={cell} {...props} />;
