@@ -85,4 +85,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/eomday_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/datevec_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/yyyymmdd_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mjuliandate_test.cpp
 )
