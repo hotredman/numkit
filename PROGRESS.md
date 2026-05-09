@@ -2173,7 +2173,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `rsf2csf` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `schur` | ❌ | 0.010 | 47.71× | 20.61× | OK | Sig: [U, T] = schur(A). For symmetric A this is the eigendecomposition: A = U*T*U' with T diagonal. General (non-symmetric) Schur returns quasi-triangular T with 2x2 blocks for complex eigenpairs -- deferred to Phase 2b. Eigenvalues bit-identical with MATLAB. |
 | `sqrtm` | ❌ | 0.006 | 120.19× | 15.90× | OK | Sig: R = sqrtm(A). Matrix square root for symmetric positive-semidefinite A via eig: R = V*diag(sqrt(eig))*V'. R*R = A to ulp. General sqrtm requires complex Schur -- deferred to Phase 2b. |
-| `subspace` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `subspace` | ❌ | 0.008 | 48.65× | 51.84× | OK | Sig: theta = subspace(A, B). Largest principal angle between column spaces of A and B. Identical subspaces -> 0; orthogonal -> pi/2. |
 | `svd` | ❌ | 0.015 | 31.34× | 9.07× | OK | Sig: s = svd(A) | [U, S, V] = svd(A). One-sided Jacobi SVD; A = U*S*V'. Bit-identical singular values with MATLAB R2025b on probed matrices (3x3 / 4x3 tall / 3x4 wide / diagonal). U/V vectors not compared directly (sign ambiguity); identity U*S*V' = A and orthogonality verified to ulp. |
 | `svdappend` | ❌ |  |  |  |  |  |
 | `svds` | ❌ |  |  |  |  | **deferred — libs/sparse** |
