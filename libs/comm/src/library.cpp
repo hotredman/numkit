@@ -62,6 +62,9 @@ void symerr_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // eq/compand.cpp
 void compand_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// source/random_source.cpp
+void randsrc_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -117,6 +120,8 @@ void CommLibrary::install(Engine &engine)
     reg("eq", "biterr",      &comm::detail::biterr_reg);
     reg("eq", "symerr",      &comm::detail::symerr_reg);
     reg("eq", "compand",     &comm::detail::compand_reg);
+
+    reg("rf", "randsrc",     &comm::detail::randsrc_reg);
 }
 
 } // namespace numkit
