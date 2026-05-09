@@ -1,0 +1,10 @@
+{
+  "name": "mil188qammod",
+  "namespace": "comm",
+  "setup": "x = (0:15)';",
+  "expr": "y = mil188qammod(x, 16); z = mil188qamdemod(y, 16); rt = isequal(x, z); zn = mil188qamdemod(y + 0.05*(1+1i), 16); rtN = isequal(x, zn);",
+  "iters": 5,
+  "tol": 1e-15,
+  "fingerprint": ["real(y(1))", "imag(y(1))", "real(y(3))", "imag(y(3))", "real(y(4))", "imag(y(4))", "real(y(15))", "imag(y(15))", "rt", "rtN"],
+  "comment": "MATLAB mil188qammod / mil188qamdemod (MIL-STD-188-110 QAM). Bit-equal with MATLAB R2025b on M=16. KNOWN GAP: only M=16 currently shipped; M=32, 64, 256 require additional MIL-STD constellation tables (each well-defined per the spec, deferred to its own cycle). Octave 11.1.0 doesn't ship mil188qam in core; reports N/A."
+}

@@ -6,6 +6,7 @@ set(COMMLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/analog.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/generic_qam.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/apsk.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modulation/mil188.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/channel/channel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/channel/fading.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/eq/pulse.cpp

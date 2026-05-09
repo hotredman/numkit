@@ -1,0 +1,142 @@
+// libs/comm/src/modulation/mil188.cpp
+//
+// MIL-STD-188-110B/C QAM constellation modulation/demodulation.
+//
+//   y = mil188qammod(x, M)
+//   z = mil188qamdemod(y, M)
+//
+// MATLAB R2025b's mil188qammod accepts M ∈ {16, 32, 64, 256}, each
+// with a hard-coded constellation table per the MIL-STD spec.
+//
+// KNOWN GAP: Only M = 16 implemented in numkit. M = 32 / 64 / 256
+// require the full MIL-STD-188-110 constellation tables (different
+// per-M point layouts and bit-mappings). Each is well-defined but
+// table-heavy; will get its own cycle.
+
+#include <numkit/comm/modulation/mil188.hpp>
+
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
+
+#include <complex>
+#include <limits>
+
+namespace numkit::comm {
+
+using Cd = std::complex<double>;
+
+namespace {
+
+// 16-QAM MIL-STD-188-110 constellation table.
+// MATLAB R2025b uses the spec's 6-digit-rounded values (NOT full-
+// precision cos(30°) / cos(75°)) -- probed at %.17g. We hard-code
+// the rounded values to stay bit-identical with MATLAB's output.
+constexpr Cd kMil16[16] = {
+    Cd( 0.866025,   0.5),
+    Cd( 0.5,        0.866025),
+    Cd( 1.0,        0.0),
+    Cd( 0.258819,   0.258819),
+    Cd(-0.5,        0.866025),
+    Cd( 0.0,        1.0),
+    Cd(-0.866025,   0.5),
+    Cd(-0.258819,   0.258819),
+    Cd( 0.5,       -0.866025),
+    Cd( 0.0,       -1.0),
+    Cd( 0.866025,  -0.5),
+    Cd( 0.258819,  -0.258819),
+    Cd(-0.866025,  -0.5),
+    Cd(-0.5,       -0.866025),
+    Cd(-1.0,        0.0),
+    Cd(-0.258819,  -0.258819),
+};
+
+const Cd *constellationFor(int M, size_t &len_out)
+{
+    switch (M) {
+        case 16:
+            len_out = 16;
+            return kMil16;
+        default:
+            throw Error("mil188qam: only M=16 currently supported "
+                        "(M=32/64/256 deferred)",
+                        0, 0, "mil188qam", "",
+                        "m:mil188qam:UnsupportedM");
+    }
+}
+
+} // namespace
+
+Value mil188qammod(std::pmr::memory_resource *mr, const Value &x, int M)
+{
+    size_t N = 0;
+    const Cd *C = constellationFor(M, N);
+
+    Value out = Value::matrix(x.dims().rows(), x.dims().cols(),
+                              ValueType::COMPLEX, mr);
+    Cd *o = out.complexDataMut();
+    const size_t Nx = x.numel();
+    for (size_t i = 0; i < Nx; ++i) {
+        const double xi = x.elemAsDouble(i);
+        if (xi < 0.0 || xi >= static_cast<double>(N))
+            throw Error("mil188qammod: input out of range [0, M-1]",
+                        0, 0, "mil188qammod", "",
+                        "m:mil188qammod:OutOfRange");
+        o[i] = C[static_cast<size_t>(xi)];
+    }
+    return out;
+}
+
+Value mil188qamdemod(std::pmr::memory_resource *mr, const Value &y, int M)
+{
+    size_t N = 0;
+    const Cd *C = constellationFor(M, N);
+
+    Value out = Value::matrix(y.dims().rows(), y.dims().cols(),
+                              ValueType::DOUBLE, mr);
+    double *o = out.doubleDataMut();
+    const size_t Ny = y.numel();
+    const bool y_complex = y.isComplex();
+    for (size_t i = 0; i < Ny; ++i) {
+        const Cd yi = y_complex
+                          ? y.complexData()[i]
+                          : Cd(y.elemAsDouble(i), 0.0);
+        size_t best_k = 0;
+        double best_d2 = std::numeric_limits<double>::infinity();
+        for (size_t k = 0; k < N; ++k) {
+            const double dr = yi.real() - C[k].real();
+            const double di = yi.imag() - C[k].imag();
+            const double d2 = dr * dr + di * di;
+            if (d2 < best_d2) { best_d2 = d2; best_k = k; }
+        }
+        o[i] = static_cast<double>(best_k);
+    }
+    return out;
+}
+
+namespace detail {
+
+void mil188qammod_reg(Span<const Value> args, size_t /*nargout*/,
+                      Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("mil188qammod: requires (x, M)",
+                    0, 0, "mil188qammod", "",
+                    "m:mil188qammod:nargin");
+    const int M = static_cast<int>(args[1].toScalar());
+    outs[0] = mil188qammod(ctx.engine->resource(), args[0], M);
+}
+
+void mil188qamdemod_reg(Span<const Value> args, size_t /*nargout*/,
+                        Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("mil188qamdemod: requires (y, M)",
+                    0, 0, "mil188qamdemod", "",
+                    "m:mil188qamdemod:nargin");
+    const int M = static_cast<int>(args[1].toScalar());
+    outs[0] = mil188qamdemod(ctx.engine->resource(), args[0], M);
+}
+
+} // namespace detail
+
+} // namespace numkit::comm

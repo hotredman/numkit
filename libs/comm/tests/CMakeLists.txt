@@ -21,4 +21,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/lloyds_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dpcmopt_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/apsk_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mil188_test.cpp
 )
