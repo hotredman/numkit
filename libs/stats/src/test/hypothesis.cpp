@@ -2307,8 +2307,9 @@ void lillietest_reg(Span<const Value> args, size_t nargout,
                         0, 0, "lillietest", "", "m:lillietest:alpha");
     }
 
-    // Sort sample.
-    std::vector<double> xs(N);
+    // Sort sample. PMR HARD RULE: scratch via per-call ScratchArena.
+    ScratchArena scratch(mr);
+    ScratchVec<double> xs(N, &scratch);
     for (std::size_t i = 0; i < N; ++i) xs[i] = X.elemAsDouble(i);
     std::sort(xs.begin(), xs.end());
 
