@@ -1146,7 +1146,7 @@ vector path-loss models and coordinate transforms.
 | `marcumq` | ✅ | 0.116 | 9.93× | 2.71× | OK | Sig: r = marcumq(...). Spec-extension batch 2026-05-09. |
 | `qfunc` | ✅ | 0.003 | 65.61× |  | OK | Sig: r = qfunc(...). Spec-extension batch 2026-05-09. |
 | `qfuncinv` | ✅ | 0.003 | 57.79× |  | OK | Sig: r = qfuncinv(...). Spec-extension batch 2026-05-09. |
-| `noisebw` | ✅ | 0.003 | 33.70× | 54.28× | OK | Sig: noisebw(...). KNOWN GAP: noisebw arg validation differs. Documented as separate ТЗ. |
+| `noisebw` | ✅ | 0.020 | 414.47× |  | OK | Sig: bw = noisebw(num, den, Nsamp, fs). Equivalent noise bandwidth via NBW = (fs/N) * sum(|H|^2) / max(|H|^2). Matches MATLAB R2025b within ~0.5 Hz on probed FIR (numerical-grid difference). |
 
 ## Control
 
@@ -2492,7 +2492,7 @@ intentionally omitted — flat solver functions only.
 | `arcov` | ✅ | 0.006 | 329.18× |  | OK | Sig: r = arcov(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `armcov` | ✅ | 0.008 | 250.91× |  | OK | Sig: r = armcov(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `aryule` | ✅ | 0.006 | 391.91× | 72.71× | OK | Sig: r = aryule(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `corrmtx` | ✅ | 0.003 | 31.66× | 6.74× | OK | Sig: corrmtx(...). KNOWN GAP: corrmtx output dimensions differ. Documented as separate ТЗ. |
+| `corrmtx` | ✅ | 0.004 | 151.03× |  | OK | Sig: X = corrmtx(x, p). Data matrix for correlation/covariance estimation. Bit-identical with MATLAB R2025b on probed input (size 7x3). |
 | `invfreqs` | ✅ | 0.008 | 166.55× | 147.82× | OK | Sig: [b,a] = invfreqs(h, w, nb, na). Spec-extension batch 2026-05-09 (cycle 43). |
 | `invfreqz` | ✅ | 0.009 | 131.37× | 153.89× | OK | Sig: [b,a] = invfreqz(h, w, nb, na). Spec-extension batch 2026-05-09 (cycle 43). |
 | `is2rc` | ✅ | 0.004 | 59.48× |  | OK | Sig: k = is2rc(is). Spec-extension batch 2026-05-09 (cycle 40). |
@@ -2521,7 +2521,7 @@ intentionally omitted — flat solver functions only.
 | `alignsignals` | ✅ | 0.006 | 402.38× |  | OK | Sig: r = alignsignals(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `cconv` | ✅ | 0.005 | 124.22× | 48.81× | OK | Sig: r = cconv(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `convmtx` | ✅ | 0.003 | 22.24× | 37.58× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
-| `corrmtx` | ✅ | 0.003 | 31.66× | 6.74× | OK | Sig: corrmtx(...). KNOWN GAP: corrmtx output dimensions differ. Documented as separate ТЗ. |
+| `corrmtx` | ✅ | 0.004 | 151.03× |  | OK | Sig: X = corrmtx(x, p). Data matrix for correlation/covariance estimation. Bit-identical with MATLAB R2025b on probed input (size 7x3). |
 | `dtw` | ❌ |  |  |  |  | dynamic time warp |
 | `edr` | ❌ |  |  |  |  | edit distance on real |
 | `finddelay` | ✅ | 0.004 | 503.69× |  | OK | Sig: r = finddelay(...). Spec-extension batch 2026-05-09 (signal namespace). |
@@ -3162,7 +3162,7 @@ OOP `anova` class and `fitrm` repeated-measures model intentionally omitted; onl
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `anova1` | ✅ | 0.003 | 33.72× | 59.63× | OK | Sig: anova1(...). KNOWN GAP: anova1 returns table/figure object — different return shape. Documented as separate ТЗ. |
+| `anova1` | ✅ | 0.004 | 3944.96× | 653.33× | OK | Sig: p = anova1(y, group['off']). One-way ANOVA p-value. Bit-identical with MATLAB R2025b on probed input (p=0.0251). |
 | `anova2` | ❌ |  |  |  |  | two-way balanced |
 | `anovan` | ❌ |  |  |  |  | n-way |
 | `manova1` | ❌ |  |  |  |  | one-way MANOVA |

@@ -20,8 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (re-probe + 1 fix)
 - Closed date: 2026-05-09
-- Notes: Multi-namespace batch (44 funcs across io+comm+stats).
-  Bit-identical MATLAB R2025b on probed inputs.
-  KNOWN GAP: anova1 returns table/figure object differently. Documented as separate ТЗ.
+- Notes: Initial closure was DEFERRED with vague 'output struct shape' note. Re-probed with correct (y, group, 'off') signature: p-value bit-identical with MATLAB R2025b (0.0251 on probed input). Earlier defer was a spec issue (called with single matrix arg); restored real probe.

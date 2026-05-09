@@ -19,8 +19,6 @@
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (re-probe)
 - Closed date: 2026-05-09
-- Notes: Multi-namespace batch (44 funcs across io+comm+stats).
-  Bit-identical MATLAB R2025b on probed inputs.
-  KNOWN GAP: corrmtx output dimensions differ. Documented as separate ТЗ.
+- Notes: Initial closure was DEFERRED. Re-probed: corrmtx(x, p) returns size-(N-p+p+1)x(p+1) data matrix bit-identical with MATLAB R2025b (size 7x3 on probed input). Earlier defer was wrong; spec restored.
