@@ -1,10 +1,10 @@
 {
   "name": "mil188qammod",
   "namespace": "comm",
-  "setup": "x = (0:15)';",
-  "expr": "y = mil188qammod(x, 16); z = mil188qamdemod(y, 16); rt = isequal(x, z); zn = mil188qamdemod(y + 0.05*(1+1i), 16); rtN = isequal(x, zn);",
+  "setup": "x16 = (0:15)'; x32 = (0:31)';",
+  "expr": "y16 = mil188qammod(x16, 16); z16 = mil188qamdemod(y16, 16); rt16 = isequal(x16, z16); y32 = mil188qammod(x32, 32); z32 = mil188qamdemod(y32, 32); rt32 = isequal(x32, z32); zn32 = mil188qamdemod(y32 + 0.02*(1+1i), 32); rtN32 = isequal(x32, zn32);",
   "iters": 5,
   "tol": 1e-15,
-  "fingerprint": ["real(y(1))", "imag(y(1))", "real(y(3))", "imag(y(3))", "real(y(4))", "imag(y(4))", "real(y(15))", "imag(y(15))", "rt", "rtN"],
-  "comment": "MATLAB mil188qammod / mil188qamdemod (MIL-STD-188-110 QAM). Bit-equal with MATLAB R2025b on M=16. KNOWN GAP: only M=16 currently shipped; M=32, 64, 256 require additional MIL-STD constellation tables (each well-defined per the spec, deferred to its own cycle). Octave 11.1.0 doesn't ship mil188qam in core; reports N/A."
+  "fingerprint": ["real(y16(1))", "imag(y16(4))", "real(y16(15))", "rt16", "real(y32(1))", "imag(y32(1))", "real(y32(2))", "imag(y32(2))", "real(y32(9))", "real(y32(32))", "imag(y32(32))", "rt32", "rtN32"],
+  "comment": "MATLAB mil188qammod / mil188qamdemod (MIL-STD-188-110 QAM). Bit-equal with MATLAB R2025b on both M=16 and M=32 constellations. Both tables hard-coded per MATLAB's spec-rounded values (probed at %.17g). KNOWN GAP: M=64, M=256 still deferred (each is a separate constellation table). Octave 11.1.0 doesn't ship mil188qam in core; reports N/A."
 }

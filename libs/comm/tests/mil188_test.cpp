@@ -82,10 +82,40 @@ TEST_F(Mil188Test, ShapePreserved)
     EXPECT_EQ(static_cast<int>(evalScalar("size(y, 2)")), 2);
 }
 
+TEST_F(Mil188Test, KnownConstellationPoints32)
+{
+    eval("y = mil188qammod((0:31)', 32);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(y(1))"),  0.86638);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(y(1))"),  0.499386);
+    EXPECT_DOUBLE_EQ(evalScalar("real(y(2))"),  0.984849);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(y(2))"),  0.173415);
+    EXPECT_DOUBLE_EQ(evalScalar("real(y(8))"),  0.173415);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(y(8))"),  0.173415);
+    EXPECT_DOUBLE_EQ(evalScalar("real(y(9))"), -0.86638);
+}
+
+TEST_F(Mil188Test, RoundTrip32)
+{
+    eval("x = (0:31)';"
+         "y = mil188qammod(x, 32);"
+         "z = mil188qamdemod(y, 32);"
+         "match = isequal(x, z);");
+    EXPECT_DOUBLE_EQ(evalScalar("match"), 1.0);
+}
+
+TEST_F(Mil188Test, NearestNeighborDemod32WithNoise)
+{
+    eval("x = (0:31)';"
+         "y = mil188qammod(x, 32);"
+         "z = mil188qamdemod(y + 0.02*(1+1i), 32);"
+         "match = isequal(x, z);");
+    EXPECT_DOUBLE_EQ(evalScalar("match"), 1.0);
+}
+
 TEST_F(Mil188Test, RejectsUnsupportedM)
 {
     bool threw = false;
-    try { eval("mil188qammod(0, 32);"); } catch (...) { threw = true; }
+    try { eval("mil188qammod(0, 64);"); } catch (...) { threw = true; }
     EXPECT_TRUE(threw);
 }
 
