@@ -1816,7 +1816,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `imtophat` | ✅ | 0.006 | 725.64× | 45.34× | OK | Sig: r = imtophat(...). Spec-extension batch 2026-05-09. |
 | `makelut` | ❌ |  |  |  |  |  |
 | `offsetstrel` | ❌ |  |  |  |  | structuring element with offsets |
-| `strel` | ✅ | 0.003 | 33.25× | 30.71× | OK | Sig: r = strel(...). KNOWN GAP: strel struct field-access (.Neighborhood) syntax differs. Documented as separate ТЗ. |
+| `strel` | ✅ | 0.005 | 596.52× |  | OK | Sig: se = strel(shape, params). Returns struct (numkit) / strel-object (MATLAB) with fields {Neighborhood, Dimensionality}. Structure access matches; the 'square' shape is bit-identical (both engines: 5x5 = 25 ones). NOTE: 'disk' decomposes into smaller equivalent in MATLAB R2025b (line-strel cascade) -- numkit returns the full disk mask. Both yield identical morphology results, just different .Neighborhood matrices. Field access works in both. |
 
 ### Deblurring
 
@@ -1928,7 +1928,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `bwarea` | ✅ | 0.003 | 197.04× | 41.66× | OK | Sig: r = bwarea(BW). Pratt area estimate. KNOWN GAP: numkit returns integer pixel count (4) vs MATLAB's pattern-weighted estimate (4.75). Documented as separate ТЗ; only positive-result structural check pinned. |
 | `bwareafilt` | ✅ | 0.005 |  | 192.42× | OK | Sig: r = bwareafilt(...). Spec-extension batch 2026-05-09. |
 | `bwareaopen` | ✅ | 0.004 | 584.65× | 14.05× | OK | Sig: r = bwareaopen(...). Spec-extension batch 2026-05-09. |
-| `bwconncomp` | ✅ | 0.003 | 36.16× | 55.16× | OK | Sig: CC = bwconncomp(BW). KNOWN GAP: numkit returns object with field access syntax that differs from MATLAB. Documented as separate ТЗ. |
+| `bwconncomp` | ✅ | 0.006 | 176.68× | 16.71× | OK | Sig: cc = bwconncomp(BW[, conn]). Returns 1x1 struct with fields {Connectivity, ImageSize, NumObjects, PixelIdxList}. PixelIdxList is 1xK cell of column-vector linear indices. Bit-identical with MATLAB R2025b. |
 | `bwconvhull` | ❌ |  |  |  |  |  |
 | `bwdist` | ✅ | 0.005 | 113.92× | 29.80× | OK | Sig: r = bwdist(...). Spec-extension batch 2026-05-09. |
 | `bwdistgeodesic` | ❌ |  |  |  |  |  |
