@@ -1,0 +1,10 @@
+{
+  "name": "datenum",
+  "namespace": "builtin",
+  "setup": "Y = [2026; 2027; 2028; 1970; 0]; M = [5; 2; 13; 1; 1]; D = [9; 30; 9; 1; 0]; H = [12; 0; 0; 0; 0]; MI = [30; 0; 0; 0; 0]; S = [45; 0; 0; 0; 0];",
+  "expr": "y3 = datenum(Y, M, D); y6 = datenum(Y, M, D, H, MI, S); ym = datenum([2026 5 9; 2026 2 30; 2026 13 9]); yrow = datenum([2026 5 9 12 30 45]);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["y3(1)", "y3(2)", "y3(3)", "y3(4)", "y3(5)", "y6(1)", "y6(2)", "ym(1)", "ym(2)", "ym(3)", "yrow"],
+  "comment": "MATLAB datenum: serial date number from components. Covered: 3-arg (Y,M,D) with vector args (broadcast to column), 6-arg (Y,M,D,H,MI,S) with time fraction, single-arg Nx3 matrix, single-arg 1x6 row, month/day overflow (m=13 -> next year, d=30 of Feb -> March), year-zero edge. Deferred: string parsing (datenum('2026-05-09')) -- requires datestr/format-spec parser. Algorithm: Howard Hinnant days_from_civil + 719529 (MATLAB epoch)."
+}
