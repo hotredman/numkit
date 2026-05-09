@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: pending (cycle 40)
+- Closed in commit: pending (camelCase fix)
 - Closed date: 2026-05-09
-- Notes: DEFERRED (KNOWN GAP) — name-case gap. numkit registers `spectralkurtosis` (lowercase); MATLAB ships `spectralKurtosis` (camelCase). Easy fix: register a camelCase alias in libs/signal/src/library.cpp.
+- Notes: Initial closure (cycle 40) was DEFERRED due to name-case gap. Fix landed in libs/signal/src/library.cpp by registering camelCase alias `spectralKurtosis` alongside lowercase. Parity now passes bit-identical against MATLAB R2025b.

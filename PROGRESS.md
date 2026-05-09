@@ -2653,7 +2653,7 @@ intentionally omitted — flat solver functions only.
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
 | `pwelch` | ✅ | 0.003 | 34.11× | 56.89× | OK | Sig: r = pwelch(...). KNOWN GAP: pwelch default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
 | `refinepeaks` | ❌ |  |  |  |  |  |
-| `spectralentropy` | ✅ |  |  |  | N/A | Sig: e = spectralEntropy(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `spectralentropy` | ✅ | 0.021 | 515.08× |  | OK | Sig: e = spectralEntropy(x, fs). camelCase alias added 2026-05-09. |
 | `tfestimate` | ✅ | 0.003 | 35.28× | 39.24× | OK | Sig: r = tfestimate(...). KNOWN GAP: tfestimate default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
 
 ### Spectral Measurements
@@ -2673,11 +2673,11 @@ intentionally omitted — flat solver functions only.
 | `sfdr` | ✅ | 0.008 | 1268.75× |  | OK | Sig: r = sfdr(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
 | `sinad` | ✅ | 0.008 | 1382.83× |  | OK | Sig: r = sinad(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
 | `snr` | ✅ | 0.008 | 1255.86× |  | OK | Sig: r = snr(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
-| `spectralcrest` | ✅ | 0.014 |  |  | N/A | Sig: c = spectralCrest(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
-| `spectralentropy` | ✅ |  |  |  | N/A | Sig: e = spectralEntropy(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
-| `spectralflatness` | ✅ |  |  |  | N/A | Sig: f = spectralFlatness(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
-| `spectralkurtosis` | ✅ |  |  |  | N/A | Sig: k = spectralKurtosis(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
-| `spectralskewness` | ✅ |  |  |  | N/A | Sig: s = spectralSkewness(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `spectralcrest` | ✅ | 0.014 | 355.99× |  | OK | Sig: c = spectralCrest(x, fs). camelCase alias added 2026-05-09. |
+| `spectralentropy` | ✅ | 0.021 | 515.08× |  | OK | Sig: e = spectralEntropy(x, fs). camelCase alias added 2026-05-09. |
+| `spectralflatness` | ✅ | 0.016 | 430.50× |  | OK | Sig: f = spectralFlatness(x, fs). camelCase alias added 2026-05-09. |
+| `spectralkurtosis` | ✅ | 0.015 | 530.19× |  | OK | Sig: k = spectralKurtosis(x, fs). camelCase alias added 2026-05-09. |
+| `spectralskewness` | ✅ | 0.015 | 423.16× |  | OK | Sig: s = spectralSkewness(x, fs). camelCase alias added 2026-05-09. |
 | `thd` | ✅ | 0.008 | 1269.29× |  | OK | Sig: r = thd(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
 | `toi` | ❌ |  |  |  |  | third-order intercept |
 
@@ -2700,11 +2700,11 @@ intentionally omitted — flat solver functions only.
 | `istftlayer` | ❌ |  |  |  |  |  |
 | `kurtogram` | ❌ |  |  |  |  |  |
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
-| `spectralcrest` | ✅ | 0.014 |  |  | N/A | Sig: c = spectralCrest(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
-| `spectralentropy` | ✅ |  |  |  | N/A | Sig: e = spectralEntropy(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
-| `spectralflatness` | ✅ |  |  |  | N/A | Sig: f = spectralFlatness(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
-| `spectralkurtosis` | ✅ |  |  |  | N/A | Sig: k = spectralKurtosis(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
-| `spectralskewness` | ✅ |  |  |  | N/A | Sig: s = spectralSkewness(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `spectralcrest` | ✅ | 0.014 | 355.99× |  | OK | Sig: c = spectralCrest(x, fs). camelCase alias added 2026-05-09. |
+| `spectralentropy` | ✅ | 0.021 | 515.08× |  | OK | Sig: e = spectralEntropy(x, fs). camelCase alias added 2026-05-09. |
+| `spectralflatness` | ✅ | 0.016 | 430.50× |  | OK | Sig: f = spectralFlatness(x, fs). camelCase alias added 2026-05-09. |
+| `spectralkurtosis` | ✅ | 0.015 | 530.19× |  | OK | Sig: k = spectralKurtosis(x, fs). camelCase alias added 2026-05-09. |
+| `spectralskewness` | ✅ | 0.015 | 423.16× |  | OK | Sig: s = spectralSkewness(x, fs). camelCase alias added 2026-05-09. |
 | `spectrogram` | ✅ | 0.003 | 40.58× | 30.39× | OK | Sig: [s, f, t] = spectrogram(x). KNOWN GAP: numkit's default window/overlap/NFFT differ from MATLAB; output dimensions don't match. Documented as separate ТЗ. |
 | `stft` | ❌ |  |  |  |  | short-time FFT |
 | `stftlayer` | ❌ |  |  |  |  |  |
