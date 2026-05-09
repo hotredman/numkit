@@ -31,6 +31,34 @@ import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRe
 const DEFAULT_AZ_DEG = -37.5;
 const DEFAULT_EL_DEG = 30;
 
+/**
+ * Read a CSS custom property and parse a hex / rgb color into a 24-bit
+ * integer suitable for THREE.WebGLRenderer.setClearColor. Falls back
+ * to `fallback` if the variable isn't set or the value is unparseable.
+ */
+function cssColorInt(name, fallback) {
+  if (typeof document === 'undefined') return fallback;
+  const root = document.documentElement;
+  let raw = getComputedStyle(root).getPropertyValue(name).trim();
+  if (!raw) return fallback;
+  // #rgb / #rrggbb
+  const m = raw.match(/^#([0-9a-f]{3,8})$/i);
+  if (m) {
+    const h = m[1];
+    if (h.length === 3) {
+      const r = parseInt(h[0] + h[0], 16);
+      const g = parseInt(h[1] + h[1], 16);
+      const b = parseInt(h[2] + h[2], 16);
+      return (r << 16) | (g << 8) | b;
+    }
+    return parseInt(h.slice(0, 6), 16);
+  }
+  // rgb(r,g,b)
+  const rm = raw.match(/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (rm) return (Number(rm[1]) << 16) | (Number(rm[2]) << 8) | Number(rm[3]);
+  return fallback;
+}
+
 /* ───────────── helpers (pure) ───────────── */
 
 function azElToCameraOffset(azDeg, elDeg, dist) {
@@ -687,7 +715,8 @@ function buildAxesFrame(bbox, scl, opts) {
     const cubeLine = new THREE.LineSegments(
       cubeEdges,
       new THREE.LineBasicMaterial({
-        color: 0x6e7681, transparent: true, opacity: 0.7,
+        color: cssColorInt('--plot-frame', 0x6e7681),
+        transparent: true, opacity: 0.7,
       }));
     group.add(cubeLine);
   }
@@ -709,7 +738,8 @@ function buildAxesFrame(bbox, scl, opts) {
   // good enough; a follow-up will reposition them per-frame.
   if (showGrid) {
     const gridMat = new THREE.LineBasicMaterial({
-      color: 0x484f58, transparent: true, opacity: 0.4,
+      color: cssColorInt('--plot-grid', 0x484f58),
+      transparent: true, opacity: 0.4,
     });
     // X-Y plane at zMin (world-Y = -1).
     for (const xv of xTicks) {
@@ -866,7 +896,7 @@ export default function Composite3DPlot({
       preserveDrawingBuffer: process.env.NUMKIT_E2E === '1',
     });
     renderer.setPixelRatio(window.devicePixelRatio || 1);
-    renderer.setClearColor(0x0d1117, 1);
+    renderer.setClearColor(cssColorInt('--plot-bg', 0x0d1117), 1);
 
     // CSS2D renderer for HTML overlays (tick labels, axis labels).
     const css2d = new CSS2DRenderer({ element: labelLayer });
@@ -1136,6 +1166,40 @@ export default function Composite3DPlot({
           color: 'var(--plot-text-strong)', pointerEvents: 'none',
         }}>{figure.title}</div>
       )}
+      {/* PNG export — small button bottom-right, only when interactive
+          (hidden in preview cards which set interactive=false). */}
+      {interactive && (
+        <button
+          type="button"
+          onClick={() => {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            // Force a fresh render to populate the drawing buffer in
+            // case preserveDrawingBuffer is off — call render(scene,
+            // camera) once before grabbing dataURL.
+            const c = ctxRef.current;
+            if (c) c.renderer.render(c.scene, c.camera);
+            const url = canvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `figure_${figure?.id || '3d'}.png`;
+            a.click();
+          }}
+          style={{
+            position: 'absolute',
+            right: 8, bottom: 8,
+            padding: '3px 8px', fontSize: 10,
+            background: 'var(--bg-3, #2d333b)',
+            color: 'var(--fg-1, #d0d4dc)',
+            border: '1px solid var(--line, #444c56)',
+            borderRadius: 3, cursor: 'pointer',
+            opacity: 0.7,
+          }}
+          onMouseEnter={(e) => { e.target.style.opacity = '1'; }}
+          onMouseLeave={(e) => { e.target.style.opacity = '0.7'; }}
+        >PNG</button>
+      )}
+
       {tip && (
         <div style={{
           position: 'absolute',
