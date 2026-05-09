@@ -9,6 +9,7 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/cholcov.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/crosstab.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/grpstats.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/nearcorr.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/moments/moments.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nan_aware/nan_aware.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/moving/moving.cpp

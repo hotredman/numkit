@@ -2860,7 +2860,7 @@ intentionally omitted — flat solver functions only.
 | `kurtosis` | ❌ |  |  |  |  | already partially via `stats.descriptive`; here MATLAB stats version |
 | `mad` | ❌ | 0.003 | 925.54× | 194.53× | OK | Sig: mad(x[, flag][, dim]). Mean (flag=0) or median (flag=1) absolute deviation. |
 | `moment` | ❌ | 0.004 | 81.88× | 174.98× | OK | Sig: m = moment(x, k[, dim]). Central k-th moment: mean((x - mean(x))^k). |
-| `nearcorr` | ❌ |  |  |  |  | nearest correlation matrix |
+| `nearcorr` | ❌ | 0.044 | 70.87× |  | OK | MATLAB nearcorr: nearest correlation matrix (Higham 2002 alternating projections + Dykstra). Identity case (input already correlation) is unchanged; Higham 3x3 textbook example produces [-0.4041, 0.4988, 0.5912] off-diagonals; output is symmetric, unit-diag, PSD (min eigval ~ 0 for indefinite inputs). Defaults tol=1e-10, maxits=100; 'tolconv'/'maxits' name-value parameters deferred for v1. Uses eig_symmetric (libs/builtin) for the PSD projection. Octave 11.1.0 doesn't ship nearcorr in core (statistics package only); reports N/A. |
 | `partialcorr` | ❌ | 0.005 | 855.11× |  | OK | Sig: r = partialcorr(X, Y, Z). Pearson partial correlation controlling for Z. Bit-identical with MATLAB R2025b on probed deterministic data. |
 | `partialcorri` | ❌ |  |  |  |  | with internal vars |
 | `range` | ❌ | 0.005 | 85.15× | 17.08× | OK | Sig: r = range(x[, dim]). max - min along dim. Bit-identical with MATLAB R2025b. |

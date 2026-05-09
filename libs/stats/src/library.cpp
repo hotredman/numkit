@@ -63,6 +63,8 @@ void cholcov_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void crosstab_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // descriptive/grpstats.cpp
 void grpstats_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+// descriptive/nearcorr.cpp
+void nearcorr_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // moments/moments.cpp
 void skewness_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void kurtosis_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -420,6 +422,7 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "cholcov",   &stats::detail::cholcov_reg);
     reg("descriptive", "crosstab",  &stats::detail::crosstab_reg);
     reg("descriptive", "grpstats",  &stats::detail::grpstats_reg);
+    reg("descriptive", "nearcorr",  &stats::detail::nearcorr_reg);
 
     reg("dist", "normpdf",  &stats::detail::normpdf_reg);
     reg("dist", "normcdf",  &stats::detail::normcdf_reg);
