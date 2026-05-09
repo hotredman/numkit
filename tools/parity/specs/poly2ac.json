@@ -1,0 +1,10 @@
+{
+  "name": "poly2ac",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "r = poly2ac([1 0.6 0.2], 1); r1 = double(numel(r));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: r = poly2ac(a, efinal). Spec-extension batch 2026-05-09 (cycle 40)."
+}

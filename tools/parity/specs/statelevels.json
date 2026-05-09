@@ -1,0 +1,10 @@
+{
+  "name": "statelevels",
+  "namespace": "signal",
+  "setup": "x = [zeros(1,20) ones(1,20)];",
+  "expr": "lv = statelevels(x); r1 = double(numel(lv));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: lv = statelevels(x). Spec-extension batch 2026-05-09 (cycle 40)."
+}

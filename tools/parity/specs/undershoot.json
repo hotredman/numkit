@@ -1,0 +1,10 @@
+{
+  "name": "undershoot",
+  "namespace": "signal",
+  "setup": "x = [ones(1,5) zeros(1,3) -0.2*ones(1,2) zeros(1,5)];",
+  "expr": "us = undershoot(x); r1 = double(numel(us) > 0);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: us = undershoot(x). Spec-extension batch 2026-05-09 (cycle 40)."
+}

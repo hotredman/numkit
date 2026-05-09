@@ -1370,18 +1370,18 @@ construction / postprocessing primitives — those are all flat functions.
 | `spap2` | ❌ |  |  |  |  | least-squares spline fit |
 | `spcrv` | ❌ |  |  |  |  | uniform B-spline curve |
 | `tpaps` | ❌ |  |  |  |  | thin-plate smoothing spline (2-D) |
-| `ppmak` | ✅ | 0.004 | 530.84× |  | OK | Sig: pp = ppmak(breaks, coefs[, d]). Piecewise-polynomial constructor. Pair with fnval. Univariate-only (d=1) tested here. |
+| `ppmak` | ✅ | 0.003 | 590.19× |  | OK | Sig: pp = ppmak(breaks, coefs[, d]). Piecewise-polynomial constructor. Pair with fnval. Univariate-only (d=1) tested here. |
 | `rpmak` | ❌ |  |  |  |  | rational pp form |
 | `rsmak` | ❌ |  |  |  |  | rational spline |
 | `spmak` | ❌ |  |  |  |  | B-spline form constructor |
 | `stmak` | ❌ |  |  |  |  | stform constructor (2-D scattered) |
 | `fn2fm` | ❌ |  |  |  |  | convert between spline forms |
-| `fnbrk` | ✅ | 0.003 | 209.81× |  | OK | Sig: out = fnbrk(pp, part). Extract a named part from a pp-form spline. Supports {breaks, coefs, pieces|l, order|k, dim|d, form}. |
+| `fnbrk` | ✅ | 0.003 | 254.78× |  | OK | Sig: out = fnbrk(pp, part). Extract a named part from a pp-form spline. Supports {breaks, coefs, pieces|l, order|k, dim|d, form}. |
 | `fnchg` | ❌ |  |  |  |  | change spline properties |
-| `fncmb` | ✅ | 0.003 | 363.28× |  | OK | Sig: pp = fncmb(pp1, c) | fncmb(c, pp1) | fncmb(pp1, c1, pp2, c2). Linear combination of pp-form splines on shared breaks. Pure coef arithmetic. |
-| `fnder` | ✅ | 0.004 | 482.37× |  | OK | Sig: dpp = fnder(pp[, order]). Differentiate pp-form spline `order` times. Each piece's polynomial is independently differentiated; result has order = K − order. |
+| `fncmb` | ✅ | 0.003 | 368.03× |  | OK | Sig: pp = fncmb(pp1, c) | fncmb(c, pp1) | fncmb(pp1, c1, pp2, c2). Linear combination of pp-form splines on shared breaks. Pure coef arithmetic. |
+| `fnder` | ✅ | 0.003 | 507.42× |  | OK | Sig: dpp = fnder(pp[, order]). Differentiate pp-form spline `order` times. Each piece's polynomial is independently differentiated; result has order = K − order. |
 | `fndir` | ❌ |  |  |  |  | directional derivative |
-| `fnint` | ✅ | 0.003 | 538.67× |  | OK | Sig: ipp = fnint(pp). Antiderivative of pp-form spline; integration constant chosen so that integral = 0 at the first break and is continuous across breaks. |
+| `fnint` | ✅ | 0.004 | 513.71× |  | OK | Sig: ipp = fnint(pp). Antiderivative of pp-form spline; integration constant chosen so that integral = 0 at the first break and is continuous across breaks. |
 | `fnjmp` | ❌ |  |  |  |  | jump value at discontinuities |
 | `fnmin` | ❌ |  |  |  |  | min of spline |
 | `fnplt` | ❌ |  |  |  |  | display |
@@ -1400,13 +1400,13 @@ construction / postprocessing primitives — those are all flat functions.
 | `aveknt` | ✅ | 0.004 | 78.70× |  | OK | Sig: r = aveknt(...). Spec-extension batch 2026-05-09. |
 | `brk2knt` | ✅ | 0.004 | 86.98× |  | OK | Sig: r = brk2knt(...). Spec-extension batch 2026-05-09. |
 | `chbpnt` | ❌ |  |  |  |  | Chebyshev sites |
-| `knt2brk` | ✅ | 0.004 | 81.02× |  | OK | Sig: [breaks, mults] = knt2brk(knots). Inverse of brk2knt: distinct knots + multiplicities. |
+| `knt2brk` | ✅ | 0.004 | 76.98× |  | OK | Sig: [breaks, mults] = knt2brk(knots). Inverse of brk2knt: distinct knots + multiplicities. |
 | `newknt` | ❌ |  |  |  |  | distribute knots on equidistribution |
 | `optknt` | ❌ |  |  |  |  | optimal knot distribution |
 | `smooth` | ❌ |  |  |  |  | data smoothing (already partially in core) |
 | `datastats` | ✅ | 0.003 | 32.69× | 1.42× | OK | Sig: datastats(...). KNOWN GAP: datastats struct field-access syntax differs from MATLAB. Documented as separate ТЗ. |
-| `prepareCurveData` | ✅ | 0.004 | 467.69× |  | OK | Sig: [xo, yo[, wo]] = prepareCurveData(x, y[, w]). Strips rows where any of x, y, w is NaN/Inf; returns column vectors. w == 0 rows are KEPT (only finiteness matters). |
-| `prepareSurfaceData` | ✅ | 0.004 | 500.11× |  | OK | Sig: [xo, yo, zo] = prepareSurfaceData(X, Y, Z). Linearises (column-major) and drops rows where any of x, y, z is NaN/Inf. Returns column vectors. |
+| `prepareCurveData` | ✅ | 0.004 | 446.99× |  | OK | Sig: [xo, yo[, wo]] = prepareCurveData(x, y[, w]). Strips rows where any of x, y, w is NaN/Inf; returns column vectors. w == 0 rows are KEPT (only finiteness matters). |
+| `prepareSurfaceData` | ✅ | 0.004 | 392.10× |  | OK | Sig: [xo, yo, zo] = prepareSurfaceData(X, Y, Z). Linearises (column-major) and drops rows where any of x, y, z is NaN/Inf. Returns column vectors. |
 | `quad2d` | ❌ |  |  |  |  | 2-D quadrature (also in core) |
 
 ## Graphics
@@ -2495,20 +2495,20 @@ intentionally omitted — flat solver functions only.
 | `corrmtx` | ✅ | 0.003 | 31.66× | 6.74× | OK | Sig: corrmtx(...). KNOWN GAP: corrmtx output dimensions differ. Documented as separate ТЗ. |
 | `invfreqs` | ✅ |  |  |  | OK | Levi LSQ; round-trip recovers source coefficients to machine precision. |
 | `invfreqz` | ✅ |  |  |  | OK | Same, in z⁻¹ form. Iterative S-K refinement deferred. |
-| `is2rc` | ✅ |  |  |  |  |  |
-| `lar2rc` | ✅ |  |  |  |  |  |
-| `levinson` | ✅ |  |  |  |  | Levinson-Durbin |
+| `is2rc` | ✅ | 0.004 | 59.48× |  | OK | Sig: k = is2rc(is). Spec-extension batch 2026-05-09 (cycle 40). |
+| `lar2rc` | ✅ | 0.004 | 62.91× |  | OK | Sig: k = lar2rc(g). Spec-extension batch 2026-05-09 (cycle 40). |
+| `levinson` | ✅ | 0.005 | 131.55× | 52.24× | OK | Sig: [a, e, k] = levinson(r, p). Spec-extension batch 2026-05-09 (cycle 40). |
 | `lpc` | ✅ | 0.005 | 257.03× | 82.61× | OK | Sig: r = lpc(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `lsf2poly` | ✅ |  |  |  |  |  |
-| `poly2ac` | ✅ |  |  |  |  |  |
-| `poly2lsf` | ✅ |  |  |  |  |  |
-| `poly2rc` | ✅ |  |  |  |  |  |
+| `lsf2poly` | ✅ | 0.005 | 315.06× |  | MISMATCH | Sig: a = lsf2poly(lsf). Spec-extension batch 2026-05-09 (cycle 40). |
+| `poly2ac` | ✅ | 0.004 | 342.88× |  | OK | Sig: r = poly2ac(a, efinal). Spec-extension batch 2026-05-09 (cycle 40). |
+| `poly2lsf` | ✅ | 0.005 | 273.25× |  | OK | Sig: lsf = poly2lsf(a). Spec-extension batch 2026-05-09 (cycle 40). |
+| `poly2rc` | ✅ | 0.004 | 266.11× |  | OK | Sig: k = poly2rc(a). Spec-extension batch 2026-05-09 (cycle 40). |
 | `prony` | ✅ |  |  |  |  | Prony method |
-| `rc2ac` | ✅ |  |  |  |  |  |
-| `rc2is` | ✅ |  |  |  |  |  |
-| `rc2lar` | ✅ |  |  |  |  |  |
-| `rc2poly` | ✅ |  |  |  |  |  |
-| `rlevinson` | ✅ |  |  |  |  | reverse Levinson |
+| `rc2ac` | ✅ | 0.004 | 418.75× |  | OK | Sig: r = rc2ac(k, R0). Spec-extension batch 2026-05-09 (cycle 40). |
+| `rc2is` | ✅ | 0.004 | 56.83× |  | OK | Sig: is = rc2is(k). Spec-extension batch 2026-05-09 (cycle 40). |
+| `rc2lar` | ✅ | 0.004 | 53.86× |  | OK | Sig: g = rc2lar(k). Spec-extension batch 2026-05-09 (cycle 40). |
+| `rc2poly` | ✅ | 0.004 | 254.97× |  | OK | Sig: a = rc2poly(k). Spec-extension batch 2026-05-09 (cycle 40). |
+| `rlevinson` | ✅ | 0.004 | 350.81× |  | OK | Sig: r = rlevinson(a, efinal). Spec-extension batch 2026-05-09 (cycle 40). |
 | `schurrc` | ✅ | 0.003 | 226.65× |  | OK | Sig: K = schurrc(R). Schur reflection coefficients from autocorrelation R, length numel(R)-1. Element-wise SAVE. |
 | `stmcb` | ❌ |  |  |  |  | Steiglitz-McBride |
 
@@ -2557,7 +2557,7 @@ intentionally omitted — flat solver functions only.
 | `idct` | ✅ | 0.019 | 210.77× |  | OK | Sig: y = idct(X[, n[, dim]]). Inverse DCT-II. Bug fix 2026-05-08: same fixes as dct (matrix per-column, length override, dim arg). Round-trip identity idct(dct(X)) == X covers all paths. |
 | `ifsst` | ❌ |  |  |  |  |  |
 | `ifwht` | ❌ |  |  |  |  | inverse |
-| `instfreq` | ✅ |  |  |  |  | instantaneous frequency |
+| `instfreq` | ✅ | 0.035 | 510.47× |  | OK | Sig: f = instfreq(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
 | `istft` | ❌ |  |  |  |  | inverse |
 | `istftlayer` | ❌ |  |  |  |  |  |
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
@@ -2621,7 +2621,7 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `db` | ✅ | 0.246 | 1.04× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
+| `db` | ✅ | 0.249 | 1.01× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
 | `db2mag` | ✅ | 0.003 | 51.24× | 12.26× | OK | Sig: r = db2mag(...). Spec-extension batch 2026-05-09. |
 | `db2pow` | ✅ | 0.004 | 55.89× | 28.44× | OK | Sig: r = db2pow(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `findpeaks` | ✅ | 0.004 | 1157.88× | 360.16× | OK | Sig: r = findpeaks(...). Spec-extension batch 2026-05-09. |
@@ -2639,7 +2639,7 @@ intentionally omitted — flat solver functions only.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `cpsd` | ✅ | 0.003 | 32.62× | 30.23× | OK | Sig: r = cpsd(...). KNOWN GAP: cpsd default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
-| `db` | ✅ | 0.246 | 1.04× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
+| `db` | ✅ | 0.249 | 1.01× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
 | `db2mag` | ✅ | 0.003 | 51.24× | 12.26× | OK | Sig: r = db2mag(...). Spec-extension batch 2026-05-09. |
 | `db2pow` | ✅ | 0.004 | 55.89× | 28.44× | OK | Sig: r = db2pow(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `findpeaks` | ✅ | 0.004 | 1157.88× | 360.16× | OK | Sig: r = findpeaks(...). Spec-extension batch 2026-05-09. |
@@ -2653,7 +2653,7 @@ intentionally omitted — flat solver functions only.
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
 | `pwelch` | ✅ | 0.003 | 34.11× | 56.89× | OK | Sig: r = pwelch(...). KNOWN GAP: pwelch default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
 | `refinepeaks` | ❌ |  |  |  |  |  |
-| `spectralentropy` | ✅ |  |  |  |  |  |
+| `spectralentropy` | ✅ |  |  |  | N/A | Sig: e = spectralEntropy(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
 | `tfestimate` | ✅ | 0.003 | 35.28× | 39.24× | OK | Sig: r = tfestimate(...). KNOWN GAP: tfestimate default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
 
 ### Spectral Measurements
@@ -2664,21 +2664,21 @@ intentionally omitted — flat solver functions only.
 |---|:---:|---:|---:|---:|:---:|---|
 | `bandpower` | ✅ | 0.011 | 92.88× |  | OK | Sig: r = bandpower(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `enbw` | ✅ | 0.006 | 90.57× |  | OK | Sig: bw = enbw(window[, fs]). Equivalent noise bandwidth: N · Σ(w²) / (Σw)². With fs, scales output by fs/N. tol=1e-12. Specs covers hamming/hann/rectwin/blackman + fs-scaled forms. |
-| `instbw` | ✅ |  |  |  |  |  |
-| `instfreq` | ✅ |  |  |  |  | instantaneous frequency |
-| `meanfreq` | ✅ |  |  |  |  | mean frequency |
-| `medfreq` | ✅ |  |  |  |  | median frequency |
-| `obw` | ✅ |  |  |  |  |  |
-| `powerbw` | ✅ |  |  |  |  |  |
-| `sfdr` | ✅ |  |  |  |  | spurious-free dynamic range |
-| `sinad` | ✅ |  |  |  |  | signal-noise-distortion |
-| `snr` | ✅ |  |  |  |  | signal-to-noise |
-| `spectralcrest` | ✅ |  |  |  |  |  |
-| `spectralentropy` | ✅ |  |  |  |  |  |
-| `spectralflatness` | ✅ |  |  |  |  |  |
-| `spectralkurtosis` | ✅ |  |  |  |  |  |
-| `spectralskewness` | ✅ |  |  |  |  |  |
-| `thd` | ✅ |  |  |  |  | total harmonic distortion |
+| `instbw` | ✅ | 0.028 | 526.78× |  | OK | Sig: b = instbw(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `instfreq` | ✅ | 0.035 | 510.47× |  | OK | Sig: f = instfreq(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `meanfreq` | ✅ | 0.014 | 701.14× |  | OK | Sig: f = meanfreq(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `medfreq` | ✅ | 0.015 | 607.67× |  | OK | Sig: f = medfreq(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `obw` | ✅ | 0.015 | 616.01× |  | OK | Sig: bw = obw(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `powerbw` | ✅ | 0.014 | 680.94× |  | OK | Sig: bw = powerbw(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `sfdr` | ✅ | 0.008 | 1268.75× |  | OK | Sig: r = sfdr(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `sinad` | ✅ | 0.008 | 1382.83× |  | OK | Sig: r = sinad(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `snr` | ✅ | 0.008 | 1255.86× |  | OK | Sig: r = snr(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `spectralcrest` | ✅ | 0.014 |  |  | N/A | Sig: c = spectralCrest(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `spectralentropy` | ✅ |  |  |  | N/A | Sig: e = spectralEntropy(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `spectralflatness` | ✅ |  |  |  | N/A | Sig: f = spectralFlatness(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `spectralkurtosis` | ✅ |  |  |  | N/A | Sig: k = spectralKurtosis(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `spectralskewness` | ✅ |  |  |  | N/A | Sig: s = spectralSkewness(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `thd` | ✅ | 0.008 | 1269.29× |  | OK | Sig: r = thd(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
 | `toi` | ❌ |  |  |  |  | third-order intercept |
 
 ### Time-Frequency Analysis
@@ -2693,18 +2693,18 @@ intentionally omitted — flat solver functions only.
 | `fsst` | ❌ |  |  |  |  | Fourier synchrosqueezed |
 | `hht` | ❌ |  |  |  |  | Hilbert-Huang |
 | `ifsst` | ❌ |  |  |  |  |  |
-| `instbw` | ✅ |  |  |  |  |  |
-| `instfreq` | ✅ |  |  |  |  | instantaneous frequency |
+| `instbw` | ✅ | 0.028 | 526.78× |  | OK | Sig: b = instbw(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `instfreq` | ✅ | 0.035 | 510.47× |  | OK | Sig: f = instfreq(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
 | `iscola` | ❌ |  |  |  |  |  |
 | `istft` | ❌ |  |  |  |  | inverse |
 | `istftlayer` | ❌ |  |  |  |  |  |
 | `kurtogram` | ❌ |  |  |  |  |  |
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
-| `spectralcrest` | ✅ |  |  |  |  |  |
-| `spectralentropy` | ✅ |  |  |  |  |  |
-| `spectralflatness` | ✅ |  |  |  |  |  |
-| `spectralkurtosis` | ✅ |  |  |  |  |  |
-| `spectralskewness` | ✅ |  |  |  |  |  |
+| `spectralcrest` | ✅ | 0.014 |  |  | N/A | Sig: c = spectralCrest(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `spectralentropy` | ✅ |  |  |  | N/A | Sig: e = spectralEntropy(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `spectralflatness` | ✅ |  |  |  | N/A | Sig: f = spectralFlatness(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `spectralkurtosis` | ✅ |  |  |  | N/A | Sig: k = spectralKurtosis(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `spectralskewness` | ✅ |  |  |  | N/A | Sig: s = spectralSkewness(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
 | `spectrogram` | ✅ | 0.003 | 40.58× | 30.39× | OK | Sig: [s, f, t] = spectrogram(x). KNOWN GAP: numkit's default window/overlap/NFFT differ from MATLAB; output dimensions don't match. Documented as separate ТЗ. |
 | `stft` | ❌ |  |  |  |  | short-time FFT |
 | `stftlayer` | ❌ |  |  |  |  |  |
@@ -2721,18 +2721,18 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `dutycycle` | ✅ |  |  |  |  | duty cycle |
-| `falltime` | ✅ |  |  |  |  |  |
-| `midcross` | ✅ |  |  |  |  | mid-ref crossings |
-| `overshoot` | ✅ |  |  |  |  |  |
-| `pulseperiod` | ✅ |  |  |  |  |  |
-| `pulsesep` | ✅ |  |  |  |  |  |
-| `pulsewidth` | ✅ |  |  |  |  |  |
-| `risetime` | ✅ |  |  |  |  |  |
-| `settlingtime` | ✅ |  |  |  |  |  |
-| `slewrate` | ✅ |  |  |  |  |  |
-| `statelevels` | ✅ |  |  |  |  |  |
-| `undershoot` | ✅ |  |  |  |  |  |
+| `dutycycle` | ✅ | 0.004 | 1275.56× |  | OK | Sig: d = dutycycle(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `falltime` | ✅ | 0.004 | 1085.51× |  | OK | Sig: ft = falltime(x). Spec-extension batch 2026-05-09 (cycle 40). |
+| `midcross` | ✅ | 0.003 | 962.32× |  | OK | Sig: c = midcross(x). Spec-extension batch 2026-05-09 (cycle 40). |
+| `overshoot` | ✅ | 0.003 | 1338.75× |  | OK | Sig: os = overshoot(x). Spec-extension batch 2026-05-09 (cycle 40). |
+| `pulseperiod` | ✅ | 0.005 | 848.51× |  | OK | Sig: p = pulseperiod(x). Spec-extension batch 2026-05-09 (cycle 40). |
+| `pulsesep` | ✅ | 0.004 | 988.76× |  | OK | Sig: s = pulsesep(x). Spec-extension batch 2026-05-09 (cycle 40). |
+| `pulsewidth` | ✅ | 0.004 | 875.43× |  | OK | Sig: w = pulsewidth(x). Spec-extension batch 2026-05-09 (cycle 40). |
+| `risetime` | ✅ | 0.004 | 1122.31× |  | OK | Sig: rt = risetime(x). Spec-extension batch 2026-05-09 (cycle 40). |
+| `settlingtime` | ✅ | 0.004 | 1106.21× |  | OK | Sig: st = settlingtime(x, d). Spec-extension batch 2026-05-09 (cycle 40). |
+| `slewrate` | ✅ | 0.004 | 1021.86× |  | OK | Sig: sr = slewrate(x). Spec-extension batch 2026-05-09 (cycle 40). |
+| `statelevels` | ✅ | 0.004 | 305.54× | 92.92× | OK | Sig: lv = statelevels(x). Spec-extension batch 2026-05-09 (cycle 40). |
+| `undershoot` | ✅ | 0.004 | 1332.06× |  | OK | Sig: us = undershoot(x). Spec-extension batch 2026-05-09 (cycle 40). |
 
 ### Signal Descriptive Statistics
 
@@ -2757,8 +2757,8 @@ intentionally omitted — flat solver functions only.
 | `folders2labels` | ❌ |  |  |  |  |  |
 | `framelbl` | ❌ |  |  |  |  |  |
 | `framesig` | ❌ |  |  |  |  |  |
-| `meanfreq` | ✅ |  |  |  |  | mean frequency |
-| `medfreq` | ✅ |  |  |  |  | median frequency |
+| `meanfreq` | ✅ | 0.014 | 701.14× |  | OK | Sig: f = meanfreq(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `medfreq` | ✅ | 0.015 | 607.67× |  | OK | Sig: f = medfreq(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
 | `mergesigroi` | ❌ |  |  |  |  |  |
 | `peak2peak` | ✅ | 0.004 | 56.71× | 38.94× | OK | Sig: r = peak2peak(...). Spec-extension batch 2026-05-09. |
 | `peak2rms` | ✅ | 3.127 | 0.87× | 1.16× | OK | Sig: R = peak2rms(X). 100 iters. |

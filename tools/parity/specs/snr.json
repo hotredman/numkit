@@ -1,0 +1,10 @@
+{
+  "name": "snr",
+  "namespace": "signal",
+  "setup": "fs = 1000; t = (0:1/fs:0.1)'; x = sin(2*pi*100*t) + 0.01*randn(size(t));",
+  "expr": "r1 = double(snr(x, fs) > 0);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: r = snr(x, fs). Spec-extension batch 2026-05-09 (cycle 40)."
+}
