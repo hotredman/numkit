@@ -256,4 +256,13 @@ tiedrank(std::pmr::memory_resource *mr, const Value &x);
 std::pair<Value, Value>
 corrcov(std::pmr::memory_resource *mr, const Value &C);
 
+// ── tabulate ───────────────────────────────────────────────────────────
+// `T = tabulate(x)` — frequency table. Returns a 3-column
+// [value, count, percent] matrix. Dense layout (rows for k = 1..max)
+// when all non-NaN values are positive integers; otherwise sparse
+// (one row per unique non-NaN value sorted ascending). NaN values
+// are excluded both from the row set and from the percentage
+// denominator.
+Value tabulate(std::pmr::memory_resource *mr, const Value &x);
+
 } // namespace numkit::stats
