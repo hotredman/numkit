@@ -163,7 +163,7 @@ function datasetToLayer(d, palette_idx, ctx) {
                  : (d.style || {});
   const baseColor = styleObj.color || d.color || KIND_PALETTE[palette_idx % KIND_PALETTE.length];
 
-  if (t === 'imagesc') {
+  if (t === 'imagesc' || t === 'pcolor') {
     if (!d.z) return null;
     const z = d.z;
     const nR = z.length;
@@ -172,6 +172,10 @@ function datasetToLayer(d, palette_idx, ctx) {
     const cmaxOrig = (typeof d.cmaxOrig === 'number') ? d.cmaxOrig : 1;
     return {
       kind: 'heatmap',
+      // pcolor places (x, y) at cell vertices (imagesc at cell centres).
+      // Range computation in adaptAxes pads imagesc by ±cellW/2 on each
+      // edge; for pcolor the x/y vector spans the panel exactly.
+      vertexAligned: t === 'pcolor',
       z,                                                  // uint8 indices, row-major 2-D
       cmin: cminOrig, cmax: cmaxOrig,                     // aliases used by status / exports
       cminOrig, cmaxOrig,
@@ -334,7 +338,7 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
   // vector extents (they fully bound the matrix). Otherwise scan series.
   let xRange, yRange;
   if (heatmapLy) {
-    // Pull x/y vectors back off the original imagesc dataset.
+    // Pull x/y vectors back off the original imagesc / pcolor dataset.
     const dsIdx = heatmapLy._dsIdx;
     const d = datasets[dsIdx];
     const nR = heatmapLy.originalRows, nC = heatmapLy.originalCols;
@@ -342,10 +346,17 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     const yr = d.y || [0, Math.max(0, nR - 1)];
     const x0 = xr[0], x1 = xr[xr.length - 1];
     const y0 = yr[0], y1 = yr[yr.length - 1];
-    const cW = nC > 1 ? (x1 - x0) / (nC - 1) : 1;
-    const cH = nR > 1 ? (y1 - y0) / (nR - 1) : 1;
-    xRange = [x0 - cW / 2, x1 + cW / 2];
-    yRange = [y0 - cH / 2, y1 + cH / 2];
+    if (heatmapLy.vertexAligned) {
+      // pcolor — (x, y) are cell vertices, span the panel exactly.
+      xRange = [x0, x1];
+      yRange = [y0, y1];
+    } else {
+      // imagesc — (x, y) are cell centres, pad ±cell/2 on each edge.
+      const cW = nC > 1 ? (x1 - x0) / (nC - 1) : 1;
+      const cH = nR > 1 ? (y1 - y0) / (nR - 1) : 1;
+      xRange = [x0 - cW / 2, x1 + cW / 2];
+      yRange = [y0 - cH / 2, y1 + cH / 2];
+    }
   } else {
     let xLo = Infinity, xHi = -Infinity, yLo = Infinity, yHi = -Infinity;
     for (const ly of layers) {

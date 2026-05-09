@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <iostream>
 #include <limits>
 #include <sstream>
@@ -426,9 +427,16 @@ void GraphicsLibrary::install(Engine &engine)
             outs[0] = Value::empty();
         });
 
-    reg("image", "imagesc",
-        [vecToJson, doubleToJson](Span<const Value> args, size_t nargout,
-                                  Span<Value> outs, CallContext &ctx) {
+    // Shared body for any heatmap-like builtin (imagesc / pcolor).
+    // The data-emission path is identical; only the `type` field
+    // differs (renderer uses it to pick cell-centre vs cell-vertex
+    // alignment). Body kept as a captured lambda + std::bind to avoid
+    // duplicating ~200 lines of quantization logic.
+    auto heatmapImpl = [vecToJson, doubleToJson](
+                           const char *typeName,
+                           Span<const Value> args, size_t nargout,
+                           Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
             if (args.empty()) {
                 outs[0] = Value::empty();
                 return;
@@ -467,7 +475,7 @@ void GraphicsLibrary::install(Engine &engine)
             }
 
             DatasetInfo ds;
-            ds.type = "imagesc";
+            ds.type = typeName;
             ds.originalRows = rows;
             ds.originalCols = cols;
 
@@ -629,7 +637,11 @@ void GraphicsLibrary::install(Engine &engine)
             }
             fm.emitModified();
             outs[0] = Value::empty();
-        });
+    };  // heatmapImpl
+
+    using namespace std::placeholders;
+    reg("image", "imagesc", std::bind(heatmapImpl, "imagesc", _1, _2, _3, _4));
+    reg("image", "pcolor",  std::bind(heatmapImpl, "pcolor",  _1, _2, _3, _4));
 
     // ── Polar — graphics.polar ───────────────────────────────────────
     reg("polar", "polarplot",
@@ -1091,7 +1103,11 @@ void GraphicsLibrary::install(Engine &engine)
     reg("surface", "mesh", noop);
     reg("contour", "contour", noop);
     reg("contour", "contourf", noop);
-    reg("surface", "pcolor", noop);
+    // pcolor — real implementation registered earlier in install()
+    // (graphics.image.pcolor + compat.pcolor). The duplicate noop
+    // here used to register `compat.pcolor` a second time, which the
+    // engine's registerFunction rejects, throwing during install and
+    // dropping the renderer into fallback mode.
     reg("line", "xline", noop);
     reg("line", "yline", noop);
     reg("surface", "camlight", noop);
