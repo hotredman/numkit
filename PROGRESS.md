@@ -965,7 +965,7 @@ intentionally omitted, along with `constellation` (object method) and
 |---|:---:|---:|---:|---:|:---:|---|
 | `arithenco` | ❌ |  |  |  |  | arithmetic encoder |
 | `arithdeco` | ❌ |  |  |  |  |  |
-| `compand` | ❌ |  |  |  |  | μ-law / A-law companding |
+| `compand` | ❌ | 0.009 | 83.58× |  | OK | MATLAB compand: μ-law / A-law signal compander. 4 methods covered (mu/compressor, mu/expander, A/compressor, A/expander) with round-trip identity validation and sign preservation on negatives. Algorithm: closed-form formulas from MATLAB compand.m. Output preserves input shape. |
 | `dpcmenco` | ❌ |  |  |  |  | differential PCM encoder |
 | `dpcmdeco` | ❌ |  |  |  |  |  |
 | `dpcmopt` | ❌ |  |  |  |  | optimise predictor + partition |

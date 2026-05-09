@@ -53,6 +53,9 @@ void descrambler_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 // eq/errors.cpp
 void biterr_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void symerr_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// eq/compand.cpp
+void compand_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -102,6 +105,7 @@ void CommLibrary::install(Engine &engine)
     reg("eq", "descrambler", &comm::detail::descrambler_reg);
     reg("eq", "biterr",      &comm::detail::biterr_reg);
     reg("eq", "symerr",      &comm::detail::symerr_reg);
+    reg("eq", "compand",     &comm::detail::compand_reg);
 }
 
 } // namespace numkit
