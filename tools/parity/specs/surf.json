@@ -2,11 +2,11 @@
   "name": "surf",
   "namespace": "graphics",
   "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "surf(peaks(20)); r1 = 1;",
+  "iters": 1,
+  "tol": 1e-12,
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: r = surf(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: graphics primitive. 3D shaded surface. Same side-effect-only no-op as mesh; spec verifies the call runs."
 }

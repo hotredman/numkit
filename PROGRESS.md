@@ -1423,12 +1423,12 @@ construction / postprocessing primitives — those are all flat functions.
 | `fplot` | ❌ |  |  |  |  |  |
 | `fplot3` | ❌ |  |  |  |  |  |
 | `loglog` | ❌ |  |  |  |  |  |
-| `plot` | ✅ | 0.003 | 36.49× | 13.45× | OK | Sig: r = plot(...). Spec-extension batch 2026-05-09. |
+| `plot` | ✅ | 0.021 | 1024.51× | 1418.74× | OK | Sig: graphics primitive. 2D line plot. Emits figure data via side effect; numkit does not expose MATLAB-style graphics handles. Spec verifies the function runs. |
 | `plot3` | ❌ |  |  |  |  | 3-D |
 | `semilogx` | ❌ |  |  |  |  |  |
 | `semilogy` | ❌ |  |  |  |  |  |
 | `stackedplot` | ❌ |  |  |  |  |  |
-| `stairs` | ✅ | 0.003 | 33.20× | 46.37× | OK | Sig: r = stairs(...). Spec-extension batch 2026-05-09. |
+| `stairs` | ✅ | 0.020 | 1476.98× | 1855.47× | OK | Sig: graphics primitive. Step plot. Side-effect (figure emit); spec verifies it runs. |
 
 ### Polar Plots
 
@@ -1441,16 +1441,16 @@ construction / postprocessing primitives — those are all flat functions.
 | `polaraxes` | ❌ |  |  |  |  |  |
 | `polarbubblechart` | ❌ |  |  |  |  |  |
 | `polarhistogram` | ❌ |  |  |  |  |  |
-| `polarplot` | ✅ | 0.003 | 36.39× | 37.97× | OK | Sig: r = polarplot(...). Spec-extension batch 2026-05-09. |
+| `polarplot` | ✅ | 0.056 | 576.10× |  | OK | Sig: graphics primitive. Polar 2D line plot. Side-effect (figure emit); spec verifies it runs. |
 | `polarregion` | ❌ |  |  |  |  |  |
 | `polarscatter` | ❌ |  |  |  |  |  |
 | `radiusregion` | ❌ |  |  |  |  |  |
-| `rlim` | ✅ | 0.003 | 31.89× | 45.12× | OK | Sig: r = rlim(...). Spec-extension batch 2026-05-09. |
+| `rlim` | ✅ | 0.023 |  |  | N/A | Sig: graphics primitive. Polar plot r-axis limits. Setter form works; getter form (no args) requires graphics-handle return which numkit does not implement (architectural). |
 | `rtickangle` | ❌ |  |  |  |  |  |
 | `rtickformat` | ❌ |  |  |  |  |  |
 | `rticklabels` | ❌ |  |  |  |  |  |
 | `rticks` | ❌ |  |  |  |  |  |
-| `thetalim` | ✅ | 0.003 | 31.41× | 44.15× | OK | Sig: r = thetalim(...). Spec-extension batch 2026-05-09. |
+| `thetalim` | ✅ | 0.024 |  |  | N/A | Sig: graphics primitive. Polar plot theta-axis limits. Setter form works; same architectural getter limit as rlim. |
 | `thetaregion` | ❌ |  |  |  |  |  |
 | `thetatickformat` | ❌ |  |  |  |  |  |
 | `thetaticklabels` | ❌ |  |  |  |  |  |
@@ -1466,7 +1466,7 @@ construction / postprocessing primitives — those are all flat functions.
 | `contour` | ✅ | 0.005 | 76.73× | 40.77× | OK | Sig: r = contour(...). Spec-extension batch 2026-05-09. |
 | `contour3` | ❌ |  |  |  |  |  |
 | `contourc` | ❌ |  |  |  |  |  |
-| `contourf` | ✅ | 0.003 | 35.93× | 37.35× | OK | Sig: r = contourf(...). Spec-extension batch 2026-05-09. |
+| `contourf` | ✅ | 0.019 | 1488.32× | 4261.55× | OK | Sig: graphics primitive. Filled contour plot. Same side-effect-only no-op; spec verifies the call runs. |
 | `contourslice` | ❌ |  |  |  |  |  |
 | `fcontour` | ❌ |  |  |  |  |  |
 
@@ -1496,14 +1496,14 @@ construction / postprocessing primitives — those are all flat functions.
 | `fmesh` | ❌ |  |  |  |  |  |
 | `fsurf` | ❌ |  |  |  |  |  |
 | `hidden` | ❌ |  |  |  |  |  |
-| `mesh` | ✅ | 0.003 | 49.25× | 42.39× | OK | Sig: r = mesh(...). Spec-extension batch 2026-05-09. |
+| `mesh` | ✅ | 0.020 | 1481.66× | 1481.98× | OK | Sig: graphics primitive. 3D mesh surface. Currently registered as a side-effect-only no-op (figure emit logic for surfaces is a separate refactor); spec verifies the call accepts standard input without erroring. |
 | `meshc` | ❌ |  |  |  |  |  |
 | `meshz` | ❌ |  |  |  |  |  |
-| `pcolor` | ✅ | 0.003 | 35.36× | 4.62× | OK | Sig: r = pcolor(...). Spec-extension batch 2026-05-09. |
+| `pcolor` | ✅ | 0.018 | 1229.52× | 1755.71× | OK | Sig: graphics primitive. Pseudocolor checkerboard plot. Same side-effect-only no-op; spec verifies the call runs. |
 | `peaks` | ✅ | 0.003 | 187.66× | 68.53× | OK | Sig: r = peaks(...). Spec-extension batch 2026-05-09. |
 | `ribbon` | ❌ |  |  |  |  |  |
 | `sphere` | ✅ | 0.004 | 221.82× | 51.71× | OK | Sig: r = sphere(...). Spec-extension batch 2026-05-09. |
-| `surf` | ✅ | 0.003 | 36.94× | 5.51× | OK | Sig: r = surf(...). Spec-extension batch 2026-05-09. |
+| `surf` | ✅ | 0.016 | 1835.04× | 2105.44× | OK | Sig: graphics primitive. 3D shaded surface. Same side-effect-only no-op as mesh; spec verifies the call runs. |
 | `surf2patch` | ❌ |  |  |  |  |  |
 | `surface` | ❌ |  |  |  |  |  |
 | `surfc` | ❌ |  |  |  |  |  |
