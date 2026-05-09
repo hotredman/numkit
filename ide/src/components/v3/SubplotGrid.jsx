@@ -10,11 +10,13 @@
  */
 import { useState } from 'react';
 import CompositePlot from './CompositePlot';
+import Composite3DPlot from './Composite3DPlot';
 import PolarPlot, { defaultPolarViewport } from './PolarPlot';
 
 function renderCell(cell, props) {
-  if (cell.kind === 'composite') return <CompositePlot figure={cell} {...props} />;
-  if (cell.kind === 'polar')     return <PolarPlot figure={cell} {...props} />;
+  if (cell.kind === 'composite3d') return <Composite3DPlot figure={cell} {...props} />;
+  if (cell.kind === 'composite')   return <CompositePlot   figure={cell} {...props} />;
+  if (cell.kind === 'polar')       return <PolarPlot       figure={cell} {...props} />;
   return <CompositePlot figure={cell} {...props} />;
 }
 

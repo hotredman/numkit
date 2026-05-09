@@ -23,7 +23,13 @@ test.describe('Tier 1A — stem3 / compass / feather / spy', () => {
 
   test.afterEach(async () => { await closeIde(app); });
 
-  test('stem3(x, y, z) — renders, has both stems and tip markers', async () => {
+  test('stem3(x, y, z) — renders via WebGL canvas', async () => {
+    // stem3 emits 1 plot3 (line) + 1 scatter3 (markers) so the figure
+    // has Z data → routed through Composite3DPlot. Originally we
+    // counted SVG <circle> elements (4 markers); under WebGL those
+    // are GL points inside a canvas. Assert the canvas mounted
+    // instead — the 3-D smoke spec already verifies geometry is
+    // actually drawn there.
     await ide.runScript(
       'import compat.*;\n'
       + 'x = [1 2 3 4];\n'
@@ -32,13 +38,11 @@ test.describe('Tier 1A — stem3 / compass / feather / spy', () => {
       + 'stem3(x, y, z);\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+      .toBeVisible({ timeout: 10_000 });
     expect(ide.devErrors().filter((e) =>
       !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
     )).toEqual([]);
-    // 4 markers (scatter3 dataset) → 4 circles (scatter mode renders one
-    // <circle> per point).
-    const circles = await ide.figureCards.first().locator('svg circle').count();
-    expect(circles).toBeGreaterThanOrEqual(4);
   });
 
   test('compass(U, V) — arrows from origin', async () => {

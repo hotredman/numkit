@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import CompositePlot from './CompositePlot';
+import Composite3DPlot from './Composite3DPlot';
 import PolarPlot, { defaultPolarViewport, nicePolarMax } from './PolarPlot';
 import SubplotGrid from './SubplotGrid';
 import { computeFitViewport,
@@ -7,9 +8,10 @@ import { computeFitViewport,
   downloadBlob as utilDownloadBlob } from './plotUtils';
 
 function renderFigure(figure, props) {
-  if (figure.kind === 'subplot')   return <SubplotGrid figure={figure} {...props} />;
-  if (figure.kind === 'composite') return <CompositePlot figure={figure} {...props} />;
-  if (figure.kind === 'polar')     return <PolarPlot figure={figure} {...props} />;
+  if (figure.kind === 'subplot')     return <SubplotGrid     figure={figure} {...props} />;
+  if (figure.kind === 'composite3d') return <Composite3DPlot figure={figure} {...props} />;
+  if (figure.kind === 'composite')   return <CompositePlot   figure={figure} {...props} />;
+  if (figure.kind === 'polar')       return <PolarPlot       figure={figure} {...props} />;
   return <CompositePlot figure={figure} {...props} />;
 }
 

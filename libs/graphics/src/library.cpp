@@ -3254,7 +3254,34 @@ void GraphicsLibrary::install(Engine &engine)
     reg("layout", "cla", noop);
     reg("layout", "zlabel", noop);
     reg("layout", "zlim", noop);
-    reg("layout", "view", noop);
+    // view(az, el) — set the 3-D camera azimuth/elevation in degrees.
+    // Both args required for the (az, el) form; 2-element vector also
+    // accepted (view([az, el])). The renderer reads cfg.view on mount
+    // of Composite3DPlot. Stash on AxesState so it survives prepareForPlot.
+    reg("layout", "view",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.empty()) { outs[0] = Value::empty(); return; }
+            auto &fm = ctx.engine->figureManager();
+            double az = 0, el = 0;
+            bool ok = false;
+            if (args.size() >= 2 && args[0].numel() == 1 && args[1].numel() == 1) {
+                az = args[0].toScalar();
+                el = args[1].toScalar();
+                ok = true;
+            } else if (args[0].numel() >= 2) {
+                az = args[0].doubleData()[0];
+                el = args[0].doubleData()[1];
+                ok = true;
+            }
+            if (!ok) { outs[0] = Value::empty(); return; }
+            std::ostringstream os;
+            os << "[" << az << "," << el << "]";
+            fm.currentAxes().viewJson = os.str();
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
     reg("layout", "set", noop);
     reg("layout", "get", noop_ret1);
 
