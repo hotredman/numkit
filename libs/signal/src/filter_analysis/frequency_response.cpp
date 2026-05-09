@@ -14,6 +14,7 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include <complex>
+#include <limits>
 #include <tuple>
 
 #ifndef M_PI
@@ -32,8 +33,12 @@ freqz(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t npts
     auto W = Value::matrix(npts, 1, ValueType::DOUBLE, mr);
     auto H = Value::complexMatrix(npts, 1, mr);
 
+    // MATLAB freqz(b, a, n): n equispaced frequencies on [0, π) — the
+    // upper endpoint π is excluded. Grid is w = (0:n-1) * π / n. The
+    // 'whole' option (n on [0, 2π)) is handled by the dispatcher
+    // separately.
     for (size_t k = 0; k < npts; ++k) {
-        const double w = M_PI * k / (npts - 1);
+        const double w = M_PI * k / npts;
         W.doubleDataMut()[k] = w;
 
         const Complex ejw(std::cos(w), -std::sin(w));
@@ -81,8 +86,18 @@ phasez(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t npt
     auto phi = Value::matrix(npts, 1, ValueType::DOUBLE, mr);
     const Complex *hd = H.complexData();
     double *pd = phi.doubleDataMut();
-    for (size_t k = 0; k < npts; ++k)
-        pd[k] = std::atan2(hd[k].imag(), hd[k].real());
+    // MATLAB convention: when |H(w)| is exactly zero, phase is
+    // undefined and reported as NaN. Use a tiny epsilon to catch the
+    // numerical zeros that come out of the freqz polynomial sum.
+    constexpr double kZeroEps = 1e-300;
+    for (size_t k = 0; k < npts; ++k) {
+        const double mag2 = hd[k].real() * hd[k].real()
+                          + hd[k].imag() * hd[k].imag();
+        if (mag2 < kZeroEps)
+            pd[k] = std::numeric_limits<double>::quiet_NaN();
+        else
+            pd[k] = std::atan2(hd[k].imag(), hd[k].real());
+    }
     unwrapInPlace(pd, npts);
     return std::make_tuple(std::move(phi), std::move(W));
 }

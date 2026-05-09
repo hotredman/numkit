@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <limits>
 #include <vector>
 
 #ifndef M_PI
@@ -124,10 +125,14 @@ phasedelay(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t
     double *dst = pd.doubleDataMut();
     const double *phiP = phi.doubleData();
     const double *wP   = w.doubleData();
+    // MATLAB: pd = -phi / w. At DC (w == 0) the ratio is 0/0 (or NaN/0
+    // when the filter has a zero at DC) — both degenerate to NaN. Do
+    // not extrapolate; let std::nan propagate so the caller sees the
+    // documented MATLAB behaviour.
+    constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
     for (size_t i = 0; i < n; ++i) {
-        if (i == 0) {
-            // 0/0 at DC — extrapolate from sample 1 (matches MATLAB shape).
-            dst[i] = (n >= 2) ? -phiP[1] / wP[1] : 0.0;
+        if (wP[i] == 0.0) {
+            dst[i] = kNaN;
         } else {
             dst[i] = -phiP[i] / wP[i];
         }
