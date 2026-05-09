@@ -36,6 +36,12 @@ function makeSyncAdapter({ backend, name }) {
   const dirty = new Set();      // paths pending async persist
   let persistPromise = Promise.resolve();
   let seeded = false;
+  // True when the backend exposes a synchronous read path (Electron
+  // sync IPC). When true we DON'T pre-load files into the cache —
+  // each WASM-side csvread/load round-trips to disk on demand. The
+  // tradeoff is ~1-5 ms per file vs. multi-GB pre-load that was
+  // killing the renderer.
+  const sync = typeof backend.readFileSync === 'function';
   // Set when a write/remove happens between flushes; flush() returns this
   // so the caller can decide whether to invalidate UI state. Cleared on
   // each flush() call. Without this signal IDE.jsx was bumping
@@ -121,20 +127,31 @@ function makeSyncAdapter({ backend, name }) {
     async seed() {
       if (seeded) return;
       if (backend.init) await backend.init();
-      const tree = await backend.listTree();
-      await seedFrom(tree);
-      logSeedStats('seed');
+      // Backends with sync read (native Electron) skip seeding entirely:
+      // the engine reads files lazily via backend.readFileSync. Backends
+      // without sync read (FSA on web, IndexedDB tempFS) pre-load with
+      // the budgeted seedFrom — they have no other way to satisfy a
+      // synchronous WASM-side read.
+      if (sync) {
+        // eslint-disable-next-line no-console
+        console.log(`[vfs-adapter:${name}] sync-IPC backend; skipping seed (lazy reads on demand).`);
+      } else {
+        const tree = await backend.listTree();
+        await seedFrom(tree);
+        logSeedStats('seed');
+      }
       seeded = true;
     },
 
     // Manual refresh (e.g. after the user edits a file via an external tool).
     async refresh() {
       cache.clear();
-      // Reset stats so refresh-time numbers are visible too.
       Object.assign(seedStats, { seeded: 0, skippedExt: 0, skippedSize: 0, skippedBudget: 0, totalBytes: 0 });
-      const tree = await backend.listTree();
-      await seedFrom(tree);
-      logSeedStats('refresh');
+      if (!sync) {
+        const tree = await backend.listTree();
+        await seedFrom(tree);
+        logSeedStats('refresh');
+      }
     },
 
     // Flush any pending writes and wait for them — use before shutdown.
@@ -150,17 +167,30 @@ function makeSyncAdapter({ backend, name }) {
 
     // ── Sync hooks wired into the engine via CallbackFS ──
     readFile(path) {
-      const v = cache.get(path);
-      if (v === undefined)
-        throw new Error(`${name}: no such file '${path}'`);
-      return v;
+      // Cache wins (covers writes-before-flush + tempFS seeded entries).
+      if (cache.has(path)) return cache.get(path);
+      if (sync) {
+        // Lazy disk read via sync IPC. We don't populate the cache
+        // here on purpose: the engine may read large CSVs once for
+        // a single computation and not need them again — caching
+        // would re-introduce the leak we just fixed. Hot-reads pay
+        // the IPC tax; that's fine for the typical script.
+        const v = backend.readFileSync(path);
+        if (v == null) throw new Error(`${name}: no such file '${path}'`);
+        return v;
+      }
+      throw new Error(`${name}: no such file '${path}'`);
     },
     writeFile(path, content) {
       cache.set(path, content);
       schedulePersist(path);
     },
     exists(path) {
-      return cache.has(path);
+      if (cache.has(path)) return true;
+      if (sync && typeof backend.existsSync === 'function') {
+        return backend.existsSync(path);
+      }
+      return false;
     },
   };
 }
