@@ -207,7 +207,7 @@ function datasetToLayer(d, palette_idx, ctx) {
 
   const supported = ['line', 'plot', 'scatter', 'stem', 'stairs',
                      'bar', 'hist', 'semilogx', 'semilogy', 'loglog',
-                     'errorbar'];
+                     'errorbar', 'barh', 'area'];
   if (!supported.includes(t)) return null;
   const x = Array.isArray(d.x) ? d.x.map(Number) : [];
   const y = Array.isArray(d.y) ? d.y.map(Number) : [];
@@ -215,14 +215,24 @@ function datasetToLayer(d, palette_idx, ctx) {
   if (t === 'scatter') mode = 'scatter';
   else if (t === 'stem') mode = 'stem';
   else if (t === 'bar' || t === 'hist') mode = 'bar';
+  else if (t === 'barh') mode = 'barh';
   else if (t === 'stairs') mode = 'stairs';
   else if (t === 'errorbar') mode = 'errorbar';
+  else if (t === 'area') mode = 'area';
+
+  // barh stores `xJson = vertical positions` and `yJson = bar lengths`
+  // on the C++ side (mirroring bar's input order). For axis-range
+  // scanning + rendering it's cleaner to expose those swapped: the
+  // X axis of the chart shows lengths, the Y axis shows positions.
+  // Range scanner + sx/sy treat layer.x and layer.y the standard way.
+  const xOut = (mode === 'barh') ? y : x;
+  const yOut = (mode === 'barh') ? x : y;
 
   const layer = {
     kind: 'series',
     mode,
     name: d.label || `series ${palette_idx + 1}`,
-    x, y,
+    x: xOut, y: yOut,
     color: baseColor,
     width: d.lineWidth || styleObj.lineWidth || styleObj.width || 1.5,
     size:  d.markerSize || styleObj.markerSize || 3,
@@ -238,6 +248,18 @@ function datasetToLayer(d, palette_idx, ctx) {
     const ePos = Array.isArray(d.ePos) ? d.ePos.map(Number) : null;
     layer.eNeg = eNeg || e || [];
     layer.ePos = ePos || e || [];
+  }
+
+  // Area baseline — engine packs `base=N` into ds.style (semicolon-
+  // separated alongside any other extras). Default is 0.
+  if (t === 'area') {
+    layer.baseline = 0;
+    if (typeof d.style === 'string') {
+      for (const kv of d.style.split(';')) {
+        const m = kv.trim().match(/^base=(-?[\d.eE+-]+)$/);
+        if (m) layer.baseline = Number(m[1]);
+      }
+    }
   }
 
   return layer;
