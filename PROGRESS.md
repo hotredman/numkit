@@ -3133,7 +3133,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `bootci` | ❌ | 0.551 | 27.44× |  | OK | Sig: ci = bootci(nboot, fn, X[, alpha]). Percentile bootstrap CI. NOT bit-identical with MATLAB (std::uniform_int_distribution implementation-defined; randn also not bit-identical). Statistical correctness verified: 95% CI contains true mean. |
 | `bootstrp` | ⚠️ | 0.554 | 15.55× |  | OK | Sig: B = bootstrp(nboot, fn, X). Bootstrap resampling. Output shape verified; values not bit-identical with MATLAB (uniform_int_distribution + randn divergence). |
 | `combnk` | ✅ | 0.004 | 196.55× | 100.93× | OK | Sig: r = combnk(...). Spec-extension batch 2026-05-09. |
-| `crossval` | ❌ |  |  |  |  | k-fold cross-validation |
+| `crossval` | ❌ | 0.020 | 399.99× |  | OK | Sig: vals = crossval(predfun, X, Y[, 'kfold', K]). K-fold cross-validation. Default K=10. NOT bit-identical with MATLAB (fold splitting differs -- numkit uses contiguous blocks, MATLAB defaults to random). Shape verified. |
 | `cvpartition` | ❌ |  |  |  |  | partition object (function-form constructor) |
 | `datasample` | ✅ | 0.004 | 116.22× | 47.52× | OK | Sig: y = datasample(X, K[, dim, ...]). Default dim auto-selected: row vector samples columns (dim=2), otherwise dim=1. Output SHAPE bit-identical with MATLAB R2025b; values may differ due to RNG cascade -- shape probe used here. |
 | `jackknife` | ⚠️ |  |  |  | NYI | needs Engine::call for function handles |

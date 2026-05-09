@@ -291,6 +291,7 @@ void randsample_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void datasample_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bootstrp_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bootci_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void crossval_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void jackknife_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void combnk_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 
@@ -599,6 +600,7 @@ void StatsLibrary::install(Engine &engine)
     reg("resample", "datasample", &stats::detail::datasample_reg);
     reg("resample", "bootstrp",   &stats::detail::bootstrp_reg);
     reg("resample", "bootci",     &stats::detail::bootci_reg);
+    reg("resample", "crossval",   &stats::detail::crossval_reg);
     reg("resample", "jackknife",  &stats::detail::jackknife_reg);
     reg("resample", "combnk",     &stats::detail::combnk_reg);
 

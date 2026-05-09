@@ -361,6 +361,98 @@ void bootstrp_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = std::move(out);
 }
 
+// crossval(predfun, X, Y[, 'kfold', K]) — k-fold cross-validation.
+// predfun(Xtrain, Ytrain, Xtest, Ytest) returns a scalar (typically
+// MSE or accuracy). Default K = 10. Returns K × 1 column of fold values.
+//
+// Fold split: contiguous blocks of rows in original order. Random
+// shuffling deferred (MATLAB has 'cvpartition' for that).
+void crossval_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("crossval: requires (predfun, X, Y[, 'kfold', K])",
+                    0, 0, "crossval", "", "m:crossval:nargin");
+    if (!args[0].isFuncHandle())
+        throw Error("crossval: 1st argument must be a function handle "
+                    "predfun(Xtrain, Ytrain, Xtest, Ytest)",
+                    0, 0, "crossval", "", "m:crossval:notFuncHandle");
+
+    auto *mr = ctx.engine->resource();
+    const Value &X = args[1];
+    const Value &Y = args[2];
+
+    const std::size_t m = static_cast<std::size_t>(X.dims().dim(0));
+    if (Y.dims().dim(0) != static_cast<int>(m))
+        throw Error("crossval: X and Y must have the same number of rows",
+                    0, 0, "crossval", "", "m:crossval:dimMismatch");
+    if (m < 2)
+        throw Error("crossval: need at least 2 observations",
+                    0, 0, "crossval", "", "m:crossval:tooSmall");
+
+    int K = 10;
+    for (std::size_t i = 3; i + 1 < args.size(); i += 2) {
+        if (!args[i].isChar() && !args[i].isString())
+            throw Error("crossval: option name must be a string",
+                        0, 0, "crossval", "", "m:crossval:badOption");
+        const auto opt = args[i].toString();
+        if (opt == "kfold" || opt == "KFold")
+            K = static_cast<int>(args[i + 1].toScalar());
+        else
+            throw Error("crossval: unknown option '" + opt + "' (only "
+                        "'kfold' supported in this revision)",
+                        0, 0, "crossval", "", "m:crossval:badOption");
+    }
+    if (K < 2 || K > static_cast<int>(m))
+        K = static_cast<int>(std::min(m, std::size_t{10}));
+
+    auto out = Value::matrix(static_cast<std::size_t>(K), 1,
+                             ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+
+    const std::size_t pX = (X.dims().ndim() >= 2)
+        ? static_cast<std::size_t>(X.dims().dim(1)) : 1;
+    const std::size_t pY = (Y.dims().ndim() >= 2)
+        ? static_cast<std::size_t>(Y.dims().dim(1)) : 1;
+    const double *Xd = X.doubleData();
+    const double *Yd = Y.doubleData();
+
+    auto sliceRows = [&](const double *src, std::size_t rows_src,
+                         std::size_t cols, const std::vector<std::size_t> &rows) {
+        Value v = Value::matrix(rows.size(), cols, ValueType::DOUBLE, mr);
+        double *vd = v.doubleDataMut();
+        const std::size_t nr = rows.size();
+        for (std::size_t j = 0; j < cols; ++j)
+            for (std::size_t i = 0; i < nr; ++i)
+                vd[i + j * nr] = src[rows[i] + j * rows_src];
+        return v;
+    };
+
+    for (int k = 0; k < K; ++k) {
+        const std::size_t lo = (static_cast<std::size_t>(k) * m) / static_cast<std::size_t>(K);
+        const std::size_t hi = (static_cast<std::size_t>(k + 1) * m) / static_cast<std::size_t>(K);
+        std::vector<std::size_t> testRows, trainRows;
+        testRows.reserve(hi - lo);
+        trainRows.reserve(m - (hi - lo));
+        for (std::size_t i = 0; i < m; ++i) {
+            if (i >= lo && i < hi) testRows.push_back(i);
+            else                   trainRows.push_back(i);
+        }
+        Value Xtr = sliceRows(Xd, m, pX, trainRows);
+        Value Ytr = sliceRows(Yd, m, pY, trainRows);
+        Value Xte = sliceRows(Xd, m, pX, testRows);
+        Value Yte = sliceRows(Yd, m, pY, testRows);
+        Value callArgs[4] = { Xtr, Ytr, Xte, Yte };
+        Value res = ctx.engine->callFunctionHandle(
+            args[0], Span<const Value>(callArgs, 4), ctx.env);
+        if (res.numel() != 1)
+            throw Error("crossval: predfun must return a scalar",
+                        0, 0, "crossval", "", "m:crossval:badPredfun");
+        od[k] = res.toScalar();
+    }
+    outs[0] = std::move(out);
+}
+
 // bootci(nboot, bootfun, X[, alpha]) — percentile bootstrap CI.
 // Returns 2×K matrix: row 1 = lower bound, row 2 = upper bound.
 void bootci_reg(Span<const Value> args, size_t /*nargout*/,
