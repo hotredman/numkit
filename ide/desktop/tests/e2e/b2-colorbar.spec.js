@@ -33,7 +33,7 @@ test.describe('B2 — colorbar Location', () => {
   test('colorbar() with default east placement — renders', async () => {
     await ide.runScript(
       'import compat.*;\n'
-      + 'imagesc(reshape(1:64, 8, 8));\n'
+      + 'imagesc(magic(8));\n'
       + 'colorbar();\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
@@ -49,7 +49,7 @@ test.describe('B2 — colorbar Location', () => {
       test(`Location='${loc}' — renders`, async () => {
         await ide.runScript(
           'import compat.*;\n'
-          + 'imagesc(reshape(1:64, 8, 8));\n'
+          + 'imagesc(magic(8));\n'
           + `colorbar('Location', '${loc}');\n`
         );
         await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
@@ -63,7 +63,7 @@ test.describe('B2 — colorbar Location', () => {
   test('colorbar(\'off\') — hides the bar, figure still renders', async () => {
     await ide.runScript(
       'import compat.*;\n'
-      + 'imagesc(reshape(1:36, 6, 6));\n'
+      + 'imagesc(magic(6));\n'
       + 'colorbar(\'off\');\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
@@ -75,7 +75,7 @@ test.describe('B2 — colorbar Location', () => {
   test('colorbar location propagates into FigureWindow modal', async () => {
     await ide.runScript(
       'import compat.*;\n'
-      + 'imagesc(reshape(1:64, 8, 8));\n'
+      + 'imagesc(magic(8));\n'
       + 'colorbar(\'Location\', \'south\');\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
