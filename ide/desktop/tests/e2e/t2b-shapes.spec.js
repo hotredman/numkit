@@ -101,16 +101,21 @@ test.describe('Tier 2 — pie / boxplot / violinplot / bar3 / waterfall', () => 
     )).toEqual([]);
   });
 
-  test('bar3(Z) — 3D bars with cabinet projection', async () => {
+  test('bar3(Z) — 3D bars rendered in WebGL canvas', async () => {
+    // History: this used to assert ≥ 30 SVG <path> elements when bar3
+    // pre-projected through cabinet on the C++ side. After Etap 3 of
+    // the WebGL roll-out bar3 emits raw 3-D coords and the renderer
+    // builds an indexed cuboid mesh in WebGL. Geometry now lives in
+    // a <canvas> — assert that instead. (webgl-3d.spec covers
+    // detailed canvas signals.)
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2 3; 4 5 6; 7 8 9];\n'
       + 'bar3(Z);\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-    // 9 bars × 5 visible faces each = 45 polygons (paths) ≥ ~30.
-    const paths = await ide.figureCards.first().locator('svg path').count();
-    expect(paths).toBeGreaterThanOrEqual(30);
+    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+      .toBeVisible({ timeout: 10_000 });
     expect(ide.devErrors().filter((e) =>
       !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
     )).toEqual([]);
