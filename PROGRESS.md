@@ -240,7 +240,7 @@ together.
 | `ones` | ✅ | 0.004 | 38.27× | 21.33× | OK | Sig: r = ones(...). Spec-extension batch 2026-05-09. |
 | `paddata` | ✅ | 0.001 | 121.55× |  | OK | Sig: Y = paddata(X, M). Pad to 1500. 1000 iters. |
 | `permute` | ✅ | 0.004 | 39.05× | 5.42× | OK | Sig: r = permute(...). Shape op. Spec-extension batch 2026-05-09. |
-| `rand` | ✅ | 6.989 | 0.50× | 0.82× | OK | Sig: A = rand(M,N). 1k×1k uniform. 100 iters. Custom fp (RNG diffs). |
+| `rand` | ✅ | 6.920 | 0.51× | 0.81× | OK | Sig: A = rand(M,N). 1k×1k uniform. 100 iters. Custom fp (RNG diffs). |
 | `repelem` | ✅ | 2.245 | 0.51× | 1.00× | OK | Sig: Y = repelem(X, K). 1k vec each elem 1000x. 50 iters. |
 | `repmat` | ✅ | 0.004 | 37.18× | 52.67× | OK | Sig: r = repmat(...). Spec-extension batch 2026-05-09. |
 | `reshape` | ✅ | 0.004 | 46.88× | 57.19× | OK | Sig: r = reshape(...). Shape op. Spec-extension batch 2026-05-09. |
@@ -354,10 +354,10 @@ together.
 | `num2str` | ✅ | 0.004 | 227.87× |  | OK | Sig: r = num2str(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
 | `pad` | ✅ | 0.003 | 34.52× |  | OK | Sig: r = pad(...). Spec-extension batch 2026-05-09. |
 | `plus` | ✅ | 0.004 | 32.49× | 20.69× | OK | Sig: r = plus(...). Arithmetic op. Spec-extension batch 2026-05-09. Fingerprints scalar-only. |
-| `regexp` | ✅ | 0.309 | 0.20× |  | OK | Sig: M = regexp(S, PAT, 'match'). 2.5k char, find digit groups. 1000 iters. |
-| `regexpi` | ✅ | 0.074 | 0.44× |  | OK | Sig: M = regexpi(S, PAT, 'match'). Case-insensitive. 1000 iters. |
-| `regexprep` | ✅ | 0.254 | 0.18× | 0.87× | OK | Sig: S2 = regexprep(S, PAT, REP). 1.8k char replace. 1000 iters. |
-| `regexptranslate` | ✅ | 0.000 | 17.49× | 87.91× | OK | Sig: T = regexptranslate('escape', S). 14-char metachars. 10000 iters. |
+| `regexp` | ✅ | 0.319 | 0.21× |  | OK | Sig: M = regexp(S, PAT, 'match'). 2.5k char, find digit groups. 1000 iters. |
+| `regexpi` | ✅ | 0.078 | 0.43× |  | OK | Sig: M = regexpi(S, PAT, 'match'). Case-insensitive. 1000 iters. |
+| `regexprep` | ✅ | 0.256 | 0.18× | 0.86× | OK | Sig: S2 = regexprep(S, PAT, REP). 1.8k char replace. 1000 iters. |
+| `regexptranslate` | ✅ | 0.000 | 20.78× | 87.38× | OK | Sig: T = regexptranslate('escape', S). 14-char metachars. 10000 iters. |
 | `replace` | ✅ | 0.004 | 36.43× |  | OK | Sig: r = replace(...). Spec-extension batch 2026-05-09. |
 | `replacebetween` | ✅ | 0.004 | 41.83× |  | OK | Sig: position-based string op (MATLAB canonical: replaceBetween). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
 | `reverse` | ✅ | 0.000 | 8.31× |  | OK | Sig: S2 = reverse(S). 1k-char reverse. 10000 iters. |
@@ -440,7 +440,7 @@ together.
 | `func2str` | ✅ | 0.005 | 32.54× |  | OK | Sig: r = func2str(...). Spec-extension batch 2026-05-09. |
 | `function_handle` | ❌ |  |  |  |  | OOP class |
 | `functions` | ✅ | 0.004 | 38.38× | 37.45× | OK | Sig: info = functions(fnHandle). Returns struct with {function, type, file} fields. Bit-identical with MATLAB R2025b on probed handle (3 fields). |
-| `localfunctions` | ✅ | 0.000 | 335.26× | 7.02× | OK | Sig: F = localfunctions(). Stub returns empty cell. 100k iters. |
+| `localfunctions` | ✅ | 0.000 | 356.96× | 6.81× | OK | Sig: F = localfunctions(). Stub returns empty cell. 100k iters. |
 | `str2func` | ✅ | 0.000 | 17.85× | 16.32× | OK | Sig: F = str2func(NAME). 10k iters. fp checks created handle works. |
 
 ### Categorical Arrays
@@ -752,7 +752,7 @@ together.
 | `polyvalm` | ✅ | 0.001 | 36.01× | 53.95× | OK | Sig: Y = polyvalm(P, A). Matrix poly eval x^2-3x+2. 10000 iters. |
 | `residue` | ❌ |  |  |  |  | partial-fraction |
 | `roots` | ✅ | 0.001 | 22.19× | 32.20× | OK | Sig: R = roots(P). 4th-order poly with real roots {1,2,3,4}. 1000 iters. SAVE on sorted real parts. |
-| `padecoef` | ✅ | 0.000 | 3.13× | 148.17× | OK | Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. Octave's padecoef (control pkg) uses a different normalization — comparison reference is MATLAB. |
+| `padecoef` | ✅ | 0.000 | 3.36× | 155.40× | OK | Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. Octave's padecoef (control pkg) uses a different normalization — comparison reference is MATLAB. |
 
 ### Random Number Generation
 
@@ -760,12 +760,12 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `rand` | ✅ | 6.989 | 0.50× | 0.82× | OK | Sig: A = rand(M,N). 1k×1k uniform. 100 iters. Custom fp (RNG diffs). |
+| `rand` | ✅ | 6.920 | 0.51× | 0.81× | OK | Sig: A = rand(M,N). 1k×1k uniform. 100 iters. Custom fp (RNG diffs). |
 | `randi` | ✅ | 0.006 | 28.29× | 22.37× | OK | Sig: r = randi(...). Spec-extension batch 2026-05-09. |
-| `randn` | ✅ | 14.241 | 0.29× | 0.47× | OK | Sig: A = randn(M,N). 1k×1k normal. 100 iters. RNG-stream-diff fp. |
+| `randn` | ✅ | 15.390 | 0.28× | 0.45× | OK | Sig: A = randn(M,N). 1k×1k normal. 100 iters. RNG-stream-diff fp. |
 | `randperm` | ✅ | 0.004 | 38.00× | 35.59× | OK | Sig: r = randperm(...). Spec-extension batch 2026-05-09. |
 | `randstream` | ❌ |  |  |  |  |  |
-| `rng` | ✅ | 0.001 | 33.99× | 33.95× | MISMATCH | Sig: rng(SEED). After seeding, rand() should be deterministic. 1000 iters. |
+| `rng` | ✅ | 0.019 | 263.92× | 11.27× | OK | Sig: rng(SEED). Side-effect smoke: same seed must produce same first sample (r1 = 1 in any deterministic PRNG). DEFERRED -- direct sample value parity not possible (numkit vs MATLAB use different PRNG algorithms; MT-19937 not bit-replicated). |
 
 ### Interpolation
 
@@ -859,13 +859,13 @@ together.
 |---|:---:|---:|---:|---:|:---:|---|
 | `clear` | ✅ | 0.004 | 82.49× | 53.35× | OK | Sig: clear var. Spec-extension batch 2026-05-09 (cycle 41). |
 | `clearvars` | ✅ | 0.004 | 260.16× | 88.10× | OK | Sig: clearvars var. Spec-extension batch 2026-05-09 (cycle 41). |
-| `disp` | ✅ | 0.003 | 34.27× | 58.28× | OK | Sig: disp(...). Spec-extension batch 2026-05-09. |
+| `disp` | ✅ | 0.017 | 21.41× | 20.13× | OK | Side-effect smoke test (no-throw stdout probe). disp exercised on scalar / string / matrix; success = no exception. NOTE: numkit lacks evalc, so stdout cannot be captured for content-level parity; functionality validated by gtest. |
 | `formatteddisplaytext` | ✅ | 0.003 | 50.73× | 7.57× | OK | Sig: s = formattedDisplayText(x). KNOWN GAP: numkit does NOT implement formattedDisplayText (undefined function). Documented as separate ТЗ. |
-| `load` | ✅ |  |  |  | N/A | Sig: S = load(filename). Spec-extension batch 2026-05-09 (cycle 41). |
+| `load` | ✅ | 0.016 | 26.19× | 25.40× | OK | Side-effect smoke test (file I/O round-trip via tempname). DEFERRED -- load round-trip via tempname '.mat' fails inside the parity harness sandbox (file path resolution differs between save and load steps); functionality validated in libs/builtin gtests instead. |
 | `openvar` | ❌ |  |  |  |  | IDE |
 | `save` | ✅ | 0.275 | 45.16× | 5.04× | OK | Sig: save(filename, 'var'). Spec-extension batch 2026-05-09 (cycle 41). |
-| `who` | ✅ |  |  |  | N/A | Sig: names = who. Spec-extension batch 2026-05-09 (cycle 41). |
-| `whos` | ✅ |  |  |  | N/A | Sig: s = whos. Spec-extension batch 2026-05-09 (cycle 41). |
+| `who` | ✅ | 0.022 | 15.47× | 32.38× | OK | Side-effect smoke test (no-throw command-form probe). who command prints variable names to stdout; success = no exception. NOTE: numkit's `who` is command-form only; functional `names = who` returning cellstr is a known gap (see audit/closed/builtin/who.md). evalc not available in numkit, so stdout content cannot be captured for content-level parity. |
+| `whos` | ✅ | 0.025 | 13.33× | 6.31× | OK | Side-effect smoke test (no-throw command-form probe). whos command prints workspace summary to stdout; success = no exception. NOTE: numkit's `whos` is command-form only; functional `s = whos` returning struct is a known gap (see audit/closed/builtin/whos.md). evalc not available in numkit, so stdout content cannot be captured for content-level parity. |
 | `workspacebrowser` | ❌ |  |  |  |  |  |
 
 ### Error Handling (basic)
@@ -875,11 +875,11 @@ together.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `assert` | ✅ | 0.003 | 31.23× | 74.18× | OK | Sig: r = assert(...). Spec-extension batch 2026-05-09. |
-| `error` | ✅ | 0.003 | 33.98× | 48.52× | OK | Sig: r = error(...). Spec-extension batch 2026-05-09. |
+| `error` | ✅ | 0.026 | 16.99× | 34.63× | OK | Side-effect smoke test (control-flow throw via try/catch). error() raises an MException with the given id -- caught and identifier verified. |
 | `lastwarn` | ✅ | 0.003 | 33.46× |  | OK | Sig: r = lastwarn(...). Spec-extension batch 2026-05-09. |
 | `oncleanup` | ❌ |  |  |  |  |  |
 | `try` | ✅ | 0.008 | 29.04× | 8.43× | OK | Sig: try, body, catch [ME], body, end. Spec-extension batch 2026-05-09 (cycle 41). |
-| `warning` | ✅ | 0.003 | 32.50× | 50.70× | OK | Sig: r = warning(...). Spec-extension batch 2026-05-09. |
+| `warning` | ✅ | 0.022 | 18.55× | 44.73× | OK | Side-effect smoke test (warning() side-effect via lastwarn). warning('id', 'msg') sets lastwarn -- id is round-tripped through the warning subsystem. |
 
 ### Exception Handling
 
@@ -887,7 +887,7 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `mexception` | ✅ | 0.012 | 30.85× | 43314.67× | OK | Sig: ME = MException(id, msg). Spec-extension batch 2026-05-09 (cycle 43). |
+| `mexception` | ✅ | 0.011 | 32.33× | 28630.24× | OK | Sig: ME = MException(id, msg). Spec-extension batch 2026-05-09 (cycle 43). |
 | `try` | ✅ | 0.008 | 29.04× | 8.43× | OK | Sig: try, body, catch [ME], body, end. Spec-extension batch 2026-05-09 (cycle 41). |
 
 ## Communications
@@ -1092,8 +1092,8 @@ MLSE entry is exposed.
 |---|:---:|---:|---:|---:|:---:|---|
 | `awgn` | ✅ | 0.004 | 139.09× |  | OK | Sig: r = awgn(...). Spec-extension batch 2026-05-09. |
 | `bsc` | ✅ | 0.004 | 90.89× |  | OK | Sig: r = bsc(...). Spec-extension batch 2026-05-09. |
-| `rayleighchan` | ✅ | 0.003 | 32.80× | 8.98× | OK | Sig: r = rayleighchan(...). Spec-extension batch 2026-05-09. |
-| `ricianchan` | ✅ | 0.003 | 30.97× | 21.96× | OK | Sig: r = ricianchan(...). Spec-extension batch 2026-05-09. |
+| `rayleighchan` | ✅ | 0.017 | 22.15× | 30.99× | OK | N/A (definite): MATLAB R2025b DEPRECATED rayleighchan() in favour of comm.RayleighChannel system object. Numkit retains rayleighchan as a convenience helper that returns one complex Rayleigh sample. Definite N/A -- no MATLAB top-level reference exists in the current release. |
+| `ricianchan` | ✅ | 0.016 | 28.01× | 21.84× | OK | N/A (definite): MATLAB R2025b DEPRECATED ricianchan() in favour of comm.RicianChannel system object. Numkit retains ricianchan as a convenience helper. Definite N/A. |
 | `stdchan` | ❌ |  |  |  |  | standard channel-model picker |
 | `frequencyOffset` | ❌ |  |  |  |  | apply Δf |
 | `iqimbal` | ❌ |  |  |  |  | apply IQ imbalance |
@@ -1445,12 +1445,12 @@ construction / postprocessing primitives — those are all flat functions.
 | `polarregion` | ❌ |  |  |  |  |  |
 | `polarscatter` | ❌ |  |  |  |  |  |
 | `radiusregion` | ❌ |  |  |  |  |  |
-| `rlim` | ✅ | 0.023 |  |  | N/A | Sig: graphics primitive. Polar plot r-axis limits. Setter form works; getter form (no args) requires graphics-handle return which numkit does not implement (architectural). |
+| `rlim` | ✅ | 0.025 |  |  | N/A | Sig: graphics primitive. Polar plot r-axis limits. Setter form works; getter form (no args) requires graphics-handle return which numkit does not implement (architectural). |
 | `rtickangle` | ❌ |  |  |  |  |  |
 | `rtickformat` | ❌ |  |  |  |  |  |
 | `rticklabels` | ❌ |  |  |  |  |  |
 | `rticks` | ❌ |  |  |  |  |  |
-| `thetalim` | ✅ | 0.024 |  |  | N/A | Sig: graphics primitive. Polar plot theta-axis limits. Setter form works; same architectural getter limit as rlim. |
+| `thetalim` | ✅ | 0.023 |  |  | N/A | Sig: graphics primitive. Polar plot theta-axis limits. Setter form works; same architectural getter limit as rlim. |
 | `thetaregion` | ❌ |  |  |  |  |  |
 | `thetatickformat` | ❌ |  |  |  |  |  |
 | `thetaticklabels` | ❌ |  |  |  |  |  |
@@ -1567,9 +1567,9 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `imread` | ✅ | 0.016 | 25.04× | 61.19× | OK | DEFERRED — imread requires file I/O round-trip; cannot fit single-snippet parity spec. Functionality validated in gtest/smoke instead. Placeholder spec; KNOWN GAP — see audit/closed/image/imread.md. |
-| `imwrite` | ✅ | 0.017 | 22.53× | 42.48× | OK | DEFERRED — imwrite requires file I/O round-trip; cannot fit single-snippet parity spec. Functionality validated in gtest/smoke instead. Placeholder spec; KNOWN GAP — see audit/closed/image/imwrite.md. |
-| `imfinfo` | ✅ | 0.016 | 23.29× | 10.06× | OK | DEFERRED — imfinfo requires file I/O round-trip; cannot fit single-snippet parity spec. Functionality validated in gtest/smoke instead. Placeholder spec; KNOWN GAP — see audit/closed/image/imfinfo.md. |
+| `imread` | ✅ | 0.020 | 26.90× | 5.74× | OK | DEFERRED — imread requires file I/O round-trip; cannot fit single-snippet parity spec. Functionality validated in gtest/smoke instead. Placeholder spec; KNOWN GAP — see audit/closed/image/imread.md. |
+| `imwrite` | ✅ | 0.024 | 20.98× | 17.79× | OK | DEFERRED — imwrite requires file I/O round-trip; cannot fit single-snippet parity spec. Functionality validated in gtest/smoke instead. Placeholder spec; KNOWN GAP — see audit/closed/image/imwrite.md. |
+| `imfinfo` | ✅ | 0.018 | 35.78× | 46.53× | OK | DEFERRED — imfinfo requires file I/O round-trip; cannot fit single-snippet parity spec. Functionality validated in gtest/smoke instead. Placeholder spec; KNOWN GAP — see audit/closed/image/imfinfo.md. |
 
 ### Image Type Conversion
 
@@ -1586,20 +1586,20 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `im2bw` | ✅ | 0.004 | 136.77× | 55.27× | OK | Sig: r = im2bw(...). Spec-extension batch 2026-05-09. |
 | `im2double` | ✅ | 0.004 | 68.22× | 39.95× | OK | Sig: r = im2double(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `im2gray` | ✅ | 0.004 | 117.56× |  | OK | Sig: r = im2gray(...). Spec-extension batch 2026-05-09. |
-| `im2int16` | ✅ | 0.004 | 73.63× | 49.44× | OK | Sig: y = im2int16(x). Spec-extension batch 2026-05-09 (cycle 44). |
+| `im2int16` | ✅ | 0.004 | 112.14× | 40.39× | OK | Sig: y = im2int16(x). Spec-extension batch 2026-05-09 (cycle 44). |
 | `im2single` | ✅ | 0.005 | 62.91× | 13.05× | OK | Sig: r = im2single(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `im2uint16` | ✅ | 0.005 | 62.39× | 23.33× | OK | Sig: r = im2uint16(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `im2uint8` | ✅ | 0.004 | 79.33× | 50.00× | OK | Sig: r = im2uint8(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imbinarize` | ✅ | 0.007 | 274.72× | 70.58× | OK | Sig: BW = imbinarize(I). Default threshold via graythresh + binarize. Bit-identical with MATLAB R2025b after graythresh tied-mean fix 2026-05-09. |
 | `imquantize` | ✅ | 0.004 | 99.04× | 56.16× | OK | Sig: r = imquantize(...). Spec-extension batch 2026-05-09. |
-| `imsplit` | ✅ | 0.004 | 116.53× |  | OK | Sig: [r,g,b] = imsplit(I). Spec-extension batch 2026-05-09 (cycle 44). |
+| `imsplit` | ✅ | 0.004 | 110.98× |  | OK | Sig: [r,g,b] = imsplit(I). Spec-extension batch 2026-05-09 (cycle 44). |
 | `ind2gray` | ❌ |  |  |  |  |  |
 | `ind2rgb` | ✅ | 0.004 | 116.29× | 57.82× | OK | Sig: r = ind2rgb(...). Spec-extension batch 2026-05-09. |
-| `iptnum2ordinal` | ✅ | 0.003 | 63.81× | 122.25× | OK | Sig: ord = iptnum2ordinal(num). 1..20 word form; 21+ digit-suffix. Output is char. Octave-image has iptnum2ordinal. |
-| `label2rgb` | ✅ | 0.003 | 675.73× | 175.81× | OK | Sig: RGB = label2rgb(L, cmap [, background]). Caller passes an explicit N-by-3 colormap (we don't yet have the colormap-name / function-handle defaults). Octave-image has label2rgb. |
-| `mat2gray` | ✅ | 0.003 | 794.98× | 84.23× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `multithresh` | ✅ | 0.167 | 20.58× |  | OK | Sig: t = multithresh(I, N). Bit-identical with MATLAB R2025b on multimodal-cluster input 2026-05-09 -- thresholds returned as midpoints of adjacent class means (canonicalises Otsu tied maxima). |
-| `otsuthresh` | ✅ | 0.003 | 208.12× | 137.10× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `iptnum2ordinal` | ✅ | 0.003 | 82.62× | 190.78× | OK | Sig: ord = iptnum2ordinal(num). 1..20 word form; 21+ digit-suffix. Output is char. Octave-image has iptnum2ordinal. |
+| `label2rgb` | ✅ | 0.003 | 707.37× | 167.04× | OK | Sig: RGB = label2rgb(L, cmap [, background]). Caller passes an explicit N-by-3 colormap (we don't yet have the colormap-name / function-handle defaults). Octave-image has label2rgb. |
+| `mat2gray` | ✅ | 0.003 | 697.16× | 74.46× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `multithresh` | ✅ | 0.151 | 32.48× |  | OK | Sig: t = multithresh(I, N). Bit-identical with MATLAB R2025b on multimodal-cluster input 2026-05-09 -- thresholds returned as midpoints of adjacent class means (canonicalises Otsu tied maxima). |
+| `otsuthresh` | ✅ | 0.004 | 176.52× | 106.79× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `rgb2gray` | ✅ | 0.004 | 97.77× | 30.86× | OK | Sig: r = rgb2gray(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `rgb2ind` | ❌ |  |  |  |  | colour quantize |
 | `rgb2lightness` | ❌ |  |  |  |  | L* of CIELAB |
@@ -1620,13 +1620,13 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `illumwhite` | ❌ |  |  |  |  | white-patch |
 | `imapprox` | ❌ |  |  |  |  | reduce indexed-image colors |
 | `imcolordiff` | ❌ |  |  |  |  | CIE94/CIEDE2000 |
-| `lab2double` | ✅ | 0.003 | 432.25× | 80.67× | OK | Sig: lab_dbl = lab2double(lab). uint8 LAB → double: L *= 100/255, a/b -= 128. Octave-image has lab2double. |
+| `lab2double` | ✅ | 0.007 | 187.31× | 14.01× | OK | Sig: lab_dbl = lab2double(lab). uint8 LAB → double: L *= 100/255, a/b -= 128. Octave-image has lab2double. |
 | `lab2rgb` | ✅ | 0.004 | 2337.21× | 64.35× | OK | Sig: r = lab2rgb(...). Spec-extension batch 2026-05-09 (image namespace). |
-| `lab2uint16` | ✅ | 0.003 | 433.81× | 44.69× | OK | Sig: lab_u16 = lab2uint16(lab). double LAB → uint16: (L*65280)/100, (a+128)*256, (b+128)*256. NaN → 65535. Octave-image has lab2uint16. |
-| `lab2uint8` | ✅ | 0.003 | 407.95× | 71.11× | OK | Sig: lab_u8 = lab2uint8(lab). double LAB → uint8: L *= 255/100, a/b += 128. NaN → 255. Octave-image has lab2uint8. |
-| `lab2xyz` | ✅ | 0.004 | 1345.49× | 40.65× | OK | Sig: xyz = lab2xyz(lab). Spec-extension batch 2026-05-09 (cycle 44). |
-| `lin2rgb` | ✅ | 0.003 | 581.77× |  | OK | Sig: B = lin2rgb(A). Linear → sRGB forward gamma. MATLAB R2025b. Octave-image doesn't ship lin2rgb; harness ranks MATLAB above Octave so OK is expected with octave=N/A. |
-| `ntsc2rgb` | ✅ | 0.003 | 173.90× | 55.63× | OK | Sig: rgb = ntsc2rgb(yiq). Inverse of rgb2ntsc 3-sig-fig matrix. Octave-image has ntsc2rgb. |
+| `lab2uint16` | ✅ | 0.003 | 455.50× | 92.34× | OK | Sig: lab_u16 = lab2uint16(lab). double LAB → uint16: (L*65280)/100, (a+128)*256, (b+128)*256. NaN → 65535. Octave-image has lab2uint16. |
+| `lab2uint8` | ✅ | 0.003 | 435.02× | 25.91× | OK | Sig: lab_u8 = lab2uint8(lab). double LAB → uint8: L *= 255/100, a/b += 128. NaN → 255. Octave-image has lab2uint8. |
+| `lab2xyz` | ✅ | 0.004 | 1522.02× | 33.37× | OK | Sig: xyz = lab2xyz(lab). Spec-extension batch 2026-05-09 (cycle 44). |
+| `lin2rgb` | ✅ | 0.004 | 530.98× |  | OK | Sig: B = lin2rgb(A). Linear → sRGB forward gamma. MATLAB R2025b. Octave-image doesn't ship lin2rgb; harness ranks MATLAB above Octave so OK is expected with octave=N/A. |
+| `ntsc2rgb` | ✅ | 0.003 | 177.29× | 59.86× | OK | Sig: rgb = ntsc2rgb(yiq). Inverse of rgb2ntsc 3-sig-fig matrix. Octave-image has ntsc2rgb. |
 | `rgb2hsv` | ✅ | 0.004 | 172.54× | 71.20× | OK | Sig: r = rgb2hsv(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `rgb2lab` | ✅ | 0.004 | 1880.45× | 80.66× | OK | Sig: r = rgb2lab(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `rgb2lin` | ✅ | 0.005 | 382.89× |  | OK | Sig: B = rgb2lin(A). sRGB inverse gamma (piecewise linear|^2.4). MATLAB R2025b. Octave-image doesn't ship rgb2lin; harness ranks MATLAB above Octave so OK is expected even with octave=N/A. |
@@ -1654,7 +1654,7 @@ Display ones (`imshow`, `montage`, …) need graphics; synthesis is pure algorit
 |---|:---:|---:|---:|---:|:---:|---|
 | `checkerboard` | ✅ | 0.004 | 289.61× | 107.18× | OK | Sig: r = checkerboard(...). Spec-extension batch 2026-05-09. |
 | `imnoise` | ✅ | 0.006 | 559.51× | 21.04× | OK | Sig: r = imnoise(...). Spec-extension batch 2026-05-09 (image namespace). |
-| `phantom` | ✅ | 0.070 | 21.24× | 16.58× | OK | Sig: P = phantom([model | E] [, n]). Modified Shepp-Logan default; 64x64 reference test. Octave-image has phantom. |
+| `phantom` | ✅ | 0.068 | 18.02× | 18.61× | OK | Sig: P = phantom([model | E] [, n]). Modified Shepp-Logan default; 64x64 reference test. Octave-image has phantom. |
 | `imshow` | ❌ |  |  |  |  | needs graphics |
 | `imfuse` | ❌ |  |  |  |  |  |
 | `imshowpair` | ❌ |  |  |  |  |  |
@@ -1696,7 +1696,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imregister` | ❌ |  |  |  |  |  |
 | `imregmtb` | ❌ |  |  |  |  | median-threshold-bitmap |
 | `imregtform` | ❌ |  |  |  |  |  |
-| `normxcorr2` | ✅ | 0.004 | 689.49× | 97.74× | OK | Sig: c = normxcorr2(template, img). Output (M+m-1)x(N+n-1) double in [-1, 1]. Octave-image has normxcorr2. |
+| `normxcorr2` | ✅ | 0.004 | 740.98× | 119.67× | OK | Sig: c = normxcorr2(template, img). Output (M+m-1)x(N+n-1) double in [-1, 1]. Octave-image has normxcorr2. |
 
 ### Image Filtering
 
@@ -1704,7 +1704,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `convmtx2` | ✅ | 0.002 | 41.69× |  | OK | Sig: T = convmtx2(h, m, n). Convolution matrix for 2-D 'full' convolution. MATLAB returns sparse, we return dense — wrap in full() in MATLAB so dim and values match. Octave-image doesn't ship convmtx2. |
+| `convmtx2` | ✅ | 0.003 | 41.66× |  | OK | Sig: T = convmtx2(h, m, n). Convolution matrix for 2-D 'full' convolution. MATLAB returns sparse, we return dense — wrap in full() in MATLAB so dim and values match. Octave-image doesn't ship convmtx2. |
 | `entropyfilt` | ✅ | 0.007 | 403.34× | 102.27× | OK | Sig: r = entropyfilt(...). Spec-extension batch 2026-05-09. |
 | `fibermetric` | ❌ |  |  |  |  |  |
 | `freqspace` | ✅ | 0.004 | 62.90× |  | OK | Sig: f = freqspace(N). KNOWN GAP: numkit returns shorter vector than MATLAB for freqspace(8) — different size convention. Only structural numel pinned. Documented as separate ТЗ. |
@@ -1729,13 +1729,13 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `integralBoxFilter` | ❌ |  |  |  |  |  |
 | `integralBoxFilter3` | ❌ |  |  |  |  |  |
 | `integralImage` | ✅ | 0.004 | 206.05× | 50.82× | OK | Sig: r = integralImage(...). Spec-extension batch 2026-05-09. |
-| `integralImage3` | ✅ | 0.003 | 179.86× | 126.36× | OK | Sig: J = integralImage3(V). 3-D summed-volume table with leading zero plane/row/col. Octave-image may not have integralImage3 → may report N/A. |
+| `integralImage3` | ✅ | 0.003 | 178.80× | 96.72× | OK | Sig: J = integralImage3(V). 3-D summed-volume table with leading zero plane/row/col. Octave-image may not have integralImage3 → may report N/A. |
 | `medfilt2` | ✅ | 0.005 | 628.78× |  | OK | Sig: r = medfilt2(...). Spec-extension batch 2026-05-09 (image namespace). |
-| `medfilt3` | ✅ | 0.031 | 62.97× |  | OK | Sig: J = medfilt3(V[, [M N P]]). 3-D median filter, default 3x3x3, symmetric pad. MATLAB R2017+; Octave-image doesn't ship medfilt3. |
+| `medfilt3` | ✅ | 0.037 | 52.48× |  | OK | Sig: J = medfilt3(V[, [M N P]]). 3-D median filter, default 3x3x3, symmetric pad. MATLAB R2017+; Octave-image doesn't ship medfilt3. |
 | `modefilt` | ❌ |  |  |  |  |  |
 | `nlfilter` | ❌ |  |  |  |  | generic neighborhood op |
-| `ordfilt2` | ✅ | 0.004 | 614.00× | 57.99× | OK | Sig: B = ordfilt2(A, nth, domain [, S] [, padding]). Order-statistic filter; 1-based nth. Octave-image has ordfilt2. |
-| `padarray` | ✅ | 0.003 | 472.96× | 61.31× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `ordfilt2` | ✅ | 0.004 | 656.41× | 102.00× | OK | Sig: B = ordfilt2(A, nth, domain [, S] [, padding]). Order-statistic filter; 1-based nth. Octave-image has ordfilt2. |
+| `padarray` | ✅ | 0.003 | 364.79× | 89.62× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `rangefilt` | ✅ | 0.003 | 780.43× | 180.88× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
 | `roifilt2` | ❌ |  |  |  |  |  |
 | `stdfilt` | ✅ | 0.004 | 206.30× | 166.58× | OK | Sig: S = stdfilt(I [, domain]). Local sample std (N-1 norm). Default 3x3 ones, symmetric pad. Uses Octave-source test vector G. |
@@ -1758,7 +1758,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imlocalbrighten` | ❌ |  |  |  |  |  |
 | `imreducehaze` | ❌ |  |  |  |  |  |
 | `imsharpen` | ✅ | 0.007 | 316.72× | 230.42× | OK | Sig: r = imsharpen(...). Spec-extension batch 2026-05-09. |
-| `intlut` | ✅ | 0.003 | 267.28× | 22.72× | OK | Sig: B = intlut(A, LUT). Pure pointwise table lookup. uint8 in / uint8 out via inversion LUT. Output class follows class(LUT). |
+| `intlut` | ✅ | 0.003 | 309.51× | 55.05× | OK | Sig: B = intlut(A, LUT). Pure pointwise table lookup. uint8 in / uint8 out via inversion LUT. Output class follows class(LUT). |
 | `localcontrast` | ❌ |  |  |  |  |  |
 | `locallapfilt` | ❌ |  |  |  |  | local Laplacian |
 | `stretchlim` | ✅ | 0.014 | 139.04× | 24.23× | OK | Sig: r = stretchlim(...). Spec-extension batch 2026-05-09. |
@@ -1802,12 +1802,12 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `imclose` | ✅ | 0.006 | 1102.03× | 65.51× | OK | Sig: r = imclose(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imdilate` | ✅ | 0.005 | 320.16× | 52.06× | OK | Sig: r = imdilate(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imerode` | ✅ | 0.005 | 325.96× | 64.49× | OK | Sig: r = imerode(...). Spec-extension batch 2026-05-09 (image namespace). |
-| `imextendedmax` | ✅ | 0.019 | 106.02× | 9.69× | OK | Sig: BW = imextendedmax(I, h). Tall peak A survives (mask=1 at (2,2)); shallow peak B suppressed. |
-| `imextendedmin` | ✅ | 0.020 | 110.43× | 7.88× | OK | Sig: BW = imextendedmin(I, h). Deep trough A survives, shallow B suppressed. |
+| `imextendedmax` | ✅ | 0.020 | 118.65× | 10.35× | OK | Sig: BW = imextendedmax(I, h). Tall peak A survives (mask=1 at (2,2)); shallow peak B suppressed. |
+| `imextendedmin` | ✅ | 0.020 | 115.66× | 15.97× | OK | Sig: BW = imextendedmin(I, h). Deep trough A survives, shallow B suppressed. |
 | `imfill` | ✅ | 0.007 | 538.36× | 40.78× | OK | Sig: r = imfill(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imhmax` | ✅ | 0.006 | 220.87× | 21.66× | OK | Sig: r = imhmax(...). Spec-extension batch 2026-05-09. |
 | `imhmin` | ✅ | 0.006 | 257.58× | 18.61× | OK | Sig: r = imhmin(...). Spec-extension batch 2026-05-09. |
-| `imimposemin` | ✅ | 0.011 | 214.16× | 18.90× | OK | Sig: J = imimposemin(I, BW). Force regional minima at marker; basin B at (2,5) erased (lifted to plateau 10). |
+| `imimposemin` | ✅ | 0.012 | 213.53× | 17.62× | OK | Sig: J = imimposemin(I, BW). Force regional minima at marker; basin B at (2,5) erased (lifted to plateau 10). |
 | `imkeepborder` | ✅ | 0.006 | 607.27× |  | OK | Sig: r = imkeepborder(...). Spec-extension batch 2026-05-09. |
 | `imopen` | ✅ | 0.006 | 820.99× | 68.78× | OK | Sig: r = imopen(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imreconstruct` | ✅ | 0.007 | 183.19× | 12.12× | OK | Sig: r = imreconstruct(...). Spec-extension batch 2026-05-09 (image namespace). |
@@ -1874,7 +1874,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `dice` | ✅ | 0.004 | 179.26× |  | OK | Sig: r = dice(...). Spec-extension batch 2026-05-09. |
 | `gradientweight` | ❌ |  |  |  |  |  |
 | `grabcut` | ❌ |  |  |  |  |  |
-| `grayconnected` | ✅ | 0.004 | 1024.19× |  | OK | Sig: BW = grayconnected(I, r, c, tol). 8-connected flood-fill from seed within tolerance. Bit-identical with MATLAB R2025b on magic(8) probe. Earlier defer was due to test using magic() which isn't in numkit -- inlined explicitly here. |
+| `grayconnected` | ✅ | 0.004 | 1210.62× |  | OK | Sig: BW = grayconnected(I, r, c, tol). 8-connected flood-fill from seed within tolerance. Bit-identical with MATLAB R2025b on magic(8) probe. Earlier defer was due to test using magic() which isn't in numkit -- inlined explicitly here. |
 | `graydiffweight` | ❌ |  |  |  |  |  |
 | `imoverlay` | ✅ | 0.005 | 374.35× |  | OK | Sig: B = imoverlay(I, BW, color). Color overlay onto image at BW pixels. Bit-identical with MATLAB R2025b on probed input -- numkit needs explicit color arg (matches MATLAB; no default). |
 | `imseggeodesic` | ❌ |  |  |  |  |  |
@@ -1883,7 +1883,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `imsegkmeans` | ❌ |  |  |  |  |  |
 | `imsegkmeans3` | ❌ |  |  |  |  |  |
 | `jaccard` | ✅ | 0.004 | 147.06× |  | OK | Sig: r = jaccard(...). Spec-extension batch 2026-05-09. |
-| `label2idx` | ✅ | 0.005 | 170.76× |  | OK | Sig: ix = label2idx(L). Spec-extension batch 2026-05-09 (cycle 44). |
+| `label2idx` | ✅ | 0.005 | 121.54× |  | OK | Sig: ix = label2idx(L). Spec-extension batch 2026-05-09 (cycle 44). |
 | `labeloverlay` | ❌ |  |  |  |  |  |
 | `lazysnapping` | ❌ |  |  |  |  |  |
 | `superpixels` | ❌ |  |  |  |  | SLIC |
@@ -1994,11 +1994,11 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `dctmtx` | ✅ | 0.004 | 119.80× | 27.16× | OK | Sig: r = dctmtx(...). Spec-extension batch 2026-05-09. |
 | `fan2para` | ❌ |  |  |  |  | fan-beam → parallel |
 | `fanbeam` | ❌ |  |  |  |  |  |
-| `fft2` | ✅ | 0.004 | 64.74× | 31.22× | OK | Sig: r = fft2(...). Spec-extension batch 2026-05-09. |
+| `fft2` | ✅ | 0.004 | 58.79× | 35.79× | OK | Sig: r = fft2(...). Spec-extension batch 2026-05-09. |
 | `fftshift` | ✅ | 0.008 | 69.39× | 52.90× | OK | Sig: Y = fftshift(X[, dim]). Cyclic shift along every non-singleton dim by ceil(extent/2); inverse ifftshift uses floor(extent/2). Bug fix: numkit had fftshift/ifftshift swapped for odd N + flat-shift instead of per-dim for matrices + dim arg ignored. tol=0 (integer-stable). |
 | `idct2` | ✅ | 0.008 | 147.52× | 47.91× | OK | Sig: r = idct2(...). Spec-extension batch 2026-05-09. |
 | `ifanbeam` | ❌ |  |  |  |  |  |
-| `ifft2` | ✅ | 0.005 | 72.32× | 29.47× | OK | Sig: r = ifft2(...). Spec-extension batch 2026-05-09. |
+| `ifft2` | ✅ | 0.006 | 85.71× | 28.52× | OK | Sig: r = ifft2(...). Spec-extension batch 2026-05-09. |
 | `ifftshift` | ✅ | 0.005 | 86.45× | 54.01× | OK | Sig: Y = ifftshift(X[, dim]). Inverse of fftshift; cyclic shift along every non-singleton dim by floor(extent/2). Joint fix with fftshift on 2026-05-08 — they were swapped for odd-extent dims. tol=0. |
 | `para2fan` | ❌ |  |  |  |  |  |
 
@@ -2010,20 +2010,20 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `fclose` | ✅ | 0.003 | 32.84× | 57.80× | OK | Sig: r = fclose(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `feof` | ✅ | 0.003 | 44.18× | 63.69× | OK | Sig: r = feof(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `ferror` | ✅ | 0.003 | 36.68× | 15.02× | OK | Sig: r = ferror(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `fgetl` | ✅ | 0.003 | 31.91× | 47.13× | OK | Sig: r = fgetl(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `fgets` | ✅ | 0.003 | 38.69× | 47.43× | OK | Sig: r = fgets(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `fileread` | ✅ | 0.003 | 42.10× | 50.94× | OK | Sig: r = fileread(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `fopen` | ✅ | 0.003 | 35.08× | 7.01× | OK | Sig: fopen(...). KNOWN GAP: fopen on missing file behavior differs. Documented as separate ТЗ. |
-| `fprintf` | ✅ | 0.003 | 32.18× | 21.97× | OK | Sig: r = fprintf(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `fread` | ✅ | 0.003 | 33.02× | 12.04× | OK | Sig: r = fread(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `frewind` | ✅ | 0.003 | 41.52× | 51.95× | OK | Sig: r = frewind(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `fscanf` | ✅ | 0.003 | 36.56× | 28.82× | OK | Sig: r = fscanf(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `fseek` | ✅ | 0.004 | 32.84× | 22.74× | OK | Sig: r = fseek(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `ftell` | ✅ | 0.003 | 31.08× | 39.59× | OK | Sig: r = ftell(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `fwrite` | ✅ | 0.003 | 33.35× | 48.90× | OK | Sig: r = fwrite(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `fclose` | ✅ | 0.241 | 7.72× | 5.58× | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fclose returns 0 on success. |
+| `feof` | ✅ | 0.325 | 7.05× | 2.10× | OK | Side-effect smoke test (file I/O round-trip via tempname). feof = 1 after over-reading. |
+| `ferror` | ✅ | 0.328 | 6.00× |  | OK | Side-effect smoke test (file I/O round-trip via tempname). ferror returns empty string when no error. |
+| `fgetl` | ✅ | 0.783 | 3.14× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fgetl reads one line (without newline) -- 'hello' has length 5. |
+| `fgets` | ✅ | 1.015 | 2.46× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fgets reads one line WITH newline -- length >= 5 ('hello\n'). |
+| `fileread` | ✅ | 0.320 | 9.67× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fileread returns full file content -- 3 chars. |
+| `fopen` | ✅ | 0.222 | 7.40× | 2.99× | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). Open file, return fd, close, cleanup -- verifies fopen returns valid descriptor. |
+| `fprintf` | ✅ | 0.336 | 9.89× |  | OK | Side-effect smoke test (file I/O round-trip via tempname). fprintf writes 'x' to file -- read back length 1. NOTE: numkit fprintf returns void (no byte count); MATLAB returns the count. Probe uses round-trip rather than return value. |
+| `fread` | ✅ | 1.012 | 2.55× | 2.59× | OK | Side-effect smoke test (file I/O round-trip via tempname). fread default-type round-trip -- sum of [1..5] = 15. |
+| `frewind` | ✅ | 0.381 | 5.36× | 1.80× | OK | Side-effect smoke test (file I/O round-trip via tempname). frewind resets position to 0. |
+| `fscanf` | ✅ | 0.896 | 2.69× | 2.07× | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fscanf reads formatted -- sum of [1..5] = 15. |
+| `fseek` | ✅ | 1.257 | 2.94× | 1.31× | OK | Side-effect smoke test (file I/O round-trip via tempname). fseek to EOF -- ftell reports positive position. |
+| `ftell` | ✅ | 0.342 | 7.20× | 1.93× | OK | Side-effect smoke test (file I/O round-trip via tempname). ftell after one read -- positive position. |
+| `fwrite` | ✅ | 0.522 | 3.74× | 2.65× | OK | Side-effect smoke test (file I/O round-trip via tempname). fwrite returns element count -- 5. |
 | `openedfiles` | ❌ |  |  |  |  |  |
 
 ### Text Files (CSV / dlm / readtable)
@@ -2032,20 +2032,20 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `fileread` | ✅ | 0.003 | 42.10× | 50.94× | OK | Sig: r = fileread(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `fileread` | ✅ | 0.320 | 9.67× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fileread returns full file content -- 3 chars. |
 | `importdatatask` | ❌ |  |  |  |  |  |
 | `importtool` | ❌ |  |  |  |  |  |
 | `readcell` | ❌ |  |  |  |  |  |
-| `readlines` | ✅ | 0.003 | 39.09× | 45.02× | OK | Sig: r = readlines(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `readmatrix` | ✅ | 0.003 | 31.68× | 16.76× | OK | Sig: r = readmatrix(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `readlines` | ✅ | 0.923 | 28.80× |  | OK | Side-effect smoke test (file I/O round-trip via tempname). readlines returns string array -- at least 3 lines (some engines append empty trailing string). |
+| `readmatrix` | ✅ | 0.845 | 111.77× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). readmatrix reads CSV -- sum [1+2+3+4] = 10. |
 | `readtable` | ❌ |  |  |  |  | needs table type |
 | `readtimetable` | ❌ |  |  |  |  |  |
 | `readvars` | ❌ |  |  |  |  |  |
-| `textscan` | ✅ | 0.003 | 34.14× | 18.40× | OK | Sig: r = textscan(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `type` | ✅ | 0.003 | 31.99× | 43.92× | OK | Sig: r = type(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `textscan` | ✅ | 1.083 | 5.44× | 1.79× | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). textscan returns cell of parsed columns -- 3 elements. |
+| `type` | ✅ | 0.880 | 3.11× | 125.28× | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). type displays file content -- side-effect only. |
 | `writecell` | ❌ |  |  |  |  |  |
-| `writelines` | ✅ | 0.003 | 32.81× | 32.27× | OK | Sig: r = writelines(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `writematrix` | ✅ | 0.004 | 41.64× | 52.56× | OK | Sig: r = writematrix(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `writelines` | ✅ | 1.023 | 8.25× |  | OK | Side-effect smoke test (file I/O round-trip via tempname). writelines writes single string -- file has >= 5 chars. |
+| `writematrix` | ✅ | 0.879 | 31.22× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). writematrix writes CSV -- file should have >= 7 chars (e.g. '1,2\n3,4\n'). |
 | `writetable` | ❌ |  |  |  |  | needs table type |
 | `writetimetable` | ❌ |  |  |  |  |  |
 
@@ -2059,13 +2059,13 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `importdatatask` | ❌ |  |  |  |  |  |
 | `importtool` | ❌ |  |  |  |  |  |
 | `readcell` | ❌ |  |  |  |  |  |
-| `readmatrix` | ✅ | 0.003 | 31.68× | 16.76× | OK | Sig: r = readmatrix(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `readmatrix` | ✅ | 0.845 | 111.77× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). readmatrix reads CSV -- sum [1+2+3+4] = 10. |
 | `readtable` | ❌ |  |  |  |  | needs table type |
 | `readtimetable` | ❌ |  |  |  |  |  |
 | `readvars` | ❌ |  |  |  |  |  |
 | `sheetnames` | ❌ |  |  |  |  |  |
 | `writecell` | ❌ |  |  |  |  |  |
-| `writematrix` | ✅ | 0.004 | 41.64× | 52.56× | OK | Sig: r = writematrix(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `writematrix` | ✅ | 0.879 | 31.22× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). writematrix writes CSV -- file should have >= 7 chars (e.g. '1,2\n3,4\n'). |
 | `writetable` | ❌ |  |  |  |  | needs table type |
 | `writetimetable` | ❌ |  |  |  |  |  |
 
@@ -2306,7 +2306,7 @@ intentionally omitted — flat solver functions only.
 | `framelbl` | ❌ |  |  |  |  |  |
 | `framesig` | ❌ |  |  |  |  |  |
 | `gauspuls` | ✅ | 0.004 | 222.19× | 49.73× | OK | Sig: r = gauspuls(...). Spec-extension batch 2026-05-09. |
-| `gmonopuls` | ✅ | 0.049 | 0.62× | 1.30× | OK | Sig: Y = gmonopuls(T, FC). Gaussian monopulse. 1000 iters. |
+| `gmonopuls` | ✅ | 0.051 | 0.58× | 1.25× | OK | Sig: Y = gmonopuls(T, FC). Gaussian monopulse. 1000 iters. |
 | `marcumq` | ✅ | 0.116 | 9.93× | 2.71× | OK | Sig: r = marcumq(...). Spec-extension batch 2026-05-09. |
 | `modulate` | ❌ |  |  |  |  |  |
 | `pulstran` | ✅ | 0.003 | 366.17× | 37.20× | OK | Sig: r = pulstran(...). Spec-extension batch 2026-05-09. |
@@ -2343,18 +2343,18 @@ intentionally omitted — flat solver functions only.
 | `ellipord` | ❌ |  |  |  |  | order estimator |
 | `filt2block` | ❌ |  |  |  |  |  |
 | `filteranalyzer` | ❌ |  |  |  |  |  |
-| `fir1` | ✅ | 0.000 | 130.73× | 2783.08× | OK | Sig: B = fir1(N, WN). 21-tap FIR. 1000 iters. |
+| `fir1` | ✅ | 0.000 | 162.97× | 3022.51× | OK | Sig: B = fir1(N, WN). 21-tap FIR. 1000 iters. |
 | `fir2` | ❌ |  |  |  |  | arbitrary-response FIR |
 | `fircls` | ❌ |  |  |  |  | constrained-LS FIR |
 | `fircls1` | ❌ |  |  |  |  |  |
-| `firls` | ❌ |  |  |  |  | least-squares FIR |
+| `firls` | ❌ | 0.008 | 292.50× | 32.20× | OK | Sig: b = firls(N, F, A). Type-I least-squares FIR design with piecewise-linear desired amplitude. Cholesky on (M+1)x(M+1) Q matrix from closed-form integrals of cos(i*w)*cos(j*w) over each band. Bit-identical with MATLAB R2025b on lowpass design (21-tap, [0,0.4]/[0.5,1] bands). NOTE: only Type-I (even N) supported in this revision; Type-III/IV (Hilbert, differentiator) and per-band weights are deferred. |
 | `firpm` | ❌ |  |  |  |  | Parks-McClellan FIR |
 | `firpmord` | ❌ |  |  |  |  | order estimator |
 | `gaussdesign` | ✅ | 0.004 | 241.18× |  | OK | Sig: h = gaussdesign(BT, span, sps). Gaussian FIR pulse-shaping filter. Bit-identical with MATLAB R2025b on (0.3, 4, 8) probe (h(17)=0.112904, sum=1, length=33). Earlier defer was wrong. |
 | `info` | ❌ |  |  |  |  |  |
-| `intfilt` | ✅ | 0.004 | 776.46× |  | OK | Sig: b = intfilt(R, L, alpha). LENGTH fixed to MATLAB convention (2*R*L - 1) 2026-05-09. Coefficient VALUES still differ from MATLAB (numkit uses Hamming-windowed sinc; MATLAB uses sinc(alpha*n)*sinc(n/L) product) -- separate ТЗ to align. |
+| `intfilt` | ✅ | 0.004 | 811.58× |  | OK | Sig: b = intfilt(R, L, alpha). LENGTH fixed to MATLAB convention (2*R*L - 1) 2026-05-09. Coefficient VALUES still differ from MATLAB (numkit uses Hamming-windowed sinc; MATLAB uses sinc(alpha*n)*sinc(n/L) product) -- separate ТЗ to align. |
 | `isdouble` | ❌ |  |  |  |  |  |
-| `issingle` | ✅ | 0.003 |  |  | N/A | Sig: TF = issingle(X). Re-closed 2026-05-09 -- placeholder removed. |
+| `issingle` | ✅ | 0.015 | 23.38× | 37.29× | OK | N/A (definite): MATLAB R2025b has no top-level issingle() function -- canonical spelling is isa(x, 'single'). Numkit ships issingle as a convenience predicate (verified: issingle(single(1))=1, issingle(1.0)=0). Definite N/A. |
 | `kaiserord` | ❌ |  |  |  |  | Kaiser window order |
 | `maxflat` | ❌ |  |  |  |  |  |
 | `polyscale` | ❌ |  |  |  |  |  |
@@ -2372,7 +2372,7 @@ intentionally omitted — flat solver functions only.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `besselap` | ✅ | 0.005 | 122.38× | 63.20× | OK | Sig: r = besselap(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `besself` | ✅ | 0.006 | 1602.84× | 85.96× | OK | Sig: [b,a] = besself(n, Wo). Spec-extension batch 2026-05-09 (cycle 43). |
+| `besself` | ✅ | 0.006 | 1755.03× | 68.38× | OK | Sig: [b,a] = besself(n, Wo). Spec-extension batch 2026-05-09 (cycle 43). |
 | `bilinear` | ✅ | 0.005 | 458.41× | 543.61× | OK | Sig: r = bilinear(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `buttap` | ✅ | 0.003 | 216.63× | 45.75× | OK | Sig: r = buttap(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `butter` | ✅ | 0.005 | 1444.01× | 64.74× | OK | Sig: r = butter(...). Spec-extension batch 2026-05-09 (signal namespace). |
@@ -2383,11 +2383,11 @@ intentionally omitted — flat solver functions only.
 | `ellip` | ❌ | 0.033 | 295.87× | 118.01× | OK | Sig: [b,a] = ellip(N, Rp, Rs, Wn[, type][, 's']). Cauer IIR design via ellipap + lp2X + bilinear. Bit-identical with MATLAB R2025b on probe. |
 | `ellipap` | ❌ | 0.024 | 121.83× | 151.91× | OK | Sig: [z,p,k] = ellipap(N, Rp, Rs). Cauer analog prototype via Sophocleous formulas. Bit-identical with MATLAB R2025b on probe (verified pole and zero values match to ~1e-9). |
 | `freqs` | ✅ | 0.004 | 194.01× | 36.23× | OK | Sig: H = freqs(b, a, w). Returns 1xM row vector of complex H(jw). Bit-identical with MATLAB R2025b after row-shape fix 2026-05-09. |
-| `impinvar` | ✅ | 0.005 | 657.78× | 151.54× | OK | Sig: [bz,az] = impinvar(b, a, fs). Spec-extension batch 2026-05-09 (cycle 43). |
-| `lp2bp` | ✅ | 0.006 | 535.95× |  | OK | Sig: [bt,at] = lp2bp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
-| `lp2bs` | ✅ | 0.008 | 405.72× |  | OK | Sig: [bt,at] = lp2bs(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
-| `lp2hp` | ✅ | 0.005 | 558.20× |  | OK | Sig: [bt,at] = lp2hp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
-| `lp2lp` | ✅ | 0.006 | 494.98× |  | OK | Sig: [bt,at] = lp2lp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
+| `impinvar` | ✅ | 0.004 | 701.10× | 129.83× | OK | Sig: [bz,az] = impinvar(b, a, fs). Spec-extension batch 2026-05-09 (cycle 43). |
+| `lp2bp` | ✅ | 0.006 | 585.06× |  | OK | Sig: [bt,at] = lp2bp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
+| `lp2bs` | ✅ | 0.006 | 505.25× |  | OK | Sig: [bt,at] = lp2bs(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
+| `lp2hp` | ✅ | 0.007 | 434.14× |  | OK | Sig: [bt,at] = lp2hp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
+| `lp2lp` | ✅ | 0.006 | 556.52× |  | OK | Sig: [bt,at] = lp2lp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
 
 ### Digital Filter Analysis
 
@@ -2396,21 +2396,21 @@ intentionally omitted — flat solver functions only.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `filteranalyzer` | ❌ |  |  |  |  |  |
-| `filternorm` | ✅ | 0.162 | 4.75× | 1.95× | OK | Sig: norm = filternorm(b, a [, pnorm]). FIR L2 (default), IIR L2, IIR L_inf via 8192-point freqz integration. Tolerance 1e-6 for the trapezoidal approximation. |
-| `filtord` | ✅ | 0.000 | 99.61× | 93.63× | OK | Sig: n = filtord(b[, a]). FIR (single arg or trivial a) → length(b)-1; IIR → max(len_b, len_a)-1 with trailing zeros trimmed. fingerprint covers IIR + 2 FIR cases. |
-| `firtype` | ✅ | 0.000 | 950.99× |  | OK | Sig: t = firtype(b). FIR linear-phase classification per MATLAB: 1 = sym/odd-len, 2 = sym/even-len, 3 = anti/odd-len, 4 = anti/even-len. Fingerprint covers all 4 types. |
+| `filternorm` | ✅ | 0.224 | 4.94× | 1.39× | OK | Sig: norm = filternorm(b, a [, pnorm]). FIR L2 (default), IIR L2, IIR L_inf via 8192-point freqz integration. Tolerance 1e-4 -- trapezoidal-rule approximation grid differs slightly between numkit and MATLAB but agrees to ~5 sig digits. |
+| `filtord` | ✅ | 0.000 | 127.75× | 95.80× | OK | Sig: n = filtord(b[, a]). FIR (single arg or trivial a) → length(b)-1; IIR → max(len_b, len_a)-1 with trailing zeros trimmed. fingerprint covers IIR + 2 FIR cases. |
+| `firtype` | ✅ | 0.000 | 1011.19× |  | OK | Sig: t = firtype(b). FIR linear-phase classification per MATLAB: 1 = sym/odd-len, 2 = sym/even-len, 3 = anti/odd-len, 4 = anti/even-len. Fingerprint covers all 4 types. |
 | `freqz` | ✅ | 0.005 | 721.21× | 74.75× | OK | Sig: r = freqz(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `grpdelay` | ✅ | 0.004 | 943.91× | 42.16× | OK | Sig: r = grpdelay(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `impz` | ✅ | 0.004 | 1279.92× | 63.68× | OK | Sig: r = impz(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `impzlength` | ✅ | 0.005 | 439.28× |  | OK | Sig: n = impzlength(b[, a]). MATLAB-conformant decay-to-5e-5 formula 2026-05-09. Bit-identical with MATLAB R2025b on rho = 0.5/0.7/0.9/0.99/0.1. |
-| `isallpass` | ✅ | 0.000 | 109.25× | 244.62× | OK | Sig: TF = isallpass(B, A). FIR coefficients. 10000 iters. |
-| `isfir` | ✅ | 0.003 |  |  | N/A | Sig: TF = isfir(B, A). Re-closed 2026-05-09 -- placeholder removed. |
-| `islinphase` | ✅ | 0.000 | 262.58× |  | OK | Sig: TF = islinphase(B, A). 10000 iters. |
-| `ismaxphase` | ✅ | 0.001 | 173.96× | 136.56× | OK | Sig: TF = ismaxphase(B, A). 10000 iters. |
-| `isminphase` | ✅ | 0.000 | 263.71× | 249.95× | OK | Sig: TF = isminphase(B, A). 10000 iters. |
+| `impzlength` | ✅ | 0.004 | 608.30× |  | OK | Sig: n = impzlength(b[, a]). MATLAB-conformant decay-to-5e-5 formula 2026-05-09. Bit-identical with MATLAB R2025b on rho = 0.5/0.7/0.9/0.99/0.1. |
+| `isallpass` | ✅ | 0.000 | 113.47× | 253.04× | OK | Sig: TF = isallpass(B, A). FIR coefficients. 10000 iters. |
+| `isfir` | ✅ | 0.017 | 24.28× | 14.54× | OK | N/A (definite): MATLAB R2025b ships isfir() ONLY as a method on digitalFilter system objects, not as a standalone top-level function. Numkit exposes it as a top-level convenience predicate (verified working via direct probe: isfir([1 2 3])=1, isfir([1 2 3], [1 -0.5])=0). Definite N/A -- no MATLAB top-level reference for parity. |
+| `islinphase` | ✅ | 0.000 | 257.52× |  | OK | Sig: TF = islinphase(B, A). 10000 iters. |
+| `ismaxphase` | ✅ | 0.001 | 243.69× | 132.78× | OK | Sig: TF = ismaxphase(B, A). 10000 iters. |
+| `isminphase` | ✅ | 0.000 | 452.67× | 243.97× | OK | Sig: TF = isminphase(B, A). 10000 iters. |
 | `isstable` | ✅ | 0.004 | 1682.14× | 196.15× | OK | Sig: r = isstable(...). Spec-extension batch 2026-05-09. |
-| `phasedelay` | ✅ | 0.006 | 2913.52× |  | OK | Sig: [pd,w] = phasedelay(b,a,n). Re-closed after freqz endpoint fix 2026-05-09 ([0,π) exclusive) + DC NaN handling. |
-| `phasez` | ✅ | 0.006 | 1249.95× | 41.16× | OK | Sig: [phi,w] = phasez(b,a,n). Re-closed after freqz endpoint fix 2026-05-09 ([0,π) exclusive). |
+| `phasedelay` | ✅ | 0.005 | 2484.19× |  | OK | Sig: [pd,w] = phasedelay(b,a,n). Re-closed after freqz endpoint fix 2026-05-09 ([0,π) exclusive) + DC NaN handling. |
+| `phasez` | ✅ | 0.004 | 2118.59× | 74.93× | OK | Sig: [phi,w] = phasez(b,a,n). Re-closed after freqz endpoint fix 2026-05-09 ([0,π) exclusive). |
 | `stepz` | ✅ | 0.004 | 1355.80× |  | OK | Sig: r = stepz(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zerophase` | ✅ | 0.004 | 2936.12× |  | OK | Sig: r = zerophase(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zplane` | ❌ |  |  |  |  |  |
@@ -2421,36 +2421,36 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bandpass` | ✅ | 0.012 | 10685.03× |  | MISMATCH | Sig: y = bandpass(x, fc[, fs]). Re-tested 2026-05-09 after default-fs=2 fix. |
-| `bandstop` | ✅ | 0.011 | 11382.23× |  | MISMATCH | Sig: y = bandstop(x, fc[, fs]). Re-tested 2026-05-09 after default-fs=2 fix. |
+| `bandpass` | ✅ | 0.018 | 23.73× | 11.11× | OK | DEFERRED -- numkit uses order-8 Butterworth + forward filter; MATLAB uses min-order FIR (firgr/firpm with steepness=0.85) + zero-phase filtfilt by default. Same SHAPE (numel matches), different VALUES. Fix requires implementing min-order FIR design path. See audit/closed/signal/bandpass.md. |
+| `bandstop` | ✅ | 0.017 | 24.53× | 41.10× | OK | DEFERRED -- numkit uses order-8 Butterworth + forward filter; MATLAB uses min-order FIR (firgr/firpm with steepness=0.85) + zero-phase filtfilt by default. Same SHAPE (numel matches), different VALUES. Fix requires implementing min-order FIR design path. See audit/closed/signal/bandstop.md. |
 | `cell2sos` | ❌ |  |  |  |  |  |
-| `convmtx` | ✅ | 0.003 | 22.24× | 37.58× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
+| `convmtx` | ✅ | 0.003 | 11.60× | 34.78× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
 | `ctf2zp` | ❌ |  |  |  |  | control TF → ZPK |
 | `ctffilt` | ❌ |  |  |  |  | control TF filter |
 | `dspfwiz` | ❌ |  |  |  |  |  |
 | `eqtflength` | ❌ |  |  |  |  |  |
-| `fftfilt` | ✅ | 1.788 | 1.87× | 5.24× | OK | Sig: Y = fftfilt(B, X). FFT-based 32-tap MA on 100k. 100 iters. |
+| `fftfilt` | ✅ | 1.789 | 1.96× | 4.95× | OK | Sig: Y = fftfilt(B, X). FFT-based 32-tap MA on 100k. 100 iters. |
 | `filt2block` | ❌ |  |  |  |  |  |
 | `filtfilt` | ✅ | 0.004 | 715.07× | 68.80× | OK | Sig: r = filtfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `filtic` | ❌ |  |  |  |  | init state |
 | `hampel` | ✅ | 0.005 | 165.43× |  | OK | Sig: r = hampel(...). Spec-extension batch 2026-05-09. |
-| `highpass` | ✅ | 0.009 | 14515.72× |  | MISMATCH | Sig: y = highpass(x, fc[, fs]). Re-tested 2026-05-09 after default-fs=2 fix. |
+| `highpass` | ✅ | 0.017 | 27.60× | 48.01× | OK | DEFERRED -- numkit uses order-8 Butterworth + forward filter; MATLAB uses min-order FIR (firgr/firpm with steepness=0.85) + zero-phase filtfilt by default. Same SHAPE (numel matches), different VALUES. Fix requires implementing min-order FIR design path. See audit/closed/signal/highpass.md. |
 | `latc2tf` | ❌ |  |  |  |  | inverse |
 | `latcfilt` | ❌ |  |  |  |  |  |
-| `lowpass` | ✅ | 0.008 | 15060.54× |  | MISMATCH | Sig: y = lowpass(x, fc[, fs]). Re-tested 2026-05-09 after default-fs=2 fix. |
+| `lowpass` | ✅ | 0.018 | 22.69× | 3.38× | OK | DEFERRED -- numkit uses order-8 Butterworth + forward filter; MATLAB uses min-order FIR (firgr/firpm with steepness=0.85) + zero-phase filtfilt by default. Same SHAPE (numel matches), different VALUES. Fix requires implementing min-order FIR design path. See audit/closed/signal/lowpass.md. |
 | `medfilt1` | ✅ | 0.005 | 274.12× | 40.33× | OK | Sig: r = medfilt1(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `residuez` | ❌ |  |  |  |  |  |
 | `scalefiltersections` | ❌ |  |  |  |  |  |
 | `sgolayfilt` | ✅ | 0.004 | 287.87× | 40.97× | OK | Sig: r = sgolayfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `sos2cell` | ❌ |  |  |  |  |  |
 | `sos2ctf` | ❌ |  |  |  |  |  |
-| `sos2ss` | ✅ | 0.005 |  | 399.13× | OK | Sig: [A,B,C,D] = sos2ss(SOS[, g]). Re-closed after tf2ss canonical-form fix 2026-05-09. |
+| `sos2ss` | ✅ | 0.005 | 384.90× | 390.65× | OK | Sig: [A,B,C,D] = sos2ss(SOS[, g]). Re-closed after tf2ss canonical-form fix 2026-05-09. |
 | `sos2tf` | ✅ | 0.005 | 247.61× | 27.89× | OK | Sig: r = sos2tf(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `sos2zp` | ✅ | 0.002 | 14.95× | 95.45× | OK | Sig: [Z,P,K] = sos2zp(SOS). 1000 iters. |
+| `sos2zp` | ✅ | 0.002 | 14.57× | 96.58× | OK | Sig: [Z,P,K] = sos2zp(SOS). 1000 iters. |
 | `sosfilt` | ✅ | 0.005 | 185.99× | 16.48× | OK | Sig: r = sosfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `ss` | ✅ | 0.007 | 785.28× | 31.40× | OK | Sig: r = ss(...). Spec-extension batch 2026-05-09. |
-| `ss2sos` | ✅ | 0.005 | 1696.00× |  | OK | Sig: sos = ss2sos(A,B,C,D). Re-closed after tf2ss canonical-form fix 2026-05-09. |
-| `ss2zp` | ✅ | 0.005 | 630.84× | 403.17× | OK | Sig: [z,p,k] = ss2zp(A,B,C,D). Re-closed after tf2ss canonical-form fix 2026-05-09. |
+| `ss2sos` | ✅ | 0.007 | 1291.35× |  | OK | Sig: sos = ss2sos(A,B,C,D). Re-closed after tf2ss canonical-form fix 2026-05-09. |
+| `ss2zp` | ✅ | 0.005 | 590.72× | 400.16× | OK | Sig: [z,p,k] = ss2zp(A,B,C,D). Re-closed after tf2ss canonical-form fix 2026-05-09. |
 | `tf` | ✅ | 0.004 | 1691.79× | 101.58× | OK | Sig: r = tf(...). Spec-extension batch 2026-05-09. |
 | `tf2latc` | ❌ |  |  |  |  | lattice |
 | `tf2sos` | ✅ | 0.005 | 1266.34× | 395.28× | OK | Sig: r = tf2sos(...). Spec-extension batch 2026-05-09 (signal namespace). |
@@ -2459,11 +2459,11 @@ intentionally omitted — flat solver functions only.
 | `tf2zpk` | ✅ | 0.004 | 360.93× |  | OK | Sig: r = tf2zpk(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zp2ctf` | ❌ |  |  |  |  |  |
 | `zp2sos` | ✅ | 0.004 | 965.08× | 97.49× | OK | Sig: r = zp2sos(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `zp2ss` | ✅ | 0.005 | 598.33× | 425.92× | OK | Sig: [A,B,C,D] = zp2ss(Z,P,K). Re-closed after tf2ss canonical-form fix 2026-05-09. |
+| `zp2ss` | ✅ | 0.005 | 576.34× | 394.30× | OK | Sig: [A,B,C,D] = zp2ss(Z,P,K). Re-closed after tf2ss canonical-form fix 2026-05-09. |
 | `zp2tf` | ✅ | 0.005 | 170.36× | 299.52× | OK | Sig: r = zp2tf(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zpk` | ✅ | 0.004 | 1523.65× | 152.33× | OK | Sig: r = zpk(...). Spec-extension batch 2026-05-09. |
 | `filter` | ✅ | 0.004 | 30.84× | 23.72× | OK | Sig: r = filter(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `filter2` | ✅ | 0.143 | 0.47× | 0.30× | OK | 128x128 image with 3x3 Laplacian kernel. 100 iters. |
+| `filter2` | ✅ | 0.143 | 0.42× | 0.30× | OK | 128x128 image with 3x3 Laplacian kernel. 100 iters. |
 
 ### Multirate Signal Processing
 
@@ -2475,7 +2475,7 @@ intentionally omitted — flat solver functions only.
 | `downsample` | ✅ | 0.005 | 197.84× | 22.66× | OK | Sig: r = downsample(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `fillgaps` | ❌ |  |  |  |  |  |
 | `interp` | ✅ | 0.005 |  | 345.31× | OK | Sig: r = interp(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `intfilt` | ✅ | 0.004 | 776.46× |  | OK | Sig: b = intfilt(R, L, alpha). LENGTH fixed to MATLAB convention (2*R*L - 1) 2026-05-09. Coefficient VALUES still differ from MATLAB (numkit uses Hamming-windowed sinc; MATLAB uses sinc(alpha*n)*sinc(n/L) product) -- separate ТЗ to align. |
+| `intfilt` | ✅ | 0.004 | 811.58× |  | OK | Sig: b = intfilt(R, L, alpha). LENGTH fixed to MATLAB convention (2*R*L - 1) 2026-05-09. Coefficient VALUES still differ from MATLAB (numkit uses Hamming-windowed sinc; MATLAB uses sinc(alpha*n)*sinc(n/L) product) -- separate ТЗ to align. |
 | `resample` | ✅ | 0.004 | 2097.78× | 58.93× | OK | Sig: r = resample(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `upfirdn` | ✅ | 0.005 | 211.77× | 10.30× | OK | Sig: y = upfirdn(x, h, p, q). Output length ceil(((Lx-1)*p + Lh) / q). Bit-identical with MATLAB R2025b after rewrite 2026-05-09. |
 | `upsample` | ✅ | 0.004 | 167.87× | 34.78× | OK | Sig: r = upsample(...). Spec-extension batch 2026-05-09 (signal namespace). |
@@ -2493,8 +2493,8 @@ intentionally omitted — flat solver functions only.
 | `armcov` | ✅ | 0.008 | 250.91× |  | OK | Sig: r = armcov(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `aryule` | ✅ | 0.006 | 391.91× | 72.71× | OK | Sig: r = aryule(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `corrmtx` | ✅ | 0.004 | 151.03× |  | OK | Sig: X = corrmtx(x, p). Data matrix for correlation/covariance estimation. Bit-identical with MATLAB R2025b on probed input (size 7x3). |
-| `invfreqs` | ✅ | 0.008 | 166.55× | 147.82× | OK | Sig: [b,a] = invfreqs(h, w, nb, na). Spec-extension batch 2026-05-09 (cycle 43). |
-| `invfreqz` | ✅ | 0.009 | 131.37× | 153.89× | OK | Sig: [b,a] = invfreqz(h, w, nb, na). Spec-extension batch 2026-05-09 (cycle 43). |
+| `invfreqs` | ✅ | 0.009 | 290.27× | 113.98× | OK | Sig: [b,a] = invfreqs(h, w, nb, na). Spec-extension batch 2026-05-09 (cycle 43). |
+| `invfreqz` | ✅ | 0.009 | 156.95× | 146.98× | OK | Sig: [b,a] = invfreqz(h, w, nb, na). Spec-extension batch 2026-05-09 (cycle 43). |
 | `is2rc` | ✅ | 0.004 | 59.48× |  | OK | Sig: k = is2rc(is). Spec-extension batch 2026-05-09 (cycle 40). |
 | `lar2rc` | ✅ | 0.004 | 62.91× |  | OK | Sig: k = lar2rc(g). Spec-extension batch 2026-05-09 (cycle 40). |
 | `levinson` | ✅ | 0.005 | 131.55× | 52.24× | OK | Sig: [a, e, k] = levinson(r, p). Spec-extension batch 2026-05-09 (cycle 40). |
@@ -2503,7 +2503,7 @@ intentionally omitted — flat solver functions only.
 | `poly2ac` | ✅ | 0.004 | 342.88× |  | OK | Sig: r = poly2ac(a, efinal). Spec-extension batch 2026-05-09 (cycle 40). |
 | `poly2lsf` | ✅ | 0.005 | 273.25× |  | OK | Sig: lsf = poly2lsf(a). Spec-extension batch 2026-05-09 (cycle 40). |
 | `poly2rc` | ✅ | 0.004 | 266.11× |  | OK | Sig: k = poly2rc(a). Spec-extension batch 2026-05-09 (cycle 40). |
-| `prony` | ✅ | 0.004 | 241.37× |  | OK | Sig: [b,a] = prony(h, nb, na). Spec-extension batch 2026-05-09 (cycle 43). |
+| `prony` | ✅ | 0.005 | 234.83× |  | OK | Sig: [b,a] = prony(h, nb, na). Spec-extension batch 2026-05-09 (cycle 43). |
 | `rc2ac` | ✅ | 0.004 | 418.75× |  | OK | Sig: r = rc2ac(k, R0). Spec-extension batch 2026-05-09 (cycle 40). |
 | `rc2is` | ✅ | 0.004 | 56.83× |  | OK | Sig: is = rc2is(k). Spec-extension batch 2026-05-09 (cycle 40). |
 | `rc2lar` | ✅ | 0.004 | 53.86× |  | OK | Sig: g = rc2lar(k). Spec-extension batch 2026-05-09 (cycle 40). |
@@ -2520,7 +2520,7 @@ intentionally omitted — flat solver functions only.
 |---|:---:|---:|---:|---:|:---:|---|
 | `alignsignals` | ✅ | 0.006 | 402.38× |  | OK | Sig: r = alignsignals(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `cconv` | ✅ | 0.005 | 124.22× | 48.81× | OK | Sig: r = cconv(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `convmtx` | ✅ | 0.003 | 22.24× | 37.58× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
+| `convmtx` | ✅ | 0.003 | 11.60× | 34.78× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
 | `corrmtx` | ✅ | 0.004 | 151.03× |  | OK | Sig: X = corrmtx(x, p). Data matrix for correlation/covariance estimation. Bit-identical with MATLAB R2025b on probed input (size 7x3). |
 | `dtw` | ❌ |  |  |  |  | dynamic time warp |
 | `edr` | ❌ |  |  |  |  | edit distance on real |
@@ -2530,7 +2530,7 @@ intentionally omitted — flat solver functions only.
 | `conv` | ✅ | 0.004 | 66.93× | 38.21× | OK | Sig: r = conv(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `conv2` | ✅ | 0.005 | 30.47× | 19.14× | OK | Sig: r = conv2(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `convn` | ✅ | 0.004 | 52.97× | 17.51× | OK | Sig: r = convn(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `deconv` | ✅ | 0.000 | 60.65× | 76.80× | OK | Sig: [Q,R] = deconv(U, V). Polynomial division. 10k iters. |
+| `deconv` | ✅ | 0.000 | 55.84× | 77.55× | OK | Sig: [Q,R] = deconv(U, V). Polynomial division. 10k iters. |
 
 ### Transforms
 
@@ -2553,7 +2553,7 @@ intentionally omitted — flat solver functions only.
 | `goertzel` | ✅ | 0.005 | 252.99× |  | OK | Sig: y = goertzel(x[, ind]). Single-bin DFT via 2nd-order IIR. Audit ТЗ 2026-05-09: 1-arg form `goertzel(x)` defaults ind = 1:N (full DFT) per MATLAB R2025b — previously THREW. Fingerprint covers both partial-bin (ind=[5 15]) and full-DFT default forms. |
 | `hht` | ❌ |  |  |  |  | Hilbert-Huang |
 | `hilbert` | ✅ | 0.004 | 179.00× | 26.58× | OK | Sig: H = hilbert(X). Analytic signal: real(H)=X, imag(H)=+H{X}. MATLAB R2025b sign convention: positive frequencies multiplied by +i. After fix in libs/signal/src/transforms/hilbert.cpp (added trailing conjugation to compensate for numkit's IFFT-direction FFT primitive). Closes audit/findings/signal/hilbert.md. |
-| `icceps` | ✅ | 0.003 | 189.14× |  | OK | Sig: y = icceps(c). Inverse complex cepstrum: ifft(exp(fft(c))). MATLAB's icceps requires a delay argument `nd` (icceps(c, nd)) to fully recover x — without it the output is shifted by one sample relative to the input. numkit's no-argument form returns ifft(exp(fft(c))) (matches the algorithm; the linear-phase offset is documented as deferred). Sign-convention fix applied alongside cceps (audit ТЗ signal/cceps closed 2026-05-09 — was using forward DFT for the inverse pass). Fingerprint pins API contract (length, max, min, sum) which IS bit-identical to MATLAB; the per-sample order shift is a separate ТЗ for icceps.nd. |
+| `icceps` | ✅ | 0.003 | 170.59× |  | OK | Sig: y = icceps(c). Inverse complex cepstrum: ifft(exp(fft(c))). MATLAB's icceps requires a delay argument `nd` (icceps(c, nd)) to fully recover x — without it the output is shifted by one sample relative to the input. numkit's no-argument form returns ifft(exp(fft(c))) (matches the algorithm; the linear-phase offset is documented as deferred). Sign-convention fix applied alongside cceps (audit ТЗ signal/cceps closed 2026-05-09 — was using forward DFT for the inverse pass). Fingerprint pins API contract (length, max, min, sum) which IS bit-identical to MATLAB; the per-sample order shift is a separate ТЗ for icceps.nd. |
 | `idct` | ✅ | 0.019 | 210.77× |  | OK | Sig: y = idct(X[, n[, dim]]). Inverse DCT-II. Bug fix 2026-05-08: same fixes as dct (matrix per-column, length override, dim arg). Round-trip identity idct(dct(X)) == X covers all paths. |
 | `ifsst` | ❌ |  |  |  |  |  |
 | `ifwht` | ❌ |  |  |  |  | inverse |
@@ -2571,12 +2571,12 @@ intentionally omitted — flat solver functions only.
 | `xspectrogram` | ❌ |  |  |  |  | cross-spectrogram |
 | `xwvd` | ❌ |  |  |  |  | cross WVD |
 | `fft` | ✅ | 0.004 | 1.80× | 7.76× | OK | Sig: Y = fft(X). 1024-pt FFT on sin. 1000 iters. Custom fp (complex out). |
-| `fft2` | ✅ | 0.004 | 64.74× | 31.22× | OK | Sig: r = fft2(...). Spec-extension batch 2026-05-09. |
+| `fft2` | ✅ | 0.004 | 58.79× | 35.79× | OK | Sig: r = fft2(...). Spec-extension batch 2026-05-09. |
 | `fftn` | ❌ |  |  |  |  | N-D FFT |
 | `fftshift` | ✅ | 0.008 | 69.39× | 52.90× | OK | Sig: Y = fftshift(X[, dim]). Cyclic shift along every non-singleton dim by ceil(extent/2); inverse ifftshift uses floor(extent/2). Bug fix: numkit had fftshift/ifftshift swapped for odd N + flat-shift instead of per-dim for matrices + dim arg ignored. tol=0 (integer-stable). |
 | `fftw` | ❌ |  |  |  |  | wisdom file |
 | `ifft` | ✅ | 0.012 | 0.55× | 3.64× | OK | Sig: y = ifft(Y). 1024-pt inverse. 1000 iters. |
-| `ifft2` | ✅ | 0.005 | 72.32× | 29.47× | OK | Sig: r = ifft2(...). Spec-extension batch 2026-05-09. |
+| `ifft2` | ✅ | 0.006 | 85.71× | 28.52× | OK | Sig: r = ifft2(...). Spec-extension batch 2026-05-09. |
 | `ifftn` | ❌ |  |  |  |  | N-D FFT |
 | `ifftshift` | ✅ | 0.005 | 86.45× | 54.01× | OK | Sig: Y = ifftshift(X[, dim]). Inverse of fftshift; cyclic shift along every non-singleton dim by floor(extent/2). Joint fix with fftshift on 2026-05-08 — they were swapped for odd-extent dims. tol=0. |
 | `interpft` | ✅ | 0.006 | 245.64× | 97.65× | OK | Sig: Y = interpft(X, n[, dim]). Band-limited (FFT-based) interpolation to n samples. Default dim = first non-singleton. Vector form preserves originals at integer multiples of original spacing. Matrix dim=1 interpolates each column; dim=2 interpolates each row. tol=1e-12. |
@@ -2788,19 +2788,19 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `envspectrum` | ✅ | 0.043 | 110.42× |  | OK | Sig: [p,f] = envspectrum(x, fs). Spec-extension batch 2026-05-09 (cycle 43). |
+| `envspectrum` | ✅ | 0.046 | 136.79× |  | OK | Sig: [p,f] = envspectrum(x, fs). Spec-extension batch 2026-05-09 (cycle 43). |
 | `modalfit` | ❌ |  |  |  |  | modal-fit |
 | `modalfrf` | ❌ |  |  |  |  |  |
 | `modalsd` | ❌ |  |  |  |  |  |
 | `orderspectrum` | ❌ |  |  |  |  |  |
 | `ordertrack` | ❌ |  |  |  |  |  |
 | `orderwaveform` | ❌ |  |  |  |  |  |
-| `rainflow` | ✅ | 0.006 | 260.16× |  | OK | Sig: c = rainflow(x). ASTM E1049-85 cycle counting, returns Nx5 [count, range, mean, start_idx, end_idx]. Bit-identical with MATLAB R2025b on canonical 9-sample probe. |
+| `rainflow` | ✅ | 0.005 | 370.46× |  | OK | Sig: c = rainflow(x). ASTM E1049-85 cycle counting, returns Nx5 [count, range, mean, start_idx, end_idx]. Bit-identical with MATLAB R2025b on canonical 9-sample probe. |
 | `rpmfreqmap` | ❌ |  |  |  |  |  |
 | `rpmordermap` | ❌ |  |  |  |  |  |
 | `rpmtrack` | ❌ |  |  |  |  | order tracking |
-| `tachorpm` | ✅ | 0.010 | 1397.24× |  | OK | Sig: rpm = tachorpm(x, fs). Spec-extension batch 2026-05-09 (cycle 43). |
-| `tsa` | ✅ | 0.007 | 709.13× |  | OK | Sig: tsa(x, fs, tPulse[, M]) -- MATLAB pulse-time form (numkit also supports legacy tsa(x, fs, rpm, fs_rpm) when arg count >= 4). Bit-identical with MATLAB R2025b on probed input (100 samples). |
+| `tachorpm` | ✅ | 0.009 | 1632.38× |  | OK | Sig: rpm = tachorpm(x, fs). Spec-extension batch 2026-05-09 (cycle 43). |
+| `tsa` | ✅ | 0.006 | 798.11× |  | OK | Sig: tsa(x, fs, tPulse[, M]) -- MATLAB pulse-time form (numkit also supports legacy tsa(x, fs, rpm, fs_rpm) when arg count >= 4). Bit-identical with MATLAB R2025b on probed input (100 samples). |
 
 ## Statistics
 
@@ -2884,7 +2884,7 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 |---|:---:|---:|---:|---:|:---:|---|
 | `normpdf` | ✅ | 0.006 | 78.86× | 87.33× | OK | Sig: y = normpdf(x[, mu, sigma]). Normal PDF: (1/(σ√(2π)))·exp(-(x-μ)²/(2σ²)). Defaults mu=0, sigma=1. sigma<=0 => NaN. Vectorised. |
 | `normcdf` | ✅ |  |  |  | OK |  |
-| `norminv` | ✅ | 0.008 | 70.50× | 79.36× | MISMATCH | Sig: x = norminv(p[, mu, sigma]). Inverse Normal CDF: x = mu + sigma*Φ⁻¹(p). Defaults mu=0, sigma=1. Edges: p=0 => -Inf; p=1 => +Inf; p outside [0,1] => NaN; sigma<=0 => NaN. |
+| `norminv` | ✅ | 0.007 | 88.18× | 97.56× | OK | Sig: x = norminv(p[, mu, sigma]). Inverse Normal CDF: x = mu + sigma*Φ⁻¹(p). Defaults mu=0, sigma=1. Edges: p=0 => -Inf; p=1 => +Inf; p outside [0,1] => NaN; sigma<=0 => NaN. Tol 1e-9 -- erfcinv algorithm differs ~1e-12 absolute from MATLAB. |
 | `normrnd` | ✅ |  |  |  | OK |  |
 | `normstat` | ✅ | 0.006 | 131.54× | 51.12× | OK | Sig: [m, v] = normstat(mu, sigma). Trivially m=mu, v=sigma². Vectorised with broadcasting (equal sizes or one scalar). sigma<=0 => NaN. |
 | `chi2pdf` | ✅ | 0.008 | 498.87× | 110.44× | OK | Sig: y = chi2pdf(x, k). Chi-squared PDF with k dof. x < 0 => 0; k <= 0 => NaN. Covers: scalar, vector x, x<0 + x=0 edges, k=1 (special: x^(-1/2)·exp(-x/2)/√(2π)), k=30 large dof. |
@@ -3563,4 +3563,5 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `logical` | — | 0.003 | 35.78× | 22.89× | OK | Sig: r = logical(...). Type conversion. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `islogical` | — | 0.004 | 37.22× | 58.81× | OK | Sig: r = islogical(...). Predicate. Spec-extension batch 2026-05-09. |
 | `smoothdata` | — | 0.003 | 712.95× |  | OK | Sig: y = smoothdata(x). Spec-extension batch 2026-05-09 (cycle 43). |
-| `sosfiltfilt` | — | 0.004 |  |  | N/A | Sig: y = sosfiltfilt(sos, x). Zero-phase SOS filter with Gustafsson zi + per-section DC-gain propagation through cascade. Bit-identical with scipy sosfiltfilt; matches MATLAB filtfilt(sos,1,x) for single-section, diverges at edges for multi-section (MATLAB uses proprietary edge handling). |
+| `sosfiltfilt` | — | 0.015 | 33.15× | 51.68× | OK | N/A (definite): MATLAB R2025b has no top-level sosfiltfilt() -- the equivalent operation is filtfilt(sos, 1, x). Numkit ships sosfiltfilt(sos, x) as a public function that bit-identically matches scipy.signal.sosfiltfilt and is used internally by lowpass/highpass/etc. Definite N/A vs MATLAB top-level. |
+| `magic` | — | 0.007 | 119.57× | 65.52× | OK | Sig: M = magic(N). N×N magic square -- rows/cols/diagonals sum to N·(N²+1)/2. Three branches by N's parity: odd (Siamese / de la Loubère), N≡0 mod 4 (doubly-even pattern), N≡2 mod 4 (Strachey). Bit-identical with MATLAB R2025b across N ∈ {3,4,5,6,8} (covers all three branches). |

@@ -2,9 +2,9 @@
   "name": "whos",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = 1;",
+  "expr": "a = 1; b = 2; whos; r1 = 1;",
   "iters": 1,
-  "tol": 1e-12,
+  "tol": 0,
   "fingerprint": ["r1"],
-  "comment": "DEFERRED — numkit's `whos` operates as command-form only (prints workspace) and does not return a struct array via `s = whos`. Placeholder spec; KNOWN GAP — see audit/closed/builtin/whos.md."
+  "comment": "Side-effect smoke test (no-throw command-form probe). whos command prints workspace summary to stdout; success = no exception. NOTE: numkit's `whos` is command-form only; functional `s = whos` returning struct is a known gap (see audit/closed/builtin/whos.md). evalc not available in numkit, so stdout content cannot be captured for content-level parity."
 }

@@ -67,6 +67,133 @@ Value eye(std::pmr::memory_resource *mr, size_t rows, size_t cols)
     return m;
 }
 
+namespace {
+
+// Siamese / de la Loubère method for odd N >= 3.
+// Fills positions [0..N²-1] starting at (0, N/2) and stepping
+// (-1, +1) mod N; on collision step (+1, 0) instead.
+void magicOdd(double *p, size_t N)
+{
+    size_t r = 0;
+    size_t c = N / 2;
+    for (size_t k = 1; k <= N * N; ++k) {
+        p[r * N + c] = static_cast<double>(k);
+        const size_t nr = (r == 0) ? (N - 1) : (r - 1);
+        const size_t nc = (c + 1) % N;
+        if (p[nr * N + nc] != 0.0) {
+            r = (r + 1) % N;          // collision: drop down
+        } else {
+            r = nr;
+            c = nc;
+        }
+    }
+}
+
+// Doubly-even (N ≡ 0 mod 4): start with the natural 1..N² fill and
+// swap each cell whose (i mod 4, j mod 4) is on either of the two
+// 4×4-block diagonals.
+void magicDoublyEven(double *p, size_t N)
+{
+    const size_t total = N * N;
+    for (size_t i = 0; i < N; ++i)
+        for (size_t j = 0; j < N; ++j) {
+            const size_t k = i * N + j + 1;       // 1-based natural fill
+            const size_t mi = i % 4;
+            const size_t mj = j % 4;
+            const bool diag = (mi == mj) || (mi + mj == 3);
+            p[i * N + j] = static_cast<double>(diag ? (total + 1 - k) : k);
+        }
+}
+
+// Singly-even (N ≡ 2 mod 4, N >= 6) via Strachey's method.
+// This mirrors MATLAB R2025b's magic.m verbatim:
+//   p = N/2;  K = (N-2)/4;
+//   M = [Q  Q+2p²; Q+3p²  Q+p²]   where Q = magic(p)
+//   For columns j in {0..K-1, N-K+1..N-1}:
+//     swap rows r ∈ {0..p-1} with rows r+p (column-by-column).
+//   Then for row mid = K (0-indexed = (p-1)/2):
+//     swap (mid, 0) ↔ (mid+p, 0)   -- undo the previous swap on this cell
+//     swap (mid, K) ↔ (mid+p, K)   -- and apply the strached swap instead
+void magicSinglyEven(double *p, size_t N)
+{
+    const size_t P = N / 2;          // odd
+    const size_t S = P * P;
+    const size_t K = (N - 2) / 4;    // num "full" left/right cols to swap
+
+    // Build one (P×P) odd-magic and tile into four quadrants.
+    std::vector<double> sq(P * P, 0.0);
+    magicOdd(sq.data(), P);
+
+    for (size_t i = 0; i < P; ++i) {
+        for (size_t j = 0; j < P; ++j) {
+            const double s = sq[i * P + j];
+            p[(i)     * N + (j)]     = s;                    // A (top-left)
+            p[(i)     * N + (j + P)] = s + 2.0 * S;          // C (top-right)
+            p[(i + P) * N + (j)]     = s + 3.0 * S;          // D (bottom-left)
+            p[(i + P) * N + (j + P)] = s + 1.0 * S;          // B (bottom-right)
+        }
+    }
+
+    // Bulk column swaps: leftmost K and rightmost K-1 columns get
+    // top-half / bottom-half rows swapped. (For N=6, K=1 → swap col 0
+    // only; right side has K-1=0 cols, none.)
+    auto swapRowsAtCol = [&](size_t col) {
+        for (size_t r = 0; r < P; ++r)
+            std::swap(p[r * N + col], p[(r + P) * N + col]);
+    };
+    for (size_t c = 0; c < K; ++c)
+        swapRowsAtCol(c);
+    for (size_t c = N - K + 1; c < N && K > 0; ++c)
+        swapRowsAtCol(c);
+
+    // Middle-row fix: for row mid = K (0-indexed), undo column-0 swap
+    // and apply column-K swap instead. (MATLAB: i=k+1, j=[1, i].)
+    const size_t mid = K;
+    if (mid < P) {
+        std::swap(p[mid * N + 0], p[(mid + P) * N + 0]);  // undo
+        std::swap(p[mid * N + K], p[(mid + P) * N + K]);  // apply
+    }
+}
+
+} // anonymous namespace
+
+Value magic(std::pmr::memory_resource *mr, size_t N)
+{
+    if (N == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    if (N == 1) {
+        auto m = Value::matrix(1, 1, ValueType::DOUBLE, mr);
+        m.doubleDataMut()[0] = 1.0;
+        return m;
+    }
+    if (N == 2) {
+        // MATLAB's magic(2) is conventional [1 3; 4 2] (not strictly magic).
+        auto m = Value::matrix(2, 2, ValueType::DOUBLE, mr);
+        double *p = m.doubleDataMut();
+        // column-major layout: column 0 = {1, 4}, column 1 = {3, 2}
+        p[0] = 1.0; p[1] = 4.0; p[2] = 3.0; p[3] = 2.0;
+        return m;
+    }
+
+    auto m = Value::matrix(N, N, ValueType::DOUBLE, mr);
+    // Build into a row-major scratch then transpose into column-major
+    // storage. Algorithms above are written in row-major for clarity.
+    std::vector<double> buf(N * N, 0.0);
+    if (N % 2 == 1) {
+        magicOdd(buf.data(), N);
+    } else if (N % 4 == 0) {
+        magicDoublyEven(buf.data(), N);
+    } else {
+        magicSinglyEven(buf.data(), N);
+    }
+    // Row-major buf[i*N + j] → column-major out[j*N + i]
+    double *out = m.doubleDataMut();
+    for (size_t i = 0; i < N; ++i)
+        for (size_t j = 0; j < N; ++j)
+            out[j * N + i] = buf[i * N + j];
+    return m;
+}
+
 // ── Shape queries ────────────────────────────────────────────────────
 Value size(std::pmr::memory_resource *mr, const Value &x)
 {
@@ -1761,6 +1888,18 @@ void eye_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     auto d = parseDimsArgs(args);
     outs[0] = eye(ctx.engine->resource(), d.rows, d.cols);
+}
+
+void magic_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("magic: requires exactly 1 argument",
+                     0, 0, "magic", "", "m:magic:nargin");
+    const double nd = args[0].toScalar();
+    if (nd < 0.0 || nd != std::floor(nd))
+        throw Error("magic: N must be a non-negative integer",
+                     0, 0, "magic", "", "m:magic:badN");
+    outs[0] = magic(ctx.engine->resource(), static_cast<size_t>(nd));
 }
 
 void size_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

@@ -2,11 +2,11 @@
   "name": "fileread",
   "namespace": "io",
   "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "fname = tempname; fid = fopen(fname, 'w'); fprintf(fid, 'abc'); fclose(fid); s = fileread(fname); delete(fname); r1 = double(strlength(s));",
+  "iters": 1,
+  "tol": 1e-12,
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: r = fileread(...). Spec-extension batch 2026-05-09. IO function \u2014 placeholder spec; full file-io tests deferred (would need testbed harness)."
+  "comment": "Side-effect smoke test (file I/O round-trip in single snippet via tempname). fileread returns full file content -- 3 chars."
 }
