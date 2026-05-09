@@ -2850,7 +2850,7 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `cholcov` | ❌ |  |  |  |  | Cholesky-of-cov, handles PSD |
+| `cholcov` | ❌ | 0.013 | 123.47× | 36.34× | OK | MATLAB cholcov: Cholesky-like factor of (possibly singular) covariance. Bit-equal with MATLAB R2025b on key invariants: PD case gives upper-triangular n×n (T'*T = SIGMA exactly), PSD rank-r case gives r×n (T'*T = SIGMA up to rounding), indefinite/negative gives empty T and p > 0. Eigvec sign/ordering can differ between engines so we pin invariants (residual + dimensions + p), not literal entries beyond the PD diagonal. Octave 11.1.0 doesn't ship cholcov in core (statistics package only); reports N/A. |
 | `corr` | ❌ | 0.004 | 334.37× | 20.62× | OK | Sig: c = corr(X). Pearson correlation matrix between columns of X (alias to corrcoef). Two-arg corr(X, Y) deferred. |
 | `corrcov` | ❌ | 0.007 | 245.07× |  | OK | MATLAB corrcov: R = C ./ sqrt(diag(C)*diag(C)'); sigma = sqrt(diag(C))'. Bit-equal with MATLAB R2025b on 3x3 covariance, identity, scalar, and negative-correlation 2x2 cases. Octave 11.1.0 doesn't ship corrcov in core (statistics package only); reports N/A. |
 | `crosstab` | ❌ |  |  |  |  | cross-tabulation |
