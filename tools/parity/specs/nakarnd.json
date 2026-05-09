@@ -1,0 +1,10 @@
+{
+  "name": "nakarnd",
+  "namespace": "stats",
+  "setup": "rng(0);",
+  "expr": "r = nakarnd(2, 1, 5); r1 = double(numel(r));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: r = nakarnd(mu, omega, sz). Spec-extension batch 2026-05-09 (cycle 41)."
+}

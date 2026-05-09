@@ -1,0 +1,10 @@
+{
+  "name": "clearvars",
+  "namespace": "builtin",
+  "setup": "x = 5; y = 6;",
+  "expr": "clearvars x; r1 = double(~exist('x', 'var') && exist('y', 'var') > 0);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: clearvars var. Spec-extension batch 2026-05-09 (cycle 41)."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "whos",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = 1;",
+  "iters": 1,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "DEFERRED — numkit's `whos` operates as command-form only (prints workspace) and does not return a struct array via `s = whos`. Placeholder spec; KNOWN GAP — see audit/closed/builtin/whos.md."
+}

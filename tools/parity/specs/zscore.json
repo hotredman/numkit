@@ -1,0 +1,10 @@
+{
+  "name": "zscore",
+  "namespace": "stats",
+  "setup": "x = [1 2 3 4 5];",
+  "expr": "z = zscore(x); r1 = double(abs(mean(z)) < 1e-9);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: z = zscore(x). Spec-extension batch 2026-05-09 (cycle 41)."
+}

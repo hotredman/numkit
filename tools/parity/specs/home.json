@@ -1,0 +1,10 @@
+{
+  "name": "home",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "home; r1 = 1;",
+  "iters": 1,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: home — move cursor home in command window. Spec-extension batch 2026-05-09 (cycle 41)."
+}

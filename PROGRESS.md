@@ -188,12 +188,12 @@ together.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `ans` | ✅ | 0.003 | 23.46× | 44.56× | OK | Sig: ans(...). Spec-extension batch 2026-05-09. |
-| `clc` | ✅ |  |  |  |  |  |
+| `clc` | ✅ | 0.016 | 35.14× | 8.02× | OK | Sig: clc — clear command window. Spec-extension batch 2026-05-09 (cycle 41). |
 | `commandhistory` | ❌ |  |  |  |  | IDE-only |
 | `commandwindow` | ❌ |  |  |  |  | IDE-only |
 | `diary` | ❌ |  |  |  |  | session log |
-| `format` | ✅ |  |  |  |  | output format (no-op stub) |
-| `home` | ✅ |  |  |  |  | terminal home |
+| `format` | ✅ | 0.018 | 25.10× | 40.29× | OK | Sig: format <style>. Display-only side effect. Spec-extension batch 2026-05-09 (cycle 41). |
+| `home` | ✅ | 0.017 | 31.91× | 32.31× | OK | Sig: home — move cursor home in command window. Spec-extension batch 2026-05-09 (cycle 41). |
 | `iskeyword` | ✅ | 0.004 | 59.26× | 3.28× | OK | Sig: r = iskeyword(...). Spec-extension batch 2026-05-09. |
 | `more` | ❌ |  |  |  |  | pager |
 
@@ -210,14 +210,14 @@ together.
 | `combinations` | ❌ |  |  |  |  | all combinations |
 | `ctranspose` | ✅ | 0.005 | 41.06× | 40.84× | OK | Sig: r = ctranspose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
 | `diag` | ✅ | 0.003 | 34.11× | 17.68× | OK | Sig: r = diag(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `end` | ✅ |  |  |  |  | keyword + `A(end)` indexing form |
+| `end` | ✅ | 0.002 | 47.45× | 3.75× | OK | Sig: end — last index in subscript context, also closes block constructs. Spec-extension batch 2026-05-09 (cycle 41). |
 | `eye` | ✅ | 0.005 | 32.19× | 31.67× | OK | Sig: r = eye(...). Spec-extension batch 2026-05-09. |
 | `false` | ✅ | 0.004 |  | 37.76× | OK | Sig: r = false(...). Spec-extension batch 2026-05-09. |
 | `flip` | ✅ | 0.004 | 32.87× | 51.94× | OK | Sig: r = flip(...). Shape op. Spec-extension batch 2026-05-09. |
 | `fliplr` | ✅ | 0.004 | 52.06× | 36.49× | OK | Sig: r = fliplr(...). Shape op. Spec-extension batch 2026-05-09. |
 | `flipud` | ✅ | 0.004 | 53.44× | 45.00× | OK | Sig: r = flipud(...). Shape op. Spec-extension batch 2026-05-09. |
 | `freqspace` | ✅ | 0.004 | 62.90× |  | OK | Sig: f = freqspace(N). KNOWN GAP: numkit returns shorter vector than MATLAB for freqspace(8) — different size convention. Only structural numel pinned. Documented as separate ТЗ. |
-| `head` | ✅ | 0.000 | 56.10× |  | OK | Sig: Y = head(X, K). First 100 elements. 10000 iters. |
+| `head` | ✅ | 0.000 | 42.71× |  | OK | Sig: Y = head(X, K). First 100 elements. 10000 iters. |
 | `horzcat` | ✅ | 0.005 | 30.63× | 38.53× | OK | Sig: r = horzcat(...). Shape op. Spec-extension batch 2026-05-09. |
 | `ind2sub` | ✅ | 0.004 | 86.97× | 35.68× | OK | Sig: r = ind2sub(...). Spec-extension batch 2026-05-09. |
 | `ipermute` | ✅ | 0.005 | 50.59× | 36.70× | OK | Sig: r = ipermute(...). Shape op. Spec-extension batch 2026-05-09. |
@@ -265,17 +265,17 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `break` | ✅ |  |  |  |  | keyword |
-| `continue` | ✅ |  |  |  |  | keyword |
-| `end` | ✅ |  |  |  |  | keyword + `A(end)` indexing form |
-| `for` | ✅ |  |  |  |  | keyword |
-| `if` | ✅ |  |  |  |  | keyword |
+| `break` | ✅ | 0.003 | 56.93× | 35.57× | OK | Sig: break — exits innermost for/while loop. Spec-extension batch 2026-05-09 (cycle 41). |
+| `continue` | ✅ | 0.003 | 43.99× | 67.22× | OK | Sig: continue — skips to next iteration of innermost loop. Spec-extension batch 2026-05-09 (cycle 41). |
+| `end` | ✅ | 0.002 | 47.45× | 3.75× | OK | Sig: end — last index in subscript context, also closes block constructs. Spec-extension batch 2026-05-09 (cycle 41). |
+| `for` | ✅ | 0.002 | 48.94× | 5.65× | OK | Sig: for var = expr, body, end. Spec-extension batch 2026-05-09 (cycle 41). |
+| `if` | ✅ | 0.003 | 32.70× | 25.51× | OK | Sig: if cond, body, [elseif cond, body,] [else body,] end. Spec-extension batch 2026-05-09 (cycle 41). |
 | `parfor` | ❌ |  |  |  |  | parallel — out of scope |
-| `pause` | ✅ | 0.000 | 744.48× | 32.63× | OK | Sig: pause(N). N=0 (no-op). 100k iters. |
-| `return` | ✅ |  |  |  |  | keyword |
-| `switch` | ✅ |  |  |  |  | keyword (`switch/case/otherwise`) |
-| `try` | ✅ |  |  |  |  | keyword (`try/catch`) |
-| `while` | ✅ |  |  |  |  | keyword |
+| `pause` | ✅ | 0.000 | 661.10× | 33.42× | OK | Sig: pause(N). N=0 (no-op). 100k iters. |
+| `return` | ✅ | 0.003 |  |  | N/A | Sig: return — exits current function (or script's top frame). Spec-extension batch 2026-05-09 (cycle 41). |
+| `switch` | ✅ | 0.003 | 31.06× | 52.04× | OK | Sig: switch expr, case val, body, [case {a,b}, body,] [otherwise body,] end. Spec-extension batch 2026-05-09 (cycle 41). |
+| `try` | ✅ | 0.008 | 29.04× | 8.43× | OK | Sig: try, body, catch [ME], body, end. Spec-extension batch 2026-05-09 (cycle 41). |
+| `while` | ✅ | 0.003 | 36.05× | 20.25× | OK | Sig: while cond, body, end. Spec-extension batch 2026-05-09 (cycle 41). |
 
 ### Numeric Types
 
@@ -485,7 +485,7 @@ together.
 | `groupfilter` | ❌ |  |  |  |  |  |
 | `groupsummary` | ❌ |  |  |  |  |  |
 | `grouptransform` | ❌ |  |  |  |  |  |
-| `head` | ✅ | 0.000 | 56.10× |  | OK | Sig: Y = head(X, K). First 100 elements. 10000 iters. |
+| `head` | ✅ | 0.000 | 42.71× |  | OK | Sig: Y = head(X, K). First 100 elements. 10000 iters. |
 | `height` | ❌ |  |  |  |  |  |
 | `inner2outer` | ❌ |  |  |  |  |  |
 | `innerjoin` | ❌ |  |  |  |  |  |
@@ -857,15 +857,15 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `clear` | ✅ |  |  |  |  |  |
-| `clearvars` | ✅ |  |  |  |  |  |
+| `clear` | ✅ | 0.004 | 82.49× | 53.35× | OK | Sig: clear var. Spec-extension batch 2026-05-09 (cycle 41). |
+| `clearvars` | ✅ | 0.004 | 260.16× | 88.10× | OK | Sig: clearvars var. Spec-extension batch 2026-05-09 (cycle 41). |
 | `disp` | ✅ | 0.003 | 34.27× | 58.28× | OK | Sig: disp(...). Spec-extension batch 2026-05-09. |
 | `formatteddisplaytext` | ✅ | 0.003 | 50.73× | 7.57× | OK | Sig: s = formattedDisplayText(x). KNOWN GAP: numkit does NOT implement formattedDisplayText (undefined function). Documented as separate ТЗ. |
-| `load` | ✅ |  |  |  |  |  |
+| `load` | ✅ |  |  |  | N/A | Sig: S = load(filename). Spec-extension batch 2026-05-09 (cycle 41). |
 | `openvar` | ❌ |  |  |  |  | IDE |
-| `save` | ✅ |  |  |  |  |  |
-| `who` | ✅ |  |  |  |  |  |
-| `whos` | ✅ |  |  |  |  |  |
+| `save` | ✅ | 0.275 | 45.16× | 5.04× | OK | Sig: save(filename, 'var'). Spec-extension batch 2026-05-09 (cycle 41). |
+| `who` | ✅ |  |  |  | N/A | Sig: names = who. Spec-extension batch 2026-05-09 (cycle 41). |
+| `whos` | ✅ |  |  |  | N/A | Sig: s = whos. Spec-extension batch 2026-05-09 (cycle 41). |
 | `workspacebrowser` | ❌ |  |  |  |  |  |
 
 ### Error Handling (basic)
@@ -878,7 +878,7 @@ together.
 | `error` | ✅ | 0.003 | 33.98× | 48.52× | OK | Sig: r = error(...). Spec-extension batch 2026-05-09. |
 | `lastwarn` | ✅ | 0.003 | 33.46× |  | OK | Sig: r = lastwarn(...). Spec-extension batch 2026-05-09. |
 | `oncleanup` | ❌ |  |  |  |  |  |
-| `try` | ✅ |  |  |  |  | keyword (`try/catch`) |
+| `try` | ✅ | 0.008 | 29.04× | 8.43× | OK | Sig: try, body, catch [ME], body, end. Spec-extension batch 2026-05-09 (cycle 41). |
 | `warning` | ✅ | 0.003 | 32.50× | 50.70× | OK | Sig: r = warning(...). Spec-extension batch 2026-05-09. |
 
 ### Exception Handling
@@ -888,7 +888,7 @@ together.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `mexception` | ✅ |  |  |  |  | MATLAB exception class — registered as `MException` |
-| `try` | ✅ |  |  |  |  | keyword (`try/catch`) |
+| `try` | ✅ | 0.008 | 29.04× | 8.43× | OK | Sig: try, body, catch [ME], body, end. Spec-extension batch 2026-05-09 (cycle 41). |
 
 ## Communications
 
@@ -2818,11 +2818,11 @@ intentionally omitted — flat solver functions only.
 | `iqr` | ✅ | 0.006 | 1020.04× | 242.82× | OK | Sig: r = iqr(A[, dim | 'all' | vecdim]). MATLAB R2025b uses midpoint (R2007a) interpolation: iqr = prctile(A, 75) - prctile(A, 25). Closes audit/findings/stats/iqr.md (joint with quantile + prctile). |
 | `kde` | ❌ |  |  |  |  |  |
 | `mape` | ✅ | 9.431 | 0.28× | 0.98× | OK | 1M-point MAPE. 50 iters. numkit needs `import compat.*`; MATLAB+Octave have it flat. |
-| `max` | ✅ | 1.462 | 0.04× | 0.54× | OK | Sig: M = max(X). 1M-pt. 100 iters. Scalar fp. |
+| `max` | ✅ | 1.429 | 0.04× | 0.54× | OK | Sig: M = max(X). 1M-pt. 100 iters. Scalar fp. |
 | `maxk` | ✅ | 77.386 | 0.01× |  | OK | Sig: B = maxk(X, K). Top 10 of 1M. 100 iters. |
-| `mean` | ✅ | 1.357 | 0.06× | 0.74× | OK | Sig: M = mean(X). 1M-pt sin reduction. 100 iters. Scalar fp. |
+| `mean` | ✅ | 1.334 | 0.05× | 0.74× | OK | Sig: M = mean(X). 1M-pt sin reduction. 100 iters. Scalar fp. |
 | `median` | ✅ | 3.330 | 1.47× | 2.30× | OK | Sig: M = median(X). 1M-pt full sort + middle. 50 iters. Scalar fp. |
-| `min` | ✅ | 1.435 | 0.03× | 0.55× | OK | Sig: M = min(X). 1M-pt. 100 iters. Scalar fp. |
+| `min` | ✅ | 1.450 | 0.04× | 0.53× | OK | Sig: M = min(X). 1M-pt. 100 iters. Scalar fp. |
 | `mink` | ✅ | 77.248 | 0.01× |  | OK | Sig: B = mink(X, K). Bot 10 of 1M. 100 iters. |
 | `mode` | ✅ | 18.749 | 0.48× | 2.75× | OK | Sig: M = mode(X). 1M-pt with ~7919 distinct vals. 50 iters. Scalar fp. |
 | `movmad` | ✅ | 0.008 | 22.17× | 727.46× | OK | Sig: movmad(A, k[, dim] [, nanflag] [, Name, Value]). Same surface as movmean. Closes audit/findings/stats/movmad.md. |
@@ -2836,7 +2836,7 @@ intentionally omitted — flat solver functions only.
 | `movvar` | ✅ | 0.010 | 15.90× | 273.40× | OK | Sig: movvar(A, k[, normFlag] [, dim] [, nanflag] [, Name, Value]). normFlag in {0 (default, N-1), 1 (N)}. Same nanflag/Endpoints surface as movmean. Closes audit/findings/stats/movvar.md. |
 | `prctile` | ✅ | 0.006 | 933.71× |  | OK | Sig: P = prctile(A, p [, dim | 'all' | vecdim] [, Method=method]). Same surface as quantile but p in [0, 100]. Closes audit/findings/stats/prctile.md. |
 | `quantile` | ✅ | 0.011 | 524.51× |  | OK | Sig: Q = quantile(A, p [, dim | 'all' | vecdim] [, Method=method]). Default = 'midpoint' (MATLAB R2025b R2007a algorithm), positions (k-0.5)/N. Methods: midpoint (default) | inclusive (Type-7) | exclusive (Type-6) | approximate (falls back to midpoint). Integer-n form (quantile(A, n) for evenly-spaced quantiles) NOT yet supported — pass an explicit p vector. Closes audit/findings/stats/quantile.md. |
-| `rms` | ✅ | 2.673 | 0.50× | 0.17× | OK | Sig: R = rms(X). 1M-pt sin RMS. 100 iters. Scalar fp. |
+| `rms` | ✅ | 2.730 | 0.49× | 0.16× | OK | Sig: R = rms(X). 1M-pt sin RMS. 100 iters. Scalar fp. |
 | `rmse` | ✅ | 8.994 | 0.26× | 2.19× | OK | Sig: R = rmse(F, A). 1M-pt. 100 iters. |
 | `std` | ✅ | 0.008 | 256.96× | 81.61× | OK | Sig: S = std(A[, w | W][, dim | 'all' | vecdim][, nanflag]). Same surface as var. Closes audit/findings/stats/std.md. |
 | `summary` | ❌ |  |  |  |  |  |
@@ -2869,7 +2869,7 @@ intentionally omitted — flat solver functions only.
 | `tabulate` | ❌ |  |  |  |  | frequency table |
 | `tiedrank` | ❌ |  |  |  |  | ranks with tie correction |
 | `trimmean` | ❌ |  |  |  |  | trimmed mean |
-| `zscore` | ✅ |  |  |  | OK | alias for normalize(A,'zscore'); per-column on matrices |
+| `zscore` | ✅ | 0.004 | 238.18× | 99.15× | OK | Sig: z = zscore(x). Spec-extension batch 2026-05-09 (cycle 41). |
 | `nancov` | ❌ |  |  |  |  | NaN-aware covariance |
 | `nansum` | ❌ |  |  |  |  | (legacy alias of stats.nan.nansum) |
 | `nanmean` | ❌ |  |  |  |  | (legacy alias) |
@@ -2960,7 +2960,7 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `nbinpdf` | ✅ | 0.004 | 219.08× | 119.61× | OK | Sig: r = nbinpdf(...). Spec-extension batch 2026-05-09.  |
 | `nbincdf` | ✅ | 0.005 | 344.58× | 163.86× | OK | Sig: p = nbincdf(k, r, p[, 'upper']). Negative binomial: number of failures before r-th success. F(k; r, p) = I_p(r, k+1). 'upper' returns 1 - F(k). |
 | `nbininv` | ✅ | 0.003 | 227.80× | 198.20× | OK | Sig: r = nbininv(...). Spec-extension batch 2026-05-09.  |
-| `nbinrnd` | ✅ |  |  |  | OK | Gamma-Poisson mixture; supports real r |
+| `nbinrnd` | ✅ | 0.004 | 252.65× | 45.19× | OK | Sig: r = nbinrnd(R, P, sz). Spec-extension batch 2026-05-09 (cycle 41). |
 | `nbinstat` | ✅ | 0.004 | 417.08× | 11.34× | OK | Sig: r = nbinstat(...). Spec-extension batch 2026-05-09.  |
 | `hygepdf` | ✅ | 0.004 | 478.94× | 52.14× | OK | Sig: r = hygepdf(...). Spec-extension batch 2026-05-09.  |
 | `hygecdf` | ✅ | 0.008 | 603.90× | 261.70× | OK | Sig: p = hygecdf(k, M, K, N[, 'upper']). Hypergeometric CDF over k=0..N drawn from population M with K marked. 'upper' returns 1 - F(k). |
@@ -2985,13 +2985,13 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `nakapdf` | ✅ | 0.003 |  | 18.04× | OK | Sig: r = nakapdf(...). Spec-extension batch 2026-05-09.  |
 | `nakacdf` | ✅ | 0.004 |  | 128.84× | OK | Sig: p = nakacdf(x, mu, omega[, 'upper']). Nakagami-m CDF: F(x) = gammainc(mu·x²/omega, mu). 'upper' returns 1 - F(x). |
 | `nakainv` | ✅ | 0.003 |  | 168.99× | OK | Sig: r = nakainv(...). Spec-extension batch 2026-05-09.  |
-| `nakarnd` | ✅ |  |  |  |  |  |
+| `nakarnd` | ✅ | 0.004 |  | 38.09× | OK | Sig: r = nakarnd(mu, omega, sz). Spec-extension batch 2026-05-09 (cycle 41). |
 | `nakastat` | ✅ | 0.004 |  | 30.27× | OK | Sig: r = nakastat(...). Spec-extension batch 2026-05-09.  |
-| `ricepdf` | ✅ | 0.004 |  | 67.79× | OK | Sig: y = ricepdf(x, s, sigma). Rice PDF (x/σ²)·exp(−(x²+s²)/(2σ²))·I_0(x·s/σ²). Octave stats package has direct names; MATLAB exposes via pdf('Rician', ...). |
+| `ricepdf` | ✅ | 0.003 |  | 72.78× | OK | Sig: y = ricepdf(x, s, sigma). Rice PDF (x/σ²)·exp(−(x²+s²)/(2σ²))·I_0(x·s/σ²). Octave stats package has direct names; MATLAB exposes via pdf('Rician', ...). |
 | `ricecdf` | ✅ | 1.142 |  | 1.13× | OK | Sig: p = ricecdf(x, s, sigma[, 'upper']). Rice CDF via Marcum Q: F(x) = 1 - Q1(s/sigma, x/sigma). 'upper' returns 1 - F(x) = Q1(s/sigma, x/sigma). MATLAB R2025b does NOT ship a top-level ricecdf — only makedist('Rician')+cdf — so reference comes from Octave's statistics package. Tolerance 1e-4 reflects an existing ~1e-5 numerical-accuracy gap between numkit's marcumq series and Octave's; this ТЗ closes the 'upper' flag only, the accuracy gap is tracked separately. |
-| `riceinv` | ✅ |  |  |  |  |  |
-| `ricernd` | ✅ |  |  |  |  |  |
-| `ricestat` | ✅ | 0.010 |  | 50.55× | OK | Sig: [m, v] = ricestat(s, sigma). Rician (Rice). s=0 reduces to Rayleigh: m = sigma·sqrt(π/2), v = sigma²·(2 - π/2). Vectorised. sigma<=0 / s<0 => NaN. MATLAB R2025b doesn't ship ricestat — Octave statistics package is the reference. |
+| `riceinv` | ✅ | 6.506 |  | 1.69× | OK | Sig: x = riceinv(p, s, sigma). Spec-extension batch 2026-05-09 (cycle 41). |
+| `ricernd` | ✅ | 0.004 |  | 100.46× | OK | Sig: r = ricernd(s, sigma, sz). Spec-extension batch 2026-05-09 (cycle 41). |
+| `ricestat` | ✅ | 0.009 |  | 58.02× | OK | Sig: [m, v] = ricestat(s, sigma). Rician (Rice). s=0 reduces to Rayleigh: m = sigma·sqrt(π/2), v = sigma²·(2 - π/2). Vectorised. sigma<=0 / s<0 => NaN. MATLAB R2025b doesn't ship ricestat — Octave statistics package is the reference. |
 | `ncfpdf` | ❌ |  |  |  |  | noncentral F |
 | `ncfcdf` | ❌ |  |  |  |  |  |
 | `ncfinv` | ❌ |  |  |  |  |  |
@@ -3137,7 +3137,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `cvpartition` | ❌ |  |  |  |  | partition object (function-form constructor) |
 | `datasample` | ✅ | 0.003 | 31.57× | 55.52× | OK | Sig: datasample(...). KNOWN GAP: datasample uses different RNG (rng cascade — see closed/builtin/rng.md). Documented as separate ТЗ. |
 | `jackknife` | ⚠️ |  |  |  | NYI | needs Engine::call for function handles |
-| `randsample` | ✅ |  |  |  | OK | uniform or weighted; with/without replacement |
+| `randsample` | ✅ | 0.004 | 179.34× | 42.34× | OK | Sig: y = randsample(n, k). Spec-extension batch 2026-05-09 (cycle 41). |
 
 ### Quasirandom Sequences and MCMC
 
@@ -3145,7 +3145,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `haltonset` | ✅ | 0.003 | 232.79× |  | OK | Sig: p = haltonset(d[, 'Skip', s, leap]); X = net(p, n). Halton quasi-random points via radical inverse. Default Skip=0 (origin first); MATLAB convention. |
+| `haltonset` | ✅ | 0.003 | 233.32× |  | OK | Sig: p = haltonset(d[, 'Skip', s, 'Leap', l]); X = net(p, n). Halton quasi-random points via radical inverse on the first d primes. Default skip = 1 (matches MATLAB; 'Skip', 0 yields the trivial origin). |
 | `lhsdesign` | ❌ |  |  |  |  | Latin hypercube |
 | `lhsnorm` | ❌ |  |  |  |  | Latin hypercube w/ normal |
 | `mhsample` | ❌ |  |  |  |  | Metropolis-Hastings |
@@ -3248,7 +3248,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `silhouette` | ✅ | 0.004 | 984.05× | 19497.99× | OK | Sig: s = silhouette(X, clust). Default metric sqEuclidean. 6 points, 2 well-separated clusters of 3. Element-wise SAVE; values near 0.99 indicating tight clusters with large inter-cluster gap. |
+| `silhouette` | ✅ | 0.004 | 1075.05× | 13309.79× | OK | Sig: s = silhouette(X, clust). Default metric sqEuclidean. 6 points, 2 well-separated clusters of 3. Element-wise SAVE; values near 0.99 indicating tight clusters with large inter-cluster gap. |
 | `evalclusters` | ❌ |  |  |  |  | CalinskiHarabasz / DaviesBouldin / gap / silhouette |
 | `manovacluster` | ❌ |  |  |  |  | dendrogram from MANOVA |
 
@@ -3260,8 +3260,8 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `knnsearch` | ✅ | 0.004 | 1326.60× | 219.61× | OK | Sig: [Idx, D] = knnsearch(X, Y, 'K', K). Brute-force k-nearest neighbour. 6-point X, 2-query Y, K=3, default Euclidean. Element-wise SAVE on idx (1-based row indices). |
-| `rangesearch` | ✅ | 0.005 | 991.24× | 123.10× | OK | Sig: [Idx, D] = rangesearch(X, Y, r). Cell-array output unwrapped to a numeric row in SAVE (idx = idxC{1}). All 3 points in cluster 1 are within r=1.0 of (1.5, 1.5). Explicit fingerprint avoids sum on the cell. |
+| `knnsearch` | ✅ | 0.004 | 1473.57× | 191.58× | OK | Sig: [Idx, D] = knnsearch(X, Y, 'K', K). Brute-force k-nearest neighbour. 6-point X, 2-query Y, K=3, default Euclidean. Element-wise SAVE on idx (1-based row indices). |
+| `rangesearch` | ✅ | 0.005 | 1028.11× | 124.37× | OK | Sig: [Idx, D] = rangesearch(X, Y, r). Cell-array output unwrapped to a numeric row in SAVE (idx = idxC{1}). All 3 points in cluster 1 are within r=1.0 of (1.5, 1.5). Explicit fingerprint avoids sum on the cell. |
 | `createns` | ❌ |  |  |  |  | tree constructor (returns struct, not class) |
 
 ### Hidden Markov Models

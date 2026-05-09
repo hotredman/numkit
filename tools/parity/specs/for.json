@@ -1,0 +1,10 @@
+{
+  "name": "for",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "s = 0; for k = 1:10, s = s+k; end; r1 = double(s);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: for var = expr, body, end. Spec-extension batch 2026-05-09 (cycle 41)."
+}
