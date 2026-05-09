@@ -34,6 +34,10 @@ void ssbmod_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void genqammod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void genqamdemod_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// modulation/apsk.cpp
+void apskmod_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void apskdemod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // channel/channel.cpp
 void awgn_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void wgn_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -122,6 +126,8 @@ void CommLibrary::install(Engine &engine)
 
     reg("mod", "genqammod",   &comm::detail::genqammod_reg);
     reg("mod", "genqamdemod", &comm::detail::genqamdemod_reg);
+    reg("mod", "apskmod",     &comm::detail::apskmod_reg);
+    reg("mod", "apskdemod",   &comm::detail::apskdemod_reg);
 
     reg("rf", "awgn",        &comm::detail::awgn_reg);
     reg("rf", "wgn",         &comm::detail::wgn_reg);

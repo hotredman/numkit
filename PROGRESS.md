@@ -910,7 +910,7 @@ intentionally omitted, along with `constellation` (object method) and
 | `pamdemod` | ✅ | 0.005 | 205.14× |  | OK | Sig: r = pamdemod(...). Spec-extension batch 2026-05-09. |
 | `qammod` | ✅ | 0.004 | 638.48× |  | OK | Sig: r = qammod(...). Spec-extension batch 2026-05-09. |
 | `qamdemod` | ✅ | 0.005 | 810.66× |  | OK | Sig: r = qamdemod(...). Spec-extension batch 2026-05-09. |
-| `apskmod` | ❌ |  |  |  |  | amplitude-phase-shift keying |
+| `apskmod` | ❌ | 0.011 | 509.97× |  | OK | MATLAB apskmod / apskdemod with explicit identity SymbolMapping (numkit's default). Engine-detecting shim handles MATLAB's name-value form vs numkit's positional 5th arg. Standard 16-APSK [4,12] [1, 2.7] forward+round-trip + nearest-neighbour demod under small noise. Bit-equal with MATLAB R2025b. Default 'gray' SymbolMapping deferred -- MATLAB's per-ring Gray for non-power-of-2 (M=12) needs more probing. Octave 11.1.0 doesn't ship apskmod in core; reports N/A. |
 | `apskdemod` | ❌ |  |  |  |  |  |
 | `mil188qammod` | ❌ |  |  |  |  | MIL-STD-188 QAM |
 | `mil188qamdemod` | ❌ |  |  |  |  |  |
