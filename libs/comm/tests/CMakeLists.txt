@@ -18,4 +18,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/huffman_codec_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dpcm_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/quantiz_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lloyds_test.cpp
 )
