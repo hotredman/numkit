@@ -83,6 +83,25 @@ Value hadamard(std::pmr::memory_resource *mr, size_t n);
 /// MATLAB R2025b's gallery / rosser).
 Value rosser(std::pmr::memory_resource *mr);
 
+/// Matrix inverse via LU. inv(A) ≡ A \ eye(n) -- prefer mldivide /
+/// linsolve / `\` for solving A·x = b; inv exists for the cases where
+/// the inverse itself is needed as a matrix.
+/// @throws Error if A is non-square or singular.
+Value inv(std::pmr::memory_resource *mr, const Value &A);
+
+/// Solve A·X = B via LU (square A) or Householder QR (tall A,
+/// least-squares). Wrapper over the same la_solve backend that powers
+/// MATLAB's mldivide / `\`. The optional 3rd argument `opts` is
+/// accepted for MATLAB-compatibility but ignored in this revision
+/// (LU/QR auto-detection handles the same cases).
+/// @throws Error on singular / rank-deficient / wide A.
+Value linsolve(std::pmr::memory_resource *mr, const Value &A, const Value &B);
+
+/// Page-wise inverse of a 3D array A (m×n×p). Each m×n page is
+/// independently inverted via LU. Output shape matches input.
+/// @throws Error if any page is non-square or singular.
+Value pageinv(std::pmr::memory_resource *mr, const Value &A);
+
 // ── Shape queries ────────────────────────────────────────────────────
 /// size(x) returns a row vector of dimensions.
 /// @param asVector  when true, returns [rows, cols] or [rows, cols, pages].

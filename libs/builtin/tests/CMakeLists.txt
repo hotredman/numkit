@@ -67,4 +67,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/magic_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testmatrices_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testmatrices2_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/inv_linsolve_test.cpp
 )
