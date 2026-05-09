@@ -2,11 +2,11 @@
   "name": "frewind",
   "namespace": "io",
   "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "fname = tempname; fid = fopen(fname, 'w'); fwrite(fid, [1 2 3]); fclose(fid); fid = fopen(fname, 'r'); fread(fid, 1); frewind(fid); pos = ftell(fid); fclose(fid); delete(fname); r1 = double(pos);",
+  "iters": 1,
+  "tol": 1e-12,
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: r = frewind(...). Spec-extension batch 2026-05-09. IO function \u2014 placeholder spec; full file-io tests deferred (would need testbed harness)."
+  "comment": "Side-effect smoke test (file I/O round-trip via tempname). frewind resets position to 0."
 }
