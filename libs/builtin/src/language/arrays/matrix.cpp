@@ -157,6 +157,82 @@ void magicSinglyEven(double *p, size_t N)
 
 } // anonymous namespace
 
+// ── Toeplitz / Hankel / Vandermonde / Companion ─────────────────────
+
+Value toeplitz(std::pmr::memory_resource *mr,
+               const double *c, std::size_t m,
+               const double *r, std::size_t n)
+{
+    if (m == 0 || n == 0)
+        return Value::matrix(m, n, ValueType::DOUBLE, mr);
+    auto M = Value::matrix(m, n, ValueType::DOUBLE, mr);
+    // T[i, j] = c[i-j]  (i >= j)
+    //        = r[j-i]  (i <  j)
+    // MATLAB silently overrides r[0] with c[0] when both are given;
+    // caller's r[0] is ignored.
+    for (size_t j = 0; j < n; ++j)
+        for (size_t i = 0; i < m; ++i)
+            M.elem(i, j) = (i >= j) ? c[i - j] : r[j - i];
+    return M;
+}
+
+Value hankel(std::pmr::memory_resource *mr,
+             const double *c, std::size_t m,
+             const double *r, std::size_t n)
+{
+    if (m == 0 || n == 0)
+        return Value::matrix(m, n, ValueType::DOUBLE, mr);
+    auto M = Value::matrix(m, n, ValueType::DOUBLE, mr);
+    // H[i, j] = c[i + j]                       if i + j <  m
+    //         = r[i + j - m + 1]               otherwise
+    // (i, j 0-indexed; r index also 0-indexed -- offset reflects the
+    // overlap cell c[m-1] == r[0] which MATLAB enforces by overriding
+    // r[0]).
+    for (size_t j = 0; j < n; ++j)
+        for (size_t i = 0; i < m; ++i) {
+            const size_t s = i + j;
+            M.elem(i, j) = (s < m) ? c[s] : r[s - m + 1];
+        }
+    return M;
+}
+
+Value vander(std::pmr::memory_resource *mr, const double *v, std::size_t n)
+{
+    if (n == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    auto M = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    // V[i, j] = v[i] ^ (n - 1 - j) -- highest power on the LEFT.
+    // Build per-row to keep the powers in a single multiply.
+    for (size_t i = 0; i < n; ++i) {
+        const double x = v[i];
+        // Last column = v^0 = 1; walk right→left multiplying by x.
+        M.elem(i, n - 1) = 1.0;
+        for (size_t k = 1; k < n; ++k)
+            M.elem(i, n - 1 - k) = M.elem(i, n - k) * x;
+    }
+    return M;
+}
+
+Value compan(std::pmr::memory_resource *mr, const double *p, std::size_t pn)
+{
+    if (pn < 2)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    if (p[0] == 0.0)
+        throw Error("compan: leading coefficient must be non-zero",
+                    0, 0, "compan", "", "m:compan:zeroLead");
+
+    const std::size_t n = pn - 1;
+    auto M = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    const double inv = 1.0 / p[0];
+    // Top row: -p[1]/p[0], -p[2]/p[0], ..., -p[n]/p[0]
+    for (std::size_t j = 0; j < n; ++j)
+        M.elem(0, j) = -p[j + 1] * inv;
+    // Subdiagonal: ones at (i, i-1) for i = 1..n-1
+    for (std::size_t i = 1; i < n; ++i)
+        M.elem(i, i - 1) = 1.0;
+    return M;
+}
+
 Value magic(std::pmr::memory_resource *mr, size_t N)
 {
     if (N == 0)
@@ -1900,6 +1976,83 @@ void magic_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
         throw Error("magic: N must be a non-negative integer",
                      0, 0, "magic", "", "m:magic:badN");
     outs[0] = magic(ctx.engine->resource(), static_cast<size_t>(nd));
+}
+
+namespace {
+
+// Collect a row/column vector of doubles in linear element order via
+// elemAsDouble. Used by toeplitz/hankel/vander/compan. Caller-owned
+// buffer to avoid an allocation hop through pmr::vector.
+void valueToDoubleVec(const Value &v, std::vector<double> &dst)
+{
+    const std::size_t n = v.numel();
+    dst.resize(n);
+    for (std::size_t i = 0; i < n; ++i) dst[i] = v.elemAsDouble(i);
+}
+
+} // anonymous namespace
+
+void toeplitz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 1 || args.size() > 2)
+        throw Error("toeplitz: requires 1 or 2 arguments",
+                    0, 0, "toeplitz", "", "m:toeplitz:nargin");
+    std::vector<double> cv, rv;
+    valueToDoubleVec(args[0], cv);
+    if (args.size() == 2) {
+        valueToDoubleVec(args[1], rv);
+    } else {
+        // Single-arg: r = c (real input). r[0] always overridden by c[0]
+        // in the implementation, so any difference is irrelevant.
+        rv = cv;
+    }
+    if (cv.empty() || rv.empty())
+        throw Error("toeplitz: inputs must be non-empty",
+                    0, 0, "toeplitz", "", "m:toeplitz:empty");
+    outs[0] = toeplitz(ctx.engine->resource(),
+                       cv.data(), cv.size(),
+                       rv.data(), rv.size());
+}
+
+void hankel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 1 || args.size() > 2)
+        throw Error("hankel: requires 1 or 2 arguments",
+                    0, 0, "hankel", "", "m:hankel:nargin");
+    std::vector<double> cv, rv;
+    valueToDoubleVec(args[0], cv);
+    if (args.size() == 2) {
+        valueToDoubleVec(args[1], rv);
+    } else {
+        // Single-arg: r is all zeros, length = numel(c) (anti-triangular Hankel).
+        rv.assign(cv.size(), 0.0);
+    }
+    if (cv.empty() || rv.empty())
+        throw Error("hankel: inputs must be non-empty",
+                    0, 0, "hankel", "", "m:hankel:empty");
+    outs[0] = hankel(ctx.engine->resource(),
+                     cv.data(), cv.size(),
+                     rv.data(), rv.size());
+}
+
+void vander_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("vander: requires exactly 1 argument",
+                    0, 0, "vander", "", "m:vander:nargin");
+    std::vector<double> v;
+    valueToDoubleVec(args[0], v);
+    outs[0] = vander(ctx.engine->resource(), v.data(), v.size());
+}
+
+void compan_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("compan: requires exactly 1 argument",
+                    0, 0, "compan", "", "m:compan:nargin");
+    std::vector<double> p;
+    valueToDoubleVec(args[0], p);
+    outs[0] = compan(ctx.engine->resource(), p.data(), p.size());
 }
 
 void size_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

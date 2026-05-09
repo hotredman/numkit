@@ -28,6 +28,32 @@ Value eye(std::pmr::memory_resource *mr, size_t rows, size_t cols);
 /// (not strictly magic; preserved for parity).
 Value magic(std::pmr::memory_resource *mr, size_t N);
 
+/// Toeplitz matrix from first column c (length m) and optional first
+/// row r (length n). T[i, j] = c[i-j] if i >= j else r[j-i].
+/// Single-arg form: r is taken as conj(c) (real input → r = c).
+/// MATLAB convention: if c[0] != r[0], r[0] is silently overridden by c[0].
+Value toeplitz(std::pmr::memory_resource *mr,
+               const double *c, std::size_t m,
+               const double *r, std::size_t n);
+
+/// Hankel matrix from first column c (length m) and optional last
+/// row r (length n). H[i, j] = c[i+j] for i+j < m, else r[i+j-m+1].
+/// Single-arg form: r is all zeros (anti-triangular Hankel).
+/// MATLAB convention: if c[end] != r[0], r[0] is silently overridden.
+Value hankel(std::pmr::memory_resource *mr,
+             const double *c, std::size_t m,
+             const double *r, std::size_t n);
+
+/// Vandermonde matrix V[i, j] = v[i]^(n-1-j) where n = numel(v).
+/// Returns n×n matrix; columns from highest to lowest power
+/// (matches MATLAB R2025b layout).
+Value vander(std::pmr::memory_resource *mr, const double *v, std::size_t n);
+
+/// Companion matrix of monic polynomial p (length n+1).
+/// Returns n×n matrix whose top row is [-p[1]/p[0], ..., -p[n]/p[0]]
+/// and whose subdiagonal is all ones (eigenvalues = roots of p).
+Value compan(std::pmr::memory_resource *mr, const double *p, std::size_t pn);
+
 // ── Shape queries ────────────────────────────────────────────────────
 /// size(x) returns a row vector of dimensions.
 /// @param asVector  when true, returns [rows, cols] or [rows, cols, pages].

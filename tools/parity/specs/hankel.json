@@ -1,0 +1,14 @@
+{
+  "name": "hankel",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "H1 = hankel([1 2 3 4]); H2 = hankel([1 2 3], [3 5 6 7]); H3 = hankel(1:6);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "H1(1,1)", "H1(2,3)", "H1(4,4)", "sum(H1(:))",
+    "H2(1,1)", "H2(3,4)", "sum(H2(:))",
+    "H3(1,6)", "H3(6,1)", "sum(diag(H3))"
+  ],
+  "comment": "Sig: H = hankel(c[, r]). Hankel (anti-Toeplitz) matrix from first column c and optional last row r. H[i,j] = c[i+j] for i+j<m else r[i+j-m+1]. Single-arg form: r is all zeros (anti-triangular). Bit-identical with MATLAB R2025b."
+}
