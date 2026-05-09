@@ -350,8 +350,17 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
   if (cfg.polar) {
     const series = datasets.map((d, i) => {
       const styleObj = typeof d.style === 'string' ? parseLineSpec(d.style) : (d.style || {});
+      // Polar mode: 'line' (default), 'scatter' (markers only),
+      // 'bar' (radial wedges from origin to rho). Driven by ds.type
+      // which the C++ side stamps as 'scatter' for polarscatter and
+      // 'bar' for polarhistogram.
+      let mode = 'line';
+      const t = (d.type || '').toLowerCase();
+      if (t === 'scatter') mode = 'scatter';
+      else if (t === 'bar') mode = 'bar';
       return {
         name: d.label || `series ${i + 1}`,
+        mode,
         theta: Array.isArray(d.x) ? d.x.map(Number) : [],
         rho:   Array.isArray(d.y) ? d.y.map(Number) : [],
         color: styleObj.color || d.color || KIND_PALETTE[i % KIND_PALETTE.length],
