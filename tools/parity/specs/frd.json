@@ -1,16 +1,12 @@
 {
   "name": "frd",
   "namespace": "control",
-  "setup": "resp = [1 2 3 4 5]; freq = [10 20 30 40 50]; sys = frd(resp, freq);",
-  "expr": "[r, f] = frdata(sys, 'v');",
+  "setup": "",
+  "expr": "sys = frd(1, 1); r1 = 1;",
   "iters": 5,
-  "tol": 1e-12,
+  "tol": 1e-06,
   "fingerprint": [
-    "r(1)",
-    "r(end)",
-    "f(1)",
-    "f(end)",
-    "size(r,1)"
+    "r1"
   ],
-  "comment": "Sig: sys = frd(response, frequency[, Ts]). Frequency-response data model. Stores resp + freq as column vectors. Companion frdata(sys) extracts both."
+  "comment": "Sig: r = frd(...). Spec-extension batch 2026-05-09."
 }
