@@ -19,10 +19,13 @@
 #include <array>
 #include <cctype>
 #include <cmath>
+#include <cstdio>
 #include <functional>
 #include <iostream>
 #include <limits>
 #include <sstream>
+#include <utility>
+#include <vector>
 
 namespace numkit {
 
@@ -768,6 +771,184 @@ void GraphicsLibrary::install(Engine &engine)
                         nargout, outs, ctx);
         });
 
+    // ── Contour — marching squares over Z(R, C) ────────────────────────
+    // contour(Z) / contour(Z, n) / contour(Z, levels)
+    // contour(X, Y, Z[, n|levels])
+    // We don't reuse the imagesc heatmap path — contour produces 1-D
+    // line layers instead of a 2-D raster. Each level becomes its own
+    // DatasetInfo with type='line' and an inline color (HSL→RGB ramp
+    // through the z-extent), with NaN separators between segments so
+    // the existing line renderer can draw them as one path.
+    auto contourImpl = [](Span<const Value> args, size_t nargout,
+                          Span<Value> outs, CallContext &ctx) {
+        (void)nargout;
+        auto &fm = ctx.engine->figureManager();
+        fm.prepareForPlot();
+
+        const Value *Z_arg = nullptr;
+        const Value *X_arg = nullptr;
+        const Value *Y_arg = nullptr;
+        const Value *levels_arg = nullptr;
+        if (args.size() == 1) {
+            Z_arg = &args[0];
+        } else if (args.size() == 2) {
+            Z_arg = &args[0];
+            levels_arg = &args[1];
+        } else if (args.size() == 3) {
+            X_arg = &args[0]; Y_arg = &args[1]; Z_arg = &args[2];
+        } else if (args.size() >= 4) {
+            X_arg = &args[0]; Y_arg = &args[1]; Z_arg = &args[2];
+            levels_arg = &args[3];
+        }
+        if (!Z_arg) { outs[0] = Value::empty(); return; }
+
+        const size_t R = Z_arg->dims().rows();
+        const size_t C = Z_arg->dims().cols();
+        if (R < 2 || C < 2) { outs[0] = Value::empty(); return; }
+
+        const auto Zat = [&](size_t r, size_t c) {
+            return Z_arg->doubleData()[c * R + r];   // column-major
+        };
+
+        std::vector<double> Xs(C), Ys(R);
+        if (X_arg && Y_arg && X_arg->numel() >= C && Y_arg->numel() >= R) {
+            for (size_t c = 0; c < C; ++c) Xs[c] = X_arg->doubleData()[c];
+            for (size_t r = 0; r < R; ++r) Ys[r] = Y_arg->doubleData()[r];
+        } else {
+            for (size_t c = 0; c < C; ++c) Xs[c] = (double)(c + 1);
+            for (size_t r = 0; r < R; ++r) Ys[r] = (double)(r + 1);
+        }
+
+        double zmn = std::numeric_limits<double>::infinity();
+        double zmx = -std::numeric_limits<double>::infinity();
+        for (size_t i = 0; i < R * C; ++i) {
+            const double v = Z_arg->doubleData()[i];
+            if (std::isfinite(v)) {
+                if (v < zmn) zmn = v;
+                if (v > zmx) zmx = v;
+            }
+        }
+
+        std::vector<double> levels;
+        int n = 10;
+        if (levels_arg) {
+            if (levels_arg->numel() == 1) {
+                n = (int)levels_arg->toScalar();
+                if (n < 1) n = 1;
+            } else {
+                const double *p = levels_arg->doubleData();
+                for (size_t i = 0; i < levels_arg->numel(); ++i)
+                    levels.push_back(p[i]);
+            }
+        }
+        if (levels.empty()) {
+            // Equally-spaced levels strictly inside (zmn, zmx) so the
+            // boundary cases (level == data) don't degenerate.
+            if (n == 1) {
+                levels.push_back((zmn + zmx) / 2.0);
+            } else {
+                const double step = (zmx - zmn) / (n + 1);
+                for (int i = 1; i <= n; ++i)
+                    levels.push_back(zmn + step * i);
+            }
+        }
+
+        const auto interp = [](double a, double b, double va, double vb, double L) {
+            if (std::abs(vb - va) < 1e-15) return a;
+            return a + (L - va) / (vb - va) * (b - a);
+        };
+
+        // HSL → RGB ramp helper: blue (240°) at zmn → red (0°) at zmx.
+        const auto colorForLevel = [&](double L) {
+            const double t = (zmx == zmn) ? 0.5 : (L - zmn) / (zmx - zmn);
+            const double Hd = (1.0 - std::clamp(t, 0.0, 1.0)) * 240.0;
+            const double Cr = 0.6;
+            const double H = Hd / 60.0;
+            const double Xc = Cr * (1.0 - std::abs(std::fmod(H, 2.0) - 1.0));
+            double r1 = 0, g1 = 0, b1 = 0;
+            if      (H < 1) { r1 = Cr; g1 = Xc; b1 = 0; }
+            else if (H < 2) { r1 = Xc; g1 = Cr; b1 = 0; }
+            else if (H < 3) { r1 = 0;  g1 = Cr; b1 = Xc; }
+            else if (H < 4) { r1 = 0;  g1 = Xc; b1 = Cr; }
+            else if (H < 5) { r1 = Xc; g1 = 0;  b1 = Cr; }
+            else            { r1 = Cr; g1 = 0;  b1 = Xc; }
+            const double m = 0.5 - Cr / 2.0;
+            const int R8 = (int)((r1 + m) * 255);
+            const int G8 = (int)((g1 + m) * 255);
+            const int B8 = (int)((b1 + m) * 255);
+            char buf[16];
+            std::snprintf(buf, sizeof buf, "color=#%02x%02x%02x", R8, G8, B8);
+            return std::string(buf);
+        };
+
+        // Marching squares per level. Each cell's 4-bit code (TL, TR, BR, BL)
+        // maps to 0/1/2 segments on the cell's edges.
+        struct Pt { double x, y; };
+        for (double L : levels) {
+            std::ostringstream xs, ys;
+            xs << '['; ys << '[';
+            bool first = true;
+            for (size_t r = 0; r + 1 < R; ++r) {
+                for (size_t c = 0; c + 1 < C; ++c) {
+                    const double v_tl = Zat(r,     c);
+                    const double v_tr = Zat(r,     c + 1);
+                    const double v_bl = Zat(r + 1, c);
+                    const double v_br = Zat(r + 1, c + 1);
+                    if (!std::isfinite(v_tl) || !std::isfinite(v_tr)
+                     || !std::isfinite(v_bl) || !std::isfinite(v_br)) continue;
+                    int code = 0;
+                    if (v_tl > L) code |= 1;
+                    if (v_tr > L) code |= 2;
+                    if (v_br > L) code |= 4;
+                    if (v_bl > L) code |= 8;
+                    if (code == 0 || code == 15) continue;
+
+                    const double xL = Xs[c], xR = Xs[c + 1];
+                    const double yT = Ys[r], yB = Ys[r + 1];
+                    const Pt T   = { interp(xL, xR, v_tl, v_tr, L), yT };
+                    const Pt Re  = { xR, interp(yT, yB, v_tr, v_br, L) };
+                    const Pt B   = { interp(xL, xR, v_bl, v_br, L), yB };
+                    const Pt Le  = { xL, interp(yT, yB, v_tl, v_bl, L) };
+
+                    std::array<std::pair<Pt, Pt>, 2> segs;
+                    int nseg = 0;
+                    switch (code) {
+                        case 1:  case 14: segs[nseg++] = { Le, T }; break;
+                        case 2:  case 13: segs[nseg++] = { T, Re }; break;
+                        case 3:  case 12: segs[nseg++] = { Le, Re }; break;
+                        case 4:  case 11: segs[nseg++] = { Re, B }; break;
+                        case 6:  case 9:  segs[nseg++] = { T, B }; break;
+                        case 7:  case 8:  segs[nseg++] = { Le, B }; break;
+                        case 5:  segs[nseg++] = { Le, T }; segs[nseg++] = { Re, B }; break;
+                        case 10: segs[nseg++] = { Le, B }; segs[nseg++] = { T, Re }; break;
+                    }
+                    for (int s = 0; s < nseg; ++s) {
+                        if (!first) { xs << ",null,"; ys << ",null,"; }
+                        first = false;
+                        xs << segs[s].first.x  << ',' << segs[s].second.x;
+                        ys << segs[s].first.y  << ',' << segs[s].second.y;
+                    }
+                }
+            }
+            xs << ']'; ys << ']';
+            if (first) continue;   // no segments at this level
+
+            DatasetInfo ds;
+            ds.type = "line";
+            ds.xJson = xs.str();
+            ds.yJson = ys.str();
+            ds.style = colorForLevel(L);
+            fm.pushDataset(std::move(ds));
+        }
+        fm.emitModified();
+        outs[0] = Value::empty();
+    };
+    reg("contour", "contour", contourImpl);
+    // contourf — same body for now (filled regions deferred). MATLAB
+    // users accept that we emit lines instead of filled bands; the
+    // shape of the data is preserved.
+    reg("contour", "contourf", contourImpl);
+
     // ── Polar — graphics.polar ───────────────────────────────────────
     reg("polar", "polarplot",
         [vecToJson, parsePlotArgs](Span<const Value> args, size_t nargout,
@@ -1429,8 +1610,6 @@ void GraphicsLibrary::install(Engine &engine)
     // scatter3 — real impl registered earlier via plot3Impl shared body.
     reg("surface", "surf", noop);
     reg("surface", "mesh", noop);
-    reg("contour", "contour", noop);
-    reg("contour", "contourf", noop);
     // pcolor — real implementation registered earlier in install()
     // (graphics.image.pcolor + compat.pcolor). The duplicate noop
     // here used to register `compat.pcolor` a second time, which the
