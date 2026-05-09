@@ -36,4 +36,14 @@ Value ammod(std::pmr::memory_resource *mr, const Value &x,
 Value fmmod(std::pmr::memory_resource *mr, const Value &x,
             double fc, double fs, double freqdev, double ini_phase);
 
+/// `y = ssbmod(x, Fc, Fs [, ini_phase [, 'upper']])` — single-
+/// sideband modulator.
+///   y = x·cos(2π·Fc·t + ini_phase)
+///       + sign·imag(hilbert(x))·sin(2π·Fc·t + ini_phase)
+/// where sign = +1 for the default lower sideband, −1 for upper.
+/// Row-vector input round-trips as a row vector. Bit-equal with
+/// MATLAB R2025b.
+Value ssbmod(std::pmr::memory_resource *mr, const Value &x,
+             double fc, double fs, double ini_phase, bool upper);
+
 } // namespace numkit::comm

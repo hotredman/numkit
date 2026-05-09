@@ -10,4 +10,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/pmmod_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ammod_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fmmod_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ssbmod_test.cpp
 )

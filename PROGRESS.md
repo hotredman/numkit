@@ -930,7 +930,7 @@ intentionally omitted, along with `constellation` (object method) and
 | `fmdemod` | ❌ |  |  |  |  |  |
 | `pmmod` | ❌ | 0.006 | 115.29× |  | OK | MATLAB pmmod: phase modulator y = cos(2π·Fc·t + phasedev·x + ini_phase). Covered: default (ini_phase=0) and explicit ini_phase forms, 100-sample column-vector input, sample points across the signal. Bit-equal with MATLAB R2025b. Octave 11.1.0 doesn't ship pmmod in core (it's in the communications package); reports N/A. |
 | `pmdemod` | ❌ |  |  |  |  |  |
-| `ssbmod` | ❌ |  |  |  |  | single-sideband |
+| `ssbmod` | ❌ | 0.022 | 64.32× |  | OK | MATLAB ssbmod: single-sideband modulator. y = x.*cos(2π·Fc·t + ini) ± imag(hilbert(x)).*sin(2π·Fc·t + ini); +sign for default lower sideband, -sign for 'upper'. Hilbert is FFT-based -> ~1e-10 ULP-level deviation from MATLAB. Octave 11.1.0 doesn't ship ssbmod in core (signal/communications package only); reports N/A. |
 | `ssbdemod` | ❌ |  |  |  |  |  |
 
 ### Sources, Sinks, and Signal Operations

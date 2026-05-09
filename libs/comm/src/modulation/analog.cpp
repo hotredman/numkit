@@ -11,9 +11,11 @@
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
+#include <numkit/signal/transforms/hilbert.hpp>
 
 #include <algorithm>
 #include <cmath>
+#include <string>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -196,6 +198,75 @@ Value fmmod(std::pmr::memory_resource *mr, const Value &x,
     return out;
 }
 
+// ── ssbmod ─────────────────────────────────────────────────────────
+// Per MATLAB R2025b's ssbmod.m:
+//   t = (0:1/Fs:(N-1)/Fs)'
+//   Lower sideband (default):
+//     y = x.*cos(2π·Fc·t + ini_phase)
+//       + imag(hilbert(x)).*sin(2π·Fc·t + ini_phase)
+//   Upper sideband ('upper'):
+//     y = x.*cos(2π·Fc·t + ini_phase)
+//       - imag(hilbert(x)).*sin(2π·Fc·t + ini_phase)
+//
+// Vector-orientation contract identical to pmmod / ammod / fmmod.
+Value ssbmod(std::pmr::memory_resource *mr, const Value &x,
+             double fc, double fs, double ini_phase, bool upper)
+{
+    if (!(fs > 0.0))
+        throw Error("ssbmod: Fs must be positive",
+                    0, 0, "ssbmod", "", "m:ssbmod:Fs");
+    if (!(fc > 0.0))
+        throw Error("ssbmod: Fc must be positive",
+                    0, 0, "ssbmod", "", "m:ssbmod:Fc");
+    if (fs <= 2.0 * fc)
+        throw Error("ssbmod: Fs must be > 2*Fc",
+                    0, 0, "ssbmod", "", "m:ssbmod:Fs2Fc");
+
+    const auto &d = x.dims();
+    size_t H = d.rows();
+    size_t W = d.cols();
+    const bool was_row = (H == 1 && W >= 1);
+    if (was_row) {
+        std::swap(H, W);
+    }
+
+    Value out = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *o = out.doubleDataMut();
+
+    const double twoPiFc = 2.0 * M_PI * fc;
+    const double inv_fs  = 1.0 / fs;
+    const double sign    = upper ? -1.0 : +1.0;
+
+    // hilbert is column-wise per MATLAB. Extract each column into a
+    // 1-D Value and call signal::hilbert on it.
+    for (size_t c = 0; c < W; ++c) {
+        // Build column vector for this c
+        Value col_in = Value::matrix(H, 1, ValueType::DOUBLE, mr);
+        double *cp = col_in.doubleDataMut();
+        for (size_t r = 0; r < H; ++r) {
+            cp[r] = was_row ? x.elemAsDouble(r)
+                            : x.elemAsDouble(c * H + r);
+        }
+        Value analytic = numkit::signal::hilbert(mr, col_in);
+        // analytic.complexData()[i].imag() is imag(hilbert(col_in))
+        const auto *cdat = analytic.complexData();
+        for (size_t r = 0; r < H; ++r) {
+            const double t  = static_cast<double>(r) * inv_fs;
+            const double xi = cp[r];
+            const double ang = twoPiFc * t + ini_phase;
+            o[c * H + r] = xi * std::cos(ang)
+                         + sign * cdat[r].imag() * std::sin(ang);
+        }
+    }
+
+    if (was_row) {
+        Value row = Value::matrix(1, H, ValueType::DOUBLE, mr);
+        std::copy(o, o + H, row.doubleDataMut());
+        return row;
+    }
+    return out;
+}
+
 namespace detail {
 
 void pmmod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -247,6 +318,34 @@ void fmmod_reg(Span<const Value> args, size_t /*nargout*/,
         ini_phase = args[4].toScalar();
     outs[0] = fmmod(ctx.engine->resource(), args[0], fc, fs, freqdev,
                     ini_phase);
+}
+
+void ssbmod_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("ssbmod: requires (x, Fc, Fs [, ini_phase [, 'upper']])",
+                    0, 0, "ssbmod", "", "m:ssbmod:nargin");
+    const double fc = args[1].toScalar();
+    const double fs = args[2].toScalar();
+    double ini_phase = 0.0;
+    if (args.size() >= 4 && !args[3].isEmpty())
+        ini_phase = args[3].toScalar();
+    bool upper = false;
+    if (args.size() >= 5 && !args[4].isEmpty()) {
+        if (!args[4].isChar() && !args[4].isString())
+            throw Error("ssbmod: method must be a string ('upper')",
+                        0, 0, "ssbmod", "", "m:ssbmod:InvStr");
+        std::string m = args[4].toString();
+        // Match MATLAB behaviour: any string containing 'up' selects USB.
+        for (auto &c : m) c = static_cast<char>(std::tolower(c));
+        upper = (m.find("up") != std::string::npos);
+        if (!upper && !m.empty())
+            throw Error("ssbmod: method must be 'upper'",
+                        0, 0, "ssbmod", "", "m:ssbmod:InvStr");
+    }
+    outs[0] = ssbmod(ctx.engine->resource(), args[0], fc, fs, ini_phase,
+                     upper);
 }
 
 } // namespace detail
