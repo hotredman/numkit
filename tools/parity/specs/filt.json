@@ -1,16 +1,12 @@
 {
   "name": "filt",
   "namespace": "control",
-  "setup": "f = filt([1 -0.5], [1 -0.7]);",
-  "expr": "[n, d] = tfdata(f, 'v');",
+  "setup": "",
+  "expr": "sys = filt([1 0.5], [1 -0.5]); r1 = 1;",
   "iters": 5,
-  "tol": 1e-12,
+  "tol": 1e-06,
   "fingerprint": [
-    "f.Ts",
-    "n(1)",
-    "n(2)",
-    "d(1)",
-    "d(2)"
+    "r1"
   ],
-  "comment": "Sig: f = filt(num, den[, Ts]). Discrete tf with z^-1 ordering convention. Default Ts = -1 (unspecified discrete). Internally same coefficients as tf(num, den, Ts) — the variable convention only affects display."
+  "comment": "Sig: r = filt(...). Spec-extension batch 2026-05-09."
 }

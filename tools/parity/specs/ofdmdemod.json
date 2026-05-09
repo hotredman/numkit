@@ -1,0 +1,12 @@
+{
+  "name": "ofdmdemod",
+  "namespace": "comm",
+  "setup": "",
+  "expr": "d = ones(64, 4); y = ofdmmod(d, 64, 16); x = ofdmdemod(y, 64, 16); r1 = double(numel(x));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = ofdmdemod(...). Spec-extension batch 2026-05-09."
+}

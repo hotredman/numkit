@@ -1,0 +1,12 @@
+{
+  "name": "ctrb",
+  "namespace": "control",
+  "setup": "",
+  "expr": "C = ctrb([1 0; 0 1], [1; 0]); r1 = double(numel(C));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = ctrb(...). Spec-extension batch 2026-05-09."
+}

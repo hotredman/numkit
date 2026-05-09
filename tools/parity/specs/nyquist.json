@@ -1,0 +1,12 @@
+{
+  "name": "nyquist",
+  "namespace": "control",
+  "setup": "",
+  "expr": "[re, im] = nyquist(tf(1, [1 1]), 1); r1 = double(numel(re));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = nyquist(...). Spec-extension batch 2026-05-09."
+}
