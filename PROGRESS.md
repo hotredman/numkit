@@ -2855,7 +2855,7 @@ intentionally omitted — flat solver functions only.
 | `corrcov` | ❌ | 0.007 | 245.07× |  | OK | MATLAB corrcov: R = C ./ sqrt(diag(C)*diag(C)'); sigma = sqrt(diag(C))'. Bit-equal with MATLAB R2025b on 3x3 covariance, identity, scalar, and negative-correlation 2x2 cases. Octave 11.1.0 doesn't ship corrcov in core (statistics package only); reports N/A. |
 | `crosstab` | ❌ | 0.008 | 464.53× |  | OK | MATLAB crosstab: contingency table with chi-square independence test. Bit-equal with MATLAB R2025b on table entries; chi2 and p match within tolerance (chi2cdf depends on incomplete-gamma which has small numerical drift between engines). Octave 11.1.0 doesn't ship crosstab in core (statistics package only); reports N/A. |
 | `geomean` | ❌ | 0.003 | 166.35× | 47.34× | OK | Sig: g = geomean(x[, dim]). (prod x)^(1/n) = exp(mean(log x)). |
-| `grpstats` | ❌ |  |  |  |  | group-wise statistics |
+| `grpstats` | ❌ | 0.009 | 605.33× |  | OK | MATLAB grpstats: per-group statistics. Bit-equal with MATLAB R2025b on default-mean, multi-fn cell-of-strings, sum, std, numel aggregators. Other aggregators (var, sem, min, max) supported in numkit. Cell-of-fn output ordering matches MATLAB's nargout indexing. Octave 11.1.0 doesn't ship grpstats in core (statistics package only); reports N/A. |
 | `harmmean` | ❌ | 0.004 | 136.45× | 29.78× | OK | Sig: h = harmmean(x[, dim]). n / sum(1./x). Requires positive x. |
 | `kurtosis` | ❌ |  |  |  |  | already partially via `stats.descriptive`; here MATLAB stats version |
 | `mad` | ❌ | 0.003 | 925.54× | 194.53× | OK | Sig: mad(x[, flag][, dim]). Mean (flag=0) or median (flag=1) absolute deviation. |
