@@ -46,4 +46,12 @@ Value fmmod(std::pmr::memory_resource *mr, const Value &x,
 Value ssbmod(std::pmr::memory_resource *mr, const Value &x,
              double fc, double fs, double ini_phase, bool upper);
 
+/// `y = mskmod(x, nSamp [, ini_phase])` — minimum-shift keying
+/// modulator (differential variant only). Output length is
+/// `numel(x) * nSamp`. Linear-phase ramp produces the
+/// continuous-phase MSK constellation on the unit circle.
+/// Non-differential variant deferred.
+Value mskmod(std::pmr::memory_resource *mr, const Value &x,
+             int nSamp, double ini_phase);
+
 } // namespace numkit::comm
