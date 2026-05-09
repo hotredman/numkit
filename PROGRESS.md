@@ -3017,7 +3017,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `mle` | ❌ |  |  |  |  | generic MLE for arbitrary pdf |
+| `mle` | ❌ | 0.005 | 3075.45× | 1385.37× | OK | Sig: mle(data[, 'distribution', name]). Closed-form MLE for normal (default) / exponential / poisson / lognormal. Bit-identical with MATLAB R2025b. Custom 'pdf'/'logpdf'/'nloglf' deferred. |
 | `mlecov` | ❌ |  |  |  |  | covariance of MLE estimates |
 | `betafit` | ❌ |  |  |  |  |  |
 | `betalike` | ✅ | 0.007 | 140.45× | 61.04× | OK | Sig: [nL, AVAR] = betalike([a b], x). NLL for Beta(a, b). AVAR is the 2×2 inverse of the BHHH (outer-product-of-gradients) Fisher info — MATLAB's betalike uses BHHH, not the Hessian (verified by direct probe). Edge: invalid params or x outside (0,1) => NaN. |
