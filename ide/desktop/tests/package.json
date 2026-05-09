@@ -1,0 +1,4 @@
+{
+  "type": "module",
+  "_comment": "Scope ESM resolution to the tests/ tree only. The parent desktop/ package.json stays CommonJS so main.js's require() calls keep working; this nested package.json tells Node to treat *.js files inside tests/ as ES modules. Playwright's transform pipeline picks up the type from here automatically."
+}

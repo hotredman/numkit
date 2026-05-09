@@ -1,0 +1,11 @@
+# Electron build outputs
+release/
+dist/
+
+# Test artefacts (Playwright)
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Local logs
+numkit-ide.log
