@@ -600,6 +600,11 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
       // view: [az, el] in degrees from the C++ view(az, el) call;
       // null = renderer's default (-37.5°, 30°).
       view: Array.isArray(cfg.view) && cfg.view.length === 2 ? cfg.view : null,
+      // 3-D lighting / material from the C++ side (empty → renderer
+      // default).
+      lighting: cfg.lighting || '',
+      material: cfg.material || '',
+      camlight: cfg.camlight || '',
       layers,
     };
   }

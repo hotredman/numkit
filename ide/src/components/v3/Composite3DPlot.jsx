@@ -186,6 +186,53 @@ function buildLineSegments(positions, color) {
 }
 
 /**
+ * Pick a Three.js material constructor based on figure.lighting and
+ * figure.material. Returns the material instance fully configured.
+ *   lighting='flat'    → MeshLambertMaterial + flatShading=true
+ *   lighting='gouraud' → MeshLambertMaterial (smooth, default)
+ *   lighting='phong'   → MeshPhongMaterial   (adds specular)
+ *   lighting='none'    → MeshBasicMaterial   (no shading at all)
+ *   material='shiny'   → high specular / shininess (phong only)
+ *   material='metal'   → mid specular, low ambient
+ *   material='dull'    → no specular
+ */
+function buildMaterial(figure, opts) {
+  const { vertexColors = true, color = 0xffffff,
+          opacity = 1, doubleSide = true, flatHint = false } = opts || {};
+  const lighting = figure.lighting || 'gouraud';
+  const matPreset = figure.material || '';
+  const transparent = opacity < 1;
+
+  if (lighting === 'none') {
+    return new THREE.MeshBasicMaterial({
+      vertexColors, color: vertexColors ? 0xffffff : color,
+      transparent, opacity,
+      side: doubleSide ? THREE.DoubleSide : THREE.FrontSide,
+    });
+  }
+  if (lighting === 'phong') {
+    let specular = 0x111111, shininess = 30;
+    if (matPreset === 'shiny')      { specular = 0x666666; shininess = 100; }
+    else if (matPreset === 'metal') { specular = 0x444444; shininess = 25; }
+    else if (matPreset === 'dull')  { specular = 0x000000; shininess = 1; }
+    return new THREE.MeshPhongMaterial({
+      vertexColors, color: vertexColors ? 0xffffff : color,
+      transparent, opacity,
+      side: doubleSide ? THREE.DoubleSide : THREE.FrontSide,
+      specular, shininess,
+      flatShading: flatHint,
+    });
+  }
+  // 'flat' or 'gouraud' (default) → Lambert
+  return new THREE.MeshLambertMaterial({
+    vertexColors, color: vertexColors ? 0xffffff : color,
+    transparent, opacity,
+    side: doubleSide ? THREE.DoubleSide : THREE.FrontSide,
+    flatShading: lighting === 'flat' || flatHint,
+  });
+}
+
+/**
  * Build a face-shaded surface mesh from a regular grid (Xs[Nc],
  * Ys[Nr], Z[Nr][Nc]). Each (i, j) cell becomes two triangles whose
  * vertices carry per-vertex colors sampled from a viridis-like ramp
@@ -196,7 +243,7 @@ function buildLineSegments(positions, color) {
  * a "hole" in the surface instead of stretching a triangle through
  * garbage.
  */
-function buildSurfaceMesh(grid, scl, bbox) {
+function buildSurfaceMesh(grid, scl, bbox, figure) {
   const Xs = grid.Xs, Ys = grid.Ys, Z = grid.Z;
   const Nc = Xs.length, Nr = Ys.length;
   if (Nc < 2 || Nr < 2) return null;
@@ -274,11 +321,7 @@ function buildSurfaceMesh(grid, scl, bbox) {
   geom.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
   geom.computeVertexNormals();
 
-  const mat = new THREE.MeshLambertMaterial({
-    vertexColors: true,
-    side: THREE.DoubleSide,
-    flatShading: false,
-  });
+  const mat = buildMaterial(figure || {}, { vertexColors: true });
   return new THREE.Mesh(geom, mat);
 }
 
@@ -288,7 +331,7 @@ function buildSurfaceMesh(grid, scl, bbox) {
  * indexed mesh — far cheaper than one BufferGeometry per bar. Per-
  * vertex colors driven by Z to match the colormap on surf.
  */
-function buildBars3D(grid, scl, bbox) {
+function buildBars3D(grid, scl, bbox, figure) {
   const Xs = grid.Xs, Ys = grid.Ys, Z = grid.Z;
   const Nc = Xs.length, Nr = Ys.length;
   if (Nc < 1 || Nr < 1) return null;
@@ -354,11 +397,7 @@ function buildBars3D(grid, scl, bbox) {
   geom.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(colors),    3));
   geom.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
   geom.computeVertexNormals();
-  const mat = new THREE.MeshLambertMaterial({
-    vertexColors: true,
-    side: THREE.DoubleSide,
-    flatShading: true,         // bars look better with flat per-face
-  });
+  const mat = buildMaterial(figure || {}, { vertexColors: true, flatHint: true });
   return new THREE.Mesh(geom, mat);
 }
 
@@ -367,7 +406,7 @@ function buildBars3D(grid, scl, bbox) {
  * polygon strip: top edge along Z(r, :), bottom along z=0, left/right
  * caps. Triangles in two strips per row.
  */
-function buildWaterfall(grid, scl, bbox) {
+function buildWaterfall(grid, scl, bbox, figure) {
   const Xs = grid.Xs, Ys = grid.Ys, Z = grid.Z;
   const Nc = Xs.length, Nr = Ys.length;
   if (Nc < 2 || Nr < 1) return null;
@@ -417,10 +456,7 @@ function buildWaterfall(grid, scl, bbox) {
   geom.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(colors),    3));
   geom.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
   geom.computeVertexNormals();
-  const mat = new THREE.MeshLambertMaterial({
-    vertexColors: true,
-    side: THREE.DoubleSide,
-  });
+  const mat = buildMaterial(figure || {}, { vertexColors: true });
   return new THREE.Mesh(geom, mat);
 }
 
@@ -430,7 +466,7 @@ function buildWaterfall(grid, scl, bbox) {
  * sub-polygon is triangulated as a fan from its first vertex.
  * Caller-provided color is applied uniformly.
  */
-function buildPolygon3D(layer, scl) {
+function buildPolygon3D(layer, scl, figure) {
   const xs = layer.xRaw, ys = layer.yRaw, zs = layer.z;
   const polys = [];
   let cur = [];
@@ -467,11 +503,10 @@ function buildPolygon3D(layer, scl) {
   geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
   geom.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
   geom.computeVertexNormals();
-  const mat = new THREE.MeshLambertMaterial({
+  const mat = buildMaterial(figure || {}, {
+    vertexColors: false,
     color: new THREE.Color(layer.color || '#9467bd'),
-    transparent: layer.fillOpacity < 1,
     opacity: Number.isFinite(layer.fillOpacity) ? layer.fillOpacity : 0.7,
-    side: THREE.DoubleSide,
   });
   return new THREE.Mesh(geom, mat);
 }
@@ -716,6 +751,12 @@ export default function Composite3DPlot({
     const key = new THREE.DirectionalLight(0xffffff, 0.85);
     key.position.set(2, 3, 4);
     scene.add(key);
+    // Optional camlight — repositioned per-frame based on the camera
+    // pose so it always lights the visible side. `null` means
+    // "no extra cam-attached light".
+    const camLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    camLight.visible = false;
+    scene.add(camLight);
 
     const controls = new OrbitControls(camera, canvas);
     controls.enableDamping = true;
@@ -733,8 +774,26 @@ export default function Composite3DPlot({
 
     let raf = 0;
     let frames = 0;
+    const tmpV = new THREE.Vector3();
     const tick = () => {
       controls.update();
+      // Reposition the camlight (if active) so it tracks the camera.
+      // headlight  → light at camera position, target world origin.
+      // left/right → offset to one side of the camera direction.
+      if (camLight.visible) {
+        const camPos = camera.position;
+        if (camLight.userData.pos === 'headlight') {
+          camLight.position.copy(camPos);
+        } else {
+          // Compute camera right vector for L/R offsets.
+          camera.getWorldDirection(tmpV);
+          const right = new THREE.Vector3().crossVectors(tmpV, camera.up).normalize();
+          const sign = camLight.userData.pos === 'left' ? -1 : 1;
+          camLight.position.copy(camPos).addScaledVector(right, sign * 1.2);
+        }
+        camLight.target.position.set(0, 0, 0);
+        camLight.target.updateMatrixWorld();
+      }
       renderer.render(scene, camera);
       css2d.render(scene, camera);
       frames++;
@@ -743,7 +802,7 @@ export default function Composite3DPlot({
     };
 
     ctxRef.current = { renderer, css2d, scene, camera, controls,
-                       layerGroup, axesGroup };
+                       layerGroup, axesGroup, camLight };
     raf = requestAnimationFrame(tick);
 
     canvas.setAttribute('data-numkit-3d', '1');
@@ -813,22 +872,22 @@ export default function Composite3DPlot({
     for (const ly of layers) {
       const mode = ly.mode || 'line';
       if (mode === 'surface' && ly.surfaceGrid) {
-        const mesh = buildSurfaceMesh(ly.surfaceGrid, scl, bbox);
+        const mesh = buildSurfaceMesh(ly.surfaceGrid, scl, bbox, figure);
         if (mesh) c.layerGroup.add(mesh);
         continue;
       }
       if (mode === 'bar3' && ly.surfaceGrid) {
-        const mesh = buildBars3D(ly.surfaceGrid, scl, bbox);
+        const mesh = buildBars3D(ly.surfaceGrid, scl, bbox, figure);
         if (mesh) c.layerGroup.add(mesh);
         continue;
       }
       if (mode === 'waterfall' && ly.surfaceGrid) {
-        const mesh = buildWaterfall(ly.surfaceGrid, scl, bbox);
+        const mesh = buildWaterfall(ly.surfaceGrid, scl, bbox, figure);
         if (mesh) c.layerGroup.add(mesh);
         continue;
       }
       if (mode === 'polygon3d') {
-        const mesh = buildPolygon3D(ly, scl);
+        const mesh = buildPolygon3D(ly, scl, figure);
         if (mesh) c.layerGroup.add(mesh);
         continue;
       }
@@ -848,6 +907,15 @@ export default function Composite3DPlot({
       c.camera.position.set(off.x, off.y, off.z);
       c.camera.lookAt(0, 0, 0);
       c.controls.update();
+    }
+
+    // Toggle the camlight per figure.camlight.
+    const camPos = figure.camlight || '';
+    if (camPos === 'left' || camPos === 'right' || camPos === 'headlight') {
+      c.camLight.visible = true;
+      c.camLight.userData.pos = camPos;
+    } else {
+      c.camLight.visible = false;
     }
   }, [figure, fontScale]);
 

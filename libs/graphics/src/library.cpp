@@ -3324,8 +3324,83 @@ void GraphicsLibrary::install(Engine &engine)
     // dropping the renderer into fallback mode.
     reg("line", "xline", noop);
     reg("line", "yline", noop);
-    reg("surface", "camlight", noop);
-    reg("surface", "lighting", noop);
+    // camlight(['left'|'right'|'headlight']) — adds a directional
+    // light positioned relative to the camera. Default: headlight
+    // (light from camera).
+    reg("surface", "camlight",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            auto &fm = ctx.engine->figureManager();
+            std::string pos = "headlight";
+            if (!args.empty() && args[0].isChar()) {
+                std::string s = args[0].toString();
+                for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+                if (s == "left" || s == "right" || s == "headlight") pos = s;
+            }
+            fm.currentAxes().camlightPos = pos;
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
+    // lighting('flat'|'gouraud'|'phong'|'none') — material shading
+    // model. Default 'gouraud' (smooth Lambert), 'flat' uses per-face
+    // normals, 'phong' adds specular highlights, 'none' removes
+    // shading entirely.
+    reg("surface", "lighting",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            auto &fm = ctx.engine->figureManager();
+            std::string m = "gouraud";
+            if (!args.empty() && args[0].isChar()) {
+                std::string s = args[0].toString();
+                for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+                if (s == "flat" || s == "gouraud" || s == "phong" || s == "none")
+                    m = s;
+            }
+            fm.currentAxes().lightingMode = m;
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
+    // material('shiny'|'metal'|'dull') — preset specular response
+    // (only meaningful with lighting='phong').
+    reg("surface", "material",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            auto &fm = ctx.engine->figureManager();
+            std::string m;
+            if (!args.empty() && args[0].isChar()) {
+                std::string s = args[0].toString();
+                for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+                if (s == "shiny" || s == "metal" || s == "dull") m = s;
+            }
+            fm.currentAxes().materialPreset = m;
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
+    // surfl(Z[, X, Y]) — surf + auto camlight + lighting gouraud.
+    // Implemented as a thin wrapper that calls compat.surf followed by
+    // setting camlightPos = 'headlight' and lightingMode = 'gouraud'
+    // on the resulting axes.
+    reg("surface", "surfl",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            const ExternalFunc *cf = ctx.engine->findExternal("surf", ctx.env);
+            if (!cf) { outs[0] = Value::empty(); return; }
+            std::array<Value, 1> outBuf;
+            (*cf)(args, 0, Span<Value>(outBuf.data(), 1), ctx);
+            auto &fm = ctx.engine->figureManager();
+            fm.currentAxes().camlightPos = "headlight";
+            fm.currentAxes().lightingMode = "gouraud";
+            fm.currentAxes().materialPreset = "shiny";
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
 }
 
 } // namespace numkit

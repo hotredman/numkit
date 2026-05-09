@@ -145,6 +145,15 @@ struct AxesState
     std::string zlabel;
     std::string zlimJson;
 
+    // 3-D lighting / material state. Empty strings = renderer default
+    // (gouraud + plain Lambert + 1 ambient + 1 directional key).
+    //   lightingMode: "flat" | "gouraud" | "phong" | "none"
+    //   materialPreset: "shiny" | "metal" | "dull" | ""
+    //   camlight: "left" | "right" | "headlight" | ""
+    std::string lightingMode;
+    std::string materialPreset;
+    std::string camlightPos;
+
     std::string thetaDir = "counterclockwise";
     std::string thetaZeroLocation = "right";
 
@@ -425,6 +434,12 @@ public:
                     os << ",\"zlabel\":\"" << jsonEscapeFig(ax.zlabel) << "\"";
                 if (!ax.zlimJson.empty())
                     os << ",\"zlim\":" << ax.zlimJson;
+                if (!ax.lightingMode.empty())
+                    os << ",\"lighting\":\"" << ax.lightingMode << "\"";
+                if (!ax.materialPreset.empty())
+                    os << ",\"material\":\"" << ax.materialPreset << "\"";
+                if (!ax.camlightPos.empty())
+                    os << ",\"camlight\":\"" << ax.camlightPos << "\"";
                 os << "}}";
             }
             os << "]}";
