@@ -22,8 +22,6 @@ benched input. Standard string/character function.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (lowercase alias added)
 - Closed date: 2026-05-09
-- Notes: Misc batch 2 (string-extras + special-fn + helpers, 20 funcs).
-  Bit-identical MATLAB R2025b on probed inputs. See misc2_batch_test.cpp.
-  KNOWN GAP: numkit does NOT implement extractafter (VM: undefined function). Documented as separate ТЗ.
+- Notes: Initial closure was DEFERRED with note 'undefined'. The function extractAfter (camelCase, MATLAB canonical) was already implemented in libs/builtin/src/language/strings/strings.cpp and registered. Fix: also register a lowercase alias 'extractafter' so both spellings work. Bit-identical with MATLAB R2025b on probed input.

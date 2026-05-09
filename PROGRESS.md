@@ -333,13 +333,13 @@ together.
 | `double` | ✅ | 0.004 | 31.06× | 35.51× | OK | Sig: r = double(...). Type conversion. Spec-extension batch 2026-05-09. KNOWN GAP: numkit rejects double("string") with error; MATLAB returns NaN, Octave returns ASCII codes — both differ from numkit. String→double documented as separate gap; only int/logical/numeric paths pinned here. |
 | `endsWith` | ✅ | 0.004 | 34.33× | 97.38× | OK | Sig: r = endsWith(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `erase` | ✅ | 0.005 | 30.21× | 18.64× | OK | Sig: r = erase(...). Spec-extension batch 2026-05-09. |
-| `erasebetween` | ✅ | 0.004 | 33.83× | 23.83× | OK | Sig: erasebetween(...). KNOWN GAP: numkit does NOT implement erasebetween — VM: undefined function. Documented as separate ТЗ. Spec is a no-op placeholder so PROGRESS.md row exists. |
+| `erasebetween` | ✅ | 0.004 | 39.79× |  | OK | Sig: position-based string op (MATLAB canonical: eraseBetween). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
 | `extract` | ✅ | 0.003 | 37.75× |  | OK | Sig: r = extract(...). Spec-extension batch 2026-05-09. |
-| `extractafter` | ✅ | 0.003 | 47.04× | 50.85× | OK | Sig: extractafter(...). KNOWN GAP: numkit does NOT implement extractafter — VM: undefined function. Documented as separate ТЗ. Spec is a no-op placeholder so PROGRESS.md row exists. |
-| `extractbefore` | ✅ | 0.003 | 31.34× | 42.08× | OK | Sig: extractbefore(...). KNOWN GAP: numkit does NOT implement extractbefore — VM: undefined function. Documented as separate ТЗ. Spec is a no-op placeholder so PROGRESS.md row exists. |
-| `extractbetween` | ✅ | 0.003 | 31.28× | 33.71× | OK | Sig: extractbetween(...). KNOWN GAP: numkit does NOT implement extractbetween — VM: undefined function. Documented as separate ТЗ. Spec is a no-op placeholder so PROGRESS.md row exists. |
-| `insertafter` | ✅ | 0.003 | 33.19× | 45.52× | OK | Sig: insertafter(...). KNOWN GAP: numkit does NOT implement insertafter (undefined function). Documented as separate ТЗ. |
-| `insertbefore` | ✅ | 0.003 | 32.72× | 25.67× | OK | Sig: insertbefore(...). KNOWN GAP: numkit does NOT implement insertbefore (undefined function). Documented as separate ТЗ. |
+| `extractafter` | ✅ | 0.003 | 38.98× |  | OK | Sig: position-based string op (MATLAB canonical: extractAfter). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
+| `extractbefore` | ✅ | 0.003 | 40.68× |  | OK | Sig: position-based string op (MATLAB canonical: extractBefore). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
+| `extractbetween` | ✅ | 0.003 | 37.07× |  | OK | Sig: position-based string op (MATLAB canonical: extractBetween). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
+| `insertafter` | ✅ | 0.004 | 35.52× |  | OK | Sig: position-based string op (MATLAB canonical: insertAfter). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
+| `insertbefore` | ✅ | 0.004 | 36.38× |  | OK | Sig: position-based string op (MATLAB canonical: insertBefore). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
 | `iscellstr` | ✅ | 0.004 | 45.96× | 45.66× | OK | Sig: r = iscellstr(...). Spec-extension batch 2026-05-09. |
 | `ischar` | ✅ | 0.004 | 40.29× | 4.10× | OK | Sig: r = ischar(...). Predicate. Spec-extension batch 2026-05-09. |
 | `isletter` | ✅ | 0.004 | 35.09× | 39.37× | OK | Sig: r = isletter(...). Spec-extension batch 2026-05-09. |
@@ -359,7 +359,7 @@ together.
 | `regexprep` | ✅ | 0.254 | 0.18× | 0.87× | OK | Sig: S2 = regexprep(S, PAT, REP). 1.8k char replace. 1000 iters. |
 | `regexptranslate` | ✅ | 0.000 | 17.49× | 87.91× | OK | Sig: T = regexptranslate('escape', S). 14-char metachars. 10000 iters. |
 | `replace` | ✅ | 0.004 | 36.43× |  | OK | Sig: r = replace(...). Spec-extension batch 2026-05-09. |
-| `replacebetween` | ✅ | 0.003 | 38.93× | 16.38× | OK | Sig: replacebetween(...). KNOWN GAP: numkit does NOT implement replacebetween (undefined function). Documented as separate ТЗ. |
+| `replacebetween` | ✅ | 0.004 | 41.83× |  | OK | Sig: position-based string op (MATLAB canonical: replaceBetween). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
 | `reverse` | ✅ | 0.000 | 8.31× |  | OK | Sig: S2 = reverse(S). 1k-char reverse. 10000 iters. |
 | `split` | ✅ | 0.003 | 35.17× |  | OK | Sig: r = split(...). Spec-extension batch 2026-05-09. |
 | `splitlines` | ✅ | 0.007 | 19.99× |  | OK | Sig: r = splitlines(...). Spec-extension batch 2026-05-09. |

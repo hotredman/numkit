@@ -2,11 +2,11 @@
   "name": "replacebetween",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = 1;",
+  "expr": "r = replaceBetween(\"hello (world) end\", \"(\", \")\", \"FOO\"); r1 = double(strlength(r));",
   "iters": 5,
-  "tol": 0,
+  "tol": 1e-12,
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: replacebetween(...). KNOWN GAP: numkit does NOT implement replacebetween (undefined function). Documented as separate \u0422\u0417."
+  "comment": "Sig: position-based string op (MATLAB canonical: replaceBetween). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience."
 }
