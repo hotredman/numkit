@@ -1,0 +1,10 @@
+{
+  "name": "ellip",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[b, a] = ellip(7, 0.1, 60, 0.3); r1 = double(numel(b) + numel(a));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: [b,a] = ellip(N, Rp, Rs, Wn[, type][, 's']). Cauer IIR design via ellipap + lp2X + bilinear. Bit-identical with MATLAB R2025b on probe."
+}

@@ -16,6 +16,7 @@
 #include <cmath>
 #include <complex>
 #include <cstring>
+#include <limits>
 #include <vector>
 
 #ifndef M_PI
@@ -111,6 +112,230 @@ cheb1ap(std::pmr::memory_resource *mr, int N, double Rp)
     return std::make_tuple(packComplexCol(mr, z),
                            packComplexCol(mr, p),
                            Value::scalar(k, mr));
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Elliptic (Cauer) prototype helpers — local scalar primitives so we
+// don't pull libs/builtin internals into libs/signal.
+// ════════════════════════════════════════════════════════════════════
+
+namespace ellip_detail {
+
+// Complete elliptic integral K(m) via arithmetic-geometric mean.
+// m is the parameter (m = k², 0 <= m <= 1).
+inline double ellipKm(double m)
+{
+    if (m >= 1.0) return std::numeric_limits<double>::infinity();
+    if (m <= 0.0) return M_PI / 2.0;
+    double a = 1.0;
+    double b = std::sqrt(1.0 - m);
+    for (int i = 0; i < 64; ++i) {
+        const double an = 0.5 * (a + b);
+        const double bn = std::sqrt(a * b);
+        if (std::abs(an - bn) < 1e-17 * an) { a = an; break; }
+        a = an; b = bn;
+    }
+    return M_PI / (2.0 * a);
+}
+
+// Jacobi sn/cn/dn at REAL u with REAL modulus k (m = k²).
+struct SnCnDn { double sn, cn, dn; };
+inline SnCnDn ellipjReal(double u, double k)
+{
+    const double m = k * k;
+    if (m == 0.0) return { std::sin(u), std::cos(u), 1.0 };
+    if (m == 1.0) {
+        const double t  = std::tanh(u);
+        const double s  = 1.0 / std::cosh(u);
+        return { t, s, s };
+    }
+    constexpr int kMax = 16;
+    double a[kMax + 1], c[kMax + 1];
+    a[0] = 1.0;
+    double b = std::sqrt(1.0 - m);
+    c[0] = std::sqrt(m);
+    int n = 0;
+    for (int i = 1; i <= kMax; ++i) {
+        const double an  = 0.5 * (a[i - 1] + b);
+        const double bn  = std::sqrt(a[i - 1] * b);
+        const double cn_ = 0.5 * (a[i - 1] - b);
+        a[i] = an;
+        c[i] = cn_;
+        b    = bn;
+        n    = i;
+        if (std::abs(cn_) < 1e-15 * std::abs(an)) break;
+    }
+    double phi = std::ldexp(a[n] * u, n);
+    for (int i = n; i >= 1; --i) {
+        phi = 0.5 * (phi + std::asin((c[i] / a[i]) * std::sin(phi)));
+    }
+    const double sn = std::sin(phi);
+    return { sn, std::cos(phi), std::sqrt(1.0 - m * sn * sn) };
+}
+
+// Inverse Jacobi sn at real argument: solve sn(u, k) = z for u in
+// absolute units (range [0, K(k)] for z in [0, 1]). Bisection -- robust
+// even when k is very close to 1 (where Newton diverges because sn
+// saturates at ±1 and cn*dn -> 0).
+inline double asnReal(double z, double k)
+{
+    if (z == 0.0) return 0.0;
+    const double sign = (z < 0.0) ? -1.0 : 1.0;
+    z = std::abs(z);
+    if (z >= 1.0) {
+        // sn = 1 at u = K(k); for z > 1 saturate there.
+        return sign * ellipKm(k * k);
+    }
+    // Special-case k = 1: sn(u, 1) = tanh(u), so asn = atanh.
+    if (k >= 1.0 - 1e-12) {
+        return sign * std::atanh(z);
+    }
+    const double Kval = ellipKm(k * k);
+    double lo = 0.0, hi = Kval;
+    for (int it = 0; it < 200; ++it) {
+        const double mid = 0.5 * (lo + hi);
+        auto j = ellipjReal(mid, k);
+        if (j.sn < z) lo = mid;
+        else          hi = mid;
+        if ((hi - lo) < 1e-15 * (1.0 + Kval)) break;
+    }
+    return sign * 0.5 * (lo + hi);
+}
+
+// Solve degree equation for k given (N, k1):
+//   K(k')/K(k) = (1/N) * K(k1')/K(k1)
+// K(k')/K(k) is monotonically DECREASING in k on (0, 1), so bisect.
+inline double ellipdeg(int N, double k1)
+{
+    const double K1  = ellipKm(k1 * k1);
+    const double K1p = ellipKm(1.0 - k1 * k1);
+    const double target = K1p / K1 / static_cast<double>(N);
+    double lo = 1e-15, hi = 1.0 - 1e-15;
+    for (int it = 0; it < 200; ++it) {
+        const double mid = 0.5 * (lo + hi);
+        const double Kmid  = ellipKm(mid * mid);
+        const double Kpmid = ellipKm(1.0 - mid * mid);
+        const double ratio = Kpmid / Kmid;
+        if (ratio > target) lo = mid;
+        else                hi = mid;
+        if (hi - lo < 1e-15 * (1.0 + std::abs(mid))) break;
+    }
+    return 0.5 * (lo + hi);
+}
+
+// Jacobi cd(u, k) = cn(u, k) / dn(u, k) at COMPLEX u, real modulus k.
+// Uses addition formula via real-arg sn/cn/dn at u.real() with k and at
+// u.imag() with complementary modulus k' = sqrt(1 - k^2).
+//   sn(x+jy, k) = (sx*dy + j*cx*dx*sy*cy) / D
+//   cn(x+jy, k) = (cx*cy - j*sx*dx*sy*dy) / D
+//   dn(x+jy, k) = (dx*cy*dy - j*k^2*sx*cx*sy) / D
+//   D = cy^2 + k^2*sx^2*sy^2
+// where (sx,cx,dx) = ellipjReal(x, k) and (sy,cy,dy) = ellipjReal(y, k').
+inline Cd cdComplex(Cd uc, double k)
+{
+    const double x = uc.real();
+    const double y = uc.imag();
+    const double kp = std::sqrt(1.0 - k * k);
+    const auto X = ellipjReal(x, k);
+    const auto Y = ellipjReal(y, kp);
+    const double D = Y.cn * Y.cn + k * k * X.sn * X.sn * Y.sn * Y.sn;
+    if (std::abs(D) < 1e-300) return Cd(0.0, 0.0);
+    Cd cn(  X.cn * Y.cn / D,                 -X.sn * X.dn * Y.sn * Y.dn / D);
+    Cd dn(  X.dn * Y.cn * Y.dn / D,          -k * k * X.sn * X.cn * Y.sn / D);
+    return cn / dn;
+}
+
+} // namespace ellip_detail
+
+// ── ellipap ───────────────────────────────────────────────────────────
+// Cauer (elliptic) analog prototype. Order N, passband ripple Rp dB,
+// stopband attenuation Rs dB. Returns (z, p, k_gain) for normalized
+// cutoff = 1 rad/s.
+//
+// Algorithm: Sophocleous / Orfanidis / Antoniou.
+//   1. epsilon = sqrt(10^(Rp/10) - 1)              passband ripple coeff
+//   2. k1      = epsilon / sqrt(10^(Rs/10) - 1)    selectivity factor
+//   3. k       = ellipdeg(N, k1)                   modulus from degree eq
+//   4. v0      = asn(1/sqrt(1+eps^2), k1') / N     real (via imag-arg ident.)
+//   5. K       = K(k)                              quarter-period
+//   6. For i=1..L (L=N/2): u_i = (2i-1)/N
+//        zeta_i = cd(u_i*K, k)
+//        zero_i = j / (k * zeta_i)                 imag pair
+//        pole_i = j * cd(u_i*K - j*v0, k)          complex pair
+//      For odd N: extra real pole at -sn(v0, k')/cn(v0, k')
+//   7. gain = real(prod(-poles) / prod(-zeros)),
+//      divide by sqrt(1+eps^2) when N is even.
+std::tuple<Value, Value, Value>
+ellipap(std::pmr::memory_resource *mr, int N, double Rp, double Rs)
+{
+    if (N <= 0)
+        return std::make_tuple(packComplexCol(mr, std::vector<Cd>{}),
+                               packComplexCol(mr, std::vector<Cd>{}),
+                               Value::scalar(std::pow(10.0, -Rp / 20.0), mr));
+    if (Rp <= 0.0 || Rs <= 0.0)
+        return std::make_tuple(packComplexCol(mr, std::vector<Cd>{}),
+                               packComplexCol(mr, std::vector<Cd>{}),
+                               Value::scalar(1.0, mr));
+
+    const double eps2  = std::pow(10.0, Rp / 10.0) - 1.0;
+    const double eps   = std::sqrt(eps2);
+    const double Astop = std::pow(10.0, Rs / 10.0) - 1.0;
+    const double k1    = eps / std::sqrt(Astop);
+    const double k     = ellip_detail::ellipdeg(N, k1);
+    const double K     = ellip_detail::ellipKm(k * k);
+    const double k1p   = std::sqrt(1.0 - k1 * k1);
+    // v0: solve sn(j*v_abs, k1) = j/eps  via imaginary-arg identity:
+    //   sn(j*v, k1) = j * sn(v, k1') / cn(v, k1')
+    // setting that = j/eps gives sn(v, k1') = 1/sqrt(1+eps^2).
+    // v0 in absolute K(k)-units. The MATLAB/Octave reference works in
+    // [0, 1] units relative to each modulus's K, so it computes
+    //   v0_norm = asn(arg, k1') / N / K(k1)
+    // Multiplying by K(k) brings v0 to absolute K(k)-units, which is
+    // what the pole formulas below expect.
+    const double K1 = ellip_detail::ellipKm(k1 * k1);
+    const double v0 =
+        ellip_detail::asnReal(1.0 / std::sqrt(1.0 + eps2), k1p)
+        * K / (static_cast<double>(N) * K1);
+
+    const int L = N / 2;
+    std::vector<Cd> zeros, poles;
+    zeros.reserve(2 * L);
+    poles.reserve(N);
+
+    for (int i = 1; i <= L; ++i) {
+        const double ui_abs = (2.0 * i - 1.0) / N * K;
+        const auto Z = ellip_detail::ellipjReal(ui_abs, k);
+        const double zeta = Z.cn / Z.dn;       // cd(ui_abs, k)
+        const double zim = 1.0 / (k * zeta);   // 1/(k*cd)
+        zeros.emplace_back(0.0,  zim);
+        zeros.emplace_back(0.0, -zim);
+
+        const Cd cd_p = ellip_detail::cdComplex(Cd(ui_abs, -v0), k);
+        const Cd pole = Cd(0.0, 1.0) * cd_p;   // j * cd
+        poles.push_back(pole);
+        poles.emplace_back(std::conj(pole));
+    }
+    if ((N % 2) == 1) {
+        // Odd N: real pole = j * sn(j*v0, k) = j * j * sn(v0, k')/cn(v0, k')
+        //       = -sn(v0, k')/cn(v0, k')   (negative real)
+        const double kp = std::sqrt(1.0 - k * k);
+        const auto V = ellip_detail::ellipjReal(v0, kp);
+        const double real_pole = -V.sn / V.cn;
+        poles.emplace_back(real_pole, 0.0);
+    }
+
+    // Gain to normalize: real(prod(-p) / prod(-z)). For even N divide
+    // by sqrt(1+eps^2) so the passband peaks at 1 (the equiripple
+    // pattern for even-order elliptic sits at 1/sqrt(1+eps^2) at DC).
+    Cd num(1.0, 0.0), den(1.0, 0.0);
+    for (auto &p : poles) num *= -p;
+    for (auto &z : zeros) den *= -z;
+    double gain = (std::abs(den) > 0) ? (num / den).real() : num.real();
+    if ((N % 2) == 0) gain /= std::sqrt(1.0 + eps2);
+
+    return std::make_tuple(packComplexCol(mr, zeros),
+                           packComplexCol(mr, poles),
+                           Value::scalar(gain, mr));
 }
 
 std::tuple<Value, Value, Value>
@@ -585,6 +810,22 @@ NK_PROTO0_REG(buttap)
 NK_PROTO0_REG(besselap)
 NK_PROTO1_REG(cheb1ap)
 NK_PROTO1_REG(cheb2ap)
+
+// ellipap takes 3 args (N, Rp, Rs).
+void ellipap_reg(Span<const Value> args, size_t nargout,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("ellipap: requires (N, Rp, Rs)",
+                     0, 0, "ellipap", "", "m:ellipap:nargin");
+    const int N     = static_cast<int>(args[0].toScalar());
+    const double Rp = args[1].toScalar();
+    const double Rs = args[2].toScalar();
+    auto [z, p, k] = ellipap(ctx.engine->resource(), N, Rp, Rs);
+    outs[0] = std::move(z);
+    if (nargout > 1) outs[1] = std::move(p);
+    if (nargout > 2) outs[2] = std::move(k);
+}
 
 #undef NK_PROTO0_REG
 #undef NK_PROTO1_REG

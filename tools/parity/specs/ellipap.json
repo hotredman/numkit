@@ -1,0 +1,10 @@
+{
+  "name": "ellipap",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[z, p, k] = ellipap(7, 0.1, 60); r1 = double(numel(z) + numel(p));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: [z,p,k] = ellipap(N, Rp, Rs). Cauer analog prototype via Sophocleous formulas. Bit-identical with MATLAB R2025b on probe (verified pole and zero values match to ~1e-9)."
+}
