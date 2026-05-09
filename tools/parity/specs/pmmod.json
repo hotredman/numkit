@@ -1,0 +1,10 @@
+{
+  "name": "pmmod",
+  "namespace": "comm",
+  "setup": "fs = 8000; fc = 100; t = (0:99)'/fs; x = sin(2*pi*5*t);",
+  "expr": "y = pmmod(x, fc, fs, pi/4); y2 = pmmod(x, fc, fs, pi/4, pi/3);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["y(1)", "y(2)", "y(10)", "y(50)", "y(100)", "y2(1)", "y2(2)", "y2(50)", "y2(100)"],
+  "comment": "MATLAB pmmod: phase modulator y = cos(2π·Fc·t + phasedev·x + ini_phase). Covered: default (ini_phase=0) and explicit ini_phase forms, 100-sample column-vector input, sample points across the signal. Bit-equal with MATLAB R2025b. Octave 11.1.0 doesn't ship pmmod in core (it's in the communications package); reports N/A."
+}

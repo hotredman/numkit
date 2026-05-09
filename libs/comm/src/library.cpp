@@ -24,6 +24,9 @@ void fskdemod_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ofdmmod_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ofdmdemod_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// modulation/analog.cpp
+void pmmod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // channel/channel.cpp
 void awgn_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void wgn_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -82,6 +85,8 @@ void CommLibrary::install(Engine &engine)
     reg("mod", "fskdemod",  &comm::detail::fskdemod_reg);
     reg("mod", "ofdmmod",   &comm::detail::ofdmmod_reg);
     reg("mod", "ofdmdemod", &comm::detail::ofdmdemod_reg);
+
+    reg("mod", "pmmod",     &comm::detail::pmmod_reg);
 
     reg("rf", "awgn",        &comm::detail::awgn_reg);
     reg("rf", "wgn",         &comm::detail::wgn_reg);
