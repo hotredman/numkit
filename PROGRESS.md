@@ -942,8 +942,8 @@ intentionally omitted, along with `constellation` (object method) and
 | `randerr` | ❌ |  |  |  |  | random binary error patterns |
 | `randsrc` | ❌ |  |  |  |  | random matrix from given alphabet |
 | `wgn` | ✅ | 0.003 | 258.70× |  | OK | Sig: r = wgn(...). Spec-extension batch 2026-05-09.  |
-| `biterr` | ❌ |  |  |  |  | bit-error count |
-| `symerr` | ❌ |  |  |  |  | symbol-error count |
+| `biterr` | ❌ | 0.006 | 203.41× |  | OK | Sig: [n, r] = biterr(x, y[, k]). Counts differing bits between non-negative integer arrays. Bit-width k auto-detected as smallest covering width. |
+| `symerr` | ❌ | 0.005 | 146.95× |  | OK | Sig: [n, r] = symerr(x, y). Element-wise inequality count + ratio. |
 | `zadoffChuSeq` | ❌ |  |  |  |  | Zadoff-Chu reference sequence |
 | `mask2shift` | ❌ |  |  |  |  | shift-register mask → shift |
 | `shift2mask` | ❌ |  |  |  |  |  |
