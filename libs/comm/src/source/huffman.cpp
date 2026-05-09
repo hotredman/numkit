@@ -130,6 +130,172 @@ huffmandict(std::pmr::memory_resource *mr,
     return {std::move(dict), avglen};
 }
 
+// ── huffmanenco / huffmandeco helpers ──────────────────────────────
+
+namespace {
+
+// Read dict: K-by-2 cell, column 0 = symbol scalars, column 1 = code rows.
+// Output:
+//   syms[k]      = symbol value
+//   codes[k]     = vector<uint8_t> of 0/1
+struct DictView {
+    std::vector<double>                 syms;
+    std::vector<std::vector<uint8_t>>   codes;
+    size_t K = 0;
+};
+
+DictView readDict(const Value &dict)
+{
+    if (dict.dims().cols() != 2)
+        throw Error("huffman codec: dict must be K-by-2 cell",
+                    0, 0, "huffman", "", "m:huffman:DictShape");
+    const size_t K = dict.dims().rows();
+    DictView dv;
+    dv.K = K;
+    dv.syms.resize(K);
+    dv.codes.resize(K);
+    for (size_t k = 0; k < K; ++k) {
+        // Cell layout: column-major. Index k = (row=k, col=0); k+K = col 1.
+        const Value &symV  = dict.cellAt(k);
+        const Value &codeV = dict.cellAt(k + K);
+        dv.syms[k] = symV.toScalar();
+        const size_t L = codeV.numel();
+        dv.codes[k].resize(L);
+        for (size_t b = 0; b < L; ++b) {
+            const double v = codeV.elemAsDouble(b);
+            if (v != 0.0 && v != 1.0)
+                throw Error("huffman codec: dict codes must contain 0/1",
+                            0, 0, "huffman", "", "m:huffman:DictBits");
+            dv.codes[k][b] = static_cast<uint8_t>(v);
+        }
+    }
+    return dv;
+}
+
+// Lookup symbol -> code index. Linear scan; K is small (typically <=256).
+int findSymbolIdx(const DictView &dv, double sym)
+{
+    for (size_t k = 0; k < dv.K; ++k) {
+        if (dv.syms[k] == sym) return static_cast<int>(k);
+    }
+    return -1;
+}
+
+// Decode-side: build a prefix tree.
+//   left/right child indices (-1 = none); leaf_sym = >=0 symbol index.
+struct DecodeTree {
+    struct Node {
+        int left  = -1;
+        int right = -1;
+        int sym   = -1;   // index into dv.syms; -1 if internal node.
+    };
+    std::vector<Node> nodes{ Node{} };  // start with root.
+
+    void insert(const std::vector<uint8_t> &code, int sym_idx)
+    {
+        int cur = 0;
+        for (uint8_t bit : code) {
+            int child = (bit == 0) ? nodes[cur].left
+                                   : nodes[cur].right;
+            if (child < 0) {
+                // push_back may reallocate -> read by value above, then
+                // write back via index after the push completes.
+                nodes.push_back(Node{});
+                child = static_cast<int>(nodes.size() - 1);
+                if (bit == 0) nodes[cur].left  = child;
+                else          nodes[cur].right = child;
+            }
+            cur = child;
+        }
+        nodes[cur].sym = sym_idx;
+    }
+};
+
+bool isRowOriented(const Value &v)
+{
+    return v.dims().rows() == 1 && v.dims().cols() >= 1;
+}
+
+} // namespace
+
+Value huffmanenco(std::pmr::memory_resource *mr,
+                  const Value &sig, const Value &dict)
+{
+    DictView dv = readDict(dict);
+
+    // Walk sig once to compute output bit count.
+    const size_t N = sig.numel();
+    size_t total_bits = 0;
+    for (size_t i = 0; i < N; ++i) {
+        const double s = sig.elemAsDouble(i);
+        const int k = findSymbolIdx(dv, s);
+        if (k < 0)
+            throw Error("huffmanenco: symbol not in dict",
+                        0, 0, "huffmanenco", "",
+                        "m:huffmanenco:UnknownSym");
+        total_bits += dv.codes[k].size();
+    }
+
+    const bool row = isRowOriented(sig);
+    Value out = Value::matrix(row ? 1 : total_bits,
+                              row ? total_bits : 1,
+                              ValueType::DOUBLE, mr);
+    double *o = out.doubleDataMut();
+
+    size_t pos = 0;
+    for (size_t i = 0; i < N; ++i) {
+        const int k = findSymbolIdx(dv, sig.elemAsDouble(i));
+        for (uint8_t bit : dv.codes[k])
+            o[pos++] = static_cast<double>(bit);
+    }
+    return out;
+}
+
+Value huffmandeco(std::pmr::memory_resource *mr,
+                  const Value &bits, const Value &dict)
+{
+    DictView dv = readDict(dict);
+
+    // Build decode tree.
+    DecodeTree tree;
+    for (size_t k = 0; k < dv.K; ++k)
+        tree.insert(dv.codes[k], static_cast<int>(k));
+
+    // Walk bits, emit symbols.
+    const size_t N = bits.numel();
+    std::vector<double> emitted;
+    int cur = 0;
+    for (size_t i = 0; i < N; ++i) {
+        const double v = bits.elemAsDouble(i);
+        if (v != 0.0 && v != 1.0)
+            throw Error("huffmandeco: input bits must be 0 or 1",
+                        0, 0, "huffmandeco", "",
+                        "m:huffmandeco:NonBit");
+        const int next = (v == 0.0) ? tree.nodes[cur].left
+                                    : tree.nodes[cur].right;
+        if (next < 0)
+            throw Error("huffmandeco: bit pattern does not match dict",
+                        0, 0, "huffmandeco", "",
+                        "m:huffmandeco:NoMatch");
+        cur = next;
+        if (tree.nodes[cur].sym >= 0) {
+            emitted.push_back(dv.syms[tree.nodes[cur].sym]);
+            cur = 0;
+        }
+    }
+    if (cur != 0)
+        throw Error("huffmandeco: trailing bits not a complete code",
+                    0, 0, "huffmandeco", "",
+                    "m:huffmandeco:Incomplete");
+
+    const bool row = isRowOriented(bits);
+    const size_t M = emitted.size();
+    Value out = Value::matrix(row ? 1 : M, row ? M : 1,
+                              ValueType::DOUBLE, mr);
+    if (M > 0) std::copy(emitted.begin(), emitted.end(), out.doubleDataMut());
+    return out;
+}
+
 namespace detail {
 
 void huffmandict_reg(Span<const Value> args, size_t nargout,
@@ -143,6 +309,24 @@ void huffmandict_reg(Span<const Value> args, size_t nargout,
     outs[0] = std::move(dict);
     if (nargout > 1)
         outs[1] = Value::scalar(avglen, mr);
+}
+
+void huffmanenco_reg(Span<const Value> args, size_t /*nargout*/,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("huffmanenco: requires (sig, dict)",
+                    0, 0, "huffmanenco", "", "m:huffmanenco:nargin");
+    outs[0] = huffmanenco(ctx.engine->resource(), args[0], args[1]);
+}
+
+void huffmandeco_reg(Span<const Value> args, size_t /*nargout*/,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("huffmandeco: requires (bits, dict)",
+                    0, 0, "huffmandeco", "", "m:huffmandeco:nargin");
+    outs[0] = huffmandeco(ctx.engine->resource(), args[0], args[1]);
 }
 
 } // namespace detail

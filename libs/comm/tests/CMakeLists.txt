@@ -15,4 +15,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/randerr_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/genqam_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/huffmandict_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/huffman_codec_test.cpp
 )
