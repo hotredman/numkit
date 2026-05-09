@@ -48,18 +48,24 @@ function heatColor(v, min, max) {
 /* ======================================================================== */
 /* Card / row                                                               */
 /* ======================================================================== */
-function VariableCard({ v, selected, onSelect, onOpen }) {
+//
+// One mouse click opens the Variable Editor — the same gesture that opens
+// a figure card in the Figures pane. There's no persistent selection
+// state on purpose: a "selected" workspace variable used to swallow Enter
+// keystrokes meant for the editor / console (the pane held a window-level
+// keydown listener), so a click in the workspace would silently break
+// newline insertion elsewhere. Hover highlight only.
+
+function VariableCard({ v, onOpen }) {
   const { themeName } = useTheme();
   const meta = KIND_META[v.kind] || KIND_META.matrix;
   const tone = pickTone(TONE[meta.tone] || TONE.amber, themeName);
   return (
     <div
-      className={`var-card ${selected ? 'is-selected' : ''}`}
-      onClick={onSelect}
-      onDoubleClick={onOpen}
+      className="var-card"
+      onClick={onOpen}
       role="button"
-      tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter') onOpen(); }}
+      aria-label={`Open ${v.name}`}
     >
       <div className="var-card-head">
         <span className="var-name">{v.name}</span>
@@ -71,30 +77,20 @@ function VariableCard({ v, selected, onSelect, onOpen }) {
       <div className="var-card-body">
         <span className="var-preview">{v.preview}</span>
       </div>
-      <button
-        className="var-card-open"
-        title="Open in Variable Editor (Enter)"
-        onClick={(e) => { e.stopPropagation(); onOpen(); }}
-        aria-label={`Open ${v.name}`}
-      >
-        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-          <path d="M2 2h4M2 2v4M10 10H6M10 10V6" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="square" />
-        </svg>
-      </button>
     </div>
   );
 }
 
-function VariableRow({ v, selected, onSelect, onOpen }) {
+function VariableRow({ v, onOpen }) {
   const { themeName } = useTheme();
   const meta = KIND_META[v.kind] || KIND_META.matrix;
   const tone = pickTone(TONE[meta.tone] || TONE.amber, themeName);
   return (
     <div
-      className={`var-row ${selected ? 'is-selected' : ''}`}
-      onClick={onSelect}
-      onDoubleClick={onOpen}
-      tabIndex={0}
+      className="var-row"
+      onClick={onOpen}
+      role="button"
+      aria-label={`Open ${v.name}`}
     >
       <span className="var-row-name">{v.name}</span>
       <span className="var-row-size">{v.size}</span>
@@ -168,10 +164,9 @@ function WorkspaceToolbar({ count, query, setQuery, sort, setSort, view, setView
 /* Workspace panel (the main exported component for the bottom-dock tab)    */
 /* ======================================================================== */
 export function WorkspacePanel({ variables, onOpen }) {
-  const [query, setQuery]       = useState('');
-  const [sort, setSort]         = useState('name');
-  const [view, setView]         = useState('cards');
-  const [selected, setSelected] = useState(null);
+  const [query, setQuery] = useState('');
+  const [sort, setSort]   = useState('name');
+  const [view, setView]   = useState('cards');
 
   const filtered = useMemo(() => {
     let list = variables.filter((v) => v.name.toLowerCase().includes(query.toLowerCase()));
@@ -182,17 +177,6 @@ export function WorkspacePanel({ variables, onOpen }) {
     });
     return list;
   }, [variables, query, sort]);
-
-  useEffect(() => {
-    function onKey(e) {
-      if (e.key === 'Enter' && selected) {
-        const v = variables.find((x) => x.name === selected);
-        if (v) onOpen(v);
-      }
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [selected, variables, onOpen]);
 
   return (
     <div className="workspace">
@@ -208,8 +192,6 @@ export function WorkspacePanel({ variables, onOpen }) {
             <VariableCard
               key={v.name}
               v={v}
-              selected={selected === v.name}
-              onSelect={() => setSelected(v.name)}
               onOpen={() => onOpen(v)}
             />
           ))}
@@ -224,8 +206,6 @@ export function WorkspacePanel({ variables, onOpen }) {
             <VariableRow
               key={v.name}
               v={v}
-              selected={selected === v.name}
-              onSelect={() => setSelected(v.name)}
               onOpen={() => onOpen(v)}
             />
           ))}
@@ -235,7 +215,7 @@ export function WorkspacePanel({ variables, onOpen }) {
         <div className="ws-empty">no variables match “{query}”</div>
       )}
       <div className="ws-hint">
-        <kbd>↵</kbd> open · <kbd>dbl-click</kbd> open · <kbd>Esc</kbd> close editor
+        <kbd>click</kbd> open · <kbd>Esc</kbd> close editor
       </div>
     </div>
   );

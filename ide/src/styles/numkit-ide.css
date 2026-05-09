@@ -1052,11 +1052,6 @@ input, select { font-family: inherit; color: inherit; }
   border-color: var(--accent);
   background: var(--bg-3);
 }
-.var-card.is-selected {
-  border-color: var(--accent);
-  background: oklch(0.78 0.16 145 / 0.06);
-  box-shadow: 0 0 0 1px var(--accent) inset;
-}
 .var-card-head {
   display: flex; align-items: center; gap: 8px;
   margin-bottom: 6px;
@@ -1081,25 +1076,6 @@ input, select { font-family: inherit; color: inherit; }
   word-break: break-all;
   line-height: 15px;
 }
-.var-card-open {
-  position: absolute;
-  top: 8px; right: 8px;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--fg-3);
-  width: 20px; height: 20px;
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  display: none;
-  align-items: center; justify-content: center;
-  opacity: 0;
-}
-.var-card:hover .var-card-open {
-  display: inline-flex;
-  opacity: 1;
-}
-.var-card-open:hover { background: var(--bg-4); color: var(--accent); }
-
 /* List view */
 .ws-list {
   flex: 1; overflow-y: auto;
@@ -1117,7 +1093,6 @@ input, select { font-family: inherit; color: inherit; }
   color: var(--fg-1);
 }
 .var-row:hover { background: var(--bg-2); }
-.var-row.is-selected { background: oklch(0.78 0.16 145 / 0.07); }
 .var-row.var-row-head { color: var(--fg-3); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; cursor: default; }
 .var-row-name { color: var(--fg-0); }
 .var-row-size, .var-row-bytes, .var-row-stat { color: var(--fg-2); }
