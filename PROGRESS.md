@@ -928,7 +928,7 @@ intentionally omitted, along with `constellation` (object method) and
 | `amdemod` | ❌ |  |  |  |  |  |
 | `fmmod` | ❌ |  |  |  |  | frequency modulation |
 | `fmdemod` | ❌ |  |  |  |  |  |
-| `pmmod` | ❌ |  |  |  |  | phase modulation |
+| `pmmod` | ❌ | 0.006 | 115.29× |  | OK | MATLAB pmmod: phase modulator y = cos(2π·Fc·t + phasedev·x + ini_phase). Covered: default (ini_phase=0) and explicit ini_phase forms, 100-sample column-vector input, sample points across the signal. Bit-equal with MATLAB R2025b. Octave 11.1.0 doesn't ship pmmod in core (it's in the communications package); reports N/A. |
 | `pmdemod` | ❌ |  |  |  |  |  |
 | `ssbmod` | ❌ |  |  |  |  | single-sideband |
 | `ssbdemod` | ❌ |  |  |  |  |  |
