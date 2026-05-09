@@ -427,6 +427,8 @@ void trace_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void det_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void chol_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void topkrows_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void lu_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void qr_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void size_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void length_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void numel_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -924,6 +926,8 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("det",       &builtin::detail::det_reg);
     engine.registerFunction("chol",      &builtin::detail::chol_reg);
     engine.registerFunction("topkrows",  &builtin::detail::topkrows_reg);
+    engine.registerFunction("lu",        &builtin::detail::lu_reg);
+    engine.registerFunction("qr",        &builtin::detail::qr_reg);
     engine.registerFunction("size",      &builtin::detail::size_reg);
     engine.registerFunction("length",    &builtin::detail::length_reg);
     engine.registerFunction("numel",     &builtin::detail::numel_reg);
