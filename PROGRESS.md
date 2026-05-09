@@ -2421,8 +2421,8 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bandpass` | ✅ | 0.017 | 27.26× | 24.13× | OK | DEFERRED — signal/bandpass parity gap (MISMATCH or FAIL on probed input). Placeholder spec keeps harness green; KNOWN GAP — see audit/closed/signal/bandpass.md. |
-| `bandstop` | ✅ | 0.529 | 111.01× |  | MISMATCH | Sig: Y = bandstop(X, [LO HI], FS). 100 iters. |
+| `bandpass` | ✅ | 0.012 | 10685.03× |  | MISMATCH | Sig: y = bandpass(x, fc[, fs]). Re-tested 2026-05-09 after default-fs=2 fix. |
+| `bandstop` | ✅ | 0.011 | 11382.23× |  | MISMATCH | Sig: y = bandstop(x, fc[, fs]). Re-tested 2026-05-09 after default-fs=2 fix. |
 | `cell2sos` | ❌ |  |  |  |  |  |
 | `convmtx` | ✅ | 0.003 | 22.24× | 37.58× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
 | `ctf2zp` | ❌ |  |  |  |  | control TF → ZPK |
@@ -2434,23 +2434,23 @@ intentionally omitted — flat solver functions only.
 | `filtfilt` | ✅ | 0.004 | 715.07× | 68.80× | OK | Sig: r = filtfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `filtic` | ❌ |  |  |  |  | init state |
 | `hampel` | ✅ | 0.005 | 165.43× |  | OK | Sig: r = hampel(...). Spec-extension batch 2026-05-09. |
-| `highpass` | ✅ | 0.279 | 204.44× |  | MISMATCH | Sig: Y = highpass(X, FPASS, FS). 100 iters. |
+| `highpass` | ✅ | 0.009 | 14515.72× |  | MISMATCH | Sig: y = highpass(x, fc[, fs]). Re-tested 2026-05-09 after default-fs=2 fix. |
 | `latc2tf` | ❌ |  |  |  |  | inverse |
 | `latcfilt` | ❌ |  |  |  |  |  |
-| `lowpass` | ✅ | 0.297 | 182.38× |  | MISMATCH | Sig: Y = lowpass(X, FPASS, FS). 10k pts, 100 Hz cutoff at fs=1k. 100 iters. |
+| `lowpass` | ✅ | 0.008 | 15060.54× |  | MISMATCH | Sig: y = lowpass(x, fc[, fs]). Re-tested 2026-05-09 after default-fs=2 fix. |
 | `medfilt1` | ✅ | 0.005 | 274.12× | 40.33× | OK | Sig: r = medfilt1(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `residuez` | ❌ |  |  |  |  |  |
 | `scalefiltersections` | ❌ |  |  |  |  |  |
 | `sgolayfilt` | ✅ | 0.004 | 287.87× | 40.97× | OK | Sig: r = sgolayfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `sos2cell` | ❌ |  |  |  |  |  |
 | `sos2ctf` | ❌ |  |  |  |  |  |
-| `sos2ss` | ✅ | 0.001 | 23.11× | 2266.98× | MISMATCH | Sig: [A,B,C,D] = sos2ss(SOS). 1000 iters. |
+| `sos2ss` | ✅ | 0.005 |  | 399.13× | OK | Sig: [A,B,C,D] = sos2ss(SOS[, g]). Re-closed after tf2ss canonical-form fix 2026-05-09. |
 | `sos2tf` | ✅ | 0.005 | 247.61× | 27.89× | OK | Sig: r = sos2tf(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `sos2zp` | ✅ | 0.002 | 14.95× | 95.45× | OK | Sig: [Z,P,K] = sos2zp(SOS). 1000 iters. |
 | `sosfilt` | ✅ | 0.005 | 185.99× | 16.48× | OK | Sig: r = sosfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `ss` | ✅ | 0.007 | 785.28× | 31.40× | OK | Sig: r = ss(...). Spec-extension batch 2026-05-09. |
-| `ss2sos` | ✅ | 0.001 | 98.89× |  | MISMATCH | Sig: SOS = ss2sos(A,B,C,D). 1000 iters. |
-| `ss2zp` | ✅ |  |  |  | N/A | Sig: [Z,P,K] = ss2zp(A,B,C,D). 1000 iters. |
+| `ss2sos` | ✅ | 0.005 | 1696.00× |  | OK | Sig: sos = ss2sos(A,B,C,D). Re-closed after tf2ss canonical-form fix 2026-05-09. |
+| `ss2zp` | ✅ | 0.005 | 630.84× | 403.17× | OK | Sig: [z,p,k] = ss2zp(A,B,C,D). Re-closed after tf2ss canonical-form fix 2026-05-09. |
 | `tf` | ✅ | 0.004 | 1691.79× | 101.58× | OK | Sig: r = tf(...). Spec-extension batch 2026-05-09. |
 | `tf2latc` | ❌ |  |  |  |  | lattice |
 | `tf2sos` | ✅ | 0.005 | 1266.34× | 395.28× | OK | Sig: r = tf2sos(...). Spec-extension batch 2026-05-09 (signal namespace). |
@@ -2459,7 +2459,7 @@ intentionally omitted — flat solver functions only.
 | `tf2zpk` | ✅ | 0.004 | 360.93× |  | OK | Sig: r = tf2zpk(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zp2ctf` | ❌ |  |  |  |  |  |
 | `zp2sos` | ✅ | 0.004 | 965.08× | 97.49× | OK | Sig: r = zp2sos(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `zp2ss` | ✅ | 0.004 | 769.29× | 462.71× | MISMATCH | Sig: [A,B,C,D] = zp2ss(Z,P,K). Re-tested 2026-05-09 after freqz endpoint fix. |
+| `zp2ss` | ✅ | 0.005 | 598.33× | 425.92× | OK | Sig: [A,B,C,D] = zp2ss(Z,P,K). Re-closed after tf2ss canonical-form fix 2026-05-09. |
 | `zp2tf` | ✅ | 0.005 | 170.36× | 299.52× | OK | Sig: r = zp2tf(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zpk` | ✅ | 0.004 | 1523.65× | 152.33× | OK | Sig: r = zpk(...). Spec-extension batch 2026-05-09. |
 | `filter` | ✅ | 0.004 | 30.84× | 23.72× | OK | Sig: r = filter(...). Spec-extension batch 2026-05-09 (signal namespace). |

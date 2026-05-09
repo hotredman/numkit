@@ -180,33 +180,42 @@ tf2ss(std::pmr::memory_resource *mr, const Value &b, const Value &a)
     const size_t N = na - 1;
 
     // Direct feed-through D = bh[0]   (since b is normalised + padded
-    //                                  to length N+1, this is the leading coeff).
+    // to length N+1, this is the leading coeff).
     const double D = bh[0];
 
-    // A: companion matrix.
-    //   A(0:N-2, 1:N-1) = identity
-    //   A(N-1, :) = -[a(N), a(N-1), ..., a(1)] reversed → -ah[N..1]
+    // MATLAB tf2ss returns the controller canonical form:
+    //   A = [-a2 -a3 ... -a(N+1);
+    //         1   0  ...  0;
+    //         0   1  ...  0;
+    //         ...
+    //         0   0  ...  0]    (companion in TOP row)
+    //   B = [1; 0; 0; ...; 0]
+    //   C = [b2 - a2*b1, b3 - a3*b1, ..., b(N+1) - a(N+1)*b1]
+    //   D = b1
+    //
+    // Here ah[0]=1 (post-normalisation) and ah[1..N] are -a2..-a(N+1)
+    // when negated.
     auto AVal = Value::matrix(N, N, ValueType::DOUBLE, mr);
     double *Ap = AVal.doubleDataMut();
     std::fill(Ap, Ap + N * N, 0.0);
-    // Identity sub-block (rows 0..N-2, cols 1..N-1).
-    for (size_t i = 0; i + 1 < N; ++i)
-        Ap[(i + 1) * N + i] = 1.0;     // Ap[r + c*N], column-major
-    // Last row.
+    // Top row (column-major: Ap[r + c*N]).
     for (size_t j = 0; j < N; ++j)
-        Ap[(j) * N + (N - 1)] = -ah[N - j];
+        Ap[0 + j * N] = -ah[j + 1];
+    // Identity sub-diagonal: A(i+1, i) = 1 for i = 0..N-2.
+    for (size_t i = 0; i + 1 < N; ++i)
+        Ap[(i + 1) + i * N] = 1.0;
 
-    // B: column vector with 1 in last entry.
+    // B: column vector with 1 in FIRST entry.
     auto BVal = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     double *Bp = BVal.doubleDataMut();
     std::fill(Bp, Bp + N, 0.0);
-    Bp[N - 1] = 1.0;
+    Bp[0] = 1.0;
 
-    // C: 1×N row, c[j] = b[N-j] - a[N-j] * D     (j = 1..N)
+    // C: 1xN row, C(j) = bh[j+1] - ah[j+1]*D for j = 0..N-1.
     auto CVal = Value::matrix(1, N, ValueType::DOUBLE, mr);
     double *Cp = CVal.doubleDataMut();
     for (size_t j = 0; j < N; ++j)
-        Cp[j] = bh[N - j] - ah[N - j] * D;
+        Cp[j] = bh[j + 1] - ah[j + 1] * D;
 
     auto DVal = Value::scalar(D, mr);
     return std::make_tuple(std::move(AVal), std::move(BVal),
