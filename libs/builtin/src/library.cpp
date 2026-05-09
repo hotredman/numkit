@@ -2615,6 +2615,153 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 outs[0] = std::move(out);
                             });
 
+    // ── mjuliandate ───────────────────────────────────────────
+    // Modified Julian Date = JD - 2400000.5. MJD epoch is
+    // 1858-11-17 00:00 (so mjuliandate(1858,11,17,0,0,0) = 0).
+    //
+    // Relationship to MATLAB serial date:
+    //   MJD = serial + 1721058.5 - 2400000.5 = serial - 678942
+    // both fractional offsets cancel exactly so noon at Y-M-D 00:00
+    // gives a half-integer MJD only via the H,MI,S contribution.
+    //
+    // Signatures (string + datetime forms deferred):
+    //   mjuliandate(Y, M, D)
+    //   mjuliandate(Y, M, D, H, MI, S)
+    //   mjuliandate(V)               with V row 1x3, 1x6, or matrix Nx3 / Nx6
+    engine.registerFunction("mjuliandate",
+                            [](Span<const Value> args,
+                               size_t /*nargout*/,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                if (args.empty())
+                                    throw std::runtime_error(
+                                        "mjuliandate requires at least one "
+                                        "argument");
+                                if (args[0].isChar() || args[0].isString())
+                                    throw std::runtime_error(
+                                        "mjuliandate: string parsing not "
+                                        "yet supported");
+
+                                auto civilToSerial = [](double yd, double md,
+                                                        double dd, double hd,
+                                                        double mind, double sd) {
+                                    double dInt;
+                                    const double dFrac = std::modf(dd, &dInt);
+                                    int64_t y = static_cast<int64_t>(
+                                        std::floor(yd));
+                                    int64_t m = static_cast<int64_t>(
+                                        std::floor(md));
+                                    int64_t d = static_cast<int64_t>(dInt);
+                                    if (m <= 2) y -= 1;
+                                    const int64_t era =
+                                        (y < 0 ? y - 399 : y) / 400;
+                                    const int64_t yoe = y - era * 400;
+                                    const int64_t doy =
+                                        (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5
+                                        + d - 1;
+                                    const int64_t doe =
+                                        yoe * 365 + yoe / 4 - yoe / 100 + doy;
+                                    const int64_t days =
+                                        era * 146097 + doe - 719468;
+                                    const double frac =
+                                        (hd * 3600.0 + mind * 60.0 + sd) / 86400.0
+                                        + dFrac;
+                                    return static_cast<double>(days) + 719529.0
+                                         + frac;
+                                };
+                                const double kMJDFromSerial = -678942.0;
+
+                                auto *mr = ctx.engine->resource();
+
+                                // Single-arg matrix form
+                                if (args.size() == 1) {
+                                    const Value &V = args[0];
+                                    const size_t R = V.dims().rows();
+                                    const size_t C = V.dims().cols();
+                                    if (C != 3 && C != 6)
+                                        throw std::runtime_error(
+                                            "mjuliandate: single-arg matrix "
+                                            "must have 3 or 6 columns");
+                                    auto out = Value::matrix(
+                                        R, 1, ValueType::DOUBLE, mr);
+                                    double *o = out.doubleDataMut();
+                                    for (size_t i = 0; i < R; ++i) {
+                                        const double y = V.elemAsDouble(i);
+                                        const double m = V.elemAsDouble(i + R);
+                                        const double d = V.elemAsDouble(i + 2 * R);
+                                        double h = 0.0, mi = 0.0, s = 0.0;
+                                        if (C == 6) {
+                                            h  = V.elemAsDouble(i + 3 * R);
+                                            mi = V.elemAsDouble(i + 4 * R);
+                                            s  = V.elemAsDouble(i + 5 * R);
+                                        }
+                                        o[i] = civilToSerial(y, m, d, h, mi, s)
+                                             + kMJDFromSerial;
+                                    }
+                                    if (R == 1)
+                                        outs[0] = Value::scalar(o[0], mr);
+                                    else
+                                        outs[0] = std::move(out);
+                                    return;
+                                }
+
+                                if (args.size() != 3 && args.size() != 6)
+                                    throw std::runtime_error(
+                                        "mjuliandate: expected 3 or 6 "
+                                        "arguments (Y,M,D[,H,MI,S])");
+                                size_t N = 1;
+                                for (const auto &a : args) {
+                                    if (a.numel() > 1) {
+                                        if (N > 1 && a.numel() != N)
+                                            throw std::runtime_error(
+                                                "mjuliandate: input vector "
+                                                "lengths must match");
+                                        N = a.numel();
+                                    }
+                                }
+                                auto pick = [](const Value &a, size_t i) {
+                                    return a.numel() == 1
+                                               ? a.toScalar()
+                                               : a.elemAsDouble(i);
+                                };
+                                if (N == 1) {
+                                    const double h = args.size() == 6
+                                                         ? args[3].toScalar()
+                                                         : 0.0;
+                                    const double mi = args.size() == 6
+                                                          ? args[4].toScalar()
+                                                          : 0.0;
+                                    const double s = args.size() == 6
+                                                         ? args[5].toScalar()
+                                                         : 0.0;
+                                    outs[0] = Value::scalar(
+                                        civilToSerial(args[0].toScalar(),
+                                                      args[1].toScalar(),
+                                                      args[2].toScalar(),
+                                                      h, mi, s)
+                                            + kMJDFromSerial,
+                                        mr);
+                                    return;
+                                }
+                                auto out = Value::matrix(
+                                    N, 1, ValueType::DOUBLE, mr);
+                                double *o = out.doubleDataMut();
+                                for (size_t i = 0; i < N; ++i) {
+                                    const double y = pick(args[0], i);
+                                    const double m = pick(args[1], i);
+                                    const double d = pick(args[2], i);
+                                    double h = 0.0, mi = 0.0, s = 0.0;
+                                    if (args.size() == 6) {
+                                        h  = pick(args[3], i);
+                                        mi = pick(args[4], i);
+                                        s  = pick(args[5], i);
+                                    }
+                                    o[i] = civilToSerial(y, m, d, h, mi, s)
+                                         + kMJDFromSerial;
+                                }
+                                outs[0] = std::move(out);
+                            });
+
     // ── addpath / rmpath / path / rehash / run (Phase 9b) ──────
     engine.registerFunction("addpath",
                             [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
