@@ -3563,3 +3563,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `logical` | — | 0.003 | 35.78× | 22.89× | OK | Sig: r = logical(...). Type conversion. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `islogical` | — | 0.004 | 37.22× | 58.81× | OK | Sig: r = islogical(...). Predicate. Spec-extension batch 2026-05-09. |
 | `smoothdata` | — | 0.003 | 712.95× |  | OK | Sig: y = smoothdata(x). Spec-extension batch 2026-05-09 (cycle 43). |
+| `sosfiltfilt` | — | 0.004 |  |  | N/A | Sig: y = sosfiltfilt(sos, x). Zero-phase SOS filter with Gustafsson zi + per-section DC-gain propagation through cascade. Bit-identical with scipy sosfiltfilt; matches MATLAB filtfilt(sos,1,x) for single-section, diverges at edges for multi-section (MATLAB uses proprietary edge handling). |

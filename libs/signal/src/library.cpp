@@ -133,6 +133,7 @@ void icceps_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // SOS family (libs/signal/src/digital_filtering/sosfilt.cpp)
 void sosfilt_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void sosfiltfilt_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void zp2sos_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void tf2sos_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 // filter_implementation/conversions_extras.cpp (D3)
@@ -303,7 +304,8 @@ void SignalLibrary::install(Engine &engine)
     // ── Digital filtering (filter / filtfilt / SOS family / median + D2) ─
     reg("digital_filtering", "filter",   &signal::detail::filter_reg);
     reg("digital_filtering", "filtfilt", &signal::detail::filtfilt_reg);
-    reg("digital_filtering", "sosfilt",  &signal::detail::sosfilt_reg);
+    reg("digital_filtering", "sosfilt",     &signal::detail::sosfilt_reg);
+    reg("digital_filtering", "sosfiltfilt", &signal::detail::sosfiltfilt_reg);
     reg("digital_filtering", "medfilt1", &signal::detail::medfilt1_reg);
     reg("digital_filtering", "lowpass",  &signal::detail::lowpass_reg);
     reg("digital_filtering", "highpass", &signal::detail::highpass_reg);

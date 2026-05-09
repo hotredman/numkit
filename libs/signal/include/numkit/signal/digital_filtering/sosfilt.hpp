@@ -15,4 +15,10 @@ namespace numkit::signal {
 /// as x.
 Value sosfilt(std::pmr::memory_resource *mr, const Value &sos, const Value &x);
 
+/// Zero-phase forward+backward SOS cascade with Gustafsson initial
+/// conditions and reflection padding (matches MATLAB filtfilt(d, x)
+/// when d is a digitalFilter SOS object). Numerically stable for
+/// high-order IIR designs where direct (b, a) form is ill-conditioned.
+Value sosfiltfilt(std::pmr::memory_resource *mr, const Value &sos, const Value &x);
+
 } // namespace numkit::signal
