@@ -275,4 +275,14 @@ Value tabulate(std::pmr::memory_resource *mr, const Value &x);
 std::pair<Value, Value>
 cholcov(std::pmr::memory_resource *mr, const Value &SIGMA);
 
+// ── crosstab ───────────────────────────────────────────────────────────
+// `[T, chi2, p] = crosstab(x [, y])` — contingency table.
+//   single-arg: T is a column vector of frequency counts of unique x.
+//   two-arg:    T(i,j) = count of pairs (x_k, y_k) with x_k = unique_x(i)
+//               and y_k = unique_y(j). chi-square test of independence
+//               supplied alongside.
+// Numeric input only for v1; cell/string deferred.
+std::tuple<Value, double, double>
+crosstab(std::pmr::memory_resource *mr, const Value &x, const Value *y_opt);
+
 } // namespace numkit::stats

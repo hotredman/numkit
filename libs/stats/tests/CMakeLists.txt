@@ -117,4 +117,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/corrcov_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tabulate_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cholcov_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/crosstab_test.cpp
 )
