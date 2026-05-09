@@ -685,6 +685,89 @@ void GraphicsLibrary::install(Engine &engine)
     reg("image", "imagesc", std::bind(heatmapImpl, "imagesc", _1, _2, _3, _4));
     reg("image", "pcolor",  std::bind(heatmapImpl, "pcolor",  _1, _2, _3, _4));
 
+    // histogram2(X, Y) — 2-D histogram. Bins (X, Y) into an nx×ny grid
+    // and renders the count matrix as an imagesc-style heatmap. Param
+    // forms supported (positional, like MATLAB's classic call):
+    //   histogram2(X, Y)              — 10×10 bins over data extent
+    //   histogram2(X, Y, n)           — n×n
+    //   histogram2(X, Y, [nx ny])     — explicit grid
+    //   histogram2(X, Y, nx, ny)      — explicit grid (separate args)
+    // Name-Value form (NumBins, BinEdges, …) is on the BACKLOG.
+    reg("bar", "histogram2",
+        [heatmapImpl](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            auto *mr = ctx.engine->resource();
+            if (args.size() < 2 || args[0].numel() == 0 || args[1].numel() == 0) {
+                outs[0] = Value::empty();
+                return;
+            }
+            const auto &X = args[0];
+            const auto &Y = args[1];
+            const size_t N = std::min(X.numel(), Y.numel());
+
+            int nx = 10, ny = 10;
+            if (args.size() >= 3) {
+                if (args[2].numel() >= 2) {
+                    nx = (int)args[2].doubleData()[0];
+                    ny = (int)args[2].doubleData()[1];
+                } else if (args[2].numel() == 1) {
+                    nx = ny = (int)args[2].toScalar();
+                    if (args.size() >= 4 && args[3].numel() == 1)
+                        ny = (int)args[3].toScalar();
+                }
+            }
+            if (nx < 1) nx = 1;
+            if (ny < 1) ny = 1;
+
+            double xmn = X.doubleData()[0], xmx = xmn;
+            double ymn = Y.doubleData()[0], ymx = ymn;
+            for (size_t k = 1; k < N; ++k) {
+                const double xv = X.doubleData()[k];
+                const double yv = Y.doubleData()[k];
+                if (std::isfinite(xv)) {
+                    if (xv < xmn) xmn = xv;
+                    if (xv > xmx) xmx = xv;
+                }
+                if (std::isfinite(yv)) {
+                    if (yv < ymn) ymn = yv;
+                    if (yv > ymx) ymx = yv;
+                }
+            }
+            double bwx = (xmx - xmn) / nx;
+            double bwy = (ymx - ymn) / ny;
+            if (bwx == 0) bwx = 1;
+            if (bwy == 0) bwy = 1;
+
+            auto centers_x = Value::matrix(1, (size_t)nx, ValueType::DOUBLE, mr);
+            auto centers_y = Value::matrix(1, (size_t)ny, ValueType::DOUBLE, mr);
+            // counts is row-major-as-Y, col-major-as-X (i.e. ny rows, nx
+            // cols). MATLAB stores column-major, so element (j, i) is at
+            // linear index i * ny + j.
+            auto counts = Value::matrix((size_t)ny, (size_t)nx, ValueType::DOUBLE, mr);
+            for (int i = 0; i < nx; ++i)
+                centers_x.doubleDataMut()[i] = xmn + bwx * (i + 0.5);
+            for (int j = 0; j < ny; ++j)
+                centers_y.doubleDataMut()[j] = ymn + bwy * (j + 0.5);
+            for (size_t k = 0; k < N; ++k) {
+                const double xv = X.doubleData()[k];
+                const double yv = Y.doubleData()[k];
+                if (!std::isfinite(xv) || !std::isfinite(yv))
+                    continue;
+                int i = (int)((xv - xmn) / bwx);
+                int j = (int)((yv - ymn) / bwy);
+                if (i >= nx) i = nx - 1;
+                if (j >= ny) j = ny - 1;
+                if (i < 0) i = 0;
+                if (j < 0) j = 0;
+                counts.doubleDataMut()[(size_t)i * (size_t)ny + (size_t)j] += 1.0;
+            }
+            // Delegate to the heatmap pipeline. typeName='imagesc' so the
+            // adapter routes through the existing heatmap renderer with
+            // its full quantization + LUT path.
+            std::vector<Value> proxied = { centers_x, centers_y, counts };
+            heatmapImpl("imagesc", Span<const Value>(proxied.data(), proxied.size()),
+                        nargout, outs, ctx);
+        });
+
     // ── Polar — graphics.polar ───────────────────────────────────────
     reg("polar", "polarplot",
         [vecToJson, parsePlotArgs](Span<const Value> args, size_t nargout,
