@@ -780,7 +780,7 @@ together.
 | `interp2` | ✅ | 0.004 | 433.90× | 114.31× | OK | Sig: r = interp2(...). Spec-extension batch 2026-05-09. |
 | `interp3` | ✅ | 0.004 | 618.90× | 120.81× | OK | Sig: V = interp3(X, Y, Z, V, Xq, Yq, Zq). N-D linear interpolation. Bit-identical with MATLAB R2025b. readGridAxis now auto-detects meshgrid vs ndgrid orientation. |
 | `interpft` | ✅ | 0.006 | 245.64× | 97.65× | OK | Sig: Y = interpft(X, n[, dim]). Band-limited (FFT-based) interpolation to n samples. Default dim = first non-singleton. Vector form preserves originals at integer multiples of original spacing. Matrix dim=1 interpolates each column; dim=2 interpolates each row. tol=1e-12. |
-| `interpn` | ✅ | 0.003 | 684.14× | 85.47× | OK | Sig: V = interpn(X1, ..., Xn, V, Xq1, ..., Xqn). N-D linear interpolation (ndgrid form). Dispatches to interp3 internally; bit-identical with MATLAB R2025b. |
+| `interpn` | ✅ | 0.003 | 815.68× | 77.92× | OK | Sig: V = interpn(X1, ..., Xn, V, Xq1, ..., Xqn). N-D linear interpolation (ndgrid form). Dispatches to interp3 internally; bit-identical with MATLAB R2025b. |
 | `makima` | ❌ |  |  |  |  |  |
 | `meshgrid` | ✅ | 0.004 | 87.37× | 35.05× | OK | Sig: r = meshgrid(...). Spec-extension batch 2026-05-09. |
 | `mkpp` | ✅ | 0.000 | 7.07× | 58.01× | OK | Sig: PP = mkpp(BREAKS, COEFS). 4-piece linear. 10000 iters. |
@@ -1874,7 +1874,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `dice` | ✅ | 0.004 | 179.26× |  | OK | Sig: r = dice(...). Spec-extension batch 2026-05-09. |
 | `gradientweight` | ❌ |  |  |  |  |  |
 | `grabcut` | ❌ |  |  |  |  |  |
-| `grayconnected` | ✅ | 0.004 | 1210.62× |  | OK | Sig: BW = grayconnected(I, r, c, tol). 8-connected flood-fill from seed within tolerance. Bit-identical with MATLAB R2025b on magic(8) probe. Earlier defer was due to test using magic() which isn't in numkit -- inlined explicitly here. |
+| `grayconnected` | ✅ | 0.005 | 923.97× |  | OK | Sig: BW = grayconnected(I, r, c, tol). 8-connected flood-fill from seed within tolerance. Bit-identical with MATLAB R2025b. Spec uses magic(8) -- restored to canonical form after magic() was implemented in cycle 46 (commit 71efbf02); originally had to inline the matrix because numkit didn't ship magic(). |
 | `graydiffweight` | ❌ |  |  |  |  |  |
 | `imoverlay` | ✅ | 0.005 | 374.35× |  | OK | Sig: B = imoverlay(I, BW, color). Color overlay onto image at BW pixels. Bit-identical with MATLAB R2025b on probed input -- numkit needs explicit color arg (matches MATLAB; no default). |
 | `imseggeodesic` | ❌ |  |  |  |  |  |
