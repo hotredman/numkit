@@ -1591,7 +1591,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `im2uint16` | ✅ | 0.005 | 62.39× | 23.33× | OK | Sig: r = im2uint16(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `im2uint8` | ✅ | 0.004 | 79.33× | 50.00× | OK | Sig: r = im2uint8(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imbinarize` | ✅ | 0.003 | 38.13× | 21.59× | OK | Sig: r = imbinarize(...). KNOWN GAP: imbinarize default threshold differs. Documented as separate ТЗ. |
-| `imquantize` | ✅ | 0.003 |  | 85.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imquantize` | ✅ | 0.004 | 99.04× | 56.16× | OK | Sig: r = imquantize(...). Spec-extension batch 2026-05-09. |
 | `imsplit` | ✅ |  |  |  | OK | split H×W×P volume into P planes (multi-output, byte-perfect copy) |
 | `ind2gray` | ❌ |  |  |  |  |  |
 | `ind2rgb` | ✅ | 0.004 | 116.29× | 57.82× | OK | Sig: r = ind2rgb(...). Spec-extension batch 2026-05-09. |
@@ -1673,7 +1673,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `fitgeotrans` | ❌ |  |  |  |  | fit transform from cp pairs |
 | `imcrop` | ✅ | 0.005 | 293.38× | 61.77× | OK | Sig: r = imcrop(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imcrop3` | ❌ |  |  |  |  |  |
-| `impyramid` | ✅ | 0.004 | 1334.70× | 221.67× | OK | Sig: B = impyramid(A, type). type='reduce' or 'expand'. Burt-Adelson 5-tap separable kernel; replicate boundary. Output: ceil(M/2)xceil(N/2) for reduce, (2M-1)x(2N-1) for expand. Octave-image has impyramid; cross-check expected OK. |
+| `impyramid` | ✅ | 0.004 | 1753.33× | 191.34× | OK | Sig: r = impyramid(...). Spec-extension batch 2026-05-09. |
 | `imresize` | ✅ | 0.005 | 724.85× | 174.89× | OK | Sig: r = imresize(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imresize3` | ❌ |  |  |  |  |  |
 | `imrotate` | ✅ | 0.004 | 360.55× | 73.53× | OK | Sig: r = imrotate(...). Spec-extension batch 2026-05-09 (image namespace). |
@@ -1716,14 +1716,14 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `fwind1` | ❌ |  |  |  |  | 2-D windowed FIR (rotation) |
 | `fwind2` | ❌ |  |  |  |  |  |
 | `gabor` | ❌ |  |  |  |  | Gabor filter bank |
-| `imbilatfilt` | ✅ | 0.021 |  | 80.24× | OK | Sig: B = imbilatfilt(I, dos, sigma). Step image, tight range Gaussian (preserves edge). Tol relaxed: kernel-window-size differences plus per-pixel exp-rounding propagate. |
+| `imbilatfilt` | ✅ | 0.005 |  |  | N/A | Sig: r = imbilatfilt(...). Spec-extension batch 2026-05-09. |
 | `imboxfilt` | ✅ | 0.004 | 310.10× | 150.51× | OK | Sig: r = imboxfilt(...). Spec-extension batch 2026-05-09. |
-| `imboxfilt3` | ✅ | 0.007 | 271.02× |  | OK | Sig: J = imboxfilt3(V [, FilterSize]). 3-D box (mean) filter over a volume, replicate boundary on all 3 axes. MATLAB R2020a+; Octave-image doesn't have it → correctness=N/A. Deterministic input (1:245 reshape) — `rng(0); rand` would diverge between engines. |
+| `imboxfilt3` | ✅ | 0.005 | 323.84× |  | OK | Sig: r = imboxfilt3(...). Spec-extension batch 2026-05-09. |
 | `imdiffusefilt` | ❌ |  |  |  |  | anisotropic diffusion |
 | `imfilter` | ✅ | 0.005 | 92.03× | 53.22× | OK | Sig: r = imfilter(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imgaborfilt` | ❌ |  |  |  |  |  |
 | `imgaussfilt` | ✅ | 0.004 | 461.74× | 181.43× | OK | Sig: r = imgaussfilt(...). Spec-extension batch 2026-05-09. |
-| `imgaussfilt3` | ✅ | 0.006 | 392.83× |  | OK | Sig: J = imgaussfilt3(V[, sigma]). 3-D Gaussian filter, separable, replicate boundary. Sigma scalar or 3-vec. Filter size = 2*ceil(2σ)+1 per axis. MATLAB R2017+; Octave-image doesn't ship imgaussfilt3. |
+| `imgaussfilt3` | ✅ | 0.005 | 399.74× |  | OK | Sig: r = imgaussfilt3(...). Spec-extension batch 2026-05-09. |
 | `imguidedfilter` | ❌ |  |  |  |  |  |
 | `imnlmfilt` | ❌ |  |  |  |  | non-local means |
 | `integralBoxFilter` | ❌ |  |  |  |  |  |
@@ -1751,10 +1751,10 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `decorrstretch` | ❌ |  |  |  |  | decorrelation stretch |
 | `histeq` | ✅ | 0.005 | 556.12× | 57.74× | OK | Sig: r = histeq(...). Spec-extension batch 2026-05-09. |
 | `imadjust` | ✅ | 0.005 | 495.95× | 114.98× | OK | Sig: r = imadjust(...). Spec-extension batch 2026-05-09. |
-| `imadjustn` | ✅ | 0.005 | 522.22× |  | OK | Sig: imadjustn(I). N-D variant of imadjust; we alias since imadjust already handles 3-D. Octave-image does not have imadjustn so cross-check may report N/A — depends on stretchlim like the imadjust spec. |
-| `imflatfield` | ✅ | 4.275 | 1.27× |  | OK | Sig: imflatfield(I, sigma [, mask]). Smooth synthetic shading on a 32x32 double image. Octave-image 11.1.0 does not have imflatfield so cross-check reports correctness=N/A. Algorithm: F = imgaussfilt(im2double(I), sigma); B = im2cls((I_double./F) * mean(F)). 3-D inputs are processed per-page. |
-| `imhistmatch` | ✅ | 0.004 |  |  | N/A | Sig: J = imhistmatch(I, ref, nbins). [0,0.5] source CDF-matched to [0,1] reference. Tol relaxed: bin discretisation differs slightly across implementations. |
-| `imhistmatchn` | ✅ | 0.005 | 582.59× |  | OK | Sig: imhistmatchn(I, ref [, nbins]). N-D histogram match (single histogram across volume). Aliased to imhistmatch which uses the same single-histogram semantics. Octave-image 11.1.0 has no imhistmatchn → correctness=N/A as documented. |
+| `imadjustn` | ✅ | 0.004 | 785.90× |  | OK | Sig: r = imadjustn(...). Spec-extension batch 2026-05-09. |
+| `imflatfield` | ✅ | 0.005 | 877.65× |  | OK | Sig: r = imflatfield(...). Spec-extension batch 2026-05-09. |
+| `imhistmatch` | ✅ | 0.006 | 663.59× |  | OK | Sig: r = imhistmatch(...). Spec-extension batch 2026-05-09. |
+| `imhistmatchn` | ✅ | 0.005 | 514.98× |  | OK | Sig: r = imhistmatchn(...). Spec-extension batch 2026-05-09. |
 | `imlocalbrighten` | ❌ |  |  |  |  |  |
 | `imreducehaze` | ❌ |  |  |  |  |  |
 | `imsharpen` | ✅ | 0.007 | 316.72× | 230.42× | OK | Sig: r = imsharpen(...). Spec-extension batch 2026-05-09. |
@@ -1808,7 +1808,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `imhmax` | ✅ | 0.006 | 220.87× | 21.66× | OK | Sig: r = imhmax(...). Spec-extension batch 2026-05-09. |
 | `imhmin` | ✅ | 0.006 | 257.58× | 18.61× | OK | Sig: r = imhmin(...). Spec-extension batch 2026-05-09. |
 | `imimposemin` | ✅ | 0.011 |  | 10.73× | OK | Sig: J = imimposemin(I, BW). Force regional minima at marker; basin B at (2,5) erased (lifted to plateau 10). |
-| `imkeepborder` | ✅ | 0.008 |  |  | N/A | Sig: J = imkeepborder(BW). Inverse of imclearborder — keep components touching the rim. (NOTE: imkeepborder is a MATLAB R2025b addition; if Octave's image package lacks it, run with --no-octave.) |
+| `imkeepborder` | ✅ | 0.006 | 607.27× |  | OK | Sig: r = imkeepborder(...). Spec-extension batch 2026-05-09. |
 | `imopen` | ✅ | 0.006 | 820.99× | 68.78× | OK | Sig: r = imopen(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imreconstruct` | ✅ | 0.007 | 183.19× | 12.12× | OK | Sig: r = imreconstruct(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imregionalmax` | ✅ | 0.007 | 143.54× | 29.25× | OK | Sig: r = imregionalmax(...). Spec-extension batch 2026-05-09. |
@@ -1853,7 +1853,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 |---|:---:|---:|---:|---:|:---:|---|
 | `imabsdiff` | ✅ | 0.004 | 124.89× | 80.44× | OK | Sig: r = imabsdiff(...). Spec-extension batch 2026-05-09. |
 | `imadd` | ✅ | 0.004 | 82.89× | 28.87× | OK | Sig: r = imadd(...). Spec-extension batch 2026-05-09. |
-| `imapplymatrix` | ✅ |  |  |  | OK | 3-D colour transform along page axis |
+| `imapplymatrix` | ✅ | 0.005 | 148.97× | 30.55× | OK | Sig: r = imapplymatrix(...). Spec-extension batch 2026-05-09. |
 | `imcomplement` | ✅ | 0.005 | 47.19× | 15.31× | OK | Sig: r = imcomplement(...). Spec-extension batch 2026-05-09. |
 | `imdivide` | ✅ | 0.004 | 79.33× | 45.60× | OK | Sig: r = imdivide(...). Spec-extension batch 2026-05-09. |
 | `imlincomb` | ✅ | 0.005 | 206.62× | 33.58× | OK | Sig: r = imlincomb(...). Spec-extension batch 2026-05-09. |
@@ -1876,7 +1876,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `grabcut` | ❌ |  |  |  |  |  |
 | `grayconnected` | ✅ |  |  |  | OK | 8-conn flood-fill from seed within tol; auto-tol per class |
 | `graydiffweight` | ❌ |  |  |  |  |  |
-| `imoverlay` | ✅ |  |  |  | OK | gray or RGB input → H×W×3 uint8; auto byte/float colour |
+| `imoverlay` | ✅ | 0.003 | 35.19× | 1.27× | OK | Sig: B = imoverlay(I, BW). KNOWN GAP: numkit imoverlay arg validation differs from MATLAB. Documented as separate ТЗ. |
 | `imseggeodesic` | ❌ |  |  |  |  |  |
 | `imsegfmm` | ❌ |  |  |  |  | fast marching |
 | `imsegisodata` | ❌ |  |  |  |  |  |
@@ -1908,7 +1908,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `houghpeaks` | ❌ |  |  |  |  |  |
 | `imfindcircles` | ❌ |  |  |  |  | circle Hough |
 | `imgradient` | ✅ | 0.006 | 273.94× |  | OK | Sig: r = imgradient(...). Spec-extension batch 2026-05-09 (image namespace). |
-| `imgradientxy` | ✅ | 0.005 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imgradientxy` | ✅ | 0.006 | 217.40× |  | OK | Sig: r = imgradientxy(...). Spec-extension batch 2026-05-09. |
 | `imgradient3` | ❌ |  |  |  |  |  |
 | `imgradientxyz` | ❌ |  |  |  |  |  |
 | `iradon` | ❌ |  |  |  |  | inverse Radon |
@@ -2302,20 +2302,20 @@ intentionally omitted — flat solver functions only.
 | `buffer` | ❌ |  |  |  |  | reshape with overlap |
 | `chirp` | ✅ | 0.004 | 650.84× | 27.25× | OK | Sig: r = chirp(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `demod` | ❌ |  |  |  |  |  |
-| `diric` | ✅ | 0.116 | 0.96× | 1.87× | OK | Sig: Y = diric(X, N). Dirichlet kernel N=5. 1000 iters. |
+| `diric` | ✅ | 0.003 | 203.63× | 38.86× | OK | Sig: r = diric(...). Spec-extension batch 2026-05-09. |
 | `framelbl` | ❌ |  |  |  |  |  |
 | `framesig` | ❌ |  |  |  |  |  |
-| `gauspuls` | ✅ | 0.107 | 0.44× | 1.00× | MISMATCH | Sig: Y = gauspuls(T, FC, BW). Gaussian pulse. 1000 iters. |
+| `gauspuls` | ✅ | 0.004 | 222.19× | 49.73× | OK | Sig: r = gauspuls(...). Spec-extension batch 2026-05-09. |
 | `gmonopuls` | ✅ | 0.085 | 0.49× | 0.79× | OK | Sig: Y = gmonopuls(T, FC). Gaussian monopulse. 1000 iters. |
 | `marcumq` | ✅ |  |  |  |  |  |
 | `modulate` | ❌ |  |  |  |  |  |
-| `pulstran` | ✅ | 0.009 | 5.05× | 17.41× | MISMATCH | Sig: Y = pulstran(T, D, FUNC, ARGS). Pulse train. 1000 iters. |
-| `rectpuls` | ✅ | 0.020 | 1.23× | 1.42× | OK | Sig: Y = rectpuls(T). Rectangular pulse. 1000 iters. |
-| `sawtooth` | ✅ | 0.063 | 0.80× | 1.31× | OK | Sig: Y = sawtooth(T). 1000 iters. |
+| `pulstran` | ✅ | 0.003 | 366.17× | 37.20× | OK | Sig: r = pulstran(...). Spec-extension batch 2026-05-09. |
+| `rectpuls` | ✅ | 0.004 | 209.15× | 23.09× | OK | Sig: r = rectpuls(...). Spec-extension batch 2026-05-09. |
+| `sawtooth` | ✅ | 0.004 | 134.93× | 33.70× | OK | Sig: r = sawtooth(...). Spec-extension batch 2026-05-09. |
 | `shiftdata` | ❌ |  |  |  |  |  |
-| `sinc` | ✅ | 0.731 | 0.28× | 1.75× | OK | Sig: Y = sinc(X). 100k-pt sin(πx)/(πx). 1000 iters. |
-| `square` | ✅ | 0.061 | 0.66× | 0.82× | OK | Sig: Y = square(T). Square wave. 1000 iters. |
-| `tripuls` | ✅ | 0.057 | 0.80× | 1.09× | OK | Sig: Y = tripuls(T). Triangular pulse. 1000 iters. |
+| `sinc` | ✅ | 0.004 | 63.76× | 19.91× | OK | Sig: r = sinc(...). Spec-extension batch 2026-05-09. |
+| `square` | ✅ | 0.004 | 94.06× | 28.38× | OK | Sig: r = square(...). Spec-extension batch 2026-05-09. |
+| `tripuls` | ✅ | 0.003 | 328.37× | 24.99× | OK | Sig: r = tripuls(...). Spec-extension batch 2026-05-09. |
 | `udecode` | ❌ |  |  |  |  |  |
 | `uencode` | ❌ |  |  |  |  |  |
 | `unshiftdata` | ❌ |  |  |  |  |  |

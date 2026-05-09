@@ -1,10 +1,13 @@
 {
   "name": "square",
-  "namespace": "core",
-  "setup": "t = linspace(0, 4*pi, 10000);",
-  "expr": "y = square(t);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: Y = square(T). Square wave. 1000 iters."
+  "namespace": "signal",
+  "setup": "",
+  "expr": "y = square(2*pi*0.1*(0:9)); r1 = y(1); r2 = y(5);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = square(...). Spec-extension batch 2026-05-09."
 }

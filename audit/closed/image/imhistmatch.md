@@ -1,6 +1,6 @@
-# image/imquantize — ТЗ for completion
+# image/imhistmatch — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** 4fae461
@@ -18,3 +18,8 @@ benched input.
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Image batch 5 (13 funcs). Bit-identical MATLAB R2025b. See image_batch5_test.cpp.

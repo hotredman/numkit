@@ -1,10 +1,13 @@
 {
   "name": "rectpuls",
-  "namespace": "core",
-  "setup": "t = linspace(-2, 2, 10000);",
-  "expr": "y = rectpuls(t);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: Y = rectpuls(T). Rectangular pulse. 1000 iters."
+  "namespace": "signal",
+  "setup": "",
+  "expr": "y = rectpuls((-1:0.5:1), 1); r1 = y(1); r2 = y(3);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = rectpuls(...). Spec-extension batch 2026-05-09."
 }

@@ -10,4 +10,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/image_batch2_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/image_batch3_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/image_batch4_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/image_batch5_test.cpp
 )
