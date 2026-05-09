@@ -2406,6 +2406,143 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 outs[0] = std::move(out);
                             });
 
+    // ── datevec ───────────────────────────────────────────────
+    // MATLAB datevec(d): inverse of datenum.
+    //
+    // Single output: N-by-6 matrix, one row per scalar input element
+    // (column-major linearisation for matrix input). Six outputs:
+    // separate length-N column vectors (Y, M, D, H, MI, S).
+    //
+    // Algorithm: Howard Hinnant's `civil_from_days` to recover (Y, M, D)
+    // from the integer day index, then extract H, MI, S from the
+    // fractional part. Microsecond rounding tames double-precision
+    // noise so datenum->datevec round-trips give exact integers.
+    //
+    // Edge: datevec(0) = [0 0 0 0 0 0] (matches MATLAB literal).
+    engine.registerFunction("datevec",
+                            [](Span<const Value> args,
+                               size_t nargout,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                if (args.empty())
+                                    throw std::runtime_error(
+                                        "datevec requires at least one "
+                                        "argument");
+                                if (args[0].isChar() || args[0].isString())
+                                    throw std::runtime_error(
+                                        "datevec: string parsing not yet "
+                                        "supported");
+
+                                auto civilFromDays = [](int64_t z,
+                                                        int64_t &Y, int &M,
+                                                        int &D) {
+                                    z += 719468;
+                                    const int64_t era =
+                                        (z >= 0 ? z : z - 146096) / 146097;
+                                    const int64_t doe = z - era * 146097;
+                                    const int64_t yoe =
+                                        (doe - doe / 1460 + doe / 36524
+                                         - doe / 146096)
+                                        / 365;
+                                    const int64_t y = yoe + era * 400;
+                                    const int64_t doy =
+                                        doe - (365 * yoe + yoe / 4 - yoe / 100);
+                                    const int64_t mp = (5 * doy + 2) / 153;
+                                    D = static_cast<int>(
+                                        doy - (153 * mp + 2) / 5 + 1);
+                                    M = static_cast<int>(
+                                        mp < 10 ? mp + 3 : mp - 9);
+                                    Y = y + (M <= 2 ? 1 : 0);
+                                };
+                                auto extractTime = [](double frac, int &H,
+                                                      int &MI, double &S) {
+                                    // Round to milliseconds. Microsecond
+                                    // rounding is at the FP-precision edge
+                                    // for typical serial-date magnitudes
+                                    // (~7e5 days -> ~7us absolute precision)
+                                    // and shows up as +/-1us noise on round-
+                                    // trips. Millisecond gives a comfortable
+                                    // margin while still preserving MATLAB-
+                                    // displayed fractional-second resolution.
+                                    const double total_ms =
+                                        std::round(frac * 86400.0 * 1.0e3);
+                                    int64_t ms = static_cast<int64_t>(total_ms);
+                                    H  = static_cast<int>(ms / 3600000LL);
+                                    ms %= 3600000LL;
+                                    MI = static_cast<int>(ms / 60000LL);
+                                    ms %= 60000LL;
+                                    S  = static_cast<double>(ms) / 1.0e3;
+                                };
+                                auto vecOf = [&](double dval, double *out6) {
+                                    if (dval == 0.0) {
+                                        for (int k = 0; k < 6; ++k)
+                                            out6[k] = 0.0;
+                                        return;
+                                    }
+                                    const double floored = std::floor(dval);
+                                    const int64_t days =
+                                        static_cast<int64_t>(floored);
+                                    const double frac = dval - floored;
+                                    const int64_t z = days - 719529;
+                                    int64_t Y;
+                                    int M, D, H, MI;
+                                    double S;
+                                    civilFromDays(z, Y, M, D);
+                                    extractTime(frac, H, MI, S);
+                                    // Carry from S/MI/H into D/M/Y if rounding
+                                    // pushed seconds to 60.
+                                    if (S >= 60.0) { S -= 60.0; ++MI; }
+                                    if (MI >= 60)  { MI -= 60;  ++H;  }
+                                    if (H  >= 24)  { H  -= 24;
+                                        // Day rolled over -- recompute civil.
+                                        civilFromDays(z + 1, Y, M, D);
+                                    }
+                                    out6[0] = static_cast<double>(Y);
+                                    out6[1] = static_cast<double>(M);
+                                    out6[2] = static_cast<double>(D);
+                                    out6[3] = static_cast<double>(H);
+                                    out6[4] = static_cast<double>(MI);
+                                    out6[5] = S;
+                                };
+
+                                auto *mr = ctx.engine->resource();
+                                const Value &Din = args[0];
+                                const size_t N = Din.numel();
+
+                                // Compute N x 6 output column-major.
+                                auto out = Value::matrix(
+                                    N, 6, ValueType::DOUBLE, mr);
+                                double *o = out.doubleDataMut();
+                                double tmp[6];
+                                for (size_t i = 0; i < N; ++i) {
+                                    vecOf(Din.elemAsDouble(i), tmp);
+                                    for (int c = 0; c < 6; ++c)
+                                        o[i + c * N] = tmp[c];
+                                }
+
+                                if (nargout <= 1) {
+                                    outs[0] = std::move(out);
+                                    return;
+                                }
+                                // 6-output form: separate column vectors
+                                // (or scalars if N == 1).
+                                for (int c = 0; c < 6
+                                                && c < static_cast<int>(nargout);
+                                     ++c) {
+                                    if (N == 1) {
+                                        outs[c] = Value::scalar(
+                                            o[c * N], mr);
+                                    } else {
+                                        auto col = Value::matrix(
+                                            N, 1, ValueType::DOUBLE, mr);
+                                        double *p = col.doubleDataMut();
+                                        for (size_t i = 0; i < N; ++i)
+                                            p[i] = o[i + c * N];
+                                        outs[c] = std::move(col);
+                                    }
+                                }
+                            });
+
     // ── addpath / rmpath / path / rehash / run (Phase 9b) ──────
     engine.registerFunction("addpath",
                             [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {

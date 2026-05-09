@@ -1,0 +1,10 @@
+{
+  "name": "datevec",
+  "namespace": "builtin",
+  "setup": "d1 = datenum(2026, 5, 9); d2 = datenum(2026, 5, 9, 12, 30, 45); d3 = 719529; d4 = datenum(2026, 5, 9) + 0.25; v = [datenum(2026,5,9); datenum(2027,6,10); datenum(2028,7,11)];",
+  "expr": "v1 = datevec(d1); v2 = datevec(d2); v3 = datevec(d3); v4 = datevec(d4); M = datevec(v); [Yc, Mc, Dc] = datevec(d2);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["v1(1)", "v1(2)", "v1(3)", "v2(4)", "v2(5)", "v2(6)", "v3(1)", "v4(4)", "M(1,3)", "M(2,3)", "M(3,3)", "Yc", "Mc", "Dc"],
+  "comment": "MATLAB datevec: inverse of datenum. Covered: scalar round-trip (Y,M,D), with-time round-trip (H,MI,S), Unix-epoch anchor (719529 -> 1970-01-01), fractional-day extraction (0.25 -> 06:00), N-vector input -> Nx6 matrix, multi-output [Y,M,D] form. Algorithm: Howard Hinnant civil_from_days + microsecond rounding for FP-noise dampening. Edge: datevec(0) = [0 0 0 0 0 0] matches MATLAB literal."
+}
