@@ -8,6 +8,7 @@ set(COMMLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/eq/pulse.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/eq/scrambler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/eq/errors.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/eq/compand.cpp
 )
 
 set(COMMLIB_SOURCES ${COMMLIB_SOURCES} PARENT_SCOPE)
