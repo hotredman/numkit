@@ -36,6 +36,22 @@ test.describe('boot', () => {
     expect(text).toMatch(/help/);
   });
 
+  test('engine boots in WASM mode, not the demo fallback', async () => {
+    // The "Numkit IDE v3" banner is set by the IDE shell regardless of
+    // engine, so it's not enough on its own. We assert WASM glue
+    // loaded AND the fallback path was not taken — without this, a
+    // duplicate-compat registration error during repl_init would
+    // silently flip every other spec to demo mode where the new
+    // builtins don't exist (they get parsed-and-ignored), masking the
+    // regression as a "passing" test.
+    await ide.waitForReady();
+    const dev = ide.devLogs();
+    expect(dev, 'expected [REPL] WASM glue loaded OK in dev logs')
+      .toMatch(/\[REPL\] WASM glue loaded OK/);
+    expect(dev, 'unexpected demo fallback — engine init likely threw')
+      .not.toMatch(/Using fallback engine/);
+  });
+
   test('no renderer console errors during boot', async () => {
     await ide.waitForReady();
     // Filter out known-benign noise:

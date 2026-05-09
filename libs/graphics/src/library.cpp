@@ -476,6 +476,330 @@ void GraphicsLibrary::install(Engine &engine)
             outs[0] = Value::empty();
         });
 
+    // ────────── Statistical chart wrappers ───────────────────────────
+    // These all reduce to 1-2 existing dataset types (scatter / line /
+    // bar / stairs) so the renderer doesn't need any new code.
+
+    // cdfplot(x) / ecdf(x) — empirical cumulative distribution. Sorts
+    // x ascending and renders a right-continuous step function from
+    // 0 to 1. NaN inputs are dropped.
+    auto cdfImpl = [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+        (void)nargout;
+        if (args.empty() || args[0].numel() == 0) { outs[0] = Value::empty(); return; }
+        const auto &X = args[0];
+        std::vector<double> xs;
+        xs.reserve(X.numel());
+        for (size_t i = 0; i < X.numel(); ++i) {
+            const double v = X.doubleData()[i];
+            if (std::isfinite(v)) xs.push_back(v);
+        }
+        if (xs.empty()) { outs[0] = Value::empty(); return; }
+        std::sort(xs.begin(), xs.end());
+        const size_t N = xs.size();
+
+        std::ostringstream sx, sy;
+        sx << '['; sy << '[';
+        for (size_t i = 0; i < N; ++i) {
+            if (i) { sx << ','; sy << ','; }
+            sx << xs[i];
+            sy << ((double)(i + 1) / (double)N);
+        }
+        sx << ']'; sy << ']';
+
+        auto &fm = ctx.engine->figureManager();
+        fm.prepareForPlot();
+        DatasetInfo ds;
+        ds.type = "stairs";
+        ds.xJson = sx.str();
+        ds.yJson = sy.str();
+        ds.style = "color=#1f77b4";
+        fm.pushDataset(std::move(ds));
+        fm.emitModified();
+        outs[0] = Value::empty();
+    };
+    reg("bar", "cdfplot", cdfImpl);
+    // `ecdf` is already provided by libs/stats as a computational
+    // routine that returns (F, x) — registering a graphics version
+    // here would duplicate the compat.<ecdf> alias and brick WASM
+    // init. Users plot the empirical CDF via `cdfplot(x)`.
+
+    // qqplot(x) — quantile-quantile plot vs the standard normal. The
+    // observed sample quantile at rank i = (i - 0.5) / N is plotted
+    // against the theoretical normal quantile Φ⁻¹((i - 0.5) / N).
+    // Reference line passes through the 25th and 75th sample quantiles
+    // — a robust IQR-based fit that beats a naive μ ± σ line on
+    // skewed data. Two datasets: scatter (points) + line (reference).
+    reg("bar", "qqplot",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.empty() || args[0].numel() == 0) { outs[0] = Value::empty(); return; }
+            std::vector<double> xs;
+            for (size_t i = 0; i < args[0].numel(); ++i) {
+                const double v = args[0].doubleData()[i];
+                if (std::isfinite(v)) xs.push_back(v);
+            }
+            if (xs.size() < 2) { outs[0] = Value::empty(); return; }
+            std::sort(xs.begin(), xs.end());
+            const size_t N = xs.size();
+
+            // Probit (inverse normal CDF) — Abramowitz & Stegun 26.2.23
+            // rational approx, good to ~4.5e-4 absolute error. Mirrors
+            // the upper tail; the lower tail is its negative.
+            const auto probit = [](double p) {
+                p = std::max(1e-15, std::min(1.0 - 1e-15, p));
+                const bool lower = (p < 0.5);
+                const double q = lower ? p : (1.0 - p);
+                const double t = std::sqrt(-2.0 * std::log(q));
+                const double c0 = 2.515517, c1 = 0.802853, c2 = 0.010328;
+                const double d1 = 1.432788, d2 = 0.189269, d3 = 0.001308;
+                const double r = t - (c0 + c1*t + c2*t*t)
+                                   / (1 + d1*t + d2*t*t + d3*t*t*t);
+                return lower ? -r : r;
+            };
+
+            std::ostringstream tx, ty;
+            tx << '['; ty << '[';
+            for (size_t i = 0; i < N; ++i) {
+                if (i) { tx << ','; ty << ','; }
+                tx << probit((i + 0.5) / (double)N);
+                ty << xs[i];
+            }
+            tx << ']'; ty << ']';
+
+            // Reference line: passes through (probit(0.25), q1) and
+            // (probit(0.75), q3) where q1, q3 are the 25th / 75th
+            // percentiles of the sample.
+            const double q1 = xs[(size_t)((N - 1) * 0.25)];
+            const double q3 = xs[(size_t)((N - 1) * 0.75)];
+            const double t1 = probit(0.25), t3 = probit(0.75);
+            const double slope = (q3 - q1) / (t3 - t1);
+            const double intercept = q1 - slope * t1;
+            // Extend slightly past the data range so the ref line
+            // visibly bisects the cloud.
+            const double tlo = probit(0.5 / N) - 0.1;
+            const double thi = probit(1.0 - 0.5 / N) + 0.1;
+            std::ostringstream lx, ly;
+            lx << '[' << tlo << ',' << thi << ']';
+            ly << '[' << (intercept + slope * tlo) << ',' << (intercept + slope * thi) << ']';
+
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            DatasetInfo dsLine;
+            dsLine.type = "line";
+            dsLine.xJson = lx.str();
+            dsLine.yJson = ly.str();
+            dsLine.style = "color=#d62728";
+            fm.pushDataset(std::move(dsLine));
+            DatasetInfo dsDot;
+            dsDot.type = "scatter";
+            dsDot.xJson = tx.str();
+            dsDot.yJson = ty.str();
+            dsDot.style = "color=#1f77b4";
+            dsDot.markerSize = 3;
+            fm.pushDataset(std::move(dsDot));
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
+    // pareto(Y) — bars in descending Y order + a cumulative-percent
+    // line on the same axes. Useful for "80/20" / quality-control
+    // visualisations. We emit two datasets:
+    //   1. type=bar, X = 1..N (rank), Y sorted descending
+    //   2. type=line, same X, Y = 100 * cumsum(Y) / sum(Y)
+    reg("bar", "pareto",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.empty() || args[0].numel() == 0) { outs[0] = Value::empty(); return; }
+            std::vector<double> ys;
+            for (size_t i = 0; i < args[0].numel(); ++i) {
+                const double v = args[0].doubleData()[i];
+                if (std::isfinite(v)) ys.push_back(v);
+            }
+            if (ys.empty()) { outs[0] = Value::empty(); return; }
+            std::sort(ys.begin(), ys.end(), std::greater<double>());
+            double sum = 0;
+            for (double v : ys) sum += v;
+            if (sum == 0) sum = 1;
+
+            std::ostringstream bx, by, lx, ly;
+            bx << '['; by << '['; lx << '['; ly << '[';
+            double cum = 0;
+            for (size_t i = 0; i < ys.size(); ++i) {
+                if (i) { bx << ','; by << ','; lx << ','; ly << ','; }
+                cum += ys[i];
+                bx << (i + 1); by << ys[i];
+                lx << (i + 1); ly << (100.0 * cum / sum);
+            }
+            bx << ']'; by << ']'; lx << ']'; ly << ']';
+
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            DatasetInfo dsBar;
+            dsBar.type = "bar";
+            dsBar.xJson = bx.str();
+            dsBar.yJson = by.str();
+            dsBar.style = "color=#1f77b4";
+            fm.pushDataset(std::move(dsBar));
+            DatasetInfo dsLine;
+            dsLine.type = "line";
+            dsLine.xJson = lx.str();
+            dsLine.yJson = ly.str();
+            dsLine.style = "color=#d62728";
+            fm.pushDataset(std::move(dsLine));
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
+    // histfit(x[, nbins]) — histogram of x with a Gaussian fit overlay.
+    // Default 10 bins. The fit uses sample mean/std; PDF is scaled by
+    // (N * binWidth) so the curve is visually comparable to the bar
+    // counts.
+    reg("bar", "histfit",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.empty() || args[0].numel() == 0) { outs[0] = Value::empty(); return; }
+            std::vector<double> xs;
+            for (size_t i = 0; i < args[0].numel(); ++i) {
+                const double v = args[0].doubleData()[i];
+                if (std::isfinite(v)) xs.push_back(v);
+            }
+            if (xs.size() < 2) { outs[0] = Value::empty(); return; }
+            int nbins = 10;
+            if (args.size() >= 2 && args[1].numel() == 1)
+                nbins = std::max(1, (int)args[1].toScalar());
+
+            double mn = xs[0], mx = xs[0];
+            for (double v : xs) {
+                if (v < mn) mn = v;
+                if (v > mx) mx = v;
+            }
+            const double bw = (mx - mn) / nbins;
+            const double bwSafe = (bw == 0) ? 1.0 : bw;
+            std::vector<double> counts(nbins, 0.0), centers(nbins);
+            for (int i = 0; i < nbins; ++i)
+                centers[i] = mn + bwSafe * (i + 0.5);
+            for (double v : xs) {
+                int b = (int)((v - mn) / bwSafe);
+                if (b >= nbins) b = nbins - 1;
+                if (b < 0) b = 0;
+                counts[b] += 1;
+            }
+            double mean = 0;
+            for (double v : xs) mean += v;
+            mean /= xs.size();
+            double var = 0;
+            for (double v : xs) var += (v - mean) * (v - mean);
+            var /= (xs.size() > 1 ? xs.size() - 1 : 1);
+            const double sd = std::sqrt(var);
+            const double sdSafe = (sd > 0) ? sd : 1.0;
+
+            // Sample the Gaussian on a fine grid for the fit curve.
+            const int gridN = 100;
+            std::ostringstream bx, by, fx, fy;
+            bx << '['; by << '[';
+            for (int i = 0; i < nbins; ++i) {
+                if (i) { bx << ','; by << ','; }
+                bx << centers[i]; by << counts[i];
+            }
+            bx << ']'; by << ']';
+            fx << '['; fy << '[';
+            const double scale = xs.size() * bwSafe;
+            for (int g = 0; g < gridN; ++g) {
+                if (g) { fx << ','; fy << ','; }
+                const double xg = mn + (mx - mn) * g / (gridN - 1);
+                const double pdf = std::exp(-0.5 * std::pow((xg - mean) / sdSafe, 2))
+                                 / (sdSafe * std::sqrt(2 * 3.14159265358979323846));
+                fx << xg; fy << (pdf * scale);
+            }
+            fx << ']'; fy << ']';
+
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            DatasetInfo dsBar;
+            dsBar.type = "bar";
+            dsBar.xJson = bx.str();
+            dsBar.yJson = by.str();
+            dsBar.style = "color=#aec7e8";
+            fm.pushDataset(std::move(dsBar));
+            DatasetInfo dsFit;
+            dsFit.type = "line";
+            dsFit.xJson = fx.str();
+            dsFit.yJson = fy.str();
+            dsFit.style = "color=#d62728";
+            dsFit.lineWidth = 2;
+            fm.pushDataset(std::move(dsFit));
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
+    // gscatter(x, y, g) — scatter coloured by group label. Each unique
+    // value of g becomes its own scatter dataset (so it picks up a
+    // distinct color from the renderer's palette).
+    reg("bar", "gscatter",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.size() < 3) { outs[0] = Value::empty(); return; }
+            const auto &X = args[0];
+            const auto &Y = args[1];
+            const auto &G = args[2];
+            const size_t N = std::min({X.numel(), Y.numel(), G.numel()});
+            if (N == 0) { outs[0] = Value::empty(); return; }
+
+            // Group indices: distinct values in G, preserving first-seen
+            // order. G can be numeric or char (treat both via toScalar
+            // when numeric; char-array support deferred — most users
+            // pass numeric labels).
+            std::vector<double> groupKeys;
+            std::vector<int> groupIdx(N);
+            for (size_t i = 0; i < N; ++i) {
+                const double k = G.doubleData()[i];
+                int found = -1;
+                for (size_t j = 0; j < groupKeys.size(); ++j) {
+                    if (groupKeys[j] == k) { found = (int)j; break; }
+                }
+                if (found < 0) {
+                    found = (int)groupKeys.size();
+                    groupKeys.push_back(k);
+                }
+                groupIdx[i] = found;
+            }
+
+            // Categorical palette (ColorBrewer Set1, 8 colors).
+            static const char *kPalette[] = {
+                "#1f77b4", "#d62728", "#2ca02c", "#9467bd",
+                "#ff7f0e", "#17becf", "#e377c2", "#7f7f7f",
+            };
+            const size_t nGroups = groupKeys.size();
+
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            for (size_t gi = 0; gi < nGroups; ++gi) {
+                std::ostringstream sx, sy;
+                sx << '['; sy << '[';
+                bool first = true;
+                for (size_t i = 0; i < N; ++i) {
+                    if (groupIdx[i] != (int)gi) continue;
+                    if (!first) { sx << ','; sy << ','; }
+                    first = false;
+                    sx << X.doubleData()[i];
+                    sy << Y.doubleData()[i];
+                }
+                sx << ']'; sy << ']';
+                if (first) continue;
+                DatasetInfo ds;
+                ds.type = "scatter";
+                ds.xJson = sx.str();
+                ds.yJson = sy.str();
+                std::ostringstream st;
+                st << "color=" << kPalette[gi % 8];
+                ds.style = st.str();
+                ds.label = "group " + std::to_string((long long)groupKeys[gi]);
+                fm.pushDataset(std::move(ds));
+            }
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
     // spy(M) — sparsity pattern. Renders a marker at every (col, row)
     // where M is non-zero (and finite). Mirrors MATLAB convention of
     // axis ij so the matrix sits like the printed form (row 1 at top).
