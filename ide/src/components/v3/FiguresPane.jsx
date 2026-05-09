@@ -73,16 +73,28 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
     };
   }, []);
 
+  // Match the Workspace card interaction model: one click anywhere on
+  // the card opens the figure window; the title bar buttons (close /
+  // expand-icon) stop propagation so they aren't swallowed by the card
+  // click. The whole card is the button — no double-click, no separate
+  // body-only click target.
   return (
-    <div className="fp-card">
+    <div
+      className="fp-card"
+      onClick={onExpand}
+      role="button"
+      aria-label={`Open Figure ${figure.id}`}
+    >
       <div className="fp-card-head">
         <span className="fp-card-title">Figure {figure.id}</span>
-        <button className="fp-card-icon" title="Expand" onClick={onExpand}>
+        <button className="fp-card-icon" title="Expand"
+          onClick={(e) => { e.stopPropagation(); onExpand(); }}>
           <svg width="10" height="10" viewBox="0 0 12 12">
             <path d="M2 2h4M2 2v4M10 10H6M10 10V6" stroke="currentColor" strokeWidth="1.4" fill="none"/>
           </svg>
         </button>
-        <button className="fp-card-icon" title="Close" onClick={onClose}>×</button>
+        <button className="fp-card-icon" title="Close"
+          onClick={(e) => { e.stopPropagation(); onClose(); }}>×</button>
       </div>
       <div className="fp-card-body" ref={ref}
         style={{
@@ -90,8 +102,7 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
           width: '100%',
           position: 'relative',
           overflow: 'hidden',
-        }}
-        onDoubleClick={onExpand} onClick={onExpand}>
+        }}>
         {/* SVG is positioned absolutely so its intrinsic pixel size doesn't
             override the body's aspect-ratio-driven height. */}
         <div style={{ position: 'absolute', inset: 0 }}>
