@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <ctime>
 #include <cstdio>
 #include <cstring>
 #include <thread>
@@ -422,6 +423,10 @@ void rosser_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void inv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void linsolve_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void pageinv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void trace_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void det_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void chol_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void topkrows_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void size_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void length_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void numel_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -915,6 +920,10 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("inv",       &builtin::detail::inv_reg);
     engine.registerFunction("linsolve",  &builtin::detail::linsolve_reg);
     engine.registerFunction("pageinv",   &builtin::detail::pageinv_reg);
+    engine.registerFunction("trace",     &builtin::detail::trace_reg);
+    engine.registerFunction("det",       &builtin::detail::det_reg);
+    engine.registerFunction("chol",      &builtin::detail::chol_reg);
+    engine.registerFunction("topkrows",  &builtin::detail::topkrows_reg);
     engine.registerFunction("size",      &builtin::detail::size_reg);
     engine.registerFunction("length",    &builtin::detail::length_reg);
     engine.registerFunction("numel",     &builtin::detail::numel_reg);
@@ -1861,6 +1870,19 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     ctx.engine->outputText(os.str());
                                     outs[0] = Value::empty();
                                 }
+                            });
+
+    // ── cputime ───────────────────────────────────────────────
+    // MATLAB cputime: total CPU seconds used by the current process
+    // since startup. std::clock() is the standard portable handle.
+    engine.registerFunction("cputime",
+                            [](Span<const Value>,
+                               size_t /*nargout*/,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                const double t = static_cast<double>(std::clock())
+                                               / static_cast<double>(CLOCKS_PER_SEC);
+                                outs[0] = Value::scalar(t, ctx.engine->resource());
                             });
 
     // ── addpath / rmpath / path / rehash / run (Phase 9b) ──────

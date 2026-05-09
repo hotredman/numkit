@@ -1,0 +1,10 @@
+{
+  "name": "trace",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "t1 = trace([1 2 3; 4 5 6; 7 8 9]); t2 = trace(eye(5)); t3 = trace([1 2; 3 4; 5 6]); t4 = trace(zeros(4));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": ["t1", "t2", "t3", "t4"],
+  "comment": "Sig: t = trace(A). Sum of diagonal. Works for square + rectangular (uses min(rows,cols)). Bit-identical with MATLAB R2025b."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "cputime",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "t = cputime; r1 = double(t >= 0);",
+  "iters": 1,
+  "tol": 0,
+  "fingerprint": ["r1"],
+  "comment": "Side-effect smoke test (timer probe). cputime returns CPU seconds used by current process; only invariant we can test cross-engine is t >= 0 (absolute values differ between engines). Implemented via std::clock() / CLOCKS_PER_SEC."
+}

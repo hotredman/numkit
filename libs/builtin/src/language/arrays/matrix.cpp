@@ -277,6 +277,159 @@ Value pageinv(std::pmr::memory_resource *mr, const Value &A)
     return out;
 }
 
+// ── trace / det / chol / topkrows ────────────────────────────────────
+
+Value trace(std::pmr::memory_resource *mr, const Value &A)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("trace: input must be a 2D matrix",
+                    0, 0, "trace", "", "m:trace:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    const std::size_t k = std::min(m, n);
+    double s = 0.0;
+    const double *p = A.doubleData();
+    for (std::size_t i = 0; i < k; ++i)
+        s += p[i + i * m];
+    return Value::scalar(s, mr);
+}
+
+namespace {
+
+// In-place LU with partial pivoting on a column-major n×n matrix.
+// Returns false on zero pivot (singular). On return, sign holds
+// (-1)^(number of row swaps).
+bool luPartialPivotInplace(double *A, std::size_t n, int &sign)
+{
+    sign = 1;
+    for (std::size_t k = 0; k < n; ++k) {
+        std::size_t pivot = k;
+        double pmax = std::fabs(A[k + k * n]);
+        for (std::size_t i = k + 1; i < n; ++i) {
+            const double v = std::fabs(A[i + k * n]);
+            if (v > pmax) { pmax = v; pivot = i; }
+        }
+        if (pmax == 0.0) return false;
+        if (pivot != k) {
+            for (std::size_t j = 0; j < n; ++j)
+                std::swap(A[k + j * n], A[pivot + j * n]);
+            sign = -sign;
+        }
+        const double inv_pivot = 1.0 / A[k + k * n];
+        for (std::size_t i = k + 1; i < n; ++i) {
+            const double factor = A[i + k * n] * inv_pivot;
+            A[i + k * n] = factor;
+            for (std::size_t j = k + 1; j < n; ++j)
+                A[i + j * n] -= factor * A[k + j * n];
+        }
+    }
+    return true;
+}
+
+} // anonymous namespace
+
+Value det(std::pmr::memory_resource *mr, const Value &A)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("det: input must be a 2D matrix",
+                    0, 0, "det", "", "m:det:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    if (m != n)
+        throw Error("det: matrix must be square",
+                    0, 0, "det", "", "m:det:notSquare");
+    if (m == 0)
+        return Value::scalar(1.0, mr);
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> A_buf(m * n, &scratch);
+    std::copy(A.doubleData(), A.doubleData() + m * n, A_buf.begin());
+
+    int sign = 1;
+    if (!luPartialPivotInplace(A_buf.data(), n, sign))
+        return Value::scalar(0.0, mr);
+
+    long double prod = static_cast<long double>(sign);
+    for (std::size_t i = 0; i < n; ++i)
+        prod *= static_cast<long double>(A_buf[i + i * n]);
+    return Value::scalar(static_cast<double>(prod), mr);
+}
+
+Value chol(std::pmr::memory_resource *mr, const Value &A)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("chol: input must be a 2D matrix",
+                    0, 0, "chol", "", "m:chol:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    if (m != n)
+        throw Error("chol: matrix must be square",
+                    0, 0, "chol", "", "m:chol:notSquare");
+    if (m == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    // Build upper-triangular R such that R' * R = A. Standard
+    // Cholesky in column-major (MATLAB chol returns R upper).
+    auto R = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    double *r = R.doubleDataMut();
+    std::fill(r, r + n * n, 0.0);
+    const double *a = A.doubleData();
+
+    for (std::size_t j = 0; j < n; ++j) {
+        // R(j,j) = sqrt(A(j,j) - sum(R(0..j-1, j)^2))
+        double s = a[j + j * n];
+        for (std::size_t k = 0; k < j; ++k)
+            s -= r[k + j * n] * r[k + j * n];
+        if (s <= 0.0)
+            throw Error("chol: matrix is not positive-definite",
+                        0, 0, "chol", "", "m:chol:notPosDef");
+        r[j + j * n] = std::sqrt(s);
+        const double inv_diag = 1.0 / r[j + j * n];
+        // R(j, i) for i > j: (A(j,i) - sum(R(0..j-1, j)*R(0..j-1, i))) / R(j,j)
+        for (std::size_t i = j + 1; i < n; ++i) {
+            double t = a[j + i * n];
+            for (std::size_t k = 0; k < j; ++k)
+                t -= r[k + j * n] * r[k + i * n];
+            r[j + i * n] = t * inv_diag;
+        }
+    }
+    return R;
+}
+
+Value topkrows(std::pmr::memory_resource *mr, const Value &A, std::size_t k)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("topkrows: input must be a 2D matrix",
+                    0, 0, "topkrows", "", "m:topkrows:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    const std::size_t kk = std::min(k, m);
+
+    // Build a row-index vector and sort it by lexicographic-descending
+    // comparison of A's rows on every column.
+    ScratchArena scratch(mr);
+    ScratchVec<std::size_t> idx(m, &scratch);
+    for (std::size_t i = 0; i < m; ++i) idx[i] = i;
+    const double *p = A.doubleData();
+    std::sort(idx.begin(), idx.end(),
+              [&](std::size_t a, std::size_t b) {
+                  for (std::size_t j = 0; j < n; ++j) {
+                      const double va = p[a + j * m];
+                      const double vb = p[b + j * m];
+                      if (va > vb) return true;
+                      if (va < vb) return false;
+                  }
+                  return false;  // tie
+              });
+
+    auto out = Value::matrix(kk, n, ValueType::DOUBLE, mr);
+    double *q = out.doubleDataMut();
+    for (std::size_t i = 0; i < kk; ++i)
+        for (std::size_t j = 0; j < n; ++j)
+            q[i + j * kk] = p[idx[i] + j * m];
+    return out;
+}
+
 // ── Toeplitz / Hankel / Vandermonde / Companion ─────────────────────
 
 Value toeplitz(std::pmr::memory_resource *mr,
@@ -2382,6 +2535,42 @@ void pageinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         throw Error("pageinv: requires exactly 1 argument",
                     0, 0, "pageinv", "", "m:pageinv:nargin");
     outs[0] = pageinv(ctx.engine->resource(), args[0]);
+}
+
+void trace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("trace: requires exactly 1 argument",
+                    0, 0, "trace", "", "m:trace:nargin");
+    outs[0] = trace(ctx.engine->resource(), args[0]);
+}
+
+void det_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("det: requires exactly 1 argument",
+                    0, 0, "det", "", "m:det:nargin");
+    outs[0] = det(ctx.engine->resource(), args[0]);
+}
+
+void chol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("chol: requires exactly 1 argument",
+                    0, 0, "chol", "", "m:chol:nargin");
+    outs[0] = chol(ctx.engine->resource(), args[0]);
+}
+
+void topkrows_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 2)
+        throw Error("topkrows: requires (A, k)",
+                    0, 0, "topkrows", "", "m:topkrows:nargin");
+    const double kd = args[1].toScalar();
+    if (kd < 0.0 || kd != std::floor(kd))
+        throw Error("topkrows: k must be a non-negative integer",
+                    0, 0, "topkrows", "", "m:topkrows:badK");
+    outs[0] = topkrows(ctx.engine->resource(), args[0], static_cast<std::size_t>(kd));
 }
 
 void size_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

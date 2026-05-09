@@ -1,0 +1,10 @@
+{
+  "name": "det",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "d1 = det([4 7; 2 6]); d2 = det([1 2 3; 0 5 6; 0 0 9]); d3 = det(eye(5)); d4 = det([1 2; 2 4]); d5 = det(magic(4));",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["d1", "d2", "d3", "d4", "d5"],
+  "comment": "Sig: d = det(A). Determinant via LU with partial pivoting; sign tracked from row swaps. Singular A returns 0. Bit-identical with MATLAB R2025b on probed cases (2×2, triangular 3×3, identity 5×5, singular rank-1, magic(4))."
+}
