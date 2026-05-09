@@ -926,7 +926,7 @@ intentionally omitted, along with `constellation` (object method) and
 | `pskdemod` | ✅ | 0.004 | 532.70× |  | OK | Sig: r = pskdemod(...). Spec-extension batch 2026-05-09. |
 | `ammod` | ❌ | 0.006 | 125.06× |  | OK | MATLAB ammod: amplitude modulator y = (x + carr_amp).*cos(2π·Fc·t + ini_phase). Covered: DSB-SC (carramp=0 default) and DSB-TC (carramp=0.5, ini_phase=pi/4) forms over a 100-sample column-vector input. Bit-equal with MATLAB R2025b within ~1e-10 (Highway sin/cos contributes a few ULP). Octave 11.1.0 doesn't ship ammod in core (signal/communications package only); reports N/A. |
 | `amdemod` | ❌ |  |  |  |  |  |
-| `fmmod` | ❌ |  |  |  |  | frequency modulation |
+| `fmmod` | ❌ | 0.007 | 115.01× |  | OK | MATLAB fmmod: frequency modulator y = cos(2π·Fc·t + 2π·freqdev·cumsum(x)/Fs + ini_phase). Covered: default (ini_phase=0) and explicit ini_phase forms over a 100-sample column-vector input. Bit-equal with MATLAB R2025b within ~1e-10 (Highway sin/cos contributes a few ULP). Octave 11.1.0 doesn't ship fmmod in core (signal/communications package only); reports N/A. |
 | `fmdemod` | ❌ |  |  |  |  |  |
 | `pmmod` | ❌ | 0.006 | 115.29× |  | OK | MATLAB pmmod: phase modulator y = cos(2π·Fc·t + phasedev·x + ini_phase). Covered: default (ini_phase=0) and explicit ini_phase forms, 100-sample column-vector input, sample points across the signal. Bit-equal with MATLAB R2025b. Octave 11.1.0 doesn't ship pmmod in core (it's in the communications package); reports N/A. |
 | `pmdemod` | ❌ |  |  |  |  |  |

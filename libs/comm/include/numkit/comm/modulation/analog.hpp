@@ -27,4 +27,13 @@ Value pmmod(std::pmr::memory_resource *mr, const Value &x,
 Value ammod(std::pmr::memory_resource *mr, const Value &x,
             double fc, double fs, double ini_phase, double carr_amp);
 
+/// `y = fmmod(x, Fc, Fs, freqdev [, ini_phase])` — frequency
+/// modulator.
+///   int_x = cumsum(x) / Fs
+///   y     = cos(2π·Fc·t + 2π·freqdev·int_x + ini_phase)
+/// Row-vector input round-trips as a row vector. Bit-equal with
+/// MATLAB R2025b.
+Value fmmod(std::pmr::memory_resource *mr, const Value &x,
+            double fc, double fs, double freqdev, double ini_phase);
+
 } // namespace numkit::comm
