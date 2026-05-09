@@ -233,6 +233,139 @@ Value compan(std::pmr::memory_resource *mr, const double *p, std::size_t pn)
     return M;
 }
 
+// ── Pascal / Hilbert / Wilkinson / Hadamard / Rosser ────────────────
+
+Value pascal(std::pmr::memory_resource *mr, size_t n)
+{
+    if (n == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    auto M = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    // Default symmetric form: P[i, j] = C(i+j, i). Build via the
+    // recurrence P[i,j] = P[i-1,j] + P[i,j-1] with P[0,*]=P[*,0]=1.
+    for (size_t i = 0; i < n; ++i) {
+        M.elem(i, 0) = 1.0;
+        M.elem(0, i) = 1.0;
+    }
+    for (size_t i = 1; i < n; ++i)
+        for (size_t j = 1; j < n; ++j)
+            M.elem(i, j) = M.elem(i - 1, j) + M.elem(i, j - 1);
+    return M;
+}
+
+Value hilb(std::pmr::memory_resource *mr, size_t n)
+{
+    if (n == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    auto M = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    for (size_t i = 0; i < n; ++i)
+        for (size_t j = 0; j < n; ++j)
+            M.elem(i, j) = 1.0 / static_cast<double>(i + j + 1);
+    return M;
+}
+
+Value invhilb(std::pmr::memory_resource *mr, size_t n)
+{
+    if (n == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    auto M = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    // Closed-form (1-indexed): H⁻¹[i,j] =
+    //   (-1)^(i+j) * (i+j-1) * C(n+i-1, n-j) * C(n+j-1, n-i) * C(i+j-2, i-1)²
+    // Computed via long-double to delay overflow on n ≈ 13.
+    auto binom = [](long n_, long k_) -> long double {
+        if (k_ < 0 || k_ > n_) return 0.0L;
+        if (k_ > n_ - k_) k_ = n_ - k_;
+        long double r = 1.0L;
+        for (long t = 1; t <= k_; ++t)
+            r = r * static_cast<long double>(n_ - t + 1) / static_cast<long double>(t);
+        return r;
+    };
+    for (size_t i0 = 0; i0 < n; ++i0)
+        for (size_t j0 = 0; j0 < n; ++j0) {
+            const long i = static_cast<long>(i0 + 1);
+            const long j = static_cast<long>(j0 + 1);
+            const long N = static_cast<long>(n);
+            const long sgn = ((i + j) % 2 == 0) ? 1 : -1;
+            const long double v =
+                static_cast<long double>(sgn) *
+                static_cast<long double>(i + j - 1) *
+                binom(N + i - 1, N - j) *
+                binom(N + j - 1, N - i) *
+                binom(i + j - 2, i - 1) *
+                binom(i + j - 2, i - 1);
+            M.elem(i0, j0) = static_cast<double>(v);
+        }
+    return M;
+}
+
+Value wilkinson(std::pmr::memory_resource *mr, size_t n)
+{
+    if (n == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    auto M = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    // Diagonal: |(1:n) - (n+1)/2|; subdiagonal/superdiagonal: ones.
+    const double mid = (static_cast<double>(n) + 1.0) / 2.0;
+    for (size_t i = 0; i < n; ++i) {
+        M.elem(i, i) = std::abs(static_cast<double>(i + 1) - mid);
+        if (i > 0) {
+            M.elem(i, i - 1) = 1.0;
+            M.elem(i - 1, i) = 1.0;
+        }
+    }
+    return M;
+}
+
+Value hadamard(std::pmr::memory_resource *mr, size_t n)
+{
+    if (n == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    if (n == 1) {
+        auto M = Value::matrix(1, 1, ValueType::DOUBLE, mr);
+        M.elem(0, 0) = 1.0;
+        return M;
+    }
+    // Verify n is a power of 2 (Sylvester only). 12·2^k and 20·2^k
+    // are valid MATLAB orders too -- those use Paley I/II constructions
+    // and are deferred (see header).
+    if ((n & (n - 1)) != 0)
+        throw Error("hadamard: only powers of 2 are supported in this revision (12·2^k and 20·2^k via Paley are deferred)",
+                    0, 0, "hadamard", "", "m:hadamard:badN");
+
+    auto M = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    // Sylvester recursion: H_1 = [1]; H_{2k} = [Hk Hk; Hk -Hk].
+    M.elem(0, 0) = 1.0;
+    for (size_t k = 1; k < n; k <<= 1) {
+        // Quadrant copies for size doubling from k → 2k.
+        for (size_t i = 0; i < k; ++i)
+            for (size_t j = 0; j < k; ++j) {
+                const double v = M.elem(i, j);
+                M.elem(i,     j + k) =  v;
+                M.elem(i + k, j)     =  v;
+                M.elem(i + k, j + k) = -v;
+            }
+    }
+    return M;
+}
+
+Value rosser(std::pmr::memory_resource *mr)
+{
+    // Hardcoded 8×8 Rosser test matrix (MATLAB R2025b: rosser()).
+    static constexpr double R[64] = {
+         611,   196, -192,  407,   -8,  -52,  -49,   29,
+         196,   899,  113, -192,  -71,  -43,   -8,  -44,
+        -192,   113,  899,  196,   61,   49,    8,   52,
+         407,  -192,  196,  611,    8,   44,   59,  -23,
+          -8,   -71,   61,    8,  411, -599,  208,  208,
+         -52,   -43,   49,   44, -599,  411,  208,  208,
+         -49,    -8,    8,   59,  208,  208,   99, -911,
+          29,   -44,   52,  -23,  208,  208, -911,   99
+    };
+    auto M = Value::matrix(8, 8, ValueType::DOUBLE, mr);
+    for (size_t i = 0; i < 8; ++i)
+        for (size_t j = 0; j < 8; ++j)
+            M.elem(i, j) = R[i * 8 + j];
+    return M;
+}
+
 Value magic(std::pmr::memory_resource *mr, size_t N)
 {
     if (N == 0)
@@ -2053,6 +2186,57 @@ void compan_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     std::vector<double> p;
     valueToDoubleVec(args[0], p);
     outs[0] = compan(ctx.engine->resource(), p.data(), p.size());
+}
+
+namespace {
+
+// Common gateway for the "size-from-scalar" test-matrix functions
+// (pascal, hilb, invhilb, wilkinson, hadamard).
+size_t requireSizeArg(Span<const Value> args, const char *fn)
+{
+    if (args.size() != 1)
+        throw Error(std::string(fn) + ": requires exactly 1 argument",
+                    0, 0, fn, "", std::string("m:") + fn + ":nargin");
+    const double nd = args[0].toScalar();
+    if (nd < 0.0 || nd != std::floor(nd))
+        throw Error(std::string(fn) + ": N must be a non-negative integer",
+                    0, 0, fn, "", std::string("m:") + fn + ":badN");
+    return static_cast<size_t>(nd);
+}
+
+} // anonymous namespace
+
+void pascal_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    outs[0] = pascal(ctx.engine->resource(), requireSizeArg(args, "pascal"));
+}
+
+void hilb_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    outs[0] = hilb(ctx.engine->resource(), requireSizeArg(args, "hilb"));
+}
+
+void invhilb_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    outs[0] = invhilb(ctx.engine->resource(), requireSizeArg(args, "invhilb"));
+}
+
+void wilkinson_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    outs[0] = wilkinson(ctx.engine->resource(), requireSizeArg(args, "wilkinson"));
+}
+
+void hadamard_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    outs[0] = hadamard(ctx.engine->resource(), requireSizeArg(args, "hadamard"));
+}
+
+void rosser_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (!args.empty())
+        throw Error("rosser: takes no arguments",
+                    0, 0, "rosser", "", "m:rosser:nargin");
+    outs[0] = rosser(ctx.engine->resource());
 }
 
 void size_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
