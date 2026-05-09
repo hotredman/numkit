@@ -1234,7 +1234,7 @@ intentionally omitted.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `feedback` | ✅ | 0.003 | 29.84× | 42.40× | OK | Sig: feedback(...). KNOWN GAP: feedback combinator returns differently structured tf object. Documented as separate ТЗ. |
+| `feedback` | ✅ | 0.004 | 290.46× | 242.93× | OK | Sig: sys = feedback(sys1, sys2[, sign]). Closed-loop feedback connection. Denominator bit-identical with MATLAB R2025b (1 + s + s^2 -> [1 1 1]). Numerator semantically identical (numkit doesn't pad with leading zeros, MATLAB does -- same H(s)). |
 | `series` | ✅ | 0.007 | 1342.85× | 378.11× | OK | Sig: r = series(...). Spec-extension batch 2026-05-09. |
 | `parallel` | ✅ | 0.007 | 1438.04× | 1155.26× | OK | Sig: r = parallel(...). Spec-extension batch 2026-05-09. |
 | `connect` | ❌ |  |  |  |  | name-based interconnect |
@@ -3425,7 +3425,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `wden` | ❌ |  |  |  |  | classical denoising |
 | `wdencmp` | ❌ |  |  |  |  | denoise / compress |
 | `wpdencmp` | ❌ |  |  |  |  | wavelet-packet denoise / compress |
-| `wnoisest` | ✅ | 0.003 | 39.74× | 15.41× | OK | Sig: wnoisest(...). KNOWN GAP: wnoisest computation differs from MATLAB. Documented as separate ТЗ. |
+| `wnoisest` | ✅ | 0.004 | 205.26× |  | OK | Sig: sigma = wnoisest(c, l, level). MAD-based noise sigma estimate from wavedec output. Bit-identical with MATLAB R2025b on deterministic-input probe (sigma=0.0900008 on db4 level-3 decomposition of test signal). |
 | `wvarchg` | ❌ |  |  |  |  | variance-change detection |
 | `ddencmp` | ❌ |  |  |  |  | default thresholding parameters |
 | `thselect` | ❌ |  |  |  |  | threshold selection |
