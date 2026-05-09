@@ -2,7 +2,7 @@
 // Supports two modes:
 //   Dev mode:  spawns Vite dev server, loads from http://
 //   Prod mode: loads pre-built static files from dist/
-const { app, BrowserWindow, dialog, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, shell, ipcMain, session } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -213,6 +213,23 @@ function waitForServer(url, timeoutMs = 15000) {
 // ── App lifecycle ──
 
 app.whenReady().then(async () => {
+  // Inject Cross-Origin-Opener-Policy + Cross-Origin-Embedder-Policy
+  // headers on every response in this Electron session. Without them
+  // Chromium refuses to enable SharedArrayBuffer / Atomics.wait, and
+  // the tempFS sync bridge silently falls back to direct IDB (which
+  // doesn't expose the sync hooks the WASM engine needs). Setting
+  // them session-wide is fine for a desktop IDE that loads only its
+  // own bundled content.
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Cross-Origin-Opener-Policy':   ['same-origin'],
+        'Cross-Origin-Embedder-Policy': ['require-corp'],
+      },
+    });
+  });
+
   let loadTarget;
 
   if (IS_PROD) {
