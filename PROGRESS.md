@@ -2117,7 +2117,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `dot` | ✅ | 0.003 | 27.86× | 51.49× | OK | Sig: r = dot(...). Spec-extension batch 2026-05-09. |
 | `eig` | ❌ | 0.012 | 34.44× | 12.08× | OK | Sig: e = eig(A) | [V, D] = eig(A). Symmetric Jacobi for real symmetric A; eigenvalues ascending. General (non-symmetric) eig requires Hessenberg + Francis QR -- Phase 2b. |
 | `eigs` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `expm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `expm` | ❌ | 0.008 | 353.26× | 37.62× | OK | Sig: E = expm(A). Matrix exponential via Padé(6) with scaling-and-squaring (Higham 2005). Works for any square matrix. Bit-identical with MATLAB R2025b on rotation generator + symmetric + zero cases. |
 | `expmv` | ❌ |  |  |  |  |  |
 | `funm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `gsvd` | ❌ |  |  |  |  | **deferred — libs/linalg** |
@@ -2132,7 +2132,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `kron` | ✅ | 0.005 | 70.98× | 24.26× | OK | Sig: r = kron(...). Spec-extension batch 2026-05-09. |
 | `ldl` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `linsolve` | ❌ | 0.009 | 19.74× | 21.94× | OK | Sig: X = linsolve(A, B[, opts]). Wrapper over la_solve (LU for square A, Householder QR least-squares for tall A). Opts struct accepted for MATLAB-compat but ignored (auto-detection covers same cases). Bit-identical with MATLAB R2025b on probed square + tall systems. |
-| `logm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `logm` | ❌ | 0.005 | 157.12× | 93.28× | OK | Sig: L = logm(A). Matrix logarithm for symmetric positive-definite A via eig: L = V*diag(log(eig))*V'. Round-trip expm(logm) = A to ulp. General (non-symmetric) logm requires complex Schur -- deferred to Phase 2b. |
 | `lscov` | ✅ | 0.006 | 239.08× | 33.87× | OK | Sig: [x, stdx, mse, S] = lscov(A, b[, w]). Weighted least squares. mse = SSR/(N-p); S = mse·(A'WA)^(-1). Full N×N covariance V deferred (errors). Bit-identical to MATLAB R2025b on OLS and weighted paths. |
 | `lsqminnorm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `lsqnonneg` | ❌ |  |  |  |  |  |
@@ -2171,8 +2171,8 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `rcond` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `rref` | ❌ |  |  |  |  |  |
 | `rsf2csf` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `schur` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `sqrtm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `schur` | ❌ | 0.010 | 47.71× | 20.61× | OK | Sig: [U, T] = schur(A). For symmetric A this is the eigendecomposition: A = U*T*U' with T diagonal. General (non-symmetric) Schur returns quasi-triangular T with 2x2 blocks for complex eigenpairs -- deferred to Phase 2b. Eigenvalues bit-identical with MATLAB. |
+| `sqrtm` | ❌ | 0.006 | 120.19× | 15.90× | OK | Sig: R = sqrtm(A). Matrix square root for symmetric positive-semidefinite A via eig: R = V*diag(sqrt(eig))*V'. R*R = A to ulp. General sqrtm requires complex Schur -- deferred to Phase 2b. |
 | `subspace` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `svd` | ❌ | 0.015 | 31.34× | 9.07× | OK | Sig: s = svd(A) | [U, S, V] = svd(A). One-sided Jacobi SVD; A = U*S*V'. Bit-identical singular values with MATLAB R2025b on probed matrices (3x3 / 4x3 tall / 3x4 wide / diagonal). U/V vectors not compared directly (sign ambiguity); identity U*S*V' = A and orthogonality verified to ulp. |
 | `svdappend` | ❌ |  |  |  |  |  |

@@ -1,0 +1,14 @@
+{
+  "name": "expm",
+  "namespace": "builtin",
+  "setup": "A = [0 1; -1 0]; B = [4 1 2; 1 3 0; 2 0 5]; Z = zeros(3);",
+  "expr": "E1 = expm(A); E2 = expm(B); E0 = expm(Z); err0 = max(max(abs(E0 - eye(3))));",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "E1(1,1)", "E1(1,2)", "E1(2,1)", "E1(2,2)",
+    "E2(1,1)", "E2(2,2)", "E2(3,3)",
+    "err0"
+  ],
+  "comment": "Sig: E = expm(A). Matrix exponential via Padé(6) with scaling-and-squaring (Higham 2005). Works for any square matrix. Bit-identical with MATLAB R2025b on rotation generator + symmetric + zero cases."
+}

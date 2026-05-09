@@ -504,6 +504,220 @@ Value svd_values(std::pmr::memory_resource *mr, const Value &A)
     return sv;
 }
 
+// ── Matrix functions: expm / logm / sqrtm / schur ────────────────────
+
+namespace {
+
+// Multiply two n×n column-major matrices: C = A * B (no aliasing).
+void matMul(const double *A, const double *B, double *C, std::size_t n)
+{
+    std::fill(C, C + n * n, 0.0);
+    for (std::size_t j = 0; j < n; ++j)
+        for (std::size_t k = 0; k < n; ++k) {
+            const double bkj = B[k + j * n];
+            if (bkj == 0.0) continue;
+            for (std::size_t i = 0; i < n; ++i)
+                C[i + j * n] += A[i + k * n] * bkj;
+        }
+}
+
+// 1-norm of an n×n matrix.
+double mat1Norm(const double *A, std::size_t n)
+{
+    double mx = 0.0;
+    for (std::size_t j = 0; j < n; ++j) {
+        double s = 0.0;
+        for (std::size_t i = 0; i < n; ++i) s += std::fabs(A[i + j * n]);
+        mx = std::max(mx, s);
+    }
+    return mx;
+}
+
+} // anonymous namespace
+
+Value expm(std::pmr::memory_resource *mr, const Value &A)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("expm: input must be a 2D matrix",
+                    0, 0, "expm", "", "m:expm:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    if (m != n)
+        throw Error("expm: matrix must be square",
+                    0, 0, "expm", "", "m:expm:notSquare");
+    if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    // Padé(6) scaling-and-squaring. Choose s such that ||A/2^s||_1 < 0.5.
+    ScratchArena scratch(mr);
+    ScratchVec<double> A_s(n * n, &scratch);
+    std::copy(A.doubleData(), A.doubleData() + n * n, A_s.begin());
+
+    const double a_norm = mat1Norm(A_s.data(), n);
+    int s = 0;
+    if (a_norm > 0.5) {
+        s = static_cast<int>(std::ceil(std::log2(a_norm / 0.5)));
+        if (s < 0) s = 0;
+        const double scale = 1.0 / std::pow(2.0, s);
+        for (std::size_t i = 0; i < n * n; ++i) A_s[i] *= scale;
+    }
+
+    // Padé(6) coefficients (Higham, table 10.3).
+    static constexpr double pade_b[7] = {
+        720.0, 360.0, 120.0, 30.0, 5.0, 1.0 / 6.0, 0.0  // unused last
+    };
+    // Compute powers A^2, A^4, A^6.
+    ScratchVec<double> A2(n * n, &scratch);
+    ScratchVec<double> A4(n * n, &scratch);
+    ScratchVec<double> A6(n * n, &scratch);
+    matMul(A_s.data(), A_s.data(), A2.data(), n);
+    matMul(A2.data(), A2.data(), A4.data(), n);
+    matMul(A2.data(), A4.data(), A6.data(), n);
+
+    // U = A * (b1*I + b3*A^2 + b5*A^4 + (1/6)*A^6) where b's from Padé(6)
+    // Simpler: use closed-form Padé(6):
+    //   U = A * (b6*A^6 + b4*A^4 + b2*A^2 + b0*I) with even Padé-6 coefs
+    //   V = b7*A^6 + b5*A^4 + b3*A^2 + b1*I
+    // Padé(6) coefficients from Higham:
+    //   c = [1, 1/2, 5/44, 1/66, 1/792, 1/15840, 1/665280]
+    static constexpr double c[7] = {
+        1.0, 1.0/2.0, 5.0/44.0, 1.0/66.0, 1.0/792.0, 1.0/15840.0, 1.0/665280.0
+    };
+    // Wait -- the simplest correct Padé(6) is Higham's table 10.4:
+    //   p_m(x) = sum_{k=0..m} (2m-k)! m! / ((2m)! k! (m-k)!) x^k
+    // For m=6 the coefficients are:
+    //   numerator   p(x) = 1 + x/2 + 5x^2/44 + x^3/66 + x^4/792 + x^5/15840 + x^6/665280
+    //   denominator q(x) = 1 - x/2 + 5x^2/44 - x^3/66 + x^4/792 - x^5/15840 + x^6/665280
+    //   exp(x) ≈ p(x) / q(x)
+
+    ScratchVec<double> P(n * n, &scratch);  // numerator
+    ScratchVec<double> Q(n * n, &scratch);  // denominator
+    std::fill(P.begin(), P.end(), 0.0);
+    std::fill(Q.begin(), Q.end(), 0.0);
+    // Initialize with identity (* c[0]).
+    for (std::size_t i = 0; i < n; ++i) {
+        P[i + i * n] = c[0];
+        Q[i + i * n] = c[0];
+    }
+    // Add c[k] * A^k for k = 1..6.
+    // A^1
+    for (std::size_t i = 0; i < n * n; ++i) {
+        P[i] += c[1] * A_s[i];
+        Q[i] -= c[1] * A_s[i];
+    }
+    // A^2
+    for (std::size_t i = 0; i < n * n; ++i) {
+        P[i] += c[2] * A2[i];
+        Q[i] += c[2] * A2[i];
+    }
+    // A^3 (= A * A^2)
+    ScratchVec<double> A3(n * n, &scratch);
+    matMul(A_s.data(), A2.data(), A3.data(), n);
+    for (std::size_t i = 0; i < n * n; ++i) {
+        P[i] += c[3] * A3[i];
+        Q[i] -= c[3] * A3[i];
+    }
+    // A^4
+    for (std::size_t i = 0; i < n * n; ++i) {
+        P[i] += c[4] * A4[i];
+        Q[i] += c[4] * A4[i];
+    }
+    // A^5 (= A * A^4)
+    ScratchVec<double> A5(n * n, &scratch);
+    matMul(A_s.data(), A4.data(), A5.data(), n);
+    for (std::size_t i = 0; i < n * n; ++i) {
+        P[i] += c[5] * A5[i];
+        Q[i] -= c[5] * A5[i];
+    }
+    // A^6
+    for (std::size_t i = 0; i < n * n; ++i) {
+        P[i] += c[6] * A6[i];
+        Q[i] += c[6] * A6[i];
+    }
+
+    // Solve Q * X = P for X (i.e. X = Q^-1 * P).
+    auto out = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    if (!detail::la_solve(&scratch, Q.data(), n, n, P.data(), n,
+                          out.doubleDataMut()))
+        throw Error("expm: Padé denominator is singular",
+                    0, 0, "expm", "", "m:expm:singular");
+
+    // Square s times.
+    if (s > 0) {
+        ScratchVec<double> tmp(n * n, &scratch);
+        double *X = out.doubleDataMut();
+        for (int k = 0; k < s; ++k) {
+            matMul(X, X, tmp.data(), n);
+            std::copy(tmp.begin(), tmp.end(), X);
+        }
+    }
+    return out;
+}
+
+namespace {
+
+// Apply scalar function f to symmetric A's eigenvalues and reconstruct:
+//   result = V * diag(f(eig)) * V'
+Value applyScalarFnSym(std::pmr::memory_resource *mr, const Value &A,
+                       double (*f)(double),
+                       const char *fnName, const char *errId)
+{
+    auto [V, D] = eig_symmetric(mr, A);
+    const std::size_t n = static_cast<std::size_t>(D.dims().dim(0));
+    if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    const double *Vdata = V.doubleData();
+    const double *Ddata = D.doubleData();
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> fD(n, &scratch);
+    for (std::size_t i = 0; i < n; ++i) {
+        const double e = Ddata[i + i * n];
+        const double fe = f(e);
+        if (!std::isfinite(fe))
+            throw Error(std::string(fnName)
+                        + ": eigenvalue out of domain (got "
+                        + std::to_string(e) + ")",
+                        0, 0, fnName, "", errId);
+        fD[i] = fe;
+    }
+
+    auto out = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    double *R = out.doubleDataMut();
+    // R[i,j] = sum_k V[i,k] * fD[k] * V[j,k]
+    for (std::size_t i = 0; i < n; ++i)
+        for (std::size_t j = 0; j < n; ++j) {
+            double s = 0.0;
+            for (std::size_t k = 0; k < n; ++k)
+                s += Vdata[i + k * n] * fD[k] * Vdata[j + k * n];
+            R[i + j * n] = s;
+        }
+    return out;
+}
+
+} // anonymous namespace
+
+Value logm_sym(std::pmr::memory_resource *mr, const Value &A)
+{
+    return applyScalarFnSym(mr, A,
+        [](double x) { return std::log(x); },
+        "logm", "m:logm:negativeEigenvalue");
+}
+
+Value sqrtm_sym(std::pmr::memory_resource *mr, const Value &A)
+{
+    return applyScalarFnSym(mr, A,
+        [](double x) { return std::sqrt(x); },
+        "sqrtm", "m:sqrtm:negativeEigenvalue");
+}
+
+std::tuple<Value, Value>
+schur_sym(std::pmr::memory_resource *mr, const Value &A)
+{
+    // For symmetric A, Schur decomposition is the same as eig:
+    // A = U * T * U' where T is diagonal (real eigenvalues), U orthogonal.
+    return eig_symmetric(mr, A);
+}
+
 // ── Symmetric eigenvalue problem (classical Jacobi) ─────────────────
 
 namespace {
@@ -3451,6 +3665,45 @@ void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
         outs[1] = std::move(D);
     } else {
         outs[0] = eig_values(mr, args[0]);
+    }
+}
+
+void expm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("expm: requires exactly 1 argument",
+                    0, 0, "expm", "", "m:expm:nargin");
+    outs[0] = expm(ctx.engine->resource(), args[0]);
+}
+
+void logm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("logm: requires exactly 1 argument",
+                    0, 0, "logm", "", "m:logm:nargin");
+    outs[0] = logm_sym(ctx.engine->resource(), args[0]);
+}
+
+void sqrtm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("sqrtm: requires exactly 1 argument",
+                    0, 0, "sqrtm", "", "m:sqrtm:nargin");
+    outs[0] = sqrtm_sym(ctx.engine->resource(), args[0]);
+}
+
+void schur_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("schur: requires exactly 1 argument",
+                    0, 0, "schur", "", "m:schur:nargin");
+    auto *mr = ctx.engine->resource();
+    auto [U, T] = schur_sym(mr, args[0]);
+    if (nargout >= 2) {
+        outs[0] = std::move(U);
+        outs[1] = std::move(T);
+    } else {
+        outs[0] = std::move(T);
     }
 }
 

@@ -206,6 +206,30 @@ eig_symmetric(std::pmr::memory_resource *mr, const Value &A);
 /// Eigenvalues only -- matches MATLAB's single-output eig(A).
 Value eig_values(std::pmr::memory_resource *mr, const Value &A);
 
+/// Matrix exponential expm(A) via Padé approximation with scaling-
+/// and-squaring (Higham 2005). Works for any square matrix
+/// (symmetric or not). For symmetric A could go via eig but Padé
+/// is more general and still bit-stable.
+Value expm(std::pmr::memory_resource *mr, const Value &A);
+
+/// Matrix logarithm logm(A) for symmetric positive-definite A only
+/// (general logm requires complex Schur, deferred to Phase 2b).
+/// Computed via eigendecomposition: logm(A) = V * diag(log(eig)) * V'.
+Value logm_sym(std::pmr::memory_resource *mr, const Value &A);
+
+/// Matrix square root sqrtm(A) for symmetric positive-semidefinite A
+/// only (general sqrtm needs complex Schur). Via eigendecomposition:
+/// sqrtm(A) = V * diag(sqrt(eig)) * V'.
+Value sqrtm_sym(std::pmr::memory_resource *mr, const Value &A);
+
+/// Schur decomposition. For symmetric A this is equivalent to
+/// the eigendecomposition: A = U*T*U' where T is diagonal (real
+/// eigenvalues) and U is orthogonal. Returns (U, T).
+/// General (non-symmetric) Schur returns quasi-triangular T with
+/// 2×2 blocks for complex eigenpairs -- deferred to Phase 2b.
+std::tuple<Value, Value>
+schur_sym(std::pmr::memory_resource *mr, const Value &A);
+
 // ── Shape queries ────────────────────────────────────────────────────
 /// size(x) returns a row vector of dimensions.
 /// @param asVector  when true, returns [rows, cols] or [rows, cols, pages].
