@@ -2,11 +2,11 @@
   "name": "fopen",
   "namespace": "io",
   "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 5,
-  "tol": 0,
+  "expr": "fname = tempname; fid = fopen(fname, 'w'); r1 = double(fid >= 0); fclose(fid); delete(fname);",
+  "iters": 1,
+  "tol": 1e-12,
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: fopen(...). KNOWN GAP: fopen on missing file behavior differs. Documented as separate \u0422\u0417."
+  "comment": "Side-effect smoke test (file I/O round-trip in single snippet via tempname). Open file, return fd, close, cleanup -- verifies fopen returns valid descriptor."
 }

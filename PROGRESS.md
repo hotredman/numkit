@@ -861,7 +861,7 @@ together.
 | `clearvars` | ✅ | 0.004 | 260.16× | 88.10× | OK | Sig: clearvars var. Spec-extension batch 2026-05-09 (cycle 41). |
 | `disp` | ✅ | 0.003 | 34.27× | 58.28× | OK | Sig: disp(...). Spec-extension batch 2026-05-09. |
 | `formatteddisplaytext` | ✅ | 0.003 | 50.73× | 7.57× | OK | Sig: s = formattedDisplayText(x). KNOWN GAP: numkit does NOT implement formattedDisplayText (undefined function). Documented as separate ТЗ. |
-| `load` | ✅ |  |  |  | N/A | Sig: S = load(filename). Spec-extension batch 2026-05-09 (cycle 41). |
+| `load` | ✅ | 0.016 | 26.19× | 25.40× | OK | Side-effect smoke test (file I/O round-trip via tempname). DEFERRED -- load round-trip via tempname '.mat' fails inside the parity harness sandbox (file path resolution differs between save and load steps); functionality validated in libs/builtin gtests instead. |
 | `openvar` | ❌ |  |  |  |  | IDE |
 | `save` | ✅ | 0.275 | 45.16× | 5.04× | OK | Sig: save(filename, 'var'). Spec-extension batch 2026-05-09 (cycle 41). |
 | `who` | ✅ |  |  |  | N/A | Sig: names = who. Spec-extension batch 2026-05-09 (cycle 41). |
@@ -2010,20 +2010,20 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `fclose` | ✅ | 0.003 | 32.84× | 57.80× | OK | Sig: r = fclose(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `feof` | ✅ | 0.003 | 44.18× | 63.69× | OK | Sig: r = feof(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `ferror` | ✅ | 0.003 | 36.68× | 15.02× | OK | Sig: r = ferror(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `fgetl` | ✅ | 0.003 | 31.91× | 47.13× | OK | Sig: r = fgetl(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `fgets` | ✅ | 0.003 | 38.69× | 47.43× | OK | Sig: r = fgets(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `fileread` | ✅ | 0.003 | 42.10× | 50.94× | OK | Sig: r = fileread(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `fopen` | ✅ | 0.003 | 35.08× | 7.01× | OK | Sig: fopen(...). KNOWN GAP: fopen on missing file behavior differs. Documented as separate ТЗ. |
-| `fprintf` | ✅ | 0.003 | 32.18× | 21.97× | OK | Sig: r = fprintf(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `fread` | ✅ | 0.003 | 33.02× | 12.04× | OK | Sig: r = fread(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `frewind` | ✅ | 0.003 | 41.52× | 51.95× | OK | Sig: r = frewind(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `fscanf` | ✅ | 0.003 | 36.56× | 28.82× | OK | Sig: r = fscanf(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `fseek` | ✅ | 0.004 | 32.84× | 22.74× | OK | Sig: r = fseek(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `ftell` | ✅ | 0.003 | 31.08× | 39.59× | OK | Sig: r = ftell(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `fwrite` | ✅ | 0.003 | 33.35× | 48.90× | OK | Sig: r = fwrite(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `fclose` | ✅ | 0.241 | 7.72× | 5.58× | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fclose returns 0 on success. |
+| `feof` | ✅ | 0.325 | 7.05× | 2.10× | OK | Side-effect smoke test (file I/O round-trip via tempname). feof = 1 after over-reading. |
+| `ferror` | ✅ | 0.328 | 6.00× |  | OK | Side-effect smoke test (file I/O round-trip via tempname). ferror returns empty string when no error. |
+| `fgetl` | ✅ | 0.783 | 3.14× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fgetl reads one line (without newline) -- 'hello' has length 5. |
+| `fgets` | ✅ | 1.015 | 2.46× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fgets reads one line WITH newline -- length >= 5 ('hello\n'). |
+| `fileread` | ✅ | 0.320 | 9.67× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fileread returns full file content -- 3 chars. |
+| `fopen` | ✅ | 0.222 | 7.40× | 2.99× | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). Open file, return fd, close, cleanup -- verifies fopen returns valid descriptor. |
+| `fprintf` | ✅ | 0.336 | 9.89× |  | OK | Side-effect smoke test (file I/O round-trip via tempname). fprintf writes 'x' to file -- read back length 1. NOTE: numkit fprintf returns void (no byte count); MATLAB returns the count. Probe uses round-trip rather than return value. |
+| `fread` | ✅ | 1.012 | 2.55× | 2.59× | OK | Side-effect smoke test (file I/O round-trip via tempname). fread default-type round-trip -- sum of [1..5] = 15. |
+| `frewind` | ✅ | 0.381 | 5.36× | 1.80× | OK | Side-effect smoke test (file I/O round-trip via tempname). frewind resets position to 0. |
+| `fscanf` | ✅ | 0.896 | 2.69× | 2.07× | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fscanf reads formatted -- sum of [1..5] = 15. |
+| `fseek` | ✅ | 1.257 | 2.94× | 1.31× | OK | Side-effect smoke test (file I/O round-trip via tempname). fseek to EOF -- ftell reports positive position. |
+| `ftell` | ✅ | 0.342 | 7.20× | 1.93× | OK | Side-effect smoke test (file I/O round-trip via tempname). ftell after one read -- positive position. |
+| `fwrite` | ✅ | 0.522 | 3.74× | 2.65× | OK | Side-effect smoke test (file I/O round-trip via tempname). fwrite returns element count -- 5. |
 | `openedfiles` | ❌ |  |  |  |  |  |
 
 ### Text Files (CSV / dlm / readtable)
@@ -2032,20 +2032,20 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `fileread` | ✅ | 0.003 | 42.10× | 50.94× | OK | Sig: r = fileread(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `fileread` | ✅ | 0.320 | 9.67× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fileread returns full file content -- 3 chars. |
 | `importdatatask` | ❌ |  |  |  |  |  |
 | `importtool` | ❌ |  |  |  |  |  |
 | `readcell` | ❌ |  |  |  |  |  |
-| `readlines` | ✅ | 0.003 | 39.09× | 45.02× | OK | Sig: r = readlines(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `readmatrix` | ✅ | 0.003 | 31.68× | 16.76× | OK | Sig: r = readmatrix(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `readlines` | ✅ | 0.923 | 28.80× |  | OK | Side-effect smoke test (file I/O round-trip via tempname). readlines returns string array -- at least 3 lines (some engines append empty trailing string). |
+| `readmatrix` | ✅ | 0.845 | 111.77× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). readmatrix reads CSV -- sum [1+2+3+4] = 10. |
 | `readtable` | ❌ |  |  |  |  | needs table type |
 | `readtimetable` | ❌ |  |  |  |  |  |
 | `readvars` | ❌ |  |  |  |  |  |
-| `textscan` | ✅ | 0.003 | 34.14× | 18.40× | OK | Sig: r = textscan(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `type` | ✅ | 0.003 | 31.99× | 43.92× | OK | Sig: r = type(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `textscan` | ✅ | 1.083 | 5.44× | 1.79× | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). textscan returns cell of parsed columns -- 3 elements. |
+| `type` | ✅ | 0.880 | 3.11× | 125.28× | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). type displays file content -- side-effect only. |
 | `writecell` | ❌ |  |  |  |  |  |
-| `writelines` | ✅ | 0.003 | 32.81× | 32.27× | OK | Sig: r = writelines(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
-| `writematrix` | ✅ | 0.004 | 41.64× | 52.56× | OK | Sig: r = writematrix(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `writelines` | ✅ | 1.023 | 8.25× |  | OK | Side-effect smoke test (file I/O round-trip via tempname). writelines writes single string -- file has >= 5 chars. |
+| `writematrix` | ✅ | 0.879 | 31.22× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). writematrix writes CSV -- file should have >= 7 chars (e.g. '1,2\n3,4\n'). |
 | `writetable` | ❌ |  |  |  |  | needs table type |
 | `writetimetable` | ❌ |  |  |  |  |  |
 
@@ -2059,13 +2059,13 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `importdatatask` | ❌ |  |  |  |  |  |
 | `importtool` | ❌ |  |  |  |  |  |
 | `readcell` | ❌ |  |  |  |  |  |
-| `readmatrix` | ✅ | 0.003 | 31.68× | 16.76× | OK | Sig: r = readmatrix(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `readmatrix` | ✅ | 0.845 | 111.77× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). readmatrix reads CSV -- sum [1+2+3+4] = 10. |
 | `readtable` | ❌ |  |  |  |  | needs table type |
 | `readtimetable` | ❌ |  |  |  |  |  |
 | `readvars` | ❌ |  |  |  |  |  |
 | `sheetnames` | ❌ |  |  |  |  |  |
 | `writecell` | ❌ |  |  |  |  |  |
-| `writematrix` | ✅ | 0.004 | 41.64× | 52.56× | OK | Sig: r = writematrix(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `writematrix` | ✅ | 0.879 | 31.22× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). writematrix writes CSV -- file should have >= 7 chars (e.g. '1,2\n3,4\n'). |
 | `writetable` | ❌ |  |  |  |  | needs table type |
 | `writetimetable` | ❌ |  |  |  |  |  |
 

@@ -2,11 +2,11 @@
   "name": "writelines",
   "namespace": "io",
   "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "fname = tempname; writelines(\"hello\", fname); s = fileread(fname); delete(fname); r1 = double(strlength(s) >= 5);",
+  "iters": 1,
+  "tol": 1e-12,
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: r = writelines(...). Spec-extension batch 2026-05-09. IO function \u2014 placeholder spec; full file-io tests deferred (would need testbed harness)."
+  "comment": "Side-effect smoke test (file I/O round-trip via tempname). writelines writes single string -- file has >= 5 chars."
 }
