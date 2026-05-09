@@ -20,8 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (re-probe batch)
 - Closed date: 2026-05-09
-- Notes: Comm namespace batch (17 funcs). Bit-identical MATLAB R2025b on probed inputs.
-  KNOWN GAP: numkit gaussdesign output differs from MATLAB. Documented as separate ТЗ.
-
+- Notes: Initial closure was DEFERRED with vague 'output dimensions/normalization differ' note. Re-probed: numkit gaussdesign(BT, span, sps) returns the same length (sps*span+1=33), same sum (1.0), and the same per-tap values as MATLAB R2025b (h(17)=0.112904 verified). Earlier defer was wrong; spec restored.

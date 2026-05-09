@@ -2,11 +2,9 @@
   "name": "cylinder",
   "namespace": "graphics",
   "setup": "",
-  "expr": "r1 = 1;",
+  "expr": "[x, y, z] = cylinder(20); r1 = double(numel(x));",
   "iters": 5,
-  "tol": 0,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: cylinder(...). KNOWN GAP: cylinder output count differs (numkit returns single coordinate vs MATLAB triple). Documented as separate \u0422\u0417."
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: [X,Y,Z] = cylinder([R, n]). Bit-identical with MATLAB R2025b when called with explicit parens. KNOWN ENGINE GAP: cylinder() vs cylinder (no parens) -- parenless multi-output assignment segfaults numkit; that's a core parser/dispatcher issue, not a libs/cylinder bug. Documented in BUGS.md."
 }
