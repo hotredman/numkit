@@ -20,8 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (re-probe + 1 fix)
 - Closed date: 2026-05-09
-- Notes: Comm namespace batch (17 funcs). Bit-identical MATLAB R2025b on probed inputs.
-  KNOWN GAP: numkit noisebw arg validation differs. Documented as separate ТЗ.
-
+- Notes: Initial closure was DEFERRED. Root cause: numkit formula had a spurious /2 factor (NBW = (fs/2N)*sum/max), MATLAB uses NBW = (fs/N)*sum/max. Fix: remove the /2 in libs/comm/src/channel/channel.cpp::noisebw. Now matches MATLAB R2025b within ~0.5 Hz (rounding from numerical frequency-grid).

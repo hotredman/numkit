@@ -1,12 +1,10 @@
 {
   "name": "anova1",
   "namespace": "stats",
-  "setup": "",
-  "expr": "r1 = 1;",
+  "setup": "y = [1 2 3 4 5 6]; g = [1 1 2 2 3 3];",
+  "expr": "p = anova1(y, g, 'off'); r1 = double(p);",
   "iters": 5,
-  "tol": 0,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: anova1(...). KNOWN GAP: anova1 returns table/figure object \u2014 different return shape. Documented as separate \u0422\u0417."
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: p = anova1(y, group['off']). One-way ANOVA p-value. Bit-identical with MATLAB R2025b on probed input (p=0.0251)."
 }

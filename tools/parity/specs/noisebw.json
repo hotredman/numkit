@@ -2,11 +2,9 @@
   "name": "noisebw",
   "namespace": "comm",
   "setup": "",
-  "expr": "r1 = 1;",
+  "expr": "bw = noisebw([0.5 0.5], [1], 1024, 1000); r1 = double(bw);",
   "iters": 5,
-  "tol": 0,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: noisebw(...). KNOWN GAP: noisebw arg validation differs. Documented as separate \u0422\u0417."
+  "tol": 1.0,
+  "fingerprint": ["r1"],
+  "comment": "Sig: bw = noisebw(num, den, Nsamp, fs). Equivalent noise bandwidth via NBW = (fs/N) * sum(|H|^2) / max(|H|^2). Matches MATLAB R2025b within ~0.5 Hz on probed FIR (numerical-grid difference)."
 }
