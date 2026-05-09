@@ -254,6 +254,36 @@ void GraphicsLibrary::install(Engine &engine)
             outs[0] = Value::empty();
         });
 
+    // quiver(x, y, u, v) — vector field as N arrows starting at
+    // (x[i], y[i]) and pointing in direction (u[i], v[i]). MATLAB
+    // accepts matrices; for first cut we expect flat vectors with
+    // matching length. quiver(x, y, u, v, scale) optionally scales
+    // arrow lengths (default 1, packed into ds.style as "scale=N").
+    reg("line", "quiver",
+        [vecToJson](Span<const Value> args, size_t nargout,
+                    Span<Value> outs, CallContext &ctx) {
+            if (args.size() < 4) {
+                outs[0] = Value::empty();
+                return;
+            }
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            DatasetInfo ds;
+            ds.type = "quiver";
+            ds.xJson = vecToJson(args[0]);
+            ds.yJson = vecToJson(args[1]);
+            ds.uJson = vecToJson(args[2]);
+            ds.vJson = vecToJson(args[3]);
+            if (args.size() >= 5 && args[4].numel() == 1 && !args[4].isChar()) {
+                std::ostringstream os;
+                os << "scale=" << args[4].toScalar();
+                ds.style = os.str();
+            }
+            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
     // area — filled curve. MATLAB convention:
     //   area(y)            — x = 1:N, fill from y to baseline 0
     //   area(x, y)         — fill from y to baseline 0

@@ -207,7 +207,7 @@ function datasetToLayer(d, palette_idx, ctx) {
 
   const supported = ['line', 'plot', 'scatter', 'stem', 'stairs',
                      'bar', 'hist', 'semilogx', 'semilogy', 'loglog',
-                     'errorbar', 'barh', 'area'];
+                     'errorbar', 'barh', 'area', 'quiver'];
   if (!supported.includes(t)) return null;
   const x = Array.isArray(d.x) ? d.x.map(Number) : [];
   const y = Array.isArray(d.y) ? d.y.map(Number) : [];
@@ -219,6 +219,7 @@ function datasetToLayer(d, palette_idx, ctx) {
   else if (t === 'stairs') mode = 'stairs';
   else if (t === 'errorbar') mode = 'errorbar';
   else if (t === 'area') mode = 'area';
+  else if (t === 'quiver') mode = 'quiver';
 
   // barh stores `xJson = vertical positions` and `yJson = bar lengths`
   // on the C++ side (mirroring bar's input order). For axis-range
@@ -258,6 +259,21 @@ function datasetToLayer(d, palette_idx, ctx) {
       for (const kv of d.style.split(';')) {
         const m = kv.trim().match(/^base=(-?[\d.eE+-]+)$/);
         if (m) layer.baseline = Number(m[1]);
+      }
+    }
+  }
+
+  // Quiver components — u/v parallel-indexed with x/y. The renderer
+  // draws each arrow from (x[i], y[i]) to (x[i]+u[i]*scale,
+  // y[i]+v[i]*scale). Optional scale comes through style="scale=N".
+  if (t === 'quiver') {
+    layer.u = Array.isArray(d.u) ? d.u.map(Number) : [];
+    layer.v = Array.isArray(d.v) ? d.v.map(Number) : [];
+    layer.scale = 1;
+    if (typeof d.style === 'string') {
+      for (const kv of d.style.split(';')) {
+        const m = kv.trim().match(/^scale=(-?[\d.eE+-]+)$/);
+        if (m) layer.scale = Number(m[1]);
       }
     }
   }
@@ -334,8 +350,17 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     let xLo = Infinity, xHi = -Infinity, yLo = Infinity, yHi = -Infinity;
     for (const ly of layers) {
       if (ly.kind !== 'series') continue;
-      const [a, b] = rangeFromArr(ly.x);
-      const [c, d] = rangeFromArr(ly.y);
+      // Quiver: arrow tips extend past (x, y) by (u*scale, v*scale).
+      // Include both endpoints so the autoscaled viewport actually
+      // contains the tips and the arrowheads aren't clipped.
+      let xs = ly.x, ys = ly.y;
+      if (ly.mode === 'quiver' && Array.isArray(ly.u) && Array.isArray(ly.v)) {
+        const s = Number.isFinite(ly.scale) ? ly.scale : 1;
+        xs = ly.x.concat(ly.x.map((v, i) => v + (Number(ly.u[i]) || 0) * s));
+        ys = ly.y.concat(ly.y.map((v, i) => v + (Number(ly.v[i]) || 0) * s));
+      }
+      const [a, b] = rangeFromArr(xs);
+      const [c, d] = rangeFromArr(ys);
       if (a < xLo) xLo = a;
       if (b > xHi) xHi = b;
       if (c < yLo) yLo = c;

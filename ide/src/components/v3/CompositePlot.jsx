@@ -807,6 +807,51 @@ export default function CompositePlot({
                   </g>
                 );
               }
+              if (mode === 'quiver') {
+                // Vector field: per-point arrow from (x[i], y[i]) to
+                // (x[i] + u[i]*s, y[i] + v[i]*s). Three SVG segments
+                // per arrow: shaft + two head fins forming a chevron.
+                const u = ly.u || [];
+                const v = ly.v || [];
+                const s = Number.isFinite(ly.scale) ? ly.scale : 1;
+                const headLen = 6;        // head fin length, pixels
+                const headAng = Math.PI / 7;  // head opening angle (radians)
+                return (
+                  <g key={`ly${idx}`} opacity={op}>
+                    {ly.x.map((xv, i) => {
+                      const yv = ly.y[i];
+                      const uv = Number(u[i]);
+                      const vv = Number(v[i]);
+                      if (!Number.isFinite(xv) || !Number.isFinite(yv)
+                       || !Number.isFinite(uv) || !Number.isFinite(vv)) return null;
+                      const px1 = sx(xv),       py1 = sy(yv);
+                      const px2 = sx(xv + uv * s), py2 = sy(yv + vv * s);
+                      if (!Number.isFinite(px1) || !Number.isFinite(py1)
+                       || !Number.isFinite(px2) || !Number.isFinite(py2)) return null;
+                      // Skip degenerate zero-length arrows so the head
+                      // doesn't end up as two overlapping points.
+                      const dx = px2 - px1, dy = py2 - py1;
+                      const mag = Math.hypot(dx, dy);
+                      if (mag < 0.5) return null;
+                      const ang = Math.atan2(dy, dx);
+                      const fx1 = px2 - headLen * Math.cos(ang - headAng);
+                      const fy1 = py2 - headLen * Math.sin(ang - headAng);
+                      const fx2 = px2 - headLen * Math.cos(ang + headAng);
+                      const fy2 = py2 - headLen * Math.sin(ang + headAng);
+                      return (
+                        <g key={i}>
+                          <line x1={px1} y1={py1} x2={px2} y2={py2}
+                            stroke={ly.color} strokeWidth={Math.max(1, w * 0.8)} />
+                          <line x1={px2} y1={py2} x2={fx1} y2={fy1}
+                            stroke={ly.color} strokeWidth={Math.max(1, w * 0.8)} />
+                          <line x1={px2} y1={py2} x2={fx2} y2={fy2}
+                            stroke={ly.color} strokeWidth={Math.max(1, w * 0.8)} />
+                        </g>
+                      );
+                    })}
+                  </g>
+                );
+              }
               if (mode === 'area') {
                 // Filled polygon under the curve. Path: (x[0],base) →
                 // (x[0],y[0]) → … → (x[N-1],y[N-1]) → (x[N-1],base) → close.

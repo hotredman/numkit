@@ -29,6 +29,12 @@ struct DatasetInfo
     std::string eNegJson;
     std::string ePosJson;
 
+    // ── Quiver — vector field (per-point u/v components) ────────────────
+    // quiver(x, y, u, v) → N arrows starting at (x, y) pointing
+    // in direction (u, v). Empty for non-quiver datasets.
+    std::string uJson;
+    std::string vJson;
+
     // ── Imagesc storage (uint8 quantized) ──────────────────────────────
     // Display path is fundamentally indexed: each pixel is a colormap
     // index 0..255. Storing the full-precision float is overkill — for a
@@ -276,6 +282,10 @@ public:
                         os << ",\"eNeg\":" << ds.eNegJson;
                     if (!ds.ePosJson.empty())
                         os << ",\"ePos\":" << ds.ePosJson;
+                    if (!ds.uJson.empty())
+                        os << ",\"u\":" << ds.uJson;
+                    if (!ds.vJson.empty())
+                        os << ",\"v\":" << ds.vJson;
                     if (!ds.zJson.empty())
                         os << ",\"z\":" << ds.zJson;
                     if (!ds.zQuantized.empty()) {
