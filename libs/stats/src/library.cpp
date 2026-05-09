@@ -313,6 +313,7 @@ void raylfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void gevlike_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void gplike_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mle_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fitdist_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // mvdist/mvdist.cpp
 void mvnpdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -610,6 +611,7 @@ void StatsLibrary::install(Engine &engine)
     reg("fit", "expfit",   &stats::detail::expfit_reg);
     reg("fit", "unifit",   &stats::detail::unifit_reg);
     reg("fit", "mle",      &stats::detail::mle_reg);
+    reg("fit", "fitdist",  &stats::detail::fitdist_reg);
     reg("fit", "normlike", &stats::detail::normlike_reg);
     reg("fit", "explike",  &stats::detail::explike_reg);
     reg("fit", "lognlike", &stats::detail::lognlike_reg);

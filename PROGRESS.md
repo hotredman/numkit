@@ -3580,3 +3580,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `rmoutliers` | — | 0.004 | 586.87× |  | OK | Sig: y = rmoutliers(x). Drops outliers from x. |
 | `standardizeMissing` | — | 0.004 | 347.03× | 64.79× | OK | Sig: y = standardizeMissing(x, sentinel). Replaces sentinel value with NaN. |
 | `detrend` | — | 0.006 | 369.81× | 36.84× | OK | Sig: y = detrend(x[, order]). Remove polynomial trend (default linear). Vector form. |
+| `fitdist` | — | 0.007 | 850.68× | 1291.38× | OK | Sig: pd = fitdist(x, 'Name'). numkit returns a struct (.DistributionName, .ParameterValues, .ParameterNames, .NumObservations). MATLAB returns a probability-distribution OBJECT with same .ParameterValues/.DistributionName fields. ParameterValues bit-identical (delegates to mle). MATLAB's class methods (.pdf/.cdf/.icdf) deferred. |
