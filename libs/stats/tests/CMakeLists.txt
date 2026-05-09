@@ -107,4 +107,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/missing_data_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/corr_detrend_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/partialcorr_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lillietest_test.cpp
 )

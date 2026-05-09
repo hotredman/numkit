@@ -3108,7 +3108,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `kruskalwallis` | ✅ | 0.006 | 865.19× | 349.46× | OK | Sig: [p, tbl, stats] = kruskalwallis(y, group[, 'off']). Non-parametric one-way ANOVA: H = (12/(N(N+1)))·Σ R_g²/n_g − 3(N+1), tie-corrected by 1 − Σ(t³−t)/(N³−N). df = k−1; p = 1 − chi2cdf(H, df). |
 | `kstest` | ✅ |  |  |  | OK | one-sample KS via asymptotic Smirnov series |
 | `kstest2` | ✅ |  |  |  | OK | two-sample KS |
-| `lillietest` | ❌ |  |  |  |  | Lilliefors |
+| `lillietest` | ❌ | 0.005 | 1461.07× |  | OK | Sig: [h, p, kstat, critval] = lillietest(x[, alpha]). Lilliefors normality test using Stephens (1974) p-value approximation. KS-stat bit-identical with MATLAB R2025b; p-value/critval may differ by ~1e-3 due to approximation table interpolation. h decision matches MATLAB on probed cases. |
 | `meanEffectSize` | ❌ |  |  |  |  | Cohen's d, Hedges' g |
 | `mmdtest` | ❌ |  |  |  |  | maximum mean discrepancy |
 | `multcompare` | ❌ |  |  |  |  | post-hoc multiple comparisons |
