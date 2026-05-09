@@ -1,0 +1,4 @@
+{"name": "rmmissing", "namespace": "stats", "setup": "y = [1 2 NaN 4 5 NaN 7];",
+ "expr": "z = rmmissing(y); n = numel(z); s = sum(z);", "iters": 5, "tol": 0,
+ "fingerprint": ["n", "s", "z(1)", "z(end)"],
+ "comment": "Sig: y = rmmissing(x). Drops NaN entries."}

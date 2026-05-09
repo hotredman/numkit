@@ -1,0 +1,4 @@
+{"name": "rmoutliers", "namespace": "stats", "setup": "x = [1 2 3 4 5 6 7 100];",
+ "expr": "y = rmoutliers(x); n = numel(y); s = sum(y);", "iters": 5, "tol": 0,
+ "fingerprint": ["n", "s", "y(1)", "y(7)"],
+ "comment": "Sig: y = rmoutliers(x). Drops outliers from x."}

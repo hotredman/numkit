@@ -479,7 +479,7 @@ together.
 | `cell2table` | ❌ |  |  |  |  |  |
 | `computebygroup` | ❌ |  |  |  |  |  |
 | `convertvars` | ❌ |  |  |  |  |  |
-| `fillmissing` | ❌ |  |  |  |  |  |
+| `fillmissing` | ❌ | 0.005 | 680.94× | 112.40× | OK | Sig: y = fillmissing(x, method[, value]). MATLAB-canonical methods: 'previous', 'next', 'constant'. Numkit also supports 'mean'/'median' as convenience (undocumented). Other MATLAB methods deferred. |
 | `findgroups` | ❌ |  |  |  |  |  |
 | `groupcounts` | ❌ |  |  |  |  |  |
 | `groupfilter` | ❌ |  |  |  |  |  |
@@ -505,7 +505,7 @@ together.
 | `readtable` | ❌ |  |  |  |  | needs table type |
 | `removevars` | ❌ |  |  |  |  |  |
 | `renamevars` | ❌ |  |  |  |  |  |
-| `rmmissing` | ❌ |  |  |  |  |  |
+| `rmmissing` | ❌ | 0.004 | 307.74× | 98.88× | OK | Sig: y = rmmissing(x). Drops NaN entries. |
 | `rmprop` | ❌ |  |  |  |  |  |
 | `rowfun` | ❌ |  |  |  |  |  |
 | `rows2vars` | ❌ |  |  |  |  |  |
@@ -3576,3 +3576,6 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `hadamard` | — | 0.008 | 48.40× | 32.41× | OK | Sig: H = hadamard(N). Sylvester construction: H_1=[1], H_{2k}=[Hk Hk; Hk -Hk]. Power-of-2 N only (1,2,4,8,16,...). MATLAB R2025b also accepts 12·2^k and 20·2^k via Paley constructions -- those are deferred (separate ТЗ). |
 | `rosser` | — | 0.003 | 55.23× | 20.60× | OK | Sig: R = rosser(). Hardcoded 8×8 Rosser eigenvalue test matrix. Bit-identical with MATLAB R2025b (constants directly transcribed from MATLAB output). |
 | `cputime` | — | 0.014 | 17.50× | 23.63× | OK | Side-effect smoke test (timer probe). cputime returns CPU seconds used by current process; only invariant we can test cross-engine is t >= 0 (absolute values differ between engines). Implemented via std::clock() / CLOCKS_PER_SEC. |
+| `isoutlier` | — | 0.004 | 508.34× | 155.81× | OK | Sig: m = isoutlier(x). Default median + 3*MAD method. Bit-identical with MATLAB R2025b. |
+| `rmoutliers` | — | 0.004 | 586.87× |  | OK | Sig: y = rmoutliers(x). Drops outliers from x. |
+| `standardizeMissing` | — | 0.004 | 347.03× | 64.79× | OK | Sig: y = standardizeMissing(x, sentinel). Replaces sentinel value with NaN. |

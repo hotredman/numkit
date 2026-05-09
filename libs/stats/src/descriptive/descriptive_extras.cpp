@@ -294,6 +294,164 @@ Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
         }, mr);
 }
 
+// ── isoutlier / rmoutliers / fillmissing / rmmissing / standardizeMissing ──
+
+// isoutlier(x) — boolean array marking outliers via median + MAD
+// (default MATLAB method: more than 3 scaled MADs from median).
+Value isoutlier_of(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.numel() == 0) return Value::matrix(0, 0, ValueType::LOGICAL, mr);
+    const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
+    const std::size_t c = (x.dims().ndim() >= 2)
+                            ? static_cast<std::size_t>(x.dims().dim(1)) : 1;
+    auto out = Value::matrix(r, c, ValueType::LOGICAL, mr);
+    uint8_t *od = out.logicalDataMut();
+    const double *xd = x.doubleData();
+    const std::size_t n = x.numel();
+
+    std::vector<double> buf(xd, xd + n);
+    std::sort(buf.begin(), buf.end());
+    const double med = (n % 2 == 1) ? buf[n / 2]
+                                     : 0.5 * (buf[n / 2 - 1] + buf[n / 2]);
+    std::vector<double> dev(n);
+    for (std::size_t i = 0; i < n; ++i) dev[i] = std::fabs(xd[i] - med);
+    std::sort(dev.begin(), dev.end());
+    const double mad = (n % 2 == 1) ? dev[n / 2]
+                                     : 0.5 * (dev[n / 2 - 1] + dev[n / 2]);
+    // MATLAB scales MAD by 1.4826 for normal-consistency.
+    const double scaled_mad = mad * 1.4826;
+    const double thresh = 3.0 * scaled_mad;
+
+    for (std::size_t i = 0; i < n; ++i)
+        od[i] = (std::fabs(xd[i] - med) > thresh) ? 1 : 0;
+    return out;
+}
+
+// rmoutliers(x) — drop elements flagged by isoutlier; vector form.
+Value rmoutliers_of(std::pmr::memory_resource *mr, const Value &x)
+{
+    auto mask = isoutlier_of(mr, x);
+    const std::size_t n = x.numel();
+    const double *xd = x.doubleData();
+    const uint8_t *m = mask.logicalData();
+    std::vector<double> kept;
+    kept.reserve(n);
+    for (std::size_t i = 0; i < n; ++i)
+        if (!m[i]) kept.push_back(xd[i]);
+    const bool col = x.dims().ndim() >= 2 && x.dims().dim(1) == 1;
+    auto out = col
+        ? Value::matrix(kept.size(), 1, ValueType::DOUBLE, mr)
+        : Value::matrix(1, kept.size(), ValueType::DOUBLE, mr);
+    if (!kept.empty())
+        std::copy(kept.begin(), kept.end(), out.doubleDataMut());
+    return out;
+}
+
+// fillmissing(x, method[, constant_value]) — replace NaN with method.
+// MATLAB-canonical methods: 'constant' (needs value), 'previous',
+// 'next'. Internal 'mean'/'median' kept as a numkit convenience but
+// undocumented (use mean(x,'omitnan') + 'constant' for portability).
+Value fillmissing_of(std::pmr::memory_resource *mr, const Value &x,
+                     const std::string &method, double constVal)
+{
+    const std::size_t n = x.numel();
+    if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    const double *xd = x.doubleData();
+    const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
+    const std::size_t c = (x.dims().ndim() >= 2)
+                            ? static_cast<std::size_t>(x.dims().dim(1)) : 1;
+    auto out = Value::matrix(r, c, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    std::copy(xd, xd + n, od);
+
+    if (method == "constant") {
+        for (std::size_t i = 0; i < n; ++i)
+            if (std::isnan(od[i])) od[i] = constVal;
+        return out;
+    }
+    if (method == "mean" || method == "median") {
+        std::vector<double> good;
+        good.reserve(n);
+        for (std::size_t i = 0; i < n; ++i)
+            if (!std::isnan(xd[i])) good.push_back(xd[i]);
+        if (good.empty()) return out;
+        double fill;
+        if (method == "mean") {
+            double s = 0.0;
+            for (double v : good) s += v;
+            fill = s / static_cast<double>(good.size());
+        } else {
+            std::sort(good.begin(), good.end());
+            const std::size_t gn = good.size();
+            fill = (gn % 2 == 1) ? good[gn / 2]
+                                  : 0.5 * (good[gn / 2 - 1] + good[gn / 2]);
+        }
+        for (std::size_t i = 0; i < n; ++i)
+            if (std::isnan(od[i])) od[i] = fill;
+        return out;
+    }
+    if (method == "previous") {
+        double last_good = std::numeric_limits<double>::quiet_NaN();
+        bool have = false;
+        for (std::size_t i = 0; i < n; ++i) {
+            if (!std::isnan(od[i])) { last_good = od[i]; have = true; }
+            else if (have) od[i] = last_good;
+        }
+        return out;
+    }
+    if (method == "next") {
+        double next_good = std::numeric_limits<double>::quiet_NaN();
+        bool have = false;
+        for (std::size_t ii = n; ii-- > 0;) {
+            if (!std::isnan(od[ii])) { next_good = od[ii]; have = true; }
+            else if (have) od[ii] = next_good;
+        }
+        return out;
+    }
+    throw Error("fillmissing: method must be 'constant', 'previous', "
+                "'next', 'mean', or 'median' in this revision "
+                "(MATLAB also supports 'nearest', 'linear', 'spline', "
+                "'pchip', 'makima', 'movmean', 'movmedian', 'knn' -- "
+                "those are deferred)",
+                0, 0, "fillmissing", "", "m:fillmissing:method");
+}
+
+// rmmissing(x) — drop NaN entries.
+Value rmmissing_of(std::pmr::memory_resource *mr, const Value &x)
+{
+    const std::size_t n = x.numel();
+    const double *xd = x.doubleData();
+    std::vector<double> kept;
+    kept.reserve(n);
+    for (std::size_t i = 0; i < n; ++i)
+        if (!std::isnan(xd[i])) kept.push_back(xd[i]);
+    const bool col = x.dims().ndim() >= 2 && x.dims().dim(1) == 1;
+    auto out = col
+        ? Value::matrix(kept.size(), 1, ValueType::DOUBLE, mr)
+        : Value::matrix(1, kept.size(), ValueType::DOUBLE, mr);
+    if (!kept.empty())
+        std::copy(kept.begin(), kept.end(), out.doubleDataMut());
+    return out;
+}
+
+// standardizeMissing(x, sentinel) — replace sentinel with NaN.
+Value standardizeMissing_of(std::pmr::memory_resource *mr,
+                            const Value &x, double sentinel)
+{
+    const std::size_t n = x.numel();
+    const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
+    const std::size_t c = (x.dims().ndim() >= 2)
+                            ? static_cast<std::size_t>(x.dims().dim(1)) : 1;
+    auto out = Value::matrix(r, c, ValueType::DOUBLE, mr);
+    if (n == 0) return out;
+    const double *xd = x.doubleData();
+    double *od = out.doubleDataMut();
+    const double nanv = std::numeric_limits<double>::quiet_NaN();
+    for (std::size_t i = 0; i < n; ++i)
+        od[i] = (xd[i] == sentinel) ? nanv : xd[i];
+    return out;
+}
+
 // ── range / mad / geomean / harmmean / moment / trimmean ─────────────
 
 // range(x) = max(x) - min(x) along dim.
@@ -1271,6 +1429,53 @@ void ecdfhist_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     auto [n, c] = ecdfhist(ctx.engine->resource(), args[0], args[1], m);
     outs[0] = std::move(n);
     if (nargout > 1) outs[1] = std::move(c);
+}
+
+// ── missing-data adapters ────────────────────────────────────────────
+
+void isoutlier_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("isoutlier: requires at least 1 argument",
+                    0, 0, "isoutlier", "", "m:isoutlier:nargin");
+    outs[0] = isoutlier_of(ctx.engine->resource(), args[0]);
+}
+
+void rmoutliers_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("rmoutliers: requires at least 1 argument",
+                    0, 0, "rmoutliers", "", "m:rmoutliers:nargin");
+    outs[0] = rmoutliers_of(ctx.engine->resource(), args[0]);
+}
+
+void fillmissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("fillmissing: requires (x, method[, constant_value])",
+                    0, 0, "fillmissing", "", "m:fillmissing:nargin");
+    if (!args[1].isChar() && !args[1].isString())
+        throw Error("fillmissing: method must be a string",
+                    0, 0, "fillmissing", "", "m:fillmissing:method");
+    const std::string m = args[1].toString();
+    const double cv = (args.size() >= 3) ? args[2].toScalar() : 0.0;
+    outs[0] = fillmissing_of(ctx.engine->resource(), args[0], m, cv);
+}
+
+void rmmissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("rmmissing: requires at least 1 argument",
+                    0, 0, "rmmissing", "", "m:rmmissing:nargin");
+    outs[0] = rmmissing_of(ctx.engine->resource(), args[0]);
+}
+
+void standardizeMissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("standardizeMissing: requires (x, sentinel)",
+                    0, 0, "standardizeMissing", "", "m:standardizeMissing:nargin");
+    outs[0] = standardizeMissing_of(ctx.engine->resource(), args[0], args[1].toScalar());
 }
 
 // ── range / mad / geomean / harmmean / moment / trimmean adapters ────
