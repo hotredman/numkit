@@ -3130,8 +3130,8 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bootci` | ❌ |  |  |  |  | bootstrap confidence intervals |
-| `bootstrp` | ⚠️ |  |  |  | NYI | needs Engine::call for function handles |
+| `bootci` | ❌ | 0.551 | 27.44× |  | OK | Sig: ci = bootci(nboot, fn, X[, alpha]). Percentile bootstrap CI. NOT bit-identical with MATLAB (std::uniform_int_distribution implementation-defined; randn also not bit-identical). Statistical correctness verified: 95% CI contains true mean. |
+| `bootstrp` | ⚠️ | 0.554 | 15.55× |  | OK | Sig: B = bootstrp(nboot, fn, X). Bootstrap resampling. Output shape verified; values not bit-identical with MATLAB (uniform_int_distribution + randn divergence). |
 | `combnk` | ✅ | 0.004 | 196.55× | 100.93× | OK | Sig: r = combnk(...). Spec-extension batch 2026-05-09. |
 | `crossval` | ❌ |  |  |  |  | k-fold cross-validation |
 | `cvpartition` | ❌ |  |  |  |  | partition object (function-form constructor) |

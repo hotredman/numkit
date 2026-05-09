@@ -5,6 +5,7 @@
 #include <numkit/builtin/math/random/rng.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
@@ -265,14 +266,159 @@ void datasample_reg(Span<const Value> args, size_t /*nargout*/,
                           with_replacement, weights);
 }
 
+// Helper: draw N indices in [0, N-1] with replacement, write into idx_out.
+static void drawBootstrapIndices(int N, int *idx_out)
+{
+    auto &gen = ::numkit::builtin::sharedEngine();
+    auto &mtx = ::numkit::builtin::rngMutex();
+    std::lock_guard<std::mutex> lk(mtx);
+    std::uniform_int_distribution<int> dist(0, N - 1);
+    for (int i = 0; i < N; ++i) idx_out[i] = dist(gen);
+}
+
+// Resample row indices of X into a same-shape Value.
+static Value resampleRows(std::pmr::memory_resource *mr, const Value &X,
+                          const int *idx, int N)
+{
+    if (X.dims().ndim() <= 1 || X.dims().dim(1) == 1) {
+        // Vector input: return same-orientation vector of N samples.
+        const bool col = X.dims().ndim() >= 2 && X.dims().dim(1) == 1;
+        auto out = col
+            ? Value::matrix(static_cast<std::size_t>(N), 1, ValueType::DOUBLE, mr)
+            : Value::matrix(1, static_cast<std::size_t>(N), ValueType::DOUBLE, mr);
+        const double *xd = X.doubleData();
+        double *od = out.doubleDataMut();
+        for (int i = 0; i < N; ++i) od[i] = xd[idx[i]];
+        return out;
+    }
+    // Matrix input: resample rows.
+    const std::size_t m = static_cast<std::size_t>(X.dims().dim(0));
+    const std::size_t cols = static_cast<std::size_t>(X.dims().dim(1));
+    auto out = Value::matrix(static_cast<std::size_t>(N), cols, ValueType::DOUBLE, mr);
+    const double *xd = X.doubleData();
+    double *od = out.doubleDataMut();
+    for (int i = 0; i < N; ++i)
+        for (std::size_t j = 0; j < cols; ++j)
+            od[i + j * N] = xd[idx[i] + j * m];
+    return out;
+}
+
 void bootstrp_reg(Span<const Value> args, size_t /*nargout*/,
                   Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
         throw Error("bootstrp: requires (nboot, fn, X)", 0, 0, "bootstrp", "",
                     "m:bootstrp:nargin");
+    if (!args[1].isFuncHandle())
+        throw Error("bootstrp: 2nd argument must be a function handle",
+                    0, 0, "bootstrp", "", "m:bootstrp:notFuncHandle");
     const int nboot = (int)args[0].toScalar();
-    outs[0] = bootstrp(ctx.engine->resource(), nboot, args[1], args[2]);
+    if (nboot < 1)
+        throw Error("bootstrp: nboot must be >= 1",
+                    0, 0, "bootstrp", "", "m:bootstrp:badN");
+    auto *mr = ctx.engine->resource();
+    const Value &X = args[2];
+    const int N = static_cast<int>(X.dims().dim(0));
+    if (N == 0)
+        throw Error("bootstrp: empty data", 0, 0, "bootstrp", "", "m:bootstrp:empty");
+
+    ScratchArena scratch(mr);
+    ScratchVec<int> idx(static_cast<std::size_t>(N), &scratch);
+
+    // First call to determine output dimensionality of fn(sample).
+    drawBootstrapIndices(N, idx.data());
+    auto sample0 = resampleRows(mr, X, idx.data(), N);
+    Value callArgs0[1] = { sample0 };
+    auto stat0 = ctx.engine->callFunctionHandle(
+        args[1], Span<const Value>(callArgs0, 1), ctx.env);
+    const std::size_t K = stat0.numel();
+    if (K == 0)
+        throw Error("bootstrp: bootfun returned empty", 0, 0, "bootstrp", "",
+                    "m:bootstrp:emptyStat");
+
+    // Output is nboot × K (each row = one bootstrap statistic).
+    auto out = Value::matrix(static_cast<std::size_t>(nboot), K,
+                             ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+
+    // Row 0: stat0.
+    for (std::size_t j = 0; j < K; ++j)
+        od[0 + j * nboot] = stat0.elemAsDouble(j);
+
+    // Rows 1..nboot-1.
+    for (int b = 1; b < nboot; ++b) {
+        drawBootstrapIndices(N, idx.data());
+        auto sample = resampleRows(mr, X, idx.data(), N);
+        Value callArgs[1] = { sample };
+        auto stat = ctx.engine->callFunctionHandle(
+            args[1], Span<const Value>(callArgs, 1), ctx.env);
+        if (stat.numel() != K)
+            throw Error("bootstrp: bootfun returned varying-size output",
+                        0, 0, "bootstrp", "", "m:bootstrp:varyingStat");
+        for (std::size_t j = 0; j < K; ++j)
+            od[b + j * nboot] = stat.elemAsDouble(j);
+    }
+    outs[0] = std::move(out);
+}
+
+// bootci(nboot, bootfun, X[, alpha]) — percentile bootstrap CI.
+// Returns 2×K matrix: row 1 = lower bound, row 2 = upper bound.
+void bootci_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("bootci: requires (nboot, fn, X[, alpha])",
+                    0, 0, "bootci", "", "m:bootci:nargin");
+    if (!args[1].isFuncHandle())
+        throw Error("bootci: 2nd argument must be a function handle",
+                    0, 0, "bootci", "", "m:bootci:notFuncHandle");
+    const int nboot = (int)args[0].toScalar();
+    if (nboot < 10)
+        throw Error("bootci: nboot must be >= 10 for meaningful CI",
+                    0, 0, "bootci", "", "m:bootci:badN");
+    double alpha = 0.05;
+    if (args.size() >= 4 && !args[3].isEmpty()) {
+        alpha = args[3].toScalar();
+        if (alpha <= 0.0 || alpha >= 1.0)
+            throw Error("bootci: alpha must be in (0, 1)",
+                        0, 0, "bootci", "", "m:bootci:alpha");
+    }
+    auto *mr = ctx.engine->resource();
+
+    // Reuse bootstrp to get the nboot × K matrix.
+    Value pseudo_args[3] = { args[0], args[1], args[2] };
+    Value boot_stats;
+    {
+        Value local_outs[1];
+        bootstrp_reg(Span<const Value>(pseudo_args, 3), 1,
+                     Span<Value>(local_outs, 1), ctx);
+        boot_stats = std::move(local_outs[0]);
+    }
+
+    const std::size_t K = static_cast<std::size_t>(boot_stats.dims().dim(1));
+    const double *bd = boot_stats.doubleData();
+
+    auto ci = Value::matrix(2, K, ValueType::DOUBLE, mr);
+    double *cd = ci.doubleDataMut();
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> col(static_cast<std::size_t>(nboot), &scratch);
+    for (std::size_t j = 0; j < K; ++j) {
+        for (int i = 0; i < nboot; ++i) col[i] = bd[i + j * nboot];
+        std::sort(col.begin(), col.end());
+        // Linear-interpolation percentile (matches MATLAB prctile default).
+        auto qFn = [&](double q) {
+            const double pos = q * (static_cast<double>(nboot) - 1.0);
+            const std::size_t lo = static_cast<std::size_t>(std::floor(pos));
+            const std::size_t hi = std::min(static_cast<std::size_t>(lo + 1),
+                                              static_cast<std::size_t>(nboot - 1));
+            const double frac = pos - static_cast<double>(lo);
+            return col[lo] * (1.0 - frac) + col[hi] * frac;
+        };
+        cd[0 + j * 2] = qFn(alpha / 2.0);
+        cd[1 + j * 2] = qFn(1.0 - alpha / 2.0);
+    }
+    outs[0] = std::move(ci);
 }
 
 void jackknife_reg(Span<const Value> args, size_t /*nargout*/,
