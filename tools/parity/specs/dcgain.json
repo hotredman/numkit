@@ -1,0 +1,12 @@
+{
+  "name": "dcgain",
+  "namespace": "control",
+  "setup": "",
+  "expr": "r1 = dcgain(tf(1, [1 1]));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = dcgain(...). Spec-extension batch 2026-05-09."
+}

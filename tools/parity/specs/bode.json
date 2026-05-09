@@ -1,0 +1,12 @@
+{
+  "name": "bode",
+  "namespace": "control",
+  "setup": "",
+  "expr": "sys = tf(1, [1 1]); [m, p] = bode(sys, 1); r1 = double(numel(m));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = bode(...). Spec-extension batch 2026-05-09."
+}

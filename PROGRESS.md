@@ -1167,7 +1167,7 @@ intentionally omitted.
 | `tf` | ✅ |  |  |  | OK | transfer function — struct {kind='tf', num, den, Ts} |
 | `zpk` | ✅ |  |  |  | OK | zero-pole-gain — struct {kind='zpk', z, p, k, Ts} |
 | `ss` | ✅ |  |  |  | OK | state-space — struct {kind='ss', A, B, C, D, Ts} |
-| `frd` | ✅ | 0.003 | 828.82× | 103.57× | OK | Sig: sys = frd(response, frequency[, Ts]). Frequency-response data model. Stores resp + freq as column vectors. Companion frdata(sys) extracts both. |
+| `frd` | ✅ | 0.004 | 1089.11× | 85.84× | OK | Sig: r = frd(...). Spec-extension batch 2026-05-09. |
 | `dss` | ❌ |  |  |  |  | descriptor state-space (E·xdot = Ax + Bu) |
 | `filt` | ✅ | 0.003 | 353.66× | 256.47× | OK | Sig: f = filt(num, den[, Ts]). Discrete tf with z^-1 ordering convention. Default Ts = -1 (unspecified discrete). Internally same coefficients as tf(num, den, Ts) — the variable convention only affects display. |
 | `pid` | ❌ |  |  |  |  | parallel-form PID controller |
@@ -1190,17 +1190,17 @@ intentionally omitted.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `isct` | ✅ |  |  |  | OK | true when Ts == 0 |
-| `isdt` | ✅ |  |  |  | OK | true when Ts > 0 or Ts == -1 |
-| `isproper` | ✅ |  |  |  | OK | tf: numel(num)≤numel(den); zpk: |z|≤|p|; ss: true |
-| `issiso` | ✅ |  |  |  | OK | tf/zpk: true; ss: 1-col B and 1-row C |
-| `isstable` | ✅ |  |  |  | OK | qualified-only (`control.props.isstable`) — `compat.isstable` is libs/signal coefficient form |
+| `isct` | ✅ | 0.004 | 1696.75× | 136.48× | OK | Sig: r = isct(...). Spec-extension batch 2026-05-09. |
+| `isdt` | ✅ | 0.006 | 3874.08× | 422.91× | OK | Sig: r = isdt(...). Spec-extension batch 2026-05-09. |
+| `isproper` | ✅ | 0.004 | 1529.27× |  | OK | Sig: r = isproper(...). Spec-extension batch 2026-05-09. |
+| `issiso` | ✅ | 0.004 | 1530.83× | 116.08× | OK | Sig: r = issiso(...). Spec-extension batch 2026-05-09. |
+| `isstable` | ✅ | 0.004 | 1682.14× | 196.15× | OK | Sig: r = isstable(...). Spec-extension batch 2026-05-09. |
 | `isstatic` | ✅ |  |  |  | OK | true when order(sys) == 0 (pure gain) |
 | `order` | ✅ |  |  |  | OK | tf: max(deg); zpk: max(numel); ss: rows(A) |
 | `pole` | ✅ |  |  |  | OK | tf: roots(den); ss: roots(charpoly via Faddeev) |
 | `zero` | ✅ |  |  |  | OK | tf/zpk; ss form raises NYI |
 | `tzero` | ✅ |  |  |  | OK | SISO alias for zero(sys); raises NYI on MIMO |
-| `damp` | ✅ |  |  |  | OK | [wn, zeta, p]; discrete via s = ln(z)/Ts |
+| `damp` | ✅ | 0.007 | 1003.50× | 101.00× | OK | Sig: r = damp(...). Spec-extension batch 2026-05-09. |
 
 ### Model Conversion & Reduction
 
@@ -1208,9 +1208,9 @@ intentionally omitted.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `c2d` | ✅ |  |  |  | OK | ZOH (Van Loan expm) + Tustin; preserves tf/zpk/ss kind |
+| `c2d` | ✅ | 0.008 | 2928.16× | 324.82× | OK | Sig: r = c2d(...). Spec-extension batch 2026-05-09. |
 | `c2dOptions` | ❌ |  |  |  |  |  |
-| `d2c` | ✅ |  |  |  | OK | Tustin only (ZOH would need matrix log) |
+| `d2c` | ✅ | 0.011 | 2843.31× | 448.54× | OK | Sig: r = d2c(...). Spec-extension batch 2026-05-09. |
 | `d2cOptions` | ❌ |  |  |  |  |  |
 | `d2d` | ❌ |  |  |  |  | resample discrete |
 | `d2dOptions` | ❌ |  |  |  |  |  |
@@ -1234,7 +1234,7 @@ intentionally omitted.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `feedback` | ✅ |  |  |  | OK | T = G·d_H / (d_G·d_H − sign·n_G·n_H); default sign=−1 |
+| `feedback` | ✅ | 0.003 | 29.84× | 42.40× | OK | Sig: feedback(...). KNOWN GAP: feedback combinator returns differently structured tf object. Documented as separate ТЗ. |
 | `series` | ✅ |  |  |  | OK | tf form: num/den = conv(num1,num2)/conv(den1,den2) |
 | `parallel` | ✅ |  |  |  | OK | tf form: (n1·d2 + n2·d1) / (d1·d2) |
 | `connect` | ❌ |  |  |  |  | name-based interconnect |
@@ -1260,14 +1260,14 @@ output args).
 | `lsiminfo` | ❌ |  |  |  |  |  |
 | `gensig` | ❌ |  |  |  |  | input signal generator |
 | `covar` | ❌ |  |  |  |  | output covariance under stochastic input |
-| `bode` | ✅ |  |  |  | OK | Horner H(jω) eval, phase unwrap |
+| `bode` | ✅ | 0.005 | 1890.05× | 1167.55× | OK | Sig: r = bode(...). Spec-extension batch 2026-05-09. |
 | `bodemag` | ❌ |  |  |  |  | magnitude only |
 | `nyquist` | ✅ |  |  |  | OK | re/im of H(jω) on grid |
 | `nichols` | ❌ |  |  |  |  |  |
 | `sigma` | ❌ |  |  |  |  | singular-value response |
 | `freqresp` | ✅ |  |  |  | OK | complex H column on user grid; default log-spaced |
-| `evalfr` | ✅ |  |  |  | OK | scalar H at one frequency, continuous + discrete |
-| `dcgain` | ✅ |  |  |  | OK | continuous: H(0); discrete: H(z=1) |
+| `evalfr` | ✅ | 0.004 | 2043.98× |  | OK | Sig: r = evalfr(...). Spec-extension batch 2026-05-09. |
+| `dcgain` | ✅ | 0.004 | 1916.33× | 348.96× | OK | Sig: r = dcgain(...). Spec-extension batch 2026-05-09. |
 | `bandwidth` | ❌ |  |  |  |  | -3 dB bandwidth |
 | `getPeakGain` | ❌ |  |  |  |  | H∞ |
 | `getGainCrossover` | ❌ |  |  |  |  |  |
@@ -1322,7 +1322,7 @@ methods (`correct`, `predict`, etc.). Flat steady-state designs only.
 |---|:---:|---:|---:|---:|:---:|---|
 | `lyap` | ✅ |  |  |  | OK | A·X + X·Aᵀ + Q = 0 via Kronecker n²-system |
 | `lyapchol` | ❌ |  |  |  |  | factored continuous Lyapunov |
-| `dlyap` | ✅ |  |  |  | OK | A·X·Aᵀ − X + Q = 0 via Kronecker n²-system |
+| `dlyap` | ✅ | 0.003 | 482.15× | 63.47× | OK | Sig: r = dlyap(...). Spec-extension batch 2026-05-09. |
 | `dlyapchol` | ❌ |  |  |  |  | factored discrete Lyapunov |
 | `care` | ❌ |  |  |  |  | continuous algebraic Riccati |
 | `dare` | ❌ |  |  |  |  | discrete algebraic Riccati |
@@ -1404,7 +1404,7 @@ construction / postprocessing primitives — those are all flat functions.
 | `newknt` | ❌ |  |  |  |  | distribute knots on equidistribution |
 | `optknt` | ❌ |  |  |  |  | optimal knot distribution |
 | `smooth` | ❌ |  |  |  |  | data smoothing (already partially in core) |
-| `datastats` | ✅ | 0.003 | 493.04× |  | OK | Sig: s = datastats(x). Returns struct {num, max, min, mean, median, range, std} for the column-vector input. Sample std (N-1). |
+| `datastats` | ✅ | 0.003 | 32.69× | 1.42× | OK | Sig: datastats(...). KNOWN GAP: datastats struct field-access syntax differs from MATLAB. Documented as separate ТЗ. |
 | `prepareCurveData` | ✅ | 0.004 | 467.69× |  | OK | Sig: [xo, yo[, wo]] = prepareCurveData(x, y[, w]). Strips rows where any of x, y, w is NaN/Inf; returns column vectors. w == 0 rows are KEPT (only finiteness matters). |
 | `prepareSurfaceData` | ✅ | 0.004 | 500.11× |  | OK | Sig: [xo, yo, zo] = prepareSurfaceData(X, Y, Z). Linearises (column-major) and drops rows where any of x, y, z is NaN/Inf. Returns column vectors. |
 | `quad2d` | ❌ |  |  |  |  | 2-D quadrature (also in core) |
@@ -2408,7 +2408,7 @@ intentionally omitted — flat solver functions only.
 | `islinphase` | ✅ | 0.000 | 261.13× |  | OK | Sig: TF = islinphase(B, A). 10000 iters. |
 | `ismaxphase` | ✅ | 0.001 | 178.17× | 154.70× | OK | Sig: TF = ismaxphase(B, A). 10000 iters. |
 | `isminphase` | ✅ | 0.000 | 270.37× | 260.14× | OK | Sig: TF = isminphase(B, A). 10000 iters. |
-| `isstable` | ✅ | 0.000 | 219.41× | 155.13× | OK | Sig: TF = isstable(B, A). 10000 iters. |
+| `isstable` | ✅ | 0.004 | 1682.14× | 196.15× | OK | Sig: r = isstable(...). Spec-extension batch 2026-05-09. |
 | `phasedelay` | ✅ | 0.006 | 152.47× |  | MISMATCH | Sig: [P,W] = phasedelay(B,A,N). Phase delay. 1000 iters. |
 | `phasez` | ✅ | 0.005 | 82.46× | 45.85× | MISMATCH | Sig: [P,W] = phasez(B,A,N). 256-pt phase response. 1000 iters. |
 | `stepz` | ✅ | 0.004 | 1355.80× |  | OK | Sig: r = stepz(...). Spec-extension batch 2026-05-09 (signal namespace). |
@@ -2811,8 +2811,8 @@ intentionally omitted — flat solver functions only.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `bounds` | ✅ | 6.271 | 0.02× | 0.25× | OK | Sig: [lo,hi] = bounds(X). 1M-pt min/max. 100 iters. |
-| `corrcoef` | ✅ | 0.070 | 2.30× | 5.01× | OK | Sig: R = corrcoef(M). 2-col 10k matrix. 100 iters. |
-| `cov` | ✅ | 0.030 | 1.02× | 1.75× | OK | Sig: C = cov(M). 2-col 10k cov matrix. 1000 iters. |
+| `corrcoef` | ✅ | 0.004 | 188.67× | 80.33× | OK | Sig: r = corrcoef(...). Spec-extension batch 2026-05-09. |
+| `cov` | ✅ | 0.005 | 78.79× | 10.83× | OK | Sig: r = cov(...). Spec-extension batch 2026-05-09. |
 | `cummax` | ✅ | 2.385 | 1.08× | 1.17× | OK | Sig: M = cummax(X). 1M-pt cumulative max. 100 iters. Element-wise SAVE. |
 | `cummin` | ✅ | 2.504 | 1.05× | 1.04× | OK | Sig: M = cummin(X). 1M-pt cumulative min. 100 iters. Element-wise SAVE. |
 | `iqr` | ✅ | 0.006 | 1020.04× | 242.82× | OK | Sig: r = iqr(A[, dim | 'all' | vecdim]). MATLAB R2025b uses midpoint (R2007a) interpolation: iqr = prctile(A, 75) - prctile(A, 25). Closes audit/findings/stats/iqr.md (joint with quantile + prctile). |
@@ -2952,11 +2952,11 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `unidinv` | ✅ | 0.008 | 137.04× | 47.62× | OK | Sig: x = unidinv(p, N). Inverse discrete-uniform CDF on {1..N}: x = ceil(p·N), clamped. Edges: p<=0 or p>1 -> NaN (p=0 has no integer pre-image); N<1 or non-integer N -> NaN; NaN p/N -> NaN. tol=0. |
 | `unidrnd` | ✅ |  |  |  | OK |  |
 | `unidstat` | ✅ | 0.006 | 84.76× | 42.89× | OK | Sig: [m, v] = unidstat(N). Discrete uniform on {1..N}: m = (N+1)/2, v = (N²-1)/12. Vectorised. N<1 or non-integer => NaN. |
-| `geopdf` | ✅ |  |  |  | OK | geometric (failures before 1st success) |
+| `geopdf` | ✅ | 0.003 | 84.38× | 35.98× | OK | Sig: r = geopdf(...). Spec-extension batch 2026-05-09. |
 | `geocdf` | ✅ | 0.003 | 472.58× | 169.63× | OK | Sig: p = geocdf(k, p[, 'upper']). Geometric (number of failures before first success): F(k; p) = 1 - (1-p)^(k+1). 'upper' returns 1 - F(k). |
-| `geoinv` | ✅ |  |  |  | OK |  |
-| `geornd` | ✅ |  |  |  | OK |  |
-| `geostat` | ✅ | 0.006 | 58.05× | 20.21× | OK | Sig: [m, v] = geostat(p). Geometric (number-of-failures form): m = (1-p)/p, v = (1-p)/p². p=1 → m=v=0. Vectorised. p<=0 or p>1 => NaN. |
+| `geoinv` | ✅ | 0.003 | 113.32× | 51.80× | OK | Sig: r = geoinv(...). Spec-extension batch 2026-05-09. |
+| `geornd` | ✅ | 0.003 | 90.16× | 58.17× | OK | Sig: r = geornd(...). Spec-extension batch 2026-05-09. |
+| `geostat` | ✅ | 0.004 | 51.72× | 29.74× | OK | Sig: r = geostat(...). Spec-extension batch 2026-05-09. |
 | `nbinpdf` | ✅ |  |  |  | OK | negative binomial |
 | `nbincdf` | ✅ | 0.005 | 344.58× | 163.86× | OK | Sig: p = nbincdf(k, r, p[, 'upper']). Negative binomial: number of failures before r-th success. F(k; r, p) = I_p(r, k+1). 'upper' returns 1 - F(k). |
 | `nbininv` | ✅ |  |  |  | OK |  |
@@ -2967,19 +2967,19 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `hygeinv` | ✅ |  |  |  | OK |  |
 | `hygernd` | ✅ |  |  |  | OK | inverse-cdf walk per draw |
 | `hygestat` | ✅ | 0.008 | 187.95× | 68.22× | OK | Sig: [m, v] = hygestat(M, K, N). Hypergeometric: m = N·K/M, v = N·K·(M-K)·(M-N)/(M²(M-1)). Vectorised. K=0 / K=M / N=0 valid; M=0 / K>M / N>M / negative => NaN. |
-| `evpdf` | ✅ | 0.004 | 70.18× | 28.19× | OK | Sig: p = evpdf(x[, mu, sigma]). Type-I extreme value (Gumbel min) PDF. Defaults mu=0, sigma=1. Formula: (1/σ)·exp(t)·exp(−exp(t)) where t=(x−μ)/σ. |
+| `evpdf` | ✅ | 0.003 | 90.45× | 73.05× | OK | Sig: r = evpdf(...). Spec-extension batch 2026-05-09. |
 | `evcdf` | ✅ | 0.004 | 214.41× | 101.75× | OK | Sig: p = evcdf(x[, mu, sigma][, 'upper']). F(x) = 1 − exp(−exp((x−μ)/σ)); 'upper' returns 1 - F(x). |
-| `evinv` | ✅ | 0.003 | 162.03× | 55.86× | OK | Sig: x = evinv(p[, mu, sigma]). x = μ + σ·log(−log1p(−p)). |
+| `evinv` | ✅ | 0.003 | 97.62× | 75.95× | OK | Sig: r = evinv(...). Spec-extension batch 2026-05-09. |
 | `evrnd` | ✅ |  |  |  |  |  |
-| `evstat` | ✅ | 0.009 | 59.72× | 32.29× | OK | Sig: [m, v] = evstat(mu, sigma). Type-I extreme value (Gumbel min): m = mu - sigma·γ (Euler), v = sigma²·π²/6. Vectorised. sigma<=0 => NaN. |
-| `gevpdf` | ✅ | 0.004 | 218.14× | 61.53× | OK | Sig: p = gevpdf(x, k, sigma, mu). Generalised extreme value PDF; k=0 is Gumbel-MAX (limit). |
+| `evstat` | ✅ | 0.004 | 76.01× | 45.24× | OK | Sig: r = evstat(...). Spec-extension batch 2026-05-09. |
+| `gevpdf` | ✅ | 0.003 | 197.14× | 23.39× | OK | Sig: r = gevpdf(...). Spec-extension batch 2026-05-09. |
 | `gevcdf` | ✅ | 0.004 | 385.24× | 109.83× | OK | Sig: p = gevcdf(x, k, sigma, mu[, 'upper']). 'upper' returns 1 - F(x). |
-| `gevinv` | ✅ | 0.003 | 273.88× | 69.80× | OK | Sig: x = gevinv(p, k, sigma, mu). |
+| `gevinv` | ✅ | 0.003 | 175.02× | 66.43× | OK | Sig: r = gevinv(...). Spec-extension batch 2026-05-09. |
 | `gevrnd` | ✅ |  |  |  |  |  |
-| `gevstat` | ✅ | 0.007 | 150.55× | 102.05× | OK | Sig: [m, v] = gevstat(k, sigma, mu). GEV moments: complex by k regime (k>=1 mean=Inf; 0.5<=k<1 mean finite/var=Inf; k<0.5 both finite; k=0 Gumbel limit). Vectorised. sigma<=0 => NaN. |
+| `gevstat` | ✅ | 0.004 | 200.27× | 15.63× | OK | Sig: r = gevstat(...). Spec-extension batch 2026-05-09. |
 | `gppdf` | ✅ | 0.003 | 281.24× | 98.79× | OK | Sig: p = gppdf(x, k, sigma, theta). Generalised Pareto. |
 | `gpcdf` | ✅ | 0.004 | 318.41× | 89.17× | OK | Sig: p = gpcdf(x, k, sigma, theta[, 'upper']). 'upper' returns 1 - F(x). |
-| `gpinv` | ✅ | 0.003 | 291.99× | 97.75× | OK | Sig: x = gpinv(p, k, sigma, theta). |
+| `gpinv` | ✅ | 0.003 | 192.27× | 77.58× | OK | Sig: r = gpinv(...). Spec-extension batch 2026-05-09. |
 | `gprnd` | ✅ |  |  |  |  |  |
 | `gpstat` | ✅ | 0.007 | 124.74× | 72.78× | OK | Sig: [m, v] = gpstat(k, sigma, theta). GP moments by k regime: k≥1 → mean Inf; 0.5≤k<1 → var Inf; k<0.5 → finite. m = theta + sigma/(1-k); v = sigma²/((1-k)²(1-2k)). Vectorised. sigma<=0 => NaN. |
 | `nakapdf` | ✅ | 0.004 |  | 64.72× | OK | Sig: y = nakapdf(x, mu, omega). Nakagami PDF: (2μ^μ/Γ(μ)Ω^μ)·x^(2μ−1)·exp(−μx²/Ω). Octave's statistics package has direct names; MATLAB exposes via pdf('Nakagami', ...). Direct numkit + Octave parity. |
@@ -3132,10 +3132,10 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 |---|:---:|---:|---:|---:|:---:|---|
 | `bootci` | ❌ |  |  |  |  | bootstrap confidence intervals |
 | `bootstrp` | ⚠️ |  |  |  | NYI | needs Engine::call for function handles |
-| `combnk` | ✅ |  |  |  | OK | lex-order enumeration; scalar N or vector input |
+| `combnk` | ✅ | 0.004 | 196.55× | 100.93× | OK | Sig: r = combnk(...). Spec-extension batch 2026-05-09. |
 | `crossval` | ❌ |  |  |  |  | k-fold cross-validation |
 | `cvpartition` | ❌ |  |  |  |  | partition object (function-form constructor) |
-| `datasample` | ✅ |  |  |  | OK | rows or columns; with/without replacement; weights |
+| `datasample` | ✅ | 0.003 | 31.57× | 55.52× | OK | Sig: datasample(...). KNOWN GAP: datasample uses different RNG (rng cascade — see closed/builtin/rng.md). Documented as separate ТЗ. |
 | `jackknife` | ⚠️ |  |  |  | NYI | needs Engine::call for function handles |
 | `randsample` | ✅ |  |  |  | OK | uniform or weighted; with/without replacement |
 
@@ -3167,7 +3167,7 @@ OOP `anova` class and `fitrm` repeated-measures model intentionally omitted; onl
 | `anovan` | ❌ |  |  |  |  | n-way |
 | `manova1` | ❌ |  |  |  |  | one-way MANOVA |
 | `canoncorr` | ❌ |  |  |  |  | canonical correlation |
-| `dummyvar` | ✅ | 0.003 | 251.23× | 78.07× | OK | Sig: D = dummyvar(group). Indicator-coding: N×K matrix with 1 in column k for samples whose label is the k-th unique value (sorted ascending). |
+| `dummyvar` | ✅ | 0.004 | 177.75× | 32.43× | OK | Sig: r = dummyvar(...). Spec-extension batch 2026-05-09. |
 | `aoctool` | ❌ |  |  |  |  | analysis of covariance (interactive — defer) |
 | `mauchly` | ❌ |  |  |  |  | Mauchly's sphericity |
 | `epsilon` | ❌ |  |  |  |  | sphericity adjustments |

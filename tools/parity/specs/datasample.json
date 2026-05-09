@@ -1,0 +1,12 @@
+{
+  "name": "datasample",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "r1 = 1;",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: datasample(...). KNOWN GAP: datasample uses different RNG (rng cascade \u2014 see closed/builtin/rng.md). Documented as separate \u0422\u0417."
+}

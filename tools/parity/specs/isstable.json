@@ -1,13 +1,12 @@
 {
   "name": "isstable",
-  "namespace": "core",
-  "setup": "b = [1]; a = [1 -0.5];",
-  "expr": "y = isstable(b, a);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: TF = isstable(B, A). 10000 iters.",
+  "namespace": "control",
+  "setup": "",
+  "expr": "r1 = double(isstable(tf(1, [1 1])));",
+  "iters": 5,
+  "tol": 1e-06,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r1"
+  ],
+  "comment": "Sig: r = isstable(...). Spec-extension batch 2026-05-09."
 }

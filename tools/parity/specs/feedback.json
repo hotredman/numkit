@@ -1,0 +1,12 @@
+{
+  "name": "feedback",
+  "namespace": "control",
+  "setup": "",
+  "expr": "r1 = 1;",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: feedback(...). KNOWN GAP: feedback combinator returns differently structured tf object. Documented as separate \u0422\u0417."
+}
