@@ -17,9 +17,26 @@ const KIND_PALETTE = ['#7fd99a', '#5fb3d4', '#e9b870', '#9b8cf2', '#e26a6a', '#d
 const STYLE_COLOR = { r: '#f07070', g: '#6ee7a0', b: '#60d0f0', k: '#d4d4f0', m: '#e070c0', c: '#60d0f0', y: '#e8d060', w: '#ffffff' };
 function parseLineSpec(s) {
   if (!s || typeof s !== 'string') return {};
-  let color = null;
-  for (const ch of s) if (STYLE_COLOR[ch]) { color = STYLE_COLOR[ch]; break; }
-  return { color };
+  // Two style dialects share this slot:
+  //   • Classic MATLAB linespec ("r--o", "b:") — single-char color.
+  //   • Engine extras ("color=#rrggbb;lineWidth=2") — explicit kv list.
+  // Parse as kv first (it's unambiguous because of the '=' sign), then
+  // fall back to the single-char scan.
+  const out = {};
+  if (s.includes('=')) {
+    for (const kv of s.split(';')) {
+      const [k, v] = kv.split('=');
+      if (!k || v == null) continue;
+      const key = k.trim(), val = v.trim();
+      if (key === 'color') out.color = val;
+      else if (key === 'lineWidth' || key === 'linewidth') out.lineWidth = Number(val);
+      else if (key === 'fontSize' || key === 'fontsize') out.fontSize = Number(val);
+    }
+  }
+  if (!out.color) {
+    for (const ch of s) if (STYLE_COLOR[ch]) { out.color = STYLE_COLOR[ch]; break; }
+  }
+  return out;
 }
 
 /* ─────────────── workspace variables ─────────────── */
