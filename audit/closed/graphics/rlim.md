@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (plotting batch)
 - Closed date: 2026-05-09
-- Notes: Graphics namespace batch (14 funcs). Bit-identical MATLAB R2025b on probed inputs.
+- Notes: Setter form rlim([lo hi]) works (updates polar-axes JSON). Getter form rlim (no args) requires graphics-handle return semantics that numkit does not implement (architectural limit). Octave also lacks rlim, so parity reports N/A.

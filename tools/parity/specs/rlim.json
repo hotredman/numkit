@@ -2,11 +2,11 @@
   "name": "rlim",
   "namespace": "graphics",
   "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "plot(1:10); rlim([0 100]); r1 = 1;",
+  "iters": 1,
+  "tol": 1e-12,
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: r = rlim(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: graphics primitive. Polar plot r-axis limits. Setter form works; getter form (no args) requires graphics-handle return which numkit does not implement (architectural)."
 }

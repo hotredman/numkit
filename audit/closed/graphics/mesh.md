@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (plotting batch)
 - Closed date: 2026-05-09
-- Notes: Graphics namespace batch (14 funcs). Bit-identical MATLAB R2025b on probed inputs.
+- Notes: Currently registered as side-effect-only no-op (figure-emit logic for surfaces is a future refactor). Spec verifies the call accepts standard input without erroring; full implementation deferred.

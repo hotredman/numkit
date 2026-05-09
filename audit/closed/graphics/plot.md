@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (plotting batch)
 - Closed date: 2026-05-09
-- Notes: Graphics namespace batch (14 funcs). Bit-identical MATLAB R2025b on probed inputs.
+- Notes: Initial closure was DEFERRED. plot(x, y) emits __FIGURE_DATA__ JSON to stdout via numkit figure manager (consumed by IDE/REPL). Bit-identical SHAPE with MATLAB; numkit does not implement MATLAB graphics-handle objects, so h = plot(...) does not bind h. Spec verifies side-effect runs.

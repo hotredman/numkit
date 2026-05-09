@@ -2,11 +2,11 @@
   "name": "mesh",
   "namespace": "graphics",
   "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "mesh(peaks(20)); r1 = 1;",
+  "iters": 1,
+  "tol": 1e-12,
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: r = mesh(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: graphics primitive. 3D mesh surface. Currently registered as a side-effect-only no-op (figure emit logic for surfaces is a separate refactor); spec verifies the call accepts standard input without erroring."
 }

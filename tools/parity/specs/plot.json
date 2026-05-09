@@ -2,11 +2,11 @@
   "name": "plot",
   "namespace": "graphics",
   "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "plot(1:10, (1:10).^2); r1 = 1;",
+  "iters": 1,
+  "tol": 1e-12,
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: r = plot(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: graphics primitive. 2D line plot. Emits figure data via side effect; numkit does not expose MATLAB-style graphics handles. Spec verifies the function runs."
 }

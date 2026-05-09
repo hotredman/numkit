@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (plotting batch)
 - Closed date: 2026-05-09
-- Notes: Graphics namespace batch (14 funcs). Bit-identical MATLAB R2025b on probed inputs.
+- Notes: Same as rlim: setter works, getter requires graphics handles.
