@@ -1921,6 +1921,25 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 outs[0] = Value::scalar(t, ctx.engine->resource());
                             });
 
+    // ── now ───────────────────────────────────────────────────
+    // MATLAB now: serial date number for current local time.
+    // Days since 0000-01-00 (MATLAB epoch). 1970-01-01 maps to 719529.
+    //   now = 719529 + (Unix microseconds) / 86_400_000_000
+    // (MATLAB has deprecated `now` in favour of datetime() but many
+    // scripts still call it.)
+    engine.registerFunction("now",
+                            [](Span<const Value>,
+                               size_t /*nargout*/,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                const auto unix_us = std::chrono::duration_cast<
+                                    std::chrono::microseconds>(
+                                    std::chrono::system_clock::now().time_since_epoch()).count();
+                                const double serial =
+                                    719529.0 + static_cast<double>(unix_us) / 86400000000.0;
+                                outs[0] = Value::scalar(serial, ctx.engine->resource());
+                            });
+
     // ── addpath / rmpath / path / rehash / run (Phase 9b) ──────
     engine.registerFunction("addpath",
                             [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {

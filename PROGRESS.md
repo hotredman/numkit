@@ -1199,7 +1199,7 @@ intentionally omitted.
 | `order` | ✅ | 0.004 | 1574.74× |  | OK | Sig: r = order(...). Spec-extension batch 2026-05-09. |
 | `pole` | ✅ | 0.004 | 1646.84× | 162.11× | OK | Sig: r = pole(...). Spec-extension batch 2026-05-09. |
 | `zero` | ✅ | 0.005 | 1455.38× | 132.67× | OK | Sig: r = zero(...). Spec-extension batch 2026-05-09. |
-| `tzero` | ✅ | 0.005 | 1443.30× |  | OK | Sig: z = tzero(sys). SISO transmission zeros via ss2tf + roots. Bit-identical with MATLAB R2025b on probed system (z = 1.0). MIMO requires QZ generalised eigenvalue solver (separate ТЗ). |
+| `tzero` | ✅ | 0.004 | 1948.17× |  | OK | Sig: z = tzero(sys). SISO transmission zeros via ss2tf + roots. Bit-identical with MATLAB R2025b on probed system (z = 1.0). MIMO requires QZ generalised eigenvalue solver (separate ТЗ). |
 | `damp` | ✅ | 0.007 | 1003.50× | 101.00× | OK | Sig: r = damp(...). Spec-extension batch 2026-05-09. |
 
 ### Model Conversion & Reduction
@@ -1303,7 +1303,7 @@ methods (`correct`, `predict`, etc.). Flat steady-state designs only.
 | `lqg` | ❌ |  |  |  |  | linear-quadratic Gaussian |
 | `lqgreg` | ❌ |  |  |  |  | LQG regulator |
 | `lqgtrack` | ❌ |  |  |  |  | tracking LQG |
-| `place` | ✅ | 0.004 | 418.76× | 57.56× | OK | Sig: K = place(A, B, p). Re-closed 2026-05-09 -- prior defer was wrong; numkit returns K=[1 2] matching MATLAB on probe. |
+| `place` | ✅ | 0.004 | 447.75× | 15.97× | OK | Sig: K = place(A, B, p). Re-closed 2026-05-09 -- prior defer was wrong; numkit returns K=[1 2] matching MATLAB on probe. |
 | `estim` | ❌ |  |  |  |  | steady-state estimator (Kalman) |
 | `kalman` | ❌ |  |  |  |  | continuous-time Kalman gain |
 | `kalmd` | ❌ |  |  |  |  | discrete Kalman from continuous plant |
@@ -2444,13 +2444,13 @@ intentionally omitted — flat solver functions only.
 | `sgolayfilt` | ✅ | 0.004 | 287.87× | 40.97× | OK | Sig: r = sgolayfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `sos2cell` | ❌ |  |  |  |  |  |
 | `sos2ctf` | ❌ |  |  |  |  |  |
-| `sos2ss` | ✅ | 0.005 | 384.90× | 390.65× | OK | Sig: [A,B,C,D] = sos2ss(SOS[, g]). Re-closed after tf2ss canonical-form fix 2026-05-09. |
+| `sos2ss` | ✅ | 0.004 | 480.87× | 478.62× | OK | Sig: [A,B,C,D] = sos2ss(SOS[, g]). Re-closed after tf2ss canonical-form fix 2026-05-09. |
 | `sos2tf` | ✅ | 0.005 | 247.61× | 27.89× | OK | Sig: r = sos2tf(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `sos2zp` | ✅ | 0.002 | 14.57× | 96.58× | OK | Sig: [Z,P,K] = sos2zp(SOS). 1000 iters. |
 | `sosfilt` | ✅ | 0.005 | 185.99× | 16.48× | OK | Sig: r = sosfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `ss` | ✅ | 0.007 | 785.28× | 31.40× | OK | Sig: r = ss(...). Spec-extension batch 2026-05-09. |
-| `ss2sos` | ✅ | 0.007 | 1291.35× |  | OK | Sig: sos = ss2sos(A,B,C,D). Re-closed after tf2ss canonical-form fix 2026-05-09. |
-| `ss2zp` | ✅ | 0.005 | 590.72× | 400.16× | OK | Sig: [z,p,k] = ss2zp(A,B,C,D). Re-closed after tf2ss canonical-form fix 2026-05-09. |
+| `ss2sos` | ✅ | 0.005 | 2063.27× |  | OK | Sig: sos = ss2sos(A,B,C,D). Re-closed after tf2ss canonical-form fix 2026-05-09. |
+| `ss2zp` | ✅ | 0.005 | 591.80× | 406.79× | OK | Sig: [z,p,k] = ss2zp(A,B,C,D). Re-closed after tf2ss canonical-form fix 2026-05-09. |
 | `tf` | ✅ | 0.004 | 1691.79× | 101.58× | OK | Sig: r = tf(...). Spec-extension batch 2026-05-09. |
 | `tf2latc` | ❌ |  |  |  |  | lattice |
 | `tf2sos` | ✅ | 0.005 | 1266.34× | 395.28× | OK | Sig: r = tf2sos(...). Spec-extension batch 2026-05-09 (signal namespace). |
@@ -2459,7 +2459,7 @@ intentionally omitted — flat solver functions only.
 | `tf2zpk` | ✅ | 0.004 | 360.93× |  | OK | Sig: r = tf2zpk(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zp2ctf` | ❌ |  |  |  |  |  |
 | `zp2sos` | ✅ | 0.004 | 965.08× | 97.49× | OK | Sig: r = zp2sos(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `zp2ss` | ✅ | 0.005 | 576.34× | 394.30× | OK | Sig: [A,B,C,D] = zp2ss(Z,P,K). Re-closed after tf2ss canonical-form fix 2026-05-09. |
+| `zp2ss` | ✅ | 0.005 | 652.40× | 403.32× | OK | Sig: [A,B,C,D] = zp2ss(Z,P,K). Re-closed after tf2ss canonical-form fix 2026-05-09. |
 | `zp2tf` | ✅ | 0.005 | 170.36× | 299.52× | OK | Sig: r = zp2tf(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zpk` | ✅ | 0.004 | 1523.65× | 152.33× | OK | Sig: r = zpk(...). Spec-extension batch 2026-05-09. |
 | `filter` | ✅ | 0.004 | 30.84× | 23.72× | OK | Sig: r = filter(...). Spec-extension batch 2026-05-09 (signal namespace). |
@@ -3581,3 +3581,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `standardizeMissing` | — | 0.004 | 347.03× | 64.79× | OK | Sig: y = standardizeMissing(x, sentinel). Replaces sentinel value with NaN. |
 | `detrend` | — | 0.006 | 369.81× | 36.84× | OK | Sig: y = detrend(x[, order]). Remove polynomial trend (default linear). Vector form. |
 | `fitdist` | — | 0.007 | 850.68× | 1291.38× | OK | Sig: pd = fitdist(x, 'Name'). numkit returns a struct (.DistributionName, .ParameterValues, .ParameterNames, .NumObservations). MATLAB returns a probability-distribution OBJECT with same .ParameterValues/.DistributionName fields. ParameterValues bit-identical (delegates to mle). MATLAB's class methods (.pdf/.cdf/.icdf) deferred. |
+| `now` | — | 0.018 | 21.89× | 54.81× | OK | Sig: t = now. Serial date number for current local time. Days since MATLAB epoch (year 0000-01-00). 1970-01-01 = 719529. Cannot bit-compare across engines (different sample times); parity tests range invariant. |

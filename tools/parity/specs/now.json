@@ -1,0 +1,6 @@
+{"name": "now", "namespace": "builtin",
+ "setup": "",
+ "expr": "n = now; valid = double(n > 740000 && n < 750000);",
+ "iters": 1, "tol": 0,
+ "fingerprint": ["valid"],
+ "comment": "Sig: t = now. Serial date number for current local time. Days since MATLAB epoch (year 0000-01-00). 1970-01-01 = 719529. Cannot bit-compare across engines (different sample times); parity tests range invariant."}
