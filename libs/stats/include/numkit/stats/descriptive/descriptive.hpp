@@ -116,6 +116,15 @@ Value rmse(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
 // the Inf).
 Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int dim = 0);
 
+// ── isoutlier / rmoutliers / fillmissing / rmmissing / standardizeMissing ──
+Value isoutlier_of(std::pmr::memory_resource *mr, const Value &x);
+Value rmoutliers_of(std::pmr::memory_resource *mr, const Value &x);
+Value fillmissing_of(std::pmr::memory_resource *mr, const Value &x,
+                     const std::string &method, double constVal = 0.0);
+Value rmmissing_of(std::pmr::memory_resource *mr, const Value &x);
+Value standardizeMissing_of(std::pmr::memory_resource *mr,
+                            const Value &x, double sentinel);
+
 // ── range / mad / geomean / harmmean / moment / trimmean ──────────────
 // All take optional dim; default dim=0 means first non-singleton.
 Value range_of(std::pmr::memory_resource *mr, const Value &x, int dim = 0);

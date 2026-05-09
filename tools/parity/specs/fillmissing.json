@@ -1,0 +1,5 @@
+{"name": "fillmissing", "namespace": "stats", "setup": "y = [1 2 NaN 4 5 NaN 7];",
+ "expr": "fp = fillmissing(y, 'previous'); fn = fillmissing(y, 'next'); fc = fillmissing(y, 'constant', 99);",
+ "iters": 5, "tol": 1e-12,
+ "fingerprint": ["fp(3)", "fp(6)", "fn(3)", "fn(6)", "fc(3)", "fc(6)"],
+ "comment": "Sig: y = fillmissing(x, method[, value]). MATLAB-canonical methods: 'previous', 'next', 'constant'. Numkit also supports 'mean'/'median' as convenience (undocumented). Other MATLAB methods deferred."}

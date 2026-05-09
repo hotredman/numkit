@@ -1,0 +1,5 @@
+{"name": "standardizeMissing", "namespace": "stats", "setup": "z = [1 2 -999 4 5];",
+ "expr": "s = standardizeMissing(z, -999); has_nan = sum(isnan(s)); valid_sum = nansum(s);",
+ "iters": 5, "tol": 0,
+ "fingerprint": ["has_nan", "valid_sum"],
+ "comment": "Sig: y = standardizeMissing(x, sentinel). Replaces sentinel value with NaN."}
