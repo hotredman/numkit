@@ -465,6 +465,12 @@ input, select { font-family: inherit; color: inherit; }
   display: flex; flex-direction: column;
   overflow: hidden;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.fp-card:hover {
+  border-color: var(--accent);
+  background: var(--bg-3);
 }
 .fp-card-head {
   display: flex; align-items: center;
@@ -490,7 +496,6 @@ input, select { font-family: inherit; color: inherit; }
 .fp-card-body {
   background: var(--bg-1);
   padding: 4px;
-  cursor: grab;
 }
 .fp-empty {
   color: var(--fg-3); font-family: var(--font-mono); font-size: 11.5px;
