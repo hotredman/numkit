@@ -6,7 +6,10 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win portable"
+    "build": "electron-builder --win portable",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug"
   },
   "build": {
     "appId": "com.numkit.ide",
@@ -28,6 +31,7 @@
     }
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "electron": "^33.4.11",
     "electron-builder": "^25.1.8"
   }
