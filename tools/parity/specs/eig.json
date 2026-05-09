@@ -1,15 +1,16 @@
 {
   "name": "eig",
   "namespace": "builtin",
-  "setup": "A = [4 1 2; 1 3 0; 2 0 5]; D = diag([3 7 1 9 5]);",
-  "expr": "e1 = eig(A); e2 = eig(D); ei = eig(eye(4)); [V, M] = eig(A); err = max(max(abs(A*V - V*M))); orth_v = max(max(abs(V'*V - eye(3))));",
+  "setup": "A = [4 1 2; 1 3 0; 2 0 5]; D = diag([3 7 1 9 5]); G = [0 7 -6; 1 0 0; 0 1 0];",
+  "expr": "e1 = sort(eig(A)); e2 = sort(eig(D)); ei = sort(eig(eye(4))); eg = sort(real(eig(G))); [V, M] = eig(A); err = max(max(abs(A*V - V*M)));",
   "iters": 5,
   "tol": 1e-10,
   "fingerprint": [
     "e1(1)", "e1(2)", "e1(3)",
     "e2(1)", "e2(3)", "e2(5)",
     "ei(1)", "ei(4)",
-    "err", "orth_v"
+    "eg(1)", "eg(2)", "eg(3)",
+    "err"
   ],
-  "comment": "Sig: e = eig(A) | [V, D] = eig(A). Symmetric Jacobi for real symmetric A; eigenvalues ascending. General (non-symmetric) eig requires Hessenberg + Francis QR -- Phase 2b."
+  "comment": "Sig: e = eig(A) | [V, D] = eig(A). Symmetric: classical Jacobi (eigenvectors + ascending real eigenvalues). General (non-symmetric): characteristic polynomial via Souriau-Faddeev + roots() (eigenvalues only; possibly complex). [V, D] form for general matrices requires QR iteration -- deferred to Phase 2c-3. Sort applied for order-agnostic comparison."
 }

@@ -12,6 +12,7 @@
 #include "language/operators/backends/binary_ops_loops.hpp"
 #include "language/operators/la_solve.hpp"
 #include "math/arithmetic/cumsum.hpp"
+#include <numkit/builtin/math/poly/polynomials.hpp>
 
 #include <numkit/builtin/language/arrays/manip.hpp>     // flip()
 
@@ -502,6 +503,80 @@ Value svd_values(std::pmr::memory_resource *mr, const Value &A)
     for (std::size_t i = 0; i < k; ++i)
         out[i] = S_data[i + i * m];
     return sv;
+}
+
+// ── Characteristic polynomial + general eig via roots ───────────────
+
+Value poly_of_matrix(std::pmr::memory_resource *mr, const Value &A)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("poly: input must be a 2D matrix",
+                    0, 0, "poly", "", "m:poly:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    if (m != n)
+        throw Error("poly: matrix must be square (use poly(roots) for vector input)",
+                    0, 0, "poly", "", "m:poly:notSquare");
+    if (n == 0) {
+        auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
+        out.doubleDataMut()[0] = 1.0;
+        return out;
+    }
+
+    // Souriau-Faddeev-LeVerrier: char poly p(λ) = λ^n + c[1]*λ^{n-1} + ... + c[n].
+    //   M = I, c[0] = 1
+    //   for k = 1..n:
+    //     M = A * M + c[k-1] * I       (NOT this form; see corrected below)
+    //
+    // Corrected (standard form, e.g. Faddeev 1959):
+    //   M_0 = 0  ;  c[0] = 1
+    //   for k = 1..n:
+    //     M_k = A * (M_{k-1} + c[k-1] * I)
+    //          = A * M_{k-1} + c[k-1] * A
+    //     c[k] = -trace(M_k) / k
+    // After the loop, c[1..n] are the coefficients (after the leading 1).
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> M(n * n, 0.0, &scratch);
+    ScratchVec<double> Mnext(n * n, &scratch);
+
+    auto out = Value::matrix(1, n + 1, ValueType::DOUBLE, mr);
+    double *c = out.doubleDataMut();
+    c[0] = 1.0;
+
+    const double *Adata = A.doubleData();
+
+    for (std::size_t k = 1; k <= n; ++k) {
+        // Mnext = A * (M + c[k-1] * I)
+        //       = A * M + c[k-1] * A
+        // First: Mnext = A * M
+        std::fill(Mnext.begin(), Mnext.end(), 0.0);
+        for (std::size_t j = 0; j < n; ++j)
+            for (std::size_t kk = 0; kk < n; ++kk) {
+                const double mkj = M[kk + j * n];
+                if (mkj == 0.0) continue;
+                for (std::size_t i = 0; i < n; ++i)
+                    Mnext[i + j * n] += Adata[i + kk * n] * mkj;
+            }
+        // Add c[k-1] * A
+        const double cprev = c[k - 1];
+        for (std::size_t i = 0; i < n * n; ++i)
+            Mnext[i] += cprev * Adata[i];
+
+        // c[k] = -trace(Mnext) / k
+        double tr = 0.0;
+        for (std::size_t i = 0; i < n; ++i) tr += Mnext[i + i * n];
+        c[k] = -tr / static_cast<double>(k);
+
+        std::swap(M, Mnext);
+    }
+    return out;
+}
+
+Value eig_general_values(std::pmr::memory_resource *mr, const Value &A)
+{
+    auto p = poly_of_matrix(mr, A);
+    return roots(mr, p);
 }
 
 // ── Hessenberg reduction (Phase 2c foundation) ──────────────────────
@@ -3754,12 +3829,26 @@ void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
         throw Error("eig: requires exactly 1 argument",
                     0, 0, "eig", "", "m:eig:nargin");
     auto *mr = ctx.engine->resource();
-    if (nargout >= 2) {
-        auto [V, D] = eig_symmetric(mr, args[0]);
-        outs[0] = std::move(V);
-        outs[1] = std::move(D);
+
+    // Dispatch: symmetric -> Jacobi (eigenvalues + eigenvectors).
+    // Asymmetric -> general path (eigenvalues only via char poly + roots;
+    // eigenvectors deferred to Phase 2c-3 with QR iteration).
+    if (isSymmetric(args[0], 1e-10)) {
+        if (nargout >= 2) {
+            auto [V, D] = eig_symmetric(mr, args[0]);
+            outs[0] = std::move(V);
+            outs[1] = std::move(D);
+        } else {
+            outs[0] = eig_values(mr, args[0]);
+        }
     } else {
-        outs[0] = eig_values(mr, args[0]);
+        if (nargout >= 2) {
+            throw Error("eig: [V, D] form for non-symmetric matrices requires "
+                        "QR iteration -- deferred to Phase 2c-3. For "
+                        "eigenvalues only, use 'e = eig(A)' (single output).",
+                        0, 0, "eig", "", "m:eig:asymVDForm");
+        }
+        outs[0] = eig_general_values(mr, args[0]);
     }
 }
 

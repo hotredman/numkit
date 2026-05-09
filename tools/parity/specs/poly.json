@@ -1,10 +1,10 @@
 {
   "name": "poly",
-  "namespace": "core",
-  "setup": "r = [1; 2; 3; 4; 5];",
-  "expr": "y = poly(r);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: P = poly(R). Roots \u2192 polynomial coefficients. 10000 iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "A = [0 7 -6; 1 0 0; 0 1 0];",
+  "expr": "p = poly(A);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["p(1)", "p(2)", "p(3)", "p(4)"],
+  "comment": "Sig: p = poly(A) for square matrix. Char polynomial via Souriau-Faddeev-LeVerrier; p = [1 c1 c2 ... cn] such that roots(p) == eig(A). Bit-identical with MATLAB R2025b on probed companion-form matrix."
 }

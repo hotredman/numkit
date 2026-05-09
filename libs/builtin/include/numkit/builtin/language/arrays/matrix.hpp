@@ -206,6 +206,19 @@ eig_symmetric(std::pmr::memory_resource *mr, const Value &A);
 /// Eigenvalues only -- matches MATLAB's single-output eig(A).
 Value eig_values(std::pmr::memory_resource *mr, const Value &A);
 
+/// Characteristic polynomial coefficients of a square matrix A
+/// via Souriau-Faddeev-LeVerrier algorithm.
+/// Returns p such that p(lambda) = lambda^n + p(2)*lambda^(n-1)
+/// + ... + p(n+1) and roots(p) == eig(A).
+/// Matches MATLAB's `poly(A)` for square inputs.
+Value poly_of_matrix(std::pmr::memory_resource *mr, const Value &A);
+
+/// General (non-symmetric) eigenvalues of A via characteristic
+/// polynomial + roots. Returns possibly-complex column vector.
+/// Numerically less stable than QR iteration but works for moderate
+/// n; QR-iteration (Phase 2c-3) will be a future replacement.
+Value eig_general_values(std::pmr::memory_resource *mr, const Value &A);
+
 /// Matrix exponential expm(A) via Padé approximation with scaling-
 /// and-squaring (Higham 2005). Works for any square matrix
 /// (symmetric or not). For symmetric A could go via eig but Padé
