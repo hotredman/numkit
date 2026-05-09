@@ -135,6 +135,67 @@ Value ammod(std::pmr::memory_resource *mr, const Value &x,
     return out;
 }
 
+// ── fmmod ──────────────────────────────────────────────────────────
+// Per MATLAB R2025b's fmmod.m:
+//   t      = (0:1/Fs:(N-1)/Fs)'
+//   int_x  = cumsum(x) / Fs       (column-wise cumulative sum)
+//   y      = cos(2*pi*Fc*t + 2*pi*freqdev*int_x + ini_phase)
+//
+// Vector-orientation contract identical to pmmod / ammod.
+Value fmmod(std::pmr::memory_resource *mr, const Value &x,
+            double fc, double fs, double freqdev, double ini_phase)
+{
+    if (!(fs > 0.0))
+        throw Error("fmmod: Fs must be positive",
+                    0, 0, "fmmod", "", "m:fmmod:Fs");
+    if (fc < 0.0)
+        throw Error("fmmod: Fc must be non-negative",
+                    0, 0, "fmmod", "", "m:fmmod:Fc");
+    if (fs < 2.0 * fc)
+        throw Error("fmmod: Fs must be >= 2*Fc",
+                    0, 0, "fmmod", "", "m:fmmod:FsLessThan2Fc");
+    if (!(freqdev > 0.0))
+        throw Error("fmmod: freqdev must be positive",
+                    0, 0, "fmmod", "", "m:fmmod:InvalidFreqdev");
+
+    const auto &d = x.dims();
+    size_t H = d.rows();
+    size_t W = d.cols();
+    const bool was_row = (H == 1 && W >= 1);
+    if (was_row) {
+        std::swap(H, W);
+    }
+
+    Value out = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *o = out.doubleDataMut();
+
+    const double twoPiFc      = 2.0 * M_PI * fc;
+    const double twoPiFreqDev = 2.0 * M_PI * freqdev;
+    const double inv_fs       = 1.0 / fs;
+
+    // Per column: walk samples, accumulating int_x = cumsum(x)/Fs.
+    for (size_t c = 0; c < W; ++c) {
+        double acc = 0.0;
+        for (size_t r = 0; r < H; ++r) {
+            const double xi = was_row
+                                  ? x.elemAsDouble(r)
+                                  : x.elemAsDouble(c * H + r);
+            acc += xi * inv_fs;            // running cumsum / Fs
+            const double t = static_cast<double>(r) * inv_fs;
+            o[c * H + r] = std::cos(twoPiFc * t
+                                  + twoPiFreqDev * acc
+                                  + ini_phase);
+        }
+    }
+
+    if (was_row) {
+        Value row = Value::matrix(1, H, ValueType::DOUBLE, mr);
+        std::copy(o, o + H, row.doubleDataMut());
+        return row;
+    }
+    return out;
+}
+
 namespace detail {
 
 void pmmod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -170,6 +231,22 @@ void ammod_reg(Span<const Value> args, size_t /*nargout*/,
         carr_amp = args[4].toScalar();
     outs[0] = ammod(ctx.engine->resource(), args[0], fc, fs, ini_phase,
                     carr_amp);
+}
+
+void fmmod_reg(Span<const Value> args, size_t /*nargout*/,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("fmmod: requires (x, Fc, Fs, freqdev [, ini_phase])",
+                    0, 0, "fmmod", "", "m:fmmod:nargin");
+    const double fc = args[1].toScalar();
+    const double fs = args[2].toScalar();
+    const double freqdev = args[3].toScalar();
+    double ini_phase = 0.0;
+    if (args.size() >= 5 && !args[4].isEmpty())
+        ini_phase = args[4].toScalar();
+    outs[0] = fmmod(ctx.engine->resource(), args[0], fc, fs, freqdev,
+                    ini_phase);
 }
 
 } // namespace detail
