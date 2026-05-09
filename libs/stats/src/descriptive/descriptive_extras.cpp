@@ -334,20 +334,20 @@ Value partialcorr_of(std::pmr::memory_resource *mr,
             M[i + j * pZ1] = s;
         }
 
-    auto regressOut = [&](const Value &W) -> std::vector<double> {
+    auto regressOut = [&](const Value &W) -> ScratchVec<double> {
         const std::size_t p = static_cast<std::size_t>(W.dims().dim(1));
         const double *Wd = W.doubleData();
-        std::vector<double> Res(m * p, 0.0);
+        ScratchVec<double> Res(m * p, 0.0, &scratch);
         // For each column of W:
         for (std::size_t col = 0; col < p; ++col) {
             // b = Zf' * W(:, col)   (pZ1)
-            std::vector<double> b(pZ1, 0.0);
+            ScratchVec<double> b(pZ1, 0.0, &scratch);
             for (std::size_t i = 0; i < pZ1; ++i)
                 for (std::size_t k = 0; k < m; ++k)
                     b[i] += Zf[k + i * m] * Wd[k + col * m];
             // Solve M * coef = b via inline Gaussian elimination.
-            std::vector<double> Mcopy(M.begin(), M.end());
-            std::vector<double> coef = b;  // will be overwritten in-place
+            ScratchVec<double> Mcopy(M.begin(), M.end(), &scratch);
+            ScratchVec<double> coef(b.begin(), b.end(), &scratch);
             bool singular = false;
             for (std::size_t kc = 0; kc < pZ1 && !singular; ++kc) {
                 // Pivot.
@@ -402,12 +402,12 @@ Value partialcorr_of(std::pmr::memory_resource *mr,
     auto Rout = Value::matrix(pX, pY, ValueType::DOUBLE, mr);
     double *R = Rout.doubleDataMut();
 
-    auto colMean = [&](const std::vector<double> &v, std::size_t col) {
+    auto colMean = [&](const ScratchVec<double> &v, std::size_t col) {
         double s = 0.0;
         for (std::size_t i = 0; i < m; ++i) s += v[i + col * m];
         return s / static_cast<double>(m);
     };
-    auto colStd = [&](const std::vector<double> &v, std::size_t col, double mean) {
+    auto colStd = [&](const ScratchVec<double> &v, std::size_t col, double mean) {
         double s = 0.0;
         for (std::size_t i = 0; i < m; ++i) {
             const double d = v[i + col * m] - mean;
@@ -451,14 +451,17 @@ namespace {
 // Fit polynomial of order `order` to (xidx, y) via normal equations.
 // Returns coefficients [a_order, a_{order-1}, ..., a_0] suitable for
 // evalPoly Horner.
-std::vector<double> fitPolyLS(const std::vector<double> &xidx,
-                              const std::vector<double> &y, int order)
+//
+// PMR HARD RULE: scratch via the supplied scratch arena. The vector
+// types are ScratchVec to preserve the per-call arena lifetime.
+ScratchVec<double> fitPolyLS(std::pmr::memory_resource *scratch_mr,
+                             const double *xidx, std::size_t n,
+                             const double *y, int order)
 {
-    const std::size_t n = xidx.size();
     const std::size_t k = static_cast<std::size_t>(order) + 1;
-    std::vector<double> M(k * k, 0.0);
-    std::vector<double> b(k, 0.0);
-    std::vector<double> powSums(2 * k - 1, 0.0);
+    ScratchVec<double> M(k * k, 0.0, scratch_mr);
+    ScratchVec<double> b(k, 0.0, scratch_mr);
+    ScratchVec<double> powSums(2 * k - 1, 0.0, scratch_mr);
     for (std::size_t i = 0; i < n; ++i) {
         double xp = 1.0;
         for (std::size_t p = 0; p < powSums.size(); ++p) {
@@ -485,8 +488,11 @@ std::vector<double> fitPolyLS(const std::vector<double> &xidx,
             const double v = std::fabs(M[r + kc * k]);
             if (v > pmax) { pmax = v; piv = r; }
         }
-        if (pmax == 0.0)
-            return std::vector<double>(k, std::numeric_limits<double>::quiet_NaN());
+        if (pmax == 0.0) {
+            ScratchVec<double> nanVec(k, std::numeric_limits<double>::quiet_NaN(),
+                                       scratch_mr);
+            return nanVec;
+        }
         if (piv != kc) {
             for (std::size_t j = 0; j < k; ++j)
                 std::swap(M[kc + j * k], M[piv + j * k]);
@@ -500,7 +506,7 @@ std::vector<double> fitPolyLS(const std::vector<double> &xidx,
             b[r] -= f * b[kc];
         }
     }
-    std::vector<double> a(k, 0.0);
+    ScratchVec<double> a(k, 0.0, scratch_mr);
     for (std::size_t kk = k; kk-- > 0;) {
         double s = b[kk];
         for (std::size_t j = kk + 1; j < k; ++j) s -= M[kk + j * k] * a[j];
@@ -509,22 +515,22 @@ std::vector<double> fitPolyLS(const std::vector<double> &xidx,
     return a;
 }
 
-double evalPoly(const std::vector<double> &a, double x)
+double evalPoly(const ScratchVec<double> &a, double x)
 {
     double r = 0.0;
     for (double c : a) r = r * x + c;
     return r;
 }
 
-void detrendColumn(const double *src, double *dst, std::size_t n, int order)
+void detrendColumn(std::pmr::memory_resource *scratch_mr,
+                   const double *src, double *dst, std::size_t n, int order)
 {
     if (n == 0) return;
     if (order < 0) order = 1;
-    std::vector<double> xidx(n);
+    ScratchVec<double> xidx(n, scratch_mr);
     for (std::size_t i = 0; i < n; ++i)
         xidx[i] = static_cast<double>(i);
-    std::vector<double> yvec(src, src + n);
-    auto coefs = fitPolyLS(xidx, yvec, order);
+    auto coefs = fitPolyLS(scratch_mr, xidx.data(), n, src, order);
     for (std::size_t i = 0; i < n; ++i)
         dst[i] = src[i] - evalPoly(coefs, xidx[i]);
 }
@@ -537,16 +543,17 @@ Value detrend_of(std::pmr::memory_resource *mr, const Value &x, int order)
     const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
     const std::size_t c = (x.dims().ndim() >= 2)
                             ? static_cast<std::size_t>(x.dims().dim(1)) : 1;
+    ScratchArena scratch(mr);
     auto out = Value::matrix(r, c, ValueType::DOUBLE, mr);
     const double *xd = x.doubleData();
     double *od = out.doubleDataMut();
 
     if (r == 1 || c == 1) {
-        detrendColumn(xd, od, r * c, order);
+        detrendColumn(&scratch, xd, od, r * c, order);
         return out;
     }
     for (std::size_t j = 0; j < c; ++j)
-        detrendColumn(xd + j * r, od + j * r, r, order);
+        detrendColumn(&scratch, xd + j * r, od + j * r, r, order);
     return out;
 }
 
@@ -565,11 +572,12 @@ Value isoutlier_of(std::pmr::memory_resource *mr, const Value &x)
     const double *xd = x.doubleData();
     const std::size_t n = x.numel();
 
-    std::vector<double> buf(xd, xd + n);
+    ScratchArena scratch(mr);
+    ScratchVec<double> buf(xd, xd + n, &scratch);
     std::sort(buf.begin(), buf.end());
     const double med = (n % 2 == 1) ? buf[n / 2]
                                      : 0.5 * (buf[n / 2 - 1] + buf[n / 2]);
-    std::vector<double> dev(n);
+    ScratchVec<double> dev(n, &scratch);
     for (std::size_t i = 0; i < n; ++i) dev[i] = std::fabs(xd[i] - med);
     std::sort(dev.begin(), dev.end());
     const double mad = (n % 2 == 1) ? dev[n / 2]
@@ -590,7 +598,8 @@ Value rmoutliers_of(std::pmr::memory_resource *mr, const Value &x)
     const std::size_t n = x.numel();
     const double *xd = x.doubleData();
     const uint8_t *m = mask.logicalData();
-    std::vector<double> kept;
+    ScratchArena scratch(mr);
+    ScratchVec<double> kept(&scratch);
     kept.reserve(n);
     for (std::size_t i = 0; i < n; ++i)
         if (!m[i]) kept.push_back(xd[i]);
@@ -626,7 +635,8 @@ Value fillmissing_of(std::pmr::memory_resource *mr, const Value &x,
         return out;
     }
     if (method == "mean" || method == "median") {
-        std::vector<double> good;
+        ScratchArena scratch(mr);
+        ScratchVec<double> good(&scratch);
         good.reserve(n);
         for (std::size_t i = 0; i < n; ++i)
             if (!std::isnan(xd[i])) good.push_back(xd[i]);
@@ -677,7 +687,8 @@ Value rmmissing_of(std::pmr::memory_resource *mr, const Value &x)
 {
     const std::size_t n = x.numel();
     const double *xd = x.doubleData();
-    std::vector<double> kept;
+    ScratchArena scratch(mr);
+    ScratchVec<double> kept(&scratch);
     kept.reserve(n);
     for (std::size_t i = 0; i < n; ++i)
         if (!std::isnan(xd[i])) kept.push_back(xd[i]);
