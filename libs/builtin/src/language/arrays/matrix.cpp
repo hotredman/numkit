@@ -888,13 +888,18 @@ namespace {
 // (below first sub-diagonal) is zeroed; upper triangle + sub-diag
 // holds H. P (n×n) accumulates the orthogonal transformation:
 // A_orig = P * H_final * P'.
-void hessReduceInplace(double *A, std::size_t n, double *P)
+//
+// PMR HARD RULE: scratch via the supplied memory_resource. Caller
+// is the public hess() / hess_H_only() which forwards its mr.
+void hessReduceInplace(double *A, std::size_t n, double *P,
+                       std::pmr::memory_resource *mr)
 {
     std::fill(P, P + n * n, 0.0);
     for (std::size_t i = 0; i < n; ++i) P[i + i * n] = 1.0;
     if (n < 3) return;  // no work needed for n=1, 2
 
-    ScratchVec<double> v_storage(n, std::pmr::get_default_resource());
+    ScratchArena scratch(mr);
+    ScratchVec<double> v_storage(n, &scratch);
     double *v = v_storage.data();
 
     for (std::size_t k = 0; k + 2 < n; ++k) {
@@ -964,7 +969,7 @@ hess(std::pmr::memory_resource *mr, const Value &A)
     auto Pout = Value::matrix(n, n, ValueType::DOUBLE, mr);
     if (n == 0) return std::make_tuple(std::move(Pout), std::move(Hout));
     std::copy(A.doubleData(), A.doubleData() + n * n, Hout.doubleDataMut());
-    hessReduceInplace(Hout.doubleDataMut(), n, Pout.doubleDataMut());
+    hessReduceInplace(Hout.doubleDataMut(), n, Pout.doubleDataMut(), mr);
     return std::make_tuple(std::move(Pout), std::move(Hout));
 }
 
