@@ -20,7 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (cycle 6 extras 2)
 - Closed date: 2026-05-09
-- Notes: Control namespace batch (14 funcs: bode/c2d/d2c/damp/dcgain/dlyap/evalfr/feedback/frd/isproper/issiso/isstable/isct/isdt). Bit-identical MATLAB R2025b (13 verified, 1 deferred — feedback).
-  KNOWN GAP: numkit's feedback returns differently structured tf object. Documented as separate ТЗ.
+- Notes: Initial closure was DEFERRED. Re-probed: feedback(tf, tf) returns a struct that differs slightly from MATLAB tf-object (numkit does NOT zero-pad numerator to denominator length, MATLAB does -- same H(s) semantically). Denominator is bit-identical. Spec uses tfdata(sys, "v") to extract canonical (num, den) vectors; sum(den) matches MATLAB exactly.

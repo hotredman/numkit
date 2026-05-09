@@ -20,8 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (cycle 6 extras 2)
 - Closed date: 2026-05-09
-- Notes: Multi-namespace batch (io+linalg+wavelet+optim, 21 funcs).
-  Bit-identical MATLAB R2025b on probed inputs.
-  KNOWN GAP: wnoisest computation differs. Documented as separate ТЗ.
+- Notes: Initial closure was DEFERRED. Re-probed with deterministic input (sin+cos signal): wnoisest(c, l, level) bit-identical with MATLAB R2025b on db4 level-3 wavedec output (sigma=0.0900008). Earlier defer was a spec issue (used randn which differs across engines).
