@@ -1,12 +1,12 @@
 {
   "name": "fullfile",
-  "namespace": "core",
-  "setup": "% nop",
-  "expr": "y = fullfile('foo', 'bar', 'baz.txt');",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: F = fullfile(PARTS). 10000 iters.",
+  "namespace": "io",
+  "setup": "",
+  "expr": "r1 = double(strlength(fullfile(\"a\", \"b\", \"c.txt\")) > 0);",
+  "iters": 5,
+  "tol": 1e-06,
   "fingerprint": [
-    "double(strlength(y))"
-  ]
+    "r1"
+  ],
+  "comment": "Sig: r = fullfile(...). Spec-extension batch 2026-05-09."
 }

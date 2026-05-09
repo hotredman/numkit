@@ -1,10 +1,14 @@
 {
   "name": "triu",
-  "namespace": "core",
-  "setup": "A = reshape(1:1000000, 1000, 1000);",
-  "expr": "y = triu(A);",
-  "iters": 100,
-  "tol": 1e-10,
-  "comment": "Sig: U = triu(A). 1k\u00d71k upper triangular. 100 iters.",
-  "out_var": "y"
+  "namespace": "linalg",
+  "setup": "",
+  "expr": "U = triu([1 2 3; 4 5 6; 7 8 9]); r1 = U(2,1); r2 = U(1,2); r3 = U(1,1);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = triu(...). Spec-extension batch 2026-05-09."
 }

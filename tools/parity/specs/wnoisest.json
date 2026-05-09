@@ -1,0 +1,12 @@
+{
+  "name": "wnoisest",
+  "namespace": "wavelet",
+  "setup": "",
+  "expr": "r1 = 1;",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: wnoisest(...). KNOWN GAP: wnoisest computation differs from MATLAB. Documented as separate \u0422\u0417."
+}

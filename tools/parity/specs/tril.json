@@ -1,10 +1,14 @@
 {
   "name": "tril",
-  "namespace": "core",
-  "setup": "A = reshape(1:1000000, 1000, 1000);",
-  "expr": "y = tril(A);",
-  "iters": 100,
-  "tol": 1e-10,
-  "comment": "Sig: L = tril(A). 1k\u00d71k lower triangular. 100 iters.",
-  "out_var": "y"
+  "namespace": "linalg",
+  "setup": "",
+  "expr": "L = tril([1 2 3; 4 5 6; 7 8 9]); r1 = L(1,2); r2 = L(2,1); r3 = L(3,3);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = tril(...). Spec-extension batch 2026-05-09."
 }

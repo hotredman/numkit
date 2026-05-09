@@ -1,12 +1,12 @@
 {
   "name": "tempdir",
-  "namespace": "core",
-  "setup": "% nop",
-  "expr": "y = tempdir;",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: D = tempdir. 10000 iters.",
+  "namespace": "io",
+  "setup": "",
+  "expr": "r1 = double(strlength(tempdir) > 0);",
+  "iters": 5,
+  "tol": 1e-06,
   "fingerprint": [
-    "double(strlength(y) > 0)"
-  ]
+    "r1"
+  ],
+  "comment": "Sig: r = tempdir(...). Spec-extension batch 2026-05-09."
 }

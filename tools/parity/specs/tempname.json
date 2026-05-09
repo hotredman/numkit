@@ -1,12 +1,12 @@
 {
   "name": "tempname",
-  "namespace": "core",
-  "setup": "% nop",
-  "expr": "y = tempname;",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: F = tempname. 10000 iters.",
+  "namespace": "io",
+  "setup": "",
+  "expr": "r1 = double(strlength(tempname) > 0);",
+  "iters": 5,
+  "tol": 1e-06,
   "fingerprint": [
-    "double(strlength(y) > 0)"
-  ]
+    "r1"
+  ],
+  "comment": "Sig: r = tempname(...). Spec-extension batch 2026-05-09."
 }
