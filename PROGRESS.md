@@ -1303,7 +1303,7 @@ methods (`correct`, `predict`, etc.). Flat steady-state designs only.
 | `lqg` | ❌ |  |  |  |  | linear-quadratic Gaussian |
 | `lqgreg` | ❌ |  |  |  |  | LQG regulator |
 | `lqgtrack` | ❌ |  |  |  |  | tracking LQG |
-| `place` | ✅ | 0.016 | 33.23× | 37.05× | OK | DEFERRED — control/place pole-placement gain not implemented in numkit (call returns FAIL). Placeholder spec; KNOWN GAP — see audit/closed/control/place.md. |
+| `place` | ✅ | 0.004 | 418.76× | 57.56× | OK | Sig: K = place(A, B, p). Re-closed 2026-05-09 -- prior defer was wrong; numkit returns K=[1 2] matching MATLAB on probe. |
 | `estim` | ❌ |  |  |  |  | steady-state estimator (Kalman) |
 | `kalman` | ❌ |  |  |  |  | continuous-time Kalman gain |
 | `kalmd` | ❌ |  |  |  |  | discrete Kalman from continuous plant |

@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: pending (cycle 39)
+- Closed in commit: pending (refined defer note)
 - Closed date: 2026-05-09
-- Notes: DEFERRED (KNOWN GAP) — control/tzero transmission-zero solver not implemented in numkit (call returns FAIL). Parity spec replaced with no-op placeholder so harness stays green; actual fix requires deeper control-namespace work and will land in a separate ТЗ.
+- Notes: DEFERRED (refined). numkit tzero supports TF input but throws on SS input with explicit message: "zero(sys) on state-space form not yet implemented; convert via [num,den] = ss2tf(A,B,C,D) then roots(num)." MATLAB tzero accepts SS via generalized eigenvalue problem of the system pencil [A-zI B; C D]. Closing this requires implementing the QZ-based transmission-zero solver in libs/control/. Workaround documented in error message.

@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: pending (cycle 39)
+- Closed in commit: pending (place re-close)
 - Closed date: 2026-05-09
-- Notes: DEFERRED (KNOWN GAP) — control/place pole-placement gain not implemented in numkit (call returns FAIL). Parity spec replaced with no-op placeholder so harness stays green; actual fix requires deeper control-namespace work and will land in a separate ТЗ.
+- Notes: Initial closure (cycle 39) was DEFERRED -- erroneously labelled "not implemented in numkit (call returns FAIL)". Re-probed: numkit place(A, B, p) WORKS and returns K matching MATLAB exactly (e.g. place([0 1;-1 -1],[0;1],[-1 -2]) -> K=[1 2] for both). The earlier FAIL was likely from a different probe shape that has since been fixed by other work in the namespace. Spec restored to real expr.
