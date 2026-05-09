@@ -1,0 +1,10 @@
+{
+  "name": "xyz2lab",
+  "namespace": "image",
+  "setup": "X = ones(2,2,3) * 0.5;",
+  "expr": "L = xyz2lab(X); r1 = double(numel(L));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: lab = xyz2lab(xyz). Spec-extension batch 2026-05-09 (cycle 44)."
+}

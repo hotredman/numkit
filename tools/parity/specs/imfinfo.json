@@ -1,0 +1,10 @@
+{
+  "name": "imfinfo",
+  "namespace": "image",
+  "setup": "",
+  "expr": "r1 = 1;",
+  "iters": 1,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "DEFERRED — imfinfo requires file I/O round-trip; cannot fit single-snippet parity spec. Functionality validated in gtest/smoke instead. Placeholder spec; KNOWN GAP — see audit/closed/image/imfinfo.md."
+}

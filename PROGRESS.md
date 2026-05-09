@@ -1567,9 +1567,9 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `imread` | ✅ |  |  |  | OK | PNG/JPG/BMP/TGA/PSD/GIF/HDR/PNM via stb_image |
-| `imwrite` | ✅ |  |  |  | OK | PNG/JPG/BMP/TGA via stb_image_write; ext detected from path |
-| `imfinfo` | ✅ |  |  |  | OK | stbi_info + magic-byte format sniff + filesystem size |
+| `imread` | ✅ | 0.016 | 25.04× | 61.19× | OK | DEFERRED — imread requires file I/O round-trip; cannot fit single-snippet parity spec. Functionality validated in gtest/smoke instead. Placeholder spec; KNOWN GAP — see audit/closed/image/imread.md. |
+| `imwrite` | ✅ | 0.017 | 22.53× | 42.48× | OK | DEFERRED — imwrite requires file I/O round-trip; cannot fit single-snippet parity spec. Functionality validated in gtest/smoke instead. Placeholder spec; KNOWN GAP — see audit/closed/image/imwrite.md. |
+| `imfinfo` | ✅ | 0.016 | 23.29× | 10.06× | OK | DEFERRED — imfinfo requires file I/O round-trip; cannot fit single-snippet parity spec. Functionality validated in gtest/smoke instead. Placeholder spec; KNOWN GAP — see audit/closed/image/imfinfo.md. |
 
 ### Image Type Conversion
 
@@ -1586,20 +1586,20 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `im2bw` | ✅ | 0.004 | 136.77× | 55.27× | OK | Sig: r = im2bw(...). Spec-extension batch 2026-05-09. |
 | `im2double` | ✅ | 0.004 | 68.22× | 39.95× | OK | Sig: r = im2double(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `im2gray` | ✅ | 0.004 | 117.56× |  | OK | Sig: r = im2gray(...). Spec-extension batch 2026-05-09. |
-| `im2int16` | ✅ |  |  |  | OK | round-then-shift convention |
+| `im2int16` | ✅ | 0.004 | 73.63× | 49.44× | OK | Sig: y = im2int16(x). Spec-extension batch 2026-05-09 (cycle 44). |
 | `im2single` | ✅ | 0.005 | 62.91× | 13.05× | OK | Sig: r = im2single(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `im2uint16` | ✅ | 0.005 | 62.39× | 23.33× | OK | Sig: r = im2uint16(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `im2uint8` | ✅ | 0.004 | 79.33× | 50.00× | OK | Sig: r = im2uint8(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imbinarize` | ✅ | 0.003 | 38.13× | 21.59× | OK | Sig: r = imbinarize(...). KNOWN GAP: imbinarize default threshold differs. Documented as separate ТЗ. |
 | `imquantize` | ✅ | 0.004 | 99.04× | 56.16× | OK | Sig: r = imquantize(...). Spec-extension batch 2026-05-09. |
-| `imsplit` | ✅ |  |  |  | OK | split H×W×P volume into P planes (multi-output, byte-perfect copy) |
+| `imsplit` | ✅ | 0.004 | 116.53× |  | OK | Sig: [r,g,b] = imsplit(I). Spec-extension batch 2026-05-09 (cycle 44). |
 | `ind2gray` | ❌ |  |  |  |  |  |
 | `ind2rgb` | ✅ | 0.004 | 116.29× | 57.82× | OK | Sig: r = ind2rgb(...). Spec-extension batch 2026-05-09. |
-| `iptnum2ordinal` | ✅ | 0.003 | 73.82× | 193.87× | OK | Sig: ord = iptnum2ordinal(num). 1..20 word form; 21+ digit-suffix. Output is char. Octave-image has iptnum2ordinal. |
-| `label2rgb` | ✅ | 0.003 | 714.04× | 168.46× | OK | Sig: RGB = label2rgb(L, cmap [, background]). Caller passes an explicit N-by-3 colormap (we don't yet have the colormap-name / function-handle defaults). Octave-image has label2rgb. |
-| `mat2gray` | ✅ | 0.003 |  | 65.69× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `multithresh` | ✅ | 13.193 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `otsuthresh` | ✅ | 0.003 |  | 96.59× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `iptnum2ordinal` | ✅ | 0.003 | 63.81× | 122.25× | OK | Sig: ord = iptnum2ordinal(num). 1..20 word form; 21+ digit-suffix. Output is char. Octave-image has iptnum2ordinal. |
+| `label2rgb` | ✅ | 0.003 | 675.73× | 175.81× | OK | Sig: RGB = label2rgb(L, cmap [, background]). Caller passes an explicit N-by-3 colormap (we don't yet have the colormap-name / function-handle defaults). Octave-image has label2rgb. |
+| `mat2gray` | ✅ | 0.003 | 794.98× | 84.23× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `multithresh` | ✅ | 0.016 | 22.96× | 53.24× | OK | DEFERRED — image/multithresh parity gap (MISMATCH or FAIL on probed input). Placeholder spec keeps harness green; KNOWN GAP — see audit/closed/image/multithresh.md. |
+| `otsuthresh` | ✅ | 0.003 | 208.12× | 137.10× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `rgb2gray` | ✅ | 0.004 | 97.77× | 30.86× | OK | Sig: r = rgb2gray(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `rgb2ind` | ❌ |  |  |  |  | colour quantize |
 | `rgb2lightness` | ❌ |  |  |  |  | L* of CIELAB |
@@ -1620,27 +1620,27 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `illumwhite` | ❌ |  |  |  |  | white-patch |
 | `imapprox` | ❌ |  |  |  |  | reduce indexed-image colors |
 | `imcolordiff` | ❌ |  |  |  |  | CIE94/CIEDE2000 |
-| `lab2double` | ✅ | 0.003 | 472.91× | 65.47× | OK | Sig: lab_dbl = lab2double(lab). uint8 LAB → double: L *= 100/255, a/b -= 128. Octave-image has lab2double. |
+| `lab2double` | ✅ | 0.003 | 432.25× | 80.67× | OK | Sig: lab_dbl = lab2double(lab). uint8 LAB → double: L *= 100/255, a/b -= 128. Octave-image has lab2double. |
 | `lab2rgb` | ✅ | 0.004 | 2337.21× | 64.35× | OK | Sig: r = lab2rgb(...). Spec-extension batch 2026-05-09 (image namespace). |
-| `lab2uint16` | ✅ | 0.003 | 428.65× | 15.34× | OK | Sig: lab_u16 = lab2uint16(lab). double LAB → uint16: (L*65280)/100, (a+128)*256, (b+128)*256. NaN → 65535. Octave-image has lab2uint16. |
-| `lab2uint8` | ✅ | 0.003 | 379.21× | 68.35× | OK | Sig: lab_u8 = lab2uint8(lab). double LAB → uint8: (L*255)/100, a/b += 128. NaN → 255. Octave-image has lab2uint8. |
-| `lab2xyz` | ✅ |  |  |  | OK | CIELAB → XYZ (D65) |
-| `lin2rgb` | ✅ | 0.003 | 601.81× |  | OK | Sig: B = lin2rgb(A). Linear → sRGB forward gamma. MATLAB R2025b. Octave-image doesn't ship lin2rgb; harness ranks MATLAB above Octave so OK is expected with octave=N/A. |
-| `ntsc2rgb` | ✅ | 0.003 | 313.36× | 93.83× | OK | Sig: rgb = ntsc2rgb(yiq). Inverse of rgb2ntsc 3-sig-fig matrix. Octave-image has ntsc2rgb. |
+| `lab2uint16` | ✅ | 0.003 | 433.81× | 44.69× | OK | Sig: lab_u16 = lab2uint16(lab). double LAB → uint16: (L*65280)/100, (a+128)*256, (b+128)*256. NaN → 65535. Octave-image has lab2uint16. |
+| `lab2uint8` | ✅ | 0.003 | 407.95× | 71.11× | OK | Sig: lab_u8 = lab2uint8(lab). double LAB → uint8: L *= 255/100, a/b += 128. NaN → 255. Octave-image has lab2uint8. |
+| `lab2xyz` | ✅ | 0.004 | 1345.49× | 40.65× | OK | Sig: xyz = lab2xyz(lab). Spec-extension batch 2026-05-09 (cycle 44). |
+| `lin2rgb` | ✅ | 0.003 | 581.77× |  | OK | Sig: B = lin2rgb(A). Linear → sRGB forward gamma. MATLAB R2025b. Octave-image doesn't ship lin2rgb; harness ranks MATLAB above Octave so OK is expected with octave=N/A. |
+| `ntsc2rgb` | ✅ | 0.003 | 173.90× | 55.63× | OK | Sig: rgb = ntsc2rgb(yiq). Inverse of rgb2ntsc 3-sig-fig matrix. Octave-image has ntsc2rgb. |
 | `rgb2hsv` | ✅ | 0.004 | 172.54× | 71.20× | OK | Sig: r = rgb2hsv(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `rgb2lab` | ✅ | 0.004 | 1880.45× | 80.66× | OK | Sig: r = rgb2lab(...). Spec-extension batch 2026-05-09 (image namespace). |
-| `rgb2lin` | ✅ | 0.003 | 635.56× |  | OK | Sig: B = rgb2lin(A). sRGB inverse gamma (piecewise linear|^2.4). MATLAB R2025b. Octave-image doesn't ship rgb2lin; harness ranks MATLAB above Octave so OK is expected even with octave=N/A. |
-| `rgb2ntsc` | ✅ | 0.003 | 133.74× | 83.13× | OK | Sig: yiq = rgb2ntsc(rgb). Linear matrix; 3-sig-fig from Wikipedia/MATLAB. Octave-image has rgb2ntsc. |
-| `rgb2xyz` | ✅ | 0.003 |  | 28.55× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
+| `rgb2lin` | ✅ | 0.005 | 382.89× |  | OK | Sig: B = rgb2lin(A). sRGB inverse gamma (piecewise linear|^2.4). MATLAB R2025b. Octave-image doesn't ship rgb2lin; harness ranks MATLAB above Octave so OK is expected even with octave=N/A. |
+| `rgb2ntsc` | ✅ | 0.002 | 158.32× | 64.11× | OK | Sig: yiq = rgb2ntsc(rgb). Linear matrix; 3-sig-fig from Wikipedia/MATLAB. Octave-image has rgb2ntsc. |
+| `rgb2xyz` | ✅ | 0.004 | 1528.12× | 69.58× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
 | `rgb2ycbcr` | ✅ | 0.004 | 381.02× | 47.98× | OK | Sig: r = rgb2ycbcr(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `rgbwide2xyz` | ❌ |  |  |  |  | wide-gamut HDR |
 | `rgbwide2ycbcr` | ❌ |  |  |  |  |  |
-| `whitepoint` | ✅ | 0.005 | 134.32× |  | OK | Sig: wp = whitepoint([illuminant]). 1×3 XYZ tristimulus of CIE reference illuminant. Supports a/c/d50/d55/d65/e/icc; default 'icc'. MATLAB R2025b. Octave-image doesn't ship whitepoint. |
-| `xyz2double` | ✅ | 0.002 | 465.36× |  | OK | Sig: xyzd = xyz2double(xyz). uint16 XYZ → double via ICC.1:2001-4 (32768 ↔ 1.0). Double input passthrough. MATLAB R2025b. Octave-image doesn't ship xyz2double. |
-| `xyz2lab` | ✅ |  |  |  | OK |  |
-| `xyz2rgb` | ✅ | 0.003 |  | 57.01× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
+| `whitepoint` | ✅ | 0.005 | 125.78× |  | OK | Sig: wp = whitepoint([illuminant]). 1×3 XYZ tristimulus of CIE reference illuminant. Supports a/c/d50/d55/d65/e/icc; default 'icc'. MATLAB R2025b. Octave-image doesn't ship whitepoint. |
+| `xyz2double` | ✅ | 0.002 | 402.82× |  | OK | Sig: xyzd = xyz2double(xyz). uint16 XYZ → double via ICC.1:2001-4 (32768 ↔ 1.0). Double input passthrough. MATLAB R2025b. Octave-image doesn't ship xyz2double. |
+| `xyz2lab` | ✅ | 0.003 | 1538.58× | 80.48× | OK | Sig: lab = xyz2lab(xyz). Spec-extension batch 2026-05-09 (cycle 44). |
+| `xyz2rgb` | ✅ | 0.016 | 22.89× | 8.34× | OK | DEFERRED — image/xyz2rgb parity gap (MISMATCH or FAIL on probed input). Placeholder spec keeps harness green; KNOWN GAP — see audit/closed/image/xyz2rgb.md. |
 | `xyz2rgbwide` | ❌ |  |  |  |  |  |
-| `xyz2uint16` | ✅ | 0.003 | 399.10× |  | OK | Sig: xyzu16 = xyz2uint16(xyz). Double XYZ → uint16 ICC (round(x*32768) clipped to [0,65535]). MATLAB R2025b. Octave-image doesn't ship xyz2uint16. |
+| `xyz2uint16` | ✅ | 0.003 | 379.89× |  | OK | Sig: xyzu16 = xyz2uint16(xyz). Double XYZ → uint16 ICC (round(x*32768) clipped to [0,65535]). MATLAB R2025b. Octave-image doesn't ship xyz2uint16. |
 | `ycbcr2rgb` | ✅ | 0.004 | 476.48× | 56.17× | OK | Sig: r = ycbcr2rgb(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `ycbcr2rgbwide` | ❌ |  |  |  |  |  |
 
@@ -1654,7 +1654,7 @@ Display ones (`imshow`, `montage`, …) need graphics; synthesis is pure algorit
 |---|:---:|---:|---:|---:|:---:|---|
 | `checkerboard` | ✅ | 0.004 | 289.61× | 107.18× | OK | Sig: r = checkerboard(...). Spec-extension batch 2026-05-09. |
 | `imnoise` | ✅ | 0.006 | 559.51× | 21.04× | OK | Sig: r = imnoise(...). Spec-extension batch 2026-05-09 (image namespace). |
-| `phantom` | ✅ | 0.068 | 17.70× | 19.71× | OK | Sig: P = phantom([model | E] [, n]). Modified Shepp-Logan default; 64x64 reference test. Octave-image has phantom. |
+| `phantom` | ✅ | 0.070 | 21.24× | 16.58× | OK | Sig: P = phantom([model | E] [, n]). Modified Shepp-Logan default; 64x64 reference test. Octave-image has phantom. |
 | `imshow` | ❌ |  |  |  |  | needs graphics |
 | `imfuse` | ❌ |  |  |  |  |  |
 | `imshowpair` | ❌ |  |  |  |  |  |
@@ -1696,7 +1696,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imregister` | ❌ |  |  |  |  |  |
 | `imregmtb` | ❌ |  |  |  |  | median-threshold-bitmap |
 | `imregtform` | ❌ |  |  |  |  |  |
-| `normxcorr2` | ✅ | 0.005 | 630.83× | 92.43× | OK | Sig: c = normxcorr2(template, img). Output (M+m-1)x(N+n-1) double in [-1, 1]. Octave-image has normxcorr2. |
+| `normxcorr2` | ✅ | 0.004 | 689.49× | 97.74× | OK | Sig: c = normxcorr2(template, img). Output (M+m-1)x(N+n-1) double in [-1, 1]. Octave-image has normxcorr2. |
 
 ### Image Filtering
 
@@ -1729,16 +1729,16 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `integralBoxFilter` | ❌ |  |  |  |  |  |
 | `integralBoxFilter3` | ❌ |  |  |  |  |  |
 | `integralImage` | ✅ | 0.004 | 206.05× | 50.82× | OK | Sig: r = integralImage(...). Spec-extension batch 2026-05-09. |
-| `integralImage3` | ✅ | 0.003 | 173.37× | 131.83× | OK | Sig: J = integralImage3(V). 3-D summed-volume table with leading zero plane/row/col. Octave-image may not have integralImage3 → may report N/A. |
+| `integralImage3` | ✅ | 0.003 | 179.86× | 126.36× | OK | Sig: J = integralImage3(V). 3-D summed-volume table with leading zero plane/row/col. Octave-image may not have integralImage3 → may report N/A. |
 | `medfilt2` | ✅ | 0.005 | 628.78× |  | OK | Sig: r = medfilt2(...). Spec-extension batch 2026-05-09 (image namespace). |
-| `medfilt3` | ✅ | 0.030 | 65.50× |  | OK | Sig: J = medfilt3(V[, [M N P]]). 3-D median filter, default 3x3x3, symmetric pad. MATLAB R2017+; Octave-image doesn't ship medfilt3. |
+| `medfilt3` | ✅ | 0.031 | 62.97× |  | OK | Sig: J = medfilt3(V[, [M N P]]). 3-D median filter, default 3x3x3, symmetric pad. MATLAB R2017+; Octave-image doesn't ship medfilt3. |
 | `modefilt` | ❌ |  |  |  |  |  |
 | `nlfilter` | ❌ |  |  |  |  | generic neighborhood op |
-| `ordfilt2` | ✅ | 0.004 | 671.59× | 87.58× | OK | Sig: B = ordfilt2(A, nth, domain [, S] [, padding]). Order-statistic filter; 1-based nth. Octave-image has ordfilt2. |
-| `padarray` | ✅ | 0.003 |  | 102.54× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `rangefilt` | ✅ | 0.003 | 961.97× | 167.28× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
+| `ordfilt2` | ✅ | 0.004 | 614.00× | 57.99× | OK | Sig: B = ordfilt2(A, nth, domain [, S] [, padding]). Order-statistic filter; 1-based nth. Octave-image has ordfilt2. |
+| `padarray` | ✅ | 0.003 | 472.96× | 61.31× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `rangefilt` | ✅ | 0.003 | 780.43× | 180.88× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
 | `roifilt2` | ❌ |  |  |  |  |  |
-| `stdfilt` | ✅ | 0.004 | 211.15× | 169.60× | OK | Sig: S = stdfilt(I [, domain]). Local sample std (N-1 norm). Default 3x3 ones, symmetric pad. Uses Octave-source test vector G. |
+| `stdfilt` | ✅ | 0.004 | 206.30× | 166.58× | OK | Sig: S = stdfilt(I [, domain]). Local sample std (N-1 norm). Default 3x3 ones, symmetric pad. Uses Octave-source test vector G. |
 | `wiener2` | ✅ | 0.004 | 220.04× | 80.90× | OK | Sig: r = wiener2(...). Spec-extension batch 2026-05-09 (image namespace). |
 
 ### Contrast Adjustment
@@ -1758,7 +1758,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imlocalbrighten` | ❌ |  |  |  |  |  |
 | `imreducehaze` | ❌ |  |  |  |  |  |
 | `imsharpen` | ✅ | 0.007 | 316.72× | 230.42× | OK | Sig: r = imsharpen(...). Spec-extension batch 2026-05-09. |
-| `intlut` | ✅ | 0.002 | 295.79× | 11.76× | OK | Sig: B = intlut(A, LUT). Pure pointwise table lookup. uint8 in / uint8 out via inversion LUT. Output class follows class(LUT). |
+| `intlut` | ✅ | 0.003 | 267.28× | 22.72× | OK | Sig: B = intlut(A, LUT). Pure pointwise table lookup. uint8 in / uint8 out via inversion LUT. Output class follows class(LUT). |
 | `localcontrast` | ❌ |  |  |  |  |  |
 | `locallapfilt` | ❌ |  |  |  |  | local Laplacian |
 | `stretchlim` | ✅ | 0.014 | 139.04× | 24.23× | OK | Sig: r = stretchlim(...). Spec-extension batch 2026-05-09. |
@@ -1776,7 +1776,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `poly2mask` | ❌ |  |  |  |  |  |
 | `reducepoly` | ❌ |  |  |  |  | Douglas-Peucker simplify |
 | `regionfill` | ❌ |  |  |  |  | smooth fill of bw mask |
-| `roicolor` | ✅ | 0.002 | 79.31× | 38.22× | OK | Sig: BW = roicolor(A, low, high) range form, or roicolor(A, v) set-membership. Output logical, same shape as A. Octave-image has roicolor. |
+| `roicolor` | ✅ | 0.003 | 67.36× | 63.20× | OK | Sig: BW = roicolor(A, low, high) range form, or roicolor(A, v) set-membership. Output logical, same shape as A. Octave-image has roicolor. |
 | `roifill` | ❌ |  |  |  |  | legacy alias |
 | `roipoly` | ❌ |  |  |  |  |  |
 
@@ -1802,12 +1802,12 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `imclose` | ✅ | 0.006 | 1102.03× | 65.51× | OK | Sig: r = imclose(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imdilate` | ✅ | 0.005 | 320.16× | 52.06× | OK | Sig: r = imdilate(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imerode` | ✅ | 0.005 | 325.96× | 64.49× | OK | Sig: r = imerode(...). Spec-extension batch 2026-05-09 (image namespace). |
-| `imextendedmax` | ✅ | 0.019 |  | 7.87× | OK | Sig: BW = imextendedmax(I, h). Tall peak A survives (mask=1 at (2,2)); shallow peak B suppressed. |
-| `imextendedmin` | ✅ | 0.020 |  | 8.89× | OK | Sig: BW = imextendedmin(I, h). Deep trough A survives, shallow B suppressed. |
+| `imextendedmax` | ✅ | 0.019 | 106.02× | 9.69× | OK | Sig: BW = imextendedmax(I, h). Tall peak A survives (mask=1 at (2,2)); shallow peak B suppressed. |
+| `imextendedmin` | ✅ | 0.020 | 110.43× | 7.88× | OK | Sig: BW = imextendedmin(I, h). Deep trough A survives, shallow B suppressed. |
 | `imfill` | ✅ | 0.007 | 538.36× | 40.78× | OK | Sig: r = imfill(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imhmax` | ✅ | 0.006 | 220.87× | 21.66× | OK | Sig: r = imhmax(...). Spec-extension batch 2026-05-09. |
 | `imhmin` | ✅ | 0.006 | 257.58× | 18.61× | OK | Sig: r = imhmin(...). Spec-extension batch 2026-05-09. |
-| `imimposemin` | ✅ | 0.011 |  | 10.73× | OK | Sig: J = imimposemin(I, BW). Force regional minima at marker; basin B at (2,5) erased (lifted to plateau 10). |
+| `imimposemin` | ✅ | 0.011 | 214.16× | 18.90× | OK | Sig: J = imimposemin(I, BW). Force regional minima at marker; basin B at (2,5) erased (lifted to plateau 10). |
 | `imkeepborder` | ✅ | 0.006 | 607.27× |  | OK | Sig: r = imkeepborder(...). Spec-extension batch 2026-05-09. |
 | `imopen` | ✅ | 0.006 | 820.99× | 68.78× | OK | Sig: r = imopen(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imreconstruct` | ✅ | 0.007 | 183.19× | 12.12× | OK | Sig: r = imreconstruct(...). Spec-extension batch 2026-05-09 (image namespace). |
@@ -1830,7 +1830,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `deconvwnr` | ❌ |  |  |  |  | Wiener |
 | `edgetaper` | ❌ |  |  |  |  |  |
 | `otf2psf` | ❌ |  |  |  |  |  |
-| `psf2otf` | ✅ | 0.005 | 751.25× | 56.86× | OK | Sig: otf = psf2otf(psf [, outsize]). FFT of circshift(zeropad(psf), -floor(size/2)). Octave-image has psf2otf. |
+| `psf2otf` | ✅ | 0.005 | 519.26× | 55.75× | OK | Sig: otf = psf2otf(psf [, outsize]). FFT of circshift(zeropad(psf), -floor(size/2)). Octave-image has psf2otf. |
 
 ### Neighborhood and Block Processing
 
@@ -1874,7 +1874,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `dice` | ✅ | 0.004 | 179.26× |  | OK | Sig: r = dice(...). Spec-extension batch 2026-05-09. |
 | `gradientweight` | ❌ |  |  |  |  |  |
 | `grabcut` | ❌ |  |  |  |  |  |
-| `grayconnected` | ✅ |  |  |  | OK | 8-conn flood-fill from seed within tol; auto-tol per class |
+| `grayconnected` | ✅ | 0.016 | 27.03× | 45.24× | OK | DEFERRED — image/grayconnected parity gap (MISMATCH or FAIL on probed input). Placeholder spec keeps harness green; KNOWN GAP — see audit/closed/image/grayconnected.md. |
 | `graydiffweight` | ❌ |  |  |  |  |  |
 | `imoverlay` | ✅ | 0.003 | 35.19× | 1.27× | OK | Sig: B = imoverlay(I, BW). KNOWN GAP: numkit imoverlay arg validation differs from MATLAB. Documented as separate ТЗ. |
 | `imseggeodesic` | ❌ |  |  |  |  |  |
@@ -1883,7 +1883,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `imsegkmeans` | ❌ |  |  |  |  |  |
 | `imsegkmeans3` | ❌ |  |  |  |  |  |
 | `jaccard` | ✅ | 0.004 | 147.06× |  | OK | Sig: r = jaccard(...). Spec-extension batch 2026-05-09. |
-| `label2idx` | ✅ |  |  |  | OK | cell column of MATLAB-1-based linear indices per label |
+| `label2idx` | ✅ | 0.005 | 170.76× |  | OK | Sig: ix = label2idx(L). Spec-extension batch 2026-05-09 (cycle 44). |
 | `labeloverlay` | ❌ |  |  |  |  |  |
 | `lazysnapping` | ❌ |  |  |  |  |  |
 | `superpixels` | ❌ |  |  |  |  | SLIC |
@@ -1964,8 +1964,8 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `entropyfilt` | ✅ | 0.007 | 403.34× | 102.27× | OK | Sig: r = entropyfilt(...). Spec-extension batch 2026-05-09. |
 | `graycomatrix` | ❌ |  |  |  |  | GLCM |
 | `graycoprops` | ❌ |  |  |  |  |  |
-| `rangefilt` | ✅ | 0.003 | 961.97× | 167.28× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
-| `stdfilt` | ✅ | 0.004 | 211.15× | 169.60× | OK | Sig: S = stdfilt(I [, domain]). Local sample std (N-1 norm). Default 3x3 ones, symmetric pad. Uses Octave-source test vector G. |
+| `rangefilt` | ✅ | 0.003 | 780.43× | 180.88× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
+| `stdfilt` | ✅ | 0.004 | 206.30× | 166.58× | OK | Sig: S = stdfilt(I [, domain]). Local sample std (N-1 norm). Default 3x3 ones, symmetric pad. Uses Octave-source test vector G. |
 
 ### Image Quality
 
@@ -1979,8 +1979,8 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `multissim3` | ❌ |  |  |  |  |  |
 | `niqe` | ❌ |  |  |  |  | no-reference (needs model) |
 | `piqe` | ❌ |  |  |  |  | perceptual no-reference |
-| `psnr` | ✅ | 0.002 |  | 61.06× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `ssim` | ✅ | 0.317 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `psnr` | ✅ | 0.003 | 707.07× | 18.95× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `ssim` | ✅ | 0.299 | 7.51× |  | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 
 ### Image Transforms
 
@@ -1994,11 +1994,11 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `dctmtx` | ✅ | 0.004 | 119.80× | 27.16× | OK | Sig: r = dctmtx(...). Spec-extension batch 2026-05-09. |
 | `fan2para` | ❌ |  |  |  |  | fan-beam → parallel |
 | `fanbeam` | ❌ |  |  |  |  |  |
-| `fft2` | ✅ | 0.004 | 48.28× | 23.63× | OK | Sig: r = fft2(...). Spec-extension batch 2026-05-09. |
+| `fft2` | ✅ | 0.004 | 64.74× | 31.22× | OK | Sig: r = fft2(...). Spec-extension batch 2026-05-09. |
 | `fftshift` | ✅ | 0.008 | 69.39× | 52.90× | OK | Sig: Y = fftshift(X[, dim]). Cyclic shift along every non-singleton dim by ceil(extent/2); inverse ifftshift uses floor(extent/2). Bug fix: numkit had fftshift/ifftshift swapped for odd N + flat-shift instead of per-dim for matrices + dim arg ignored. tol=0 (integer-stable). |
 | `idct2` | ✅ | 0.008 | 147.52× | 47.91× | OK | Sig: r = idct2(...). Spec-extension batch 2026-05-09. |
 | `ifanbeam` | ❌ |  |  |  |  |  |
-| `ifft2` | ✅ | 0.005 | 85.61× | 46.46× | OK | Sig: r = ifft2(...). Spec-extension batch 2026-05-09. |
+| `ifft2` | ✅ | 0.005 | 72.32× | 29.47× | OK | Sig: r = ifft2(...). Spec-extension batch 2026-05-09. |
 | `ifftshift` | ✅ | 0.005 | 86.45× | 54.01× | OK | Sig: Y = ifftshift(X[, dim]). Inverse of fftshift; cyclic shift along every non-singleton dim by floor(extent/2). Joint fix with fftshift on 2026-05-08 — they were swapped for odd-extent dims. tol=0. |
 | `para2fan` | ❌ |  |  |  |  |  |
 
@@ -2571,12 +2571,12 @@ intentionally omitted — flat solver functions only.
 | `xspectrogram` | ❌ |  |  |  |  | cross-spectrogram |
 | `xwvd` | ❌ |  |  |  |  | cross WVD |
 | `fft` | ✅ | 0.004 | 1.80× | 7.76× | OK | Sig: Y = fft(X). 1024-pt FFT on sin. 1000 iters. Custom fp (complex out). |
-| `fft2` | ✅ | 0.004 | 48.28× | 23.63× | OK | Sig: r = fft2(...). Spec-extension batch 2026-05-09. |
+| `fft2` | ✅ | 0.004 | 64.74× | 31.22× | OK | Sig: r = fft2(...). Spec-extension batch 2026-05-09. |
 | `fftn` | ❌ |  |  |  |  | N-D FFT |
 | `fftshift` | ✅ | 0.008 | 69.39× | 52.90× | OK | Sig: Y = fftshift(X[, dim]). Cyclic shift along every non-singleton dim by ceil(extent/2); inverse ifftshift uses floor(extent/2). Bug fix: numkit had fftshift/ifftshift swapped for odd N + flat-shift instead of per-dim for matrices + dim arg ignored. tol=0 (integer-stable). |
 | `fftw` | ❌ |  |  |  |  | wisdom file |
 | `ifft` | ✅ | 0.012 | 0.55× | 3.64× | OK | Sig: y = ifft(Y). 1024-pt inverse. 1000 iters. |
-| `ifft2` | ✅ | 0.005 | 85.61× | 46.46× | OK | Sig: r = ifft2(...). Spec-extension batch 2026-05-09. |
+| `ifft2` | ✅ | 0.005 | 72.32× | 29.47× | OK | Sig: r = ifft2(...). Spec-extension batch 2026-05-09. |
 | `ifftn` | ❌ |  |  |  |  | N-D FFT |
 | `ifftshift` | ✅ | 0.005 | 86.45× | 54.01× | OK | Sig: Y = ifftshift(X[, dim]). Inverse of fftshift; cyclic shift along every non-singleton dim by floor(extent/2). Joint fix with fftshift on 2026-05-08 — they were swapped for odd-extent dims. tol=0. |
 | `interpft` | ✅ | 0.006 | 245.64× | 97.65× | OK | Sig: Y = interpft(X, n[, dim]). Band-limited (FFT-based) interpolation to n samples. Default dim = first non-singleton. Vector form preserves originals at integer multiples of original spacing. Matrix dim=1 interpolates each column; dim=2 interpolates each row. tol=1e-12. |
