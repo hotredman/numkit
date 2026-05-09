@@ -8,19 +8,28 @@ import { computeFitViewport,
   composeSvgsToString, exportSvgString, exportPngString,
   downloadBlob as utilDownloadBlob } from './plotUtils';
 
-function renderFigure(figure, props) {
+function renderFigure(figure, props, threeRef) {
   if (figure.kind === 'subplot')     return <SubplotGrid     figure={figure} {...props} />;
   if (figure.kind === 'composite3d') {
     return (
       <FigureErrorBoundary label="composite3d-modal" figureId={figure.id}
         width={props.width} height={props.height}>
-        <Composite3DPlot figure={figure} {...props} />
+        <Composite3DPlot ref={threeRef} figure={figure} {...props} />
       </FigureErrorBoundary>
     );
   }
   if (figure.kind === 'composite')   return <CompositePlot   figure={figure} {...props} />;
   if (figure.kind === 'polar')       return <PolarPlot       figure={figure} {...props} />;
   return <CompositePlot figure={figure} {...props} />;
+}
+
+/** True when the 3-D viewport is still the (−1, 1) cube placeholder
+ *  set up at mount before onBBox reports the real data extent. */
+function isPlaceholder3D(v) {
+  if (!v || !v.x || !v.y || !v.z) return true;
+  return v.x[0] === -1 && v.x[1] === 1
+      && v.y[0] === -1 && v.y[1] === 1
+      && v.z[0] === -1 && v.z[1] === 1;
 }
 
 function NumberInput({ value, onCommit, width = 88 }) {
@@ -50,6 +59,12 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   const isPolar   = figure.kind === 'polar';
   const isSubplot = figure.kind === 'subplot';
   const isComposite = figure.kind === 'composite';
+  const is3D = figure.kind === 'composite3d';
+  // Imperative handle on Composite3DPlot — exposed when the modal
+  // hosts a 3-D figure. FigureWindow uses it for fit-3D, X/Y/Z input
+  // wiring, and PNG / CSV export (canvas geometry has no SVG to
+  // serialise).
+  const threeRef = useRef(null);
   // Composite figures carry a heterogeneous layers[] array. Heatmap-specific
   // toolbar bits (color autoscale, colormap select, log toggle) gate on the
   // presence of a heatmap layer; the rest of the toolbar (fit, legend, range)
@@ -62,14 +77,54 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   // Polar plots use {r:[lo,hi]}; cartesian use {x:[…], y:[…]}; subplots have
   // per-cell viewports managed inside SubplotGrid, so the top-level viewport
   // is just a placeholder that the toolbar's range/status helpers branch off.
+  // For 3-D the data extent isn't on the figure prop directly — it's
+  // computed by Composite3DPlot via its bbox helper. We start with a
+  // safe placeholder ([-1, 1] cube) and fill in the real extent
+  // through the onBBox callback below.
   const figDefault = isSubplot
     ? null
-    : isPolar
-      ? defaultPolarViewport(figure)
-      : (figure.xRange && figure.yRange)
-        ? { x: figure.xRange.slice(), y: figure.yRange.slice() }
-        : { x: [-1, 1], y: [-1, 1] };
+    : is3D
+      ? { x: [-1, 1], y: [-1, 1], z: [-1, 1] }
+      : isPolar
+        ? defaultPolarViewport(figure)
+        : (figure.xRange && figure.yRange)
+          ? { x: figure.xRange.slice(), y: figure.yRange.slice() }
+          : { x: [-1, 1], y: [-1, 1] };
   const [viewport, setViewport]   = useState(figDefault);
+  // 3-D bbox cache — Composite3DPlot reports it via onBBox each
+  // figure rebuild. Used as the "fit to data" target.
+  const [bbox3d, setBbox3d] = useState(null);
+  // Reset 3-D viewport on ACTUAL figure swap (a different figure.id)
+  // so stale lims from a previous figure don't carry over. Skip the
+  // initial mount — Composite3DPlot's onBBox would otherwise lose to
+  // this reset (child effects run before parent effects, so the auto-
+  // fill viewport gets clobbered back to the placeholder before the
+  // user sees anything).
+  const lastFigureIdRef = useRef(figure.id);
+  useEffect(() => {
+    if (!is3D) return;
+    if (lastFigureIdRef.current !== figure.id) {
+      setViewport({ x: [-1, 1], y: [-1, 1], z: [-1, 1] });
+      lastFigureIdRef.current = figure.id;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [figure.id]);
+  // First bbox report fills the viewport with the actual data extent
+  // — without this the X/Y/Z inputs would show -1 / 1 instead of the
+  // data range until the user touched the Fit menu.
+  function onComposite3DBBox(bbox) {
+    setBbox3d(bbox);
+    setViewport((cur) => {
+      // Only auto-fill if the viewport is still the placeholder; once
+      // the user committed an explicit input, leave it alone.
+      if (!isPlaceholder3D(cur)) return cur;
+      return {
+        x: [bbox.xMin, bbox.xMax],
+        y: [bbox.yMin, bbox.yMax],
+        z: [bbox.zMin, bbox.zMax],
+      };
+    });
+  }
   // Major grid defaults to on (a plot without it is unreadable). Minor grid
   // follows the engine's gridMode strictly: only on when the script called
   // `grid minor`, off after `grid on` / no call. Matches MATLAB.
@@ -276,34 +331,71 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     };
   }
   function exportSvg() {
+    if (is3D) return;   // SVG export not available for WebGL geometry
     const g = gatherFigureSvg();
     if (!g) return;
     exportSvgString(g.xml, `figure_${figure.id}.svg`);
   }
+  function dataUrlToBlob(dataUrl) {
+    // data:image/png;base64,...
+    const idx = dataUrl.indexOf(',');
+    const meta = dataUrl.substring(5, idx);                    // image/png;base64
+    const mime = meta.split(';')[0];
+    const b64  = dataUrl.substring(idx + 1);
+    const bin  = atob(b64);
+    const arr  = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }
   function exportPng(scale = 2, suffix = '') {
+    if (is3D) {
+      const url = threeRef.current?.getCanvasDataURL?.(scale);
+      if (!url) return;
+      utilDownloadBlob(dataUrlToBlob(url), `figure_${figure.id}${suffix}.png`);
+      return;
+    }
     const g = gatherFigureSvg();
     if (!g) return;
     exportPngString(g.xml, g.w, g.h, scale, `figure_${figure.id}${suffix}.png`);
   }
   function exportPngPrint(mmWidth, dpi = 300) {
+    if (is3D) {
+      // 3-D path can't resize the WebGL canvas on the fly without a
+      // re-mount, so print sizes use the same screen-resolution dump.
+      // Resolution scaling is a follow-up (offscreen render at target).
+      const url = threeRef.current?.getCanvasDataURL?.(1);
+      if (!url) return;
+      utilDownloadBlob(dataUrlToBlob(url), `figure_${figure.id}_${mmWidth}mm.png`);
+      return;
+    }
     const g = gatherFigureSvg();
     if (!g) return;
     const targetPx = (mmWidth / 25.4) * dpi;
     const scale = targetPx / g.w;
     exportPngString(g.xml, g.w, g.h, scale, `figure_${figure.id}_${mmWidth}mm.png`);
   }
-  // Build a CSV/TSV "name<sep>x<sep>y" body from a series source. Accepts
-  // either a polar figure (`series` with theta/rho) or an array of series
-  // layers (`x`, `y`).
+  // Build a CSV/TSV "name<sep>x<sep>y[<sep>z]" body from a series
+  // source. Accepts either a polar figure (`series` with theta/rho),
+  // an array of 2-D series layers (`x`, `y`), or 3-D series with z[].
   function seriesBody(source, sep) {
-    const rows = [`name${sep}x${sep}y`];
     const list = Array.isArray(source) ? source : (source.series || []);
+    const has3D = list.some((s) => Array.isArray(s.z));
+    const rows = [`name${sep}x${sep}y${has3D ? sep + 'z' : ''}`];
     list.forEach((s) => {
       const xs = s.x || s.theta || [];
       const ys = s.y || s.rho   || [];
-      for (let i = 0; i < xs.length; i++) rows.push(`${s.name}${sep}${xs[i]}${ys[i] != null ? sep + ys[i] : ''}`);
+      const zs = Array.isArray(s.z) ? s.z : null;
+      for (let i = 0; i < xs.length; i++) {
+        let row = `${s.name}${sep}${xs[i]}`;
+        if (ys[i] != null) row += sep + ys[i];
+        if (zs && zs[i] != null) row += sep + zs[i];
+        rows.push(row);
+      }
     });
     return rows.join('\n');
+  }
+  function get3DRows() {
+    return threeRef.current?.getCsvData?.() || [];
   }
   // Composite cell exporter — pulls heatmap layer's z if present, else series.
   function compositeCellBody(cell, sep) {
@@ -313,6 +405,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     return seriesBody(layers.filter((l) => l.kind === 'series'), sep);
   }
   function exportCsv() {
+    if (is3D) {
+      downloadBlob(new Blob([seriesBody(get3DRows(), ',')], { type: 'text/csv' }),
+                   `figure_${figure.id}.csv`);
+      return;
+    }
     if (isHeatmap) {
       const z = heatmapLayer.z;
       const rows = z.map((row) => row.map((v) => v == null ? '' : v).join(','));
@@ -335,6 +432,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     downloadBlob(new Blob([seriesBody(figure, ',')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
   }
   function exportTsv() {
+    if (is3D) {
+      downloadBlob(new Blob([seriesBody(get3DRows(), '\t')], { type: 'text/tab-separated-values' }),
+                   `figure_${figure.id}.tsv`);
+      return;
+    }
     if (isHeatmap) {
       const z = heatmapLayer.z;
       const rows = z.map((row) => row.map((v) => v == null ? '' : v).join('\t'));
@@ -357,6 +459,18 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     downloadBlob(new Blob([seriesBody(figure, '\t')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
   }
   function exportJson() {
+    if (is3D) {
+      const obj = {
+        id: figure.id, kind: 'composite3d',
+        title: figure.title,
+        xLabel: figure.xLabel, yLabel: figure.yLabel, zLabel: figure.zLabel,
+        view: figure.view,
+        series: get3DRows(),
+      };
+      downloadBlob(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }),
+                   `figure_${figure.id}.json`);
+      return;
+    }
     if (isHeatmap) {
       const obj = {
         id: figure.id, kind: 'heatmap', title: figure.title,
@@ -422,6 +536,25 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
 
   function applyFit(mode, axisMode) {
     if (isSubplot) return;                 // subplot fit lives per-cell; close menu
+    if (is3D) {
+      // 3-D fit pulls the data bbox from Composite3DPlot's imperative
+      // handle (Composite3DPlot reports it via onBBox each rebuild;
+      // bbox3d is the cached copy). Each axis is reset independently
+      // so "X only" leaves Y/Z lims untouched.
+      const b = bbox3d || (threeRef.current?.getBBox?.() ?? null);
+      if (!b) { setFitOpen(false); return; }
+      const next = {
+        x: viewport?.x?.slice() || [-1, 1],
+        y: viewport?.y?.slice() || [-1, 1],
+        z: viewport?.z?.slice() || [-1, 1],
+      };
+      if (axisMode === 'both' || axisMode === 'x') next.x = [b.xMin, b.xMax];
+      if (axisMode === 'both' || axisMode === 'y') next.y = [b.yMin, b.yMax];
+      if (axisMode === 'both' || axisMode === 'z') next.z = [b.zMin, b.zMax];
+      setViewport(next);
+      setFitOpen(false);
+      return;
+    }
     if (isPolar) {
       // Polar fit: pick max |rho| across selected series, round up to a nice
       // multiple, keep rMin at 0 (or whatever the figure's existing inner
@@ -535,7 +668,29 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               </svg>
               fit ▾
             </button>
-            {fitOpen && (isHeatmap ? (
+            {fitOpen && (is3D ? (
+              <div className="fw-pop">
+                <div className="fw-pop-section">
+                  <button onClick={() => {
+                    if (bbox3d) {
+                      setViewport({
+                        x: [bbox3d.xMin, bbox3d.xMax],
+                        y: [bbox3d.yMin, bbox3d.yMax],
+                        z: [bbox3d.zMin, bbox3d.zMax],
+                      });
+                    }
+                    setFitOpen(false);
+                  }}>reset to data extent</button>
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">data extent</div>
+                  <button onClick={() => applyFit('all', 'both')}>all axes</button>
+                  <button onClick={() => applyFit('all', 'x')}>X only</button>
+                  <button onClick={() => applyFit('all', 'y')}>Y only</button>
+                  <button onClick={() => applyFit('all', 'z')}>Z only</button>
+                </div>
+              </div>
+            ) : isHeatmap ? (
               <div className="fw-pop">
                 <div className="fw-pop-section">
                   <button onClick={() => { setViewport(figDefault); setColorOverride(null); setFitOpen(false); }}>reset to default</button>
@@ -611,25 +766,9 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
           </div>
           )}
 
-          {isSubplot ? null : isPolar ? (
-            <div className="ve-tools-group fw-range-group">
-              <span className="ve-label">r</span>
-              <NumberInput value={viewport.r[0]} onCommit={(n) => setViewport({ r: [n, viewport.r[1]] })} />
-              <span className="fw-range-sep">→</span>
-              <NumberInput value={viewport.r[1]} onCommit={(n) => setViewport({ r: [viewport.r[0], n] })} />
-            </div>
-          ) : (
-            <div className="ve-tools-group fw-range-group">
-              <span className="ve-label">x</span>
-              <NumberInput value={viewport.x[0]} onCommit={(n) => setViewport({ ...viewport, x: [n, viewport.x[1]] })} />
-              <span className="fw-range-sep">→</span>
-              <NumberInput value={viewport.x[1]} onCommit={(n) => setViewport({ ...viewport, x: [viewport.x[0], n] })} />
-              <span className="ve-label" style={{ marginLeft: 6 }}>y</span>
-              <NumberInput value={viewport.y[0]} onCommit={(n) => setViewport({ ...viewport, y: [n, viewport.y[1]] })} />
-              <span className="fw-range-sep">→</span>
-              <NumberInput value={viewport.y[1]} onCommit={(n) => setViewport({ ...viewport, y: [viewport.y[0], n] })} />
-            </div>
-          )}
+          {/* Range inputs (X / Y / Z / r) live in the footer status
+              bar now — see below. The toolbar keeps fit / grid / log /
+              save / export buttons only. */}
 
           <div className="ve-tools-group">
             <button className={`ve-btn ${showMajor ? 'is-active' : ''}`} onClick={() => setShowMajor((g) => !g)} title="Major grid">grid</button>
@@ -663,7 +802,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
             {/* Legend toggle hidden for pure heatmap (colorbar IS the legend),
                 shown when at least one series layer exists or the figure is
                 a legacy line/polar shape. */}
-            {(hasSeries || (!isHeatmap && !isComposite)) && (
+            {!is3D && (hasSeries || (!isHeatmap && !isComposite)) && (
               <button className={`ve-btn ${showLegend ? 'is-active' : ''}`} onClick={() => setShowLegend((g) => !g)}>legend</button>
             )}
           </div>
@@ -681,7 +820,12 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               <div className="fw-pop fw-pop-right">
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">image · screen</div>
-                  <button onClick={() => { exportSvg(); setSaveOpen(false); }}>SVG (vector)</button>
+                  <button
+                    onClick={() => { exportSvg(); setSaveOpen(false); }}
+                    disabled={is3D}
+                    title={is3D ? 'SVG export not available for 3-D figures (WebGL geometry has no vector form). Use PNG.' : ''}>
+                    SVG (vector){is3D ? ' · n/a for 3-D' : ''}
+                  </button>
                   <button onClick={() => { exportPng(2); setSaveOpen(false); }}>PNG @2×</button>
                 </div>
                 <div className="fw-pop-section">
@@ -713,7 +857,14 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               setXLog, setYLog,
               colorOverride, setColorOverride,
               colormapOverride,
-            })}
+              // 3-D specific — Composite3DPlot ignores these for non-3-D.
+              // Skip the override on the very first render when viewport
+              // is still the [-1,1] placeholder cube (otherwise computeBBox
+              // would clamp data to the placeholder, onBBox would echo it
+              // back, and the auto-fill loop would deadlock at -1 / 1).
+              viewport3d: (is3D && !isPlaceholder3D(viewport)) ? viewport : null,
+              onBBox: is3D ? onComposite3DBBox : null,
+            }, threeRef)}
             {showLegend && (() => {
               const list = isComposite
                 ? seriesLayers
@@ -733,11 +884,61 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
           </div>
         </div>
 
+        {/* Range-input row — was in the toolbar, moved to the footer
+            so it sits next to the live viewport readout. 3-D figures
+            get a Z row in addition to X / Y. */}
+        {!isSubplot && (
+          <div className="fw-range-row">
+            {isPolar ? (
+              <div className="ve-tools-group fw-range-group">
+                <span className="ve-label">r</span>
+                <NumberInput value={viewport.r[0]} onCommit={(n) => setViewport({ r: [n, viewport.r[1]] })} />
+                <span className="fw-range-sep">→</span>
+                <NumberInput value={viewport.r[1]} onCommit={(n) => setViewport({ r: [viewport.r[0], n] })} />
+              </div>
+            ) : is3D ? (
+              <div className="ve-tools-group fw-range-group">
+                <span className="ve-label">x</span>
+                <NumberInput value={viewport.x[0]} onCommit={(n) => setViewport({ ...viewport, x: [n, viewport.x[1]] })} />
+                <span className="fw-range-sep">→</span>
+                <NumberInput value={viewport.x[1]} onCommit={(n) => setViewport({ ...viewport, x: [viewport.x[0], n] })} />
+                <span className="ve-label" style={{ marginLeft: 6 }}>y</span>
+                <NumberInput value={viewport.y[0]} onCommit={(n) => setViewport({ ...viewport, y: [n, viewport.y[1]] })} />
+                <span className="fw-range-sep">→</span>
+                <NumberInput value={viewport.y[1]} onCommit={(n) => setViewport({ ...viewport, y: [viewport.y[0], n] })} />
+                <span className="ve-label" style={{ marginLeft: 6 }}>z</span>
+                <NumberInput value={viewport.z[0]} onCommit={(n) => setViewport({ ...viewport, z: [n, viewport.z[1]] })} />
+                <span className="fw-range-sep">→</span>
+                <NumberInput value={viewport.z[1]} onCommit={(n) => setViewport({ ...viewport, z: [viewport.z[0], n] })} />
+              </div>
+            ) : (
+              <div className="ve-tools-group fw-range-group">
+                <span className="ve-label">x</span>
+                <NumberInput value={viewport.x[0]} onCommit={(n) => setViewport({ ...viewport, x: [n, viewport.x[1]] })} />
+                <span className="fw-range-sep">→</span>
+                <NumberInput value={viewport.x[1]} onCommit={(n) => setViewport({ ...viewport, x: [viewport.x[0], n] })} />
+                <span className="ve-label" style={{ marginLeft: 6 }}>y</span>
+                <NumberInput value={viewport.y[0]} onCommit={(n) => setViewport({ ...viewport, y: [n, viewport.y[1]] })} />
+                <span className="fw-range-sep">→</span>
+                <NumberInput value={viewport.y[1]} onCommit={(n) => setViewport({ ...viewport, y: [viewport.y[0], n] })} />
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="fw-status">
           {isSubplot ? (
             <span>{figure.cells.length} axes · per-cell pan/zoom</span>
           ) : isPolar ? (
             <span>r ∈ [{fmtVp(viewport.r[0])}, {fmtVp(viewport.r[1])}]</span>
+          ) : is3D ? (
+            <>
+              <span>x ∈ [{fmtVp(viewport.x[0])}, {fmtVp(viewport.x[1])}]</span>
+              <span className="ve-sep" />
+              <span>y ∈ [{fmtVp(viewport.y[0])}, {fmtVp(viewport.y[1])}]</span>
+              <span className="ve-sep" />
+              <span>z ∈ [{fmtVp(viewport.z[0])}, {fmtVp(viewport.z[1])}]</span>
+            </>
           ) : (
             <>
               <span>x ∈ [{fmtVp(viewport.x[0])}, {fmtVp(viewport.x[1])}]</span>
@@ -746,9 +947,13 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
             </>
           )}
           <span className="ve-spacer" />
-          <span>{isPolar ? 'drag · zoom rMax' : 'drag · pan'}</span>
-          <span className="ve-sep" />
-          <span>{isPolar ? 'wheel · zoom' : 'wheel · zoom xy · ⌃ x · ⇧ y'}</span>
+          <span>{isPolar ? 'drag · zoom rMax' : is3D ? 'drag · orbit · wheel · dolly' : 'drag · pan'}</span>
+          {!is3D && (
+            <>
+              <span className="ve-sep" />
+              <span>{isPolar ? 'wheel · zoom' : 'wheel · zoom xy · ⌃ x · ⇧ y'}</span>
+            </>
+          )}
           <span className="ve-sep" />
           <span>dbl-click · reset</span>
           <span className="ve-sep" />
