@@ -479,6 +479,10 @@ export function adaptFigure(fig) {
       title: `Figure ${fig.id}`,
       grid: [rows, cols],
       cells,
+      // linkaxes mode (figure-level state). 'x'/'y'/'xy' = SubplotGrid
+      // mirrors viewport changes across cells on those axes. Empty =
+      // each cell pans/zooms independently (the default).
+      linkMode: fig.linkMode || '',
       _raw: fig,
     };
   }
