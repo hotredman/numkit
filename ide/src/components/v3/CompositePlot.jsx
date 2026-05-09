@@ -146,7 +146,9 @@ export default function CompositePlot({
   );
 
   const padL = 60 * fontScale;
-  const padR = hasHeatmap ? 70 * fontScale : 18;  // wider when colorbar is shown
+  // Right pad: extra space for colorbar OR for a yyaxis right-side axis.
+  // Both reserve roughly the same width for tick labels.
+  const padR = (hasHeatmap || figure.yyEnabled) ? 70 * fontScale : 18;
   const padT = 36 * fontScale;
   const padB = 44 * fontScale;
   // Force integer dims — non-integer panel sizes from fractional fontScale
@@ -238,6 +240,25 @@ export default function CompositePlot({
     : (yRev
        ? (py) => yMin + ((py - padT) / H) * (yMax - yMin)
        : (py) => yMax - ((py - padT) / H) * (yMax - yMin));
+
+  // ── yyaxis: secondary Y mapping (right side) ─────────────────────
+  // yRange2 stays at its auto-fit value — we don't pan/zoom the right
+  // axis with the viewport. This matches MATLAB's "linked yyaxis"
+  // default and keeps the model simple. yscale2 'log' is supported.
+  const yy2 = figure.yyEnabled && Array.isArray(figure.yRange2);
+  const yMin2 = yy2 ? figure.yRange2[0] : 0;
+  const yMax2 = yy2 ? figure.yRange2[1] : 1;
+  const yLog2 = figure.yscale2 === 'log';
+  const yLog2Active = yy2 && yLog2 && yMin2 > 0 && yMax2 > 0;
+  const sy2 = !yy2
+    ? sy
+    : (yLog2Active
+       ? (v) => padT + H - (Math.log(v / yMin2) / Math.log(yMax2 / yMin2)) * H
+       : (v) => padT + H - ((v - yMin2) / (yMax2 - yMin2)) * H);
+  // syOf — pick sy or sy2 by layer.yside. Used in the per-layer render
+  // loops (line/scatter/bar/etc.) so right-side data lands on the right
+  // mapping without each block re-doing the conditional.
+  const syOf = (ly) => (yy2 && ly && ly.yside === 'right') ? sy2 : sy;
 
   // Pre-render the inline preview to a dataURL via the LUT. uint8 indices
   // are stable; only the LUT changes on window/level — so we keep a separate
@@ -849,6 +870,30 @@ export default function CompositePlot({
           </g>
         );
       })}
+      {/* Right (yyaxis) axis line + ticks. Only rendered when yyEnabled
+          AND we have a yRange2 to draw against. Tick set is computed
+          independently from the left axis so the two scales are visibly
+          decoupled. */}
+      {yy2 && (() => {
+        const yTicks2 = yLog2Active ? logTicks(yMin2, yMax2) : niceTicks(yMin2, yMax2, 6);
+        return (
+          <>
+            <line x1={padL + W} x2={padL + W} y1={padT} y2={padT + H}
+              stroke="var(--plot-frame)" strokeWidth="0.5" />
+            {yTicks2.major.map((v, i) => {
+              const y = sy2(v);
+              if (y < padT - 1 || y > padT + H + 1) return null;
+              return (
+                <g key={`yr${i}`}>
+                  <line x1={padL + W} x2={padL + W + 4} y1={y} y2={y} stroke="var(--plot-tick)" />
+                  <text x={padL + W + 7} y={y + 3} fill="var(--plot-text)"
+                    fontSize={10 * fontScale} textAnchor="start">{fmtTick(v)}</text>
+                </g>
+              );
+            })}
+          </>
+        );
+      })()}
 
       {/* Series + text layers — drawn in original z-order (= call order in
           script: imagesc → hold on → scatter → text). Coordinates go
@@ -863,13 +908,17 @@ export default function CompositePlot({
               const mode = ly.mode || 'line';
               const w = ly.width || 1.5;
               const op = ly.opacity ?? 1;
+              // yyaxis: pick the right-side mapping if this layer is on
+              // the right axis. mySy is then used in place of sy for
+              // every data-point coordinate produced by this block.
+              const mySy = syOf(ly);
               if (mode === 'scatter') {
                 return (
                   <g key={`ly${idx}`} opacity={op}>
                     {ly.x.map((xv, i) => {
                       const yv = ly.y[i];
                       if (!Number.isFinite(xv) || !Number.isFinite(yv)) return null;
-                      const px = sx(xv), py = sy(yv);
+                      const px = sx(xv), py = mySy(yv);
                       if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
                       return <circle key={i} cx={px} cy={py} r={ly.size || 3}
                         fill={ly.color} stroke="var(--plot-frame)" strokeWidth="0.6" />;
@@ -883,8 +932,8 @@ export default function CompositePlot({
                     {ly.x.map((xv, i) => {
                       const yv = ly.y[i];
                       if (!Number.isFinite(xv) || !Number.isFinite(yv)) return null;
-                      const px = sx(xv), py = sy(yv);
-                      const py0 = sy(yLogActive ? yMin : 0);
+                      const px = sx(xv), py = mySy(yv);
+                      const py0 = mySy(yLogActive ? yMin : 0);
                       if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
                       return (
                         <g key={i}>
@@ -907,13 +956,13 @@ export default function CompositePlot({
                   const spacing = Math.abs(sx(xs[1]) - sx(xs[0]));
                   bw = Math.max(2, spacing * 0.7);
                 }
-                const baseY = sy(yLogActive ? yMin : Math.max(0, yMin));
+                const baseY = mySy(yLogActive ? yMin : Math.max(0, yMin));
                 const sIdx = seriesLayers.indexOf(ly);
                 const off = (sIdx - (seriesLayers.length - 1) / 2) * bw * 1.05;
                 return (
                   <g key={`ly${idx}`} opacity={op}>
                     {ly.x.map((xv, i) => {
-                      const px = sx(xv) + off, py = sy(ly.y[i]);
+                      const px = sx(xv) + off, py = mySy(ly.y[i]);
                       if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
                       const top = Math.min(py, baseY);
                       const h = Math.abs(py - baseY);
@@ -940,8 +989,8 @@ export default function CompositePlot({
                       const vv = Number(v[i]);
                       if (!Number.isFinite(xv) || !Number.isFinite(yv)
                        || !Number.isFinite(uv) || !Number.isFinite(vv)) return null;
-                      const px1 = sx(xv),       py1 = sy(yv);
-                      const px2 = sx(xv + uv * s), py2 = sy(yv + vv * s);
+                      const px1 = sx(xv),       py1 = mySy(yv);
+                      const px2 = sx(xv + uv * s), py2 = mySy(yv + vv * s);
                       if (!Number.isFinite(px1) || !Number.isFinite(py1)
                        || !Number.isFinite(px2) || !Number.isFinite(py2)) return null;
                       // Skip degenerate zero-length arrows so the head
@@ -983,16 +1032,16 @@ export default function CompositePlot({
                     if (cur) {
                       // Close current sub-path: drop down to baseline + close.
                       const lastX = ly.x.slice(0, i).reverse().find((v) => Number.isFinite(v));
-                      if (lastX != null) cur += `L${sx(lastX).toFixed(2)},${sy(base).toFixed(2)} Z `;
+                      if (lastX != null) cur += `L${sx(lastX).toFixed(2)},${mySy(base).toFixed(2)} Z `;
                       subpaths.push(cur);
                       cur = ''; firstPx = null;
                     }
                     continue;
                   }
-                  const px = sx(xv), py = sy(yv);
+                  const px = sx(xv), py = mySy(yv);
                   if (!cur) {
                     firstPx = px;
-                    cur = `M${px.toFixed(2)},${sy(base).toFixed(2)} L${px.toFixed(2)},${py.toFixed(2)} `;
+                    cur = `M${px.toFixed(2)},${mySy(base).toFixed(2)} L${px.toFixed(2)},${py.toFixed(2)} `;
                   } else {
                     cur += `L${px.toFixed(2)},${py.toFixed(2)} `;
                   }
@@ -1000,7 +1049,7 @@ export default function CompositePlot({
                 if (cur) {
                   // Close last sub-path.
                   const lastX = ly.x.slice().reverse().find((v) => Number.isFinite(v));
-                  if (lastX != null) cur += `L${sx(lastX).toFixed(2)},${sy(base).toFixed(2)} Z`;
+                  if (lastX != null) cur += `L${sx(lastX).toFixed(2)},${mySy(base).toFixed(2)} Z`;
                   subpaths.push(cur);
                 }
                 const d = subpaths.join(' ');
@@ -1020,7 +1069,7 @@ export default function CompositePlot({
                 const ys = ly.y.filter(Number.isFinite);
                 let bh = 8;
                 if (ys.length > 1) {
-                  const spacing = Math.abs(sy(ys[1]) - sy(ys[0]));
+                  const spacing = Math.abs(mySy(ys[1]) - mySy(ys[0]));
                   bh = Math.max(2, spacing * 0.7);
                 }
                 const baseX = sx(xLogActive ? xMin : Math.max(0, xMin));
@@ -1029,7 +1078,7 @@ export default function CompositePlot({
                 return (
                   <g key={`ly${idx}`} opacity={op}>
                     {ly.y.map((yv, i) => {
-                      const py = sy(yv) + off;
+                      const py = mySy(yv) + off;
                       const px = sx(ly.x[i]);
                       if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
                       const left = Math.min(px, baseX);
@@ -1055,12 +1104,12 @@ export default function CompositePlot({
                     {ly.x.map((xv, i) => {
                       const yv = ly.y[i];
                       if (!Number.isFinite(xv) || !Number.isFinite(yv)) return null;
-                      const px = sx(xv), py = sy(yv);
+                      const px = sx(xv), py = mySy(yv);
                       if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
                       const eNeg = Number(eN[i]) || 0;
                       const ePos = Number(eP[i]) || 0;
-                      const yLo = sy(yv - eNeg);
-                      const yHi = sy(yv + ePos);
+                      const yLo = mySy(yv - eNeg);
+                      const yHi = mySy(yv + ePos);
                       return (
                         <g key={i}>
                           {(eNeg !== 0 || ePos !== 0) && (
@@ -1086,10 +1135,10 @@ export default function CompositePlot({
               for (let i = 0; i < ly.x.length; i++) {
                 const xv = ly.x[i], yv = ly.y[i];
                 if (!Number.isFinite(xv) || !Number.isFinite(yv)) { started = false; continue; }
-                const px = sx(xv), py = sy(yv);
+                const px = sx(xv), py = mySy(yv);
                 if (!Number.isFinite(px) || !Number.isFinite(py)) { started = false; continue; }
                 if (mode === 'stairs' && started) {
-                  d += `L${px.toFixed(2)},${(sy(ly.y[i - 1])).toFixed(2)} `;
+                  d += `L${px.toFixed(2)},${(mySy(ly.y[i - 1])).toFixed(2)} `;
                 }
                 d += (started ? 'L' : 'M') + px.toFixed(2) + ',' + py.toFixed(2) + ' ';
                 started = true;
@@ -1231,6 +1280,13 @@ export default function CompositePlot({
         <text x={14} y={padT + H / 2} fill="var(--plot-text)" fontSize={11 * fontScale} textAnchor="middle"
           transform={`rotate(-90 14 ${padT + H / 2})`}>{figure.yLabel}</text>
       )}
+      {yy2 && figure.yLabel2 && (
+        <text x={padL + W + 56 * fontScale} y={padT + H / 2}
+          fill="var(--plot-text)" fontSize={11 * fontScale} textAnchor="middle"
+          transform={`rotate(90 ${padL + W + 56 * fontScale} ${padT + H / 2})`}>
+          {figure.yLabel2}
+        </text>
+      )}
       {figure.title && (
         <text x={padL + W / 2} y={padT - 12 * fontScale} fill="var(--plot-text-strong)" fontSize={12 * fontScale} textAnchor="middle">{figure.title}</text>
       )}
@@ -1288,7 +1344,7 @@ export default function CompositePlot({
             if (!Number.isFinite(hx) || !Number.isFinite(hy)) return null;
             return (
               <>
-                <circle cx={sx(hx)} cy={sy(hy)} r="3"
+                <circle cx={sx(hx)} cy={syOf(s)(hy)} r="3"
                   fill={s.color} stroke="white" strokeWidth="1" />
                 <g transform={`translate(${Math.min(hover.px + 8, padL + W - 110)}, ${Math.max(hover.py - 28, padT + 4)})`}>
                   <rect width="104" height="26" fill="var(--plot-tip-bg)" stroke="var(--plot-cross)" rx="3" />

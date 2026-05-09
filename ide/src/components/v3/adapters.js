@@ -262,6 +262,10 @@ function datasetToLayer(d, palette_idx, ctx) {
     width: d.lineWidth || styleObj.lineWidth || styleObj.width || 1.5,
     size:  d.markerSize || styleObj.markerSize || 3,
     opacity: d.style?.opacity ?? 1,
+    // yyaxis routing. 'left' (default) or 'right' — empty/missing on
+    // single-axis figures, never serialised then. Renderer picks sy or
+    // sy2 based on this.
+    yside: d.yside || 'left',
   };
 
   // Errorbar bounds — symmetric (e) or asymmetric (eNeg/ePos). The
@@ -378,12 +382,13 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
       yRange = [y0 - cH / 2, y1 + cH / 2];
     }
   } else {
-    let xLo = Infinity, xHi = -Infinity, yLo = Infinity, yHi = -Infinity;
+    let xLo = Infinity, xHi = -Infinity;
+    let yLoL = Infinity, yHiL = -Infinity;  // left-side Y bounds
+    let yLoR = Infinity, yHiR = -Infinity;  // right-side Y bounds
+    var yRange2 = null;
     for (const ly of layers) {
       if (ly.kind !== 'series') continue;
       // Quiver: arrow tips extend past (x, y) by (u*scale, v*scale).
-      // Include both endpoints so the autoscaled viewport actually
-      // contains the tips and the arrowheads aren't clipped.
       let xs = ly.x, ys = ly.y;
       if (ly.mode === 'quiver' && Array.isArray(ly.u) && Array.isArray(ly.v)) {
         const s = Number.isFinite(ly.scale) ? ly.scale : 1;
@@ -394,15 +399,28 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
       const [c, d] = rangeFromArr(ys);
       if (a < xLo) xLo = a;
       if (b > xHi) xHi = b;
-      if (c < yLo) yLo = c;
-      if (d > yHi) yHi = d;
+      if (ly.yside === 'right') {
+        if (c < yLoR) yLoR = c;
+        if (d > yHiR) yHiR = d;
+      } else {
+        if (c < yLoL) yLoL = c;
+        if (d > yHiL) yHiL = d;
+      }
     }
     xRange = (Array.isArray(cfg.xlim) && cfg.xlim.length === 2)
       ? cfg.xlim.slice()
       : [Number.isFinite(xLo) ? xLo : -1, Number.isFinite(xHi) ? xHi : 1];
     yRange = (Array.isArray(cfg.ylim) && cfg.ylim.length === 2)
       ? cfg.ylim.slice()
-      : [Number.isFinite(yLo) ? yLo : -1, Number.isFinite(yHi) ? yHi : 1];
+      : [Number.isFinite(yLoL) ? yLoL : -1, Number.isFinite(yHiL) ? yHiL : 1];
+    // Right-side range (only meaningful when yyEnabled). When no right
+    // dataset is present we still synthesise a sane fallback so the
+    // renderer can at least draw the right axis without NaNs.
+    if (cfg.yyEnabled) {
+      yRange2 = (Array.isArray(cfg.ylim2) && cfg.ylim2.length === 2)
+        ? cfg.ylim2.slice()
+        : [Number.isFinite(yLoR) ? yLoR : -1, Number.isFinite(yHiR) ? yHiR : 1];
+    }
     // `axis tight` means "no whitespace padding around data". Skip
     // the default 4%/6% pad. Auto-scale still happens.
     const tight = (cfg.axisMode === 'tight');
@@ -413,6 +431,10 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     if (!cfg.ylim && !tight) {
       const pad = (yRange[1] - yRange[0]) * 0.06 || 0.5;
       yRange[0] -= pad; yRange[1] += pad;
+    }
+    if (cfg.yyEnabled && !cfg.ylim2 && !tight) {
+      const pad = (yRange2[1] - yRange2[0]) * 0.06 || 0.5;
+      yRange2[0] -= pad; yRange2[1] += pad;
     }
   }
 
@@ -444,6 +466,13 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     // Colorbar placement — only honoured when there's a heatmap layer.
     // Empty = bar hidden (the default until `colorbar()` is called).
     colorbarLocation: cfg.colorbarLocation || '',
+    // yyaxis: dual Y-axis state. yyEnabled gates the secondary axis
+    // rendering; right-side layers (layer.yside === 'right') are routed
+    // through yRange2 + yLabel2 + yscale2.
+    yyEnabled: !!cfg.yyEnabled,
+    yLabel2: cfg.ylabel2 || '',
+    yRange2: (typeof yRange2 !== 'undefined' && yRange2) ? yRange2 : null,
+    yscale2: cfg.yscale2 || 'linear',
     layers,
   };
 }
