@@ -765,7 +765,7 @@ together.
 | `randn` | ✅ | 15.390 | 0.28× | 0.45× | OK | Sig: A = randn(M,N). 1k×1k normal. 100 iters. RNG-stream-diff fp. |
 | `randperm` | ✅ | 0.004 | 38.00× | 35.59× | OK | Sig: r = randperm(...). Spec-extension batch 2026-05-09. |
 | `randstream` | ❌ |  |  |  |  |  |
-| `rng` | ✅ | 0.019 | 263.92× | 11.27× | OK | Sig: rng(SEED). Side-effect smoke: same seed must produce same first sample (r1 = 1 in any deterministic PRNG). DEFERRED -- direct sample value parity not possible (numkit vs MATLAB use different PRNG algorithms; MT-19937 not bit-replicated). |
+| `rng` | ✅ | 0.010 | 187.36× | 30.26× | OK | Sig: rng(SEED) + rand(). MATLAB-canonical Mersenne Twister (init_genrand reference, with seed=0 -> 5489 quirk) + 53-bit res53 uniform. Bit-identical with MATLAB R2025b across rng(0)/rng(1)/rng(42) (see Phase-0a-1 commit). |
 
 ### Interpolation
 
@@ -2970,17 +2970,17 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `evpdf` | ✅ | 0.003 | 90.45× | 73.05× | OK | Sig: r = evpdf(...). Spec-extension batch 2026-05-09. |
 | `evcdf` | ✅ | 0.004 | 214.41× | 101.75× | OK | Sig: p = evcdf(x[, mu, sigma][, 'upper']). F(x) = 1 − exp(−exp((x−μ)/σ)); 'upper' returns 1 - F(x). |
 | `evinv` | ✅ | 0.003 | 97.62× | 75.95× | OK | Sig: r = evinv(...). Spec-extension batch 2026-05-09. |
-| `evrnd` | ✅ |  |  |  |  |  |
+| `evrnd` | ✅ | 0.009 | 208.52× | 48.57× | OK | Sig: r = evrnd(mu, sigma). Type-I (Gumbel-MIN) extreme value sampler via inverse CDF on rand(). Bit-identical with MATLAB R2025b after Phase-0a-1 RNG cascade (MT19937 init_genrand + genRes53 + Gumbel-MIN convention). |
 | `evstat` | ✅ | 0.004 | 76.01× | 45.24× | OK | Sig: r = evstat(...). Spec-extension batch 2026-05-09. |
 | `gevpdf` | ✅ | 0.003 | 197.14× | 23.39× | OK | Sig: r = gevpdf(...). Spec-extension batch 2026-05-09. |
 | `gevcdf` | ✅ | 0.004 | 385.24× | 109.83× | OK | Sig: p = gevcdf(x, k, sigma, mu[, 'upper']). 'upper' returns 1 - F(x). |
 | `gevinv` | ✅ | 0.003 | 175.02× | 66.43× | OK | Sig: r = gevinv(...). Spec-extension batch 2026-05-09. |
-| `gevrnd` | ✅ |  |  |  |  |  |
+| `gevrnd` | ✅ | 0.008 | 294.24× | 95.70× | OK | Sig: r = gevrnd(k, sigma, mu). Generalized Extreme Value sampler via gev_inv_one inverse CDF on rand(). Bit-identical with MATLAB R2025b after Phase-0a-1 RNG cascade. |
 | `gevstat` | ✅ | 0.004 | 200.27× | 15.63× | OK | Sig: r = gevstat(...). Spec-extension batch 2026-05-09. |
 | `gppdf` | ✅ | 0.003 | 199.63× | 95.48× | OK | Sig: r = gppdf(...). Spec-extension batch 2026-05-09.  |
 | `gpcdf` | ✅ | 0.004 | 318.41× | 89.17× | OK | Sig: p = gpcdf(x, k, sigma, theta[, 'upper']). 'upper' returns 1 - F(x). |
 | `gpinv` | ✅ | 0.003 | 192.27× | 77.58× | OK | Sig: r = gpinv(...). Spec-extension batch 2026-05-09. |
-| `gprnd` | ✅ |  |  |  |  |  |
+| `gprnd` | ✅ | 0.008 | 310.76× | 54.80× | OK | Sig: r = gprnd(k, sigma, theta). Generalized Pareto sampler via inline ICDF on rand() (uses u directly, MATLAB convention). Bit-identical with MATLAB R2025b after Phase-0a-1 RNG cascade. |
 | `gpstat` | ✅ | 0.004 | 138.07× | 19.39× | OK | Sig: r = gpstat(...). Spec-extension batch 2026-05-09.  |
 | `nakapdf` | ✅ | 0.003 |  | 18.04× | OK | Sig: r = nakapdf(...). Spec-extension batch 2026-05-09.  |
 | `nakacdf` | ✅ | 0.004 |  | 128.84× | OK | Sig: p = nakacdf(x, mu, omega[, 'upper']). Nakagami-m CDF: F(x) = gammainc(mu·x²/omega, mu). 'upper' returns 1 - F(x). |

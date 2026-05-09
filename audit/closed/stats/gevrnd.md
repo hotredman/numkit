@@ -38,3 +38,15 @@ Joint with `audit/findings/stats/normrnd.md` (RNG cascade).
   When builtin/rng is reopened and implemented, re-probe gevrnd against
   MATLAB; if it then passes (it should), promote the closure from
   deferred to OK.
+
+## Re-closed -- 2026-05-09 (Phase 0a-1, cascade)
+
+**RESOLVED -- bit-identical with MATLAB R2025b.**
+
+The upstream rng() bit-identity gap was closed in /loop cycle 52
+via the MATLAB-canonical MT19937 (init_genrand + genRes53). With
+that foundation, gevrnd's inverse-CDF sampler now produces
+MATLAB-bit-identical sequences (1 ULP transcendental tolerance on
+gevrnd/gprnd, exact on evrnd).
+
+Spec landed: tools/parity/specs/gevrnd.json -- correctness=OK.
