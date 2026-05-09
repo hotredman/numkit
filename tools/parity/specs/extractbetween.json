@@ -2,11 +2,11 @@
   "name": "extractbetween",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = 1;",
+  "expr": "c = extractBetween(\"hello (world) end\", \"(\", \")\"); r1 = double(numel(c));",
   "iters": 5,
-  "tol": 0,
+  "tol": 1e-12,
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: extractbetween(...). KNOWN GAP: numkit does NOT implement extractbetween \u2014 VM: undefined function. Documented as separate \u0422\u0417. Spec is a no-op placeholder so PROGRESS.md row exists."
+  "comment": "Sig: position-based string op (MATLAB canonical: extractBetween). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience."
 }

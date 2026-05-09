@@ -2,11 +2,11 @@
   "name": "extractbefore",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = 1;",
+  "expr": "r = extractBefore(\"hello world\", \" world\"); r1 = double(strlength(r));",
   "iters": 5,
-  "tol": 0,
+  "tol": 1e-12,
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: extractbefore(...). KNOWN GAP: numkit does NOT implement extractbefore \u2014 VM: undefined function. Documented as separate \u0422\u0417. Spec is a no-op placeholder so PROGRESS.md row exists."
+  "comment": "Sig: position-based string op (MATLAB canonical: extractBefore). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience."
 }

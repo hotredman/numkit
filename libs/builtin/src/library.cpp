@@ -247,6 +247,13 @@ void strcat_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void strlength_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void strrep_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void contains_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void extractAfter_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void extractBefore_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void extractBetween_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void eraseBetween_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void insertAfter_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void insertBefore_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void replaceBetween_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void startsWith_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void endsWith_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void strncmp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -964,6 +971,15 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("contains",   &builtin::detail::contains_reg);
     engine.registerFunction("startsWith", &builtin::detail::startsWith_reg);
     engine.registerFunction("endsWith",   &builtin::detail::endsWith_reg);
+    // Lowercase aliases for the string-between family (canonical
+    // MATLAB names are camelCase; numkit ships both for convenience).
+    engine.registerFunction("extractafter",   &builtin::detail::extractAfter_reg);
+    engine.registerFunction("extractbefore",  &builtin::detail::extractBefore_reg);
+    engine.registerFunction("extractbetween", &builtin::detail::extractBetween_reg);
+    engine.registerFunction("erasebetween",   &builtin::detail::eraseBetween_reg);
+    engine.registerFunction("insertafter",    &builtin::detail::insertAfter_reg);
+    engine.registerFunction("insertbefore",   &builtin::detail::insertBefore_reg);
+    engine.registerFunction("replacebetween", &builtin::detail::replaceBetween_reg);
     engine.registerFunction("strncmp",    &builtin::detail::strncmp_reg);
     engine.registerFunction("strncmpi",   &builtin::detail::strncmpi_reg);
     engine.registerFunction("strfind",    &builtin::detail::strfind_reg);
