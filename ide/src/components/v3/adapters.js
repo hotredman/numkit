@@ -231,7 +231,8 @@ function datasetToLayer(d, palette_idx, ctx) {
                      'bar', 'hist', 'semilogx', 'semilogy', 'loglog',
                      'errorbar', 'barh', 'area', 'quiver',
                      'plot3', 'scatter3', 'polygon',
-                     'surf', 'bar3', 'waterfall', 'fill3'];
+                     'surf', 'bar3', 'waterfall', 'fill3',
+                     'quiver3', 'contour3'];
   if (!supported.includes(t)) return null;
 
   // null is the wire-format "break" marker (JSON forbids NaN). Map it
@@ -281,6 +282,96 @@ function datasetToLayer(d, palette_idx, ctx) {
       surfaceGrid: { Xs, Ys, Z: Zmat },
       color: colorMap[t],
       width: 1,
+      size: 3,
+      opacity: 1,
+      yside: 'left',
+      fillOpacity: 1,
+    };
+  }
+
+  // quiver3 — 3-D vector field. C++ packs w[] inside the style as
+  // "wJson=[...]"; parse it back here. Each (x, y, z) is the seed,
+  // each (u, v, w) is the displacement.
+  if (t === 'quiver3') {
+    const xRaw = Array.isArray(d.x) ? d.x.map(numOrBreak) : [];
+    const yRaw = Array.isArray(d.y) ? d.y.map(numOrBreak) : [];
+    const zRaw = Array.isArray(d.z) && !Array.isArray(d.z[0])
+                 ? d.z.map(numOrBreak) : [];
+    const u    = Array.isArray(d.u) ? d.u.map(numOrBreak) : [];
+    const v    = Array.isArray(d.v) ? d.v.map(numOrBreak) : [];
+    let w = [];
+    let scale = 1;
+    if (typeof d.style === 'string') {
+      // Match wJson=[...] with greedy bracket close at the next ;
+      const wm = d.style.match(/wJson=(\[[^\]]*\])/);
+      if (wm) {
+        try { w = JSON.parse(wm[1]).map(numOrBreak); }
+        catch (e) { w = []; }
+      }
+      const sm = d.style.match(/scale=([0-9.eE+-]+)/);
+      if (sm) scale = Number(sm[1]);
+    }
+    if (!xRaw.length || !u.length) return null;
+    return {
+      kind: 'series',
+      mode: 'quiver3',
+      name: d.label || `quiver3 ${palette_idx + 1}`,
+      x: xRaw, y: yRaw,
+      xRaw, yRaw,
+      z: zRaw,
+      u, v, w,
+      scale,
+      color: '#9467bd',
+      width: 1.5,
+      size: 3,
+      opacity: 1,
+      yside: 'left',
+      fillOpacity: 1,
+    };
+  }
+
+  // contour3 — contour lines drawn at the surface height. Same wire
+  // shape as surf (Xs, Ys, Z[Nr][Nc]) plus optional levels in style.
+  if (t === 'contour3') {
+    const Xs = Array.isArray(d.x) ? d.x.map(numOrBreak) : [];
+    const Ys = Array.isArray(d.y) ? d.y.map(numOrBreak) : [];
+    const Zmat = (Array.isArray(d.z) && Array.isArray(d.z[0]))
+                 ? d.z.map((row) => row.map(numOrBreak))
+                 : null;
+    if (!Zmat || !Xs.length || !Ys.length) return null;
+    let n = 10;
+    let levels = null;
+    if (typeof d.style === 'string') {
+      const lm = d.style.match(/levels=(\[[^\]]*\])/);
+      if (lm) {
+        try { levels = JSON.parse(lm[1]).map(numOrBreak); }
+        catch (e) { levels = null; }
+      }
+      const nm = d.style.match(/n=(\d+)/);
+      if (nm) n = Number(nm[1]);
+    }
+    // Flatten for has3D detection.
+    const flatZ = [];
+    const flatX = [];
+    const flatY = [];
+    for (let r = 0; r < Ys.length; r++) {
+      for (let c = 0; c < Xs.length; c++) {
+        flatX.push(Xs[c]);
+        flatY.push(Ys[r]);
+        flatZ.push(Zmat[r] ? Zmat[r][c] : NaN);
+      }
+    }
+    return {
+      kind: 'series',
+      mode: 'contour3',
+      name: d.label || `contour3 ${palette_idx + 1}`,
+      x: flatX, y: flatY,
+      xRaw: flatX, yRaw: flatY,
+      z: flatZ,
+      surfaceGrid: { Xs, Ys, Z: Zmat },
+      levels, n,
+      color: '#1f77b4',
+      width: 1.5,
       size: 3,
       opacity: 1,
       yside: 'left',

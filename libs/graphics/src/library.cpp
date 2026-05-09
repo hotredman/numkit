@@ -1600,6 +1600,133 @@ void GraphicsLibrary::install(Engine &engine)
         reg("surface", "mesh", std::bind(surfImpl, "mesh", _1, _2, _3, _4));
     }
 
+    // quiver3(x, y, z, u, v, w[, scale]) — 3-D vector field. Each (x,
+    // y, z, u, v, w) row becomes one arrow from (x, y, z) to
+    // (x + s·u, y + s·v, z + s·w). Default scale = 1.
+    reg("line", "quiver3",
+        [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.size() < 6) { outs[0] = Value::empty(); return; }
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            DatasetInfo ds;
+            ds.type = "quiver3";
+            ds.xJson = vecToJson(args[0]);
+            ds.yJson = vecToJson(args[1]);
+            ds.zJson = vecToJson(args[2]);
+            ds.uJson = vecToJson(args[3]);
+            ds.vJson = vecToJson(args[4]);
+            // w as a separate JSON field — adapter knows about uJson +
+            // vJson (2-D quiver) so we tuck w into style as scale-style
+            // extras for now: encode as `w=[...]`. Cleaner would be a
+            // dedicated wJson field on DatasetInfo; deferred.
+            std::string wjson = vecToJson(args[5]);
+            std::ostringstream sty;
+            sty << "wJson=" << wjson;
+            if (args.size() >= 7 && args[6].numel() == 1)
+                sty << ";scale=" << args[6].toScalar();
+            ds.style = sty.str();
+            fm.pushDataset(std::move(ds));
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
+    // contour3(Z[, n|levels]) — contour lines on the surface defined
+    // by Z. Same algorithm as 2-D contour but each segment carries the
+    // Z value of the level so it can be drawn at the surface height.
+    // Wire format: type='contour3' with X, Y vectors, Z-matrix, plus
+    // a separate `levels` style key.
+    reg("surface", "contour3",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.empty()) { outs[0] = Value::empty(); return; }
+            const Value *Z_arg = nullptr;
+            const Value *levels_arg = nullptr;
+            if (args.size() == 1) Z_arg = &args[0];
+            else if (args.size() >= 2) {
+                Z_arg = &args[0];
+                levels_arg = &args[1];
+            }
+            if (!Z_arg) { outs[0] = Value::empty(); return; }
+            const size_t R = Z_arg->dims().rows();
+            const size_t C = Z_arg->dims().cols();
+            if (R < 2 || C < 2) { outs[0] = Value::empty(); return; }
+
+            std::ostringstream xs, ys, zs;
+            xs << '[';
+            for (size_t c = 0; c < C; ++c) { if (c) xs << ','; xs << (c + 1); }
+            xs << ']';
+            ys << '[';
+            for (size_t r = 0; r < R; ++r) { if (r) ys << ','; ys << (r + 1); }
+            ys << ']';
+            zs << '[';
+            for (size_t r = 0; r < R; ++r) {
+                if (r) zs << ',';
+                zs << '[';
+                for (size_t c = 0; c < C; ++c) {
+                    if (c) zs << ',';
+                    const double v = Z_arg->doubleData()[c * R + r];
+                    if (std::isfinite(v)) zs << v;
+                    else                  zs << "null";
+                }
+                zs << ']';
+            }
+            zs << ']';
+
+            std::ostringstream sty;
+            if (levels_arg) {
+                if (levels_arg->numel() == 1) {
+                    sty << "n=" << (int)levels_arg->toScalar();
+                } else {
+                    sty << "levels=[";
+                    const double *p = levels_arg->doubleData();
+                    for (size_t i = 0; i < levels_arg->numel(); ++i) {
+                        if (i) sty << ',';
+                        sty << p[i];
+                    }
+                    sty << "]";
+                }
+            }
+
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            DatasetInfo ds;
+            ds.type = "contour3";
+            ds.xJson = xs.str();
+            ds.yJson = ys.str();
+            ds.zJson = zs.str();
+            ds.style = sty.str();
+            fm.pushDataset(std::move(ds));
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
+    // surfc(Z) / meshc(Z) — surf/mesh + contour3 in a single figure.
+    // Implemented as wrappers that invoke compat.surf (or compat.mesh)
+    // followed by compat.contour3. hold on between calls so both
+    // datasets land on the same axes.
+    auto surfMeshContour = [](const char *base,
+                              Span<const Value> args, size_t nargout,
+                              Span<Value> outs, CallContext &ctx) {
+        (void)nargout;
+        const ExternalFunc *cf = ctx.engine->findExternal(base, ctx.env);
+        if (!cf) { outs[0] = Value::empty(); return; }
+        std::array<Value, 1> tmp;
+        (*cf)(args, 0, Span<Value>(tmp.data(), 1), ctx);
+        // Hold on so contour3 doesn't clear the axes.
+        ctx.engine->figureManager().currentAxes().holdOn = true;
+        const ExternalFunc *cc = ctx.engine->findExternal("contour3", ctx.env);
+        if (cc) (*cc)(args, 0, Span<Value>(tmp.data(), 1), ctx);
+        ctx.engine->figureManager().currentAxes().holdOn = false;
+        outs[0] = Value::empty();
+    };
+    reg("surface", "surfc", [surfMeshContour](Span<const Value> a, size_t n, Span<Value> o, CallContext &c) {
+        surfMeshContour("surf", a, n, o, c);
+    });
+    reg("surface", "meshc", [surfMeshContour](Span<const Value> a, size_t n, Span<Value> o, CallContext &c) {
+        surfMeshContour("mesh", a, n, o, c);
+    });
+
     // ── patch / fill — generic filled polygon ────────────────────────
     // Calling forms:
     //   patch(X, Y)             — single polygon, default fill

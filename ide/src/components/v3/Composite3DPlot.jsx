@@ -511,6 +511,139 @@ function buildPolygon3D(layer, scl, figure) {
   return new THREE.Mesh(geom, mat);
 }
 
+/**
+ * Build 3-D arrows for quiver3. Each arrow is a 2-vertex line from
+ * (x, y, z) to (x+s·u, y+s·v, z+s·w). Cone-shaped arrowheads are a
+ * follow-up; for now plain LineSegments give the right shape.
+ */
+function buildQuiver3D(layer, scl) {
+  const xs = layer.xRaw, ys = layer.yRaw, zs = layer.z;
+  const u = layer.u, v = layer.v, w = layer.w;
+  const s = Number.isFinite(layer.scale) ? layer.scale : 1;
+  const N = Math.min(xs.length, ys.length, zs.length, u.length, v.length, w.length);
+  if (N === 0) return null;
+
+  const positions = new Float32Array(N * 6);   // 2 vertices per arrow
+  for (let i = 0; i < N; i++) {
+    const xi = xs[i], yi = ys[i], zi = zs[i];
+    const ui = u[i], vi = v[i], wi = w[i];
+    if (!Number.isFinite(xi + yi + zi + ui + vi + wi)) {
+      // Skip non-finite arrow — collapse to origin.
+      for (let k = 0; k < 6; k++) positions[i * 6 + k] = 0;
+      continue;
+    }
+    const [X0, Y0, Z0] = toWorld(xi, yi, zi, scl);
+    const [X1, Y1, Z1] = toWorld(xi + s * ui, yi + s * vi, zi + s * wi, scl);
+    positions[i * 6 + 0] = X0;
+    positions[i * 6 + 1] = Y0;
+    positions[i * 6 + 2] = Z0;
+    positions[i * 6 + 3] = X1;
+    positions[i * 6 + 4] = Y1;
+    positions[i * 6 + 5] = Z1;
+  }
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const mat = new THREE.LineBasicMaterial({
+    color: new THREE.Color(layer.color || '#9467bd'),
+  });
+  return new THREE.LineSegments(geom, mat);
+}
+
+/**
+ * Build contour lines that ride on the Z-surface. Standard marching
+ * squares per cell, but each segment carries the level Z so it sits
+ * on top of the surface. levels = explicit array; otherwise n equally
+ * spaced strictly inside (zMin, zMax).
+ */
+function buildContour3D(layer, scl, bbox) {
+  const Xs = layer.surfaceGrid?.Xs || [];
+  const Ys = layer.surfaceGrid?.Ys || [];
+  const Z  = layer.surfaceGrid?.Z  || [];
+  const Nc = Xs.length, Nr = Ys.length;
+  if (Nc < 2 || Nr < 2) return null;
+
+  let zmn = Infinity, zmx = -Infinity;
+  for (let r = 0; r < Nr; r++) for (let c = 0; c < Nc; c++) {
+    const v = Z[r] ? Z[r][c] : NaN;
+    if (Number.isFinite(v)) { if (v < zmn) zmn = v; if (v > zmx) zmx = v; }
+  }
+  if (!Number.isFinite(zmn)) return null;
+
+  let levels = layer.levels;
+  if (!Array.isArray(levels) || levels.length === 0) {
+    const n = layer.n || 10;
+    const step = (zmx - zmn) / (n + 1);
+    levels = [];
+    for (let i = 1; i <= n; i++) levels.push(zmn + i * step);
+  }
+
+  const interp = (a, b, va, vb, L) => {
+    if (Math.abs(vb - va) < 1e-15) return a;
+    return a + (L - va) / (vb - va) * (b - a);
+  };
+
+  const colorAt = (t) => {
+    const h = (1 - Math.max(0, Math.min(1, t))) * 240 / 360;
+    const c = new THREE.Color();
+    c.setHSL(h, 0.6, 0.5);
+    return c;
+  };
+  const zSpan = zmx - zmn;
+  const norm = (v) => (zSpan > 0 ? (v - zmn) / zSpan : 0.5);
+
+  const positions = [];
+  const colors = [];
+  for (const L of levels) {
+    const col = colorAt(norm(L));
+    for (let r = 0; r + 1 < Nr; r++) {
+      for (let c = 0; c + 1 < Nc; c++) {
+        const vTL = Z[r][c], vTR = Z[r][c + 1];
+        const vBL = Z[r + 1][c], vBR = Z[r + 1][c + 1];
+        if (!Number.isFinite(vTL) || !Number.isFinite(vTR)
+         || !Number.isFinite(vBL) || !Number.isFinite(vBR)) continue;
+        let code = 0;
+        if (vTL > L) code |= 1;
+        if (vTR > L) code |= 2;
+        if (vBR > L) code |= 4;
+        if (vBL > L) code |= 8;
+        if (code === 0 || code === 15) continue;
+
+        const xL = Xs[c], xR = Xs[c + 1];
+        const yT = Ys[r], yB = Ys[r + 1];
+        const T  = [interp(xL, xR, vTL, vTR, L), yT, L];
+        const RE = [xR, interp(yT, yB, vTR, vBR, L), L];
+        const B  = [interp(xL, xR, vBL, vBR, L), yB, L];
+        const LE = [xL, interp(yT, yB, vTL, vBL, L), L];
+        const segs = [];
+        switch (code) {
+          case 1: case 14: segs.push([LE, T]); break;
+          case 2: case 13: segs.push([T, RE]); break;
+          case 3: case 12: segs.push([LE, RE]); break;
+          case 4: case 11: segs.push([RE, B]); break;
+          case 6: case 9:  segs.push([T, B]); break;
+          case 7: case 8:  segs.push([LE, B]); break;
+          case 5:  segs.push([LE, T], [RE, B]); break;
+          case 10: segs.push([LE, B], [T, RE]); break;
+        }
+        for (const [a, b] of segs) {
+          const [X0, Y0, Z0] = toWorld(a[0], a[1], a[2], scl);
+          const [X1, Y1, Z1] = toWorld(b[0], b[1], b[2], scl);
+          positions.push(X0, Y0, Z0, X1, Y1, Z1);
+          colors.push(col.r, col.g, col.b, col.r, col.g, col.b);
+        }
+      }
+    }
+  }
+  if (positions.length === 0) return null;
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  geom.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(colors),    3));
+  const mat = new THREE.LineBasicMaterial({ vertexColors: true });
+  return new THREE.LineSegments(geom, mat);
+}
+
 function buildPoints(positions, color, size) {
   const finite = [];
   for (let i = 0; i < positions.length; i += 3) {
@@ -889,6 +1022,16 @@ export default function Composite3DPlot({
       if (mode === 'polygon3d') {
         const mesh = buildPolygon3D(ly, scl, figure);
         if (mesh) c.layerGroup.add(mesh);
+        continue;
+      }
+      if (mode === 'quiver3') {
+        const arrows = buildQuiver3D(ly, scl);
+        if (arrows) c.layerGroup.add(arrows);
+        continue;
+      }
+      if (mode === 'contour3' && ly.surfaceGrid) {
+        const lines = buildContour3D(ly, scl, bbox);
+        if (lines) c.layerGroup.add(lines);
         continue;
       }
       const positions = buildVertices(ly.xRaw, ly.yRaw, ly.z, scl);
