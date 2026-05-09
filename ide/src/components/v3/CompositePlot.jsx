@@ -1061,6 +1061,36 @@ export default function CompositePlot({
                   </g>
                 );
               }
+              if (mode === 'polygon') {
+                // Filled polygon(s) — patch / fill / pie wedges / etc.
+                // null in x or y starts a new sub-polygon. Each sub-path
+                // is closed automatically (Z command) so the renderer
+                // doesn't depend on the user repeating the first point.
+                let d = '';
+                let inSub = false;
+                for (let i = 0; i < ly.x.length; i++) {
+                  const xv = ly.x[i], yv = ly.y[i];
+                  if (!Number.isFinite(xv) || !Number.isFinite(yv)) {
+                    if (inSub) { d += 'Z '; inSub = false; }
+                    continue;
+                  }
+                  const px = sx(xv), py = mySy(yv);
+                  d += (inSub ? 'L' : 'M') + px.toFixed(2) + ',' + py.toFixed(2) + ' ';
+                  inSub = true;
+                }
+                if (inSub) d += 'Z';
+                // fillOpacity defaults to 0.7 (slight see-through so
+                // overlapping polygons stay readable). Caller can tune
+                // via ly.fillOpacity.
+                const fa = Number.isFinite(ly.fillOpacity) ? ly.fillOpacity : 0.7;
+                return (
+                  <g key={`ly${idx}`} opacity={op}>
+                    <path d={d} fill={ly.color} fillOpacity={fa}
+                      stroke={ly.color} strokeWidth={Math.max(0.5, w * 0.6)}
+                      strokeLinejoin="round" strokeLinecap="round" />
+                  </g>
+                );
+              }
               if (mode === 'barh') {
                 // Horizontal bars. Adapter has already swapped the
                 // engine's xJson/yJson so `ly.y` holds positions

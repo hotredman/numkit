@@ -23,6 +23,7 @@
 #include <functional>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <sstream>
 #include <utility>
 #include <vector>
@@ -1553,6 +1554,142 @@ void GraphicsLibrary::install(Engine &engine)
     };
     reg("surface", "surf", surfImpl);
     reg("surface", "mesh", surfImpl);
+
+    // ── patch / fill — generic filled polygon ────────────────────────
+    // Calling forms:
+    //   patch(X, Y)             — single polygon, default fill
+    //   patch(X, Y, C)          — C is a colour spec ('r', '#ff8800',
+    //                              [r g b] triplet 0..1)
+    //   patch(X, Y, C, 'EdgeColor', '...')   — N-V pairs (subset)
+    // X and Y may be column-vectors (one polygon) or matrices (one
+    // polygon per column). For matrix inputs we serialise polygons
+    // separated by null markers in the wire JSON; the renderer breaks
+    // sub-paths on null and closes each.
+    auto patchImpl = [](Span<const Value> args, size_t nargout,
+                        Span<Value> outs, CallContext &ctx) {
+        (void)nargout;
+        if (args.size() < 2) { outs[0] = Value::empty(); return; }
+        const auto &X = args[0];
+        const auto &Y = args[1];
+        const size_t R = X.dims().rows();
+        const size_t C = std::max<size_t>(1, X.dims().cols());
+        if (R == 0) { outs[0] = Value::empty(); return; }
+        if (Y.dims().rows() != R || std::max<size_t>(1, Y.dims().cols()) != C) {
+            outs[0] = Value::empty();
+            return;
+        }
+
+        std::ostringstream xs, ys;
+        xs << '['; ys << '[';
+        for (size_t c = 0; c < C; ++c) {
+            if (c > 0) { xs << ",null,"; ys << ",null,"; }
+            for (size_t r = 0; r < R; ++r) {
+                if (r > 0) { xs << ','; ys << ','; }
+                xs << X.doubleData()[c * R + r];
+                ys << Y.doubleData()[c * R + r];
+            }
+        }
+        xs << ']'; ys << ']';
+
+        // Color: 3rd arg accepts a single-char colour, "#rrggbb",
+        // or a 3-element [r g b] vector with values in [0, 1].
+        std::string color = "#1f77b4";
+        if (args.size() >= 3) {
+            const auto &Carg = args[2];
+            if (Carg.isChar()) {
+                std::string s = Carg.toString();
+                if (!s.empty()) {
+                    static const std::map<char, const char*> kShort = {
+                        {'r', "#d62728"}, {'g', "#2ca02c"}, {'b', "#1f77b4"},
+                        {'y', "#ffd700"}, {'m', "#bf40bf"}, {'c', "#17becf"},
+                        {'k', "#000000"}, {'w', "#ffffff"},
+                    };
+                    if (s.size() == 1) {
+                        auto it = kShort.find(s[0]);
+                        if (it != kShort.end()) color = it->second;
+                    } else if (s.size() >= 4 && s[0] == '#') {
+                        color = s;
+                    }
+                }
+            } else if (Carg.numel() >= 3) {
+                const int r = (int)std::round(255 * std::clamp(Carg.doubleData()[0], 0.0, 1.0));
+                const int g = (int)std::round(255 * std::clamp(Carg.doubleData()[1], 0.0, 1.0));
+                const int b = (int)std::round(255 * std::clamp(Carg.doubleData()[2], 0.0, 1.0));
+                char buf[16];
+                std::snprintf(buf, sizeof buf, "#%02x%02x%02x", r, g, b);
+                color = buf;
+            }
+        }
+
+        auto &fm = ctx.engine->figureManager();
+        fm.prepareForPlot();
+        DatasetInfo ds;
+        ds.type = "polygon";
+        ds.xJson = xs.str();
+        ds.yJson = ys.str();
+        std::ostringstream sty;
+        sty << "color=" << color << ";fillOpacity=0.7";
+        ds.style = sty.str();
+        fm.pushDataset(std::move(ds));
+        fm.emitModified();
+        outs[0] = Value::empty();
+    };
+    reg("bar", "patch", patchImpl);
+    reg("bar", "fill",  patchImpl);
+
+    // fill3(X, Y, Z[, C]) — same body but the (x, y, z) vertices go
+    // through cabinet projection. We simulate it by pre-collapsing
+    // (x_i, y_i, z_i) into 2-D screen-space here on the C++ side so
+    // the existing polygon renderer doesn't need to know about Z.
+    reg("bar", "fill3",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.size() < 3) { outs[0] = Value::empty(); return; }
+            const auto &X = args[0], &Y = args[1], &Z = args[2];
+            const size_t R = X.dims().rows();
+            const size_t C = std::max<size_t>(1, X.dims().cols());
+            if (R == 0) { outs[0] = Value::empty(); return; }
+            if (Y.dims().rows() != R || Z.dims().rows() != R) {
+                outs[0] = Value::empty(); return;
+            }
+            const double zScale = 0.5;
+            const double cosA = std::cos(3.14159265358979323846 / 6);
+            const double sinA = std::sin(3.14159265358979323846 / 6);
+
+            std::ostringstream xs, ys;
+            xs << '['; ys << '[';
+            for (size_t c = 0; c < C; ++c) {
+                if (c > 0) { xs << ",null,"; ys << ",null,"; }
+                for (size_t r = 0; r < R; ++r) {
+                    if (r > 0) { xs << ','; ys << ','; }
+                    const double x = X.doubleData()[c * R + r];
+                    const double y = Y.doubleData()[c * R + r];
+                    const double z = Z.doubleData()[c * R + r];
+                    xs << (x + z * zScale * cosA);
+                    ys << (y + z * zScale * sinA);
+                }
+            }
+            xs << ']'; ys << ']';
+
+            std::string color = "#9467bd";
+            if (args.size() >= 4 && args[3].isChar()) {
+                std::string s = args[3].toString();
+                if (s.size() >= 4 && s[0] == '#') color = s;
+            }
+
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            DatasetInfo ds;
+            ds.type = "polygon";
+            ds.xJson = xs.str();
+            ds.yJson = ys.str();
+            std::ostringstream sty;
+            sty << "color=" << color << ";fillOpacity=0.7";
+            ds.style = sty.str();
+            fm.pushDataset(std::move(ds));
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
 
     // ── Function-based plots (fplot / fcontour / fsurf / fmesh) ─────
     // Eval the user's function-handle on a sampled grid in C++ and

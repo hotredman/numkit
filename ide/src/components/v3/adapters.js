@@ -31,6 +31,7 @@ function parseLineSpec(s) {
       if (key === 'color') out.color = val;
       else if (key === 'lineWidth' || key === 'linewidth') out.lineWidth = Number(val);
       else if (key === 'fontSize' || key === 'fontsize') out.fontSize = Number(val);
+      else if (key === 'fillOpacity' || key === 'fillopacity') out.fillOpacity = Number(val);
     }
   }
   if (!out.color) {
@@ -229,7 +230,7 @@ function datasetToLayer(d, palette_idx, ctx) {
   const supported = ['line', 'plot', 'scatter', 'stem', 'stairs',
                      'bar', 'hist', 'semilogx', 'semilogy', 'loglog',
                      'errorbar', 'barh', 'area', 'quiver',
-                     'plot3', 'scatter3'];
+                     'plot3', 'scatter3', 'polygon'];
   if (!supported.includes(t)) return null;
   // null is the wire-format "break" marker (JSON forbids NaN). Map it
   // back to NaN here so the line renderer's Number.isFinite() check
@@ -247,6 +248,7 @@ function datasetToLayer(d, palette_idx, ctx) {
   else if (t === 'errorbar') mode = 'errorbar';
   else if (t === 'area') mode = 'area';
   else if (t === 'quiver') mode = 'quiver';
+  else if (t === 'polygon') mode = 'polygon';
   else if (t === 'plot3') mode = 'line';
   else if (t === 'scatter3') mode = 'scatter';
 
@@ -292,6 +294,9 @@ function datasetToLayer(d, palette_idx, ctx) {
     // single-axis figures, never serialised then. Renderer picks sy or
     // sy2 based on this.
     yside: d.yside || 'left',
+    // Polygon fill opacity (mode='polygon'). Driven by the styleObj
+    // 'fillOpacity' key parsed from the engine's style string.
+    fillOpacity: styleObj.fillOpacity != null ? styleObj.fillOpacity : 0.7,
   };
 
   // Errorbar bounds — symmetric (e) or asymmetric (eNeg/ePos). The
