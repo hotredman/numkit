@@ -1554,6 +1554,166 @@ void GraphicsLibrary::install(Engine &engine)
     reg("surface", "surf", surfImpl);
     reg("surface", "mesh", surfImpl);
 
+    // ── Function-based plots (fplot / fcontour / fsurf / fmesh) ─────
+    // Eval the user's function-handle on a sampled grid in C++ and
+    // route the resulting matrices through the existing 2-D / 3-D
+    // pipelines. Engine::callFunctionHandle works on both backends
+    // (TW + VM) so the same body services either scripts.
+    auto fplotImpl = [](Span<const Value> args, size_t nargout,
+                        Span<Value> outs, CallContext &ctx) {
+        (void)nargout;
+        if (args.empty() || !args[0].isFuncHandle()) {
+            outs[0] = Value::empty();
+            return;
+        }
+        const Value &fh = args[0];
+        double a = -5, b = 5;
+        if (args.size() >= 2 && args[1].numel() >= 2) {
+            a = args[1].doubleData()[0];
+            b = args[1].doubleData()[1];
+        }
+        const int N = 200;
+        auto *mr = ctx.engine->resource();
+
+        std::ostringstream xs, ys;
+        xs << '['; ys << '[';
+        for (int i = 0; i < N; ++i) {
+            const double x = a + (b - a) * i / (double)(N - 1);
+            Value xv = Value::scalar(x, mr);
+            std::array<Value, 1> argv{ xv };
+            Value res;
+            try {
+                res = ctx.engine->callFunctionHandle(fh,
+                    Span<const Value>(argv.data(), 1));
+            } catch (...) {
+                continue;       // f(x) blew up at this sample; skip
+            }
+            const double y = std::isfinite(res.toScalar()) ? res.toScalar()
+                                                           : std::nan("");
+            if (i) { xs << ','; ys << ','; }
+            xs << x;
+            if (std::isfinite(y)) ys << y;
+            else                   ys << "null";
+        }
+        xs << ']'; ys << ']';
+
+        auto &fm = ctx.engine->figureManager();
+        fm.prepareForPlot();
+        DatasetInfo ds;
+        ds.type = "line";
+        ds.xJson = xs.str();
+        ds.yJson = ys.str();
+        ds.style = "color=#1f77b4";
+        fm.pushDataset(std::move(ds));
+        fm.emitModified();
+        outs[0] = Value::empty();
+    };
+    reg("line", "fplot", fplotImpl);
+
+    // fcontour / fsurf / fmesh — sample f(x, y) on a grid then route
+    // through the existing contour / surf paths. We stitch a Z matrix
+    // value via Value::matrix and proxy the call.
+    auto sampleGrid = [](const Value &fh, double xa, double xb,
+                          double ya, double yb, int N,
+                          CallContext &ctx) {
+        auto *mr = ctx.engine->resource();
+        Value Z = Value::matrix((size_t)N, (size_t)N, ValueType::DOUBLE, mr);
+        for (int i = 0; i < N; ++i) {
+            const double y = ya + (yb - ya) * i / (double)(N - 1);
+            for (int j = 0; j < N; ++j) {
+                const double x = xa + (xb - xa) * j / (double)(N - 1);
+                Value xv = Value::scalar(x, mr);
+                Value yv = Value::scalar(y, mr);
+                std::array<Value, 2> argv{ xv, yv };
+                double r = std::nan("");
+                try {
+                    Value res = ctx.engine->callFunctionHandle(fh,
+                        Span<const Value>(argv.data(), 2));
+                    r = res.toScalar();
+                } catch (...) { /* leave as nan */ }
+                Z.doubleDataMut()[(size_t)j * (size_t)N + (size_t)i] = r;
+            }
+        }
+        return Z;
+    };
+
+    reg("line", "fcontour",
+        [sampleGrid](Span<const Value> args, size_t nargout,
+                     Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.empty() || !args[0].isFuncHandle()) {
+                outs[0] = Value::empty();
+                return;
+            }
+            double xa = -5, xb = 5, ya = -5, yb = 5;
+            if (args.size() >= 2 && args[1].numel() >= 4) {
+                xa = args[1].doubleData()[0];
+                xb = args[1].doubleData()[1];
+                ya = args[1].doubleData()[2];
+                yb = args[1].doubleData()[3];
+            } else if (args.size() >= 2 && args[1].numel() >= 2) {
+                xa = args[1].doubleData()[0];
+                xb = args[1].doubleData()[1];
+                ya = xa; yb = xb;
+            }
+            const int N = 30;
+            auto *mr = ctx.engine->resource();
+            Value Z = sampleGrid(args[0], xa, xb, ya, yb, N, ctx);
+            Value Xv = Value::matrix(1, (size_t)N, ValueType::DOUBLE, mr);
+            Value Yv = Value::matrix(1, (size_t)N, ValueType::DOUBLE, mr);
+            for (int j = 0; j < N; ++j)
+                Xv.doubleDataMut()[j] = xa + (xb - xa) * j / (double)(N - 1);
+            for (int i = 0; i < N; ++i)
+                Yv.doubleDataMut()[i] = ya + (yb - ya) * i / (double)(N - 1);
+            // Forward to the engine-registered `contour` builtin so the
+            // marching-squares body is reused as-is.
+            std::array<Value, 3> proxied{ Xv, Yv, Z };
+            std::array<Value, 1> outBuf;
+            const ExternalFunc *cf = ctx.engine->findExternal("contour", ctx.env);
+            if (!cf) { outs[0] = Value::empty(); return; }
+            (*cf)(Span<const Value>(proxied.data(), 3), 0,
+                  Span<Value>(outBuf.data(), 1), ctx);
+            outs[0] = Value::empty();
+        });
+
+    auto fSurfMeshImpl = [sampleGrid](Span<const Value> args, size_t nargout,
+                                      Span<Value> outs, CallContext &ctx) {
+        (void)nargout;
+        if (args.empty() || !args[0].isFuncHandle()) {
+            outs[0] = Value::empty();
+            return;
+        }
+        double xa = -5, xb = 5, ya = -5, yb = 5;
+        if (args.size() >= 2 && args[1].numel() >= 4) {
+            xa = args[1].doubleData()[0];
+            xb = args[1].doubleData()[1];
+            ya = args[1].doubleData()[2];
+            yb = args[1].doubleData()[3];
+        } else if (args.size() >= 2 && args[1].numel() >= 2) {
+            xa = args[1].doubleData()[0];
+            xb = args[1].doubleData()[1];
+            ya = xa; yb = xb;
+        }
+        const int N = 30;
+        auto *mr = ctx.engine->resource();
+        Value Z = sampleGrid(args[0], xa, xb, ya, yb, N, ctx);
+        Value Xv = Value::matrix(1, (size_t)N, ValueType::DOUBLE, mr);
+        Value Yv = Value::matrix(1, (size_t)N, ValueType::DOUBLE, mr);
+        for (int j = 0; j < N; ++j)
+            Xv.doubleDataMut()[j] = xa + (xb - xa) * j / (double)(N - 1);
+        for (int i = 0; i < N; ++i)
+            Yv.doubleDataMut()[i] = ya + (yb - ya) * i / (double)(N - 1);
+        std::array<Value, 3> proxied{ Xv, Yv, Z };
+        std::array<Value, 1> outBuf;
+        const ExternalFunc *cf = ctx.engine->findExternal("surf", ctx.env);
+        if (!cf) { outs[0] = Value::empty(); return; }
+        (*cf)(Span<const Value>(proxied.data(), 3), 0,
+              Span<Value>(outBuf.data(), 1), ctx);
+        outs[0] = Value::empty();
+    };
+    reg("line", "fsurf", fSurfMeshImpl);
+    reg("line", "fmesh", fSurfMeshImpl);
+
     // ── Streamlines — RK4 integration over a 2-D vector field ────────
     //   streamline(X, Y, U, V, sx, sy)    — explicit seed points
     //   streamslice(X, Y, U, V)           — auto 5×5 seed grid
