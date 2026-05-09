@@ -185,6 +185,103 @@ function buildLineSegments(positions, color) {
   return group;
 }
 
+/**
+ * Build a face-shaded surface mesh from a regular grid (Xs[Nc],
+ * Ys[Nr], Z[Nr][Nc]). Each (i, j) cell becomes two triangles whose
+ * vertices carry per-vertex colors sampled from a viridis-like ramp
+ * by Z. Lambert lighting comes from MeshLambertMaterial + the
+ * directional light already in the scene.
+ *
+ * Cells with any non-finite corner are skipped so NaN data leaves
+ * a "hole" in the surface instead of stretching a triangle through
+ * garbage.
+ */
+function buildSurfaceMesh(grid, scl, bbox) {
+  const Xs = grid.Xs, Ys = grid.Ys, Z = grid.Z;
+  const Nc = Xs.length, Nr = Ys.length;
+  if (Nc < 2 || Nr < 2) return null;
+
+  // Viridis-ish: blue → cyan → green → yellow → red ramp via HSL
+  // (240° hue at zMin, 0° at zMax). Cheap and good enough — a real
+  // LUT swap is a follow-up.
+  const colorAt = (t) => {
+    const h = (1 - Math.max(0, Math.min(1, t))) * 240 / 360;
+    const c = new THREE.Color();
+    c.setHSL(h, 0.6, 0.5);
+    return c;
+  };
+  const zSpan = bbox.zMax - bbox.zMin;
+  const norm = (v) => (zSpan > 0 ? (v - bbox.zMin) / zSpan : 0.5);
+
+  const vertCount = Nr * Nc;
+  const positions = new Float32Array(vertCount * 3);
+  const colors    = new Float32Array(vertCount * 3);
+  for (let r = 0; r < Nr; r++) {
+    for (let c = 0; c < Nc; c++) {
+      const idx = r * Nc + c;
+      const xv = Xs[c], yv = Ys[r], zv = Z[r] ? Z[r][c] : NaN;
+      const finite = Number.isFinite(xv) && Number.isFinite(yv)
+                  && Number.isFinite(zv);
+      if (finite) {
+        const [X, Y, Zw] = toWorld(xv, yv, zv, scl);
+        positions[idx * 3 + 0] = X;
+        positions[idx * 3 + 1] = Y;
+        positions[idx * 3 + 2] = Zw;
+        const col = colorAt(norm(zv));
+        colors[idx * 3 + 0] = col.r;
+        colors[idx * 3 + 1] = col.g;
+        colors[idx * 3 + 2] = col.b;
+      } else {
+        // Mark as NaN — used to skip triangles that touch this vertex.
+        positions[idx * 3 + 0] = NaN;
+        positions[idx * 3 + 1] = NaN;
+        positions[idx * 3 + 2] = NaN;
+        colors[idx * 3 + 0] = 0;
+        colors[idx * 3 + 1] = 0;
+        colors[idx * 3 + 2] = 0;
+      }
+    }
+  }
+
+  // Index buffer: two triangles per cell, skipped if any corner NaN.
+  const indices = [];
+  const isFinite3 = (i) => Number.isFinite(positions[i * 3])
+                        && Number.isFinite(positions[i * 3 + 1])
+                        && Number.isFinite(positions[i * 3 + 2]);
+  for (let r = 0; r < Nr - 1; r++) {
+    for (let c = 0; c < Nc - 1; c++) {
+      const a = r * Nc + c;
+      const b = a + 1;
+      const cIdx = a + Nc;
+      const dIdx = cIdx + 1;
+      if (!isFinite3(a) || !isFinite3(b) || !isFinite3(cIdx) || !isFinite3(dIdx))
+        continue;
+      indices.push(a, b, dIdx, a, dIdx, cIdx);
+    }
+  }
+  if (indices.length === 0) return null;
+
+  // Replace any leftover NaN positions with origin so three doesn't
+  // fold the bounding sphere; triangles touching them are already
+  // excluded above.
+  for (let i = 0; i < positions.length; i++) {
+    if (!Number.isFinite(positions[i])) positions[i] = 0;
+  }
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geom.setAttribute('color',    new THREE.BufferAttribute(colors,    3));
+  geom.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
+  geom.computeVertexNormals();
+
+  const mat = new THREE.MeshLambertMaterial({
+    vertexColors: true,
+    side: THREE.DoubleSide,
+    flatShading: false,
+  });
+  return new THREE.Mesh(geom, mat);
+}
+
 function buildPoints(positions, color, size) {
   const finite = [];
   for (let i = 0; i < positions.length; i += 3) {
@@ -520,9 +617,14 @@ export default function Composite3DPlot({
 
     // Data layers.
     for (const ly of layers) {
+      const mode = ly.mode || 'line';
+      if (mode === 'surface' && ly.surfaceGrid) {
+        const mesh = buildSurfaceMesh(ly.surfaceGrid, scl, bbox);
+        if (mesh) c.layerGroup.add(mesh);
+        continue;
+      }
       const positions = buildVertices(ly.xRaw, ly.yRaw, ly.z, scl);
       const color = new THREE.Color(ly.color || '#1f77b4');
-      const mode = ly.mode || 'line';
       if (mode === 'scatter') {
         const pts = buildPoints(positions, color, ly.size || 3);
         if (pts) c.layerGroup.add(pts);
