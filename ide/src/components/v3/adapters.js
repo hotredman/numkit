@@ -696,6 +696,10 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
       lighting: cfg.lighting || '',
       material: cfg.material || '',
       camlight: cfg.camlight || '',
+      // Interaction toggles. '' = default (all enabled).
+      rotate3d: cfg.rotate3d || '',
+      pan3d: cfg.pan3d || '',
+      zoom3d: cfg.zoom3d || '',
       layers,
     };
   }

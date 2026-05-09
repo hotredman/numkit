@@ -3378,6 +3378,36 @@ void GraphicsLibrary::install(Engine &engine)
             outs[0] = Value::empty();
         });
 
+    // rotate3d / pan3d / zoom3d (on|off) — toggle the OrbitControls
+    // axis-of-interaction for the 3-D renderer. MATLAB also accepts
+    // these as no-arg toggles but the e2e parity tests pass strings.
+    auto interactionToggle = [](std::string AxesState::*field,
+                                Span<const Value> args, Span<Value> outs,
+                                CallContext &ctx) {
+        std::string mode = "on";
+        if (!args.empty() && args[0].isChar()) {
+            std::string s = args[0].toString();
+            for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+            if (s == "on" || s == "off") mode = s;
+        }
+        ctx.engine->figureManager().currentAxes().*field = mode;
+        ctx.engine->figureManager().current().modified = true;
+        ctx.engine->figureManager().emitModified();
+        outs[0] = Value::empty();
+    };
+    reg("layout", "rotate3d",
+        [interactionToggle](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
+            interactionToggle(&AxesState::rotate3dMode, a, o, c);
+        });
+    reg("layout", "pan3d",
+        [interactionToggle](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
+            interactionToggle(&AxesState::pan3dMode, a, o, c);
+        });
+    reg("layout", "zoom3d",
+        [interactionToggle](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
+            interactionToggle(&AxesState::zoom3dMode, a, o, c);
+        });
+
     reg("layout", "axes", noop_ret1);
     reg("layout", "gca", noop_ret1);
     reg("layout", "gcf", noop_ret1);
