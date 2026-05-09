@@ -22,6 +22,11 @@ export default defineConfig({
     },
   },
   assetsInclude: ['**/*.wasm'],
+  // Worker bundling format. Default is IIFE which doesn't support
+  // ES `import` — our temporary-worker.js imports sab-protocol.js,
+  // so we need module-format workers (Chromium / Electron 33 support
+  // them natively).
+  worker: { format: 'es' },
   optimizeDeps: {
     exclude: ['numkit_ide'],
   },
