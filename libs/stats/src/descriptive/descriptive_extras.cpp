@@ -294,6 +294,144 @@ Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
         }, mr);
 }
 
+// ── partialcorr (regress-out + correlate) ───────────────────────────
+
+Value partialcorr_of(std::pmr::memory_resource *mr,
+                     const Value &X, const Value &Y, const Value &Z)
+{
+    if (X.dims().ndim() != 2 || Y.dims().ndim() != 2 || Z.dims().ndim() != 2)
+        throw Error("partialcorr: X, Y, Z must be 2D matrices",
+                    0, 0, "partialcorr", "", "m:partialcorr:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(X.dims().dim(0));
+    const std::size_t mY = static_cast<std::size_t>(Y.dims().dim(0));
+    const std::size_t mZ = static_cast<std::size_t>(Z.dims().dim(0));
+    if (mY != m || mZ != m)
+        throw Error("partialcorr: X, Y, Z must have the same number of rows",
+                    0, 0, "partialcorr", "", "m:partialcorr:dimMismatch");
+    const std::size_t pX = static_cast<std::size_t>(X.dims().dim(1));
+    const std::size_t pY = static_cast<std::size_t>(Y.dims().dim(1));
+    const std::size_t pZ = static_cast<std::size_t>(Z.dims().dim(1));
+
+    // Augment Z with intercept column (column of ones) for proper regression.
+    // Z_full is m × (pZ + 1).
+    ScratchArena scratch(mr);
+    const std::size_t pZ1 = pZ + 1;
+    ScratchVec<double> Zf(m * pZ1, &scratch);
+    for (std::size_t i = 0; i < m; ++i) Zf[i + 0 * m] = 1.0;  // intercept
+    const double *Zd = Z.doubleData();
+    for (std::size_t j = 0; j < pZ; ++j)
+        for (std::size_t i = 0; i < m; ++i)
+            Zf[i + (j + 1) * m] = Zd[i + j * m];
+
+    // Compute Zf' * Zf and its LU once.
+    // M = Zf' * Zf  (pZ1 × pZ1).
+    ScratchVec<double> M(pZ1 * pZ1, 0.0, &scratch);
+    for (std::size_t i = 0; i < pZ1; ++i)
+        for (std::size_t j = 0; j < pZ1; ++j) {
+            double s = 0.0;
+            for (std::size_t k = 0; k < m; ++k)
+                s += Zf[k + i * m] * Zf[k + j * m];
+            M[i + j * pZ1] = s;
+        }
+
+    auto regressOut = [&](const Value &W) -> std::vector<double> {
+        const std::size_t p = static_cast<std::size_t>(W.dims().dim(1));
+        const double *Wd = W.doubleData();
+        std::vector<double> Res(m * p, 0.0);
+        // For each column of W:
+        for (std::size_t col = 0; col < p; ++col) {
+            // b = Zf' * W(:, col)   (pZ1)
+            std::vector<double> b(pZ1, 0.0);
+            for (std::size_t i = 0; i < pZ1; ++i)
+                for (std::size_t k = 0; k < m; ++k)
+                    b[i] += Zf[k + i * m] * Wd[k + col * m];
+            // Solve M * coef = b via inline Gaussian elimination.
+            std::vector<double> Mcopy(M.begin(), M.end());
+            std::vector<double> coef = b;  // will be overwritten in-place
+            bool singular = false;
+            for (std::size_t kc = 0; kc < pZ1 && !singular; ++kc) {
+                // Pivot.
+                std::size_t piv = kc;
+                double pmax = std::fabs(Mcopy[kc + kc * pZ1]);
+                for (std::size_t r = kc + 1; r < pZ1; ++r) {
+                    const double v = std::fabs(Mcopy[r + kc * pZ1]);
+                    if (v > pmax) { pmax = v; piv = r; }
+                }
+                if (pmax == 0.0) { singular = true; break; }
+                if (piv != kc) {
+                    for (std::size_t j = 0; j < pZ1; ++j)
+                        std::swap(Mcopy[kc + j * pZ1], Mcopy[piv + j * pZ1]);
+                    std::swap(coef[kc], coef[piv]);
+                }
+                const double pivVal = Mcopy[kc + kc * pZ1];
+                for (std::size_t r = kc + 1; r < pZ1; ++r) {
+                    const double f = Mcopy[r + kc * pZ1] / pivVal;
+                    for (std::size_t j = kc; j < pZ1; ++j)
+                        Mcopy[r + j * pZ1] -= f * Mcopy[kc + j * pZ1];
+                    coef[r] -= f * coef[kc];
+                }
+            }
+            if (singular) {
+                std::fill(coef.begin(), coef.end(), 0.0);
+            } else {
+                // Back-substitute.
+                for (std::size_t kk = pZ1; kk-- > 0;) {
+                    double s = coef[kk];
+                    for (std::size_t j = kk + 1; j < pZ1; ++j)
+                        s -= Mcopy[kk + j * pZ1] * coef[j];
+                    coef[kk] = s / Mcopy[kk + kk * pZ1];
+                }
+            }
+            // Residual: W(:, col) - Zf * coef
+            for (std::size_t i = 0; i < m; ++i) {
+                double pred = 0.0;
+                for (std::size_t j = 0; j < pZ1; ++j)
+                    pred += Zf[i + j * m] * coef[j];
+                Res[i + col * m] = Wd[i + col * m] - pred;
+            }
+        }
+        return Res;
+    };
+
+    // Build residual matrices.
+    auto Xres_data = regressOut(X);
+    auto Yres_data = regressOut(Y);
+
+    // Compute correlation matrix between Xres (m×pX) and Yres (m×pY).
+    // R[i, j] = corr(Xres(:,i), Yres(:,j)) = cov / (std_x * std_y).
+    auto Rout = Value::matrix(pX, pY, ValueType::DOUBLE, mr);
+    double *R = Rout.doubleDataMut();
+
+    auto colMean = [&](const std::vector<double> &v, std::size_t col) {
+        double s = 0.0;
+        for (std::size_t i = 0; i < m; ++i) s += v[i + col * m];
+        return s / static_cast<double>(m);
+    };
+    auto colStd = [&](const std::vector<double> &v, std::size_t col, double mean) {
+        double s = 0.0;
+        for (std::size_t i = 0; i < m; ++i) {
+            const double d = v[i + col * m] - mean;
+            s += d * d;
+        }
+        return std::sqrt(s / static_cast<double>(m - 1));
+    };
+
+    for (std::size_t i = 0; i < pX; ++i) {
+        const double mx = colMean(Xres_data, i);
+        const double sx = colStd(Xres_data, i, mx);
+        for (std::size_t j = 0; j < pY; ++j) {
+            const double my = colMean(Yres_data, j);
+            const double sy = colStd(Yres_data, j, my);
+            double cov = 0.0;
+            for (std::size_t k = 0; k < m; ++k)
+                cov += (Xres_data[k + i * m] - mx) * (Yres_data[k + j * m] - my);
+            cov /= static_cast<double>(m - 1);
+            R[i + j * pX] = (sx > 0.0 && sy > 0.0) ? cov / (sx * sy) : std::nan("");
+        }
+    }
+    return Rout;
+}
+
 // ── corr (Pearson alias) ─────────────────────────────────────────────
 
 Value corr_xx(std::pmr::memory_resource *mr, const Value &X)
@@ -1547,6 +1685,16 @@ void ecdfhist_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     auto [n, c] = ecdfhist(ctx.engine->resource(), args[0], args[1], m);
     outs[0] = std::move(n);
     if (nargout > 1) outs[1] = std::move(c);
+}
+
+// ── partialcorr adapter ──────────────────────────────────────────────
+
+void partialcorr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 3)
+        throw Error("partialcorr: requires (X, Y, Z)",
+                    0, 0, "partialcorr", "", "m:partialcorr:nargin");
+    outs[0] = partialcorr_of(ctx.engine->resource(), args[0], args[1], args[2]);
 }
 
 // ── corr / detrend adapters ──────────────────────────────────────────

@@ -2861,7 +2861,7 @@ intentionally omitted — flat solver functions only.
 | `mad` | ❌ | 0.003 | 925.54× | 194.53× | OK | Sig: mad(x[, flag][, dim]). Mean (flag=0) or median (flag=1) absolute deviation. |
 | `moment` | ❌ | 0.004 | 81.88× | 174.98× | OK | Sig: m = moment(x, k[, dim]). Central k-th moment: mean((x - mean(x))^k). |
 | `nearcorr` | ❌ |  |  |  |  | nearest correlation matrix |
-| `partialcorr` | ❌ |  |  |  |  |  |
+| `partialcorr` | ❌ | 0.005 | 855.11× |  | OK | Sig: r = partialcorr(X, Y, Z). Pearson partial correlation controlling for Z. Bit-identical with MATLAB R2025b on probed deterministic data. |
 | `partialcorri` | ❌ |  |  |  |  | with internal vars |
 | `range` | ❌ | 0.005 | 85.15× | 17.08× | OK | Sig: r = range(x[, dim]). max - min along dim. Bit-identical with MATLAB R2025b. |
 | `robustcov` | ❌ |  |  |  |  | robust covariance estimator (FAST-MCD) |
