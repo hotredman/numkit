@@ -14,11 +14,20 @@ struct DatasetInfo
     std::string xJson;
     std::string yJson;
     std::string zJson;     // 2D matrix for imagesc, e.g. [[1,2],[3,4]]
-    std::string type;      // "line", "bar", "scatter", "stem", "stairs", "imagesc"
+    std::string type;      // "line", "bar", "scatter", "stem", "stairs", "imagesc", "errorbar", …
     std::string label;     // for legend
     std::string style;     // MATLAB style hint, e.g. "r--o", "b:", "g-."
     double lineWidth = 0;  // 0 = default
     double markerSize = 0; // 0 = default
+
+    // ── Errorbar — symmetric (eJson) or asymmetric (eNegJson + ePosJson) ──
+    // For symmetric: errorbar(x, y, e) → eJson is non-empty, eNeg/ePos empty.
+    // For asymmetric: errorbar(x, y, neg, pos) → eNegJson + ePosJson non-empty.
+    // The renderer derives bar bounds as y - eNeg .. y + ePos (with eJson
+    // doubled-up when symmetric). Empty for non-errorbar datasets.
+    std::string eJson;
+    std::string eNegJson;
+    std::string ePosJson;
 
     // ── Imagesc storage (uint8 quantized) ──────────────────────────────
     // Display path is fundamentally indexed: each pixel is a colormap
@@ -261,6 +270,12 @@ public:
                         os << ",\"lineWidth\":" << ds.lineWidth;
                     if (ds.markerSize > 0)
                         os << ",\"markerSize\":" << ds.markerSize;
+                    if (!ds.eJson.empty())
+                        os << ",\"e\":" << ds.eJson;
+                    if (!ds.eNegJson.empty())
+                        os << ",\"eNeg\":" << ds.eNegJson;
+                    if (!ds.ePosJson.empty())
+                        os << ",\"ePos\":" << ds.ePosJson;
                     if (!ds.zJson.empty())
                         os << ",\"z\":" << ds.zJson;
                     if (!ds.zQuantized.empty()) {

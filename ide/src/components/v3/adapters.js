@@ -206,7 +206,8 @@ function datasetToLayer(d, palette_idx, ctx) {
   }
 
   const supported = ['line', 'plot', 'scatter', 'stem', 'stairs',
-                     'bar', 'hist', 'semilogx', 'semilogy', 'loglog'];
+                     'bar', 'hist', 'semilogx', 'semilogy', 'loglog',
+                     'errorbar'];
   if (!supported.includes(t)) return null;
   const x = Array.isArray(d.x) ? d.x.map(Number) : [];
   const y = Array.isArray(d.y) ? d.y.map(Number) : [];
@@ -215,7 +216,9 @@ function datasetToLayer(d, palette_idx, ctx) {
   else if (t === 'stem') mode = 'stem';
   else if (t === 'bar' || t === 'hist') mode = 'bar';
   else if (t === 'stairs') mode = 'stairs';
-  return {
+  else if (t === 'errorbar') mode = 'errorbar';
+
+  const layer = {
     kind: 'series',
     mode,
     name: d.label || `series ${palette_idx + 1}`,
@@ -225,6 +228,19 @@ function datasetToLayer(d, palette_idx, ctx) {
     size:  d.markerSize || styleObj.markerSize || 3,
     opacity: d.style?.opacity ?? 1,
   };
+
+  // Errorbar bounds — symmetric (e) or asymmetric (eNeg/ePos). The
+  // renderer derives bar limits as y-eNeg .. y+ePos with eJson
+  // doubled-up when symmetric.
+  if (t === 'errorbar') {
+    const e    = Array.isArray(d.e)    ? d.e.map(Number)    : null;
+    const eNeg = Array.isArray(d.eNeg) ? d.eNeg.map(Number) : null;
+    const ePos = Array.isArray(d.ePos) ? d.ePos.map(Number) : null;
+    layer.eNeg = eNeg || e || [];
+    layer.ePos = ePos || e || [];
+  }
+
+  return layer;
 }
 
 /**

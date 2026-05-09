@@ -578,6 +578,70 @@ void GraphicsLibrary::install(Engine &engine)
             outs[0] = Value::empty();
         });
 
+    // errorbar(y, e)                — x = 1:N, symmetric e
+    // errorbar(x, y, e)             — symmetric e
+    // errorbar(x, y, neg, pos)      — asymmetric error bounds
+    // errorbar(x, y, e, 'spec')     — symmetric, with line spec
+    // errorbar(x, y, neg, pos, 'spec')
+    //
+    // The dataset's xJson/yJson hold the centre points; eJson (sym) or
+    // eNegJson + ePosJson (asym) hold the magnitudes. The renderer
+    // draws vertical bars from y-eNeg to y+ePos with caps at each end.
+    reg("line", "errorbar",
+        [vecToJson, makeIndexJson, parsePlotArgs](Span<const Value> args, size_t nargout,
+                                                  Span<Value> outs, CallContext &ctx) {
+            if (args.empty()) {
+                outs[0] = Value::empty();
+                return;
+            }
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            DatasetInfo ds;
+            ds.type = "errorbar";
+
+            // Find the first char arg (line spec) — everything before is data.
+            size_t nData = args.size();
+            for (size_t i = 0; i < args.size(); ++i) {
+                if (args[i].isChar()) { nData = i; break; }
+            }
+            // Optional N/V pairs after the (optional) spec — same parser as
+            // plot() handles 'LineWidth', 'MarkerSize', 'DisplayName'.
+            size_t nvStart = nData;
+            if (nData < args.size() && args[nData].isChar()) {
+                ds.style = args[nData].toString();
+                nvStart = nData + 1;
+            }
+
+            switch (nData) {
+                case 1:  // errorbar(y) — degenerate but legal-ish; no error
+                    ds.xJson = makeIndexJson(args[0].numel());
+                    ds.yJson = vecToJson(args[0]);
+                    break;
+                case 2:  // errorbar(y, e) — x = 1:N, symmetric e
+                    ds.xJson = makeIndexJson(args[0].numel());
+                    ds.yJson = vecToJson(args[0]);
+                    ds.eJson = vecToJson(args[1]);
+                    break;
+                case 3:  // errorbar(x, y, e) — symmetric e
+                    ds.xJson = vecToJson(args[0]);
+                    ds.yJson = vecToJson(args[1]);
+                    ds.eJson = vecToJson(args[2]);
+                    break;
+                case 4:  // errorbar(x, y, neg, pos) — asymmetric
+                default:
+                    ds.xJson    = vecToJson(args[0]);
+                    ds.yJson    = vecToJson(args[1]);
+                    ds.eNegJson = vecToJson(args[2]);
+                    ds.ePosJson = vecToJson(args[3]);
+                    break;
+            }
+
+            parsePlotArgs(args, nvStart, ds);
+            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
     // ── Log-scale plot types — graphics.line ────────────────────────
     auto registerLogPlot = [&reg, parsePlotXYStyle, parsePlotArgs](
                                 const char *name, const std::string &xscale,
