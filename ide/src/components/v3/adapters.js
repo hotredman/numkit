@@ -257,6 +257,10 @@ function datasetToLayer(d, palette_idx, ctx) {
   // z*scale*sin(α) to y. α = 30°, scale = 0.5 — standard cabinet
   // values that give a readable depth cue without distorting the
   // x-y plane. Fully 3-D camera (orbit / dolly) is B3 territory.
+  // Capture raw (pre-cabinet) x/y so the WebGL renderer can use the
+  // un-projected coordinates. The 2-D composite path uses xOut / yOut
+  // (cabinet-applied below for plot3/scatter3).
+  const xRaw = x, yRaw = y;
   let xOut = x, yOut = y;
   if (t === 'plot3' || t === 'scatter3') {
     // For plot3/scatter3, d.z is a 1-D vector (different shape from
@@ -297,6 +301,17 @@ function datasetToLayer(d, palette_idx, ctx) {
     // Polygon fill opacity (mode='polygon'). Driven by the styleObj
     // 'fillOpacity' key parsed from the engine's style string.
     fillOpacity: styleObj.fillOpacity != null ? styleObj.fillOpacity : 0.7,
+    // Raw 3-D z (pre-cabinet) so the WebGL renderer can use the real
+    // depth when this figure is routed through composite3d. The 2-D
+    // composite path ignores `z` and uses the cabinet-projected
+    // xOut / yOut above.
+    z: (t === 'plot3' || t === 'scatter3')
+       ? (Array.isArray(d.z) && !Array.isArray(d.z[0]) ? d.z.map(numOrBreak) : null)
+       : null,
+    // Raw (un-cabinet) x/y for the 3-D renderer. Same array as xOut/
+    // yOut above for non-3-D types — duplicated so the WebGL path
+    // doesn't have to special-case which fields are pre-projected.
+    xRaw, yRaw,
   };
 
   // Errorbar bounds — symmetric (e) or asymmetric (eNeg/ePos). The
@@ -476,6 +491,26 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
       const pad = (yRange2[1] - yRange2[0]) * 0.06 || 0.5;
       yRange2[0] -= pad; yRange2[1] += pad;
     }
+  }
+
+  // 3-D detection: any layer with raw z data → route to the WebGL
+  // renderer. plot3 / scatter3 / stem3 / surf / mesh all emit on the
+  // wire as plot3 or scatter3 datasets, so this single check covers
+  // the whole MVP surface.
+  const has3D = layers.some((ly) => ly && ly.kind === 'series' && Array.isArray(ly.z));
+  if (has3D) {
+    return {
+      kind: 'composite3d',
+      id: cellId,
+      title:  cfg.title  || '',
+      xLabel: cfg.xlabel || '',
+      yLabel: cfg.ylabel || '',
+      zLabel: cfg.zlabel || '',
+      // view: [az, el] in degrees from the C++ view(az, el) call;
+      // null = renderer's default (-37.5°, 30°).
+      view: Array.isArray(cfg.view) && cfg.view.length === 2 ? cfg.view : null,
+      layers,
+    };
   }
 
   return {

@@ -136,6 +136,10 @@ struct AxesState
     std::string ylim2Json;
     std::string yscale2 = "linear";
 
+    // 3-D camera view set by view(az, el); empty = renderer default
+    // (-37.5°, 30°). Wire format: "[az,el]" with degrees.
+    std::string viewJson;
+
     std::string thetaDir = "counterclockwise";
     std::string thetaZeroLocation = "right";
 
@@ -410,6 +414,8 @@ public:
                     if (ax.yscale2 != "linear")
                         os << ",\"yscale2\":\"" << ax.yscale2 << "\"";
                 }
+                if (!ax.viewJson.empty())
+                    os << ",\"view\":" << ax.viewJson;
                 os << "}}";
             }
             os << "]}";

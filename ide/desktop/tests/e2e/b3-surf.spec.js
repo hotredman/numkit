@@ -66,17 +66,20 @@ test.describe('B3 — surf / mesh', () => {
     )).toEqual([]);
   });
 
-  test('surf renders multiple SVG paths (horizontal + vertical sweep)', async () => {
+  test('surf — proof of render via WebGL canvas presence', async () => {
+    // Originally asserted ≥ 2 SVG <path> elements (one per polyline
+    // sweep), but surf is now routed through the three.js renderer
+    // — geometry lives in a <canvas>, not SVG. The 3-D smoke spec
+    // covers detailed canvas signals; here we just confirm a
+    // canvas mounted, which proves the WebGL routing fired.
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2 3; 2 4 6; 3 6 9];\n'
       + 'surf(Z);\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-    // surf emits 2 datasets (horizontal + vertical). Each renders as
-    // one SVG <path>; expect ≥ 2.
-    const paths = await ide.figureCards.first().locator('svg path').count();
-    expect(paths).toBeGreaterThanOrEqual(2);
+    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+      .toBeVisible({ timeout: 10_000 });
   });
 
   test('surf opens cleanly in FigureWindow modal', async () => {
