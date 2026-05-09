@@ -65,4 +65,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/interp_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/frame_introspection_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/magic_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/testmatrices_test.cpp
 )

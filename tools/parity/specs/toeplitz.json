@@ -1,0 +1,14 @@
+{
+  "name": "toeplitz",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "T1 = toeplitz([1 2 3 4]); T2 = toeplitz([1 2 3], [1 4 5 6]); T3 = toeplitz([1 2 3 4 5 6 7 8]);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "T1(1,1)", "T1(2,3)", "T1(4,1)", "sum(T1(:))",
+    "T2(1,4)", "T2(3,2)", "sum(T2(:))",
+    "T3(1,8)", "T3(8,1)", "sum(diag(T3))"
+  ],
+  "comment": "Sig: T = toeplitz(c[, r]). Toeplitz matrix from first column c (and optional first row r). T[i,j] = c[i-j] (i>=j) else r[j-i]. MATLAB convention: r[0] silently overridden by c[0]. Bit-identical with MATLAB R2025b across square + rectangular probes."
+}
