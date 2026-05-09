@@ -3252,8 +3252,30 @@ void GraphicsLibrary::install(Engine &engine)
     reg("layout", "gca", noop_ret1);
     reg("layout", "gcf", noop_ret1);
     reg("layout", "cla", noop);
-    reg("layout", "zlabel", noop);
-    reg("layout", "zlim", noop);
+
+    // zlabel(text) — 3-D Z-axis label.
+    reg("layout", "zlabel",
+        [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.empty()) { outs[0] = Value::empty(); return; }
+            auto &fm = ctx.engine->figureManager();
+            fm.currentAxes().zlabel = argStr(args[0]);
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
+    // zlim([z0, z1]) — 3-D Z-axis limits.
+    reg("layout", "zlim",
+        [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.empty() || args[0].numel() < 2) { outs[0] = Value::empty(); return; }
+            auto &fm = ctx.engine->figureManager();
+            fm.currentAxes().zlimJson = vecToJson(args[0]);
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
     // view(az, el) — set the 3-D camera azimuth/elevation in degrees.
     // Both args required for the (az, el) form; 2-element vector also
     // accepted (view([az, el])). The renderer reads cfg.view on mount
@@ -3265,11 +3287,17 @@ void GraphicsLibrary::install(Engine &engine)
             auto &fm = ctx.engine->figureManager();
             double az = 0, el = 0;
             bool ok = false;
-            if (args.size() >= 2 && args[0].numel() == 1 && args[1].numel() == 1) {
+            // view(2) / view(3) — preset top-down / default 3-D views.
+            if (args.size() == 1 && args[0].numel() == 1 && !args[0].isChar()) {
+                const int n = (int)args[0].toScalar();
+                if (n == 2) { az = 0;     el = 90; ok = true; }    // top-down
+                else if (n == 3) { az = -37.5; el = 30; ok = true; } // default 3-D
+            }
+            if (!ok && args.size() >= 2 && args[0].numel() == 1 && args[1].numel() == 1) {
                 az = args[0].toScalar();
                 el = args[1].toScalar();
                 ok = true;
-            } else if (args[0].numel() >= 2) {
+            } else if (!ok && args[0].numel() >= 2) {
                 az = args[0].doubleData()[0];
                 el = args[0].doubleData()[1];
                 ok = true;

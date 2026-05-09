@@ -1,52 +1,41 @@
 /**
  * Composite3DPlot.jsx — WebGL renderer for 3-D figures via three.js.
  *
- * Mounts a <canvas> and drives a perspective Camera + OrbitControls
- * (mouse-drag → orbit, wheel → dolly, shift+drag → pan). Each 3-D
- * dataset (plot3 / scatter3 / stem3 / surf / mesh) becomes a Line or
- * Points geometry in a shared scene, plus a unit-cube AxesHelper for
- * orientation.
+ * Renders plot3 / scatter3 / stem3 / surf / mesh inside a perspective
+ * camera with mouse-driven OrbitControls (drag → orbit, wheel → dolly,
+ * shift+drag → pan). Around the data sits a tick-labelled axes box
+ * with grid lines on the back faces — the standard MATLAB-style frame.
  *
  * Public contract mirrors CompositePlot: { figure, width, height,
  * fontScale, interactive, engine }. viewport / setViewport are
  * accepted but ignored — 3-D doesn't pan/zoom in (x, y) terms; the
  * camera holds the equivalent state internally.
  *
- * MVP scope:
- *   • plot3 / scatter3 / stem3 (latter is plot3 + scatter3 datasets)
- *   • surf / mesh (rendered as wireframe lines from the existing two-
- *     polyline emit format — no Z-matrix passthrough yet)
- *   • view(az, el) initialises the camera from figure.view
- *   • mouse interaction
+ * Coordinate convention:
+ *   data-X → world-X
+ *   data-Y → world-Z   (negated so positive data-Y points away from
+ *                       the default camera azimuth)
+ *   data-Z → world-Y   (the up axis under MATLAB's default view)
  *
- * Polish (later commits):
- *   • C++ wire change: surf/mesh emits a Z-matrix → face-shaded surf
- *     with MeshLambertMaterial + DirectionalLight + colormap on Z
- *   • bar3 / waterfall / fill3 with raw 3D coords (today they
- *     pre-project through cabinet on the C++ side and stay in SVG)
- *   • Z-axis tick labels via HTML overlay
+ * Axis equal / vis3d:
+ *   default mode normalises each axis to [-1, 1] independently — best
+ *   for readability when ranges differ wildly.
+ *   axis equal / axis vis3d apply a single scale = 2 / max(range) and
+ *   centre the data, so 1 data-unit = 1 world-unit on every axis.
  */
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 
-// Default azimuth / elevation if `view(az, el)` isn't called. Matches
-// MATLAB's default 3-D view.
 const DEFAULT_AZ_DEG = -37.5;
 const DEFAULT_EL_DEG = 30;
 
-/**
- * Convert MATLAB-style (az, el) in degrees to a unit camera direction
- * in three.js's right-handed Y-up world. We map data Z to world Y so
- * the conventional "up" axis sits vertical; data X stays world X, data
- * Y becomes world -Z (so increasing data-Y points away from the
- * default camera view).
- */
+/* ───────────── helpers (pure) ───────────── */
+
 function azElToCameraOffset(azDeg, elDeg, dist) {
   const az = (azDeg * Math.PI) / 180;
   const el = (elDeg * Math.PI) / 180;
-  // Camera position in world coords: spherical from origin.
-  // Y is up (data-Z); horizontal plane is X / -Z (data-X / data-Y).
   const cosEl = Math.cos(el);
   return {
     x: dist * cosEl * Math.sin(az),
@@ -55,41 +44,36 @@ function azElToCameraOffset(azDeg, elDeg, dist) {
   };
 }
 
-/**
- * Map data-space (x, y, z) → world-space (X, Y, Z) given the bbox.
- * We normalise each axis to [-1, 1] inside a unit cube so the camera
- * doesn't need per-figure tuning. Returns Float32Array suitable for
- * THREE.BufferAttribute.
- */
-function buildVertices(xs, ys, zs, bbox) {
-  const n = Math.min(xs.length, ys.length, zs.length);
-  const out = new Float32Array(n * 3);
-  const sx = bbox.xMax > bbox.xMin ? 2 / (bbox.xMax - bbox.xMin) : 1;
-  const sy = bbox.yMax > bbox.yMin ? 2 / (bbox.yMax - bbox.yMin) : 1;
-  const sz = bbox.zMax > bbox.zMin ? 2 / (bbox.zMax - bbox.zMin) : 1;
-  for (let i = 0; i < n; i++) {
-    const x = (xs[i] - bbox.xMin) * sx - 1;
-    // Data-Y → world-Z so the camera looks down +Y (the up axis).
-    const z = (ys[i] - bbox.yMin) * sy - 1;
-    const y = (zs[i] - bbox.zMin) * sz - 1;
-    out[i * 3 + 0] = Number.isFinite(x) ? x : NaN;
-    out[i * 3 + 1] = Number.isFinite(y) ? y : NaN;
-    out[i * 3 + 2] = Number.isFinite(z) ? z : NaN;
-  }
-  return out;
+/** "Nice" tick generator — same algorithm as CompositePlot's. */
+function niceTicks(min, max, target = 6) {
+  const range = max - min;
+  if (!Number.isFinite(range) || range <= 0) return [min];
+  const rough = range / target;
+  const pow = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / pow;
+  const step = norm < 1.5 ? pow : norm < 3 ? 2 * pow : norm < 7 ? 5 * pow : 10 * pow;
+  const start = Math.ceil(min / step) * step;
+  const arr = [];
+  for (let v = start; v <= max + step * 1e-6; v += step) arr.push(+v.toFixed(12));
+  return arr;
 }
 
-/**
- * Compute the (x, y, z) bounding box across all 3-D layers. NaN-safe.
- * Empty layers return a degenerate [-1, 1] cube so the camera still
- * has a finite frame to look at.
- */
-function computeBBox(layers) {
+function fmtTick(v) {
+  if (!Number.isFinite(v)) return '';
+  if (v === 0) return '0';
+  const a = Math.abs(v);
+  if (a >= 1e5 || a < 1e-3) return v.toExponential(1);
+  if (Number.isInteger(v)) return String(v);
+  return v.toFixed(Math.max(0, 3 - Math.floor(Math.log10(a))));
+}
+
+/** Compute the data-space bounding box for 3-D layers. */
+function computeBBox(layers, lims) {
   let xMin = Infinity, xMax = -Infinity;
   let yMin = Infinity, yMax = -Infinity;
   let zMin = Infinity, zMax = -Infinity;
   for (const ly of layers) {
-    if (!ly.x || !ly.y || !ly.z) continue;
+    if (!ly || !ly.x || !ly.y || !ly.z) continue;
     const n = Math.min(ly.x.length, ly.y.length, ly.z.length);
     for (let i = 0; i < n; i++) {
       const x = ly.x[i], y = ly.y[i], z = ly.z[i];
@@ -101,23 +85,78 @@ function computeBBox(layers) {
   if (!Number.isFinite(xMin)) { xMin = -1; xMax = 1; }
   if (!Number.isFinite(yMin)) { yMin = -1; yMax = 1; }
   if (!Number.isFinite(zMin)) { zMin = -1; zMax = 1; }
-  // Guard against degenerate (zero-extent) axes — pad them so the
-  // unit-cube mapping doesn't NaN out.
   if (xMax - xMin < 1e-9) { xMax += 0.5; xMin -= 0.5; }
   if (yMax - yMin < 1e-9) { yMax += 0.5; yMin -= 0.5; }
   if (zMax - zMin < 1e-9) { zMax += 0.5; zMin -= 0.5; }
+  // User-set lims override the data extent.
+  if (lims?.xlim) { xMin = lims.xlim[0]; xMax = lims.xlim[1]; }
+  if (lims?.ylim) { yMin = lims.ylim[0]; yMax = lims.ylim[1]; }
+  if (lims?.zlim) { zMin = lims.zlim[0]; zMax = lims.zlim[1]; }
   return { xMin, xMax, yMin, yMax, zMin, zMax };
 }
 
 /**
- * Build a Three.js Line for a polyline-style layer (plot3 / surf
- * wireframe) handling NaN segment breaks: a NaN in x/y/z splits the
- * line so unrelated segments don't connect through the origin. Three's
- * Line draws gl.LINE_STRIP across consecutive indices, so we feed it
- * an indexed geometry where index buffer breaks at each NaN run.
+ * Compute per-axis world-space scale from a bbox + axisMode.
+ *   default → each axis independently normalised to [-1, 1].
+ *   equal/vis3d → single scale = 2 / max-range, plot centred.
+ * Returns { sx, sy, sz, ox, oy, oz } such that
+ *   worldX = (dataX - ox) * sx,  ditto Y/Z.
+ * The cube edges always sit at world ±1.
  */
+function computeScales(bbox, axisMode) {
+  const dx = bbox.xMax - bbox.xMin;
+  const dy = bbox.yMax - bbox.yMin;
+  const dz = bbox.zMax - bbox.zMin;
+  if (axisMode === 'equal' || axisMode === 'vis3d') {
+    const m = Math.max(dx, dy, dz);
+    const s = m > 0 ? 2 / m : 1;
+    return {
+      sx: s, sy: s, sz: s,
+      ox: (bbox.xMin + bbox.xMax) / 2,
+      oy: (bbox.yMin + bbox.yMax) / 2,
+      oz: (bbox.zMin + bbox.zMax) / 2,
+    };
+  }
+  return {
+    sx: dx > 0 ? 2 / dx : 1,
+    sy: dy > 0 ? 2 / dy : 1,
+    sz: dz > 0 ? 2 / dz : 1,
+    ox: (bbox.xMin + bbox.xMax) / 2,
+    oy: (bbox.yMin + bbox.yMax) / 2,
+    oz: (bbox.zMin + bbox.zMax) / 2,
+  };
+}
+
+/** Map data (x, y, z) to world (X, Y, Z). World-Y is up = data-Z. */
+function toWorld(x, y, z, scl) {
+  return [
+    (x - scl.ox) * scl.sx,
+    (z - scl.oz) * scl.sz,
+    -(y - scl.oy) * scl.sy,
+  ];
+}
+
+/** Per-vertex world-coord packed Float32Array for a 1-D layer. */
+function buildVertices(xs, ys, zs, scl) {
+  const n = Math.min(xs.length, ys.length, zs.length);
+  const out = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const xi = xs[i], yi = ys[i], zi = zs[i];
+    if (!Number.isFinite(xi) || !Number.isFinite(yi) || !Number.isFinite(zi)) {
+      out[i * 3 + 0] = NaN;
+      out[i * 3 + 1] = NaN;
+      out[i * 3 + 2] = NaN;
+      continue;
+    }
+    const [X, Y, Z] = toWorld(xi, yi, zi, scl);
+    out[i * 3 + 0] = X;
+    out[i * 3 + 1] = Y;
+    out[i * 3 + 2] = Z;
+  }
+  return out;
+}
+
 function buildLineSegments(positions, color) {
-  // Split into runs of consecutive finite vertices.
   const runs = [];
   let cur = [];
   for (let i = 0; i < positions.length; i += 3) {
@@ -128,7 +167,6 @@ function buildLineSegments(positions, color) {
     cur.push(i / 3);
   }
   if (cur.length) runs.push(cur);
-
   const group = new THREE.Group();
   for (const run of runs) {
     if (run.length < 2) continue;
@@ -148,8 +186,6 @@ function buildLineSegments(positions, color) {
 }
 
 function buildPoints(positions, color, size) {
-  // Filter out NaN vertices; Points geometry treats them as "draw
-  // huge weird artefacts" otherwise.
   const finite = [];
   for (let i = 0; i < positions.length; i += 3) {
     if (Number.isFinite(positions[i])
@@ -165,6 +201,187 @@ function buildPoints(positions, color, size) {
   return new THREE.Points(geom, mat);
 }
 
+/**
+ * Build the full axes frame: cube edges, grid lines on three back
+ * faces, tick mark lines, and CSS2D label objects. Returns a Group +
+ * an array of CSS2DObjects to attach to the scene. Caller is
+ * responsible for disposing geometries when this group is replaced.
+ *
+ * Tick labels live on the data-X / data-Y / data-Z axes that meet at
+ * the (xMin, yMin, zMin) corner — a convention close enough to MATLAB
+ * to feel familiar (we don't currently re-pick the visible corner as
+ * the camera orbits; that's a follow-up).
+ */
+function buildAxesFrame(bbox, scl, opts) {
+  const { showGrid = true, showBox = true, fontScale = 1,
+          xLabel = '', yLabel = '', zLabel = '' } = opts || {};
+
+  const group = new THREE.Group();
+  group.name = 'axes-frame';
+  const labels = [];   // CSS2DObjects collected here, attached to group
+
+  // Cube edges at world ±1 — drawn last so it overdraws grid lines.
+  if (showBox) {
+    const cubeGeom = new THREE.BoxGeometry(2, 2, 2);
+    const cubeEdges = new THREE.EdgesGeometry(cubeGeom);
+    cubeGeom.dispose();
+    const cubeLine = new THREE.LineSegments(
+      cubeEdges,
+      new THREE.LineBasicMaterial({
+        color: 0x6e7681, transparent: true, opacity: 0.7,
+      }));
+    group.add(cubeLine);
+  }
+
+  const xTicks = niceTicks(bbox.xMin, bbox.xMax, 6);
+  const yTicks = niceTicks(bbox.yMin, bbox.yMax, 6);
+  const zTicks = niceTicks(bbox.zMin, bbox.zMax, 6);
+
+  const tickW = (v, axis) => {
+    if (axis === 'x') return (v - scl.ox) * scl.sx;
+    if (axis === 'y') return -(v - scl.oy) * scl.sy;
+    return (v - scl.oz) * scl.sz;
+  };
+
+  // Grid lines on three "back" faces. Without knowing camera azimuth
+  // up-front we draw the grid on the faces opposite the default
+  // camera (data-Y positive face = world-Z = -1; data-X positive
+  // face = world-X = +1; data-Z negative = world-Y = -1). Cheap and
+  // good enough; a follow-up will reposition them per-frame.
+  if (showGrid) {
+    const gridMat = new THREE.LineBasicMaterial({
+      color: 0x484f58, transparent: true, opacity: 0.4,
+    });
+    // X-Y plane at zMin (world-Y = -1).
+    for (const xv of xTicks) {
+      const wx = tickW(xv, 'x');
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+        wx, -1, -1,  wx, -1, 1,
+      ]), 3));
+      group.add(new THREE.LineSegments(g, gridMat));
+    }
+    for (const yv of yTicks) {
+      const wz = tickW(yv, 'y');
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+        -1, -1, wz,  1, -1, wz,
+      ]), 3));
+      group.add(new THREE.LineSegments(g, gridMat));
+    }
+    // X-Z plane at yMax (world-Z = -1, the back face).
+    for (const xv of xTicks) {
+      const wx = tickW(xv, 'x');
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+        wx, -1, -1,  wx, 1, -1,
+      ]), 3));
+      group.add(new THREE.LineSegments(g, gridMat));
+    }
+    for (const zv of zTicks) {
+      const wy = tickW(zv, 'z');
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+        -1, wy, -1,  1, wy, -1,
+      ]), 3));
+      group.add(new THREE.LineSegments(g, gridMat));
+    }
+    // Y-Z plane at xMin (world-X = -1).
+    for (const yv of yTicks) {
+      const wz = tickW(yv, 'y');
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+        -1, -1, wz,  -1, 1, wz,
+      ]), 3));
+      group.add(new THREE.LineSegments(g, gridMat));
+    }
+    for (const zv of zTicks) {
+      const wy = tickW(zv, 'z');
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+        -1, wy, -1,  -1, wy, 1,
+      ]), 3));
+      group.add(new THREE.LineSegments(g, gridMat));
+    }
+  }
+
+  // Tick labels on the front-bottom edge for X, side-bottom for Y,
+  // front-side for Z.
+  const makeLabel = (text, x, y, z) => {
+    if (!text) return null;
+    const div = document.createElement('div');
+    div.textContent = text;
+    div.style.cssText = `font-family: monospace; font-size: ${10 * fontScale}px; ` +
+                        `color: var(--plot-text, #d4d4f0); ` +
+                        `pointer-events: none; opacity: 0.85; ` +
+                        `text-shadow: 0 0 3px var(--plot-bg, #0d1117);`;
+    const obj = new CSS2DObject(div);
+    obj.position.set(x, y, z);
+    return obj;
+  };
+
+  for (const xv of xTicks) {
+    const wx = tickW(xv, 'x');
+    const obj = makeLabel(fmtTick(xv), wx, -1.05, 1.05);
+    if (obj) { group.add(obj); labels.push(obj); }
+  }
+  for (const yv of yTicks) {
+    const wz = tickW(yv, 'y');
+    const obj = makeLabel(fmtTick(yv), 1.05, -1.05, wz);
+    if (obj) { group.add(obj); labels.push(obj); }
+  }
+  for (const zv of zTicks) {
+    const wy = tickW(zv, 'z');
+    const obj = makeLabel(fmtTick(zv), -1.1, wy, 1.05);
+    if (obj) { group.add(obj); labels.push(obj); }
+  }
+
+  // Axis name labels at the midpoint of each axis.
+  if (xLabel) {
+    const obj = makeLabel(xLabel, 0, -1.2, 1.2);
+    if (obj) {
+      obj.element.style.fontSize = `${12 * fontScale}px`;
+      obj.element.style.fontWeight = '600';
+      group.add(obj); labels.push(obj);
+    }
+  }
+  if (yLabel) {
+    const obj = makeLabel(yLabel, 1.2, -1.2, 0);
+    if (obj) {
+      obj.element.style.fontSize = `${12 * fontScale}px`;
+      obj.element.style.fontWeight = '600';
+      group.add(obj); labels.push(obj);
+    }
+  }
+  if (zLabel) {
+    const obj = makeLabel(zLabel, -1.25, 0, 1.2);
+    if (obj) {
+      obj.element.style.fontSize = `${12 * fontScale}px`;
+      obj.element.style.fontWeight = '600';
+      group.add(obj); labels.push(obj);
+    }
+  }
+
+  return { group, labels };
+}
+
+/** Recursively dispose every disposable in a subtree. */
+function disposeTree(root) {
+  root.traverse((obj) => {
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
+      else obj.material.dispose();
+    }
+    // CSS2DObject: detach the DOM element.
+    if (obj.element && obj.element.parentNode) {
+      obj.element.parentNode.removeChild(obj.element);
+    }
+  });
+}
+
+/* ───────────── component ───────────── */
+
 export default function Composite3DPlot({
   figure, width, height,
   fontScale = 1,
@@ -172,17 +389,15 @@ export default function Composite3DPlot({
 }) {
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
-  // Renderer / scene / camera / controls live in a single ref so the
-  // useEffect cleanup can dispose them. We avoid storing them in
-  // state to dodge React-driven re-renders on every camera tweak.
+  const labelLayerRef = useRef(null);
   const ctxRef = useRef(null);
-  // Frame counter exposed for e2e tests — no other purpose.
   const [frameCount, setFrameCount] = useState(0);
 
-  // Initial mount: build renderer + scene + camera + controls.
+  // Initial mount.
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return undefined;
+    const labelLayer = labelLayerRef.current;
+    if (!canvas || !labelLayer) return undefined;
 
     const renderer = new THREE.WebGLRenderer({
       canvas,
@@ -193,10 +408,12 @@ export default function Composite3DPlot({
     renderer.setPixelRatio(window.devicePixelRatio || 1);
     renderer.setClearColor(0x0d1117, 1);
 
-    const scene = new THREE.Scene();
+    // CSS2D renderer for HTML overlays (tick labels, axis labels).
+    const css2d = new CSS2DRenderer({ element: labelLayer });
+    css2d.setSize(width || 320, height || 240);
 
+    const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
-    // Default view from MATLAB-style (az, el).
     const initialView = Array.isArray(figure?.view) && figure.view.length === 2
       ? figure.view
       : [DEFAULT_AZ_DEG, DEFAULT_EL_DEG];
@@ -204,56 +421,41 @@ export default function Composite3DPlot({
     camera.position.set(off.x, off.y, off.z);
     camera.lookAt(0, 0, 0);
 
-    // Soft fill + key light so wireframes get a tiny depth cue from
-    // future Lambert materials (face shading lands in a follow-up).
     scene.add(new THREE.AmbientLight(0xffffff, 0.45));
     const key = new THREE.DirectionalLight(0xffffff, 0.85);
     key.position.set(2, 3, 4);
     scene.add(key);
-
-    // Axes helper: 1-unit RGB lines along world X / Y / Z. Sits inside
-    // the [-1, 1] cube where data is normalised, so it always frames
-    // the geometry.
-    const axesGroup = new THREE.Group();
-    const axesHelper = new THREE.AxesHelper(1.05);
-    axesGroup.add(axesHelper);
-    // Wire cube for the bounding-box outline (12 edges).
-    const cubeGeom = new THREE.BoxGeometry(2, 2, 2);
-    const cubeEdges = new THREE.EdgesGeometry(cubeGeom);
-    const cubeLine = new THREE.LineSegments(
-      cubeEdges,
-      new THREE.LineBasicMaterial({ color: 0x444c56, transparent: true, opacity: 0.6 }));
-    axesGroup.add(cubeLine);
-    scene.add(axesGroup);
 
     const controls = new OrbitControls(camera, canvas);
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;
     controls.enabled = !!interactive;
 
-    // Layer group — wiped + rebuilt whenever `figure` changes.
+    // Two top-level groups: data (rebuilt per figure) + axes (rebuilt
+    // per figure too, since ticks depend on bbox).
     const layerGroup = new THREE.Group();
+    layerGroup.name = 'data-layers';
     scene.add(layerGroup);
+    const axesGroup = new THREE.Group();
+    axesGroup.name = 'axes';
+    scene.add(axesGroup);
 
     let raf = 0;
     let frames = 0;
     const tick = () => {
       controls.update();
       renderer.render(scene, camera);
+      css2d.render(scene, camera);
       frames++;
-      // Don't trigger React re-renders every frame — only every 30
-      // (≈ 0.5 s @ 60 fps) so the test counter advances visibly
-      // without flooding state.
       if (frames % 30 === 0) setFrameCount(frames);
       raf = requestAnimationFrame(tick);
     };
 
-    ctxRef.current = { renderer, scene, camera, controls, layerGroup };
+    ctxRef.current = { renderer, css2d, scene, camera, controls,
+                       layerGroup, axesGroup };
     raf = requestAnimationFrame(tick);
 
-    // Mark the canvas so e2e tests can locate it.
     canvas.setAttribute('data-numkit-3d', '1');
-    // Log once for the e2e mode-check.
     try {
       const gl = renderer.getContext();
       if (gl) console.log('[numkit-3d] gl context ok', gl.getParameter(gl.VERSION));
@@ -262,73 +464,82 @@ export default function Composite3DPlot({
     return () => {
       cancelAnimationFrame(raf);
       controls.dispose();
-      // Dispose all geometries + materials on the scene.
-      scene.traverse((obj) => {
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) {
-          if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
-          else obj.material.dispose();
-        }
-      });
+      disposeTree(scene);
       renderer.dispose();
       ctxRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Resize → match canvas size to the prop dims.
+  // Resize.
   useEffect(() => {
     const c = ctxRef.current;
     if (!c || !width || !height) return;
     c.renderer.setSize(width, height, false);
+    c.css2d.setSize(width, height);
     c.camera.aspect = width / height;
     c.camera.updateProjectionMatrix();
   }, [width, height]);
 
-  // Figure data → rebuild scene layers. Runs whenever the figure
-  // identity OR layer list changes.
+  // Figure data → rebuild data-layer group AND axes-frame group.
   useEffect(() => {
     const c = ctxRef.current;
     if (!c || !figure) return;
-    // Wipe previous layers.
+
+    // Wipe old layers.
     while (c.layerGroup.children.length) {
       const child = c.layerGroup.children[0];
       c.layerGroup.remove(child);
-      child.traverse((obj) => {
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) {
-          if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
-          else obj.material.dispose();
-        }
-      });
+      disposeTree(child);
     }
-    // For 3-D rendering use the raw (pre-cabinet) coords from the
-    // adapter: xRaw / yRaw / z. Filter out layers without z — those
-    // are 2-D-only types that snuck through (shouldn't happen for
-    // composite3d figures, but keep it safe).
+    while (c.axesGroup.children.length) {
+      const child = c.axesGroup.children[0];
+      c.axesGroup.remove(child);
+      disposeTree(child);
+    }
+
     const layers = (figure.layers || []).filter((ly) =>
       ly && ly.kind === 'series' && ly.xRaw && ly.yRaw && ly.z);
     if (layers.length === 0) return;
 
-    const bbox = computeBBox(layers.map((ly) => ({
-      x: ly.xRaw, y: ly.yRaw, z: ly.z,
-    })));
+    const bbox = computeBBox(
+      layers.map((ly) => ({ x: ly.xRaw, y: ly.yRaw, z: ly.z })),
+      { xlim: figure.xlim, ylim: figure.ylim, zlim: figure.zlim }
+    );
+    const scl = computeScales(bbox, figure.axisMode || '');
 
+    // Axes frame.
+    const showGrid = figure.grid !== '' && figure.grid !== 'off';
+    const { group: axesFrame } = buildAxesFrame(bbox, scl, {
+      showGrid, showBox: true, fontScale,
+      xLabel: figure.xLabel || '',
+      yLabel: figure.yLabel || '',
+      zLabel: figure.zLabel || '',
+    });
+    c.axesGroup.add(axesFrame);
+
+    // Data layers.
     for (const ly of layers) {
-      const positions = buildVertices(ly.xRaw, ly.yRaw, ly.z, bbox);
+      const positions = buildVertices(ly.xRaw, ly.yRaw, ly.z, scl);
       const color = new THREE.Color(ly.color || '#1f77b4');
       const mode = ly.mode || 'line';
       if (mode === 'scatter') {
         const pts = buildPoints(positions, color, ly.size || 3);
         if (pts) c.layerGroup.add(pts);
       } else {
-        // Default: line / stairs / etc. Treat as polyline (3-D wire).
         c.layerGroup.add(buildLineSegments(positions, color));
       }
     }
-  }, [figure]);
 
-  // Honour the interactive flag on toggle.
+    // If view changed, snap camera to the new (az, el).
+    if (Array.isArray(figure.view) && figure.view.length === 2) {
+      const off = azElToCameraOffset(figure.view[0], figure.view[1], 4);
+      c.camera.position.set(off.x, off.y, off.z);
+      c.camera.lookAt(0, 0, 0);
+      c.controls.update();
+    }
+  }, [figure, fontScale]);
+
   useEffect(() => {
     const c = ctxRef.current;
     if (c && c.controls) c.controls.enabled = !!interactive;
@@ -340,6 +551,13 @@ export default function Composite3DPlot({
       <canvas ref={canvasRef}
               style={{ display: 'block', width, height }}
               data-numkit-3d-frames={frameCount} />
+      {/* CSS2D overlay: HTML labels positioned in 3-D space by three. */}
+      <div ref={labelLayerRef}
+           style={{
+             position: 'absolute', top: 0, left: 0,
+             width: '100%', height: '100%',
+             pointerEvents: 'none', overflow: 'hidden',
+           }} />
       {figure?.title && (
         <div style={{
           position: 'absolute', top: 8, left: 0, right: 0,
