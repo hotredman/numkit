@@ -1464,7 +1464,8 @@ void GraphicsLibrary::install(Engine &engine)
     // face shading + lighting is deferred; for now we emit the wire
     // skeleton (rows + cols) as plot3-style line segments and let the
     // existing cabinet projection in the JS adapter render it.
-    auto surfImpl = [](Span<const Value> args, size_t nargout,
+    auto surfImpl = [](const char *typeName,
+                       Span<const Value> args, size_t nargout,
                        Span<Value> outs, CallContext &ctx) {
         (void)nargout;
         auto &fm = ctx.engine->figureManager();
@@ -1496,11 +1497,52 @@ void GraphicsLibrary::install(Engine &engine)
             for (size_t r = 0; r < R; ++r) Ys[r] = (double)(r + 1);
         }
 
-        // Build one big polyline per dataset:
-        //   horizontal lines: each row sweeps c=0..C-1, breaks between rows
-        //   vertical lines:   each col sweeps r=0..R-1, breaks between cols
-        // Sep tracking: emit "," between points within the same sweep,
-        // ",null," between sweeps. `pointCount` tells us "any output yet".
+        const std::string kind(typeName);
+        if (kind == "surf") {
+            // Face-shaded surface: emit a single dataset carrying the
+            // X / Y vectors and the Z-matrix as nested rows. The WebGL
+            // renderer builds an indexed triangle mesh from this with
+            // per-vertex colors sampled from a colormap by Z.
+            std::ostringstream xs, ys, zs;
+            xs << '[';
+            for (size_t c = 0; c < C; ++c) {
+                if (c) xs << ',';
+                xs << Xs[c];
+            }
+            xs << ']';
+            ys << '[';
+            for (size_t r = 0; r < R; ++r) {
+                if (r) ys << ',';
+                ys << Ys[r];
+            }
+            ys << ']';
+            zs << '[';
+            for (size_t r = 0; r < R; ++r) {
+                if (r) zs << ',';
+                zs << '[';
+                for (size_t c = 0; c < C; ++c) {
+                    if (c) zs << ',';
+                    const double v = Zat(r, c);
+                    if (std::isfinite(v)) zs << v;
+                    else                  zs << "null";
+                }
+                zs << ']';
+            }
+            zs << ']';
+            DatasetInfo ds;
+            ds.type = "surf";
+            ds.xJson = xs.str();
+            ds.yJson = ys.str();
+            ds.zJson = zs.str();
+            fm.pushDataset(std::move(ds));
+            fm.emitModified();
+            outs[0] = Value::empty();
+            return;
+        }
+
+        // mesh — wireframe: emit two big plot3 polylines (horizontal
+        // sweep + vertical sweep) so the existing 3-D line renderer
+        // draws the lattice.
         std::ostringstream xH, yH, zH;
         xH << '['; yH << '['; zH << '[';
         size_t hCount = 0;
@@ -1552,8 +1594,11 @@ void GraphicsLibrary::install(Engine &engine)
         fm.emitModified();
         outs[0] = Value::empty();
     };
-    reg("surface", "surf", surfImpl);
-    reg("surface", "mesh", surfImpl);
+    {
+        using namespace std::placeholders;
+        reg("surface", "surf", std::bind(surfImpl, "surf", _1, _2, _3, _4));
+        reg("surface", "mesh", std::bind(surfImpl, "mesh", _1, _2, _3, _4));
+    }
 
     // ── patch / fill — generic filled polygon ────────────────────────
     // Calling forms:
