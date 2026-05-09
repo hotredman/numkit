@@ -2085,6 +2085,95 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 outs[0] = std::move(out);
                             });
 
+    // ── weekday ───────────────────────────────────────────────
+    // MATLAB weekday(D[, fmt]): day-of-week index 1..7 with Sunday=1,
+    // Saturday=7 (US convention). Optional second output is the day
+    // name as 'short' (Sun..Sat) or 'long' (Sunday..Saturday).
+    //
+    // Algorithm: serial 1 (= 0000-01-01) is a Saturday in MATLAB's
+    // calendar. Solving: dow(d) = ((floor(d) - 2) mod 7) + 1 with
+    // positive-modulo. Verified against MATLAB R2025b for current
+    // and historical dates.
+    engine.registerFunction("weekday",
+                            [](Span<const Value> args,
+                               size_t nargout,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                if (args.empty())
+                                    throw std::runtime_error(
+                                        "weekday requires at least one input");
+                                bool wantLong = false;
+                                if (args.size() >= 2
+                                    && (args[1].isChar() || args[1].isString())) {
+                                    std::string fmt = args[1].toString();
+                                    for (auto &c : fmt)
+                                        c = static_cast<char>(
+                                            std::tolower(
+                                                static_cast<unsigned char>(c)));
+                                    if (fmt == "long")
+                                        wantLong = true;
+                                    else if (fmt != "short")
+                                        throw std::runtime_error(
+                                            "weekday: format must be 'short' "
+                                            "or 'long'");
+                                }
+                                static const char *kShort[7] = {
+                                    "Sun", "Mon", "Tue", "Wed",
+                                    "Thu", "Fri", "Sat"
+                                };
+                                static const char *kLong[7] = {
+                                    "Sunday", "Monday",   "Tuesday",
+                                    "Wednesday", "Thursday", "Friday",
+                                    "Saturday"
+                                };
+                                auto dayIndex = [](double d) -> int {
+                                    // Positive-result modulo of (floor(d)-2) by 7.
+                                    int64_t f = static_cast<int64_t>(
+                                        std::floor(d)) - 2;
+                                    int64_t r = f % 7;
+                                    if (r < 0) r += 7;
+                                    return static_cast<int>(r) + 1;
+                                };
+
+                                auto *mr = ctx.engine->resource();
+                                const Value &D = args[0];
+                                const size_t N = D.numel();
+
+                                if (N == 1) {
+                                    int idx = dayIndex(D.toScalar());
+                                    outs[0] = Value::scalar(
+                                        static_cast<double>(idx), mr);
+                                    if (nargout > 1) {
+                                        outs[1] = Value::fromString(
+                                            wantLong ? kLong[idx - 1]
+                                                     : kShort[idx - 1],
+                                            mr);
+                                    }
+                                    return;
+                                }
+
+                                // Vector / matrix output: same shape as input.
+                                auto out = Value::matrix(
+                                    D.dims().rows(), D.dims().cols(),
+                                    ValueType::DOUBLE, mr);
+                                double *o = out.doubleDataMut();
+                                for (size_t i = 0; i < N; ++i)
+                                    o[i] = static_cast<double>(
+                                        dayIndex(D.elemAsDouble(i)));
+                                outs[0] = std::move(out);
+                                // Name output: only meaningful for scalar D
+                                // in MATLAB's current API; for vector input,
+                                // MATLAB returns the name of the FIRST element
+                                // (legacy behaviour). Match it.
+                                if (nargout > 1) {
+                                    int idx = dayIndex(D.elemAsDouble(0));
+                                    outs[1] = Value::fromString(
+                                        wantLong ? kLong[idx - 1]
+                                                 : kShort[idx - 1],
+                                        mr);
+                                }
+                            });
+
     // ── addpath / rmpath / path / rehash / run (Phase 9b) ──────
     engine.registerFunction("addpath",
                             [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {

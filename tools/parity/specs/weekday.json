@@ -1,0 +1,10 @@
+{
+  "name": "weekday",
+  "namespace": "builtin",
+  "setup": "d1 = datenum(2026, 5, 9); d2 = datenum(2026, 5, 10); d3 = datenum(1970, 1, 1); d4 = datenum(2000, 1, 1); v = [datenum(2026, 5, 9); datenum(2026, 5, 10); datenum(2026, 5, 11); datenum(2026, 5, 12); datenum(2026, 5, 13); datenum(2026, 5, 14); datenum(2026, 5, 15)];",
+  "expr": "w1 = weekday(d1); w2 = weekday(d2); w3 = weekday(d3); w4 = weekday(d4); wv = weekday(v);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": ["w1", "w2", "w3", "w4", "wv(1)", "wv(2)", "wv(3)", "wv(4)", "wv(5)", "wv(6)", "wv(7)"],
+  "comment": "MATLAB weekday: day-of-week index 1=Sun..7=Sat (US calendar). Covers single-date, vector input, historical dates spanning 60+ years (1970, 2000, 2026), and one full week roundtrip 7,1,2,3,4,5,6. Optional name string output ('short'/'long') tested in gtest only -- parity harness fingerprints numeric only. Algorithm: ((floor(d) - 2) mod 7) + 1 with positive-modulo (serial 1 = Saturday in MATLAB's calendar)."
+}
