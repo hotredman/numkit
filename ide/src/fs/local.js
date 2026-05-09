@@ -102,6 +102,22 @@ function makeNativeBackend() {
             return api.listTree(rootPath);
         },
         async readFile(p)                { return rootPath ? api.readFile(rootPath, p) : null; },
+        // Synchronous read used by the WASM engine's csvread/load
+        // callbacks. Available only on the native (Electron) backend
+        // because FSA on the web is async-only. Returns the file
+        // content directly or throws — caller handles "missing".
+        readFileSync(p) {
+            if (!rootPath || typeof api.readFileSync !== 'function') {
+                throw new Error('local: not mounted or sync read unavailable');
+            }
+            const res = api.readFileSync(rootPath, p);
+            if (res?.error) throw new Error(res.error);
+            return res?.content ?? null;
+        },
+        existsSync(p) {
+            if (!rootPath || typeof api.existsSync !== 'function') return false;
+            return api.existsSync(rootPath, p);
+        },
         async writeFile(p, content)      { return api.writeFile(rootPath, p, content); },
         async mkdir(p)                   { return api.mkdir(rootPath, p); },
         async exists(p)                  { return rootPath ? api.exists(rootPath, p) : false; },

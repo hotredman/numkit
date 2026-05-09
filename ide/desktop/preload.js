@@ -22,6 +22,14 @@ contextBridge.exposeInMainWorld('nativeFS', {
     // "/"-rooted, relative to that root.
     listTree:  (root)                  => ipcRenderer.invoke('fs:listTree', root),
     readFile:  (root, path)            => ipcRenderer.invoke('fs:readFile', root, path),
+    // Synchronous read used by the WASM engine's sync csvread / load
+    // callbacks. ipcRenderer.sendSync blocks the renderer until main
+    // responds; with a local disk read it's typically 1-5 ms per file.
+    // The renderer used to pre-load every mounted file into a JS Map
+    // to avoid this round-trip (proven OOM on large folders), but
+    // sync IPC is the right answer — no proactive memory cost.
+    readFileSync: (root, path)         => ipcRenderer.sendSync('fs:readFileSync', root, path),
+    existsSync:   (root, path)         => ipcRenderer.sendSync('fs:existsSync', root, path),
     writeFile: (root, path, content)   => ipcRenderer.invoke('fs:writeFile', root, path, content),
     mkdir:     (root, path)            => ipcRenderer.invoke('fs:mkdir', root, path),
     remove:    (root, path)            => ipcRenderer.invoke('fs:remove', root, path),

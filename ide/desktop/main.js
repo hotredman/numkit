@@ -342,6 +342,41 @@ ipcMain.handle('fs:readFile', async (_e, root, relPath) => {
   }
 });
 
+// ── Synchronous read for the WASM engine ────────────────────────
+// `ipcMain.on(...)` paired with `event.returnValue =` is the only
+// way to satisfy `ipcRenderer.sendSync()` from the renderer, which
+// is what the vfs-adapter's sync readFile callback needs (csvread /
+// load are called from C++ inside a single Emscripten frame and
+// can't await). Cap reads at 16 MB so a stray sync-read of a huge
+// binary doesn't freeze the UI for tens of seconds. Using fs.readFileSync
+// (sync stdlib call) keeps the round-trip cost to one IPC hop +
+// one disk read; for a typical .m / .csv file that's 1-5 ms.
+const SYNC_READ_LIMIT_BYTES = 16 * 1024 * 1024;
+ipcMain.on('fs:readFileSync', (event, root, relPath) => {
+  try {
+    const full = safePath(root, relPath);
+    const st = fs.statSync(full);
+    if (st.size > SYNC_READ_LIMIT_BYTES) {
+      event.returnValue = { error: `file too large for sync read: ${st.size} bytes` };
+      return;
+    }
+    event.returnValue = { content: fs.readFileSync(full, 'utf8') };
+  } catch (err) {
+    if (err.code === 'ENOENT' || err.code === 'EISDIR') {
+      event.returnValue = { content: null };
+      return;
+    }
+    event.returnValue = { error: err.message || String(err) };
+  }
+});
+ipcMain.on('fs:existsSync', (event, root, relPath) => {
+  try {
+    const full = safePath(root, relPath);
+    fs.accessSync(full);
+    event.returnValue = true;
+  } catch { event.returnValue = false; }
+});
+
 ipcMain.handle('fs:writeFile', async (_e, root, relPath, content) => {
   const full = safePath(root, relPath);
   await fsp.mkdir(path.dirname(full), { recursive: true });
