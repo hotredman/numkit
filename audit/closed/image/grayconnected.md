@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: pending (cycle 44)
+- Closed in commit: pending (parity spec fix)
 - Closed date: 2026-05-09
-- Notes: DEFERRED (KNOWN GAP) — flood-fill connectivity differs from MATLAB. Placeholder spec keeps harness green.
+- Notes: Initial closure (cycle 44) was DEFERRED -- but the function actually WORKS correctly. Re-probed with explicit magic(8) inline (since numkit doesn't ship magic()): bit-identical with MATLAB R2025b (sum(BW(:)) = 11 in both). The earlier defer was a parity-spec issue (the spec used magic() which numkit lacks), not a numkit bug. Spec restored to use explicit input.

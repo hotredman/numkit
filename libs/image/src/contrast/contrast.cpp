@@ -343,14 +343,50 @@ multithresh(std::pmr::memory_resource *mr, const Value &I, int N) {
     };
     recurse(0, 0);
 
+    // MATLAB multithresh convention: return the MIDPOINTS of adjacent
+    // class MEANS, not the histogram-bin boundaries. This canonicalises
+    // the tied-maximum case (Otsu's between-class variance is flat over
+    // any threshold strictly between cluster centres). Then scale back
+    // to the input's native value range:
+    //   uint8/uint16 -> integer thresholds in 0..L-1
+    //   floating-point -> normalised 0..1
+    auto class_mean = [&](int lo, int hi) {
+        const double w = P[hi + 1] - P[lo];
+        if (w == 0.0) return double(lo);
+        const double s = S[hi + 1] - S[lo];
+        return s / w;
+    };
+    std::vector<double> means(N + 1);
+    int prev = 0;
+    for (int k = 0; k < N; ++k) {
+        means[k] = class_mean(prev, best[k]);
+        prev = best[k] + 1;
+    }
+    means[N] = class_mean(prev, L - 1);
+
     Value t_out = Value::matrix(1, N, ValueType::DOUBLE, mr);
     double *td = t_out.doubleDataMut();
-    for (int k = 0; k < N; ++k) td[k] = double(best[k]) / double(L - 1);
+    const bool isInteger = (I.type() == ValueType::UINT8
+                         || I.type() == ValueType::UINT16
+                         || I.type() == ValueType::INT16
+                         || I.type() == ValueType::INT8);
+    for (int k = 0; k < N; ++k) {
+        const double midpoint = 0.5 * (means[k] + means[k + 1]);
+        if (isInteger) {
+            // Integer input: MATLAB returns thresholds in the input's
+            // native integer range, truncated (uint8 floor() of the
+            // mean midpoint).
+            td[k] = std::floor(midpoint);
+        } else {
+            // Floating-point input: normalise back to [0, 1].
+            td[k] = midpoint / double(L - 1);
+        }
+    }
+
     // Effectiveness η = sigma_b^2 / sigma_T^2.
     const double mu = sum_total / total;
     double total_var = 0.0;
     for (int i = 0; i < L; ++i) total_var += counts[i] * (i - mu) * (i - mu);
-    // best_var is sum of w·μ² over classes; sigma_b² = sum w·μ² − total·mu².
     const double sigma_b2 = best_var - total * mu * mu;
     const double em = (total_var > 0.0) ? (sigma_b2 / total_var) : 0.0;
     return std::make_tuple(std::move(t_out), Value::scalar(em, mr));
