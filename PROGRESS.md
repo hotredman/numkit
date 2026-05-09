@@ -2115,7 +2115,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `decomposition` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `det` | ❌ | 0.006 | 66.89× | 38.95× | OK | Sig: d = det(A). Determinant via LU with partial pivoting; sign tracked from row swaps. Singular A returns 0. Bit-identical with MATLAB R2025b on probed cases (2×2, triangular 3×3, identity 5×5, singular rank-1, magic(4)). |
 | `dot` | ✅ | 0.003 | 27.86× | 51.49× | OK | Sig: r = dot(...). Spec-extension batch 2026-05-09. |
-| `eig` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `eig` | ❌ | 0.012 | 34.44× | 12.08× | OK | Sig: e = eig(A) | [V, D] = eig(A). Symmetric Jacobi for real symmetric A; eigenvalues ascending. General (non-symmetric) eig requires Hessenberg + Francis QR -- Phase 2b. |
 | `eigs` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `expm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `expmv` | ❌ |  |  |  |  |  |

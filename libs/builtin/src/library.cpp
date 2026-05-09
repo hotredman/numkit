@@ -436,6 +436,7 @@ void cond_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void orth_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void null_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void normest_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void eig_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void size_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void length_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void numel_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -942,6 +943,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("orth",      &builtin::detail::orth_reg);
     engine.registerFunction("null",      &builtin::detail::null_reg);
     engine.registerFunction("normest",   &builtin::detail::normest_reg);
+    engine.registerFunction("eig",       &builtin::detail::eig_reg);
     engine.registerFunction("size",      &builtin::detail::size_reg);
     engine.registerFunction("length",    &builtin::detail::length_reg);
     engine.registerFunction("numel",     &builtin::detail::numel_reg);
