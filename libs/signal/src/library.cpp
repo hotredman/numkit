@@ -186,6 +186,7 @@ void instbw_reg          (Span<const Value>, size_t, Span<Value>, CallContext &)
 void buttap_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cheb1ap_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cheb2ap_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ellipap_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void besselap_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lp2lp_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lp2hp_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -198,6 +199,7 @@ void freqs_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 // Top-level IIR designs (libs/signal/src/filter_design/iir_designs.cpp)
 void cheby1_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cheby2_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ellip_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void besself_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void buttord_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cheb1ord_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -436,6 +438,7 @@ void SignalLibrary::install(Engine &engine)
     reg("filter_design", "buttap",   &signal::detail::buttap_reg);
     reg("filter_design", "cheb1ap",  &signal::detail::cheb1ap_reg);
     reg("filter_design", "cheb2ap",  &signal::detail::cheb2ap_reg);
+    reg("filter_design", "ellipap",  &signal::detail::ellipap_reg);
     reg("filter_design", "besselap", &signal::detail::besselap_reg);
     reg("filter_design", "lp2lp",    &signal::detail::lp2lp_reg);
     reg("filter_design", "lp2hp",    &signal::detail::lp2hp_reg);
@@ -446,6 +449,7 @@ void SignalLibrary::install(Engine &engine)
     reg("filter_design", "freqs",    &signal::detail::freqs_reg);
     reg("filter_design", "cheby1",   &signal::detail::cheby1_reg);
     reg("filter_design", "cheby2",   &signal::detail::cheby2_reg);
+    reg("filter_design", "ellip",    &signal::detail::ellip_reg);
     reg("filter_design", "besself",  &signal::detail::besself_reg);
     reg("filter_design", "buttord",  &signal::detail::buttord_reg);
     reg("filter_design", "cheb1ord", &signal::detail::cheb1ord_reg);

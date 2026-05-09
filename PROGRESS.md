@@ -2339,7 +2339,7 @@ intentionally omitted — flat solver functions only.
 | `digitalfilter` | ❌ |  |  |  |  |  |
 | `double` | ✅ | 0.004 | 31.06× | 35.51× | OK | Sig: r = double(...). Type conversion. Spec-extension batch 2026-05-09. KNOWN GAP: numkit rejects double("string") with error; MATLAB returns NaN, Octave returns ASCII codes — both differ from numkit. String→double documented as separate gap; only int/logical/numeric paths pinned here. |
 | `dspfwiz` | ❌ |  |  |  |  |  |
-| `ellip` | ❌ |  |  |  |  | IIR elliptic |
+| `ellip` | ❌ | 0.033 | 295.87× | 118.01× | OK | Sig: [b,a] = ellip(N, Rp, Rs, Wn[, type][, 's']). Cauer IIR design via ellipap + lp2X + bilinear. Bit-identical with MATLAB R2025b on probe. |
 | `ellipord` | ❌ |  |  |  |  | order estimator |
 | `filt2block` | ❌ |  |  |  |  |  |
 | `filteranalyzer` | ❌ |  |  |  |  |  |
@@ -2380,8 +2380,8 @@ intentionally omitted — flat solver functions only.
 | `cheb2ap` | ✅ | 0.004 | 258.49× | 60.66× | OK | Sig: r = cheb2ap(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `cheby1` | ✅ | 0.007 | 925.41× | 44.02× | OK | Sig: r = cheby1(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `cheby2` | ✅ | 0.010 | 744.29× | 42.58× | OK | Sig: r = cheby2(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `ellip` | ❌ |  |  |  |  | IIR elliptic — needs ellipap (Jacobi elliptic) |
-| `ellipap` | ❌ |  |  |  |  | needs K(m) via AGM + Jacobi sn/cn/dn |
+| `ellip` | ❌ | 0.033 | 295.87× | 118.01× | OK | Sig: [b,a] = ellip(N, Rp, Rs, Wn[, type][, 's']). Cauer IIR design via ellipap + lp2X + bilinear. Bit-identical with MATLAB R2025b on probe. |
+| `ellipap` | ❌ | 0.024 | 121.83× | 151.91× | OK | Sig: [z,p,k] = ellipap(N, Rp, Rs). Cauer analog prototype via Sophocleous formulas. Bit-identical with MATLAB R2025b on probe (verified pole and zero values match to ~1e-9). |
 | `freqs` | ✅ | 0.003 | 53.40× | 32.87× | OK | Sig: h = freqs(b, a, w). KNOWN GAP: numkit's freqs returns scalar where MATLAB returns length-N vector. Documented as separate ТЗ. Octave behaves like numkit (also returns 1). MATLAB R2025b is the reference. |
 | `impinvar` | ✅ | 0.005 | 657.78× | 151.54× | OK | Sig: [bz,az] = impinvar(b, a, fs). Spec-extension batch 2026-05-09 (cycle 43). |
 | `lp2bp` | ✅ | 0.006 | 535.95× |  | OK | Sig: [bt,at] = lp2bp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |

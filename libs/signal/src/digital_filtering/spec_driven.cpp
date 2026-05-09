@@ -1,15 +1,23 @@
 // libs/signal/src/digital_filtering/spec_driven.cpp
 //
-// lowpass / highpass / bandpass / bandstop — wrappers over butter() +
-// filtfilt(). Bandpass / bandstop are cascade approximations (the
-// scalar-Wn butter() doesn't accept the [w1 w2] form yet).
+// lowpass / highpass / bandpass / bandstop -- wrappers over the
+// MATLAB-default IIR filter design + filtfilt.
+//
+// MATLAB's lowpass(x, fpass) (and friends) defaults match
+// designfilt("lowpassiir", "FilterOrder", N, "PassbandFrequency", fpass,
+//            "PassbandRipple", 0.1, "StopbandAttenuation", 60,
+//            "DesignMethod", "ellip") with cutoff = midpoint(fpass, fstop)
+// where fstop = fpass + (1 - Steepness)*(1 - fpass), Steepness = 0.85.
+// We compose ellip() + filtfilt() with the same parameters.
 
 #include <numkit/signal/digital_filtering/spec_driven.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
+#include <numkit/core/value.hpp>
 #include <numkit/signal/digital_filtering/filter.hpp>
 #include <numkit/signal/filter_design/filter_design.hpp>
+#include <numkit/signal/filter_design/iir_designs.hpp>
 
 #include <cmath>
 
@@ -36,14 +44,36 @@ void validateOrder(int order, const char *fnName)
                      0, 0, fnName, "", std::string("m:") + fnName + ":badOrder");
 }
 
+// MATLAB lowpass/highpass/bandpass/bandstop default parameters --
+// these match what designfilt("lowpassiir", ..., "DesignMethod", "ellip")
+// produces under the lowpass/highpass/etc front-end.
+constexpr double kDefaultRp = 0.1;     // passband ripple, dB
+constexpr double kDefaultRs = 60.0;    // stopband attenuation, dB
+constexpr int    kDefaultIirOrder  = 7; // matches MATLAB IIR-branch default
+// (Steepness=0.85 only affects the FIR branch's transition width; the
+// IIR ellip path uses the passband edge directly as Wp.)
+
+inline Value scalarWn(std::pmr::memory_resource *mr, double w) {
+    return Value::scalar(w, mr);
+}
+inline Value pairWn(std::pmr::memory_resource *mr, double w1, double w2) {
+    auto v = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+    v.doubleDataMut()[0] = w1;
+    v.doubleDataMut()[1] = w2;
+    return v;
+}
+
 } // namespace
 
 Value lowpass(std::pmr::memory_resource *mr, const Value &x,
               double fpass, double fs, int order)
 {
     validateOrder(order, "lowpass");
-    const double Wn = normaliseW(fpass, fs, "lowpass");
-    auto [b, a] = butter(mr, order, Wn, "low");
+    const double Wp = normaliseW(fpass, fs, "lowpass");
+    // honour explicit order; remap legacy default 8 -> 7 to match MATLAB
+    const int N = (order == 8) ? kDefaultIirOrder : order;
+    auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
+                        scalarWn(mr, Wp), FilterType::Lowpass, /*analog=*/false);
     return filtfilt(mr, b, a, x);
 }
 
@@ -51,8 +81,10 @@ Value highpass(std::pmr::memory_resource *mr, const Value &x,
                double fpass, double fs, int order)
 {
     validateOrder(order, "highpass");
-    const double Wn = normaliseW(fpass, fs, "highpass");
-    auto [b, a] = butter(mr, order, Wn, "high");
+    const double Wp = normaliseW(fpass, fs, "highpass");
+    const int N = (order == 8) ? kDefaultIirOrder : order;
+    auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
+                        scalarWn(mr, Wp), FilterType::Highpass, /*analog=*/false);
     return filtfilt(mr, b, a, x);
 }
 
@@ -63,8 +95,13 @@ Value bandpass(std::pmr::memory_resource *mr, const Value &x,
     if (!(flo < fhi))
         throw Error("bandpass: low cutoff must be < high cutoff",
                      0, 0, "bandpass", "", "m:bandpass:badRange");
-    auto stage1 = highpass(mr, x, flo, fs, order);
-    return lowpass(mr, stage1, fhi, fs, order);
+    const double Wlo = normaliseW(flo, fs, "bandpass");
+    const double Whi = normaliseW(fhi, fs, "bandpass");
+    const int N = (order == 8) ? kDefaultIirOrder : order;
+    auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
+                        pairWn(mr, Wlo, Whi),
+                        FilterType::Bandpass, /*analog=*/false);
+    return filtfilt(mr, b, a, x);
 }
 
 Value bandstop(std::pmr::memory_resource *mr, const Value &x,
@@ -74,18 +111,13 @@ Value bandstop(std::pmr::memory_resource *mr, const Value &x,
     if (!(flo < fhi))
         throw Error("bandstop: low cutoff must be < high cutoff",
                      0, 0, "bandstop", "", "m:bandstop:badRange");
-    // Stop = low pass below flo + high pass above fhi.
-    auto lo = lowpass(mr, x, flo, fs, order);
-    auto hi = highpass(mr, x, fhi, fs, order);
-    // Sum the two paths element-wise.
-    auto out = Value::matrix(x.dims().rows(), x.dims().cols(),
-                              ValueType::DOUBLE, mr);
-    double *dst = out.doubleDataMut();
-    const double *l = lo.doubleData();
-    const double *h = hi.doubleData();
-    const size_t n = x.numel();
-    for (size_t i = 0; i < n; ++i) dst[i] = l[i] + h[i];
-    return out;
+    const double Wlo = normaliseW(flo, fs, "bandstop");
+    const double Whi = normaliseW(fhi, fs, "bandstop");
+    const int N = (order == 8) ? kDefaultIirOrder : order;
+    auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
+                        pairWn(mr, Wlo, Whi),
+                        FilterType::Bandstop, /*analog=*/false);
+    return filtfilt(mr, b, a, x);
 }
 
 namespace detail {
