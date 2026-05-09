@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: pending (intfilt length fix)
+- Closed in commit: pending (refined defer)
 - Closed date: 2026-05-09
-- Notes: Initial closure (cycle 43) was DEFERRED -- output LENGTH was 2*R*L + 1 instead of MATLAB's 2*R*L - 1. Length now matches MATLAB (off-by-two corrected). Coefficient VALUES still differ -- numkit uses Hamming-windowed sinc with R-scaled DC gain; MATLAB uses proprietary firgr/firls equiripple FIR design. The R-scaled DC gain preserves the interp() upsampling amplitude (gtests pass). Closing values requires firls implementation (separate ТЗ).
+- Notes: PARTIAL FIX. Output LENGTH now matches MATLAB (2*R*L - 1) and DC gain = R is preserved. Coefficient VALUES still differ -- numkit uses Hamming-windowed sinc; MATLAB uses a least-squares FIR design (likely firls with specific bands/weights). Closing fully requires implementing firls (~150 lines: Toeplitz normal equations on sampled desired response). Practical impact: numkit intfilt works correctly for interp() upsampling (gtest passes), just produces a different specific FIR than MATLAB.
