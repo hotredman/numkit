@@ -153,7 +153,8 @@ TEST_F(FigureManagerTest, DefaultAxesState)
     EXPECT_EQ(ax.title, "");
     EXPECT_EQ(ax.xlabel, "");
     EXPECT_EQ(ax.ylabel, "");
-    EXPECT_EQ(ax.gridMode, "");
+    EXPECT_FALSE(ax.gridMajor);
+    EXPECT_FALSE(ax.gridMinor);
     EXPECT_FALSE(ax.holdOn);
     EXPECT_FALSE(ax.polar);
     EXPECT_EQ(ax.xscale, "linear");
@@ -306,7 +307,8 @@ TEST_F(FigureCloseTest, ClfResetsAxes)
     eval("clf");
     EXPECT_EQ(ax().datasets.size(), 0u);
     EXPECT_EQ(ax().title, "");
-    EXPECT_EQ(ax().gridMode, "");
+    EXPECT_FALSE(ax().gridMajor);
+    EXPECT_FALSE(ax().gridMinor);
 }
 
 TEST_F(FigureCloseTest, ClearAllClosesFigures)
@@ -317,63 +319,71 @@ TEST_F(FigureCloseTest, ClearAllClosesFigures)
 }
 
 // ============================================================
-// Grid — on/off/minor/toggle semantics
+// Grid — MATLAB-parity semantics:
+//   `grid` (no args)  → toggle MAJOR (minor untouched)
+//   `grid on`         → major on
+//   `grid off`        → both off
+//   `grid minor`      → toggle MINOR (major untouched)
+// gridMajor and gridMinor are independent booleans.
 // ============================================================
 
 class GridTest : public FigureEngineTest {};
 
-TEST_F(GridTest, OnSetsMode)
+TEST_F(GridTest, OnSetsMajor)
 {
     eval("figure(1); plot([1 2],[1 2]); grid on");
-    EXPECT_EQ(ax().gridMode, "on");
+    EXPECT_TRUE(ax().gridMajor);
+    EXPECT_FALSE(ax().gridMinor);
 }
 
-TEST_F(GridTest, OffClearsMode)
+TEST_F(GridTest, OffClearsBoth)
 {
-    eval("figure(1); plot([1 2],[1 2]); grid on; grid off");
-    EXPECT_EQ(ax().gridMode, "");
+    eval("figure(1); plot([1 2],[1 2]); grid on; grid minor; grid off");
+    EXPECT_FALSE(ax().gridMajor);
+    EXPECT_FALSE(ax().gridMinor);
 }
 
-TEST_F(GridTest, ToggleOffToOn)
+TEST_F(GridTest, BareToggleTogglesMajorOnly)
 {
     eval("figure(1); plot([1 2],[1 2]); grid");
-    EXPECT_EQ(ax().gridMode, "on");
+    EXPECT_TRUE(ax().gridMajor);
+    EXPECT_FALSE(ax().gridMinor);
+    eval("grid");
+    EXPECT_FALSE(ax().gridMajor);
+    EXPECT_FALSE(ax().gridMinor);
 }
 
-TEST_F(GridTest, ToggleOnToOff)
+TEST_F(GridTest, MinorIsIndependentOfMajor)
 {
-    eval("figure(1); plot([1 2],[1 2]); grid on; grid");
-    EXPECT_EQ(ax().gridMode, "");
-}
-
-TEST_F(GridTest, MinorFromOff)
-{
+    // `grid minor` only flips minor; major stays as it was.
     eval("figure(1); plot([1 2],[1 2]); grid minor");
-    EXPECT_EQ(ax().gridMode, "minor");
+    EXPECT_FALSE(ax().gridMajor);   // minor without major (rare but valid)
+    EXPECT_TRUE(ax().gridMinor);
+    eval("grid on");
+    EXPECT_TRUE(ax().gridMajor);
+    EXPECT_TRUE(ax().gridMinor);    // minor preserved
 }
 
-TEST_F(GridTest, MinorFromOn)
+TEST_F(GridTest, MinorToggle)
 {
     eval("figure(1); plot([1 2],[1 2]); grid on; grid minor");
-    EXPECT_EQ(ax().gridMode, "minor");
-}
-
-TEST_F(GridTest, MinorToggleBackToOn)
-{
-    eval("figure(1); plot([1 2],[1 2]); grid minor; grid minor");
-    EXPECT_EQ(ax().gridMode, "on");
+    EXPECT_TRUE(ax().gridMajor);
+    EXPECT_TRUE(ax().gridMinor);
+    eval("grid minor");             // toggle minor off
+    EXPECT_TRUE(ax().gridMajor);    // major still on
+    EXPECT_FALSE(ax().gridMinor);
 }
 
 TEST_F(GridTest, FunctionSyntax)
 {
     eval("figure(1); plot([1 2],[1 2]); grid('on')");
-    EXPECT_EQ(ax().gridMode, "on");
+    EXPECT_TRUE(ax().gridMajor);
 }
 
 TEST_F(GridTest, FunctionSyntaxMinor)
 {
     eval("figure(1); plot([1 2],[1 2]); grid('minor')");
-    EXPECT_EQ(ax().gridMode, "minor");
+    EXPECT_TRUE(ax().gridMinor);
 }
 
 // ============================================================
@@ -710,12 +720,12 @@ TEST_F(PlotReplaceTest, PlotReplacesBarClearsConfig)
 {
     eval("figure(1); bar([1 2 3]); title('old'); xlabel('x'); grid on;");
     EXPECT_EQ(ax().title, "old");
-    EXPECT_EQ(ax().gridMode, "on");
+    EXPECT_TRUE(ax().gridMajor);
 
     eval("plot([1 2], [3 4]);");
     EXPECT_EQ(ax().title, "") << "title should be cleared without hold";
     EXPECT_EQ(ax().xlabel, "") << "xlabel should be cleared without hold";
-    EXPECT_EQ(ax().gridMode, "") << "grid should be cleared without hold";
+    EXPECT_FALSE(ax().gridMajor) << "grid should be cleared without hold";
 }
 
 TEST_F(PlotReplaceTest, PlotReplacesClearsLimits)
@@ -748,7 +758,7 @@ TEST_F(PlotReplaceTest, HoldOnPreservesTypeAndConfig)
     eval("polarplot(linspace(0,6.28,63), 2*ones(1,63));");
     EXPECT_TRUE(ax().polar) << "hold on should preserve polar";
     EXPECT_EQ(ax().title, "polar") << "hold on should preserve title";
-    EXPECT_EQ(ax().gridMode, "on") << "hold on should preserve grid";
+    EXPECT_TRUE(ax().gridMajor) << "hold on should preserve grid";
     EXPECT_EQ(ax().datasets.size(), 2u) << "hold on should accumulate datasets";
 }
 
@@ -780,7 +790,7 @@ TEST_F(SubplotEngineTest, IndependentGridModes)
     eval("figure(1);");
     eval("subplot(1,2,1); grid on;");
     eval("subplot(1,2,2);");
-    EXPECT_EQ(ax().gridMode, ""); // second subplot has no grid
+    EXPECT_FALSE(ax().gridMajor); // second subplot has no grid
 }
 
 TEST_F(SubplotEngineTest, IndependentHold)
@@ -830,7 +840,7 @@ TEST_F(FigureIntegrationTest, FullPlotWorkflow)
     EXPECT_EQ(ax().title, "Trig Functions");
     EXPECT_EQ(ax().xlabel, "x");
     EXPECT_EQ(ax().ylabel, "y");
-    EXPECT_EQ(ax().gridMode, "on");
+    EXPECT_TRUE(ax().gridMajor);
     EXPECT_TRUE(ax().holdOn);
     EXPECT_EQ(ax().datasets.size(), 2u);
     ASSERT_EQ(ax().legendLabels.size(), 2u);
@@ -853,7 +863,7 @@ TEST_F(FigureIntegrationTest, SubplotWorkflow)
 
     bool topOk = false, bottomOk = false;
     for (auto &a : fig.axes) {
-        if (a.subplotIndex == 1 && a.title == "Quadratic" && a.gridMode == "on")
+        if (a.subplotIndex == 1 && a.title == "Quadratic" && a.gridMajor)
             topOk = true;
         if (a.subplotIndex == 2 && a.title == "Cubic" &&
             !a.datasets.empty() && a.datasets[0].type == "stem")

@@ -3006,17 +3006,23 @@ void GraphicsLibrary::install(Engine &engine)
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             auto &fm = ctx.engine->figureManager();
             auto &ax = fm.currentAxes();
-            if (args.empty())
-                ax.gridMode = ax.gridMode.empty() ? "on" : "";
-            else {
+            // MATLAB semantics:
+            //   grid          → toggle MAJOR (minor untouched)
+            //   grid on       → major on
+            //   grid off      → both off
+            //   grid minor    → toggle MINOR (major untouched)
+            // Major and minor are independent booleans; the script can
+            // hold "minor only" (rare but valid in MATLAB).
+            if (args.empty()) {
+                ax.gridMajor = !ax.gridMajor;
+            } else if (args[0].isChar()) {
                 std::string arg = args[0].toString();
-                if (arg == "on")
-                    ax.gridMode = "on";
-                else if (arg == "off")
-                    ax.gridMode = "";
-                else if (arg == "minor")
-                    ax.gridMode = (ax.gridMode == "minor") ? "on" : "minor";
+                for (auto &c : arg) c = (char)std::tolower((unsigned char)c);
+                if      (arg == "on")    { ax.gridMajor = true; }
+                else if (arg == "off")   { ax.gridMajor = false; ax.gridMinor = false; }
+                else if (arg == "minor") { ax.gridMinor = !ax.gridMinor; }
             }
+            ax.gridUserTouched = true;
             fm.current().modified = true;
             fm.emitModified();
             outs[0] = Value::empty();

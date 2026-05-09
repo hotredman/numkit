@@ -1369,7 +1369,11 @@ input, select { font-family: inherit; color: inherit; }
 }
 .fw-range-row {
   display: flex; align-items: center;
-  padding: 4px 14px;
+  /* Symmetric vertical padding so the X / Y / Z inputs and the
+     "→" separators have breathing room above and below — the row
+     was previously hugging both the canvas border above and the
+     status bar below. */
+  padding: 10px 14px;
   background: var(--bg-2);
   border-top: 1px solid var(--line);
 }

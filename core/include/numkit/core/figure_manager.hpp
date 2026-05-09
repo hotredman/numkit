@@ -101,7 +101,18 @@ struct AxesState
     std::string colormapName; // "parula","jet","hot","cool","gray","viridis","turbo","hsv"
     bool polar = false;
     bool holdOn = false;
-    std::string gridMode; // "" = off, "on" = major, "minor" = major+minor
+    // Major / minor grid as two independent booleans, matching MATLAB
+    // semantics:
+    //   grid          → toggles `gridMajor` (minor untouched)
+    //   grid on       → gridMajor = true
+    //   grid off      → both = false
+    //   grid minor    → toggles `gridMinor` (major untouched)
+    // gridUserTouched lets the adapter tell "user said off" apart from
+    // "script never called grid()" — important because the JS side
+    // wants different defaults for 2-D (off) and 3-D (on).
+    bool gridMajor = false;
+    bool gridMinor = false;
+    bool gridUserTouched = false;
     std::vector<std::string> legendLabels;
     // Legend placement. MATLAB Location values: best (default), north,
     // south, east, west, northeast, northwest, southeast, southwest, and
@@ -400,7 +411,14 @@ public:
                     os << ",\"clim\":" << ax.climJson;
                 if (!ax.colormapName.empty())
                     os << ",\"colormap\":\"" << ax.colormapName << "\"";
-                os << ",\"grid\":\"" << ax.gridMode << "\"";
+                // Emit "grid" only when the user explicitly called
+                // grid(...). Field absence means "script never asked";
+                // the JS adapter then picks a type-appropriate default
+                // (2-D off, 3-D on, mirroring MATLAB).
+                if (ax.gridUserTouched)
+                    os << ",\"grid\":\"" << (ax.gridMajor ? "on" : "off") << "\"";
+                if (ax.gridMinor)
+                    os << ",\"gridMinor\":\"on\"";
                 os << ",\"polar\":" << (ax.polar ? "true" : "false");
                 os << ",\"xscale\":\"" << ax.xscale << "\"";
                 os << ",\"yscale\":\"" << ax.yscale << "\"";
