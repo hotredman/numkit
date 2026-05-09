@@ -85,6 +85,9 @@ void quantiz_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // source/lloyds.cpp
 void lloyds_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// source/dpcmopt.cpp
+void dpcmopt_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -155,6 +158,7 @@ void CommLibrary::install(Engine &engine)
     reg("eq", "dpcmdeco",    &comm::detail::dpcmdeco_reg);
     reg("eq", "quantiz",     &comm::detail::quantiz_reg);
     reg("eq", "lloyds",      &comm::detail::lloyds_reg);
+    reg("eq", "dpcmopt",     &comm::detail::dpcmopt_reg);
 }
 
 } // namespace numkit
