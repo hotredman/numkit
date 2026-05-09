@@ -38,6 +38,10 @@ void genqamdemod_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void apskmod_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void apskdemod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// modulation/mil188.cpp
+void mil188qammod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void mil188qamdemod_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // channel/channel.cpp
 void awgn_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void wgn_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -128,6 +132,8 @@ void CommLibrary::install(Engine &engine)
     reg("mod", "genqamdemod", &comm::detail::genqamdemod_reg);
     reg("mod", "apskmod",     &comm::detail::apskmod_reg);
     reg("mod", "apskdemod",   &comm::detail::apskdemod_reg);
+    reg("mod", "mil188qammod",   &comm::detail::mil188qammod_reg);
+    reg("mod", "mil188qamdemod", &comm::detail::mil188qamdemod_reg);
 
     reg("rf", "awgn",        &comm::detail::awgn_reg);
     reg("rf", "wgn",         &comm::detail::wgn_reg);
