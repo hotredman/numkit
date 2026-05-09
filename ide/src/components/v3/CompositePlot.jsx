@@ -807,6 +807,78 @@ export default function CompositePlot({
                   </g>
                 );
               }
+              if (mode === 'area') {
+                // Filled polygon under the curve. Path: (x[0],base) →
+                // (x[0],y[0]) → … → (x[N-1],y[N-1]) → (x[N-1],base) → close.
+                // NaN points break the polygon — start a new sub-path.
+                const base = Number.isFinite(ly.baseline) ? ly.baseline : 0;
+                const subpaths = [];
+                let cur = '';
+                let firstPx = null;
+                for (let i = 0; i < ly.x.length; i++) {
+                  const xv = ly.x[i], yv = ly.y[i];
+                  const finite = Number.isFinite(xv) && Number.isFinite(yv);
+                  if (!finite) {
+                    if (cur) {
+                      // Close current sub-path: drop down to baseline + close.
+                      const lastX = ly.x.slice(0, i).reverse().find((v) => Number.isFinite(v));
+                      if (lastX != null) cur += `L${sx(lastX).toFixed(2)},${sy(base).toFixed(2)} Z `;
+                      subpaths.push(cur);
+                      cur = ''; firstPx = null;
+                    }
+                    continue;
+                  }
+                  const px = sx(xv), py = sy(yv);
+                  if (!cur) {
+                    firstPx = px;
+                    cur = `M${px.toFixed(2)},${sy(base).toFixed(2)} L${px.toFixed(2)},${py.toFixed(2)} `;
+                  } else {
+                    cur += `L${px.toFixed(2)},${py.toFixed(2)} `;
+                  }
+                }
+                if (cur) {
+                  // Close last sub-path.
+                  const lastX = ly.x.slice().reverse().find((v) => Number.isFinite(v));
+                  if (lastX != null) cur += `L${sx(lastX).toFixed(2)},${sy(base).toFixed(2)} Z`;
+                  subpaths.push(cur);
+                }
+                const d = subpaths.join(' ');
+                return (
+                  <g key={`ly${idx}`} opacity={op}>
+                    <path d={d} fill={ly.color} fillOpacity="0.3"
+                      stroke={ly.color} strokeWidth={w}
+                      strokeLinejoin="round" strokeLinecap="round" />
+                  </g>
+                );
+              }
+              if (mode === 'barh') {
+                // Horizontal bars. Adapter has already swapped the
+                // engine's xJson/yJson so `ly.y` holds positions
+                // (vertical / Y axis) and `ly.x` holds lengths
+                // (horizontal / X axis). Bars extend from x=0 to x=ly.x[i].
+                const ys = ly.y.filter(Number.isFinite);
+                let bh = 8;
+                if (ys.length > 1) {
+                  const spacing = Math.abs(sy(ys[1]) - sy(ys[0]));
+                  bh = Math.max(2, spacing * 0.7);
+                }
+                const baseX = sx(xLogActive ? xMin : Math.max(0, xMin));
+                const sIdx = seriesLayers.indexOf(ly);
+                const off = (sIdx - (seriesLayers.length - 1) / 2) * bh * 1.05;
+                return (
+                  <g key={`ly${idx}`} opacity={op}>
+                    {ly.y.map((yv, i) => {
+                      const py = sy(yv) + off;
+                      const px = sx(ly.x[i]);
+                      if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
+                      const left = Math.min(px, baseX);
+                      const w2 = Math.abs(px - baseX);
+                      return <rect key={i} x={left} y={py - bh / 2}
+                        width={w2} height={bh} fill={ly.color} stroke="none" />;
+                    })}
+                  </g>
+                );
+              }
               if (mode === 'errorbar') {
                 // Three SVG elements per data point:
                 //   • centre dot (the y value)

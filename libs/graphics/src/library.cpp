@@ -254,6 +254,91 @@ void GraphicsLibrary::install(Engine &engine)
             outs[0] = Value::empty();
         });
 
+    // area — filled curve. MATLAB convention:
+    //   area(y)            — x = 1:N, fill from y to baseline 0
+    //   area(x, y)         — fill from y to baseline 0
+    //   area(x, y, base)   — fill from y to `base`
+    // Stored as `type = "area"`; the optional baseline lives in
+    // ds.lineWidth's slot is wrong, use a dedicated field. Reusing
+    // `markerSize` is also wrong. We pack base into ds.style as
+    // "base=<value>" so we don't grow the schema for one optional.
+    reg("line", "area",
+        [vecToJson, makeIndexJson, parsePlotArgs](Span<const Value> args, size_t nargout,
+                                   Span<Value> outs, CallContext &ctx) {
+            if (args.empty()) {
+                outs[0] = Value::empty();
+                return;
+            }
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            DatasetInfo ds;
+            ds.type = "area";
+
+            // Find optional baseline (last numeric scalar arg) and skip
+            // line specs (char args).
+            size_t nData = args.size();
+            for (size_t i = 0; i < args.size(); ++i) {
+                if (args[i].isChar()) { nData = i; break; }
+            }
+            double baseline = 0.0;
+            bool hasBase = false;
+
+            if (nData == 1) {
+                ds.xJson = makeIndexJson(args[0].numel());
+                ds.yJson = vecToJson(args[0]);
+            } else if (nData >= 2) {
+                ds.xJson = vecToJson(args[0]);
+                ds.yJson = vecToJson(args[1]);
+                if (nData >= 3 && args[2].numel() == 1) {
+                    baseline = args[2].toScalar();
+                    hasBase = true;
+                }
+            }
+            // Handle optional N-V pairs (FaceColor, LineWidth, …) after
+            // the data args. parsePlotArgs is forgiving about unknown
+            // names; baseline gets piggybacked on ds.style as a
+            // "base=N" suffix that the adapter parses out.
+            parsePlotArgs(args, nData, ds);
+            if (hasBase) {
+                std::ostringstream os;
+                if (!ds.style.empty()) os << ds.style << ";";
+                os << "base=" << baseline;
+                ds.style = os.str();
+            }
+            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
+    // barh — horizontal bar chart, mirror of bar(). MATLAB convention:
+    //   barh(y)    — y is vector of bar lengths, vertical positions = 1:N
+    //   barh(x, y) — x is vertical positions (categories), y = lengths
+    // We store xJson = positions (rendered along the Y axis) and
+    // yJson = lengths (along X axis); the 'barh' mode in the renderer
+    // swaps the axis roles compared to 'bar'.
+    reg("bar", "barh",
+        [vecToJson, makeIndexJson](Span<const Value> args, size_t nargout,
+                                   Span<Value> outs, CallContext &ctx) {
+            if (args.empty()) {
+                outs[0] = Value::empty();
+                return;
+            }
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            DatasetInfo ds;
+            ds.type = "barh";
+            if (args.size() >= 2 && !args[1].isChar()) {
+                ds.xJson = vecToJson(args[0]);
+                ds.yJson = vecToJson(args[1]);
+            } else {
+                ds.xJson = makeIndexJson(args[0].numel());
+                ds.yJson = vecToJson(args[0]);
+            }
+            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
     reg("bar", "scatter",
         [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             if (args.size() < 2) {
