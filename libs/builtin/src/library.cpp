@@ -357,6 +357,8 @@ void vecnorm_reg    (Span<const Value>, size_t, Span<Value>, CallContext&);
 void rref_reg       (Span<const Value>, size_t, Span<Value>, CallContext&);
 void rcond_reg      (Span<const Value>, size_t, Span<Value>, CallContext&);
 void planerot_reg   (Span<const Value>, size_t, Span<Value>, CallContext&);
+// language/arrays/ldl.cpp
+void ldl_reg        (Span<const Value>, size_t, Span<Value>, CallContext&);
 void flintmax_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void intmax_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void intmin_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -1212,6 +1214,8 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("compat", "rref",        &builtin::detail::rref_reg);
     engine.registerFunction("compat", "rcond",       &builtin::detail::rcond_reg);
     engine.registerFunction("compat", "planerot",    &builtin::detail::planerot_reg);
+    engine.registerFunction("ldl",        &builtin::detail::ldl_reg);
+    engine.registerFunction("compat", "ldl",         &builtin::detail::ldl_reg);
     engine.registerFunction("flintmax",   &builtin::detail::flintmax_reg);
     engine.registerFunction("intmax",     &builtin::detail::intmax_reg);
     engine.registerFunction("intmin",     &builtin::detail::intmin_reg);

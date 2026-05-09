@@ -344,6 +344,17 @@ Value rcond(std::pmr::memory_resource *mr, const Value &A);
 std::pair<Value, Value>
 planerot(std::pmr::memory_resource *mr, const Value &xy);
 
+/// ldl(A) — block LDL' factorization. v1 implements Crout LDL'
+/// without pivoting (works for PD/ND and most indefinite matrices).
+/// Returns (L, D, P) where L is unit lower-triangular (or upper if
+/// upper_form), D is diagonal, P is identity (no pivoting in v1).
+/// p_as_vector=true returns P as a 1×n vector of permutation indices.
+/// KNOWN GAP: complex Hermitian, sparse, Bunch-Kaufman 2×2 pivoting,
+/// and the [L,D,P,C] sparse-with-scaling form deferred.
+std::tuple<Value, Value, Value>
+ldl(std::pmr::memory_resource *mr, const Value &A,
+    bool upper_form, bool p_as_vector);
+
 // ── Shape queries ────────────────────────────────────────────────────
 /// size(x) returns a row vector of dimensions.
 /// @param asVector  when true, returns [rows, cols] or [rows, cols, pages].

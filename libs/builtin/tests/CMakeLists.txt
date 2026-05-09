@@ -88,4 +88,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/mjuliandate_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/predicates_linalg_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rref_rcond_planerot_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ldl_test.cpp
 )
