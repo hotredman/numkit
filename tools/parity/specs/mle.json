@@ -1,0 +1,6 @@
+{"name": "mle", "namespace": "stats",
+ "setup": "x = [1.2; 0.8; 1.5; 0.9; 1.1; 1.3; 1.0; 0.7; 1.4; 1.0]; xe = [0.5; 1.0; 1.5; 2.0; 2.5; 0.3; 0.8; 1.2; 1.7; 0.6]; xp = [0; 1; 2; 3; 4; 5; 1; 2; 3; 2];",
+ "expr": "mn = mle(x); me = mle(xe, 'distribution', 'exponential'); mp = mle(xp, 'distribution', 'poisson');",
+ "iters": 5, "tol": 1e-12,
+ "fingerprint": ["mn(1)", "mn(2)", "me(1)", "mp(1)"],
+ "comment": "Sig: mle(data[, 'distribution', name]). Closed-form MLE for normal (default) / exponential / poisson / lognormal. Bit-identical with MATLAB R2025b. Custom 'pdf'/'logpdf'/'nloglf' deferred."}

@@ -1405,5 +1405,124 @@ void gplike_reg(Span<const Value> args, size_t nargout,
     }
 }
 
+// ── mle (closed-form max-likelihood estimator) ─────────────────────
+//
+// Supported distribution families (closed-form MLE -- no optimization):
+//   'normal':      [muhat, sigmahat], sigmahat uses N normalisation
+//   'exponential': muhat = mean(x)
+//   'poisson':     lambdahat = mean(x)
+//   'lognormal':   [muhat, sigmahat] of log(x)
+//
+// Custom 'pdf'/'logpdf'/'nloglf' with 'start' x0 deferred -- needs
+// Nelder-Mead simplex over a function-handle nLL.
+void mle_reg(Span<const Value> args, size_t /*nargout*/,
+             Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("mle: requires (data[, options])",
+                    0, 0, "mle", "", "m:mle:nargin");
+    auto *mr = ctx.engine->resource();
+    const Value &x = args[0];
+    const std::size_t N = x.numel();
+    if (N < 2)
+        throw Error("mle: need at least 2 observations",
+                    0, 0, "mle", "", "m:mle:tooSmall");
+
+    std::string dist = "normal";
+    bool custom_fn = false;
+    for (std::size_t i = 1; i + 1 < args.size(); i += 2) {
+        if (!args[i].isChar() && !args[i].isString())
+            throw Error("mle: option name must be a string",
+                        0, 0, "mle", "", "m:mle:badOption");
+        const std::string opt = args[i].toString();
+        if (opt == "distribution" || opt == "Distribution")
+            dist = args[i + 1].toString();
+        else if (opt == "pdf" || opt == "PDF" ||
+                 opt == "logpdf" || opt == "LogPDF" ||
+                 opt == "nloglf" || opt == "NLogLF")
+            custom_fn = true;
+        else if (opt == "start" || opt == "Start") { /* paired with custom_fn */ }
+        else
+            throw Error("mle: unknown option '" + opt + "'",
+                        0, 0, "mle", "", "m:mle:badOption");
+    }
+    if (custom_fn)
+        throw Error("mle: custom 'pdf'/'logpdf'/'nloglf' fitting via "
+                    "Nelder-Mead is deferred -- supported distributions "
+                    "in this revision: 'normal', 'exponential', "
+                    "'poisson', 'lognormal'",
+                    0, 0, "mle", "", "m:mle:customFnNYI");
+
+    const double *xd = x.doubleData();
+
+    if (dist == "normal" || dist == "Normal" || dist == "norm") {
+        double sum = 0.0;
+        for (std::size_t i = 0; i < N; ++i) sum += xd[i];
+        const double mean = sum / static_cast<double>(N);
+        double ss = 0.0;
+        for (std::size_t i = 0; i < N; ++i) {
+            const double d = xd[i] - mean;
+            ss += d * d;
+        }
+        const double sigma = std::sqrt(ss / static_cast<double>(N));
+        auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+        out.doubleDataMut()[0] = mean;
+        out.doubleDataMut()[1] = sigma;
+        outs[0] = std::move(out);
+        return;
+    }
+    if (dist == "exponential" || dist == "Exponential" || dist == "exp") {
+        double sum = 0.0;
+        for (std::size_t i = 0; i < N; ++i) {
+            if (xd[i] < 0.0)
+                throw Error("mle: exponential requires non-negative data",
+                            0, 0, "mle", "", "m:mle:badData");
+            sum += xd[i];
+        }
+        auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
+        out.doubleDataMut()[0] = sum / static_cast<double>(N);
+        outs[0] = std::move(out);
+        return;
+    }
+    if (dist == "poisson" || dist == "Poisson" || dist == "poiss") {
+        double sum = 0.0;
+        for (std::size_t i = 0; i < N; ++i) {
+            if (xd[i] < 0.0 || xd[i] != std::floor(xd[i]))
+                throw Error("mle: poisson requires non-negative integer data",
+                            0, 0, "mle", "", "m:mle:badData");
+            sum += xd[i];
+        }
+        auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
+        out.doubleDataMut()[0] = sum / static_cast<double>(N);
+        outs[0] = std::move(out);
+        return;
+    }
+    if (dist == "lognormal" || dist == "Lognormal" || dist == "logn") {
+        double sum_log = 0.0;
+        for (std::size_t i = 0; i < N; ++i) {
+            if (xd[i] <= 0.0)
+                throw Error("mle: lognormal requires strictly positive data",
+                            0, 0, "mle", "", "m:mle:badData");
+            sum_log += std::log(xd[i]);
+        }
+        const double mu = sum_log / static_cast<double>(N);
+        double ss = 0.0;
+        for (std::size_t i = 0; i < N; ++i) {
+            const double d = std::log(xd[i]) - mu;
+            ss += d * d;
+        }
+        const double sigma = std::sqrt(ss / static_cast<double>(N));
+        auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+        out.doubleDataMut()[0] = mu;
+        out.doubleDataMut()[1] = sigma;
+        outs[0] = std::move(out);
+        return;
+    }
+    throw Error("mle: distribution '" + dist + "' not supported "
+                "(supported: normal, exponential, poisson, lognormal). "
+                "Custom pdf/logpdf/nloglf via Nelder-Mead is deferred.",
+                0, 0, "mle", "", "m:mle:dist");
+}
+
 } // namespace detail
 } // namespace numkit::stats
