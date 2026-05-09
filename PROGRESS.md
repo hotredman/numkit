@@ -970,7 +970,7 @@ intentionally omitted, along with `constellation` (object method) and
 | `dpcmdeco` | ❌ |  |  |  |  |  |
 | `dpcmopt` | ❌ |  |  |  |  | optimise predictor + partition |
 | `huffmandict` | ❌ | 0.010 | 183.53× |  | OK | MATLAB huffmandict: Huffman code-book builder. Codes are NOT unique (tie-breaking yields different but equally optimal trees) -- the invariant is avglen = sum(p_k * L_k). Fingerprint pins avglen on three test cases (5-symbol skewed, 2-symbol, 4-symbol uniform). Code shape, prefix-freeness and bounds H <= avglen < H+1 covered in gtest. Octave 11.1.0 doesn't ship huffmandict in core (signal/communications package only); reports N/A. |
-| `huffmanenco` | ❌ |  |  |  |  |  |
+| `huffmanenco` | ❌ | 0.006 | 362.10× |  | OK | MATLAB huffmanenco/huffmandeco: encode/decode round-trip via dict from huffmandict. Bit codes are non-unique (Huffman tie-breaking can produce different but equally optimal trees), so encoded length depends on which optimal dict shape was produced. The INVARIANT under both engines is round-trip identity: dec must equal sig regardless of dict shape. We pin rt_match==1, length(dec), and the first/last decoded symbols. Octave 11.1.0 doesn't ship the Huffman codec in core; reports N/A. |
 | `huffmandeco` | ❌ |  |  |  |  |  |
 | `lloyds` | ❌ |  |  |  |  | Lloyd-Max scalar quantiser |
 | `quantiz` | ❌ |  |  |  |  | apply quantisation table |

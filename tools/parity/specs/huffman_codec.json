@@ -1,0 +1,10 @@
+{
+  "name": "huffmanenco",
+  "namespace": "comm",
+  "setup": "[d, av] = huffmandict([1 2 3 4 5], [0.4 0.2 0.2 0.1 0.1]); sig = [1 1 2 3 4 5 1 2 3 4 5];",
+  "expr": "enc = huffmanenco(sig, d); dec = huffmandeco(enc, d); rt_match = isequal(sig(:), dec(:));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["rt_match", "length(dec)", "dec(1)", "dec(end)"],
+  "comment": "MATLAB huffmanenco/huffmandeco: encode/decode round-trip via dict from huffmandict. Bit codes are non-unique (Huffman tie-breaking can produce different but equally optimal trees), so encoded length depends on which optimal dict shape was produced. The INVARIANT under both engines is round-trip identity: dec must equal sig regardless of dict shape. We pin rt_match==1, length(dec), and the first/last decoded symbols. Octave 11.1.0 doesn't ship the Huffman codec in core; reports N/A."
+}
