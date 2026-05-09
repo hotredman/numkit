@@ -2347,12 +2347,12 @@ intentionally omitted — flat solver functions only.
 | `fir2` | ❌ |  |  |  |  | arbitrary-response FIR |
 | `fircls` | ❌ |  |  |  |  | constrained-LS FIR |
 | `fircls1` | ❌ |  |  |  |  |  |
-| `firls` | ❌ |  |  |  |  | least-squares FIR |
+| `firls` | ❌ | 0.008 | 292.50× | 32.20× | OK | Sig: b = firls(N, F, A). Type-I least-squares FIR design with piecewise-linear desired amplitude. Cholesky on (M+1)x(M+1) Q matrix from closed-form integrals of cos(i*w)*cos(j*w) over each band. Bit-identical with MATLAB R2025b on lowpass design (21-tap, [0,0.4]/[0.5,1] bands). NOTE: only Type-I (even N) supported in this revision; Type-III/IV (Hilbert, differentiator) and per-band weights are deferred. |
 | `firpm` | ❌ |  |  |  |  | Parks-McClellan FIR |
 | `firpmord` | ❌ |  |  |  |  | order estimator |
 | `gaussdesign` | ✅ | 0.004 | 241.18× |  | OK | Sig: h = gaussdesign(BT, span, sps). Gaussian FIR pulse-shaping filter. Bit-identical with MATLAB R2025b on (0.3, 4, 8) probe (h(17)=0.112904, sum=1, length=33). Earlier defer was wrong. |
 | `info` | ❌ |  |  |  |  |  |
-| `intfilt` | ✅ | 0.005 | 673.04× |  | OK | Sig: b = intfilt(R, L, alpha). LENGTH fixed to MATLAB convention (2*R*L - 1) 2026-05-09. Coefficient VALUES still differ from MATLAB (numkit uses Hamming-windowed sinc; MATLAB uses sinc(alpha*n)*sinc(n/L) product) -- separate ТЗ to align. |
+| `intfilt` | ✅ | 0.004 | 811.58× |  | OK | Sig: b = intfilt(R, L, alpha). LENGTH fixed to MATLAB convention (2*R*L - 1) 2026-05-09. Coefficient VALUES still differ from MATLAB (numkit uses Hamming-windowed sinc; MATLAB uses sinc(alpha*n)*sinc(n/L) product) -- separate ТЗ to align. |
 | `isdouble` | ❌ |  |  |  |  |  |
 | `issingle` | ✅ | 0.015 | 23.38× | 37.29× | OK | N/A (definite): MATLAB R2025b has no top-level issingle() function -- canonical spelling is isa(x, 'single'). Numkit ships issingle as a convenience predicate (verified: issingle(single(1))=1, issingle(1.0)=0). Definite N/A. |
 | `kaiserord` | ❌ |  |  |  |  | Kaiser window order |
@@ -2475,7 +2475,7 @@ intentionally omitted — flat solver functions only.
 | `downsample` | ✅ | 0.005 | 197.84× | 22.66× | OK | Sig: r = downsample(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `fillgaps` | ❌ |  |  |  |  |  |
 | `interp` | ✅ | 0.005 |  | 345.31× | OK | Sig: r = interp(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `intfilt` | ✅ | 0.005 | 673.04× |  | OK | Sig: b = intfilt(R, L, alpha). LENGTH fixed to MATLAB convention (2*R*L - 1) 2026-05-09. Coefficient VALUES still differ from MATLAB (numkit uses Hamming-windowed sinc; MATLAB uses sinc(alpha*n)*sinc(n/L) product) -- separate ТЗ to align. |
+| `intfilt` | ✅ | 0.004 | 811.58× |  | OK | Sig: b = intfilt(R, L, alpha). LENGTH fixed to MATLAB convention (2*R*L - 1) 2026-05-09. Coefficient VALUES still differ from MATLAB (numkit uses Hamming-windowed sinc; MATLAB uses sinc(alpha*n)*sinc(n/L) product) -- separate ТЗ to align. |
 | `resample` | ✅ | 0.004 | 2097.78× | 58.93× | OK | Sig: r = resample(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `upfirdn` | ✅ | 0.005 | 211.77× | 10.30× | OK | Sig: y = upfirdn(x, h, p, q). Output length ceil(((Lx-1)*p + Lh) / q). Bit-identical with MATLAB R2025b after rewrite 2026-05-09. |
 | `upsample` | ✅ | 0.004 | 167.87× | 34.78× | OK | Sig: r = upsample(...). Spec-extension batch 2026-05-09 (signal namespace). |
