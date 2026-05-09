@@ -43,3 +43,16 @@ fprintf('\n  round-trip M=32: match = %d (expect 1)\n', isequal((0:31)', z32));
 
 zn32 = mil188qamdemod(y32 + 0.02*(1+1i), 32);
 fprintf('  noisy demod M=32: match = %d (expect 1)\n', isequal((0:31)', zn32));
+
+fprintf('\n--- M=64 ---\n');
+y64 = mil188qammod((0:63)', 64);
+fprintf('  64-QAM spot-check:\n');
+fprintf('    y(0)  = %+.6f%+.6fi  (expect +1.0+0i)\n', real(y64(1)), imag(y64(1)));
+fprintf('    y(10) = %+.6f%+.6fi  (expect +0.588429+0.117686i)\n', real(y64(11)), imag(y64(11)));
+fprintf('    y(63) = %+.6f%+.6fi  (expect -0.353057-0.353057i)\n', real(y64(64)), imag(y64(64)));
+
+z64 = mil188qamdemod(y64, 64);
+fprintf('\n  round-trip M=64: match = %d (expect 1)\n', isequal((0:63)', z64));
+
+zn64 = mil188qamdemod(y64 + 0.01*(1+1i), 64);
+fprintf('  noisy demod M=64: match = %d (expect 1)\n', isequal((0:63)', zn64));
