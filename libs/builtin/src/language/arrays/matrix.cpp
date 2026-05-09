@@ -504,6 +504,101 @@ Value svd_values(std::pmr::memory_resource *mr, const Value &A)
     return sv;
 }
 
+// ── Hessenberg reduction (Phase 2c foundation) ──────────────────────
+
+namespace {
+
+// In-place Hessenberg reduction via Householder reflectors.
+// On entry: A is n×n column-major. On exit: A's strict lower
+// (below first sub-diagonal) is zeroed; upper triangle + sub-diag
+// holds H. P (n×n) accumulates the orthogonal transformation:
+// A_orig = P * H_final * P'.
+void hessReduceInplace(double *A, std::size_t n, double *P)
+{
+    std::fill(P, P + n * n, 0.0);
+    for (std::size_t i = 0; i < n; ++i) P[i + i * n] = 1.0;
+    if (n < 3) return;  // no work needed for n=1, 2
+
+    ScratchVec<double> v_storage(n, std::pmr::get_default_resource());
+    double *v = v_storage.data();
+
+    for (std::size_t k = 0; k + 2 < n; ++k) {
+        // Build Householder for column k, rows k+1..n-1.
+        double norm_sq = 0.0;
+        for (std::size_t i = k + 1; i < n; ++i)
+            norm_sq += A[i + k * n] * A[i + k * n];
+        if (norm_sq == 0.0) continue;
+        const double xk = A[k + 1 + k * n];
+        const double norm = std::sqrt(norm_sq);
+        const double alpha = (xk >= 0.0) ? -norm : norm;
+        v[k + 1] = xk - alpha;
+        for (std::size_t i = k + 2; i < n; ++i) v[i] = A[i + k * n];
+        double v_norm_sq = 0.0;
+        for (std::size_t i = k + 1; i < n; ++i) v_norm_sq += v[i] * v[i];
+        if (v_norm_sq == 0.0) continue;
+        const double tau = 2.0 / v_norm_sq;
+
+        // Apply H from LEFT: A[k+1:n, k:n] = (I - tau*v*v^T) * A[k+1:n, k:n]
+        for (std::size_t j = k; j < n; ++j) {
+            double dot = 0.0;
+            for (std::size_t i = k + 1; i < n; ++i)
+                dot += v[i] * A[i + j * n];
+            const double s = tau * dot;
+            for (std::size_t i = k + 1; i < n; ++i)
+                A[i + j * n] -= s * v[i];
+        }
+        // Apply H from RIGHT: A[:, k+1:n] = A[:, k+1:n] * (I - tau*v*v^T)
+        for (std::size_t i = 0; i < n; ++i) {
+            double dot = 0.0;
+            for (std::size_t j = k + 1; j < n; ++j)
+                dot += A[i + j * n] * v[j];
+            const double s = tau * dot;
+            for (std::size_t j = k + 1; j < n; ++j)
+                A[i + j * n] -= s * v[j];
+        }
+        // Accumulate P: P[:, k+1:n] = P[:, k+1:n] * (I - tau*v*v^T)
+        for (std::size_t i = 0; i < n; ++i) {
+            double dot = 0.0;
+            for (std::size_t j = k + 1; j < n; ++j)
+                dot += P[i + j * n] * v[j];
+            const double s = tau * dot;
+            for (std::size_t j = k + 1; j < n; ++j)
+                P[i + j * n] -= s * v[j];
+        }
+        // Set sub-diagonal entry to alpha; zero entries below.
+        A[k + 1 + k * n] = alpha;
+        for (std::size_t i = k + 2; i < n; ++i)
+            A[i + k * n] = 0.0;
+    }
+}
+
+} // anonymous namespace
+
+std::tuple<Value, Value>
+hess(std::pmr::memory_resource *mr, const Value &A)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("hess: input must be a 2D matrix",
+                    0, 0, "hess", "", "m:hess:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    if (m != n)
+        throw Error("hess: matrix must be square",
+                    0, 0, "hess", "", "m:hess:notSquare");
+    auto Hout = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    auto Pout = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    if (n == 0) return std::make_tuple(std::move(Pout), std::move(Hout));
+    std::copy(A.doubleData(), A.doubleData() + n * n, Hout.doubleDataMut());
+    hessReduceInplace(Hout.doubleDataMut(), n, Pout.doubleDataMut());
+    return std::make_tuple(std::move(Pout), std::move(Hout));
+}
+
+Value hess_H_only(std::pmr::memory_resource *mr, const Value &A)
+{
+    auto [P, H] = hess(mr, A);
+    return H;
+}
+
 // ── Matrix functions: expm / logm / sqrtm / schur ────────────────────
 
 namespace {
@@ -3704,6 +3799,21 @@ void schur_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
         outs[1] = std::move(T);
     } else {
         outs[0] = std::move(T);
+    }
+}
+
+void hess_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("hess: requires exactly 1 argument",
+                    0, 0, "hess", "", "m:hess:nargin");
+    auto *mr = ctx.engine->resource();
+    if (nargout >= 2) {
+        auto [P, H] = hess(mr, args[0]);
+        outs[0] = std::move(P);
+        outs[1] = std::move(H);
+    } else {
+        outs[0] = hess_H_only(mr, args[0]);
     }
 }
 

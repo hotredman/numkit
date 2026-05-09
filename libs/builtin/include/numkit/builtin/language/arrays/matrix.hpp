@@ -230,6 +230,16 @@ Value sqrtm_sym(std::pmr::memory_resource *mr, const Value &A);
 std::tuple<Value, Value>
 schur_sym(std::pmr::memory_resource *mr, const Value &A);
 
+/// Hessenberg reduction of a square matrix A: returns (P, H) such
+/// that A = P*H*P', P orthogonal, H upper-Hessenberg (zeros below
+/// the first sub-diagonal). Reduction via successive Householder
+/// reflectors. Foundation for general eig and Schur (Phase 2c).
+std::tuple<Value, Value>
+hess(std::pmr::memory_resource *mr, const Value &A);
+
+/// Hessenberg-only output -- matches MATLAB single-output hess(A).
+Value hess_H_only(std::pmr::memory_resource *mr, const Value &A);
+
 // ── Shape queries ────────────────────────────────────────────────────
 /// size(x) returns a row vector of dimensions.
 /// @param asVector  when true, returns [rows, cols] or [rows, cols, pages].

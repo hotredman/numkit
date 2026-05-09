@@ -2121,7 +2121,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `expmv` | ❌ |  |  |  |  |  |
 | `funm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `gsvd` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `hess` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `hess` | ❌ | 0.013 | 39.13× | 18.21× | OK | Sig: [P, H] = hess(A). Hessenberg reduction via Householder reflectors; A = P*H*P', H upper-Hessenberg (zeros below sub-diagonal). Foundation for general eig (Phase 2c). Bit-identical reconstruction with MATLAB R2025b; H entries differ in sign/order due to Householder reflector freedom but identity verified to ulp. |
 | `inv` | ❌ | 0.006 | 24.80× | 6.06× | OK | Sig: B = inv(A). Matrix inverse via LU (la_solve backend). Bit-identical with MATLAB R2025b on probed 2×2 + 3×3 systems; A*inv(A) = I to ~ulp. |
 | `isbanded` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `isdiag` | ❌ |  |  |  |  |  |
