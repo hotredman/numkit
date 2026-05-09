@@ -265,4 +265,14 @@ corrcov(std::pmr::memory_resource *mr, const Value &C);
 // denominator.
 Value tabulate(std::pmr::memory_resource *mr, const Value &x);
 
+// ── cholcov ────────────────────────────────────────────────────────────
+// `[T, p] = cholcov(SIGMA)` — Cholesky-like factor of a (possibly
+// singular) covariance matrix. Returns T such that T'*T == SIGMA
+// and the non-PD count p:
+//   PD       -> T = upper-tri n×n,  p = 0
+//   PSD < n  -> T = r×n,            p = 0
+//   indef    -> T = empty 0×0,      p = #(eig <= -tol)
+std::pair<Value, Value>
+cholcov(std::pmr::memory_resource *mr, const Value &SIGMA);
+
 } // namespace numkit::stats
