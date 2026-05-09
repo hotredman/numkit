@@ -439,7 +439,7 @@ together.
 | `feval` | ✅ | 0.003 | 42.58× | 23.08× | OK | Sig: r = feval(...). Spec-extension batch 2026-05-09. |
 | `func2str` | ✅ | 0.005 | 32.54× |  | OK | Sig: r = func2str(...). Spec-extension batch 2026-05-09. |
 | `function_handle` | ❌ |  |  |  |  | OOP class |
-| `functions` | ✅ | 0.003 | 31.73× | 21.46× | OK | Sig: info = functions(fnHandle). KNOWN GAP: numkit parser rejects info.function field-access expression in this exact form. Documented as separate ТЗ. No-op placeholder. |
+| `functions` | ✅ | 0.004 | 38.38× | 37.45× | OK | Sig: info = functions(fnHandle). Returns struct with {function, type, file} fields. Bit-identical with MATLAB R2025b on probed handle (3 fields). |
 | `localfunctions` | ✅ | 0.000 | 335.26× | 7.02× | OK | Sig: F = localfunctions(). Stub returns empty cell. 100k iters. |
 | `str2func` | ✅ | 0.000 | 17.85× | 16.32× | OK | Sig: F = str2func(NAME). 10k iters. fp checks created handle works. |
 
@@ -2223,8 +2223,8 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `fminbnd` | ✅ | 0.003 | 37.16× | 10.00× | OK | Sig: fminbnd(...). KNOWN GAP: fminbnd convergence path/result differs. Documented as separate ТЗ. |
-| `fminsearch` | ✅ | 0.003 | 33.65× | 39.22× | OK | Sig: fminsearch(...). KNOWN GAP: fminsearch result differs from MATLAB Nelder-Mead. Documented as separate ТЗ. |
+| `fminbnd` | ✅ | 0.006 | 345.28× | 91.24× | OK | Sig: x = fminbnd(fn, lo, hi[, tol]). 1-D bounded minimization. Bit-identical with MATLAB R2025b on probed quadratic (x=3.0). NOTE: numkit only returns x; multi-output [x, fval, exitflag] form is a separate ТЗ (refactor). |
+| `fminsearch` | ✅ | 0.051 | 32.24× | 54.77× | OK | Sig: x = fminsearch(fn, x0[, tol]). N-D Nelder-Mead unconstrained minimization. Converges to MATLAB R2025b's solution within tol on probed quadratic (x = [2 3]). NOTE: multi-output [x, fval, exitflag, output] form is a separate ТЗ. |
 | `fzero` | ✅ | 0.011 | 94.90× | 67.62× | OK | Sig: r = fzero(...). Spec-extension batch 2026-05-09. |
 | `lsqnonneg` | ❌ |  |  |  |  |  |
 | `optimget` | ✅ | 0.003 | 403.71× | 55.83× | OK | Sig: v = optimget(opts, name[, default]). Bit-identical with MATLAB R2025b on probed access. Earlier defer was wrong -- function works. |
