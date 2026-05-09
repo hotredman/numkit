@@ -1,0 +1,13 @@
+{
+  "name": "firls",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "b = firls(20, [0 0.4 0.5 1], [1 1 0 0]);",
+  "iters": 5,
+  "tol": 1e-8,
+  "fingerprint": [
+    "b(1)", "b(6)", "b(11)", "b(16)", "b(21)",
+    "sum(b)"
+  ],
+  "comment": "Sig: b = firls(N, F, A). Type-I least-squares FIR design with piecewise-linear desired amplitude. Cholesky on (M+1)x(M+1) Q matrix from closed-form integrals of cos(i*w)*cos(j*w) over each band. Bit-identical with MATLAB R2025b on lowpass design (21-tap, [0,0.4]/[0.5,1] bands). NOTE: only Type-I (even N) supported in this revision; Type-III/IV (Hilbert, differentiator) and per-band weights are deferred."
+}
