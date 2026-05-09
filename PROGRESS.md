@@ -2795,7 +2795,7 @@ intentionally omitted — flat solver functions only.
 | `orderspectrum` | ❌ |  |  |  |  |  |
 | `ordertrack` | ❌ |  |  |  |  |  |
 | `orderwaveform` | ❌ |  |  |  |  |  |
-| `rainflow` | ✅ | 0.005 | 312.37× |  | MISMATCH | Sig: c = rainflow(x). Spec-extension batch 2026-05-09 (cycle 43). |
+| `rainflow` | ✅ | 0.006 | 260.16× |  | OK | Sig: c = rainflow(x). ASTM E1049-85 cycle counting, returns Nx5 [count, range, mean, start_idx, end_idx]. Bit-identical with MATLAB R2025b on canonical 9-sample probe. |
 | `rpmfreqmap` | ❌ |  |  |  |  |  |
 | `rpmordermap` | ❌ |  |  |  |  |  |
 | `rpmtrack` | ❌ |  |  |  |  | order tracking |

@@ -130,16 +130,21 @@ tachorpm(std::pmr::memory_resource *mr, const Value &x, double fs,
 
 namespace {
 
-std::vector<double> turningPoints(const std::vector<double> &v)
+// Turning points + their original-signal indices (1-based, MATLAB
+// convention).
+struct Turn { double v; double idx; };
+
+std::vector<Turn> turningPointsWithIndex(const std::vector<double> &v)
 {
-    std::vector<double> out;
+    std::vector<Turn> out;
     if (v.empty()) return out;
-    out.push_back(v.front());
+    out.push_back({v.front(), 1.0});
     for (size_t i = 1; i + 1 < v.size(); ++i) {
         const double a = v[i - 1], b = v[i], c = v[i + 1];
-        if ((b > a && b > c) || (b < a && b < c)) out.push_back(b);
+        if ((b > a && b > c) || (b < a && b < c))
+            out.push_back({b, static_cast<double>(i + 1)});
     }
-    out.push_back(v.back());
+    out.push_back({v.back(), static_cast<double>(v.size())});
     return out;
 }
 
@@ -148,32 +153,34 @@ std::vector<double> turningPoints(const std::vector<double> &v)
 Value rainflow(std::pmr::memory_resource *mr, const Value &x)
 {
     auto v = readVec(x);
-    auto tp = turningPoints(v);
+    auto tp = turningPointsWithIndex(v);
 
-    // ASTM E1049-85 four-point algorithm using a stack S.
-    // Each cycle yields a row [count, range, mean].
-    std::vector<std::array<double, 3>> cycles;
-    std::vector<double> S;
-    for (double y : tp) {
+    // ASTM E1049-85 four-point algorithm. Each cycle yields a row
+    //   [count, range, mean, start_idx, end_idx]
+    // matching MATLAB R2025b's rainflow() return shape.
+    struct Cycle { double count, range, mean, idx0, idx1; };
+    std::vector<Cycle> cycles;
+    std::vector<Turn> S;
+    for (const auto &y : tp) {
         S.push_back(y);
         // Apply the rule until no more cycles can be extracted.
         while (S.size() >= 3) {
             const size_t n = S.size();
-            const double X = std::abs(S[n - 1] - S[n - 2]);
-            const double Y = std::abs(S[n - 2] - S[n - 3]);
+            const double X = std::abs(S[n - 1].v - S[n - 2].v);
+            const double Y = std::abs(S[n - 2].v - S[n - 3].v);
             if (X < Y) break;
             if (n == 3) {
                 // Half cycle: pop the bottom of the stack.
-                const double rng = std::abs(S[0] - S[1]);
-                const double mn  = 0.5 * (S[0] + S[1]);
-                cycles.push_back({0.5, rng, mn});
+                const double rng = std::abs(S[0].v - S[1].v);
+                const double mn  = 0.5 * (S[0].v + S[1].v);
+                cycles.push_back({0.5, rng, mn, S[0].idx, S[1].idx});
                 S.erase(S.begin());
                 break;
             }
             // Full cycle on the inner pair.
             const double rng = Y;
-            const double mn  = 0.5 * (S[n - 2] + S[n - 3]);
-            cycles.push_back({1.0, rng, mn});
+            const double mn  = 0.5 * (S[n - 2].v + S[n - 3].v);
+            cycles.push_back({1.0, rng, mn, S[n - 3].idx, S[n - 2].idx});
             S.erase(S.end() - 3, S.end() - 1);
         }
     }
@@ -181,17 +188,21 @@ Value rainflow(std::pmr::memory_resource *mr, const Value &x)
     // a half-cycle.
     for (size_t i = 0; i + 1 < S.size(); ++i) {
         cycles.push_back({0.5,
-                          std::abs(S[i] - S[i + 1]),
-                          0.5 * (S[i] + S[i + 1])});
+                          std::abs(S[i].v - S[i + 1].v),
+                          0.5 * (S[i].v + S[i + 1].v),
+                          S[i].idx,
+                          S[i + 1].idx});
     }
-    auto out = Value::matrix(cycles.size(), 3, ValueType::DOUBLE, mr);
+    auto out = Value::matrix(cycles.size(), 5, ValueType::DOUBLE, mr);
     if (cycles.empty()) return out;
     double *d = out.doubleDataMut();
     const size_t rows = cycles.size();
     for (size_t i = 0; i < rows; ++i) {
-        d[i + 0 * rows] = cycles[i][0];
-        d[i + 1 * rows] = cycles[i][1];
-        d[i + 2 * rows] = cycles[i][2];
+        d[i + 0 * rows] = cycles[i].count;
+        d[i + 1 * rows] = cycles[i].range;
+        d[i + 2 * rows] = cycles[i].mean;
+        d[i + 3 * rows] = cycles[i].idx0;
+        d[i + 4 * rows] = cycles[i].idx1;
     }
     return out;
 }
