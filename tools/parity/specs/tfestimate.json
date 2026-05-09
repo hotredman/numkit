@@ -1,12 +1,12 @@
 {
   "name": "tfestimate",
   "namespace": "signal",
-  "setup": "",
-  "expr": "r1 = 1;",
+  "setup": "x = sin(2*pi*0.1*(0:255)); y = cos(2*pi*0.1*(0:255));",
+  "expr": "[t, f] = tfestimate(x, y); r1 = double(sum(abs(t)));",
   "iters": 5,
-  "tol": 0,
+  "tol": 1e-06,
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: r = tfestimate(...). KNOWN GAP: tfestimate default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate \u0422\u0417. Function works structurally but doesn't bit-match MATLAB on output length."
+  "comment": "Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09."
 }

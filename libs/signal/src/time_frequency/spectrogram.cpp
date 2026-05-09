@@ -56,7 +56,11 @@ spectrogram(std::pmr::memory_resource *mr,
         for (size_t i = 0; i < winLen; ++i)
             win[i] = w[i];
     } else {
-        winLen = std::min(nx, static_cast<size_t>(256));
+        // MATLAB spectrogram default: 8 Hamming-windowed segments with
+        // 50% overlap (winLen = floor(nx / 4.5)).
+        winLen = std::max<size_t>(1,
+            static_cast<size_t>(std::floor(static_cast<double>(nx) / 4.5)));
+        if (winLen > nx) winLen = nx;
         win.resize(winLen);
         fillHammingWindow(win.data(), winLen);
     }
@@ -67,7 +71,7 @@ spectrogram(std::pmr::memory_resource *mr,
     if (noverlap == 0)
         noverlap = winLen / 2;
     if (nfft == 0)
-        nfft = nextPow2(winLen);
+        nfft = std::max<size_t>(256, nextPow2(winLen));
 
     const size_t nFreqs = nfft / 2 + 1;
     const size_t step = winLen - noverlap;
