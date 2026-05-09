@@ -1,0 +1,10 @@
+{
+  "name": "tiedrank",
+  "namespace": "stats",
+  "setup": "x = [10 20 30 20 10 40]; xa = [5 5 5 5]; xn = [3 1 4 1.5]; M = [3 1; 5 2; 5 1; 1 4];",
+  "expr": "[r1, t1] = tiedrank(x); [r2, t2] = tiedrank(xa); [r3, t3] = tiedrank(xn); [rm, tm] = tiedrank(M);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["r1(1)", "r1(2)", "r1(3)", "r1(6)", "t1", "r2(1)", "t2", "r3(1)", "r3(3)", "t3", "rm(1,1)", "rm(2,1)", "rm(1,2)", "tm(1)", "tm(2)"],
+  "comment": "MATLAB tiedrank: ranks adjusted for ties via averaging. Bit-equal with MATLAB R2025b on vector + matrix forms. Tieadj uses (t^3 - t) / 2 per tied group. Includes all-equal and no-ties edges. NaN handling tested in gtest only (parity harness fingerprint format doesn't preserve NaN trivially)."
+}
