@@ -294,6 +294,135 @@ Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
         }, mr);
 }
 
+// ── range / mad / geomean / harmmean / moment / trimmean ─────────────
+
+// range(x) = max(x) - min(x) along dim.
+Value range_of(std::pmr::memory_resource *mr, const Value &x, int dim)
+{
+    const int d = resolveDim(x, dim, "range");
+    return applyAlongDim(x, d,
+        [](size_t, const double *s, size_t n) -> double {
+            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+            double lo = s[0], hi = s[0];
+            for (size_t i = 1; i < n; ++i) {
+                if (s[i] < lo) lo = s[i];
+                if (s[i] > hi) hi = s[i];
+            }
+            return hi - lo;
+        }, mr);
+}
+
+// mad(x) -- mean absolute deviation: mean(abs(x - mean(x))).
+// mad(x, 1) -- median absolute deviation: median(abs(x - median(x))).
+Value mad_of(std::pmr::memory_resource *mr, const Value &x, int flag, int dim)
+{
+    const int d = resolveDim(x, dim, "mad");
+    if (flag == 0) {
+        // Mean form.
+        return applyAlongDim(x, d,
+            [](size_t, const double *s, size_t n) -> double {
+                if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+                double mean = 0.0;
+                for (size_t i = 0; i < n; ++i) mean += s[i];
+                mean /= static_cast<double>(n);
+                double sum = 0.0;
+                for (size_t i = 0; i < n; ++i) sum += std::fabs(s[i] - mean);
+                return sum / static_cast<double>(n);
+            }, mr);
+    }
+    // Median form.
+    return applyAlongDim(x, d,
+        [](size_t, const double *s, size_t n) -> double {
+            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+            std::vector<double> buf(s, s + n);
+            const double med = sliceQuantile(buf.data(), n, 0.5);
+            std::vector<double> dev(n);
+            for (size_t i = 0; i < n; ++i) dev[i] = std::fabs(s[i] - med);
+            return sliceQuantile(dev.data(), n, 0.5);
+        }, mr);
+}
+
+// geomean(x) = (prod(x))^(1/n) = exp(mean(log(x))). x must be >= 0.
+Value geomean_of(std::pmr::memory_resource *mr, const Value &x, int dim)
+{
+    const int d = resolveDim(x, dim, "geomean");
+    return applyAlongDim(x, d,
+        [](size_t, const double *s, size_t n) -> double {
+            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+            double sum = 0.0;
+            for (size_t i = 0; i < n; ++i) {
+                if (s[i] < 0.0)
+                    return std::numeric_limits<double>::quiet_NaN();
+                if (s[i] == 0.0) return 0.0;
+                sum += std::log(s[i]);
+            }
+            return std::exp(sum / static_cast<double>(n));
+        }, mr);
+}
+
+// harmmean(x) = n / sum(1./x). x must be > 0.
+Value harmmean_of(std::pmr::memory_resource *mr, const Value &x, int dim)
+{
+    const int d = resolveDim(x, dim, "harmmean");
+    return applyAlongDim(x, d,
+        [](size_t, const double *s, size_t n) -> double {
+            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+            double sum = 0.0;
+            for (size_t i = 0; i < n; ++i) {
+                if (s[i] <= 0.0)
+                    return std::numeric_limits<double>::quiet_NaN();
+                sum += 1.0 / s[i];
+            }
+            return static_cast<double>(n) / sum;
+        }, mr);
+}
+
+// moment(x, k) = mean((x - mean(x))^k). k >= 2.
+Value moment_of(std::pmr::memory_resource *mr, const Value &x, int order, int dim)
+{
+    const int d = resolveDim(x, dim, "moment");
+    const int k = order;
+    return applyAlongDim(x, d,
+        [k](size_t, const double *s, size_t n) -> double {
+            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+            if (k < 0) return std::numeric_limits<double>::quiet_NaN();
+            if (k == 0) return 1.0;          // m_0 = 1
+            if (k == 1) return 0.0;          // central first moment
+            double mean = 0.0;
+            for (size_t i = 0; i < n; ++i) mean += s[i];
+            mean /= static_cast<double>(n);
+            double sum = 0.0;
+            for (size_t i = 0; i < n; ++i) {
+                const double d2 = s[i] - mean;
+                sum += std::pow(d2, k);
+            }
+            return sum / static_cast<double>(n);
+        }, mr);
+}
+
+// trimmean(x, p) = mean of x after trimming p/2% from each end (p in [0, 100]).
+Value trimmean_of(std::pmr::memory_resource *mr, const Value &x, double pct, int dim)
+{
+    if (pct < 0.0 || pct >= 100.0)
+        throw Error("trimmean: percent must be in [0, 100)",
+                    0, 0, "trimmean", "", "m:trimmean:badPct");
+    const int d = resolveDim(x, dim, "trimmean");
+    const double p = pct;
+    return applyAlongDim(x, d,
+        [p](size_t, const double *s, size_t n) -> double {
+            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+            // Number of values to trim from EACH end.
+            const size_t k = static_cast<size_t>(std::floor(
+                static_cast<double>(n) * p / 200.0));
+            if (2 * k >= n) return std::numeric_limits<double>::quiet_NaN();
+            std::vector<double> buf(s, s + n);
+            std::sort(buf.begin(), buf.end());
+            double sum = 0.0;
+            for (size_t i = k; i < n - k; ++i) sum += buf[i];
+            return sum / static_cast<double>(n - 2 * k);
+        }, mr);
+}
+
 // ── ksdensity ─────────────────────────────────────────────────────────
 
 namespace {
@@ -1142,6 +1271,65 @@ void ecdfhist_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     auto [n, c] = ecdfhist(ctx.engine->resource(), args[0], args[1], m);
     outs[0] = std::move(n);
     if (nargout > 1) outs[1] = std::move(c);
+}
+
+// ── range / mad / geomean / harmmean / moment / trimmean adapters ────
+
+void range_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("range: requires at least 1 argument",
+                    0, 0, "range", "", "m:range:nargin");
+    const int dim = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
+    outs[0] = range_of(ctx.engine->resource(), args[0], dim);
+}
+
+void mad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("mad: requires at least 1 argument",
+                    0, 0, "mad", "", "m:mad:nargin");
+    const int flag = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
+    const int dim  = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
+    outs[0] = mad_of(ctx.engine->resource(), args[0], flag, dim);
+}
+
+void geomean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("geomean: requires at least 1 argument",
+                    0, 0, "geomean", "", "m:geomean:nargin");
+    const int dim = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
+    outs[0] = geomean_of(ctx.engine->resource(), args[0], dim);
+}
+
+void harmmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("harmmean: requires at least 1 argument",
+                    0, 0, "harmmean", "", "m:harmmean:nargin");
+    const int dim = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
+    outs[0] = harmmean_of(ctx.engine->resource(), args[0], dim);
+}
+
+void moment_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("moment: requires (x, order)",
+                    0, 0, "moment", "", "m:moment:nargin");
+    const int order = static_cast<int>(args[1].toScalar());
+    const int dim   = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
+    outs[0] = moment_of(ctx.engine->resource(), args[0], order, dim);
+}
+
+void trimmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("trimmean: requires (x, percent)",
+                    0, 0, "trimmean", "", "m:trimmean:nargin");
+    const double pct = args[1].toScalar();
+    const int dim    = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
+    outs[0] = trimmean_of(ctx.engine->resource(), args[0], pct, dim);
 }
 
 } // namespace detail

@@ -1,0 +1,4 @@
+{"name": "mad", "namespace": "stats", "setup": "v = [1 5 3 8 2 7 4 6];",
+ "expr": "m1 = mad(v); m2 = mad(v, 1);", "iters": 5, "tol": 1e-10,
+ "fingerprint": ["m1", "m2"],
+ "comment": "Sig: mad(x[, flag][, dim]). Mean (flag=0) or median (flag=1) absolute deviation."}

@@ -116,6 +116,15 @@ Value rmse(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
 // the Inf).
 Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int dim = 0);
 
+// ── range / mad / geomean / harmmean / moment / trimmean ──────────────
+// All take optional dim; default dim=0 means first non-singleton.
+Value range_of(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+Value mad_of(std::pmr::memory_resource *mr, const Value &x, int flag = 0, int dim = 0);
+Value geomean_of(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+Value harmmean_of(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+Value moment_of(std::pmr::memory_resource *mr, const Value &x, int order, int dim = 0);
+Value trimmean_of(std::pmr::memory_resource *mr, const Value &x, double pct, int dim = 0);
+
 // ── prepareCurveData ───────────────────────────────────────────────────
 // prepareCurveData(x, y[, w]) — strip NaN/Inf rows from paired data and
 // return column vectors. With three arguments, weights w are also
