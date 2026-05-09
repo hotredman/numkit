@@ -1045,6 +1045,194 @@ void GraphicsLibrary::install(Engine &engine)
     reg("surface", "surf", surfImpl);
     reg("surface", "mesh", surfImpl);
 
+    // ── Streamlines — RK4 integration over a 2-D vector field ────────
+    //   streamline(X, Y, U, V, sx, sy)    — explicit seed points
+    //   streamslice(X, Y, U, V)           — auto 5×5 seed grid
+    // Uniform grid is assumed (linspace-style X / Y). Bilinear interp
+    // for (U, V) at integration points; integration stops when the
+    // particle leaves the grid, hits a NaN cell, or stalls (|F| < eps).
+    auto streamImpl = [](bool autoSlice,
+                         Span<const Value> args, size_t nargout,
+                         Span<Value> outs, CallContext &ctx) {
+        (void)nargout;
+        if (args.size() < 4) { outs[0] = Value::empty(); return; }
+        const auto &Xv = args[0];
+        const auto &Yv = args[1];
+        const auto &Uv = args[2];
+        const auto &Vv = args[3];
+        const size_t Cx = Xv.numel();
+        const size_t Ry = Yv.numel();
+        if (Cx < 2 || Ry < 2) { outs[0] = Value::empty(); return; }
+        if (Uv.dims().rows() != Ry || Uv.dims().cols() != Cx) {
+            outs[0] = Value::empty(); return;
+        }
+        if (Vv.dims().rows() != Ry || Vv.dims().cols() != Cx) {
+            outs[0] = Value::empty(); return;
+        }
+
+        std::vector<double> Xs(Cx), Ys(Ry);
+        for (size_t c = 0; c < Cx; ++c) Xs[c] = Xv.doubleData()[c];
+        for (size_t r = 0; r < Ry; ++r) Ys[r] = Yv.doubleData()[r];
+        const double xMin = Xs.front(), xMax = Xs.back();
+        const double yMin = Ys.front(), yMax = Ys.back();
+        const double dxAvg = (xMax - xMin) / (double)(Cx - 1);
+        const double dyAvg = (yMax - yMin) / (double)(Ry - 1);
+
+        const auto Uat = [&](size_t r, size_t c) {
+            return Uv.doubleData()[c * Ry + r];
+        };
+        const auto Vat = [&](size_t r, size_t c) {
+            return Vv.doubleData()[c * Ry + r];
+        };
+
+        // Bilinear interp at (x, y). Returns false if out-of-bounds or
+        // a corner is non-finite.
+        const auto sampleField = [&](double x, double y, double &u, double &v) {
+            if (x < xMin || x > xMax || y < yMin || y > yMax) return false;
+            // Locate cell index by binary search on Xs / Ys (uniform-
+            // friendly but works for any monotonically-increasing grid).
+            size_t c0 = 0;
+            while (c0 + 1 < Cx && Xs[c0 + 1] <= x) ++c0;
+            if (c0 + 1 >= Cx) c0 = Cx - 2;
+            size_t r0 = 0;
+            while (r0 + 1 < Ry && Ys[r0 + 1] <= y) ++r0;
+            if (r0 + 1 >= Ry) r0 = Ry - 2;
+            const double xL = Xs[c0], xR = Xs[c0 + 1];
+            const double yT = Ys[r0], yB = Ys[r0 + 1];
+            const double tx = (xR > xL) ? (x - xL) / (xR - xL) : 0.0;
+            const double ty = (yB > yT) ? (y - yT) / (yB - yT) : 0.0;
+            const double u00 = Uat(r0,     c0);
+            const double u01 = Uat(r0,     c0 + 1);
+            const double u10 = Uat(r0 + 1, c0);
+            const double u11 = Uat(r0 + 1, c0 + 1);
+            const double v00 = Vat(r0,     c0);
+            const double v01 = Vat(r0,     c0 + 1);
+            const double v10 = Vat(r0 + 1, c0);
+            const double v11 = Vat(r0 + 1, c0 + 1);
+            if (!std::isfinite(u00) || !std::isfinite(u01)
+             || !std::isfinite(u10) || !std::isfinite(u11)
+             || !std::isfinite(v00) || !std::isfinite(v01)
+             || !std::isfinite(v10) || !std::isfinite(v11)) return false;
+            const double u0 = u00 * (1 - tx) + u01 * tx;
+            const double u1 = u10 * (1 - tx) + u11 * tx;
+            u = u0 * (1 - ty) + u1 * ty;
+            const double v0 = v00 * (1 - tx) + v01 * tx;
+            const double v1 = v10 * (1 - tx) + v11 * tx;
+            v = v0 * (1 - ty) + v1 * ty;
+            return true;
+        };
+
+        // Build the seed list.
+        std::vector<std::pair<double, double>> seeds;
+        if (autoSlice) {
+            // 5×5 evenly spaced inside the grid (1 cell margin so the
+            // first integration step has data on every side).
+            const int nS = 5;
+            for (int j = 0; j < nS; ++j) {
+                for (int i = 0; i < nS; ++i) {
+                    const double x = xMin + (xMax - xMin) * (i + 0.5) / nS;
+                    const double y = yMin + (yMax - yMin) * (j + 0.5) / nS;
+                    seeds.emplace_back(x, y);
+                }
+            }
+        } else {
+            if (args.size() < 6) { outs[0] = Value::empty(); return; }
+            const auto &SX = args[4];
+            const auto &SY = args[5];
+            const size_t N = std::min(SX.numel(), SY.numel());
+            for (size_t k = 0; k < N; ++k)
+                seeds.emplace_back(SX.doubleData()[k], SY.doubleData()[k]);
+        }
+
+        // RK4 trace from a single seed in `dir` ∈ {+1, -1}. Appends
+        // points to xs/ys (with a leading null when we already have
+        // points from a prior trace).
+        const double h = std::min(dxAvg, dyAvg) * 0.4;
+        const int maxSteps = 800;
+        const double eps = 1e-9;
+
+        const auto traceFrom = [&](double x0, double y0, int dir,
+                                   std::ostringstream &xs,
+                                   std::ostringstream &ys, size_t &count) {
+            double x = x0, y = y0;
+            for (int step = 0; step < maxSteps; ++step) {
+                double u, v;
+                if (!sampleField(x, y, u, v)) break;
+                const double mag = std::hypot(u, v);
+                if (!std::isfinite(mag) || mag < eps) break;
+                if (count > 0) { xs << ','; ys << ','; }
+                xs << x; ys << y; ++count;
+
+                // RK4
+                double k1u, k1v;
+                if (!sampleField(x, y, k1u, k1v)) break;
+                double k2u, k2v;
+                if (!sampleField(x + dir * h * k1u / 2,
+                                 y + dir * h * k1v / 2, k2u, k2v)) break;
+                double k3u, k3v;
+                if (!sampleField(x + dir * h * k2u / 2,
+                                 y + dir * h * k2v / 2, k3u, k3v)) break;
+                double k4u, k4v;
+                if (!sampleField(x + dir * h * k3u,
+                                 y + dir * h * k3v, k4u, k4v)) break;
+                x += dir * h * (k1u + 2 * k2u + 2 * k3u + k4u) / 6;
+                y += dir * h * (k1v + 2 * k2v + 2 * k3v + k4v) / 6;
+            }
+        };
+
+        auto &fm = ctx.engine->figureManager();
+        fm.prepareForPlot();
+
+        std::ostringstream xs, ys;
+        xs << '['; ys << '[';
+        size_t count = 0;
+        for (auto [sx0, sy0] : seeds) {
+            // Trace forward then backward; insert a null break before
+            // each new seed *and* between forward / backward halves so
+            // they render as separate strokes.
+            std::ostringstream fwdX, fwdY, bwdX, bwdY;
+            size_t fwdN = 0, bwdN = 0;
+            traceFrom(sx0, sy0,  1, fwdX, fwdY, fwdN);
+            traceFrom(sx0, sy0, -1, bwdX, bwdY, bwdN);
+            if (fwdN == 0 && bwdN == 0) continue;
+            if (count > 0) { xs << ",null,"; ys << ",null,"; }
+            // Backward trace runs sx0→edge — emit reversed so the line
+            // flows naturally seedToEdge twice. We just dump bwd points
+            // as captured (in time-order from seed); a break separates
+            // it from the forward half. Renderer doesn't care about
+            // direction — it just connects consecutive non-NaN points.
+            if (bwdN > 0) {
+                xs << bwdX.str(); ys << bwdY.str();
+                count += bwdN;
+                if (fwdN > 0) { xs << ",null,"; ys << ",null,"; }
+            }
+            if (fwdN > 0) {
+                xs << fwdX.str(); ys << fwdY.str();
+                count += fwdN;
+            }
+        }
+        xs << ']'; ys << ']';
+
+        DatasetInfo ds;
+        ds.type = "line";
+        ds.xJson = xs.str();
+        ds.yJson = ys.str();
+        ds.style = "color=#2078b4";
+        fm.pushDataset(std::move(ds));
+        fm.emitModified();
+        outs[0] = Value::empty();
+    };
+    reg("line", "streamline",
+        [streamImpl](Span<const Value> args, size_t nargout,
+                     Span<Value> outs, CallContext &ctx) {
+            streamImpl(false, args, nargout, outs, ctx);
+        });
+    reg("line", "streamslice",
+        [streamImpl](Span<const Value> args, size_t nargout,
+                     Span<Value> outs, CallContext &ctx) {
+            streamImpl(true, args, nargout, outs, ctx);
+        });
+
     // ── Polar — graphics.polar ───────────────────────────────────────
     reg("polar", "polarplot",
         [vecToJson, parsePlotArgs](Span<const Value> args, size_t nargout,
