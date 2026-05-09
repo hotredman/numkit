@@ -300,6 +300,66 @@ void GraphicsLibrary::install(Engine &engine)
         reg("line", "scatter3", std::bind(plot3Impl, "scatter3", _1, _2, _3, _4));
     }
 
+    // stem3(x, y, z) — vertical 3D stems from the z=0 plane up to
+    // each (x, y, z) point + marker at the tip. Shares the cabinet
+    // projection with plot3/scatter3. Emits two datasets:
+    //   1. type='plot3' line with NaN-separated 2-point segments
+    //      (one segment per stem, going (x,y,0) → (x,y,z))
+    //   2. type='scatter3' markers at the tips.
+    reg("line", "stem3",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            if (args.size() < 3) { outs[0] = Value::empty(); return; }
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            const auto &X = args[0];
+            const auto &Y = args[1];
+            const auto &Z = args[2];
+            const size_t N = std::min({X.numel(), Y.numel(), Z.numel()});
+            if (N == 0) { outs[0] = Value::empty(); return; }
+
+            // Stems: 2 points per stem with null between stems.
+            std::ostringstream sx, sy, sz;
+            sx << '['; sy << '['; sz << '[';
+            for (size_t i = 0; i < N; ++i) {
+                const double x = X.doubleData()[i];
+                const double y = Y.doubleData()[i];
+                const double z = Z.doubleData()[i];
+                if (i > 0) { sx << ",null,"; sy << ",null,"; sz << ",null,"; }
+                sx << x << ',' << x;
+                sy << y << ',' << y;
+                sz << "0," << z;
+            }
+            sx << ']'; sy << ']'; sz << ']';
+            DatasetInfo dsLine;
+            dsLine.type = "plot3";
+            dsLine.xJson = sx.str();
+            dsLine.yJson = sy.str();
+            dsLine.zJson = sz.str();
+            dsLine.style = "color=#1f77b4";
+            fm.pushDataset(std::move(dsLine));
+
+            // Tip markers via scatter3.
+            std::ostringstream mx, my, mz;
+            mx << '['; my << '['; mz << '[';
+            for (size_t i = 0; i < N; ++i) {
+                if (i) { mx << ','; my << ','; mz << ','; }
+                mx << X.doubleData()[i];
+                my << Y.doubleData()[i];
+                mz << Z.doubleData()[i];
+            }
+            mx << ']'; my << ']'; mz << ']';
+            DatasetInfo dsDot;
+            dsDot.type = "scatter3";
+            dsDot.xJson = mx.str();
+            dsDot.yJson = my.str();
+            dsDot.zJson = mz.str();
+            dsDot.style = "color=#1f77b4";
+            dsDot.markerSize = 4;
+            fm.pushDataset(std::move(dsDot));
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
     // quiver(x, y, u, v) — vector field as N arrows starting at
     // (x[i], y[i]) and pointing in direction (u[i], v[i]). MATLAB
     // accepts matrices; for first cut we expect flat vectors with
@@ -326,6 +386,131 @@ void GraphicsLibrary::install(Engine &engine)
                 ds.style = os.str();
             }
             fm.pushDataset(std::move(ds));
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
+    // compass(U, V) — vector arrows from origin. Equivalent to
+    // quiver(zeros, zeros, U, V) plus scale=1 (no auto-scaling so the
+    // arrow tips land exactly on (U_i, V_i)). Single-arg form
+    // compass(Z) takes complex Z and unpacks real/imag parts.
+    reg("line", "compass",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            if (args.empty()) { outs[0] = Value::empty(); return; }
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+
+            // Build U / V from args. Two forms:
+            //   compass(Z)       — Z complex, U=real(Z), V=imag(Z)
+            //   compass(U, V)    — explicit pair
+            std::ostringstream us, vs;
+            us << '['; vs << '[';
+            const auto emit = [&](double u, double v, bool first) {
+                if (!first) { us << ','; vs << ','; }
+                us << u; vs << v;
+            };
+            const Value &A = args[0];
+            const size_t N = A.numel();
+            if (args.size() == 1 && A.isComplex()) {
+                for (size_t i = 0; i < N; ++i) {
+                    const auto z = A.complexData()[i];
+                    emit(z.real(), z.imag(), i == 0);
+                }
+            } else if (args.size() >= 2 && args[1].numel() >= N) {
+                for (size_t i = 0; i < N; ++i)
+                    emit(A.doubleData()[i], args[1].doubleData()[i], i == 0);
+            } else {
+                outs[0] = Value::empty();
+                return;
+            }
+            us << ']'; vs << ']';
+
+            std::ostringstream zs;
+            zs << '[';
+            for (size_t i = 0; i < N; ++i) { if (i) zs << ','; zs << '0'; }
+            zs << ']';
+
+            DatasetInfo ds;
+            ds.type = "quiver";
+            ds.xJson = zs.str();   // origin x = 0 for every arrow
+            ds.yJson = zs.str();   // origin y = 0 for every arrow
+            ds.uJson = us.str();
+            ds.vJson = vs.str();
+            ds.style = "scale=1";  // tips land exactly at (U, V)
+            fm.pushDataset(std::move(ds));
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
+    // feather(U, V) — arrows on the x-axis. Each arrow starts at
+    // (i, 0) and points to (i + U_i, V_i). Same scale=1 contract as
+    // compass.
+    reg("line", "feather",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            if (args.size() < 2) { outs[0] = Value::empty(); return; }
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            const auto &U = args[0];
+            const auto &V = args[1];
+            const size_t N = std::min(U.numel(), V.numel());
+            if (N == 0) { outs[0] = Value::empty(); return; }
+            std::ostringstream xs, ys, us, vs;
+            xs << '['; ys << '['; us << '['; vs << '[';
+            for (size_t i = 0; i < N; ++i) {
+                if (i) { xs << ','; ys << ','; us << ','; vs << ','; }
+                xs << (i + 1);                      // origin: (1..N, 0)
+                ys << '0';
+                us << U.doubleData()[i];
+                vs << V.doubleData()[i];
+            }
+            xs << ']'; ys << ']'; us << ']'; vs << ']';
+            DatasetInfo ds;
+            ds.type = "quiver";
+            ds.xJson = xs.str();
+            ds.yJson = ys.str();
+            ds.uJson = us.str();
+            ds.vJson = vs.str();
+            ds.style = "scale=1";
+            fm.pushDataset(std::move(ds));
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
+    // spy(M) — sparsity pattern. Renders a marker at every (col, row)
+    // where M is non-zero (and finite). Mirrors MATLAB convention of
+    // axis ij so the matrix sits like the printed form (row 1 at top).
+    reg("bar", "spy",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            if (args.empty()) { outs[0] = Value::empty(); return; }
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            const auto &M = args[0];
+            const size_t R = M.dims().rows();
+            const size_t C = M.dims().cols();
+            std::ostringstream xs, ys;
+            xs << '['; ys << '[';
+            bool first = true;
+            for (size_t c = 0; c < C; ++c) {
+                for (size_t r = 0; r < R; ++r) {
+                    const double v = M.doubleData()[c * R + r];
+                    if (v == 0.0 || !std::isfinite(v)) continue;
+                    if (!first) { xs << ','; ys << ','; }
+                    first = false;
+                    xs << (c + 1);
+                    ys << (r + 1);
+                }
+            }
+            xs << ']'; ys << ']';
+            DatasetInfo ds;
+            ds.type = "scatter";
+            ds.xJson = xs.str();
+            ds.yJson = ys.str();
+            ds.style = "color=#1f77b4";
+            ds.markerSize = 3;
+            fm.pushDataset(std::move(ds));
+            // axis ij so row 1 is at the top, matching MATLAB's spy.
+            fm.currentAxes().yDir = "reverse";
+            fm.currentAxes().axisMode = "ij";
             fm.emitModified();
             outs[0] = Value::empty();
         });
