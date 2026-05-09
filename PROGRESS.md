@@ -2866,7 +2866,7 @@ intentionally omitted — flat solver functions only.
 | `range` | ❌ | 0.005 | 85.15× | 17.08× | OK | Sig: r = range(x[, dim]). max - min along dim. Bit-identical with MATLAB R2025b. |
 | `robustcov` | ❌ |  |  |  |  | robust covariance estimator (FAST-MCD) |
 | `skewness` | ❌ |  |  |  |  |  |
-| `tabulate` | ❌ |  |  |  |  | frequency table |
+| `tabulate` | ❌ | 0.007 | 628.95× | 126.76× | OK | MATLAB tabulate: frequency table. Bit-equal with MATLAB R2025b on positive-int dense layout (with zeros for missing values), non-integer sparse layout, and NaN-excluded percentage. Octave 11.1.0 doesn't ship tabulate in core (statistics package only); reports N/A. |
 | `tiedrank` | ❌ | 0.008 | 155.66× |  | OK | MATLAB tiedrank: ranks adjusted for ties via averaging. Bit-equal with MATLAB R2025b on vector + matrix forms. Tieadj uses (t^3 - t) / 2 per tied group. Includes all-equal and no-ties edges. NaN handling tested in gtest only (parity harness fingerprint format doesn't preserve NaN trivially). |
 | `trimmean` | ❌ | 0.003 | 703.81× | 175.77× | OK | Sig: m = trimmean(x, percent[, dim]). Mean after trimming percent/2 from each end. |
 | `zscore` | ✅ | 0.004 | 238.18× | 99.15× | OK | Sig: z = zscore(x). Spec-extension batch 2026-05-09 (cycle 41). |

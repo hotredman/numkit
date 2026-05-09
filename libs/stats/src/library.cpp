@@ -55,6 +55,8 @@ void zscore_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void tiedrank_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // descriptive/corrcov.cpp
 void corrcov_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+// descriptive/tabulate.cpp
+void tabulate_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // moments/moments.cpp
 void skewness_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void kurtosis_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -408,6 +410,7 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "zscore",    &stats::detail::zscore_reg);
     reg("descriptive", "tiedrank",  &stats::detail::tiedrank_reg);
     reg("descriptive", "corrcov",   &stats::detail::corrcov_reg);
+    reg("descriptive", "tabulate",  &stats::detail::tabulate_reg);
 
     reg("dist", "normpdf",  &stats::detail::normpdf_reg);
     reg("dist", "normcdf",  &stats::detail::normcdf_reg);
