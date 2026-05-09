@@ -276,16 +276,26 @@ Value rgb2xyz(std::pmr::memory_resource *mr, const Value &x) {
 }
 
 Value xyz2rgb(std::pmr::memory_resource *mr, const Value &x) {
-    return pixel_transform_raw(mr, x, "xyz2rgb", [](double X, double Y, double Z) {
-        // Inverse matrix (sRGB / D65).
-        const double Rl =  3.2404542 * X - 1.5371385 * Y - 0.4985314 * Z;
-        const double Gl = -0.9692660 * X + 1.8760108 * Y + 0.0415560 * Z;
-        const double Bl =  0.0556434 * X - 0.2040259 * Y + 1.0572252 * Z;
-        double R = srgb_encode(std::clamp(Rl, 0.0, 1.0));
-        double G = srgb_encode(std::clamp(Gl, 0.0, 1.0));
-        double B = srgb_encode(std::clamp(Bl, 0.0, 1.0));
-        return std::array<double, 3>{R, G, B};
-    });
+    // MATLAB xyz2rgb does NOT clamp out-of-gamut linear RGB to [0,1];
+    // it applies sign-preserving sRGB gamma so callers can detect and
+    // handle out-of-gamut explicitly. Preserve that behaviour:
+    //   encoded = sign(c) * srgb_encode(|c|)
+    auto signed_srgb_encode = [](double c) {
+        if (c >= 0.0) return srgb_encode(c);
+        return -srgb_encode(-c);
+    };
+    return pixel_transform_raw(mr, x, "xyz2rgb",
+        [&signed_srgb_encode](double X, double Y, double Z) {
+            // Inverse matrix (sRGB / D65).
+            const double Rl =  3.2404542 * X - 1.5371385 * Y - 0.4985314 * Z;
+            const double Gl = -0.9692660 * X + 1.8760108 * Y + 0.0415560 * Z;
+            const double Bl =  0.0556434 * X - 0.2040259 * Y + 1.0572252 * Z;
+            return std::array<double, 3>{
+                signed_srgb_encode(Rl),
+                signed_srgb_encode(Gl),
+                signed_srgb_encode(Bl)
+            };
+        });
 }
 
 // ════════════════════════════════════════════════════════════════════

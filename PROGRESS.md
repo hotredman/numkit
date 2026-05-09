@@ -1638,7 +1638,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `whitepoint` | ✅ | 0.005 | 125.78× |  | OK | Sig: wp = whitepoint([illuminant]). 1×3 XYZ tristimulus of CIE reference illuminant. Supports a/c/d50/d55/d65/e/icc; default 'icc'. MATLAB R2025b. Octave-image doesn't ship whitepoint. |
 | `xyz2double` | ✅ | 0.002 | 402.82× |  | OK | Sig: xyzd = xyz2double(xyz). uint16 XYZ → double via ICC.1:2001-4 (32768 ↔ 1.0). Double input passthrough. MATLAB R2025b. Octave-image doesn't ship xyz2double. |
 | `xyz2lab` | ✅ | 0.003 | 1538.58× | 80.48× | OK | Sig: lab = xyz2lab(xyz). Spec-extension batch 2026-05-09 (cycle 44). |
-| `xyz2rgb` | ✅ | 0.016 | 22.89× | 8.34× | OK | DEFERRED — image/xyz2rgb parity gap (MISMATCH or FAIL on probed input). Placeholder spec keeps harness green; KNOWN GAP — see audit/closed/image/xyz2rgb.md. |
+| `xyz2rgb` | ✅ | 0.003 | 2189.03× | 67.27× | OK | Sig + small deterministic input. Sign-preserving sRGB gamma fix 2026-05-09 -- numkit no longer clamps out-of-gamut linear RGB before encoding. |
 | `xyz2rgbwide` | ❌ |  |  |  |  |  |
 | `xyz2uint16` | ✅ | 0.003 | 379.89× |  | OK | Sig: xyzu16 = xyz2uint16(xyz). Double XYZ → uint16 ICC (round(x*32768) clipped to [0,65535]). MATLAB R2025b. Octave-image doesn't ship xyz2uint16. |
 | `ycbcr2rgb` | ✅ | 0.004 | 476.48× | 56.17× | OK | Sig: r = ycbcr2rgb(...). Spec-extension batch 2026-05-09 (image namespace). |

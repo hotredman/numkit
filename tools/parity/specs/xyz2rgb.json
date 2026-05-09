@@ -1,10 +1,10 @@
 {
   "name": "xyz2rgb",
   "namespace": "image",
-  "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 1,
-  "tol": 1e-12,
-  "fingerprint": ["r1"],
-  "comment": "DEFERRED — image/xyz2rgb parity gap (MISMATCH or FAIL on probed input). Placeholder spec keeps harness green; KNOWN GAP — see audit/closed/image/xyz2rgb.md."
+  "setup": "I = double(reshape(0:74, [5 5 3])) / 74;",
+  "expr": "y = xyz2rgb(I);",
+  "iters": 5,
+  "tol": 1e-06,
+  "out_var": "y",
+  "comment": "Sig + small deterministic input. Sign-preserving sRGB gamma fix 2026-05-09 -- numkit no longer clamps out-of-gamut linear RGB before encoding."
 }
