@@ -296,4 +296,13 @@ std::vector<Value>
 grpstats(std::pmr::memory_resource *mr, const Value &X, const Value &group,
          const std::vector<std::string> &fn_names);
 
+// ── nearcorr ───────────────────────────────────────────────────────────
+// `Y = nearcorr(A)` — nearest correlation matrix to A in Frobenius norm
+// (Higham 2002, IMA J. Numer. Anal. 22 (3): 329-343). Alternating
+// projections between the PSD cone and the unit-diagonal subspace,
+// with Dykstra's correction. Y is symmetric, PSD and has unit diagonal.
+// Defaults: tol = 1e-10, maxits = 100. The 'tolconv'/'maxits' name-value
+// parameters are deferred for v1.
+Value nearcorr(std::pmr::memory_resource *mr, const Value &A);
+
 } // namespace numkit::stats
