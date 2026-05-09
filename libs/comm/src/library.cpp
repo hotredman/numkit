@@ -96,6 +96,10 @@ void lloyds_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // source/dpcmopt.cpp
 void dpcmopt_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// source/arithcoding.cpp
+void arithenco_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void arithdeco_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -171,6 +175,9 @@ void CommLibrary::install(Engine &engine)
     reg("eq", "quantiz",     &comm::detail::quantiz_reg);
     reg("eq", "lloyds",      &comm::detail::lloyds_reg);
     reg("eq", "dpcmopt",     &comm::detail::dpcmopt_reg);
+
+    reg("eq", "arithenco",   &comm::detail::arithenco_reg);
+    reg("eq", "arithdeco",   &comm::detail::arithdeco_reg);
 }
 
 } // namespace numkit

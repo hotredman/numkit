@@ -19,6 +19,7 @@ set(COMMLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/source/quantiz.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/lloyds.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/dpcmopt.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/arithcoding.cpp
 )
 
 set(COMMLIB_SOURCES ${COMMLIB_SOURCES} PARENT_SCOPE)
