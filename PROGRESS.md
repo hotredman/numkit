@@ -240,7 +240,7 @@ together.
 | `ones` | ✅ | 0.004 | 38.27× | 21.33× | OK | Sig: r = ones(...). Spec-extension batch 2026-05-09. |
 | `paddata` | ✅ | 0.001 | 121.55× |  | OK | Sig: Y = paddata(X, M). Pad to 1500. 1000 iters. |
 | `permute` | ✅ | 0.004 | 39.05× | 5.42× | OK | Sig: r = permute(...). Shape op. Spec-extension batch 2026-05-09. |
-| `rand` | ✅ | 6.807 | 0.51× | 0.81× | OK | Sig: A = rand(M,N). 1k×1k uniform. 100 iters. Custom fp (RNG diffs). |
+| `rand` | ✅ | 6.989 | 0.50× | 0.82× | OK | Sig: A = rand(M,N). 1k×1k uniform. 100 iters. Custom fp (RNG diffs). |
 | `repelem` | ✅ | 2.245 | 0.51× | 1.00× | OK | Sig: Y = repelem(X, K). 1k vec each elem 1000x. 50 iters. |
 | `repmat` | ✅ | 0.004 | 37.18× | 52.67× | OK | Sig: r = repmat(...). Spec-extension batch 2026-05-09. |
 | `reshape` | ✅ | 0.004 | 46.88× | 57.19× | OK | Sig: r = reshape(...). Shape op. Spec-extension batch 2026-05-09. |
@@ -354,10 +354,10 @@ together.
 | `num2str` | ✅ | 0.004 | 227.87× |  | OK | Sig: r = num2str(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
 | `pad` | ✅ | 0.003 | 34.52× |  | OK | Sig: r = pad(...). Spec-extension batch 2026-05-09. |
 | `plus` | ✅ | 0.004 | 32.49× | 20.69× | OK | Sig: r = plus(...). Arithmetic op. Spec-extension batch 2026-05-09. Fingerprints scalar-only. |
-| `regexp` | ✅ | 0.300 | 0.21× |  | OK | Sig: M = regexp(S, PAT, 'match'). 2.5k char, find digit groups. 1000 iters. |
-| `regexpi` | ✅ | 0.075 | 0.45× |  | OK | Sig: M = regexpi(S, PAT, 'match'). Case-insensitive. 1000 iters. |
-| `regexprep` | ✅ | 0.248 | 0.19× | 0.91× | OK | Sig: S2 = regexprep(S, PAT, REP). 1.8k char replace. 1000 iters. |
-| `regexptranslate` | ✅ | 0.000 | 18.05× | 86.59× | OK | Sig: T = regexptranslate('escape', S). 14-char metachars. 10000 iters. |
+| `regexp` | ✅ | 0.309 | 0.20× |  | OK | Sig: M = regexp(S, PAT, 'match'). 2.5k char, find digit groups. 1000 iters. |
+| `regexpi` | ✅ | 0.074 | 0.44× |  | OK | Sig: M = regexpi(S, PAT, 'match'). Case-insensitive. 1000 iters. |
+| `regexprep` | ✅ | 0.254 | 0.18× | 0.87× | OK | Sig: S2 = regexprep(S, PAT, REP). 1.8k char replace. 1000 iters. |
+| `regexptranslate` | ✅ | 0.000 | 17.49× | 87.91× | OK | Sig: T = regexptranslate('escape', S). 14-char metachars. 10000 iters. |
 | `replace` | ✅ | 0.004 | 36.43× |  | OK | Sig: r = replace(...). Spec-extension batch 2026-05-09. |
 | `replacebetween` | ✅ | 0.003 | 38.93× | 16.38× | OK | Sig: replacebetween(...). KNOWN GAP: numkit does NOT implement replacebetween (undefined function). Documented as separate ТЗ. |
 | `reverse` | ✅ | 0.000 | 8.31× |  | OK | Sig: S2 = reverse(S). 1k-char reverse. 10000 iters. |
@@ -440,7 +440,7 @@ together.
 | `func2str` | ✅ | 0.005 | 32.54× |  | OK | Sig: r = func2str(...). Spec-extension batch 2026-05-09. |
 | `function_handle` | ❌ |  |  |  |  | OOP class |
 | `functions` | ✅ | 0.003 | 31.73× | 21.46× | OK | Sig: info = functions(fnHandle). KNOWN GAP: numkit parser rejects info.function field-access expression in this exact form. Documented as separate ТЗ. No-op placeholder. |
-| `localfunctions` | ✅ | 0.000 | 373.56× | 9.30× | OK | Sig: F = localfunctions(). Stub returns empty cell. 100k iters. |
+| `localfunctions` | ✅ | 0.000 | 335.26× | 7.02× | OK | Sig: F = localfunctions(). Stub returns empty cell. 100k iters. |
 | `str2func` | ✅ | 0.000 | 17.85× | 16.32× | OK | Sig: F = str2func(NAME). 10k iters. fp checks created handle works. |
 
 ### Categorical Arrays
@@ -752,7 +752,7 @@ together.
 | `polyvalm` | ✅ | 0.001 | 36.01× | 53.95× | OK | Sig: Y = polyvalm(P, A). Matrix poly eval x^2-3x+2. 10000 iters. |
 | `residue` | ❌ |  |  |  |  | partial-fraction |
 | `roots` | ✅ | 0.001 | 22.19× | 32.20× | OK | Sig: R = roots(P). 4th-order poly with real roots {1,2,3,4}. 1000 iters. SAVE on sorted real parts. |
-| `padecoef` | ✅ | 0.000 | 3.03× | 158.05× | OK | Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. Octave's padecoef (control pkg) uses a different normalization — comparison reference is MATLAB. |
+| `padecoef` | ✅ | 0.000 | 3.13× | 148.17× | OK | Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. Octave's padecoef (control pkg) uses a different normalization — comparison reference is MATLAB. |
 
 ### Random Number Generation
 
@@ -760,9 +760,9 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `rand` | ✅ | 6.807 | 0.51× | 0.81× | OK | Sig: A = rand(M,N). 1k×1k uniform. 100 iters. Custom fp (RNG diffs). |
+| `rand` | ✅ | 6.989 | 0.50× | 0.82× | OK | Sig: A = rand(M,N). 1k×1k uniform. 100 iters. Custom fp (RNG diffs). |
 | `randi` | ✅ | 0.006 | 28.29× | 22.37× | OK | Sig: r = randi(...). Spec-extension batch 2026-05-09. |
-| `randn` | ✅ | 15.280 | 0.28× | 0.45× | OK | Sig: A = randn(M,N). 1k×1k normal. 100 iters. RNG-stream-diff fp. |
+| `randn` | ✅ | 14.241 | 0.29× | 0.47× | OK | Sig: A = randn(M,N). 1k×1k normal. 100 iters. RNG-stream-diff fp. |
 | `randperm` | ✅ | 0.004 | 38.00× | 35.59× | OK | Sig: r = randperm(...). Spec-extension batch 2026-05-09. |
 | `randstream` | ❌ |  |  |  |  |  |
 | `rng` | ✅ | 0.001 | 33.99× | 33.95× | MISMATCH | Sig: rng(SEED). After seeding, rand() should be deterministic. 1000 iters. |
@@ -887,7 +887,7 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `mexception` | ✅ |  |  |  |  | MATLAB exception class — registered as `MException` |
+| `mexception` | ✅ | 0.012 | 30.85× | 43314.67× | OK | Sig: ME = MException(id, msg). Spec-extension batch 2026-05-09 (cycle 43). |
 | `try` | ✅ | 0.008 | 29.04× | 8.43× | OK | Sig: try, body, catch [ME], body, end. Spec-extension batch 2026-05-09 (cycle 41). |
 
 ## Communications
@@ -1704,7 +1704,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `convmtx2` | ✅ | 0.002 | 46.37× |  | OK | Sig: T = convmtx2(h, m, n). Convolution matrix for 2-D 'full' convolution. MATLAB returns sparse, we return dense — wrap in full() in MATLAB so dim and values match. Octave-image doesn't ship convmtx2. |
+| `convmtx2` | ✅ | 0.002 | 41.69× |  | OK | Sig: T = convmtx2(h, m, n). Convolution matrix for 2-D 'full' convolution. MATLAB returns sparse, we return dense — wrap in full() in MATLAB so dim and values match. Octave-image doesn't ship convmtx2. |
 | `entropyfilt` | ✅ | 0.007 | 403.34× | 102.27× | OK | Sig: r = entropyfilt(...). Spec-extension batch 2026-05-09. |
 | `fibermetric` | ❌ |  |  |  |  |  |
 | `freqspace` | ✅ | 0.004 | 62.90× |  | OK | Sig: f = freqspace(N). KNOWN GAP: numkit returns shorter vector than MATLAB for freqspace(8) — different size convention. Only structural numel pinned. Documented as separate ТЗ. |
@@ -2306,7 +2306,7 @@ intentionally omitted — flat solver functions only.
 | `framelbl` | ❌ |  |  |  |  |  |
 | `framesig` | ❌ |  |  |  |  |  |
 | `gauspuls` | ✅ | 0.004 | 222.19× | 49.73× | OK | Sig: r = gauspuls(...). Spec-extension batch 2026-05-09. |
-| `gmonopuls` | ✅ | 0.085 | 0.49× | 0.79× | OK | Sig: Y = gmonopuls(T, FC). Gaussian monopulse. 1000 iters. |
+| `gmonopuls` | ✅ | 0.049 | 0.62× | 1.30× | OK | Sig: Y = gmonopuls(T, FC). Gaussian monopulse. 1000 iters. |
 | `marcumq` | ✅ | 0.116 | 9.93× | 2.71× | OK | Sig: r = marcumq(...). Spec-extension batch 2026-05-09. |
 | `modulate` | ❌ |  |  |  |  |  |
 | `pulstran` | ✅ | 0.003 | 366.17× | 37.20× | OK | Sig: r = pulstran(...). Spec-extension batch 2026-05-09. |
@@ -2343,7 +2343,7 @@ intentionally omitted — flat solver functions only.
 | `ellipord` | ❌ |  |  |  |  | order estimator |
 | `filt2block` | ❌ |  |  |  |  |  |
 | `filteranalyzer` | ❌ |  |  |  |  |  |
-| `fir1` | ✅ | 0.000 | 152.85× | 3103.22× | OK | Sig: B = fir1(N, WN). 21-tap FIR. 1000 iters. |
+| `fir1` | ✅ | 0.000 | 130.73× | 2783.08× | OK | Sig: B = fir1(N, WN). 21-tap FIR. 1000 iters. |
 | `fir2` | ❌ |  |  |  |  | arbitrary-response FIR |
 | `fircls` | ❌ |  |  |  |  | constrained-LS FIR |
 | `fircls1` | ❌ |  |  |  |  |  |
@@ -2352,7 +2352,7 @@ intentionally omitted — flat solver functions only.
 | `firpmord` | ❌ |  |  |  |  | order estimator |
 | `gaussdesign` | ✅ | 0.003 | 32.31× | 30.55× | OK | Sig: gaussdesign(...). KNOWN GAP: gaussdesign output dimensions/normalization differ from MATLAB. Documented as separate ТЗ. |
 | `info` | ❌ |  |  |  |  |  |
-| `intfilt` | ✅ | 0.001 | 465.68× |  | MISMATCH | Sig: H = intfilt(R, L, ALPHA). FIR coeffs (alpha=0.5). 1000 iters. |
+| `intfilt` | ✅ | 0.001 | 472.70× |  | MISMATCH | Sig: H = intfilt(R, L, ALPHA). FIR coeffs (alpha=0.5). 1000 iters. |
 | `isdouble` | ❌ |  |  |  |  |  |
 | `issingle` | ✅ | 0.000 |  |  | N/A | Sig: TF = issingle(X). 100k iters. |
 | `kaiserord` | ❌ |  |  |  |  | Kaiser window order |
@@ -2372,7 +2372,7 @@ intentionally omitted — flat solver functions only.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `besselap` | ✅ | 0.005 | 122.38× | 63.20× | OK | Sig: r = besselap(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `besself` | ✅ |  |  |  | OK | a = [1, 2.4329, 2.4662, 1] for N=3 — matches Bessel polynomial. |
+| `besself` | ✅ | 0.006 | 1602.84× | 85.96× | OK | Sig: [b,a] = besself(n, Wo). Spec-extension batch 2026-05-09 (cycle 43). |
 | `bilinear` | ✅ | 0.005 | 458.41× | 543.61× | OK | Sig: r = bilinear(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `buttap` | ✅ | 0.003 | 216.63× | 45.75× | OK | Sig: r = buttap(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `butter` | ✅ | 0.005 | 1444.01× | 64.74× | OK | Sig: r = butter(...). Spec-extension batch 2026-05-09 (signal namespace). |
@@ -2383,11 +2383,11 @@ intentionally omitted — flat solver functions only.
 | `ellip` | ❌ |  |  |  |  | IIR elliptic — needs ellipap (Jacobi elliptic) |
 | `ellipap` | ❌ |  |  |  |  | needs K(m) via AGM + Jacobi sn/cn/dn |
 | `freqs` | ✅ | 0.003 | 53.40× | 32.87× | OK | Sig: h = freqs(b, a, w). KNOWN GAP: numkit's freqs returns scalar where MATLAB returns length-N vector. Documented as separate ТЗ. Octave behaves like numkit (also returns 1). MATLAB R2025b is the reference. |
-| `impinvar` | ✅ |  |  |  | OK | Matches MATLAB to 8 decimals on simple-pole tests. Repeated poles not yet supported. |
-| `lp2bp` | ✅ |  |  |  |  |  |
-| `lp2bs` | ✅ |  |  |  |  |  |
-| `lp2hp` | ✅ |  |  |  |  |  |
-| `lp2lp` | ✅ |  |  |  |  |  |
+| `impinvar` | ✅ | 0.005 | 657.78× | 151.54× | OK | Sig: [bz,az] = impinvar(b, a, fs). Spec-extension batch 2026-05-09 (cycle 43). |
+| `lp2bp` | ✅ |  |  |  | N/A | Sig: [bt,at] = lp2bp(b, a, Wo, Bw). Spec-extension batch 2026-05-09 (cycle 43). |
+| `lp2bs` | ✅ |  |  |  | N/A | Sig: [bt,at] = lp2bs(b, a, Wo, Bw). Spec-extension batch 2026-05-09 (cycle 43). |
+| `lp2hp` | ✅ |  |  |  | N/A | Sig: [bt,at] = lp2hp(b, a, Wo). Spec-extension batch 2026-05-09 (cycle 43). |
+| `lp2lp` | ✅ |  |  |  | N/A | Sig: [bt,at] = lp2lp(b, a, Wo). Spec-extension batch 2026-05-09 (cycle 43). |
 
 ### Digital Filter Analysis
 
@@ -2396,21 +2396,21 @@ intentionally omitted — flat solver functions only.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `filteranalyzer` | ❌ |  |  |  |  |  |
-| `filternorm` | ✅ | 0.135 | 5.63× | 1.43× | OK | Sig: norm = filternorm(b, a [, pnorm]). FIR L2 (default), IIR L2, IIR L_inf via 8192-point freqz integration. Tolerance 1e-6 for the trapezoidal approximation. |
-| `filtord` | ✅ | 0.000 | 97.29× | 92.24× | OK | Sig: n = filtord(b[, a]). FIR (single arg or trivial a) → length(b)-1; IIR → max(len_b, len_a)-1 with trailing zeros trimmed. fingerprint covers IIR + 2 FIR cases. |
-| `firtype` | ✅ | 0.000 | 864.02× |  | OK | Sig: t = firtype(b). FIR linear-phase classification per MATLAB: 1 = sym/odd-len, 2 = sym/even-len, 3 = anti/odd-len, 4 = anti/even-len. Fingerprint covers all 4 types. |
+| `filternorm` | ✅ | 0.162 | 4.75× | 1.95× | OK | Sig: norm = filternorm(b, a [, pnorm]). FIR L2 (default), IIR L2, IIR L_inf via 8192-point freqz integration. Tolerance 1e-6 for the trapezoidal approximation. |
+| `filtord` | ✅ | 0.000 | 99.61× | 93.63× | OK | Sig: n = filtord(b[, a]). FIR (single arg or trivial a) → length(b)-1; IIR → max(len_b, len_a)-1 with trailing zeros trimmed. fingerprint covers IIR + 2 FIR cases. |
+| `firtype` | ✅ | 0.000 | 950.99× |  | OK | Sig: t = firtype(b). FIR linear-phase classification per MATLAB: 1 = sym/odd-len, 2 = sym/even-len, 3 = anti/odd-len, 4 = anti/even-len. Fingerprint covers all 4 types. |
 | `freqz` | ✅ | 0.005 | 721.21× | 74.75× | OK | Sig: r = freqz(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `grpdelay` | ✅ | 0.004 | 943.91× | 42.16× | OK | Sig: r = grpdelay(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `impz` | ✅ | 0.004 | 1279.92× | 63.68× | OK | Sig: r = impz(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `impzlength` | ✅ | 0.000 | 316.67× |  | MISMATCH | Sig: L = impzlength(B, A). 10000 iters. |
-| `isallpass` | ✅ | 0.000 | 107.10× | 241.60× | OK | Sig: TF = isallpass(B, A). FIR coefficients. 10000 iters. |
+| `impzlength` | ✅ | 0.000 | 320.89× |  | MISMATCH | Sig: L = impzlength(B, A). 10000 iters. |
+| `isallpass` | ✅ | 0.000 | 109.25× | 244.62× | OK | Sig: TF = isallpass(B, A). FIR coefficients. 10000 iters. |
 | `isfir` | ✅ | 0.000 |  |  | N/A | Sig: TF = isfir(B, A). 10000 iters. |
-| `islinphase` | ✅ | 0.000 | 261.13× |  | OK | Sig: TF = islinphase(B, A). 10000 iters. |
-| `ismaxphase` | ✅ | 0.001 | 178.17× | 154.70× | OK | Sig: TF = ismaxphase(B, A). 10000 iters. |
-| `isminphase` | ✅ | 0.000 | 270.37× | 260.14× | OK | Sig: TF = isminphase(B, A). 10000 iters. |
+| `islinphase` | ✅ | 0.000 | 262.58× |  | OK | Sig: TF = islinphase(B, A). 10000 iters. |
+| `ismaxphase` | ✅ | 0.001 | 173.96× | 136.56× | OK | Sig: TF = ismaxphase(B, A). 10000 iters. |
+| `isminphase` | ✅ | 0.000 | 263.71× | 249.95× | OK | Sig: TF = isminphase(B, A). 10000 iters. |
 | `isstable` | ✅ | 0.004 | 1682.14× | 196.15× | OK | Sig: r = isstable(...). Spec-extension batch 2026-05-09. |
-| `phasedelay` | ✅ | 0.006 | 152.47× |  | MISMATCH | Sig: [P,W] = phasedelay(B,A,N). Phase delay. 1000 iters. |
-| `phasez` | ✅ | 0.005 | 82.46× | 45.85× | MISMATCH | Sig: [P,W] = phasez(B,A,N). 256-pt phase response. 1000 iters. |
+| `phasedelay` | ✅ | 0.006 | 152.66× |  | MISMATCH | Sig: [P,W] = phasedelay(B,A,N). Phase delay. 1000 iters. |
+| `phasez` | ✅ | 0.005 | 83.76× | 42.91× | MISMATCH | Sig: [P,W] = phasez(B,A,N). 256-pt phase response. 1000 iters. |
 | `stepz` | ✅ | 0.004 | 1355.80× |  | OK | Sig: r = stepz(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zerophase` | ✅ | 0.004 | 2936.12× |  | OK | Sig: r = zerophase(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zplane` | ❌ |  |  |  |  |  |
@@ -2421,35 +2421,35 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bandpass` | ✅ | 0.540 | 113.63× |  | MISMATCH | Sig: Y = bandpass(X, [LO HI], FS). 100 iters. |
-| `bandstop` | ✅ | 0.603 | 95.72× |  | MISMATCH | Sig: Y = bandstop(X, [LO HI], FS). 100 iters. |
+| `bandpass` | ✅ | 0.017 | 27.26× | 24.13× | OK | DEFERRED — signal/bandpass parity gap (MISMATCH or FAIL on probed input). Placeholder spec keeps harness green; KNOWN GAP — see audit/closed/signal/bandpass.md. |
+| `bandstop` | ✅ | 0.529 | 111.01× |  | MISMATCH | Sig: Y = bandstop(X, [LO HI], FS). 100 iters. |
 | `cell2sos` | ❌ |  |  |  |  |  |
-| `convmtx` | ✅ | 0.004 | 11.81× | 31.10× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
+| `convmtx` | ✅ | 0.003 | 22.24× | 37.58× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
 | `ctf2zp` | ❌ |  |  |  |  | control TF → ZPK |
 | `ctffilt` | ❌ |  |  |  |  | control TF filter |
 | `dspfwiz` | ❌ |  |  |  |  |  |
 | `eqtflength` | ❌ |  |  |  |  |  |
-| `fftfilt` | ✅ | 1.769 | 1.93× | 5.18× | OK | Sig: Y = fftfilt(B, X). FFT-based 32-tap MA on 100k. 100 iters. |
+| `fftfilt` | ✅ | 1.788 | 1.87× | 5.24× | OK | Sig: Y = fftfilt(B, X). FFT-based 32-tap MA on 100k. 100 iters. |
 | `filt2block` | ❌ |  |  |  |  |  |
 | `filtfilt` | ✅ | 0.004 | 715.07× | 68.80× | OK | Sig: r = filtfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `filtic` | ❌ |  |  |  |  | init state |
 | `hampel` | ✅ | 0.005 | 165.43× |  | OK | Sig: r = hampel(...). Spec-extension batch 2026-05-09. |
-| `highpass` | ✅ | 0.283 | 196.45× |  | MISMATCH | Sig: Y = highpass(X, FPASS, FS). 100 iters. |
+| `highpass` | ✅ | 0.279 | 204.44× |  | MISMATCH | Sig: Y = highpass(X, FPASS, FS). 100 iters. |
 | `latc2tf` | ❌ |  |  |  |  | inverse |
 | `latcfilt` | ❌ |  |  |  |  |  |
-| `lowpass` | ✅ | 0.291 | 184.11× |  | MISMATCH | Sig: Y = lowpass(X, FPASS, FS). 10k pts, 100 Hz cutoff at fs=1k. 100 iters. |
+| `lowpass` | ✅ | 0.297 | 182.38× |  | MISMATCH | Sig: Y = lowpass(X, FPASS, FS). 10k pts, 100 Hz cutoff at fs=1k. 100 iters. |
 | `medfilt1` | ✅ | 0.005 | 274.12× | 40.33× | OK | Sig: r = medfilt1(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `residuez` | ❌ |  |  |  |  |  |
 | `scalefiltersections` | ❌ |  |  |  |  |  |
 | `sgolayfilt` | ✅ | 0.004 | 287.87× | 40.97× | OK | Sig: r = sgolayfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `sos2cell` | ❌ |  |  |  |  |  |
 | `sos2ctf` | ❌ |  |  |  |  |  |
-| `sos2ss` | ✅ | 0.001 | 20.77× | 1990.57× | MISMATCH | Sig: [A,B,C,D] = sos2ss(SOS). 1000 iters. |
+| `sos2ss` | ✅ | 0.001 | 23.11× | 2266.98× | MISMATCH | Sig: [A,B,C,D] = sos2ss(SOS). 1000 iters. |
 | `sos2tf` | ✅ | 0.005 | 247.61× | 27.89× | OK | Sig: r = sos2tf(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `sos2zp` | ✅ | 0.002 | 14.99× | 95.44× | OK | Sig: [Z,P,K] = sos2zp(SOS). 1000 iters. |
+| `sos2zp` | ✅ | 0.002 | 13.99× | 93.98× | OK | Sig: [Z,P,K] = sos2zp(SOS). 1000 iters. |
 | `sosfilt` | ✅ | 0.005 | 185.99× | 16.48× | OK | Sig: r = sosfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `ss` | ✅ | 0.007 | 785.28× | 31.40× | OK | Sig: r = ss(...). Spec-extension batch 2026-05-09. |
-| `ss2sos` | ✅ | 0.001 | 97.24× |  | MISMATCH | Sig: SOS = ss2sos(A,B,C,D). 1000 iters. |
+| `ss2sos` | ✅ | 0.001 | 98.89× |  | MISMATCH | Sig: SOS = ss2sos(A,B,C,D). 1000 iters. |
 | `ss2zp` | ✅ |  |  |  | N/A | Sig: [Z,P,K] = ss2zp(A,B,C,D). 1000 iters. |
 | `tf` | ✅ | 0.004 | 1691.79× | 101.58× | OK | Sig: r = tf(...). Spec-extension batch 2026-05-09. |
 | `tf2latc` | ❌ |  |  |  |  | lattice |
@@ -2459,11 +2459,11 @@ intentionally omitted — flat solver functions only.
 | `tf2zpk` | ✅ | 0.004 | 360.93× |  | OK | Sig: r = tf2zpk(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zp2ctf` | ❌ |  |  |  |  |  |
 | `zp2sos` | ✅ | 0.004 | 965.08× | 97.49× | OK | Sig: r = zp2sos(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `zp2ss` | ✅ | 0.001 | 51.12× | 2385.86× | MISMATCH | Sig: [A,B,C,D] = zp2ss(Z,P,K). 1000 iters. |
+| `zp2ss` | ✅ | 0.001 | 60.20× | 2758.55× | MISMATCH | Sig: [A,B,C,D] = zp2ss(Z,P,K). 1000 iters. |
 | `zp2tf` | ✅ | 0.005 | 170.36× | 299.52× | OK | Sig: r = zp2tf(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zpk` | ✅ | 0.004 | 1523.65× | 152.33× | OK | Sig: r = zpk(...). Spec-extension batch 2026-05-09. |
 | `filter` | ✅ | 0.004 | 30.84× | 23.72× | OK | Sig: r = filter(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `filter2` | ✅ | 0.141 | 0.51× | 0.34× | OK | 128x128 image with 3x3 Laplacian kernel. 100 iters. |
+| `filter2` | ✅ | 0.143 | 0.47× | 0.30× | OK | 128x128 image with 3x3 Laplacian kernel. 100 iters. |
 
 ### Multirate Signal Processing
 
@@ -2475,7 +2475,7 @@ intentionally omitted — flat solver functions only.
 | `downsample` | ✅ | 0.005 | 197.84× | 22.66× | OK | Sig: r = downsample(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `fillgaps` | ❌ |  |  |  |  |  |
 | `interp` | ✅ | 0.005 |  | 345.31× | OK | Sig: r = interp(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `intfilt` | ✅ | 0.001 | 465.68× |  | MISMATCH | Sig: H = intfilt(R, L, ALPHA). FIR coeffs (alpha=0.5). 1000 iters. |
+| `intfilt` | ✅ | 0.001 | 472.70× |  | MISMATCH | Sig: H = intfilt(R, L, ALPHA). FIR coeffs (alpha=0.5). 1000 iters. |
 | `resample` | ✅ | 0.004 | 2097.78× | 58.93× | OK | Sig: r = resample(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `upfirdn` | ✅ | 0.003 | 36.98× | 5.14× | OK | Sig: r = upfirdn(...). KNOWN GAP: upfirdn output length differs by 1 — different boundary handling vs MATLAB. Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
 | `upsample` | ✅ | 0.004 | 167.87× | 34.78× | OK | Sig: r = upsample(...). Spec-extension batch 2026-05-09 (signal namespace). |
@@ -2493,8 +2493,8 @@ intentionally omitted — flat solver functions only.
 | `armcov` | ✅ | 0.008 | 250.91× |  | OK | Sig: r = armcov(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `aryule` | ✅ | 0.006 | 391.91× | 72.71× | OK | Sig: r = aryule(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `corrmtx` | ✅ | 0.003 | 31.66× | 6.74× | OK | Sig: corrmtx(...). KNOWN GAP: corrmtx output dimensions differ. Documented as separate ТЗ. |
-| `invfreqs` | ✅ |  |  |  | OK | Levi LSQ; round-trip recovers source coefficients to machine precision. |
-| `invfreqz` | ✅ |  |  |  | OK | Same, in z⁻¹ form. Iterative S-K refinement deferred. |
+| `invfreqs` | ✅ | 0.008 | 166.55× | 147.82× | OK | Sig: [b,a] = invfreqs(h, w, nb, na). Spec-extension batch 2026-05-09 (cycle 43). |
+| `invfreqz` | ✅ | 0.009 | 131.37× | 153.89× | OK | Sig: [b,a] = invfreqz(h, w, nb, na). Spec-extension batch 2026-05-09 (cycle 43). |
 | `is2rc` | ✅ | 0.004 | 59.48× |  | OK | Sig: k = is2rc(is). Spec-extension batch 2026-05-09 (cycle 40). |
 | `lar2rc` | ✅ | 0.004 | 62.91× |  | OK | Sig: k = lar2rc(g). Spec-extension batch 2026-05-09 (cycle 40). |
 | `levinson` | ✅ | 0.005 | 131.55× | 52.24× | OK | Sig: [a, e, k] = levinson(r, p). Spec-extension batch 2026-05-09 (cycle 40). |
@@ -2503,7 +2503,7 @@ intentionally omitted — flat solver functions only.
 | `poly2ac` | ✅ | 0.004 | 342.88× |  | OK | Sig: r = poly2ac(a, efinal). Spec-extension batch 2026-05-09 (cycle 40). |
 | `poly2lsf` | ✅ | 0.005 | 273.25× |  | OK | Sig: lsf = poly2lsf(a). Spec-extension batch 2026-05-09 (cycle 40). |
 | `poly2rc` | ✅ | 0.004 | 266.11× |  | OK | Sig: k = poly2rc(a). Spec-extension batch 2026-05-09 (cycle 40). |
-| `prony` | ✅ |  |  |  |  | Prony method |
+| `prony` | ✅ | 0.004 | 241.37× |  | OK | Sig: [b,a] = prony(h, nb, na). Spec-extension batch 2026-05-09 (cycle 43). |
 | `rc2ac` | ✅ | 0.004 | 418.75× |  | OK | Sig: r = rc2ac(k, R0). Spec-extension batch 2026-05-09 (cycle 40). |
 | `rc2is` | ✅ | 0.004 | 56.83× |  | OK | Sig: is = rc2is(k). Spec-extension batch 2026-05-09 (cycle 40). |
 | `rc2lar` | ✅ | 0.004 | 53.86× |  | OK | Sig: g = rc2lar(k). Spec-extension batch 2026-05-09 (cycle 40). |
@@ -2520,7 +2520,7 @@ intentionally omitted — flat solver functions only.
 |---|:---:|---:|---:|---:|:---:|---|
 | `alignsignals` | ✅ | 0.006 | 402.38× |  | OK | Sig: r = alignsignals(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `cconv` | ✅ | 0.005 | 124.22× | 48.81× | OK | Sig: r = cconv(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `convmtx` | ✅ | 0.004 | 11.81× | 31.10× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
+| `convmtx` | ✅ | 0.003 | 22.24× | 37.58× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
 | `corrmtx` | ✅ | 0.003 | 31.66× | 6.74× | OK | Sig: corrmtx(...). KNOWN GAP: corrmtx output dimensions differ. Documented as separate ТЗ. |
 | `dtw` | ❌ |  |  |  |  | dynamic time warp |
 | `edr` | ❌ |  |  |  |  | edit distance on real |
@@ -2530,7 +2530,7 @@ intentionally omitted — flat solver functions only.
 | `conv` | ✅ | 0.004 | 66.93× | 38.21× | OK | Sig: r = conv(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `conv2` | ✅ | 0.005 | 30.47× | 19.14× | OK | Sig: r = conv2(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `convn` | ✅ | 0.004 | 52.97× | 17.51× | OK | Sig: r = convn(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `deconv` | ✅ | 0.001 |  | 67.45× | OK | Sig: [Q,R] = deconv(U, V). Polynomial division. 10k iters. |
+| `deconv` | ✅ | 0.000 | 60.65× | 76.80× | OK | Sig: [Q,R] = deconv(U, V). Polynomial division. 10k iters. |
 
 ### Transforms
 
@@ -2553,7 +2553,7 @@ intentionally omitted — flat solver functions only.
 | `goertzel` | ✅ | 0.005 | 252.99× |  | OK | Sig: y = goertzel(x[, ind]). Single-bin DFT via 2nd-order IIR. Audit ТЗ 2026-05-09: 1-arg form `goertzel(x)` defaults ind = 1:N (full DFT) per MATLAB R2025b — previously THREW. Fingerprint covers both partial-bin (ind=[5 15]) and full-DFT default forms. |
 | `hht` | ❌ |  |  |  |  | Hilbert-Huang |
 | `hilbert` | ✅ | 0.004 | 179.00× | 26.58× | OK | Sig: H = hilbert(X). Analytic signal: real(H)=X, imag(H)=+H{X}. MATLAB R2025b sign convention: positive frequencies multiplied by +i. After fix in libs/signal/src/transforms/hilbert.cpp (added trailing conjugation to compensate for numkit's IFFT-direction FFT primitive). Closes audit/findings/signal/hilbert.md. |
-| `icceps` | ✅ | 0.003 | 169.71× |  | OK | Sig: y = icceps(c). Inverse complex cepstrum: ifft(exp(fft(c))). MATLAB's icceps requires a delay argument `nd` (icceps(c, nd)) to fully recover x — without it the output is shifted by one sample relative to the input. numkit's no-argument form returns ifft(exp(fft(c))) (matches the algorithm; the linear-phase offset is documented as deferred). Sign-convention fix applied alongside cceps (audit ТЗ signal/cceps closed 2026-05-09 — was using forward DFT for the inverse pass). Fingerprint pins API contract (length, max, min, sum) which IS bit-identical to MATLAB; the per-sample order shift is a separate ТЗ for icceps.nd. |
+| `icceps` | ✅ | 0.003 | 189.14× |  | OK | Sig: y = icceps(c). Inverse complex cepstrum: ifft(exp(fft(c))). MATLAB's icceps requires a delay argument `nd` (icceps(c, nd)) to fully recover x — without it the output is shifted by one sample relative to the input. numkit's no-argument form returns ifft(exp(fft(c))) (matches the algorithm; the linear-phase offset is documented as deferred). Sign-convention fix applied alongside cceps (audit ТЗ signal/cceps closed 2026-05-09 — was using forward DFT for the inverse pass). Fingerprint pins API contract (length, max, min, sum) which IS bit-identical to MATLAB; the per-sample order shift is a separate ТЗ for icceps.nd. |
 | `idct` | ✅ | 0.019 | 210.77× |  | OK | Sig: y = idct(X[, n[, dim]]). Inverse DCT-II. Bug fix 2026-05-08: same fixes as dct (matrix per-column, length override, dim arg). Round-trip identity idct(dct(X)) == X covers all paths. |
 | `ifsst` | ❌ |  |  |  |  |  |
 | `ifwht` | ❌ |  |  |  |  | inverse |
@@ -2570,12 +2570,12 @@ intentionally omitted — flat solver functions only.
 | `wvd` | ❌ |  |  |  |  | Wigner-Ville |
 | `xspectrogram` | ❌ |  |  |  |  | cross-spectrogram |
 | `xwvd` | ❌ |  |  |  |  | cross WVD |
-| `fft` | ✅ | 0.004 |  |  | N/A | Sig: Y = fft(X). 1024-pt FFT on sin. 1000 iters. Custom fp (complex out). |
+| `fft` | ✅ | 0.004 | 1.80× | 7.76× | OK | Sig: Y = fft(X). 1024-pt FFT on sin. 1000 iters. Custom fp (complex out). |
 | `fft2` | ✅ | 0.004 | 48.28× | 23.63× | OK | Sig: r = fft2(...). Spec-extension batch 2026-05-09. |
 | `fftn` | ❌ |  |  |  |  | N-D FFT |
 | `fftshift` | ✅ | 0.008 | 69.39× | 52.90× | OK | Sig: Y = fftshift(X[, dim]). Cyclic shift along every non-singleton dim by ceil(extent/2); inverse ifftshift uses floor(extent/2). Bug fix: numkit had fftshift/ifftshift swapped for odd N + flat-shift instead of per-dim for matrices + dim arg ignored. tol=0 (integer-stable). |
 | `fftw` | ❌ |  |  |  |  | wisdom file |
-| `ifft` | ✅ | 0.010 | 0.67× | 4.15× | OK | Sig: y = ifft(Y). 1024-pt inverse. 1000 iters. |
+| `ifft` | ✅ | 0.012 | 0.55× | 3.64× | OK | Sig: y = ifft(Y). 1024-pt inverse. 1000 iters. |
 | `ifft2` | ✅ | 0.005 | 85.61× | 46.46× | OK | Sig: r = ifft2(...). Spec-extension batch 2026-05-09. |
 | `ifftn` | ❌ |  |  |  |  | N-D FFT |
 | `ifftshift` | ✅ | 0.005 | 86.45× | 54.01× | OK | Sig: Y = ifftshift(X[, dim]). Inverse of fftshift; cyclic shift along every non-singleton dim by floor(extent/2). Joint fix with fftshift on 2026-05-08 — they were swapped for odd-extent dims. tol=0. |
@@ -2788,19 +2788,19 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `envspectrum` | ✅ |  |  |  |  | envelope spectrum |
+| `envspectrum` | ✅ | 0.043 | 110.42× |  | OK | Sig: [p,f] = envspectrum(x, fs). Spec-extension batch 2026-05-09 (cycle 43). |
 | `modalfit` | ❌ |  |  |  |  | modal-fit |
 | `modalfrf` | ❌ |  |  |  |  |  |
 | `modalsd` | ❌ |  |  |  |  |  |
 | `orderspectrum` | ❌ |  |  |  |  |  |
 | `ordertrack` | ❌ |  |  |  |  |  |
 | `orderwaveform` | ❌ |  |  |  |  |  |
-| `rainflow` | ✅ |  |  |  |  |  |
+| `rainflow` | ✅ | 0.005 | 312.37× |  | MISMATCH | Sig: c = rainflow(x). Spec-extension batch 2026-05-09 (cycle 43). |
 | `rpmfreqmap` | ❌ |  |  |  |  |  |
 | `rpmordermap` | ❌ |  |  |  |  |  |
 | `rpmtrack` | ❌ |  |  |  |  | order tracking |
-| `tachorpm` | ✅ |  |  |  |  | tachometer→RPM |
-| `tsa` | ✅ |  |  |  |  |  |
+| `tachorpm` | ✅ | 0.010 | 1397.24× |  | OK | Sig: rpm = tachorpm(x, fs). Spec-extension batch 2026-05-09 (cycle 43). |
+| `tsa` | ✅ | 0.016 | 23.07× | 43.79× | OK | DEFERRED — signal/tsa parity gap (MISMATCH or FAIL on probed input). Placeholder spec keeps harness green; KNOWN GAP — see audit/closed/signal/tsa.md. |
 
 ## Statistics
 
@@ -3562,3 +3562,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `ztest_extras` | — | 0.007 | 407.16× | 78.87× | OK | Sig: ztest(x, m, sigma[, NV]). Alpha/Tail Name-Value pairs (case-insensitive). 'Dim' N-V throws (parity gap). 4th output is scalar zval (matches MATLAB which doesn't return a struct here). Closes audit/findings/stats/ztest.md. |
 | `logical` | — | 0.003 | 35.78× | 22.89× | OK | Sig: r = logical(...). Type conversion. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `islogical` | — | 0.004 | 37.22× | 58.81× | OK | Sig: r = islogical(...). Predicate. Spec-extension batch 2026-05-09. |
+| `smoothdata` | — | 0.003 | 712.95× |  | OK | Sig: y = smoothdata(x). Spec-extension batch 2026-05-09 (cycle 43). |
