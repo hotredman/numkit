@@ -644,10 +644,47 @@ export default function CompositePlot({
   const imgW = Math.abs(sxHi - sxLo);
   const imgH = Math.abs(syLo - syHi);
 
-  /* ─── colorbar (right of plot area) ─── */
-  const cbarW = 12;
-  const cbarX = padL + W + 14;
-  const cbarH = H;
+  /* ─── colorbar — placement honours figure.colorbarLocation ─────
+     'off'  → hidden (explicit user hide). null/'' → default for
+     heatmap = 'east' (IDE convenience; MATLAB requires explicit
+     colorbar call).
+     'east' / 'eastoutside'  → vertical bar right of plot
+     'west' / 'westoutside'  → vertical bar left of plot
+     'north' / 'northoutside' → horizontal bar above plot
+     'south' / 'southoutside' → horizontal bar below plot
+     We collapse 'inside' / 'outside' variants to the same screen
+     position; 'inside' would overlap data, which is unusual for
+     real-world MATLAB scripts. */
+  const cbarLocRaw = figure.colorbarLocation || '';
+  const cbarLoc = cbarLocRaw === 'off'
+    ? null
+    : (cbarLocRaw || (hasHeatmap ? 'east' : null));
+  // Strip the 'outside' suffix so the placement switch is compact.
+  const cbarSide = cbarLoc ? cbarLoc.replace(/outside$/, '') : null;
+  const cbarThick = 12;
+  const cbarGap   = 14;
+  const cbarVertical = cbarSide === 'east' || cbarSide === 'west' || !cbarSide;
+  const cbarW = cbarVertical ? cbarThick : Math.max(40, W - 20);
+  const cbarH = cbarVertical ? H : cbarThick;
+  // Place by side. The space outside padL/padR/padT/padB is reserved
+  // by the layout pad numbers (see padR === 60 below); we don't auto-
+  // expand to make room for the bar — the renderer keeps the existing
+  // padding budget.
+  let cbarX, cbarY;
+  if (cbarSide === 'west') {
+    cbarX = padL - cbarThick - cbarGap;
+    cbarY = padT;
+  } else if (cbarSide === 'north') {
+    cbarX = padL + (W - cbarW) / 2;
+    cbarY = padT - cbarThick - cbarGap;
+  } else if (cbarSide === 'south') {
+    cbarX = padL + (W - cbarW) / 2;
+    cbarY = padT + H + cbarGap;
+  } else {
+    // east + default
+    cbarX = padL + W + cbarGap;
+    cbarY = padT;
+  }
   const cbarTicks = niceTicks(cminEff, cmaxEff, 5);
   const cbarInterp = getColormap(effectiveColormap);
   const cbarStops = Array.from({ length: 11 }, (_, i) => ({
@@ -690,9 +727,18 @@ export default function CompositePlot({
         <clipPath id={clipId}>
           <rect x={padL} y={padT} width={W} height={H} />
         </clipPath>
-        <linearGradient id={cbarGradId} x1="0" y1="1" x2="0" y2="0">
-          {cbarStops.map((s, i) => <stop key={i} offset={s.offset} stopColor={s.color} />)}
-        </linearGradient>
+        {/* Two gradient orientations. Vertical bars (east/west) flow
+            bottom→top so cmin sits at the bottom; horizontal bars
+            (north/south) flow left→right with cmin at the left. */}
+        {cbarVertical ? (
+          <linearGradient id={cbarGradId} x1="0" y1="1" x2="0" y2="0">
+            {cbarStops.map((s, i) => <stop key={i} offset={s.offset} stopColor={s.color} />)}
+          </linearGradient>
+        ) : (
+          <linearGradient id={cbarGradId} x1="0" y1="0" x2="1" y2="0">
+            {cbarStops.map((s, i) => <stop key={i} offset={s.offset} stopColor={s.color} />)}
+          </linearGradient>
+        )}
       </defs>
 
       <rect x={0} y={0} width={width} height={height} fill="var(--bg-1)" />
@@ -1067,25 +1113,115 @@ export default function CompositePlot({
         </g>
       )}
 
-      {/* Colorbar — only rendered when there's a heatmap layer. Pure
-          line/scatter composites skip it (their legend lives on series). */}
-      {hasHeatmap && (
+      {/* Colorbar — placement governed by figure.colorbarLocation
+          (resolved into cbarSide above). Renders only when a heatmap
+          layer exists AND the location is not 'off'. */}
+      {hasHeatmap && cbarSide && (
         <>
-          <rect x={cbarX} y={padT} width={cbarW} height={cbarH}
+          <rect x={cbarX} y={cbarY} width={cbarW} height={cbarH}
             fill={`url(#${cbarGradId})`}
             stroke="var(--plot-frame)" strokeWidth="0.5" />
           {cbarTicks.major.map((v, i) => {
-            const y = padT + cbarH - ((v - cminEff) / (cmaxEff - cminEff)) * cbarH;
-            if (y < padT - 1 || y > padT + cbarH + 1) return null;
+            const t = (v - cminEff) / (cmaxEff - cminEff);
+            // Vertical bars: high values at top → invert t. Horizontal:
+            // low values at left, high at right → t directly.
+            if (cbarVertical) {
+              const y = cbarY + cbarH - t * cbarH;
+              if (y < cbarY - 1 || y > cbarY + cbarH + 1) return null;
+              return (
+                <g key={`cb${i}`}>
+                  <line x1={cbarX + cbarW} x2={cbarX + cbarW + 3} y1={y} y2={y} stroke="var(--plot-tick)" />
+                  <text x={cbarX + cbarW + 6} y={y + 3} fill="var(--plot-text)" fontSize={9 * fontScale} textAnchor="start">{fmtTick(v)}</text>
+                </g>
+              );
+            }
+            const x = cbarX + t * cbarW;
+            if (x < cbarX - 1 || x > cbarX + cbarW + 1) return null;
             return (
               <g key={`cb${i}`}>
-                <line x1={cbarX + cbarW} x2={cbarX + cbarW + 3} y1={y} y2={y} stroke="var(--plot-tick)" />
-                <text x={cbarX + cbarW + 6} y={y + 3} fill="var(--plot-text)" fontSize={9 * fontScale} textAnchor="start">{fmtTick(v)}</text>
+                <line x1={x} x2={x} y1={cbarY + cbarH} y2={cbarY + cbarH + 3} stroke="var(--plot-tick)" />
+                <text x={x} y={cbarY + cbarH + 13} fill="var(--plot-text)" fontSize={9 * fontScale} textAnchor="middle">{fmtTick(v)}</text>
               </g>
             );
           })}
         </>
       )}
+
+      {/* Legend — only when there's at least one series layer with a
+          visible label. figure.legend (positional override array) wins
+          over per-layer .name. legendLocation drives placement; empty
+          string defaults to 'best' (top-right inside plot). */}
+      {(() => {
+        const labels = (figure.legend && figure.legend.length > 0)
+          ? figure.legend
+          : seriesLayers.map((l) => l.name).filter(Boolean);
+        const haveLabels = labels.some((s) => s && s.trim() !== '');
+        if (!haveLabels || seriesLayers.length === 0) return null;
+        const items = seriesLayers.slice(0, labels.length).map((l, i) => ({
+          color: l.color,
+          text: labels[i] || l.name || `series ${i + 1}`,
+        }));
+        if (items.length === 0) return null;
+        const fontSize = 10 * fontScale;
+        const lineH    = fontSize + 4;
+        const swatchW  = 14;
+        const padInner = 6;
+        // Approximate text width: 6.5 px per char at fontSize ≈ 10.
+        // Conservative; SVG won't reflow but the box won't be tiny.
+        const longest = items.reduce((m, it) => Math.max(m, it.text.length), 0);
+        const boxW = padInner * 2 + swatchW + 4 + Math.min(longest, 24) * 6.5;
+        const boxH = padInner * 2 + items.length * lineH;
+        const loc = (figure.legendLocation || 'best')
+                    .replace(/outside$/, '');
+        // Resolve box anchor to (x, y) inside the panel rect.
+        const anchorMargin = 8;
+        let bx, by;
+        switch (loc) {
+          case 'north':
+            bx = padL + (W - boxW) / 2; by = padT + anchorMargin; break;
+          case 'south':
+            bx = padL + (W - boxW) / 2; by = padT + H - boxH - anchorMargin; break;
+          case 'east':
+            bx = padL + W - boxW - anchorMargin;
+            by = padT + (H - boxH) / 2; break;
+          case 'west':
+            bx = padL + anchorMargin; by = padT + (H - boxH) / 2; break;
+          case 'northwest':
+            bx = padL + anchorMargin; by = padT + anchorMargin; break;
+          case 'southeast':
+            bx = padL + W - boxW - anchorMargin;
+            by = padT + H - boxH - anchorMargin; break;
+          case 'southwest':
+            bx = padL + anchorMargin;
+            by = padT + H - boxH - anchorMargin; break;
+          case 'none':
+            return null;
+          // 'best' / 'northeast' / unrecognised → top-right corner.
+          default:
+            bx = padL + W - boxW - anchorMargin;
+            by = padT + anchorMargin; break;
+        }
+        return (
+          <g pointerEvents="none">
+            <rect x={bx} y={by} width={boxW} height={boxH}
+              fill="var(--plot-bg)" stroke="var(--plot-frame)" strokeWidth="0.5"
+              rx="3" opacity="0.92" />
+            {items.map((it, i) => {
+              const cy = by + padInner + i * lineH + lineH / 2;
+              return (
+                <g key={`leg${i}`}>
+                  <line x1={bx + padInner} x2={bx + padInner + swatchW}
+                    y1={cy} y2={cy} stroke={it.color} strokeWidth="2" />
+                  <text x={bx + padInner + swatchW + 4} y={cy + fontSize / 3}
+                    fill="var(--plot-text)" fontSize={fontSize} textAnchor="start">
+                    {it.text}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+        );
+      })()}
 
       {/* Axis titles */}
       {figure.xLabel && (
