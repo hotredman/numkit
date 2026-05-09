@@ -940,7 +940,7 @@ intentionally omitted, along with `constellation` (object method) and
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `randerr` | ❌ |  |  |  |  | random binary error patterns |
-| `randsrc` | ❌ |  |  |  |  | random matrix from given alphabet |
+| `randsrc` | ❌ | 0.115 | 32.17× |  | OK | MATLAB randsrc: random matrix from finite alphabet with optional weighted probabilities. Numkit uses MatlabMT19937 (= MATLAB's mt19937ar) seeded with explicit state arg, so seeded outputs are bit-identical with MATLAB R2025b. Probability fingerprints (~70/20/10%) within 5% Monte-Carlo tolerance over 5000 samples. Octave 11.1.0 doesn't ship randsrc in core (signal/communications package only); reports N/A. |
 | `wgn` | ✅ | 0.003 | 258.70× |  | OK | Sig: r = wgn(...). Spec-extension batch 2026-05-09.  |
 | `biterr` | ❌ | 0.006 | 203.41× |  | OK | Sig: [n, r] = biterr(x, y[, k]). Counts differing bits between non-negative integer arrays. Bit-width k auto-detected as smallest covering width. |
 | `symerr` | ❌ | 0.005 | 146.95× |  | OK | Sig: [n, r] = symerr(x, y). Element-wise inequality count + ratio. |
