@@ -255,6 +255,46 @@ void GraphicsLibrary::install(Engine &engine)
             outs[0] = Value::empty();
         });
 
+    // plot3(x, y, z) / scatter3(x, y, z) — 3-D series. The renderer
+    // does a cabinet-projection to 2-D (z extends into upper-right at
+    // 30°, scaled 0.5). Real 3-D camera is B3 territory; this gets
+    // the data on screen so users can write the script and inspect
+    // values today. Both reuse the line / scatter render modes after
+    // adapter projection.
+    auto plot3Impl = [vecToJson, parsePlotArgs](
+                         const char *typeName,
+                         Span<const Value> args, size_t nargout,
+                         Span<Value> outs, CallContext &ctx) {
+        (void)nargout;
+        if (args.size() < 3) {
+            outs[0] = Value::empty();
+            return;
+        }
+        auto &fm = ctx.engine->figureManager();
+        fm.prepareForPlot();
+        DatasetInfo ds;
+        ds.type = typeName;
+        ds.xJson = vecToJson(args[0]);
+        ds.yJson = vecToJson(args[1]);
+        ds.zJson = vecToJson(args[2]);   // 1-D vector here, distinct from
+                                          // imagesc's 2-D zJson — adapter
+                                          // disambiguates by `type`.
+        size_t nvStart = 3;
+        if (args.size() >= 4 && args[3].isChar()) {
+            ds.style = args[3].toString();
+            nvStart = 4;
+        }
+        parsePlotArgs(args, nvStart, ds);
+        fm.currentAxes().datasets.push_back(std::move(ds));
+        fm.emitModified();
+        outs[0] = Value::empty();
+    };
+    {
+        using namespace std::placeholders;
+        reg("line", "plot3",    std::bind(plot3Impl, "plot3",    _1, _2, _3, _4));
+        reg("line", "scatter3", std::bind(plot3Impl, "scatter3", _1, _2, _3, _4));
+    }
+
     // quiver(x, y, u, v) — vector field as N arrows starting at
     // (x[i], y[i]) and pointing in direction (u[i], v[i]). MATLAB
     // accepts matrices; for first cut we expect flat vectors with
@@ -1098,7 +1138,7 @@ void GraphicsLibrary::install(Engine &engine)
     reg("layout", "set", noop);
     reg("layout", "get", noop_ret1);
 
-    reg("surface", "scatter3", noop);
+    // scatter3 — real impl registered earlier via plot3Impl shared body.
     reg("surface", "surf", noop);
     reg("surface", "mesh", noop);
     reg("contour", "contour", noop);
