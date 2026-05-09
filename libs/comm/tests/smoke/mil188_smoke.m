@@ -56,3 +56,16 @@ fprintf('\n  round-trip M=64: match = %d (expect 1)\n', isequal((0:63)', z64));
 
 zn64 = mil188qamdemod(y64 + 0.01*(1+1i), 64);
 fprintf('  noisy demod M=64: match = %d (expect 1)\n', isequal((0:63)', zn64));
+
+fprintf('\n--- M=256 (largest, closes cluster) ---\n');
+y256 = mil188qammod((0:255)', 256);
+fprintf('  256-QAM spot-check:\n');
+fprintf('    y(0)   = %+.6f%+.6fi  (expect +0.959366+0.056433i)\n', real(y256(1)), imag(y256(1)));
+fprintf('    y(127) = %+.6f%+.6fi\n', real(y256(128)), imag(y256(128)));
+fprintf('    y(255) = %+.6f%+.6fi  (expect -0.282166-0.282166i)\n', real(y256(256)), imag(y256(256)));
+
+z256 = mil188qamdemod(y256, 256);
+fprintf('\n  round-trip M=256: match = %d (expect 1)\n', isequal((0:255)', z256));
+
+zn256 = mil188qamdemod(y256 + 0.005*(1+1i), 256);
+fprintf('  noisy demod M=256: match = %d (expect 1)\n', isequal((0:255)', zn256));

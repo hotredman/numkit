@@ -912,7 +912,7 @@ intentionally omitted, along with `constellation` (object method) and
 | `qamdemod` | ✅ | 0.005 | 810.66× |  | OK | Sig: r = qamdemod(...). Spec-extension batch 2026-05-09. |
 | `apskmod` | ❌ | 0.011 | 509.97× |  | OK | MATLAB apskmod / apskdemod with explicit identity SymbolMapping (numkit's default). Engine-detecting shim handles MATLAB's name-value form vs numkit's positional 5th arg. Standard 16-APSK [4,12] [1, 2.7] forward+round-trip + nearest-neighbour demod under small noise. Bit-equal with MATLAB R2025b. Default 'gray' SymbolMapping deferred -- MATLAB's per-ring Gray for non-power-of-2 (M=12) needs more probing. Octave 11.1.0 doesn't ship apskmod in core; reports N/A. |
 | `apskdemod` | ❌ |  |  |  |  |  |
-| `mil188qammod` | ❌ | 0.021 | 159.24× |  | OK | MATLAB mil188qammod / mil188qamdemod (MIL-STD-188-110 QAM). Bit-equal with MATLAB R2025b on M=16, M=32, AND M=64 constellations. All tables hard-coded per MATLAB's spec-rounded values (probed at %.17g). KNOWN GAP narrowed: only M=256 still deferred. Octave 11.1.0 doesn't ship mil188qam in core; reports N/A. |
+| `mil188qammod` | ❌ | 0.119 | 35.71× |  | OK | MATLAB mil188qammod / mil188qamdemod (MIL-STD-188-110 QAM). Bit-equal with MATLAB R2025b on ALL FOUR supported constellations: M=16, 32, 64, 256. All tables hard-coded per MATLAB's spec-rounded values (probed at %.17g). MIL188 cluster CLOSED 4/4. Octave 11.1.0 doesn't ship mil188qam in core; reports N/A. |
 | `mil188qamdemod` | ❌ |  |  |  |  |  |
 | `mskmod` | ❌ |  |  |  |  | minimum-shift keying |
 | `mskdemod` | ❌ |  |  |  |  |  |
