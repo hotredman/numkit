@@ -191,8 +191,19 @@ const direct = {
 };
 
 // ── Public tempFS — bridge if supported, direct IDB otherwise ──
-
-const bridge = makeBridge();
+//
+// 2026-05-09: bridge path is gated behind NUMKIT_TEMPFS_BRIDGE=1 because
+// packaged Electron (file:// origin) doesn't reliably expose
+// crossOriginIsolated even with COOP/COEP headers injected via
+// webRequest.onHeadersReceived — the worker silently fails to start and
+// every tempFS call hangs. Direct IDB is the proven path for tempFS;
+// the leak we fixed was in LOCAL FS, where Electron sync IPC still
+// covers sync reads. Re-enable the bridge by setting the env var on a
+// build that proves crossOriginIsolated is true (e.g. via a custom
+// protocol handler with explicit secure-context registration).
+const bridgeEnabled = (typeof import.meta !== 'undefined'
+                    && import.meta.env?.VITE_TEMPFS_BRIDGE === '1');
+const bridge = bridgeEnabled ? makeBridge() : null;
 const useBridge = bridge !== null;
 
 const tempFS = {
@@ -226,9 +237,14 @@ if (useBridge) {
 // One-line trace so a user inspecting devtools can tell which path
 // is active without reading the source.
 // eslint-disable-next-line no-console
-console.log(`[tempFS] ${useBridge ? 'sync bridge active (Worker + SAB)'
-                                  : 'direct IDB (sync hooks disabled — '
-                                    + (bridgeSupported() ? 'bridge errored' : 'no SharedArrayBuffer / crossOriginIsolated')
-                                    + ')'}`);
+console.log(`[tempFS] ${
+  useBridge
+    ? 'sync bridge active (Worker + SAB)'
+    : !bridgeEnabled
+      ? 'direct IDB (bridge gated off — set VITE_TEMPFS_BRIDGE=1 to opt in)'
+      : bridgeSupported()
+        ? 'direct IDB (bridge construction failed — check console for vfs-worker errors)'
+        : 'direct IDB (no SharedArrayBuffer / crossOriginIsolated in this runtime)'
+}`);
 
 export default tempFS;
