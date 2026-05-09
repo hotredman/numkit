@@ -15,6 +15,7 @@
 
 #include <numkit/control/props/props.hpp>
 #include <numkit/control/internal/numerics.hpp>
+#include <numkit/control/conversion/conversion.hpp>
 
 #include <numkit/builtin/math/poly/polynomials.hpp>
 
@@ -98,12 +99,27 @@ Value zerosOf(std::pmr::memory_resource *mr, const Value &sys) {
         return builtin::roots(mr, sys.field("num"));
     if (hasKind(sys, "zpk"))
         return sys.field("z");
-    if (hasKind(sys, "ss"))
-        // Going through ss → tf is a SISO-only fallback; matches the
-        // header docstring.
-        throw Error("zero(sys) on state-space form not yet implemented; "
-                    "convert via [num,den] = ss2tf(A,B,C,D) then roots(num).",
-                    0, 0, "zero", "", "m:zero:ss");
+    if (hasKind(sys, "ss")) {
+        // SISO state-space: convert to (num, den) via ss2tf and root
+        // the numerator. Matches MATLAB's transmission-zero behaviour
+        // for SISO systems (without needing the QZ generalised eigen-
+        // value solver that handles MIMO directly).
+        const Value &A = sys.field("A");
+        const Value &B = sys.field("B");
+        const Value &C = sys.field("C");
+        const Value &D = sys.field("D");
+        const bool one_in  = (B.dims().cols() == 1);
+        const bool one_out = (C.dims().rows() == 1);
+        if (!one_in || !one_out) {
+            throw Error("zero(sys): MIMO state-space transmission zeros "
+                        "require a generalised eigenvalue (QZ) solver; "
+                        "not yet implemented in this build.",
+                        0, 0, "zero", "", "m:zero:miso");
+        }
+        Value num, den;
+        ss2tf(mr, A, B, C, D, /*iu=*/1, &num, &den);
+        return builtin::roots(mr, num);
+    }
     throw Error("expected an LTI struct (tf/zpk/ss)",
                 0, 0, "lti", "", "m:lti:kind");
 }
