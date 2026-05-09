@@ -5,5 +5,5 @@
 # .m smokes live in tests/smoke/ (next to this file) and are not compiled.
 
 target_sources(numkit_gtest PRIVATE
-    # Add per-function gtest TUs here.
+    ${CMAKE_CURRENT_SOURCE_DIR}/biterr_symerr_test.cpp
 )
