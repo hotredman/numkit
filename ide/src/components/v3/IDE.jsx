@@ -689,11 +689,36 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   // count drops between adaptation passes.
   const droppedFigures = figures.length - adaptedFigures.length;
 
+  // Both close paths used to fire-and-forget engine.execute and ignore
+  // the result. The engine emits __FIGURE_CLOSE__:id (or
+  // __FIGURE_CLOSE_ALL__) in the output stream, which extractMarkers
+  // turns into result.closedFigureIds / result.closeAllFigures — the
+  // ONLY signal the IDE has that the figure is gone on the C++ side.
+  // Without consuming it, the figures state stayed stale and the X
+  // button on the preview cards looked broken.
   const handleCloseFigure = useCallback((id) => {
-    engine.execute(`close(${id})`);
+    const result = engine.execute(`close(${id})`);
+    if (result?.closeAllFigures) setFigures([]);
+    else if (result?.closedFigureIds?.length) {
+      const closed = new Set(result.closedFigureIds);
+      setFigures((prev) => prev.filter((f) => !closed.has(f.id)));
+    } else {
+      // Fallback: if the engine didn't emit a marker (older WASM
+      // without close() instrumentation), drop the id locally so the
+      // UI at least reflects the user's intent.
+      setFigures((prev) => prev.filter((f) => f.id !== id));
+    }
   }, [engine]);
   const handleCloseAllFigures = useCallback(() => {
-    engine.execute("close('all')");
+    const result = engine.execute("close('all')");
+    if (result?.closeAllFigures) setFigures([]);
+    else if (result?.closedFigureIds?.length) {
+      const closed = new Set(result.closedFigureIds);
+      setFigures((prev) => prev.filter((f) => !closed.has(f.id)));
+    } else {
+      // Fallback as above — clear locally so the UI reflects intent.
+      setFigures([]);
+    }
   }, [engine]);
 
   const handleBottomTabChange = useCallback((id) => {
