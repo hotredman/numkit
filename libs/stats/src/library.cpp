@@ -28,6 +28,20 @@ void maxk_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mink_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rmse_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mape_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void range_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void mad_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void geomean_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void harmmean_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void moment_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void trimmean_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void isoutlier_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void rmoutliers_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void fillmissing_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void rmmissing_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void standardizeMissing_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void corr_reg              (Span<const Value>, size_t, Span<Value>, CallContext &);
+void detrend_reg           (Span<const Value>, size_t, Span<Value>, CallContext &);
+void partialcorr_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ecdf_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void datastats_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void ksdensity_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -260,8 +274,9 @@ void ttest2_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ztest_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void vartest_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void vartest2_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void kstest_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void kstest2_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void kstest_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void kstest2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lillietest_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void jbtest_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void signtest_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void signrank_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -275,6 +290,8 @@ void fishertest_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void randsample_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void datasample_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bootstrp_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bootci_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void crossval_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void jackknife_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void combnk_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 
@@ -295,6 +312,8 @@ void binofit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void raylfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void gevlike_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void gplike_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void mle_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fitdist_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // mvdist/mvdist.cpp
 void mvnpdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -303,6 +322,7 @@ void mvtpdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // anova/anova.cpp
 void anova1_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void anova2_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void kruskalwallis_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dummyvar_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 
@@ -359,6 +379,20 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "mink",      &stats::detail::mink_reg);
     reg("descriptive", "rmse",      &stats::detail::rmse_reg);
     reg("descriptive", "mape",      &stats::detail::mape_reg);
+    reg("descriptive", "range",     &stats::detail::range_reg);
+    reg("descriptive", "mad",       &stats::detail::mad_reg);
+    reg("descriptive", "geomean",   &stats::detail::geomean_reg);
+    reg("descriptive", "harmmean",  &stats::detail::harmmean_reg);
+    reg("descriptive", "moment",    &stats::detail::moment_reg);
+    reg("descriptive", "trimmean",  &stats::detail::trimmean_reg);
+    reg("descriptive", "isoutlier",          &stats::detail::isoutlier_reg);
+    reg("descriptive", "rmoutliers",         &stats::detail::rmoutliers_reg);
+    reg("descriptive", "fillmissing",        &stats::detail::fillmissing_reg);
+    reg("descriptive", "rmmissing",          &stats::detail::rmmissing_reg);
+    reg("descriptive", "standardizeMissing", &stats::detail::standardizeMissing_reg);
+    reg("descriptive", "corr",               &stats::detail::corr_reg);
+    reg("descriptive", "detrend",            &stats::detail::detrend_reg);
+    reg("descriptive", "partialcorr",        &stats::detail::partialcorr_reg);
     reg("descriptive", "ecdf",      &stats::detail::ecdf_reg);
     reg("descriptive", "datastats", &stats::detail::datastats_reg);
     reg("descriptive", "ksdensity", &stats::detail::ksdensity_reg);
@@ -552,8 +586,9 @@ void StatsLibrary::install(Engine &engine)
     reg("test", "ztest",    &stats::detail::ztest_reg);
     reg("test", "vartest",  &stats::detail::vartest_reg);
     reg("test", "vartest2", &stats::detail::vartest2_reg);
-    reg("test", "kstest",   &stats::detail::kstest_reg);
-    reg("test", "kstest2",  &stats::detail::kstest2_reg);
+    reg("test", "kstest",     &stats::detail::kstest_reg);
+    reg("test", "kstest2",    &stats::detail::kstest2_reg);
+    reg("test", "lillietest", &stats::detail::lillietest_reg);
     reg("test", "jbtest",   &stats::detail::jbtest_reg);
     reg("test", "signtest", &stats::detail::signtest_reg);
     reg("test", "signrank", &stats::detail::signrank_reg);
@@ -566,6 +601,8 @@ void StatsLibrary::install(Engine &engine)
     reg("resample", "randsample", &stats::detail::randsample_reg);
     reg("resample", "datasample", &stats::detail::datasample_reg);
     reg("resample", "bootstrp",   &stats::detail::bootstrp_reg);
+    reg("resample", "bootci",     &stats::detail::bootci_reg);
+    reg("resample", "crossval",   &stats::detail::crossval_reg);
     reg("resample", "jackknife",  &stats::detail::jackknife_reg);
     reg("resample", "combnk",     &stats::detail::combnk_reg);
 
@@ -573,6 +610,8 @@ void StatsLibrary::install(Engine &engine)
     reg("fit", "poissfit", &stats::detail::poissfit_reg);
     reg("fit", "expfit",   &stats::detail::expfit_reg);
     reg("fit", "unifit",   &stats::detail::unifit_reg);
+    reg("fit", "mle",      &stats::detail::mle_reg);
+    reg("fit", "fitdist",  &stats::detail::fitdist_reg);
     reg("fit", "normlike", &stats::detail::normlike_reg);
     reg("fit", "explike",  &stats::detail::explike_reg);
     reg("fit", "lognlike", &stats::detail::lognlike_reg);
@@ -591,6 +630,7 @@ void StatsLibrary::install(Engine &engine)
     reg("mvdist", "mvtpdf", &stats::detail::mvtpdf_reg);
 
     reg("anova", "anova1",        &stats::detail::anova1_reg);
+    reg("anova", "anova2",        &stats::detail::anova2_reg);
     reg("anova", "kruskalwallis", &stats::detail::kruskalwallis_reg);
     reg("anova", "dummyvar",      &stats::detail::dummyvar_reg);
 

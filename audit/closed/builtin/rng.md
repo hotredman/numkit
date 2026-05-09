@@ -75,3 +75,28 @@
   **Reopen criteria**: when user explicitly requests bit-identical
   RNG reproducibility for cross-MATLAB script porting (the only
   use case that needs this).
+
+## Re-closed -- 2026-05-09 (Phase 0a-1)
+
+**RESOLVED -- bit-identical with MATLAB R2025b.**
+
+After /loop cycle 52, replaced the std::mt19937 + std::uniform_real
+back-end with a MATLAB-canonical MT19937 (Matsumoto-Nishimura
+init_genrand reference) plus the seed=0 -> 5489 quirk that MATLAB
+applies. rand() now uses genRes53 directly (53-bit precision,
+two-uint32 combination).
+
+Verified bit-identity on rng(0)/rng(1)/rng(2)/rng(42)/rng(100), three
+draws each (15/15 values match MATLAB to ULP).
+
+Cascade closures landed in same commit:
+  - evrnd: bit-identical (also flipped Gumbel-MAX -> Gumbel-MIN to
+           match MATLAB convention)
+  - gevrnd: bit-identical (existing gev_inv_one already matched)
+  - gprnd: bit-identical (also rewrote sampler to use `u^(-k)` form,
+           MATLAB convention vs the symmetric `(1-u)^(-k)` form)
+  - ncx2rnd: still DEFERRED -- depends on randn() Ziggurat (next
+             phase 0a-1b)
+
+PROGRESS: rng now `correctness=OK`; full gtest 7644 PASSED, no
+regressions despite full RNG stack reroute.

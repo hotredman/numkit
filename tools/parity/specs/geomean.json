@@ -1,0 +1,4 @@
+{"name": "geomean", "namespace": "stats", "setup": "v = [2 4 8 16];",
+ "expr": "g1 = geomean(v); g2 = geomean([1 2 3 4 5]);", "iters": 5, "tol": 1e-12,
+ "fingerprint": ["g1", "g2"],
+ "comment": "Sig: g = geomean(x[, dim]). (prod x)^(1/n) = exp(mean(log x))."}

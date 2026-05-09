@@ -1,0 +1,6 @@
+{"name": "partialcorr", "namespace": "stats",
+ "setup": "x = [1; 2; 3; 4; 5; 6; 7; 8; 9; 10]; y = [1.2; 1.8; 3.5; 3.9; 5.1; 6.0; 7.2; 7.8; 9.1; 10.0]; z = [1; 4; 2; 5; 3; 6; 8; 7; 9; 10];",
+ "expr": "p = partialcorr(x, y, z); cnaive = corr([x y]); naive = cnaive(1, 2);",
+ "iters": 5, "tol": 1e-9,
+ "fingerprint": ["p", "naive"],
+ "comment": "Sig: r = partialcorr(X, Y, Z). Pearson partial correlation controlling for Z. Bit-identical with MATLAB R2025b on probed deterministic data."}

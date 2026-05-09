@@ -1,0 +1,10 @@
+{
+  "name": "yyyymmdd",
+  "namespace": "builtin",
+  "setup": "d1 = datenum(2026, 5, 9); d2 = datenum(2000, 1, 1); d3 = datenum(1970, 12, 31); v = [datenum(2026,5,9); datenum(2027,6,10); datenum(2028,7,11)]; try; tmp__ = datetime(d1, 'ConvertFrom', 'datenum'); ymd__ = @(d) yyyymmdd(datetime(d, 'ConvertFrom', 'datenum')); catch; ymd__ = @(d) yyyymmdd(d); end",
+  "expr": "y1 = ymd__(d1); y2 = ymd__(d2); y3 = ymd__(d3); yv = ymd__(v);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": ["y1", "y2", "y3", "yv(1)", "yv(2)", "yv(3)"],
+  "comment": "MATLAB yyyymmdd: packed integer date Y*10000+M*100+D. MATLAB R2025b requires datetime input -- numkit accepts serial date directly as a convenience extension. Spec uses an engine-detecting shim ymd__ that wraps with datetime() on MATLAB and falls through on numkit. Year-0 case excluded (MATLAB datetime errors on dates before 0001-01-01); year-0 covered by gtest. Octave 11.1.0 doesn't ship yyyymmdd; reports N/A. Algorithm: Howard Hinnant civil_from_days then arithmetic packing."
+}

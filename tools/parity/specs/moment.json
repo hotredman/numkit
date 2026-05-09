@@ -1,0 +1,4 @@
+{"name": "moment", "namespace": "stats", "setup": "v = [1 5 3 8 2 7 4 6];",
+ "expr": "m2 = moment(v, 2); m3 = moment(v, 3); m4 = moment(v, 4);", "iters": 5, "tol": 1e-10,
+ "fingerprint": ["m2", "m3", "m4"],
+ "comment": "Sig: m = moment(x, k[, dim]). Central k-th moment: mean((x - mean(x))^k)."}

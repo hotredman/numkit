@@ -1,0 +1,10 @@
+{
+  "name": "gevrnd",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "rng(0); a = gevrnd(0.1, 1, 0); b = gevrnd(0.1, 1, 0); c = gevrnd(0.5, 2, -1); rng(42); d = gevrnd(0, 1, 0); e = gevrnd(-0.3, 1.5, 5);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["a", "b", "c", "d", "e"],
+  "comment": "Sig: r = gevrnd(k, sigma, mu). Generalized Extreme Value sampler via gev_inv_one inverse CDF on rand(). Bit-identical with MATLAB R2025b after Phase-0a-1 RNG cascade."
+}

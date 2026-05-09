@@ -1,0 +1,14 @@
+{
+  "name": "pascal",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "P3 = pascal(3); P5 = pascal(5); P8 = pascal(8);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "P3(1,1)", "P3(2,2)", "P3(3,3)", "sum(P3(:))",
+    "P5(1,1)", "P5(3,3)", "P5(5,5)", "sum(P5(:))",
+    "P8(1,1)", "P8(4,5)", "P8(8,8)"
+  ],
+  "comment": "Sig: P = pascal(N). Symmetric Pascal-triangle matrix (k=0 default form). P[i,j] = C(i+j,i). Built via the additive recurrence. Bit-identical with MATLAB R2025b. Note: k=1 (Cholesky factor) and k=2 (cube-root of identity) variants are deferred."
+}

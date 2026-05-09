@@ -1,0 +1,15 @@
+{
+  "name": "linsolve",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "A = [1 2 3; 4 5 6; 7 8 10]; b = [6; 15; 25]; x = linsolve(A, b); A2 = [1 2; 3 4; 5 6]; b2 = [3; 7; 11]; x2 = linsolve(A2, b2);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "x(1)", "x(2)", "x(3)",
+    "max(abs(A*x - b))",
+    "x2(1)", "x2(2)",
+    "max(abs(A2*x2 - b2))"
+  ],
+  "comment": "Sig: X = linsolve(A, B[, opts]). Wrapper over la_solve (LU for square A, Householder QR least-squares for tall A). Opts struct accepted for MATLAB-compat but ignored (auto-detection covers same cases). Bit-identical with MATLAB R2025b on probed square + tall systems."
+}

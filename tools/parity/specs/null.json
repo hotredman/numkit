@@ -1,0 +1,14 @@
+{
+  "name": "null",
+  "namespace": "builtin",
+  "setup": "A = [1 2 3; 4 5 6; 7 8 10]; B = [1 2; 2 4; 3 6];",
+  "expr": "NA = null(A); NB = null(B); err = max(abs(B*NB)); na_sz1 = size(NA,1); na_sz2 = size(NA,2); nb_sz1 = size(NB,1); nb_sz2 = size(NB,2);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "na_sz1", "na_sz2",
+    "nb_sz1", "nb_sz2",
+    "err"
+  ],
+  "comment": "Sig: N = null(A[, tol]). Orthonormal null-space basis; n - rank(A) columns. A*null(A) = 0 to ulp."
+}

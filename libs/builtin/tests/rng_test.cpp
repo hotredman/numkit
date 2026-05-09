@@ -240,4 +240,44 @@ TEST_P(RngTest, Randi4DShape)
     EXPECT_DOUBLE_EQ(evalScalar("max(A(:)) <= 10;"), 1.0);
 }
 
+// ── MATLAB-bit-identical reproducibility (Phase 0a-1) ─────────────
+// MatlabMT19937 + genRes53 must produce exactly the same sequence
+// as MATLAB R2025b's rng(seed) + rand(). Captured from MATLAB
+// reference run.
+
+TEST_P(RngTest, MatlabBitIdenticalRand_Seed0)
+{
+    // MATLAB R2025b: rng(0); rand() == 0.8147236863931789
+    // (seed=0 silently maps to MT default 5489 -- the MATLAB quirk)
+    eval("rng(0); a = rand();");
+    EXPECT_DOUBLE_EQ(getVar("a"), 0.8147236863931789);
+}
+
+TEST_P(RngTest, MatlabBitIdenticalRand_Seed1)
+{
+    eval("rng(1); a = rand(); b = rand(); c = rand();");
+    EXPECT_DOUBLE_EQ(getVar("a"), 0.4170220047025740);
+    EXPECT_DOUBLE_EQ(getVar("b"), 0.7203244934421581);
+    // c is the full-precision double (MATLAB %.16f display
+    // truncates leading-zero numbers; actual bits match).
+    EXPECT_DOUBLE_EQ(getVar("c"), 0.00011437481734488664);
+}
+
+TEST_P(RngTest, MatlabBitIdenticalRand_Seed42)
+{
+    eval("rng(42); a = rand(); b = rand(); c = rand();");
+    EXPECT_DOUBLE_EQ(getVar("a"), 0.3745401188473625);
+    EXPECT_DOUBLE_EQ(getVar("b"), 0.9507143064099162);
+    EXPECT_DOUBLE_EQ(getVar("c"), 0.7319939418114051);
+}
+
+TEST_P(RngTest, MatlabBitIdenticalRand_Seed5489_EqualsSeed0)
+{
+    // The seed=0 -> 5489 mapping must hold: explicitly seeding 5489
+    // gives the same sequence as seeding 0.
+    eval("rng(0);    x = rand();");
+    eval("rng(5489); y = rand();");
+    EXPECT_DOUBLE_EQ(getVar("x"), getVar("y"));
+}
+
 INSTANTIATE_DUAL(RngTest);

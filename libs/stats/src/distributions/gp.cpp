@@ -97,12 +97,22 @@ Value gprnd(std::pmr::memory_resource *mr, double k, double sigma, double theta,
     if (sigma <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t n = rows * cols;
-    std::uniform_real_distribution<double> ud(0.0, 1.0);
     std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < n; ++i) {
-        double u = ud(gen);
-        if (u >= 1.0) u = std::nextafter(1.0, 0.0);
-        od[i] = gp_inv_one(u, k, sigma, theta);
+        // genRes53 -- MATLAB-canonical 53-bit uniform.
+        // gprnd uses u DIRECTLY (not 1-u) per MATLAB convention:
+        //   x = theta + sigma * (u^(-k) - 1) / k       for k != 0
+        //   x = theta - sigma * log(u)                  for k == 0
+        // (gpinv(p) uses 1-p which is the standard ICDF; sampling
+        // from rand() with the swapped-u form gives the same
+        // distribution but matches MATLAB's specific bit sequence.)
+        double u = gen.genRes53();
+        if (u <= 0.0) u = std::numeric_limits<double>::min();
+        if (k == 0.0) {
+            od[i] = theta - sigma * std::log(u);
+        } else {
+            od[i] = theta + sigma * (std::pow(u, -k) - 1.0) / k;
+        }
     }
     return out;
 }

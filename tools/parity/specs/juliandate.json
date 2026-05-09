@@ -1,0 +1,10 @@
+{
+  "name": "juliandate",
+  "namespace": "builtin",
+  "setup": "Y = [2026; 2027; 2028; 1970; 2000]; M = [5; 5; 5; 1; 1]; D = [9; 9; 9; 1; 1]; H = [0; 12; 6; 0; 12]; MI = [0; 0; 0; 0; 0]; S = [0; 0; 0; 0; 0];",
+  "expr": "j3 = juliandate(Y, M, D); j6 = juliandate(Y, M, D, H, MI, S); jrow = juliandate([2026 5 9 12 0 0]); jmat = juliandate([2026 5 9; 2027 5 9; 2028 5 9]);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["j3(1)", "j3(2)", "j3(3)", "j3(4)", "j3(5)", "j6(1)", "j6(2)", "j6(3)", "j6(4)", "j6(5)", "jrow", "jmat(1)", "jmat(2)", "jmat(3)"],
+  "comment": "MATLAB juliandate: Julian day number from date components. Covered: 3-arg (Y,M,D) with vector args, 6-arg with time fraction, single-arg 1x6 row, single-arg Nx3 matrix. Anchors: 1970-01-01 00:00 = 2440587.5 (Unix epoch), 2000-01-01 12:00 = 2451545.0 (J2000.0). Algorithm: datenum-serial + 1721058.5. Deferred: string parsing forms, datetime-object input."
+}

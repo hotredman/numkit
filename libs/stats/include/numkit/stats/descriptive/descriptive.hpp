@@ -116,6 +116,44 @@ Value rmse(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
 // the Inf).
 Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int dim = 0);
 
+// ── partialcorr (Pearson partial correlation) ──────────────────────
+// partialcorr(X, Y, Z) — partial correlation matrix between columns
+// of X and Y, controlling for the variables in Z. Same number of
+// rows in X, Y, Z; X and Y can have different column counts.
+Value partialcorr_of(std::pmr::memory_resource *mr,
+                     const Value &X, const Value &Y, const Value &Z);
+
+// ── corr (Pearson form alias to corrcoef) ──────────────────────────
+// corr(X) — auto-correlation across columns of X (same as corrcoef(X))
+// corr(X, Y) — correlation matrix between X and Y columns
+// (Other types 'Spearman' / 'Kendall' / 'Type' option deferred.)
+Value corr_xx(std::pmr::memory_resource *mr, const Value &X);
+Value corr_xy(std::pmr::memory_resource *mr, const Value &X, const Value &Y);
+
+// ── detrend ────────────────────────────────────────────────────────
+// Remove polynomial trend of order n from x (default n=1, linear).
+// Returns x minus best-fit polynomial; vector form. Matrix form
+// detrends each column separately.
+Value detrend_of(std::pmr::memory_resource *mr, const Value &x, int order = 1);
+
+// ── isoutlier / rmoutliers / fillmissing / rmmissing / standardizeMissing ──
+Value isoutlier_of(std::pmr::memory_resource *mr, const Value &x);
+Value rmoutliers_of(std::pmr::memory_resource *mr, const Value &x);
+Value fillmissing_of(std::pmr::memory_resource *mr, const Value &x,
+                     const std::string &method, double constVal = 0.0);
+Value rmmissing_of(std::pmr::memory_resource *mr, const Value &x);
+Value standardizeMissing_of(std::pmr::memory_resource *mr,
+                            const Value &x, double sentinel);
+
+// ── range / mad / geomean / harmmean / moment / trimmean ──────────────
+// All take optional dim; default dim=0 means first non-singleton.
+Value range_of(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+Value mad_of(std::pmr::memory_resource *mr, const Value &x, int flag = 0, int dim = 0);
+Value geomean_of(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+Value harmmean_of(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+Value moment_of(std::pmr::memory_resource *mr, const Value &x, int order, int dim = 0);
+Value trimmean_of(std::pmr::memory_resource *mr, const Value &x, double pct, int dim = 0);
+
 // ── prepareCurveData ───────────────────────────────────────────────────
 // prepareCurveData(x, y[, w]) — strip NaN/Inf rows from paired data and
 // return column vectors. With three arguments, weights w are also

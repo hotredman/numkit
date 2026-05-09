@@ -1,0 +1,15 @@
+{
+  "name": "topkrows",
+  "namespace": "builtin",
+  "setup": "M = [3 1; 1 5; 2 4; 5 2; 4 3];",
+  "expr": "T = topkrows(M, 3); T_all = topkrows(M, 5);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "T(1,1)", "T(1,2)",
+    "T(2,1)", "T(2,2)",
+    "T(3,1)", "T(3,2)",
+    "T_all(1,1)", "T_all(5,1)"
+  ],
+  "comment": "Sig: B = topkrows(A, k). Top k rows in lex-descending order across all columns (default direction). Bit-identical with MATLAB R2025b on probed 5×2 input. Note: column-specific sort `topkrows(A, k, col)` and direction flag deferred."
+}

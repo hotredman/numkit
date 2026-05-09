@@ -1,0 +1,4 @@
+{"name": "trimmean", "namespace": "stats", "setup": "v = [1 5 3 8 2 7 4 6 100];",
+ "expr": "t1 = trimmean(v, 25); t2 = trimmean(v, 50);", "iters": 5, "tol": 1e-10,
+ "fingerprint": ["t1", "t2"],
+ "comment": "Sig: m = trimmean(x, percent[, dim]). Mean after trimming percent/2 from each end."}

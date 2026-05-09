@@ -1,0 +1,10 @@
+{
+  "name": "subspace",
+  "namespace": "builtin",
+  "setup": "A = [1 0; 0 1; 0 0]; B = [1 0; 0 1; 0 0]; C = [1 0; 0 0; 0 1];",
+  "expr": "t1 = subspace(A, A); t2 = subspace(A, B); t3 = subspace(A, C);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["t1", "t2", "t3"],
+  "comment": "Sig: theta = subspace(A, B). Largest principal angle between column spaces of A and B. Identical subspaces -> 0; orthogonal -> pi/2."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "randerr",
+  "namespace": "comm",
+  "setup": "",
+  "expr": "y1 = randerr(5, 8, 1, 42); y2 = randerr(3, 10, 3, 42); y3 = randerr(5, 10, [1 2 3], 42); y4 = randerr(5, 10, [0 1 2; 0.0 0.7 0.3], 42); rs1 = sum(y1, 2); rs2 = sum(y2, 2); rs3 = sum(y3, 2); rs4 = sum(y4, 2);",
+  "iters": 3,
+  "tol": 0,
+  "fingerprint": ["y1(1,8)", "y1(2,1)", "y1(3,3)", "y1(5,2)", "rs1(1)", "rs1(5)", "rs2(1)", "rs2(3)", "rs3(1)", "rs3(2)", "rs3(5)", "rs4(1)", "rs4(2)", "rs4(5)"],
+  "comment": "MATLAB randerr: random binary error matrix with controllable error count per row. Uses MatlabMT19937 for bit-equal output with MATLAB R2025b on seeded inputs. Covered: scalar (1 error), scalar (3 errors), vector [1 2 3] uniform, weighted [0 1 2; 0.0 0.7 0.3]. All known column placements + row sums fingerprinted. Octave 11.1.0 doesn't ship randerr in core; reports N/A."
+}

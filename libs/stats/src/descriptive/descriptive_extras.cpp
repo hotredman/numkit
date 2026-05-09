@@ -294,6 +294,560 @@ Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
         }, mr);
 }
 
+// ── partialcorr (regress-out + correlate) ───────────────────────────
+
+Value partialcorr_of(std::pmr::memory_resource *mr,
+                     const Value &X, const Value &Y, const Value &Z)
+{
+    if (X.dims().ndim() != 2 || Y.dims().ndim() != 2 || Z.dims().ndim() != 2)
+        throw Error("partialcorr: X, Y, Z must be 2D matrices",
+                    0, 0, "partialcorr", "", "m:partialcorr:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(X.dims().dim(0));
+    const std::size_t mY = static_cast<std::size_t>(Y.dims().dim(0));
+    const std::size_t mZ = static_cast<std::size_t>(Z.dims().dim(0));
+    if (mY != m || mZ != m)
+        throw Error("partialcorr: X, Y, Z must have the same number of rows",
+                    0, 0, "partialcorr", "", "m:partialcorr:dimMismatch");
+    const std::size_t pX = static_cast<std::size_t>(X.dims().dim(1));
+    const std::size_t pY = static_cast<std::size_t>(Y.dims().dim(1));
+    const std::size_t pZ = static_cast<std::size_t>(Z.dims().dim(1));
+
+    // Augment Z with intercept column (column of ones) for proper regression.
+    // Z_full is m × (pZ + 1).
+    ScratchArena scratch(mr);
+    const std::size_t pZ1 = pZ + 1;
+    ScratchVec<double> Zf(m * pZ1, &scratch);
+    for (std::size_t i = 0; i < m; ++i) Zf[i + 0 * m] = 1.0;  // intercept
+    const double *Zd = Z.doubleData();
+    for (std::size_t j = 0; j < pZ; ++j)
+        for (std::size_t i = 0; i < m; ++i)
+            Zf[i + (j + 1) * m] = Zd[i + j * m];
+
+    // Compute Zf' * Zf and its LU once.
+    // M = Zf' * Zf  (pZ1 × pZ1).
+    ScratchVec<double> M(pZ1 * pZ1, 0.0, &scratch);
+    for (std::size_t i = 0; i < pZ1; ++i)
+        for (std::size_t j = 0; j < pZ1; ++j) {
+            double s = 0.0;
+            for (std::size_t k = 0; k < m; ++k)
+                s += Zf[k + i * m] * Zf[k + j * m];
+            M[i + j * pZ1] = s;
+        }
+
+    auto regressOut = [&](const Value &W) -> ScratchVec<double> {
+        const std::size_t p = static_cast<std::size_t>(W.dims().dim(1));
+        const double *Wd = W.doubleData();
+        ScratchVec<double> Res(m * p, 0.0, &scratch);
+        // For each column of W:
+        for (std::size_t col = 0; col < p; ++col) {
+            // b = Zf' * W(:, col)   (pZ1)
+            ScratchVec<double> b(pZ1, 0.0, &scratch);
+            for (std::size_t i = 0; i < pZ1; ++i)
+                for (std::size_t k = 0; k < m; ++k)
+                    b[i] += Zf[k + i * m] * Wd[k + col * m];
+            // Solve M * coef = b via inline Gaussian elimination.
+            ScratchVec<double> Mcopy(M.begin(), M.end(), &scratch);
+            ScratchVec<double> coef(b.begin(), b.end(), &scratch);
+            bool singular = false;
+            for (std::size_t kc = 0; kc < pZ1 && !singular; ++kc) {
+                // Pivot.
+                std::size_t piv = kc;
+                double pmax = std::fabs(Mcopy[kc + kc * pZ1]);
+                for (std::size_t r = kc + 1; r < pZ1; ++r) {
+                    const double v = std::fabs(Mcopy[r + kc * pZ1]);
+                    if (v > pmax) { pmax = v; piv = r; }
+                }
+                if (pmax == 0.0) { singular = true; break; }
+                if (piv != kc) {
+                    for (std::size_t j = 0; j < pZ1; ++j)
+                        std::swap(Mcopy[kc + j * pZ1], Mcopy[piv + j * pZ1]);
+                    std::swap(coef[kc], coef[piv]);
+                }
+                const double pivVal = Mcopy[kc + kc * pZ1];
+                for (std::size_t r = kc + 1; r < pZ1; ++r) {
+                    const double f = Mcopy[r + kc * pZ1] / pivVal;
+                    for (std::size_t j = kc; j < pZ1; ++j)
+                        Mcopy[r + j * pZ1] -= f * Mcopy[kc + j * pZ1];
+                    coef[r] -= f * coef[kc];
+                }
+            }
+            if (singular) {
+                std::fill(coef.begin(), coef.end(), 0.0);
+            } else {
+                // Back-substitute.
+                for (std::size_t kk = pZ1; kk-- > 0;) {
+                    double s = coef[kk];
+                    for (std::size_t j = kk + 1; j < pZ1; ++j)
+                        s -= Mcopy[kk + j * pZ1] * coef[j];
+                    coef[kk] = s / Mcopy[kk + kk * pZ1];
+                }
+            }
+            // Residual: W(:, col) - Zf * coef
+            for (std::size_t i = 0; i < m; ++i) {
+                double pred = 0.0;
+                for (std::size_t j = 0; j < pZ1; ++j)
+                    pred += Zf[i + j * m] * coef[j];
+                Res[i + col * m] = Wd[i + col * m] - pred;
+            }
+        }
+        return Res;
+    };
+
+    // Build residual matrices.
+    auto Xres_data = regressOut(X);
+    auto Yres_data = regressOut(Y);
+
+    // Compute correlation matrix between Xres (m×pX) and Yres (m×pY).
+    // R[i, j] = corr(Xres(:,i), Yres(:,j)) = cov / (std_x * std_y).
+    auto Rout = Value::matrix(pX, pY, ValueType::DOUBLE, mr);
+    double *R = Rout.doubleDataMut();
+
+    auto colMean = [&](const ScratchVec<double> &v, std::size_t col) {
+        double s = 0.0;
+        for (std::size_t i = 0; i < m; ++i) s += v[i + col * m];
+        return s / static_cast<double>(m);
+    };
+    auto colStd = [&](const ScratchVec<double> &v, std::size_t col, double mean) {
+        double s = 0.0;
+        for (std::size_t i = 0; i < m; ++i) {
+            const double d = v[i + col * m] - mean;
+            s += d * d;
+        }
+        return std::sqrt(s / static_cast<double>(m - 1));
+    };
+
+    for (std::size_t i = 0; i < pX; ++i) {
+        const double mx = colMean(Xres_data, i);
+        const double sx = colStd(Xres_data, i, mx);
+        for (std::size_t j = 0; j < pY; ++j) {
+            const double my = colMean(Yres_data, j);
+            const double sy = colStd(Yres_data, j, my);
+            double cov = 0.0;
+            for (std::size_t k = 0; k < m; ++k)
+                cov += (Xres_data[k + i * m] - mx) * (Yres_data[k + j * m] - my);
+            cov /= static_cast<double>(m - 1);
+            R[i + j * pX] = (sx > 0.0 && sy > 0.0) ? cov / (sx * sy) : std::nan("");
+        }
+    }
+    return Rout;
+}
+
+// ── corr (Pearson alias) ─────────────────────────────────────────────
+
+Value corr_xx(std::pmr::memory_resource *mr, const Value &X)
+{
+    return corrcoef(mr, X);
+}
+
+Value corr_xy(std::pmr::memory_resource *mr, const Value &X, const Value &Y)
+{
+    return corrcoef(mr, X, Y);
+}
+
+// ── detrend (polynomial trend removal) ──────────────────────────────
+
+namespace {
+
+// Fit polynomial of order `order` to (xidx, y) via normal equations.
+// Returns coefficients [a_order, a_{order-1}, ..., a_0] suitable for
+// evalPoly Horner.
+//
+// PMR HARD RULE: scratch via the supplied scratch arena. The vector
+// types are ScratchVec to preserve the per-call arena lifetime.
+ScratchVec<double> fitPolyLS(std::pmr::memory_resource *scratch_mr,
+                             const double *xidx, std::size_t n,
+                             const double *y, int order)
+{
+    const std::size_t k = static_cast<std::size_t>(order) + 1;
+    ScratchVec<double> M(k * k, 0.0, scratch_mr);
+    ScratchVec<double> b(k, 0.0, scratch_mr);
+    ScratchVec<double> powSums(2 * k - 1, 0.0, scratch_mr);
+    for (std::size_t i = 0; i < n; ++i) {
+        double xp = 1.0;
+        for (std::size_t p = 0; p < powSums.size(); ++p) {
+            powSums[p] += xp;
+            xp *= xidx[i];
+        }
+    }
+    for (std::size_t i = 0; i < k; ++i)
+        for (std::size_t j = 0; j < k; ++j)
+            M[i + j * k] = powSums[(order - static_cast<int>(i)) +
+                                   (order - static_cast<int>(j))];
+    for (std::size_t i = 0; i < n; ++i) {
+        double xp = 1.0;
+        for (int p = 0; p < static_cast<int>(k); ++p) {
+            b[order - p] += y[i] * xp;
+            xp *= xidx[i];
+        }
+    }
+    // Gaussian elimination with partial pivot.
+    for (std::size_t kc = 0; kc < k; ++kc) {
+        std::size_t piv = kc;
+        double pmax = std::fabs(M[kc + kc * k]);
+        for (std::size_t r = kc + 1; r < k; ++r) {
+            const double v = std::fabs(M[r + kc * k]);
+            if (v > pmax) { pmax = v; piv = r; }
+        }
+        if (pmax == 0.0) {
+            ScratchVec<double> nanVec(k, std::numeric_limits<double>::quiet_NaN(),
+                                       scratch_mr);
+            return nanVec;
+        }
+        if (piv != kc) {
+            for (std::size_t j = 0; j < k; ++j)
+                std::swap(M[kc + j * k], M[piv + j * k]);
+            std::swap(b[kc], b[piv]);
+        }
+        const double pivVal = M[kc + kc * k];
+        for (std::size_t r = kc + 1; r < k; ++r) {
+            const double f = M[r + kc * k] / pivVal;
+            for (std::size_t j = kc; j < k; ++j)
+                M[r + j * k] -= f * M[kc + j * k];
+            b[r] -= f * b[kc];
+        }
+    }
+    ScratchVec<double> a(k, 0.0, scratch_mr);
+    for (std::size_t kk = k; kk-- > 0;) {
+        double s = b[kk];
+        for (std::size_t j = kk + 1; j < k; ++j) s -= M[kk + j * k] * a[j];
+        a[kk] = s / M[kk + kk * k];
+    }
+    return a;
+}
+
+double evalPoly(const ScratchVec<double> &a, double x)
+{
+    double r = 0.0;
+    for (double c : a) r = r * x + c;
+    return r;
+}
+
+void detrendColumn(std::pmr::memory_resource *scratch_mr,
+                   const double *src, double *dst, std::size_t n, int order)
+{
+    if (n == 0) return;
+    if (order < 0) order = 1;
+    ScratchVec<double> xidx(n, scratch_mr);
+    for (std::size_t i = 0; i < n; ++i)
+        xidx[i] = static_cast<double>(i);
+    auto coefs = fitPolyLS(scratch_mr, xidx.data(), n, src, order);
+    for (std::size_t i = 0; i < n; ++i)
+        dst[i] = src[i] - evalPoly(coefs, xidx[i]);
+}
+
+} // anonymous namespace
+
+Value detrend_of(std::pmr::memory_resource *mr, const Value &x, int order)
+{
+    if (x.numel() == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
+    const std::size_t c = (x.dims().ndim() >= 2)
+                            ? static_cast<std::size_t>(x.dims().dim(1)) : 1;
+    ScratchArena scratch(mr);
+    auto out = Value::matrix(r, c, ValueType::DOUBLE, mr);
+    const double *xd = x.doubleData();
+    double *od = out.doubleDataMut();
+
+    if (r == 1 || c == 1) {
+        detrendColumn(&scratch, xd, od, r * c, order);
+        return out;
+    }
+    for (std::size_t j = 0; j < c; ++j)
+        detrendColumn(&scratch, xd + j * r, od + j * r, r, order);
+    return out;
+}
+
+// ── isoutlier / rmoutliers / fillmissing / rmmissing / standardizeMissing ──
+
+// isoutlier(x) — boolean array marking outliers via median + MAD
+// (default MATLAB method: more than 3 scaled MADs from median).
+Value isoutlier_of(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.numel() == 0) return Value::matrix(0, 0, ValueType::LOGICAL, mr);
+    const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
+    const std::size_t c = (x.dims().ndim() >= 2)
+                            ? static_cast<std::size_t>(x.dims().dim(1)) : 1;
+    auto out = Value::matrix(r, c, ValueType::LOGICAL, mr);
+    uint8_t *od = out.logicalDataMut();
+    const double *xd = x.doubleData();
+    const std::size_t n = x.numel();
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> buf(xd, xd + n, &scratch);
+    std::sort(buf.begin(), buf.end());
+    const double med = (n % 2 == 1) ? buf[n / 2]
+                                     : 0.5 * (buf[n / 2 - 1] + buf[n / 2]);
+    ScratchVec<double> dev(n, &scratch);
+    for (std::size_t i = 0; i < n; ++i) dev[i] = std::fabs(xd[i] - med);
+    std::sort(dev.begin(), dev.end());
+    const double mad = (n % 2 == 1) ? dev[n / 2]
+                                     : 0.5 * (dev[n / 2 - 1] + dev[n / 2]);
+    // MATLAB scales MAD by 1.4826 for normal-consistency.
+    const double scaled_mad = mad * 1.4826;
+    const double thresh = 3.0 * scaled_mad;
+
+    for (std::size_t i = 0; i < n; ++i)
+        od[i] = (std::fabs(xd[i] - med) > thresh) ? 1 : 0;
+    return out;
+}
+
+// rmoutliers(x) — drop elements flagged by isoutlier; vector form.
+Value rmoutliers_of(std::pmr::memory_resource *mr, const Value &x)
+{
+    auto mask = isoutlier_of(mr, x);
+    const std::size_t n = x.numel();
+    const double *xd = x.doubleData();
+    const uint8_t *m = mask.logicalData();
+    ScratchArena scratch(mr);
+    ScratchVec<double> kept(&scratch);
+    kept.reserve(n);
+    for (std::size_t i = 0; i < n; ++i)
+        if (!m[i]) kept.push_back(xd[i]);
+    const bool col = x.dims().ndim() >= 2 && x.dims().dim(1) == 1;
+    auto out = col
+        ? Value::matrix(kept.size(), 1, ValueType::DOUBLE, mr)
+        : Value::matrix(1, kept.size(), ValueType::DOUBLE, mr);
+    if (!kept.empty())
+        std::copy(kept.begin(), kept.end(), out.doubleDataMut());
+    return out;
+}
+
+// fillmissing(x, method[, constant_value]) — replace NaN with method.
+// MATLAB-canonical methods: 'constant' (needs value), 'previous',
+// 'next'. Internal 'mean'/'median' kept as a numkit convenience but
+// undocumented (use mean(x,'omitnan') + 'constant' for portability).
+Value fillmissing_of(std::pmr::memory_resource *mr, const Value &x,
+                     const std::string &method, double constVal)
+{
+    const std::size_t n = x.numel();
+    if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    const double *xd = x.doubleData();
+    const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
+    const std::size_t c = (x.dims().ndim() >= 2)
+                            ? static_cast<std::size_t>(x.dims().dim(1)) : 1;
+    auto out = Value::matrix(r, c, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    std::copy(xd, xd + n, od);
+
+    if (method == "constant") {
+        for (std::size_t i = 0; i < n; ++i)
+            if (std::isnan(od[i])) od[i] = constVal;
+        return out;
+    }
+    if (method == "mean" || method == "median") {
+        ScratchArena scratch(mr);
+        ScratchVec<double> good(&scratch);
+        good.reserve(n);
+        for (std::size_t i = 0; i < n; ++i)
+            if (!std::isnan(xd[i])) good.push_back(xd[i]);
+        if (good.empty()) return out;
+        double fill;
+        if (method == "mean") {
+            double s = 0.0;
+            for (double v : good) s += v;
+            fill = s / static_cast<double>(good.size());
+        } else {
+            std::sort(good.begin(), good.end());
+            const std::size_t gn = good.size();
+            fill = (gn % 2 == 1) ? good[gn / 2]
+                                  : 0.5 * (good[gn / 2 - 1] + good[gn / 2]);
+        }
+        for (std::size_t i = 0; i < n; ++i)
+            if (std::isnan(od[i])) od[i] = fill;
+        return out;
+    }
+    if (method == "previous") {
+        double last_good = std::numeric_limits<double>::quiet_NaN();
+        bool have = false;
+        for (std::size_t i = 0; i < n; ++i) {
+            if (!std::isnan(od[i])) { last_good = od[i]; have = true; }
+            else if (have) od[i] = last_good;
+        }
+        return out;
+    }
+    if (method == "next") {
+        double next_good = std::numeric_limits<double>::quiet_NaN();
+        bool have = false;
+        for (std::size_t ii = n; ii-- > 0;) {
+            if (!std::isnan(od[ii])) { next_good = od[ii]; have = true; }
+            else if (have) od[ii] = next_good;
+        }
+        return out;
+    }
+    throw Error("fillmissing: method must be 'constant', 'previous', "
+                "'next', 'mean', or 'median' in this revision "
+                "(MATLAB also supports 'nearest', 'linear', 'spline', "
+                "'pchip', 'makima', 'movmean', 'movmedian', 'knn' -- "
+                "those are deferred)",
+                0, 0, "fillmissing", "", "m:fillmissing:method");
+}
+
+// rmmissing(x) — drop NaN entries.
+Value rmmissing_of(std::pmr::memory_resource *mr, const Value &x)
+{
+    const std::size_t n = x.numel();
+    const double *xd = x.doubleData();
+    ScratchArena scratch(mr);
+    ScratchVec<double> kept(&scratch);
+    kept.reserve(n);
+    for (std::size_t i = 0; i < n; ++i)
+        if (!std::isnan(xd[i])) kept.push_back(xd[i]);
+    const bool col = x.dims().ndim() >= 2 && x.dims().dim(1) == 1;
+    auto out = col
+        ? Value::matrix(kept.size(), 1, ValueType::DOUBLE, mr)
+        : Value::matrix(1, kept.size(), ValueType::DOUBLE, mr);
+    if (!kept.empty())
+        std::copy(kept.begin(), kept.end(), out.doubleDataMut());
+    return out;
+}
+
+// standardizeMissing(x, sentinel) — replace sentinel with NaN.
+Value standardizeMissing_of(std::pmr::memory_resource *mr,
+                            const Value &x, double sentinel)
+{
+    const std::size_t n = x.numel();
+    const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
+    const std::size_t c = (x.dims().ndim() >= 2)
+                            ? static_cast<std::size_t>(x.dims().dim(1)) : 1;
+    auto out = Value::matrix(r, c, ValueType::DOUBLE, mr);
+    if (n == 0) return out;
+    const double *xd = x.doubleData();
+    double *od = out.doubleDataMut();
+    const double nanv = std::numeric_limits<double>::quiet_NaN();
+    for (std::size_t i = 0; i < n; ++i)
+        od[i] = (xd[i] == sentinel) ? nanv : xd[i];
+    return out;
+}
+
+// ── range / mad / geomean / harmmean / moment / trimmean ─────────────
+
+// range(x) = max(x) - min(x) along dim.
+Value range_of(std::pmr::memory_resource *mr, const Value &x, int dim)
+{
+    const int d = resolveDim(x, dim, "range");
+    return applyAlongDim(x, d,
+        [](size_t, const double *s, size_t n) -> double {
+            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+            double lo = s[0], hi = s[0];
+            for (size_t i = 1; i < n; ++i) {
+                if (s[i] < lo) lo = s[i];
+                if (s[i] > hi) hi = s[i];
+            }
+            return hi - lo;
+        }, mr);
+}
+
+// mad(x) -- mean absolute deviation: mean(abs(x - mean(x))).
+// mad(x, 1) -- median absolute deviation: median(abs(x - median(x))).
+Value mad_of(std::pmr::memory_resource *mr, const Value &x, int flag, int dim)
+{
+    const int d = resolveDim(x, dim, "mad");
+    if (flag == 0) {
+        // Mean form.
+        return applyAlongDim(x, d,
+            [](size_t, const double *s, size_t n) -> double {
+                if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+                double mean = 0.0;
+                for (size_t i = 0; i < n; ++i) mean += s[i];
+                mean /= static_cast<double>(n);
+                double sum = 0.0;
+                for (size_t i = 0; i < n; ++i) sum += std::fabs(s[i] - mean);
+                return sum / static_cast<double>(n);
+            }, mr);
+    }
+    // Median form.
+    return applyAlongDim(x, d,
+        [](size_t, const double *s, size_t n) -> double {
+            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+            std::vector<double> buf(s, s + n);
+            const double med = sliceQuantile(buf.data(), n, 0.5);
+            std::vector<double> dev(n);
+            for (size_t i = 0; i < n; ++i) dev[i] = std::fabs(s[i] - med);
+            return sliceQuantile(dev.data(), n, 0.5);
+        }, mr);
+}
+
+// geomean(x) = (prod(x))^(1/n) = exp(mean(log(x))). x must be >= 0.
+Value geomean_of(std::pmr::memory_resource *mr, const Value &x, int dim)
+{
+    const int d = resolveDim(x, dim, "geomean");
+    return applyAlongDim(x, d,
+        [](size_t, const double *s, size_t n) -> double {
+            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+            double sum = 0.0;
+            for (size_t i = 0; i < n; ++i) {
+                if (s[i] < 0.0)
+                    return std::numeric_limits<double>::quiet_NaN();
+                if (s[i] == 0.0) return 0.0;
+                sum += std::log(s[i]);
+            }
+            return std::exp(sum / static_cast<double>(n));
+        }, mr);
+}
+
+// harmmean(x) = n / sum(1./x). x must be > 0.
+Value harmmean_of(std::pmr::memory_resource *mr, const Value &x, int dim)
+{
+    const int d = resolveDim(x, dim, "harmmean");
+    return applyAlongDim(x, d,
+        [](size_t, const double *s, size_t n) -> double {
+            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+            double sum = 0.0;
+            for (size_t i = 0; i < n; ++i) {
+                if (s[i] <= 0.0)
+                    return std::numeric_limits<double>::quiet_NaN();
+                sum += 1.0 / s[i];
+            }
+            return static_cast<double>(n) / sum;
+        }, mr);
+}
+
+// moment(x, k) = mean((x - mean(x))^k). k >= 2.
+Value moment_of(std::pmr::memory_resource *mr, const Value &x, int order, int dim)
+{
+    const int d = resolveDim(x, dim, "moment");
+    const int k = order;
+    return applyAlongDim(x, d,
+        [k](size_t, const double *s, size_t n) -> double {
+            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+            if (k < 0) return std::numeric_limits<double>::quiet_NaN();
+            if (k == 0) return 1.0;          // m_0 = 1
+            if (k == 1) return 0.0;          // central first moment
+            double mean = 0.0;
+            for (size_t i = 0; i < n; ++i) mean += s[i];
+            mean /= static_cast<double>(n);
+            double sum = 0.0;
+            for (size_t i = 0; i < n; ++i) {
+                const double d2 = s[i] - mean;
+                sum += std::pow(d2, k);
+            }
+            return sum / static_cast<double>(n);
+        }, mr);
+}
+
+// trimmean(x, p) = mean of x after trimming p/2% from each end (p in [0, 100]).
+Value trimmean_of(std::pmr::memory_resource *mr, const Value &x, double pct, int dim)
+{
+    if (pct < 0.0 || pct >= 100.0)
+        throw Error("trimmean: percent must be in [0, 100)",
+                    0, 0, "trimmean", "", "m:trimmean:badPct");
+    const int d = resolveDim(x, dim, "trimmean");
+    const double p = pct;
+    return applyAlongDim(x, d,
+        [p](size_t, const double *s, size_t n) -> double {
+            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+            // Number of values to trim from EACH end.
+            const size_t k = static_cast<size_t>(std::floor(
+                static_cast<double>(n) * p / 200.0));
+            if (2 * k >= n) return std::numeric_limits<double>::quiet_NaN();
+            std::vector<double> buf(s, s + n);
+            std::sort(buf.begin(), buf.end());
+            double sum = 0.0;
+            for (size_t i = k; i < n - k; ++i) sum += buf[i];
+            return sum / static_cast<double>(n - 2 * k);
+        }, mr);
+}
+
 // ── ksdensity ─────────────────────────────────────────────────────────
 
 namespace {
@@ -1142,6 +1696,154 @@ void ecdfhist_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     auto [n, c] = ecdfhist(ctx.engine->resource(), args[0], args[1], m);
     outs[0] = std::move(n);
     if (nargout > 1) outs[1] = std::move(c);
+}
+
+// ── partialcorr adapter ──────────────────────────────────────────────
+
+void partialcorr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 3)
+        throw Error("partialcorr: requires (X, Y, Z)",
+                    0, 0, "partialcorr", "", "m:partialcorr:nargin");
+    outs[0] = partialcorr_of(ctx.engine->resource(), args[0], args[1], args[2]);
+}
+
+// ── corr / detrend adapters ──────────────────────────────────────────
+
+void corr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("corr: requires (X). Two-argument form (X, Y) for "
+                    "matrix-vs-matrix correlation matrix is deferred -- use "
+                    "corr([X Y]) and slice the off-diagonal block instead.",
+                    0, 0, "corr", "", "m:corr:nargin");
+    outs[0] = corr_xx(ctx.engine->resource(), args[0]);
+}
+
+void detrend_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("detrend: requires at least 1 argument",
+                    0, 0, "detrend", "", "m:detrend:nargin");
+    int order = 1;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        if (args[1].isChar() || args[1].isString()) {
+            const auto s = args[1].toString();
+            if (s == "constant") order = 0;
+            else if (s == "linear") order = 1;
+            else throw Error("detrend: string mode must be 'constant' or 'linear'",
+                             0, 0, "detrend", "", "m:detrend:mode");
+        } else {
+            order = static_cast<int>(args[1].toScalar());
+        }
+    }
+    outs[0] = detrend_of(ctx.engine->resource(), args[0], order);
+}
+
+// ── missing-data adapters ────────────────────────────────────────────
+
+void isoutlier_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("isoutlier: requires at least 1 argument",
+                    0, 0, "isoutlier", "", "m:isoutlier:nargin");
+    outs[0] = isoutlier_of(ctx.engine->resource(), args[0]);
+}
+
+void rmoutliers_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("rmoutliers: requires at least 1 argument",
+                    0, 0, "rmoutliers", "", "m:rmoutliers:nargin");
+    outs[0] = rmoutliers_of(ctx.engine->resource(), args[0]);
+}
+
+void fillmissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("fillmissing: requires (x, method[, constant_value])",
+                    0, 0, "fillmissing", "", "m:fillmissing:nargin");
+    if (!args[1].isChar() && !args[1].isString())
+        throw Error("fillmissing: method must be a string",
+                    0, 0, "fillmissing", "", "m:fillmissing:method");
+    const std::string m = args[1].toString();
+    const double cv = (args.size() >= 3) ? args[2].toScalar() : 0.0;
+    outs[0] = fillmissing_of(ctx.engine->resource(), args[0], m, cv);
+}
+
+void rmmissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("rmmissing: requires at least 1 argument",
+                    0, 0, "rmmissing", "", "m:rmmissing:nargin");
+    outs[0] = rmmissing_of(ctx.engine->resource(), args[0]);
+}
+
+void standardizeMissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("standardizeMissing: requires (x, sentinel)",
+                    0, 0, "standardizeMissing", "", "m:standardizeMissing:nargin");
+    outs[0] = standardizeMissing_of(ctx.engine->resource(), args[0], args[1].toScalar());
+}
+
+// ── range / mad / geomean / harmmean / moment / trimmean adapters ────
+
+void range_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("range: requires at least 1 argument",
+                    0, 0, "range", "", "m:range:nargin");
+    const int dim = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
+    outs[0] = range_of(ctx.engine->resource(), args[0], dim);
+}
+
+void mad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("mad: requires at least 1 argument",
+                    0, 0, "mad", "", "m:mad:nargin");
+    const int flag = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
+    const int dim  = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
+    outs[0] = mad_of(ctx.engine->resource(), args[0], flag, dim);
+}
+
+void geomean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("geomean: requires at least 1 argument",
+                    0, 0, "geomean", "", "m:geomean:nargin");
+    const int dim = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
+    outs[0] = geomean_of(ctx.engine->resource(), args[0], dim);
+}
+
+void harmmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("harmmean: requires at least 1 argument",
+                    0, 0, "harmmean", "", "m:harmmean:nargin");
+    const int dim = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
+    outs[0] = harmmean_of(ctx.engine->resource(), args[0], dim);
+}
+
+void moment_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("moment: requires (x, order)",
+                    0, 0, "moment", "", "m:moment:nargin");
+    const int order = static_cast<int>(args[1].toScalar());
+    const int dim   = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
+    outs[0] = moment_of(ctx.engine->resource(), args[0], order, dim);
+}
+
+void trimmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("trimmean: requires (x, percent)",
+                    0, 0, "trimmean", "", "m:trimmean:nargin");
+    const double pct = args[1].toScalar();
+    const int dim    = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
+    outs[0] = trimmean_of(ctx.engine->resource(), args[0], pct, dim);
 }
 
 } // namespace detail

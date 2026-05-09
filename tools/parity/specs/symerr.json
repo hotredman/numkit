@@ -1,0 +1,6 @@
+{"name": "symerr", "namespace": "comm",
+ "setup": "x = [0 1 2 3 4 5 6 7]; y = [0 1 2 3 4 5 6 5];",
+ "expr": "[n, r] = symerr(x, y); [n2, r2] = symerr([1 2 3], [1 2 3]);",
+ "iters": 5, "tol": 1e-12,
+ "fingerprint": ["n", "r", "n2", "r2"],
+ "comment": "Sig: [n, r] = symerr(x, y). Element-wise inequality count + ratio."}

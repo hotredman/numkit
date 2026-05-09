@@ -1,9 +1,14 @@
 // libs/builtin/src/math/random/rng.cpp
 //
-// Shared RNG manager + integer random generators + rng() control
-// function. Routes rand/randn/randi/randperm through one process-
-// static std::mt19937 so MATLAB-style rng(seed) gives reproducible
-// sequences across the whole RNG-using API surface.
+// Shared RNG manager + integer random generators + rng() control.
+// Routes rand/randn/randi/randperm through one process-static engine
+// so MATLAB-style rng(seed) gives reproducible sequences across the
+// whole RNG-using API surface.
+//
+// Engine: MATLAB-canonical MT19937 (Matsumoto-Nishimura reference,
+// init_by_array seeding). For 53-bit double precision uniform values
+// (rand()), genRes53 is used directly -- this gives bit-for-bit
+// agreement with MATLAB R2025b's `rng(seed)` + `rand()` sequence.
 
 #include <numkit/builtin/math/random/rng.hpp>
 
@@ -12,6 +17,7 @@
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
+#include <numkit/builtin/math/random/matlab_mt19937.hpp>
 
 #include <algorithm>
 #include <cstdint>
@@ -33,35 +39,49 @@ std::mutex &rngMutex()
     return m;
 }
 
-std::mt19937 &sharedEngine()
+detail::MatlabMT19937 &sharedEngine()
 {
-    // Default-constructed mt19937 = seed 5489 (Mersenne Twister default).
-    // MATLAB's rng('default') seeds with 0; we honour the MATLAB default
-    // by seeding to 0 on first use rather than relying on mt19937's.
-    static std::mt19937 gen(0u);
+    // Default-constructed = init_by_array([0]) = MATLAB rng('default').
+    static detail::MatlabMT19937 gen;
     return gen;
 }
 
 namespace {
 
-// Serialise mt19937 state to / from a text blob. mt19937's stream
-// operators emit 624 + 1 numbers separated by whitespace — robust
-// across compilers/standard libraries (the format is mandated by
-// the standard).
+// Serialise MatlabMT19937 state to / from a text blob.
+// Format: "mt19937 <624 hex words> <index>"
 std::string serializeEngine()
 {
+    uint32_t state[detail::MatlabMT19937::STATE_SIZE];
+    int idx;
+    sharedEngine().getState(state, idx);
     std::ostringstream os;
-    os << sharedEngine();
+    os << "mt19937";
+    for (std::size_t i = 0; i < detail::MatlabMT19937::STATE_SIZE; ++i)
+        os << ' ' << state[i];
+    os << ' ' << idx;
     return os.str();
 }
 
 void deserializeEngine(const std::string &blob)
 {
     std::istringstream is(blob);
-    is >> sharedEngine();
-    if (!is)
+    std::string tag;
+    is >> tag;
+    if (tag != "mt19937")
         throw Error("rng: malformed state blob",
                      0, 0, "rng", "", "m:rng:badState");
+    uint32_t state[detail::MatlabMT19937::STATE_SIZE];
+    for (std::size_t i = 0; i < detail::MatlabMT19937::STATE_SIZE; ++i) {
+        if (!(is >> state[i]))
+            throw Error("rng: malformed state blob",
+                         0, 0, "rng", "", "m:rng:badState");
+    }
+    int idx;
+    if (!(is >> idx))
+        throw Error("rng: malformed state blob",
+                     0, 0, "rng", "", "m:rng:badState");
+    sharedEngine().setState(state, idx);
 }
 
 } // namespace
@@ -73,7 +93,7 @@ void deserializeEngine(const std::string &blob)
 void rngSeed(uint64_t seed)
 {
     std::lock_guard<std::mutex> lock(rngMutex());
-    sharedEngine().seed(static_cast<std::mt19937::result_type>(seed));
+    sharedEngine().seed(static_cast<uint32_t>(seed));
 }
 
 void rngShuffle()
@@ -115,18 +135,24 @@ void rngRestore(const Value &state)
 // randi/randperm.
 // ────────────────────────────────────────────────────────────────────
 
-Value rand(std::pmr::memory_resource *mr, std::mt19937 &rng, size_t rows, size_t cols, size_t pages)
+Value rand(std::pmr::memory_resource *mr, detail::MatlabMT19937 &rng,
+           size_t rows, size_t cols, size_t pages)
 {
-    std::uniform_real_distribution<double> dist(0.0, 1.0);
     auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, mr)
                          : Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+    // genRes53 -- MATLAB-canonical 53-bit double in [0, 1).
     for (size_t i = 0; i < m.numel(); ++i)
-        m.doubleDataMut()[i] = dist(rng);
+        m.doubleDataMut()[i] = rng.genRes53();
     return m;
 }
 
-Value randn(std::pmr::memory_resource *mr, std::mt19937 &rng, size_t rows, size_t cols, size_t pages)
+Value randn(std::pmr::memory_resource *mr, detail::MatlabMT19937 &rng,
+            size_t rows, size_t cols, size_t pages)
 {
+    // NOTE: std::normal_distribution is NOT MATLAB-bit-identical (MATLAB
+    // uses Marsaglia-Tsang Ziggurat with specific tables). Bit-identity
+    // for randn() is a separate ТЗ (Phase 0a-1b). Sequence is still
+    // deterministic and seedable via rng().
     std::normal_distribution<double> dist(0.0, 1.0);
     auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, mr)
                          : Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -135,16 +161,17 @@ Value randn(std::pmr::memory_resource *mr, std::mt19937 &rng, size_t rows, size_
     return m;
 }
 
-Value randND(std::pmr::memory_resource *mr, std::mt19937 &rng, const size_t *dims, int ndims)
+Value randND(std::pmr::memory_resource *mr, detail::MatlabMT19937 &rng,
+             const size_t *dims, int ndims)
 {
     auto m = Value::matrixND(dims, ndims, ValueType::DOUBLE, mr);
-    std::uniform_real_distribution<double> dist(0.0, 1.0);
     for (size_t i = 0; i < m.numel(); ++i)
-        m.doubleDataMut()[i] = dist(rng);
+        m.doubleDataMut()[i] = rng.genRes53();
     return m;
 }
 
-Value randnND(std::pmr::memory_resource *mr, std::mt19937 &rng, const size_t *dims, int ndims)
+Value randnND(std::pmr::memory_resource *mr, detail::MatlabMT19937 &rng,
+              const size_t *dims, int ndims)
 {
     auto m = Value::matrixND(dims, ndims, ValueType::DOUBLE, mr);
     std::normal_distribution<double> dist(0.0, 1.0);

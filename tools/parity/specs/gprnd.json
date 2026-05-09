@@ -1,0 +1,10 @@
+{
+  "name": "gprnd",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "rng(0); a = gprnd(0.1, 1, 0); b = gprnd(0.1, 1, 0); c = gprnd(0, 1, 0); rng(42); d = gprnd(0.5, 2, -1); e = gprnd(-0.3, 1.5, 5);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["a", "b", "c", "d", "e"],
+  "comment": "Sig: r = gprnd(k, sigma, theta). Generalized Pareto sampler via inline ICDF on rand() (uses u directly, MATLAB convention). Bit-identical with MATLAB R2025b after Phase-0a-1 RNG cascade."
+}

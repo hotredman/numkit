@@ -10,6 +10,9 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
+#include <cstdint>
+#include <ctime>
 #include <cstdio>
 #include <cstring>
 #include <thread>
@@ -409,6 +412,41 @@ void true_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void false_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void eye_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void magic_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void toeplitz_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void hankel_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void vander_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void compan_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void pascal_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void hilb_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void invhilb_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void wilkinson_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void hadamard_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void rosser_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void inv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void linsolve_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void pageinv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void trace_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void det_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void chol_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void topkrows_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void lu_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void qr_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void svd_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void rank_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void pinv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void cond_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void orth_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void null_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void normest_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void eig_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void expm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void logm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void sqrtm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void schur_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void hess_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void subspace_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void norm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void sylvester_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void size_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void length_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void numel_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -889,6 +927,41 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("false",     &builtin::detail::false_reg);
     engine.registerFunction("eye",       &builtin::detail::eye_reg);
     engine.registerFunction("magic",     &builtin::detail::magic_reg);
+    engine.registerFunction("toeplitz",  &builtin::detail::toeplitz_reg);
+    engine.registerFunction("hankel",    &builtin::detail::hankel_reg);
+    engine.registerFunction("vander",    &builtin::detail::vander_reg);
+    engine.registerFunction("compan",    &builtin::detail::compan_reg);
+    engine.registerFunction("pascal",    &builtin::detail::pascal_reg);
+    engine.registerFunction("hilb",      &builtin::detail::hilb_reg);
+    engine.registerFunction("invhilb",   &builtin::detail::invhilb_reg);
+    engine.registerFunction("wilkinson", &builtin::detail::wilkinson_reg);
+    engine.registerFunction("hadamard",  &builtin::detail::hadamard_reg);
+    engine.registerFunction("rosser",    &builtin::detail::rosser_reg);
+    engine.registerFunction("inv",       &builtin::detail::inv_reg);
+    engine.registerFunction("linsolve",  &builtin::detail::linsolve_reg);
+    engine.registerFunction("pageinv",   &builtin::detail::pageinv_reg);
+    engine.registerFunction("trace",     &builtin::detail::trace_reg);
+    engine.registerFunction("det",       &builtin::detail::det_reg);
+    engine.registerFunction("chol",      &builtin::detail::chol_reg);
+    engine.registerFunction("topkrows",  &builtin::detail::topkrows_reg);
+    engine.registerFunction("lu",        &builtin::detail::lu_reg);
+    engine.registerFunction("qr",        &builtin::detail::qr_reg);
+    engine.registerFunction("svd",       &builtin::detail::svd_reg);
+    engine.registerFunction("rank",      &builtin::detail::rank_reg);
+    engine.registerFunction("pinv",      &builtin::detail::pinv_reg);
+    engine.registerFunction("cond",      &builtin::detail::cond_reg);
+    engine.registerFunction("orth",      &builtin::detail::orth_reg);
+    engine.registerFunction("null",      &builtin::detail::null_reg);
+    engine.registerFunction("normest",   &builtin::detail::normest_reg);
+    engine.registerFunction("eig",       &builtin::detail::eig_reg);
+    engine.registerFunction("expm",      &builtin::detail::expm_reg);
+    engine.registerFunction("logm",      &builtin::detail::logm_reg);
+    engine.registerFunction("sqrtm",     &builtin::detail::sqrtm_reg);
+    engine.registerFunction("schur",     &builtin::detail::schur_reg);
+    engine.registerFunction("hess",      &builtin::detail::hess_reg);
+    engine.registerFunction("subspace",  &builtin::detail::subspace_reg);
+    engine.registerFunction("norm",      &builtin::detail::norm_reg);
+    engine.registerFunction("sylvester", &builtin::detail::sylvester_reg);
     engine.registerFunction("size",      &builtin::detail::size_reg);
     engine.registerFunction("length",    &builtin::detail::length_reg);
     engine.registerFunction("numel",     &builtin::detail::numel_reg);
@@ -1835,6 +1908,858 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     ctx.engine->outputText(os.str());
                                     outs[0] = Value::empty();
                                 }
+                            });
+
+    // ── cputime ───────────────────────────────────────────────
+    // MATLAB cputime: total CPU seconds used by the current process
+    // since startup. std::clock() is the standard portable handle.
+    engine.registerFunction("cputime",
+                            [](Span<const Value>,
+                               size_t /*nargout*/,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                const double t = static_cast<double>(std::clock())
+                                               / static_cast<double>(CLOCKS_PER_SEC);
+                                outs[0] = Value::scalar(t, ctx.engine->resource());
+                            });
+
+    // ── now ───────────────────────────────────────────────────
+    // MATLAB now: serial date number for current local time.
+    // Days since 0000-01-00 (MATLAB epoch). 1970-01-01 maps to 719529.
+    //   now = 719529 + (Unix microseconds) / 86_400_000_000
+    // (MATLAB has deprecated `now` in favour of datetime() but many
+    // scripts still call it.)
+    engine.registerFunction("now",
+                            [](Span<const Value>,
+                               size_t /*nargout*/,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                const auto unix_us = std::chrono::duration_cast<
+                                    std::chrono::microseconds>(
+                                    std::chrono::system_clock::now().time_since_epoch()).count();
+                                const double serial =
+                                    719529.0 + static_cast<double>(unix_us) / 86400000000.0;
+                                outs[0] = Value::scalar(serial, ctx.engine->resource());
+                            });
+
+    // ── datenum ───────────────────────────────────────────────
+    // MATLAB datenum: serial date number from date components.
+    //
+    // Supported forms (string-parse forms deferred):
+    //   datenum(Y, M, D)
+    //   datenum(Y, M, D, H, MI, S)
+    //   datenum(V)               with V row 1x3, 1x6, or matrix Nx3 / Nx6
+    //
+    // Algorithm: Howard Hinnant's `days_from_civil` (proleptic Gregorian)
+    // returns days since 1970-01-01; add 719529 for the MATLAB epoch
+    // (1 = 0000-01-01, MATLAB's "year zero" reference). Month/day overflow
+    // wraps naturally, matching MATLAB behaviour.
+    engine.registerFunction("datenum",
+                            [](Span<const Value> args,
+                               size_t /*nargout*/,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                if (args.empty())
+                                    throw std::runtime_error(
+                                        "datenum requires at least one argument");
+                                if (args[0].isChar() || args[0].isString())
+                                    throw std::runtime_error(
+                                        "datenum: string parsing not yet supported");
+
+                                auto civilToSerial = [](double yd, double md,
+                                                        double dd, double hd,
+                                                        double mind, double sd) {
+                                    // Floor day to integer; fractional part
+                                    // contributes to time-of-day fraction.
+                                    double dInt;
+                                    const double dFrac = std::modf(dd, &dInt);
+                                    int64_t y = static_cast<int64_t>(std::floor(yd));
+                                    int64_t m = static_cast<int64_t>(std::floor(md));
+                                    int64_t d = static_cast<int64_t>(dInt);
+                                    if (m <= 2) y -= 1;
+                                    const int64_t era = (y < 0 ? y - 399 : y) / 400;
+                                    const int64_t yoe = y - era * 400;
+                                    const int64_t doy =
+                                        (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5
+                                        + d - 1;
+                                    const int64_t doe =
+                                        yoe * 365 + yoe / 4 - yoe / 100 + doy;
+                                    const int64_t days =
+                                        era * 146097 + doe - 719468;
+                                    const double frac =
+                                        (hd * 3600.0 + mind * 60.0 + sd) / 86400.0
+                                        + dFrac;
+                                    return static_cast<double>(days) + 719529.0
+                                         + frac;
+                                };
+
+                                auto *mr = ctx.engine->resource();
+
+                                // ── Single-arg form: V is 1x3, 1x6, Nx3, Nx6 ─
+                                if (args.size() == 1) {
+                                    const Value &V = args[0];
+                                    const size_t R = V.dims().rows();
+                                    const size_t C = V.dims().cols();
+                                    if (C != 3 && C != 6)
+                                        throw std::runtime_error(
+                                            "datenum: single-arg matrix must "
+                                            "have 3 or 6 columns");
+                                    auto out = Value::matrix(
+                                        R, 1, ValueType::DOUBLE, mr);
+                                    double *o = out.doubleDataMut();
+                                    for (size_t i = 0; i < R; ++i) {
+                                        const double y = V.elemAsDouble(i);
+                                        const double m = V.elemAsDouble(i + R);
+                                        const double d = V.elemAsDouble(i + 2 * R);
+                                        double h = 0.0, mi = 0.0, s = 0.0;
+                                        if (C == 6) {
+                                            h  = V.elemAsDouble(i + 3 * R);
+                                            mi = V.elemAsDouble(i + 4 * R);
+                                            s  = V.elemAsDouble(i + 5 * R);
+                                        }
+                                        o[i] = civilToSerial(y, m, d, h, mi, s);
+                                    }
+                                    if (R == 1)
+                                        outs[0] = Value::scalar(o[0], mr);
+                                    else
+                                        outs[0] = std::move(out);
+                                    return;
+                                }
+
+                                // ── Multi-arg form: 3 or 6 args ─────────────
+                                if (args.size() != 3 && args.size() != 6)
+                                    throw std::runtime_error(
+                                        "datenum: expected 3 or 6 arguments "
+                                        "(Y,M,D[,H,MI,S])");
+                                // Determine output size = max numel across args
+                                // (broadcast scalars). All non-scalar inputs
+                                // must share the same numel.
+                                size_t N = 1;
+                                for (const auto &a : args) {
+                                    if (a.numel() > 1) {
+                                        if (N > 1 && a.numel() != N)
+                                            throw std::runtime_error(
+                                                "datenum: input vector lengths "
+                                                "must match");
+                                        N = a.numel();
+                                    }
+                                }
+                                auto pick = [](const Value &a, size_t i) {
+                                    return a.numel() == 1
+                                               ? a.toScalar()
+                                               : a.elemAsDouble(i);
+                                };
+                                if (N == 1) {
+                                    const double h = args.size() == 6
+                                                         ? args[3].toScalar()
+                                                         : 0.0;
+                                    const double mi = args.size() == 6
+                                                          ? args[4].toScalar()
+                                                          : 0.0;
+                                    const double s = args.size() == 6
+                                                         ? args[5].toScalar()
+                                                         : 0.0;
+                                    outs[0] = Value::scalar(
+                                        civilToSerial(args[0].toScalar(),
+                                                      args[1].toScalar(),
+                                                      args[2].toScalar(),
+                                                      h, mi, s),
+                                        mr);
+                                    return;
+                                }
+                                auto out = Value::matrix(
+                                    N, 1, ValueType::DOUBLE, mr);
+                                double *o = out.doubleDataMut();
+                                for (size_t i = 0; i < N; ++i) {
+                                    const double y = pick(args[0], i);
+                                    const double m = pick(args[1], i);
+                                    const double d = pick(args[2], i);
+                                    double h = 0.0, mi = 0.0, s = 0.0;
+                                    if (args.size() == 6) {
+                                        h  = pick(args[3], i);
+                                        mi = pick(args[4], i);
+                                        s  = pick(args[5], i);
+                                    }
+                                    o[i] = civilToSerial(y, m, d, h, mi, s);
+                                }
+                                outs[0] = std::move(out);
+                            });
+
+    // ── weekday ───────────────────────────────────────────────
+    // MATLAB weekday(D[, fmt]): day-of-week index 1..7 with Sunday=1,
+    // Saturday=7 (US convention). Optional second output is the day
+    // name as 'short' (Sun..Sat) or 'long' (Sunday..Saturday).
+    //
+    // Algorithm: serial 1 (= 0000-01-01) is a Saturday in MATLAB's
+    // calendar. Solving: dow(d) = ((floor(d) - 2) mod 7) + 1 with
+    // positive-modulo. Verified against MATLAB R2025b for current
+    // and historical dates.
+    engine.registerFunction("weekday",
+                            [](Span<const Value> args,
+                               size_t nargout,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                if (args.empty())
+                                    throw std::runtime_error(
+                                        "weekday requires at least one input");
+                                bool wantLong = false;
+                                if (args.size() >= 2
+                                    && (args[1].isChar() || args[1].isString())) {
+                                    std::string fmt = args[1].toString();
+                                    for (auto &c : fmt)
+                                        c = static_cast<char>(
+                                            std::tolower(
+                                                static_cast<unsigned char>(c)));
+                                    if (fmt == "long")
+                                        wantLong = true;
+                                    else if (fmt != "short")
+                                        throw std::runtime_error(
+                                            "weekday: format must be 'short' "
+                                            "or 'long'");
+                                }
+                                static const char *kShort[7] = {
+                                    "Sun", "Mon", "Tue", "Wed",
+                                    "Thu", "Fri", "Sat"
+                                };
+                                static const char *kLong[7] = {
+                                    "Sunday", "Monday",   "Tuesday",
+                                    "Wednesday", "Thursday", "Friday",
+                                    "Saturday"
+                                };
+                                auto dayIndex = [](double d) -> int {
+                                    // Positive-result modulo of (floor(d)-2) by 7.
+                                    int64_t f = static_cast<int64_t>(
+                                        std::floor(d)) - 2;
+                                    int64_t r = f % 7;
+                                    if (r < 0) r += 7;
+                                    return static_cast<int>(r) + 1;
+                                };
+
+                                auto *mr = ctx.engine->resource();
+                                const Value &D = args[0];
+                                const size_t N = D.numel();
+
+                                if (N == 1) {
+                                    int idx = dayIndex(D.toScalar());
+                                    outs[0] = Value::scalar(
+                                        static_cast<double>(idx), mr);
+                                    if (nargout > 1) {
+                                        outs[1] = Value::fromString(
+                                            wantLong ? kLong[idx - 1]
+                                                     : kShort[idx - 1],
+                                            mr);
+                                    }
+                                    return;
+                                }
+
+                                // Vector / matrix output: same shape as input.
+                                auto out = Value::matrix(
+                                    D.dims().rows(), D.dims().cols(),
+                                    ValueType::DOUBLE, mr);
+                                double *o = out.doubleDataMut();
+                                for (size_t i = 0; i < N; ++i)
+                                    o[i] = static_cast<double>(
+                                        dayIndex(D.elemAsDouble(i)));
+                                outs[0] = std::move(out);
+                                // Name output: only meaningful for scalar D
+                                // in MATLAB's current API; for vector input,
+                                // MATLAB returns the name of the FIRST element
+                                // (legacy behaviour). Match it.
+                                if (nargout > 1) {
+                                    int idx = dayIndex(D.elemAsDouble(0));
+                                    outs[1] = Value::fromString(
+                                        wantLong ? kLong[idx - 1]
+                                                 : kShort[idx - 1],
+                                        mr);
+                                }
+                            });
+
+    // ── juliandate ────────────────────────────────────────────
+    // MATLAB juliandate: Julian day number from date components.
+    //
+    // Reference relationship: serial-MATLAB-date(1970,1,1) = 719529
+    // and Julian-Date(1970-01-01 00:00 UTC) = 2440587.5, so:
+    //
+    //   JD = datenum-serial + 1721058.5
+    //
+    // Verified against well-known anchors:
+    //   1970-01-01 00:00 = 2440587.5 (Unix epoch)
+    //   2000-01-01 12:00 = 2451545.0 (J2000.0)
+    //
+    // Signatures (string + datetime forms deferred):
+    //   juliandate(Y, M, D)              -- separate scalar/vector args
+    //   juliandate(Y, M, D, H, MI, S)
+    //   juliandate(V)                    -- V is Nx3 or Nx6
+    engine.registerFunction("juliandate",
+                            [](Span<const Value> args,
+                               size_t /*nargout*/,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                if (args.empty())
+                                    throw std::runtime_error(
+                                        "juliandate requires at least one "
+                                        "argument");
+                                if (args[0].isChar() || args[0].isString())
+                                    throw std::runtime_error(
+                                        "juliandate: string parsing not "
+                                        "yet supported");
+
+                                auto civilToSerial = [](double yd, double md,
+                                                        double dd, double hd,
+                                                        double mind, double sd) {
+                                    double dInt;
+                                    const double dFrac = std::modf(dd, &dInt);
+                                    int64_t y = static_cast<int64_t>(
+                                        std::floor(yd));
+                                    int64_t m = static_cast<int64_t>(
+                                        std::floor(md));
+                                    int64_t d = static_cast<int64_t>(dInt);
+                                    if (m <= 2) y -= 1;
+                                    const int64_t era =
+                                        (y < 0 ? y - 399 : y) / 400;
+                                    const int64_t yoe = y - era * 400;
+                                    const int64_t doy =
+                                        (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5
+                                        + d - 1;
+                                    const int64_t doe =
+                                        yoe * 365 + yoe / 4 - yoe / 100 + doy;
+                                    const int64_t days =
+                                        era * 146097 + doe - 719468;
+                                    const double frac =
+                                        (hd * 3600.0 + mind * 60.0 + sd) / 86400.0
+                                        + dFrac;
+                                    return static_cast<double>(days) + 719529.0
+                                         + frac;
+                                };
+                                const double kJDOffset = 1721058.5;
+
+                                auto *mr = ctx.engine->resource();
+
+                                // Single-arg matrix form
+                                if (args.size() == 1) {
+                                    const Value &V = args[0];
+                                    const size_t R = V.dims().rows();
+                                    const size_t C = V.dims().cols();
+                                    if (C != 3 && C != 6)
+                                        throw std::runtime_error(
+                                            "juliandate: single-arg matrix "
+                                            "must have 3 or 6 columns");
+                                    auto out = Value::matrix(
+                                        R, 1, ValueType::DOUBLE, mr);
+                                    double *o = out.doubleDataMut();
+                                    for (size_t i = 0; i < R; ++i) {
+                                        const double y = V.elemAsDouble(i);
+                                        const double m = V.elemAsDouble(i + R);
+                                        const double d = V.elemAsDouble(i + 2 * R);
+                                        double h = 0.0, mi = 0.0, s = 0.0;
+                                        if (C == 6) {
+                                            h  = V.elemAsDouble(i + 3 * R);
+                                            mi = V.elemAsDouble(i + 4 * R);
+                                            s  = V.elemAsDouble(i + 5 * R);
+                                        }
+                                        o[i] = civilToSerial(y, m, d, h, mi, s)
+                                             + kJDOffset;
+                                    }
+                                    if (R == 1)
+                                        outs[0] = Value::scalar(o[0], mr);
+                                    else
+                                        outs[0] = std::move(out);
+                                    return;
+                                }
+
+                                if (args.size() != 3 && args.size() != 6)
+                                    throw std::runtime_error(
+                                        "juliandate: expected 3 or 6 "
+                                        "arguments (Y,M,D[,H,MI,S])");
+                                size_t N = 1;
+                                for (const auto &a : args) {
+                                    if (a.numel() > 1) {
+                                        if (N > 1 && a.numel() != N)
+                                            throw std::runtime_error(
+                                                "juliandate: input vector "
+                                                "lengths must match");
+                                        N = a.numel();
+                                    }
+                                }
+                                auto pick = [](const Value &a, size_t i) {
+                                    return a.numel() == 1
+                                               ? a.toScalar()
+                                               : a.elemAsDouble(i);
+                                };
+                                if (N == 1) {
+                                    const double h = args.size() == 6
+                                                         ? args[3].toScalar()
+                                                         : 0.0;
+                                    const double mi = args.size() == 6
+                                                          ? args[4].toScalar()
+                                                          : 0.0;
+                                    const double s = args.size() == 6
+                                                         ? args[5].toScalar()
+                                                         : 0.0;
+                                    outs[0] = Value::scalar(
+                                        civilToSerial(args[0].toScalar(),
+                                                      args[1].toScalar(),
+                                                      args[2].toScalar(),
+                                                      h, mi, s)
+                                            + kJDOffset,
+                                        mr);
+                                    return;
+                                }
+                                auto out = Value::matrix(
+                                    N, 1, ValueType::DOUBLE, mr);
+                                double *o = out.doubleDataMut();
+                                for (size_t i = 0; i < N; ++i) {
+                                    const double y = pick(args[0], i);
+                                    const double m = pick(args[1], i);
+                                    const double d = pick(args[2], i);
+                                    double h = 0.0, mi = 0.0, s = 0.0;
+                                    if (args.size() == 6) {
+                                        h  = pick(args[3], i);
+                                        mi = pick(args[4], i);
+                                        s  = pick(args[5], i);
+                                    }
+                                    o[i] = civilToSerial(y, m, d, h, mi, s)
+                                         + kJDOffset;
+                                }
+                                outs[0] = std::move(out);
+                            });
+
+    // ── eomday ────────────────────────────────────────────────
+    // MATLAB eomday(y, m): last day of the given month (28..31).
+    //
+    // Leap year rule (proleptic Gregorian):
+    //   isLeap(y) = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0
+    //
+    // Shape: output preserves the broadcast shape of (y, m). Both
+    // scalar -> scalar; matched non-scalars must have identical
+    // shape; one scalar broadcasts.
+    engine.registerFunction("eomday",
+                            [](Span<const Value> args,
+                               size_t /*nargout*/,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                if (args.size() < 2)
+                                    throw std::runtime_error(
+                                        "eomday requires (year, month)");
+                                static const int kMonthDays[12] = {
+                                    31, 28, 31, 30, 31, 30,
+                                    31, 31, 30, 31, 30, 31
+                                };
+                                auto isLeap = [](int64_t y) {
+                                    return (y % 4 == 0 && y % 100 != 0)
+                                        || (y % 400 == 0);
+                                };
+                                auto monthEnd = [&](double yd, double md) {
+                                    int64_t y = static_cast<int64_t>(
+                                        std::floor(yd));
+                                    int64_t m = static_cast<int64_t>(
+                                        std::floor(md));
+                                    if (m < 1 || m > 12)
+                                        throw std::runtime_error(
+                                            "eomday: month must be in 1..12");
+                                    int days = kMonthDays[m - 1];
+                                    if (m == 2 && isLeap(y)) days = 29;
+                                    return static_cast<double>(days);
+                                };
+
+                                auto *mr = ctx.engine->resource();
+                                const Value &Y = args[0];
+                                const Value &M = args[1];
+
+                                // Both scalar -> scalar output.
+                                if (Y.numel() == 1 && M.numel() == 1) {
+                                    outs[0] = Value::scalar(
+                                        monthEnd(Y.toScalar(), M.toScalar()),
+                                        mr);
+                                    return;
+                                }
+                                // Determine output shape (broadcast).
+                                size_t R, C;
+                                if (Y.numel() == 1) {
+                                    R = M.dims().rows();
+                                    C = M.dims().cols();
+                                } else if (M.numel() == 1) {
+                                    R = Y.dims().rows();
+                                    C = Y.dims().cols();
+                                } else {
+                                    if (Y.dims().rows() != M.dims().rows()
+                                        || Y.dims().cols() != M.dims().cols())
+                                        throw std::runtime_error(
+                                            "eomday: y and m must have the "
+                                            "same shape (or one scalar)");
+                                    R = Y.dims().rows();
+                                    C = Y.dims().cols();
+                                }
+                                auto out = Value::matrix(
+                                    R, C, ValueType::DOUBLE, mr);
+                                double *o = out.doubleDataMut();
+                                const size_t N = R * C;
+                                for (size_t i = 0; i < N; ++i) {
+                                    const double yi = Y.numel() == 1
+                                                          ? Y.toScalar()
+                                                          : Y.elemAsDouble(i);
+                                    const double mi = M.numel() == 1
+                                                          ? M.toScalar()
+                                                          : M.elemAsDouble(i);
+                                    o[i] = monthEnd(yi, mi);
+                                }
+                                outs[0] = std::move(out);
+                            });
+
+    // ── datevec ───────────────────────────────────────────────
+    // MATLAB datevec(d): inverse of datenum.
+    //
+    // Single output: N-by-6 matrix, one row per scalar input element
+    // (column-major linearisation for matrix input). Six outputs:
+    // separate length-N column vectors (Y, M, D, H, MI, S).
+    //
+    // Algorithm: Howard Hinnant's `civil_from_days` to recover (Y, M, D)
+    // from the integer day index, then extract H, MI, S from the
+    // fractional part. Microsecond rounding tames double-precision
+    // noise so datenum->datevec round-trips give exact integers.
+    //
+    // Edge: datevec(0) = [0 0 0 0 0 0] (matches MATLAB literal).
+    engine.registerFunction("datevec",
+                            [](Span<const Value> args,
+                               size_t nargout,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                if (args.empty())
+                                    throw std::runtime_error(
+                                        "datevec requires at least one "
+                                        "argument");
+                                if (args[0].isChar() || args[0].isString())
+                                    throw std::runtime_error(
+                                        "datevec: string parsing not yet "
+                                        "supported");
+
+                                auto civilFromDays = [](int64_t z,
+                                                        int64_t &Y, int &M,
+                                                        int &D) {
+                                    z += 719468;
+                                    const int64_t era =
+                                        (z >= 0 ? z : z - 146096) / 146097;
+                                    const int64_t doe = z - era * 146097;
+                                    const int64_t yoe =
+                                        (doe - doe / 1460 + doe / 36524
+                                         - doe / 146096)
+                                        / 365;
+                                    const int64_t y = yoe + era * 400;
+                                    const int64_t doy =
+                                        doe - (365 * yoe + yoe / 4 - yoe / 100);
+                                    const int64_t mp = (5 * doy + 2) / 153;
+                                    D = static_cast<int>(
+                                        doy - (153 * mp + 2) / 5 + 1);
+                                    M = static_cast<int>(
+                                        mp < 10 ? mp + 3 : mp - 9);
+                                    Y = y + (M <= 2 ? 1 : 0);
+                                };
+                                auto extractTime = [](double frac, int &H,
+                                                      int &MI, double &S) {
+                                    // Round to milliseconds. Microsecond
+                                    // rounding is at the FP-precision edge
+                                    // for typical serial-date magnitudes
+                                    // (~7e5 days -> ~7us absolute precision)
+                                    // and shows up as +/-1us noise on round-
+                                    // trips. Millisecond gives a comfortable
+                                    // margin while still preserving MATLAB-
+                                    // displayed fractional-second resolution.
+                                    const double total_ms =
+                                        std::round(frac * 86400.0 * 1.0e3);
+                                    int64_t ms = static_cast<int64_t>(total_ms);
+                                    H  = static_cast<int>(ms / 3600000LL);
+                                    ms %= 3600000LL;
+                                    MI = static_cast<int>(ms / 60000LL);
+                                    ms %= 60000LL;
+                                    S  = static_cast<double>(ms) / 1.0e3;
+                                };
+                                auto vecOf = [&](double dval, double *out6) {
+                                    if (dval == 0.0) {
+                                        for (int k = 0; k < 6; ++k)
+                                            out6[k] = 0.0;
+                                        return;
+                                    }
+                                    const double floored = std::floor(dval);
+                                    const int64_t days =
+                                        static_cast<int64_t>(floored);
+                                    const double frac = dval - floored;
+                                    const int64_t z = days - 719529;
+                                    int64_t Y;
+                                    int M, D, H, MI;
+                                    double S;
+                                    civilFromDays(z, Y, M, D);
+                                    extractTime(frac, H, MI, S);
+                                    // Carry from S/MI/H into D/M/Y if rounding
+                                    // pushed seconds to 60.
+                                    if (S >= 60.0) { S -= 60.0; ++MI; }
+                                    if (MI >= 60)  { MI -= 60;  ++H;  }
+                                    if (H  >= 24)  { H  -= 24;
+                                        // Day rolled over -- recompute civil.
+                                        civilFromDays(z + 1, Y, M, D);
+                                    }
+                                    out6[0] = static_cast<double>(Y);
+                                    out6[1] = static_cast<double>(M);
+                                    out6[2] = static_cast<double>(D);
+                                    out6[3] = static_cast<double>(H);
+                                    out6[4] = static_cast<double>(MI);
+                                    out6[5] = S;
+                                };
+
+                                auto *mr = ctx.engine->resource();
+                                const Value &Din = args[0];
+                                const size_t N = Din.numel();
+
+                                // Compute N x 6 output column-major.
+                                auto out = Value::matrix(
+                                    N, 6, ValueType::DOUBLE, mr);
+                                double *o = out.doubleDataMut();
+                                double tmp[6];
+                                for (size_t i = 0; i < N; ++i) {
+                                    vecOf(Din.elemAsDouble(i), tmp);
+                                    for (int c = 0; c < 6; ++c)
+                                        o[i + c * N] = tmp[c];
+                                }
+
+                                if (nargout <= 1) {
+                                    outs[0] = std::move(out);
+                                    return;
+                                }
+                                // 6-output form: separate column vectors
+                                // (or scalars if N == 1).
+                                for (int c = 0; c < 6
+                                                && c < static_cast<int>(nargout);
+                                     ++c) {
+                                    if (N == 1) {
+                                        outs[c] = Value::scalar(
+                                            o[c * N], mr);
+                                    } else {
+                                        auto col = Value::matrix(
+                                            N, 1, ValueType::DOUBLE, mr);
+                                        double *p = col.doubleDataMut();
+                                        for (size_t i = 0; i < N; ++i)
+                                            p[i] = o[i + c * N];
+                                        outs[c] = std::move(col);
+                                    }
+                                }
+                            });
+
+    // ── yyyymmdd ──────────────────────────────────────────────
+    // Packed integer date: Y*10000 + M*100 + D from a MATLAB serial
+    // date number. Output preserves input shape.
+    //
+    // EXTENSION vs MATLAB: MATLAB R2025b's yyyymmdd accepts only
+    // datetime input (numkit has no datetime class yet). Accepting
+    // a serial date number here matches the spirit of the function
+    // and is the call most users want; the equivalent MATLAB call
+    // is `yyyymmdd(datetime(d, 'ConvertFrom', 'datenum'))`. Parity
+    // spec wraps the input with that conversion.
+    engine.registerFunction("yyyymmdd",
+                            [](Span<const Value> args,
+                               size_t /*nargout*/,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                if (args.empty())
+                                    throw std::runtime_error(
+                                        "yyyymmdd requires one argument");
+                                if (args[0].isChar() || args[0].isString())
+                                    throw std::runtime_error(
+                                        "yyyymmdd: string parsing not "
+                                        "supported");
+                                auto civilFromDays = [](int64_t z,
+                                                        int64_t &Y, int &M,
+                                                        int &D) {
+                                    z += 719468;
+                                    const int64_t era =
+                                        (z >= 0 ? z : z - 146096) / 146097;
+                                    const int64_t doe = z - era * 146097;
+                                    const int64_t yoe =
+                                        (doe - doe / 1460 + doe / 36524
+                                         - doe / 146096)
+                                        / 365;
+                                    const int64_t y = yoe + era * 400;
+                                    const int64_t doy =
+                                        doe - (365 * yoe + yoe / 4 - yoe / 100);
+                                    const int64_t mp = (5 * doy + 2) / 153;
+                                    D = static_cast<int>(
+                                        doy - (153 * mp + 2) / 5 + 1);
+                                    M = static_cast<int>(
+                                        mp < 10 ? mp + 3 : mp - 9);
+                                    Y = y + (M <= 2 ? 1 : 0);
+                                };
+                                auto packOne = [&](double dval) {
+                                    if (dval == 0.0) return 0.0;
+                                    const int64_t days =
+                                        static_cast<int64_t>(std::floor(dval));
+                                    const int64_t z = days - 719529;
+                                    int64_t Y;
+                                    int M, D;
+                                    civilFromDays(z, Y, M, D);
+                                    return static_cast<double>(
+                                        Y * 10000 + M * 100 + D);
+                                };
+
+                                auto *mr = ctx.engine->resource();
+                                const Value &Din = args[0];
+                                const size_t N = Din.numel();
+                                if (N == 1) {
+                                    outs[0] = Value::scalar(
+                                        packOne(Din.toScalar()), mr);
+                                    return;
+                                }
+                                auto out = Value::matrix(
+                                    Din.dims().rows(), Din.dims().cols(),
+                                    ValueType::DOUBLE, mr);
+                                double *o = out.doubleDataMut();
+                                for (size_t i = 0; i < N; ++i)
+                                    o[i] = packOne(Din.elemAsDouble(i));
+                                outs[0] = std::move(out);
+                            });
+
+    // ── mjuliandate ───────────────────────────────────────────
+    // Modified Julian Date = JD - 2400000.5. MJD epoch is
+    // 1858-11-17 00:00 (so mjuliandate(1858,11,17,0,0,0) = 0).
+    //
+    // Relationship to MATLAB serial date:
+    //   MJD = serial + 1721058.5 - 2400000.5 = serial - 678942
+    // both fractional offsets cancel exactly so noon at Y-M-D 00:00
+    // gives a half-integer MJD only via the H,MI,S contribution.
+    //
+    // Signatures (string + datetime forms deferred):
+    //   mjuliandate(Y, M, D)
+    //   mjuliandate(Y, M, D, H, MI, S)
+    //   mjuliandate(V)               with V row 1x3, 1x6, or matrix Nx3 / Nx6
+    engine.registerFunction("mjuliandate",
+                            [](Span<const Value> args,
+                               size_t /*nargout*/,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                if (args.empty())
+                                    throw std::runtime_error(
+                                        "mjuliandate requires at least one "
+                                        "argument");
+                                if (args[0].isChar() || args[0].isString())
+                                    throw std::runtime_error(
+                                        "mjuliandate: string parsing not "
+                                        "yet supported");
+
+                                auto civilToSerial = [](double yd, double md,
+                                                        double dd, double hd,
+                                                        double mind, double sd) {
+                                    double dInt;
+                                    const double dFrac = std::modf(dd, &dInt);
+                                    int64_t y = static_cast<int64_t>(
+                                        std::floor(yd));
+                                    int64_t m = static_cast<int64_t>(
+                                        std::floor(md));
+                                    int64_t d = static_cast<int64_t>(dInt);
+                                    if (m <= 2) y -= 1;
+                                    const int64_t era =
+                                        (y < 0 ? y - 399 : y) / 400;
+                                    const int64_t yoe = y - era * 400;
+                                    const int64_t doy =
+                                        (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5
+                                        + d - 1;
+                                    const int64_t doe =
+                                        yoe * 365 + yoe / 4 - yoe / 100 + doy;
+                                    const int64_t days =
+                                        era * 146097 + doe - 719468;
+                                    const double frac =
+                                        (hd * 3600.0 + mind * 60.0 + sd) / 86400.0
+                                        + dFrac;
+                                    return static_cast<double>(days) + 719529.0
+                                         + frac;
+                                };
+                                const double kMJDFromSerial = -678942.0;
+
+                                auto *mr = ctx.engine->resource();
+
+                                // Single-arg matrix form
+                                if (args.size() == 1) {
+                                    const Value &V = args[0];
+                                    const size_t R = V.dims().rows();
+                                    const size_t C = V.dims().cols();
+                                    if (C != 3 && C != 6)
+                                        throw std::runtime_error(
+                                            "mjuliandate: single-arg matrix "
+                                            "must have 3 or 6 columns");
+                                    auto out = Value::matrix(
+                                        R, 1, ValueType::DOUBLE, mr);
+                                    double *o = out.doubleDataMut();
+                                    for (size_t i = 0; i < R; ++i) {
+                                        const double y = V.elemAsDouble(i);
+                                        const double m = V.elemAsDouble(i + R);
+                                        const double d = V.elemAsDouble(i + 2 * R);
+                                        double h = 0.0, mi = 0.0, s = 0.0;
+                                        if (C == 6) {
+                                            h  = V.elemAsDouble(i + 3 * R);
+                                            mi = V.elemAsDouble(i + 4 * R);
+                                            s  = V.elemAsDouble(i + 5 * R);
+                                        }
+                                        o[i] = civilToSerial(y, m, d, h, mi, s)
+                                             + kMJDFromSerial;
+                                    }
+                                    if (R == 1)
+                                        outs[0] = Value::scalar(o[0], mr);
+                                    else
+                                        outs[0] = std::move(out);
+                                    return;
+                                }
+
+                                if (args.size() != 3 && args.size() != 6)
+                                    throw std::runtime_error(
+                                        "mjuliandate: expected 3 or 6 "
+                                        "arguments (Y,M,D[,H,MI,S])");
+                                size_t N = 1;
+                                for (const auto &a : args) {
+                                    if (a.numel() > 1) {
+                                        if (N > 1 && a.numel() != N)
+                                            throw std::runtime_error(
+                                                "mjuliandate: input vector "
+                                                "lengths must match");
+                                        N = a.numel();
+                                    }
+                                }
+                                auto pick = [](const Value &a, size_t i) {
+                                    return a.numel() == 1
+                                               ? a.toScalar()
+                                               : a.elemAsDouble(i);
+                                };
+                                if (N == 1) {
+                                    const double h = args.size() == 6
+                                                         ? args[3].toScalar()
+                                                         : 0.0;
+                                    const double mi = args.size() == 6
+                                                          ? args[4].toScalar()
+                                                          : 0.0;
+                                    const double s = args.size() == 6
+                                                         ? args[5].toScalar()
+                                                         : 0.0;
+                                    outs[0] = Value::scalar(
+                                        civilToSerial(args[0].toScalar(),
+                                                      args[1].toScalar(),
+                                                      args[2].toScalar(),
+                                                      h, mi, s)
+                                            + kMJDFromSerial,
+                                        mr);
+                                    return;
+                                }
+                                auto out = Value::matrix(
+                                    N, 1, ValueType::DOUBLE, mr);
+                                double *o = out.doubleDataMut();
+                                for (size_t i = 0; i < N; ++i) {
+                                    const double y = pick(args[0], i);
+                                    const double m = pick(args[1], i);
+                                    const double d = pick(args[2], i);
+                                    double h = 0.0, mi = 0.0, s = 0.0;
+                                    if (args.size() == 6) {
+                                        h  = pick(args[3], i);
+                                        mi = pick(args[4], i);
+                                        s  = pick(args[5], i);
+                                    }
+                                    o[i] = civilToSerial(y, m, d, h, mi, s)
+                                         + kMJDFromSerial;
+                                }
+                                outs[0] = std::move(out);
                             });
 
     // ── addpath / rmpath / path / rehash / run (Phase 9b) ──────

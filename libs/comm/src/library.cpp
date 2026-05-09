@@ -24,6 +24,16 @@ void fskdemod_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ofdmmod_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ofdmdemod_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// modulation/analog.cpp
+void pmmod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ammod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fmmod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ssbmod_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// modulation/generic_qam.cpp
+void genqammod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void genqamdemod_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // channel/channel.cpp
 void awgn_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void wgn_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -49,6 +59,20 @@ void intdump_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 // eq/scrambler.cpp
 void scrambler_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void descrambler_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// eq/errors.cpp
+void biterr_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void symerr_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// eq/compand.cpp
+void compand_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// source/random_source.cpp
+void randsrc_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void randerr_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// source/huffman.cpp
+void huffmandict_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -76,6 +100,14 @@ void CommLibrary::install(Engine &engine)
     reg("mod", "ofdmmod",   &comm::detail::ofdmmod_reg);
     reg("mod", "ofdmdemod", &comm::detail::ofdmdemod_reg);
 
+    reg("mod", "pmmod",     &comm::detail::pmmod_reg);
+    reg("mod", "ammod",     &comm::detail::ammod_reg);
+    reg("mod", "fmmod",     &comm::detail::fmmod_reg);
+    reg("mod", "ssbmod",    &comm::detail::ssbmod_reg);
+
+    reg("mod", "genqammod",   &comm::detail::genqammod_reg);
+    reg("mod", "genqamdemod", &comm::detail::genqamdemod_reg);
+
     reg("rf", "awgn",        &comm::detail::awgn_reg);
     reg("rf", "wgn",         &comm::detail::wgn_reg);
     reg("rf", "bsc",         &comm::detail::bsc_reg);
@@ -96,6 +128,14 @@ void CommLibrary::install(Engine &engine)
     reg("eq", "intdump",     &comm::detail::intdump_reg);
     reg("eq", "scrambler",   &comm::detail::scrambler_reg);
     reg("eq", "descrambler", &comm::detail::descrambler_reg);
+    reg("eq", "biterr",      &comm::detail::biterr_reg);
+    reg("eq", "symerr",      &comm::detail::symerr_reg);
+    reg("eq", "compand",     &comm::detail::compand_reg);
+
+    reg("rf", "randsrc",     &comm::detail::randsrc_reg);
+    reg("rf", "randerr",     &comm::detail::randerr_reg);
+
+    reg("eq", "huffmandict", &comm::detail::huffmandict_reg);
 }
 
 } // namespace numkit

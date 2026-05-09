@@ -1,0 +1,4 @@
+{"name": "harmmean", "namespace": "stats", "setup": "v = [1 2 4];",
+ "expr": "h1 = harmmean(v); h2 = harmmean([2 4 6 8]);", "iters": 5, "tol": 1e-12,
+ "fingerprint": ["h1", "h2"],
+ "comment": "Sig: h = harmmean(x[, dim]). n / sum(1./x). Requires positive x."}
