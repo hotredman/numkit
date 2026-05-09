@@ -23,4 +23,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/apsk_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/mil188_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/arith_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mskmod_test.cpp
 )

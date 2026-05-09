@@ -914,7 +914,7 @@ intentionally omitted, along with `constellation` (object method) and
 | `apskdemod` | ❌ |  |  |  |  |  |
 | `mil188qammod` | ❌ | 0.119 | 35.71× |  | OK | MATLAB mil188qammod / mil188qamdemod (MIL-STD-188-110 QAM). Bit-equal with MATLAB R2025b on ALL FOUR supported constellations: M=16, 32, 64, 256. All tables hard-coded per MATLAB's spec-rounded values (probed at %.17g). MIL188 cluster CLOSED 4/4. Octave 11.1.0 doesn't ship mil188qam in core; reports N/A. |
 | `mil188qamdemod` | ❌ |  |  |  |  |  |
-| `mskmod` | ❌ |  |  |  |  | minimum-shift keying |
+| `mskmod` | ❌ | 0.005 | 256.21× |  | OK | MATLAB mskmod (differential variant): minimum-shift keying. Bit-equal with MATLAB R2025b. Algorithm: cumulative-sum phase ramp interpolated linearly between symbol boundaries, then exp(i*phase). Differential mode used (MATLAB's default; passed explicitly via 'diff' arg through engine-detecting shim because MATLAB requires it). Argument order: mskmod(x, nSamp, dataenc, ini_phase) -- dataenc is positional 3rd, NOT 4th. ini_phase must be a multiple of pi/2 in MATLAB; numkit accepts arbitrary (extension). KNOWN GAP: non-differential variant deferred (uses rectpulse + I/Q stagger). Octave 11.1.0 doesn't ship mskmod in core; reports N/A. |
 | `mskdemod` | ❌ |  |  |  |  |  |
 | `fskmod` | ✅ | 0.004 | 225.64× |  | OK | Sig: r = fskmod(...). Spec-extension batch 2026-05-09.  |
 | `fskdemod` | ✅ | 0.006 | 361.46× |  | OK | Sig: r = fskdemod(...). Spec-extension batch 2026-05-09.  |

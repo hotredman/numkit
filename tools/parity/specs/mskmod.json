@@ -1,0 +1,10 @@
+{
+  "name": "mskmod",
+  "namespace": "comm",
+  "setup": "x = [1 0 1 1 0 0 1 0]'; nSamp = 4; try; tmp__ = mskmod([0 1]', 4, 'diff', 0); is_matlab = true; catch; is_matlab = false; end; if is_matlab; mod_fn = @(xx, ph) mskmod(xx, nSamp, 'diff', ph); else; mod_fn = @(xx, ph) mskmod(xx, nSamp, ph); end",
+  "expr": "y = mod_fn(x, 0); y2 = mod_fn(x, pi/2);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["real(y(1))", "imag(y(1))", "real(y(2))", "imag(y(2))", "real(y(5))", "imag(y(5))", "real(y(17))", "imag(y(17))", "real(y(32))", "imag(y(32))", "real(y2(1))", "imag(y2(1))"],
+  "comment": "MATLAB mskmod (differential variant): minimum-shift keying. Bit-equal with MATLAB R2025b. Algorithm: cumulative-sum phase ramp interpolated linearly between symbol boundaries, then exp(i*phase). Differential mode used (MATLAB's default; passed explicitly via 'diff' arg through engine-detecting shim because MATLAB requires it). Argument order: mskmod(x, nSamp, dataenc, ini_phase) -- dataenc is positional 3rd, NOT 4th. ini_phase must be a multiple of pi/2 in MATLAB; numkit accepts arbitrary (extension). KNOWN GAP: non-differential variant deferred (uses rectpulse + I/Q stagger). Octave 11.1.0 doesn't ship mskmod in core; reports N/A."
+}
