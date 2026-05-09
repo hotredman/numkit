@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: pending (cycle 39)
+- Closed in commit: pending (trivial-fix batch)
 - Closed date: 2026-05-09
-- Notes: Spec-extension batch closure — auditor flagged "no major gap detected". Parity confirmed bit-identical against MATLAB R2025b on probed inputs.
+- Notes: Initial closure was DEFERRED. Re-classified N/A: MATLAB R2025b DEPRECATED rayleighchan in favour of comm.RayleighChannel system object -- the function-form rayleighchan no longer exists at the MATLAB top level. Numkit ships rayleighchan as a convenience helper (returns one complex Rayleigh-distributed sample). No MATLAB reference to compare against.

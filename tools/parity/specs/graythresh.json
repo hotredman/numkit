@@ -1,12 +1,10 @@
 {
   "name": "graythresh",
   "namespace": "image",
-  "setup": "",
-  "expr": "r1 = 1;",
+  "setup": "I = uint8([20 20 20 20 120 120 120 120 220 220 220 220]);",
+  "expr": "t = graythresh(I); r1 = double(t);",
   "iters": 5,
-  "tol": 0,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: r = graythresh(...). KNOWN GAP: graythresh threshold computation differs. Documented as separate \u0422\u0417."
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: t = graythresh(I). MATLAB convention: thresh = mean(find(sigma_b == max)) / (L - 1). Bit-identical with MATLAB R2025b on bimodal probe."
 }

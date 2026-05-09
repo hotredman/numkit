@@ -757,7 +757,9 @@ Value freqs(std::pmr::memory_resource *mr, const Value &b, const Value &a,
     auto av = readVec(a);
     auto wv = readVec(w);
     const size_t M = wv.size();
-    auto out = Value::complexMatrix(M, 1, mr);
+    // MATLAB freqs returns a 1xM row vector (complex). Mirror that
+    // shape; column-vector inputs for w still produce row outputs.
+    auto out = Value::complexMatrix(1, M, mr);
     Cd *od = out.complexDataMut();
     for (size_t i = 0; i < M; ++i) {
         const Cd s(0.0, wv[i]);

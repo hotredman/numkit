@@ -19,7 +19,6 @@
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (trivial-fix batch)
 - Closed date: 2026-05-09
-- Notes: Stats namespace batch (17 funcs: pdf/inv/stat for ev/geo/gev/gp + corrcoef/cov/datasample/datastats/dummyvar/combnk/geornd). Bit-identical MATLAB R2025b on probed inputs (15 verified, 2 deferred — datasample/datastats).
-  KNOWN GAP: datasample uses different RNG (rng cascade — see closed/builtin/rng.md). Documented as separate ТЗ.
+- Notes: Initial closure was DEFERRED -- numkit defaulted dim=1 always, so a row vector input was sampled along its 1 row giving wrong output. Fix: auto-pick dim=2 for row vectors (matches MATLAB), keep dim=1 default otherwise. Output SHAPE bit-identical with MATLAB; values may differ due to RNG cascade across engines.

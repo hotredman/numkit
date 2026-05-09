@@ -20,8 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (trivial-fix batch)
 - Closed date: 2026-05-09
-- Notes: Image batch 4 (28 funcs). Bit-identical MATLAB R2025b.
-  See libs/image/tests/image_batch4_test.cpp.
-  KNOWN GAP: numkit's imbinarize default threshold differs from MATLAB. Documented as separate ТЗ.
+- Notes: Initial closure was DEFERRED. imbinarize() default uses graythresh internally; after the graythresh tied-mean fix above, imbinarize default-threshold output now matches MATLAB R2025b bit-identically.

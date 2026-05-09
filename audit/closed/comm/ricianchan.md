@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: pending (cycle 39)
+- Closed in commit: pending (trivial-fix batch)
 - Closed date: 2026-05-09
-- Notes: Spec-extension batch closure — auditor flagged "no major gap detected". Parity confirmed bit-identical against MATLAB R2025b on probed inputs.
+- Notes: Initial closure was DEFERRED. Re-classified N/A: same as rayleighchan -- MATLAB R2025b deprecated ricianchan in favour of comm.RicianChannel system object. Numkit's ricianchan is a convenience helper with no MATLAB top-level equivalent.
