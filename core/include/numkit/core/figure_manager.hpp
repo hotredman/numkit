@@ -136,6 +136,13 @@ struct FigureState
     std::vector<AxesState> axes;
     int currentAxes = 0; // index into axes[]
 
+    // linkaxes mode for the figure's subplot cells. Empty / "off" = no
+    // link. "x" / "y" / "xy" = pan/zoom propagates across all cells on
+    // those axes. We model this at the figure level — handles aren't
+    // a thing in numkit's graphics layer yet, so calling linkaxes(...)
+    // unconditionally links every subplot cell in the current figure.
+    std::string linkMode;
+
     /** Get the current axes, creating if needed */
     AxesState &cur()
     {
@@ -265,6 +272,8 @@ public:
             if (fig.subplotRows > 0) {
                 os << ",\"subplotGrid\":[" << fig.subplotRows << "," << fig.subplotCols << "]";
             }
+            if (!fig.linkMode.empty())
+                os << ",\"linkMode\":\"" << fig.linkMode << "\"";
 
             os << ",\"axes\":[";
             for (size_t ai = 0; ai < fig.axes.size(); ++ai) {

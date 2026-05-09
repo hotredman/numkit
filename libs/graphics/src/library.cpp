@@ -1264,6 +1264,39 @@ void GraphicsLibrary::install(Engine &engine)
         outs[0] = Value::scalar(1.0, ctx.engine->resource());
     };
 
+    // linkaxes — connect all subplot cells in the current figure for
+    // synchronised pan/zoom. MATLAB:
+    //   linkaxes(h)            — link on x and y (alias for 'xy')
+    //   linkaxes(h, 'x'|'y'|'xy'|'off')
+    // numkit doesn't model graphics handles, so we ignore the first
+    // argument and link every subplot cell in the current figure
+    // unconditionally. The mode is stored on the FigureState and
+    // applied by the SubplotGrid renderer.
+    reg("layout", "linkaxes",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            auto &fm = ctx.engine->figureManager();
+            std::string mode = "xy";  // MATLAB default when no mode arg
+            for (auto &a : args) {
+                if (a.isChar()) {
+                    std::string s = a.toString();
+                    std::string sl;
+                    sl.reserve(s.size());
+                    for (char c : s) sl.push_back((char)std::tolower((unsigned char)c));
+                    if (sl == "x" || sl == "y" || sl == "xy" || sl == "off") {
+                        mode = sl;
+                        break;  // only the first string arg is the mode
+                    }
+                }
+            }
+            if (mode == "off")
+                fm.current().linkMode.clear();
+            else
+                fm.current().linkMode = mode;
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
     reg("layout", "axes", noop_ret1);
     reg("layout", "gca", noop_ret1);
     reg("layout", "gcf", noop_ret1);

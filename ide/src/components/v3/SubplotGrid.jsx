@@ -72,6 +72,24 @@ export default function SubplotGrid({
               viewport:    viewports[idx],
               setViewport: (v) => setViewports((prev) => {
                 const next = prev.slice();
+                // linkaxes — mirror the new viewport's linked axes across
+                // every other cell. We don't mirror polar cells: their
+                // viewport shape is { rmin, rmax, ... }, not {x, y}.
+                const mode = figure.linkMode || '';
+                const linkX = mode === 'x' || mode === 'xy';
+                const linkY = mode === 'y' || mode === 'xy';
+                if (linkX || linkY) {
+                  for (let i = 0; i < next.length; i++) {
+                    if (i === idx) continue;
+                    const cur = next[i];
+                    if (!cur || !Array.isArray(cur.x) || !Array.isArray(cur.y)) continue;
+                    next[i] = {
+                      ...cur,
+                      x: linkX ? v.x.slice() : cur.x.slice(),
+                      y: linkY ? v.y.slice() : cur.y.slice(),
+                    };
+                  }
+                }
                 next[idx] = v;
                 return next;
               }),
