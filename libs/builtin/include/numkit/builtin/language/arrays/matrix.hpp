@@ -4,7 +4,9 @@
 #include <memory_resource>
 #include <numkit/core/value.hpp>
 
+#include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 namespace numkit::builtin {
@@ -291,6 +293,37 @@ hess(std::pmr::memory_resource *mr, const Value &A);
 
 /// Hessenberg-only output -- matches MATLAB single-output hess(A).
 Value hess_H_only(std::pmr::memory_resource *mr, const Value &A);
+
+// ── Matrix-structure predicates ───────────────────────────────────────
+/// MATLAB-parity matrix predicates (predicates.cpp). All comparisons
+/// are exact (== 0); even 1e-300 in an off-band entry returns false.
+///
+/// isbanded(A, lower, upper) — outside-band entries are zero.
+/// isdiag/istril/istriu       — degenerate cases of isbanded.
+/// issymmetric(A [, skew])    — A == A.'  (transpose, no conj).
+/// ishermitian(A [, skew])    — A == A'   (conjugate transpose).
+/// 'skew' opt: A == -A.'  /  A == -A'.
+Value isbanded(std::pmr::memory_resource *mr, const Value &A,
+               long lower, long upper);
+Value isdiag(std::pmr::memory_resource *mr, const Value &A);
+Value istril(std::pmr::memory_resource *mr, const Value &A);
+Value istriu(std::pmr::memory_resource *mr, const Value &A);
+Value issymmetric(std::pmr::memory_resource *mr, const Value &A, bool skew = false);
+Value ishermitian(std::pmr::memory_resource *mr, const Value &A, bool skew = false);
+
+/// bandwidth(A) — (lower, upper) bandwidths. Single-output form returns
+/// just the lower bandwidth (MATLAB convention: x = bandwidth(A)
+/// captures the first output).
+std::pair<Value, Value>
+bandwidth(std::pmr::memory_resource *mr, const Value &A);
+Value bandwidthOpt(std::pmr::memory_resource *mr, const Value &A,
+                   const std::string &which);
+
+/// vecnorm(A [, p [, dim]]) — vector p-norm along dim.
+///   defaults: p = 2, dim = first non-singleton dimension.
+///   p = Inf  → max(|A|), p = -Inf → min(|A|).
+Value vecnorm(std::pmr::memory_resource *mr, const Value &A,
+              double p = 2.0, int dim = 0);
 
 // ── Shape queries ────────────────────────────────────────────────────
 /// size(x) returns a row vector of dimensions.

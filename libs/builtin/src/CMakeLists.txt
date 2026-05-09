@@ -9,6 +9,7 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/manip.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/nd_manip.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/accum.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/predicates.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/types/types.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/strings.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/regex.cpp
