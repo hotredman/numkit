@@ -1,0 +1,12 @@
+{
+  "name": "wdenoise",
+  "namespace": "wavelet",
+  "setup": "",
+  "expr": "y = wdenoise([1 2 1.5 3 2.5 4]); r1 = double(numel(y));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = wdenoise(...). Spec-extension batch 2026-05-09."
+}

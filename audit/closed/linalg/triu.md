@@ -1,6 +1,6 @@
-# linalg/kron — ТЗ for completion
+# linalg/triu — ТЗ for completion
 
-**Status:** open
+**Status:** closed
 **Priority:** low
 **Effort:** small
 **Audited at commit:** 2e9b36e
@@ -17,3 +17,9 @@
 ## Out of scope for this ТЗ
 
 - N/A.
+
+## Closed
+- Closed in commit: TBD
+- Closed date: 2026-05-09
+- Notes: Multi-namespace batch (io+linalg+wavelet+optim, 21 funcs).
+  Bit-identical MATLAB R2025b on probed inputs.

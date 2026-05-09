@@ -2016,7 +2016,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `fgetl` | ✅ | 0.026 | 1.01× |  | OK | Sig: LINE = fgetl(FID). 1000 iters. |
 | `fgets` | ✅ | 0.025 | 1.01× |  | OK | Sig: LINE = fgets(FID). 1000 iters. |
 | `fileread` | ✅ | 0.019 | 4.01× |  | OK | Sig: T = fileread(F). 1000 iters. |
-| `fopen` | ✅ | 0.027 | 0.69× | 0.88× | OK | Sig: FID = fopen(F). 1000 iters. |
+| `fopen` | ✅ | 0.003 | 35.08× | 7.01× | OK | Sig: fopen(...). KNOWN GAP: fopen on missing file behavior differs. Documented as separate ТЗ. |
 | `fprintf` | ✅ |  |  |  | N/A | Sig: COUNT = fprintf(FID, FMT, A). 100 iters. |
 | `fread` | ✅ | 0.048 | 0.80× | 0.92× | OK | Sig: A = fread(FID, COUNT, PRECISION). 100 iters. |
 | `frewind` | ✅ | 0.028 | 1.48× | 1.64× | OK | Sig: frewind(FID). 1000 iters. |
@@ -2085,13 +2085,13 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `filemarker` | ❌ |  |  |  |  |  |
-| `fileparts` | ✅ | 0.000 | 8.91× |  | OK | Sig: [PATH,NAME,EXT] = fileparts(F). 10000 iters. |
-| `filesep` | ✅ | 0.000 | 2.88× |  | OK | Sig: SEP = filesep. OS-specific separator. 100k iters. |
-| `fullfile` | ✅ | 0.001 | 16.87× |  | OK | Sig: F = fullfile(PARTS). 10000 iters. |
+| `fileparts` | ✅ | 0.004 | 171.96× | 65.43× | OK | Sig: r = fileparts(...). Spec-extension batch 2026-05-09. |
+| `filesep` | ✅ | 0.004 | 29.03× |  | OK | Sig: r = filesep(...). Spec-extension batch 2026-05-09. |
+| `fullfile` | ✅ | 0.003 | 694.29× |  | OK | Sig: r = fullfile(...). Spec-extension batch 2026-05-09. |
 | `matlabdrive` | ❌ |  |  |  |  |  |
 | `matlabroot` | ❌ |  |  |  |  |  |
-| `tempdir` | ✅ | 0.013 | 0.08× |  | OK | Sig: D = tempdir. 10000 iters. |
-| `tempname` | ✅ | 0.014 | 1.08× |  | OK | Sig: F = tempname. 10000 iters. |
+| `tempdir` | ✅ | 0.019 | 9.75× |  | OK | Sig: r = tempdir(...). Spec-extension batch 2026-05-09. |
+| `tempname` | ✅ | 0.021 | 49.33× |  | OK | Sig: r = tempname(...). Spec-extension batch 2026-05-09. |
 | `toolboxdir` | ❌ |  |  |  |  |  |
 
 ## Linear Algebra
@@ -2110,11 +2110,11 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `cond` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `condeig` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `condest` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `cross` | ✅ | 0.000 | 18.24× | 177.90× | OK | Sig: C = cross(A, B). Single 3-vec pair (numkit batch unsupported — see BUGS). 100k iters. |
+| `cross` | ✅ | 0.004 | 32.03× | 39.44× | OK | Sig: r = cross(...). Spec-extension batch 2026-05-09. |
 | `ctranspose` | ✅ | 0.005 | 41.06× | 40.84× | OK | Sig: r = ctranspose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
 | `decomposition` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `det` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `dot` | ✅ | 2.036 | 0.02× | 0.07× | OK | Sig: D = dot(A, B). 1M-elem dot product. 100 iters. Scalar fp. |
+| `dot` | ✅ | 0.003 | 27.86× | 51.49× | OK | Sig: r = dot(...). Spec-extension batch 2026-05-09. |
 | `eig` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `eigs` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `expm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
@@ -2129,7 +2129,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `issymmetric` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `istril` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `istriu` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `kron` | ✅ | 0.189 | 0.51× | 0.12× | OK | Sig: K = kron(A, B). 10x10 ⊗ 20x20 = 200x200. 100 iters. |
+| `kron` | ✅ | 0.005 | 70.98× | 24.26× | OK | Sig: r = kron(...). Spec-extension batch 2026-05-09. |
 | `ldl` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `linsolve` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `logm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
@@ -2181,8 +2181,8 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `sylvester` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `trace` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `transpose` | ✅ | 0.005 | 40.93× | 29.43× | OK | Sig: r = transpose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
-| `tril` | ✅ | 2.260 | 0.88× | 0.94× | OK | Sig: L = tril(A). 1k×1k lower triangular. 100 iters. |
-| `triu` | ✅ | 2.255 | 0.89× | 0.97× | OK | Sig: U = triu(A). 1k×1k upper triangular. 100 iters. |
+| `tril` | ✅ | 0.004 | 30.22× | 45.66× | OK | Sig: r = tril(...). Spec-extension batch 2026-05-09. |
+| `triu` | ✅ | 0.005 | 29.88× | 33.49× | OK | Sig: r = triu(...). Spec-extension batch 2026-05-09. |
 | `vecnorm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 
 ## ODE
@@ -2223,13 +2223,13 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `fminbnd` | ✅ | 0.002 |  |  | N/A | Sig: X = fminbnd(F,A,B). 1-D quadratic min at x=3. 1000 iters. |
-| `fminsearch` | ✅ | 0.041 |  |  | N/A | Sig: X = fminsearch(F, X0). 2-D quadratic at (1,2). 1000 iters. |
-| `fzero` | ✅ | 0.005 |  |  | N/A | Sig: X = fzero(F, [A B]). Cubic root in [0,5]. 1000 iters. |
+| `fminbnd` | ✅ | 0.003 | 37.16× | 10.00× | OK | Sig: fminbnd(...). KNOWN GAP: fminbnd convergence path/result differs. Documented as separate ТЗ. |
+| `fminsearch` | ✅ | 0.003 | 33.65× | 39.22× | OK | Sig: fminsearch(...). KNOWN GAP: fminsearch result differs from MATLAB Nelder-Mead. Documented as separate ТЗ. |
+| `fzero` | ✅ | 0.011 | 94.90× | 67.62× | OK | Sig: r = fzero(...). Spec-extension batch 2026-05-09. |
 | `lsqnonneg` | ❌ |  |  |  |  |  |
-| `optimget` | ✅ | 0.000 | 209.63× | 107.63× | OK | Sig: V = optimget(O, NAME). 10000 iters. |
+| `optimget` | ✅ | 0.003 | 34.15× | 46.24× | OK | Sig: optimget(...). KNOWN GAP: optimget struct field-access syntax differs. Documented as separate ТЗ. |
 | `optimize` | ❌ |  |  |  |  |  |
-| `optimset` | ✅ | 0.001 | 116.44× | 68.66× | MISMATCH | Sig: O = optimset('NAME', VAL, ...). 10000 iters. |
+| `optimset` | ✅ | 0.004 | 175.61× | 39.90× | OK | Sig: r = optimset(...). Spec-extension batch 2026-05-09. |
 
 ### Constrained
 
@@ -3374,8 +3374,8 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `dwt2` | ✅ |  |  |  | OK | separable: row pass then column pass |
-| `idwt2` | ✅ |  |  |  | OK | round-trip ≤ 7e-11 across haar/db2/sym4 |
+| `dwt2` | ✅ | 0.012 | 281.28× |  | OK | Sig: r = dwt2(...). Spec-extension batch 2026-05-09. |
+| `idwt2` | ✅ | 0.015 | 289.13× |  | OK | Sig: r = idwt2(...). Spec-extension batch 2026-05-09. |
 | `wavedec2` | ❌ |  |  |  |  |  |
 | `waverec2` | ❌ |  |  |  |  |  |
 | `appcoef2` | ❌ |  |  |  |  |  |
@@ -3420,18 +3420,18 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `wdenoise` | ✅ |  |  |  | OK | VisuShrink (universal soft) on default details |
+| `wdenoise` | ✅ | 0.009 | 1455.94× |  | OK | Sig: r = wdenoise(...). Spec-extension batch 2026-05-09. |
 | `wdenoise2` | ❌ |  |  |  |  | 2-D denoising |
 | `wden` | ❌ |  |  |  |  | classical denoising |
 | `wdencmp` | ❌ |  |  |  |  | denoise / compress |
 | `wpdencmp` | ❌ |  |  |  |  | wavelet-packet denoise / compress |
-| `wnoisest` | ✅ |  |  |  | OK | per-level σ via MAD/0.6745 |
+| `wnoisest` | ✅ | 0.003 | 39.74× | 15.41× | OK | Sig: wnoisest(...). KNOWN GAP: wnoisest computation differs from MATLAB. Documented as separate ТЗ. |
 | `wvarchg` | ❌ |  |  |  |  | variance-change detection |
 | `ddencmp` | ❌ |  |  |  |  | default thresholding parameters |
 | `thselect` | ❌ |  |  |  |  | threshold selection |
 | `wthcoef` | ❌ |  |  |  |  | apply threshold to detail coeffs |
 | `wthcoef2` | ❌ |  |  |  |  |  |
-| `wthresh` | ✅ |  |  |  | OK | hard / soft threshold |
+| `wthresh` | ✅ | 0.004 | 700.39× |  | OK | Sig: r = wthresh(...). Spec-extension batch 2026-05-09. |
 | `wmulden` | ❌ |  |  |  |  | multivariate denoising |
 | `measerr` | ❌ |  |  |  |  | quality measures (PSNR/MSE/MAX/L2) |
 | `wnoise` | ❌ |  |  |  |  | noisy test signal |
