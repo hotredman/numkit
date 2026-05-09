@@ -442,6 +442,7 @@ void logm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void sqrtm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void schur_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void hess_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void subspace_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void size_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void length_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void numel_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -954,6 +955,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("sqrtm",     &builtin::detail::sqrtm_reg);
     engine.registerFunction("schur",     &builtin::detail::schur_reg);
     engine.registerFunction("hess",      &builtin::detail::hess_reg);
+    engine.registerFunction("subspace",  &builtin::detail::subspace_reg);
     engine.registerFunction("size",      &builtin::detail::size_reg);
     engine.registerFunction("length",    &builtin::detail::length_reg);
     engine.registerFunction("numel",     &builtin::detail::numel_reg);

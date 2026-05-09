@@ -579,6 +579,50 @@ Value eig_general_values(std::pmr::memory_resource *mr, const Value &A)
     return roots(mr, p);
 }
 
+Value subspace(std::pmr::memory_resource *mr, const Value &A, const Value &B)
+{
+    if (A.dims().ndim() != 2 || B.dims().ndim() != 2)
+        throw Error("subspace: inputs must be 2D matrices",
+                    0, 0, "subspace", "", "m:subspace:notMatrix");
+    const std::size_t mA = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t mB = static_cast<std::size_t>(B.dims().dim(0));
+    if (mA != mB)
+        throw Error("subspace: inputs must have the same number of rows",
+                    0, 0, "subspace", "", "m:subspace:dimMismatch");
+
+    auto Qa = orth(mr, A);
+    auto Qb = orth(mr, B);
+    const std::size_t na = static_cast<std::size_t>(Qa.dims().dim(1));
+    const std::size_t nb = static_cast<std::size_t>(Qb.dims().dim(1));
+    if (na == 0 || nb == 0) return Value::scalar(0.0, mr);
+
+    // M = Qa' * Qb (na × nb).
+    ScratchArena scratch(mr);
+    auto Mout = Value::matrix(na, nb, ValueType::DOUBLE, mr);
+    double *M = Mout.doubleDataMut();
+    const double *Qad = Qa.doubleData();
+    const double *Qbd = Qb.doubleData();
+    for (std::size_t i = 0; i < na; ++i)
+        for (std::size_t j = 0; j < nb; ++j) {
+            double s = 0.0;
+            for (std::size_t k = 0; k < mA; ++k)
+                s += Qad[k + i * mA] * Qbd[k + j * mB];
+            M[i + j * na] = s;
+        }
+
+    // SVD of M -- singular values are cosines of principal angles.
+    auto s = svd_values(mr, Mout);
+    const std::size_t k = s.numel();
+    if (k == 0) return Value::scalar(0.0, mr);
+    const double *sd = s.doubleData();
+    double smin = sd[0];
+    for (std::size_t i = 1; i < k; ++i)
+        if (sd[i] < smin) smin = sd[i];
+    if (smin > 1.0) smin = 1.0;
+    if (smin < 0.0) smin = 0.0;
+    return Value::scalar(std::acos(smin), mr);
+}
+
 // ── Hessenberg reduction (Phase 2c foundation) ──────────────────────
 
 namespace {
@@ -3889,6 +3933,14 @@ void schur_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     } else {
         outs[0] = std::move(T);
     }
+}
+
+void subspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 2)
+        throw Error("subspace: requires (A, B)",
+                    0, 0, "subspace", "", "m:subspace:nargin");
+    outs[0] = subspace(ctx.engine->resource(), args[0], args[1]);
 }
 
 void hess_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

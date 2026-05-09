@@ -219,6 +219,11 @@ Value poly_of_matrix(std::pmr::memory_resource *mr, const Value &A);
 /// n; QR-iteration (Phase 2c-3) will be a future replacement.
 Value eig_general_values(std::pmr::memory_resource *mr, const Value &A);
 
+/// Angle between two subspaces spanned by the columns of A and B.
+/// Computed as theta = acos(min(svd(orth(A)' * orth(B)))).
+/// Returns radians in [0, pi/2].
+Value subspace(std::pmr::memory_resource *mr, const Value &A, const Value &B);
+
 /// Matrix exponential expm(A) via Padé approximation with scaling-
 /// and-squaring (Higham 2005). Works for any square matrix
 /// (symmetric or not). For symmetric A could go via eig but Padé
