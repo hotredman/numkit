@@ -116,6 +116,13 @@ Value rmse(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
 // the Inf).
 Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int dim = 0);
 
+// ── partialcorr (Pearson partial correlation) ──────────────────────
+// partialcorr(X, Y, Z) — partial correlation matrix between columns
+// of X and Y, controlling for the variables in Z. Same number of
+// rows in X, Y, Z; X and Y can have different column counts.
+Value partialcorr_of(std::pmr::memory_resource *mr,
+                     const Value &X, const Value &Y, const Value &Z);
+
 // ── corr (Pearson form alias to corrcoef) ──────────────────────────
 // corr(X) — auto-correlation across columns of X (same as corrcoef(X))
 // corr(X, Y) — correlation matrix between X and Y columns
