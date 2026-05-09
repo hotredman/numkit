@@ -75,6 +75,10 @@ void randerr_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void huffmandict_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void huffmanenco_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void huffmandeco_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// source/dpcm.cpp
+void dpcmenco_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void dpcmdeco_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -140,6 +144,9 @@ void CommLibrary::install(Engine &engine)
     reg("eq", "huffmandict", &comm::detail::huffmandict_reg);
     reg("eq", "huffmanenco", &comm::detail::huffmanenco_reg);
     reg("eq", "huffmandeco", &comm::detail::huffmandeco_reg);
+
+    reg("eq", "dpcmenco",    &comm::detail::dpcmenco_reg);
+    reg("eq", "dpcmdeco",    &comm::detail::dpcmdeco_reg);
 }
 
 } // namespace numkit

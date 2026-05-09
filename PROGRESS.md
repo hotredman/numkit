@@ -966,7 +966,7 @@ intentionally omitted, along with `constellation` (object method) and
 | `arithenco` | ❌ |  |  |  |  | arithmetic encoder |
 | `arithdeco` | ❌ |  |  |  |  |  |
 | `compand` | ❌ | 0.009 | 83.58× |  | OK | MATLAB compand: μ-law / A-law signal compander. 4 methods covered (mu/compressor, mu/expander, A/compressor, A/expander) with round-trip identity validation and sign preservation on negatives. Algorithm: closed-form formulas from MATLAB compand.m. Output preserves input shape. |
-| `dpcmenco` | ❌ |  |  |  |  | differential PCM encoder |
+| `dpcmenco` | ❌ | 0.007 | 83.83× |  | OK | MATLAB dpcmenco/dpcmdeco: 1st-order DPCM (predictor=[0 1]) with 6-bin codebook + 5-threshold partition. Bit-equal with MATLAB R2025b on encoded indices, quantization error, and reconstructed signal. Round-trip qe consistency (qe from encoder == qe from decoder via codebook lookup) also verified. dpcmopt deferred (training-set optimisation needs Lloyd-Max + alternating predictor estimation -- own cycle). Octave 11.1.0 doesn't ship dpcmenco/deco in core; reports N/A. |
 | `dpcmdeco` | ❌ |  |  |  |  |  |
 | `dpcmopt` | ❌ |  |  |  |  | optimise predictor + partition |
 | `huffmandict` | ❌ | 0.010 | 183.53× |  | OK | MATLAB huffmandict: Huffman code-book builder. Codes are NOT unique (tie-breaking yields different but equally optimal trees) -- the invariant is avglen = sum(p_k * L_k). Fingerprint pins avglen on three test cases (5-symbol skewed, 2-symbol, 4-symbol uniform). Code shape, prefix-freeness and bounds H <= avglen < H+1 covered in gtest. Octave 11.1.0 doesn't ship huffmandict in core (signal/communications package only); reports N/A. |
