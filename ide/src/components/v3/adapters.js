@@ -435,6 +435,15 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     // and axisMode='ij', so the renderer only needs to inspect yDir.
     xDir: cfg.xDir || 'normal',
     yDir: cfg.yDir || 'normal',
+    // Legend labels (positional override of layer.name) + placement.
+    // legend is an array of strings — empty / undefined disables the
+    // legend block. legendLocation defaults to 'best' when labels are
+    // present but no explicit location was set.
+    legend: Array.isArray(cfg.legend) ? cfg.legend.slice() : [],
+    legendLocation: cfg.legendLocation || '',
+    // Colorbar placement — only honoured when there's a heatmap layer.
+    // Empty = bar hidden (the default until `colorbar()` is called).
+    colorbarLocation: cfg.colorbarLocation || '',
     layers,
   };
 }

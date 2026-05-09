@@ -97,6 +97,14 @@ struct AxesState
     bool holdOn = false;
     std::string gridMode; // "" = off, "on" = major, "minor" = major+minor
     std::vector<std::string> legendLabels;
+    // Legend placement. MATLAB Location values: best (default), north,
+    // south, east, west, northeast, northwest, southeast, southwest, and
+    // the *outside variants. We normalise to lowercase. Empty = renderer
+    // picks a default. Outside positions have a `outside` suffix.
+    std::string legendLocation;
+    // Colorbar placement. MATLAB: east (default), west, north, south,
+    // and *outside variants. Same lowercase normalisation.
+    std::string colorbarLocation;
 
     std::string xscale = "linear";
     std::string yscale = "linear";
@@ -344,6 +352,10 @@ public:
                     }
                     os << "]";
                 }
+                if (!ax.legendLocation.empty())
+                    os << ",\"legendLocation\":\"" << ax.legendLocation << "\"";
+                if (!ax.colorbarLocation.empty())
+                    os << ",\"colorbarLocation\":\"" << ax.colorbarLocation << "\"";
                 os << "}}";
             }
             os << "]}";

@@ -16,6 +16,8 @@
 #include <numkit/graphics/library.hpp>
 
 #include <algorithm>
+#include <array>
+#include <cctype>
 #include <cmath>
 #include <functional>
 #include <iostream>
@@ -966,13 +968,111 @@ void GraphicsLibrary::install(Engine &engine)
             outs[0] = Value::empty();
         });
 
+    // Normalise a Location string ("NorthWest" → "northwest"). MATLAB
+    // accepts mixed case; we always lowercase. Empty / unrecognised
+    // strings clear the field so the renderer falls back to its default.
+    auto normLocation = [](const std::string &raw) -> std::string {
+        std::string s;
+        s.reserve(raw.size());
+        for (char c : raw) s.push_back((char)std::tolower((unsigned char)c));
+        // Allowed values, mirroring MATLAB:
+        //   north, south, east, west, best, none,
+        //   northeast, northwest, southeast, southwest,
+        //   plus the same with `outside` suffix.
+        static const std::array<const char *, 19> kAllowed{
+            "north", "south", "east", "west", "best", "none",
+            "northeast", "northwest", "southeast", "southwest",
+            "northoutside", "southoutside", "eastoutside", "westoutside",
+            "northeastoutside", "northwestoutside",
+            "southeastoutside", "southwestoutside",
+            "bestoutside",
+        };
+        for (auto p : kAllowed)
+            if (s == p) return s;
+        return std::string();
+    };
+
     reg("layout", "legend",
-        [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+        [argStr, normLocation](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             auto &fm = ctx.engine->figureManager();
             auto &ax = fm.currentAxes();
+            // Walk args. Plain strings become legend labels; a `'Location'`
+            // / 'location' marker captures the next arg as the location.
+            // Other (Name, Value) pairs (FontSize, NumColumns, ...) are
+            // not yet honoured but parsed-and-skipped so they don't
+            // pollute legendLabels.
             ax.legendLabels.clear();
-            for (auto &a : args)
-                ax.legendLabels.push_back(argStr(a));
+            // Don't reset legendLocation if the user calls bare `legend(...)`
+            // again — but DO accept an explicit override.
+            bool sawLocation = false;
+            std::string newLoc;
+            for (size_t i = 0; i < args.size(); ++i) {
+                if (!args[i].isChar()) {
+                    ax.legendLabels.push_back(argStr(args[i]));
+                    continue;
+                }
+                std::string s = args[i].toString();
+                std::string sLower;
+                sLower.reserve(s.size());
+                for (char c : s) sLower.push_back((char)std::tolower((unsigned char)c));
+                if (sLower == "location" && i + 1 < args.size() && args[i + 1].isChar()) {
+                    sawLocation = true;
+                    newLoc = normLocation(args[i + 1].toString());
+                    ++i;  // skip the value
+                    continue;
+                }
+                // MATLAB also accepts `'show'` / `'hide'` / `'off'` as the
+                // first arg. We treat 'off'/'hide' as clear-and-stop, the
+                // rest fall through as labels.
+                if (i == 0 && (sLower == "off" || sLower == "hide")) {
+                    ax.legendLocation.clear();
+                    fm.current().modified = true;
+                    fm.emitModified();
+                    outs[0] = Value::empty();
+                    return;
+                }
+                if (i == 0 && (sLower == "show" || sLower == "on")) {
+                    // No labels passed — keep whatever was set previously.
+                    continue;
+                }
+                ax.legendLabels.push_back(s);
+            }
+            if (sawLocation)
+                ax.legendLocation = newLoc;
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
+    reg("layout", "colorbar",
+        [normLocation](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            auto &fm = ctx.engine->figureManager();
+            auto &ax = fm.currentAxes();
+            // Default: presence of the call enables the bar at the
+            // renderer's default location ('east'). Subsequent calls
+            // can move it via 'Location', '<pos>'.
+            if (ax.colorbarLocation.empty())
+                ax.colorbarLocation = "east";
+            for (size_t i = 0; i < args.size(); ++i) {
+                if (!args[i].isChar()) continue;
+                std::string s = args[i].toString();
+                std::string sLower;
+                sLower.reserve(s.size());
+                for (char c : s) sLower.push_back((char)std::tolower((unsigned char)c));
+                if (sLower == "location" && i + 1 < args.size() && args[i + 1].isChar()) {
+                    auto loc = normLocation(args[i + 1].toString());
+                    if (!loc.empty()) ax.colorbarLocation = loc;
+                    ++i;
+                    continue;
+                }
+                if (sLower == "off" || sLower == "hide") {
+                    ax.colorbarLocation.clear();
+                    fm.current().modified = true;
+                    fm.emitModified();
+                    outs[0] = Value::empty();
+                    return;
+                }
+            }
             fm.current().modified = true;
             fm.emitModified();
             outs[0] = Value::empty();
@@ -1169,7 +1269,6 @@ void GraphicsLibrary::install(Engine &engine)
     reg("layout", "gcf", noop_ret1);
     reg("layout", "cla", noop);
     reg("layout", "zlabel", noop);
-    reg("layout", "colorbar", noop);
     reg("layout", "zlim", noop);
     reg("layout", "view", noop);
     reg("layout", "set", noop);
