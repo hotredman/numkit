@@ -1196,19 +1196,27 @@ export default function CompositePlot({
         </>
       )}
 
-      {/* Legend — only when there's at least one series layer with a
-          visible label. figure.legend (positional override array) wins
-          over per-layer .name. legendLocation drives placement; empty
-          string defaults to 'best' (top-right inside plot). */}
+      {/* Legend — only rendered when the user explicitly called
+          legend(...) (figure.legend is non-empty) OR set a Location.
+          We deliberately don't auto-show on default series names like
+          "series 1" — MATLAB also requires an explicit legend call. */}
       {(() => {
+        const userAsked = (figure.legend && figure.legend.length > 0)
+                       || (figure.legendLocation && figure.legendLocation !== 'none');
+        if (!userAsked || seriesLayers.length === 0) return null;
+        // When legendLocation is set but no labels — fall back to the
+        // per-layer auto-names so the box still has content.
         const labels = (figure.legend && figure.legend.length > 0)
           ? figure.legend
           : seriesLayers.map((l) => l.name).filter(Boolean);
         const haveLabels = labels.some((s) => s && s.trim() !== '');
-        if (!haveLabels || seriesLayers.length === 0) return null;
+        if (!haveLabels) return null;
         const items = seriesLayers.slice(0, labels.length).map((l, i) => ({
           color: l.color,
           text: labels[i] || l.name || `series ${i + 1}`,
+          // Mode drives swatch shape: 'circle' for point-like marks,
+          // 'rect' for filled-region marks, 'line' for everything else.
+          mode: l.mode || 'line',
         }));
         if (items.length === 0) return null;
         const fontSize = 10 * fontScale;
@@ -1257,11 +1265,27 @@ export default function CompositePlot({
               rx="3" opacity="0.92" />
             {items.map((it, i) => {
               const cy = by + padInner + i * lineH + lineH / 2;
+              const swX0 = bx + padInner;
+              const swX1 = swX0 + swatchW;
+              // Swatch matches the series mode so the legend keeps a
+              // visual link to the actual mark on the plot.
+              let swatch;
+              if (it.mode === 'scatter' || it.mode === 'stem') {
+                swatch = <circle cx={(swX0 + swX1) / 2} cy={cy} r="3"
+                  fill={it.color} stroke="var(--plot-frame)" strokeWidth="0.6" />;
+              } else if (it.mode === 'bar' || it.mode === 'barh' || it.mode === 'area') {
+                swatch = <rect x={swX0} y={cy - 4} width={swatchW} height="8"
+                  fill={it.color} fillOpacity={it.mode === 'area' ? 0.3 : 1}
+                  stroke={it.color} strokeWidth="1" />;
+              } else {
+                // line / stairs / errorbar / quiver / default
+                swatch = <line x1={swX0} x2={swX1} y1={cy} y2={cy}
+                  stroke={it.color} strokeWidth="2" />;
+              }
               return (
                 <g key={`leg${i}`}>
-                  <line x1={bx + padInner} x2={bx + padInner + swatchW}
-                    y1={cy} y2={cy} stroke={it.color} strokeWidth="2" />
-                  <text x={bx + padInner + swatchW + 4} y={cy + fontSize / 3}
+                  {swatch}
+                  <text x={swX1 + 4} y={cy + fontSize / 3}
                     fill="var(--plot-text)" fontSize={fontSize} textAnchor="start">
                     {it.text}
                   </text>
