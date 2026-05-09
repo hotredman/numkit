@@ -39,6 +39,8 @@ void rmoutliers_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void fillmissing_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void rmmissing_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void standardizeMissing_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void corr_reg              (Span<const Value>, size_t, Span<Value>, CallContext &);
+void detrend_reg           (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ecdf_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void datastats_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void ksdensity_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -381,6 +383,8 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "fillmissing",        &stats::detail::fillmissing_reg);
     reg("descriptive", "rmmissing",          &stats::detail::rmmissing_reg);
     reg("descriptive", "standardizeMissing", &stats::detail::standardizeMissing_reg);
+    reg("descriptive", "corr",               &stats::detail::corr_reg);
+    reg("descriptive", "detrend",            &stats::detail::detrend_reg);
     reg("descriptive", "ecdf",      &stats::detail::ecdf_reg);
     reg("descriptive", "datastats", &stats::detail::datastats_reg);
     reg("descriptive", "ksdensity", &stats::detail::ksdensity_reg);

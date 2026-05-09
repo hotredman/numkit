@@ -116,6 +116,19 @@ Value rmse(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
 // the Inf).
 Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int dim = 0);
 
+// ── corr (Pearson form alias to corrcoef) ──────────────────────────
+// corr(X) — auto-correlation across columns of X (same as corrcoef(X))
+// corr(X, Y) — correlation matrix between X and Y columns
+// (Other types 'Spearman' / 'Kendall' / 'Type' option deferred.)
+Value corr_xx(std::pmr::memory_resource *mr, const Value &X);
+Value corr_xy(std::pmr::memory_resource *mr, const Value &X, const Value &Y);
+
+// ── detrend ────────────────────────────────────────────────────────
+// Remove polynomial trend of order n from x (default n=1, linear).
+// Returns x minus best-fit polynomial; vector form. Matrix form
+// detrends each column separately.
+Value detrend_of(std::pmr::memory_resource *mr, const Value &x, int order = 1);
+
 // ── isoutlier / rmoutliers / fillmissing / rmmissing / standardizeMissing ──
 Value isoutlier_of(std::pmr::memory_resource *mr, const Value &x);
 Value rmoutliers_of(std::pmr::memory_resource *mr, const Value &x);
