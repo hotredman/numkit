@@ -350,6 +350,16 @@ planerot(std::pmr::memory_resource *mr, const Value &xy);
 Value lsqminnorm(std::pmr::memory_resource *mr, const Value &A,
                  const Value &B, bool have_tol, double tol_user);
 
+/// balance(A) — diagonal-similarity scaling for eigenvalue computations
+/// (Parlett-Reinsch 1969). v1 implements only the scaling phase
+/// (permutation phase deferred; behaves like balance(A, 'noperm')).
+/// Returned as a struct with B (balanced matrix), d_col (column of
+/// scalings), perm_col (column of permutation indices, 1:n in v1).
+/// Dispatch in balance_reg picks 1/2/3-output forms.
+struct BalanceResult { Value B; Value d_col; Value perm_col; };
+BalanceResult balance_impl(std::pmr::memory_resource *mr,
+                           const Value &A, bool noperm);
+
 /// ldl(A) — block LDL' factorization. v1 implements Crout LDL'
 /// without pivoting (works for PD/ND and most indefinite matrices).
 /// Returns (L, D, P) where L is unit lower-triangular (or upper if

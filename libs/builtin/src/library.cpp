@@ -362,6 +362,8 @@ void ldl_reg        (Span<const Value>, size_t, Span<Value>, CallContext&);
 // language/arrays/lsq.cpp
 void lsqminnorm_reg (Span<const Value>, size_t, Span<Value>, CallContext&);
 void lsqnonneg_reg  (Span<const Value>, size_t, Span<Value>, CallContext&);
+// language/arrays/balance.cpp
+void balance_reg    (Span<const Value>, size_t, Span<Value>, CallContext&);
 void flintmax_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void intmax_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void intmin_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -1223,6 +1225,8 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("lsqnonneg",  &builtin::detail::lsqnonneg_reg);
     engine.registerFunction("compat", "lsqminnorm",  &builtin::detail::lsqminnorm_reg);
     engine.registerFunction("compat", "lsqnonneg",   &builtin::detail::lsqnonneg_reg);
+    engine.registerFunction("balance",    &builtin::detail::balance_reg);
+    engine.registerFunction("compat", "balance",     &builtin::detail::balance_reg);
     engine.registerFunction("flintmax",   &builtin::detail::flintmax_reg);
     engine.registerFunction("intmax",     &builtin::detail::intmax_reg);
     engine.registerFunction("intmin",     &builtin::detail::intmin_reg);

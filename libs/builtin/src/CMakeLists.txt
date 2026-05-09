@@ -13,6 +13,7 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/linalg_extras.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/ldl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/lsq.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/balance.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/types/types.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/strings.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/regex.cpp
