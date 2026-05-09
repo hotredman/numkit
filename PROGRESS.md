@@ -2852,7 +2852,7 @@ intentionally omitted — flat solver functions only.
 |---|:---:|---:|---:|---:|:---:|---|
 | `cholcov` | ❌ |  |  |  |  | Cholesky-of-cov, handles PSD |
 | `corr` | ❌ | 0.004 | 334.37× | 20.62× | OK | Sig: c = corr(X). Pearson correlation matrix between columns of X (alias to corrcoef). Two-arg corr(X, Y) deferred. |
-| `corrcov` | ❌ |  |  |  |  | covariance → correlation |
+| `corrcov` | ❌ | 0.007 | 245.07× |  | OK | MATLAB corrcov: R = C ./ sqrt(diag(C)*diag(C)'); sigma = sqrt(diag(C))'. Bit-equal with MATLAB R2025b on 3x3 covariance, identity, scalar, and negative-correlation 2x2 cases. Octave 11.1.0 doesn't ship corrcov in core (statistics package only); reports N/A. |
 | `crosstab` | ❌ |  |  |  |  | cross-tabulation |
 | `geomean` | ❌ | 0.003 | 166.35× | 47.34× | OK | Sig: g = geomean(x[, dim]). (prod x)^(1/n) = exp(mean(log x)). |
 | `grpstats` | ❌ |  |  |  |  | group-wise statistics |
