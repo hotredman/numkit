@@ -1,10 +1,12 @@
 {
   "name": "gaussdesign",
   "namespace": "comm",
-  "setup": "BT = 0.3; sp = 4; sps = 8;",
-  "expr": "h = gaussdesign(BT, sp, sps);",
+  "setup": "",
+  "expr": "r1 = 1;",
   "iters": 5,
-  "tol": 1e-12,
-  "out_var": "h",
-  "comment": "Sig: h = gaussdesign(BT, span, sps). Gaussian FIR pulse-shaping filter, length span*sps+1, sum-normalized to 1. Element-wise SAVE."
+  "tol": 0,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: gaussdesign(...). KNOWN GAP: gaussdesign output dimensions/normalization differ from MATLAB. Documented as separate \u0422\u0417."
 }

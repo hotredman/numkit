@@ -1,0 +1,12 @@
+{
+  "name": "bsc",
+  "namespace": "comm",
+  "setup": "rng(42);",
+  "expr": "y = bsc([0 1 0 1], 0.1); r1 = double(numel(y));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = bsc(...). Spec-extension batch 2026-05-09."
+}
