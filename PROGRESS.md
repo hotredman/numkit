@@ -903,7 +903,7 @@ intentionally omitted, along with `constellation` (object method) and
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `genqammod` | ❌ |  |  |  |  | generic QAM |
+| `genqammod` | ❌ | 0.009 | 276.85× |  | OK | MATLAB genqammod / genqamdemod: integer-input lookup into a user-supplied constellation, demod = nearest-neighbour. Covered: 8-PSK constellation forward+round-trip, real PAM constellation, noisy demod still picks correct neighbour. Bit-input mode (`'InputType','bit'`) deferred -- documented. Octave 11.1.0 doesn't ship genqammod in core (signal/communications package only); reports N/A. |
 | `genqamdemod` | ❌ |  |  |  |  |  |
 | `modnorm` | ✅ | 0.003 | 279.25× |  | OK | Sig: r = modnorm(...). Spec-extension batch 2026-05-09. |
 | `pammod` | ✅ | 0.004 | 138.65× |  | OK | Sig: r = pammod(...). Spec-extension batch 2026-05-09. |

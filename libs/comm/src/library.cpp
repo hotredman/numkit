@@ -30,6 +30,10 @@ void ammod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void fmmod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ssbmod_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// modulation/generic_qam.cpp
+void genqammod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void genqamdemod_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // channel/channel.cpp
 void awgn_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void wgn_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -97,6 +101,9 @@ void CommLibrary::install(Engine &engine)
     reg("mod", "ammod",     &comm::detail::ammod_reg);
     reg("mod", "fmmod",     &comm::detail::fmmod_reg);
     reg("mod", "ssbmod",    &comm::detail::ssbmod_reg);
+
+    reg("mod", "genqammod",   &comm::detail::genqammod_reg);
+    reg("mod", "genqamdemod", &comm::detail::genqamdemod_reg);
 
     reg("rf", "awgn",        &comm::detail::awgn_reg);
     reg("rf", "wgn",         &comm::detail::wgn_reg);
