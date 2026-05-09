@@ -58,9 +58,28 @@ TEST_F(EigTest, EigProductEqualsDet)
     EXPECT_NEAR(evalScalar("prod(e) - det(A)"), 0.0, 1e-10);
 }
 
-TEST_F(EigTest, EigAsymmetricRejected)
+TEST_F(EigTest, EigAsymmetricSingleOutputWorks)
 {
-    EXPECT_THROW(eval("eig([1 2; 3 4]);"), std::exception);
+    // Phase 2c-2: e = eig(A) for asymmetric A via Souriau-Faddeev + roots.
+    // Companion matrix of x^3 - 7x + 6: roots = 1, 2, -3.
+    eval("A = [0 7 -6; 1 0 0; 0 1 0]; e = sort(real(eig(A)));");
+    EXPECT_NEAR(evalScalar("e(1)"), -3.0, 1e-10);
+    EXPECT_NEAR(evalScalar("e(2)"),  1.0, 1e-10);
+    EXPECT_NEAR(evalScalar("e(3)"),  2.0, 1e-10);
+}
+
+TEST_F(EigTest, EigAsymmetricComplexEigenvalues)
+{
+    // Rotation: eig([0 -1; 1 0]) = ±i.
+    eval("e = eig([0 -1; 1 0]);");
+    EXPECT_TRUE(eval("any(abs(real(e)) < 1e-12)").toBool());
+    EXPECT_TRUE(eval("any(abs(imag(e)) > 0.5)").toBool());
+}
+
+TEST_F(EigTest, EigAsymmetricVDFormThrows)
+{
+    // [V, D] form for asymmetric: deferred to Phase 2c-3.
+    EXPECT_THROW(eval("[V, D] = eig([1 2; 3 4]);"), std::exception);
 }
 
 TEST_F(EigTest, EigNonSquareRejected)

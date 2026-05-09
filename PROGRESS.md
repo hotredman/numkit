@@ -742,7 +742,7 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `poly` | ✅ | 0.000 | 66.04× | 124.36× | OK | Sig: P = poly(R). Roots → polynomial coefficients. 10000 iters. |
+| `poly` | ✅ | 0.003 | 152.13× | 55.89× | OK | Sig: p = poly(A) for square matrix. Char polynomial via Souriau-Faddeev-LeVerrier; p = [1 c1 c2 ... cn] such that roots(p) == eig(A). Bit-identical with MATLAB R2025b on probed companion-form matrix. |
 | `polyder` | ✅ | 0.001 | 70.04× | 24.14× | OK | Sig: K = polyder(P). Deterministic 100-coef poly. 1000 iters. Element-wise SAVE. |
 | `polydiv` | ✅ | 0.000 | 51.90× | 76.46× | OK | Sig: [Q, R] = polydiv(U, V). Polynomial div via deconv. 10000 iters. |
 | `polyeig` | ❌ |  |  |  |  | poly eig |
@@ -2115,13 +2115,13 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `decomposition` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `det` | ❌ | 0.006 | 66.89× | 38.95× | OK | Sig: d = det(A). Determinant via LU with partial pivoting; sign tracked from row swaps. Singular A returns 0. Bit-identical with MATLAB R2025b on probed cases (2×2, triangular 3×3, identity 5×5, singular rank-1, magic(4)). |
 | `dot` | ✅ | 0.003 | 27.86× | 51.49× | OK | Sig: r = dot(...). Spec-extension batch 2026-05-09. |
-| `eig` | ❌ | 0.012 | 34.44× | 12.08× | OK | Sig: e = eig(A) | [V, D] = eig(A). Symmetric Jacobi for real symmetric A; eigenvalues ascending. General (non-symmetric) eig requires Hessenberg + Francis QR -- Phase 2b. |
+| `eig` | ❌ | 0.011 | 33.17× | 5.85× | OK | Sig: e = eig(A) | [V, D] = eig(A). Symmetric: classical Jacobi (eigenvectors + ascending real eigenvalues). General (non-symmetric): characteristic polynomial via Souriau-Faddeev + roots() (eigenvalues only; possibly complex). [V, D] form for general matrices requires QR iteration -- deferred to Phase 2c-3. Sort applied for order-agnostic comparison. |
 | `eigs` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `expm` | ❌ | 0.008 | 353.26× | 37.62× | OK | Sig: E = expm(A). Matrix exponential via Padé(6) with scaling-and-squaring (Higham 2005). Works for any square matrix. Bit-identical with MATLAB R2025b on rotation generator + symmetric + zero cases. |
 | `expmv` | ❌ |  |  |  |  |  |
 | `funm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `gsvd` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `hess` | ❌ | 0.013 | 39.13× | 18.21× | OK | Sig: [P, H] = hess(A). Hessenberg reduction via Householder reflectors; A = P*H*P', H upper-Hessenberg (zeros below sub-diagonal). Foundation for general eig (Phase 2c). Bit-identical reconstruction with MATLAB R2025b; H entries differ in sign/order due to Householder reflector freedom but identity verified to ulp. |
+| `hess` | ❌ | 0.012 | 37.35× | 17.34× | OK | Sig: [P, H] = hess(A). Hessenberg reduction via Householder reflectors; A = P*H*P', H upper-Hessenberg (zeros below sub-diagonal). Foundation for general eig (Phase 2c). Bit-identical reconstruction with MATLAB R2025b; H entries differ in sign/order due to Householder reflector freedom but identity verified to ulp. |
 | `inv` | ❌ | 0.006 | 24.80× | 6.06× | OK | Sig: B = inv(A). Matrix inverse via LU (la_solve backend). Bit-identical with MATLAB R2025b on probed 2×2 + 3×3 systems; A*inv(A) = I to ~ulp. |
 | `isbanded` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `isdiag` | ❌ |  |  |  |  |  |
