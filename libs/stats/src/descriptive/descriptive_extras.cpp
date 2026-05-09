@@ -294,6 +294,124 @@ Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
         }, mr);
 }
 
+// ── corr (Pearson alias) ─────────────────────────────────────────────
+
+Value corr_xx(std::pmr::memory_resource *mr, const Value &X)
+{
+    return corrcoef(mr, X);
+}
+
+Value corr_xy(std::pmr::memory_resource *mr, const Value &X, const Value &Y)
+{
+    return corrcoef(mr, X, Y);
+}
+
+// ── detrend (polynomial trend removal) ──────────────────────────────
+
+namespace {
+
+// Fit polynomial of order `order` to (xidx, y) via normal equations.
+// Returns coefficients [a_order, a_{order-1}, ..., a_0] suitable for
+// evalPoly Horner.
+std::vector<double> fitPolyLS(const std::vector<double> &xidx,
+                              const std::vector<double> &y, int order)
+{
+    const std::size_t n = xidx.size();
+    const std::size_t k = static_cast<std::size_t>(order) + 1;
+    std::vector<double> M(k * k, 0.0);
+    std::vector<double> b(k, 0.0);
+    std::vector<double> powSums(2 * k - 1, 0.0);
+    for (std::size_t i = 0; i < n; ++i) {
+        double xp = 1.0;
+        for (std::size_t p = 0; p < powSums.size(); ++p) {
+            powSums[p] += xp;
+            xp *= xidx[i];
+        }
+    }
+    for (std::size_t i = 0; i < k; ++i)
+        for (std::size_t j = 0; j < k; ++j)
+            M[i + j * k] = powSums[(order - static_cast<int>(i)) +
+                                   (order - static_cast<int>(j))];
+    for (std::size_t i = 0; i < n; ++i) {
+        double xp = 1.0;
+        for (int p = 0; p < static_cast<int>(k); ++p) {
+            b[order - p] += y[i] * xp;
+            xp *= xidx[i];
+        }
+    }
+    // Gaussian elimination with partial pivot.
+    for (std::size_t kc = 0; kc < k; ++kc) {
+        std::size_t piv = kc;
+        double pmax = std::fabs(M[kc + kc * k]);
+        for (std::size_t r = kc + 1; r < k; ++r) {
+            const double v = std::fabs(M[r + kc * k]);
+            if (v > pmax) { pmax = v; piv = r; }
+        }
+        if (pmax == 0.0)
+            return std::vector<double>(k, std::numeric_limits<double>::quiet_NaN());
+        if (piv != kc) {
+            for (std::size_t j = 0; j < k; ++j)
+                std::swap(M[kc + j * k], M[piv + j * k]);
+            std::swap(b[kc], b[piv]);
+        }
+        const double pivVal = M[kc + kc * k];
+        for (std::size_t r = kc + 1; r < k; ++r) {
+            const double f = M[r + kc * k] / pivVal;
+            for (std::size_t j = kc; j < k; ++j)
+                M[r + j * k] -= f * M[kc + j * k];
+            b[r] -= f * b[kc];
+        }
+    }
+    std::vector<double> a(k, 0.0);
+    for (std::size_t kk = k; kk-- > 0;) {
+        double s = b[kk];
+        for (std::size_t j = kk + 1; j < k; ++j) s -= M[kk + j * k] * a[j];
+        a[kk] = s / M[kk + kk * k];
+    }
+    return a;
+}
+
+double evalPoly(const std::vector<double> &a, double x)
+{
+    double r = 0.0;
+    for (double c : a) r = r * x + c;
+    return r;
+}
+
+void detrendColumn(const double *src, double *dst, std::size_t n, int order)
+{
+    if (n == 0) return;
+    if (order < 0) order = 1;
+    std::vector<double> xidx(n);
+    for (std::size_t i = 0; i < n; ++i)
+        xidx[i] = static_cast<double>(i);
+    std::vector<double> yvec(src, src + n);
+    auto coefs = fitPolyLS(xidx, yvec, order);
+    for (std::size_t i = 0; i < n; ++i)
+        dst[i] = src[i] - evalPoly(coefs, xidx[i]);
+}
+
+} // anonymous namespace
+
+Value detrend_of(std::pmr::memory_resource *mr, const Value &x, int order)
+{
+    if (x.numel() == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
+    const std::size_t c = (x.dims().ndim() >= 2)
+                            ? static_cast<std::size_t>(x.dims().dim(1)) : 1;
+    auto out = Value::matrix(r, c, ValueType::DOUBLE, mr);
+    const double *xd = x.doubleData();
+    double *od = out.doubleDataMut();
+
+    if (r == 1 || c == 1) {
+        detrendColumn(xd, od, r * c, order);
+        return out;
+    }
+    for (std::size_t j = 0; j < c; ++j)
+        detrendColumn(xd + j * r, od + j * r, r, order);
+    return out;
+}
+
 // ── isoutlier / rmoutliers / fillmissing / rmmissing / standardizeMissing ──
 
 // isoutlier(x) — boolean array marking outliers via median + MAD
@@ -1429,6 +1547,38 @@ void ecdfhist_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     auto [n, c] = ecdfhist(ctx.engine->resource(), args[0], args[1], m);
     outs[0] = std::move(n);
     if (nargout > 1) outs[1] = std::move(c);
+}
+
+// ── corr / detrend adapters ──────────────────────────────────────────
+
+void corr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("corr: requires (X). Two-argument form (X, Y) for "
+                    "matrix-vs-matrix correlation matrix is deferred -- use "
+                    "corr([X Y]) and slice the off-diagonal block instead.",
+                    0, 0, "corr", "", "m:corr:nargin");
+    outs[0] = corr_xx(ctx.engine->resource(), args[0]);
+}
+
+void detrend_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("detrend: requires at least 1 argument",
+                    0, 0, "detrend", "", "m:detrend:nargin");
+    int order = 1;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        if (args[1].isChar() || args[1].isString()) {
+            const auto s = args[1].toString();
+            if (s == "constant") order = 0;
+            else if (s == "linear") order = 1;
+            else throw Error("detrend: string mode must be 'constant' or 'linear'",
+                             0, 0, "detrend", "", "m:detrend:mode");
+        } else {
+            order = static_cast<int>(args[1].toScalar());
+        }
+    }
+    outs[0] = detrend_of(ctx.engine->resource(), args[0], order);
 }
 
 // ── missing-data adapters ────────────────────────────────────────────

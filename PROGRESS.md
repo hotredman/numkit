@@ -2851,7 +2851,7 @@ intentionally omitted — flat solver functions only.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `cholcov` | ❌ |  |  |  |  | Cholesky-of-cov, handles PSD |
-| `corr` | ❌ |  |  |  |  | (with type='Spearman'/'Kendall' options) |
+| `corr` | ❌ | 0.004 | 334.37× | 20.62× | OK | Sig: c = corr(X). Pearson correlation matrix between columns of X (alias to corrcoef). Two-arg corr(X, Y) deferred. |
 | `corrcov` | ❌ |  |  |  |  | covariance → correlation |
 | `crosstab` | ❌ |  |  |  |  | cross-tabulation |
 | `geomean` | ❌ | 0.003 | 166.35× | 47.34× | OK | Sig: g = geomean(x[, dim]). (prod x)^(1/n) = exp(mean(log x)). |
@@ -3579,3 +3579,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `isoutlier` | — | 0.004 | 508.34× | 155.81× | OK | Sig: m = isoutlier(x). Default median + 3*MAD method. Bit-identical with MATLAB R2025b. |
 | `rmoutliers` | — | 0.004 | 586.87× |  | OK | Sig: y = rmoutliers(x). Drops outliers from x. |
 | `standardizeMissing` | — | 0.004 | 347.03× | 64.79× | OK | Sig: y = standardizeMissing(x, sentinel). Replaces sentinel value with NaN. |
+| `detrend` | — | 0.006 | 369.81× | 36.84× | OK | Sig: y = detrend(x[, order]). Remove polynomial trend (default linear). Vector form. |
