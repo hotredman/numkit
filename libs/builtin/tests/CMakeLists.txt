@@ -76,4 +76,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/matfunc_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/hess_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/norm_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sylvester_test.cpp
 )

@@ -2178,7 +2178,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `svdappend` | ❌ |  |  |  |  |  |
 | `svds` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `svdsketch` | ❌ |  |  |  |  |  |
-| `sylvester` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `sylvester` | ❌ | 0.006 | 122.38× | 18.32× | OK | Sig: X = sylvester(A, B, C). Solves A*X + X*B = C. For symmetric A and B (this revision): simultaneous diagonalisation via eig. Residual to ulp. General (non-symmetric) Sylvester via Bartels-Stewart on Schur forms is deferred. |
 | `trace` | ❌ | 0.006 |  | 36.06× | OK | Sig: t = trace(A). Sum of diagonal. Works for square + rectangular (uses min(rows,cols)). Bit-identical with MATLAB R2025b. |
 | `transpose` | ✅ | 0.005 | 40.93× | 29.43× | OK | Sig: r = transpose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
 | `tril` | ✅ | 0.004 | 30.22× | 45.66× | OK | Sig: r = tril(...). Spec-extension batch 2026-05-09. |
