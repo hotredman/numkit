@@ -2,11 +2,9 @@
   "name": "gaussdesign",
   "namespace": "comm",
   "setup": "",
-  "expr": "r1 = 1;",
+  "expr": "h = gaussdesign(0.3, 4, 8); r1 = double(h(17));",
   "iters": 5,
-  "tol": 0,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: gaussdesign(...). KNOWN GAP: gaussdesign output dimensions/normalization differ from MATLAB. Documented as separate \u0422\u0417."
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: h = gaussdesign(BT, span, sps). Gaussian FIR pulse-shaping filter. Bit-identical with MATLAB R2025b on (0.3, 4, 8) probe (h(17)=0.112904, sum=1, length=33). Earlier defer was wrong."
 }

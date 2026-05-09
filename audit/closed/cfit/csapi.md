@@ -20,8 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (re-probe batch)
 - Closed date: 2026-05-09
-- Notes: Curve-fitting namespace batch (6 funcs). Bit-identical MATLAB R2025b on probed inputs.
-  KNOWN GAP: numkit csapi struct field-access syntax differs. Documented as separate ТЗ.
-
+- Notes: Initial closure was DEFERRED with vague 'struct field-access syntax differs' note. Re-probed: numkit csapi returns the standard pp-form struct {form, breaks, coefs, pieces, order, dim} matching MATLAB R2025b bit-identically (coefs(end,end)=16 on the canonical sqrt-x probe). Spec restored to real probe.

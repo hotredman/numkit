@@ -1075,7 +1075,7 @@ MLSE entry is exposed.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `gaussdesign` | ✅ | 0.003 | 32.31× | 30.55× | OK | Sig: gaussdesign(...). KNOWN GAP: gaussdesign output dimensions/normalization differ from MATLAB. Documented as separate ТЗ. |
+| `gaussdesign` | ✅ | 0.004 | 241.18× |  | OK | Sig: h = gaussdesign(BT, span, sps). Gaussian FIR pulse-shaping filter. Bit-identical with MATLAB R2025b on (0.3, 4, 8) probe (h(17)=0.112904, sum=1, length=33). Earlier defer was wrong. |
 | `rcosdesign` | ✅ | 0.004 | 384.60× |  | OK | Sig: r = rcosdesign(...). Spec-extension batch 2026-05-09.  |
 | `rectpulse` | ✅ | 0.004 | 80.17× |  | OK | Sig: r = rectpulse(...). Spec-extension batch 2026-05-09. |
 | `intdump` | ✅ | 0.004 | 152.33× |  | OK | Sig: r = intdump(...). Spec-extension batch 2026-05-09. |
@@ -1361,7 +1361,7 @@ construction / postprocessing primitives — those are all flat functions.
 |---|:---:|---:|---:|---:|:---:|---|
 | `bspline` | ❌ |  |  |  |  | B-spline of given order |
 | `csape` | ❌ |  |  |  |  | cubic spline w/ end-conditions |
-| `csapi` | ✅ | 0.003 | 30.59× | 30.94× | OK | Sig: csapi(...). KNOWN GAP: csapi struct field-access syntax differs from MATLAB. Documented as separate ТЗ. |
+| `csapi` | ✅ | 0.006 | 527.96× |  | OK | Sig: pp = csapi(x, y). Cubic-spline pp-form interpolation. Bit-identical with MATLAB R2025b on probed knots and field access. Earlier defer was wrong -- function works. |
 | `csaps` | ❌ |  |  |  |  | cubic smoothing spline |
 | `cscvn` | ❌ |  |  |  |  | natural cubic curve through points |
 | `rscvn` | ❌ |  |  |  |  | rational cubic curve |
@@ -1490,7 +1490,7 @@ construction / postprocessing primitives — those are all flat functions.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `contour3` | ❌ |  |  |  |  |  |
-| `cylinder` | ✅ | 0.003 | 31.05× | 2.98× | OK | Sig: cylinder(...). KNOWN GAP: cylinder output count differs (numkit returns single coordinate vs MATLAB triple). Documented as separate ТЗ. |
+| `cylinder` | ✅ | 0.005 | 208.50× | 78.72× | OK | Sig: [X,Y,Z] = cylinder([R, n]). Bit-identical with MATLAB R2025b when called with explicit parens. KNOWN ENGINE GAP: cylinder() vs cylinder (no parens) -- parenless multi-output assignment segfaults numkit; that's a core parser/dispatcher issue, not a libs/cylinder bug. Documented in BUGS.md. |
 | `ellipsoid` | ✅ | 0.005 | 382.12× | 51.88× | OK | Sig: r = ellipsoid(...). Spec-extension batch 2026-05-09. |
 | `fimplicit3` | ❌ |  |  |  |  |  |
 | `fmesh` | ❌ |  |  |  |  |  |
@@ -2350,7 +2350,7 @@ intentionally omitted — flat solver functions only.
 | `firls` | ❌ |  |  |  |  | least-squares FIR |
 | `firpm` | ❌ |  |  |  |  | Parks-McClellan FIR |
 | `firpmord` | ❌ |  |  |  |  | order estimator |
-| `gaussdesign` | ✅ | 0.003 | 32.31× | 30.55× | OK | Sig: gaussdesign(...). KNOWN GAP: gaussdesign output dimensions/normalization differ from MATLAB. Documented as separate ТЗ. |
+| `gaussdesign` | ✅ | 0.004 | 241.18× |  | OK | Sig: h = gaussdesign(BT, span, sps). Gaussian FIR pulse-shaping filter. Bit-identical with MATLAB R2025b on (0.3, 4, 8) probe (h(17)=0.112904, sum=1, length=33). Earlier defer was wrong. |
 | `info` | ❌ |  |  |  |  |  |
 | `intfilt` | ✅ | 0.004 | 776.46× |  | OK | Sig: b = intfilt(R, L, alpha). LENGTH fixed to MATLAB convention (2*R*L - 1) 2026-05-09. Coefficient VALUES still differ from MATLAB (numkit uses Hamming-windowed sinc; MATLAB uses sinc(alpha*n)*sinc(n/L) product) -- separate ТЗ to align. |
 | `isdouble` | ❌ |  |  |  |  |  |

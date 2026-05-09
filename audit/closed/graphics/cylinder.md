@@ -20,8 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (re-probe batch)
 - Closed date: 2026-05-09
-- Notes: Graphics namespace batch (14 funcs). Bit-identical MATLAB R2025b on probed inputs.
-  KNOWN GAP: numkit cylinder returns single coordinate vs MATLAB triple. Documented as separate ТЗ.
-
+- Notes: Initial closure was DEFERRED with note 'cylinder output count differs (numkit returns single coordinate vs MATLAB triple)'. Re-probed: cylinder(N) and cylinder([R, N]) work bit-identically with MATLAB R2025b. There is a CORE-PARSER bug with parenless multi-output assignment ([x,y,z] = cylinder; segfaults but [x,y,z] = cylinder(); works) -- documented as separate engine ТЗ. Spec uses cylinder(20).
