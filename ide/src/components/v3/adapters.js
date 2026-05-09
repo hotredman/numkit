@@ -561,7 +561,8 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
       thetaDir: cfg.thetaDir || 'counterclockwise',
       thetaZeroLocation: cfg.thetaZeroLocation || 'right',
       rlim: cfg.rlim,
-      grid: cfg.grid || '',
+      grid: cfg.grid !== undefined ? cfg.grid : 'on',  // polar default = on (MATLAB)
+      gridMinor: cfg.gridMinor || 'off',
       series,
     };
   }
@@ -603,6 +604,11 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
       xRange = [x0 - cW / 2, x1 + cW / 2];
       yRange = [y0 - cH / 2, y1 + cH / 2];
     }
+    // User-set xlim / ylim override the auto-padded extent so the
+    // modal's range inputs and the rendered viewport match the
+    // script's intent exactly (no half-cell drift).
+    if (Array.isArray(cfg.xlim) && cfg.xlim.length === 2) xRange = cfg.xlim.slice();
+    if (Array.isArray(cfg.ylim) && cfg.ylim.length === 2) yRange = cfg.ylim.slice();
   } else {
     let xLo = Infinity, xHi = -Infinity;
     let yLoL = Infinity, yHiL = -Infinity;  // left-side Y bounds
@@ -684,10 +690,12 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
       // axisMode forwarded so the renderer can honour 'equal' / 'vis3d'
       // (equal data units per world unit on every axis).
       axisMode: cfg.axisMode || '',
-      // grid / box toggles from the existing 2-D commands; default
-      // grid on for 3-D since plain wireframes are otherwise hard to
-      // read.
-      grid: cfg.grid || 'on',
+      // grid / box toggles. Tri-state on the wire: cfg.grid is
+      // present only when the script called grid(...) explicitly. If
+      // absent, MATLAB defaults a 3-D figure to `grid on` (a
+      // wireframe without a frame is unreadable).
+      grid: cfg.grid !== undefined ? cfg.grid : 'on',
+      gridMinor: cfg.gridMinor || 'off',
       // view: [az, el] in degrees from the C++ view(az, el) call;
       // null = renderer's default (-37.5°, 30°).
       view: Array.isArray(cfg.view) && cfg.view.length === 2 ? cfg.view : null,
@@ -711,7 +719,10 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     xLabel: cfg.xlabel || '',
     yLabel: cfg.ylabel || '',
     xRange, yRange,
-    grid: cfg.grid || '',
+    // 2-D default is `off` (MATLAB parity). cfg.grid is present only
+    // when grid(...) was explicitly called.
+    grid: cfg.grid || 'off',
+    gridMinor: cfg.gridMinor || 'off',
     xscale: cfg.xscale || 'linear',
     yscale: cfg.yscale || 'linear',
     // axisMode: 'equal' | 'square' | 'tight' | 'auto' | '' (default).

@@ -125,12 +125,27 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       };
     });
   }
-  // Major grid defaults to on (a plot without it is unreadable). Minor grid
-  // follows the engine's gridMode strictly: only on when the script called
-  // `grid minor`, off after `grid on` / no call. Matches MATLAB.
-  const [showMajor, setShowMajor] = useState(true);
-  const [showMinor, setShowMinor] = useState(figure.grid === 'minor');
-  const [showLegend, setShowLegend] = useState(true);
+  // Major / minor grid state mirrors the script's. Both come from the
+  // engine as independent strings ("on" / "off"); we keep local state
+  // so the toolbar buttons can override without re-running the script,
+  // but re-sync to the script value whenever the underlying figure
+  // changes (so `grid minor` in a re-run propagates).
+  //   2-D figures default to no grid (matches MATLAB).
+  //   3-D figures: adapter forces grid='on' by default since a plain
+  //   wireframe sits in space with no frame otherwise.
+  const [showMajor, setShowMajor] = useState(figure.grid === 'on');
+  const [showMinor, setShowMinor] = useState(figure.gridMinor === 'on');
+  useEffect(() => { setShowMajor(figure.grid === 'on'); }, [figure.grid]);
+  useEffect(() => { setShowMinor(figure.gridMinor === 'on'); }, [figure.gridMinor]);
+  // Legend initial state mirrors what the script asked for: show only
+  // when `legend(...)` (or legend Location) was set — MATLAB parity.
+  // Toolbar toggle then lets the user override.
+  const legendUserAsked = (Array.isArray(figure.legend) && figure.legend.length > 0)
+                       || (figure.legendLocation && figure.legendLocation !== 'none');
+  const [showLegend, setShowLegend] = useState(!!legendUserAsked);
+  useEffect(() => { setShowLegend(!!legendUserAsked); },
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+            [figure.id, figure.legend, figure.legendLocation]);
   // Log axis toggles — lifted from Heatmap so the toolbar can flip them
   // alongside grid/minor and the ПКМ menu inside the panel can mirror.
   // Initialised from figure.xscale/yscale (set by xscale('log') /
@@ -802,7 +817,12 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
             {/* Legend toggle hidden for pure heatmap (colorbar IS the legend),
                 shown when at least one series layer exists or the figure is
                 a legacy line/polar shape. */}
-            {!is3D && (hasSeries || (!isHeatmap && !isComposite)) && (
+            {/* Legend toolbar toggle — shown only when the script
+                actually asked for a legend (so the IDE doesn't dangle
+                a button that toggles nothing on a plain plot()). 3-D
+                figures hide it because the WebGL renderer doesn't
+                draw a legend block. */}
+            {!is3D && legendUserAsked && (hasSeries || (!isHeatmap && !isComposite)) && (
               <button className={`ve-btn ${showLegend ? 'is-active' : ''}`} onClick={() => setShowLegend((g) => !g)}>legend</button>
             )}
           </div>
@@ -857,6 +877,10 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               setXLog, setYLog,
               colorOverride, setColorOverride,
               colormapOverride,
+              // showLegend gates BOTH the CompositePlot SVG-internal
+              // legend block and the (now removed) HTML overlay. One
+              // legend, controlled by the toolbar toggle.
+              showLegend,
               // 3-D specific — Composite3DPlot ignores these for non-3-D.
               // Skip the override on the very first render when viewport
               // is still the [-1,1] placeholder cube (otherwise computeBBox
@@ -865,22 +889,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               viewport3d: (is3D && !isPlaceholder3D(viewport)) ? viewport : null,
               onBBox: is3D ? onComposite3DBBox : null,
             }, threeRef)}
-            {showLegend && (() => {
-              const list = isComposite
-                ? seriesLayers
-                : (Array.isArray(figure.series) ? figure.series : []);
-              if (list.length === 0) return null;
-              return (
-                <div className="fw-legend">
-                  {list.map((s) => (
-                    <div key={s.name} className="fw-legend-item">
-                      <i style={{ background: s.color }} />
-                      <span>{s.name}</span>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
+            {/* The HTML-overlay legend that lived here used to double-
+                draw on top of CompositePlot's SVG legend whenever the
+                script called legend(...). Removed — CompositePlot's
+                internal block (gated on showLegend prop) is the single
+                source of truth now. */}
           </div>
         </div>
 

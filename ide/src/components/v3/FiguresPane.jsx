@@ -113,7 +113,17 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
           {renderFigure(figure, {
             width: size.w, height: size.h,
             viewport, setViewport,
-            minor: figure.grid === 'minor', fontScale: 0.9, interactive: false,
+            // Mirror the script's grid state into the preview so that
+            // `grid on` / `grid minor` actually reach the renderer.
+            // Pre-grid-split this branch read `figure.grid === 'minor'`,
+            // which silently never matched after the wire format
+            // switched to two separate "grid" / "gridMinor" fields and
+            // left every preview without a minor grid (and with a
+            // default-on major grid even when the script said
+            // `grid off`).
+            major: figure.grid === 'on',
+            minor: figure.gridMinor === 'on',
+            fontScale: 0.9, interactive: false,
           })}
         </div>
       </div>

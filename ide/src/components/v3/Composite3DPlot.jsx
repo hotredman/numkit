@@ -700,7 +700,8 @@ function buildPoints(positions, color, size) {
  * the camera orbits; that's a follow-up).
  */
 function buildAxesFrame(bbox, scl, opts) {
-  const { showGrid = true, showBox = true, fontScale = 1,
+  const { showGrid = true, showMinorGrid = false,
+          showBox = true, fontScale = 1,
           xLabel = '', yLabel = '', zLabel = '' } = opts || {};
 
   const group = new THREE.Group();
@@ -794,6 +795,42 @@ function buildAxesFrame(bbox, scl, opts) {
     }
   }
 
+  // Minor grid: 5 subdivisions between consecutive major ticks on
+  // each axis, drawn on the same three back faces as the major grid
+  // but with a fainter material. Mirrors MATLAB's `grid minor` look.
+  if (showMinorGrid) {
+    const minorMat = new THREE.LineBasicMaterial({
+      color: cssColorInt('--plot-grid-min', cssColorInt('--plot-grid', 0x484f58)),
+      transparent: true, opacity: 0.18,
+    });
+    const interpAxis = (ticks, axis) => {
+      const arr = [];
+      for (let i = 0; i + 1 < ticks.length; i++) {
+        const a = ticks[i], b = ticks[i + 1];
+        const step = (b - a) / 5;
+        for (let k = 1; k < 5; k++) arr.push(tickW(a + step * k, axis));
+      }
+      return arr;
+    };
+    const minX = interpAxis(xTicks, 'x');
+    const minY = interpAxis(yTicks, 'y');
+    const minZ = interpAxis(zTicks, 'z');
+    const seg = (verts) => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
+      group.add(new THREE.LineSegments(g, minorMat));
+    };
+    // X-Y floor (world-Y = -1)
+    for (const wx of minX) seg([wx, -1, -1, wx, -1, 1]);
+    for (const wz of minY) seg([-1, -1, wz, 1, -1, wz]);
+    // X-Z back wall (world-Z = -1)
+    for (const wx of minX) seg([wx, -1, -1, wx, 1, -1]);
+    for (const wy of minZ) seg([-1, wy, -1, 1, wy, -1]);
+    // Y-Z left wall (world-X = -1)
+    for (const wz of minY) seg([-1, -1, wz, -1, 1, wz]);
+    for (const wy of minZ) seg([-1, wy, -1, -1, wy, 1]);
+  }
+
   // Tick labels on the front-bottom edge for X, side-bottom for Y,
   // front-side for Z.
   const makeLabel = (text, x, y, z) => {
@@ -875,9 +912,17 @@ function Composite3DPlot({
   figure, width, height,
   fontScale = 1,
   interactive = true,
+  // Grid toggles forwarded by FigureWindow's toolbar buttons. Both
+  // accept booleans; falsy values fall back to the figure's own
+  // grid / gridMinor strings ("on" / "off"). Same prop names as
+  // CompositePlot uses for 2-D so the parent can pass one set.
+  major,
+  minor,
   viewport3d = null,         // optional override of figure.xlim/ylim/zlim
   onBBox = null,             // (bbox) => void — fired on each rebuild
 }, ref) {
+  const effectiveMajor = (typeof major === 'boolean') ? major : (figure?.grid === 'on');
+  const effectiveMinor = (typeof minor === 'boolean') ? minor : (figure?.gridMinor === 'on');
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
   const labelLayerRef = useRef(null);
@@ -1085,10 +1130,14 @@ function Composite3DPlot({
     c.bbox = bbox;
     c.scl  = scl;
 
-    // Axes frame.
-    const showGrid = figure.grid !== '' && figure.grid !== 'off';
+    // Axes frame. effectiveMajor / effectiveMinor mirror the
+    // toolbar toggles (FigureWindow forwards them through props);
+    // when the parent doesn't override they fall back to the
+    // figure.grid / figure.gridMinor strings.
     const { group: axesFrame } = buildAxesFrame(bbox, scl, {
-      showGrid, showBox: true, fontScale,
+      showGrid: effectiveMajor,
+      showMinorGrid: effectiveMinor,
+      showBox: true, fontScale,
       xLabel: figure.xLabel || '',
       yLabel: figure.yLabel || '',
       zLabel: figure.zLabel || '',
@@ -1159,7 +1208,7 @@ function Composite3DPlot({
     c.controls.enableRotate = figure.rotate3d !== 'off';
     c.controls.enablePan    = figure.pan3d    !== 'off';
     c.controls.enableZoom   = figure.zoom3d   !== 'off';
-  }, [figure, fontScale, viewport3d]);
+  }, [figure, fontScale, viewport3d, effectiveMajor, effectiveMinor]);
 
   useEffect(() => {
     const c = ctxRef.current;

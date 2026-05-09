@@ -1227,10 +1227,12 @@ export default function CompositePlot({
       )}
 
       {/* Legend — only rendered when the user explicitly called
-          legend(...) (figure.legend is non-empty) OR set a Location.
-          We deliberately don't auto-show on default series names like
-          "series 1" — MATLAB also requires an explicit legend call. */}
+          legend(...) (figure.legend is non-empty) OR set a Location,
+          AND the toolbar toggle hasn't switched it off. We don't
+          auto-show on default series names like "series 1" — MATLAB
+          also requires an explicit legend call. */}
       {(() => {
+        if (showLegend === false) return null;
         const userAsked = (figure.legend && figure.legend.length > 0)
                        || (figure.legendLocation && figure.legendLocation !== 'none');
         if (!userAsked || seriesLayers.length === 0) return null;
