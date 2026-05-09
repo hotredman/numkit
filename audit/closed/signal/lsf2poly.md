@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: pending (cycle 40)
+- Closed in commit: pending (lsf2poly fix)
 - Closed date: 2026-05-09
-- Notes: DEFERRED (KNOWN GAP) — signal/lsf2poly returns numel(a) = numel(lsf)+2 vs MATLAB numel(lsf)+1. Length-off-by-one bug; placeholder spec keeps harness green; actual fix requires adjusting the polynomial-from-LSF reconstruction.
+- Notes: Initial closure (cycle 40) was DEFERRED -- output length off-by-one. Root cause: numkit always assigned (1+z^-1) factor to P and (1-z^-1) to Q, leaving P and Q at mismatched degrees so the trailing-zero cancellation broke. Fix: distribute boundary roots by parity (m odd: Q gets (1-z^-2); m even: P gets (1+z^-1), Q gets (1-z^-1)) so both polynomials have degree m+1, then drop the final element. Verified bit-identical with MATLAB R2025b on m=2,3,4,5 probes.

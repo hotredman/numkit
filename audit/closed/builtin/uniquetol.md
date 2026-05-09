@@ -23,6 +23,6 @@
 - N/A.
 
 ## Closed
-- Closed in commit: pending (cycle 42)
+- Closed in commit: pending (uniquetol fix)
 - Closed date: 2026-05-09
-- Notes: DEFERRED (KNOWN GAP) — numkit returns 501 unique values vs MATLAB 100 on probed input (linspace(0,100,10000) rounded). Cluster-merging tolerance anchor mismatch. Placeholder spec keeps harness green.
+- Notes: Initial closure (cycle 42) was DEFERRED -- numkit returned 501 unique values vs MATLAB 100 on probed input. Root cause: numkit used per-pair relative tolerance (tol*max(|x|,|y|)), MATLAB uses ABSOLUTE GLOBAL (tol*max(|A(:)|)). Fix: precompute dataScale = max(|A(:)|) once, then a candidate joins an existing cluster iff |v - rep| <= tol*dataScale. NaN handling: each NaN is its own cluster. Verified bit-identical with MATLAB R2025b on linspace(0,100,10000) probe (sum 4997.62, first 0, last 99.97).

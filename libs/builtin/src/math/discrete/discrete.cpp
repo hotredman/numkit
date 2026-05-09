@@ -908,24 +908,51 @@ Value ismembertol(std::pmr::memory_resource *mr,
 
 Value uniquetol(std::pmr::memory_resource *mr, const Value &x, double tol)
 {
+    // MATLAB convention (doc uniquetol): two values u and v are within
+    // tolerance iff
+    //     |u - v| <= tol * max(|A(:)|)
+    // i.e. an ABSOLUTE global tolerance scaled by the input's largest
+    // magnitude. Cluster representatives are kept in input/sort order
+    // and a candidate joins an existing cluster iff it is within
+    // tol*DS of the cluster's representative (i.e. the previously
+    // emitted unique value, since input is sorted ascending).
+    //
+    // Per-pair relative scaling (the previous numkit behaviour) gave
+    // wildly different cluster counts on dense inputs because the
+    // scale shifted with each comparison.
     const size_t n = x.numel();
     if (n == 0) return emptyRow(mr);
     ScratchArena scratch(mr);
     auto vals = ScratchVec<double>(&scratch);
     vals.reserve(n);
     const double *p = x.doubleData();
-    for (size_t i = 0; i < n; ++i) vals.push_back(p[i]);
+    double dataScale = 0.0;
+    for (size_t i = 0; i < n; ++i) {
+        vals.push_back(p[i]);
+        if (!std::isnan(p[i])) {
+            const double m = std::abs(p[i]);
+            if (m > dataScale) dataScale = m;
+        }
+    }
     std::sort(vals.begin(), vals.end(),
               [](double a, double b) {
                   if (std::isnan(b)) return !std::isnan(a);
                   if (std::isnan(a)) return false;
                   return a < b;
               });
+    const double tolAbs = tol * dataScale;
     auto out = ScratchVec<double>(&scratch);
     out.reserve(n);
     for (double v : vals) {
-        if (out.empty() || !nearlyEqualTol(out.back(), v, tol))
+        if (std::isnan(v)) {
+            // NaNs are unique to themselves -- always emit.
             out.push_back(v);
+            continue;
+        }
+        if (out.empty() || std::isnan(out.back())
+            || std::abs(v - out.back()) > tolAbs) {
+            out.push_back(v);
+        }
     }
     return rowFromVec(mr, out.data(), out.size());
 }

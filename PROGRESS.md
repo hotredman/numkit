@@ -570,7 +570,7 @@ together.
 | `setxor` | ✅ | 0.004 | 435.50× | 52.26× | OK | Sig: r = setxor(...). Set op. Spec-extension batch 2026-05-09. |
 | `union` | ✅ | 0.004 | 274.78× | 42.38× | OK | Sig: r = union(...). Set op. Spec-extension batch 2026-05-09. |
 | `unique` | ✅ | 0.005 | 108.67× | 44.30× | OK | Sig: r = unique(...). Spec-extension batch 2026-05-09. |
-| `uniquetol` | ✅ | 0.232 | 0.61× | 7.05× | MISMATCH | Sig: U = uniquetol(X, TOL). 10k with rounded vals. 100 iters. |
+| `uniquetol` | ✅ | 0.220 | 2.22× | 8.27× | OK | Sig: U = uniquetol(X, TOL). 10k with rounded vals. 10 iters. Fixed global tol*max(|A|) 2026-05-09. |
 
 ### Arithmetic
 
@@ -2499,7 +2499,7 @@ intentionally omitted — flat solver functions only.
 | `lar2rc` | ✅ | 0.004 | 62.91× |  | OK | Sig: k = lar2rc(g). Spec-extension batch 2026-05-09 (cycle 40). |
 | `levinson` | ✅ | 0.005 | 131.55× | 52.24× | OK | Sig: [a, e, k] = levinson(r, p). Spec-extension batch 2026-05-09 (cycle 40). |
 | `lpc` | ✅ | 0.005 | 257.03× | 82.61× | OK | Sig: r = lpc(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `lsf2poly` | ✅ | 0.005 | 315.06× |  | MISMATCH | Sig: a = lsf2poly(lsf). Spec-extension batch 2026-05-09 (cycle 40). |
+| `lsf2poly` | ✅ | 0.008 | 164.35× |  | OK | Sig: a = lsf2poly(lsf). Fixed parity-based factor distribution 2026-05-09. |
 | `poly2ac` | ✅ | 0.004 | 342.88× |  | OK | Sig: r = poly2ac(a, efinal). Spec-extension batch 2026-05-09 (cycle 40). |
 | `poly2lsf` | ✅ | 0.005 | 273.25× |  | OK | Sig: lsf = poly2lsf(a). Spec-extension batch 2026-05-09 (cycle 40). |
 | `poly2rc` | ✅ | 0.004 | 266.11× |  | OK | Sig: k = poly2rc(a). Spec-extension batch 2026-05-09 (cycle 40). |

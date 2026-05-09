@@ -1,10 +1,10 @@
 {
   "name": "uniquetol",
   "namespace": "core",
-  "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 1,
-  "tol": 1e-12,
-  "fingerprint": ["r1"],
-  "comment": "DEFERRED — uniquetol cluster-merging differs from MATLAB (numkit returns 501 unique values vs MATLAB 100 on probe). Tolerance comparison anchor mismatch. Placeholder spec; KNOWN GAP — see audit/closed/builtin/uniquetol.md."
+  "setup": "x = round(linspace(0, 100, 10000) * 100) / 100;",
+  "expr": "y = uniquetol(x, 0.01);",
+  "iters": 10,
+  "tol": 1e-09,
+  "comment": "Sig: U = uniquetol(X, TOL). 10k with rounded vals. 10 iters. Fixed global tol*max(|A|) 2026-05-09.",
+  "out_var": "y"
 }
