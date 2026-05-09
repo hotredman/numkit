@@ -2,11 +2,11 @@
   "name": "disp",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 5,
+  "expr": "disp(42); disp('text'); disp([1 2; 3 4]); r1 = 1;",
+  "iters": 1,
   "tol": 0,
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: disp(...). Spec-extension batch 2026-05-09."
+  "comment": "Side-effect smoke test (no-throw stdout probe). disp exercised on scalar / string / matrix; success = no exception. NOTE: numkit lacks evalc, so stdout cannot be captured for content-level parity; functionality validated by gtest."
 }

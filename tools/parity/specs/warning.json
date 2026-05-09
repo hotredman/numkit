@@ -2,11 +2,11 @@
   "name": "warning",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 5,
-  "tol": 1e-09,
+  "expr": "lastwarn(''); warning('off', 'all'); warning('TestId:w', 'msg'); [~, lid] = lastwarn(); warning('on', 'all'); r1 = double(strcmp(lid, 'TestId:w'));",
+  "iters": 1,
+  "tol": 0,
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: r = warning(...). Spec-extension batch 2026-05-09."
+  "comment": "Side-effect smoke test (warning() side-effect via lastwarn). warning('id', 'msg') sets lastwarn -- id is round-tripped through the warning subsystem."
 }
