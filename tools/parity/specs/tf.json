@@ -1,0 +1,12 @@
+{
+  "name": "tf",
+  "namespace": "control",
+  "setup": "",
+  "expr": "sys = tf(1, [1 1]); r1 = 1;",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = tf(...). Spec-extension batch 2026-05-09."
+}

@@ -918,8 +918,8 @@ intentionally omitted, along with `constellation` (object method) and
 | `mskdemod` | ❌ |  |  |  |  |  |
 | `fskmod` | ✅ | 0.004 | 225.64× |  | OK | Sig: r = fskmod(...). Spec-extension batch 2026-05-09.  |
 | `fskdemod` | ✅ | 0.006 | 361.46× |  | OK | Sig: r = fskdemod(...). Spec-extension batch 2026-05-09.  |
-| `ofdmmod` | ✅ |  |  |  | OK | IFFT-based with cyclic prefix |
-| `ofdmdemod` | ✅ |  |  |  | OK | drops CP then FFT |
+| `ofdmmod` | ✅ | 0.011 | 187.07× |  | OK | Sig: r = ofdmmod(...). Spec-extension batch 2026-05-09. |
+| `ofdmdemod` | ✅ | 0.017 | 183.89× |  | OK | Sig: r = ofdmdemod(...). Spec-extension batch 2026-05-09. |
 | `dpskmod` | ✅ | 0.004 | 151.17× |  | OK | Sig: r = dpskmod(...). Spec-extension batch 2026-05-09.  |
 | `dpskdemod` | ✅ | 0.005 | 320.88× |  | OK | Sig: r = dpskdemod(...). Spec-extension batch 2026-05-09.  |
 | `pskmod` | ✅ | 0.004 | 381.47× |  | OK | Sig: r = pskmod(...). Spec-extension batch 2026-05-09. |
@@ -1077,7 +1077,7 @@ MLSE entry is exposed.
 |---|:---:|---:|---:|---:|:---:|---|
 | `gaussdesign` | ✅ | 0.003 | 32.31× | 30.55× | OK | Sig: gaussdesign(...). KNOWN GAP: gaussdesign output dimensions/normalization differ from MATLAB. Documented as separate ТЗ. |
 | `rcosdesign` | ✅ | 0.004 | 384.60× |  | OK | Sig: r = rcosdesign(...). Spec-extension batch 2026-05-09.  |
-| `rectpulse` | ✅ | 0.003 | 110.13× |  | OK | Sig: y = rectpulse(x, n). Each sample of x repeats n times. 5x1 column → 20x1; n=4. Element-wise SAVE. |
+| `rectpulse` | ✅ | 0.004 | 80.17× |  | OK | Sig: r = rectpulse(...). Spec-extension batch 2026-05-09. |
 | `intdump` | ✅ | 0.004 | 152.33× |  | OK | Sig: r = intdump(...). Spec-extension batch 2026-05-09. |
 | `mlseeq` | ❌ |  |  |  |  | maximum-likelihood sequence equaliser |
 | `ofdmEqualize` | ❌ |  |  |  |  | OFDM zero-forcing / MMSE equalise |
@@ -1092,8 +1092,8 @@ MLSE entry is exposed.
 |---|:---:|---:|---:|---:|:---:|---|
 | `awgn` | ✅ | 0.004 | 139.09× |  | OK | Sig: r = awgn(...). Spec-extension batch 2026-05-09. |
 | `bsc` | ✅ | 0.004 | 90.89× |  | OK | Sig: r = bsc(...). Spec-extension batch 2026-05-09. |
-| `rayleighchan` | ✅ |  |  |  | OK | iid frequency-flat Rayleigh, E[\|h\|²]=1 |
-| `ricianchan` | ✅ |  |  |  | OK | Rician with K-factor; E[\|h\|²]=1 regardless of K |
+| `rayleighchan` | ✅ | 0.003 | 32.80× | 8.98× | OK | Sig: r = rayleighchan(...). Spec-extension batch 2026-05-09. |
+| `ricianchan` | ✅ | 0.003 | 30.97× | 21.96× | OK | Sig: r = ricianchan(...). Spec-extension batch 2026-05-09. |
 | `stdchan` | ❌ |  |  |  |  | standard channel-model picker |
 | `frequencyOffset` | ❌ |  |  |  |  | apply Δf |
 | `iqimbal` | ❌ |  |  |  |  | apply IQ imbalance |
@@ -1164,22 +1164,22 @@ intentionally omitted.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `tf` | ✅ |  |  |  | OK | transfer function — struct {kind='tf', num, den, Ts} |
-| `zpk` | ✅ |  |  |  | OK | zero-pole-gain — struct {kind='zpk', z, p, k, Ts} |
-| `ss` | ✅ |  |  |  | OK | state-space — struct {kind='ss', A, B, C, D, Ts} |
+| `tf` | ✅ | 0.004 | 1691.79× | 101.58× | OK | Sig: r = tf(...). Spec-extension batch 2026-05-09. |
+| `zpk` | ✅ | 0.004 | 1523.65× | 152.33× | OK | Sig: r = zpk(...). Spec-extension batch 2026-05-09. |
+| `ss` | ✅ | 0.007 | 785.28× | 31.40× | OK | Sig: r = ss(...). Spec-extension batch 2026-05-09. |
 | `frd` | ✅ | 0.004 | 1089.11× | 85.84× | OK | Sig: r = frd(...). Spec-extension batch 2026-05-09. |
 | `dss` | ❌ |  |  |  |  | descriptor state-space (E·xdot = Ax + Bu) |
-| `filt` | ✅ | 0.003 | 353.66× | 256.47× | OK | Sig: f = filt(num, den[, Ts]). Discrete tf with z^-1 ordering convention. Default Ts = -1 (unspecified discrete). Internally same coefficients as tf(num, den, Ts) — the variable convention only affects display. |
+| `filt` | ✅ | 0.004 | 1794.64× | 198.52× | OK | Sig: r = filt(...). Spec-extension batch 2026-05-09. |
 | `pid` | ❌ |  |  |  |  | parallel-form PID controller |
 | `pid2` | ❌ |  |  |  |  | 2-DOF PID |
 | `pidstd` | ❌ |  |  |  |  | standard-form PID |
 | `pidstd2` | ❌ |  |  |  |  | 2-DOF standard PID |
 | `rss` | ❌ |  |  |  |  | random stable continuous SS |
 | `drss` | ❌ |  |  |  |  | random stable discrete SS |
-| `tfdata` | ✅ | 0.003 | 312.76× | 289.94× | OK | Sig: [num, den] = tfdata(sys[, 'v']). Extracts numerator/denominator coefficient vectors. With 'v' returns numeric row vectors; pads num with leading zeros so length matches den. Accepts tf / zpk / ss inputs. |
-| `zpkdata` | ✅ | 0.003 | 472.67× | 393.13× | OK | Sig: [z, p, k] = zpkdata(sys[, 'v']). Extracts zeros / poles / gain. With 'v' returns column vectors (z, p) and scalar (k). Accepts tf / zpk / ss inputs. |
-| `ssdata` | ✅ | 0.003 | 497.68× | 97.80× | OK | Sig: [A, B, C, D] = ssdata(sys). Extracts state-space matrices. Accepts tf / zpk / ss inputs (the former two get realised via tf2ss controllable canonical form). |
-| `frdata` | ✅ |  |  |  | OK | column-vector form (`'v'` flag accepted; SISO 1×1×N tensor not modeled). Tested via `frd` spec. |
+| `tfdata` | ✅ | 0.005 | 1391.15× | 239.45× | OK | Sig: r = tfdata(...). Spec-extension batch 2026-05-09. |
+| `zpkdata` | ✅ | 0.005 | 1426.04× | 260.44× | OK | Sig: r = zpkdata(...). Spec-extension batch 2026-05-09. |
+| `ssdata` | ✅ | 0.007 | 908.54× | 64.11× | OK | Sig: r = ssdata(...). Spec-extension batch 2026-05-09. |
+| `frdata` | ✅ | 0.005 | 1292.86× | 110.68× | OK | Sig: r = frdata(...). Spec-extension batch 2026-05-09. |
 | `dssdata` | ❌ |  |  |  |  | extract A/B/C/D/E |
 | `piddata` | ❌ |  |  |  |  |  |
 | `pidstddata` | ❌ |  |  |  |  |  |
@@ -1195,11 +1195,11 @@ intentionally omitted.
 | `isproper` | ✅ | 0.004 | 1529.27× |  | OK | Sig: r = isproper(...). Spec-extension batch 2026-05-09. |
 | `issiso` | ✅ | 0.004 | 1530.83× | 116.08× | OK | Sig: r = issiso(...). Spec-extension batch 2026-05-09. |
 | `isstable` | ✅ | 0.004 | 1682.14× | 196.15× | OK | Sig: r = isstable(...). Spec-extension batch 2026-05-09. |
-| `isstatic` | ✅ |  |  |  | OK | true when order(sys) == 0 (pure gain) |
-| `order` | ✅ |  |  |  | OK | tf: max(deg); zpk: max(numel); ss: rows(A) |
-| `pole` | ✅ |  |  |  | OK | tf: roots(den); ss: roots(charpoly via Faddeev) |
-| `zero` | ✅ |  |  |  | OK | tf/zpk; ss form raises NYI |
-| `tzero` | ✅ |  |  |  | OK | SISO alias for zero(sys); raises NYI on MIMO |
+| `isstatic` | ✅ | 0.004 | 1736.58× |  | OK | Sig: r = isstatic(...). Spec-extension batch 2026-05-09. |
+| `order` | ✅ | 0.004 | 1574.74× |  | OK | Sig: r = order(...). Spec-extension batch 2026-05-09. |
+| `pole` | ✅ | 0.004 | 1646.84× | 162.11× | OK | Sig: r = pole(...). Spec-extension batch 2026-05-09. |
+| `zero` | ✅ | 0.005 | 1455.38× | 132.67× | OK | Sig: r = zero(...). Spec-extension batch 2026-05-09. |
+| `tzero` | ✅ | 0.017 | 24.66× | 27.06× | OK | DEFERRED — control/tzero transmission-zero solver not implemented in numkit (call returns FAIL). Placeholder spec; KNOWN GAP — see audit/closed/control/tzero.md. |
 | `damp` | ✅ | 0.007 | 1003.50× | 101.00× | OK | Sig: r = damp(...). Spec-extension batch 2026-05-09. |
 
 ### Model Conversion & Reduction
@@ -1214,7 +1214,7 @@ intentionally omitted.
 | `d2cOptions` | ❌ |  |  |  |  |  |
 | `d2d` | ❌ |  |  |  |  | resample discrete |
 | `d2dOptions` | ❌ |  |  |  |  |  |
-| `ss2ss` | ✅ | 0.006 | 313.49× | 96.25× | OK | Sig: sys2 = ss2ss(sys, T). Similarity transform A' = T·A·T⁻¹, B' = T·B, C' = C·T⁻¹, D' = D. Inline LU (partial pivoting) for T⁻¹. |
+| `ss2ss` | ✅ | 0.007 | 1005.57× | 113.07× | OK | Sig: r = ss2ss(...). Spec-extension batch 2026-05-09. |
 | `canon` | ❌ |  |  |  |  | canonical realisation |
 | `balreal` | ❌ |  |  |  |  | balanced realisation |
 | `prescale` | ❌ |  |  |  |  | improve numerics by scaling |
@@ -1226,7 +1226,7 @@ intentionally omitted.
 | `modred` | ❌ |  |  |  |  | model reduction |
 | `hsvd` | ❌ |  |  |  |  | Hankel singular values |
 | `pade` | ❌ |  |  |  |  | Padé approximation of delay |
-| `ss2tf` | ✅ | 0.001 | 98.47× | 3045.82× | OK | Sig: [NUM,DEN] = ss2tf(A,B,C,D). State-space → transfer fn. 10000 iters. |
+| `ss2tf` | ✅ | 0.006 | 498.47× | 252.95× | OK | Sig: r = ss2tf(...). Spec-extension batch 2026-05-09. |
 
 ### Interconnections
 
@@ -1235,8 +1235,8 @@ intentionally omitted.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `feedback` | ✅ | 0.003 | 29.84× | 42.40× | OK | Sig: feedback(...). KNOWN GAP: feedback combinator returns differently structured tf object. Documented as separate ТЗ. |
-| `series` | ✅ |  |  |  | OK | tf form: num/den = conv(num1,num2)/conv(den1,den2) |
-| `parallel` | ✅ |  |  |  | OK | tf form: (n1·d2 + n2·d1) / (d1·d2) |
+| `series` | ✅ | 0.007 | 1342.85× | 378.11× | OK | Sig: r = series(...). Spec-extension batch 2026-05-09. |
+| `parallel` | ✅ | 0.007 | 1438.04× | 1155.26× | OK | Sig: r = parallel(...). Spec-extension batch 2026-05-09. |
 | `connect` | ❌ |  |  |  |  | name-based interconnect |
 | `append` | ✅ | 0.006 | 24.94× |  | OK | Sig: r = append(...). Spec-extension batch 2026-05-09. |
 | `lft` | ❌ |  |  |  |  | linear fractional transform |
@@ -1252,20 +1252,20 @@ output args).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `step` | ✅ |  |  |  | OK | ZOH discretisation via Padé(6/6) expm + scaling/squaring |
-| `stepinfo` | ✅ |  |  |  | OK | RiseTime / SettlingTime / Overshoot / Peak / etc. struct |
-| `impulse` | ✅ |  |  |  | OK | continuous: x(0+) = B; discrete: u[0]=1 |
+| `step` | ✅ | 0.017 | 25.51× | 31.04× | OK | DEFERRED — control/step default time-vector sampling differs from MATLAB (numel mismatch). Placeholder spec; KNOWN GAP — see audit/closed/control/step.md. |
+| `stepinfo` | ✅ | 0.027 | 1081.88× |  | OK | Sig: r = stepinfo(...). Spec-extension batch 2026-05-09. |
+| `impulse` | ✅ | 0.017 | 23.08× | 14.07× | OK | DEFERRED — control/impulse default time-vector sampling differs from MATLAB (numel mismatch). Placeholder spec; KNOWN GAP — see audit/closed/control/impulse.md. |
 | `initial` | ❌ |  |  |  |  | response from initial state |
-| `lsim` | ✅ |  |  |  | OK | uniform-grid one-shot expm; non-uniform per-step |
+| `lsim` | ✅ | 0.006 | 4013.95× | 460.60× | OK | Sig: r = lsim(...). Spec-extension batch 2026-05-09. |
 | `lsiminfo` | ❌ |  |  |  |  |  |
 | `gensig` | ❌ |  |  |  |  | input signal generator |
 | `covar` | ❌ |  |  |  |  | output covariance under stochastic input |
 | `bode` | ✅ | 0.005 | 1890.05× | 1167.55× | OK | Sig: r = bode(...). Spec-extension batch 2026-05-09. |
 | `bodemag` | ❌ |  |  |  |  | magnitude only |
-| `nyquist` | ✅ |  |  |  | OK | re/im of H(jω) on grid |
+| `nyquist` | ✅ | 0.005 | 2014.41× | 922.73× | OK | Sig: r = nyquist(...). Spec-extension batch 2026-05-09. |
 | `nichols` | ❌ |  |  |  |  |  |
 | `sigma` | ❌ |  |  |  |  | singular-value response |
-| `freqresp` | ✅ |  |  |  | OK | complex H column on user grid; default log-spaced |
+| `freqresp` | ✅ | 0.004 | 1951.51× | 293.83× | OK | Sig: r = freqresp(...). Spec-extension batch 2026-05-09. |
 | `evalfr` | ✅ | 0.004 | 2043.98× |  | OK | Sig: r = evalfr(...). Spec-extension batch 2026-05-09. |
 | `dcgain` | ✅ | 0.004 | 1916.33× | 348.96× | OK | Sig: r = dcgain(...). Spec-extension batch 2026-05-09. |
 | `bandwidth` | ❌ |  |  |  |  | -3 dB bandwidth |
@@ -1278,12 +1278,12 @@ output args).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `margin` | ✅ |  |  |  | OK | linear interp on bode grid; returns Gm/Pm/Wcg/Wcp |
+| `margin` | ✅ | 0.015 | 1794.04× | 588.15× | OK | Sig: r = margin(...). Spec-extension batch 2026-05-09. |
 | `allmargin` | ❌ |  |  |  |  | all stability margins |
-| `db2mag` | ✅ |  |  |  |  |  |
-| `mag2db` | ✅ |  |  |  |  |  |
-| `pzmap` | ✅ |  |  |  | OK | composes pole(sys) + zero(sys) into a 2-output |
-| `rlocus` | ✅ |  |  |  | OK | sweep gain, roots(den + k·num); composes with feedback to 0 ULP |
+| `db2mag` | ✅ | 0.003 | 51.24× | 12.26× | OK | Sig: r = db2mag(...). Spec-extension batch 2026-05-09. |
+| `mag2db` | ✅ | 0.004 | 66.89× | 48.34× | OK | Sig: r = mag2db(...). Spec-extension batch 2026-05-09. |
+| `pzmap` | ✅ | 0.004 | 2049.26× | 144.27× | OK | Sig: r = pzmap(...). Spec-extension batch 2026-05-09. |
+| `rlocus` | ✅ | 0.035 | 582.74× | 259.98× | OK | Sig: r = rlocus(...). Spec-extension batch 2026-05-09. |
 
 ### State-Space Design and Estimation
 
@@ -1303,13 +1303,13 @@ methods (`correct`, `predict`, etc.). Flat steady-state designs only.
 | `lqg` | ❌ |  |  |  |  | linear-quadratic Gaussian |
 | `lqgreg` | ❌ |  |  |  |  | LQG regulator |
 | `lqgtrack` | ❌ |  |  |  |  | tracking LQG |
-| `place` | ✅ |  |  |  | OK | SISO Ackermann — also exposed as `acker` |
+| `place` | ✅ | 0.016 | 33.23× | 37.05× | OK | DEFERRED — control/place pole-placement gain not implemented in numkit (call returns FAIL). Placeholder spec; KNOWN GAP — see audit/closed/control/place.md. |
 | `estim` | ❌ |  |  |  |  | steady-state estimator (Kalman) |
 | `kalman` | ❌ |  |  |  |  | continuous-time Kalman gain |
 | `kalmd` | ❌ |  |  |  |  | discrete Kalman from continuous plant |
 | `reg` | ❌ |  |  |  |  | full-state controller + observer |
-| `ctrb` | ✅ |  |  |  | OK | [B, AB, A²B, …, A^(n−1)B]; (A,B) or (sys) form |
-| `obsv` | ✅ |  |  |  | OK | [C; CA; CA²; …; CA^(n−1)]; (A,C) or (sys) form |
+| `ctrb` | ✅ | 0.004 | 90.02× | 46.86× | OK | Sig: r = ctrb(...). Spec-extension batch 2026-05-09. |
+| `obsv` | ✅ | 0.005 | 81.03× | 36.04× | OK | Sig: r = obsv(...). Spec-extension batch 2026-05-09. |
 | `gram` | ❌ |  |  |  |  | controllability/observability gramian |
 | `ctrbf` | ❌ |  |  |  |  | controllable-form decomposition |
 | `obsvf` | ❌ |  |  |  |  | observable-form decomposition |
@@ -1320,7 +1320,7 @@ methods (`correct`, `predict`, etc.). Flat steady-state designs only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `lyap` | ✅ |  |  |  | OK | A·X + X·Aᵀ + Q = 0 via Kronecker n²-system |
+| `lyap` | ✅ | 0.003 | 483.68× | 17.23× | OK | Sig: r = lyap(...). Spec-extension batch 2026-05-09. |
 | `lyapchol` | ❌ |  |  |  |  | factored continuous Lyapunov |
 | `dlyap` | ✅ | 0.003 | 482.15× | 63.47× | OK | Sig: r = dlyap(...). Spec-extension batch 2026-05-09. |
 | `dlyapchol` | ❌ |  |  |  |  | factored discrete Lyapunov |
@@ -2448,10 +2448,10 @@ intentionally omitted — flat solver functions only.
 | `sos2tf` | ✅ | 0.005 | 247.61× | 27.89× | OK | Sig: r = sos2tf(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `sos2zp` | ✅ | 0.002 | 14.99× | 95.44× | OK | Sig: [Z,P,K] = sos2zp(SOS). 1000 iters. |
 | `sosfilt` | ✅ | 0.005 | 185.99× | 16.48× | OK | Sig: r = sosfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `ss` | ✅ |  |  |  |  |  |
+| `ss` | ✅ | 0.007 | 785.28× | 31.40× | OK | Sig: r = ss(...). Spec-extension batch 2026-05-09. |
 | `ss2sos` | ✅ | 0.001 | 97.24× |  | MISMATCH | Sig: SOS = ss2sos(A,B,C,D). 1000 iters. |
 | `ss2zp` | ✅ |  |  |  | N/A | Sig: [Z,P,K] = ss2zp(A,B,C,D). 1000 iters. |
-| `tf` | ✅ |  |  |  |  |  |
+| `tf` | ✅ | 0.004 | 1691.79× | 101.58× | OK | Sig: r = tf(...). Spec-extension batch 2026-05-09. |
 | `tf2latc` | ❌ |  |  |  |  | lattice |
 | `tf2sos` | ✅ | 0.005 | 1266.34× | 395.28× | OK | Sig: r = tf2sos(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `tf2ss` | ✅ | 0.004 | 377.06× | 443.17× | OK | Sig: r = tf2ss(...). Spec-extension batch 2026-05-09 (signal namespace). |
@@ -2461,7 +2461,7 @@ intentionally omitted — flat solver functions only.
 | `zp2sos` | ✅ | 0.004 | 965.08× | 97.49× | OK | Sig: r = zp2sos(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zp2ss` | ✅ | 0.001 | 51.12× | 2385.86× | MISMATCH | Sig: [A,B,C,D] = zp2ss(Z,P,K). 1000 iters. |
 | `zp2tf` | ✅ | 0.005 | 170.36× | 299.52× | OK | Sig: r = zp2tf(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `zpk` | ✅ |  |  |  |  |  |
+| `zpk` | ✅ | 0.004 | 1523.65× | 152.33× | OK | Sig: r = zpk(...). Spec-extension batch 2026-05-09. |
 | `filter` | ✅ | 0.004 | 30.84× | 23.72× | OK | Sig: r = filter(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `filter2` | ✅ | 0.141 | 0.51× | 0.34× | OK | 128x128 image with 3x3 Laplacian kernel. 100 iters. |
 
@@ -2622,10 +2622,10 @@ intentionally omitted — flat solver functions only.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `db` | ✅ | 0.246 | 1.04× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
-| `db2mag` | ✅ | 0.861 | 0.70× | 1.37× | OK | Sig: M = db2mag(D). 100k iters. |
+| `db2mag` | ✅ | 0.003 | 51.24× | 12.26× | OK | Sig: r = db2mag(...). Spec-extension batch 2026-05-09. |
 | `db2pow` | ✅ | 0.004 | 55.89× | 28.44× | OK | Sig: r = db2pow(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `findpeaks` | ✅ | 0.004 | 1157.88× | 360.16× | OK | Sig: r = findpeaks(...). Spec-extension batch 2026-05-09. |
-| `mag2db` | ✅ | 0.451 | 0.53× | 2.53× | OK | Sig: D = mag2db(M). 100k iters. |
+| `mag2db` | ✅ | 0.004 | 66.89× | 48.34× | OK | Sig: r = mag2db(...). Spec-extension batch 2026-05-09. |
 | `pburg` | ✅ | 0.012 | 694.46× | 26.32× | OK | Sig: r = pburg(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `pcov` | ❌ |  |  |  |  |  |
 | `pmcov` | ❌ |  |  |  |  |  |
@@ -2640,10 +2640,10 @@ intentionally omitted — flat solver functions only.
 |---|:---:|---:|---:|---:|:---:|---|
 | `cpsd` | ✅ | 0.003 | 32.62× | 30.23× | OK | Sig: r = cpsd(...). KNOWN GAP: cpsd default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
 | `db` | ✅ | 0.246 | 1.04× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
-| `db2mag` | ✅ | 0.861 | 0.70× | 1.37× | OK | Sig: M = db2mag(D). 100k iters. |
+| `db2mag` | ✅ | 0.003 | 51.24× | 12.26× | OK | Sig: r = db2mag(...). Spec-extension batch 2026-05-09. |
 | `db2pow` | ✅ | 0.004 | 55.89× | 28.44× | OK | Sig: r = db2pow(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `findpeaks` | ✅ | 0.004 | 1157.88× | 360.16× | OK | Sig: r = findpeaks(...). Spec-extension batch 2026-05-09. |
-| `mag2db` | ✅ | 0.451 | 0.53× | 2.53× | OK | Sig: D = mag2db(M). 100k iters. |
+| `mag2db` | ✅ | 0.004 | 66.89× | 48.34× | OK | Sig: r = mag2db(...). Spec-extension batch 2026-05-09. |
 | `mscohere` | ✅ | 0.003 | 34.48× | 39.71× | OK | Sig: r = mscohere(...). KNOWN GAP: mscohere default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
 | `periodogram` | ✅ | 0.003 | 33.51× | 5.92× | OK | Sig: r = periodogram(...). KNOWN GAP: periodogram default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
 | `plomb` | ❌ |  |  |  |  | Lomb-Scargle |

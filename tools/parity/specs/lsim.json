@@ -1,0 +1,12 @@
+{
+  "name": "lsim",
+  "namespace": "control",
+  "setup": "",
+  "expr": "y = lsim(tf(1, [1 1]), ones(1, 10), 0:0.1:0.9); r1 = double(numel(y));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = lsim(...). Spec-extension batch 2026-05-09."
+}

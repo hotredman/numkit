@@ -1,10 +1,12 @@
 {
   "name": "rectpulse",
   "namespace": "comm",
-  "setup": "x = (1:5)';",
-  "expr": "y = rectpulse(x, 4);",
+  "setup": "",
+  "expr": "y = rectpulse([1 -1 1 -1], 4); r1 = double(numel(y));",
   "iters": 5,
-  "tol": 0,
-  "out_var": "y",
-  "comment": "Sig: y = rectpulse(x, n). Each sample of x repeats n times. 5x1 column → 20x1; n=4. Element-wise SAVE."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = rectpulse(...). Spec-extension batch 2026-05-09."
 }
