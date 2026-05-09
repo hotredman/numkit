@@ -22,6 +22,7 @@
 #include <string>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 namespace numkit::stats {
 
@@ -284,5 +285,15 @@ cholcov(std::pmr::memory_resource *mr, const Value &SIGMA);
 // Numeric input only for v1; cell/string deferred.
 std::tuple<Value, double, double>
 crosstab(std::pmr::memory_resource *mr, const Value &x, const Value *y_opt);
+
+// ── grpstats ───────────────────────────────────────────────────────────
+// Per-group statistics. `fn_names` is empty for default (mean) or a
+// list of one or more aggregator names from {mean, std, sum, numel,
+// min, max, var, sem}. Returns one Value per fn name, each (Ng × C)
+// where Ng is the number of unique non-NaN groups and C is the
+// number of columns of X.
+std::vector<Value>
+grpstats(std::pmr::memory_resource *mr, const Value &X, const Value &group,
+         const std::vector<std::string> &fn_names);
 
 } // namespace numkit::stats
