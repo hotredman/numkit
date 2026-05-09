@@ -230,13 +230,63 @@ function datasetToLayer(d, palette_idx, ctx) {
   const supported = ['line', 'plot', 'scatter', 'stem', 'stairs',
                      'bar', 'hist', 'semilogx', 'semilogy', 'loglog',
                      'errorbar', 'barh', 'area', 'quiver',
-                     'plot3', 'scatter3', 'polygon'];
+                     'plot3', 'scatter3', 'polygon', 'surf'];
   if (!supported.includes(t)) return null;
+
   // null is the wire-format "break" marker (JSON forbids NaN). Map it
   // back to NaN here so the line renderer's Number.isFinite() check
   // treats it as a polyline break instead of coercing to 0 (which
-  // would join unrelated segments through the origin).
+  // would join unrelated segments through the origin). Declared
+  // EARLY because the surf branch below uses it — putting it after
+  // surf's `if` block triggers a TDZ "Cannot access 'a' before
+  // initialization" crash when surf data lands.
   const numOrBreak = (v) => (v === null ? NaN : Number(v));
+
+  // surf — short-circuit. C++ emits one DatasetInfo with X (column
+  // vector), Y (row vector), and Z as a 2-D nested matrix. Nulls in
+  // Z represent NaN values. Render path (Composite3DPlot, mode=
+  // 'surface') will rebuild a triangle mesh from this; until then
+  // (Etap 2 step 3) the renderer falls back to a plain line draw of
+  // the row sweeps so something is visible.
+  if (t === 'surf') {
+    const Xs = Array.isArray(d.x) ? d.x.map(numOrBreak) : [];
+    const Ys = Array.isArray(d.y) ? d.y.map(numOrBreak) : [];
+    const Zmat = (Array.isArray(d.z) && Array.isArray(d.z[0]))
+                 ? d.z.map((row) => row.map(numOrBreak))
+                 : null;
+    if (!Zmat || Zmat.length === 0 || !Xs.length || !Ys.length) return null;
+    // Flat z[] for bbox + has3D detection. Length == Xs * Ys; xRaw /
+    // yRaw expanded to match so computeBBox + buildVertices walk the
+    // full grid. Renderer's `mode === 'surface'` branch consumes
+    // surfaceGrid and ignores xRaw/yRaw/z.
+    const flatX = [];
+    const flatY = [];
+    const flatZ = [];
+    for (let r = 0; r < Ys.length; r++) {
+      for (let c = 0; c < Xs.length; c++) {
+        flatX.push(Xs[c]);
+        flatY.push(Ys[r]);
+        flatZ.push(Zmat[r] ? Zmat[r][c] : NaN);
+      }
+    }
+    return {
+      kind: 'series',
+      mode: 'surface',
+      name: d.label || `surf ${palette_idx + 1}`,
+      x: flatX,                    // for any 2-D fallback
+      y: flatY,
+      xRaw: flatX,
+      yRaw: flatY,
+      z: flatZ,
+      surfaceGrid: { Xs, Ys, Z: Zmat },
+      color: '#4a90b8',
+      width: 1,
+      size: 3,
+      opacity: 1,
+      yside: 'left',
+      fillOpacity: 1,
+    };
+  }
   const x = Array.isArray(d.x) ? d.x.map(numOrBreak) : [];
   const y = Array.isArray(d.y) ? d.y.map(numOrBreak) : [];
   let mode = 'line';
