@@ -527,7 +527,7 @@ together.
 | `table2timetable` | ❌ |  |  |  |  |  |
 | `tail` | ✅ | 0.000 | 71.40× |  | OK | Sig: Y = tail(X, K). Last 100 elements. 10000 iters. |
 | `timetable2table` | ❌ |  |  |  |  |  |
-| `topkrows` | ❌ |  |  |  |  |  |
+| `topkrows` | ❌ | 0.003 | 111.32× |  | OK | Sig: B = topkrows(A, k). Top k rows in lex-descending order across all columns (default direction). Bit-identical with MATLAB R2025b on probed 5×2 input. Note: column-specific sort `topkrows(A, k, col)` and direction flag deferred. |
 | `union` | ✅ | 0.004 | 274.78× | 42.38× | OK | Sig: r = union(...). Set op. Spec-extension batch 2026-05-09. |
 | `unique` | ✅ | 0.005 | 108.67× | 44.30× | OK | Sig: r = unique(...). Spec-extension batch 2026-05-09. |
 | `unstack` | ❌ |  |  |  |  |  |
@@ -2105,7 +2105,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `balance` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `bandwidth` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `cdf2rdf` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `chol` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `chol` | ❌ | 0.003 | 43.21× | 41.40× | OK | Sig: R = chol(A). Cholesky factorisation of symmetric positive-definite A; returns upper R with R'*R = A. Bit-identical with MATLAB R2025b. |
 | `cholupdate` | ❌ |  |  |  |  |  |
 | `cond` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `condeig` | ❌ |  |  |  |  | **deferred — libs/linalg** |
@@ -2113,7 +2113,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `cross` | ✅ | 0.004 | 32.03× | 39.44× | OK | Sig: r = cross(...). Spec-extension batch 2026-05-09. |
 | `ctranspose` | ✅ | 0.005 | 41.06× | 40.84× | OK | Sig: r = ctranspose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
 | `decomposition` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `det` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `det` | ❌ | 0.006 | 66.89× | 38.95× | OK | Sig: d = det(A). Determinant via LU with partial pivoting; sign tracked from row swaps. Singular A returns 0. Bit-identical with MATLAB R2025b on probed cases (2×2, triangular 3×3, identity 5×5, singular rank-1, magic(4)). |
 | `dot` | ✅ | 0.003 | 27.86× | 51.49× | OK | Sig: r = dot(...). Spec-extension batch 2026-05-09. |
 | `eig` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `eigs` | ❌ |  |  |  |  | **deferred — libs/linalg** |
@@ -2179,7 +2179,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `svds` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `svdsketch` | ❌ |  |  |  |  |  |
 | `sylvester` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `trace` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `trace` | ❌ | 0.006 |  | 36.06× | OK | Sig: t = trace(A). Sum of diagonal. Works for square + rectangular (uses min(rows,cols)). Bit-identical with MATLAB R2025b. |
 | `transpose` | ✅ | 0.005 | 40.93× | 29.43× | OK | Sig: r = transpose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
 | `tril` | ✅ | 0.004 | 30.22× | 45.66× | OK | Sig: r = tril(...). Spec-extension batch 2026-05-09. |
 | `triu` | ✅ | 0.005 | 29.88× | 33.49× | OK | Sig: r = triu(...). Spec-extension batch 2026-05-09. |
@@ -3575,3 +3575,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `wilkinson` | — | 0.005 | 111.01× | 53.26× | OK | Sig: W = wilkinson(N). Symmetric tridiagonal eigenvalue test matrix: subdiag/superdiag of ones, main diag = |(1:n)-(n+1)/2|. Bit-identical with MATLAB R2025b. |
 | `hadamard` | — | 0.008 | 48.40× | 32.41× | OK | Sig: H = hadamard(N). Sylvester construction: H_1=[1], H_{2k}=[Hk Hk; Hk -Hk]. Power-of-2 N only (1,2,4,8,16,...). MATLAB R2025b also accepts 12·2^k and 20·2^k via Paley constructions -- those are deferred (separate ТЗ). |
 | `rosser` | — | 0.003 | 55.23× | 20.60× | OK | Sig: R = rosser(). Hardcoded 8×8 Rosser eigenvalue test matrix. Bit-identical with MATLAB R2025b (constants directly transcribed from MATLAB output). |
+| `cputime` | — | 0.014 | 17.50× | 23.63× | OK | Side-effect smoke test (timer probe). cputime returns CPU seconds used by current process; only invariant we can test cross-engine is t >= 0 (absolute values differ between engines). Implemented via std::clock() / CLOCKS_PER_SEC. |

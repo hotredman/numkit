@@ -102,6 +102,26 @@ Value linsolve(std::pmr::memory_resource *mr, const Value &A, const Value &B);
 /// @throws Error if any page is non-square or singular.
 Value pageinv(std::pmr::memory_resource *mr, const Value &A);
 
+/// Sum of the diagonal elements of A. Equivalent to sum(diag(A)).
+/// Works for any 2D matrix (square or rectangular).
+Value trace(std::pmr::memory_resource *mr, const Value &A);
+
+/// Determinant via LU factorisation with partial pivoting.
+/// det(A) = sign(P) * prod(diag(U)) where A = P·L·U.
+/// @throws Error if A is non-square.
+Value det(std::pmr::memory_resource *mr, const Value &A);
+
+/// Cholesky factorisation of a symmetric positive-definite matrix A.
+/// Returns upper-triangular R such that R' * R = A
+/// (matches MATLAB R2025b's chol(A) default).
+/// @throws Error if A is non-square or not positive-definite.
+Value chol(std::pmr::memory_resource *mr, const Value &A);
+
+/// Top k rows of A in sort order. Default sort: descending by all
+/// columns lexicographically. Single-arg form (k only) sorts on every
+/// column. Single-arg form requires the matrix to have at least k rows.
+Value topkrows(std::pmr::memory_resource *mr, const Value &A, std::size_t k);
+
 // ── Shape queries ────────────────────────────────────────────────────
 /// size(x) returns a row vector of dimensions.
 /// @param asVector  when true, returns [rows, cols] or [rows, cols, pages].

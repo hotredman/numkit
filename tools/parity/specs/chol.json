@@ -1,0 +1,15 @@
+{
+  "name": "chol",
+  "namespace": "builtin",
+  "setup": "S = [4 12 -16; 12 37 -43; -16 -43 98]; S2 = [25 15 -5; 15 18 0; -5 0 11];",
+  "expr": "R = chol(S); R2 = chol(S2);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "R(1,1)", "R(1,2)", "R(1,3)", "R(2,2)", "R(2,3)", "R(3,3)",
+    "max(max(abs(R'*R - S)))",
+    "R2(1,1)", "R2(2,2)", "R2(3,3)",
+    "max(max(abs(R2'*R2 - S2)))"
+  ],
+  "comment": "Sig: R = chol(A). Cholesky factorisation of symmetric positive-definite A; returns upper R with R'*R = A. Bit-identical with MATLAB R2025b."
+}
