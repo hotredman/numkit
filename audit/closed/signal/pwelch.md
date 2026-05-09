@@ -20,9 +20,9 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (DSP-default batch)
 - Closed date: 2026-05-09
-- Notes: Signal batch 3 (filter impl + multirate + spectral, 20 funcs).
-  Bit-identical MATLAB R2025b on probed inputs (14 verified, 6 deferred).
-  See signal_batch3_test.cpp.
-  KNOWN GAP: numkit default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ.
+- Notes: Initial closure was DEFERRED with vague "NFFT/window default" note. Two fixes applied:
+  1. Added a fs parameter (default 2*pi, MATLAB convention) to all five Welch-family estimators (and periodogram). PSD scaling changed from 1/(winPower*nfft) to 1/(winPower*fs); the returned frequency vector now spans [0, fs/2] instead of [0, pi].
+  2. Default window length changed from min(nx, 256) to floor(nx/4.5) for pwelch / cpsd / mscohere / tfestimate / spectrogram -- this gives 8 Hamming-windowed segments with 50% overlap, matching MATLAB.
+Verified bit-identical with MATLAB R2025b on x = sin(2*pi*0.1*(0:255)) (sum(p)=20.29 for periodogram, 20.37 for pwelch/cpsd, mscohere=62.85, tfestimate=81.31, spectrogram returns 8 segments).

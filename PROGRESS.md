@@ -2562,7 +2562,7 @@ intentionally omitted — flat solver functions only.
 | `istftlayer` | ❌ |  |  |  |  |  |
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
 | `rceps` | ✅ | 0.004 | 219.75× | 54.32× | OK | Sig: r = rceps(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `spectrogram` | ✅ | 0.003 | 40.58× | 30.39× | OK | Sig: [s, f, t] = spectrogram(x). KNOWN GAP: numkit's default window/overlap/NFFT differ from MATLAB; output dimensions don't match. Documented as separate ТЗ. |
+| `spectrogram` | ✅ | 0.022 | 430.86× |  | OK | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |
 | `stft` | ❌ |  |  |  |  | short-time FFT |
 | `stftlayer` | ❌ |  |  |  |  |  |
 | `stftmag2sig` | ❌ |  |  |  |  |  |
@@ -2638,23 +2638,23 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `cpsd` | ✅ | 0.003 | 32.62× | 30.23× | OK | Sig: r = cpsd(...). KNOWN GAP: cpsd default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
+| `cpsd` | ✅ | 0.037 | 256.52× | 16.56× | OK | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |
 | `db` | ✅ | 0.249 | 1.01× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
 | `db2mag` | ✅ | 0.003 | 51.24× | 12.26× | OK | Sig: r = db2mag(...). Spec-extension batch 2026-05-09. |
 | `db2pow` | ✅ | 0.004 | 55.89× | 28.44× | OK | Sig: r = db2pow(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `findpeaks` | ✅ | 0.004 | 1157.88× | 360.16× | OK | Sig: r = findpeaks(...). Spec-extension batch 2026-05-09. |
 | `mag2db` | ✅ | 0.004 | 66.89× | 48.34× | OK | Sig: r = mag2db(...). Spec-extension batch 2026-05-09. |
-| `mscohere` | ✅ | 0.003 | 34.48× | 39.71× | OK | Sig: r = mscohere(...). KNOWN GAP: mscohere default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
-| `periodogram` | ✅ | 0.003 | 33.51× | 5.92× | OK | Sig: r = periodogram(...). KNOWN GAP: periodogram default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
+| `mscohere` | ✅ | 0.058 | 280.02× | 12.69× | OK | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |
+| `periodogram` | ✅ | 0.007 | 5415.98× | 35.86× | OK | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |
 | `plomb` | ❌ |  |  |  |  | Lomb-Scargle |
 | `pmtm` | ❌ |  |  |  |  | multi-taper |
 | `poctave` | ❌ |  |  |  |  |  |
 | `pow2db` | ✅ | 0.004 | 78.98× | 44.78× | OK | Sig: r = pow2db(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
-| `pwelch` | ✅ | 0.003 | 34.11× | 56.89× | OK | Sig: r = pwelch(...). KNOWN GAP: pwelch default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
+| `pwelch` | ✅ | 0.024 | 815.75× | 16.08× | OK | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |
 | `refinepeaks` | ❌ |  |  |  |  |  |
 | `spectralentropy` | ✅ | 0.021 | 515.08× |  | OK | Sig: e = spectralEntropy(x, fs). camelCase alias added 2026-05-09. |
-| `tfestimate` | ✅ | 0.003 | 35.28× | 39.24× | OK | Sig: r = tfestimate(...). KNOWN GAP: tfestimate default NFFT differs (numkit N vs MATLAB max(256, nextpow2(N))). Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
+| `tfestimate` | ✅ | 0.040 | 266.08× | 17.70× | OK | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |
 
 ### Spectral Measurements
 
@@ -2705,7 +2705,7 @@ intentionally omitted — flat solver functions only.
 | `spectralflatness` | ✅ | 0.016 | 430.50× |  | OK | Sig: f = spectralFlatness(x, fs). camelCase alias added 2026-05-09. |
 | `spectralkurtosis` | ✅ | 0.015 | 530.19× |  | OK | Sig: k = spectralKurtosis(x, fs). camelCase alias added 2026-05-09. |
 | `spectralskewness` | ✅ | 0.015 | 423.16× |  | OK | Sig: s = spectralSkewness(x, fs). camelCase alias added 2026-05-09. |
-| `spectrogram` | ✅ | 0.003 | 40.58× | 30.39× | OK | Sig: [s, f, t] = spectrogram(x). KNOWN GAP: numkit's default window/overlap/NFFT differ from MATLAB; output dimensions don't match. Documented as separate ТЗ. |
+| `spectrogram` | ✅ | 0.022 | 430.86× |  | OK | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |
 | `stft` | ❌ |  |  |  |  | short-time FFT |
 | `stftlayer` | ❌ |  |  |  |  |  |
 | `stftmag2sig` | ❌ |  |  |  |  |  |

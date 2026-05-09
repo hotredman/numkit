@@ -36,7 +36,8 @@ void fillHammingWindow(double *w, size_t N)
 } // anonymous namespace
 
 std::tuple<Value, Value>
-periodogram(std::pmr::memory_resource *mr, const Value &x, const Value &window, size_t nfft)
+periodogram(std::pmr::memory_resource *mr, const Value &x,
+            const Value &window, size_t nfft, double fs)
 {
     const size_t N = x.numel();
     const double *xd = x.doubleData();
@@ -66,14 +67,19 @@ periodogram(std::pmr::memory_resource *mr, const Value &x, const Value &window, 
     const size_t nOut = nfft / 2 + 1;
     auto Pxx = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
     auto F = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
-    const double scale = 1.0 / (winPower * nfft);
+    // MATLAB PSD scaling: Pxx[k] = |X[k]|^2 / (winPower * fs), with
+    // one-sided doubling for interior bins. With default fs = 2*pi
+    // this matches MATLAB periodogram(x) without explicit fs.
+    const double scale = 1.0 / (winPower * fs);
 
     for (size_t i = 0; i < nOut; ++i) {
         double mag2 = std::norm(buf[i]);
         if (i > 0 && i < nfft / 2)
             mag2 *= 2.0;
         Pxx.doubleDataMut()[i] = mag2 * scale;
-        F.doubleDataMut()[i] = M_PI * i / (nOut - 1);
+        // Frequency vector spans [0, fs/2] inclusive on a one-sided grid.
+        F.doubleDataMut()[i] = (fs / 2.0) * static_cast<double>(i)
+                               / static_cast<double>(nOut - 1);
     }
 
     return std::make_tuple(std::move(Pxx), std::move(F));
@@ -84,7 +90,8 @@ pwelch(std::pmr::memory_resource *mr,
        const Value &x,
        const Value &window,
        size_t noverlap,
-       size_t nfft)
+       size_t nfft,
+       double fs)
 {
     const size_t nx = x.numel();
     const double *xd = x.doubleData();
@@ -100,7 +107,13 @@ pwelch(std::pmr::memory_resource *mr,
         for (size_t i = 0; i < winLen; ++i)
             win[i] = w[i];
     } else {
-        winLen = std::min(nx, static_cast<size_t>(256));
+        // MATLAB pwelch default: divide x into 8 segments with 50%
+        // overlap. Solving:
+        //   nx = (winLen - noverlap)*8 + noverlap = 8*winLen - 7*noverlap
+        // with noverlap = floor(winLen/2) gives winLen = floor(nx / 4.5).
+        winLen = std::max<size_t>(1,
+            static_cast<size_t>(std::floor(static_cast<double>(nx) / 4.5)));
+        if (winLen > nx) winLen = nx;
         win.resize(winLen);
         fillHammingWindow(win.data(), winLen);
     }
@@ -108,7 +121,7 @@ pwelch(std::pmr::memory_resource *mr,
     if (noverlap == 0)
         noverlap = winLen / 2;
     if (nfft == 0)
-        nfft = nextPow2(winLen);
+        nfft = std::max<size_t>(256, nextPow2(winLen));
 
     double winPower = 0.0;
     for (size_t i = 0; i < winLen; ++i)
@@ -142,12 +155,16 @@ pwelch(std::pmr::memory_resource *mr,
         nSegments++;
     }
 
-    const double scale = 1.0 / (winPower * nfft * nSegments);
+    // MATLAB Welch PSD scaling: Pxx[k] = mean_segments(|X|^2) /
+    // (winPower * fs). With default fs = 2*pi this matches MATLAB's
+    // pwelch(x) without explicit fs.
+    const double scale = 1.0 / (winPower * fs * nSegments);
     auto Pxx = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
     auto F = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < nOut; ++i) {
         Pxx.doubleDataMut()[i] = psd[i] * scale;
-        F.doubleDataMut()[i] = M_PI * i / (nOut - 1);
+        F.doubleDataMut()[i] = (fs / 2.0) * static_cast<double>(i)
+                               / static_cast<double>(nOut - 1);
     }
 
     return std::make_tuple(std::move(Pxx), std::move(F));
@@ -200,12 +217,16 @@ CrossWelchOut crossWelch(std::pmr::memory_resource *mr,
         const double *w = window.doubleData();
         for (size_t i = 0; i < winLen; ++i) win[i] = w[i];
     } else {
-        winLen = std::min(nx, static_cast<size_t>(256));
+        // MATLAB cpsd / mscohere / tfestimate default: 8 Hamming-windowed
+        // segments with 50% overlap (winLen = floor(nx / 4.5)).
+        winLen = std::max<size_t>(1,
+            static_cast<size_t>(std::floor(static_cast<double>(nx) / 4.5)));
+        if (winLen > nx) winLen = nx;
         win.resize(winLen);
         fillHammingWindow(win.data(), winLen);
     }
     if (noverlap == 0) noverlap = winLen / 2;
-    if (nfft == 0)     nfft = nextPow2(winLen);
+    if (nfft == 0)     nfft = std::max<size_t>(256, nextPow2(winLen));
 
     double winPower = 0.0;
     for (size_t i = 0; i < winLen; ++i) winPower += win[i] * win[i];
@@ -254,19 +275,26 @@ CrossWelchOut crossWelch(std::pmr::memory_resource *mr,
 std::tuple<Value, Value>
 cpsd(std::pmr::memory_resource *mr,
      const Value &x, const Value &y,
-     const Value &window, size_t noverlap, size_t nfft)
+     const Value &window, size_t noverlap, size_t nfft, double fs)
 {
     auto o = crossWelch(mr, x, y, window, noverlap, nfft);
     const size_t nOut = o.Sxx.size();
+    // Rescale frequency vector to [0, fs/2] (crossWelch uses [0, pi]).
+    auto rescaleF = [&]() {
+        for (size_t i = 0; i < nOut; ++i)
+            o.F[i] = (fs / 2.0) * static_cast<double>(i)
+                     / static_cast<double>(nOut - 1);
+    };
+    rescaleF();
     if (o.nSegments == 0) {
         Value Pxy0 = Value::matrix(nOut, 1, ValueType::COMPLEX, mr);
         Value F0   = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
-        if (nOut > 0) {
-            std::copy(o.F.begin(), o.F.end(), F0.doubleDataMut());
-        }
+        if (nOut > 0) std::copy(o.F.begin(), o.F.end(), F0.doubleDataMut());
         return std::make_tuple(std::move(Pxy0), std::move(F0));
     }
-    const double scale = 1.0 / (o.winPower * static_cast<double>(o.nfft) *
+    // MATLAB cpsd scaling: Pxy[k] = mean_segments(X*conj(Y)) /
+    // (winPower * fs). Default fs = 2*pi mirrors MATLAB.
+    const double scale = 1.0 / (o.winPower * fs *
                                  static_cast<double>(o.nSegments));
     Value Pxy = Value::matrix(nOut, 1, ValueType::COMPLEX, mr);
     Value F   = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
@@ -284,7 +312,7 @@ cpsd(std::pmr::memory_resource *mr,
 std::tuple<Value, Value>
 mscohere(std::pmr::memory_resource *mr,
          const Value &x, const Value &y,
-         const Value &window, size_t noverlap, size_t nfft)
+         const Value &window, size_t noverlap, size_t nfft, double fs)
 {
     auto o = crossWelch(mr, x, y, window, noverlap, nfft);
     const size_t nOut = o.Sxx.size();
@@ -296,7 +324,8 @@ mscohere(std::pmr::memory_resource *mr,
         const double denom = o.Sxx[i] * o.Syy[i];
         const double num   = std::norm(o.Sxy[i]);
         cd[i] = (denom > 0.0) ? num / denom : 0.0;
-        fd[i] = o.F[i];
+        fd[i] = (fs / 2.0) * static_cast<double>(i)
+                / static_cast<double>(nOut - 1);
     }
     return std::make_tuple(std::move(Cxy), std::move(F));
 }
@@ -304,7 +333,7 @@ mscohere(std::pmr::memory_resource *mr,
 std::tuple<Value, Value>
 tfestimate(std::pmr::memory_resource *mr,
            const Value &x, const Value &y,
-           const Value &window, size_t noverlap, size_t nfft)
+           const Value &window, size_t noverlap, size_t nfft, double fs)
 {
     auto o = crossWelch(mr, x, y, window, noverlap, nfft);
     const size_t nOut = o.Sxx.size();
@@ -320,12 +349,18 @@ tfestimate(std::pmr::memory_resource *mr,
         td[i] = (o.Sxx[i] > 0.0)
                 ? Syx / o.Sxx[i]
                 : std::complex<double>(0.0, 0.0);
-        fd[i] = o.F[i];
+        fd[i] = (fs / 2.0) * static_cast<double>(i)
+                / static_cast<double>(nOut - 1);
     }
     return std::make_tuple(std::move(Txy), std::move(F));
 }
 
 namespace detail {
+
+// MATLAB DSP-spectrum default fs = 2*pi (treats input as normalised
+// radian frequency). Explicit fs as the last positional argument
+// overrides this.
+constexpr double kDefaultFs = 2.0 * 3.14159265358979323846;
 
 void periodogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
@@ -337,8 +372,9 @@ void periodogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
     if (args.size() >= 2 && !args[1].isChar())
         window = args[1];
     const size_t nfft = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
+    const double fs   = (args.size() >= 4) ? args[3].toScalar() : kDefaultFs;
 
-    auto [Pxx, F] = periodogram(ctx.engine->resource(), args[0], window, nfft);
+    auto [Pxx, F] = periodogram(ctx.engine->resource(), args[0], window, nfft, fs);
     outs[0] = std::move(Pxx);
     if (nargout > 1)
         outs[1] = std::move(F);
@@ -355,8 +391,9 @@ void pwelch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
         window = args[1];
     const size_t noverlap = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
     const size_t nfft = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 0;
+    const double fs   = (args.size() >= 5) ? args[4].toScalar() : kDefaultFs;
 
-    auto [Pxx, F] = pwelch(ctx.engine->resource(), args[0], window, noverlap, nfft);
+    auto [Pxx, F] = pwelch(ctx.engine->resource(), args[0], window, noverlap, nfft, fs);
     outs[0] = std::move(Pxx);
     if (nargout > 1)
         outs[1] = std::move(F);
@@ -365,14 +402,15 @@ void pwelch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 void cpsd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("cpsd: requires (x, y[, window, noverlap, nfft])",
+        throw Error("cpsd: requires (x, y[, window, noverlap, nfft, fs])",
                     0, 0, "cpsd", "", "m:cpsd:nargin");
     Value window = Value::empty();
     if (args.size() >= 3 && !args[2].isChar()) window = args[2];
     const size_t noverlap = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 0;
     const size_t nfft     = (args.size() >= 5) ? static_cast<size_t>(args[4].toScalar()) : 0;
+    const double fs       = (args.size() >= 6) ? args[5].toScalar() : kDefaultFs;
     auto [Pxy, F] = cpsd(ctx.engine->resource(), args[0], args[1],
-                         window, noverlap, nfft);
+                         window, noverlap, nfft, fs);
     outs[0] = std::move(Pxy);
     if (nargout > 1) outs[1] = std::move(F);
 }
@@ -380,14 +418,15 @@ void cpsd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 void mscohere_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("mscohere: requires (x, y[, window, noverlap, nfft])",
+        throw Error("mscohere: requires (x, y[, window, noverlap, nfft, fs])",
                     0, 0, "mscohere", "", "m:mscohere:nargin");
     Value window = Value::empty();
     if (args.size() >= 3 && !args[2].isChar()) window = args[2];
     const size_t noverlap = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 0;
     const size_t nfft     = (args.size() >= 5) ? static_cast<size_t>(args[4].toScalar()) : 0;
+    const double fs       = (args.size() >= 6) ? args[5].toScalar() : kDefaultFs;
     auto [Cxy, F] = mscohere(ctx.engine->resource(), args[0], args[1],
-                             window, noverlap, nfft);
+                             window, noverlap, nfft, fs);
     outs[0] = std::move(Cxy);
     if (nargout > 1) outs[1] = std::move(F);
 }
@@ -395,14 +434,15 @@ void mscohere_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 void tfestimate_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("tfestimate: requires (x, y[, window, noverlap, nfft])",
+        throw Error("tfestimate: requires (x, y[, window, noverlap, nfft, fs])",
                     0, 0, "tfestimate", "", "m:tfestimate:nargin");
     Value window = Value::empty();
     if (args.size() >= 3 && !args[2].isChar()) window = args[2];
     const size_t noverlap = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 0;
     const size_t nfft     = (args.size() >= 5) ? static_cast<size_t>(args[4].toScalar()) : 0;
+    const double fs       = (args.size() >= 6) ? args[5].toScalar() : kDefaultFs;
     auto [Txy, F] = tfestimate(ctx.engine->resource(), args[0], args[1],
-                               window, noverlap, nfft);
+                               window, noverlap, nfft, fs);
     outs[0] = std::move(Txy);
     if (nargout > 1) outs[1] = std::move(F);
 }
