@@ -403,11 +403,14 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     yRange = (Array.isArray(cfg.ylim) && cfg.ylim.length === 2)
       ? cfg.ylim.slice()
       : [Number.isFinite(yLo) ? yLo : -1, Number.isFinite(yHi) ? yHi : 1];
-    if (!cfg.xlim) {
+    // `axis tight` means "no whitespace padding around data". Skip
+    // the default 4%/6% pad. Auto-scale still happens.
+    const tight = (cfg.axisMode === 'tight');
+    if (!cfg.xlim && !tight) {
       const pad = (xRange[1] - xRange[0]) * 0.04 || 0.5;
       xRange[0] -= pad; xRange[1] += pad;
     }
-    if (!cfg.ylim) {
+    if (!cfg.ylim && !tight) {
       const pad = (yRange[1] - yRange[0]) * 0.06 || 0.5;
       yRange[0] -= pad; yRange[1] += pad;
     }
@@ -423,6 +426,9 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     grid: cfg.grid || '',
     xscale: cfg.xscale || 'linear',
     yscale: cfg.yscale || 'linear',
+    // axisMode: 'equal' | 'square' | 'tight' | 'auto' | '' (default).
+    // Renderer reshapes sx/sy or panel size based on this value.
+    axisMode: cfg.axisMode || '',
     layers,
   };
 }

@@ -152,11 +152,52 @@ export default function CompositePlot({
   // Force integer dims — non-integer panel sizes from fractional fontScale
   // would produce a diagonal-stripe artefact in the tile renderer because
   // row strides drift by frac-cols each iteration when arr is indexed.
-  const W = Math.max(50, Math.floor(width - padL - padR));
-  const H = Math.max(50, Math.floor(height - padT - padB));
+  // Plot-area dimensions before axisMode adjustments.
+  let W = Math.max(50, Math.floor(width - padL - padR));
+  let H = Math.max(50, Math.floor(height - padT - padB));
 
-  const [xMin, xMax] = viewport.x;
-  const [yMin, yMax] = viewport.y;
+  // axisMode === 'square' forces the plot box itself to be square
+  // (equal screen pixels for both axes' EXTENT, regardless of data).
+  // Apply by shrinking the larger dimension to the smaller.
+  if (figure.axisMode === 'square') {
+    const side = Math.min(W, H);
+    W = side; H = side;
+  }
+
+  let [xMin, xMax] = viewport.x;
+  let [yMin, yMax] = viewport.y;
+
+  // axisMode === 'equal' forces 1 data unit on the X axis to occupy
+  // the same number of screen pixels as 1 data unit on the Y axis.
+  // We achieve this by EXTENDING the viewport on whichever axis has
+  // more screen space per data unit — extending the visible range
+  // rather than shrinking the plot area keeps the panel size stable
+  // and the user sees the full data plus extra empty space (matches
+  // MATLAB's behaviour). Skipped under log on either axis (the
+  // notion of "equal units" doesn't translate to log space).
+  const wantEqual = figure.axisMode === 'equal'
+                  && !(xLog && xMin > 0 && xMax > 0)
+                  && !(yLog && yMin > 0 && yMax > 0);
+  if (wantEqual) {
+    const dx = xMax - xMin;
+    const dy = yMax - yMin;
+    if (dx > 0 && dy > 0) {
+      const unitX = W / dx;
+      const unitY = H / dy;
+      if (unitX > unitY) {
+        // X has more pixels per unit → extend xRange so unit shrinks to unitY.
+        const targetDx = W / unitY;
+        const xCtr = (xMin + xMax) / 2;
+        xMin = xCtr - targetDx / 2;
+        xMax = xCtr + targetDx / 2;
+      } else if (unitY > unitX) {
+        const targetDy = H / unitX;
+        const yCtr = (yMin + yMax) / 2;
+        yMin = yCtr - targetDy / 2;
+        yMax = yCtr + targetDy / 2;
+      }
+    }
+  }
   // Log axes: viewport bounds are still in original-data coordinates
   // (xMin..xMax = the user-visible range). The screen-mapping is log when
   // the corresponding axis flag is on. Requires lo > 0 — we sanitise by
