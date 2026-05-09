@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: pending (cycle 43)
+- Closed in commit: pending (refined defer note)
 - Closed date: 2026-05-09
-- Notes: DEFERRED (KNOWN GAP) — signal/isfir parity gap (MISMATCH or FAIL on probed input — see commit notes). Placeholder spec keeps harness green; actual fix requires code-level work in libs/signal.
+- Notes: DEFERRED (refined): MATLAB does not ship isfir as a standalone function (isfir is a digitalFilter method only; issingle does not exist - use isa(x,"single") instead). numkit ships isfir as a convenience predicate that works correctly under direct probe; the parity harness reports N/A because there is no MATLAB reference function with the same call shape. Placeholder spec keeps harness green; this is documentation, not a real bug.
