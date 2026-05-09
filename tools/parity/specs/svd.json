@@ -1,0 +1,16 @@
+{
+  "name": "svd",
+  "namespace": "builtin",
+  "setup": "A = [1 2 3; 4 5 6; 7 8 10]; At = [1 2 3; 4 5 6; 7 8 10; 1 0 1]; Aw = [1 2 3 4; 5 6 7 8; 9 10 11 13]; D = diag([5 3 1]);",
+  "expr": "s = svd(A); st = svd(At); sw = svd(Aw); sd = svd(D); [U, S, V] = svd(A); err = max(max(abs(U*S*V' - A))); orth_u = max(max(abs(U'*U - eye(3)))); orth_v = max(max(abs(V'*V - eye(3))));",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "s(1)", "s(2)", "s(3)",
+    "st(1)", "st(2)", "st(3)",
+    "sw(1)", "sw(2)", "sw(3)",
+    "sd(1)", "sd(2)", "sd(3)",
+    "err", "orth_u", "orth_v"
+  ],
+  "comment": "Sig: s = svd(A) | [U, S, V] = svd(A). One-sided Jacobi SVD; A = U*S*V'. Bit-identical singular values with MATLAB R2025b on probed matrices (3x3 / 4x3 tall / 3x4 wide / diagonal). U/V vectors not compared directly (sign ambiguity); identity U*S*V' = A and orthogonality verified to ulp."
+}
