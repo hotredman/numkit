@@ -962,6 +962,35 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("subspace",  &builtin::detail::subspace_reg);
     engine.registerFunction("norm",      &builtin::detail::norm_reg);
     engine.registerFunction("sylvester", &builtin::detail::sylvester_reg);
+
+    // Linalg basics also exposed under `compat.*` so user code that
+    // qualifies them as compat.norm / compat.inv (e.g. when porting
+    // from a project that namespaces all calls) works without
+    // surprises. Functions in the global namespace are already
+    // accessible bare; this just adds explicit aliases in compat.
+    engine.registerFunction("compat", "norm",      &builtin::detail::norm_reg);
+    engine.registerFunction("compat", "normest",   &builtin::detail::normest_reg);
+    engine.registerFunction("compat", "inv",       &builtin::detail::inv_reg);
+    engine.registerFunction("compat", "pinv",      &builtin::detail::pinv_reg);
+    engine.registerFunction("compat", "linsolve",  &builtin::detail::linsolve_reg);
+    engine.registerFunction("compat", "det",       &builtin::detail::det_reg);
+    engine.registerFunction("compat", "trace",     &builtin::detail::trace_reg);
+    engine.registerFunction("compat", "rank",      &builtin::detail::rank_reg);
+    engine.registerFunction("compat", "cond",      &builtin::detail::cond_reg);
+    engine.registerFunction("compat", "chol",      &builtin::detail::chol_reg);
+    engine.registerFunction("compat", "lu",        &builtin::detail::lu_reg);
+    engine.registerFunction("compat", "qr",        &builtin::detail::qr_reg);
+    engine.registerFunction("compat", "svd",       &builtin::detail::svd_reg);
+    engine.registerFunction("compat", "eig",       &builtin::detail::eig_reg);
+    engine.registerFunction("compat", "expm",      &builtin::detail::expm_reg);
+    engine.registerFunction("compat", "logm",      &builtin::detail::logm_reg);
+    engine.registerFunction("compat", "sqrtm",     &builtin::detail::sqrtm_reg);
+    engine.registerFunction("compat", "schur",     &builtin::detail::schur_reg);
+    engine.registerFunction("compat", "hess",      &builtin::detail::hess_reg);
+    engine.registerFunction("compat", "orth",      &builtin::detail::orth_reg);
+    engine.registerFunction("compat", "null",      &builtin::detail::null_reg);
+    engine.registerFunction("compat", "subspace",  &builtin::detail::subspace_reg);
+    engine.registerFunction("compat", "sylvester", &builtin::detail::sylvester_reg);
     engine.registerFunction("size",      &builtin::detail::size_reg);
     engine.registerFunction("length",    &builtin::detail::length_reg);
     engine.registerFunction("numel",     &builtin::detail::numel_reg);
