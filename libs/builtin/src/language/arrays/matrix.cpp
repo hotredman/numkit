@@ -277,6 +277,233 @@ Value pageinv(std::pmr::memory_resource *mr, const Value &A)
     return out;
 }
 
+// ── SVD (one-sided Jacobi) ───────────────────────────────────────────
+
+namespace {
+
+// One-sided Jacobi SVD: rotates columns of A_work (which contains a
+// copy of A) until off-diagonal of A_work^T * A_work is below tol.
+// On return:
+//   - A_work has orthogonal columns; ||A_work(:,k)|| = sigma_k
+//   - V_work holds the right singular vectors
+// Caller normalises columns and assembles U, S, V.
+//
+// Loop convergence: standard Jacobi sweep until the largest off-
+// diagonal is < tol*sqrt(diag_i*diag_j). Bounded by max_sweeps to
+// prevent pathological non-convergence.
+void jacobiSvdInplace(double *A, std::size_t m, std::size_t n,
+                      double *V, std::size_t maxSweeps, double tol)
+{
+    // Initialise V = I.
+    std::fill(V, V + n * n, 0.0);
+    for (std::size_t i = 0; i < n; ++i) V[i + i * n] = 1.0;
+
+    auto colDot = [&](std::size_t p, std::size_t q) {
+        double s = 0.0;
+        for (std::size_t i = 0; i < m; ++i)
+            s += A[i + p * m] * A[i + q * m];
+        return s;
+    };
+    auto rotateCols = [&](double *M, std::size_t leadDim, std::size_t nrows,
+                          std::size_t p, std::size_t q, double c, double s) {
+        for (std::size_t i = 0; i < nrows; ++i) {
+            const double mip = M[i + p * leadDim];
+            const double miq = M[i + q * leadDim];
+            M[i + p * leadDim] = c * mip - s * miq;
+            M[i + q * leadDim] = s * mip + c * miq;
+        }
+    };
+
+    for (std::size_t sweep = 0; sweep < maxSweeps; ++sweep) {
+        double off = 0.0;
+        for (std::size_t p = 0; p + 1 < n; ++p) {
+            for (std::size_t q = p + 1; q < n; ++q) {
+                const double alpha = colDot(p, p);
+                const double beta  = colDot(q, q);
+                const double gamma = colDot(p, q);
+
+                const double scale = std::sqrt(alpha * beta);
+                if (std::fabs(gamma) <= tol * scale) continue;
+                off += gamma * gamma;
+
+                // Compute the Jacobi rotation (c, s) that diagonalises
+                // the 2×2 [[alpha gamma]; [gamma beta]] block.
+                double c, s;
+                if (alpha == beta) {
+                    // 45-degree rotation when diagonal is symmetric.
+                    c = 0.7071067811865476;  // cos(pi/4) = sqrt(2)/2
+                    s = (gamma >= 0.0 ? 1.0 : -1.0) * c;
+                } else {
+                    const double tau = (beta - alpha) / (2.0 * gamma);
+                    const double t = (tau >= 0.0)
+                        ? 1.0 / (tau + std::sqrt(1.0 + tau * tau))
+                        : 1.0 / (tau - std::sqrt(1.0 + tau * tau));
+                    c = 1.0 / std::sqrt(1.0 + t * t);
+                    s = t * c;
+                }
+
+                // Apply to columns p, q of A and V.
+                rotateCols(A, m, m, p, q, c, s);
+                rotateCols(V, n, n, p, q, c, s);
+            }
+        }
+        if (off < tol * tol) break;
+    }
+}
+
+} // anonymous namespace
+
+std::tuple<Value, Value, Value>
+svd_decompose(std::pmr::memory_resource *mr, const Value &A)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("svd: input must be a 2D matrix",
+                    0, 0, "svd", "", "m:svd:notMatrix");
+    const std::size_t m_in = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n_in = static_cast<std::size_t>(A.dims().dim(1));
+
+    if (m_in == 0 || n_in == 0) {
+        return std::make_tuple(
+            Value::matrix(m_in, m_in, ValueType::DOUBLE, mr),
+            Value::matrix(m_in, n_in, ValueType::DOUBLE, mr),
+            Value::matrix(n_in, n_in, ValueType::DOUBLE, mr));
+    }
+
+    // For m < n we transpose: SVD(A) = (U, S, V) implies SVD(A^T) =
+    // (V, S^T, U). We run the algorithm on the tall (or square) form.
+    const bool transposed = (m_in < n_in);
+    const std::size_t m = transposed ? n_in : m_in;
+    const std::size_t n = transposed ? m_in : n_in;
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> A_work(m * n, &scratch);
+    ScratchVec<double> V_work(n * n, &scratch);
+
+    // Copy (and transpose if needed) into A_work.
+    const double *A_data = A.doubleData();
+    if (!transposed) {
+        std::copy(A_data, A_data + m * n, A_work.begin());
+    } else {
+        // A is m_in × n_in; we want A^T (n_in × m_in) in column-major
+        // = m × n where m = n_in, n = m_in.
+        for (std::size_t j = 0; j < n_in; ++j)
+            for (std::size_t i = 0; i < m_in; ++i)
+                A_work[j + i * n_in] = A_data[i + j * m_in];
+    }
+
+    // Run Jacobi SVD: tol ~ 1e-13 typical.
+    jacobiSvdInplace(A_work.data(), m, n, V_work.data(),
+                     /*maxSweeps=*/64,
+                     /*tol=*/1e-13);
+
+    // Read singular values + normalise U columns.
+    ScratchVec<double> sigma(n, &scratch);
+    ScratchVec<std::size_t> order(n, &scratch);
+    for (std::size_t k = 0; k < n; ++k) {
+        double s = 0.0;
+        for (std::size_t i = 0; i < m; ++i)
+            s += A_work[i + k * m] * A_work[i + k * m];
+        sigma[k] = std::sqrt(s);
+        order[k] = k;
+    }
+    // Sort indices by descending sigma.
+    std::sort(order.begin(), order.end(),
+              [&](std::size_t a, std::size_t b) { return sigma[a] > sigma[b]; });
+
+    // Assemble U (m×m), S (m×n), V (n×n) in the post-transpose frame
+    // (we'll swap U <-> V at the end if we transposed).
+    auto Uout = Value::matrix(m, m, ValueType::DOUBLE, mr);
+    auto Sout = Value::matrix(m, n, ValueType::DOUBLE, mr);
+    auto Vout = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    double *U = Uout.doubleDataMut();
+    double *S = Sout.doubleDataMut();
+    double *V = Vout.doubleDataMut();
+    std::fill(U, U + m * m, 0.0);
+    std::fill(S, S + m * n, 0.0);
+    std::fill(V, V + n * n, 0.0);
+
+    // Place singular values + U columns + V columns in sorted order.
+    for (std::size_t k = 0; k < n; ++k) {
+        const std::size_t src = order[k];
+        S[k + k * m] = sigma[src];
+        if (sigma[src] > 0.0) {
+            const double inv_s = 1.0 / sigma[src];
+            for (std::size_t i = 0; i < m; ++i)
+                U[i + k * m] = A_work[i + src * m] * inv_s;
+        } else {
+            // Degenerate column -- fill with zeros (will be filled by
+            // orthogonal completion below).
+            for (std::size_t i = 0; i < m; ++i) U[i + k * m] = 0.0;
+        }
+        for (std::size_t i = 0; i < n; ++i)
+            V[i + k * n] = V_work[i + src * n];
+    }
+
+    // For m > n, U has only n filled columns; complete to m via
+    // Gram-Schmidt against the standard basis (any orthogonal
+    // completion will do; this is simple and stable for small m).
+    for (std::size_t k = n; k < m; ++k) {
+        // Find a basis vector e_i not yet covered, orthogonalise, normalise.
+        for (std::size_t i = 0; i < m; ++i) {
+            // candidate = e_i
+            ScratchVec<double> v(m, 0.0, &scratch);
+            v[i] = 1.0;
+            // Subtract projections onto already-filled columns.
+            for (std::size_t kk = 0; kk < k; ++kk) {
+                double dot = 0.0;
+                for (std::size_t r = 0; r < m; ++r)
+                    dot += U[r + kk * m] * v[r];
+                for (std::size_t r = 0; r < m; ++r)
+                    v[r] -= dot * U[r + kk * m];
+            }
+            double nv = 0.0;
+            for (std::size_t r = 0; r < m; ++r) nv += v[r] * v[r];
+            if (nv > 1e-20) {
+                nv = std::sqrt(nv);
+                for (std::size_t r = 0; r < m; ++r)
+                    U[r + k * m] = v[r] / nv;
+                break;
+            }
+        }
+    }
+
+    if (!transposed) {
+        return std::make_tuple(std::move(Uout), std::move(Sout), std::move(Vout));
+    }
+    // Transposed case: caller wanted SVD of A_in (m_in × n_in) where
+    // m_in < n_in. We computed SVD of A_in^T = U_t * S_t * V_t', so
+    // A_in = (V_t * S_t' * U_t')'. The output (U, S, V) for A_in
+    // therefore has U_in = V_t (n_in × n_in -> wait, we want m_in × m_in)
+    // ... actually:
+    //   A_in    = m_in × n_in  (m_in < n_in)
+    //   A_in^T  = n_in × m_in  (m × n with m = n_in, n = m_in)
+    //   We computed A_in^T = U_t (n_in × n_in) * S_t (n_in × m_in) * V_t' (m_in × m_in)
+    //   Transpose: A_in = V_t (m_in × m_in) * S_t' (m_in × n_in) * U_t' (n_in × n_in)
+    //   So U_in = V_t (m_in × m_in), V_in = U_t (n_in × n_in)
+    //   S_in = S_t' = m_in × n_in (we need to transpose the diagonal layout)
+    auto S_out_tr = Value::matrix(m_in, n_in, ValueType::DOUBLE, mr);
+    double *St = S_out_tr.doubleDataMut();
+    std::fill(St, St + m_in * n_in, 0.0);
+    const std::size_t k_diag = std::min(m_in, n_in);
+    for (std::size_t k = 0; k < k_diag; ++k)
+        St[k + k * m_in] = S[k + k * m];
+    return std::make_tuple(std::move(Vout), std::move(S_out_tr), std::move(Uout));
+}
+
+Value svd_values(std::pmr::memory_resource *mr, const Value &A)
+{
+    auto [U, S, V] = svd_decompose(mr, A);
+    const std::size_t m = static_cast<std::size_t>(S.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(S.dims().dim(1));
+    const std::size_t k = std::min(m, n);
+    auto sv = Value::matrix(k, 1, ValueType::DOUBLE, mr);
+    const double *S_data = S.doubleData();
+    double *out = sv.doubleDataMut();
+    for (std::size_t i = 0; i < k; ++i)
+        out[i] = S_data[i + i * m];
+    return sv;
+}
+
 // ── lu / qr decompositions ───────────────────────────────────────────
 
 namespace {
@@ -2821,6 +3048,22 @@ void qr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContex
         outs[1] = std::move(R);
     } else {
         outs[0] = qr_R_only(mr, args[0]);
+    }
+}
+
+void svd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("svd: requires exactly 1 argument",
+                    0, 0, "svd", "", "m:svd:nargin");
+    auto *mr = ctx.engine->resource();
+    if (nargout >= 2) {
+        auto [U, S, V] = svd_decompose(mr, args[0]);
+        outs[0] = std::move(U);
+        outs[1] = std::move(S);
+        if (nargout >= 3) outs[2] = std::move(V);
+    } else {
+        outs[0] = svd_values(mr, args[0]);
     }
 }
 

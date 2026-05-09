@@ -2174,7 +2174,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `schur` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `sqrtm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `subspace` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `svd` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `svd` | ❌ | 0.015 | 31.34× | 9.07× | OK | Sig: s = svd(A) | [U, S, V] = svd(A). One-sided Jacobi SVD; A = U*S*V'. Bit-identical singular values with MATLAB R2025b on probed matrices (3x3 / 4x3 tall / 3x4 wide / diagonal). U/V vectors not compared directly (sign ambiguity); identity U*S*V' = A and orthogonality verified to ulp. |
 | `svdappend` | ❌ |  |  |  |  |  |
 | `svds` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `svdsketch` | ❌ |  |  |  |  |  |

@@ -148,6 +148,23 @@ qr_decompose(std::pmr::memory_resource *mr, const Value &A);
 /// R-only output -- matches MATLAB's single-output `qr(A)` form.
 Value qr_R_only(std::pmr::memory_resource *mr, const Value &A);
 
+/// Singular Value Decomposition: A = U * S * V'.
+/// One-sided Jacobi rotations on the columns of A; converges to
+/// orthogonal columns and reads sigma_i = ||A(:,i)||.
+///
+/// For m×n A with m >= n:
+///   U is m×m orthogonal, S is m×n diagonal (sigma >= 0, descending),
+///   V is n×n orthogonal.
+/// For m < n we transpose, run, and swap U/V at the end.
+///
+/// MATLAB single-output form `s = svd(A)` returns the singular values
+/// as a column vector (length min(m,n), descending order).
+std::tuple<Value, Value, Value>
+svd_decompose(std::pmr::memory_resource *mr, const Value &A);
+
+/// Singular values only -- matches MATLAB's single-output svd(A).
+Value svd_values(std::pmr::memory_resource *mr, const Value &A);
+
 // ── Shape queries ────────────────────────────────────────────────────
 /// size(x) returns a row vector of dimensions.
 /// @param asVector  when true, returns [rows, cols] or [rows, cols, pages].
