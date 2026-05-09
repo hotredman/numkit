@@ -344,6 +344,12 @@ Value rcond(std::pmr::memory_resource *mr, const Value &A);
 std::pair<Value, Value>
 planerot(std::pmr::memory_resource *mr, const Value &xy);
 
+/// lsqminnorm(A, B [, tol]) — minimum-norm least-squares solution
+/// to A*X = B for rank-deficient A. Implementation: pinv(A, tol)*B.
+/// 'rankWarn' / 'RegularizationFactor' name-value args deferred.
+Value lsqminnorm(std::pmr::memory_resource *mr, const Value &A,
+                 const Value &B, bool have_tol, double tol_user);
+
 /// ldl(A) — block LDL' factorization. v1 implements Crout LDL'
 /// without pivoting (works for PD/ND and most indefinite matrices).
 /// Returns (L, D, P) where L is unit lower-triangular (or upper if
