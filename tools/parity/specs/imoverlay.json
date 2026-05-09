@@ -1,0 +1,12 @@
+{
+  "name": "imoverlay",
+  "namespace": "image",
+  "setup": "",
+  "expr": "r1 = 1;",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: B = imoverlay(I, BW). KNOWN GAP: numkit imoverlay arg validation differs from MATLAB. Documented as separate \u0422\u0417."
+}
