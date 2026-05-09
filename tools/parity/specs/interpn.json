@@ -1,12 +1,10 @@
 {
   "name": "interpn",
   "namespace": "builtin",
-  "setup": "",
-  "expr": "r1 = 1;",
+  "setup": "[X, Y, Z] = ndgrid(1:5, 1:5, 1:5); V = X + Y + Z;",
+  "expr": "r1 = double(interpn(X, Y, Z, V, 2.5, 2.5, 2.5));",
   "iters": 5,
-  "tol": 0,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: interpn(...). KNOWN GAP: numkit's interpn adapter has incorrect arg-shape validation (rejects valid grids). Documented as separate \u0422\u0417. No-op placeholder."
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: V = interpn(X1, ..., Xn, V, Xq1, ..., Xqn). N-D linear interpolation (ndgrid form). Dispatches to interp3 internally; bit-identical with MATLAB R2025b."
 }
