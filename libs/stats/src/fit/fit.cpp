@@ -1524,5 +1524,113 @@ void mle_reg(Span<const Value> args, size_t /*nargout*/,
                 0, 0, "mle", "", "m:mle:dist");
 }
 
+// ── fitdist (returns probability-distribution struct) ──────────────
+//
+// MATLAB returns a probability-distribution OBJECT with class methods
+// (.cdf, .pdf, .icdf etc). numkit doesn't ship full OOP for
+// distributions; we return a struct with:
+//   .DistributionName  — canonical name string
+//   .ParameterValues   — 1xN row of fitted parameters
+//   .ParameterNames    — cell array of parameter-name strings
+//   .NumObservations   — sample size
+//
+// Wraps mle for the closed-form distributions; same set: normal,
+// exponential, poisson, lognormal.
+void fitdist_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("fitdist: requires (data, 'DistributionName')",
+                    0, 0, "fitdist", "", "m:fitdist:nargin");
+    if (!args[1].isChar() && !args[1].isString())
+        throw Error("fitdist: 2nd argument must be a distribution-name string",
+                    0, 0, "fitdist", "", "m:fitdist:badName");
+    auto *mr = ctx.engine->resource();
+    const Value &x = args[0];
+    const std::size_t N = x.numel();
+    if (N < 2)
+        throw Error("fitdist: need at least 2 observations",
+                    0, 0, "fitdist", "", "m:fitdist:tooSmall");
+
+    const std::string raw = args[1].toString();
+    // Canonicalise.
+    std::string name;
+    name.reserve(raw.size());
+    for (char c : raw) name += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    std::string canonical;
+    std::vector<std::string> param_names;
+    if (name == "normal" || name == "norm") {
+        canonical = "Normal";
+        param_names = {"mu", "sigma"};
+    } else if (name == "exponential" || name == "exp") {
+        canonical = "Exponential";
+        param_names = {"mu"};
+    } else if (name == "poisson" || name == "poiss") {
+        canonical = "Poisson";
+        param_names = {"lambda"};
+    } else if (name == "lognormal" || name == "logn") {
+        canonical = "Lognormal";
+        param_names = {"mu", "sigma"};
+    } else {
+        throw Error("fitdist: distribution '" + raw + "' not supported "
+                    "(supported: 'Normal', 'Exponential', 'Poisson', "
+                    "'Lognormal'). Other MATLAB distributions deferred.",
+                    0, 0, "fitdist", "", "m:fitdist:dist");
+    }
+
+    // Compute parameters per MATLAB convention. NB: fitdist uses
+    // sample std (N-1) for Normal/Lognormal, NOT MLE std (N).
+    // mle() in this file uses N normalisation (true MLE); we override
+    // here to match MATLAB's fitdist behaviour.
+    const double *xd = x.doubleData();
+    Value params;
+    if (canonical == "Normal") {
+        double sum = 0.0;
+        for (std::size_t i = 0; i < N; ++i) sum += xd[i];
+        const double mean = sum / static_cast<double>(N);
+        double ss = 0.0;
+        for (std::size_t i = 0; i < N; ++i) {
+            const double d = xd[i] - mean;
+            ss += d * d;
+        }
+        const double sigma = std::sqrt(ss / static_cast<double>(N - 1));  // N-1
+        params = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+        params.doubleDataMut()[0] = mean;
+        params.doubleDataMut()[1] = sigma;
+    } else if (canonical == "Lognormal") {
+        double sum_log = 0.0;
+        for (std::size_t i = 0; i < N; ++i) sum_log += std::log(xd[i]);
+        const double mu = sum_log / static_cast<double>(N);
+        double ss = 0.0;
+        for (std::size_t i = 0; i < N; ++i) {
+            const double d = std::log(xd[i]) - mu;
+            ss += d * d;
+        }
+        const double sigma = std::sqrt(ss / static_cast<double>(N - 1));
+        params = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+        params.doubleDataMut()[0] = mu;
+        params.doubleDataMut()[1] = sigma;
+    } else {
+        // Exponential, Poisson: MLE matches sample mean either way.
+        Value mle_args[3] = { x, Value::fromString("distribution", mr),
+                              Value::fromString(canonical, mr) };
+        Value mle_out[1];
+        mle_reg(Span<const Value>(mle_args, 3), 1,
+                Span<Value>(mle_out, 1), ctx);
+        params = std::move(mle_out[0]);
+    }
+
+    // Build the result struct.
+    Value pd = Value::structure(mr);
+    pd.field("DistributionName")  = Value::fromString(canonical, mr);
+    pd.field("ParameterValues")   = std::move(params);
+    Value names_cell = Value::cell(1, param_names.size(), mr);
+    for (std::size_t i = 0; i < param_names.size(); ++i)
+        names_cell.cellAt(i) = Value::fromString(param_names[i], mr);
+    pd.field("ParameterNames")    = std::move(names_cell);
+    pd.field("NumObservations")   = Value::scalar(static_cast<double>(N), mr);
+    outs[0] = std::move(pd);
+}
+
 } // namespace detail
 } // namespace numkit::stats

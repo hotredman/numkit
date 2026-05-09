@@ -112,4 +112,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/anova2_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/crossval_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/mle_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/fitdist_test.cpp
 )
