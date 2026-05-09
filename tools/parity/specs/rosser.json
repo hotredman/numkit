@@ -1,0 +1,14 @@
+{
+  "name": "rosser",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "R = rosser();",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "R(1,1)", "R(2,2)", "R(3,4)", "R(4,1)",
+    "R(5,5)", "R(6,7)", "R(7,7)", "R(8,8)",
+    "sum(R(:))", "sum(diag(R))"
+  ],
+  "comment": "Sig: R = rosser(). Hardcoded 8×8 Rosser eigenvalue test matrix. Bit-identical with MATLAB R2025b (constants directly transcribed from MATLAB output)."
+}

@@ -1,0 +1,14 @@
+{
+  "name": "invhilb",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "I4 = invhilb(4); I6 = invhilb(6); I8 = invhilb(8);",
+  "iters": 5,
+  "tol": 1e-6,
+  "fingerprint": [
+    "I4(1,1)", "I4(2,3)", "I4(4,4)",
+    "I6(1,1)", "I6(3,4)", "I6(6,6)",
+    "I8(1,1)", "I8(4,5)", "I8(8,8)"
+  ],
+  "comment": "Sig: H = invhilb(N). Closed-form inverse Hilbert matrix via the binomial formula H⁻¹[i,j] = (-1)^(i+j)*(i+j-1)*C(n+i-1,n-j)*C(n+j-1,n-i)*C(i+j-2,i-1)². Long-double accumulation delays overflow. Bit-identical-ish with MATLAB R2025b (tol 1e-6 -- both engines lose ULPs through the same overflow-prone formula at N>=8)."
+}

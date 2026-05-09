@@ -54,6 +54,35 @@ Value vander(std::pmr::memory_resource *mr, const double *v, std::size_t n);
 /// and whose subdiagonal is all ones (eigenvalues = roots of p).
 Value compan(std::pmr::memory_resource *mr, const double *p, std::size_t pn);
 
+/// Pascal matrix of order n. Default form (k = 0): symmetric with
+/// P[i, j] = C(i+j, i). MATLAB also defines k=1 (lower-triangular
+/// Cholesky factor) and k=2 (cube-root of identity); only k=0 is
+/// implemented in this revision.
+Value pascal(std::pmr::memory_resource *mr, size_t n);
+
+/// Hilbert matrix of order n. H[i, j] = 1 / (i + j - 1) (1-indexed).
+Value hilb(std::pmr::memory_resource *mr, size_t n);
+
+/// Inverse Hilbert matrix of order n via the closed-form formula
+/// involving binomials. Exact integer entries up to n ≈ 13; for
+/// larger n the result loses accuracy due to floating-point overflow
+/// in the binomial coefficients.
+Value invhilb(std::pmr::memory_resource *mr, size_t n);
+
+/// Wilkinson's eigenvalue test matrix: symmetric tridiagonal with
+/// subdiagonal of ones and main diagonal = |(1:n) - (n+1)/2|.
+Value wilkinson(std::pmr::memory_resource *mr, size_t n);
+
+/// Hadamard matrix of order n via the Sylvester construction.
+/// Requires n to be a power of 2 (1, 2, 4, 8, ...). Other valid
+/// MATLAB orders (12·2^k, 20·2^k via Paley constructions) are
+/// deferred -- see implementation note.
+Value hadamard(std::pmr::memory_resource *mr, size_t n);
+
+/// Rosser's 8×8 eigenvalue test matrix (hardcoded constants from
+/// MATLAB R2025b's gallery / rosser).
+Value rosser(std::pmr::memory_resource *mr);
+
 // ── Shape queries ────────────────────────────────────────────────────
 /// size(x) returns a row vector of dimensions.
 /// @param asVector  when true, returns [rows, cols] or [rows, cols, pages].

@@ -1,0 +1,14 @@
+{
+  "name": "wilkinson",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "W7 = wilkinson(7); W8 = wilkinson(8); W21 = wilkinson(21);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "W7(1,1)", "W7(4,4)", "W7(7,7)", "W7(2,1)", "W7(2,3)",
+    "W8(1,1)", "W8(4,4)", "W8(8,8)",
+    "W21(1,1)", "W21(11,11)", "W21(21,21)"
+  ],
+  "comment": "Sig: W = wilkinson(N). Symmetric tridiagonal eigenvalue test matrix: subdiag/superdiag of ones, main diag = |(1:n)-(n+1)/2|. Bit-identical with MATLAB R2025b."
+}
