@@ -2800,7 +2800,7 @@ intentionally omitted — flat solver functions only.
 | `rpmordermap` | ❌ |  |  |  |  |  |
 | `rpmtrack` | ❌ |  |  |  |  | order tracking |
 | `tachorpm` | ✅ | 0.010 | 1397.24× |  | OK | Sig: rpm = tachorpm(x, fs). Spec-extension batch 2026-05-09 (cycle 43). |
-| `tsa` | ✅ | 0.016 | 23.07× | 43.79× | OK | DEFERRED — signal/tsa parity gap (MISMATCH or FAIL on probed input). Placeholder spec keeps harness green; KNOWN GAP — see audit/closed/signal/tsa.md. |
+| `tsa` | ✅ | 0.007 | 709.13× |  | OK | Sig: tsa(x, fs, tPulse[, M]) -- MATLAB pulse-time form (numkit also supports legacy tsa(x, fs, rpm, fs_rpm) when arg count >= 4). Bit-identical with MATLAB R2025b on probed input (100 samples). |
 
 ## Statistics
 
