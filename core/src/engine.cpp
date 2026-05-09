@@ -139,7 +139,20 @@ void Engine::registerFunctionImpl_(const std::string &fullName,
                                    ExternalFunc func)
 {
     if (externalFuncs_.find(fullName) != externalFuncs_.end()) {
-        throw std::runtime_error("duplicate function registration: " + fullName);
+        // Common cause for `compat.<name>` collisions: a stale `noop`
+        // placeholder was left in a library's install() while the real
+        // implementation was registered elsewhere. Each `reg(<sub>,
+        // <name>, …)` helper auto-registers `compat.<name>` once, so
+        // two such calls with the same `<name>` (even from different
+        // sub-namespaces) crash here. Hint the user where to look.
+        std::string hint;
+        if (fullName.rfind("compat.", 0) == 0) {
+            hint = " (look for a stale `reg(<sub>, \"" + leafName
+                 + "\", noop)` or two real implementations sharing this"
+                   " name across sub-namespaces)";
+        }
+        throw std::runtime_error("duplicate function registration: "
+                                 + fullName + hint);
     }
     externalFuncs_.emplace(fullName, std::move(func));
     shortNameIndex_.emplace(leafName, fullName);
