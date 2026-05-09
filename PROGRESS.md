@@ -822,7 +822,7 @@ together.
 | `minres` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `nnz` | ✅ | 0.004 | 27.58× | 3.70× | OK | Sig: r = nnz(...). Spec-extension batch 2026-05-09. |
 | `nonzeros` | ✅ | 0.004 | 37.26× | 38.96× | OK | Sig: r = nonzeros(...). Spec-extension batch 2026-05-09. |
-| `normest` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `normest` | ❌ | 0.007 | 83.64× | 72.67× | OK | Sig: n = normest(A). 2-norm estimate via largest singular value. NOTE: numkit returns the exact value (full SVD), MATLAB uses power-iteration with default tol=1e-6 (~5-6 sig digits). Tol 1e-5 reflects MATLAB's iteration tolerance. A future perf-pass can switch to power-iteration to match performance characteristics. |
 | `nzmax` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `pcg` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `qmr` | ❌ |  |  |  |  | **deferred — libs/sparse** |
@@ -2107,7 +2107,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `cdf2rdf` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `chol` | ❌ | 0.003 | 43.21× | 41.40× | OK | Sig: R = chol(A). Cholesky factorisation of symmetric positive-definite A; returns upper R with R'*R = A. Bit-identical with MATLAB R2025b. |
 | `cholupdate` | ❌ |  |  |  |  |  |
-| `cond` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `cond` | ❌ | 0.009 | 60.80× | 29.37× | OK | Sig: c = cond(A). 2-norm condition number = sigma_max/sigma_min via SVD. Bit-identical with MATLAB R2025b. Note: only 2-norm form supported; cond(A,p) for other p deferred. |
 | `condeig` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `condest` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `cross` | ✅ | 0.004 | 32.03× | 39.44× | OK | Sig: r = cross(...). Spec-extension batch 2026-05-09. |
@@ -2142,12 +2142,12 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `mrdivide` | ✅ | 0.006 | 35.46× | 36.18× | OK | Sig: X = mrdivide(A,B) ↔ A/B  ↔ X·B = A. Composes via the standard transpose trick X = (B'\A')'. So uses the same LU/QR primitives as mldivide. matrix/scalar is elementwise. scalar/matrix ERRORS with m:mrdivide:dim per MATLAB R2025b (verified: `2/[1 2; 3 4]` → 'Matrix dimensions must agree'). |
 | `mtimes` | ✅ | 0.008 | 21.07× | 15.87× | OK | Sig: r = mtimes(...). Arithmetic op. Spec-extension batch 2026-05-09. |
 | `norm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `normest` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `null` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `normest` | ❌ | 0.007 | 83.64× | 72.67× | OK | Sig: n = normest(A). 2-norm estimate via largest singular value. NOTE: numkit returns the exact value (full SVD), MATLAB uses power-iteration with default tol=1e-6 (~5-6 sig digits). Tol 1e-5 reflects MATLAB's iteration tolerance. A future perf-pass can switch to power-iteration to match performance characteristics. |
+| `null` | ❌ | 0.008 | 406.25× | 31.14× | OK | Sig: N = null(A[, tol]). Orthonormal null-space basis; n - rank(A) columns. A*null(A) = 0 to ulp. |
 | `ordeig` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `ordqz` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `ordschur` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `orth` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `orth` | ❌ | 0.008 | 109.64× | 25.77× | OK | Sig: Q = orth(A[, tol]). Orthonormal basis for range of A; Q has rank(A) columns. Q'*Q = I exactly. Note: column signs may differ from MATLAB (singular vector sign ambiguity); fingerprint avoids direct value comparison. |
 | `pagectranspose` | ✅ | 0.212 | 0.26× | 0.22× | OK | 128x64x8 real-valued — pagectranspose equals pagetranspose. 100 iters. |
 | `pageeig` | ❌ |  |  |  |  |  |
 | `pageinv` | ❌ | 0.002 | 69.18× |  | OK | Sig: B = pageinv(A). Page-wise inv for 3D arrays -- each page (2D slice) inverted via LU. Bit-identical with MATLAB R2025b across general / identity / diagonal probes. |
@@ -2159,7 +2159,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `pagepinv` | ❌ |  |  |  |  |  |
 | `pagesvd` | ❌ |  |  |  |  |  |
 | `pagetranspose` | ✅ | 0.219 | 0.19× | 0.22× | OK | 128x64x8 array, page-wise transpose. 100 iters. |
-| `pinv` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `pinv` | ❌ | 0.011 | 68.91× | 6.24× | OK | Sig: P = pinv(A[, tol]). Moore-Penrose pseudoinverse via SVD: A*P*A = A, P*A*P = P (verified to ulp). Bit-identical with MATLAB R2025b on probed full-rank + rank-deficient cases. |
 | `planerot` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `polyeig` | ❌ |  |  |  |  | poly eig |
 | `qr` | ❌ | 0.012 | 33.18× | 3.46× | OK | Sig: [Q, R] = qr(A). Householder QR; A = Q*R, Q orthogonal. Tested on 3x3 + 3x2 tall. Q signs may differ from MATLAB by reflection (R diagonal sign convention varies); fingerprint uses abs() on R diagonal to be sign-agnostic. Identity Q*R == A and Q'*Q == I should match to ulp. |
@@ -2167,7 +2167,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `qrinsert` | ❌ |  |  |  |  |  |
 | `qrupdate` | ❌ |  |  |  |  |  |
 | `qz` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `rank` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `rank` | ❌ | 0.012 | 35.48× | 12.64× | OK | Sig: r = rank(A[, tol]). Numerical rank via SVD; sigma > max(m,n)*eps(sigma_max). Bit-identical with MATLAB R2025b on probed full-rank/rank-deficient/zero/identity/hilbert cases. |
 | `rcond` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `rref` | ❌ |  |  |  |  |  |
 | `rsf2csf` | ❌ |  |  |  |  | **deferred — libs/linalg** |

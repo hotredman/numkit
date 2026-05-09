@@ -1,0 +1,14 @@
+{
+  "name": "orth",
+  "namespace": "builtin",
+  "setup": "A = [1 2 3; 4 5 6; 7 8 10]; B = [1 2; 2 4; 3 6];",
+  "expr": "Q = orth(A); orth_err = max(max(abs(Q'*Q - eye(3)))); QB = orth(B); szb1 = size(QB,1); szb2 = size(QB,2);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "size(Q,1)", "size(Q,2)",
+    "orth_err",
+    "szb1", "szb2"
+  ],
+  "comment": "Sig: Q = orth(A[, tol]). Orthonormal basis for range of A; Q has rank(A) columns. Q'*Q = I exactly. Note: column signs may differ from MATLAB (singular vector sign ambiguity); fingerprint avoids direct value comparison."
+}

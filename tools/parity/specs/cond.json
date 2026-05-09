@@ -1,0 +1,10 @@
+{
+  "name": "cond",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "c1 = cond(eye(5)); c2 = cond([1 2 3; 4 5 6; 7 8 10]); c3 = cond(hilb(4)); c4 = cond(diag([10 5 1]));",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["c1", "c2", "c3", "c4"],
+  "comment": "Sig: c = cond(A). 2-norm condition number = sigma_max/sigma_min via SVD. Bit-identical with MATLAB R2025b. Note: only 2-norm form supported; cond(A,p) for other p deferred."
+}
