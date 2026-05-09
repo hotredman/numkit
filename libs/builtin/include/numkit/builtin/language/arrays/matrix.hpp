@@ -233,6 +233,17 @@ Value subspace(std::pmr::memory_resource *mr, const Value &A, const Value &B);
 std::tuple<Value, Value>
 eig_general_VD(std::pmr::memory_resource *mr, const Value &A);
 
+/// Sylvester equation A*X + X*B = C for symmetric A and B.
+/// Solved via simultaneous diagonalisation:
+///   A = V_a*D_a*V_a',  B = V_b*D_b*V_b'
+///   Y = V_a'*C*V_b,    y_ij = Y_ij / (d_a_i + d_b_j)
+///   X = V_a*Y*V_b'
+/// Throws if A or B is non-symmetric (general case requires Bartels-
+/// Stewart on Schur forms -- deferred). Throws if any d_a_i + d_b_j
+/// equals zero (no unique solution).
+Value sylvester_sym(std::pmr::memory_resource *mr,
+                    const Value &A, const Value &B, const Value &C);
+
 /// Vector or matrix norm. Vector input:
 ///   norm(v)         = norm(v, 2) = sqrt(sum(|v|^2))     (Euclidean)
 ///   norm(v, p)      = (sum(|v|^p))^(1/p)

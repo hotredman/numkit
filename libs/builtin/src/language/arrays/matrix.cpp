@@ -651,6 +651,92 @@ eig_general_VD(std::pmr::memory_resource *mr, const Value &A)
     return std::make_tuple(std::move(Vout), std::move(Dout));
 }
 
+// ── Sylvester equation (symmetric A, B) ─────────────────────────────
+
+Value sylvester_sym(std::pmr::memory_resource *mr,
+                    const Value &A, const Value &B, const Value &C)
+{
+    if (A.dims().ndim() != 2 || B.dims().ndim() != 2 || C.dims().ndim() != 2)
+        throw Error("sylvester: A, B, C must be 2D matrices",
+                    0, 0, "sylvester", "", "m:sylvester:notMatrix");
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t m = static_cast<std::size_t>(B.dims().dim(0));
+    if (A.dims().dim(0) != A.dims().dim(1))
+        throw Error("sylvester: A must be square",
+                    0, 0, "sylvester", "", "m:sylvester:badA");
+    if (B.dims().dim(0) != B.dims().dim(1))
+        throw Error("sylvester: B must be square",
+                    0, 0, "sylvester", "", "m:sylvester:badB");
+    if (C.dims().dim(0) != static_cast<int>(n) ||
+        C.dims().dim(1) != static_cast<int>(m))
+        throw Error("sylvester: C must be n × m where A is n×n, B is m×m",
+                    0, 0, "sylvester", "", "m:sylvester:badC");
+
+    auto [Va, Da] = eig_symmetric(mr, A);   // throws if non-sym
+    auto [Vb, Db] = eig_symmetric(mr, B);   // throws if non-sym
+
+    const double *Vad = Va.doubleData();
+    const double *Dad = Da.doubleData();
+    const double *Vbd = Vb.doubleData();
+    const double *Dbd = Db.doubleData();
+    const double *Cd  = C.doubleData();
+
+    // Y = Va' * C * Vb (n × m).
+    ScratchArena scratch(mr);
+    ScratchVec<double> Y(n * m, &scratch);
+    ScratchVec<double> tmp(n * m, &scratch);
+    // tmp = Va' * C: tmp[i, j] = sum_k Va[k, i] * C[k, j]
+    for (std::size_t i = 0; i < n; ++i)
+        for (std::size_t j = 0; j < m; ++j) {
+            double s = 0.0;
+            for (std::size_t k = 0; k < n; ++k)
+                s += Vad[k + i * n] * Cd[k + j * n];
+            tmp[i + j * n] = s;
+        }
+    // Y = tmp * Vb: Y[i, j] = sum_k tmp[i, k] * Vb[k, j]
+    for (std::size_t i = 0; i < n; ++i)
+        for (std::size_t j = 0; j < m; ++j) {
+            double s = 0.0;
+            for (std::size_t k = 0; k < m; ++k)
+                s += tmp[i + k * n] * Vbd[k + j * m];
+            Y[i + j * n] = s;
+        }
+
+    // y_ij /= (d_a_i + d_b_j)
+    for (std::size_t i = 0; i < n; ++i) {
+        const double dai = Dad[i + i * n];
+        for (std::size_t j = 0; j < m; ++j) {
+            const double dbj = Dbd[j + j * m];
+            const double denom = dai + dbj;
+            if (std::fabs(denom) < 1e-300)
+                throw Error("sylvester: A and -B share an eigenvalue (no unique solution)",
+                            0, 0, "sylvester", "", "m:sylvester:singular");
+            Y[i + j * n] /= denom;
+        }
+    }
+
+    // X = Va * Y * Vb'
+    auto out = Value::matrix(n, m, ValueType::DOUBLE, mr);
+    double *X = out.doubleDataMut();
+    // tmp = Va * Y: tmp[i, j] = sum_k Va[i, k] * Y[k, j]
+    for (std::size_t i = 0; i < n; ++i)
+        for (std::size_t j = 0; j < m; ++j) {
+            double s = 0.0;
+            for (std::size_t k = 0; k < n; ++k)
+                s += Vad[i + k * n] * Y[k + j * n];
+            tmp[i + j * n] = s;
+        }
+    // X = tmp * Vb': X[i, j] = sum_k tmp[i, k] * Vb[j, k]
+    for (std::size_t i = 0; i < n; ++i)
+        for (std::size_t j = 0; j < m; ++j) {
+            double s = 0.0;
+            for (std::size_t k = 0; k < m; ++k)
+                s += tmp[i + k * n] * Vbd[j + k * m];
+            X[i + j * n] = s;
+        }
+    return out;
+}
+
 // ── norm (vector + matrix forms) ─────────────────────────────────────
 
 namespace {
@@ -4106,6 +4192,14 @@ void schur_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     } else {
         outs[0] = std::move(T);
     }
+}
+
+void sylvester_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 3)
+        throw Error("sylvester: requires (A, B, C)",
+                    0, 0, "sylvester", "", "m:sylvester:nargin");
+    outs[0] = sylvester_sym(ctx.engine->resource(), args[0], args[1], args[2]);
 }
 
 void norm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
