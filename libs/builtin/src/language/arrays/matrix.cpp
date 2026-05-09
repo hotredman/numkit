@@ -579,6 +579,176 @@ Value eig_general_values(std::pmr::memory_resource *mr, const Value &A)
     return roots(mr, p);
 }
 
+std::tuple<Value, Value>
+eig_general_VD(std::pmr::memory_resource *mr, const Value &A)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("eig: input must be a 2D matrix",
+                    0, 0, "eig", "", "m:eig:notMatrix");
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
+    if (n != static_cast<std::size_t>(A.dims().dim(1)))
+        throw Error("eig: matrix must be square",
+                    0, 0, "eig", "", "m:eig:notSquare");
+
+    auto eig_vals = eig_general_values(mr, A);
+    const std::size_t k = eig_vals.numel();
+    if (k != n)
+        throw Error("eig: char-poly returned wrong number of eigenvalues",
+                    0, 0, "eig", "", "m:eig:internalError");
+
+    // Verify all real -- complex eigvecs need Francis QR (deferred).
+    if (eig_vals.isComplex()) {
+        const Complex *ev = eig_vals.complexData();
+        for (std::size_t i = 0; i < k; ++i) {
+            if (std::fabs(ev[i].imag()) > 1e-9 * (1.0 + std::fabs(ev[i].real())))
+                throw Error("eig: [V, D] form for matrices with complex "
+                            "eigenvalues requires Francis QR iteration "
+                            "(deferred to Phase 2c-3-future). For "
+                            "eigenvalues only, use 'e = eig(A)' (single output).",
+                            0, 0, "eig", "", "m:eig:complexEigvecs");
+        }
+    }
+
+    // Extract real eigenvalues into ScratchVec.
+    ScratchArena scratch(mr);
+    ScratchVec<double> evals(n, &scratch);
+    if (eig_vals.isComplex()) {
+        const Complex *ev = eig_vals.complexData();
+        for (std::size_t i = 0; i < n; ++i) evals[i] = ev[i].real();
+    } else {
+        const double *ev = eig_vals.doubleData();
+        for (std::size_t i = 0; i < n; ++i) evals[i] = ev[i];
+    }
+    // Sort ascending (matches symmetric eig output convention).
+    std::sort(evals.begin(), evals.end());
+
+    auto Vout = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    auto Dout = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    double *V = Vout.doubleDataMut();
+    double *D = Dout.doubleDataMut();
+    std::fill(V, V + n * n, 0.0);
+    std::fill(D, D + n * n, 0.0);
+
+    const double *Adata = A.doubleData();
+
+    for (std::size_t k2 = 0; k2 < n; ++k2) {
+        const double lam = evals[k2];
+        D[k2 + k2 * n] = lam;
+        // Build (A - lam*I).
+        auto Ali = Value::matrix(n, n, ValueType::DOUBLE, mr);
+        double *AL = Ali.doubleDataMut();
+        for (std::size_t i = 0; i < n * n; ++i) AL[i] = Adata[i];
+        for (std::size_t i = 0; i < n; ++i) AL[i + i * n] -= lam;
+        // Right null vector = last column of V from svd(Ali).
+        // Singular values are descending; smallest = last index.
+        auto [Us, Ss, Vs] = svd_decompose(mr, Ali);
+        const std::size_t nv = static_cast<std::size_t>(Vs.dims().dim(0));
+        const double *Vsdata = Vs.doubleData();
+        // Eigenvector = Vs(:, n-1) (the column corresponding to smallest sigma).
+        for (std::size_t i = 0; i < n; ++i)
+            V[i + k2 * n] = Vsdata[i + (nv - 1) * nv];
+    }
+    return std::make_tuple(std::move(Vout), std::move(Dout));
+}
+
+// ── norm (vector + matrix forms) ─────────────────────────────────────
+
+namespace {
+
+bool isVectorShape(const Value &x)
+{
+    if (x.dims().ndim() != 2) return false;
+    return x.dims().dim(0) == 1 || x.dims().dim(1) == 1;
+}
+
+} // anonymous namespace
+
+Value norm_value(std::pmr::memory_resource *mr, const Value &x, double p)
+{
+    if (x.numel() == 0) return Value::scalar(0.0, mr);
+
+    if (isVectorShape(x)) {
+        const std::size_t n = x.numel();
+        const double *d = x.doubleData();
+        if (p == 2.0) {
+            double s = 0.0;
+            for (std::size_t i = 0; i < n; ++i) s += d[i] * d[i];
+            return Value::scalar(std::sqrt(s), mr);
+        } else if (p == 1.0) {
+            double s = 0.0;
+            for (std::size_t i = 0; i < n; ++i) s += std::fabs(d[i]);
+            return Value::scalar(s, mr);
+        } else {
+            double s = 0.0;
+            for (std::size_t i = 0; i < n; ++i) s += std::pow(std::fabs(d[i]), p);
+            return Value::scalar(std::pow(s, 1.0 / p), mr);
+        }
+    }
+
+    // Matrix forms.
+    if (x.dims().ndim() != 2)
+        throw Error("norm: input must be vector or 2D matrix",
+                    0, 0, "norm", "", "m:norm:badShape");
+    const std::size_t m = static_cast<std::size_t>(x.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(x.dims().dim(1));
+    const double *d = x.doubleData();
+
+    if (p == 2.0) {
+        // Largest singular value.
+        auto sv = svd_values(mr, x);
+        if (sv.numel() == 0) return Value::scalar(0.0, mr);
+        return Value::scalar(sv.doubleData()[0], mr);
+    }
+    if (p == 1.0) {
+        double mx = 0.0;
+        for (std::size_t j = 0; j < n; ++j) {
+            double s = 0.0;
+            for (std::size_t i = 0; i < m; ++i) s += std::fabs(d[i + j * m]);
+            mx = std::max(mx, s);
+        }
+        return Value::scalar(mx, mr);
+    }
+    throw Error("norm: matrix p-norms only support 1, 2, inf, 'fro'",
+                0, 0, "norm", "", "m:norm:badP");
+}
+
+Value norm_inf(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.numel() == 0) return Value::scalar(0.0, mr);
+    if (isVectorShape(x)) {
+        const std::size_t n = x.numel();
+        const double *d = x.doubleData();
+        double mx = 0.0;
+        for (std::size_t i = 0; i < n; ++i)
+            mx = std::max(mx, std::fabs(d[i]));
+        return Value::scalar(mx, mr);
+    }
+    // Matrix inf-norm: max row sum.
+    if (x.dims().ndim() != 2)
+        throw Error("norm: input must be vector or 2D matrix",
+                    0, 0, "norm", "", "m:norm:badShape");
+    const std::size_t m = static_cast<std::size_t>(x.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(x.dims().dim(1));
+    const double *d = x.doubleData();
+    double mx = 0.0;
+    for (std::size_t i = 0; i < m; ++i) {
+        double s = 0.0;
+        for (std::size_t j = 0; j < n; ++j) s += std::fabs(d[i + j * m]);
+        mx = std::max(mx, s);
+    }
+    return Value::scalar(mx, mr);
+}
+
+Value norm_fro(std::pmr::memory_resource *mr, const Value &x)
+{
+    const std::size_t n = x.numel();
+    if (n == 0) return Value::scalar(0.0, mr);
+    const double *d = x.doubleData();
+    double s = 0.0;
+    for (std::size_t i = 0; i < n; ++i) s += d[i] * d[i];
+    return Value::scalar(std::sqrt(s), mr);
+}
+
 Value subspace(std::pmr::memory_resource *mr, const Value &A, const Value &B)
 {
     if (A.dims().ndim() != 2 || B.dims().ndim() != 2)
@@ -3887,12 +4057,15 @@ void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
         }
     } else {
         if (nargout >= 2) {
-            throw Error("eig: [V, D] form for non-symmetric matrices requires "
-                        "QR iteration -- deferred to Phase 2c-3. For "
-                        "eigenvalues only, use 'e = eig(A)' (single output).",
-                        0, 0, "eig", "", "m:eig:asymVDForm");
+            // [V, D] for asymmetric: works when all eigenvalues are
+            // real (via null-space of A - lam*I); throws if complex
+            // eigenvalues are present (Francis QR deferred).
+            auto [V, D] = eig_general_VD(mr, args[0]);
+            outs[0] = std::move(V);
+            outs[1] = std::move(D);
+        } else {
+            outs[0] = eig_general_values(mr, args[0]);
         }
-        outs[0] = eig_general_values(mr, args[0]);
     }
 }
 
@@ -3933,6 +4106,38 @@ void schur_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     } else {
         outs[0] = std::move(T);
     }
+}
+
+void norm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty() || args.size() > 2)
+        throw Error("norm: requires (X) or (X, p)",
+                    0, 0, "norm", "", "m:norm:nargin");
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 1) {
+        outs[0] = norm_value(mr, args[0], 2.0);
+        return;
+    }
+    const Value &p = args[1];
+    if (p.isChar() || p.isString()) {
+        const auto s = p.toString();
+        if (s == "fro" || s == "Fro") {
+            outs[0] = norm_fro(mr, args[0]);
+            return;
+        }
+        if (s == "inf" || s == "Inf") {
+            outs[0] = norm_inf(mr, args[0]);
+            return;
+        }
+        throw Error("norm: string p must be 'fro' or 'inf'",
+                    0, 0, "norm", "", "m:norm:badStringP");
+    }
+    const double pv = p.toScalar();
+    if (std::isinf(pv)) {
+        outs[0] = norm_inf(mr, args[0]);
+        return;
+    }
+    outs[0] = norm_value(mr, args[0], pv);
 }
 
 void subspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

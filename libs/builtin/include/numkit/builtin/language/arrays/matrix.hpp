@@ -224,6 +224,29 @@ Value eig_general_values(std::pmr::memory_resource *mr, const Value &A);
 /// Returns radians in [0, pi/2].
 Value subspace(std::pmr::memory_resource *mr, const Value &A, const Value &B);
 
+/// General [V, D] eig for asymmetric matrices when ALL eigenvalues
+/// are real. For each real eigenvalue λ_i, eigenvector v_i is the
+/// last column of V from svd(A - λ_i I) (right null vector).
+/// Throws if any eigenvalue has non-zero imaginary part -- those
+/// require Francis QR iteration for proper complex-eigvec extraction
+/// (Phase 2c-3-future). Returns (V, D) with A*V == V*D verified.
+std::tuple<Value, Value>
+eig_general_VD(std::pmr::memory_resource *mr, const Value &A);
+
+/// Vector or matrix norm. Vector input:
+///   norm(v)         = norm(v, 2) = sqrt(sum(|v|^2))     (Euclidean)
+///   norm(v, p)      = (sum(|v|^p))^(1/p)
+///   norm(v, inf)    = max(|v|)
+///   norm(v, 1)      = sum(|v|)
+/// Matrix input:
+///   norm(A)         = norm(A, 2) = max singular value
+///   norm(A, 1)      = max column sum
+///   norm(A, inf)    = max row sum
+///   norm(A, 'fro')  = sqrt(sum(A.^2))
+Value norm_value(std::pmr::memory_resource *mr, const Value &x, double p);
+Value norm_inf(std::pmr::memory_resource *mr, const Value &x);
+Value norm_fro(std::pmr::memory_resource *mr, const Value &x);
+
 /// Matrix exponential expm(A) via Padé approximation with scaling-
 /// and-squaring (Higham 2005). Works for any square matrix
 /// (symmetric or not). For symmetric A could go via eig but Padé
