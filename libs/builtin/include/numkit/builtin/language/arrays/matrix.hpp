@@ -122,6 +122,32 @@ Value chol(std::pmr::memory_resource *mr, const Value &A);
 /// column. Single-arg form requires the matrix to have at least k rows.
 Value topkrows(std::pmr::memory_resource *mr, const Value &A, std::size_t k);
 
+/// LU decomposition of an n×n matrix A with partial pivoting:
+/// returns (L, U, P) where L is unit-lower-triangular, U is
+/// upper-triangular, P is the permutation matrix, and P*A == L*U.
+/// MATLAB single-output form `LU = lu(A)` returns L+U combined
+/// (zero diagonal of L implicit, P baked into L's row order).
+/// @throws Error if A is non-square.
+std::tuple<Value, Value, Value>
+lu_decompose(std::pmr::memory_resource *mr, const Value &A);
+
+/// Combined L+U output: returns a single matrix whose strict lower
+/// triangle is L (unit diagonal implicit) and whose upper triangle
+/// (including diagonal) is U, with rows already permuted -- matches
+/// MATLAB's single-output `lu(A)` form.
+Value lu_combined(std::pmr::memory_resource *mr, const Value &A);
+
+/// QR decomposition of an m×n matrix A (m >= n) via Householder
+/// reflections: returns (Q, R) where Q is m×m orthogonal and R is
+/// m×n upper-triangular, with A == Q*R. Full-size form (not "econ").
+/// MATLAB single-output form `R = qr(A)` returns just R.
+/// @throws Error if A has more columns than rows.
+std::tuple<Value, Value>
+qr_decompose(std::pmr::memory_resource *mr, const Value &A);
+
+/// R-only output -- matches MATLAB's single-output `qr(A)` form.
+Value qr_R_only(std::pmr::memory_resource *mr, const Value &A);
+
 // ── Shape queries ────────────────────────────────────────────────────
 /// size(x) returns a row vector of dimensions.
 /// @param asVector  when true, returns [rows, cols] or [rows, cols, pages].

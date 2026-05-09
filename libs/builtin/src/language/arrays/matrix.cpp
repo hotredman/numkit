@@ -277,6 +277,238 @@ Value pageinv(std::pmr::memory_resource *mr, const Value &A)
     return out;
 }
 
+// ── lu / qr decompositions ───────────────────────────────────────────
+
+namespace {
+
+// In-place LU with partial pivoting on a column-major n×n matrix.
+// On return:
+//   - LU contains L (unit-lower-triangular, below diagonal) and U
+//     (upper, including diagonal) packed
+//   - piv[k] = row originally at position piv[k] swapped into row k
+// Returns false on singular A.
+bool luPivotInplace(double *LU, std::int32_t *piv, std::size_t n)
+{
+    for (std::size_t k = 0; k < n; ++k) {
+        std::size_t pivot = k;
+        double pmax = std::fabs(LU[k + k * n]);
+        for (std::size_t i = k + 1; i < n; ++i) {
+            const double v = std::fabs(LU[i + k * n]);
+            if (v > pmax) { pmax = v; pivot = i; }
+        }
+        if (pmax == 0.0) return false;
+        piv[k] = static_cast<std::int32_t>(pivot);
+        if (pivot != k) {
+            for (std::size_t j = 0; j < n; ++j)
+                std::swap(LU[k + j * n], LU[pivot + j * n]);
+        }
+        const double inv_pivot = 1.0 / LU[k + k * n];
+        for (std::size_t i = k + 1; i < n; ++i) {
+            const double factor = LU[i + k * n] * inv_pivot;
+            LU[i + k * n] = factor;
+            for (std::size_t j = k + 1; j < n; ++j)
+                LU[i + j * n] -= factor * LU[k + j * n];
+        }
+    }
+    return true;
+}
+
+} // anonymous namespace
+
+std::tuple<Value, Value, Value>
+lu_decompose(std::pmr::memory_resource *mr, const Value &A)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("lu: input must be a 2D matrix",
+                    0, 0, "lu", "", "m:lu:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    if (m != n)
+        throw Error("lu: square matrix required for [L,U,P] form",
+                    0, 0, "lu", "", "m:lu:notSquare");
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> LU(m * n, &scratch);
+    ScratchVec<std::int32_t> piv(n, &scratch);
+    std::copy(A.doubleData(), A.doubleData() + m * n, LU.begin());
+    if (!luPivotInplace(LU.data(), piv.data(), n))
+        throw Error("lu: matrix is singular",
+                    0, 0, "lu", "", "m:lu:singular");
+
+    auto Lout = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    auto Uout = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    auto Pout = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    double *L = Lout.doubleDataMut();
+    double *U = Uout.doubleDataMut();
+    double *P = Pout.doubleDataMut();
+    std::fill(L, L + n * n, 0.0);
+    std::fill(U, U + n * n, 0.0);
+    std::fill(P, P + n * n, 0.0);
+
+    for (std::size_t i = 0; i < n; ++i) {
+        L[i + i * n] = 1.0;       // unit diagonal of L
+        for (std::size_t j = 0; j < i; ++j)
+            L[i + j * n] = LU[i + j * n];
+        for (std::size_t j = i; j < n; ++j)
+            U[i + j * n] = LU[i + j * n];
+    }
+    // Build P from piv: start with identity, apply swaps in order.
+    // P*A == L*U means P represents the row-permutation we did.
+    std::vector<std::size_t> perm(n);
+    for (std::size_t i = 0; i < n; ++i) perm[i] = i;
+    for (std::size_t k = 0; k < n; ++k)
+        std::swap(perm[k], perm[piv[k]]);
+    for (std::size_t i = 0; i < n; ++i)
+        P[i + perm[i] * n] = 1.0;
+
+    return std::make_tuple(std::move(Lout), std::move(Uout), std::move(Pout));
+}
+
+Value lu_combined(std::pmr::memory_resource *mr, const Value &A)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("lu: input must be a 2D matrix",
+                    0, 0, "lu", "", "m:lu:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    if (m != n)
+        throw Error("lu: square matrix required",
+                    0, 0, "lu", "", "m:lu:notSquare");
+    ScratchArena scratch(mr);
+    ScratchVec<std::int32_t> piv(n, &scratch);
+    auto out = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    double *LU = out.doubleDataMut();
+    std::copy(A.doubleData(), A.doubleData() + m * n, LU);
+    if (!luPivotInplace(LU, piv.data(), n))
+        throw Error("lu: matrix is singular",
+                    0, 0, "lu", "", "m:lu:singular");
+    return out;
+}
+
+namespace {
+
+// Householder QR with explicit Q construction. Decomposes m×n A
+// (m >= n) into Q (m×m orthogonal) and R (m×n upper-triangular)
+// such that A = Q*R. Q built by applying Householder reflectors
+// to identity from the back (LAPACK DORG2R style).
+void qrFullHouseholder(std::pmr::memory_resource *mr,
+                       const double *A_in, std::size_t m, std::size_t n,
+                       double *Qout, double *Rout)
+{
+    ScratchArena scratch(mr);
+    ScratchVec<double> R_work(m * n, &scratch);
+    ScratchVec<double> V(m * n, 0.0, &scratch);     // Householder vectors per column
+    ScratchVec<double> tau(n, 0.0, &scratch);
+    std::copy(A_in, A_in + m * n, R_work.begin());
+
+    for (std::size_t k = 0; k < n; ++k) {
+        // Build Householder for column k.
+        double norm_sq = 0.0;
+        for (std::size_t i = k; i < m; ++i) {
+            const double e = R_work[i + k * m];
+            norm_sq += e * e;
+        }
+        if (norm_sq == 0.0) {
+            tau[k] = 0.0;
+            continue;
+        }
+        const double xk = R_work[k + k * m];
+        const double norm = std::sqrt(norm_sq);
+        const double alpha = (xk >= 0.0) ? -norm : norm;
+        V[k + k * m] = xk - alpha;
+        for (std::size_t i = k + 1; i < m; ++i)
+            V[i + k * m] = R_work[i + k * m];
+        double v_norm_sq = 0.0;
+        for (std::size_t i = k; i < m; ++i)
+            v_norm_sq += V[i + k * m] * V[i + k * m];
+        if (v_norm_sq == 0.0) {
+            R_work[k + k * m] = alpha;
+            tau[k] = 0.0;
+            continue;
+        }
+        tau[k] = 2.0 / v_norm_sq;
+        // Apply H_k to R_work[k:m, k+1:n]
+        for (std::size_t j = k + 1; j < n; ++j) {
+            double dot = 0.0;
+            for (std::size_t i = k; i < m; ++i)
+                dot += V[i + k * m] * R_work[i + j * m];
+            const double s = tau[k] * dot;
+            for (std::size_t i = k; i < m; ++i)
+                R_work[i + j * m] -= s * V[i + k * m];
+        }
+        // Set diagonal entry of R; zero entries below diagonal in column k.
+        R_work[k + k * m] = alpha;
+        for (std::size_t i = k + 1; i < m; ++i)
+            R_work[i + k * m] = 0.0;
+    }
+
+    // Copy R (m×n, R_work upper triangle).
+    for (std::size_t j = 0; j < n; ++j)
+        for (std::size_t i = 0; i < m; ++i)
+            Rout[i + j * m] = (i <= j) ? R_work[i + j * m] : 0.0;
+
+    // Build Q = H_1 * H_2 * ... * H_n by applying Householders from the
+    // back to identity. Q is m×m. Apply H_k from the LEFT to bottom-
+    // right (m-k)×m block of Q.
+    std::fill(Qout, Qout + m * m, 0.0);
+    for (std::size_t i = 0; i < m; ++i)
+        Qout[i + i * m] = 1.0;
+    for (std::size_t kk = n; kk-- > 0;) {
+        const std::size_t k = kk;
+        if (tau[k] == 0.0) continue;
+        // For each column j in [0, m), update Q[k:m, j]:
+        //   w = sum_{i=k..m-1} V[i,k] * Q[i,j]
+        //   Q[i,j] -= tau[k] * V[i,k] * w  for i in k..m-1
+        for (std::size_t j = 0; j < m; ++j) {
+            double dot = 0.0;
+            for (std::size_t i = k; i < m; ++i)
+                dot += V[i + k * m] * Qout[i + j * m];
+            const double s = tau[k] * dot;
+            for (std::size_t i = k; i < m; ++i)
+                Qout[i + j * m] -= s * V[i + k * m];
+        }
+    }
+}
+
+} // anonymous namespace
+
+std::tuple<Value, Value>
+qr_decompose(std::pmr::memory_resource *mr, const Value &A)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("qr: input must be a 2D matrix",
+                    0, 0, "qr", "", "m:qr:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    if (m < n)
+        throw Error("qr: number of rows must be >= number of columns "
+                    "(wide matrices via row-pivoted QR are deferred)",
+                    0, 0, "qr", "", "m:qr:wide");
+    auto Q = Value::matrix(m, m, ValueType::DOUBLE, mr);
+    auto R = Value::matrix(m, n, ValueType::DOUBLE, mr);
+    qrFullHouseholder(mr, A.doubleData(), m, n,
+                      Q.doubleDataMut(), R.doubleDataMut());
+    return std::make_tuple(std::move(Q), std::move(R));
+}
+
+Value qr_R_only(std::pmr::memory_resource *mr, const Value &A)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("qr: input must be a 2D matrix",
+                    0, 0, "qr", "", "m:qr:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    if (m < n)
+        throw Error("qr: number of rows must be >= number of columns",
+                    0, 0, "qr", "", "m:qr:wide");
+    ScratchArena scratch(mr);
+    ScratchVec<double> Q_unused(m * m, &scratch);
+    auto R = Value::matrix(m, n, ValueType::DOUBLE, mr);
+    qrFullHouseholder(mr, A.doubleData(), m, n,
+                      Q_unused.data(), R.doubleDataMut());
+    return R;
+}
+
 // ── trace / det / chol / topkrows ────────────────────────────────────
 
 Value trace(std::pmr::memory_resource *mr, const Value &A)
@@ -2559,6 +2791,37 @@ void chol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         throw Error("chol: requires exactly 1 argument",
                     0, 0, "chol", "", "m:chol:nargin");
     outs[0] = chol(ctx.engine->resource(), args[0]);
+}
+
+void lu_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("lu: requires exactly 1 argument",
+                    0, 0, "lu", "", "m:lu:nargin");
+    auto *mr = ctx.engine->resource();
+    if (nargout >= 2) {
+        auto [L, U, P] = lu_decompose(mr, args[0]);
+        outs[0] = std::move(L);
+        outs[1] = std::move(U);
+        if (nargout >= 3) outs[2] = std::move(P);
+    } else {
+        outs[0] = lu_combined(mr, args[0]);
+    }
+}
+
+void qr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("qr: requires exactly 1 argument",
+                    0, 0, "qr", "", "m:qr:nargin");
+    auto *mr = ctx.engine->resource();
+    if (nargout >= 2) {
+        auto [Q, R] = qr_decompose(mr, args[0]);
+        outs[0] = std::move(Q);
+        outs[1] = std::move(R);
+    } else {
+        outs[0] = qr_R_only(mr, args[0]);
+    }
 }
 
 void topkrows_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
