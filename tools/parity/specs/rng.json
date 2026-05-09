@@ -2,11 +2,11 @@
   "name": "rng",
   "namespace": "core",
   "setup": "",
-  "expr": "rng(42); y = rand(); rng(42); z = rand(); r1 = double(y == z);",
-  "iters": 1,
-  "tol": 1e-12,
-  "comment": "Sig: rng(SEED). Side-effect smoke: same seed must produce same first sample (r1 = 1 in any deterministic PRNG). DEFERRED -- direct sample value parity not possible (numkit vs MATLAB use different PRNG algorithms; MT-19937 not bit-replicated).",
+  "expr": "rng(0); a0 = rand(); a1 = rand(); a2 = rand(); rng(42); b0 = rand(); b1 = rand(); rng(1); c0 = rand();",
+  "iters": 5,
+  "tol": 1e-15,
+  "comment": "Sig: rng(SEED) + rand(). MATLAB-canonical Mersenne Twister (init_genrand reference, with seed=0 -> 5489 quirk) + 53-bit res53 uniform. Bit-identical with MATLAB R2025b across rng(0)/rng(1)/rng(42) (see Phase-0a-1 commit).",
   "fingerprint": [
-    "r1"
+    "a0", "a1", "a2", "b0", "b1", "c0"
   ]
 }

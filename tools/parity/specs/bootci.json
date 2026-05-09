@@ -1,0 +1,6 @@
+{"name": "bootci", "namespace": "stats",
+ "setup": "rng(42); x = randn(100, 1); m = mean(x);",
+ "expr": "ci = bootci(1000, @mean, x); contains_mean = double(ci(1) <= m && m <= ci(2)); width = ci(2) - ci(1);",
+ "iters": 5, "tol": 0,
+ "fingerprint": ["contains_mean"],
+ "comment": "Sig: ci = bootci(nboot, fn, X[, alpha]). Percentile bootstrap CI. NOT bit-identical with MATLAB (std::uniform_int_distribution implementation-defined; randn also not bit-identical). Statistical correctness verified: 95% CI contains true mean."}

@@ -28,6 +28,270 @@ Value eye(std::pmr::memory_resource *mr, size_t rows, size_t cols);
 /// (not strictly magic; preserved for parity).
 Value magic(std::pmr::memory_resource *mr, size_t N);
 
+/// Toeplitz matrix from first column c (length m) and optional first
+/// row r (length n). T[i, j] = c[i-j] if i >= j else r[j-i].
+/// Single-arg form: r is taken as conj(c) (real input → r = c).
+/// MATLAB convention: if c[0] != r[0], r[0] is silently overridden by c[0].
+Value toeplitz(std::pmr::memory_resource *mr,
+               const double *c, std::size_t m,
+               const double *r, std::size_t n);
+
+/// Hankel matrix from first column c (length m) and optional last
+/// row r (length n). H[i, j] = c[i+j] for i+j < m, else r[i+j-m+1].
+/// Single-arg form: r is all zeros (anti-triangular Hankel).
+/// MATLAB convention: if c[end] != r[0], r[0] is silently overridden.
+Value hankel(std::pmr::memory_resource *mr,
+             const double *c, std::size_t m,
+             const double *r, std::size_t n);
+
+/// Vandermonde matrix V[i, j] = v[i]^(n-1-j) where n = numel(v).
+/// Returns n×n matrix; columns from highest to lowest power
+/// (matches MATLAB R2025b layout).
+Value vander(std::pmr::memory_resource *mr, const double *v, std::size_t n);
+
+/// Companion matrix of monic polynomial p (length n+1).
+/// Returns n×n matrix whose top row is [-p[1]/p[0], ..., -p[n]/p[0]]
+/// and whose subdiagonal is all ones (eigenvalues = roots of p).
+Value compan(std::pmr::memory_resource *mr, const double *p, std::size_t pn);
+
+/// Pascal matrix of order n. Default form (k = 0): symmetric with
+/// P[i, j] = C(i+j, i). MATLAB also defines k=1 (lower-triangular
+/// Cholesky factor) and k=2 (cube-root of identity); only k=0 is
+/// implemented in this revision.
+Value pascal(std::pmr::memory_resource *mr, size_t n);
+
+/// Hilbert matrix of order n. H[i, j] = 1 / (i + j - 1) (1-indexed).
+Value hilb(std::pmr::memory_resource *mr, size_t n);
+
+/// Inverse Hilbert matrix of order n via the closed-form formula
+/// involving binomials. Exact integer entries up to n ≈ 13; for
+/// larger n the result loses accuracy due to floating-point overflow
+/// in the binomial coefficients.
+Value invhilb(std::pmr::memory_resource *mr, size_t n);
+
+/// Wilkinson's eigenvalue test matrix: symmetric tridiagonal with
+/// subdiagonal of ones and main diagonal = |(1:n) - (n+1)/2|.
+Value wilkinson(std::pmr::memory_resource *mr, size_t n);
+
+/// Hadamard matrix of order n via the Sylvester construction.
+/// Requires n to be a power of 2 (1, 2, 4, 8, ...). Other valid
+/// MATLAB orders (12·2^k, 20·2^k via Paley constructions) are
+/// deferred -- see implementation note.
+Value hadamard(std::pmr::memory_resource *mr, size_t n);
+
+/// Rosser's 8×8 eigenvalue test matrix (hardcoded constants from
+/// MATLAB R2025b's gallery / rosser).
+Value rosser(std::pmr::memory_resource *mr);
+
+/// Matrix inverse via LU. inv(A) ≡ A \ eye(n) -- prefer mldivide /
+/// linsolve / `\` for solving A·x = b; inv exists for the cases where
+/// the inverse itself is needed as a matrix.
+/// @throws Error if A is non-square or singular.
+Value inv(std::pmr::memory_resource *mr, const Value &A);
+
+/// Solve A·X = B via LU (square A) or Householder QR (tall A,
+/// least-squares). Wrapper over the same la_solve backend that powers
+/// MATLAB's mldivide / `\`. The optional 3rd argument `opts` is
+/// accepted for MATLAB-compatibility but ignored in this revision
+/// (LU/QR auto-detection handles the same cases).
+/// @throws Error on singular / rank-deficient / wide A.
+Value linsolve(std::pmr::memory_resource *mr, const Value &A, const Value &B);
+
+/// Page-wise inverse of a 3D array A (m×n×p). Each m×n page is
+/// independently inverted via LU. Output shape matches input.
+/// @throws Error if any page is non-square or singular.
+Value pageinv(std::pmr::memory_resource *mr, const Value &A);
+
+/// Sum of the diagonal elements of A. Equivalent to sum(diag(A)).
+/// Works for any 2D matrix (square or rectangular).
+Value trace(std::pmr::memory_resource *mr, const Value &A);
+
+/// Determinant via LU factorisation with partial pivoting.
+/// det(A) = sign(P) * prod(diag(U)) where A = P·L·U.
+/// @throws Error if A is non-square.
+Value det(std::pmr::memory_resource *mr, const Value &A);
+
+/// Cholesky factorisation of a symmetric positive-definite matrix A.
+/// Returns upper-triangular R such that R' * R = A
+/// (matches MATLAB R2025b's chol(A) default).
+/// @throws Error if A is non-square or not positive-definite.
+Value chol(std::pmr::memory_resource *mr, const Value &A);
+
+/// Top k rows of A in sort order. Default sort: descending by all
+/// columns lexicographically. Single-arg form (k only) sorts on every
+/// column. Single-arg form requires the matrix to have at least k rows.
+Value topkrows(std::pmr::memory_resource *mr, const Value &A, std::size_t k);
+
+/// LU decomposition of an n×n matrix A with partial pivoting:
+/// returns (L, U, P) where L is unit-lower-triangular, U is
+/// upper-triangular, P is the permutation matrix, and P*A == L*U.
+/// MATLAB single-output form `LU = lu(A)` returns L+U combined
+/// (zero diagonal of L implicit, P baked into L's row order).
+/// @throws Error if A is non-square.
+std::tuple<Value, Value, Value>
+lu_decompose(std::pmr::memory_resource *mr, const Value &A);
+
+/// Combined L+U output: returns a single matrix whose strict lower
+/// triangle is L (unit diagonal implicit) and whose upper triangle
+/// (including diagonal) is U, with rows already permuted -- matches
+/// MATLAB's single-output `lu(A)` form.
+Value lu_combined(std::pmr::memory_resource *mr, const Value &A);
+
+/// QR decomposition of an m×n matrix A (m >= n) via Householder
+/// reflections: returns (Q, R) where Q is m×m orthogonal and R is
+/// m×n upper-triangular, with A == Q*R. Full-size form (not "econ").
+/// MATLAB single-output form `R = qr(A)` returns just R.
+/// @throws Error if A has more columns than rows.
+std::tuple<Value, Value>
+qr_decompose(std::pmr::memory_resource *mr, const Value &A);
+
+/// R-only output -- matches MATLAB's single-output `qr(A)` form.
+Value qr_R_only(std::pmr::memory_resource *mr, const Value &A);
+
+/// Singular Value Decomposition: A = U * S * V'.
+/// One-sided Jacobi rotations on the columns of A; converges to
+/// orthogonal columns and reads sigma_i = ||A(:,i)||.
+///
+/// For m×n A with m >= n:
+///   U is m×m orthogonal, S is m×n diagonal (sigma >= 0, descending),
+///   V is n×n orthogonal.
+/// For m < n we transpose, run, and swap U/V at the end.
+///
+/// MATLAB single-output form `s = svd(A)` returns the singular values
+/// as a column vector (length min(m,n), descending order).
+std::tuple<Value, Value, Value>
+svd_decompose(std::pmr::memory_resource *mr, const Value &A);
+
+/// Singular values only -- matches MATLAB's single-output svd(A).
+Value svd_values(std::pmr::memory_resource *mr, const Value &A);
+
+/// Numerical rank: count of singular values above tolerance.
+/// Default tol = max(size(A)) * eps(max(svd(A))). Two-arg form
+/// rank(A, tol) takes user tolerance.
+Value rank_of(std::pmr::memory_resource *mr, const Value &A, double tol = -1.0);
+
+/// Pseudoinverse (Moore-Penrose) via SVD: pinv(A) = V * S^+ * U'
+/// where S^+ inverts non-zero singular values above tolerance.
+Value pinv(std::pmr::memory_resource *mr, const Value &A, double tol = -1.0);
+
+/// 2-norm condition number: cond(A) = sigma_max / sigma_min via SVD.
+/// Returns Inf for singular A.
+Value cond_2norm(std::pmr::memory_resource *mr, const Value &A);
+
+/// Orthonormal basis for the range of A (n columns of U from SVD
+/// where corresponding sigma > tolerance). Output is m × rank(A).
+Value orth(std::pmr::memory_resource *mr, const Value &A, double tol = -1.0);
+
+/// Orthonormal basis for the null space of A (n - rank(A) columns of
+/// V from SVD where corresponding sigma is below tolerance). Output
+/// is n × (n - rank(A)).
+Value null_basis(std::pmr::memory_resource *mr, const Value &A, double tol = -1.0);
+
+/// Estimate of the 2-norm (largest singular value). Same as svd(A)(1)
+/// for now (no power-iteration shortcut yet -- correctness over
+/// performance).
+Value normest(std::pmr::memory_resource *mr, const Value &A);
+
+/// Eigenvalues + eigenvectors of a symmetric real matrix via
+/// classical Jacobi rotations. A must be square; if not symmetric
+/// within tol, throws (general eig requires Hessenberg + Francis QR
+/// iteration; deferred as Phase 2b).
+///
+/// Returns (V, D) such that A*V == V*D, V orthogonal, D diagonal.
+/// MATLAB single-output form `e = eig(A)` returns eigenvalues as a
+/// column vector (ascending order for symmetric A).
+std::tuple<Value, Value>
+eig_symmetric(std::pmr::memory_resource *mr, const Value &A);
+
+/// Eigenvalues only -- matches MATLAB's single-output eig(A).
+Value eig_values(std::pmr::memory_resource *mr, const Value &A);
+
+/// Characteristic polynomial coefficients of a square matrix A
+/// via Souriau-Faddeev-LeVerrier algorithm.
+/// Returns p such that p(lambda) = lambda^n + p(2)*lambda^(n-1)
+/// + ... + p(n+1) and roots(p) == eig(A).
+/// Matches MATLAB's `poly(A)` for square inputs.
+Value poly_of_matrix(std::pmr::memory_resource *mr, const Value &A);
+
+/// General (non-symmetric) eigenvalues of A via characteristic
+/// polynomial + roots. Returns possibly-complex column vector.
+/// Numerically less stable than QR iteration but works for moderate
+/// n; QR-iteration (Phase 2c-3) will be a future replacement.
+Value eig_general_values(std::pmr::memory_resource *mr, const Value &A);
+
+/// Angle between two subspaces spanned by the columns of A and B.
+/// Computed as theta = acos(min(svd(orth(A)' * orth(B)))).
+/// Returns radians in [0, pi/2].
+Value subspace(std::pmr::memory_resource *mr, const Value &A, const Value &B);
+
+/// General [V, D] eig for asymmetric matrices when ALL eigenvalues
+/// are real. For each real eigenvalue λ_i, eigenvector v_i is the
+/// last column of V from svd(A - λ_i I) (right null vector).
+/// Throws if any eigenvalue has non-zero imaginary part -- those
+/// require Francis QR iteration for proper complex-eigvec extraction
+/// (Phase 2c-3-future). Returns (V, D) with A*V == V*D verified.
+std::tuple<Value, Value>
+eig_general_VD(std::pmr::memory_resource *mr, const Value &A);
+
+/// Sylvester equation A*X + X*B = C for symmetric A and B.
+/// Solved via simultaneous diagonalisation:
+///   A = V_a*D_a*V_a',  B = V_b*D_b*V_b'
+///   Y = V_a'*C*V_b,    y_ij = Y_ij / (d_a_i + d_b_j)
+///   X = V_a*Y*V_b'
+/// Throws if A or B is non-symmetric (general case requires Bartels-
+/// Stewart on Schur forms -- deferred). Throws if any d_a_i + d_b_j
+/// equals zero (no unique solution).
+Value sylvester_sym(std::pmr::memory_resource *mr,
+                    const Value &A, const Value &B, const Value &C);
+
+/// Vector or matrix norm. Vector input:
+///   norm(v)         = norm(v, 2) = sqrt(sum(|v|^2))     (Euclidean)
+///   norm(v, p)      = (sum(|v|^p))^(1/p)
+///   norm(v, inf)    = max(|v|)
+///   norm(v, 1)      = sum(|v|)
+/// Matrix input:
+///   norm(A)         = norm(A, 2) = max singular value
+///   norm(A, 1)      = max column sum
+///   norm(A, inf)    = max row sum
+///   norm(A, 'fro')  = sqrt(sum(A.^2))
+Value norm_value(std::pmr::memory_resource *mr, const Value &x, double p);
+Value norm_inf(std::pmr::memory_resource *mr, const Value &x);
+Value norm_fro(std::pmr::memory_resource *mr, const Value &x);
+
+/// Matrix exponential expm(A) via Padé approximation with scaling-
+/// and-squaring (Higham 2005). Works for any square matrix
+/// (symmetric or not). For symmetric A could go via eig but Padé
+/// is more general and still bit-stable.
+Value expm(std::pmr::memory_resource *mr, const Value &A);
+
+/// Matrix logarithm logm(A) for symmetric positive-definite A only
+/// (general logm requires complex Schur, deferred to Phase 2b).
+/// Computed via eigendecomposition: logm(A) = V * diag(log(eig)) * V'.
+Value logm_sym(std::pmr::memory_resource *mr, const Value &A);
+
+/// Matrix square root sqrtm(A) for symmetric positive-semidefinite A
+/// only (general sqrtm needs complex Schur). Via eigendecomposition:
+/// sqrtm(A) = V * diag(sqrt(eig)) * V'.
+Value sqrtm_sym(std::pmr::memory_resource *mr, const Value &A);
+
+/// Schur decomposition. For symmetric A this is equivalent to
+/// the eigendecomposition: A = U*T*U' where T is diagonal (real
+/// eigenvalues) and U is orthogonal. Returns (U, T).
+/// General (non-symmetric) Schur returns quasi-triangular T with
+/// 2×2 blocks for complex eigenpairs -- deferred to Phase 2b.
+std::tuple<Value, Value>
+schur_sym(std::pmr::memory_resource *mr, const Value &A);
+
+/// Hessenberg reduction of a square matrix A: returns (P, H) such
+/// that A = P*H*P', P orthogonal, H upper-Hessenberg (zeros below
+/// the first sub-diagonal). Reduction via successive Householder
+/// reflectors. Foundation for general eig and Schur (Phase 2c).
+std::tuple<Value, Value>
+hess(std::pmr::memory_resource *mr, const Value &A);
+
+/// Hessenberg-only output -- matches MATLAB single-output hess(A).
+Value hess_H_only(std::pmr::memory_resource *mr, const Value &A);
+
 // ── Shape queries ────────────────────────────────────────────────────
 /// size(x) returns a row vector of dimensions.
 /// @param asVector  when true, returns [rows, cols] or [rows, cols, pages].

@@ -1,0 +1,10 @@
+{
+  "name": "ammod",
+  "namespace": "comm",
+  "setup": "fs = 8000; fc = 100; t = (0:99)'/fs; x = sin(2*pi*5*t);",
+  "expr": "y_sc = ammod(x, fc, fs); y_tc = ammod(x, fc, fs, pi/4, 0.5);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["y_sc(1)", "y_sc(2)", "y_sc(10)", "y_sc(50)", "y_sc(100)", "y_tc(1)", "y_tc(2)", "y_tc(50)", "y_tc(100)"],
+  "comment": "MATLAB ammod: amplitude modulator y = (x + carr_amp).*cos(2π·Fc·t + ini_phase). Covered: DSB-SC (carramp=0 default) and DSB-TC (carramp=0.5, ini_phase=pi/4) forms over a 100-sample column-vector input. Bit-equal with MATLAB R2025b within ~1e-10 (Highway sin/cos contributes a few ULP). Octave 11.1.0 doesn't ship ammod in core (signal/communications package only); reports N/A."
+}

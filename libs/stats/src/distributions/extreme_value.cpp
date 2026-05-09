@@ -81,14 +81,19 @@ Value evrnd(std::pmr::memory_resource *mr, double mu, double sigma,
     if (sigma <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t n = rows * cols;
-    std::uniform_real_distribution<double> ud(0.0, 1.0);
     std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < n; ++i) {
-        const double u = ud(gen);
-        // Avoid log(0) for u==0; uniform_real never returns exactly 1, but
-        // guard anyway for robustness.
+        // genRes53 — MATLAB-canonical 53-bit uniform in [0, 1). Direct
+        // call (bypasses std::uniform_real_distribution whose uint32->
+        // double mapping is implementation-defined and breaks parity).
+        const double u = gen.genRes53();
+        // Avoid log(0) for u==0; genRes53 can return exactly 0 (low
+        // probability) — guard.
         const double safe = (u > 0.0) ? u : std::numeric_limits<double>::min();
-        od[i] = mu + sigma * std::log(-std::log1p(-safe));
+        // MATLAB convention: evrnd is Gumbel-MIN (Type-I extreme value
+        // for minima), so x = mu + sigma * log(-log(u)) -- direct u, NOT
+        // 1-u. (We previously used Gumbel-MAX log(-log1p(-u)).)
+        od[i] = mu + sigma * std::log(-std::log(safe));
     }
     return out;
 }

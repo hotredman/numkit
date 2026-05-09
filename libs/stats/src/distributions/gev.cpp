@@ -104,10 +104,11 @@ Value gevrnd(std::pmr::memory_resource *mr, double k, double sigma, double mu,
     if (sigma <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t n = rows * cols;
-    std::uniform_real_distribution<double> ud(0.0, 1.0);
     std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < n; ++i) {
-        double u = ud(gen);
+        // genRes53 -- MATLAB-canonical 53-bit uniform; bypasses
+        // std::uniform_real_distribution to preserve bit-parity.
+        double u = gen.genRes53();
         if (u <= 0.0) u = std::numeric_limits<double>::min();
         od[i] = gev_inv_one(u, k, sigma, mu);
     }

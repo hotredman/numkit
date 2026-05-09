@@ -1,0 +1,6 @@
+{"name": "bootstrp", "namespace": "stats",
+ "setup": "rng(42); x = randn(100, 1);",
+ "expr": "b = bootstrp(1000, @mean, x); has_correct_shape = double(size(b, 1) == 1000 && size(b, 2) == 1);",
+ "iters": 5, "tol": 0,
+ "fingerprint": ["has_correct_shape"],
+ "comment": "Sig: B = bootstrp(nboot, fn, X). Bootstrap resampling. Output shape verified; values not bit-identical with MATLAB (uniform_int_distribution + randn divergence)."}

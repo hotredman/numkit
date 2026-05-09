@@ -1,0 +1,4 @@
+{"name": "isoutlier", "namespace": "stats", "setup": "x = [1 2 3 4 5 6 7 100];",
+ "expr": "m = isoutlier(x); s = sum(double(m));", "iters": 5, "tol": 0,
+ "fingerprint": ["double(m(1))", "double(m(8))", "s"],
+ "comment": "Sig: m = isoutlier(x). Default median + 3*MAD method. Bit-identical with MATLAB R2025b."}

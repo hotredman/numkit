@@ -1,0 +1,15 @@
+{
+  "name": "hadamard",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "H2 = hadamard(2); H4 = hadamard(4); H8 = hadamard(8); H16 = hadamard(16);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "H2(1,1)", "H2(2,2)", "sum(H2(:))",
+    "H4(1,1)", "H4(2,3)", "H4(4,4)", "sum(H4(:))",
+    "H8(2,2)", "H8(4,7)", "sum(H8(1,:))",
+    "H16(1,1)", "H16(8,9)", "sum(sum(H16))"
+  ],
+  "comment": "Sig: H = hadamard(N). Sylvester construction: H_1=[1], H_{2k}=[Hk Hk; Hk -Hk]. Power-of-2 N only (1,2,4,8,16,...). MATLAB R2025b also accepts 12·2^k and 20·2^k via Paley constructions -- those are deferred (separate ТЗ)."
+}

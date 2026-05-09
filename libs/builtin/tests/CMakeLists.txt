@@ -65,4 +65,25 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/interp_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/frame_introspection_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/magic_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/testmatrices_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/testmatrices2_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/inv_linsolve_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/quickwins5_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/luqr_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/svd_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/svd_deps_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/eig_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/matfunc_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/hess_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/norm_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sylvester_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/subspace_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/now_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/datenum_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/weekday_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/juliandate_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/eomday_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/datevec_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/yyyymmdd_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mjuliandate_test.cpp
 )

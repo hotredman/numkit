@@ -1,0 +1,14 @@
+{
+  "name": "hilb",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "H4 = hilb(4); H6 = hilb(6); H10 = hilb(10);",
+  "iters": 5,
+  "tol": 1e-15,
+  "fingerprint": [
+    "H4(1,1)", "H4(2,3)", "H4(4,4)", "sum(H4(:))",
+    "H6(1,1)", "H6(3,4)", "H6(6,6)",
+    "H10(1,1)", "H10(5,7)", "H10(10,10)"
+  ],
+  "comment": "Sig: H = hilb(N). Hilbert matrix H[i,j] = 1/(i+j-1) (1-indexed). Bit-identical with MATLAB R2025b (single divides; no accumulation error)."
+}

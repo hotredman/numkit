@@ -25,7 +25,10 @@
 #include <memory_resource>
 #include <numkit/core/value.hpp>
 
+#include <numkit/builtin/math/random/matlab_mt19937.hpp>
+
 #include <cstdint>
+#include <mutex>
 #include <random>
 
 namespace numkit::builtin {
@@ -33,24 +36,24 @@ namespace numkit::builtin {
 // ── Real-valued generators (mt19937-driven) ──────────────────────────
 /// Uniform [0, 1) random matrix. rows/cols/pages == 0 for pages means 2D.
 Value rand(std::pmr::memory_resource *mr,
-            std::mt19937 &rng,
+            detail::MatlabMT19937 &rng,
             size_t rows,
             size_t cols = 1,
             size_t pages = 0);
 
 /// Standard normal random matrix.
 Value randn(std::pmr::memory_resource *mr,
-             std::mt19937 &rng,
+             detail::MatlabMT19937 &rng,
              size_t rows,
              size_t cols = 1,
              size_t pages = 0);
 
 /// ND uniform [0, 1) — accepts any rank ≥ 1.
-Value randND(std::pmr::memory_resource *mr, std::mt19937 &rng,
+Value randND(std::pmr::memory_resource *mr, detail::MatlabMT19937 &rng,
               const size_t *dims, int ndims);
 
 /// ND standard normal — accepts any rank ≥ 1.
-Value randnND(std::pmr::memory_resource *mr, std::mt19937 &rng,
+Value randnND(std::pmr::memory_resource *mr, detail::MatlabMT19937 &rng,
                const size_t *dims, int ndims);
 
 // ── Seeding / state control ──────────────────────────────────────────
@@ -60,7 +63,7 @@ Value randnND(std::pmr::memory_resource *mr, std::mt19937 &rng,
 /// so all RNG paths share the same state and respect rng(seed).
 /// Wrap accesses in `std::lock_guard<std::mutex>{rngMutex()}` if your
 /// caller can race with rand / randn / randi.
-std::mt19937 &sharedEngine();
+detail::MatlabMT19937 &sharedEngine();
 std::mutex &rngMutex();
 
 /// Seed the shared RNG. seed=0 matches MATLAB's rng('default').

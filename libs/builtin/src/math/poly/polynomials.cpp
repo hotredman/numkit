@@ -9,6 +9,8 @@
 #include "helpers.hpp"
 #include "poly_helpers.hpp"
 
+#include <numkit/builtin/language/arrays/matrix.hpp>  // poly_of_matrix
+
 #include <cmath>
 #include <cstring>
 #include <memory_resource>
@@ -527,7 +529,18 @@ void poly_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.empty())
         throw Error("poly: requires 1 argument",
                      0, 0, "poly", "", "m:poly:nargin");
-    outs[0] = poly(ctx.engine->resource(), args[0]);
+    // Dispatch (matches MATLAB behavior):
+    //   square matrix (n×n, n>1) -> characteristic polynomial via Souriau-Faddeev
+    //   anything else (vector of roots) -> expand (λ - r_1)(λ - r_2)...
+    const auto &A = args[0];
+    auto *mr = ctx.engine->resource();
+    if (A.dims().ndim() == 2
+        && A.dims().dim(0) == A.dims().dim(1)
+        && A.dims().dim(0) > 1) {
+        outs[0] = poly_of_matrix(mr, A);
+    } else {
+        outs[0] = poly(mr, A);
+    }
 }
 
 void polyvalm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

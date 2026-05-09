@@ -1,0 +1,14 @@
+{
+  "name": "hess",
+  "namespace": "builtin",
+  "setup": "A = [4 1 2; 1 3 7; 2 8 5]; B = [1 2 3 4; 5 6 7 8; 9 10 11 13; 1 0 1 2];",
+  "expr": "[Pa, Ha] = hess(A); err_a = max(max(abs(Pa*Ha*Pa' - A))); orth_a = max(max(abs(Pa'*Pa - eye(3)))); subdiag_a = abs(Ha(3,1)); [Pb, Hb] = hess(B); err_b = max(max(abs(Pb*Hb*Pb' - B))); subdiag_b = max([abs(Hb(3,1)), abs(Hb(4,1)), abs(Hb(4,2))]);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "Ha(1,1)", "Ha(1,2)", "Ha(2,2)",
+    "err_a", "orth_a", "subdiag_a",
+    "err_b", "subdiag_b"
+  ],
+  "comment": "Sig: [P, H] = hess(A). Hessenberg reduction via Householder reflectors; A = P*H*P', H upper-Hessenberg (zeros below sub-diagonal). Foundation for general eig (Phase 2c). Bit-identical reconstruction with MATLAB R2025b; H entries differ in sign/order due to Householder reflector freedom but identity verified to ulp."
+}

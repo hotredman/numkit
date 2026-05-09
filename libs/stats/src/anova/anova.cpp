@@ -96,6 +96,90 @@ anova1(std::pmr::memory_resource *mr, const Value &y, const Value &group)
     return std::make_tuple(p, F, dfB, dfW, ssB, ssW);
 }
 
+// ── anova2 (two-way ANOVA without replication, reps=1) ───────────────
+//
+// Y is m × n: rows = levels of factor A, columns = levels of factor B.
+// Returns (p_cols, p_rows, F_cols, F_rows, df_cols, df_rows, df_err,
+//          ss_cols, ss_rows, ss_err).
+// MATLAB convention: anova2 puts COLUMNS factor first (factor B),
+// then ROWS factor (factor A).
+std::tuple<double, double, double, double,
+           double, double, double,
+           double, double, double>
+anova2(std::pmr::memory_resource *mr, const Value &Y)
+{
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    if (Y.dims().ndim() != 2)
+        throw Error("anova2: input must be a 2D matrix",
+                    0, 0, "anova2", "", "m:anova2:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(Y.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(Y.dims().dim(1));
+    if (m < 2 || n < 2)
+        throw Error("anova2: input must be at least 2x2",
+                    0, 0, "anova2", "", "m:anova2:tooSmall");
+
+    const double *yd = Y.doubleData();
+    const double N = static_cast<double>(m * n);
+
+    // Row means (size m), column means (size n), grand mean.
+    std::vector<double> rowSum(m, 0.0);
+    std::vector<double> colSum(n, 0.0);
+    double grandSum = 0.0;
+    for (std::size_t j = 0; j < n; ++j)
+        for (std::size_t i = 0; i < m; ++i) {
+            const double v = yd[i + j * m];
+            rowSum[i] += v;
+            colSum[j] += v;
+            grandSum += v;
+        }
+    const double grandMean = grandSum / N;
+    std::vector<double> rowMean(m), colMean(n);
+    for (std::size_t i = 0; i < m; ++i) rowMean[i] = rowSum[i] / static_cast<double>(n);
+    for (std::size_t j = 0; j < n; ++j) colMean[j] = colSum[j] / static_cast<double>(m);
+
+    // Sum of squares.
+    double ssRows = 0.0, ssCols = 0.0, ssTotal = 0.0;
+    for (std::size_t i = 0; i < m; ++i) {
+        const double d = rowMean[i] - grandMean;
+        ssRows += static_cast<double>(n) * d * d;
+    }
+    for (std::size_t j = 0; j < n; ++j) {
+        const double d = colMean[j] - grandMean;
+        ssCols += static_cast<double>(m) * d * d;
+    }
+    for (std::size_t j = 0; j < n; ++j)
+        for (std::size_t i = 0; i < m; ++i) {
+            const double d = yd[i + j * m] - grandMean;
+            ssTotal += d * d;
+        }
+    const double ssErr = ssTotal - ssRows - ssCols;
+
+    const double dfRows = static_cast<double>(m - 1);
+    const double dfCols = static_cast<double>(n - 1);
+    const double dfErr  = static_cast<double>((m - 1) * (n - 1));
+    if (dfErr <= 0.0)
+        return std::make_tuple(nan, nan, nan, nan, dfCols, dfRows, dfErr,
+                               ssCols, ssRows, ssErr);
+
+    const double msErr = ssErr / dfErr;
+    if (msErr <= 0.0) {
+        const double inf = std::numeric_limits<double>::infinity();
+        return std::make_tuple(0.0, 0.0, inf, inf, dfCols, dfRows, dfErr,
+                               ssCols, ssRows, ssErr);
+    }
+
+    const double Fcols = (ssCols / dfCols) / msErr;
+    const double Frows = (ssRows / dfRows) / msErr;
+    Value FcolsV = Value::scalar(Fcols, mr);
+    Value FrowsV = Value::scalar(Frows, mr);
+    const double pCols = std::max(0.0, 1.0 - fcdf(mr, FcolsV, dfCols, dfErr).toScalar());
+    const double pRows = std::max(0.0, 1.0 - fcdf(mr, FrowsV, dfRows, dfErr).toScalar());
+
+    return std::make_tuple(pCols, pRows, Fcols, Frows,
+                           dfCols, dfRows, dfErr,
+                           ssCols, ssRows, ssErr);
+}
+
 std::tuple<Value, Value, Value, Value>
 kruskalwallis(std::pmr::memory_resource *mr, const Value &y, const Value &group)
 {
@@ -414,6 +498,76 @@ void dummyvar_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("dummyvar: requires GROUP",
                     0, 0, "dummyvar", "", "m:dummyvar:nargin");
     outs[0] = dummyvar(ctx.engine->resource(), args[0]);
+}
+
+void anova2_reg(Span<const Value> args, size_t nargout,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("anova2: requires (Y[, reps])",
+                    0, 0, "anova2", "", "m:anova2:nargin");
+    // reps argument: only reps=1 (default) supported in this revision.
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const int reps = static_cast<int>(args[1].toScalar());
+        if (reps != 1)
+            throw Error("anova2: reps > 1 (with replication / interaction) "
+                        "is deferred -- only reps=1 (without replication) "
+                        "supported in this revision",
+                        0, 0, "anova2", "", "m:anova2:reps");
+    }
+    auto *mr = ctx.engine->resource();
+    auto [pCols, pRows, Fc, Fr, dfC, dfR, dfE, ssC, ssR, ssE] =
+        anova2(mr, args[0]);
+
+    // p output: 1×3 row [p_cols, p_rows, p_inter]. p_inter = NaN for reps=1.
+    auto pV = Value::matrix(1, 3, ValueType::DOUBLE, mr);
+    double *pd = pV.doubleDataMut();
+    pd[0] = pCols;
+    pd[1] = pRows;
+    pd[2] = std::numeric_limits<double>::quiet_NaN();
+    outs[0] = std::move(pV);
+
+    if (nargout > 1) {
+        // 5×6 cell table.
+        Value tbl = Value::cell(5, 6, mr);
+        const double nan = std::numeric_limits<double>::quiet_NaN();
+        auto strV = [&](const char *s){ return Value::fromString(s, mr); };
+        auto numV = [&](double v){ return Value::scalar(v, mr); };
+        auto setCell = [&](size_t r, size_t c, const Value &v) {
+            tbl.cellAt(r + c * 5) = v;
+        };
+        setCell(0, 0, strV("Source"));
+        setCell(0, 1, strV("SS"));
+        setCell(0, 2, strV("df"));
+        setCell(0, 3, strV("MS"));
+        setCell(0, 4, strV("F"));
+        setCell(0, 5, strV("Prob>F"));
+        setCell(1, 0, strV("Columns"));
+        setCell(1, 1, numV(ssC));
+        setCell(1, 2, numV(dfC));
+        setCell(1, 3, numV(dfC > 0 ? ssC / dfC : nan));
+        setCell(1, 4, numV(Fc));
+        setCell(1, 5, numV(pCols));
+        setCell(2, 0, strV("Rows"));
+        setCell(2, 1, numV(ssR));
+        setCell(2, 2, numV(dfR));
+        setCell(2, 3, numV(dfR > 0 ? ssR / dfR : nan));
+        setCell(2, 4, numV(Fr));
+        setCell(2, 5, numV(pRows));
+        setCell(3, 0, strV("Error"));
+        setCell(3, 1, numV(ssE));
+        setCell(3, 2, numV(dfE));
+        setCell(3, 3, numV(dfE > 0 ? ssE / dfE : nan));
+        setCell(3, 4, numV(nan));
+        setCell(3, 5, numV(nan));
+        setCell(4, 0, strV("Total"));
+        setCell(4, 1, numV(ssC + ssR + ssE));
+        setCell(4, 2, numV(dfC + dfR + dfE));
+        setCell(4, 3, numV(nan));
+        setCell(4, 4, numV(nan));
+        setCell(4, 5, numV(nan));
+        outs[1] = std::move(tbl);
+    }
 }
 
 } // namespace detail

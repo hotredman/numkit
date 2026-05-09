@@ -1,0 +1,5 @@
+{"name": "detrend", "namespace": "stats", "setup": "y = (1:10)'; yq = (1:10)'.^2;",
+ "expr": "yd = detrend(2*y + 5); err1 = max(abs(yd)); ydq = detrend(yq, 2); err2 = max(abs(ydq));",
+ "iters": 5, "tol": 1e-10,
+ "fingerprint": ["err1", "err2", "yd(1)", "yd(end)"],
+ "comment": "Sig: y = detrend(x[, order]). Remove polynomial trend (default linear). Vector form."}

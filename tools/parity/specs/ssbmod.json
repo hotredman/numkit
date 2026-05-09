@@ -1,0 +1,10 @@
+{
+  "name": "ssbmod",
+  "namespace": "comm",
+  "setup": "fs = 8000; fc = 100; t = (0:127)'/fs; x = sin(2*pi*5*t);",
+  "expr": "yL = ssbmod(x, fc, fs); yU = ssbmod(x, fc, fs, 0, 'upper'); yP = ssbmod(x, fc, fs, pi/4);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["yL(2)", "yL(5)", "yL(50)", "yL(100)", "yU(2)", "yU(5)", "yU(50)", "yU(100)", "yP(1)", "yP(50)", "yP(100)"],
+  "comment": "MATLAB ssbmod: single-sideband modulator. y = x.*cos(2π·Fc·t + ini) ± imag(hilbert(x)).*sin(2π·Fc·t + ini); +sign for default lower sideband, -sign for 'upper'. Hilbert is FFT-based -> ~1e-10 ULP-level deviation from MATLAB. Octave 11.1.0 doesn't ship ssbmod in core (signal/communications package only); reports N/A."
+}
