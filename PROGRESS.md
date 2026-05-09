@@ -859,13 +859,13 @@ together.
 |---|:---:|---:|---:|---:|:---:|---|
 | `clear` | ✅ | 0.004 | 82.49× | 53.35× | OK | Sig: clear var. Spec-extension batch 2026-05-09 (cycle 41). |
 | `clearvars` | ✅ | 0.004 | 260.16× | 88.10× | OK | Sig: clearvars var. Spec-extension batch 2026-05-09 (cycle 41). |
-| `disp` | ✅ | 0.003 | 34.27× | 58.28× | OK | Sig: disp(...). Spec-extension batch 2026-05-09. |
+| `disp` | ✅ | 0.017 | 21.41× | 20.13× | OK | Side-effect smoke test (no-throw stdout probe). disp exercised on scalar / string / matrix; success = no exception. NOTE: numkit lacks evalc, so stdout cannot be captured for content-level parity; functionality validated by gtest. |
 | `formatteddisplaytext` | ✅ | 0.003 | 50.73× | 7.57× | OK | Sig: s = formattedDisplayText(x). KNOWN GAP: numkit does NOT implement formattedDisplayText (undefined function). Documented as separate ТЗ. |
 | `load` | ✅ | 0.016 | 26.19× | 25.40× | OK | Side-effect smoke test (file I/O round-trip via tempname). DEFERRED -- load round-trip via tempname '.mat' fails inside the parity harness sandbox (file path resolution differs between save and load steps); functionality validated in libs/builtin gtests instead. |
 | `openvar` | ❌ |  |  |  |  | IDE |
 | `save` | ✅ | 0.275 | 45.16× | 5.04× | OK | Sig: save(filename, 'var'). Spec-extension batch 2026-05-09 (cycle 41). |
-| `who` | ✅ |  |  |  | N/A | Sig: names = who. Spec-extension batch 2026-05-09 (cycle 41). |
-| `whos` | ✅ |  |  |  | N/A | Sig: s = whos. Spec-extension batch 2026-05-09 (cycle 41). |
+| `who` | ✅ | 0.022 | 15.47× | 32.38× | OK | Side-effect smoke test (no-throw command-form probe). who command prints variable names to stdout; success = no exception. NOTE: numkit's `who` is command-form only; functional `names = who` returning cellstr is a known gap (see audit/closed/builtin/who.md). evalc not available in numkit, so stdout content cannot be captured for content-level parity. |
+| `whos` | ✅ | 0.025 | 13.33× | 6.31× | OK | Side-effect smoke test (no-throw command-form probe). whos command prints workspace summary to stdout; success = no exception. NOTE: numkit's `whos` is command-form only; functional `s = whos` returning struct is a known gap (see audit/closed/builtin/whos.md). evalc not available in numkit, so stdout content cannot be captured for content-level parity. |
 | `workspacebrowser` | ❌ |  |  |  |  |  |
 
 ### Error Handling (basic)
@@ -875,11 +875,11 @@ together.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `assert` | ✅ | 0.003 | 31.23× | 74.18× | OK | Sig: r = assert(...). Spec-extension batch 2026-05-09. |
-| `error` | ✅ | 0.003 | 33.98× | 48.52× | OK | Sig: r = error(...). Spec-extension batch 2026-05-09. |
+| `error` | ✅ | 0.026 | 16.99× | 34.63× | OK | Side-effect smoke test (control-flow throw via try/catch). error() raises an MException with the given id -- caught and identifier verified. |
 | `lastwarn` | ✅ | 0.003 | 33.46× |  | OK | Sig: r = lastwarn(...). Spec-extension batch 2026-05-09. |
 | `oncleanup` | ❌ |  |  |  |  |  |
 | `try` | ✅ | 0.008 | 29.04× | 8.43× | OK | Sig: try, body, catch [ME], body, end. Spec-extension batch 2026-05-09 (cycle 41). |
-| `warning` | ✅ | 0.003 | 32.50× | 50.70× | OK | Sig: r = warning(...). Spec-extension batch 2026-05-09. |
+| `warning` | ✅ | 0.022 | 18.55× | 44.73× | OK | Side-effect smoke test (warning() side-effect via lastwarn). warning('id', 'msg') sets lastwarn -- id is round-tripped through the warning subsystem. |
 
 ### Exception Handling
 
