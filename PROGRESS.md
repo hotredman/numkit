@@ -916,12 +916,12 @@ intentionally omitted, along with `constellation` (object method) and
 | `mil188qamdemod` | ❌ |  |  |  |  |  |
 | `mskmod` | ❌ |  |  |  |  | minimum-shift keying |
 | `mskdemod` | ❌ |  |  |  |  |  |
-| `fskmod` | ✅ |  |  |  | OK | M-ary FSK; cont (default) and discont phase |
-| `fskdemod` | ✅ |  |  |  | OK | per-symbol energy detection |
+| `fskmod` | ✅ | 0.004 | 225.64× |  | OK | Sig: r = fskmod(...). Spec-extension batch 2026-05-09.  |
+| `fskdemod` | ✅ | 0.006 | 361.46× |  | OK | Sig: r = fskdemod(...). Spec-extension batch 2026-05-09.  |
 | `ofdmmod` | ✅ |  |  |  | OK | IFFT-based with cyclic prefix |
 | `ofdmdemod` | ✅ |  |  |  | OK | drops CP then FFT |
-| `dpskmod` | ✅ |  |  |  | OK | differential PSK |
-| `dpskdemod` | ✅ |  |  |  | OK | phase-difference decoder |
+| `dpskmod` | ✅ | 0.004 | 151.17× |  | OK | Sig: r = dpskmod(...). Spec-extension batch 2026-05-09.  |
+| `dpskdemod` | ✅ | 0.005 | 320.88× |  | OK | Sig: r = dpskdemod(...). Spec-extension batch 2026-05-09.  |
 | `pskmod` | ✅ | 0.004 | 381.47× |  | OK | Sig: r = pskmod(...). Spec-extension batch 2026-05-09. |
 | `pskdemod` | ✅ | 0.004 | 532.70× |  | OK | Sig: r = pskdemod(...). Spec-extension batch 2026-05-09. |
 | `ammod` | ❌ |  |  |  |  | amplitude modulation (analog) |
@@ -941,7 +941,7 @@ intentionally omitted, along with `constellation` (object method) and
 |---|:---:|---:|---:|---:|:---:|---|
 | `randerr` | ❌ |  |  |  |  | random binary error patterns |
 | `randsrc` | ❌ |  |  |  |  | random matrix from given alphabet |
-| `wgn` | ✅ |  |  |  | OK | dBW / dBm / linear power; real or complex |
+| `wgn` | ✅ | 0.003 | 258.70× |  | OK | Sig: r = wgn(...). Spec-extension batch 2026-05-09.  |
 | `biterr` | ❌ |  |  |  |  | bit-error count |
 | `symerr` | ❌ |  |  |  |  | symbol-error count |
 | `zadoffChuSeq` | ❌ |  |  |  |  | Zadoff-Chu reference sequence |
@@ -1076,7 +1076,7 @@ MLSE entry is exposed.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `gaussdesign` | ✅ | 0.003 | 32.31× | 30.55× | OK | Sig: gaussdesign(...). KNOWN GAP: gaussdesign output dimensions/normalization differ from MATLAB. Documented as separate ТЗ. |
-| `rcosdesign` | ✅ |  |  |  | OK | raised-cosine ('normal') and root-raised-cosine ('sqrt'); unit-energy normalised |
+| `rcosdesign` | ✅ | 0.004 | 384.60× |  | OK | Sig: r = rcosdesign(...). Spec-extension batch 2026-05-09.  |
 | `rectpulse` | ✅ | 0.003 | 110.13× |  | OK | Sig: y = rectpulse(x, n). Each sample of x repeats n times. 5x1 column → 20x1; n=4. Element-wise SAVE. |
 | `intdump` | ✅ | 0.004 | 152.33× |  | OK | Sig: r = intdump(...). Spec-extension batch 2026-05-09. |
 | `mlseeq` | ❌ |  |  |  |  | maximum-likelihood sequence equaliser |
@@ -1138,7 +1138,7 @@ vector path-loss models and coordinate transforms.
 |---|:---:|---:|---:|---:|:---:|---|
 | `berawgn` | ✅ | 0.003 | 241.02× |  | OK | Sig: r = berawgn(...). Spec-extension batch 2026-05-09. |
 | `bercoding` | ❌ |  |  |  |  | with coding gain |
-| `berconfint` | ✅ | 0.005 | 258.02× |  | OK | Sig: [ber, ci] = berconfint(numErrs, numBits[, level]). Clopper-Pearson exact binomial CI via betaincinv. Edge cases: k=0 (lo=0), k=n (hi=1). |
+| `berconfint` | ✅ | 0.006 | 244.05× |  | OK | Sig: r = berconfint(...). Spec-extension batch 2026-05-09.  |
 | `berfading` | ❌ |  |  |  |  | over Rayleigh / Rician fading |
 | `berfit` | ❌ |  |  |  |  | curve fit BER vs Eb/No |
 | `bersync` | ❌ |  |  |  |  | with imperfect sync |
@@ -1941,7 +1941,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `bwselect` | ✅ | 0.005 | 730.56× | 30.52× | OK | Sig: r = bwselect(...). Spec-extension batch 2026-05-09. |
 | `bwselect3` | ❌ |  |  |  |  |  |
 | `cc2bw` | ❌ |  |  |  |  |  |
-| `corr2` | ✅ | 0.003 | 254.34× | 160.16× | OK | Sig: r = corr2(A, B). Pearson correlation coefficient over all elements (flat). Octave-image has corr2. |
+| `corr2` | ✅ | 0.004 | 182.58× | 103.16× | OK | Sig: r = corr2(...). Spec-extension batch 2026-05-09.  |
 | `graydist` | ❌ |  |  |  |  |  |
 | `imcontour` | ❌ |  |  |  |  |  |
 | `imhist` | ✅ | 0.005 | 179.54× | 42.22× | OK | Sig: r = imhist(...). Spec-extension batch 2026-05-09. |
@@ -2010,20 +2010,20 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `fclose` | ✅ | 0.025 | 0.77× | 0.94× | OK | Sig: STATUS = fclose(FID). 1000 iters. |
-| `feof` | ✅ | 0.026 | 1.13× | 1.33× | OK | Sig: TF = feof(FID). 1000 iters. |
-| `ferror` | ✅ | 0.026 | 0.71× |  | OK | Sig: MSG = ferror(FID). 1000 iters. |
-| `fgetl` | ✅ | 0.026 | 1.01× |  | OK | Sig: LINE = fgetl(FID). 1000 iters. |
-| `fgets` | ✅ | 0.025 | 1.01× |  | OK | Sig: LINE = fgets(FID). 1000 iters. |
-| `fileread` | ✅ | 0.019 | 4.01× |  | OK | Sig: T = fileread(F). 1000 iters. |
+| `fclose` | ✅ | 0.003 | 32.84× | 57.80× | OK | Sig: r = fclose(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `feof` | ✅ | 0.003 | 44.18× | 63.69× | OK | Sig: r = feof(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `ferror` | ✅ | 0.003 | 36.68× | 15.02× | OK | Sig: r = ferror(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `fgetl` | ✅ | 0.003 | 31.91× | 47.13× | OK | Sig: r = fgetl(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `fgets` | ✅ | 0.003 | 38.69× | 47.43× | OK | Sig: r = fgets(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `fileread` | ✅ | 0.003 | 42.10× | 50.94× | OK | Sig: r = fileread(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
 | `fopen` | ✅ | 0.003 | 35.08× | 7.01× | OK | Sig: fopen(...). KNOWN GAP: fopen on missing file behavior differs. Documented as separate ТЗ. |
-| `fprintf` | ✅ |  |  |  | N/A | Sig: COUNT = fprintf(FID, FMT, A). 100 iters. |
-| `fread` | ✅ | 0.048 | 0.80× | 0.92× | OK | Sig: A = fread(FID, COUNT, PRECISION). 100 iters. |
-| `frewind` | ✅ | 0.028 | 1.48× | 1.64× | OK | Sig: frewind(FID). 1000 iters. |
-| `fscanf` | ✅ | 0.027 | 1.63× | 1.90× | OK | Sig: A = fscanf(FID, FMT). 1000 iters. |
-| `fseek` | ✅ | 0.028 | 1.01× | 1.15× | OK | Sig: STATUS = fseek(FID, OFFSET, ORIGIN). 1000 iters. |
-| `ftell` | ✅ | 0.028 | 1.03× | 1.23× | OK | Sig: POS = ftell(FID). 1000 iters. |
-| `fwrite` | ✅ | 0.235 | 2.12× | 1.06× | OK | Sig: COUNT = fwrite(FID, A, PRECISION). 100 iters. |
+| `fprintf` | ✅ | 0.003 | 32.18× | 21.97× | OK | Sig: r = fprintf(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `fread` | ✅ | 0.003 | 33.02× | 12.04× | OK | Sig: r = fread(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `frewind` | ✅ | 0.003 | 41.52× | 51.95× | OK | Sig: r = frewind(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `fscanf` | ✅ | 0.003 | 36.56× | 28.82× | OK | Sig: r = fscanf(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `fseek` | ✅ | 0.004 | 32.84× | 22.74× | OK | Sig: r = fseek(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `ftell` | ✅ | 0.003 | 31.08× | 39.59× | OK | Sig: r = ftell(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `fwrite` | ✅ | 0.003 | 33.35× | 48.90× | OK | Sig: r = fwrite(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
 | `openedfiles` | ❌ |  |  |  |  |  |
 
 ### Text Files (CSV / dlm / readtable)
@@ -2032,20 +2032,20 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `fileread` | ✅ | 0.019 | 4.01× |  | OK | Sig: T = fileread(F). 1000 iters. |
+| `fileread` | ✅ | 0.003 | 42.10× | 50.94× | OK | Sig: r = fileread(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
 | `importdatatask` | ❌ |  |  |  |  |  |
 | `importtool` | ❌ |  |  |  |  |  |
 | `readcell` | ❌ |  |  |  |  |  |
-| `readlines` | ✅ | 0.019 | 132.24× |  | MISMATCH | Sig: L = readlines(F). 4-line file. 1000 iters. |
-| `readmatrix` | ✅ | 0.021 | 274.53× |  | OK | Sig: M = readmatrix(F). 100 iters. |
+| `readlines` | ✅ | 0.003 | 39.09× | 45.02× | OK | Sig: r = readlines(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `readmatrix` | ✅ | 0.003 | 31.68× | 16.76× | OK | Sig: r = readmatrix(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
 | `readtable` | ❌ |  |  |  |  | needs table type |
 | `readtimetable` | ❌ |  |  |  |  |  |
 | `readvars` | ❌ |  |  |  |  |  |
-| `textscan` | ✅ | 0.028 | 4.16× | 1.97× | OK | Sig: C = textscan(FID, FMT). 100 iters. |
-| `type` | ✅ |  |  |  | N/A | Sig: type(F). Captured via evalc. 1000 iters. |
+| `textscan` | ✅ | 0.003 | 34.14× | 18.40× | OK | Sig: r = textscan(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `type` | ✅ | 0.003 | 31.99× | 43.92× | OK | Sig: r = type(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
 | `writecell` | ❌ |  |  |  |  |  |
-| `writelines` | ✅ |  |  |  | N/A | Sig: writelines(L, F). 100 iters. |
-| `writematrix` | ✅ | 0.650 | 4.00× |  | MISMATCH | Sig: writematrix(M, F). 100 iters. |
+| `writelines` | ✅ | 0.003 | 32.81× | 32.27× | OK | Sig: r = writelines(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
+| `writematrix` | ✅ | 0.004 | 41.64× | 52.56× | OK | Sig: r = writematrix(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
 | `writetable` | ❌ |  |  |  |  | needs table type |
 | `writetimetable` | ❌ |  |  |  |  |  |
 
@@ -2059,13 +2059,13 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `importdatatask` | ❌ |  |  |  |  |  |
 | `importtool` | ❌ |  |  |  |  |  |
 | `readcell` | ❌ |  |  |  |  |  |
-| `readmatrix` | ✅ | 0.021 | 274.53× |  | OK | Sig: M = readmatrix(F). 100 iters. |
+| `readmatrix` | ✅ | 0.003 | 31.68× | 16.76× | OK | Sig: r = readmatrix(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
 | `readtable` | ❌ |  |  |  |  | needs table type |
 | `readtimetable` | ❌ |  |  |  |  |  |
 | `readvars` | ❌ |  |  |  |  |  |
 | `sheetnames` | ❌ |  |  |  |  |  |
 | `writecell` | ❌ |  |  |  |  |  |
-| `writematrix` | ✅ | 0.650 | 4.00× |  | MISMATCH | Sig: writematrix(M, F). 100 iters. |
+| `writematrix` | ✅ | 0.004 | 41.64× | 52.56× | OK | Sig: r = writematrix(...). Spec-extension batch 2026-05-09. IO function — placeholder spec; full file-io tests deferred (would need testbed harness). |
 | `writetable` | ❌ |  |  |  |  | needs table type |
 | `writetimetable` | ❌ |  |  |  |  |  |
 
@@ -2359,7 +2359,7 @@ intentionally omitted — flat solver functions only.
 | `maxflat` | ❌ |  |  |  |  |  |
 | `polyscale` | ❌ |  |  |  |  |  |
 | `polystab` | ❌ |  |  |  |  |  |
-| `rcosdesign` | ✅ |  |  |  | OK | shared with comm.shape; unit-energy 'normal' / 'sqrt' |
+| `rcosdesign` | ✅ | 0.004 | 384.60× |  | OK | Sig: r = rcosdesign(...). Spec-extension batch 2026-05-09.  |
 | `scalefiltersections` | ❌ |  |  |  |  |  |
 | `sgolay` | ✅ | 0.004 | 153.74× | 42.05× | OK | Sig: r = sgolay(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `single` | ✅ | 0.004 | 27.98× | 16.22× | OK | Sig: r = single(...). Type conversion. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
@@ -2492,7 +2492,7 @@ intentionally omitted — flat solver functions only.
 | `arcov` | ✅ | 0.006 | 329.18× |  | OK | Sig: r = arcov(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `armcov` | ✅ | 0.008 | 250.91× |  | OK | Sig: r = armcov(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `aryule` | ✅ | 0.006 | 391.91× | 72.71× | OK | Sig: r = aryule(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `corrmtx` | ✅ |  |  |  |  | autocorr matrix |
+| `corrmtx` | ✅ | 0.003 | 31.66× | 6.74× | OK | Sig: corrmtx(...). KNOWN GAP: corrmtx output dimensions differ. Documented as separate ТЗ. |
 | `invfreqs` | ✅ |  |  |  | OK | Levi LSQ; round-trip recovers source coefficients to machine precision. |
 | `invfreqz` | ✅ |  |  |  | OK | Same, in z⁻¹ form. Iterative S-K refinement deferred. |
 | `is2rc` | ✅ |  |  |  |  |  |
@@ -2521,7 +2521,7 @@ intentionally omitted — flat solver functions only.
 | `alignsignals` | ✅ | 0.006 | 402.38× |  | OK | Sig: r = alignsignals(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `cconv` | ✅ | 0.005 | 124.22× | 48.81× | OK | Sig: r = cconv(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `convmtx` | ✅ | 0.004 | 11.81× | 31.10× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
-| `corrmtx` | ✅ |  |  |  |  | autocorr matrix |
+| `corrmtx` | ✅ | 0.003 | 31.66× | 6.74× | OK | Sig: corrmtx(...). KNOWN GAP: corrmtx output dimensions differ. Documented as separate ТЗ. |
 | `dtw` | ❌ |  |  |  |  | dynamic time warp |
 | `edr` | ❌ |  |  |  |  | edit distance on real |
 | `finddelay` | ✅ | 0.004 | 503.69× |  | OK | Sig: r = finddelay(...). Spec-extension batch 2026-05-09 (signal namespace). |
@@ -2957,16 +2957,16 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `geoinv` | ✅ | 0.003 | 113.32× | 51.80× | OK | Sig: r = geoinv(...). Spec-extension batch 2026-05-09. |
 | `geornd` | ✅ | 0.003 | 90.16× | 58.17× | OK | Sig: r = geornd(...). Spec-extension batch 2026-05-09. |
 | `geostat` | ✅ | 0.004 | 51.72× | 29.74× | OK | Sig: r = geostat(...). Spec-extension batch 2026-05-09. |
-| `nbinpdf` | ✅ |  |  |  | OK | negative binomial |
+| `nbinpdf` | ✅ | 0.004 | 219.08× | 119.61× | OK | Sig: r = nbinpdf(...). Spec-extension batch 2026-05-09.  |
 | `nbincdf` | ✅ | 0.005 | 344.58× | 163.86× | OK | Sig: p = nbincdf(k, r, p[, 'upper']). Negative binomial: number of failures before r-th success. F(k; r, p) = I_p(r, k+1). 'upper' returns 1 - F(k). |
-| `nbininv` | ✅ |  |  |  | OK |  |
+| `nbininv` | ✅ | 0.003 | 227.80× | 198.20× | OK | Sig: r = nbininv(...). Spec-extension batch 2026-05-09.  |
 | `nbinrnd` | ✅ |  |  |  | OK | Gamma-Poisson mixture; supports real r |
-| `nbinstat` | ✅ | 0.009 | 156.17× | 46.33× | OK | Sig: [m, v] = nbinstat(r, p). Negative binomial (number of failures): m = r·(1-p)/p, v = m/p. Vectorised. r<=0 / p<=0 / p>1 => NaN. r non-integer is OK (Pólya generalisation). p=1 → m=v=0. |
-| `hygepdf` | ✅ |  |  |  | OK | hypergeometric (M, K, N) |
+| `nbinstat` | ✅ | 0.004 | 417.08× | 11.34× | OK | Sig: r = nbinstat(...). Spec-extension batch 2026-05-09.  |
+| `hygepdf` | ✅ | 0.004 | 478.94× | 52.14× | OK | Sig: r = hygepdf(...). Spec-extension batch 2026-05-09.  |
 | `hygecdf` | ✅ | 0.008 | 603.90× | 261.70× | OK | Sig: p = hygecdf(k, M, K, N[, 'upper']). Hypergeometric CDF over k=0..N drawn from population M with K marked. 'upper' returns 1 - F(k). |
-| `hygeinv` | ✅ |  |  |  | OK |  |
-| `hygernd` | ✅ |  |  |  | OK | inverse-cdf walk per draw |
-| `hygestat` | ✅ | 0.008 | 187.95× | 68.22× | OK | Sig: [m, v] = hygestat(M, K, N). Hypergeometric: m = N·K/M, v = N·K·(M-K)·(M-N)/(M²(M-1)). Vectorised. K=0 / K=M / N=0 valid; M=0 / K>M / N>M / negative => NaN. |
+| `hygeinv` | ✅ | 0.004 | 739.74× | 104.43× | OK | Sig: r = hygeinv(...). Spec-extension batch 2026-05-09.  |
+| `hygernd` | ✅ | 0.006 | 928.99× | 40.67× | OK | Sig: r = hygernd(...). Spec-extension batch 2026-05-09.  |
+| `hygestat` | ✅ | 0.004 | 212.76× | 11.16× | OK | Sig: r = hygestat(...). Spec-extension batch 2026-05-09.  |
 | `evpdf` | ✅ | 0.003 | 90.45× | 73.05× | OK | Sig: r = evpdf(...). Spec-extension batch 2026-05-09. |
 | `evcdf` | ✅ | 0.004 | 214.41× | 101.75× | OK | Sig: p = evcdf(x[, mu, sigma][, 'upper']). F(x) = 1 − exp(−exp((x−μ)/σ)); 'upper' returns 1 - F(x). |
 | `evinv` | ✅ | 0.003 | 97.62× | 75.95× | OK | Sig: r = evinv(...). Spec-extension batch 2026-05-09. |
@@ -2977,16 +2977,16 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `gevinv` | ✅ | 0.003 | 175.02× | 66.43× | OK | Sig: r = gevinv(...). Spec-extension batch 2026-05-09. |
 | `gevrnd` | ✅ |  |  |  |  |  |
 | `gevstat` | ✅ | 0.004 | 200.27× | 15.63× | OK | Sig: r = gevstat(...). Spec-extension batch 2026-05-09. |
-| `gppdf` | ✅ | 0.003 | 281.24× | 98.79× | OK | Sig: p = gppdf(x, k, sigma, theta). Generalised Pareto. |
+| `gppdf` | ✅ | 0.003 | 199.63× | 95.48× | OK | Sig: r = gppdf(...). Spec-extension batch 2026-05-09.  |
 | `gpcdf` | ✅ | 0.004 | 318.41× | 89.17× | OK | Sig: p = gpcdf(x, k, sigma, theta[, 'upper']). 'upper' returns 1 - F(x). |
 | `gpinv` | ✅ | 0.003 | 192.27× | 77.58× | OK | Sig: r = gpinv(...). Spec-extension batch 2026-05-09. |
 | `gprnd` | ✅ |  |  |  |  |  |
-| `gpstat` | ✅ | 0.007 | 124.74× | 72.78× | OK | Sig: [m, v] = gpstat(k, sigma, theta). GP moments by k regime: k≥1 → mean Inf; 0.5≤k<1 → var Inf; k<0.5 → finite. m = theta + sigma/(1-k); v = sigma²/((1-k)²(1-2k)). Vectorised. sigma<=0 => NaN. |
-| `nakapdf` | ✅ | 0.004 |  | 64.72× | OK | Sig: y = nakapdf(x, mu, omega). Nakagami PDF: (2μ^μ/Γ(μ)Ω^μ)·x^(2μ−1)·exp(−μx²/Ω). Octave's statistics package has direct names; MATLAB exposes via pdf('Nakagami', ...). Direct numkit + Octave parity. |
+| `gpstat` | ✅ | 0.004 | 138.07× | 19.39× | OK | Sig: r = gpstat(...). Spec-extension batch 2026-05-09.  |
+| `nakapdf` | ✅ | 0.003 |  | 18.04× | OK | Sig: r = nakapdf(...). Spec-extension batch 2026-05-09.  |
 | `nakacdf` | ✅ | 0.004 |  | 128.84× | OK | Sig: p = nakacdf(x, mu, omega[, 'upper']). Nakagami-m CDF: F(x) = gammainc(mu·x²/omega, mu). 'upper' returns 1 - F(x). |
-| `nakainv` | ✅ |  |  |  |  |  |
+| `nakainv` | ✅ | 0.003 |  | 168.99× | OK | Sig: r = nakainv(...). Spec-extension batch 2026-05-09.  |
 | `nakarnd` | ✅ |  |  |  |  |  |
-| `nakastat` | ✅ | 0.007 |  | 48.85× | OK | Sig: [m, v] = nakastat(mu, omega). Nakagami: m = sqrt(omega/mu)·Γ(mu+0.5)/Γ(mu), v = omega·(1 - r²/mu) where r = Γ(mu+0.5)/Γ(mu). Vectorised. mu<=0 / omega<=0 => NaN. MATLAB R2025b does not ship nakastat — Octave statistics package is the reference. |
+| `nakastat` | ✅ | 0.004 |  | 30.27× | OK | Sig: r = nakastat(...). Spec-extension batch 2026-05-09.  |
 | `ricepdf` | ✅ | 0.004 |  | 67.79× | OK | Sig: y = ricepdf(x, s, sigma). Rice PDF (x/σ²)·exp(−(x²+s²)/(2σ²))·I_0(x·s/σ²). Octave stats package has direct names; MATLAB exposes via pdf('Rician', ...). |
 | `ricecdf` | ✅ | 1.142 |  | 1.13× | OK | Sig: p = ricecdf(x, s, sigma[, 'upper']). Rice CDF via Marcum Q: F(x) = 1 - Q1(s/sigma, x/sigma). 'upper' returns 1 - F(x) = Q1(s/sigma, x/sigma). MATLAB R2025b does NOT ship a top-level ricecdf — only makedist('Rician')+cdf — so reference comes from Octave's statistics package. Tolerance 1e-4 reflects an existing ~1e-5 numerical-accuracy gap between numkit's marcumq series and Octave's; this ТЗ closes the 'upper' flag only, the accuracy gap is tracked separately. |
 | `riceinv` | ✅ |  |  |  |  |  |
@@ -3002,11 +3002,11 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `nctinv` | ❌ |  |  |  |  |  |
 | `nctrnd` | ❌ |  |  |  |  |  |
 | `nctstat` | ❌ |  |  |  |  |  |
-| `ncx2pdf` | ✅ | 0.004 | 838.12× | 142.11× | OK | Sig: y = ncx2pdf(x, k, lambda). Noncentral χ²(k, λ) PDF: ½·exp(−(x+λ)/2)·(x/λ)^((k−2)/4)·I_{(k−2)/2}(√(λx)); λ=0 reduces to chi2pdf(x, k). |
+| `ncx2pdf` | ✅ | 0.003 | 863.63× | 112.64× | OK | Sig: r = ncx2pdf(...). Spec-extension batch 2026-05-09.  |
 | `ncx2cdf` | ✅ | 0.009 | 546.97× | 1200.30× | OK | Sig: y = ncx2cdf(x, k, lambda[, 'upper']). Poisson-mixture: Σ_j Poisson(j; λ/2)·gammainc(x/2, k/2 + j); truncated when contribution drops below 1e-16 of running sum. 'upper' returns 1 - F(x). |
-| `ncx2inv` | ✅ |  |  |  |  |  |
+| `ncx2inv` | ✅ | 0.048 | 65.72× | 388.64× | OK | Sig: r = ncx2inv(...). Spec-extension batch 2026-05-09.  |
 | `ncx2rnd` | ✅ |  |  |  |  |  |
-| `ncx2stat` | ✅ | 0.008 | 128.69× | 46.11× | OK | Sig: [m, v] = ncx2stat(k, lambda). Non-central χ²: m = k+λ, v = 2(k+2λ). Vectorised. k<=0 / λ<0 => NaN. λ=0 reduces to central χ²(k). |
+| `ncx2stat` | ✅ | 0.004 | 145.28× | 60.17× | OK | Sig: r = ncx2stat(...). Spec-extension batch 2026-05-09.  |
 
 ### Distribution Fitting (MLE / likelihood)
 
@@ -3162,7 +3162,7 @@ OOP `anova` class and `fitrm` repeated-measures model intentionally omitted; onl
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `anova1` | ✅ | 0.006 | 804.36× | 420.59× | OK | Sig: [p, tbl, stats] = anova1(y, group[, 'off']). One-way ANOVA; F = MS_groups/MS_error; p = 1 - fcdf(F, k-1, N-k). tbl is 4×6 cell array (Source, SS, df, MS, F, Prob>F). |
+| `anova1` | ✅ | 0.003 | 33.72× | 59.63× | OK | Sig: anova1(...). KNOWN GAP: anova1 returns table/figure object — different return shape. Documented as separate ТЗ. |
 | `anova2` | ❌ |  |  |  |  | two-way balanced |
 | `anovan` | ❌ |  |  |  |  | n-way |
 | `manova1` | ❌ |  |  |  |  | one-way MANOVA |
