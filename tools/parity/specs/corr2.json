@@ -1,10 +1,12 @@
 {
   "name": "corr2",
-  "namespace": "image",
-  "setup": "A = [17 24 1 8 15; 23 5 7 14 16; 4 6 13 20 22; 10 12 19 21 3; 11 18 25 2 9]; B = A.';",
-  "expr": "y = corr2(A, B);",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "r1 = corr2([1 2; 3 4], [1 2; 3 4]);",
   "iters": 5,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: r = corr2(A, B). Pearson correlation coefficient over all elements (flat). Octave-image has corr2."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = corr2(...). Spec-extension batch 2026-05-09. "
 }

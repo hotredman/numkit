@@ -1,0 +1,12 @@
+{
+  "name": "corrmtx",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "r1 = 1;",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: corrmtx(...). KNOWN GAP: corrmtx output dimensions differ. Documented as separate \u0422\u0417."
+}

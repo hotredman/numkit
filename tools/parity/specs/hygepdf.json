@@ -1,0 +1,13 @@
+{
+  "name": "hygepdf",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "r1 = hygepdf(2, 50, 10, 8); r2 = hygepdf(0, 50, 10, 8);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = hygepdf(...). Spec-extension batch 2026-05-09. "
+}
