@@ -3163,7 +3163,7 @@ OOP `anova` class and `fitrm` repeated-measures model intentionally omitted; onl
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `anova1` | ✅ | 0.004 | 3944.96× | 653.33× | OK | Sig: p = anova1(y, group['off']). One-way ANOVA p-value. Bit-identical with MATLAB R2025b on probed input (p=0.0251). |
-| `anova2` | ❌ |  |  |  |  | two-way balanced |
+| `anova2` | ❌ | 0.005 | 8814.61× | 588.48× | OK | Sig: p = anova2(Y[, reps]). Two-way ANOVA without replication (reps=1 only in this revision; reps>1 with interaction deferred). p = [p_cols, p_rows, p_interaction]. Bit-identical with MATLAB R2025b on probed cases. |
 | `anovan` | ❌ |  |  |  |  | n-way |
 | `manova1` | ❌ |  |  |  |  | one-way MANOVA |
 | `canoncorr` | ❌ |  |  |  |  | canonical correlation |

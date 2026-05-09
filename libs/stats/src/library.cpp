@@ -319,6 +319,7 @@ void mvtpdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // anova/anova.cpp
 void anova1_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void anova2_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void kruskalwallis_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dummyvar_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 
@@ -623,6 +624,7 @@ void StatsLibrary::install(Engine &engine)
     reg("mvdist", "mvtpdf", &stats::detail::mvtpdf_reg);
 
     reg("anova", "anova1",        &stats::detail::anova1_reg);
+    reg("anova", "anova2",        &stats::detail::anova2_reg);
     reg("anova", "kruskalwallis", &stats::detail::kruskalwallis_reg);
     reg("anova", "dummyvar",      &stats::detail::dummyvar_reg);
 

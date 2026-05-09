@@ -1,0 +1,6 @@
+{"name": "anova2", "namespace": "stats",
+ "setup": "Y = [55 26 78; 60 24 73; 70 28 75; 65 27 80]; Yrow = [1 1 1; 5 5 5; 10 10 10];",
+ "expr": "p1 = anova2(Y); p2 = anova2(Yrow);",
+ "iters": 5, "tol": 1e-9,
+ "fingerprint": ["p1(1)", "p1(2)", "p2(1)", "p2(2)"],
+ "comment": "Sig: p = anova2(Y[, reps]). Two-way ANOVA without replication (reps=1 only in this revision; reps>1 with interaction deferred). p = [p_cols, p_rows, p_interaction]. Bit-identical with MATLAB R2025b on probed cases."}
