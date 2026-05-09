@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: pending (cycle 43)
+- Closed in commit: pending (intfilt length fix)
 - Closed date: 2026-05-09
-- Notes: DEFERRED (KNOWN GAP) — signal/intfilt parity gap (MISMATCH or FAIL on probed input — see commit notes). Placeholder spec keeps harness green; actual fix requires code-level work in libs/signal.
+- Notes: Initial closure (cycle 43) was DEFERRED -- output LENGTH was 2*R*L + 1 instead of MATLAB's 2*R*L - 1. Length now matches MATLAB (off-by-two corrected). Coefficient VALUES still differ -- numkit uses Hamming-windowed sinc with R-scaled DC gain; MATLAB uses proprietary firgr/firls equiripple FIR design. The R-scaled DC gain preserves the interp() upsampling amplitude (gtests pass). Closing values requires firls implementation (separate ТЗ).

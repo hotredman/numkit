@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: pending (cycle 44)
+- Closed in commit: pending (multithresh fix)
 - Closed date: 2026-05-09
-- Notes: DEFERRED (KNOWN GAP) — multi-level Otsu threshold values differ. Placeholder spec keeps harness green.
+- Notes: Initial closure (cycle 44) was DEFERRED -- numkit returned histogram-bin BOUNDARIES (0..L-1 indices) divided by L-1, MATLAB returns MIDPOINTS of adjacent class MEANS in the input's native value range (uint8 -> 0..255 floored, double -> 0..1). Fix: post-process Otsu best[] indices to compute class means then take midpoints; output range mirrors input class. Bit-identical with MATLAB R2025b on bimodal cluster probe (uint8 [20,120,220] -> [70, 170] both engines).

@@ -2,9 +2,9 @@
   "name": "intfilt",
   "namespace": "signal",
   "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 1,
+  "expr": "b = intfilt(4, 2, 0.5); r1 = double(numel(b));",
+  "iters": 5,
   "tol": 1e-12,
   "fingerprint": ["r1"],
-  "comment": "DEFERRED — signal/intfilt parity gap (MISMATCH or FAIL on probed input). Placeholder spec keeps harness green; KNOWN GAP — see audit/closed/signal/intfilt.md."
+  "comment": "Sig: b = intfilt(R, L, alpha). LENGTH fixed to MATLAB convention (2*R*L - 1) 2026-05-09. Coefficient VALUES still differ from MATLAB (numkit uses Hamming-windowed sinc; MATLAB uses sinc(alpha*n)*sinc(n/L) product) -- separate ТЗ to align."
 }

@@ -75,6 +75,11 @@ double maxRootRadius(std::pmr::memory_resource *mr, const Value &p)
 } // namespace
 
 // ── impzlength ────────────────────────────────────────────────────────
+//
+// MATLAB convention: returns the number of samples needed for the
+// impulse response to decay to 0.00005 (= 5e-5) of its peak. Formula:
+//   N = floor(log(5e-5) / log(rho))
+// where rho is the largest pole magnitude.
 size_t impzlength(std::pmr::memory_resource *mr, const Value &b, const Value &a)
 {
     if (isTrivialA(a)) {
@@ -82,15 +87,21 @@ size_t impzlength(std::pmr::memory_resource *mr, const Value &b, const Value &a)
         return std::max<size_t>(b.numel(), 1);
     }
     const double rho = maxRootRadius(mr, a);
-    if (!(rho > 0.0) || rho >= 1.0) {
-        // Unstable / undefined → cap at 8192 so callers don't
-        // accidentally allocate a huge buffer.
+    if (!(rho > 0.0)) {
+        // Trivial / no IIR contribution -> fall back to FIR length.
+        return std::max<size_t>(b.numel(), 1);
+    }
+    if (rho >= 1.0) {
+        // Unstable / undefined -> cap so callers don't accidentally
+        // allocate a huge buffer. MATLAB also caps but at a larger
+        // value; 8192 is a safe practical limit.
         return 8192;
     }
-    // Decay to 10^-5 → n ≈ -5 * log(10) / log(rho).
-    const double n = -5.0 * std::log(10.0) / std::log(rho);
-    long N = static_cast<long>(std::ceil(n));
-    if (N < 50) N = 50;
+    // Decay to 5e-5 of initial amplitude.
+    const double decayThresh = 5e-5;
+    const double n = std::log(decayThresh) / std::log(rho);
+    long N = static_cast<long>(std::floor(n));
+    if (N < 1) N = 1;
     if (N > 8192) N = 8192;
     return static_cast<size_t>(N);
 }

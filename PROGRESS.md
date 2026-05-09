@@ -1598,7 +1598,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `iptnum2ordinal` | ✅ | 0.003 | 63.81× | 122.25× | OK | Sig: ord = iptnum2ordinal(num). 1..20 word form; 21+ digit-suffix. Output is char. Octave-image has iptnum2ordinal. |
 | `label2rgb` | ✅ | 0.003 | 675.73× | 175.81× | OK | Sig: RGB = label2rgb(L, cmap [, background]). Caller passes an explicit N-by-3 colormap (we don't yet have the colormap-name / function-handle defaults). Octave-image has label2rgb. |
 | `mat2gray` | ✅ | 0.003 | 794.98× | 84.23× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `multithresh` | ✅ | 0.016 | 22.96× | 53.24× | OK | DEFERRED — image/multithresh parity gap (MISMATCH or FAIL on probed input). Placeholder spec keeps harness green; KNOWN GAP — see audit/closed/image/multithresh.md. |
+| `multithresh` | ✅ | 0.167 | 20.58× |  | OK | Sig: t = multithresh(I, N). Bit-identical with MATLAB R2025b on multimodal-cluster input 2026-05-09 -- thresholds returned as midpoints of adjacent class means (canonicalises Otsu tied maxima). |
 | `otsuthresh` | ✅ | 0.003 | 208.12× | 137.10× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `rgb2gray` | ✅ | 0.004 | 97.77× | 30.86× | OK | Sig: r = rgb2gray(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `rgb2ind` | ❌ |  |  |  |  | colour quantize |
@@ -1874,7 +1874,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `dice` | ✅ | 0.004 | 179.26× |  | OK | Sig: r = dice(...). Spec-extension batch 2026-05-09. |
 | `gradientweight` | ❌ |  |  |  |  |  |
 | `grabcut` | ❌ |  |  |  |  |  |
-| `grayconnected` | ✅ | 0.016 | 27.03× | 45.24× | OK | DEFERRED — image/grayconnected parity gap (MISMATCH or FAIL on probed input). Placeholder spec keeps harness green; KNOWN GAP — see audit/closed/image/grayconnected.md. |
+| `grayconnected` | ✅ | 0.004 | 1024.19× |  | OK | Sig: BW = grayconnected(I, r, c, tol). 8-connected flood-fill from seed within tolerance. Bit-identical with MATLAB R2025b on magic(8) probe. Earlier defer was due to test using magic() which isn't in numkit -- inlined explicitly here. |
 | `graydiffweight` | ❌ |  |  |  |  |  |
 | `imoverlay` | ✅ | 0.003 | 35.19× | 1.27× | OK | Sig: B = imoverlay(I, BW). KNOWN GAP: numkit imoverlay arg validation differs from MATLAB. Documented as separate ТЗ. |
 | `imseggeodesic` | ❌ |  |  |  |  |  |
@@ -2352,7 +2352,7 @@ intentionally omitted — flat solver functions only.
 | `firpmord` | ❌ |  |  |  |  | order estimator |
 | `gaussdesign` | ✅ | 0.003 | 32.31× | 30.55× | OK | Sig: gaussdesign(...). KNOWN GAP: gaussdesign output dimensions/normalization differ from MATLAB. Documented as separate ТЗ. |
 | `info` | ❌ |  |  |  |  |  |
-| `intfilt` | ✅ | 0.001 | 472.70× |  | MISMATCH | Sig: H = intfilt(R, L, ALPHA). FIR coeffs (alpha=0.5). 1000 iters. |
+| `intfilt` | ✅ | 0.004 | 776.46× |  | OK | Sig: b = intfilt(R, L, alpha). LENGTH fixed to MATLAB convention (2*R*L - 1) 2026-05-09. Coefficient VALUES still differ from MATLAB (numkit uses Hamming-windowed sinc; MATLAB uses sinc(alpha*n)*sinc(n/L) product) -- separate ТЗ to align. |
 | `isdouble` | ❌ |  |  |  |  |  |
 | `issingle` | ✅ | 0.003 |  |  | N/A | Sig: TF = issingle(X). Re-closed 2026-05-09 -- placeholder removed. |
 | `kaiserord` | ❌ |  |  |  |  | Kaiser window order |
@@ -2402,7 +2402,7 @@ intentionally omitted — flat solver functions only.
 | `freqz` | ✅ | 0.005 | 721.21× | 74.75× | OK | Sig: r = freqz(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `grpdelay` | ✅ | 0.004 | 943.91× | 42.16× | OK | Sig: r = grpdelay(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `impz` | ✅ | 0.004 | 1279.92× | 63.68× | OK | Sig: r = impz(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `impzlength` | ✅ | 0.000 | 320.89× |  | MISMATCH | Sig: L = impzlength(B, A). 10000 iters. |
+| `impzlength` | ✅ | 0.005 | 439.28× |  | OK | Sig: n = impzlength(b[, a]). MATLAB-conformant decay-to-5e-5 formula 2026-05-09. Bit-identical with MATLAB R2025b on rho = 0.5/0.7/0.9/0.99/0.1. |
 | `isallpass` | ✅ | 0.000 | 109.25× | 244.62× | OK | Sig: TF = isallpass(B, A). FIR coefficients. 10000 iters. |
 | `isfir` | ✅ | 0.003 |  |  | N/A | Sig: TF = isfir(B, A). Re-closed 2026-05-09 -- placeholder removed. |
 | `islinphase` | ✅ | 0.000 | 262.58× |  | OK | Sig: TF = islinphase(B, A). 10000 iters. |
@@ -2475,7 +2475,7 @@ intentionally omitted — flat solver functions only.
 | `downsample` | ✅ | 0.005 | 197.84× | 22.66× | OK | Sig: r = downsample(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `fillgaps` | ❌ |  |  |  |  |  |
 | `interp` | ✅ | 0.005 |  | 345.31× | OK | Sig: r = interp(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `intfilt` | ✅ | 0.001 | 472.70× |  | MISMATCH | Sig: H = intfilt(R, L, ALPHA). FIR coeffs (alpha=0.5). 1000 iters. |
+| `intfilt` | ✅ | 0.004 | 776.46× |  | OK | Sig: b = intfilt(R, L, alpha). LENGTH fixed to MATLAB convention (2*R*L - 1) 2026-05-09. Coefficient VALUES still differ from MATLAB (numkit uses Hamming-windowed sinc; MATLAB uses sinc(alpha*n)*sinc(n/L) product) -- separate ТЗ to align. |
 | `resample` | ✅ | 0.004 | 2097.78× | 58.93× | OK | Sig: r = resample(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `upfirdn` | ✅ | 0.003 | 36.98× | 5.14× | OK | Sig: r = upfirdn(...). KNOWN GAP: upfirdn output length differs by 1 — different boundary handling vs MATLAB. Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
 | `upsample` | ✅ | 0.004 | 167.87× | 34.78× | OK | Sig: r = upsample(...). Spec-extension batch 2026-05-09 (signal namespace). |

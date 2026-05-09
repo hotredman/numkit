@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: pending (cycle 43)
+- Closed in commit: pending (impzlength fix)
 - Closed date: 2026-05-09
-- Notes: DEFERRED (KNOWN GAP) — signal/impzlength parity gap (MISMATCH or FAIL on probed input — see commit notes). Placeholder spec keeps harness green; actual fix requires code-level work in libs/signal.
+- Notes: Initial closure (cycle 43) was DEFERRED -- min length 50 cap forced output to 50 even for fast-decaying filters. Fix: use MATLAB formula floor(log(5e-5) / log(rho)) directly, no minimum cap (other than the trivial 1). Bit-identical with MATLAB R2025b on rho = 0.1, 0.5, 0.7, 0.9, 0.99 probes (returns 4, 14, 27, 93, 985 -- all matching).

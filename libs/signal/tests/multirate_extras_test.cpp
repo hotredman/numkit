@@ -25,8 +25,9 @@ public:
 // ── intfilt ───────────────────────────────────────────────────────────
 TEST_F(MultirateExtrasTest, IntfiltLength)
 {
-    eval("h = intfilt(4, 3);");           // L = 2*3*4 + 1 = 25
-    EXPECT_EQ(eval("h").numel(), 25u);
+    // MATLAB convention: length = 2 * R * L - 1.
+    eval("h = intfilt(4, 3);");           // 2*3*4 - 1 = 23
+    EXPECT_EQ(eval("h").numel(), 23u);
 }
 
 TEST_F(MultirateExtrasTest, IntfiltSymmetric)

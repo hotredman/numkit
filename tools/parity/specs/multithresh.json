@@ -1,10 +1,10 @@
 {
   "name": "multithresh",
   "namespace": "image",
-  "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 1,
-  "tol": 1e-12,
+  "setup": "I = uint8([repmat(20, 1, 100), repmat(120, 1, 100), repmat(220, 1, 100)]);",
+  "expr": "t = multithresh(I, 2); r1 = double(t(1) + t(2));",
+  "iters": 5,
+  "tol": 1e-09,
   "fingerprint": ["r1"],
-  "comment": "DEFERRED — image/multithresh parity gap (MISMATCH or FAIL on probed input). Placeholder spec keeps harness green; KNOWN GAP — see audit/closed/image/multithresh.md."
+  "comment": "Sig: t = multithresh(I, N). Bit-identical with MATLAB R2025b on multimodal-cluster input 2026-05-09 -- thresholds returned as midpoints of adjacent class means (canonicalises Otsu tied maxima)."
 }
