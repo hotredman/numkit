@@ -10,6 +10,7 @@
 #include "reduction_helpers.hpp"
 #include "rows_helpers.hpp"
 #include "language/operators/backends/binary_ops_loops.hpp"
+#include "language/operators/la_solve.hpp"
 #include "math/arithmetic/cumsum.hpp"
 
 #include <numkit/builtin/language/arrays/manip.hpp>     // flip()
@@ -156,6 +157,125 @@ void magicSinglyEven(double *p, size_t N)
 }
 
 } // anonymous namespace
+
+// ── inv / linsolve / pageinv ─────────────────────────────────────────
+
+namespace {
+
+// Solve A_buf (m×n column-major) against B_buf (m×nrhs col-major) and
+// write the result (n×nrhs) into outX. Common helper for inv /
+// linsolve / pageinv. Returns false on singular / rank-deficient /
+// wide A.
+bool laSolveWrap(std::pmr::memory_resource *mr,
+                 const double *A_buf, std::size_t m, std::size_t n,
+                 const double *B_buf, std::size_t nrhs,
+                 double *outX)
+{
+    return detail::la_solve(mr, A_buf, m, n, B_buf, nrhs, outX);
+}
+
+// Build an n×n identity into a contiguous column-major buffer.
+void fillIdentity(double *buf, std::size_t n)
+{
+    std::fill(buf, buf + n * n, 0.0);
+    for (std::size_t i = 0; i < n; ++i)
+        buf[i + i * n] = 1.0;
+}
+
+} // anonymous namespace
+
+Value inv(std::pmr::memory_resource *mr, const Value &A)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("inv: input must be a 2D matrix",
+                    0, 0, "inv", "", "m:inv:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    if (m != n)
+        throw Error("inv: matrix must be square",
+                    0, 0, "inv", "", "m:inv:notSquare");
+    if (m == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> A_buf(m * n, &scratch);
+    ScratchVec<double> I_buf(n * n, &scratch);
+    // Copy A as column-major (Value::matrix is already col-major).
+    std::copy(A.doubleData(), A.doubleData() + m * n, A_buf.begin());
+    fillIdentity(I_buf.data(), n);
+
+    auto out = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    if (!laSolveWrap(&scratch, A_buf.data(), m, n,
+                     I_buf.data(), n, out.doubleDataMut()))
+        throw Error("inv: matrix is singular to working precision",
+                    0, 0, "inv", "", "m:inv:singular");
+    return out;
+}
+
+Value linsolve(std::pmr::memory_resource *mr, const Value &A, const Value &B)
+{
+    if (A.dims().ndim() != 2 || B.dims().ndim() != 2)
+        throw Error("linsolve: A and B must be 2D matrices",
+                    0, 0, "linsolve", "", "m:linsolve:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    const std::size_t mb = static_cast<std::size_t>(B.dims().dim(0));
+    const std::size_t nrhs = static_cast<std::size_t>(B.dims().dim(1));
+    if (m != mb)
+        throw Error("linsolve: A and B must have the same number of rows",
+                    0, 0, "linsolve", "", "m:linsolve:badDims");
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> A_buf(m * n, &scratch);
+    ScratchVec<double> B_buf(m * nrhs, &scratch);
+    std::copy(A.doubleData(), A.doubleData() + m * n, A_buf.begin());
+    std::copy(B.doubleData(), B.doubleData() + m * nrhs, B_buf.begin());
+
+    auto out = Value::matrix(n, nrhs, ValueType::DOUBLE, mr);
+    if (!laSolveWrap(&scratch, A_buf.data(), m, n,
+                     B_buf.data(), nrhs, out.doubleDataMut()))
+        throw Error("linsolve: A is singular or rank-deficient",
+                    0, 0, "linsolve", "", "m:linsolve:singular");
+    return out;
+}
+
+Value pageinv(std::pmr::memory_resource *mr, const Value &A)
+{
+    const auto &dims = A.dims();
+    const int nd = dims.ndim();
+    if (nd < 2 || nd > 3)
+        throw Error("pageinv: input must be 2D or 3D",
+                    0, 0, "pageinv", "", "m:pageinv:badDim");
+    const std::size_t m = static_cast<std::size_t>(dims.dim(0));
+    const std::size_t n = static_cast<std::size_t>(dims.dim(1));
+    if (m != n)
+        throw Error("pageinv: each page must be square",
+                    0, 0, "pageinv", "", "m:pageinv:notSquare");
+    const std::size_t pages = (nd == 2) ? 1 : static_cast<std::size_t>(dims.dim(2));
+    const std::size_t pageStride = m * n;
+
+    auto out = (nd == 2)
+        ? Value::matrix(m, n, ValueType::DOUBLE, mr)
+        : createMatrix({m, n, pages}, ValueType::DOUBLE, mr);
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> A_buf(pageStride, &scratch);
+    ScratchVec<double> I_buf(n * n, &scratch);
+    const double *src = A.doubleData();
+    double *dst = out.doubleDataMut();
+
+    for (std::size_t p = 0; p < pages; ++p) {
+        std::copy(src + p * pageStride,
+                  src + (p + 1) * pageStride,
+                  A_buf.begin());
+        fillIdentity(I_buf.data(), n);
+        if (!laSolveWrap(&scratch, A_buf.data(), m, n,
+                         I_buf.data(), n, dst + p * pageStride))
+            throw Error("pageinv: page is singular",
+                        0, 0, "pageinv", "", "m:pageinv:singular");
+    }
+    return out;
+}
 
 // ── Toeplitz / Hankel / Vandermonde / Companion ─────────────────────
 
@@ -2237,6 +2357,31 @@ void rosser_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
         throw Error("rosser: takes no arguments",
                     0, 0, "rosser", "", "m:rosser:nargin");
     outs[0] = rosser(ctx.engine->resource());
+}
+
+void inv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("inv: requires exactly 1 argument",
+                    0, 0, "inv", "", "m:inv:nargin");
+    outs[0] = inv(ctx.engine->resource(), args[0]);
+}
+
+void linsolve_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2 || args.size() > 3)
+        throw Error("linsolve: requires (A, B[, opts])",
+                    0, 0, "linsolve", "", "m:linsolve:nargin");
+    // 3rd arg (opts struct) accepted for MATLAB-compat but ignored.
+    outs[0] = linsolve(ctx.engine->resource(), args[0], args[1]);
+}
+
+void pageinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("pageinv: requires exactly 1 argument",
+                    0, 0, "pageinv", "", "m:pageinv:nargin");
+    outs[0] = pageinv(ctx.engine->resource(), args[0]);
 }
 
 void size_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

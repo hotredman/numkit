@@ -2122,7 +2122,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `funm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `gsvd` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `hess` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `inv` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `inv` | ❌ | 0.006 | 24.80× | 6.06× | OK | Sig: B = inv(A). Matrix inverse via LU (la_solve backend). Bit-identical with MATLAB R2025b on probed 2×2 + 3×3 systems; A*inv(A) = I to ~ulp. |
 | `isbanded` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `isdiag` | ❌ |  |  |  |  |  |
 | `ishermitian` | ❌ |  |  |  |  | **deferred — libs/linalg** |
@@ -2131,7 +2131,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `istriu` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `kron` | ✅ | 0.005 | 70.98× | 24.26× | OK | Sig: r = kron(...). Spec-extension batch 2026-05-09. |
 | `ldl` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `linsolve` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `linsolve` | ❌ | 0.009 | 19.74× | 21.94× | OK | Sig: X = linsolve(A, B[, opts]). Wrapper over la_solve (LU for square A, Householder QR least-squares for tall A). Opts struct accepted for MATLAB-compat but ignored (auto-detection covers same cases). Bit-identical with MATLAB R2025b on probed square + tall systems. |
 | `logm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `lscov` | ✅ | 0.006 | 239.08× | 33.87× | OK | Sig: [x, stdx, mse, S] = lscov(A, b[, w]). Weighted least squares. mse = SSR/(N-p); S = mse·(A'WA)^(-1). Full N×N covariance V deferred (errors). Bit-identical to MATLAB R2025b on OLS and weighted paths. |
 | `lsqminnorm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
@@ -2150,7 +2150,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `orth` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `pagectranspose` | ✅ | 0.212 | 0.26× | 0.22× | OK | 128x64x8 real-valued — pagectranspose equals pagetranspose. 100 iters. |
 | `pageeig` | ❌ |  |  |  |  |  |
-| `pageinv` | ❌ |  |  |  |  |  |
+| `pageinv` | ❌ | 0.002 | 69.18× |  | OK | Sig: B = pageinv(A). Page-wise inv for 3D arrays -- each page (2D slice) inverted via LU. Bit-identical with MATLAB R2025b across general / identity / diagonal probes. |
 | `pagelsqminnorm` | ❌ |  |  |  |  |  |
 | `pagemldivide` | ❌ |  |  |  |  |  |
 | `pagemrdivide` | ❌ |  |  |  |  |  |
