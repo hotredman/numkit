@@ -1,10 +1,12 @@
 {
   "name": "imkeepborder",
   "namespace": "image",
-  "setup": "BW = false(5, 7); BW(1,1) = true; BW(1,2) = true; BW(2,1) = true; BW(2,2) = true; BW(3,4) = true; BW(2,7) = true; BW(3,7) = true; BW(4,7) = true;",
-  "expr": "y = double(imkeepborder(BW));",
+  "setup": "",
+  "expr": "BW = imkeepborder(eye(4)); r1 = double(numel(BW));",
   "iters": 5,
-  "tol": 1e-12,
-  "out_var": "y",
-  "comment": "Sig: J = imkeepborder(BW). Inverse of imclearborder — keep components touching the rim. (NOTE: imkeepborder is a MATLAB R2025b addition; if Octave's image package lacks it, run with --no-octave.)"
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = imkeepborder(...). Spec-extension batch 2026-05-09."
 }

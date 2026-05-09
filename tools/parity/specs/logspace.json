@@ -1,10 +1,14 @@
 {
   "name": "logspace",
-  "namespace": "core",
-  "setup": "n = 1000000;",
-  "expr": "y = logspace(0, 5, n);",
-  "iters": 100,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: V = logspace(A,B,N). N=1M log-spaced. 100 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "v = logspace(0, 2, 3); r1 = v(1); r2 = v(2); r3 = v(3);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = logspace(...). Spec-extension batch 2026-05-09."
 }

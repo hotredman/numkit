@@ -1,10 +1,13 @@
 {
   "name": "imerode",
   "namespace": "image",
-  "setup": "I = uint8([10 20 30; 40 50 60; 70 80 90]);",
-  "expr": "y = imerode(I, strel('square', 3));",
+  "setup": "",
+  "expr": "BW = imerode(eye(5), ones(3)); r1 = double(numel(BW)); r2 = BW(1,1);",
   "iters": 5,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = imerode(...). Spec-extension batch 2026-05-09 (image namespace)."
 }

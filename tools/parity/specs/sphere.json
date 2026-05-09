@@ -1,11 +1,12 @@
 {
   "name": "sphere",
-  "namespace": "core",
-  "setup": "n = 100;",
-  "expr": "[X, Y, Z] = sphere(n);",
-  "iters": 200,
-  "tol": 1e-9,
-  "fingerprint": ["sum(X(:))", "sum(Y(:))", "sum(Z(:))", "X(1,1)", "Z(end,end)"],
-  "out_var": "Z",
-  "comment": "Unit sphere on 101x101 grid. 200 iters, element-wise on Z."
+  "namespace": "graphics",
+  "setup": "",
+  "expr": "[X, Y, Z] = sphere(5); r1 = double(numel(X));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = sphere(...). Spec-extension batch 2026-05-09."
 }

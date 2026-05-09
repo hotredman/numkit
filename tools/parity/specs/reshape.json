@@ -1,10 +1,14 @@
 {
   "name": "reshape",
-  "namespace": "core",
-  "setup": "A = 1:1000000;",
-  "expr": "y = reshape(A, 1000, 1000);",
-  "iters": 100,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: B = reshape(A,M,N). 1M vec \u2192 1000x1000. 100 iters."
+  "namespace": "builtin",
+  "setup": "A = 1:12;",
+  "expr": "B = reshape(A, 3, 4); r1 = B(1,1); r2 = B(2,3); r3 = B(3,4);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = reshape(...). Shape op. Spec-extension batch 2026-05-09."
 }

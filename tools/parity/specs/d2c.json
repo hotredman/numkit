@@ -1,0 +1,12 @@
+{
+  "name": "d2c",
+  "namespace": "control",
+  "setup": "",
+  "expr": "sys = c2d(tf(1, [1 1]), 0.1); sysc = d2c(sys); r1 = 1;",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = d2c(...). Spec-extension batch 2026-05-09."
+}

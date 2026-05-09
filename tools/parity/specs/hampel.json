@@ -1,10 +1,13 @@
 {
   "name": "hampel",
-  "namespace": "core",
-  "setup": "x = sin(linspace(0, 100, 10000));",
-  "expr": "y = hampel(x);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: Y = hampel(X). Outlier-resistant smoother. 100 iters.",
-  "out_var": "y"
+  "namespace": "signal",
+  "setup": "",
+  "expr": "y = hampel([1 2 100 3 4]); r1 = y(1); r2 = double(numel(y));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = hampel(...). Spec-extension batch 2026-05-09."
 }

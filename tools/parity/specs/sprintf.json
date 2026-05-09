@@ -1,10 +1,14 @@
 {
   "name": "sprintf",
-  "namespace": "core",
-  "setup": "x = 3.14159265358979; n = 42;",
-  "expr": "y = sprintf('pi=%.6f n=%d', x, n);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: S = sprintf(FMT, ...). Format scalar+int. 100k iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(strlength(sprintf('%d', 42))); r2 = double(strcmp(sprintf('%d', 42), '42')); r3 = double(strcmp(sprintf('%.2f', 3.14159), '3.14'));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = sprintf(fmt, ...). Spec-extension batch 2026-05-09. Note: numkit sprintf(\"...\") with double-quoted format returns empty \u2014 only single-quoted char format works. Documented as separate gap (string vs char distinction in format arg)."
 }

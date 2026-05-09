@@ -1,0 +1,10 @@
+{
+  "name": "envspectrum",
+  "namespace": "signal",
+  "setup": "fs = 1000; t = (0:1/fs:1)'; x = (1+0.5*cos(2*pi*10*t)).*sin(2*pi*200*t);",
+  "expr": "[p, f] = envspectrum(x, fs); r1 = double(numel(p) > 0);",
+  "iters": 3,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: [p,f] = envspectrum(x, fs). Spec-extension batch 2026-05-09 (cycle 43)."
+}

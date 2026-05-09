@@ -1,10 +1,12 @@
 {
   "name": "insertafter",
-  "namespace": "core",
-  "setup": "s = 'foo bar baz qux';",
-  "expr": "y = insertAfter(s, 'bar', '<X>');",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: S2 = insertAfter(S, PAT, ADD). 10000 iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r = insertAfter(\"hello world\", \"hello\", \" dear\"); r1 = double(strlength(r));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: position-based string op (MATLAB canonical: insertAfter). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience."
 }

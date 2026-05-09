@@ -1,10 +1,16 @@
 {
   "name": "mldivide",
-  "namespace": "core",
-  "setup": "A = eye(100) + 0.01*reshape(1:10000, 100, 100); B = (1:100)';",
-  "expr": "y = mldivide(A, B);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: X = mldivide(A, B) = A\\B. 100x100. 100 iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "A2 = [1 2; 3 4]; B2 = [5 6; 7 8]; A3 = [4 1 2; 1 5 3; 2 3 6]; B3 = [1; 2; 3]; At = [1 0; 1 1; 1 2; 1 3]; bt = [6; 5; 7; 10]; A_multi = [4 -2 1; -2 5 3; 1 3 6]; B_multi = [1 2; 3 4; 5 6];",
+  "expr": "X22 = mldivide(A2, B2); X33 = mldivide(A3, B3); Xls = mldivide(At, bt); Xrhs = mldivide(A_multi, B_multi); Xelem = mldivide(2, [4 6 8]);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "X22(1,1)", "X22(2,1)", "X22(1,2)", "X22(2,2)",
+    "X33(1)", "X33(2)", "X33(3)",
+    "Xls(1)", "Xls(2)",
+    "Xrhs(1,1)", "Xrhs(2,1)", "Xrhs(3,1)", "Xrhs(1,2)", "Xrhs(2,2)", "Xrhs(3,2)",
+    "Xelem(1)", "Xelem(2)", "Xelem(3)"
+  ],
+  "comment": "Sig: X = mldivide(A,B) ↔ A\\B. Square A: LU with partial pivoting. Tall A (m>n): QR via Householder + R back-solve (least squares). Wide A (m<n, min-norm): NOT yet supported — throws m:mldivide:wide. Scalar/scalar and elementwise scalar/matrix routed through plain divide."
 }

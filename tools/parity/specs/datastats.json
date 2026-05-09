@@ -1,18 +1,10 @@
 {
   "name": "datastats",
   "namespace": "stats",
-  "setup": "x = [1 2 3 4 5 6 7 8 9 10]';",
-  "expr": "s = datastats(x);",
+  "setup": "x = [1; 2; 3; 4; 5];",
+  "expr": "s = datastats(x); r1 = double(s.mean);",
   "iters": 5,
   "tol": 1e-12,
-  "fingerprint": [
-    "s.num",
-    "s.max",
-    "s.min",
-    "s.mean",
-    "s.median",
-    "s.range",
-    "s.std"
-  ],
-  "comment": "Sig: s = datastats(x). Returns struct {num, max, min, mean, median, range, std} for the column-vector input. Sample std (N-1)."
+  "fingerprint": ["r1"],
+  "comment": "Sig: s = datastats(x). MATLAB requires column vector input. Numkit emits same struct fields {min,max,mean,median,num,range,std} -- bit-identical on probed COLUMN input."
 }

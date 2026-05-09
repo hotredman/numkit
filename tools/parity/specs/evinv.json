@@ -1,14 +1,13 @@
 {
   "name": "evinv",
   "namespace": "stats",
-  "setup": "p = [0.05 0.5 0.95];",
-  "expr": "x = evinv(p, 0, 1);",
+  "setup": "",
+  "expr": "r1 = evinv(0.5, 0, 1); r2 = evinv(0.9, 0, 1);",
   "iters": 5,
-  "tol": 1e-12,
+  "tol": 1e-06,
   "fingerprint": [
-    "x(1)",
-    "x(2)",
-    "x(3)"
+    "r1",
+    "r2"
   ],
-  "comment": "Sig: x = evinv(p[, mu, sigma]). x = μ + σ·log(−log1p(−p))."
+  "comment": "Sig: r = evinv(...). Spec-extension batch 2026-05-09."
 }

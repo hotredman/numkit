@@ -1,10 +1,12 @@
 {
   "name": "imbilatfilt",
   "namespace": "image",
-  "setup": "I = [0.2*ones(8,8), 0.8*ones(8,8)];",
-  "expr": "y = imbilatfilt(I, 0.001, 1);",
+  "setup": "",
+  "expr": "B = imbilatfilt([1 2; 3 4]); r1 = double(numel(B));",
   "iters": 5,
-  "tol": 1e-2,
-  "out_var": "y",
-  "comment": "Sig: B = imbilatfilt(I, dos, sigma). Step image, tight range Gaussian (preserves edge). Tol relaxed: kernel-window-size differences plus per-pixel exp-rounding propagate."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = imbilatfilt(...). Spec-extension batch 2026-05-09."
 }

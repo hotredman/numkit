@@ -1,0 +1,10 @@
+{
+  "name": "spectralkurtosis",
+  "namespace": "signal",
+  "setup": "fs = 1000; t = (0:1/fs:1)'; x = sin(2*pi*100*t);",
+  "expr": "k = spectralKurtosis(x, fs); r1 = double(numel(k) > 0);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: k = spectralKurtosis(x, fs). camelCase alias added 2026-05-09."
+}

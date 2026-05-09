@@ -1,0 +1,10 @@
+{
+  "name": "spectralflatness",
+  "namespace": "signal",
+  "setup": "fs = 1000; t = (0:1/fs:1)'; x = sin(2*pi*100*t);",
+  "expr": "f = spectralFlatness(x, fs); r1 = double(numel(f) > 0);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: f = spectralFlatness(x, fs). camelCase alias added 2026-05-09."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "clc",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "clc; r1 = 1;",
+  "iters": 1,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: clc — clear command window. Spec-extension batch 2026-05-09 (cycle 41)."
+}

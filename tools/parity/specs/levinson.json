@@ -1,0 +1,10 @@
+{
+  "name": "levinson",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[a, e] = levinson([4 -2 -3 1 1.5], 3); r1 = double(numel(a));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: [a, e, k] = levinson(r, p). Spec-extension batch 2026-05-09 (cycle 40)."
+}

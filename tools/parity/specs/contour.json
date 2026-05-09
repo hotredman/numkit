@@ -1,0 +1,12 @@
+{
+  "name": "contour",
+  "namespace": "graphics",
+  "setup": "",
+  "expr": "[X, Y] = meshgrid(1:5); Z = X + Y; r1 = double(size(Z,1));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = contour(...). Spec-extension batch 2026-05-09."
+}

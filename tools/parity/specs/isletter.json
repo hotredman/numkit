@@ -1,14 +1,15 @@
 {
   "name": "isletter",
-  "namespace": "core",
-  "setup": "s = repmat('abc123 def456 ', 1, 1000);",
-  "expr": "y = isletter(s);",
-  "iters": 1000,
-  "tol": 1e-10,
-  "comment": "Sig: TF = isletter(S). 14k char input. 1000 iters. Logical-array fp.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "v = isletter('abc 123'); r1 = double(v(1)); r2 = double(v(2)); r3 = double(v(4)); r4 = double(v(5));",
+  "iters": 5,
+  "tol": 1e-12,
   "fingerprint": [
-    "sum(double(y(:)))",
-    "double(y(1))",
-    "double(y(end))"
-  ]
+    "r1",
+    "r2",
+    "r3",
+    "r4"
+  ],
+  "comment": "Sig: r = isletter(...). Spec-extension batch 2026-05-09."
 }

@@ -1,14 +1,15 @@
 {
   "name": "isfinite",
-  "namespace": "core",
-  "setup": "x = [1 2 NaN 4 Inf 6 7 -Inf 9 10]; x = repmat(x, 1, 100000);",
-  "expr": "y = isfinite(x);",
-  "iters": 50,
-  "tol": 1e-10,
-  "comment": "Sig: TF = isfinite(X). 1M-pt mixed. 50 iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "v = isfinite([1 NaN Inf 2]); r1 = double(v(1)); r2 = double(v(2)); r3 = double(v(3)); r4 = double(v(4));",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "sum(double(y(:)))",
-    "double(y(1))",
-    "double(y(end))"
-  ]
+    "r1",
+    "r2",
+    "r3",
+    "r4"
+  ],
+  "comment": "Sig: r = isfinite(...). Predicate. Spec-extension batch 2026-05-09."
 }

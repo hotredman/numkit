@@ -1,10 +1,14 @@
 {
   "name": "bitxor",
-  "namespace": "core",
-  "setup": "a = double(1:1000000); b = double(0:999999);",
-  "expr": "y = bitxor(a, b);",
-  "iters": 50,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: Y = bitxor(A, B). 1M double. 50 iters."
+  "namespace": "builtin",
+  "setup": "a = uint32([0xF0, 0xFF, 0x55]); b = uint32([0x0F, 0x33, 0xAA]);",
+  "expr": "r = bitxor(a, b);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "double(r(1))",
+    "double(r(2))",
+    "double(r(3))"
+  ],
+  "comment": "Sig: r = bitxor(...). Bitwise integer op. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b."
 }

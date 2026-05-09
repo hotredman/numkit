@@ -1,13 +1,12 @@
 {
   "name": "dot",
-  "namespace": "core",
-  "setup": "a = sin(linspace(0, 10, 1000000)); b = cos(linspace(0, 10, 1000000));",
-  "expr": "y = dot(a, b);",
-  "iters": 100,
-  "tol": 1e-10,
-  "comment": "Sig: D = dot(A, B). 1M-elem dot product. 100 iters. Scalar fp.",
+  "namespace": "linalg",
+  "setup": "",
+  "expr": "r1 = dot([1 2 3], [4 5 6]);",
+  "iters": 5,
+  "tol": 1e-06,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r1"
+  ],
+  "comment": "Sig: r = dot(...). Spec-extension batch 2026-05-09."
 }

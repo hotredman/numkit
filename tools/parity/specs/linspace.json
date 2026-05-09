@@ -1,10 +1,16 @@
 {
   "name": "linspace",
-  "namespace": "core",
-  "setup": "n = 1000000;",
-  "expr": "y = linspace(0, 1, n);",
-  "iters": 100,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: V = linspace(A,B,N). N=1M. 100 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "v = linspace(0, 1, 5); r1 = v(1); r2 = v(2); r3 = v(3); r4 = v(5); r5 = numel(v);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3",
+    "r4",
+    "r5"
+  ],
+  "comment": "Sig: r = linspace(...). Spec-extension batch 2026-05-09."
 }

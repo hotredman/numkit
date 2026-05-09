@@ -1,0 +1,12 @@
+{
+  "name": "zero",
+  "namespace": "control",
+  "setup": "",
+  "expr": "z = zero(tf([1 0], [1 1])); r1 = real(z(1));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = zero(...). Spec-extension batch 2026-05-09."
+}

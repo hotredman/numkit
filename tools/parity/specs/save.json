@@ -1,0 +1,10 @@
+{
+  "name": "save",
+  "namespace": "builtin",
+  "setup": "x = 1:5;",
+  "expr": "tmp = [tempname '.mat']; save(tmp, 'x'); r1 = double(exist(tmp, 'file') > 0); delete(tmp);",
+  "iters": 1,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: save(filename, 'var'). Spec-extension batch 2026-05-09 (cycle 41)."
+}

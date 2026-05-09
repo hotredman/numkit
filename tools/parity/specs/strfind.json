@@ -1,10 +1,14 @@
 {
   "name": "strfind",
-  "namespace": "core",
-  "setup": "s = repmat('foobar baz qux ', 1, 1000); pat = 'baz';",
-  "expr": "y = strfind(s, pat);",
-  "iters": 1000,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: K = strfind(S, PAT). 15k string, 1k matches. 1000 iters."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "ix = strfind(\"hello world\", \"o\"); r1 = double(ix(1)); r2 = double(ix(2)); r3 = double(numel(ix));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = strfind(...). String op. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity."
 }

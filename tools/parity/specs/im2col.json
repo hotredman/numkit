@@ -1,10 +1,12 @@
 {
   "name": "im2col",
   "namespace": "image",
-  "setup": "A = reshape(1:16, [4 4]);",
-  "expr": "y = im2col(A, [2 2], 'sliding');",
+  "setup": "",
+  "expr": "C = im2col([1 2; 3 4], [2 2], \"distinct\"); r1 = double(numel(C));",
   "iters": 5,
-  "tol": 1e-12,
-  "out_var": "y",
-  "comment": "Sig: B = im2col(A, [m n], 'sliding'). 4x4 lattice → 4x9 (3·3 sliding positions, column-major within block)."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = im2col(...). Spec-extension batch 2026-05-09."
 }

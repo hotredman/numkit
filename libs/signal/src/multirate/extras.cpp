@@ -55,13 +55,19 @@ Value intfilt(std::pmr::memory_resource *mr, size_t r, size_t n, double alpha)
         throw Error("intfilt: alpha must be in (0, 1]",
                      0, 0, "intfilt", "", "m:intfilt:badAlpha");
 
-    const size_t L = 2 * n * r + 1;
+    // MATLAB intfilt(R, L, alpha): length = 2*R*L - 1. Numkit uses a
+    // Hamming-windowed sinc (not MATLAB's proprietary firgr/firls
+    // equiripple), so coefficient VALUES differ -- but length matches
+    // and DC gain is normalised to R so that the cascade
+    //   upfirdn(x, h, R, 1)
+    // recovers the original amplitude (the interp() upsampling
+    // convention). Aligning bit-for-bit with MATLAB requires firls.
+    if (2 * n * r < 1) return Value::matrix(1, 1, ValueType::DOUBLE, mr);
+    const size_t L = 2 * n * r - 1;
     auto out = Value::matrix(1, L, ValueType::DOUBLE, mr);
     double *h = out.doubleDataMut();
     const double half = (static_cast<double>(L) - 1.0) / 2.0;
     const double wc = M_PI * alpha / static_cast<double>(r);
-    // Hamming-windowed sinc, normalised so that filter has gain r at DC
-    // (so that filter(h, x_upsampled) recovers original amplitude).
     double sum = 0.0;
     for (size_t i = 0; i < L; ++i) {
         const double k = static_cast<double>(i) - half;
@@ -80,16 +86,50 @@ Value intfilt(std::pmr::memory_resource *mr, size_t r, size_t n, double alpha)
 }
 
 // ── upfirdn ───────────────────────────────────────────────────────────
+// MATLAB / scipy upfirdn output length = ceil(((Lx-1)*p + Lh) / q).
+// Note: upsample puts x[i] at position i*p so the upsampled signal
+// has length (Lx-1)*p + 1 (NOT Lx*p -- no trailing zeros). Then
+// linear convolution with h gives length (Lx-1)*p + Lh, and downsample
+// by q yields ceil(/q) samples.
 Value upfirdn(std::pmr::memory_resource *mr, const Value &x, const Value &h,
               size_t p, size_t q)
 {
     if (p < 1 || q < 1)
         throw Error("upfirdn: p and q must be >= 1",
                      0, 0, "upfirdn", "", "m:upfirdn:badPQ");
-    auto upx = upsample(mr, x, p);             // length = nx * p
-    auto a   = Value::scalar(1.0, mr);
-    auto y   = filter(mr, h, a, upx);
-    return downsample(mr, y, q);
+    const size_t Lx = x.numel();
+    const size_t Lh = h.numel();
+    if (Lx == 0 || Lh == 0) return sameOrientReal(x, 0, mr);
+
+    // Length after upsample (no trailing zeros): (Lx-1)*p + 1.
+    const size_t upLen = (Lx - 1) * p + 1;
+    // Linear convolution length.
+    const size_t convLen = upLen + Lh - 1;
+    // Downsampled output length.
+    const size_t outLen = (convLen + q - 1) / q;   // ceil(convLen / q)
+
+    ScratchArena local(mr);
+    auto convOut = ScratchVec<double>(convLen, &local);
+    std::fill(convOut.begin(), convOut.end(), 0.0);
+
+    // Direct upsample-then-convolve in one pass: x[i] sits at upsampled
+    // position i*p, so each x[i] contributes h[j] to output position
+    // i*p + j.
+    for (size_t i = 0; i < Lx; ++i) {
+        const double xi = readReal(x, i);
+        if (xi == 0.0) continue;
+        const size_t base = i * p;
+        for (size_t j = 0; j < Lh; ++j) {
+            convOut[base + j] += xi * readReal(h, j);
+        }
+    }
+
+    auto out = sameOrientReal(x, outLen, mr);
+    double *od = out.doubleDataMut();
+    for (size_t k = 0; k < outLen; ++k) {
+        od[k] = convOut[k * q];
+    }
+    return out;
 }
 
 // ── interp ────────────────────────────────────────────────────────────

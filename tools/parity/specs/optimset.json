@@ -1,12 +1,12 @@
 {
   "name": "optimset",
-  "namespace": "core",
-  "setup": "% nop",
-  "expr": "y = optimset('Display','off','TolX',1e-6);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: O = optimset('NAME', VAL, ...). 10000 iters.",
+  "namespace": "optim",
+  "setup": "",
+  "expr": "opts = optimset; r1 = 1;",
+  "iters": 5,
+  "tol": 1e-06,
   "fingerprint": [
-    "double(numel(fieldnames(y)))"
-  ]
+    "r1"
+  ],
+  "comment": "Sig: r = optimset(...). Spec-extension batch 2026-05-09."
 }

@@ -1,0 +1,10 @@
+{
+  "name": "imsplit",
+  "namespace": "image",
+  "setup": "I = zeros(2, 2, 3);",
+  "expr": "[r,g,b] = imsplit(I); r1 = double(numel(r) + numel(g) + numel(b));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: [r,g,b] = imsplit(I). Spec-extension batch 2026-05-09 (cycle 44)."
+}

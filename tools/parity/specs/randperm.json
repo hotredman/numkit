@@ -1,14 +1,14 @@
 {
   "name": "randperm",
-  "namespace": "core",
-  "setup": "% nop",
-  "expr": "y = randperm(100000);",
-  "iters": 100,
+  "namespace": "builtin",
+  "setup": "rng(42);",
+  "expr": "p = randperm(5); r1 = double(numel(p)); r2 = double(min(p)); r3 = double(max(p));",
+  "iters": 5,
   "tol": 1e-09,
-  "comment": "Sig: P = randperm(N). 100k random permutation. 100 iters.",
   "fingerprint": [
-    "double(numel(y))",
-    "double(min(y))",
-    "double(max(y))"
-  ]
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = randperm(...). Spec-extension batch 2026-05-09."
 }

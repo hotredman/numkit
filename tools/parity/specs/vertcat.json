@@ -1,10 +1,14 @@
 {
   "name": "vertcat",
-  "namespace": "core",
-  "setup": "A = reshape(1:250000, 500, 500); B = reshape(1:250000, 500, 500);",
-  "expr": "y = vertcat(A, B);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: D = vertcat(A,B). 500x500 stack. 100 iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "B = vertcat([1 2], [3 4]); r1 = B(1,1); r2 = B(2,2); r3 = size(B,1);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = vertcat(...). Shape op. Spec-extension batch 2026-05-09."
 }

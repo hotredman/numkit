@@ -1,10 +1,16 @@
 {
   "name": "erfcinv",
-  "namespace": "core",
-  "setup": "x = linspace(0.001, 1.999, 1000000);",
-  "expr": "y = erfcinv(x);",
-  "iters": 20,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: Y = erfcinv(X). 1M-pt sweep on (0,2). 20 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "x = [0.1, 0.5, 1, 1.5, 1.9];",
+  "expr": "r = erfcinv(x);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "r(1)",
+    "r(2)",
+    "r(3)",
+    "r(4)",
+    "r(5)"
+  ],
+  "comment": "Sig: r = erfcinv(...). Special function. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity."
 }

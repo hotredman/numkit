@@ -1,13 +1,14 @@
 {
   "name": "iscolumn",
-  "namespace": "core",
-  "setup": "x = (1:1000)';",
-  "expr": "y = iscolumn(x);",
-  "iters": 100,
-  "tol": 1e-10,
-  "comment": "Sig: TF = iscolumn(X). 1k column. 100k iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(iscolumn([1; 2])); r2 = double(iscolumn([1 2 3])); r3 = double(iscolumn([1]));",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = iscolumn(...). Predicate. Spec-extension batch 2026-05-09."
 }

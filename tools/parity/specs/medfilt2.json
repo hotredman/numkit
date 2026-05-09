@@ -1,10 +1,12 @@
 {
   "name": "medfilt2",
   "namespace": "image",
-  "setup": "I = double(reshape(1:25, [5 5]));",
-  "expr": "y = medfilt2(I, [3 3]);",
+  "setup": "",
+  "expr": "B = medfilt2([1 5; 3 7]); r1 = double(numel(B));",
   "iters": 5,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = medfilt2(...). Spec-extension batch 2026-05-09 (image namespace)."
 }

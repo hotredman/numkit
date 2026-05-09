@@ -1,14 +1,14 @@
 {
   "name": "true",
-  "namespace": "core",
-  "setup": "% nop",
-  "expr": "y = true(100, 100);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: T = true(M, N). 100x100 logical. 1000 iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(true); r2 = double(true(2,2)(1)); r3 = double(true(3)(1));",
+  "iters": 5,
+  "tol": 1e-12,
   "fingerprint": [
-    "sum(double(y(:)))",
-    "double(size(y, 1))",
-    "double(size(y, 2))"
-  ]
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = true(...). Spec-extension batch 2026-05-09."
 }

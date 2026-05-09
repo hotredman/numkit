@@ -1,0 +1,10 @@
+{
+  "name": "label2idx",
+  "namespace": "image",
+  "setup": "L = double([1 1 0; 0 2 2; 0 2 2]);",
+  "expr": "ix = label2idx(L); r1 = double(numel(ix));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: ix = label2idx(L). Spec-extension batch 2026-05-09 (cycle 44)."
+}

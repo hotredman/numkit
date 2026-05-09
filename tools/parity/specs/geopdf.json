@@ -1,0 +1,13 @@
+{
+  "name": "geopdf",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "r1 = geopdf(0, 0.3); r2 = geopdf(2, 0.3);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = geopdf(...). Spec-extension batch 2026-05-09."
+}

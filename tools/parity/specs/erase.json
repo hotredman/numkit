@@ -1,10 +1,13 @@
 {
   "name": "erase",
-  "namespace": "core",
-  "setup": "s = repmat('foo bar baz ', 1, 100); pat = 'bar ';",
-  "expr": "y = erase(s, pat);",
-  "iters": 1000,
-  "tol": 1e-10,
-  "comment": "Sig: S2 = erase(S, PAT). 1.2k-char string remove 'bar '. 1000 iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(strcmp(erase(\"hello\", \"l\"), \"heo\")); r2 = double(strcmp(erase(\"abc\", \"b\"), \"ac\"));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = erase(...). Spec-extension batch 2026-05-09."
 }

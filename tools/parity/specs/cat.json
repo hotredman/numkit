@@ -1,10 +1,14 @@
 {
   "name": "cat",
-  "namespace": "core",
-  "setup": "A = reshape(1:250000, 500, 500); B = reshape(1:250000, 500, 500);",
-  "expr": "y = cat(1, A, B);",
-  "iters": 100,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: D = cat(DIM,A,B). 500x500 vert-cat. 100 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "B = cat(2, [1;2], [3;4]); r1 = B(1,1); r2 = B(1,2); r3 = B(2,2);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = cat(...). Shape op. Spec-extension batch 2026-05-09."
 }

@@ -1,10 +1,10 @@
 {
   "name": "phasez",
-  "namespace": "core",
-  "setup": "b = [1 -0.5]; a = [1 -0.99]; n = 256;",
-  "expr": "[y, jj] = phasez(b, a, n);",
-  "iters": 1000,
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[ph, w] = phasez([1 0.5 0.25], [1], 8); r1 = double(numel(ph));",
+  "iters": 5,
   "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: [P,W] = phasez(B,A,N). 256-pt phase response. 1000 iters."
+  "fingerprint": ["r1"],
+  "comment": "Sig: [phi,w] = phasez(b,a,n). Re-closed after freqz endpoint fix 2026-05-09 ([0,π) exclusive)."
 }

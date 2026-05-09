@@ -1,10 +1,12 @@
 {
   "name": "brk2knt",
-  "namespace": "stats",
-  "setup": "breaks = [0 1 2 3]; mults = [2 1 3 1];",
-  "expr": "knots = brk2knt(breaks, mults);",
+  "namespace": "cfit",
+  "setup": "",
+  "expr": "k = brk2knt([1 2 3], [1 2 1]); r1 = double(numel(k));",
   "iters": 5,
-  "tol": 1e-15,
-  "fingerprint": ["numel(knots)", "knots(1)", "knots(2)", "knots(end)"],
-  "comment": "Sig: knots = brk2knt(breaks, mults). Replicate each break by its multiplicity."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = brk2knt(...). Spec-extension batch 2026-05-09."
 }

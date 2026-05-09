@@ -1,12 +1,10 @@
 {
   "name": "functions",
-  "namespace": "core",
-  "setup": "f = @sin;",
-  "expr": "y = functions(f);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: I = functions(F). Introspect handle. 10000 iters.",
-  "fingerprint": [
-    "double(numel(fieldnames(y)))"
-  ]
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "info = functions(@sin); r1 = double(numel(fieldnames(info)));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: info = functions(fnHandle). Returns struct with {function, type, file} fields. Bit-identical with MATLAB R2025b on probed handle (3 fields)."
 }

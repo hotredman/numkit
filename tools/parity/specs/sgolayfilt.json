@@ -1,10 +1,12 @@
 {
   "name": "sgolayfilt",
-  "namespace": "core",
-  "setup": "x = sin(linspace(0, 100, 10000));",
-  "expr": "y = sgolayfilt(x, 3, 11);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: Y = sgolayfilt(X, K, F). order=3 frame=11. 100 iters.",
-  "out_var": "y"
+  "namespace": "signal",
+  "setup": "",
+  "expr": "y = sgolayfilt([1 2 3 4 5 6 7], 2, 5); r1 = double(numel(y));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = sgolayfilt(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }

@@ -20,6 +20,41 @@ Status legend:
 
 | File | Function | Closed in commit | Closed date |
 |---|---|---|---|
+| [closed/builtin/mrdivide.md](closed/builtin/mrdivide.md) | mrdivide / mldivide | PENDING | 2026-05-08 |
+| [closed/builtin/rat.md](closed/builtin/rat.md) | rat | PENDING | 2026-05-09 |
+| [closed/builtin/rats.md](closed/builtin/rats.md) | rats | PENDING | 2026-05-09 |
+| [closed/builtin/mldivide.md](closed/builtin/mldivide.md) | mldivide (joint w/ mrdivide) | 6b43f00a | 2026-05-08 |
+| [closed/builtin/rng.md](closed/builtin/rng.md) | rng (DEFERRED) | DEFERRED | 2026-05-09 |
+| [closed/signal/cceps.md](closed/signal/cceps.md) | cceps / icceps | PENDING | 2026-05-09 |
+| [closed/signal/goertzel.md](closed/signal/goertzel.md) | goertzel | PENDING | 2026-05-09 |
+| [closed/stats/evrnd.md](closed/stats/evrnd.md) | evrnd (DEFERRED — rng cascade) | DEFERRED | 2026-05-09 |
+| [closed/stats/gevrnd.md](closed/stats/gevrnd.md) | gevrnd (DEFERRED — rng cascade) | DEFERRED | 2026-05-09 |
+| [closed/stats/gprnd.md](closed/stats/gprnd.md) | gprnd (DEFERRED — rng cascade) | DEFERRED | 2026-05-09 |
+| [closed/stats/ncx2rnd.md](closed/stats/ncx2rnd.md) | ncx2rnd (DEFERRED — rng cascade) | DEFERRED | 2026-05-09 |
+| [closed/wavelet/modwt.md](closed/wavelet/modwt.md) | modwt | PENDING | 2026-05-09 |
+| [closed/wavelet/imodwt.md](closed/wavelet/imodwt.md) | imodwt | PENDING | 2026-05-09 |
+| [closed/wavelet/swt.md](closed/wavelet/swt.md) | swt | PENDING | 2026-05-09 |
+| [closed/wavelet/iswt.md](closed/wavelet/iswt.md) | iswt | PENDING | 2026-05-09 |
+| [closed/builtin/acos.md](closed/builtin/acos.md) | acos | PENDING | 2026-05-09 |
+| [closed/builtin/acosd.md](closed/builtin/acosd.md) | acosd | PENDING | 2026-05-09 |
+| [closed/builtin/acosh.md](closed/builtin/acosh.md) | acosh | PENDING | 2026-05-09 |
+| [closed/builtin/acot.md](closed/builtin/acot.md) | acot | PENDING | 2026-05-09 |
+| [closed/builtin/acotd.md](closed/builtin/acotd.md) | acotd | PENDING | 2026-05-09 |
+| [closed/builtin/acoth.md](closed/builtin/acoth.md) | acoth | PENDING | 2026-05-09 |
+| [closed/builtin/acsc.md](closed/builtin/acsc.md) | acsc | PENDING | 2026-05-09 |
+| [closed/builtin/acscd.md](closed/builtin/acscd.md) | acscd | PENDING | 2026-05-09 |
+| [closed/builtin/acsch.md](closed/builtin/acsch.md) | acsch | PENDING | 2026-05-09 |
+| [closed/builtin/fwd_trig_batch](closed/builtin/sin.md) | sin/sind/sinh+cos/cosd/cosh+tan/tand/tanh+sec/secd/sech+csc/cscd/csch+cot/cotd/coth (FWD-TRIG BATCH 18) | PENDING | 2026-05-09 |
+| [closed/builtin/inv_trig_batch2](closed/builtin/asin.md) | asin/asind/asinh + atan/atand/atanh + asec/asecd/asech (BATCH 2) | PENDING | 2026-05-09 |
+| [closed/stats/evcdf.md](closed/stats/evcdf.md) | evcdf | PENDING | 2026-05-09 |
+| [closed/stats/geocdf.md](closed/stats/geocdf.md) | geocdf | PENDING | 2026-05-09 |
+| [closed/stats/gevcdf.md](closed/stats/gevcdf.md) | gevcdf | PENDING | 2026-05-09 |
+| [closed/stats/gpcdf.md](closed/stats/gpcdf.md) | gpcdf | PENDING | 2026-05-09 |
+| [closed/stats/hygecdf.md](closed/stats/hygecdf.md) | hygecdf | PENDING | 2026-05-09 |
+| [closed/stats/nakacdf.md](closed/stats/nakacdf.md) | nakacdf | PENDING | 2026-05-09 |
+| [closed/stats/nbincdf.md](closed/stats/nbincdf.md) | nbincdf | PENDING | 2026-05-09 |
+| [closed/stats/ncx2cdf.md](closed/stats/ncx2cdf.md) | ncx2cdf | PENDING | 2026-05-09 |
+| [closed/stats/ricecdf.md](closed/stats/ricecdf.md) | ricecdf | PENDING | 2026-05-09 |
 | [closed/stats/movmean.md](closed/stats/movmean.md) | movmean | PENDING | 2026-05-06 |
 | [closed/stats/movmedian.md](closed/stats/movmedian.md) | movmedian | PENDING | 2026-05-06 |
 | [closed/stats/movsum.md](closed/stats/movsum.md) | movsum | PENDING | 2026-05-06 |

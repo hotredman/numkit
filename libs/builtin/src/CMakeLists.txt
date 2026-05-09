@@ -3,6 +3,7 @@ set(STDLIB_SOURCES
     # language/ — MATLAB Language Fundamentals
     ${CMAKE_CURRENT_SOURCE_DIR}/language/commands/env.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/operators/binary_ops.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/language/operators/la_solve.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/operators/unary_ops.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/matrix.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/manip.cpp

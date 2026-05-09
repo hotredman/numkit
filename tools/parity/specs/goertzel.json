@@ -1,10 +1,16 @@
 {
   "name": "goertzel",
-  "namespace": "core",
-  "setup": "x = sin(linspace(0, 2*pi*10, 1024));",
-  "expr": "y = goertzel(x, 10:50);",
-  "iters": 100,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: Y = goertzel(X, F). 41 freq bins. 100 iters."
+  "namespace": "signal",
+  "setup": "sig = sin(2*pi*0.1*(0:31)') .* exp(-0.05*(0:31)');",
+  "expr": "y = goertzel(sig, [5 15]); yfull = goertzel(sig);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "real(y(1))", "imag(y(1))", "real(y(2))", "imag(y(2))",
+    "numel(yfull)",
+    "real(yfull(1))", "imag(yfull(1))",
+    "real(yfull(5))", "imag(yfull(5))",
+    "real(yfull(16))", "imag(yfull(16))"
+  ],
+  "comment": "Sig: y = goertzel(x[, ind]). Single-bin DFT via 2nd-order IIR. Audit ТЗ 2026-05-09: 1-arg form `goertzel(x)` defaults ind = 1:N (full DFT) per MATLAB R2025b — previously THREW. Fingerprint covers both partial-bin (ind=[5 15]) and full-DFT default forms."
 }

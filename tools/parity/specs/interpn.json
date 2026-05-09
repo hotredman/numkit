@@ -1,10 +1,10 @@
 {
   "name": "interpn",
-  "namespace": "core",
-  "setup": "[X, Y, Z] = ndgrid(linspace(0,10,20)); V = sin(X).*Y.*Z; xq = linspace(0,10,50); [Xq, Yq, Zq] = ndgrid(xq);",
-  "expr": "y = interpn(X, Y, Z, V, Xq, Yq, Zq);",
-  "iters": 1000,
+  "namespace": "builtin",
+  "setup": "[X, Y, Z] = ndgrid(1:5, 1:5, 1:5); V = X + Y + Z;",
+  "expr": "r1 = double(interpn(X, Y, Z, V, 2.5, 2.5, 2.5));",
+  "iters": 5,
   "tol": 1e-09,
-  "comment": "Sig: Vq = interpn(...) N-D interp. 20\u00b3 \u2192 50\u00b3. 10 iters.",
-  "out_var": "y"
+  "fingerprint": ["r1"],
+  "comment": "Sig: V = interpn(X1, ..., Xn, V, Xq1, ..., Xqn). N-D linear interpolation (ndgrid form). Dispatches to interp3 internally; bit-identical with MATLAB R2025b."
 }

@@ -1,5 +1,27 @@
 target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/arithmetic_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mldivide_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/rat_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/inv_trig_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/inv_trig_batch2_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/fwd_trig_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/transcendentals_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/special_fn_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bitwise_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math_reductions_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/misc_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/strings_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shape_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/type_conv_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/arith_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/construct_search_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/predicates2_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cell_struct_numtheory_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/misc2_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/misc3_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/misc4_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/misc5_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/misc6_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/variables_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/controlflow_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/functions_test.cpp

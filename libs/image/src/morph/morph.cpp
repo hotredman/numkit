@@ -102,29 +102,30 @@ Value strel(std::pmr::memory_resource *mr,
             const std::vector<double> &params,
             const Value &arbitrary_nhood)
 {
+    // Compute the raw logical neighbourhood, then wrap it in a 1x1
+    // struct with fields {Neighborhood, Dimensionality} matching
+    // MATLAB's strel-object exposed properties. unpack_se() (used by
+    // imerode / imdilate / etc.) accepts both the struct form and a
+    // bare logical matrix, so legacy code continues to work.
+    Value nhood;
     if (shape == "square") {
         const int N = params.empty() ? 3 : (int)params[0];
-        return strel_square(mr, N);
-    }
-    if (shape == "rectangle") {
+        nhood = strel_square(mr, N);
+    } else if (shape == "rectangle") {
         const int r = params.size() >= 1 ? (int)params[0] : 3;
         const int c = params.size() >= 2 ? (int)params[1] : r;
-        return strel_rect(mr, r, c);
-    }
-    if (shape == "diamond") {
+        nhood = strel_rect(mr, r, c);
+    } else if (shape == "diamond") {
         const int r = params.empty() ? 1 : (int)params[0];
-        return strel_diamond(mr, r);
-    }
-    if (shape == "disk") {
+        nhood = strel_diamond(mr, r);
+    } else if (shape == "disk") {
         const double r = params.empty() ? 5.0 : params[0];
-        return strel_disk(mr, r);
-    }
-    if (shape == "line") {
+        nhood = strel_disk(mr, r);
+    } else if (shape == "line") {
         const double len = params.size() >= 1 ? params[0] : 3.0;
         const double th  = params.size() >= 2 ? params[1] : 0.0;
-        return strel_line(mr, len, th);
-    }
-    if (shape == "arbitrary" || shape.empty()) {
+        nhood = strel_line(mr, len, th);
+    } else if (shape == "arbitrary" || shape.empty()) {
         if (arbitrary_nhood.numel() == 0)
             throw Error("strel('arbitrary', NHOOD): NHOOD missing",
                         0, 0, "strel", "", "m:strel:nargin");
@@ -137,10 +138,17 @@ Value strel(std::pmr::memory_resource *mr,
                 const double v = arbitrary_nhood.elemAsDouble((size_t)c * (size_t)H + (size_t)r);
                 m[(size_t)r * (size_t)W + (size_t)c] = (v != 0.0) ? 1 : 0;
             }
-        return pack_logical(mr, m, H, W);
+        nhood = pack_logical(mr, m, H, W);
+    } else {
+        throw Error("strel: unknown shape '" + shape + "'", 0, 0, "strel", "",
+                    "m:strel:badshape");
     }
-    throw Error("strel: unknown shape '" + shape + "'", 0, 0, "strel", "",
-                "m:strel:badshape");
+
+    auto se = Value::structArray(1, 1, mr);
+    auto &el = se.structArrayElem(0);
+    el.emplace("Neighborhood", std::move(nhood));
+    el.emplace("Dimensionality", Value::scalar(2.0, mr));
+    return se;
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -181,15 +189,23 @@ struct SEInfo {
 };
 
 SEInfo unpack_se(const Value &SE) {
+    // Accept both forms: a bare logical/numeric matrix OR a strel-style
+    // 1x1 struct with field 'Neighborhood'.
+    const Value *nhood = &SE;
+    if (SE.isStruct() && SE.numel() >= 1) {
+        const auto &fields = SE.structArrayElem(0);
+        auto it = fields.find("Neighborhood");
+        if (it != fields.end()) nhood = &it->second;
+    }
     SEInfo s{};
-    s.H = (int)SE.dims().rows();
-    s.W = (int)SE.dims().cols();
+    s.H = (int)nhood->dims().rows();
+    s.W = (int)nhood->dims().cols();
     s.half_r = s.H / 2;
     s.half_c = s.W / 2;
     s.mask.assign((size_t)s.H * (size_t)s.W, 0);
     for (int c = 0; c < s.W; ++c)
         for (int r = 0; r < s.H; ++r) {
-            const double v = SE.elemAsDouble((size_t)c * (size_t)s.H + (size_t)r);
+            const double v = nhood->elemAsDouble((size_t)c * (size_t)s.H + (size_t)r);
             s.mask[(size_t)r * (size_t)s.W + (size_t)c] = (v != 0.0) ? 1 : 0;
         }
     return s;

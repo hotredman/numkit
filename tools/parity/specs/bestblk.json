@@ -2,9 +2,12 @@
   "name": "bestblk",
   "namespace": "image",
   "setup": "",
-  "expr": "y = bestblk([256 128], 17);",
+  "expr": "siz = bestblk([100 200], 16); r1 = siz(1); r2 = siz(2);",
   "iters": 5,
-  "tol": 0,
-  "out_var": "y",
-  "comment": "Sig: siz = bestblk(IMS [, k]). Best block size minimising mod-padding within [ceil(min(dim/10, k/2)), k]. Octave-image has bestblk."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = bestblk(...). Spec-extension batch 2026-05-09."
 }

@@ -1,10 +1,10 @@
 {
   "name": "col2im",
   "namespace": "image",
-  "setup": "A = reshape(1:16, [4 4]); B = im2col(A, [2 2], 'distinct');",
-  "expr": "y = col2im(B, [2 2], [4 4], 'distinct');",
+  "setup": "B = reshape(1:36, 4, 9);",
+  "expr": "A = col2im(B, [2 2], [6 6], 'distinct'); r1 = double(sum(A(:)));",
   "iters": 5,
   "tol": 1e-12,
-  "out_var": "y",
-  "comment": "Sig: A = col2im(B, [m n], [mm nn], 'distinct'). Round-trip im2col→col2im rebuilds 4x4 (clean multiples)."
+  "fingerprint": ["r1"],
+  "comment": "Sig: A = col2im(B, [m n], [mm nn], type). Reassemble columns into image. Bit-identical with MATLAB R2025b on probed input -- earlier defer used wrong B-shape."
 }

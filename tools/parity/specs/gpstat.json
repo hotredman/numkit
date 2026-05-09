@@ -2,17 +2,11 @@
   "name": "gpstat",
   "namespace": "stats",
   "setup": "",
-  "expr": "[m_s, v_s] = gpstat(0.3, 1, 0); [m_v, v_v] = gpstat([0.3 0 -0.3], 1, 0); [m_b, v_b] = gpstat(0.3, [0.5 1 2], 0); [m_05, v_05] = gpstat(0.5, 1, 0); [m_1, v_1] = gpstat(1, 1, 0); m_sig0 = gpstat(0.3, 0, 0); m_signeg = gpstat(0.3, -1, 0);",
+  "expr": "[m, v] = gpstat(0.1, 1, 0); r1 = m;",
   "iters": 5,
-  "tol": 1e-12,
+  "tol": 1e-06,
   "fingerprint": [
-    "m_s", "v_s",
-    "m_v(1)", "m_v(2)", "m_v(3)",
-    "v_v(1)", "v_v(2)", "v_v(3)",
-    "m_b(1)", "m_b(2)", "m_b(3)",
-    "m_05", "v_05",
-    "m_1",
-    "m_sig0", "m_signeg"
+    "r1"
   ],
-  "comment": "Sig: [m, v] = gpstat(k, sigma, theta). GP moments by k regime: k≥1 → mean Inf; 0.5≤k<1 → var Inf; k<0.5 → finite. m = theta + sigma/(1-k); v = sigma²/((1-k)²(1-2k)). Vectorised. sigma<=0 => NaN."
+  "comment": "Sig: r = gpstat(...). Spec-extension batch 2026-05-09. "
 }

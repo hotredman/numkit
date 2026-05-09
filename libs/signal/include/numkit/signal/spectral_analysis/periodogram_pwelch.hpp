@@ -19,20 +19,26 @@ namespace numkit::signal {
 /// @param window  Optional window vector of length numel(x). Pass an empty
 ///                Value to use a rectangular window (all ones).
 /// @param nfft    FFT size. Pass 0 to auto-pick nextPow2(numel(x)).
+/// @param fs      Sample rate. Defaults to 2*pi (matches MATLAB convention
+///                for normalised radian frequency). Affects PSD scaling
+///                and the returned frequency vector range [0, fs/2].
 std::tuple<Value, Value>
-periodogram(std::pmr::memory_resource *mr, const Value &x, const Value &window, size_t nfft);
+periodogram(std::pmr::memory_resource *mr, const Value &x,
+            const Value &window, size_t nfft, double fs = 2.0 * 3.14159265358979323846);
 
 /// Welch's method: averaged, modified periodogram. Returns (Pxx, F).
 ///
 /// @param window    Window vector. Empty → Hamming of length min(256, numel(x)).
 /// @param noverlap  Samples of overlap between segments. 0 → winLen / 2.
 /// @param nfft      FFT size. 0 → auto-pick nextPow2(winLen).
+/// @param fs        Sample rate, default 2*pi (MATLAB convention).
 std::tuple<Value, Value>
 pwelch(std::pmr::memory_resource *mr,
        const Value &x,
        const Value &window,
        size_t noverlap,
-       size_t nfft);
+       size_t nfft,
+       double fs = 2.0 * 3.14159265358979323846);
 
 /// Cross-PSD via Welch's method. Returns (Pxy, F) where Pxy is the
 /// one-sided complex cross-spectrum E[X(f)·Y*(f)]. Same windowing
@@ -40,14 +46,16 @@ pwelch(std::pmr::memory_resource *mr,
 std::tuple<Value, Value>
 cpsd(std::pmr::memory_resource *mr,
      const Value &x, const Value &y,
-     const Value &window, size_t noverlap, size_t nfft);
+     const Value &window, size_t noverlap, size_t nfft,
+     double fs = 2.0 * 3.14159265358979323846);
 
 /// Magnitude-squared coherence via Welch's method. Returns (Cxy, F)
 /// with Cxy(f) = |Pxy(f)|² / (Pxx(f)·Pyy(f)), real-valued in [0, 1].
 std::tuple<Value, Value>
 mscohere(std::pmr::memory_resource *mr,
          const Value &x, const Value &y,
-         const Value &window, size_t noverlap, size_t nfft);
+         const Value &window, size_t noverlap, size_t nfft,
+         double fs = 2.0 * 3.14159265358979323846);
 
 /// Transfer-function estimate Txy(f) = Pyx(f) / Pxx(f). For an LTI
 /// system y = h * x this recovers H(f) up to finite-Welch bias.
@@ -55,7 +63,8 @@ mscohere(std::pmr::memory_resource *mr,
 std::tuple<Value, Value>
 tfestimate(std::pmr::memory_resource *mr,
            const Value &x, const Value &y,
-           const Value &window, size_t noverlap, size_t nfft);
+           const Value &window, size_t noverlap, size_t nfft,
+           double fs = 2.0 * 3.14159265358979323846);
 
 /// Yule-Walker AR PSD of order p. Levinson-Durbin solves the
 /// normal equations from the autocorrelation; returns the all-pole

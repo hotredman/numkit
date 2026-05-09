@@ -1,0 +1,12 @@
+{
+  "name": "wgn",
+  "namespace": "comm",
+  "setup": "rng(42);",
+  "expr": "y = wgn(5, 1, 0); r1 = double(numel(y));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = wgn(...). Spec-extension batch 2026-05-09. "
+}

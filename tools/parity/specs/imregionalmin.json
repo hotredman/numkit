@@ -1,10 +1,12 @@
 {
   "name": "imregionalmin",
   "namespace": "image",
-  "setup": "T = double([100 100 100 100 100 100 100; 100 10 100 100 70 100 100; 100 100 100 100 100 100 100]);",
-  "expr": "y = double(imregionalmin(T));",
+  "setup": "",
+  "expr": "BW = imregionalmin(eye(4)); r1 = double(numel(BW));",
   "iters": 5,
-  "tol": 1e-12,
-  "out_var": "y",
-  "comment": "Sig: BW = imregionalmin(I). Two regional minima at (2,2) and (2,5)."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = imregionalmin(...). Spec-extension batch 2026-05-09."
 }

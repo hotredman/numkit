@@ -1,13 +1,12 @@
 {
   "name": "newline",
-  "namespace": "core",
-  "setup": "% nop",
-  "expr": "y = newline;",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: NL = newline. ASCII LF=10. 100k iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "nl = newline; r1 = double(strlength(nl));",
+  "iters": 5,
+  "tol": 1e-12,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r1"
+  ],
+  "comment": "Sig: r = newline(...). Spec-extension batch 2026-05-09."
 }

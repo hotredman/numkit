@@ -1,10 +1,13 @@
 {
   "name": "tf2zp",
-  "namespace": "core",
-  "setup": "b = [1 -0.5 0.25]; a = [1 -0.99 0.5];",
-  "expr": "[y, jj, kk] = tf2zp(b, a);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: [Z,P,K] = tf2zp(B,A). 10000 iters. SAVE on Z."
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[z, p, k] = tf2zp([1 0.5], [1 0.25]); r1 = double(numel(z)); r2 = double(numel(p));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = tf2zp(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }

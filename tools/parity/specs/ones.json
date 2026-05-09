@@ -1,10 +1,15 @@
 {
   "name": "ones",
-  "namespace": "core",
-  "setup": "n = 1000;",
-  "expr": "y = ones(n, n);",
-  "iters": 100,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: O = ones(M,N). 1000x1000. 100 iters."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "A = ones(3, 2); r1 = numel(A); r2 = A(1,1); r3 = A(3,2); r4 = sum(A(:));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3",
+    "r4"
+  ],
+  "comment": "Sig: r = ones(...). Spec-extension batch 2026-05-09."
 }

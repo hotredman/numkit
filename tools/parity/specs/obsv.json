@@ -1,0 +1,12 @@
+{
+  "name": "obsv",
+  "namespace": "control",
+  "setup": "",
+  "expr": "O = obsv([1 0; 0 1], [1 0]); r1 = double(numel(O));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = obsv(...). Spec-extension batch 2026-05-09."
+}

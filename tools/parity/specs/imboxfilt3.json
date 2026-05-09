@@ -1,10 +1,12 @@
 {
   "name": "imboxfilt3",
   "namespace": "image",
-  "setup": "V = double(reshape(1:245, [7 7 5]));",
-  "expr": "y = imboxfilt3(V, 3);",
+  "setup": "",
+  "expr": "B = imboxfilt3(zeros(3,3,3)); r1 = double(numel(B));",
   "iters": 5,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: J = imboxfilt3(V [, FilterSize]). 3-D box (mean) filter over a volume, replicate boundary on all 3 axes. MATLAB R2020a+; Octave-image doesn't have it → correctness=N/A. Deterministic input (1:245 reshape) — `rng(0); rand` would diverge between engines."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = imboxfilt3(...). Spec-extension batch 2026-05-09."
 }

@@ -1,10 +1,12 @@
 {
   "name": "imtophat",
   "namespace": "image",
-  "setup": "I = zeros(5, 5); I(3, 3) = 9; SE = strel('square', 3);",
-  "expr": "y = imtophat(I, SE);",
+  "setup": "",
+  "expr": "B = imtophat(eye(5), ones(3)); r1 = double(numel(B));",
   "iters": 5,
-  "tol": 1e-12,
-  "out_var": "y",
-  "comment": "Sig: J = imtophat(I, SE). Lone bright dot extracted (T(3,3)=9, others=0)."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = imtophat(...). Spec-extension batch 2026-05-09."
 }

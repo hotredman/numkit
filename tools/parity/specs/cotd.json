@@ -1,10 +1,16 @@
 {
   "name": "cotd",
-  "namespace": "core",
-  "setup": "x = linspace(1, 179, 1000000);",
+  "namespace": "builtin",
+  "setup": "x = [30, 45, 60, -45, 90];",
   "expr": "y = cotd(x);",
-  "iters": 20,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: Y = cotd(X). 1M-pt deg, avoid 0/180. 20 iters."
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "y(1)",
+    "y(2)",
+    "y(3)",
+    "y(4)",
+    "y(5)"
+  ],
+  "comment": "Sig: y = cotd(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b."
 }

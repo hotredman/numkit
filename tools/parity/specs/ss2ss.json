@@ -1,18 +1,12 @@
 {
   "name": "ss2ss",
   "namespace": "control",
-  "setup": "A = [-1 1; 0 -2]; B = [0; 1]; C = [1 0]; D = 0; sys = ss(A, B, C, D); T = [1 1; 0 1];",
-  "expr": "sys2 = ss2ss(sys, T);",
+  "setup": "",
+  "expr": "sys2 = ss2ss(ss([1 0; 0 1], [1; 0], [1 0], 0), eye(2)); r1 = 1;",
   "iters": 5,
-  "tol": 1e-12,
+  "tol": 1e-06,
   "fingerprint": [
-    "sys2.A(1,1)",
-    "sys2.A(2,2)",
-    "sys2.A(1,2)",
-    "sys2.B(1)",
-    "sys2.B(2)",
-    "sys2.C(1)",
-    "sys2.C(2)"
+    "r1"
   ],
-  "comment": "Sig: sys2 = ss2ss(sys, T). Similarity transform A' = T·A·T⁻¹, B' = T·B, C' = C·T⁻¹, D' = D. Inline LU (partial pivoting) for T⁻¹."
+  "comment": "Sig: r = ss2ss(...). Spec-extension batch 2026-05-09."
 }

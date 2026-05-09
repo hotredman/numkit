@@ -1,0 +1,10 @@
+{
+  "name": "lp2lp",
+  "namespace": "signal",
+  "setup": "[z, p, k] = buttap(4); [bp, ap] = zp2tf(z, p, k);",
+  "expr": "[bt, at] = lp2lp(bp, ap, 100); r1 = double(numel(bt) + numel(at));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: [bt,at] = lp2lp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch."
+}

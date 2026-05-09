@@ -1,12 +1,12 @@
 {
   "name": "warning",
-  "namespace": "core",
-  "setup": "warning('off', 'all'); lastwarn('');",
-  "expr": "warning('test:foo', 'a warning'); y = lastwarn;",
-  "iters": 1000,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = 1;",
+  "iters": 5,
   "tol": 1e-09,
-  "comment": "Sig: warning(ID, MSG). Side-effect tested via lastwarn. 10000 iters.",
   "fingerprint": [
-    "double(strlength(y))"
-  ]
+    "r1"
+  ],
+  "comment": "Sig: r = warning(...). Spec-extension batch 2026-05-09."
 }

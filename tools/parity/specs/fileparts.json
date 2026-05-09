@@ -1,14 +1,13 @@
 {
   "name": "fileparts",
-  "namespace": "core",
-  "setup": "p = '/foo/bar/baz.txt';",
-  "expr": "[y, jj, kk] = fileparts(p);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: [PATH,NAME,EXT] = fileparts(F). 10000 iters.",
+  "namespace": "io",
+  "setup": "",
+  "expr": "[p, n, e] = fileparts(\"/path/to/file.txt\"); r1 = double(strcmp(n, \"file\")); r2 = double(strcmp(e, \".txt\"));",
+  "iters": 5,
+  "tol": 1e-06,
   "fingerprint": [
-    "double(strlength(y))",
-    "double(strlength(jj))",
-    "double(strlength(kk))"
-  ]
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = fileparts(...). Spec-extension batch 2026-05-09."
 }

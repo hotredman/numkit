@@ -1,14 +1,14 @@
 {
   "name": "isstrprop",
-  "namespace": "core",
-  "setup": "s = repmat('Abc 123 def 456 ', 1, 100);",
-  "expr": "y = isstrprop(s, 'digit');",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: TF = isstrprop(S, prop). 1.6k char check digit. 1000 iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "v = isstrprop('a1b', 'alpha'); r1 = double(v(1)); r2 = double(v(2)); r3 = double(v(3));",
+  "iters": 5,
+  "tol": 1e-12,
   "fingerprint": [
-    "sum(double(y(:)))",
-    "double(y(1))",
-    "double(y(end))"
-  ]
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = isstrprop(...). Spec-extension batch 2026-05-09."
 }

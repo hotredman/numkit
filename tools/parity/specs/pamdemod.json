@@ -1,0 +1,13 @@
+{
+  "name": "pamdemod",
+  "namespace": "comm",
+  "setup": "",
+  "expr": "y = pammod([0 1 2 3], 4); x = pamdemod(y, 4); r1 = x(1); r2 = x(4);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = pamdemod(...). Spec-extension batch 2026-05-09."
+}

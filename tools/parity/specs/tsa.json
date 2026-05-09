@@ -1,0 +1,10 @@
+{
+  "name": "tsa",
+  "namespace": "signal",
+  "setup": "fs = 1000; t = (0:1/fs:1)'; x = sin(2*pi*10*t);",
+  "expr": "ta = tsa(x, fs, (0:0.1:0.9)'); r1 = double(numel(ta));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: tsa(x, fs, tPulse[, M]) -- MATLAB pulse-time form (numkit also supports legacy tsa(x, fs, rpm, fs_rpm) when arg count >= 4). Bit-identical with MATLAB R2025b on probed input (100 samples)."
+}

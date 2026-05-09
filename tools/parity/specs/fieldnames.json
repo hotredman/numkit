@@ -1,14 +1,14 @@
 {
   "name": "fieldnames",
-  "namespace": "core",
-  "setup": "s = struct('alpha',1,'beta',2,'gamma',3,'delta',4,'epsilon',5);",
-  "expr": "y = fieldnames(s);",
-  "iters": 1000,
-  "tol": 1e-10,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "s.x = 1; s.y = 2; f = fieldnames(s); r1 = double(numel(f)); r2 = double(strcmp(f{1}, 'x')); r3 = double(strcmp(f{2}, 'y'));",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(numel(y))",
-    "double(strlength(y{1}))",
-    "double(strlength(y{end}))"
+    "r1",
+    "r2",
+    "r3"
   ],
-  "comment": "Sig: C = fieldnames(S). 5-field struct. 10k iters. Cell-out fp."
+  "comment": "Sig: r = fieldnames(...). Spec-extension batch 2026-05-09."
 }

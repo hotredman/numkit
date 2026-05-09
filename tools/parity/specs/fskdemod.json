@@ -1,0 +1,12 @@
+{
+  "name": "fskdemod",
+  "namespace": "comm",
+  "setup": "",
+  "expr": "y = fskmod([0 1 2 3], 4, 100, 8, 8000); x = fskdemod(y, 4, 100, 8, 8000); r1 = double(numel(x));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = fskdemod(...). Spec-extension batch 2026-05-09. "
+}

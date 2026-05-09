@@ -1,10 +1,12 @@
 {
   "name": "zerophase",
-  "namespace": "core",
-  "setup": "b = [1 -0.5]; a = [1 -0.99]; n = 256;",
-  "expr": "[y, jj] = zerophase(b, a, n);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: [HZ,W] = zerophase(B,A,N). Zero-phase. 1000 iters.",
-  "out_var": "y"
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[Hr, w] = zerophase([1 0.5], 1, 8); r1 = double(numel(Hr));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = zerophase(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }

@@ -1,10 +1,13 @@
 {
   "name": "ellipke",
-  "namespace": "core",
-  "setup": "m = linspace(0, 0.99, 10000);",
-  "expr": "[y, jj] = ellipke(m);",
-  "iters": 100,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "[K, E] = ellipke(0.5); r1 = K; r2 = E;",
+  "iters": 5,
   "tol": 1e-09,
-  "comment": "Sig: [K, E] = ellipke(M). Complete elliptic K, E. 50 iters. SAVE on K.",
-  "out_var": "y"
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = ellipke(...). Spec-extension batch 2026-05-09."
 }

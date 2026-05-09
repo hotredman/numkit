@@ -1,0 +1,14 @@
+{
+  "name": "logical",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(logical(0)); r2 = double(logical(1)); r3 = double(logical(5));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = logical(...). Type conversion. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity."
+}

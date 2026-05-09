@@ -1,10 +1,14 @@
 {
   "name": "kron",
-  "namespace": "core",
-  "setup": "A = reshape(1:100, 10, 10); B = ones(20, 20);",
-  "expr": "y = kron(A, B);",
-  "iters": 100,
-  "tol": 1e-10,
-  "comment": "Sig: K = kron(A, B). 10x10 \u2297 20x20 = 200x200. 100 iters.",
-  "out_var": "y"
+  "namespace": "linalg",
+  "setup": "",
+  "expr": "K = kron([1 0; 0 1], [1 1; 1 1]); r1 = K(1,1); r2 = K(2,2); r3 = double(numel(K));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = kron(...). Spec-extension batch 2026-05-09."
 }

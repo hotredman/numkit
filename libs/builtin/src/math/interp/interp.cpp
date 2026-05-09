@@ -359,14 +359,61 @@ double interp2Sample(const double *V, std::size_t R, std::size_t C,
          + tx         * ty         * v11;
 }
 
+// Extract a 1-D axis vector from possibly meshgrid/ndgrid output.
+// Auto-detects which dimension carries the variation (works for both
+// meshgrid and ndgrid: X varies along cols (dim 2) in meshgrid, along
+// rows (dim 1) in ndgrid). The `axis` hint is used to pick a default
+// extraction direction when only one dim is non-trivial; otherwise the
+// varying-direction is detected automatically.
 void readGridAxis(const Value &g, ScratchVec<double> &out, const char *axis)
 {
-    if (!g.dims().isVector() && !g.isScalar())
-        throw Error(std::string("interp2: ") + axis
-                     + " must be a vector",
-                     0, 0, "interp2", "", "m:interp2:notVector");
-    out.resize(g.numel());
-    for (std::size_t i = 0; i < g.numel(); ++i) out[i] = g.elemAsDouble(i);
+    if (g.dims().isVector() || g.isScalar()) {
+        out.resize(g.numel());
+        for (std::size_t i = 0; i < g.numel(); ++i) out[i] = g.elemAsDouble(i);
+        return;
+    }
+    const std::size_t r = g.dims().rows();
+    const std::size_t c = g.dims().cols();
+    const std::size_t p = g.dims().is3D() ? g.dims().pages() : 1;
+    const std::size_t pageStride = r * c;
+
+    // Try each possible varying direction and pick the one whose
+    // extracted values are non-constant. For the AXIS hint
+    // ("X"/"Y"/"Z") we prefer the conventional meshgrid mapping but
+    // fall through to other dims if that one is constant (ndgrid form).
+    auto extractAlong = [&](int dim) {
+        // dim: 0 = rows (varying along dim 1), 1 = cols (dim 2), 2 = pages (dim 3).
+        std::size_t n = (dim == 0) ? r : (dim == 1) ? c : p;
+        ScratchVec<double> v(out.get_allocator().resource());
+        v.resize(n);
+        for (std::size_t k = 0; k < n; ++k) {
+            std::size_t flat = (dim == 0) ? k
+                              : (dim == 1) ? (k * r)
+                              : (k * pageStride);
+            v[k] = g.elemAsDouble(flat);
+        }
+        return v;
+    };
+    auto isConst = [](const ScratchVec<double> &v) {
+        if (v.size() < 2) return true;
+        for (std::size_t i = 1; i < v.size(); ++i)
+            if (v[i] != v[0]) return false;
+        return true;
+    };
+
+    const std::string ax = axis;
+    int preferred = (ax == "X") ? 1 : (ax == "Y") ? 0 : (ax == "Z") ? 2 : 1;
+    for (int tries = 0; tries < 3; ++tries) {
+        int dim = (preferred + tries) % 3;
+        if (dim == 2 && !g.dims().is3D()) continue;
+        auto v = extractAlong(dim);
+        if (!isConst(v)) {
+            out = std::move(v);
+            return;
+        }
+    }
+    // All dims constant -> just emit the (degenerate) preferred extract.
+    out = extractAlong(preferred);
 }
 
 Value interp2Impl(std::pmr::memory_resource *mr,

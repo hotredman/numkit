@@ -1,0 +1,10 @@
+{
+  "name": "pulseperiod",
+  "namespace": "signal",
+  "setup": "x = repmat([zeros(1,5) ones(1,5)], 1, 4);",
+  "expr": "p = pulseperiod(x); r1 = double(numel(p) > 0);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: p = pulseperiod(x). Spec-extension batch 2026-05-09 (cycle 40)."
+}

@@ -1,10 +1,16 @@
 {
   "name": "sind",
-  "namespace": "core",
-  "setup": "x = linspace(-720, 720, 1000000);",
+  "namespace": "builtin",
+  "setup": "x = [0, 30, 60, 90, 180];",
   "expr": "y = sind(x);",
-  "iters": 20,
+  "iters": 5,
   "tol": 1e-12,
-  "out_var": "y",
-  "comment": "Sig: Y = sind(X). 1M-pt sweep on [-720\u00b0, 720\u00b0]. degree variant. 20 iters. Element-wise SAVE."
+  "fingerprint": [
+    "y(1)",
+    "y(2)",
+    "y(3)",
+    "y(4)",
+    "y(5)"
+  ],
+  "comment": "Sig: y = sind(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b."
 }

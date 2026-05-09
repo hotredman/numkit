@@ -1,0 +1,10 @@
+{
+  "name": "imoverlay",
+  "namespace": "image",
+  "setup": "I = zeros(5); BW = eye(5) > 0;",
+  "expr": "R = imoverlay(I, BW, [1 0 0]); r1 = double(sum(R(:)));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: B = imoverlay(I, BW, color). Color overlay onto image at BW pixels. Bit-identical with MATLAB R2025b on probed input -- numkit needs explicit color arg (matches MATLAB; no default)."
+}

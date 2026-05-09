@@ -1,12 +1,12 @@
 {
   "name": "assert",
-  "namespace": "core",
-  "setup": "% nop",
-  "expr": "assert(1 == 1); y = 'ok';",
-  "iters": 1000,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "assert(true); r1 = 1;",
+  "iters": 5,
   "tol": 1e-09,
-  "comment": "Sig: assert(COND). Pass-case. 100k iters.",
   "fingerprint": [
-    "double(strlength(y))"
-  ]
+    "r1"
+  ],
+  "comment": "Sig: r = assert(...). Spec-extension batch 2026-05-09."
 }

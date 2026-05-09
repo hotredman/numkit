@@ -16,7 +16,9 @@
 #include "helpers.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include <limits>
 #include <sstream>
@@ -953,55 +955,149 @@ Value hex2dec(std::pmr::memory_resource *mr, const Value &s)
 }
 
 namespace {
-// Stern-Brocot-style continued-fraction expansion: returns numerator
-// and denominator with |x - p/q| ≤ tol·|x|, prefering small q.
-std::pair<long long, long long> ratPQ(double x, double tol)
-{
-    if (!std::isfinite(x))
-        return {0, 0};
-    const double tgt = std::abs(x);
-    long long sign = (x < 0) ? -1 : 1;
-    double r = tgt;
-    long long h0 = 1, h1 = 0;
-    long long k0 = 0, k1 = 1;
-    for (int i = 0; i < 64; ++i) {
-        const long long a = static_cast<long long>(std::floor(r));
-        const long long h = a * h0 + h1;
-        const long long k = a * k0 + k1;
-        h1 = h0; h0 = h;
-        k1 = k0; k0 = k;
-        const double approx = static_cast<double>(h0) / static_cast<double>(k0);
-        if (std::abs(approx - tgt) <= tol * std::max(1.0, tgt)) break;
-        const double frac = r - static_cast<double>(a);
-        if (frac == 0.0) break;
-        r = 1.0 / frac;
-        if (r > 1e15) break;  // numerical safety
-    }
-    return {sign * h0, k0};
-}
-} // anon
 
+// MATLAB's rat() uses the **regularized** continued-fraction expansion:
+// at each step it picks `a = round(r)` (nearest integer, half-away-from-
+// zero), not floor(r). This produces signed coefficients (e.g. 0.5 →
+// `[1, -2]`, recovering 1 + 1/-2 = 0.5) and matches MATLAB's display
+// `'1 + 1/(-2)'` exactly. The standard CF recurrence h_n = a_n·h_{n-1}
+// + h_{n-2}, k_n = a_n·k_{n-1} + k_{n-2} works unchanged for signed a_n.
+//
+// Returns the sequence of CF coefficients (a_0, a_1, ...) plus the
+// final converged p/q (denominator normalised positive). Stops when
+// |x - p/q| ≤ tol, with tol defaulting (caller-side) to 1e-6·max(1,|x|).
+struct RatExpansion {
+    long long p = 0;
+    long long q = 0;
+    // Up to 64 coefficients — same safety bound as before. Inline
+    // storage avoids any allocation for the typical 2-7 coefficient case.
+    std::array<long long, 64> coeffs;
+    int n_coeffs = 0;
+};
+
+RatExpansion ratExpansion(double x, double tol)
+{
+    RatExpansion r;
+    if (!std::isfinite(x)) return r;
+
+    double rem = x;
+    // Track the last two convergents.
+    long long prev_p = 0, curr_p = 1;
+    long long prev_q = 1, curr_q = 0;
+
+    for (int i = 0; i < 64; ++i) {
+        const long long a = static_cast<long long>(std::round(rem));
+        const long long new_p = a * curr_p + prev_p;
+        const long long new_q = a * curr_q + prev_q;
+        r.coeffs[r.n_coeffs++] = a;
+        prev_p = curr_p; curr_p = new_p;
+        prev_q = curr_q; curr_q = new_q;
+
+        if (curr_q != 0) {
+            const double approx = static_cast<double>(curr_p)
+                                / static_cast<double>(curr_q);
+            if (std::fabs(approx - x) <= tol) break;
+        }
+        const double frac = rem - static_cast<double>(a);
+        if (frac == 0.0) break;
+        rem = 1.0 / frac;
+        if (std::fabs(rem) > 1e15) break;
+    }
+
+    r.p = curr_p;
+    r.q = curr_q;
+    if (r.q < 0) { r.p = -r.p; r.q = -r.q; }
+    return r;
+}
+
+// Build MATLAB's nested CF-string from the coefficient sequence:
+//   1 coeff   →  "a0"
+//   2 coeffs  →  "a0 + 1/(a1)"
+//   3 coeffs  →  "a0 + 1/(a1 + 1/(a2))"
+//   n coeffs  →  "a0 + 1/(a1 + 1/( ... + 1/(an-1)))"
+std::string buildCFString(const RatExpansion &r)
+{
+    if (r.n_coeffs == 0) return "0";
+    std::string s = std::to_string(r.coeffs[r.n_coeffs - 1]);
+    for (int i = r.n_coeffs - 2; i >= 0; --i)
+        s = std::to_string(r.coeffs[i]) + " + 1/(" + s + ")";
+    return s;
+}
+
+// Default tol per MATLAB docs: `1e-6 * norm(X(:),1)`. For a scalar
+// input that's `1e-6 * |x|`, with a small floor at 1e-6 so x=0 still
+// terminates (the loop hits frac == 0 at i=0 anyway, but keep safe).
+inline double defaultRatTol(double x)
+{
+    return 1e-6 * std::max(1.0, std::fabs(x));
+}
+
+} // anonymous
+
+// Single-element CF expansion, used by both 1-output (string form) and
+// 2-output (numeric N, D) callsites.
 Value rat(std::pmr::memory_resource *mr, const Value &x, double tol)
 {
     const double v = x.toScalar();
     if (!std::isfinite(v))
         return Value::fromString(std::isnan(v) ? "NaN" : (v > 0 ? "Inf" : "-Inf"), mr);
-    const auto [p, q] = ratPQ(v, tol);
-    std::ostringstream os;
-    if (q == 1)
-        os << p;
-    else
-        os << p << " / " << q;
-    return Value::fromString(os.str(), mr);
+    if (tol <= 0.0) tol = defaultRatTol(v);
+    const auto exp = ratExpansion(v, tol);
+    return Value::fromString(buildCFString(exp), mr);
 }
 
+// rats — fixed-width formatted ratio. MATLAB renders each element as
+// `numerator/denominator` and pads to `len` characters per element.
+// Default len = 13 per the MATLAB doc, BUT the rendered field is actually
+// `len + 1` characters wide — MATLAB reserves one extra column for a
+// leading sign on negative values (kept as space when positive). Field
+// width = len + 1 here matches `strlength(rats(0.5))` = 14 in MATLAB R2025b.
+// For a vector input MATLAB concatenates the per-element fields into one
+// big string row.
 Value rats(std::pmr::memory_resource *mr, const Value &x, int len)
 {
-    Value r = rat(mr, x, 1e-6);
-    if (len <= 0) return r;
-    std::string s = r.toString();
-    while (static_cast<int>(s.size()) < len) s = " " + s;
-    return Value::fromString(s, mr);
+    if (len <= 0) len = 13;
+    const int field_width = len + 1;  // MATLAB reserves 1 col for leading sign
+    const size_t n = x.numel();
+
+    // Layout per MATLAB R2025b: numerator is right-justified in the first
+    // half of the field (cols 1..field_width/2), '/' sits at the boundary
+    // (col field_width/2 + 1), denominator is left-justified in the second
+    // half. Empirically: rats(0.5) → '      1/2     ' (numer at col 7,
+    // slash at col 8). For integer denominator (q == 1) the whole number
+    // is right-justified in the full field.
+    const int num_width = field_width / 2;          // 7 for default len=13
+    const int den_width = field_width - num_width - 1;  // 6 for default
+    auto formatOne = [&](double v) -> std::string {
+        if (!std::isfinite(v)) {
+            const std::string s = std::isnan(v) ? "NaN" : (v > 0 ? "Inf" : "-Inf");
+            const int slack = field_width - static_cast<int>(s.size());
+            return std::string(std::max(0, slack), ' ') + s;
+        }
+        const double tol = defaultRatTol(v);
+        const auto exp = ratExpansion(v, tol);
+        const std::string ns = std::to_string(exp.p);
+        if (exp.q == 1) {
+            const int slack = field_width - static_cast<int>(ns.size());
+            return std::string(std::max(0, slack), ' ') + ns;
+        }
+        const std::string ds = std::to_string(exp.q);
+        const int n_pad = std::max(0, num_width - static_cast<int>(ns.size()));
+        const int d_pad = std::max(0, den_width - static_cast<int>(ds.size()));
+        return std::string(n_pad, ' ') + ns + "/" + ds + std::string(d_pad, ' ');
+    };
+
+    if (n <= 1) {
+        const double v = x.toScalar();
+        return Value::fromString(formatOne(v), mr);
+    }
+
+    // Vector: concatenate per-element fields end-to-end (one row).
+    std::string out;
+    out.reserve(n * static_cast<size_t>(field_width));
+    for (size_t i = 0; i < n; ++i)
+        out += formatOne(x.elemAsDouble(i));
+    return Value::fromString(out, mr);
 }
 
 Value strrep(std::pmr::memory_resource *mr, const Value &s, const Value &oldPat, const Value &newPat)
@@ -1689,14 +1785,57 @@ void hex2dec_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     outs[0] = hex2dec(ctx.engine->resource(), args[0]);
 }
 
-void rat_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+void rat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("rat requires (x[, tol])",
                      0, 0, "rat", "", "m:rat:nargin");
-    double tol = (args.size() >= 2 && !args[1].isEmpty())
-                     ? args[1].toScalar() : 1e-6;
-    outs[0] = rat(ctx.engine->resource(), args[0], tol);
+    auto *mr = ctx.engine->resource();
+    const Value &x = args[0];
+    const double user_tol = (args.size() >= 2 && !args[1].isEmpty())
+                            ? args[1].toScalar() : -1.0;  // -1 ⇒ defaultRatTol per element
+
+    if (nargout <= 1) {
+        // 1-output form: continued-fraction string. MATLAB's vector
+        // version returns a multi-line char array; numkit only emits
+        // the scalar form for now (matrix-of-strings is a separate
+        // edge — never hit by realistic call sites).
+        outs[0] = rat(mr, x, user_tol > 0 ? user_tol : 0.0);
+        return;
+    }
+
+    // 2-output form: [N, D] = rat(x[, tol]) — numeric, vectorised.
+    const auto &dims = x.dims();
+    const size_t n = x.numel();
+    Value N = dims.is3D()
+        ? Value::matrix3d(dims.rows(), dims.cols(), dims.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(dims.rows(), dims.cols(), ValueType::DOUBLE, mr);
+    Value D = dims.is3D()
+        ? Value::matrix3d(dims.rows(), dims.cols(), dims.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(dims.rows(), dims.cols(), ValueType::DOUBLE, mr);
+    double *Nd = N.doubleDataMut();
+    double *Dd = D.doubleDataMut();
+    for (size_t i = 0; i < n; ++i) {
+        const double v = x.elemAsDouble(i);
+        if (!std::isfinite(v)) {
+            // MATLAB returns NaN/NaN for NaN input, ±Inf/0 for ±Inf? Empirically
+            // [n, d] = rat(NaN) → n=NaN, d=NaN; [n, d] = rat(Inf) → n=Inf, d=1.
+            if (std::isnan(v)) {
+                Nd[i] = std::numeric_limits<double>::quiet_NaN();
+                Dd[i] = std::numeric_limits<double>::quiet_NaN();
+            } else {
+                Nd[i] = v;  // ±Inf
+                Dd[i] = 1.0;
+            }
+            continue;
+        }
+        const double tol = (user_tol > 0) ? user_tol : defaultRatTol(v);
+        const auto exp = ratExpansion(v, tol);
+        Nd[i] = static_cast<double>(exp.p);
+        Dd[i] = static_cast<double>(exp.q);
+    }
+    outs[0] = std::move(N);
+    outs[1] = std::move(D);
 }
 
 void rats_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)

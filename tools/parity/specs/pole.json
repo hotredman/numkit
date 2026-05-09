@@ -1,0 +1,12 @@
+{
+  "name": "pole",
+  "namespace": "control",
+  "setup": "",
+  "expr": "p = pole(tf(1, [1 1])); r1 = real(p(1));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = pole(...). Spec-extension batch 2026-05-09."
+}

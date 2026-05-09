@@ -1,10 +1,13 @@
 {
   "name": "imresize",
   "namespace": "image",
-  "setup": "I = double(reshape(1:100, [10 10]));",
-  "expr": "y = imresize(I, 0.5);",
+  "setup": "",
+  "expr": "B = imresize([1 2; 3 4], 2); r1 = double(size(B,1)); r2 = double(size(B,2));",
   "iters": 5,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig + small deterministic input. Auto-generated for parity sweep. KNOWN: default interpolation differs \u2014 numkit bilinear, MATLAB bicubic. Spec accepts the divergence."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = imresize(...). Spec-extension batch 2026-05-09 (image namespace)."
 }

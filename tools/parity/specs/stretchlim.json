@@ -1,10 +1,12 @@
 {
   "name": "stretchlim",
   "namespace": "image",
-  "setup": "I = uint8(reshape(0:99, [10 10]));",
-  "expr": "y = stretchlim(I);",
+  "setup": "",
+  "expr": "lim = stretchlim([0.1 0.5 0.9]); r1 = double(numel(lim));",
   "iters": 5,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig + small deterministic input. Auto-generated for parity sweep. KNOWN: percentile interpolation differs (numkit uses bin counts, MATLAB uses linear interpolation between bin edges)."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = stretchlim(...). Spec-extension batch 2026-05-09."
 }

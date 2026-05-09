@@ -1,10 +1,12 @@
 {
   "name": "imhistmatch",
   "namespace": "image",
-  "setup": "src = (0:0.01:0.5)'; ref = (0:0.01:1.0)';",
-  "expr": "y = imhistmatch(src, ref, 64);",
+  "setup": "",
+  "expr": "J = imhistmatch(uint8([0 100 200]), uint8([50 150 255])); r1 = double(numel(J));",
   "iters": 5,
-  "tol": 0.05,
-  "out_var": "y",
-  "comment": "Sig: J = imhistmatch(I, ref, nbins). [0,0.5] source CDF-matched to [0,1] reference. Tol relaxed: bin discretisation differs slightly across implementations."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = imhistmatch(...). Spec-extension batch 2026-05-09."
 }

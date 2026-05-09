@@ -1,10 +1,12 @@
 {
   "name": "decimate",
-  "namespace": "core",
-  "setup": "x = sin(linspace(0, 100, 100000));",
-  "expr": "y = decimate(x, 4);",
-  "iters": 100,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: Y = decimate(X, M). M=4. 100 iters."
+  "namespace": "signal",
+  "setup": "",
+  "expr": "y = decimate(sin(2*pi*0.01*(0:99)), 4); r1 = double(numel(y));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = decimate(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }

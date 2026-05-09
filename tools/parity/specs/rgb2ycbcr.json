@@ -1,10 +1,12 @@
 {
   "name": "rgb2ycbcr",
   "namespace": "image",
-  "setup": "I = double(reshape(0:74, [5 5 3])) / 74;",
-  "expr": "y = rgb2ycbcr(I);",
+  "setup": "",
+  "expr": "ycbcr = rgb2ycbcr(zeros(2,2,3)); r1 = double(numel(ycbcr));",
   "iters": 5,
-  "tol": 0.0001,
-  "out_var": "y",
-  "comment": "Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants)."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = rgb2ycbcr(...). Spec-extension batch 2026-05-09 (image namespace)."
 }

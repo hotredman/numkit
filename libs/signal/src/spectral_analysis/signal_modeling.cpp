@@ -660,50 +660,70 @@ Value poly2lsf(std::pmr::memory_resource *mr, const Value &a)
 Value lsf2poly(std::pmr::memory_resource *mr, const Value &lsf)
 {
     auto lv = readVec(lsf);
-    const int N = static_cast<int>(lv.size());
-    if (N == 0) return rowVec(mr, std::vector<double>{1.0});
+    const int m = static_cast<int>(lv.size());
+    if (m == 0) return rowVec(mr, std::vector<double>{1.0});
 
-    // Build P(z) = (1+z^-1) * prod_{odd i} (1 - 2 cos(w_i) z^-1 + z^-2)
-    // Build Q(z) = (1-z^-1) * prod_{even i} (1 - 2 cos(w_i) z^-1 + z^-2)
-    // (using 0-based indexing: even-indexed lsf go into P, odd into Q,
-    // matching MATLAB.)
-    std::vector<std::vector<double>> Ppairs, Qpairs;
-    for (int i = 0; i < N; ++i) {
-        const double c = std::cos(lv[i]);
-        std::vector<double> q = {1.0, -2.0 * c, 1.0};
-        if (i % 2 == 0) Ppairs.push_back(q);
-        else            Qpairs.push_back(q);
-    }
-    auto convAll = [](std::vector<std::vector<double>> &ps,
-                      const std::vector<double> &lead) {
-        std::vector<double> r = lead;
-        for (auto &p : ps) {
-            std::vector<double> nr(r.size() + p.size() - 1, 0.0);
-            for (size_t i = 0; i < r.size(); ++i)
-                for (size_t j = 0; j < p.size(); ++j)
-                    nr[i + j] += r[i] * p[j];
-            r = nr;
-        }
+    // MATLAB algorithm (Signal Processing Toolbox lsf2poly):
+    //   p_roots = lsf(1:2:end)  (1-indexed odd → 0-indexed even)
+    //   q_roots = lsf(2:2:end)
+    //   For m odd:
+    //     A = poly([p_roots; conj(p_roots)])               degree m+1
+    //     B = poly([q_roots; conj(q_roots); -1; 1])        degree m+1
+    //   For m even:
+    //     A = poly([p_roots; conj(p_roots); -1])           degree m+1
+    //     B = poly([q_roots; conj(q_roots);  1])           degree m+1
+    //   a = ((A + B) / 2)(1:end-1)                         length m+1
+    //
+    // Each conjugate-pair root z = e^{±iθ} contributes the real
+    // quadratic factor (1 - 2cos(θ) z^-1 + z^-2). The boundary roots
+    // z = -1 and z = +1 contribute the linear factors (1 + z^-1) and
+    // (1 - z^-1) respectively.
+    //
+    // The boundary-root distribution differs by parity so that A and
+    // B always end up with the same degree (m+1); their trailing
+    // coefficients cancel exactly in (A+B)/2 and we drop the result.
+    auto quad = [](double w) {
+        return std::vector<double>{1.0, -2.0 * std::cos(w), 1.0};
+    };
+    auto convOne = [](const std::vector<double> &a,
+                      const std::vector<double> &b) {
+        std::vector<double> r(a.size() + b.size() - 1, 0.0);
+        for (size_t i = 0; i < a.size(); ++i)
+            for (size_t j = 0; j < b.size(); ++j)
+                r[i + j] += a[i] * b[j];
         return r;
     };
-    auto P = convAll(Ppairs, std::vector<double>{1.0,  1.0});
-    auto Q = convAll(Qpairs, std::vector<double>{1.0, -1.0});
+    auto convAll = [&](const std::vector<std::vector<double>> &ps,
+                       const std::vector<double> &lead) {
+        std::vector<double> r = lead;
+        for (auto &p : ps) r = convOne(r, p);
+        return r;
+    };
 
-    // Pad to common length, then a = (P + Q) / 2.
-    const int M = std::max(P.size(), Q.size());
-    P = padLeft(P, M); Q = padLeft(Q, M);
-    std::vector<double> a(M, 0.0);
-    for (int i = 0; i < M; ++i) a[i] = 0.5 * (P[i] + Q[i]);
-    // P and Q are degree-(N+1) polynomials, so (P+Q)/2 is also degree
-    // N+1. The trailing coefficient cancels exactly for valid LSF
-    // (it represents z^{-(N+1)} A_R - z^{-(N+1)} A_R = 0); trim it
-    // along with any leading zero so we land on the canonical
-    // length-(N+1) AR coefficient vector. Tolerate small numerical
-    // dust on the trailing term.
-    while (a.size() > static_cast<size_t>(N + 1)
-           && std::abs(a.back()) < 1e-9)
-        a.pop_back();
-    while (a.size() > 1 && a.front() == 0.0) a.erase(a.begin());
+    std::vector<std::vector<double>> Pquads, Qquads;
+    for (int i = 0; i < m; ++i) {
+        if (i % 2 == 0) Pquads.push_back(quad(lv[i]));
+        else            Qquads.push_back(quad(lv[i]));
+    }
+
+    std::vector<double> P, Q;
+    if (m % 2 == 1) {
+        // m odd: P has no boundary roots, Q gets both (-1 and +1) =
+        // (1-z^-2). Both end up degree m+1.
+        P = convAll(Pquads, std::vector<double>{1.0});
+        Q = convAll(Qquads, std::vector<double>{1.0, 0.0, -1.0});
+    } else {
+        // m even: P gets z=-1 → (1+z^-1); Q gets z=+1 → (1-z^-1).
+        // Both end up degree m+1.
+        P = convAll(Pquads, std::vector<double>{1.0,  1.0});
+        Q = convAll(Qquads, std::vector<double>{1.0, -1.0});
+    }
+
+    // P and Q have identical length now. a = (P + Q) / 2, then drop
+    // the trailing element (it cancels to ~0 by construction).
+    std::vector<double> a(P.size(), 0.0);
+    for (size_t i = 0; i < P.size(); ++i) a[i] = 0.5 * (P[i] + Q[i]);
+    if (a.size() > 1) a.pop_back();
     return rowVec(mr, a);
 }
 

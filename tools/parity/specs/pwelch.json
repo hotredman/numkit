@@ -1,10 +1,12 @@
 {
   "name": "pwelch",
-  "namespace": "core",
-  "setup": "x = sin(linspace(0, 100, 4096));",
-  "expr": "[y, jj] = pwelch(x);",
-  "iters": 100,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: [PXX, F] = pwelch(X). Welch PSD. 100 iters."
+  "namespace": "signal",
+  "setup": "x = sin(2*pi*0.1*(0:255));",
+  "expr": "[p, f] = pwelch(x); r1 = double(sum(p));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09."
 }

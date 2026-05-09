@@ -162,6 +162,12 @@ Value rceps(std::pmr::memory_resource *mr, const Value &x)
 // Complex cepstrum: ifft(log(fft(x))) with simple phase unwrapping along
 // the frequency axis. Only the real part of x is used (matches MATLAB
 // when input is real).
+//
+// Sign-convention note (numkit's fftRadix2 dir argument):
+//   dir = -1  →  W[k] = exp(-2πj k/N)  →  FORWARD DFT
+//   dir = +1  →  W[k] = exp(+2πj k/N)  →  INVERSE DFT (caller scales by 1/N)
+// The inverse-step here MUST be dir=+1; using -1 produces a forward DFT
+// which time-reverses the output (audit ТЗ signal/cceps, 2026-05-09).
 Value cceps(std::pmr::memory_resource *mr, const Value &x)
 {
     const size_t n = x.numel();
@@ -179,7 +185,7 @@ Value cceps(std::pmr::memory_resource *mr, const Value &x)
         prevPhase = phase;
         X[i] = Complex(std::log(std::max(mag, 1e-300)), phase);
     }
-    fftRadix2(mr, X.data(), nfft, -1);
+    fftRadix2(mr, X.data(), nfft, +1);
     const double invN = 1.0 / static_cast<double>(nfft);
     auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
@@ -189,6 +195,8 @@ Value cceps(std::pmr::memory_resource *mr, const Value &x)
 }
 
 // ── icceps ────────────────────────────────────────────────────────────
+// Inverse complex cepstrum: ifft(exp(fft(c))). Same sign-convention fix
+// as cceps — the second pass MUST be inverse (dir=+1).
 Value icceps(std::pmr::memory_resource *mr, const Value &c)
 {
     const size_t n = c.numel();
@@ -197,7 +205,7 @@ Value icceps(std::pmr::memory_resource *mr, const Value &c)
     auto X = fftReal(mr, c, nfft);
     for (size_t i = 0; i < nfft; ++i)
         X[i] = std::exp(X[i]);
-    fftRadix2(mr, X.data(), nfft, -1);
+    fftRadix2(mr, X.data(), nfft, +1);
     const double invN = 1.0 / static_cast<double>(nfft);
     auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();

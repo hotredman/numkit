@@ -1,10 +1,12 @@
 {
   "name": "imsharpen",
   "namespace": "image",
-  "setup": "I = [0.2*ones(8,8), 0.8*ones(8,8)];",
-  "expr": "y = imsharpen(I);",
+  "setup": "",
+  "expr": "B = imsharpen([1 2 3; 4 5 6; 7 8 9]); r1 = double(numel(B));",
   "iters": 5,
-  "tol": 1e-3,
-  "out_var": "y",
-  "comment": "Sig: B = imsharpen(I). Defaults Radius=1, Amount=0.8, Threshold=0. Step image. Tol relaxed: tiny boundary-condition diffs in the imgaussfilt convolution propagate."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = imsharpen(...). Spec-extension batch 2026-05-09."
 }

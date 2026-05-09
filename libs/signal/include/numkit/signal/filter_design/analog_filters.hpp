@@ -39,6 +39,14 @@ cheb2ap(std::pmr::memory_resource *mr, int N, double Rs);
 std::tuple<Value, Value, Value>
 besselap(std::pmr::memory_resource *mr, int N);
 
+/// ellipap(N, Rp, Rs) — Cauer (elliptic) analog prototype. Order N,
+/// passband ripple Rp (dB), stopband attenuation Rs (dB). Has finite
+/// zeros on the imaginary axis. Algorithm: Sophocleous/Orfanidis
+/// formulas built on Jacobi elliptic functions and the degree
+/// equation K(k')/K(k) = (1/N) * K(k1')/K(k1).
+std::tuple<Value, Value, Value>
+ellipap(std::pmr::memory_resource *mr, int N, double Rp, double Rs);
+
 // ── Lowpass → X transformations on (z, p, k) ───────────────────────
 
 /// lp2lp(z, p, k, Wo) — scale a lowpass prototype to cutoff Wo.

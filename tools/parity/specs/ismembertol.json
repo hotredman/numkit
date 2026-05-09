@@ -1,14 +1,14 @@
 {
   "name": "ismembertol",
-  "namespace": "core",
-  "setup": "a = linspace(0, 1, 10000); b = linspace(0, 1, 100);",
-  "expr": "y = ismembertol(a, b, 0.005);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: TF = ismembertol(A, B, TOL). 10k vs 100 with tol=0.005. 100 iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "tf = ismembertol([1.0001, 2, 3], [1, 2, 4], 1e-3); r1 = double(tf(1)); r2 = double(tf(2)); r3 = double(tf(3));",
+  "iters": 5,
+  "tol": 1e-12,
   "fingerprint": [
-    "sum(double(y(:)))",
-    "double(y(1))",
-    "double(y(end))"
-  ]
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = ismembertol(...). Spec-extension batch 2026-05-09."
 }

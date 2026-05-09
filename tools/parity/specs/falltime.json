@@ -1,0 +1,10 @@
+{
+  "name": "falltime",
+  "namespace": "signal",
+  "setup": "x = [ones(1,10) linspace(1,0,10) zeros(1,10)];",
+  "expr": "ft = falltime(x); r1 = double(numel(ft) > 0);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: ft = falltime(x). Spec-extension batch 2026-05-09 (cycle 40)."
+}

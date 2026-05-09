@@ -1,10 +1,10 @@
 {
   "name": "ss2zp",
-  "namespace": "core",
-  "setup": "A = [-0.5 1; -0.25 0]; B = [1; 0]; C = [0 1]; D = 0;",
-  "expr": "[y, jj, kk] = ss2zp(A, B, C, D);",
-  "iters": 1000,
+  "namespace": "signal",
+  "setup": "A = [0 1; -0.5 -1]; B = [0; 1]; C = [1 0]; D = 0;",
+  "expr": "[z, p, k] = ss2zp(A, B, C, D); r1 = double(numel(p));",
+  "iters": 5,
   "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: [Z,P,K] = ss2zp(A,B,C,D). 1000 iters."
+  "fingerprint": ["r1"],
+  "comment": "Sig: [z,p,k] = ss2zp(A,B,C,D). Re-closed after tf2ss canonical-form fix 2026-05-09."
 }

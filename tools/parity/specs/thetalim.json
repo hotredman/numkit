@@ -1,0 +1,12 @@
+{
+  "name": "thetalim",
+  "namespace": "graphics",
+  "setup": "",
+  "expr": "plot(1:10); thetalim([0 pi]); r1 = 1;",
+  "iters": 1,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: graphics primitive. Polar plot theta-axis limits. Setter form works; same architectural getter limit as rlim."
+}

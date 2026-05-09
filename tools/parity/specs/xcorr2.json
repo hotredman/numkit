@@ -1,10 +1,13 @@
 {
   "name": "xcorr2",
-  "namespace": "core",
-  "setup": "A = reshape(1:1024, 32, 32); B = reshape(1:64, 8, 8);",
-  "expr": "y = xcorr2(A, B);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: C = xcorr2(A, B). 32x32 vs 8x8. 1000 iters.",
-  "out_var": "y"
+  "namespace": "signal",
+  "setup": "",
+  "expr": "r = xcorr2([1 2; 3 4], [1 2; 3 4]); r1 = r(2,2); r2 = double(size(r,1));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = xcorr2(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }

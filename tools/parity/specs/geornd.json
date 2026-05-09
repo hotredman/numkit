@@ -1,0 +1,12 @@
+{
+  "name": "geornd",
+  "namespace": "stats",
+  "setup": "rng(42);",
+  "expr": "x = geornd(0.3, 1, 5); r1 = double(numel(x));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = geornd(...). Spec-extension batch 2026-05-09."
+}
