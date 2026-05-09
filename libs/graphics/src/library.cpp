@@ -949,6 +949,102 @@ void GraphicsLibrary::install(Engine &engine)
     // shape of the data is preserved.
     reg("contour", "contourf", contourImpl);
 
+    // ── Surf / mesh — wireframe quad mesh under cabinet projection ──
+    // surf(Z) / surf(X, Y, Z); mesh(...) shares the same body. Real
+    // face shading + lighting is deferred; for now we emit the wire
+    // skeleton (rows + cols) as plot3-style line segments and let the
+    // existing cabinet projection in the JS adapter render it.
+    auto surfImpl = [](Span<const Value> args, size_t nargout,
+                       Span<Value> outs, CallContext &ctx) {
+        (void)nargout;
+        auto &fm = ctx.engine->figureManager();
+        fm.prepareForPlot();
+
+        const Value *Z_arg = nullptr;
+        const Value *X_arg = nullptr;
+        const Value *Y_arg = nullptr;
+        if (args.size() == 1) {
+            Z_arg = &args[0];
+        } else if (args.size() >= 3) {
+            X_arg = &args[0]; Y_arg = &args[1]; Z_arg = &args[2];
+        }
+        if (!Z_arg) { outs[0] = Value::empty(); return; }
+
+        const size_t R = Z_arg->dims().rows();
+        const size_t C = Z_arg->dims().cols();
+        if (R < 2 || C < 2) { outs[0] = Value::empty(); return; }
+
+        const auto Zat = [&](size_t r, size_t c) {
+            return Z_arg->doubleData()[c * R + r];
+        };
+        std::vector<double> Xs(C), Ys(R);
+        if (X_arg && Y_arg && X_arg->numel() >= C && Y_arg->numel() >= R) {
+            for (size_t c = 0; c < C; ++c) Xs[c] = X_arg->doubleData()[c];
+            for (size_t r = 0; r < R; ++r) Ys[r] = Y_arg->doubleData()[r];
+        } else {
+            for (size_t c = 0; c < C; ++c) Xs[c] = (double)(c + 1);
+            for (size_t r = 0; r < R; ++r) Ys[r] = (double)(r + 1);
+        }
+
+        // Build one big polyline per dataset:
+        //   horizontal lines: each row sweeps c=0..C-1, breaks between rows
+        //   vertical lines:   each col sweeps r=0..R-1, breaks between cols
+        // Sep tracking: emit "," between points within the same sweep,
+        // ",null," between sweeps. `pointCount` tells us "any output yet".
+        std::ostringstream xH, yH, zH;
+        xH << '['; yH << '['; zH << '[';
+        size_t hCount = 0;
+        for (size_t r = 0; r < R; ++r) {
+            for (size_t c = 0; c < C; ++c) {
+                if (hCount > 0) {
+                    const char *sep = (c == 0) ? ",null," : ",";
+                    xH << sep; yH << sep; zH << sep;
+                }
+                xH << Xs[c]; yH << Ys[r]; zH << Zat(r, c);
+                ++hCount;
+            }
+        }
+        xH << ']'; yH << ']'; zH << ']';
+
+        std::ostringstream xV, yV, zV;
+        xV << '['; yV << '['; zV << '[';
+        size_t vCount = 0;
+        for (size_t c = 0; c < C; ++c) {
+            for (size_t r = 0; r < R; ++r) {
+                if (vCount > 0) {
+                    const char *sep = (r == 0) ? ",null," : ",";
+                    xV << sep; yV << sep; zV << sep;
+                }
+                xV << Xs[c]; yV << Ys[r]; zV << Zat(r, c);
+                ++vCount;
+            }
+        }
+        xV << ']'; yV << ']'; zV << ']';
+
+        // Two datasets so adapter applies cabinet projection via the
+        // plot3 path. Color uses a simple steel-blue stroke (mesh look).
+        DatasetInfo dsH;
+        dsH.type = "plot3";
+        dsH.xJson = xH.str();
+        dsH.yJson = yH.str();
+        dsH.zJson = zH.str();
+        dsH.style = "color=#4a90b8";
+        fm.pushDataset(std::move(dsH));
+
+        DatasetInfo dsV;
+        dsV.type = "plot3";
+        dsV.xJson = xV.str();
+        dsV.yJson = yV.str();
+        dsV.zJson = zV.str();
+        dsV.style = "color=#4a90b8";
+        fm.pushDataset(std::move(dsV));
+
+        fm.emitModified();
+        outs[0] = Value::empty();
+    };
+    reg("surface", "surf", surfImpl);
+    reg("surface", "mesh", surfImpl);
+
     // ── Polar — graphics.polar ───────────────────────────────────────
     reg("polar", "polarplot",
         [vecToJson, parsePlotArgs](Span<const Value> args, size_t nargout,
@@ -1608,8 +1704,6 @@ void GraphicsLibrary::install(Engine &engine)
     reg("layout", "get", noop_ret1);
 
     // scatter3 — real impl registered earlier via plot3Impl shared body.
-    reg("surface", "surf", noop);
-    reg("surface", "mesh", noop);
     // pcolor — real implementation registered earlier in install()
     // (graphics.image.pcolor + compat.pcolor). The duplicate noop
     // here used to register `compat.pcolor` a second time, which the
