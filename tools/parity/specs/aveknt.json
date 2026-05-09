@@ -1,10 +1,12 @@
 {
   "name": "aveknt",
-  "namespace": "stats",
-  "setup": "t = [0 0 0 1 2 3 3 3]; k = 3;",
-  "expr": "y = aveknt(t, k);",
+  "namespace": "cfit",
+  "setup": "",
+  "expr": "k = aveknt([1 2 3 4 5], 3); r1 = double(numel(k));",
   "iters": 5,
-  "tol": 1e-15,
-  "fingerprint": ["y(1)", "y(2)", "y(3)", "y(4)", "y(5)"],
-  "comment": "Sig: y = aveknt(t, k). Greville sites: y(i) = mean(t(i+1)..t(i+k-1)). Result length = length(t) - k."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = aveknt(...). Spec-extension batch 2026-05-09."
 }

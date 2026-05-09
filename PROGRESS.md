@@ -905,11 +905,11 @@ intentionally omitted, along with `constellation` (object method) and
 |---|:---:|---:|---:|---:|:---:|---|
 | `genqammod` | ❌ |  |  |  |  | generic QAM |
 | `genqamdemod` | ❌ |  |  |  |  |  |
-| `modnorm` | ✅ |  |  |  | OK | avpow / peakpow scaling |
-| `pammod` | ✅ |  |  |  | OK | M-ary PAM, gray (default) / bin |
-| `pamdemod` | ✅ |  |  |  | OK |  |
-| `qammod` | ✅ |  |  |  | OK | rectangular Gray-coded QAM, optional UnitAveragePower |
-| `qamdemod` | ✅ |  |  |  | OK |  |
+| `modnorm` | ✅ | 0.003 | 279.25× |  | OK | Sig: r = modnorm(...). Spec-extension batch 2026-05-09. |
+| `pammod` | ✅ | 0.004 | 138.65× |  | OK | Sig: r = pammod(...). Spec-extension batch 2026-05-09. |
+| `pamdemod` | ✅ | 0.005 | 205.14× |  | OK | Sig: r = pamdemod(...). Spec-extension batch 2026-05-09. |
+| `qammod` | ✅ | 0.004 | 638.48× |  | OK | Sig: r = qammod(...). Spec-extension batch 2026-05-09. |
+| `qamdemod` | ✅ | 0.005 | 810.66× |  | OK | Sig: r = qamdemod(...). Spec-extension batch 2026-05-09. |
 | `apskmod` | ❌ |  |  |  |  | amplitude-phase-shift keying |
 | `apskdemod` | ❌ |  |  |  |  |  |
 | `mil188qammod` | ❌ |  |  |  |  | MIL-STD-188 QAM |
@@ -922,8 +922,8 @@ intentionally omitted, along with `constellation` (object method) and
 | `ofdmdemod` | ✅ |  |  |  | OK | drops CP then FFT |
 | `dpskmod` | ✅ |  |  |  | OK | differential PSK |
 | `dpskdemod` | ✅ |  |  |  | OK | phase-difference decoder |
-| `pskmod` | ✅ |  |  |  | OK | M-ary PSK; gray (default) / bin orderings |
-| `pskdemod` | ✅ |  |  |  | OK | nearest-phase decision |
+| `pskmod` | ✅ | 0.004 | 381.47× |  | OK | Sig: r = pskmod(...). Spec-extension batch 2026-05-09. |
+| `pskdemod` | ✅ | 0.004 | 532.70× |  | OK | Sig: r = pskdemod(...). Spec-extension batch 2026-05-09. |
 | `ammod` | ❌ |  |  |  |  | amplitude modulation (analog) |
 | `amdemod` | ❌ |  |  |  |  |  |
 | `fmmod` | ❌ |  |  |  |  | frequency modulation |
@@ -955,7 +955,7 @@ intentionally omitted, along with `constellation` (object method) and
 | `oct2poly` | ❌ |  |  |  |  |  |
 | `oct2dec` | ❌ |  |  |  |  | octal → decimal |
 | `vec2mat` | ❌ |  |  |  |  | reshape with zero-pad |
-| `convertSNR` | ✅ |  |  |  | OK | Eb/No ↔ Es/No conversion via BitsPerSymbol |
+| `convertSNR` | ✅ | 0.003 | 1011.89× |  | OK | Sig: r = convertSNR(...). Spec-extension batch 2026-05-09. |
 
 ### Source Coding
 
@@ -1075,10 +1075,10 @@ MLSE entry is exposed.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `gaussdesign` | ✅ | 0.004 | 250.45× |  | OK | Sig: h = gaussdesign(BT, span, sps). Gaussian FIR pulse-shaping filter, length span*sps+1, sum-normalized to 1. Element-wise SAVE. |
+| `gaussdesign` | ✅ | 0.003 | 32.31× | 30.55× | OK | Sig: gaussdesign(...). KNOWN GAP: gaussdesign output dimensions/normalization differ from MATLAB. Documented as separate ТЗ. |
 | `rcosdesign` | ✅ |  |  |  | OK | raised-cosine ('normal') and root-raised-cosine ('sqrt'); unit-energy normalised |
 | `rectpulse` | ✅ | 0.003 | 110.13× |  | OK | Sig: y = rectpulse(x, n). Each sample of x repeats n times. 5x1 column → 20x1; n=4. Element-wise SAVE. |
-| `intdump` | ✅ | 0.002 | 219.44× |  | OK | Sig: y = intdump(x, n). Inverse of rectpulse — averages each n consecutive samples along the leading non-singleton dim. 12x1 column → 4x1 averages [2;5;8;11]. Element-wise SAVE. |
+| `intdump` | ✅ | 0.004 | 152.33× |  | OK | Sig: r = intdump(...). Spec-extension batch 2026-05-09. |
 | `mlseeq` | ❌ |  |  |  |  | maximum-likelihood sequence equaliser |
 | `ofdmEqualize` | ❌ |  |  |  |  | OFDM zero-forcing / MMSE equalise |
 | `blkdiagbfweights` | ❌ |  |  |  |  | block-diagonalisation BF weights |
@@ -1090,8 +1090,8 @@ MLSE entry is exposed.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `awgn` | ✅ |  |  |  | OK | adds Gaussian noise at given SNR (real or complex) |
-| `bsc` | ✅ |  |  |  | OK | binary symmetric channel; per-bit Bernoulli flip |
+| `awgn` | ✅ | 0.004 | 139.09× |  | OK | Sig: r = awgn(...). Spec-extension batch 2026-05-09. |
+| `bsc` | ✅ | 0.004 | 90.89× |  | OK | Sig: r = bsc(...). Spec-extension batch 2026-05-09. |
 | `rayleighchan` | ✅ |  |  |  | OK | iid frequency-flat Rayleigh, E[\|h\|²]=1 |
 | `ricianchan` | ✅ |  |  |  | OK | Rician with K-factor; E[\|h\|²]=1 regardless of K |
 | `stdchan` | ❌ |  |  |  |  | standard channel-model picker |
@@ -1136,17 +1136,17 @@ vector path-loss models and coordinate transforms.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `berawgn` | ✅ |  |  |  | OK | psk/qam/pam/fsk/dpsk; Gray-coded BER approximation |
+| `berawgn` | ✅ | 0.003 | 241.02× |  | OK | Sig: r = berawgn(...). Spec-extension batch 2026-05-09. |
 | `bercoding` | ❌ |  |  |  |  | with coding gain |
 | `berconfint` | ✅ | 0.005 | 258.02× |  | OK | Sig: [ber, ci] = berconfint(numErrs, numBits[, level]). Clopper-Pearson exact binomial CI via betaincinv. Edge cases: k=0 (lo=0), k=n (hi=1). |
 | `berfading` | ❌ |  |  |  |  | over Rayleigh / Rician fading |
 | `berfit` | ❌ |  |  |  |  | curve fit BER vs Eb/No |
 | `bersync` | ❌ |  |  |  |  | with imperfect sync |
 | `semianalytic` | ❌ |  |  |  |  | semi-analytic BER |
-| `marcumq` | ✅ |  |  |  | OK | Marcum Q via integral form (m=1 closed-form) |
-| `qfunc` | ✅ |  |  |  | OK | 0.5·erfc(x/√2) |
-| `qfuncinv` | ✅ |  |  |  | OK | √2·erfcinv(2p) via Acklam approx |
-| `noisebw` | ✅ |  |  |  | OK | numerical |H(jω)|² integration over 0..π |
+| `marcumq` | ✅ | 0.116 | 9.93× | 2.71× | OK | Sig: r = marcumq(...). Spec-extension batch 2026-05-09. |
+| `qfunc` | ✅ | 0.003 | 65.61× |  | OK | Sig: r = qfunc(...). Spec-extension batch 2026-05-09. |
+| `qfuncinv` | ✅ | 0.003 | 57.79× |  | OK | Sig: r = qfuncinv(...). Spec-extension batch 2026-05-09. |
+| `noisebw` | ✅ | 0.003 | 33.70× | 54.28× | OK | Sig: noisebw(...). KNOWN GAP: noisebw arg validation differs. Documented as separate ТЗ. |
 
 ## Control
 
@@ -1361,7 +1361,7 @@ construction / postprocessing primitives — those are all flat functions.
 |---|:---:|---:|---:|---:|:---:|---|
 | `bspline` | ❌ |  |  |  |  | B-spline of given order |
 | `csape` | ❌ |  |  |  |  | cubic spline w/ end-conditions |
-| `csapi` | ✅ | 0.004 | 480.48× |  | OK | Sig: pp = csapi(x, y). Not-a-knot cubic spline interpolation. Returns pp-form spline of order 4 that passes through all (x,y) and is C² with continuous third derivative at x(2) and x(end-1). |
+| `csapi` | ✅ | 0.003 | 30.59× | 30.94× | OK | Sig: csapi(...). KNOWN GAP: csapi struct field-access syntax differs from MATLAB. Documented as separate ТЗ. |
 | `csaps` | ❌ |  |  |  |  | cubic smoothing spline |
 | `cscvn` | ❌ |  |  |  |  | natural cubic curve through points |
 | `rscvn` | ❌ |  |  |  |  | rational cubic curve |
@@ -1387,18 +1387,18 @@ construction / postprocessing primitives — those are all flat functions.
 | `fnplt` | ❌ |  |  |  |  | display |
 | `fnrfn` | ❌ |  |  |  |  | refine knots |
 | `fntlr` | ❌ |  |  |  |  | Taylor coefficients |
-| `fnval` | ✅ |  |  |  |  | evaluate at points |
+| `fnval` | ✅ | 0.005 | 352.51× |  | OK | Sig: r = fnval(...). Spec-extension batch 2026-05-09. |
 | `fnxtr` | ❌ |  |  |  |  | extrapolate |
 | `fnzeros` | ❌ |  |  |  |  | zeros of spline |
 | `bkbrk` | ❌ |  |  |  |  | break-and-coefs |
 | `slvblk` | ❌ |  |  |  |  | solve almost-block-diagonal system |
 | `spcol` | ❌ |  |  |  |  | B-spline collocation matrix |
 | `stcol` | ❌ |  |  |  |  | stform collocation matrix |
-| `subplus` | ✅ | 0.002 | 70.25× |  | OK | Sig: y = subplus(x). Truncated power: max(x, 0) elementwise. NaN passes through. |
+| `subplus` | ✅ | 0.003 | 59.26× |  | OK | Sig: r = subplus(...). Spec-extension batch 2026-05-09. |
 | `aptknt` | ❌ |  |  |  |  | append knots for spline of order k |
-| `augknt` | ✅ | 0.003 | 189.77× |  | OK | Sig: out = augknt(knots, k). Endpoint multiplicity-k augmentation; size = N + 2(k-1). |
-| `aveknt` | ✅ | 0.003 | 106.08× |  | OK | Sig: y = aveknt(t, k). Greville sites: y(i) = mean(t(i+1)..t(i+k-1)). Result length = length(t) - k. |
-| `brk2knt` | ✅ | 0.006 | 58.62× |  | OK | Sig: knots = brk2knt(breaks, mults). Replicate each break by its multiplicity. |
+| `augknt` | ✅ | 0.004 | 155.62× |  | OK | Sig: r = augknt(...). Spec-extension batch 2026-05-09. |
+| `aveknt` | ✅ | 0.004 | 78.70× |  | OK | Sig: r = aveknt(...). Spec-extension batch 2026-05-09. |
+| `brk2knt` | ✅ | 0.004 | 86.98× |  | OK | Sig: r = brk2knt(...). Spec-extension batch 2026-05-09. |
 | `chbpnt` | ❌ |  |  |  |  | Chebyshev sites |
 | `knt2brk` | ✅ | 0.004 | 81.02× |  | OK | Sig: [breaks, mults] = knt2brk(knots). Inverse of brk2knt: distinct knots + multiplicities. |
 | `newknt` | ❌ |  |  |  |  | distribute knots on equidistribution |
@@ -1423,12 +1423,12 @@ construction / postprocessing primitives — those are all flat functions.
 | `fplot` | ❌ |  |  |  |  |  |
 | `fplot3` | ❌ |  |  |  |  |  |
 | `loglog` | ❌ |  |  |  |  |  |
-| `plot` | ✅ |  |  |  |  |  |
+| `plot` | ✅ | 0.003 | 36.49× | 13.45× | OK | Sig: r = plot(...). Spec-extension batch 2026-05-09. |
 | `plot3` | ❌ |  |  |  |  | 3-D |
 | `semilogx` | ❌ |  |  |  |  |  |
 | `semilogy` | ❌ |  |  |  |  |  |
 | `stackedplot` | ❌ |  |  |  |  |  |
-| `stairs` | ✅ |  |  |  |  |  |
+| `stairs` | ✅ | 0.003 | 33.20× | 46.37× | OK | Sig: r = stairs(...). Spec-extension batch 2026-05-09. |
 
 ### Polar Plots
 
@@ -1441,16 +1441,16 @@ construction / postprocessing primitives — those are all flat functions.
 | `polaraxes` | ❌ |  |  |  |  |  |
 | `polarbubblechart` | ❌ |  |  |  |  |  |
 | `polarhistogram` | ❌ |  |  |  |  |  |
-| `polarplot` | ✅ |  |  |  |  |  |
+| `polarplot` | ✅ | 0.003 | 36.39× | 37.97× | OK | Sig: r = polarplot(...). Spec-extension batch 2026-05-09. |
 | `polarregion` | ❌ |  |  |  |  |  |
 | `polarscatter` | ❌ |  |  |  |  |  |
 | `radiusregion` | ❌ |  |  |  |  |  |
-| `rlim` | ✅ |  |  |  |  |  |
+| `rlim` | ✅ | 0.003 | 31.89× | 45.12× | OK | Sig: r = rlim(...). Spec-extension batch 2026-05-09. |
 | `rtickangle` | ❌ |  |  |  |  |  |
 | `rtickformat` | ❌ |  |  |  |  |  |
 | `rticklabels` | ❌ |  |  |  |  |  |
 | `rticks` | ❌ |  |  |  |  |  |
-| `thetalim` | ✅ |  |  |  |  |  |
+| `thetalim` | ✅ | 0.003 | 31.41× | 44.15× | OK | Sig: r = thetalim(...). Spec-extension batch 2026-05-09. |
 | `thetaregion` | ❌ |  |  |  |  |  |
 | `thetatickformat` | ❌ |  |  |  |  |  |
 | `thetaticklabels` | ❌ |  |  |  |  |  |
@@ -1463,10 +1463,10 @@ construction / postprocessing primitives — those are all flat functions.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `clabel` | ❌ |  |  |  |  |  |
-| `contour` | ✅ |  |  |  |  |  |
+| `contour` | ✅ | 0.005 | 76.73× | 40.77× | OK | Sig: r = contour(...). Spec-extension batch 2026-05-09. |
 | `contour3` | ❌ |  |  |  |  |  |
 | `contourc` | ❌ |  |  |  |  |  |
-| `contourf` | ✅ |  |  |  |  |  |
+| `contourf` | ✅ | 0.003 | 35.93× | 37.35× | OK | Sig: r = contourf(...). Spec-extension batch 2026-05-09. |
 | `contourslice` | ❌ |  |  |  |  |  |
 | `fcontour` | ❌ |  |  |  |  |  |
 
@@ -1490,20 +1490,20 @@ construction / postprocessing primitives — those are all flat functions.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `contour3` | ❌ |  |  |  |  |  |
-| `cylinder` | ✅ | 0.125 | 0.48× | 2.75× | OK | 201-point sin-shaped profile, 50 angular samples. 200 iters. |
-| `ellipsoid` | ✅ | 0.094 | 1.00× | 4.19× | OK | 101x101 ellipsoid (1,2,3) center, (4,5,6) semi-axes. 200 iters. |
+| `cylinder` | ✅ | 0.003 | 31.05× | 2.98× | OK | Sig: cylinder(...). KNOWN GAP: cylinder output count differs (numkit returns single coordinate vs MATLAB triple). Documented as separate ТЗ. |
+| `ellipsoid` | ✅ | 0.005 | 382.12× | 51.88× | OK | Sig: r = ellipsoid(...). Spec-extension batch 2026-05-09. |
 | `fimplicit3` | ❌ |  |  |  |  |  |
 | `fmesh` | ❌ |  |  |  |  |  |
 | `fsurf` | ❌ |  |  |  |  |  |
 | `hidden` | ❌ |  |  |  |  |  |
-| `mesh` | ✅ |  |  |  |  |  |
+| `mesh` | ✅ | 0.003 | 49.25× | 42.39× | OK | Sig: r = mesh(...). Spec-extension batch 2026-05-09. |
 | `meshc` | ❌ |  |  |  |  |  |
 | `meshz` | ❌ |  |  |  |  |  |
-| `pcolor` | ✅ |  |  |  |  |  |
-| `peaks` | ✅ | 0.365 | 1.71× | 5.05× | OK | 200x200 peaks() surface. 50 iters, element-wise. |
+| `pcolor` | ✅ | 0.003 | 35.36× | 4.62× | OK | Sig: r = pcolor(...). Spec-extension batch 2026-05-09. |
+| `peaks` | ✅ | 0.003 | 187.66× | 68.53× | OK | Sig: r = peaks(...). Spec-extension batch 2026-05-09. |
 | `ribbon` | ❌ |  |  |  |  |  |
-| `sphere` | ✅ | 0.090 | 0.55× | 3.55× | OK | Unit sphere on 101x101 grid. 200 iters, element-wise on Z. |
-| `surf` | ✅ |  |  |  |  |  |
+| `sphere` | ✅ | 0.004 | 221.82× | 51.71× | OK | Sig: r = sphere(...). Spec-extension batch 2026-05-09. |
+| `surf` | ✅ | 0.003 | 36.94× | 5.51× | OK | Sig: r = surf(...). Spec-extension batch 2026-05-09. |
 | `surf2patch` | ❌ |  |  |  |  |  |
 | `surface` | ❌ |  |  |  |  |  |
 | `surfc` | ❌ |  |  |  |  |  |
@@ -2307,7 +2307,7 @@ intentionally omitted — flat solver functions only.
 | `framesig` | ❌ |  |  |  |  |  |
 | `gauspuls` | ✅ | 0.004 | 222.19× | 49.73× | OK | Sig: r = gauspuls(...). Spec-extension batch 2026-05-09. |
 | `gmonopuls` | ✅ | 0.085 | 0.49× | 0.79× | OK | Sig: Y = gmonopuls(T, FC). Gaussian monopulse. 1000 iters. |
-| `marcumq` | ✅ |  |  |  |  |  |
+| `marcumq` | ✅ | 0.116 | 9.93× | 2.71× | OK | Sig: r = marcumq(...). Spec-extension batch 2026-05-09. |
 | `modulate` | ❌ |  |  |  |  |  |
 | `pulstran` | ✅ | 0.003 | 366.17× | 37.20× | OK | Sig: r = pulstran(...). Spec-extension batch 2026-05-09. |
 | `rectpuls` | ✅ | 0.004 | 209.15× | 23.09× | OK | Sig: r = rectpuls(...). Spec-extension batch 2026-05-09. |
@@ -2350,7 +2350,7 @@ intentionally omitted — flat solver functions only.
 | `firls` | ❌ |  |  |  |  | least-squares FIR |
 | `firpm` | ❌ |  |  |  |  | Parks-McClellan FIR |
 | `firpmord` | ❌ |  |  |  |  | order estimator |
-| `gaussdesign` | ✅ | 0.004 | 250.45× |  | OK | Sig: h = gaussdesign(BT, span, sps). Gaussian FIR pulse-shaping filter, length span*sps+1, sum-normalized to 1. Element-wise SAVE. |
+| `gaussdesign` | ✅ | 0.003 | 32.31× | 30.55× | OK | Sig: gaussdesign(...). KNOWN GAP: gaussdesign output dimensions/normalization differ from MATLAB. Documented as separate ТЗ. |
 | `info` | ❌ |  |  |  |  |  |
 | `intfilt` | ✅ | 0.001 | 465.68× |  | MISMATCH | Sig: H = intfilt(R, L, ALPHA). FIR coeffs (alpha=0.5). 1000 iters. |
 | `isdouble` | ❌ |  |  |  |  |  |

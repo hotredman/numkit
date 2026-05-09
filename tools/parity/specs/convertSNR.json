@@ -1,0 +1,12 @@
+{
+  "name": "convertSNR",
+  "namespace": "comm",
+  "setup": "",
+  "expr": "r1 = convertSNR(10, \"snr\", \"esno\");",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = convertSNR(...). Spec-extension batch 2026-05-09."
+}

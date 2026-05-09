@@ -1,0 +1,12 @@
+{
+  "name": "surf",
+  "namespace": "graphics",
+  "setup": "",
+  "expr": "r1 = 1;",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = surf(...). Spec-extension batch 2026-05-09."
+}

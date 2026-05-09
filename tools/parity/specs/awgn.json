@@ -1,0 +1,12 @@
+{
+  "name": "awgn",
+  "namespace": "comm",
+  "setup": "rng(42);",
+  "expr": "y = awgn([1 2 3 4 5], 30); r1 = double(numel(y));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = awgn(...). Spec-extension batch 2026-05-09."
+}

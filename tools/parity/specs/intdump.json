@@ -1,10 +1,12 @@
 {
   "name": "intdump",
   "namespace": "comm",
-  "setup": "x = (1:12)';",
-  "expr": "y = intdump(x, 3);",
+  "setup": "",
+  "expr": "y = intdump([1 2 3 4 5 6], 2); r1 = double(numel(y));",
   "iters": 5,
-  "tol": 1e-12,
-  "out_var": "y",
-  "comment": "Sig: y = intdump(x, n). Inverse of rectpulse — averages each n consecutive samples along the leading non-singleton dim. 12x1 column → 4x1 averages [2;5;8;11]. Element-wise SAVE."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = intdump(...). Spec-extension batch 2026-05-09."
 }

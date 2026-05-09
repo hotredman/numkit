@@ -1,0 +1,12 @@
+{
+  "name": "berawgn",
+  "namespace": "comm",
+  "setup": "",
+  "expr": "r1 = double(berawgn(0, \"psk\", 2, \"nondiff\") >= 0);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = berawgn(...). Spec-extension batch 2026-05-09."
+}
