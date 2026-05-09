@@ -14,6 +14,7 @@ set(COMMLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/source/random_source.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/huffman.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/dpcm.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/quantiz.cpp
 )
 
 set(COMMLIB_SOURCES ${COMMLIB_SOURCES} PARENT_SCOPE)
