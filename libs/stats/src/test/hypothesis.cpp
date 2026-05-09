@@ -2280,5 +2280,131 @@ void signtest_reg(Span<const Value> args, size_t nargout,
     }
 }
 
+// ── lillietest (Lilliefors normality test) ─────────────────────────
+//
+// Tests H0: x ~ N(mu, sigma^2) for unspecified mu, sigma. Uses KS
+// statistic against a fitted normal CDF (mean and std estimated
+// from sample). p-value via Stephens (1974) approximation.
+
+void lillietest_reg(Span<const Value> args, size_t nargout,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("lillietest: requires at least 1 argument",
+                    0, 0, "lillietest", "", "m:lillietest:nargin");
+    auto *mr = ctx.engine->resource();
+    const Value &X = args[0];
+    const std::size_t N = X.numel();
+    if (N < 4)
+        throw Error("lillietest: sample size must be >= 4",
+                    0, 0, "lillietest", "", "m:lillietest:nsamples");
+
+    double alpha = 0.05;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        alpha = args[1].toScalar();
+        if (alpha <= 0.0 || alpha >= 1.0)
+            throw Error("lillietest: alpha must be in (0, 1)",
+                        0, 0, "lillietest", "", "m:lillietest:alpha");
+    }
+
+    // Sort sample.
+    std::vector<double> xs(N);
+    for (std::size_t i = 0; i < N; ++i) xs[i] = X.elemAsDouble(i);
+    std::sort(xs.begin(), xs.end());
+
+    // Sample mean and std (sample std with N-1 normalization).
+    double sum = 0.0;
+    for (double v : xs) sum += v;
+    const double mean = sum / static_cast<double>(N);
+    double ss = 0.0;
+    for (double v : xs) { const double d = v - mean; ss += d * d; }
+    const double sd = std::sqrt(ss / static_cast<double>(N - 1));
+    if (sd == 0.0)
+        throw Error("lillietest: sample has zero variance",
+                    0, 0, "lillietest", "", "m:lillietest:zeroVar");
+
+    // KS statistic against fitted normal CDF.
+    // For each sorted x_i: F_emp_lo = (i-1)/N, F_emp_hi = i/N (1-based i).
+    // F_norm(x_i) computed via std::erf.
+    double D = 0.0;
+    const double inv_sqrt2 = 0.7071067811865476;
+    for (std::size_t i = 0; i < N; ++i) {
+        const double z = (xs[i] - mean) / sd;
+        const double F = 0.5 * (1.0 + std::erf(z * inv_sqrt2));
+        const double F_emp_lo = static_cast<double>(i)         / static_cast<double>(N);
+        const double F_emp_hi = static_cast<double>(i + 1)     / static_cast<double>(N);
+        D = std::max(D, std::max(std::fabs(F - F_emp_lo),
+                                  std::fabs(F - F_emp_hi)));
+    }
+
+    // Stephens (1974) modified statistic for Lilliefors:
+    // D* = D * (sqrt(n) - 0.01 + 0.85/sqrt(n))
+    const double sqn = std::sqrt(static_cast<double>(N));
+    const double D_star = D * (sqn - 0.01 + 0.85 / sqn);
+
+    // Stephens p-value approximation (valid for D* > 0.43 roughly):
+    //   p ≈ exp(-7.01256 * D*^2)  for D* large
+    // Better: use the approximate inverse table.
+    // Lilliefors critical values (Stephens 1974, table 8.5.4):
+    //   alpha   0.20    0.15    0.10    0.05    0.01
+    //   D*      0.741   0.775   0.819   0.895   1.035
+    // Below 0.20 the test always fails to reject (h=0 with p>0.20).
+    auto stephensP = [](double Ds) {
+        if (Ds < 0.474) return 0.50;     // very high p
+        // Smooth interp between table points.
+        struct Pt { double Ds, p; };
+        static const Pt tbl[] = {
+            {0.474, 0.50},
+            {0.741, 0.20},
+            {0.775, 0.15},
+            {0.819, 0.10},
+            {0.895, 0.05},
+            {1.035, 0.01},
+            {1.50,  1e-4},
+            {2.00,  1e-7}
+        };
+        for (std::size_t k = 1; k < sizeof(tbl)/sizeof(tbl[0]); ++k) {
+            if (Ds <= tbl[k].Ds) {
+                const double frac = (Ds - tbl[k-1].Ds) / (tbl[k].Ds - tbl[k-1].Ds);
+                // Log-linear interpolation in p.
+                const double lp = std::log(tbl[k-1].p)
+                                + frac * (std::log(tbl[k].p) - std::log(tbl[k-1].p));
+                return std::exp(lp);
+            }
+        }
+        return 1e-10;
+    };
+    auto stephensCV = [](double a) {
+        struct Pt { double a, Ds; };
+        static const Pt tbl[] = {
+            {0.20, 0.741},
+            {0.15, 0.775},
+            {0.10, 0.819},
+            {0.05, 0.895},
+            {0.01, 1.035}
+        };
+        // Find bracket.
+        for (std::size_t k = 1; k < sizeof(tbl)/sizeof(tbl[0]); ++k) {
+            if (a >= tbl[k].a) {
+                // Linear interp in alpha.
+                const double frac = (a - tbl[k-1].a) / (tbl[k].a - tbl[k-1].a);
+                return tbl[k-1].Ds + frac * (tbl[k].Ds - tbl[k-1].Ds);
+            }
+        }
+        return tbl[sizeof(tbl)/sizeof(tbl[0]) - 1].Ds;
+    };
+
+    const double p_val = std::min(0.5, std::max(1e-10, stephensP(D_star)));
+    const double D_critstar = stephensCV(alpha);
+    // Convert critical D* back to plain D for output (per MATLAB convention).
+    const double D_crit = D_critstar / (sqn - 0.01 + 0.85 / sqn);
+    const int h = (D > D_crit) ? 1 : 0;
+
+    outs[0] = Value::scalar(static_cast<double>(h), mr);
+    if (nargout > 1) outs[1] = Value::scalar(p_val,  mr);
+    if (nargout > 2) outs[2] = Value::scalar(D,      mr);
+    if (nargout > 3) outs[3] = Value::scalar(D_crit, mr);
+}
+
 } // namespace detail
 } // namespace numkit::stats
