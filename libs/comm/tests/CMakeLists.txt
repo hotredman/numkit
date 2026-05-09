@@ -12,4 +12,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/fmmod_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ssbmod_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/randsrc_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/randerr_test.cpp
 )

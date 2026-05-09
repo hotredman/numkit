@@ -27,4 +27,15 @@ namespace numkit::comm {
 Value randsrc(std::pmr::memory_resource *mr, size_t m, size_t n,
               const Value &alphabet, bool have_state, uint32_t state);
 
+/// `out = randerr(m, n [, errors [, state]])` — generate an
+/// `m`-by-`n` binary matrix where each row has a controlled number
+/// of 1s ("errors") at random column positions.
+///
+///   errors  : either a scalar (exact count per row), a row vector
+///             of possible counts (uniform), or a 2-row matrix
+///             `[counts; probabilities]`. Default: scalar 1.
+///   state   : explicit seed -> isolated MatlabMT19937 instance.
+Value randerr(std::pmr::memory_resource *mr, size_t m, size_t n,
+              const Value &errspec, bool have_state, uint32_t state);
+
 } // namespace numkit::comm
