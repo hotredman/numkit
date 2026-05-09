@@ -70,6 +70,9 @@ void compand_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 // source/random_source.cpp
 void randsrc_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void randerr_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// source/huffman.cpp
+void huffmandict_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -131,6 +134,8 @@ void CommLibrary::install(Engine &engine)
 
     reg("rf", "randsrc",     &comm::detail::randsrc_reg);
     reg("rf", "randerr",     &comm::detail::randerr_reg);
+
+    reg("eq", "huffmandict", &comm::detail::huffmandict_reg);
 }
 
 } // namespace numkit

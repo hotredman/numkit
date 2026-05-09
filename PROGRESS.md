@@ -969,7 +969,7 @@ intentionally omitted, along with `constellation` (object method) and
 | `dpcmenco` | ❌ |  |  |  |  | differential PCM encoder |
 | `dpcmdeco` | ❌ |  |  |  |  |  |
 | `dpcmopt` | ❌ |  |  |  |  | optimise predictor + partition |
-| `huffmandict` | ❌ |  |  |  |  | build Huffman code table |
+| `huffmandict` | ❌ | 0.010 | 183.53× |  | OK | MATLAB huffmandict: Huffman code-book builder. Codes are NOT unique (tie-breaking yields different but equally optimal trees) -- the invariant is avglen = sum(p_k * L_k). Fingerprint pins avglen on three test cases (5-symbol skewed, 2-symbol, 4-symbol uniform). Code shape, prefix-freeness and bounds H <= avglen < H+1 covered in gtest. Octave 11.1.0 doesn't ship huffmandict in core (signal/communications package only); reports N/A. |
 | `huffmanenco` | ❌ |  |  |  |  |  |
 | `huffmandeco` | ❌ |  |  |  |  |  |
 | `lloyds` | ❌ |  |  |  |  | Lloyd-Max scalar quantiser |
