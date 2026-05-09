@@ -2324,6 +2324,88 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 outs[0] = std::move(out);
                             });
 
+    // ── eomday ────────────────────────────────────────────────
+    // MATLAB eomday(y, m): last day of the given month (28..31).
+    //
+    // Leap year rule (proleptic Gregorian):
+    //   isLeap(y) = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0
+    //
+    // Shape: output preserves the broadcast shape of (y, m). Both
+    // scalar -> scalar; matched non-scalars must have identical
+    // shape; one scalar broadcasts.
+    engine.registerFunction("eomday",
+                            [](Span<const Value> args,
+                               size_t /*nargout*/,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                if (args.size() < 2)
+                                    throw std::runtime_error(
+                                        "eomday requires (year, month)");
+                                static const int kMonthDays[12] = {
+                                    31, 28, 31, 30, 31, 30,
+                                    31, 31, 30, 31, 30, 31
+                                };
+                                auto isLeap = [](int64_t y) {
+                                    return (y % 4 == 0 && y % 100 != 0)
+                                        || (y % 400 == 0);
+                                };
+                                auto monthEnd = [&](double yd, double md) {
+                                    int64_t y = static_cast<int64_t>(
+                                        std::floor(yd));
+                                    int64_t m = static_cast<int64_t>(
+                                        std::floor(md));
+                                    if (m < 1 || m > 12)
+                                        throw std::runtime_error(
+                                            "eomday: month must be in 1..12");
+                                    int days = kMonthDays[m - 1];
+                                    if (m == 2 && isLeap(y)) days = 29;
+                                    return static_cast<double>(days);
+                                };
+
+                                auto *mr = ctx.engine->resource();
+                                const Value &Y = args[0];
+                                const Value &M = args[1];
+
+                                // Both scalar -> scalar output.
+                                if (Y.numel() == 1 && M.numel() == 1) {
+                                    outs[0] = Value::scalar(
+                                        monthEnd(Y.toScalar(), M.toScalar()),
+                                        mr);
+                                    return;
+                                }
+                                // Determine output shape (broadcast).
+                                size_t R, C;
+                                if (Y.numel() == 1) {
+                                    R = M.dims().rows();
+                                    C = M.dims().cols();
+                                } else if (M.numel() == 1) {
+                                    R = Y.dims().rows();
+                                    C = Y.dims().cols();
+                                } else {
+                                    if (Y.dims().rows() != M.dims().rows()
+                                        || Y.dims().cols() != M.dims().cols())
+                                        throw std::runtime_error(
+                                            "eomday: y and m must have the "
+                                            "same shape (or one scalar)");
+                                    R = Y.dims().rows();
+                                    C = Y.dims().cols();
+                                }
+                                auto out = Value::matrix(
+                                    R, C, ValueType::DOUBLE, mr);
+                                double *o = out.doubleDataMut();
+                                const size_t N = R * C;
+                                for (size_t i = 0; i < N; ++i) {
+                                    const double yi = Y.numel() == 1
+                                                          ? Y.toScalar()
+                                                          : Y.elemAsDouble(i);
+                                    const double mi = M.numel() == 1
+                                                          ? M.toScalar()
+                                                          : M.elemAsDouble(i);
+                                    o[i] = monthEnd(yi, mi);
+                                }
+                                outs[0] = std::move(out);
+                            });
+
     // ── addpath / rmpath / path / rehash / run (Phase 9b) ──────
     engine.registerFunction("addpath",
                             [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {

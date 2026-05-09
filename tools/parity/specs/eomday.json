@@ -1,0 +1,10 @@
+{
+  "name": "eomday",
+  "namespace": "builtin",
+  "setup": "Y = [2024; 2025; 2000; 1900; 2026]; M = [2; 2; 2; 2; 4]; Yc = 2024; Mvec = (1:12)';",
+  "expr": "v = eomday(Y, M); allMonths2024 = eomday(Yc, Mvec); shapeMat = eomday([2024 2025; 2026 2027], [1 2; 3 4]);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": ["v(1)", "v(2)", "v(3)", "v(4)", "v(5)", "allMonths2024(1)", "allMonths2024(2)", "allMonths2024(4)", "allMonths2024(12)", "shapeMat(1,1)", "shapeMat(1,2)", "shapeMat(2,1)", "shapeMat(2,2)"],
+  "comment": "MATLAB eomday: last day of given month. Covered: leap-year all four cases (/4 leap [2024], common [2025], /400 leap [2000], century non-leap [1900]), 30-day month (April), full Jan-Dec scan in leap year, scalar+vector broadcast, and 2x2 matrix shape preservation. Algorithm: lookup table + isLeap = (y%4==0 && y%100!=0) || y%400==0."
+}
