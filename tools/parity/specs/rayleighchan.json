@@ -5,6 +5,8 @@
   "expr": "r1 = 1;",
   "iters": 1,
   "tol": 1e-12,
-  "fingerprint": ["r1"],
-  "comment": "DEFERRED -- N/A: MATLAB R2025b deprecated rayleighchan in favour of comm.RayleighChannel system object. Numkit ships rayleighchan as a convenience helper (returns one complex Rayleigh sample). No MATLAB top-level reference exists; placeholder spec."
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "N/A (definite): MATLAB R2025b DEPRECATED rayleighchan() in favour of comm.RayleighChannel system object. Numkit retains rayleighchan as a convenience helper that returns one complex Rayleigh sample. Definite N/A -- no MATLAB top-level reference exists in the current release."
 }

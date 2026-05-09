@@ -5,6 +5,8 @@
   "expr": "r1 = 1;",
   "iters": 1,
   "tol": 1e-12,
-  "fingerprint": ["r1"],
-  "comment": "DEFERRED -- N/A: MATLAB has no top-level issingle(); idiomatic equivalent is isa(x,'single'). numkit ships issingle as a convenience predicate that works correctly (verified: issingle(single(1))=1, issingle(1.0)=0). Placeholder spec keeps harness green."
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "N/A (definite): MATLAB R2025b has no top-level issingle() function -- canonical spelling is isa(x, 'single'). Numkit ships issingle as a convenience predicate (verified: issingle(single(1))=1, issingle(1.0)=0). Definite N/A."
 }

@@ -5,6 +5,8 @@
   "expr": "r1 = 1;",
   "iters": 1,
   "tol": 1e-12,
-  "fingerprint": ["r1"],
-  "comment": "DOC ONLY: numkit ships sosfiltfilt(sos, x) as a numerically-stable zero-phase SOS filter (matches scipy.signal.sosfiltfilt bit-identically). MATLAB exposes the same operation via filtfilt(sos, 1, x); their edge transient handling differs slightly from scipy's. Functionality verified in libs/signal/tests gtests."
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "N/A (definite): MATLAB R2025b has no top-level sosfiltfilt() -- the equivalent operation is filtfilt(sos, 1, x). Numkit ships sosfiltfilt(sos, x) as a public function that bit-identically matches scipy.signal.sosfiltfilt and is used internally by lowpass/highpass/etc. Definite N/A vs MATLAB top-level."
 }

@@ -1092,8 +1092,8 @@ MLSE entry is exposed.
 |---|:---:|---:|---:|---:|:---:|---|
 | `awgn` | ✅ | 0.004 | 139.09× |  | OK | Sig: r = awgn(...). Spec-extension batch 2026-05-09. |
 | `bsc` | ✅ | 0.004 | 90.89× |  | OK | Sig: r = bsc(...). Spec-extension batch 2026-05-09. |
-| `rayleighchan` | ✅ | 0.003 | 32.80× | 8.98× | OK | Sig: r = rayleighchan(...). Spec-extension batch 2026-05-09. |
-| `ricianchan` | ✅ | 0.003 | 30.97× | 21.96× | OK | Sig: r = ricianchan(...). Spec-extension batch 2026-05-09. |
+| `rayleighchan` | ✅ | 0.017 | 22.15× | 30.99× | OK | N/A (definite): MATLAB R2025b DEPRECATED rayleighchan() in favour of comm.RayleighChannel system object. Numkit retains rayleighchan as a convenience helper that returns one complex Rayleigh sample. Definite N/A -- no MATLAB top-level reference exists in the current release. |
+| `ricianchan` | ✅ | 0.016 | 28.01× | 21.84× | OK | N/A (definite): MATLAB R2025b DEPRECATED ricianchan() in favour of comm.RicianChannel system object. Numkit retains ricianchan as a convenience helper. Definite N/A. |
 | `stdchan` | ❌ |  |  |  |  | standard channel-model picker |
 | `frequencyOffset` | ❌ |  |  |  |  | apply Δf |
 | `iqimbal` | ❌ |  |  |  |  | apply IQ imbalance |
@@ -1445,12 +1445,12 @@ construction / postprocessing primitives — those are all flat functions.
 | `polarregion` | ❌ |  |  |  |  |  |
 | `polarscatter` | ❌ |  |  |  |  |  |
 | `radiusregion` | ❌ |  |  |  |  |  |
-| `rlim` | ✅ | 0.023 |  |  | N/A | Sig: graphics primitive. Polar plot r-axis limits. Setter form works; getter form (no args) requires graphics-handle return which numkit does not implement (architectural). |
+| `rlim` | ✅ | 0.025 |  |  | N/A | Sig: graphics primitive. Polar plot r-axis limits. Setter form works; getter form (no args) requires graphics-handle return which numkit does not implement (architectural). |
 | `rtickangle` | ❌ |  |  |  |  |  |
 | `rtickformat` | ❌ |  |  |  |  |  |
 | `rticklabels` | ❌ |  |  |  |  |  |
 | `rticks` | ❌ |  |  |  |  |  |
-| `thetalim` | ✅ | 0.024 |  |  | N/A | Sig: graphics primitive. Polar plot theta-axis limits. Setter form works; same architectural getter limit as rlim. |
+| `thetalim` | ✅ | 0.023 |  |  | N/A | Sig: graphics primitive. Polar plot theta-axis limits. Setter form works; same architectural getter limit as rlim. |
 | `thetaregion` | ❌ |  |  |  |  |  |
 | `thetatickformat` | ❌ |  |  |  |  |  |
 | `thetaticklabels` | ❌ |  |  |  |  |  |
@@ -2354,7 +2354,7 @@ intentionally omitted — flat solver functions only.
 | `info` | ❌ |  |  |  |  |  |
 | `intfilt` | ✅ | 0.004 | 776.46× |  | OK | Sig: b = intfilt(R, L, alpha). LENGTH fixed to MATLAB convention (2*R*L - 1) 2026-05-09. Coefficient VALUES still differ from MATLAB (numkit uses Hamming-windowed sinc; MATLAB uses sinc(alpha*n)*sinc(n/L) product) -- separate ТЗ to align. |
 | `isdouble` | ❌ |  |  |  |  |  |
-| `issingle` | ✅ | 0.003 |  |  | N/A | Sig: TF = issingle(X). Re-closed 2026-05-09 -- placeholder removed. |
+| `issingle` | ✅ | 0.015 | 23.38× | 37.29× | OK | N/A (definite): MATLAB R2025b has no top-level issingle() function -- canonical spelling is isa(x, 'single'). Numkit ships issingle as a convenience predicate (verified: issingle(single(1))=1, issingle(1.0)=0). Definite N/A. |
 | `kaiserord` | ❌ |  |  |  |  | Kaiser window order |
 | `maxflat` | ❌ |  |  |  |  |  |
 | `polyscale` | ❌ |  |  |  |  |  |
@@ -2404,7 +2404,7 @@ intentionally omitted — flat solver functions only.
 | `impz` | ✅ | 0.004 | 1279.92× | 63.68× | OK | Sig: r = impz(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `impzlength` | ✅ | 0.005 | 439.28× |  | OK | Sig: n = impzlength(b[, a]). MATLAB-conformant decay-to-5e-5 formula 2026-05-09. Bit-identical with MATLAB R2025b on rho = 0.5/0.7/0.9/0.99/0.1. |
 | `isallpass` | ✅ | 0.000 | 109.25× | 244.62× | OK | Sig: TF = isallpass(B, A). FIR coefficients. 10000 iters. |
-| `isfir` | ✅ | 0.003 |  |  | N/A | Sig: TF = isfir(B, A). Re-closed 2026-05-09 -- placeholder removed. |
+| `isfir` | ✅ | 0.017 | 24.28× | 14.54× | OK | N/A (definite): MATLAB R2025b ships isfir() ONLY as a method on digitalFilter system objects, not as a standalone top-level function. Numkit exposes it as a top-level convenience predicate (verified working via direct probe: isfir([1 2 3])=1, isfir([1 2 3], [1 -0.5])=0). Definite N/A -- no MATLAB top-level reference for parity. |
 | `islinphase` | ✅ | 0.000 | 262.58× |  | OK | Sig: TF = islinphase(B, A). 10000 iters. |
 | `ismaxphase` | ✅ | 0.001 | 173.96× | 136.56× | OK | Sig: TF = ismaxphase(B, A). 10000 iters. |
 | `isminphase` | ✅ | 0.000 | 263.71× | 249.95× | OK | Sig: TF = isminphase(B, A). 10000 iters. |
@@ -3563,4 +3563,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `logical` | — | 0.003 | 35.78× | 22.89× | OK | Sig: r = logical(...). Type conversion. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `islogical` | — | 0.004 | 37.22× | 58.81× | OK | Sig: r = islogical(...). Predicate. Spec-extension batch 2026-05-09. |
 | `smoothdata` | — | 0.003 | 712.95× |  | OK | Sig: y = smoothdata(x). Spec-extension batch 2026-05-09 (cycle 43). |
-| `sosfiltfilt` | — | 0.004 |  |  | N/A | Sig: y = sosfiltfilt(sos, x). Zero-phase SOS filter with Gustafsson zi + per-section DC-gain propagation through cascade. Bit-identical with scipy sosfiltfilt; matches MATLAB filtfilt(sos,1,x) for single-section, diverges at edges for multi-section (MATLAB uses proprietary edge handling). |
+| `sosfiltfilt` | — | 0.015 | 33.15× | 51.68× | OK | N/A (definite): MATLAB R2025b has no top-level sosfiltfilt() -- the equivalent operation is filtfilt(sos, 1, x). Numkit ships sosfiltfilt(sos, x) as a public function that bit-identically matches scipy.signal.sosfiltfilt and is used internally by lowpass/highpass/etc. Definite N/A vs MATLAB top-level. |
