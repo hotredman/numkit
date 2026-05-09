@@ -1,12 +1,12 @@
 {
   "name": "rng",
   "namespace": "core",
-  "setup": "% nop",
-  "expr": "rng(42); y = rand();",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: rng(SEED). After seeding, rand() should be deterministic. 1000 iters.",
+  "setup": "",
+  "expr": "rng(42); y = rand(); rng(42); z = rand(); r1 = double(y == z);",
+  "iters": 1,
+  "tol": 1e-12,
+  "comment": "Sig: rng(SEED). Side-effect smoke: same seed must produce same first sample (r1 = 1 in any deterministic PRNG). DEFERRED -- direct sample value parity not possible (numkit vs MATLAB use different PRNG algorithms; MT-19937 not bit-replicated).",
   "fingerprint": [
-    "double(y)"
+    "r1"
   ]
 }

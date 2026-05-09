@@ -4,7 +4,7 @@
   "setup": "ps = [0.025 0.5 0.975];",
   "expr": "x_default = norminv(ps); x_mu5 = norminv(ps, 5, 1); x_sig2 = norminv(ps, 0, 2); x_both = norminv(ps, 5, 2); x_p0 = norminv(0); x_p1 = norminv(1); x_pneg = norminv(-0.1); x_pover = norminv(1.5); x_sigbad = norminv(0.5, 0, 0); x_signeg = norminv(0.5, 0, -1);",
   "iters": 5,
-  "tol": 1e-12,
+  "tol": 1e-9,
   "fingerprint": [
     "x_default(1)", "x_default(2)", "x_default(3)",
     "x_mu5(1)",     "x_mu5(2)",     "x_mu5(3)",
@@ -14,5 +14,5 @@
     "x_pneg", "x_pover",
     "x_sigbad", "x_signeg"
   ],
-  "comment": "Sig: x = norminv(p[, mu, sigma]). Inverse Normal CDF: x = mu + sigma*Φ⁻¹(p). Defaults mu=0, sigma=1. Edges: p=0 => -Inf; p=1 => +Inf; p outside [0,1] => NaN; sigma<=0 => NaN."
+  "comment": "Sig: x = norminv(p[, mu, sigma]). Inverse Normal CDF: x = mu + sigma*Φ⁻¹(p). Defaults mu=0, sigma=1. Edges: p=0 => -Inf; p=1 => +Inf; p outside [0,1] => NaN; sigma<=0 => NaN. Tol 1e-9 -- erfcinv algorithm differs ~1e-12 absolute from MATLAB."
 }

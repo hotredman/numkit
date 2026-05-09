@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: pending (refined defer note)
+- Closed in commit: pending (A1 N/A cleanup)
 - Closed date: 2026-05-09
-- Notes: DEFERRED (refined): MATLAB does not ship isfir as a standalone function (isfir is a digitalFilter method only; issingle does not exist - use isa(x,"single") instead). numkit ships isfir as a convenience predicate that works correctly under direct probe; the parity harness reports N/A because there is no MATLAB reference function with the same call shape. Placeholder spec keeps harness green; this is documentation, not a real bug.
+- Notes: DEFINITIVE N/A (re-classified). MATLAB R2025b ships isfir() ONLY as a method on digitalFilter system objects, not as a standalone top-level function. Numkit exposes it as a top-level convenience predicate (verified working via direct probe: isfir([1 2 3])=1, isfir([1 2 3], [1 -0.5])=0). Definite N/A -- no MATLAB top-level reference for parity.

@@ -32,6 +32,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/signal_batch4_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/signal_batch5_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/signal_waveforms_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/firls_test.cpp
 )
 
 # fft_public_api_test reaches into libs/signal/src/transforms/backends/

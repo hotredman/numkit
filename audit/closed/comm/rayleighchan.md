@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: pending (trivial-fix batch)
+- Closed in commit: pending (A1 N/A cleanup)
 - Closed date: 2026-05-09
-- Notes: Initial closure was DEFERRED. Re-classified N/A: MATLAB R2025b DEPRECATED rayleighchan in favour of comm.RayleighChannel system object -- the function-form rayleighchan no longer exists at the MATLAB top level. Numkit ships rayleighchan as a convenience helper (returns one complex Rayleigh-distributed sample). No MATLAB reference to compare against.
+- Notes: DEFINITIVE N/A (re-classified). MATLAB R2025b DEPRECATED rayleighchan() in favour of comm.RayleighChannel system object. Numkit retains rayleighchan as a convenience helper that returns one complex Rayleigh sample. Definite N/A -- no MATLAB top-level reference exists in the current release.

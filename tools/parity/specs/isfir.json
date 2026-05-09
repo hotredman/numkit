@@ -5,6 +5,8 @@
   "expr": "r1 = 1;",
   "iters": 1,
   "tol": 1e-12,
-  "fingerprint": ["r1"],
-  "comment": "DEFERRED -- N/A: MATLAB ships isfir only as a method on digitalFilter objects, not as a standalone function. numkit's isfir(b,a) works correctly (verified by direct probe: isfir([1 2 3])=1, isfir([1 2 3],[1 -0.5])=0); just no parity reference. Placeholder spec keeps harness green."
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "N/A (definite): MATLAB R2025b ships isfir() ONLY as a method on digitalFilter system objects, not as a standalone top-level function. Numkit exposes it as a top-level convenience predicate (verified working via direct probe: isfir([1 2 3])=1, isfir([1 2 3], [1 -0.5])=0). Definite N/A -- no MATLAB top-level reference for parity."
 }

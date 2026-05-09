@@ -1,0 +1,16 @@
+{
+  "name": "magic",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "M3 = magic(3); M4 = magic(4); M5 = magic(5); M6 = magic(6); M8 = magic(8);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "M3(1,1)", "M3(2,2)", "M3(3,3)", "sum(M3(1,:))",
+    "M4(1,1)", "M4(2,2)", "M4(4,4)", "sum(M4(1,:))",
+    "M5(1,1)", "M5(3,3)", "M5(5,5)", "sum(M5(1,:))",
+    "M6(1,1)", "M6(3,4)", "M6(6,6)", "sum(M6(1,:))",
+    "M8(1,1)", "M8(4,4)", "M8(8,8)", "sum(M8(1,:))"
+  ],
+  "comment": "Sig: M = magic(N). N×N magic square -- rows/cols/diagonals sum to N·(N²+1)/2. Three branches by N's parity: odd (Siamese / de la Loubère), N≡0 mod 4 (doubly-even pattern), N≡2 mod 4 (Strachey). Bit-identical with MATLAB R2025b across N ∈ {3,4,5,6,8} (covers all three branches)."
+}

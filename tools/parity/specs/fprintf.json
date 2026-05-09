@@ -2,11 +2,11 @@
   "name": "fprintf",
   "namespace": "io",
   "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "fname = tempname; fid = fopen(fname, 'w'); fprintf(fid, 'x'); fclose(fid); s = fileread(fname); delete(fname); r1 = double(strlength(s));",
+  "iters": 1,
+  "tol": 1e-12,
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: r = fprintf(...). Spec-extension batch 2026-05-09. IO function \u2014 placeholder spec; full file-io tests deferred (would need testbed harness)."
+  "comment": "Side-effect smoke test (file I/O round-trip via tempname). fprintf writes 'x' to file -- read back length 1. NOTE: numkit fprintf returns void (no byte count); MATLAB returns the count. Probe uses round-trip rather than return value."
 }

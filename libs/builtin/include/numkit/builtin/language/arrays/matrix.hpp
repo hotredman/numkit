@@ -17,6 +17,17 @@ Value ones(std::pmr::memory_resource *mr, size_t rows, size_t cols = 1, size_t p
 /// Identity matrix. rows, cols may differ — produces rectangular "identity".
 Value eye(std::pmr::memory_resource *mr, size_t rows, size_t cols);
 
+/// Magic square of order N (N×N matrix where rows, columns, both
+/// diagonals all sum to the magic constant N·(N²+1)/2).
+/// Three branches by N's parity, matching MATLAB R2025b:
+///   - N odd  (N >= 3) : Siamese / de la Loubère method
+///   - N ≡ 0 mod 4     : doubly-even (4×4-block diagonal swap pattern)
+///   - N ≡ 2 mod 4     : singly-even (Strachey -- 4 odd-magic quadrants
+///                                    + corner swaps)
+/// Edge cases: N == 0 → 0×0; N == 1 → [1]; N == 2 → MATLAB's [1 3; 4 2]
+/// (not strictly magic; preserved for parity).
+Value magic(std::pmr::memory_resource *mr, size_t N);
+
 // ── Shape queries ────────────────────────────────────────────────────
 /// size(x) returns a row vector of dimensions.
 /// @param asVector  when true, returns [rows, cols] or [rows, cols, pages].
