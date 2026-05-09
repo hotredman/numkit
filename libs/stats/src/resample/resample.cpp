@@ -21,7 +21,7 @@ namespace {
 // Sample K indices in [0..N-1] given (optional) weights.
 std::vector<int> sample_indices(int N, int K, bool with_replacement,
                                 const std::vector<double> &weights,
-                                std::mt19937 &gen)
+                                numkit::builtin::detail::MatlabMT19937 &gen)
 {
     std::vector<int> out;
     out.reserve((size_t)K);
