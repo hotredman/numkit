@@ -939,7 +939,7 @@ intentionally omitted, along with `constellation` (object method) and
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `randerr` | ❌ |  |  |  |  | random binary error patterns |
+| `randerr` | ❌ | 0.035 | 105.69× |  | OK | MATLAB randerr: random binary error matrix with controllable error count per row. Uses MatlabMT19937 for bit-equal output with MATLAB R2025b on seeded inputs. Covered: scalar (1 error), scalar (3 errors), vector [1 2 3] uniform, weighted [0 1 2; 0.0 0.7 0.3]. All known column placements + row sums fingerprinted. Octave 11.1.0 doesn't ship randerr in core; reports N/A. |
 | `randsrc` | ❌ | 0.115 | 32.17× |  | OK | MATLAB randsrc: random matrix from finite alphabet with optional weighted probabilities. Numkit uses MatlabMT19937 (= MATLAB's mt19937ar) seeded with explicit state arg, so seeded outputs are bit-identical with MATLAB R2025b. Probability fingerprints (~70/20/10%) within 5% Monte-Carlo tolerance over 5000 samples. Octave 11.1.0 doesn't ship randsrc in core (signal/communications package only); reports N/A. |
 | `wgn` | ✅ | 0.003 | 258.70× |  | OK | Sig: r = wgn(...). Spec-extension batch 2026-05-09.  |
 | `biterr` | ❌ | 0.006 | 203.41× |  | OK | Sig: [n, r] = biterr(x, y[, k]). Counts differing bits between non-negative integer arrays. Bit-width k auto-detected as smallest covering width. |
