@@ -1,0 +1,15 @@
+{
+  "name": "eig",
+  "namespace": "builtin",
+  "setup": "A = [4 1 2; 1 3 0; 2 0 5]; D = diag([3 7 1 9 5]);",
+  "expr": "e1 = eig(A); e2 = eig(D); ei = eig(eye(4)); [V, M] = eig(A); err = max(max(abs(A*V - V*M))); orth_v = max(max(abs(V'*V - eye(3))));",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "e1(1)", "e1(2)", "e1(3)",
+    "e2(1)", "e2(3)", "e2(5)",
+    "ei(1)", "ei(4)",
+    "err", "orth_v"
+  ],
+  "comment": "Sig: e = eig(A) | [V, D] = eig(A). Symmetric Jacobi for real symmetric A; eigenvalues ascending. General (non-symmetric) eig requires Hessenberg + Francis QR -- Phase 2b."
+}

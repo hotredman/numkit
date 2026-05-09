@@ -192,6 +192,20 @@ Value null_basis(std::pmr::memory_resource *mr, const Value &A, double tol = -1.
 /// performance).
 Value normest(std::pmr::memory_resource *mr, const Value &A);
 
+/// Eigenvalues + eigenvectors of a symmetric real matrix via
+/// classical Jacobi rotations. A must be square; if not symmetric
+/// within tol, throws (general eig requires Hessenberg + Francis QR
+/// iteration; deferred as Phase 2b).
+///
+/// Returns (V, D) such that A*V == V*D, V orthogonal, D diagonal.
+/// MATLAB single-output form `e = eig(A)` returns eigenvalues as a
+/// column vector (ascending order for symmetric A).
+std::tuple<Value, Value>
+eig_symmetric(std::pmr::memory_resource *mr, const Value &A);
+
+/// Eigenvalues only -- matches MATLAB's single-output eig(A).
+Value eig_values(std::pmr::memory_resource *mr, const Value &A);
+
 // ── Shape queries ────────────────────────────────────────────────────
 /// size(x) returns a row vector of dimensions.
 /// @param asVector  when true, returns [rows, cols] or [rows, cols, pages].

@@ -504,6 +504,166 @@ Value svd_values(std::pmr::memory_resource *mr, const Value &A)
     return sv;
 }
 
+// ── Symmetric eigenvalue problem (classical Jacobi) ─────────────────
+
+namespace {
+
+// Classical Jacobi for SYMMETRIC A. On entry A is n×n symmetric (we
+// write to upper triangle and ignore lower). On exit A's diagonal
+// holds the eigenvalues (unsorted) and V holds the eigenvectors
+// (orthogonal, A_orig * V = V * diag(eigvals)).
+void jacobiSymInplace(double *A, std::size_t n, double *V,
+                      std::size_t maxSweeps, double tol)
+{
+    std::fill(V, V + n * n, 0.0);
+    for (std::size_t i = 0; i < n; ++i) V[i + i * n] = 1.0;
+    if (n <= 1) return;
+
+    auto offSum = [&]() {
+        double s = 0.0;
+        for (std::size_t p = 0; p + 1 < n; ++p)
+            for (std::size_t q = p + 1; q < n; ++q)
+                s += A[p + q * n] * A[p + q * n];
+        return s;
+    };
+
+    for (std::size_t sweep = 0; sweep < maxSweeps; ++sweep) {
+        if (offSum() < tol * tol) break;
+        for (std::size_t p = 0; p + 1 < n; ++p) {
+            for (std::size_t q = p + 1; q < n; ++q) {
+                const double Apq = A[p + q * n];
+                if (std::fabs(Apq) < 1e-30) continue;
+                const double App = A[p + p * n];
+                const double Aqq = A[q + q * n];
+                double c, s;
+                if (App == Aqq) {
+                    c = 0.7071067811865476;  // sqrt(2)/2
+                    s = (Apq >= 0.0 ? 1.0 : -1.0) * c;
+                } else {
+                    const double tau = (Aqq - App) / (2.0 * Apq);
+                    const double t = (tau >= 0.0)
+                        ? 1.0 / (tau + std::sqrt(1.0 + tau * tau))
+                        : 1.0 / (tau - std::sqrt(1.0 + tau * tau));
+                    c = 1.0 / std::sqrt(1.0 + t * t);
+                    s = t * c;
+                }
+
+                // Apply J^T*A*J: rotates rows p,q AND cols p,q.
+                // Update diagonal entries:
+                A[p + p * n] = c * c * App - 2.0 * c * s * Apq + s * s * Aqq;
+                A[q + q * n] = s * s * App + 2.0 * c * s * Apq + c * c * Aqq;
+                A[p + q * n] = 0.0;
+                A[q + p * n] = 0.0;
+                // Update other entries in rows p, q (which by symmetry
+                // also updates columns p, q on the upper triangle).
+                for (std::size_t r = 0; r < n; ++r) {
+                    if (r == p || r == q) continue;
+                    // We track only the upper triangle: entry (min(r,X), max(r,X)).
+                    auto get = [&](std::size_t a, std::size_t b) -> double & {
+                        return (a < b) ? A[a + b * n] : A[b + a * n];
+                    };
+                    const double Arp = get(r, p);
+                    const double Arq = get(r, q);
+                    get(r, p) = c * Arp - s * Arq;
+                    get(r, q) = s * Arp + c * Arq;
+                }
+                // Apply V = V * J (rotates cols p, q of V).
+                for (std::size_t r = 0; r < n; ++r) {
+                    const double Vrp = V[r + p * n];
+                    const double Vrq = V[r + q * n];
+                    V[r + p * n] = c * Vrp - s * Vrq;
+                    V[r + q * n] = s * Vrp + c * Vrq;
+                }
+            }
+        }
+    }
+
+    // Mirror upper triangle into lower for clean output.
+    for (std::size_t p = 0; p + 1 < n; ++p)
+        for (std::size_t q = p + 1; q < n; ++q)
+            A[q + p * n] = A[p + q * n];
+}
+
+bool isSymmetric(const Value &A, double tol)
+{
+    if (A.dims().ndim() != 2) return false;
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    if (m != n) return false;
+    const double *p = A.doubleData();
+    for (std::size_t i = 0; i < n; ++i)
+        for (std::size_t j = i + 1; j < n; ++j) {
+            const double d = std::fabs(p[i + j * n] - p[j + i * n]);
+            const double s = std::max(std::fabs(p[i + j * n]),
+                                       std::fabs(p[j + i * n]));
+            if (d > tol * (1.0 + s)) return false;
+        }
+    return true;
+}
+
+} // anonymous namespace
+
+std::tuple<Value, Value>
+eig_symmetric(std::pmr::memory_resource *mr, const Value &A)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("eig: input must be a 2D matrix",
+                    0, 0, "eig", "", "m:eig:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    if (m != n)
+        throw Error("eig: matrix must be square",
+                    0, 0, "eig", "", "m:eig:notSquare");
+    if (!isSymmetric(A, 1e-10))
+        throw Error("eig: only symmetric matrices supported in this revision "
+                    "(general eig via Hessenberg + Francis QR is deferred to Phase 2b)",
+                    0, 0, "eig", "", "m:eig:notSymmetric");
+    if (n == 0) {
+        return std::make_tuple(
+            Value::matrix(0, 0, ValueType::DOUBLE, mr),
+            Value::matrix(0, 0, ValueType::DOUBLE, mr));
+    }
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> A_work(n * n, &scratch);
+    ScratchVec<double> V_work(n * n, &scratch);
+    std::copy(A.doubleData(), A.doubleData() + n * n, A_work.begin());
+    jacobiSymInplace(A_work.data(), n, V_work.data(),
+                     /*maxSweeps=*/64, /*tol=*/1e-13);
+
+    // Sort eigenvalues ASCENDING (MATLAB convention for symmetric eig).
+    ScratchVec<std::size_t> order(n, &scratch);
+    for (std::size_t i = 0; i < n; ++i) order[i] = i;
+    std::sort(order.begin(), order.end(),
+              [&](std::size_t a, std::size_t b) {
+                  return A_work[a + a * n] < A_work[b + b * n];
+              });
+
+    auto Vout = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    auto Dout = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    double *V = Vout.doubleDataMut();
+    double *D = Dout.doubleDataMut();
+    std::fill(D, D + n * n, 0.0);
+    for (std::size_t k = 0; k < n; ++k) {
+        const std::size_t src = order[k];
+        D[k + k * n] = A_work[src + src * n];
+        for (std::size_t i = 0; i < n; ++i)
+            V[i + k * n] = V_work[i + src * n];
+    }
+    return std::make_tuple(std::move(Vout), std::move(Dout));
+}
+
+Value eig_values(std::pmr::memory_resource *mr, const Value &A)
+{
+    auto [V, D] = eig_symmetric(mr, A);
+    const std::size_t n = static_cast<std::size_t>(D.dims().dim(0));
+    auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    const double *Ddata = D.doubleData();
+    double *o = out.doubleDataMut();
+    for (std::size_t i = 0; i < n; ++i) o[i] = Ddata[i + i * n];
+    return out;
+}
+
 // ── SVD-dependent: rank / null / pinv / cond / orth / normest ────────
 
 namespace {
@@ -3277,6 +3437,21 @@ void normest_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         throw Error("normest: requires exactly 1 argument",
                     0, 0, "normest", "", "m:normest:nargin");
     outs[0] = normest(ctx.engine->resource(), args[0]);
+}
+
+void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("eig: requires exactly 1 argument",
+                    0, 0, "eig", "", "m:eig:nargin");
+    auto *mr = ctx.engine->resource();
+    if (nargout >= 2) {
+        auto [V, D] = eig_symmetric(mr, args[0]);
+        outs[0] = std::move(V);
+        outs[1] = std::move(D);
+    } else {
+        outs[0] = eig_values(mr, args[0]);
+    }
 }
 
 void topkrows_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
