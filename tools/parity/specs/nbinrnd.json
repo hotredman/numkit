@@ -1,0 +1,10 @@
+{
+  "name": "nbinrnd",
+  "namespace": "stats",
+  "setup": "rng(0);",
+  "expr": "r = nbinrnd(5, 0.5, 1, 4); r1 = double(numel(r));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: r = nbinrnd(R, P, sz). Spec-extension batch 2026-05-09 (cycle 41)."
+}

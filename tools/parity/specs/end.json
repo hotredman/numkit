@@ -1,0 +1,10 @@
+{
+  "name": "end",
+  "namespace": "builtin",
+  "setup": "x = 1:10;",
+  "expr": "r1 = double(x(end));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: end — last index in subscript context, also closes block constructs. Spec-extension batch 2026-05-09 (cycle 41)."
+}

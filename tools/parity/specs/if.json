@@ -1,0 +1,10 @@
+{
+  "name": "if",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "x = 5; if x > 0, r1 = 1; elseif x == 0, r1 = 0; else r1 = -1; end; r1 = double(r1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: if cond, body, [elseif cond, body,] [else body,] end. Spec-extension batch 2026-05-09 (cycle 41)."
+}
