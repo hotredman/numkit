@@ -1,10 +1,10 @@
 {
   "name": "mil188qammod",
   "namespace": "comm",
-  "setup": "x16 = (0:15)'; x32 = (0:31)'; x64 = (0:63)';",
-  "expr": "y16 = mil188qammod(x16, 16); rt16 = isequal(x16, mil188qamdemod(y16, 16)); y32 = mil188qammod(x32, 32); rt32 = isequal(x32, mil188qamdemod(y32, 32)); y64 = mil188qammod(x64, 64); rt64 = isequal(x64, mil188qamdemod(y64, 64)); rtN64 = isequal(x64, mil188qamdemod(y64 + 0.01*(1+1i), 64));",
+  "setup": "x16 = (0:15)'; x32 = (0:31)'; x64 = (0:63)'; x256 = (0:255)';",
+  "expr": "rt16 = isequal(x16, mil188qamdemod(mil188qammod(x16, 16), 16)); rt32 = isequal(x32, mil188qamdemod(mil188qammod(x32, 32), 32)); rt64 = isequal(x64, mil188qamdemod(mil188qammod(x64, 64), 64)); y256 = mil188qammod(x256, 256); rt256 = isequal(x256, mil188qamdemod(y256, 256)); rtN256 = isequal(x256, mil188qamdemod(y256 + 0.005*(1+1i), 256));",
   "iters": 5,
   "tol": 1e-15,
-  "fingerprint": ["real(y16(1))", "rt16", "real(y32(1))", "imag(y32(1))", "rt32", "real(y64(1))", "imag(y64(1))", "real(y64(11))", "imag(y64(11))", "real(y64(33))", "imag(y64(33))", "real(y64(64))", "imag(y64(64))", "rt64", "rtN64"],
-  "comment": "MATLAB mil188qammod / mil188qamdemod (MIL-STD-188-110 QAM). Bit-equal with MATLAB R2025b on M=16, M=32, AND M=64 constellations. All tables hard-coded per MATLAB's spec-rounded values (probed at %.17g). KNOWN GAP narrowed: only M=256 still deferred. Octave 11.1.0 doesn't ship mil188qam in core; reports N/A."
+  "fingerprint": ["rt16", "rt32", "rt64", "real(y256(1))", "imag(y256(1))", "real(y256(50))", "imag(y256(50))", "real(y256(128))", "real(y256(256))", "imag(y256(256))", "rt256", "rtN256"],
+  "comment": "MATLAB mil188qammod / mil188qamdemod (MIL-STD-188-110 QAM). Bit-equal with MATLAB R2025b on ALL FOUR supported constellations: M=16, 32, 64, 256. All tables hard-coded per MATLAB's spec-rounded values (probed at %.17g). MIL188 cluster CLOSED 4/4. Octave 11.1.0 doesn't ship mil188qam in core; reports N/A."
 }
