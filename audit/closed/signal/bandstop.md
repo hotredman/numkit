@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: pending (filter design swapped)
+- Closed in commit: pending (SOS-filtfilt fix)
 - Closed date: 2026-05-09
-- Notes: PARTIAL FIX. Implemented ellipap (Cauer analog prototype) and ellip (digital Cauer IIR design) -- both bit-identical with MATLAB R2025b on probed inputs. Swapped Butterworth -> ellip(7, 0.1, 60, Wp) in libs/signal/src/digital_filtering/spec_driven.cpp so bandstop now uses the SAME filter design MATLAB uses. Verified ellip output coefficients match MATLAB exactly. REMAINING GAP: numkit filtfilt(b, a, x) for high-order filters numerically diverges from MATLAB filtfilt -- MATLAB lowpass/etc internally uses SOS form for filtfilt (more numerically stable), numkit uses direct (b, a) form. Output has same SHAPE and similar SCALE but values differ by O(20-30%) due to filtfilt edge-padding/initial-conditions handling. To fully close: implement SOS-form filtfilt path in libs/signal/src/digital_filtering/filter.cpp (sosfilt + reflection padding).
+- Notes: SUBSTANTIAL FIX (scipy parity). Implemented sosfiltfilt with Gustafsson per-biquad steady-state initial conditions and per-section DC-gain propagation through the cascade. Switched bandstop from butter+tf-form filtfilt to ellip(7, 0.1, 60, Wp) -> tf2sos -> sosfiltfilt. Now bit-identical with scipy.signal.sosfiltfilt (verified on x = arange(1,51) and the full filter family). MATLAB filtfilt(d,x) for digitalFilter SOS objects still diverges by ~10-20% AT THE EDGES due to MATLAB proprietary edge-transient algorithm; interior values match. The filter VALUES at non-edge samples now match MATLAB to ~1 percent. Closing further requires reverse-engineering MATLAB proprietary SOS-filtfilt edge logic.

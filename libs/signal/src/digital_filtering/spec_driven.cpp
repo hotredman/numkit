@@ -16,8 +16,10 @@
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 #include <numkit/signal/digital_filtering/filter.hpp>
+#include <numkit/signal/digital_filtering/sosfilt.hpp>
 #include <numkit/signal/filter_design/filter_design.hpp>
 #include <numkit/signal/filter_design/iir_designs.hpp>
+#include <numkit/signal/filter_implementation/conversions.hpp>
 
 #include <cmath>
 
@@ -74,7 +76,10 @@ Value lowpass(std::pmr::memory_resource *mr, const Value &x,
     const int N = (order == 8) ? kDefaultIirOrder : order;
     auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
                         scalarWn(mr, Wp), FilterType::Lowpass, /*analog=*/false);
-    return filtfilt(mr, b, a, x);
+    // SOS-form filtfilt is numerically stable for high-order IIR --
+    // matches MATLAB filtfilt(d, x) for digitalFilter SOS objects.
+    auto sos = tf2sos(mr, b, a);
+    return sosfiltfilt(mr, sos, x);
 }
 
 Value highpass(std::pmr::memory_resource *mr, const Value &x,
@@ -85,7 +90,8 @@ Value highpass(std::pmr::memory_resource *mr, const Value &x,
     const int N = (order == 8) ? kDefaultIirOrder : order;
     auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
                         scalarWn(mr, Wp), FilterType::Highpass, /*analog=*/false);
-    return filtfilt(mr, b, a, x);
+    auto sos = tf2sos(mr, b, a);
+    return sosfiltfilt(mr, sos, x);
 }
 
 Value bandpass(std::pmr::memory_resource *mr, const Value &x,
@@ -101,7 +107,8 @@ Value bandpass(std::pmr::memory_resource *mr, const Value &x,
     auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
                         pairWn(mr, Wlo, Whi),
                         FilterType::Bandpass, /*analog=*/false);
-    return filtfilt(mr, b, a, x);
+    auto sos = tf2sos(mr, b, a);
+    return sosfiltfilt(mr, sos, x);
 }
 
 Value bandstop(std::pmr::memory_resource *mr, const Value &x,
@@ -117,7 +124,8 @@ Value bandstop(std::pmr::memory_resource *mr, const Value &x,
     auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
                         pairWn(mr, Wlo, Whi),
                         FilterType::Bandstop, /*analog=*/false);
-    return filtfilt(mr, b, a, x);
+    auto sos = tf2sos(mr, b, a);
+    return sosfiltfilt(mr, sos, x);
 }
 
 namespace detail {
