@@ -282,6 +282,200 @@ function buildSurfaceMesh(grid, scl, bbox) {
   return new THREE.Mesh(geom, mat);
 }
 
+/**
+ * Build 3-D bars from a regular grid. Each Z(i, j) ≠ 0 becomes an
+ * axis-aligned cuboid centred at (j+1, i+1) with height z. Single
+ * indexed mesh — far cheaper than one BufferGeometry per bar. Per-
+ * vertex colors driven by Z to match the colormap on surf.
+ */
+function buildBars3D(grid, scl, bbox) {
+  const Xs = grid.Xs, Ys = grid.Ys, Z = grid.Z;
+  const Nc = Xs.length, Nr = Ys.length;
+  if (Nc < 1 || Nr < 1) return null;
+
+  const colorAt = (t) => {
+    const h = (1 - Math.max(0, Math.min(1, t))) * 240 / 360;
+    const c = new THREE.Color();
+    c.setHSL(h, 0.6, 0.55);
+    return c;
+  };
+  const zSpan = bbox.zMax - bbox.zMin;
+  const norm = (v) => (zSpan > 0 ? (v - bbox.zMin) / zSpan : 0.5);
+
+  // Bar half-width in DATA units. We pick 0.4 so neighbouring bars
+  // (at data-step 1) leave a small gap.
+  const half = 0.4;
+
+  const positions = [];
+  const colors = [];
+  const indices = [];
+
+  for (let r = 0; r < Nr; r++) {
+    for (let c = 0; c < Nc; c++) {
+      const zh = Z[r] ? Z[r][c] : NaN;
+      if (!Number.isFinite(zh) || zh === 0) continue;
+      const xc = Xs[c], yc = Ys[r];
+      const x0 = xc - half, x1 = xc + half;
+      const y0 = yc - half, y1 = yc + half;
+      // 8 corners (data → world). Order: (x*, y*, z) bit pattern xyz.
+      const corners = [
+        [x0, y0, 0],   [x1, y0, 0],   [x1, y1, 0],   [x0, y1, 0],
+        [x0, y0, zh],  [x1, y0, zh],  [x1, y1, zh],  [x0, y1, zh],
+      ];
+      const baseIdx = positions.length / 3;
+      const col = colorAt(norm(zh));
+      for (const [dx, dy, dz] of corners) {
+        const [X, Y, Zw] = toWorld(dx, dy, dz, scl);
+        positions.push(X, Y, Zw);
+        colors.push(col.r, col.g, col.b);
+      }
+      // 6 faces × 2 triangles. Winding chosen so face normals point
+      // outward; computeVertexNormals will average them at shared
+      // verts but each cuboid corner is only shared inside its bar so
+      // we get crisp lighting per-bar.
+      const faces = [
+        [0, 1, 5, 4],     // -y face (front when default cam)
+        [1, 2, 6, 5],     // +x face
+        [2, 3, 7, 6],     // +y face
+        [3, 0, 4, 7],     // -x face
+        [4, 5, 6, 7],     // top
+        [3, 2, 1, 0],     // bottom (inward, hidden under bar)
+      ];
+      for (const [a, b, cc, d] of faces) {
+        indices.push(baseIdx + a, baseIdx + b, baseIdx + cc);
+        indices.push(baseIdx + a, baseIdx + cc, baseIdx + d);
+      }
+    }
+  }
+  if (indices.length === 0) return null;
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  geom.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(colors),    3));
+  geom.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
+  geom.computeVertexNormals();
+  const mat = new THREE.MeshLambertMaterial({
+    vertexColors: true,
+    side: THREE.DoubleSide,
+    flatShading: true,         // bars look better with flat per-face
+  });
+  return new THREE.Mesh(geom, mat);
+}
+
+/**
+ * Build per-row ribbons for waterfall. Each row r becomes a closed
+ * polygon strip: top edge along Z(r, :), bottom along z=0, left/right
+ * caps. Triangles in two strips per row.
+ */
+function buildWaterfall(grid, scl, bbox) {
+  const Xs = grid.Xs, Ys = grid.Ys, Z = grid.Z;
+  const Nc = Xs.length, Nr = Ys.length;
+  if (Nc < 2 || Nr < 1) return null;
+
+  const colorAt = (t) => {
+    const h = (1 - Math.max(0, Math.min(1, t))) * 240 / 360;
+    const c = new THREE.Color();
+    c.setHSL(h, 0.55, 0.5);
+    return c;
+  };
+  const zSpan = bbox.zMax - bbox.zMin;
+  const norm = (v) => (zSpan > 0 ? (v - bbox.zMin) / zSpan : 0.5);
+
+  const positions = [];
+  const colors = [];
+  const indices = [];
+
+  for (let r = 0; r < Nr; r++) {
+    const yc = Ys[r];
+    for (let c = 0; c < Nc; c++) {
+      const zv = Z[r] && Number.isFinite(Z[r][c]) ? Z[r][c] : 0;
+      // top vertex
+      const [Xt, Yt, Zt] = toWorld(Xs[c], yc, zv, scl);
+      positions.push(Xt, Yt, Zt);
+      const col = colorAt(norm(zv));
+      colors.push(col.r, col.g, col.b);
+      // bottom vertex (z=0)
+      const [Xb, Yb, Zb] = toWorld(Xs[c], yc, 0, scl);
+      positions.push(Xb, Yb, Zb);
+      colors.push(col.r * 0.4, col.g * 0.4, col.b * 0.4);
+    }
+    // Build the strip: for each (c, c+1), two triangles.
+    const baseRow = r * Nc * 2;
+    for (let c = 0; c < Nc - 1; c++) {
+      const i0 = baseRow + c * 2;       // top c
+      const i1 = baseRow + c * 2 + 1;   // bottom c
+      const i2 = baseRow + (c + 1) * 2;
+      const i3 = baseRow + (c + 1) * 2 + 1;
+      indices.push(i0, i2, i3);
+      indices.push(i0, i3, i1);
+    }
+  }
+  if (indices.length === 0) return null;
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  geom.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(colors),    3));
+  geom.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
+  geom.computeVertexNormals();
+  const mat = new THREE.MeshLambertMaterial({
+    vertexColors: true,
+    side: THREE.DoubleSide,
+  });
+  return new THREE.Mesh(geom, mat);
+}
+
+/**
+ * Build 3-D filled polygon(s). xRaw / yRaw / z come with NaN markers
+ * between polygon groups (matching the 2-D polygon path); each
+ * sub-polygon is triangulated as a fan from its first vertex.
+ * Caller-provided color is applied uniformly.
+ */
+function buildPolygon3D(layer, scl) {
+  const xs = layer.xRaw, ys = layer.yRaw, zs = layer.z;
+  const polys = [];
+  let cur = [];
+  const n = Math.min(xs.length, ys.length, zs.length);
+  for (let i = 0; i < n; i++) {
+    const fin = Number.isFinite(xs[i]) && Number.isFinite(ys[i]) && Number.isFinite(zs[i]);
+    if (!fin) {
+      if (cur.length >= 3) polys.push(cur);
+      cur = [];
+      continue;
+    }
+    cur.push(i);
+  }
+  if (cur.length >= 3) polys.push(cur);
+  if (polys.length === 0) return null;
+
+  const positions = [];
+  const indices = [];
+  for (const poly of polys) {
+    const baseIdx = positions.length / 3;
+    for (const i of poly) {
+      const [X, Y, Z] = toWorld(xs[i], ys[i], zs[i], scl);
+      positions.push(X, Y, Z);
+    }
+    // Fan triangulation: assumes convex polygon, which is the common
+    // user-built case (rectangles, triangles, hand-typed quads).
+    for (let k = 1; k < poly.length - 1; k++) {
+      indices.push(baseIdx, baseIdx + k, baseIdx + k + 1);
+    }
+  }
+  if (indices.length === 0) return null;
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  geom.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
+  geom.computeVertexNormals();
+  const mat = new THREE.MeshLambertMaterial({
+    color: new THREE.Color(layer.color || '#9467bd'),
+    transparent: layer.fillOpacity < 1,
+    opacity: Number.isFinite(layer.fillOpacity) ? layer.fillOpacity : 0.7,
+    side: THREE.DoubleSide,
+  });
+  return new THREE.Mesh(geom, mat);
+}
+
 function buildPoints(positions, color, size) {
   const finite = [];
   for (let i = 0; i < positions.length; i += 3) {
@@ -620,6 +814,21 @@ export default function Composite3DPlot({
       const mode = ly.mode || 'line';
       if (mode === 'surface' && ly.surfaceGrid) {
         const mesh = buildSurfaceMesh(ly.surfaceGrid, scl, bbox);
+        if (mesh) c.layerGroup.add(mesh);
+        continue;
+      }
+      if (mode === 'bar3' && ly.surfaceGrid) {
+        const mesh = buildBars3D(ly.surfaceGrid, scl, bbox);
+        if (mesh) c.layerGroup.add(mesh);
+        continue;
+      }
+      if (mode === 'waterfall' && ly.surfaceGrid) {
+        const mesh = buildWaterfall(ly.surfaceGrid, scl, bbox);
+        if (mesh) c.layerGroup.add(mesh);
+        continue;
+      }
+      if (mode === 'polygon3d') {
+        const mesh = buildPolygon3D(ly, scl);
         if (mesh) c.layerGroup.add(mesh);
         continue;
       }

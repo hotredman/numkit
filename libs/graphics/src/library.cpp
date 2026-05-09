@@ -2033,146 +2033,102 @@ void GraphicsLibrary::install(Engine &engine)
             outs[0] = Value::empty();
         });
 
-    // bar3(Z) — 3-D bars with cabinet projection. Each Z(i, j) becomes
-    // a cuboid centred at (j, i) with height Z(i, j). We emit five
-    // visible faces per bar (top, front, back, left, right; bottom
-    // hidden). All faces are pre-projected to 2-D screen coords
-    // (cabinet 30°, scale 0.5) so the polygon renderer doesn't need
-    // a depth dimension. Painter's algorithm: bars are emitted in
-    // back-to-front order so the topmost geometry overdraws.
+    // bar3(Z) — 3-D bars. Emits raw 3-D coords so the WebGL renderer
+    // can build cuboids with real depth + lighting; no more cabinet
+    // pre-projection. Wire format: type='bar3' with the Z-matrix as
+    // nested rows (same shape as surf), plus implicit (x, y) coords =
+    // (1..C, 1..R).
     reg("bar", "bar3",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             (void)nargout;
             if (args.empty()) { outs[0] = Value::empty(); return; }
             const auto &Z = args[0];
-            const size_t Rz = Z.dims().rows();
-            const size_t Cz = Z.dims().cols();
-            if (Rz == 0 || Cz == 0) { outs[0] = Value::empty(); return; }
+            const size_t R = Z.dims().rows();
+            const size_t C = Z.dims().cols();
+            if (R == 0 || C == 0) { outs[0] = Value::empty(); return; }
 
-            const double half = 0.4;
-            const double zScale = 0.5;
-            const double cosA = std::cos(3.14159265358979323846 / 6);
-            const double sinA = std::sin(3.14159265358979323846 / 6);
-            const auto proj = [&](double x, double y, double z) {
-                return std::pair<double, double>(
-                    x + z * zScale * cosA,
-                    y + z * zScale * sinA);
-            };
+            std::ostringstream xs, ys, zs;
+            xs << '[';
+            for (size_t c = 0; c < C; ++c) { if (c) xs << ','; xs << (c + 1); }
+            xs << ']';
+            ys << '[';
+            for (size_t r = 0; r < R; ++r) { if (r) ys << ','; ys << (r + 1); }
+            ys << ']';
+            zs << '[';
+            for (size_t r = 0; r < R; ++r) {
+                if (r) zs << ',';
+                zs << '[';
+                for (size_t c = 0; c < C; ++c) {
+                    if (c) zs << ',';
+                    const double v = Z.doubleData()[c * R + r];
+                    if (std::isfinite(v)) zs << v;
+                    else                  zs << "null";
+                }
+                zs << ']';
+            }
+            zs << ']';
 
             auto &fm = ctx.engine->figureManager();
             fm.prepareForPlot();
-
-            // Iterate so back rows render first (high y), front rows
-            // last (low y). Same for columns so high x is in front.
-            for (size_t r = Rz; r-- > 0; ) {
-                for (size_t c = 0; c < Cz; ++c) {
-                    const double zh = Z.doubleData()[c * Rz + r];
-                    if (!std::isfinite(zh) || zh == 0) continue;
-                    const double xc = (double)(c + 1);
-                    const double yc = (double)(r + 1);
-                    const double x0 = xc - half, x1 = xc + half;
-                    const double y0 = yc - half, y1 = yc + half;
-                    // Eight corners: (x*, y*, z∈{0, zh})
-                    auto C000 = proj(x0, y0, 0);
-                    auto C100 = proj(x1, y0, 0);
-                    auto C110 = proj(x1, y1, 0);
-                    auto C010 = proj(x0, y1, 0);
-                    auto C001 = proj(x0, y0, zh);
-                    auto C101 = proj(x1, y0, zh);
-                    auto C111 = proj(x1, y1, zh);
-                    auto C011 = proj(x0, y1, zh);
-
-                    // Five visible faces (top, front-low-y, right,
-                    // back-high-y, left).
-                    auto emitFace = [&](std::array<std::pair<double,double>, 4> v,
-                                        const char *col, double opa) {
-                        std::ostringstream xs, ys;
-                        xs << '['; ys << '[';
-                        for (int i = 0; i < 4; ++i) {
-                            if (i) { xs << ','; ys << ','; }
-                            xs << v[i].first;
-                            ys << v[i].second;
-                        }
-                        xs << ']'; ys << ']';
-                        DatasetInfo ds;
-                        ds.type = "polygon";
-                        ds.xJson = xs.str();
-                        ds.yJson = ys.str();
-                        std::ostringstream sty;
-                        sty << "color=" << col << ";fillOpacity=" << opa;
-                        ds.style = sty.str();
-                        fm.pushDataset(std::move(ds));
-                    };
-                    // Shade the faces with a quasi-3D look:
-                    //   front  brightest, top mid, sides darker.
-                    emitFace({ C000, C100, C101, C001 }, "#5fa7d9", 0.95);  // front
-                    emitFace({ C100, C110, C111, C101 }, "#3a7eaf", 0.95);  // right
-                    emitFace({ C001, C101, C111, C011 }, "#7fbde0", 0.95);  // top
-                    emitFace({ C010, C000, C001, C011 }, "#3a7eaf", 0.95);  // left
-                    emitFace({ C110, C010, C011, C111 }, "#1f77b4", 0.95);  // back
-                }
-            }
+            DatasetInfo ds;
+            ds.type = "bar3";
+            ds.xJson = xs.str();
+            ds.yJson = ys.str();
+            ds.zJson = zs.str();
+            fm.pushDataset(std::move(ds));
             fm.emitModified();
             outs[0] = Value::empty();
         });
 
-    // waterfall(Z) — per-row wireframe + soft fill underneath. Emits
-    // each row as a polygon (row Z values + row min as baseline) plus
-    // a top stroke. Cabinet-projected like surf.
+    // waterfall(Z) — row-by-row 3-D ribbons. Emits the same Z-matrix
+    // wire format as surf/bar3; the WebGL renderer builds per-row
+    // ribbons (row Z values down to baseline z=0).
     reg("surface", "waterfall",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             (void)nargout;
             if (args.empty()) { outs[0] = Value::empty(); return; }
             const auto &Z = args[0];
-            const size_t Rz = Z.dims().rows();
-            const size_t Cz = Z.dims().cols();
-            if (Rz < 1 || Cz < 2) { outs[0] = Value::empty(); return; }
+            const size_t R = Z.dims().rows();
+            const size_t C = Z.dims().cols();
+            if (R < 1 || C < 2) { outs[0] = Value::empty(); return; }
 
-            const double zScale = 0.5;
-            const double cosA = std::cos(3.14159265358979323846 / 6);
-            const double sinA = std::sin(3.14159265358979323846 / 6);
-            const auto proj = [&](double x, double y, double z) {
-                return std::pair<double, double>(
-                    x + z * zScale * cosA,
-                    y + z * zScale * sinA);
-            };
+            std::ostringstream xs, ys, zs;
+            xs << '[';
+            for (size_t c = 0; c < C; ++c) { if (c) xs << ','; xs << (c + 1); }
+            xs << ']';
+            ys << '[';
+            for (size_t r = 0; r < R; ++r) { if (r) ys << ','; ys << (r + 1); }
+            ys << ']';
+            zs << '[';
+            for (size_t r = 0; r < R; ++r) {
+                if (r) zs << ',';
+                zs << '[';
+                for (size_t c = 0; c < C; ++c) {
+                    if (c) zs << ',';
+                    const double v = Z.doubleData()[c * R + r];
+                    if (std::isfinite(v)) zs << v;
+                    else                  zs << "null";
+                }
+                zs << ']';
+            }
+            zs << ']';
 
             auto &fm = ctx.engine->figureManager();
             fm.prepareForPlot();
-
-            // Render back-to-front so newer rows sit visually in front.
-            for (size_t r = Rz; r-- > 0; ) {
-                std::ostringstream xs, ys;
-                xs << '['; ys << '[';
-                // Top sweep left-to-right.
-                for (size_t c = 0; c < Cz; ++c) {
-                    const double zv = Z.doubleData()[c * Rz + r];
-                    auto p = proj((double)(c + 1), (double)(r + 1),
-                                  std::isfinite(zv) ? zv : 0);
-                    if (c) { xs << ','; ys << ','; }
-                    xs << p.first; ys << p.second;
-                }
-                // Bottom sweep right-to-left at z = 0.
-                for (size_t c = Cz; c-- > 0; ) {
-                    auto p = proj((double)(c + 1), (double)(r + 1), 0);
-                    xs << ',' << p.first; ys << ',' << p.second;
-                }
-                xs << ']'; ys << ']';
-                DatasetInfo ds;
-                ds.type = "polygon";
-                ds.xJson = xs.str();
-                ds.yJson = ys.str();
-                ds.style = "color=#4a90b8;fillOpacity=0.55";
-                fm.pushDataset(std::move(ds));
-            }
+            DatasetInfo ds;
+            ds.type = "waterfall";
+            ds.xJson = xs.str();
+            ds.yJson = ys.str();
+            ds.zJson = zs.str();
+            fm.pushDataset(std::move(ds));
             fm.emitModified();
             outs[0] = Value::empty();
         });
 
-    // fill3(X, Y, Z[, C]) — same body but the (x, y, z) vertices go
-    // through cabinet projection. We simulate it by pre-collapsing
-    // (x_i, y_i, z_i) into 2-D screen-space here on the C++ side so
-    // the existing polygon renderer doesn't need to know about Z.
+    // fill3(X, Y, Z[, C]) — emits raw 3-D vertex arrays. Each column
+    // of (X, Y, Z) is one polygon (one polygon for vector inputs).
+    // The WebGL renderer builds a triangle fan per polygon under
+    // perspective.
     reg("bar", "fill3",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             (void)nargout;
@@ -2184,24 +2140,25 @@ void GraphicsLibrary::install(Engine &engine)
             if (Y.dims().rows() != R || Z.dims().rows() != R) {
                 outs[0] = Value::empty(); return;
             }
-            const double zScale = 0.5;
-            const double cosA = std::cos(3.14159265358979323846 / 6);
-            const double sinA = std::sin(3.14159265358979323846 / 6);
 
-            std::ostringstream xs, ys;
-            xs << '['; ys << '[';
+            // Wire format: x/y/z each as an array with `null`
+            // separators between polygon groups (matches the existing
+            // 2-D polygon convention).
+            std::ostringstream xs, ys, zs;
+            xs << '['; ys << '['; zs << '[';
             for (size_t c = 0; c < C; ++c) {
-                if (c > 0) { xs << ",null,"; ys << ",null,"; }
+                if (c > 0) { xs << ",null,"; ys << ",null,"; zs << ",null,"; }
                 for (size_t r = 0; r < R; ++r) {
-                    if (r > 0) { xs << ','; ys << ','; }
-                    const double x = X.doubleData()[c * R + r];
-                    const double y = Y.doubleData()[c * R + r];
-                    const double z = Z.doubleData()[c * R + r];
-                    xs << (x + z * zScale * cosA);
-                    ys << (y + z * zScale * sinA);
+                    if (r > 0) { xs << ','; ys << ','; zs << ','; }
+                    const double xv = X.doubleData()[c * R + r];
+                    const double yv = Y.doubleData()[c * R + r];
+                    const double zv = Z.doubleData()[c * R + r];
+                    if (std::isfinite(xv)) xs << xv; else xs << "null";
+                    if (std::isfinite(yv)) ys << yv; else ys << "null";
+                    if (std::isfinite(zv)) zs << zv; else zs << "null";
                 }
             }
-            xs << ']'; ys << ']';
+            xs << ']'; ys << ']'; zs << ']';
 
             std::string color = "#9467bd";
             if (args.size() >= 4 && args[3].isChar()) {
@@ -2212,9 +2169,10 @@ void GraphicsLibrary::install(Engine &engine)
             auto &fm = ctx.engine->figureManager();
             fm.prepareForPlot();
             DatasetInfo ds;
-            ds.type = "polygon";
+            ds.type = "fill3";
             ds.xJson = xs.str();
             ds.yJson = ys.str();
+            ds.zJson = zs.str();
             std::ostringstream sty;
             sty << "color=" << color << ";fillOpacity=0.7";
             ds.style = sty.str();

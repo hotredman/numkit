@@ -230,7 +230,8 @@ function datasetToLayer(d, palette_idx, ctx) {
   const supported = ['line', 'plot', 'scatter', 'stem', 'stairs',
                      'bar', 'hist', 'semilogx', 'semilogy', 'loglog',
                      'errorbar', 'barh', 'area', 'quiver',
-                     'plot3', 'scatter3', 'polygon', 'surf'];
+                     'plot3', 'scatter3', 'polygon',
+                     'surf', 'bar3', 'waterfall', 'fill3'];
   if (!supported.includes(t)) return null;
 
   // null is the wire-format "break" marker (JSON forbids NaN). Map it
@@ -242,13 +243,10 @@ function datasetToLayer(d, palette_idx, ctx) {
   // initialization" crash when surf data lands.
   const numOrBreak = (v) => (v === null ? NaN : Number(v));
 
-  // surf — short-circuit. C++ emits one DatasetInfo with X (column
-  // vector), Y (row vector), and Z as a 2-D nested matrix. Nulls in
-  // Z represent NaN values. Render path (Composite3DPlot, mode=
-  // 'surface') will rebuild a triangle mesh from this; until then
-  // (Etap 2 step 3) the renderer falls back to a plain line draw of
-  // the row sweeps so something is visible.
-  if (t === 'surf') {
+  // surf / bar3 / waterfall — all share the (Xs, Ys, Z[Nr][Nc]) wire
+  // shape. Mode picks the renderer's geometry path: triangle mesh
+  // for surf, cuboids for bar3, ribbons for waterfall.
+  if (t === 'surf' || t === 'bar3' || t === 'waterfall') {
     const Xs = Array.isArray(d.x) ? d.x.map(numOrBreak) : [];
     const Ys = Array.isArray(d.y) ? d.y.map(numOrBreak) : [];
     const Zmat = (Array.isArray(d.z) && Array.isArray(d.z[0]))
@@ -269,22 +267,50 @@ function datasetToLayer(d, palette_idx, ctx) {
         flatZ.push(Zmat[r] ? Zmat[r][c] : NaN);
       }
     }
+    const modeMap = { surf: 'surface', bar3: 'bar3', waterfall: 'waterfall' };
+    const colorMap = { surf: '#4a90b8', bar3: '#5fa7d9', waterfall: '#4a90b8' };
     return {
       kind: 'series',
-      mode: 'surface',
-      name: d.label || `surf ${palette_idx + 1}`,
-      x: flatX,                    // for any 2-D fallback
+      mode: modeMap[t],
+      name: d.label || `${t} ${palette_idx + 1}`,
+      x: flatX,
       y: flatY,
       xRaw: flatX,
       yRaw: flatY,
       z: flatZ,
       surfaceGrid: { Xs, Ys, Z: Zmat },
-      color: '#4a90b8',
+      color: colorMap[t],
       width: 1,
       size: 3,
       opacity: 1,
       yside: 'left',
       fillOpacity: 1,
+    };
+  }
+
+  // fill3 — multi-polygon 3-D filled shapes. Wire format: x/y/z
+  // arrays with null separators between polygon groups (parallel to
+  // the 2-D polygon path, plus z).
+  if (t === 'fill3') {
+    const xRaw = Array.isArray(d.x) ? d.x.map(numOrBreak) : [];
+    const yRaw = Array.isArray(d.y) ? d.y.map(numOrBreak) : [];
+    const zRaw = Array.isArray(d.z) && !Array.isArray(d.z[0])
+                 ? d.z.map(numOrBreak) : [];
+    if (!xRaw.length || !yRaw.length || !zRaw.length) return null;
+    const styleObj2 = typeof d.style === 'string' ? parseLineSpec(d.style) : (d.style || {});
+    return {
+      kind: 'series',
+      mode: 'polygon3d',
+      name: d.label || `fill3 ${palette_idx + 1}`,
+      x: xRaw, y: yRaw,
+      xRaw, yRaw,
+      z: zRaw,
+      color: styleObj2.color || '#9467bd',
+      width: 1,
+      size: 3,
+      opacity: 1,
+      yside: 'left',
+      fillOpacity: styleObj2.fillOpacity != null ? styleObj2.fillOpacity : 0.7,
     };
   }
   const x = Array.isArray(d.x) ? d.x.map(numOrBreak) : [];
