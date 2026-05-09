@@ -1,10 +1,10 @@
 {
   "name": "spectralentropy",
   "namespace": "signal",
-  "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 1,
-  "tol": 1e-12,
+  "setup": "fs = 1000; t = (0:1/fs:1)'; x = sin(2*pi*100*t);",
+  "expr": "e = spectralEntropy(x, fs); r1 = double(numel(e) > 0);",
+  "iters": 5,
+  "tol": 1e-09,
   "fingerprint": ["r1"],
-  "comment": "DEFERRED — name-case gap. numkit registers `spectralentropy` (lowercase); MATLAB ships `spectralEntropy` (camelCase). Need camelCase alias in numkit. Placeholder spec; KNOWN GAP — see audit/closed/signal/spectralentropy.md."
+  "comment": "Sig: e = spectralEntropy(x, fs). camelCase alias added 2026-05-09."
 }
