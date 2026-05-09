@@ -26,6 +26,7 @@ void ofdmdemod_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // modulation/analog.cpp
 void pmmod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ammod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // channel/channel.cpp
 void awgn_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -87,6 +88,7 @@ void CommLibrary::install(Engine &engine)
     reg("mod", "ofdmdemod", &comm::detail::ofdmdemod_reg);
 
     reg("mod", "pmmod",     &comm::detail::pmmod_reg);
+    reg("mod", "ammod",     &comm::detail::ammod_reg);
 
     reg("rf", "awgn",        &comm::detail::awgn_reg);
     reg("rf", "wgn",         &comm::detail::wgn_reg);
