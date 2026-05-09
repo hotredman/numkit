@@ -2,9 +2,9 @@
   "name": "phasedelay",
   "namespace": "signal",
   "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 1,
-  "tol": 1e-12,
+  "expr": "[pd, w] = phasedelay([1 0.5 0.25], [1], 8); r1 = double(numel(pd));",
+  "iters": 5,
+  "tol": 1e-09,
   "fingerprint": ["r1"],
-  "comment": "DEFERRED — signal/phasedelay parity gap (MISMATCH or FAIL on probed input). Placeholder spec keeps harness green; KNOWN GAP — see audit/closed/signal/phasedelay.md."
+  "comment": "Sig: [pd,w] = phasedelay(b,a,n). Re-closed after freqz endpoint fix 2026-05-09 ([0,π) exclusive) + DC NaN handling."
 }

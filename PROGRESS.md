@@ -2409,8 +2409,8 @@ intentionally omitted — flat solver functions only.
 | `ismaxphase` | ✅ | 0.001 | 173.96× | 136.56× | OK | Sig: TF = ismaxphase(B, A). 10000 iters. |
 | `isminphase` | ✅ | 0.000 | 263.71× | 249.95× | OK | Sig: TF = isminphase(B, A). 10000 iters. |
 | `isstable` | ✅ | 0.004 | 1682.14× | 196.15× | OK | Sig: r = isstable(...). Spec-extension batch 2026-05-09. |
-| `phasedelay` | ✅ | 0.006 | 152.66× |  | MISMATCH | Sig: [P,W] = phasedelay(B,A,N). Phase delay. 1000 iters. |
-| `phasez` | ✅ | 0.005 | 83.76× | 42.91× | MISMATCH | Sig: [P,W] = phasez(B,A,N). 256-pt phase response. 1000 iters. |
+| `phasedelay` | ✅ | 0.006 | 2913.52× |  | OK | Sig: [pd,w] = phasedelay(b,a,n). Re-closed after freqz endpoint fix 2026-05-09 ([0,π) exclusive) + DC NaN handling. |
+| `phasez` | ✅ | 0.006 | 1249.95× | 41.16× | OK | Sig: [phi,w] = phasez(b,a,n). Re-closed after freqz endpoint fix 2026-05-09 ([0,π) exclusive). |
 | `stepz` | ✅ | 0.004 | 1355.80× |  | OK | Sig: r = stepz(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zerophase` | ✅ | 0.004 | 2936.12× |  | OK | Sig: r = zerophase(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zplane` | ❌ |  |  |  |  |  |
@@ -2446,7 +2446,7 @@ intentionally omitted — flat solver functions only.
 | `sos2ctf` | ❌ |  |  |  |  |  |
 | `sos2ss` | ✅ | 0.001 | 23.11× | 2266.98× | MISMATCH | Sig: [A,B,C,D] = sos2ss(SOS). 1000 iters. |
 | `sos2tf` | ✅ | 0.005 | 247.61× | 27.89× | OK | Sig: r = sos2tf(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `sos2zp` | ✅ | 0.002 | 13.99× | 93.98× | OK | Sig: [Z,P,K] = sos2zp(SOS). 1000 iters. |
+| `sos2zp` | ✅ | 0.002 | 14.95× | 95.45× | OK | Sig: [Z,P,K] = sos2zp(SOS). 1000 iters. |
 | `sosfilt` | ✅ | 0.005 | 185.99× | 16.48× | OK | Sig: r = sosfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `ss` | ✅ | 0.007 | 785.28× | 31.40× | OK | Sig: r = ss(...). Spec-extension batch 2026-05-09. |
 | `ss2sos` | ✅ | 0.001 | 98.89× |  | MISMATCH | Sig: SOS = ss2sos(A,B,C,D). 1000 iters. |
@@ -2459,7 +2459,7 @@ intentionally omitted — flat solver functions only.
 | `tf2zpk` | ✅ | 0.004 | 360.93× |  | OK | Sig: r = tf2zpk(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zp2ctf` | ❌ |  |  |  |  |  |
 | `zp2sos` | ✅ | 0.004 | 965.08× | 97.49× | OK | Sig: r = zp2sos(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `zp2ss` | ✅ | 0.001 | 60.20× | 2758.55× | MISMATCH | Sig: [A,B,C,D] = zp2ss(Z,P,K). 1000 iters. |
+| `zp2ss` | ✅ | 0.004 | 769.29× | 462.71× | MISMATCH | Sig: [A,B,C,D] = zp2ss(Z,P,K). Re-tested 2026-05-09 after freqz endpoint fix. |
 | `zp2tf` | ✅ | 0.005 | 170.36× | 299.52× | OK | Sig: r = zp2tf(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zpk` | ✅ | 0.004 | 1523.65× | 152.33× | OK | Sig: r = zpk(...). Spec-extension batch 2026-05-09. |
 | `filter` | ✅ | 0.004 | 30.84× | 23.72× | OK | Sig: r = filter(...). Spec-extension batch 2026-05-09 (signal namespace). |

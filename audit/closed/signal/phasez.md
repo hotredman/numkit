@@ -1,25 +1,5 @@
-# signal/phasez — ТЗ for completion
-
-**Status:** open
-**Priority:** low
-**Effort:** small
-**Audited at commit:** 4fae461
-**Audit date:** 2026-05-06
-
-## Gaps
-
-**No major gap detected.** PROGRESS shows `correctness=OK` on
-benched input.
-
-## Recommended fixes
-
-1. **Spec extension** — fingerprint covering edge cases.
-
-## Out of scope for this ТЗ
-
-- N/A.
 
 ## Closed
-- Closed in commit: pending (cycle 43)
+- Closed in commit: pending (freqz endpoint fix)
 - Closed date: 2026-05-09
-- Notes: DEFERRED (KNOWN GAP) — signal/phasez parity gap (MISMATCH or FAIL on probed input — see commit notes). Placeholder spec keeps harness green; actual fix requires code-level work in libs/signal.
+- Notes: Initial closure (cycle 43) was DEFERRED. Root cause: freqz used inclusive [0,pi] grid (denominator npts-1); MATLAB uses exclusive [0,pi) (denominator npts). Fix landed in libs/signal/src/filter_analysis/frequency_response.cpp + DC NaN handling for phasez (when |H|=0) and phasedelay (when w=0). Verified bit-identical with MATLAB R2025b on probed inputs. Two existing gtests (FreqzFrequencyRange, PhasezReturnsCorrectShape) updated to expect MATLAB convention W(end) = (n-1)*pi/n instead of pi.
