@@ -1199,7 +1199,7 @@ intentionally omitted.
 | `order` | ✅ | 0.004 | 1574.74× |  | OK | Sig: r = order(...). Spec-extension batch 2026-05-09. |
 | `pole` | ✅ | 0.004 | 1646.84× | 162.11× | OK | Sig: r = pole(...). Spec-extension batch 2026-05-09. |
 | `zero` | ✅ | 0.005 | 1455.38× | 132.67× | OK | Sig: r = zero(...). Spec-extension batch 2026-05-09. |
-| `tzero` | ✅ | 0.017 | 24.66× | 27.06× | OK | DEFERRED — control/tzero transmission-zero solver not implemented in numkit (call returns FAIL). Placeholder spec; KNOWN GAP — see audit/closed/control/tzero.md. |
+| `tzero` | ✅ | 0.005 | 1443.30× |  | OK | Sig: z = tzero(sys). SISO transmission zeros via ss2tf + roots. Bit-identical with MATLAB R2025b on probed system (z = 1.0). MIMO requires QZ generalised eigenvalue solver (separate ТЗ). |
 | `damp` | ✅ | 0.007 | 1003.50× | 101.00× | OK | Sig: r = damp(...). Spec-extension batch 2026-05-09. |
 
 ### Model Conversion & Reduction

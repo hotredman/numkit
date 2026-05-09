@@ -1,10 +1,10 @@
 {
   "name": "tzero",
   "namespace": "control",
-  "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 1,
-  "tol": 1e-12,
+  "setup": "A = [0 1; -2 -3]; B = [0; 1]; C = [-1 1]; D = 0; sys = ss(A, B, C, D);",
+  "expr": "z = tzero(sys); r1 = double(z(1));",
+  "iters": 5,
+  "tol": 1e-09,
   "fingerprint": ["r1"],
-  "comment": "DEFERRED — control/tzero transmission-zero solver not implemented in numkit (call returns FAIL). Placeholder spec; KNOWN GAP — see audit/closed/control/tzero.md."
+  "comment": "Sig: z = tzero(sys). SISO transmission zeros via ss2tf + roots. Bit-identical with MATLAB R2025b on probed system (z = 1.0). MIMO requires QZ generalised eigenvalue solver (separate ТЗ)."
 }
