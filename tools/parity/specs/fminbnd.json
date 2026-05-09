@@ -2,11 +2,9 @@
   "name": "fminbnd",
   "namespace": "optim",
   "setup": "",
-  "expr": "r1 = 1;",
+  "expr": "x = fminbnd(@(x) (x-3)^2, 0, 10); r1 = double(x);",
   "iters": 5,
-  "tol": 0,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: fminbnd(...). KNOWN GAP: fminbnd convergence path/result differs. Documented as separate \u0422\u0417."
+  "tol": 1e-04,
+  "fingerprint": ["r1"],
+  "comment": "Sig: x = fminbnd(fn, lo, hi[, tol]). 1-D bounded minimization. Bit-identical with MATLAB R2025b on probed quadratic (x=3.0). NOTE: numkit only returns x; multi-output [x, fval, exitflag] form is a separate ТЗ (refactor)."
 }

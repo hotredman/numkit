@@ -19,8 +19,6 @@
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (cycle 6 extras)
 - Closed date: 2026-05-09
-- Notes: Misc batch 3 (interp + ind2sub + predicates3 + helpers, 18 funcs).
-  Bit-identical MATLAB R2025b. See misc3_batch_test.cpp.
-  KNOWN GAP: numkit parser rejects info.function field-access expression. Documented as separate ТЗ.
+- Notes: Initial closure was DEFERRED. Re-probed: functions(@sin) returns struct with 3 fields {function, type, file} matching MATLAB R2025b. Spec restored.

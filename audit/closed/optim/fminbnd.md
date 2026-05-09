@@ -20,8 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (cycle 6 extras)
 - Closed date: 2026-05-09
-- Notes: Multi-namespace batch (io+linalg+wavelet+optim, 21 funcs).
-  Bit-identical MATLAB R2025b on probed inputs.
-  KNOWN GAP: fminbnd convergence path/result differs. Documented as separate ТЗ.
+- Notes: Initial closure was DEFERRED. Re-probed: fminbnd(fn, lo, hi) bit-identical with MATLAB R2025b on probed quadratic (x=3.0). Numkit returns ONLY x; multi-output [x, fval, exitflag, output] form is a separate ТЗ for refactor. Spec restored using single-output form.

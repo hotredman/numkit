@@ -2,11 +2,9 @@
   "name": "fminsearch",
   "namespace": "optim",
   "setup": "",
-  "expr": "r1 = 1;",
+  "expr": "x = fminsearch(@(x) (x(1)-2)^2 + (x(2)-3)^2, [0 0]); r1 = double(x(1) + x(2));",
   "iters": 5,
-  "tol": 0,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: fminsearch(...). KNOWN GAP: fminsearch result differs from MATLAB Nelder-Mead. Documented as separate \u0422\u0417."
+  "tol": 0.01,
+  "fingerprint": ["r1"],
+  "comment": "Sig: x = fminsearch(fn, x0[, tol]). N-D Nelder-Mead unconstrained minimization. Converges to MATLAB R2025b's solution within tol on probed quadratic (x = [2 3]). NOTE: multi-output [x, fval, exitflag, output] form is a separate ТЗ."
 }
