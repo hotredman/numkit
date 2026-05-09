@@ -1637,6 +1637,493 @@ void GraphicsLibrary::install(Engine &engine)
     reg("bar", "patch", patchImpl);
     reg("bar", "fill",  patchImpl);
 
+    // pie(X) — circular slices proportional to X. Each wedge is its
+    // own polygon dataset so it picks up a distinct palette colour.
+    // Calling forms (subset of MATLAB's):
+    //   pie(X)             — slice for every X(i) > 0
+    //   pie(X, explode)    — explode(i) ≠ 0 displaces that wedge
+    //                        radially by ~10% of the unit radius
+    auto pieImpl = [](Span<const Value> args, size_t nargout, Span<Value> outs,
+                      CallContext &ctx, bool tilt3d) {
+        (void)nargout;
+        if (args.empty() || args[0].numel() == 0) {
+            outs[0] = Value::empty();
+            return;
+        }
+        const auto &X = args[0];
+        const size_t N = X.numel();
+        double total = 0;
+        for (size_t i = 0; i < N; ++i) {
+            const double v = X.doubleData()[i];
+            if (std::isfinite(v) && v > 0) total += v;
+        }
+        if (total <= 0) { outs[0] = Value::empty(); return; }
+
+        const Value *expl = (args.size() >= 2) ? &args[1] : nullptr;
+        static const char *kPalette[] = {
+            "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728",
+            "#9467bd", "#8c564b", "#e377c2", "#7f7f7f",
+            "#bcbd22", "#17becf",
+        };
+
+        const double TAU = 2 * 3.14159265358979323846;
+        const int arcSamples = 24;          // vertices per wedge arc
+        const double tiltY = tilt3d ? 0.4 : 1.0;   // pie3 squashes Y
+
+        auto &fm = ctx.engine->figureManager();
+        fm.prepareForPlot();
+        // Force equal axis so the pie stays circular.
+        fm.currentAxes().axisMode = "equal";
+
+        double angle = 0;
+        for (size_t i = 0; i < N; ++i) {
+            const double v = X.doubleData()[i];
+            if (!std::isfinite(v) || v <= 0) continue;
+            const double dθ = v / total * TAU;
+            const double θ0 = angle;
+            const double θ1 = angle + dθ;
+            angle = θ1;
+
+            // Explode: shift centre along the wedge bisector.
+            double cx = 0, cy = 0;
+            if (expl && expl->numel() > i && expl->doubleData()[i] != 0) {
+                const double mid = (θ0 + θ1) / 2;
+                const double off = 0.1;
+                cx = off * std::cos(mid);
+                cy = off * std::sin(mid) * tiltY;
+            }
+
+            std::ostringstream xs, ys;
+            xs << '['; ys << '[';
+            xs << cx; ys << cy;
+            for (int s = 0; s <= arcSamples; ++s) {
+                const double t = θ0 + (θ1 - θ0) * s / arcSamples;
+                xs << ',' << (cx + std::cos(t));
+                ys << ',' << (cy + std::sin(t) * tiltY);
+            }
+            xs << ']'; ys << ']';
+
+            DatasetInfo ds;
+            ds.type = "polygon";
+            ds.xJson = xs.str();
+            ds.yJson = ys.str();
+            std::ostringstream sty;
+            sty << "color=" << kPalette[i % 10] << ";fillOpacity=0.85";
+            ds.style = sty.str();
+            // Auto-label "p%" so the legend (if user calls legend())
+            // shows percentages. MATLAB uses cell labels — we ship the
+            // numeric form by default.
+            char buf[16];
+            std::snprintf(buf, sizeof buf, "%.0f%%", v / total * 100.0);
+            ds.label = buf;
+            fm.pushDataset(std::move(ds));
+        }
+        fm.emitModified();
+        outs[0] = Value::empty();
+    };
+    reg("bar", "pie",  [pieImpl](Span<const Value> a, size_t n, Span<Value> o, CallContext &c) {
+        pieImpl(a, n, o, c, false);
+    });
+    reg("bar", "pie3", [pieImpl](Span<const Value> a, size_t n, Span<Value> o, CallContext &c) {
+        pieImpl(a, n, o, c, true);
+    });
+
+    // boxplot(X) / boxchart(X) — Tukey box-and-whisker plot.
+    // X as vector → one box at x=1.
+    // X as matrix → one box per column at x = 1..C.
+    // Per box we emit:
+    //   • polygon for the IQR rectangle (Q1..Q3)
+    //   • line for the median (horizontal across the box)
+    //   • line dataset for the two whisker stems + the two caps
+    //   • scatter dataset for outliers (beyond ±1.5·IQR)
+    auto boxImpl = [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+        (void)nargout;
+        if (args.empty() || args[0].numel() == 0) {
+            outs[0] = Value::empty();
+            return;
+        }
+        const auto &M = args[0];
+        const size_t R = std::max<size_t>(1, M.dims().rows());
+        const size_t C = std::max<size_t>(1, M.dims().cols());
+        // Treat 1×N or N×1 as a single column; matrix → C columns.
+        const bool single = (R == 1 || C == 1);
+        const size_t nBoxes = single ? 1 : C;
+        const size_t nPerBox = single ? M.numel() : R;
+
+        auto &fm = ctx.engine->figureManager();
+        fm.prepareForPlot();
+
+        const double w = 0.4;     // half-width of each box (so total is 0.8)
+        for (size_t bi = 0; bi < nBoxes; ++bi) {
+            std::vector<double> col;
+            col.reserve(nPerBox);
+            for (size_t r = 0; r < nPerBox; ++r) {
+                const double v = single
+                    ? M.doubleData()[r]
+                    : M.doubleData()[bi * R + r];
+                if (std::isfinite(v)) col.push_back(v);
+            }
+            if (col.size() < 2) continue;
+            std::sort(col.begin(), col.end());
+            const double q1 = col[(size_t)((col.size() - 1) * 0.25)];
+            const double q2 = col[(size_t)((col.size() - 1) * 0.50)];
+            const double q3 = col[(size_t)((col.size() - 1) * 0.75)];
+            const double iqr = q3 - q1;
+            const double loFence = q1 - 1.5 * iqr;
+            const double hiFence = q3 + 1.5 * iqr;
+            double whLo = col.front(), whHi = col.back();
+            // Whiskers extend to the most extreme finite point WITHIN
+            // the fence, not the fence itself.
+            for (double v : col) {
+                if (v >= loFence && v < whLo) whLo = v;
+                if (v <= hiFence && v > whHi) whHi = v;
+            }
+            // The simple computation above seeds whLo/whHi with the
+            // overall extremes; tighten if those are outside the fence.
+            if (whLo < loFence) whLo = loFence;
+            if (whHi > hiFence) whHi = hiFence;
+            // Re-clamp to the closest in-fence point (more reliable
+            // when there are no in-fence extremes).
+            for (double v : col) {
+                if (v >= loFence && v <= q1 && v < whLo) whLo = v;
+                if (v <= hiFence && v >= q3 && v > whHi) whHi = v;
+            }
+
+            const double cx = (double)(bi + 1);
+            const double xL = cx - w, xR = cx + w;
+
+            // 1. IQR box (polygon).
+            std::ostringstream bx, by;
+            bx << '[' << xL << ',' << xR << ',' << xR << ',' << xL << ']';
+            by << '[' << q1 << ',' << q1 << ',' << q3 << ',' << q3 << ']';
+            DatasetInfo dsBox;
+            dsBox.type = "polygon";
+            dsBox.xJson = bx.str();
+            dsBox.yJson = by.str();
+            dsBox.style = "color=#1f77b4;fillOpacity=0.35";
+            fm.pushDataset(std::move(dsBox));
+
+            // 2. Median line (horizontal across the box).
+            std::ostringstream mx, my;
+            mx << '[' << xL << ',' << xR << ']';
+            my << '[' << q2 << ',' << q2 << ']';
+            DatasetInfo dsMed;
+            dsMed.type = "line";
+            dsMed.xJson = mx.str();
+            dsMed.yJson = my.str();
+            dsMed.style = "color=#d62728";
+            dsMed.lineWidth = 2;
+            fm.pushDataset(std::move(dsMed));
+
+            // 3. Whisker stems + caps as one line dataset with null
+            //    separators between segments.
+            std::ostringstream wx, wy;
+            wx << '['; wy << '[';
+            // Lower stem: (cx, whLo) → (cx, q1)
+            wx << cx << ',' << cx;
+            wy << whLo << ',' << q1;
+            // Lower cap
+            wx << ",null," << (cx - w/2) << ',' << (cx + w/2);
+            wy << ",null," << whLo << ',' << whLo;
+            // Upper stem
+            wx << ",null," << cx << ',' << cx;
+            wy << ",null," << q3 << ',' << whHi;
+            // Upper cap
+            wx << ",null," << (cx - w/2) << ',' << (cx + w/2);
+            wy << ",null," << whHi << ',' << whHi;
+            wx << ']'; wy << ']';
+            DatasetInfo dsW;
+            dsW.type = "line";
+            dsW.xJson = wx.str();
+            dsW.yJson = wy.str();
+            dsW.style = "color=#1f77b4";
+            fm.pushDataset(std::move(dsW));
+
+            // 4. Outliers — scatter at (cx, v) for v outside fences.
+            std::ostringstream ox, oy;
+            ox << '['; oy << '[';
+            bool first = true;
+            for (double v : col) {
+                if (v >= loFence && v <= hiFence) continue;
+                if (!first) { ox << ','; oy << ','; }
+                first = false;
+                ox << cx;
+                oy << v;
+            }
+            ox << ']'; oy << ']';
+            if (!first) {
+                DatasetInfo dsO;
+                dsO.type = "scatter";
+                dsO.xJson = ox.str();
+                dsO.yJson = oy.str();
+                dsO.style = "color=#d62728";
+                dsO.markerSize = 3;
+                fm.pushDataset(std::move(dsO));
+            }
+        }
+        fm.emitModified();
+        outs[0] = Value::empty();
+    };
+    reg("bar", "boxplot",  boxImpl);
+    reg("bar", "boxchart", boxImpl);
+
+    // violinplot(X) — Gaussian-KDE shape + slim box + median dot.
+    // Layout mirrors boxplot: vector → one violin at x=1, matrix
+    // → one violin per column at x = 1..C. KDE bandwidth uses
+    // Silverman's rule (1.06 · σ · N^(-1/5)).
+    reg("bar", "violinplot",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.empty() || args[0].numel() == 0) {
+                outs[0] = Value::empty();
+                return;
+            }
+            const auto &M = args[0];
+            const size_t R = std::max<size_t>(1, M.dims().rows());
+            const size_t Cmat = std::max<size_t>(1, M.dims().cols());
+            const bool single = (R == 1 || Cmat == 1);
+            const size_t nViolins = single ? 1 : Cmat;
+            const size_t nPerColumn = single ? M.numel() : R;
+
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+
+            const int kdePts = 50;
+            for (size_t bi = 0; bi < nViolins; ++bi) {
+                std::vector<double> col;
+                col.reserve(nPerColumn);
+                for (size_t r = 0; r < nPerColumn; ++r) {
+                    const double v = single
+                        ? M.doubleData()[r]
+                        : M.doubleData()[bi * R + r];
+                    if (std::isfinite(v)) col.push_back(v);
+                }
+                if (col.size() < 2) continue;
+                double mean = 0;
+                for (double v : col) mean += v;
+                mean /= col.size();
+                double var = 0;
+                for (double v : col) var += (v - mean) * (v - mean);
+                var /= col.size() - 1;
+                const double sd = std::sqrt(var);
+                if (sd <= 0) continue;
+                const double bw = 1.06 * sd * std::pow((double)col.size(), -0.2);
+                if (bw <= 0) continue;
+
+                std::sort(col.begin(), col.end());
+                const double mn = col.front(), mx = col.back();
+                const double q1 = col[(size_t)((col.size() - 1) * 0.25)];
+                const double q2 = col[(size_t)((col.size() - 1) * 0.50)];
+                const double q3 = col[(size_t)((col.size() - 1) * 0.75)];
+
+                // Sample KDE density on a uniform y grid [mn, mx].
+                std::vector<double> ys(kdePts), den(kdePts);
+                double maxD = 0;
+                for (int g = 0; g < kdePts; ++g) {
+                    const double y = mn + (mx - mn) * g / (double)(kdePts - 1);
+                    double s = 0;
+                    for (double v : col) {
+                        const double t = (y - v) / bw;
+                        s += std::exp(-0.5 * t * t);
+                    }
+                    s /= (col.size() * bw * std::sqrt(2 * 3.14159265358979323846));
+                    ys[g] = y;
+                    den[g] = s;
+                    if (s > maxD) maxD = s;
+                }
+                if (maxD <= 0) continue;
+                const double cx = (double)(bi + 1);
+                const double halfW = 0.4;
+                const double scale = halfW / maxD;
+
+                // Violin polygon: right side bottom-to-top + left side
+                // top-to-bottom. Closed by the polygon renderer.
+                std::ostringstream xs, vy;
+                xs << '['; vy << '[';
+                bool first = true;
+                for (int g = 0; g < kdePts; ++g) {
+                    if (!first) { xs << ','; vy << ','; }
+                    first = false;
+                    xs << (cx + den[g] * scale);
+                    vy << ys[g];
+                }
+                for (int g = kdePts - 1; g >= 0; --g) {
+                    xs << ',' << (cx - den[g] * scale);
+                    vy << ',' << ys[g];
+                }
+                xs << ']'; vy << ']';
+                DatasetInfo dsV;
+                dsV.type = "polygon";
+                dsV.xJson = xs.str();
+                dsV.yJson = vy.str();
+                dsV.style = "color=#9467bd;fillOpacity=0.45";
+                fm.pushDataset(std::move(dsV));
+
+                // Slim box (Q1..Q3) at the centre.
+                const double bxW = 0.06;
+                std::ostringstream bxs, bys;
+                bxs << '[' << (cx - bxW) << ',' << (cx + bxW) << ','
+                    << (cx + bxW) << ',' << (cx - bxW) << ']';
+                bys << '[' << q1 << ',' << q1 << ',' << q3 << ',' << q3 << ']';
+                DatasetInfo dsBx;
+                dsBx.type = "polygon";
+                dsBx.xJson = bxs.str();
+                dsBx.yJson = bys.str();
+                dsBx.style = "color=#222;fillOpacity=0.85";
+                fm.pushDataset(std::move(dsBx));
+
+                // Median dot.
+                std::ostringstream mx2, my2;
+                mx2 << '[' << cx << ']';
+                my2 << '[' << q2 << ']';
+                DatasetInfo dsM;
+                dsM.type = "scatter";
+                dsM.xJson = mx2.str();
+                dsM.yJson = my2.str();
+                dsM.style = "color=#ffffff";
+                dsM.markerSize = 4;
+                fm.pushDataset(std::move(dsM));
+            }
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
+    // bar3(Z) — 3-D bars with cabinet projection. Each Z(i, j) becomes
+    // a cuboid centred at (j, i) with height Z(i, j). We emit five
+    // visible faces per bar (top, front, back, left, right; bottom
+    // hidden). All faces are pre-projected to 2-D screen coords
+    // (cabinet 30°, scale 0.5) so the polygon renderer doesn't need
+    // a depth dimension. Painter's algorithm: bars are emitted in
+    // back-to-front order so the topmost geometry overdraws.
+    reg("bar", "bar3",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.empty()) { outs[0] = Value::empty(); return; }
+            const auto &Z = args[0];
+            const size_t Rz = Z.dims().rows();
+            const size_t Cz = Z.dims().cols();
+            if (Rz == 0 || Cz == 0) { outs[0] = Value::empty(); return; }
+
+            const double half = 0.4;
+            const double zScale = 0.5;
+            const double cosA = std::cos(3.14159265358979323846 / 6);
+            const double sinA = std::sin(3.14159265358979323846 / 6);
+            const auto proj = [&](double x, double y, double z) {
+                return std::pair<double, double>(
+                    x + z * zScale * cosA,
+                    y + z * zScale * sinA);
+            };
+
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+
+            // Iterate so back rows render first (high y), front rows
+            // last (low y). Same for columns so high x is in front.
+            for (size_t r = Rz; r-- > 0; ) {
+                for (size_t c = 0; c < Cz; ++c) {
+                    const double zh = Z.doubleData()[c * Rz + r];
+                    if (!std::isfinite(zh) || zh == 0) continue;
+                    const double xc = (double)(c + 1);
+                    const double yc = (double)(r + 1);
+                    const double x0 = xc - half, x1 = xc + half;
+                    const double y0 = yc - half, y1 = yc + half;
+                    // Eight corners: (x*, y*, z∈{0, zh})
+                    auto C000 = proj(x0, y0, 0);
+                    auto C100 = proj(x1, y0, 0);
+                    auto C110 = proj(x1, y1, 0);
+                    auto C010 = proj(x0, y1, 0);
+                    auto C001 = proj(x0, y0, zh);
+                    auto C101 = proj(x1, y0, zh);
+                    auto C111 = proj(x1, y1, zh);
+                    auto C011 = proj(x0, y1, zh);
+
+                    // Five visible faces (top, front-low-y, right,
+                    // back-high-y, left).
+                    auto emitFace = [&](std::array<std::pair<double,double>, 4> v,
+                                        const char *col, double opa) {
+                        std::ostringstream xs, ys;
+                        xs << '['; ys << '[';
+                        for (int i = 0; i < 4; ++i) {
+                            if (i) { xs << ','; ys << ','; }
+                            xs << v[i].first;
+                            ys << v[i].second;
+                        }
+                        xs << ']'; ys << ']';
+                        DatasetInfo ds;
+                        ds.type = "polygon";
+                        ds.xJson = xs.str();
+                        ds.yJson = ys.str();
+                        std::ostringstream sty;
+                        sty << "color=" << col << ";fillOpacity=" << opa;
+                        ds.style = sty.str();
+                        fm.pushDataset(std::move(ds));
+                    };
+                    // Shade the faces with a quasi-3D look:
+                    //   front  brightest, top mid, sides darker.
+                    emitFace({ C000, C100, C101, C001 }, "#5fa7d9", 0.95);  // front
+                    emitFace({ C100, C110, C111, C101 }, "#3a7eaf", 0.95);  // right
+                    emitFace({ C001, C101, C111, C011 }, "#7fbde0", 0.95);  // top
+                    emitFace({ C010, C000, C001, C011 }, "#3a7eaf", 0.95);  // left
+                    emitFace({ C110, C010, C011, C111 }, "#1f77b4", 0.95);  // back
+                }
+            }
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
+    // waterfall(Z) — per-row wireframe + soft fill underneath. Emits
+    // each row as a polygon (row Z values + row min as baseline) plus
+    // a top stroke. Cabinet-projected like surf.
+    reg("surface", "waterfall",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.empty()) { outs[0] = Value::empty(); return; }
+            const auto &Z = args[0];
+            const size_t Rz = Z.dims().rows();
+            const size_t Cz = Z.dims().cols();
+            if (Rz < 1 || Cz < 2) { outs[0] = Value::empty(); return; }
+
+            const double zScale = 0.5;
+            const double cosA = std::cos(3.14159265358979323846 / 6);
+            const double sinA = std::sin(3.14159265358979323846 / 6);
+            const auto proj = [&](double x, double y, double z) {
+                return std::pair<double, double>(
+                    x + z * zScale * cosA,
+                    y + z * zScale * sinA);
+            };
+
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+
+            // Render back-to-front so newer rows sit visually in front.
+            for (size_t r = Rz; r-- > 0; ) {
+                std::ostringstream xs, ys;
+                xs << '['; ys << '[';
+                // Top sweep left-to-right.
+                for (size_t c = 0; c < Cz; ++c) {
+                    const double zv = Z.doubleData()[c * Rz + r];
+                    auto p = proj((double)(c + 1), (double)(r + 1),
+                                  std::isfinite(zv) ? zv : 0);
+                    if (c) { xs << ','; ys << ','; }
+                    xs << p.first; ys << p.second;
+                }
+                // Bottom sweep right-to-left at z = 0.
+                for (size_t c = Cz; c-- > 0; ) {
+                    auto p = proj((double)(c + 1), (double)(r + 1), 0);
+                    xs << ',' << p.first; ys << ',' << p.second;
+                }
+                xs << ']'; ys << ']';
+                DatasetInfo ds;
+                ds.type = "polygon";
+                ds.xJson = xs.str();
+                ds.yJson = ys.str();
+                ds.style = "color=#4a90b8;fillOpacity=0.55";
+                fm.pushDataset(std::move(ds));
+            }
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
     // fill3(X, Y, Z[, C]) — same body but the (x, y, z) vertices go
     // through cabinet projection. We simulate it by pre-collapsing
     // (x_i, y_i, z_i) into 2-D screen-space here on the C++ side so
