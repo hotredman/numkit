@@ -982,9 +982,46 @@ void GraphicsLibrary::install(Engine &engine)
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             if (!args.empty() && args[0].isChar()) {
                 auto &fm = ctx.engine->figureManager();
-                fm.currentAxes().axisMode = args[0].toString();
+                std::string mode = args[0].toString();
+                fm.currentAxes().axisMode = mode;
+                // axis('ij') and axis('xy') are MATLAB shorthand for
+                // yDir reverse / normal. Set the corresponding state
+                // explicitly so the renderer doesn't need to know
+                // about axisMode aliases.
+                if (mode == "ij") fm.currentAxes().yDir = "reverse";
+                else if (mode == "xy") fm.currentAxes().yDir = "normal";
                 fm.current().modified = true;
                 fm.emitModified();
+            }
+            outs[0] = Value::empty();
+        });
+
+    // xdir / ydir — direct setters. MATLAB also accepts
+    // set(gca, 'XDir', 'reverse'); we ship the direct form here,
+    // and `set` is on the BACKLOG.
+    reg("layout", "xdir",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            if (!args.empty() && args[0].isChar()) {
+                auto &fm = ctx.engine->figureManager();
+                std::string v = args[0].toString();
+                if (v == "reverse" || v == "normal") {
+                    fm.currentAxes().xDir = v;
+                    fm.current().modified = true;
+                    fm.emitModified();
+                }
+            }
+            outs[0] = Value::empty();
+        });
+    reg("layout", "ydir",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            if (!args.empty() && args[0].isChar()) {
+                auto &fm = ctx.engine->figureManager();
+                std::string v = args[0].toString();
+                if (v == "reverse" || v == "normal") {
+                    fm.currentAxes().yDir = v;
+                    fm.current().modified = true;
+                    fm.emitModified();
+                }
             }
             outs[0] = Value::empty();
         });

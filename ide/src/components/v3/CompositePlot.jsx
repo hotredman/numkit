@@ -204,18 +204,40 @@ export default function CompositePlot({
   // clamping at the call sites that set viewport.
   const xLogActive = xLog && xMin > 0 && xMax > 0;
   const yLogActive = yLog && yMin > 0 && yMax > 0;
+  // Axis direction. MATLAB: set(gca, 'XDir'/'YDir', 'reverse') flips
+  // the corresponding axis. xDir='reverse' means x increases right→left;
+  // yDir='reverse' means y increases top→bottom (the default for image
+  // axes, but here it's an explicit user request, separate from imagesc).
+  const xRev = figure.xDir === 'reverse';
+  const yRev = figure.yDir === 'reverse';
   const sx = xLogActive
-    ? (v) => padL + (Math.log(v / xMin) / Math.log(xMax / xMin)) * W
-    : (v) => padL + ((v - xMin) / (xMax - xMin)) * W;
+    ? (xRev
+       ? (v) => padL + W - (Math.log(v / xMin) / Math.log(xMax / xMin)) * W
+       : (v) => padL + (Math.log(v / xMin) / Math.log(xMax / xMin)) * W)
+    : (xRev
+       ? (v) => padL + W - ((v - xMin) / (xMax - xMin)) * W
+       : (v) => padL + ((v - xMin) / (xMax - xMin)) * W);
   const sy = yLogActive
-    ? (v) => padT + H - (Math.log(v / yMin) / Math.log(yMax / yMin)) * H
-    : (v) => padT + H - ((v - yMin) / (yMax - yMin)) * H;
+    ? (yRev
+       ? (v) => padT + (Math.log(v / yMin) / Math.log(yMax / yMin)) * H
+       : (v) => padT + H - (Math.log(v / yMin) / Math.log(yMax / yMin)) * H)
+    : (yRev
+       ? (v) => padT + ((v - yMin) / (yMax - yMin)) * H
+       : (v) => padT + H - ((v - yMin) / (yMax - yMin)) * H);
   const isx = xLogActive
-    ? (px) => xMin * Math.exp(((px - padL) / W) * Math.log(xMax / xMin))
-    : (px) => xMin + ((px - padL) / W) * (xMax - xMin);
+    ? (xRev
+       ? (px) => xMin * Math.exp(((padL + W - px) / W) * Math.log(xMax / xMin))
+       : (px) => xMin * Math.exp(((px - padL) / W) * Math.log(xMax / xMin)))
+    : (xRev
+       ? (px) => xMax - ((px - padL) / W) * (xMax - xMin)
+       : (px) => xMin + ((px - padL) / W) * (xMax - xMin));
   const isy = yLogActive
-    ? (py) => yMin * Math.exp(((padT + H - py) / H) * Math.log(yMax / yMin))
-    : (py) => yMax - ((py - padT) / H) * (yMax - yMin);
+    ? (yRev
+       ? (py) => yMin * Math.exp(((py - padT) / H) * Math.log(yMax / yMin))
+       : (py) => yMin * Math.exp(((padT + H - py) / H) * Math.log(yMax / yMin)))
+    : (yRev
+       ? (py) => yMin + ((py - padT) / H) * (yMax - yMin)
+       : (py) => yMax - ((py - padT) / H) * (yMax - yMin));
 
   // Pre-render the inline preview to a dataURL via the LUT. uint8 indices
   // are stable; only the LUT changes on window/level — so we keep a separate
@@ -610,10 +632,17 @@ export default function CompositePlot({
   const clipId = `clip-h-${figure.id}-${Math.round(width)}`;
   // The heatmap image is stretched to fill the figure's xRange × yRange in
   // viewport coordinates — pan/zoom moves the SVG rect, the image follows.
-  const imgX = sx(figure.xRange[0]);
-  const imgY = sy(figure.yRange[1]);   // top-left of viewport in screen space
-  const imgW = sx(figure.xRange[1]) - sx(figure.xRange[0]);
-  const imgH = sy(figure.yRange[0]) - sy(figure.yRange[1]);
+  // Heatmap image rectangle. With xDir/yDir reverse the corner mapping
+  // flips, so derive the bounding box from min/max of the four corners
+  // rather than picking specific ones — this keeps width/height positive.
+  const sxLo = sx(figure.xRange[0]);
+  const sxHi = sx(figure.xRange[1]);
+  const syLo = sy(figure.yRange[0]);
+  const syHi = sy(figure.yRange[1]);
+  const imgX = Math.min(sxLo, sxHi);
+  const imgY = Math.min(syLo, syHi);
+  const imgW = Math.abs(sxHi - sxLo);
+  const imgH = Math.abs(syLo - syHi);
 
   /* ─── colorbar (right of plot area) ─── */
   const cbarW = 12;
