@@ -1,0 +1,10 @@
+{
+  "name": "besself",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[b, a] = besself(4, 1000); r1 = double(numel(b) + numel(a));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: [b,a] = besself(n, Wo). Spec-extension batch 2026-05-09 (cycle 43)."
+}

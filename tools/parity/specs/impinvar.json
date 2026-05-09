@@ -1,0 +1,10 @@
+{
+  "name": "impinvar",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[bz, az] = impinvar([1], [1 1], 100); r1 = double(numel(bz) + numel(az));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: [bz,az] = impinvar(b, a, fs). Spec-extension batch 2026-05-09 (cycle 43)."
+}
