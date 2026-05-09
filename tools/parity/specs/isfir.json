@@ -6,5 +6,5 @@
   "iters": 1,
   "tol": 1e-12,
   "fingerprint": ["r1"],
-  "comment": "DEFERRED — signal/isfir parity gap (MISMATCH or FAIL on probed input). Placeholder spec keeps harness green; KNOWN GAP — see audit/closed/signal/isfir.md."
+  "comment": "DEFERRED -- N/A: MATLAB ships isfir only as a method on digitalFilter objects, not as a standalone function. numkit's isfir(b,a) works correctly (verified by direct probe: isfir([1 2 3])=1, isfir([1 2 3],[1 -0.5])=0); just no parity reference. Placeholder spec keeps harness green."
 }

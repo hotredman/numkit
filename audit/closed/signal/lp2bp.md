@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: pending (cycle 43)
+- Closed in commit: pending (lp2bp TF dispatch)
 - Closed date: 2026-05-09
-- Notes: DEFERRED (KNOWN GAP) — signal/lp2bp parity gap (MISMATCH or FAIL on probed input — see commit notes). Placeholder spec keeps harness green; actual fix requires code-level work in libs/signal.
+- Notes: Initial closure (cycle 43) was DEFERRED -- numkit only accepted ZPK form (z, p, k, Wo[, Bw]); MATLAB also accepts TF form (b, a, Wo[, Bw]). Fix: register-level dispatch in libs/signal/src/filter_design/analog_filters.cpp -- 3 args (or 4 for lp2bp/lp2bs) routes through tf2zpk -> ZPK transform -> zp2tf back. Verified bit-identical with MATLAB R2025b on (buttap+zp2tf -> lp2bp) probes.

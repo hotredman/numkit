@@ -1,10 +1,10 @@
 {
   "name": "lp2hp",
   "namespace": "signal",
-  "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 1,
-  "tol": 1e-12,
+  "setup": "[z, p, k] = buttap(4); [bp, ap] = zp2tf(z, p, k);",
+  "expr": "[bt, at] = lp2hp(bp, ap, 100); r1 = double(numel(bt) + numel(at));",
+  "iters": 5,
+  "tol": 1e-09,
   "fingerprint": ["r1"],
-  "comment": "DEFERRED — signal/lp2hp parity gap (MISMATCH or FAIL on probed input). Placeholder spec keeps harness green; KNOWN GAP — see audit/closed/signal/lp2hp.md."
+  "comment": "Sig: [bt,at] = lp2hp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch."
 }

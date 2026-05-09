@@ -10,6 +10,7 @@
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
+#include <numkit/signal/filter_implementation/conversions_extras.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -588,16 +589,31 @@ NK_PROTO1_REG(cheb2ap)
 #undef NK_PROTO0_REG
 #undef NK_PROTO1_REG
 
+// MATLAB lp2lp/lp2hp accept BOTH:
+//   [zt, pt, kt] = lp2lp(z, p, k, Wo)   -- ZPK form (4 args)
+//   [bt, at]     = lp2lp(b, a, Wo)      -- TF form  (3 args)
+// Same for lp2hp. The TF form is identified by the 3-arg call and
+// dispatches via tf2zpk -> ZPK lp2lp -> zp2tf.
 #define NK_LP2X1_REG(name, fn)                                                  \
     void name##_reg(Span<const Value> args, size_t nargout,                    \
                     Span<Value> outs, CallContext &ctx)                        \
     {                                                                            \
+        auto *mr = ctx.engine->resource();                                       \
+        if (args.size() == 3) {                                                  \
+            /* TF form: (b, a, Wo) -> (bt, at). */                               \
+            const double Wo = args[2].toScalar();                                \
+            auto [z0, p0, k0] = tf2zpk(mr, args[0], args[1]);                    \
+            auto [zt, pt, kt] = fn(mr, z0, p0, k0, Wo);               \
+            auto [bt, at] = builtin::zp2tf(mr, zt, pt, kt.toScalar());           \
+            outs[0] = std::move(bt);                                             \
+            if (nargout > 1) outs[1] = std::move(at);                            \
+            return;                                                              \
+        }                                                                        \
         if (args.size() < 4)                                                     \
-            throw Error(#name ": requires (z, p, k, Wo)",                       \
+            throw Error(#name ": requires (z, p, k, Wo) or (b, a, Wo)",         \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
         const double Wo = args[3].toScalar();                                   \
-        auto [z, p, k] = fn(ctx.engine->resource(),                             \
-                            args[0], args[1], args[2].toScalar(), Wo);          \
+        auto [z, p, k] = fn(mr, args[0], args[1], args[2].toScalar(), Wo);      \
         outs[0] = std::move(z);                                                  \
         if (nargout > 1) outs[1] = std::move(p);                                 \
         if (nargout > 2) outs[2] = std::move(k);                                 \
@@ -608,17 +624,31 @@ NK_LP2X1_REG(lp2hp, lp2hp)
 
 #undef NK_LP2X1_REG
 
+// MATLAB lp2bp/lp2bs accept BOTH:
+//   [zt, pt, kt] = lp2bp(z, p, k, Wo, Bw)   -- ZPK form (5 args)
+//   [bt, at]     = lp2bp(b, a, Wo, Bw)      -- TF form  (4 args)
 #define NK_LP2X2_REG(name, fn)                                                  \
     void name##_reg(Span<const Value> args, size_t nargout,                    \
                     Span<Value> outs, CallContext &ctx)                        \
     {                                                                            \
+        auto *mr = ctx.engine->resource();                                       \
+        if (args.size() == 4) {                                                  \
+            /* TF form: (b, a, Wo, Bw) -> (bt, at). */                           \
+            const double Wo = args[2].toScalar();                                \
+            const double Bw = args[3].toScalar();                                \
+            auto [z0, p0, k0] = tf2zpk(mr, args[0], args[1]);                    \
+            auto [zt, pt, kt] = fn(mr, z0, p0, k0, Wo, Bw);           \
+            auto [bt, at] = builtin::zp2tf(mr, zt, pt, kt.toScalar());           \
+            outs[0] = std::move(bt);                                             \
+            if (nargout > 1) outs[1] = std::move(at);                            \
+            return;                                                              \
+        }                                                                        \
         if (args.size() < 5)                                                     \
-            throw Error(#name ": requires (z, p, k, Wo, Bw)",                   \
+            throw Error(#name ": requires (z, p, k, Wo, Bw) or (b, a, Wo, Bw)", \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
         const double Wo = args[3].toScalar();                                   \
         const double Bw = args[4].toScalar();                                   \
-        auto [z, p, k] = fn(ctx.engine->resource(),                             \
-                            args[0], args[1], args[2].toScalar(), Wo, Bw);     \
+        auto [z, p, k] = fn(mr, args[0], args[1], args[2].toScalar(), Wo, Bw);  \
         outs[0] = std::move(z);                                                  \
         if (nargout > 1) outs[1] = std::move(p);                                 \
         if (nargout > 2) outs[2] = std::move(k);                                 \

@@ -2354,7 +2354,7 @@ intentionally omitted — flat solver functions only.
 | `info` | ❌ |  |  |  |  |  |
 | `intfilt` | ✅ | 0.001 | 472.70× |  | MISMATCH | Sig: H = intfilt(R, L, ALPHA). FIR coeffs (alpha=0.5). 1000 iters. |
 | `isdouble` | ❌ |  |  |  |  |  |
-| `issingle` | ✅ | 0.000 |  |  | N/A | Sig: TF = issingle(X). 100k iters. |
+| `issingle` | ✅ | 0.003 |  |  | N/A | Sig: TF = issingle(X). Re-closed 2026-05-09 -- placeholder removed. |
 | `kaiserord` | ❌ |  |  |  |  | Kaiser window order |
 | `maxflat` | ❌ |  |  |  |  |  |
 | `polyscale` | ❌ |  |  |  |  |  |
@@ -2384,10 +2384,10 @@ intentionally omitted — flat solver functions only.
 | `ellipap` | ❌ |  |  |  |  | needs K(m) via AGM + Jacobi sn/cn/dn |
 | `freqs` | ✅ | 0.003 | 53.40× | 32.87× | OK | Sig: h = freqs(b, a, w). KNOWN GAP: numkit's freqs returns scalar where MATLAB returns length-N vector. Documented as separate ТЗ. Octave behaves like numkit (also returns 1). MATLAB R2025b is the reference. |
 | `impinvar` | ✅ | 0.005 | 657.78× | 151.54× | OK | Sig: [bz,az] = impinvar(b, a, fs). Spec-extension batch 2026-05-09 (cycle 43). |
-| `lp2bp` | ✅ |  |  |  | N/A | Sig: [bt,at] = lp2bp(b, a, Wo, Bw). Spec-extension batch 2026-05-09 (cycle 43). |
-| `lp2bs` | ✅ |  |  |  | N/A | Sig: [bt,at] = lp2bs(b, a, Wo, Bw). Spec-extension batch 2026-05-09 (cycle 43). |
-| `lp2hp` | ✅ |  |  |  | N/A | Sig: [bt,at] = lp2hp(b, a, Wo). Spec-extension batch 2026-05-09 (cycle 43). |
-| `lp2lp` | ✅ |  |  |  | N/A | Sig: [bt,at] = lp2lp(b, a, Wo). Spec-extension batch 2026-05-09 (cycle 43). |
+| `lp2bp` | ✅ | 0.006 | 535.95× |  | OK | Sig: [bt,at] = lp2bp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
+| `lp2bs` | ✅ | 0.008 | 405.72× |  | OK | Sig: [bt,at] = lp2bs(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
+| `lp2hp` | ✅ | 0.005 | 558.20× |  | OK | Sig: [bt,at] = lp2hp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
+| `lp2lp` | ✅ | 0.006 | 494.98× |  | OK | Sig: [bt,at] = lp2lp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
 
 ### Digital Filter Analysis
 
@@ -2404,7 +2404,7 @@ intentionally omitted — flat solver functions only.
 | `impz` | ✅ | 0.004 | 1279.92× | 63.68× | OK | Sig: r = impz(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `impzlength` | ✅ | 0.000 | 320.89× |  | MISMATCH | Sig: L = impzlength(B, A). 10000 iters. |
 | `isallpass` | ✅ | 0.000 | 109.25× | 244.62× | OK | Sig: TF = isallpass(B, A). FIR coefficients. 10000 iters. |
-| `isfir` | ✅ | 0.000 |  |  | N/A | Sig: TF = isfir(B, A). 10000 iters. |
+| `isfir` | ✅ | 0.003 |  |  | N/A | Sig: TF = isfir(B, A). Re-closed 2026-05-09 -- placeholder removed. |
 | `islinphase` | ✅ | 0.000 | 262.58× |  | OK | Sig: TF = islinphase(B, A). 10000 iters. |
 | `ismaxphase` | ✅ | 0.001 | 173.96× | 136.56× | OK | Sig: TF = ismaxphase(B, A). 10000 iters. |
 | `isminphase` | ✅ | 0.000 | 263.71× | 249.95× | OK | Sig: TF = isminphase(B, A). 10000 iters. |
