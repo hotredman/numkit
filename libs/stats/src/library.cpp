@@ -51,6 +51,8 @@ void ecdfhist_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void normalize_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void rescale_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void zscore_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+// descriptive/tiedrank.cpp
+void tiedrank_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // moments/moments.cpp
 void skewness_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void kurtosis_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -402,6 +404,7 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "normalize", &stats::detail::normalize_reg);
     reg("descriptive", "rescale",   &stats::detail::rescale_reg);
     reg("descriptive", "zscore",    &stats::detail::zscore_reg);
+    reg("descriptive", "tiedrank",  &stats::detail::tiedrank_reg);
 
     reg("dist", "normpdf",  &stats::detail::normpdf_reg);
     reg("dist", "normcdf",  &stats::detail::normcdf_reg);

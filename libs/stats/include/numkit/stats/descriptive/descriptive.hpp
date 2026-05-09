@@ -21,6 +21,7 @@
 
 #include <string>
 #include <tuple>
+#include <utility>
 
 namespace numkit::stats {
 
@@ -237,5 +238,14 @@ Value rescale(std::pmr::memory_resource *mr, const Value &A,
 // ── zscore ─────────────────────────────────────────────────────────────
 // zscore(A) — alias for normalize(A, "zscore").
 Value zscore(std::pmr::memory_resource *mr, const Value &A);
+
+// ── tiedrank ───────────────────────────────────────────────────────────
+// `[r, tieadj] = tiedrank(x)` — ranks adjusted for ties. Equal values
+// share the average of their would-be sequential ranks. Vector input
+// returns a scalar tieadj; matrix input applies column-wise and
+// tieadj is a 1-by-cols row. NaN values keep NaN rank (skipped from
+// the ranking sequence).
+std::pair<Value, Value>
+tiedrank(std::pmr::memory_resource *mr, const Value &x);
 
 } // namespace numkit::stats
