@@ -353,6 +353,10 @@ void istril_reg     (Span<const Value>, size_t, Span<Value>, CallContext&);
 void istriu_reg     (Span<const Value>, size_t, Span<Value>, CallContext&);
 void bandwidth_reg  (Span<const Value>, size_t, Span<Value>, CallContext&);
 void vecnorm_reg    (Span<const Value>, size_t, Span<Value>, CallContext&);
+// language/arrays/linalg_extras.cpp
+void rref_reg       (Span<const Value>, size_t, Span<Value>, CallContext&);
+void rcond_reg      (Span<const Value>, size_t, Span<Value>, CallContext&);
+void planerot_reg   (Span<const Value>, size_t, Span<Value>, CallContext&);
 void flintmax_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void intmax_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void intmin_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -1202,6 +1206,12 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("compat", "istriu",      &builtin::detail::istriu_reg);
     engine.registerFunction("compat", "bandwidth",   &builtin::detail::bandwidth_reg);
     engine.registerFunction("compat", "vecnorm",     &builtin::detail::vecnorm_reg);
+    engine.registerFunction("rref",       &builtin::detail::rref_reg);
+    engine.registerFunction("rcond",      &builtin::detail::rcond_reg);
+    engine.registerFunction("planerot",   &builtin::detail::planerot_reg);
+    engine.registerFunction("compat", "rref",        &builtin::detail::rref_reg);
+    engine.registerFunction("compat", "rcond",       &builtin::detail::rcond_reg);
+    engine.registerFunction("compat", "planerot",    &builtin::detail::planerot_reg);
     engine.registerFunction("flintmax",   &builtin::detail::flintmax_reg);
     engine.registerFunction("intmax",     &builtin::detail::intmax_reg);
     engine.registerFunction("intmin",     &builtin::detail::intmin_reg);

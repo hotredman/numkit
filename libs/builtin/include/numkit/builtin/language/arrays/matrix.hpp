@@ -325,6 +325,25 @@ Value bandwidthOpt(std::pmr::memory_resource *mr, const Value &A,
 Value vecnorm(std::pmr::memory_resource *mr, const Value &A,
               double p = 2.0, int dim = 0);
 
+// ── Linalg extras (linalg_extras.cpp) ─────────────────────────────────
+/// rref(A [, tol]) — reduced row echelon form. Returns (R, jb) where
+/// jb is the 1-based pivot column indices. Default tol =
+/// max(M, N) * eps(norm(A, inf)). Real-only in v1.
+std::pair<Value, Value>
+rref(std::pmr::memory_resource *mr, const Value &A,
+     bool have_tol, double tol_user);
+
+/// rcond(A) — reciprocal 1-norm condition estimate. Cheap path:
+/// 1 / (norm(A,1) * norm(inv(A),1)). Returns 0 for singular A.
+/// KNOWN GAP: matches MATLAB on well-conditioned cases; differs from
+/// LAPACK's dgecon on near-singular matrices.
+Value rcond(std::pmr::memory_resource *mr, const Value &A);
+
+/// planerot([x; y]) — Givens rotation: returns (G, y_out) such that
+/// G*[x; y] = [r; 0] where r = hypot(x, y). Real-only.
+std::pair<Value, Value>
+planerot(std::pmr::memory_resource *mr, const Value &xy);
+
 // ── Shape queries ────────────────────────────────────────────────────
 /// size(x) returns a row vector of dimensions.
 /// @param asVector  when true, returns [rows, cols] or [rows, cols, pages].
