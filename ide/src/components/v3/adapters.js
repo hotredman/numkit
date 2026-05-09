@@ -231,8 +231,13 @@ function datasetToLayer(d, palette_idx, ctx) {
                      'errorbar', 'barh', 'area', 'quiver',
                      'plot3', 'scatter3'];
   if (!supported.includes(t)) return null;
-  const x = Array.isArray(d.x) ? d.x.map(Number) : [];
-  const y = Array.isArray(d.y) ? d.y.map(Number) : [];
+  // null is the wire-format "break" marker (JSON forbids NaN). Map it
+  // back to NaN here so the line renderer's Number.isFinite() check
+  // treats it as a polyline break instead of coercing to 0 (which
+  // would join unrelated segments through the origin).
+  const numOrBreak = (v) => (v === null ? NaN : Number(v));
+  const x = Array.isArray(d.x) ? d.x.map(numOrBreak) : [];
+  const y = Array.isArray(d.y) ? d.y.map(numOrBreak) : [];
   let mode = 'line';
   if (t === 'scatter') mode = 'scatter';
   else if (t === 'stem') mode = 'stem';
@@ -255,12 +260,16 @@ function datasetToLayer(d, palette_idx, ctx) {
     // For plot3/scatter3, d.z is a 1-D vector (different shape from
     // imagesc's 2-D matrix; disambiguated by the type field).
     const z = Array.isArray(d.z) && !Array.isArray(d.z[0])
-      ? d.z.map(Number) : [];
+      ? d.z.map(numOrBreak) : [];
     const zScale = 0.5;
     const cosA = Math.cos(Math.PI / 6);  // 30°
     const sinA = Math.sin(Math.PI / 6);
-    xOut = x.map((xi, i) => xi + (Number(z[i]) || 0) * zScale * cosA);
-    yOut = y.map((yi, i) => yi + (Number(z[i]) || 0) * zScale * sinA);
+    // Cabinet shift. NaN in z (segment break) → NaN in screen coords;
+    // missing z (shorter array than x/y) → 0 so plot3 with implicit
+    // z=0 still falls in the x-y plane.
+    const zAt = (i) => (i < z.length ? z[i] : 0);
+    xOut = x.map((xi, i) => xi + zAt(i) * zScale * cosA);
+    yOut = y.map((yi, i) => yi + zAt(i) * zScale * sinA);
   } else if (mode === 'barh') {
     // barh stores `xJson = vertical positions` and `yJson = bar lengths`
     // on the C++ side (mirroring bar's input order). For axis-range
