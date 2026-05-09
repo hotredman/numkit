@@ -102,6 +102,11 @@ struct AxesState
     std::string yscale = "linear";
     std::string colorScale = "linear";  // 'linear' | 'log' — survives prepareForPlot
     std::string axisMode;
+    // Axis direction. MATLAB: set(gca, 'XDir'/'YDir', 'normal'|'reverse').
+    // 'normal' (default) is left-to-right / bottom-to-top. 'reverse'
+    // flips. axis('ij') is shorthand for yDir='reverse'.
+    std::string xDir = "normal";
+    std::string yDir = "normal";
 
     std::string thetaDir = "counterclockwise";
     std::string thetaZeroLocation = "right";
@@ -322,6 +327,10 @@ public:
                 os << ",\"yscale\":\"" << ax.yscale << "\"";
                 if (!ax.axisMode.empty())
                     os << ",\"axisMode\":\"" << ax.axisMode << "\"";
+                if (ax.xDir == "reverse")
+                    os << ",\"xDir\":\"reverse\"";
+                if (ax.yDir == "reverse")
+                    os << ",\"yDir\":\"reverse\"";
                 if (ax.polar) {
                     os << ",\"thetaDir\":\"" << ax.thetaDir << "\"";
                     os << ",\"thetaZeroLocation\":\"" << ax.thetaZeroLocation << "\"";

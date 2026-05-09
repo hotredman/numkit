@@ -429,6 +429,12 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     // axisMode: 'equal' | 'square' | 'tight' | 'auto' | '' (default).
     // Renderer reshapes sx/sy or panel size based on this value.
     axisMode: cfg.axisMode || '',
+    // xDir / yDir: 'normal' (default) or 'reverse'. Renderer flips
+    // the corresponding sx/sy mapping when 'reverse'. axis('ij')
+    // shorthand is resolved on the C++ side: it sets yDir='reverse'
+    // and axisMode='ij', so the renderer only needs to inspect yDir.
+    xDir: cfg.xDir || 'normal',
+    yDir: cfg.yDir || 'normal',
     layers,
   };
 }
