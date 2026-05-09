@@ -71,4 +71,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/quickwins5_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/luqr_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/svd_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/svd_deps_test.cpp
 )

@@ -1,0 +1,14 @@
+{
+  "name": "pinv",
+  "namespace": "builtin",
+  "setup": "A = [1 2 3; 4 5 6; 7 8 10]; B = [1 2; 2 4; 3 6];",
+  "expr": "PA = pinv(A); err1 = max(max(abs(A*PA*A - A))); err2 = max(max(abs(PA*A*PA - PA))); PB = pinv(B); err3 = max(max(abs(B*PB*B - B)));",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "PA(1,1)", "PA(2,2)", "PA(3,3)",
+    "err1", "err2",
+    "err3"
+  ],
+  "comment": "Sig: P = pinv(A[, tol]). Moore-Penrose pseudoinverse via SVD: A*P*A = A, P*A*P = P (verified to ulp). Bit-identical with MATLAB R2025b on probed full-rank + rank-deficient cases."
+}

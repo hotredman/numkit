@@ -165,6 +165,33 @@ svd_decompose(std::pmr::memory_resource *mr, const Value &A);
 /// Singular values only -- matches MATLAB's single-output svd(A).
 Value svd_values(std::pmr::memory_resource *mr, const Value &A);
 
+/// Numerical rank: count of singular values above tolerance.
+/// Default tol = max(size(A)) * eps(max(svd(A))). Two-arg form
+/// rank(A, tol) takes user tolerance.
+Value rank_of(std::pmr::memory_resource *mr, const Value &A, double tol = -1.0);
+
+/// Pseudoinverse (Moore-Penrose) via SVD: pinv(A) = V * S^+ * U'
+/// where S^+ inverts non-zero singular values above tolerance.
+Value pinv(std::pmr::memory_resource *mr, const Value &A, double tol = -1.0);
+
+/// 2-norm condition number: cond(A) = sigma_max / sigma_min via SVD.
+/// Returns Inf for singular A.
+Value cond_2norm(std::pmr::memory_resource *mr, const Value &A);
+
+/// Orthonormal basis for the range of A (n columns of U from SVD
+/// where corresponding sigma > tolerance). Output is m × rank(A).
+Value orth(std::pmr::memory_resource *mr, const Value &A, double tol = -1.0);
+
+/// Orthonormal basis for the null space of A (n - rank(A) columns of
+/// V from SVD where corresponding sigma is below tolerance). Output
+/// is n × (n - rank(A)).
+Value null_basis(std::pmr::memory_resource *mr, const Value &A, double tol = -1.0);
+
+/// Estimate of the 2-norm (largest singular value). Same as svd(A)(1)
+/// for now (no power-iteration shortcut yet -- correctness over
+/// performance).
+Value normest(std::pmr::memory_resource *mr, const Value &A);
+
 // ── Shape queries ────────────────────────────────────────────────────
 /// size(x) returns a row vector of dimensions.
 /// @param asVector  when true, returns [rows, cols] or [rows, cols, pages].

@@ -504,6 +504,166 @@ Value svd_values(std::pmr::memory_resource *mr, const Value &A)
     return sv;
 }
 
+// ── SVD-dependent: rank / null / pinv / cond / orth / normest ────────
+
+namespace {
+
+// Compute default tolerance for rank-cutoff: max(m,n) * eps(sigma_max).
+double defaultRankTol(std::size_t m, std::size_t n, double sigma_max)
+{
+    return static_cast<double>(std::max(m, n))
+         * sigma_max
+         * std::numeric_limits<double>::epsilon();
+}
+
+} // anonymous namespace
+
+Value rank_of(std::pmr::memory_resource *mr, const Value &A, double tol)
+{
+    auto sv = svd_values(mr, A);
+    const std::size_t k = sv.numel();
+    const double *s = sv.doubleData();
+    if (k == 0) return Value::scalar(0.0, mr);
+    const double sigma_max = s[0];
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    const double cutoff = (tol < 0.0) ? defaultRankTol(m, n, sigma_max) : tol;
+    int r = 0;
+    for (std::size_t i = 0; i < k; ++i)
+        if (s[i] > cutoff) ++r;
+    return Value::scalar(static_cast<double>(r), mr);
+}
+
+Value pinv(std::pmr::memory_resource *mr, const Value &A, double tol)
+{
+    auto [U, S, V] = svd_decompose(mr, A);
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    const std::size_t k = std::min(m, n);
+
+    // Extract sigma diagonal.
+    const double *S_data = S.doubleData();
+    const std::size_t Srows = static_cast<std::size_t>(S.dims().dim(0));
+
+    double sigma_max = 0.0;
+    for (std::size_t i = 0; i < k; ++i)
+        sigma_max = std::max(sigma_max, S_data[i + i * Srows]);
+    const double cutoff = (tol < 0.0) ? defaultRankTol(m, n, sigma_max) : tol;
+
+    // Build S^+ as n × m diagonal with reciprocals of sigma_i above cutoff.
+    ScratchArena scratch(mr);
+    ScratchVec<double> Splus(n * m, 0.0, &scratch);
+    for (std::size_t i = 0; i < k; ++i) {
+        const double sig = S_data[i + i * Srows];
+        if (sig > cutoff)
+            Splus[i + i * n] = 1.0 / sig;
+    }
+
+    // pinv(A) = V * S^+ * U' -- output is n × m.
+    auto out = Value::matrix(n, m, ValueType::DOUBLE, mr);
+    double *P = out.doubleDataMut();
+    std::fill(P, P + n * m, 0.0);
+
+    const double *Vdata = V.doubleData();
+    const double *Udata = U.doubleData();
+    const std::size_t Vrows = static_cast<std::size_t>(V.dims().dim(0));
+    const std::size_t Urows = static_cast<std::size_t>(U.dims().dim(0));
+
+    // out[i, j] = sum_a sum_b V[i, a] * Splus[a, b] * U[j, b]
+    // Splus is diagonal, so sum_b reduces to b == a:
+    // out[i, j] = sum_a V[i, a] * Splus[a, a] * U[j, a]
+    for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t j = 0; j < m; ++j) {
+            double s = 0.0;
+            for (std::size_t a = 0; a < k; ++a) {
+                const double sp = Splus[a + a * n];
+                if (sp == 0.0) continue;
+                s += Vdata[i + a * Vrows] * sp * Udata[j + a * Urows];
+            }
+            P[i + j * n] = s;
+        }
+    }
+    return out;
+}
+
+Value cond_2norm(std::pmr::memory_resource *mr, const Value &A)
+{
+    auto sv = svd_values(mr, A);
+    const std::size_t k = sv.numel();
+    if (k == 0) return Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr);
+    const double *s = sv.doubleData();
+    const double sigma_max = s[0];
+    const double sigma_min = s[k - 1];
+    if (sigma_min <= 0.0)
+        return Value::scalar(std::numeric_limits<double>::infinity(), mr);
+    return Value::scalar(sigma_max / sigma_min, mr);
+}
+
+Value orth(std::pmr::memory_resource *mr, const Value &A, double tol)
+{
+    auto [U, S, V] = svd_decompose(mr, A);
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    const std::size_t k = std::min(m, n);
+
+    const double *S_data = S.doubleData();
+    const std::size_t Srows = static_cast<std::size_t>(S.dims().dim(0));
+    const double sigma_max = (k > 0) ? S_data[0] : 0.0;
+    const double cutoff = (tol < 0.0) ? defaultRankTol(m, n, sigma_max) : tol;
+
+    int r = 0;
+    for (std::size_t i = 0; i < k; ++i)
+        if (S_data[i + i * Srows] > cutoff) ++r;
+
+    auto out = Value::matrix(m, static_cast<std::size_t>(r), ValueType::DOUBLE, mr);
+    if (r == 0) return out;
+    double *Q = out.doubleDataMut();
+    const double *Udata = U.doubleData();
+    const std::size_t Urows = static_cast<std::size_t>(U.dims().dim(0));
+    for (std::size_t j = 0; j < static_cast<std::size_t>(r); ++j)
+        for (std::size_t i = 0; i < m; ++i)
+            Q[i + j * m] = Udata[i + j * Urows];
+    return out;
+}
+
+Value null_basis(std::pmr::memory_resource *mr, const Value &A, double tol)
+{
+    auto [U, S, V] = svd_decompose(mr, A);
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    const std::size_t k = std::min(m, n);
+
+    const double *S_data = S.doubleData();
+    const std::size_t Srows = static_cast<std::size_t>(S.dims().dim(0));
+    const double sigma_max = (k > 0) ? S_data[0] : 0.0;
+    const double cutoff = (tol < 0.0) ? defaultRankTol(m, n, sigma_max) : tol;
+
+    int r = 0;
+    for (std::size_t i = 0; i < k; ++i)
+        if (S_data[i + i * Srows] > cutoff) ++r;
+
+    const std::size_t null_dim = n - static_cast<std::size_t>(r);
+    auto out = Value::matrix(n, null_dim, ValueType::DOUBLE, mr);
+    if (null_dim == 0) return out;
+    double *N = out.doubleDataMut();
+    const double *Vdata = V.doubleData();
+    const std::size_t Vrows = static_cast<std::size_t>(V.dims().dim(0));
+    // Last (n - r) columns of V correspond to zero singular values.
+    for (std::size_t j = 0; j < null_dim; ++j) {
+        const std::size_t src = static_cast<std::size_t>(r) + j;
+        for (std::size_t i = 0; i < n; ++i)
+            N[i + j * n] = Vdata[i + src * Vrows];
+    }
+    return out;
+}
+
+Value normest(std::pmr::memory_resource *mr, const Value &A)
+{
+    auto sv = svd_values(mr, A);
+    if (sv.numel() == 0) return Value::scalar(0.0, mr);
+    return Value::scalar(sv.doubleData()[0], mr);
+}
+
 // ── lu / qr decompositions ───────────────────────────────────────────
 
 namespace {
@@ -3065,6 +3225,58 @@ void svd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
     } else {
         outs[0] = svd_values(mr, args[0]);
     }
+}
+
+void rank_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 1 || args.size() > 2)
+        throw Error("rank: requires (A) or (A, tol)",
+                    0, 0, "rank", "", "m:rank:nargin");
+    const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
+    outs[0] = rank_of(ctx.engine->resource(), args[0], tol);
+}
+
+void pinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 1 || args.size() > 2)
+        throw Error("pinv: requires (A) or (A, tol)",
+                    0, 0, "pinv", "", "m:pinv:nargin");
+    const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
+    outs[0] = pinv(ctx.engine->resource(), args[0], tol);
+}
+
+void cond_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("cond: requires exactly 1 argument (2-norm only in this revision)",
+                    0, 0, "cond", "", "m:cond:nargin");
+    outs[0] = cond_2norm(ctx.engine->resource(), args[0]);
+}
+
+void orth_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 1 || args.size() > 2)
+        throw Error("orth: requires (A) or (A, tol)",
+                    0, 0, "orth", "", "m:orth:nargin");
+    const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
+    outs[0] = orth(ctx.engine->resource(), args[0], tol);
+}
+
+void null_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 1 || args.size() > 2)
+        throw Error("null: requires (A) or (A, tol)",
+                    0, 0, "null", "", "m:null:nargin");
+    const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
+    outs[0] = null_basis(ctx.engine->resource(), args[0], tol);
+}
+
+void normest_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("normest: requires exactly 1 argument",
+                    0, 0, "normest", "", "m:normest:nargin");
+    outs[0] = normest(ctx.engine->resource(), args[0]);
 }
 
 void topkrows_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
