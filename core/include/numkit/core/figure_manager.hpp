@@ -20,6 +20,12 @@ struct DatasetInfo
     double lineWidth = 0;  // 0 = default
     double markerSize = 0; // 0 = default
 
+    // yyaxis side. Empty = left (default). When the user calls
+    // yyaxis('right') and then plots, FigureManager::pushDataset stamps
+    // 'right' here so the renderer can route the layer through the
+    // secondary Y mapping. Emitted in JSON only when non-empty.
+    std::string yside;
+
     // ── Errorbar — symmetric (eJson) or asymmetric (eNegJson + ePosJson) ──
     // For symmetric: errorbar(x, y, e) → eJson is non-empty, eNeg/ePos empty.
     // For asymmetric: errorbar(x, y, neg, pos) → eNegJson + ePosJson non-empty.
@@ -116,6 +122,20 @@ struct AxesState
     std::string xDir = "normal";
     std::string yDir = "normal";
 
+    // ── yyaxis (dual Y) ────────────────────────────────────────────
+    // MATLAB:
+    //   yyaxis left|right  — switches the active Y-side; subsequent
+    //   plot/scatter/etc. write to that side, and ylim/ylabel/yscale
+    //   target the active side too.
+    // We model it as a "shadow" set of fields on the right side of the
+    // existing axes. yyEnabled stays false until the first yyaxis call,
+    // so single-axis plots keep their current JSON shape.
+    bool yyEnabled = false;
+    std::string activeYside = "left";  // "left" | "right"
+    std::string ylabel2;
+    std::string ylim2Json;
+    std::string yscale2 = "linear";
+
     std::string thetaDir = "counterclockwise";
     std::string thetaZeroLocation = "right";
 
@@ -192,6 +212,20 @@ public:
 
     /** Convenience: current axes of current figure */
     AxesState &currentAxes() { return current().cur(); }
+
+    /**
+     * Append a dataset to the current axes, stamping its `yside` from
+     * AxesState::activeYside when yyaxis is on. All graphics builtins
+     * route through this helper instead of `currentAxes().datasets.push_back`
+     * directly so dual-Y routing stays consistent (no plot family forgotten).
+     */
+    void pushDataset(DatasetInfo ds)
+    {
+        auto &ax = currentAxes();
+        if (ax.yyEnabled && ds.yside.empty())
+            ds.yside = ax.activeYside;
+        ax.datasets.push_back(std::move(ds));
+    }
 
     int newFigure()
     {
@@ -308,6 +342,8 @@ public:
                         os << ",\"u\":" << ds.uJson;
                     if (!ds.vJson.empty())
                         os << ",\"v\":" << ds.vJson;
+                    if (!ds.yside.empty())
+                        os << ",\"yside\":\"" << ds.yside << "\"";
                     if (!ds.zJson.empty())
                         os << ",\"z\":" << ds.zJson;
                     if (!ds.zQuantized.empty()) {
@@ -365,6 +401,15 @@ public:
                     os << ",\"legendLocation\":\"" << ax.legendLocation << "\"";
                 if (!ax.colorbarLocation.empty())
                     os << ",\"colorbarLocation\":\"" << ax.colorbarLocation << "\"";
+                if (ax.yyEnabled) {
+                    os << ",\"yyEnabled\":true";
+                    if (!ax.ylabel2.empty())
+                        os << ",\"ylabel2\":\"" << jsonEscapeFig(ax.ylabel2) << "\"";
+                    if (!ax.ylim2Json.empty())
+                        os << ",\"ylim2\":" << ax.ylim2Json;
+                    if (ax.yscale2 != "linear")
+                        os << ",\"yscale2\":\"" << ax.yscale2 << "\"";
+                }
                 os << "}}";
             }
             os << "]}";

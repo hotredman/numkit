@@ -229,7 +229,7 @@ void GraphicsLibrary::install(Engine &engine)
             ds.type = "line";
             size_t nvStart = parsePlotXYStyle(args, ds);
             parsePlotArgs(args, nvStart, ds);
-            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.pushDataset(std::move(ds));
             fm.emitModified();
             outs[0] = Value::empty();
         });
@@ -252,7 +252,7 @@ void GraphicsLibrary::install(Engine &engine)
                 ds.xJson = makeIndexJson(args[0].numel());
                 ds.yJson = vecToJson(args[0]);
             }
-            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.pushDataset(std::move(ds));
             fm.emitModified();
             outs[0] = Value::empty();
         });
@@ -287,7 +287,7 @@ void GraphicsLibrary::install(Engine &engine)
             nvStart = 4;
         }
         parsePlotArgs(args, nvStart, ds);
-        fm.currentAxes().datasets.push_back(std::move(ds));
+        fm.pushDataset(std::move(ds));
         fm.emitModified();
         outs[0] = Value::empty();
     };
@@ -322,7 +322,7 @@ void GraphicsLibrary::install(Engine &engine)
                 os << "scale=" << args[4].toScalar();
                 ds.style = os.str();
             }
-            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.pushDataset(std::move(ds));
             fm.emitModified();
             outs[0] = Value::empty();
         });
@@ -378,7 +378,7 @@ void GraphicsLibrary::install(Engine &engine)
                 os << "base=" << baseline;
                 ds.style = os.str();
             }
-            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.pushDataset(std::move(ds));
             fm.emitModified();
             outs[0] = Value::empty();
         });
@@ -407,7 +407,7 @@ void GraphicsLibrary::install(Engine &engine)
                 ds.xJson = makeIndexJson(args[0].numel());
                 ds.yJson = vecToJson(args[0]);
             }
-            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.pushDataset(std::move(ds));
             fm.emitModified();
             outs[0] = Value::empty();
         });
@@ -424,7 +424,7 @@ void GraphicsLibrary::install(Engine &engine)
             ds.type = "scatter";
             ds.xJson = vecToJson(args[0]);
             ds.yJson = vecToJson(args[1]);
-            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.pushDataset(std::move(ds));
             fm.emitModified();
             outs[0] = Value::empty();
         });
@@ -464,7 +464,7 @@ void GraphicsLibrary::install(Engine &engine)
             ds.type = "bar";
             ds.xJson = vecToJson(centers);
             ds.yJson = vecToJson(counts);
-            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.pushDataset(std::move(ds));
             fm.emitModified();
             outs[0] = Value::empty();
         });
@@ -673,7 +673,7 @@ void GraphicsLibrary::install(Engine &engine)
                 ds.yJson = ys.str();
             }
 
-            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.pushDataset(std::move(ds));
             if (fm.currentAxes().axisMode.empty()) {
                 fm.currentAxes().axisMode = "ij";
             }
@@ -706,7 +706,7 @@ void GraphicsLibrary::install(Engine &engine)
                 nvStart = 3;
             }
             parsePlotArgs(args, nvStart, ds);
-            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.pushDataset(std::move(ds));
             fm.emitModified();
             outs[0] = Value::empty();
         });
@@ -724,7 +724,7 @@ void GraphicsLibrary::install(Engine &engine)
             ds.type = "stem";
             size_t nvStart = parsePlotXYStyle(args, ds);
             parsePlotArgs(args, nvStart, ds);
-            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.pushDataset(std::move(ds));
             fm.emitModified();
             outs[0] = Value::empty();
         });
@@ -742,7 +742,7 @@ void GraphicsLibrary::install(Engine &engine)
             ds.type = "stairs";
             size_t nvStart = parsePlotXYStyle(args, ds);
             parsePlotArgs(args, nvStart, ds);
-            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.pushDataset(std::move(ds));
             fm.emitModified();
             outs[0] = Value::empty();
         });
@@ -806,7 +806,7 @@ void GraphicsLibrary::install(Engine &engine)
             }
 
             parsePlotArgs(args, nvStart, ds);
-            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.pushDataset(std::move(ds));
             fm.emitModified();
             outs[0] = Value::empty();
         });
@@ -831,7 +831,7 @@ void GraphicsLibrary::install(Engine &engine)
                 ds.type = "line";
                 size_t nvStart = parsePlotXYStyle(args, ds);
                 parsePlotArgs(args, nvStart, ds);
-                fm.currentAxes().datasets.push_back(std::move(ds));
+                fm.pushDataset(std::move(ds));
                 fm.emitModified();
                 outs[0] = Value::empty();
             });
@@ -909,7 +909,7 @@ void GraphicsLibrary::install(Engine &engine)
                 }
             }
             ds.style = extras;
-            fm.currentAxes().datasets.push_back(std::move(ds));
+            fm.pushDataset(std::move(ds));
             fm.current().modified = true;
             fm.emitModified();
             outs[0] = Value::empty();
@@ -919,7 +919,12 @@ void GraphicsLibrary::install(Engine &engine)
         [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             if (!args.empty()) {
                 auto &fm = ctx.engine->figureManager();
-                fm.currentAxes().ylabel = argStr(args[0]);
+                auto &ax = fm.currentAxes();
+                // yyaxis: route to the active side's label slot.
+                if (ax.yyEnabled && ax.activeYside == "right")
+                    ax.ylabel2 = argStr(args[0]);
+                else
+                    ax.ylabel = argStr(args[0]);
                 fm.current().modified = true;
                 fm.emitModified();
             }
@@ -941,7 +946,11 @@ void GraphicsLibrary::install(Engine &engine)
         [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             if (!args.empty() && args[0].numel() >= 2) {
                 auto &fm = ctx.engine->figureManager();
-                fm.currentAxes().ylimJson = vecToJson(args[0]);
+                auto &ax = fm.currentAxes();
+                if (ax.yyEnabled && ax.activeYside == "right")
+                    ax.ylim2Json = vecToJson(args[0]);
+                else
+                    ax.ylimJson = vecToJson(args[0]);
                 fm.current().modified = true;
                 fm.emitModified();
             }
@@ -1235,7 +1244,7 @@ void GraphicsLibrary::install(Engine &engine)
     // Plot) reads figure.xscale / figure.yscale to drive log-axis display.
     auto regAxisScale = [&](const char *fnName, std::string AxesState::*field) {
         reg("layout", fnName,
-            [field](Span<const Value> args, size_t nargout, Span<Value> outs,
+            [field, fnName](Span<const Value> args, size_t nargout, Span<Value> outs,
                     CallContext &ctx) {
                 auto &fm = ctx.engine->figureManager();
                 std::string mode = "linear";
@@ -1244,7 +1253,13 @@ void GraphicsLibrary::install(Engine &engine)
                     for (auto &c : m) c = std::tolower(c);
                     if (m == "log" || m == "linear") mode = m;
                 }
-                fm.currentAxes().*field = mode;
+                auto &ax = fm.currentAxes();
+                // yyaxis: yscale routes to yscale2 when right is active.
+                if (std::string(fnName) == "yscale"
+                    && ax.yyEnabled && ax.activeYside == "right")
+                    ax.yscale2 = mode;
+                else
+                    ax.*field = mode;
                 fm.current().modified = true;
                 fm.emitModified();
                 outs[0] = Value::empty();
@@ -1252,6 +1267,27 @@ void GraphicsLibrary::install(Engine &engine)
     };
     regAxisScale("xscale", &AxesState::xscale);
     regAxisScale("yscale", &AxesState::yscale);
+
+    // yyaxis(side) — switch the active Y-side. MATLAB: yyaxis left|right.
+    // First call enables the dual-axis state and stays enabled for the
+    // life of the current axes; toggling only changes which side new
+    // plots / ylim / ylabel / yscale calls write to.
+    reg("layout", "yyaxis",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            auto &fm = ctx.engine->figureManager();
+            auto &ax = fm.currentAxes();
+            std::string side = "left";
+            if (!args.empty() && args[0].isChar()) {
+                std::string s = args[0].toString();
+                for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+                if (s == "left" || s == "right") side = s;
+            }
+            ax.yyEnabled = true;
+            ax.activeYside = side;
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
 
     // ================================================================
     // GUI no-ops (not yet implemented)
