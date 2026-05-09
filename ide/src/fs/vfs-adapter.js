@@ -45,11 +45,46 @@ function makeSyncAdapter({ backend, name }) {
   // proven path to V8 OOM.
   let dirtySinceFlush = false;
 
+  // Seed budget: only ingest files the WASM engine plausibly needs
+  // synchronously (csvread / load / readtable text). Pre-loading every
+  // file in a mounted local folder put 4 GB into the renderer working
+  // set on the user's machine and was the proven cause of the
+  // Chromium-OOM crash on idle (one mount → seed runs once → ws hits
+  // 4 GB → renderer killed). Filters:
+  //   - extension allowlist: text-like formats only
+  //   - per-file size cap: skip > 1 MB (data files that big are
+  //     better fetched lazily on the C++ side via async refresh)
+  //   - total budget: stop when cache exceeds 64 MB combined
+  // Counters are reported via a stats object on the adapter for the
+  // status bar / devtools to surface.
+  const SEED_EXTENSIONS = /\.(m|mlx|txt|csv|tsv|json|yaml|yml|toml|ini|cfg)$/i;
+  const SEED_FILE_LIMIT_BYTES = 1 * 1024 * 1024;       // 1 MB / file
+  const SEED_TOTAL_LIMIT_BYTES = 64 * 1024 * 1024;     // 64 MB total
+  const seedStats = { seeded: 0, skippedExt: 0, skippedSize: 0, skippedBudget: 0, totalBytes: 0 };
+
   async function seedFrom(tree) {
     for (const node of tree) {
       if (node.type === 'file') {
-        const content = await backend.readFile(node.path);
-        if (typeof content === 'string') cache.set(node.path, content);
+        if (seedStats.totalBytes >= SEED_TOTAL_LIMIT_BYTES) {
+          seedStats.skippedBudget++;
+          continue;
+        }
+        if (!SEED_EXTENSIONS.test(node.name || node.path)) {
+          seedStats.skippedExt++;
+          continue;
+        }
+        let content;
+        try { content = await backend.readFile(node.path); }
+        catch { continue; }
+        if (typeof content !== 'string') continue;
+        const bytes = content.length * 2;  // pessimistic UTF-16 estimate
+        if (bytes > SEED_FILE_LIMIT_BYTES) {
+          seedStats.skippedSize++;
+          continue;
+        }
+        cache.set(node.path, content);
+        seedStats.seeded++;
+        seedStats.totalBytes += bytes;
       } else if (node.type === 'folder' && node.children) {
         await seedFrom(node.children);
       }
@@ -73,6 +108,14 @@ function makeSyncAdapter({ backend, name }) {
     });
   }
 
+  function logSeedStats(action) {
+    const s = seedStats;
+    const mb = (s.totalBytes / 1048576).toFixed(1);
+    // eslint-disable-next-line no-console
+    console.log(`[vfs-adapter:${name}] ${action}: seeded=${s.seeded} (${mb} MB), `
+      + `skipped(ext=${s.skippedExt}, size=${s.skippedSize}, budget=${s.skippedBudget})`);
+  }
+
   return {
     // Call this before registering with the engine — populates the mirror.
     async seed() {
@@ -80,14 +123,18 @@ function makeSyncAdapter({ backend, name }) {
       if (backend.init) await backend.init();
       const tree = await backend.listTree();
       await seedFrom(tree);
+      logSeedStats('seed');
       seeded = true;
     },
 
     // Manual refresh (e.g. after the user edits a file via an external tool).
     async refresh() {
       cache.clear();
+      // Reset stats so refresh-time numbers are visible too.
+      Object.assign(seedStats, { seeded: 0, skippedExt: 0, skippedSize: 0, skippedBudget: 0, totalBytes: 0 });
       const tree = await backend.listTree();
       await seedFrom(tree);
+      logSeedStats('refresh');
     },
 
     // Flush any pending writes and wait for them — use before shutdown.
