@@ -2854,21 +2854,21 @@ intentionally omitted — flat solver functions only.
 | `corr` | ❌ |  |  |  |  | (with type='Spearman'/'Kendall' options) |
 | `corrcov` | ❌ |  |  |  |  | covariance → correlation |
 | `crosstab` | ❌ |  |  |  |  | cross-tabulation |
-| `geomean` | ❌ |  |  |  |  | geometric mean |
+| `geomean` | ❌ | 0.003 | 166.35× | 47.34× | OK | Sig: g = geomean(x[, dim]). (prod x)^(1/n) = exp(mean(log x)). |
 | `grpstats` | ❌ |  |  |  |  | group-wise statistics |
-| `harmmean` | ❌ |  |  |  |  | harmonic mean |
+| `harmmean` | ❌ | 0.004 | 136.45× | 29.78× | OK | Sig: h = harmmean(x[, dim]). n / sum(1./x). Requires positive x. |
 | `kurtosis` | ❌ |  |  |  |  | already partially via `stats.descriptive`; here MATLAB stats version |
-| `mad` | ❌ |  |  |  |  | mean / median absolute deviation |
-| `moment` | ❌ |  |  |  |  | central moment of order k |
+| `mad` | ❌ | 0.003 | 925.54× | 194.53× | OK | Sig: mad(x[, flag][, dim]). Mean (flag=0) or median (flag=1) absolute deviation. |
+| `moment` | ❌ | 0.004 | 81.88× | 174.98× | OK | Sig: m = moment(x, k[, dim]). Central k-th moment: mean((x - mean(x))^k). |
 | `nearcorr` | ❌ |  |  |  |  | nearest correlation matrix |
 | `partialcorr` | ❌ |  |  |  |  |  |
 | `partialcorri` | ❌ |  |  |  |  | with internal vars |
-| `range` | ❌ |  |  |  |  | max - min |
+| `range` | ❌ | 0.005 | 85.15× | 17.08× | OK | Sig: r = range(x[, dim]). max - min along dim. Bit-identical with MATLAB R2025b. |
 | `robustcov` | ❌ |  |  |  |  | robust covariance estimator (FAST-MCD) |
 | `skewness` | ❌ |  |  |  |  |  |
 | `tabulate` | ❌ |  |  |  |  | frequency table |
 | `tiedrank` | ❌ |  |  |  |  | ranks with tie correction |
-| `trimmean` | ❌ |  |  |  |  | trimmed mean |
+| `trimmean` | ❌ | 0.003 | 703.81× | 175.77× | OK | Sig: m = trimmean(x, percent[, dim]). Mean after trimming percent/2 from each end. |
 | `zscore` | ✅ | 0.004 | 238.18× | 99.15× | OK | Sig: z = zscore(x). Spec-extension batch 2026-05-09 (cycle 41). |
 | `nancov` | ❌ |  |  |  |  | NaN-aware covariance |
 | `nansum` | ❌ |  |  |  |  | (legacy alias of stats.nan.nansum) |

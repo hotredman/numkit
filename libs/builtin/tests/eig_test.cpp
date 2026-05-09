@@ -76,10 +76,19 @@ TEST_F(EigTest, EigAsymmetricComplexEigenvalues)
     EXPECT_TRUE(eval("any(abs(imag(e)) > 0.5)").toBool());
 }
 
-TEST_F(EigTest, EigAsymmetricVDFormThrows)
+TEST_F(EigTest, EigAsymmetricVDForRealEigvalsWorks)
 {
-    // [V, D] form for asymmetric: deferred to Phase 2c-3.
-    EXPECT_THROW(eval("[V, D] = eig([1 2; 3 4]);"), std::exception);
+    // After Phase 2c-3a: [V, D] for asymmetric A WITH REAL eigvals
+    // works via null space. [1 2; 3 4] has eigvals (5±sqrt(33))/2,
+    // both real. Should succeed and reconstruct A*V == V*D.
+    eval("A = [1 2; 3 4]; [V, D] = eig(A);");
+    EXPECT_NEAR(evalScalar("max(max(abs(A*V - V*D)))"), 0.0, 1e-10);
+}
+
+TEST_F(EigTest, EigAsymmetricVDForComplexEigvalsThrows)
+{
+    // Phase 2c-3a does NOT support complex eigenvectors -- throws cleanly.
+    EXPECT_THROW(eval("[V, D] = eig([0 -1; 1 0]);"), std::exception);
 }
 
 TEST_F(EigTest, EigNonSquareRejected)
