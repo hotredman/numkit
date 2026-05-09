@@ -211,7 +211,8 @@ function datasetToLayer(d, palette_idx, ctx) {
 
   const supported = ['line', 'plot', 'scatter', 'stem', 'stairs',
                      'bar', 'hist', 'semilogx', 'semilogy', 'loglog',
-                     'errorbar', 'barh', 'area', 'quiver'];
+                     'errorbar', 'barh', 'area', 'quiver',
+                     'plot3', 'scatter3'];
   if (!supported.includes(t)) return null;
   const x = Array.isArray(d.x) ? d.x.map(Number) : [];
   const y = Array.isArray(d.y) ? d.y.map(Number) : [];
@@ -224,14 +225,33 @@ function datasetToLayer(d, palette_idx, ctx) {
   else if (t === 'errorbar') mode = 'errorbar';
   else if (t === 'area') mode = 'area';
   else if (t === 'quiver') mode = 'quiver';
+  else if (t === 'plot3') mode = 'line';
+  else if (t === 'scatter3') mode = 'scatter';
 
-  // barh stores `xJson = vertical positions` and `yJson = bar lengths`
-  // on the C++ side (mirroring bar's input order). For axis-range
-  // scanning + rendering it's cleaner to expose those swapped: the
-  // X axis of the chart shows lengths, the Y axis shows positions.
-  // Range scanner + sx/sy treat layer.x and layer.y the standard way.
-  const xOut = (mode === 'barh') ? y : x;
-  const yOut = (mode === 'barh') ? x : y;
+  // 3-D projection (plot3 / scatter3): cabinet projection collapses
+  // (x, y, z) → 2-D screen coords by adding z*scale*cos(α) to x and
+  // z*scale*sin(α) to y. α = 30°, scale = 0.5 — standard cabinet
+  // values that give a readable depth cue without distorting the
+  // x-y plane. Fully 3-D camera (orbit / dolly) is B3 territory.
+  let xOut = x, yOut = y;
+  if (t === 'plot3' || t === 'scatter3') {
+    // For plot3/scatter3, d.z is a 1-D vector (different shape from
+    // imagesc's 2-D matrix; disambiguated by the type field).
+    const z = Array.isArray(d.z) && !Array.isArray(d.z[0])
+      ? d.z.map(Number) : [];
+    const zScale = 0.5;
+    const cosA = Math.cos(Math.PI / 6);  // 30°
+    const sinA = Math.sin(Math.PI / 6);
+    xOut = x.map((xi, i) => xi + (Number(z[i]) || 0) * zScale * cosA);
+    yOut = y.map((yi, i) => yi + (Number(z[i]) || 0) * zScale * sinA);
+  } else if (mode === 'barh') {
+    // barh stores `xJson = vertical positions` and `yJson = bar lengths`
+    // on the C++ side (mirroring bar's input order). For axis-range
+    // scanning + rendering it's cleaner to expose those swapped: the
+    // X axis of the chart shows lengths, the Y axis shows positions.
+    xOut = y;
+    yOut = x;
+  }
 
   const layer = {
     kind: 'series',

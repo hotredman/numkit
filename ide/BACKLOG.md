@@ -5,25 +5,41 @@ B0 (unified `CompositePlot` walking `figure.layers[]`) is in main as of
 MATLAB-parity coverage. Each phase builds on the previous one — pick
 a wave to ship, don't cherry-pick across waves.
 
-## B1 — overlay relatives (1–2 sessions)
+## B1 — overlay relatives (DONE)
 
-Reuses the existing `layers[]` infrastructure. Each item adds a new
-layer kind or a new mode under `kind: 'series'`.
+All six landed on `fix/ide-bugs` between 2026-05-09 and 2026-05-10.
+Each function ships C++ builtin (`libs/graphics/src/library.cpp`) +
+adapter wiring (`adapters.js`) + renderer mode
+(`CompositePlot.jsx`) + Playwright e2e spec under
+`ide/desktop/tests/e2e/b1-*.spec.js`.
 
-- [ ] `errorbar(x, y, e)` / `errorbar(x, y, neg, pos)` — series-mode
-      `'errorbar'`; renders cap-bars on top of a line/marker series.
-- [ ] `area(x, y)` — series-mode `'area'`; fill below the curve to a
-      configurable baseline (default 0). Works under log axes too.
-- [ ] `barh(y, w)` — horizontal-bar mode; mirrors existing `bar` but
-      sx/sy roles swapped.
-- [ ] `plot3(x, y, z)` / `scatter3` — 2-D projection only at first
-      (cabinet projection or just XZ / XY toggle). Full 3-D camera is
-      B3 territory.
-- [ ] `quiver(x, y, u, v)` — vector field arrows on a grid; scale to
-      cell width by default with `'AutoScale'` option.
-- [ ] `pcolor(x, y, Z)` — almost `imagesc` but cell *vertices* live at
-      the (x, y) coords, with optional `shading interp`. Renders as a
-      heatmap-layer variant or a separate `kind: 'pcolor'`.
+- [x] `errorbar(x, y, e)` / `errorbar(x, y, neg, pos)` —
+      series-mode `'errorbar'`; centre dot + vertical bar + caps.
+      Symmetric and asymmetric forms both supported.
+- [x] `area(x, y[, base])` — series-mode `'area'`; filled polygon
+      from curve down to baseline (default 0). NaN points break the
+      polygon into independent sub-paths.
+- [x] `barh(y)` / `barh(x, y)` — horizontal-bar mode; mirrors `bar`
+      with x/y roles swapped at adapter level so the X axis shows
+      lengths and the Y axis shows positions.
+- [x] `plot3(x, y, z)` / `scatter3(x, y, z)` — 2-D cabinet
+      projection (30°, scale 0.5). Real 3-D camera (orbit / dolly)
+      is B3 territory.
+- [x] `quiver(x, y, u, v[, scale])` — vector field arrows. Each
+      arrow = shaft + 2 head fins. Range scan extends to arrow
+      tips so heads don't clip on autoscale.
+- [x] `pcolor(C)` / `pcolor(X, Y, C)` — heatmap with cell
+      *vertices* at (x, y) instead of cell centres. Shares the
+      imagesc emit body via captured-lambda + `std::bind`; differs
+      only in `type` field and the adapter's range-padding branch.
+
+Total e2e suite: 40 passed.
+
+While doing pcolor we found and fixed a stale `reg("surface",
+"pcolor", noop)` that double-registered `compat.pcolor`. The
+engine's `registerFunction` rejects duplicates and dropped the
+renderer into fallback mode silently. The same audit pass should
+run on every `noop` placeholder we promote to a real impl.
 
 ## B2 — real plot infrastructure (2–4 sessions)
 
