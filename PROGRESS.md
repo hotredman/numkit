@@ -416,7 +416,7 @@ together.
 | `cell2mat` | ✅ | 0.005 | 109.41× | 18.07× | OK | Sig: r = cell2mat(...). Spec-extension batch 2026-05-09. |
 | `cell2struct` | ✅ | 0.004 | 31.17× | 15.77× | OK | Sig: r = cell2struct(...). Spec-extension batch 2026-05-09. |
 | `cell2table` | ❌ |  |  |  |  |  |
-| `celldisp` | ✅ | 0.003 | 32.35× | 16.40× | OK | Sig: celldisp(...). Spec-extension batch 2026-05-09. |
+| `celldisp` | ✅ | 0.016 | 212.98× | 52.83× | OK | Sig: celldisp(c). Display cell array contents (output goes to stdout). Side-effect-only function -- spec just verifies it runs without error. Output format matches MATLAB R2025b qualitatively. |
 | `cellfun` | ✅ | 0.006 | 40.89× | 41.83× | OK | Sig: r = cellfun(...). Spec-extension batch 2026-05-09. |
 | `cellplot` | ❌ |  |  |  |  |  |
 | `cellstr` | ✅ | 0.004 | 36.49× | 10.77× | OK | Sig: r = cellstr(...). Spec-extension batch 2026-05-09. |

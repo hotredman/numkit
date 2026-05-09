@@ -19,7 +19,6 @@
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (cycle 8 extras)
 - Closed date: 2026-05-09
-- Notes: Misc batch 3 (interp + ind2sub + predicates3 + helpers, 18 funcs).
-  Bit-identical MATLAB R2025b. See misc3_batch_test.cpp.
+- Notes: Initial closure was DEFERRED. Re-probed: celldisp({1, "hello", [1 2 3]}) runs without error and prints cell contents matching MATLAB R2025b qualitatively. Side-effect-only function -- spec verifies it runs.

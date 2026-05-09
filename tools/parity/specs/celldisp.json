@@ -2,11 +2,9 @@
   "name": "celldisp",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 5,
-  "tol": 0,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: celldisp(...). Spec-extension batch 2026-05-09."
+  "expr": "celldisp({1, 'hello', [1 2 3]}); r1 = 1;",
+  "iters": 1,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: celldisp(c). Display cell array contents (output goes to stdout). Side-effect-only function -- spec just verifies it runs without error. Output format matches MATLAB R2025b qualitatively."
 }
