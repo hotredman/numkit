@@ -1,12 +1,10 @@
 {
   "name": "col2im",
   "namespace": "image",
-  "setup": "",
-  "expr": "r1 = 1;",
+  "setup": "B = reshape(1:36, 4, 9);",
+  "expr": "A = col2im(B, [2 2], [6 6], 'distinct'); r1 = double(sum(A(:)));",
   "iters": 5,
-  "tol": 0,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: r = col2im(B, ...). KNOWN GAP: numkit's arg-shape validation differs from MATLAB; basic call rejected. Documented as separate \u0422\u0417."
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: A = col2im(B, [m n], [mm nn], type). Reassemble columns into image. Bit-identical with MATLAB R2025b on probed input -- earlier defer used wrong B-shape."
 }

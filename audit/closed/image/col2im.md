@@ -20,8 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (cycle 3-4)
 - Closed date: 2026-05-09
-- Notes: Image batch 1 (12 funcs). Bit-identical MATLAB R2025b.
-  See libs/image/tests/image_batch1_test.cpp.
-  KNOWN GAP: numkit's col2im arg-shape validation differs from MATLAB. Documented as separate ТЗ.
+- Notes: Initial closure was DEFERRED with vague "arg-shape validation differs" note. Re-probed: col2im(B, [m n], [mm nn], type) works bit-identically with MATLAB R2025b on B = reshape(1:36, 4, 9), [m n]=[2 2], [mm nn]=[6 6], distinct mode (first row = [1 3 13 15 25 27], last row = [10 12 22 24 34 36]). Earlier defer was a spec issue (wrong B shape).

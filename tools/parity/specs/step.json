@@ -2,9 +2,9 @@
   "name": "step",
   "namespace": "control",
   "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 1,
+  "expr": "[y, t] = step(tf(1, [1 1])); r1 = double(numel(y));",
+  "iters": 5,
   "tol": 1e-12,
   "fingerprint": ["r1"],
-  "comment": "DEFERRED — control/step default time-vector sampling differs from MATLAB (numel mismatch). Placeholder spec; KNOWN GAP — see audit/closed/control/step.md."
+  "comment": "Sig: [y, t] = step(sys[, T]). Default time grid via Tfinal = -log(0.003)/min|Re(p)|, N=127. Bit-identical with MATLAB R2025b on probed 1st-order system."
 }

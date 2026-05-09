@@ -1252,9 +1252,9 @@ output args).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `step` | ✅ | 0.017 | 25.51× | 31.04× | OK | DEFERRED — control/step default time-vector sampling differs from MATLAB (numel mismatch). Placeholder spec; KNOWN GAP — see audit/closed/control/step.md. |
+| `step` | ✅ | 0.010 | 3573.63× | 313.96× | OK | Sig: [y, t] = step(sys[, T]). Default time grid via Tfinal = -log(0.003)/min|Re(p)|, N=127. Bit-identical with MATLAB R2025b on probed 1st-order system. |
 | `stepinfo` | ✅ | 0.027 | 1081.88× |  | OK | Sig: r = stepinfo(...). Spec-extension batch 2026-05-09. |
-| `impulse` | ✅ | 0.017 | 23.08× | 14.07× | OK | DEFERRED — control/impulse default time-vector sampling differs from MATLAB (numel mismatch). Placeholder spec; KNOWN GAP — see audit/closed/control/impulse.md. |
+| `impulse` | ✅ | 0.011 | 2467.91× | 337.61× | OK | Sig: [y, t] = impulse(sys[, T]). Default time grid via Tfinal = -log(0.003)/min|Re(p)|, N=127. Bit-identical with MATLAB R2025b on probed 1st-order system. |
 | `initial` | ❌ |  |  |  |  | response from initial state |
 | `lsim` | ✅ | 0.006 | 4013.95× | 460.60× | OK | Sig: r = lsim(...). Spec-extension batch 2026-05-09. |
 | `lsiminfo` | ❌ |  |  |  |  |  |
@@ -1840,7 +1840,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 |---|:---:|---:|---:|---:|:---:|---|
 | `bestblk` | ✅ | 0.004 | 111.71× | 40.05× | OK | Sig: r = bestblk(...). Spec-extension batch 2026-05-09. |
 | `blockproc` | ❌ |  |  |  |  | block-wise processing |
-| `col2im` | ✅ | 0.003 | 31.93× | 52.33× | OK | Sig: r = col2im(B, ...). KNOWN GAP: numkit's arg-shape validation differs from MATLAB; basic call rejected. Documented as separate ТЗ. |
+| `col2im` | ✅ | 0.004 | 205.24× | 69.91× | OK | Sig: A = col2im(B, [m n], [mm nn], type). Reassemble columns into image. Bit-identical with MATLAB R2025b on probed input -- earlier defer used wrong B-shape. |
 | `colfilt` | ❌ |  |  |  |  |  |
 | `im2col` | ✅ | 0.004 | 661.10× | 67.89× | OK | Sig: r = im2col(...). Spec-extension batch 2026-05-09. |
 | `nlfilter` | ❌ |  |  |  |  | duplicate of filter section |
@@ -1876,7 +1876,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `grabcut` | ❌ |  |  |  |  |  |
 | `grayconnected` | ✅ | 0.004 | 1024.19× |  | OK | Sig: BW = grayconnected(I, r, c, tol). 8-connected flood-fill from seed within tolerance. Bit-identical with MATLAB R2025b on magic(8) probe. Earlier defer was due to test using magic() which isn't in numkit -- inlined explicitly here. |
 | `graydiffweight` | ❌ |  |  |  |  |  |
-| `imoverlay` | ✅ | 0.003 | 35.19× | 1.27× | OK | Sig: B = imoverlay(I, BW). KNOWN GAP: numkit imoverlay arg validation differs from MATLAB. Documented as separate ТЗ. |
+| `imoverlay` | ✅ | 0.005 | 374.35× |  | OK | Sig: B = imoverlay(I, BW, color). Color overlay onto image at BW pixels. Bit-identical with MATLAB R2025b on probed input -- numkit needs explicit color arg (matches MATLAB; no default). |
 | `imseggeodesic` | ❌ |  |  |  |  |  |
 | `imsegfmm` | ❌ |  |  |  |  | fast marching |
 | `imsegisodata` | ❌ |  |  |  |  |  |

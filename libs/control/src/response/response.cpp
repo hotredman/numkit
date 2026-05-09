@@ -147,12 +147,19 @@ Grid pickGrid(std::pmr::memory_resource *mr, const Value &sys) {
         }
         if (!anyStable) minAbsReal = 1.0;
     }
-    const double Tfinal = 8.0 / minAbsReal;
-    const double dt = std::min(Tfinal / 200.0, 1.0 / (4.0 * maxAbsReal));
-    const size_t N = static_cast<size_t>(std::ceil(Tfinal / dt)) + 1;
+    // MATLAB convention: Tfinal corresponds to e^(-5.8) ~= 0.003 decay
+    // of the slowest stable mode (~99.7% settled). Default sample
+    // count ~= 127 for simple 1st-order cases; higher-order systems
+    // get more samples via the maxAbsReal-based dt cap.
+    const double Tfinal = 5.80251 / minAbsReal;
+    const double dt = std::min(Tfinal / 126.0, 1.0 / (4.0 * maxAbsReal));
+    size_t N = static_cast<size_t>(std::ceil(Tfinal / dt)) + 1;
+    if (N < 60) N = 60;
+    if (N > 1000) N = 1000;
+    const double dtFinal = Tfinal / static_cast<double>(N - 1);
     Vec t(N);
-    for (size_t i = 0; i < N; ++i) t[i] = i * dt;
-    return {t, dt};
+    for (size_t i = 0; i < N; ++i) t[i] = i * dtFinal;
+    return {t, dtFinal};
 }
 
 Vec readTimeArg(std::pmr::memory_resource *mr,

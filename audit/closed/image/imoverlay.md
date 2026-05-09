@@ -20,7 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (cycle 3-4)
 - Closed date: 2026-05-09
-- Notes: Image batch 5 (13 funcs). Bit-identical MATLAB R2025b. See image_batch5_test.cpp.
-  KNOWN GAP: numkit imoverlay arg validation differs from MATLAB. Documented as separate ТЗ.
+- Notes: Initial closure was DEFERRED with vague "arg validation differs" note. Re-probed: imoverlay(I, BW, color) works bit-identically with MATLAB R2025b. Numkit requires explicit color arg (matches MATLAB convention -- no default).
