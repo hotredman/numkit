@@ -924,7 +924,7 @@ intentionally omitted, along with `constellation` (object method) and
 | `dpskdemod` | ✅ | 0.005 | 320.88× |  | OK | Sig: r = dpskdemod(...). Spec-extension batch 2026-05-09.  |
 | `pskmod` | ✅ | 0.004 | 381.47× |  | OK | Sig: r = pskmod(...). Spec-extension batch 2026-05-09. |
 | `pskdemod` | ✅ | 0.004 | 532.70× |  | OK | Sig: r = pskdemod(...). Spec-extension batch 2026-05-09. |
-| `ammod` | ❌ |  |  |  |  | amplitude modulation (analog) |
+| `ammod` | ❌ | 0.006 | 125.06× |  | OK | MATLAB ammod: amplitude modulator y = (x + carr_amp).*cos(2π·Fc·t + ini_phase). Covered: DSB-SC (carramp=0 default) and DSB-TC (carramp=0.5, ini_phase=pi/4) forms over a 100-sample column-vector input. Bit-equal with MATLAB R2025b within ~1e-10 (Highway sin/cos contributes a few ULP). Octave 11.1.0 doesn't ship ammod in core (signal/communications package only); reports N/A. |
 | `amdemod` | ❌ |  |  |  |  |  |
 | `fmmod` | ❌ |  |  |  |  | frequency modulation |
 | `fmdemod` | ❌ |  |  |  |  |  |

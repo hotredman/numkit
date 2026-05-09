@@ -8,4 +8,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/biterr_symerr_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/compand_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/pmmod_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ammod_test.cpp
 )

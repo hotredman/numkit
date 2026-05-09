@@ -17,4 +17,14 @@ namespace numkit::comm {
 Value pmmod(std::pmr::memory_resource *mr, const Value &x,
             double fc, double fs, double phasedev, double ini_phase);
 
+/// `y = ammod(x, Fc, Fs [, ini_phase [, carr_amp]])` — amplitude
+/// modulator.
+///   y = (x + carr_amp) · cos(2π·Fc·t + ini_phase)
+/// carr_amp == 0 → DSB-SC (suppressed carrier);
+/// carr_amp != 0 → DSB-TC (transmitted carrier).
+/// Row-vector input round-trips as a row vector. Bit-equal with
+/// MATLAB R2025b.
+Value ammod(std::pmr::memory_resource *mr, const Value &x,
+            double fc, double fs, double ini_phase, double carr_amp);
+
 } // namespace numkit::comm
