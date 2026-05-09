@@ -127,9 +127,13 @@ TEST_F(FilterDesignTest, FreqzOutputLengths)
 
 TEST_F(FilterDesignTest, FreqzFrequencyRange)
 {
+    // MATLAB freqz(b, a, n) places n equispaced frequencies on
+    // [0, π) — upper endpoint π is EXCLUDED. So
+    //   W(1)   = 0
+    //   W(n)   = (n-1) * π / n        (NOT π)
     eval("[H, W] = freqz([1], [1], 256);");
-    EXPECT_NEAR(evalScalar("W(1)"), 0.0, 1e-10);
-    EXPECT_NEAR(evalScalar("W(256)"), M_PI, 1e-10);
+    EXPECT_NEAR(evalScalar("W(1)"),   0.0,                       1e-10);
+    EXPECT_NEAR(evalScalar("W(256)"), 255.0 * M_PI / 256.0,      1e-10);
 }
 
 TEST_F(FilterDesignTest, FreqzUnitGainForPassthrough)
@@ -172,11 +176,13 @@ TEST_F(FilterDesignTest, PhasezPassthroughIsZero)
 
 TEST_F(FilterDesignTest, PhasezReturnsCorrectShape)
 {
+    // MATLAB phasez(b, a, n): n points on [0, π) — upper endpoint
+    // π is EXCLUDED, so W(n) = (n-1) * π / n.
     eval("[phi, W] = phasez([1 -0.5], [1], 128);");
     EXPECT_DOUBLE_EQ(evalScalar("numel(phi)"), 128.0);
     EXPECT_DOUBLE_EQ(evalScalar("numel(W)"), 128.0);
-    EXPECT_NEAR(evalScalar("W(1)"), 0.0, 1e-10);
-    EXPECT_NEAR(evalScalar("W(128)"), M_PI, 1e-10);
+    EXPECT_NEAR(evalScalar("W(1)"),   0.0,                  1e-10);
+    EXPECT_NEAR(evalScalar("W(128)"), 127.0 * M_PI / 128.0, 1e-10);
 }
 
 TEST_F(FilterDesignTest, PhasezPureDelayFilterIsLinear)

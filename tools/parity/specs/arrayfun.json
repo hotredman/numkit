@@ -1,0 +1,12 @@
+{
+  "name": "arrayfun",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r = arrayfun(@sin, [0, pi/2, pi]); r1 = double(numel(r));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = arrayfun(fn, x). Spec-extension batch 2026-05-09. KNOWN GAP: numkit's arrayfun does NOT apply the function \u2014 returns input unchanged for both lambda (@(x) x*2) and named functions (@sin). Real bug, separate \u0422\u0417. Only structural shape pinned here (numel preserved)."
+}

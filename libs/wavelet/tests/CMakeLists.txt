@@ -35,4 +35,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/haart_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ihaart_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wrcoef_test.cpp
+    # ── stationary / MODWT ──────────────────────────────────────
+    ${CMAKE_CURRENT_SOURCE_DIR}/swt_modwt_test.cpp
 )

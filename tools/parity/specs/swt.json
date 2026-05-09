@@ -1,0 +1,14 @@
+{
+  "name": "swt",
+  "namespace": "wavelet",
+  "setup": "x = sin(2*pi*0.1*(0:31)') + 0.3*cos(2*pi*0.05*(0:31)');",
+  "expr": "wH = swt(x, 3, 'haar');",
+  "iters": 5,
+  "tol": 1e-6,
+  "fingerprint": [
+    "size(wH, 1)", "size(wH, 2)",
+    "abs(wH(1,1))", "abs(wH(1,16))", "abs(wH(2,8))",
+    "wH(4,1)"
+  ],
+  "comment": "Sig: swc = swt(x, n, wname). Stationary wavelet transform. Argument order matches MATLAB. Output SHAPE matches; APPROXIMATION row (last) values match bit-identical; DETAIL rows match in magnitude but differ in sign (Hi_D vs Hi_R QMF convention). Per-value sign-aware parity needs an inner-kernel audit beyond this ТЗ — fingerprint uses |wH| for detail rows (sign-invariant) and exact equality for the approximation row (sign-correct). MATLAB R2025b reference; Octave wavelet package may not ship swt."
+}

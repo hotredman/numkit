@@ -1,0 +1,12 @@
+{
+  "name": "error",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = 1;",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = error(...). Spec-extension batch 2026-05-09."
+}

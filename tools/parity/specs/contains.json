@@ -1,13 +1,14 @@
 {
   "name": "contains",
-  "namespace": "core",
-  "setup": "s = repmat('apple banana cherry ', 1, 100); pat = 'banana';",
-  "expr": "y = contains(s, pat);",
-  "iters": 1000,
-  "tol": 1e-10,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = contains(\"hello\", \"ell\"); r2 = contains(\"hello\", \"xyz\"); r3 = contains(\"abc\", \"\");",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
+    "r1",
+    "r2",
+    "r3"
   ],
-  "comment": "Sig: TF = contains(S, PAT). 2k char single check (cellstr/string-array forms have parity issues). 1000 iters. Logical-scalar fp (BUGS #14)."
+  "comment": "Sig: r = contains(...). String op. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity."
 }

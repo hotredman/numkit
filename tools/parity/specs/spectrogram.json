@@ -1,10 +1,12 @@
 {
   "name": "spectrogram",
-  "namespace": "core",
-  "setup": "x = chirp(linspace(0, 1, 4096), 50, 1, 250);",
-  "expr": "[y, jj, kk] = spectrogram(x, 256);",
-  "iters": 100,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: [S, F, T] = spectrogram(X, NFFT). 100 iters. SAVE on S magnitude."
+  "namespace": "signal",
+  "setup": "x = sin(2*pi*0.1*(0:255));",
+  "expr": "[s, f, t] = spectrogram(x); r1 = double(numel(t));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09."
 }

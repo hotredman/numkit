@@ -1,0 +1,10 @@
+{
+  "name": "settlingtime",
+  "namespace": "signal",
+  "setup": "x = [zeros(1,5) ones(1,5)*1.2 ones(1,5)*1.05 ones(1,15)];",
+  "expr": "st = settlingtime(x, 5); r1 = double(numel(st) > 0);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: st = settlingtime(x, d). Spec-extension batch 2026-05-09 (cycle 40)."
+}

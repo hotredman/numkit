@@ -1,10 +1,12 @@
 {
   "name": "peaks",
-  "namespace": "core",
-  "setup": "n = 200;",
-  "expr": "Z = peaks(n);",
-  "iters": 50,
-  "tol": 1e-12,
-  "out_var": "Z",
-  "comment": "200x200 peaks() surface. 50 iters, element-wise."
+  "namespace": "graphics",
+  "setup": "",
+  "expr": "Z = peaks(5); r1 = double(numel(Z));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = peaks(...). Spec-extension batch 2026-05-09."
 }

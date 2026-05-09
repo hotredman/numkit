@@ -19,12 +19,11 @@ namespace numkit::image {
 std::tuple<Value, Value>
 bwlabel(std::pmr::memory_resource *mr, const Value &BW, int conn);
 
-/// bwconncomp(BW[, conn]) — like bwlabel but returns a struct-like
-/// 4-tuple (Connectivity, ImageSize, NumObjects, PixelIdxList). Since
-/// numkit avoids OOП, we expose this as a 4-output function and
-/// callers can destructure.
-std::tuple<Value, Value, Value, Value>
-bwconncomp(std::pmr::memory_resource *mr, const Value &BW, int conn);
+/// bwconncomp(BW[, conn]) — connected-component labeling that returns
+/// a MATLAB-style 1×1 struct with fields:
+///   Connectivity (scalar), ImageSize ([H W]), NumObjects (scalar),
+///   PixelIdxList (1×K cell of column-vector 1-based linear indices).
+Value bwconncomp(std::pmr::memory_resource *mr, const Value &BW, int conn);
 
 /// bwarea(BW) — total area (number of foreground pixels with optional
 /// quarter-pixel boundary correction). For first cut, returns the

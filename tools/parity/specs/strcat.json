@@ -1,10 +1,14 @@
 {
   "name": "strcat",
-  "namespace": "core",
-  "setup": "a = repmat('left_', 1, 1000); b = repmat('right_', 1, 1000);",
-  "expr": "y = strcat(a, b);",
-  "iters": 1000,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: S = strcat(A, B). 5k + 6k char concat. 1000 iters."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(strcmp(strcat(\"ab\", \"cd\"), \"abcd\")); r2 = double(strcmp(strcat(\"a\", \"b\", \"c\"), \"abc\")); r3 = double(strlength(strcat(\"xy\", \"z\")));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = strcat(...). String op. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity. FP uses double(strcmp(...)) booleans because the harness compares numerics."
 }

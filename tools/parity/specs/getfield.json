@@ -1,13 +1,12 @@
 {
   "name": "getfield",
-  "namespace": "core",
-  "setup": "s = struct('a',1,'b',2,'c',3);",
-  "expr": "y = getfield(s, 'b');",
-  "iters": 1000,
-  "tol": 1e-10,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "s.x = 42; r1 = getfield(s, \"x\");",
+  "iters": 5,
+  "tol": 1e-09,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
+    "r1"
   ],
-  "comment": "Sig: V = getfield(S, F). 100k iters."
+  "comment": "Sig: r = getfield(...). Spec-extension batch 2026-05-09."
 }

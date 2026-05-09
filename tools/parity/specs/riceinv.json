@@ -1,0 +1,10 @@
+{
+  "name": "riceinv",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "x = riceinv(0.5, 1, 1); r1 = double(x > 0);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: x = riceinv(p, s, sigma). Spec-extension batch 2026-05-09 (cycle 41)."
+}

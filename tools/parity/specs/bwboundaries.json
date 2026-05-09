@@ -1,0 +1,12 @@
+{
+  "name": "bwboundaries",
+  "namespace": "image",
+  "setup": "",
+  "expr": "B = bwboundaries(eye(4)); r1 = double(numel(B));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = bwboundaries(...). Spec-extension batch 2026-05-09."
+}

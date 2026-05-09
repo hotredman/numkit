@@ -1,0 +1,10 @@
+{
+  "name": "place",
+  "namespace": "control",
+  "setup": "A = [0 1; -1 -1]; B = [0; 1];",
+  "expr": "K = place(A, B, [-1 -2]); r1 = double(numel(K));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: K = place(A, B, p). Re-closed 2026-05-09 -- prior defer was wrong; numkit returns K=[1 2] matching MATLAB on probe."
+}

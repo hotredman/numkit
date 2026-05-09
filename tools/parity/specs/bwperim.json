@@ -1,10 +1,12 @@
 {
   "name": "bwperim",
   "namespace": "image",
-  "setup": "BW = false(5,5); BW(2:4,2:4) = true;",
-  "expr": "y = double(bwperim(BW));",
+  "setup": "",
+  "expr": "P = bwperim(eye(4)); r1 = double(numel(P));",
   "iters": 5,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = bwperim(...). Spec-extension batch 2026-05-09."
 }

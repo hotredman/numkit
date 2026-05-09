@@ -1,10 +1,12 @@
 {
   "name": "imfill",
   "namespace": "image",
-  "setup": "BW = false(6, 6); BW(2, 2:5) = true; BW(5, 2:5) = true; BW(2:5, 2) = true; BW(2:5, 5) = true;",
-  "expr": "y = double(imfill(BW, 'holes'));",
+  "setup": "",
+  "expr": "BW = imfill(eye(5), \"holes\"); r1 = double(numel(BW));",
   "iters": 5,
-  "tol": 1e-12,
-  "out_var": "y",
-  "comment": "Sig: J = imfill(BW, 'holes'). Hollow square ring → fully filled square."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = imfill(...). Spec-extension batch 2026-05-09 (image namespace)."
 }

@@ -1,0 +1,14 @@
+{
+  "name": "islogical",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(islogical(true)); r2 = double(islogical(1)); r3 = double(islogical(0 < 1));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = islogical(...). Predicate. Spec-extension batch 2026-05-09."
+}

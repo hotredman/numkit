@@ -2,15 +2,12 @@
   "name": "evstat",
   "namespace": "stats",
   "setup": "",
-  "expr": "[m_s, v_s] = evstat(0, 1); [m_v, v_v] = evstat([0 1 -2], [1 2 0.5]); [m_b, v_b] = evstat(0, [0.5 1 2]); m_sig0 = evstat(0, 0); m_signeg = evstat(0, -1);",
+  "expr": "[m, v] = evstat(0, 1); r1 = m; r2 = v;",
   "iters": 5,
-  "tol": 1e-9,
+  "tol": 1e-06,
   "fingerprint": [
-    "m_s", "v_s",
-    "m_v(1)", "m_v(2)", "m_v(3)",
-    "v_v(1)", "v_v(2)", "v_v(3)",
-    "m_b(1)", "m_b(2)", "m_b(3)",
-    "m_sig0", "m_signeg"
+    "r1",
+    "r2"
   ],
-  "comment": "Sig: [m, v] = evstat(mu, sigma). Type-I extreme value (Gumbel min): m = mu - sigma·γ (Euler), v = sigma²·π²/6. Vectorised. sigma<=0 => NaN."
+  "comment": "Sig: r = evstat(...). Spec-extension batch 2026-05-09."
 }

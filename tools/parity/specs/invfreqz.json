@@ -1,0 +1,10 @@
+{
+  "name": "invfreqz",
+  "namespace": "signal",
+  "setup": "[h, w] = freqz([1 -1], [1 0.5], 32);",
+  "expr": "[b, a] = invfreqz(h, w, 1, 1); r1 = double(numel(b) + numel(a));",
+  "iters": 3,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: [b,a] = invfreqz(h, w, nb, na). Spec-extension batch 2026-05-09 (cycle 43)."
+}

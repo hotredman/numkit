@@ -1,10 +1,12 @@
 {
   "name": "sawtooth",
-  "namespace": "core",
-  "setup": "t = linspace(0, 4*pi, 10000);",
-  "expr": "y = sawtooth(t);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: Y = sawtooth(T). 1000 iters."
+  "namespace": "signal",
+  "setup": "",
+  "expr": "y = sawtooth(2*pi*0.1*(0:9)); r1 = y(1);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = sawtooth(...). Spec-extension batch 2026-05-09."
 }

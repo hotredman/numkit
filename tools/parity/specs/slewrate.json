@@ -1,0 +1,10 @@
+{
+  "name": "slewrate",
+  "namespace": "signal",
+  "setup": "x = [zeros(1,10) linspace(0,1,10) ones(1,10)];",
+  "expr": "sr = slewrate(x); r1 = double(numel(sr) > 0);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: sr = slewrate(x). Spec-extension batch 2026-05-09 (cycle 40)."
+}

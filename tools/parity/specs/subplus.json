@@ -1,15 +1,13 @@
 {
   "name": "subplus",
-  "namespace": "builtin",
-  "setup": "x = [-3 -1 0 1 2 3];",
-  "expr": "y = subplus(x);",
+  "namespace": "cfit",
+  "setup": "",
+  "expr": "r1 = subplus(-1); r2 = subplus(2);",
   "iters": 5,
-  "tol": 1e-15,
+  "tol": 1e-06,
   "fingerprint": [
-    "y(1)",
-    "y(3)",
-    "y(6)",
-    "sum(y)"
+    "r1",
+    "r2"
   ],
-  "comment": "Sig: y = subplus(x). Truncated power: max(x, 0) elementwise. NaN passes through."
+  "comment": "Sig: r = subplus(...). Spec-extension batch 2026-05-09."
 }

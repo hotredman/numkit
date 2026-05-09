@@ -1,10 +1,13 @@
 {
   "name": "ppval",
-  "namespace": "core",
-  "setup": "pp = spline(linspace(0,10,50), sin(linspace(0,10,50))); xq = linspace(0, 10, 10000);",
-  "expr": "y = ppval(pp, xq);",
-  "iters": 50,
-  "tol": 1e-10,
-  "comment": "Sig: V = ppval(PP, X). 50-knot spline \u2192 10k pts. 100 iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "pp = mkpp([0 1 2], [1 0; 1 0]); r1 = ppval(pp, 0.5); r2 = ppval(pp, 1.5);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = ppval(...). Spec-extension batch 2026-05-09."
 }

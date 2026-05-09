@@ -1,0 +1,10 @@
+{
+  "name": "try",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "ok = 0; try, error('x'); catch, ok = 1; end; r1 = double(ok);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: try, body, catch [ME], body, end. Spec-extension batch 2026-05-09 (cycle 41)."
+}

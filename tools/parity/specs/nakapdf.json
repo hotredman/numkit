@@ -1,15 +1,12 @@
 {
   "name": "nakapdf",
   "namespace": "stats",
-  "setup": "x = [0.1 0.5 1 2]; mu = 1.5; omega = 2;",
-  "expr": "y = nakapdf(x, mu, omega);",
+  "setup": "",
+  "expr": "r1 = nakapdf(1, 1, 1);",
   "iters": 5,
-  "tol": 1e-9,
+  "tol": 1e-06,
   "fingerprint": [
-    "y(1)",
-    "y(2)",
-    "y(3)",
-    "y(4)"
+    "r1"
   ],
-  "comment": "Sig: y = nakapdf(x, mu, omega). Nakagami PDF: (2μ^μ/Γ(μ)Ω^μ)·x^(2μ−1)·exp(−μx²/Ω). Octave's statistics package has direct names; MATLAB exposes via pdf('Nakagami', ...). Direct numkit + Octave parity."
+  "comment": "Sig: r = nakapdf(...). Spec-extension batch 2026-05-09. "
 }

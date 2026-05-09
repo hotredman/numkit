@@ -1,0 +1,10 @@
+{
+  "name": "poly2lsf",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "lsf = poly2lsf([1 0.6 0.2 0.1]); r1 = double(numel(lsf));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: lsf = poly2lsf(a). Spec-extension batch 2026-05-09 (cycle 40)."
+}

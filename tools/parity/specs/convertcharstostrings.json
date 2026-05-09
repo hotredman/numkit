@@ -1,12 +1,12 @@
 {
   "name": "convertcharstostrings",
-  "namespace": "core",
-  "setup": "c = 'hello world';",
-  "expr": "y = convertCharsToStrings(c);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: S = convertCharsToStrings(C). 100k iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "s = convertCharsToStrings('hello'); r1 = double(isstring(s));",
+  "iters": 5,
+  "tol": 1e-12,
   "fingerprint": [
-    "double(strlength(y))"
-  ]
+    "r1"
+  ],
+  "comment": "Sig: r = convertcharstostrings(...). Spec-extension batch 2026-05-09."
 }

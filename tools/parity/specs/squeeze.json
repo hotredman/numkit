@@ -1,13 +1,14 @@
 {
   "name": "squeeze",
-  "namespace": "core",
-  "setup": "x = ones(1, 1000, 1, 1000);",
-  "expr": "y = squeeze(x);",
-  "iters": 100,
-  "tol": 1e-10,
-  "comment": "Sig: Y = squeeze(X). 1\u00d71k\u00d71\u00d71k \u2192 1k\u00d71k. 1000 iters.",
+  "namespace": "builtin",
+  "setup": "A = ones(1,5);",
+  "expr": "B = squeeze(A); r1 = numel(B); r2 = size(B,1); r3 = size(B,2);",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "numel(y)",
-    "double(ndims(y))"
-  ]
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = squeeze(...). Shape op. Spec-extension batch 2026-05-09."
 }

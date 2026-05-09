@@ -1,10 +1,15 @@
 {
   "name": "lcm",
-  "namespace": "core",
-  "setup": "a = 1:1000; b = 7:1006;",
-  "expr": "y = lcm(a, b);",
-  "iters": 100,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: L = lcm(A, B). 1k-pt vector pair. 100 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = lcm(4, 6); r2 = lcm(3, 5); r3 = lcm(8, 12); r4 = lcm(1, 7);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3",
+    "r4"
+  ],
+  "comment": "Sig: r = lcm(...). Spec-extension batch 2026-05-09."
 }

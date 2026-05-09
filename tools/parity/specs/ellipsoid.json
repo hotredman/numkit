@@ -1,11 +1,12 @@
 {
   "name": "ellipsoid",
-  "namespace": "core",
+  "namespace": "graphics",
   "setup": "",
-  "expr": "[X, Y, Z] = ellipsoid(1, 2, 3, 4, 5, 6, 100);",
-  "iters": 200,
-  "tol": 1e-9,
-  "fingerprint": ["sum(X(:))", "sum(Y(:))", "sum(Z(:))", "max(X(:))", "min(Z(:))"],
-  "out_var": "Z",
-  "comment": "101x101 ellipsoid (1,2,3) center, (4,5,6) semi-axes. 200 iters."
+  "expr": "[X, Y, Z] = ellipsoid(0, 0, 0, 1, 1, 1, 5); r1 = double(numel(X));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = ellipsoid(...). Spec-extension batch 2026-05-09."
 }

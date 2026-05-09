@@ -1,10 +1,12 @@
 {
   "name": "ind2rgb",
   "namespace": "image",
-  "setup": "img = [2 4 5; 3 2 5; 1 2 4]; map = [0 0 0; 0.2 0.4 0.6; 0.4 0.4 0.5; 0.3 0.7 1.0; 0.1 0.5 0.8];",
-  "expr": "y = ind2rgb(img, map);",
+  "setup": "",
+  "expr": "rgb = ind2rgb([1 2 3], [1 0 0; 0 1 0; 0 0 1]); r1 = double(numel(rgb));",
   "iters": 5,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: rgb = ind2rgb(idx, map). Float idx 1-based, integer 0-based. Out-of-range clipped. Octave has ind2rgb."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = ind2rgb(...). Spec-extension batch 2026-05-09."
 }

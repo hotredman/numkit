@@ -1,0 +1,10 @@
+{
+  "name": "midcross",
+  "namespace": "signal",
+  "setup": "x = [zeros(1,5) linspace(0,1,5) ones(1,5)];",
+  "expr": "c = midcross(x); r1 = double(numel(c) > 0);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: c = midcross(x). Spec-extension batch 2026-05-09 (cycle 40)."
+}

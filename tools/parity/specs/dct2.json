@@ -1,10 +1,13 @@
 {
   "name": "dct2",
   "namespace": "image",
-  "setup": "I = double(reshape(1:25, [5 5]));",
-  "expr": "y = dct2(I);",
+  "setup": "",
+  "expr": "B = dct2([1 2; 3 4]); r1 = B(1,1); r2 = double(size(B,1));",
   "iters": 5,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = dct2(...). Spec-extension batch 2026-05-09."
 }

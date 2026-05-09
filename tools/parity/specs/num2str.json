@@ -1,10 +1,13 @@
 {
   "name": "num2str",
-  "namespace": "core",
-  "setup": "x = pi;",
-  "expr": "y = num2str(x, '%.10f');",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: S = num2str(X). 100k iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(strcmp(num2str(42), \"42\")); r2 = double(strlength(num2str(3.14)));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = num2str(...). I/O / matrix-ops. Spec-extension batch 2026-05-09."
 }

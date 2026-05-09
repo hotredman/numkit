@@ -1,13 +1,13 @@
 {
   "name": "shiftdim",
-  "namespace": "core",
-  "setup": "A = ones(1, 1000, 1000);",
-  "expr": "y = shiftdim(A);",
-  "iters": 100,
-  "tol": 1e-10,
-  "comment": "Sig: B = shiftdim(A). Drop leading singleton (numkit ndims=3, MATLAB=2 \u2014 see BUGS). 1000 iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "A = ones(2,3); B = shiftdim(A, 1); r1 = double(size(B,1)); r2 = double(size(B,2));",
+  "iters": 5,
+  "tol": 1e-09,
   "fingerprint": [
-    "numel(y)",
-    "double(ndims(y))"
-  ]
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = shiftdim(...). Spec-extension batch 2026-05-09."
 }

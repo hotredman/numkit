@@ -1,14 +1,13 @@
 {
   "name": "cellstr",
-  "namespace": "core",
-  "setup": "ch = char(['apple   '; 'banana  '; 'cherry  ']);",
-  "expr": "y = cellstr(ch);",
-  "iters": 1000,
-  "tol": 1e-10,
-  "comment": "Sig: C = cellstr(CHAR). 3-row char mat \u2192 cellstr. 10000 iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "c = cellstr([\"hi\"; \"world\"]); r1 = double(iscell(c)); r2 = double(numel(c));",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(numel(y))",
-    "double(strlength(y{1}))",
-    "double(strlength(y{end}))"
-  ]
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = cellstr(...). Spec-extension batch 2026-05-09."
 }

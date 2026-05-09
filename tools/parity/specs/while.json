@@ -1,0 +1,10 @@
+{
+  "name": "while",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "i = 0; s = 0; while i < 5, i = i+1; s = s+i; end; r1 = double(s);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: while cond, body, end. Spec-extension batch 2026-05-09 (cycle 41)."
+}

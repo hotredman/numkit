@@ -1,10 +1,16 @@
 {
   "name": "bitget",
-  "namespace": "core",
-  "setup": "a = double(1:1000000); k = 3;",
-  "expr": "y = bitget(a, k);",
-  "iters": 50,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: Y = bitget(A, K). 1M double, bit 3. 50 iters."
+  "namespace": "builtin",
+  "setup": "a = uint32([1, 2, 4, 8, 16]);",
+  "expr": "r = [bitget(a(1), 1), bitget(a(2), 2), bitget(a(3), 3), bitget(a(4), 4), bitget(a(5), 5)];",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "double(r(1))",
+    "double(r(2))",
+    "double(r(3))",
+    "double(r(4))",
+    "double(r(5))"
+  ],
+  "comment": "Sig: r = bitget(...). Bitwise integer op. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b on scalar-k inputs."
 }

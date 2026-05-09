@@ -1,10 +1,13 @@
 {
   "name": "bwdist",
   "namespace": "image",
-  "setup": "BW = false(5,5); BW(3,3) = true;",
-  "expr": "y = bwdist(BW);",
+  "setup": "",
+  "expr": "D = bwdist(eye(4)); r1 = double(numel(D)); r2 = D(2,2);",
   "iters": 5,
   "tol": 1e-06,
-  "out_var": "y",
-  "comment": "Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-6: tiny FP precision delta on Euclidean sqrt."
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = bwdist(...). Spec-extension batch 2026-05-09."
 }

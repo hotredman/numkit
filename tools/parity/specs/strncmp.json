@@ -1,13 +1,13 @@
 {
   "name": "strncmp",
-  "namespace": "core",
-  "setup": "a = 'helloworld'; b = 'helloXXXXX';",
-  "expr": "y = strncmp(a, b, 5);",
-  "iters": 1000,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(strncmp(\"hello\", \"help\", 3)); r2 = double(strncmp(\"hello\", \"help\", 4));",
+  "iters": 5,
   "tol": 1e-09,
-  "comment": "Sig: TF = strncmp(A, B, N). 100k iters.",
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = strncmp(...). Spec-extension batch 2026-05-09."
 }

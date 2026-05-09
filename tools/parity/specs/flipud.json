@@ -1,10 +1,14 @@
 {
   "name": "flipud",
-  "namespace": "core",
-  "setup": "A = reshape(1:1000000, 1000, 1000);",
-  "expr": "y = flipud(A);",
-  "iters": 100,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: B = flipud(A). 1000x1000 up-down flip. 100 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "A = [1; 2; 3];",
+  "expr": "B = flipud(A); r1 = B(1); r2 = B(2); r3 = B(3);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = flipud(...). Shape op. Spec-extension batch 2026-05-09."
 }

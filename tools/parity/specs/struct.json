@@ -1,14 +1,14 @@
 {
   "name": "struct",
-  "namespace": "core",
-  "setup": "names = {'a','b','c','d','e'}; vals = {1,2,3,4,5};",
-  "expr": "y = struct(names{1},vals{1}, names{2},vals{2}, names{3},vals{3}, names{4},vals{4}, names{5},vals{5});",
-  "iters": 1000,
-  "tol": 1e-10,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "s = struct('a', 1, 'b', 2); r1 = s.a; r2 = s.b; r3 = double(isstruct(s));",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(numel(fieldnames(y)))",
-    "double(y.a)",
-    "double(y.e)"
+    "r1",
+    "r2",
+    "r3"
   ],
-  "comment": "Sig: S = struct(name1,val1,...). 5 fields. 10k iters. Custom fp."
+  "comment": "Sig: r = struct(...). Spec-extension batch 2026-05-09."
 }

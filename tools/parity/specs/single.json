@@ -1,10 +1,14 @@
 {
   "name": "single",
-  "namespace": "core",
-  "setup": "x = linspace(0, 1, 1000000);",
-  "expr": "y = single(x);",
-  "iters": 50,
-  "tol": 1e-10,
-  "comment": "Sig: Y = single(X). 1M double \u2192 single. 50 iters. Element-wise SAVE.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(single(3.14)); r2 = double(single(0)); r3 = double(single(-1));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = single(...). Type conversion. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity."
 }

@@ -1,0 +1,10 @@
+{
+  "name": "randsample",
+  "namespace": "stats",
+  "setup": "rng(0);",
+  "expr": "y = randsample(10, 3); r1 = double(numel(y));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: y = randsample(n, k). Spec-extension batch 2026-05-09 (cycle 41)."
+}

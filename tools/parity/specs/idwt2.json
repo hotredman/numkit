@@ -1,0 +1,12 @@
+{
+  "name": "idwt2",
+  "namespace": "wavelet",
+  "setup": "",
+  "expr": "[ca, ch, cv, cd] = dwt2(eye(4), \"haar\"); X = idwt2(ca, ch, cv, cd, \"haar\"); r1 = double(numel(X));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = idwt2(...). Spec-extension batch 2026-05-09."
+}

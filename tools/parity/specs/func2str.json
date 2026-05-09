@@ -1,12 +1,12 @@
 {
   "name": "func2str",
-  "namespace": "core",
-  "setup": "f = @sin;",
-  "expr": "y = func2str(f);",
-  "iters": 1000,
-  "tol": 1e-10,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "f = @(x) x*2; s = func2str(f); r1 = double(strlength(s) > 0);",
+  "iters": 5,
+  "tol": 1e-09,
   "fingerprint": [
-    "double(strlength(y))"
+    "r1"
   ],
-  "comment": "Sig: S = func2str(F). 10k iters."
+  "comment": "Sig: r = func2str(...). Spec-extension batch 2026-05-09."
 }

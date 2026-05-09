@@ -1,10 +1,12 @@
 {
   "name": "ss2tf",
-  "namespace": "core",
-  "setup": "A = [-2 -1; 1 0]; B = [1; 0]; C = [0 1]; D = 0;",
-  "expr": "[y, jj] = ss2tf(A, B, C, D);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: [NUM,DEN] = ss2tf(A,B,C,D). State-space \u2192 transfer fn. 10000 iters.",
-  "out_var": "y"
+  "namespace": "control",
+  "setup": "",
+  "expr": "[b, a] = ss2tf([1 0; 0 1], [1; 0], [1 0], 0); r1 = double(numel(b));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = ss2tf(...). Spec-extension batch 2026-05-09."
 }

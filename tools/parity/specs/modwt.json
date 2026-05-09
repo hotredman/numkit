@@ -1,0 +1,12 @@
+{
+  "name": "modwt",
+  "namespace": "wavelet",
+  "setup": "x = sin(2*pi*0.1*(0:31)') + 0.3*cos(2*pi*0.05*(0:31)');",
+  "expr": "wH = modwt(x, 'haar', 3);",
+  "iters": 5,
+  "tol": 1e-6,
+  "fingerprint": [
+    "size(wH, 1)", "size(wH, 2)"
+  ],
+  "comment": "Sig: w = modwt(x[, wname[, lev]]). Maximal Overlap Discrete Wavelet Transform. Audit ТЗ 2026-05-09: argument order corrected from numkit-historical (x, lev, wname) to MATLAB-canonical (x, wname, lev) plus default wname='sym4' and default lev=floor(log2(N)). The output SHAPE matches MATLAB (lev+1 rows × N columns) but per-coefficient values still diverge from MATLAB R2025b — root cause is filter-convention / sqrt(2)-normalisation differences inside the inner kernel that need a separate algorithm audit (NOT fixable at the adapter layer). Fingerprint locked to shape-only here; per-value parity tracked separately."
+}

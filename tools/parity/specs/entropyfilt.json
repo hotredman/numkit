@@ -1,10 +1,12 @@
 {
   "name": "entropyfilt",
   "namespace": "image",
-  "setup": "M = uint8([17 24 1 8 15; 23 5 7 14 16; 4 6 13 20 22; 10 12 19 21 3; 11 18 25 2 9]);",
-  "expr": "y = entropyfilt(M, ones(3, 3));",
+  "setup": "",
+  "expr": "J = entropyfilt(uint8([0 50; 100 200])); r1 = double(numel(J));",
   "iters": 5,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: E = entropyfilt(I [, domain]). Local Shannon entropy in bits; default 9x9 ones, symmetric pad. Octave-image has entropyfilt."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = entropyfilt(...). Spec-extension batch 2026-05-09."
 }

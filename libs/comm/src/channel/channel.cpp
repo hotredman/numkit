@@ -314,8 +314,10 @@ Value berawgn(std::pmr::memory_resource *mr, const Value &EbNo_dB,
 Value noisebw(std::pmr::memory_resource *mr, const Value &num, const Value &den,
               int Nsamp, double fs)
 {
-    // NBW = (fs / 2) · Σ |H[k]|² / max|H[k]|²  over an N-point grid.
-    // Compute frequency response numerically via direct evaluation.
+    // MATLAB convention (noisebw):
+    //   NBW = (fs / N) * sum(|H[k]|^2) / max(|H[k]|^2)
+    // Discrete grid over [0, pi) -- N points spaced w_k = pi*k/N.
+    // (No 1/2 factor; the resulting NBW matches MATLAB's reference.)
     if (Nsamp <= 0) Nsamp = 1024;
     const size_t Mn = num.numel();
     const size_t Md = den.numel();
@@ -337,7 +339,9 @@ Value noisebw(std::pmr::memory_resource *mr, const Value &num, const Value &den,
         if (H2 > Hmax2) Hmax2 = H2;
         sum_H2 += H2;
     }
-    const double bw = (Hmax2 > 0.0) ? (fs / 2.0) * sum_H2 / Hmax2 / double(Nsamp) : 0.0;
+    const double bw = (Hmax2 > 0.0)
+        ? fs * sum_H2 / Hmax2 / double(Nsamp)
+        : 0.0;
     return Value::scalar(bw, mr);
 }
 

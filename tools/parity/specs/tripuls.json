@@ -1,10 +1,13 @@
 {
   "name": "tripuls",
-  "namespace": "core",
-  "setup": "t = linspace(-2, 2, 10000);",
-  "expr": "y = tripuls(t);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: Y = tripuls(T). Triangular pulse. 1000 iters."
+  "namespace": "signal",
+  "setup": "",
+  "expr": "y = tripuls((-1:0.5:1), 1); r1 = y(3); r2 = y(1);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = tripuls(...). Spec-extension batch 2026-05-09."
 }

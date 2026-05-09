@@ -177,11 +177,15 @@ void ncx2pdf_reg(Span<const Value> args, size_t /*nargout*/,
 void ncx2cdf_reg(Span<const Value> args, size_t /*nargout*/,
                  Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 3)
-        throw Error("ncx2cdf: requires (x, k, lambda)",
+    bool upper = false;
+    const size_t n = stripUpperFlag(args, upper);
+    if (n < 3)
+        throw Error("ncx2cdf: requires (x, k, lambda[, 'upper'])",
                     0, 0, "ncx2cdf", "", "m:ncx2cdf:nargin");
-    outs[0] = ncx2cdf(ctx.engine->resource(), args[0],
+    Value v = ncx2cdf(ctx.engine->resource(), args[0],
                       args[1].toScalar(), args[2].toScalar());
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
 }
 
 void ncx2inv_reg(Span<const Value> args, size_t /*nargout*/,

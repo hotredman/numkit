@@ -1,0 +1,12 @@
+{
+  "name": "hygernd",
+  "namespace": "stats",
+  "setup": "rng(42);",
+  "expr": "x = hygernd(50, 10, 8, 1, 5); r1 = double(numel(x));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = hygernd(...). Spec-extension batch 2026-05-09. "
+}

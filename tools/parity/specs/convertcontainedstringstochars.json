@@ -1,12 +1,12 @@
 {
   "name": "convertcontainedstringstochars",
-  "namespace": "core",
-  "setup": "c = {'a', \"b\", {'c', \"d\"}};",
-  "expr": "y = convertContainedStringsToChars(c);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: C2 = convertContainedStringsToChars(C). 10000 iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "c = convertContainedStringsToChars({\"hi\", \"world\"}); r1 = double(ischar(c{1}));",
+  "iters": 5,
+  "tol": 1e-12,
   "fingerprint": [
-    "double(numel(y))"
-  ]
+    "r1"
+  ],
+  "comment": "Sig: r = convertcontainedstringstochars(...). Spec-extension batch 2026-05-09."
 }

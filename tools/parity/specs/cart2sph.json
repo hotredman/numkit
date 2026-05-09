@@ -1,10 +1,16 @@
 {
   "name": "cart2sph",
-  "namespace": "core",
-  "setup": "x = linspace(-2,2,50); y_in = linspace(-2,2,50); z = linspace(-2,2,50); [X,Y,Z] = meshgrid(x,y_in,z);",
-  "expr": "[y, jj, kk] = cart2sph(X, Y, Z);",
-  "iters": 50,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: [TH,PHI,R] = cart2sph(X,Y,Z). 50\u00b3 grid. 50 iters. SAVE on TH (y)."
+  "namespace": "builtin",
+  "setup": "x = [1, 0, 0, 1, 1]; y = [0, 1, 0, 1, 0]; z = [0, 0, 1, 0, 1];",
+  "expr": "[az, el, rh] = cart2sph(x, y, z); r = az;",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r(1)",
+    "r(2)",
+    "r(3)",
+    "r(4)",
+    "r(5)"
+  ],
+  "comment": "Sig: r = cart2sph(...). Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity."
 }

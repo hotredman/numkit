@@ -1,12 +1,13 @@
 {
   "name": "rmfield",
-  "namespace": "core",
-  "setup": "s = struct('a',1,'b',2,'c',3,'d',4,'e',5);",
-  "expr": "y = rmfield(s, 'c');",
-  "iters": 1000,
-  "tol": 1e-10,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "s.a=1; s.b=2; t = rmfield(s, \"a\"); r1 = double(isfield(t, \"a\")); r2 = double(isfield(t, \"b\"));",
+  "iters": 5,
+  "tol": 1e-09,
   "fingerprint": [
-    "double(numel(fieldnames(y)))"
+    "r1",
+    "r2"
   ],
-  "comment": "Sig: S2 = rmfield(S, F). Remove 'c' from 5-field. 10k iters."
+  "comment": "Sig: r = rmfield(...). Spec-extension batch 2026-05-09."
 }

@@ -1,13 +1,16 @@
 {
   "name": "allfinite",
-  "namespace": "core",
-  "setup": "x = linspace(0, 1, 1000000);",
-  "expr": "y = allfinite(x);",
-  "iters": 50,
-  "tol": 1e-10,
-  "comment": "Sig: TF = allfinite(X). Returns scalar (logical-scalar fp BUGS #14). 100k iters.",
+  "namespace": "builtin",
+  "setup": "x = [1, 2, 3]; y = [1, NaN, 3]; z = [1, Inf, 3];",
+  "expr": "r = [allfinite(x), allfinite(y), allfinite(z), allfinite([1,2]), allfinite(0)];",
+  "iters": 5,
+  "tol": 1e-12,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r(1)",
+    "r(2)",
+    "r(3)",
+    "r(4)",
+    "r(5)"
+  ],
+  "comment": "Sig: r = allfinite(...). Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity."
 }

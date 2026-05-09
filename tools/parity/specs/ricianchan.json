@@ -1,0 +1,10 @@
+{
+  "name": "ricianchan",
+  "namespace": "comm",
+  "setup": "",
+  "expr": "r1 = 1;",
+  "iters": 1,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "DEFERRED -- N/A: MATLAB R2025b deprecated ricianchan in favour of comm.RicianChannel system object. Numkit ships ricianchan as a convenience helper (returns one complex Rician sample). No MATLAB top-level reference exists; placeholder spec."
+}

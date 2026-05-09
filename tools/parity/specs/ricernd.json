@@ -1,0 +1,10 @@
+{
+  "name": "ricernd",
+  "namespace": "stats",
+  "setup": "rng(0);",
+  "expr": "r = ricernd(1, 1, 1, 4); r1 = double(numel(r));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: r = ricernd(s, sigma, sz). Spec-extension batch 2026-05-09 (cycle 41)."
+}

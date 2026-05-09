@@ -1,0 +1,12 @@
+{
+  "name": "fnval",
+  "namespace": "cfit",
+  "setup": "",
+  "expr": "pp = mkpp([0 1 2], [1 0; 1 0]); r1 = fnval(pp, 0.5);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = fnval(...). Spec-extension batch 2026-05-09."
+}

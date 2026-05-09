@@ -1,10 +1,13 @@
 {
   "name": "impz",
-  "namespace": "core",
-  "setup": "b = [1 -0.5]; a = [1 -0.99]; n = 256;",
-  "expr": "[y, jj] = impz(b, a, n);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: [H,T] = impz(B,A,N). Impulse response. 1000 iters.",
-  "out_var": "y"
+  "namespace": "signal",
+  "setup": "",
+  "expr": "h = impz([1 0.5], 1, 8); r1 = h(1); r2 = h(2);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = impz(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }

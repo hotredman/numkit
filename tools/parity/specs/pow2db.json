@@ -1,10 +1,14 @@
 {
   "name": "pow2db",
-  "namespace": "core",
-  "setup": "x = linspace(0.001, 1000, 100000);",
-  "expr": "y = pow2db(x);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: D = pow2db(P). 100k iters."
+  "namespace": "signal",
+  "setup": "",
+  "expr": "r1 = pow2db(1); r2 = pow2db(10); r3 = pow2db(100);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = pow2db(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }

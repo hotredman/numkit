@@ -1,0 +1,12 @@
+{
+  "name": "dpskdemod",
+  "namespace": "comm",
+  "setup": "",
+  "expr": "y = dpskmod([0 1 2 3], 4); x = dpskdemod(y, 4); r1 = double(numel(x));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = dpskdemod(...). Spec-extension batch 2026-05-09. "
+}

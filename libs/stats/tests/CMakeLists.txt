@@ -4,6 +4,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/quantile_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/var_std_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cdf_upper_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cdf_upper_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/kstest_extras_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ttest_extras_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/vartest_extras_test.cpp

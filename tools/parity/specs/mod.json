@@ -1,10 +1,16 @@
 {
   "name": "mod",
-  "namespace": "core",
-  "setup": "x = linspace(-100, 100, 1000000); d = 7;",
-  "expr": "y = mod(x, d);",
-  "iters": 20,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: Y = mod(X, D). 1M-pt with scalar divisor 7. 20 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = mod(10, 3); r2 = mod(-10, 3); r3 = mod(10, -3); r4 = mod(-10, -3); r5 = mod(0, 5);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3",
+    "r4",
+    "r5"
+  ],
+  "comment": "Sig: r = mod(...). Spec-extension batch 2026-05-09."
 }

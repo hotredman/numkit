@@ -1,0 +1,12 @@
+{
+  "name": "imnoise",
+  "namespace": "image",
+  "setup": "",
+  "expr": "rng(42); J = imnoise(zeros(4), \"gaussian\"); r1 = double(numel(J));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = imnoise(...). Spec-extension batch 2026-05-09 (image namespace)."
+}

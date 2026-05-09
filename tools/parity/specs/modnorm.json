@@ -1,0 +1,12 @@
+{
+  "name": "modnorm",
+  "namespace": "comm",
+  "setup": "",
+  "expr": "r1 = modnorm([1 -1 1 -1], \"avpow\", 1);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = modnorm(...). Spec-extension batch 2026-05-09."
+}

@@ -41,6 +41,12 @@ std::tuple<Value, Value>
 besself(std::pmr::memory_resource *mr, int N,
         const Value &Wn, FilterType ftype = FilterType::Lowpass, bool analog = false);
 
+/// ellip — Cauer (elliptic) IIR design. Passband ripple Rp dB,
+/// stopband attenuation Rs dB. Same call shape as cheby1/cheby2.
+std::tuple<Value, Value>
+ellip(std::pmr::memory_resource *mr, int N, double Rp, double Rs,
+      const Value &Wn, FilterType ftype = FilterType::Lowpass, bool analog = false);
+
 // ── Order estimators (digital, normalised Wn ∈ (0, 1)) ─────────────
 
 /// buttord(Wp, Ws, Rp, Rs[, 's']) — minimum order Butterworth filter

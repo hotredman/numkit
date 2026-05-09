@@ -1,0 +1,10 @@
+{
+  "name": "corrmtx",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "X = corrmtx([1 2 3 4 5], 2); r1 = double(numel(X));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: X = corrmtx(x, p). Data matrix for correlation/covariance estimation. Bit-identical with MATLAB R2025b on probed input (size 7x3)."
+}

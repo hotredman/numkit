@@ -1,0 +1,12 @@
+{
+  "name": "iswt",
+  "namespace": "wavelet",
+  "setup": "x = sin(2*pi*0.1*(0:31)') + 0.3*cos(2*pi*0.05*(0:31)');",
+  "expr": "swc = swt(x, 3, 'haar'); xrec = iswt(swc, 'haar'); err = max(abs(xrec(:) - x(:)));",
+  "iters": 5,
+  "tol": 1e-6,
+  "fingerprint": [
+    "numel(xrec)", "err"
+  ],
+  "comment": "Sig: x = iswt(swc, wname). Inverse stationary wavelet transform. Even though swt/iswt internal coefficient values use a different filter convention than MATLAB, the round-trip iswt(swt(x)) DOES recover x — that's the structurally important invariant for any inverse transform. Both MATLAB and numkit reconstruct the original signal to machine precision."
+}

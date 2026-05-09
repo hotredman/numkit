@@ -1,0 +1,10 @@
+{
+  "name": "lsf2poly",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "a = lsf2poly([0.5 1.5 2.5]); r1 = double(numel(a));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: a = lsf2poly(lsf). Fixed parity-based factor distribution 2026-05-09."
+}

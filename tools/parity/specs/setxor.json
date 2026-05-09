@@ -1,10 +1,14 @@
 {
   "name": "setxor",
-  "namespace": "core",
-  "setup": "a = 1:10000; b = 5000:15000;",
-  "expr": "y = setxor(a, b);",
-  "iters": 50,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: C = setxor(A, B). 10k symdiff 10k. 100 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "u = setxor([1 2 3 4], [2 4 5 6]); r1 = u(1); r2 = u(4); r3 = numel(u);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = setxor(...). Set op. Spec-extension batch 2026-05-09."
 }

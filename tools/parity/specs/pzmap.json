@@ -1,0 +1,12 @@
+{
+  "name": "pzmap",
+  "namespace": "control",
+  "setup": "",
+  "expr": "[p, z] = pzmap(tf(1, [1 1])); r1 = double(numel(p));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = pzmap(...). Spec-extension batch 2026-05-09."
+}

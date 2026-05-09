@@ -1,13 +1,14 @@
 {
   "name": "ismatrix",
-  "namespace": "core",
-  "setup": "x = reshape(1:1000000, 1000, 1000);",
-  "expr": "y = ismatrix(x);",
-  "iters": 100,
-  "tol": 1e-10,
-  "comment": "Sig: TF = ismatrix(X). 1k\u00d71k mat. 100k iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(ismatrix([1 2; 3 4])); r2 = double(ismatrix([1])); r3 = double(ismatrix([1 2 3]));",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
-  ]
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = ismatrix(...). Predicate. Spec-extension batch 2026-05-09."
 }

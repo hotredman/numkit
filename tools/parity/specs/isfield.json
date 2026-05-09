@@ -1,13 +1,14 @@
 {
   "name": "isfield",
-  "namespace": "core",
-  "setup": "s = struct('alpha',1,'beta',2,'gamma',3); pat = 'beta';",
-  "expr": "y = isfield(s, pat);",
-  "iters": 1000,
-  "tol": 1e-10,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "s.x = 1; r1 = double(isfield(s, 'x')); r2 = double(isfield(s, 'y')); r3 = double(isfield(s, 'z'));",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
+    "r1",
+    "r2",
+    "r3"
   ],
-  "comment": "Sig: TF = isfield(S, F). 100k iters."
+  "comment": "Sig: r = isfield(...). Spec-extension batch 2026-05-09."
 }

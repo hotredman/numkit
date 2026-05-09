@@ -1,12 +1,12 @@
 {
   "name": "filesep",
-  "namespace": "core",
-  "setup": "% nop",
-  "expr": "y = filesep;",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: SEP = filesep. OS-specific separator. 100k iters.",
+  "namespace": "io",
+  "setup": "",
+  "expr": "r1 = double(strlength(filesep));",
+  "iters": 5,
+  "tol": 1e-06,
   "fingerprint": [
-    "double(strlength(y))"
-  ]
+    "r1"
+  ],
+  "comment": "Sig: r = filesep(...). Spec-extension batch 2026-05-09."
 }

@@ -1,12 +1,10 @@
 {
   "name": "optimget",
-  "namespace": "core",
-  "setup": "o = optimset('TolX',1e-6);",
-  "expr": "y = optimget(o, 'TolX');",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: V = optimget(O, NAME). 10000 iters.",
-  "fingerprint": [
-    "double(y)"
-  ]
+  "namespace": "optim",
+  "setup": "opts = optimset('TolX', 1e-3, 'Display', 'off');",
+  "expr": "r1 = double(optimget(opts, 'TolX'));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: v = optimget(opts, name[, default]). Bit-identical with MATLAB R2025b on probed access. Earlier defer was wrong -- function works."
 }

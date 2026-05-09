@@ -1,0 +1,12 @@
+{
+  "name": "contourf",
+  "namespace": "graphics",
+  "setup": "",
+  "expr": "contourf(peaks(20)); r1 = 1;",
+  "iters": 1,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: graphics primitive. Filled contour plot. Same side-effect-only no-op; spec verifies the call runs."
+}

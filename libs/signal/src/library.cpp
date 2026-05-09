@@ -133,6 +133,7 @@ void icceps_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // SOS family (libs/signal/src/digital_filtering/sosfilt.cpp)
 void sosfilt_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void sosfiltfilt_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void zp2sos_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void tf2sos_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 // filter_implementation/conversions_extras.cpp (D3)
@@ -186,6 +187,7 @@ void instbw_reg          (Span<const Value>, size_t, Span<Value>, CallContext &)
 void buttap_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cheb1ap_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cheb2ap_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ellipap_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void besselap_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lp2lp_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lp2hp_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -198,6 +200,7 @@ void freqs_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 // Top-level IIR designs (libs/signal/src/filter_design/iir_designs.cpp)
 void cheby1_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cheby2_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ellip_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void besself_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void buttord_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cheb1ord_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -301,7 +304,8 @@ void SignalLibrary::install(Engine &engine)
     // ── Digital filtering (filter / filtfilt / SOS family / median + D2) ─
     reg("digital_filtering", "filter",   &signal::detail::filter_reg);
     reg("digital_filtering", "filtfilt", &signal::detail::filtfilt_reg);
-    reg("digital_filtering", "sosfilt",  &signal::detail::sosfilt_reg);
+    reg("digital_filtering", "sosfilt",     &signal::detail::sosfilt_reg);
+    reg("digital_filtering", "sosfiltfilt", &signal::detail::sosfiltfilt_reg);
     reg("digital_filtering", "medfilt1", &signal::detail::medfilt1_reg);
     reg("digital_filtering", "lowpass",  &signal::detail::lowpass_reg);
     reg("digital_filtering", "highpass", &signal::detail::highpass_reg);
@@ -421,6 +425,12 @@ void SignalLibrary::install(Engine &engine)
     reg("spectral_analysis", "spectralentropy",  &signal::detail::spectralentropy_reg);
     reg("spectral_analysis", "spectralkurtosis", &signal::detail::spectralkurtosis_reg);
     reg("spectral_analysis", "spectralskewness", &signal::detail::spectralskewness_reg);
+    // MATLAB camelCase aliases (R2025b ships these spellings).
+    reg("spectral_analysis", "spectralCrest",    &signal::detail::spectralcrest_reg);
+    reg("spectral_analysis", "spectralFlatness", &signal::detail::spectralflatness_reg);
+    reg("spectral_analysis", "spectralEntropy",  &signal::detail::spectralentropy_reg);
+    reg("spectral_analysis", "spectralKurtosis", &signal::detail::spectralkurtosis_reg);
+    reg("spectral_analysis", "spectralSkewness", &signal::detail::spectralskewness_reg);
     reg("spectral_analysis", "snr",              &signal::detail::snr_reg);
     reg("spectral_analysis", "sinad",            &signal::detail::sinad_reg);
     reg("spectral_analysis", "thd",              &signal::detail::thd_reg);
@@ -430,6 +440,7 @@ void SignalLibrary::install(Engine &engine)
     reg("filter_design", "buttap",   &signal::detail::buttap_reg);
     reg("filter_design", "cheb1ap",  &signal::detail::cheb1ap_reg);
     reg("filter_design", "cheb2ap",  &signal::detail::cheb2ap_reg);
+    reg("filter_design", "ellipap",  &signal::detail::ellipap_reg);
     reg("filter_design", "besselap", &signal::detail::besselap_reg);
     reg("filter_design", "lp2lp",    &signal::detail::lp2lp_reg);
     reg("filter_design", "lp2hp",    &signal::detail::lp2hp_reg);
@@ -440,6 +451,7 @@ void SignalLibrary::install(Engine &engine)
     reg("filter_design", "freqs",    &signal::detail::freqs_reg);
     reg("filter_design", "cheby1",   &signal::detail::cheby1_reg);
     reg("filter_design", "cheby2",   &signal::detail::cheby2_reg);
+    reg("filter_design", "ellip",    &signal::detail::ellip_reg);
     reg("filter_design", "besself",  &signal::detail::besself_reg);
     reg("filter_design", "buttord",  &signal::detail::buttord_reg);
     reg("filter_design", "cheb1ord", &signal::detail::cheb1ord_reg);

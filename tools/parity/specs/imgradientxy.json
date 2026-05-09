@@ -1,10 +1,12 @@
 {
   "name": "imgradientxy",
   "namespace": "image",
-  "setup": "I = double(reshape(1:25, [5 5]));",
-  "expr": "[y, gy] = imgradientxy(I);",
+  "setup": "",
+  "expr": "[Gx, Gy] = imgradientxy([1 2 3; 4 5 6; 7 8 9]); r1 = double(numel(Gx));",
   "iters": 5,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = imgradientxy(...). Spec-extension batch 2026-05-09."
 }

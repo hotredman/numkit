@@ -1,10 +1,14 @@
 {
   "name": "filter",
-  "namespace": "core",
-  "setup": "b = [1 -0.5]; a = [1]; x = sin(linspace(0, 100, 100000));",
-  "expr": "y = filter(b, a, x);",
-  "iters": 100,
-  "tol": 1e-09,
-  "comment": "Sig: Y = filter(B, A, X). FIR-1 [1 -0.5] on 100k. 100 iters.",
-  "out_var": "y"
+  "namespace": "signal",
+  "setup": "",
+  "expr": "y = filter([1 0.5], 1, [1 0 0 0 0]); r1 = y(1); r2 = y(2); r3 = y(3);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = filter(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }

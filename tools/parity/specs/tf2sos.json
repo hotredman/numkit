@@ -1,10 +1,13 @@
 {
   "name": "tf2sos",
-  "namespace": "core",
-  "setup": "b = [1 -1 0.5 0.1]; a = [1 -0.5 0.25 -0.1];",
-  "expr": "y = tf2sos(b, a);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: SOS = tf2sos(B,A). 1000 iters."
+  "namespace": "signal",
+  "setup": "",
+  "expr": "sos = tf2sos([1 1 1], [1 0.5 0.25]); r1 = double(size(sos,1)); r2 = double(size(sos,2));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = tf2sos(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }

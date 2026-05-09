@@ -1,0 +1,12 @@
+{
+  "name": "dlyap",
+  "namespace": "control",
+  "setup": "",
+  "expr": "X = dlyap(0.5, 1); r1 = X;",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = dlyap(...). Spec-extension batch 2026-05-09."
+}

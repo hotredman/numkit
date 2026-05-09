@@ -1,10 +1,14 @@
 {
   "name": "strtrim",
-  "namespace": "core",
-  "setup": "s = '   hello world   ';",
-  "expr": "y = strtrim(s);",
-  "iters": 1000,
-  "tol": 1e-10,
-  "comment": "Sig: S = strtrim(S). Trim leading+trailing. 10000 iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = double(strcmp(strtrim(\"  abc  \"), \"abc\")); r2 = double(strcmp(strtrim(\"yz\"), \"yz\")); r3 = double(strlength(strtrim(\"  hello  \")));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = strtrim(...). String op. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity. FP uses double(strcmp(...)) booleans because the harness compares numerics."
 }

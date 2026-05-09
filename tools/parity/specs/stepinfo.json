@@ -1,0 +1,12 @@
+{
+  "name": "stepinfo",
+  "namespace": "control",
+  "setup": "",
+  "expr": "info = stepinfo(tf(1, [1 1])); r1 = double(info.SettlingTime > 0);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = stepinfo(...). Spec-extension batch 2026-05-09."
+}

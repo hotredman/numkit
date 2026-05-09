@@ -1,0 +1,10 @@
+{
+  "name": "thd",
+  "namespace": "signal",
+  "setup": "fs = 1000; t = (0:1/fs:0.1)'; x = sin(2*pi*100*t) + 0.01*sin(2*pi*200*t);",
+  "expr": "r1 = double(isfinite(thd(x, fs)));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: r = thd(x, fs). Spec-extension batch 2026-05-09 (cycle 40)."
+}

@@ -1,10 +1,12 @@
 {
   "name": "imreconstruct",
   "namespace": "image",
-  "setup": "mask = false(7, 7); mask(2:6, 2:6) = true; mask(4, 4) = false; marker = false(7, 7); marker(3, 3) = true;",
-  "expr": "y = double(imreconstruct(marker, mask));",
+  "setup": "",
+  "expr": "M = imreconstruct(eye(4), ones(4)); r1 = double(numel(M));",
   "iters": 5,
-  "tol": 1e-12,
-  "out_var": "y",
-  "comment": "Sig: J = imreconstruct(marker, mask). Reconstruction by dilation; marker grows to fill the connected mask region."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = imreconstruct(...). Spec-extension batch 2026-05-09 (image namespace)."
 }

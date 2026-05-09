@@ -1,14 +1,14 @@
 {
   "name": "size",
-  "namespace": "core",
-  "setup": "x = reshape(1:60000, 100, 600);",
-  "expr": "y = size(x);",
-  "iters": 100,
-  "tol": 1e-10,
-  "comment": "Sig: S = size(X). 2D 100x600 \u2192 [100 600]. 100k iters.",
+  "namespace": "builtin",
+  "setup": "A = [1 2 3; 4 5 6];",
+  "expr": "r1 = size(A,1); r2 = size(A,2); r3 = numel(size(A));",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "numel(y)",
-    "double(y(1))",
-    "double(y(end))"
-  ]
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = size(...). Shape op. Spec-extension batch 2026-05-09."
 }

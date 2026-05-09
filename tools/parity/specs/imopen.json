@@ -1,10 +1,12 @@
 {
   "name": "imopen",
   "namespace": "image",
-  "setup": "I = uint8([10 20 30; 40 50 60; 70 80 90]);",
-  "expr": "y = imopen(I, strel('square', 3));",
+  "setup": "",
+  "expr": "BW = imopen(eye(5), ones(3)); r1 = double(numel(BW));",
   "iters": 5,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = imopen(...). Spec-extension batch 2026-05-09 (image namespace)."
 }

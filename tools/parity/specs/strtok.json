@@ -1,10 +1,13 @@
 {
   "name": "strtok",
-  "namespace": "core",
-  "setup": "s = 'hello world goodbye foo bar baz';",
-  "expr": "[y, jj] = strtok(s);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: [TOK, REM] = strtok(S). 10000 iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "[t, rem] = strtok(\"hello world\"); r1 = double(strlength(t)); r2 = double(strlength(rem));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = strtok(...). String op. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity."
 }

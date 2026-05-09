@@ -1,0 +1,10 @@
+{
+  "name": "sfdr",
+  "namespace": "signal",
+  "setup": "fs = 1000; t = (0:1/fs:0.1)'; x = sin(2*pi*100*t) + 0.001*sin(2*pi*250*t);",
+  "expr": "r1 = double(sfdr(x, fs) > 0);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: r = sfdr(x, fs). Spec-extension batch 2026-05-09 (cycle 40)."
+}

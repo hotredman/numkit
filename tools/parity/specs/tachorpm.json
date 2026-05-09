@@ -1,0 +1,10 @@
+{
+  "name": "tachorpm",
+  "namespace": "signal",
+  "setup": "fs = 1000; t = (0:1/fs:1)'; x = double(sin(2*pi*5*t) > 0.5);",
+  "expr": "rpm = tachorpm(x, fs); r1 = double(numel(rpm) > 0);",
+  "iters": 3,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: rpm = tachorpm(x, fs). Spec-extension batch 2026-05-09 (cycle 43)."
+}

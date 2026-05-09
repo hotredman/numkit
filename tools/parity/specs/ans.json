@@ -1,0 +1,12 @@
+{
+  "name": "ans",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "5; r1 = ans;",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: ans(...). Spec-extension batch 2026-05-09."
+}

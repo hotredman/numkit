@@ -1,10 +1,13 @@
 {
   "name": "stepz",
-  "namespace": "core",
-  "setup": "b = [1 -0.5]; a = [1 -0.99]; n = 256;",
-  "expr": "[y, jj] = stepz(b, a, n);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: [H,T] = stepz(B,A,N). 256-pt step response. 1000 iters."
+  "namespace": "signal",
+  "setup": "",
+  "expr": "h = stepz([1 0.5], 1, 8); r1 = h(1); r2 = h(8);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = stepz(...). Spec-extension batch 2026-05-09 (signal namespace)."
 }

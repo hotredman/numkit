@@ -1,0 +1,10 @@
+{
+  "name": "datasample",
+  "namespace": "stats",
+  "setup": "rng(42);",
+  "expr": "y = datasample(1:10, 5); r1 = double(numel(y));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: y = datasample(X, K[, dim, ...]). Default dim auto-selected: row vector samples columns (dim=2), otherwise dim=1. Output SHAPE bit-identical with MATLAB R2025b; values may differ due to RNG cascade -- shape probe used here."
+}

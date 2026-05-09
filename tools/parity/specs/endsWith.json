@@ -1,13 +1,14 @@
 {
   "name": "endsWith",
-  "namespace": "core",
-  "setup": "s = 'apple banana cherry'; p = 'cherry';",
-  "expr": "y = endsWith(s, p);",
-  "iters": 10000,
-  "tol": 1e-10,
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = endsWith(\"hello\", \"lo\"); r2 = endsWith(\"hello\", \"ell\"); r3 = endsWith(\"abc\", \"\");",
+  "iters": 5,
+  "tol": 0,
   "fingerprint": [
-    "double(y)",
-    "numel(y)"
+    "r1",
+    "r2",
+    "r3"
   ],
-  "comment": "Sig: TF = endsWith(S, PATTERN). Char + string-scalar pattern forms. Logical-scalar fingerprint (BUGS #14)."
+  "comment": "Sig: r = endsWith(...). String op. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity."
 }

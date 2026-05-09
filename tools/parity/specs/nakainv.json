@@ -1,0 +1,12 @@
+{
+  "name": "nakainv",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "r1 = nakainv(0.5, 1, 1);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = nakainv(...). Spec-extension batch 2026-05-09. "
+}

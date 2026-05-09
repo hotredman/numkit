@@ -1,10 +1,12 @@
 {
   "name": "cceps",
-  "namespace": "core",
-  "setup": "x = sin(linspace(0, 100, 1024));",
+  "namespace": "signal",
+  "setup": "x = (1:8)';",
   "expr": "y = cceps(x);",
-  "iters": 100,
-  "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: Y = cceps(X). Complex cepstrum. 100 iters."
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "y(1)", "y(2)", "y(3)", "y(4)", "y(5)", "y(6)", "y(7)", "y(8)"
+  ],
+  "comment": "Sig: y = cceps(x). Complex cepstrum: ifft(log(fft(x))) with phase unwrapping. Numkit historically applied a forward DFT in the second pass instead of inverse, which time-reversed the output (audit ТЗ signal/cceps closed 2026-05-09 — sign-convention fix in fftRadix2 dir argument). Bit-identical to MATLAB R2025b on the canonical ТЗ probe (1:8). Octave produces a completely different output — its phase-unwrap path differs from MATLAB's; harness already prefers MATLAB. Phase-unwrap convergence on more complex inputs may diverge in the LSBs (separate audit gap, not part of this ТЗ)."
 }

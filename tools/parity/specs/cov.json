@@ -1,10 +1,13 @@
 {
   "name": "cov",
-  "namespace": "core",
-  "setup": "X = sin(linspace(0, 100, 10000)); Y = cos(linspace(0, 100, 10000)); M = [X' Y'];",
-  "expr": "y = cov(M);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: C = cov(M). 2-col 10k cov matrix. 1000 iters.",
-  "out_var": "y"
+  "namespace": "stats",
+  "setup": "",
+  "expr": "C = cov([1 2; 3 4; 5 6]); r1 = C(1,1); r2 = C(2,2);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = cov(...). Spec-extension batch 2026-05-09."
 }

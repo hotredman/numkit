@@ -1,10 +1,14 @@
 {
   "name": "polyval",
-  "namespace": "core",
-  "setup": "p = [1 -3 2 5 -7]; x = linspace(-10, 10, 1000000);",
-  "expr": "y = polyval(p, x);",
-  "iters": 100,
-  "tol": 1e-10,
-  "out_var": "y",
-  "comment": "Sig: Y = polyval(P, X). 4th-order poly on 1M pts. 20 iters. Element-wise SAVE."
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = polyval([1 0 0], 5); r2 = polyval([1 -2 1], 3); r3 = polyval([1 0], 7);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = polyval(...). Spec-extension batch 2026-05-09."
 }

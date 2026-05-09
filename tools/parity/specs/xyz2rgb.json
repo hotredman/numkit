@@ -4,7 +4,7 @@
   "setup": "I = double(reshape(0:74, [5 5 3])) / 74;",
   "expr": "y = xyz2rgb(I);",
   "iters": 5,
-  "tol": 0.0001,
+  "tol": 1e-06,
   "out_var": "y",
-  "comment": "Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). KNOWN MISMATCH: numkit clamps out-of-gamut RGB to [0,1]; MATLAB/Octave return raw negative values. To fix, drop the clamp in libs/image/src/color/color.cpp."
+  "comment": "Sig + small deterministic input. Sign-preserving sRGB gamma fix 2026-05-09 -- numkit no longer clamps out-of-gamut linear RGB before encoding."
 }

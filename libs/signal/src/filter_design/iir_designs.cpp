@@ -145,6 +145,19 @@ besself(std::pmr::memory_resource *mr, int N,
     return finishDesign(mr, std::move(z2), std::move(p2), std::move(k2), analog);
 }
 
+std::tuple<Value, Value>
+ellip(std::pmr::memory_resource *mr, int N, double Rp, double Rs,
+      const Value &Wn, FilterType ftype, bool analog)
+{
+    auto wn = readWn(Wn);
+    validateWn(ftype, wn);
+    auto [z, p, k_v] = ellipap(mr, N, Rp, Rs);
+    auto Wo = wnToAnalog(wn, analog);
+    auto [z2, p2, k2] = applyLp2X(mr, std::move(z), std::move(p), k_v.toScalar(),
+                                   ftype, Wo);
+    return finishDesign(mr, std::move(z2), std::move(p2), std::move(k2), analog);
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Order estimators
 // ════════════════════════════════════════════════════════════════════
@@ -425,6 +438,22 @@ void besself_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     auto t = parseTrailing(args, 2);
     auto ftype = defaultFtype(Wn, t.ftype, t.ftype_set);
     auto [b, a] = besself(ctx.engine->resource(), N, Wn, ftype, t.analog);
+    outs[0] = std::move(b);
+    if (outs.size() > 1) outs[1] = std::move(a);
+}
+
+void ellip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("ellip: requires (N, Rp, Rs, Wn[, ftype][, 's'])",
+                     0, 0, "ellip", "", "m:ellip:nargin");
+    const int N      = static_cast<int>(args[0].toScalar());
+    const double Rp  = args[1].toScalar();
+    const double Rs  = args[2].toScalar();
+    const Value &Wn  = args[3];
+    auto t = parseTrailing(args, 4);
+    auto ftype = defaultFtype(Wn, t.ftype, t.ftype_set);
+    auto [b, a] = ellip(ctx.engine->resource(), N, Rp, Rs, Wn, ftype, t.analog);
     outs[0] = std::move(b);
     if (outs.size() > 1) outs[1] = std::move(a);
 }

@@ -1,10 +1,10 @@
 {
   "name": "ss2sos",
-  "namespace": "core",
-  "setup": "A = [-0.5 1; -0.25 0]; B = [1; 0]; C = [0 1]; D = 0;",
-  "expr": "y = ss2sos(A, B, C, D);",
-  "iters": 1000,
+  "namespace": "signal",
+  "setup": "A = [-0.5 -0.25; 1 0]; B = [1; 0]; C = [1 2]; D = 0;",
+  "expr": "sos = ss2sos(A, B, C, D); r1 = double(numel(sos));",
+  "iters": 5,
   "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: SOS = ss2sos(A,B,C,D). 1000 iters."
+  "fingerprint": ["r1"],
+  "comment": "Sig: sos = ss2sos(A,B,C,D). Re-closed after tf2ss canonical-form fix 2026-05-09."
 }

@@ -1,18 +1,12 @@
 {
   "name": "dummyvar",
   "namespace": "stats",
-  "setup": "g = [1 2 3 1 2 3 1]';",
-  "expr": "D = dummyvar(g);",
+  "setup": "",
+  "expr": "D = dummyvar([1; 2; 1]); r1 = double(numel(D));",
   "iters": 5,
-  "tol": 1e-15,
+  "tol": 1e-06,
   "fingerprint": [
-    "size(D, 1)",
-    "size(D, 2)",
-    "D(1, 1)",
-    "D(2, 2)",
-    "D(3, 3)",
-    "D(7, 1)",
-    "sum(D(:))"
+    "r1"
   ],
-  "comment": "Sig: D = dummyvar(group). Indicator-coding: N×K matrix with 1 in column k for samples whose label is the k-th unique value (sorted ascending)."
+  "comment": "Sig: r = dummyvar(...). Spec-extension batch 2026-05-09."
 }

@@ -1,14 +1,14 @@
 {
   "name": "mat2cell",
-  "namespace": "core",
-  "setup": "M = reshape(1:36, 6, 6); rsz = [3 3]; csz = [3 3];",
-  "expr": "y = mat2cell(M, rsz, csz);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: C = mat2cell(M, R, C). 6x6 \u2192 2x2 cell of 3x3. 10000 iters.",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "C = mat2cell([1 2 3 4], 1, [2 2]); r1 = C{1}(1); r2 = C{1}(2); r3 = C{2}(1);",
+  "iters": 5,
+  "tol": 1e-12,
   "fingerprint": [
-    "double(numel(y))",
-    "double(numel(y{1}))",
-    "double(numel(y{end}))"
-  ]
+    "r1",
+    "r2",
+    "r3"
+  ],
+  "comment": "Sig: r = mat2cell(...). Spec-extension batch 2026-05-09."
 }

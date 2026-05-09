@@ -1,0 +1,10 @@
+{
+  "name": "switch",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "x = 2; switch x, case 1, r1 = 10; case {2,3}, r1 = 20; otherwise r1 = -1; end; r1 = double(r1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: switch expr, case val, body, [case {a,b}, body,] [otherwise body,] end. Spec-extension batch 2026-05-09 (cycle 41)."
+}

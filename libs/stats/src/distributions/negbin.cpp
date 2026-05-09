@@ -143,9 +143,13 @@ void nbinpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void nbincdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 3)
-        throw Error("nbincdf: requires (k, r, p)", 0, 0, "nbincdf", "", "m:nbincdf:nargin");
-    outs[0] = nbincdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    bool upper = false;
+    const size_t n = stripUpperFlag(args, upper);
+    if (n < 3)
+        throw Error("nbincdf: requires (k, r, p[, 'upper'])", 0, 0, "nbincdf", "", "m:nbincdf:nargin");
+    Value v = nbincdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
 }
 
 void nbininv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

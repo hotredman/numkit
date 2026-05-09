@@ -1,10 +1,12 @@
 {
   "name": "cross",
-  "namespace": "core",
-  "setup": "a = [1 0 0]; b = [0 1 0];",
-  "expr": "y = cross(a, b);",
-  "iters": 100,
-  "tol": 1e-10,
-  "comment": "Sig: C = cross(A, B). Single 3-vec pair (numkit batch unsupported \u2014 see BUGS). 100k iters.",
-  "out_var": "y"
+  "namespace": "linalg",
+  "setup": "",
+  "expr": "r = cross([1 0 0], [0 1 0]); r1 = r(3);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: r = cross(...). Spec-extension batch 2026-05-09."
 }

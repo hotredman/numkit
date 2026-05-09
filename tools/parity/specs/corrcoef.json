@@ -1,10 +1,13 @@
 {
   "name": "corrcoef",
-  "namespace": "core",
-  "setup": "x = sin(linspace(0, 10, 10000))'; y_in = cos(linspace(0, 10, 10000))';",
-  "expr": "y = corrcoef([x, y_in]);",
-  "iters": 50,
-  "tol": 1e-10,
-  "comment": "Sig: R = corrcoef(M). 2-col 10k matrix. 100 iters.",
-  "out_var": "y"
+  "namespace": "stats",
+  "setup": "",
+  "expr": "C = corrcoef([1 2 3; 1 2 3]'); r1 = C(1,1); r2 = C(1,2);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": [
+    "r1",
+    "r2"
+  ],
+  "comment": "Sig: r = corrcoef(...). Spec-extension batch 2026-05-09."
 }
