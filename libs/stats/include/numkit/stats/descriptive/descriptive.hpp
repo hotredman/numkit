@@ -248,4 +248,12 @@ Value zscore(std::pmr::memory_resource *mr, const Value &A);
 std::pair<Value, Value>
 tiedrank(std::pmr::memory_resource *mr, const Value &x);
 
+// ── corrcov ────────────────────────────────────────────────────────────
+// `[R, sigma] = corrcov(C)` — derive a correlation matrix R from a
+// covariance matrix C. R(i,j) = C(i,j) / sqrt(C(i,i) * C(j,j));
+// sigma(i) = sqrt(C(i,i)) returned as a row vector. Negative diagonal
+// entries throw; off-diagonal divisions by zero return NaN.
+std::pair<Value, Value>
+corrcov(std::pmr::memory_resource *mr, const Value &C);
+
 } // namespace numkit::stats

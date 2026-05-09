@@ -1,0 +1,10 @@
+{
+  "name": "corrcov",
+  "namespace": "stats",
+  "setup": "C = [4 2 1; 2 9 3; 1 3 16]; C2 = [4 -2; -2 1];",
+  "expr": "[R, sigma] = corrcov(C); R2 = corrcov(C2); [Re, se] = corrcov(eye(3)); [Rs, ss] = corrcov(5);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["R(1,1)", "R(1,2)", "R(1,3)", "R(2,3)", "sigma(1)", "sigma(2)", "sigma(3)", "R2(1,2)", "Re(2,2)", "se(1)", "Rs", "ss"],
+  "comment": "MATLAB corrcov: R = C ./ sqrt(diag(C)*diag(C)'); sigma = sqrt(diag(C))'. Bit-equal with MATLAB R2025b on 3x3 covariance, identity, scalar, and negative-correlation 2x2 cases. Octave 11.1.0 doesn't ship corrcov in core (statistics package only); reports N/A."
+}
