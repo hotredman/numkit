@@ -861,8 +861,27 @@ std::string repl_init() {
     // registering VFS adapters; any lazy `if (!g_session) repl_init()`
     // fallbacks below also rely on this no-op-on-reinit semantics to
     // avoid dropping adapters that were registered earlier in the session.
-    if (!g_session)
-        g_session = std::make_unique<ReplSession>();
+    //
+    // Exception routing: the ReplSession constructor calls every
+    // library's install() (graphics, signal, builtin, …), and any of
+    // them might throw on duplicate function registration or other
+    // setup errors. Emscripten's binding bridge does NOT preserve
+    // std::exception::what() across the C++→JS boundary — the JS
+    // caller sees `err.message` as undefined and the renderer drops
+    // into fallback mode silently. We catch here and log to stderr
+    // (Emscripten routes this to printErr → console.warn) BEFORE
+    // rethrowing, so the actual reason lands in DevTools console.
+    if (!g_session) {
+        try {
+            g_session = std::make_unique<ReplSession>();
+        } catch (const std::exception &e) {
+            std::cerr << "[repl_init] FATAL: " << e.what() << std::endl;
+            throw;
+        } catch (...) {
+            std::cerr << "[repl_init] FATAL: unknown C++ exception" << std::endl;
+            throw;
+        }
+    }
     return "numkit MInterpreter v2.2\nType commands below.";
 }
 
