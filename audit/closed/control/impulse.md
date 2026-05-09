@@ -20,6 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: pending (refined defer note)
+- Closed in commit: pending (cycle 3-4)
 - Closed date: 2026-05-09
-- Notes: DEFERRED (refined). Math is correct: numkit impulse returns the IR/SR samples of the system. Disagreement is solely in the default time grid: numkit picks 201 equispaced samples on a fixed [0, T_default] window, MATLAB picks an ADAPTIVE grid based on the system poles (typically ~127 samples on a window sized to settling time of the slowest mode). Closing this requires implementing MATLAB-equivalent default time-vector selection in libs/control/. Output VALUES at coincident times do match. Placeholder spec stays.
+- Notes: Initial closure was DEFERRED -- numkit returned 201 samples vs MATLAB 127 for tf(1,[1 1]). Fix: changed default time grid in libs/control/src/response/response.cpp::pickGrid to MATLAB convention: Tfinal = -log(0.003)/min|Re(p)| ~= 5.80/min|Re(p)|, dt = Tfinal/126, N clamped to [60, 1000]. Bit-identical with MATLAB on 1st-order tf(1, [tau 1]) for tau in {0.1, 0.5, 1, 2, 5} (always 127 samples). Higher-order systems: numkit picks similar but not identical N (depends on max-pole speed).
