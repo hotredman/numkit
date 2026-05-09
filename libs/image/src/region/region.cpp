@@ -105,48 +105,52 @@ bwlabel(std::pmr::memory_resource *mr, const Value &BW, int conn)
     return std::make_tuple(std::move(out), Value::scalar(double(K), mr));
 }
 
-std::tuple<Value, Value, Value, Value>
-bwconncomp(std::pmr::memory_resource *mr, const Value &BW, int conn)
+Value bwconncomp(std::pmr::memory_resource *mr, const Value &BW, int conn)
 {
     if (conn != 4) conn = 8;
     const int H = (int)BW.dims().rows();
     const int W = (int)BW.dims().cols();
     auto [L, K] = label_components(read_bw(BW), H, W, conn);
 
-    // ImageSize = [H, W].
+    // MATLAB convention: bwconncomp returns a 1x1 struct with fields
+    //   Connectivity (scalar)
+    //   ImageSize    ([H, W])
+    //   NumObjects   (scalar)
+    //   PixelIdxList (1xK cell of column-vector 1-based linear indices,
+    //                 column-major).
+    auto cc = Value::structArray(1, 1, mr);
+    auto &el = cc.structArrayElem(0);
+
+    el.emplace("Connectivity", Value::scalar(double(conn), mr));
+
     Value sz = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     sz.doubleDataMut()[0] = double(H);
     sz.doubleDataMut()[1] = double(W);
+    el.emplace("ImageSize", std::move(sz));
 
-    // PixelIdxList: cell array of column vectors of linear indices
-    // (1-based, column-major to match MATLAB).
-    // Without easy cell construction here, we return a single matrix
-    // (max-component-size) × K, padded with NaN. Callers can post-process.
-    if (K == 0) {
-        return std::make_tuple(Value::scalar(double(conn), mr),
-                               std::move(sz),
-                               Value::scalar(0.0, mr),
-                               Value::matrix(0, 0, ValueType::DOUBLE, mr));
-    }
-    std::vector<std::vector<int>> lists((size_t)K);
-    for (int c = 0; c < W; ++c)
-        for (int r = 0; r < H; ++r) {
-            const int lab = L[(size_t)r * (size_t)W + (size_t)c];
-            if (lab > 0)
-                lists[(size_t)lab - 1].push_back(c * H + r + 1);  // 1-based linear
+    el.emplace("NumObjects", Value::scalar(double(K), mr));
+
+    // Build PixelIdxList: 1xK cell of column-vector indices.
+    Value pixList = Value::cell(1, static_cast<size_t>(K), mr);
+    if (K > 0) {
+        std::vector<std::vector<int>> lists((size_t)K);
+        for (int c = 0; c < W; ++c)
+            for (int r = 0; r < H; ++r) {
+                const int lab = L[(size_t)r * (size_t)W + (size_t)c];
+                if (lab > 0)
+                    lists[(size_t)lab - 1].push_back(c * H + r + 1);  // 1-based linear
+            }
+        for (size_t k = 0; k < (size_t)K; ++k) {
+            const auto &v = lists[k];
+            Value col = Value::matrix(v.size(), 1, ValueType::DOUBLE, mr);
+            double *cd = col.doubleDataMut();
+            for (size_t i = 0; i < v.size(); ++i) cd[i] = double(v[i]);
+            pixList.cellAt(k) = std::move(col);
         }
-    size_t maxlen = 0;
-    for (const auto &v : lists) if (v.size() > maxlen) maxlen = v.size();
-    Value pix = Value::matrix(maxlen, (size_t)K, ValueType::DOUBLE, mr);
-    double *pd = pix.doubleDataMut();
-    for (size_t k = 0; k < (size_t)K; ++k)
-        for (size_t i = 0; i < maxlen; ++i)
-            pd[k * maxlen + i] = (i < lists[k].size()) ? double(lists[k][i])
-                                                       : std::nan("");
-    return std::make_tuple(Value::scalar(double(conn), mr),
-                           std::move(sz),
-                           Value::scalar(double(K), mr),
-                           std::move(pix));
+    }
+    el.emplace("PixelIdxList", std::move(pixList));
+
+    return cc;
 }
 
 Value bwarea(std::pmr::memory_resource *mr, const Value &BW) {
@@ -832,7 +836,7 @@ void bwlabel_reg(Span<const Value> args, size_t nargout,
     if (nargout > 1) outs[1] = std::move(n);
 }
 
-void bwconncomp_reg(Span<const Value> args, size_t nargout,
+void bwconncomp_reg(Span<const Value> args, size_t /*nargout*/,
                     Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
@@ -840,11 +844,7 @@ void bwconncomp_reg(Span<const Value> args, size_t nargout,
                     "m:bwconncomp:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? (int)args[1].toScalar() : 8;
-    auto [c, sz, n, p] = bwconncomp(ctx.engine->resource(), args[0], conn);
-    outs[0] = std::move(c);
-    if (nargout > 1) outs[1] = std::move(sz);
-    if (nargout > 2) outs[2] = std::move(n);
-    if (nargout > 3) outs[3] = std::move(p);
+    outs[0] = bwconncomp(ctx.engine->resource(), args[0], conn);
 }
 
 void bwarea_reg(Span<const Value> args, size_t /*nargout*/,

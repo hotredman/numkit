@@ -2,11 +2,9 @@
   "name": "bwconncomp",
   "namespace": "image",
   "setup": "",
-  "expr": "r1 = 1;",
+  "expr": "cc = bwconncomp(eye(5) > 0); r1 = double(cc.NumObjects);",
   "iters": 5,
-  "tol": 0,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: CC = bwconncomp(BW). KNOWN GAP: numkit returns object with field access syntax that differs from MATLAB. Documented as separate \u0422\u0417."
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: cc = bwconncomp(BW[, conn]). Returns 1x1 struct with fields {Connectivity, ImageSize, NumObjects, PixelIdxList}. PixelIdxList is 1xK cell of column-vector linear indices. Bit-identical with MATLAB R2025b."
 }

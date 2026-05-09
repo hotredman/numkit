@@ -20,8 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (struct outputs)
 - Closed date: 2026-05-09
-- Notes: Image batch 4 (28 funcs). Bit-identical MATLAB R2025b.
-  See libs/image/tests/image_batch4_test.cpp.
-  KNOWN GAP: numkit's strel struct field-access (.Neighborhood) syntax differs from MATLAB. Documented as separate ТЗ.
+- Notes: Initial closure was DEFERRED. Wrapped strel output in a 1x1 struct with fields {Neighborhood, Dimensionality} matching MATLAB R2025b. Existing morphology consumers (imerode, imdilate, imopen, imclose) updated via unpack_se to accept BOTH struct form (.Neighborhood field) and bare logical matrix (legacy form). Square / rectangle / diamond / line / arbitrary shapes are bit-identical. Disk shape: MATLAB uses a line-strel decomposition that yields a smaller equivalent .Neighborhood; numkit returns the full disk mask -- morphology results are identical, only the matrix size differs.

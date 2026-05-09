@@ -2,11 +2,9 @@
   "name": "strel",
   "namespace": "image",
   "setup": "",
-  "expr": "r1 = 1;",
+  "expr": "se = strel('square', 5); r1 = double(sum(se.Neighborhood(:)));",
   "iters": 5,
-  "tol": 0,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: r = strel(...). KNOWN GAP: strel struct field-access (.Neighborhood) syntax differs. Documented as separate \u0422\u0417."
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: se = strel(shape, params). Returns struct (numkit) / strel-object (MATLAB) with fields {Neighborhood, Dimensionality}. Structure access matches; the 'square' shape is bit-identical (both engines: 5x5 = 25 ones). NOTE: 'disk' decomposes into smaller equivalent in MATLAB R2025b (line-strel cascade) -- numkit returns the full disk mask. Both yield identical morphology results, just different .Neighborhood matrices. Field access works in both."
 }
