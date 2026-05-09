@@ -1,103 +1,56 @@
 /**
- * fs/vfs-adapter.js — bridges the async IDE filesystems (tempFS, Local Folder)
- * to the sync callbacks the WASM engine expects for csvread / csvwrite.
+ * fs/vfs-adapter.js — bridges the IDE filesystems (tempFS, Local
+ * Folder) to the SYNCHRONOUS callbacks the WASM engine expects for
+ * csvread / csvwrite / load.
  *
  * Why this exists
  * ───────────────
- * The WASM side calls `readFile(path)` SYNCHRONOUSLY from C++. The IDE's
- * real filesystems (IndexedDB-backed tempFS, FSA-backed Local Folder,
- * Electron-IPC local) are all async. We bridge the mismatch by keeping
- * a sync-accessible in-memory mirror:
+ * The WASM side calls `readFile(path)` synchronously from C++ and
+ * cannot await. Both filesystems we expose through the IDE are
+ * underlyingly async (IndexedDB tempFS, Electron-IPC native local).
+ * Each one provides a sync read path:
  *
- *   • tempFS:  on init we load every entry into a Map<path,string>.
- *     Writes are applied to the Map immediately (sync) and persisted to
- *     IndexedDB asynchronously in the background (fire-and-forget).
+ *   - Local (Electron):  `ipcRenderer.sendSync` to main → fs.readFileSync
+ *   - tempFS:            SharedArrayBuffer + Atomics.wait → worker → IDB
  *
- *   • Local Folder (FSA / Electron): on mount we walk the tree and
- *     cache each file's contents into the Map. Same write-through.
- *     Works well for typical project folders; very large mounts should
- *     move to Asyncify in the WASM build.
+ * Both expose `readFileSync(path)` / `existsSync(path)` to this
+ * adapter. With those in hand we DON'T pre-populate any cache —
+ * every WASM-side read is on demand, and the renderer never holds
+ * file contents proactively. The proactive seeding that this
+ * adapter used to do was the proven cause of a 4 GB renderer-OOM
+ * on idle when the user mounted a populated local folder.
  *
- * A later refactor could swap the sync mirror for Asyncify — the engine
- * API stays the same (readFile/writeFile/exists are still what the C++
- * side calls) so this adapter is the only place that has to change.
+ * Fallback
+ * ────────
+ * If a backend doesn't expose readFileSync (e.g. a future web
+ * deployment without crossOriginIsolated, where SharedArrayBuffer
+ * is unavailable), we fall back to a small bounded seed at mount
+ * time. The fallback path is meant for tempFS only — it's the only
+ * way to satisfy a sync WASM read against IndexedDB without the
+ * SAB bridge.
  */
 
 import tempFS from '../temporary';
 import localFS from './local';
 
-// ─────────────────────────────────────────────────────────────
-// Shared adapter — takes an async backend and a seed routine,
-// exposes sync read/write/exists by keeping a Map mirror.
-// ─────────────────────────────────────────────────────────────
+// Bounded fallback seed (used only when backend has no readFileSync).
+// Limits exist to make sure even a degenerate fallback doesn't recreate
+// the OOM bug: text-like extensions, 1 MB / file, 8 MB total. tempFS is
+// the realistic only consumer of this path and never approaches the cap.
+const FALLBACK_SEED_EXTENSIONS = /\.(m|mlx|txt|csv|tsv|json|yaml|yml|toml|ini|cfg)$/i;
+const FALLBACK_FILE_LIMIT_BYTES  = 1 * 1024 * 1024;
+const FALLBACK_TOTAL_LIMIT_BYTES = 8 * 1024 * 1024;
 
 function makeSyncAdapter({ backend, name }) {
-  const cache = new Map();      // path → string content
+  const cache = new Map();      // path → content (writes-before-flush)
   const dirty = new Set();      // paths pending async persist
   let persistPromise = Promise.resolve();
-  let seeded = false;
-  // True when the backend exposes a synchronous read path (Electron
-  // sync IPC). When true we DON'T pre-load files into the cache —
-  // each WASM-side csvread/load round-trips to disk on demand. The
-  // tradeoff is ~1-5 ms per file vs. multi-GB pre-load that was
-  // killing the renderer.
-  const sync = typeof backend.readFileSync === 'function';
-  // Set when a write/remove happens between flushes; flush() returns this
-  // so the caller can decide whether to invalidate UI state. Cleared on
-  // each flush() call. Without this signal IDE.jsx was bumping
-  // vfsRefreshKey on every script run regardless of whether anything
-  // changed — and that triggers a full Sidebar tree-rebuild + recursive
-  // listTree IPC walk, which on a populated local-folder mount was the
-  // proven path to V8 OOM.
   let dirtySinceFlush = false;
+  let seedPromise = null;       // race lock — concurrent seed() callers share
 
-  // Seed budget: only ingest files the WASM engine plausibly needs
-  // synchronously (csvread / load / readtable text). Pre-loading every
-  // file in a mounted local folder put 4 GB into the renderer working
-  // set on the user's machine and was the proven cause of the
-  // Chromium-OOM crash on idle (one mount → seed runs once → ws hits
-  // 4 GB → renderer killed). Filters:
-  //   - extension allowlist: text-like formats only
-  //   - per-file size cap: skip > 1 MB (data files that big are
-  //     better fetched lazily on the C++ side via async refresh)
-  //   - total budget: stop when cache exceeds 64 MB combined
-  // Counters are reported via a stats object on the adapter for the
-  // status bar / devtools to surface.
-  const SEED_EXTENSIONS = /\.(m|mlx|txt|csv|tsv|json|yaml|yml|toml|ini|cfg)$/i;
-  const SEED_FILE_LIMIT_BYTES = 1 * 1024 * 1024;       // 1 MB / file
-  const SEED_TOTAL_LIMIT_BYTES = 64 * 1024 * 1024;     // 64 MB total
-  const seedStats = { seeded: 0, skippedExt: 0, skippedSize: 0, skippedBudget: 0, totalBytes: 0 };
+  const sync = typeof backend.readFileSync === 'function';
 
-  async function seedFrom(tree) {
-    for (const node of tree) {
-      if (node.type === 'file') {
-        if (seedStats.totalBytes >= SEED_TOTAL_LIMIT_BYTES) {
-          seedStats.skippedBudget++;
-          continue;
-        }
-        if (!SEED_EXTENSIONS.test(node.name || node.path)) {
-          seedStats.skippedExt++;
-          continue;
-        }
-        let content;
-        try { content = await backend.readFile(node.path); }
-        catch { continue; }
-        if (typeof content !== 'string') continue;
-        const bytes = content.length * 2;  // pessimistic UTF-16 estimate
-        if (bytes > SEED_FILE_LIMIT_BYTES) {
-          seedStats.skippedSize++;
-          continue;
-        }
-        cache.set(node.path, content);
-        seedStats.seeded++;
-        seedStats.totalBytes += bytes;
-      } else if (node.type === 'folder' && node.children) {
-        await seedFrom(node.children);
-      }
-    }
-  }
-
-  // Serialise write-backs so we don't race IndexedDB transactions.
+  // Serialise write-backs so we don't race async-store transactions.
   function schedulePersist(path) {
     dirty.add(path);
     dirtySinceFlush = true;
@@ -107,57 +60,79 @@ function makeSyncAdapter({ backend, name }) {
       const content = cache.get(path);
       try {
         if (content === undefined) await backend.remove(path);
-        else await backend.writeFile(path, content);
+        else                       await backend.writeFile(path, content);
       } catch (e) {
         console.warn(`[vfs-adapter:${name}] persist failed for ${path}:`, e);
       }
     });
   }
 
-  function logSeedStats(action) {
-    const s = seedStats;
-    const mb = (s.totalBytes / 1048576).toFixed(1);
+  // Fallback seed — used only when the backend has no sync read.
+  async function fallbackSeed() {
+    let total = 0;
+    let count = 0;
+    async function visit(tree) {
+      for (const node of tree) {
+        if (total >= FALLBACK_TOTAL_LIMIT_BYTES) return;
+        if (node.type === 'file') {
+          if (!FALLBACK_SEED_EXTENSIONS.test(node.name || node.path)) continue;
+          let content;
+          try { content = await backend.readFile(node.path); }
+          catch { continue; }
+          if (typeof content !== 'string') continue;
+          const bytes = content.length * 2;
+          if (bytes > FALLBACK_FILE_LIMIT_BYTES) continue;
+          if (total + bytes > FALLBACK_TOTAL_LIMIT_BYTES) continue;
+          cache.set(node.path, content);
+          total += bytes;
+          count++;
+        } else if (node.type === 'folder' && node.children) {
+          await visit(node.children);
+        }
+      }
+    }
+    const tree = await backend.listTree();
+    await visit(tree);
     // eslint-disable-next-line no-console
-    console.log(`[vfs-adapter:${name}] ${action}: seeded=${s.seeded} (${mb} MB), `
-      + `skipped(ext=${s.skippedExt}, size=${s.skippedSize}, budget=${s.skippedBudget})`);
+    console.log(`[vfs-adapter:${name}] fallback seed: ${count} files, ${(total/1024).toFixed(1)} KB`);
   }
 
   return {
-    // Call this before registering with the engine — populates the mirror.
+    /**
+     * Initialise the backend and (only when no sync read is
+     * available) populate the bounded fallback cache. Idempotent;
+     * concurrent callers share one in-flight Promise.
+     */
     async seed() {
-      if (seeded) return;
-      if (backend.init) await backend.init();
-      // Backends with sync read (native Electron) skip seeding entirely:
-      // the engine reads files lazily via backend.readFileSync. Backends
-      // without sync read (FSA on web, IndexedDB tempFS) pre-load with
-      // the budgeted seedFrom — they have no other way to satisfy a
-      // synchronous WASM-side read.
-      if (sync) {
-        // eslint-disable-next-line no-console
-        console.log(`[vfs-adapter:${name}] sync-IPC backend; skipping seed (lazy reads on demand).`);
-      } else {
-        const tree = await backend.listTree();
-        await seedFrom(tree);
-        logSeedStats('seed');
-      }
-      seeded = true;
+      if (seedPromise) return seedPromise;
+      seedPromise = (async () => {
+        if (backend.init) await backend.init();
+        if (sync) {
+          // eslint-disable-next-line no-console
+          console.log(`[vfs-adapter:${name}] sync backend; no seed (lazy on demand).`);
+        } else {
+          await fallbackSeed();
+        }
+      })();
+      return seedPromise;
     },
 
-    // Manual refresh (e.g. after the user edits a file via an external tool).
+    /**
+     * Wipe in-memory state and re-seed (only when no sync read).
+     * Used when the user manually edits files outside the IDE.
+     */
     async refresh() {
       cache.clear();
-      Object.assign(seedStats, { seeded: 0, skippedExt: 0, skippedSize: 0, skippedBudget: 0, totalBytes: 0 });
-      if (!sync) {
-        const tree = await backend.listTree();
-        await seedFrom(tree);
-        logSeedStats('refresh');
-      }
+      seedPromise = null;
+      if (!sync) await this.seed();
     },
 
-    // Flush any pending writes and wait for them — use before shutdown.
-    // Resolves to `true` if anything was written/removed since the last
-    // flush, `false` otherwise. Callers use the boolean to skip a noisy
-    // tree-rebuild when nothing changed.
+    /**
+     * Wait for any pending writes to flush. Resolves to `true` if
+     * anything was written/removed since the last flush — callers
+     * use this to skip a no-op Sidebar tree rebuild on read-only
+     * script runs.
+     */
     async flush() {
       const wasDirty = dirtySinceFlush;
       dirtySinceFlush = false;
@@ -165,16 +140,11 @@ function makeSyncAdapter({ backend, name }) {
       return wasDirty;
     },
 
-    // ── Sync hooks wired into the engine via CallbackFS ──
+    // ── Sync hooks wired into the WASM engine via CallbackFS ──
     readFile(path) {
-      // Cache wins (covers writes-before-flush + tempFS seeded entries).
+      // Cache hit covers writes-before-flush AND fallback-seeded entries.
       if (cache.has(path)) return cache.get(path);
       if (sync) {
-        // Lazy disk read via sync IPC. We don't populate the cache
-        // here on purpose: the engine may read large CSVs once for
-        // a single computation and not need them again — caching
-        // would re-introduce the leak we just fixed. Hot-reads pay
-        // the IPC tax; that's fine for the typical script.
         const v = backend.readFileSync(path);
         if (v == null) throw new Error(`${name}: no such file '${path}'`);
         return v;
@@ -196,17 +166,10 @@ function makeSyncAdapter({ backend, name }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Public entry point: seed both adapters and register them with
-// the engine. Call once at application startup, after the WASM
-// module has been initialised.
+// Public entry point: register adapters with the engine.
 // ─────────────────────────────────────────────────────────────
 
 export async function installVfsAdapters(engine) {
-  // Register the adapter even if seed() fails — a partially- or zero-
-  // populated cache is still functional for csvwrite followed by csvread
-  // in the same session, and avoids "filesystem 'X' is not available"
-  // errors at execution time when seed hits a transient backend hiccup
-  // (IndexedDB permission, browser privacy mode, empty FS, etc.).
   const temp = makeSyncAdapter({ backend: tempFS, name: 'temporary' });
   try { await temp.seed(); }
   catch (e) { console.warn('[vfs-adapter] temporary.seed failed:', e); }
@@ -216,11 +179,10 @@ export async function installVfsAdapters(engine) {
   return { temp, local };
 }
 
-// Register (or re-register) the Local Folder adapter. Call this whenever
-// the user mounts a folder post-page-load — the FileBrowser's
-// reconnect()/pickDirectory() flow is async and fires AFTER App.jsx has
-// already run installVfsAdapters, so the first call wouldn't see the mount.
-// Returns the adapter, or null if Local Folder isn't available/mounted.
+// Register (or re-register) the Local Folder adapter. The FileBrowser
+// reconnect()/pickDirectory() flow fires AFTER installVfsAdapters has
+// already run, so the first installVfsAdapters call won't see a
+// mount; the FileBrowser calls this when one becomes available.
 export async function installLocalAdapter(engine) {
   if (!localFS.isAvailable || !localFS.isAvailable()
       || !localFS.isMounted  || !localFS.isMounted())
