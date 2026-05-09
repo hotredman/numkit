@@ -807,6 +807,46 @@ export default function CompositePlot({
                   </g>
                 );
               }
+              if (mode === 'errorbar') {
+                // Three SVG elements per data point:
+                //   • centre dot (the y value)
+                //   • vertical bar from y-eNeg to y+ePos
+                //   • horizontal cap at each end of the bar
+                // eNeg / ePos arrays are indexed parallel to x/y. Missing
+                // entries fall back to 0 (no bar drawn).
+                const eN = ly.eNeg || [];
+                const eP = ly.ePos || [];
+                const cap = 5;  // pixel half-width of the end caps
+                return (
+                  <g key={`ly${idx}`} opacity={op}>
+                    {ly.x.map((xv, i) => {
+                      const yv = ly.y[i];
+                      if (!Number.isFinite(xv) || !Number.isFinite(yv)) return null;
+                      const px = sx(xv), py = sy(yv);
+                      if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
+                      const eNeg = Number(eN[i]) || 0;
+                      const ePos = Number(eP[i]) || 0;
+                      const yLo = sy(yv - eNeg);
+                      const yHi = sy(yv + ePos);
+                      return (
+                        <g key={i}>
+                          {(eNeg !== 0 || ePos !== 0) && (
+                            <>
+                              <line x1={px} x2={px} y1={yLo} y2={yHi}
+                                stroke={ly.color} strokeWidth={Math.max(1, w * 0.7)} />
+                              <line x1={px - cap} x2={px + cap} y1={yLo} y2={yLo}
+                                stroke={ly.color} strokeWidth={Math.max(1, w * 0.7)} />
+                              <line x1={px - cap} x2={px + cap} y1={yHi} y2={yHi}
+                                stroke={ly.color} strokeWidth={Math.max(1, w * 0.7)} />
+                            </>
+                          )}
+                          <circle cx={px} cy={py} r={2.5} fill={ly.color} />
+                        </g>
+                      );
+                    })}
+                  </g>
+                );
+              }
               // 'line' or 'stairs'
               let d = '';
               let started = false;
