@@ -320,6 +320,59 @@ export default function PolarPlot({
           {figure.series?.map((s, idx) => {
             if (!s.theta?.length || !s.rho?.length) return null;
             const color = s.color || PALETTE[idx % PALETTE.length];
+            const mode = s.mode || 'line';
+
+            if (mode === 'scatter') {
+              // polarscatter — circle marker at each (theta, rho).
+              return (
+                <g key={s.name}>
+                  {s.theta.map((th, i) => {
+                    const rho = s.rho[i];
+                    if (rho == null || !Number.isFinite(rho)) return null;
+                    const [x, y] = ptFor(th, rho);
+                    return <circle key={i} cx={x} cy={y} r="3"
+                      fill={color} stroke="var(--plot-frame)" strokeWidth="0.6" />;
+                  })}
+                </g>
+              );
+            }
+            if (mode === 'bar') {
+              // polarhistogram — radial bars: theta is the bin centre,
+              // rho is the count, and the wedge spans (theta - dθ/2,
+              // theta + dθ/2) where dθ is inferred from neighbour spacing.
+              // Default span = 2π / N when only one bin spacing is known.
+              const N = s.theta.length;
+              const halfSpan = N > 1
+                ? Math.abs(s.theta[1] - s.theta[0]) / 2
+                : Math.PI / Math.max(1, N);
+              return (
+                <g key={s.name}>
+                  {s.theta.map((th, i) => {
+                    const rho = s.rho[i];
+                    if (!Number.isFinite(rho) || rho <= 0) return null;
+                    // Wedge as four-corner polygon: (origin path inward
+                    // would simplify to triangle since the inner edge
+                    // collapses; render a polygon from origin out and
+                    // back across the bin span).
+                    const a0 = th - halfSpan;
+                    const a1 = th + halfSpan;
+                    const [xo0, yo0] = ptFor(a0, 0);
+                    const [xo1, yo1] = ptFor(a1, 0);
+                    const [xr0, yr0] = ptFor(a0, rho);
+                    const [xr1, yr1] = ptFor(a1, rho);
+                    const d = `M${xo0.toFixed(2)},${yo0.toFixed(2)} `
+                            + `L${xr0.toFixed(2)},${yr0.toFixed(2)} `
+                            + `L${xr1.toFixed(2)},${yr1.toFixed(2)} `
+                            + `L${xo1.toFixed(2)},${yo1.toFixed(2)} Z`;
+                    return <path key={i} d={d}
+                      fill={color} fillOpacity="0.6"
+                      stroke={color} strokeWidth="0.8" />;
+                  })}
+                </g>
+              );
+            }
+
+            // Default: line / polyline.
             let d = '';
             let started = false;
             for (let i = 0; i < s.theta.length; i++) {

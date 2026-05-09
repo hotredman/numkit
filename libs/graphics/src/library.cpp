@@ -1768,6 +1768,80 @@ void GraphicsLibrary::install(Engine &engine)
             outs[0] = Value::empty();
         });
 
+    // polarscatter(theta, rho) — markers at each (θ, ρ) on the polar
+    // axes. Same wire format as polarplot but type='scatter' so the
+    // PolarPlot renderer draws circles instead of polylines.
+    reg("polar", "polarscatter",
+        [vecToJson, parsePlotArgs](Span<const Value> args, size_t nargout,
+                                   Span<Value> outs, CallContext &ctx) {
+            if (args.size() < 2) { outs[0] = Value::empty(); return; }
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            fm.currentAxes().polar = true;
+            DatasetInfo ds;
+            ds.type = "scatter";
+            ds.xJson = vecToJson(args[0]);
+            ds.yJson = vecToJson(args[1]);
+            size_t nvStart = 2;
+            if (args.size() >= 3 && args[2].isChar()) {
+                ds.style = args[2].toString();
+                nvStart = 3;
+            }
+            parsePlotArgs(args, nvStart, ds);
+            fm.pushDataset(std::move(ds));
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
+    // polarhistogram(theta[, nbins]) — bins θ values into nbins angular
+    // sectors over [0, 2π) and emits a polar bar dataset where each
+    // bin centre carries its count. PolarPlot renders the bars as
+    // wedges from the origin.
+    reg("polar", "polarhistogram",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.empty() || args[0].numel() == 0) { outs[0] = Value::empty(); return; }
+            const auto &theta = args[0];
+            const size_t N = theta.numel();
+            int nbins = (args.size() >= 2 && args[1].numel() == 1)
+                        ? std::max(1, (int)args[1].toScalar())
+                        : 36;   // 10° bins by default
+            const double TAU = 2 * 3.14159265358979323846;
+            const double bw = TAU / nbins;
+
+            std::vector<double> counts(nbins, 0.0);
+            for (size_t i = 0; i < N; ++i) {
+                double t = theta.doubleData()[i];
+                if (!std::isfinite(t)) continue;
+                // Wrap into [0, 2π).
+                t = std::fmod(t, TAU);
+                if (t < 0) t += TAU;
+                int b = (int)(t / bw);
+                if (b >= nbins) b = nbins - 1;
+                if (b < 0) b = 0;
+                counts[b] += 1;
+            }
+            std::ostringstream tx, ty;
+            tx << '['; ty << '[';
+            for (int i = 0; i < nbins; ++i) {
+                if (i) { tx << ','; ty << ','; }
+                tx << (bw * (i + 0.5));    // bin centre
+                ty << counts[i];
+            }
+            tx << ']'; ty << ']';
+
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            fm.currentAxes().polar = true;
+            DatasetInfo ds;
+            ds.type = "bar";              // routed to wedge renderer
+            ds.xJson = tx.str();
+            ds.yJson = ty.str();
+            fm.pushDataset(std::move(ds));
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
     reg("line", "stem",
         [parsePlotXYStyle, parsePlotArgs](Span<const Value> args, size_t nargout,
                                           Span<Value> outs, CallContext &ctx) {
