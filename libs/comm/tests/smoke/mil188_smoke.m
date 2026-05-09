@@ -27,3 +27,19 @@ zn = mil188qamdemod(noisy, 16);
 fprintf('  noisy demod:  ');
 fprintf('%d ', zn);
 fprintf(' (expect 0..15)\n');
+
+fprintf('\n--- M=32 ---\n');
+y32 = mil188qammod((0:31)', 32);
+fprintf('  32-QAM first 4 entries:\n');
+for k = 1:4
+    fprintf('    y(%2d) = %+.6f%+.6fi\n', k-1, real(y32(k)), imag(y32(k)));
+end
+fprintf('  Expected (from MATLAB R2025b probe):\n');
+fprintf('    y(0) = +0.866380+0.499386i\n');
+fprintf('    y(1) = +0.984849+0.173415i\n');
+
+z32 = mil188qamdemod(y32, 32);
+fprintf('\n  round-trip M=32: match = %d (expect 1)\n', isequal((0:31)', z32));
+
+zn32 = mil188qamdemod(y32 + 0.02*(1+1i), 32);
+fprintf('  noisy demod M=32: match = %d (expect 1)\n', isequal((0:31)', zn32));
