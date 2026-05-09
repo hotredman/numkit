@@ -23,7 +23,7 @@
  *   axis equal / axis vis3d apply a single scale = 2 / max(range) and
  *   centre the data, so 1 data-unit = 1 world-unit on every axis.
  */
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
@@ -871,11 +871,13 @@ function disposeTree(root) {
 
 /* ───────────── component ───────────── */
 
-export default function Composite3DPlot({
+function Composite3DPlot({
   figure, width, height,
   fontScale = 1,
   interactive = true,
-}) {
+  viewport3d = null,         // optional override of figure.xlim/ylim/zlim
+  onBBox = null,             // (bbox) => void — fired on each rebuild
+}, ref) {
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
   const labelLayerRef = useRef(null);
@@ -896,7 +898,12 @@ export default function Composite3DPlot({
       preserveDrawingBuffer: process.env.NUMKIT_E2E === '1',
     });
     renderer.setPixelRatio(window.devicePixelRatio || 1);
-    renderer.setClearColor(cssColorInt('--plot-bg', 0x0d1117), 1);
+    // Transparent canvas — the wrapper <div> below carries the actual
+    // background through `var(--plot-bg)`, which the browser updates
+    // automatically on theme switch. Setting a fixed clear-color here
+    // would freeze the dark fallback onto preview cards even after the
+    // user switched to a light theme.
+    renderer.setClearColor(0x000000, 0);
 
     // CSS2D renderer for HTML overlays (tick labels, axis labels).
     const css2d = new CSS2DRenderer({ element: labelLayer });
@@ -1055,15 +1062,28 @@ export default function Composite3DPlot({
       ly && ly.kind === 'series' && ly.xRaw && ly.yRaw && ly.z);
     if (layers.length === 0) return;
 
+    // viewport3d (from FigureWindow's X/Y/Z inputs) wins over the
+    // figure's own xlim/ylim/zlim. Each axis falls back independently
+    // so the user can override only Z while leaving X/Y at data
+    // extent, etc.
+    const lims = {
+      xlim: viewport3d?.x ?? figure.xlim,
+      ylim: viewport3d?.y ?? figure.ylim,
+      zlim: viewport3d?.z ?? figure.zlim,
+    };
     const bbox = computeBBox(
       layers.map((ly) => ({ x: ly.xRaw, y: ly.yRaw, z: ly.z })),
-      { xlim: figure.xlim, ylim: figure.ylim, zlim: figure.zlim }
+      lims
     );
+    if (typeof onBBox === 'function') onBBox(bbox);
     const scl = computeScales(bbox, figure.axisMode || '');
     // Hand the (bbox, scl) to the raycaster closure so it can map
     // world-space hits back to data coords for the tooltip.
     if (c.setBbox) c.setBbox(bbox);
     if (c.setScl)  c.setScl(scl);
+    // Cache for the imperative getBBox() handle.
+    c.bbox = bbox;
+    c.scl  = scl;
 
     // Axes frame.
     const showGrid = figure.grid !== '' && figure.grid !== 'off';
@@ -1139,18 +1159,85 @@ export default function Composite3DPlot({
     c.controls.enableRotate = figure.rotate3d !== 'off';
     c.controls.enablePan    = figure.pan3d    !== 'off';
     c.controls.enableZoom   = figure.zoom3d   !== 'off';
-  }, [figure, fontScale]);
+  }, [figure, fontScale, viewport3d]);
 
   useEffect(() => {
     const c = ctxRef.current;
     if (c && c.controls) c.controls.enabled = !!interactive;
   }, [interactive]);
 
+  // Imperative handle exposed to FigureWindow for the toolbar's Fit
+  // menu, X/Y/Z inputs, and Save/Export popups. Everything reads
+  // straight off ctxRef so callers always see the live state.
+  useImperativeHandle(ref, () => ({
+    /** Current data-space bbox (after computeBBox). null until first
+     *  figure rebuild runs. */
+    getBBox: () => ctxRef.current?.bbox || null,
+
+    /** Render once at `scale` and return a PNG data URL. Used by the
+     *  FigureWindow Save/Export menu instead of the SVG pipeline (3-D
+     *  geometry lives in canvas). */
+    getCanvasDataURL: (scale = 1) => {
+      const c = ctxRef.current;
+      const canvas = canvasRef.current;
+      if (!c || !canvas) return null;
+      // Force a full redraw so preserveDrawingBuffer=false builds
+      // still capture content. We don't temporarily resize for `scale`
+      // here — the IDE's PNG@2× / print presets call this multiple
+      // times with different scales; if the user wants higher
+      // resolution they can resize the modal first. (TODO follow-up:
+      // offscreen render at scale × current size.)
+      void scale;
+      c.renderer.render(c.scene, c.camera);
+      c.css2d.render(c.scene, c.camera);
+      return canvas.toDataURL('image/png');
+    },
+
+    /** Pull (name, x[], y[], z[]) per layer for CSV / TSV / JSON
+     *  export. Surface layers expand the matrix into a flat list. */
+    getCsvData: () => {
+      const out = [];
+      for (const ly of (figure?.layers || [])) {
+        if (!ly || ly.kind !== 'series') continue;
+        const xr = ly.xRaw, yr = ly.yRaw, zr = ly.z;
+        if (!xr || !yr) continue;
+        out.push({
+          name: ly.name || 'series',
+          x: Array.from(xr),
+          y: Array.from(yr),
+          z: Array.isArray(zr) ? Array.from(zr) : null,
+        });
+      }
+      return out;
+    },
+
+    /** Snap camera to (az, el) degrees — same code path as
+     *  view(az, el) on figure mount. */
+    setView: (az, el) => {
+      const c = ctxRef.current;
+      if (!c) return;
+      const off = azElToCameraOffset(az, el, 4);
+      c.camera.position.set(off.x, off.y, off.z);
+      c.camera.lookAt(0, 0, 0);
+      c.controls.update();
+    },
+  }), [figure]);
+
   return (
     <div ref={containerRef}
-         style={{ position: 'relative', width, height, background: 'var(--bg-1)' }}>
+         style={{
+           // Wrapper carries the actual figure background through a CSS
+           // variable so the WebGL canvas can stay transparent. Browser
+           // re-applies the color on theme switch — no imperative
+           // refresh needed in the renderer.
+           position: 'relative', width, height,
+           background: 'var(--plot-bg, var(--bg-1, #0d1117))',
+         }}>
       <canvas ref={canvasRef}
-              style={{ display: 'block', width, height }}
+              style={{
+                display: 'block', width, height,
+                background: 'transparent',
+              }}
               data-numkit-3d-frames={frameCount} />
       {/* CSS2D overlay: HTML labels positioned in 3-D space by three. */}
       <div ref={labelLayerRef}
@@ -1222,3 +1309,8 @@ export default function Composite3DPlot({
     </div>
   );
 }
+
+// forwardRef so FigureWindow can grab the imperative handle (getBBox,
+// getCanvasDataURL, getCsvData, setView) without lifting state out of
+// this component.
+export default forwardRef(Composite3DPlot);
