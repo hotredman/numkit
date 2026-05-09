@@ -963,7 +963,7 @@ intentionally omitted, along with `constellation` (object method) and
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `arithenco` | ❌ |  |  |  |  | arithmetic encoder |
+| `arithenco` | ❌ | 0.007 | 476.34× |  | OK | MATLAB arithenco / arithdeco: arithmetic coding pair. Bit-equal with MATLAB R2025b on encoded bit string and decoded sequence. Implements the Sayood textbook E1/E2/E3 rescaling algorithm matching MATLAB's source. Octave 11.1.0 doesn't ship arithenco/arithdeco in core (signal/communications package only); reports N/A. |
 | `arithdeco` | ❌ |  |  |  |  |  |
 | `compand` | ❌ | 0.009 | 83.58× |  | OK | MATLAB compand: μ-law / A-law signal compander. 4 methods covered (mu/compressor, mu/expander, A/compressor, A/expander) with round-trip identity validation and sign preservation on negatives. Algorithm: closed-form formulas from MATLAB compand.m. Output preserves input shape. |
 | `dpcmenco` | ❌ | 0.007 | 83.83× |  | OK | MATLAB dpcmenco/dpcmdeco: 1st-order DPCM (predictor=[0 1]) with 6-bin codebook + 5-threshold partition. Bit-equal with MATLAB R2025b on encoded indices, quantization error, and reconstructed signal. Round-trip qe consistency (qe from encoder == qe from decoder via codebook lookup) also verified. dpcmopt deferred (training-set optimisation needs Lloyd-Max + alternating predictor estimation -- own cycle). Octave 11.1.0 doesn't ship dpcmenco/deco in core; reports N/A. |
