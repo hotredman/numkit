@@ -2543,6 +2543,78 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 }
                             });
 
+    // ── yyyymmdd ──────────────────────────────────────────────
+    // Packed integer date: Y*10000 + M*100 + D from a MATLAB serial
+    // date number. Output preserves input shape.
+    //
+    // EXTENSION vs MATLAB: MATLAB R2025b's yyyymmdd accepts only
+    // datetime input (numkit has no datetime class yet). Accepting
+    // a serial date number here matches the spirit of the function
+    // and is the call most users want; the equivalent MATLAB call
+    // is `yyyymmdd(datetime(d, 'ConvertFrom', 'datenum'))`. Parity
+    // spec wraps the input with that conversion.
+    engine.registerFunction("yyyymmdd",
+                            [](Span<const Value> args,
+                               size_t /*nargout*/,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                if (args.empty())
+                                    throw std::runtime_error(
+                                        "yyyymmdd requires one argument");
+                                if (args[0].isChar() || args[0].isString())
+                                    throw std::runtime_error(
+                                        "yyyymmdd: string parsing not "
+                                        "supported");
+                                auto civilFromDays = [](int64_t z,
+                                                        int64_t &Y, int &M,
+                                                        int &D) {
+                                    z += 719468;
+                                    const int64_t era =
+                                        (z >= 0 ? z : z - 146096) / 146097;
+                                    const int64_t doe = z - era * 146097;
+                                    const int64_t yoe =
+                                        (doe - doe / 1460 + doe / 36524
+                                         - doe / 146096)
+                                        / 365;
+                                    const int64_t y = yoe + era * 400;
+                                    const int64_t doy =
+                                        doe - (365 * yoe + yoe / 4 - yoe / 100);
+                                    const int64_t mp = (5 * doy + 2) / 153;
+                                    D = static_cast<int>(
+                                        doy - (153 * mp + 2) / 5 + 1);
+                                    M = static_cast<int>(
+                                        mp < 10 ? mp + 3 : mp - 9);
+                                    Y = y + (M <= 2 ? 1 : 0);
+                                };
+                                auto packOne = [&](double dval) {
+                                    if (dval == 0.0) return 0.0;
+                                    const int64_t days =
+                                        static_cast<int64_t>(std::floor(dval));
+                                    const int64_t z = days - 719529;
+                                    int64_t Y;
+                                    int M, D;
+                                    civilFromDays(z, Y, M, D);
+                                    return static_cast<double>(
+                                        Y * 10000 + M * 100 + D);
+                                };
+
+                                auto *mr = ctx.engine->resource();
+                                const Value &Din = args[0];
+                                const size_t N = Din.numel();
+                                if (N == 1) {
+                                    outs[0] = Value::scalar(
+                                        packOne(Din.toScalar()), mr);
+                                    return;
+                                }
+                                auto out = Value::matrix(
+                                    Din.dims().rows(), Din.dims().cols(),
+                                    ValueType::DOUBLE, mr);
+                                double *o = out.doubleDataMut();
+                                for (size_t i = 0; i < N; ++i)
+                                    o[i] = packOne(Din.elemAsDouble(i));
+                                outs[0] = std::move(out);
+                            });
+
     // ── addpath / rmpath / path / rehash / run (Phase 9b) ──────
     engine.registerFunction("addpath",
                             [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
