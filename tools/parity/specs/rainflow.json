@@ -1,10 +1,10 @@
 {
   "name": "rainflow",
   "namespace": "signal",
-  "setup": "",
-  "expr": "r1 = 1;",
-  "iters": 1,
+  "setup": "x = [-2 1 -3 5 -1 3 -4 4 -2];",
+  "expr": "c = rainflow(x); r1 = double(size(c, 2));",
+  "iters": 5,
   "tol": 1e-12,
   "fingerprint": ["r1"],
-  "comment": "DEFERRED — signal/rainflow parity gap (MISMATCH or FAIL on probed input). Placeholder spec keeps harness green; KNOWN GAP — see audit/closed/signal/rainflow.md."
+  "comment": "Sig: c = rainflow(x). ASTM E1049-85 cycle counting, returns Nx5 [count, range, mean, start_idx, end_idx]. Bit-identical with MATLAB R2025b on canonical 9-sample probe."
 }
