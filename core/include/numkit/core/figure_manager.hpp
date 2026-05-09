@@ -140,6 +140,11 @@ struct AxesState
     // (-37.5°, 30°). Wire format: "[az,el]" with degrees.
     std::string viewJson;
 
+    // Z-axis label / limits (3-D figures). Empty = auto-derived from
+    // data extent, mirroring xlim/ylim semantics.
+    std::string zlabel;
+    std::string zlimJson;
+
     std::string thetaDir = "counterclockwise";
     std::string thetaZeroLocation = "right";
 
@@ -416,6 +421,10 @@ public:
                 }
                 if (!ax.viewJson.empty())
                     os << ",\"view\":" << ax.viewJson;
+                if (!ax.zlabel.empty())
+                    os << ",\"zlabel\":\"" << jsonEscapeFig(ax.zlabel) << "\"";
+                if (!ax.zlimJson.empty())
+                    os << ",\"zlim\":" << ax.zlimJson;
                 os << "}}";
             }
             os << "]}";

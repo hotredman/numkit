@@ -499,6 +499,11 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
   // the whole MVP surface.
   const has3D = layers.some((ly) => ly && ly.kind === 'series' && Array.isArray(ly.z));
   if (has3D) {
+    // Honour user-set lims; auto-fit when omitted (renderer computes
+    // bbox over layer data). Null sentinel = auto.
+    const xlim3 = Array.isArray(cfg.xlim) && cfg.xlim.length === 2 ? cfg.xlim : null;
+    const ylim3 = Array.isArray(cfg.ylim) && cfg.ylim.length === 2 ? cfg.ylim : null;
+    const zlim3 = Array.isArray(cfg.zlim) && cfg.zlim.length === 2 ? cfg.zlim : null;
     return {
       kind: 'composite3d',
       id: cellId,
@@ -506,6 +511,16 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
       xLabel: cfg.xlabel || '',
       yLabel: cfg.ylabel || '',
       zLabel: cfg.zlabel || '',
+      xlim: xlim3,
+      ylim: ylim3,
+      zlim: zlim3,
+      // axisMode forwarded so the renderer can honour 'equal' / 'vis3d'
+      // (equal data units per world unit on every axis).
+      axisMode: cfg.axisMode || '',
+      // grid / box toggles from the existing 2-D commands; default
+      // grid on for 3-D since plain wireframes are otherwise hard to
+      // read.
+      grid: cfg.grid || 'on',
       // view: [az, el] in degrees from the C++ view(az, el) call;
       // null = renderer's default (-37.5°, 30°).
       view: Array.isArray(cfg.view) && cfg.view.length === 2 ? cfg.view : null,
