@@ -1,0 +1,10 @@
+{
+  "name": "dutycycle",
+  "namespace": "signal",
+  "setup": "x = [zeros(1,5) ones(1,5) zeros(1,5) ones(1,5) zeros(1,5)];",
+  "expr": "d = dutycycle(double(x), 1); r1 = double(numel(d) > 0);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: d = dutycycle(x, fs). Spec-extension batch 2026-05-09 (cycle 40)."
+}

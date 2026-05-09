@@ -1,0 +1,10 @@
+{
+  "name": "rc2lar",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "g = rc2lar([-0.5 0.4]); r1 = double(numel(g));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: g = rc2lar(k). Spec-extension batch 2026-05-09 (cycle 40)."
+}

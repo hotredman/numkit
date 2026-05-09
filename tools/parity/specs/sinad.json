@@ -1,0 +1,10 @@
+{
+  "name": "sinad",
+  "namespace": "signal",
+  "setup": "fs = 1000; t = (0:1/fs:0.1)'; x = sin(2*pi*100*t);",
+  "expr": "r1 = double(sinad(x, fs) > 0);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: r = sinad(x, fs). Spec-extension batch 2026-05-09 (cycle 40)."
+}
