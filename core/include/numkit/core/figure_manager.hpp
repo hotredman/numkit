@@ -154,6 +154,14 @@ struct AxesState
     std::string materialPreset;
     std::string camlightPos;
 
+    // Interaction toggles for 3-D figures (rotate3d / pan3d / zoom3d).
+    // "" = default (all enabled when interactive). "off" = disable
+    // that specific axis of interaction. The renderer reads these and
+    // updates OrbitControls accordingly.
+    std::string rotate3dMode;
+    std::string pan3dMode;
+    std::string zoom3dMode;
+
     std::string thetaDir = "counterclockwise";
     std::string thetaZeroLocation = "right";
 
@@ -440,6 +448,12 @@ public:
                     os << ",\"material\":\"" << ax.materialPreset << "\"";
                 if (!ax.camlightPos.empty())
                     os << ",\"camlight\":\"" << ax.camlightPos << "\"";
+                if (!ax.rotate3dMode.empty())
+                    os << ",\"rotate3d\":\"" << ax.rotate3dMode << "\"";
+                if (!ax.pan3dMode.empty())
+                    os << ",\"pan3d\":\"" << ax.pan3dMode << "\"";
+                if (!ax.zoom3dMode.empty())
+                    os << ",\"zoom3d\":\"" << ax.zoom3dMode << "\"";
                 os << "}}";
             }
             os << "]}";

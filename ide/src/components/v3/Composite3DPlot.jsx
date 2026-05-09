@@ -851,6 +851,7 @@ export default function Composite3DPlot({
   const labelLayerRef = useRef(null);
   const ctxRef = useRef(null);
   const [frameCount, setFrameCount] = useState(0);
+  const [tip, setTip] = useState(null);   // { x, y, z, screenX, screenY }
 
   // Initial mount.
   useEffect(() => {
@@ -896,6 +897,41 @@ export default function Composite3DPlot({
     controls.dampingFactor = 0.1;
     controls.enabled = !!interactive;
 
+    // Raycaster for data-tip on hover. We test against the data layer
+    // group only — axes / grid / cube don't show tooltips.
+    const raycaster = new THREE.Raycaster();
+    raycaster.params.Points = { threshold: 0.04 };  // tolerate ~4% pick radius
+    raycaster.params.Line   = { threshold: 0.02 };
+    const ndc = new THREE.Vector2();
+    let bbox = null;             // captured at figure-build time below
+    let scl  = null;             // ditto
+
+    const onMove = (ev) => {
+      const rect = canvas.getBoundingClientRect();
+      ndc.x =  ((ev.clientX - rect.left) / rect.width)  * 2 - 1;
+      ndc.y = -((ev.clientY - rect.top)  / rect.height) * 2 + 1;
+      raycaster.setFromCamera(ndc, camera);
+      const hits = raycaster.intersectObjects(layerGroup.children, true);
+      if (hits.length === 0 || !scl) {
+        setTip(null);
+        return;
+      }
+      // Closest hit; convert world coords back to data coords.
+      const p = hits[0].point;
+      // Inverse of toWorld: world (X, Y, Z) → data (x, y, z).
+      const dataX = p.x / scl.sx + scl.ox;
+      const dataY = -(p.z) / scl.sy + scl.oy;
+      const dataZ = p.y / scl.sz + scl.oz;
+      setTip({
+        x: dataX, y: dataY, z: dataZ,
+        screenX: ev.clientX - rect.left,
+        screenY: ev.clientY - rect.top,
+      });
+    };
+    const onLeave = () => setTip(null);
+    canvas.addEventListener('mousemove', onMove);
+    canvas.addEventListener('mouseleave', onLeave);
+
     // Two top-level groups: data (rebuilt per figure) + axes (rebuilt
     // per figure too, since ticks depend on bbox).
     const layerGroup = new THREE.Group();
@@ -935,7 +971,9 @@ export default function Composite3DPlot({
     };
 
     ctxRef.current = { renderer, css2d, scene, camera, controls,
-                       layerGroup, axesGroup, camLight };
+                       layerGroup, axesGroup, camLight,
+                       setBbox: (b) => { bbox = b; },
+                       setScl:  (s) => { scl  = s; }};
     raf = requestAnimationFrame(tick);
 
     canvas.setAttribute('data-numkit-3d', '1');
@@ -946,6 +984,8 @@ export default function Composite3DPlot({
 
     return () => {
       cancelAnimationFrame(raf);
+      canvas.removeEventListener('mousemove', onMove);
+      canvas.removeEventListener('mouseleave', onLeave);
       controls.dispose();
       disposeTree(scene);
       renderer.dispose();
@@ -990,6 +1030,10 @@ export default function Composite3DPlot({
       { xlim: figure.xlim, ylim: figure.ylim, zlim: figure.zlim }
     );
     const scl = computeScales(bbox, figure.axisMode || '');
+    // Hand the (bbox, scl) to the raycaster closure so it can map
+    // world-space hits back to data coords for the tooltip.
+    if (c.setBbox) c.setBbox(bbox);
+    if (c.setScl)  c.setScl(scl);
 
     // Axes frame.
     const showGrid = figure.grid !== '' && figure.grid !== 'off';
@@ -1060,6 +1104,11 @@ export default function Composite3DPlot({
     } else {
       c.camLight.visible = false;
     }
+
+    // OrbitControls per-axis toggles. '' = default (all enabled).
+    c.controls.enableRotate = figure.rotate3d !== 'off';
+    c.controls.enablePan    = figure.pan3d    !== 'off';
+    c.controls.enableZoom   = figure.zoom3d   !== 'off';
   }, [figure, fontScale]);
 
   useEffect(() => {
@@ -1086,6 +1135,25 @@ export default function Composite3DPlot({
           textAlign: 'center', fontSize: 12 * fontScale,
           color: 'var(--plot-text-strong)', pointerEvents: 'none',
         }}>{figure.title}</div>
+      )}
+      {tip && (
+        <div style={{
+          position: 'absolute',
+          left: Math.min(tip.screenX + 12, (width || 320) - 140),
+          top:  Math.max(8, tip.screenY - 60),
+          padding: '4px 8px',
+          background: 'var(--plot-tip-bg, rgba(20,24,30,0.92))',
+          color: 'var(--plot-tip-text, #d4d4f0)',
+          border: '1px solid var(--plot-cross, #6e7681)',
+          borderRadius: 3,
+          fontFamily: 'monospace', fontSize: 10 * fontScale,
+          pointerEvents: 'none',
+          whiteSpace: 'nowrap',
+        }}>
+          x = {fmtTick(tip.x)}<br/>
+          y = {fmtTick(tip.y)}<br/>
+          z = {fmtTick(tip.z)}
+        </div>
       )}
     </div>
   );
