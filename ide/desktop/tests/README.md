@@ -10,15 +10,25 @@ don't touch your real `%APPDATA%/numkit-ide-desktop` IDE state.
 ```
 tests/
 ├── e2e/
-│   ├── smoke.spec.js       — boot path: window, ready state, banner, no errors
-│   ├── workspace.spec.js   — single-click opens VE; Enter doesn't leak
-│   ├── figures.spec.js     — × closes; whole card opens; expand button gone
-│   └── vfs.spec.js         — Examples manifest, file open, tempFS path
+│   ├── smoke.spec.js          — boot path: window, ready state, banner, no errors
+│   ├── workspace.spec.js      — single-click opens VE; Enter doesn't leak
+│   ├── figures.spec.js        — × closes; whole card opens; expand button gone
+│   ├── vfs.spec.js            — Examples manifest, file open, tempFS path
+│   ├── memory.spec.js         — Tab process bound on boot/idle, OUTPUT/FIGURE caps
+│   └── local-folder.spec.js   — mount fixture, tree visible, node_modules filtered
 ├── helpers/
-│   ├── launch.js           — launchIde() / closeIde() with isolated userData
-│   └── ide.js              — Page Object: locators + actions
-├── package.json            — { "type": "module" } scope for ESM-in-tests
-└── README.md               (this)
+│   ├── launch.js              — launchIde() / closeIde() with isolated userData
+│   ├── ide.js                 — Page Object: locators + actions
+│   └── metrics.js             — app.getAppMetrics() → tabMemory()
+├── fixtures/
+│   ├── README.md
+│   └── sample-folder/         — small "project" for local-folder tests
+│       ├── hello.m
+│       ├── data.csv
+│       ├── subdir/nested.m
+│       └── node_modules/junk.txt   ← must be filtered by TREE_SKIP_DIRS
+├── package.json               — { "type": "module" } scope for ESM-in-tests
+└── README.md                  (this)
 ```
 
 ## Running
@@ -85,13 +95,44 @@ test.describe('my feature', () => {
 When a CSS class shifts, fix the locator in one place
 (`helpers/ide.js`) — every spec picks it up.
 
+## Reading memory in tests
+
+`helpers/metrics.js` wraps `app.getAppMetrics()` (Electron main-
+process API). Use it for assertions on the renderer's TOTAL working
+set — `performance.memory` from inside the renderer only sees V8
+JS heap and misses WASM linear memory, typed arrays, GPU buffers,
+IPC buffers — exactly the regions that the OOM bug actually grew.
+
+```js
+import { tabMemory } from '../helpers/metrics.js';
+
+const m = await tabMemory(app);
+expect(m.workingSet).toBeLessThan(350);  // MB
+```
+
+## Local Folder mount in tests
+
+The real flow opens a native OS dialog, which Playwright can't
+drive cleanly. We bypass it by writing the persisted root path to
+localStorage and reloading — `nativeFS.reconnect()` (in
+`ide/src/fs/local.js`) picks it up exactly as if the user had
+selected the folder in the dialog:
+
+```js
+await page.evaluate((root) => {
+  localStorage.setItem('numkit.ide.native.root', root);
+  localStorage.setItem('numkit.ide.sidebar.source', '"localFolder"');
+}, FIXTURE_ROOT);
+await page.reload();
+```
+
+The fixture under `fixtures/sample-folder/` is committed; tests
+use an absolute path resolved from `import.meta.url`.
+
 ## What we DON'T test (yet)
 
-- Memory regressions — needs a longer-running fixture and reading
-  `app.getAppMetrics()` from the main process. Worth adding once
-  we have a heap-bounded baseline.
-- Local Folder mount — needs File System Access permission flow
-  or a real folder fixture; current scope is tempFS + Examples.
 - Multi-window flows — close window, re-open, restore state.
-- Cross-platform — tests run on whatever host runs them; no CI
-  matrix yet.
+- Cross-platform CI — tests run on whatever host runs them; no
+  GitHub Actions matrix yet.
+- Real macOS / Linux native FS quirks (paths, permissions,
+  symlinks) — the fixture lives under the same path as the tests.
