@@ -20,9 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (trivial-fix batch)
 - Closed date: 2026-05-09
-- Notes: Signal batch 3 (filter impl + multirate + spectral, 20 funcs).
-  Bit-identical MATLAB R2025b on probed inputs (14 verified, 6 deferred).
-  See signal_batch3_test.cpp.
-  KNOWN GAP: numkit upfirdn output length differs by 1 from MATLAB (boundary handling). Documented as separate ТЗ.
+- Notes: Initial closure was DEFERRED -- output length differed by 1 (numkit Lx*p, MATLAB ceil(((Lx-1)*p + Lh) / q)). Root cause: numkit reused upsample (which adds Lx*p trailing zeros) + filter (which truncates to input length); MATLAB does upsample-no-trailing + full convolve. Fix: rewrite upfirdn to do explicit convolution at the upsampled positions then downsample by q. Bit-identical with MATLAB R2025b and scipy.signal.upfirdn on probed input (returns 11 elements vs old 10).

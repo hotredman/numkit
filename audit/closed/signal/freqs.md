@@ -20,8 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (trivial-fix batch)
 - Closed date: 2026-05-09
-- Notes: Signal batch 2 (filter design + AR/LPC + cepstral + freq response,
-  17 funcs). Bit-identical MATLAB R2025b. See signal_batch2_test.cpp.
-  KNOWN GAP: numkit's freqs returns scalar where MATLAB returns length-N vector. Documented as separate ТЗ.
+- Notes: Initial closure was DEFERRED -- numkit returned 10x1 column vector, MATLAB returns 1x10 row vector for scalar w input. Fix: switched Value::complexMatrix(M, 1) -> Value::complexMatrix(1, M) in libs/signal/src/filter_design/analog_filters.cpp::freqs. Values were already bit-identical -- only the shape was wrong.

@@ -244,10 +244,15 @@ void datasample_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("datasample: requires (X, K[, dim, ...])",
                     0, 0, "datasample", "", "m:datasample:nargin");
     const int K = (int)args[1].toScalar();
-    int dim = 1;
+    // MATLAB datasample default dim:
+    //   - For a row vector (1 x N), sample along columns (dim=2).
+    //   - Otherwise, sample along rows (dim=1).
+    // The user can still override with the third positional argument.
+    int dim = (args[0].dims().rows() == 1 && args[0].dims().cols() > 1) ? 2 : 1;
     bool with_replacement = true;  // datasample default = with replacement
     Value weights;
-    if (args.size() >= 3 && !args[2].isEmpty() && args[2].numel() == 1)
+    if (args.size() >= 3 && !args[2].isEmpty() && args[2].numel() == 1
+        && !args[2].isChar() && !args[2].isString())
         dim = (int)args[2].toScalar();
     for (size_t i = 2; i + 1 < args.size(); ++i) {
         if (args[i].isChar() || args[i].isString()) {

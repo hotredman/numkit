@@ -1,12 +1,10 @@
 {
   "name": "optimget",
   "namespace": "optim",
-  "setup": "",
-  "expr": "r1 = 1;",
+  "setup": "opts = optimset('TolX', 1e-3, 'Display', 'off');",
+  "expr": "r1 = double(optimget(opts, 'TolX'));",
   "iters": 5,
-  "tol": 0,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: optimget(...). KNOWN GAP: optimget struct field-access syntax differs. Documented as separate \u0422\u0417."
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: v = optimget(opts, name[, default]). Bit-identical with MATLAB R2025b on probed access. Earlier defer was wrong -- function works."
 }

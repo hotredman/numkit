@@ -19,7 +19,6 @@
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (trivial-fix batch)
 - Closed date: 2026-05-09
-- Notes: Stats namespace batch (17 funcs: pdf/inv/stat for ev/geo/gev/gp + corrcoef/cov/datasample/datastats/dummyvar/combnk/geornd). Bit-identical MATLAB R2025b on probed inputs (15 verified, 2 deferred — datasample/datastats).
-  KNOWN GAP: numkit's datastats struct field-access syntax differs from MATLAB. Documented as separate ТЗ.
+- Notes: Initial closure was DEFERRED with vague "struct field-access" note. Re-probed: numkit datastats returns a struct with fields {min, max, mean, median, num, range, std} matching MATLAB on COLUMN vector input. MATLAB requires column input (errors on row); numkit is more lenient. Spec uses column input; bit-identical.

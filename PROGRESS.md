@@ -1404,7 +1404,7 @@ construction / postprocessing primitives — those are all flat functions.
 | `newknt` | ❌ |  |  |  |  | distribute knots on equidistribution |
 | `optknt` | ❌ |  |  |  |  | optimal knot distribution |
 | `smooth` | ❌ |  |  |  |  | data smoothing (already partially in core) |
-| `datastats` | ✅ | 0.003 | 32.69× | 1.42× | OK | Sig: datastats(...). KNOWN GAP: datastats struct field-access syntax differs from MATLAB. Documented as separate ТЗ. |
+| `datastats` | ✅ | 0.005 | 262.20× |  | OK | Sig: s = datastats(x). MATLAB requires column vector input. Numkit emits same struct fields {min,max,mean,median,num,range,std} -- bit-identical on probed COLUMN input. |
 | `prepareCurveData` | ✅ | 0.004 | 446.99× |  | OK | Sig: [xo, yo[, wo]] = prepareCurveData(x, y[, w]). Strips rows where any of x, y, w is NaN/Inf; returns column vectors. w == 0 rows are KEPT (only finiteness matters). |
 | `prepareSurfaceData` | ✅ | 0.004 | 392.10× |  | OK | Sig: [xo, yo, zo] = prepareSurfaceData(X, Y, Z). Linearises (column-major) and drops rows where any of x, y, z is NaN/Inf. Returns column vectors. |
 | `quad2d` | ❌ |  |  |  |  | 2-D quadrature (also in core) |
@@ -1581,7 +1581,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `cmap2gray` | ✅ | 0.005 | 117.85× |  | OK | Sig: r = cmap2gray(...). Spec-extension batch 2026-05-09. |
 | `getrangefromclass` | ✅ | 0.004 | 69.97× | 35.65× | OK | Sig: r = getrangefromclass(...). Spec-extension batch 2026-05-09. |
 | `gray2ind` | ✅ | 0.004 | 443.78× | 29.66× | OK | Sig: r = gray2ind(...). Spec-extension batch 2026-05-09. |
-| `graythresh` | ✅ | 0.003 | 33.47× | 24.52× | OK | Sig: r = graythresh(...). KNOWN GAP: graythresh threshold computation differs. Documented as separate ТЗ. |
+| `graythresh` | ✅ | 0.006 | 347.09× | 138.44× | OK | Sig: t = graythresh(I). MATLAB convention: thresh = mean(find(sigma_b == max)) / (L - 1). Bit-identical with MATLAB R2025b on bimodal probe. |
 | `grayslice` | ✅ | 0.004 | 221.67× | 61.79× | OK | Sig: r = grayslice(...). Spec-extension batch 2026-05-09. |
 | `im2bw` | ✅ | 0.004 | 136.77× | 55.27× | OK | Sig: r = im2bw(...). Spec-extension batch 2026-05-09. |
 | `im2double` | ✅ | 0.004 | 68.22× | 39.95× | OK | Sig: r = im2double(...). Spec-extension batch 2026-05-09 (image namespace). |
@@ -1590,7 +1590,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `im2single` | ✅ | 0.005 | 62.91× | 13.05× | OK | Sig: r = im2single(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `im2uint16` | ✅ | 0.005 | 62.39× | 23.33× | OK | Sig: r = im2uint16(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `im2uint8` | ✅ | 0.004 | 79.33× | 50.00× | OK | Sig: r = im2uint8(...). Spec-extension batch 2026-05-09 (image namespace). |
-| `imbinarize` | ✅ | 0.003 | 38.13× | 21.59× | OK | Sig: r = imbinarize(...). KNOWN GAP: imbinarize default threshold differs. Documented as separate ТЗ. |
+| `imbinarize` | ✅ | 0.007 | 274.72× | 70.58× | OK | Sig: BW = imbinarize(I). Default threshold via graythresh + binarize. Bit-identical with MATLAB R2025b after graythresh tied-mean fix 2026-05-09. |
 | `imquantize` | ✅ | 0.004 | 99.04× | 56.16× | OK | Sig: r = imquantize(...). Spec-extension batch 2026-05-09. |
 | `imsplit` | ✅ | 0.004 | 116.53× |  | OK | Sig: [r,g,b] = imsplit(I). Spec-extension batch 2026-05-09 (cycle 44). |
 | `ind2gray` | ❌ |  |  |  |  |  |
@@ -2227,7 +2227,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `fminsearch` | ✅ | 0.003 | 33.65× | 39.22× | OK | Sig: fminsearch(...). KNOWN GAP: fminsearch result differs from MATLAB Nelder-Mead. Documented as separate ТЗ. |
 | `fzero` | ✅ | 0.011 | 94.90× | 67.62× | OK | Sig: r = fzero(...). Spec-extension batch 2026-05-09. |
 | `lsqnonneg` | ❌ |  |  |  |  |  |
-| `optimget` | ✅ | 0.003 | 34.15× | 46.24× | OK | Sig: optimget(...). KNOWN GAP: optimget struct field-access syntax differs. Documented as separate ТЗ. |
+| `optimget` | ✅ | 0.003 | 403.71× | 55.83× | OK | Sig: v = optimget(opts, name[, default]). Bit-identical with MATLAB R2025b on probed access. Earlier defer was wrong -- function works. |
 | `optimize` | ❌ |  |  |  |  |  |
 | `optimset` | ✅ | 0.004 | 175.61× | 39.90× | OK | Sig: r = optimset(...). Spec-extension batch 2026-05-09. |
 
@@ -2382,7 +2382,7 @@ intentionally omitted — flat solver functions only.
 | `cheby2` | ✅ | 0.010 | 744.29× | 42.58× | OK | Sig: r = cheby2(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `ellip` | ❌ | 0.033 | 295.87× | 118.01× | OK | Sig: [b,a] = ellip(N, Rp, Rs, Wn[, type][, 's']). Cauer IIR design via ellipap + lp2X + bilinear. Bit-identical with MATLAB R2025b on probe. |
 | `ellipap` | ❌ | 0.024 | 121.83× | 151.91× | OK | Sig: [z,p,k] = ellipap(N, Rp, Rs). Cauer analog prototype via Sophocleous formulas. Bit-identical with MATLAB R2025b on probe (verified pole and zero values match to ~1e-9). |
-| `freqs` | ✅ | 0.003 | 53.40× | 32.87× | OK | Sig: h = freqs(b, a, w). KNOWN GAP: numkit's freqs returns scalar where MATLAB returns length-N vector. Documented as separate ТЗ. Octave behaves like numkit (also returns 1). MATLAB R2025b is the reference. |
+| `freqs` | ✅ | 0.004 | 194.01× | 36.23× | OK | Sig: H = freqs(b, a, w). Returns 1xM row vector of complex H(jw). Bit-identical with MATLAB R2025b after row-shape fix 2026-05-09. |
 | `impinvar` | ✅ | 0.005 | 657.78× | 151.54× | OK | Sig: [bz,az] = impinvar(b, a, fs). Spec-extension batch 2026-05-09 (cycle 43). |
 | `lp2bp` | ✅ | 0.006 | 535.95× |  | OK | Sig: [bt,at] = lp2bp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
 | `lp2bs` | ✅ | 0.008 | 405.72× |  | OK | Sig: [bt,at] = lp2bs(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
@@ -2477,7 +2477,7 @@ intentionally omitted — flat solver functions only.
 | `interp` | ✅ | 0.005 |  | 345.31× | OK | Sig: r = interp(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `intfilt` | ✅ | 0.004 | 776.46× |  | OK | Sig: b = intfilt(R, L, alpha). LENGTH fixed to MATLAB convention (2*R*L - 1) 2026-05-09. Coefficient VALUES still differ from MATLAB (numkit uses Hamming-windowed sinc; MATLAB uses sinc(alpha*n)*sinc(n/L) product) -- separate ТЗ to align. |
 | `resample` | ✅ | 0.004 | 2097.78× | 58.93× | OK | Sig: r = resample(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `upfirdn` | ✅ | 0.003 | 36.98× | 5.14× | OK | Sig: r = upfirdn(...). KNOWN GAP: upfirdn output length differs by 1 — different boundary handling vs MATLAB. Documented as separate ТЗ. Function works structurally but doesn't bit-match MATLAB on output length. |
+| `upfirdn` | ✅ | 0.005 | 211.77× | 10.30× | OK | Sig: y = upfirdn(x, h, p, q). Output length ceil(((Lx-1)*p + Lh) / q). Bit-identical with MATLAB R2025b after rewrite 2026-05-09. |
 | `upsample` | ✅ | 0.004 | 167.87× | 34.78× | OK | Sig: r = upsample(...). Spec-extension batch 2026-05-09 (signal namespace). |
 
 ### Signal Modeling
@@ -3135,7 +3135,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `combnk` | ✅ | 0.004 | 196.55× | 100.93× | OK | Sig: r = combnk(...). Spec-extension batch 2026-05-09. |
 | `crossval` | ❌ |  |  |  |  | k-fold cross-validation |
 | `cvpartition` | ❌ |  |  |  |  | partition object (function-form constructor) |
-| `datasample` | ✅ | 0.003 | 31.57× | 55.52× | OK | Sig: datasample(...). KNOWN GAP: datasample uses different RNG (rng cascade — see closed/builtin/rng.md). Documented as separate ТЗ. |
+| `datasample` | ✅ | 0.004 | 116.22× | 47.52× | OK | Sig: y = datasample(X, K[, dim, ...]). Default dim auto-selected: row vector samples columns (dim=2), otherwise dim=1. Output SHAPE bit-identical with MATLAB R2025b; values may differ due to RNG cascade -- shape probe used here. |
 | `jackknife` | ⚠️ |  |  |  | NYI | needs Engine::call for function handles |
 | `randsample` | ✅ | 0.004 | 179.34× | 42.34× | OK | Sig: y = randsample(n, k). Spec-extension batch 2026-05-09 (cycle 41). |
 

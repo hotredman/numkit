@@ -1,12 +1,10 @@
 {
   "name": "imbinarize",
   "namespace": "image",
-  "setup": "",
-  "expr": "r1 = 1;",
+  "setup": "I = uint8([20 20 20 20 120 120 120 120 220 220 220 220]);",
+  "expr": "BW = imbinarize(I); r1 = double(sum(BW(:)));",
   "iters": 5,
-  "tol": 0,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: r = imbinarize(...). KNOWN GAP: imbinarize default threshold differs. Documented as separate \u0422\u0417."
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: BW = imbinarize(I). Default threshold via graythresh + binarize. Bit-identical with MATLAB R2025b after graythresh tied-mean fix 2026-05-09."
 }

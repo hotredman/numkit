@@ -1,12 +1,10 @@
 {
   "name": "datasample",
   "namespace": "stats",
-  "setup": "",
-  "expr": "r1 = 1;",
+  "setup": "rng(42);",
+  "expr": "y = datasample(1:10, 5); r1 = double(numel(y));",
   "iters": 5,
-  "tol": 0,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: datasample(...). KNOWN GAP: datasample uses different RNG (rng cascade \u2014 see closed/builtin/rng.md). Documented as separate \u0422\u0417."
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "Sig: y = datasample(X, K[, dim, ...]). Default dim auto-selected: row vector samples columns (dim=2), otherwise dim=1. Output SHAPE bit-identical with MATLAB R2025b; values may differ due to RNG cascade -- shape probe used here."
 }

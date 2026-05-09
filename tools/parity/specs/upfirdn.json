@@ -2,11 +2,9 @@
   "name": "upfirdn",
   "namespace": "signal",
   "setup": "",
-  "expr": "r1 = 1;",
+  "expr": "y = upfirdn([1 2 3 4 5], [1 1 1], 2, 1); r1 = double(numel(y));",
   "iters": 5,
-  "tol": 0,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: r = upfirdn(...). KNOWN GAP: upfirdn output length differs by 1 \u2014 different boundary handling vs MATLAB. Documented as separate \u0422\u0417. Function works structurally but doesn't bit-match MATLAB on output length."
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: y = upfirdn(x, h, p, q). Output length ceil(((Lx-1)*p + Lh) / q). Bit-identical with MATLAB R2025b after rewrite 2026-05-09."
 }

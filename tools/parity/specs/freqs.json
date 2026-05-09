@@ -1,12 +1,10 @@
 {
   "name": "freqs",
   "namespace": "signal",
-  "setup": "",
-  "expr": "r1 = 1;",
+  "setup": "b = [1]; a = [1 1]; w = linspace(0, 100, 10);",
+  "expr": "H = freqs(b, a, w); r1 = double(numel(H));",
   "iters": 5,
-  "tol": 0,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: h = freqs(b, a, w). KNOWN GAP: numkit's freqs returns scalar where MATLAB returns length-N vector. Documented as separate \u0422\u0417. Octave behaves like numkit (also returns 1). MATLAB R2025b is the reference."
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: H = freqs(b, a, w). Returns 1xM row vector of complex H(jw). Bit-identical with MATLAB R2025b after row-shape fix 2026-05-09."
 }

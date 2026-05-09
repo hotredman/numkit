@@ -230,31 +230,53 @@ Value histeq(std::pmr::memory_resource *mr, const Value &I, int n)
 
 namespace {
 
-// Single-threshold Otsu on a histogram of L bins. Returns (level ∈ [0,L-1],
-// em ∈ [0, 1]).
-std::pair<int, double> otsu_one_level(const std::vector<double> &counts) {
+// Single-threshold Otsu on a histogram of L bins. Returns the
+// MEAN of all tied-maximum bin indices (as MATLAB's graythresh does),
+// plus the effectiveness metric eta in [0, 1].
+//
+// MATLAB algorithm (from graythresh.m):
+//   idx = mean(find(sigma_b_squared == max(sigma_b_squared)));
+// then level = (idx - 1) / (num_bins - 1).
+//
+// We return the 0-based mean directly; the caller divides by L-1.
+std::pair<double, double> otsu_one_level(const std::vector<double> &counts) {
     const int L = (int)counts.size();
     double total = 0.0;
     double sum_total = 0.0;
     for (int i = 0; i < L; ++i) { total += counts[i]; sum_total += i * counts[i]; }
-    if (total <= 0.0) return {0, 0.0};
+    if (total <= 0.0) return {0.0, 0.0};
 
-    double w0 = 0.0, sum0 = 0.0;
-    double best_var = -1.0;
-    int best_t = 0;
-    for (int t = 0; t < L - 1; ++t) {
-        w0 += counts[t]; sum0 += t * counts[t];
-        const double w1 = total - w0;
-        if (w0 == 0.0 || w1 == 0.0) continue;
-        const double mu0 = sum0 / w0;
-        const double mu1 = (sum_total - sum0) / w1;
-        const double diff = mu0 - mu1;
-        const double inter_var = w0 * w1 * diff * diff;
-        if (inter_var > best_var) { best_var = inter_var; best_t = t; }
+    // First pass: find max sigma_b^2.
+    std::vector<double> sigma_b(L, 0.0);
+    {
+        double w0 = 0.0, sum0 = 0.0;
+        for (int t = 0; t < L - 1; ++t) {
+            w0 += counts[t]; sum0 += t * counts[t];
+            const double w1 = total - w0;
+            if (w0 == 0.0 || w1 == 0.0) continue;
+            const double mu0 = sum0 / w0;
+            const double mu1 = (sum_total - sum0) / w1;
+            const double diff = mu0 - mu1;
+            sigma_b[t] = w0 * w1 * diff * diff;
+        }
     }
-    // Effectiveness metric η = σ_b² / σ_T² (matches MATLAB graythresh's
-    // 2nd output). With unnormalised counts: σ_b² = best_var / T²,
-    // σ_T² = total_var / T, so η = best_var / (T · total_var).
+    double best_var = sigma_b[0];
+    for (int t = 1; t < L - 1; ++t) if (sigma_b[t] > best_var) best_var = sigma_b[t];
+
+    // Second pass: average ALL bin indices where sigma_b == best_var.
+    // Tolerate tiny numerical noise; MATLAB uses exact equality on
+    // normalised values.
+    int n_tied = 0;
+    double sum_tied = 0.0;
+    for (int t = 0; t < L - 1; ++t) {
+        if (sigma_b[t] == best_var) {
+            sum_tied += static_cast<double>(t);
+            ++n_tied;
+        }
+    }
+    const double best_t = (n_tied > 0) ? (sum_tied / n_tied) : 0.0;
+
+    // Effectiveness metric eta = sigma_b^2 / sigma_T^2.
     const double mu = sum_total / total;
     double total_var = 0.0;
     for (int i = 0; i < L; ++i) total_var += counts[i] * (i - mu) * (i - mu);
@@ -270,7 +292,11 @@ otsuthresh(std::pmr::memory_resource *mr, const Value &counts_v) {
     std::vector<double> c(L);
     for (size_t i = 0; i < L; ++i) c[i] = counts_v.elemAsDouble(i);
     auto [lvl, em] = otsu_one_level(c);
-    const double thresh = (L > 1) ? double(lvl) / double(L - 1) : 0.0;
+    // MATLAB graythresh / otsuthresh convention: thresh = lvl / (L - 1),
+    // where lvl is the mean of all bin indices that achieve the maximum
+    // sigma_b^2. (multithresh, by contrast, returns midpoints of class
+    // means -- intentionally different convention in MATLAB.)
+    const double thresh = (L > 1) ? (lvl / static_cast<double>(L - 1)) : 0.0;
     return std::make_tuple(Value::scalar(thresh, mr), Value::scalar(em, mr));
 }
 

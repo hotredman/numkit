@@ -20,8 +20,6 @@ benched input.
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (trivial-fix batch)
 - Closed date: 2026-05-09
-- Notes: Multi-namespace batch (io+linalg+wavelet+optim, 21 funcs).
-  Bit-identical MATLAB R2025b on probed inputs.
-  KNOWN GAP: optimget struct field-access differs. Documented as separate ТЗ.
+- Notes: Initial closure was DEFERRED with a vague "struct field-access syntax differs" note. Re-probed: optimget(opts, name) and optimget(opts, name, default) work bit-identically with MATLAB R2025b (verified on TolX retrieval and missing-field default fallback). Spec restored to real probe.
