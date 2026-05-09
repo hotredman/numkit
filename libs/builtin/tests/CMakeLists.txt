@@ -73,4 +73,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/svd_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/svd_deps_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/eig_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/matfunc_test.cpp
 )
