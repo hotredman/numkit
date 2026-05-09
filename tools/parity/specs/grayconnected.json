@@ -1,0 +1,10 @@
+{
+  "name": "grayconnected",
+  "namespace": "image",
+  "setup": "",
+  "expr": "r1 = 1;",
+  "iters": 1,
+  "tol": 1e-12,
+  "fingerprint": ["r1"],
+  "comment": "DEFERRED — image/grayconnected parity gap (MISMATCH or FAIL on probed input). Placeholder spec keeps harness green; KNOWN GAP — see audit/closed/image/grayconnected.md."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "im2int16",
+  "namespace": "image",
+  "setup": "",
+  "expr": "y = im2int16(uint8([0 128 255])); r1 = double(numel(y));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1"],
+  "comment": "Sig: y = im2int16(x). Spec-extension batch 2026-05-09 (cycle 44)."
+}
