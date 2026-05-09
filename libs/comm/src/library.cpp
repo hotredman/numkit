@@ -79,6 +79,9 @@ void huffmandeco_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 // source/dpcm.cpp
 void dpcmenco_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dpcmdeco_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// source/quantiz.cpp
+void quantiz_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -147,6 +150,7 @@ void CommLibrary::install(Engine &engine)
 
     reg("eq", "dpcmenco",    &comm::detail::dpcmenco_reg);
     reg("eq", "dpcmdeco",    &comm::detail::dpcmdeco_reg);
+    reg("eq", "quantiz",     &comm::detail::quantiz_reg);
 }
 
 } // namespace numkit

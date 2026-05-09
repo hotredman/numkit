@@ -973,7 +973,7 @@ intentionally omitted, along with `constellation` (object method) and
 | `huffmanenco` | ❌ | 0.006 | 362.10× |  | OK | MATLAB huffmanenco/huffmandeco: encode/decode round-trip via dict from huffmandict. Bit codes are non-unique (Huffman tie-breaking can produce different but equally optimal trees), so encoded length depends on which optimal dict shape was produced. The INVARIANT under both engines is round-trip identity: dec must equal sig regardless of dict shape. We pin rt_match==1, length(dec), and the first/last decoded symbols. Octave 11.1.0 doesn't ship the Huffman codec in core; reports N/A. |
 | `huffmandeco` | ❌ |  |  |  |  |  |
 | `lloyds` | ❌ |  |  |  |  | Lloyd-Max scalar quantiser |
-| `quantiz` | ❌ |  |  |  |  | apply quantisation table |
+| `quantiz` | ❌ | 0.007 | 105.98× |  | OK | MATLAB quantiz: scalar quantizer applier. indx(i) = sum(partition < sig(i)); quantv = codebook(indx+1); distor = mean((sig-quantv)^2). Bit-equal with MATLAB R2025b. Octave 11.1.0 doesn't ship quantiz in core (signal/communications package only); reports N/A. |
 
 ### Error Detection and Correction
 
