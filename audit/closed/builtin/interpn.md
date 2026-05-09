@@ -19,8 +19,6 @@
 - N/A.
 
 ## Closed
-- Closed in commit: TBD
+- Closed in commit: pending (cycle 6)
 - Closed date: 2026-05-09
-- Notes: Misc batch 4 (convert + intmax/intmin + collection + meshgrid + misc, 20 funcs).
-  Bit-identical MATLAB R2025b. See misc4_batch_test.cpp.
-  KNOWN GAP: numkit's interpn adapter has incorrect arg-shape validation (rejects valid grids). Documented as separate ТЗ.
+- Notes: Initial closure was DEFERRED -- same root cause as interp3. Fixed by the same readGridAxis rewrite. interpn dispatches to interp3 internally; bit-identical with MATLAB R2025b on ndgrid form.

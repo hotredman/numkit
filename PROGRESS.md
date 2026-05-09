@@ -778,9 +778,9 @@ together.
 | `griddedinterpolant` | ❌ |  |  |  |  |  |
 | `interp1` | ✅ | 0.008 | 88.01× | 168.53× | OK | Sig: r = interp1(...). Spec-extension batch 2026-05-09. |
 | `interp2` | ✅ | 0.004 | 433.90× | 114.31× | OK | Sig: r = interp2(...). Spec-extension batch 2026-05-09. |
-| `interp3` | ✅ | 0.003 | 33.29× | 41.28× | OK | Sig: interp3(...). KNOWN GAP: numkit's interp3 adapter has incorrect arg-shape validation (rejects valid grids). Documented as separate ТЗ. No-op placeholder. |
+| `interp3` | ✅ | 0.004 | 618.90× | 120.81× | OK | Sig: V = interp3(X, Y, Z, V, Xq, Yq, Zq). N-D linear interpolation. Bit-identical with MATLAB R2025b. readGridAxis now auto-detects meshgrid vs ndgrid orientation. |
 | `interpft` | ✅ | 0.006 | 245.64× | 97.65× | OK | Sig: Y = interpft(X, n[, dim]). Band-limited (FFT-based) interpolation to n samples. Default dim = first non-singleton. Vector form preserves originals at integer multiples of original spacing. Matrix dim=1 interpolates each column; dim=2 interpolates each row. tol=1e-12. |
-| `interpn` | ✅ | 0.003 | 31.29× | 28.71× | OK | Sig: interpn(...). KNOWN GAP: numkit's interpn adapter has incorrect arg-shape validation (rejects valid grids). Documented as separate ТЗ. No-op placeholder. |
+| `interpn` | ✅ | 0.003 | 684.14× | 85.47× | OK | Sig: V = interpn(X1, ..., Xn, V, Xq1, ..., Xqn). N-D linear interpolation (ndgrid form). Dispatches to interp3 internally; bit-identical with MATLAB R2025b. |
 | `makima` | ❌ |  |  |  |  |  |
 | `meshgrid` | ✅ | 0.004 | 87.37× | 35.05× | OK | Sig: r = meshgrid(...). Spec-extension batch 2026-05-09. |
 | `mkpp` | ✅ | 0.000 | 7.07× | 58.01× | OK | Sig: PP = mkpp(BREAKS, COEFS). 4-piece linear. 10000 iters. |
