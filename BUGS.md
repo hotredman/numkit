@@ -800,7 +800,7 @@ shape parsing. Bare `true`/`false` resolve to scalar logicals via
 
 ---
 
-## 31. `libs/builtin`: `interpn` (N-D interpolation) not implemented — **P2**
+## 31. `libs/builtin`: `interpn` (N-D interpolation) not implemented — **P2** ⚠ partial
 
 **Reproducer:**
 ```matlab
@@ -814,6 +814,11 @@ the underlying interp infrastructure not generalized to N-D).
 **Where:** [libs/builtin/src/](libs/builtin/) `interpn` adapter.
 Likely needs 3-D meshgrid first.
 **First seen:** 2026-05-03, parity bulk-bench iteration 27.
+**Partial fix (2026-05-10):** Verified `interpn` dispatches correctly
+to interp2 / interp3 for ndim ∈ {2, 3}. e2e `interpn-bug31.spec.js`
+pins both paths (2-D bilinear + 3-D trilinear). True 4+-D
+interpolation (generic ND tensor-product linear interp over 2^N
+corners per query) remains BACKLOG.
 
 ---
 
