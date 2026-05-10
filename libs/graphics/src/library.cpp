@@ -21,6 +21,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <functional>
 #include <iostream>
 #include <limits>
@@ -5186,6 +5187,157 @@ void GraphicsLibrary::install(Engine &engine)
     // BACKLOG.
     reg("layout", "linkprop", noop_ret1);
     reg("layout", "linkdata", noop_ret1);
+
+    // ────────────────────────────────────────────────────────────────
+    // animatedline — incremental line plot. MATLAB:
+    //   h = animatedline;          — empty line on the current axes
+    //   h = animatedline(x0, y0);  — initial points
+    //   addpoints(h, x, y);
+    //   clearpoints(h);
+    //   [x, y] = getpoints(h);
+    //   drawnow;                   — flush
+    //
+    // numkit doesn't model graphics handles, so animatedline-cluster
+    // calls target the most recent animated dataset on the current
+    // axes (axes::animatedDatasetIdx). animatedline returns an
+    // opaque scalar (1-based index) for script compat, but every
+    // op walks animatedDatasetIdx.
+    //
+    // Wire: the dataset uses ds.type='line' with isAnimated=true and
+    // animatedX/animatedY holding the raw points. xJson/yJson are
+    // rebuilt on every push.
+    // ────────────────────────────────────────────────────────────────
+    auto rebuildAnimatedJson = [](DatasetInfo &ds) {
+        std::ostringstream xs, ys;
+        xs << '[';
+        for (size_t i = 0; i < ds.animatedX.size(); ++i) {
+            if (i) xs << ',';
+            xs << ds.animatedX[i];
+        }
+        xs << ']';
+        ys << '[';
+        for (size_t i = 0; i < ds.animatedY.size(); ++i) {
+            if (i) ys << ',';
+            ys << ds.animatedY[i];
+        }
+        ys << ']';
+        ds.xJson = xs.str();
+        ds.yJson = ys.str();
+    };
+    reg("layout", "animatedline",
+        [rebuildAnimatedJson](Span<const Value> args, size_t nargout,
+                              Span<Value> outs, CallContext &ctx) {
+            auto *mr = ctx.engine->resource();
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            DatasetInfo ds;
+            ds.type = "line";
+            ds.isAnimated = true;
+            // Optional initial points.
+            if (args.size() >= 2 && !args[0].isChar() && !args[1].isChar()) {
+                const auto &xa = args[0];
+                const auto &ya = args[1];
+                const size_t n = std::min(xa.numel(), ya.numel());
+                ds.animatedX.reserve(n);
+                ds.animatedY.reserve(n);
+                for (size_t i = 0; i < n; ++i) {
+                    ds.animatedX.push_back(xa.elemAsDouble(i));
+                    ds.animatedY.push_back(ya.elemAsDouble(i));
+                }
+            }
+            rebuildAnimatedJson(ds);
+            auto &ax = fm.currentAxes();
+            ax.datasets.push_back(std::move(ds));
+            ax.animatedDatasetIdx = (int)ax.datasets.size() - 1;
+            fm.current().modified = true;
+            fm.emitModified();
+            // Return 1-based dataset index as a scalar handle.
+            outs[0] = Value::scalar((double)(ax.animatedDatasetIdx + 1), mr);
+        });
+    reg("layout", "addpoints",
+        [rebuildAnimatedJson](Span<const Value> args, size_t nargout,
+                              Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            auto &fm = ctx.engine->figureManager();
+            auto &ax = fm.currentAxes();
+            if (ax.animatedDatasetIdx < 0
+                || (size_t)ax.animatedDatasetIdx >= ax.datasets.size()) {
+                outs[0] = Value::empty();
+                return;
+            }
+            // Skip args[0] (handle) — addpoints(h, x, y).
+            if (args.size() < 3) { outs[0] = Value::empty(); return; }
+            const auto &xa = args[1];
+            const auto &ya = args[2];
+            const size_t n = std::min(xa.numel(), ya.numel());
+            auto &ds = ax.datasets[(size_t)ax.animatedDatasetIdx];
+            ds.animatedX.reserve(ds.animatedX.size() + n);
+            ds.animatedY.reserve(ds.animatedY.size() + n);
+            for (size_t i = 0; i < n; ++i) {
+                ds.animatedX.push_back(xa.elemAsDouble(i));
+                ds.animatedY.push_back(ya.elemAsDouble(i));
+            }
+            rebuildAnimatedJson(ds);
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+    reg("layout", "clearpoints",
+        [rebuildAnimatedJson](Span<const Value> args, size_t nargout,
+                              Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            (void)args;
+            auto &fm = ctx.engine->figureManager();
+            auto &ax = fm.currentAxes();
+            if (ax.animatedDatasetIdx < 0
+                || (size_t)ax.animatedDatasetIdx >= ax.datasets.size()) {
+                outs[0] = Value::empty();
+                return;
+            }
+            auto &ds = ax.datasets[(size_t)ax.animatedDatasetIdx];
+            ds.animatedX.clear();
+            ds.animatedY.clear();
+            rebuildAnimatedJson(ds);
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+    reg("layout", "getpoints",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)args;
+            auto *mr = ctx.engine->resource();
+            auto &fm = ctx.engine->figureManager();
+            auto &ax = fm.currentAxes();
+            if (ax.animatedDatasetIdx < 0
+                || (size_t)ax.animatedDatasetIdx >= ax.datasets.size()) {
+                outs[0] = Value::empty();
+                if (nargout >= 2) outs[1] = Value::empty();
+                return;
+            }
+            const auto &ds = ax.datasets[(size_t)ax.animatedDatasetIdx];
+            const size_t n = ds.animatedX.size();
+            auto xv = Value::matrix(1, n, ValueType::DOUBLE, mr);
+            auto yv = Value::matrix(1, n, ValueType::DOUBLE, mr);
+            if (n > 0) {
+                std::memcpy(xv.doubleDataMut(), ds.animatedX.data(),
+                            n * sizeof(double));
+                std::memcpy(yv.doubleDataMut(), ds.animatedY.data(),
+                            n * sizeof(double));
+            }
+            outs[0] = std::move(xv);
+            if (nargout >= 2) outs[1] = std::move(yv);
+        });
+    // drawnow — flush figure state. Engine emits figure JSON on
+    // every modification; drawnow just bumps modified + emits to be
+    // safe (idempotent if already up-to-date).
+    reg("layout", "drawnow",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)args; (void)nargout;
+            auto &fm = ctx.engine->figureManager();
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
 
     // zlabel(text) — 3-D Z-axis label.
     reg("layout", "zlabel",
