@@ -974,7 +974,7 @@ direct value comparison.
 
 ---
 
-## 38. `ide/`: `plot()` linespec/N-V parameters partially ignored by renderer — **P1**
+## 38. `ide/`: `plot()` linespec/N-V parameters partially ignored by renderer — **P1** ✅ FIXED
 
 **Symptom:** in
 ```matlab
@@ -1035,9 +1035,13 @@ visual diffs that the script asks for silently disappear.
 
 **First seen:** 2026-05-10, reported during imshow design discussion.
 
+**Fixed in commit 6c6a4fa0** (2026-05-10). New e2e
+`linespec-params.spec.js` (8 cases) covers LineWidth, MarkerSize,
+dashed/dotted lineStyles, and the marker glyph dispatcher.
+
 ---
 
-## 39. `ide/`: 3-D scene — grid toggle resets camera, grid sits on front faces — **P1**
+## 39. `ide/`: 3-D scene — grid toggle resets camera, grid sits on front faces — **P1** ✅ FIXED
 
 Two related defects in `Composite3DPlot.jsx`. Filed together because
 both touch the per-figure rebuild effect and the back-face grid.
@@ -1117,6 +1121,11 @@ that landed WebGL 3-D.
 
 **First seen:** 2026-05-10, reported with a `surf`-style screenshot
 showing grid on top of the peaks surface.
+
+**Fixed in commit 0f8a42d9** (2026-05-10). New e2e
+`3d-grid-camera.spec.js` (4 cases) + `canvas.__numkit3dCtx`
+test-inspection hook covering camera stability, six-face grid
+construction, and per-frame visibility flips on orbit.
 
 ---
 
