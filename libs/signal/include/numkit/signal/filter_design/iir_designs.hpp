@@ -70,6 +70,14 @@ std::tuple<int, Value>
 cheb2ord(std::pmr::memory_resource *mr, const Value &Wp, const Value &Ws,
          double Rp, double Rs, bool analog = false);
 
+/// ellipord(Wp, Ws, Rp, Rs[, 's']) — minimum order Elliptic (Cauer) filter
+/// meeting passband ripple ≤ Rp dB and stopband attenuation ≥ Rs dB.
+/// Returns (N, Wn). Bandstop (Wp 2-vec, Wp(1) > Ws(1)) is deferred —
+/// KNOWN GAP. Lowpass / highpass / bandpass cases supported.
+std::tuple<int, Value>
+ellipord(std::pmr::memory_resource *mr, const Value &Wp, const Value &Ws,
+         double Rp, double Rs, bool analog = false);
+
 /// kaiserord(F, A, dev[, fs]) — Kaiser-window FIR order estimator.
 /// Returns (N, Wn, beta, ftype). N is the FIR filter order suitable for
 /// fir1(N, Wn, ftype, kaiser(N+1, beta), 'noscale') to meet the

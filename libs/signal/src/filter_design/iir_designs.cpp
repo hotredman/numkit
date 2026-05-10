@@ -15,6 +15,7 @@
 
 #include <numkit/signal/filter_design/analog_filters.hpp>
 #include <numkit/builtin/math/poly/polynomials.hpp>
+#include <numkit/builtin/math/special/special.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -489,6 +490,161 @@ NK_ORD_REG(cheb1ord)
 NK_ORD_REG(cheb2ord)
 
 #undef NK_ORD_REG
+
+} // namespace detail
+
+// ── ellipord (Phase 4.6) ───────────────────────────────────────────────
+//
+// Matches MATLAB R2025b ellipord.m. Algorithm:
+//   1. Determine ftype: 1=low, 2=high, 3=stop, 4=pass.
+//   2. Prewarp digital → analog: WP=tan(π wp/2), WS=tan(π ws/2).
+//   3. Per ftype compute analog passband-edge ratio WA, then
+//      findelliporder(WA, Rp, Rs):
+//        WA = min(|WA|);  ε = sqrt(10^(0.1·Rp)-1);  k1 = ε/sqrt(10^(0.1·Rs)-1)
+//        k = 1/WA
+//        capk  = ellipke([k², 1-k²])
+//        capk1 = ellipke([k1², 1-k1²])
+//        N = ceil(K·E1 / (E·K1))  where K, E from capk and K1, E1 from capk1
+//   4. wn = wp (digital) or WP (analog).
+//
+// KNOWN GAP: bandstop (ftype=3) deferred — needs digital→analog branch
+// with sin/cos centroid + recursive analog call.
+
+namespace {
+
+double findElliporderImpl(std::pmr::memory_resource *mr,
+                           const std::vector<double> &WA, double Rp, double Rs)
+{
+    double WAmin = std::abs(WA[0]);
+    for (size_t i = 1; i < WA.size(); ++i)
+        if (std::abs(WA[i]) < WAmin) WAmin = std::abs(WA[i]);
+    const double epsilon = std::sqrt(std::pow(10.0, 0.1 * Rp) - 1.0);
+    const double k1 = epsilon / std::sqrt(std::pow(10.0, 0.1 * Rs) - 1.0);
+    const double k  = 1.0 / WAmin;
+
+    // capk = ellipke([k², 1-k²])
+    Value mk = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+    mk.doubleDataMut()[0] = k * k;
+    mk.doubleDataMut()[1] = 1.0 - k * k;
+    auto capk = builtin::ellipke(mr, mk);
+
+    // capk1 = ellipke([k1², 1-k1²])
+    Value mk1 = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+    mk1.doubleDataMut()[0] = k1 * k1;
+    mk1.doubleDataMut()[1] = 1.0 - k1 * k1;
+    auto capk1 = builtin::ellipke(mr, mk1);
+
+    // capk.K is 1×2: [K(k²), K(1-k²)]; same for capk.E. Need:
+    //   N = ceil(K(k²) * E1(1-k1²) / (K(k²)... wait MATLAB uses capk(2) for
+    //   complementary). The MATLAB call returns K (first output), so capk(1)
+    //   = K(k²), capk(2) = K(1-k²). Same convention here.
+    const double K0  = capk.K.elemAsDouble(0);
+    const double K1c = capk.K.elemAsDouble(1);
+    const double K1k1  = capk1.K.elemAsDouble(0);
+    const double K1k1c = capk1.K.elemAsDouble(1);
+    return std::ceil(K0 * K1k1c / (K1c * K1k1));
+}
+
+} // anon
+
+std::tuple<int, Value>
+ellipord(std::pmr::memory_resource *mr, const Value &Wp_v, const Value &Ws_v,
+         double Rp, double Rs, bool analog)
+{
+    if (Rp <= 0.0 || Rs <= 0.0)
+        throw Error("ellipord: Rp, Rs must be positive",
+                    0, 0, "ellipord", "", "m:ellipord:BadRpRs");
+    if (Wp_v.numel() != Ws_v.numel())
+        throw Error("ellipord: Wp and Ws must have same length",
+                    0, 0, "ellipord", "", "m:ellipord:DimMismatch");
+
+    const size_t numW = Wp_v.numel();
+    if (numW != 1 && numW != 2)
+        throw Error("ellipord: Wp must be scalar or 2-vector",
+                    0, 0, "ellipord", "", "m:ellipord:BadWp");
+
+    std::vector<double> wp(numW), ws(numW);
+    for (size_t i = 0; i < numW; ++i) {
+        wp[i] = Wp_v.elemAsDouble(i);
+        ws[i] = Ws_v.elemAsDouble(i);
+    }
+
+    // ftype = 2*(numW-1) + (1 if wp[0] < ws[0] else 2)
+    int ftype = 2 * (static_cast<int>(numW) - 1);
+    ftype += (wp[0] < ws[0]) ? 1 : 2;
+
+    // Prewarp digital → analog if needed.
+    std::vector<double> WP(numW), WS(numW);
+    if (!analog) {
+        for (size_t i = 0; i < numW; ++i) {
+            WP[i] = std::tan(M_PI * wp[i] / 2.0);
+            WS[i] = std::tan(M_PI * ws[i] / 2.0);
+        }
+    } else {
+        WP = wp; WS = ws;
+    }
+
+    std::vector<double> WA;
+    int N = 0;
+    switch (ftype) {
+        case 1: { // lowpass: WA = WS / WP
+            WA.push_back(WS[0] / WP[0]);
+            N = static_cast<int>(findElliporderImpl(mr, WA, Rp, Rs));
+            break;
+        }
+        case 2: { // highpass: WA = WP / WS
+            WA.push_back(WP[0] / WS[0]);
+            N = static_cast<int>(findElliporderImpl(mr, WA, Rp, Rs));
+            break;
+        }
+        case 3: { // bandstop — KNOWN GAP, deferred
+            throw Error("ellipord: bandstop case not yet supported",
+                        0, 0, "ellipord", "", "m:ellipord:BandstopGap");
+        }
+        case 4: { // bandpass: WA = (WS² - WP1·WP2) / (WS·(WP1-WP2))
+            for (size_t i = 0; i < numW; ++i) {
+                const double w = WS[i];
+                WA.push_back((w * w - WP[0] * WP[1]) / (w * (WP[0] - WP[1])));
+            }
+            N = static_cast<int>(findElliporderImpl(mr, WA, Rp, Rs));
+            break;
+        }
+        default:
+            throw Error("ellipord: invalid filter spec",
+                        0, 0, "ellipord", "", "m:ellipord:BadSpec");
+    }
+
+    // wn = wp (digital) or WP (analog).
+    Value Wn = Value::matrix(1, numW, ValueType::DOUBLE, mr);
+    double *wd = Wn.doubleDataMut();
+    if (!analog) {
+        for (size_t i = 0; i < numW; ++i) wd[i] = wp[i];
+    } else {
+        for (size_t i = 0; i < numW; ++i) wd[i] = WP[i];
+    }
+
+    return {N, Wn};
+}
+
+namespace detail {
+
+void ellipord_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("ellipord: requires (Wp, Ws, Rp, Rs[, 's'])",
+                    0, 0, "ellipord", "", "m:ellipord:nargin");
+    bool analog = false;
+    if (args.size() >= 5) {
+        std::string s = args[4].toString();
+        analog = (s == "s" || s == "S");
+    }
+    auto [N, Wn] = ellipord(ctx.engine->resource(),
+                              args[0], args[1],
+                              args[2].toScalar(), args[3].toScalar(), analog);
+    outs[0] = Value::scalar(static_cast<double>(N), ctx.engine->resource());
+    if (nargout > 1) outs[1] = std::move(Wn);
+}
 
 } // namespace detail
 

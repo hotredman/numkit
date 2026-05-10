@@ -1,0 +1,10 @@
+{
+  "name": "signal_ellipord",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[n_lp, Wn_lp] = ellipord(0.2, 0.3, 1, 40); [n_hp, Wn_hp] = ellipord(0.6, 0.4, 3, 60); [n_bp, Wn_bp] = ellipord([0.2 0.4], [0.1 0.5], 1, 40); Wn_bp_1 = Wn_bp(1); Wn_bp_2 = Wn_bp(2); [n_an, Wn_an] = ellipord(2*pi*1000, 2*pi*1500, 1, 40, 's');",
+  "iters": 5,
+  "tol": 1e-6,
+  "fingerprint": ["n_lp", "Wn_lp", "n_hp", "Wn_hp", "n_bp", "Wn_bp_1", "Wn_bp_2", "n_an", "Wn_an"],
+  "comment": "MATLAB Signal Toolbox ellipord (Phase 4.6) — minimum-order Cauer/elliptic filter. Algorithm: prewarp digital→analog (tan(πw/2)), compute analog passband-edge ratio WA per filter type, findelliporder via complete elliptic integrals: ε=√(10^(0.1Rp)-1), k1=ε/√(10^(0.1Rs)-1), k=1/WA, N=ceil(K(k²)·E(1-k1²)/(K(1-k²)·K(k1²))). Bit-equal MATLAB R2025b on 9 fingerprints — lowpass, highpass, bandpass, analog 's' mode. KNOWN GAP: bandstop (ftype=3) deferred (recursive analog conversion not yet implemented). Octave 11.1.0 doesn't ship in core (signal package only)."
+}
