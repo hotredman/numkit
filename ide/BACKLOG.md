@@ -288,9 +288,12 @@ These don't have shipping pressure. Each is a separate investment.
 - [ ] `geoplot` / `geoplot3` — geographic axes with basemap tiles.
 - [ ] `animatedline` — incremental updates with per-frame draw
       callbacks. Needs an animation infrastructure pass.
-- [ ] View-preset toolbar in FigureWindow (top / side / front / iso
-      / reset) — would use the imperative `setView(az, el)` handle
-      already on Composite3DPlot; just needs UI.
+- [x] **View-preset toolbar in FigureWindow.** New `view ▾` button on
+      the 3-D modal toolbar; popup with presets `iso` (default
+      -37.5°/30°), `top` (XY), `bottom`, `front` (XZ), `back`,
+      `right` (YZ), `left`. Each calls
+      `Composite3DPlot.setView(az, el)`. Shipped 2026-05-10. e2e
+      `3d-view-presets.spec.js` (5 cases) — all green.
 - [x] **Higher-resolution 3-D PNG export** — `getCanvasDataURL(scale)`
       now grows the WebGL drawing buffer to `scale × current CSS size`,
       renders one frame, snapshots, and restores. The on-screen
