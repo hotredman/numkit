@@ -18,6 +18,7 @@
 #include <memory_resource>
 #include <numkit/core/value.hpp>
 
+#include <string>
 #include <string_view>
 #include <tuple>
 
@@ -68,5 +69,17 @@ cheb1ord(std::pmr::memory_resource *mr, const Value &Wp, const Value &Ws,
 std::tuple<int, Value>
 cheb2ord(std::pmr::memory_resource *mr, const Value &Wp, const Value &Ws,
          double Rp, double Rs, bool analog = false);
+
+/// kaiserord(F, A, dev[, fs]) — Kaiser-window FIR order estimator.
+/// Returns (N, Wn, beta, ftype). N is the FIR filter order suitable for
+/// fir1(N, Wn, ftype, kaiser(N+1, beta), 'noscale') to meet the
+/// specifications given by F (transition-band edges in Hz), A (binary
+/// amplitudes per band), dev (max linear deviations per band),
+/// fs (sampling frequency, default 2 → normalized).
+/// ftype is one of "low", "high", "stop", "bandpass", "DC-0", "DC-1".
+std::tuple<int, Value, double, std::string>
+kaiserord(std::pmr::memory_resource *mr,
+          const Value &F, const Value &A, const Value &dev,
+          double fs = 2.0);
 
 } // namespace numkit::signal
