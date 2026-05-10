@@ -40,6 +40,12 @@ fprintf('  PEF first 5: '); fprintf('%.6f ', f0_pef(1:5)); fprintf('\n');
 fprintf('  expect: 220.604203 (constant across frames — bit-equal MATLAB)\n');
 fprintf('  PEF mean = %.6f (expect 220.604203)\n', mean(f0_pef));
 
+fprintf('\n[pitch LHS method on 220 Hz sine — Cycle K-3]\n');
+f0_lhs = pitch(x, fs, 'Method', 'LHS');
+fprintf('  LHS first 5: '); fprintf('%.4f ', f0_lhs(1:5)); fprintf('\n');
+fprintf('  expect: 51 50 51 51 50 (Hermes LHS picks low subharmonic at edge)\n');
+fprintf('  LHS mean = %.4f (expect 50.6, bit-equal MATLAB)\n', mean(f0_lhs));
+
 fprintf('\n[pitch Range NV arg — Cycle L (partial)]\n');
 xmix = sin(2*pi*220*t) + 0.5*sin(2*pi*100*t);
 f_rH = pitch(xmix, fs, 'Range', [150 400]);
@@ -50,9 +56,8 @@ fprintf('  Range [50 150]:  f0(1)=%.4f mean=%.4f (picks 100 / subharmonic)\n', f
 fprintf('  PEF Range [80 250]: f0(1)=%.4f (expect 221.2508 bit-equal MATLAB)\n', f_rPEF(1));
 
 fprintf('\nKNOWN GAPs:\n');
-fprintf('  pitch methods: NCF (default) + CEP (cycle K) + PEF (cycle K-2) shipped.\n');
-fprintf('  CEP and PEF are bit-equal MATLAB R2025b.\n');
-fprintf('  LHS/SRH still deferred — block on libs/signal::fft non-power-of-2 fix\n');
-fprintf('    (both methods use fftLength=round(fs) which is non-power-of-2 typically).\n');
+fprintf('  pitch methods: NCF (default) + CEP (K) + PEF (K-2) + LHS (K-3) shipped.\n');
+fprintf('  CEP / PEF / LHS are bit-equal MATLAB R2025b.\n');
+fprintf('  SRH still deferred — uses LPC residual + Blackman framing (separate algo).\n');
 fprintf('  pitchnn: requires DNN runtime, deferred entirely.\n');
 fprintf('  harmonicRatio: full MATLAB R2025b parity (auto low-edge + parabolic refinement).\n');

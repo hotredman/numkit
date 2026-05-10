@@ -17,9 +17,10 @@ namespace numkit::audio {
 // Cycle K added Method='CEP' (Cepstrum, Noll 1967) via pitchCEP().
 // Cycle K-2 added Method='PEF' (Pitch Estimation Filter, Gonzalez &
 // Brookes 2011) via pitchPEF().
+// Cycle K-3 added Method='LHS' (Subharmonic Summation, Hermes 1988).
 // Cycle L (partial) added 'Range' NV arg — minF/maxF override [50, 400].
-// KNOWN GAPs: Method='LHS'/'SRH' deferred (need libs/signal::fft fix
-// for non-power-of-2 sizes — fft length = round(fs)).
+// KNOWN GAP: Method='SRH' still deferred (Drugman & Alwan 2011 — uses
+// LPC residual + Blackman framing, separate algorithm).
 // MedianFilterLength / WindowLength / OverlapLength NV args deferred.
 Value pitch(std::pmr::memory_resource *mr, const Value &x, double fs,
              double minF = 50.0, double maxF = 400.0);
@@ -30,6 +31,10 @@ Value pitchCEP(std::pmr::memory_resource *mr, const Value &x, double fs,
 
 // Pitch Estimation Filter method (Method='PEF'). Same I/O as pitch().
 Value pitchPEF(std::pmr::memory_resource *mr, const Value &x, double fs,
+                double minF = 50.0, double maxF = 400.0);
+
+// Log Harmonic Sum method (Method='LHS'). Same I/O as pitch().
+Value pitchLHS(std::pmr::memory_resource *mr, const Value &x, double fs,
                 double minF = 50.0, double maxF = 400.0);
 
 // harmonicRatio(x, fs) — strength of harmonic content per frame, via
