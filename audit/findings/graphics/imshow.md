@@ -6,21 +6,22 @@ M×N×3 (uint8 / double, with `*255` cast for floats). The following
 MATLAB-documented forms remain unimplemented; pick them up as the
 need surfaces.
 
-## 1. `imshow(filename)` — file path input
+## 1. `imshow(filename)` — file path input ✅ Implemented (2026-05-10)
 
-MATLAB:
 ```matlab
 imshow('peppers.png');
-imshow('image.tif');
+imshow('image.tif');     % stb_image handles only the formats below
 ```
-Need: PNG / JPEG / TIFF decoder. Out-of-scope for v1 because:
-- emscripten's libpng / libjpeg are sizeable (>500 KB extra WASM)
-- file I/O contract differs between desktop (real fs) and WASM (Mem-FS)
-- no other graphics builtin currently reads files
 
-When picked up: probably gate on `numkit::FileIO::available()` and
-defer to the host's existing image-decode path (Electron has built-in
-`electron.nativeImage` for desktop; WASM may want stb_image).
+Routes through `numkit::image::imread` (libs/image), which in turn
+uses the vendored stb_image (third_party/stb). Supported formats:
+PNG, JPG/JPEG, BMP, TGA, GIF (decode), HDR/PIC, PNM, PSD. TIFF is
+**NOT** supported by stb_image — those calls will throw at decode.
+
+Path resolution follows whatever the engine's host filesystem
+exposes. In WASM the path lives in Emscripten's Mem-FS (the IDE
+mounts `tempFS` / `localFS` there); in the native build it's a real
+disk path.
 
 ## 2. Name-Value parameters
 
