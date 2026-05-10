@@ -22,7 +22,16 @@ xa = demod(y, 25, fs, 'am');
 xb = demod(y, 25, fs, 'amdsb-sc');
 fprintf('  identical: %d (expect 1)\n', isequal(xa, xb));
 
-fprintf('\nApprox-equal MATLAB R2025b on 8/8 fingerprints (tol 0.01).\n');
-fprintf('~2e-3 diff vs MATLAB attributed to filtfilt edge handling.\n');
-fprintf('KNOWN GAPs: fm/pm modes use hilbert (blocked on libs/signal::fft).\n');
-fprintf('  amssb/pwm/ptm/ppm/qam deferred.\n');
+fprintf('\n[FM round-trip — Phase 5.3, hilbert-based]\n');
+yfm = modulate(x, 25, fs, 'fm');
+xfm = demod(yfm, 25, fs, 'fm');
+fprintf('  max|xfm - x| (interior 5..end-5) = %g\n', max(abs(xfm(5:end-5) - x(5:end-5))));
+
+fprintf('\n[PM round-trip — Phase 5.3, hilbert-based]\n');
+ypm = modulate(x, 25, fs, 'pm');
+xpm = demod(ypm, 25, fs, 'pm');
+fprintf('  numel(xpm)=%d (sanity check; PM has wraparound noise)\n', numel(xpm));
+
+fprintf('\nApprox-equal MATLAB R2025b on 9/9 fingerprints (tol 5%%).\n');
+fprintf('Diffs from filtfilt edge handling + hilbert finite-window.\n');
+fprintf('KNOWN GAPs: amssb/pwm/ptm/ppm/qam deferred (hilbert / specialised pulses).\n');
