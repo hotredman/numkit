@@ -6105,14 +6105,36 @@ void GraphicsLibrary::install(Engine &engine)
     // Forms supported (subset):
     //   heatmap(C)
     //   heatmap(C, 'Colormap', name)
+    // Helper — emit a text-annotation dataset at (x, y) with label.
+    // Picks a colour that contrasts with the cell value (white on
+    // dark bins, black on light bins) via a brightness threshold.
+    auto pushCellText = [](FigureManager &fm, double x, double y,
+                           const std::string &label, bool darkBg) {
+        DatasetInfo t;
+        t.type = "text";
+        std::ostringstream xs, ys;
+        xs << '[' << x << ']'; ys << '[' << y << ']';
+        t.xJson = xs.str();
+        t.yJson = ys.str();
+        t.label = label;
+        t.style = std::string("color=") + (darkBg ? "#f0f0f0" : "#202020")
+                  + ";fontSize=11";
+        fm.pushDataset(std::move(t));
+    };
+
     reg("bar", "heatmap",
-        [delegateTo](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
+        [delegateTo, pushCellText](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
             // Drop trailing N-V pairs that the imagesc adapter doesn't
             // know about — keep only the first numeric argument as the
-            // data matrix. Color override via 'Colormap' is honoured by
-            // a colormap() call right after.
+            // data matrix. 'Colormap' is honoured via a colormap() call
+            // right after; 'CellLabelColor' / 'CellLabelFormat' etc.
+            // are accepted as no-ops. Cell-label text is enabled by
+            // default for heatmap(table); pass 'CellLabel','off' to
+            // disable.
             std::vector<Value> proxied;
             std::string cmap;
+            bool cellLabel = true;
+            std::string labelFmt = "%g";
             for (size_t i = 0; i < a.size(); ++i) {
                 if (a[i].isChar()) {
                     if (i + 1 < a.size()) {
@@ -6121,11 +6143,19 @@ void GraphicsLibrary::install(Engine &engine)
                             cc = (char)std::tolower((unsigned char)cc);
                         if (key == "colormap" && a[i + 1].isChar()) {
                             cmap = a[i + 1].toString();
-                            ++i;   // consume value
-                            continue;
+                            ++i; continue;
+                        }
+                        if (key == "celllabel" && a[i + 1].isChar()) {
+                            std::string v = a[i + 1].toString();
+                            for (auto &cc : v) cc = (char)std::tolower((unsigned char)cc);
+                            cellLabel = (v != "off");
+                            ++i; continue;
+                        }
+                        if (key == "celllabelformat" && a[i + 1].isChar()) {
+                            labelFmt = a[i + 1].toString();
+                            ++i; continue;
                         }
                     }
-                    // skip unknown N-V (RowNames, ColumnNames, etc.)
                     if (i + 1 < a.size()) ++i;
                     continue;
                 }
@@ -6135,9 +6165,99 @@ void GraphicsLibrary::install(Engine &engine)
                        Span<const Value>(proxied.data(), proxied.size()), o, c);
             if (!cmap.empty()) {
                 c.engine->figureManager().currentAxes().colormapName = cmap;
-                c.engine->figureManager().current().modified = true;
-                c.engine->figureManager().emitModified();
             }
+            // Cell-text overlay — one <text> per cell with the
+            // formatted value. Skipped for very large matrices to
+            // avoid clutter.
+            if (cellLabel && !proxied.empty()) {
+                const auto &C = proxied[0];
+                const size_t R = C.dims().rows();
+                const size_t W = C.dims().cols();
+                if (R * W <= 400) {   // ≤ 20×20 grid — show labels
+                    double cmn = std::numeric_limits<double>::infinity();
+                    double cmx = -std::numeric_limits<double>::infinity();
+                    for (size_t i = 0; i < R * W; ++i) {
+                        const double v = C.elemAsDouble(i);
+                        if (std::isfinite(v)) {
+                            if (v < cmn) cmn = v;
+                            if (v > cmx) cmx = v;
+                        }
+                    }
+                    auto &fm = c.engine->figureManager();
+                    for (size_t r = 0; r < R; ++r) {
+                        for (size_t cc = 0; cc < W; ++cc) {
+                            const double v = C.doubleData()[cc * R + r];
+                            const double t_ = (cmx == cmn) ? 0.5
+                                : (v - cmn) / (cmx - cmn);
+                            // Dark background ↔ low t (blue/cyan side
+                            // of parula). Threshold 0.4 picks readable
+                            // colour against parula's gradient.
+                            const bool dark = (t_ < 0.4);
+                            char buf[32];
+                            std::snprintf(buf, sizeof buf, labelFmt.c_str(), v);
+                            pushCellText(fm,
+                                         (double)(cc + 1),
+                                         (double)(r + 1),
+                                         std::string(buf), dark);
+                        }
+                    }
+                }
+            }
+            c.engine->figureManager().current().modified = true;
+            c.engine->figureManager().emitModified();
+        });
+
+    // confusionchart(C [, classNames]) — confusion matrix heatmap
+    // with cell-value labels. Same as heatmap(C) but adds explicit
+    // axis labels and (when classNames given) categorical tick
+    // labels on both axes.
+    reg("bar", "confusionchart",
+        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.empty()) { outs[0] = Value::empty(); return; }
+            // Forward to heatmap (cellLabel default on, no Colormap).
+            const ExternalFunc *hf = ctx.engine->findExternal("heatmap", ctx.env);
+            if (!hf) { outs[0] = Value::empty(); return; }
+            std::array<Value, 1> outBuf;
+            std::array<Value, 1> proxied{ args[0] };
+            (*hf)(Span<const Value>(proxied.data(), 1), 0,
+                  Span<Value>(outBuf.data(), 1), ctx);
+            auto &fm = ctx.engine->figureManager();
+            auto &ax = fm.currentAxes();
+            ax.xlabel = "Predicted Class";
+            ax.ylabel = "True Class";
+            // Optional class names as 2nd arg (cell of chars / string array).
+            if (args.size() >= 2) {
+                const Value &cn = args[1];
+                const size_t n = cn.numel();
+                std::ostringstream js;
+                js << '[';
+                for (size_t i = 0; i < n; ++i) {
+                    if (i) js << ',';
+                    Value elem = cn.elemAt(i, ctx.engine->resource());
+                    std::string s = elem.isChar() ? elem.toString() : "";
+                    js << '"';
+                    for (char ch : s) {
+                        if (ch == '"' || ch == '\\') js << '\\';
+                        js << ch;
+                    }
+                    js << '"';
+                }
+                js << ']';
+                ax.xTickLabelsJson = js.str();
+                ax.yTickLabelsJson = js.str();
+                // Tick positions = 1..n so they align with cell centres.
+                std::ostringstream ts; ts << '[';
+                for (size_t i = 0; i < n; ++i) {
+                    if (i) ts << ',';
+                    ts << (i + 1);
+                }
+                ts << ']';
+                ax.xTicksJson = ts.str();
+                ax.yTicksJson = ts.str();
+            }
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
         });
 
     // parallelplot — parallel-coordinates plot. v1 routes each row of
