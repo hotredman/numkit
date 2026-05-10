@@ -82,6 +82,24 @@ test.describe('xticks / yticks / xticklabels / yticklabels', () => {
     )).toEqual([]);
   });
 
+  test('xtickangle(45) — labels rotated', async () => {
+    await ide.runScript(
+      'import compat.*;\n'
+      + 'plot([1 2 3], [1 4 9]);\n'
+      + 'xtickangle(45);\n'
+    );
+    await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+    await ide.figureCards.first().click();
+    await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+    // At least one tick-label <text> should carry a transform
+    // attribute containing "rotate(45". Use the last SVG (the chart),
+    // not the toolbar icon SVGs.
+    const svgs = ide.figureWindow.locator('svg');
+    const count = await svgs.count();
+    const html = await svgs.nth(count - 1).innerHTML();
+    expect(html).toMatch(/rotate\(45/);
+  });
+
   test('yticks(...) clears with "auto"', async () => {
     await ide.runScript(
       'import compat.*;\n'

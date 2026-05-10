@@ -173,6 +173,9 @@ struct AxesState
     std::string xTickFormat;
     std::string yTickFormat;
     std::string zTickFormat;
+    // Tick-label rotation in degrees. 0 = horizontal (default).
+    double xTickAngle = 0.0;
+    double yTickAngle = 0.0;
     // axisVisible — MATLAB `axis off` / `axis on` controls whether the
     // axes lines / ticks / labels render. true = drawn (default), false
     // = hidden. imshow ships axis off implicitly (image-only viewport).
@@ -515,6 +518,10 @@ public:
                     os << ",\"ytickformat\":\"" << jsonEscapeFig(ax.yTickFormat) << "\"";
                 if (!ax.zTickFormat.empty())
                     os << ",\"ztickformat\":\"" << jsonEscapeFig(ax.zTickFormat) << "\"";
+                if (ax.xTickAngle != 0.0)
+                    os << ",\"xtickangle\":" << ax.xTickAngle;
+                if (ax.yTickAngle != 0.0)
+                    os << ",\"ytickangle\":" << ax.yTickAngle;
                 // axisVisible default = true; emit only when off
                 // (imshow / `axis off` set this).
                 if (!ax.axisVisible)
