@@ -3785,19 +3785,51 @@ namespace detail {
 void zeros_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     auto *mr = ctx.engine->resource();
+    // Strip trailing class-name (e.g. 'uint8') or 'like' form before
+    // parsing dims. Default type is DOUBLE.
+    ValueType t;
+    auto dimArgs = extractTypeArg(args, t);
     ScratchArena scratch(mr);
-    auto d = parseDimsArgsND(&scratch, args);
+    auto d = parseDimsArgsND(&scratch, dimArgs);
     stripTrailingOnes(d);
-    outs[0] = zerosND(mr, d.data(), d.size());
+    // Value::matrix*/matrixND zero-fill the buffer for any type, so
+    // createMatrixND with the requested type IS the zeros() output.
+    outs[0] = createMatrixND(d.data(), d.size(), t, mr);
 }
+
+// Fill `v` with one in its declared type (1 / 1.0 / true).
+namespace { inline void fillOnes(Value &v, ValueType t)
+{
+    const size_t n = v.numel();
+    if (n == 0) return;
+    switch (t) {
+      case ValueType::DOUBLE:  { auto *p = v.doubleDataMut();  std::fill(p, p + n, 1.0); break; }
+      case ValueType::SINGLE:  { auto *p = v.singleDataMut();  std::fill(p, p + n, 1.0f); break; }
+      case ValueType::LOGICAL: { auto *p = v.logicalDataMut(); std::fill(p, p + n, uint8_t(1)); break; }
+      case ValueType::INT8:    { auto *p = v.int8DataMut();    std::fill(p, p + n, int8_t(1)); break; }
+      case ValueType::INT16:   { auto *p = v.int16DataMut();   std::fill(p, p + n, int16_t(1)); break; }
+      case ValueType::INT32:   { auto *p = v.int32DataMut();   std::fill(p, p + n, int32_t(1)); break; }
+      case ValueType::INT64:   { auto *p = v.int64DataMut();   std::fill(p, p + n, int64_t(1)); break; }
+      case ValueType::UINT8:   { auto *p = v.uint8DataMut();   std::fill(p, p + n, uint8_t(1)); break; }
+      case ValueType::UINT16:  { auto *p = v.uint16DataMut();  std::fill(p, p + n, uint16_t(1)); break; }
+      case ValueType::UINT32:  { auto *p = v.uint32DataMut();  std::fill(p, p + n, uint32_t(1)); break; }
+      case ValueType::UINT64:  { auto *p = v.uint64DataMut();  std::fill(p, p + n, uint64_t(1)); break; }
+      default: throw Error("ones: unsupported type for fill",
+                           0, 0, "ones", "", "m:ones:badType");
+    }
+}}
 
 void ones_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     auto *mr = ctx.engine->resource();
+    ValueType t;
+    auto dimArgs = extractTypeArg(args, t);
     ScratchArena scratch(mr);
-    auto d = parseDimsArgsND(&scratch, args);
+    auto d = parseDimsArgsND(&scratch, dimArgs);
     stripTrailingOnes(d);
-    outs[0] = onesND(mr, d.data(), d.size());
+    auto m = createMatrixND(d.data(), d.size(), t, mr);
+    fillOnes(m, t);
+    outs[0] = std::move(m);
 }
 
 // `true` and `false` are MATLAB built-in functions (not constants):
