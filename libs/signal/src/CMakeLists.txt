@@ -12,6 +12,7 @@ set(SIGNALLIB_SOURCES
     # digital_filtering/
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/buffer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/filter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/quantizers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/sosfilt.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/spec_driven.cpp
     # filter_implementation/

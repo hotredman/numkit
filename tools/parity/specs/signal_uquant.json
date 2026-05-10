@@ -1,0 +1,10 @@
+{
+  "name": "signal_uquant",
+  "namespace": "signal",
+  "setup": "u = [-1.2 -1 -0.5 0 0.5 1 1.2];",
+  "expr": "y3 = double(uencode(u, 3)); y3_1 = y3(1); y3_3 = y3(3); y3_5 = y3(5); y3_7 = y3(7); y3v = double(uencode(u, 3, 0.5)); y3v_3 = y3v(3); y3v_5 = y3v(5); ys = double(uencode(u, 3, 1, 'signed')); ys_3 = ys(3); ys_4 = ys(4); ys_5 = ys(5); y8 = double(uencode(u, 8)); y8_4 = y8(4); cls10 = strcmp(class(uencode(0.5, 10)), 'uint16'); cls20 = strcmp(class(uencode(0.5, 20)), 'uint32'); ui = int8([-1 1 2 -5]); yd = udecode(ui, 3); yd_2 = yd(2); yd_4 = yd(4); ydw = udecode(ui, 3, 1, 'wrap'); ydw_4 = ydw(4); rt_err = max(abs(udecode(uencode(-1:0.1:1, 8), 8) - (-1:0.1:1)));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["y3_1", "y3_3", "y3_5", "y3_7", "y3v_3", "y3v_5", "ys_3", "ys_4", "ys_5", "y8_4", "cls10", "cls20", "yd_2", "yd_4", "ydw_4", "rt_err"],
+  "comment": "MATLAB Signal Toolbox uencode/udecode (Phase 4.2): uniform N-bit quantization. Bit-equal MATLAB R2025b on 16 fingerprints — unsigned/signed encoding, custom peak V, 3 output type tiers (uint8/16/32), saturate vs wrap on decode, full roundtrip error within expected 8-bit quantization step (~0.008). Octave 11.1.0 ships these in the signal package."
+}
