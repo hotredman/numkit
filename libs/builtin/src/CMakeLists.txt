@@ -37,6 +37,7 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/misc.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/interp/interp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/integration/integration.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/geom/geom.cpp
     # math/optim/ moved to libs/optim/
     # programming/ — MATLAB Programming and Scripts
     ${CMAKE_CURRENT_SOURCE_DIR}/programming/errors/diagnostics.cpp
