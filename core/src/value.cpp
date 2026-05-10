@@ -307,6 +307,8 @@ Value Value::structArray(size_t rows, size_t cols, std::pmr::memory_resource *mr
     using MapT = std::pmr::map<std::string, Value>;
     for (size_t i = 0; i < n; ++i)
         h->structArray->emplace_back(MapT(mr));
+    // BUG #15 fix: insertion-order tracker (parallel to structArray).
+    h->fieldOrder = new std::pmr::vector<std::string>(mr);
     m.heap_ = h;
     return m;
 }
@@ -2702,7 +2704,12 @@ Value &Value::field(const std::string &n)
             "Cannot dot-index a non-scalar struct array directly; "
             "use s(i)." + n + " or arrayfun.");
     detach();
-    return (*heap_->structArray)[0][n];
+    // BUG #15: append to insertion-order tracker BEFORE auto-create via [].
+    auto &m = (*heap_->structArray)[0];
+    if (m.find(n) == m.end()) {
+        if (heap_->fieldOrder) heap_->fieldOrder->push_back(n);
+    }
+    return m[n];
 }
 const Value &Value::field(const std::string &n) const
 {
@@ -2774,6 +2781,11 @@ void Value::growStructArrayTo(size_t idx, std::pmr::memory_resource *mr)
         for (const auto &[kn, vv] : src)
             dst.emplace(kn, vv);
     }
+    // BUG #15: copy insertion-order tracker so growStructArrayTo doesn't
+    // lose it (e.g. struct array element appended via s(end+1).f = v).
+    if (heap_ && heap_->fieldOrder && grown.heap_ && grown.heap_->fieldOrder) {
+        *grown.heap_->fieldOrder = *heap_->fieldOrder;
+    }
     *this = std::move(grown);
 }
 std::pmr::map<std::string, Value> &Value::structArrayElem(size_t i)
@@ -2792,6 +2804,71 @@ const std::pmr::map<std::string, Value> &Value::structArrayElem(size_t i) const
     if (i >= heap_->structArray->size())
         throw std::runtime_error("struct array index out of range");
     return (*heap_->structArray)[i];
+}
+
+// ── BUG #15: insertion-order helpers ───────────────────────────
+namespace {
+inline void appendIfNew(std::pmr::vector<std::string> *order,
+                         const std::string &name)
+{
+    if (!order) return;
+    for (const auto &n : *order)
+        if (n == name) return;
+    order->push_back(name);
+}
+} // anon
+
+void Value::setField(size_t linearIdx, const std::string &name, const Value &v)
+{
+    if (!isHeap() || heap_->type != ValueType::STRUCT || !heap_->structArray)
+        throw std::runtime_error("Not a struct");
+    if (linearIdx >= heap_->structArray->size())
+        throw std::runtime_error("struct array index out of range");
+    detach();
+    // After detach heap_ may differ; re-fetch via heap_.
+    appendIfNew(heap_->fieldOrder, name);
+    (*heap_->structArray)[linearIdx][name] = v;
+}
+
+void Value::setFieldAll(const std::string &name, const Value &v)
+{
+    if (!isHeap() || heap_->type != ValueType::STRUCT || !heap_->structArray)
+        throw std::runtime_error("Not a struct");
+    detach();
+    appendIfNew(heap_->fieldOrder, name);
+    for (auto &m : *heap_->structArray)
+        m[name] = v;
+}
+
+void Value::removeField(const std::string &name)
+{
+    if (!isHeap() || heap_->type != ValueType::STRUCT || !heap_->structArray)
+        return;
+    detach();
+    for (auto &m : *heap_->structArray)
+        m.erase(name);
+    if (heap_->fieldOrder) {
+        auto &v = *heap_->fieldOrder;
+        v.erase(std::remove(v.begin(), v.end(), name), v.end());
+    }
+}
+
+std::vector<std::string> Value::fieldNamesInOrder() const
+{
+    std::vector<std::string> out;
+    if (!isHeap() || heap_->type != ValueType::STRUCT) return out;
+    if (heap_->fieldOrder && !heap_->fieldOrder->empty()) {
+        out.reserve(heap_->fieldOrder->size());
+        for (const auto &n : *heap_->fieldOrder) out.emplace_back(n);
+        return out;
+    }
+    // Fallback: derive from element-0 map (alphabetical) for legacy
+    // structs created via raw map insertion (no setField call).
+    if (heap_->structArray && !heap_->structArray->empty()) {
+        for (const auto &[k, _] : (*heap_->structArray)[0])
+            out.emplace_back(k);
+    }
+    return out;
 }
 
 std::string Value::debugString() const

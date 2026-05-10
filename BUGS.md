@@ -361,7 +361,7 @@ path. e2e bug14-logical-colon.spec.js pins the no-crash improvement
 
 ---
 
-## 15. `core/`: `fieldnames(struct)` returns alphabetical, not insertion order — **P2**
+## 15. `core/`: `fieldnames(struct)` returns alphabetical, not insertion order — **P2** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -377,8 +377,29 @@ codebases that iterate fields with confidence about ordering.
 printf-style output, JSON serialization) gets reordered silently.
 **Where:** `core/` — struct field storage probably uses an ordered
 map by name. Should preserve insertion-time slot index.
-**Status:** **pending — core fix required.**
 **First seen:** 2026-05-03, parity bulk-bench iteration 14.
+**Fix (2026-05-11):** Added a parallel `std::pmr::vector<std::string> *
+fieldOrder` to `HeapObject` (one per struct, shared across array
+elements — MATLAB requires a uniform field set), with helpers
+`Value::setField` / `setFieldAll` / `removeField` / `fieldNamesInOrder`
+in [core/src/value.cpp]. Every mutation site now records the field
+slot in insertion order:
+* struct array factory + `growStructArrayTo` allocate / copy
+  `fieldOrder` ([core/src/value.cpp]);
+* TreeWalker's struct-array assignment paths
+  ([core/src/tree_walker.cpp]);
+* VM `FIELD_SET` broadcast + `STRUCT_ELEM_FIELD_SET`
+  ([core/src/vm.cpp]);
+* `struct(a,{1,2,3}, ...)` constructor and `setfield` /  `rmfield` in
+  [libs/builtin/src/language/structures/struct.cpp].
+`fieldnames` now reads `fieldNamesInOrder()` (alphabetical fallback
+for legacy structs without a tracker). `orderfields` was a no-op
+before (assumed alphabetical = insertion); now it explicitly sorts.
+Reproducer covered: `struct('alpha',1,'beta',2,'gamma',3,'delta',4,
+'epsilon',5)` → `{alpha;beta;gamma;delta;epsilon}` (MATLAB-exact).
+`rmfield` preserves order; `orderfields` returns sorted; struct array
+constructor preserves arg order. 165 struct/field-related gtests
+pass; full suite shows no struct-related regressions.
 
 ---
 
