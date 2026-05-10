@@ -225,7 +225,7 @@ isScalar branch.
 
 ---
 
-## 11. `core/` or `libs/`: `arrayfun(@lambda, vec)` ignores the lambda body — **P1**
+## 11. `core/` or `libs/`: `arrayfun(@lambda, vec)` ignores the lambda body — **P1** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -251,6 +251,12 @@ cellfun/structfun work) — not necessarily core.
 **First seen:** 2026-05-03, parity bulk-bench iteration 7 (probing
 `nchoosek` MISMATCH). Refined iter 26 — confirmed cellfun/structfun
 unaffected.
+**Fixed in commit (next)** — libs/builtin/src/library.cpp arrayfun
+adapter was a stub returning args[1] verbatim. Replaced with the
+real implementation: walk inputs, callFunctionHandle per element,
+pack into a numeric array (UniformOutput=true) or cell
+(UniformOutput=false). Multiple input arrays accepted. e2e
+`arrayfun-bug11.spec.js` (4 cases).
 
 ---
 
