@@ -5874,6 +5874,128 @@ void GraphicsLibrary::install(Engine &engine)
             delegateTo("plot3", a, o, c);
         });
 
+    // ────────────────────────────────────────────────────────────────
+    // voronoi(x, y) — Voronoi diagram via Delaunay dual.
+    //
+    // Algorithm:
+    //   1. Compute brute-force Delaunay triangulation of the cloud
+    //      (same logic as delaunay_reg in libs/builtin).
+    //   2. For each triangle, compute its circumcenter.
+    //   3. For each pair of triangles sharing an edge, draw a line
+    //      segment connecting their circumcenters — that's a Voronoi
+    //      cell boundary edge.
+    //   4. Emit as a single `line` dataset with null separators
+    //      between segments, plus scatter markers at the input
+    //      points.
+    //
+    // Cells touching the convex hull don't have a finite second
+    // endpoint (the cell is unbounded); v1 just omits those edges.
+    // Properly-extended infinite rays are BACKLOG.
+    // ────────────────────────────────────────────────────────────────
+    reg("line", "voronoi",
+        [delegateTo](Span<const Value> args, size_t nargout,
+                     Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.size() < 2) { outs[0] = Value::empty(); return; }
+            const auto &xv = args[0];
+            const auto &yv = args[1];
+            const size_t n = xv.numel();
+            if (yv.numel() != n || n < 3) { outs[0] = Value::empty(); return; }
+            std::vector<double> X(n), Y(n);
+            for (size_t i = 0; i < n; ++i) {
+                X[i] = xv.elemAsDouble(i);
+                Y[i] = yv.elemAsDouble(i);
+            }
+            // Same Delaunay loop as libs/builtin (kept local to avoid
+            // cross-lib dependency).
+            auto sa2 = [&](size_t a, size_t b, size_t c) {
+                return (X[b]-X[a]) * (Y[c]-Y[a]) - (Y[b]-Y[a]) * (X[c]-X[a]);
+            };
+            auto inC = [&](size_t a, size_t b, size_t c, size_t p) {
+                const double ax=X[a]-X[p], ay=Y[a]-Y[p];
+                const double bx=X[b]-X[p], by=Y[b]-Y[p];
+                const double cx=X[c]-X[p], cy=Y[c]-Y[p];
+                const double a2=ax*ax+ay*ay;
+                const double b2=bx*bx+by*by;
+                const double c2=cx*cx+cy*cy;
+                return ax*(by*c2-cy*b2) - ay*(bx*c2-cx*b2) + a2*(bx*cy-cx*by);
+            };
+            std::vector<std::array<size_t, 3>> tris;
+            for (size_t a = 0; a < n; ++a)
+                for (size_t b = a + 1; b < n; ++b)
+                    for (size_t c = b + 1; c < n; ++c) {
+                        const double s = sa2(a, b, c);
+                        if (std::abs(s) < 1e-15) continue;
+                        size_t va=a, vb=b, vc=c;
+                        if (s < 0) std::swap(vb, vc);
+                        bool ok = true;
+                        for (size_t p = 0; p < n; ++p) {
+                            if (p == va || p == vb || p == vc) continue;
+                            if (inC(va, vb, vc, p) > 1e-12) { ok = false; break; }
+                        }
+                        if (ok) tris.push_back({va, vb, vc});
+                    }
+            // Per-triangle circumcenter.
+            struct CC { double x, y; };
+            std::vector<CC> ccs(tris.size());
+            for (size_t t = 0; t < tris.size(); ++t) {
+                const auto &T = tris[t];
+                const double ax=X[T[0]], ay=Y[T[0]];
+                const double bx=X[T[1]], by=Y[T[1]];
+                const double cx=X[T[2]], cy=Y[T[2]];
+                const double d = 2.0 * (ax*(by-cy) + bx*(cy-ay) + cx*(ay-by));
+                if (std::abs(d) < 1e-15) { ccs[t] = {0, 0}; continue; }
+                const double ax2_ay2 = ax*ax + ay*ay;
+                const double bx2_by2 = bx*bx + by*by;
+                const double cx2_cy2 = cx*cx + cy*cy;
+                ccs[t].x = (ax2_ay2*(by-cy) + bx2_by2*(cy-ay) + cx2_cy2*(ay-by)) / d;
+                ccs[t].y = (ax2_ay2*(cx-bx) + bx2_by2*(ax-cx) + cx2_cy2*(bx-ax)) / d;
+            }
+            // For each ordered triangle pair, check if they share an
+            // edge — if so emit a line segment between their CCs.
+            auto sharesEdge = [&](const std::array<size_t,3> &A,
+                                   const std::array<size_t,3> &B) {
+                int shared = 0;
+                for (auto a : A) for (auto b : B) if (a == b) shared++;
+                return shared == 2;
+            };
+            std::ostringstream xs, ys;
+            xs << '['; ys << '[';
+            bool first = true;
+            for (size_t i = 0; i < tris.size(); ++i) {
+                for (size_t j = i + 1; j < tris.size(); ++j) {
+                    if (!sharesEdge(tris[i], tris[j])) continue;
+                    if (!first) { xs << ",null,"; ys << ",null,"; }
+                    first = false;
+                    xs << ccs[i].x << ',' << ccs[j].x;
+                    ys << ccs[i].y << ',' << ccs[j].y;
+                }
+            }
+            xs << ']'; ys << ']';
+
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            DatasetInfo edgeDs;
+            edgeDs.type = "line";
+            edgeDs.xJson = xs.str();
+            edgeDs.yJson = ys.str();
+            edgeDs.style = "color=#5fb3d4";
+            fm.pushDataset(std::move(edgeDs));
+            // Scatter the input points on top.
+            std::array<Value, 2> ptArgs{ xv, yv };
+            std::array<Value, 1> outBuf;
+            const ExternalFunc *cf = ctx.engine->findExternal("scatter", ctx.env);
+            if (cf) {
+                const bool wasHold = fm.currentAxes().holdOn;
+                fm.currentAxes().holdOn = true;
+                (*cf)(Span<const Value>(ptArgs.data(), 2), 0,
+                      Span<Value>(outBuf.data(), 1), ctx);
+                fm.currentAxes().holdOn = wasHold;
+            }
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
     // heatmap(C) — table-style heatmap. Same data layout as imagesc:
     // 2-D matrix of values mapped through a colormap. Optional row/
     // column label strings ('RowNames' / 'ColumnNames') are accepted
