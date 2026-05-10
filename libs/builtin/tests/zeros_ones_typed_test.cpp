@@ -216,3 +216,51 @@ TEST_F(ZerosOnesTypedTest, RandiTypedInt16Multidim)
     EXPECT_EQ(static_cast<int>(evalScalar("size(x, 1)")), 2);
     EXPECT_EQ(static_cast<int>(evalScalar("size(x, 2)")), 3);
 }
+
+// ── cast(x, 'like', y) form ───────────────────────────────────────────
+TEST_F(ZerosOnesTypedTest, CastLikePullsTypeFromSource)
+{
+    eval("y = cast(3.14, 'like', uint8(0));");
+    EXPECT_EQ(evalString("class(y)"), "uint8");
+    EXPECT_DOUBLE_EQ(evalScalar("double(y)"), 3.0);  // truncating cast
+}
+
+TEST_F(ZerosOnesTypedTest, CastLikeSingleFromArray)
+{
+    eval("y = cast([1.5 2.5], 'like', single(0));");
+    EXPECT_EQ(evalString("class(y)"), "single");
+}
+
+// ── colon as a function ───────────────────────────────────────────────
+TEST_F(ZerosOnesTypedTest, ColonTwoArg)
+{
+    eval("v = colon(1, 5);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(v)")), 5);
+    EXPECT_DOUBLE_EQ(evalScalar("v(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v(5)"), 5.0);
+}
+
+TEST_F(ZerosOnesTypedTest, ColonThreeArgWithStep)
+{
+    eval("v = colon(0, 0.5, 2);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(v)")), 5);
+    EXPECT_DOUBLE_EQ(evalScalar("v(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v(end)"), 2.0);
+}
+
+// ── sparse stub ───────────────────────────────────────────────────────
+TEST_F(ZerosOnesTypedTest, SparseStubReturnsDenseZeros)
+{
+    eval("s = sparse(3, 4);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(s, 1)")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(s, 2)")), 4);
+    EXPECT_DOUBLE_EQ(evalScalar("s(1, 1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(issparse(s))"), 0.0);  // we have no sparse
+}
+
+TEST_F(ZerosOnesTypedTest, SparseStubPassthrough)
+{
+    eval("A = [1 2; 3 4]; sA = sparse(A);");
+    EXPECT_DOUBLE_EQ(evalScalar("sA(1, 1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sA(2, 2)"), 4.0);
+}

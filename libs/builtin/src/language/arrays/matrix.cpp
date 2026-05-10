@@ -3832,6 +3832,56 @@ void ones_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     outs[0] = std::move(m);
 }
 
+// MATLAB's colon function: colon(j, k) = j:k, colon(j, i, k) = j:i:k.
+// Useful when the operator form is awkward (function-handle slot, etc.)
+// and to be a real callable for parity tests.
+//
+// KNOWN GAP: type preservation across the colon operator is a
+// parser-level concern (operator dispatch); this functional form
+// returns DOUBLE always, matching the current `:` operator behaviour.
+void colon_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 2) {
+        outs[0] = Value::colonRange(args[0].toScalar(), args[1].toScalar(), mr);
+    } else if (args.size() == 3) {
+        outs[0] = Value::colonRange(args[0].toScalar(), args[1].toScalar(),
+                                     args[2].toScalar(), mr);
+    } else {
+        throw Error("colon: requires 2 or 3 arguments",
+                    0, 0, "colon", "", "m:colon:nargin");
+    }
+}
+
+// MATLAB's sparse() with size args allocates an MxN sparse zero matrix.
+// Numkit has no sparse storage class -- this stub returns dense zeros.
+// Matches issparse=false (we ship that stub; see types.cpp:issparse).
+// KNOWN GAP: numkit returns dense; MATLAB returns sparse storage class.
+// All numerical operations match (zeros on both sides), only class()
+// differs. Documented in PROGRESS for sparse().
+void sparse_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 2) {
+        // sparse(M, N) -- allocate MxN dense zeros.
+        const size_t M = static_cast<size_t>(args[0].toScalar());
+        const size_t N = static_cast<size_t>(args[1].toScalar());
+        outs[0] = Value::matrix(M, N, ValueType::DOUBLE, mr);
+        return;
+    }
+    if (args.size() == 1) {
+        // sparse(A) -- "convert" dense to sparse. We just return A as-is
+        // (since we have no sparse storage). For most numerical use this
+        // is correct; isparse() still returns false (matches numkit
+        // semantics).
+        outs[0] = args[0];
+        return;
+    }
+    throw Error("sparse: numkit has no sparse storage; supports only "
+                "sparse(M, N) → dense zeros and sparse(A) → A passthrough",
+                0, 0, "sparse", "", "m:sparse:NoSparse");
+}
+
 // `nan` / `NaN` / `inf` / `Inf` are MATLAB built-in functions (not
 // constants): bare `nan` returns scalar NaN; `nan(M, N, ..., 'type')`
 // returns float array filled with NaN (only 'double' or 'single' are
