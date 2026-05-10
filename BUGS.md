@@ -508,7 +508,7 @@ stripped down to a minimum rank of 2 via `reshapeND`. The explicit
 
 ---
 
-## 21. `libs/builtin`: `meshgrid(xv)` / `interp2(X,Y,...)` 2-D-input forms missing — **P2** ⚠ partial
+## 21. `libs/builtin`: `meshgrid(xv)` / `interp2(X,Y,...)` 2-D-input forms missing — **P2** ✅ FIXED
 
 **Reproducers:**
 ```matlab
@@ -538,8 +538,15 @@ overload) + `interp2` adapter (grid-input + implicit-meshgrid forms).
 **First seen:** 2026-05-03, parity bulk-bench iteration 18.
 **Fix (2026-05-03, partial):** Case A `meshgrid(xv)` ≡ `meshgrid(xv,xv)`
 implemented in [libs/builtin/src/language/arrays/matrix.cpp]
-(`meshgrid_reg` adapter handles 1/2/3-arg). Cases B & C (interp2
-grid-form input + implicit-meshgrid for vector Xq/Yq) still pending.
+(`meshgrid_reg` adapter handles 1/2/3-arg).
+
+**Fully fixed 2026-05-10.** Case B (matrix Xq/Yq from meshgrid)
+worked already; verified via interp2-grid-bug21.spec.js. Case C
+(vector Xq/Yq implicit-meshgrid) closed by extending interp2Impl
+in libs/builtin/src/math/interp/interp.cpp — when both queries
+are vectors, output `length(Yq) × length(Xq)` sampled at every
+(Xq[j], Yq[i]) instead of pointwise. Pointwise stays for matrix-
+shaped Xq/Yq (the meshgrid output case).
 
 ---
 
