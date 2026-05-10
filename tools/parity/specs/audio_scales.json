@@ -1,0 +1,10 @@
+{
+  "name": "audio_scales",
+  "namespace": "audio",
+  "setup": "",
+  "expr": "m1 = hz2mel(1000); m2 = mel2hz(1500); b1 = hz2bark(1000); b2 = bark2hz(8); e1 = hz2erb(1000); e2 = erb2hz(15); p1 = phon2sone(40); p2 = phon2sone(50); p3 = phon2sone(60); p4 = phon2sone(20); s1 = sone2phon(1); s2 = sone2phon(4); s3 = sone2phon(0.25); rt_mel = mel2hz(hz2mel(440)); rt_bark = bark2hz(hz2bark(440)); rt_erb = erb2hz(hz2erb(440)); v = hz2mel([100 1000 4000]); v100 = v(1); v4000 = v(3); ev = hz2erb([100 1000 4000]); ev100 = ev(1); ev4000 = ev(3);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["m1", "m2", "b1", "b2", "e1", "e2", "p1", "p2", "p3", "p4", "s1", "s2", "s3", "rt_mel", "rt_bark", "rt_erb", "v100", "v4000", "ev100", "ev4000"],
+  "comment": "MATLAB Audio Toolbox frequency-scale + loudness conversions (cycle A): hz2mel/mel2hz (O'Shaughnessy default), hz2bark/bark2hz (Traunmüller 1990 with low/high-frequency corrections; bark2hz uses the asymmetric 26.28 denominator from MATLAB's bark2hz.m source), hz2erb/erb2hz (Glasberg & Moore 1990 with constants log(10)*1000/(24.673*4.368) and 0.004368 — extracted bit-for-bit from MATLAB hz2erb.m), phon2sone/sone2phon (ISO 532-1 default with smooth break at 40 phon = 1 sone). Bit-equal with MATLAB R2025b on all 20 fingerprint points. Octave 11.1.0 doesn't ship these in core (Audio package only; Octave's audio package missing these specifically)."
+}
