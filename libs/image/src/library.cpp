@@ -56,6 +56,9 @@ void lab2uint16_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void rgb2xyz_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void xyz2rgb_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rgb2lab_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+// color/color_extras.cpp
+void rgb2lightness_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void rgb2ind_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lab2rgb_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void xyz2lab_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lab2xyz_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -273,6 +276,8 @@ void ImageLibrary::install(Engine &engine)
     reg("color", "rgb2xyz",       &image::detail::rgb2xyz_reg);
     reg("color", "xyz2rgb",       &image::detail::xyz2rgb_reg);
     reg("color", "rgb2lab",       &image::detail::rgb2lab_reg);
+    reg("color", "rgb2lightness", &image::detail::rgb2lightness_reg);
+    reg("color", "rgb2ind",       &image::detail::rgb2ind_reg);
     reg("color", "lab2rgb",       &image::detail::lab2rgb_reg);
     reg("color", "xyz2lab",       &image::detail::xyz2lab_reg);
     reg("color", "lab2xyz",       &image::detail::lab2xyz_reg);
