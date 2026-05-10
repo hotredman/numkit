@@ -116,3 +116,103 @@ TEST_F(ZerosOnesTypedTest, ThreeDimViaVectorArg)
     EXPECT_EQ(static_cast<int>(evalScalar("size(z, 3)")), 4);
     EXPECT_EQ(evalString("class(z)"), "int32");
 }
+
+// ── nan / NaN / inf / Inf as functions ────────────────────────────────
+TEST_F(ZerosOnesTypedTest, NanBareReturnsScalarNaN)
+{
+    eval("x = nan;");
+    EXPECT_TRUE(std::isnan(evalScalar("x")));
+    eval("y = NaN;");
+    EXPECT_TRUE(std::isnan(evalScalar("y")));
+}
+
+TEST_F(ZerosOnesTypedTest, InfBareReturnsScalarInf)
+{
+    eval("x = inf;");
+    EXPECT_TRUE(std::isinf(evalScalar("x")));
+    eval("y = Inf;");
+    EXPECT_TRUE(std::isinf(evalScalar("y")));
+}
+
+TEST_F(ZerosOnesTypedTest, NanWithDimsFillsArray)
+{
+    eval("x = nan(2, 3);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(x, 1)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(x, 2)")), 3);
+    EXPECT_TRUE(std::isnan(evalScalar("x(1, 1)")));
+    EXPECT_TRUE(std::isnan(evalScalar("x(2, 3)")));
+    EXPECT_EQ(evalString("class(x)"), "double");
+}
+
+TEST_F(ZerosOnesTypedTest, NanWithSingleType)
+{
+    eval("x = NaN(2, 'single');");
+    EXPECT_EQ(evalString("class(x)"), "single");
+    EXPECT_TRUE(std::isnan(evalScalar("double(x(1, 1))")));
+}
+
+TEST_F(ZerosOnesTypedTest, InfWithDimsFillsArray)
+{
+    eval("x = Inf(2, 3, 'single');");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(x, 1)")), 2);
+    EXPECT_EQ(evalString("class(x)"), "single");
+    EXPECT_TRUE(std::isinf(evalScalar("double(x(1, 1))")));
+}
+
+TEST_F(ZerosOnesTypedTest, NanRejectsIntegerType)
+{
+    bool threw = false;
+    try { eval("x = nan(2, 'uint8');"); } catch (...) { threw = true; }
+    EXPECT_TRUE(threw);
+}
+
+// ── eye with type arg ─────────────────────────────────────────────────
+TEST_F(ZerosOnesTypedTest, EyeTypedSingle)
+{
+    eval("e = eye(3, 'single');");
+    EXPECT_EQ(evalString("class(e)"), "single");
+    EXPECT_DOUBLE_EQ(evalScalar("double(e(1, 1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(e(2, 2))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(e(1, 2))"), 0.0);
+}
+
+TEST_F(ZerosOnesTypedTest, EyeTypedUint8Rectangular)
+{
+    eval("e = eye(2, 4, 'uint8');");
+    EXPECT_EQ(evalString("class(e)"), "uint8");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(e, 1)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(e, 2)")), 4);
+    EXPECT_DOUBLE_EQ(evalScalar("double(e(1, 1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(e(2, 4))"), 0.0);
+}
+
+// ── rand / randn / randi with type ────────────────────────────────────
+TEST_F(ZerosOnesTypedTest, RandTypedSingle)
+{
+    eval("x = rand(2, 3, 'single');");
+    EXPECT_EQ(evalString("class(x)"), "single");
+    EXPECT_GE(evalScalar("double(x(1, 1))"), 0.0);
+    EXPECT_LT(evalScalar("double(x(1, 1))"), 1.0);
+}
+
+TEST_F(ZerosOnesTypedTest, RandnTypedSingle)
+{
+    eval("x = randn(3, 'single');");
+    EXPECT_EQ(evalString("class(x)"), "single");
+}
+
+TEST_F(ZerosOnesTypedTest, RandiTypedUint8)
+{
+    eval("x = randi(10, 3, 'uint8');");
+    EXPECT_EQ(evalString("class(x)"), "uint8");
+    EXPECT_GE(evalScalar("double(x(1, 1))"), 1.0);
+    EXPECT_LE(evalScalar("double(x(1, 1))"), 10.0);
+}
+
+TEST_F(ZerosOnesTypedTest, RandiTypedInt16Multidim)
+{
+    eval("x = randi(100, 2, 3, 'int16');");
+    EXPECT_EQ(evalString("class(x)"), "int16");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(x, 1)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(x, 2)")), 3);
+}
