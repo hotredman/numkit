@@ -5505,6 +5505,42 @@ void GraphicsLibrary::install(Engine &engine)
     reg("layout", "ytickformat", tickFormatReg(&AxesState::yTickFormat));
     reg("layout", "ztickformat", tickFormatReg(&AxesState::zTickFormat));
 
+    // daspect([dx dy dz]) / pbaspect([px py pz]) — data + plot box
+    // aspect ratios. v1 maps the canonical [1 1 1] case to
+    // axisMode='equal' (equivalent visual). Other ratios accepted but
+    // currently no-op — full anisotropic stretching is BACKLOG.
+    auto aspectImpl = [](Span<const Value> args, size_t nargout,
+                         Span<Value> outs, CallContext &ctx) {
+        (void)nargout;
+        auto &fm = ctx.engine->figureManager();
+        if (args.empty()) { outs[0] = Value::empty(); return; }
+        if (args[0].isChar()) {
+            std::string s = args[0].toString();
+            for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+            if (s == "auto") {
+                fm.currentAxes().axisMode.clear();
+                fm.current().modified = true;
+                fm.emitModified();
+            }
+            outs[0] = Value::empty();
+            return;
+        }
+        if (args[0].numel() >= 3) {
+            const double dx = args[0].elemAsDouble(0);
+            const double dy = args[0].elemAsDouble(1);
+            const double dz = args[0].elemAsDouble(2);
+            if (std::abs(dx - dy) < 1e-9 && std::abs(dy - dz) < 1e-9
+                && fm.currentAxes().axisMode.empty()) {
+                fm.currentAxes().axisMode = "equal";
+                fm.current().modified = true;
+                fm.emitModified();
+            }
+        }
+        outs[0] = Value::empty();
+    };
+    reg("layout", "daspect",  aspectImpl);
+    reg("layout", "pbaspect", aspectImpl);
+
     reg("layout", "axes", noop_ret1);
     reg("layout", "gca", noop_ret1);
     reg("layout", "gcf", noop_ret1);
