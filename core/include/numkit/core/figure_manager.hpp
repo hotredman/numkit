@@ -85,6 +85,14 @@ struct DatasetInfo
     mutable std::vector<std::vector<uint8_t>> lodLevels;
     mutable std::vector<std::pair<size_t, size_t>> lodDims;
 
+    // ── animatedline storage. When type=="line" and the dataset was
+    // created via animatedline / addpoints, these vectors hold the
+    // raw point data; xJson/yJson are rebuilt from them on every
+    // emit. Empty for non-animated datasets.
+    std::vector<double> animatedX;
+    std::vector<double> animatedY;
+    bool isAnimated = false;
+
     // ── Image-RGB (truecolor, set by imshow with M×N×3 input) ──────────
     // Source bytes are ALWAYS uint8 0..255 — imshow casts double→u8 with
     // *255 and clamps before reaching here. Layout is row-major triplets
@@ -146,6 +154,11 @@ struct AxesState
     // axisMode='image' + axisVisible=false. JSON emit only when false
     // so untouched figures keep the existing wire format.
     bool axisVisible = true;
+    // Index into datasets[] of the most recent animatedline dataset.
+    // -1 = no animated line yet. addpoints / clearpoints / getpoints
+    // act on this dataset (numkit doesn't model graphics handles, so
+    // animatedline operations target the axes' single active line).
+    int animatedDatasetIdx = -1;
     // Axis direction. MATLAB: set(gca, 'XDir'/'YDir', 'normal'|'reverse').
     // 'normal' (default) is left-to-right / bottom-to-top. 'reverse'
     // flips. axis('ij') is shorthand for yDir='reverse'.

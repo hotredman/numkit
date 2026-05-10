@@ -321,8 +321,19 @@ These don't have shipping pressure. Each is a separate investment.
       group. Shipped 2026-05-10. e2e `coneplot-streamtube.spec.js`
       (7 cases). Per-vertex coloring + RK4 integration deferred.
 - [ ] `geoplot` / `geoplot3` — geographic axes with basemap tiles.
-- [ ] `animatedline` — incremental updates with per-frame draw
-      callbacks. Needs an animation infrastructure pass.
+- [x] **`animatedline` cluster** (`animatedline`, `addpoints`,
+      `clearpoints`, `getpoints`, `drawnow`). numkit doesn't model
+      graphics handles, so the cluster targets the most-recent
+      animated dataset on the current axes (`AxesState::animatedDatasetIdx`).
+      `animatedline` returns a 1-based scalar handle for script
+      compatibility; `addpoints` appends, `clearpoints` empties,
+      `getpoints` reads back x/y vectors, `drawnow` flushes the
+      figure JSON. Wire format: `ds.type='line'` with `isAnimated=true`
+      and `animatedX/animatedY` vectors that get rebuilt into
+      `xJson/yJson` on every emit. Shipped 2026-05-10. e2e
+      `animatedline.spec.js` (5 cases). Per-frame animation loop is
+      driven by the user's script + Electron's `requestAnimationFrame`
+      via `drawnow`.
 - [x] **View-preset toolbar in FigureWindow.** New `view ▾` button on
       the 3-D modal toolbar; popup with presets `iso` (default
       -37.5°/30°), `top` (XY), `bottom`, `front` (XZ), `back`,
