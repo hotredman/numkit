@@ -502,6 +502,61 @@ inline void stripTrailingOnes(ScratchVec<size_t> &dims)
         dims.pop_back();
 }
 
+// Map a MATLAB class-name string to a ValueType. Returns true on
+// recognised names (the standard numeric / logical types accepted by
+// zeros/ones/true/false/rand). Unknown names return false (caller can
+// throw or fall through to default DOUBLE).
+inline bool valueTypeFromName(std::string_view name, ValueType &out)
+{
+    if      (name == "double")  { out = ValueType::DOUBLE;  return true; }
+    else if (name == "single")  { out = ValueType::SINGLE;  return true; }
+    else if (name == "int8")    { out = ValueType::INT8;    return true; }
+    else if (name == "int16")   { out = ValueType::INT16;   return true; }
+    else if (name == "int32")   { out = ValueType::INT32;   return true; }
+    else if (name == "int64")   { out = ValueType::INT64;   return true; }
+    else if (name == "uint8")   { out = ValueType::UINT8;   return true; }
+    else if (name == "uint16")  { out = ValueType::UINT16;  return true; }
+    else if (name == "uint32")  { out = ValueType::UINT32;  return true; }
+    else if (name == "uint64")  { out = ValueType::UINT64;  return true; }
+    else if (name == "logical") { out = ValueType::LOGICAL; return true; }
+    return false;
+}
+
+// Detect a trailing class-name argument in zeros/ones/etc. If args.back()
+// is a char/string with a recognised type name, return the matching
+// ValueType and trim args by one. Otherwise return DOUBLE (default) and
+// leave args unchanged. Also handles the 'like' form -- (..., 'like', X)
+// pulls the type from X.
+//
+// Sets `outType` and modifies `args` (Span is value-copied at callsite).
+inline Span<const Value>
+extractTypeArg(Span<const Value> args, ValueType &outType)
+{
+    outType = ValueType::DOUBLE;
+    if (args.empty()) return args;
+
+    // 'like' form: zeros(..., 'like', X). Need at least 2 trailing args.
+    if (args.size() >= 2) {
+        const Value &maybeLike = args[args.size() - 2];
+        if ((maybeLike.isChar() || maybeLike.isString())
+            && maybeLike.toString() == "like") {
+            outType = args[args.size() - 1].type();
+            return Span<const Value>(args.data(), args.size() - 2);
+        }
+    }
+
+    // Trailing class-name string: zeros(M, N, ..., 'uint8').
+    const Value &last = args[args.size() - 1];
+    if (last.isChar() || last.isString()) {
+        ValueType t;
+        if (valueTypeFromName(last.toString(), t)) {
+            outType = t;
+            return Span<const Value>(args.data(), args.size() - 1);
+        }
+    }
+    return args;
+}
+
 // Create a zero matrix from a flat ND dim list, picking the matrix /
 // matrix3d / matrixND constructor that matches the rank. Pointer + size
 // so the same helper composes with std::vector, std::pmr::vector, raw

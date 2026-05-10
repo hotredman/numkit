@@ -1,0 +1,118 @@
+// libs/builtin/tests/zeros_ones_typed_test.cpp
+//
+// Regression guard for the type-arg form of zeros / ones:
+//   zeros(M, N, P, ..., 'uint8')   typed N-D zero array
+//   ones(M, N, ..., 'single')      typed N-D ones array
+//   zeros(N, 'logical')            square typed array
+//   zeros(..., 'like', X)          type pulled from X
+// All MATLAB type names supported: double, single, logical,
+// {int,uint}{8,16,32,64}.
+
+#include <numkit/core/engine.hpp>
+#include <gtest/gtest.h>
+
+using namespace numkit;
+
+class ZerosOnesTypedTest : public ::testing::Test
+{
+public:
+    Engine engine;
+    Value eval(const std::string &c) { return engine.eval(c); }
+    double evalScalar(const std::string &c) { return eval(c).toScalar(); }
+    std::string evalString(const std::string &c) { return eval(c).toString(); }
+};
+
+// ── 3-D RGB-image pattern: zeros(M, N, 3, 'uint8') ───────────────────
+TEST_F(ZerosOnesTypedTest, RgbImage3DUint8)
+{
+    eval("z = zeros(4, 5, 3, 'uint8');");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(z, 1)")), 4);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(z, 2)")), 5);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(z, 3)")), 3);
+    EXPECT_EQ(evalString("class(z)"), "uint8");
+    EXPECT_DOUBLE_EQ(evalScalar("double(z(1, 1, 1))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(z(4, 5, 3))"), 0.0);
+}
+
+// ── Each MATLAB type accepted by zeros ────────────────────────────────
+TEST_F(ZerosOnesTypedTest, ZerosWithEachType)
+{
+    EXPECT_EQ(evalString("class(zeros(2, 3, 'double'))"),  "double");
+    EXPECT_EQ(evalString("class(zeros(2, 3, 'single'))"),  "single");
+    EXPECT_EQ(evalString("class(zeros(2, 3, 'int8'))"),    "int8");
+    EXPECT_EQ(evalString("class(zeros(2, 3, 'int16'))"),   "int16");
+    EXPECT_EQ(evalString("class(zeros(2, 3, 'int32'))"),   "int32");
+    EXPECT_EQ(evalString("class(zeros(2, 3, 'int64'))"),   "int64");
+    EXPECT_EQ(evalString("class(zeros(2, 3, 'uint8'))"),   "uint8");
+    EXPECT_EQ(evalString("class(zeros(2, 3, 'uint16'))"),  "uint16");
+    EXPECT_EQ(evalString("class(zeros(2, 3, 'uint32'))"),  "uint32");
+    EXPECT_EQ(evalString("class(zeros(2, 3, 'uint64'))"),  "uint64");
+    EXPECT_EQ(evalString("class(zeros(2, 3, 'logical'))"), "logical");
+}
+
+// ── ones with type fills with 1 of the right type ─────────────────────
+TEST_F(ZerosOnesTypedTest, OnesUint8FillsWithOne)
+{
+    eval("o = ones(2, 3, 'uint8');");
+    EXPECT_EQ(evalString("class(o)"), "uint8");
+    EXPECT_DOUBLE_EQ(evalScalar("double(o(1, 1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(o(2, 3))"), 1.0);
+}
+
+TEST_F(ZerosOnesTypedTest, OnesSingleFillsWithOne)
+{
+    eval("o = ones(3, 'single');");
+    EXPECT_EQ(evalString("class(o)"), "single");
+    EXPECT_DOUBLE_EQ(evalScalar("double(o(1, 1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(o(3, 3))"), 1.0);
+}
+
+TEST_F(ZerosOnesTypedTest, OnesLogicalFillsWithTrue)
+{
+    eval("o = ones(2, 'logical');");
+    EXPECT_EQ(evalString("class(o)"), "logical");
+    EXPECT_DOUBLE_EQ(evalScalar("double(o(1, 1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(o(2, 2))"), 1.0);
+}
+
+// ── 'like' form pulls type from another value ─────────────────────────
+TEST_F(ZerosOnesTypedTest, ZerosLikeForm)
+{
+    eval("X = uint8([1 2 3]);"
+         "z = zeros(2, 3, 'like', X);");
+    EXPECT_EQ(evalString("class(z)"), "uint8");
+    EXPECT_DOUBLE_EQ(evalScalar("double(z(1, 1))"), 0.0);
+}
+
+TEST_F(ZerosOnesTypedTest, OnesLikeForm)
+{
+    eval("X = int16(0);"
+         "o = ones(2, 'like', X);");
+    EXPECT_EQ(evalString("class(o)"), "int16");
+    EXPECT_DOUBLE_EQ(evalScalar("double(o(1, 1))"), 1.0);
+}
+
+// ── Backward compat: no type arg → double ─────────────────────────────
+TEST_F(ZerosOnesTypedTest, BackwardCompatDoubleDefault)
+{
+    EXPECT_EQ(evalString("class(zeros(3, 4))"), "double");
+    EXPECT_EQ(evalString("class(ones(2, 3))"),  "double");
+    EXPECT_EQ(evalString("class(zeros(5))"),    "double");
+}
+
+// ── 3-D and N-D forms with type ───────────────────────────────────────
+TEST_F(ZerosOnesTypedTest, ThreeDimUint8)
+{
+    eval("z = zeros(2, 3, 4, 'uint8');");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(z, 3)")), 4);
+    EXPECT_EQ(evalString("class(z)"), "uint8");
+}
+
+TEST_F(ZerosOnesTypedTest, ThreeDimViaVectorArg)
+{
+    eval("z = zeros([2 3 4], 'int32');");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(z, 1)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(z, 2)")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(z, 3)")), 4);
+    EXPECT_EQ(evalString("class(z)"), "int32");
+}
