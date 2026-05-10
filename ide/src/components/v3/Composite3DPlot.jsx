@@ -496,11 +496,22 @@ function buildWaterfall(grid, scl, bbox, figure) {
  */
 function buildPolygon3D(layer, scl, figure) {
   const xs = layer.xRaw, ys = layer.yRaw, zs = layer.z;
+  // Optional per-sample RGB. Layout: [r,g,b,r,g,b,...] — parallel to
+  // FINITE entries of xs/ys/zs (null separators are skipped). Length
+  // is therefore 3 × (# finite samples), not 3 × n.
+  const vc = (layer.vertexColors && layer.vertexColors.length) ? layer.vertexColors : null;
+  let finiteIdx = 0;   // counter for vertexColors lookup
   const polys = [];
   let cur = [];
   const n = Math.min(xs.length, ys.length, zs.length);
+  // Precompute finite-index → original-index mapping for the colour
+  // walk below. We can't just track in the polygon-collection loop
+  // because we need the same mapping to select colours per vertex.
+  const finiteOf = new Array(n);
+  let fi = 0;
   for (let i = 0; i < n; i++) {
     const fin = Number.isFinite(xs[i]) && Number.isFinite(ys[i]) && Number.isFinite(zs[i]);
+    finiteOf[i] = fin ? (fi++) : -1;
     if (!fin) {
       if (cur.length >= 3) polys.push(cur);
       cur = [];
@@ -510,14 +521,24 @@ function buildPolygon3D(layer, scl, figure) {
   }
   if (cur.length >= 3) polys.push(cur);
   if (polys.length === 0) return null;
+  finiteIdx = fi;   // total finite count
+  const useVertexColors = vc && vc.length >= finiteIdx * 3;
 
   const positions = [];
+  const colors = useVertexColors ? [] : null;
   const indices = [];
   for (const poly of polys) {
     const baseIdx = positions.length / 3;
     for (const i of poly) {
       const [X, Y, Z] = toWorld(xs[i], ys[i], zs[i], scl);
       positions.push(X, Y, Z);
+      if (useVertexColors) {
+        const fIdx = finiteOf[i];
+        const off = fIdx * 3;
+        colors.push((vc[off] | 0) / 255,
+                    (vc[off + 1] | 0) / 255,
+                    (vc[off + 2] | 0) / 255);
+      }
     }
     // Fan triangulation: assumes convex polygon, which is the common
     // user-built case (rectangles, triangles, hand-typed quads).
@@ -529,10 +550,13 @@ function buildPolygon3D(layer, scl, figure) {
 
   const geom = new THREE.BufferGeometry();
   geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  if (useVertexColors) {
+    geom.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
+  }
   geom.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
   geom.computeVertexNormals();
   const mat = buildMaterial(figure || {}, {
-    vertexColors: false,
+    vertexColors: useVertexColors,
     color: new THREE.Color(layer.color || '#9467bd'),
     opacity: Number.isFinite(layer.fillOpacity) ? layer.fillOpacity : 0.7,
   });

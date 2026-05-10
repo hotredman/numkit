@@ -85,6 +85,15 @@ struct DatasetInfo
     mutable std::vector<std::vector<uint8_t>> lodLevels;
     mutable std::vector<std::pair<size_t, size_t>> lodDims;
 
+    // ── Per-vertex colours for fill3 / polygon3d datasets.
+    // Layout: parallel to xJson/yJson/zJson — for each finite (x, y, z)
+    // sample there are three uint8 RGB bytes, in the SAME order. The
+    // null separators between polygons / triangles do NOT consume
+    // colour entries (the renderer skips them when walking xRaw/yRaw).
+    // Empty for datasets that should fall back to the single-colour
+    // `style` material.
+    std::string vertexColorsJson;
+
     // ── animatedline storage. When type=="line" and the dataset was
     // created via animatedline / addpoints, these vectors hold the
     // raw point data; xJson/yJson are rebuilt from them on every
@@ -415,6 +424,8 @@ public:
                         os << ",\"yside\":\"" << ds.yside << "\"";
                     if (!ds.zJson.empty())
                         os << ",\"z\":" << ds.zJson;
+                    if (!ds.vertexColorsJson.empty())
+                        os << ",\"vertexColors\":" << ds.vertexColorsJson;
                     if (!ds.rgbJson.empty()) {
                         os << ",\"rgb\":" << ds.rgbJson;
                         os << ",\"originalRows\":" << ds.originalRows

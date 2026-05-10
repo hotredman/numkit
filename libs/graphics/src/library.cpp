@@ -2312,7 +2312,7 @@ void GraphicsLibrary::install(Engine &engine)
         if (!std::isfinite(vmn)) { vmn = 0; vmx = 1; }
         const double vmid = (vmn + vmx) * 0.5;
 
-        const auto colorForValue = [&](double L) {
+        const auto rgbForValue = [&](double L) -> std::array<int, 3> {
             const double t = (vmx == vmn) ? 0.5 : (L - vmn) / (vmx - vmn);
             const double Hd = (1.0 - std::clamp(t, 0.0, 1.0)) * 240.0;
             const double Cr = 0.6;
@@ -2326,12 +2326,16 @@ void GraphicsLibrary::install(Engine &engine)
             else if (H < 5) { r1 = Xc; g1 = 0;  b1 = Cr; }
             else            { r1 = Cr; g1 = 0;  b1 = Xc; }
             const double m = 0.5 - Cr / 2.0;
-            const int R8 = (int)((r1 + m) * 255);
-            const int G8 = (int)((g1 + m) * 255);
-            const int B8 = (int)((b1 + m) * 255);
+            return { (int)((r1 + m) * 255),
+                     (int)((g1 + m) * 255),
+                     (int)((b1 + m) * 255) };
+        };
+        const auto colorForValue = [&](double L) {
+            const auto rgb = rgbForValue(L);
             char buf[40];
             std::snprintf(buf, sizeof buf,
-                          "color=#%02x%02x%02x;fillOpacity=0.55", R8, G8, B8);
+                          "color=#%02x%02x%02x;fillOpacity=0.85",
+                          rgb[0], rgb[1], rgb[2]);
             return std::string(buf);
         };
 
@@ -2343,62 +2347,79 @@ void GraphicsLibrary::install(Engine &engine)
         };
 
         // Helper — emit a 4-vertex CCW quad-loop, terminated by null.
-        const auto emitQuad = [](std::ostringstream &xs,
-                                 std::ostringstream &ys,
-                                 std::ostringstream &zs,
-                                 bool &first,
-                                 double X0, double Y0, double Z0,
-                                 double X1, double Y1, double Z1,
-                                 double X2, double Y2, double Z2,
-                                 double X3, double Y3, double Z3) {
-            if (!first) { xs << ",null,"; ys << ",null,"; zs << ",null,"; }
+        // Also pushes one RGB triplet per vertex into the parallel
+        // vertexColors stream so the renderer can colour each quad
+        // by the local volume value.
+        const auto emitQuad = [&rgbForValue](
+                std::ostringstream &xs,
+                std::ostringstream &ys,
+                std::ostringstream &zs,
+                std::ostringstream &cs,
+                bool &first,
+                double X0, double Y0, double Z0, double v0,
+                double X1, double Y1, double Z1, double v1,
+                double X2, double Y2, double Z2, double v2,
+                double X3, double Y3, double Z3, double v3) {
+            if (!first) {
+                xs << ",null,"; ys << ",null,"; zs << ",null,";
+                cs << ',';
+            }
             first = false;
             xs << X0 << ',' << X1 << ',' << X2 << ',' << X3;
             ys << Y0 << ',' << Y1 << ',' << Y2 << ',' << Y3;
             zs << Z0 << ',' << Z1 << ',' << Z2 << ',' << Z3;
+            const auto c0 = rgbForValue(v0);
+            const auto c1 = rgbForValue(v1);
+            const auto c2 = rgbForValue(v2);
+            const auto c3 = rgbForValue(v3);
+            cs << c0[0] << ',' << c0[1] << ',' << c0[2] << ','
+               << c1[0] << ',' << c1[1] << ',' << c1[2] << ','
+               << c2[0] << ',' << c2[1] << ',' << c2[2] << ','
+               << c3[0] << ',' << c3[1] << ',' << c3[2];
         };
 
         const auto pushSlice = [&](char axis, size_t fixedIdx,
                                    double meanVal) {
-            std::ostringstream xs, ys, zs;
-            xs << '['; ys << '['; zs << '[';
+            (void)meanVal;
+            std::ostringstream xs, ys, zs, cs;
+            xs << '['; ys << '['; zs << '['; cs << '[';
             bool first = true;
             if (axis == 'x') {
                 // Plane x = Xs[fixedIdx]. Loop over (Y, Z) cells.
                 const double xVal = Xs[fixedIdx];
                 for (size_t i = 0; i + 1 < M; ++i) {
                     for (size_t k = 0; k + 1 < P; ++k) {
-                        emitQuad(xs, ys, zs, first,
-                                 xVal, Ys[i],     Zs[k],
-                                 xVal, Ys[i + 1], Zs[k],
-                                 xVal, Ys[i + 1], Zs[k + 1],
-                                 xVal, Ys[i],     Zs[k + 1]);
+                        emitQuad(xs, ys, zs, cs, first,
+                                 xVal, Ys[i],     Zs[k],     Vat(i,     fixedIdx, k),
+                                 xVal, Ys[i + 1], Zs[k],     Vat(i + 1, fixedIdx, k),
+                                 xVal, Ys[i + 1], Zs[k + 1], Vat(i + 1, fixedIdx, k + 1),
+                                 xVal, Ys[i],     Zs[k + 1], Vat(i,     fixedIdx, k + 1));
                     }
                 }
             } else if (axis == 'y') {
                 const double yVal = Ys[fixedIdx];
                 for (size_t j = 0; j + 1 < N; ++j) {
                     for (size_t k = 0; k + 1 < P; ++k) {
-                        emitQuad(xs, ys, zs, first,
-                                 Xs[j],     yVal, Zs[k],
-                                 Xs[j + 1], yVal, Zs[k],
-                                 Xs[j + 1], yVal, Zs[k + 1],
-                                 Xs[j],     yVal, Zs[k + 1]);
+                        emitQuad(xs, ys, zs, cs, first,
+                                 Xs[j],     yVal, Zs[k],     Vat(fixedIdx, j,     k),
+                                 Xs[j + 1], yVal, Zs[k],     Vat(fixedIdx, j + 1, k),
+                                 Xs[j + 1], yVal, Zs[k + 1], Vat(fixedIdx, j + 1, k + 1),
+                                 Xs[j],     yVal, Zs[k + 1], Vat(fixedIdx, j,     k + 1));
                     }
                 }
             } else {
                 const double zVal = Zs[fixedIdx];
                 for (size_t i = 0; i + 1 < M; ++i) {
                     for (size_t j = 0; j + 1 < N; ++j) {
-                        emitQuad(xs, ys, zs, first,
-                                 Xs[j],     Ys[i],     zVal,
-                                 Xs[j + 1], Ys[i],     zVal,
-                                 Xs[j + 1], Ys[i + 1], zVal,
-                                 Xs[j],     Ys[i + 1], zVal);
+                        emitQuad(xs, ys, zs, cs, first,
+                                 Xs[j],     Ys[i],     zVal, Vat(i,     j,     fixedIdx),
+                                 Xs[j + 1], Ys[i],     zVal, Vat(i,     j + 1, fixedIdx),
+                                 Xs[j + 1], Ys[i + 1], zVal, Vat(i + 1, j + 1, fixedIdx),
+                                 Xs[j],     Ys[i + 1], zVal, Vat(i + 1, j,     fixedIdx));
                     }
                 }
             }
-            xs << ']'; ys << ']'; zs << ']';
+            xs << ']'; ys << ']'; zs << ']'; cs << ']';
             DatasetInfo ds;
             // Reuse the existing fill3 wire shape — adapter routes
             // type='fill3' to polygon3d mode in the 3-D renderer.
@@ -2406,7 +2427,8 @@ void GraphicsLibrary::install(Engine &engine)
             ds.xJson = xs.str();
             ds.yJson = ys.str();
             ds.zJson = zs.str();
-            ds.style = colorForValue(meanVal);
+            ds.vertexColorsJson = cs.str();
+            ds.style = "color=#888888;fillOpacity=0.85";   // fallback
             fm.pushDataset(std::move(ds));
         };
 
