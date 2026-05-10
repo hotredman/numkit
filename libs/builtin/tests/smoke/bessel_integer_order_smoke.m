@@ -41,17 +41,16 @@ for n = 0:3
   end
 end
 
-% Asymptotic-regime spot-check (x > 20 — portable I_n / K_n switches
-% from series to asymptotic). MATLAB ref values:
-%   I_0(25) ≈ 5.0035e+09
-%   K_0(25) ≈ 6.2982e-12
-%   I_3(30) ≈ 7.8158e+11
-%   K_3(30) ≈ 4.6234e-14
+% Asymptotic-regime spot-check (x > 9/20 — portable K_n / I_n cross
+% over to asymptotic). Reference values captured from desktop
+% std::cyl_bessel_* — the WASM-portable shim must match to 1e-9
+% relative (asymptotic limit; K_0 series cancellation eats 8 digits
+% so we cross over at x>9).
 fprintf('\nAsymptotic regime (x >= 25):\n');
-fprintf('  I_0(25) = %.6e (MATLAB 5.003539e+09)\n', besseli(0, 25));
-fprintf('  K_0(25) = %.6e (MATLAB 6.298179e-12)\n', besselk(0, 25));
-fprintf('  I_3(30) = %.6e (MATLAB 7.815925e+11)\n', besseli(3, 30));
-fprintf('  K_3(30) = %.6e (MATLAB 4.623380e-14)\n', besselk(3, 30));
+fprintf('  I_0(25) = %.6e (ref 5.774561e+09)\n', besseli(0, 25));
+fprintf('  K_0(25) = %.6e (ref 3.464162e-12)\n', besselk(0, 25));
+fprintf('  I_3(30) = %.6e (ref 6.711405e+11)\n', besseli(3, 30));
+fprintf('  K_3(30) = %.6e (ref 2.471331e-14)\n', besselk(3, 30));
 
 % J recurrence check: 2n/x · J_n(x) = J_{n-1}(x) + J_{n+1}(x)
 fprintf('\nRecurrence sanity:\n');
