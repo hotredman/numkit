@@ -31,6 +31,10 @@ void audioDelta_reg          (Span<const Value>, size_t, Span<Value>, CallContex
 void cepstralCoefficients_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void mfcc_reg                (Span<const Value>, size_t, Span<Value>, CallContext &);
 void gtcc_reg                (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// features/pitch_harmonics.cpp
+void pitch_reg               (Span<const Value>, size_t, Span<Value>, CallContext &);
+void harmonicRatio_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::audio::detail
 
 namespace numkit {
@@ -64,6 +68,9 @@ void AudioLibrary::install(Engine &engine)
     reg("features", "cepstralCoefficients", &audio::detail::cepstralCoefficients_reg);
     reg("features", "mfcc",                 &audio::detail::mfcc_reg);
     reg("features", "gtcc",                 &audio::detail::gtcc_reg);
+
+    reg("features", "pitch",                &audio::detail::pitch_reg);
+    reg("features", "harmonicRatio",        &audio::detail::harmonicRatio_reg);
 }
 
 } // namespace numkit

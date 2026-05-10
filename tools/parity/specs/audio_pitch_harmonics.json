@@ -1,0 +1,10 @@
+{
+  "name": "audio_pitch_harmonics",
+  "namespace": "audio",
+  "setup": "fs = 16000; t = (0:1/fs:1)'; x220 = sin(2*pi*220*t); x100 = sin(2*pi*100*t);",
+  "expr": "f220 = pitch(x220, fs); f100 = pitch(x100, fs); h220 = harmonicRatio(x220, fs); pn220 = numel(f220); hn220 = numel(h220); f220_first = f220(1); f220_mean = mean(f220); f100_mean = mean(f100); h220_mean = mean(h220);",
+  "iters": 5,
+  "tol": 0.05,
+  "fingerprint": ["pn220", "hn220", "f220_first", "f220_mean", "f100_mean", "h220_mean"],
+  "comment": "MATLAB Audio Toolbox cycle E (FINAL audio cycle): pitch + harmonicRatio. pitch via NCF (Normalized Cross-correlation Function) — default method per MATLAB R2025b. Defaults match MATLAB: WindowLength=round(0.052*fs)=832 samples for fs=16000, OverlapLength=round(0.042*fs)=672, hop=160, Range=[50,400] Hz. harmonicRatio uses 30/20ms windows (different defaults from pitch per MATLAB source). Frame counts (95 for pitch, 98 for harmonicRatio at 16001 samples) match MATLAB exactly. f0 estimates within ~1% of true frequency (220→220.45, 100→101.04 vs MATLAB 219.18, 100.63). harmonicRatio peaks at ~0.886 for pure sine (matches MATLAB to 4 decimals). KNOWN GAPs: pitch methods PEF/CEP/LHS/SRH deferred (NCF only); pitchnn deferred (needs DNN runtime); harmonicRatio parabolicInterpolation refinement deferred (causes ~1% diff vs MATLAB on smooth inputs). Octave 11.1.0 doesn't ship pitch or harmonicRatio in core. Tolerance 5% for parity (algorithmic equivalence rather than bit-equality)."
+}
