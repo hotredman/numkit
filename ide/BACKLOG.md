@@ -303,8 +303,16 @@ These don't have shipping pressure. Each is a separate investment.
       level relative to the volume's min/max. Shipped 2026-05-10.
       e2e `isosurface.spec.js` (4 cases). Per-vertex normals + colour
       gradient deferred.
-- [ ] `coneplot` / `streamtube` — 3-D streamline variants with
-      cone-headed arrows and tube geometry.
+- [x] **`coneplot` / `streamtube` — 3-D vector-field visualisation.**
+      `coneplot(U, V, W)`, `coneplot(X, Y, Z, U, V, W)`, and
+      `coneplot(X, Y, Z, U, V, W, Cx, Cy, Cz [, S])` build cone-headed
+      arrows (6-side pyramids) at every grid point or user-supplied
+      position. `streamtube(X, Y, Z, U, V, W, sx, sy, sz)` integrates
+      a streamline forward-Euler from each seed (max 80 steps,
+      half-cell stride) and wraps an 8-vertex Frenet-style tube
+      around the path. Both emit a single fill3 dataset per primitive
+      group. Shipped 2026-05-10. e2e `coneplot-streamtube.spec.js`
+      (7 cases). Per-vertex coloring + RK4 integration deferred.
 - [ ] `geoplot` / `geoplot3` — geographic axes with basemap tiles.
 - [ ] `animatedline` — incremental updates with per-frame draw
       callbacks. Needs an animation infrastructure pass.
