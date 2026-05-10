@@ -16,24 +16,181 @@
 
 namespace numkit::builtin {
 
-// Emscripten / libc++ stub for C++17 special-math Bessel family.
-// libc++ does not implement P0226 mathematical special functions, so
-// std::cyl_bessel_j / cyl_bessel_i / cyl_bessel_k / cyl_neumann are
-// missing on the WASM build. The desktop build (MSVC / libstdc++) has
-// them. Until we ship a portable implementation (BUGS.md entry), the
-// WASM build throws a clear runtime error.
+// Emscripten / libc++ shim for the C++17 special-math Bessel family.
+// libc++ does not implement P0226's `std::cyl_bessel_*`, so on the
+// WASM build we route them through:
+//   • POSIX `jn(int, double)` / `yn(int, double)` for non-negative
+//     INTEGER order J_n / Y_n (these are in <math.h> on emscripten).
+//   • A portable power-series + asymptotic implementation for
+//     I_n / K_n at non-negative integer order (in `bessel_portable`
+//     below — compiled on every platform so they can be gtest-
+//     covered on desktop against `std::cyl_*`).
+//   • A clear "non-integer order not yet supported on WASM" runtime
+//     error for fractional ν (closes most of BUG #36 — integer-order
+//     Bessel was the bulk of WASM usage; fractional ν is deferred to
+//     a follow-up cycle).
+// The desktop build (MSVC / libstdc++) keeps using `std::cyl_*` for
+// `cyl_bessel_*` dispatch; the portable I/K helpers below stay
+// reachable from gtest for parity verification.
+
+namespace bessel_portable {
+
+// Modified Bessel I_n(x) — power series for any x (converges
+// absolutely for all real x). 200 terms cover |x| ≤ ~50 to 1e-15
+// relative error; for larger |x| we use the asymptotic expansion.
+// Integer-order only.
+inline double bessel_I_series(int n, double x) {
+    if (x == 0.0) return (n == 0) ? 1.0 : 0.0;
+    const double half = 0.5 * x;
+    const double half_sq = half * half;
+    // term_0 = (x/2)^n / n!.
+    double term = 1.0;
+    for (int k = 1; k <= n; ++k) term *= half / k;
+    double sum = term;
+    for (int m = 1; m < 200; ++m) {
+        term *= half_sq / (m * (m + n));
+        sum += term;
+        if (std::abs(term) < 1e-18 * std::abs(sum)) break;
+    }
+    return sum;
+}
+inline double bessel_I_asymp(int n, double x) {
+    // I_n(x) ~ e^x / sqrt(2πx) · Σ (-1)^k a_k(n) / x^k, where
+    // a_k(n) = (4n²-1²)(4n²-3²)...(4n²-(2k-1)²) / (k! 8^k).
+    const double mu = 4.0 * static_cast<double>(n) * static_cast<double>(n);
+    double sum = 1.0;
+    double term = 1.0;
+    for (int k = 1; k < 30; ++k) {
+        const double odd = 2.0 * k - 1.0;
+        term *= -(mu - odd * odd) / (k * 8.0 * x);
+        sum += term;
+        if (std::abs(term) < 1e-18 * std::abs(sum)) break;
+    }
+    return std::exp(x) / std::sqrt(2.0 * M_PI * x) * sum;
+}
+inline double bessel_I_int(int n, double x) {
+    if (x < 0.0) {
+        // I_n(-x) = (-1)^n · I_n(x).
+        const double v = bessel_I_int(n, -x);
+        return (n & 1) ? -v : v;
+    }
+    if (x == 0.0) return (n == 0) ? 1.0 : 0.0;
+    // Switch to asymptotic once series convergence slows (|x| > ~15
+    // for low n; conservative crossover at 20 keeps the series safe).
+    if (x > 20.0) return bessel_I_asymp(n, x);
+    return bessel_I_series(n, x);
+}
+
+// Modified Bessel K_n(x) for integer n >= 0, x > 0.
+// Small x: K_0 / K_1 via series (Abramowitz & Stegun 9.6.13 / 9.6.11).
+// Large x: asymptotic expansion (A&S 9.7.2).
+// Higher n: forward recurrence K_{n+1} = (2n/x) K_n + K_{n-1}
+//   (stable in the forward direction for K).
+inline double bessel_K0_series(double x) {
+    // Abramowitz & Stegun 9.6.13:
+    //   K_0(x) = −(ln(x/2) + γ)·I_0(x) + Σ_{k=1}^∞ H_k/(k!)² · (x/2)^(2k)
+    // where H_k = 1 + 1/2 + … + 1/k. We compute I_0 inline and add
+    // the harmonic-weighted series term-by-term.
+    constexpr double EULER = 0.5772156649015328606065120900824024;
+    const double half = 0.5 * x;
+    const double half_sq = half * half;
+    // I_0(x) part — same series as bessel_I_series(0, x).
+    double I0  = 1.0;
+    double t_I = 1.0;
+    for (int m = 1; m < 200; ++m) {
+        t_I *= half_sq / (m * m);
+        I0  += t_I;
+        if (std::abs(t_I) < 1e-18 * std::abs(I0)) break;
+    }
+    // Harmonic series: Σ_{k=1} H_k / (k!)² · (x/2)^(2k).
+    double harm = 0.0;
+    double t_h  = 1.0;
+    double H    = 0.0;
+    for (int k = 1; k < 200; ++k) {
+        t_h *= half_sq / (k * k);
+        H   += 1.0 / k;
+        const double inc = H * t_h;
+        harm += inc;
+        if (std::abs(inc) < 1e-18 * std::abs(harm) && k > 5) break;
+    }
+    return -(std::log(half) + EULER) * I0 + harm;
+}
+inline double bessel_K_asymp(int n, double x) {
+    // K_n(x) ~ √(π/(2x)) · e^{-x} · Σ a_k(n) / x^k, where
+    // a_k(n) = (4n²-1²)(4n²-3²)...(4n²-(2k-1)²) / (k! 8^k).
+    // All terms positive for K (sign-alternating I version flipped).
+    const double mu = 4.0 * static_cast<double>(n) * static_cast<double>(n);
+    double sum = 1.0;
+    double term = 1.0;
+    for (int k = 1; k < 30; ++k) {
+        const double odd = 2.0 * k - 1.0;
+        term *= (mu - odd * odd) / (k * 8.0 * x);
+        sum += term;
+        if (std::abs(term) < 1e-18 * std::abs(sum)) break;
+    }
+    return std::sqrt(M_PI / (2.0 * x)) * std::exp(-x) * sum;
+}
+inline double bessel_K_int(int n, double x) {
+    if (n < 0) n = -n;                   // K_{-n} = K_n
+    if (x <= 0.0) return std::numeric_limits<double>::infinity();
+    // Large-x: asymptotic (1e-13 by x ~ 20).
+    if (x > 20.0) return bessel_K_asymp(n, x);
+    // Small/moderate: series K_0, then K_1 via Wronskian
+    //   I_0(x) K_1(x) + I_1(x) K_0(x) = 1/x
+    // → K_1 = (1/x − I_1 K_0) / I_0.
+    // Higher K_n via forward recurrence (stable for K).
+    const double K0 = bessel_K0_series(x);
+    if (n == 0) return K0;
+    const double I0 = bessel_I_series(0, x);
+    const double I1 = bessel_I_series(1, x);
+    const double K1 = (1.0 / x - I1 * K0) / I0;
+    if (n == 1) return K1;
+    double km1 = K0, k = K1;
+    for (int j = 1; j < n; ++j) {
+        const double next = (2.0 * j / x) * k + km1;
+        km1 = k;
+        k   = next;
+    }
+    return k;
+}
+
+// Is `nu` a non-negative integer? (Accepts tiny round-off so a
+// caller passing 3.0000000001 still matches n=3.)
+inline bool isNonNegInt(double nu) {
+    return nu >= 0.0 && std::abs(nu - std::round(nu)) < 1e-12;
+}
+
+} // namespace bessel_portable
+
 namespace special_compat {
 #ifdef __EMSCRIPTEN__
 [[noreturn]] inline void bessel_unsupported(const char *name) {
-    throw Error(std::string(name) + ": Bessel family not yet supported "
-                "in the WASM build (libc++ lacks std::cyl_bessel_*); "
-                "use the desktop build for now.",
-                 0, 0, name, "", "m:bessel:wasmStub");
+    throw Error(std::string(name) + ": non-integer order not yet "
+                "supported in the WASM build (libc++ lacks "
+                "std::cyl_bessel_*); use integer order or the desktop "
+                "build.",
+                 0, 0, name, "", "m:bessel:wasmStubFracOrder");
 }
-inline double cyl_bessel_j(double, double) { bessel_unsupported("besselj"); }
-inline double cyl_bessel_i(double, double) { bessel_unsupported("besseli"); }
-inline double cyl_bessel_k(double, double) { bessel_unsupported("besselk"); }
-inline double cyl_neumann (double, double) { bessel_unsupported("bessely"); }
+
+extern "C" double jn(int, double);
+extern "C" double yn(int, double);
+
+inline double cyl_bessel_j(double nu, double x) {
+    if (!bessel_portable::isNonNegInt(nu)) bessel_unsupported("besselj");
+    return ::jn(static_cast<int>(std::round(nu)), x);
+}
+inline double cyl_neumann(double nu, double x) {
+    if (!bessel_portable::isNonNegInt(nu)) bessel_unsupported("bessely");
+    return ::yn(static_cast<int>(std::round(nu)), x);
+}
+inline double cyl_bessel_i(double nu, double x) {
+    if (!bessel_portable::isNonNegInt(nu)) bessel_unsupported("besseli");
+    return bessel_portable::bessel_I_int(static_cast<int>(std::round(nu)), x);
+}
+inline double cyl_bessel_k(double nu, double x) {
+    if (!bessel_portable::isNonNegInt(nu)) bessel_unsupported("besselk");
+    return bessel_portable::bessel_K_int(static_cast<int>(std::round(nu)), x);
+}
 #else
 using std::cyl_bessel_j;
 using std::cyl_bessel_i;
