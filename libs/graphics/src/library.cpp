@@ -5754,6 +5754,21 @@ void GraphicsLibrary::install(Engine &engine)
             delegateTo("scatter3", a, o, c);
         });
 
+    // comet(x, y) / comet3(x, y, z) — animated trail. Without the
+    // animation infrastructure we'd need to step through, the v1 just
+    // routes to plot/plot3 with the full data — visually identical to
+    // MATLAB's final state once the trail completes. Real step-by-step
+    // animation is BACKLOG (would use animatedline + requestAnimationFrame
+    // loop on the IDE side).
+    reg("line", "comet",
+        [delegateTo](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
+            delegateTo("plot", a, o, c);
+        });
+    reg("line", "comet3",
+        [delegateTo](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
+            delegateTo("plot3", a, o, c);
+        });
+
     // heatmap(C) — table-style heatmap. Same data layout as imagesc:
     // 2-D matrix of values mapped through a colormap. Optional row/
     // column label strings ('RowNames' / 'ColumnNames') are accepted
