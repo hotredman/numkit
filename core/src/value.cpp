@@ -336,13 +336,23 @@ size_t Value::colonCount(double start, double step, double stop)
         return (step > 0 && stop >= start) || (step < 0 && stop <= start) ? 1 : 0;
     if ((step > 0 && stop < start) || (step < 0 && stop > start))
         return 0;
-    double n = std::floor((stop - start) / step + 0.5) + 1;
+    // FP-noise tolerance: scale-relative epsilon. Avoids dropping the
+    // last element when (stop-start)/step lands a few ULP shy of an
+    // integer (e.g. 0:0.1:1 gives 11, not 10), without overshooting on
+    // clean integer steps (e.g. 1:2:10 gives 5, not 6 — see Value's
+    // own gtest and MATLAB parity).
+    const double rng = (stop - start) / step;
+    const double tol = 3.0 * std::numeric_limits<double>::epsilon()
+                           * std::max(std::abs(start), std::abs(stop))
+                           / std::abs(step);
+    double n = std::floor(rng + tol) + 1;
     if (n < 0)
         n = 0;
     double last = start + (n - 1) * step;
-    if (step > 0 && last > stop + 0.5 * std::abs(step))
+    // Trim only when truly past the stop (beyond tol).
+    if (step > 0 && last > stop + tol * std::abs(step))
         n--;
-    if (step < 0 && last < stop - 0.5 * std::abs(step))
+    if (step < 0 && last < stop - tol * std::abs(step))
         n--;
     if (n < 0)
         n = 0;
@@ -367,6 +377,47 @@ Value Value::colonRange(double start, double step, double stop, std::pmr::memory
             if ((step > 0 && last > stop) || (step < 0 && last < stop))
                 d[count - 1] = stop;
         }
+    }
+    return result;
+}
+
+Value Value::colonRangeTyped(double start, double stop, ValueType t,
+                              std::pmr::memory_resource *mr)
+{
+    return colonRangeTyped(start, 1.0, stop, t, mr);
+}
+
+Value Value::colonRangeTyped(double start, double step, double stop,
+                              ValueType t, std::pmr::memory_resource *mr)
+{
+    if (t == ValueType::DOUBLE)
+        return colonRange(start, step, stop, mr);
+    size_t count = Value::colonCount(start, step, stop);
+    Value result = Value::matrix(1, count, t, mr);
+    if (count == 0) return result;
+    auto write_loop = [&](auto *dp, auto /*tag*/) {
+        using T = std::remove_pointer_t<decltype(dp)>;
+        for (size_t i = 0; i < count; ++i)
+            dp[i] = static_cast<T>(start + static_cast<double>(i) * step);
+        if (count >= 2) {
+            double last = start + static_cast<double>(count - 1) * step;
+            if ((step > 0 && last > stop) || (step < 0 && last < stop))
+                dp[count - 1] = static_cast<T>(stop);
+        }
+    };
+    switch (t) {
+      case ValueType::SINGLE:  write_loop(result.singleDataMut(),  float{});    break;
+      case ValueType::LOGICAL: write_loop(result.logicalDataMut(), uint8_t{});  break;
+      case ValueType::INT8:    write_loop(result.int8DataMut(),    int8_t{});   break;
+      case ValueType::INT16:   write_loop(result.int16DataMut(),   int16_t{});  break;
+      case ValueType::INT32:   write_loop(result.int32DataMut(),   int32_t{});  break;
+      case ValueType::INT64:   write_loop(result.int64DataMut(),   int64_t{});  break;
+      case ValueType::UINT8:   write_loop(result.uint8DataMut(),   uint8_t{});  break;
+      case ValueType::UINT16:  write_loop(result.uint16DataMut(),  uint16_t{}); break;
+      case ValueType::UINT32:  write_loop(result.uint32DataMut(),  uint32_t{}); break;
+      case ValueType::UINT64:  write_loop(result.uint64DataMut(),  uint64_t{}); break;
+      default:
+        throw std::runtime_error("colonRangeTyped: unsupported output type");
     }
     return result;
 }

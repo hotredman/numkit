@@ -640,15 +640,38 @@ enter_frame:
             }
 
             // ── Colon ────────────────────────────────────────────
+            // Type rule (matches MATLAB + tree_walker.cpp:colonOutputType):
+            //   * all double → DOUBLE
+            //   * one non-double type T (others double) → T
+            //   * two different non-double types → throw
             case OpCode::COLON: {
+                ValueType ta = R[I.b].type(), tb = R[I.c].type();
+                ValueType t = (ta != ValueType::DOUBLE) ? ta
+                            : (tb != ValueType::DOUBLE) ? tb
+                            : ValueType::DOUBLE;
+                if (ta != ValueType::DOUBLE && tb != ValueType::DOUBLE && ta != tb)
+                    throw std::runtime_error(
+                        "Colon operands must be all the same type, "
+                        "or mixed with real scalar doubles");
                 double start = R[I.b].toScalar(), stop = R[I.c].toScalar();
-                R[I.a] = Value::colonRange(start, stop, engine_.mr_);
+                R[I.a] = Value::colonRangeTyped(start, stop, t, engine_.mr_);
                 break;
             }
             case OpCode::COLON3: {
+                ValueType ta = R[I.b].type(), tb = R[I.c].type(), tc = R[I.e].type();
+                ValueType t = ValueType::DOUBLE;
+                ValueType nondefs[3] = {ta, tb, tc};
+                for (int k = 0; k < 3; ++k) {
+                    if (nondefs[k] == ValueType::DOUBLE) continue;
+                    if (t == ValueType::DOUBLE) t = nondefs[k];
+                    else if (t != nondefs[k])
+                        throw std::runtime_error(
+                            "Colon operands must be all the same type, "
+                            "or mixed with real scalar doubles");
+                }
                 double start = R[I.b].toScalar(), step = R[I.c].toScalar(),
                        stop = R[I.e].toScalar();
-                R[I.a] = Value::colonRange(start, step, stop, engine_.mr_);
+                R[I.a] = Value::colonRangeTyped(start, step, stop, t, engine_.mr_);
                 break;
             }
 

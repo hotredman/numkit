@@ -3834,19 +3834,37 @@ void ones_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 
 // MATLAB's colon function: colon(j, k) = j:k, colon(j, i, k) = j:i:k.
 // Useful when the operator form is awkward (function-handle slot, etc.)
-// and to be a real callable for parity tests.
-//
-// KNOWN GAP: type preservation across the colon operator is a
-// parser-level concern (operator dispatch); this functional form
-// returns DOUBLE always, matching the current `:` operator behaviour.
+// and to be a real callable for parity tests. Type preservation matches
+// the operator path (see core/src/tree_walker.cpp:colonOutputType and
+// core/src/vm.cpp:OpCode::COLON).
+namespace { ValueType colonOutType(const Value *ops, size_t n)
+{
+    ValueType nonDouble = ValueType::DOUBLE;
+    bool found = false;
+    for (size_t i = 0; i < n; ++i) {
+        ValueType t = ops[i].type();
+        if (t == ValueType::DOUBLE) continue;
+        if (!found) { nonDouble = t; found = true; }
+        else if (t != nonDouble)
+            throw Error("colon: operands must be all the same type, "
+                        "or mixed with real scalar doubles",
+                        0, 0, "colon", "", "m:colon:typeMix");
+    }
+    return nonDouble;
+}}
+
 void colon_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     auto *mr = ctx.engine->resource();
     if (args.size() == 2) {
-        outs[0] = Value::colonRange(args[0].toScalar(), args[1].toScalar(), mr);
+        ValueType t = colonOutType(args.data(), 2);
+        outs[0] = Value::colonRangeTyped(args[0].toScalar(),
+                                          args[1].toScalar(), t, mr);
     } else if (args.size() == 3) {
-        outs[0] = Value::colonRange(args[0].toScalar(), args[1].toScalar(),
-                                     args[2].toScalar(), mr);
+        ValueType t = colonOutType(args.data(), 3);
+        outs[0] = Value::colonRangeTyped(args[0].toScalar(),
+                                          args[1].toScalar(),
+                                          args[2].toScalar(), t, mr);
     } else {
         throw Error("colon: requires 2 or 3 arguments",
                     0, 0, "colon", "", "m:colon:nargin");
