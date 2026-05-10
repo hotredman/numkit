@@ -1,6 +1,14 @@
 {
   "folders": [
     {
+      "name": "3D_Volume",
+      "files": [
+        "coneplot_streamtube.m",
+        "isosurface_sphere.m",
+        "slice_volume.m"
+      ]
+    },
+    {
       "name": "Advanced",
       "files": [
         "beam_steering.m",
@@ -45,6 +53,15 @@
       ]
     },
     {
+      "name": "Computational_Geometry",
+      "files": [
+        "convex_hull.m",
+        "delaunay_voronoi.m",
+        "griddata_scattered.m",
+        "inpolygon_test.m"
+      ]
+    },
+    {
       "name": "Control_Flow",
       "files": [
         "for_loop.m",
@@ -70,6 +87,12 @@
         "factorial.m",
         "fibonacci.m",
         "multiple_returns.m"
+      ]
+    },
+    {
+      "name": "Group_Operations",
+      "files": [
+        "group_aggregation.m"
       ]
     },
     {
@@ -109,23 +132,28 @@
     {
       "name": "Plotting",
       "files": [
+        "animatedline_demo.m",
         "area_filled.m",
         "axis_modes.m",
         "bar3_chart.m",
         "bar_chart.m",
+        "bar_matrix_demo.m",
         "boxplot_iqr.m",
         "compass_feather.m",
         "contour3_levels.m",
         "contour_topo.m",
+        "contourf_filled.m",
         "errorbar_demo.m",
         "fill3_pyramid.m",
         "fplot_3d.m",
+        "geoplot_demo.m",
         "histfit_normal.m",
         "histogram.m",
         "histogram2_density.m",
         "imagesc_basic.m",
         "imagesc_clim.m",
         "imagesc_colormaps.m",
+        "imshow_demo.m",
         "legend_demo.m",
         "log_scale.m",
         "mesh_grid.m",
@@ -154,6 +182,7 @@
         "surf_lighting.m",
         "surf_peaks.m",
         "surfl_demo.m",
+        "tiledlayout_demo.m",
         "view_presets.m",
         "violinplot_demo.m",
         "waterfall_demo.m",
