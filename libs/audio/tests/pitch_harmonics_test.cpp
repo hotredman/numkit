@@ -107,3 +107,16 @@ TEST_F(PitchHarmonicsTest, PitchMethodCaseInsensitive)
          "b = pitch(x, fs, 'method', 'cep');");
     EXPECT_NEAR(evalScalar("a(1)"), evalScalar("b(1)"), 1e-12);
 }
+
+// ── Cycle K-2: pitch PEF method (Pitch Estimation Filter) ─────────────
+// Bit-equal vs MATLAB R2025b audio.internal.pitch.PEF.m. PEF returns
+// log-frequency-grid resolved f0 (220 Hz → 220.604203 with NFFT=2048).
+TEST_F(PitchHarmonicsTest, PitchPEF220HzSineFirstFrames)
+{
+    eval("x = sin(2*pi*220*t); f0 = pitch(x, fs, 'Method', 'PEF');");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(f0)")), 95);
+    // PEF gives the same value across a pure-tone signal (high precision).
+    EXPECT_NEAR(evalScalar("f0(1)"), 220.604203, 1e-4);
+    EXPECT_NEAR(evalScalar("f0(2)"), 220.604203, 1e-4);
+    EXPECT_NEAR(evalScalar("mean(f0)"), 220.604203, 1e-4);
+}

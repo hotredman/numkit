@@ -113,12 +113,14 @@ Value erb2hz(std::pmr::memory_resource *mr, const Value &erb)
 //   phon = 40 * sone^0.35             if sone < 1
 //   phon = 40 + 10 * log2(sone)       otherwise
 //
-// ISO 532-2 alternative (Cycle M):
+// ISO 532-2 alternative (Cycle M + Cycle M-2):
 //   Uses ISO 532-2:2017 Table 5 directly via PCHIP interpolation +
 //   linear extrapolation beyond 120 phon (337.6 sone).
 //   Per MATLAB source: sone2phon does plain pchip then clamps to >= 0;
-//   phon2sone does pchip as initial guess and refines via fzero (we
-//   ship initial-guess only — KNOWN GAP — error vs MATLAB is <1%).
+//   phon2sone does pchip as initial guess and refines via fzero so
+//   that sone2phon(phon2sone(p)) == p. Cycle M-2 closed the previous
+//   "fzero refinement deferred" GAP via inline bisection (matches
+//   MATLAB to ~1e-12, both fall back to PCHIP guess on non-bracketing).
 
 namespace {
 
@@ -173,14 +175,65 @@ Value phon2sone(std::pmr::memory_resource *mr, const Value &phon,
             return std::pow(2.0, p / 10.0 - 4.0);
         });
     }
-    // ISO 532-2: PCHIP from phon → sone with cap at phon=144.
-    Value xs = tab5PhonVec(mr);
-    Value ys = tab5SoneVec(mr);
+    // ISO 532-2: PCHIP initial guess + bisection refinement to make
+    // phon2sone(sone2phon(s)) ≈ s (matching MATLAB phon2sone.m which
+    // uses fzero on a similar inverse search). The initial guess from
+    // PCHIP is typically within ~1%; bisection narrows to 1e-12 quickly.
+    Value xs   = tab5PhonVec(mr);     // phon column for guess (forward)
+    Value ys   = tab5SoneVec(mr);     // sone column for guess (forward)
+    Value xs_s = tab5SoneVec(mr);     // sone column for sone2phon (inverse)
+    Value ys_p = tab5PhonVec(mr);     // phon column for sone2phon (inverse)
+
+    // Inline sone2phon ISO 532-2 (single scalar — for refinement loop).
+    auto sone2phonInline = [&](double s) -> double {
+        double phonVal;
+        if (s > kTab5Sone[kTab5N - 1]) {
+            phonVal = linearExtrap(kTab5Sone, kTab5Phon, kTab5N, s);
+        } else {
+            Value q = Value::scalar(s, mr);
+            Value y = builtin::pchip(mr, xs_s, ys_p, q);
+            phonVal = y.toScalar();
+        }
+        if (phonVal < 0.0) phonVal = 0.0;
+        return phonVal;
+    };
+
     return elementwise(mr, phon, [&](double p) {
-        if (p > 144.0) p = 144.0;  // MATLAB: level off at 144 phons
-        Value q = Value::scalar(p, mr);
-        Value y = builtin::pchip(mr, xs, ys, q);
-        return y.toScalar();
+        const double pCapped = (p > 144.0) ? 144.0 : p;
+        // Initial guess via PCHIP forward table.
+        double guess;
+        {
+            Value q = Value::scalar(pCapped, mr);
+            Value y = builtin::pchip(mr, xs, ys, q);
+            guess = y.toScalar();
+        }
+        if (guess <= 0.0) return guess;  // matches MATLAB low-p path
+        // Build bracket around the guess; expand if not bracketing.
+        // f(s) = sone2phon(s) - p. We want f(s)=0.
+        double lo = guess * 0.5;
+        double hi = guess * 1.5;
+        double fLo = sone2phonInline(lo) - pCapped;
+        double fHi = sone2phonInline(hi) - pCapped;
+        size_t expand = 0;
+        while (fLo * fHi > 0.0 && expand < 30) {
+            // Walk the bracket outward (geometric).
+            lo *= 0.5;
+            hi *= 1.5;
+            fLo = sone2phonInline(lo) - pCapped;
+            fHi = sone2phonInline(hi) - pCapped;
+            ++expand;
+        }
+        if (fLo * fHi > 0.0) return guess;  // give up, fall back to PCHIP guess
+        // Bisection to ~1e-12 relative or 80 iters max.
+        for (size_t it = 0; it < 80; ++it) {
+            const double mid = 0.5 * (lo + hi);
+            if (hi - lo < 1e-12 * std::max(1.0, std::abs(mid))) return mid;
+            const double fMid = sone2phonInline(mid) - pCapped;
+            if (fMid == 0.0) return mid;
+            if (fLo * fMid < 0.0) { hi = mid; fHi = fMid; }
+            else                  { lo = mid; fLo = fMid; }
+        }
+        return 0.5 * (lo + hi);
     });
 }
 

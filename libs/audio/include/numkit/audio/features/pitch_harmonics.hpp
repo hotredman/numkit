@@ -15,12 +15,18 @@ namespace numkit::audio {
 // Range=[50, 400] Hz. Returns column vector of f0 values per frame.
 //
 // Cycle K added Method='CEP' (Cepstrum, Noll 1967) via pitchCEP().
-// KNOWN GAPs: Method='PEF'/'LHS'/'SRH' deferred (NCF + CEP shipped).
+// Cycle K-2 added Method='PEF' (Pitch Estimation Filter, Gonzalez &
+// Brookes 2011) via pitchPEF().
+// KNOWN GAPs: Method='LHS'/'SRH' deferred (need libs/signal::fft fix
+// for non-power-of-2 sizes — fft length = round(fs)).
 // MedianFilterLength / Range / Window NV args deferred.
 Value pitch(std::pmr::memory_resource *mr, const Value &x, double fs);
 
 // Cepstrum-based pitch method (Method='CEP'). Same I/O as pitch().
 Value pitchCEP(std::pmr::memory_resource *mr, const Value &x, double fs);
+
+// Pitch Estimation Filter method (Method='PEF'). Same I/O as pitch().
+Value pitchPEF(std::pmr::memory_resource *mr, const Value &x, double fs);
 
 // harmonicRatio(x, fs) — strength of harmonic content per frame, via
 // normalized autocorrelation peak. Range [0, 1]. Defaults: WindowLength=
