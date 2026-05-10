@@ -47,9 +47,27 @@ TEST_F(DemodTest, AmdsbTcSubtractsOffset)
     EXPECT_TRUE(std::isfinite(evalScalar("xd(5)")));
 }
 
+TEST_F(DemodTest, FmRoundtripApproximatesInput)
+{
+    // FM modulate then demodulate; interior samples should approximate x.
+    eval("y = modulate(x, 25, fs, 'fm');"
+         "xd = demod(y, 25, fs, 'fm');"
+         "err = max(abs(xd(5:end-5) - x(5:end-5)));");
+    // FM demod has noise from hilbert + diff/unwrap; allow up to 1.0
+    EXPECT_LT(evalScalar("err"), 1.0);
+}
+
+TEST_F(DemodTest, PmRoundtripFiniteOutput)
+{
+    eval("y = modulate(x, 25, fs, 'pm');"
+         "xd = demod(y, 25, fs, 'pm');");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(xd)")), 21);
+    EXPECT_TRUE(std::isfinite(evalScalar("xd(10)")));
+}
+
 TEST_F(DemodTest, RejectsUnsupportedMethod)
 {
     bool threw = false;
-    try { eval("demod(x, 25, fs, 'fm');"); } catch (...) { threw = true; }
+    try { eval("demod(x, 25, fs, 'amssb');"); } catch (...) { threw = true; }
     EXPECT_TRUE(threw);
 }

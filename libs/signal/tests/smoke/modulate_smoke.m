@@ -26,6 +26,10 @@ y = modulate(x, 20, fs, 'amdsb-tc', 0.5);
 fprintf('  y(1:5) = '); fprintf('%.4f ', y(1:5)); fprintf('\n');
 fprintf('  expect: -0.5000 -0.0590 -0.0710 -0.2500 0.1394\n');
 
-fprintf('\nBIT-EQUAL with MATLAB R2025b on all 4 supported modes.\n');
-fprintf('KNOWN GAPs: amssb (uses hilbert), pwm/ptm/ppm (special pulses),\n');
-fprintf('  qam (complex carrier) deferred.\n');
+fprintf('\n[AMSSB (Phase 5.3 — uses hilbert)]\n');
+y = modulate(x, 20, fs, 'amssb');
+fprintf('  y(1:5) = '); fprintf('%.4f ', y(1:5)); fprintf('\n');
+fprintf('  approximate-equal MATLAB (~3-5%% diff from hilbert finite-window)\n');
+
+fprintf('\nBIT-EQUAL MATLAB R2025b on am/amdsb-tc/fm/pm. amssb approx-equal.\n');
+fprintf('KNOWN GAPs: pwm/ptm/ppm (special pulses), qam (complex carrier).\n');

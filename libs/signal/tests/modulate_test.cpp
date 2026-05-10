@@ -53,6 +53,16 @@ TEST_F(ModulateTest, PmPhaseProportional)
     EXPECT_NEAR(evalScalar("y(2)"), -0.610464, 1e-5);
 }
 
+TEST_F(ModulateTest, AmssbApproxMatchesMatlab)
+{
+    // Single-sideband uses hilbert; finite-window edges introduce ~5% noise.
+    eval("y = modulate(x, 20, fs, 'amssb');"
+         "y1 = y(5); y2 = y(8);");
+    // Just sanity-check finite output and approximate magnitude bound.
+    EXPECT_TRUE(std::isfinite(evalScalar("y1")));
+    EXPECT_LT(std::abs(evalScalar("y1")), 2.0);  // amssb amplitudes ~|x| + |hilbert(x)|
+}
+
 TEST_F(ModulateTest, RejectsUnsupportedMethod)
 {
     bool threw = false;

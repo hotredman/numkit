@@ -7,6 +7,7 @@
 #include <numkit/signal/waveform_generation/waveform_generation.hpp>
 #include <numkit/signal/filter_design/filter_design.hpp>     // butter
 #include <numkit/signal/digital_filtering/filter.hpp>        // filtfilt
+#include <numkit/signal/transforms/hilbert.hpp>              // hilbert
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -385,15 +386,79 @@ Value demod(std::pmr::memory_resource *mr,
                     [](unsigned char c) { return std::tolower(c); });
 
     const bool isAmFamily = (m == "am" || m == "amdsb-sc" || m == "amdsb-tc");
-    if (!isAmFamily)
-        throw Error("demod: only am/amdsb-sc/amdsb-tc supported "
-                    "(fm/pm/amssb/pwm/ptm/ppm/qam deferred)",
+    const bool isFmPm = (m == "fm" || m == "pm");
+    if (!isAmFamily && !isFmPm)
+        throw Error("demod: only am/amdsb-sc/amdsb-tc/fm/pm supported "
+                    "(amssb/pwm/ptm/ppm/qam deferred)",
                     0, 0, "demod", "", "m:demod:UnsupportedMethod");
 
     // Convert row vector to column for processing.
     const bool isRowVec = (y.dims().rows() == 1 && y.dims().cols() > 1);
     const std::size_t len = isRowVec ? y.dims().cols() : y.dims().rows();
     const std::size_t cols = isRowVec ? 1 : y.dims().cols();
+
+    if (isFmPm) {
+        // FM/PM share most: yq = hilbert(y) .* exp(-j·2π·Fc·t)
+        // FM: x = (1/P1) · diff(unwrap(angle(yq))) prepended with 0
+        // PM: x = (1/P1) · angle(yq)
+        double P1 = 1.0;
+        if (opt && !opt->isEmpty()) P1 = opt->toScalar();
+
+        // Compute hilbert on y.
+        Value yVal = Value::matrix(len, cols, ValueType::DOUBLE, mr);
+        double *yvd = yVal.doubleDataMut();
+        for (std::size_t c = 0; c < cols; ++c) {
+            for (std::size_t r = 0; r < len; ++r) {
+                yvd[r + c * len] = isRowVec ? y.elemAsDouble(r)
+                                              : y.elemAsDouble(r + c * len);
+            }
+        }
+        Value h = numkit::signal::hilbert(mr, yVal);
+        const Complex *hd = h.complexData();
+
+        Value out = Value::matrix(len, cols, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+
+        if (m == "fm") {
+            // FM: angle(yq) and unwrap, then differentiate
+            for (std::size_t c = 0; c < cols; ++c) {
+                // yq[r] = hilbert(y)[r] · exp(-j·2π·Fc·t)
+                // angle(yq) = angle(hilbert(y)) - 2π·Fc·t
+                std::vector<double> ang(len);
+                for (std::size_t r = 0; r < len; ++r) {
+                    const Complex hh = hd[r + c * len];
+                    const double t = static_cast<double>(r) / Fs;
+                    const Complex yq = hh * std::polar(1.0, -2.0 * kPi * Fc * t);
+                    ang[r] = std::arg(yq);
+                }
+                // Unwrap (jump > π implies 2π wrap)
+                for (std::size_t r = 1; r < len; ++r) {
+                    while (ang[r] - ang[r - 1] > kPi) ang[r] -= 2.0 * kPi;
+                    while (ang[r] - ang[r - 1] < -kPi) ang[r] += 2.0 * kPi;
+                }
+                // diff prepended with 0
+                od[0 + c * len] = 0.0;
+                for (std::size_t r = 1; r < len; ++r) {
+                    od[r + c * len] = (1.0 / P1) * (ang[r] - ang[r - 1]);
+                }
+            }
+        } else {  // pm
+            for (std::size_t c = 0; c < cols; ++c) {
+                for (std::size_t r = 0; r < len; ++r) {
+                    const Complex hh = hd[r + c * len];
+                    const double t = static_cast<double>(r) / Fs;
+                    const Complex yq = hh * std::polar(1.0, -2.0 * kPi * Fc * t);
+                    od[r + c * len] = (1.0 / P1) * std::arg(yq);
+                }
+            }
+        }
+        if (isRowVec && cols == 1) {
+            Value rowOut = Value::matrix(1, len, ValueType::DOUBLE, mr);
+            std::copy(od, od + len, rowOut.doubleDataMut());
+            return rowOut;
+        }
+        return out;
+    }
 
     // Step 1: x = y .* cos(2π Fc t)
     Value mixed = Value::matrix(len, cols, ValueType::DOUBLE, mr);
@@ -478,6 +543,26 @@ Value modulate(std::pmr::memory_resource *mr,
                 od[r + c * len] = getX(r, c) * std::cos(2.0 * kPi * Fc * t);
             }
         }
+    } else if (m == "amssb") {
+        // y = x .* cos(2π·Fc·t) + imag(hilbert(x)) .* sin(2π·Fc·t)
+        // Compute hilbert of full signal first.
+        Value xVal = Value::matrix(len, cols, ValueType::DOUBLE, mr);
+        double *xd = xVal.doubleDataMut();
+        for (std::size_t c = 0; c < cols; ++c)
+            for (std::size_t r = 0; r < len; ++r)
+                xd[r + c * len] = getX(r, c);
+        Value h = numkit::signal::hilbert(mr, xVal);
+        const Complex *hd = h.complexData();
+        for (std::size_t c = 0; c < cols; ++c) {
+            for (std::size_t r = 0; r < len; ++r) {
+                const double t = static_cast<double>(r) / Fs;
+                const double cosT = std::cos(2.0 * kPi * Fc * t);
+                const double sinT = std::sin(2.0 * kPi * Fc * t);
+                const double xv = xd[r + c * len];
+                const double imagH = hd[r + c * len].imag();
+                od[r + c * len] = xv * cosT + imagH * sinT;
+            }
+        }
     } else if (m == "amdsb-tc") {
         double offset;
         if (opt && !opt->isEmpty()) {
@@ -534,7 +619,7 @@ Value modulate(std::pmr::memory_resource *mr,
             }
         }
     } else {
-        throw Error("modulate: method must be 'am'/'amdsb-sc'/'amdsb-tc'/'fm'/'pm'",
+        throw Error("modulate: method must be 'am'/'amdsb-sc'/'amdsb-tc'/'amssb'/'fm'/'pm'",
                     0, 0, "modulate", "", "m:modulate:UnsupportedMethod");
     }
 
