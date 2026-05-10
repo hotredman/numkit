@@ -799,6 +799,14 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     // Field is absent in JSON unless the script set it false; we treat
     // missing as visible.
     axisVisible: cfg.axisVisible !== false,
+    // Custom tick positions / labels (xticks / yticks / xticklabels /
+    // yticklabels). Empty arrays → renderer falls back to niceTicks
+    // auto-generation. Labels are honoured only when their length
+    // matches the corresponding ticks count.
+    xTicks: Array.isArray(cfg.xticks) ? cfg.xticks.slice() : null,
+    yTicks: Array.isArray(cfg.yticks) ? cfg.yticks.slice() : null,
+    xTickLabels: Array.isArray(cfg.xticklabels) ? cfg.xticklabels.slice() : null,
+    yTickLabels: Array.isArray(cfg.yticklabels) ? cfg.yticklabels.slice() : null,
     // xDir / yDir: 'normal' (default) or 'reverse'. Renderer flips
     // the corresponding sx/sy mapping when 'reverse'. axis('ij')
     // shorthand is resolved on the C++ side: it sets yDir='reverse'
