@@ -14,6 +14,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <functional>
 #include <limits>
 #include <memory_resource>
@@ -381,6 +382,31 @@ Value power(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     }
     if (a.isScalar() && b.isScalar())
         return Value::scalar(std::pow(a.toScalar(), b.toScalar()), p);
+    // Matrix power A^n: when a is a square numeric matrix and b is an
+    // integer scalar exponent, compute the matrix product chain
+    // A·A·…·A (n times). Non-integer or non-square fall through to
+    // the not-implemented error (eigendecomposition route is BACKLOG).
+    if (b.isScalar() && !a.isScalar()) {
+        const double bs = b.toScalar();
+        const long n = (long)bs;
+        if ((double)n == bs && n >= 0
+            && a.dims().rows() == a.dims().cols()
+            && a.dims().ndim() == 2) {
+            const std::size_t R = a.dims().rows();
+            // n=0 → identity matrix.
+            if (n == 0) {
+                auto I = Value::matrix(R, R, ValueType::DOUBLE, p);
+                double *id = I.doubleDataMut();
+                std::memset(id, 0, sizeof(double) * R * R);
+                for (std::size_t i = 0; i < R; ++i) id[i * R + i] = 1.0;
+                return I;
+            }
+            // Repeat-multiply via existing mtimes.
+            Value acc = a;
+            for (long k = 1; k < n; ++k) acc = mtimes(p, acc, a);
+            return acc;
+        }
+    }
     throw Error("Matrix power not implemented", 0, 0, "power", "",
                  "m:power:notImplemented");
 }
