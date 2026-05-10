@@ -121,6 +121,19 @@ TEST_F(PitchHarmonicsTest, PitchPEF220HzSineFirstFrames)
     EXPECT_NEAR(evalScalar("mean(f0)"), 220.604203, 1e-4);
 }
 
+// ── Cycle K-3: pitch LHS method (Subharmonic Summation) ───────────────
+// Bit-equal vs MATLAB R2025b audio.internal.pitch.LHS.m (Hermes 1988).
+// For pure 220 Hz sine, LHS picks low subharmonic at search edge (~50 Hz)
+// — known Hermes-LHS behavior for narrowband signals.
+TEST_F(PitchHarmonicsTest, PitchLHS220HzSineFirstFrames)
+{
+    eval("x = sin(2*pi*220*t); f0 = pitch(x, fs, 'Method', 'LHS');");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(f0)")), 95);
+    EXPECT_NEAR(evalScalar("f0(1)"),  51.0, 1e-9);
+    EXPECT_NEAR(evalScalar("f0(2)"),  50.0, 1e-9);
+    EXPECT_NEAR(evalScalar("mean(f0)"), 50.6, 1e-3);
+}
+
 // ── Cycle L: 'Range' Name-Value arg ────────────────────────────────────
 // Bit-equal vs MATLAB R2025b for PEF + custom Range; algorithmic-equal
 // for NCF (different tie-break behavior at ~1% level).

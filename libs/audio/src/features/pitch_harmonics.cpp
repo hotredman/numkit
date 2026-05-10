@@ -19,11 +19,10 @@
 //
 // PMR HARD RULE.
 //
-// KNOWN GAPs (post cycles E-F-K-K2):
-//   * pitch shipped methods: NCF (default, cycle E), CEP (cycle K, bit-equal),
-//     PEF (cycle K-2, bit-equal). LHS / SRH still deferred — both use
-//     fft length = round(fs) which hits the libs/signal::fft non-power-of-2
-//     bug; will land after that bug is fixed.
+// KNOWN GAPs (post cycles E-F-K-K2-K3):
+//   * pitch shipped methods: NCF (default, cycle E), CEP (cycle K),
+//     PEF (cycle K-2), LHS (cycle K-3). SRH still deferred (uses LPC
+//     residual + Blackman-windowed framing — separate algorithm).
 //   * Default median filter (MedianFilterLength=1) — applied with len=1
 //     it's a no-op so we omit it.
 //   * harmonicRatio: full MATLAB R2025b parity — auto low-edge from first
@@ -510,6 +509,113 @@ Value pitchPEF(std::pmr::memory_resource *mr, const Value &x, double fs,
     return out;
 }
 
+// ── pitch LHS method (Cycle K-3) ──────────────────────────────────────
+// Subharmonic Summation (Hermes, JASA 83, 1988). Matches MATLAB R2025b
+// audio.internal.pitch.LHS.m one-to-one:
+//
+//   edge = [ceil(minF), floor(maxF)] = [50, 400] for default Range.
+//   maxBin = (edge[end]+1) * 5 = 2005 for default Range.
+//   fftLength = round(fs)
+//   Apply hamming(winLen, 'periodic'), fft to length fftLength.
+//   S[k] = log(|Y[k]|) for k = 0..maxBin-1 (1-based: 1..maxBin).
+//   Harmonic summation per 1-based MATLAB index k=1..edge[end]+1:
+//     domain[k] = S[k] + S[2k-1] + S[3k-2] + S[4k-3] + S[5k-4]
+//   (per-element sum of 5 strided slices each of length edge[end]+1)
+//   Find max in domain[edge[0]..edge[end]] (1-based).
+//   f0 = peak location (1-based), already in Hz since each bin = 1 Hz
+//   (NFFT = fs → Δf = fs/NFFT = 1).
+//   Clip to [minF, maxF].
+//
+// Note: For pure sines, LHS picks the lowest sub-harmonic in the search
+// range that has the input freq as a multiple — MATLAB returns ~50 Hz
+// for a 220 Hz sine because the harmonic-sum maximum lies near the
+// search lower bound. This is correct LHS behavior (documented in Hermes).
+Value pitchLHS(std::pmr::memory_resource *mr, const Value &x, double fs,
+                double minF, double maxF)
+{
+    const size_t N = x.numel();
+    const FrameSpec sp = frameSpec(N, fs, 0.052, 0.042);
+    Value out = Value::matrix(sp.numFrames, sp.numFrames == 0 ? 0 : 1,
+                              ValueType::DOUBLE, mr);
+    if (sp.numFrames == 0) return out;
+
+    const size_t edgeLo = static_cast<size_t>(std::ceil(minF));
+    const size_t edgeHi = static_cast<size_t>(std::floor(maxF));
+    if (edgeHi <= edgeLo) return out;
+
+    // maxBin = (edgeHi + 1) * 5 in MATLAB 1-based; in our 0-based loop
+    // we need that many entries [0..maxBin-1].
+    const size_t maxBin = (edgeHi + 1) * 5;
+    const size_t fftLen = static_cast<size_t>(std::round(fs));
+    if (maxBin > fftLen)
+        return out;  // can't extract enough bins
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> win(sp.winLen, &scratch);
+    hammingPeriodic(win.data(), sp.winLen);
+
+    // Pre-allocate per-frame buffers.
+    Value framePad = Value::matrix(fftLen, 1, ValueType::DOUBLE, mr);
+    double *fp = framePad.doubleDataMut();
+    ScratchVec<double> S(maxBin, &scratch);
+    ScratchVec<double> domain(edgeHi + 1, &scratch);
+
+    double *od = out.doubleDataMut();
+    for (size_t f = 0; f < sp.numFrames; ++f) {
+        const size_t start = f * sp.hop;
+        // Window + zero-pad to fftLen.
+        std::fill(fp, fp + fftLen, 0.0);
+        for (size_t i = 0; i < sp.winLen; ++i)
+            fp[i] = x.elemAsDouble(start + i) * win[i];
+
+        Value Y = signal::fft(mr, framePad, static_cast<int>(fftLen), 1);
+        const Complex *Yd = Y.complexData();
+        // S[k] = log(|Y[k]|) for k = 0..maxBin-1
+        for (size_t k = 0; k < maxBin; ++k) {
+            const double mag = std::abs(Yd[k]);
+            S[k] = (mag > 0.0) ? std::log(mag)
+                                : std::log(std::numeric_limits<double>::min());
+        }
+
+        // Harmonic summation. domain[k] (1-based, k=1..edgeHi+1):
+        //   domain[k] = S[k] + S[2k-1] + S[3k-2] + S[4k-3] + S[5k-4]
+        // 0-based: domain[k-1] = S[k-1] + S[2k-2] + S[3k-3] + S[4k-4] + S[5k-5]
+        // Substituting j = k-1 (j=0..edgeHi): domain[j] = S[j] + S[2j+1-1] = S[j+(j+0)]
+        // Re-derive cleanly: MATLAB 1-based slice S(1:m:M*m), m-th element = (i-1)*m + 1.
+        // For row m (m=1..5), i-th element (i=1..edgeHi+1) is S[(i-1)*m + 1] (1-based).
+        // 0-based: S[(i-1)*m] where i=1..edgeHi+1 maps to 0-based j=0..edgeHi.
+        // domain[j] (0-based j=0..edgeHi) = sum over m=1..5 of S[j*m].
+        for (size_t j = 0; j <= edgeHi; ++j) {
+            double sum = 0.0;
+            for (size_t m = 1; m <= 5; ++m) {
+                const size_t idx = j * m;  // 0-based
+                if (idx < maxBin) sum += S[idx];
+            }
+            domain[j] = sum;
+        }
+
+        // Peak in domain[edgeLo..edgeHi] (1-based MATLAB index).
+        // 0-based: domain[edgeLo-1..edgeHi-1] would be wrong — re-check.
+        // Actually MATLAB getCandidates: range = edge(1):edge(2) = 50:400.
+        // In MATLAB 1-based, domain(50)..domain(400). In 0-based: domain[49..399].
+        // Then locs = edge(1) + max_arg - 1 (1-based MATLAB index in original domain).
+        // So MATLAB returns 1-based index in [edgeLo, edgeHi].
+        // f0 = locs (treating 1-based index as Hz directly).
+        double bestVal = -std::numeric_limits<double>::infinity();
+        size_t bestLoc1 = edgeLo;  // 1-based index
+        for (size_t k = edgeLo; k <= edgeHi; ++k) {
+            const double v = domain[k - 1];  // 0-based access
+            if (v > bestVal) { bestVal = v; bestLoc1 = k; }
+        }
+        double f0 = static_cast<double>(bestLoc1);
+        // Clip to [minF, maxF] (per pitch.m post-processing)
+        if (f0 < minF) f0 = minF;
+        if (f0 > maxF) f0 = maxF;
+        od[f] = f0;
+    }
+    return out;
+}
+
 // ── pitch ─────────────────────────────────────────────────────────────
 Value pitch(std::pmr::memory_resource *mr, const Value &x, double fs,
              double minF, double maxF)
@@ -699,6 +805,8 @@ void pitch_reg(Span<const Value> args, size_t /*nargout*/,
         outs[0] = pitchCEP(ctx.engine->resource(), args[0], fs, minF, maxF);
     else if (method == "PEF")
         outs[0] = pitchPEF(ctx.engine->resource(), args[0], fs, minF, maxF);
+    else if (method == "LHS")
+        outs[0] = pitchLHS(ctx.engine->resource(), args[0], fs, minF, maxF);
     else
         outs[0] = pitch(ctx.engine->resource(), args[0], fs, minF, maxF);
 }
