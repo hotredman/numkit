@@ -214,6 +214,7 @@ void buttord_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cheb1ord_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cheb2ord_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void kaiserord_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void ellipord_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // Signal modelling (libs/signal/src/spectral_analysis/signal_modeling.cpp)
 void levinson_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -487,6 +488,7 @@ void SignalLibrary::install(Engine &engine)
     reg("filter_design", "cheb1ord", &signal::detail::cheb1ord_reg);
     reg("filter_design", "cheb2ord", &signal::detail::cheb2ord_reg);
     reg("filter_design", "kaiserord", &signal::detail::kaiserord_reg);
+    reg("filter_design", "ellipord",  &signal::detail::ellipord_reg);
     reg("parametric", "levinson",  &signal::detail::levinson_reg);
     reg("parametric", "rlevinson", &signal::detail::rlevinson_reg);
     reg("parametric", "aryule",    &signal::detail::aryule_reg);
