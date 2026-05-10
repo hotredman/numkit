@@ -1,0 +1,10 @@
+{
+  "name": "isosurface",
+  "namespace": "graphics",
+  "setup": "V = zeros(4, 4, 4); V(:,:,1) = 1; V(:,:,2) = 2; V(:,:,3) = 3; V(:,:,4) = 4;",
+  "expr": "isosurface(V, 2.5); s = size(V); r = s(1); c = s(2); p = s(3); iso = 2.5;",
+  "iters": 3,
+  "tol": 1e-12,
+  "fingerprint": ["r", "c", "p", "iso"],
+  "comment": "isosurface marching-cubes implementation. The display result is a fill3 dataset of triangle vertices; numkit's tables follow the public-domain Paul Bourke reference. Pure scalar output check: input volume invariants (shape, iso level) so MATLAB / numkit / Octave agree the call ran without mutating workspace state. Visual mesh fidelity is e2e."
+}

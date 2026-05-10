@@ -1,0 +1,10 @@
+{
+  "name": "slice",
+  "namespace": "graphics",
+  "setup": "V = zeros(4, 4, 4); for k = 1:4; V(:,:,k) = k; end; sx = [2]; sy = [2]; sz = [2];",
+  "expr": "slice(V, sx, sy, sz); s = size(V); r = s(1); c = s(2); p = s(3); v_max = max(V(:));",
+  "iters": 3,
+  "tol": 1e-12,
+  "fingerprint": ["r", "c", "p", "v_max"],
+  "comment": "slice is display-only — fingerprint pins V's shape + extrema to confirm the call doesn't mutate the volume. MATLAB / numkit / Octave all produce a 3-D figure; visual fidelity (per-cell colour gradient via vertexColors) is covered by e2e in slice.spec.js."
+}
