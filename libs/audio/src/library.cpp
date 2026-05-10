@@ -22,6 +22,11 @@ void spectralRolloffPoint_reg(Span<const Value>, size_t, Span<Value>, CallContex
 void spectralDecrease_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void spectralSlope_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void spectralFlux_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void spectralCrest_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void spectralEntropy_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void spectralFlatness_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void spectralKurtosis_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void spectralSkewness_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // spectral/melspec_delta.cpp
 void melSpectrogram_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -61,6 +66,15 @@ void AudioLibrary::install(Engine &engine)
     reg("spectral", "spectralDecrease",     &audio::detail::spectralDecrease_reg);
     reg("spectral", "spectralSlope",        &audio::detail::spectralSlope_reg);
     reg("spectral", "spectralFlux",         &audio::detail::spectralFlux_reg);
+
+    // Cycle I: per-frame STFT MATLAB-named camelCase variants. The
+    // libs/signal lowercase forms still exist as legacy single-segment
+    // scalar versions (signal.spectral_analysis.spectralcrest etc.).
+    reg("spectral", "spectralCrest",        &audio::detail::spectralCrest_reg);
+    reg("spectral", "spectralEntropy",      &audio::detail::spectralEntropy_reg);
+    reg("spectral", "spectralFlatness",     &audio::detail::spectralFlatness_reg);
+    reg("spectral", "spectralKurtosis",     &audio::detail::spectralKurtosis_reg);
+    reg("spectral", "spectralSkewness",     &audio::detail::spectralSkewness_reg);
 
     reg("spectral", "melSpectrogram",       &audio::detail::melSpectrogram_reg);
     reg("features", "audioDelta",           &audio::detail::audioDelta_reg);

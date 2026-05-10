@@ -63,8 +63,14 @@ struct Stft {
     Value F;   // M × 1, frequency axis in Hz
 };
 
-// Build STFT power matrix using MATLAB Audio Toolbox defaults:
-//   window=rectwin(round(0.03*fs)), overlap=round(0.02*fs), FFTLen=winLen.
+// Build STFT power matrix using MATLAB Audio + Signal Toolbox defaults
+// (matches signal.internal.spectraldescriptors.stft.m exactly):
+//   - window  = rectwin(round(0.03*fs)) (default for fs s.t. winLen > 120)
+//   - overlap = round(0.02*fs)
+//   - FFTLen  = winLen
+//   - SpectrumType = 'power': Yb = |Y|² / (0.5 · sum(win)²)
+//   - DC bin halved (binLow == 1)
+//   - Nyquist bin halved when fftLength is even
 Stft computeStft(std::pmr::memory_resource *mr, const Value &x, double fs)
 {
     const size_t N = x.numel();
@@ -84,13 +90,26 @@ Stft computeStft(std::pmr::memory_resource *mr, const Value &x, double fs)
     for (size_t k = 0; k < M; ++k)
         fd[k] = static_cast<double>(k) * fs / static_cast<double>(winLen);
 
+    // Window normalization factor: 0.5 · sum(win)². For rectwin(N), sum=N → N²/2.
+    const double winSum = static_cast<double>(winLen);  // sum(rectwin(N)) = N
+    const double normPow = 0.5 * winSum * winSum;
+
     ScratchArena scratch(mr);
     ScratchVec<double> frame(winLen, &scratch);
     double *Xd = s.X.doubleDataMut();
     for (size_t f = 0; f < numFrames; ++f) {
         const size_t start = f * hop;
         for (size_t i = 0; i < winLen; ++i) frame[i] = x.elemAsDouble(start + i);
-        naiveDFTPower(frame.data(), winLen, Xd + f * M);
+        double *col = Xd + f * M;
+        naiveDFTPower(frame.data(), winLen, col);
+        // Apply MATLAB-equivalent normalization:
+        //   Yb = |Y|² / (0.5 · sum(win)²)
+        const double inv = (normPow > 0.0) ? 1.0 / normPow : 0.0;
+        for (size_t k = 0; k < M; ++k) col[k] *= inv;
+        // Halve DC bin (binLow == 1 in 1-based MATLAB → bin 0 in 0-based).
+        col[0] *= 0.5;
+        // Halve Nyquist bin if fftLength is even.
+        if ((winLen % 2) == 0 && M > 0) col[M - 1] *= 0.5;
     }
     return s;
 }
@@ -257,6 +276,118 @@ Value spectralSlope(std::pmr::memory_resource *mr, const Value &x, const Value &
     });
 }
 
+// ── Cycle I: Crest / Entropy / Flatness / Kurtosis / Skewness ─────────
+//
+// Match MATLAB R2025b Signal Toolbox semantics (per-frame for time-domain
+// input via shared computeStft + prepareInput).
+
+// spectralCrest = max(X) / mean(X) per column.
+Value spectralCrest(std::pmr::memory_resource *mr, const Value &x, const Value &f)
+{
+    auto d = prepareInput(mr, x, f);
+    return perColumn(mr, d.X, [](const double *col, size_t M) {
+        if (M == 0) return 0.0;
+        double mx = col[0], sm = 0.0;
+        for (size_t i = 0; i < M; ++i) { if (col[i] > mx) mx = col[i]; sm += col[i]; }
+        const double mean = sm / static_cast<double>(M);
+        return (mean > 0.0) ? mx / mean : 0.0;
+    });
+}
+
+// spectralEntropy = -Σ P log2(P) / log2(M) per column, where P = X / Σ X.
+// Matches MATLAB R2025b spectralEntropy with default Scaled=true,
+// Instantaneous=true.
+Value spectralEntropy(std::pmr::memory_resource *mr, const Value &x, const Value &f)
+{
+    auto d = prepareInput(mr, x, f);
+    return perColumn(mr, d.X, [](const double *col, size_t M) {
+        if (M < 2) return 0.0;
+        double sm = 0.0;
+        for (size_t i = 0; i < M; ++i) sm += col[i];
+        if (sm <= 0.0) return 0.0;
+        double H = 0.0;
+        const double inv_log2 = 1.0 / std::log(2.0);
+        for (size_t i = 0; i < M; ++i) {
+            const double q = col[i] / sm;
+            if (q > 0.0) H -= q * std::log(q) * inv_log2;
+        }
+        return H / (std::log(static_cast<double>(M)) * inv_log2);
+    });
+}
+
+// spectralFlatness = exp(mean(log(X+eps))) / mean(X) per column.
+// Matches MATLAB R2025b spectralFlatness.m exactly (eps regularization
+// inside the geometric-mean log).
+Value spectralFlatness(std::pmr::memory_resource *mr, const Value &x, const Value &f)
+{
+    auto d = prepareInput(mr, x, f);
+    return perColumn(mr, d.X, [](const double *col, size_t M) {
+        if (M == 0) return 0.0;
+        const double eps = std::numeric_limits<double>::epsilon();
+        double sumLog = 0.0, sumX = 0.0;
+        for (size_t i = 0; i < M; ++i) {
+            sumLog += std::log(col[i] + eps);
+            sumX   += col[i];
+        }
+        const double geom  = std::exp(sumLog / static_cast<double>(M));
+        const double arith = sumX / static_cast<double>(M);
+        return (arith > 0.0) ? geom / arith : 0.0;
+    });
+}
+
+// spectralKurtosis = Σ((F-c)⁴ X) / (spread⁴ ΣX) per column.
+// Matches MATLAB R2025b spectralKurtosis.m (X-weighted 4th central
+// frequency moment normalized by 4th power of spread, NOT Pearson form
+// — no -3 subtraction).
+Value spectralKurtosis(std::pmr::memory_resource *mr, const Value &x, const Value &f)
+{
+    auto d = prepareInput(mr, x, f);
+    const double *Fd = d.F.doubleData();
+    return perColumn(mr, d.X, [Fd](const double *col, size_t M) {
+        if (M < 2) return 0.0;
+        double sumX = 0.0, sumFX = 0.0;
+        for (size_t i = 0; i < M; ++i) { sumX += col[i]; sumFX += Fd[i] * col[i]; }
+        if (sumX <= 0.0) return 0.0;
+        const double centroid = sumFX / sumX;
+        double m2 = 0.0, m4 = 0.0;
+        for (size_t i = 0; i < M; ++i) {
+            const double dF = Fd[i] - centroid;
+            const double dF2 = dF * dF;
+            m2 += dF2 * col[i];
+            m4 += dF2 * dF2 * col[i];
+        }
+        const double spread2 = m2 / sumX;
+        if (spread2 <= 0.0) return 0.0;
+        const double spread4 = spread2 * spread2;
+        return m4 / (spread4 * sumX);
+    });
+}
+
+// spectralSkewness = Σ((F-c)³ X) / (spread³ ΣX) per column.
+// Matches MATLAB R2025b spectralSkewness.m exactly.
+Value spectralSkewness(std::pmr::memory_resource *mr, const Value &x, const Value &f)
+{
+    auto d = prepareInput(mr, x, f);
+    const double *Fd = d.F.doubleData();
+    return perColumn(mr, d.X, [Fd](const double *col, size_t M) {
+        if (M < 2) return 0.0;
+        double sumX = 0.0, sumFX = 0.0;
+        for (size_t i = 0; i < M; ++i) { sumX += col[i]; sumFX += Fd[i] * col[i]; }
+        if (sumX <= 0.0) return 0.0;
+        const double centroid = sumFX / sumX;
+        double m2 = 0.0, m3 = 0.0;
+        for (size_t i = 0; i < M; ++i) {
+            const double dF = Fd[i] - centroid;
+            m2 += dF * dF * col[i];
+            m3 += dF * dF * dF * col[i];
+        }
+        const double spread2 = m2 / sumX;
+        if (spread2 <= 0.0) return 0.0;
+        const double spread3 = spread2 * std::sqrt(spread2);
+        return m3 / (spread3 * sumX);
+    });
+}
+
 // ── Flux ──────────────────────────────────────────────────────────────
 // MATLAB R2025b: per-frame metric of frame-to-frame spectrum change.
 // flux(t) = (Σ|X_t(k) - X_{t-1}(k)|^p)^(1/p) for k = 1..M.
@@ -303,6 +434,11 @@ NK_SPEC_REG(spectralCentroid)
 NK_SPEC_REG(spectralSpread)
 NK_SPEC_REG(spectralDecrease)
 NK_SPEC_REG(spectralSlope)
+NK_SPEC_REG(spectralCrest)
+NK_SPEC_REG(spectralEntropy)
+NK_SPEC_REG(spectralFlatness)
+NK_SPEC_REG(spectralKurtosis)
+NK_SPEC_REG(spectralSkewness)
 
 #undef NK_SPEC_REG
 

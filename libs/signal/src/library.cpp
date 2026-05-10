@@ -442,12 +442,10 @@ void SignalLibrary::install(Engine &engine)
     reg("spectral_analysis", "spectralentropy",  &signal::detail::spectralentropy_reg);
     reg("spectral_analysis", "spectralkurtosis", &signal::detail::spectralkurtosis_reg);
     reg("spectral_analysis", "spectralskewness", &signal::detail::spectralskewness_reg);
-    // MATLAB camelCase aliases (R2025b ships these spellings).
-    reg("spectral_analysis", "spectralCrest",    &signal::detail::spectralcrest_reg);
-    reg("spectral_analysis", "spectralFlatness", &signal::detail::spectralflatness_reg);
-    reg("spectral_analysis", "spectralEntropy",  &signal::detail::spectralentropy_reg);
-    reg("spectral_analysis", "spectralKurtosis", &signal::detail::spectralkurtosis_reg);
-    reg("spectral_analysis", "spectralSkewness", &signal::detail::spectralskewness_reg);
+    // NOTE: MATLAB camelCase variants spectralCrest/Entropy/Flatness/Kurtosis/
+    // Skewness now live in libs/audio (per-frame STFT semantics matching
+    // MATLAB R2025b Signal Toolbox; see libs/audio/src/spectral/shape_descriptors.cpp).
+    // The lowercase forms above remain as legacy single-segment scalar versions.
     reg("spectral_analysis", "snr",              &signal::detail::snr_reg);
     reg("spectral_analysis", "sinad",            &signal::detail::sinad_reg);
     reg("spectral_analysis", "thd",              &signal::detail::thd_reg);
