@@ -836,7 +836,7 @@ intermediate spectrum hits Inf or NaN at large N and gets clamped.
 
 ---
 
-## 32. `libs/signal`: `impzlength` overestimates IIR impulse-response length — **P3**
+## 32. `libs/signal`: `impzlength` overestimates IIR impulse-response length — **P3** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -852,6 +852,13 @@ gets a slightly larger array. Functionally correct.
 **Where:** [libs/signal/src/](libs/signal/) — different decay-tolerance
 constant or different pole-magnitude formula.
 **First seen:** 2026-05-03, parity bulk-bench iteration 29.
+**Fixed in commit 67e8a8a1** (2026-05-09). Root cause: numkit had a
+min-cap at 50 + a different decay tolerance. Fix used MATLAB's
+canonical `floor(log(5e-5) / log(rho))` formula with no minimum cap
+(other than 1). Bit-identical with MATLAB on rho ∈ {0.1, 0.5, 0.7,
+0.9, 0.99} → {4, 14, 27, 93, 985}. Regression guard added in
+ide/desktop/tests/e2e/impzlength-bug32.spec.js (2026-05-10) — pins
+the canonical 985 / FIR-trivial / pole-magnitude scaling values.
 
 ---
 
