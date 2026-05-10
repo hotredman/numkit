@@ -3117,8 +3117,9 @@ void GraphicsLibrary::install(Engine &engine)
         const int rcomp = (int)std::clamp(t * 255.0,        0.0, 255.0);
         const int gcomp = (int)std::clamp(120.0,            0.0, 255.0);
         const int bcomp = (int)std::clamp((1 - t) * 255.0,  0.0, 255.0);
-        char buf[40];
-        std::snprintf(buf, sizeof buf, "color=#%02x%02x%02x;fillOpacity=0.85",
+        char buf[64];
+        std::snprintf(buf, sizeof buf,
+                      "color=#%02x%02x%02x;fillOpacity=0.85;smoothNormals=1",
                       rcomp, gcomp, bcomp);
         ds.style = buf;
         fm.pushDataset(std::move(ds));

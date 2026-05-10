@@ -37,6 +37,7 @@ function parseLineSpec(s) {
       else if (key === 'lineWidth' || key === 'linewidth') out.lineWidth = Number(val);
       else if (key === 'fontSize' || key === 'fontsize') out.fontSize = Number(val);
       else if (key === 'fillOpacity' || key === 'fillopacity') out.fillOpacity = Number(val);
+      else if (key === 'smoothNormals' || key === 'smoothnormals') out.smoothNormals = (val === '1' || val === 'true');
     }
     return out;
   }
@@ -444,6 +445,7 @@ function datasetToLayer(d, palette_idx, ctx) {
       xRaw, yRaw,
       z: zRaw,
       vertexColors: Array.isArray(d.vertexColors) ? d.vertexColors : null,
+      smoothNormals: !!styleObj2.smoothNormals,
       color: styleObj2.color || '#9467bd',
       width: 1,
       size: 3,
