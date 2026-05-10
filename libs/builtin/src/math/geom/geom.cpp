@@ -92,6 +92,29 @@ void inpolygon_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = std::move(out);
 }
 
+// Forward decl — convhull_reg defined later in this file, used by
+// boundary_reg below.
+void convhull_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx);
+
+// ── boundary ─────────────────────────────────────────────────────────
+//
+// boundary(x, y [, shrink]) — single boundary polygon around a 2-D
+// point cloud. MATLAB's `shrink` parameter (0 = convex hull,
+// 1 = tightest concave) drives an alpha-shape contraction; v1
+// implements only the convex case (≡ convhull) and ignores shrink.
+//
+// Returns indices of boundary vertices, CCW with first repeated.
+void boundary_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("boundary: requires (x, y)",
+                     0, 0, "boundary", "", "m:boundary:nargin");
+    std::array<Value, 2> proxied{ args[0], args[1] };
+    convhull_reg(Span<const Value>(proxied.data(), 2), nargout, outs, ctx);
+}
+
 // ── polyarea ─────────────────────────────────────────────────────────
 //
 // polyarea(x, y) — signed-then-absolute area of the simple polygon

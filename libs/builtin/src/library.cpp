@@ -112,6 +112,7 @@ void interpn_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void inpolygon_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void convhull_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void polyarea_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void boundary_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void spline_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void pchip_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void mkpp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -637,6 +638,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("inpolygon", &builtin::detail::inpolygon_reg);
     engine.registerFunction("convhull",  &builtin::detail::convhull_reg);
     engine.registerFunction("polyarea",  &builtin::detail::polyarea_reg);
+    engine.registerFunction("boundary",  &builtin::detail::boundary_reg);
     engine.registerFunction("spline",    &builtin::detail::spline_reg);
     engine.registerFunction("pchip",     &builtin::detail::pchip_reg);
     engine.registerFunction("mkpp",      &builtin::detail::mkpp_reg);
