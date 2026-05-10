@@ -433,6 +433,8 @@ void true_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void false_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void nan_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void inf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void colon_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void sparse_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void eye_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void magic_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void toeplitz_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -952,6 +954,8 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("NaN",       &builtin::detail::nan_reg);
     engine.registerFunction("inf",       &builtin::detail::inf_reg);
     engine.registerFunction("Inf",       &builtin::detail::inf_reg);
+    engine.registerFunction("colon",     &builtin::detail::colon_reg);
+    engine.registerFunction("sparse",    &builtin::detail::sparse_reg);
     engine.registerFunction("eye",       &builtin::detail::eye_reg);
     engine.registerFunction("magic",     &builtin::detail::magic_reg);
     engine.registerFunction("toeplitz",  &builtin::detail::toeplitz_reg);

@@ -893,12 +893,24 @@ void class_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ct
 void cast_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("cast: requires 2 arguments (x, classname)",
+        throw Error("cast: requires (x, classname) or (x, 'like', y)",
                      0, 0, "cast", "", "m:cast:nargin");
     if (!args[1].isChar() && !args[1].isString())
-        throw Error("cast: classname must be a char or string",
+        throw Error("cast: second arg must be a class name or 'like'",
                      0, 0, "cast", "", "m:cast:badClass");
-    outs[0] = cast(ctx.engine->resource(), args[0], args[1].toString());
+    auto *mr = ctx.engine->resource();
+    // 'like' form: cast(x, 'like', y) — pull class name from y.
+    if (args[1].toString() == "like") {
+        if (args.size() < 3)
+            throw Error("cast: 'like' form requires (x, 'like', y)",
+                         0, 0, "cast", "", "m:cast:nargin");
+        // mtypeName mirrors MATLAB's class() output (double / single /
+        // int*/ uint* / logical / char / string); cast() dispatches on
+        // these strings.
+        outs[0] = cast(mr, args[0], mtypeName(args[2].type()));
+        return;
+    }
+    outs[0] = cast(mr, args[0], args[1].toString());
 }
 
 void swapbytes_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
