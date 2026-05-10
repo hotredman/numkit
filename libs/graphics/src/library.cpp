@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <climits>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -5893,12 +5894,64 @@ void GraphicsLibrary::install(Engine &engine)
         [delegateTo](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
             delegateTo("scatter3", a, o, c);
         });
+    // swarmchart(x, y[, sizes[, color]]) — scatter with X-axis jitter
+    // applied per unique categorical X. For each cluster of points
+    // sharing the same X coordinate, points are spread along X within
+    // a small interval; the spread amount scales with the cluster's
+    // local rank (so the layout resembles a violin plot's swarm).
     reg("bar", "swarmchart",
-        [delegateTo](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
-            // swarmchart in MATLAB jitters the X positions to avoid
-            // overlap; v1 routes straight through scatter — visually
-            // similar for small N. Real jitter is BACKLOG.
-            delegateTo("scatter", a, o, c);
+        [](Span<const Value> args, size_t nargout,
+           Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.size() < 2) { outs[0] = Value::empty(); return; }
+            const auto &xv = args[0];
+            const auto &yv = args[1];
+            const size_t n = std::min(xv.numel(), yv.numel());
+            auto *mr = ctx.engine->resource();
+            auto Xjit = Value::matrix(1, n, ValueType::DOUBLE, mr);
+            double *xj = Xjit.doubleDataMut();
+            for (size_t i = 0; i < n; ++i) xj[i] = xv.elemAsDouble(i);
+            // Group indices by integer-rounded X (categorical use case).
+            std::map<long, std::vector<size_t>> buckets;
+            for (size_t i = 0; i < n; ++i) {
+                long key = (long)std::llround(xv.elemAsDouble(i));
+                buckets[key].push_back(i);
+            }
+            // Per bucket, spread points uniformly in [-half, +half] of
+            // the slot width. Slot = 0.35 × the smallest gap between
+            // distinct X values, capped at 0.4 absolute.
+            double minGap = 1.0;
+            if (buckets.size() > 1) {
+                long prev = LONG_MIN;
+                for (const auto &[k, _] : buckets) {
+                    if (prev != LONG_MIN) {
+                        const double g = std::abs((double)(k - prev));
+                        if (g < minGap || minGap == 1.0) minGap = g;
+                    }
+                    prev = k;
+                }
+            }
+            const double half = std::min(0.4, 0.35 * minGap);
+            for (auto &[k, idxs] : buckets) {
+                const size_t m = idxs.size();
+                if (m <= 1) continue;
+                for (size_t j = 0; j < m; ++j) {
+                    const double t = (m == 1) ? 0.0
+                        : (-half + 2 * half * (double)j / (m - 1));
+                    xj[idxs[j]] += t;
+                }
+            }
+            std::vector<Value> proxied;
+            proxied.push_back(std::move(Xjit));
+            proxied.push_back(yv);
+            for (size_t i = 2; i < args.size(); ++i) proxied.push_back(args[i]);
+            std::array<Value, 1> outBuf;
+            const ExternalFunc *cf = ctx.engine->findExternal("scatter", ctx.env);
+            if (cf) {
+                (*cf)(Span<const Value>(proxied.data(), proxied.size()), 0,
+                      Span<Value>(outBuf.data(), 1), ctx);
+            }
+            outs[0] = Value::empty();
         });
     reg("bar", "swarmchart3",
         [delegateTo](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
