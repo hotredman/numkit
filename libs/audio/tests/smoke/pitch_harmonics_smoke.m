@@ -31,5 +31,5 @@ fprintf('  mean=%.6f (expect close to 0)\n', mean(hr_n));
 fprintf('\nKNOWN GAPs:\n');
 fprintf('  pitch: only NCF method; PEF/CEP/LHS/SRH deferred to v2.\n');
 fprintf('  pitchnn: requires DNN runtime, deferred entirely.\n');
-fprintf('  harmonicRatio: parabolicInterpolation refinement deferred.\n');
+fprintf('  harmonicRatio: full MATLAB R2025b parity (auto low-edge + parabolic refinement).\n');
 fprintf('  Values match MATLAB R2025b within ~1%% (acceptable for v1).\n');
