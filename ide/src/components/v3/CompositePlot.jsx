@@ -1035,9 +1035,15 @@ export default function CompositePlot({
         <line key={`gy${i}`} x1={padL} x2={padL + W} y1={sy(v)} y2={sy(v)} stroke="var(--plot-grid)" />
       ))}
 
-      {axisVisible && (
+      {axisVisible && (figure.boxOn !== false ? (
         <rect x={padL} y={padT} width={W} height={H} fill="none" stroke="var(--plot-frame)" />
-      )}
+      ) : (
+        // box off — only left + bottom edges (MATLAB convention).
+        <>
+          <line x1={padL} x2={padL} y1={padT} y2={padT + H} stroke="var(--plot-frame)" />
+          <line x1={padL} x2={padL + W} y1={padT + H} y2={padT + H} stroke="var(--plot-frame)" />
+        </>
+      ))}
 
       {/* Tick labels */}
       {axisVisible && xTicks.major.map((v, i) => {

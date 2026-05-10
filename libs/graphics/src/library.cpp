@@ -5541,6 +5541,26 @@ void GraphicsLibrary::install(Engine &engine)
     reg("layout", "daspect",  aspectImpl);
     reg("layout", "pbaspect", aspectImpl);
 
+    // box(on|off|toggle) — show/hide the axis frame rectangle (the
+    // full closed box vs. just left + bottom edges).
+    reg("layout", "box",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            auto &fm = ctx.engine->figureManager();
+            auto &ax = fm.currentAxes();
+            if (args.empty()) {
+                ax.boxOn = !ax.boxOn;
+            } else if (args[0].isChar()) {
+                std::string s = args[0].toString();
+                for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+                if      (s == "on")  ax.boxOn = true;
+                else if (s == "off") ax.boxOn = false;
+            }
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
     reg("layout", "axes", noop_ret1);
     reg("layout", "gca", noop_ret1);
     reg("layout", "gcf", noop_ret1);

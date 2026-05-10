@@ -807,6 +807,9 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     // Field is absent in JSON unless the script set it false; we treat
     // missing as visible.
     axisVisible: cfg.axisVisible !== false,
+    // boxOn: MATLAB box on/off — show full frame vs. just bottom+left.
+    // Default true; off only when script said `box off` explicitly.
+    boxOn: cfg.box !== 'off',
     // Custom tick positions / labels (xticks / yticks / xticklabels /
     // yticklabels). Empty arrays → renderer falls back to niceTicks
     // auto-generation. Labels are honoured only when their length
