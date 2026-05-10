@@ -217,6 +217,10 @@ Value isreal(std::pmr::memory_resource *mr, const Value &x)    { return Value::l
 Value isinteger(std::pmr::memory_resource *mr, const Value &x) { return Value::logicalScalar(isIntegerType(x.type()), mr); }
 Value isfloat(std::pmr::memory_resource *mr, const Value &x)   { return Value::logicalScalar(isFloatType(x.type()), mr); }
 Value issingle(std::pmr::memory_resource *mr, const Value &x)  { return Value::logicalScalar(x.type() == ValueType::SINGLE, mr); }
+// numkit has no sparse-matrix storage class -- issparse always returns
+// false for any input. Matches MATLAB on dense inputs (which is all
+// numkit can produce). Covers the FAIL row in PROGRESS for issparse.
+Value issparse(std::pmr::memory_resource *mr, const Value & /*x*/) { return Value::logicalScalar(false, mr); }
 
 Value isnan(std::pmr::memory_resource *mr, const Value &x)
 {
@@ -799,6 +803,7 @@ NK_PRED_REG(isreal)
 NK_PRED_REG(isinteger)
 NK_PRED_REG(isfloat)
 NK_PRED_REG(issingle)
+NK_PRED_REG(issparse)
 NK_PRED_REG(isnan)
 NK_PRED_REG(isinf)
 NK_PRED_REG(isfinite)

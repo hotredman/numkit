@@ -334,6 +334,7 @@ void isreal_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isinteger_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isfloat_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void issingle_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void issparse_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isnan_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isinf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isfinite_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -1186,6 +1187,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("isinteger", &builtin::detail::isinteger_reg);
     engine.registerFunction("isfloat",   &builtin::detail::isfloat_reg);
     engine.registerFunction("issingle",  &builtin::detail::issingle_reg);
+    engine.registerFunction("issparse",  &builtin::detail::issparse_reg);
     engine.registerFunction("isnan",     &builtin::detail::isnan_reg);
     engine.registerFunction("isinf",     &builtin::detail::isinf_reg);
     engine.registerFunction("isfinite",  &builtin::detail::isfinite_reg);
