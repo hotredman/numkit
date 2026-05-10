@@ -129,6 +129,10 @@ struct AxesState
     std::string thetalimJson;
     std::string climJson;     // color limits for imagesc, e.g. "[0,1]"
     std::string colormapName; // "parula","jet","hot","cool","gray","viridis","turbo","hsv"
+    // Custom palette via `colormap(M)` with M an N×3 RGB matrix. JSON
+    // array string "[[r,g,b],[r,g,b],...]" with values in [0, 1]. When
+    // non-empty, overrides colormapName.
+    std::string customColormapJson;
     bool polar = false;
     bool holdOn = false;
     // Major / minor grid as two independent booleans, matching MATLAB
@@ -487,6 +491,8 @@ public:
                     os << ",\"clim\":" << ax.climJson;
                 if (!ax.colormapName.empty())
                     os << ",\"colormap\":\"" << ax.colormapName << "\"";
+                if (!ax.customColormapJson.empty())
+                    os << ",\"customColormap\":" << ax.customColormapJson;
                 // Emit "grid" only when the user explicitly called
                 // grid(...). Field absence means "script never asked";
                 // the JS adapter then picks a type-appropriate default

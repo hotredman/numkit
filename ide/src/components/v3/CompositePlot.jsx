@@ -26,7 +26,8 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { buildHeatmapLUT, renderHeatmapDataURLFromIndices,
-         renderHeatmapDataURLFromFlat, getColormap } from './colormaps';
+         renderHeatmapDataURLFromFlat, getColormap,
+         makeCustomColormap } from './colormaps';
 import ContextMenu from './ContextMenu';
 import { computeFitViewport, exportSvgNode, exportPngNode, exportPngForPrint } from './plotUtils';
 
@@ -147,10 +148,14 @@ export default function CompositePlot({
   const axisVisible = figure.axisVisible !== false;
 
   // Effective colormap: runtime override (toolbar combo) > script-level
-  // colormap on the heatmap layer > default 'parula'.
-  const effectiveColormap = colormapOverride
-    || heatmapLayer?.colormap
-    || 'parula';
+  // colormap on the heatmap layer > default 'parula'. A custom M×3
+  // RGB matrix (from colormap(M)) wins over the named map when
+  // present.
+  const customColormap = figure.customColormap;
+  const effectiveColormap = (Array.isArray(customColormap)
+                             && customColormap.length > 0)
+    ? makeCustomColormap(customColormap)
+    : (colormapOverride || heatmapLayer?.colormap || 'parula');
 
   // ── Heatmap-layer field aliases ─────────────────────────────────────
   // Aliases for the heatmap layer's data/metadata fields so the existing

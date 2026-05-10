@@ -5226,15 +5226,40 @@ void GraphicsLibrary::install(Engine &engine)
 
     reg("layout", "colormap",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
-            if (!args.empty() && args[0].isChar()) {
-                auto &fm = ctx.engine->figureManager();
+            if (args.empty()) { outs[0] = Value::empty(); return; }
+            auto &fm = ctx.engine->figureManager();
+            auto &ax = fm.currentAxes();
+            if (args[0].isChar()) {
                 std::string name = args[0].toString();
-                for (auto &c : name)
-                    c = std::tolower(c);
-                fm.currentAxes().colormapName = name;
-                fm.current().modified = true;
-                fm.emitModified();
+                for (auto &c : name) c = std::tolower(c);
+                ax.colormapName = name;
+                ax.customColormapJson.clear();
+            } else {
+                // Numeric M×3 matrix → encode as JSON array of triplets
+                // and clear the named colormap.
+                const auto &M = args[0];
+                const std::size_t R = M.dims().rows();
+                const std::size_t C = M.dims().cols();
+                if (C != 3 || R == 0) {
+                    outs[0] = Value::empty();
+                    return;
+                }
+                std::ostringstream os;
+                os << "[";
+                for (std::size_t r = 0; r < R; ++r) {
+                    if (r) os << ",";
+                    // Column-major: M(r, c) = data[c * R + r].
+                    const double rv = M.doubleData()[0 * R + r];
+                    const double gv = M.doubleData()[1 * R + r];
+                    const double bv = M.doubleData()[2 * R + r];
+                    os << "[" << rv << "," << gv << "," << bv << "]";
+                }
+                os << "]";
+                ax.customColormapJson = os.str();
+                if (ax.colormapName.empty()) ax.colormapName = "custom";
             }
+            fm.current().modified = true;
+            fm.emitModified();
             outs[0] = Value::empty();
         });
 
