@@ -1,0 +1,10 @@
+{
+  "name": "coneplot",
+  "namespace": "graphics",
+  "setup": "U = ones(3, 3, 3); V = zeros(3, 3, 3); W = zeros(3, 3, 3);",
+  "expr": "coneplot(U, V, W); s = size(U); r = s(1); c = s(2); p = s(3); umax = max(U(:)); vmax = max(V(:));",
+  "iters": 3,
+  "tol": 1e-12,
+  "fingerprint": ["r", "c", "p", "umax", "vmax"],
+  "comment": "coneplot — cone-headed arrow visualisation. Display-only; fingerprint pins the input field's shape + extrema. Visual fidelity (cone meshes oriented along U/V/W) is e2e."
+}

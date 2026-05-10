@@ -1,0 +1,10 @@
+{
+  "name": "animatedline",
+  "namespace": "graphics",
+  "setup": "h = animatedline; for k = 1:10; addpoints(h, k, k * 2); end;",
+  "expr": "[xv, yv] = getpoints(h); xlast = xv(end); ylast = yv(end); xfirst = xv(1); n = length(xv);",
+  "iters": 3,
+  "tol": 1e-12,
+  "fingerprint": ["xfirst", "xlast", "ylast", "n"],
+  "comment": "animatedline + addpoints + getpoints round-trip. After 10 addpoints calls of (k, 2k), getpoints should round-trip the same data. Real numerical fingerprint — not just display invariance."
+}

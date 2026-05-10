@@ -1,0 +1,10 @@
+{
+  "name": "tiledlayout",
+  "namespace": "graphics",
+  "setup": "",
+  "expr": "tiledlayout(2, 3); nexttile; plot([1 2 3], [1 2 3]); nexttile; plot([1 2 3], [3 2 1]); nexttile(5); plot([1 2 3], [1 4 9]); a = 1; b = 2; c = 3;",
+  "iters": 3,
+  "tol": 1e-12,
+  "fingerprint": ["a", "b", "c"],
+  "comment": "tiledlayout / nexttile — modern subplot API. Display-only, no scalar return; fingerprint just confirms the workspace stays clean (a, b, c are local set-and-read scalars). Cell layout + figure structure is e2e."
+}

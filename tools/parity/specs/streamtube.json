@@ -1,0 +1,10 @@
+{
+  "name": "streamtube",
+  "namespace": "graphics",
+  "setup": "U = ones(5, 5, 5); V = zeros(5, 5, 5); W = zeros(5, 5, 5); sx = [1]; sy = [3]; sz = [3];",
+  "expr": "streamtube(U, V, W, sx, sy, sz); s = size(U); r = s(1); c = s(2); p = s(3); seed_x = sx(1);",
+  "iters": 3,
+  "tol": 1e-12,
+  "fingerprint": ["r", "c", "p", "seed_x"],
+  "comment": "streamtube — Frenet-tube-wrapped streamlines integrated forward-Euler from each seed. Display-only; fingerprint pins field shape + seed position to confirm no workspace mutation. Visual mesh + path fidelity is e2e."
+}
