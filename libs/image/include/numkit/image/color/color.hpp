@@ -34,6 +34,17 @@ Value rgb2xyz  (std::pmr::memory_resource *mr, const Value &x);
 Value xyz2rgb  (std::pmr::memory_resource *mr, const Value &x);
 Value rgb2lab  (std::pmr::memory_resource *mr, const Value &x);
 Value lab2rgb  (std::pmr::memory_resource *mr, const Value &x);
+
+/// rgb2lightness(RGB) — lightness L (= L* of CIE Lab). Returns H×W
+/// single image. Equivalent to the first plane of rgb2lab(RGB).
+Value rgb2lightness(std::pmr::memory_resource *mr, const Value &RGB);
+
+/// rgb2ind with a fixed input colormap: nearest-neighbour quantization
+/// (squared Euclidean in normalized RGB). Output index is uint8 if cmap
+/// has ≤ 256 rows, else uint16. KNOWN GAP: scalar-Q (min-variance) and
+/// scalar-tol (uniform) forms deferred.
+std::pair<Value, Value>
+rgb2ind_inmap(std::pmr::memory_resource *mr, const Value &RGB, const Value &cmap);
 Value xyz2lab  (std::pmr::memory_resource *mr, const Value &x);
 Value lab2xyz  (std::pmr::memory_resource *mr, const Value &x);
 
