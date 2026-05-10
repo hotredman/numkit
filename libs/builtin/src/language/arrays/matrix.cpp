@@ -3785,19 +3785,177 @@ namespace detail {
 void zeros_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     auto *mr = ctx.engine->resource();
+    // Strip trailing class-name (e.g. 'uint8') or 'like' form before
+    // parsing dims. Default type is DOUBLE.
+    ValueType t;
+    auto dimArgs = extractTypeArg(args, t);
     ScratchArena scratch(mr);
-    auto d = parseDimsArgsND(&scratch, args);
+    auto d = parseDimsArgsND(&scratch, dimArgs);
     stripTrailingOnes(d);
-    outs[0] = zerosND(mr, d.data(), d.size());
+    // Value::matrix*/matrixND zero-fill the buffer for any type, so
+    // createMatrixND with the requested type IS the zeros() output.
+    outs[0] = createMatrixND(d.data(), d.size(), t, mr);
 }
+
+// Fill `v` with one in its declared type (1 / 1.0 / true).
+namespace { inline void fillOnes(Value &v, ValueType t)
+{
+    const size_t n = v.numel();
+    if (n == 0) return;
+    switch (t) {
+      case ValueType::DOUBLE:  { auto *p = v.doubleDataMut();  std::fill(p, p + n, 1.0); break; }
+      case ValueType::SINGLE:  { auto *p = v.singleDataMut();  std::fill(p, p + n, 1.0f); break; }
+      case ValueType::LOGICAL: { auto *p = v.logicalDataMut(); std::fill(p, p + n, uint8_t(1)); break; }
+      case ValueType::INT8:    { auto *p = v.int8DataMut();    std::fill(p, p + n, int8_t(1)); break; }
+      case ValueType::INT16:   { auto *p = v.int16DataMut();   std::fill(p, p + n, int16_t(1)); break; }
+      case ValueType::INT32:   { auto *p = v.int32DataMut();   std::fill(p, p + n, int32_t(1)); break; }
+      case ValueType::INT64:   { auto *p = v.int64DataMut();   std::fill(p, p + n, int64_t(1)); break; }
+      case ValueType::UINT8:   { auto *p = v.uint8DataMut();   std::fill(p, p + n, uint8_t(1)); break; }
+      case ValueType::UINT16:  { auto *p = v.uint16DataMut();  std::fill(p, p + n, uint16_t(1)); break; }
+      case ValueType::UINT32:  { auto *p = v.uint32DataMut();  std::fill(p, p + n, uint32_t(1)); break; }
+      case ValueType::UINT64:  { auto *p = v.uint64DataMut();  std::fill(p, p + n, uint64_t(1)); break; }
+      default: throw Error("ones: unsupported type for fill",
+                           0, 0, "ones", "", "m:ones:badType");
+    }
+}}
 
 void ones_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     auto *mr = ctx.engine->resource();
+    ValueType t;
+    auto dimArgs = extractTypeArg(args, t);
     ScratchArena scratch(mr);
-    auto d = parseDimsArgsND(&scratch, args);
+    auto d = parseDimsArgsND(&scratch, dimArgs);
     stripTrailingOnes(d);
-    outs[0] = onesND(mr, d.data(), d.size());
+    auto m = createMatrixND(d.data(), d.size(), t, mr);
+    fillOnes(m, t);
+    outs[0] = std::move(m);
+}
+
+// MATLAB's colon function: colon(j, k) = j:k, colon(j, i, k) = j:i:k.
+// Useful when the operator form is awkward (function-handle slot, etc.)
+// and to be a real callable for parity tests. Type preservation matches
+// the operator path (see core/src/tree_walker.cpp:colonOutputType and
+// core/src/vm.cpp:OpCode::COLON).
+namespace { ValueType colonOutType(const Value *ops, size_t n)
+{
+    ValueType nonDouble = ValueType::DOUBLE;
+    bool found = false;
+    for (size_t i = 0; i < n; ++i) {
+        ValueType t = ops[i].type();
+        if (t == ValueType::DOUBLE) continue;
+        if (!found) { nonDouble = t; found = true; }
+        else if (t != nonDouble)
+            throw Error("colon: operands must be all the same type, "
+                        "or mixed with real scalar doubles",
+                        0, 0, "colon", "", "m:colon:typeMix");
+    }
+    return nonDouble;
+}}
+
+void colon_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 2) {
+        ValueType t = colonOutType(args.data(), 2);
+        outs[0] = Value::colonRangeTyped(args[0].toScalar(),
+                                          args[1].toScalar(), t, mr);
+    } else if (args.size() == 3) {
+        ValueType t = colonOutType(args.data(), 3);
+        outs[0] = Value::colonRangeTyped(args[0].toScalar(),
+                                          args[1].toScalar(),
+                                          args[2].toScalar(), t, mr);
+    } else {
+        throw Error("colon: requires 2 or 3 arguments",
+                    0, 0, "colon", "", "m:colon:nargin");
+    }
+}
+
+// MATLAB's sparse() with size args allocates an MxN sparse zero matrix.
+// Numkit has no sparse storage class -- this stub returns dense zeros.
+// Matches issparse=false (we ship that stub; see types.cpp:issparse).
+// KNOWN GAP: numkit returns dense; MATLAB returns sparse storage class.
+// All numerical operations match (zeros on both sides), only class()
+// differs. Documented in PROGRESS for sparse().
+void sparse_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 2) {
+        // sparse(M, N) -- allocate MxN dense zeros.
+        const size_t M = static_cast<size_t>(args[0].toScalar());
+        const size_t N = static_cast<size_t>(args[1].toScalar());
+        outs[0] = Value::matrix(M, N, ValueType::DOUBLE, mr);
+        return;
+    }
+    if (args.size() == 1) {
+        // sparse(A) -- "convert" dense to sparse. We just return A as-is
+        // (since we have no sparse storage). For most numerical use this
+        // is correct; isparse() still returns false (matches numkit
+        // semantics).
+        outs[0] = args[0];
+        return;
+    }
+    throw Error("sparse: numkit has no sparse storage; supports only "
+                "sparse(M, N) → dense zeros and sparse(A) → A passthrough",
+                0, 0, "sparse", "", "m:sparse:NoSparse");
+}
+
+// `nan` / `NaN` / `inf` / `Inf` are MATLAB built-in functions (not
+// constants): bare `nan` returns scalar NaN; `nan(M, N, ..., 'type')`
+// returns float array filled with NaN (only 'double' or 'single' are
+// allowed -- integer types can't represent NaN/Inf, MATLAB throws).
+// Same shape parsing as zeros/ones.
+namespace { void nanInfFill(Value &v, double fillD, float fillS, ValueType t)
+{
+    const size_t n = v.numel();
+    if (n == 0) return;
+    if (t == ValueType::DOUBLE) {
+        auto *p = v.doubleDataMut(); std::fill(p, p + n, fillD);
+    } else if (t == ValueType::SINGLE) {
+        auto *p = v.singleDataMut(); std::fill(p, p + n, fillS);
+    }
+}}
+
+void nan_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    auto *mr = ctx.engine->resource();
+    if (args.empty()) {
+        outs[0] = Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr);
+        return;
+    }
+    ValueType t;
+    auto dimArgs = extractTypeArg(args, t);
+    if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
+        throw Error("nan: type must be 'double' or 'single' (NaN is float-only)",
+                    0, 0, "nan", "", "m:nan:badType");
+    ScratchArena scratch(mr);
+    auto d = parseDimsArgsND(&scratch, dimArgs);
+    stripTrailingOnes(d);
+    auto m = createMatrixND(d.data(), d.size(), t, mr);
+    nanInfFill(m, std::numeric_limits<double>::quiet_NaN(),
+                  std::numeric_limits<float>::quiet_NaN(), t);
+    outs[0] = std::move(m);
+}
+
+void inf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    auto *mr = ctx.engine->resource();
+    if (args.empty()) {
+        outs[0] = Value::scalar(std::numeric_limits<double>::infinity(), mr);
+        return;
+    }
+    ValueType t;
+    auto dimArgs = extractTypeArg(args, t);
+    if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
+        throw Error("inf: type must be 'double' or 'single' (Inf is float-only)",
+                    0, 0, "inf", "", "m:inf:badType");
+    ScratchArena scratch(mr);
+    auto d = parseDimsArgsND(&scratch, dimArgs);
+    stripTrailingOnes(d);
+    auto m = createMatrixND(d.data(), d.size(), t, mr);
+    nanInfFill(m, std::numeric_limits<double>::infinity(),
+                  std::numeric_limits<float>::infinity(), t);
+    outs[0] = std::move(m);
 }
 
 // `true` and `false` are MATLAB built-in functions (not constants):
@@ -3836,8 +3994,32 @@ void false_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 
 void eye_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    auto d = parseDimsArgs(args);
-    outs[0] = eye(ctx.engine->resource(), d.rows, d.cols);
+    auto *mr = ctx.engine->resource();
+    ValueType t;
+    auto dimArgs = extractTypeArg(args, t);
+    auto d = parseDimsArgs(dimArgs);
+    if (t == ValueType::DOUBLE) {
+        // Fast path: direct double eye().
+        outs[0] = eye(mr, d.rows, d.cols);
+        return;
+    }
+    // Typed eye: zero-fill matrix of `t`, then set diagonal to one.
+    auto m = Value::matrix(d.rows, d.cols, t, mr);
+    const size_t k = std::min(d.rows, d.cols);
+    switch (t) {
+      case ValueType::SINGLE: { auto *p = m.singleDataMut(); for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1.0f; break; }
+      case ValueType::LOGICAL:{ auto *p = m.logicalDataMut(); for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
+      case ValueType::INT8:   { auto *p = m.int8DataMut();    for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
+      case ValueType::INT16:  { auto *p = m.int16DataMut();   for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
+      case ValueType::INT32:  { auto *p = m.int32DataMut();   for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
+      case ValueType::INT64:  { auto *p = m.int64DataMut();   for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
+      case ValueType::UINT8:  { auto *p = m.uint8DataMut();   for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
+      case ValueType::UINT16: { auto *p = m.uint16DataMut();  for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
+      case ValueType::UINT32: { auto *p = m.uint32DataMut();  for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
+      case ValueType::UINT64: { auto *p = m.uint64DataMut();  for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
+      default: throw Error("eye: unsupported type", 0, 0, "eye", "", "m:eye:badType");
+    }
+    outs[0] = std::move(m);
 }
 
 void magic_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

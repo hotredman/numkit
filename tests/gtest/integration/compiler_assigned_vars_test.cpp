@@ -213,13 +213,14 @@ TEST(ReservedNames, UnionMatchesKBuiltinNames)
 
 TEST(ReservedNames, ConstantsContainExpectedNames)
 {
-    // `true`/`false` are MATLAB built-in functions, not constants — they
-    // support shape forms `true(M, N)` etc. and must NOT be in
-    // kBuiltinConstants. See BUGS.md #30.
-    for (auto *n : {"pi", "eps", "inf", "nan", "i", "j"})
+    // `true`/`false`/`nan`/`NaN`/`inf`/`Inf` are MATLAB built-in
+    // functions, not constants — they support shape forms
+    // `nan(M, N, 'single')`, `Inf(N)`, `true(M, N)` etc. and must
+    // NOT be in kBuiltinConstants. See BUGS.md #30 + matrix.cpp:nan_reg.
+    for (auto *n : {"pi", "eps", "i", "j"})
         EXPECT_TRUE(kBuiltinConstants.count(n) > 0)
             << n << " must be in kBuiltinConstants";
-    for (auto *n : {"true", "false"})
+    for (auto *n : {"true", "false", "nan", "NaN", "inf", "Inf"})
         EXPECT_FALSE(kBuiltinConstants.count(n) > 0)
             << n << " must NOT be in kBuiltinConstants (it's a function)";
 }
