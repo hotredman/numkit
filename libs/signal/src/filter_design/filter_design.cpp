@@ -408,6 +408,84 @@ void fir2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 
 } // namespace detail
 
+// ── cell2sos (Phase 4.10) ─────────────────────────────────────────────
+//
+// Convert cell array C = {{B1, A1}, {B2, A2}, ...} → L×6 SOS matrix.
+// Each Bi/Ai is zero-padded on the right to length 3. 2-output form
+// extracts a leading scalar gain section if present.
+
+std::tuple<Value, Value>
+cell2sos(std::pmr::memory_resource *mr, const Value &C)
+{
+    if (!C.isCell())
+        throw Error("cell2sos: input must be a cell array",
+                    0, 0, "cell2sos", "", "m:cell2sos:NotCell");
+    const std::size_t L = C.numel();
+    if (L == 0) {
+        Value empty = Value::matrix(0, 6, ValueType::DOUBLE, mr);
+        return {empty, Value::scalar(1.0, mr)};
+    }
+
+    // Detect leading-scalar gain section.
+    double g = 1.0;
+    std::size_t startIdx = 0;
+    {
+        const Value &first = C.cellAt(0);
+        if (first.isCell() && first.numel() == 2) {
+            const Value &b0 = first.cellAt(0);
+            const Value &a0 = first.cellAt(1);
+            if (b0.numel() == 1 && a0.numel() == 1) {
+                const double bv = b0.toScalar();
+                const double av = a0.toScalar();
+                if (av != 0.0) {
+                    g = bv / av;
+                    startIdx = 1;
+                }
+            }
+        }
+    }
+
+    const std::size_t outRows = L - startIdx;
+    Value S = Value::matrix(outRows, 6, ValueType::DOUBLE, mr);
+    if (outRows == 0) {
+        return {S, Value::scalar(g, mr)};
+    }
+
+    double *Sd = S.doubleDataMut();
+    std::fill(Sd, Sd + outRows * 6, 0.0);
+    for (std::size_t i = 0; i < outRows; ++i) {
+        const Value &pair = C.cellAt(startIdx + i);
+        if (!pair.isCell() || pair.numel() != 2)
+            throw Error("cell2sos: each cell must be {B, A} pair",
+                        0, 0, "cell2sos", "", "m:cell2sos:BadPair");
+        const Value &bv = pair.cellAt(0);
+        const Value &av = pair.cellAt(1);
+        if (bv.numel() > 3 || av.numel() > 3)
+            throw Error("cell2sos: each B/A must have at most 3 elements",
+                        0, 0, "cell2sos", "", "m:cell2sos:OrderTooHigh");
+        for (std::size_t k = 0; k < bv.numel(); ++k)
+            Sd[i + k * outRows] = bv.elemAsDouble(k);
+        for (std::size_t k = 0; k < av.numel(); ++k)
+            Sd[i + (3 + k) * outRows] = av.elemAsDouble(k);
+    }
+    return {S, Value::scalar(g, mr)};
+}
+
+namespace detail {
+
+void cell2sos_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("cell2sos: requires (C)",
+                    0, 0, "cell2sos", "", "m:cell2sos:nargin");
+    auto [S, g] = cell2sos(ctx.engine->resource(), args[0]);
+    outs[0] = std::move(S);
+    if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(g);
+}
+
+} // namespace detail
+
 // ── fir2 (Phase 4.9) ──────────────────────────────────────────────────
 //
 // Arbitrary-response FIR via frequency-sampling + iFFT + Hamming window.
