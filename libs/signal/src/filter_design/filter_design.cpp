@@ -580,17 +580,11 @@ Value fir2(std::pmr::memory_resource *mr, int N,
 
     // Apply Fourier time-shift (linear phase): H *= exp(-jπ·dt·k/npt)
     // where dt = (nn-1)/2 and k = 0..nptP1-1 = 0..npt.
-    //
-    // WORKAROUND: numkit::signal::ifft has an inverted sign convention vs
-    // MATLAB (peak ends up at -d instead of +d for an impulse-spectrum
-    // input). Compensate by NEGATING the phase here so the final output
-    // matches MATLAB. Restore MATLAB-faithful `-dt` once the underlying
-    // ifft sign-convention bug in libs/signal is fixed (see spawned task).
     using Cd = std::complex<double>;
     ScratchVec<Cd> Hc(2 * npt, &scratch);
     const double dt = 0.5 * static_cast<double>(nn - 1);
     for (std::size_t k = 0; k < nptP1; ++k) {
-        const double phase = +dt * M_PI * static_cast<double>(k)
+        const double phase = -dt * M_PI * static_cast<double>(k)
                               / static_cast<double>(npt);
         const Cd e(std::cos(phase), std::sin(phase));
         Hc[k] = e * H[k];

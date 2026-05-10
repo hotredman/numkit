@@ -78,6 +78,18 @@ inline TwiddleCache &twiddleCache()
 // fftLen/2 for an fftLen-point FFT. Caller must not write to it.
 // Inverse FFT is done via the conjugate trick in fftAlongDim, so
 // only forward tables are ever cached.
+//
+// fillFftTwiddles convention (see dsp_helpers.hpp):
+//   dir = -1  →  W[k] = exp(-2πi·k/N)  →  FORWARD DFT kernel
+//   dir = +1  →  W[k] = exp(+2πi·k/N)  →  INVERSE DFT kernel
+// Plugged into the standard Cooley-Tukey butterfly, the sign of the
+// twiddle exponent IS the direction of the transform. We need forward
+// here because the inverse path goes through conjugate-trick
+// (conj → forward FFT → conj/N) in runComplex below. A pre-2026-05-10
+// regression had this filled with +1 (mathematically inverse), which
+// made every numkit fft return the conjugate of MATLAB's — invisible
+// for real-input parity tests that check magnitudes / real parts, but
+// visible for complex inputs as a spatial mirror around DC.
 const Complex *getCachedTwiddleFwd(std::size_t fftLen)
 {
     auto &c = twiddleCache();
@@ -86,7 +98,7 @@ const Complex *getCachedTwiddleFwd(std::size_t fftLen)
     if (it != c.tables.end())
         return it->second->data();
     auto tbl = std::make_unique<std::vector<Complex>>(fftLen / 2);
-    fillFftTwiddles(tbl->data(), fftLen, /*dir=*/+1);
+    fillFftTwiddles(tbl->data(), fftLen, /*dir=*/-1);
     const Complex *ptr = tbl->data();
     c.tables.emplace(fftLen, std::move(tbl));
     return ptr;
