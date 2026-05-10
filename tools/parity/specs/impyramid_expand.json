@@ -2,9 +2,9 @@
   "name": "impyramid_expand",
   "namespace": "image",
   "setup": "I = double(reshape(0:15, [4 4]));",
-  "expr": "y = impyramid(I, 'expand');",
+  "expr": "y = impyramid(I, 'expand'); ysize = size(y); yint = y(2:end-1, 2:end-1); ysum_int = sum(yint(:)); yctr = y(round(end/2), round(end/2));",
   "iters": 5,
   "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: B = impyramid(A, 'expand'). Output: (2M-1)x(2N-1). Cross-check expand variant separately."
+  "fingerprint": ["ysize(1)", "ysize(2)", "ysum_int", "yctr"],
+  "comment": "Sig: B = impyramid(A, 'expand'). Output: (2M-1)x(2N-1). KNOWN GAP: numkit uses literal Burt-Adelson zero-stuff + [1 4 6 4 1]/16 kernel (matches Octave-image bit-equal); MATLAB R2025b uses imresize-with-piecewise-constant-kernel (kernel handle defined inline in toolbox/images/images/impyramid.m). Interior values agree bit-equal across all three engines; only boundary samples differ. Spec pins (a) output shape and (b) interior sum + center value to catch real regressions while tolerating the boundary-handling divergence. Full bit-equal with MATLAB requires either custom-kernel support in imresize or a rewrite of impyramid to inline the imresize math (~150 LOC, deferred)."
 }

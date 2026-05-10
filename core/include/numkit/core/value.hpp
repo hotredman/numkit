@@ -86,6 +86,13 @@ public:
     // Colon range: start:stop (step=1) or start:step:stop
     static Value colonRange(double start, double stop, std::pmr::memory_resource *mr = nullptr);
     static Value colonRange(double start, double step, double stop, std::pmr::memory_resource *mr = nullptr);
+    // Typed colon range: same as above but output is class `t`
+    // (single / int8..uint64 / logical). Values are computed in double
+    // then cast to `t`. DOUBLE → identical to the untyped overload.
+    static Value colonRangeTyped(double start, double stop, ValueType t,
+                                  std::pmr::memory_resource *mr = nullptr);
+    static Value colonRangeTyped(double start, double step, double stop,
+                                  ValueType t, std::pmr::memory_resource *mr = nullptr);
     // Number of elements in the colon range (no allocation). Used by the
     // VM's lazy `for v = a:b` loop to size the iteration without
     // materialising the row vector. Throws on infinite/zero step.
