@@ -200,6 +200,23 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     expect(foundJet).toBe(true);
   });
 
+  test('imshow(RGBA) — M×N×4 with alpha channel renders without error', async () => {
+    await ide.runScript(
+      'import compat.*;\n'
+      + 'R = [1 0; 0 1];\n'
+      + 'G = [0 1; 1 0];\n'
+      + 'B = [0.5 0.5; 0.5 0.5];\n'
+      + 'A = [1 0.5; 0.5 1];\n'   // varying alpha
+      + 'imshow(cat(3, R, G, B, A));\n'
+    );
+    await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+    const img = ide.figureCards.first().locator('svg image[href^="data:image/png"]');
+    expect(await img.count()).toBeGreaterThanOrEqual(1);
+    expect(ide.devErrors().filter((e) =>
+      !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
+    )).toEqual([]);
+  });
+
   test('imshow logical mask — true=white, false=black', async () => {
     await ide.runScript(
       'import compat.*;\n'

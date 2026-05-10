@@ -353,10 +353,11 @@ export default function CompositePlot({
     return renderHeatmapDataURLFromIndices(hZ, lut);
   }, [hZ, lut]);
 
-  // RGB image (imshow with M×N×3). Pack the per-pixel triplets into a
-  // Uint8ClampedArray, push through an off-screen <canvas>, export as
-  // PNG data-URL. Memoised on rgbLayer.rgb identity — preview cards
-  // and the modal both call this once per image.
+  // RGB / RGBA image (imshow with M×N×3 or M×N×4). Pack the per-pixel
+  // tuples into a Uint8ClampedArray, push through an off-screen
+  // <canvas>, export as PNG data-URL. Memoised on rgbLayer.rgb identity.
+  // Wire format always carries 4 ints per pixel — alpha=255 for plain
+  // RGB input, true alpha for RGBA. Renderer is unchanged either way.
   const rgbDataURL = useMemo(() => {
     if (!rgbLayer || !rgbLayer.rgb) return null;
     const rgb = rgbLayer.rgb;
@@ -368,16 +369,16 @@ export default function CompositePlot({
       cv.width = nC; cv.height = nR;
       const ctx2 = cv.getContext('2d');
       const imgData = ctx2.createImageData(nC, nR);
-      // rgb is row-major nested arrays: rgb[r][c] = [r,g,b] (uint8).
-      // ImageData is row-major flat RGBA, 4 bytes per pixel.
+      // rgb[r][c] = [r,g,b,a] (uint8). Older 3-tuple wire format
+      // (pre-RGBA) still works — missing alpha defaults to 255.
       for (let r = 0, p = 0; r < nR; r++) {
         const row = rgb[r];
         for (let c = 0; c < nC; c++, p += 4) {
-          const tri = row[c] || [0, 0, 0];
+          const tri = row[c] || [0, 0, 0, 255];
           imgData.data[p]     = tri[0] | 0;
           imgData.data[p + 1] = tri[1] | 0;
           imgData.data[p + 2] = tri[2] | 0;
-          imgData.data[p + 3] = 255;
+          imgData.data[p + 3] = (tri[3] === undefined) ? 255 : (tri[3] | 0);
         }
       }
       ctx2.putImageData(imgData, 0, 0);

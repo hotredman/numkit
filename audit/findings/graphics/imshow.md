@@ -47,14 +47,12 @@ defer to the host's existing image-decode path (Electron has built-in
 Parser pattern: see `libs/graphics/src/library.cpp::imshowImpl`
 N-V loop at the top (DisplayRange/XData/YData covered there).
 
-## 3. RGBA (4-channel) input
+## 3. RGBA (4-channel) input ✅ Implemented (2026-05-10)
 
-MATLAB accepts M×N×4 with the 4th channel as alpha. We currently
-require `dims[2] == 3`. Easy extension: when `dims[2] == 4`, copy
-the 4th channel into `imgData.data[p+3]` instead of forcing 255. The
-RGB packer in `imshowImpl` already iterates `k = 0..2`; widen to
-`k = 0..3` and store a flag on `DatasetInfo` so the renderer knows
-to use the per-pixel alpha.
+`imshow(M×N×4)` — 4th page is alpha. Wire format always carries
+4 bytes per pixel (`[r, g, b, a]`). RGB inputs synthesize alpha=255
+so the renderer is uniform. Float / logical inputs follow the same
+*255 cast as RGB.
 
 ## 4. `imshow(I, RI)` — spatial-referencing object
 
