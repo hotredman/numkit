@@ -1,0 +1,10 @@
+{
+  "name": "signal_vco",
+  "namespace": "signal",
+  "setup": "x_z = zeros(8, 1); x_h = 0.5 * ones(8, 1); x_lin = linspace(-1, 1, 16)';",
+  "expr": "y1 = vco(x_z, 1, 4); y1_1 = y1(1); y1_3 = y1(3); y2 = vco(x_h, 1, 8); y2_1 = y2(1); y2_2 = y2(2); y2_5 = y2(5); y3 = vco(x_lin, [0.1 0.4]*16, 16); y3_1 = y3(1); y3_8 = y3(8); y3_end = y3(end);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["y1_1", "y1_3", "y2_1", "y2_2", "y2_5", "y3_1", "y3_8", "y3_end"],
+  "comment": "MATLAB Signal Toolbox vco (Phase 4.8) — voltage-controlled oscillator. y = cos(2π·Fc·t + range1·cumsum(x)), where range1 = (Fc/Fs)·2π for scalar Fc, or (Fmax-Fc)/Fs·2π for [Fmin Fmax] (Fc=mean(range)). Bit-equal MATLAB R2025b on 8 fingerprints — zero input (pure carrier), constant offset (chirp-up), full sweep with Fmin/Fmax range. Octave 11.1.0 ships in core (signal package); test passes."
+}

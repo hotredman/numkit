@@ -114,6 +114,7 @@ void nextpow2_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 void fftshift_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void ifftshift_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void chirp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void vco_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void rectpuls_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void tripuls_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void gauspuls_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -431,6 +432,7 @@ void SignalLibrary::install(Engine &engine)
 
     // ── Waveform generation (chirp / pulses) ───────────────────────────
     reg("waveform_generation", "chirp",     &signal::detail::chirp_reg);
+    reg("waveform_generation", "vco",       &signal::detail::vco_reg);
     reg("waveform_generation", "rectpuls",  &signal::detail::rectpuls_reg);
     reg("waveform_generation", "tripuls",   &signal::detail::tripuls_reg);
     reg("waveform_generation", "gauspuls",  &signal::detail::gauspuls_reg);

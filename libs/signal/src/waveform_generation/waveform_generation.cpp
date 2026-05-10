@@ -353,7 +353,98 @@ Value chirp(std::pmr::memory_resource *mr, const Value &t,
     return out;
 }
 
+// ── vco (Phase 4.8) ─────────────────────────────────────────────────
+//
+// Voltage-controlled (frequency-modulated) oscillator. Matches MATLAB
+// R2025b vco.m → modulate(...,'fm') one-to-one.
+//
+// Algorithm: per column, t = (0..N-1)/Fs,  cum = cumsum(x),
+//            y = cos(2π·Fc·t + range1·cum)  (rectangular integral approx).
+// Where range scalar => Fc=range, range1=(Fc/Fs)·2π;
+//       range vector => Fc=mean(range), range1=(range[1]-Fc)/Fs·2π.
+Value vco(std::pmr::memory_resource *mr,
+          const Value &x, const Value &range, double fs)
+{
+    constexpr double kPi = 3.14159265358979323846;
+    if (fs <= 0.0)
+        throw Error("vco: fs must be positive",
+                    0, 0, "vco", "", "m:vco:BadFs");
+    const size_t N = x.numel();
+    // Range check: x ∈ [-1, 1].
+    for (size_t i = 0; i < N; ++i) {
+        const double v = x.elemAsDouble(i);
+        if (v > 1.0 || v < -1.0)
+            throw Error("vco: x values must be in [-1, 1]",
+                        0, 0, "vco", "", "m:vco:InvalidRange");
+    }
+    double Fc = 0.0, range1 = 0.0;
+    if (range.numel() == 1) {
+        Fc = range.toScalar();
+        range1 = (Fc / fs) * 2.0 * kPi;
+    } else if (range.numel() == 2) {
+        const double r0 = range.elemAsDouble(0);
+        const double r1 = range.elemAsDouble(1);
+        Fc = 0.5 * (r0 + r1);
+        range1 = (r1 - Fc) / fs * 2.0 * kPi;
+    } else {
+        throw Error("vco: range must be scalar Fc or [Fmin Fmax]",
+                    0, 0, "vco", "", "m:vco:BadRange");
+    }
+
+    // Allocate output (same shape as x).
+    Value out;
+    if (x.dims().is3D())
+        out = Value::matrix3d(x.dims().rows(), x.dims().cols(),
+                               x.dims().pages(), ValueType::DOUBLE, mr);
+    else
+        out = Value::matrix(x.dims().rows(), x.dims().cols(),
+                             ValueType::DOUBLE, mr);
+    if (N == 0) return out;
+
+    double *od = out.doubleDataMut();
+
+    // Determine "rows" axis (along which integration runs):
+    // - If x is column vector (or Nx1): integrate along rows (single channel).
+    // - If matrix: each column is a channel.
+    const size_t R = (x.dims().rows() == 1 && x.dims().cols() > 1)
+                      ? x.dims().cols()
+                      : x.dims().rows();
+    const size_t C = (x.dims().rows() == 1 && x.dims().cols() > 1)
+                      ? 1
+                      : x.dims().cols();
+    const bool rowVec = (x.dims().rows() == 1 && x.dims().cols() > 1);
+
+    for (size_t c = 0; c < C; ++c) {
+        double cum = 0.0;
+        for (size_t n = 0; n < R; ++n) {
+            // Index into x: row vec → x[n]; column-major matrix → x[n + c*R].
+            const size_t srcIdx = rowVec ? n : (n + c * R);
+            cum += x.elemAsDouble(srcIdx);
+            const double t = static_cast<double>(n) / fs;
+            od[srcIdx] = std::cos(2.0 * kPi * Fc * t + range1 * cum);
+        }
+    }
+    return out;
+}
+
 namespace detail {
+
+void vco_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("vco: requires (x [, range [, fs]])",
+                    0, 0, "vco", "", "m:vco:nargin");
+    auto *mr = ctx.engine->resource();
+    double fs = 1.0;
+    if (args.size() >= 3 && !args[2].isEmpty()) fs = args[2].toScalar();
+    Value rng;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        rng = args[1];
+    } else {
+        rng = Value::scalar(fs / 4.0, mr);
+    }
+    outs[0] = vco(mr, args[0], rng, fs);
+}
 
 void rectpuls_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
