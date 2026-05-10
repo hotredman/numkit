@@ -71,5 +71,13 @@ fprintf('  eye(3) class=%s\n', class(eye(3)));
 fprintf('  rand(2,3) class=%s\n', class(rand(2,3)));
 fprintf('  randi(5) class=%s\n', class(randi(5)));
 
-fprintf('\nKNOWN GAP: int32(1):int32(5) operator returns double instead of int32.\n');
-fprintf('This is a parser/op-dispatch issue, separate from the type-arg work.\n');
+fprintf('\n[typed colon operator (FIXED 2026-05-10)]\n');
+fprintf('  int32(1):int32(5) class=%s (was double, now int32)\n', class(int32(1):int32(5)));
+fprintf('  uint8(0):uint8(2):uint8(10) class=%s\n', class(uint8(0):uint8(2):uint8(10)));
+fprintf('  1:int32(5) class=%s (mixed double + int32 → int32)\n', class(1:int32(5)));
+fprintf('  single(1):single(5) class=%s\n', class(single(1):single(5)));
+fprintf('  1:5 class=%s (all double → double, no change)\n', class(1:5));
+
+fprintf('\n[colon count off-by-one fix (also 2026-05-10)]\n');
+fprintf('  numel(1:2:10) = %d (was 6, now 5 — matches MATLAB)\n', numel(1:2:10));
+fprintf('  numel(0:0.1:1.0) = %d (must remain 11 — FP tol preserves last)\n', numel(0:0.1:1.0));

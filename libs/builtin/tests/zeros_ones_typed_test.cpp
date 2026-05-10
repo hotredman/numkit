@@ -264,3 +264,80 @@ TEST_F(ZerosOnesTypedTest, SparseStubPassthrough)
     EXPECT_DOUBLE_EQ(evalScalar("sA(1, 1)"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("sA(2, 2)"), 4.0);
 }
+
+// ── Typed colon operator (j:k and j:i:k preserve int/single type) ──
+TEST_F(ZerosOnesTypedTest, ColonOpInt32Preserved)
+{
+    eval("v = int32(1):int32(5);");
+    EXPECT_EQ(evalString("class(v)"), "int32");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(v)")), 5);
+    EXPECT_DOUBLE_EQ(evalScalar("double(v(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(v(5))"), 5.0);
+}
+
+TEST_F(ZerosOnesTypedTest, ColonOpUint8Preserved)
+{
+    eval("v = uint8(0):uint8(2):uint8(10);");
+    EXPECT_EQ(evalString("class(v)"), "uint8");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(v)")), 6);
+    EXPECT_DOUBLE_EQ(evalScalar("double(v(end))"), 10.0);
+}
+
+TEST_F(ZerosOnesTypedTest, ColonOpSinglePreserved)
+{
+    eval("v = single(1):single(5);");
+    EXPECT_EQ(evalString("class(v)"), "single");
+}
+
+TEST_F(ZerosOnesTypedTest, ColonOpMixedDoubleInt32IsInt32)
+{
+    eval("v = 1:int32(5);");
+    EXPECT_EQ(evalString("class(v)"), "int32");
+    eval("u = int32(1):5;");
+    EXPECT_EQ(evalString("class(u)"), "int32");
+}
+
+TEST_F(ZerosOnesTypedTest, ColonOpAllDoubleStaysDouble)
+{
+    eval("v = 1:5;");
+    EXPECT_EQ(evalString("class(v)"), "double");
+}
+
+TEST_F(ZerosOnesTypedTest, ColonOpIntNegStep)
+{
+    eval("v = int32(5):int32(-1):int32(1);");
+    EXPECT_EQ(evalString("class(v)"), "int32");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(v)")), 5);
+    EXPECT_DOUBLE_EQ(evalScalar("double(v(1))"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(v(end))"), 1.0);
+}
+
+TEST_F(ZerosOnesTypedTest, ColonOpMixedIntKindsThrows)
+{
+    bool threw = false;
+    try { eval("v = int8(1):int16(5);"); } catch (...) { threw = true; }
+    EXPECT_TRUE(threw);
+}
+
+TEST_F(ZerosOnesTypedTest, ColonFunctionTypePropagation)
+{
+    eval("v = colon(int32(1), int32(5));");
+    EXPECT_EQ(evalString("class(v)"), "int32");
+    eval("u = colon(uint8(0), uint8(2), uint8(10));");
+    EXPECT_EQ(evalString("class(u)"), "uint8");
+}
+
+// ── Pre-existing colon count off-by-one fix ──────────────────────────
+// 1:2:10 should give 5 elements [1 3 5 7 9], not 6 [1 3 5 7 9 10].
+// Same for typed variants.
+TEST_F(ZerosOnesTypedTest, ColonCountNoOvershootCleanInt)
+{
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(1:2:10)")), 5);
+    EXPECT_DOUBLE_EQ(evalScalar("v=1:2:10; v(end)"), 9.0);
+}
+
+TEST_F(ZerosOnesTypedTest, ColonCountKeepsLastFractional)
+{
+    // 0:0.1:1.0 should give 11 elements (preserves last via FP-tol).
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(0:0.1:1.0)")), 11);
+}

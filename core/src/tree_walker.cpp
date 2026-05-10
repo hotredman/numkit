@@ -2098,22 +2098,50 @@ Value TreeWalker::execCellLiteral(const ASTNode *node, Environment *env)
 }
 
 // ============================================================
+// Pick the dominant non-double type among colon operands. MATLAB rule:
+//   - If all operands are double → return DOUBLE.
+//   - If exactly one non-double type T appears (others may be DOUBLE) → T.
+//   - Two different non-double types → throw (matches MATLAB:
+//     "Colon operands must be all the same type, or mixed with real
+//     scalar doubles").
+static ValueType colonOutputType(const Value *ops, size_t n)
+{
+    ValueType nonDouble = ValueType::DOUBLE;
+    bool found = false;
+    for (size_t i = 0; i < n; ++i) {
+        ValueType t = ops[i].type();
+        if (t == ValueType::DOUBLE) continue;
+        if (!found) { nonDouble = t; found = true; }
+        else if (t != nonDouble) {
+            throw std::runtime_error(
+                "Colon operands must be all the same type, "
+                "or mixed with real scalar doubles");
+        }
+    }
+    return nonDouble;
+}
+
 Value TreeWalker::execColonExpr(const ASTNode *node, Environment *env)
 {
     if (node->children.empty())
         return Value::fromString(":", engine_.mr_);
 
     if (node->children.size() == 2) {
-        double s = execNode(node->children[0].get(), env).toScalar();
-        double e = execNode(node->children[1].get(), env).toScalar();
-        return Value::colonRange(s, e, engine_.mr_);
+        Value a = execNode(node->children[0].get(), env);
+        Value b = execNode(node->children[1].get(), env);
+        Value ops[2] = {a, b};
+        ValueType t = colonOutputType(ops, 2);
+        return Value::colonRangeTyped(a.toScalar(), b.toScalar(), t, engine_.mr_);
     }
 
     if (node->children.size() == 3) {
-        double s = execNode(node->children[0].get(), env).toScalar();
-        double step = execNode(node->children[1].get(), env).toScalar();
-        double e = execNode(node->children[2].get(), env).toScalar();
-        return Value::colonRange(s, step, e, engine_.mr_);
+        Value a = execNode(node->children[0].get(), env);
+        Value b = execNode(node->children[1].get(), env);
+        Value c = execNode(node->children[2].get(), env);
+        Value ops[3] = {a, b, c};
+        ValueType t = colonOutputType(ops, 3);
+        return Value::colonRangeTyped(a.toScalar(), b.toScalar(), c.toScalar(),
+                                       t, engine_.mr_);
     }
 
     return Value::empty();
