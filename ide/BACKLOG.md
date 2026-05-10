@@ -287,8 +287,22 @@ These don't have shipping pressure. Each is a separate investment.
       `contourf.spec.js` (5 cases).
 - [ ] `area` stacked — multi-series stacked-area plots; needs
       baseline tracking across layers.
-- [ ] `slice` / `isosurface` — volume rendering on 3-D scalar
-      grids. Needs marching cubes + 3-D texture sampling.
+- [x] **`slice` — axis-aligned cross sections of a 3-D scalar volume.**
+      `slice(V, sx, sy, sz)` and `slice(X, Y, Z, V, sx, sy, sz)`
+      forms; each requested coordinate spawns one fill3-style
+      polygon-mesh dataset positioned in 3-D. Single representative
+      colour per slice (per-cell colormap remains a follow-up — needs
+      vertex-colours plumbing in `buildPolygon3D`). Shipped 2026-05-10.
+      e2e `slice.spec.js` (5 cases).
+- [x] **`isosurface` — marching cubes.** `isosurface(V, iso)` and
+      `isosurface(X, Y, Z, V, iso)` forms. Standard Paul-Bourke 256-
+      entry edge / triangle tables (vendored as static `const` arrays
+      in `library.cpp`); each cube cell yields linear-interpolated
+      vertices on iso-crossing edges, emitted as triangle list via
+      the fill3 wire path. Single representative colour from the iso
+      level relative to the volume's min/max. Shipped 2026-05-10.
+      e2e `isosurface.spec.js` (4 cases). Per-vertex normals + colour
+      gradient deferred.
 - [ ] `coneplot` / `streamtube` — 3-D streamline variants with
       cone-headed arrows and tube geometry.
 - [ ] `geoplot` / `geoplot3` — geographic axes with basemap tiles.
