@@ -1,0 +1,10 @@
+{
+  "name": "audio_spectral_metrics",
+  "namespace": "audio",
+  "setup": "X = [10; 5; 2; 1; 0.5; 0.25; 0.1; 0.05]; F = [0; 1; 2; 3; 4; 5; 6; 7]; X2 = [10 1; 5 2; 2 5; 1 10; 0.5 5; 0.25 2; 0.1 1; 0.05 0.5]; fs = 16000; t = (0:1/fs:0.1)'; xs = sin(2*pi*440*t);",
+  "expr": "c1 = spectralCrest(X, F); e1 = spectralEntropy(X, F); fl1 = spectralFlatness(X, F); k1 = spectralKurtosis(X, F); s1 = spectralSkewness(X, F); c2 = spectralCrest(X2, F); c2_1 = c2(1); c2_2 = c2(2); e2 = spectralEntropy(X2, F); e2_1 = e2(1); e2_2 = e2(2); k2 = spectralKurtosis(X2, F); k2_1 = k2(1); k2_2 = k2(2); ct = spectralCrest(xs, fs); ct_1 = ct(1); ct_2 = ct(2); et = spectralEntropy(xs, fs); et_1 = et(1); ft = spectralFlatness(xs, fs); ft_1 = ft(1); kt = spectralKurtosis(xs, fs); kt_1 = kt(1); st = spectralSkewness(xs, fs); st_1 = st(1); ct_R = size(ct, 1); ct_C = size(ct, 2);",
+  "iters": 5,
+  "tol": 1e-4,
+  "fingerprint": ["c1", "e1", "fl1", "k1", "s1", "c2_1", "c2_2", "e2_1", "e2_2", "k2_1", "k2_2", "ct_1", "ct_2", "et_1", "ft_1", "kt_1", "st_1", "ct_R", "ct_C"],
+  "comment": "MATLAB Audio Toolbox cycle I: 5 per-frame STFT spectral metrics (spectralCrest/Entropy/Flatness/Kurtosis/Skewness). Reside in libs/audio/src/spectral/shape_descriptors.cpp alongside spectralCentroid/Spread/Rolloff/Decrease/Slope/Flux from cycle B. All bit-equal with MATLAB R2025b on (X, F) direct, multi-frame (X2 8x2, F 8x1), and time-domain (xs, fs) inputs (after fixing computeStft to apply MATLAB signal.internal.spectraldescriptors.stft normalization: |Y|² / (0.5·sum(win)²), DC bin halved, Nyquist bin halved when fftLength even). Time-domain shape: 8x1 column vector (one row per frame) for 1601 samples at fs=16000 with rectwin(round(0.03*fs))=480 + overlap=320. The libs/signal lowercase forms (spectralcrest/etc) remain as legacy single-segment scalar versions; camelCase compat aliases now point to the per-frame audio versions."
+}

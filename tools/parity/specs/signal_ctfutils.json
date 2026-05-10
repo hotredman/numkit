@@ -1,0 +1,10 @@
+{
+  "name": "signal_ctfutils",
+  "namespace": "signal",
+  "setup": "NUM = [1 -1 0.5; 1 0 -1]; DEN = [1 -0.6 0.2; 1 0 -0.25];",
+  "expr": "[z1, p1, k1] = ctf2zp([1 -1 0.5], [1 -0.6 0.2]); k1_v = real(k1); nz1 = numel(z1); np1 = numel(p1); [z2, p2, k2] = ctf2zp(NUM, DEN); k2_v = real(k2); [zsv, psv, ksv] = ctf2zp(NUM, DEN, [2 3 5]); ksv_v = real(ksv); ctf = [1 2 1; 1 -1 0.5]; sv1 = scaleFilterSections(ctf, [2 3 5]); sv1_11 = sv1(1,1); sv1_12 = sv1(1,2); sv1_21 = sv1(2,1); sv1_22 = sv1(2,2); sv1_23 = sv1(2,3); sv2 = scaleFilterSections(ctf, 4); sv2_11 = sv2(1,1); sv2_22 = sv2(2,2);",
+  "iters": 5,
+  "tol": 1e-6,
+  "fingerprint": ["k1_v", "nz1", "np1", "k2_v", "ksv_v", "sv1_11", "sv1_12", "sv1_21", "sv1_22", "sv1_23", "sv2_11", "sv2_22"],
+  "comment": "MATLAB Signal Toolbox ctf2zp + scaleFilterSections (Phase 4.11). ctf2zp: cascade transfer function (NUM, DEN, SV) → zero/pole/gain via per-section tf2zpk + product of gains. scaleFilterSections: distribute |sv|^(1/K) across sections, sign on last. Bit-equal MATLAB R2025b on 12 fingerprints — single-section ctf2zp values+counts, multi-section gain product, scaleFilterSections both vector-SV and scalar-SV forms. KNOWN GAP: ctf2zp doesn't strip trailing zeros from numerators/denominators (MATLAB parser does); user-visible difference is extra zero/pole at 0 in z/p arrays for length-padded inputs. Octave 11.1.0 doesn't ship ctf2zp/scaleFilterSections in core."
+}

@@ -35,6 +35,21 @@ sos2zp(std::pmr::memory_resource *mr, const Value &sos, double g = 1.0);
 std::tuple<Value, Value, double>
 tf2zpk(std::pmr::memory_resource *mr, const Value &b, const Value &a);
 
+/// ctf2zp(NUM, DEN[, SV]) — cascaded transfer function → zero/pole/gain.
+/// NUM (K × Q+1) and DEN (K × R+1) define K cascaded biquad-like sections.
+/// SV (scalar or K+1 vector) optional scale values; defaults to 1.
+/// Returns (Z, P, K_gain).
+std::tuple<Value, Value, double>
+ctf2zp(std::pmr::memory_resource *mr, const Value &NUM, const Value &DEN,
+       const Value *SV = nullptr);
+
+/// scaleFilterSections(CTFNum, SV) — scale numerator coefficients of a
+/// cascaded-transfer-function NUM matrix by per-section scale values.
+/// SV is scalar or K+1 vector. Distributes |sv|^(1/K) across all sections,
+/// keeps sign info on the last section.
+Value scaleFilterSections(std::pmr::memory_resource *mr,
+                          const Value &CTFNum, const Value &SV);
+
 /// tf2ss(b, a) — transfer function to state-space (controllable
 /// canonical form). Returns (A, B, C, D).
 std::tuple<Value, Value, Value, Value>

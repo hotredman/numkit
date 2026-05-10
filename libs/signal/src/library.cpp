@@ -39,6 +39,13 @@ void finddelay_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void alignsignals_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void filter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void filtfilt_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void buffer_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void uencode_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void udecode_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void polyscale_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void polystab_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void shiftdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void unshiftdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 // digital_filtering/spec_driven.cpp (D2)
 void lowpass_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void highpass_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -47,6 +54,10 @@ void bandstop_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void butter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void fir1_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void firls_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void fir2_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void cell2sos_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void ctf2zp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void scaleFilterSections_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void freqz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void phasez_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void grpdelay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -107,6 +118,9 @@ void nextpow2_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 void fftshift_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void ifftshift_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void chirp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void vco_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void modulate_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void demod_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void rectpuls_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void tripuls_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void gauspuls_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -206,6 +220,9 @@ void besself_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void buttord_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cheb1ord_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cheb2ord_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void kaiserord_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void ellipord_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void firpmord_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // Signal modelling (libs/signal/src/spectral_analysis/signal_modeling.cpp)
 void levinson_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -262,6 +279,11 @@ void mergesigroi_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void removesigroi_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void extractsigroi_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void sigrangebinmask_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// Signal small utilities (libs/signal/src/measurements/sig_utils.cpp)
+void seqperiod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void zerocrossrate_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cusum_reg         (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::signal::detail
 
 namespace numkit {
@@ -315,6 +337,13 @@ void SignalLibrary::install(Engine &engine)
     // ── Digital filtering (filter / filtfilt / SOS family / median + D2) ─
     reg("digital_filtering", "filter",   &signal::detail::filter_reg);
     reg("digital_filtering", "filtfilt", &signal::detail::filtfilt_reg);
+    reg("digital_filtering", "buffer",   &signal::detail::buffer_reg);
+    reg("digital_filtering", "uencode",  &signal::detail::uencode_reg);
+    reg("digital_filtering", "udecode",  &signal::detail::udecode_reg);
+    reg("digital_filtering", "polyscale", &signal::detail::polyscale_reg);
+    reg("digital_filtering", "polystab",  &signal::detail::polystab_reg);
+    reg("digital_filtering", "shiftdata", &signal::detail::shiftdata_reg);
+    reg("digital_filtering", "unshiftdata", &signal::detail::unshiftdata_reg);
     reg("digital_filtering", "sosfilt",     &signal::detail::sosfilt_reg);
     reg("digital_filtering", "sosfiltfilt", &signal::detail::sosfiltfilt_reg);
     reg("digital_filtering", "medfilt1", &signal::detail::medfilt1_reg);
@@ -327,6 +356,10 @@ void SignalLibrary::install(Engine &engine)
     reg("filter_design", "butter",     &signal::detail::butter_reg);
     reg("filter_design", "fir1",       &signal::detail::fir1_reg);
     reg("filter_design", "firls",      &signal::detail::firls_reg);
+    reg("filter_design", "fir2",       &signal::detail::fir2_reg);
+    reg("filter_implementation", "cell2sos", &signal::detail::cell2sos_reg);
+    reg("filter_implementation", "ctf2zp",   &signal::detail::ctf2zp_reg);
+    reg("filter_implementation", "scaleFilterSections", &signal::detail::scaleFilterSections_reg);
     reg("filter_design", "sgolay",     &signal::detail::sgolay_reg);
     reg("filter_design", "sgolayfilt", &signal::detail::sgolayfilt_reg);
 
@@ -409,6 +442,9 @@ void SignalLibrary::install(Engine &engine)
 
     // ── Waveform generation (chirp / pulses) ───────────────────────────
     reg("waveform_generation", "chirp",     &signal::detail::chirp_reg);
+    reg("waveform_generation", "vco",       &signal::detail::vco_reg);
+    reg("waveform_generation", "modulate",  &signal::detail::modulate_reg);
+    reg("waveform_generation", "demod",     &signal::detail::demod_reg);
     reg("waveform_generation", "rectpuls",  &signal::detail::rectpuls_reg);
     reg("waveform_generation", "tripuls",   &signal::detail::tripuls_reg);
     reg("waveform_generation", "gauspuls",  &signal::detail::gauspuls_reg);
@@ -437,12 +473,10 @@ void SignalLibrary::install(Engine &engine)
     reg("spectral_analysis", "spectralentropy",  &signal::detail::spectralentropy_reg);
     reg("spectral_analysis", "spectralkurtosis", &signal::detail::spectralkurtosis_reg);
     reg("spectral_analysis", "spectralskewness", &signal::detail::spectralskewness_reg);
-    // MATLAB camelCase aliases (R2025b ships these spellings).
-    reg("spectral_analysis", "spectralCrest",    &signal::detail::spectralcrest_reg);
-    reg("spectral_analysis", "spectralFlatness", &signal::detail::spectralflatness_reg);
-    reg("spectral_analysis", "spectralEntropy",  &signal::detail::spectralentropy_reg);
-    reg("spectral_analysis", "spectralKurtosis", &signal::detail::spectralkurtosis_reg);
-    reg("spectral_analysis", "spectralSkewness", &signal::detail::spectralskewness_reg);
+    // NOTE: MATLAB camelCase variants spectralCrest/Entropy/Flatness/Kurtosis/
+    // Skewness now live in libs/audio (per-frame STFT semantics matching
+    // MATLAB R2025b Signal Toolbox; see libs/audio/src/spectral/shape_descriptors.cpp).
+    // The lowercase forms above remain as legacy single-segment scalar versions.
     reg("spectral_analysis", "snr",              &signal::detail::snr_reg);
     reg("spectral_analysis", "sinad",            &signal::detail::sinad_reg);
     reg("spectral_analysis", "thd",              &signal::detail::thd_reg);
@@ -468,6 +502,9 @@ void SignalLibrary::install(Engine &engine)
     reg("filter_design", "buttord",  &signal::detail::buttord_reg);
     reg("filter_design", "cheb1ord", &signal::detail::cheb1ord_reg);
     reg("filter_design", "cheb2ord", &signal::detail::cheb2ord_reg);
+    reg("filter_design", "kaiserord", &signal::detail::kaiserord_reg);
+    reg("filter_design", "ellipord",  &signal::detail::ellipord_reg);
+    reg("filter_design", "firpmord",  &signal::detail::firpmord_reg);
     reg("parametric", "levinson",  &signal::detail::levinson_reg);
     reg("parametric", "rlevinson", &signal::detail::rlevinson_reg);
     reg("parametric", "aryule",    &signal::detail::aryule_reg);
@@ -518,6 +555,10 @@ void SignalLibrary::install(Engine &engine)
     reg("measurements", "removesigroi",   &signal::detail::removesigroi_reg);
     reg("measurements", "extractsigroi",  &signal::detail::extractsigroi_reg);
     reg("measurements", "sigrangebinmask",&signal::detail::sigrangebinmask_reg);
+
+    reg("measurements", "seqperiod",     &signal::detail::seqperiod_reg);
+    reg("measurements", "zerocrossrate", &signal::detail::zerocrossrate_reg);
+    reg("measurements", "cusum",         &signal::detail::cusum_reg);
 
     reg("measurements", "rms",       &signal::detail::rms_reg);
     reg("measurements", "rssq",      &signal::detail::rssq_reg);

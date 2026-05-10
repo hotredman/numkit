@@ -124,20 +124,19 @@ HWY_NOINLINE void radix4Stage_SoA(double *re, double *im,
                 const auto dre = hn::Sub(x1re, x3re);
                 const auto dim = hn::Sub(x1im, x3im);
 
-                // Outputs (matching AoS version):
-                //   pos 0: a + c
-                //   pos m: b - i*dc  → real: b - dim·(-1), imag: b + dre
-                //                       == (bre - dim,  bim + dre)
-                //   pos 2m: a - c
-                //   pos 3m: b + i*dc → (bre + dim, bim - dre)
+                // Forward radix-4 outputs:
+                //   pos 0:  A_0 = a + c
+                //   pos m:  A_1 = b - i*dc = (bre + dim,  bim - dre)
+                //   pos 2m: A_2 = a - c
+                //   pos 3m: A_3 = b + i*dc = (bre - dim,  bim + dre)
                 hn::StoreU(hn::Add(are, cre), d, re + i + j);
                 hn::StoreU(hn::Add(aim, cim), d, im + i + j);
-                hn::StoreU(hn::Sub(bre, dim), d, re + i + j +     m);
-                hn::StoreU(hn::Add(bim, dre), d, im + i + j +     m);
+                hn::StoreU(hn::Add(bre, dim), d, re + i + j +     m);
+                hn::StoreU(hn::Sub(bim, dre), d, im + i + j +     m);
                 hn::StoreU(hn::Sub(are, cre), d, re + i + j + 2 * m);
                 hn::StoreU(hn::Sub(aim, cim), d, im + i + j + 2 * m);
-                hn::StoreU(hn::Add(bre, dim), d, re + i + j + 3 * m);
-                hn::StoreU(hn::Sub(bim, dre), d, im + i + j + 3 * m);
+                hn::StoreU(hn::Sub(bre, dim), d, re + i + j + 3 * m);
+                hn::StoreU(hn::Add(bim, dre), d, im + i + j + 3 * m);
             }
         }
         for (; j < m; ++j) {
@@ -163,9 +162,9 @@ HWY_NOINLINE void radix4Stage_SoA(double *re, double *im,
             const double dre = x1re - x3re, dim = x1im - x3im;
 
             re[i + j]            = are + cre;  im[i + j]            = aim + cim;
-            re[i + j +     m]    = bre - dim;  im[i + j +     m]    = bim + dre;
+            re[i + j +     m]    = bre + dim;  im[i + j +     m]    = bim - dre;
             re[i + j + 2 * m]    = are - cre;  im[i + j + 2 * m]    = aim - cim;
-            re[i + j + 3 * m]    = bre + dim;  im[i + j + 3 * m]    = bim - dre;
+            re[i + j + 3 * m]    = bre - dim;  im[i + j + 3 * m]    = bim + dre;
         }
     }
 }

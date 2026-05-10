@@ -1,0 +1,10 @@
+{
+  "name": "signal_fir2",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "blp = fir2(20, [0 0.4 0.5 1], [1 1 0 0]); blp_n = numel(blp); blp_1 = blp(1); blp_5 = blp(5); blp_10 = blp(10); blp_11 = blp(11); blp_end = blp(end); bbp = fir2(30, [0 0.2 0.3 0.6 0.7 1], [0 0 1 1 0 0]); bbp_n = numel(bbp); bbp_16 = bbp(16); bhp = fir2(20, [0 0.5 0.6 1], [0 0 1 1]); bhp_n = numel(bhp); bhp_11 = bhp(11);",
+  "iters": 5,
+  "tol": 1e-6,
+  "fingerprint": ["blp_n", "blp_1", "blp_5", "blp_10", "blp_11", "blp_end", "bbp_n", "bbp_16", "bhp_n", "bhp_11"],
+  "comment": "MATLAB Signal Toolbox fir2 (Phase 4.9) — arbitrary-response FIR via frequency-sampling + iFFT + Hamming window. 3-arg form (N, F, A) supported. Pipeline: build linear-interp spectrum H[0..512] from breakpoints, apply Fourier time-shift exp(-jπ·dt·k/npt), mirror to length 1024 = power-of-2, ifft, real, window with hamming(N+1). Bit-equal MATLAB R2025b on 10 fingerprints — lowpass (peak 0.4492 at center), bandpass (n=31 with multi-band), highpass (n=21). Octave 11.1.0 ships in core; behavior matches. KNOWN GAPs: optional npt/lap/wind args deferred. (Cycle 5.4: prior `+dt` workaround removed after ifft sign-convention fix in e9598b75 — restored MATLAB-faithful `-dt` sign.)"
+}

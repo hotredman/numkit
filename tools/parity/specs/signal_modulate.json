@@ -1,0 +1,10 @@
+{
+  "name": "signal_modulate",
+  "namespace": "signal",
+  "setup": "fs = 100; t = (0:1/fs:0.1)'; x = sin(2*pi*5*t);",
+  "expr": "y_am = modulate(x, 20, fs, 'am'); am_2 = y_am(2); am_4 = y_am(4); y_fm = modulate(x, 20, fs, 'fm'); fm_3 = y_fm(3); fm_5 = y_fm(5); y_pm = modulate(x, 20, fs, 'pm'); pm_2 = y_pm(2); y_tc = modulate(x, 20, fs, 'amdsb-tc', 0.5); tc_1 = y_tc(1); tc_5 = y_tc(5); y_ssb = modulate(x, 20, fs, 'amssb'); ssb_5 = y_ssb(5); ssb_8 = y_ssb(8);",
+  "iters": 5,
+  "tol": 0.05,
+  "fingerprint": ["am_2", "am_4", "fm_3", "fm_5", "pm_2", "tc_1", "tc_5", "ssb_5", "ssb_8"],
+  "comment": "MATLAB Signal Toolbox modulate (Phases 4.12 + 5.3). All 5 most-used modes shipped: am / amdsb-sc / amdsb-tc / fm / pm (bit-equal MATLAB) + amssb (uses hilbert — approximate-equal due to finite-window edge effects, ~3-5%). Per-element formulas: am = x·cos(2πFct); amdsb-tc = (x-offset)·cos(...); fm = cos(2πFct + kf·cumsum(x)); pm = cos(2πFct + kp·x); amssb = x·cos(...) + imag(hilbert(x))·sin(...). Default kf = (Fc/Fs)·2π/max|x|, kp = π/max|x|, offset = min(x). 9/9 fingerprints OK (tol 5% to accommodate hilbert edge noise). KNOWN GAPs: pwm/ptm/ppm (specialised pulses), qam (complex carrier) deferred. Octave 11.1.0 doesn't ship modulate in core (signal package only)."
+}

@@ -86,6 +86,87 @@ TEST(DspFftPublicApi, DcBinOfConstant)
     }
 }
 
+// ── Forward FFT bin signs match MATLAB exactly ──────────────────────────
+// fft([1 2 3 4]) = [10, -2+2i, -2, -2-2i] in MATLAB. Magnitude-only
+// tests below would also pass for the conjugate output (the bug that
+// shipped through several parity sweeps), so check imaginary signs
+// explicitly.
+TEST(DspFftPublicApi, ForwardSignsMatchMatlab)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value x = makeRealRow(mr, {1.0, 2.0, 3.0, 4.0});
+    Value X = numkit::signal::fft(mr, x);
+    ASSERT_TRUE(X.isComplex());
+    const Complex *Xd = X.complexData();
+    EXPECT_NEAR(Xd[0].real(), 10.0, 1e-12);
+    EXPECT_NEAR(Xd[0].imag(),  0.0, 1e-12);
+    EXPECT_NEAR(Xd[1].real(), -2.0, 1e-12);
+    EXPECT_NEAR(Xd[1].imag(), +2.0, 1e-12);
+    EXPECT_NEAR(Xd[2].real(), -2.0, 1e-12);
+    EXPECT_NEAR(Xd[2].imag(),  0.0, 1e-12);
+    EXPECT_NEAR(Xd[3].real(), -2.0, 1e-12);
+    EXPECT_NEAR(Xd[3].imag(), -2.0, 1e-12);
+}
+
+// ── ifft of a complex-only impulse spectrum lands at the right bin ──────
+// X = [1, i, -1, -i] → MATLAB ifft = [0, 0, 0, 1]. The pre-fix bug put
+// the impulse at bin 2 (the conjugate of MATLAB's spatial position).
+TEST(DspFftPublicApi, IfftComplexImpulseSpectrumPosition)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto X = Value::complexMatrix(4, 1, mr);
+    Complex *Xd = X.complexDataMut();
+    Xd[0] = Complex( 1.0,  0.0);
+    Xd[1] = Complex( 0.0,  1.0);
+    Xd[2] = Complex(-1.0,  0.0);
+    Xd[3] = Complex( 0.0, -1.0);
+    Value y = numkit::signal::ifft(mr, X);
+    // ifft auto-downgrades to DOUBLE when every imag is < 1e-10; that's
+    // the case here ([0,0,0,1] is real). Handle either layout.
+    auto re = [&](size_t i) {
+        return y.isComplex() ? y.complexData()[i].real()
+                             : y.doubleData()[i];
+    };
+    EXPECT_NEAR(re(0), 0.0, 1e-12);
+    EXPECT_NEAR(re(1), 0.0, 1e-12);
+    EXPECT_NEAR(re(2), 0.0, 1e-12);
+    EXPECT_NEAR(re(3), 1.0, 1e-12);
+    if (y.isComplex())
+        for (int i = 0; i < 4; ++i)
+            EXPECT_NEAR(y.complexData()[i].imag(), 0.0, 1e-12) << "at i=" << i;
+}
+
+// ── ifft of a phase-ramp produces a peak at the encoded delay ───────────
+// H[k] = exp(-2πi·k·d/N) is the spectrum of a unit impulse at sample d
+// (MATLAB convention: delay → negative frequency slope). Peak should
+// land at idx d+1 (1-based), not at -d (the pre-fix bug's symptom).
+TEST(DspFftPublicApi, IfftPhaseRampLocatesImpulse)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    constexpr size_t N = 1024;
+    constexpr int d = 5;  // expected impulse position (0-based)
+    auto H = Value::complexMatrix(N, 1, mr);
+    Complex *Hd = H.complexDataMut();
+    for (size_t k = 0; k < N; ++k) {
+        const double phase = -2.0 * M_PI * static_cast<double>(k)
+                                  * static_cast<double>(d) / static_cast<double>(N);
+        Hd[k] = Complex(std::cos(phase), std::sin(phase));
+    }
+    Value h = numkit::signal::ifft(mr, H);
+    // h is conjugate-symmetric so ifft auto-downgrades to real.
+    ASSERT_FALSE(h.isComplex());
+    const double *hd = h.doubleData();
+    size_t peakIdx = 0;
+    double peakVal = hd[0];
+    for (size_t i = 1; i < N; ++i)
+        if (hd[i] > peakVal) { peakVal = hd[i]; peakIdx = i; }
+    EXPECT_EQ(peakIdx, static_cast<size_t>(d))
+        << "Peak should be at delay sample d=" << d
+        << ", got idx=" << peakIdx
+        << " (sign-convention regression — see commit history)";
+    EXPECT_NEAR(peakVal, 1.0, 1e-10);
+}
+
 // ── Single-frequency cosine: peak at known bin ─────────────────────────
 TEST(DspFftPublicApi, CosinePeakBin)
 {
@@ -261,6 +342,84 @@ TEST(DspFftPublicApi, Fft3DDim3PreservesShape)
         }
 }
 
+// ── Non-pow2 N: Bluestein path correctness ────────────────────────────
+//
+// Regression test for the bug fixed by the chirp-z (Bluestein) dispatch:
+// fftAlongDim used to round outAxisLen up to nextPow2 and run a
+// zero-padded pow2 FFT, then return the first outAxisLen samples — which
+// is NOT an N-point DFT. Symptoms on real input: wrong magnitudes
+// (|Y[2]| at N=480 was 41661.22 vs MATLAB's 36669.56) and broken
+// conjugate symmetry (|Y[end]| ≠ |Y[2]|). The Bluestein path computes
+// a true N-point DFT bit-equal to MATLAB.
+//
+// Sizes cover the audio-toolbox typical winLen = round(0.03*fs):
+// 240 (fs=8k), 480 (fs=16k), 662 (fs=22.05k), 1323 (fs=44.1k), plus a
+// small composite (15) and a prime (97).
+TEST(DspFftPublicApi, NonPow2RealInputMatchesNaiveDFT)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    const std::vector<size_t> sizes = {15u, 97u, 240u, 480u, 662u, 1323u};
+    for (size_t N : sizes) {
+        // Deterministic test signal — two sinusoids + DC offset.
+        auto x = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+        double *xd = x.doubleDataMut();
+        for (size_t n = 0; n < N; ++n)
+            xd[n] = std::sin(2.0 * M_PI * 0.07 * n)
+                  + 0.5 * std::cos(2.0 * M_PI * 0.13 * n);
+
+        Value X = numkit::signal::fft(mr, x);
+        ASSERT_TRUE(X.isComplex()) << "N=" << N;
+        ASSERT_EQ(X.numel(), N) << "N=" << N;
+        const Complex *Xd = X.complexData();
+
+        // Conjugate symmetry: real input → X[k] = conj(X[N-k]).
+        for (size_t k = 1; k < N / 2; ++k) {
+            EXPECT_NEAR(Xd[k].real(),  Xd[N - k].real(), 1e-9)
+                << "N=" << N << " k=" << k;
+            EXPECT_NEAR(Xd[k].imag(), -Xd[N - k].imag(), 1e-9)
+                << "N=" << N << " k=" << k;
+        }
+
+        // Reference: naive O(N²) DFT, value-for-value.
+        for (size_t k : {size_t{0}, size_t{1}, size_t{2}, N - 1, N / 3}) {
+            double re = 0.0, im = 0.0;
+            const double w = -2.0 * M_PI * static_cast<double>(k)
+                                 / static_cast<double>(N);
+            for (size_t n = 0; n < N; ++n) {
+                const double a = w * static_cast<double>(n);
+                re += xd[n] * std::cos(a);
+                im += xd[n] * std::sin(a);
+            }
+            EXPECT_NEAR(Xd[k].real(), re, 1e-9)
+                << "N=" << N << " k=" << k;
+            EXPECT_NEAR(Xd[k].imag(), im, 1e-9)
+                << "N=" << N << " k=" << k;
+        }
+    }
+}
+
+// ifft round-trip for non-pow2 N (Bluestein path, dir=-1).
+TEST(DspFftPublicApi, NonPow2RoundTrip)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    for (size_t N : {size_t{15}, size_t{97}, size_t{480}, size_t{1323}}) {
+        auto x = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+        for (size_t n = 0; n < N; ++n)
+            x.doubleDataMut()[n] = std::sin(0.13 * double(n))
+                                 + 0.4 * std::cos(0.21 * double(n));
+
+        Value X = numkit::signal::fft(mr, x);
+        Value y = numkit::signal::ifft(mr, X);
+        ASSERT_EQ(y.numel(), N);
+        const double *xd = x.doubleData();
+        for (size_t n = 0; n < N; ++n) {
+            const double got = y.isComplex() ? y.complexData()[n].real()
+                                             : y.doubleData()[n];
+            EXPECT_NEAR(got, xd[n], 1e-9) << "N=" << N << " n=" << n;
+        }
+    }
+}
+
 // ── Radix-4 path correctness at large pow-of-4 sizes ──────────────────
 //
 // kRadix4Threshold inside fft_simd.cpp is currently 1<<15 (32768);
@@ -351,7 +510,12 @@ TEST(DspFftStockham, MatchesRadix2_SmallSizes)
         std::vector<Complex> ref(N), test(N), W(N / 2);
         fillTestSignal(ref.data(), N);
         std::copy(ref.begin(), ref.end(), test.begin());
-        numkit::fillFftTwiddles(W.data(), N, /*dir=*/+1);
+        // Forward direction (dir=-1 → exp(-2πi·k/N)) — matches the
+        // cached twiddles used by the public fft() / ifft(). Radix-4
+        // SoA hardcodes its 4-point butterfly for forward direction,
+        // so dir=+1 here would silently disagree with r2 only on
+        // pow-of-4 sizes ≥ kRadix4SoaThreshold.
+        numkit::fillFftTwiddles(W.data(), N, /*dir=*/-1);
 
         numkit::signal::detail::fftRadix2Impl(ref.data(), N, W.data());
         numkit::signal::detail::fftStockhamDispatch(test.data(), N, W.data());
@@ -373,7 +537,12 @@ TEST(DspFftStockham, MatchesRadix2_LargeSizes)
         std::vector<Complex> ref(N), test(N), W(N / 2);
         fillTestSignal(ref.data(), N);
         std::copy(ref.begin(), ref.end(), test.begin());
-        numkit::fillFftTwiddles(W.data(), N, /*dir=*/+1);
+        // Forward direction (dir=-1 → exp(-2πi·k/N)) — matches the
+        // cached twiddles used by the public fft() / ifft(). Radix-4
+        // SoA hardcodes its 4-point butterfly for forward direction,
+        // so dir=+1 here would silently disagree with r2 only on
+        // pow-of-4 sizes ≥ kRadix4SoaThreshold.
+        numkit::fillFftTwiddles(W.data(), N, /*dir=*/-1);
 
         numkit::signal::detail::fftRadix2Impl(ref.data(), N, W.data());
         numkit::signal::detail::fftStockhamDispatch(test.data(), N, W.data());
@@ -399,7 +568,12 @@ TEST(DspFftR2SoA, MatchesRadix2_AllSizes)
         std::vector<Complex> ref(N), test(N), W(N / 2);
         fillTestSignal(ref.data(), N);
         std::copy(ref.begin(), ref.end(), test.begin());
-        numkit::fillFftTwiddles(W.data(), N, /*dir=*/+1);
+        // Forward direction (dir=-1 → exp(-2πi·k/N)) — matches the
+        // cached twiddles used by the public fft() / ifft(). Radix-4
+        // SoA hardcodes its 4-point butterfly for forward direction,
+        // so dir=+1 here would silently disagree with r2 only on
+        // pow-of-4 sizes ≥ kRadix4SoaThreshold.
+        numkit::fillFftTwiddles(W.data(), N, /*dir=*/-1);
 
         numkit::signal::detail::fftRadix2Impl(ref.data(), N, W.data());
         numkit::signal::detail::fftRadix2SoaDispatch(test.data(), N, W.data());
@@ -432,7 +606,12 @@ TEST(DspFftR4SoA, MatchesRadix2_PowerOfFourSizes)
         std::vector<Complex> ref(N), test(N), W(N / 2);
         fillTestSignal(ref.data(), N);
         std::copy(ref.begin(), ref.end(), test.begin());
-        numkit::fillFftTwiddles(W.data(), N, /*dir=*/+1);
+        // Forward direction (dir=-1 → exp(-2πi·k/N)) — matches the
+        // cached twiddles used by the public fft() / ifft(). Radix-4
+        // SoA hardcodes its 4-point butterfly for forward direction,
+        // so dir=+1 here would silently disagree with r2 only on
+        // pow-of-4 sizes ≥ kRadix4SoaThreshold.
+        numkit::fillFftTwiddles(W.data(), N, /*dir=*/-1);
 
         numkit::signal::detail::fftRadix2Impl(ref.data(), N, W.data());
         numkit::signal::detail::fftRadix4Pow4SoaDispatch(test.data(), N, W.data());

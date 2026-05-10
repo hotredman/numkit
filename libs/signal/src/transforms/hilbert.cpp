@@ -35,7 +35,9 @@ ScratchVec<Complex> hilbertBuf(std::pmr::memory_resource *mr, const Value &x)
     const size_t fftLen = nextPow2(N);
 
     auto buf = prepareFFTBuffer(mr, x, N, fftLen);
-    fftRadix2(mr, buf, 1);
+    // Forward FFT (dir=-1 selects the exp(-2πi·k/N) twiddles per
+    // dsp_helpers.hpp's fillFftTwiddles convention).
+    fftRadix2(mr, buf, -1);
 
     // Zero negative frequencies, double positive (excluding DC and Nyquist).
     for (size_t i = 1; i < fftLen / 2; ++i)
@@ -43,22 +45,13 @@ ScratchVec<Complex> hilbertBuf(std::pmr::memory_resource *mr, const Value &x)
     for (size_t i = fftLen / 2 + 1; i < fftLen; ++i)
         buf[i] = Complex(0.0, 0.0);
 
-    // IFFT via conjugate trick
+    // IFFT via conjugate trick: ifft(X) = conj(fft(conj(X)))/N.
     for (auto &v : buf)
         v = std::conj(v);
-    fftRadix2(mr, buf, 1);
+    fftRadix2(mr, buf, -1);
     const double invN = 1.0 / static_cast<double>(fftLen);
     for (auto &v : buf)
         v = std::conj(v) * invN;
-
-    // numkit's fftRadix2(dir=+1) uses MATLAB's IFFT sign convention
-    // (W[k] = exp(+2πi·k/N) instead of exp(-2πi·k/N)). With "positive
-    // frequencies" doubled at indices [1, N/2-1], the output's
-    // imaginary part comes out with the wrong sign (real part is
-    // unaffected because real(x) is invariant under conjugation).
-    // The fix: conjugate the output to flip the imaginary sign.
-    for (auto &v : buf)
-        v = std::conj(v);
 
     return buf;
 }
