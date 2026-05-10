@@ -1294,23 +1294,60 @@ function Composite3DPlot({
      *  figure rebuild runs. */
     getBBox: () => ctxRef.current?.bbox || null,
 
+    /** Live canvas element (raw DOM). Callers compute pixel dims off
+     *  it for high-DPI export. Returns null pre-mount. */
+    getCanvas: () => canvasRef.current || null,
+
+    /** Current CSS pixel size of the canvas — what the user sees. The
+     *  drawing-buffer size may differ when device pixel ratio != 1.
+     *  Used by exportPngPrint to derive the right scale factor for a
+     *  target physical-mm width. */
+    getCanvasCssSize: () => {
+      const cv = canvasRef.current;
+      if (!cv) return null;
+      return { width: cv.clientWidth || cv.width, height: cv.clientHeight || cv.height };
+    },
+
     /** Render once at `scale` and return a PNG data URL. Used by the
      *  FigureWindow Save/Export menu instead of the SVG pipeline (3-D
-     *  geometry lives in canvas). */
+     *  geometry lives in canvas).
+     *
+     *  scale > 1 grows the renderer's drawing buffer to scale × current
+     *  CSS size, renders one frame at that resolution, snapshots, and
+     *  restores the original size. The CSS size of the canvas element
+     *  itself doesn't change — the user's modal layout is untouched.
+     */
     getCanvasDataURL: (scale = 1) => {
       const c = ctxRef.current;
       const canvas = canvasRef.current;
       if (!c || !canvas) return null;
-      // Force a full redraw so preserveDrawingBuffer=false builds
-      // still capture content. We don't temporarily resize for `scale`
-      // here — the IDE's PNG@2× / print presets call this multiple
-      // times with different scales; if the user wants higher
-      // resolution they can resize the modal first. (TODO follow-up:
-      // offscreen render at scale × current size.)
-      void scale;
-      c.renderer.render(c.scene, c.camera);
-      c.css2d.render(c.scene, c.camera);
-      return canvas.toDataURL('image/png');
+      const s = Math.max(1, Number(scale) || 1);
+      if (s === 1) {
+        // Common path — just snapshot the live buffer.
+        c.renderer.render(c.scene, c.camera);
+        c.css2d.render(c.scene, c.camera);
+        return canvas.toDataURL('image/png');
+      }
+      // Higher-resolution path: grow the drawing buffer, render once,
+      // capture, restore. setSize(w, h, false) leaves the CSS size
+      // alone (the third arg is `updateStyle`); we change only the
+      // backing pixel count + pixel ratio so the captured PNG carries
+      // s× linear pixels.
+      const cssW = canvas.clientWidth || canvas.width;
+      const cssH = canvas.clientHeight || canvas.height;
+      const prevPR = c.renderer.getPixelRatio();
+      try {
+        c.renderer.setPixelRatio((window.devicePixelRatio || 1) * s);
+        // setSize keeps the same CSS coords; we just flag updateStyle=false.
+        c.renderer.setSize(cssW, cssH, false);
+        c.renderer.render(c.scene, c.camera);
+        c.css2d.render(c.scene, c.camera);
+        return canvas.toDataURL('image/png');
+      } finally {
+        c.renderer.setPixelRatio(prevPR);
+        c.renderer.setSize(cssW, cssH, false);
+        c.renderer.render(c.scene, c.camera);
+      }
     },
 
     /** Pull (name, x[], y[], z[]) per layer for CSV / TSV / JSON

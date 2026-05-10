@@ -374,18 +374,26 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     exportPngString(g.xml, g.w, g.h, scale, `figure_${figure.id}${suffix}.png`);
   }
   function exportPngPrint(mmWidth, dpi = 300) {
+    const targetPx = (mmWidth / 25.4) * dpi;
     if (is3D) {
-      // 3-D path can't resize the WebGL canvas on the fly without a
-      // re-mount, so print sizes use the same screen-resolution dump.
-      // Resolution scaling is a follow-up (offscreen render at target).
-      const url = threeRef.current?.getCanvasDataURL?.(1);
+      // 3-D path now resizes the renderer's drawing buffer to the
+      // target pixel count, renders once at high res, snapshots, and
+      // restores. The on-screen canvas CSS size is untouched.
+      const canvas = threeRef.current?.getCanvas?.();
+      // We don't expose a getCanvas helper today — derive scale from
+      // the live CSS width via the imperative handle's own caller-
+      // visible size hint. Fall back to scale=2 if unknown.
+      const ctxW = (threeRef.current?.getCanvasCssSize?.()?.width)
+                    || (typeof window !== 'undefined' && window.innerWidth)
+                    || 800;
+      const scale = Math.max(1, targetPx / ctxW);
+      const url = threeRef.current?.getCanvasDataURL?.(scale);
       if (!url) return;
       utilDownloadBlob(dataUrlToBlob(url), `figure_${figure.id}_${mmWidth}mm.png`);
       return;
     }
     const g = gatherFigureSvg();
     if (!g) return;
-    const targetPx = (mmWidth / 25.4) * dpi;
     const scale = targetPx / g.w;
     exportPngString(g.xml, g.w, g.h, scale, `figure_${figure.id}_${mmWidth}mm.png`);
   }
@@ -905,9 +913,22 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
             {isPolar ? (
               <div className="ve-tools-group fw-range-group">
                 <span className="ve-label">r</span>
-                <NumberInput value={viewport.r[0]} onCommit={(n) => setViewport({ r: [n, viewport.r[1]] })} />
+                <NumberInput value={viewport.r[0]}
+                  onCommit={(n) => setViewport({ ...viewport, r: [n, viewport.r[1]] })} />
                 <span className="fw-range-sep">→</span>
-                <NumberInput value={viewport.r[1]} onCommit={(n) => setViewport({ r: [viewport.r[0], n] })} />
+                <NumberInput value={viewport.r[1]}
+                  onCommit={(n) => setViewport({ ...viewport, r: [viewport.r[0], n] })} />
+                {/* θ in degrees, MATLAB convention. defaultPolarViewport
+                    fills [0, 360] when the script didn't set thetalim;
+                    user can narrow the sweep here for a pie-wedge plot. */}
+                <span className="ve-label" style={{ marginLeft: 6 }}>θ°</span>
+                <NumberInput value={(viewport.theta || [0, 360])[0]}
+                  onCommit={(n) => setViewport({ ...viewport,
+                    theta: [n, (viewport.theta || [0, 360])[1]] })} />
+                <span className="fw-range-sep">→</span>
+                <NumberInput value={(viewport.theta || [0, 360])[1]}
+                  onCommit={(n) => setViewport({ ...viewport,
+                    theta: [(viewport.theta || [0, 360])[0], n] })} />
               </div>
             ) : is3D ? (
               <div className="ve-tools-group fw-range-group">
@@ -943,7 +964,15 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
           {isSubplot ? (
             <span>{figure.cells.length} axes · per-cell pan/zoom</span>
           ) : isPolar ? (
-            <span>r ∈ [{fmtVp(viewport.r[0])}, {fmtVp(viewport.r[1])}]</span>
+            <>
+              <span>r ∈ [{fmtVp(viewport.r[0])}, {fmtVp(viewport.r[1])}]</span>
+              {Array.isArray(viewport.theta) && (
+                <>
+                  <span className="ve-sep" />
+                  <span>θ ∈ [{fmtVp(viewport.theta[0])}°, {fmtVp(viewport.theta[1])}°]</span>
+                </>
+              )}
+            </>
           ) : is3D ? (
             <>
               <span>x ∈ [{fmtVp(viewport.x[0])}, {fmtVp(viewport.x[1])}]</span>

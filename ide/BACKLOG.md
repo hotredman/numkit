@@ -291,9 +291,12 @@ These don't have shipping pressure. Each is a separate investment.
 - [ ] View-preset toolbar in FigureWindow (top / side / front / iso
       / reset) — would use the imperative `setView(az, el)` handle
       already on Composite3DPlot; just needs UI.
-- [ ] Higher-resolution 3-D PNG export — current
-      `getCanvasDataURL(scale)` ignores scale. Offscreen render at
-      target resolution.
+- [x] **Higher-resolution 3-D PNG export** — `getCanvasDataURL(scale)`
+      now grows the WebGL drawing buffer to `scale × current CSS size`,
+      renders one frame, snapshots, and restores. The on-screen
+      modal layout is untouched. `exportPngPrint(mmWidth, dpi)`
+      derives the right scale from CSS width via the new
+      `getCanvasCssSize` imperative method. Shipped 2026-05-10.
 - [ ] linkprop for 3-D camera across subplot cells.
 
 ## Notes
