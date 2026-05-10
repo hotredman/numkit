@@ -297,10 +297,14 @@ These don't have shipping pressure. Each is a separate investment.
 - [x] **`slice` — axis-aligned cross sections of a 3-D scalar volume.**
       `slice(V, sx, sy, sz)` and `slice(X, Y, Z, V, sx, sy, sz)`
       forms; each requested coordinate spawns one fill3-style
-      polygon-mesh dataset positioned in 3-D. Single representative
-      colour per slice (per-cell colormap remains a follow-up — needs
-      vertex-colours plumbing in `buildPolygon3D`). Shipped 2026-05-10.
-      e2e `slice.spec.js` (5 cases).
+      polygon-mesh dataset positioned in 3-D. Per-vertex colormap
+      now supported: each quad's four corners pull V values directly
+      from the volume and emit RGB triplets through the new
+      `vertexColorsJson` field on `DatasetInfo`. `buildPolygon3D`
+      sets a `color` BufferAttribute + `vertexColors=true` material
+      when the layer carries them; falls back to single-colour style
+      otherwise (back-compat for fill3 / isosurface / coneplot /
+      streamtube). Shipped 2026-05-10. e2e `slice.spec.js` (5 cases).
 - [x] **`isosurface` — marching cubes.** `isosurface(V, iso)` and
       `isosurface(X, Y, Z, V, iso)` forms. Standard Paul-Bourke 256-
       entry edge / triangle tables (vendored as static `const` arrays

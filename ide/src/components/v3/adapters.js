@@ -424,7 +424,10 @@ function datasetToLayer(d, palette_idx, ctx) {
 
   // fill3 — multi-polygon 3-D filled shapes. Wire format: x/y/z
   // arrays with null separators between polygon groups (parallel to
-  // the 2-D polygon path, plus z).
+  // the 2-D polygon path, plus z). Optional `vertexColors` carries
+  // a flat [r,g,b,r,g,b,...] uint8 list parallel to the finite
+  // (x, y, z) samples — null separators do NOT consume colour
+  // entries.
   if (t === 'fill3') {
     const xRaw = Array.isArray(d.x) ? d.x.map(numOrBreak) : [];
     const yRaw = Array.isArray(d.y) ? d.y.map(numOrBreak) : [];
@@ -439,6 +442,7 @@ function datasetToLayer(d, palette_idx, ctx) {
       x: xRaw, y: yRaw,
       xRaw, yRaw,
       z: zRaw,
+      vertexColors: Array.isArray(d.vertexColors) ? d.vertexColors : null,
       color: styleObj2.color || '#9467bd',
       width: 1,
       size: 3,
