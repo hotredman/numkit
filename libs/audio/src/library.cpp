@@ -26,6 +26,11 @@ void spectralFlux_reg        (Span<const Value>, size_t, Span<Value>, CallContex
 // spectral/melspec_delta.cpp
 void melSpectrogram_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void audioDelta_reg          (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// spectral/cepstral.cpp
+void cepstralCoefficients_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void mfcc_reg                (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gtcc_reg                (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::audio::detail
 
 namespace numkit {
@@ -55,6 +60,10 @@ void AudioLibrary::install(Engine &engine)
 
     reg("spectral", "melSpectrogram",       &audio::detail::melSpectrogram_reg);
     reg("features", "audioDelta",           &audio::detail::audioDelta_reg);
+
+    reg("features", "cepstralCoefficients", &audio::detail::cepstralCoefficients_reg);
+    reg("features", "mfcc",                 &audio::detail::mfcc_reg);
+    reg("features", "gtcc",                 &audio::detail::gtcc_reg);
 }
 
 } // namespace numkit

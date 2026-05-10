@@ -1,0 +1,10 @@
+{
+  "name": "audio_cepstral",
+  "namespace": "audio",
+  "setup": "S = [10; 5; 2; 1; 0.5; 0.25; 0.1; 0.05]; S2 = [10 1; 5 2; 2 5; 1 10; 0.5 5; 0.25 2; 0.1 1; 0.05 0.5]; fs = 16000; t = (0:1/fs:0.1)'; xs = sin(2*pi*440*t);",
+  "expr": "c1 = cepstralCoefficients(S); c1_1 = c1(1); c1_2 = c1(2); c1_4 = c1(4); c1_6 = c1(6); c2 = cepstralCoefficients(S2); c2_21 = c2(2,1); c2_22 = c2(2,2); c2_24 = c2(2,4); c2_25 = c2(2,5); [mc, md, mdd] = mfcc(xs, fs); mfcc_R = size(mc, 1); mfcc_C = size(mc, 2);",
+  "iters": 5,
+  "tol": 1e-4,
+  "fingerprint": ["c1_1", "c1_2", "c1_4", "c1_6", "c2_21", "c2_22", "c2_24", "c2_25", "mfcc_R", "mfcc_C"],
+  "comment": "MATLAB Audio Toolbox cycle D: cepstralCoefficients (bit-equal vs MATLAB R2025b — DCT-II unitary matrix from createDCTmatrix.m + log10 rectification, output shape M×NumCoeffs). Tested on single-frame and multi-frame synthetic 8-band spectra. mfcc shape pinned (NumFrames × NumCoeffs+1 with LogEnergy='append' default). KNOWN GAPs: mfcc/gtcc EXACT bit-equality deferred — MATLAB uses |FFT| magnitude into a custom internal designMelFilterBank with different normalization than our melSpectrogram (cycle C uses |FFT|^2 power). v1 ships shape-correct + approximate values via the existing melSpectrogram pipeline. gtcc currently aliases to mfcc (gammatone ERB filterbank deferred to v2 — needs IIR gammatone shape, not triangular). Octave 11.1.0 doesn't ship cepstralCoefficients/mfcc/gtcc in core (Audio package only)."
+}
