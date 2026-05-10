@@ -120,6 +120,7 @@ struct AxesState
 {
     std::vector<DatasetInfo> datasets;
     std::string title;
+    std::string subtitle;
     std::string xlabel;
     std::string ylabel;
     std::string xlimJson;
@@ -457,6 +458,8 @@ public:
                 }
                 os << "],\"config\":{";
                 os << "\"title\":\"" << jsonEscapeFig(ax.title) << "\"";
+                if (!ax.subtitle.empty())
+                    os << ",\"subtitle\":\"" << jsonEscapeFig(ax.subtitle) << "\"";
                 os << ",\"xlabel\":\"" << jsonEscapeFig(ax.xlabel) << "\"";
                 os << ",\"ylabel\":\"" << jsonEscapeFig(ax.ylabel) << "\"";
                 if (!ax.xlimJson.empty())

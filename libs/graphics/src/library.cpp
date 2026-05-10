@@ -4837,6 +4837,32 @@ void GraphicsLibrary::install(Engine &engine)
             }
             outs[0] = Value::empty();
         });
+    reg("layout", "subtitle",
+        [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            if (!args.empty()) {
+                auto &fm = ctx.engine->figureManager();
+                fm.currentAxes().subtitle = argStr(args[0]);
+                fm.current().modified = true;
+                fm.emitModified();
+            }
+            outs[0] = Value::empty();
+        });
+    // sgtitle — figure-level "super title". numkit doesn't have a
+    // dedicated figure title slot, so v1 routes to the first axes'
+    // title field. Visually equivalent for single-cell figures;
+    // subplot grid figures get the title only on cell 1 — full
+    // figure-level rendering is BACKLOG.
+    reg("layout", "sgtitle",
+        [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            if (!args.empty()) {
+                auto &fm = ctx.engine->figureManager();
+                if (!fm.current().axes.empty())
+                    fm.current().axes[0].title = argStr(args[0]);
+                fm.current().modified = true;
+                fm.emitModified();
+            }
+            outs[0] = Value::empty();
+        });
 
     reg("layout", "xlabel",
         [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
