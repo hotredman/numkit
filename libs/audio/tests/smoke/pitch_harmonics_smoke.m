@@ -34,8 +34,16 @@ fprintf('  CEP first 5: '); fprintf('%.4f ', f0_cep(1:5)); fprintf('\n');
 fprintf('  expect: 213.3333 246.1538 246.1538 216.2162 246.1538 (bit-equal MATLAB)\n');
 fprintf('  CEP mean = %.4f (expect 233.6022)\n', mean(f0_cep));
 
+fprintf('\n[pitch PEF method on 220 Hz sine — Cycle K-2]\n');
+f0_pef = pitch(x, fs, 'Method', 'PEF');
+fprintf('  PEF first 5: '); fprintf('%.6f ', f0_pef(1:5)); fprintf('\n');
+fprintf('  expect: 220.604203 (constant across frames — bit-equal MATLAB)\n');
+fprintf('  PEF mean = %.6f (expect 220.604203)\n', mean(f0_pef));
+
 fprintf('\nKNOWN GAPs:\n');
-fprintf('  pitch methods: NCF (default) + CEP (cycle K) shipped — bit-equal MATLAB.\n');
-fprintf('  PEF/LHS/SRH still deferred to v2.\n');
+fprintf('  pitch methods: NCF (default) + CEP (cycle K) + PEF (cycle K-2) shipped.\n');
+fprintf('  CEP and PEF are bit-equal MATLAB R2025b.\n');
+fprintf('  LHS/SRH still deferred — block on libs/signal::fft non-power-of-2 fix\n');
+fprintf('    (both methods use fftLength=round(fs) which is non-power-of-2 typically).\n');
 fprintf('  pitchnn: requires DNN runtime, deferred entirely.\n');
 fprintf('  harmonicRatio: full MATLAB R2025b parity (auto low-edge + parabolic refinement).\n');

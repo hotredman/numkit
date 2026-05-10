@@ -105,10 +105,11 @@ TEST_F(FreqScalesTest, EmptyInputEmptyOutput)
     EXPECT_EQ(static_cast<int>(evalScalar("numel(v)")), 0);
 }
 
-// ── Cycle M: ISO 532-2 phon/sone (PCHIP table-lookup) ────────────────
+// ── Cycle M + M-2: ISO 532-2 phon/sone (PCHIP + bisection) ───────────
 // All in-range values bit-equal vs MATLAB R2025b phon2sone/sone2phon
-// with second arg 'ISO 532-2'. Out-of-range (phon > 120) ships
-// pchip-extrapolation only (KNOWN GAP — fzero refinement deferred).
+// with second arg 'ISO 532-2'. Cycle M-2 closed the previous fzero
+// refinement gap — phon2sone now refines via inline bisection so that
+// sone2phon(phon2sone(p)) == p to ~1e-12.
 TEST_F(FreqScalesTest, ISO5322TableExactValues)
 {
     // Table 5 anchor points (28 entries from MATLAB getPerceptualConstants.m):
@@ -151,4 +152,15 @@ TEST_F(FreqScalesTest, ISO5322DiffersFromISO5321)
     // ISO 532-2: phon2sone(20) =  0.146 (Table 5 lookup)
     EXPECT_NEAR(evalScalar("phon2sone(20)"),                  0.138011, 1e-5);
     EXPECT_NEAR(evalScalar("phon2sone(20, 'ISO 532-2')"),     0.146,    1e-9);
+}
+
+TEST_F(FreqScalesTest, ISO5322RoundtripBisectionRefinement)
+{
+    // Cycle M-2: phon2sone now refines initial PCHIP guess via inline
+    // bisection so that sone2phon(phon2sone(p)) == p to ~1e-9. Tests
+    // off-anchor phon values where PCHIP guess alone would drift.
+    EXPECT_NEAR(evalScalar("sone2phon(phon2sone(17, 'ISO 532-2'), 'ISO 532-2')"),  17.0, 1e-9);
+    EXPECT_NEAR(evalScalar("sone2phon(phon2sone(33, 'ISO 532-2'), 'ISO 532-2')"),  33.0, 1e-9);
+    EXPECT_NEAR(evalScalar("sone2phon(phon2sone(47, 'ISO 532-2'), 'ISO 532-2')"),  47.0, 1e-9);
+    EXPECT_NEAR(evalScalar("sone2phon(phon2sone(73, 'ISO 532-2'), 'ISO 532-2')"),  73.0, 1e-9);
 }
