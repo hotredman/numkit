@@ -858,8 +858,6 @@ void GraphicsLibrary::install(Engine &engine)
             }
             auto &fm = ctx.engine->figureManager();
             fm.prepareForPlot();
-            DatasetInfo ds;
-            ds.type = "area";
 
             // Find optional baseline (last numeric scalar arg) and skip
             // line specs (char args).
@@ -867,32 +865,116 @@ void GraphicsLibrary::install(Engine &engine)
             for (size_t i = 0; i < args.size(); ++i) {
                 if (args[i].isChar()) { nData = i; break; }
             }
+
+            // Identify the Y data Value and its layout. MATLAB
+            // distinguishes vector vs matrix:
+            //   area(Y)         — Y vector → 1 series; Y matrix → cols stacked
+            //   area(x, Y)      — same with explicit x
+            //   area(x, Y, base)— optional baseline scalar
+            const Value *xData = nullptr;
+            const Value *yData = nullptr;
             double baseline = 0.0;
             bool hasBase = false;
-
             if (nData == 1) {
-                ds.xJson = makeIndexJson(args[0].numel());
-                ds.yJson = vecToJson(args[0]);
+                yData = &args[0];
             } else if (nData >= 2) {
-                ds.xJson = vecToJson(args[0]);
-                ds.yJson = vecToJson(args[1]);
+                xData = &args[0];
+                yData = &args[1];
                 if (nData >= 3 && args[2].numel() == 1) {
                     baseline = args[2].toScalar();
                     hasBase = true;
                 }
             }
-            // Handle optional N-V pairs (FaceColor, LineWidth, …) after
-            // the data args. parsePlotArgs is forgiving about unknown
-            // names; baseline gets piggybacked on ds.style as a
-            // "base=N" suffix that the adapter parses out.
-            parsePlotArgs(args, nData, ds);
-            if (hasBase) {
-                std::ostringstream os;
-                if (!ds.style.empty()) os << ds.style << ";";
-                os << "base=" << baseline;
-                ds.style = os.str();
+            if (!yData) { outs[0] = Value::empty(); return; }
+
+            const size_t Yr = yData->dims().rows();
+            const size_t Yc = yData->dims().cols();
+            // Stacked path: matrix Y with rows>1 AND cols>1.
+            const bool stacked = (Yr > 1 && Yc > 1);
+            // Palette colours for stacked series — sampled from a
+            // distinct ramp so users don't see all-blue.
+            static const char *kStackPalette[8] = {
+                "#7fd99a", "#5fb3d4", "#e9b870", "#9b8cf2",
+                "#e26a6a", "#d4a5e6", "#f2a37e", "#6fcfbf",
+            };
+
+            if (!stacked) {
+                // Single-series path — backwards-compatible with the
+                // previous wire format.
+                DatasetInfo ds;
+                ds.type = "area";
+                if (nData == 1) {
+                    ds.xJson = makeIndexJson(yData->numel());
+                    ds.yJson = vecToJson(*yData);
+                } else {
+                    ds.xJson = vecToJson(*xData);
+                    ds.yJson = vecToJson(*yData);
+                }
+                parsePlotArgs(args, nData, ds);
+                if (hasBase) {
+                    std::ostringstream os;
+                    if (!ds.style.empty()) os << ds.style << ";";
+                    os << "base=" << baseline;
+                    ds.style = os.str();
+                }
+                fm.pushDataset(std::move(ds));
+                fm.emitModified();
+                outs[0] = Value::empty();
+                return;
             }
-            fm.pushDataset(std::move(ds));
+
+            // ── Stacked path ──────────────────────────────────────
+            // For each row r, compute cumulative sums S[r][c] =
+            // sum_{c'=0..c} Y[r][c']. Emit one dataset per column of
+            // Y, each with y = S[r][c]; render order is REVERSE so
+            // the topmost band (largest cumulative) is drawn first
+            // and gets overdrawn from below — yielding visible bands
+            // for c = Yc-1, Yc-2, ..., 0.
+            std::vector<std::vector<double>> S(Yr, std::vector<double>(Yc, 0.0));
+            const double *Yp = yData->doubleData();
+            for (size_t r = 0; r < Yr; ++r) {
+                double acc = 0;
+                for (size_t c = 0; c < Yc; ++c) {
+                    acc += Yp[c * Yr + r];   // column-major
+                    S[r][c] = acc;
+                }
+            }
+            // X vector — explicit when given, else 1..Yr.
+            std::ostringstream xs;
+            xs << '[';
+            if (xData) {
+                for (size_t r = 0; r < Yr; ++r) {
+                    if (r) xs << ',';
+                    xs << xData->doubleData()[r];
+                }
+            } else {
+                for (size_t r = 0; r < Yr; ++r) {
+                    if (r) xs << ',';
+                    xs << (r + 1);
+                }
+            }
+            xs << ']';
+            const std::string xJsonStr = xs.str();
+
+            // Emit datasets c = Yc-1 down to 0 (topmost band first).
+            for (long long cc = (long long)Yc - 1; cc >= 0; --cc) {
+                DatasetInfo ds;
+                ds.type = "area";
+                ds.xJson = xJsonStr;
+                std::ostringstream ys;
+                ys << '[';
+                for (size_t r = 0; r < Yr; ++r) {
+                    if (r) ys << ',';
+                    ys << S[r][(size_t)cc];
+                }
+                ys << ']';
+                ds.yJson = ys.str();
+                std::ostringstream sty;
+                sty << "color=" << kStackPalette[(size_t)cc % 8];
+                if (hasBase) sty << ";base=" << baseline;
+                ds.style = sty.str();
+                fm.pushDataset(std::move(ds));
+            }
             fm.emitModified();
             outs[0] = Value::empty();
         });

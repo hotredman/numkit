@@ -285,8 +285,15 @@ These don't have shipping pressure. Each is a separate investment.
       classic MATLAB banded contour fill. Saddle codes 5 / 10 are
       split into two disjoint triangles. Shipped 2026-05-10. e2e
       `contourf.spec.js` (5 cases).
-- [ ] `area` stacked — multi-series stacked-area plots; needs
-      baseline tracking across layers.
+- [x] **`area` stacked.** `area(Y)` / `area(x, Y)` where Y is a
+      matrix (rows > 1, cols > 1) now emits one `area` dataset per
+      column with cumulative-sum y-values, in REVERSE column order.
+      The render order causes lower bands to overdraw the bottom of
+      higher bands → classic stacked-area visual without changing
+      the area-render path. Each band gets a distinct palette colour
+      (8-entry rotation). Vector Y and column-vector Y stay on the
+      single-series back-compat path. Shipped 2026-05-10. e2e
+      `area-stacked.spec.js` (5 cases).
 - [x] **`slice` — axis-aligned cross sections of a 3-D scalar volume.**
       `slice(V, sx, sy, sz)` and `slice(X, Y, Z, V, sx, sy, sz)`
       forms; each requested coordinate spawns one fill3-style
