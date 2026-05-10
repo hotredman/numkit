@@ -101,7 +101,34 @@ const NAMED = {
 };
 
 export function getColormap(name) {
-  return NAMED[name?.toLowerCase()] || interpolateParula;
+  // Already an interpolator function? (custom palette path.)
+  if (typeof name === 'function') return name;
+  return NAMED[name?.toLowerCase?.()] || interpolateParula;
+}
+
+/**
+ * Build an interpolator function from a custom N×3 RGB matrix.
+ * Each row is [r, g, b] in [0, 1] (MATLAB convention). The returned
+ * function takes t∈[0, 1] and returns "rgb(R,G,B)" (matching the
+ * named colormap interpolators).
+ */
+export function makeCustomColormap(matrix) {
+  if (!Array.isArray(matrix) || matrix.length === 0) {
+    return interpolateParula;
+  }
+  return (t) => {
+    const ct = Math.max(0, Math.min(1, t));
+    const idx = ct * (matrix.length - 1);
+    const i0 = Math.floor(idx);
+    const i1 = Math.min(matrix.length - 1, i0 + 1);
+    const f = idx - i0;
+    const a = matrix[i0] || [0, 0, 0];
+    const b = matrix[i1] || a;
+    const r = Math.round(255 * (a[0] + f * (b[0] - a[0])));
+    const g = Math.round(255 * (a[1] + f * (b[1] - a[1])));
+    const bb = Math.round(255 * (a[2] + f * (b[2] - a[2])));
+    return `rgb(${r},${g},${bb})`;
+  };
 }
 
 const lutCache = new WeakMap();
