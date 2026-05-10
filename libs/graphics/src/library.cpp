@@ -5358,6 +5358,98 @@ void GraphicsLibrary::install(Engine &engine)
             interactionToggle(&AxesState::zoom3dMode, a, o, c);
         });
 
+    // xticks / yticks / zticks — set custom tick positions. Accept a
+    // numeric vector OR the string "auto" to clear. With no args,
+    // the v1 returns an empty value (true MATLAB returns the
+    // auto-generated tick set; needs renderer-side query plumbing).
+    auto ticksReg = [](std::string AxesState::*field) {
+        return [field](Span<const Value> args, size_t nargout,
+                       Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            auto &fm = ctx.engine->figureManager();
+            auto &ax = fm.currentAxes();
+            if (args.empty()) {
+                outs[0] = Value::empty();
+                return;
+            }
+            if (args[0].isChar()) {
+                std::string s = args[0].toString();
+                for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+                if (s == "auto") {
+                    (ax.*field).clear();
+                    fm.current().modified = true;
+                    fm.emitModified();
+                }
+                outs[0] = Value::empty();
+                return;
+            }
+            std::ostringstream os;
+            os << '[';
+            const size_t n = args[0].numel();
+            for (size_t i = 0; i < n; ++i) {
+                if (i) os << ',';
+                os << args[0].elemAsDouble(i);
+            }
+            os << ']';
+            ax.*field = os.str();
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        };
+    };
+    reg("layout", "xticks", ticksReg(&AxesState::xTicksJson));
+    reg("layout", "yticks", ticksReg(&AxesState::yTicksJson));
+    reg("layout", "zticks", ticksReg(&AxesState::zTicksJson));
+
+    // xticklabels / yticklabels / zticklabels — set custom tick label
+    // strings. Accept a cell of strings, a string array, or a single
+    // multiline string. v1: cell-of-chars (most common) supported via
+    // per-element toString; "auto" clears.
+    auto tickLabelsReg = [](std::string AxesState::*field) {
+        return [field](Span<const Value> args, size_t nargout,
+                       Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            auto &fm = ctx.engine->figureManager();
+            auto &ax = fm.currentAxes();
+            if (args.empty()) { outs[0] = Value::empty(); return; }
+            if (args[0].isChar()) {
+                std::string s = args[0].toString();
+                std::string sl;
+                for (char c : s) sl.push_back((char)std::tolower((unsigned char)c));
+                if (sl == "auto") {
+                    (ax.*field).clear();
+                    fm.current().modified = true;
+                    fm.emitModified();
+                }
+                outs[0] = Value::empty();
+                return;
+            }
+            // Build "[\"a\",\"b\",...]" from cell/string-array.
+            std::ostringstream os;
+            os << '[';
+            const size_t n = args[0].numel();
+            for (size_t i = 0; i < n; ++i) {
+                if (i) os << ',';
+                Value elem = args[0].elemAt(i, ctx.engine->resource());
+                std::string s = elem.isChar() ? elem.toString() : "";
+                os << '"';
+                for (char c : s) {
+                    if (c == '"' || c == '\\') os << '\\';
+                    os << c;
+                }
+                os << '"';
+            }
+            os << ']';
+            ax.*field = os.str();
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        };
+    };
+    reg("layout", "xticklabels", tickLabelsReg(&AxesState::xTickLabelsJson));
+    reg("layout", "yticklabels", tickLabelsReg(&AxesState::yTickLabelsJson));
+    reg("layout", "zticklabels", tickLabelsReg(&AxesState::zTickLabelsJson));
+
     reg("layout", "axes", noop_ret1);
     reg("layout", "gca", noop_ret1);
     reg("layout", "gcf", noop_ret1);

@@ -156,6 +156,16 @@ struct AxesState
     std::string yscale = "linear";
     std::string colorScale = "linear";  // 'linear' | 'log' — survives prepareForPlot
     std::string axisMode;
+    // Custom tick positions / labels. Empty = renderer auto-generates
+    // (`niceTicks`). Non-empty values override the auto-generated set
+    // for the corresponding axis. Labels override only when their length
+    // matches the corresponding ticks count.
+    std::string xTicksJson;
+    std::string yTicksJson;
+    std::string zTicksJson;
+    std::string xTickLabelsJson;   // ["lo","mid","hi"] format
+    std::string yTickLabelsJson;
+    std::string zTickLabelsJson;
     // axisVisible — MATLAB `axis off` / `axis on` controls whether the
     // axes lines / ticks / labels render. true = drawn (default), false
     // = hidden. imshow ships axis off implicitly (image-only viewport).
@@ -474,6 +484,18 @@ public:
                 os << ",\"yscale\":\"" << ax.yscale << "\"";
                 if (!ax.axisMode.empty())
                     os << ",\"axisMode\":\"" << ax.axisMode << "\"";
+                if (!ax.xTicksJson.empty())
+                    os << ",\"xticks\":" << ax.xTicksJson;
+                if (!ax.yTicksJson.empty())
+                    os << ",\"yticks\":" << ax.yTicksJson;
+                if (!ax.zTicksJson.empty())
+                    os << ",\"zticks\":" << ax.zTicksJson;
+                if (!ax.xTickLabelsJson.empty())
+                    os << ",\"xticklabels\":" << ax.xTickLabelsJson;
+                if (!ax.yTickLabelsJson.empty())
+                    os << ",\"yticklabels\":" << ax.yTickLabelsJson;
+                if (!ax.zTickLabelsJson.empty())
+                    os << ",\"zticklabels\":" << ax.zTickLabelsJson;
                 // axisVisible default = true; emit only when off
                 // (imshow / `axis off` set this).
                 if (!ax.axisVisible)

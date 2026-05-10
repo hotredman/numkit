@@ -422,9 +422,42 @@ export default function CompositePlot({
     }
     return { major, minor };
   }
-  const xTicks = xLogActive ? logTicks(xMin, xMax) : niceTicks(xMin, xMax, 8);
-  const yTicks = yLogActive ? logTicks(yMin, yMax) : niceTicks(yMin, yMax, 6);
+  // Custom tick positions from xticks() / yticks() override the
+  // auto-generated set. Filter to the visible range so off-screen
+  // ticks don't bleed into the margin.
+  const xTicksAuto = xLogActive ? logTicks(xMin, xMax) : niceTicks(xMin, xMax, 8);
+  const yTicksAuto = yLogActive ? logTicks(yMin, yMax) : niceTicks(yMin, yMax, 6);
+  const xTicks = (Array.isArray(figure.xTicks) && figure.xTicks.length > 0)
+    ? { major: figure.xTicks.filter((v) => v >= xMin && v <= xMax), minor: [] }
+    : xTicksAuto;
+  const yTicks = (Array.isArray(figure.yTicks) && figure.yTicks.length > 0)
+    ? { major: figure.yTicks.filter((v) => v >= yMin && v <= yMax), minor: [] }
+    : yTicksAuto;
 
+  // Custom-label lookups: when xticklabels(["a","b","c"]) was called
+  // and matches the xticks count, we substitute the string directly
+  // for that tick's numeric format. Indexing follows the major-tick
+  // order returned above.
+  const fmtXTickLabel = (v, i) => {
+    if (Array.isArray(figure.xTickLabels)
+        && figure.xTickLabels.length > 0
+        && Array.isArray(figure.xTicks)
+        && figure.xTicks.length === figure.xTickLabels.length
+        && i < figure.xTickLabels.length) {
+      return String(figure.xTickLabels[i]);
+    }
+    return fmtTick(v);
+  };
+  const fmtYTickLabel = (v, i) => {
+    if (Array.isArray(figure.yTickLabels)
+        && figure.yTickLabels.length > 0
+        && Array.isArray(figure.yTicks)
+        && figure.yTicks.length === figure.yTickLabels.length
+        && i < figure.yTickLabels.length) {
+      return String(figure.yTickLabels[i]);
+    }
+    return fmtTick(v);
+  };
   function fmtTick(v) {
     const a = Math.abs(v);
     if (a !== 0 && (a < 1e-3 || a >= 1e5)) return v.toExponential(1);
@@ -990,7 +1023,7 @@ export default function CompositePlot({
         return (
           <g key={`xl${i}`}>
             <line x1={x} x2={x} y1={padT + H} y2={padT + H + 4} stroke="var(--plot-tick)" />
-            <text x={x} y={padT + H + 14 * fontScale + 2} fill="var(--plot-text)" fontSize={10 * fontScale} textAnchor="middle">{fmtTick(v)}</text>
+            <text x={x} y={padT + H + 14 * fontScale + 2} fill="var(--plot-text)" fontSize={10 * fontScale} textAnchor="middle">{fmtXTickLabel(v, i)}</text>
           </g>
         );
       })}
@@ -1000,7 +1033,7 @@ export default function CompositePlot({
         return (
           <g key={`yl${i}`}>
             <line x1={padL - 4} x2={padL} y1={y} y2={y} stroke="var(--plot-tick)" />
-            <text x={padL - 7} y={y + 3} fill="var(--plot-text)" fontSize={10 * fontScale} textAnchor="end">{fmtTick(v)}</text>
+            <text x={padL - 7} y={y + 3} fill="var(--plot-text)" fontSize={10 * fontScale} textAnchor="end">{fmtYTickLabel(v, i)}</text>
           </g>
         );
       })}
