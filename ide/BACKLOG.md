@@ -276,9 +276,15 @@ and preview ↔ modal coherence).
 
 These don't have shipping pressure. Each is a separate investment.
 
-- [ ] `contourf` filled bands — current impl draws lines; real
-      filled contours need filled-marching-squares with closed
-      polygons per band.
+- [x] **`contourf` filled bands.** Separate impl from `contour` —
+      walks marching-squares per level (ascending) and emits a closed
+      polygon for the region "Z >= L" via the existing
+      `type='polygon'` dataset path, with colour from the same HSL
+      ramp. A bottom band coloured at zmn fills the entire data
+      extent first; descending layers overdraw smaller regions →
+      classic MATLAB banded contour fill. Saddle codes 5 / 10 are
+      split into two disjoint triangles. Shipped 2026-05-10. e2e
+      `contourf.spec.js` (5 cases).
 - [ ] `area` stacked — multi-series stacked-area plots; needs
       baseline tracking across layers.
 - [ ] `slice` / `isosurface` — volume rendering on 3-D scalar
