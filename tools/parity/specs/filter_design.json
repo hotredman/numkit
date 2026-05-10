@@ -1,0 +1,10 @@
+{
+  "name": "filter_design",
+  "namespace": "image",
+  "setup": "",
+  "expr": "ha = fspecial3('average'); hg = fspecial3('gaussian'); hg333 = fspecial3('gaussian', [3 3 3], 1); hl = fspecial3('laplacian'); hsx = fspecial3('sobel', 'X'); hsy = fspecial3('sobel', 'Y'); hsz = fspecial3('sobel', 'Z'); haSum = sum(ha(:)); hgSum = sum(hg(:)); hlSum = sum(hl(:)); haSize = size(ha, 1); hg333Center = hg333(2, 2, 2); hlCenter = hl(2, 2, 2); sxValA = hsx(1, 1, 1); sxValB = hsx(1, 1, 2); sxValC = hsx(2, 2, 2); syValA = hsy(1, 1, 2); szValA = hsz(2, 2, 1); fw = fwind2(ones(7), ones(7)); fwSum = sum(fw(:)); fwSize = size(fw, 1);",
+  "iters": 5,
+  "tol": 1e-6,
+  "fingerprint": ["haSum", "haSize", "hgSum", "hg333Center", "hlSum", "hlCenter", "sxValA", "sxValB", "sxValC", "syValA", "szValA", "fwSum", "fwSize"],
+  "comment": "MATLAB Image Toolbox filter-design utilities (cycle 4): fspecial3 (all 7 types: average/gaussian/laplacian/log/prewitt/sobel/ellipsoid) + fwind2 (2-D FIR via 2-D window method). Bit-equal with MATLAB R2025b on key invariants (sums, centers, sobel structure across all three directions X/Y/Z). KNOWN GAPs (deferred to v2): fsamp2 (requires 2-D IFFT), ftrans2 (Chebyshev polynomial recurrence), fwind1 (Chebyshev), gabor (object class infrastructure). All four deferred fns registered with explicit 'not implemented in v1' errors so MATLAB scripts get clear messages instead of undefined-function. Octave 11.1.0 ships fspecial3 in image package only; fsamp2/fwind2 in image package."
+}
