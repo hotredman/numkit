@@ -10,7 +10,11 @@ set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/responses.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/predicates.cpp
     # digital_filtering/
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/buffer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/filter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/poly_utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/quantizers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/shiftdata.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/sosfilt.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/spec_driven.cpp
     # filter_implementation/
@@ -39,6 +43,7 @@ set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/measurements/pulse_metrics.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/measurements/vibration.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/measurements/sigroi.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/sig_utils.cpp
     # spectral_analysis/
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/periodogram_pwelch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/spectral_metrics.cpp

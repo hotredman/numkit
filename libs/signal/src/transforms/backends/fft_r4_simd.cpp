@@ -109,14 +109,17 @@ HWY_NOINLINE void radix4Stage(Complex *buf, std::size_t N, std::size_t len,
                 const auto dre = hn::Sub(x1re, x3re);
                 const auto dim = hn::Sub(x1im, x3im);
 
+                // Forward radix-4 DFT: A_1 = b - i*dc, A_3 = b + i*dc.
+                // (b - i*dc) = (bre + dim, bim - dre);
+                // (b + i*dc) = (bre - dim, bim + dre).
                 hn::StoreInterleaved2(hn::Add(are, cre),
                                       hn::Add(aim, cim), d, pU);
-                hn::StoreInterleaved2(hn::Sub(bre, dim),
-                                      hn::Add(bim, dre), d, pV);
+                hn::StoreInterleaved2(hn::Add(bre, dim),
+                                      hn::Sub(bim, dre), d, pV);
                 hn::StoreInterleaved2(hn::Sub(are, cre),
                                       hn::Sub(aim, cim), d, pW);
-                hn::StoreInterleaved2(hn::Add(bre, dim),
-                                      hn::Sub(bim, dre), d, pZ);
+                hn::StoreInterleaved2(hn::Sub(bre, dim),
+                                      hn::Add(bim, dre), d, pZ);
             }
         }
         for (; j < m; ++j) {
@@ -130,9 +133,9 @@ HWY_NOINLINE void radix4Stage(Complex *buf, std::size_t N, std::size_t len,
             const Complex dc = x1 - x3;
             const Complex id = Complex(-dc.imag(), dc.real());
             buf[i + j          ] = a + c;
-            buf[i + j +     m  ] = b + id;
+            buf[i + j +     m  ] = b - id;     // A_1 forward = b - i*dc
             buf[i + j + 2 * m  ] = a - c;
-            buf[i + j + 3 * m  ] = b - id;
+            buf[i + j + 3 * m  ] = b + id;     // A_3 forward = b + i*dc
         }
     }
 }

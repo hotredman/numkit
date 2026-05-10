@@ -14,6 +14,7 @@
 #include <numkit/graphics/library.hpp>
 #include <numkit/io/library.hpp>
 #include <numkit/optim/library.hpp>
+#include <numkit/audio/library.hpp>
 #include <numkit/core/tree_walker.hpp>
 #include <numkit/core/vm.hpp>
 #include <algorithm>
@@ -79,6 +80,7 @@ Engine::Engine(std::pmr::memory_resource *mr)
     GraphicsLibrary::install(*this);
     IoLibrary::install(*this);
     OptimLibrary::install(*this);
+    AudioLibrary::install(*this);
 }
 
 Engine::~Engine()

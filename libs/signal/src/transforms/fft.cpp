@@ -78,6 +78,18 @@ inline TwiddleCache &twiddleCache()
 // fftLen/2 for an fftLen-point FFT. Caller must not write to it.
 // Inverse FFT is done via the conjugate trick in fftAlongDim, so
 // only forward tables are ever cached.
+//
+// fillFftTwiddles convention (see dsp_helpers.hpp):
+//   dir = -1  →  W[k] = exp(-2πi·k/N)  →  FORWARD DFT kernel
+//   dir = +1  →  W[k] = exp(+2πi·k/N)  →  INVERSE DFT kernel
+// Plugged into the standard Cooley-Tukey butterfly, the sign of the
+// twiddle exponent IS the direction of the transform. We need forward
+// here because the inverse path goes through conjugate-trick
+// (conj → forward FFT → conj/N) in runComplex below. A pre-2026-05-10
+// regression had this filled with +1 (mathematically inverse), which
+// made every numkit fft return the conjugate of MATLAB's — invisible
+// for real-input parity tests that check magnitudes / real parts, but
+// visible for complex inputs as a spatial mirror around DC.
 const Complex *getCachedTwiddleFwd(std::size_t fftLen)
 {
     auto &c = twiddleCache();
@@ -86,9 +98,96 @@ const Complex *getCachedTwiddleFwd(std::size_t fftLen)
     if (it != c.tables.end())
         return it->second->data();
     auto tbl = std::make_unique<std::vector<Complex>>(fftLen / 2);
-    fillFftTwiddles(tbl->data(), fftLen, /*dir=*/+1);
+    fillFftTwiddles(tbl->data(), fftLen, /*dir=*/-1);
     const Complex *ptr = tbl->data();
     c.tables.emplace(fftLen, std::move(tbl));
+    return ptr;
+}
+
+inline bool isPow2(std::size_t n)
+{
+    return n != 0 && (n & (n - 1)) == 0;
+}
+
+// ── Bluestein (chirp-z) plan cache ─────────────────────────────────────
+//
+// For non-pow2 N we need a true N-point DFT, not a zero-padded pow2 one.
+// Bluestein's identity expresses the DFT as a length-M (pow2) convolution:
+//
+//   X[k] = b[k] · Σₙ (x[n]·b[n]) · conj(b[k-n])     b[n] = exp(-iπn²/N)
+//
+// Because conj(b) is even (b[-m] = b[m]), the sequence is an even/anti-
+// causal convolution kernel and the convolution can be evaluated as a
+// circular conv of length M ≥ 2N-1 with the FFT of a pre-built kernel
+// V[m] (V[0..N-1]=conj(b[m]); V[M-m]=conj(b[m]) for 1≤m<N; rest zero).
+//
+// Per-N cost:
+//   - chirp[n] = exp(-iπn²/N)  for n ∈ [0, N) — one call to sin/cos per n
+//   - V_freq = FFT_M(V)        — one length-M radix-2 FFT
+//
+// Per-call cost: 2× length-M radix-2 FFT + O(M) pointwise multiplies +
+// O(N) twist. M = nextPow2(2N-1), so an N=480 FFT runs internally at
+// M=1024 (vs the buggy zero-padded N=512 it used to run). ~2× the work
+// of a true 480-point Cooley-Tukey, but bit-equal to MATLAB.
+struct BluesteinPlan
+{
+    std::size_t N    = 0;          // user-visible FFT length (typically non-pow2)
+    std::size_t M    = 0;          // internal convolution length, pow2 ≥ 2N-1
+    std::vector<Complex> chirp;    // b[n] = exp(-iπn²/N), n ∈ [0, N)
+    std::vector<Complex> V_freq;   // FFT_M of the length-M kernel
+};
+
+struct BluesteinCache
+{
+    std::mutex mtx;
+    std::unordered_map<std::size_t, std::unique_ptr<BluesteinPlan>> plans;
+};
+
+inline BluesteinCache &bluesteinCache()
+{
+    static BluesteinCache c;
+    return c;
+}
+
+const BluesteinPlan *getCachedBluesteinPlan(std::size_t N)
+{
+    auto &c = bluesteinCache();
+    std::lock_guard<std::mutex> g(c.mtx);
+    auto it = c.plans.find(N);
+    if (it != c.plans.end())
+        return it->second.get();
+
+    auto plan = std::make_unique<BluesteinPlan>();
+    plan->N = N;
+    std::size_t M = 1;
+    while (M < 2 * N - 1) M <<= 1;
+    plan->M = M;
+
+    // chirp[n] = exp(-iπn²/N). Reduce n²/N angle via (n² mod 2N) to keep
+    // the sin/cos argument small even for moderately large N — the
+    // unreduced angle πn²/N grows like π·n for n→N, costing precision
+    // by N≈10⁵. n*n stays within size_t for n < 2^31.
+    plan->chirp.resize(N);
+    const double invN = 1.0 / static_cast<double>(N);
+    for (std::size_t n = 0; n < N; ++n) {
+        const std::size_t mod = (n * n) % (2 * N);
+        const double angle = -M_PI * static_cast<double>(mod) * invN;
+        plan->chirp[n] = Complex(std::cos(angle), std::sin(angle));
+    }
+
+    // Build kernel V[0..M-1]: V[m]=conj(b[m]) for m∈[0,N); V[M-m]=conj(b[m])
+    // for m∈[1,N) (encodes b[-m]=b[m]); rest zero.
+    std::vector<Complex> V(M, Complex(0.0, 0.0));
+    for (std::size_t m = 0; m < N; ++m) V[m] = std::conj(plan->chirp[m]);
+    for (std::size_t m = 1; m < N; ++m) V[M - m] = std::conj(plan->chirp[m]);
+
+    // FFT(V) using the cached size-M twiddles.
+    const Complex *W_M = getCachedTwiddleFwd(M);
+    detail::fftRadix2Impl(V.data(), M, W_M);
+    plan->V_freq = std::move(V);
+
+    const BluesteinPlan *ptr = plan.get();
+    c.plans.emplace(N, std::move(plan));
     return ptr;
 }
 
@@ -148,8 +247,16 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, std::pm
                      "when the axis length is 1",
                      0, 0, "fft", "", "m:fft:extendDim");
 
-    const size_t fftLen = nextPow2(outAxisLen);
-    const size_t useLen = std::min(axisLen, outAxisLen);
+    // fftLen IS the user-visible length: we compute a true N-point DFT.
+    // The pow2 path uses Cooley-Tukey radix-2 directly; non-pow2 routes
+    // through Bluestein's chirp-z algorithm (which internally uses a
+    // pow2 FFT of length M = nextPow2(2N-1)). Previously this rounded
+    // up to nextPow2(outAxisLen) and ran a zero-padded pow2 FFT, then
+    // returned the first outAxisLen samples — which is NOT an N-point
+    // DFT for non-pow2 N (broke conjugate symmetry, wrong magnitudes).
+    const size_t fftLen   = outAxisLen;
+    const size_t useLen   = std::min(axisLen, outAxisLen);
+    const bool   isPow2N  = isPow2(fftLen);
 
     // Output shape: input shape with the chosen axis replaced.
     size_t outR = R, outC = C, outP = P;
@@ -170,6 +277,12 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, std::pm
     const Complex *srcC = srcIsComplex ? x.complexData() : nullptr;
     const double *srcD  = srcIsComplex ? nullptr : x.doubleData();
 
+    // Bluestein plan (non-pow2 path only). Cached per N — first call at
+    // a new N pays a one-shot O(M log M) plan build, subsequent calls
+    // reuse. Pow2 sizes leave blPlan == nullptr and never touch this.
+    const BluesteinPlan *blPlan = isPow2N ? nullptr
+                                          : getCachedBluesteinPlan(fftLen);
+
     // Scratch working buffer — thread-local, grows monotonically across
     // calls. Avoids the per-call pmr/VirtualAlloc cost that was ~50% of
     // total FFT time at fftLen ≥ 32k on Windows. The caller owns the
@@ -177,9 +290,12 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, std::pm
     // Subsequent slices overwrite [0, useLen) fully; the tail
     // [useLen, fftLen) gets zero-filled per-slice (no-op when
     // useLen == fftLen, which is the common pow2-input case).
+    //
+    // The Bluestein path needs M (≥ 2N) samples instead of fftLen=N.
+    const std::size_t bufSize = blPlan ? blPlan->M : fftLen;
     std::vector<Complex> &buf = threadFftBuf();
-    if (buf.size() < fftLen)
-        buf.resize(fftLen);
+    if (buf.size() < bufSize)
+        buf.resize(bufSize);
 
     // SoA scratch (split real/imag) for the rfft-SoA fast path on
     // native. Sized fftLen / 2 because rfft does a half-size complex
@@ -190,12 +306,16 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, std::pm
     thread_local std::vector<double> tlsRfftIm;
 #endif
 
-    // Precomputed twiddle table — process-global cache keyed by fftLen.
-    // The conjugate-trick handles the inverse direction, so we only ever
-    // need the forward (dir=+1) twiddles. Cached pointer is valid for
-    // the entire program lifetime; safe to share read-only across worker
-    // threads.
-    const Complex *W = getCachedTwiddleFwd(fftLen);
+    // Precomputed twiddle table — process-global cache keyed by FFT
+    // length. The conjugate-trick handles the inverse direction, so we
+    // only ever need the forward (dir=+1) twiddles. Cached pointer is
+    // valid for the entire program lifetime; safe to share read-only
+    // across worker threads.
+    //
+    // Pow2 path: table for the user-visible fftLen.
+    // Bluestein path: table for the internal pow2 length M (the fftLen
+    //   itself is non-pow2 and has no radix-2 twiddle table).
+    const Complex *W = getCachedTwiddleFwd(blPlan ? blPlan->M : fftLen);
 
     // Real-input forward-FFT fast path (8e.4). Halves the work for the
     // common fft(real_vector) case by treating N real values as N/2
@@ -205,10 +325,14 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, std::pm
     //   - input is real (not complex)
     //   - no truncation / zero-padding (output length matches input exactly)
     //   - fftLen >= 4 (smaller is trivial; not worth a fast path)
+    //   - fftLen is pow2 (the half-size FFT inside the trick is
+    //     radix-2, so fftLen/2 must also be pow2; non-pow2 N goes
+    //     through complex Bluestein instead)
     const bool rfftEligible = !srcIsComplex && dir == +1
                               && outAxisLen == fftLen
                               && useLen == fftLen
-                              && fftLen >= 4;
+                              && fftLen >= 4
+                              && isPow2N;
     // The half-size FFT inside rfft needs twiddles for an
     // (fftLen/2)-point FFT. That's exactly what's cached for size
     // fftLen/2 — W_half[k] = exp(+2πi·k/(fftLen/2)) = W_full(fftLen)[2k].
@@ -404,6 +528,7 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, std::pm
 #endif
 
     // Per-slice complex path (forward or inverse via conjugate trick).
+    // Pow2-N only — non-pow2 N takes the runBluestein path below.
     const auto runComplex = [&](std::size_t inBase, std::size_t outBase,
                                 std::size_t inStride, std::size_t outStride) {
         if (srcIsComplex) {
@@ -430,6 +555,67 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, std::pm
             dst[outBase + k * outStride] = buf[k];
     };
 
+    // Per-slice Bluestein (chirp-z) path — non-pow2 fftLen only.
+    //
+    // Forward direction (dir=+1):
+    //   a[n]  = x[n] * b[n]                     for n ∈ [0, N)
+    //   c     = IFFT_M( FFT_M(a_padded) · V_freq )
+    //   X[k]  = c[k] * b[k]                     for k ∈ [0, N)
+    //
+    // Inverse direction (dir=-1) via conjugate trick:
+    //   y[n]  = (1/N) · conj( forward_FFT( conj(x[n]) ) )
+    // implemented inline by conjugating once on the way in (folded into
+    // the chirp multiply) and once on the way out (folded into the final
+    // conj/scale).
+    const auto runBluestein = [&](std::size_t inBase, std::size_t outBase,
+                                  std::size_t inStride, std::size_t outStride) {
+        const std::size_t Nb = blPlan->N;
+        const std::size_t M  = blPlan->M;
+        const Complex *chirp = blPlan->chirp.data();
+        const Complex *Vfreq = blPlan->V_freq.data();
+
+        // Pack a[n] = x[n] * b[n] (or conj(x[n]) * b[n] for inverse,
+        // complex-input case). Real input is unaffected by conj, so the
+        // real path is shared.
+        if (srcIsComplex && dir == -1) {
+            for (std::size_t n = 0; n < useLen; ++n)
+                buf[n] = std::conj(srcC[inBase + n * inStride]) * chirp[n];
+        } else if (srcIsComplex) {
+            for (std::size_t n = 0; n < useLen; ++n)
+                buf[n] = srcC[inBase + n * inStride] * chirp[n];
+        } else {
+            for (std::size_t n = 0; n < useLen; ++n)
+                buf[n] = Complex(srcD[inBase + n * inStride], 0.0) * chirp[n];
+        }
+        // Zero-pad: x[n]=0 for n in [useLen, N), AND tail [N, M).
+        for (std::size_t n = useLen; n < M; ++n) buf[n] = Complex(0.0, 0.0);
+
+        // FFT_M(a) → A.
+        detail::fftRadix2Impl(buf.data(), M, W);
+        // Pointwise A · V_freq.
+        for (std::size_t i = 0; i < M; ++i) buf[i] *= Vfreq[i];
+        // IFFT_M via conjugate trick — leaves c (length M) in buf, only
+        // [0, N) is needed for the output twist.
+        for (std::size_t i = 0; i < M; ++i) buf[i] = std::conj(buf[i]);
+        detail::fftRadix2Impl(buf.data(), M, W);
+        const double invM = 1.0 / static_cast<double>(M);
+        // Twist: X[k] = (conj(c[k]) / M) * b[k].
+        if (dir == +1) {
+            for (std::size_t k = 0; k < Nb; ++k) {
+                const Complex ck = std::conj(buf[k]) * invM;
+                dst[outBase + k * outStride] = ck * chirp[k];
+            }
+        } else {
+            // Inverse: y[k] = (1/N) · conj( X_via_forward[k] ).
+            const double invN = 1.0 / static_cast<double>(Nb);
+            for (std::size_t k = 0; k < Nb; ++k) {
+                const Complex ck = std::conj(buf[k]) * invM;
+                const Complex Xk = ck * chirp[k];
+                dst[outBase + k * outStride] = std::conj(Xk) * invN;
+            }
+        }
+    };
+
     // Slice enumeration. The three cases (dim=1/2/3) are spelled out
     // with concrete stride constants rather than a generic
     // lambda-with-captures — MSVC's optimiser folds the contiguous
@@ -445,6 +631,8 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, std::pm
             if (rfftEligible)
                 runRfft(srcD + inBase, /*srcStride=*/1,
                         dst    + outBase, /*dstStride=*/1);
+            else if (blPlan)
+                runBluestein(inBase, outBase, /*inStride=*/1, /*outStride=*/1);
             else
                 runComplex(inBase, outBase, /*inStride=*/1, /*outStride=*/1);
         }
@@ -463,6 +651,8 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, std::pm
                 if (rfftEligible)
                     runRfft(srcD + inBase, /*srcStride=*/axisStride,
                             dst    + outBase, /*dstStride=*/outAxisStride);
+                else if (blPlan)
+                    runBluestein(inBase, outBase, axisStride, outAxisStride);
                 else
                     runComplex(inBase, outBase, axisStride, outAxisStride);
             }

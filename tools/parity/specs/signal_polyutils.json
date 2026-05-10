@@ -1,0 +1,10 @@
+{
+  "name": "signal_polyutils",
+  "namespace": "signal",
+  "setup": "p1 = [1 -2 1.5 -0.5 0.1]; a1 = [1 -2.5 1]; h = fir1(8, 0.4); a2 = [1 0 -0.5];",
+  "expr": "ps = polyscale(p1, 0.85); ps_2 = ps(2); ps_3 = ps(3); ps_5 = ps(5); psv = polyscale(p1, 1.2); psv_3 = psv(3); pst = polystab(a1); pst_1 = pst(1); pst_2 = pst(2); pst_3 = pst(3); rb = sort(real(roots(pst))); rb_1 = rb(1); rb_2 = rb(2); psh = polystab(h); psh_1 = psh(1); psh_5 = psh(5); psa2 = polystab(a2); psa2_1 = psa2(1);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["ps_2", "ps_3", "ps_5", "psv_3", "pst_1", "pst_2", "pst_3", "rb_1", "rb_2", "psh_1", "psh_5", "psa2_1"],
+  "comment": "MATLAB Signal Toolbox polyscale + polystab (Phase 4.3): polynomial root scaling and stabilization. polyscale: y[k] = p[k] * scale^k (closed-form). polystab: roots(a) → reflect outside-unit-circle to inside via 1/conj(root) → poly() back → multiply by leading coef → real() if input real. Bit-equal MATLAB R2025b on 12 fingerprints — scaled poly with real and >1 scale, polystab on poly with one root outside unit (root=2 reflects to 0.5), polystab on FIR filter, polystab on poly with already-stable roots. Octave 11.1.0 ships these in core (signal package)."
+}

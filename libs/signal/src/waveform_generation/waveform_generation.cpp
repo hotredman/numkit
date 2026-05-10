@@ -5,6 +5,9 @@
 // fftshift / ifftshift moved to transforms/transform_helpers.cpp).
 
 #include <numkit/signal/waveform_generation/waveform_generation.hpp>
+#include <numkit/signal/filter_design/filter_design.hpp>     // butter
+#include <numkit/signal/digital_filtering/filter.hpp>        // filtfilt
+#include <numkit/signal/transforms/hilbert.hpp>              // hilbert
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -353,7 +356,403 @@ Value chirp(std::pmr::memory_resource *mr, const Value &t,
     return out;
 }
 
+// ── demod (Phase 4.13) ──────────────────────────────────────────────
+//
+// Analog demodulation. Supports am / amdsb-sc (alias) / amdsb-tc.
+// Pipeline matches MATLAB R2025b demod.m:
+//   x = y .* cos(2π Fc t)
+//   [b, a] = butter(5, Fc*2/Fs)   (5th-order Butterworth lowpass)
+//   x = filtfilt(b, a, x) per column
+//   for amdsb-tc: x -= opt (DC offset, default 0)
+//
+// KNOWN GAPs: fm/pm modes (use hilbert which depends on libs/signal::fft
+// sign-convention bug — same blocker as Cycle J / pitch LHS/SRH).
+// amssb / pwm / ptm/ppm / qam similarly deferred.
+Value demod(std::pmr::memory_resource *mr,
+            const Value &y, double Fc, double Fs,
+            const std::string &method, const Value *opt)
+{
+    constexpr double kPi = 3.14159265358979323846;
+    if (Fs <= 0.0)
+        throw Error("demod: Fs must be positive",
+                    0, 0, "demod", "", "m:demod:BadFs");
+
+    const std::size_t N = y.numel();
+    if (N == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    std::string m = method;
+    std::transform(m.begin(), m.end(), m.begin(),
+                    [](unsigned char c) { return std::tolower(c); });
+
+    const bool isAmFamily = (m == "am" || m == "amdsb-sc" || m == "amdsb-tc");
+    const bool isFmPm = (m == "fm" || m == "pm");
+    if (!isAmFamily && !isFmPm)
+        throw Error("demod: only am/amdsb-sc/amdsb-tc/fm/pm supported "
+                    "(amssb/pwm/ptm/ppm/qam deferred)",
+                    0, 0, "demod", "", "m:demod:UnsupportedMethod");
+
+    // Convert row vector to column for processing.
+    const bool isRowVec = (y.dims().rows() == 1 && y.dims().cols() > 1);
+    const std::size_t len = isRowVec ? y.dims().cols() : y.dims().rows();
+    const std::size_t cols = isRowVec ? 1 : y.dims().cols();
+
+    if (isFmPm) {
+        // FM/PM share most: yq = hilbert(y) .* exp(-j·2π·Fc·t)
+        // FM: x = (1/P1) · diff(unwrap(angle(yq))) prepended with 0
+        // PM: x = (1/P1) · angle(yq)
+        double P1 = 1.0;
+        if (opt && !opt->isEmpty()) P1 = opt->toScalar();
+
+        // Compute hilbert on y.
+        Value yVal = Value::matrix(len, cols, ValueType::DOUBLE, mr);
+        double *yvd = yVal.doubleDataMut();
+        for (std::size_t c = 0; c < cols; ++c) {
+            for (std::size_t r = 0; r < len; ++r) {
+                yvd[r + c * len] = isRowVec ? y.elemAsDouble(r)
+                                              : y.elemAsDouble(r + c * len);
+            }
+        }
+        Value h = numkit::signal::hilbert(mr, yVal);
+        const Complex *hd = h.complexData();
+
+        Value out = Value::matrix(len, cols, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+
+        if (m == "fm") {
+            // FM: angle(yq) and unwrap, then differentiate
+            for (std::size_t c = 0; c < cols; ++c) {
+                // yq[r] = hilbert(y)[r] · exp(-j·2π·Fc·t)
+                // angle(yq) = angle(hilbert(y)) - 2π·Fc·t
+                std::vector<double> ang(len);
+                for (std::size_t r = 0; r < len; ++r) {
+                    const Complex hh = hd[r + c * len];
+                    const double t = static_cast<double>(r) / Fs;
+                    const Complex yq = hh * std::polar(1.0, -2.0 * kPi * Fc * t);
+                    ang[r] = std::arg(yq);
+                }
+                // Unwrap (jump > π implies 2π wrap)
+                for (std::size_t r = 1; r < len; ++r) {
+                    while (ang[r] - ang[r - 1] > kPi) ang[r] -= 2.0 * kPi;
+                    while (ang[r] - ang[r - 1] < -kPi) ang[r] += 2.0 * kPi;
+                }
+                // diff prepended with 0
+                od[0 + c * len] = 0.0;
+                for (std::size_t r = 1; r < len; ++r) {
+                    od[r + c * len] = (1.0 / P1) * (ang[r] - ang[r - 1]);
+                }
+            }
+        } else {  // pm
+            for (std::size_t c = 0; c < cols; ++c) {
+                for (std::size_t r = 0; r < len; ++r) {
+                    const Complex hh = hd[r + c * len];
+                    const double t = static_cast<double>(r) / Fs;
+                    const Complex yq = hh * std::polar(1.0, -2.0 * kPi * Fc * t);
+                    od[r + c * len] = (1.0 / P1) * std::arg(yq);
+                }
+            }
+        }
+        if (isRowVec && cols == 1) {
+            Value rowOut = Value::matrix(1, len, ValueType::DOUBLE, mr);
+            std::copy(od, od + len, rowOut.doubleDataMut());
+            return rowOut;
+        }
+        return out;
+    }
+
+    // Step 1: x = y .* cos(2π Fc t)
+    Value mixed = Value::matrix(len, cols, ValueType::DOUBLE, mr);
+    double *md = mixed.doubleDataMut();
+    for (std::size_t c = 0; c < cols; ++c) {
+        for (std::size_t r = 0; r < len; ++r) {
+            const double t = static_cast<double>(r) / Fs;
+            const double yi = isRowVec ? y.elemAsDouble(r)
+                                        : y.elemAsDouble(r + c * len);
+            md[r + c * len] = yi * std::cos(2.0 * kPi * Fc * t);
+        }
+    }
+
+    // Step 2: 5th-order Butterworth lowpass at cutoff 2*Fc/Fs (normalized).
+    // butter() needs Wn ∈ (0, 1). For high Fc relative to Fs (Wn ≥ 1), skip filter.
+    const double Wn = Fc * 2.0 / Fs;
+    Value out;
+    if (Wn > 0.0 && Wn < 1.0) {
+        auto [bp, ap] = numkit::signal::butter(mr, 5, Wn, "low");
+        // filtfilt per column: process the entire matrix (filtfilt handles cols).
+        out = numkit::signal::filtfilt(mr, bp, ap, mixed);
+    } else {
+        out = mixed;
+    }
+
+    // Step 3: amdsb-tc subtracts opt offset.
+    if (m == "amdsb-tc") {
+        double offset = 0.0;
+        if (opt && !opt->isEmpty()) offset = opt->toScalar();
+        if (offset != 0.0) {
+            double *od = out.doubleDataMut();
+            for (std::size_t i = 0; i < len * cols; ++i) od[i] -= offset;
+        }
+    }
+
+    // Restore row-vector orientation if input was row.
+    if (isRowVec && cols == 1) {
+        Value rowOut = Value::matrix(1, len, ValueType::DOUBLE, mr);
+        std::copy(out.doubleData(), out.doubleData() + len, rowOut.doubleDataMut());
+        return rowOut;
+    }
+    return out;
+}
+
+// ── modulate (Phase 4.12) ───────────────────────────────────────────
+//
+// Analog modulation. Supports am/amdsb-sc (alias)/amdsb-tc/fm/pm.
+// Matches MATLAB R2025b modulate.m for these 4 modes one-to-one.
+// amssb (uses hilbert), pwm/ptm/ppm/qam deferred — KNOWN GAPs.
+Value modulate(std::pmr::memory_resource *mr,
+               const Value &x, double Fc, double Fs,
+               const std::string &method, const Value *opt)
+{
+    constexpr double kPi = 3.14159265358979323846;
+    if (Fs <= 0.0)
+        throw Error("modulate: Fs must be positive",
+                    0, 0, "modulate", "", "m:modulate:BadFs");
+
+    const std::size_t N = x.numel();
+    if (N == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    std::string m = method;
+    std::transform(m.begin(), m.end(), m.begin(),
+                    [](unsigned char c) { return std::tolower(c); });
+
+    const bool isRowVec = (x.dims().rows() == 1 && x.dims().cols() > 1);
+    const std::size_t len = isRowVec ? x.dims().cols() : x.dims().rows();
+    const std::size_t cols = isRowVec ? 1 : x.dims().cols();
+    Value out = Value::matrix(len, cols, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+
+    auto getX = [&](std::size_t r, std::size_t c) -> double {
+        if (isRowVec) return x.elemAsDouble(r);
+        return x.elemAsDouble(r + c * len);
+    };
+
+    if (m == "am" || m == "amdsb-sc") {
+        for (std::size_t c = 0; c < cols; ++c) {
+            for (std::size_t r = 0; r < len; ++r) {
+                const double t = static_cast<double>(r) / Fs;
+                od[r + c * len] = getX(r, c) * std::cos(2.0 * kPi * Fc * t);
+            }
+        }
+    } else if (m == "amssb") {
+        // y = x .* cos(2π·Fc·t) + imag(hilbert(x)) .* sin(2π·Fc·t)
+        // Compute hilbert of full signal first.
+        Value xVal = Value::matrix(len, cols, ValueType::DOUBLE, mr);
+        double *xd = xVal.doubleDataMut();
+        for (std::size_t c = 0; c < cols; ++c)
+            for (std::size_t r = 0; r < len; ++r)
+                xd[r + c * len] = getX(r, c);
+        Value h = numkit::signal::hilbert(mr, xVal);
+        const Complex *hd = h.complexData();
+        for (std::size_t c = 0; c < cols; ++c) {
+            for (std::size_t r = 0; r < len; ++r) {
+                const double t = static_cast<double>(r) / Fs;
+                const double cosT = std::cos(2.0 * kPi * Fc * t);
+                const double sinT = std::sin(2.0 * kPi * Fc * t);
+                const double xv = xd[r + c * len];
+                const double imagH = hd[r + c * len].imag();
+                od[r + c * len] = xv * cosT + imagH * sinT;
+            }
+        }
+    } else if (m == "amdsb-tc") {
+        double offset;
+        if (opt && !opt->isEmpty()) {
+            offset = opt->toScalar();
+        } else {
+            offset = x.elemAsDouble(0);
+            for (std::size_t i = 1; i < N; ++i) {
+                const double v = x.elemAsDouble(i);
+                if (v < offset) offset = v;
+            }
+        }
+        for (std::size_t c = 0; c < cols; ++c) {
+            for (std::size_t r = 0; r < len; ++r) {
+                const double t = static_cast<double>(r) / Fs;
+                od[r + c * len] = (getX(r, c) - offset) * std::cos(2.0 * kPi * Fc * t);
+            }
+        }
+    } else if (m == "fm") {
+        double kf;
+        if (opt && !opt->isEmpty()) {
+            kf = opt->toScalar();
+        } else {
+            double xMax = 0.0;
+            for (std::size_t i = 0; i < N; ++i) {
+                const double v = std::abs(x.elemAsDouble(i));
+                if (v > xMax) xMax = v;
+            }
+            kf = (xMax > 0.0) ? (Fc / Fs) * 2.0 * kPi / xMax : 0.0;
+        }
+        for (std::size_t c = 0; c < cols; ++c) {
+            double cum = 0.0;
+            for (std::size_t r = 0; r < len; ++r) {
+                cum += getX(r, c);
+                const double t = static_cast<double>(r) / Fs;
+                od[r + c * len] = std::cos(2.0 * kPi * Fc * t + kf * cum);
+            }
+        }
+    } else if (m == "pm") {
+        double kp;
+        if (opt && !opt->isEmpty()) {
+            kp = opt->toScalar();
+        } else {
+            double xMax = 0.0;
+            for (std::size_t i = 0; i < N; ++i) {
+                const double v = std::abs(x.elemAsDouble(i));
+                if (v > xMax) xMax = v;
+            }
+            kp = (xMax > 0.0) ? kPi / xMax : 0.0;
+        }
+        for (std::size_t c = 0; c < cols; ++c) {
+            for (std::size_t r = 0; r < len; ++r) {
+                const double t = static_cast<double>(r) / Fs;
+                od[r + c * len] = std::cos(2.0 * kPi * Fc * t + kp * getX(r, c));
+            }
+        }
+    } else {
+        throw Error("modulate: method must be 'am'/'amdsb-sc'/'amdsb-tc'/'amssb'/'fm'/'pm'",
+                    0, 0, "modulate", "", "m:modulate:UnsupportedMethod");
+    }
+
+    if (isRowVec && len > 0) {
+        Value rowOut = Value::matrix(1, len, ValueType::DOUBLE, mr);
+        std::copy(od, od + len, rowOut.doubleDataMut());
+        return rowOut;
+    }
+    return out;
+}
+
+// ── vco (Phase 4.8) ─────────────────────────────────────────────────
+//
+// Voltage-controlled (frequency-modulated) oscillator. Matches MATLAB
+// R2025b vco.m → modulate(...,'fm') one-to-one.
+//
+// Algorithm: per column, t = (0..N-1)/Fs,  cum = cumsum(x),
+//            y = cos(2π·Fc·t + range1·cum)  (rectangular integral approx).
+// Where range scalar => Fc=range, range1=(Fc/Fs)·2π;
+//       range vector => Fc=mean(range), range1=(range[1]-Fc)/Fs·2π.
+Value vco(std::pmr::memory_resource *mr,
+          const Value &x, const Value &range, double fs)
+{
+    constexpr double kPi = 3.14159265358979323846;
+    if (fs <= 0.0)
+        throw Error("vco: fs must be positive",
+                    0, 0, "vco", "", "m:vco:BadFs");
+    const size_t N = x.numel();
+    // Range check: x ∈ [-1, 1].
+    for (size_t i = 0; i < N; ++i) {
+        const double v = x.elemAsDouble(i);
+        if (v > 1.0 || v < -1.0)
+            throw Error("vco: x values must be in [-1, 1]",
+                        0, 0, "vco", "", "m:vco:InvalidRange");
+    }
+    double Fc = 0.0, range1 = 0.0;
+    if (range.numel() == 1) {
+        Fc = range.toScalar();
+        range1 = (Fc / fs) * 2.0 * kPi;
+    } else if (range.numel() == 2) {
+        const double r0 = range.elemAsDouble(0);
+        const double r1 = range.elemAsDouble(1);
+        Fc = 0.5 * (r0 + r1);
+        range1 = (r1 - Fc) / fs * 2.0 * kPi;
+    } else {
+        throw Error("vco: range must be scalar Fc or [Fmin Fmax]",
+                    0, 0, "vco", "", "m:vco:BadRange");
+    }
+
+    // Allocate output (same shape as x).
+    Value out;
+    if (x.dims().is3D())
+        out = Value::matrix3d(x.dims().rows(), x.dims().cols(),
+                               x.dims().pages(), ValueType::DOUBLE, mr);
+    else
+        out = Value::matrix(x.dims().rows(), x.dims().cols(),
+                             ValueType::DOUBLE, mr);
+    if (N == 0) return out;
+
+    double *od = out.doubleDataMut();
+
+    // Determine "rows" axis (along which integration runs):
+    // - If x is column vector (or Nx1): integrate along rows (single channel).
+    // - If matrix: each column is a channel.
+    const size_t R = (x.dims().rows() == 1 && x.dims().cols() > 1)
+                      ? x.dims().cols()
+                      : x.dims().rows();
+    const size_t C = (x.dims().rows() == 1 && x.dims().cols() > 1)
+                      ? 1
+                      : x.dims().cols();
+    const bool rowVec = (x.dims().rows() == 1 && x.dims().cols() > 1);
+
+    for (size_t c = 0; c < C; ++c) {
+        double cum = 0.0;
+        for (size_t n = 0; n < R; ++n) {
+            // Index into x: row vec → x[n]; column-major matrix → x[n + c*R].
+            const size_t srcIdx = rowVec ? n : (n + c * R);
+            cum += x.elemAsDouble(srcIdx);
+            const double t = static_cast<double>(n) / fs;
+            od[srcIdx] = std::cos(2.0 * kPi * Fc * t + range1 * cum);
+        }
+    }
+    return out;
+}
+
 namespace detail {
+
+void demod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("demod: requires (y, Fc, Fs, method [, opt])",
+                    0, 0, "demod", "", "m:demod:nargin");
+    const double Fc = args[1].toScalar();
+    const double Fs = args[2].toScalar();
+    if (!args[3].isChar() && !args[3].isString())
+        throw Error("demod: method must be a string",
+                    0, 0, "demod", "", "m:demod:BadMethodType");
+    std::string method = args[3].toString();
+    const Value *opt = (args.size() >= 5) ? &args[4] : nullptr;
+    outs[0] = demod(ctx.engine->resource(), args[0], Fc, Fs, method, opt);
+}
+
+void modulate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("modulate: requires (x, Fc, Fs, method [, opt])",
+                    0, 0, "modulate", "", "m:modulate:nargin");
+    const double Fc = args[1].toScalar();
+    const double Fs = args[2].toScalar();
+    if (!args[3].isChar() && !args[3].isString())
+        throw Error("modulate: method must be a string",
+                    0, 0, "modulate", "", "m:modulate:BadMethodType");
+    std::string method = args[3].toString();
+    const Value *opt = (args.size() >= 5) ? &args[4] : nullptr;
+    outs[0] = modulate(ctx.engine->resource(), args[0], Fc, Fs, method, opt);
+}
+
+void vco_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("vco: requires (x [, range [, fs]])",
+                    0, 0, "vco", "", "m:vco:nargin");
+    auto *mr = ctx.engine->resource();
+    double fs = 1.0;
+    if (args.size() >= 3 && !args[2].isEmpty()) fs = args[2].toScalar();
+    Value rng;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        rng = args[1];
+    } else {
+        rng = Value::scalar(fs / 4.0, mr);
+    }
+    outs[0] = vco(mr, args[0], rng, fs);
+}
 
 void rectpuls_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {

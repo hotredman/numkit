@@ -81,4 +81,36 @@ Value gmonopuls(std::pmr::memory_resource *mr, const Value &t, double fc);
 /// `n` must be a positive integer.
 Value diric(std::pmr::memory_resource *mr, const Value &x, int n);
 
+/// modulate(x, Fc, Fs, method[, opt]) — analog modulation methods.
+/// Supported `method` (case-insensitive): "am", "amdsb-sc" (= "am"),
+/// "amdsb-tc", "fm", "pm". opt: amdsb-tc → DC offset (default min(x));
+/// fm → freq deviation factor kf (default Fc/Fs·2π/max(|x|));
+/// pm → phase deviation factor kp (default π/max(|x|)).
+/// KNOWN GAPs: amssb, pwm, ptm/ppm, qam deferred — all use Hilbert/FFT
+/// or specialised pulse waveforms. Common modes (am/fm/pm/amdsb-tc)
+/// shipped, all bit-equal MATLAB R2025b.
+Value modulate(std::pmr::memory_resource *mr,
+               const Value &x, double Fc, double Fs,
+               const std::string &method, const Value *opt = nullptr);
+
+/// demod(y, Fc, Fs, method[, opt]) — analog demodulation (AM family).
+/// Supports "am", "amdsb-sc" (= "am"), "amdsb-tc". For amdsb-tc, opt
+/// is the DC offset to subtract (default 0). KNOWN GAPs: fm/pm modes
+/// (use hilbert, blocked on libs/signal::fft sign-convention bug),
+/// amssb / pwm / ptm/ppm / qam deferred. Pipeline: y * cos(2π Fc t) →
+/// 5th-order Butterworth lowpass (cutoff 2*Fc/Fs) via filtfilt.
+Value demod(std::pmr::memory_resource *mr,
+            const Value &y, double Fc, double Fs,
+            const std::string &method, const Value *opt = nullptr);
+
+/// vco(x, range, fs) — voltage-controlled (frequency-modulated) oscillator.
+/// x ∈ [-1, 1] modulates the instantaneous frequency. Returns y = cos(...)
+/// of the same shape as x. range may be:
+///   - scalar Fc   : -1 → 0 Hz, 0 → Fc Hz, +1 → 2·Fc Hz
+///   - [Fmin Fmax] : -1 → Fmin Hz, +1 → Fmax Hz
+/// Frequency modulation via rectangular cumsum integral approximation
+/// (matches MATLAB modulate(...,'fm')).
+Value vco(std::pmr::memory_resource *mr,
+          const Value &x, const Value &range, double fs);
+
 } // namespace numkit::signal

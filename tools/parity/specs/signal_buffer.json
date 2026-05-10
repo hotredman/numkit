@@ -1,0 +1,10 @@
+{
+  "name": "signal_buffer",
+  "namespace": "signal",
+  "setup": "x = 1:18; xs = 1:24; xc = (1:10)';",
+  "expr": "y0 = buffer(x, 8); y0_R = size(y0,1); y0_C = size(y0,2); y0_18 = y0(end-1, end); y_ovl = buffer(x, 8, 4); ovl_R = size(y_ovl,1); ovl_C = size(y_ovl,2); ovl_first = y_ovl(1,1); ovl_55 = y_ovl(5,5); y_nd = buffer(x, 8, 4, 'nodelay'); nd_R = size(y_nd,1); nd_C = size(y_nd,2); nd_11 = y_nd(1,1); y_un = buffer(xs, 8, -4); un_R = size(y_un,1); un_C = size(y_un,2); un_22 = y_un(8,2); [yy, zz] = buffer(x, 8); yy_R = size(yy,1); yy_C = size(yy,2); zz_n = numel(zz); zz_first = zz(1); yc = buffer(xc, 4); yc_R = size(yc,1); yc_C = size(yc,2);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["y0_R", "y0_C", "y0_18", "ovl_R", "ovl_C", "ovl_first", "ovl_55", "nd_R", "nd_C", "nd_11", "un_R", "un_C", "un_22", "yy_R", "yy_C", "zz_n", "zz_first", "yc_R", "yc_C"],
+  "comment": "MATLAB Signal Toolbox buffer (Phase 4.1 of audio extension sweep): partition signal into possibly overlapping/underlapping frames. Bit-equal MATLAB R2025b on 6 cases — non-overlapping zero-pad, p>0 overlap with initial zeros, p>0 with 'nodelay', p<0 underlap, [Y,Z] complete-only output, column-vector input. Implementation in libs/signal/src/digital_filtering/buffer.cpp following MATLAB buffer.m semantic doc (the .m file itself is just a MEX shim; behavior derived from probing). Octave 11.1.0 ships buffer in core (signal package); should match. KNOWN GAPs: (1) initial-condition vector OPT for p>0 (numeric instead of 'nodelay') validated for length but not heavily tested; (2) 3-output form [Y,Z,OPT] for continuous buffering — return value of OPT for next call deferred (MATLAB internal state)."
+}

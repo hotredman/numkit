@@ -44,4 +44,22 @@ Value firls(std::pmr::memory_resource *mr, int N,
             const double *F, std::size_t Fn,
             const double *A, std::size_t An);
 
+/// cell2sos(C) — convert cell array of {Bi, Ai} pairs to L×6 SOS matrix.
+/// 2-output form [S, G] = cell2sos(C) extracts the leading scalar gain
+/// section if present (when C{1} = {scalar_b, scalar_a}).
+/// Linear (length-2) sections are zero-padded on the right to length 3.
+std::tuple<Value, Value>
+cell2sos(std::pmr::memory_resource *mr, const Value &C);
+
+/// fir2(N, F, A) — arbitrary-response FIR via frequency-sampling +
+/// inverse FFT + Hamming window. Bit-equal MATLAB R2025b on the
+/// 3-arg form (npt=512 default for nn<1024, hamming default window,
+/// lap=floor(npt/25) transition smoothing).
+/// F must satisfy F(1)=0, F(end)=1, monotonically nondecreasing.
+/// A is the desired amplitude at each break frequency.
+/// KNOWN GAP: optional npt/lap/wind args deferred.
+Value fir2(std::pmr::memory_resource *mr, int N,
+           const double *F, std::size_t Fn,
+           const double *A, std::size_t An);
+
 } // namespace numkit::signal
