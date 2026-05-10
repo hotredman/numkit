@@ -17,16 +17,20 @@ namespace numkit::audio {
 // Cycle K added Method='CEP' (Cepstrum, Noll 1967) via pitchCEP().
 // Cycle K-2 added Method='PEF' (Pitch Estimation Filter, Gonzalez &
 // Brookes 2011) via pitchPEF().
+// Cycle L (partial) added 'Range' NV arg — minF/maxF override [50, 400].
 // KNOWN GAPs: Method='LHS'/'SRH' deferred (need libs/signal::fft fix
 // for non-power-of-2 sizes — fft length = round(fs)).
-// MedianFilterLength / Range / Window NV args deferred.
-Value pitch(std::pmr::memory_resource *mr, const Value &x, double fs);
+// MedianFilterLength / WindowLength / OverlapLength NV args deferred.
+Value pitch(std::pmr::memory_resource *mr, const Value &x, double fs,
+             double minF = 50.0, double maxF = 400.0);
 
 // Cepstrum-based pitch method (Method='CEP'). Same I/O as pitch().
-Value pitchCEP(std::pmr::memory_resource *mr, const Value &x, double fs);
+Value pitchCEP(std::pmr::memory_resource *mr, const Value &x, double fs,
+                double minF = 50.0, double maxF = 400.0);
 
 // Pitch Estimation Filter method (Method='PEF'). Same I/O as pitch().
-Value pitchPEF(std::pmr::memory_resource *mr, const Value &x, double fs);
+Value pitchPEF(std::pmr::memory_resource *mr, const Value &x, double fs,
+                double minF = 50.0, double maxF = 400.0);
 
 // harmonicRatio(x, fs) — strength of harmonic content per frame, via
 // normalized autocorrelation peak. Range [0, 1]. Defaults: WindowLength=

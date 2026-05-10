@@ -120,3 +120,33 @@ TEST_F(PitchHarmonicsTest, PitchPEF220HzSineFirstFrames)
     EXPECT_NEAR(evalScalar("f0(2)"), 220.604203, 1e-4);
     EXPECT_NEAR(evalScalar("mean(f0)"), 220.604203, 1e-4);
 }
+
+// ── Cycle L: 'Range' Name-Value arg ────────────────────────────────────
+// Bit-equal vs MATLAB R2025b for PEF + custom Range; algorithmic-equal
+// for NCF (different tie-break behavior at ~1% level).
+TEST_F(PitchHarmonicsTest, PitchRangeNVPEFBitEqual)
+{
+    // Two-tone signal: 220 + 100 Hz mix. Range=[80,250] should pick 220.
+    eval("x = sin(2*pi*220*t) + 0.5*sin(2*pi*100*t);"
+         "f0 = pitch(x, fs, 'Method', 'PEF', 'Range', [80 250]);");
+    EXPECT_NEAR(evalScalar("f0(1)"), 221.2508, 1e-3);
+}
+
+TEST_F(PitchHarmonicsTest, PitchRangeNVRestrictsSearch)
+{
+    // High-pass Range picks 220 Hz tone; low-pass picks 100 Hz tone.
+    eval("x = sin(2*pi*220*t) + 0.5*sin(2*pi*100*t);"
+         "fHi = pitch(x, fs, 'Range', [150 400]);"
+         "fLo = pitch(x, fs, 'Range', [50 150]);");
+    EXPECT_NEAR(evalScalar("mean(fHi)"), 220.0, 5.0);  // ~221 Hz
+    EXPECT_NEAR(evalScalar("mean(fLo)"), 100.0, 12.0); // ~109 Hz (NCF subharmonic)
+}
+
+TEST_F(PitchHarmonicsTest, PitchRangeNVRejectsBadInput)
+{
+    bool threw = false;
+    try {
+        eval("pitch([1;2;3], fs, 'Range', [400 50]);");  // hi < lo
+    } catch (...) { threw = true; }
+    EXPECT_TRUE(threw);
+}
