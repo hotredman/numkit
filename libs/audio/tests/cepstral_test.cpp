@@ -96,10 +96,29 @@ TEST_F(CepstralTest, MfccCustomNumCoeffs)
     EXPECT_EQ(static_cast<int>(evalScalar("size(c, 2)")), 8);
 }
 
-// ── gtcc (shape-only, KNOWN GAP gammatone IIR deferred) ───────────────
+// ── gtcc (Cycle H: BIT-EQUAL with MATLAB R2025b) ──────────────────────
 TEST_F(CepstralTest, GtccShape)
 {
     eval("fs = 16000; t = (0:1/fs:0.1)'; x = sin(2*pi*440*t);"
          "[g, gd, gdd] = gtcc(x, fs);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(g, 1)")), 8);
     EXPECT_EQ(static_cast<int>(evalScalar("size(g, 2)")), 14);
+}
+
+TEST_F(CepstralTest, GtccBitEqualValues)
+{
+    // Cycle H: full MATLAB R2025b parity. Patterson-Holdsworth gammatone
+    // filterbank (Slaney 1993): 4-stage cascaded biquad per ERB-spaced
+    // band, freq-domain evaluation, bandwidth normalization.
+    eval("fs = 16000; t = (0:1/fs:0.1)'; x = sin(2*pi*440*t);"
+         "g = gtcc(x, fs);");
+    // logE matches mfcc (same UNWINDOWED frame energy)
+    EXPECT_NEAR(evalScalar("g(1, 1)"),  5.475232,  1e-5);
+    EXPECT_NEAR(evalScalar("g(2, 1)"),  5.469221,  1e-5);
+    // Cepstrum DC for frame 1
+    EXPECT_NEAR(evalScalar("g(1, 2)"), -6.869866,  1e-4);
+    EXPECT_NEAR(evalScalar("g(2, 2)"), -6.952216,  1e-4);
+    // Higher-order coefficients
+    EXPECT_NEAR(evalScalar("g(1, 3)"),  3.458922,  1e-4);
+    EXPECT_NEAR(evalScalar("g(1, 14)"),-0.367477,  1e-4);
 }

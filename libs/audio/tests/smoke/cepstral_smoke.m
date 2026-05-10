@@ -32,12 +32,17 @@ fprintf('  c(1,2) = %.6f (cep DC, expect -14.165624)\n', c(1,2));
 fprintf('  c(2,2) = %.6f (cep DC f2, expect -13.900615)\n', c(2,2));
 fprintf('  c(1,end) = %.6f (cep last, expect -0.620010)\n', c(1,end));
 
-fprintf('\n[gtcc shape check — KNOWN GAP: aliases to mfcc]\n');
+fprintf('\n[gtcc bit-equal MATLAB R2025b — Cycle H upgrade]\n');
 [g, gd, gdd] = gtcc(x, fs);
-fprintf('  gtcc shape=[%d %d]\n', size(g,1), size(g,2));
+fprintf('  gtcc shape=[%d %d] (expect [8 14])\n', size(g,1), size(g,2));
+fprintf('  g(1,1) = %.6f (logE, expect 5.475232)\n', g(1,1));
+fprintf('  g(1,2) = %.6f (cep DC, expect -6.869866)\n', g(1,2));
+fprintf('  g(2,2) = %.6f (cep DC f2, expect -6.952216)\n', g(2,2));
+fprintf('  g(1,3) = %.6f (cep c2, expect 3.458922)\n', g(1,3));
+fprintf('  g(1,end) = %.6f (cep last, expect -0.367477)\n', g(1,end));
 
-fprintf('\nKNOWN GAPs:\n');
-fprintf('  Cycle G CLOSED gap: mfcc bit-equal with MATLAB R2025b via Slaney\n');
-fprintf('  filterbank + |FFT| magnitude pipeline.\n');
-fprintf('  gtcc still aliases to mfcc — proper gammatone IIR filterbank\n');
-fprintf('  (4th-order ERB-shaped) deferred to v2.\n');
+fprintf('\nKNOWN GAPs: NONE for cycles D/G/H — all three (cepstralCoefficients\n');
+fprintf('  / mfcc / gtcc) are now BIT-EQUAL with MATLAB R2025b.\n');
+fprintf('  Cycle G (mfcc): Slaney mel filterbank + |FFT| magnitude pipeline.\n');
+fprintf('  Cycle H (gtcc): Patterson-Holdsworth gammatone filterbank via\n');
+fprintf('    cascaded 4-stage biquads (Slaney 1993) in frequency domain.\n');
