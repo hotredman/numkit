@@ -218,6 +218,52 @@ void GraphicsLibrary::install(Engine &engine)
             outs[0] = Value::empty();
         });
 
+    // tiledlayout(m, n[, ...]) — modern alternative to subplot. We
+    // store the grid shape on the FigureState so subsequent nexttile
+    // calls can step through cells. Trailing N-V pairs ('Padding',
+    // 'TileSpacing', 'TileIndexing') are accepted but currently no-op
+    // (the IDE always renders subplot cells with the same fixed gap).
+    reg("layout", "tiledlayout",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            int m = 1, n = 1;
+            if (args.size() >= 1 && !args[0].isChar()) m = (int)args[0].toScalar();
+            if (args.size() >= 2 && !args[1].isChar()) n = (int)args[1].toScalar();
+            if (m < 1) m = 1;
+            if (n < 1) n = 1;
+            auto &fm = ctx.engine->figureManager();
+            // setSubplot(m, n, 1) reserves the grid + activates cell 1.
+            fm.setSubplot(m, n, 1);
+            outs[0] = Value::empty();
+        });
+    // nexttile([span]) — bumps the active subplot cell index by 1
+    // (or by `span` if given a numeric arg). When the figure has no
+    // tiledlayout grid yet, the call is a no-op.
+    reg("layout", "nexttile",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            auto &fm = ctx.engine->figureManager();
+            auto &fig = fm.current();
+            if (fig.subplotRows <= 0 || fig.subplotCols <= 0) {
+                // No tiledlayout active; default to a 1x1 grid so
+                // the first nexttile creates a single cell.
+                fm.setSubplot(1, 1, 1);
+                outs[0] = Value::empty();
+                return;
+            }
+            const int total = fig.subplotRows * fig.subplotCols;
+            // Determine target cell. With a numeric arg, jump to that
+            // cell (1-based); else advance by 1 from the current.
+            int target = fig.currentAxes + 2;   // (currentAxes is 0-based)
+            if (!args.empty() && !args[0].isChar()) {
+                target = (int)args[0].toScalar();
+            }
+            if (target < 1) target = 1;
+            if (target > total) target = total;
+            fm.setSubplot(fig.subplotRows, fig.subplotCols, target);
+            outs[0] = Value::empty();
+        });
+
     // ================================================================
     // Plot types — graphics.line / graphics.bar / graphics.image
     // ================================================================
