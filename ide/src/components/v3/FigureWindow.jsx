@@ -241,9 +241,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   }
   const [fitOpen, setFitOpen]     = useState(false);
   const [saveOpen, setSaveOpen]   = useState(false);
+  const [viewOpen, setViewOpen]   = useState(false);
   const [maximized, setMaximized] = useState(false);
   const fitRef  = useRef(null);
   const saveRef = useRef(null);
+  const viewRef = useRef(null);
   const wrapRef = useRef(null);
   const [size, setSize] = useState({ w: 1100, h: 600 });
 
@@ -260,6 +262,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     function onDoc(e) {
       if (fitRef.current  && !fitRef.current.contains(e.target))  setFitOpen(false);
       if (saveRef.current && !saveRef.current.contains(e.target)) setSaveOpen(false);
+      if (viewRef.current && !viewRef.current.contains(e.target)) setViewOpen(false);
     }
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
@@ -787,6 +790,58 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               </div>
             ))}
           </div>
+          )}
+
+          {/* View presets — 3-D only. Six standard MATLAB camera
+              orientations: top (XY plane down), bottom (XY plane up),
+              front (XZ), back, left (YZ), right, plus iso (default
+              -37.5° / 30°). Each calls the Composite3DPlot.setView
+              imperative method without re-emitting the figure JSON,
+              so script-set view(az, el) is preserved as the "iso"
+              fallback. */}
+          {is3D && !isSubplot && (
+            <div className="ve-tools-group" ref={viewRef}>
+              <button className="ve-btn"
+                      onClick={() => setViewOpen((o) => !o)}
+                      title="Camera presets">
+                view ▾
+              </button>
+              {viewOpen && (
+                <div className="fw-pop">
+                  <div className="fw-pop-section">
+                    <div className="fw-pop-head">presets</div>
+                    <button data-fw-view="iso" onClick={() => {
+                      threeRef.current?.setView?.(-37.5, 30);
+                      setViewOpen(false);
+                    }}>iso (default)</button>
+                    <button data-fw-view="top" onClick={() => {
+                      threeRef.current?.setView?.(0, 90);
+                      setViewOpen(false);
+                    }}>top (XY)</button>
+                    <button data-fw-view="bottom" onClick={() => {
+                      threeRef.current?.setView?.(0, -90);
+                      setViewOpen(false);
+                    }}>bottom (XY-)</button>
+                    <button data-fw-view="front" onClick={() => {
+                      threeRef.current?.setView?.(0, 0);
+                      setViewOpen(false);
+                    }}>front (XZ)</button>
+                    <button data-fw-view="back" onClick={() => {
+                      threeRef.current?.setView?.(180, 0);
+                      setViewOpen(false);
+                    }}>back (XZ-)</button>
+                    <button data-fw-view="right" onClick={() => {
+                      threeRef.current?.setView?.(90, 0);
+                      setViewOpen(false);
+                    }}>right (YZ)</button>
+                    <button data-fw-view="left" onClick={() => {
+                      threeRef.current?.setView?.(-90, 0);
+                      setViewOpen(false);
+                    }}>left (YZ-)</button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Range inputs (X / Y / Z / r) live in the footer status
