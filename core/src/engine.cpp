@@ -29,10 +29,11 @@ namespace numkit {
 // Reserved names — see types.hpp for per-set semantics.
 // ============================================================
 const std::unordered_set<std::string> kBuiltinConstants = {
-    // `true` and `false` are MATLAB built-in functions, not constants —
-    // they support shape forms `true(M, N)` etc. See library.cpp /
-    // matrix.cpp:true_reg/false_reg and BUGS.md #30.
-    "pi", "eps", "inf", "Inf", "nan", "NaN", "i", "j",
+    // `true`/`false`/`nan`/`NaN`/`inf`/`Inf` are MATLAB built-in
+    // functions, not constants — they support shape forms
+    // `nan(M, N, 'single')`, `Inf(N)` etc. See library.cpp /
+    // matrix.cpp:nan_reg/inf_reg/true_reg/false_reg and BUGS.md #30.
+    "pi", "eps", "i", "j",
 };
 
 const std::unordered_set<std::string> kPseudoVars = {
@@ -91,10 +92,11 @@ void Engine::reinstallConstants()
 {
     constantsEnv_->set("pi", Value::scalar(3.14159265358979323846, mr_));
     constantsEnv_->set("eps", Value::scalar(2.2204460492503131e-16, mr_));
-    constantsEnv_->set("inf", Value::scalar(std::numeric_limits<double>::infinity(), mr_));
-    constantsEnv_->set("Inf", Value::scalar(std::numeric_limits<double>::infinity(), mr_));
-    constantsEnv_->set("nan", Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr_));
-    constantsEnv_->set("NaN", Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr_));
+    // `nan` / `NaN` / `inf` / `Inf` are MATLAB built-in functions, not
+    // constants. Bare `nan` calls nan() → scalar NaN; `nan(M, N)` calls
+    // nan(M, N) → MxN matrix of NaN; `nan(M, N, 'single')` returns
+    // single-precision. Registration lives in libs/builtin/src/library.cpp
+    // via nan_reg / inf_reg. Same pattern as true/false (BUGS.md #30).
     // `true` and `false` are MATLAB built-in functions, not constants.
     // Bare `true` calls true() → scalar logical 1; `true(M, N)` calls
     // true(M, N) → MxN logical array. Registration lives in

@@ -273,6 +273,29 @@ Value randperm(std::pmr::memory_resource *mr, size_t n, size_t k)
 // ════════════════════════════════════════════════════════════════════
 namespace detail {
 
+// Cast a DOUBLE Value buffer to single in-place (returns a new Value).
+// Used by rand/randn when the user requests 'single'.
+namespace { Value castDoubleToSingle(std::pmr::memory_resource *mr, const Value &src)
+{
+    Value dst;
+    if (src.dims().is3D())
+        dst = Value::matrix3d(src.dims().rows(), src.dims().cols(),
+                              src.dims().pages(), ValueType::SINGLE, mr);
+    else if (src.dims().ndim() > 3) {
+        const auto &dimsRef = src.dims();
+        size_t dimsBuf[Dims::kMaxRank];
+        for (int i = 0; i < dimsRef.ndim(); ++i) dimsBuf[i] = dimsRef.dim(i);
+        dst = Value::matrixND(dimsBuf, dimsRef.ndim(), ValueType::SINGLE, mr);
+    } else
+        dst = Value::matrix(src.dims().rows(), src.dims().cols(),
+                            ValueType::SINGLE, mr);
+    const size_t n = src.numel();
+    const double *sp = src.doubleData();
+    float *dp = dst.singleDataMut();
+    for (size_t i = 0; i < n; ++i) dp[i] = static_cast<float>(sp[i]);
+    return dst;
+}}
+
 // rand / randn supersede the earlier static-RNG versions. Same shape
 // API (parseDimsArgs); the only change is they now share the engine
 // that rng() controls.
@@ -280,39 +303,96 @@ void rand_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
               CallContext &ctx)
 {
     auto *mr = ctx.engine->resource();
+    ValueType t;
+    auto dimArgs = extractTypeArg(args, t);
+    if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
+        throw Error("rand: type must be 'double' or 'single'",
+                    0, 0, "rand", "", "m:rand:badType");
     ScratchArena scratch(mr);
-    auto dims = parseDimsArgsND(&scratch, args);
+    auto dims = parseDimsArgsND(&scratch, dimArgs);
     stripTrailingOnes(dims);
-    std::lock_guard<std::mutex> lock(rngMutex());
-    if (dims.size() <= 3) {
-        const size_t r = dims.size() >= 1 ? dims[0] : 1;
-        const size_t c = dims.size() >= 2 ? dims[1] : 1;
-        const size_t p = dims.size() >= 3 ? dims[2] : 0;
-        outs[0] = rand(mr, sharedEngine(), r, c, p);
-    } else {
-        outs[0] = randND(mr, sharedEngine(),
+    Value out;
+    {
+        std::lock_guard<std::mutex> lock(rngMutex());
+        if (dims.size() <= 3) {
+            const size_t r = dims.size() >= 1 ? dims[0] : 1;
+            const size_t c = dims.size() >= 2 ? dims[1] : 1;
+            const size_t p = dims.size() >= 3 ? dims[2] : 0;
+            out = rand(mr, sharedEngine(), r, c, p);
+        } else {
+            out = randND(mr, sharedEngine(),
                          dims.data(), static_cast<int>(dims.size()));
+        }
     }
+    outs[0] = (t == ValueType::SINGLE) ? castDoubleToSingle(mr, out) : std::move(out);
 }
 
 void randn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                CallContext &ctx)
 {
     auto *mr = ctx.engine->resource();
+    ValueType t;
+    auto dimArgs = extractTypeArg(args, t);
+    if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
+        throw Error("randn: type must be 'double' or 'single'",
+                    0, 0, "randn", "", "m:randn:badType");
     ScratchArena scratch(mr);
-    auto dims = parseDimsArgsND(&scratch, args);
+    auto dims = parseDimsArgsND(&scratch, dimArgs);
     stripTrailingOnes(dims);
-    std::lock_guard<std::mutex> lock(rngMutex());
-    if (dims.size() <= 3) {
-        const size_t r = dims.size() >= 1 ? dims[0] : 1;
-        const size_t c = dims.size() >= 2 ? dims[1] : 1;
-        const size_t p = dims.size() >= 3 ? dims[2] : 0;
-        outs[0] = randn(mr, sharedEngine(), r, c, p);
-    } else {
-        outs[0] = randnND(mr, sharedEngine(),
+    Value out;
+    {
+        std::lock_guard<std::mutex> lock(rngMutex());
+        if (dims.size() <= 3) {
+            const size_t r = dims.size() >= 1 ? dims[0] : 1;
+            const size_t c = dims.size() >= 2 ? dims[1] : 1;
+            const size_t p = dims.size() >= 3 ? dims[2] : 0;
+            out = randn(mr, sharedEngine(), r, c, p);
+        } else {
+            out = randnND(mr, sharedEngine(),
                           dims.data(), static_cast<int>(dims.size()));
+        }
     }
+    outs[0] = (t == ValueType::SINGLE) ? castDoubleToSingle(mr, out) : std::move(out);
 }
+
+// Cast a DOUBLE Value to any integer or single class (for randi typed
+// outputs). Saturating cast (out-of-range int64 values clamp).
+namespace { Value castDoubleToType(std::pmr::memory_resource *mr,
+                                    const Value &src, ValueType t)
+{
+    if (t == ValueType::DOUBLE) return src;
+    Value dst;
+    if (src.dims().is3D())
+        dst = Value::matrix3d(src.dims().rows(), src.dims().cols(),
+                              src.dims().pages(), t, mr);
+    else if (src.dims().ndim() > 3) {
+        const auto &dimsRef = src.dims();
+        size_t dimsBuf[Dims::kMaxRank];
+        for (int i = 0; i < dimsRef.ndim(); ++i) dimsBuf[i] = dimsRef.dim(i);
+        dst = Value::matrixND(dimsBuf, dimsRef.ndim(), t, mr);
+    } else
+        dst = Value::matrix(src.dims().rows(), src.dims().cols(), t, mr);
+    const size_t n = src.numel();
+    const double *sp = src.doubleData();
+    auto cast_loop = [&](auto *dp, auto /*tag*/) {
+        using T = std::remove_pointer_t<decltype(dp)>;
+        for (size_t i = 0; i < n; ++i) dp[i] = static_cast<T>(sp[i]);
+    };
+    switch (t) {
+      case ValueType::SINGLE: cast_loop(dst.singleDataMut(),  float{});    break;
+      case ValueType::INT8:   cast_loop(dst.int8DataMut(),    int8_t{});   break;
+      case ValueType::INT16:  cast_loop(dst.int16DataMut(),   int16_t{});  break;
+      case ValueType::INT32:  cast_loop(dst.int32DataMut(),   int32_t{});  break;
+      case ValueType::INT64:  cast_loop(dst.int64DataMut(),   int64_t{});  break;
+      case ValueType::UINT8:  cast_loop(dst.uint8DataMut(),   uint8_t{});  break;
+      case ValueType::UINT16: cast_loop(dst.uint16DataMut(),  uint16_t{}); break;
+      case ValueType::UINT32: cast_loop(dst.uint32DataMut(),  uint32_t{}); break;
+      case ValueType::UINT64: cast_loop(dst.uint64DataMut(),  uint64_t{}); break;
+      default: throw Error("randi: unsupported type for cast",
+                           0, 0, "randi", "", "m:randi:badType");
+    }
+    return dst;
+}}
 
 // randi MATLAB forms:
 //   randi(imax)                    scalar
@@ -320,6 +400,7 @@ void randn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 //   randi(imax, m, n[, p])         shape
 //   randi(imax, [m n p])           shape via vector
 //   randi([imin imax], …)          range form (first arg is 2-vector)
+//   randi(..., 'type')             typed output (any int / 'double' / 'single')
 void randi_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                CallContext &ctx)
 {
@@ -339,29 +420,36 @@ void randi_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     Span<const Value> dimArgs = (args.size() > 1) ? args.subspan(1) : Span<const Value>{};
     auto *mr = ctx.engine->resource();
 
+    // Strip trailing class-name from dim args.
+    ValueType t;
+    dimArgs = extractTypeArg(dimArgs, t);
+
+    Value dbl_out;
     if (dimArgs.empty()) {
         // Scalar form.
-        outs[0] = randi(mr, imin, imax, 1, 1, 0);
-        return;
-    }
-    ScratchArena scratch(mr);
-    auto dims = parseDimsArgsND(&scratch, dimArgs);
-    stripTrailingOnes(dims);
-    if (dims.size() <= 3) {
-        const size_t r = dims.size() >= 1 ? dims[0] : 1;
-        const size_t c = dims.size() >= 2 ? dims[1] : 1;
-        const size_t p = dims.size() >= 3 ? dims[2] : 0;
-        outs[0] = randi(mr, imin, imax, r, c, p);
+        dbl_out = randi(mr, imin, imax, 1, 1, 0);
     } else {
-        // ND form: allocate matrixND and fill via the same uniform-int pass.
-        auto m = Value::matrixND(dims.data(), static_cast<int>(dims.size()),
-                                  ValueType::DOUBLE, mr);
-        std::lock_guard<std::mutex> lock(rngMutex());
-        std::uniform_int_distribution<int64_t> dist(imin, imax);
-        for (size_t i = 0; i < m.numel(); ++i)
-            m.doubleDataMut()[i] = static_cast<double>(dist(sharedEngine()));
-        outs[0] = std::move(m);
+        ScratchArena scratch(mr);
+        auto dims = parseDimsArgsND(&scratch, dimArgs);
+        stripTrailingOnes(dims);
+        if (dims.size() <= 3) {
+            const size_t r = dims.size() >= 1 ? dims[0] : 1;
+            const size_t c = dims.size() >= 2 ? dims[1] : 1;
+            const size_t p = dims.size() >= 3 ? dims[2] : 0;
+            dbl_out = randi(mr, imin, imax, r, c, p);
+        } else {
+            // ND form: allocate matrixND and fill via the same uniform-int pass.
+            auto m = Value::matrixND(dims.data(), static_cast<int>(dims.size()),
+                                      ValueType::DOUBLE, mr);
+            std::lock_guard<std::mutex> lock(rngMutex());
+            std::uniform_int_distribution<int64_t> dist(imin, imax);
+            for (size_t i = 0; i < m.numel(); ++i)
+                m.doubleDataMut()[i] = static_cast<double>(dist(sharedEngine()));
+            dbl_out = std::move(m);
+        }
     }
+    outs[0] = (t == ValueType::DOUBLE) ? std::move(dbl_out)
+                                       : castDoubleToType(mr, dbl_out, t);
 }
 
 void randperm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,

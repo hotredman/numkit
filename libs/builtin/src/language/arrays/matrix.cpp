@@ -3832,6 +3832,64 @@ void ones_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     outs[0] = std::move(m);
 }
 
+// `nan` / `NaN` / `inf` / `Inf` are MATLAB built-in functions (not
+// constants): bare `nan` returns scalar NaN; `nan(M, N, ..., 'type')`
+// returns float array filled with NaN (only 'double' or 'single' are
+// allowed -- integer types can't represent NaN/Inf, MATLAB throws).
+// Same shape parsing as zeros/ones.
+namespace { void nanInfFill(Value &v, double fillD, float fillS, ValueType t)
+{
+    const size_t n = v.numel();
+    if (n == 0) return;
+    if (t == ValueType::DOUBLE) {
+        auto *p = v.doubleDataMut(); std::fill(p, p + n, fillD);
+    } else if (t == ValueType::SINGLE) {
+        auto *p = v.singleDataMut(); std::fill(p, p + n, fillS);
+    }
+}}
+
+void nan_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    auto *mr = ctx.engine->resource();
+    if (args.empty()) {
+        outs[0] = Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr);
+        return;
+    }
+    ValueType t;
+    auto dimArgs = extractTypeArg(args, t);
+    if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
+        throw Error("nan: type must be 'double' or 'single' (NaN is float-only)",
+                    0, 0, "nan", "", "m:nan:badType");
+    ScratchArena scratch(mr);
+    auto d = parseDimsArgsND(&scratch, dimArgs);
+    stripTrailingOnes(d);
+    auto m = createMatrixND(d.data(), d.size(), t, mr);
+    nanInfFill(m, std::numeric_limits<double>::quiet_NaN(),
+                  std::numeric_limits<float>::quiet_NaN(), t);
+    outs[0] = std::move(m);
+}
+
+void inf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    auto *mr = ctx.engine->resource();
+    if (args.empty()) {
+        outs[0] = Value::scalar(std::numeric_limits<double>::infinity(), mr);
+        return;
+    }
+    ValueType t;
+    auto dimArgs = extractTypeArg(args, t);
+    if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
+        throw Error("inf: type must be 'double' or 'single' (Inf is float-only)",
+                    0, 0, "inf", "", "m:inf:badType");
+    ScratchArena scratch(mr);
+    auto d = parseDimsArgsND(&scratch, dimArgs);
+    stripTrailingOnes(d);
+    auto m = createMatrixND(d.data(), d.size(), t, mr);
+    nanInfFill(m, std::numeric_limits<double>::infinity(),
+                  std::numeric_limits<float>::infinity(), t);
+    outs[0] = std::move(m);
+}
+
 // `true` and `false` are MATLAB built-in functions (not constants):
 // bare `true` returns a scalar logical 1; `true(M, N, ...)` returns a
 // logical array filled with 1 (or 0 for false). Mirrors zeros/ones
@@ -3868,8 +3926,32 @@ void false_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 
 void eye_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    auto d = parseDimsArgs(args);
-    outs[0] = eye(ctx.engine->resource(), d.rows, d.cols);
+    auto *mr = ctx.engine->resource();
+    ValueType t;
+    auto dimArgs = extractTypeArg(args, t);
+    auto d = parseDimsArgs(dimArgs);
+    if (t == ValueType::DOUBLE) {
+        // Fast path: direct double eye().
+        outs[0] = eye(mr, d.rows, d.cols);
+        return;
+    }
+    // Typed eye: zero-fill matrix of `t`, then set diagonal to one.
+    auto m = Value::matrix(d.rows, d.cols, t, mr);
+    const size_t k = std::min(d.rows, d.cols);
+    switch (t) {
+      case ValueType::SINGLE: { auto *p = m.singleDataMut(); for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1.0f; break; }
+      case ValueType::LOGICAL:{ auto *p = m.logicalDataMut(); for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
+      case ValueType::INT8:   { auto *p = m.int8DataMut();    for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
+      case ValueType::INT16:  { auto *p = m.int16DataMut();   for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
+      case ValueType::INT32:  { auto *p = m.int32DataMut();   for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
+      case ValueType::INT64:  { auto *p = m.int64DataMut();   for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
+      case ValueType::UINT8:  { auto *p = m.uint8DataMut();   for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
+      case ValueType::UINT16: { auto *p = m.uint16DataMut();  for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
+      case ValueType::UINT32: { auto *p = m.uint32DataMut();  for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
+      case ValueType::UINT64: { auto *p = m.uint64DataMut();  for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
+      default: throw Error("eye: unsupported type", 0, 0, "eye", "", "m:eye:badType");
+    }
+    outs[0] = std::move(m);
 }
 
 void magic_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
