@@ -182,6 +182,24 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     )).toEqual([]);
   });
 
+  test('imshow + Colormap N-V — picks named map (jet) instead of gray', async () => {
+    await ide.runScript(
+      'import compat.*;\n'
+      + 'imshow([0 0.5 1; 0.5 1 0.5; 1 0.5 0], \'Colormap\', \'jet\');\n'
+    );
+    await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+    await ide.figureCards.first().click();
+    await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+    // Colormap select on the toolbar should read 'jet'.
+    const opts = await ide.figureWindow.locator('select').elementHandles();
+    let foundJet = false;
+    for (const sel of opts) {
+      const v = await sel.evaluate((el) => el.value);
+      if (v === 'jet') { foundJet = true; break; }
+    }
+    expect(foundJet).toBe(true);
+  });
+
   test('imshow logical mask — true=white, false=black', async () => {
     await ide.runScript(
       'import compat.*;\n'

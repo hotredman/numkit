@@ -29,11 +29,11 @@ defer to the host's existing image-decode path (Electron has built-in
 - `'DisplayRange', [lo hi]` — equivalent to positional `imshow(I, [lo hi])`. ✅
 - `'XData', xv` / `'YData', yv` — image spans `[xv(1), xv(end)]` /
   `[yv(1), yv(end)]` instead of pixel-index baseline. ✅
+- `'Colormap', name` — sets `ax.colormapName` directly. Wins over
+  the default 'gray'. ✅
 
 ### Still NOT parsed (lost silently)
 
-- `'Colormap', cmap` — sets axes colormap; today user has to call
-  `colormap(...)` separately. Trivial: write to `ax.colormapName`.
 - `'InitialMagnification', factor | 'fit'` — controls display scale; we
   always fit-to-panel which matches `'fit'`. The numeric form would
   set the SVG image dimensions to `factor * pixel_count`; needs IDE-
