@@ -689,10 +689,69 @@ function buildPoints(positions, color, size) {
 }
 
 /**
- * Build the full axes frame: cube edges, grid lines on three back
- * faces, tick mark lines, and CSS2D label objects. Returns a Group +
- * an array of CSS2DObjects to attach to the scene. Caller is
- * responsible for disposing geometries when this group is replaced.
+ * World-space outward normals for the six bounding-cube faces. The
+ * cube spans [-1, +1]^3, so each face's outward normal is just its
+ * coordinate sign vector. Used at render-time to decide which faces
+ * are "back" (camera looking at them from behind, so the grid drawn
+ * on them never overdraws the data) vs "front" (camera between the
+ * face and the data — grid would overdraw).
+ *
+ * data → world axis convention: data-X → world-X, data-Y → world-Z,
+ * data-Z → world-Y (with sign-flips applied by tickW in buildAxesFrame).
+ */
+const FACE_NORMALS = {
+  xMinus: [-1,  0,  0], xPlus:  [+1,  0,  0],
+  yMinus: [ 0, -1,  0], yPlus:  [ 0, +1,  0],
+  zMinus: [ 0,  0, -1], zPlus:  [ 0,  0, +1],
+};
+const ALL_FACES = Object.keys(FACE_NORMALS);
+
+/**
+ * Build the grid-line geometry for a single face of the bounding cube.
+ * `face` picks one of the six faces (xMinus, xPlus, ..., zPlus); the
+ * lines run along the two "in-plane" world axes. Returns a flat
+ * Float32Array-friendly verts list, six floats per line segment.
+ */
+function gridVertsForFace(face, tickValues, tickW) {
+  const n = FACE_NORMALS[face];
+  // World axis indices (0=X, 1=Y, 2=Z) — the two in-plane axes are
+  // the ones whose normal component is zero.
+  const constWorldAxis = n.findIndex((v) => v !== 0);
+  const constVal = n[constWorldAxis];
+  const inPlaneWorldAxes = [0, 1, 2].filter((a) => a !== constWorldAxis);
+  // data-axis ↔ world-axis mapping (data-Y → world-Z with flipped sign
+  // already baked into tickW).
+  const worldOf = { x: 0, y: 2, z: 1 };
+  const dataOf = { 0: 'x', 1: 'z', 2: 'y' };  // inverse of worldOf
+  const verts = [];
+  // For each in-plane world axis, draw lines at each tick value of
+  // the corresponding data axis, running from -1 to +1 along the
+  // OTHER in-plane axis.
+  for (const wAxis of inPlaneWorldAxes) {
+    const otherWAxis = inPlaneWorldAxes.find((a) => a !== wAxis);
+    const dAxis = dataOf[wAxis];
+    for (const v of tickValues[dAxis]) {
+      const w = tickW(v, dAxis);
+      const a = [0, 0, 0]; const b = [0, 0, 0];
+      a[constWorldAxis] = constVal; b[constWorldAxis] = constVal;
+      a[wAxis] = w;                  b[wAxis] = w;
+      a[otherWAxis] = -1;            b[otherWAxis] = +1;
+      verts.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+    }
+  }
+  return verts;
+}
+
+/**
+ * Build the full axes frame: cube edges, grid lines on ALL SIX cube
+ * faces (caller toggles `.visible` per-face from the render tick),
+ * tick mark lines, and CSS2D label objects. Returns:
+ *   { group, labels, gridMajorByFace, gridMinorByFace }
+ *
+ * gridMajorByFace / gridMinorByFace are { faceKey: LineSegments }
+ * dictionaries the parent uses to animate visibility based on camera
+ * orbit. They're already attached to `group` — flipping `.visible`
+ * is the only state the parent owns.
  *
  * Tick labels live on the data-X / data-Y / data-Z axes that meet at
  * the (xMin, yMin, zMin) corner — a convention close enough to MATLAB
@@ -700,8 +759,7 @@ function buildPoints(positions, color, size) {
  * the camera orbits; that's a follow-up).
  */
 function buildAxesFrame(bbox, scl, opts) {
-  const { showGrid = true, showMinorGrid = false,
-          showBox = true, fontScale = 1,
+  const { showBox = true, fontScale = 1,
           xLabel = '', yLabel = '', zLabel = '' } = opts || {};
 
   const group = new THREE.Group();
@@ -725,6 +783,7 @@ function buildAxesFrame(bbox, scl, opts) {
   const xTicks = niceTicks(bbox.xMin, bbox.xMax, 6);
   const yTicks = niceTicks(bbox.yMin, bbox.yMax, 6);
   const zTicks = niceTicks(bbox.zMin, bbox.zMax, 6);
+  const tickValues = { x: xTicks, y: yTicks, z: zTicks };
 
   const tickW = (v, axis) => {
     if (axis === 'x') return (v - scl.ox) * scl.sx;
@@ -732,103 +791,57 @@ function buildAxesFrame(bbox, scl, opts) {
     return (v - scl.oz) * scl.sz;
   };
 
-  // Grid lines on three "back" faces. Without knowing camera azimuth
-  // up-front we draw the grid on the faces opposite the default
-  // camera (data-Y positive face = world-Z = -1; data-X positive
-  // face = world-X = +1; data-Z negative = world-Y = -1). Cheap and
-  // good enough; a follow-up will reposition them per-frame.
-  if (showGrid) {
-    const gridMat = new THREE.LineBasicMaterial({
-      color: cssColorInt('--plot-grid', 0x484f58),
-      transparent: true, opacity: 0.4,
-    });
-    // X-Y plane at zMin (world-Y = -1).
-    for (const xv of xTicks) {
-      const wx = tickW(xv, 'x');
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
-        wx, -1, -1,  wx, -1, 1,
-      ]), 3));
-      group.add(new THREE.LineSegments(g, gridMat));
-    }
-    for (const yv of yTicks) {
-      const wz = tickW(yv, 'y');
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
-        -1, -1, wz,  1, -1, wz,
-      ]), 3));
-      group.add(new THREE.LineSegments(g, gridMat));
-    }
-    // X-Z plane at yMax (world-Z = -1, the back face).
-    for (const xv of xTicks) {
-      const wx = tickW(xv, 'x');
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
-        wx, -1, -1,  wx, 1, -1,
-      ]), 3));
-      group.add(new THREE.LineSegments(g, gridMat));
-    }
-    for (const zv of zTicks) {
-      const wy = tickW(zv, 'z');
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
-        -1, wy, -1,  1, wy, -1,
-      ]), 3));
-      group.add(new THREE.LineSegments(g, gridMat));
-    }
-    // Y-Z plane at xMin (world-X = -1).
-    for (const yv of yTicks) {
-      const wz = tickW(yv, 'y');
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
-        -1, -1, wz,  -1, 1, wz,
-      ]), 3));
-      group.add(new THREE.LineSegments(g, gridMat));
-    }
-    for (const zv of zTicks) {
-      const wy = tickW(zv, 'z');
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
-        -1, wy, -1,  -1, wy, 1,
-      ]), 3));
-      group.add(new THREE.LineSegments(g, gridMat));
-    }
+  // ── Major grid: one LineSegments per face, all six faces. Parent
+  // toggles `.visible` per face based on camera orbit + the
+  // gridMajor/gridMinor flags.
+  const gridMat = new THREE.LineBasicMaterial({
+    color: cssColorInt('--plot-grid', 0x484f58),
+    transparent: true, opacity: 0.4,
+  });
+  const gridMajorByFace = {};
+  for (const face of ALL_FACES) {
+    const verts = gridVertsForFace(face, tickValues, tickW);
+    if (!verts.length) continue;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
+    const seg = new THREE.LineSegments(g, gridMat);
+    seg.name = `grid-major-${face}`;
+    seg.userData.face = face;
+    seg.visible = false;   // parent flips this per-frame
+    group.add(seg);
+    gridMajorByFace[face] = seg;
   }
 
-  // Minor grid: 5 subdivisions between consecutive major ticks on
-  // each axis, drawn on the same three back faces as the major grid
-  // but with a fainter material. Mirrors MATLAB's `grid minor` look.
-  if (showMinorGrid) {
-    const minorMat = new THREE.LineBasicMaterial({
-      color: cssColorInt('--plot-grid-min', cssColorInt('--plot-grid', 0x484f58)),
-      transparent: true, opacity: 0.18,
-    });
-    const interpAxis = (ticks, axis) => {
-      const arr = [];
-      for (let i = 0; i + 1 < ticks.length; i++) {
-        const a = ticks[i], b = ticks[i + 1];
-        const step = (b - a) / 5;
-        for (let k = 1; k < 5; k++) arr.push(tickW(a + step * k, axis));
-      }
-      return arr;
-    };
-    const minX = interpAxis(xTicks, 'x');
-    const minY = interpAxis(yTicks, 'y');
-    const minZ = interpAxis(zTicks, 'z');
-    const seg = (verts) => {
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
-      group.add(new THREE.LineSegments(g, minorMat));
-    };
-    // X-Y floor (world-Y = -1)
-    for (const wx of minX) seg([wx, -1, -1, wx, -1, 1]);
-    for (const wz of minY) seg([-1, -1, wz, 1, -1, wz]);
-    // X-Z back wall (world-Z = -1)
-    for (const wx of minX) seg([wx, -1, -1, wx, 1, -1]);
-    for (const wy of minZ) seg([-1, wy, -1, 1, wy, -1]);
-    // Y-Z left wall (world-X = -1)
-    for (const wz of minY) seg([-1, -1, wz, -1, 1, wz]);
-    for (const wy of minZ) seg([-1, wy, -1, -1, wy, 1]);
+  // ── Minor grid: 5 subdivisions per major interval, same six-face
+  // layout, fainter material.
+  const minorMat = new THREE.LineBasicMaterial({
+    color: cssColorInt('--plot-grid-min', cssColorInt('--plot-grid', 0x484f58)),
+    transparent: true, opacity: 0.18,
+  });
+  const interpAxis = (ticks) => {
+    const arr = [];
+    for (let i = 0; i + 1 < ticks.length; i++) {
+      const a = ticks[i], b = ticks[i + 1];
+      const step = (b - a) / 5;
+      for (let k = 1; k < 5; k++) arr.push(a + step * k);
+    }
+    return arr;
+  };
+  const minorTickValues = {
+    x: interpAxis(xTicks), y: interpAxis(yTicks), z: interpAxis(zTicks),
+  };
+  const gridMinorByFace = {};
+  for (const face of ALL_FACES) {
+    const verts = gridVertsForFace(face, minorTickValues, tickW);
+    if (!verts.length) continue;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
+    const seg = new THREE.LineSegments(g, minorMat);
+    seg.name = `grid-minor-${face}`;
+    seg.userData.face = face;
+    seg.visible = false;
+    group.add(seg);
+    gridMinorByFace[face] = seg;
   }
 
   // Tick labels on the front-bottom edge for X, side-bottom for Y,
@@ -888,7 +901,7 @@ function buildAxesFrame(bbox, scl, opts) {
     }
   }
 
-  return { group, labels };
+  return { group, labels, gridMajorByFace, gridMinorByFace };
 }
 
 /** Recursively dispose every disposable in a subtree. */
@@ -1045,6 +1058,25 @@ function Composite3DPlot({
         camLight.target.position.set(0, 0, 0);
         camLight.target.updateMatrixWorld();
       }
+      // Per-frame back-face grid visibility. dot(camera.position,
+      // outward face normal) < 0 ⇒ camera is on the opposite side ⇒
+      // face is behind the data ⇒ grid drawn there doesn't overdraw.
+      // BUG #39b fix: was hard-coded to three faces at build time.
+      const ctx = ctxRef.current;
+      if (ctx && (ctx.gridMajorByFace || ctx.gridMinorByFace)) {
+        const cam = camera.position;
+        const wantMajor = !!ctx.wantMajorRef?.current;
+        const wantMinor = !!ctx.wantMinorRef?.current;
+        for (const face of ALL_FACES) {
+          const n = FACE_NORMALS[face];
+          const dot = cam.x * n[0] + cam.y * n[1] + cam.z * n[2];
+          const isBack = dot < 0;
+          const major = ctx.gridMajorByFace && ctx.gridMajorByFace[face];
+          const minor = ctx.gridMinorByFace && ctx.gridMinorByFace[face];
+          if (major) major.visible = wantMajor && isBack;
+          if (minor) minor.visible = wantMinor && isBack;
+        }
+      }
       renderer.render(scene, camera);
       css2d.render(scene, camera);
       frames++;
@@ -1055,10 +1087,20 @@ function Composite3DPlot({
     ctxRef.current = { renderer, css2d, scene, camera, controls,
                        layerGroup, axesGroup, camLight,
                        setBbox: (b) => { bbox = b; },
-                       setScl:  (s) => { scl  = s; }};
+                       setScl:  (s) => { scl  = s; },
+                       gridMajorByFace: {}, gridMinorByFace: {},
+                       // Refs read by the tick loop; kept on ctx so the
+                       // grid-toggle effect updates without retriggering
+                       // a full scene rebuild (BUG #39a fix).
+                       wantMajorRef: { current: false },
+                       wantMinorRef: { current: false } };
     raf = requestAnimationFrame(tick);
 
     canvas.setAttribute('data-numkit-3d', '1');
+    // Test inspection hook — exposes the live three.js context so
+    // Playwright specs can read camera.position / count visible grid
+    // faces. The cleanup on unmount drops it; minimal leak risk.
+    canvas.__numkit3dCtx = ctxRef;
     try {
       const gl = renderer.getContext();
       if (gl) console.log('[numkit-3d] gl context ok', gl.getParameter(gl.VERSION));
@@ -1071,6 +1113,7 @@ function Composite3DPlot({
       controls.dispose();
       disposeTree(scene);
       renderer.dispose();
+      try { delete canvas.__numkit3dCtx; } catch (e) { /* ignore */ }
       ctxRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1086,7 +1129,14 @@ function Composite3DPlot({
     c.camera.updateProjectionMatrix();
   }, [width, height]);
 
+  // Track the last `figure.view` we applied to the camera so a rebuild
+  // doesn't re-apply the same value and clobber a user orbit. Compared
+  // by JSON to handle [az, el] tuples cheaply (BUG #39a).
+  const lastViewRef = useRef(null);
+
   // Figure data → rebuild data-layer group AND axes-frame group.
+  // NB: grid toggles do NOT trigger this — they live in their own
+  // effect below that flips visibility via refs without rebuilding.
   useEffect(() => {
     const c = ctxRef.current;
     if (!c || !figure) return;
@@ -1102,6 +1152,10 @@ function Composite3DPlot({
       c.axesGroup.remove(child);
       disposeTree(child);
     }
+    // Drop refs to the destroyed face groups so the tick loop's
+    // visibility update no-ops until the new ones land below.
+    c.gridMajorByFace = {};
+    c.gridMinorByFace = {};
 
     const layers = (figure.layers || []).filter((ly) =>
       ly && ly.kind === 'series' && ly.xRaw && ly.yRaw && ly.z);
@@ -1130,19 +1184,20 @@ function Composite3DPlot({
     c.bbox = bbox;
     c.scl  = scl;
 
-    // Axes frame. effectiveMajor / effectiveMinor mirror the
-    // toolbar toggles (FigureWindow forwards them through props);
-    // when the parent doesn't override they fall back to the
-    // figure.grid / figure.gridMinor strings.
-    const { group: axesFrame } = buildAxesFrame(bbox, scl, {
-      showGrid: effectiveMajor,
-      showMinorGrid: effectiveMinor,
-      showBox: true, fontScale,
-      xLabel: figure.xLabel || '',
-      yLabel: figure.yLabel || '',
-      zLabel: figure.zLabel || '',
-    });
+    // Axes frame. Build all six grid faces unconditionally — the tick
+    // loop picks back-faces per-frame. effectiveMajor/Minor are read
+    // from the refs the grid-toggle effect maintains; this effect
+    // doesn't depend on them, so the frame survives grid toggles.
+    const { group: axesFrame, gridMajorByFace, gridMinorByFace }
+      = buildAxesFrame(bbox, scl, {
+          showBox: true, fontScale,
+          xLabel: figure.xLabel || '',
+          yLabel: figure.yLabel || '',
+          zLabel: figure.zLabel || '',
+        });
     c.axesGroup.add(axesFrame);
+    c.gridMajorByFace = gridMajorByFace;
+    c.gridMinorByFace = gridMinorByFace;
 
     // Data layers.
     for (const ly of layers) {
@@ -1187,12 +1242,19 @@ function Composite3DPlot({
       }
     }
 
-    // If view changed, snap camera to the new (az, el).
+    // Apply figure.view to the camera ONLY if it changed since the
+    // last rebuild. Otherwise we'd clobber the user's orbit on every
+    // figure prop tick (BUG #39a fix). lastViewRef stores a JSON
+    // serialisation so [az, el] tuples compare by value.
     if (Array.isArray(figure.view) && figure.view.length === 2) {
-      const off = azElToCameraOffset(figure.view[0], figure.view[1], 4);
-      c.camera.position.set(off.x, off.y, off.z);
-      c.camera.lookAt(0, 0, 0);
-      c.controls.update();
+      const sig = `${figure.view[0]},${figure.view[1]}`;
+      if (sig !== lastViewRef.current) {
+        const off = azElToCameraOffset(figure.view[0], figure.view[1], 4);
+        c.camera.position.set(off.x, off.y, off.z);
+        c.camera.lookAt(0, 0, 0);
+        c.controls.update();
+        lastViewRef.current = sig;
+      }
     }
 
     // Toggle the camlight per figure.camlight.
@@ -1208,7 +1270,16 @@ function Composite3DPlot({
     c.controls.enableRotate = figure.rotate3d !== 'off';
     c.controls.enablePan    = figure.pan3d    !== 'off';
     c.controls.enableZoom   = figure.zoom3d   !== 'off';
-  }, [figure, fontScale, viewport3d, effectiveMajor, effectiveMinor]);
+  }, [figure, fontScale, viewport3d]);
+
+  // Grid major/minor toggle — touches only refs that the tick loop
+  // reads next frame. No scene rebuild, no camera reset (BUG #39a).
+  useEffect(() => {
+    const c = ctxRef.current;
+    if (!c) return;
+    if (c.wantMajorRef) c.wantMajorRef.current = !!effectiveMajor;
+    if (c.wantMinorRef) c.wantMinorRef.current = !!effectiveMinor;
+  }, [effectiveMajor, effectiveMinor]);
 
   useEffect(() => {
     const c = ctxRef.current;
