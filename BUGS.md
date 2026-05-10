@@ -974,6 +974,152 @@ direct value comparison.
 
 ---
 
+## 38. `ide/`: `plot()` linespec/N-V parameters partially ignored by renderer — **P1**
+
+**Symptom:** in
+```matlab
+plot(x, sin(x),         'b-',   'LineWidth', 2)
+plot(x, sin(x - pi/4),  'r--o', 'LineWidth', 1.5, 'MarkerSize', 4)
+plot(x, sin(x - pi/2),  'g:s',                    'MarkerSize', 5)
+```
+all three lines render as **solid, default-thickness, marker-less**
+strokes whose only visible difference is colour.
+
+**Diagnosis:** kernel emits the right JSON — the figure stream from
+`numkit_example.exe` shows
+`{"style":"r--o","lineWidth":1.5,"markerSize":4}` etc. Loss happens in
+the IDE rendering pipeline, in three independent places:
+
+1. **`adapters.js` `parseLineSpec`** — only extracts `color`. Never
+   reads the dash hint (`-`, `--`, `:`, `-.`) or the marker glyph
+   (`o`, `s`, `*`, `^`, `+`, `x`, `d`, `v`, `<`, `>`, `p`, `h`). So
+   `'r--o'` reduces to `{color: '#f07070'}` — same as `'r'`.
+
+2. **`CompositePlot.jsx` line render (line ≈1176)** — emits
+   `<path stroke={ly.color} strokeWidth={w} ... />` with no
+   `strokeDasharray` switch on `ly.lineStyle`. Even if (1) were fixed,
+   the path would still draw solid.
+
+3. **`CompositePlot.jsx` line render** — never overlays markers on a
+   line layer. Markers only render under `mode === 'scatter'`. So
+   `plot(x, y, 'r-o')` (line + circle markers) loses the markers
+   entirely; only `scatter(x, y)` shows them.
+
+4. **`LineWidth` chain proper** — verified end-to-end OK for `mode ===
+   'line'` (kernel → `d.lineWidth` → adapter `width:` → `w =
+   ly.width || 1.5` → `<path strokeWidth={w}>`). The user-facing
+   "params not applied" perception comes from (1)+(2)+(3) hiding the
+   difference between `'b-'` LW=2 and `'g:s'` LW-default; once
+   markers + dashes are restored the LW change becomes visible.
+
+**Test gap:** no e2e covers any linespec/N-V param. `grep -rn
+'LineWidth\|MarkerSize\|linewidth' ide/desktop/tests/e2e/` → empty.
+
+**Plan when fixing:**
+- Extend `parseLineSpec` to emit `{color, lineStyle: '-' | '--' | ':' |
+  '-.', marker: 'o'|'s'|'*'|'^'|...}` based on a tokeniser that walks
+  the spec left-to-right (longest-match for dashes, then the marker
+  glyph). MATLAB-compatible token table is small.
+- Adapter: forward `lineStyle` and `marker` onto the layer, separate
+  from `style` string. Don't break heatmap/scatter etc.
+- `CompositePlot` `mode === 'line'` branch: pick `strokeDasharray`
+  from a 4-entry table; if `ly.marker` set, draw an overlay `<g>` of
+  marker shapes after the path.
+- Add e2e `linespec-params.spec.js` covering: solid/dashed/dotted/
+  dash-dot widths from kernel; marker glyph variations; LineWidth=N;
+  MarkerSize=M.
+
+**Severity P1:** wrong visual output of one of the most common MATLAB
+calls. Not a crash and color does propagate, so users see a plot — but
+visual diffs that the script asks for silently disappear.
+
+**First seen:** 2026-05-10, reported during imshow design discussion.
+
+---
+
+## 39. `ide/`: 3-D scene — grid toggle resets camera, grid sits on front faces — **P1**
+
+Two related defects in `Composite3DPlot.jsx`. Filed together because
+both touch the per-figure rebuild effect and the back-face grid.
+
+### 39a. Toggling `grid` resets the OrbitControls camera
+
+**Repro:** open a 3-D figure (e.g. `surf(peaks)`), drag-orbit to a
+custom angle, then click the toolbar `grid` button.
+**Expected:** the grid lines appear / disappear, camera stays put.
+**Actual:** camera snaps back to `figure.view` (or to the default
+`(-37.5°, 30°)` when `view` was never set), losing the user's orbit.
+
+**Root cause:** `Composite3DPlot.jsx:1090` is one mega-effect deps'd
+on `[figure, fontScale, viewport3d, effectiveMajor, effectiveMinor]`.
+Inside, after rebuilding the axes frame, the code unconditionally
+re-applies `figure.view`:
+```jsx
+if (Array.isArray(figure.view) && figure.view.length === 2) {
+  const off = azElToCameraOffset(figure.view[0], figure.view[1], 4);
+  c.camera.position.set(off.x, off.y, off.z);   // ← clobbers orbit
+  c.camera.lookAt(0, 0, 0);
+  c.controls.update();
+}
+```
+A grid toggle bumps `effectiveMajor` / `effectiveMinor` → the effect
+re-runs → camera teleports.
+
+**Fix plan:**
+- Split the effect: (a) data + axes (deps `[figure, viewport3d]`); (b)
+  grid-only update on `[effectiveMajor, effectiveMinor]` that just
+  toggles `.visible` on a pre-built `gridMajorGroup` / `gridMinorGroup`.
+- Apply `figure.view` only when it actually changed (compare against a
+  `lastViewRef`), not on every rebuild.
+- Add e2e: orbit camera (drag), toggle grid, assert
+  `camera.position` after equals before.
+
+### 39b. Grid lines render on front faces, hiding the surface
+
+**Repro:** any `surf` / `mesh` / `bar3` figure with grid on. Orbit so
+that the data-Y-positive face (or X-min, Z-min) faces the camera.
+**Expected:** grid lines stay on the **three back faces** (MATLAB
+behaviour — grid is a backdrop, never overdraws the data).
+**Actual:** grid lines stay on the same three world faces forever:
+`y = -1`, `z = -1`, `x = -1`. Those faces were chosen for the
+default camera azimuth (-37.5°), so any orbit past ±90° in az or
+flipping el moves the grid in front of the surface — see screenshot
+in BUGS attachments / chat 2026-05-10.
+
+**Root cause:** `buildAxesFrame` (`Composite3DPlot.jsx:735-795`) emits
+six fixed `LineSegments` groups on three hard-coded faces. There's
+no per-frame face-selection. The comment at line 739 already calls
+this out:
+```js
+// Without knowing camera azimuth up-front we draw the grid on the
+// faces opposite the default camera. Cheap and good enough; a
+// follow-up will reposition them per-frame.
+```
+
+**Fix plan (cheap version — toggling, not rebuilding):**
+- Build SIX groups: `gridXminus / gridXplus / gridYminus / gridYplus
+  / gridZminus / gridZplus` (and minor counterparts). All added to
+  the scene at build time.
+- Per-frame in `tick()`: project `camera.position` onto each face's
+  outward normal. Three faces with the **largest negative** projection
+  are the back faces; flip `.visible` accordingly. Cost: 6 dot
+  products per frame, negligible.
+- Same logic for tick labels — back-face labels are also stuck on
+  fixed walls today.
+- e2e: build a 3-D figure, orbit to a non-default angle (programmatic
+  via setView), assert that the visible grid groups changed (count
+  the visible `LineSegments` in the right group).
+
+**Severity P1:** affects every 3-D plot the moment the user touches
+the camera. (39a) breaks every grid toggle. (39b) is the "MATLAB
+visual-quality" bar that we explicitly chose to clear in the cycle
+that landed WebGL 3-D.
+
+**First seen:** 2026-05-10, reported with a `surf`-style screenshot
+showing grid on top of the peaks surface.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one
