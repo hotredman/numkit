@@ -223,6 +223,30 @@ export default function CompositePlot({
   const [colorOverrideLocal, setColorOverrideLocal] = useState(null);
   const colorOverride = (colorOverrideProp !== undefined) ? colorOverrideProp : colorOverrideLocal;
   const setColorOverride = setColorOverrideProp || setColorOverrideLocal;
+
+  // Comet-animation progress [0, 1]. When any layer has cometAnim
+  // set, we step from 0 → 1 over ~1.5s via requestAnimationFrame.
+  // Each cometAnim layer renders only its first floor(progress·N)
+  // points; static layers render fully.
+  const hasCometAnim = useMemo(
+    () => layers.some((l) => l.kind === 'series' && l.cometAnim),
+    [layers]
+  );
+  const [cometProgress, setCometProgress] = useState(0);
+  useEffect(() => {
+    if (!hasCometAnim) { setCometProgress(1); return undefined; }
+    setCometProgress(0);
+    const start = performance.now();
+    const duration = 1500;   // ms
+    let raf = 0;
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      setCometProgress(t);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [hasCometAnim, figure.id]);
   const cminEff = colorOverride ? colorOverride.cmin : hcminOrig;
   const cmaxEff = colorOverride ? colorOverride.cmax : hcmaxOrig;
   const cminOrig = hcminOrig;
@@ -1403,7 +1427,13 @@ export default function CompositePlot({
               let d = '';
               let started = false;
               const markerPts = [];   // collect finite pts for overlay
-              for (let i = 0; i < ly.x.length; i++) {
+              // Comet animation: render only first floor(progress·N)
+              // points. When cometAnim flag is false, use full length.
+              const totalN = ly.x.length;
+              const animN = ly.cometAnim
+                ? Math.max(1, Math.floor(cometProgress * totalN))
+                : totalN;
+              for (let i = 0; i < animN; i++) {
                 const xv = ly.x[i], yv = ly.y[i];
                 if (!Number.isFinite(xv) || !Number.isFinite(yv)) { started = false; continue; }
                 const px = sx(xv), py = mySy(yv);
