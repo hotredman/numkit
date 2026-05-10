@@ -5408,11 +5408,42 @@ void GraphicsLibrary::install(Engine &engine)
         });
     reg("bar", "geobubble",
         [geoForward](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
-            // bubblechart not directly registered as such; fall back to
-            // scatter — the bubble visual differentiator (size-modulated
-            // radius) requires a sizes vector, which scatter accepts as
-            // its 3rd arg.
+            // bubblechart routing — scatter accepts sizes as its 3rd arg.
             geoForward("scatter", a, o, c);
+        });
+
+    // ────────────────────────────────────────────────────────────────
+    // bubblechart / bubblechart3 / swarmchart — variants of scatter
+    // / scatter3 that emphasise size-modulated markers. We delegate
+    // to the underlying scatter family; the size vector flows through
+    // unchanged and the renderer applies it as marker radius.
+    // ────────────────────────────────────────────────────────────────
+    auto delegateTo = [](const char *target, Span<const Value> args,
+                         Span<Value> outs, CallContext &ctx) {
+        const ExternalFunc *cf = ctx.engine->findExternal(target, ctx.env);
+        if (!cf) { outs[0] = Value::empty(); return; }
+        std::array<Value, 1> outBuf;
+        (*cf)(args, 0, Span<Value>(outBuf.data(), 1), ctx);
+        outs[0] = Value::empty();
+    };
+    reg("bar", "bubblechart",
+        [delegateTo](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
+            delegateTo("scatter", a, o, c);
+        });
+    reg("bar", "bubblechart3",
+        [delegateTo](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
+            delegateTo("scatter3", a, o, c);
+        });
+    reg("bar", "swarmchart",
+        [delegateTo](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
+            // swarmchart in MATLAB jitters the X positions to avoid
+            // overlap; v1 routes straight through scatter — visually
+            // similar for small N. Real jitter is BACKLOG.
+            delegateTo("scatter", a, o, c);
+        });
+    reg("bar", "swarmchart3",
+        [delegateTo](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
+            delegateTo("scatter3", a, o, c);
         });
 
     // zlabel(text) — 3-D Z-axis label.
