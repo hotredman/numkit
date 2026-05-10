@@ -153,6 +153,9 @@ struct AxesState
     // the *outside variants. We normalise to lowercase. Empty = renderer
     // picks a default. Outside positions have a `outside` suffix.
     std::string legendLocation;
+    // legendBoxOn — `legend boxoff` toggles the legend frame off.
+    // Default true (MATLAB default). JSON emits only when off.
+    bool legendBoxOn = true;
     // Colorbar placement. MATLAB: east (default), west, north, south,
     // and *outside variants. Same lowercase normalisation.
     std::string colorbarLocation;
@@ -553,6 +556,8 @@ public:
                 }
                 if (!ax.legendLocation.empty())
                     os << ",\"legendLocation\":\"" << ax.legendLocation << "\"";
+                if (!ax.legendBoxOn)
+                    os << ",\"legendBox\":\"off\"";
                 if (!ax.colorbarLocation.empty())
                     os << ",\"colorbarLocation\":\"" << ax.colorbarLocation << "\"";
                 if (ax.yyEnabled) {

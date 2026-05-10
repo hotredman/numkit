@@ -1551,9 +1551,13 @@ export default function CompositePlot({
         }
         return (
           <g pointerEvents="none">
-            <rect x={bx} y={by} width={boxW} height={boxH}
-              fill="var(--plot-bg)" stroke="var(--plot-frame)" strokeWidth="0.5"
-              rx="3" opacity="0.92" />
+            {/* legendBoxOn=false hides the frame stroke + bg fill;
+                the swatches + labels still render. */}
+            {figure.legendBoxOn !== false && (
+              <rect x={bx} y={by} width={boxW} height={boxH}
+                fill="var(--plot-bg)" stroke="var(--plot-frame)" strokeWidth="0.5"
+                rx="3" opacity="0.92" />
+            )}
             {items.map((it, i) => {
               const cy = by + padInner + i * lineH + lineH / 2;
               const swX0 = bx + padInner;
