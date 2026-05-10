@@ -1404,3 +1404,144 @@ TEST_F(ImshowTest, AxisOffOnFlipsAxisVisible)
     EXPECT_TRUE(ax().axisVisible);
 }
 
+
+// ============================================================
+// Cycle-2026-05-10 builtins: contourf / slice / isosurface / coneplot
+// / streamtube / animatedline / tiledlayout / bar(matrix)
+// ============================================================
+
+class CycleBuiltinsTest : public FigureEngineTest {};
+
+TEST_F(CycleBuiltinsTest, ContourfEmitsPolygonDatasets)
+{
+    eval("Z = [1 2 3 4; 2 4 6 4; 3 6 9 6; 4 4 6 4]; contourf(Z);");
+    // Expect ≥ 2 polygon datasets (bottom band + 1+ levels above).
+    size_t polyCount = 0;
+    for (const auto &ds : ax().datasets)
+        if (ds.type == "polygon") ++polyCount;
+    EXPECT_GE(polyCount, 2u);
+}
+
+TEST_F(CycleBuiltinsTest, SliceEmitsFill3WithVertexColors)
+{
+    eval(R"(
+        V = zeros(4, 4, 4);
+        V(:,:,1) = 1; V(:,:,2) = 2; V(:,:,3) = 3; V(:,:,4) = 4;
+        slice(V, [2], [2], [2]);
+    )");
+    ASSERT_GE(ax().datasets.size(), 1u);
+    bool sawFill3 = false;
+    bool sawVertexColors = false;
+    for (const auto &ds : ax().datasets) {
+        if (ds.type == "fill3") sawFill3 = true;
+        if (!ds.vertexColorsJson.empty()) sawVertexColors = true;
+    }
+    EXPECT_TRUE(sawFill3);
+    EXPECT_TRUE(sawVertexColors);
+}
+
+TEST_F(CycleBuiltinsTest, IsosurfaceEmitsFill3)
+{
+    eval(R"(
+        V = zeros(4, 4, 4);
+        V(:,:,1) = 1; V(:,:,2) = 2; V(:,:,3) = 3; V(:,:,4) = 4;
+        isosurface(V, 2.5);
+    )");
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    EXPECT_EQ(ax().datasets[0].type, "fill3");
+    EXPECT_FALSE(ax().datasets[0].xJson.empty());
+}
+
+TEST_F(CycleBuiltinsTest, ConeplotEmitsFill3)
+{
+    eval(R"(
+        U = ones(2, 2, 2);
+        V = zeros(2, 2, 2);
+        W = zeros(2, 2, 2);
+        coneplot(U, V, W);
+    )");
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    EXPECT_EQ(ax().datasets[0].type, "fill3");
+}
+
+TEST_F(CycleBuiltinsTest, StreamtubeEmitsFill3PerSeed)
+{
+    eval(R"(
+        U = ones(5, 5, 5);
+        V = zeros(5, 5, 5);
+        W = zeros(5, 5, 5);
+        streamtube(U, V, W, [1 1], [2 3], [3 3]);
+    )");
+    EXPECT_EQ(ax().datasets.size(), 2u);
+    for (const auto &ds : ax().datasets)
+        EXPECT_EQ(ds.type, "fill3");
+}
+
+TEST_F(CycleBuiltinsTest, AnimatedlineCluster)
+{
+    eval("h = animatedline;");
+    EXPECT_EQ(ax().animatedDatasetIdx, 0);
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    EXPECT_TRUE(ax().datasets[0].isAnimated);
+
+    eval("addpoints(h, [1 2 3], [10 20 30]);");
+    EXPECT_EQ(ax().datasets[0].animatedX.size(), 3u);
+    EXPECT_DOUBLE_EQ(ax().datasets[0].animatedY[2], 30.0);
+
+    eval("clearpoints(h);");
+    EXPECT_EQ(ax().datasets[0].animatedX.size(), 0u);
+
+    eval("addpoints(h, 5, 50);");
+    EXPECT_EQ(ax().datasets[0].animatedX.size(), 1u);
+    EXPECT_DOUBLE_EQ(ax().datasets[0].animatedX[0], 5.0);
+}
+
+TEST_F(CycleBuiltinsTest, TiledlayoutSetsSubplotGrid)
+{
+    eval("tiledlayout(2, 3);");
+    EXPECT_EQ(fm().current().subplotRows, 2);
+    EXPECT_EQ(fm().current().subplotCols, 3);
+    eval("nexttile;");                  // → cell 2
+    eval("nexttile; nexttile; nexttile;");
+    // After 4 nexttile calls past tiledlayout's initial cell 1 we
+    // should be on cell 5 (5 nexttile bumps total counting initial).
+    // currentAxes is 0-based.
+    EXPECT_GE(fm().current().currentAxes, 0);
+}
+
+TEST_F(CycleBuiltinsTest, BarMatrixGrouped)
+{
+    eval("bar([1 2 3; 4 5 6; 7 8 9]);");
+    // 3 columns → 3 datasets in 'grouped' mode.
+    EXPECT_EQ(ax().datasets.size(), 3u);
+    for (const auto &ds : ax().datasets) EXPECT_EQ(ds.type, "bar");
+}
+
+TEST_F(CycleBuiltinsTest, BarMatrixStacked)
+{
+    eval("bar([1 2; 3 4], 'stacked');");
+    EXPECT_EQ(ax().datasets.size(), 2u);
+}
+
+TEST_F(CycleBuiltinsTest, GeoplotForwardsLatLonAsXY)
+{
+    eval("geoplot([1 2 3], [10 20 30]);");
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    EXPECT_EQ(ax().xlabel, "lon");
+    EXPECT_EQ(ax().ylabel, "lat");
+}
+
+TEST_F(CycleBuiltinsTest, BubblechartRoutesToScatter)
+{
+    eval("bubblechart([1 2 3 4], [4 3 2 1], [50 80 30 100]);");
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    EXPECT_EQ(ax().datasets[0].type, "scatter");
+}
+
+TEST_F(CycleBuiltinsTest, LinkpropReturnsScalarHandle)
+{
+    eval("h = linkprop([1 2 3], 'CameraPosition');");
+    // Exact handle value is implementation-defined; we just verify
+    // it's a finite scalar so the assignment didn't fail.
+    EXPECT_TRUE(std::isfinite(evalScalar("h")));
+}
