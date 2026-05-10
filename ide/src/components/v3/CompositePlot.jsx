@@ -1079,6 +1079,34 @@ export default function CompositePlot({
               // the right axis. mySy is then used in place of sy for
               // every data-point coordinate produced by this block.
               const mySy = syOf(ly);
+              if (mode === 'xline' || mode === 'yline') {
+                // Reference line spanning the visible viewport.
+                // xline: vertical at x=ly.x[0]; yline: horizontal at
+                // y=ly.y[0].
+                const lineColor = ly.color || 'var(--plot-text)';
+                const lw = ly.width || 1.2;
+                if (mode === 'xline') {
+                  const x = sx(ly.x[0]);
+                  if (!Number.isFinite(x)) return null;
+                  return (
+                    <line key={`ly${idx}`} x1={x} x2={x}
+                      y1={padT} y2={padT + H}
+                      stroke={lineColor} strokeWidth={lw}
+                      strokeDasharray={ly.lineStyle === '--' ? '6,4' : undefined}
+                      opacity={op} />
+                  );
+                }
+                // yline
+                const y = mySy(ly.x[0]);   // engine packed y in xJson[0]
+                if (!Number.isFinite(y)) return null;
+                return (
+                  <line key={`ly${idx}`} x1={padL} x2={padL + W}
+                    y1={y} y2={y}
+                    stroke={lineColor} strokeWidth={lw}
+                    strokeDasharray={ly.lineStyle === '--' ? '6,4' : undefined}
+                    opacity={op} />
+                );
+              }
               if (mode === 'scatter') {
                 const mk = ly.marker || 'o';
                 const r = ly.size || 3;

@@ -275,7 +275,8 @@ function datasetToLayer(d, palette_idx, ctx) {
                      'errorbar', 'barh', 'area', 'quiver',
                      'plot3', 'scatter3', 'polygon',
                      'surf', 'bar3', 'waterfall', 'fill3',
-                     'quiver3', 'contour3'];
+                     'quiver3', 'contour3',
+                     'xline', 'yline'];
   if (!supported.includes(t)) return null;
 
   // null is the wire-format "break" marker (JSON forbids NaN). Map it
@@ -465,6 +466,8 @@ function datasetToLayer(d, palette_idx, ctx) {
   else if (t === 'polygon') mode = 'polygon';
   else if (t === 'plot3') mode = 'line';
   else if (t === 'scatter3') mode = 'scatter';
+  else if (t === 'xline') mode = 'xline';
+  else if (t === 'yline') mode = 'yline';
 
   // 3-D projection (plot3 / scatter3): cabinet projection collapses
   // (x, y, z) → 2-D screen coords by adding z*scale*cos(α) to x and
@@ -683,6 +686,10 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     var yRange2 = null;
     for (const ly of layers) {
       if (ly.kind !== 'series') continue;
+      // Skip reference lines from auto-range — xline(5) shouldn't
+      // contribute Y bounds (its Y is a sentinel) and yline(3)
+      // shouldn't contribute X.
+      if (ly.mode === 'xline' || ly.mode === 'yline') continue;
       // Quiver: arrow tips extend past (x, y) by (u*scale, v*scale).
       let xs = ly.x, ys = ly.y;
       if (ly.mode === 'quiver' && Array.isArray(ly.u) && Array.isArray(ly.v)) {
