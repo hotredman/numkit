@@ -42,6 +42,9 @@ Value isreal(std::pmr::memory_resource *mr, const Value &x);
 Value isinteger(std::pmr::memory_resource *mr, const Value &x);
 Value isfloat(std::pmr::memory_resource *mr, const Value &x);
 Value issingle(std::pmr::memory_resource *mr, const Value &x);
+// numkit has no sparse-matrix storage class -- always returns false.
+// Stub for parity with MATLAB scripts that probe sparse-ness.
+Value issparse(std::pmr::memory_resource *mr, const Value &x);
 
 // ── Float-only predicates (elementwise) ──────────────────────────────
 Value isnan(std::pmr::memory_resource *mr, const Value &x);
