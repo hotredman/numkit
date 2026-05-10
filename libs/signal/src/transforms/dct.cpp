@@ -119,11 +119,11 @@ Value dct(std::pmr::memory_resource *mr, const Value &x)
     const double wk = std::sqrt(2.0 / static_cast<double>(N));
     const double piOver2N = M_PI / (2.0 * static_cast<double>(N));
 
-    // numkit's fft uses the e^{+j2πkn/N} convention (opposite of the
-    // textbook DCT derivation); the rotation sign here compensates so
-    // Re(Y[k] · rot) = 2 · DCT_kernel.
+    // Standard DCT-II from FFT: X[k] = w[k] · Re(Y[k] · exp(-jπk/(2N))) / 2
+    // where Y is the FFT of the length-2N mirrored signal. Uses the
+    // textbook sign convention (matches MATLAB's fft).
     for (size_t k = 0; k < N; ++k) {
-        const double phase = piOver2N * static_cast<double>(k);
+        const double phase = -piOver2N * static_cast<double>(k);
         const Cd rot(std::cos(phase), std::sin(phase));
         const double v = (Yc[k] * rot).real() * 0.5;
         X[k] = (k == 0 ? w0 : wk) * v;
@@ -160,14 +160,14 @@ Value idct(std::pmr::memory_resource *mr, const Value &x)
     Cd *Z = Zv.complexDataMut();
     for (size_t i = 0; i < M; ++i) Z[i] = Cd(0.0, 0.0);
 
-    // Undo orthonormal weights, apply backward rotation (sign flipped
-    // to match numkit's FFT convention; mirrors the dct above):
-    //   Y[k]      =  Vk · exp(-jπk/(2N))           , k = 0..N-1
-    //   Y[N]      =  0                              (zero by symmetry)
-    //   Y[2N - k] = conj(Y[k])                     , k = 1..N-1
+    // Build the conjugate-symmetric length-2N spectrum for ifft:
+    //   Z[k]      =  Vk · exp(+jπk/(2N))           , k = 0..N-1
+    //   Z[N]      =  0                              (zero by symmetry)
+    //   Z[2N - k] = conj(Z[k])                     , k = 1..N-1
+    // (textbook DCT inverse derivation; matches MATLAB's ifft).
     for (size_t k = 0; k < N; ++k) {
         const double Vk = ((k == 0) ? Xd[0] / w0 : Xd[k] / wk) * 2.0;
-        const double phase = -piOver2N * static_cast<double>(k);
+        const double phase = piOver2N * static_cast<double>(k);
         const Cd rot(std::cos(phase), std::sin(phase));
         Z[k] = Vk * rot;
     }
