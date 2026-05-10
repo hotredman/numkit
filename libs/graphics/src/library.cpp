@@ -1367,9 +1367,16 @@ void GraphicsLibrary::install(Engine &engine)
             else if (key == "ydata")      yDataArg = &args[i + 1];
             else if (key == "colormap" && args[i + 1].isChar())
                 colormapArg = args[i + 1].toString();
-            // Other N-V keys (InitialMagnification, Border, Reduce,
-            // Parent) are silently skipped — see audit/findings/
+            // Border / Reduce / InitialMagnification / Parent: accepted
+            // for script compatibility but currently no-op since the
+            // renderer always fits the image to the panel and applies
+            // the existing >2M-pixel mean-pool downsample. Calls don't
+            // crash; visual effect is BACKLOG. See audit/findings/
             // graphics/imshow.md.
+            else if (key == "border" || key == "reduce"
+                     || key == "initialmagnification" || key == "parent") {
+                // accept-and-ignore
+            }
         }
 
         // Helper: emit "[v1,v2,...,vN]" JSON from a Value (numeric vec).
@@ -5171,6 +5178,14 @@ void GraphicsLibrary::install(Engine &engine)
     reg("layout", "gca", noop_ret1);
     reg("layout", "gcf", noop_ret1);
     reg("layout", "cla", noop);
+
+    // linkprop / linkdata — handle-based property linking. We don't
+    // model graphics handles, so these accept any args and return an
+    // opaque scalar handle so user scripts that store the return value
+    // (h = linkprop(...);) don't break. Real synchronised state is
+    // BACKLOG.
+    reg("layout", "linkprop", noop_ret1);
+    reg("layout", "linkdata", noop_ret1);
 
     // zlabel(text) — 3-D Z-axis label.
     reg("layout", "zlabel",

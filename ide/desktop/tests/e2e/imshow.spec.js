@@ -238,6 +238,25 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     expect(harderErrors).toEqual([]);
   });
 
+  test('imshow + Border/Reduce/InitialMagnification/Parent — accepted as no-op', async () => {
+    // These N-V pairs are accepted for script compatibility but
+    // currently produce no visual effect (BACKLOG). The point of
+    // this test is "user scripts don't crash" — we feed all four
+    // keys at once and assert the figure still mounts.
+    await ide.runScript(
+      'import compat.*;\n'
+      + 'imshow([0 0.5 1; 0.5 1 0.5; 1 0.5 0], '
+      + '\'Border\', \'tight\', '
+      + '\'Reduce\', true, '
+      + '\'InitialMagnification\', 200, '
+      + '\'Parent\', 1);\n'
+    );
+    await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+    expect(ide.devErrors().filter((e) =>
+      !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
+    )).toEqual([]);
+  });
+
   test('imshow logical mask — true=white, false=black', async () => {
     await ide.runScript(
       'import compat.*;\n'
