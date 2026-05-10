@@ -36,6 +36,8 @@
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
+#include "fft_one_sided.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <complex>
@@ -85,23 +87,6 @@ void slaneyBandEdges(double *edges, size_t numEdges = 42)
         edges[i] = factor + (factor * 0.5) * static_cast<double>(i);
     for (size_t i = linEnd; i < numEdges; ++i)
         edges[i] = edges[i - 1] * 1.0711703;
-}
-
-// One-sided magnitude spectrum via naive DFT. out length = N/2 + 1.
-// (MATLAB filterbank with keepTwoSided=false only uses lower half of Z.)
-void naiveDFTMagHalf(const double *x, size_t N, double *out_mag_half)
-{
-    const size_t H = N / 2 + 1;
-    for (size_t k = 0; k < H; ++k) {
-        double re = 0.0, im = 0.0;
-        const double w = -2.0 * M_PI * static_cast<double>(k) / static_cast<double>(N);
-        for (size_t n = 0; n < N; ++n) {
-            const double a = w * static_cast<double>(n);
-            re += x[n] * std::cos(a);
-            im += x[n] * std::sin(a);
-        }
-        out_mag_half[k] = std::sqrt(re * re + im * im);
-    }
 }
 
 // Slaney-style mel filter bank (designDomain='Hz', FilterBankDesignDomain='linear'):
@@ -405,7 +390,7 @@ mfcc(std::pmr::memory_resource *mr, const Value &x, double fs, int numCoeffs)
         // Window then FFT magnitude
         for (size_t i = 0; i < winLen; ++i)
             frame[i] = x.elemAsDouble(start + i) * win[i];
-        naiveDFTMagHalf(frame.data(), fftLen, mag.data());
+        detail::fftMagHalf(mr, frame.data(), fftLen, mag.data());
 
         // Apply filterbank: melMag(b, f) = Σ_j FB(j, b) * mag(j)
         for (size_t b = 0; b < numBands; ++b) {
@@ -534,7 +519,7 @@ gtcc(std::pmr::memory_resource *mr, const Value &x, double fs, int numCoeffs)
         // Window then FFT magnitude
         for (size_t i = 0; i < winLen; ++i)
             frame[i] = x.elemAsDouble(start + i) * win[i];
-        naiveDFTMagHalf(frame.data(), fftLen, mag.data());
+        detail::fftMagHalf(mr, frame.data(), fftLen, mag.data());
 
         // Apply two-sided gammatone bank: equivalent sum via one-sided
         // with bins 1..H-2 doubled (k=0 DC, k=H-1 Nyquist single-counted).

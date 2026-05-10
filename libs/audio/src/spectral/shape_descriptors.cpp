@@ -25,6 +25,8 @@
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
+#include "fft_one_sided.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <complex>
@@ -38,33 +40,6 @@
 namespace numkit::audio {
 
 namespace {
-
-// Naive DFT. O(N²) per frame; acceptable for winLen ≤ 1024 typical of
-// Audio Toolbox defaults (winLen = round(0.03*fs) = 240 for fs=8 kHz,
-// 1323 for fs=44.1 kHz).
-//
-// Cycle J KNOWN GAP: replacing this with libs/signal::fft is BLOCKED
-// pending fix to libs/signal's non-power-of-2 FFT path. For typical
-// audio winLen (240, 480, 662, 1323) — none are powers of 2 — and
-// libs/signal::fft currently produces incorrect output (loses
-// conjugate symmetry of real-input FFT). See spawned task
-// "Fix libs/signal fft() for non-power-of-2 sizes" for repro and fix
-// scope. Once fixed, swap calls to a batched fft() per-frame.
-void naiveDFTPower(const double *x, size_t N, double *out_pow_half)
-{
-    // out_pow_half is length N/2+1 (one-sided power spectrum).
-    const size_t H = N / 2 + 1;
-    for (size_t k = 0; k < H; ++k) {
-        double re = 0.0, im = 0.0;
-        const double w = -2.0 * M_PI * static_cast<double>(k) / static_cast<double>(N);
-        for (size_t n = 0; n < N; ++n) {
-            const double a = w * static_cast<double>(n);
-            re += x[n] * std::cos(a);
-            im += x[n] * std::sin(a);
-        }
-        out_pow_half[k] = re * re + im * im;
-    }
-}
 
 struct Stft {
     Value X;   // M × N, column-major; M = winLen/2+1, N = numFrames
@@ -111,7 +86,7 @@ Stft computeStft(std::pmr::memory_resource *mr, const Value &x, double fs)
         const size_t start = f * hop;
         for (size_t i = 0; i < winLen; ++i) frame[i] = x.elemAsDouble(start + i);
         double *col = Xd + f * M;
-        naiveDFTPower(frame.data(), winLen, col);
+        detail::fftPowerHalf(mr, frame.data(), winLen, col);
         for (size_t k = 0; k < M; ++k) col[k] *= inv;
         col[0] *= 0.5;
         if (nyquistHalve) col[M - 1] *= 0.5;
