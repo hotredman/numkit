@@ -1311,3 +1311,96 @@ TEST_F(FigureTileTest, OversizedMatrixServesFullResolutionTile)
     EXPECT_EQ(oCols, 100u);
     for (uint8_t v : tile) EXPECT_EQ(v, 254);
 }
+
+// ============================================================
+// imshow — display image (grayscale + RGB)
+// ============================================================
+
+class ImshowTest : public FigureEngineTest {};
+
+TEST_F(ImshowTest, GrayscaleDoubleDefaultRange)
+{
+    // double input → range default [0, 1] regardless of data extent.
+    eval("imshow([0 0.25 0.5; 0.5 0.75 1; 1 0.5 0]);");
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    const auto &ds = ax().datasets[0];
+    EXPECT_EQ(ds.type, "imagesc");
+    EXPECT_DOUBLE_EQ(ds.cminOrig, 0.0);
+    EXPECT_DOUBLE_EQ(ds.cmaxOrig, 1.0);
+    EXPECT_EQ(ax().colormapName, "gray");
+    EXPECT_EQ(ax().axisMode, "image");
+    EXPECT_FALSE(ax().axisVisible);
+    EXPECT_EQ(ax().yDir, "reverse");
+}
+
+TEST_F(ImshowTest, GrayscaleExplicitRange)
+{
+    // imshow(I, [lo hi]) — range honoured exactly.
+    eval("imshow([10 20 30; 15 25 35; 12 22 32], [10 35]);");
+    const auto &ds = ax().datasets[0];
+    EXPECT_DOUBLE_EQ(ds.cminOrig, 10.0);
+    EXPECT_DOUBLE_EQ(ds.cmaxOrig, 35.0);
+}
+
+TEST_F(ImshowTest, GrayscaleAutoRangeOnEmptyBracket)
+{
+    // imshow(I, []) — auto, like imagesc, uses data extent.
+    eval("imshow([10 20 30; 15 25 35; 12 22 32], []);");
+    const auto &ds = ax().datasets[0];
+    EXPECT_DOUBLE_EQ(ds.cminOrig, 10.0);
+    EXPECT_DOUBLE_EQ(ds.cmaxOrig, 35.0);
+}
+
+TEST_F(ImshowTest, GrayscaleUint8DefaultRangeIs0to255)
+{
+    eval("imshow(uint8([0 64 128; 192 255 128; 0 128 255]));");
+    const auto &ds = ax().datasets[0];
+    EXPECT_DOUBLE_EQ(ds.cminOrig, 0.0);
+    EXPECT_DOUBLE_EQ(ds.cmaxOrig, 255.0);
+}
+
+TEST_F(ImshowTest, RGBPathSetsImageRgbType)
+{
+    eval(R"(
+        R = [1 0; 0 1];
+        G = [0 1; 1 0];
+        B = [0.5 0.5; 0.5 0.5];
+        imshow(cat(3, R, G, B));
+    )");
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    const auto &ds = ax().datasets[0];
+    EXPECT_EQ(ds.type, "image-rgb");
+    // 2x2x3 = 12 bytes (4 pixels × 3 channels). Pixel (0,0) → (R,G,B)=(255,0,128).
+    ASSERT_EQ(ds.rgbBytes.size(), 12u);
+    EXPECT_EQ(ds.rgbBytes[0], 255);
+    EXPECT_EQ(ds.rgbBytes[1], 0);
+    EXPECT_EQ(ds.rgbBytes[2], 128);
+    EXPECT_FALSE(ds.rgbJson.empty());
+    EXPECT_EQ(ax().axisMode, "image");
+    EXPECT_FALSE(ax().axisVisible);
+    // RGB path does NOT touch colormap (no cmap applied to truecolor).
+    EXPECT_TRUE(ax().colormapName.empty() || ax().colormapName == "gray");
+}
+
+TEST_F(ImshowTest, JsonExposesAxisVisibleAndImageRgb)
+{
+    eval(R"(
+        R = [1 0; 0 1];
+        G = [0 1; 1 0];
+        B = [0 0; 0 0];
+        imshow(cat(3, R, G, B));
+    )");
+    EXPECT_NE(capturedOutput.find("\"type\":\"image-rgb\""), std::string::npos);
+    EXPECT_NE(capturedOutput.find("\"rgb\":"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("\"axisVisible\":false"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("\"axisMode\":\"image\""), std::string::npos);
+}
+
+TEST_F(ImshowTest, AxisOffOnFlipsAxisVisible)
+{
+    eval("plot([1 2], [1 2]); axis off;");
+    EXPECT_FALSE(ax().axisVisible);
+    eval("axis on;");
+    EXPECT_TRUE(ax().axisVisible);
+}
+

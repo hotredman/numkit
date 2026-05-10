@@ -138,9 +138,13 @@ export default function CompositePlot({
   // text labels last — exactly mirroring `imagesc; hold on; scatter; text`).
   const layers = Array.isArray(figure.layers) ? figure.layers : [];
   const heatmapLayer = layers.find((l) => l.kind === 'heatmap') || null;
+  const rgbLayer = layers.find((l) => l.kind === 'image-rgb') || null;
   const seriesLayers = layers.filter((l) => l.kind === 'series');
   const textLayers = layers.filter((l) => l.kind === 'text');
   const hasHeatmap = !!heatmapLayer;
+  // imshow's defining trait — hide axis ticks/labels/box. Default true
+  // preserves the existing wire format for figures that didn't set it.
+  const axisVisible = figure.axisVisible !== false;
 
   // Effective colormap: runtime override (toolbar combo) > script-level
   // colormap on the heatmap layer > default 'parula'.
@@ -348,6 +352,40 @@ export default function CompositePlot({
     if (!hZ) return null;
     return renderHeatmapDataURLFromIndices(hZ, lut);
   }, [hZ, lut]);
+
+  // RGB image (imshow with M×N×3). Pack the per-pixel triplets into a
+  // Uint8ClampedArray, push through an off-screen <canvas>, export as
+  // PNG data-URL. Memoised on rgbLayer.rgb identity — preview cards
+  // and the modal both call this once per image.
+  const rgbDataURL = useMemo(() => {
+    if (!rgbLayer || !rgbLayer.rgb) return null;
+    const rgb = rgbLayer.rgb;
+    const nR = rgbLayer.nR | 0;
+    const nC = rgbLayer.nC | 0;
+    if (nR <= 0 || nC <= 0) return null;
+    try {
+      const cv = document.createElement('canvas');
+      cv.width = nC; cv.height = nR;
+      const ctx2 = cv.getContext('2d');
+      const imgData = ctx2.createImageData(nC, nR);
+      // rgb is row-major nested arrays: rgb[r][c] = [r,g,b] (uint8).
+      // ImageData is row-major flat RGBA, 4 bytes per pixel.
+      for (let r = 0, p = 0; r < nR; r++) {
+        const row = rgb[r];
+        for (let c = 0; c < nC; c++, p += 4) {
+          const tri = row[c] || [0, 0, 0];
+          imgData.data[p]     = tri[0] | 0;
+          imgData.data[p + 1] = tri[1] | 0;
+          imgData.data[p + 2] = tri[2] | 0;
+          imgData.data[p + 3] = 255;
+        }
+      }
+      ctx2.putImageData(imgData, 0, 0);
+      return cv.toDataURL('image/png');
+    } catch (e) {
+      return null;
+    }
+  }, [rgbLayer]);
 
   function niceTicks(min, max, target = 6) {
     const range = max - min;
@@ -854,6 +892,17 @@ export default function CompositePlot({
           ~60 ms refetch gap that follows a log-toggle the user briefly
           sees the empty plot background — acceptable, vs. showing a
           visibly-misaligned preview. */}
+      {/* image-rgb (imshow truecolor). Pure SVG <image> — no LUT, no
+          tile pyramid, no log-axis weirdness. Sits in the same z-order
+          slot as the heatmap dataURL above. */}
+      {rgbDataURL && (
+        <g clipPath={`url(#${clipId})`}>
+          <image href={rgbDataURL}
+            x={imgX} y={imgY} width={imgW} height={imgH}
+            preserveAspectRatio="none"
+            imageRendering="pixelated" />
+        </g>
+      )}
       {dataURL && (
         <g clipPath={`url(#${clipId})`}>
           {!xLogActive && !yLogActive && (
@@ -913,24 +962,28 @@ export default function CompositePlot({
         </g>
       )}
 
-      {/* Optional minor + major grid (faint, over the heatmap) */}
-      {minor && xTicks.minor.map((v, i) => (
+      {/* Optional minor + major grid (faint, over the heatmap).
+          axisVisible=false (imshow / `axis off`) suppresses gridlines,
+          frame box, and tick labels — image-only viewport. */}
+      {axisVisible && minor && xTicks.minor.map((v, i) => (
         <line key={`mx${i}`} x1={sx(v)} x2={sx(v)} y1={padT} y2={padT + H} stroke="var(--plot-grid-min)" />
       ))}
-      {minor && yTicks.minor.map((v, i) => (
+      {axisVisible && minor && yTicks.minor.map((v, i) => (
         <line key={`my${i}`} x1={padL} x2={padL + W} y1={sy(v)} y2={sy(v)} stroke="var(--plot-grid-min)" />
       ))}
-      {major && xTicks.major.map((v, i) => (
+      {axisVisible && major && xTicks.major.map((v, i) => (
         <line key={`gx${i}`} x1={sx(v)} x2={sx(v)} y1={padT} y2={padT + H} stroke="var(--plot-grid)" />
       ))}
-      {major && yTicks.major.map((v, i) => (
+      {axisVisible && major && yTicks.major.map((v, i) => (
         <line key={`gy${i}`} x1={padL} x2={padL + W} y1={sy(v)} y2={sy(v)} stroke="var(--plot-grid)" />
       ))}
 
-      <rect x={padL} y={padT} width={W} height={H} fill="none" stroke="var(--plot-frame)" />
+      {axisVisible && (
+        <rect x={padL} y={padT} width={W} height={H} fill="none" stroke="var(--plot-frame)" />
+      )}
 
       {/* Tick labels */}
-      {xTicks.major.map((v, i) => {
+      {axisVisible && xTicks.major.map((v, i) => {
         const x = sx(v);
         if (x < padL - 1 || x > padL + W + 1) return null;
         return (
@@ -940,7 +993,7 @@ export default function CompositePlot({
           </g>
         );
       })}
-      {yTicks.major.map((v, i) => {
+      {axisVisible && yTicks.major.map((v, i) => {
         const y = sy(v);
         if (y < padT - 1 || y > padT + H + 1) return null;
         return (
