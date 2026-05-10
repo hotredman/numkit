@@ -1,0 +1,10 @@
+{
+  "name": "ldl",
+  "namespace": "builtin",
+  "setup": "A = [4 2 1; 2 5 3; 1 3 6]; B = [2 -1; -1 -3]; A2 = [4 2; 2 5]; P5 = magic(5); P5 = P5 + P5'; P5 = P5 + 50*eye(5);",
+  "expr": "[L, D] = ldl(A); [L3, D3, P3] = ldl(A); [Lv, Dv, p] = ldl(A, 'vector'); [Lu, Du] = ldl(A, 'upper'); [Lb, Db] = ldl(B); L1 = ldl(A2); [Lp, Dp] = ldl(P5); res1 = max(max(abs(A - L*D*L'))); res2 = max(max(abs(B - Lb*Db*Lb'))); res3 = max(max(abs(A - Lu'*Du*Lu))); res5 = max(max(abs(P5 - Lp*Dp*Lp')));",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["L(1,1)", "L(2,1)", "L(3,1)", "L(2,2)", "L(3,2)", "L(3,3)", "D(1,1)", "D(2,2)", "D(3,3)", "D(1,2)", "P3(1,1)", "P3(2,2)", "P3(3,3)", "p(1)", "p(2)", "p(3)", "Lu(1,1)", "Lu(1,2)", "Lu(2,3)", "Lb(1,1)", "Lb(2,1)", "Db(1,1)", "Db(2,2)", "L1(1,1)", "L1(2,1)", "res1", "res2", "res3", "res5"],
+  "comment": "MATLAB ldl: block LDL' factorization. v1 implements Crout LDL' WITHOUT pivoting; covers all PD/ND matrices and indefinite cases that don't strictly require Bunch-Kaufman 2x2 pivoting (which is rare for the test inputs here). Bit-equal with MATLAB R2025b on PD 3x3 (L,D entries match exactly) and on residuals ||A - L*D*L'||. Forms covered: 1-out (L only), 2-out (L,D), 3-out matrix P (identity in v1), 3-out vector P, 'upper' triangle. KNOWN GAPs (PROGRESS): Bunch-Kaufman pivoting (P != I) for matrices with zero pivots; complex Hermitian; sparse [L,D,P,C] form; 'tol' arg. Octave ships ldl in core but with a slightly different output layout for the indefinite case; we follow MATLAB R2025b conventions."
+}

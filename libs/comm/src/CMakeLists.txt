@@ -5,6 +5,8 @@ set(COMMLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/fsk_ofdm.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/analog.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/generic_qam.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modulation/apsk.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modulation/mil188.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/channel/channel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/channel/fading.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/eq/pulse.cpp
@@ -13,6 +15,11 @@ set(COMMLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/eq/compand.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/random_source.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/huffman.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/dpcm.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/quantiz.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/lloyds.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/dpcmopt.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/arithcoding.cpp
 )
 
 set(COMMLIB_SOURCES ${COMMLIB_SOURCES} PARENT_SCOPE)

@@ -1,0 +1,10 @@
+{
+  "name": "grpstats",
+  "namespace": "stats",
+  "setup": "X = [1 10; 2 20; 3 30; 4 40; 5 50; 6 60]; g = [1 1 2 2 1 2];",
+  "expr": "m = grpstats(X, g); [m2, s2] = grpstats(X, g, {'mean', 'std'}); ms = grpstats(X, g, 'sum'); mn = grpstats(X, g, 'numel');",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["m(1,1)", "m(1,2)", "m(2,1)", "m(2,2)", "s2(1,1)", "s2(1,2)", "s2(2,1)", "s2(2,2)", "ms(1,1)", "ms(2,2)", "mn(1,1)", "mn(2,2)"],
+  "comment": "MATLAB grpstats: per-group statistics. Bit-equal with MATLAB R2025b on default-mean, multi-fn cell-of-strings, sum, std, numel aggregators. Other aggregators (var, sem, min, max) supported in numkit. Cell-of-fn output ordering matches MATLAB's nargout indexing. Octave 11.1.0 doesn't ship grpstats in core (statistics package only); reports N/A."
+}

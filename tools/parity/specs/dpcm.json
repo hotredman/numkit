@@ -1,0 +1,10 @@
+{
+  "name": "dpcmenco",
+  "namespace": "comm",
+  "setup": "predictor = [0 1]; partition = [-1 -0.5 0 0.5 1]; codebook = [-1.5 -0.75 -0.25 0.25 0.75 1.5]; sig = [0.1 0.5 0.7 0.6 0.2 -0.3 -0.5];",
+  "expr": "[indx, qe] = dpcmenco(sig, codebook, partition, predictor); [sigout, qe2] = dpcmdeco(indx, codebook, predictor); rt_qe = isequal(qe, qe2);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["indx(1)", "indx(4)", "indx(6)", "indx(7)", "qe(1)", "qe(4)", "qe(6)", "sigout(1)", "sigout(4)", "sigout(7)", "rt_qe"],
+  "comment": "MATLAB dpcmenco/dpcmdeco: 1st-order DPCM (predictor=[0 1]) with 6-bin codebook + 5-threshold partition. Bit-equal with MATLAB R2025b on encoded indices, quantization error, and reconstructed signal. Round-trip qe consistency (qe from encoder == qe from decoder via codebook lookup) also verified. dpcmopt deferred (training-set optimisation needs Lloyd-Max + alternating predictor estimation -- own cycle). Octave 11.1.0 doesn't ship dpcmenco/deco in core; reports N/A."
+}

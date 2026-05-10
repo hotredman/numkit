@@ -1,0 +1,10 @@
+{
+  "name": "rref_rcond_planerot",
+  "namespace": "builtin",
+  "setup": "A = [1 2 3; 4 5 6; 7 8 10]; A2 = [1 2 3; 2 4 6; 3 6 9]; A3 = [1 2 0 1; 0 0 1 2; 1 2 1 3]; A4 = [1 2 3 4; 5 6 7 8]; H = hilb(4); D2 = [2 0; 0 3]; M2 = [1 2; 3 4];",
+  "expr": "R1 = rref(A); [R2, jb2] = rref(A2); [R3, jb3] = rref(A3); R4 = rref(A4); rc1 = rcond(eye(3)); rc2 = rcond(D2); rc3 = rcond(M2); rcH = rcond(H); rcS = rcond([1 2; 2 4]); [G, y] = planerot([3; 4]); [G2, y2] = planerot([-3; 4]); [G3, y3] = planerot([0; 0]); rrlen = numel(jb2); rrlen3 = numel(jb3);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["R1(1,1)", "R1(2,2)", "R1(3,3)", "R1(1,2)", "R2(1,1)", "R2(1,2)", "R2(1,3)", "R2(2,1)", "rrlen", "jb2(1)", "R3(1,3)", "R3(1,4)", "R3(2,3)", "R3(2,4)", "rrlen3", "jb3(1)", "jb3(2)", "R4(1,3)", "R4(1,4)", "R4(2,3)", "R4(2,4)", "rc1", "rc2", "rc3", "rcH", "rcS", "G(1,1)", "G(2,1)", "G(1,2)", "G(2,2)", "y(1)", "y(2)", "G2(1,1)", "G2(2,1)", "y2(1)", "G3(1,1)", "G3(2,2)", "y3(1)", "y3(2)"],
+  "comment": "MATLAB linalg cycle 2: rref + rcond + planerot. rref via Gauss-Jordan with partial pivoting; default tol = max(M,N)*eps(norm(A,inf)); two-output [R, jb] form returns 1-based pivot column indices. rcond uses cheap path 1/(norm(A,1)*norm(inv(A),1)); returns 0 for singular A. KNOWN GAP: rcond on near-singular matrices may differ slightly from MATLAB's LAPACK dgecon estimator. planerot Givens rotation: r=hypot(x,y), G=[c s; -s c], degenerate (0,0) case returns identity. Bit-equal with MATLAB R2025b on the well-conditioned cases; rcond bit-equal on diag/2x2/hilb(4); planerot exact (cos/sin formula matches). rref complex input deferred (KNOWN GAP). Octave: triple-engine green for all three. Real-only inputs in v1."
+}

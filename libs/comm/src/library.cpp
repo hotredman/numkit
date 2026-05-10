@@ -29,10 +29,19 @@ void pmmod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ammod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void fmmod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ssbmod_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void mskmod_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // modulation/generic_qam.cpp
 void genqammod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void genqamdemod_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// modulation/apsk.cpp
+void apskmod_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void apskdemod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// modulation/mil188.cpp
+void mil188qammod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void mil188qamdemod_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // channel/channel.cpp
 void awgn_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -73,6 +82,25 @@ void randerr_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // source/huffman.cpp
 void huffmandict_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void huffmanenco_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void huffmandeco_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// source/dpcm.cpp
+void dpcmenco_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void dpcmdeco_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// source/quantiz.cpp
+void quantiz_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// source/lloyds.cpp
+void lloyds_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// source/dpcmopt.cpp
+void dpcmopt_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// source/arithcoding.cpp
+void arithenco_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void arithdeco_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -104,9 +132,14 @@ void CommLibrary::install(Engine &engine)
     reg("mod", "ammod",     &comm::detail::ammod_reg);
     reg("mod", "fmmod",     &comm::detail::fmmod_reg);
     reg("mod", "ssbmod",    &comm::detail::ssbmod_reg);
+    reg("mod", "mskmod",    &comm::detail::mskmod_reg);
 
     reg("mod", "genqammod",   &comm::detail::genqammod_reg);
     reg("mod", "genqamdemod", &comm::detail::genqamdemod_reg);
+    reg("mod", "apskmod",     &comm::detail::apskmod_reg);
+    reg("mod", "apskdemod",   &comm::detail::apskdemod_reg);
+    reg("mod", "mil188qammod",   &comm::detail::mil188qammod_reg);
+    reg("mod", "mil188qamdemod", &comm::detail::mil188qamdemod_reg);
 
     reg("rf", "awgn",        &comm::detail::awgn_reg);
     reg("rf", "wgn",         &comm::detail::wgn_reg);
@@ -136,6 +169,17 @@ void CommLibrary::install(Engine &engine)
     reg("rf", "randerr",     &comm::detail::randerr_reg);
 
     reg("eq", "huffmandict", &comm::detail::huffmandict_reg);
+    reg("eq", "huffmanenco", &comm::detail::huffmanenco_reg);
+    reg("eq", "huffmandeco", &comm::detail::huffmandeco_reg);
+
+    reg("eq", "dpcmenco",    &comm::detail::dpcmenco_reg);
+    reg("eq", "dpcmdeco",    &comm::detail::dpcmdeco_reg);
+    reg("eq", "quantiz",     &comm::detail::quantiz_reg);
+    reg("eq", "lloyds",      &comm::detail::lloyds_reg);
+    reg("eq", "dpcmopt",     &comm::detail::dpcmopt_reg);
+
+    reg("eq", "arithenco",   &comm::detail::arithenco_reg);
+    reg("eq", "arithdeco",   &comm::detail::arithdeco_reg);
 }
 
 } // namespace numkit

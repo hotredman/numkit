@@ -21,6 +21,8 @@
 
 #include <string>
 #include <tuple>
+#include <utility>
+#include <vector>
 
 namespace numkit::stats {
 
@@ -237,5 +239,70 @@ Value rescale(std::pmr::memory_resource *mr, const Value &A,
 // ── zscore ─────────────────────────────────────────────────────────────
 // zscore(A) — alias for normalize(A, "zscore").
 Value zscore(std::pmr::memory_resource *mr, const Value &A);
+
+// ── tiedrank ───────────────────────────────────────────────────────────
+// `[r, tieadj] = tiedrank(x)` — ranks adjusted for ties. Equal values
+// share the average of their would-be sequential ranks. Vector input
+// returns a scalar tieadj; matrix input applies column-wise and
+// tieadj is a 1-by-cols row. NaN values keep NaN rank (skipped from
+// the ranking sequence).
+std::pair<Value, Value>
+tiedrank(std::pmr::memory_resource *mr, const Value &x);
+
+// ── corrcov ────────────────────────────────────────────────────────────
+// `[R, sigma] = corrcov(C)` — derive a correlation matrix R from a
+// covariance matrix C. R(i,j) = C(i,j) / sqrt(C(i,i) * C(j,j));
+// sigma(i) = sqrt(C(i,i)) returned as a row vector. Negative diagonal
+// entries throw; off-diagonal divisions by zero return NaN.
+std::pair<Value, Value>
+corrcov(std::pmr::memory_resource *mr, const Value &C);
+
+// ── tabulate ───────────────────────────────────────────────────────────
+// `T = tabulate(x)` — frequency table. Returns a 3-column
+// [value, count, percent] matrix. Dense layout (rows for k = 1..max)
+// when all non-NaN values are positive integers; otherwise sparse
+// (one row per unique non-NaN value sorted ascending). NaN values
+// are excluded both from the row set and from the percentage
+// denominator.
+Value tabulate(std::pmr::memory_resource *mr, const Value &x);
+
+// ── cholcov ────────────────────────────────────────────────────────────
+// `[T, p] = cholcov(SIGMA)` — Cholesky-like factor of a (possibly
+// singular) covariance matrix. Returns T such that T'*T == SIGMA
+// and the non-PD count p:
+//   PD       -> T = upper-tri n×n,  p = 0
+//   PSD < n  -> T = r×n,            p = 0
+//   indef    -> T = empty 0×0,      p = #(eig <= -tol)
+std::pair<Value, Value>
+cholcov(std::pmr::memory_resource *mr, const Value &SIGMA);
+
+// ── crosstab ───────────────────────────────────────────────────────────
+// `[T, chi2, p] = crosstab(x [, y])` — contingency table.
+//   single-arg: T is a column vector of frequency counts of unique x.
+//   two-arg:    T(i,j) = count of pairs (x_k, y_k) with x_k = unique_x(i)
+//               and y_k = unique_y(j). chi-square test of independence
+//               supplied alongside.
+// Numeric input only for v1; cell/string deferred.
+std::tuple<Value, double, double>
+crosstab(std::pmr::memory_resource *mr, const Value &x, const Value *y_opt);
+
+// ── grpstats ───────────────────────────────────────────────────────────
+// Per-group statistics. `fn_names` is empty for default (mean) or a
+// list of one or more aggregator names from {mean, std, sum, numel,
+// min, max, var, sem}. Returns one Value per fn name, each (Ng × C)
+// where Ng is the number of unique non-NaN groups and C is the
+// number of columns of X.
+std::vector<Value>
+grpstats(std::pmr::memory_resource *mr, const Value &X, const Value &group,
+         const std::vector<std::string> &fn_names);
+
+// ── nearcorr ───────────────────────────────────────────────────────────
+// `Y = nearcorr(A)` — nearest correlation matrix to A in Frobenius norm
+// (Higham 2002, IMA J. Numer. Anal. 22 (3): 329-343). Alternating
+// projections between the PSD cone and the unit-diagonal subspace,
+// with Dykstra's correction. Y is symmetric, PSD and has unit diagonal.
+// Defaults: tol = 1e-10, maxits = 100. The 'tolconv'/'maxits' name-value
+// parameters are deferred for v1.
+Value nearcorr(std::pmr::memory_resource *mr, const Value &A);
 
 } // namespace numkit::stats

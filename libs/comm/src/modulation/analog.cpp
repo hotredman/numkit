@@ -15,13 +15,17 @@
 
 #include <algorithm>
 #include <cmath>
+#include <complex>
 #include <string>
+#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
 namespace numkit::comm {
+
+using Cd = std::complex<double>;
 
 // ── pmmod ──────────────────────────────────────────────────────────
 // Per MATLAB R2025b's pmmod.m:
@@ -198,6 +202,79 @@ Value fmmod(std::pmr::memory_resource *mr, const Value &x,
     return out;
 }
 
+// ── mskmod (differential variant) ──────────────────────────────────
+// Per MATLAB R2025b's mskmod.m, differentially-encoded path:
+//
+//   xPm    = 2*x - 1                       (bits {0,1} -> {-1,+1})
+//   xCum   = cumsum([0; xPm])              (length N+1)
+//   coarseTime = (0:N)'
+//   fineTime   = (0 : 1/nSamp : N - 1/nSamp)'   (length N*nSamp)
+//   phaseVec   = pi/2 * interp1(coarseTime, xCum, fineTime)
+//   y          = exp(1i * (phaseVec + ini_phase))
+//
+// Linear interpolation: between adjacent integer samples j and j+1,
+// xCum changes monotonically, and the cumulative phase ramps linearly
+// so the exponential traces a half-arc of the unit circle per symbol.
+//
+// KNOWN GAP: non-differential MSK path is deferred -- it requires
+// rectpulse + circshift on the I/Q rails (we have rectpulse but the
+// arrangement is more involved; will get its own cycle).
+Value mskmod(std::pmr::memory_resource *mr, const Value &x,
+             int nSamp, double ini_phase)
+{
+    if (nSamp <= 0)
+        throw Error("mskmod: nSamp must be a positive integer",
+                    0, 0, "mskmod", "", "m:mskmod:nSamp");
+
+    const auto &d = x.dims();
+    size_t H = d.rows();
+    size_t W = d.cols();
+    const bool was_row = (H == 1 && W >= 1);
+    if (was_row) std::swap(H, W);
+
+    // Build xCum per column.
+    const size_t Nout = H * static_cast<size_t>(nSamp);
+    Value out = Value::matrix(Nout, W, ValueType::COMPLEX, mr);
+    Cd *o = out.complexDataMut();
+
+    std::vector<double> xCum(H + 1);
+    for (size_t c = 0; c < W; ++c) {
+        // Compute xCum: xCum[0] = 0; xCum[k+1] = xCum[k] + (2*x[k] - 1)
+        xCum[0] = 0.0;
+        for (size_t r = 0; r < H; ++r) {
+            const double xi = was_row
+                                  ? x.elemAsDouble(r)
+                                  : x.elemAsDouble(c * H + r);
+            // Validate {0, 1}.
+            if (xi != 0.0 && xi != 1.0)
+                throw Error("mskmod: input must be binary (0 or 1)",
+                            0, 0, "mskmod", "", "m:mskmod:NotBinary");
+            xCum[r + 1] = xCum[r] + (2.0 * xi - 1.0);
+        }
+
+        const double inv_nSamp = 1.0 / static_cast<double>(nSamp);
+        for (size_t j = 0; j < Nout; ++j) {
+            const double tFine = static_cast<double>(j) * inv_nSamp;
+            const size_t base  = static_cast<size_t>(std::floor(tFine));
+            const double frac  = tFine - static_cast<double>(base);
+            // Guard tail: at tFine = N - 1/nSamp the base = N-1, so
+            // base+1 = N is in range.
+            const double interp = xCum[base]
+                                + frac * (xCum[base + 1] - xCum[base]);
+            const double phase  = M_PI * 0.5 * interp + ini_phase;
+            o[c * Nout + j] = Cd(std::cos(phase), std::sin(phase));
+        }
+    }
+
+    if (was_row) {
+        // Output matches MATLAB: 1xN row -> 1x(N*nSamp) row.
+        Value row = Value::matrix(1, Nout, ValueType::COMPLEX, mr);
+        std::copy(o, o + Nout, row.complexDataMut());
+        return row;
+    }
+    return out;
+}
+
 // ── ssbmod ─────────────────────────────────────────────────────────
 // Per MATLAB R2025b's ssbmod.m:
 //   t = (0:1/Fs:(N-1)/Fs)'
@@ -318,6 +395,19 @@ void fmmod_reg(Span<const Value> args, size_t /*nargout*/,
         ini_phase = args[4].toScalar();
     outs[0] = fmmod(ctx.engine->resource(), args[0], fc, fs, freqdev,
                     ini_phase);
+}
+
+void mskmod_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("mskmod: requires (x, nSamp [, ini_phase])",
+                    0, 0, "mskmod", "", "m:mskmod:nargin");
+    const int nSamp = static_cast<int>(args[1].toScalar());
+    double ini_phase = 0.0;
+    if (args.size() >= 3 && !args[2].isEmpty())
+        ini_phase = args[2].toScalar();
+    outs[0] = mskmod(ctx.engine->resource(), args[0], nSamp, ini_phase);
 }
 
 void ssbmod_reg(Span<const Value> args, size_t /*nargout*/,

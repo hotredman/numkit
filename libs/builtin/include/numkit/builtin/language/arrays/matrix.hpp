@@ -4,7 +4,9 @@
 #include <memory_resource>
 #include <numkit/core/value.hpp>
 
+#include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 namespace numkit::builtin {
@@ -291,6 +293,83 @@ hess(std::pmr::memory_resource *mr, const Value &A);
 
 /// Hessenberg-only output -- matches MATLAB single-output hess(A).
 Value hess_H_only(std::pmr::memory_resource *mr, const Value &A);
+
+// ── Matrix-structure predicates ───────────────────────────────────────
+/// MATLAB-parity matrix predicates (predicates.cpp). All comparisons
+/// are exact (== 0); even 1e-300 in an off-band entry returns false.
+///
+/// isbanded(A, lower, upper) — outside-band entries are zero.
+/// isdiag/istril/istriu       — degenerate cases of isbanded.
+/// issymmetric(A [, skew])    — A == A.'  (transpose, no conj).
+/// ishermitian(A [, skew])    — A == A'   (conjugate transpose).
+/// 'skew' opt: A == -A.'  /  A == -A'.
+Value isbanded(std::pmr::memory_resource *mr, const Value &A,
+               long lower, long upper);
+Value isdiag(std::pmr::memory_resource *mr, const Value &A);
+Value istril(std::pmr::memory_resource *mr, const Value &A);
+Value istriu(std::pmr::memory_resource *mr, const Value &A);
+Value issymmetric(std::pmr::memory_resource *mr, const Value &A, bool skew = false);
+Value ishermitian(std::pmr::memory_resource *mr, const Value &A, bool skew = false);
+
+/// bandwidth(A) — (lower, upper) bandwidths. Single-output form returns
+/// just the lower bandwidth (MATLAB convention: x = bandwidth(A)
+/// captures the first output).
+std::pair<Value, Value>
+bandwidth(std::pmr::memory_resource *mr, const Value &A);
+Value bandwidthOpt(std::pmr::memory_resource *mr, const Value &A,
+                   const std::string &which);
+
+/// vecnorm(A [, p [, dim]]) — vector p-norm along dim.
+///   defaults: p = 2, dim = first non-singleton dimension.
+///   p = Inf  → max(|A|), p = -Inf → min(|A|).
+Value vecnorm(std::pmr::memory_resource *mr, const Value &A,
+              double p = 2.0, int dim = 0);
+
+// ── Linalg extras (linalg_extras.cpp) ─────────────────────────────────
+/// rref(A [, tol]) — reduced row echelon form. Returns (R, jb) where
+/// jb is the 1-based pivot column indices. Default tol =
+/// max(M, N) * eps(norm(A, inf)). Real-only in v1.
+std::pair<Value, Value>
+rref(std::pmr::memory_resource *mr, const Value &A,
+     bool have_tol, double tol_user);
+
+/// rcond(A) — reciprocal 1-norm condition estimate. Cheap path:
+/// 1 / (norm(A,1) * norm(inv(A),1)). Returns 0 for singular A.
+/// KNOWN GAP: matches MATLAB on well-conditioned cases; differs from
+/// LAPACK's dgecon on near-singular matrices.
+Value rcond(std::pmr::memory_resource *mr, const Value &A);
+
+/// planerot([x; y]) — Givens rotation: returns (G, y_out) such that
+/// G*[x; y] = [r; 0] where r = hypot(x, y). Real-only.
+std::pair<Value, Value>
+planerot(std::pmr::memory_resource *mr, const Value &xy);
+
+/// lsqminnorm(A, B [, tol]) — minimum-norm least-squares solution
+/// to A*X = B for rank-deficient A. Implementation: pinv(A, tol)*B.
+/// 'rankWarn' / 'RegularizationFactor' name-value args deferred.
+Value lsqminnorm(std::pmr::memory_resource *mr, const Value &A,
+                 const Value &B, bool have_tol, double tol_user);
+
+/// balance(A) — diagonal-similarity scaling for eigenvalue computations
+/// (Parlett-Reinsch 1969). v1 implements only the scaling phase
+/// (permutation phase deferred; behaves like balance(A, 'noperm')).
+/// Returned as a struct with B (balanced matrix), d_col (column of
+/// scalings), perm_col (column of permutation indices, 1:n in v1).
+/// Dispatch in balance_reg picks 1/2/3-output forms.
+struct BalanceResult { Value B; Value d_col; Value perm_col; };
+BalanceResult balance_impl(std::pmr::memory_resource *mr,
+                           const Value &A, bool noperm);
+
+/// ldl(A) — block LDL' factorization. v1 implements Crout LDL'
+/// without pivoting (works for PD/ND and most indefinite matrices).
+/// Returns (L, D, P) where L is unit lower-triangular (or upper if
+/// upper_form), D is diagonal, P is identity (no pivoting in v1).
+/// p_as_vector=true returns P as a 1×n vector of permutation indices.
+/// KNOWN GAP: complex Hermitian, sparse, Bunch-Kaufman 2×2 pivoting,
+/// and the [L,D,P,C] sparse-with-scaling form deferred.
+std::tuple<Value, Value, Value>
+ldl(std::pmr::memory_resource *mr, const Value &A,
+    bool upper_form, bool p_as_vector);
 
 // ── Shape queries ────────────────────────────────────────────────────
 /// size(x) returns a row vector of dimensions.
