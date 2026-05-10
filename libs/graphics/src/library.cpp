@@ -5544,7 +5544,40 @@ void GraphicsLibrary::install(Engine &engine)
     reg("layout", "axes", noop_ret1);
     reg("layout", "gca", noop_ret1);
     reg("layout", "gcf", noop_ret1);
-    reg("layout", "cla", noop);
+    // cla([reset]) — clear the current axes' datasets. With 'reset'
+    // also clears the per-axis config (title, xlabel, etc.). MATLAB's
+    // 'reset' is opt-in; default cla preserves axes properties.
+    reg("layout", "cla",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            auto &fm = ctx.engine->figureManager();
+            auto &ax = fm.currentAxes();
+            ax.datasets.clear();
+            ax.animatedDatasetIdx = -1;
+            // 'reset' arg: also clear axis config + scales.
+            if (!args.empty() && args[0].isChar()) {
+                std::string s = args[0].toString();
+                for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+                if (s == "reset") {
+                    ax.title.clear(); ax.subtitle.clear();
+                    ax.xlabel.clear(); ax.ylabel.clear();
+                    ax.xlimJson.clear(); ax.ylimJson.clear();
+                    ax.legendLabels.clear(); ax.legendLocation.clear();
+                    ax.gridMajor = false; ax.gridMinor = false;
+                    ax.gridUserTouched = false;
+                    ax.colormapName.clear();
+                    ax.axisMode.clear();
+                    ax.axisVisible = true;
+                    ax.xscale = "linear"; ax.yscale = "linear";
+                    ax.xTicksJson.clear(); ax.yTicksJson.clear();
+                    ax.xTickLabelsJson.clear(); ax.yTickLabelsJson.clear();
+                    ax.xTickFormat.clear(); ax.yTickFormat.clear();
+                }
+            }
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
 
     // linkprop / linkdata — handle-based property linking. We don't
     // model graphics handles, so these accept any args and return an
