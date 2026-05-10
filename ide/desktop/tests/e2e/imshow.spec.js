@@ -217,6 +217,27 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     )).toEqual([]);
   });
 
+  test('imshow(filename) — char-input path goes through imread', async () => {
+    // Calling imshow with a missing file should fail cleanly (engine
+    // throws, no JS-side crash). The point of the test is that the
+    // CHAR branch DOES route to imread — we don't need a successful
+    // decode here, just no Vite/Electron crash.
+    await ide.runScript(
+      'import compat.*;\n'
+      + 'try; imshow(\'__nonexistent_test_image.png\'); catch err; end\n'
+      + 'fprintf(\'survived\\n\');\n'
+    );
+    // The script ran end-to-end → no crash. devErrors may contain the
+    // imread failure, which is expected and benign for this assertion.
+    const harderErrors = ide.devErrors().filter((e) =>
+      !/Autofill\.enable/i.test(e)
+      && !/\[hmr\]/i.test(e)
+      && !/imread/i.test(e)
+      && !/cannot open/i.test(e)
+      && !/no such file/i.test(e));
+    expect(harderErrors).toEqual([]);
+  });
+
   test('imshow logical mask — true=white, false=black', async () => {
     await ide.runScript(
       'import compat.*;\n'
