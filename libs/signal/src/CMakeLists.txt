@@ -14,6 +14,7 @@ set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/filter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/poly_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/quantizers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/shiftdata.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/sosfilt.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/spec_driven.cpp
     # filter_implementation/
