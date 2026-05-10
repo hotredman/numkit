@@ -252,6 +252,16 @@ void pulsewidth_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void pulseperiod_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void pulsesep_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dutycycle_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// Signal ROI utilities (libs/signal/src/measurements/sigroi.cpp)
+void binmask2sigroi_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void sigroi2binmask_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void extendsigroi_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void shortensigroi_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void mergesigroi_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void removesigroi_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void extractsigroi_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void sigrangebinmask_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::signal::detail
 
 namespace numkit {
@@ -498,6 +508,17 @@ void SignalLibrary::install(Engine &engine)
     reg("measurements", "pulseperiod",  &signal::detail::pulseperiod_reg);
     reg("measurements", "pulsesep",     &signal::detail::pulsesep_reg);
     reg("measurements", "dutycycle",    &signal::detail::dutycycle_reg);
+
+    // Signal ROI utilities
+    reg("measurements", "binmask2sigroi", &signal::detail::binmask2sigroi_reg);
+    reg("measurements", "sigroi2binmask", &signal::detail::sigroi2binmask_reg);
+    reg("measurements", "extendsigroi",   &signal::detail::extendsigroi_reg);
+    reg("measurements", "shortensigroi",  &signal::detail::shortensigroi_reg);
+    reg("measurements", "mergesigroi",    &signal::detail::mergesigroi_reg);
+    reg("measurements", "removesigroi",   &signal::detail::removesigroi_reg);
+    reg("measurements", "extractsigroi",  &signal::detail::extractsigroi_reg);
+    reg("measurements", "sigrangebinmask",&signal::detail::sigrangebinmask_reg);
+
     reg("measurements", "rms",       &signal::detail::rms_reg);
     reg("measurements", "rssq",      &signal::detail::rssq_reg);
     reg("measurements", "peak2peak", &signal::detail::peak2peak_reg);

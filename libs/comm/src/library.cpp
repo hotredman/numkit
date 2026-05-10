@@ -101,6 +101,13 @@ void dpcmopt_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 // source/arithcoding.cpp
 void arithenco_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void arithdeco_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// source/base_conversions.cpp
+void bit2int_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void int2bit_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bi2de_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void de2bi_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void vec2mat_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -180,6 +187,13 @@ void CommLibrary::install(Engine &engine)
 
     reg("eq", "arithenco",   &comm::detail::arithenco_reg);
     reg("eq", "arithdeco",   &comm::detail::arithdeco_reg);
+
+    // base conversions (signal-style utilities)
+    reg("rf", "bit2int",     &comm::detail::bit2int_reg);
+    reg("rf", "int2bit",     &comm::detail::int2bit_reg);
+    reg("rf", "bi2de",       &comm::detail::bi2de_reg);
+    reg("rf", "de2bi",       &comm::detail::de2bi_reg);
+    reg("rf", "vec2mat",     &comm::detail::vec2mat_reg);
 }
 
 } // namespace numkit

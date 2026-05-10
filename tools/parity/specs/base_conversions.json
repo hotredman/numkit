@@ -1,0 +1,10 @@
+{
+  "name": "base_conversions",
+  "namespace": "comm",
+  "setup": "b = [1 0 1 0 1 1 0 0]'; bm = [1 0 1 0; 0 0 1 1]; d_in = [5 12]; v = (1:10)';",
+  "expr": "bi_msb = bit2int(b, 4); bi_lsb = bit2int(b, 4, false); ib = int2bit([10 12], 4); de_lsb = bi2de(bm); de_msb = bi2de(bm, 'left-msb'); de_b10 = bi2de([4 3; 1 2], 10); db_auto = de2bi(d_in); db_w5 = de2bi(d_in, 5); db_msb = de2bi(d_in, 5, 'left-msb'); [vm, pad] = vec2mat(v, 4); vm2 = vec2mat([1 2 3 4 5], 3, 99);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["bi_msb(1)", "bi_msb(2)", "bi_lsb(1)", "bi_lsb(2)", "ib(1,1)", "ib(2,1)", "ib(3,1)", "ib(1,2)", "ib(4,2)", "de_lsb(1)", "de_lsb(2)", "de_msb(1)", "de_msb(2)", "de_b10(1)", "de_b10(2)", "db_auto(1,1)", "db_auto(2,3)", "db_w5(1,5)", "db_msb(1,5)", "db_msb(2,3)", "vm(1,1)", "vm(2,4)", "vm(3,3)", "vm(3,4)", "pad", "vm2(2,3)"],
+  "comment": "MATLAB Communications Toolbox base conversions: bit2int (pack n-bit groups → integers, msbfirst default true), int2bit (inverse, returns n×M bit matrix), bi2de (legacy synonym, rows = numbers, LSB-first 'right-msb' default, optional base), de2bi (legacy inverse, optional n / base), vec2mat (reshape vector into N-column row-major-filled matrix with padval default 0, 2-out form returns pad count). Bit-equal with MATLAB R2025b on all 26 fingerprint points across MSB/LSB ordering, custom base, auto-width and explicit-width forms, padding semantics. Octave 11.1.0 ships these in the communications package."
+}
