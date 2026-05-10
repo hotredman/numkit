@@ -714,7 +714,7 @@ inputs still match at most once. Existing test updated to MATLAB-spec.
 
 ---
 
-## 28. `core/`: `mldivide` / `mrdivide` / `mpower` named-fn forms not implemented — **P2**
+## 28. `core/`: `mldivide` / `mrdivide` / `mpower` named-fn forms not implemented — **P2** ✅ FIXED
 
 **Reproducers:**
 ```matlab
@@ -739,6 +739,17 @@ generic-programming) breaks. Workaround = use operator form.
 form to a not-yet-wired-up routine. Linalg as a whole is deferred,
 but these named-fn stubs are misleading because the row says ✅.
 **First seen:** 2026-05-03, parity bulk-bench iteration 24.
+**Fixed in commit (next)** — mldivide / mrdivide were already
+wired correctly (`A \ b` and `b / A` produced real results). The
+remaining gap was `mpower(A, n)` for matrix A: the underlying
+`power()` op in libs/builtin/src/language/operators/binary_ops.cpp
+fell through to "Matrix power not implemented". Now when a is a
+square 2-D numeric matrix and b is a non-negative integer scalar,
+the operator computes the matrix-product chain A·A·…·A via
+`mtimes`; n=0 returns the identity matrix of matching size. Non-
+integer exponents and inverse / fractional powers (eigendecomp
+route) remain BACKLOG. e2e mldivide-bug28.spec.js pins all three
+named-fn forms.
 
 ---
 
