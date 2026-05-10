@@ -225,6 +225,99 @@ void convhull_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = std::move(out);
 }
 
+// ── delaunay ─────────────────────────────────────────────────────────
+//
+// delaunay(x, y) — Delaunay triangulation indices. Returns an M×3
+// matrix where each row is a triangle's three 1-based vertex indices.
+//
+// v1 uses an O(N⁴) brute-force in-circle test: for every triple of
+// distinct points (a, b, c), check if no fourth point lies strictly
+// inside their circumcircle — if true, the triple is a Delaunay
+// triangle. Cheap and clear for the small / mid-N cases typical of
+// MATLAB scripts; for N > ~50 a proper Bowyer-Watson incremental
+// algorithm is BACKLOG.
+//
+// Triangles are emitted with CCW orientation (negative signed-area
+// triples are reordered).
+void delaunay_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("delaunay: requires (x, y)",
+                     0, 0, "delaunay", "", "m:delaunay:nargin");
+    const auto &xv = args[0];
+    const auto &yv = args[1];
+    const std::size_t n = xv.numel();
+    if (yv.numel() != n)
+        throw Error("delaunay: x and y must have the same numel",
+                     0, 0, "delaunay", "", "m:delaunay:shape");
+    auto *mr = ctx.engine->resource();
+    if (n < 3) {
+        outs[0] = Value::matrix(0, 3, ValueType::DOUBLE, mr);
+        return;
+    }
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> X(n, &scratch);
+    ScratchVec<double> Y(n, &scratch);
+    for (std::size_t i = 0; i < n; ++i) {
+        X[i] = xv.elemAsDouble(i);
+        Y[i] = yv.elemAsDouble(i);
+    }
+
+    // Robert Lewis-style in-circle test via 3×3 determinant. Returns
+    // > 0 when P lies strictly inside the CCW-oriented circumcircle
+    // of (A, B, C), < 0 if outside, 0 on the boundary.
+    auto inCircle = [&](std::size_t a, std::size_t b, std::size_t c,
+                        std::size_t p) {
+        const double ax = X[a] - X[p], ay = Y[a] - Y[p];
+        const double bx = X[b] - X[p], by = Y[b] - Y[p];
+        const double cx = X[c] - X[p], cy = Y[c] - Y[p];
+        const double a2 = ax * ax + ay * ay;
+        const double b2 = bx * bx + by * by;
+        const double c2 = cx * cx + cy * cy;
+        return ax * (by * c2 - cy * b2)
+             - ay * (bx * c2 - cx * b2)
+             + a2 * (bx * cy - cx * by);
+    };
+    auto signedArea2 = [&](std::size_t a, std::size_t b, std::size_t c) {
+        return (X[b] - X[a]) * (Y[c] - Y[a]) - (Y[b] - Y[a]) * (X[c] - X[a]);
+    };
+
+    std::vector<std::array<std::size_t, 3>> tris;
+    tris.reserve(2 * n);
+    for (std::size_t a = 0; a < n; ++a) {
+        for (std::size_t b = a + 1; b < n; ++b) {
+            for (std::size_t c = b + 1; c < n; ++c) {
+                const double sa2 = signedArea2(a, b, c);
+                if (std::abs(sa2) < 1e-15) continue;   // collinear
+                std::size_t va = a, vb = b, vc = c;
+                if (sa2 < 0) std::swap(vb, vc);   // make CCW
+                bool ok = true;
+                for (std::size_t p = 0; p < n; ++p) {
+                    if (p == va || p == vb || p == vc) continue;
+                    if (inCircle(va, vb, vc, p) > 1e-12) {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (ok) tris.push_back({ va, vb, vc });
+            }
+        }
+    }
+
+    auto out = Value::matrix(tris.size(), 3, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    // Column-major: dst[col * M + row].
+    const std::size_t M = tris.size();
+    for (std::size_t i = 0; i < M; ++i) {
+        dst[0 * M + i] = static_cast<double>(tris[i][0] + 1);
+        dst[1 * M + i] = static_cast<double>(tris[i][1] + 1);
+        dst[2 * M + i] = static_cast<double>(tris[i][2] + 1);
+    }
+    outs[0] = std::move(out);
+}
+
 } // namespace detail
 
 } // namespace numkit::builtin
