@@ -1242,6 +1242,61 @@ void GraphicsLibrary::install(Engine &engine)
 
         const ValueType vt = I.type();
 
+        // ── Argument parsing ────────────────────────────────────────
+        // Supported forms:
+        //   imshow(I)
+        //   imshow(I, [lo hi])              — explicit display range
+        //   imshow(I, [])                    — auto-range (data extent)
+        //   imshow(I, 'DisplayRange', [lo hi])
+        //   imshow(I, 'XData', xv, 'YData', yv, ...)
+        //   imshow(I, [lo hi], 'XData', xv, ...)
+        //
+        // After args[0], a non-char Value is a positional range; the
+        // first char Value starts N-V parsing.
+        const Value *rangeArg = nullptr;       // [] / [lo hi] / null
+        const Value *xDataArg = nullptr;
+        const Value *yDataArg = nullptr;
+        size_t nvStart = 1;
+        if (args.size() >= 2 && !args[1].isChar()) {
+            rangeArg = &args[1];
+            nvStart = 2;
+        }
+        for (size_t i = nvStart; i + 1 < args.size(); i += 2) {
+            if (!args[i].isChar()) continue;
+            std::string key = args[i].toString();
+            for (auto &c : key) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (key == "displayrange")    rangeArg = &args[i + 1];
+            else if (key == "xdata")      xDataArg = &args[i + 1];
+            else if (key == "ydata")      yDataArg = &args[i + 1];
+            // Other N-V keys (Colormap, InitialMagnification, Border,
+            // Reduce, Parent) are silently skipped — see audit/findings/
+            // graphics/imshow.md.
+        }
+
+        // Helper: emit "[v1,v2,...,vN]" JSON from a Value (numeric vec).
+        auto vecJson = [](const Value &v) -> std::string {
+            std::ostringstream os; os << "[";
+            const size_t n = v.numel();
+            for (size_t i = 0; i < n; ++i) {
+                if (i) os << ",";
+                os << v.elemAsDouble(i);
+            }
+            os << "]";
+            return os.str();
+        };
+        // X/Y span. By default 1..C / 1..R; XData/YData override.
+        std::string xJson, yJson;
+        if (xDataArg && xDataArg->numel() >= 2) {
+            xJson = vecJson(*xDataArg);
+        } else {
+            std::ostringstream xs; xs << "[1," << C << "]"; xJson = xs.str();
+        }
+        if (yDataArg && yDataArg->numel() >= 2) {
+            yJson = vecJson(*yDataArg);
+        } else {
+            std::ostringstream ys; ys << "[1," << R << "]"; yJson = ys.str();
+        }
+
         if (isRGB) {
             DatasetInfo ds;
             ds.type = "image-rgb";
@@ -1320,25 +1375,23 @@ void GraphicsLibrary::install(Engine &engine)
             }
             zs << "]";
             ds.rgbJson = zs.str();
-            // X/Y span — pixel index baseline (1..C, 1..R).
-            std::ostringstream xs; xs << "[1," << C << "]"; ds.xJson = xs.str();
-            std::ostringstream ys; ys << "[1," << R << "]"; ds.yJson = ys.str();
+            ds.xJson = xJson;
+            ds.yJson = yJson;
             fm.pushDataset(std::move(ds));
         } else {
             // Grayscale path. Pick [cmin, cmax] from class default unless
-            // overridden by `imshow(I, [lo hi])` or auto-ranged via
-            // `imshow(I, [])`.
+            // overridden by `imshow(I, [lo hi])` (positional or
+            // 'DisplayRange') or auto-ranged via `imshow(I, [])`.
             double cmin = 0.0, cmax = 1.0;
             if (vt == ValueType::UINT8) { cmin = 0; cmax = 255; }
             // logical / double / single → already [0, 1].
             bool autoRange = false;
-            if (args.size() >= 2 && !args[1].isChar()) {
-                const auto &range = args[1];
-                if (range.numel() == 0) {
+            if (rangeArg) {
+                if (rangeArg->numel() == 0) {
                     autoRange = true;
-                } else if (range.numel() >= 2) {
-                    cmin = range.elemAsDouble(0);
-                    cmax = range.elemAsDouble(1);
+                } else if (rangeArg->numel() >= 2) {
+                    cmin = rangeArg->elemAsDouble(0);
+                    cmax = rangeArg->elemAsDouble(1);
                 }
             }
             if (autoRange) {
@@ -1420,8 +1473,8 @@ void GraphicsLibrary::install(Engine &engine)
             }
             zs << "]";
             ds.zJson = zs.str();
-            std::ostringstream xs; xs << "[1," << C << "]"; ds.xJson = xs.str();
-            std::ostringstream ys; ys << "[1," << R << "]"; ds.yJson = ys.str();
+            ds.xJson = xJson;
+            ds.yJson = yJson;
             fm.pushDataset(std::move(ds));
             // Grayscale-only colormap default: 'gray'. RGB ignores
             // colormap so we don't touch it on the RGB branch.

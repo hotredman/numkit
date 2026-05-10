@@ -153,6 +153,35 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     expect(foundGray).toBe(true);
   });
 
+  test('imshow + DisplayRange N-V — same effect as positional [lo hi]', async () => {
+    await ide.runScript(
+      'import compat.*;\n'
+      + 'I = [10 20 30; 15 25 35; 12 22 32];\n'
+      + 'imshow(I, \'DisplayRange\', [10 35]);\n'
+    );
+    await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+    const img = ide.figureCards.first().locator('svg image[href^="data:image/png"]');
+    expect(await img.count()).toBeGreaterThanOrEqual(1);
+    expect(ide.devErrors().filter((e) =>
+      !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
+    )).toEqual([]);
+  });
+
+  test('imshow + XData / YData place image at world coords', async () => {
+    // XData/YData stretch the image over the given x/y span. The
+    // figure JSON ds.x/ds.y now carries those values, so the IDE
+    // adapter computes a wider xRange/yRange than the default 1..N.
+    await ide.runScript(
+      'import compat.*;\n'
+      + 'imshow([0 0.5 1; 0.5 1 0.5; 1 0.5 0], '
+      + '\'XData\', [-2 2], \'YData\', [-1 1]);\n'
+    );
+    await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+    expect(ide.devErrors().filter((e) =>
+      !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
+    )).toEqual([]);
+  });
+
   test('imshow logical mask — true=white, false=black', async () => {
     await ide.runScript(
       'import compat.*;\n'
