@@ -1233,8 +1233,10 @@ void GraphicsLibrary::install(Engine &engine)
         const size_t R = dims.rows();
         const size_t C = dims.cols();
 
-        // Detect RGB: 3-D with 3 pages.
-        const bool isRGB = (nd == 3 && dims.pages() == 3);
+        // Detect RGB / RGBA: 3-D with 3 or 4 pages.
+        const size_t pages = (nd == 3) ? dims.pages() : 0;
+        const bool isRGB  = (pages == 3 || pages == 4);
+        const bool hasAlpha = (pages == 4);
         if (!isRGB && (nd != 2 || R == 0 || C == 0)) {
             outs[0] = Value::empty();
             return;
@@ -1310,11 +1312,17 @@ void GraphicsLibrary::install(Engine &engine)
             const double scale = (vt == ValueType::DOUBLE
                                   || vt == ValueType::SINGLE
                                   || vt == ValueType::LOGICAL) ? 255.0 : 1.0;
-            ds.rgbBytes.resize(R * C * 3);
+            // Wire format always carries 4 bytes per pixel (RGBA). For
+            // RGB input we synthesize alpha=255. Renderer treats a
+            // missing alpha as opaque, so RGB-only callers see no
+            // change.
+            const size_t bytesPerPixel = 4;
+            ds.rgbBytes.resize(R * C * bytesPerPixel);
+            const size_t numChannels = hasAlpha ? 4 : 3;
             for (size_t r = 0; r < R; ++r) {
                 for (size_t c = 0; c < C; ++c) {
-                    const size_t outIdx = (r * C + c) * 3;
-                    for (size_t k = 0; k < 3; ++k) {
+                    const size_t outIdx = (r * C + c) * bytesPerPixel;
+                    for (size_t k = 0; k < numChannels; ++k) {
                         // column-major linear index: page * R*C + col * R + row
                         const size_t srcIdx = k * R * C + c * R + r;
                         double v = I.elemAsDouble(srcIdx) * scale;
@@ -1322,10 +1330,13 @@ void GraphicsLibrary::install(Engine &engine)
                         else if (v > 255) v = 255;
                         ds.rgbBytes[outIdx + k] = static_cast<uint8_t>(v + 0.5);
                     }
+                    // Synthesize opaque alpha when input is plain RGB.
+                    if (!hasAlpha) ds.rgbBytes[outIdx + 3] = 255;
                 }
             }
             // Inline JSON preview — same 2M-pixel cap as imagesc; mean-pool
-            // each channel independently when over the cap.
+            // each channel independently when over the cap. Wire shape:
+            // [[[r,g,b,a],...],...]  (always 4-tuple, alpha=255 for RGB).
             constexpr size_t MAX_INLINE_PIXELS = 2'000'000;
             const size_t totalPixels = R * C;
             std::ostringstream zs;
@@ -1336,10 +1347,11 @@ void GraphicsLibrary::install(Engine &engine)
                     zs << "[";
                     for (size_t c = 0; c < C; ++c) {
                         if (c) zs << ",";
-                        const size_t off = (r * C + c) * 3;
+                        const size_t off = (r * C + c) * bytesPerPixel;
                         zs << "[" << static_cast<int>(ds.rgbBytes[off])
                            << "," << static_cast<int>(ds.rgbBytes[off + 1])
-                           << "," << static_cast<int>(ds.rgbBytes[off + 2]) << "]";
+                           << "," << static_cast<int>(ds.rgbBytes[off + 2])
+                           << "," << static_cast<int>(ds.rgbBytes[off + 3]) << "]";
                     }
                     zs << "]";
                 }
@@ -1358,19 +1370,22 @@ void GraphicsLibrary::install(Engine &engine)
                         if (ocol) zs << ",";
                         const size_t c0 = ocol * step;
                         const size_t c1 = std::min(C, c0 + step);
-                        int sumR = 0, sumG = 0, sumB = 0; int n = 0;
+                        int sumR = 0, sumG = 0, sumB = 0, sumA = 0;
+                        int n = 0;
                         for (size_t rr = r0; rr < r1; ++rr) {
                             for (size_t cc = c0; cc < c1; ++cc) {
-                                const size_t off = (rr * C + cc) * 3;
+                                const size_t off = (rr * C + cc) * bytesPerPixel;
                                 sumR += ds.rgbBytes[off];
                                 sumG += ds.rgbBytes[off + 1];
                                 sumB += ds.rgbBytes[off + 2];
+                                sumA += ds.rgbBytes[off + 3];
                                 ++n;
                             }
                         }
                         zs << "[" << (n ? sumR / n : 0)
                            << "," << (n ? sumG / n : 0)
-                           << "," << (n ? sumB / n : 0) << "]";
+                           << "," << (n ? sumB / n : 0)
+                           << "," << (n ? sumA / n : 255) << "]";
                     }
                     zs << "]";
                 }
