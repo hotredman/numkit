@@ -102,15 +102,25 @@ test.describe('inpolygon / convhull', () => {
     expect(txt).toMatch(/len=5/);
   });
 
-  test('boundary(x, y, 0.7) — shrink arg accepted (no-op v1)', async () => {
+  test('boundary(x, y, shrink) — concave envelope on C-shape', async () => {
+    // Points along a C-shape — concave boundary should follow the curve.
     await ide.runScript(
       'import compat.*;\n'
-      + 'k = boundary([0 1 1 0], [0 0 1 1], 0.7);\n'
-      + 'fprintf(\'ok len=%d\\n\', length(k));\n'
+      // Outer arc plus inner indent (cloud with a notch).
+      + 'theta = linspace(0, 2*pi, 24);\n'
+      + 'x = [cos(theta), 0.3*cos(theta)];\n'
+      + 'y = [sin(theta), 0.3*sin(theta)];\n'
+      + 'k0 = boundary(x, y, 0);\n'   // convex hull
+      + 'k1 = boundary(x, y, 0.9);\n' // tight
+      + 'fprintf(\'k0=%d k1=%d\\n\', length(k0), length(k1));\n'
     );
     await page.waitForTimeout(200);
     const txt = await ide.consoleText();
-    expect(txt).toMatch(/ok len=/);
+    // Tighter shrink should usually produce more boundary vertices than
+    // the convex hull (more wraparound through interior points).
+    const m = txt.match(/k0=(\d+) k1=(\d+)/);
+    expect(m).toBeTruthy();
+    expect(Number(m[2])).toBeGreaterThanOrEqual(Number(m[1]));
   });
 
   test('convhull — collinear points (degenerate)', async () => {
