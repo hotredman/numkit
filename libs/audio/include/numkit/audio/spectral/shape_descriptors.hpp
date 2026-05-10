@@ -24,4 +24,14 @@ Value spectralSlope       (std::pmr::memory_resource *mr, const Value &x, const 
 Value spectralFlux        (std::pmr::memory_resource *mr, const Value &x, const Value &f,
                            double p = 2.0);
 
+// ── Cycle I: spectralCrest/Entropy/Flatness/Kurtosis/Skewness ─────────
+// All match MATLAB R2025b Signal Toolbox semantics (per-frame STFT for
+// time-domain input). Frequency moments (Kurtosis/Skewness) use the
+// X-weighted central-moment formula from spectralSkewness.m / Kurtosis.m.
+Value spectralCrest       (std::pmr::memory_resource *mr, const Value &x, const Value &f);
+Value spectralEntropy     (std::pmr::memory_resource *mr, const Value &x, const Value &f);
+Value spectralFlatness    (std::pmr::memory_resource *mr, const Value &x, const Value &f);
+Value spectralKurtosis    (std::pmr::memory_resource *mr, const Value &x, const Value &f);
+Value spectralSkewness    (std::pmr::memory_resource *mr, const Value &x, const Value &f);
+
 } // namespace numkit::audio

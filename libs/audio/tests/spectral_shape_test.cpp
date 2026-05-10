@@ -95,3 +95,55 @@ TEST_F(SpectralShapeTest, EmptyTooShortReturnsEmpty)
     eval("fs = 8000; x = ones(10, 1); sc = spectralCentroid(x, fs);");
     EXPECT_EQ(static_cast<int>(evalScalar("numel(sc)")), 0);
 }
+
+// ── Cycle I: Crest / Entropy / Flatness / Kurtosis / Skewness ─────────
+// All bit-equal vs MATLAB R2025b on direct (X, F) form.
+TEST_F(SpectralShapeTest, CrestDirectMaxOverMean)
+{
+    eval("X = [10; 5; 2; 1; 0.5; 0.25; 0.1; 0.05]; F = (0:7)';");
+    EXPECT_NEAR(evalScalar("spectralCrest(X, F)"), 4.232804, 1e-5);
+}
+
+TEST_F(SpectralShapeTest, EntropyDirectScaled)
+{
+    eval("X = [10; 5; 2; 1; 0.5; 0.25; 0.1; 0.05]; F = (0:7)';");
+    // Scaled entropy: -Σ P log2(P) / log2(N) where P = X/Σ X
+    EXPECT_NEAR(evalScalar("spectralEntropy(X, F)"), 0.614838, 1e-5);
+}
+
+TEST_F(SpectralShapeTest, FlatnessGeoMeanOverArithMean)
+{
+    eval("X = [10; 5; 2; 1; 0.5; 0.25; 0.1; 0.05]; F = (0:7)';");
+    EXPECT_NEAR(evalScalar("spectralFlatness(X, F)"), 0.299304, 1e-5);
+}
+
+TEST_F(SpectralShapeTest, KurtosisFourthMoment)
+{
+    eval("X = [10; 5; 2; 1; 0.5; 0.25; 0.1; 0.05]; F = (0:7)';");
+    EXPECT_NEAR(evalScalar("spectralKurtosis(X, F)"), 6.870027, 1e-5);
+}
+
+TEST_F(SpectralShapeTest, SkewnessThirdMoment)
+{
+    eval("X = [10; 5; 2; 1; 0.5; 0.25; 0.1; 0.05]; F = (0:7)';");
+    EXPECT_NEAR(evalScalar("spectralSkewness(X, F)"), 1.866626, 1e-5);
+}
+
+TEST_F(SpectralShapeTest, MultiFrameCrest)
+{
+    eval("X2 = [10 1; 5 2; 2 5; 1 10; 0.5 5; 0.25 2; 0.1 1; 0.05 0.5]; F = (0:7)';"
+         "c = spectralCrest(X2, F);");
+    EXPECT_NEAR(evalScalar("c(1)"), 4.232804, 1e-5);
+    EXPECT_NEAR(evalScalar("c(2)"), 3.018868, 1e-5);
+}
+
+TEST_F(SpectralShapeTest, TimeDomainCrestPerFrame)
+{
+    eval("fs = 16000; t = (0:1/fs:0.1)'; x = sin(2*pi*440*t);"
+         "c = spectralCrest(x, fs);");
+    // 8 frames at 16kHz with 30/20ms windowing
+    EXPECT_EQ(static_cast<int>(evalScalar("size(c, 1)")), 8);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(c, 2)")), 1);
+    // Bit-equal first frame value with MATLAB R2025b spectralCrest(x, fs).
+    EXPECT_NEAR(evalScalar("c(1)"), 210.542552, 1e-3);
+}
