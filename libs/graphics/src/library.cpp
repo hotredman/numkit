@@ -5505,6 +5505,22 @@ void GraphicsLibrary::install(Engine &engine)
     reg("layout", "ytickformat", tickFormatReg(&AxesState::yTickFormat));
     reg("layout", "ztickformat", tickFormatReg(&AxesState::zTickFormat));
 
+    // xtickangle / ytickangle — rotation of tick labels in degrees.
+    auto tickAngleReg = [](double AxesState::*field) {
+        return [field](Span<const Value> args, size_t nargout,
+                       Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            auto &fm = ctx.engine->figureManager();
+            if (args.empty()) { outs[0] = Value::empty(); return; }
+            fm.currentAxes().*field = args[0].toScalar();
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        };
+    };
+    reg("layout", "xtickangle", tickAngleReg(&AxesState::xTickAngle));
+    reg("layout", "ytickangle", tickAngleReg(&AxesState::yTickAngle));
+
     // daspect([dx dy dz]) / pbaspect([px py pz]) — data + plot box
     // aspect ratios. v1 maps the canonical [1 1 1] case to
     // axisMode='equal' (equivalent visual). Other ratios accepted but

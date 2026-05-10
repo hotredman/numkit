@@ -1049,20 +1049,29 @@ export default function CompositePlot({
       {axisVisible && xTicks.major.map((v, i) => {
         const x = sx(v);
         if (x < padL - 1 || x > padL + W + 1) return null;
+        const ang = Number(figure.xTickAngle) || 0;
+        const ty = padT + H + 14 * fontScale + 2;
+        const transform = ang ? `rotate(${ang}, ${x}, ${ty})` : undefined;
+        const anchor = ang ? (ang > 0 ? 'end' : 'start') : 'middle';
         return (
           <g key={`xl${i}`}>
             <line x1={x} x2={x} y1={padT + H} y2={padT + H + 4} stroke="var(--plot-tick)" />
-            <text x={x} y={padT + H + 14 * fontScale + 2} fill="var(--plot-text)" fontSize={10 * fontScale} textAnchor="middle">{fmtXTickLabel(v, i)}</text>
+            <text x={x} y={ty} fill="var(--plot-text)" fontSize={10 * fontScale}
+                  textAnchor={anchor} transform={transform}>{fmtXTickLabel(v, i)}</text>
           </g>
         );
       })}
       {axisVisible && yTicks.major.map((v, i) => {
         const y = sy(v);
         if (y < padT - 1 || y > padT + H + 1) return null;
+        const ang = Number(figure.yTickAngle) || 0;
+        const tx = padL - 7;
+        const transform = ang ? `rotate(${ang}, ${tx}, ${y})` : undefined;
         return (
           <g key={`yl${i}`}>
             <line x1={padL - 4} x2={padL} y1={y} y2={y} stroke="var(--plot-tick)" />
-            <text x={padL - 7} y={y + 3} fill="var(--plot-text)" fontSize={10 * fontScale} textAnchor="end">{fmtYTickLabel(v, i)}</text>
+            <text x={tx} y={y + 3} fill="var(--plot-text)" fontSize={10 * fontScale}
+                  textAnchor="end" transform={transform}>{fmtYTickLabel(v, i)}</text>
           </g>
         );
       })}

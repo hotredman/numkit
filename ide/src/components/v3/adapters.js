@@ -820,6 +820,8 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     yTickLabels: Array.isArray(cfg.yticklabels) ? cfg.yticklabels.slice() : null,
     xTickFormat: typeof cfg.xtickformat === 'string' ? cfg.xtickformat : '',
     yTickFormat: typeof cfg.ytickformat === 'string' ? cfg.ytickformat : '',
+    xTickAngle: Number.isFinite(cfg.xtickangle) ? Number(cfg.xtickangle) : 0,
+    yTickAngle: Number.isFinite(cfg.ytickangle) ? Number(cfg.ytickangle) : 0,
     // xDir / yDir: 'normal' (default) or 'reverse'. Renderer flips
     // the corresponding sx/sy mapping when 'reverse'. axis('ij')
     // shorthand is resolved on the C++ side: it sets yDir='reverse'
