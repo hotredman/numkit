@@ -44,6 +44,8 @@ void uencode_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 void udecode_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void polyscale_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void polystab_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void shiftdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void unshiftdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 // digital_filtering/spec_driven.cpp (D2)
 void lowpass_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void highpass_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -330,6 +332,8 @@ void SignalLibrary::install(Engine &engine)
     reg("digital_filtering", "udecode",  &signal::detail::udecode_reg);
     reg("digital_filtering", "polyscale", &signal::detail::polyscale_reg);
     reg("digital_filtering", "polystab",  &signal::detail::polystab_reg);
+    reg("digital_filtering", "shiftdata", &signal::detail::shiftdata_reg);
+    reg("digital_filtering", "unshiftdata", &signal::detail::unshiftdata_reg);
     reg("digital_filtering", "sosfilt",     &signal::detail::sosfilt_reg);
     reg("digital_filtering", "sosfiltfilt", &signal::detail::sosfiltfilt_reg);
     reg("digital_filtering", "medfilt1", &signal::detail::medfilt1_reg);

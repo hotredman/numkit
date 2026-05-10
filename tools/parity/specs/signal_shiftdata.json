@@ -1,0 +1,10 @@
+{
+  "name": "signal_shiftdata",
+  "namespace": "signal",
+  "setup": "A = [1 2 3; 4 5 6; 7 8 9]; x = 1:5;",
+  "expr": "[xs, perm, nsh] = shiftdata(A, 2); xs_R = size(xs,1); xs_C = size(xs,2); xs_12 = xs(1,2); perm_1 = perm(1); perm_2 = perm(2); nsh_n = numel(nsh); [xs2, perm2, nsh2] = shiftdata(x, []); xs2_R = size(xs2,1); xs2_C = size(xs2,2); perm2_n = numel(perm2); nsh2 = nsh2; y = unshiftdata(xs, perm, nsh); rt_match = double(isequal(y, A)); y2 = unshiftdata(xs2, perm2, nsh2); rt2_match = double(isequal(y2, x));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["xs_R", "xs_C", "xs_12", "perm_1", "perm_2", "nsh_n", "xs2_R", "xs2_C", "perm2_n", "nsh2", "rt_match", "rt2_match"],
+  "comment": "MATLAB Signal Toolbox shiftdata + unshiftdata (Phase 4.4): dim-aware utilities for filter-like functions. shiftdata(x, dim): permute dim to leading. shiftdata(x, []): auto-shift via shiftdim (drop leading singletons). unshiftdata: ipermute back (or shiftdim(-nshifts)). Bit-equal MATLAB R2025b on 12 fingerprints — explicit-dim path (transpose), auto path (row→col with nshifts=1), full roundtrip identity for both forms. Octave 11.1.0 ships these in core."
+}
