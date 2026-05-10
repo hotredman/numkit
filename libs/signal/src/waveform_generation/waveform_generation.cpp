@@ -5,6 +5,8 @@
 // fftshift / ifftshift moved to transforms/transform_helpers.cpp).
 
 #include <numkit/signal/waveform_generation/waveform_generation.hpp>
+#include <numkit/signal/filter_design/filter_design.hpp>     // butter
+#include <numkit/signal/digital_filtering/filter.hpp>        // filtfilt
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -353,6 +355,89 @@ Value chirp(std::pmr::memory_resource *mr, const Value &t,
     return out;
 }
 
+// ── demod (Phase 4.13) ──────────────────────────────────────────────
+//
+// Analog demodulation. Supports am / amdsb-sc (alias) / amdsb-tc.
+// Pipeline matches MATLAB R2025b demod.m:
+//   x = y .* cos(2π Fc t)
+//   [b, a] = butter(5, Fc*2/Fs)   (5th-order Butterworth lowpass)
+//   x = filtfilt(b, a, x) per column
+//   for amdsb-tc: x -= opt (DC offset, default 0)
+//
+// KNOWN GAPs: fm/pm modes (use hilbert which depends on libs/signal::fft
+// sign-convention bug — same blocker as Cycle J / pitch LHS/SRH).
+// amssb / pwm / ptm/ppm / qam similarly deferred.
+Value demod(std::pmr::memory_resource *mr,
+            const Value &y, double Fc, double Fs,
+            const std::string &method, const Value *opt)
+{
+    constexpr double kPi = 3.14159265358979323846;
+    if (Fs <= 0.0)
+        throw Error("demod: Fs must be positive",
+                    0, 0, "demod", "", "m:demod:BadFs");
+
+    const std::size_t N = y.numel();
+    if (N == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    std::string m = method;
+    std::transform(m.begin(), m.end(), m.begin(),
+                    [](unsigned char c) { return std::tolower(c); });
+
+    const bool isAmFamily = (m == "am" || m == "amdsb-sc" || m == "amdsb-tc");
+    if (!isAmFamily)
+        throw Error("demod: only am/amdsb-sc/amdsb-tc supported "
+                    "(fm/pm/amssb/pwm/ptm/ppm/qam deferred)",
+                    0, 0, "demod", "", "m:demod:UnsupportedMethod");
+
+    // Convert row vector to column for processing.
+    const bool isRowVec = (y.dims().rows() == 1 && y.dims().cols() > 1);
+    const std::size_t len = isRowVec ? y.dims().cols() : y.dims().rows();
+    const std::size_t cols = isRowVec ? 1 : y.dims().cols();
+
+    // Step 1: x = y .* cos(2π Fc t)
+    Value mixed = Value::matrix(len, cols, ValueType::DOUBLE, mr);
+    double *md = mixed.doubleDataMut();
+    for (std::size_t c = 0; c < cols; ++c) {
+        for (std::size_t r = 0; r < len; ++r) {
+            const double t = static_cast<double>(r) / Fs;
+            const double yi = isRowVec ? y.elemAsDouble(r)
+                                        : y.elemAsDouble(r + c * len);
+            md[r + c * len] = yi * std::cos(2.0 * kPi * Fc * t);
+        }
+    }
+
+    // Step 2: 5th-order Butterworth lowpass at cutoff 2*Fc/Fs (normalized).
+    // butter() needs Wn ∈ (0, 1). For high Fc relative to Fs (Wn ≥ 1), skip filter.
+    const double Wn = Fc * 2.0 / Fs;
+    Value out;
+    if (Wn > 0.0 && Wn < 1.0) {
+        auto [bp, ap] = numkit::signal::butter(mr, 5, Wn, "low");
+        // filtfilt per column: process the entire matrix (filtfilt handles cols).
+        out = numkit::signal::filtfilt(mr, bp, ap, mixed);
+    } else {
+        out = mixed;
+    }
+
+    // Step 3: amdsb-tc subtracts opt offset.
+    if (m == "amdsb-tc") {
+        double offset = 0.0;
+        if (opt && !opt->isEmpty()) offset = opt->toScalar();
+        if (offset != 0.0) {
+            double *od = out.doubleDataMut();
+            for (std::size_t i = 0; i < len * cols; ++i) od[i] -= offset;
+        }
+    }
+
+    // Restore row-vector orientation if input was row.
+    if (isRowVec && cols == 1) {
+        Value rowOut = Value::matrix(1, len, ValueType::DOUBLE, mr);
+        std::copy(out.doubleData(), out.doubleData() + len, rowOut.doubleDataMut());
+        return rowOut;
+    }
+    return out;
+}
+
 // ── modulate (Phase 4.12) ───────────────────────────────────────────
 //
 // Analog modulation. Supports am/amdsb-sc (alias)/amdsb-tc/fm/pm.
@@ -536,6 +621,21 @@ Value vco(std::pmr::memory_resource *mr,
 }
 
 namespace detail {
+
+void demod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("demod: requires (y, Fc, Fs, method [, opt])",
+                    0, 0, "demod", "", "m:demod:nargin");
+    const double Fc = args[1].toScalar();
+    const double Fs = args[2].toScalar();
+    if (!args[3].isChar() && !args[3].isString())
+        throw Error("demod: method must be a string",
+                    0, 0, "demod", "", "m:demod:BadMethodType");
+    std::string method = args[3].toString();
+    const Value *opt = (args.size() >= 5) ? &args[4] : nullptr;
+    outs[0] = demod(ctx.engine->resource(), args[0], Fc, Fs, method, opt);
+}
 
 void modulate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
