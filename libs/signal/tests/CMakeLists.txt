@@ -43,6 +43,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/ellipord_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/firpmord_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/vco_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/fir2_test.cpp
 )
 
 # fft_public_api_test reaches into libs/signal/src/transforms/backends/
