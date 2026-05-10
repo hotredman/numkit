@@ -115,6 +115,7 @@ void polyarea_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void boundary_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void delaunay_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void histcounts2_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void griddata_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void spline_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void pchip_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void mkpp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -643,6 +644,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("boundary",  &builtin::detail::boundary_reg);
     engine.registerFunction("delaunay",  &builtin::detail::delaunay_reg);
     engine.registerFunction("histcounts2", &builtin::detail::histcounts2_reg);
+    engine.registerFunction("griddata",  &builtin::detail::griddata_reg);
     engine.registerFunction("spline",    &builtin::detail::spline_reg);
     engine.registerFunction("pchip",     &builtin::detail::pchip_reg);
     engine.registerFunction("mkpp",      &builtin::detail::mkpp_reg);
