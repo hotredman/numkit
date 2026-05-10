@@ -54,6 +54,7 @@ void bandstop_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void butter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void fir1_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void firls_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void fir2_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void freqz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void phasez_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void grpdelay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -350,6 +351,7 @@ void SignalLibrary::install(Engine &engine)
     reg("filter_design", "butter",     &signal::detail::butter_reg);
     reg("filter_design", "fir1",       &signal::detail::fir1_reg);
     reg("filter_design", "firls",      &signal::detail::firls_reg);
+    reg("filter_design", "fir2",       &signal::detail::fir2_reg);
     reg("filter_design", "sgolay",     &signal::detail::sgolay_reg);
     reg("filter_design", "sgolayfilt", &signal::detail::sgolayfilt_reg);
 

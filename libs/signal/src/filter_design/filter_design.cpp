@@ -5,6 +5,7 @@
 // filter) live in filter_analysis/frequency_response.cpp.
 
 #include <numkit/signal/filter_design/filter_design.hpp>
+#include <numkit/signal/transforms/fft.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
@@ -387,6 +388,173 @@ void firls_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
                     Fv.data(), Fv.size(), Av.data(), Av.size());
 }
 
+void fir2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("fir2: requires (N, F, A)",
+                    0, 0, "fir2", "", "m:fir2:nargin");
+    const int N = static_cast<int>(args[0].toScalar());
+    auto extractRow = [](const Value &v, std::vector<double> &dst) {
+        const std::size_t n = v.numel();
+        dst.resize(n);
+        for (std::size_t i = 0; i < n; ++i) dst[i] = v.elemAsDouble(i);
+    };
+    std::vector<double> Fv, Av;
+    extractRow(args[1], Fv);
+    extractRow(args[2], Av);
+    outs[0] = fir2(ctx.engine->resource(), N,
+                    Fv.data(), Fv.size(), Av.data(), Av.size());
+}
+
 } // namespace detail
+
+// ── fir2 (Phase 4.9) ──────────────────────────────────────────────────
+//
+// Arbitrary-response FIR via frequency-sampling + iFFT + Hamming window.
+// Matches MATLAB R2025b fir2.m one-to-one for the 3-arg form (N, F, A).
+//
+// Pipeline:
+//   nn  = N + 1                          (filter length)
+//   npt = 512 if nn < 1024 else 2^ceil(log2(nn))   (FFT half-length)
+//   lap = floor(npt / 25)                (transition smoothing)
+//   wind = hamming(nn)                   (output window)
+//
+//   Build H[0..npt] (length npt+1):
+//     H[0] = A[0];  nb = 1 (1-based MATLAB index)
+//     For each segment i (between consecutive break frequencies):
+//       df = F[i+1] - F[i]
+//       if df == 0:  nb = ceil(nb - lap/2);  ne = nb + lap
+//       else:        ne = floor(F[i+1] * (npt+1))
+//       inc = (j - nb) / (ne - nb)  for j ∈ [nb, ne]
+//       H[nb..ne] = inc * A[i+1] + (1 - inc) * A[i]
+//       nb = ne + 1
+//
+//   Fourier time-shift: H *= exp(-j π dt k / npt)  (dt = (nn-1)/2)
+//   Mirror: H_full = [H, conj(H[end-1..1])]   length = 2 * npt
+//   ht = real(ifft(H_full))                   uses power-of-2 ifft
+//   b  = ht[0..nn-1] .* wind
+Value fir2(std::pmr::memory_resource *mr, int N,
+           const double *F, std::size_t Fn,
+           const double *A, std::size_t An)
+{
+    if (N < 0)
+        throw Error("fir2: N must be >= 0",
+                    0, 0, "fir2", "", "m:fir2:BadN");
+    if (Fn != An)
+        throw Error("fir2: F and A must have same length",
+                    0, 0, "fir2", "", "m:fir2:MismatchedDimensions");
+    if (Fn < 2)
+        throw Error("fir2: F must have at least 2 elements",
+                    0, 0, "fir2", "", "m:fir2:BadFLen");
+    if (std::abs(F[0]) > 1e-12 || std::abs(F[Fn - 1] - 1.0) > 1e-12)
+        throw Error("fir2: F must start at 0 and end at 1",
+                    0, 0, "fir2", "", "m:fir2:InvalidRange");
+    for (std::size_t i = 1; i < Fn; ++i) {
+        if (F[i] < F[i - 1])
+            throw Error("fir2: F must be non-decreasing",
+                        0, 0, "fir2", "", "m:fir2:InvalidFreqVec");
+    }
+
+    const std::size_t nn = static_cast<std::size_t>(N) + 1;
+    std::size_t npt = 512;
+    if (nn >= 1024) {
+        npt = 1;
+        while (npt < nn) npt <<= 1;
+    }
+    if (nn > 2 * npt)
+        throw Error("fir2: requested order too large for default npt",
+                    0, 0, "fir2", "", "m:fir2:InvalidNpt");
+    const std::size_t lap = npt / 25;
+    const std::size_t nptP1 = npt + 1;  // length of [DC..Nyquist] grid
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> H(nptP1, &scratch);
+    std::fill(H.data(), H.data() + nptP1, 0.0);
+    H[0] = A[0];
+
+    // 0-based indexing throughout C++; nb/ne map to MATLAB 1-based via -1.
+    long long nb = 1;  // 1-based
+    for (std::size_t i = 0; i + 1 < Fn; ++i) {
+        const double df = F[i + 1] - F[i];
+        long long ne;
+        if (df == 0.0) {
+            // Discontinuity: smooth across `lap` samples centered on nb.
+            nb = static_cast<long long>(std::ceil(static_cast<double>(nb) - lap / 2.0));
+            ne = nb + static_cast<long long>(lap);
+        } else {
+            // ne (1-based) = floor(F[i+1] * nptP1) per MATLAB fix(...).
+            ne = static_cast<long long>(std::floor(F[i + 1] * static_cast<double>(nptP1)));
+        }
+        if (nb < 1 || ne > static_cast<long long>(nptP1))
+            throw Error("fir2: internal index out of range",
+                        0, 0, "fir2", "", "m:fir2:SignalErr");
+        if (nb == ne) {
+            H[nb - 1] = A[i + 1];  // single-point segment, write endpoint amp
+        } else {
+            for (long long j = nb; j <= ne; ++j) {
+                const double t = static_cast<double>(j - nb)
+                                  / static_cast<double>(ne - nb);
+                H[j - 1] = t * A[i + 1] + (1.0 - t) * A[i];
+            }
+        }
+        nb = ne + 1;
+    }
+
+    // Apply Fourier time-shift (linear phase): H *= exp(-jπ·dt·k/npt)
+    // where dt = (nn-1)/2 and k = 0..nptP1-1 = 0..npt.
+    //
+    // WORKAROUND: numkit::signal::ifft has an inverted sign convention vs
+    // MATLAB (peak ends up at -d instead of +d for an impulse-spectrum
+    // input). Compensate by NEGATING the phase here so the final output
+    // matches MATLAB. Restore MATLAB-faithful `-dt` once the underlying
+    // ifft sign-convention bug in libs/signal is fixed (see spawned task).
+    using Cd = std::complex<double>;
+    ScratchVec<Cd> Hc(2 * npt, &scratch);
+    const double dt = 0.5 * static_cast<double>(nn - 1);
+    for (std::size_t k = 0; k < nptP1; ++k) {
+        const double phase = +dt * M_PI * static_cast<double>(k)
+                              / static_cast<double>(npt);
+        const Cd e(std::cos(phase), std::sin(phase));
+        Hc[k] = e * H[k];
+    }
+    // Mirror: H_full[npt+1..2*npt-1] = conj(H[npt-1..1])  (skip DC and Nyquist).
+    // MATLAB: H = [H, conj(H(npt-1:-1:2))] in 1-based → indices 511..2.
+    // 0-based equivalent: positions nptP1..2npt-1 ← conj(positions npt-1..1).
+    for (std::size_t k = 1; k < npt; ++k) {
+        Hc[2 * npt - k] = std::conj(Hc[k]);
+    }
+
+    // ifft of length 2*npt (power of 2). Use libs/signal::fft via Value
+    // wrapper for IFFT — but the simplest path is direct (we only need
+    // 2*npt real output and 2*npt is power of 2). Use signal::ifft.
+    Value Hv = Value::matrix(2 * npt, 1, ValueType::COMPLEX, mr);
+    {
+        Cd *cd = Hv.complexDataMut();
+        std::copy(Hc.data(), Hc.data() + 2 * npt, cd);
+    }
+    Value htV = numkit::signal::ifft(mr, Hv, static_cast<int>(2 * npt), 1);
+
+    // Hamming window: w[k] = 0.54 - 0.46*cos(2π·k/(nn-1))  (symmetric)
+    ScratchVec<double> wind(nn, &scratch);
+    if (nn == 1) {
+        wind[0] = 1.0;
+    } else {
+        for (std::size_t k = 0; k < nn; ++k)
+            wind[k] = 0.54 - 0.46 * std::cos(2.0 * M_PI * static_cast<double>(k)
+                                              / static_cast<double>(nn - 1));
+    }
+
+    // b = ht[0..nn-1] .* wind  (returned as 1×nn row).
+    Value b = Value::matrix(1, nn, ValueType::DOUBLE, mr);
+    double *bd = b.doubleDataMut();
+    if (htV.type() == ValueType::COMPLEX) {
+        const Cd *htd = htV.complexData();
+        for (std::size_t k = 0; k < nn; ++k) bd[k] = htd[k].real() * wind[k];
+    } else {
+        const double *htd = htV.doubleData();
+        for (std::size_t k = 0; k < nn; ++k) bd[k] = htd[k] * wind[k];
+    }
+    return b;
+}
 
 } // namespace numkit::signal

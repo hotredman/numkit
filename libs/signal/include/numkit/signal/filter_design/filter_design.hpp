@@ -44,4 +44,15 @@ Value firls(std::pmr::memory_resource *mr, int N,
             const double *F, std::size_t Fn,
             const double *A, std::size_t An);
 
+/// fir2(N, F, A) — arbitrary-response FIR via frequency-sampling +
+/// inverse FFT + Hamming window. Bit-equal MATLAB R2025b on the
+/// 3-arg form (npt=512 default for nn<1024, hamming default window,
+/// lap=floor(npt/25) transition smoothing).
+/// F must satisfy F(1)=0, F(end)=1, monotonically nondecreasing.
+/// A is the desired amplitude at each break frequency.
+/// KNOWN GAP: optional npt/lap/wind args deferred.
+Value fir2(std::pmr::memory_resource *mr, int N,
+           const double *F, std::size_t Fn,
+           const double *A, std::size_t An);
+
 } // namespace numkit::signal
