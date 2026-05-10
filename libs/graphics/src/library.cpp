@@ -2144,6 +2144,715 @@ void GraphicsLibrary::install(Engine &engine)
         reg("surface", "mesh", std::bind(surfImpl, "mesh", _1, _2, _3, _4));
     }
 
+    // ────────────────────────────────────────────────────────────────
+    // slice — axis-aligned cross sections of a 3-D scalar volume.
+    //
+    // Forms supported:
+    //   slice(V, sx, sy, sz)           — V is M×N×P
+    //   slice(X, Y, Z, V, sx, sy, sz)  — explicit grid coords
+    //
+    // sx / sy / sz are vectors (or empty) of slice coordinates along
+    // each axis. Each entry produces one 2-D plane of quads at that
+    // axis position, picking volume values via nearest-neighbour
+    // sampling (linear interpolation along the slice axis is a
+    // follow-up). Each plane is emitted as a single polygon3d
+    // dataset; colour is the volume's mean value mapped through the
+    // contour HSL ramp — per-cell colormap on the WebGL side is in
+    // BACKLOG (needs vertexColors plumbing in buildPolygon3D).
+    // ────────────────────────────────────────────────────────────────
+    auto sliceImpl = [](Span<const Value> args, size_t nargout,
+                        Span<Value> outs, CallContext &ctx) {
+        (void)nargout;
+        auto &fm = ctx.engine->figureManager();
+        fm.prepareForPlot();
+
+        const Value *V = nullptr;
+        const Value *X = nullptr;
+        const Value *Y = nullptr;
+        const Value *Z = nullptr;
+        const Value *sx = nullptr;
+        const Value *sy = nullptr;
+        const Value *sz = nullptr;
+        if (args.size() == 4) {
+            V = &args[0]; sx = &args[1]; sy = &args[2]; sz = &args[3];
+        } else if (args.size() >= 7) {
+            X = &args[0]; Y = &args[1]; Z = &args[2]; V = &args[3];
+            sx = &args[4]; sy = &args[5]; sz = &args[6];
+        } else {
+            outs[0] = Value::empty();
+            return;
+        }
+        if (!V || V->dims().ndims() != 3) {
+            outs[0] = Value::empty();
+            return;
+        }
+
+        const size_t M = V->dims().rows();
+        const size_t N = V->dims().cols();
+        const size_t P = V->dims().pages();
+        if (M < 2 || N < 2 || P < 2) {
+            outs[0] = Value::empty();
+            return;
+        }
+
+        // Default coordinate vectors when X/Y/Z aren't supplied.
+        std::vector<double> Xs(N), Ys(M), Zs(P);
+        if (X && Y && Z && X->numel() >= N && Y->numel() >= M && Z->numel() >= P) {
+            for (size_t i = 0; i < N; ++i) Xs[i] = X->doubleData()[i];
+            for (size_t i = 0; i < M; ++i) Ys[i] = Y->doubleData()[i];
+            for (size_t i = 0; i < P; ++i) Zs[i] = Z->doubleData()[i];
+        } else {
+            for (size_t i = 0; i < N; ++i) Xs[i] = (double)(i + 1);
+            for (size_t i = 0; i < M; ++i) Ys[i] = (double)(i + 1);
+            for (size_t i = 0; i < P; ++i) Zs[i] = (double)(i + 1);
+        }
+
+        // Compute the volume value range for the single representative
+        // colour per slice. (Per-cell colormap is BACKLOG.)
+        double vmn = std::numeric_limits<double>::infinity();
+        double vmx = -std::numeric_limits<double>::infinity();
+        const size_t Vn = M * N * P;
+        for (size_t i = 0; i < Vn; ++i) {
+            const double v = V->elemAsDouble(i);
+            if (std::isfinite(v)) {
+                if (v < vmn) vmn = v;
+                if (v > vmx) vmx = v;
+            }
+        }
+        if (!std::isfinite(vmn)) { vmn = 0; vmx = 1; }
+        const double vmid = (vmn + vmx) * 0.5;
+
+        const auto colorForValue = [&](double L) {
+            const double t = (vmx == vmn) ? 0.5 : (L - vmn) / (vmx - vmn);
+            const double Hd = (1.0 - std::clamp(t, 0.0, 1.0)) * 240.0;
+            const double Cr = 0.6;
+            const double H = Hd / 60.0;
+            const double Xc = Cr * (1.0 - std::abs(std::fmod(H, 2.0) - 1.0));
+            double r1 = 0, g1 = 0, b1 = 0;
+            if      (H < 1) { r1 = Cr; g1 = Xc; b1 = 0; }
+            else if (H < 2) { r1 = Xc; g1 = Cr; b1 = 0; }
+            else if (H < 3) { r1 = 0;  g1 = Cr; b1 = Xc; }
+            else if (H < 4) { r1 = 0;  g1 = Xc; b1 = Cr; }
+            else if (H < 5) { r1 = Xc; g1 = 0;  b1 = Cr; }
+            else            { r1 = Cr; g1 = 0;  b1 = Xc; }
+            const double m = 0.5 - Cr / 2.0;
+            const int R8 = (int)((r1 + m) * 255);
+            const int G8 = (int)((g1 + m) * 255);
+            const int B8 = (int)((b1 + m) * 255);
+            char buf[40];
+            std::snprintf(buf, sizeof buf,
+                          "color=#%02x%02x%02x;fillOpacity=0.55", R8, G8, B8);
+            return std::string(buf);
+        };
+
+        // Index of the volume in column-major + page-major order: the
+        // value at logical (i_row, j_col, k_page) is at
+        // V[k * M * N + j * M + i].
+        const auto Vat = [&](size_t i, size_t j, size_t k) {
+            return V->elemAsDouble(k * M * N + j * M + i);
+        };
+
+        // Helper — emit a 4-vertex CCW quad-loop, terminated by null.
+        const auto emitQuad = [](std::ostringstream &xs,
+                                 std::ostringstream &ys,
+                                 std::ostringstream &zs,
+                                 bool &first,
+                                 double X0, double Y0, double Z0,
+                                 double X1, double Y1, double Z1,
+                                 double X2, double Y2, double Z2,
+                                 double X3, double Y3, double Z3) {
+            if (!first) { xs << ",null,"; ys << ",null,"; zs << ",null,"; }
+            first = false;
+            xs << X0 << ',' << X1 << ',' << X2 << ',' << X3;
+            ys << Y0 << ',' << Y1 << ',' << Y2 << ',' << Y3;
+            zs << Z0 << ',' << Z1 << ',' << Z2 << ',' << Z3;
+        };
+
+        const auto pushSlice = [&](char axis, size_t fixedIdx,
+                                   double meanVal) {
+            std::ostringstream xs, ys, zs;
+            xs << '['; ys << '['; zs << '[';
+            bool first = true;
+            if (axis == 'x') {
+                // Plane x = Xs[fixedIdx]. Loop over (Y, Z) cells.
+                const double xVal = Xs[fixedIdx];
+                for (size_t i = 0; i + 1 < M; ++i) {
+                    for (size_t k = 0; k + 1 < P; ++k) {
+                        emitQuad(xs, ys, zs, first,
+                                 xVal, Ys[i],     Zs[k],
+                                 xVal, Ys[i + 1], Zs[k],
+                                 xVal, Ys[i + 1], Zs[k + 1],
+                                 xVal, Ys[i],     Zs[k + 1]);
+                    }
+                }
+            } else if (axis == 'y') {
+                const double yVal = Ys[fixedIdx];
+                for (size_t j = 0; j + 1 < N; ++j) {
+                    for (size_t k = 0; k + 1 < P; ++k) {
+                        emitQuad(xs, ys, zs, first,
+                                 Xs[j],     yVal, Zs[k],
+                                 Xs[j + 1], yVal, Zs[k],
+                                 Xs[j + 1], yVal, Zs[k + 1],
+                                 Xs[j],     yVal, Zs[k + 1]);
+                    }
+                }
+            } else {
+                const double zVal = Zs[fixedIdx];
+                for (size_t i = 0; i + 1 < M; ++i) {
+                    for (size_t j = 0; j + 1 < N; ++j) {
+                        emitQuad(xs, ys, zs, first,
+                                 Xs[j],     Ys[i],     zVal,
+                                 Xs[j + 1], Ys[i],     zVal,
+                                 Xs[j + 1], Ys[i + 1], zVal,
+                                 Xs[j],     Ys[i + 1], zVal);
+                    }
+                }
+            }
+            xs << ']'; ys << ']'; zs << ']';
+            DatasetInfo ds;
+            // Reuse the existing fill3 wire shape — adapter routes
+            // type='fill3' to polygon3d mode in the 3-D renderer.
+            ds.type = "fill3";
+            ds.xJson = xs.str();
+            ds.yJson = ys.str();
+            ds.zJson = zs.str();
+            ds.style = colorForValue(meanVal);
+            fm.pushDataset(std::move(ds));
+        };
+
+        // Snap each requested slice value to the nearest grid index.
+        const auto nearest = [](const std::vector<double> &v, double q) {
+            size_t best = 0;
+            double bestDist = std::abs(v[0] - q);
+            for (size_t i = 1; i < v.size(); ++i) {
+                const double d = std::abs(v[i] - q);
+                if (d < bestDist) { bestDist = d; best = i; }
+            }
+            return best;
+        };
+        // Mean-value-per-slice — just average finite voxels in the
+        // selected plane.
+        const auto sliceMean = [&](char axis, size_t idx) {
+            double sum = 0; size_t n = 0;
+            if (axis == 'x') {
+                for (size_t i = 0; i < M; ++i)
+                    for (size_t k = 0; k < P; ++k) {
+                        const double v = Vat(i, idx, k);
+                        if (std::isfinite(v)) { sum += v; ++n; }
+                    }
+            } else if (axis == 'y') {
+                for (size_t j = 0; j < N; ++j)
+                    for (size_t k = 0; k < P; ++k) {
+                        const double v = Vat(idx, j, k);
+                        if (std::isfinite(v)) { sum += v; ++n; }
+                    }
+            } else {
+                for (size_t i = 0; i < M; ++i)
+                    for (size_t j = 0; j < N; ++j) {
+                        const double v = Vat(i, j, idx);
+                        if (std::isfinite(v)) { sum += v; ++n; }
+                    }
+            }
+            return n > 0 ? sum / n : 0.0;
+        };
+
+        if (sx && sx->numel() > 0) {
+            for (size_t s = 0; s < sx->numel(); ++s) {
+                const size_t idx = nearest(Xs, sx->elemAsDouble(s));
+                pushSlice('x', idx, sliceMean('x', idx));
+            }
+        }
+        if (sy && sy->numel() > 0) {
+            for (size_t s = 0; s < sy->numel(); ++s) {
+                const size_t idx = nearest(Ys, sy->elemAsDouble(s));
+                pushSlice('y', idx, sliceMean('y', idx));
+            }
+        }
+        if (sz && sz->numel() > 0) {
+            for (size_t s = 0; s < sz->numel(); ++s) {
+                const size_t idx = nearest(Zs, sz->elemAsDouble(s));
+                pushSlice('z', idx, sliceMean('z', idx));
+            }
+        }
+        // No slices specified — degenerate: pick mid-plane on each axis.
+        if ((!sx || sx->numel() == 0) && (!sy || sy->numel() == 0)
+         && (!sz || sz->numel() == 0)) {
+            pushSlice('x', N / 2, vmid);
+            pushSlice('y', M / 2, vmid);
+            pushSlice('z', P / 2, vmid);
+        }
+        fm.emitModified();
+        outs[0] = Value::empty();
+    };
+    reg("surface", "slice", sliceImpl);
+
+    // ────────────────────────────────────────────────────────────────
+    // isosurface(V, isovalue) — marching cubes.
+    //
+    // Forms supported:
+    //   isosurface(V, iso)
+    //   isosurface(X, Y, Z, V, iso)
+    //
+    // The volume V is M×N×P (rows = Y, cols = X, pages = Z). For each
+    // cube cell we compute an 8-bit code from "corner < iso", look up
+    // the edge bitmask + triangle list from the standard Bourke
+    // marching-cubes tables, and interpolate edge crossings linearly.
+    // Output: a single fill3 dataset whose x/y/z arrays carry every
+    // triangle's three vertices, separated by null markers between
+    // triangles so the existing 3-D polygon3d renderer fans them
+    // correctly. Per-vertex normals + per-vertex colour from V are a
+    // BACKLOG item.
+    // ────────────────────────────────────────────────────────────────
+
+    // Standard Paul-Bourke marching-cubes tables (public domain, see
+    // http://paulbourke.net/geometry/polygonise/). edgeTable[cubeIndex]
+    // is a 12-bit mask of edges crossed by the surface; triTable[i][k]
+    // gives -1-terminated runs of triangle vertex indices in [0, 11]
+    // referring to the cube's edges.
+    static const int kMcEdgeTable[256] = {
+        0x0,0x109,0x203,0x30a,0x406,0x50f,0x605,0x70c,0x80c,0x905,0xa0f,0xb06,0xc0a,0xd03,0xe09,0xf00,
+        0x190,0x99,0x393,0x29a,0x596,0x49f,0x795,0x69c,0x99c,0x895,0xb9f,0xa96,0xd9a,0xc93,0xf99,0xe90,
+        0x230,0x339,0x33,0x13a,0x636,0x73f,0x435,0x53c,0xa3c,0xb35,0x83f,0x936,0xe3a,0xf33,0xc39,0xd30,
+        0x3a0,0x2a9,0x1a3,0xaa,0x7a6,0x6af,0x5a5,0x4ac,0xbac,0xaa5,0x9af,0x8a6,0xfaa,0xea3,0xda9,0xca0,
+        0x460,0x569,0x663,0x76a,0x66,0x16f,0x265,0x36c,0xc6c,0xd65,0xe6f,0xf66,0x86a,0x963,0xa69,0xb60,
+        0x5f0,0x4f9,0x7f3,0x6fa,0x1f6,0xff,0x3f5,0x2fc,0xdfc,0xcf5,0xfff,0xef6,0x9fa,0x8f3,0xbf9,0xaf0,
+        0x650,0x759,0x453,0x55a,0x256,0x35f,0x55,0x15c,0xe5c,0xf55,0xc5f,0xd56,0xa5a,0xb53,0x859,0x950,
+        0x7c0,0x6c9,0x5c3,0x4ca,0x3c6,0x2cf,0x1c5,0xcc,0xfcc,0xec5,0xdcf,0xcc6,0xbca,0xac3,0x9c9,0x8c0,
+        0x8c0,0x9c9,0xac3,0xbca,0xcc6,0xdcf,0xec5,0xfcc,0xcc,0x1c5,0x2cf,0x3c6,0x4ca,0x5c3,0x6c9,0x7c0,
+        0x950,0x859,0xb53,0xa5a,0xd56,0xc5f,0xf55,0xe5c,0x15c,0x55,0x35f,0x256,0x55a,0x453,0x759,0x650,
+        0xaf0,0xbf9,0x8f3,0x9fa,0xef6,0xfff,0xcf5,0xdfc,0x2fc,0x3f5,0xff,0x1f6,0x6fa,0x7f3,0x4f9,0x5f0,
+        0xb60,0xa69,0x963,0x86a,0xf66,0xe6f,0xd65,0xc6c,0x36c,0x265,0x16f,0x66,0x76a,0x663,0x569,0x460,
+        0xca0,0xda9,0xea3,0xfaa,0x8a6,0x9af,0xaa5,0xbac,0x4ac,0x5a5,0x6af,0x7a6,0xaa,0x1a3,0x2a9,0x3a0,
+        0xd30,0xc39,0xf33,0xe3a,0x936,0x83f,0xb35,0xa3c,0x53c,0x435,0x73f,0x636,0x13a,0x33,0x339,0x230,
+        0xe90,0xf99,0xc93,0xd9a,0xa96,0xb9f,0x895,0x99c,0x69c,0x795,0x49f,0x596,0x29a,0x393,0x99,0x190,
+        0xf00,0xe09,0xd03,0xc0a,0xb06,0xa0f,0x905,0x80c,0x70c,0x605,0x50f,0x406,0x30a,0x203,0x109,0x0
+    };
+
+    static const int kMcTriTable[256][16] = {
+        {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {0,8,3,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {0,1,9,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {1,8,3,9,8,1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {1,2,10,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {0,8,3,1,2,10,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {9,2,10,0,2,9,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {2,8,3,2,10,8,10,9,8,-1,-1,-1,-1,-1,-1,-1},
+        {3,11,2,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {0,11,2,8,11,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {1,9,0,2,3,11,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {1,11,2,1,9,11,9,8,11,-1,-1,-1,-1,-1,-1,-1},
+        {3,10,1,11,10,3,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {0,10,1,0,8,10,8,11,10,-1,-1,-1,-1,-1,-1,-1},
+        {3,9,0,3,11,9,11,10,9,-1,-1,-1,-1,-1,-1,-1},
+        {9,8,10,10,8,11,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {4,7,8,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {4,3,0,7,3,4,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {0,1,9,8,4,7,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {4,1,9,4,7,1,7,3,1,-1,-1,-1,-1,-1,-1,-1},
+        {1,2,10,8,4,7,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {3,4,7,3,0,4,1,2,10,-1,-1,-1,-1,-1,-1,-1},
+        {9,2,10,9,0,2,8,4,7,-1,-1,-1,-1,-1,-1,-1},
+        {2,10,9,2,9,7,2,7,3,7,9,4,-1,-1,-1,-1},
+        {8,4,7,3,11,2,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {11,4,7,11,2,4,2,0,4,-1,-1,-1,-1,-1,-1,-1},
+        {9,0,1,8,4,7,2,3,11,-1,-1,-1,-1,-1,-1,-1},
+        {4,7,11,9,4,11,9,11,2,9,2,1,-1,-1,-1,-1},
+        {3,10,1,3,11,10,7,8,4,-1,-1,-1,-1,-1,-1,-1},
+        {1,11,10,1,4,11,1,0,4,7,11,4,-1,-1,-1,-1},
+        {4,7,8,9,0,11,9,11,10,11,0,3,-1,-1,-1,-1},
+        {4,7,11,4,11,9,9,11,10,-1,-1,-1,-1,-1,-1,-1},
+        {9,5,4,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {9,5,4,0,8,3,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {0,5,4,1,5,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {8,5,4,8,3,5,3,1,5,-1,-1,-1,-1,-1,-1,-1},
+        {1,2,10,9,5,4,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {3,0,8,1,2,10,4,9,5,-1,-1,-1,-1,-1,-1,-1},
+        {5,2,10,5,4,2,4,0,2,-1,-1,-1,-1,-1,-1,-1},
+        {2,10,5,3,2,5,3,5,4,3,4,8,-1,-1,-1,-1},
+        {9,5,4,2,3,11,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {0,11,2,0,8,11,4,9,5,-1,-1,-1,-1,-1,-1,-1},
+        {0,5,4,0,1,5,2,3,11,-1,-1,-1,-1,-1,-1,-1},
+        {2,1,5,2,5,8,2,8,11,4,8,5,-1,-1,-1,-1},
+        {10,3,11,10,1,3,9,5,4,-1,-1,-1,-1,-1,-1,-1},
+        {4,9,5,0,8,1,8,10,1,8,11,10,-1,-1,-1,-1},
+        {5,4,0,5,0,11,5,11,10,11,0,3,-1,-1,-1,-1},
+        {5,4,8,5,8,10,10,8,11,-1,-1,-1,-1,-1,-1,-1},
+        {9,7,8,5,7,9,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {9,3,0,9,5,3,5,7,3,-1,-1,-1,-1,-1,-1,-1},
+        {0,7,8,0,1,7,1,5,7,-1,-1,-1,-1,-1,-1,-1},
+        {1,5,3,3,5,7,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {9,7,8,9,5,7,10,1,2,-1,-1,-1,-1,-1,-1,-1},
+        {10,1,2,9,5,0,5,3,0,5,7,3,-1,-1,-1,-1},
+        {8,0,2,8,2,5,8,5,7,10,5,2,-1,-1,-1,-1},
+        {2,10,5,2,5,3,3,5,7,-1,-1,-1,-1,-1,-1,-1},
+        {7,9,5,7,8,9,3,11,2,-1,-1,-1,-1,-1,-1,-1},
+        {9,5,7,9,7,2,9,2,0,2,7,11,-1,-1,-1,-1},
+        {2,3,11,0,1,8,1,7,8,1,5,7,-1,-1,-1,-1},
+        {11,2,1,11,1,7,7,1,5,-1,-1,-1,-1,-1,-1,-1},
+        {9,5,8,8,5,7,10,1,3,10,3,11,-1,-1,-1,-1},
+        {5,7,0,5,0,9,7,11,0,1,0,10,11,10,0,-1},
+        {11,10,0,11,0,3,10,5,0,8,0,7,5,7,0,-1},
+        {11,10,5,7,11,5,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {10,6,5,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {0,8,3,5,10,6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {9,0,1,5,10,6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {1,8,3,1,9,8,5,10,6,-1,-1,-1,-1,-1,-1,-1},
+        {1,6,5,2,6,1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {1,6,5,1,2,6,3,0,8,-1,-1,-1,-1,-1,-1,-1},
+        {9,6,5,9,0,6,0,2,6,-1,-1,-1,-1,-1,-1,-1},
+        {5,9,8,5,8,2,5,2,6,3,2,8,-1,-1,-1,-1},
+        {2,3,11,10,6,5,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {11,0,8,11,2,0,10,6,5,-1,-1,-1,-1,-1,-1,-1},
+        {0,1,9,2,3,11,5,10,6,-1,-1,-1,-1,-1,-1,-1},
+        {5,10,6,1,9,2,9,11,2,9,8,11,-1,-1,-1,-1},
+        {6,3,11,6,5,3,5,1,3,-1,-1,-1,-1,-1,-1,-1},
+        {0,8,11,0,11,5,0,5,1,5,11,6,-1,-1,-1,-1},
+        {3,11,6,0,3,6,0,6,5,0,5,9,-1,-1,-1,-1},
+        {6,5,9,6,9,11,11,9,8,-1,-1,-1,-1,-1,-1,-1},
+        {5,10,6,4,7,8,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {4,3,0,4,7,3,6,5,10,-1,-1,-1,-1,-1,-1,-1},
+        {1,9,0,5,10,6,8,4,7,-1,-1,-1,-1,-1,-1,-1},
+        {10,6,5,1,9,7,1,7,3,7,9,4,-1,-1,-1,-1},
+        {6,1,2,6,5,1,4,7,8,-1,-1,-1,-1,-1,-1,-1},
+        {1,2,5,5,2,6,3,0,4,3,4,7,-1,-1,-1,-1},
+        {8,4,7,9,0,5,0,6,5,0,2,6,-1,-1,-1,-1},
+        {7,3,9,7,9,4,3,2,9,5,9,6,2,6,9,-1},
+        {3,11,2,7,8,4,10,6,5,-1,-1,-1,-1,-1,-1,-1},
+        {5,10,6,4,7,2,4,2,0,2,7,11,-1,-1,-1,-1},
+        {0,1,9,4,7,8,2,3,11,5,10,6,-1,-1,-1,-1},
+        {9,2,1,9,11,2,9,4,11,7,11,4,5,10,6,-1},
+        {8,4,7,3,11,5,3,5,1,5,11,6,-1,-1,-1,-1},
+        {5,1,11,5,11,6,1,0,11,7,11,4,0,4,11,-1},
+        {0,5,9,0,6,5,0,3,6,11,6,3,8,4,7,-1},
+        {6,5,9,6,9,11,4,7,9,7,11,9,-1,-1,-1,-1},
+        {10,4,9,6,4,10,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {4,10,6,4,9,10,0,8,3,-1,-1,-1,-1,-1,-1,-1},
+        {10,0,1,10,6,0,6,4,0,-1,-1,-1,-1,-1,-1,-1},
+        {8,3,1,8,1,6,8,6,4,6,1,10,-1,-1,-1,-1},
+        {1,4,9,1,2,4,2,6,4,-1,-1,-1,-1,-1,-1,-1},
+        {3,0,8,1,2,9,2,4,9,2,6,4,-1,-1,-1,-1},
+        {0,2,4,4,2,6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {8,3,2,8,2,4,4,2,6,-1,-1,-1,-1,-1,-1,-1},
+        {10,4,9,10,6,4,11,2,3,-1,-1,-1,-1,-1,-1,-1},
+        {0,8,2,2,8,11,4,9,10,4,10,6,-1,-1,-1,-1},
+        {3,11,2,0,1,6,0,6,4,6,1,10,-1,-1,-1,-1},
+        {6,4,1,6,1,10,4,8,1,2,1,11,8,11,1,-1},
+        {9,6,4,9,3,6,9,1,3,11,6,3,-1,-1,-1,-1},
+        {8,11,1,8,1,0,11,6,1,9,1,4,6,4,1,-1},
+        {3,11,6,3,6,0,0,6,4,-1,-1,-1,-1,-1,-1,-1},
+        {6,4,8,11,6,8,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {7,10,6,7,8,10,8,9,10,-1,-1,-1,-1,-1,-1,-1},
+        {0,7,3,0,10,7,0,9,10,6,7,10,-1,-1,-1,-1},
+        {10,6,7,1,10,7,1,7,8,1,8,0,-1,-1,-1,-1},
+        {10,6,7,10,7,1,1,7,3,-1,-1,-1,-1,-1,-1,-1},
+        {1,2,6,1,6,8,1,8,9,8,6,7,-1,-1,-1,-1},
+        {2,6,9,2,9,1,6,7,9,0,9,3,7,3,9,-1},
+        {7,8,0,7,0,6,6,0,2,-1,-1,-1,-1,-1,-1,-1},
+        {7,3,2,6,7,2,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {2,3,11,10,6,8,10,8,9,8,6,7,-1,-1,-1,-1},
+        {2,0,7,2,7,11,0,9,7,6,7,10,9,10,7,-1},
+        {1,8,0,1,7,8,1,10,7,6,7,10,2,3,11,-1},
+        {11,2,1,11,1,7,10,6,1,6,7,1,-1,-1,-1,-1},
+        {8,9,6,8,6,7,9,1,6,11,6,3,1,3,6,-1},
+        {0,9,1,11,6,7,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {7,8,0,7,0,6,3,11,0,11,6,0,-1,-1,-1,-1},
+        {7,11,6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {7,6,11,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {3,0,8,11,7,6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {0,1,9,11,7,6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {8,1,9,8,3,1,11,7,6,-1,-1,-1,-1,-1,-1,-1},
+        {10,1,2,6,11,7,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {1,2,10,3,0,8,6,11,7,-1,-1,-1,-1,-1,-1,-1},
+        {2,9,0,2,10,9,6,11,7,-1,-1,-1,-1,-1,-1,-1},
+        {6,11,7,2,10,3,10,8,3,10,9,8,-1,-1,-1,-1},
+        {7,2,3,6,2,7,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {7,0,8,7,6,0,6,2,0,-1,-1,-1,-1,-1,-1,-1},
+        {2,7,6,2,3,7,0,1,9,-1,-1,-1,-1,-1,-1,-1},
+        {1,6,2,1,8,6,1,9,8,8,7,6,-1,-1,-1,-1},
+        {10,7,6,10,1,7,1,3,7,-1,-1,-1,-1,-1,-1,-1},
+        {10,7,6,1,7,10,1,8,7,1,0,8,-1,-1,-1,-1},
+        {0,3,7,0,7,10,0,10,9,6,10,7,-1,-1,-1,-1},
+        {7,6,10,7,10,8,8,10,9,-1,-1,-1,-1,-1,-1,-1},
+        {6,8,4,11,8,6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {3,6,11,3,0,6,0,4,6,-1,-1,-1,-1,-1,-1,-1},
+        {8,6,11,8,4,6,9,0,1,-1,-1,-1,-1,-1,-1,-1},
+        {9,4,6,9,6,3,9,3,1,11,3,6,-1,-1,-1,-1},
+        {6,8,4,6,11,8,2,10,1,-1,-1,-1,-1,-1,-1,-1},
+        {1,2,10,3,0,11,0,6,11,0,4,6,-1,-1,-1,-1},
+        {4,11,8,4,6,11,0,2,9,2,10,9,-1,-1,-1,-1},
+        {10,9,3,10,3,2,9,4,3,11,3,6,4,6,3,-1},
+        {8,2,3,8,4,2,4,6,2,-1,-1,-1,-1,-1,-1,-1},
+        {0,4,2,4,6,2,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {1,9,0,2,3,4,2,4,6,4,3,8,-1,-1,-1,-1},
+        {1,9,4,1,4,2,2,4,6,-1,-1,-1,-1,-1,-1,-1},
+        {8,1,3,8,6,1,8,4,6,6,10,1,-1,-1,-1,-1},
+        {10,1,0,10,0,6,6,0,4,-1,-1,-1,-1,-1,-1,-1},
+        {4,6,3,4,3,8,6,10,3,0,3,9,10,9,3,-1},
+        {10,9,4,6,10,4,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {4,9,5,7,6,11,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {0,8,3,4,9,5,11,7,6,-1,-1,-1,-1,-1,-1,-1},
+        {5,0,1,5,4,0,7,6,11,-1,-1,-1,-1,-1,-1,-1},
+        {11,7,6,8,3,4,3,5,4,3,1,5,-1,-1,-1,-1},
+        {9,5,4,10,1,2,7,6,11,-1,-1,-1,-1,-1,-1,-1},
+        {6,11,7,1,2,10,0,8,3,4,9,5,-1,-1,-1,-1},
+        {7,6,11,5,4,10,4,2,10,4,0,2,-1,-1,-1,-1},
+        {3,4,8,3,5,4,3,2,5,10,5,2,11,7,6,-1},
+        {7,2,3,7,6,2,5,4,9,-1,-1,-1,-1,-1,-1,-1},
+        {9,5,4,0,8,6,0,6,2,6,8,7,-1,-1,-1,-1},
+        {3,6,2,3,7,6,1,5,0,5,4,0,-1,-1,-1,-1},
+        {6,2,8,6,8,7,2,1,8,4,8,5,1,5,8,-1},
+        {9,5,4,10,1,6,1,7,6,1,3,7,-1,-1,-1,-1},
+        {1,6,10,1,7,6,1,0,7,8,7,0,9,5,4,-1},
+        {4,0,10,4,10,5,0,3,10,6,10,7,3,7,10,-1},
+        {7,6,10,7,10,8,5,4,10,4,8,10,-1,-1,-1,-1},
+        {6,9,5,6,11,9,11,8,9,-1,-1,-1,-1,-1,-1,-1},
+        {3,6,11,0,6,3,0,5,6,0,9,5,-1,-1,-1,-1},
+        {0,11,8,0,5,11,0,1,5,5,6,11,-1,-1,-1,-1},
+        {6,11,3,6,3,5,5,3,1,-1,-1,-1,-1,-1,-1,-1},
+        {1,2,10,9,5,11,9,11,8,11,5,6,-1,-1,-1,-1},
+        {0,11,3,0,6,11,0,9,6,5,6,9,1,2,10,-1},
+        {11,8,5,11,5,6,8,0,5,10,5,2,0,2,5,-1},
+        {6,11,3,6,3,5,2,10,3,10,5,3,-1,-1,-1,-1},
+        {5,8,9,5,2,8,5,6,2,3,8,2,-1,-1,-1,-1},
+        {9,5,6,9,6,0,0,6,2,-1,-1,-1,-1,-1,-1,-1},
+        {1,5,8,1,8,0,5,6,8,3,8,2,6,2,8,-1},
+        {1,5,6,2,1,6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {1,3,6,1,6,10,3,8,6,5,6,9,8,9,6,-1},
+        {10,1,0,10,0,6,9,5,0,5,6,0,-1,-1,-1,-1},
+        {0,3,8,5,6,10,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {10,5,6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {11,5,10,7,5,11,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {11,5,10,11,7,5,8,3,0,-1,-1,-1,-1,-1,-1,-1},
+        {5,11,7,5,10,11,1,9,0,-1,-1,-1,-1,-1,-1,-1},
+        {10,7,5,10,11,7,9,8,1,8,3,1,-1,-1,-1,-1},
+        {11,1,2,11,7,1,7,5,1,-1,-1,-1,-1,-1,-1,-1},
+        {0,8,3,1,2,7,1,7,5,7,2,11,-1,-1,-1,-1},
+        {9,7,5,9,2,7,9,0,2,2,11,7,-1,-1,-1,-1},
+        {7,5,2,7,2,11,5,9,2,3,2,8,9,8,2,-1},
+        {2,5,10,2,3,5,3,7,5,-1,-1,-1,-1,-1,-1,-1},
+        {8,2,0,8,5,2,8,7,5,10,2,5,-1,-1,-1,-1},
+        {9,0,1,5,10,3,5,3,7,3,10,2,-1,-1,-1,-1},
+        {9,8,2,9,2,1,8,7,2,10,2,5,7,5,2,-1},
+        {1,3,5,3,7,5,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {0,8,7,0,7,1,1,7,5,-1,-1,-1,-1,-1,-1,-1},
+        {9,0,3,9,3,5,5,3,7,-1,-1,-1,-1,-1,-1,-1},
+        {9,8,7,5,9,7,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {5,8,4,5,10,8,10,11,8,-1,-1,-1,-1,-1,-1,-1},
+        {5,0,4,5,11,0,5,10,11,11,3,0,-1,-1,-1,-1},
+        {0,1,9,8,4,10,8,10,11,10,4,5,-1,-1,-1,-1},
+        {10,11,4,10,4,5,11,3,4,9,4,1,3,1,4,-1},
+        {2,5,1,2,8,5,2,11,8,4,5,8,-1,-1,-1,-1},
+        {0,4,11,0,11,3,4,5,11,2,11,1,5,1,11,-1},
+        {0,2,5,0,5,9,2,11,5,4,5,8,11,8,5,-1},
+        {9,4,5,2,11,3,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {2,5,10,3,5,2,3,4,5,3,8,4,-1,-1,-1,-1},
+        {5,10,2,5,2,4,4,2,0,-1,-1,-1,-1,-1,-1,-1},
+        {3,10,2,3,5,10,3,8,5,4,5,8,0,1,9,-1},
+        {5,10,2,5,2,4,1,9,2,9,4,2,-1,-1,-1,-1},
+        {8,4,5,8,5,3,3,5,1,-1,-1,-1,-1,-1,-1,-1},
+        {0,4,5,1,0,5,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {8,4,5,8,5,3,9,0,5,0,3,5,-1,-1,-1,-1},
+        {9,4,5,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {4,11,7,4,9,11,9,10,11,-1,-1,-1,-1,-1,-1,-1},
+        {0,8,3,4,9,7,9,11,7,9,10,11,-1,-1,-1,-1},
+        {1,10,11,1,11,4,1,4,0,7,4,11,-1,-1,-1,-1},
+        {3,1,4,3,4,8,1,10,4,7,4,11,10,11,4,-1},
+        {4,11,7,9,11,4,9,2,11,9,1,2,-1,-1,-1,-1},
+        {9,7,4,9,11,7,9,1,11,2,11,1,0,8,3,-1},
+        {11,7,4,11,4,2,2,4,0,-1,-1,-1,-1,-1,-1,-1},
+        {11,7,4,11,4,2,8,3,4,3,2,4,-1,-1,-1,-1},
+        {2,9,10,2,7,9,2,3,7,7,4,9,-1,-1,-1,-1},
+        {9,10,7,9,7,4,10,2,7,8,7,0,2,0,7,-1},
+        {3,7,10,3,10,2,7,4,10,1,10,0,4,0,10,-1},
+        {1,10,2,8,7,4,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {4,9,1,4,1,7,7,1,3,-1,-1,-1,-1,-1,-1,-1},
+        {4,9,1,4,1,7,0,8,1,8,7,1,-1,-1,-1,-1},
+        {4,0,3,7,4,3,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {4,8,7,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {9,10,8,10,11,8,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {3,0,9,3,9,11,11,9,10,-1,-1,-1,-1,-1,-1,-1},
+        {0,1,10,0,10,8,8,10,11,-1,-1,-1,-1,-1,-1,-1},
+        {3,1,10,11,3,10,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {1,2,11,1,11,9,9,11,8,-1,-1,-1,-1,-1,-1,-1},
+        {3,0,9,3,9,11,1,2,9,2,11,9,-1,-1,-1,-1},
+        {0,2,11,8,0,11,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {3,2,11,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {2,3,8,2,8,10,10,8,9,-1,-1,-1,-1,-1,-1,-1},
+        {9,10,2,0,9,2,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {2,3,8,2,8,10,0,1,8,1,10,8,-1,-1,-1,-1},
+        {1,10,2,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {1,3,8,9,1,8,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {0,9,1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {0,3,8,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+        {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1}
+    };
+
+    auto isosurfaceImpl = [](Span<const Value> args, size_t nargout,
+                             Span<Value> outs, CallContext &ctx) {
+        (void)nargout;
+        auto &fm = ctx.engine->figureManager();
+        fm.prepareForPlot();
+
+        const Value *V = nullptr;
+        const Value *X = nullptr;
+        const Value *Y = nullptr;
+        const Value *Z = nullptr;
+        double iso = 0.0;
+        bool isoSet = false;
+        if (args.size() == 2) {
+            V = &args[0]; iso = args[1].toScalar(); isoSet = true;
+        } else if (args.size() >= 5) {
+            X = &args[0]; Y = &args[1]; Z = &args[2]; V = &args[3];
+            iso = args[4].toScalar(); isoSet = true;
+        } else if (args.size() == 1) {
+            V = &args[0];   // iso defaults to mean
+        }
+        if (!V || V->dims().ndims() != 3) {
+            outs[0] = Value::empty();
+            return;
+        }
+
+        const size_t M = V->dims().rows();
+        const size_t N = V->dims().cols();
+        const size_t P = V->dims().pages();
+        if (M < 2 || N < 2 || P < 2) { outs[0] = Value::empty(); return; }
+
+        std::vector<double> Xs(N), Ys(M), Zs(P);
+        if (X && Y && Z && X->numel() >= N && Y->numel() >= M && Z->numel() >= P) {
+            for (size_t i = 0; i < N; ++i) Xs[i] = X->doubleData()[i];
+            for (size_t i = 0; i < M; ++i) Ys[i] = Y->doubleData()[i];
+            for (size_t i = 0; i < P; ++i) Zs[i] = Z->doubleData()[i];
+        } else {
+            for (size_t i = 0; i < N; ++i) Xs[i] = (double)(i + 1);
+            for (size_t i = 0; i < M; ++i) Ys[i] = (double)(i + 1);
+            for (size_t i = 0; i < P; ++i) Zs[i] = (double)(i + 1);
+        }
+
+        const auto Vat = [&](size_t i, size_t j, size_t k) {
+            return V->elemAsDouble(k * M * N + j * M + i);
+        };
+        if (!isoSet) {
+            double sum = 0; size_t n = 0;
+            for (size_t k = 0; k < P; ++k)
+                for (size_t j = 0; j < N; ++j)
+                    for (size_t i = 0; i < M; ++i) {
+                        const double v = Vat(i, j, k);
+                        if (std::isfinite(v)) { sum += v; ++n; }
+                    }
+            iso = n ? sum / n : 0.0;
+        }
+
+        // Cube corner offsets matching Bourke's convention. Corner k
+        // ↔ (di, dj, dk) where di stripe X axis, dj stripe Y axis, dk
+        // stripe Z axis (depth).
+        static const int kCornerDX[8] = {0, 1, 1, 0, 0, 1, 1, 0};
+        static const int kCornerDY[8] = {0, 0, 1, 1, 0, 0, 1, 1};
+        static const int kCornerDZ[8] = {0, 0, 0, 0, 1, 1, 1, 1};
+        // Edges connect pairs of corners. edgeCorners[edge] = (a, b).
+        static const int kEdge0[12] = {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3};
+        static const int kEdge1[12] = {1, 2, 3, 0, 5, 6, 7, 4, 4, 5, 6, 7};
+
+        std::ostringstream xs, ys, zs;
+        xs << '['; ys << '['; zs << '[';
+        bool first = true;
+
+        // Convert data-axis order to MATLAB convention: axis-0 stripes
+        // X (j → cols), axis-1 stripes Y (i → rows), axis-2 stripes Z
+        // (k → pages).
+        for (size_t k = 0; k + 1 < P; ++k) {
+            for (size_t j = 0; j + 1 < N; ++j) {
+                for (size_t i = 0; i + 1 < M; ++i) {
+                    double cv[8];
+                    cv[0] = Vat(i,     j,     k    );
+                    cv[1] = Vat(i,     j + 1, k    );
+                    cv[2] = Vat(i + 1, j + 1, k    );
+                    cv[3] = Vat(i + 1, j,     k    );
+                    cv[4] = Vat(i,     j,     k + 1);
+                    cv[5] = Vat(i,     j + 1, k + 1);
+                    cv[6] = Vat(i + 1, j + 1, k + 1);
+                    cv[7] = Vat(i + 1, j,     k + 1);
+                    bool anyNan = false;
+                    for (int c = 0; c < 8; ++c)
+                        if (!std::isfinite(cv[c])) { anyNan = true; break; }
+                    if (anyNan) continue;
+                    int code = 0;
+                    for (int c = 0; c < 8; ++c) if (cv[c] < iso) code |= (1 << c);
+                    const int em = kMcEdgeTable[code];
+                    if (em == 0) continue;
+                    // Compute the world coords of the cube's corners.
+                    auto cornerXYZ = [&](int c) {
+                        const size_t ic = i + (size_t)kCornerDY[c];
+                        const size_t jc = j + (size_t)kCornerDX[c];
+                        const size_t kc = k + (size_t)kCornerDZ[c];
+                        return std::array<double, 3>{Xs[jc], Ys[ic], Zs[kc]};
+                    };
+                    std::array<double, 3> verts[12] = {};
+                    for (int e = 0; e < 12; ++e) {
+                        if (!(em & (1 << e))) continue;
+                        const int a = kEdge0[e], b = kEdge1[e];
+                        const auto pA = cornerXYZ(a);
+                        const auto pB = cornerXYZ(b);
+                        const double va = cv[a], vb = cv[b];
+                        const double t = (std::abs(vb - va) < 1e-15)
+                            ? 0.5 : (iso - va) / (vb - va);
+                        verts[e] = { pA[0] + t * (pB[0] - pA[0]),
+                                     pA[1] + t * (pB[1] - pA[1]),
+                                     pA[2] + t * (pB[2] - pA[2]) };
+                    }
+                    // Emit triangles per the lookup. The fill3 wire
+                    // path expects polygons separated by null markers;
+                    // a triangle is 3 vertices. We keep `first=false`
+                    // after writing ",null" so the next triangle's
+                    // first vertex picks up its leading comma in the
+                    // "if(!first)" branch — yielding the correct
+                    // "v,v,v,null,v,v,v,null,…" sequence.
+                    const int *tri = kMcTriTable[code];
+                    for (int t = 0; tri[t] != -1; t += 3) {
+                        for (int v = 0; v < 3; ++v) {
+                            if (!first) { xs << ','; ys << ','; zs << ','; }
+                            first = false;
+                            const auto &p = verts[tri[t + v]];
+                            xs << p[0]; ys << p[1]; zs << p[2];
+                        }
+                        xs << ",null"; ys << ",null"; zs << ",null";
+                    }
+                }
+            }
+        }
+        xs << ']'; ys << ']'; zs << ']';
+
+        DatasetInfo ds;
+        ds.type = "fill3";
+        ds.xJson = xs.str();
+        ds.yJson = ys.str();
+        ds.zJson = zs.str();
+        // Single representative colour from the iso level (relative
+        // to the volume's own range).
+        double vmn = std::numeric_limits<double>::infinity();
+        double vmx = -std::numeric_limits<double>::infinity();
+        const size_t Vn = M * N * P;
+        for (size_t ii = 0; ii < Vn; ++ii) {
+            const double v = V->elemAsDouble(ii);
+            if (std::isfinite(v)) {
+                if (v < vmn) vmn = v;
+                if (v > vmx) vmx = v;
+            }
+        }
+        if (!std::isfinite(vmn)) { vmn = 0; vmx = 1; }
+        const double t = (vmx == vmn) ? 0.5 : (iso - vmn) / (vmx - vmn);
+        const int rcomp = (int)std::clamp(t * 255.0,        0.0, 255.0);
+        const int gcomp = (int)std::clamp(120.0,            0.0, 255.0);
+        const int bcomp = (int)std::clamp((1 - t) * 255.0,  0.0, 255.0);
+        char buf[40];
+        std::snprintf(buf, sizeof buf, "color=#%02x%02x%02x;fillOpacity=0.85",
+                      rcomp, gcomp, bcomp);
+        ds.style = buf;
+        fm.pushDataset(std::move(ds));
+        fm.emitModified();
+        outs[0] = Value::empty();
+    };
+    reg("surface", "isosurface", isosurfaceImpl);
+
     // quiver3(x, y, z, u, v, w[, scale]) — 3-D vector field. Each (x,
     // y, z, u, v, w) row becomes one arrow from (x, y, z) to
     // (x + s·u, y + s·v, z + s·w). Default scale = 1.
