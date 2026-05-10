@@ -225,6 +225,127 @@ void convhull_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = std::move(out);
 }
 
+// ── histcounts2 ──────────────────────────────────────────────────────
+//
+// histcounts2(x, y[, nbins | xedges, yedges]) — 2-D histogram count
+// matrix. Returns a counts matrix N(nx × ny) plus optional edges.
+//
+// Forms supported (subset):
+//   N = histcounts2(x, y)            — auto 10×10 bins over data extent
+//   N = histcounts2(x, y, n)         — n×n
+//   N = histcounts2(x, y, [nx ny])   — explicit grid
+//   N = histcounts2(x, y, xedges, yedges)  — explicit edges
+void histcounts2_reg(Span<const Value> args, size_t /*nargout*/,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("histcounts2: requires (x, y)",
+                     0, 0, "histcounts2", "", "m:histcounts2:nargin");
+    const auto &xv = args[0];
+    const auto &yv = args[1];
+    const std::size_t n = std::min(xv.numel(), yv.numel());
+    auto *mr = ctx.engine->resource();
+    if (n == 0) {
+        outs[0] = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        return;
+    }
+
+    // Determine bin edges.
+    int nx = 10, ny = 10;
+    std::vector<double> xedges, yedges;
+    if (args.size() == 3) {
+        if (args[2].numel() == 1) {
+            nx = ny = (int)args[2].toScalar();
+        } else if (args[2].numel() >= 2) {
+            // Could be [nx ny] (length 2) or explicit edges
+            // (length > 2). MATLAB disambiguates by exactness; we
+            // follow the same heuristic.
+            if (args[2].numel() == 2) {
+                nx = (int)args[2].elemAsDouble(0);
+                ny = (int)args[2].elemAsDouble(1);
+            } else {
+                xedges.resize(args[2].numel());
+                for (std::size_t i = 0; i < xedges.size(); ++i)
+                    xedges[i] = args[2].elemAsDouble(i);
+                yedges = xedges;
+            }
+        }
+    } else if (args.size() >= 4) {
+        xedges.resize(args[2].numel());
+        yedges.resize(args[3].numel());
+        for (std::size_t i = 0; i < xedges.size(); ++i)
+            xedges[i] = args[2].elemAsDouble(i);
+        for (std::size_t i = 0; i < yedges.size(); ++i)
+            yedges[i] = args[3].elemAsDouble(i);
+    }
+    if (nx < 1) nx = 1;
+    if (ny < 1) ny = 1;
+
+    // Compute auto-edges if explicit ones not given.
+    if (xedges.empty() || yedges.empty()) {
+        double xmn = xv.elemAsDouble(0), xmx = xmn;
+        double ymn = yv.elemAsDouble(0), ymx = ymn;
+        for (std::size_t i = 1; i < n; ++i) {
+            const double X = xv.elemAsDouble(i);
+            const double Y = yv.elemAsDouble(i);
+            if (std::isfinite(X)) {
+                if (X < xmn) xmn = X;
+                if (X > xmx) xmx = X;
+            }
+            if (std::isfinite(Y)) {
+                if (Y < ymn) ymn = Y;
+                if (Y > ymx) ymx = Y;
+            }
+        }
+        if (xmx == xmn) xmx = xmn + 1.0;
+        if (ymx == ymn) ymx = ymn + 1.0;
+        if (xedges.empty()) {
+            xedges.resize(nx + 1);
+            for (int i = 0; i <= nx; ++i)
+                xedges[i] = xmn + (xmx - xmn) * i / nx;
+        }
+        if (yedges.empty()) {
+            yedges.resize(ny + 1);
+            for (int i = 0; i <= ny; ++i)
+                yedges[i] = ymn + (ymx - ymn) * i / ny;
+        }
+    }
+    nx = (int)xedges.size() - 1;
+    ny = (int)yedges.size() - 1;
+    if (nx < 1 || ny < 1) {
+        outs[0] = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        return;
+    }
+
+    auto out = Value::matrix((std::size_t)nx, (std::size_t)ny,
+                             ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    std::memset(dst, 0, sizeof(double) * nx * ny);
+
+    auto findBin = [](const std::vector<double> &edges, double v) -> int {
+        const int e = (int)edges.size();
+        if (v < edges[0] || v > edges[e - 1]) return -1;
+        // Inclusive on the right edge for the last bin (MATLAB).
+        for (int i = 0; i < e - 1; ++i) {
+            if (v >= edges[i] && (v < edges[i + 1]
+                                  || (i == e - 2 && v == edges[i + 1])))
+                return i;
+        }
+        return -1;
+    };
+    for (std::size_t i = 0; i < n; ++i) {
+        const double X = xv.elemAsDouble(i);
+        const double Y = yv.elemAsDouble(i);
+        if (!std::isfinite(X) || !std::isfinite(Y)) continue;
+        const int bx = findBin(xedges, X);
+        const int by = findBin(yedges, Y);
+        if (bx < 0 || by < 0) continue;
+        // Column-major: dst[col * nx + row], with row=bx, col=by.
+        dst[(std::size_t)by * (std::size_t)nx + (std::size_t)bx] += 1.0;
+    }
+    outs[0] = std::move(out);
+}
+
 // ── delaunay ─────────────────────────────────────────────────────────
 //
 // delaunay(x, y) — Delaunay triangulation indices. Returns an M×3
