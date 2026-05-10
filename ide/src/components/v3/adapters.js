@@ -208,6 +208,22 @@ function datasetToLayer(d, palette_idx, ctx) {
                  : (d.style || {});
   const baseColor = styleObj.color || d.color || KIND_PALETTE[palette_idx % KIND_PALETTE.length];
 
+  if (t === 'image-rgb') {
+    if (!d.rgb) return null;
+    return {
+      kind: 'image-rgb',
+      // d.rgb is [[[r,g,b],...],...] row-major. originalRows/Cols from
+      // engine. The renderer builds an off-screen canvas + data-URL
+      // and embeds it in an SVG <image>.
+      rgb: d.rgb,
+      nR: d.originalRows || (Array.isArray(d.rgb) ? d.rgb.length : 0),
+      nC: d.originalCols || (Array.isArray(d.rgb?.[0]) ? d.rgb[0].length : 0),
+      downsampled: d.downsampled === true,
+      _figId: ctx.figId,
+      _axIdx: ctx.axIdx,
+      _dsIdx: ctx.dsIdx,
+    };
+  }
   if (t === 'imagesc' || t === 'pcolor') {
     if (!d.z) return null;
     const z = d.z;
@@ -617,11 +633,21 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
   if (layers.length === 0) return null;
 
   const heatmapLy = layers.find((l) => l.kind === 'heatmap');
+  const rgbLy     = layers.find((l) => l.kind === 'image-rgb');
 
   // Compute xRange / yRange. With a heatmap layer, use the imagesc x/y
   // vector extents (they fully bound the matrix). Otherwise scan series.
   let xRange, yRange;
-  if (heatmapLy) {
+  if (rgbLy) {
+    // image-rgb spans 0.5..nC+0.5 / 0.5..nR+0.5 by default (pixel
+    // centres at integer coords with ±0.5 padding). User xlim/ylim
+    // override.
+    const nR = rgbLy.nR, nC = rgbLy.nC;
+    xRange = (Array.isArray(cfg.xlim) && cfg.xlim.length === 2)
+      ? cfg.xlim.slice() : [0.5, nC + 0.5];
+    yRange = (Array.isArray(cfg.ylim) && cfg.ylim.length === 2)
+      ? cfg.ylim.slice() : [0.5, nR + 0.5];
+  } else if (heatmapLy) {
     // Pull x/y vectors back off the original imagesc / pcolor dataset.
     const dsIdx = heatmapLy._dsIdx;
     const d = datasets[dsIdx];
@@ -765,6 +791,10 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     // axisMode: 'equal' | 'square' | 'tight' | 'auto' | '' (default).
     // Renderer reshapes sx/sy or panel size based on this value.
     axisMode: cfg.axisMode || '',
+    // axisVisible: false → hide ticks/labels/box (imshow / `axis off`).
+    // Field is absent in JSON unless the script set it false; we treat
+    // missing as visible.
+    axisVisible: cfg.axisVisible !== false,
     // xDir / yDir: 'normal' (default) or 'reverse'. Renderer flips
     // the corresponding sx/sy mapping when 'reverse'. axis('ij')
     // shorthand is resolved on the C++ side: it sets yDir='reverse'

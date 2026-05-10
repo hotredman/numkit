@@ -84,6 +84,18 @@ struct DatasetInfo
     // 670 MB → pyramid total ~890 MB.
     mutable std::vector<std::vector<uint8_t>> lodLevels;
     mutable std::vector<std::pair<size_t, size_t>> lodDims;
+
+    // ── Image-RGB (truecolor, set by imshow with M×N×3 input) ──────────
+    // Source bytes are ALWAYS uint8 0..255 — imshow casts double→u8 with
+    // *255 and clamps before reaching here. Layout is row-major triplets
+    // (r0,g0,b0, r1,g1,b1, ...). originalRows/originalCols give the
+    // pixel dims (same field as imagesc reuses).
+    //
+    // rgbJson is the inline preview: "[[r,g,b],[r,g,b],...]" row-major,
+    // mean-pooled if pixel count > 2M (same cap as imagesc). Empty for
+    // non-RGB datasets. type == "image-rgb" gates the renderer.
+    std::vector<uint8_t> rgbBytes;
+    std::string rgbJson;
 };
 
 /** Per-axes state — one subplot panel has one AxesState */
@@ -127,6 +139,13 @@ struct AxesState
     std::string yscale = "linear";
     std::string colorScale = "linear";  // 'linear' | 'log' — survives prepareForPlot
     std::string axisMode;
+    // axisVisible — MATLAB `axis off` / `axis on` controls whether the
+    // axes lines / ticks / labels render. true = drawn (default), false
+    // = hidden. imshow ships axis off implicitly (image-only viewport).
+    // axisMode and axisVisible are independent: `axis image off` is
+    // axisMode='image' + axisVisible=false. JSON emit only when false
+    // so untouched figures keep the existing wire format.
+    bool axisVisible = true;
     // Axis direction. MATLAB: set(gca, 'XDir'/'YDir', 'normal'|'reverse').
     // 'normal' (default) is left-to-right / bottom-to-top. 'reverse'
     // flips. axis('ij') is shorthand for yDir='reverse'.
@@ -383,6 +402,13 @@ public:
                         os << ",\"yside\":\"" << ds.yside << "\"";
                     if (!ds.zJson.empty())
                         os << ",\"z\":" << ds.zJson;
+                    if (!ds.rgbJson.empty()) {
+                        os << ",\"rgb\":" << ds.rgbJson;
+                        os << ",\"originalRows\":" << ds.originalRows
+                           << ",\"originalCols\":" << ds.originalCols;
+                        if (ds.downsampled)
+                            os << ",\"downsampled\":true";
+                    }
                     if (!ds.zQuantized.empty()) {
                         os << ",\"cminOrig\":" << ds.cminOrig
                            << ",\"cmaxOrig\":" << ds.cmaxOrig;
@@ -424,6 +450,10 @@ public:
                 os << ",\"yscale\":\"" << ax.yscale << "\"";
                 if (!ax.axisMode.empty())
                     os << ",\"axisMode\":\"" << ax.axisMode << "\"";
+                // axisVisible default = true; emit only when off
+                // (imshow / `axis off` set this).
+                if (!ax.axisVisible)
+                    os << ",\"axisVisible\":false";
                 if (ax.xDir == "reverse")
                     os << ",\"xDir\":\"reverse\"";
                 if (ax.yDir == "reverse")

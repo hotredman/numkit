@@ -229,6 +229,49 @@ End-to-end coverage: `grid-matlab-parity.spec.js` (11 cases) +
 `figure-state-parity.spec.js` (20 cases including legend gating
 and preview ↔ modal coherence).
 
+## 2026-05-10 cycle: BUGS #38, #39 + imshow + linespec
+
+### Done
+
+- [x] **BUG #38 — linespec / N-V params dropped by renderer.** Fix in
+      `parseLineSpec` (token-based parse of color + lineStyle +
+      marker), adapter forwards `lineStyle` / `marker` onto layer,
+      `CompositePlot.jsx` line render applies `strokeDasharray` and
+      overlays MarkerGlyph elements. New SVG dispatcher covers the
+      full MATLAB marker set (`o + s d ^ v < > p h x * .`). e2e
+      `linespec-params.spec.js` (8 cases).
+
+- [x] **BUG #39 — 3-D grid toggle reset camera + grid hid the data.**
+      Split `Composite3DPlot.jsx` mega-effect into (a) figure-data
+      rebuild and (b) grid-toggle-only. Added `lastViewRef` so
+      `figure.view` re-applies only on actual change — user orbits
+      survive every prop tick. Built grid lines on **all six** cube
+      faces and let the render tick toggle visibility per-frame
+      via dot(camera.position, faceNormal). e2e
+      `3d-grid-camera.spec.js` (4 cases) + `data-numkit-3d` canvas
+      hook for inspection.
+
+- [x] **`imshow` — display image (grayscale + RGB).** Builtin in
+      `libs/graphics/src/library.cpp` covering:
+        - `imshow(I)` with class-default range (`uint8`→[0,255],
+          `double/single/logical`→[0,1])
+        - `imshow(I, [lo hi])` — explicit range
+        - `imshow(I, [])` — auto-range (data extent, == imagesc)
+        - `imshow(RGB)` for M×N×3 (`uint8` / `double` / `logical`)
+      Sets `colormap='gray'` (grayscale only), `axisMode='image'`,
+      `axisVisible=false`, `yDir='reverse'`. Reads via
+      `Value::elemAsDouble` so all numeric classes Just Work.
+      New `axisVisible` field on AxesState + `rgbBytes` /
+      `rgbJson` on DatasetInfo + JSON wire shape. IDE: adapter
+      `image-rgb` branch, `CompositePlot.jsx` SVG `<image>` from
+      canvas data-URL, axisVisible suppresses ticks/frame.
+      `axis off` / `axis on` builtin extension flips axisVisible.
+      Tests: gtest `figure_test.cpp::ImshowTest` (7 cases), parity
+      spec, smoke .m, e2e `imshow.spec.js` (8 cases). Deferred
+      parts in `audit/findings/graphics/imshow.md`: filename input,
+      `'DisplayRange'`/`'XData'`/`'Colormap'` N-V parsing, RGBA
+      M×N×4, `imref2d` spatial referencing.
+
 ## Backlog (remaining)
 
 These don't have shipping pressure. Each is a separate investment.
