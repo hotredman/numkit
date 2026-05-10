@@ -66,6 +66,29 @@ test.describe('inpolygon / convhull', () => {
     expect(m[1]).toBe(m[2]);
   });
 
+  test('polyarea — unit square area = 1', async () => {
+    await ide.runScript(
+      'import compat.*;\n'
+      + 'a = polyarea([0 1 1 0], [0 0 1 1]);\n'
+      + 'fprintf(\'a=%g\\n\', a);\n'
+    );
+    await page.waitForTimeout(200);
+    const txt = await ide.consoleText();
+    expect(txt).toMatch(/a=1\b/);
+  });
+
+  test('polyarea — triangle area = 0.5 * base * height', async () => {
+    await ide.runScript(
+      'import compat.*;\n'
+      // (0,0)-(2,0)-(1,2) — base 2, height 2, area 2.
+      + 'a = polyarea([0 2 1], [0 0 2]);\n'
+      + 'fprintf(\'a=%g\\n\', a);\n'
+    );
+    await page.waitForTimeout(200);
+    const txt = await ide.consoleText();
+    expect(txt).toMatch(/a=2\b/);
+  });
+
   test('convhull — collinear points (degenerate)', async () => {
     await ide.runScript(
       'import compat.*;\n'
