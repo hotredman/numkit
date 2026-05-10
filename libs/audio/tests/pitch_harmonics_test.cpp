@@ -134,6 +134,18 @@ TEST_F(PitchHarmonicsTest, PitchLHS220HzSineFirstFrames)
     EXPECT_NEAR(evalScalar("mean(f0)"), 50.6, 1e-3);
 }
 
+// ── Cycle K-4: pitch SRH method (Summation of Residual Harmonics) ─────
+// Drugman & Alwan 2011. ~1 Hz/frame algorithmic diff vs MATLAB on
+// pure tones (FP-ordering in LPC overlap-add); first frame matches.
+TEST_F(PitchHarmonicsTest, PitchSRH220HzSineFirstFrameMatches)
+{
+    eval("x = sin(2*pi*220*t); f0 = pitch(x, fs, 'Method', 'SRH');");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(f0)")), 95);
+    EXPECT_NEAR(evalScalar("f0(1)"), 206.0, 1e-9);   // bit-equal first frame
+    // Mean within 1% of MATLAB's 204.37
+    EXPECT_NEAR(evalScalar("mean(f0)"), 205.0, 5.0);
+}
+
 // ── Cycle L: 'Range' Name-Value arg ────────────────────────────────────
 // Bit-equal vs MATLAB R2025b for PEF + custom Range; algorithmic-equal
 // for NCF (different tie-break behavior at ~1% level).
