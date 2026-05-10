@@ -491,4 +491,149 @@ NK_ORD_REG(cheb2ord)
 #undef NK_ORD_REG
 
 } // namespace detail
+
+// ── Kaiser-window FIR order estimator (Phase 4.5) ─────────────────────
+//
+// Matches MATLAB R2025b kaiserord.m exactly. References:
+//   Kaiser, "Nonrecursive Digital Filter Design Using the I_o-sinh
+//     Window Function", Proc. 1974 IEEE Symp. Circuits & Syst.
+//   Rabiner & Gold, Theory and Applications of DSP, pp. 156-7.
+
+namespace {
+
+double kaiserBetaFn(double atten)
+{
+    if (atten > 50.0) return 0.1102 * (atten - 8.7);
+    if (atten >= 21.0)
+        return 0.5842 * std::pow(atten - 21.0, 0.4) + 0.07886 * (atten - 21.0);
+    return 0.0;
+}
+
+struct KaislpResult { double L; double beta; };
+KaislpResult kaislpord(double f1, double f2, double d1, double d2)
+{
+    const double delta = std::min(d1, d2);
+    const double atten = -20.0 * std::log10(delta);
+    const double D = (atten - 7.95) / (2.0 * M_PI * 2.285);
+    const double L = D / std::abs(f2 - f1) + 1.0;
+    return {L, kaiserBetaFn(atten)};
+}
+
+} // anon
+
+std::tuple<int, Value, double, std::string>
+kaiserord(std::pmr::memory_resource *mr,
+          const Value &F, const Value &A, const Value &dev, double fs)
+{
+    const size_t mf     = F.numel();
+    const size_t nbands = A.numel();
+    const size_t ndevs  = dev.numel();
+
+    if (nbands != ndevs)
+        throw Error("kaiserord: A and DEV must have same length",
+                    0, 0, "kaiserord", "", "m:kaiserord:InvalidDimensionsADEV");
+    if (mf != 2 * (nbands - 1))
+        throw Error("kaiserord: numel(F) must equal 2*(numel(A)-1)",
+                    0, 0, "kaiserord", "", "m:kaiserord:InvalidDimensionsLengthF");
+    if (fs <= 0.0)
+        throw Error("kaiserord: Fs must be positive",
+                    0, 0, "kaiserord", "", "m:kaiserord:BadFs");
+
+    std::vector<double> fcuts(mf), mags(nbands), devs(nbands);
+    for (size_t i = 0; i < mf; ++i)     fcuts[i] = F.elemAsDouble(i) / fs;
+    for (size_t i = 0; i < nbands; ++i) {
+        mags[i] = A.elemAsDouble(i);
+        devs[i] = dev.elemAsDouble(i);
+    }
+    {
+        double mx = fcuts[0];
+        for (size_t i = 1; i < mf; ++i) if (fcuts[i] > mx) mx = fcuts[i];
+        if (mx >= 0.5)
+            throw Error("kaiserord: F edges must be < Fs/2",
+                        0, 0, "kaiserord", "", "m:kaiserord:InvalidRange");
+    }
+
+    // Convert dev → relative deviation: dev /= (stop + mag)  (== 1 either way)
+    for (size_t i = 0; i < nbands; ++i) {
+        const double stop = (mags[i] == 0.0) ? 1.0 : 0.0;
+        const double base = stop + mags[i];
+        if (base != 0.0) devs[i] = devs[i] / base;
+    }
+
+    // Separate transition edges into f1 / f2 pairs.
+    std::vector<double> f1v, f2v;
+    for (size_t i = 0; i + 1 < mf; i += 2) {
+        f1v.push_back(fcuts[i]);
+        f2v.push_back(fcuts[i + 1]);
+    }
+
+    // Find narrowest transition zone.
+    size_t nMin = 0;
+    {
+        double minWidth = std::abs(f2v[0] - f1v[0]);
+        for (size_t i = 1; i < f1v.size(); ++i) {
+            const double w = std::abs(f2v[i] - f1v[i]);
+            if (w < minWidth) { minWidth = w; nMin = i; }
+        }
+    }
+
+    double L = 0.0, bta = 0.0;
+    if (nbands == 2) {
+        auto r = kaislpord(f1v[nMin], f2v[nMin], devs[0], devs[1]);
+        L = r.L;
+        bta = r.beta;
+    } else {
+        for (size_t i = 1; i + 1 < nbands; ++i) {
+            auto r1 = kaislpord(f1v[i - 1], f2v[i - 1], devs[i], devs[i - 1]);
+            auto r2 = kaislpord(f1v[i],     f2v[i],     devs[i], devs[i + 1]);
+            if (r1.L > L) { L = r1.L; bta = r1.beta; }
+            if (r2.L > L) { L = r2.L; bta = r2.beta; }
+        }
+    }
+
+    int N = static_cast<int>(std::ceil(L)) - 1;
+
+    // Wn = (f1 + f2) per pair (already factor-of-2 normalized to Nyquist).
+    Value Wn = Value::matrix(1, f1v.size(), ValueType::DOUBLE, mr);
+    {
+        double *wd = Wn.doubleDataMut();
+        for (size_t i = 0; i < f1v.size(); ++i) wd[i] = f1v[i] + f2v[i];
+    }
+
+    std::string ftype = "low";
+    if (nbands == 2 && mags[0] == 0.0)              ftype = "high";
+    else if (nbands == 3 && mags[1] == 0.0)         ftype = "stop";
+    else if (nbands >= 3 && mags[0] == 0.0)         ftype = "DC-0";
+    else if (nbands >= 3 && mags[0] == 1.0)         ftype = "DC-1";
+
+    if ((N % 2) != 0 && mags[nbands - 1] != 0.0) ++N;
+
+    return {N, Wn, bta, ftype};
+}
+
+namespace detail {
+
+void kaiserord_reg(Span<const Value> args, size_t nargout,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("kaiserord: requires (F, A, dev [, fs])",
+                    0, 0, "kaiserord", "", "m:kaiserord:nargin");
+    double fs = 2.0;
+    if (args.size() >= 4 && !args[3].isEmpty()) fs = args[3].toScalar();
+    auto [N, Wn, beta, ftype] = kaiserord(ctx.engine->resource(),
+                                            args[0], args[1], args[2], fs);
+    auto *mr = ctx.engine->resource();
+    outs[0] = Value::scalar(static_cast<double>(N), mr);
+    if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(Wn);
+    if (nargout >= 3 && outs.size() >= 3) outs[2] = Value::scalar(beta, mr);
+    if (nargout >= 4 && outs.size() >= 4) {
+        Value f = Value::matrix(1, ftype.size(), ValueType::CHAR, mr);
+        char *cd = f.charDataMut();
+        for (size_t i = 0; i < ftype.size(); ++i) cd[i] = ftype[i];
+        outs[3] = std::move(f);
+    }
+}
+
+} // namespace detail
 } // namespace numkit::signal
