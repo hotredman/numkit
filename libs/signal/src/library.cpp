@@ -262,6 +262,11 @@ void mergesigroi_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void removesigroi_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void extractsigroi_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void sigrangebinmask_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// Signal small utilities (libs/signal/src/measurements/sig_utils.cpp)
+void seqperiod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void zerocrossrate_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cusum_reg         (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::signal::detail
 
 namespace numkit {
@@ -518,6 +523,10 @@ void SignalLibrary::install(Engine &engine)
     reg("measurements", "removesigroi",   &signal::detail::removesigroi_reg);
     reg("measurements", "extractsigroi",  &signal::detail::extractsigroi_reg);
     reg("measurements", "sigrangebinmask",&signal::detail::sigrangebinmask_reg);
+
+    reg("measurements", "seqperiod",     &signal::detail::seqperiod_reg);
+    reg("measurements", "zerocrossrate", &signal::detail::zerocrossrate_reg);
+    reg("measurements", "cusum",         &signal::detail::cusum_reg);
 
     reg("measurements", "rms",       &signal::detail::rms_reg);
     reg("measurements", "rssq",      &signal::detail::rssq_reg);

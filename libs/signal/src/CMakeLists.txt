@@ -39,6 +39,7 @@ set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/measurements/pulse_metrics.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/measurements/vibration.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/measurements/sigroi.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/sig_utils.cpp
     # spectral_analysis/
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/periodogram_pwelch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/spectral_metrics.cpp
