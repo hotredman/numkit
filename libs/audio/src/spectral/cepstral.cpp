@@ -38,6 +38,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <complex>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -181,6 +182,112 @@ void designMelFilterBankSlaney(double *FB, double fs, size_t NFFT,
         if (w > 0.0) {
             const double inv = 1.0 / w;
             for (size_t j = 0; j < H; ++j) FB[j + k * H] *= inv;
+        }
+    }
+}
+
+// MATLAB ERB scale factor: log(10)*1000/(24.673*4.368) — matches
+// libs/audio/src/scale/freq_scales.cpp erbScale().
+inline double erbScale()
+{
+    return std::log(10.0) * 1000.0 / (24.673 * 4.368);
+}
+inline double hz2erbVal(double hz) { return erbScale() * std::log10(1.0 + 0.004368 * hz); }
+inline double erb2hzVal(double e)  { return (std::pow(10.0, e / erbScale()) - 1.0) / 0.004368; }
+
+// Compute Patterson-Holdsworth gammatone filterbank frequency response
+// magnitude (one-sided H × NumBands). Matches MATLAB
+// audio.internal.computeGammatoneCoefficients.m + freqz(...,'whole').
+//
+// For each band i with center frequency Fc[i] (Hz):
+//   ERB[i] = Fc[i]/9.26449 + 24.7
+//   B      = 1.019 * 2π * ERB[i]
+//   T      = 1/fs
+//   B1     = -2*cos(2π Fc T)/exp(B T)
+//   B2     = exp(-2 B T)
+//   A0     = T;  A2 = 0
+//   A11..A14 = -(2T cos(2π Fc T)/exp(B T) ± 2 sqrt(3 ± 2^(3/2)) T sin(2π Fc T)/exp(B T))/2
+//   gain   = (complex polynomial — see MATLAB source, eq. 4.6)
+//
+// Each band is a CASCADE of 4 biquads:
+//   sec1: [A0/gain, A11/gain, A2/gain]/[B0, B1, B2]   (gain applied here)
+//   sec2: [A0,      A12,      A2]    /[B0, B1, B2]
+//   sec3: [A0,      A13,      A2]    /[B0, B1, B2]
+//   sec4: [A0,      A14,      A2]    /[B0, B1, B2]
+//
+// freqz(...,'whole') evaluates H at ω = 2π k/N for k=0..N-1.
+// We compute one-sided (k=0..N/2) since H is conjugate-symmetric for
+// real coefficients.
+void computeGammatoneFreqRespOneSided(double fs, const double *Fc, size_t numBands,
+                                       size_t NFFT, size_t H, double *bank)
+{
+    const double T = 1.0 / fs;
+    const double EarQ = 9.26449;
+    const double minBW = 24.7;
+    const double s32a = std::sqrt(3.0 + std::pow(2.0, 1.5));  // sqrt(3 + 2√2)
+    const double s32b = std::sqrt(3.0 - std::pow(2.0, 1.5));  // sqrt(3 - 2√2)
+
+    using cd = std::complex<double>;
+    for (size_t i = 0; i < numBands; ++i) {
+        const double cf = Fc[i];
+        const double ERB = cf / EarQ + minBW;
+        const double B = 1.019 * 2.0 * M_PI * ERB;
+
+        const double cosArg = 2.0 * cf * M_PI * T;
+        const double cosT = std::cos(cosArg);
+        const double sinT = std::sin(cosArg);
+        const double expBT = std::exp(B * T);
+        const double expM2BT = std::exp(-2.0 * B * T);
+
+        const double A0 = T;
+        const double A11 = -(2.0 * T * cosT / expBT + 2.0 * s32a * T * sinT / expBT) * 0.5;
+        const double A12 = -(2.0 * T * cosT / expBT - 2.0 * s32a * T * sinT / expBT) * 0.5;
+        const double A13 = -(2.0 * T * cosT / expBT + 2.0 * s32b * T * sinT / expBT) * 0.5;
+        const double A14 = -(2.0 * T * cosT / expBT - 2.0 * s32b * T * sinT / expBT) * 0.5;
+        const double A2 = 0.0;
+        const double B0 = 1.0;
+        const double B1 = -2.0 * cosT / expBT;
+        const double B2 = expM2BT;
+
+        // Compute gain (Slaney equation 4.6, complex):
+        //   exp4j = exp(4·j·π·cf·T) = exp(2j·cosArg)
+        //   exp_BT_2j = exp(-B·T + 2j·π·cf·T) = exp(-B·T) · exp(j·cosArg)
+        //   common term: -2·exp4j·T + 2·exp_BT_2j·T·(cos ± sX·sin)
+        //   gain = abs(prod_4_terms / denom^4)
+        const cd j(0.0, 1.0);
+        const cd exp4j  = std::exp(2.0 * j * cosArg);
+        const cd exp_2j = std::exp(j * cosArg) / expBT;  // exp(-B T + j cosArg)
+        const cd term1 = -2.0 * exp4j * T + 2.0 * exp_2j * T * (cosT - s32b * sinT);
+        const cd term2 = -2.0 * exp4j * T + 2.0 * exp_2j * T * (cosT + s32b * sinT);
+        const cd term3 = -2.0 * exp4j * T + 2.0 * exp_2j * T * (cosT - s32a * sinT);
+        const cd term4 = -2.0 * exp4j * T + 2.0 * exp_2j * T * (cosT + s32a * sinT);
+        const cd denomSimple = -2.0 / std::exp(2.0 * B * T) - 2.0 * exp4j
+                                + 2.0 * (1.0 + exp4j) / expBT;
+        const cd denom4 = std::pow(denomSimple, 4);
+        const double gain = std::abs((term1 * term2 * term3 * term4) / denom4);
+
+        // Section coefficients: [b0, b1, b2, a0, a1, a2]
+        // sec1 numerator divided by gain.
+        const double b0_1 = A0 / gain, b1_1 = A11 / gain, b2_1 = A2 / gain;
+        const double b0_2 = A0,        b1_2 = A12,        b2_2 = A2;
+        const double b0_3 = A0,        b1_3 = A13,        b2_3 = A2;
+        const double b0_4 = A0,        b1_4 = A14,        b2_4 = A2;
+        // Common denom for all 4 sections: [B0, B1, B2]
+
+        // Compute |H(ω_k)| for k = 0..H-1.
+        double *bankRow = bank + i * H;  // row i, H columns (column-major over H)
+        for (size_t k = 0; k < H; ++k) {
+            const double w = -2.0 * M_PI * static_cast<double>(k) / static_cast<double>(NFFT);
+            const cd zinv  = std::exp(j * w);
+            const cd zinv2 = zinv * zinv;
+            // Same denom for all 4 sections.
+            const cd den = B0 + B1 * zinv + B2 * zinv2;
+            const cd num1 = b0_1 + b1_1 * zinv + b2_1 * zinv2;
+            const cd num2 = b0_2 + b1_2 * zinv + b2_2 * zinv2;
+            const cd num3 = b0_3 + b1_3 * zinv + b2_3 * zinv2;
+            const cd num4 = b0_4 + b1_4 * zinv + b2_4 * zinv2;
+            const cd Htot = (num1 * num2 * num3 * num4) / (den * den * den * den);
+            bankRow[k] = std::abs(Htot);
         }
     }
 }
@@ -330,14 +437,144 @@ mfcc(std::pmr::memory_resource *mr, const Value &x, double fs, int numCoeffs)
 }
 
 // ── gtcc ──────────────────────────────────────────────────────────────
-// Same pipeline as mfcc but with ERB-spaced (gammatone) filterbank.
-// v1: aliases to mfcc. KNOWN GAP — proper gammatone IIR filterbank
-// (4th-order shape) deferred to v2.
+// Cycle H: full MATLAB R2025b parity. Same STFT pipeline as mfcc but
+// with proper Patterson-Holdsworth gammatone filterbank in the
+// frequency domain (matches gtcc.m default FilterDomain='frequency').
+//
+// Pipeline matches gtcc.m exactly:
+//   1. winLen=round(0.03*fs), overlap=round(0.02*fs), fftLen=winLen.
+//   2. Per-frame logE = log(sum(unwindowed_frame.^2)).
+//   3. hamming(winLen,'periodic'); Z = |FFT(frame .* win)|.
+//   4. Gammatone filterbank designed via designAuditoryFilterBank with:
+//        FrequencyScale='erb', FrequencyRange=[50, fs/2],
+//        OneSided=false, Normalization='Bandwidth'.
+//      NumFilters = ceil(hz2erb(fs/2) - hz2erb(50)).
+//      Fc = erb2hz(linspace(lowERB, highERB, NumFilters)).
+//      Filter shape per band: cascade of 4 biquads from
+//      computeGammatoneCoefficients (Slaney 1993 — eq. 4.6).
+//      H[k] = freqz(coeffs, NFFT, 'whole') magnitude.
+//      BW[i] = 1.019 · 24.7 · (0.00437·Fc[i] + 1).
+//      Bandwidth norm: H[i,k] /= BW[i]/2.
+//   5. melMag[i, frame] = filterBank * Z (full two-sided sum).
+//      We compute one-sided H (real coeffs → conjugate symmetric)
+//      and double the inner-half bins for equivalent sum.
+//   6. cepstralCoefficients (log10 + DCT-II unitary).
+//   7. Prepend logE column → numFrames × (NumCoeffs+1).
 std::tuple<Value, Value, Value>
 gtcc(std::pmr::memory_resource *mr, const Value &x, double fs, int numCoeffs)
 {
-    auto [coeffs, delta, deltaDelta] = mfcc(mr, x, fs, numCoeffs);
-    return {coeffs, delta, deltaDelta};
+    const size_t N = x.numel();
+    const size_t winLen  = static_cast<size_t>(std::round(fs * 0.03));
+    const size_t overlap = static_cast<size_t>(std::round(fs * 0.02));
+    const size_t hop = (winLen > overlap) ? (winLen - overlap) : 1;
+    const size_t fftLen = winLen;
+    const size_t H = fftLen / 2 + 1;
+    const size_t numFrames = (N >= winLen) ? ((N - winLen) / hop + 1) : 0;
+    const size_t NC = static_cast<size_t>(numCoeffs);
+
+    // ERB-spaced Fc from FrequencyRange=[50, fs/2].
+    const double fLow = 50.0;
+    const double fHigh = fs * 0.5;
+    const double lowERB = hz2erbVal(fLow);
+    const double highERB = hz2erbVal(fHigh);
+    const size_t numBands = static_cast<size_t>(std::ceil(highERB - lowERB));
+
+    Value out = Value::matrix(numFrames, numFrames == 0 ? 0 : (NC + 1),
+                              ValueType::DOUBLE, mr);
+    Value zero = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    if (numFrames == 0 || winLen == 0 || numBands == 0)
+        return {out, zero, zero};
+
+    ScratchArena scratch(mr);
+
+    // Window
+    ScratchVec<double> win(winLen, &scratch);
+    hammingPeriodic(win.data(), winLen);
+
+    // Fc = erb2hz(linspace(lowERB, highERB, numBands))
+    ScratchVec<double> Fc(numBands, &scratch);
+    if (numBands == 1) {
+        Fc[0] = erb2hzVal(lowERB);
+    } else {
+        const double step = (highERB - lowERB) / static_cast<double>(numBands - 1);
+        for (size_t i = 0; i < numBands; ++i)
+            Fc[i] = erb2hzVal(lowERB + step * static_cast<double>(i));
+    }
+
+    // Gammatone filterbank one-sided (numBands × H).
+    ScratchVec<double> bank(numBands * H, &scratch);
+    computeGammatoneFreqRespOneSided(fs, Fc.data(), numBands, fftLen, H, bank.data());
+
+    // Bandwidth normalization: BW[i] = 1.019 * 24.7 * (0.00437 * Fc[i] + 1).
+    // Then bank[i, k] /= BW[i]/2.
+    ScratchVec<double> BW(numBands, &scratch);
+    for (size_t i = 0; i < numBands; ++i) {
+        BW[i] = 1.019 * 24.7 * (0.00437 * Fc[i] + 1.0);
+        const double inv = (BW[i] > 0.0) ? 2.0 / BW[i] : 0.0;
+        for (size_t k = 0; k < H; ++k) bank[i * H + k] *= inv;
+    }
+
+    // Per-frame buffers
+    ScratchVec<double> frame(winLen, &scratch);
+    ScratchVec<double> mag(H, &scratch);
+    ScratchVec<double> melMag(numBands * numFrames, &scratch);
+    ScratchVec<double> logE(numFrames, &scratch);
+
+    for (size_t f = 0; f < numFrames; ++f) {
+        const size_t start = f * hop;
+        // Energy on UNWINDOWED frame.
+        double E = 0.0;
+        for (size_t i = 0; i < winLen; ++i) {
+            const double xi = x.elemAsDouble(start + i);
+            E += xi * xi;
+        }
+        if (E == 0.0) E = std::numeric_limits<double>::min();
+        logE[f] = std::log(E);
+
+        // Window then FFT magnitude
+        for (size_t i = 0; i < winLen; ++i)
+            frame[i] = x.elemAsDouble(start + i) * win[i];
+        naiveDFTMagHalf(frame.data(), fftLen, mag.data());
+
+        // Apply two-sided gammatone bank: equivalent sum via one-sided
+        // with bins 1..H-2 doubled (k=0 DC, k=H-1 Nyquist single-counted).
+        // For odd NFFT, k=H-1 is NOT Nyquist — also double it.
+        const bool nyquistSingle = ((fftLen % 2) == 0);
+        for (size_t b = 0; b < numBands; ++b) {
+            double s = 0.0;
+            // k=0 (DC): single
+            s += bank[b * H + 0] * mag[0];
+            // k=1..H-2: doubled
+            for (size_t k = 1; k + 1 < H; ++k)
+                s += 2.0 * bank[b * H + k] * mag[k];
+            // k=H-1: Nyquist iff fftLen even
+            if (H >= 1) {
+                const double last = bank[b * H + (H - 1)] * mag[H - 1];
+                s += nyquistSingle ? last : 2.0 * last;
+            }
+            melMag[b + f * numBands] = s;
+        }
+    }
+
+    // Wrap melMag → cepstralCoefficients
+    Value melMagV = Value::matrix(numBands, numFrames, ValueType::DOUBLE, mr);
+    {
+        double *md = melMagV.doubleDataMut();
+        std::copy(melMag.data(), melMag.data() + numBands * numFrames, md);
+    }
+    Value coeffs = cepstralCoefficients(mr, melMagV, static_cast<int>(NC));
+
+    // Assemble out: [logE, coeffs] (numFrames × (NC+1)).
+    double *od = out.doubleDataMut();
+    const double *Cd = coeffs.doubleData();
+    for (size_t f = 0; f < numFrames; ++f) od[f] = logE[f];
+    for (size_t n = 0; n < NC; ++n)
+        for (size_t f = 0; f < numFrames; ++f)
+            od[f + (n + 1) * numFrames] = Cd[f + n * numFrames];
+
+    Value delta      = audioDelta(mr, out, 9);
+    Value deltaDelta = audioDelta(mr, delta, 9);
+    return {out, delta, deltaDelta};
 }
 
 namespace detail {

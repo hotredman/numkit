@@ -17,17 +17,20 @@ namespace numkit::audio {
 Value cepstralCoefficients(std::pmr::memory_resource *mr, const Value &S,
                            int numCoeffs = 13);
 
-// Mel-frequency cepstral coefficients. Pipeline:
-//   melSpectrogram(x, fs) → power → cepstralCoefficients
-// Returns coeffs (NumFrames × (NumCoeffs+1)) with LogEnergy='append'
-// MATLAB default. delta and deltaDelta returned as additional outputs
-// (audioDelta of coeffs, then again).
+// Mel-frequency cepstral coefficients (Cycle G — bit-equal MATLAB R2025b).
+// Pipeline: hamming(0.03*fs,'periodic') STFT, |FFT| magnitude, Slaney
+// mel filterbank ('Bandwidth' norm), log10+DCT-II via cepstralCoefficients,
+// natural-log unwindowed-frame energy prepended ('append' default).
+// Returns (coeffs, delta, deltaDelta) all (NumFrames × (NumCoeffs+1)).
 std::tuple<Value, Value, Value>
 mfcc(std::pmr::memory_resource *mr, const Value &x, double fs,
      int numCoeffs = 13);
 
-// Gammatone cepstral coefficients. Same as mfcc but uses an ERB-spaced
-// filterbank instead of mel.
+// Gammatone cepstral coefficients (Cycle H — bit-equal MATLAB R2025b).
+// Same STFT + cepstralCoefficients pipeline as mfcc but with ERB-spaced
+// Patterson-Holdsworth gammatone filterbank (Slaney 1993): cascaded
+// 4-stage biquad freq response, FrequencyRange=[50, fs/2],
+// NumFilters=ceil(hz2erb(fs/2)-hz2erb(50)).
 std::tuple<Value, Value, Value>
 gtcc(std::pmr::memory_resource *mr, const Value &x, double fs,
      int numCoeffs = 13);
