@@ -1560,7 +1560,13 @@ export default function CompositePlot({
         </text>
       )}
       {figure.title && (
-        <text x={padL + W / 2} y={padT - 12 * fontScale} fill="var(--plot-text-strong)" fontSize={12 * fontScale} textAnchor="middle">{figure.title}</text>
+        <text x={padL + W / 2} y={padT - (figure.subtitle ? 22 : 12) * fontScale}
+              fill="var(--plot-text-strong)" fontSize={12 * fontScale} textAnchor="middle">{figure.title}</text>
+      )}
+      {figure.subtitle && (
+        <text x={padL + W / 2} y={padT - 8 * fontScale}
+              fill="var(--plot-text)" fontSize={10 * fontScale}
+              textAnchor="middle" fontStyle="italic">{figure.subtitle}</text>
       )}
 
       {/* Crosshair + value at hover */}

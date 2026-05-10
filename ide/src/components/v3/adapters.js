@@ -790,6 +790,7 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     kind: 'composite',
     id: cellId,
     title:  cfg.title  || '',
+    subtitle: cfg.subtitle || '',
     xLabel: cfg.xlabel || '',
     yLabel: cfg.ylabel || '',
     xRange, yRange,
