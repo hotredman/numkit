@@ -1335,18 +1335,101 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("struct2cell",&builtin::detail::struct2cell_reg);
     engine.registerFunction("cell2struct",&builtin::detail::cell2struct_reg);
 
-    // --- arrayfun (basic scalar version) ---
+    // arrayfun(@fn, A [, B, ...] [, 'UniformOutput', true|false])
+    //
+    // For each element of A (and any additional input arrays B, C,
+    // ...), invokes fn with the per-position scalar values and
+    // collects the results. UniformOutput=true (the default) packs
+    // scalar results into a numeric array of the same shape as A;
+    // false collects them in a cell array.
+    //
+    // Earlier this function was a stub that returned A verbatim,
+    // ignoring fn — see BUGS.md #11. The real lambda body is now
+    // applied via Engine::callFunctionHandle, the same path
+    // cellfun/structfun already use.
     engine.registerFunction("arrayfun",
                             [](Span<const Value> args,
                                size_t nargout,
                                Span<Value> outs,
                                CallContext &ctx) {
+                                (void)nargout;
                                 if (args.size() < 2)
                                     throw std::runtime_error(
                                         "arrayfun requires at least 2 arguments");
-                                {
-                                    outs[0] = args[1];
-                                    return;
+                                if (!args[0].isFuncHandle())
+                                    throw std::runtime_error(
+                                        "arrayfun: first argument must be a function handle");
+                                const Value &handle = args[0];
+
+                                // Collect input arrays + parse trailing
+                                // 'UniformOutput' / 'ErrorHandler' N-V pairs.
+                                bool uniformOutput = true;
+                                std::vector<const Value *> inputs;
+                                inputs.reserve(args.size() - 1);
+                                for (size_t i = 1; i < args.size(); ++i) {
+                                    if (args[i].isChar() && i + 1 < args.size()) {
+                                        std::string key = args[i].toString();
+                                        for (auto &c : key)
+                                            c = (char)std::tolower((unsigned char)c);
+                                        if (key == "uniformoutput") {
+                                            uniformOutput = args[i + 1].toScalar() != 0.0;
+                                            ++i;   // skip the value
+                                            continue;
+                                        }
+                                        if (key == "errorhandler") {
+                                            // not modelled; just skip
+                                            ++i;
+                                            continue;
+                                        }
+                                    }
+                                    inputs.push_back(&args[i]);
+                                }
+                                if (inputs.empty())
+                                    throw std::runtime_error(
+                                        "arrayfun: at least one input array required");
+
+                                const size_t n = inputs[0]->numel();
+                                for (const auto *p : inputs) {
+                                    if (p->numel() != n)
+                                        throw std::runtime_error(
+                                            "arrayfun: all input arrays must be the same size");
+                                }
+                                auto *mr = ctx.engine->resource();
+
+                                // Walk every element. Per call, build a
+                                // scalar-Value arg list and invoke the handle.
+                                std::vector<Value> callArgs(inputs.size());
+                                if (uniformOutput) {
+                                    auto out = Value::matrix(inputs[0]->dims().rows(),
+                                                             inputs[0]->dims().cols(),
+                                                             ValueType::DOUBLE, mr);
+                                    for (size_t i = 0; i < n; ++i) {
+                                        for (size_t k = 0; k < inputs.size(); ++k)
+                                            callArgs[k] = Value::scalar(
+                                                inputs[k]->elemAsDouble(i), mr);
+                                        Value r = ctx.engine->callFunctionHandle(
+                                            handle,
+                                            Span<const Value>(callArgs.data(), callArgs.size()),
+                                            ctx.env);
+                                        out.doubleDataMut()[i] = r.toScalar();
+                                    }
+                                    outs[0] = std::move(out);
+                                } else {
+                                    // UniformOutput=false → result is a CELL
+                                    // of size matching A.
+                                    auto cell = Value::cell(inputs[0]->dims().rows(),
+                                                            inputs[0]->dims().cols(), mr);
+                                    for (size_t i = 0; i < n; ++i) {
+                                        for (size_t k = 0; k < inputs.size(); ++k)
+                                            callArgs[k] = Value::scalar(
+                                                inputs[k]->elemAsDouble(i), mr);
+                                        Value r = ctx.engine->callFunctionHandle(
+                                            handle,
+                                            Span<const Value>(callArgs.data(), callArgs.size()),
+                                            ctx.env);
+                                        cell.cellAt(i) = std::move(r);
+                                    }
+                                    outs[0] = std::move(cell);
                                 }
                             });
 
