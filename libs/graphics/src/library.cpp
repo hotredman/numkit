@@ -295,16 +295,131 @@ void GraphicsLibrary::install(Engine &engine)
             }
             auto &fm = ctx.engine->figureManager();
             fm.prepareForPlot();
-            DatasetInfo ds;
-            ds.type = "bar";
+
+            // Identify the X (optional) and Y arguments.
+            const Value *xArg = nullptr;
+            const Value *yArg = nullptr;
+            size_t nvStart = 1;
             if (args.size() >= 2 && !args[1].isChar()) {
-                ds.xJson = vecToJson(args[0]);
-                ds.yJson = vecToJson(args[1]);
+                xArg = &args[0];
+                yArg = &args[1];
+                nvStart = 2;
             } else {
-                ds.xJson = makeIndexJson(args[0].numel());
-                ds.yJson = vecToJson(args[0]);
+                yArg = &args[0];
             }
-            fm.pushDataset(std::move(ds));
+            // 'stacked' / 'grouped' / 'histc' specifier (string) after Y.
+            std::string mode = "grouped";
+            for (size_t i = nvStart; i < args.size(); ++i) {
+                if (args[i].isChar()) {
+                    std::string s = args[i].toString();
+                    for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+                    if (s == "stacked" || s == "grouped"
+                        || s == "histc"  || s == "hist") {
+                        mode = s;
+                    }
+                }
+            }
+
+            const size_t Yr = yArg->dims().rows();
+            const size_t Yc = yArg->dims().cols();
+            const bool matrix = (Yr > 1 && Yc > 1);
+            // Vector path (back-compat): single dataset.
+            if (!matrix) {
+                DatasetInfo ds;
+                ds.type = "bar";
+                if (xArg) {
+                    ds.xJson = vecToJson(*xArg);
+                    ds.yJson = vecToJson(*yArg);
+                } else {
+                    ds.xJson = makeIndexJson(yArg->numel());
+                    ds.yJson = vecToJson(*yArg);
+                }
+                fm.pushDataset(std::move(ds));
+                fm.emitModified();
+                outs[0] = Value::empty();
+                return;
+            }
+            // Matrix path: one dataset per column. Stacked uses
+            // cumulative sums (same trick as area-stacked); grouped
+            // uses raw values + a fan-out X offset per series. Default
+            // is 'grouped'.
+            static const char *kBarPalette[8] = {
+                "#7fd99a", "#5fb3d4", "#e9b870", "#9b8cf2",
+                "#e26a6a", "#d4a5e6", "#f2a37e", "#6fcfbf",
+            };
+            // Build base X vector — explicit when given, else 1..Yr.
+            std::vector<double> xb(Yr);
+            if (xArg) {
+                for (size_t r = 0; r < Yr; ++r) xb[r] = xArg->doubleData()[r];
+            } else {
+                for (size_t r = 0; r < Yr; ++r) xb[r] = (double)(r + 1);
+            }
+            const double *Yp = yArg->doubleData();
+            if (mode == "stacked") {
+                // Cumulative sums; emit column Yc-1 first so lower
+                // bands overdraw the bottom of higher ones (same idea
+                // as area-stacked).
+                std::vector<std::vector<double>> S(Yr, std::vector<double>(Yc, 0.0));
+                for (size_t r = 0; r < Yr; ++r) {
+                    double acc = 0;
+                    for (size_t c = 0; c < Yc; ++c) {
+                        acc += Yp[c * Yr + r];
+                        S[r][c] = acc;
+                    }
+                }
+                std::ostringstream xs;
+                xs << '[';
+                for (size_t r = 0; r < Yr; ++r) {
+                    if (r) xs << ',';
+                    xs << xb[r];
+                }
+                xs << ']';
+                const std::string xJsonStr = xs.str();
+                for (long long cc = (long long)Yc - 1; cc >= 0; --cc) {
+                    DatasetInfo ds;
+                    ds.type = "bar";
+                    ds.xJson = xJsonStr;
+                    std::ostringstream ys;
+                    ys << '[';
+                    for (size_t r = 0; r < Yr; ++r) {
+                        if (r) ys << ',';
+                        ys << S[r][(size_t)cc];
+                    }
+                    ys << ']';
+                    ds.yJson = ys.str();
+                    std::ostringstream sty;
+                    sty << "color=" << kBarPalette[(size_t)cc % 8];
+                    ds.style = sty.str();
+                    fm.pushDataset(std::move(ds));
+                }
+            } else {
+                // Grouped: each column gets a small X offset so bars
+                // don't overlap. The IDE renderer renders each dataset
+                // with the same default width, so sub-pixel
+                // positioning is the visible separator. With Yc bars
+                // per group, offsets span ±0.4 around the base.
+                const double groupHalf = 0.4;
+                const double slot = (Yc > 1) ? (2 * groupHalf) / (Yc - 1) : 0.0;
+                for (size_t cc = 0; cc < Yc; ++cc) {
+                    DatasetInfo ds;
+                    ds.type = "bar";
+                    std::ostringstream xs, ys;
+                    xs << '['; ys << '[';
+                    const double off = -groupHalf + slot * cc;
+                    for (size_t r = 0; r < Yr; ++r) {
+                        if (r) { xs << ','; ys << ','; }
+                        xs << (xb[r] + off);
+                        ys << Yp[cc * Yr + r];
+                    }
+                    xs << ']'; ys << ']';
+                    ds.xJson = xs.str();
+                    ds.yJson = ys.str();
+                    std::ostringstream sty;
+                    sty << "color=" << kBarPalette[cc % 8];
+                    ds.style = sty.str();
+                    fm.pushDataset(std::move(ds));
+                }
+            }
             fm.emitModified();
             outs[0] = Value::empty();
         });
