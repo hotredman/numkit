@@ -55,6 +55,33 @@ test.describe('xticks / yticks / xticklabels / yticklabels', () => {
     expect(joined).toMatch(/hi/);
   });
 
+  test('xtickformat("%.2f") — labels formatted with 2 decimals', async () => {
+    await ide.runScript(
+      'import compat.*;\n'
+      + 'plot([1 2 3], [1 4 9]);\n'
+      + 'xtickformat(\'%.2f\');\n'
+    );
+    await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+    await ide.figureCards.first().click();
+    await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+    const labels = await ide.figureWindow.locator('svg text').allTextContents();
+    // At least one label should match "/^[0-9]+\\.[0-9][0-9]$/" (2 decimals).
+    const someTwoDp = labels.some((s) => /^-?\d+\.\d{2}$/.test(s.trim()));
+    expect(someTwoDp).toBe(true);
+  });
+
+  test('ytickformat("%.0f") — labels formatted as integers', async () => {
+    await ide.runScript(
+      'import compat.*;\n'
+      + 'plot([1 2 3], [1.5 4.7 9.2]);\n'
+      + 'ytickformat(\'%.0f\');\n'
+    );
+    await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+    expect(ide.devErrors().filter((e) =>
+      !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
+    )).toEqual([]);
+  });
+
   test('yticks(...) clears with "auto"', async () => {
     await ide.runScript(
       'import compat.*;\n'
