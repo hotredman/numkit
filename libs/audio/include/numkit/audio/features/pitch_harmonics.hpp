@@ -18,9 +18,10 @@ namespace numkit::audio {
 // Cycle K-2 added Method='PEF' (Pitch Estimation Filter, Gonzalez &
 // Brookes 2011) via pitchPEF().
 // Cycle K-3 added Method='LHS' (Subharmonic Summation, Hermes 1988).
+// Cycle K-4 added Method='SRH' (Summation of Residual Harmonics,
+//   Drugman & Alwan 2011 — LPC inverse + harmonic summation).
 // Cycle L (partial) added 'Range' NV arg — minF/maxF override [50, 400].
-// KNOWN GAP: Method='SRH' still deferred (Drugman & Alwan 2011 — uses
-// LPC residual + Blackman framing, separate algorithm).
+// All 5 MATLAB pitch methods now shipped. pitchnn deferred (DNN runtime).
 // MedianFilterLength / WindowLength / OverlapLength NV args deferred.
 Value pitch(std::pmr::memory_resource *mr, const Value &x, double fs,
              double minF = 50.0, double maxF = 400.0);
@@ -35,6 +36,10 @@ Value pitchPEF(std::pmr::memory_resource *mr, const Value &x, double fs,
 
 // Log Harmonic Sum method (Method='LHS'). Same I/O as pitch().
 Value pitchLHS(std::pmr::memory_resource *mr, const Value &x, double fs,
+                double minF = 50.0, double maxF = 400.0);
+
+// Summation of Residual Harmonics method (Method='SRH'). Same I/O.
+Value pitchSRH(std::pmr::memory_resource *mr, const Value &x, double fs,
                 double minF = 50.0, double maxF = 400.0);
 
 // harmonicRatio(x, fs) — strength of harmonic content per frame, via

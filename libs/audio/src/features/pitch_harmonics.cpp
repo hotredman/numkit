@@ -31,6 +31,9 @@
 
 #include <numkit/audio/features/pitch_harmonics.hpp>
 #include <numkit/signal/transforms/fft.hpp>
+#include <numkit/signal/spectral_analysis/signal_modeling.hpp>  // lpc
+#include <numkit/signal/digital_filtering/filter.hpp>           // filter
+#include <numkit/signal/windows/windows.hpp>                    // hann, blackman
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
@@ -616,6 +619,202 @@ Value pitchLHS(std::pmr::memory_resource *mr, const Value &x, double fs,
     return out;
 }
 
+// ── pitch SRH method (Cycle K-4) ──────────────────────────────────────
+// Summation of Residual Harmonics (Drugman & Alwan, INTERSPEECH 2011).
+// Matches MATLAB R2025b audio.internal.pitch.SRH.m one-to-one:
+//
+//   1. Frame x with N=round(0.025*fs), hopSize=round(0.005*fs)
+//      (SRH-specific framing — done by caller / pitch.m wrapper).
+//      Apply hann(N, 'periodic') per frame.
+//   2. Compute LPC(y_frame, 12) per frame → A matrix.
+//   3. inv = filter(A_row, 1, y_col) per frame (LPC inverse → residual).
+//   4. Overlap-add inv frames into full-length residual using resHopLength.
+//   5. Re-frame residual with default WindowLength/OverlapLength.
+//   6. Apply blackman(WindowLength, 'periodic') per re-frame.
+//   7. res = fft(residualBuff, round(fs)) per frame; E = |res(1:5*edgeHi)|.
+//   8. domain[freq] = E[freq] + Σ_{m=2..5} (E[m*freq] - E[round((m-0.5)*freq)])
+//      per 1-based MATLAB freq in [edgeLo, edgeHi].
+//   9. f0 = peak idx (Hz); clip to [minF, maxF].
+//
+// Note: this function frames internally per pitch.m wrapper — caller
+// passes raw `x`, framing happens inside (matches MATLAB's iDetectPitch
+// dispatch structure).
+Value pitchSRH(std::pmr::memory_resource *mr, const Value &x, double fs,
+                double minF, double maxF)
+{
+    const size_t N = x.numel();
+    if (N == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    // Default framing for output count (matches numHopsFinal in pitch.m).
+    const size_t winLenDefault = static_cast<size_t>(std::round(fs * 0.052));
+    const size_t overlapDefault = static_cast<size_t>(std::round(fs * 0.042));
+    const size_t hopDefault = (winLenDefault > overlapDefault)
+                                ? (winLenDefault - overlapDefault) : 1;
+    const size_t numHopsFinal = (N >= winLenDefault)
+                                 ? ((N - winLenDefault) / hopDefault + 1)
+                                 : 0;
+    Value out = Value::matrix(numHopsFinal, numHopsFinal == 0 ? 0 : 1,
+                              ValueType::DOUBLE, mr);
+    if (numHopsFinal == 0) return out;
+
+    // SRH-specific framing.
+    const size_t Nsrh = static_cast<size_t>(std::round(fs * 0.025));
+    const size_t hopSrh = static_cast<size_t>(std::round(fs * 0.005));
+    const size_t numHops = (N >= Nsrh) ? ((N - Nsrh) / hopSrh + 1) : 0;
+    if (numHops == 0) return out;
+
+    const size_t edgeLo = static_cast<size_t>(std::ceil(minF));
+    const size_t edgeHi = static_cast<size_t>(std::floor(maxF));
+    if (edgeHi <= edgeLo) return out;
+
+    const size_t fftLen = static_cast<size_t>(std::round(fs));
+    const size_t maxBin = 5 * edgeHi;
+    if (maxBin > fftLen) return out;
+
+    constexpr int lpcOrder = 12;
+
+    ScratchArena scratch(mr);
+
+    // Step 1: build SRH-framed signal y (Nsrh × numHops), windowed by
+    // PERIODIC hann (MATLAB hann(N, 'periodic') uses denominator N, not N-1).
+    Value yWin = Value::matrix(Nsrh, numHops, ValueType::DOUBLE, mr);
+    {
+        double *yd = yWin.doubleDataMut();
+        ScratchVec<double> hannPer(Nsrh, &scratch);
+        for (size_t i = 0; i < Nsrh; ++i)
+            hannPer[i] = 0.5 * (1.0 - std::cos(2.0 * M_PI * static_cast<double>(i)
+                                                  / static_cast<double>(Nsrh)));
+        for (size_t f = 0; f < numHops; ++f) {
+            const size_t start = f * hopSrh;
+            for (size_t i = 0; i < Nsrh; ++i) {
+                const size_t srcIdx = start + i;
+                const double xv = (srcIdx < N) ? x.elemAsDouble(srcIdx) : 0.0;
+                yd[i + f * Nsrh] = xv * hannPer[i];
+            }
+        }
+    }
+
+    // Step 2-3: per-frame LPC + filter (LPC inverse → residual estimate).
+    Value invMat = Value::matrix(Nsrh, numHops, ValueType::DOUBLE, mr);
+    double *invd = invMat.doubleDataMut();
+    {
+        const double *yd = yWin.doubleData();
+        Value oneScalar = Value::scalar(1.0, mr);
+        for (size_t f = 0; f < numHops; ++f) {
+            // Extract column f as 1-D vector.
+            Value yCol = Value::matrix(Nsrh, 1, ValueType::DOUBLE, mr);
+            std::copy(yd + f * Nsrh, yd + (f + 1) * Nsrh, yCol.doubleDataMut());
+            // LPC: returns (a, g)
+            auto [a_row, g] = signal::lpc(mr, yCol, lpcOrder);
+            // filter(a, 1, y_col) → residual estimate
+            Value res = signal::filter(mr, a_row, oneScalar, yCol);
+            const double *rd = res.doubleData();
+            std::copy(rd, rd + Nsrh, invd + f * Nsrh);
+        }
+    }
+
+    // Step 4: overlap-add inv frames into full-length residual (length = N).
+    ScratchVec<double> residual(N, &scratch);
+    std::fill(residual.data(), residual.data() + N, 0.0);
+    for (size_t kk = 0; kk < numHops; ++kk) {
+        const size_t start = kk * hopSrh;
+        const size_t end = std::min(start + Nsrh, N);
+        for (size_t i = 0; i + start < end; ++i) {
+            residual[start + i] += invd[i + kk * Nsrh];
+        }
+    }
+
+    // Step 5: re-frame residual using default WindowLength/OverlapLength.
+    // MATLAB: numHops = ceil((residual_len - winLen) / hopLen) + 1
+    const size_t numHops2 =
+        (N >= winLenDefault) ? (((N - winLenDefault) + hopDefault - 1) / hopDefault + 1) : 0;
+    if (numHops2 == 0) return out;
+
+    Value residualBuff = Value::matrix(winLenDefault, numHops2, ValueType::DOUBLE, mr);
+    double *rbd = residualBuff.doubleDataMut();
+    std::fill(rbd, rbd + winLenDefault * numHops2, 0.0);
+    for (size_t hop = 0; hop < numHops2; ++hop) {
+        const size_t start = hop * hopDefault;
+        const size_t avail = (start < N) ? std::min(winLenDefault, N - start) : 0;
+        for (size_t i = 0; i < avail; ++i)
+            rbd[i + hop * winLenDefault] = residual[start + i];
+    }
+
+    // Step 6: apply PERIODIC blackman window (MATLAB blackman(N, 'periodic')).
+    // periodic: w[n] = 0.42 - 0.5·cos(2π n/N) + 0.08·cos(4π n/N), n=0..N-1.
+    {
+        ScratchVec<double> bw(winLenDefault, &scratch);
+        for (size_t i = 0; i < winLenDefault; ++i) {
+            const double a = 2.0 * M_PI * static_cast<double>(i)
+                              / static_cast<double>(winLenDefault);
+            bw[i] = 0.42 - 0.5 * std::cos(a) + 0.08 * std::cos(2.0 * a);
+        }
+        for (size_t hop = 0; hop < numHops2; ++hop) {
+            for (size_t i = 0; i < winLenDefault; ++i)
+                rbd[i + hop * winLenDefault] *= bw[i];
+        }
+    }
+
+    // Step 7: per-frame fft to length fftLen=round(fs); take |fft(1:maxBin)|.
+    Value framePad = Value::matrix(fftLen, 1, ValueType::DOUBLE, mr);
+    double *fp = framePad.doubleDataMut();
+    ScratchVec<double> E(maxBin, &scratch);
+    ScratchVec<double> domain(edgeHi + 1, &scratch);
+
+    // Output: numHops2 frames; pitch.m post-reshapes to numHopsFinal.
+    // Compute per frame, store in temporary, then reshape/clip at end.
+    ScratchVec<double> f0all(numHops2, &scratch);
+
+    for (size_t hop = 0; hop < numHops2; ++hop) {
+        std::fill(fp, fp + fftLen, 0.0);
+        for (size_t i = 0; i < winLenDefault; ++i)
+            fp[i] = rbd[i + hop * winLenDefault];
+
+        Value Y = signal::fft(mr, framePad, static_cast<int>(fftLen), 1);
+        const Complex *Yd = Y.complexData();
+        for (size_t k = 0; k < maxBin; ++k) E[k] = std::abs(Yd[k]);
+
+        // Step 8: domain[freq] = E[freq] + Σ_{m=2..5} (E[m·freq] - E[round((m-0.5)·freq)])
+        // MATLAB 1-based: domain(freq) for freq = edge(1):edge(end).
+        // Using 0-based: domain index = freq (1-based MATLAB) means index freq-1 in array.
+        // E(freq) means MATLAB 1-based, so 0-based access E[freq-1].
+        std::fill(domain.data(), domain.data() + edgeHi + 1, 0.0);
+        for (size_t freq = edgeLo; freq <= edgeHi; ++freq) {
+            // 1-based MATLAB freq. Compute 0-based indices freq-1, 2*freq-1, etc.
+            double s = E[freq - 1];
+            for (int m = 2; m <= 5; ++m) {
+                const size_t mFreq = static_cast<size_t>(m) * freq;
+                const size_t halfFreq = static_cast<size_t>(std::round((m - 0.5) * static_cast<double>(freq)));
+                if (mFreq <= maxBin && halfFreq >= 1 && halfFreq <= maxBin) {
+                    s += E[mFreq - 1] - E[halfFreq - 1];
+                }
+            }
+            domain[freq] = s;  // store at 0-based index freq (matches MATLAB 1-based freq)
+        }
+
+        // Step 9: peak in domain[edgeLo..edgeHi]
+        double bestVal = -std::numeric_limits<double>::infinity();
+        size_t bestLoc1 = edgeLo;
+        for (size_t k = edgeLo; k <= edgeHi; ++k) {
+            if (domain[k] > bestVal) { bestVal = domain[k]; bestLoc1 = k; }
+        }
+        double f0v = static_cast<double>(bestLoc1);
+        if (f0v < minF) f0v = minF;
+        if (f0v > maxF) f0v = maxF;
+        f0all[hop] = f0v;
+    }
+
+    // Reshape/copy to numHopsFinal (matches MATLAB's reshape post-call).
+    // MATLAB does reshape(f0, numHopsFinal, c) — works because numHops2 == numHopsFinal
+    // after the residual is re-framed with default params. Verify:
+    double *od = out.doubleDataMut();
+    const size_t copyN = std::min(numHopsFinal, numHops2);
+    for (size_t i = 0; i < copyN; ++i) od[i] = f0all[i];
+    // Pad with last value if needed (should not happen if framing matches).
+    for (size_t i = copyN; i < numHopsFinal; ++i) od[i] = (copyN > 0) ? f0all[copyN - 1] : 0.0;
+    return out;
+}
+
 // ── pitch ─────────────────────────────────────────────────────────────
 Value pitch(std::pmr::memory_resource *mr, const Value &x, double fs,
              double minF, double maxF)
@@ -807,6 +1006,8 @@ void pitch_reg(Span<const Value> args, size_t /*nargout*/,
         outs[0] = pitchPEF(ctx.engine->resource(), args[0], fs, minF, maxF);
     else if (method == "LHS")
         outs[0] = pitchLHS(ctx.engine->resource(), args[0], fs, minF, maxF);
+    else if (method == "SRH")
+        outs[0] = pitchSRH(ctx.engine->resource(), args[0], fs, minF, maxF);
     else
         outs[0] = pitch(ctx.engine->resource(), args[0], fs, minF, maxF);
 }

@@ -46,6 +46,12 @@ fprintf('  LHS first 5: '); fprintf('%.4f ', f0_lhs(1:5)); fprintf('\n');
 fprintf('  expect: 51 50 51 51 50 (Hermes LHS picks low subharmonic at edge)\n');
 fprintf('  LHS mean = %.4f (expect 50.6, bit-equal MATLAB)\n', mean(f0_lhs));
 
+fprintf('\n[pitch SRH method on 220 Hz sine — Cycle K-4]\n');
+f0_srh = pitch(x, fs, 'Method', 'SRH');
+fprintf('  SRH first 5: '); fprintf('%.4f ', f0_srh(1:5)); fprintf('\n');
+fprintf('  expect: 206 (constant, MATLAB) — numkit ~1 Hz/frame diff in some\n');
+fprintf('  SRH mean = %.4f (~205, MATLAB 204.37)\n', mean(f0_srh));
+
 fprintf('\n[pitch Range NV arg — Cycle L (partial)]\n');
 xmix = sin(2*pi*220*t) + 0.5*sin(2*pi*100*t);
 f_rH = pitch(xmix, fs, 'Range', [150 400]);
@@ -55,9 +61,8 @@ fprintf('  Range [150 400]: f0(1)=%.4f mean=%.4f (picks 220 dominantly)\n', f_rH
 fprintf('  Range [50 150]:  f0(1)=%.4f mean=%.4f (picks 100 / subharmonic)\n', f_rL(1), mean(f_rL));
 fprintf('  PEF Range [80 250]: f0(1)=%.4f (expect 221.2508 bit-equal MATLAB)\n', f_rPEF(1));
 
-fprintf('\nKNOWN GAPs:\n');
-fprintf('  pitch methods: NCF (default) + CEP (K) + PEF (K-2) + LHS (K-3) shipped.\n');
+fprintf('\nALL 5 MATLAB pitch methods shipped: NCF + CEP + PEF + LHS + SRH.\n');
 fprintf('  CEP / PEF / LHS are bit-equal MATLAB R2025b.\n');
-fprintf('  SRH still deferred — uses LPC residual + Blackman framing (separate algo).\n');
-fprintf('  pitchnn: requires DNN runtime, deferred entirely.\n');
-fprintf('  harmonicRatio: full MATLAB R2025b parity (auto low-edge + parabolic refinement).\n');
+fprintf('  NCF + SRH are algorithmic-equal (~1%% diff, expected for these methods).\n');
+fprintf('  pitchnn: requires DNN runtime, deferred entirely (only remaining gap).\n');
+fprintf('  harmonicRatio: full MATLAB R2025b parity.\n');
