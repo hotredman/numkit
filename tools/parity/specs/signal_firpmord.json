@@ -1,0 +1,10 @@
+{
+  "name": "signal_firpmord",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[n1, fo1, ao1, w1] = firpmord([1500 2000], [1 0], [0.01 0.1], 8000); fo1_2 = fo1(2); fo1_3 = fo1(3); ao1_2 = ao1(2); w1_1 = w1(1); w1_2 = w1(2); [n2, ~, ~, ~] = firpmord([800 1000], [0 1], [0.01 0.05], 4000); [n3, ~, ~, ~] = firpmord([500 1000 2000 2500], [0 1 0], [0.05 0.01 0.05], 8000);",
+  "iters": 5,
+  "tol": 1e-6,
+  "fingerprint": ["n1", "fo1_2", "fo1_3", "ao1_2", "w1_1", "w1_2", "n2", "n3"],
+  "comment": "MATLAB Signal Toolbox firpmord (Phase 4.7) — Parks-McClellan FIR order estimator. remlpord formula from Rabiner & Gold pp.156-7: D = [1 d1 d1²] · AA · [1; d2; d2²] (3×3 const matrix from McClellan), fK = 11.01217 + 0.51244·(d1-d2), L = D/df - fK·df + 1. Bit-equal MATLAB R2025b on 8 fingerprints — lowpass (n=21 fo=[0,0.375,0.5,1] ao=[1,1,0,0] w=[10,1]), highpass (n=32), bandpass (n=24). Returns 4-tuple (N, ff, aa, wts) suitable for firpm. Octave 11.1.0 ships in core."
+}

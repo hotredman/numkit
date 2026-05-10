@@ -78,6 +78,18 @@ std::tuple<int, Value>
 ellipord(std::pmr::memory_resource *mr, const Value &Wp, const Value &Ws,
          double Rp, double Rs, bool analog = false);
 
+/// firpmord(F, A, dev[, fs]) — Parks-McClellan FIR order estimator.
+/// Returns (N, ff, aa, wts) where N is filter order suitable for firpm,
+/// ff/aa/wts are the band-edge / amplitude / weight vectors for firpm.
+/// F: vector of band edges (length 2·numel(A) - 2).
+/// A: vector of binary amplitudes per band.
+/// dev: max linear deviation per band.
+/// fs: optional sample rate (default 2 → normalized).
+std::tuple<int, Value, Value, Value>
+firpmord(std::pmr::memory_resource *mr,
+         const Value &F, const Value &A, const Value &dev,
+         double fs = 2.0);
+
 /// kaiserord(F, A, dev[, fs]) — Kaiser-window FIR order estimator.
 /// Returns (N, Wn, beta, ftype). N is the FIR filter order suitable for
 /// fir1(N, Wn, ftype, kaiser(N+1, beta), 'noscale') to meet the

@@ -648,6 +648,165 @@ void ellipord_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
+// ── Parks-McClellan FIR order estimator (Phase 4.7) ───────────────────
+//
+// Matches MATLAB R2025b firpmord.m + remlpord. Coefficient matrix is
+// from Rabiner & Gold "Theory and Applications of DSP" pp. 156-7.
+
+namespace {
+
+double remlpord(double f1, double f2, double d1, double d2)
+{
+    static constexpr double AA[3][3] = {
+        {-4.278e-01, -4.761e-01, 0.0},
+        {-5.941e-01,  7.114e-02, 0.0},
+        {-2.660e-03,  5.309e-03, 0.0}
+    };
+    const double ld1 = std::log10(d1);
+    const double ld2 = std::log10(d2);
+    const double v[3] = {1.0, ld1, ld1 * ld1};
+    const double w[3] = {1.0, ld2, ld2 * ld2};
+    double D = 0.0;
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j)
+            D += v[i] * AA[i][j] * w[j];
+    const double fK = 11.01217 + 0.51244 * (ld1 - ld2);
+    const double df = std::abs(f2 - f1);
+    return D / df - fK * df + 1.0;
+}
+
+} // anon
+
+std::tuple<int, Value, Value, Value>
+firpmord(std::pmr::memory_resource *mr,
+         const Value &F, const Value &A, const Value &dev, double fs)
+{
+    const size_t mf     = F.numel();
+    const size_t nbands = A.numel();
+    const size_t ndevs  = dev.numel();
+
+    if (nbands != ndevs)
+        throw Error("firpmord: A and DEV must have same length",
+                    0, 0, "firpmord", "", "m:firpmord:MismatchedVectorLength");
+    if (mf != 2 * (nbands - 1))
+        throw Error("firpmord: numel(F) must equal 2*(numel(A)-1)",
+                    0, 0, "firpmord", "", "m:firpmord:InvalidLength");
+    if (fs <= 0.0)
+        throw Error("firpmord: Fs must be positive",
+                    0, 0, "firpmord", "", "m:firpmord:BadFs");
+
+    std::vector<double> fcuts(mf), mags(nbands), devs(nbands);
+    for (size_t i = 0; i < mf; ++i)     fcuts[i] = F.elemAsDouble(i) / fs;
+    for (size_t i = 0; i < nbands; ++i) {
+        mags[i] = A.elemAsDouble(i);
+        devs[i] = dev.elemAsDouble(i);
+    }
+    {
+        double mx = fcuts[0];
+        for (size_t i = 1; i < mf; ++i) if (fcuts[i] > mx) mx = fcuts[i];
+        if (mx > 0.5)
+            throw Error("firpmord: F edges must be <= Fs/2",
+                        0, 0, "firpmord", "", "m:firpmord:InvalidRange");
+    }
+
+    // Relative deviation: devs[i] /= (stop + mag) (== 1 either way).
+    for (size_t i = 0; i < nbands; ++i) {
+        const double zz = (mags[i] == 0.0) ? 1.0 : 0.0;
+        const double base = zz + mags[i];
+        if (base != 0.0) devs[i] = devs[i] / base;
+    }
+
+    // Separate transition edges into f1, f2 pairs.
+    std::vector<double> f1v, f2v;
+    for (size_t i = 0; i + 1 < mf; i += 2) {
+        f1v.push_back(fcuts[i]);
+        f2v.push_back(fcuts[i + 1]);
+    }
+    // Find narrowest transition.
+    size_t nMin = 0;
+    {
+        double minWidth = std::abs(f2v[0] - f1v[0]);
+        for (size_t i = 1; i < f1v.size(); ++i) {
+            const double w = std::abs(f2v[i] - f1v[i]);
+            if (w < minWidth) { minWidth = w; nMin = i; }
+        }
+    }
+
+    double L = 0.0;
+    if (nbands == 2) {
+        L = remlpord(f1v[nMin], f2v[nMin], devs[0], devs[1]);
+    } else {
+        for (size_t i = 1; i + 1 < nbands; ++i) {
+            const double L1 = remlpord(f1v[i - 1], f2v[i - 1], devs[i], devs[i - 1]);
+            const double L2 = remlpord(f1v[i],     f2v[i],     devs[i], devs[i + 1]);
+            if (L1 > L) L = L1;
+            if (L2 > L) L = L2;
+        }
+    }
+
+    int N = static_cast<int>(std::ceil(L)) - 1;
+
+    // Build firpm-compatible spec vectors.
+    // ff = [0; 2*fcuts; 1]  → length mf + 2
+    Value ff = Value::matrix(1, mf + 2, ValueType::DOUBLE, mr);
+    {
+        double *fd = ff.doubleDataMut();
+        fd[0] = 0.0;
+        for (size_t i = 0; i < mf; ++i) fd[i + 1] = 2.0 * fcuts[i];
+        fd[mf + 1] = 1.0;
+    }
+    // am(1:2:2*nbands-1) = mags  → length 2*nbands-1, others 0
+    // aa = [am'; 0] + [0; am']  (i.e., interleave)
+    // Effectively aa is length 2*nbands, each band's amplitude appears
+    // in both endpoints.
+    const size_t aLen = 2 * nbands;
+    Value aa = Value::matrix(1, aLen, ValueType::DOUBLE, mr);
+    {
+        double *ad = aa.doubleDataMut();
+        std::fill(ad, ad + aLen, 0.0);
+        // am at indices 0, 2, 4, ..., 2*nbands-2 (in 0-based).
+        // After the [am'; 0] + [0; am'] trick: position 2k and 2k+1 both = mags[k].
+        for (size_t k = 0; k < nbands; ++k) {
+            ad[2 * k]     = mags[k];
+            ad[2 * k + 1] = mags[k];
+        }
+    }
+    // wts = max(devs) ./ devs
+    Value wts = Value::matrix(1, nbands, ValueType::DOUBLE, mr);
+    {
+        double *wd = wts.doubleDataMut();
+        double maxDev = devs[0];
+        for (size_t i = 1; i < nbands; ++i) if (devs[i] > maxDev) maxDev = devs[i];
+        for (size_t i = 0; i < nbands; ++i)
+            wd[i] = (devs[i] != 0.0) ? maxDev / devs[i] : 0.0;
+    }
+
+    // If gain at Nyquist != 0 and N odd, bump up.
+    if (mags[nbands - 1] != 0.0 && (N % 2) != 0) ++N;
+
+    return {N, ff, aa, wts};
+}
+
+namespace detail {
+
+void firpmord_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("firpmord: requires (F, A, dev [, fs])",
+                    0, 0, "firpmord", "", "m:firpmord:nargin");
+    double fs = 2.0;
+    if (args.size() >= 4 && !args[3].isEmpty()) fs = args[3].toScalar();
+    auto [N, ff, aa, wts] = firpmord(ctx.engine->resource(),
+                                       args[0], args[1], args[2], fs);
+    outs[0] = Value::scalar(static_cast<double>(N), ctx.engine->resource());
+    if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(ff);
+    if (nargout >= 3 && outs.size() >= 3) outs[2] = std::move(aa);
+    if (nargout >= 4 && outs.size() >= 4) outs[3] = std::move(wts);
+}
+
+} // namespace detail
+
 // ── Kaiser-window FIR order estimator (Phase 4.5) ─────────────────────
 //
 // Matches MATLAB R2025b kaiserord.m exactly. References:
