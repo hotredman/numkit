@@ -133,9 +133,15 @@ inline double bessel_K_asymp(int n, double x) {
 inline double bessel_K_int(int n, double x) {
     if (n < 0) n = -n;                   // K_{-n} = K_n
     if (x <= 0.0) return std::numeric_limits<double>::infinity();
-    // Large-x: asymptotic (1e-13 by x ~ 20).
-    if (x > 20.0) return bessel_K_asymp(n, x);
-    // Small/moderate: series K_0, then K_1 via Wronskian
+    // K_0 series suffers catastrophic cancellation between
+    //   −(ln(x/2)+γ)·I_0(x)   and   Σ H_k/(k!)² (x/2)^(2k)
+    // for moderate x — at x=10 the two summands are ~6·10³ each and
+    // the result K_0(10) ~ 1.8·10⁻⁵, so ~8 digits cancel.
+    // Asymptotic expansion in 1/(8x) is accurate to ~1e-9 by x≈9
+    // and to ~1e-13 by x≈20. Cross over at x>9 — this is the best
+    // single-series compromise without Chebyshev mini-max.
+    if (x > 9.0) return bessel_K_asymp(n, x);
+    // Small x: series K_0, then K_1 via Wronskian
     //   I_0(x) K_1(x) + I_1(x) K_0(x) = 1/x
     // → K_1 = (1/x − I_1 K_0) / I_0.
     // Higher K_n via forward recurrence (stable for K).
