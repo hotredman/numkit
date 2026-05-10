@@ -39,6 +39,7 @@ void finddelay_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void alignsignals_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void filter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void filtfilt_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void buffer_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 // digital_filtering/spec_driven.cpp (D2)
 void lowpass_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void highpass_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -320,6 +321,7 @@ void SignalLibrary::install(Engine &engine)
     // ── Digital filtering (filter / filtfilt / SOS family / median + D2) ─
     reg("digital_filtering", "filter",   &signal::detail::filter_reg);
     reg("digital_filtering", "filtfilt", &signal::detail::filtfilt_reg);
+    reg("digital_filtering", "buffer",   &signal::detail::buffer_reg);
     reg("digital_filtering", "sosfilt",     &signal::detail::sosfilt_reg);
     reg("digital_filtering", "sosfiltfilt", &signal::detail::sosfiltfilt_reg);
     reg("digital_filtering", "medfilt1", &signal::detail::medfilt1_reg);
