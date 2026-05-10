@@ -548,12 +548,51 @@ function buildPolygon3D(layer, scl, figure) {
   }
   if (indices.length === 0) return null;
 
-  const geom = new THREE.BufferGeometry();
-  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
-  if (useVertexColors) {
-    geom.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
+  let posArr = positions;
+  let idxArr = indices;
+  let colArr = colors;
+
+  // Smooth normals for isosurface / dense meshes: merge vertices with
+  // epsilon-equal positions so computeVertexNormals averages face
+  // normals across shared corners instead of keeping each cube cell's
+  // copies independent (which produces faceted look). Opt-in flag —
+  // hand-built fill3 / coneplot keep separate vertices.
+  if (layer.smoothNormals) {
+    const eps = 1e-6;
+    const key2new = new Map();
+    const newPos = [];
+    const newCol = useVertexColors ? [] : null;
+    const remap = new Int32Array(posArr.length / 3);
+    for (let v = 0, p = 0; p < posArr.length; v++, p += 3) {
+      const x = posArr[p], y = posArr[p + 1], z = posArr[p + 2];
+      // Bucket coords to a grid of eps to do approximate-equal merge.
+      const kx = Math.round(x / eps);
+      const ky = Math.round(y / eps);
+      const kz = Math.round(z / eps);
+      const key = `${kx},${ky},${kz}`;
+      let mapped = key2new.get(key);
+      if (mapped === undefined) {
+        mapped = newPos.length / 3;
+        newPos.push(x, y, z);
+        if (newCol) {
+          newCol.push(colArr[p], colArr[p + 1], colArr[p + 2]);
+        }
+        key2new.set(key, mapped);
+      }
+      remap[v] = mapped;
+    }
+    const newIdx = idxArr.map((i) => remap[i]);
+    posArr = newPos;
+    idxArr = newIdx;
+    colArr = newCol;
   }
-  geom.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(posArr), 3));
+  if (useVertexColors && colArr) {
+    geom.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colArr), 3));
+  }
+  geom.setIndex(new THREE.BufferAttribute(new Uint32Array(idxArr), 1));
   geom.computeVertexNormals();
   const mat = buildMaterial(figure || {}, {
     vertexColors: useVertexColors,
