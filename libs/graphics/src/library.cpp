@@ -5025,7 +5025,19 @@ void GraphicsLibrary::install(Engine &engine)
             // Other (Name, Value) pairs (FontSize, NumColumns, ...) are
             // not yet honoured but parsed-and-skipped so they don't
             // pollute legendLabels.
-            ax.legendLabels.clear();
+            //
+            // Special arg: 'boxoff'/'boxon' alone should NOT clear
+            // existing labels (it's a frame-only toggle). Detect that
+            // up front before zapping legendLabels.
+            bool onlyBoxToggle = !args.empty();
+            for (size_t i = 0; i < args.size() && onlyBoxToggle; ++i) {
+                if (!args[i].isChar()) { onlyBoxToggle = false; break; }
+                std::string s = args[i].toString();
+                std::string sl;
+                for (char c : s) sl.push_back((char)std::tolower((unsigned char)c));
+                if (sl != "boxoff" && sl != "boxon") { onlyBoxToggle = false; break; }
+            }
+            if (!onlyBoxToggle) ax.legendLabels.clear();
             // Don't reset legendLocation if the user calls bare `legend(...)`
             // again — but DO accept an explicit override.
             bool sawLocation = false;
@@ -5057,6 +5069,15 @@ void GraphicsLibrary::install(Engine &engine)
                 }
                 if (i == 0 && (sLower == "show" || sLower == "on")) {
                     // No labels passed — keep whatever was set previously.
+                    continue;
+                }
+                // 'boxoff' / 'boxon' — toggle the legend frame.
+                if (sLower == "boxoff") {
+                    ax.legendBoxOn = false;
+                    continue;
+                }
+                if (sLower == "boxon") {
+                    ax.legendBoxOn = true;
                     continue;
                 }
                 ax.legendLabels.push_back(s);

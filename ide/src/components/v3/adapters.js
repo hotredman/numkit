@@ -821,6 +821,7 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     xTickFormat: typeof cfg.xtickformat === 'string' ? cfg.xtickformat : '',
     yTickFormat: typeof cfg.ytickformat === 'string' ? cfg.ytickformat : '',
     customColormap: Array.isArray(cfg.customColormap) ? cfg.customColormap.slice() : null,
+    legendBoxOn: cfg.legendBox !== 'off',
     xTickAngle: Number.isFinite(cfg.xtickangle) ? Number(cfg.xtickangle) : 0,
     yTickAngle: Number.isFinite(cfg.ytickangle) ? Number(cfg.ytickangle) : 0,
     // xDir / yDir: 'normal' (default) or 'reverse'. Renderer flips
