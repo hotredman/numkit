@@ -1999,12 +1999,12 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `dctmtx` | ✅ | 0.004 | 140.47× | 15.47× | OK | Sig: r = dctmtx(...). Spec-extension batch 2026-05-09. |
 | `fan2para` | ❌ |  |  |  |  | fan-beam → parallel |
 | `fanbeam` | ❌ |  |  |  |  |  |
-| `fft2` | ✅ | 0.004 | 52.17× | 17.53× | OK | Sig: r = fft2(...). Spec-extension batch 2026-05-09. |
-| `fftshift` | ✅ | 0.007 | 68.69× | 57.30× | OK | Sig: Y = fftshift(X[, dim]). Cyclic shift along every non-singleton dim by ceil(extent/2); inverse ifftshift uses floor(extent/2). Bug fix: numkit had fftshift/ifftshift swapped for odd N + flat-shift instead of per-dim for matrices + dim arg ignored. tol=0 (integer-stable). |
+| `fft2` | ✅ | 0.004 | 51.80× | 64.15× | OK | Sig: r = fft2(...). Spec-extension batch 2026-05-09. |
+| `fftshift` | ✅ | 0.008 | 68.89× | 47.51× | OK | Sig: Y = fftshift(X[, dim]). Cyclic shift along every non-singleton dim by ceil(extent/2); inverse ifftshift uses floor(extent/2). Bug fix: numkit had fftshift/ifftshift swapped for odd N + flat-shift instead of per-dim for matrices + dim arg ignored. tol=0 (integer-stable). |
 | `idct2` | ✅ | 0.010 | 118.79× | 27.18× | OK | Sig: r = idct2(...). Spec-extension batch 2026-05-09. |
 | `ifanbeam` | ❌ |  |  |  |  |  |
-| `ifft2` | ✅ | 0.006 | 73.32× | 22.12× | OK | Sig: r = ifft2(...). Spec-extension batch 2026-05-09. |
-| `ifftshift` | ✅ | 0.007 | 62.41× | 41.69× | OK | Sig: Y = ifftshift(X[, dim]). Inverse of fftshift; cyclic shift along every non-singleton dim by floor(extent/2). Joint fix with fftshift on 2026-05-08 — they were swapped for odd-extent dims. tol=0. |
+| `ifft2` | ✅ | 0.006 | 84.24× | 59.61× | OK | Sig: r = ifft2(...). Spec-extension batch 2026-05-09. |
+| `ifftshift` | ✅ | 0.006 | 66.85× | 53.16× | OK | Sig: Y = ifftshift(X[, dim]). Inverse of fftshift; cyclic shift along every non-singleton dim by floor(extent/2). Joint fix with fftshift on 2026-05-08 — they were swapped for odd-extent dims. tol=0. |
 | `para2fan` | ❌ |  |  |  |  |  |
 
 ## IO
@@ -2434,7 +2434,7 @@ intentionally omitted — flat solver functions only.
 | `ctffilt` | ❌ |  |  |  |  | control TF filter |
 | `dspfwiz` | ❌ |  |  |  |  |  |
 | `eqtflength` | ❌ |  |  |  |  |  |
-| `fftfilt` | ✅ | 1.799 | 1.84× | 4.97× | OK | Sig: Y = fftfilt(B, X). FFT-based 32-tap MA on 100k. 100 iters. |
+| `fftfilt` | ✅ | 1.805 | 1.84× | 4.95× | OK | Sig: Y = fftfilt(B, X). FFT-based 32-tap MA on 100k. 100 iters. |
 | `filt2block` | ❌ |  |  |  |  |  |
 | `filtfilt` | ✅ | 0.005 | 664.43× | 74.63× | OK | Sig: r = filtfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `filtic` | ❌ |  |  |  |  | init state |
@@ -2575,15 +2575,15 @@ intentionally omitted — flat solver functions only.
 | `wvd` | ❌ |  |  |  |  | Wigner-Ville |
 | `xspectrogram` | ❌ |  |  |  |  | cross-spectrogram |
 | `xwvd` | ❌ |  |  |  |  | cross WVD |
-| `fft` | ✅ | 0.003 | 2.15× | 4.72× | OK | Sig: Y = fft(X). 1024-pt FFT on sin. 1000 iters. Custom fp (complex out). |
-| `fft2` | ✅ | 0.004 | 52.17× | 17.53× | OK | Sig: r = fft2(...). Spec-extension batch 2026-05-09. |
+| `fft` | ✅ | 0.005 | 1.61× | 4.67× | OK | Sig: Y = fft(X). 1024-pt FFT on sin. 1000 iters. Custom fp (complex out). |
+| `fft2` | ✅ | 0.004 | 51.80× | 64.15× | OK | Sig: r = fft2(...). Spec-extension batch 2026-05-09. |
 | `fftn` | ❌ |  |  |  |  | N-D FFT |
-| `fftshift` | ✅ | 0.007 | 68.69× | 57.30× | OK | Sig: Y = fftshift(X[, dim]). Cyclic shift along every non-singleton dim by ceil(extent/2); inverse ifftshift uses floor(extent/2). Bug fix: numkit had fftshift/ifftshift swapped for odd N + flat-shift instead of per-dim for matrices + dim arg ignored. tol=0 (integer-stable). |
+| `fftshift` | ✅ | 0.008 | 68.89× | 47.51× | OK | Sig: Y = fftshift(X[, dim]). Cyclic shift along every non-singleton dim by ceil(extent/2); inverse ifftshift uses floor(extent/2). Bug fix: numkit had fftshift/ifftshift swapped for odd N + flat-shift instead of per-dim for matrices + dim arg ignored. tol=0 (integer-stable). |
 | `fftw` | ❌ |  |  |  |  | wisdom file |
-| `ifft` | ✅ | 0.010 | 0.93× | 3.73× | OK | Sig: y = ifft(Y). 1024-pt inverse. 1000 iters. |
-| `ifft2` | ✅ | 0.006 | 73.32× | 22.12× | OK | Sig: r = ifft2(...). Spec-extension batch 2026-05-09. |
+| `ifft` | ✅ | 0.010 | 0.75× | 6.80× | OK | Sig: y = ifft(Y). 1024-pt inverse. 1000 iters. |
+| `ifft2` | ✅ | 0.006 | 84.24× | 59.61× | OK | Sig: r = ifft2(...). Spec-extension batch 2026-05-09. |
 | `ifftn` | ❌ |  |  |  |  | N-D FFT |
-| `ifftshift` | ✅ | 0.007 | 62.41× | 41.69× | OK | Sig: Y = ifftshift(X[, dim]). Inverse of fftshift; cyclic shift along every non-singleton dim by floor(extent/2). Joint fix with fftshift on 2026-05-08 — they were swapped for odd-extent dims. tol=0. |
+| `ifftshift` | ✅ | 0.006 | 66.85× | 53.16× | OK | Sig: Y = ifftshift(X[, dim]). Inverse of fftshift; cyclic shift along every non-singleton dim by floor(extent/2). Joint fix with fftshift on 2026-05-08 — they were swapped for odd-extent dims. tol=0. |
 | `interpft` | ✅ | 0.007 | 226.04× | 101.20× | OK | Sig: Y = interpft(X, n[, dim]). Band-limited (FFT-based) interpolation to n samples. Default dim = first non-singleton. Vector form preserves originals at integer multiples of original spacing. Matrix dim=1 interpolates each column; dim=2 interpolates each row. tol=1e-12. |
 | `nextpow2` | ✅ | 0.009 | 55.97× |  | OK | Sig: P = nextpow2(N). Smallest p such that 2^p >= |N|. Vectorised. Edges: |x|=0 -> 0; NaN -> NaN; ±Inf -> +Inf; complex z -> uses |z|. Bug fix 2026-05-08: complex input previously threw; NaN/Inf paths now match MATLAB. tol=0. |
 | `nufft` | ❌ |  |  |  |  | non-uniform |
@@ -3604,7 +3604,7 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `imcast` | — | 0.003 |  | 72.42× | OK | Sig: J = imcast(I, type). Dispatch wrapper over im2* helpers (type ∈ double/single/uint8/uint16/int16/logical). Octave-image has imcast. |
 | `mmgradm` | — | 0.004 |  | 140.19× | OK | Sig: G = mmgradm(I [, se_dil [, se_ero]]). Morphological gradient = imdilate − imerode (default cross SE). Octave-image has mmgradm. |
 | `fchcode` | — | 0.004 |  | 69.62× | OK | Sig: fcc = fchcode(bound). Freeman 8-direction chain code; struct with x0y0, fcc, diff fields. Octave-image has fchcode. |
-| `fftconv2` | — | 0.007 |  | 81.30× | OK | Sig: Y = fftconv2(A, B [, shape]). FFT-based 2-D conv; output complex with tiny imag, smoke wraps real(). Octave-image has fftconv2. |
+| `fftconv2` | — | 0.007 |  | 83.81× | OK | Sig: Y = fftconv2(A, B [, shape]). FFT-based 2-D conv; output complex with tiny imag, smoke wraps real(). Octave-image has fftconv2. |
 | `wavelength2rgb` | — | 0.003 |  | 149.18× | OK | Sig: rgb = wavelength2rgb(wavelength [, class [, gamma]]). Piecewise visible-light wavelength → RGB (Bruton). Tolerance loose because Octave's gamma=0.8 raises tiny FP noise when raising 0 to 0.8 — final RGB triple to 4 decimals is the right comparison. |
 | `imsmooth` | — | 0.005 |  | 107.62× | OK | Sig: J = imsmooth(I, name [, sigma]). Currently Gaussian-only with σ-Gaussian, h=ceil(3σ), symmetric pad; Octave-image has imsmooth (this matches the Gaussian path). |
 | `colorgradient` | — | 0.004 |  | 29.50× | OK | Sig: M = colorgradient(C [, w] [, n]). K-by-3 anchor RGB; piecewise linspace; default n=64. Octave-image has colorgradient. Default uses rows(colormap) but we don't have a graphics colormap so we default to n=64. |
