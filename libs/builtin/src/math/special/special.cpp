@@ -165,37 +165,131 @@ inline double bessel_K_int(int n, double x) {
 inline bool isNonNegInt(double nu) {
     return nu >= 0.0 && std::abs(nu - std::round(nu)) < 1e-12;
 }
+// Is `nu` an integer (positive, negative, or zero)?
+inline bool isInteger(double nu) {
+    return std::abs(nu - std::round(nu)) < 1e-12;
+}
+
+// ── Fractional-order paths (any real ν, x > 0) ───────────────────────
+//
+// All four families use the standard power series in (x/2)² with the
+// leading factor (x/2)^ν / Γ(ν+1). Series converges for any real x;
+// in practice we limit to x ≤ ~30 for fractional orders — beyond
+// that, alternating-series cancellation (J/Y) or term growth (I/K)
+// eats precision. MATLAB scripts typically use fractional ν only at
+// modest x (airy ζ < 10, ellipke z ≤ 1), so this covers production
+// use. Asymptotic for fractional ν is deferred.
+//
+// Signs for the I-series are all-positive (term *= +half_sq / ...);
+// for the J-series they alternate (term *= -half_sq / ...).
+
+inline double bessel_J_series_real(double nu, double x) {
+    // J_ν(x) = Σ_{m=0}^∞ (−1)^m / (m! Γ(ν+m+1)) · (x/2)^(ν+2m)
+    if (x == 0.0) {
+        if (nu == 0.0) return 1.0;
+        return (nu > 0.0) ? 0.0
+               : std::numeric_limits<double>::infinity();
+    }
+    const double half    = 0.5 * std::abs(x);
+    const double half_sq = half * half;
+    double term = std::pow(half, nu) / std::tgamma(nu + 1.0);
+    double sum  = term;
+    for (int m = 1; m < 300; ++m) {
+        term *= -half_sq / (m * (nu + m));
+        sum  += term;
+        if (std::abs(term) < 1e-18 * std::abs(sum)) break;
+    }
+    // J_ν(-x) = (-1)^ν J_ν(x); for non-integer ν, MATLAB returns
+    // complex. Here we mirror the desktop std::cyl_bessel_j domain
+    // (defined for real x ≥ 0); negative-x branch is left to the
+    // caller via the `besselj_reg` shim that promotes to complex.
+    return sum;
+}
+
+inline double bessel_I_series_real(double nu, double x) {
+    // I_ν(x) = Σ_{m=0}^∞ 1 / (m! Γ(ν+m+1)) · (x/2)^(ν+2m)
+    if (x == 0.0) {
+        if (nu == 0.0) return 1.0;
+        return (nu > 0.0) ? 0.0
+               : std::numeric_limits<double>::infinity();
+    }
+    const double half    = 0.5 * std::abs(x);
+    const double half_sq = half * half;
+    double term = std::pow(half, nu) / std::tgamma(nu + 1.0);
+    double sum  = term;
+    for (int m = 1; m < 300; ++m) {
+        term *= half_sq / (m * (nu + m));
+        sum  += term;
+        if (std::abs(term) < 1e-18 * std::abs(sum)) break;
+    }
+    return sum;
+}
+
+// Y_ν via reflection (works for non-integer ν only; integer ν must
+// route through bessel_portable::cyl_neumann's POSIX yn path).
+//   Y_ν(x) = [J_ν(x)·cos(νπ) − J_{−ν}(x)] / sin(νπ)
+inline double bessel_Y_frac(double nu, double x) {
+    const double s = std::sin(nu * M_PI);
+    if (std::abs(s) < 1e-300)
+        return std::numeric_limits<double>::quiet_NaN();
+    const double Jp = bessel_J_series_real( nu, x);
+    const double Jm = bessel_J_series_real(-nu, x);
+    return (Jp * std::cos(nu * M_PI) - Jm) / s;
+}
+
+// K_ν via reflection (works for non-integer ν only).
+//   K_ν(x) = π / (2 sin(νπ)) · [I_{−ν}(x) − I_ν(x)]
+inline double bessel_K_frac(double nu, double x) {
+    const double s = std::sin(nu * M_PI);
+    if (std::abs(s) < 1e-300)
+        return std::numeric_limits<double>::quiet_NaN();
+    const double Im = bessel_I_series_real(-nu, x);
+    const double Ip = bessel_I_series_real( nu, x);
+    return (M_PI / (2.0 * s)) * (Im - Ip);
+}
 
 } // namespace bessel_portable
 
 namespace special_compat {
 #ifdef __EMSCRIPTEN__
-[[noreturn]] inline void bessel_unsupported(const char *name) {
-    throw Error(std::string(name) + ": non-integer order not yet "
-                "supported in the WASM build (libc++ lacks "
-                "std::cyl_bessel_*); use integer order or the desktop "
-                "build.",
-                 0, 0, name, "", "m:bessel:wasmStubFracOrder");
-}
 
 extern "C" double jn(int, double);
 extern "C" double yn(int, double);
 
+// Dispatch ν → integer fast-path or fractional series. For negative
+// integer ν we route to the |ν| integer path with the appropriate
+// parity flip: J_{−n}(x) = (−1)^n J_n(x), Y_{−n}(x) = (−1)^n Y_n(x),
+// I_{−n} = I_n, K_{−n} = K_n.
+
 inline double cyl_bessel_j(double nu, double x) {
-    if (!bessel_portable::isNonNegInt(nu)) bessel_unsupported("besselj");
-    return ::jn(static_cast<int>(std::round(nu)), x);
+    if (bessel_portable::isInteger(nu)) {
+        const int n = static_cast<int>(std::round(std::abs(nu)));
+        const double v = ::jn(n, x);
+        return (nu < 0.0 && (n & 1)) ? -v : v;
+    }
+    return bessel_portable::bessel_J_series_real(nu, x);
 }
 inline double cyl_neumann(double nu, double x) {
-    if (!bessel_portable::isNonNegInt(nu)) bessel_unsupported("bessely");
-    return ::yn(static_cast<int>(std::round(nu)), x);
+    if (bessel_portable::isInteger(nu)) {
+        const int n = static_cast<int>(std::round(std::abs(nu)));
+        const double v = ::yn(n, x);
+        return (nu < 0.0 && (n & 1)) ? -v : v;
+    }
+    return bessel_portable::bessel_Y_frac(nu, x);
 }
 inline double cyl_bessel_i(double nu, double x) {
-    if (!bessel_portable::isNonNegInt(nu)) bessel_unsupported("besseli");
-    return bessel_portable::bessel_I_int(static_cast<int>(std::round(nu)), x);
+    if (bessel_portable::isInteger(nu)) {
+        const int n = static_cast<int>(std::round(std::abs(nu)));
+        return bessel_portable::bessel_I_int(n, x);
+    }
+    return bessel_portable::bessel_I_series_real(nu, x);
 }
 inline double cyl_bessel_k(double nu, double x) {
-    if (!bessel_portable::isNonNegInt(nu)) bessel_unsupported("besselk");
-    return bessel_portable::bessel_K_int(static_cast<int>(std::round(nu)), x);
+    if (bessel_portable::isInteger(nu)) {
+        const int n = static_cast<int>(std::round(std::abs(nu)));
+        return bessel_portable::bessel_K_int(n, x);
+    }
+    return bessel_portable::bessel_K_frac(nu, x);
 }
 #else
 using std::cyl_bessel_j;
