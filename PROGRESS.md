@@ -910,11 +910,11 @@ intentionally omitted, along with `constellation` (object method) and
 | `pamdemod` | ✅ | 0.005 | 205.14× |  | OK | Sig: r = pamdemod(...). Spec-extension batch 2026-05-09. |
 | `qammod` | ✅ | 0.004 | 638.48× |  | OK | Sig: r = qammod(...). Spec-extension batch 2026-05-09. |
 | `qamdemod` | ✅ | 0.005 | 810.66× |  | OK | Sig: r = qamdemod(...). Spec-extension batch 2026-05-09. |
-| `apskmod` | ❌ |  |  |  |  | amplitude-phase-shift keying |
+| `apskmod` | ❌ | 0.011 | 509.97× |  | OK | MATLAB apskmod / apskdemod with explicit identity SymbolMapping (numkit's default). Engine-detecting shim handles MATLAB's name-value form vs numkit's positional 5th arg. Standard 16-APSK [4,12] [1, 2.7] forward+round-trip + nearest-neighbour demod under small noise. Bit-equal with MATLAB R2025b. Default 'gray' SymbolMapping deferred -- MATLAB's per-ring Gray for non-power-of-2 (M=12) needs more probing. Octave 11.1.0 doesn't ship apskmod in core; reports N/A. |
 | `apskdemod` | ❌ |  |  |  |  |  |
-| `mil188qammod` | ❌ |  |  |  |  | MIL-STD-188 QAM |
+| `mil188qammod` | ❌ | 0.119 | 35.71× |  | OK | MATLAB mil188qammod / mil188qamdemod (MIL-STD-188-110 QAM). Bit-equal with MATLAB R2025b on ALL FOUR supported constellations: M=16, 32, 64, 256. All tables hard-coded per MATLAB's spec-rounded values (probed at %.17g). MIL188 cluster CLOSED 4/4. Octave 11.1.0 doesn't ship mil188qam in core; reports N/A. |
 | `mil188qamdemod` | ❌ |  |  |  |  |  |
-| `mskmod` | ❌ |  |  |  |  | minimum-shift keying |
+| `mskmod` | ❌ | 0.005 | 256.21× |  | OK | MATLAB mskmod (differential variant): minimum-shift keying. Bit-equal with MATLAB R2025b. Algorithm: cumulative-sum phase ramp interpolated linearly between symbol boundaries, then exp(i*phase). Differential mode used (MATLAB's default; passed explicitly via 'diff' arg through engine-detecting shim because MATLAB requires it). Argument order: mskmod(x, nSamp, dataenc, ini_phase) -- dataenc is positional 3rd, NOT 4th. ini_phase must be a multiple of pi/2 in MATLAB; numkit accepts arbitrary (extension). KNOWN GAP: non-differential variant deferred (uses rectpulse + I/Q stagger). Octave 11.1.0 doesn't ship mskmod in core; reports N/A. |
 | `mskdemod` | ❌ |  |  |  |  |  |
 | `fskmod` | ✅ | 0.004 | 225.64× |  | OK | Sig: r = fskmod(...). Spec-extension batch 2026-05-09.  |
 | `fskdemod` | ✅ | 0.006 | 361.46× |  | OK | Sig: r = fskdemod(...). Spec-extension batch 2026-05-09.  |
@@ -963,17 +963,17 @@ intentionally omitted, along with `constellation` (object method) and
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `arithenco` | ❌ |  |  |  |  | arithmetic encoder |
+| `arithenco` | ❌ | 0.007 | 476.34× |  | OK | MATLAB arithenco / arithdeco: arithmetic coding pair. Bit-equal with MATLAB R2025b on encoded bit string and decoded sequence. Implements the Sayood textbook E1/E2/E3 rescaling algorithm matching MATLAB's source. Octave 11.1.0 doesn't ship arithenco/arithdeco in core (signal/communications package only); reports N/A. |
 | `arithdeco` | ❌ |  |  |  |  |  |
 | `compand` | ❌ | 0.009 | 83.58× |  | OK | MATLAB compand: μ-law / A-law signal compander. 4 methods covered (mu/compressor, mu/expander, A/compressor, A/expander) with round-trip identity validation and sign preservation on negatives. Algorithm: closed-form formulas from MATLAB compand.m. Output preserves input shape. |
-| `dpcmenco` | ❌ |  |  |  |  | differential PCM encoder |
+| `dpcmenco` | ❌ | 0.007 | 83.83× |  | OK | MATLAB dpcmenco/dpcmdeco: 1st-order DPCM (predictor=[0 1]) with 6-bin codebook + 5-threshold partition. Bit-equal with MATLAB R2025b on encoded indices, quantization error, and reconstructed signal. Round-trip qe consistency (qe from encoder == qe from decoder via codebook lookup) also verified. dpcmopt deferred (training-set optimisation needs Lloyd-Max + alternating predictor estimation -- own cycle). Octave 11.1.0 doesn't ship dpcmenco/deco in core; reports N/A. |
 | `dpcmdeco` | ❌ |  |  |  |  |  |
-| `dpcmopt` | ❌ |  |  |  |  | optimise predictor + partition |
+| `dpcmopt` | ❌ | 0.007 | 253.94× |  | OK | MATLAB dpcmopt: DPCM parameter optimiser. Uses Levinson-Durbin on biased autocorrelation (denominator N-i, MATLAB convention) to estimate predictor; then lloyds() on prediction residual for codebook+partition. Bit-equal with MATLAB R2025b on deterministic training (sin + linear ramp) for predictor and codebook/partition outputs. Octave 11.1.0 doesn't ship dpcmopt in core; reports N/A. |
 | `huffmandict` | ❌ | 0.010 | 183.53× |  | OK | MATLAB huffmandict: Huffman code-book builder. Codes are NOT unique (tie-breaking yields different but equally optimal trees) -- the invariant is avglen = sum(p_k * L_k). Fingerprint pins avglen on three test cases (5-symbol skewed, 2-symbol, 4-symbol uniform). Code shape, prefix-freeness and bounds H <= avglen < H+1 covered in gtest. Octave 11.1.0 doesn't ship huffmandict in core (signal/communications package only); reports N/A. |
-| `huffmanenco` | ❌ |  |  |  |  |  |
+| `huffmanenco` | ❌ | 0.006 | 362.10× |  | OK | MATLAB huffmanenco/huffmandeco: encode/decode round-trip via dict from huffmandict. Bit codes are non-unique (Huffman tie-breaking can produce different but equally optimal trees), so encoded length depends on which optimal dict shape was produced. The INVARIANT under both engines is round-trip identity: dec must equal sig regardless of dict shape. We pin rt_match==1, length(dec), and the first/last decoded symbols. Octave 11.1.0 doesn't ship the Huffman codec in core; reports N/A. |
 | `huffmandeco` | ❌ |  |  |  |  |  |
-| `lloyds` | ❌ |  |  |  |  | Lloyd-Max scalar quantiser |
-| `quantiz` | ❌ |  |  |  |  | apply quantisation table |
+| `lloyds` | ❌ | 0.007 | 151.00× |  | OK | MATLAB lloyds: Lloyd-Max scalar quantizer designer. Tested on deterministic monotone training (1:10) since random-seed paths use randn which differs (Ziggurat for randn deferred). Bit-equal with MATLAB R2025b on initial-codebook form ([2 5 8]) and integer-K form (K=2, K=4). Octave 11.1.0 doesn't ship lloyds in core (signal/communications package only); reports N/A. |
+| `quantiz` | ❌ | 0.007 | 105.98× |  | OK | MATLAB quantiz: scalar quantizer applier. indx(i) = sum(partition < sig(i)); quantv = codebook(indx+1); distor = mean((sig-quantv)^2). Bit-equal with MATLAB R2025b. Octave 11.1.0 doesn't ship quantiz in core (signal/communications package only); reports N/A. |
 
 ### Error Detection and Correction
 
@@ -2102,7 +2102,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `balance` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `balance` | ❌ | 0.023 | 31.81× | 12.60× | OK | MATLAB balance: Parlett-Reinsch diagonal scaling for eigvalue conditioning. v1 implements only the scaling phase (permutation phase deferred; equivalent to balance(A, 'noperm') but applies even without the explicit option). For the classic 3x3 dynamic-range matrix, T differs from MATLAB by a uniform factor (4x) which CANCELS in B = inv(T)*A*T -- so B entries are bit-equal. For some inputs (e.g. 2x2 with 12 orders of magnitude), my iterative convergence reaches a different scaling than MATLAB's LAPACK dgebal -- B differs in literal entries but the similarity B = inv(T)*A*T is exact (residual ~0) and eigvals match (ediff ~0). KNOWN GAP: literal T/B entries may differ from MATLAB on hard inputs; mathematical invariants always hold. Fingerprint pins: 3x3 B literal entries (match MATLAB), residuals (must be ~0), and eigvalue preservation (must be exact). Octave 11.1.0 ships balance in core. |
 | `bandwidth` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `cdf2rdf` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `chol` | ❌ | 0.003 | 43.21× | 41.40× | OK | Sig: R = chol(A). Cholesky factorisation of symmetric positive-definite A; returns upper R with R'*R = A. Bit-identical with MATLAB R2025b. |
@@ -2130,7 +2130,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `istril` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `istriu` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `kron` | ✅ | 0.005 | 70.98× | 24.26× | OK | Sig: r = kron(...). Spec-extension batch 2026-05-09. |
-| `ldl` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `ldl` | ❌ | 0.018 | 32.94× |  | OK | MATLAB ldl: block LDL' factorization. v1 implements Crout LDL' WITHOUT pivoting; covers all PD/ND matrices and indefinite cases that don't strictly require Bunch-Kaufman 2x2 pivoting (which is rare for the test inputs here). Bit-equal with MATLAB R2025b on PD 3x3 (L,D entries match exactly) and on residuals ||A - L*D*L'||. Forms covered: 1-out (L only), 2-out (L,D), 3-out matrix P (identity in v1), 3-out vector P, 'upper' triangle. KNOWN GAPs (PROGRESS): Bunch-Kaufman pivoting (P != I) for matrices with zero pivots; complex Hermitian; sparse [L,D,P,C] form; 'tol' arg. Octave ships ldl in core but with a slightly different output layout for the indefinite case; we follow MATLAB R2025b conventions. |
 | `linsolve` | ❌ | 0.009 | 19.74× | 21.94× | OK | Sig: X = linsolve(A, B[, opts]). Wrapper over la_solve (LU for square A, Householder QR least-squares for tall A). Opts struct accepted for MATLAB-compat but ignored (auto-detection covers same cases). Bit-identical with MATLAB R2025b on probed square + tall systems. |
 | `logm` | ❌ | 0.005 | 157.12× | 93.28× | OK | Sig: L = logm(A). Matrix logarithm for symmetric positive-definite A via eig: L = V*diag(log(eig))*V'. Round-trip expm(logm) = A to ulp. General (non-symmetric) logm requires complex Schur -- deferred to Phase 2b. |
 | `lscov` | ✅ | 0.006 | 239.08× | 33.87× | OK | Sig: [x, stdx, mse, S] = lscov(A, b[, w]). Weighted least squares. mse = SSR/(N-p); S = mse·(A'WA)^(-1). Full N×N covariance V deferred (errors). Bit-identical to MATLAB R2025b on OLS and weighted paths. |
@@ -2850,24 +2850,24 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `cholcov` | ❌ |  |  |  |  | Cholesky-of-cov, handles PSD |
+| `cholcov` | ❌ | 0.013 | 123.47× | 36.34× | OK | MATLAB cholcov: Cholesky-like factor of (possibly singular) covariance. Bit-equal with MATLAB R2025b on key invariants: PD case gives upper-triangular n×n (T'*T = SIGMA exactly), PSD rank-r case gives r×n (T'*T = SIGMA up to rounding), indefinite/negative gives empty T and p > 0. Eigvec sign/ordering can differ between engines so we pin invariants (residual + dimensions + p), not literal entries beyond the PD diagonal. Octave 11.1.0 doesn't ship cholcov in core (statistics package only); reports N/A. |
 | `corr` | ❌ | 0.004 | 334.37× | 20.62× | OK | Sig: c = corr(X). Pearson correlation matrix between columns of X (alias to corrcoef). Two-arg corr(X, Y) deferred. |
-| `corrcov` | ❌ |  |  |  |  | covariance → correlation |
-| `crosstab` | ❌ |  |  |  |  | cross-tabulation |
+| `corrcov` | ❌ | 0.007 | 245.07× |  | OK | MATLAB corrcov: R = C ./ sqrt(diag(C)*diag(C)'); sigma = sqrt(diag(C))'. Bit-equal with MATLAB R2025b on 3x3 covariance, identity, scalar, and negative-correlation 2x2 cases. Octave 11.1.0 doesn't ship corrcov in core (statistics package only); reports N/A. |
+| `crosstab` | ❌ | 0.008 | 464.53× |  | OK | MATLAB crosstab: contingency table with chi-square independence test. Bit-equal with MATLAB R2025b on table entries; chi2 and p match within tolerance (chi2cdf depends on incomplete-gamma which has small numerical drift between engines). Octave 11.1.0 doesn't ship crosstab in core (statistics package only); reports N/A. |
 | `geomean` | ❌ | 0.003 | 166.35× | 47.34× | OK | Sig: g = geomean(x[, dim]). (prod x)^(1/n) = exp(mean(log x)). |
-| `grpstats` | ❌ |  |  |  |  | group-wise statistics |
+| `grpstats` | ❌ | 0.009 | 605.33× |  | OK | MATLAB grpstats: per-group statistics. Bit-equal with MATLAB R2025b on default-mean, multi-fn cell-of-strings, sum, std, numel aggregators. Other aggregators (var, sem, min, max) supported in numkit. Cell-of-fn output ordering matches MATLAB's nargout indexing. Octave 11.1.0 doesn't ship grpstats in core (statistics package only); reports N/A. |
 | `harmmean` | ❌ | 0.004 | 136.45× | 29.78× | OK | Sig: h = harmmean(x[, dim]). n / sum(1./x). Requires positive x. |
 | `kurtosis` | ❌ |  |  |  |  | already partially via `stats.descriptive`; here MATLAB stats version |
 | `mad` | ❌ | 0.003 | 925.54× | 194.53× | OK | Sig: mad(x[, flag][, dim]). Mean (flag=0) or median (flag=1) absolute deviation. |
 | `moment` | ❌ | 0.004 | 81.88× | 174.98× | OK | Sig: m = moment(x, k[, dim]). Central k-th moment: mean((x - mean(x))^k). |
-| `nearcorr` | ❌ |  |  |  |  | nearest correlation matrix |
+| `nearcorr` | ❌ | 0.044 | 70.87× |  | OK | MATLAB nearcorr: nearest correlation matrix (Higham 2002 alternating projections + Dykstra). Identity case (input already correlation) is unchanged; Higham 3x3 textbook example produces [-0.4041, 0.4988, 0.5912] off-diagonals; output is symmetric, unit-diag, PSD (min eigval ~ 0 for indefinite inputs). Defaults tol=1e-10, maxits=100; 'tolconv'/'maxits' name-value parameters deferred for v1. Uses eig_symmetric (libs/builtin) for the PSD projection. Octave 11.1.0 doesn't ship nearcorr in core (statistics package only); reports N/A. |
 | `partialcorr` | ❌ | 0.005 | 855.11× |  | OK | Sig: r = partialcorr(X, Y, Z). Pearson partial correlation controlling for Z. Bit-identical with MATLAB R2025b on probed deterministic data. |
 | `partialcorri` | ❌ |  |  |  |  | with internal vars |
 | `range` | ❌ | 0.005 | 85.15× | 17.08× | OK | Sig: r = range(x[, dim]). max - min along dim. Bit-identical with MATLAB R2025b. |
 | `robustcov` | ❌ |  |  |  |  | robust covariance estimator (FAST-MCD) |
 | `skewness` | ❌ |  |  |  |  |  |
-| `tabulate` | ❌ |  |  |  |  | frequency table |
-| `tiedrank` | ❌ |  |  |  |  | ranks with tie correction |
+| `tabulate` | ❌ | 0.007 | 628.95× | 126.76× | OK | MATLAB tabulate: frequency table. Bit-equal with MATLAB R2025b on positive-int dense layout (with zeros for missing values), non-integer sparse layout, and NaN-excluded percentage. Octave 11.1.0 doesn't ship tabulate in core (statistics package only); reports N/A. |
+| `tiedrank` | ❌ | 0.008 | 155.66× |  | OK | MATLAB tiedrank: ranks adjusted for ties via averaging. Bit-equal with MATLAB R2025b on vector + matrix forms. Tieadj uses (t^3 - t) / 2 per tied group. Includes all-equal and no-ties edges. NaN handling tested in gtest only (parity harness fingerprint format doesn't preserve NaN trivially). |
 | `trimmean` | ❌ | 0.003 | 703.81× | 175.77× | OK | Sig: m = trimmean(x, percent[, dim]). Mean after trimming percent/2 from each end. |
 | `zscore` | ✅ | 0.004 | 238.18× | 99.15× | OK | Sig: z = zscore(x). Spec-extension batch 2026-05-09 (cycle 41). |
 | `nancov` | ❌ |  |  |  |  | NaN-aware covariance |
@@ -3589,3 +3589,6 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `datevec` | — | 0.007 | 167.21× | 75.12× | OK | MATLAB datevec: inverse of datenum. Covered: scalar round-trip (Y,M,D), with-time round-trip (H,MI,S), Unix-epoch anchor (719529 -> 1970-01-01), fractional-day extraction (0.25 -> 06:00), N-vector input -> Nx6 matrix, multi-output [Y,M,D] form. Algorithm: Howard Hinnant civil_from_days + microsecond rounding for FP-noise dampening. Edge: datevec(0) = [0 0 0 0 0 0] matches MATLAB literal. |
 | `yyyymmdd` | — | 0.007 | 201.54× |  | OK | MATLAB yyyymmdd: packed integer date Y*10000+M*100+D. MATLAB R2025b requires datetime input -- numkit accepts serial date directly as a convenience extension. Spec uses an engine-detecting shim ymd__ that wraps with datetime() on MATLAB and falls through on numkit. Year-0 case excluded (MATLAB datetime errors on dates before 0001-01-01); year-0 covered by gtest. Octave 11.1.0 doesn't ship yyyymmdd; reports N/A. Algorithm: Howard Hinnant civil_from_days then arithmetic packing. |
 | `mjuliandate` | — | 0.008 | 820.65× |  | OK | MATLAB mjuliandate: Modified Julian Date = JD - 2400000.5; epoch 1858-11-17 00:00. Covered: 3-arg/6-arg/single-arg row/single-arg matrix forms with vector inputs. Anchors: MJD epoch 1858-11-17 -> 0, Unix epoch 1970-01-01 -> 40587, J2000.0 -> 51544.5. Algorithm: serial-MATLAB-date - 678942 (= 1721058.5 - 2400000.5, both fractional offsets cancel). Deferred: string + datetime input forms. |
+| `predicates` | — | 0.017 | 36.73× | 62.16× | OK | MATLAB linalg predicates batch: issymmetric/ishermitian (with optional 'skew'), isbanded(A,lo,up), isdiag, istril, istriu, bandwidth (1-out=lower / 2-out=[lo,up] / 'lower'|'upper' opt), vecnorm(A[,p[,dim]]). All comparisons exact (== 0). Bit-equal with MATLAB R2025b: predicates produce 0/1, bandwidth produces integers, vecnorm produces doubles. Empty vecnorm([]) -> scalar 0 (MATLAB convention). issymmetric/ishermitian use exact transpose/conj-transpose without tolerance. Octave 11.1.0 ships isbanded/isdiag/issymmetric/ishermitian/istril/istriu but not bandwidth/vecnorm. |
+| `rref_rcond_planerot` | — | 0.016 | 74.65× | 34.82× | OK | MATLAB linalg cycle 2: rref + rcond + planerot. rref via Gauss-Jordan with partial pivoting; default tol = max(M,N)*eps(norm(A,inf)); two-output [R, jb] form returns 1-based pivot column indices. rcond uses cheap path 1/(norm(A,1)*norm(inv(A),1)); returns 0 for singular A. KNOWN GAP: rcond on near-singular matrices may differ slightly from MATLAB's LAPACK dgecon estimator. planerot Givens rotation: r=hypot(x,y), G=[c s; -s c], degenerate (0,0) case returns identity. Bit-equal with MATLAB R2025b on the well-conditioned cases; rcond bit-equal on diag/2x2/hilb(4); planerot exact (cos/sin formula matches). rref complex input deferred (KNOWN GAP). Octave: triple-engine green for all three. Real-only inputs in v1. |
+| `lsqminnorm_lsqnonneg` | — | 0.014 | 118.61× |  | OK | MATLAB linalg cycle 4: lsqminnorm + lsqnonneg. lsqminnorm = pinv(A,tol)*B; bit-equal with MATLAB R2025b on full-rank, rank-deficient, and wide systems. lsqnonneg via Lawson-Hanson active-set algorithm; bit-equal on x, resnorm, residual, exitflag for the classic test [1 -1 2; 3 4 5; 6 7 8] / [1; 2; 3] -> x = [0; 0; 0.387097], resnorm = 0.06451612903. KNOWN GAPs: lsqminnorm 'rankWarn'/'RegularizationFactor' name-value args deferred; lsqnonneg 'options'/'problem' input forms and 6th 'lambda' output (Lagrange multipliers) deferred; complex inputs not supported. Octave ships both functions; lsqminnorm in core since Octave 6, lsqnonneg in optim package. |

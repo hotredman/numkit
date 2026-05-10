@@ -1,0 +1,10 @@
+{
+  "name": "lloyds",
+  "namespace": "comm",
+  "setup": "training = 1:10;",
+  "expr": "[p1, c1, d1] = lloyds(training, [2 5 8]); [p2, c2, d2] = lloyds(training, 2); [p3, c3, d3] = lloyds(training, 4);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["p1(1)", "p1(2)", "c1(1)", "c1(2)", "c1(3)", "d1", "p2(1)", "c2(1)", "c2(2)", "d3"],
+  "comment": "MATLAB lloyds: Lloyd-Max scalar quantizer designer. Tested on deterministic monotone training (1:10) since random-seed paths use randn which differs (Ziggurat for randn deferred). Bit-equal with MATLAB R2025b on initial-codebook form ([2 5 8]) and integer-K form (K=2, K=4). Octave 11.1.0 doesn't ship lloyds in core (signal/communications package only); reports N/A."
+}

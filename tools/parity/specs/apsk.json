@@ -1,0 +1,10 @@
+{
+  "name": "apskmod",
+  "namespace": "comm",
+  "setup": "M = [4 12]; r = [1 2.7]; po = pi./M; map = (0:15); try; y_test = apskmod(0, M, r, po, 'SymbolMapping', map); is_matlab = true; catch; is_matlab = false; end; if is_matlab; mod_fn = @(x) apskmod(x, M, r, po, 'SymbolMapping', map); demod_fn = @(y) apskdemod(y, M, r, po, 'SymbolMapping', map); else; mod_fn = @(x) apskmod(x, M, r, po, map); demod_fn = @(y) apskdemod(y, M, r, po, map); end",
+  "expr": "y = mod_fn((0:15)'); z = demod_fn(y); rt = isequal((0:15)', z); ynoise = demod_fn(y + 0.05*(1+1i)); rtN = isequal((0:15)', ynoise);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["real(y(1))", "imag(y(1))", "real(y(5))", "imag(y(5))", "abs(y(5))", "real(y(13))", "imag(y(13))", "rt", "rtN"],
+  "comment": "MATLAB apskmod / apskdemod with explicit identity SymbolMapping (numkit's default). Engine-detecting shim handles MATLAB's name-value form vs numkit's positional 5th arg. Standard 16-APSK [4,12] [1, 2.7] forward+round-trip + nearest-neighbour demod under small noise. Bit-equal with MATLAB R2025b. Default 'gray' SymbolMapping deferred -- MATLAB's per-ring Gray for non-power-of-2 (M=12) needs more probing. Octave 11.1.0 doesn't ship apskmod in core; reports N/A."
+}

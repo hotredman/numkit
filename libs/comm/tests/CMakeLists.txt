@@ -15,4 +15,13 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/randerr_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/genqam_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/huffmandict_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/huffman_codec_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dpcm_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/quantiz_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lloyds_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dpcmopt_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/apsk_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mil188_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/arith_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mskmod_test.cpp
 )

@@ -1,0 +1,10 @@
+{
+  "name": "quantiz",
+  "namespace": "comm",
+  "setup": "sig = [-2.4 -0.7 0.1 0.5 1.5 3.0]; partition = [-1 -0.5 0 0.5 1]; codebook = [-1.5 -0.75 -0.25 0.25 0.75 1.5];",
+  "expr": "indx = quantiz(sig, partition); [i2, qv, dist] = quantiz(sig, partition, codebook);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["indx(1)", "indx(2)", "indx(3)", "indx(4)", "indx(5)", "indx(6)", "qv(1)", "qv(3)", "qv(6)", "dist"],
+  "comment": "MATLAB quantiz: scalar quantizer applier. indx(i) = sum(partition < sig(i)); quantv = codebook(indx+1); distor = mean((sig-quantv)^2). Bit-equal with MATLAB R2025b. Octave 11.1.0 doesn't ship quantiz in core (signal/communications package only); reports N/A."
+}

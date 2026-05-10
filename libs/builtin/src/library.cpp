@@ -344,6 +344,26 @@ void ismatrix_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void issorted_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void issortedrows_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isuniform_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// language/arrays/predicates.cpp
+void issymmetric_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void ishermitian_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void isbanded_reg   (Span<const Value>, size_t, Span<Value>, CallContext&);
+void isdiag_reg     (Span<const Value>, size_t, Span<Value>, CallContext&);
+void istril_reg     (Span<const Value>, size_t, Span<Value>, CallContext&);
+void istriu_reg     (Span<const Value>, size_t, Span<Value>, CallContext&);
+void bandwidth_reg  (Span<const Value>, size_t, Span<Value>, CallContext&);
+void vecnorm_reg    (Span<const Value>, size_t, Span<Value>, CallContext&);
+// language/arrays/linalg_extras.cpp
+void rref_reg       (Span<const Value>, size_t, Span<Value>, CallContext&);
+void rcond_reg      (Span<const Value>, size_t, Span<Value>, CallContext&);
+void planerot_reg   (Span<const Value>, size_t, Span<Value>, CallContext&);
+// language/arrays/ldl.cpp
+void ldl_reg        (Span<const Value>, size_t, Span<Value>, CallContext&);
+// language/arrays/lsq.cpp
+void lsqminnorm_reg (Span<const Value>, size_t, Span<Value>, CallContext&);
+void lsqnonneg_reg  (Span<const Value>, size_t, Span<Value>, CallContext&);
+// language/arrays/balance.cpp
+void balance_reg    (Span<const Value>, size_t, Span<Value>, CallContext&);
 void flintmax_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void intmax_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void intmin_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -962,6 +982,35 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("subspace",  &builtin::detail::subspace_reg);
     engine.registerFunction("norm",      &builtin::detail::norm_reg);
     engine.registerFunction("sylvester", &builtin::detail::sylvester_reg);
+
+    // Linalg basics also exposed under `compat.*` so user code that
+    // qualifies them as compat.norm / compat.inv (e.g. when porting
+    // from a project that namespaces all calls) works without
+    // surprises. Functions in the global namespace are already
+    // accessible bare; this just adds explicit aliases in compat.
+    engine.registerFunction("compat", "norm",      &builtin::detail::norm_reg);
+    engine.registerFunction("compat", "normest",   &builtin::detail::normest_reg);
+    engine.registerFunction("compat", "inv",       &builtin::detail::inv_reg);
+    engine.registerFunction("compat", "pinv",      &builtin::detail::pinv_reg);
+    engine.registerFunction("compat", "linsolve",  &builtin::detail::linsolve_reg);
+    engine.registerFunction("compat", "det",       &builtin::detail::det_reg);
+    engine.registerFunction("compat", "trace",     &builtin::detail::trace_reg);
+    engine.registerFunction("compat", "rank",      &builtin::detail::rank_reg);
+    engine.registerFunction("compat", "cond",      &builtin::detail::cond_reg);
+    engine.registerFunction("compat", "chol",      &builtin::detail::chol_reg);
+    engine.registerFunction("compat", "lu",        &builtin::detail::lu_reg);
+    engine.registerFunction("compat", "qr",        &builtin::detail::qr_reg);
+    engine.registerFunction("compat", "svd",       &builtin::detail::svd_reg);
+    engine.registerFunction("compat", "eig",       &builtin::detail::eig_reg);
+    engine.registerFunction("compat", "expm",      &builtin::detail::expm_reg);
+    engine.registerFunction("compat", "logm",      &builtin::detail::logm_reg);
+    engine.registerFunction("compat", "sqrtm",     &builtin::detail::sqrtm_reg);
+    engine.registerFunction("compat", "schur",     &builtin::detail::schur_reg);
+    engine.registerFunction("compat", "hess",      &builtin::detail::hess_reg);
+    engine.registerFunction("compat", "orth",      &builtin::detail::orth_reg);
+    engine.registerFunction("compat", "null",      &builtin::detail::null_reg);
+    engine.registerFunction("compat", "subspace",  &builtin::detail::subspace_reg);
+    engine.registerFunction("compat", "sylvester", &builtin::detail::sylvester_reg);
     engine.registerFunction("size",      &builtin::detail::size_reg);
     engine.registerFunction("length",    &builtin::detail::length_reg);
     engine.registerFunction("numel",     &builtin::detail::numel_reg);
@@ -1147,6 +1196,37 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("issorted",   &builtin::detail::issorted_reg);
     engine.registerFunction("issortedrows",&builtin::detail::issortedrows_reg);
     engine.registerFunction("isuniform",  &builtin::detail::isuniform_reg);
+    engine.registerFunction("issymmetric",&builtin::detail::issymmetric_reg);
+    engine.registerFunction("ishermitian",&builtin::detail::ishermitian_reg);
+    engine.registerFunction("isbanded",   &builtin::detail::isbanded_reg);
+    engine.registerFunction("isdiag",     &builtin::detail::isdiag_reg);
+    engine.registerFunction("istril",     &builtin::detail::istril_reg);
+    engine.registerFunction("istriu",     &builtin::detail::istriu_reg);
+    engine.registerFunction("bandwidth",  &builtin::detail::bandwidth_reg);
+    engine.registerFunction("vecnorm",    &builtin::detail::vecnorm_reg);
+    // compat aliases — same fns reachable via `import compat.*`.
+    engine.registerFunction("compat", "issymmetric", &builtin::detail::issymmetric_reg);
+    engine.registerFunction("compat", "ishermitian", &builtin::detail::ishermitian_reg);
+    engine.registerFunction("compat", "isbanded",    &builtin::detail::isbanded_reg);
+    engine.registerFunction("compat", "isdiag",      &builtin::detail::isdiag_reg);
+    engine.registerFunction("compat", "istril",      &builtin::detail::istril_reg);
+    engine.registerFunction("compat", "istriu",      &builtin::detail::istriu_reg);
+    engine.registerFunction("compat", "bandwidth",   &builtin::detail::bandwidth_reg);
+    engine.registerFunction("compat", "vecnorm",     &builtin::detail::vecnorm_reg);
+    engine.registerFunction("rref",       &builtin::detail::rref_reg);
+    engine.registerFunction("rcond",      &builtin::detail::rcond_reg);
+    engine.registerFunction("planerot",   &builtin::detail::planerot_reg);
+    engine.registerFunction("compat", "rref",        &builtin::detail::rref_reg);
+    engine.registerFunction("compat", "rcond",       &builtin::detail::rcond_reg);
+    engine.registerFunction("compat", "planerot",    &builtin::detail::planerot_reg);
+    engine.registerFunction("ldl",        &builtin::detail::ldl_reg);
+    engine.registerFunction("compat", "ldl",         &builtin::detail::ldl_reg);
+    engine.registerFunction("lsqminnorm", &builtin::detail::lsqminnorm_reg);
+    engine.registerFunction("lsqnonneg",  &builtin::detail::lsqnonneg_reg);
+    engine.registerFunction("compat", "lsqminnorm",  &builtin::detail::lsqminnorm_reg);
+    engine.registerFunction("compat", "lsqnonneg",   &builtin::detail::lsqnonneg_reg);
+    engine.registerFunction("balance",    &builtin::detail::balance_reg);
+    engine.registerFunction("compat", "balance",     &builtin::detail::balance_reg);
     engine.registerFunction("flintmax",   &builtin::detail::flintmax_reg);
     engine.registerFunction("intmax",     &builtin::detail::intmax_reg);
     engine.registerFunction("intmin",     &builtin::detail::intmin_reg);

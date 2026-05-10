@@ -1,0 +1,150 @@
+// libs/stats/src/descriptive/crosstab.cpp
+//
+// MATLAB crosstab: contingency table.
+//
+//   T = crosstab(x)             frequency vector for unique(x)
+//   T = crosstab(x, y)          rows=unique(x), cols=unique(y), entries=counts
+//   [T, chi2, p] = crosstab(x, y)
+//
+// chi2 = sum (O - E)^2 / E   over cells with E > 0
+// E(i,j) = row_total(i) * col_total(j) / N
+// p = 1 - chi2cdf(chi2, df), where df = (rows - 1) * (cols - 1).
+//
+// Numeric input only for v1; cell/string/categorical inputs deferred.
+// NaN values are excluded from the row/col index sets and from the
+// total N.
+
+#include <numkit/stats/descriptive/descriptive.hpp>
+
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
+#include <numkit/stats/distributions/chi2.hpp>
+
+#include <algorithm>
+#include <cmath>
+#include <utility>
+#include <vector>
+
+namespace numkit::stats {
+
+namespace {
+
+// Sorted-unique values from x (NaN excluded).
+std::vector<double> sortedUniqueNoNaN(const Value &x)
+{
+    const size_t N = x.numel();
+    std::vector<double> v;
+    v.reserve(N);
+    for (size_t i = 0; i < N; ++i) {
+        const double xi = x.elemAsDouble(i);
+        if (std::isnan(xi)) continue;
+        v.push_back(xi);
+    }
+    std::sort(v.begin(), v.end());
+    v.erase(std::unique(v.begin(), v.end()), v.end());
+    return v;
+}
+
+// Find index of value in sorted unique list (binary search).
+size_t indexOf(const std::vector<double> &u, double val)
+{
+    auto it = std::lower_bound(u.begin(), u.end(), val);
+    return static_cast<size_t>(it - u.begin());
+}
+
+} // namespace
+
+std::tuple<Value, double, double>
+crosstab(std::pmr::memory_resource *mr, const Value &x, const Value *y_opt)
+{
+    const size_t Nx = x.numel();
+    if (y_opt && y_opt->numel() != Nx)
+        throw Error("crosstab: x and y must have the same length",
+                    0, 0, "crosstab", "", "m:crosstab:LenMismatch");
+
+    auto u_x = sortedUniqueNoNaN(x);
+    const size_t R = u_x.size();
+
+    if (!y_opt) {
+        // Single-arg form: column vector with frequency counts of unique x.
+        std::vector<size_t> count(R, 0);
+        for (size_t k = 0; k < Nx; ++k) {
+            const double xk = x.elemAsDouble(k);
+            if (std::isnan(xk)) continue;
+            count[indexOf(u_x, xk)]++;
+        }
+        Value T = Value::matrix(R, 1, ValueType::DOUBLE, mr);
+        double *o = T.doubleDataMut();
+        for (size_t i = 0; i < R; ++i) o[i] = static_cast<double>(count[i]);
+        return {std::move(T), 0.0, 1.0};
+    }
+
+    // Two-arg form.
+    auto u_y = sortedUniqueNoNaN(*y_opt);
+    const size_t C = u_y.size();
+
+    Value T = Value::matrix(R, C, ValueType::DOUBLE, mr);
+    double *o = T.doubleDataMut();
+    std::fill(o, o + R * C, 0.0);
+
+    size_t Ntot = 0;
+    for (size_t k = 0; k < Nx; ++k) {
+        const double xk = x.elemAsDouble(k);
+        const double yk = y_opt->elemAsDouble(k);
+        if (std::isnan(xk) || std::isnan(yk)) continue;
+        const size_t i = indexOf(u_x, xk);
+        const size_t j = indexOf(u_y, yk);
+        o[i + j * R] += 1.0;
+        ++Ntot;
+    }
+
+    // Chi-square test.
+    std::vector<double> row_tot(R, 0.0), col_tot(C, 0.0);
+    for (size_t j = 0; j < C; ++j)
+        for (size_t i = 0; i < R; ++i) {
+            row_tot[i] += o[i + j * R];
+            col_tot[j] += o[i + j * R];
+        }
+    double chi2 = 0.0;
+    if (Ntot > 0) {
+        for (size_t j = 0; j < C; ++j) {
+            for (size_t i = 0; i < R; ++i) {
+                const double E = row_tot[i] * col_tot[j]
+                               / static_cast<double>(Ntot);
+                if (E > 0.0) {
+                    const double diff = o[i + j * R] - E;
+                    chi2 += (diff * diff) / E;
+                }
+            }
+        }
+    }
+    double p = 1.0;
+    if (R > 1 && C > 1) {
+        const double df = static_cast<double>((R - 1) * (C - 1));
+        // p = 1 - chi2cdf(chi2, df); chi2cdf returns a Value of input shape.
+        Value chi2_v = Value::scalar(chi2, mr);
+        Value cdf_v  = chi2cdf(mr, chi2_v, df);
+        p = 1.0 - cdf_v.toScalar();
+    }
+    return {std::move(T), chi2, p};
+}
+
+namespace detail {
+
+void crosstab_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("crosstab: requires (x [, y])",
+                    0, 0, "crosstab", "", "m:crosstab:nargin");
+    auto *mr = ctx.engine->resource();
+    const Value *y_opt = (args.size() >= 2) ? &args[1] : nullptr;
+    auto [T, chi2, p] = crosstab(mr, args[0], y_opt);
+    outs[0] = std::move(T);
+    if (nargout > 1) outs[1] = Value::scalar(chi2, mr);
+    if (nargout > 2) outs[2] = Value::scalar(p, mr);
+}
+
+} // namespace detail
+
+} // namespace numkit::stats

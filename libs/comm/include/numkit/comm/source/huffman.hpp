@@ -24,4 +24,19 @@ std::pair<Value, double>
 huffmandict(std::pmr::memory_resource *mr,
             const Value &symbols, const Value &probs);
 
+/// `enc = huffmanenco(sig, dict)` — encode `sig` (vector of symbols
+/// drawn from `dict{:,1}`) into a flat 0/1 bit vector by
+/// concatenating the per-symbol codes from `dict`. Output preserves
+/// `sig`'s row/column orientation.
+Value huffmanenco(std::pmr::memory_resource *mr,
+                  const Value &sig, const Value &dict);
+
+/// `dec = huffmandeco(bits, dict)` — invert huffmanenco by walking
+/// `bits` through a prefix tree built from `dict`. Returns the
+/// recovered symbol vector with `bits`' orientation. Throws on
+/// invalid bit values, mid-stream patterns not in `dict`, or
+/// trailing bits that do not complete a code.
+Value huffmandeco(std::pmr::memory_resource *mr,
+                  const Value &bits, const Value &dict);
+
 } // namespace numkit::comm
