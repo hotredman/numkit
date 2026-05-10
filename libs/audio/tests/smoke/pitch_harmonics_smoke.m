@@ -40,6 +40,15 @@ fprintf('  PEF first 5: '); fprintf('%.6f ', f0_pef(1:5)); fprintf('\n');
 fprintf('  expect: 220.604203 (constant across frames — bit-equal MATLAB)\n');
 fprintf('  PEF mean = %.6f (expect 220.604203)\n', mean(f0_pef));
 
+fprintf('\n[pitch Range NV arg — Cycle L (partial)]\n');
+xmix = sin(2*pi*220*t) + 0.5*sin(2*pi*100*t);
+f_rH = pitch(xmix, fs, 'Range', [150 400]);
+f_rL = pitch(xmix, fs, 'Range', [50 150]);
+f_rPEF = pitch(xmix, fs, 'Method', 'PEF', 'Range', [80 250]);
+fprintf('  Range [150 400]: f0(1)=%.4f mean=%.4f (picks 220 dominantly)\n', f_rH(1), mean(f_rH));
+fprintf('  Range [50 150]:  f0(1)=%.4f mean=%.4f (picks 100 / subharmonic)\n', f_rL(1), mean(f_rL));
+fprintf('  PEF Range [80 250]: f0(1)=%.4f (expect 221.2508 bit-equal MATLAB)\n', f_rPEF(1));
+
 fprintf('\nKNOWN GAPs:\n');
 fprintf('  pitch methods: NCF (default) + CEP (cycle K) + PEF (cycle K-2) shipped.\n');
 fprintf('  CEP and PEF are bit-equal MATLAB R2025b.\n');

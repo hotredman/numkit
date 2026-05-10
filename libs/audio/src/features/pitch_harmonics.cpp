@@ -114,15 +114,14 @@ size_t nextPow2(size_t x)
 //   6. f0 = fs / peakLag.
 //
 // Reference: Noll, "Cepstrum Pitch Determination", JASA 41(2), 1967.
-Value pitchCEP(std::pmr::memory_resource *mr, const Value &x, double fs)
+Value pitchCEP(std::pmr::memory_resource *mr, const Value &x, double fs,
+                double minF, double maxF)
 {
     const size_t N = x.numel();
     const FrameSpec sp = frameSpec(N, fs, 0.052, 0.042);
     Value out = Value::matrix(sp.numFrames, sp.numFrames == 0 ? 0 : 1,
                               ValueType::DOUBLE, mr);
     if (sp.numFrames == 0) return out;
-
-    const double minF = 50.0, maxF = 400.0;
     // edge = round(fs ./ fliplr([minF, maxF])) = [round(fs/maxF), round(fs/minF)]
     const size_t edgeLo = static_cast<size_t>(std::round(fs / maxF));
     const size_t edgeHi = static_cast<size_t>(std::round(fs / minF));
@@ -326,15 +325,14 @@ void linearInterp(const double *xs, const double *ys, size_t N,
 
 } // anon
 
-Value pitchPEF(std::pmr::memory_resource *mr, const Value &x, double fs)
+Value pitchPEF(std::pmr::memory_resource *mr, const Value &x, double fs,
+                double minF, double maxF)
 {
     const size_t N = x.numel();
     const FrameSpec sp = frameSpec(N, fs, 0.052, 0.042);
     Value out = Value::matrix(sp.numFrames, sp.numFrames == 0 ? 0 : 1,
                               ValueType::DOUBLE, mr);
     if (sp.numFrames == 0) return out;
-
-    const double minF = 50.0, maxF = 400.0;
     const size_t NFFT = nextPow2(2 * sp.winLen - 1);
     const size_t Nhalf = NFFT / 2 + 1;
 
@@ -513,7 +511,8 @@ Value pitchPEF(std::pmr::memory_resource *mr, const Value &x, double fs)
 }
 
 // ── pitch ─────────────────────────────────────────────────────────────
-Value pitch(std::pmr::memory_resource *mr, const Value &x, double fs)
+Value pitch(std::pmr::memory_resource *mr, const Value &x, double fs,
+             double minF, double maxF)
 {
     const size_t N = x.numel();
     const FrameSpec sp = frameSpec(N, fs, 0.052, 0.042);
@@ -521,7 +520,6 @@ Value pitch(std::pmr::memory_resource *mr, const Value &x, double fs)
                               ValueType::DOUBLE, mr);
     if (sp.numFrames == 0) return out;
 
-    const double minF = 50.0, maxF = 400.0;
     const size_t minLag = static_cast<size_t>(std::floor(fs / maxF));
     const size_t maxLag = std::min<size_t>(sp.winLen - 1,
                                            static_cast<size_t>(std::ceil(fs / minF)));
@@ -648,15 +646,20 @@ Value harmonicRatio(std::pmr::memory_resource *mr, const Value &x, double fs)
 
 namespace detail {
 
-// Cycle K: pitch dispatches on optional Method arg. Recognized:
+// pitch dispatches on optional Method arg. Recognized:
 //   'NCF' (default, cycle E)
 //   'CEP' (cycle K)
-// Method args 'PEF'/'LHS'/'SRH' deferred — fall through to NCF for now.
+//   'PEF' (cycle K-2)
+// 'LHS'/'SRH' deferred — fall through to NCF for now.
 //
-// Calling convention supports two shapes:
+// Cycle L (partial) added 'Range' NV pair → minF/maxF override default
+// [50, 400] Hz pitch search range.
+//
+// Calling convention supports Name-Value pairs:
 //   pitch(x, fs)                                — NCF default
-//   pitch(x, fs, 'Method', 'CEP')               — Name-Value pair
-//   pitch(x, fs, struct(...))                   — not yet supported
+//   pitch(x, fs, 'Method', 'CEP')
+//   pitch(x, fs, 'Range', [80 250])             — restrict to speech
+//   pitch(x, fs, 'Method', 'PEF', 'Range', [...])
 void pitch_reg(Span<const Value> args, size_t /*nargout*/,
                Span<Value> outs, CallContext &ctx)
 {
@@ -664,6 +667,7 @@ void pitch_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("pitch: requires (x, fs)",
                     0, 0, "pitch", "", "m:pitch:nargin");
     std::string method = "NCF";
+    double minF = 50.0, maxF = 400.0;
     // Parse Name-Value pairs starting at args[2].
     for (size_t i = 2; i + 1 < args.size(); i += 2) {
         if (args[i].type() != ValueType::CHAR && args[i].type() != ValueType::STRING)
@@ -676,14 +680,27 @@ void pitch_reg(Span<const Value> args, size_t /*nargout*/,
             std::transform(m.begin(), m.end(), m.begin(),
                             [](unsigned char c) { return std::toupper(c); });
             method = m;
+        } else if (name == "range") {
+            const Value &r = args[i + 1];
+            if (r.numel() != 2)
+                throw Error("pitch: Range must be a 2-element vector [lo hi]",
+                            0, 0, "pitch", "", "m:pitch:BadRange");
+            const double lo = r.elemAsDouble(0);
+            const double hi = r.elemAsDouble(1);
+            if (!(lo > 0.0 && hi > lo))
+                throw Error("pitch: Range must satisfy 0 < Range(1) < Range(2)",
+                            0, 0, "pitch", "", "m:pitch:BadRange");
+            minF = lo;
+            maxF = hi;
         }
     }
+    const double fs = args[1].toScalar();
     if (method == "CEP")
-        outs[0] = pitchCEP(ctx.engine->resource(), args[0], args[1].toScalar());
+        outs[0] = pitchCEP(ctx.engine->resource(), args[0], fs, minF, maxF);
     else if (method == "PEF")
-        outs[0] = pitchPEF(ctx.engine->resource(), args[0], args[1].toScalar());
+        outs[0] = pitchPEF(ctx.engine->resource(), args[0], fs, minF, maxF);
     else
-        outs[0] = pitch(ctx.engine->resource(), args[0], args[1].toScalar());
+        outs[0] = pitch(ctx.engine->resource(), args[0], fs, minF, maxF);
 }
 
 void harmonicRatio_reg(Span<const Value> args, size_t /*nargout*/,
