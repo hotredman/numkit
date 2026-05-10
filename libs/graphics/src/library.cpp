@@ -5339,6 +5339,60 @@ void GraphicsLibrary::install(Engine &engine)
             outs[0] = Value::empty();
         });
 
+    // ────────────────────────────────────────────────────────────────
+    // geoplot / geoscatter / geobubble — geographic plots without a
+    // basemap. The basemap-tile path (Web Mercator + WMS fetch) is
+    // BACKLOG; for v1 these route through plot/scatter with
+    // (X = lon, Y = lat) so user scripts that target geographic
+    // axes still produce the right scatter / line shape.
+    //
+    // Forms supported (matching MATLAB):
+    //   geoplot(lat, lon)
+    //   geoplot(lat, lon, lineSpec)
+    //   geoscatter(lat, lon[, sizes[, color]])
+    //   geobubble(lat, lon, sizes)   — sizes drive marker radius
+    // ────────────────────────────────────────────────────────────────
+    auto geoForward = [](const char *target, Span<const Value> args,
+                         Span<Value> outs, CallContext &ctx) {
+        if (args.size() < 2) { outs[0] = Value::empty(); return; }
+        // Build a new arg list with (lon, lat, ...) — i.e. swap the
+        // first two so target's X = lon, Y = lat.
+        std::vector<Value> proxied;
+        proxied.reserve(args.size());
+        proxied.push_back(args[1]);   // lon → X
+        proxied.push_back(args[0]);   // lat → Y
+        for (size_t i = 2; i < args.size(); ++i) proxied.push_back(args[i]);
+        std::array<Value, 4> outBuf;
+        const ExternalFunc *cf = ctx.engine->findExternal(target, ctx.env);
+        if (!cf) { outs[0] = Value::empty(); return; }
+        (*cf)(Span<const Value>(proxied.data(), proxied.size()), 0,
+              Span<Value>(outBuf.data(), 1), ctx);
+        // Add convenience axis labels so the "no basemap" output is
+        // self-explanatory (lat/lon instead of generic X/Y).
+        auto &ax = ctx.engine->figureManager().currentAxes();
+        if (ax.xlabel.empty()) ax.xlabel = "lon";
+        if (ax.ylabel.empty()) ax.ylabel = "lat";
+        ctx.engine->figureManager().current().modified = true;
+        ctx.engine->figureManager().emitModified();
+        outs[0] = Value::empty();
+    };
+    reg("line", "geoplot",
+        [geoForward](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
+            geoForward("plot", a, o, c);
+        });
+    reg("bar", "geoscatter",
+        [geoForward](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
+            geoForward("scatter", a, o, c);
+        });
+    reg("bar", "geobubble",
+        [geoForward](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
+            // bubblechart not directly registered as such; fall back to
+            // scatter — the bubble visual differentiator (size-modulated
+            // radius) requires a sizes vector, which scatter accepts as
+            // its 3rd arg.
+            geoForward("scatter", a, o, c);
+        });
+
     // zlabel(text) — 3-D Z-axis label.
     reg("layout", "zlabel",
         [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {

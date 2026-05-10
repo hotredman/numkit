@@ -320,7 +320,13 @@ These don't have shipping pressure. Each is a separate investment.
       around the path. Both emit a single fill3 dataset per primitive
       group. Shipped 2026-05-10. e2e `coneplot-streamtube.spec.js`
       (7 cases). Per-vertex coloring + RK4 integration deferred.
-- [ ] `geoplot` / `geoplot3` — geographic axes with basemap tiles.
+- [x] **`geoplot` / `geoscatter` / `geobubble` — geographic plots
+      without a basemap.** v1 routes through plot/scatter with X=lon,
+      Y=lat and auto-sets `xlabel='lon'` / `ylabel='lat'`. Basemap-
+      tile rendering (Web-Mercator + WMS fetch) remains BACKLOG —
+      that piece needs a network-cached tile pipeline that exists
+      today only as a README placeholder. Shipped 2026-05-10. e2e
+      `geoplot.spec.js` (4 cases).
 - [x] **`animatedline` cluster** (`animatedline`, `addpoints`,
       `clearpoints`, `getpoints`, `drawnow`). numkit doesn't model
       graphics handles, so the cluster targets the most-recent
