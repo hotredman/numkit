@@ -429,9 +429,6 @@ Value interp2Impl(std::pmr::memory_resource *mr,
     if (V.dims().is3D() || V.dims().ndim() > 2)
         throw Error("interp2: V must be a 2D matrix",
                      0, 0, "interp2", "", "m:interp2:rank");
-    if (Xq.numel() != Yq.numel())
-        throw Error("interp2: Xq and Yq must have the same numel",
-                     0, 0, "interp2", "", "m:interp2:queryShape");
 
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
@@ -453,7 +450,58 @@ Value interp2Impl(std::pmr::memory_resource *mr,
     else
         for (std::size_t i = 0; i < R * C; ++i) Vd[i] = V.elemAsDouble(i);
 
-    // Output shape: take Xq's shape (or rather build same-shape result).
+    // Implicit meshgrid: when BOTH Xq and Yq are 1-D vectors (or
+    // scalars) with possibly different lengths, MATLAB constructs
+    // the implicit mesh — output is `length(Yq) x length(Xq)`,
+    // sampled at every (Xq[j], Yq[i]). When either is a 2-D matrix
+    // (typical meshgrid output), do pointwise sampling.
+    const bool xqIsVec = Xq.dims().isVector() || Xq.isScalar();
+    const bool yqIsVec = Yq.dims().isVector() || Yq.isScalar();
+    if (xqIsVec && yqIsVec
+        && !(Xq.dims().rows() == Yq.dims().rows()
+             && Xq.dims().cols() == Yq.dims().cols())) {
+        // Mismatched-shape vectors — definitely implicit meshgrid.
+        const std::size_t nx = Xq.numel();
+        const std::size_t ny = Yq.numel();
+        auto out = Value::matrix(ny, nx, ValueType::DOUBLE, mr);
+        double *dst = out.doubleDataMut();
+        for (std::size_t j = 0; j < nx; ++j) {
+            const double xq = Xq.elemAsDouble(j);
+            for (std::size_t i = 0; i < ny; ++i) {
+                const double yq = Yq.elemAsDouble(i);
+                dst[j * ny + i] = interp2Sample(Vd.data(), R, C,
+                                                xGrid, yGrid, xq, yq, m);
+            }
+        }
+        return out;
+    }
+    if (xqIsVec && yqIsVec
+        && Xq.dims().rows() == Yq.dims().rows()
+        && Xq.dims().cols() == Yq.dims().cols()
+        && (Xq.numel() > 1)) {
+        // Same-shape vectors — MATLAB also does implicit meshgrid
+        // here (unless caller wraps via a matrix shape; that's case
+        // B above, handled by the pointwise branch below).
+        const std::size_t nx = Xq.numel();
+        const std::size_t ny = Yq.numel();
+        auto out = Value::matrix(ny, nx, ValueType::DOUBLE, mr);
+        double *dst = out.doubleDataMut();
+        for (std::size_t j = 0; j < nx; ++j) {
+            const double xq = Xq.elemAsDouble(j);
+            for (std::size_t i = 0; i < ny; ++i) {
+                const double yq = Yq.elemAsDouble(i);
+                dst[j * ny + i] = interp2Sample(Vd.data(), R, C,
+                                                xGrid, yGrid, xq, yq, m);
+            }
+        }
+        return out;
+    }
+
+    // Pointwise (matrix Xq/Yq, e.g. from meshgrid).
+    if (Xq.numel() != Yq.numel())
+        throw Error("interp2: Xq and Yq must have the same numel "
+                    "for matrix-form queries",
+                     0, 0, "interp2", "", "m:interp2:queryShape");
     const auto &qd = Xq.dims();
     const std::size_t nq = Xq.numel();
     auto out = Value::matrix(qd.rows(), qd.cols(), ValueType::DOUBLE, mr);
