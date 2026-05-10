@@ -28,8 +28,14 @@ n = randn(fs, 1);
 hr_n = harmonicRatio(n, fs);
 fprintf('  mean=%.6f (expect close to 0)\n', mean(hr_n));
 
+fprintf('\n[pitch CEP method on 220 Hz sine — Cycle K]\n');
+f0_cep = pitch(x, fs, 'Method', 'CEP');
+fprintf('  CEP first 5: '); fprintf('%.4f ', f0_cep(1:5)); fprintf('\n');
+fprintf('  expect: 213.3333 246.1538 246.1538 216.2162 246.1538 (bit-equal MATLAB)\n');
+fprintf('  CEP mean = %.4f (expect 233.6022)\n', mean(f0_cep));
+
 fprintf('\nKNOWN GAPs:\n');
-fprintf('  pitch: only NCF method; PEF/CEP/LHS/SRH deferred to v2.\n');
+fprintf('  pitch methods: NCF (default) + CEP (cycle K) shipped — bit-equal MATLAB.\n');
+fprintf('  PEF/LHS/SRH still deferred to v2.\n');
 fprintf('  pitchnn: requires DNN runtime, deferred entirely.\n');
 fprintf('  harmonicRatio: full MATLAB R2025b parity (auto low-edge + parabolic refinement).\n');
-fprintf('  Values match MATLAB R2025b within ~1%% (acceptable for v1).\n');

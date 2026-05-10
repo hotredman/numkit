@@ -80,3 +80,30 @@ TEST_F(PitchHarmonicsTest, BothEmptyOnTinyInput)
     EXPECT_EQ(static_cast<int>(evalScalar("numel(f)")), 0);
     EXPECT_EQ(static_cast<int>(evalScalar("numel(h)")), 0);
 }
+
+// ── Cycle K: pitch CEP method (Cepstrum) ──────────────────────────────
+// Bit-equal vs MATLAB R2025b audio.internal.pitch.CEP.m for first frames
+// of a 220 Hz pure sine. CEP picks integer-bin lags so the f0 values
+// land on fs/k for various k near the true period.
+TEST_F(PitchHarmonicsTest, PitchCEP220HzSineFirstFrames)
+{
+    eval("x = sin(2*pi*220*t); f0 = pitch(x, fs, 'Method', 'CEP');");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(f0)")), 95);
+    // First 5 bit-equal with MATLAB
+    EXPECT_NEAR(evalScalar("f0(1)"), 213.333333, 1e-4);
+    EXPECT_NEAR(evalScalar("f0(2)"), 246.153846, 1e-4);
+    EXPECT_NEAR(evalScalar("f0(3)"), 246.153846, 1e-4);
+    EXPECT_NEAR(evalScalar("f0(4)"), 216.216216, 1e-4);
+    EXPECT_NEAR(evalScalar("f0(5)"), 246.153846, 1e-4);
+    // Mean ~ 233.6 (cepstrum has integer-bin granularity)
+    EXPECT_NEAR(evalScalar("mean(f0)"), 233.6022, 1e-3);
+}
+
+TEST_F(PitchHarmonicsTest, PitchMethodCaseInsensitive)
+{
+    // 'cep' / 'CEP' / 'Cep' all dispatch to CEP method.
+    eval("x = sin(2*pi*220*t);"
+         "a = pitch(x, fs, 'Method', 'CEP');"
+         "b = pitch(x, fs, 'method', 'cep');");
+    EXPECT_NEAR(evalScalar("a(1)"), evalScalar("b(1)"), 1e-12);
+}

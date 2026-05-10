@@ -28,6 +28,7 @@
 //     ~2e-4 mean diff vs MATLAB on pure tones is FP-ordering noise.
 
 #include <numkit/audio/features/pitch_harmonics.hpp>
+#include <numkit/signal/transforms/fft.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
@@ -36,6 +37,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <string>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -87,7 +89,103 @@ FrameSpec frameSpec(size_t N, double fs, double winSec, double ovSec)
     return s;
 }
 
+// 2^nextpow2(x) — smallest power of 2 >= x.
+size_t nextPow2(size_t x)
+{
+    if (x <= 1) return 1;
+    size_t p = 1;
+    while (p < x) p <<= 1;
+    return p;
+}
+
 } // anon
+
+// ── pitch CEP method (cycle K) ────────────────────────────────────────
+// Cepstrum-based pitch estimation. Matches MATLAB R2025b
+// audio.internal.pitch.CEP.m exactly:
+//   1. Apply hamming(winLen, 'periodic') to each frame.
+//   2. NFFT = 2^nextpow2(2*winLen - 1) (always power of 2).
+//   3. domain = real(ifft(log(|fft(yw, NFFT)|^2)))
+//   4. edge = round(fs ./ fliplr([minF, maxF]))
+//   5. Find peak of `domain` in lag range [edge[0], edge[1]].
+//   6. f0 = fs / peakLag.
+//
+// Reference: Noll, "Cepstrum Pitch Determination", JASA 41(2), 1967.
+Value pitchCEP(std::pmr::memory_resource *mr, const Value &x, double fs)
+{
+    const size_t N = x.numel();
+    const FrameSpec sp = frameSpec(N, fs, 0.052, 0.042);
+    Value out = Value::matrix(sp.numFrames, sp.numFrames == 0 ? 0 : 1,
+                              ValueType::DOUBLE, mr);
+    if (sp.numFrames == 0) return out;
+
+    const double minF = 50.0, maxF = 400.0;
+    // edge = round(fs ./ fliplr([minF, maxF])) = [round(fs/maxF), round(fs/minF)]
+    const size_t edgeLo = static_cast<size_t>(std::round(fs / maxF));
+    const size_t edgeHi = static_cast<size_t>(std::round(fs / minF));
+    if (edgeHi <= edgeLo || edgeHi >= sp.winLen) return out;
+
+    // NFFT = next power of 2 >= 2*winLen - 1 (CEP uses zero-padded FFT).
+    const size_t NFFT = nextPow2(2 * sp.winLen - 1);
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> win(sp.winLen, &scratch);
+    hammingPeriodic(win.data(), sp.winLen);
+
+    // Build batched matrix of windowed frames, NFFT × numFrames (zero-padded).
+    Value framesV = Value::matrix(NFFT, sp.numFrames, ValueType::DOUBLE, mr);
+    double *fd = framesV.doubleDataMut();
+    std::fill(fd, fd + NFFT * sp.numFrames, 0.0);
+    for (size_t f = 0; f < sp.numFrames; ++f) {
+        const size_t start = f * sp.hop;
+        for (size_t i = 0; i < sp.winLen; ++i)
+            fd[i + f * NFFT] = x.elemAsDouble(start + i) * win[i];
+    }
+
+    // FFT along dim 1 (each column independently), then |·|², log, ifft → real.
+    Value Y = signal::fft(mr, framesV, static_cast<int>(NFFT), 1);
+    // Apply log(|Y|²) = 2*log(|Y|). Since input to ifft must be a Value:
+    // build a complex Value of the log-power spectrum (imag=0).
+    Value logPow = Value::matrix(NFFT, sp.numFrames, ValueType::COMPLEX, mr);
+    Complex *lpd = logPow.complexDataMut();
+    const Complex *Yd = Y.complexData();
+    const double tinyLog = std::log(std::numeric_limits<double>::min());
+    for (size_t i = 0; i < NFFT * sp.numFrames; ++i) {
+        const double re = Yd[i].real();
+        const double im = Yd[i].imag();
+        const double pw = re * re + im * im;
+        const double lp = (pw > 0.0) ? std::log(pw) : tinyLog;
+        lpd[i] = Complex(lp, 0.0);
+    }
+
+    // ifft along dim 1.
+    Value cepstrumV = signal::ifft(mr, logPow, static_cast<int>(NFFT), 1);
+    // ifft of real-symmetric input is real. Take real part for the cepstrum domain.
+    // cepstrumV may be returned as DOUBLE (auto-downgraded by libs/signal::ifft)
+    // or COMPLEX. Handle both.
+    auto getReal = [&](size_t idx) -> double {
+        if (cepstrumV.type() == ValueType::COMPLEX)
+            return cepstrumV.complexData()[idx].real();
+        return cepstrumV.doubleData()[idx];
+    };
+
+    // Peak picking per frame in lag range [edgeLo, edgeHi].
+    // MATLAB CEP.m uses 1-based indexing: searches domain(edgeLo:edgeHi),
+    // converts the resulting MATLAB-1-based location to f0 = fs/loc.
+    // In 0-based C++ terms this means: read domain[k-1] for MATLAB index k,
+    // and f0 = fs/k where k is the MATLAB 1-based index.
+    double *od = out.doubleDataMut();
+    for (size_t f = 0; f < sp.numFrames; ++f) {
+        double bestVal = -std::numeric_limits<double>::infinity();
+        size_t bestLag1 = edgeLo;  // MATLAB 1-based index
+        for (size_t k = edgeLo; k <= edgeHi && (k - 1) < NFFT; ++k) {
+            const double v = getReal((k - 1) + f * NFFT);
+            if (v > bestVal) { bestVal = v; bestLag1 = k; }
+        }
+        od[f] = (bestLag1 > 0) ? fs / static_cast<double>(bestLag1) : 0.0;
+    }
+    return out;
+}
 
 // ── pitch ─────────────────────────────────────────────────────────────
 Value pitch(std::pmr::memory_resource *mr, const Value &x, double fs)
@@ -225,13 +323,40 @@ Value harmonicRatio(std::pmr::memory_resource *mr, const Value &x, double fs)
 
 namespace detail {
 
+// Cycle K: pitch dispatches on optional Method arg. Recognized:
+//   'NCF' (default, cycle E)
+//   'CEP' (cycle K)
+// Method args 'PEF'/'LHS'/'SRH' deferred — fall through to NCF for now.
+//
+// Calling convention supports two shapes:
+//   pitch(x, fs)                                — NCF default
+//   pitch(x, fs, 'Method', 'CEP')               — Name-Value pair
+//   pitch(x, fs, struct(...))                   — not yet supported
 void pitch_reg(Span<const Value> args, size_t /*nargout*/,
                Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("pitch: requires (x, fs)",
                     0, 0, "pitch", "", "m:pitch:nargin");
-    outs[0] = pitch(ctx.engine->resource(), args[0], args[1].toScalar());
+    std::string method = "NCF";
+    // Parse Name-Value pairs starting at args[2].
+    for (size_t i = 2; i + 1 < args.size(); i += 2) {
+        if (args[i].type() != ValueType::CHAR && args[i].type() != ValueType::STRING)
+            continue;
+        std::string name = args[i].toString();
+        std::transform(name.begin(), name.end(), name.begin(),
+                        [](unsigned char c) { return std::tolower(c); });
+        if (name == "method") {
+            std::string m = args[i + 1].toString();
+            std::transform(m.begin(), m.end(), m.begin(),
+                            [](unsigned char c) { return std::toupper(c); });
+            method = m;
+        }
+    }
+    if (method == "CEP")
+        outs[0] = pitchCEP(ctx.engine->resource(), args[0], args[1].toScalar());
+    else
+        outs[0] = pitch(ctx.engine->resource(), args[0], args[1].toScalar());
 }
 
 void harmonicRatio_reg(Span<const Value> args, size_t /*nargout*/,
