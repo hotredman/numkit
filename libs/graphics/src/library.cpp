@@ -2853,6 +2853,418 @@ void GraphicsLibrary::install(Engine &engine)
     };
     reg("surface", "isosurface", isosurfaceImpl);
 
+    // ────────────────────────────────────────────────────────────────
+    // coneplot — cone-headed arrows over a 3-D vector field.
+    //
+    // Forms supported:
+    //   coneplot(U, V, W)
+    //     — cones at integer grid (1..N, 1..M, 1..P) aligned with
+    //       (U(i,j,k), V(i,j,k), W(i,j,k)).
+    //   coneplot(X, Y, Z, U, V, W)
+    //     — same but with explicit grid coords.
+    //   coneplot(X, Y, Z, U, V, W, Cx, Cy, Cz [, S])
+    //     — cones at user-specified positions with U/V/W taken as the
+    //       value AT those positions (nearest-neighbour for the v1).
+    //       S is a scalar magnitude factor.
+    //
+    // Each cone is a 6-sided pyramid (apex + 6-vertex base ring) →
+    // 6 side triangles + 4 cap triangles = 10 triangles per cone,
+    // emitted into a single fill3 dataset (null-separated triangles).
+    // ────────────────────────────────────────────────────────────────
+    auto coneplotImpl = [](Span<const Value> args, size_t nargout,
+                           Span<Value> outs, CallContext &ctx) {
+        (void)nargout;
+        auto &fm = ctx.engine->figureManager();
+        fm.prepareForPlot();
+
+        const Value *X = nullptr, *Y = nullptr, *Z = nullptr;
+        const Value *U = nullptr, *Vv = nullptr, *W = nullptr;
+        const Value *Cx = nullptr, *Cy = nullptr, *Cz = nullptr;
+        double S = 1.0;
+        if (args.size() == 3) {
+            U = &args[0]; Vv = &args[1]; W = &args[2];
+        } else if (args.size() == 6) {
+            X = &args[0]; Y = &args[1]; Z = &args[2];
+            U = &args[3]; Vv = &args[4]; W = &args[5];
+        } else if (args.size() >= 9) {
+            X = &args[0]; Y = &args[1]; Z = &args[2];
+            U = &args[3]; Vv = &args[4]; W = &args[5];
+            Cx = &args[6]; Cy = &args[7]; Cz = &args[8];
+            if (args.size() >= 10) S = args[9].toScalar();
+        } else {
+            outs[0] = Value::empty();
+            return;
+        }
+        if (!U || !Vv || !W) { outs[0] = Value::empty(); return; }
+        const auto &dims = U->dims();
+        if (dims.ndims() != 3) { outs[0] = Value::empty(); return; }
+        const size_t M = dims.rows();
+        const size_t N = dims.cols();
+        const size_t P = dims.pages();
+
+        // Resolve grid coords.
+        std::vector<double> Xs(N), Ys(M), Zs(P);
+        if (X && Y && Z && X->numel() >= N && Y->numel() >= M && Z->numel() >= P) {
+            for (size_t i = 0; i < N; ++i) Xs[i] = X->doubleData()[i];
+            for (size_t i = 0; i < M; ++i) Ys[i] = Y->doubleData()[i];
+            for (size_t i = 0; i < P; ++i) Zs[i] = Z->doubleData()[i];
+        } else {
+            for (size_t i = 0; i < N; ++i) Xs[i] = (double)(i + 1);
+            for (size_t i = 0; i < M; ++i) Ys[i] = (double)(i + 1);
+            for (size_t i = 0; i < P; ++i) Zs[i] = (double)(i + 1);
+        }
+
+        // Build the cone-position list. Without Cx/Cy/Cz we place a
+        // cone at every grid point (M*N*P cones — fine for small
+        // demos; the BACKLOG carries skipping).
+        struct ConeAt { double x, y, z, u, v, w; };
+        std::vector<ConeAt> cones;
+        const auto Uat = [&](size_t i, size_t j, size_t k) {
+            return U->elemAsDouble(k * M * N + j * M + i);
+        };
+        const auto Vat = [&](size_t i, size_t j, size_t k) {
+            return Vv->elemAsDouble(k * M * N + j * M + i);
+        };
+        const auto Wat = [&](size_t i, size_t j, size_t k) {
+            return W->elemAsDouble(k * M * N + j * M + i);
+        };
+        if (Cx && Cy && Cz) {
+            const size_t nc = std::min({Cx->numel(), Cy->numel(), Cz->numel()});
+            for (size_t s = 0; s < nc; ++s) {
+                const double cxv = Cx->elemAsDouble(s);
+                const double cyv = Cy->elemAsDouble(s);
+                const double czv = Cz->elemAsDouble(s);
+                // Nearest-neighbour sample of (U, V, W) at (cxv, cyv, czv).
+                const auto nearest = [](const std::vector<double> &v, double q) {
+                    size_t best = 0;
+                    double bestD = std::abs(v[0] - q);
+                    for (size_t i = 1; i < v.size(); ++i) {
+                        const double d = std::abs(v[i] - q);
+                        if (d < bestD) { bestD = d; best = i; }
+                    }
+                    return best;
+                };
+                const size_t jj = nearest(Xs, cxv);
+                const size_t ii = nearest(Ys, cyv);
+                const size_t kk = nearest(Zs, czv);
+                cones.push_back({ cxv, cyv, czv,
+                                  Uat(ii, jj, kk),
+                                  Vat(ii, jj, kk),
+                                  Wat(ii, jj, kk) });
+            }
+        } else {
+            cones.reserve(M * N * P);
+            for (size_t k = 0; k < P; ++k)
+                for (size_t j = 0; j < N; ++j)
+                    for (size_t i = 0; i < M; ++i)
+                        cones.push_back({ Xs[j], Ys[i], Zs[k],
+                                          Uat(i, j, k),
+                                          Vat(i, j, k),
+                                          Wat(i, j, k) });
+        }
+        if (cones.empty()) { outs[0] = Value::empty(); return; }
+
+        // Auto-scale: largest vector magnitude in the field divided
+        // by 0.4 × the smallest grid spacing → cones don't overlap.
+        double maxMag = 0;
+        for (const auto &c : cones) {
+            const double m = std::sqrt(c.u * c.u + c.v * c.v + c.w * c.w);
+            if (m > maxMag) maxMag = m;
+        }
+        if (maxMag <= 0) { outs[0] = Value::empty(); return; }
+        const double dx = (N > 1) ? (Xs[N - 1] - Xs[0]) / (N - 1) : 1.0;
+        const double dy = (M > 1) ? (Ys[M - 1] - Ys[0]) / (M - 1) : 1.0;
+        const double dz = (P > 1) ? (Zs[P - 1] - Zs[0]) / (P - 1) : 1.0;
+        const double smallStep = std::min({std::abs(dx), std::abs(dy), std::abs(dz)});
+        const double coneLen = (smallStep > 0 ? smallStep : 1.0) * 0.7 * S;
+        const double coneRad = coneLen * 0.25;
+
+        // Emit cones into a single fill3 dataset.
+        std::ostringstream xs, ys, zs;
+        xs << '['; ys << '['; zs << '[';
+        bool first = true;
+        constexpr int kRingN = 6;
+
+        for (const auto &c : cones) {
+            const double mag = std::sqrt(c.u * c.u + c.v * c.v + c.w * c.w);
+            if (mag <= 0) continue;
+            // Axis = normalized (u, v, w). Apex at base + axis * len.
+            const double ax = c.u / mag, ay = c.v / mag, az = c.w / mag;
+            const double scale = coneLen * (mag / maxMag);
+            // Build orthonormal basis (e1, e2) ⊥ axis.
+            double e1x, e1y, e1z;
+            if (std::abs(ax) < 0.9) { e1x = 0; e1y = -az; e1z = ay; }
+            else                    { e1x = -az; e1y = 0; e1z = ax; }
+            // Normalize e1.
+            const double e1n = std::sqrt(e1x*e1x + e1y*e1y + e1z*e1z);
+            if (e1n > 0) { e1x /= e1n; e1y /= e1n; e1z /= e1n; }
+            // e2 = axis × e1
+            const double e2x = ay * e1z - az * e1y;
+            const double e2y = az * e1x - ax * e1z;
+            const double e2z = ax * e1y - ay * e1x;
+            const double bx = c.x;
+            const double by = c.y;
+            const double bz = c.z;
+            const double apexX = bx + ax * scale;
+            const double apexY = by + ay * scale;
+            const double apexZ = bz + az * scale;
+            // Build the 6-vertex base ring.
+            std::array<double, kRingN> rx, ry, rz;
+            for (int n = 0; n < kRingN; ++n) {
+                const double theta = (2 * M_PI) * n / kRingN;
+                const double cs = std::cos(theta), sn = std::sin(theta);
+                rx[n] = bx + coneRad * (e1x * cs + e2x * sn);
+                ry[n] = by + coneRad * (e1y * cs + e2y * sn);
+                rz[n] = bz + coneRad * (e1z * cs + e2z * sn);
+            }
+            // Helper — emit one triangle (3 verts) followed by null.
+            const auto tri = [&](double X1, double Y1, double Z1,
+                                 double X2, double Y2, double Z2,
+                                 double X3, double Y3, double Z3) {
+                if (!first) { xs << ','; ys << ','; zs << ','; }
+                first = false;
+                xs << X1 << ',' << X2 << ',' << X3;
+                ys << Y1 << ',' << Y2 << ',' << Y3;
+                zs << Z1 << ',' << Z2 << ',' << Z3;
+                xs << ",null"; ys << ",null"; zs << ",null";
+            };
+            // Side triangles: apex - ring[n] - ring[(n+1)%N]
+            for (int n = 0; n < kRingN; ++n) {
+                const int n1 = (n + 1) % kRingN;
+                tri(apexX, apexY, apexZ,
+                    rx[n], ry[n], rz[n],
+                    rx[n1], ry[n1], rz[n1]);
+            }
+            // Cap fan: ring[0] - ring[k] - ring[k+1] for k = 1..N-2
+            for (int n = 1; n + 1 < kRingN; ++n) {
+                tri(rx[0],     ry[0],     rz[0],
+                    rx[n + 1], ry[n + 1], rz[n + 1],
+                    rx[n],     ry[n],     rz[n]);
+            }
+        }
+        xs << ']'; ys << ']'; zs << ']';
+
+        DatasetInfo ds;
+        ds.type = "fill3";
+        ds.xJson = xs.str();
+        ds.yJson = ys.str();
+        ds.zJson = zs.str();
+        ds.style = "color=#1f77b4;fillOpacity=0.9";
+        fm.pushDataset(std::move(ds));
+        fm.emitModified();
+        outs[0] = Value::empty();
+    };
+    reg("surface", "coneplot", coneplotImpl);
+
+    // ────────────────────────────────────────────────────────────────
+    // streamtube — tubes wrapped around streamlines through a 3-D
+    // vector field. Forms supported:
+    //   streamtube(X, Y, Z, U, V, W, sx, sy, sz)
+    //   streamtube(U, V, W, sx, sy, sz)         — implicit grid
+    //
+    // Per seed point, integrate the field with fixed-step Euler (RK1)
+    // forward. Tube generated with an N-vertex ring around each
+    // streamline sample; radii proportional to local |V| with a hard
+    // cap of the grid spacing. Output: one fill3 dataset per
+    // streamline, triangle list (quads split into two triangles).
+    // ────────────────────────────────────────────────────────────────
+    auto streamtubeImpl = [](Span<const Value> args, size_t nargout,
+                             Span<Value> outs, CallContext &ctx) {
+        (void)nargout;
+        auto &fm = ctx.engine->figureManager();
+        fm.prepareForPlot();
+
+        const Value *X = nullptr, *Y = nullptr, *Z = nullptr;
+        const Value *U = nullptr, *Vv = nullptr, *W = nullptr;
+        const Value *sxV = nullptr, *syV = nullptr, *szV = nullptr;
+        if (args.size() == 6) {
+            U = &args[0]; Vv = &args[1]; W = &args[2];
+            sxV = &args[3]; syV = &args[4]; szV = &args[5];
+        } else if (args.size() >= 9) {
+            X = &args[0]; Y = &args[1]; Z = &args[2];
+            U = &args[3]; Vv = &args[4]; W = &args[5];
+            sxV = &args[6]; syV = &args[7]; szV = &args[8];
+        } else {
+            outs[0] = Value::empty();
+            return;
+        }
+        if (!U || U->dims().ndims() != 3) {
+            outs[0] = Value::empty();
+            return;
+        }
+        const auto &dims = U->dims();
+        const size_t M = dims.rows();
+        const size_t N = dims.cols();
+        const size_t P = dims.pages();
+
+        std::vector<double> Xs(N), Ys(M), Zs(P);
+        if (X && Y && Z && X->numel() >= N && Y->numel() >= M && Z->numel() >= P) {
+            for (size_t i = 0; i < N; ++i) Xs[i] = X->doubleData()[i];
+            for (size_t i = 0; i < M; ++i) Ys[i] = Y->doubleData()[i];
+            for (size_t i = 0; i < P; ++i) Zs[i] = Z->doubleData()[i];
+        } else {
+            for (size_t i = 0; i < N; ++i) Xs[i] = (double)(i + 1);
+            for (size_t i = 0; i < M; ++i) Ys[i] = (double)(i + 1);
+            for (size_t i = 0; i < P; ++i) Zs[i] = (double)(i + 1);
+        }
+
+        const auto Uat = [&](size_t i, size_t j, size_t k) {
+            return U->elemAsDouble(k * M * N + j * M + i);
+        };
+        const auto Vat = [&](size_t i, size_t j, size_t k) {
+            return Vv->elemAsDouble(k * M * N + j * M + i);
+        };
+        const auto Wat = [&](size_t i, size_t j, size_t k) {
+            return W->elemAsDouble(k * M * N + j * M + i);
+        };
+        // Nearest-neighbour sampling at world position (x, y, z).
+        const auto sampleAt = [&](double xq, double yq, double zq,
+                                  double &uo, double &vo, double &wo) {
+            const auto nearest = [](const std::vector<double> &v, double q) {
+                size_t best = 0;
+                double bestD = std::abs(v[0] - q);
+                for (size_t i = 1; i < v.size(); ++i) {
+                    const double d = std::abs(v[i] - q);
+                    if (d < bestD) { bestD = d; best = i; }
+                }
+                return best;
+            };
+            const size_t jj = nearest(Xs, xq);
+            const size_t ii = nearest(Ys, yq);
+            const size_t kk = nearest(Zs, zq);
+            uo = Uat(ii, jj, kk);
+            vo = Vat(ii, jj, kk);
+            wo = Wat(ii, jj, kk);
+        };
+        const auto inRange = [&](double xq, double yq, double zq) {
+            const double xMn = std::min(Xs.front(), Xs.back());
+            const double xMx = std::max(Xs.front(), Xs.back());
+            const double yMn = std::min(Ys.front(), Ys.back());
+            const double yMx = std::max(Ys.front(), Ys.back());
+            const double zMn = std::min(Zs.front(), Zs.back());
+            const double zMx = std::max(Zs.front(), Zs.back());
+            return xq >= xMn && xq <= xMx
+                && yq >= yMn && yq <= yMx
+                && zq >= zMn && zq <= zMx;
+        };
+
+        const double dx = (N > 1) ? std::abs(Xs[N - 1] - Xs[0]) / (N - 1) : 1.0;
+        const double dy = (M > 1) ? std::abs(Ys[M - 1] - Ys[0]) / (M - 1) : 1.0;
+        const double dz = (P > 1) ? std::abs(Zs[P - 1] - Zs[0]) / (P - 1) : 1.0;
+        const double smallStep = std::min({dx, dy, dz});
+        const double tubeR = smallStep * 0.18;
+        constexpr int kMaxSteps = 80;
+        constexpr int kRingN    = 8;
+
+        const size_t nSeeds = std::min({sxV->numel(), syV->numel(), szV->numel()});
+        for (size_t s = 0; s < nSeeds; ++s) {
+            std::vector<std::array<double, 3>> path;
+            double xq = sxV->elemAsDouble(s);
+            double yq = syV->elemAsDouble(s);
+            double zq = szV->elemAsDouble(s);
+            for (int step = 0; step < kMaxSteps; ++step) {
+                if (!inRange(xq, yq, zq)) break;
+                path.push_back({xq, yq, zq});
+                double u, v, w;
+                sampleAt(xq, yq, zq, u, v, w);
+                const double mag = std::sqrt(u * u + v * v + w * w);
+                if (mag < 1e-12) break;
+                const double h = smallStep / mag * 0.5;   // half-cell stride
+                xq += u * h;
+                yq += v * h;
+                zq += w * h;
+            }
+            if (path.size() < 2) continue;
+
+            // Per-segment Frenet-ish frame: tangent = path[i+1] - path[i],
+            // normalised; pick a stable e1 ⊥ tangent, e2 = tangent × e1.
+            std::ostringstream xs, ys, zs;
+            xs << '['; ys << '['; zs << '[';
+            bool first = true;
+            // Pre-compute ring vertices per path point.
+            std::vector<std::array<std::array<double, 3>, kRingN>> rings(path.size());
+            std::array<double, 3> prevE1 = {0, 0, 1};
+            for (size_t i = 0; i < path.size(); ++i) {
+                std::array<double, 3> tan;
+                if (i + 1 < path.size()) {
+                    tan = { path[i + 1][0] - path[i][0],
+                            path[i + 1][1] - path[i][1],
+                            path[i + 1][2] - path[i][2] };
+                } else {
+                    tan = { path[i][0] - path[i - 1][0],
+                            path[i][1] - path[i - 1][1],
+                            path[i][2] - path[i - 1][2] };
+                }
+                const double tn = std::sqrt(tan[0] * tan[0] + tan[1] * tan[1] + tan[2] * tan[2]);
+                if (tn > 0) { tan[0] /= tn; tan[1] /= tn; tan[2] /= tn; }
+                // Project prevE1 onto plane ⊥ tan and renormalise.
+                const double dot = tan[0] * prevE1[0] + tan[1] * prevE1[1] + tan[2] * prevE1[2];
+                std::array<double, 3> e1 = {
+                    prevE1[0] - dot * tan[0],
+                    prevE1[1] - dot * tan[1],
+                    prevE1[2] - dot * tan[2],
+                };
+                double e1n = std::sqrt(e1[0] * e1[0] + e1[1] * e1[1] + e1[2] * e1[2]);
+                if (e1n < 1e-9) {
+                    // prev was nearly parallel — pick a new e1.
+                    if (std::abs(tan[0]) < 0.9) e1 = {0, -tan[2], tan[1]};
+                    else                        e1 = {-tan[2], 0, tan[0]};
+                    e1n = std::sqrt(e1[0] * e1[0] + e1[1] * e1[1] + e1[2] * e1[2]);
+                }
+                if (e1n > 0) { e1[0] /= e1n; e1[1] /= e1n; e1[2] /= e1n; }
+                prevE1 = e1;
+                std::array<double, 3> e2 = {
+                    tan[1] * e1[2] - tan[2] * e1[1],
+                    tan[2] * e1[0] - tan[0] * e1[2],
+                    tan[0] * e1[1] - tan[1] * e1[0],
+                };
+                for (int n = 0; n < kRingN; ++n) {
+                    const double theta = (2 * M_PI) * n / kRingN;
+                    const double cs = std::cos(theta), sn = std::sin(theta);
+                    rings[i][n] = {
+                        path[i][0] + tubeR * (e1[0] * cs + e2[0] * sn),
+                        path[i][1] + tubeR * (e1[1] * cs + e2[1] * sn),
+                        path[i][2] + tubeR * (e1[2] * cs + e2[2] * sn),
+                    };
+                }
+            }
+            // Connect consecutive rings with quads (split into 2 tris).
+            const auto tri = [&](const std::array<double, 3> &A,
+                                 const std::array<double, 3> &B,
+                                 const std::array<double, 3> &C) {
+                if (!first) { xs << ','; ys << ','; zs << ','; }
+                first = false;
+                xs << A[0] << ',' << B[0] << ',' << C[0];
+                ys << A[1] << ',' << B[1] << ',' << C[1];
+                zs << A[2] << ',' << B[2] << ',' << C[2];
+                xs << ",null"; ys << ",null"; zs << ",null";
+            };
+            for (size_t i = 0; i + 1 < rings.size(); ++i) {
+                for (int n = 0; n < kRingN; ++n) {
+                    const int n1 = (n + 1) % kRingN;
+                    const auto &A = rings[i][n];
+                    const auto &B = rings[i + 1][n];
+                    const auto &C = rings[i + 1][n1];
+                    const auto &D = rings[i][n1];
+                    tri(A, B, C);
+                    tri(A, C, D);
+                }
+            }
+            xs << ']'; ys << ']'; zs << ']';
+
+            DatasetInfo ds;
+            ds.type = "fill3";
+            ds.xJson = xs.str();
+            ds.yJson = ys.str();
+            ds.zJson = zs.str();
+            ds.style = "color=#9467bd;fillOpacity=0.85";
+            fm.pushDataset(std::move(ds));
+        }
+        fm.emitModified();
+        outs[0] = Value::empty();
+    };
+    reg("surface", "streamtube", streamtubeImpl);
+
     // quiver3(x, y, z, u, v, w[, scale]) — 3-D vector field. Each (x,
     // y, z, u, v, w) row becomes one arrow from (x, y, z) to
     // (x + s·u, y + s·v, z + s·w). Default scale = 1.
