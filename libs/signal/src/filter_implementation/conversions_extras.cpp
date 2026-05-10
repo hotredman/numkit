@@ -362,6 +362,167 @@ Value ss2sos(std::pmr::memory_resource *mr, const Value &A, const Value &B,
     return tf2sos(mr, b, a);
 }
 
+// ── ctf2zp (Phase 4.11) ───────────────────────────────────────────────
+// Cascaded transfer function (NUM, DEN, SV) → zero/pole/gain.
+// Loops over each section: tf2zpk(NUM(i,:), DEN(i,:)) → accumulate.
+// Final gain = prod(SV) * prod(per-section gains).
+std::tuple<Value, Value, double>
+ctf2zp(std::pmr::memory_resource *mr, const Value &NUM, const Value &DEN,
+       const Value *SV)
+{
+    // Vector inputs → reshape to single-row "section".
+    auto rowsOf = [](const Value &v) -> std::size_t {
+        return (v.dims().rows() == 1 && v.dims().cols() > 1) ? 1 : v.dims().rows();
+    };
+    auto colsOf = [](const Value &v) -> std::size_t {
+        return (v.dims().rows() == 1 && v.dims().cols() > 1) ? v.dims().cols() : v.dims().cols();
+    };
+    const std::size_t Knum = rowsOf(NUM);
+    const std::size_t Kden = rowsOf(DEN);
+    const std::size_t K = std::max(Knum, Kden);
+    if (K == 0)
+        throw Error("ctf2zp: NUM/DEN must be non-empty",
+                    0, 0, "ctf2zp", "", "m:ctf2zp:Empty");
+
+    // SV defaults to 1 if not provided.
+    std::vector<double> sv;
+    if (SV == nullptr || SV->isEmpty()) {
+        sv.assign(K + 1, 1.0);
+    } else if (SV->numel() == 1) {
+        sv.assign(K + 1, 1.0);
+        sv[0] = SV->toScalar();  // overall gain in first slot — others stay 1.
+    } else if (SV->numel() == K + 1) {
+        sv.resize(K + 1);
+        for (std::size_t i = 0; i <= K; ++i) sv[i] = SV->elemAsDouble(i);
+    } else {
+        throw Error("ctf2zp: SV must be scalar or K+1 vector",
+                    0, 0, "ctf2zp", "", "m:ctf2zp:invalidSVDims");
+    }
+
+    // Helper to extract row i of a matrix (or replicate if matrix is just
+    // a scalar/vector representing the "all sections same" case).
+    auto extractRow = [&](const Value &M, std::size_t i, std::size_t Krows) {
+        const std::size_t cols = colsOf(M);
+        Value row = Value::matrix(1, cols, ValueType::DOUBLE, mr);
+        double *rd = row.doubleDataMut();
+        if (M.dims().rows() == 1 && M.dims().cols() > 1) {
+            // Vector input — used for all sections.
+            for (std::size_t k = 0; k < cols; ++k) rd[k] = M.elemAsDouble(k);
+        } else if (Krows == 1 && M.numel() == 1) {
+            rd[0] = M.toScalar();
+        } else {
+            // Matrix: column-major, element at (i, k) = i + k * rows.
+            const std::size_t rows = M.dims().rows();
+            for (std::size_t k = 0; k < cols; ++k) rd[k] = M.elemAsDouble(i + k * rows);
+        }
+        return row;
+    };
+
+    std::vector<Complex> zeros, poles;
+    double gainAccum = 1.0;
+    for (std::size_t i = 0; i < K; ++i) {
+        Value brow = extractRow(NUM, std::min(i, Knum - 1), Knum);
+        Value arow = extractRow(DEN, std::min(i, Kden - 1), Kden);
+        auto [zsec, psec, gsec] = tf2zpk(mr, brow, arow);
+        const std::size_t nz = zsec.numel();
+        const std::size_t np = psec.numel();
+        // Append zeros/poles
+        if (zsec.type() == ValueType::COMPLEX) {
+            const Complex *zd = zsec.complexData();
+            for (std::size_t k = 0; k < nz; ++k) zeros.push_back(zd[k]);
+        } else {
+            for (std::size_t k = 0; k < nz; ++k)
+                zeros.push_back(Complex(zsec.elemAsDouble(k), 0.0));
+        }
+        if (psec.type() == ValueType::COMPLEX) {
+            const Complex *pd = psec.complexData();
+            for (std::size_t k = 0; k < np; ++k) poles.push_back(pd[k]);
+        } else {
+            for (std::size_t k = 0; k < np; ++k)
+                poles.push_back(Complex(psec.elemAsDouble(k), 0.0));
+        }
+        gainAccum *= gsec;
+    }
+    // Multiply overall gain by prod(SV).
+    double svProd = 1.0;
+    for (double v : sv) svProd *= v;
+    gainAccum *= svProd;
+
+    // Build output Z, P as complex column vectors.
+    Value Z = Value::matrix(zeros.size(), zeros.empty() ? 0 : 1,
+                             ValueType::COMPLEX, mr);
+    Value P = Value::matrix(poles.size(), poles.empty() ? 0 : 1,
+                             ValueType::COMPLEX, mr);
+    if (!zeros.empty())
+        std::copy(zeros.begin(), zeros.end(), Z.complexDataMut());
+    if (!poles.empty())
+        std::copy(poles.begin(), poles.end(), P.complexDataMut());
+    return {Z, P, gainAccum};
+}
+
+// ── scaleFilterSections (Phase 4.11) ──────────────────────────────────
+// Distribute scale values across cascade-section numerators per
+// MATLAB R2025b scaleFilterSections.m + scalectfnum.m.
+//
+// scalar SV:
+//   numsv = |sv|^(1/K) * num
+//   numsv[K-1, :] *= sign(sv)
+// vector SV (length K+1):
+//   numsv[k, :] = |sv[K]|^(1/K) * sv[k] * num[k, :]
+//   numsv[K-1, :] *= sign(sv[K])
+Value scaleFilterSections(std::pmr::memory_resource *mr,
+                          const Value &CTFNum, const Value &SV)
+{
+    const std::size_t K = (CTFNum.dims().rows() == 1 && CTFNum.dims().cols() > 1)
+                           ? 1 : CTFNum.dims().rows();
+    const std::size_t P = (CTFNum.dims().rows() == 1 && CTFNum.dims().cols() > 1)
+                           ? CTFNum.dims().cols() : CTFNum.dims().cols();
+    const std::size_t Nsv = SV.numel();
+    if (Nsv != 1 && Nsv != K + 1)
+        throw Error("scaleFilterSections: SV length must be 1 or K+1",
+                    0, 0, "scaleFilterSections", "",
+                    "m:scaleFilterSections:invalidNumberOfScaleValues");
+
+    // Early out: all-ones SV → return CTFNum unchanged (fresh copy).
+    bool allOnes = true;
+    for (std::size_t i = 0; i < Nsv; ++i)
+        if (SV.elemAsDouble(i) != 1.0) { allOnes = false; break; }
+    if (allOnes) {
+        Value out = Value::matrix(K, P, ValueType::DOUBLE, mr);
+        std::copy(CTFNum.doubleData(), CTFNum.doubleData() + K * P,
+                  out.doubleDataMut());
+        return out;
+    }
+
+    Value out = Value::matrix(K, P, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    const double *Nd = CTFNum.doubleData();
+    const double Kd = static_cast<double>(K);
+
+    if (Nsv == 1) {
+        const double s = SV.toScalar();
+        const double absRoot = std::pow(std::abs(s), 1.0 / Kd);
+        const double sgn = (s > 0.0) ? 1.0 : (s < 0.0 ? -1.0 : 0.0);
+        for (std::size_t k = 0; k < K; ++k) {
+            const double rowMul = (k == K - 1) ? sgn * absRoot : absRoot;
+            for (std::size_t j = 0; j < P; ++j)
+                od[k + j * K] = Nd[k + j * K] * rowMul;
+        }
+    } else {
+        const double svLast = SV.elemAsDouble(K);
+        const double absRoot = std::pow(std::abs(svLast), 1.0 / Kd);
+        const double sgnLast = (svLast > 0.0) ? 1.0 : (svLast < 0.0 ? -1.0 : 0.0);
+        for (std::size_t k = 0; k < K; ++k) {
+            const double svk = SV.elemAsDouble(k);
+            double mul = absRoot * svk;
+            if (k == K - 1) mul *= sgnLast;
+            for (std::size_t j = 0; j < P; ++j)
+                od[k + j * K] = Nd[k + j * K] * mul;
+        }
+    }
+    return out;
+}
+
 namespace detail {
 
 void sos2tf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -462,6 +623,31 @@ void ss2sos_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
         throw Error("ss2sos: requires (A, B, C, D)",
                      0, 0, "ss2sos", "", "m:ss2sos:nargin");
     outs[0] = ss2sos(ctx.engine->resource(), args[0], args[1], args[2], args[3]);
+}
+
+void ctf2zp_reg(Span<const Value> args, size_t nargout,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("ctf2zp: requires (NUM [, DEN [, SV]])",
+                    0, 0, "ctf2zp", "", "m:ctf2zp:nargin");
+    auto *mr = ctx.engine->resource();
+    Value DEN = (args.size() >= 2) ? args[1] : Value::scalar(1.0, mr);
+    const Value *SV = (args.size() >= 3) ? &args[2] : nullptr;
+    auto [Z, P, k] = ctf2zp(mr, args[0], DEN, SV);
+    outs[0] = std::move(Z);
+    if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(P);
+    if (nargout >= 3 && outs.size() >= 3) outs[2] = Value::scalar(k, mr);
+}
+
+void scaleFilterSections_reg(Span<const Value> args, size_t /*nargout*/,
+                              Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("scaleFilterSections: requires (CTFNum, SV)",
+                    0, 0, "scaleFilterSections", "",
+                    "m:scaleFilterSections:nargin");
+    outs[0] = scaleFilterSections(ctx.engine->resource(), args[0], args[1]);
 }
 
 } // namespace detail
