@@ -13,6 +13,7 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/audio/library.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/audio/scale/freq_scales.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/audio/spectral/shape_descriptors.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/audio/spectral/melspec_delta.hpp
 )
 
 set(NUMKIT_LIBS_SOURCES      ${NUMKIT_LIBS_SOURCES}      PARENT_SCOPE)

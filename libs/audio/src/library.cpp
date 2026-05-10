@@ -22,6 +22,10 @@ void spectralRolloffPoint_reg(Span<const Value>, size_t, Span<Value>, CallContex
 void spectralDecrease_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void spectralSlope_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void spectralFlux_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// spectral/melspec_delta.cpp
+void melSpectrogram_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void audioDelta_reg          (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::audio::detail
 
 namespace numkit {
@@ -48,6 +52,9 @@ void AudioLibrary::install(Engine &engine)
     reg("spectral", "spectralDecrease",     &audio::detail::spectralDecrease_reg);
     reg("spectral", "spectralSlope",        &audio::detail::spectralSlope_reg);
     reg("spectral", "spectralFlux",         &audio::detail::spectralFlux_reg);
+
+    reg("spectral", "melSpectrogram",       &audio::detail::melSpectrogram_reg);
+    reg("features", "audioDelta",           &audio::detail::audioDelta_reg);
 }
 
 } // namespace numkit
