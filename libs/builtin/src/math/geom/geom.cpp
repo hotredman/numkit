@@ -92,6 +92,41 @@ void inpolygon_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = std::move(out);
 }
 
+// ── polyarea ─────────────────────────────────────────────────────────
+//
+// polyarea(x, y) — signed-then-absolute area of the simple polygon
+// with vertices (x, y), via the shoelace formula:
+//
+//   A = (1/2) · |Σ (x[i]·y[i+1] - x[i+1]·y[i])|
+//
+// Polygon may be unclosed (algorithm wraps the last vertex back to
+// the first). Returns 0 if fewer than 3 vertices.
+void polyarea_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("polyarea: requires (x, y)",
+                     0, 0, "polyarea", "", "m:polyarea:nargin");
+    const auto &xv = args[0];
+    const auto &yv = args[1];
+    const std::size_t n = xv.numel();
+    if (yv.numel() != n)
+        throw Error("polyarea: x and y must have the same numel",
+                     0, 0, "polyarea", "", "m:polyarea:shape");
+    auto *mr = ctx.engine->resource();
+    if (n < 3) {
+        outs[0] = Value::scalar(0.0, mr);
+        return;
+    }
+    double s = 0;
+    for (std::size_t i = 0; i < n; ++i) {
+        const std::size_t j = (i + 1) % n;
+        s += xv.elemAsDouble(i) * yv.elemAsDouble(j)
+           - xv.elemAsDouble(j) * yv.elemAsDouble(i);
+    }
+    outs[0] = Value::scalar(0.5 * std::abs(s), mr);
+}
+
 // ── convhull ─────────────────────────────────────────────────────────
 //
 // convhull(x, y) — indices of the convex hull vertices of the 2-D
