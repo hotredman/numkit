@@ -5843,8 +5843,45 @@ void GraphicsLibrary::install(Engine &engine)
     // here used to register `compat.pcolor` a second time, which the
     // engine's registerFunction rejects, throwing during install and
     // dropping the renderer into fallback mode.
-    reg("line", "xline", noop);
-    reg("line", "yline", noop);
+    // xline(x [, lineSpec]) / yline(y [, lineSpec]) — reference lines
+    // extending across the visible viewport. Each call emits a
+    // dataset with type='xline' / 'yline'; the adapter routes to a
+    // viewport-spanning line layer that the renderer redraws on
+    // every pan / zoom (range scan ignores these so the auto-range
+    // doesn't blow up to ±∞).
+    auto refLineImpl = [](const char *type) {
+        return [type](Span<const Value> args, size_t nargout,
+                      Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.empty() || !args[0].numel()) {
+                outs[0] = Value::empty();
+                return;
+            }
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            // Vector form: emit one dataset per requested position.
+            const size_t n = args[0].numel();
+            std::string lineSpec;
+            for (size_t i = 1; i < args.size(); ++i) {
+                if (args[i].isChar()) { lineSpec = args[i].toString(); break; }
+            }
+            for (size_t i = 0; i < n; ++i) {
+                DatasetInfo ds;
+                ds.type = type;
+                std::ostringstream xs, ys;
+                xs << '[' << args[0].elemAsDouble(i) << ']';
+                ys << '[' << 0 << ']';   // sentinel y; renderer ignores
+                ds.xJson = xs.str();
+                ds.yJson = ys.str();
+                if (!lineSpec.empty()) ds.style = lineSpec;
+                fm.pushDataset(std::move(ds));
+            }
+            fm.emitModified();
+            outs[0] = Value::empty();
+        };
+    };
+    reg("line", "xline", refLineImpl("xline"));
+    reg("line", "yline", refLineImpl("yline"));
     // camlight(['left'|'right'|'headlight']) — adds a directional
     // light positioned relative to the camera. Default: headlight
     // (light from camera).
