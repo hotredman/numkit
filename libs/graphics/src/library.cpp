@@ -5446,6 +5446,84 @@ void GraphicsLibrary::install(Engine &engine)
             delegateTo("scatter3", a, o, c);
         });
 
+    // heatmap(C) — table-style heatmap. Same data layout as imagesc:
+    // 2-D matrix of values mapped through a colormap. Optional row/
+    // column label strings ('RowNames' / 'ColumnNames') are accepted
+    // but currently flow through as labels only — full table-style
+    // heatmap with cell-text overlays + row/col headers is BACKLOG.
+    //
+    // Forms supported (subset):
+    //   heatmap(C)
+    //   heatmap(C, 'Colormap', name)
+    reg("bar", "heatmap",
+        [delegateTo](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
+            // Drop trailing N-V pairs that the imagesc adapter doesn't
+            // know about — keep only the first numeric argument as the
+            // data matrix. Color override via 'Colormap' is honoured by
+            // a colormap() call right after.
+            std::vector<Value> proxied;
+            std::string cmap;
+            for (size_t i = 0; i < a.size(); ++i) {
+                if (a[i].isChar()) {
+                    if (i + 1 < a.size()) {
+                        std::string key = a[i].toString();
+                        for (auto &cc : key)
+                            cc = (char)std::tolower((unsigned char)cc);
+                        if (key == "colormap" && a[i + 1].isChar()) {
+                            cmap = a[i + 1].toString();
+                            ++i;   // consume value
+                            continue;
+                        }
+                    }
+                    // skip unknown N-V (RowNames, ColumnNames, etc.)
+                    if (i + 1 < a.size()) ++i;
+                    continue;
+                }
+                proxied.push_back(a[i]);
+            }
+            delegateTo("imagesc",
+                       Span<const Value>(proxied.data(), proxied.size()), o, c);
+            if (!cmap.empty()) {
+                c.engine->figureManager().currentAxes().colormapName = cmap;
+                c.engine->figureManager().current().modified = true;
+                c.engine->figureManager().emitModified();
+            }
+        });
+
+    // parallelplot — parallel-coordinates plot. v1 routes each row of
+    // the input matrix as one line plot across N axis indices; the
+    // dedicated multi-axis "parallel" rendering is BACKLOG.
+    reg("line", "parallelplot",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.empty()) { outs[0] = Value::empty(); return; }
+            const auto &T = args[0];
+            const size_t R = T.dims().rows();
+            const size_t C = T.dims().cols();
+            if (R == 0 || C == 0) { outs[0] = Value::empty(); return; }
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            // Hold on so all rows pile in one figure.
+            const bool wasHold = fm.currentAxes().holdOn;
+            fm.currentAxes().holdOn = true;
+            const ExternalFunc *cf = ctx.engine->findExternal("plot", ctx.env);
+            if (!cf) { outs[0] = Value::empty(); return; }
+            auto *mr = ctx.engine->resource();
+            auto xv = Value::matrix(1, C, ValueType::DOUBLE, mr);
+            for (size_t c = 0; c < C; ++c) xv.doubleDataMut()[c] = (double)(c + 1);
+            for (size_t r = 0; r < R; ++r) {
+                auto yv = Value::matrix(1, C, ValueType::DOUBLE, mr);
+                for (size_t c = 0; c < C; ++c)
+                    yv.doubleDataMut()[c] = T.elemAsDouble(c * R + r);
+                std::array<Value, 2> proxied{ xv, yv };
+                std::array<Value, 1> outBuf;
+                (*cf)(Span<const Value>(proxied.data(), 2), 0,
+                      Span<Value>(outBuf.data(), 1), ctx);
+            }
+            fm.currentAxes().holdOn = wasHold;
+            outs[0] = Value::empty();
+        });
+
     // zlabel(text) — 3-D Z-axis label.
     reg("layout", "zlabel",
         [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
