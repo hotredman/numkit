@@ -353,6 +353,114 @@ Value chirp(std::pmr::memory_resource *mr, const Value &t,
     return out;
 }
 
+// ── modulate (Phase 4.12) ───────────────────────────────────────────
+//
+// Analog modulation. Supports am/amdsb-sc (alias)/amdsb-tc/fm/pm.
+// Matches MATLAB R2025b modulate.m for these 4 modes one-to-one.
+// amssb (uses hilbert), pwm/ptm/ppm/qam deferred — KNOWN GAPs.
+Value modulate(std::pmr::memory_resource *mr,
+               const Value &x, double Fc, double Fs,
+               const std::string &method, const Value *opt)
+{
+    constexpr double kPi = 3.14159265358979323846;
+    if (Fs <= 0.0)
+        throw Error("modulate: Fs must be positive",
+                    0, 0, "modulate", "", "m:modulate:BadFs");
+
+    const std::size_t N = x.numel();
+    if (N == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    std::string m = method;
+    std::transform(m.begin(), m.end(), m.begin(),
+                    [](unsigned char c) { return std::tolower(c); });
+
+    const bool isRowVec = (x.dims().rows() == 1 && x.dims().cols() > 1);
+    const std::size_t len = isRowVec ? x.dims().cols() : x.dims().rows();
+    const std::size_t cols = isRowVec ? 1 : x.dims().cols();
+    Value out = Value::matrix(len, cols, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+
+    auto getX = [&](std::size_t r, std::size_t c) -> double {
+        if (isRowVec) return x.elemAsDouble(r);
+        return x.elemAsDouble(r + c * len);
+    };
+
+    if (m == "am" || m == "amdsb-sc") {
+        for (std::size_t c = 0; c < cols; ++c) {
+            for (std::size_t r = 0; r < len; ++r) {
+                const double t = static_cast<double>(r) / Fs;
+                od[r + c * len] = getX(r, c) * std::cos(2.0 * kPi * Fc * t);
+            }
+        }
+    } else if (m == "amdsb-tc") {
+        double offset;
+        if (opt && !opt->isEmpty()) {
+            offset = opt->toScalar();
+        } else {
+            offset = x.elemAsDouble(0);
+            for (std::size_t i = 1; i < N; ++i) {
+                const double v = x.elemAsDouble(i);
+                if (v < offset) offset = v;
+            }
+        }
+        for (std::size_t c = 0; c < cols; ++c) {
+            for (std::size_t r = 0; r < len; ++r) {
+                const double t = static_cast<double>(r) / Fs;
+                od[r + c * len] = (getX(r, c) - offset) * std::cos(2.0 * kPi * Fc * t);
+            }
+        }
+    } else if (m == "fm") {
+        double kf;
+        if (opt && !opt->isEmpty()) {
+            kf = opt->toScalar();
+        } else {
+            double xMax = 0.0;
+            for (std::size_t i = 0; i < N; ++i) {
+                const double v = std::abs(x.elemAsDouble(i));
+                if (v > xMax) xMax = v;
+            }
+            kf = (xMax > 0.0) ? (Fc / Fs) * 2.0 * kPi / xMax : 0.0;
+        }
+        for (std::size_t c = 0; c < cols; ++c) {
+            double cum = 0.0;
+            for (std::size_t r = 0; r < len; ++r) {
+                cum += getX(r, c);
+                const double t = static_cast<double>(r) / Fs;
+                od[r + c * len] = std::cos(2.0 * kPi * Fc * t + kf * cum);
+            }
+        }
+    } else if (m == "pm") {
+        double kp;
+        if (opt && !opt->isEmpty()) {
+            kp = opt->toScalar();
+        } else {
+            double xMax = 0.0;
+            for (std::size_t i = 0; i < N; ++i) {
+                const double v = std::abs(x.elemAsDouble(i));
+                if (v > xMax) xMax = v;
+            }
+            kp = (xMax > 0.0) ? kPi / xMax : 0.0;
+        }
+        for (std::size_t c = 0; c < cols; ++c) {
+            for (std::size_t r = 0; r < len; ++r) {
+                const double t = static_cast<double>(r) / Fs;
+                od[r + c * len] = std::cos(2.0 * kPi * Fc * t + kp * getX(r, c));
+            }
+        }
+    } else {
+        throw Error("modulate: method must be 'am'/'amdsb-sc'/'amdsb-tc'/'fm'/'pm'",
+                    0, 0, "modulate", "", "m:modulate:UnsupportedMethod");
+    }
+
+    if (isRowVec && len > 0) {
+        Value rowOut = Value::matrix(1, len, ValueType::DOUBLE, mr);
+        std::copy(od, od + len, rowOut.doubleDataMut());
+        return rowOut;
+    }
+    return out;
+}
+
 // ── vco (Phase 4.8) ─────────────────────────────────────────────────
 //
 // Voltage-controlled (frequency-modulated) oscillator. Matches MATLAB
@@ -428,6 +536,21 @@ Value vco(std::pmr::memory_resource *mr,
 }
 
 namespace detail {
+
+void modulate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("modulate: requires (x, Fc, Fs, method [, opt])",
+                    0, 0, "modulate", "", "m:modulate:nargin");
+    const double Fc = args[1].toScalar();
+    const double Fs = args[2].toScalar();
+    if (!args[3].isChar() && !args[3].isString())
+        throw Error("modulate: method must be a string",
+                    0, 0, "modulate", "", "m:modulate:BadMethodType");
+    std::string method = args[3].toString();
+    const Value *opt = (args.size() >= 5) ? &args[4] : nullptr;
+    outs[0] = modulate(ctx.engine->resource(), args[0], Fc, Fs, method, opt);
+}
 
 void vco_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {

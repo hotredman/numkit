@@ -1,0 +1,10 @@
+{
+  "name": "signal_modulate",
+  "namespace": "signal",
+  "setup": "fs = 100; t = (0:1/fs:0.1)'; x = sin(2*pi*5*t);",
+  "expr": "y_am = modulate(x, 20, fs, 'am'); am_2 = y_am(2); am_4 = y_am(4); y_fm = modulate(x, 20, fs, 'fm'); fm_3 = y_fm(3); fm_5 = y_fm(5); y_pm = modulate(x, 20, fs, 'pm'); pm_2 = y_pm(2); y_tc = modulate(x, 20, fs, 'amdsb-tc', 0.5); tc_1 = y_tc(1); tc_5 = y_tc(5);",
+  "iters": 5,
+  "tol": 1e-6,
+  "fingerprint": ["am_2", "am_4", "fm_3", "fm_5", "pm_2", "tc_1", "tc_5"],
+  "comment": "MATLAB Signal Toolbox modulate (Phase 4.12) — analog modulation. Supports am/amdsb-sc/amdsb-tc/fm/pm modes (the most common 4 of 8). Per-element formulas: am = x·cos(2πFct); amdsb-tc = (x-offset)·cos(...); fm = cos(2πFct + kf·cumsum(x)); pm = cos(2πFct + kp·x). Default kf = (Fc/Fs)·2π/max|x|, kp = π/max|x|, offset = min(x). Bit-equal MATLAB R2025b on 7/7 fingerprints across all 4 modes. KNOWN GAPs: amssb (uses hilbert), pwm/ptm/ppm (specialised pulses), qam (complex carrier) deferred. Octave 11.1.0 doesn't ship modulate in core (signal package only)."
+}
