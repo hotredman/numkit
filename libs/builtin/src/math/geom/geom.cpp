@@ -1,0 +1,172 @@
+// libs/builtin/src/math/geom/geom.cpp
+//
+// Computational-geometry primitives:
+//   inpolygon — point-in-polygon test (ray-casting)
+//   convhull  — convex hull of a 2-D point cloud (Andrew's monotone chain)
+
+#include <numkit/builtin/library.hpp>
+
+#include <numkit/core/engine.hpp>
+#include <numkit/core/scratch.hpp>
+#include <numkit/core/types.hpp>
+
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <vector>
+
+namespace numkit::builtin {
+
+namespace detail {
+
+// ── inpolygon ────────────────────────────────────────────────────────
+//
+// inpolygon(xq, yq, xv, yv) — for each query point (xq[i], yq[i]),
+// returns logical true if it is INSIDE the closed polygon defined by
+// (xv, yv). Uses the standard ray-casting (crossing-number) algorithm:
+// fire a horizontal ray to +∞ from the query point and count edge
+// crossings — odd = inside.
+//
+// MATLAB also returns a second `on` output for points exactly on the
+// boundary; v1 returns just the `in` mask (boundary points get
+// classified by the strict-inequality version, treated as inside).
+//
+// Polygon need not be explicitly closed (xv(end) == xv(1)); the
+// algorithm wraps from the last vertex back to the first.
+void inpolygon_reg(Span<const Value> args, size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("inpolygon: requires (xq, yq, xv, yv)",
+                     0, 0, "inpolygon", "", "m:inpolygon:nargin");
+    const auto &xq = args[0];
+    const auto &yq = args[1];
+    const auto &xv = args[2];
+    const auto &yv = args[3];
+    if (xq.numel() != yq.numel())
+        throw Error("inpolygon: xq and yq must have the same numel",
+                     0, 0, "inpolygon", "", "m:inpolygon:queryShape");
+    if (xv.numel() != yv.numel())
+        throw Error("inpolygon: xv and yv must have the same numel",
+                     0, 0, "inpolygon", "", "m:inpolygon:polyShape");
+
+    auto *mr = ctx.engine->resource();
+    const std::size_t nQ = xq.numel();
+    const std::size_t nV = xv.numel();
+    auto out = Value::matrix(xq.dims().rows(), xq.dims().cols(),
+                             ValueType::LOGICAL, mr);
+    uint8_t *dst = out.logicalDataMut();
+    if (nV < 3) {
+        std::memset(dst, 0, nQ);
+        outs[0] = std::move(out);
+        return;
+    }
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> px(nV, &scratch);
+    ScratchVec<double> py(nV, &scratch);
+    for (std::size_t i = 0; i < nV; ++i) {
+        px[i] = xv.elemAsDouble(i);
+        py[i] = yv.elemAsDouble(i);
+    }
+
+    for (std::size_t q = 0; q < nQ; ++q) {
+        const double X = xq.elemAsDouble(q);
+        const double Y = yq.elemAsDouble(q);
+        bool inside = false;
+        std::size_t j = nV - 1;
+        for (std::size_t i = 0; i < nV; ++i) {
+            const double xi = px[i], yi = py[i];
+            const double xj = px[j], yj = py[j];
+            // Edge straddles the horizontal line at y=Y?
+            const bool straddles = (yi > Y) != (yj > Y);
+            if (straddles) {
+                // X-coordinate of the edge's intersection with that line
+                const double xCross = xi + (Y - yi) * (xj - xi) / (yj - yi);
+                if (X < xCross) inside = !inside;
+            }
+            j = i;
+        }
+        dst[q] = inside ? 1 : 0;
+    }
+    outs[0] = std::move(out);
+}
+
+// ── convhull ─────────────────────────────────────────────────────────
+//
+// convhull(x, y) — indices of the convex hull vertices of the 2-D
+// point cloud, in CCW order, with the first vertex repeated at the
+// end (MATLAB convention). Andrew's monotone-chain algorithm:
+// O(N log N) sort + O(N) scan.
+void convhull_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("convhull: requires (x, y)",
+                     0, 0, "convhull", "", "m:convhull:nargin");
+    const auto &xv = args[0];
+    const auto &yv = args[1];
+    const std::size_t n = xv.numel();
+    if (yv.numel() != n)
+        throw Error("convhull: x and y must have the same numel",
+                     0, 0, "convhull", "", "m:convhull:shape");
+    auto *mr = ctx.engine->resource();
+    if (n < 3) {
+        // Degenerate — return [1, 2, ..., n, 1] so the polygon wraps.
+        auto out = Value::matrix(n + 1, 1, ValueType::DOUBLE, mr);
+        double *dst = out.doubleDataMut();
+        for (std::size_t i = 0; i < n; ++i) dst[i] = static_cast<double>(i + 1);
+        dst[n] = 1.0;
+        outs[0] = std::move(out);
+        return;
+    }
+
+    ScratchArena scratch(mr);
+    ScratchVec<std::size_t> idx(n, &scratch);
+    ScratchVec<double> X(n, &scratch);
+    ScratchVec<double> Y(n, &scratch);
+    for (std::size_t i = 0; i < n; ++i) {
+        X[i] = xv.elemAsDouble(i);
+        Y[i] = yv.elemAsDouble(i);
+        idx[i] = i;
+    }
+    std::sort(idx.begin(), idx.end(), [&](std::size_t a, std::size_t b) {
+        if (X[a] != X[b]) return X[a] < X[b];
+        return Y[a] < Y[b];
+    });
+
+    auto cross = [&](std::size_t o, std::size_t a, std::size_t b) {
+        return (X[a] - X[o]) * (Y[b] - Y[o]) - (Y[a] - Y[o]) * (X[b] - X[o]);
+    };
+
+    // Build lower hull.
+    ScratchVec<std::size_t> hull(&scratch);
+    hull.reserve(2 * n);
+    for (std::size_t i = 0; i < n; ++i) {
+        const std::size_t p = idx[i];
+        while (hull.size() >= 2
+               && cross(hull[hull.size() - 2], hull[hull.size() - 1], p) <= 0)
+            hull.pop_back();
+        hull.push_back(p);
+    }
+    // Upper hull.
+    const std::size_t lowerSize = hull.size() + 1;
+    for (std::size_t i = n - 1; i-- > 0; ) {
+        const std::size_t p = idx[i];
+        while (hull.size() >= lowerSize
+               && cross(hull[hull.size() - 2], hull[hull.size() - 1], p) <= 0)
+            hull.pop_back();
+        hull.push_back(p);
+    }
+    // hull now ends with the start point repeated; that's MATLAB's
+    // convention.
+    auto out = Value::matrix(hull.size(), 1, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    for (std::size_t i = 0; i < hull.size(); ++i)
+        dst[i] = static_cast<double>(hull[i] + 1);   // 1-based
+    outs[0] = std::move(out);
+}
+
+} // namespace detail
+
+} // namespace numkit::builtin
