@@ -20,16 +20,17 @@
 //
 // PMR HARD RULE: every fn takes std::pmr::memory_resource *mr.
 //
-// KNOWN GAP: melSpectrogram exact bit-equality with MATLAB requires
-// the EXACT 'periodic' hamming definition (cos arg 2π·n/N rather than
-// 2π·n/(N-1)). This is implemented; remaining diff comes from naive
-// O(N²) DFT round-off vs MATLAB's FFTW. Tolerance ~1e-6 acceptable.
+// As of Cycle J the per-frame FFT uses libs/signal::fft (Bluestein
+// chirp-z for non-pow2 winLen). The 'periodic' hamming definition
+// (cos arg 2π·n/N rather than 2π·n/(N-1)) matches MATLAB exactly.
 
 #include <numkit/audio/spectral/melspec_delta.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
+
+#include "fft_one_sided.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -50,22 +51,6 @@ void hammingPeriodic(double *w, size_t N)
     for (size_t n = 0; n < N; ++n)
         w[n] = 0.54 - 0.46 * std::cos(2.0 * M_PI * static_cast<double>(n)
                                         / static_cast<double>(N));
-}
-
-// One-sided power spectrum via naive DFT. out length = N/2 + 1.
-void naiveDFTPower(const double *x, size_t N, double *out_pow_half)
-{
-    const size_t H = N / 2 + 1;
-    for (size_t k = 0; k < H; ++k) {
-        double re = 0.0, im = 0.0;
-        const double w = -2.0 * M_PI * static_cast<double>(k) / static_cast<double>(N);
-        for (size_t n = 0; n < N; ++n) {
-            const double a = w * static_cast<double>(n);
-            re += x[n] * std::cos(a);
-            im += x[n] * std::sin(a);
-        }
-        out_pow_half[k] = re * re + im * im;
-    }
 }
 
 // Mel <-> Hz (O'Shaughnessy default).
@@ -179,7 +164,7 @@ melSpectrogram(std::pmr::memory_resource *mr, const Value &x, double fs,
         const size_t start = f * hop;
         for (size_t i = 0; i < winLen; ++i)
             frame[i] = x.elemAsDouble(start + i) * win[i];
-        naiveDFTPower(frame.data(), winLen, pow_half.data());
+        detail::fftPowerHalf(mr, frame.data(), winLen, pow_half.data());
         // Apply filterbank: S(b, f) = Σ FB(b, k) * pow(k)
         for (size_t b = 0; b < M; ++b) {
             double s = 0.0;

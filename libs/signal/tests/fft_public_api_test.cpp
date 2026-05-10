@@ -261,6 +261,84 @@ TEST(DspFftPublicApi, Fft3DDim3PreservesShape)
         }
 }
 
+// ── Non-pow2 N: Bluestein path correctness ────────────────────────────
+//
+// Regression test for the bug fixed by the chirp-z (Bluestein) dispatch:
+// fftAlongDim used to round outAxisLen up to nextPow2 and run a
+// zero-padded pow2 FFT, then return the first outAxisLen samples — which
+// is NOT an N-point DFT. Symptoms on real input: wrong magnitudes
+// (|Y[2]| at N=480 was 41661.22 vs MATLAB's 36669.56) and broken
+// conjugate symmetry (|Y[end]| ≠ |Y[2]|). The Bluestein path computes
+// a true N-point DFT bit-equal to MATLAB.
+//
+// Sizes cover the audio-toolbox typical winLen = round(0.03*fs):
+// 240 (fs=8k), 480 (fs=16k), 662 (fs=22.05k), 1323 (fs=44.1k), plus a
+// small composite (15) and a prime (97).
+TEST(DspFftPublicApi, NonPow2RealInputMatchesNaiveDFT)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    const std::vector<size_t> sizes = {15u, 97u, 240u, 480u, 662u, 1323u};
+    for (size_t N : sizes) {
+        // Deterministic test signal — two sinusoids + DC offset.
+        auto x = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+        double *xd = x.doubleDataMut();
+        for (size_t n = 0; n < N; ++n)
+            xd[n] = std::sin(2.0 * M_PI * 0.07 * n)
+                  + 0.5 * std::cos(2.0 * M_PI * 0.13 * n);
+
+        Value X = numkit::signal::fft(mr, x);
+        ASSERT_TRUE(X.isComplex()) << "N=" << N;
+        ASSERT_EQ(X.numel(), N) << "N=" << N;
+        const Complex *Xd = X.complexData();
+
+        // Conjugate symmetry: real input → X[k] = conj(X[N-k]).
+        for (size_t k = 1; k < N / 2; ++k) {
+            EXPECT_NEAR(Xd[k].real(),  Xd[N - k].real(), 1e-9)
+                << "N=" << N << " k=" << k;
+            EXPECT_NEAR(Xd[k].imag(), -Xd[N - k].imag(), 1e-9)
+                << "N=" << N << " k=" << k;
+        }
+
+        // Reference: naive O(N²) DFT, value-for-value.
+        for (size_t k : {size_t{0}, size_t{1}, size_t{2}, N - 1, N / 3}) {
+            double re = 0.0, im = 0.0;
+            const double w = -2.0 * M_PI * static_cast<double>(k)
+                                 / static_cast<double>(N);
+            for (size_t n = 0; n < N; ++n) {
+                const double a = w * static_cast<double>(n);
+                re += xd[n] * std::cos(a);
+                im += xd[n] * std::sin(a);
+            }
+            EXPECT_NEAR(Xd[k].real(), re, 1e-9)
+                << "N=" << N << " k=" << k;
+            EXPECT_NEAR(Xd[k].imag(), im, 1e-9)
+                << "N=" << N << " k=" << k;
+        }
+    }
+}
+
+// ifft round-trip for non-pow2 N (Bluestein path, dir=-1).
+TEST(DspFftPublicApi, NonPow2RoundTrip)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    for (size_t N : {size_t{15}, size_t{97}, size_t{480}, size_t{1323}}) {
+        auto x = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+        for (size_t n = 0; n < N; ++n)
+            x.doubleDataMut()[n] = std::sin(0.13 * double(n))
+                                 + 0.4 * std::cos(0.21 * double(n));
+
+        Value X = numkit::signal::fft(mr, x);
+        Value y = numkit::signal::ifft(mr, X);
+        ASSERT_EQ(y.numel(), N);
+        const double *xd = x.doubleData();
+        for (size_t n = 0; n < N; ++n) {
+            const double got = y.isComplex() ? y.complexData()[n].real()
+                                             : y.doubleData()[n];
+            EXPECT_NEAR(got, xd[n], 1e-9) << "N=" << N << " n=" << n;
+        }
+    }
+}
+
 // ── Radix-4 path correctness at large pow-of-4 sizes ──────────────────
 //
 // kRadix4Threshold inside fft_simd.cpp is currently 1<<15 (32768);
