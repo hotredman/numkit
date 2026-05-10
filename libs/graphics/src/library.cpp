@@ -1256,6 +1256,7 @@ void GraphicsLibrary::install(Engine &engine)
         const Value *rangeArg = nullptr;       // [] / [lo hi] / null
         const Value *xDataArg = nullptr;
         const Value *yDataArg = nullptr;
+        std::string colormapArg;               // 'Colormap', 'gray' / 'jet' / ...
         size_t nvStart = 1;
         if (args.size() >= 2 && !args[1].isChar()) {
             rangeArg = &args[1];
@@ -1268,8 +1269,10 @@ void GraphicsLibrary::install(Engine &engine)
             if (key == "displayrange")    rangeArg = &args[i + 1];
             else if (key == "xdata")      xDataArg = &args[i + 1];
             else if (key == "ydata")      yDataArg = &args[i + 1];
-            // Other N-V keys (Colormap, InitialMagnification, Border,
-            // Reduce, Parent) are silently skipped — see audit/findings/
+            else if (key == "colormap" && args[i + 1].isChar())
+                colormapArg = args[i + 1].toString();
+            // Other N-V keys (InitialMagnification, Border, Reduce,
+            // Parent) are silently skipped — see audit/findings/
             // graphics/imshow.md.
         }
 
@@ -1476,9 +1479,11 @@ void GraphicsLibrary::install(Engine &engine)
             ds.xJson = xJson;
             ds.yJson = yJson;
             fm.pushDataset(std::move(ds));
-            // Grayscale-only colormap default: 'gray'. RGB ignores
-            // colormap so we don't touch it on the RGB branch.
-            if (ax.colormapName.empty()) ax.colormapName = "gray";
+            // Grayscale-only colormap. 'Colormap' N-V wins; otherwise
+            // default to 'gray' if axis hasn't seen one yet. RGB
+            // ignores colormap so we don't touch it on the RGB branch.
+            if (!colormapArg.empty()) ax.colormapName = colormapArg;
+            else if (ax.colormapName.empty()) ax.colormapName = "gray";
         }
 
         // Common imshow axes config. axisMode='image' iff not already set
