@@ -434,10 +434,25 @@ export default function CompositePlot({
     ? { major: figure.yTicks.filter((v) => v >= yMin && v <= yMax), minor: [] }
     : yTicksAuto;
 
+  // sprintf-style format applier — supports the most common subset
+  // of MATLAB's tick formats: %d, %f, %.Nf, %e, %.Ne, %g, %.Ng. No
+  // multi-arg printf semantics needed (one numeric value).
+  function applyTickFormat(fmt, v) {
+    if (!fmt) return null;
+    const m = fmt.match(/^%(?:\.(\d+))?([defg])$/);
+    if (!m) return null;
+    const prec = m[1] !== undefined ? Number(m[1]) : 6;
+    const conv = m[2];
+    if (conv === 'd') return String(Math.round(v));
+    if (conv === 'f') return v.toFixed(prec);
+    if (conv === 'e') return v.toExponential(prec);
+    if (conv === 'g') return v.toPrecision(prec);
+    return null;
+  }
   // Custom-label lookups: when xticklabels(["a","b","c"]) was called
   // and matches the xticks count, we substitute the string directly
-  // for that tick's numeric format. Indexing follows the major-tick
-  // order returned above.
+  // for that tick's numeric format. Otherwise xtickformat fmt string
+  // wins; otherwise auto fmtTick.
   const fmtXTickLabel = (v, i) => {
     if (Array.isArray(figure.xTickLabels)
         && figure.xTickLabels.length > 0
@@ -445,6 +460,10 @@ export default function CompositePlot({
         && figure.xTicks.length === figure.xTickLabels.length
         && i < figure.xTickLabels.length) {
       return String(figure.xTickLabels[i]);
+    }
+    if (figure.xTickFormat) {
+      const out = applyTickFormat(figure.xTickFormat, v);
+      if (out !== null) return out;
     }
     return fmtTick(v);
   };
@@ -455,6 +474,10 @@ export default function CompositePlot({
         && figure.yTicks.length === figure.yTickLabels.length
         && i < figure.yTickLabels.length) {
       return String(figure.yTickLabels[i]);
+    }
+    if (figure.yTickFormat) {
+      const out = applyTickFormat(figure.yTickFormat, v);
+      if (out !== null) return out;
     }
     return fmtTick(v);
   };

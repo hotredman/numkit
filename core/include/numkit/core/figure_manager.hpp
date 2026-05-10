@@ -167,6 +167,12 @@ struct AxesState
     std::string xTickLabelsJson;   // ["lo","mid","hi"] format
     std::string yTickLabelsJson;
     std::string zTickLabelsJson;
+    // sprintf-style format string for tick labels (e.g. "%.2f").
+    // Empty = renderer's auto format. Honoured only when no explicit
+    // tick labels are set.
+    std::string xTickFormat;
+    std::string yTickFormat;
+    std::string zTickFormat;
     // axisVisible — MATLAB `axis off` / `axis on` controls whether the
     // axes lines / ticks / labels render. true = drawn (default), false
     // = hidden. imshow ships axis off implicitly (image-only viewport).
@@ -499,6 +505,12 @@ public:
                     os << ",\"yticklabels\":" << ax.yTickLabelsJson;
                 if (!ax.zTickLabelsJson.empty())
                     os << ",\"zticklabels\":" << ax.zTickLabelsJson;
+                if (!ax.xTickFormat.empty())
+                    os << ",\"xtickformat\":\"" << jsonEscapeFig(ax.xTickFormat) << "\"";
+                if (!ax.yTickFormat.empty())
+                    os << ",\"ytickformat\":\"" << jsonEscapeFig(ax.yTickFormat) << "\"";
+                if (!ax.zTickFormat.empty())
+                    os << ",\"ztickformat\":\"" << jsonEscapeFig(ax.zTickFormat) << "\"";
                 // axisVisible default = true; emit only when off
                 // (imshow / `axis off` set this).
                 if (!ax.axisVisible)

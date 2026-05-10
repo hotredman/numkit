@@ -5476,6 +5476,35 @@ void GraphicsLibrary::install(Engine &engine)
     reg("layout", "yticklabels", tickLabelsReg(&AxesState::yTickLabelsJson));
     reg("layout", "zticklabels", tickLabelsReg(&AxesState::zTickLabelsJson));
 
+    // xtickformat / ytickformat / ztickformat — set a sprintf-style
+    // format string ("%.2f", "%.0e", etc.). 'auto' clears.
+    auto tickFormatReg = [](std::string AxesState::*field) {
+        return [field](Span<const Value> args, size_t nargout,
+                       Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            auto &fm = ctx.engine->figureManager();
+            auto &ax = fm.currentAxes();
+            if (args.empty() || !args[0].isChar()) {
+                outs[0] = Value::empty();
+                return;
+            }
+            std::string s = args[0].toString();
+            std::string sl;
+            for (char c : s) sl.push_back((char)std::tolower((unsigned char)c));
+            if (sl == "auto") {
+                (ax.*field).clear();
+            } else {
+                ax.*field = s;
+            }
+            fm.current().modified = true;
+            fm.emitModified();
+            outs[0] = Value::empty();
+        };
+    };
+    reg("layout", "xtickformat", tickFormatReg(&AxesState::xTickFormat));
+    reg("layout", "ytickformat", tickFormatReg(&AxesState::yTickFormat));
+    reg("layout", "ztickformat", tickFormatReg(&AxesState::zTickFormat));
+
     reg("layout", "axes", noop_ret1);
     reg("layout", "gca", noop_ret1);
     reg("layout", "gcf", noop_ret1);
