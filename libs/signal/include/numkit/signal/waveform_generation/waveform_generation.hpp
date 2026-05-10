@@ -93,6 +93,16 @@ Value modulate(std::pmr::memory_resource *mr,
                const Value &x, double Fc, double Fs,
                const std::string &method, const Value *opt = nullptr);
 
+/// demod(y, Fc, Fs, method[, opt]) — analog demodulation (AM family).
+/// Supports "am", "amdsb-sc" (= "am"), "amdsb-tc". For amdsb-tc, opt
+/// is the DC offset to subtract (default 0). KNOWN GAPs: fm/pm modes
+/// (use hilbert, blocked on libs/signal::fft sign-convention bug),
+/// amssb / pwm / ptm/ppm / qam deferred. Pipeline: y * cos(2π Fc t) →
+/// 5th-order Butterworth lowpass (cutoff 2*Fc/Fs) via filtfilt.
+Value demod(std::pmr::memory_resource *mr,
+            const Value &y, double Fc, double Fs,
+            const std::string &method, const Value *opt = nullptr);
+
 /// vco(x, range, fs) — voltage-controlled (frequency-modulated) oscillator.
 /// x ∈ [-1, 1] modulates the instantaneous frequency. Returns y = cos(...)
 /// of the same shape as x. range may be:
