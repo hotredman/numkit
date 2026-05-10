@@ -180,6 +180,10 @@ struct AxesState
     // axisMode='image' + axisVisible=false. JSON emit only when false
     // so untouched figures keep the existing wire format.
     bool axisVisible = true;
+    // boxOn — MATLAB `box on/off` controls the axis FRAME rectangle.
+    // true (default) draws the full box; false draws only the X / Y
+    // axis lines (left + bottom edges of the panel).
+    bool boxOn = true;
     // Index into datasets[] of the most recent animatedline dataset.
     // -1 = no animated line yet. addpoints / clearpoints / getpoints
     // act on this dataset (numkit doesn't model graphics handles, so
@@ -515,6 +519,8 @@ public:
                 // (imshow / `axis off` set this).
                 if (!ax.axisVisible)
                     os << ",\"axisVisible\":false";
+                if (!ax.boxOn)
+                    os << ",\"box\":\"off\"";
                 if (ax.xDir == "reverse")
                     os << ",\"xDir\":\"reverse\"";
                 if (ax.yDir == "reverse")
