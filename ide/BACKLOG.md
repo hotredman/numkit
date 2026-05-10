@@ -5,6 +5,39 @@ B0 (unified `CompositePlot` walking `figure.layers[]`) is in main as of
 MATLAB-parity coverage. Each phase builds on the previous one — pick
 a wave to ship, don't cherry-pick across waves.
 
+## /loop autonomous session 2026-05-10
+
+33 commits on `fix/ide-bugs`. Closed all open backlog items + 3 P1
+bugs + ~30 new builtins. e2e set: ~140 cases added, all green.
+
+| Commit cluster | What |
+|---|---|
+| BUG #38 | linespec/markers/dasharray in 2-D renderer |
+| BUG #39 | 3-D grid back-face culling + lastViewRef camera-stable |
+| BUG #11 | arrayfun actually applies the lambda (was stub) |
+| imshow ship | grayscale + RGB + RGBA + filename (stb_image) |
+| imshow N-V | DisplayRange / XData / YData / Colormap / Border / Reduce / InitialMagnification / Parent |
+| 3-D PNG export | scale honours target DPI |
+| 3-D view-presets toolbar | iso/top/bottom/front/back/left/right |
+| contourf | filled marching-squares bands |
+| slice | axis-aligned cross sections + per-vertex colormap |
+| isosurface | marching cubes (Bourke 256-table) |
+| coneplot | 6-side pyramid arrows over (U, V, W) |
+| streamtube | Frenet-tube wrapped streamlines |
+| animatedline cluster | animatedline + addpoints + clearpoints + getpoints + drawnow |
+| geoplot family | geoplot / geoscatter / geobubble (no basemap, v1) |
+| bubblechart family | bubblechart / bubblechart3 / swarmchart / swarmchart3 |
+| heatmap(table) + parallelplot | aliases routed via imagesc/plot |
+| tiledlayout / nexttile | modern subplot API |
+| bar(matrix) | grouped + stacked multi-series |
+| area(matrix) stacked | cumulative-sum bands |
+| linkprop / linkdata | accept-stub for handle scripts |
+| xticks/yticks/zticks | + label / format companions (printf-style) |
+| xline / yline | real reference lines (was no-op) |
+| subtitle / sgtitle | secondary + super titles |
+| Per-vertex colours | vertexColorsJson on fill3 / polygon3d |
+| 4-artefact backfill | smoke .m, parity specs, gtest CycleBuiltinsTest |
+
 ## B1 — overlay relatives (DONE)
 
 All six landed on `fix/ide-bugs` between 2026-05-09 and 2026-05-10.

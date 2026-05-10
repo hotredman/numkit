@@ -56,7 +56,10 @@ test.describe('FigureWindow — 2-D layout', () => {
     )).toEqual([]);
   });
 
-  test('polar — single r input pair in footer', async () => {
+  test('polar — r + θ° input pairs in footer (4 inputs total)', async () => {
+    // After thetalim() shipped (commit added in this cycle) polar
+    // figures expose r-lo / r-hi AND θ°-lo / θ°-hi inputs by default.
+    // See polar-thetalim.spec.js for full thetalim coverage.
     await ide.runScript(
       'import compat.*;\n'
       + 'theta = linspace(0, 2*pi, 60);\n'
@@ -68,7 +71,7 @@ test.describe('FigureWindow — 2-D layout', () => {
 
     const footerRow = ide.figureWindow.locator('.fw-range-row');
     await expect(footerRow).toBeVisible({ timeout: 5_000 });
-    expect(await footerRow.locator('input').count()).toBe(2);   // r-lo, r-hi
+    expect(await footerRow.locator('input').count()).toBe(4);   // r lo/hi + θ lo/hi
   });
 
   test('subplot — no range-row at all (per-cell pan/zoom)', async () => {
