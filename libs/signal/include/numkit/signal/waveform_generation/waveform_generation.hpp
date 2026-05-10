@@ -81,4 +81,14 @@ Value gmonopuls(std::pmr::memory_resource *mr, const Value &t, double fc);
 /// `n` must be a positive integer.
 Value diric(std::pmr::memory_resource *mr, const Value &x, int n);
 
+/// vco(x, range, fs) — voltage-controlled (frequency-modulated) oscillator.
+/// x ∈ [-1, 1] modulates the instantaneous frequency. Returns y = cos(...)
+/// of the same shape as x. range may be:
+///   - scalar Fc   : -1 → 0 Hz, 0 → Fc Hz, +1 → 2·Fc Hz
+///   - [Fmin Fmax] : -1 → Fmin Hz, +1 → Fmax Hz
+/// Frequency modulation via rectangular cumsum integral approximation
+/// (matches MATLAB modulate(...,'fm')).
+Value vco(std::pmr::memory_resource *mr,
+          const Value &x, const Value &range, double fs);
+
 } // namespace numkit::signal
