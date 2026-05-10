@@ -13,15 +13,20 @@
 
 const KIND_PALETTE = ['#7fd99a', '#5fb3d4', '#e9b870', '#9b8cf2', '#e26a6a', '#d4a5e6', '#f2a37e', '#6fcfbf'];
 
-// MATLAB-style line spec parsing: 'r--o' → { color: '#f07070', dashed: true, marker: 'o' }
+// MATLAB-style line spec parsing: 'r--o' → { color, lineStyle, marker }
+//   color   — single char from STYLE_COLOR
+//   lineStyle — '-' | '--' | ':' | '-.' (longest-match wins)
+//   marker  — 'o' | '+' | '*' | '.' | 'x' | 's' | 'd' | '^' | 'v' | '<' | '>' | 'p' | 'h'
+// Order in the spec is free (MATLAB tolerates "or", "ro-", "-or", etc.).
 const STYLE_COLOR = { r: '#f07070', g: '#6ee7a0', b: '#60d0f0', k: '#d4d4f0', m: '#e070c0', c: '#60d0f0', y: '#e8d060', w: '#ffffff' };
+const STYLE_MARKERS = new Set(['o', '+', '*', '.', 'x', 's', 'd', '^', 'v', '<', '>', 'p', 'h']);
 function parseLineSpec(s) {
   if (!s || typeof s !== 'string') return {};
   // Two style dialects share this slot:
   //   • Classic MATLAB linespec ("r--o", "b:") — single-char color.
   //   • Engine extras ("color=#rrggbb;lineWidth=2") — explicit kv list.
   // Parse as kv first (it's unambiguous because of the '=' sign), then
-  // fall back to the single-char scan.
+  // fall back to a left-to-right longest-match tokeniser.
   const out = {};
   if (s.includes('=')) {
     for (const kv of s.split(';')) {
@@ -33,9 +38,31 @@ function parseLineSpec(s) {
       else if (key === 'fontSize' || key === 'fontsize') out.fontSize = Number(val);
       else if (key === 'fillOpacity' || key === 'fillopacity') out.fillOpacity = Number(val);
     }
+    return out;
   }
-  if (!out.color) {
-    for (const ch of s) if (STYLE_COLOR[ch]) { out.color = STYLE_COLOR[ch]; break; }
+  // Left-to-right scan. Try line-style longest-match first (so '--'
+  // beats '-' and '-.' beats '-'/'.'); then color; then marker.
+  let i = 0;
+  while (i < s.length) {
+    const c2 = s.substr(i, 2);
+    if (!out.lineStyle && (c2 === '--' || c2 === '-.')) {
+      out.lineStyle = c2; i += 2; continue;
+    }
+    const c = s[i];
+    if (!out.lineStyle && (c === '-' || c === ':')) {
+      out.lineStyle = c; i += 1; continue;
+    }
+    if (!out.color && STYLE_COLOR[c]) {
+      out.color = STYLE_COLOR[c]; i += 1; continue;
+    }
+    if (!out.marker && STYLE_MARKERS.has(c)) {
+      // '.' is ambiguous (line-style '-.' vs marker '.'). The
+      // longest-match for '-.' above already eats the line-style
+      // form, so a bare '.' here is unambiguously a marker.
+      out.marker = c; i += 1; continue;
+    }
+    // Unknown char — skip silently (MATLAB also ignores stray chars).
+    i += 1;
   }
   return out;
 }
@@ -458,6 +485,11 @@ function datasetToLayer(d, palette_idx, ctx) {
     name: d.label || `series ${palette_idx + 1}`,
     x: xOut, y: yOut,
     color: baseColor,
+    // Linespec extras parsed from styleObj. lineStyle drives strokeDasharray
+    // in CompositePlot; marker triggers an overlay layer of point glyphs
+    // along the line. mode === 'scatter' ignores lineStyle (no path drawn).
+    lineStyle: styleObj.lineStyle || '-',
+    marker: styleObj.marker || (t === 'scatter' ? 'o' : null),
     width: d.lineWidth || styleObj.lineWidth || styleObj.width || 1.5,
     size:  d.markerSize || styleObj.markerSize || 3,
     opacity: d.style?.opacity ?? 1,
@@ -561,6 +593,11 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
       thetaDir: cfg.thetaDir || 'counterclockwise',
       thetaZeroLocation: cfg.thetaZeroLocation || 'right',
       rlim: cfg.rlim,
+      // thetalim limits the angular sweep. Numeric form: [thetaMin,
+      // thetaMax] in DEGREES (MATLAB convention). null = full
+      // 360° sweep (default).
+      thetalim: Array.isArray(cfg.thetalim) && cfg.thetalim.length === 2
+        ? cfg.thetalim.slice() : null,
       grid: cfg.grid !== undefined ? cfg.grid : 'on',  // polar default = on (MATLAB)
       gridMinor: cfg.gridMinor || 'off',
       series,

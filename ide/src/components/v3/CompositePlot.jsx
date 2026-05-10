@@ -30,6 +30,86 @@ import { buildHeatmapLUT, renderHeatmapDataURLFromIndices,
 import ContextMenu from './ContextMenu';
 import { computeFitViewport, exportSvgNode, exportPngNode, exportPngForPrint } from './plotUtils';
 
+// MATLAB linespec → SVG strokeDasharray. '-' (or absent) means solid;
+// returning undefined keeps the default solid stroke. Pixel patterns
+// roughly match MATLAB defaults (LineStyle '--' ≈ 4 px on / 4 px off).
+const DASH_FOR = { '-': undefined, '--': '6,4', ':': '1,3', '-.': '6,3,1,3' };
+
+// SVG marker glyph dispatcher used by both line-overlay and scatter
+// modes. r is the half-size in pixels (matches MATLAB MarkerSize ≈ r).
+function MarkerGlyph({ marker, cx, cy, r, color, idx }) {
+  const stroke = 'var(--plot-frame)';
+  const sw = 0.6;
+  switch (marker) {
+    case 'o':
+      return <circle key={idx} cx={cx} cy={cy} r={r} fill={color} stroke={stroke} strokeWidth={sw} />;
+    case 's':
+      return <rect key={idx} x={cx - r} y={cy - r} width={r * 2} height={r * 2}
+        fill={color} stroke={stroke} strokeWidth={sw} />;
+    case 'd':
+      return <path key={idx} d={`M${cx},${cy - r} L${cx + r},${cy} L${cx},${cy + r} L${cx - r},${cy} Z`}
+        fill={color} stroke={stroke} strokeWidth={sw} />;
+    case '^':
+      return <path key={idx} d={`M${cx},${cy - r} L${cx + r},${cy + r} L${cx - r},${cy + r} Z`}
+        fill={color} stroke={stroke} strokeWidth={sw} />;
+    case 'v':
+      return <path key={idx} d={`M${cx},${cy + r} L${cx + r},${cy - r} L${cx - r},${cy - r} Z`}
+        fill={color} stroke={stroke} strokeWidth={sw} />;
+    case '<':
+      return <path key={idx} d={`M${cx - r},${cy} L${cx + r},${cy - r} L${cx + r},${cy + r} Z`}
+        fill={color} stroke={stroke} strokeWidth={sw} />;
+    case '>':
+      return <path key={idx} d={`M${cx + r},${cy} L${cx - r},${cy - r} L${cx - r},${cy + r} Z`}
+        fill={color} stroke={stroke} strokeWidth={sw} />;
+    case 'p': {  // pentagon (5-pointed) — approximate
+      const pts = [];
+      for (let k = 0; k < 5; k++) {
+        const a = -Math.PI / 2 + k * (2 * Math.PI / 5);
+        pts.push(`${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`);
+      }
+      return <polygon key={idx} points={pts.join(' ')}
+        fill={color} stroke={stroke} strokeWidth={sw} />;
+    }
+    case 'h': {  // hexagon
+      const pts = [];
+      for (let k = 0; k < 6; k++) {
+        const a = k * (Math.PI / 3);
+        pts.push(`${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`);
+      }
+      return <polygon key={idx} points={pts.join(' ')}
+        fill={color} stroke={stroke} strokeWidth={sw} />;
+    }
+    case '+':
+      return (
+        <g key={idx}>
+          <line x1={cx - r} y1={cy} x2={cx + r} y2={cy} stroke={color} strokeWidth={1.5} />
+          <line x1={cx} y1={cy - r} x2={cx} y2={cy + r} stroke={color} strokeWidth={1.5} />
+        </g>
+      );
+    case 'x':
+      return (
+        <g key={idx}>
+          <line x1={cx - r} y1={cy - r} x2={cx + r} y2={cy + r} stroke={color} strokeWidth={1.5} />
+          <line x1={cx - r} y1={cy + r} x2={cx + r} y2={cy - r} stroke={color} strokeWidth={1.5} />
+        </g>
+      );
+    case '*':
+      return (
+        <g key={idx}>
+          <line x1={cx - r} y1={cy} x2={cx + r} y2={cy} stroke={color} strokeWidth={1.2} />
+          <line x1={cx} y1={cy - r} x2={cx} y2={cy + r} stroke={color} strokeWidth={1.2} />
+          <line x1={cx - r * 0.7} y1={cy - r * 0.7} x2={cx + r * 0.7} y2={cy + r * 0.7} stroke={color} strokeWidth={1.2} />
+          <line x1={cx - r * 0.7} y1={cy + r * 0.7} x2={cx + r * 0.7} y2={cy - r * 0.7} stroke={color} strokeWidth={1.2} />
+        </g>
+      );
+    case '.':
+      return <circle key={idx} cx={cx} cy={cy} r={Math.max(1, r * 0.4)}
+        fill={color} stroke="none" />;
+    default:
+      return <circle key={idx} cx={cx} cy={cy} r={r} fill={color} stroke={stroke} strokeWidth={sw} />;
+  }
+}
+
 export default function CompositePlot({
   figure,
   width,
@@ -913,6 +993,8 @@ export default function CompositePlot({
               // every data-point coordinate produced by this block.
               const mySy = syOf(ly);
               if (mode === 'scatter') {
+                const mk = ly.marker || 'o';
+                const r = ly.size || 3;
                 return (
                   <g key={`ly${idx}`} opacity={op}>
                     {ly.x.map((xv, i) => {
@@ -920,8 +1002,8 @@ export default function CompositePlot({
                       if (!Number.isFinite(xv) || !Number.isFinite(yv)) return null;
                       const px = sx(xv), py = mySy(yv);
                       if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
-                      return <circle key={i} cx={px} cy={py} r={ly.size || 3}
-                        fill={ly.color} stroke="var(--plot-frame)" strokeWidth="0.6" />;
+                      return <MarkerGlyph key={i} idx={i} marker={mk}
+                        cx={px} cy={py} r={r} color={ly.color} />;
                     })}
                   </g>
                 );
@@ -1162,6 +1244,7 @@ export default function CompositePlot({
               // 'line' or 'stairs'
               let d = '';
               let started = false;
+              const markerPts = [];   // collect finite pts for overlay
               for (let i = 0; i < ly.x.length; i++) {
                 const xv = ly.x[i], yv = ly.y[i];
                 if (!Number.isFinite(xv) || !Number.isFinite(yv)) { started = false; continue; }
@@ -1172,10 +1255,28 @@ export default function CompositePlot({
                 }
                 d += (started ? 'L' : 'M') + px.toFixed(2) + ',' + py.toFixed(2) + ' ';
                 started = true;
+                if (ly.marker) markerPts.push({ px, py });
               }
-              return <path key={`ly${idx}`} d={d} stroke={ly.color} fill="none"
-                strokeWidth={w} opacity={op}
-                strokeLinejoin="round" strokeLinecap="round" />;
+              // Linespec dash pattern. 'none' (or '') line-style would
+              // suppress the path entirely (markers-only call) — emit no
+              // <path> in that case.
+              const ls = ly.lineStyle || '-';
+              const dash = DASH_FOR[ls];
+              const drawPath = ls !== 'none' && ls !== '';
+              const r = ly.size || 4;
+              return (
+                <g key={`ly${idx}`} opacity={op}>
+                  {drawPath && (
+                    <path d={d} stroke={ly.color} fill="none"
+                      strokeWidth={w} strokeDasharray={dash}
+                      strokeLinejoin="round" strokeLinecap="round" />
+                  )}
+                  {ly.marker && markerPts.map((p, i) => (
+                    <MarkerGlyph key={`m${i}`} idx={i} marker={ly.marker}
+                      cx={p.px} cy={p.py} r={r} color={ly.color} />
+                  ))}
+                </g>
+              );
             }
             if (ly.kind === 'text') {
               const px = sx(ly.x), py = sy(ly.y);
