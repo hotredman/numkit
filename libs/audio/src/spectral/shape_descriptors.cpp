@@ -41,7 +41,15 @@ namespace {
 
 // Naive DFT. O(N²) per frame; acceptable for winLen ≤ 1024 typical of
 // Audio Toolbox defaults (winLen = round(0.03*fs) = 240 for fs=8 kHz,
-// 1323 for fs=44.1 kHz). For larger windows, swap to libs/signal FFT.
+// 1323 for fs=44.1 kHz).
+//
+// Cycle J KNOWN GAP: replacing this with libs/signal::fft is BLOCKED
+// pending fix to libs/signal's non-power-of-2 FFT path. For typical
+// audio winLen (240, 480, 662, 1323) — none are powers of 2 — and
+// libs/signal::fft currently produces incorrect output (loses
+// conjugate symmetry of real-input FFT). See spawned task
+// "Fix libs/signal fft() for non-power-of-2 sizes" for repro and fix
+// scope. Once fixed, swap calls to a batched fft() per-frame.
 void naiveDFTPower(const double *x, size_t N, double *out_pow_half)
 {
     // out_pow_half is length N/2+1 (one-sided power spectrum).
@@ -97,19 +105,16 @@ Stft computeStft(std::pmr::memory_resource *mr, const Value &x, double fs)
     ScratchArena scratch(mr);
     ScratchVec<double> frame(winLen, &scratch);
     double *Xd = s.X.doubleDataMut();
+    const double inv = (normPow > 0.0) ? 1.0 / normPow : 0.0;
+    const bool nyquistHalve = ((winLen % 2) == 0) && (M > 0);
     for (size_t f = 0; f < numFrames; ++f) {
         const size_t start = f * hop;
         for (size_t i = 0; i < winLen; ++i) frame[i] = x.elemAsDouble(start + i);
         double *col = Xd + f * M;
         naiveDFTPower(frame.data(), winLen, col);
-        // Apply MATLAB-equivalent normalization:
-        //   Yb = |Y|² / (0.5 · sum(win)²)
-        const double inv = (normPow > 0.0) ? 1.0 / normPow : 0.0;
         for (size_t k = 0; k < M; ++k) col[k] *= inv;
-        // Halve DC bin (binLow == 1 in 1-based MATLAB → bin 0 in 0-based).
         col[0] *= 0.5;
-        // Halve Nyquist bin if fftLength is even.
-        if ((winLen % 2) == 0 && M > 0) col[M - 1] *= 0.5;
+        if (nyquistHalve) col[M - 1] *= 0.5;
     }
     return s;
 }

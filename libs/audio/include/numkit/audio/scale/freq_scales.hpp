@@ -22,8 +22,13 @@ Value bark2hz(std::pmr::memory_resource *mr, const Value &bark);
 Value hz2erb(std::pmr::memory_resource *mr, const Value &hz);
 Value erb2hz(std::pmr::memory_resource *mr, const Value &erb);
 
-// Loudness conversions (ISO 532-1).
-Value phon2sone(std::pmr::memory_resource *mr, const Value &phon);
-Value sone2phon(std::pmr::memory_resource *mr, const Value &sone);
+// Loudness conversions. Default standard is ISO 532-1 (closed-form
+// piecewise power-law). Pass standardIs532_2=true to use ISO 532-2
+// (table-lookup with PCHIP interpolation per ISO 532-2:2017 Table 5,
+// linear extrapolation beyond 120 phon).
+Value phon2sone(std::pmr::memory_resource *mr, const Value &phon,
+                bool standardIs532_2 = false);
+Value sone2phon(std::pmr::memory_resource *mr, const Value &sone,
+                bool standardIs532_2 = false);
 
 } // namespace numkit::audio
