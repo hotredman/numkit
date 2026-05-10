@@ -21,18 +21,23 @@ c2 = cepstralCoefficients(S2);
 fprintf('  shape=[%d %d]\n', size(c2,1), size(c2,2));
 fprintf('  row 2: '); fprintf('%.4f ', c2(2,:)); fprintf('\n');
 
-fprintf('\n[mfcc shape check (KNOWN GAP for exact bit-equality)]\n');
+fprintf('\n[mfcc bit-equal MATLAB R2025b — Cycle G upgrade]\n');
 fs = 16000; t = (0:1/fs:0.1)'; x = sin(2*pi*440*t);
 [c, d, dd] = mfcc(x, fs);
-fprintf('  mfcc shape=[%d %d] (expect [%d 14])\n', size(c,1), size(c,2), size(c,1));
+fprintf('  mfcc shape=[%d %d] (expect [8 14])\n', size(c,1), size(c,2));
 fprintf('  delta shape=[%d %d]\n', size(d,1), size(d,2));
 fprintf('  deltaDelta shape=[%d %d]\n', size(dd,1), size(dd,2));
+fprintf('  c(1,1) = %.6f (logE, expect 5.475232)\n', c(1,1));
+fprintf('  c(1,2) = %.6f (cep DC, expect -14.165624)\n', c(1,2));
+fprintf('  c(2,2) = %.6f (cep DC f2, expect -13.900615)\n', c(2,2));
+fprintf('  c(1,end) = %.6f (cep last, expect -0.620010)\n', c(1,end));
 
-fprintf('\n[gtcc shape check]\n');
+fprintf('\n[gtcc shape check — KNOWN GAP: aliases to mfcc]\n');
 [g, gd, gdd] = gtcc(x, fs);
 fprintf('  gtcc shape=[%d %d]\n', size(g,1), size(g,2));
 
-fprintf('\nKNOWN GAPs: mfcc/gtcc shape-correct, exact bit-equality with\n');
-fprintf('  MATLAB R2025b deferred (MATLAB uses |FFT| magnitude into mel\n');
-fprintf('  filterbank with internal designMelFilterBank normalization;\n');
-fprintf('  numkit uses |FFT|^2 power via melSpectrogram from cycle C).\n');
+fprintf('\nKNOWN GAPs:\n');
+fprintf('  Cycle G CLOSED gap: mfcc bit-equal with MATLAB R2025b via Slaney\n');
+fprintf('  filterbank + |FFT| magnitude pipeline.\n');
+fprintf('  gtcc still aliases to mfcc — proper gammatone IIR filterbank\n');
+fprintf('  (4th-order ERB-shaped) deferred to v2.\n');

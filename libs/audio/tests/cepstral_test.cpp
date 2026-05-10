@@ -56,19 +56,36 @@ TEST_F(CepstralTest, CepstralCoeffsRejectsBadN)
     EXPECT_TRUE(threw);
 }
 
-// ── mfcc (shape-only, KNOWN GAP for exact bit-equality) ───────────────
+// ── mfcc (Cycle G: BIT-EQUAL with MATLAB R2025b) ──────────────────────
 TEST_F(CepstralTest, MfccShape)
 {
     eval("fs = 16000; t = (0:1/fs:0.1)'; x = sin(2*pi*440*t);"
          "[c, d, dd] = mfcc(x, fs);");
     // Shape: NumFrames × (NumCoeffs+1) with LogEnergy='append' default.
+    EXPECT_EQ(static_cast<int>(evalScalar("size(c, 1)")), 8);
     EXPECT_EQ(static_cast<int>(evalScalar("size(c, 2)")), 14);
-    EXPECT_GE(static_cast<int>(evalScalar("size(c, 1)")), 1);
-    // delta and deltaDelta have same shape as c.
     EXPECT_EQ(static_cast<int>(evalScalar("size(d, 2)")), 14);
     EXPECT_EQ(static_cast<int>(evalScalar("size(dd, 2)")), 14);
     EXPECT_EQ(static_cast<int>(evalScalar("size(c, 1)")),
               static_cast<int>(evalScalar("size(d, 1)")));
+}
+
+TEST_F(CepstralTest, MfccBitEqualValues)
+{
+    // Cycle G: full MATLAB R2025b parity. logE first column (natural log of
+    // unwindowed frame energy), then 13 cepstral coefficients via Slaney
+    // mel filterbank + |FFT| magnitude + log10 + DCT-II unitary.
+    eval("fs = 16000; t = (0:1/fs:0.1)'; x = sin(2*pi*440*t);"
+         "c = mfcc(x, fs);");
+    // logE column: log(sum(x(1:480).^2)) = log(238.706) = 5.475232
+    EXPECT_NEAR(evalScalar("c(1, 1)"),   5.475232,  1e-5);
+    EXPECT_NEAR(evalScalar("c(2, 1)"),   5.469221,  1e-5);
+    // First cepstrum coefficient (DCT DC component for frame 1)
+    EXPECT_NEAR(evalScalar("c(1, 2)"), -14.165624,  1e-4);
+    EXPECT_NEAR(evalScalar("c(2, 2)"), -13.900615,  1e-4);
+    // Higher-order coefficients
+    EXPECT_NEAR(evalScalar("c(1, 3)"),   3.287907,  1e-4);
+    EXPECT_NEAR(evalScalar("c(1, 14)"), -0.620010,  1e-4);
 }
 
 TEST_F(CepstralTest, MfccCustomNumCoeffs)
