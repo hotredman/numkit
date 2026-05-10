@@ -38,6 +38,7 @@ function parseLineSpec(s) {
       else if (key === 'fontSize' || key === 'fontsize') out.fontSize = Number(val);
       else if (key === 'fillOpacity' || key === 'fillopacity') out.fillOpacity = Number(val);
       else if (key === 'smoothNormals' || key === 'smoothnormals') out.smoothNormals = (val === '1' || val === 'true');
+      else if (key === 'cometAnim' || key === 'cometanim') out.cometAnim = (val === '1' || val === 'true');
     }
     return out;
   }
@@ -515,6 +516,9 @@ function datasetToLayer(d, palette_idx, ctx) {
     // along the line. mode === 'scatter' ignores lineStyle (no path drawn).
     lineStyle: styleObj.lineStyle || '-',
     marker: styleObj.marker || (t === 'scatter' ? 'o' : null),
+    // comet animation hint — when true, CompositePlot animates the
+    // polyline progressively via RAF on first mount.
+    cometAnim: !!styleObj.cometAnim,
     width: d.lineWidth || styleObj.lineWidth || styleObj.width || 1.5,
     size:  d.markerSize || styleObj.markerSize || 3,
     opacity: d.style?.opacity ?? 1,

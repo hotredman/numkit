@@ -5959,19 +5959,37 @@ void GraphicsLibrary::install(Engine &engine)
             delegateTo("scatter3", a, o, c);
         });
 
-    // comet(x, y) / comet3(x, y, z) — animated trail. Without the
-    // animation infrastructure we'd need to step through, the v1 just
-    // routes to plot/plot3 with the full data — visually identical to
-    // MATLAB's final state once the trail completes. Real step-by-step
-    // animation is BACKLOG (would use animatedline + requestAnimationFrame
-    // loop on the IDE side).
+    // comet(x, y) / comet3(x, y, z) — animated trail. Routes to plot
+    // with a `cometAnim=1` hint in the style string; the IDE's
+    // CompositePlot picks up the flag and animates the polyline
+    // progressively via requestAnimationFrame (the final-state
+    // figure is the full curve).
     reg("line", "comet",
         [delegateTo](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
             delegateTo("plot", a, o, c);
+            // Stamp the just-pushed dataset with the animation hint.
+            auto &fm = c.engine->figureManager();
+            auto &ax = fm.currentAxes();
+            if (!ax.datasets.empty()) {
+                auto &ds = ax.datasets.back();
+                if (!ds.style.empty()) ds.style += ";";
+                ds.style += "cometAnim=1";
+                fm.current().modified = true;
+                fm.emitModified();
+            }
         });
     reg("line", "comet3",
         [delegateTo](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
             delegateTo("plot3", a, o, c);
+            auto &fm = c.engine->figureManager();
+            auto &ax = fm.currentAxes();
+            if (!ax.datasets.empty()) {
+                auto &ds = ax.datasets.back();
+                if (!ds.style.empty()) ds.style += ";";
+                ds.style += "cometAnim=1";
+                fm.current().modified = true;
+                fm.emitModified();
+            }
         });
 
     // ────────────────────────────────────────────────────────────────
