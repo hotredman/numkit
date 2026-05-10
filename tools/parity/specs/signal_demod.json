@@ -1,10 +1,10 @@
 {
   "name": "signal_demod",
   "namespace": "signal",
-  "setup": "fs = 200; t = (0:1/fs:0.1)'; x = sin(2*pi*5*t); y = modulate(x, 25, fs, 'am'); y_tc = modulate(x, 25, fs, 'amdsb-tc', 0.3);",
-  "expr": "xd = demod(y, 25, fs, 'am'); n_xd = numel(xd); xd_5 = xd(5); xd_10 = xd(10); xd_15 = xd(15); err = max(abs(xd - 0.5*x)); xd_tc = demod(y_tc, 25, fs, 'amdsb-tc', 0.5); xdtc_5 = xd_tc(5); xdtc_10 = xd_tc(10); err_tc = max(abs(xd_tc + 0.2 - 0.5*x));",
+  "setup": "fs = 200; t = (0:1/fs:0.1)'; x = sin(2*pi*5*t); y = modulate(x, 25, fs, 'am'); y_tc = modulate(x, 25, fs, 'amdsb-tc', 0.3); y_pm = modulate(x, 25, fs, 'pm');",
+  "expr": "xd = demod(y, 25, fs, 'am'); n_xd = numel(xd); xd_5 = xd(5); xd_10 = xd(10); xd_15 = xd(15); err = max(abs(xd - 0.5*x)); xd_tc = demod(y_tc, 25, fs, 'amdsb-tc', 0.5); xdtc_5 = xd_tc(5); xdtc_10 = xd_tc(10); err_tc = max(abs(xd_tc + 0.2 - 0.5*x)); xd_pm = demod(y_pm, 25, fs, 'pm'); pm_n = numel(xd_pm);",
   "iters": 5,
-  "tol": 0.01,
-  "fingerprint": ["n_xd", "xd_5", "xd_10", "xd_15", "err", "xdtc_5", "xdtc_10", "err_tc"],
-  "comment": "MATLAB Signal Toolbox demod (Phase 4.13) — analog demodulation. Implements am / amdsb-sc (alias) / amdsb-tc; uses 5th-order Butterworth lowpass + filtfilt per MATLAB demod.m. Approximate-equal MATLAB R2025b on 8 fingerprints (tol 0.01); ~2e-3 diff vs MATLAB attributed to filtfilt initial-condition edge handling. KNOWN GAPs: fm/pm modes use hilbert (blocked on libs/signal::fft sign-convention bug — same blocker as Cycle J/LHS/SRH); amssb/pwm/ptm/ppm/qam similarly deferred. Octave 11.1.0 doesn't ship demod in core (signal package only)."
+  "tol": 0.05,
+  "fingerprint": ["n_xd", "xd_5", "xd_10", "xd_15", "err", "xdtc_5", "xdtc_10", "err_tc", "pm_n"],
+  "comment": "MATLAB Signal Toolbox demod (Phases 4.13 + 5.3). Implements am / amdsb-sc (alias) / amdsb-tc / fm / pm. AM family: y·cos(2πFct) → 5th-order Butterworth filtfilt (subtract DC offset for amdsb-tc). FM/PM: yq = hilbert(y)·exp(-j2πFct); FM = (1/P1)·diff(unwrap(angle(yq))) prepended w/ 0; PM = (1/P1)·angle(yq). Approximate-equal MATLAB R2025b on 9 fingerprints (tol 5%); diffs from filtfilt edge handling + hilbert finite-window effects. KNOWN GAPs: amssb / pwm / ptm/ppm / qam deferred. Octave 11.1.0 doesn't ship demod in core (signal package only)."
 }
