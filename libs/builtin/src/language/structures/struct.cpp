@@ -68,11 +68,11 @@ Value structure(std::pmr::memory_resource *mr, Span<const Value> nameValuePairs)
         std::string fname = nameValuePairs[i].toString();
         const Value &v = nameValuePairs[i + 1];
         if (v.isCell()) {
+            // Per-element assignment from cell — use setField (preserves order)
             for (size_t k = 0; k < numel; ++k)
-                s.structArrayElem(k)[fname] = v.cellAt(k);
+                s.setField(k, fname, v.cellAt(k));
         } else {
-            for (size_t k = 0; k < numel; ++k)
-                s.structArrayElem(k)[fname] = v;
+            s.setFieldAll(fname, v);
         }
     }
     return s;
@@ -83,22 +83,13 @@ Value fieldnames(std::pmr::memory_resource *mr, const Value &s)
     if (!s.isStruct())
         throw Error("fieldnames requires a struct", 0, 0, "fieldnames", "",
                      "m:fieldnames:notStruct");
-    // Struct array: read field names from element 0 (struct arrays carry
-    // a uniform field set in MATLAB; we mirror that convention).
-    if (s.isStructArray()) {
-        const auto &elem0 = s.numel() > 0 ? s.structArrayElem(0)
-                                          : std::pmr::map<std::string, Value>{mr};
-        auto c = Value::cell(elem0.size(), 1, mr);
-        size_t i = 0;
-        for (const auto &[k, _] : elem0)
-            c.cellAt(i++) = Value::fromString(k, mr);
-        return c;
-    }
-    const auto &fields = s.structFields();
-    auto c = Value::cell(fields.size(), 1, mr);
-    size_t i = 0;
-    for (const auto &[k, v] : fields)
-        c.cellAt(i++) = Value::fromString(k, mr);
+    // BUG #15 fix: iterate insertion order (fieldNamesInOrder) instead
+    // of std::map alphabetical iteration. fieldNamesInOrder() falls back
+    // to map iteration for legacy/cloned structs missing fieldOrder.
+    const auto names = s.fieldNamesInOrder();
+    auto c = Value::cell(names.size(), names.empty() ? 0 : 1, mr);
+    for (size_t i = 0; i < names.size(); ++i)
+        c.cellAt(i) = Value::fromString(names[i], mr);
     return c;
 }
 
@@ -122,13 +113,7 @@ Value rmfield(std::pmr::memory_resource *, const Value &s, const Value &name)
         throw Error("rmfield requires a struct", 0, 0, "rmfield", "",
                      "m:rmfield:notStruct");
     Value out = s;
-    if (out.isStructArray()) {
-        const std::string n = name.toString();
-        for (size_t i = 0; i < out.numel(); ++i)
-            out.structArrayElem(i).erase(n);
-    } else {
-        out.structFields().erase(name.toString());
-    }
+    out.removeField(name.toString());  // BUG #15: also clears fieldOrder
     return out;
 }
 
@@ -223,23 +208,46 @@ Value setfield(std::pmr::memory_resource *mr, const Value &s,
                      0, 0, "setfield", "", "m:setfield:notStruct");
     }
     if (out.isStructArray()) {
-        const std::string n = name.toString();
-        for (size_t i = 0; i < out.numel(); ++i)
-            out.structArrayElem(i)[n] = value;
+        out.setFieldAll(name.toString(), value);  // BUG #15
     } else {
-        out.field(name.toString()) = value;
+        out.field(name.toString()) = value;       // tracks order via field()
     }
     return out;
 }
 
-Value orderfields(std::pmr::memory_resource *, const Value &s)
+Value orderfields(std::pmr::memory_resource *mr, const Value &s)
 {
     if (!s.isStruct())
         throw Error("orderfields requires a struct", 0, 0, "orderfields", "",
                      "m:orderfields:notStruct");
-    // structFields() is std::pmr::map, iteration is already
-    // alphabetically sorted, so a copy preserves canonical order.
-    return s;
+    // BUG #15 follow-up: orderfields explicitly sorts alphabetically
+    // (MATLAB documented behaviour). Now that fieldOrder defaults to
+    // insertion order, build a copy with the order tracker re-sorted.
+    Value out = s;
+    if (out.isStructArray() ? out.numel() > 0 : true) {
+        // Use map iteration (alphabetical) to seed a fresh tracker.
+        std::vector<std::string> sorted;
+        if (out.isStructArray()) {
+            for (const auto &[k, _] : out.structArrayElem(0))
+                sorted.push_back(std::string(k));
+        } else {
+            for (const auto &[k, _] : out.structFields())
+                sorted.push_back(std::string(k));
+        }
+        // Build a fresh struct preserving values but in alphabetical order.
+        const auto rows = out.dims().rows();
+        const auto cols = out.dims().cols();
+        Value re = Value::structArray(rows, cols, mr);
+        for (const auto &name : sorted) {
+            for (size_t i = 0; i < re.numel(); ++i) {
+                const auto &srcMap = out.structArrayElem(i);
+                auto it = srcMap.find(name);
+                if (it != srcMap.end()) re.setField(i, name, it->second);
+            }
+        }
+        return re;
+    }
+    return out;
 }
 
 Value struct2cell(std::pmr::memory_resource *mr, const Value &s)

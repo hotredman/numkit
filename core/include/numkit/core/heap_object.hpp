@@ -45,6 +45,13 @@ struct HeapObject
     // the user-facing single-struct semantics are preserved.
     std::pmr::vector<Value> *cellData = nullptr;
     std::pmr::vector<std::pmr::map<std::string, Value>> *structArray = nullptr;
+    // Insertion-order tracker for struct fields (BUG #15 fix).
+    // MATLAB's fieldnames() returns fields in the order they were first
+    // added; std::map iterates alphabetically so we maintain a parallel
+    // vector. Shared across all elements of a struct array (the field
+    // set is uniform per MATLAB semantics — see structFields() doc).
+    // nullptr until first STRUCT allocation; ownership matches structArray.
+    std::pmr::vector<std::string> *fieldOrder = nullptr;
     std::string *funcName = nullptr;
 
     // Capacity for appendScalar amortization

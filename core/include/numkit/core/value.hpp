@@ -294,6 +294,23 @@ public:
     std::pmr::map<std::string, Value> &structFields();
     const std::pmr::map<std::string, Value> &structFields() const;
 
+    // BUG #15 fix: insertion-order tracking for fieldnames(). Use
+    // setField / setFieldAll for new field assignments so the order is
+    // preserved; the raw map[] also works (alphabetical via std::map)
+    // but won't update the order vector. removeField clears across
+    // every struct array element and the order tracker.
+    //
+    // setField(linear, name, value): assign to element `linear` only.
+    // setFieldAll(name, value): assign across the whole struct array.
+    // Both append `name` to fieldOrder if not already present.
+    void setField(size_t linearIdx, const std::string &name, const Value &v);
+    void setFieldAll(const std::string &name, const Value &v);
+    void removeField(const std::string &name);
+    // Returns the field names in MATLAB insertion order (preferred).
+    // Falls back to alphabetical (struct map iteration) if fieldOrder
+    // is missing — happens for legacy/cloned structs.
+    std::vector<std::string> fieldNamesInOrder() const;
+
     // True for struct arrays (numel > 1). isStruct() && !isStructArray()
     // means a single struct (the legacy code path).
     bool isStructArray() const;

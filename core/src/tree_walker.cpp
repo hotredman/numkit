@@ -1251,6 +1251,13 @@ Value &TreeWalker::resolveFieldLValue(const ASTNode *node, Environment *env)
         }
 
         auto &fieldMap = var->structArrayElem(linear);
+        // BUG #15: track insertion order for fieldnames() before [] auto-creates.
+        if (fieldMap.find(fieldName) == fieldMap.end()) {
+            if (var->isStruct()) {
+                // setField updates fieldOrder for new key; reuse it then return ref.
+                var->setField(linear, fieldName, Value{});
+            }
+        }
         return fieldMap[fieldName];
     }
     throw std::runtime_error("Invalid field assignment target");
@@ -1267,8 +1274,7 @@ void TreeWalker::execFieldAssign(const ASTNode *lhs, const Value &rhs, Environme
         auto *var = env->get(lhs->children[0]->strValue);
         if (var && var->isStructArray()) {
             const std::string &fname = lhs->strValue;
-            for (size_t i = 0; i < var->numel(); ++i)
-                var->structArrayElem(i)[fname] = rhs;
+            var->setFieldAll(fname, rhs);  // BUG #15: track insertion order
             return;
         }
     }

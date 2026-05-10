@@ -1105,10 +1105,9 @@ enter_frame:
                 // Broadcast: `s.f = val` for a multi-element struct
                 // array sets f on every element (MATLAB semantics).
                 if (R[I.a].isStructArray()) {
-                    for (size_t i = 0; i < R[I.a].numel(); ++i)
-                        R[I.a].structArrayElem(i)[fname] = R[I.b];
+                    R[I.a].setFieldAll(fname, R[I.b]);  // BUG #15
                 } else {
-                    R[I.a].field(fname) = R[I.b];
+                    R[I.a].field(fname) = R[I.b];        // tracks via field()
                 }
                 break;
             }
@@ -1118,7 +1117,7 @@ enter_frame:
                 size_t idx = static_cast<size_t>(R[I.b].toScalar()) - 1;
                 Value &obj = R[I.a];
                 obj.growStructArrayTo(idx, engine_.resource());
-                obj.structArrayElem(idx)[fname] = R[I.c];
+                obj.setField(idx, fname, R[I.c]);  // BUG #15
                 break;
             }
             case OpCode::FIELD_GET_DYN: {

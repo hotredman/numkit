@@ -14,6 +14,7 @@ HeapObject::~HeapObject()
     }
     delete cellData;
     delete structArray;
+    delete fieldOrder;
     delete funcName;
 }
 
@@ -43,6 +44,8 @@ HeapObject *HeapObject::clone() const
         for (const auto &m : *structArray)
             h->structArray->emplace_back(MapT(m, cmr));
     }
+    if (fieldOrder)
+        h->fieldOrder = new std::pmr::vector<std::string>(*fieldOrder, cmr);
     if (funcName)
         h->funcName = new std::string(*funcName);
     return h;
