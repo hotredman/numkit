@@ -33,20 +33,25 @@ disk path.
 - `'Colormap', name` — sets `ax.colormapName` directly. Wins over
   the default 'gray'. ✅
 
-### Still NOT parsed (lost silently)
+### Accepted but currently no-op (2026-05-10)
 
-- `'InitialMagnification', factor | 'fit'` — controls display scale; we
-  always fit-to-panel which matches `'fit'`. The numeric form would
-  set the SVG image dimensions to `factor * pixel_count`; needs IDE-
-  side viewport plumbing.
+These keys are now parsed without error so user scripts don't
+break, but the visual effect is BACKLOG:
+
+- `'InitialMagnification', factor | 'fit'` — controls display scale.
+  We always fit-to-panel which matches `'fit'`. The numeric form
+  would set SVG image dimensions to `factor * pixel_count`; needs
+  IDE-side viewport plumbing.
 - `'Border', 'tight' | 'loose'` — controls axes margins; partly
-  redundant with `axis image`.
+  redundant with `axis image` (which we already apply).
 - `'Reduce', true | false` — auto-downsample for huge images. We
-  already mean-pool when > 2M pixels; this option would be the
-  user-facing toggle.
+  already mean-pool when > 2M pixels; this would be the user-facing
+  toggle. Currently the cap is hard-coded.
+- `'Parent', handle` — graphics handles aren't modelled.
 
 Parser pattern: see `libs/graphics/src/library.cpp::imshowImpl`
-N-V loop at the top (DisplayRange/XData/YData covered there).
+N-V loop at the top (DisplayRange/XData/YData/Colormap implemented;
+the four above match-and-ignore).
 
 ## 3. RGBA (4-channel) input ✅ Implemented (2026-05-10)
 

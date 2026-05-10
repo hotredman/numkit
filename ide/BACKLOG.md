@@ -335,7 +335,12 @@ These don't have shipping pressure. Each is a separate investment.
       modal layout is untouched. `exportPngPrint(mmWidth, dpi)`
       derives the right scale from CSS width via the new
       `getCanvasCssSize` imperative method. Shipped 2026-05-10.
-- [ ] linkprop for 3-D camera across subplot cells.
+- [x] **`linkprop` / `linkdata` accept-stubs.** Returns an opaque
+      scalar handle so user scripts that store `h = linkprop(...)`
+      don't break. Real synchronised camera linking across subplot
+      cells is BACKLOG (needs runtime cross-cell event broadcast in
+      Composite3DPlot's OrbitControls). Shipped 2026-05-10. e2e
+      `linkprop.spec.js` (2 cases).
 
 ## Notes
 
