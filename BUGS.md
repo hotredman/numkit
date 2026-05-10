@@ -840,7 +840,7 @@ corners per query) remains BACKLOG.
 
 ---
 
-## 35. `libs/signal`: `chebwin(N, R)` degenerates to all-ones for large N — **P2**
+## 35. `libs/signal`: `chebwin(N, R)` degenerates to all-ones for large N — **P2** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -851,18 +851,27 @@ chebwin(1024, 100)
 % MATLAB:  proper window, sum ~378
 % numkit:  all 1s, sum = 1024
 ```
-**Symptom:** numkit's `chebwin` returns the correct shape for very small
-N but degenerates to all-ones (or all-near-1) for typical analysis
-sizes (N ≥ ~64). Likely a numerical-overflow path in the FFT-of-
-Chebyshev computation that silently saturates.
+**Symptom:** numkit's `chebwin` returned the correct shape for very small
+N but degenerated to all-ones (or all-near-1) for typical analysis
+sizes (N ≥ ~64). Root cause was a half-bin offset in the FFT-based
+inverse-cosine spectrum reconstruction — for even N the k = N/2
+nyquist term landed on the wrong centre of symmetry and the time-
+domain coefficients summed to a constant.
 **MATLAB:** all N values produce the proper window with main-lobe-to-
 sidelobe ratio R dB.
 **Impact:** Anything using `chebwin` for spectral analysis at typical
-sizes gets a rectangular (no-window) result silently — wrong leakage
+sizes got a rectangular (no-window) result silently — wrong leakage
 properties.
-**Where:** [libs/signal/src/](libs/signal/) `chebwin` — likely the
-intermediate spectrum hits Inf or NaN at large N and gets clamped.
+**Where:** [libs/signal/src/windows/windows.cpp](libs/signal/src/windows/windows.cpp) `chebwin`.
 **First seen:** 2026-05-03, parity bulk-bench iteration 33.
+**Fix (2026-05-08):** Replaced FFT-based reconstruction with the direct
+O(N²) cosine-IDFT form. Spectrum samples W(k) = T_M(β·cos(πk/N)) for
+k = 0..floor(N/2), reconstructed in time domain via the real cosine
+basis centred on N₀ = (N-1)/2. Verified `chebwin(1024, 100)` now
+returns sum ≈ 379 (matches MATLAB ~378), proper peak-1 / taper-to-
+zero shape, exact symmetry. Smoke `libs/signal/tests/smoke/chebwin_large_smoke.m`
+locks the regression (N=128/256/512/1024/2048 all produce correct
+windows).
 
 ---
 
