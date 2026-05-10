@@ -89,6 +89,30 @@ test.describe('inpolygon / convhull', () => {
     expect(txt).toMatch(/a=2\b/);
   });
 
+  test('boundary — equivalent to convhull (v1: shrink no-op)', async () => {
+    await ide.runScript(
+      'import compat.*;\n'
+      + 'x = [0 1 1 0 0.5];\n'
+      + 'y = [0 0 1 1 0.5];\n'
+      + 'k = boundary(x, y);\n'
+      + 'fprintf(\'len=%d\\n\', length(k));\n'
+    );
+    await page.waitForTimeout(200);
+    const txt = await ide.consoleText();
+    expect(txt).toMatch(/len=5/);
+  });
+
+  test('boundary(x, y, 0.7) — shrink arg accepted (no-op v1)', async () => {
+    await ide.runScript(
+      'import compat.*;\n'
+      + 'k = boundary([0 1 1 0], [0 0 1 1], 0.7);\n'
+      + 'fprintf(\'ok len=%d\\n\', length(k));\n'
+    );
+    await page.waitForTimeout(200);
+    const txt = await ide.consoleText();
+    expect(txt).toMatch(/ok len=/);
+  });
+
   test('convhull — collinear points (degenerate)', async () => {
     await ide.runScript(
       'import compat.*;\n'
