@@ -1,0 +1,10 @@
+{
+  "name": "audio_melspec_delta",
+  "namespace": "audio",
+  "setup": "fs = 8000; xx = (1:0.1:80)'; xc = [(1:5)', (10:10:50)'];",
+  "expr": "[S, F, T] = melSpectrogram(xx, fs); Ssz1 = size(S, 1); Ssz2 = size(S, 2); Tsz = numel(T); F1 = F(1); Flast = F(end); d = audioDelta((1:10)'); d9 = d(9); d10 = d(10); d5 = audioDelta((1:10)', 5); d5_10 = d5(10); dc = audioDelta(xc); dc51 = dc(5,1); dc52 = dc(5,2);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["Ssz1", "Ssz2", "Tsz", "F1", "Flast", "d9", "d10", "d5_10", "dc51", "dc52"],
+  "comment": "MATLAB Audio Toolbox cycle C: melSpectrogram + audioDelta. melSpectrogram with NumBands=8 default-window/overlap on a deterministic ramp signal. F (mel-band centers): bit-equal with MATLAB R2025b on all 8 values. S(1,1) bit-equal. Time vector T size matches MATLAB. audioDelta: bit-equal on default windowLength=9 ramp test (d(9)=d(10)=2 — MATLAB filter convention with sum((1:M)^2)=30 divisor), and on custom windowLength=5 path (denom=5), and multi-channel (filter operates along dim 1 per column). KNOWN GAPs (deferred): NumBands ≠ 8 default, FrequencyRange/FilterBankNormalization/MelStyle name-value args, and the [delta, Zf] / Zi initial-conditions form for audioDelta. Octave 11.1.0 doesn't ship melSpectrogram or audioDelta in core (Audio package only)."
+}
