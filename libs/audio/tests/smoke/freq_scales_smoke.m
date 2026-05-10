@@ -31,3 +31,14 @@ fprintf('\n[vector input — elementwise]\n');
 v = [100 1000 4000];
 fprintf('  hz2mel([100 1000 4000]) = '); disp(hz2mel(v));
 fprintf('  hz2erb([100 1000 4000]) = '); disp(hz2erb(v));
+
+fprintf('\n[Loudness — ISO 532-2 phon ↔ sone (Cycle M, PCHIP table-lookup)]\n');
+fprintf('  phon2sone(20,  ''ISO 532-2'') = %.6g (expect 0.146 from Table 5)\n', phon2sone(20, 'ISO 532-2'));
+fprintf('  phon2sone(60,  ''ISO 532-2'') = %.6g (expect 4.14)\n', phon2sone(60, 'ISO 532-2'));
+fprintf('  phon2sone(100, ''ISO 532-2'') = %.6g (expect 69.6)\n', phon2sone(100, 'ISO 532-2'));
+fprintf('  sone2phon(0.1, ''ISO 532-2'') = %.6g (expect 17.16 PCHIP-interp)\n', sone2phon(0.1, 'ISO 532-2'));
+fprintf('  sone2phon(10,  ''ISO 532-2'') = %.6g (expect 73.31)\n', sone2phon(10, 'ISO 532-2'));
+fprintf('  sone2phon(500, ''ISO 532-2'') = %.6g (expect 127.21 linear extrap)\n', sone2phon(500, 'ISO 532-2'));
+fprintf('\n  Note: ISO 532-2 ≠ ISO 532-1 (different scales by design):\n');
+fprintf('    phon2sone(20)              = %.6g (ISO 532-1 power law)\n', phon2sone(20));
+fprintf('    phon2sone(20, ''ISO 532-2'') = %.6g (ISO 532-2 Table 5)\n', phon2sone(20, 'ISO 532-2'));
