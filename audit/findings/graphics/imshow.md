@@ -24,25 +24,28 @@ defer to the host's existing image-decode path (Electron has built-in
 
 ## 2. Name-Value parameters
 
-Currently NOT parsed (lost silently if user passes them):
+### Implemented (2026-05-10)
 
-- `'DisplayRange', [lo hi]` — equivalent to positional `imshow(I, [lo hi])`,
-  trivially implementable
+- `'DisplayRange', [lo hi]` — equivalent to positional `imshow(I, [lo hi])`. ✅
+- `'XData', xv` / `'YData', yv` — image spans `[xv(1), xv(end)]` /
+  `[yv(1), yv(end)]` instead of pixel-index baseline. ✅
+
+### Still NOT parsed (lost silently)
+
 - `'Colormap', cmap` — sets axes colormap; today user has to call
-  `colormap(...)` separately
-- `'XData', xv` / `'YData', yv` — span the image over `[xv(1), xv(end)]`
-  rather than `[1, nC]` / `[1, nR]`
+  `colormap(...)` separately. Trivial: write to `ax.colormapName`.
 - `'InitialMagnification', factor | 'fit'` — controls display scale; we
-  always fit-to-panel which matches `'fit'`
+  always fit-to-panel which matches `'fit'`. The numeric form would
+  set the SVG image dimensions to `factor * pixel_count`; needs IDE-
+  side viewport plumbing.
 - `'Border', 'tight' | 'loose'` — controls axes margins; partly
-  redundant with `axis image`
+  redundant with `axis image`.
 - `'Reduce', true | false` — auto-downsample for huge images. We
   already mean-pool when > 2M pixels; this option would be the
-  user-facing toggle
+  user-facing toggle.
 
-Parser pattern: same as `plot`'s `parsePlotArgs` (key/value pairs
-after the data args). Look at `libs/graphics/src/library.cpp:100`
-for the template.
+Parser pattern: see `libs/graphics/src/library.cpp::imshowImpl`
+N-V loop at the top (DisplayRange/XData/YData covered there).
 
 ## 3. RGBA (4-channel) input
 
