@@ -230,11 +230,17 @@ export function renderHeatmapDataURLFromIndices(zRows, lut) {
 }
 
 /** Render a flat Uint8Array (row-major) version — for tile overlay.
- *  Same vertical flip applied as renderHeatmapDataURLFromIndices.
+ *  Vertical flip CONDITIONAL on `flipY`: the engine's getFigureDisplayTile
+ *  emits buf[0..displayW] = top of the source-rect (low matrix row index).
+ *  For axis-xy (yDir='normal', low data y at panel BOTTOM) the buffer needs
+ *  flipping so matrix row 1 lands at panel bottom. For axis-ij
+ *  (yDir='reverse', low data y at panel TOP) NO flip — canvas drawn top-down
+ *  from buf[0] puts matrix row 1 at the top naturally.
+ *
  *  rows / cols MUST be integers — fractional dims (from non-integer panel
  *  measurements) silently produce diagonal stripes because srcOff drifts
  *  by 0.5 × row each iteration when cols is fractional. Coerce defensively. */
-export function renderHeatmapDataURLFromFlat(arr, rows, cols, lut) {
+export function renderHeatmapDataURLFromFlat(arr, rows, cols, lut, flipY = true) {
   rows = rows | 0;
   cols = cols | 0;
   if (!rows || !cols) return null;
@@ -245,7 +251,7 @@ export function renderHeatmapDataURLFromFlat(arr, rows, cols, lut) {
   const img = ctx.createImageData(cols, rows);
   const px  = img.data;
   for (let r = 0; r < rows; r++) {
-    const srcRow = rows - 1 - r;          // ← vertical flip
+    const srcRow = flipY ? (rows - 1 - r) : r;
     const srcOff = srcRow * cols;
     const dstOff = r * cols;
     for (let c = 0; c < cols; c++) {

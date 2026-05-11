@@ -846,7 +846,12 @@ export default function CompositePlot({
       );
       if (!buf) { setTileOverlay(null); return; }
 
-      const dataURL = renderHeatmapDataURLFromFlat(buf, H, W, lut);
+      // Tile buffer is in source-row order (top of source-rect = buf row 0).
+      // For axis-xy (yDir='normal') we need vertical flip so matrix row 1
+      // (low data y) lands at panel BOTTOM; for axis-ij (yDir='reverse')
+      // we DON'T flip — matrix row 1 belongs at panel TOP, and the canvas
+      // is drawn top-down from buf row 0 already.
+      const dataURL = renderHeatmapDataURLFromFlat(buf, H, W, lut, !yRev);
       // Remember the source-rect this tile covers — when the viewport
       // changes during the next debounce window the tile is repositioned
       // so the image tracks the gridlines instead of lagging behind.

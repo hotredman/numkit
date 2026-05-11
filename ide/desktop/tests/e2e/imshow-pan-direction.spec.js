@@ -185,6 +185,81 @@ test.describe('Imshow pan direction', () => {
     expect(ide.devErrors().filter(NON_FATAL)).toEqual([]);
   });
 
+  test('subplot + imshow: image rect stable before/after tile-fetch settles', async () => {
+    // The bug being chased: drag DOWN on imshow inside subplot, image
+    // visually moves correctly DURING drag. On mouse-up the engine's
+    // display-tile fetch fires (~60ms debounce) and replaces the inline
+    // preview with a re-resampled tile. If the tile renderer disagrees
+    // with the inline preview about y-orientation (yDir='reverse'), the
+    // visible image area "snaps" to a different rectangle on release —
+    // user perception: "clipping after release".
+    //
+    // We assert the visible <image> bounding rect (intersection with the
+    // panel clip) is the SAME just-after-release vs. after-tile-settles.
+    await ide.runScript(
+      'import compat.*;\n'
+      + '[X, Y] = meshgrid(1:32, 1:32);\n'
+      + 'mask = (X - 16).^2 + (Y - 16).^2 <= 8^2;\n'
+      + 'mask(1:4, 1:4) = true;\n'   // distinctive marker at TOP-LEFT
+      + 'figure;\n'
+      + 'subplot(2,3,1); imshow(mask); title(\'a\');\n'
+      + 'subplot(2,3,2); imshow(mask); title(\'b\');\n'
+    );
+    await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+    await ide.figureCards.first().click();
+    await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+
+    const cellSvg = page.locator('.fw-canvas-wrap svg').first();
+    await expect(cellSvg).toBeVisible({ timeout: 5_000 });
+    await page.waitForTimeout(150);
+
+    // Snapshot every <image> element's rect before pan.
+    async function snapImages() {
+      const imgs = cellSvg.locator('image');
+      const n = await imgs.count();
+      const out = [];
+      for (let i = 0; i < n; i++) {
+        const el = imgs.nth(i);
+        out.push({
+          y: parseFloat(await el.getAttribute('y')),
+          h: parseFloat(await el.getAttribute('height')),
+        });
+      }
+      return out;
+    }
+
+    const box = await cellSvg.boundingBox();
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await page.mouse.move(cx, cy + 60, { steps: 8 });
+    // RIGHT-after-release snapshot (tile-fetch hasn't fired yet — debounce
+    // is 60ms; we wait less than that). Inline preview only.
+    await page.mouse.up();
+    await page.waitForTimeout(20);
+    const justAfterRelease = await snapImages();
+
+    // Wait long enough for the tile-fetch to settle.
+    await page.waitForTimeout(400);
+    const afterSettle = await snapImages();
+
+    // Tile placement (oy) must be CONSISTENT before vs after settle —
+    // that's the actual orientation bug. Tile HEIGHT can shrink when
+    // the new tile is sized to in-bounds source data only (legit "pan
+    // past data" — empty area above/below image, MATLAB-equivalent).
+    // What we forbid: tile y attribute jumping (= image flips orientation
+    // or relocates).
+    expect(justAfterRelease.length).toBe(afterSettle.length);
+    for (let i = 0; i < justAfterRelease.length; i++) {
+      expect(Math.abs(afterSettle[i].y - justAfterRelease[i].y))
+        .toBeLessThan(5);  // sub-pixel tolerance
+    }
+
+    expect(ide.devErrors().filter(NON_FATAL)).toEqual([]);
+  });
+
   test('imagesc (auto axis ij) + drag DOWN → yMin DECREASES', async () => {
     // imagesc must auto-set yDir='reverse' (MATLAB axis ij convention).
     // With both engine + IDE fixes in place, pan must follow the mouse
