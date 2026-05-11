@@ -17,26 +17,13 @@
 // which catches both the missing-slot bug and any future regression
 // that pushes range-row into the status slot.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 const NON_FATAL = (e) =>
   !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e);
 
 test.describe('FigureWindow layout', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('range-row sits entirely above status row (no overlap)', async () => {
+  test('range-row sits entirely above status row (no overlap)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3 4], [1 4 9 16]);\n'
@@ -65,7 +52,7 @@ test.describe('FigureWindow layout', () => {
     expect(ide.devErrors().filter(NON_FATAL)).toEqual([]);
   });
 
-  test('subplot figure: no range-row, status still pinned to bottom', async () => {
+  test('subplot figure: no range-row, status still pinned to bottom', async ({ ide, page }) => {
     // For !isSubplot the auto slot collapses to 0 — verify status row
     // is still where it should be (last row of the grid).
     await ide.runScript(

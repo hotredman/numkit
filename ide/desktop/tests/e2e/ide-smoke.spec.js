@@ -4,26 +4,13 @@
 // (WASM glue load, examples manifest, REPL banner, run-button wiring).
 // Doesn't assert business logic — that's the job of focused specs.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 const NON_FATAL = (e) =>
   !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e);
 
 test.describe('IDE smoke', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('boots, runs trivial script, no console errors', async () => {
+  test('boots, runs trivial script, no console errors', async ({ ide, page }) => {
     await ide.runScript('import compat.*;\nx = 1 + 2;\n');
     await page.waitForTimeout(150);
 
@@ -37,7 +24,7 @@ test.describe('IDE smoke', () => {
     expect(ide.devErrors().filter(NON_FATAL)).toEqual([]);
   });
 
-  test('plot creates a figure card; close-all clears the pane', async () => {
+  test('plot creates a figure card; close-all clears the pane', async ({ ide }) => {
     await ide.runScript('import compat.*;\nplot([1 2 3], [1 4 9]);\n');
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
 

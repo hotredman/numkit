@@ -12,26 +12,13 @@
 // shape, plus defensive fallback to defaultViewport(cell) in the render
 // call to cover the transient pre-effect render.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 const NON_FATAL = (e) =>
   !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e);
 
 test.describe('Subplot grid: re-run with shape change', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('1×3 subplot → close all → 2×3 subplot — no crash', async () => {
+  test('1×3 subplot → close all → 2×3 subplot — no crash', async ({ ide, page }) => {
     // Mirrors the user-reported sequence: color_space_demo (1×3 imshow)
     // then morphology_pipeline (2×3 imshow with skipped slot).
     await ide.runScript(
@@ -76,7 +63,7 @@ test.describe('Subplot grid: re-run with shape change', () => {
     expect(errors).toEqual([]);
   });
 
-  test('5-cell subplot → close all → 1-cell plot — no crash (shrink)', async () => {
+  test('5-cell subplot → close all → 1-cell plot — no crash (shrink)', async ({ ide, page }) => {
     // Mirror in reverse: shape shrinks. Stale viewports beyond new length
     // shouldn't crash either.
     await ide.runScript(

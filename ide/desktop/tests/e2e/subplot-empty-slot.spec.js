@@ -4,23 +4,10 @@
 // empty figure-bg slot. We add a faded "not set" placeholder so the
 // grid shape is visually intact — easier to read than an unframed gap.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('Subplot grid empty-slot placeholder', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('subplot(2,3,X) for X=1,2,3,5,6 → 5 plots + 1 placeholder', async () => {
+  test('subplot(2,3,X) for X=1,2,3,5,6 → 5 plots + 1 placeholder', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + '[X, Y] = meshgrid(1:8, 1:8);\n'
@@ -45,7 +32,7 @@ test.describe('Subplot grid empty-slot placeholder', () => {
     await expect(placeholders.first()).toHaveText('not set');
   });
 
-  test('subplot grid with no skipped slots → no placeholders', async () => {
+  test('subplot grid with no skipped slots → no placeholders', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'figure;\n'
