@@ -324,7 +324,7 @@ explicit-class 2-arg form.
 
 ---
 
-## 14. `core/`: `(:)` on a logical scalar segfaults — **P0** → **P1** (downgraded — see footer)
+## 14. `core/`: `(:)` on a logical scalar segfaults — **P0** → ✅ FIXED 2026-05-11
 
 **Reproducer:**
 ```matlab
@@ -347,15 +347,18 @@ scalar logical (`strcmp`, `contains`, `startsWith`, `isequal`,
 **Where:** core indexing dispatch — colon flattening on a 1-elem
 logical container. Probably misses a special-case for the SBO/scalar
 path of logical Value.
-**Status:** **partially fixed (no-crash, wrong-value).** As of
-2026-05-10 the script no longer segfaults — `true(:)` runs to
-completion. But the resulting flattened element is `0` instead of
-`1` for `true`, so the value is dropped. Downgraded P0 → P1.
-Probably the same SBO-scalar path that was crashing now reaches
-a zero-initialised destination. Real fix still needs the core
-indexing dispatch to honour the source bit on the scalar-logical
-path. e2e bug14-logical-colon.spec.js pins the no-crash improvement
-+ documents the residual wrong-value.
+**Status:** **FIXED 2026-05-11** (commit pending). Root cause was in
+`VM::execIndirectIndex` colon-flatten branch: it called
+`mv.rawData()` + `memcpy(n*es)` unconditionally, but tag-stored
+scalars (logical SBO, also DOUBLE small-form) have no heap buffer,
+so `rawData()` returned nullptr → memcpy garbage / segfault. The
+intermediate "no-crash, wrong-value" state was the same issue —
+copying from an uninitialised stack location happened to land on a
+zero. Fix: identity short-circuit `if (mv.isScalar()) R[I.a] = mv;`
+before the memcpy path. Covers every scalar type (LOGICAL / DOUBLE
+tag / INT* / STRUCT) without touching raw bytes. Validated via
+true(:), false(:), logical(0)(:), logical(1)(:), scalar_double(:),
+[true false true](:) — all match MATLAB.
 **First seen:** 2026-05-03, parity bulk-bench iteration 10 (probing
 `strcmp` SAVE-block hang).
 
