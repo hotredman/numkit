@@ -32,6 +32,14 @@ if errorlevel 1 (
 :: Engine sources change far more often than IDE shell code, so the safe
 :: default is to rebuild every desktop run. Pass --skip-wasm to reuse a
 :: prior build for fast IDE-only iteration.
+::
+:: Parallelism: build.bat --wasm runs `cmake --build --preset=browser`,
+:: which is file-level parallel via `"jobs": 0` in CMakePresets.json
+:: (browser buildPreset). Combined with `if(MSVC) /MP` in CMakeLists
+:: (no-op for emcc but harmless), this saturates all cores during the
+:: WASM compile. The npm install / vite / electron-builder steps below
+:: have their own parallelism and run sequentially per the dependency
+:: graph (vite needs the WASM artefacts; electron-builder needs vite).
 if "%SKIP_WASM%"=="1" (
     if exist "%WASM_DIST%\numkit_ide.wasm" (
         echo [1/5] Skipping WASM rebuild (--skip-wasm; reusing existing build^)
@@ -41,7 +49,7 @@ if "%SKIP_WASM%"=="1" (
     )
 )
 if not "%SKIP_WASM%"=="1" (
-    echo [1/5] Rebuilding WASM engine...
+    echo [1/5] Rebuilding WASM engine -- parallel via browser preset jobs:0 ...
     call "%PROJECT_DIR%build.bat" --wasm
     if errorlevel 1 (
         echo WASM build failed!
@@ -59,8 +67,19 @@ if exist "%WASM_DIST%\numkit_ide.wasm" (
 )
 
 :: ── Step 3: install IDE deps + Vite build ───────────────────────────
-if not exist "%IDE_DIR%\node_modules" (
-    echo [3/5] Installing IDE dependencies...
+:: Don't just check for node_modules existence — after a git pull /
+:: branch merge that adds a new dep (e.g. `three`), the folder is
+:: there but stale, vite then dies with "Rollup failed to resolve
+:: import 'three'". Use PowerShell to compare package.json mtime
+:: against node_modules mtime; reinstall when package.json is newer.
+set NEED_IDE_INSTALL=0
+if not exist "%IDE_DIR%\node_modules" set NEED_IDE_INSTALL=1
+if "%NEED_IDE_INSTALL%"=="0" (
+    powershell -NoProfile -Command "if ((Get-Item '%IDE_DIR%\package.json').LastWriteTime -gt (Get-Item '%IDE_DIR%\node_modules').LastWriteTime) { exit 1 } else { exit 0 }"
+    if errorlevel 1 set NEED_IDE_INSTALL=1
+)
+if "%NEED_IDE_INSTALL%"=="1" (
+    echo [3/5] Installing IDE dependencies ^(package.json newer than node_modules or fresh checkout^)...
     cd /d "%IDE_DIR%"
     call npm install
     if errorlevel 1 exit /b 1
@@ -82,9 +101,16 @@ xcopy /e /i /q "%IDE_DIR%\dist" "%DESKTOP_DIR%\dist" >nul
 echo      Static files ready at %DESKTOP_DIR%\dist
 
 :: ── Step 5: install desktop deps + package exe ──────────────────────
+:: Same staleness check as Step 3.
+set NEED_DSK_INSTALL=0
+if not exist "%DESKTOP_DIR%\node_modules" set NEED_DSK_INSTALL=1
+if "%NEED_DSK_INSTALL%"=="0" (
+    powershell -NoProfile -Command "if ((Get-Item '%DESKTOP_DIR%\package.json').LastWriteTime -gt (Get-Item '%DESKTOP_DIR%\node_modules').LastWriteTime) { exit 1 } else { exit 0 }"
+    if errorlevel 1 set NEED_DSK_INSTALL=1
+)
 cd /d "%DESKTOP_DIR%"
-if not exist "node_modules" (
-    echo Installing desktop dependencies...
+if "%NEED_DSK_INSTALL%"=="1" (
+    echo Installing desktop dependencies ^(package.json newer than node_modules or fresh checkout^)...
     call npm install
     if errorlevel 1 exit /b 1
 )
