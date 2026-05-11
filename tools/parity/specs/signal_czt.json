@@ -1,0 +1,10 @@
+{
+  "name": "signal_czt",
+  "namespace": "signal",
+  "setup": "x = 1:8;",
+  "expr": "y1 = czt(x); y1_1 = real(y1(1)); y1_2_re = real(y1(2)); y1_2_im = imag(y1(2)); y2 = czt(x, 16); y2_1 = real(y2(1)); y2_8_re = real(y2(8)); y2_8_im = imag(y2(8)); m = 10; w = exp(-1j*2*pi*1/16); a = exp(1j*pi/8); y3 = czt(x, m, w, a); y3_1_re = real(y3(1)); y3_1_im = imag(y3(1)); y3_5_re = real(y3(5)); y3_5_im = imag(y3(5)); y3_10_re = real(y3(10)); y3_10_im = imag(y3(10));",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["y1_1", "y1_2_re", "y1_2_im", "y2_1", "y2_8_re", "y2_8_im", "y3_1_re", "y3_1_im", "y3_5_re", "y3_5_im", "y3_10_re", "y3_10_im"],
+  "comment": "MATLAB Signal Toolbox czt — discrete chirp Z-transform. Implementation: Bluestein decomposition Y[k] = w^(k²/2) · (g ⋆ h)[k] where g[n] = x[n]·a^(-n)·w^(n²/2), h[n] = w^(-n²/2). The g ⊛ h circular convolution is computed via length-L FFT with L = nextPow2(N + m − 1); the negative-index branch of h is placed at indices L-n..L-1 to make the circular convolution equal the linear convolution on the first m output samples. Default args match MATLAB: m = length(x), w = exp(-2π·j/m), a = 1 — so czt(x) ≡ fft(x) and czt(x, m) ≡ fft(x, m). Approx-equal MATLAB R2025b (~1e-13 from chirp-pow arithmetic) on FFT-equivalent, m-override, and full 4-arg forms. Octave 11.1.0 ships czt in the signal package (not core); harness reports it from there. 2-D input is processed column-wise (MATLAB semantics)."
+}
