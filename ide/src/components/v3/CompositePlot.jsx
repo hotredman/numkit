@@ -379,8 +379,9 @@ export default function CompositePlot({
   // there's no heatmap layer.
   const dataURL = useMemo(() => {
     if (!hZ) return null;
-    return renderHeatmapDataURLFromIndices(hZ, lut);
-  }, [hZ, lut]);
+    // Same flip-CONDITIONAL-on-yDir logic as the tile overlay below.
+    return renderHeatmapDataURLFromIndices(hZ, lut, !yRev);
+  }, [hZ, lut, yRev]);
 
   // RGB / RGBA image (imshow with M×N×3 or M×N×4). Pack the per-pixel
   // tuples into a Uint8ClampedArray, push through an off-screen

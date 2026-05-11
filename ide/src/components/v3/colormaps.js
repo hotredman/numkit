@@ -195,14 +195,15 @@ export function buildHeatmapLUT(colormap, cminOrig, cmaxOrig, cminEff, cmaxEff) 
  * a data: URL via an offscreen canvas + the precomputed LUT from
  * buildHeatmapLUT(). Three-table indirection per pixel — fast (no float math).
  *
- * Vertical FLIP applied: canvas row 0 = source row (rows-1). This puts
- * matrix row 0 at the BOTTOM of the rendered image, matching the IDE's
- * axis-xy y-axis convention (yMin at bottom, yMax at top). Without the
- * flip, low-data-y rows would show at the top of the plot while the
- * y-axis label there says "high data y" — the source of the "image
- * slides relative to grid" symptom under log axes.
+ * Vertical flip CONDITIONAL on `flipY`. zRows[0] = matrix row 1 from the
+ * engine. For axis-xy (yDir='normal', low data y at panel BOTTOM) the flip
+ * puts matrix row 1 at panel BOTTOM as expected. For axis-ij (yDir='reverse',
+ * low data y at panel TOP) NO flip — canvas drawn top-down from zRows[0]
+ * naturally puts matrix row 1 at the top. Symptom of unconditional flip:
+ * preview cards (which only render this inline path, not the tile overlay)
+ * showed imshow / imagesc images mirrored vs. the modal window.
  */
-export function renderHeatmapDataURLFromIndices(zRows, lut) {
+export function renderHeatmapDataURLFromIndices(zRows, lut, flipY = true) {
   const numRows = zRows.length;
   const numCols = zRows[0]?.length || 0;
   if (!numRows || !numCols) return null;
@@ -213,7 +214,7 @@ export function renderHeatmapDataURLFromIndices(zRows, lut) {
   const img = ctx.createImageData(numCols, numRows);
   const px  = img.data;
   for (let r = 0; r < numRows; r++) {
-    const row = zRows[numRows - 1 - r];   // ← vertical flip
+    const row = zRows[flipY ? (numRows - 1 - r) : r];
     const off = r * numCols * 4;
     for (let c = 0; c < numCols; c++) {
       const idx = row[c];
