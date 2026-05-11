@@ -70,13 +70,29 @@ TEST_F(StftTest, IstftRoundTripOnesided)
     EXPECT_LT(eval_scalar("err"), 1e-12);
 }
 
-// 'centered' FrequencyRange — deferred; documented throw.
-TEST_F(StftTest, CenteredDeferredThrows)
+// 'centered' FrequencyRange — bit-exact match with MATLAB's MATLAB R2019b+
+// default. Rotation: Sd[k] = Fd[(k + cShift) mod N] with cShift = N/2 + 1
+// for even N, (N+1)/2 for odd. DC lands at index (N/2 - 1) for even N.
+// Values pinned against MATLAB R2025b probe.
+TEST_F(StftTest, CenteredMatchesMatlab)
 {
-    EXPECT_THROW(engine.eval("stft(x, 'Window', w, 'OverlapLength', 32, "
-                             "'FFTLength', 64, 'FrequencyRange', "
-                             "'centered');"),
-                 std::exception);
+    engine.eval("s = stft(x, 'Window', w, 'OverlapLength', 32, "
+                "'FFTLength', 64, 'FrequencyRange', 'centered');");
+    EXPECT_NEAR(eval_scalar("real(s(1, 1))"),     6.83738e-5, 1e-9);
+    EXPECT_NEAR(eval_scalar("imag(s(1, 1))"),     3.11641e-5, 1e-9);
+    EXPECT_NEAR(eval_scalar("real(s(33, 1))"),   -0.233456,   1e-5);
+    EXPECT_NEAR(eval_scalar("imag(s(33, 1))"),    0.252025,   1e-5);
+}
+
+// Round-trip via istft with centered range.
+TEST_F(StftTest, IstftRoundTripCentered)
+{
+    engine.eval("s = stft(x, 'Window', w, 'OverlapLength', 32, "
+                "'FFTLength', 64, 'FrequencyRange', 'centered');");
+    engine.eval("xr = real(istft(s, 'Window', w, 'OverlapLength', 32, "
+                "'FFTLength', 64, 'FrequencyRange', 'centered'));");
+    engine.eval("err = max(abs(x(64:end-64) - xr(64:end-64)'));");
+    EXPECT_LT(eval_scalar("err"), 1e-12);
 }
 
 // Unknown name-value key — must throw rather than silently accept.
