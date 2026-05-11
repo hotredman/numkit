@@ -5,23 +5,10 @@
 // the bottom of higher bands, producing the classic stacked-area
 // visual without changing the area-render path.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('area — stacked multi-series', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('area(Y) with vector Y — single series (back-compat)', async () => {
+  test('area(Y) with vector Y — single series (back-compat)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'area([1 2 3 2 1]);\n'
@@ -32,7 +19,7 @@ test.describe('area — stacked multi-series', () => {
     )).toEqual([]);
   });
 
-  test('area(Y) with matrix Y — multiple area paths drawn', async () => {
+  test('area(Y) with matrix Y — multiple area paths drawn', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       // 5 rows × 3 cols — 3 stacked series.
@@ -47,7 +34,7 @@ test.describe('area — stacked multi-series', () => {
     expect(filled).toBeGreaterThanOrEqual(3);
   });
 
-  test('area(x, Y) with explicit x vector + matrix Y', async () => {
+  test('area(x, Y) with explicit x vector + matrix Y', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = linspace(0, 1, 5);\n'
@@ -60,7 +47,7 @@ test.describe('area — stacked multi-series', () => {
     )).toEqual([]);
   });
 
-  test('area(Y) — single column matrix is treated as vector', async () => {
+  test('area(Y) — single column matrix is treated as vector', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       // 5×1 — looks like a column vector; renderer should fall through
@@ -74,7 +61,7 @@ test.describe('area — stacked multi-series', () => {
     )).toEqual([]);
   });
 
-  test('area stacked opens cleanly in modal', async () => {
+  test('area stacked opens cleanly in modal', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Y = [1 1 1; 2 2 2; 3 3 3];\n'

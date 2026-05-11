@@ -14,23 +14,10 @@
 //   3. contourf doesn't crash (lines fallback)
 //   4. Modal expansion preserves the layers
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('B3 — contour', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('contour(Z) — default 10 levels, no errors', async () => {
+  test('contour(Z) — default 10 levels, no errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       // Cone: distance from centre. 7×7 grid for predictable contours.
@@ -46,7 +33,7 @@ test.describe('B3 — contour', () => {
     )).toEqual([]);
   });
 
-  test('contour(Z, n) — n levels, multiple paths visible', async () => {
+  test('contour(Z, n) — n levels, multiple paths visible', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = zeros(10, 10);\n'
@@ -64,7 +51,7 @@ test.describe('B3 — contour', () => {
     )).toEqual([]);
   });
 
-  test('contour(Z, levels) — explicit levels vector', async () => {
+  test('contour(Z, levels) — explicit levels vector', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = zeros(8, 8);\n'
@@ -79,7 +66,7 @@ test.describe('B3 — contour', () => {
     )).toEqual([]);
   });
 
-  test('contour(X, Y, Z) — explicit grid coordinates', async () => {
+  test('contour(X, Y, Z) — explicit grid coordinates', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = linspace(-2, 2, 9);\n'
@@ -96,7 +83,7 @@ test.describe('B3 — contour', () => {
     )).toEqual([]);
   });
 
-  test('contourf — falls back to line render, no crash', async () => {
+  test('contourf — falls back to line render, no crash', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = zeros(6, 6);\n'
@@ -111,7 +98,7 @@ test.describe('B3 — contour', () => {
     )).toEqual([]);
   });
 
-  test('contour modal — expands cleanly', async () => {
+  test('contour modal — expands cleanly', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = zeros(5, 5);\n'
@@ -128,7 +115,7 @@ test.describe('B3 — contour', () => {
     )).toEqual([]);
   });
 
-  test('contour with constant Z (degenerate) — no crash', async () => {
+  test('contour with constant Z (degenerate) — no crash', async ({ ide, page }) => {
     // zmn == zmx → no segments cross the level. We don't emit a card
     // because the adapter discards layers-empty figures (matching the
     // no-renderable contract). The guarantee here is "no error".

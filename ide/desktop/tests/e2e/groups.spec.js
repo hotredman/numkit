@@ -1,22 +1,9 @@
 // groups.spec.js — findgroups / splitapply / groupcounts.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('findgroups / splitapply / groupcounts', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('findgroups assigns 1-based IDs in sorted-unique order', async () => {
+  test('findgroups assigns 1-based IDs in sorted-unique order', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + '[G, ID] = findgroups([3 1 2 1 3 2]);\n'
@@ -29,7 +16,7 @@ test.describe('findgroups / splitapply / groupcounts', () => {
     expect(txt).toMatch(/G=3 1 2 1 3 2 ID=1 2 3/);
   });
 
-  test('splitapply(@sum) per group', async () => {
+  test('splitapply(@sum) per group', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'g = [1 1 2 2 3];\n'
@@ -42,7 +29,7 @@ test.describe('findgroups / splitapply / groupcounts', () => {
     expect(txt).toMatch(/r=30 70 50/);
   });
 
-  test('groupcounts — count per unique group', async () => {
+  test('groupcounts — count per unique group', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'c = groupcounts([1 2 1 3 2 1]);\n'

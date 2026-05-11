@@ -5,23 +5,10 @@
 // unbounded edges that are omitted — proper infinite-ray extension
 // is BACKLOG.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('voronoi', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('voronoi(x, y) — figure mounts with edges + point markers', async () => {
+  test('voronoi(x, y) — figure mounts with edges + point markers', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       // 5 random-ish points so we get several Voronoi edges.
@@ -37,7 +24,7 @@ test.describe('voronoi', () => {
     expect(circles).toBeGreaterThanOrEqual(5);
   });
 
-  test('voronoi survives small N (3 points → at least no crash)', async () => {
+  test('voronoi survives small N (3 points → at least no crash)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'voronoi([0 1 0.5], [0 0 1]);\n'

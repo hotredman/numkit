@@ -1,23 +1,10 @@
 // webgl-3d-wrappers.spec.js — Etap 5: quiver3 / contour3 / surfc /
 // meshc 3-D wrapper builtins routed through the WebGL renderer.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('WebGL 3-D — quiver3 / contour3 / surfc / meshc', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('quiver3(x, y, z, u, v, w) — arrows in 3-D', async () => {
+  test('quiver3(x, y, z, u, v, w) — arrows in 3-D', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = [0 1 2]; y = [0 1 2]; z = [0 1 2];\n'
@@ -32,7 +19,7 @@ test.describe('WebGL 3-D — quiver3 / contour3 / surfc / meshc', () => {
     )).toEqual([]);
   });
 
-  test('quiver3 with explicit scale', async () => {
+  test('quiver3 with explicit scale', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = [0 1]; y = [0 1]; z = [0 0];\n'
@@ -45,7 +32,7 @@ test.describe('WebGL 3-D — quiver3 / contour3 / surfc / meshc', () => {
     )).toEqual([]);
   });
 
-  test('contour3(Z) — contour lines on surface height', async () => {
+  test('contour3(Z) — contour lines on surface height', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [0 1 2 1 0; 1 2 3 2 1; 2 3 4 3 2; 1 2 3 2 1; 0 1 2 1 0];\n'
@@ -59,7 +46,7 @@ test.describe('WebGL 3-D — quiver3 / contour3 / surfc / meshc', () => {
     )).toEqual([]);
   });
 
-  test('contour3(Z, n) — n levels', async () => {
+  test('contour3(Z, n) — n levels', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2 3; 2 4 6; 3 6 9];\n'
@@ -71,7 +58,7 @@ test.describe('WebGL 3-D — quiver3 / contour3 / surfc / meshc', () => {
     )).toEqual([]);
   });
 
-  test('contour3(Z, levels) — explicit level vector', async () => {
+  test('contour3(Z, levels) — explicit level vector', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2 3; 2 4 6; 3 6 9];\n'
@@ -83,7 +70,7 @@ test.describe('WebGL 3-D — quiver3 / contour3 / surfc / meshc', () => {
     )).toEqual([]);
   });
 
-  test('surfc(Z) — surface + contour combined', async () => {
+  test('surfc(Z) — surface + contour combined', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2 3 4; 2 3 4 5; 3 4 5 6];\n'
@@ -97,7 +84,7 @@ test.describe('WebGL 3-D — quiver3 / contour3 / surfc / meshc', () => {
     )).toEqual([]);
   });
 
-  test('meshc(Z) — mesh + contour combined', async () => {
+  test('meshc(Z) — mesh + contour combined', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2 3; 2 3 4; 3 4 5];\n'
@@ -109,7 +96,7 @@ test.describe('WebGL 3-D — quiver3 / contour3 / surfc / meshc', () => {
     )).toEqual([]);
   });
 
-  test('quiver3 modal — opens cleanly', async () => {
+  test('quiver3 modal — opens cleanly', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'quiver3([0 1], [0 1], [0 0], [1 -1], [0 0], [1 1]);\n'

@@ -3,23 +3,10 @@
 //
 // Tests assert: builtin runs, figure card appears, no console errors.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('Tier 1B — stat-chart wrappers', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('cdfplot(x) — empirical CDF as a step function', async () => {
+  test('cdfplot(x) — empirical CDF as a step function', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'cdfplot(randn(1, 100));\n'
@@ -34,7 +21,7 @@ test.describe('Tier 1B — stat-chart wrappers', () => {
   // routine that returns (F, x) — it doesn't draw. Users plot the
   // empirical CDF via cdfplot(x). No graphics-side wrapper needed.
 
-  test('qqplot(x) — normal Q-Q with reference line', async () => {
+  test('qqplot(x) — normal Q-Q with reference line', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'qqplot(randn(1, 50));\n'
@@ -51,7 +38,7 @@ test.describe('Tier 1B — stat-chart wrappers', () => {
     )).toEqual([]);
   });
 
-  test('pareto(Y) — sorted bars + cumulative line', async () => {
+  test('pareto(Y) — sorted bars + cumulative line', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'pareto([4 2 8 1 5 3 7 6]);\n'
@@ -62,7 +49,7 @@ test.describe('Tier 1B — stat-chart wrappers', () => {
     )).toEqual([]);
   });
 
-  test('histfit(x) — histogram + Gaussian fit overlay', async () => {
+  test('histfit(x) — histogram + Gaussian fit overlay', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'histfit(randn(1, 200));\n'
@@ -73,7 +60,7 @@ test.describe('Tier 1B — stat-chart wrappers', () => {
     )).toEqual([]);
   });
 
-  test('histfit(x, n) — explicit bin count', async () => {
+  test('histfit(x, n) — explicit bin count', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'histfit(randn(1, 200), 30);\n'
@@ -84,7 +71,7 @@ test.describe('Tier 1B — stat-chart wrappers', () => {
     )).toEqual([]);
   });
 
-  test('gscatter(x, y, g) — scatter colored by group', async () => {
+  test('gscatter(x, y, g) — scatter colored by group', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = [1 2 3 4 5 6 7 8 9 10];\n'
@@ -101,7 +88,7 @@ test.describe('Tier 1B — stat-chart wrappers', () => {
     )).toEqual([]);
   });
 
-  test('cdfplot survives degenerate single-value input', async () => {
+  test('cdfplot survives degenerate single-value input', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'cdfplot([42]);\n'

@@ -14,23 +14,10 @@
 //   2. The card has SVG paths (the trace polyline)
 //   3. Both forms (streamline + streamslice) work
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('B3 — streamline / streamslice', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('streamslice — uniform field renders, no errors', async () => {
+  test('streamslice — uniform field renders, no errors', async ({ ide, page }) => {
     // Constant field U=1, V=0 → horizontal streamlines from every seed.
     await ide.runScript(
       'import compat.*;\n'
@@ -46,7 +33,7 @@ test.describe('B3 — streamline / streamslice', () => {
     )).toEqual([]);
   });
 
-  test('streamline with explicit seeds — rotation field renders', async () => {
+  test('streamline with explicit seeds — rotation field renders', async ({ ide, page }) => {
     // Rigid rotation: U(x,y) = -y, V(x,y) = x → circular flow.
     await ide.runScript(
       'import compat.*;\n'
@@ -72,7 +59,7 @@ test.describe('B3 — streamline / streamslice', () => {
     expect(paths).toBeGreaterThanOrEqual(1);
   });
 
-  test('streamslice with sink field — paths converge, no crash', async () => {
+  test('streamslice with sink field — paths converge, no crash', async ({ ide, page }) => {
     // Inward flow: U = -x, V = -y.
     await ide.runScript(
       'import compat.*;\n'
@@ -94,7 +81,7 @@ test.describe('B3 — streamline / streamslice', () => {
     )).toEqual([]);
   });
 
-  test('streamline modal — expands cleanly', async () => {
+  test('streamline modal — expands cleanly', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = linspace(0, 2, 5);\n'
@@ -111,7 +98,7 @@ test.describe('B3 — streamline / streamslice', () => {
     )).toEqual([]);
   });
 
-  test('streamslice with zero field — no integration, no crash', async () => {
+  test('streamslice with zero field — no integration, no crash', async ({ ide, page }) => {
     // |F| = 0 everywhere → stall on first step. Engine must remain clean.
     await ide.runScript(
       'import compat.*;\n'

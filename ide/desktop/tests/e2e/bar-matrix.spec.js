@@ -1,23 +1,10 @@
 // bar-matrix.spec.js — bar(Y) where Y is a matrix → grouped /
 // stacked multi-series bar chart.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('bar — matrix Y (grouped + stacked)', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('bar(vector) — single series back-compat', async () => {
+  test('bar(vector) — single series back-compat', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'bar([1 2 3 4 5]);\n'
@@ -28,7 +15,7 @@ test.describe('bar — matrix Y (grouped + stacked)', () => {
     )).toEqual([]);
   });
 
-  test('bar(matrix) — grouped (default), one dataset per column', async () => {
+  test('bar(matrix) — grouped (default), one dataset per column', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       // 3 rows × 3 cols → 3 grouped bar series.
@@ -44,7 +31,7 @@ test.describe('bar — matrix Y (grouped + stacked)', () => {
     expect(rects).toBeGreaterThanOrEqual(9);
   });
 
-  test('bar(matrix, "stacked") — cumulative-sum stacked bars', async () => {
+  test('bar(matrix, "stacked") — cumulative-sum stacked bars', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Y = [1 2 3; 4 5 6];\n'
@@ -56,7 +43,7 @@ test.describe('bar — matrix Y (grouped + stacked)', () => {
     )).toEqual([]);
   });
 
-  test('bar(x, matrix) — explicit x with matrix Y', async () => {
+  test('bar(x, matrix) — explicit x with matrix Y', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'bar([10 20 30], [1 2; 3 4; 5 6]);\n'

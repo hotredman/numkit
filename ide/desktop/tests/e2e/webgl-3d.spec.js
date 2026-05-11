@@ -11,23 +11,10 @@
 // the canvas, wait, confirm frame count moved forward (proves the
 // camera responded and triggered re-renders).
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('WebGL — 3-D figures via three.js', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('plot3 routes through Composite3DPlot — canvas mounted', async () => {
+  test('plot3 routes through Composite3DPlot — canvas mounted', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 't = linspace(0, 4*pi, 50);\n'
@@ -43,7 +30,7 @@ test.describe('WebGL — 3-D figures via three.js', () => {
     )).toEqual([]);
   });
 
-  test('scatter3 — same WebGL routing', async () => {
+  test('scatter3 — same WebGL routing', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'scatter3([0 1 2 3 4], [0 1 4 9 16], [1 2 3 4 5]);\n'
@@ -56,7 +43,7 @@ test.describe('WebGL — 3-D figures via three.js', () => {
     )).toEqual([]);
   });
 
-  test('stem3 — emits 1 plot3 + 1 scatter3, both rendered in WebGL', async () => {
+  test('stem3 — emits 1 plot3 + 1 scatter3, both rendered in WebGL', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'stem3([1 2 3 4], [1 2 3 4], [1 4 9 16]);\n'
@@ -69,7 +56,7 @@ test.describe('WebGL — 3-D figures via three.js', () => {
     )).toEqual([]);
   });
 
-  test('surf — wireframe via two plot3 polylines, also WebGL', async () => {
+  test('surf — wireframe via two plot3 polylines, also WebGL', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2 3; 2 3 4; 3 4 5];\n'
@@ -83,7 +70,7 @@ test.describe('WebGL — 3-D figures via three.js', () => {
     )).toEqual([]);
   });
 
-  test('view(az, el) — figure carries the camera view parameters', async () => {
+  test('view(az, el) — figure carries the camera view parameters', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2], [0 1 0], [0 1 0]);\n'
@@ -97,7 +84,7 @@ test.describe('WebGL — 3-D figures via three.js', () => {
     )).toEqual([]);
   });
 
-  test('view([az el]) — vector form also accepted', async () => {
+  test('view([az el]) — vector form also accepted', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2], [0 1 0], [0 1 0]);\n'
@@ -111,7 +98,7 @@ test.describe('WebGL — 3-D figures via three.js', () => {
     )).toEqual([]);
   });
 
-  test('rAF loop runs — frame counter advances', async () => {
+  test('rAF loop runs — frame counter advances', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2], [0 1 0], [0 1 0]);\n'
@@ -125,7 +112,7 @@ test.describe('WebGL — 3-D figures via three.js', () => {
     expect(Number(frames)).toBeGreaterThan(0);
   });
 
-  test('3D figure opens cleanly in FigureWindow modal', async () => {
+  test('3D figure opens cleanly in FigureWindow modal', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 't = linspace(0, 2*pi, 30);\n'
@@ -142,7 +129,7 @@ test.describe('WebGL — 3-D figures via three.js', () => {
     )).toEqual([]);
   });
 
-  test('2-D figures are NOT routed to WebGL (canvas-3d absent)', async () => {
+  test('2-D figures are NOT routed to WebGL (canvas-3d absent)', async ({ ide, page }) => {
     // Sanity: ordinary plot stays in SVG; this guards against the
     // detector accidentally matching 2-D figures.
     await ide.runScript(

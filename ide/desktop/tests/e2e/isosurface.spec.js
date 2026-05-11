@@ -10,23 +10,10 @@
 // We don't pixel-test the surface — just confirm the canvas mounts
 // and the call survives without console errors.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('isosurface — marching cubes', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('isosurface(V, iso) — gradient volume → mesh', async () => {
+  test('isosurface(V, iso) — gradient volume → mesh', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'V = zeros(4, 4, 4);\n'
@@ -42,7 +29,7 @@ test.describe('isosurface — marching cubes', () => {
     )).toEqual([]);
   });
 
-  test('isosurface mounts the WebGL canvas', async () => {
+  test('isosurface mounts the WebGL canvas', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'V = zeros(4, 4, 4);\n'
@@ -59,7 +46,7 @@ test.describe('isosurface — marching cubes', () => {
       .toBeVisible({ timeout: 5_000 });
   });
 
-  test('isosurface with constant volume (no surface) — no crash', async () => {
+  test('isosurface with constant volume (no surface) — no crash', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'V = ones(4, 4, 4);\n'
@@ -71,7 +58,7 @@ test.describe('isosurface — marching cubes', () => {
     )).toEqual([]);
   });
 
-  test('isosurface(X, Y, Z, V, iso) — explicit grid coords', async () => {
+  test('isosurface(X, Y, Z, V, iso) — explicit grid coords', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = linspace(-2, 2, 4);\n'

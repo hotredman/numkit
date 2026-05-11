@@ -16,6 +16,10 @@
 // log line appears during boot (which is the canonical signal that
 // engine init failed for any reason).
 
+// Boot-log assertions need a fresh launch per test — the shared fixture
+// clears devMessages between tests, so these specs use the legacy
+// launchIde / closeIde path explicitly.
+
 import { test, expect } from '@playwright/test';
 import { launchIde, closeIde } from '../helpers/launch.js';
 import { IdePage } from '../helpers/ide.js';
@@ -39,20 +43,12 @@ test.describe('engine init', () => {
   });
 
   test('no [repl_init] FATAL message in stderr', async () => {
-    // repl_init catches all C++ exceptions during ReplSession setup
-    // and logs `[repl_init] FATAL: …` before rethrowing. If we see
-    // that line, install() of one of the libraries threw — which is
-    // exactly the duplicate-compat bug class we just hardened
-    // against.
     const dev = ide.devLogs();
     expect(dev).not.toMatch(/\[repl_init\] FATAL/);
   });
 
   test('all expected WASM bindings resolve', async () => {
     const dev = ide.devLogs();
-    // The engine wrapper logs `[engine] WASM bindings: { ... }` once
-    // at boot. Every entry should read `function`; an `undefined`
-    // would mean the WASM binary is older than the IDE expects.
     expect(dev).toMatch(/\[engine\] WASM bindings/);
     expect(dev).not.toMatch(/repl_init: undefined/);
     expect(dev).not.toMatch(/repl_execute: undefined/);

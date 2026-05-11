@@ -3,23 +3,10 @@
 // extension to PolarPlot.jsx that picks scatter / bar / line by
 // series.mode.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('Tier 1C — polarscatter / polarhistogram', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('polarscatter(theta, rho) — markers on polar axes', async () => {
+  test('polarscatter(theta, rho) — markers on polar axes', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'theta = linspace(0, 2*pi, 12);\n'
@@ -32,7 +19,7 @@ test.describe('Tier 1C — polarscatter / polarhistogram', () => {
     )).toEqual([]);
   });
 
-  test('polarhistogram(theta) — angular wedges from binned theta', async () => {
+  test('polarhistogram(theta) — angular wedges from binned theta', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'theta = [0 0 0.1 0.2 1 1.1 1.2 1.5 3 3.1 3.2 5 5.1 6];\n'
@@ -44,7 +31,7 @@ test.describe('Tier 1C — polarscatter / polarhistogram', () => {
     )).toEqual([]);
   });
 
-  test('polarhistogram default 36 bins', async () => {
+  test('polarhistogram default 36 bins', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'theta = linspace(0, 2*pi, 200);\n'
@@ -56,7 +43,7 @@ test.describe('Tier 1C — polarscatter / polarhistogram', () => {
     )).toEqual([]);
   });
 
-  test('polar trio (polarplot + polarscatter + polarhistogram) compose cleanly', async () => {
+  test('polar trio (polarplot + polarscatter + polarhistogram) compose cleanly', async ({ ide, page }) => {
     // Hold-on accumulation across all three polar modes — verifies the
     // adapter split (one mode per dataset) and the PolarPlot renderer
     // can mix all three on the same axes.
@@ -73,7 +60,7 @@ test.describe('Tier 1C — polarscatter / polarhistogram', () => {
     )).toEqual([]);
   });
 
-  test('polarscatter — 12 markers reach the SVG', async () => {
+  test('polarscatter — 12 markers reach the SVG', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'theta = linspace(0, 2*pi, 12);\n'
@@ -87,7 +74,7 @@ test.describe('Tier 1C — polarscatter / polarhistogram', () => {
     expect(circles).toBeGreaterThanOrEqual(12);
   });
 
-  test('polar batch opens cleanly in modal', async () => {
+  test('polar batch opens cleanly in modal', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'polarhistogram(linspace(0, 2*pi, 100), 24);\n'

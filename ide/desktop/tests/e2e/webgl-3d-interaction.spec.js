@@ -2,26 +2,13 @@
 // builtins toggle OrbitControls per-axis; data-tip shows (x, y, z) on
 // hover via Raycaster.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('WebGL 3-D — interaction', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
   test.describe('interaction toggles', () => {
     for (const fn of ['rotate3d', 'pan3d', 'zoom3d']) {
       for (const mode of ['on', 'off']) {
-        test(`${fn}('${mode}') — figure renders, no errors`, async () => {
+        test(`${fn}('${mode}') — figure renders, no errors`, async ({ ide, page }) => {
           await ide.runScript(
             'import compat.*;\n'
             + 'plot3([0 1 2], [0 1 0], [0 1 0]);\n'
@@ -36,7 +23,7 @@ test.describe('WebGL 3-D — interaction', () => {
     }
   });
 
-  test('data-tip on hover — tooltip appears with (x, y, z)', async () => {
+  test('data-tip on hover — tooltip appears with (x, y, z)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2 3 4], [0 1 4 9 16], [1 2 3 4 5]);\n'
@@ -59,7 +46,7 @@ test.describe('WebGL 3-D — interaction', () => {
     )).toEqual([]);
   });
 
-  test('all three toggles together — no stale state', async () => {
+  test('all three toggles together — no stale state', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'surf([1 2 3; 2 3 4]);\n'

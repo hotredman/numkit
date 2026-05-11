@@ -1,23 +1,10 @@
 // griddata.spec.js — scattered-data interpolation via Delaunay
 // barycentric.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('griddata', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('griddata — linear v(x,y) is exact (bilinear barycentric)', async () => {
+  test('griddata — linear v(x,y) is exact (bilinear barycentric)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       // Triangle (0,0)-(2,0)-(1,2) with v = x + y at vertices.
@@ -33,7 +20,7 @@ test.describe('griddata', () => {
     expect(txt).toMatch(/vq=1\.5/);
   });
 
-  test('griddata — query outside hull → NaN', async () => {
+  test('griddata — query outside hull → NaN', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = [0 1 0.5];\n'
@@ -47,7 +34,7 @@ test.describe('griddata', () => {
     expect(txt).toMatch(/vq_isnan=1/);
   });
 
-  test('griddata — vector queries return same shape', async () => {
+  test('griddata — vector queries return same shape', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = [0 2 1 1];\n'

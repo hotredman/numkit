@@ -10,23 +10,10 @@
 //   2. For `square`, the plot panel becomes square-ish (W ≈ H)
 //   3. For `tight`, the figure card still renders cleanly
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('B2 — axis equal / square / tight', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('axis equal — figure renders without console errors', async () => {
+  test('axis equal — figure renders without console errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([0 1 2 3 4], [0 0.5 1 0.5 0]);\n'
@@ -38,7 +25,7 @@ test.describe('B2 — axis equal / square / tight', () => {
     )).toEqual([]);
   });
 
-  test('axis square — figure renders, no console errors', async () => {
+  test('axis square — figure renders, no console errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([0 1 2 3], [0 5 0 -5]);\n'
@@ -50,7 +37,7 @@ test.describe('B2 — axis equal / square / tight', () => {
     )).toEqual([]);
   });
 
-  test('axis tight — viewport with no pad still renders', async () => {
+  test('axis tight — viewport with no pad still renders', async ({ ide, page }) => {
     // tight removes the auto 4%/6% padding; the data extent maps to
     // the panel edges. We just check a figure card appears and no
     // errors fire.
@@ -65,7 +52,7 @@ test.describe('B2 — axis equal / square / tight', () => {
     )).toEqual([]);
   });
 
-  test('axis modes are also reachable in the FigureWindow modal', async () => {
+  test('axis modes are also reachable in the FigureWindow modal', async ({ ide, page }) => {
     // Once the user expands the figure into the modal (one click on
     // the card), the same axisMode should apply — this is a sanity
     // check that the property propagates from the adapter through to

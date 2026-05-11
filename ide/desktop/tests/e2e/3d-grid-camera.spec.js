@@ -8,23 +8,10 @@
 // a debug-only ref attached at component mount. Tests read camera
 // position and per-face `LineSegments.visible` flags directly.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('3-D grid + camera — BUG #39', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('39a: toggling grid button keeps camera position', async () => {
+  test('39a: toggling grid button keeps camera position', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2 3 4 5; 2 4 6 4 2; 3 6 9 6 3; 2 4 6 4 2; 1 2 3 2 1];\n'
@@ -63,7 +50,7 @@ test.describe('3-D grid + camera — BUG #39', () => {
     expect(after.z).toBeCloseTo(before.z, 6);
   });
 
-  test('39b: major grid built on all six faces, exactly three visible', async () => {
+  test('39b: major grid built on all six faces, exactly three visible', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2 3; 2 4 6; 3 6 9];\n'
@@ -91,7 +78,7 @@ test.describe('3-D grid + camera — BUG #39', () => {
     expect(stats.visibleCount).toBe(3);
   });
 
-  test('39b: orbiting camera flips which faces are visible', async () => {
+  test('39b: orbiting camera flips which faces are visible', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2 3; 2 4 6; 3 6 9];\n'
@@ -133,7 +120,7 @@ test.describe('3-D grid + camera — BUG #39', () => {
     }
   });
 
-  test('39: toggle grid then toggle back yields no console errors', async () => {
+  test('39: toggle grid then toggle back yields no console errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2 3], [0 1 0 1], [0 1 4 9]);\n'

@@ -12,23 +12,10 @@
 //   3. legend('off') clears labels and produces no errors
 //   4. The legend box reaches the DOM as an SVG rect (visible state)
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('B2 — legend + Location', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('legend with positional labels — figure renders, no errors', async () => {
+  test('legend with positional labels — figure renders, no errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -42,7 +29,7 @@ test.describe('B2 — legend + Location', () => {
     )).toEqual([]);
   });
 
-  test('legend(\'Location\', \'northwest\') — figure renders, no errors', async () => {
+  test('legend(\'Location\', \'northwest\') — figure renders, no errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -58,7 +45,7 @@ test.describe('B2 — legend + Location', () => {
     for (const loc of ['north', 'south', 'east', 'west',
                        'northeast', 'northwest',
                        'southeast', 'southwest', 'best']) {
-      test(`Location='${loc}' — renders`, async () => {
+      test(`Location='${loc}' — renders`, async ({ ide, page }) => {
         await ide.runScript(
           'import compat.*;\n'
           + 'plot([1 2 3], [1 4 9]);\n'
@@ -72,7 +59,7 @@ test.describe('B2 — legend + Location', () => {
     }
   });
 
-  test('legend(\'off\') — labels cleared, figure still renders', async () => {
+  test('legend(\'off\') — labels cleared, figure still renders', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -85,7 +72,7 @@ test.describe('B2 — legend + Location', () => {
     )).toEqual([]);
   });
 
-  test('legend persists into FigureWindow modal', async () => {
+  test('legend persists into FigureWindow modal', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'

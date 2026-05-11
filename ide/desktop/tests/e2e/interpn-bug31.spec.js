@@ -2,23 +2,10 @@
 // True 4+-D interpn is BACKLOG (would need generic ND tensor-product
 // linear interp; here we just confirm 2-D and 3-D dispatch works).
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('interpn — BUG #31 dispatch', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('interpn(V, xq, yq) — dispatches to interp2 for 2-D V', async () => {
+  test('interpn(V, xq, yq) — dispatches to interp2 for 2-D V', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + '[X, Y] = meshgrid(1:5, 1:5);\n'
@@ -33,7 +20,7 @@ test.describe('interpn — BUG #31 dispatch', () => {
     expect(txt).toMatch(/B31_2D vq=6|B31_2D err:/);
   });
 
-  test('interpn(V, xq, yq, zq) — dispatches to interp3 for 3-D V', async () => {
+  test('interpn(V, xq, yq, zq) — dispatches to interp3 for 3-D V', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'V = zeros(3, 3, 3);\n'

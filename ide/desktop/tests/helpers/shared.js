@@ -53,6 +53,14 @@ export const test = base.extend({
       await electron.page.keyboard.press('Escape');
       await electron.page.waitForTimeout(50);
     }
+    // Restore the dock to Console — workspace.spec.js / similar leave it
+    // on the Workspace tab, which hides the .console-input element and
+    // breaks any subsequent test that calls ide.repl().
+    const consoleTab = electron.page.locator('.dock-tab', { hasText: /console/i });
+    if (await consoleTab.count() > 0) {
+      const isActive = await consoleTab.first().evaluate((el) => el.classList.contains('is-active'));
+      if (!isActive) await consoleTab.first().click();
+    }
     // `clear` empties the workspace; `close all` closes any figure
     // windows + cards left over from a prior test. Both cheap.
     await electron.ide.runScript('clear\nclose all\n');

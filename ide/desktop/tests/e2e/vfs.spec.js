@@ -12,32 +12,32 @@
 //      active". This protects against re-introducing the worker init
 //      regression.
 
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../helpers/shared.js';
+// Boot-log assertion needs a fresh launch — split into its own legacy
+// describe so the rest of the file still benefits from shared fixture.
+import { test as legacyTest } from '@playwright/test';
 import { launchIde, closeIde } from '../helpers/launch.js';
 import { IdePage } from '../helpers/ide.js';
 
-test.describe('VFS — Examples + tempFS', () => {
-  let app, page, ide;
+legacyTest.describe('VFS — boot-log assertions', () => {
+  let app;
 
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
+  legacyTest.beforeEach(async () => { app = await launchIde(); });
+  legacyTest.afterEach(async () => { await closeIde(app); });
+
+  legacyTest('tempFS reports direct-IDB path (bridge gated off by default)', async () => {
+    const page = await app.firstWindow();
+    const ide = new IdePage(page);
     await ide.waitForReady();
-  });
-
-  test.afterEach(async () => {
-    await closeIde(app);
-  });
-
-  test('tempFS reports direct-IDB path (bridge gated off by default)', async () => {
     const dev = ide.devLogs();
     expect(dev).toMatch(/\[tempFS\]/);
     expect(dev).toMatch(/direct IDB/);
     expect(dev).not.toMatch(/sync bridge active/);
   });
+});
 
-  test('Examples source shows the manifest tree', async () => {
+test.describe('VFS — Examples + tempFS', () => {
+  test('Examples source shows the manifest tree', async ({ ide, page }) => {
     // Sidebar source picker is a <select>; default value is 'examples'
     // (persisted in localStorage with the default-fallback set in code).
     // We force-select to be explicit even though it's already default.
@@ -48,7 +48,7 @@ test.describe('VFS — Examples + tempFS', () => {
     await expect(page.locator('.tree-folder').first()).toBeVisible({ timeout: 10_000 });
   });
 
-  test('opening an example file lands its content in the editor', async () => {
+  test('opening an example file lands its content in the editor', async ({ ide, page }) => {
     await page.locator('.ws-picker').selectOption('examples');
 
     // Expand the first folder (single click toggles).

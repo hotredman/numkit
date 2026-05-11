@@ -3,23 +3,10 @@
 // Custom tick positions override the auto-generated set; custom
 // labels substitute when their length matches the tick count.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('xticks / yticks / xticklabels / yticklabels', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('xticks([1 2 3]) — only those three values appear as labels', async () => {
+  test('xticks([1 2 3]) — only those three values appear as labels', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([0 1 2 3 4], [0 1 4 9 16]);\n'
@@ -38,7 +25,7 @@ test.describe('xticks / yticks / xticklabels / yticklabels', () => {
     expect(joined).toMatch(/\b3\b/);
   });
 
-  test('xticklabels(["lo","mid","hi"]) — string labels override numeric', async () => {
+  test('xticklabels(["lo","mid","hi"]) — string labels override numeric', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -55,7 +42,7 @@ test.describe('xticks / yticks / xticklabels / yticklabels', () => {
     expect(joined).toMatch(/hi/);
   });
 
-  test('xtickformat("%.2f") — labels formatted with 2 decimals', async () => {
+  test('xtickformat("%.2f") — labels formatted with 2 decimals', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -70,7 +57,7 @@ test.describe('xticks / yticks / xticklabels / yticklabels', () => {
     expect(someTwoDp).toBe(true);
   });
 
-  test('ytickformat("%.0f") — labels formatted as integers', async () => {
+  test('ytickformat("%.0f") — labels formatted as integers', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1.5 4.7 9.2]);\n'
@@ -82,7 +69,7 @@ test.describe('xticks / yticks / xticklabels / yticklabels', () => {
     )).toEqual([]);
   });
 
-  test('xtickangle(45) — labels rotated', async () => {
+  test('xtickangle(45) — labels rotated', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -100,7 +87,7 @@ test.describe('xticks / yticks / xticklabels / yticklabels', () => {
     expect(html).toMatch(/rotate\(45/);
   });
 
-  test('yticks(...) clears with "auto"', async () => {
+  test('yticks(...) clears with "auto"', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'

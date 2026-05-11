@@ -7,23 +7,10 @@
 // the same way imagesc does, and that the figure renders without
 // console errors.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('B1 — pcolor', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('pcolor(C) — basic 3×3 grid → heatmap image', async () => {
+  test('pcolor(C) — basic 3×3 grid → heatmap image', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'pcolor([1 2 3; 4 5 6; 7 8 9]);\n'
@@ -33,7 +20,7 @@ test.describe('B1 — pcolor', () => {
     expect(images, `pcolor rendered ${images} <image> elements`).toBeGreaterThanOrEqual(1);
   });
 
-  test('pcolor(X, Y, C) — vertex-aligned coordinates', async () => {
+  test('pcolor(X, Y, C) — vertex-aligned coordinates', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'pcolor([0 1 2 3], [0 1 2 3], [1 2 3 4; 5 6 7 8; 9 10 11 12; 13 14 15 16]);\n'
@@ -44,7 +31,7 @@ test.describe('B1 — pcolor', () => {
     )).toEqual([]);
   });
 
-  test('pcolor + quiver overlay (composite)', async () => {
+  test('pcolor + quiver overlay (composite)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'pcolor([1 2 3], [1 2 3], [1 2 3; 4 5 6; 7 8 9]);\n'

@@ -1,22 +1,9 @@
 // subtitle-sgtitle.spec.js — title / subtitle / sgtitle text rendering.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('subtitle / sgtitle', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('title + subtitle both render', async () => {
+  test('title + subtitle both render', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -31,7 +18,7 @@ test.describe('subtitle / sgtitle', () => {
     expect(labels.join(' ')).toMatch(/Subtitle here/);
   });
 
-  test('sgtitle — figure-level super title', async () => {
+  test('sgtitle — figure-level super title', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'subplot(1, 2, 1); plot([1 2 3], [1 2 3]);\n'

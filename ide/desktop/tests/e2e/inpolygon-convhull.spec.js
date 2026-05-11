@@ -1,22 +1,9 @@
 // inpolygon-convhull.spec.js — computational-geometry primitives.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('inpolygon / convhull', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('inpolygon — square polygon, points inside / outside', async () => {
+  test('inpolygon — square polygon, points inside / outside', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       // Unit square with vertices (0,0)(1,0)(1,1)(0,1).
@@ -33,7 +20,7 @@ test.describe('inpolygon / convhull', () => {
     expect(txt).toMatch(/1 1 0 0/);
   });
 
-  test('inpolygon — triangle polygon', async () => {
+  test('inpolygon — triangle polygon', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       // Triangle (0,0)-(2,0)-(1,2).
@@ -48,7 +35,7 @@ test.describe('inpolygon / convhull', () => {
     expect(txt).toMatch(/1 1 0 0/);
   });
 
-  test('convhull — square cloud → 5-vertex polygon (closed)', async () => {
+  test('convhull — square cloud → 5-vertex polygon (closed)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       // 4 corners of a unit square + 1 interior point.
@@ -66,7 +53,7 @@ test.describe('inpolygon / convhull', () => {
     expect(m[1]).toBe(m[2]);
   });
 
-  test('polyarea — unit square area = 1', async () => {
+  test('polyarea — unit square area = 1', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'a = polyarea([0 1 1 0], [0 0 1 1]);\n'
@@ -77,7 +64,7 @@ test.describe('inpolygon / convhull', () => {
     expect(txt).toMatch(/a=1\b/);
   });
 
-  test('polyarea — triangle area = 0.5 * base * height', async () => {
+  test('polyarea — triangle area = 0.5 * base * height', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       // (0,0)-(2,0)-(1,2) — base 2, height 2, area 2.
@@ -89,7 +76,7 @@ test.describe('inpolygon / convhull', () => {
     expect(txt).toMatch(/a=2\b/);
   });
 
-  test('boundary — equivalent to convhull (v1: shrink no-op)', async () => {
+  test('boundary — equivalent to convhull (v1: shrink no-op)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = [0 1 1 0 0.5];\n'
@@ -102,7 +89,7 @@ test.describe('inpolygon / convhull', () => {
     expect(txt).toMatch(/len=5/);
   });
 
-  test('boundary(x, y, shrink) — concave envelope on C-shape', async () => {
+  test('boundary(x, y, shrink) — concave envelope on C-shape', async ({ ide, page }) => {
     // Points along a C-shape — concave boundary should follow the curve.
     await ide.runScript(
       'import compat.*;\n'
@@ -123,7 +110,7 @@ test.describe('inpolygon / convhull', () => {
     expect(Number(m[2])).toBeGreaterThanOrEqual(Number(m[1]));
   });
 
-  test('convhull — collinear points (degenerate)', async () => {
+  test('convhull — collinear points (degenerate)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = [0 1 2];\n'

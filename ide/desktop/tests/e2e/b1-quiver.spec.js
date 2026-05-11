@@ -4,23 +4,10 @@
 // (shaft + 2 head fins). Zero-length vectors are skipped — so a
 // well-defined input of 5 non-zero arrows should produce ≥ 15 lines.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('B1 — quiver', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('quiver(x, y, u, v) — 5 arrows → ≥ 15 lines', async () => {
+  test('quiver(x, y, u, v) — 5 arrows → ≥ 15 lines', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'quiver([1 2 3 4 5], [1 1 1 1 1], [0.5 0.5 0.5 0.5 0.5], [0.3 -0.2 0.4 -0.1 0.2]);\n'
@@ -31,7 +18,7 @@ test.describe('B1 — quiver', () => {
       .toBeGreaterThanOrEqual(15);
   });
 
-  test('quiver with custom scale renders without errors', async () => {
+  test('quiver with custom scale renders without errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'quiver([1 2 3], [2 2 2], [1 1 1], [0 1 -1], 0.5);\n'
@@ -42,7 +29,7 @@ test.describe('B1 — quiver', () => {
     )).toEqual([]);
   });
 
-  test('quiver overlay on imagesc (composite)', async () => {
+  test('quiver overlay on imagesc (composite)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'imagesc([1 2 3], [1 2 3], [1 2 3; 4 5 6; 7 8 9]);\n'

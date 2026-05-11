@@ -11,25 +11,12 @@
 // presence). Wire format: figure.grid = "on"|"off",
 // figure.gridMinor = "on"|"off".
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('grid — MATLAB parity', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
   // -------- 2-D figures: SVG path --------
 
-  test('2-D plot — grid on draws major grid lines', async () => {
+  test('2-D plot — grid on draws major grid lines', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3 4 5], [1 4 9 16 25]);\n'
@@ -44,7 +31,7 @@ test.describe('grid — MATLAB parity', () => {
     )).toEqual([]);
   });
 
-  test('2-D plot — grid off after grid on clears both', async () => {
+  test('2-D plot — grid off after grid on clears both', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -58,7 +45,7 @@ test.describe('grid — MATLAB parity', () => {
     )).toEqual([]);
   });
 
-  test('2-D plot — bare `grid` toggles major; minor stays untouched', async () => {
+  test('2-D plot — bare `grid` toggles major; minor stays untouched', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -72,7 +59,7 @@ test.describe('grid — MATLAB parity', () => {
     )).toEqual([]);
   });
 
-  test('2-D plot — grid minor + grid on coexist', async () => {
+  test('2-D plot — grid minor + grid on coexist', async ({ ide, page }) => {
     // MATLAB: `grid on; grid minor` shows BOTH major and minor.
     await ide.runScript(
       'import compat.*;\n'
@@ -90,7 +77,7 @@ test.describe('grid — MATLAB parity', () => {
     await expect(minorBtn).toHaveClass(/is-active/);
   });
 
-  test('2-D plot — grid off after both: both buttons inactive', async () => {
+  test('2-D plot — grid off after both: both buttons inactive', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -107,7 +94,7 @@ test.describe('grid — MATLAB parity', () => {
     await expect(minorBtn).not.toHaveClass(/is-active/);
   });
 
-  test('2-D plot — default is no grid (MATLAB parity)', async () => {
+  test('2-D plot — default is no grid (MATLAB parity)', async ({ ide, page }) => {
     await ide.runScript('import compat.*;\nplot([1 2 3], [1 4 9]);\n');
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
@@ -120,7 +107,7 @@ test.describe('grid — MATLAB parity', () => {
 
   // -------- 3-D figures: WebGL path --------
 
-  test('3-D surf — grid on by default (3-D-only convention)', async () => {
+  test('3-D surf — grid on by default (3-D-only convention)', async ({ ide, page }) => {
     await ide.runScript('import compat.*;\nsurf([1 2 3; 2 3 4; 3 4 5]);\n');
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
@@ -129,7 +116,7 @@ test.describe('grid — MATLAB parity', () => {
     await expect(gridBtn).toHaveClass(/is-active/);
   });
 
-  test('3-D surf — grid minor draws denser lines', async () => {
+  test('3-D surf — grid minor draws denser lines', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'surf([1 2 3; 2 3 4; 3 4 5]);\n'
@@ -146,7 +133,7 @@ test.describe('grid — MATLAB parity', () => {
     )).toEqual([]);
   });
 
-  test('3-D plot3 — grid off then grid on round-trip', async () => {
+  test('3-D plot3 — grid off then grid on round-trip', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2 3], [0 1 0 1], [0 1 2 3]);\n'
@@ -161,7 +148,7 @@ test.describe('grid — MATLAB parity', () => {
 
   // -------- Toolbar interaction (visual override of script state) --------
 
-  test('clicking grid button overrides script grid state', async () => {
+  test('clicking grid button overrides script grid state', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -176,7 +163,7 @@ test.describe('grid — MATLAB parity', () => {
     await expect(gridBtn).not.toHaveClass(/is-active/);
   });
 
-  test('range-row footer has top padding (visual breathing room)', async () => {
+  test('range-row footer has top padding (visual breathing room)', async ({ ide, page }) => {
     // Theme/UX: the X/Y/Z input row was sitting flush against the
     // canvas. Verify the new padding is present.
     await ide.runScript('import compat.*;\nplot([1 2 3], [1 4 9]);\n');

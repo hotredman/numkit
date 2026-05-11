@@ -1,22 +1,9 @@
 // daspect.spec.js — daspect / pbaspect aspect-ratio control.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('daspect / pbaspect', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('daspect([1 1 1]) — accepts and (no error)', async () => {
+  test('daspect([1 1 1]) — accepts and (no error)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([0 1 2 3], [0 1 4 9]);\n'
@@ -28,7 +15,7 @@ test.describe('daspect / pbaspect', () => {
     )).toEqual([]);
   });
 
-  test('pbaspect([2 1 1]) — accepts (no error)', async () => {
+  test('pbaspect([2 1 1]) — accepts (no error)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([0 1 2], [0 1 2]);\n'
@@ -40,7 +27,7 @@ test.describe('daspect / pbaspect', () => {
     )).toEqual([]);
   });
 
-  test('daspect("auto") — clears the mode', async () => {
+  test('daspect("auto") — clears the mode', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([0 1 2], [0 1 2]);\n'

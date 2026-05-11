@@ -14,23 +14,10 @@
 //   2. colorbar('off') hides the bar (no errors)
 //   3. Modal expansion preserves the location
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('B2 — colorbar Location', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('colorbar() with default east placement — renders', async () => {
+  test('colorbar() with default east placement — renders', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'imagesc(magic(8));\n'
@@ -46,7 +33,7 @@ test.describe('B2 — colorbar Location', () => {
     for (const loc of ['east', 'west', 'north', 'south',
                        'eastoutside', 'westoutside',
                        'northoutside', 'southoutside']) {
-      test(`Location='${loc}' — renders`, async () => {
+      test(`Location='${loc}' — renders`, async ({ ide, page }) => {
         await ide.runScript(
           'import compat.*;\n'
           + 'imagesc(magic(8));\n'
@@ -60,7 +47,7 @@ test.describe('B2 — colorbar Location', () => {
     }
   });
 
-  test('colorbar(\'off\') — hides the bar, figure still renders', async () => {
+  test('colorbar(\'off\') — hides the bar, figure still renders', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'imagesc(magic(6));\n'
@@ -72,7 +59,7 @@ test.describe('B2 — colorbar Location', () => {
     )).toEqual([]);
   });
 
-  test('colorbar location propagates into FigureWindow modal', async () => {
+  test('colorbar location propagates into FigureWindow modal', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'imagesc(magic(8));\n'

@@ -18,23 +18,10 @@
 //      no-error rendering — the actual viewport mirroring is covered
 //      indirectly by the SubplotGrid render path running clean).
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('B2 — linkaxes', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('linkaxes() — default xy mode on 2x1 subplot, no errors', async () => {
+  test('linkaxes() — default xy mode on 2x1 subplot, no errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'subplot(2, 1, 1); plot([1 2 3 4 5], [1 4 9 16 25]);\n'
@@ -49,7 +36,7 @@ test.describe('B2 — linkaxes', () => {
 
   test.describe('linkaxes mode — every supported value', () => {
     for (const mode of ['x', 'y', 'xy']) {
-      test(`linkaxes(\\'${mode}\\') — renders`, async () => {
+      test(`linkaxes(\\'${mode}\\') — renders`, async ({ ide, page }) => {
         await ide.runScript(
           'import compat.*;\n'
           + 'subplot(1, 2, 1); plot([0 1 2 3], [0 1 0 1]);\n'
@@ -64,7 +51,7 @@ test.describe('B2 — linkaxes', () => {
     }
   });
 
-  test('linkaxes(\'off\') — clears link mode, figure still renders', async () => {
+  test('linkaxes(\'off\') — clears link mode, figure still renders', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'subplot(2, 1, 1); plot([1 2 3], [1 2 3]);\n'
@@ -78,7 +65,7 @@ test.describe('B2 — linkaxes', () => {
     )).toEqual([]);
   });
 
-  test('linkaxes on 2x2 grid — every cell rendered, no errors', async () => {
+  test('linkaxes on 2x2 grid — every cell rendered, no errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'subplot(2, 2, 1); plot([1 2 3], [1 2 3]);\n'
@@ -93,7 +80,7 @@ test.describe('B2 — linkaxes', () => {
     )).toEqual([]);
   });
 
-  test('linked subplot opens in FigureWindow modal cleanly', async () => {
+  test('linked subplot opens in FigureWindow modal cleanly', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'subplot(2, 1, 1); plot([1 2 3], [1 2 3]);\n'
@@ -108,7 +95,7 @@ test.describe('B2 — linkaxes', () => {
     )).toEqual([]);
   });
 
-  test('linkaxes propagates pan: dragging one cell moves the other', async () => {
+  test('linkaxes propagates pan: dragging one cell moves the other', async ({ ide, page }) => {
     // End-to-end check that the SubplotGrid mirroring actually fires.
     // We pan cell 1 by mouse drag, then sample cell 2's transform and
     // verify it shifted by the same amount on the linked axis.

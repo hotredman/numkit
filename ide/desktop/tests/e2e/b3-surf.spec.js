@@ -12,23 +12,10 @@
 //      horizontal sweep + vertical sweep)
 //   3. mesh works the same way
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('B3 — surf / mesh', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('surf(Z) — renders wireframe, no errors', async () => {
+  test('surf(Z) — renders wireframe, no errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2 3 4; 2 3 4 5; 3 4 5 6; 4 5 6 7];\n'
@@ -40,7 +27,7 @@ test.describe('B3 — surf / mesh', () => {
     )).toEqual([]);
   });
 
-  test('surf(X, Y, Z) — explicit grid', async () => {
+  test('surf(X, Y, Z) — explicit grid', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = [-1 -0.5 0 0.5 1];\n'
@@ -54,7 +41,7 @@ test.describe('B3 — surf / mesh', () => {
     )).toEqual([]);
   });
 
-  test('mesh(Z) — same wireframe path, no errors', async () => {
+  test('mesh(Z) — same wireframe path, no errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [0 1 0; 1 4 1; 0 1 0];\n'
@@ -66,7 +53,7 @@ test.describe('B3 — surf / mesh', () => {
     )).toEqual([]);
   });
 
-  test('surf — proof of render via WebGL canvas presence', async () => {
+  test('surf — proof of render via WebGL canvas presence', async ({ ide, page }) => {
     // Originally asserted ≥ 2 SVG <path> elements (one per polyline
     // sweep), but surf is now routed through the three.js renderer
     // — geometry lives in a <canvas>, not SVG. The 3-D smoke spec
@@ -82,7 +69,7 @@ test.describe('B3 — surf / mesh', () => {
       .toBeVisible({ timeout: 10_000 });
   });
 
-  test('surf opens cleanly in FigureWindow modal', async () => {
+  test('surf opens cleanly in FigureWindow modal', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [0 1 2; 1 2 3; 2 3 4];\n'
@@ -96,7 +83,7 @@ test.describe('B3 — surf / mesh', () => {
     )).toEqual([]);
   });
 
-  test('surf with degenerate 1xN — gracefully no-op', async () => {
+  test('surf with degenerate 1xN — gracefully no-op', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2 3];\n'  // 1×3 — R<2, no surface possible

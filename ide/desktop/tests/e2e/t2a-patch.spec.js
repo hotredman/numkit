@@ -2,23 +2,10 @@
 // Polygon mode breaks on `null` to support multi-polygon datasets and
 // closes each sub-path automatically.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('Tier 2 — patch / fill / fill3', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('patch(X, Y) — single triangle renders', async () => {
+  test('patch(X, Y) — single triangle renders', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'patch([0 1 0.5], [0 0 1]);\n'
@@ -29,7 +16,7 @@ test.describe('Tier 2 — patch / fill / fill3', () => {
     )).toEqual([]);
   });
 
-  test('patch(X, Y, char-color) — applies named color', async () => {
+  test('patch(X, Y, char-color) — applies named color', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'patch([0 1 1 0], [0 0 1 1], \'r\');\n'
@@ -40,7 +27,7 @@ test.describe('Tier 2 — patch / fill / fill3', () => {
     )).toEqual([]);
   });
 
-  test('patch(X, Y, [r g b]) — RGB triplet color', async () => {
+  test('patch(X, Y, [r g b]) — RGB triplet color', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'patch([0 1 0.5], [0 0 1], [0.2 0.7 0.3]);\n'
@@ -51,7 +38,7 @@ test.describe('Tier 2 — patch / fill / fill3', () => {
     )).toEqual([]);
   });
 
-  test('patch with column matrix — multiple polygons', async () => {
+  test('patch with column matrix — multiple polygons', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'X = [0 2 4; 1 3 5; 0.5 2.5 4.5];\n'
@@ -64,7 +51,7 @@ test.describe('Tier 2 — patch / fill / fill3', () => {
     )).toEqual([]);
   });
 
-  test('fill(X, Y) — alias of patch', async () => {
+  test('fill(X, Y) — alias of patch', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'fill([0 1 1 0], [0 0 1 1], \'b\');\n'
@@ -75,7 +62,7 @@ test.describe('Tier 2 — patch / fill / fill3', () => {
     )).toEqual([]);
   });
 
-  test('fill3(X, Y, Z) — 3D polygon via cabinet projection', async () => {
+  test('fill3(X, Y, Z) — 3D polygon via cabinet projection', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'fill3([0 1 0.5], [0 0 1], [0 0 1]);\n'
@@ -86,7 +73,7 @@ test.describe('Tier 2 — patch / fill / fill3', () => {
     )).toEqual([]);
   });
 
-  test('patch produces an SVG <path> with fill', async () => {
+  test('patch produces an SVG <path> with fill', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'patch([0 1 0.5], [0 0 1], \'g\');\n'

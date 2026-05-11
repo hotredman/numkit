@@ -9,23 +9,10 @@
 //      point: vertical + 2 caps) and the centre dot
 //   3. No renderer console errors
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('B1 — errorbar', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('errorbar(x, y, e) — symmetric → figure card with bars + caps', async () => {
+  test('errorbar(x, y, e) — symmetric → figure card with bars + caps', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'errorbar([1 2 3 4 5], [1 2 3 4 5], [0.2 0.3 0.2 0.4 0.3]);\n'
@@ -45,7 +32,7 @@ test.describe('B1 — errorbar', () => {
     expect(circles).toBe(5);
   });
 
-  test('errorbar(x, y, neg, pos) — asymmetric draws different upper/lower', async () => {
+  test('errorbar(x, y, neg, pos) — asymmetric draws different upper/lower', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'errorbar([1 2 3], [10 20 30], [0.5 1 1.5], [2 3 4]);\n'
@@ -58,7 +45,7 @@ test.describe('B1 — errorbar', () => {
     expect(await card.locator('svg circle').count()).toBe(3);
   });
 
-  test('errorbar in a composite (line + errorbar overlay)', async () => {
+  test('errorbar in a composite (line + errorbar overlay)', async ({ ide, page }) => {
     // hold on path: errorbar layered over a plot is the typical
     // MATLAB usage pattern.
     await ide.runScript(

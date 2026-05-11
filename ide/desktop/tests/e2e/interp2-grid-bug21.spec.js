@@ -4,23 +4,10 @@
 //   C: interp2(xv, yv, V, xqv, yqv) implicit-meshgrid for vector
 //      Xq/Yq
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('interp2 grid-form — BUG #21 verify', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('Case B: interp2(X, Y, V, xq, yq) with X/Y from meshgrid', async () => {
+  test('Case B: interp2(X, Y, V, xq, yq) with X/Y from meshgrid', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'xv = 1:5;\n'
@@ -41,7 +28,7 @@ test.describe('interp2 grid-form — BUG #21 verify', () => {
     expect(txt).toMatch(/vq=6|BUG21B err:/);
   });
 
-  test('Case C: interp2(xv, yv, V, xqv, yqv) — implicit meshgrid for vec Xq/Yq', async () => {
+  test('Case C: interp2(xv, yv, V, xqv, yqv) — implicit meshgrid for vec Xq/Yq', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'xv = 1:5;\n'
