@@ -225,6 +225,221 @@ Value histeq(std::pmr::memory_resource *mr, const Value &I, int n)
 }
 
 // ════════════════════════════════════════════════════════════════════
+// adapthisteq — Contrast Limited Adaptive Histogram Equalisation
+// ════════════════════════════════════════════════════════════════════
+//
+// Standard CLAHE: split image into NumTilesR × NumTilesC tiles, build
+// a histogram per tile, clip every bin at clipLimit·tilePixels and
+// redistribute the excess uniformly, derive a per-tile CDF (the local
+// transfer function), then bilinearly interpolate the four
+// neighbouring tiles' CDFs at every pixel. Pixel rows/cols that do
+// not divide evenly into NumTiles are absorbed by the (slightly
+// uneven) outermost tiles — matches MATLAB's pad-by-floor scheme.
+Value adapthisteq(std::pmr::memory_resource *mr, const Value &I,
+                  int numTilesR, int numTilesC,
+                  double clipLimit, int nBins,
+                  const std::string &distribution, double /*alpha*/)
+{
+    if (numTilesR < 2 || numTilesC < 2)
+        throw Error("adapthisteq: NumTiles components must each be >= 2",
+                    0, 0, "adapthisteq", "", "m:adapthisteq:badTiles");
+    if (clipLimit < 0.0 || clipLimit > 1.0)
+        throw Error("adapthisteq: ClipLimit must be in [0, 1]",
+                    0, 0, "adapthisteq", "", "m:adapthisteq:badClip");
+    if (nBins < 2)
+        throw Error("adapthisteq: NBins must be >= 2",
+                    0, 0, "adapthisteq", "", "m:adapthisteq:badBins");
+    if (distribution != "uniform")
+        throw Error("adapthisteq: only 'uniform' Distribution supported "
+                    "in this revision (rayleigh / exponential deferred)",
+                    0, 0, "adapthisteq", "", "m:adapthisteq:distDeferred");
+
+    const auto &d = I.dims();
+    if (d.is3D())
+        throw Error("adapthisteq: 2-D grayscale input only",
+                    0, 0, "adapthisteq", "", "m:adapthisteq:unsupportedShape");
+    const size_t R = d.rows();
+    const size_t C = d.cols();
+    if (R == 0 || C == 0)
+        return I;
+
+    // Tile sizes — pixels per tile along each axis. MATLAB requires the
+    // image to be divisible by NumTiles after a one-time pad; for now
+    // we just clamp tile counts so that every tile receives ≥ 1 pixel.
+    const size_t TR = static_cast<size_t>(numTilesR);
+    const size_t TC = static_cast<size_t>(numTilesC);
+    if (TR > R || TC > C)
+        throw Error("adapthisteq: NumTiles exceeds image dimensions",
+                    0, 0, "adapthisteq", "", "m:adapthisteq:tilesTooMany");
+    const size_t tileH = R / TR;   // base tile height
+    const size_t tileW = C / TC;   // base tile width
+    const size_t extraR = R - tileH * TR;  // last `extraR` tile rows take +1
+    const size_t extraC = C - tileW * TC;
+
+    // Build per-tile CDF LUTs in row-major (TR × TC × nBins) layout.
+    // Each entry holds the post-equalisation intensity in [0, 1].
+    std::vector<float> lut(TR * TC * nBins);
+
+    for (size_t tr = 0; tr < TR; ++tr) {
+        const size_t r0 = tr * tileH + std::min(tr, extraR);
+        const size_t r1 = r0 + tileH + (tr < extraR ? 1 : 0);
+        for (size_t tc = 0; tc < TC; ++tc) {
+            const size_t c0 = tc * tileW + std::min(tc, extraC);
+            const size_t c1 = c0 + tileW + (tc < extraC ? 1 : 0);
+
+            // 1. Histogram of this tile.
+            std::vector<int64_t> h(nBins, 0);
+            for (size_t r = r0; r < r1; ++r)
+                for (size_t c = c0; c < c1; ++c) {
+                    const double u = element_to_unit(I, r + c * R);
+                    if (std::isnan(u)) continue;
+                    int bin = (int)std::round(u * (nBins - 1));
+                    if (bin < 0) bin = 0;
+                    if (bin >= nBins) bin = nBins - 1;
+                    ++h[bin];
+                }
+
+            // 2. Contrast clip + redistribute. clipLimit*tilePixels is
+            //    the cap; the total excess is distributed evenly across
+            //    every bin, then a second pass cleans up any bin still
+            //    above the cap (single iteration is sufficient because
+            //    the redistribution itself is bounded).
+            const size_t tilePixels = (r1 - r0) * (c1 - c0);
+            const int64_t cap = std::max<int64_t>(
+                1, static_cast<int64_t>(std::floor(clipLimit * tilePixels)));
+            int64_t excess = 0;
+            for (int b = 0; b < nBins; ++b)
+                if (h[b] > cap) { excess += h[b] - cap; h[b] = cap; }
+            const int64_t per_bin = excess / nBins;
+            int64_t remainder = excess - per_bin * nBins;
+            for (int b = 0; b < nBins; ++b) h[b] += per_bin;
+            // distribute remainder one-per-bin from lowest index until
+            // exhausted.
+            for (int b = 0; b < nBins && remainder > 0; ++b) {
+                ++h[b]; --remainder;
+            }
+            // Second pass: re-clip the bins that overshot the cap and
+            // spread the second-pass excess as a fractional uniform.
+            int64_t excess2 = 0;
+            for (int b = 0; b < nBins; ++b)
+                if (h[b] > cap) { excess2 += h[b] - cap; h[b] = cap; }
+            const double per_bin2 = excess2 > 0
+                ? static_cast<double>(excess2) / nBins
+                : 0.0;
+
+            // 3. CDF — uniform mapping to [0, 1].
+            double acc = 0.0;
+            const double total = static_cast<double>(tilePixels);
+            for (int b = 0; b < nBins; ++b) {
+                acc += static_cast<double>(h[b]) + per_bin2;
+                const double cdf = std::min(1.0, acc / total);
+                lut[(tr * TC + tc) * nBins + b] = static_cast<float>(cdf);
+            }
+        }
+    }
+
+    // 4. Bilinear interpolation of the LUTs across every pixel.
+    Value out = Value::matrix(R, C, I.type(), mr);
+    auto tileSize = [&](size_t idx, bool isRow) {
+        const size_t extra = isRow ? extraR : extraC;
+        const size_t base  = isRow ? tileH  : tileW;
+        return base + (idx < extra ? 1 : 0);
+    };
+    auto tileStart = [&](size_t idx, bool isRow) {
+        const size_t extra = isRow ? extraR : extraC;
+        const size_t base  = isRow ? tileH  : tileW;
+        return idx * base + std::min(idx, extra);
+    };
+    for (size_t c = 0; c < C; ++c) {
+        // Locate column-axis tile pair + interpolation weight.
+        size_t tcL = 0, tcR = 0;
+        double wxR = 0.0;
+        {
+            // Find tcL such that pixel column c falls within the
+            // right-half of tile tcL (or the left-half of tcL+1).
+            // Map pixel c to "tile coordinates" tx in [0, TC-1] with
+            // tile-centre at integer values.
+            // Use the pixel's centre relative to its enclosing tile.
+            // Find owning tile o:
+            size_t o = 0;
+            while (o + 1 < TC && tileStart(o + 1, false) <= c) ++o;
+            const size_t ts = tileSize(o, false);
+            const size_t s0 = tileStart(o, false);
+            const double centre = s0 + 0.5 * ts;
+            if (static_cast<double>(c) + 0.5 < centre) {
+                // pixel in the left half of tile o → interpolate o-1, o
+                if (o == 0) {
+                    tcL = 0; tcR = 0; wxR = 0.0;
+                } else {
+                    tcL = o - 1; tcR = o;
+                    const double prev_centre = tileStart(o - 1, false) +
+                                               0.5 * tileSize(o - 1, false);
+                    wxR = (static_cast<double>(c) + 0.5 - prev_centre) /
+                          (centre - prev_centre);
+                }
+            } else {
+                // pixel in the right half of tile o → interpolate o, o+1
+                if (o + 1 >= TC) {
+                    tcL = TC - 1; tcR = TC - 1; wxR = 0.0;
+                } else {
+                    tcL = o; tcR = o + 1;
+                    const double next_centre = tileStart(o + 1, false) +
+                                               0.5 * tileSize(o + 1, false);
+                    wxR = (static_cast<double>(c) + 0.5 - centre) /
+                          (next_centre - centre);
+                }
+            }
+        }
+
+        for (size_t r = 0; r < R; ++r) {
+            // Same logic on the row axis.
+            size_t trT = 0, trB = 0;
+            double wyB = 0.0;
+            size_t o = 0;
+            while (o + 1 < TR && tileStart(o + 1, true) <= r) ++o;
+            const size_t ts = tileSize(o, true);
+            const size_t s0 = tileStart(o, true);
+            const double centre = s0 + 0.5 * ts;
+            if (static_cast<double>(r) + 0.5 < centre) {
+                if (o == 0) {
+                    trT = 0; trB = 0; wyB = 0.0;
+                } else {
+                    trT = o - 1; trB = o;
+                    const double prev_centre = tileStart(o - 1, true) +
+                                               0.5 * tileSize(o - 1, true);
+                    wyB = (static_cast<double>(r) + 0.5 - prev_centre) /
+                          (centre - prev_centre);
+                }
+            } else {
+                if (o + 1 >= TR) {
+                    trT = TR - 1; trB = TR - 1; wyB = 0.0;
+                } else {
+                    trT = o; trB = o + 1;
+                    const double next_centre = tileStart(o + 1, true) +
+                                               0.5 * tileSize(o + 1, true);
+                    wyB = (static_cast<double>(r) + 0.5 - centre) /
+                          (next_centre - centre);
+                }
+            }
+
+            const double u = element_to_unit(I, r + c * R);
+            int bin = (int)std::round(u * (nBins - 1));
+            if (bin < 0) bin = 0;
+            if (bin >= nBins) bin = nBins - 1;
+            const double TL = lut[(trT * TC + tcL) * nBins + bin];
+            const double TR_ = lut[(trT * TC + tcR) * nBins + bin];
+            const double BL = lut[(trB * TC + tcL) * nBins + bin];
+            const double BR = lut[(trB * TC + tcR) * nBins + bin];
+            const double top    = TL + wxR * (TR_ - TL);
+            const double bottom = BL + wxR * (BR - BL);
+            const double v = top + wyB * (bottom - top);
+            store_classed(out, r + c * R, v, I.type());
+        }
+    }
+    return out;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Otsu thresholding
 // ════════════════════════════════════════════════════════════════════
 
@@ -1033,6 +1248,58 @@ void histeq_reg(Span<const Value> args, size_t /*nargout*/,
                     "m:histeq:nargin");
     int n = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 64;
     outs[0] = histeq(ctx.engine->resource(), args[0], n);
+}
+
+void adapthisteq_reg(Span<const Value> args, size_t /*nargout*/,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("adapthisteq: requires (I[, NV-pairs...])",
+                     0, 0, "adapthisteq", "", "m:adapthisteq:nargin");
+
+    int    numTilesR  = 8;
+    int    numTilesC  = 8;
+    double clipLimit  = 0.01;
+    int    nBins      = 256;
+    std::string distribution = "uniform";
+    double alpha      = 0.4;
+
+    auto eqIgnoreCase = [](const std::string &a, const char *b) {
+        if (a.size() != std::strlen(b)) return false;
+        for (size_t i = 0; i < a.size(); ++i)
+            if (std::tolower(a[i]) != std::tolower(b[i])) return false;
+        return true;
+    };
+    for (size_t i = 1; i + 1 < args.size(); i += 2) {
+        if (!args[i].isChar())
+            throw Error("adapthisteq: NV-pair name must be a string",
+                         0, 0, "adapthisteq", "", "m:adapthisteq:badNVName");
+        const std::string key = args[i].toString();
+        const Value &v        = args[i + 1];
+        if (eqIgnoreCase(key, "NumTiles")) {
+            if (v.numel() < 2)
+                throw Error("adapthisteq: NumTiles must be 2-element",
+                             0, 0, "adapthisteq", "", "m:adapthisteq:badNumTiles");
+            numTilesR = (int)v.elemAsDouble(0);
+            numTilesC = (int)v.elemAsDouble(1);
+        } else if (eqIgnoreCase(key, "ClipLimit"))    clipLimit    = v.toScalar();
+        else if (eqIgnoreCase(key, "NBins"))          nBins        = (int)v.toScalar();
+        else if (eqIgnoreCase(key, "Distribution"))   distribution = v.toString();
+        else if (eqIgnoreCase(key, "Alpha"))          alpha        = v.toScalar();
+        else if (eqIgnoreCase(key, "Range")) {
+            const std::string r = v.toString();
+            if (r != "full")
+                throw Error("adapthisteq: Range='" + r + "' deferred "
+                            "(only 'full' supported in this revision)",
+                             0, 0, "adapthisteq", "", "m:adapthisteq:rangeDeferred");
+        } else {
+            throw Error("adapthisteq: unknown NV-pair key '" + key + "'",
+                         0, 0, "adapthisteq", "", "m:adapthisteq:badNVKey");
+        }
+    }
+    outs[0] = adapthisteq(ctx.engine->resource(), args[0],
+                          numTilesR, numTilesC, clipLimit, nBins,
+                          distribution, alpha);
 }
 
 void graythresh_reg(Span<const Value> args, size_t nargout,
