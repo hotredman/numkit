@@ -282,6 +282,27 @@ export default function CompositePlot({
   let [xMin, xMax] = viewport.x;
   let [yMin, yMax] = viewport.y;
 
+  // axisMode === 'image' (set by imshow / `axis image`) — equivalent to
+  // `axis equal` + `axis tight`: 1:1 data-unit aspect AND keep the
+  // current data extent (no expansion to fill empty space). We do that
+  // by SHRINKING the panel to match the data aspect, letterboxing the
+  // unused side. This keeps preview and modal pixel-equivalent: a 64×64
+  // image renders as a square in both, regardless of the cell's outer
+  // aspect ratio.
+  if (figure.axisMode === 'image') {
+    const dx = xMax - xMin;
+    const dy = yMax - yMin;
+    if (dx > 0 && dy > 0) {
+      const dataAspect  = dx / dy;
+      const panelAspect = W / H;
+      if (panelAspect > dataAspect) {
+        W = Math.max(20, Math.floor(H * dataAspect));
+      } else if (panelAspect < dataAspect) {
+        H = Math.max(20, Math.floor(W / dataAspect));
+      }
+    }
+  }
+
   // axisMode === 'equal' forces 1 data unit on the X axis to occupy
   // the same number of screen pixels as 1 data unit on the Y axis.
   // We achieve this by EXTENDING the viewport on whichever axis has
