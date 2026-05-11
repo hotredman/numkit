@@ -27,6 +27,15 @@
       ]
     },
     {
+      "name": "Audio",
+      "files": [
+        "mel_spectrogram.m",
+        "mfcc_features.m",
+        "pitch_estimation.m",
+        "spectrogram_chirp.m"
+      ]
+    },
+    {
       "name": "Basics",
       "files": [
         "arithmetic.m",
@@ -53,12 +62,30 @@
       ]
     },
     {
+      "name": "Communications",
+      "files": [
+        "awgn_channel.m",
+        "ber_curve_bpsk.m",
+        "eye_diagram.m",
+        "qam_constellation.m"
+      ]
+    },
+    {
       "name": "Computational_Geometry",
       "files": [
         "convex_hull.m",
         "delaunay_voronoi.m",
         "griddata_scattered.m",
         "inpolygon_test.m"
+      ]
+    },
+    {
+      "name": "Control",
+      "files": [
+        "bode_plot.m",
+        "closed_loop_pid.m",
+        "discretize_zoh.m",
+        "step_response.m"
       ]
     },
     {
@@ -104,6 +131,18 @@
       ]
     },
     {
+      "name": "Image",
+      "files": [
+        "color_space_demo.m",
+        "edge_detection.m",
+        "filter_blur_sharpen.m",
+        "histogram_equalization.m",
+        "median_denoise.m",
+        "morphology_pipeline.m",
+        "rotate_resize_crop.m"
+      ]
+    },
+    {
       "name": "Interpolation",
       "files": [
         "interp1_methods.m",
@@ -127,6 +166,15 @@
         "compute_stats.m",
         "format_result.m",
         "main.m"
+      ]
+    },
+    {
+      "name": "Optimization",
+      "files": [
+        "fminbnd_min1d.m",
+        "fminsearch_rosenbrock.m",
+        "fzero_roots.m",
+        "lsqcurvefit_exp.m"
       ]
     },
     {
@@ -212,10 +260,29 @@
       ]
     },
     {
+      "name": "Statistics",
+      "files": [
+        "correlation_matrix.m",
+        "distributions_pdfs.m",
+        "hypothesis_testing.m",
+        "kmeans_clustering.m",
+        "linear_regression.m"
+      ]
+    },
+    {
       "name": "Structures",
       "files": [
         "basic_struct.m",
         "nested_structs.m"
+      ]
+    },
+    {
+      "name": "Wavelet",
+      "files": [
+        "denoise_signal.m",
+        "dwt_decompose.m",
+        "haart_basic.m",
+        "swt_translation_invariant.m"
       ]
     }
   ]
