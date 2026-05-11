@@ -1,22 +1,9 @@
 // legend-boxoff.spec.js — legend('boxoff') / legend('boxon').
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('legend boxoff / boxon', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('legend default — frame rect present', async () => {
+  test('legend default — frame rect present', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -30,7 +17,7 @@ test.describe('legend boxoff / boxon', () => {
     expect(html).toMatch(/fill="var\(--plot-bg\)"[^>]*rx="3"/);
   });
 
-  test('legend("boxoff") — frame hidden', async () => {
+  test('legend("boxoff") — frame hidden', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -44,7 +31,7 @@ test.describe('legend boxoff / boxon', () => {
     expect(html).not.toMatch(/fill="var\(--plot-bg\)"[^>]*rx="3"/);
   });
 
-  test('legend("boxoff") then legend("boxon") restores frame', async () => {
+  test('legend("boxoff") then legend("boxon") restores frame', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'

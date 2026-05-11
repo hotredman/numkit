@@ -1,23 +1,10 @@
 // coneplot-streamtube.spec.js — 3-D vector-field visualisation:
 // cone-headed arrows + streamlines wrapped in tubes.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('coneplot — cone-headed arrows', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('coneplot(U, V, W) — implicit grid, no errors', async () => {
+  test('coneplot(U, V, W) — implicit grid, no errors', async ({ ide }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'U = ones(3, 3, 3);\n'
@@ -31,7 +18,7 @@ test.describe('coneplot — cone-headed arrows', () => {
     )).toEqual([]);
   });
 
-  test('coneplot(X,Y,Z,U,V,W,Cx,Cy,Cz) — cones at user positions', async () => {
+  test('coneplot(X,Y,Z,U,V,W,Cx,Cy,Cz) — cones at user positions', async ({ ide }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = linspace(-1, 1, 3);\n'
@@ -48,7 +35,7 @@ test.describe('coneplot — cone-headed arrows', () => {
     )).toEqual([]);
   });
 
-  test('coneplot mounts a 3-D WebGL canvas', async () => {
+  test('coneplot mounts a 3-D WebGL canvas', async ({ ide }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'U = ones(2, 2, 2);\n'
@@ -65,18 +52,7 @@ test.describe('coneplot — cone-headed arrows', () => {
 });
 
 test.describe('streamtube — streamlines wrapped in tubes', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('streamtube(X,Y,Z,U,V,W, sx,sy,sz) — uniform-flow seed gives a tube', async () => {
+  test('streamtube(X,Y,Z,U,V,W, sx,sy,sz) — uniform-flow seed gives a tube', async ({ ide }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = linspace(0, 5, 6);\n'
@@ -93,7 +69,7 @@ test.describe('streamtube — streamlines wrapped in tubes', () => {
     )).toEqual([]);
   });
 
-  test('streamtube(U, V, W, sx, sy, sz) — implicit grid', async () => {
+  test('streamtube(U, V, W, sx, sy, sz) — implicit grid', async ({ ide }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'U = zeros(5, 5, 5);\n'
@@ -107,7 +83,7 @@ test.describe('streamtube — streamlines wrapped in tubes', () => {
     )).toEqual([]);
   });
 
-  test('streamtube — zero-magnitude seed exits gracefully', async () => {
+  test('streamtube — zero-magnitude seed exits gracefully', async ({ ide }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'U = zeros(4, 4, 4);\n'
@@ -121,7 +97,7 @@ test.describe('streamtube — streamlines wrapped in tubes', () => {
     )).toEqual([]);
   });
 
-  test('streamtube mounts a 3-D WebGL canvas', async () => {
+  test('streamtube mounts a 3-D WebGL canvas', async ({ ide }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'U = ones(5, 5, 5);\n'

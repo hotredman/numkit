@@ -14,23 +14,10 @@
 //      and a rendered <image>)
 //   3. Modal expansion preserves the heatmap
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('B3 — histogram2', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('histogram2(X, Y) — default 10×10 binning, no errors', async () => {
+  test('histogram2(X, Y) — default 10×10 binning, no errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'X = [1 2 3 4 5 1 2 3 4 5];\n'
@@ -43,7 +30,7 @@ test.describe('B3 — histogram2', () => {
     )).toEqual([]);
   });
 
-  test('histogram2(X, Y, [nx ny]) — explicit grid', async () => {
+  test('histogram2(X, Y, [nx ny]) — explicit grid', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'X = randn(1, 200);\n'
@@ -56,7 +43,7 @@ test.describe('B3 — histogram2', () => {
     )).toEqual([]);
   });
 
-  test('histogram2(X, Y, n) — square grid', async () => {
+  test('histogram2(X, Y, n) — square grid', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'X = randn(1, 100);\n'
@@ -69,7 +56,7 @@ test.describe('B3 — histogram2', () => {
     )).toEqual([]);
   });
 
-  test('histogram2(X, Y, nx, ny) — separate args', async () => {
+  test('histogram2(X, Y, nx, ny) — separate args', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'X = [1 2 3 4 5 6 7 8 9 10];\n'
@@ -82,7 +69,7 @@ test.describe('B3 — histogram2', () => {
     )).toEqual([]);
   });
 
-  test('histogram2 + colorbar — colorbar appears on the heatmap', async () => {
+  test('histogram2 + colorbar — colorbar appears on the heatmap', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'X = [1 2 3 4 5 1 2 3 4 5];\n'
@@ -96,7 +83,7 @@ test.describe('B3 — histogram2', () => {
     )).toEqual([]);
   });
 
-  test('histogram2 opens cleanly in FigureWindow modal', async () => {
+  test('histogram2 opens cleanly in FigureWindow modal', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'X = randn(1, 50);\n'
@@ -111,7 +98,7 @@ test.describe('B3 — histogram2', () => {
     )).toEqual([]);
   });
 
-  test('histogram2 renders an SVG image element (heatmap visible)', async () => {
+  test('histogram2 renders an SVG image element (heatmap visible)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'X = [1 1 1 5 5 5];\n'

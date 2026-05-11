@@ -13,23 +13,10 @@
 // imshow calls (same data, different ranges) and verifying the
 // underlying figure JSON differs.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('imshow — display image (BACKLOG: imshow)', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('imshow(I) grayscale — heatmap-style image rendered', async () => {
+  test('imshow(I) grayscale — heatmap-style image rendered', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'I = [0 0.25 0.5 0.75 1; 0.1 0.3 0.5 0.7 0.9; 0 0.5 1 0.5 0];\n'
@@ -46,7 +33,7 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     )).toEqual([]);
   });
 
-  test('imshow + axis off + axisMode=image flow to figure config', async () => {
+  test('imshow + axis off + axisMode=image flow to figure config', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'imshow([0 0.5 1; 0.5 1 0.5; 1 0.5 0]);\n'
@@ -67,7 +54,7 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     expect(tickTexts).toBeLessThan(8);
   });
 
-  test('imshow(I, [lo hi]) — explicit range narrows the contrast', async () => {
+  test('imshow(I, [lo hi]) — explicit range narrows the contrast', async ({ ide, page }) => {
     // Two figures: one with default [0,1] range, one with [0, 0.5].
     // The second should have a different cmin/cmax in the engine
     // wire format — we can't read it directly, but we can verify
@@ -85,7 +72,7 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     )).toEqual([]);
   });
 
-  test('imshow(I, []) — auto range scans the data', async () => {
+  test('imshow(I, []) — auto range scans the data', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'I = [10 20 30; 15 25 35; 12 22 32];\n'   // values outside [0,1]
@@ -96,7 +83,7 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     expect(await img.count()).toBeGreaterThanOrEqual(1);
   });
 
-  test('imshow(RGB) — M×N×3 double renders as image-rgb', async () => {
+  test('imshow(RGB) — M×N×3 double renders as image-rgb', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'R = [1 0; 0 1];\n'
@@ -114,7 +101,7 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     )).toEqual([]);
   });
 
-  test('imshow(RGB) opens cleanly in modal (axes hidden)', async () => {
+  test('imshow(RGB) opens cleanly in modal (axes hidden)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'R = [1 0.5; 0.5 1];\n'
@@ -132,7 +119,7 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     )).toEqual([]);
   });
 
-  test('imshow + grayscale colormap default — gray, not parula', async () => {
+  test('imshow + grayscale colormap default — gray, not parula', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'imshow([0 0.5 1; 0.5 1 0.5; 1 0.5 0]);\n'
@@ -153,7 +140,7 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     expect(foundGray).toBe(true);
   });
 
-  test('imshow + DisplayRange N-V — same effect as positional [lo hi]', async () => {
+  test('imshow + DisplayRange N-V — same effect as positional [lo hi]', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'I = [10 20 30; 15 25 35; 12 22 32];\n'
@@ -167,7 +154,7 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     )).toEqual([]);
   });
 
-  test('imshow + XData / YData place image at world coords', async () => {
+  test('imshow + XData / YData place image at world coords', async ({ ide, page }) => {
     // XData/YData stretch the image over the given x/y span. The
     // figure JSON ds.x/ds.y now carries those values, so the IDE
     // adapter computes a wider xRange/yRange than the default 1..N.
@@ -182,7 +169,7 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     )).toEqual([]);
   });
 
-  test('imshow + Colormap N-V — picks named map (jet) instead of gray', async () => {
+  test('imshow + Colormap N-V — picks named map (jet) instead of gray', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'imshow([0 0.5 1; 0.5 1 0.5; 1 0.5 0], \'Colormap\', \'jet\');\n'
@@ -200,7 +187,7 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     expect(foundJet).toBe(true);
   });
 
-  test('imshow(RGBA) — M×N×4 with alpha channel renders without error', async () => {
+  test('imshow(RGBA) — M×N×4 with alpha channel renders without error', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'R = [1 0; 0 1];\n'
@@ -217,7 +204,7 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     )).toEqual([]);
   });
 
-  test('imshow(filename) — char-input path goes through imread', async () => {
+  test('imshow(filename) — char-input path goes through imread', async ({ ide, page }) => {
     // Calling imshow with a missing file should fail cleanly (engine
     // throws, no JS-side crash). The point of the test is that the
     // CHAR branch DOES route to imread — we don't need a successful
@@ -238,7 +225,7 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     expect(harderErrors).toEqual([]);
   });
 
-  test('imshow + Border/Reduce/InitialMagnification/Parent — accepted as no-op', async () => {
+  test('imshow + Border/Reduce/InitialMagnification/Parent — accepted as no-op', async ({ ide, page }) => {
     // These N-V pairs are accepted for script compatibility but
     // currently produce no visual effect (BACKLOG). The point of
     // this test is "user scripts don't crash" — we feed all four
@@ -257,7 +244,7 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     )).toEqual([]);
   });
 
-  test('imshow logical mask — true=white, false=black', async () => {
+  test('imshow logical mask — true=white, false=black', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'L = false(3, 3);\n'

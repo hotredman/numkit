@@ -1,22 +1,9 @@
 // box.spec.js — box(on|off) frame toggle.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('box on / off — axis-frame toggle', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('box default — full frame (rect with no fill, stroke set)', async () => {
+  test('box default — full frame (rect with no fill, stroke set)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -29,7 +16,7 @@ test.describe('box on / off — axis-frame toggle', () => {
     expect(await frame.count()).toBeGreaterThanOrEqual(1);
   });
 
-  test('box off — only bottom + left axis lines, no full frame', async () => {
+  test('box off — only bottom + left axis lines, no full frame', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -43,7 +30,7 @@ test.describe('box on / off — axis-frame toggle', () => {
     expect(await frame.count()).toBe(0);
   });
 
-  test('box without args toggles', async () => {
+  test('box without args toggles', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'

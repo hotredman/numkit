@@ -3,9 +3,7 @@
 // completion without engine errors and produces at least one
 // figure card.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -33,19 +31,8 @@ const SAMPLES = [
 ];
 
 test.describe('Examples — smoke (session-shipped)', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
   for (const [folder, file] of SAMPLES) {
-    test(`${folder}/${file} runs without engine errors`, async () => {
+    test(`${folder}/${file} runs without engine errors`, async ({ ide, page }) => {
       const src = readFileSync(join(EX, folder, file), 'utf8');
       await ide.runScript(src);
       // Wait for any async drawnow/emitModified to flush.

@@ -4,9 +4,7 @@
 // not a smoke); a representative slice covering 3-D + new 2-D
 // builtins is enough.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -49,19 +47,8 @@ const SAMPLE_FILES = [
 ];
 
 test.describe('docs/examples/Plotting — runtime sanity', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
   for (const fname of SAMPLE_FILES) {
-    test(`${fname} runs clean`, async () => {
+    test(`${fname} runs clean`, async ({ ide, page }) => {
       const src = readFileSync(path.join(EXAMPLES_DIR, fname), 'utf8');
       await ide.runScript(src);
       // Give 3-D figures a moment to mount + axes frame to build.

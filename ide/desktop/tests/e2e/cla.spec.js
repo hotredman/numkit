@@ -1,22 +1,9 @@
 // cla.spec.js — clear-current-axes.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('cla — clear current axes', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('cla clears the data layers but keeps the axes', async () => {
+  test('cla clears the data layers but keeps the axes', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -29,7 +16,7 @@ test.describe('cla — clear current axes', () => {
     )).toEqual([]);
   });
 
-  test('cla("reset") also clears title + labels', async () => {
+  test('cla("reset") also clears title + labels', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'

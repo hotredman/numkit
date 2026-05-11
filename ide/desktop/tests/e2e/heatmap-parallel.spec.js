@@ -3,23 +3,10 @@
 // → multi-line plot. Real cell-text overlays (heatmap) and dedicated
 // multi-axis parallel rendering are BACKLOG.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('heatmap (table) + parallelplot', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('heatmap(C) — image element rendered', async () => {
+  test('heatmap(C) — image element rendered', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'C = [1 2 3; 2 4 6; 3 6 9];\n'
@@ -30,7 +17,7 @@ test.describe('heatmap (table) + parallelplot', () => {
     expect(await img.count()).toBeGreaterThanOrEqual(1);
   });
 
-  test('heatmap(C, "Colormap", "hot") — colormap honoured', async () => {
+  test('heatmap(C, "Colormap", "hot") — colormap honoured', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'heatmap([1 2; 3 4], \'Colormap\', \'hot\');\n'
@@ -46,7 +33,7 @@ test.describe('heatmap (table) + parallelplot', () => {
     expect(found).toBe(true);
   });
 
-  test('parallelplot — emits one line per row of the matrix', async () => {
+  test('parallelplot — emits one line per row of the matrix', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       // 4 rows × 5 cols → 4 lines spanning x = 1..5.

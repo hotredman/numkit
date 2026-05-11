@@ -9,33 +9,17 @@
 //
 // Fixed in 7fb111d3.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
+
+async function seedWorkspaceVar(ide) {
+  await ide.repl('xtest = 42');
+  await ide.openWorkspaceTab();
+  await expect(ide.workspaceCards.first()).toBeVisible({ timeout: 5_000 });
+}
 
 test.describe('Workspace pane', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-    // Seed a workspace variable so we have a card to click.
-    await ide.repl('xtest = 42');
-    // Workspace pane lives under a dock tab — Console is active by
-    // default. Switch over so the cards mount in the DOM.
-    await ide.openWorkspaceTab();
-    // At least one card present; we don't lock the count because a
-    // boot script or implicit `ans` may also be present.
-    await expect(ide.workspaceCards.first()).toBeVisible({ timeout: 5_000 });
-  });
-
-  test.afterEach(async () => {
-    await closeIde(app);
-  });
-
-  test('single click on a workspace card opens the Variable Editor', async () => {
+  test('single click on a workspace card opens the Variable Editor', async ({ ide }) => {
+    await seedWorkspaceVar(ide);
     // Click the card we just created (its name is the unique seed).
     const card = ide.workspaceCards.filter({ hasText: 'xtest' });
     await expect(card).toHaveCount(1);
@@ -43,7 +27,8 @@ test.describe('Workspace pane', () => {
     await expect(ide.variableEditor).toBeVisible({ timeout: 5_000 });
   });
 
-  test('Enter in the editor textarea does NOT open the Variable Editor', async () => {
+  test('Enter in the editor textarea does NOT open the Variable Editor', async ({ ide, page }) => {
+    await seedWorkspaceVar(ide);
     // The bug was: clicking a card set "selected" state in WorkspacePanel,
     // which installed a window-level keydown handler that opened the
     // Variable Editor on Enter. Enter pressed anywhere — even the
@@ -61,7 +46,8 @@ test.describe('Workspace pane', () => {
     await expect(ide.variableEditor).not.toBeVisible();
   });
 
-  test('workspace card has no persistent selection state', async () => {
+  test('workspace card has no persistent selection state', async ({ ide }) => {
+    await seedWorkspaceVar(ide);
     const card = ide.workspaceCards.filter({ hasText: 'xtest' });
     // Pre-7fb111d3 the card got class .is-selected on click and kept
     // it. We removed both the state and the .is-selected style; the

@@ -5,23 +5,10 @@
 //
 // Verified end-to-end via the canvas.__numkit3dCtx test hook.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('3-D view-preset toolbar', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  async function openSurfModal() {
+  async function openSurfModal(ide) {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2 3; 2 4 6; 3 6 9];\n'
@@ -35,14 +22,14 @@ test.describe('3-D view-preset toolbar', () => {
     return canvas;
   }
 
-  test('view ▾ button visible only on 3-D figures', async () => {
-    await openSurfModal();
+  test('view ▾ button visible only on 3-D figures', async ({ ide, page }) => {
+    await openSurfModal(ide);
     const viewBtn = ide.figureWindow.locator('button', { hasText: /^view ▾$/ });
     expect(await viewBtn.count()).toBe(1);
   });
 
-  test('top preset (az=0, el=90) puts camera above origin', async () => {
-    const canvas = await openSurfModal();
+  test('top preset (az=0, el=90) puts camera above origin', async ({ ide, page }) => {
+    const canvas = await openSurfModal(ide);
     const viewBtn = ide.figureWindow.locator('button', { hasText: /^view ▾$/ });
     await viewBtn.click();
     await ide.figureWindow.locator('button[data-fw-view="top"]').click();
@@ -60,8 +47,8 @@ test.describe('3-D view-preset toolbar', () => {
     expect(Math.abs(pos.z)).toBeLessThan(0.6);
   });
 
-  test('front preset (az=0, el=0) puts camera along +Z', async () => {
-    const canvas = await openSurfModal();
+  test('front preset (az=0, el=0) puts camera along +Z', async ({ ide, page }) => {
+    const canvas = await openSurfModal(ide);
     await ide.figureWindow.locator('button', { hasText: /^view ▾$/ }).click();
     await ide.figureWindow.locator('button[data-fw-view="front"]').click();
     await page.waitForTimeout(50);
@@ -76,8 +63,8 @@ test.describe('3-D view-preset toolbar', () => {
     expect(Math.abs(pos.y)).toBeLessThan(0.6);
   });
 
-  test('iso preset (default) restores -37.5° / 30°', async () => {
-    const canvas = await openSurfModal();
+  test('iso preset (default) restores -37.5° / 30°', async ({ ide, page }) => {
+    const canvas = await openSurfModal(ide);
     // First snap to top, then back to iso.
     await ide.figureWindow.locator('button', { hasText: /^view ▾$/ }).click();
     await ide.figureWindow.locator('button[data-fw-view="top"]').click();
@@ -98,8 +85,8 @@ test.describe('3-D view-preset toolbar', () => {
     expect(pos.x).toBeLessThan(0);      // left of origin
   });
 
-  test('view-preset toggles produce no console errors', async () => {
-    await openSurfModal();
+  test('view-preset toggles produce no console errors', async ({ ide, page }) => {
+    await openSurfModal(ide);
     const presets = ['top', 'bottom', 'front', 'back', 'right', 'left', 'iso'];
     for (const p of presets) {
       await ide.figureWindow.locator('button', { hasText: /^view ▾$/ }).click();

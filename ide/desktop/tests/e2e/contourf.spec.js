@@ -11,23 +11,10 @@
 //     <path fill="..."> elements (not just strokes)
 //   • level count argument (contourf(Z, n)) flows through
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('contourf — filled contour bands', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('contourf(Z) renders without errors', async () => {
+  test('contourf(Z) renders without errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + '[X, Y] = meshgrid(linspace(-3, 3, 30));\n'
@@ -40,7 +27,7 @@ test.describe('contourf — filled contour bands', () => {
     )).toEqual([]);
   });
 
-  test('contourf produces <path fill="…"> elements (filled, not just stroke)', async () => {
+  test('contourf produces <path fill="…"> elements (filled, not just stroke)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2 3 4; 2 4 6 4; 3 6 9 6; 4 4 6 4];\n'
@@ -56,7 +43,7 @@ test.describe('contourf — filled contour bands', () => {
     expect(filledPaths).toBeGreaterThanOrEqual(2);
   });
 
-  test('contourf(Z, n) — explicit level count produces n+1 bands', async () => {
+  test('contourf(Z, n) — explicit level count produces n+1 bands', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + '[X, Y] = meshgrid(linspace(-2, 2, 20));\n'
@@ -69,7 +56,7 @@ test.describe('contourf — filled contour bands', () => {
     )).toEqual([]);
   });
 
-  test('contourf(X, Y, Z) — explicit grid coords', async () => {
+  test('contourf(X, Y, Z) — explicit grid coords', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = linspace(-1, 1, 10);\n'
@@ -84,7 +71,7 @@ test.describe('contourf — filled contour bands', () => {
     )).toEqual([]);
   });
 
-  test('contourf opens cleanly in the modal', async () => {
+  test('contourf opens cleanly in the modal', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2 3; 2 4 2; 3 2 1];\n'

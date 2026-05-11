@@ -1,22 +1,9 @@
 // mldivide-bug28.spec.js — verify mldivide/mrdivide/mpower named-fn forms.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('mldivide / mrdivide / mpower — BUG #28', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('mldivide(A, b) === A \\ b for 2×2 linear system', async () => {
+  test('mldivide(A, b) === A \\ b for 2×2 linear system', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'A = [1 2; 3 4];\n'
@@ -31,7 +18,7 @@ test.describe('mldivide / mrdivide / mpower — BUG #28', () => {
     expect(txt).toMatch(/1 2 1 2/);
   });
 
-  test('mrdivide(b, A) === b / A', async () => {
+  test('mrdivide(b, A) === b / A', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'A = 2;\n'
@@ -45,7 +32,7 @@ test.describe('mldivide / mrdivide / mpower — BUG #28', () => {
     expect(txt).toMatch(/5 5/);
   });
 
-  test('mpower(A, n) === A^n', async () => {
+  test('mpower(A, n) === A^n', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'A = [2 0; 0 3];\n'

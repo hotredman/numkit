@@ -18,23 +18,10 @@
 //   3. ylabel/ylim/yscale post-yyaxis route to the right side
 //   4. modal expansion preserves both sides
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('B2 — yyaxis (dual Y)', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('yyaxis(\'left\') alone — bare call enables, figure renders', async () => {
+  test('yyaxis(\'left\') alone — bare call enables, figure renders', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -46,7 +33,7 @@ test.describe('B2 — yyaxis (dual Y)', () => {
     )).toEqual([]);
   });
 
-  test('left + right plots — both render with dual-axis state', async () => {
+  test('left + right plots — both render with dual-axis state', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'yyaxis(\'left\');\n'
@@ -61,7 +48,7 @@ test.describe('B2 — yyaxis (dual Y)', () => {
     )).toEqual([]);
   });
 
-  test('ylim post-yyaxis right routes to right axis (no errors)', async () => {
+  test('ylim post-yyaxis right routes to right axis (no errors)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'yyaxis(\'left\');\n'
@@ -78,7 +65,7 @@ test.describe('B2 — yyaxis (dual Y)', () => {
     )).toEqual([]);
   });
 
-  test('yscale(\'log\') on right side — figure renders with log-y2', async () => {
+  test('yscale(\'log\') on right side — figure renders with log-y2', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'yyaxis(\'left\');\n'
@@ -94,7 +81,7 @@ test.describe('B2 — yyaxis (dual Y)', () => {
     )).toEqual([]);
   });
 
-  test('yyaxis switching back to left — subsequent plot lands on left', async () => {
+  test('yyaxis switching back to left — subsequent plot lands on left', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'yyaxis(\'left\');\n'
@@ -111,7 +98,7 @@ test.describe('B2 — yyaxis (dual Y)', () => {
     )).toEqual([]);
   });
 
-  test('dual-y figure opens cleanly in FigureWindow modal', async () => {
+  test('dual-y figure opens cleanly in FigureWindow modal', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'yyaxis(\'left\');\n'
@@ -130,7 +117,7 @@ test.describe('B2 — yyaxis (dual Y)', () => {
     )).toEqual([]);
   });
 
-  test('scatter on right axis — uses pushDataset routing', async () => {
+  test('scatter on right axis — uses pushDataset routing', async ({ ide, page }) => {
     // Verifies that not just plot(), but scatter/bar/etc. all carry
     // the active yyaxis side via FigureManager::pushDataset.
     await ide.runScript(

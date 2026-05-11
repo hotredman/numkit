@@ -2,25 +2,12 @@
 // surfl. Replaces noop builtins; render path picks the matching
 // THREE material and toggles the cam-attached light.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('WebGL 3-D — lighting / material / camlight / surfl', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
   test.describe('lighting modes', () => {
     for (const mode of ['flat', 'gouraud', 'phong', 'none']) {
-      test(`lighting('${mode}') — surf renders without errors`, async () => {
+      test(`lighting('${mode}') — surf renders without errors`, async ({ ide, page }) => {
         await ide.runScript(
           'import compat.*;\n'
           + 'surf([1 2 3; 2 3 4; 3 4 5]);\n'
@@ -38,7 +25,7 @@ test.describe('WebGL 3-D — lighting / material / camlight / surfl', () => {
 
   test.describe('material presets (with phong)', () => {
     for (const m of ['shiny', 'metal', 'dull']) {
-      test(`material('${m}') — phong + ${m} renders`, async () => {
+      test(`material('${m}') — phong + ${m} renders`, async ({ ide, page }) => {
         await ide.runScript(
           'import compat.*;\n'
           + 'surf([1 2 3; 2 3 4; 3 4 5]);\n'
@@ -55,7 +42,7 @@ test.describe('WebGL 3-D — lighting / material / camlight / surfl', () => {
 
   test.describe('camlight positions', () => {
     for (const pos of ['left', 'right', 'headlight']) {
-      test(`camlight('${pos}') — adds a directional light`, async () => {
+      test(`camlight('${pos}') — adds a directional light`, async ({ ide, page }) => {
         await ide.runScript(
           'import compat.*;\n'
           + 'surf([1 2 3; 2 3 4; 3 4 5]);\n'
@@ -69,7 +56,7 @@ test.describe('WebGL 3-D — lighting / material / camlight / surfl', () => {
     }
   });
 
-  test('camlight() default — headlight applied', async () => {
+  test('camlight() default — headlight applied', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'surf([1 2 3; 2 3 4; 3 4 5]);\n'
@@ -81,7 +68,7 @@ test.describe('WebGL 3-D — lighting / material / camlight / surfl', () => {
     )).toEqual([]);
   });
 
-  test('surfl(Z) — surf + auto camlight + lighting gouraud', async () => {
+  test('surfl(Z) — surf + auto camlight + lighting gouraud', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'surfl([1 2 3 4; 2 3 4 5; 3 4 5 6]);\n'

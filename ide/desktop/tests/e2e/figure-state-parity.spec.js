@@ -16,25 +16,12 @@
 // Preview side asserts via DOM attrs of the SVG / canvas wrapper that
 // don't depend on toolbar mounting.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('Script ↔ preview ↔ modal parity', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
   // ─── 2-D plots ────────────────────────────────────────────────────
 
-  test('2-D xlim / ylim — modal inputs show script-set values', async () => {
+  test('2-D xlim / ylim — modal inputs show script-set values', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3 4 5], [1 4 9 16 25]);\n'
@@ -50,7 +37,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
     expect(Number(await inputs.nth(3).inputValue())).toBeCloseTo(30, 1);
   });
 
-  test('2-D xscale log — toolbar x-log toggle activated', async () => {
+  test('2-D xscale log — toolbar x-log toggle activated', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'imagesc(reshape(1:64, 8, 8));\n'
@@ -63,7 +50,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
     await expect(xLogBtn).toHaveClass(/is-active/);
   });
 
-  test('2-D yscale log — toolbar y-log toggle activated', async () => {
+  test('2-D yscale log — toolbar y-log toggle activated', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'imagesc(reshape(1:64, 8, 8));\n'
@@ -76,7 +63,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
     await expect(yLogBtn).toHaveClass(/is-active/);
   });
 
-  test('2-D grid on — both preview and modal show grid', async () => {
+  test('2-D grid on — both preview and modal show grid', async ({ ide, page }) => {
     await ide.runScript('import compat.*;\nplot([1 2 3], [1 4 9]); grid on;\n');
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     // Preview: grid lines drawn via .plot-grid stroke. We can grep
@@ -89,7 +76,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
     await expect(gridBtn).toHaveClass(/is-active/);
   });
 
-  test('2-D grid minor — minor toggle reflects in modal', async () => {
+  test('2-D grid minor — minor toggle reflects in modal', async ({ ide, page }) => {
     await ide.runScript('import compat.*;\nplot([1 2 3], [1 4 9]); grid on; grid minor;\n');
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
@@ -98,7 +85,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
     await expect(minorBtn).toHaveClass(/is-active/);
   });
 
-  test('2-D axis equal — modal renders without errors (renderer applies)', async () => {
+  test('2-D axis equal — modal renders without errors (renderer applies)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([0 1 2 3], [0 0.5 0 0.5]);\n'
@@ -114,7 +101,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
 
   // ─── 3-D plots ────────────────────────────────────────────────────
 
-  test('3-D xlim/ylim/zlim — script values reach modal footer inputs', async () => {
+  test('3-D xlim/ylim/zlim — script values reach modal footer inputs', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2 3], [0 1 4 9], [1 2 3 4]);\n'
@@ -133,7 +120,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
     expect(Number(await inputs.nth(5).inputValue())).toBeCloseTo(10, 1);
   });
 
-  test('3-D grid on by default — preview and modal both show grid', async () => {
+  test('3-D grid on by default — preview and modal both show grid', async ({ ide, page }) => {
     // Adapter forces grid='on' for 3-D when no explicit script call.
     await ide.runScript('import compat.*;\nsurf([1 2; 3 4]);\n');
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
@@ -143,7 +130,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
     await expect(gridBtn).toHaveClass(/is-active/);
   });
 
-  test('3-D explicit grid off — modal grid toggle inactive', async () => {
+  test('3-D explicit grid off — modal grid toggle inactive', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'surf([1 2 3; 2 3 4; 3 4 5]);\n'
@@ -156,7 +143,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
     await expect(gridBtn).not.toHaveClass(/is-active/);
   });
 
-  test('3-D grid minor — modal minor toggle active', async () => {
+  test('3-D grid minor — modal minor toggle active', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2], [0 1 0], [0 1 0]);\n'
@@ -169,7 +156,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
     await expect(minorBtn).toHaveClass(/is-active/);
   });
 
-  test('3-D view(az, el) — modal opens with correct camera (no errors)', async () => {
+  test('3-D view(az, el) — modal opens with correct camera (no errors)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2], [0 1 0], [0 1 0]);\n'
@@ -184,7 +171,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
 
   // ─── Heatmap (imagesc / pcolor) ───────────────────────────────────
 
-  test('imagesc + colormap("hot") — toolbar select reflects script', async () => {
+  test('imagesc + colormap("hot") — toolbar select reflects script', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'imagesc(magic(8));\n'
@@ -197,7 +184,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
     await expect(select).toHaveValue('hot');
   });
 
-  test('imagesc + clim — modal renders without errors', async () => {
+  test('imagesc + clim — modal renders without errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'imagesc(magic(8));\n'
@@ -211,7 +198,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
     )).toEqual([]);
   });
 
-  test('imagesc + grid on — major grid lines drawn over heatmap', async () => {
+  test('imagesc + grid on — major grid lines drawn over heatmap', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'imagesc(reshape(1:64, 8, 8));\n'
@@ -224,7 +211,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
     await expect(gridBtn).toHaveClass(/is-active/);
   });
 
-  test('imagesc xlim — modal x inputs match script', async () => {
+  test('imagesc xlim — modal x inputs match script', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'imagesc(reshape(1:64, 8, 8));\n'
@@ -240,7 +227,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
 
   // ─── Cross-window: preview ↔ modal coherence ──────────────────────
 
-  test('preview SVG path count == modal SVG path count for 2-D plot', async () => {
+  test('preview SVG path count == modal SVG path count for 2-D plot', async ({ ide, page }) => {
     // Both renderers consume the same `figure` object. Stroke-path
     // count is a structural-equivalent proxy: scribbles on preview
     // === scribbles in modal.
@@ -268,7 +255,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
     expect(modalPaths).toBeGreaterThanOrEqual(previewPaths);
   });
 
-  test('preview canvas == modal canvas for 3-D plot (both WebGL)', async () => {
+  test('preview canvas == modal canvas for 3-D plot (both WebGL)', async ({ ide, page }) => {
     await ide.runScript('import compat.*;\nsurf([1 2 3; 2 3 4; 3 4 5]);\n');
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
@@ -280,7 +267,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
 
   // ─── Legend gating ────────────────────────────────────────────────
 
-  test('legend NOT shown by default — script never called legend()', async () => {
+  test('legend NOT shown by default — script never called legend()', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -302,7 +289,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
     expect(await legendBtn.count()).toBe(0);
   });
 
-  test('legend shown when script calls legend(...)', async () => {
+  test('legend shown when script calls legend(...)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'
@@ -319,7 +306,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
     await expect(legendBtn).toHaveClass(/is-active/);
   });
 
-  test('preview heatmap image element matches modal', async () => {
+  test('preview heatmap image element matches modal', async ({ ide, page }) => {
     // imagesc emits an <image> in both. Both should be present.
     await ide.runScript('import compat.*;\nimagesc(magic(6));\n');
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });

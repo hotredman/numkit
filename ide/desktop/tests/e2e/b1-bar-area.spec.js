@@ -9,23 +9,10 @@
 //           under the curve). The curve plus baseline-down-and-back
 //           gives the closed shape.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('B1 — barh', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('barh(y) — vector → N horizontal bars', async () => {
+  test('barh(y) — vector → N horizontal bars', async ({ ide }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'barh([2 5 3 7 4]);\n'
@@ -35,7 +22,7 @@ test.describe('B1 — barh', () => {
     expect(rects, `barh drew ${rects} <rect>s; expected ≥ 5`).toBeGreaterThanOrEqual(5);
   });
 
-  test('barh(x, y) — categories + values', async () => {
+  test('barh(x, y) — categories + values', async ({ ide }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'barh([10 20 30], [1 4 2]);\n'
@@ -47,18 +34,7 @@ test.describe('B1 — barh', () => {
 });
 
 test.describe('B1 — area', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('area(x, y) — single filled polygon', async () => {
+  test('area(x, y) — single filled polygon', async ({ ide }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'area([1 2 3 4 5], [0.5 1.2 2.1 1.8 0.9]);\n'
@@ -72,7 +48,7 @@ test.describe('B1 — area', () => {
     expect(filled, `area-mode rendered ${filled} fill-opacity paths`).toBeGreaterThanOrEqual(1);
   });
 
-  test('area(x, y, base) — baseline shifts the fill bottom', async () => {
+  test('area(x, y, base) — baseline shifts the fill bottom', async ({ ide }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'area([1 2 3 4 5], [3 4 5 4 3], 2);\n'

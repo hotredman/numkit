@@ -5,23 +5,10 @@
 // to be no-ops; now they emit dedicated dataset types and render
 // as <line> SVG elements.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('xline / yline reference lines', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('xline(5) — vertical reference line in figure', async () => {
+  test('xline(5) — vertical reference line in figure', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3 4 5 6 7], [1 4 9 16 25 36 49]);\n'
@@ -33,7 +20,7 @@ test.describe('xline / yline reference lines', () => {
     )).toEqual([]);
   });
 
-  test('yline(20) — horizontal reference line', async () => {
+  test('yline(20) — horizontal reference line', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3 4 5], [1 4 9 16 25]);\n'
@@ -45,7 +32,7 @@ test.describe('xline / yline reference lines', () => {
     )).toEqual([]);
   });
 
-  test('xline(vector) — multiple reference lines at once', async () => {
+  test('xline(vector) — multiple reference lines at once', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3 4 5 6 7 8 9 10], 1:10);\n'
@@ -57,7 +44,7 @@ test.describe('xline / yline reference lines', () => {
     )).toEqual([]);
   });
 
-  test('xline does NOT contribute to auto-range Y bounds', async () => {
+  test('xline does NOT contribute to auto-range Y bounds', async ({ ide, page }) => {
     // If xline's sentinel Y leaked into auto-range, the plot would
     // collapse to ~0 height. The data goes 1..25, so any auto-tick
     // pattern with multiple distinct numeric labels confirms a

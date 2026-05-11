@@ -6,23 +6,10 @@
 //          floor(log(5e-5)/log(rho)) formula. This test pins the post-
 //          fix value so a future regression is loud.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('impzlength — BUG #32 regression guard', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('impzlength([1 -0.5], [1 -0.99]) === 985 (MATLAB parity)', async () => {
+  test('impzlength([1 -0.5], [1 -0.99]) === 985 (MATLAB parity)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'n = impzlength([1 -0.5], [1 -0.99]);\n'
@@ -33,7 +20,7 @@ test.describe('impzlength — BUG #32 regression guard', () => {
     expect(txt).toMatch(/n=985/);
   });
 
-  test('impzlength FIR filter (a trivial) returns numel(b)', async () => {
+  test('impzlength FIR filter (a trivial) returns numel(b)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'n = impzlength([1 2 3 4 5], 1);\n'
@@ -44,7 +31,7 @@ test.describe('impzlength — BUG #32 regression guard', () => {
     expect(txt).toMatch(/n=5/);
   });
 
-  test('impzlength varies with pole magnitude', async () => {
+  test('impzlength varies with pole magnitude', async ({ ide, page }) => {
     // Per MATLAB: rho = 0.5 → 14, rho = 0.9 → 93.
     await ide.runScript(
       'import compat.*;\n'

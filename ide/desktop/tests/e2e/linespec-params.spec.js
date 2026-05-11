@@ -6,23 +6,10 @@
 //
 // Tests inspect rendered SVG attributes directly (no pixel-diff).
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('linespec / N-V params — BUG #38', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('LineWidth N-V reaches stroke-width on SVG path', async () => {
+  test('LineWidth N-V reaches stroke-width on SVG path', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = linspace(0, 1, 20);\n'
@@ -36,7 +23,7 @@ test.describe('linespec / N-V params — BUG #38', () => {
     expect(await paths.count()).toBeGreaterThanOrEqual(1);
   });
 
-  test('lineStyle "--" → stroke-dasharray on SVG path', async () => {
+  test('lineStyle "--" → stroke-dasharray on SVG path', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = linspace(0, 1, 20);\n'
@@ -49,7 +36,7 @@ test.describe('linespec / N-V params — BUG #38', () => {
     expect(await dashed.count()).toBeGreaterThanOrEqual(1);
   });
 
-  test('lineStyle ":" → dotted dasharray', async () => {
+  test('lineStyle ":" → dotted dasharray', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = linspace(0, 1, 20);\n'
@@ -61,7 +48,7 @@ test.describe('linespec / N-V params — BUG #38', () => {
     expect(await dotted.count()).toBeGreaterThanOrEqual(1);
   });
 
-  test('marker "o" with line draws BOTH path and circles', async () => {
+  test('marker "o" with line draws BOTH path and circles', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = linspace(0, 1, 10);\n'
@@ -76,7 +63,7 @@ test.describe('linespec / N-V params — BUG #38', () => {
     expect(circles).toBeGreaterThanOrEqual(10);
   });
 
-  test('marker "s" → squares (rects) along the line', async () => {
+  test('marker "s" → squares (rects) along the line', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = linspace(0, 1, 8);\n'
@@ -89,7 +76,7 @@ test.describe('linespec / N-V params — BUG #38', () => {
     expect(rects).toBeGreaterThanOrEqual(8);
   });
 
-  test('marker "^" → triangle path glyphs', async () => {
+  test('marker "^" → triangle path glyphs', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = linspace(0, 1, 6);\n'
@@ -102,7 +89,7 @@ test.describe('linespec / N-V params — BUG #38', () => {
     expect(paths).toBeGreaterThanOrEqual(7);
   });
 
-  test('three-style overlay (b-, r--o, g:s) keeps all three distinct', async () => {
+  test('three-style overlay (b-, r--o, g:s) keeps all three distinct', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = linspace(0, 2*pi, 40);\n'
@@ -130,7 +117,7 @@ test.describe('linespec / N-V params — BUG #38', () => {
     )).toEqual([]);
   });
 
-  test('scatter marker spec respected (\'+\' instead of default \'o\')', async () => {
+  test('scatter marker spec respected (\'+\' instead of default \'o\')', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'scatter(linspace(0,1,8), linspace(0,1,8), \'+\');\n'

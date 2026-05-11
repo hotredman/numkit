@@ -4,23 +4,10 @@
 // 2. yyaxis + heatmap doesn't crash (edge case: padR space-share).
 // 3. yyaxis right-side scatter hover doesn't NaN out.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('B2 polish', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('legend with mixed mode series — renders without errors', async () => {
+  test('legend with mixed mode series — renders without errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 2 3]);\n'
@@ -35,7 +22,7 @@ test.describe('B2 polish', () => {
     )).toEqual([]);
   });
 
-  test('yyaxis + heatmap — both render without NaN dimensions', async () => {
+  test('yyaxis + heatmap — both render without NaN dimensions', async ({ ide, page }) => {
     // Edge case: padR is shared by the colorbar (heatmap default 'east')
     // and the right-side axis when yyEnabled. Confirm the layout stays
     // stable rather than producing negative widths.
@@ -52,7 +39,7 @@ test.describe('B2 polish', () => {
     )).toEqual([]);
   });
 
-  test('yyaxis with single right-side series — auto-range stays finite', async () => {
+  test('yyaxis with single right-side series — auto-range stays finite', async ({ ide, page }) => {
     // When the user creates the figure, immediately switches to right,
     // and plots only one series there, the LEFT auto-range fed bogus
     // ±Infinity values (no left data). Renderer should clamp.
@@ -67,7 +54,7 @@ test.describe('B2 polish', () => {
     )).toEqual([]);
   });
 
-  test('legend after FigureWindow re-open — labels still visible', async () => {
+  test('legend after FigureWindow re-open — labels still visible', async ({ ide, page }) => {
     // Legend props travel via the figure object that re-mounts in the
     // modal — quick guard that the modal path doesn't drop them.
     await ide.runScript(

@@ -4,23 +4,10 @@
 // (FigureManager::setSubplot). The test checks the figure card
 // renders and the modal subplot grid carries the right cell count.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('tiledlayout / nexttile', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('tiledlayout(2, 2) + 4× nexttile + plot — 4-cell grid', async () => {
+  test('tiledlayout(2, 2) + 4× nexttile + plot — 4-cell grid', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'tiledlayout(2, 2);\n'
@@ -35,7 +22,7 @@ test.describe('tiledlayout / nexttile', () => {
     )).toEqual([]);
   });
 
-  test('nexttile(k) — jumps to specific cell', async () => {
+  test('nexttile(k) — jumps to specific cell', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'tiledlayout(1, 3);\n'
@@ -48,7 +35,7 @@ test.describe('tiledlayout / nexttile', () => {
     )).toEqual([]);
   });
 
-  test('nexttile without prior tiledlayout falls back to 1x1', async () => {
+  test('nexttile without prior tiledlayout falls back to 1x1', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'nexttile;\n'   // no grid set

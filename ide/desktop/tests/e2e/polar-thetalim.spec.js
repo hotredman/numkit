@@ -3,23 +3,10 @@
 //   • FigureWindow footer exposes θ° lo / hi inputs alongside r
 //   • partial sweep clips the series + draws a wedge-style frame
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('polar — thetalim', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('polarplot footer has 4 inputs (r lo/hi + θ lo/hi)', async () => {
+  test('polarplot footer has 4 inputs (r lo/hi + θ lo/hi)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'theta = linspace(0, 2*pi, 100);\n'
@@ -35,7 +22,7 @@ test.describe('polar — thetalim', () => {
     expect(Number(await inputs.nth(3).inputValue())).toBeCloseTo(360, 1);
   });
 
-  test('thetalim([0 90]) — script value reaches the modal inputs', async () => {
+  test('thetalim([0 90]) — script value reaches the modal inputs', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'theta = linspace(0, pi/2, 30);\n'
@@ -50,7 +37,7 @@ test.describe('polar — thetalim', () => {
     expect(Number(await inputs.nth(3).inputValue())).toBeCloseTo(90, 1);
   });
 
-  test('thetalim([-180 180]) — symmetric sweep also passes through', async () => {
+  test('thetalim([-180 180]) — symmetric sweep also passes through', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'theta = linspace(-pi, pi, 60);\n'
@@ -65,7 +52,7 @@ test.describe('polar — thetalim', () => {
     expect(Number(await inputs.nth(3).inputValue())).toBeCloseTo(180, 1);
   });
 
-  test('partial sweep — frame is wedge-shaped, full sweep — disc', async () => {
+  test('partial sweep — frame is wedge-shaped, full sweep — disc', async ({ ide, page }) => {
     // Partial sweep should add the two radial spokes that close the
     // wedge (full sweep doesn't). Count <line stroke="…plot-frame"> as
     // proxy.
@@ -88,7 +75,7 @@ test.describe('polar — thetalim', () => {
     )).toEqual([]);
   });
 
-  test('changing θ-hi via input — no console errors', async () => {
+  test('changing θ-hi via input — no console errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'theta = linspace(0, 2*pi, 60);\n'
@@ -108,7 +95,7 @@ test.describe('polar — thetalim', () => {
     )).toEqual([]);
   });
 
-  test('status bar shows θ ∈ [...]', async () => {
+  test('status bar shows θ ∈ [...]', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'theta = linspace(0, pi, 30);\n'

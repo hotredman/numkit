@@ -8,23 +8,10 @@
 // numkit doesn't model handles; the cluster targets the most-recent
 // animated dataset on the current axes. Coverage:
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('animatedline + addpoints / clearpoints / getpoints', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('animatedline + addpoints — line dataset receives accumulated points', async () => {
+  test('animatedline + addpoints — line dataset receives accumulated points', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'h = animatedline;\n'
@@ -39,7 +26,7 @@ test.describe('animatedline + addpoints / clearpoints / getpoints', () => {
     )).toEqual([]);
   });
 
-  test('animatedline(x0, y0) — initial points seed the line', async () => {
+  test('animatedline(x0, y0) — initial points seed the line', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'h = animatedline([1 2 3 4 5], [1 4 9 16 25]);\n'
@@ -51,7 +38,7 @@ test.describe('animatedline + addpoints / clearpoints / getpoints', () => {
     )).toEqual([]);
   });
 
-  test('clearpoints empties the line; addpoints rebuilds it', async () => {
+  test('clearpoints empties the line; addpoints rebuilds it', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'h = animatedline([1 2 3], [1 2 3]);\n'
@@ -64,7 +51,7 @@ test.describe('animatedline + addpoints / clearpoints / getpoints', () => {
     )).toEqual([]);
   });
 
-  test('getpoints returns current x, y vectors', async () => {
+  test('getpoints returns current x, y vectors', async ({ ide, page }) => {
     let outputs = [];
     page.on('console', (msg) => outputs.push(msg.text()));
     await ide.runScript(
@@ -81,7 +68,7 @@ test.describe('animatedline + addpoints / clearpoints / getpoints', () => {
     )).toEqual([]);
   });
 
-  test('drawnow without animatedline — safe no-op', async () => {
+  test('drawnow without animatedline — safe no-op', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([1 2 3], [1 4 9]);\n'

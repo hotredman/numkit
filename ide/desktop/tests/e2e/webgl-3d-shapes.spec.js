@@ -2,23 +2,10 @@
 // through the WebGL renderer via raw 3-D coords + new layer modes
 // (bar3, waterfall, polygon3d).
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('WebGL 3-D — bar3 / waterfall / fill3', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('bar3(Z) — cuboid mesh in WebGL', async () => {
+  test('bar3(Z) — cuboid mesh in WebGL', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2 3; 2 3 4; 3 4 5];\n'
@@ -32,7 +19,7 @@ test.describe('WebGL 3-D — bar3 / waterfall / fill3', () => {
     )).toEqual([]);
   });
 
-  test('bar3 with zero / NaN entries — those bars skipped, no crash', async () => {
+  test('bar3 with zero / NaN entries — those bars skipped, no crash', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 0 3; 0 5 0; 3 0 9];\n'
@@ -44,7 +31,7 @@ test.describe('WebGL 3-D — bar3 / waterfall / fill3', () => {
     )).toEqual([]);
   });
 
-  test('waterfall(Z) — ribbon strips in WebGL', async () => {
+  test('waterfall(Z) — ribbon strips in WebGL', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2 3 4; 2 3 4 5; 3 4 5 6];\n'
@@ -58,7 +45,7 @@ test.describe('WebGL 3-D — bar3 / waterfall / fill3', () => {
     )).toEqual([]);
   });
 
-  test('fill3(X, Y, Z) — single triangle polygon in 3-D', async () => {
+  test('fill3(X, Y, Z) — single triangle polygon in 3-D', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'fill3([0 1 0.5], [0 0 1], [0 0 1]);\n'
@@ -71,7 +58,7 @@ test.describe('WebGL 3-D — bar3 / waterfall / fill3', () => {
     )).toEqual([]);
   });
 
-  test('fill3 with column matrix — multiple polygons', async () => {
+  test('fill3 with column matrix — multiple polygons', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'X = [0 2; 1 3; 0.5 2.5];\n'
@@ -85,7 +72,7 @@ test.describe('WebGL 3-D — bar3 / waterfall / fill3', () => {
     )).toEqual([]);
   });
 
-  test('bar3 + view(45, 45) — camera honoured', async () => {
+  test('bar3 + view(45, 45) — camera honoured', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2; 3 4];\n'
@@ -98,7 +85,7 @@ test.describe('WebGL 3-D — bar3 / waterfall / fill3', () => {
     )).toEqual([]);
   });
 
-  test('all three open cleanly in modal', async () => {
+  test('all three open cleanly in modal', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'bar3([1 2; 3 4]);\n'

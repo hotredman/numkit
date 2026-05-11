@@ -2,23 +2,10 @@
 // Theme awareness covers itself implicitly (renderer reads CSS vars
 // at mount; if CSS-vars resolve we're themed).
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('WebGL 3-D — export + theme', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('PNG button is present on a 3-D figure card', async () => {
+  test('PNG button is present on a 3-D figure card', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2], [0 1 0], [0 1 0]);\n'
@@ -33,7 +20,7 @@ test.describe('WebGL 3-D — export + theme', () => {
     await expect(pngBtn).toBeVisible({ timeout: 5_000 });
   });
 
-  test('preview card does NOT show the PNG button (interactive=false)', async () => {
+  test('preview card does NOT show the PNG button (interactive=false)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2], [0 1 0], [0 1 0]);\n'
@@ -45,7 +32,7 @@ test.describe('WebGL 3-D — export + theme', () => {
     expect(await pngOnCard.count()).toBe(0);
   });
 
-  test('PNG button click triggers download (no error)', async () => {
+  test('PNG button click triggers download (no error)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'surf([1 2; 3 4]);\n'
@@ -70,7 +57,7 @@ test.describe('WebGL 3-D — export + theme', () => {
     )).toEqual([]);
   });
 
-  test('renderer picks CSS vars for clear color (no obvious mismatch)', async () => {
+  test('renderer picks CSS vars for clear color (no obvious mismatch)', async ({ ide, page }) => {
     // Light-touch sanity: WebGL fills a fixed clear color from CSS
     // vars on mount. We don't pixel-diff (driver variance), but we
     // can assert the canvas exists and no theme-related errors.

@@ -5,23 +5,10 @@
 // smoke spec to guarantee WASM mode (a duplicate-compat at any of
 // these new builtin names would brick repl_init).
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('Tier 2 — pie / boxplot / violinplot / bar3 / waterfall', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('pie(X) — wedges per slice', async () => {
+  test('pie(X) — wedges per slice', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'pie([3 1 4 1 5 9]);\n'
@@ -34,7 +21,7 @@ test.describe('Tier 2 — pie / boxplot / violinplot / bar3 / waterfall', () => 
     )).toEqual([]);
   });
 
-  test('pie(X, explode) — explodes selected wedges', async () => {
+  test('pie(X, explode) — explodes selected wedges', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'pie([2 3 4 5], [0 1 0 0]);\n'
@@ -45,7 +32,7 @@ test.describe('Tier 2 — pie / boxplot / violinplot / bar3 / waterfall', () => 
     )).toEqual([]);
   });
 
-  test('pie3(X) — flattened pie via Y-tilt', async () => {
+  test('pie3(X) — flattened pie via Y-tilt', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'pie3([10 20 30 40]);\n'
@@ -56,7 +43,7 @@ test.describe('Tier 2 — pie / boxplot / violinplot / bar3 / waterfall', () => 
     )).toEqual([]);
   });
 
-  test('boxplot(x) — single box renders', async () => {
+  test('boxplot(x) — single box renders', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'boxplot([1 2 3 3 4 4 5 5 6 7 12]);\n'
@@ -67,7 +54,7 @@ test.describe('Tier 2 — pie / boxplot / violinplot / bar3 / waterfall', () => 
     )).toEqual([]);
   });
 
-  test('boxplot on matrix — one box per column', async () => {
+  test('boxplot on matrix — one box per column', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'X = randn(20, 3);\n'
@@ -79,7 +66,7 @@ test.describe('Tier 2 — pie / boxplot / violinplot / bar3 / waterfall', () => 
     )).toEqual([]);
   });
 
-  test('boxchart — alias of boxplot', async () => {
+  test('boxchart — alias of boxplot', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'boxchart([10 12 14 14 15 16 18 19 22]);\n'
@@ -90,7 +77,7 @@ test.describe('Tier 2 — pie / boxplot / violinplot / bar3 / waterfall', () => 
     )).toEqual([]);
   });
 
-  test('violinplot(x) — KDE shape + box + median', async () => {
+  test('violinplot(x) — KDE shape + box + median', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'violinplot(randn(1, 60));\n'
@@ -101,7 +88,7 @@ test.describe('Tier 2 — pie / boxplot / violinplot / bar3 / waterfall', () => 
     )).toEqual([]);
   });
 
-  test('bar3(Z) — 3D bars rendered in WebGL canvas', async () => {
+  test('bar3(Z) — 3D bars rendered in WebGL canvas', async ({ ide, page }) => {
     // History: this used to assert ≥ 30 SVG <path> elements when bar3
     // pre-projected through cabinet on the C++ side. After Etap 3 of
     // the WebGL roll-out bar3 emits raw 3-D coords and the renderer
@@ -121,7 +108,7 @@ test.describe('Tier 2 — pie / boxplot / violinplot / bar3 / waterfall', () => 
     )).toEqual([]);
   });
 
-  test('waterfall(Z) — per-row ribbon stack', async () => {
+  test('waterfall(Z) — per-row ribbon stack', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1 2 3 4; 2 3 4 5; 4 3 2 1];\n'
@@ -133,7 +120,7 @@ test.describe('Tier 2 — pie / boxplot / violinplot / bar3 / waterfall', () => 
     )).toEqual([]);
   });
 
-  test('all five open cleanly in modal', async () => {
+  test('all five open cleanly in modal', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'pie([1 2 3]);\n'

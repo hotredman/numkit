@@ -1,23 +1,10 @@
 // comet.spec.js — animated trail (v1: routes to plot / plot3 with
 // full data). Real step-by-step animation is BACKLOG.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('comet / comet3', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('comet(x, y) — final-state line plot', async () => {
+  test('comet(x, y) — final-state line plot', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 't = linspace(0, 4*pi, 50);\n'
@@ -29,7 +16,7 @@ test.describe('comet / comet3', () => {
     )).toEqual([]);
   });
 
-  test('comet3(x, y, z) — 3-D trail', async () => {
+  test('comet3(x, y, z) — 3-D trail', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 't = linspace(0, 4*pi, 30);\n'

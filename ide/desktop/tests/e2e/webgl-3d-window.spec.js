@@ -2,23 +2,10 @@
 // Covers: X/Y/Z range inputs in the footer, fit-3D menu (all/X/Y/Z),
 // PNG export through canvas, SVG export disabled, CSV/JSON download.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('FigureWindow — 3-D layout', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('plot3 — X / Y / Z inputs in the footer (6 inputs total)', async () => {
+  test('plot3 — X / Y / Z inputs in the footer (6 inputs total)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2 3], [0 1 0 1], [0 1 2 3]);\n'
@@ -38,7 +25,7 @@ test.describe('FigureWindow — 3-D layout', () => {
     await expect(status).toContainText('z ∈');
   });
 
-  test('plot3 — input values reflect data extent after first render', async () => {
+  test('plot3 — input values reflect data extent after first render', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2 3 4], [0 1 4 9 16], [1 2 3 4 5]);\n'
@@ -57,7 +44,7 @@ test.describe('FigureWindow — 3-D layout', () => {
     expect(Number(xHi)).toBeCloseTo(4, 1);
   });
 
-  test('Fit menu — 3-D popup has X / Y / Z buttons', async () => {
+  test('Fit menu — 3-D popup has X / Y / Z buttons', async ({ ide, page }) => {
     await ide.runScript('import compat.*;\nsurf([1 2 3; 2 3 4; 3 4 5]);\n');
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
@@ -73,7 +60,7 @@ test.describe('FigureWindow — 3-D layout', () => {
     await expect(popup.locator('button', { hasText: 'reset to data extent' })).toBeVisible();
   });
 
-  test('Fit · Z only — fires without errors', async () => {
+  test('Fit · Z only — fires without errors', async ({ ide, page }) => {
     await ide.runScript('import compat.*;\nsurf([1 2; 3 4]);\n');
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
@@ -89,7 +76,7 @@ test.describe('FigureWindow — 3-D layout', () => {
     )).toEqual([]);
   });
 
-  test('Save · PNG download fires on a 3-D figure', async () => {
+  test('Save · PNG download fires on a 3-D figure', async ({ ide, page }) => {
     await ide.runScript('import compat.*;\nsurf([1 2 3; 2 3 4; 3 4 5]);\n');
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
@@ -107,7 +94,7 @@ test.describe('FigureWindow — 3-D layout', () => {
     )).toEqual([]);
   });
 
-  test('Save · SVG button is disabled for 3-D (with explanatory tooltip)', async () => {
+  test('Save · SVG button is disabled for 3-D (with explanatory tooltip)', async ({ ide, page }) => {
     await ide.runScript('import compat.*;\nsurf([1 2; 3 4]);\n');
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
@@ -119,7 +106,7 @@ test.describe('FigureWindow — 3-D layout', () => {
     expect(await svgBtn.isDisabled()).toBe(true);
   });
 
-  test('Save · CSV download fires on a 3-D figure', async () => {
+  test('Save · CSV download fires on a 3-D figure', async ({ ide, page }) => {
     await ide.runScript('import compat.*;\nplot3([1 2 3], [4 5 6], [7 8 9]);\n');
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
@@ -134,7 +121,7 @@ test.describe('FigureWindow — 3-D layout', () => {
     )).toEqual([]);
   });
 
-  test('Composite3DPlot ignores hardcoded clearColor — wrapper carries CSS bg', async () => {
+  test('Composite3DPlot ignores hardcoded clearColor — wrapper carries CSS bg', async ({ ide, page }) => {
     // Theme regression test (Step 0). The wrapper div should carry
     // background `var(--plot-bg, ...)` so the WebGL canvas can stay
     // transparent and react to theme switches.

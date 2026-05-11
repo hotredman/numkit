@@ -3,23 +3,10 @@
 // row; this spec guards the new layout doesn't regress for plot,
 // scatter, polar, and subplot figures.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('FigureWindow — 2-D layout', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('plot — X / Y inputs are in the FOOTER, not the toolbar', async () => {
+  test('plot — X / Y inputs are in the FOOTER, not the toolbar', async ({ ide, page }) => {
     await ide.runScript('import compat.*;\nplot([1 2 3], [1 4 9]);\n');
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
@@ -38,7 +25,7 @@ test.describe('FigureWindow — 2-D layout', () => {
     expect(await toolbar.locator('.fw-range-group').count()).toBe(0);
   });
 
-  test('plot — committing a new x-hi triggers re-render (no error)', async () => {
+  test('plot — committing a new x-hi triggers re-render (no error)', async ({ ide, page }) => {
     await ide.runScript('import compat.*;\nplot([0 1 2 3 4], [0 1 4 9 16]);\n');
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
@@ -56,7 +43,7 @@ test.describe('FigureWindow — 2-D layout', () => {
     )).toEqual([]);
   });
 
-  test('polar — r + θ° input pairs in footer (4 inputs total)', async () => {
+  test('polar — r + θ° input pairs in footer (4 inputs total)', async ({ ide, page }) => {
     // After thetalim() shipped (commit added in this cycle) polar
     // figures expose r-lo / r-hi AND θ°-lo / θ°-hi inputs by default.
     // See polar-thetalim.spec.js for full thetalim coverage.
@@ -74,7 +61,7 @@ test.describe('FigureWindow — 2-D layout', () => {
     expect(await footerRow.locator('input').count()).toBe(4);   // r lo/hi + θ lo/hi
   });
 
-  test('subplot — no range-row at all (per-cell pan/zoom)', async () => {
+  test('subplot — no range-row at all (per-cell pan/zoom)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'subplot(1, 2, 1); plot([1 2 3], [1 4 9]);\n'
@@ -87,7 +74,7 @@ test.describe('FigureWindow — 2-D layout', () => {
     expect(await ide.figureWindow.locator('.fw-range-row').count()).toBe(0);
   });
 
-  test('Fit menu still has X-only / Y-only options for 2-D plots', async () => {
+  test('Fit menu still has X-only / Y-only options for 2-D plots', async ({ ide, page }) => {
     await ide.runScript('import compat.*;\nplot([1 2 3], [1 4 9]);\n');
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();

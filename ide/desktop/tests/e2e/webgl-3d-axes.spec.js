@@ -4,23 +4,10 @@
 // rendered as HTML overlays via CSS2DRenderer, view(2) / view(3)
 // preset shortcuts, axis equal / vis3d for 3-D figures, grid on/off.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('WebGL 3-D — axes infrastructure', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('zlabel + zlim — both reach the renderer (no errors)', async () => {
+  test('zlabel + zlim — both reach the renderer (no errors)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2], [0 1 0], [0 1 0]);\n'
@@ -37,7 +24,7 @@ test.describe('WebGL 3-D — axes infrastructure', () => {
     )).toEqual([]);
   });
 
-  test('view(2) — top-down preset', async () => {
+  test('view(2) — top-down preset', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2], [0 1 2], [0 1 4]);\n'
@@ -49,7 +36,7 @@ test.describe('WebGL 3-D — axes infrastructure', () => {
     )).toEqual([]);
   });
 
-  test('view(3) — default 3-D preset', async () => {
+  test('view(3) — default 3-D preset', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2], [0 1 2], [0 1 4]);\n'
@@ -61,7 +48,7 @@ test.describe('WebGL 3-D — axes infrastructure', () => {
     )).toEqual([]);
   });
 
-  test('axis(\'equal\') on 3-D figure — single scale across axes', async () => {
+  test('axis(\'equal\') on 3-D figure — single scale across axes', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 10 20], [0 1 0], [0 1 0]);\n'
@@ -73,7 +60,7 @@ test.describe('WebGL 3-D — axes infrastructure', () => {
     )).toEqual([]);
   });
 
-  test('axis(\'vis3d\') on 3-D figure — same single-scale path', async () => {
+  test('axis(\'vis3d\') on 3-D figure — same single-scale path', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2], [0 5 10], [0 100 200]);\n'
@@ -85,7 +72,7 @@ test.describe('WebGL 3-D — axes infrastructure', () => {
     )).toEqual([]);
   });
 
-  test('tick labels are rendered as HTML overlays inside the canvas wrapper', async () => {
+  test('tick labels are rendered as HTML overlays inside the canvas wrapper', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2 3 4], [0 1 4 9 16], [1 2 3 4 5]);\n'
@@ -103,7 +90,7 @@ test.describe('WebGL 3-D — axes infrastructure', () => {
     expect(labelDivs).toBeGreaterThanOrEqual(3);
   });
 
-  test('grid off — no console errors when grid switched off', async () => {
+  test('grid off — no console errors when grid switched off', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2], [0 1 0], [0 1 0]);\n'
@@ -115,7 +102,7 @@ test.describe('WebGL 3-D — axes infrastructure', () => {
     )).toEqual([]);
   });
 
-  test('xlim + ylim + zlim user-set — renderer honours bounds', async () => {
+  test('xlim + ylim + zlim user-set — renderer honours bounds', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot3([0 1 2], [0 1 2], [0 1 2]);\n'
@@ -127,7 +114,7 @@ test.describe('WebGL 3-D — axes infrastructure', () => {
     )).toEqual([]);
   });
 
-  test('plot3 + surf together — first plot3, then surf clears + replaces', async () => {
+  test('plot3 + surf together — first plot3, then surf clears + replaces', async ({ ide, page }) => {
     // Repro of the regression that took the IDE down on b3-surf:
     // figure swap from one 3-D type to another. With ErrorBoundary
     // we shouldn't crash even if internals throw; ideal case:

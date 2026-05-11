@@ -1,22 +1,9 @@
 // histcounts2.spec.js — 2-D histogram bin counts.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('histcounts2', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('histcounts2 default 10×10 bins on uniform cloud', async () => {
+  test('histcounts2 default 10×10 bins on uniform cloud', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = linspace(0, 1, 100);\n'
@@ -29,7 +16,7 @@ test.describe('histcounts2', () => {
     expect(txt).toMatch(/sz=10x10 total=100/);
   });
 
-  test('histcounts2 with [nx ny] explicit bin count', async () => {
+  test('histcounts2 with [nx ny] explicit bin count', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = linspace(0, 1, 50);\n'
@@ -42,7 +29,7 @@ test.describe('histcounts2', () => {
     expect(txt).toMatch(/sz=4x5 total=50/);
   });
 
-  test('histcounts2 with explicit edges', async () => {
+  test('histcounts2 with explicit edges', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = [0.5 1.5 2.5];\n'

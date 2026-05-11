@@ -1,22 +1,9 @@
 // confusionchart.spec.js — heatmap with per-cell text labels.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('confusionchart + heatmap cell labels', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('heatmap(C) default — labels rendered (≤ 20×20 grid)', async () => {
+  test('heatmap(C) default — labels rendered (≤ 20×20 grid)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'heatmap([10 20 30; 40 50 60; 70 80 90]);\n'
@@ -32,7 +19,7 @@ test.describe('confusionchart + heatmap cell labels', () => {
     expect(joined).toMatch(/90/);
   });
 
-  test('heatmap CellLabel,off suppresses overlays', async () => {
+  test('heatmap CellLabel,off suppresses overlays', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'heatmap([1 2; 3 4], \'CellLabel\', \'off\');\n'
@@ -43,7 +30,7 @@ test.describe('confusionchart + heatmap cell labels', () => {
     )).toEqual([]);
   });
 
-  test('confusionchart with class names', async () => {
+  test('confusionchart with class names', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'C = [50 2 1; 3 45 4; 0 5 48];\n'

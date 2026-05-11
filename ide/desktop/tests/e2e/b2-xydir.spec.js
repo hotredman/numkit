@@ -15,23 +15,10 @@
 //   2. The reversed-axis modal expands cleanly (axis state propagates)
 //   3. axis('ij') / axis('xy') aliases render without errors
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('B2 — XDir / YDir reverse + axis ij/xy', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('xdir(\'reverse\') — figure renders without console errors', async () => {
+  test('xdir(\'reverse\') — figure renders without console errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([0 1 2 3 4], [0 1 4 9 16]);\n'
@@ -43,7 +30,7 @@ test.describe('B2 — XDir / YDir reverse + axis ij/xy', () => {
     )).toEqual([]);
   });
 
-  test('ydir(\'reverse\') — figure renders without console errors', async () => {
+  test('ydir(\'reverse\') — figure renders without console errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([0 1 2 3 4], [0 1 4 9 16]);\n'
@@ -55,7 +42,7 @@ test.describe('B2 — XDir / YDir reverse + axis ij/xy', () => {
     )).toEqual([]);
   });
 
-  test('axis(\'ij\') — shorthand for yDir reverse', async () => {
+  test('axis(\'ij\') — shorthand for yDir reverse', async ({ ide, page }) => {
     // Classic image-coordinate axes: row index up = top of plot.
     await ide.runScript(
       'import compat.*;\n'
@@ -68,7 +55,7 @@ test.describe('B2 — XDir / YDir reverse + axis ij/xy', () => {
     )).toEqual([]);
   });
 
-  test('axis(\'xy\') — restores default y direction after axis(\'ij\')', async () => {
+  test('axis(\'xy\') — restores default y direction after axis(\'ij\')', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([0 1 2 3 4], [0 1 4 9 16]);\n'
@@ -81,7 +68,7 @@ test.describe('B2 — XDir / YDir reverse + axis ij/xy', () => {
     )).toEqual([]);
   });
 
-  test('xdir + ydir together — both reversed, no errors', async () => {
+  test('xdir + ydir together — both reversed, no errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'plot([0 1 2 3 4], [0 1 4 9 16]);\n'
@@ -94,7 +81,7 @@ test.describe('B2 — XDir / YDir reverse + axis ij/xy', () => {
     )).toEqual([]);
   });
 
-  test('reversed axes propagate to FigureWindow modal', async () => {
+  test('reversed axes propagate to FigureWindow modal', async ({ ide, page }) => {
     // Same propagation guarantee tested for axisMode in b2-axis.spec.js:
     // the property must survive adapter → composite → modal renderer.
     await ide.runScript(
@@ -111,7 +98,7 @@ test.describe('B2 — XDir / YDir reverse + axis ij/xy', () => {
     )).toEqual([]);
   });
 
-  test('xdir on log-scaled axis — flip composes with log mapping', async () => {
+  test('xdir on log-scaled axis — flip composes with log mapping', async ({ ide, page }) => {
     // Log + reverse is the trickiest sx/sy permutation; if the log-aware
     // branch was missed the figure would silently NaN out. Just check it
     // renders; no errors.

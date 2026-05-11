@@ -4,23 +4,10 @@
 // with (X = lon, Y = lat) and auto-set xlabel/ylabel. Real
 // basemap tile rendering is BACKLOG.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('geoplot / geoscatter / geobubble', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('geoplot(lat, lon) — line trace appears', async () => {
+  test('geoplot(lat, lon) — line trace appears', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'lat = [37.7 40.7 51.5 48.8 35.7];\n'
@@ -33,7 +20,7 @@ test.describe('geoplot / geoscatter / geobubble', () => {
     )).toEqual([]);
   });
 
-  test('geoscatter(lat, lon) — point markers in (lon, lat) plane', async () => {
+  test('geoscatter(lat, lon) — point markers in (lon, lat) plane', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'lat = [37.7 40.7 51.5];\n'
@@ -46,7 +33,7 @@ test.describe('geoplot / geoscatter / geobubble', () => {
     expect(circles).toBeGreaterThanOrEqual(3);
   });
 
-  test('geobubble(lat, lon, sizes) — variable-size markers', async () => {
+  test('geobubble(lat, lon, sizes) — variable-size markers', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'lat = [37.7 40.7 51.5];\n'
@@ -60,7 +47,7 @@ test.describe('geoplot / geoscatter / geobubble', () => {
     )).toEqual([]);
   });
 
-  test('geoplot — auto xlabel="lon" / ylabel="lat"', async () => {
+  test('geoplot — auto xlabel="lon" / ylabel="lat"', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'geoplot([1 2 3], [10 20 30]);\n'

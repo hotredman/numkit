@@ -9,23 +9,10 @@
 // Per-cell colormap on the slice plane is BACKLOG (single
 // representative colour per slice for now); we don't pixel-test.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('slice — 3-D volume cross sections', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('slice(V, sx, sy, sz) renders without errors', async () => {
+  test('slice(V, sx, sy, sz) renders without errors', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       // Build a 4×4×4 volume programmatically.
@@ -42,7 +29,7 @@ test.describe('slice — 3-D volume cross sections', () => {
     )).toEqual([]);
   });
 
-  test('slice mounts the WebGL canvas', async () => {
+  test('slice mounts the WebGL canvas', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'V = zeros(3, 3, 3);\n'
@@ -56,7 +43,7 @@ test.describe('slice — 3-D volume cross sections', () => {
       .toBeVisible({ timeout: 5_000 });
   });
 
-  test('slice with empty axis vectors picks mid-planes (no error)', async () => {
+  test('slice with empty axis vectors picks mid-planes (no error)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'V = zeros(3, 3, 3);\n'
@@ -69,7 +56,7 @@ test.describe('slice — 3-D volume cross sections', () => {
     )).toEqual([]);
   });
 
-  test('slice(X, Y, Z, V, sx, sy, sz) — explicit grid form', async () => {
+  test('slice(X, Y, Z, V, sx, sy, sz) — explicit grid form', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'x = linspace(-1, 1, 4);\n'
@@ -85,7 +72,7 @@ test.describe('slice — 3-D volume cross sections', () => {
     )).toEqual([]);
   });
 
-  test('slice with multiple sx values — multiple X-planes drawn', async () => {
+  test('slice with multiple sx values — multiple X-planes drawn', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'V = zeros(4, 4, 4);\n'

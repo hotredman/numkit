@@ -7,23 +7,10 @@
 //   3. The right SVG primitives are present (paths for arrows/stems,
 //      circles for spy markers).
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 test.describe('Tier 1A — stem3 / compass / feather / spy', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('stem3(x, y, z) — renders via WebGL canvas', async () => {
+  test('stem3(x, y, z) — renders via WebGL canvas', async ({ ide, page }) => {
     // stem3 emits 1 plot3 (line) + 1 scatter3 (markers) so the figure
     // has Z data → routed through Composite3DPlot. Originally we
     // counted SVG <circle> elements (4 markers); under WebGL those
@@ -45,7 +32,7 @@ test.describe('Tier 1A — stem3 / compass / feather / spy', () => {
     )).toEqual([]);
   });
 
-  test('compass(U, V) — arrows from origin', async () => {
+  test('compass(U, V) — arrows from origin', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'U = [1 0 -1 0];\n'
@@ -58,7 +45,7 @@ test.describe('Tier 1A — stem3 / compass / feather / spy', () => {
     )).toEqual([]);
   });
 
-  test('compass with complex Z — unpacks real/imag', async () => {
+  test('compass with complex Z — unpacks real/imag', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'Z = [1+1i, -1+1i, -1-1i, 1-1i];\n'
@@ -70,7 +57,7 @@ test.describe('Tier 1A — stem3 / compass / feather / spy', () => {
     )).toEqual([]);
   });
 
-  test('feather(U, V) — arrows on x-axis', async () => {
+  test('feather(U, V) — arrows on x-axis', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'U = [1 1 1 1 1];\n'
@@ -83,7 +70,7 @@ test.describe('Tier 1A — stem3 / compass / feather / spy', () => {
     )).toEqual([]);
   });
 
-  test('spy(M) — sparsity dots match nonzeros', async () => {
+  test('spy(M) — sparsity dots match nonzeros', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'M = [1 0 0 1; 0 1 0 0; 1 0 1 0; 0 0 0 1];\n'
@@ -98,7 +85,7 @@ test.describe('Tier 1A — stem3 / compass / feather / spy', () => {
     )).toEqual([]);
   });
 
-  test('spy on identity matrix — diagonal pattern', async () => {
+  test('spy on identity matrix — diagonal pattern', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'spy(eye(5));\n'
@@ -108,7 +95,7 @@ test.describe('Tier 1A — stem3 / compass / feather / spy', () => {
     expect(circles).toBe(5);
   });
 
-  test('all four open cleanly in FigureWindow modal', async () => {
+  test('all four open cleanly in FigureWindow modal', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'compass([1 -1], [1 1]);\n'
