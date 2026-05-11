@@ -36,10 +36,10 @@ TEST_F(AdaptHistEqTest, GradientMatchesMatlab)
     engine.eval("[X, Y] = meshgrid(linspace(0, 1, 64), linspace(0, 1, 64));");
     engine.eval("I = uint8(255 * sqrt(X.*Y));");
     engine.eval("J = adapthisteq(I);");
-    EXPECT_NEAR(eval_scalar("double(J(1, 1))"),     8.0,  1.0);
-    EXPECT_NEAR(eval_scalar("double(J(16, 16))"), 134.0,  1.0);
-    EXPECT_NEAR(eval_scalar("double(J(32, 32))"), 137.0,  1.0);
-    EXPECT_NEAR(eval_scalar("double(J(48, 48))"), 166.0,  1.0);
+    EXPECT_DOUBLE_EQ(eval_scalar("double(J(1, 1))"),     8.0);
+    EXPECT_DOUBLE_EQ(eval_scalar("double(J(16, 16))"), 134.0);
+    EXPECT_DOUBLE_EQ(eval_scalar("double(J(32, 32))"), 137.0);
+    EXPECT_DOUBLE_EQ(eval_scalar("double(J(48, 48))"), 166.0);
     EXPECT_DOUBLE_EQ(eval_scalar("double(J(64, 64))"), 255.0);
 }
 

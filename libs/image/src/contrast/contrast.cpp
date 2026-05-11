@@ -347,7 +347,7 @@ Value adapthisteq(std::pmr::memory_resource *mr, const Value &I,
                    (static_cast<double>(numPixInTile) - static_cast<double>(minCL))));
 
     // mapping LUT (TR × TC × nBins). Stored as float[0,1].
-    std::vector<float> lut(TR * TC * nBins);
+    std::vector<double> lut(TR * TC * nBins);
 
     for (size_t tr = 0; tr < TR; ++tr) {
         const size_t r0 = tr * tileH;
@@ -413,7 +413,7 @@ Value adapthisteq(std::pmr::memory_resource *mr, const Value &I,
                 double cdf = static_cast<double>(acc) /
                              static_cast<double>(numPixInTile);
                 if (cdf > 1.0) cdf = 1.0;
-                lut[(tr * TC + tc) * nBins + b] = static_cast<float>(cdf);
+                lut[(tr * TC + tc) * nBins + b] = cdf;
             }
         }
     }
@@ -456,10 +456,10 @@ Value adapthisteq(std::pmr::memory_resource *mr, const Value &I,
                 mapTileC1 = l - 1; mapTileC2 = l;
             }
 
-            const float *ulMap = &lut[(mapTileR1 * TC + mapTileC1) * nBins];
-            const float *urMap = &lut[(mapTileR1 * TC + mapTileC2) * nBins];
-            const float *blMap = &lut[(mapTileR2 * TC + mapTileC1) * nBins];
-            const float *brMap = &lut[(mapTileR2 * TC + mapTileC2) * nBins];
+            const double *ulMap = &lut[(mapTileR1 * TC + mapTileC1) * nBins];
+            const double *urMap = &lut[(mapTileR1 * TC + mapTileC2) * nBins];
+            const double *blMap = &lut[(mapTileR2 * TC + mapTileC1) * nBins];
+            const double *brMap = &lut[(mapTileR2 * TC + mapTileC2) * nBins];
 
             const double normFactor =
                 static_cast<double>(imgTileNumRows * imgTileNumCols);
@@ -477,19 +477,80 @@ Value adapthisteq(std::pmr::memory_resource *mr, const Value &I,
                     int bin = (int)std::round(u * (nBins - 1));
                     if (bin < 0) bin = 0;
                     if (bin >= nBins) bin = nBins - 1;
-                    const double ul = ulMap[bin];
-                    const double ur = urMap[bin];
-                    const double bl = blMap[bin];
-                    const double br = brMap[bin];
+                    // MATLAB's grayxform(imgPixVals, mapTile) quantises
+                    // each of the four LUT lookups to the target class
+                    // BEFORE the weighted sum. Order matters for uint8
+                    // — round-then-bilinear differs from
+                    // bilinear-then-round on rounding boundaries
+                    // (off-by-1 on diagonal pixels). To match, apply
+                    // store_classed per-lookup then read back as
+                    // double, then weighted sum, then final store.
+                    auto qLut = [&](double cdf) -> double {
+                        // Replicate `double(grayxform(imgPixVals, ulMap))`
+                        // semantics: quantise to output class, read back.
+                        switch (I.type()) {
+                            case ValueType::UINT8: {
+                                double w = std::round(cdf * 255.0);
+                                if (w < 0) w = 0; if (w > 255) w = 255;
+                                return w;
+                            }
+                            case ValueType::UINT16: {
+                                double w = std::round(cdf * 65535.0);
+                                if (w < 0) w = 0; if (w > 65535) w = 65535;
+                                return w;
+                            }
+                            case ValueType::INT16: {
+                                double w = std::round(cdf * 65535.0) - 32768.0;
+                                if (w < -32768) w = -32768;
+                                if (w >  32767) w =  32767;
+                                return w;
+                            }
+                            default:
+                                // double / single: no quantisation step.
+                                return cdf;
+                        }
+                    };
+                    const double ul = qLut(ulMap[bin]);
+                    const double ur = qLut(urMap[bin]);
+                    const double bl = qLut(blMap[bin]);
+                    const double br = qLut(brMap[bin]);
 
-                    const double v =
+                    const double v_int =
                         ((static_cast<double>(rowRevW) *
                           (static_cast<double>(colRevW) * ul +
                            static_cast<double>(colW)    * ur)) +
                          (static_cast<double>(rowW) *
                           (static_cast<double>(colRevW) * bl +
                            static_cast<double>(colW)    * br))) / normFactor;
-                    store_classed(outPadded, rOut + cOut * R, v, I.type());
+                    // v_int is now in the output class's raw integer
+                    // domain (0..255 for uint8 etc.). For double inputs
+                    // it's still in [0, 1]. Write directly.
+                    if (I.type() == ValueType::DOUBLE ||
+                        I.type() == ValueType::SINGLE)
+                    {
+                        store_classed(outPadded, rOut + cOut * R,
+                                      v_int, I.type());
+                    } else {
+                        // Write integer-domain value directly so we
+                        // don't run a second store_classed scaling.
+                        switch (I.type()) {
+                            case ValueType::UINT8:
+                                outPadded.uint8DataMut()[rOut + cOut * R] =
+                                    static_cast<uint8_t>(std::lround(v_int));
+                                break;
+                            case ValueType::UINT16:
+                                outPadded.uint16DataMut()[rOut + cOut * R] =
+                                    static_cast<uint16_t>(std::lround(v_int));
+                                break;
+                            case ValueType::INT16:
+                                outPadded.int16DataMut()[rOut + cOut * R] =
+                                    static_cast<int16_t>(std::lround(v_int));
+                                break;
+                            default:
+                                store_classed(outPadded, rOut + cOut * R,
+                                              v_int, I.type());
+                        }
+                    }
                 }
             }
             imgTileCol += imgTileNumCols;
