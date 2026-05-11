@@ -536,8 +536,14 @@ export default function CompositePlot({
     } else setHover(null);
     if (!dragRef.current) return;
     const d = dragRef.current;
-    const xPxFrac = (e.clientX - d.sx) / (d.W * (rect.width / width));
-    const yPxFrac = (e.clientY - d.sy) / (d.H * (rect.height / height));
+    // Pan with reversed axes (xDir/yDir = 'reverse' — imshow / axis ij /
+    // explicit user request) needs the screen-delta inverted, otherwise
+    // direct-manipulation breaks: drag mouse up on imshow → image went
+    // DOWN because dy was added to viewport.y unconditionally. Flip the
+    // raw screen-fraction up front so all downstream math (linear AND
+    // log) inherits the correct sign without per-branch tweaks.
+    const xPxFrac = (e.clientX - d.sx) / (d.W * (rect.width / width)) * (xRev ? -1 : 1);
+    const yPxFrac = (e.clientY - d.sy) / (d.H * (rect.height / height)) * (yRev ? -1 : 1);
     // Pan: linear axes translate additively, log axes translate multiplicatively
     // (a constant screen-pixel delta = a constant log-space delta = a fixed ratio
     // applied to both bounds).
