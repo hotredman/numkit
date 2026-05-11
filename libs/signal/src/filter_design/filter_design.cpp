@@ -773,21 +773,20 @@ firpm(std::pmr::memory_resource *mr, int N,
         std::size_t nb = static_cast<std::size_t>(
             std::ceil(double(gridTarget) * bw / totalWidth));
         if (nb < 4) nb = 4;
+        // MATLAB differentiator (firpmfrf line 61): apply the 1/f
+        // weighting only in NON-ZERO amplitude bands (where A(l+1) >=
+        // 0.0001). Stopbands keep the user weight.
+        const bool diffActive = isDiff && std::fabs(a2) >= 1e-4;
         for (std::size_t i = 0; i < nb; ++i) {
             const double t = double(i) / double(nb - 1);
             PMGridPoint p;
-            p.w    = M_PI * (f1 + t * bw);
-            // Apparent desired magnitude at this ω. For differentiator
-            // MATLAB scales the per-band amplitude by f (= ω/π) — the
-            // "amplitude rises linearly across the passband" convention.
-            double D_raw = a1 + t * (a2 - a1);
-            if (isDiff) {
-                const double f_norm = p.w / M_PI;       // ∈ [0, 1]
-                D_raw *= f_norm;
-            }
-            // Q-factor + skips per filter type. We use a small (epsilon)
-            // band-edge guard rather than a hard exclusion so that the
-            // last grid point is exactly the band edge (matches MATLAB).
+            p.w = M_PI * (f1 + t * bw);
+            // Desired amplitude — straight linear-interp between band
+            // edges. MATLAB DOES NOT pre-scale by f for differentiator;
+            // the linear-in-frequency desired comes from the user passing
+            // A = [0 slope*Fmax] (e.g. A=[0 0.9] → D rises 0 → 0.9 across).
+            const double D_raw = a1 + t * (a2 - a1);
+            // Q-factor + endpoint skips per filter type.
             double Q = 1.0;
             switch (filterType) {
                 case TYPE_I:
@@ -806,25 +805,21 @@ firpm(std::pmr::memory_resource *mr, int N,
                     Q = std::sin(0.5 * p.w);
                     break;
             }
-            // Differentiator weighting: MATLAB applies an additional
-            // 1/f factor on the error for stability near DC. With our
-            // D = f·A, the effective weighting becomes W·Q·(1/f) on the
-            // residual D - H. Folding in: W' = W·Q/f and D' = (f·A) / Q
-            // (the same as for Hilbert, just with D pre-scaled by f).
-            if (isDiff) {
+            // Apply user weight + 1/f scaling for differentiator
+            // passbands (matching firpmfrf): W_eff = wt / (f_norm/2)
+            // where f_norm = ω/π ∈ [0, 1].
+            double W_eff = wt;
+            if (diffActive) {
                 const double f_norm = p.w / M_PI;
-                if (f_norm > 1e-12) {
-                    p.D = D_raw / Q;
-                    p.W = wt * Q / f_norm;
-                } else {
-                    continue;
-                }
-            } else if (filterType != TYPE_I) {
+                if (f_norm < 1e-12) continue;
+                W_eff = wt / (0.5 * f_norm);
+            }
+            if (filterType != TYPE_I) {
                 p.D = D_raw / Q;
-                p.W = wt * Q;
+                p.W = W_eff * Q;
             } else {
                 p.D = D_raw;
-                p.W = wt;
+                p.W = W_eff;
             }
             p.band = int(k);
             grid.push_back(p);
@@ -1174,6 +1169,13 @@ firpm(std::pmr::memory_resource *mr, int N,
             bd[lo]            = -v;
             bd[(N) - lo]      =  v;  // mirror about (N+1)/2-1/2
         }
+    }
+
+    // MATLAB firpm.m line 152-154: "make sure differentiator has correct
+    // sign" — flip the entire impulse response when neg && !hilbert.
+    if (isDiff) {
+        for (std::size_t i = 0; i <= static_cast<std::size_t>(N); ++i)
+            bd[i] = -bd[i];
     }
 
     return std::make_tuple(std::move(bOut), std::fabs(delta));

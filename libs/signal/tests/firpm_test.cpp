@@ -127,15 +127,34 @@ TEST_F(FirpmTest, HilbertTypeIVMatchesMatlab)
     EXPECT_NEAR(eval_scalar("err"),     0.0136600, 5e-4);
 }
 
-// Differentiator ftype — deferred (Remez δ ≠ MATLAB δ on probed
-// cases; need MATLAB-specific D / W convention). Currently produces
-// a valid anti-symmetric FIR but values diverge.
-TEST_F(FirpmTest, DifferentiatorPartialNoThrow)
+// Differentiator ftype — Type III/IV anti-symmetric FIR where the
+// desired amplitude is the linear-interpolated band edges A(GF) and
+// the per-band weight is divided by GF/2 in non-zero amplitude
+// bands (firpmfrf line 61). After Remez, MATLAB flips the whole h
+// for differentiator (firpm.m line 152-154 — "make sure
+// differentiator has correct sign"). Bit-equal MATLAB R2025b at
+// Remez tolerance.
+TEST_F(FirpmTest, DifferentiatorTypeIIIMatchesMatlab)
 {
-    // Doesn't throw — produces *some* anti-symmetric output.
-    EXPECT_NO_THROW(engine.eval(
-        "b = firpm(20, [0 0.9], [0 0.9], 'differentiator');"));
-    EXPECT_DOUBLE_EQ(eval_scalar("length(b)"), 21.0);
+    engine.eval("[b, err] = firpm(20, [0 0.9], [0 0.9], 'differentiator');");
+    EXPECT_LT(eval_scalar("max(abs(b + b(end:-1:1)))"), 1e-12); // anti-sym
+    EXPECT_NEAR(eval_scalar("b(1)"),   -0.006955, 5e-4);
+    EXPECT_NEAR(eval_scalar("b(6)"),    0.046799, 5e-4);
+    EXPECT_NEAR(eval_scalar("b(15)"),   0.065547, 5e-4);
+    EXPECT_NEAR(eval_scalar("b(20)"),  -0.014187, 5e-4);
+    EXPECT_NEAR(eval_scalar("err"),     0.049005, 5e-4);
+}
+
+// MATLAB help example: low-pass differentiator with multi-band F.
+TEST_F(FirpmTest, DifferentiatorHelpExample)
+{
+    engine.eval("b = firpm(44, [0 0.3 0.4 1], [0 0.2 0 0], 'differentiator');");
+    EXPECT_DOUBLE_EQ(eval_scalar("length(b)"), 45.0);
+    EXPECT_LT(eval_scalar("max(abs(b + b(end:-1:1)))"), 1e-12); // anti-sym
+    EXPECT_NEAR(eval_scalar("b(1)"),   1.3678e-4, 5e-5);
+    EXPECT_NEAR(eval_scalar("b(16)"),  1.2752e-3, 5e-5);
+    EXPECT_NEAR(eval_scalar("b(23)"),  0.0,       1e-12);  // center=0
+    EXPECT_NEAR(eval_scalar("b(45)"), -1.3678e-4, 5e-5);
 }
 
 // Symmetric impulse response — Type-I FIR (h[k] = h[N-k]). Robust
