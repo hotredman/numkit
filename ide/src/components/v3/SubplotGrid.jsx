@@ -8,7 +8,7 @@
  *   { kind: 'subplot', id, title, grid:[rows, cols],
  *     cells: [{ ...adaptedFigure, subplotIndex }] }
  */
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import CompositePlot from './CompositePlot';
 import Composite3DPlot from './Composite3DPlot';
 import FigureErrorBoundary from './FigureErrorBoundary';
@@ -63,10 +63,20 @@ export default function SubplotGrid({
   // Per-cell viewports. Identity refresh on figure change so a re-run script
   // doesn't leak stale ranges into the new data.
   const [viewports, setViewports] = useState(() => figure.cells.map(defaultViewport));
-  // If the cell count changed (script re-emitted with different layout) we
-  // simply recompute — useState's initial only fires on mount, but in
-  // practice React re-mounts SubplotGrid because FigureWindow's outer state
-  // changes when a new figure object lands.
+  // SubplotGrid CAN persist across figure re-runs when the figure id is
+  // reused (close all + run a different script that lands on Figure 1).
+  // useState's initial only fires on mount, so when cells change shape
+  // (e.g. 3 → 5 cells, polar → cartesian) viewports stays stale and
+  // viewports[idx] is undefined for new cells → CompositePlot crashes on
+  // viewport.x[0]. Re-init on cell count or figure-id change.
+  const lastShapeRef = useRef('');
+  useEffect(() => {
+    const shape = `${figure.id}:${figure.cells.length}:${figure.cells.map((c) => c.kind).join(',')}`;
+    if (shape !== lastShapeRef.current) {
+      lastShapeRef.current = shape;
+      setViewports(figure.cells.map(defaultViewport));
+    }
+  }, [figure.id, figure.cells]);
 
   return (
     <div style={{
@@ -91,7 +101,11 @@ export default function SubplotGrid({
           }}>
             {renderCell(cell, {
               width: cellW, height: cellH,
-              viewport:    viewports[idx],
+              // Fallback for the brief render BEFORE useEffect re-inits
+              // viewports on shape change — without it, viewports[idx]
+              // could be undefined and CompositePlot crashes on
+              // viewport.x[0].
+              viewport:    viewports[idx] || defaultViewport(cell),
               setViewport: (v) => setViewports((prev) => {
                 const next = prev.slice();
                 // linkaxes — mirror the new viewport's linked axes across
