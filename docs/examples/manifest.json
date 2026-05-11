@@ -127,6 +127,9 @@
       "files": [
         "append_log.m",
         "manual_csv.m",
+        "mat_multiple_vars.m",
+        "mat_roundtrip.m",
+        "mat_save_workspace.m",
         "write_text.m"
       ]
     },
