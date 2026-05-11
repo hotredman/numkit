@@ -48,6 +48,18 @@ export default function SubplotGrid({
   const cellW = Math.floor(width  / cols);
   const cellH = Math.floor(height / rows);
 
+  // Empty subplot slots — script called subplot(R,C,k) for some but not all
+  // k in [1, R*C]. MATLAB shows these as plain figure background; we draw a
+  // faded placeholder frame + "not set" label so the user sees the grid
+  // shape and can tell that slot was skipped intentionally.
+  const filledSlots = new Set(
+    figure.cells.map((cell, idx) => (cell.subplotIndex || idx + 1) - 1)
+  );
+  const emptySlots = [];
+  for (let p = 0; p < rows * cols; p++) {
+    if (!filledSlots.has(p)) emptySlots.push(p);
+  }
+
   // Per-cell viewports. Identity refresh on figure change so a re-run script
   // doesn't leak stale ranges into the new data.
   const [viewports, setViewports] = useState(() => figure.cells.map(defaultViewport));
@@ -108,6 +120,20 @@ export default function SubplotGrid({
               interactive,
               engine,
             })}
+          </div>
+        );
+      })}
+      {emptySlots.map((p) => {
+        const r = Math.floor(p / cols);
+        const c = p % cols;
+        const inset = 12;
+        return (
+          <div key={`empty-${p}`} className="sg-empty-slot" style={{
+            position: 'absolute',
+            left: c * cellW + inset, top: r * cellH + inset,
+            width: cellW - 2 * inset, height: cellH - 2 * inset,
+          }}>
+            <span>not set</span>
           </div>
         );
       })}
