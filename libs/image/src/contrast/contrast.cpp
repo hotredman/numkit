@@ -5,6 +5,7 @@
 #include <numkit/image/type_convert/type_convert.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/figure_manager.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
@@ -13,6 +14,7 @@
 #include <cstring>
 #include <functional>
 #include <limits>
+#include <sstream>
 #include <vector>
 
 namespace numkit::image {
@@ -969,7 +971,32 @@ void imhist_reg(Span<const Value> args, size_t nargout,
                     "m:imhist:nargin");
     int n = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 0;
     auto [c, x] = imhist(ctx.engine->resource(), args[0], n);
-    outs[0] = std::move(c);
+
+    // Auto-plot when called without LHS — MATLAB convention.
+    // imhist(I) draws a vertical bar chart of the bin counts.
+    if (nargout == 0) {
+        auto &fm = ctx.engine->figureManager();
+        fm.prepareForPlot();
+        const std::size_t nb = c.numel();
+        std::ostringstream xs, ys;
+        xs << '['; ys << '[';
+        for (std::size_t i = 0; i < nb; ++i) {
+            if (i) { xs << ','; ys << ','; }
+            xs << x.elemAsDouble(i);
+            ys << c.elemAsDouble(i);
+        }
+        xs << ']'; ys << ']';
+        DatasetInfo ds;
+        ds.type  = "bar";
+        ds.xJson = xs.str();
+        ds.yJson = ys.str();
+        ds.style = "color=#7fa6c6";
+        fm.pushDataset(std::move(ds));
+        fm.emitModified();
+        return;
+    }
+
+    if (nargout > 0) outs[0] = std::move(c);
     if (nargout > 1) outs[1] = std::move(x);
 }
 
