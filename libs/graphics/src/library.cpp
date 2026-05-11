@@ -6116,8 +6116,11 @@ void GraphicsLibrary::install(Engine &engine)
                 if (Y[i] < yMin) yMin = Y[i];
                 if (Y[i] > yMax) yMax = Y[i];
             }
-            const double xPad = std::max(0.1, (xMax - xMin) * 0.1);
-            const double yPad = std::max(0.1, (yMax - yMin) * 0.1);
+            // 25% margin gives boundary cells visible "wedge" room.
+            // Smaller margin (10%) made the rays look chopped at data
+            // edge; larger gives the MATLAB-style bounded-but-airy view.
+            const double xPad = std::max(0.1, (xMax - xMin) * 0.25);
+            const double yPad = std::max(0.1, (yMax - yMin) * 0.25);
             const double clipXLo = xMin - xPad, clipXHi = xMax + xPad;
             const double clipYLo = yMin - yPad, clipYHi = yMax + yPad;
 
@@ -6134,32 +6137,15 @@ void GraphicsLibrary::install(Engine &engine)
                     edge2tri[{u, v}].push_back(t);
                 }
             }
-            // Liang-Barsky line clip to [clipXLo, clipXHi] × [clipYLo, clipYHi].
-            // Returns clipped segment in (xa, ya, xb, yb); false if entirely outside.
-            auto clipSeg = [&](double &xa, double &ya, double &xb, double &yb) {
-                double t0 = 0.0, t1 = 1.0;
-                const double dx = xb - xa, dy = yb - ya;
-                const double p[4] = { -dx, dx, -dy, dy };
-                const double q[4] = { xa - clipXLo, clipXHi - xa,
-                                       ya - clipYLo, clipYHi - ya };
-                for (int i = 0; i < 4; ++i) {
-                    if (std::abs(p[i]) < 1e-15) { if (q[i] < 0) return false; }
-                    else {
-                        const double r = q[i] / p[i];
-                        if (p[i] < 0) { if (r > t1) return false; if (r > t0) t0 = r; }
-                        else          { if (r < t0) return false; if (r < t1) t1 = r; }
-                    }
-                }
-                xb = xa + t1 * dx; yb = ya + t1 * dy;
-                xa = xa + t0 * dx; ya = ya + t0 * dy;
-                return true;
-            };
-
+            // We DON'T pre-clip emitted segments to the data bbox: rays
+            // need to extend out to the visible axis frame so unbounded
+            // cells look terminated, not chopped short. xlim/ylim below
+            // pin the axis and the IDE's SVG clipPath does the actual
+            // boundary clipping per pixel.
             std::ostringstream xs, ys;
             xs << '['; ys << '[';
             bool first = true;
             const auto emit = [&](double xa, double ya, double xb, double yb) {
-                if (!clipSeg(xa, ya, xb, yb)) return;
                 if (!first) { xs << ",null,"; ys << ",null,"; }
                 first = false;
                 xs << xa << ',' << xb;
