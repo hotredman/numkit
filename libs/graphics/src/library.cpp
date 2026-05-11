@@ -6147,6 +6147,29 @@ void GraphicsLibrary::install(Engine &engine)
                       Span<Value>(outBuf.data(), 1), ctx);
                 fm.currentAxes().holdOn = wasHold;
             }
+            // Clamp the axis to the input-points extent plus a small
+            // margin. Without this, the auto-axis includes far-away
+            // circumcenters from nearly-degenerate triangles and the
+            // visible cell cluster gets squeezed into a corner. MATLAB
+            // does the same — voronoi() bounds the view to the data,
+            // not to every emitted CC.
+            double xMin = X[0], xMax = X[0], yMin = Y[0], yMax = Y[0];
+            for (size_t i = 1; i < n; ++i) {
+                if (X[i] < xMin) xMin = X[i];
+                if (X[i] > xMax) xMax = X[i];
+                if (Y[i] < yMin) yMin = Y[i];
+                if (Y[i] > yMax) yMax = Y[i];
+            }
+            const double xPad = std::max(0.1, (xMax - xMin) * 0.1);
+            const double yPad = std::max(0.1, (yMax - yMin) * 0.1);
+            std::ostringstream xlim, ylim;
+            xlim << '[' << (xMin - xPad) << ',' << (xMax + xPad) << ']';
+            ylim << '[' << (yMin - yPad) << ',' << (yMax + yPad) << ']';
+            fm.currentAxes().xlimJson = xlim.str();
+            fm.currentAxes().ylimJson = ylim.str();
+            // scatter() above already called emitModified, clearing the
+            // modified flag. Re-flag so the JSON re-emits with our xlim.
+            fm.current().modified = true;
             fm.emitModified();
             outs[0] = Value::empty();
         });
