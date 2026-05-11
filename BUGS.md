@@ -57,7 +57,7 @@ touched.
 
 ---
 
-## 3. `core/`: `eval([fname, '(x)'])` access-violation in loop inside function — **P0** flaky
+## 3. `core/`: `eval([fname, '(x)'])` access-violation in loop inside function — **P0** ✅ FIXED 2026-05-11
 
 **Test:** `TW_VM/EvalRegressionTest.BracketConcatInLoopInsideFunction/VM`
 **File:** [libs/builtin/tests/frame_introspection_test.cpp:507-536](libs/builtin/tests/frame_introspection_test.cpp:507)
@@ -70,6 +70,29 @@ successive calls in the same VM frame.
 **Stability:** flaky — passes ~2/3 runs at baseline `4eb6c22`. Not
 introduced by parity work.
 **First seen:** in tree before 2026-05-03.
+**Root cause (2026-05-11):** Not eval arg-cleanup as the header
+guessed — `VM::dispatchLoop` captures a reference into the
+per-chunk call cache:
+```cpp
+auto &resolvedFuncs = chunkCallCache_[frame.chunk];
+```
+The `eval` builtin re-enters `Engine::eval` → `VM::execute`. On
+re-entry, `VM::startExecution` calls `chunkCallCache_.clear()`,
+which destroys the cache node `resolvedFuncs` referenced. After
+the inner returns, the outer dispatch loop resumes with a dangling
+reference. Reading it as a vector header sometimes gives `size==0`
+(falls through harmlessly, test passes) and sometimes gives garbage
+that triggers SEH on the next CALL — explaining the ~9/10 pass
+rate. `savePausedState` rescued frames / forStack / tryStack /
+registers across re-entry but missed the call cache.
+**Fix:** Added `chunkCallCache` to `PausedState`
+([core/include/numkit/core/vm.hpp:241-256](core/include/numkit/core/vm.hpp:241))
+and move-save it in `savePausedState`, move-restore it in
+`restorePausedState`
+([core/src/vm.cpp:167-211](core/src/vm.cpp:167)). `unordered_map`
+move preserves node addresses, so the outer's `resolvedFuncs`
+reference reclaims live memory after the inner exits. Stress-test:
+100/100 pass post-fix (was 9/10 baseline).
 
 ---
 
