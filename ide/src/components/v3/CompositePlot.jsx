@@ -258,18 +258,20 @@ export default function CompositePlot({
     [effectiveColormap, cminOrig, cmaxOrig, cminEff, cmaxEff]
   );
 
-  const padL = 60 * fontScale;
+  let padL = 60 * fontScale;
   // Right pad: extra space for colorbar OR for a yyaxis right-side axis.
   // Both reserve roughly the same width for tick labels.
   const padR = (hasHeatmap || figure.yyEnabled) ? 70 * fontScale : 18;
-  const padT = 36 * fontScale;
+  let padT = 36 * fontScale;
   const padB = 44 * fontScale;
   // Force integer dims — non-integer panel sizes from fractional fontScale
   // would produce a diagonal-stripe artefact in the tile renderer because
   // row strides drift by frac-cols each iteration when arr is indexed.
   // Plot-area dimensions before axisMode adjustments.
-  let W = Math.max(50, Math.floor(width - padL - padR));
-  let H = Math.max(50, Math.floor(height - padT - padB));
+  const W0 = Math.max(50, Math.floor(width - padL - padR));
+  const H0 = Math.max(50, Math.floor(height - padT - padB));
+  let W = W0;
+  let H = H0;
 
   // axisMode === 'square' forces the plot box itself to be square
   // (equal screen pixels for both axes' EXTENT, regardless of data).
@@ -301,6 +303,26 @@ export default function CompositePlot({
         H = Math.max(20, Math.floor(W / dataAspect));
       }
     }
+  }
+
+  // Centre the (possibly shrunken) plot panel inside its allotted cell.
+  // `square`/`image`/`equal`-with-data-shrink all reduce W or H below the
+  // raw width − padL − padR; without this the panel sticks to the
+  // top-left corner of the cell with all leftover space on the right /
+  // bottom. Distributing the leftover evenly puts axes-equal/image plots
+  // (and especially imshow tiles inside subplots) in the visual centre.
+  //
+  // When axes are hidden (imshow's axisVisible=false), the original
+  // padL/padR reservation for tick labels is wasted space — centre the
+  // panel inside the FULL cell instead, so an `imshow(I)` tile sits
+  // dead-centre with equal margins on both sides. Colorbar position is
+  // anchored to padL + W, so it shifts right with padL and stays attached.
+  if (figure.axisVisible === false) {
+    padL = Math.max(0, Math.floor((width  - W) / 2));
+    padT = Math.max(0, Math.floor((height - H) / 2));
+  } else {
+    padL += Math.max(0, Math.floor((W0 - W) / 2));
+    padT += Math.max(0, Math.floor((H0 - H) / 2));
   }
 
   // axisMode === 'equal' forces 1 data unit on the X axis to occupy

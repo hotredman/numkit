@@ -70,4 +70,46 @@ test.describe('imshow axis image — preview/modal pixel-equivalent', () => {
       .toBeGreaterThan(1.7);
     expect(modalAspect).toBeLessThan(2.3);
   });
+
+  test('subplot imshow letterbox is centred horizontally + vertically', async ({ ide, page }) => {
+    // 2x2 grid of squares — every cell will letterbox along whichever
+    // side is "too long" relative to the image's 1:1 aspect.
+    await ide.runScript(
+      'import compat.*;\n'
+      + '[X, Y] = meshgrid(linspace(0, 1, 64));\n'
+      + 'I = X + Y;\n'
+      + 'figure;\n'
+      + 'subplot(2,2,1); imshow(I);\n'
+      + 'subplot(2,2,2); imshow(I);\n'
+      + 'subplot(2,2,3); imshow(I);\n'
+      + 'subplot(2,2,4); imshow(I);\n'
+    );
+    await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+    await ide.figureCards.first().click();
+    await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+    await page.waitForTimeout(400);
+
+    // For each <image>, find its containing SVG and assert the image is
+    // centred — left + right margins within ~3 px of each other, same
+    // for top + bottom.
+    const offsets = await page.locator('.fw-window svg image').evaluateAll((els) => {
+      return els.map((el) => {
+        const ib = el.getBoundingClientRect();
+        const sb = el.ownerSVGElement.getBoundingClientRect();
+        return {
+          left:   ib.left   - sb.left,
+          right:  sb.right  - ib.right,
+          top:    ib.top    - sb.top,
+          bottom: sb.bottom - ib.bottom,
+        };
+      });
+    });
+    // Heatmap renderer emits >1 <image> per cell (tile + overlay), so
+    // length is N * cellCount. Assert centring for every one.
+    expect(offsets.length).toBeGreaterThanOrEqual(4);
+    for (const o of offsets) {
+      expect(Math.abs(o.left - o.right), `H off-centre: ${JSON.stringify(o)}`).toBeLessThan(4);
+      expect(Math.abs(o.top - o.bottom), `V off-centre: ${JSON.stringify(o)}`).toBeLessThan(4);
+    }
+  });
 });
