@@ -1376,6 +1376,21 @@ input, select { font-family: inherit; color: inherit; }
   background: var(--bg-2);
   border-top: 1px solid var(--line);
 }
+
+/* Empty subplot slot — script called subplot(R,C,k) for some but not all
+   k in [1, R*C]. Faded dashed border + label so the user sees the grid
+   shape and knows the slot was skipped intentionally. */
+.sg-empty-slot {
+  display: flex; align-items: center; justify-content: center;
+  border: 1px dashed var(--line);
+  border-radius: var(--r-sm);
+  color: var(--fg-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  opacity: 0.55;
+  pointer-events: none;
+  box-sizing: border-box;
+}
 .fw-status {
   display: flex; align-items: center; gap: 8px;
   padding: 0 14px;
