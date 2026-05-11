@@ -173,4 +173,24 @@ Value applylut(std::pmr::memory_resource *mr,
 Value bwhitmiss(std::pmr::memory_resource *mr,
                 const Value &BW, const Value &se1, const Value &se2);
 
+/// `J = bwmorph(BW, op[, n])` — sequence of binary morphological
+/// operations. Faithful port of MATLAB R2025b's bwmorph: each named
+/// operation corresponds to a 512-entry LUT (or a chain of LUTs and
+/// bitwise compositions), indexed by the 3×3 neighbourhood of every
+/// pixel using the convention bit_k = neighbour((k/3) - 1, (k%3) - 1)
+/// relative to the centre pixel. Out-of-bounds pixels are 0.
+///
+/// Supported operations (string, case-sensitive — caller normalises):
+///   single-LUT:
+///     "bridge" "clean" "diag" "dilate" "endpoints" "erode" "fatten"
+///     "fill" "hbreak" "majority" "perim4" "perim8" "remove"
+///   composite (chain of LUT applications + boolean masks):
+///     "bothat" "close" "open" "tophat" "shrink" "skeleton" "spur"
+///     "thin" "thicken" "branchpoints"
+///
+/// `n` is the iteration count. `n = -1` means "until stable" (≡
+/// MATLAB's `Inf`); `n = 1` is the default.
+Value bwmorph(std::pmr::memory_resource *mr,
+              const Value &BW, const std::string &op, int n);
+
 } // namespace numkit::image
