@@ -184,20 +184,25 @@ Value stft(std::pmr::memory_resource *mr,
         throw Error("stft: FFTLength must be >= window length",
                      0, 0, "stft", "", "m:stft:badNfft");
 
-    if (range == "centered")
-        throw Error("stft: 'centered' FrequencyRange deferred in this "
-                    "revision (use 'twosided' or 'onesided'; MATLAB's "
-                    "centered output applies a per-bin phase ramp not "
-                    "yet replicated here)",
-                     0, 0, "stft", "", "m:stft:centeredDeferred");
-    if (range != "twosided" && range != "onesided")
-        throw Error("stft: FrequencyRange must be 'twosided' or 'onesided'",
+    if (range != "twosided" && range != "onesided" && range != "centered")
+        throw Error("stft: FrequencyRange must be 'twosided', 'centered' "
+                    "or 'onesided'",
                      0, 0, "stft", "", "m:stft:badRange");
 
     const size_t hop = M - OL;
     const size_t K   = (N - M) / hop + 1;
     const bool   isOneSided = (range == "onesided");
+    const bool   isCentered = (range == "centered");
     const size_t outRows = isOneSided ? (NFFT / 2 + 1) : NFFT;
+    // Centered rotation: MATLAB places bins as [-N/2+1, ..., N/2] for
+    // even N (Nyquist at the END), or [-(N-1)/2, ..., (N-1)/2] for odd
+    // N. So DC sits at index N/2-1 (even) or (N-1)/2 (odd). To produce
+    //   Sd[k] = Fd[(k + cShift) mod N]
+    // with Sd[DC_idx] = Fd[0], we need cShift = N - DC_idx:
+    //   even N: cShift = N/2 + 1
+    //   odd  N: cShift = (N + 1) / 2
+    const size_t cShift = (NFFT % 2 == 0) ? (NFFT / 2 + 1)
+                                          : ((NFFT + 1) / 2);
 
     // x as doubles. Complex input also supported via fft(complex frame).
     const bool xCplx = x.isComplex();
@@ -227,9 +232,14 @@ Value stft(std::pmr::memory_resource *mr,
         }
         Value F = fft(mr, frameV, static_cast<int>(NFFT), 1);
         const Cd *Fd = F.complexData();
-        // Both twosided and onesided just copy the first outRows bins —
-        // they differ only in how many bins are retained.
-        for (size_t r = 0; r < outRows; ++r) Sd[k * outRows + r] = Fd[r];
+        if (isCentered) {
+            for (size_t r = 0; r < outRows; ++r)
+                Sd[k * outRows + r] = Fd[(r + cShift) % NFFT];
+        } else {
+            // twosided / onesided: copy the first outRows bins as-is.
+            for (size_t r = 0; r < outRows; ++r)
+                Sd[k * outRows + r] = Fd[r];
+        }
     }
     return S;
 }
@@ -262,18 +272,22 @@ Value istft(std::pmr::memory_resource *mr,
         throw Error("istft: OverlapLength must be < window length",
                      0, 0, "istft", "", "m:istft:badOverlap");
 
-    if (range == "centered")
-        throw Error("istft: 'centered' FrequencyRange deferred in this "
-                    "revision (matches the stft-side gap)",
-                     0, 0, "istft", "", "m:istft:centeredDeferred");
-    if (range != "twosided" && range != "onesided")
-        throw Error("istft: FrequencyRange must be 'twosided' or 'onesided'",
+    if (range != "twosided" && range != "onesided" && range != "centered")
+        throw Error("istft: FrequencyRange must be 'twosided', 'centered' "
+                    "or 'onesided'",
                      0, 0, "istft", "", "m:istft:badRange");
 
     const bool   isOneSided = (range == "onesided");
+    const bool   isCentered = (range == "centered");
     size_t NFFT = (fftLength == 0)
                     ? (isOneSided ? 2 * (inRows - 1) : inRows)
                     : fftLength;
+    // Inverse of the centered rotation (see stft above): the input
+    // column came from twosided via Sd[k] = Fd[(k + cShift) mod N], so
+    // we recover Fd[j] = Sd[(j - cShift + N) mod N]. Equivalent forward
+    // shift = N - cShift.
+    const size_t invCShift = NFFT - ((NFFT % 2 == 0) ? (NFFT / 2 + 1)
+                                                     : ((NFFT + 1) / 2));
     if (!isOneSided && inRows != NFFT)
         throw Error("istft: STFT row count does not match FFTLength",
                      0, 0, "istft", "", "m:istft:badShape");
@@ -308,6 +322,10 @@ Value istft(std::pmr::memory_resource *mr,
             for (size_t r = 0; r < inRows; ++r) Fd[r] = Sd[k * inRows + r];
             for (size_t r = 1; r < NFFT - inRows + 1; ++r)
                 Fd[NFFT - r] = std::conj(Fd[r]);
+        } else if (isCentered) {
+            // Undo the centered rotation.
+            for (size_t r = 0; r < NFFT; ++r)
+                Fd[r] = Sd[k * inRows + ((r + invCShift) % NFFT)];
         } else {
             for (size_t r = 0; r < NFFT; ++r) Fd[r] = Sd[k * inRows + r];
         }
@@ -412,7 +430,7 @@ void stft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     Value window           = Value::empty();
     std::size_t overlap    = SIZE_MAX;   // sentinel for "use default"
     std::size_t fftLength  = 0;
-    std::string range      = "twosided";
+    std::string range      = "centered";  // matches MATLAB R2019b+ default
     parseStftNVPairs(args, 1, window, overlap, fftLength, range);
     outs[0] = stft(ctx.engine->resource(), args[0], window,
                    overlap, fftLength, range);
@@ -427,7 +445,7 @@ void istft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     Value window           = Value::empty();
     std::size_t overlap    = SIZE_MAX;
     std::size_t fftLength  = 0;
-    std::string range      = "twosided";
+    std::string range      = "centered";  // matches MATLAB R2019b+ default
     parseStftNVPairs(args, 1, window, overlap, fftLength, range);
     outs[0] = istft(ctx.engine->resource(), args[0], window,
                     overlap, fftLength, range);
