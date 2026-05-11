@@ -3073,12 +3073,21 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
     // MATLAB: variables defined in the eval'd code are visible to the
     // caller (when caller is at top-level), and imports are scoped to
     // the caller's lifetime.
+    //
+    // When the caller captures the result (`r = eval(...)`, nargout>=1),
+    // MATLAB suppresses any "ans = ..." display the inner code would
+    // otherwise emit. The third arg routes that suppress through the
+    // engine, which flips suppressOutput on top-level statements before
+    // executing.
     engine.registerFunction(
-        "eval", [resolveEvalScope](Span<const Value> args, size_t,
+        "eval", [resolveEvalScope](Span<const Value> args, size_t nargout,
                                     Span<Value> outs, CallContext &ctx) {
             if (args.empty() || !args[0].isChar())
                 throw std::runtime_error("eval requires a string");
-            outs[0] = ctx.engine->eval(args[0].toString(), resolveEvalScope(ctx));
+            const bool suppress = (nargout >= 1);
+            outs[0] = ctx.engine->eval(args[0].toString(),
+                                       resolveEvalScope(ctx),
+                                       suppress);
         });
 
     // ── evalin ───────────────────────────────────────────────

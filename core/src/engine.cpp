@@ -839,13 +839,35 @@ Value Engine::runOneChunk(const ASTNode *ast, std::shared_ptr<const std::string>
     }
 }
 
-Value Engine::eval(const std::string &code)
+// When the eval-builtin's caller captures the result (`r = eval(...)`),
+// MATLAB suppresses any "ans = ..." or lhs-display the inner code would
+// otherwise emit. We honour that by flipping `suppressOutput=true` on
+// each top-level statement before TW/VM gets to it — both backends
+// already gate their DISPLAY emission on that flag, so this single hook
+// covers ASSIGN, EXPR_STMT, FIELD_ASSIGN, CELL_ASSIGN, etc. Side-effect
+// prints inside called functions (disp, fprintf, ...) are unaffected:
+// those originate inside CALL nodes whose own statement-level suppress
+// flag we don't touch.
+static void markTopLevelSuppressed(ASTNode *ast)
+{
+    if (!ast) return;
+    if (ast->type == NodeType::BLOCK) {
+        for (auto &c : ast->children)
+            if (c) c->suppressOutput = true;
+    } else {
+        ast->suppressOutput = true;
+    }
+}
+
+Value Engine::eval(const std::string &code, bool suppressTopLevelDisplay)
 {
     Lexer lexer(code);
     auto tokens = lexer.tokenize();
     Parser parser(tokens);
     auto ast = parser.parse();
     auto src = std::make_shared<const std::string>(code);
+    if (suppressTopLevelDisplay)
+        markTopLevelSuppressed(ast.get());
 
     // A "script" here = a BLOCK that mixes FUNCTION_DEFs with
     // executable statements (the shape of a .m file with local
@@ -1013,10 +1035,11 @@ void Engine::syncVMToScope(Environment *scope)
     }
 }
 
-Value Engine::eval(const std::string &code, Environment *scope)
+Value Engine::eval(const std::string &code, Environment *scope,
+                   bool suppressTopLevelDisplay)
 {
     if (!scope || scope == workspaceEnv_.get())
-        return eval(code);
+        return eval(code, suppressTopLevelDisplay);
 
     // Scoped re-entrant eval: inner script's imports go to scope, and
     // its top-level variable assignments are pushed back into scope on
@@ -1028,6 +1051,8 @@ Value Engine::eval(const std::string &code, Environment *scope)
     Parser parser(tokens);
     auto ast = parser.parse();
     auto src = std::make_shared<const std::string>(code);
+    if (suppressTopLevelDisplay)
+        markTopLevelSuppressed(ast.get());
 
     if (backend_ != Backend::VM) {
         // TW already executes statements against the env passed in;
