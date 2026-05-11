@@ -14,9 +14,7 @@
 // .fw-range-row inputs are the user-visible source of truth for the
 // current viewport — read those.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 const NON_FATAL = (e) =>
   !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e);
@@ -35,18 +33,7 @@ async function readRange(page) {
 }
 
 test.describe('Imshow pan direction', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('imshow + drag DOWN → yMin DECREASES (image follows mouse)', async () => {
+  test('imshow + drag DOWN → yMin DECREASES (image follows mouse)', async ({ ide, page }) => {
     // 8×8 grayscale, normalised to [0,1]. imshow auto-sets yDir='reverse'.
     await ide.runScript(
       'import compat.*;\n'
@@ -90,7 +77,7 @@ test.describe('Imshow pan direction', () => {
     expect(ide.devErrors().filter(NON_FATAL)).toEqual([]);
   });
 
-  test('plot (yDir normal) + drag DOWN → yMin INCREASES (control case)', async () => {
+  test('plot (yDir normal) + drag DOWN → yMin INCREASES (control case)', async ({ ide, page }) => {
     // Sanity check that the fix doesn't regress non-reverse axes. For
     // yDir='normal' (Y up, mathematical convention), drag DOWN means
     // viewport center moves UP in data: yMin/yMax both increase.
@@ -125,7 +112,7 @@ test.describe('Imshow pan direction', () => {
     expect(ide.devErrors().filter(NON_FATAL)).toEqual([]);
   });
 
-  test('subplot + imshow (morphology_pipeline shape) + drag DOWN', async () => {
+  test('subplot + imshow (morphology_pipeline shape) + drag DOWN', async ({ ide, page }) => {
     // Mirrors docs/examples/Image/morphology_pipeline.m: figure with a 2×3
     // subplot grid, imshow in each cell. Verifies pan direction works
     // inside SubplotGrid → CompositePlot, not just on top-level figures.
@@ -185,7 +172,7 @@ test.describe('Imshow pan direction', () => {
     expect(ide.devErrors().filter(NON_FATAL)).toEqual([]);
   });
 
-  test('subplot + imshow: image rect stable before/after tile-fetch settles', async () => {
+  test('subplot + imshow: image rect stable before/after tile-fetch settles', async ({ ide, page }) => {
     // The bug being chased: drag DOWN on imshow inside subplot, image
     // visually moves correctly DURING drag. On mouse-up the engine's
     // display-tile fetch fires (~60ms debounce) and replaces the inline
@@ -260,7 +247,7 @@ test.describe('Imshow pan direction', () => {
     expect(ide.devErrors().filter(NON_FATAL)).toEqual([]);
   });
 
-  test('imagesc (auto axis ij) + drag DOWN → yMin DECREASES', async () => {
+  test('imagesc (auto axis ij) + drag DOWN → yMin DECREASES', async ({ ide, page }) => {
     // imagesc must auto-set yDir='reverse' (MATLAB axis ij convention).
     // With both engine + IDE fixes in place, pan must follow the mouse
     // same as imshow.

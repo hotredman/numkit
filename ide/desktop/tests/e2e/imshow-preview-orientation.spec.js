@@ -12,9 +12,7 @@
 // tile overlay. We assert by comparing canvas-pixel data sampled from both
 // the preview <image> element and the modal <image> element.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 const NON_FATAL = (e) =>
   !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e);
@@ -50,18 +48,7 @@ async function sampleHalves(page, imageLocator) {
 }
 
 test.describe('Imshow preview orientation matches modal', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('imshow: preview card and modal show same vertical orientation', async () => {
+  test('imshow: preview card and modal show same vertical orientation', async ({ ide, page }) => {
     // Build an asymmetric mask: top half = white, bottom half = black.
     // After yDir='reverse' rendering, top of canvas should be the WHITE
     // half (matrix row 1..N/2 = top of matrix). Both preview and modal
@@ -100,7 +87,7 @@ test.describe('Imshow preview orientation matches modal', () => {
     expect(ide.devErrors().filter(NON_FATAL)).toEqual([]);
   });
 
-  test('plot: y-up axis preview unchanged (no regression)', async () => {
+  test('plot: y-up axis preview unchanged (no regression)', async ({ ide }) => {
     // Sanity that plot (no heatmap) preview still renders without errors.
     await ide.runScript(
       'import compat.*;\n'

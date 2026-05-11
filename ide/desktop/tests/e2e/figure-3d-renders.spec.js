@@ -14,26 +14,13 @@
 // We assert: 3-D figure renders without console errors AND without
 // the user-visible "figure render error" panel surfacing.
 
-import { test, expect } from '@playwright/test';
-import { launchIde, closeIde } from '../helpers/launch.js';
-import { IdePage } from '../helpers/ide.js';
+import { test, expect } from '../helpers/shared.js';
 
 const NON_FATAL = (e) =>
   !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e);
 
 test.describe('3-D figure renders', () => {
-  let app, page, ide;
-
-  test.beforeEach(async () => {
-    app = await launchIde();
-    page = await app.firstWindow();
-    ide = new IdePage(page);
-    await ide.waitForReady();
-  });
-
-  test.afterEach(async () => { await closeIde(app); });
-
-  test('surf — opens, renders, no "process" error', async () => {
+  test('surf — opens, renders, no "process" error', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + '[X, Y] = meshgrid(-2:0.4:2, -2:0.4:2);\n'
@@ -59,7 +46,7 @@ test.describe('3-D figure renders', () => {
     expect(errors).toEqual([]);
   });
 
-  test('plot3 — line in 3-D, no render error', async () => {
+  test('plot3 — line in 3-D, no render error', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 't = linspace(0, 4*pi, 200);\n'
