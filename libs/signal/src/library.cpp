@@ -55,6 +55,7 @@ void butter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 void fir1_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void firls_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void fir2_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void firpm_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void cell2sos_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void ctf2zp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void scaleFilterSections_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -357,6 +358,7 @@ void SignalLibrary::install(Engine &engine)
     reg("filter_design", "fir1",       &signal::detail::fir1_reg);
     reg("filter_design", "firls",      &signal::detail::firls_reg);
     reg("filter_design", "fir2",       &signal::detail::fir2_reg);
+    reg("filter_design", "firpm",      &signal::detail::firpm_reg);
     reg("filter_implementation", "cell2sos", &signal::detail::cell2sos_reg);
     reg("filter_implementation", "ctf2zp",   &signal::detail::ctf2zp_reg);
     reg("filter_implementation", "scaleFilterSections", &signal::detail::scaleFilterSections_reg);

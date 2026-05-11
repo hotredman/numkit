@@ -62,4 +62,33 @@ Value fir2(std::pmr::memory_resource *mr, int N,
            const double *F, std::size_t Fn,
            const double *A, std::size_t An);
 
+/// firpm(N, F, A[, W]) — Parks-McClellan optimal equiripple FIR
+/// (Remez exchange). Returns (b, err) — `b` is the row vector of
+/// length N+1 of filter coefficients, `err` is the peak ripple
+/// magnitude |δ|.
+///
+/// @param N    Filter order. MATLAB rejects N < 3 with the same
+///             "Filter order must be 3 or more" error. THIS REVISION
+///             supports only Type I (even N) — Type II (odd N),
+///             'hilbert' and 'differentiator' are deferred.
+/// @param F    Band edges in [0,1] (Nyquist=1), even-length, non-decreasing.
+/// @param A    Desired amplitude at each F point — piecewise linear
+///             interpolation inside each band.
+/// @param W    Optional weight per band (length = numBands = Fn/2).
+///             When nullptr, all weights are 1.0.
+///
+/// KNOWN GAPS:
+///   - Only Type I (even N). Odd N currently throws.
+///   - No `ftype` argument ('hilbert' / 'differentiator').
+///   - No `fresp` function-handle form.
+///   - `lgrid` fixed at the MATLAB default (16); cell-array override
+///     not supported.
+///   - No 3rd `res` output struct (caller can ignore it; only b and
+///     err are produced).
+std::tuple<Value, double>
+firpm(std::pmr::memory_resource *mr, int N,
+      const double *F, std::size_t Fn,
+      const double *A, std::size_t An,
+      const double *W, std::size_t Wn);
+
 } // namespace numkit::signal
