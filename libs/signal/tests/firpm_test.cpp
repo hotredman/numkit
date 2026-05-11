@@ -83,12 +83,20 @@ TEST_F(FirpmTest, OrderTooSmallThrows)
     EXPECT_THROW(engine.eval("firpm(2, [0 1], [1 1]);"), std::exception);
 }
 
-// Odd order (Type II) — deferred in this revision; must surface a
-// clear "deferred" error so callers know to upgrade or wait.
-TEST_F(FirpmTest, OddOrderDeferredThrows)
+// Odd order (Type II) — H(ω) = cos(ω/2) · Σ a[k] cos(kω). Reuses the
+// Remez kernel after a Q-transformation D' = D / cos(ω/2), W' = W ·
+// cos(ω/2). Reconstruction maps a[k] to half-integer-shifted cosine
+// coefficients b[n] = (a[n] + a[n+1])/2 (special-cased at endpoints).
+// Pinned against MATLAB R2025b probe values.
+TEST_F(FirpmTest, OddOrderTypeIIMatchesMatlab)
 {
-    EXPECT_THROW(engine.eval("firpm(21, [0 0.4 0.5 1], [1 1 0 0]);"),
-                 std::exception);
+    engine.eval("[b, err] = firpm(21, [0 0.4 0.5 1], [1 1 0 0]);");
+    EXPECT_DOUBLE_EQ(eval_scalar("length(b)"), 22.0);
+    EXPECT_LT(eval_scalar("max(abs(b - b(end:-1:1)))"), 1e-15);   // sym
+    EXPECT_NEAR(eval_scalar("b(1)"),   0.0168747, 5e-4);
+    EXPECT_NEAR(eval_scalar("b(11)"),  0.412952,  5e-4);
+    EXPECT_NEAR(eval_scalar("b(end)"), 0.0168747, 5e-4);          // mirror
+    EXPECT_NEAR(eval_scalar("err"),    0.055977,  5e-4);
 }
 
 // 'hilbert' / 'differentiator' ftype strings — deferred; must throw

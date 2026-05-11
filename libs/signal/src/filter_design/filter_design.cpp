@@ -686,10 +686,6 @@ firpm(std::pmr::memory_resource *mr, int N,
     if (N < 3)
         throw Error("Filter order must be 3 or more",
                     0, 0, "firpm", "", "m:firpm:badOrder");
-    if ((N % 2) != 0)
-        throw Error("firpm: odd order (Type II) deferred in this revision "
-                    "(only even N supported)",
-                    0, 0, "firpm", "", "m:firpm:unsupportedType");
     if (Fn == 0 || Fn != An || (Fn % 2) != 0)
         throw Error("firpm: F and A must be non-empty equal-length even-length",
                     0, 0, "firpm", "", "m:firpm:badLen");
@@ -706,7 +702,18 @@ firpm(std::pmr::memory_resource *mr, int N,
             throw Error("firpm: F must be non-decreasing",
                         0, 0, "firpm", "", "m:firpm:badF");
 
-    const std::size_t L     = static_cast<std::size_t>(N) / 2;  // half-order
+    // Type I (even N): H(ω) = Σ_{k=0..L} a[k]·cos(kω), L = N/2.
+    // Type II (odd N): H(ω) = cos(ω/2) · Σ_{k=0..L} a[k]·cos(kω),
+    //                  L = (N-1)/2. The cos(ω/2) "type factor" Q(ω)
+    //                  is folded into the Remez problem by setting
+    //                  D'(ω) = D(ω)/Q(ω) and W'(ω) = W(ω)·Q(ω); the
+    //                  iteration then runs identically on the
+    //                  transformed pair. At ω = π, Q vanishes, so the
+    //                  Type-II grid must exclude the Nyquist endpoint
+    //                  (matches MATLAB — a Type-II FIR has H(π) ≡ 0).
+    const bool typeII = (N % 2) != 0;
+    const std::size_t L = typeII ? static_cast<std::size_t>(N - 1) / 2
+                                  : static_cast<std::size_t>(N) / 2;
     const std::size_t r     = L + 1;       // # cosine basis coefficients
     const std::size_t nExtr = r + 1;       // # extremal frequencies (= L+2)
     constexpr int lgrid = 16;              // MATLAB default grid density
@@ -743,8 +750,20 @@ firpm(std::pmr::memory_resource *mr, int N,
             const double t = double(i) / double(nb - 1);
             PMGridPoint p;
             p.w    = M_PI * (f1 + t * bw);
-            p.D    = a1 + t * (a2 - a1);
-            p.W    = wt;
+            const double D_raw = a1 + t * (a2 - a1);
+            if (typeII) {
+                // Q(ω) = cos(ω/2). Skip points where Q ≈ 0 (ω → π) —
+                // these would blow up D' = D/Q. With > 0.9999*π margin
+                // we stay clear of the singularity while keeping the
+                // band edge of the last stopband.
+                if (p.w > M_PI * 0.99999) continue;
+                const double Q = std::cos(0.5 * p.w);
+                p.D = D_raw / Q;
+                p.W = wt * Q;
+            } else {
+                p.D = D_raw;
+                p.W = wt;
+            }
             p.band = int(k);
             grid.push_back(p);
         }
@@ -1008,14 +1027,38 @@ firpm(std::pmr::memory_resource *mr, int N,
         a[k] = (2.0 / (double(L) * ck)) * sum;
     }
 
-    // Symmetric impulse response — Type I: h[L]=a[0], h[L±k]=a[k]/2.
     Value bOut = Value::matrix(1, std::size_t(N) + 1, ValueType::DOUBLE, mr);
     double *bd = bOut.doubleDataMut();
-    bd[L] = a[0];
-    for (std::size_t k = 1; k <= L; ++k) {
-        const double v = 0.5 * a[k];
-        bd[L - k] = v;
-        bd[L + k] = v;
+
+    if (!typeII) {
+        // Type I (even N): h[L] = a[0], h[L±k] = a[k]/2.
+        bd[L] = a[0];
+        for (std::size_t k = 1; k <= L; ++k) {
+            const double v = 0.5 * a[k];
+            bd[L - k] = v;
+            bd[L + k] = v;
+        }
+    } else {
+        // Type II (odd N, length N+1 = 2L+2). Convert the cosine-series
+        // coefficients a[k] of P (= Σ a[k] cos kω) into b[n] coefficients
+        // of H(ω) = Σ b[n] cos((n+½)ω) using
+        //   cos(kω) · cos(ω/2) = ½ [cos((k+½)ω) + cos((k-½)ω)]
+        // which gives:
+        //   b[0]   = a[0] + a[1]/2
+        //   b[n]   = (a[n] + a[n+1])/2     for n = 1 .. L-1
+        //   b[L]   = a[L]/2
+        // The symmetric impulse response of length 2L+2 satisfies
+        //   h[L - n] = b[n]/2  for n = 0..L,   h[L+1+n] = h[L-n].
+        ScratchVec<double> b(L + 1, &arena);
+        b[0] = a[0] + (L >= 1 ? 0.5 * a[1] : 0.0);
+        for (std::size_t n = 1; n + 1 <= L; ++n)
+            b[n] = 0.5 * (a[n] + a[n + 1]);
+        if (L >= 1) b[L] = 0.5 * a[L];
+        for (std::size_t n = 0; n <= L; ++n) {
+            const double v = 0.5 * b[n];
+            bd[L - n]        = v;
+            bd[L + 1 + n]    = v;
+        }
     }
 
     return std::make_tuple(std::move(bOut), std::fabs(delta));
