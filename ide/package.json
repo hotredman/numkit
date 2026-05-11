@@ -5,11 +5,14 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/generate-manifest.js",
     "dev": "vite",
+    "prebuild": "node scripts/generate-manifest.js",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "sync-examples": "node scripts/generate-manifest.js"
   },
   "dependencies": {
     "d3": "^7.9.0",
