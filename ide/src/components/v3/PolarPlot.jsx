@@ -55,16 +55,24 @@ export function nicePolarMax(v) {
   return Math.ceil(v / step) * step;
 }
 
-/** Default viewport for a figure — polar uses {r:[…]}, cartesian {x,y}. */
+/** Default viewport for a figure — polar uses {r:[…], theta:[…]},
+ *  cartesian {x,y}. theta is in DEGREES so the FigureWindow inputs
+ *  show user-friendly numbers (0..360); the renderer converts to
+ *  radians at draw time. */
 export function defaultPolarViewport(figure) {
-  if (Array.isArray(figure.rlim) && figure.rlim.length === 2) {
-    return { r: figure.rlim.slice() };
-  }
-  let m = 0;
-  figure.series?.forEach((s) => s.rho?.forEach((v) => {
-    if (Number.isFinite(v) && Math.abs(v) > m) m = Math.abs(v);
-  }));
-  return { r: [0, nicePolarMax(m || 1)] };
+  const r = (Array.isArray(figure?.rlim) && figure.rlim.length === 2)
+    ? figure.rlim.slice()
+    : (() => {
+        let m = 0;
+        figure?.series?.forEach((s) => s.rho?.forEach((v) => {
+          if (Number.isFinite(v) && Math.abs(v) > m) m = Math.abs(v);
+        }));
+        return [0, nicePolarMax(m || 1)];
+      })();
+  const theta = (Array.isArray(figure?.thetalim) && figure.thetalim.length === 2)
+    ? figure.thetalim.slice()
+    : [0, 360];
+  return { r, theta };
 }
 
 export default function PolarPlot({
@@ -85,9 +93,18 @@ export default function PolarPlot({
   // else auto from data extent.
   const fallback = useMemo(() => defaultPolarViewport(figure), [figure]);
   const vp = (viewport && Array.isArray(viewport.r) && viewport.r.length === 2)
-    ? viewport
+    ? {
+        r: viewport.r,
+        theta: (Array.isArray(viewport.theta) && viewport.theta.length === 2)
+          ? viewport.theta : (fallback.theta || [0, 360]),
+      }
     : fallback;
   const [rMin, rMax] = vp.r;
+  // thetalim in DEGREES — convert to radians for trig.
+  const [thMinDeg, thMaxDeg] = vp.theta || [0, 360];
+  const thMin = (thMinDeg * Math.PI) / 180;
+  const thMax = (thMaxDeg * Math.PI) / 180;
+  const isFullSweep = Math.abs((thMaxDeg - thMinDeg) - 360) < 1e-6;
 
   const padTop = (figure.title ? 28 : 12) * fontScale;
   const padBot = 12 * fontScale;
@@ -134,6 +151,53 @@ export default function PolarPlot({
     return [Math.cos(a) * r, -Math.sin(a) * r];
   }
 
+  /** Is the (radian) data theta inside the [thMin, thMax] sweep? */
+  function inSweep(thRad) {
+    if (isFullSweep) return true;
+    // Wrap into [0, 2π) so user-set thetalim like [-180, 180] still
+    // maps cleanly. We compare in radians since vp.theta was
+    // converted at the top of the component.
+    const TAU = 2 * Math.PI;
+    let a = thRad - thMin;
+    a = ((a % TAU) + TAU) % TAU;
+    return a <= (thMax - thMin) + 1e-9;
+  }
+
+  /** Build an SVG arc path on a circle of radius `r` between two
+   *  angles (radians, screen coords — i.e. already through `zero +
+   *  dirSign * th`). Used for rings and the outer frame when
+   *  thetalim restricts the sweep. */
+  function arcPath(r, a0, a1) {
+    const x0 = Math.cos(a0) * r, y0 = -Math.sin(a0) * r;
+    const x1 = Math.cos(a1) * r, y1 = -Math.sin(a1) * r;
+    const sweep = a1 - a0;
+    const large = Math.abs(sweep) > Math.PI ? 1 : 0;
+    // SVG sweep-flag: 1 = ccw (positive direction in math), 0 = cw.
+    // Our world maps math-positive theta to negative screen-y, so a
+    // CCW math angle increase is a CW screen angle increase →
+    // sweep-flag 0.
+    const sf = sweep > 0 ? 0 : 1;
+    return `M${x0.toFixed(2)},${y0.toFixed(2)} `
+         + `A${r},${r} 0 ${large} ${sf} ${x1.toFixed(2)},${y1.toFixed(2)}`;
+  }
+
+  /** Pie-wedge path from origin → arc → back to origin. Used as the
+   *  series clip-path when thetalim is set. */
+  function wedgePath(r, a0, a1) {
+    const x0 = Math.cos(a0) * r, y0 = -Math.sin(a0) * r;
+    const x1 = Math.cos(a1) * r, y1 = -Math.sin(a1) * r;
+    const sweep = a1 - a0;
+    const large = Math.abs(sweep) > Math.PI ? 1 : 0;
+    const sf = sweep > 0 ? 0 : 1;
+    return `M0,0 L${x0.toFixed(2)},${y0.toFixed(2)} `
+         + `A${r},${r} 0 ${large} ${sf} ${x1.toFixed(2)},${y1.toFixed(2)} Z`;
+  }
+
+  // Pre-compute screen-space sweep bounds for arcs (apply `zero +
+  // dirSign * theta` to user-set thMin/thMax).
+  const aSweep0 = zero + dirSign * thMin;
+  const aSweep1 = zero + dirSign * thMax;
+
   // ── interaction ───────────────────────────────────────────────────────
   function onMouseDown(e) {
     if (!interactive || !setViewport || e.button !== 0) return;
@@ -148,7 +212,8 @@ export default function PolarPlot({
     const factor = Math.exp((e.clientY - d.sy) / Math.max(150, height));
     const lo = d.r0[0];
     const hi = d.r0[1];
-    setViewport({ r: [lo, lo + (hi - lo) * factor] });
+    // Preserve theta — drag-zoom only touches r.
+    setViewport({ ...vp, r: [lo, lo + (hi - lo) * factor] });
   }
   function onMouseUp(e) {
     dragRef.current = null;
@@ -173,7 +238,7 @@ export default function PolarPlot({
     list?.forEach((s) => s.rho?.forEach((v) => {
       if (Number.isFinite(v) && Math.abs(v) > m) m = Math.abs(v);
     }));
-    setViewport({ r: [vp.r[0], nicePolarMax(m || 1)] });
+    setViewport({ ...vp, r: [vp.r[0], nicePolarMax(m || 1)] });
   }
   const multiSeries = Array.isArray(figure.series) && figure.series.length > 1;
   const ctxItems = [
@@ -290,11 +355,35 @@ export default function PolarPlot({
             </g>
           );
         })}
-        {/* Outer frame circle */}
-        <circle cx={0} cy={0} r={radius} fill="none" stroke="var(--plot-frame)" />
+        {/* Outer frame — full circle by default, otherwise an arc
+            spanning the user-set thetalim sweep. */}
+        {isFullSweep ? (
+          <circle cx={0} cy={0} r={radius} fill="none" stroke="var(--plot-frame)" />
+        ) : (
+          <>
+            <path d={arcPath(radius, aSweep0, aSweep1)}
+              fill="none" stroke="var(--plot-frame)" />
+            {/* Two radial spokes closing the wedge to the origin. */}
+            <line x1={0} y1={0}
+              x2={Math.cos(aSweep0) * radius}
+              y2={-Math.sin(aSweep0) * radius}
+              stroke="var(--plot-frame)" />
+            <line x1={0} y1={0}
+              x2={Math.cos(aSweep1) * radius}
+              y2={-Math.sin(aSweep1) * radius}
+              stroke="var(--plot-frame)" />
+          </>
+        )}
 
-        {/* Major angular spokes every 30° + degree labels */}
+        {/* Major angular spokes every 30° + degree labels.
+            When thetalim is set we drop spokes outside the sweep. */}
         {Array.from({ length: 12 }, (_, k) => k * 30).map((deg) => {
+          if (!isFullSweep) {
+            // Quick check by wrapping `deg` into [thMinDeg, thMinDeg+360).
+            let d = deg - thMinDeg;
+            d = ((d % 360) + 360) % 360;
+            if (d > (thMaxDeg - thMinDeg) + 1e-6) return null;
+          }
           const a = zero + dirSign * (deg * Math.PI / 180);
           const x = Math.cos(a) * radius;
           const y = -Math.sin(a) * radius;
@@ -312,9 +401,15 @@ export default function PolarPlot({
           );
         })}
 
-        {/* Series — polylines, clipped against rMax */}
+        {/* Series clip path. Full sweep → disc; partial sweep → pie
+            wedge so series points outside the angular range get
+            clipped cleanly. */}
         <clipPath id={`pclip-${figure.id}-${Math.round(width)}`}>
-          <circle cx={0} cy={0} r={radius} />
+          {isFullSweep ? (
+            <circle cx={0} cy={0} r={radius} />
+          ) : (
+            <path d={wedgePath(radius, aSweep0, aSweep1)} />
+          )}
         </clipPath>
         <g clipPath={`url(#pclip-${figure.id}-${Math.round(width)})`}>
           {figure.series?.map((s, idx) => {
