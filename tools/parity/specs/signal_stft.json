@@ -1,0 +1,10 @@
+{
+  "name": "signal_stft",
+  "namespace": "signal",
+  "setup": "x = sin(2*pi*0.05*(0:511)); w = hann(64, 'periodic');",
+  "expr": "s = stft(x, 'Window', w, 'OverlapLength', 32, 'FFTLength', 64, 'FrequencyRange', 'twosided'); s_rows = size(s, 1); s_cols = size(s, 2); s11_re = real(s(1,1)); s11_im = imag(s(1,1)); s33_1_re = real(s(33,1)); s32_3_re = real(s(32,3)); s32_3_im = imag(s(32,3)); s16_7_re = real(s(16,7)); s16_7_im = imag(s(16,7)); so = stft(x, 'Window', w, 'OverlapLength', 32, 'FFTLength', 64, 'FrequencyRange', 'onesided'); so_rows = size(so, 1); so_cols = size(so, 2); so11_re = real(so(1,1)); xr = real(istft(s, 'Window', w, 'OverlapLength', 32, 'FFTLength', 64, 'FrequencyRange', 'twosided')); xr_inner_err = max(abs(x(64:end-64) - xr(64:end-64)')); xr_len = length(xr);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["s_rows", "s_cols", "s11_re", "s11_im", "s33_1_re", "s32_3_re", "s32_3_im", "s16_7_re", "s16_7_im", "so_rows", "so_cols", "so11_re", "xr_inner_err", "xr_len"],
+  "comment": "MATLAB Signal Toolbox stft / istft — short-time Fourier transform and inverse. stft loops windowed frames of length M, zero-pads to FFTLength, and runs an FFT per frame; output rows = FFTLength (twosided) or FFTLength/2+1 (onesided). istft mirrors via overlap-add with the same synthesis window and per-sample window² normalization — for COLA-compliant configurations (hann/periodic with 50%/75% overlap) the round-trip is bit-exact on interior samples (max-err ~5e-16, well inside the parity tol). Default frequency range: 'twosided'; 'onesided' supported via truncation + Hermitian-mirror inverse. KNOWN GAPS: 'centered' FrequencyRange (MATLAB applies a per-bin phase ramp centred on the window — deferred); fs / time-axis / [s, f, t] multi-output; multi-channel matrix input. Octave 11.1.0 ships stft / istft in the signal package (not core)."
+}

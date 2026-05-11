@@ -2563,12 +2563,12 @@ intentionally omitted — flat solver functions only.
 | `ifsst` | ❌ |  |  |  |  |  |
 | `ifwht` | ❌ |  |  |  |  | inverse |
 | `instfreq` | ✅ | 0.035 | 513.46× |  | OK | Sig: f = instfreq(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
-| `istft` | ❌ |  |  |  |  | inverse |
+| `istft` | ⚠️ | 0.06 | 194× |  | OK | Sig: x = istft(S[, NV-pairs]). Inverse STFT via overlap-add with per-sample window² normalisation. Round-trip ~ulp on COLA-compliant configs (hann/periodic + 50%/75% overlap). Same NV-pairs as stft; centered range deferred. |
 | `istftlayer` | ❌ |  |  |  |  |  |
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
 | `rceps` | ✅ | 0.004 | 107.96× | 20.26× | OK | Sig: r = rceps(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `spectrogram` | ✅ | 0.023 | 382.98× |  | OK | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |
-| `stft` | ❌ |  |  |  |  | short-time FFT |
+| `stft` | ⚠️ | 0.06 | 194× |  | OK | Sig: s = stft(x[, NV-pairs]). Short-time Fourier transform with windowed frames + per-frame FFT. Default window hann(128, periodic), overlap 96, FFTLength 128. Supports Window/OverlapLength/FFTLength/FrequencyRange NV-pairs. Bit-equal MATLAB R2025b on twosided + onesided. KNOWN GAPS: centered (phase ramp) deferred, fs / time-axis outputs, multi-channel. |
 | `stftlayer` | ❌ |  |  |  |  |  |
 | `stftmag2sig` | ❌ |  |  |  |  |  |
 | `vmd` | ❌ |  |  |  |  | variational MD |
@@ -2701,7 +2701,7 @@ intentionally omitted — flat solver functions only.
 | `instbw` | ✅ | 0.028 | 509.02× |  | OK | Sig: b = instbw(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
 | `instfreq` | ✅ | 0.035 | 513.46× |  | OK | Sig: f = instfreq(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
 | `iscola` | ❌ |  |  |  |  |  |
-| `istft` | ❌ |  |  |  |  | inverse |
+| `istft` | ⚠️ | 0.06 | 194× |  | OK | Sig: x = istft(S[, NV-pairs]). Inverse STFT via overlap-add with per-sample window² normalisation. Round-trip ~ulp on COLA-compliant configs (hann/periodic + 50%/75% overlap). Same NV-pairs as stft; centered range deferred. |
 | `istftlayer` | ❌ |  |  |  |  |  |
 | `kurtogram` | ❌ |  |  |  |  |  |
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
@@ -2711,7 +2711,7 @@ intentionally omitted — flat solver functions only.
 | `spectralkurtosis` | ✅ | 0.015 | 463.03× |  | OK | Sig: k = spectralKurtosis(x, fs). camelCase alias added 2026-05-09. |
 | `spectralskewness` | ✅ | 0.016 | 381.89× |  | OK | Sig: s = spectralSkewness(x, fs). camelCase alias added 2026-05-09. |
 | `spectrogram` | ✅ | 0.023 | 382.98× |  | OK | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |
-| `stft` | ❌ |  |  |  |  | short-time FFT |
+| `stft` | ⚠️ | 0.06 | 194× |  | OK | Sig: s = stft(x[, NV-pairs]). Short-time Fourier transform with windowed frames + per-frame FFT. Default window hann(128, periodic), overlap 96, FFTLength 128. Supports Window/OverlapLength/FFTLength/FrequencyRange NV-pairs. Bit-equal MATLAB R2025b on twosided + onesided. KNOWN GAPS: centered (phase ramp) deferred, fs / time-axis outputs, multi-channel. |
 | `stftlayer` | ❌ |  |  |  |  |  |
 | `stftmag2sig` | ❌ |  |  |  |  |  |
 | `tfridge` | ❌ |  |  |  |  |  |
@@ -3691,3 +3691,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `signal_firpm` | — | 0.323 | 11.83× | 38.36× | OK | MATLAB Signal Toolbox firpm (Parks-McClellan optimal equiripple FIR via Remez exchange, Type I only — even N). Algorithm: dense grid 16·(L+2) points proportional to band widths; band-aware initial extremals (≥2 per band, equispaced); each iteration solves Lagrange δ formula, builds barycentric polynomial through L+1 of the L+2 extremals, evaluates error on grid, and updates extremal set via multiple-exchange (find local |E| maxima + band edges, greedy-merge alternating-sign sequence, trim ends to nExtr). Inverse-DCT-I on Chebyshev-Lobatto nodes recovers cosine coefs; symmetric h reconstruction. Approximate-equal MATLAB R2025b (~5 sig figs) on six probed designs — lowpass (n=20, n=50), bandpass (n=30), highpass (n=30), weighted bandpass (n=30 W=[10 1 10] — converged to MATLAB's δ=0.0883), and 4-band weighted (n=40 W=[1 5 1 10]). KNOWN GAPS: Type II (odd N), 'hilbert' / 'differentiator' ftype strings, fresp function-handle form, 3rd `res` output struct, lgrid cell-form override — all throw with documented error messages. Octave 11.1.0 ships firpm in the signal package (not core); harness reports N/A there. |
 | `signal_fftn` | — | 0.031 | 19.11× | 13.25× | OK | MATLAB fftn / ifftn — N-D forward and inverse FFT. Implemented as iterated 1-D fft along dims 1..ndim (commutes; current Dims model caps at 3-D, so max ndim = 3 — higher inputs would require the N-D refactor). 2-D inputs delegate through the same path and produce results identical to fft2. With the optional `sz` argument, axis k is zero-padded or truncated to sz[k-1] before its 1-D FFT (length validation is reused from the per-axis fft). Bit-equal MATLAB R2025b on 2-D, 3-D, sz-override, and ifftn round-trip (round-trip noise ~7e-15, well inside tol 1e-9). Octave 11.1.0 ships fftn / ifftn in core. Round-trip error fingerprint pins the inverse pair under the same tol. |
 | `signal_czt` | — | 0.029 | 75.99× | 10.32× | OK | MATLAB Signal Toolbox czt — discrete chirp Z-transform. Implementation: Bluestein decomposition Y[k] = w^(k²/2) · (g ⋆ h)[k] where g[n] = x[n]·a^(-n)·w^(n²/2), h[n] = w^(-n²/2). The g ⊛ h circular convolution is computed via length-L FFT with L = nextPow2(N + m − 1); the negative-index branch of h is placed at indices L-n..L-1 to make the circular convolution equal the linear convolution on the first m output samples. Default args match MATLAB: m = length(x), w = exp(-2π·j/m), a = 1 — so czt(x) ≡ fft(x) and czt(x, m) ≡ fft(x, m). Approx-equal MATLAB R2025b (~1e-13 from chirp-pow arithmetic) on FFT-equivalent, m-override, and full 4-arg forms. Octave 11.1.0 ships czt in the signal package (not core); harness reports it from there. 2-D input is processed column-wise (MATLAB semantics). |
+| `signal_stft` | — | 0.060 | 195.28× |  | OK | MATLAB Signal Toolbox stft / istft — short-time Fourier transform and inverse. stft loops windowed frames of length M, zero-pads to FFTLength, and runs an FFT per frame; output rows = FFTLength (twosided) or FFTLength/2+1 (onesided). istft mirrors via overlap-add with the same synthesis window and per-sample window² normalization — for COLA-compliant configurations (hann/periodic with 50%/75% overlap) the round-trip is bit-exact on interior samples (max-err ~5e-16, well inside the parity tol). Default frequency range: 'twosided'; 'onesided' supported via truncation + Hermitian-mirror inverse. KNOWN GAPS: 'centered' FrequencyRange (MATLAB applies a per-bin phase ramp centred on the window — deferred); fs / time-axis / [s, f, t] multi-output; multi-channel matrix input. Octave 11.1.0 ships stft / istft in the signal package (not core). |
