@@ -1016,7 +1016,7 @@ function Composite3DPlot({
       canvas,
       antialias: true,
       alpha: true,
-      preserveDrawingBuffer: process.env.NUMKIT_E2E === '1',
+      preserveDrawingBuffer: import.meta.env.VITE_NUMKIT_E2E === '1',
     });
     renderer.setPixelRatio(window.devicePixelRatio || 1);
     // Transparent canvas — the wrapper <div> below carries the actual
