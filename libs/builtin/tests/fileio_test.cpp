@@ -1853,18 +1853,116 @@ TEST_P(FileIoTest, SaveLoadPreservesDoublePrecision)
 
 TEST_P(FileIoTest, SaveWithoutDashAsciiStillWritesText)
 {
-    // Default (no flag) falls back to ascii in this build — .mat
-    // binary isn't implemented.
+    // No flag + non-.mat extension → ascii fallback (binary mat is only
+    // chosen by an explicit flag or a .mat extension).
     eval("X = [10 20; 30 40];");
     eval("save('default.txt', 'X');");
     EXPECT_TRUE(fs->files().count("default.txt") > 0);
 }
 
-TEST_P(FileIoTest, SaveRejectsBinaryMatFlags)
+TEST_P(FileIoTest, SaveRejectsV73)
 {
+    // -v7.3 requires HDF5, which is intentionally disabled in this build.
     eval("Y = [1 2];");
-    EXPECT_THROW(eval("save('y.mat', 'Y', '-mat');"), std::exception);
     EXPECT_THROW(eval("save('y.mat', 'Y', '-v7.3');"), std::exception);
+}
+
+TEST_P(FileIoTest, SaveLoadMatRoundTripsThroughCallbackFS)
+{
+    // matio uses fopen() on real OS paths; for non-native VFS (here
+    // MemoryFS registered as "temporary") the impl stages through the
+    // OS temp dir, then copies bytes back into the VFS. Verify the
+    // bridge round-trips correctly and that the .mat blob ends up
+    // in our in-memory store.
+    eval("A = [1 2 3; 4 5 6];");
+    eval("S.note = 'hi';");
+    eval("save('round.mat', 'A', 'S');");
+
+    // File should now live in the CallbackFS-backed store.
+    ASSERT_EQ(fs->files().count("round.mat"), 1u);
+    EXPECT_GT(fs->files()["round.mat"].size(), 0u);
+
+    eval("clear A S;");
+    eval("load('round.mat');");
+    EXPECT_EQ(evalScalar("v23 = A(2,3);"), 6.0);
+    EXPECT_EQ(eval("v = S.note;").toString(), "hi");
+}
+
+TEST_P(FileIoTest, SaveLoadMatBlobStartsWithV5MagicInCallbackFS)
+{
+    // The bytes copied back into the in-memory VFS must be a valid
+    // v5 .mat file (sanity check on staging — full v5 reader is in
+    // saveload_mat_test.cpp).
+    eval("X = 1.0;");
+    eval("save('hdr.mat', 'X');");
+    ASSERT_EQ(fs->files().count("hdr.mat"), 1u);
+    const std::string &bytes = fs->files()["hdr.mat"];
+    ASSERT_GE(bytes.size(), 128u);
+    EXPECT_EQ(bytes.substr(0, 10), "MATLAB 5.0");
+}
+
+TEST_P(FileIoTest, SaveLoadMat3DRoundTripsThroughCallbackFS)
+{
+    // 3D arrays exercise a different matvar header layout (rank > 2)
+    // and force the staged bytes to be larger than the 128-byte header.
+    eval("A = reshape(1:24, 2, 3, 4);");
+    eval("save('nd.mat', 'A');");
+    ASSERT_EQ(fs->files().count("nd.mat"), 1u);
+    eval("clear A;");
+    eval("load('nd.mat');");
+    EXPECT_EQ(evalScalar("d1 = size(A,1);"), 2.0);
+    EXPECT_EQ(evalScalar("d2 = size(A,2);"), 3.0);
+    EXPECT_EQ(evalScalar("d3 = size(A,3);"), 4.0);
+    EXPECT_EQ(evalScalar("v = A(2,3,4);"), 24.0);
+}
+
+TEST_P(FileIoTest, SaveLoadMatMixedTypesThroughCallbackFS)
+{
+    // Multiple vars of mixed types — covers cell + struct + complex
+    // surviving the byte-shuttle through the staging file.
+    eval("d   = 3.14;");
+    eval("Z   = [1+2i 3+4i];");
+    eval("c   = {1, 'two'};");
+    eval("s.q = [10 20 30];");
+    eval("save('mix.mat', 'd', 'Z', 'c', 's');");
+    eval("clear d Z c s;");
+    eval("load('mix.mat');");
+    EXPECT_DOUBLE_EQ(evalScalar("v = d;"), 3.14);
+    EXPECT_EQ(evalScalar("v = imag(Z(2));"), 4.0);
+    EXPECT_EQ(eval("v = c{2};").toString(), "two");
+    EXPECT_EQ(evalScalar("v = s.q(2);"), 20.0);
+}
+
+TEST_P(FileIoTest, SaveLoadMatLargeBlobThroughCallbackFS)
+{
+    // ~80 KiB of doubles — well past any sensible inline-buffer
+    // threshold. Verifies staging copies the whole blob, not just the
+    // first page.
+    eval("A = reshape(1:10000, 100, 100);");
+    eval("save('big.mat', 'A');");
+    ASSERT_EQ(fs->files().count("big.mat"), 1u);
+    // Body size sanity: header + ~80000 bytes of double payload.
+    EXPECT_GT(fs->files()["big.mat"].size(), 80000u);
+
+    eval("clear A;");
+    eval("load('big.mat');");
+    EXPECT_EQ(evalScalar("v = A(100,100);"), 10000.0);
+    EXPECT_EQ(evalScalar("v = A(50,50);"), 4950.0);
+    EXPECT_EQ(evalScalar("s = sum(A(:));"), 50005000.0);
+}
+
+TEST_P(FileIoTest, SaveLoadMatStructFormThroughCallbackFS)
+{
+    // S = load(...) form — the staged file is read fully into a
+    // struct field-by-field. Verifies the no-LHS path (assign-to-env)
+    // and the with-LHS path (return struct) both work through staging.
+    eval("u = 1; v = 2; w = 'three';");
+    eval("save('s.mat', 'u', 'v', 'w');");
+    eval("clear u v w;");
+    eval("S = load('s.mat');");
+    EXPECT_EQ(evalScalar("a = S.u;"), 1.0);
+    EXPECT_EQ(evalScalar("a = S.v;"), 2.0);
+    EXPECT_EQ(eval("a = S.w;").toString(), "three");
 }
 
 TEST_P(FileIoTest, SaveRejectsMissingVariable)

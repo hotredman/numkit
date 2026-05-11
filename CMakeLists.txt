@@ -60,6 +60,36 @@ else()
 endif()
 
 # ──────────────────────────────────────────────
+# matio (MATLAB .mat file I/O)
+# ──────────────────────────────────────────────
+#
+# Used by libs/io/src/workspace/saveload_mat.cpp to back save/load on
+# .mat files (v4 / v5). HDF5 backend (v7.3) is intentionally disabled —
+# adds a heavy dependency we don't need yet. ZLIB compression for v5 is
+# also off for the same reason; uncompressed v5 round-trips fine.
+#
+# Target: `matio` (static, PIC). Linked PRIVATE to numkit so matio.h
+# never leaks into our public headers (only the matio-backed cpp under
+# libs/io/src/ includes it).
+
+include(FetchContent)
+
+set(MATIO_SHARED        OFF CACHE BOOL "" FORCE)
+set(MATIO_WITH_HDF5     OFF CACHE BOOL "" FORCE)
+set(MATIO_WITH_ZLIB     OFF CACHE BOOL "" FORCE)
+set(MATIO_MAT73         OFF CACHE BOOL "" FORCE)
+set(MATIO_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(MATIO_USE_CONAN     OFF CACHE BOOL "" FORCE)
+set(MATIO_EXTENDED_SPARSE OFF CACHE BOOL "" FORCE)
+
+FetchContent_Declare(
+    matio
+    GIT_REPOSITORY https://github.com/tbeu/matio.git
+    GIT_TAG        v1.5.30
+)
+FetchContent_MakeAvailable(matio)
+
+# ──────────────────────────────────────────────
 # Sources — assembled from per-area CMakeLists
 # ──────────────────────────────────────────────
 #
@@ -114,6 +144,12 @@ if(EMSCRIPTEN)
     target_compile_options(numkit PRIVATE -fexceptions)
     target_link_options(numkit PUBLIC "SHELL:-s DISABLE_EXCEPTION_CATCHING=0")
 endif()
+
+# matio is always linked — libs/io's .mat backend pulls in matio.h directly.
+# PRIVATE: matio's header never appears in any of our public include/ trees.
+# BUILD_INTERFACE genex keeps the link dep out of the exported target set —
+# matio isn't exported via install(EXPORT) on our side.
+target_link_libraries(numkit PRIVATE $<BUILD_INTERFACE:matio>)
 
 if(NUMKIT_WITH_SIMD)
     # PRIVATE — our public headers never mention Highway types; it's a pure
