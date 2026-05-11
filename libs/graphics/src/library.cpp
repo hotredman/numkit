@@ -1437,8 +1437,17 @@ void GraphicsLibrary::install(Engine &engine)
             }
 
             fm.pushDataset(std::move(ds));
-            if (fm.currentAxes().axisMode.empty()) {
-                fm.currentAxes().axisMode = "ij";
+            // MATLAB convention: imagesc auto-sets axis ij (yDir='reverse',
+            // origin top-left, matrix-row-1 at top), unconditionally — even
+            // if user previously called axis('xy'). Override comes from
+            // calling axis('xy') AFTER imagesc. pcolor stays on the default
+            // axis xy (Y up). v3 renderer reads yDir only; axisMode='ij' is
+            // kept for legacy renderer tick alignment.
+            if (std::string(typeName) == "imagesc") {
+                if (fm.currentAxes().axisMode.empty()) {
+                    fm.currentAxes().axisMode = "ij";
+                }
+                fm.currentAxes().yDir = "reverse";
             }
             fm.emitModified();
             outs[0] = Value::empty();
