@@ -151,19 +151,19 @@
     }
   ],
   "buildPresets": [
-    {"name": "portable",     "configurePreset": "portable",     "configuration": "Release"},
-    {"name": "desktop-fast", "configurePreset": "desktop-fast", "configuration": "Release"},
-    {"name": "apple-m",      "configurePreset": "apple-m",      "configuration": "Release"},
-    {"name": "bench",        "configurePreset": "bench",        "configuration": "Release"},
-    {"name": "bench-simd",          "configurePreset": "bench-simd",          "configuration": "Release"},
-    {"name": "desktop-fast-threads","configurePreset": "desktop-fast-threads","configuration": "Release"},
-    {"name": "bench-simd-threads",  "configurePreset": "bench-simd-threads",  "configuration": "Release"},
-    {"name": "bench-clang",      "configurePreset": "bench-clang",      "configuration": "Release"},
-    {"name": "bench-simd-clang", "configurePreset": "bench-simd-clang", "configuration": "Release"},
-    {"name": "browser",            "configurePreset": "browser"},
-    {"name": "browser-threads",    "configurePreset": "browser-threads"},
-    {"name": "bench-wasm",         "configurePreset": "bench-wasm"},
-    {"name": "bench-wasm-threads", "configurePreset": "bench-wasm-threads"}
+    {"name": "portable",     "configurePreset": "portable",     "configuration": "Release", "jobs": 0},
+    {"name": "desktop-fast", "configurePreset": "desktop-fast", "configuration": "Release", "jobs": 0},
+    {"name": "apple-m",      "configurePreset": "apple-m",      "configuration": "Release", "jobs": 0},
+    {"name": "bench",        "configurePreset": "bench",        "configuration": "Release", "jobs": 0},
+    {"name": "bench-simd",          "configurePreset": "bench-simd",          "configuration": "Release", "jobs": 0},
+    {"name": "desktop-fast-threads","configurePreset": "desktop-fast-threads","configuration": "Release", "jobs": 0},
+    {"name": "bench-simd-threads",  "configurePreset": "bench-simd-threads",  "configuration": "Release", "jobs": 0},
+    {"name": "bench-clang",      "configurePreset": "bench-clang",      "configuration": "Release", "jobs": 0},
+    {"name": "bench-simd-clang", "configurePreset": "bench-simd-clang", "configuration": "Release", "jobs": 0},
+    {"name": "browser",            "configurePreset": "browser",            "jobs": 0},
+    {"name": "browser-threads",    "configurePreset": "browser-threads",    "jobs": 0},
+    {"name": "bench-wasm",         "configurePreset": "bench-wasm",         "jobs": 0},
+    {"name": "bench-wasm-threads", "configurePreset": "bench-wasm-threads", "jobs": 0}
   ],
   "testPresets": [
     {

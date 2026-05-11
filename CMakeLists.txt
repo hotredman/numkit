@@ -6,6 +6,15 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# MSVC: file-level parallel compilation inside one vcxproj. MSBuild's /m
+# only parallelises across vcxproj — without /MP, cl.exe processes the
+# .cpp files of one project sequentially, even with `cmake --parallel`.
+# Combined with `"jobs": 0` in CMakePresets.json this gives both project-
+# level (MSBuild /m) and file-level (cl /MP) parallelism.
+if(MSVC)
+    add_compile_options(/MP)
+endif()
+
 option(NUMKIT_BUILD_EXAMPLE    "Build example executable"              ON)
 option(NUMKIT_BUILD_TESTS      "Build tests"                           ON)
 option(NUMKIT_BUILD_BENCHMARKS "Build Google Benchmark micro-benches"  OFF)
