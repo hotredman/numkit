@@ -1,0 +1,10 @@
+{
+  "name": "signal_fftn",
+  "namespace": "signal",
+  "setup": "X = reshape(1:24, 2, 3, 4); Xmat = [1 2 3; 4 5 6; 7 8 9]; Xsmall = [1 2; 3 4];",
+  "expr": "Y2 = fftn(Xmat); Y2_11 = real(Y2(1,1)); Y2_22 = real(Y2(2,2)); Y3 = fftn(X); Y3_111 = real(Y3(1,1,1)); Y3_112_re = real(Y3(1,1,2)); Y3_112_im = imag(Y3(1,1,2)); Y3_114_re = real(Y3(1,1,4)); Y3_114_im = imag(Y3(1,1,4)); Ys = fftn(Xsmall, [4 4]); Ys_11 = real(Ys(1,1)); Ys_size_r = size(Ys, 1); Ys_size_c = size(Ys, 2); Xr = ifftn(fftn(X)); rterr = max(abs(X(:) - Xr(:))); Yi = ifftn(Y3); Yi_111 = real(Yi(1,1,1)); Yi_234 = real(Yi(2,3,4));",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["Y2_11", "Y2_22", "Y3_111", "Y3_112_re", "Y3_112_im", "Y3_114_re", "Y3_114_im", "Ys_11", "Ys_size_r", "Ys_size_c", "rterr", "Yi_111", "Yi_234"],
+  "comment": "MATLAB fftn / ifftn — N-D forward and inverse FFT. Implemented as iterated 1-D fft along dims 1..ndim (commutes; current Dims model caps at 3-D, so max ndim = 3 — higher inputs would require the N-D refactor). 2-D inputs delegate through the same path and produce results identical to fft2. With the optional `sz` argument, axis k is zero-padded or truncated to sz[k-1] before its 1-D FFT (length validation is reused from the per-axis fft). Bit-equal MATLAB R2025b on 2-D, 3-D, sz-override, and ifftn round-trip (round-trip noise ~7e-15, well inside tol 1e-9). Octave 11.1.0 ships fftn / ifftn in core. Round-trip error fingerprint pins the inverse pair under the same tol."
+}

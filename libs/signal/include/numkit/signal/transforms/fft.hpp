@@ -39,6 +39,24 @@ Value fft2(std::pmr::memory_resource *mr, const Value &X, int m = -1, int n = -1
 /// 2-D inverse DFT. Same shape semantics as fft2.
 Value ifft2(std::pmr::memory_resource *mr, const Value &X, int m = -1, int n = -1);
 
+/// N-D forward FFT. Mirrors MATLAB `fftn`:
+///   fftn(X)        — FFT along every dimension of X using each axis's
+///                    current length.
+///   fftn(X, sz)    — same, but axis k is zero-padded or truncated to
+///                    sz[k-1] before its FFT. `sz` length must not
+///                    exceed ndims(X).
+/// Implemented as fft along each axis in turn (commutes, like
+/// MATLAB / NumPy / SciPy). Output is always complex-typed.
+/// `sz` is passed as a pointer + length; pass `nullptr` / 0 for the
+/// no-override form.
+Value fftn(std::pmr::memory_resource *mr, const Value &X,
+           const std::size_t *sz = nullptr, std::size_t szLen = 0);
+
+/// N-D inverse FFT. Same shape semantics as `fftn`. May downgrade to
+/// real output if the imaginary part is within 1e-10 everywhere.
+Value ifftn(std::pmr::memory_resource *mr, const Value &X,
+            const std::size_t *sz = nullptr, std::size_t szLen = 0);
+
 /// interpft(x, n[, dim]) — band-limited (FFT-based) interpolation of `x`
 /// to `n` equispaced samples along `dim`. dim=0 means "first non-singleton".
 /// Implementation: FFT → zero-pad in frequency domain → IFFT → scale by n/m.

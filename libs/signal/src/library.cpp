@@ -23,6 +23,8 @@ void fft_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
 void ifft_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void fft2_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void ifft2_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void fftn_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void ifftn_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void interpft_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void conv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void deconv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -303,6 +305,8 @@ void SignalLibrary::install(Engine &engine)
     reg("transforms", "ifft",      &signal::detail::ifft_reg);
     reg("transforms", "fft2",      &signal::detail::fft2_reg);
     reg("transforms", "ifft2",     &signal::detail::ifft2_reg);
+    reg("transforms", "fftn",      &signal::detail::fftn_reg);
+    reg("transforms", "ifftn",     &signal::detail::ifftn_reg);
     reg("transforms", "fftshift",  &signal::detail::fftshift_reg);
     reg("transforms", "ifftshift", &signal::detail::ifftshift_reg);
     reg("transforms", "interpft",  &signal::detail::interpft_reg);

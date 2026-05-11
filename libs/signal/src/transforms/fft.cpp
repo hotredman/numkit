@@ -731,6 +731,60 @@ Value ifft2(std::pmr::memory_resource *mr, const Value &X, int m, int n)
     return ifft(mr, step1, n, 2);
 }
 
+// ── N-D FFT (added 2026-05-11) ────────────────────────────────────────
+//
+// fftn(X[, sz]) — apply 1-D FFT along every dimension of X. Like
+// MATLAB / NumPy / SciPy this commutes, so order doesn't matter; we
+// walk dims 1 → 2 → 3 because that's how the active Dims model is
+// laid out (rows / cols / pages). `sz` overrides per-axis transform
+// length (zero-pad or truncate before that axis's FFT). With the
+// current 3-D-cap MValue, the maximum supported ndim is 3 — higher
+// inputs would require the N-D refactor (planned, not yet landed).
+//
+// Empty input passes through with empty output (no-op).
+namespace {
+
+inline int effectiveNdim(const Value &X)
+{
+    const auto &d = X.dims();
+    if (d.is3D()) return 3;
+    if (d.cols() > 1 || d.rows() == 0) return 2;  // matrix or empty matrix
+    return 2;  // 1-D row/column still counts as 2-D in our Dims model
+}
+
+Value fftnImpl(std::pmr::memory_resource *mr, const Value &X,
+               const std::size_t *sz, std::size_t szLen,
+               Value (*op)(std::pmr::memory_resource *, const Value &, int, int))
+{
+    if (X.isEmpty()) return X;
+    const int ndim = effectiveNdim(X);
+    if (szLen > static_cast<std::size_t>(ndim))
+        throw Error("fftn: size vector length exceeds ndims(X)",
+                     0, 0, "fftn", "", "m:fftn:badSize");
+    Value Y = X;
+    for (int d = 1; d <= ndim; ++d) {
+        int n = -1;
+        if (sz && static_cast<std::size_t>(d) <= szLen)
+            n = static_cast<int>(sz[d - 1]);
+        Y = op(mr, Y, n, d);
+    }
+    return Y;
+}
+
+} // anonymous namespace
+
+Value fftn(std::pmr::memory_resource *mr, const Value &X,
+           const std::size_t *sz, std::size_t szLen)
+{
+    return fftnImpl(mr, X, sz, szLen, &fft);
+}
+
+Value ifftn(std::pmr::memory_resource *mr, const Value &X,
+            const std::size_t *sz, std::size_t szLen)
+{
+    return fftnImpl(mr, X, sz, szLen, &ifft);
+}
+
 Value interpft(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
 {
     if (n <= 0)
@@ -940,6 +994,48 @@ void interpft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     int dim = 0;
     if (args.size() >= 3) dim = static_cast<int>(args[2].toScalar());
     outs[0] = interpft(ctx.engine->resource(), args[0], n, dim);
+}
+
+// Shared helper for fftn_reg / ifftn_reg: unpack the optional `sz`
+// vector into a std::vector<size_t>. MATLAB accepts an empty / missing
+// 2nd arg.
+static void extractSizeArg(const Value &v, std::vector<std::size_t> &dst)
+{
+    const std::size_t n = v.numel();
+    dst.resize(n);
+    for (std::size_t i = 0; i < n; ++i) {
+        const double d = v.elemAsDouble(i);
+        if (d <= 0 || d != std::floor(d))
+            throw Error("fftn: size entries must be positive integers",
+                         0, 0, "fftn", "", "m:fftn:badSize");
+        dst[i] = static_cast<std::size_t>(d);
+    }
+}
+
+void fftn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+              CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("fftn: requires at least 1 argument",
+                     0, 0, "fftn", "", "m:fftn:nargin");
+    std::vector<std::size_t> sz;
+    if (args.size() >= 2 && !args[1].isEmpty())
+        extractSizeArg(args[1], sz);
+    outs[0] = fftn(ctx.engine->resource(), args[0],
+                   sz.empty() ? nullptr : sz.data(), sz.size());
+}
+
+void ifftn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+               CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("ifftn: requires at least 1 argument",
+                     0, 0, "ifftn", "", "m:ifftn:nargin");
+    std::vector<std::size_t> sz;
+    if (args.size() >= 2 && !args[1].isEmpty())
+        extractSizeArg(args[1], sz);
+    outs[0] = ifftn(ctx.engine->resource(), args[0],
+                    sz.empty() ? nullptr : sz.data(), sz.size());
 }
 
 } // namespace detail
