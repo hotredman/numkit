@@ -30,7 +30,7 @@ FAIL (down from 12 — this test was the 12th).
 
 ---
 
-## 2. `core/`: `eval('expr')` captured by outer assignment leaks `ans` display — **P2**
+## 2. `core/`: `eval('expr')` captured by outer assignment leaks `ans` display — **P2** ✅ FIXED 2026-05-11
 
 **Test:** `TW_VM/EvalRegressionTest.AssignmentCaptureSuppressesInnerAns/{TW,VM}`
 **File:** [libs/builtin/tests/frame_introspection_test.cpp:474](libs/builtin/tests/frame_introspection_test.cpp:474)
@@ -40,6 +40,20 @@ behaviour). Both TW and VM print `ans` — fails reliably on both
 backends at HEAD `4eb6c22`, before any of my changes.
 **Status:** pre-existing, not caused by parity cycle.
 **First seen:** present at 2026-05-03 baseline.
+**Fix (2026-05-11):** Added `suppressTopLevelDisplay` flag to both
+`Engine::eval(code)` and `Engine::eval(code, scope)` overloads
+([core/include/numkit/core/engine.hpp](core/include/numkit/core/engine.hpp),
+[core/src/engine.cpp](core/src/engine.cpp)). When set, a helper
+walks the freshly-parsed AST and flips `suppressOutput=true` on
+each top-level statement, which both TW and VM already gate their
+DISPLAY emission on — single hook covers EXPR_STMT, ASSIGN,
+FIELD_ASSIGN, etc. The `eval` builtin
+([libs/builtin/src/library.cpp:3076](libs/builtin/src/library.cpp:3076))
+passes `suppress = (nargout >= 1)` so bare `eval('a+b')` still
+displays ans, but `r = eval('a+b')` doesn't. Side-effect prints
+inside called functions (disp, fprintf, …) are unaffected — those
+originate inside CALL nodes whose own statement-level flag isn't
+touched.
 
 ---
 

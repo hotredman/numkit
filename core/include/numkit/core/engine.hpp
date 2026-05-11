@@ -99,15 +99,23 @@ public:
     void setVariable(const std::string &name, Value val);
     Value *getVariable(const std::string &name);
 
-    // Execute code — uses current backend (TreeWalker by default)
-    Value eval(const std::string &code);
+    // Execute code — uses current backend (TreeWalker by default).
+    // When `suppressTopLevelDisplay==true`, every top-level statement
+    // in `code` is silenced (ans / lhs displays skipped). Side-effect
+    // prints inside called functions (disp, fprintf, ...) still fire.
+    // Used by the `eval` builtin when the outer caller captures the
+    // return value — matches MATLAB:
+    //   r = eval('a + b');   % no inner ans display
+    //   eval('a + b');       % inner ans display proceeds normally
+    Value eval(const std::string &code, bool suppressTopLevelDisplay = false);
 
     // Scoped variant: top-level imports and variable assignments inside
     // `code` are routed to `scope` instead of workspaceEnv. Used by
     // `eval`/`run` builtins called from inside a function, and by
     // `evalin`. scope=nullptr or scope==&workspaceEnv() falls back to
     // the no-scope overload (REPL-style persistence).
-    Value eval(const std::string &code, Environment *scope);
+    Value eval(const std::string &code, Environment *scope,
+               bool suppressTopLevelDisplay = false);
 
     // Safe execution — never throws, returns result + error diagnostics
     struct EvalResult {
