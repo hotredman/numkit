@@ -9,7 +9,13 @@
     "build": "electron-builder --win portable",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
-    "test:debug": "playwright test --debug"
+    "test:debug": "playwright test --debug",
+    "test:core": "playwright test tests/e2e/core",
+    "test:2d": "playwright test tests/e2e/2d",
+    "test:3d": "playwright test tests/e2e/3d",
+    "test:figures": "playwright test tests/e2e/figures",
+    "test:regressions": "playwright test tests/e2e/regressions",
+    "test:examples": "playwright test tests/e2e/examples"
   },
   "build": {
     "appId": "com.numkit.ide",
