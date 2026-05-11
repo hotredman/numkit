@@ -1239,6 +1239,7 @@ void GraphicsLibrary::install(Engine &engine)
     // duplicating ~200 lines of quantization logic.
     auto heatmapImpl = [vecToJson, doubleToJson](
                            const char *typeName,
+                           bool axisIj,
                            Span<const Value> args, size_t nargout,
                            Span<Value> outs, CallContext &ctx) {
             (void)nargout;
@@ -1248,6 +1249,15 @@ void GraphicsLibrary::install(Engine &engine)
             }
             auto &fm = ctx.engine->figureManager();
             fm.prepareForPlot();
+            // axis-ij must be set AFTER prepareForPlot — that call wipes
+            // the axes state. Setting it here ensures the JSON emit at
+            // the end of this function sees the right yDir.
+            if (axisIj) {
+                if (fm.currentAxes().axisMode.empty()) {
+                    fm.currentAxes().axisMode = "ij";
+                }
+                fm.currentAxes().yDir = "reverse";
+            }
 
             const Value *C_arg = nullptr;
             const Value *x_arg = nullptr;
@@ -1447,22 +1457,12 @@ void GraphicsLibrary::install(Engine &engine)
     };  // heatmapImpl
 
     using namespace std::placeholders;
-    // imagesc wrapper: apply MATLAB axis ij (yDir='reverse', matrix-row-1
-    // at top) BEFORE delegating. heatmapImpl will then emit the JSON with
-    // the new yDir baked in. pcolor and histogram2 (which both delegate
-    // here too) stay on axis xy because they don't go through this wrapper.
-    reg("image", "imagesc",
-        [heatmapImpl](Span<const Value> args, size_t nargout,
-                      Span<Value> outs, CallContext &ctx) {
-            auto &fm = ctx.engine->figureManager();
-            fm.prepareForPlot();
-            if (fm.currentAxes().axisMode.empty()) {
-                fm.currentAxes().axisMode = "ij";
-            }
-            fm.currentAxes().yDir = "reverse";
-            heatmapImpl("imagesc", args, nargout, outs, ctx);
-        });
-    reg("image", "pcolor",  std::bind(heatmapImpl, "pcolor",  _1, _2, _3, _4));
+    // imagesc auto-applies MATLAB axis ij (yDir='reverse', matrix-row-1
+    // at top). pcolor stays on axis xy. histogram2 (delegates separately)
+    // also stays on axis xy. The axis-ij flag is the second positional
+    // arg of heatmapImpl now — it's set AFTER prepareForPlot inside.
+    reg("image", "imagesc", std::bind(heatmapImpl, "imagesc", true,  _1, _2, _3, _4));
+    reg("image", "pcolor",  std::bind(heatmapImpl, "pcolor",  false, _1, _2, _3, _4));
 
     // ────────────────────────────────────────────────────────────────
     // imshow — display image. MATLAB:
@@ -1878,10 +1878,10 @@ void GraphicsLibrary::install(Engine &engine)
             // adapter routes through the existing heatmap renderer with
             // its full quantization + LUT path.
             std::vector<Value> proxied = { centers_x, centers_y, counts };
-            // Delegate directly to heatmapImpl. histogram2 stays on axis
-            // xy by default — heatmapImpl no longer forces axis ij; only
-            // the imagesc wrapper does that.
-            heatmapImpl("imagesc", Span<const Value>(proxied.data(), proxied.size()),
+            // Delegate to heatmapImpl. axisIj=false — histogram2 stays on
+            // axis xy by default (Y up), unlike imagesc which auto-flips.
+            heatmapImpl("imagesc", false,
+                        Span<const Value>(proxied.data(), proxied.size()),
                         nargout, outs, ctx);
         });
 
