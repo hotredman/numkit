@@ -125,6 +125,66 @@ test.describe('Imshow pan direction', () => {
     expect(ide.devErrors().filter(NON_FATAL)).toEqual([]);
   });
 
+  test('subplot + imshow (morphology_pipeline shape) + drag DOWN', async () => {
+    // Mirrors docs/examples/Image/morphology_pipeline.m: figure with a 2×3
+    // subplot grid, imshow in each cell. Verifies pan direction works
+    // inside SubplotGrid → CompositePlot, not just on top-level figures.
+    // Each subplot cell has its own viewport state; we pan the first cell.
+    await ide.runScript(
+      'import compat.*;\n'
+      + '[X, Y] = meshgrid(1:32, 1:32);\n'
+      + 'mask = (X - 16).^2 + (Y - 16).^2 <= 8^2;\n'
+      + 'figure;\n'
+      + 'subplot(2,3,1); imshow(mask); title(\'a\');\n'
+      + 'subplot(2,3,2); imshow(mask); title(\'b\');\n'
+    );
+    await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+    await ide.figureCards.first().click();
+    await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+
+    // Subplot mode hides the .fw-range-row footer (per FigureWindow.jsx
+    // !isSubplot gate), so we can't readRange(). Read viewport state
+    // straight from the SVG: the image href changes on viewport change,
+    // BUT a more reliable signal is the y-tick label text. We inspect
+    // the SVG bounding box of the FIRST cell's plot area and pan it.
+    const cellSvgs = page.locator('.fw-canvas-wrap svg');
+    const count = await cellSvgs.count();
+    expect(count).toBeGreaterThanOrEqual(2);  // at least 2 subplot cells
+
+    const firstCell = cellSvgs.first();
+    await expect(firstCell).toBeVisible({ timeout: 5_000 });
+    await page.waitForTimeout(150);
+
+    // Read the visible image's y attribute — that's the screen-space top
+    // of the SVG <image> element drawn by CompositePlot. With pan, this
+    // value SHIFTS DOWN (larger y) when the user drags the mouse down on
+    // a yDir='reverse' axis (because the image follows the mouse).
+    const imgY = async () => {
+      const v = await firstCell.locator('image').first().getAttribute('y');
+      return parseFloat(v);
+    };
+    const yBefore = await imgY();
+
+    const box = await firstCell.boundingBox();
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await page.mouse.move(cx, cy + 60, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(250);
+
+    const yAfter = await imgY();
+
+    // Image moved DOWN visually (larger SVG y) → direct manipulation
+    // works inside subplot cells too. Without the pan-fix this would
+    // have decreased (image went UP, opposite of mouse).
+    expect(yAfter).toBeGreaterThan(yBefore);
+
+    expect(ide.devErrors().filter(NON_FATAL)).toEqual([]);
+  });
+
   test('imagesc (auto axis ij) + drag DOWN → yMin DECREASES', async () => {
     // imagesc must auto-set yDir='reverse' (MATLAB axis ij convention).
     // With both engine + IDE fixes in place, pan must follow the mouse
