@@ -98,6 +98,8 @@ void tfestimate_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Ca
 void pyulear_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void pburg_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void spectrogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void stft_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void istft_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void hamming_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void hann_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void blackman_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -424,6 +426,8 @@ void SignalLibrary::install(Engine &engine)
 
     // ── Time-frequency (spectrogram / STFT family) ─────────────────────
     reg("time_frequency", "spectrogram", &signal::detail::spectrogram_reg);
+    reg("time_frequency", "stft",        &signal::detail::stft_reg);
+    reg("time_frequency", "istft",       &signal::detail::istft_reg);
 
     // ── Windows (hamming / hann / blackman / kaiser / rectwin / bartlett) ─
     reg("windows", "hamming",  &signal::detail::hamming_reg);
