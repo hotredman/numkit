@@ -1330,9 +1330,34 @@ enter_frame:
                     goto enter_frame;
                 }
 
-                // External function — call directly (no frame push)
+                // Resolution order matches MATLAB: user-on-path beats
+                // builtins. The compiled-cache check above already
+                // handled functions adopted earlier in the session.
+                // BUG #1 fix: m-file lookup MUST run before findExternal
+                // so a user split.m on the path shadows the builtin
+                // `split`. Previously the order was builtin → m-file
+                // (CALL_MULTI/VM picked the builtin and broke
+                // [a,b] = split(5) destructure).
                 {
                     const std::string &funcName = chunk.strings[funcIdx];
+
+                    // M-file lookup (Phase 9a; Phase 10 adds packages).
+                    // Compiler::registerFunctionAs binds the chunk under
+                    // the canonical name returned by lookupUserFunction —
+                    // qualified for +pkg/foo.m, bare for plain foo.m.
+                    if (auto *uf =
+                            engine_.lookupUserFunction(funcName,
+                                                        currentCallEnv())) {
+                        if (const BytecodeChunk *found = findCompiledFunc(uf->name)) {
+                            frame.ip = ip + 1;
+                            returnCount_ = 0;
+                            pushCallFrame(*found, &R[argBase], na,
+                                          0, 1, true, I.a, 1);
+                            goto enter_frame;
+                        }
+                    }
+
+                    // External (builtin) function — call directly (no frame push).
                     const ExternalFunc *fnPtr = engine_.findExternal(
                         funcName, currentCallEnv());
                     if (fnPtr) {
@@ -1363,21 +1388,6 @@ enter_frame:
                         R[I.a] = std::move(ob[0]);
                         break;
                     }
-                    // M-file fallback (Phase 9a; Phase 10 adds packages).
-                    // Compiler::registerFunctionAs binds the chunk under
-                    // the canonical name returned by lookupUserFunction —
-                    // qualified for +pkg/foo.m, bare for plain foo.m.
-                    if (auto *uf =
-                            engine_.lookupUserFunction(funcName,
-                                                        currentCallEnv())) {
-                        if (const BytecodeChunk *found = findCompiledFunc(uf->name)) {
-                            frame.ip = ip + 1;
-                            returnCount_ = 0;
-                            pushCallFrame(*found, &R[argBase], na,
-                                          0, 1, true, I.a, 1);
-                            goto enter_frame;
-                        }
-                    }
                     throw std::runtime_error("VM: undefined function '" + funcName + "'");
                 }
             }
@@ -1389,7 +1399,7 @@ enter_frame:
                 int16_t funcIdx = I.d;
                 const std::string &funcName = chunk.strings[funcIdx];
 
-                // Try compiled user function
+                // Try compiled user function first.
                 if (const BytecodeChunk *found = findCompiledFunc(funcName)) {
                     frame.ip = ip + 1;
                     returnCount_ = 0;
@@ -1397,21 +1407,13 @@ enter_frame:
                                   0, nout, true, outBase, nout);
                     goto enter_frame;
                 }
-                // External function with nout — call directly
+                // BUG #1 fix: m-file resolution must beat builtin
+                // resolution to match MATLAB. Was builtin → m-file —
+                // a user `split.m` couldn't shadow the builtin `split`,
+                // so [a,b] = split(5) ended up calling the 1-output
+                // builtin and failing the destructure.
                 {
-                    const ExternalFunc *fnPtr = engine_.findExternal(
-                        funcName, currentCallEnv());
-                    if (fnPtr) {
-                        std::vector<Value> outBuf(nout);
-                        Span<const Value> as(&R[argBase], na);
-                        Span<Value> os(outBuf.data(), nout);
-                        CallContext ctx{&engine_, currentCallEnv()};
-                        (*fnPtr)(as, nout, os, ctx);
-                        for (size_t i = 0; i < nout; ++i)
-                            R[outBase + i] = std::move(outBuf[i]);
-                        break;
-                    }
-                    // M-file fallback (Phase 9a / 10). Same canonical-name
+                    // M-file lookup (Phase 9a / 10). Same canonical-name
                     // dispatch as CALL above.
                     if (auto *uf =
                             engine_.lookupUserFunction(funcName,
@@ -1423,6 +1425,19 @@ enter_frame:
                                           0, nout, true, outBase, nout);
                             goto enter_frame;
                         }
+                    }
+                    // External function with nout — call directly.
+                    const ExternalFunc *fnPtr = engine_.findExternal(
+                        funcName, currentCallEnv());
+                    if (fnPtr) {
+                        std::vector<Value> outBuf(nout);
+                        Span<const Value> as(&R[argBase], na);
+                        Span<Value> os(outBuf.data(), nout);
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        (*fnPtr)(as, nout, os, ctx);
+                        for (size_t i = 0; i < nout; ++i)
+                            R[outBase + i] = std::move(outBuf[i]);
+                        break;
                     }
                     throw std::runtime_error("VM: undefined function '" + funcName + "'");
                 }
