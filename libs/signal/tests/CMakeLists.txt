@@ -44,6 +44,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/firpmord_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/vco_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fir2_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/firpm_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cell2sos_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ctfutils_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modulate_test.cpp
