@@ -16,6 +16,7 @@ set(IMAGELIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/io/io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/geom/geom.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/segment/segment.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/texture/texture.cpp
 )
 
 set(IMAGELIB_SOURCES ${IMAGELIB_SOURCES} PARENT_SCOPE)
