@@ -9,20 +9,23 @@ Severity legend: **P0** crash / data loss; **P1** wrong result;
 
 ---
 
-## 1. `core/`: VM resolution-order — user m-files don't shadow builtins  — **P1**
+## 1. `core/`: VM resolution-order — user m-files don't shadow builtins  — ✅ FIXED 2026-05-11
 
 **Test:** `TW_VM/MFileResolverTest.MultiOutputMFileResolves/VM`
 **File:** [core/tests/mfile_resolver_test.cpp:89](core/tests/mfile_resolver_test.cpp:89)
-**Symptom:** Test creates a user `split.m` with `function [a, b] = split(x)`,
+**Symptom (was):** Test creates a user `split.m` with `function [a, b] = split(x)`,
 adds dir to path, calls `[a, b] = split(5)`. After the parity cycle
-registered `split` as a builtin (commit `ef1d700`), VM started resolving
-to the builtin (1 output) and failing the 2-output destructure. **TW
-resolves correctly** to the user m-file in the same scenario.
-**Root cause (probable):** VM's symbol-lookup order is `builtin → user`
-instead of MATLAB's `user-on-path → builtin`.
-**Workaround (this cycle):** documented; do not unregister `split`
-because we want MATLAB parity. Rename the test fixture or fix VM
-resolution — both are `core/` changes, deferred.
+registered `split` as a builtin (commit `ef1d700`), VM resolved to the
+builtin (1 output) and failed the 2-output destructure. TW resolved
+correctly to the user m-file in the same scenario.
+**Root cause:** VM's CALL / CALL_MULTI dispatch tried `findExternal`
+(builtin) BEFORE `lookupUserFunction` (user m-file). MATLAB does the
+opposite.
+**Fix:** swap the two blocks in core/src/vm.cpp CALL and CALL_MULTI cases.
+The compiled-cache check stays first (fast path for already-compiled
+user fns); after that, m-file lookup runs, and only if that misses do
+we fall through to builtins. Full gtest: 8443 PASS / 11 pre-existing
+FAIL (down from 12 — this test was the 12th).
 **First seen:** 2026-05-03, commit `ef1d700`.
 
 ---
