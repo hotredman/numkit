@@ -1752,7 +1752,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `adapthisteq` | ✅ | 0.17 | 24.5× |  | OK | Sig: J = adapthisteq(I[, NV-pairs]). CLAHE — faithful port of MATLAB R2025b adapthisteq.m (symmetric pad → per-tile clip+redistribute with MATLAB-specific cap and two-pass step-size redistribution → uniform-CDF mapping → (NumTiles+1)² integer-weight bilinear interpolation tiles). Bit-exact MATLAB R2025b within uint8 ±1 (pixel-rounding boundary); 8×8 small-pattern test reproduces every pixel exactly. Distribution!='uniform' deferred (throws). |
+| `adapthisteq` | ✅ | 0.28 | 14.9× |  | OK | Sig: J = adapthisteq(I[, NV-pairs]). CLAHE — faithful port of MATLAB R2025b adapthisteq.m (symmetric pad → per-tile clip+redistribute with cap = ceil(N/NBins) + round(normCL·(N-minCL)) and two-pass step-size redistribution → uniform-CDF mapping → (NumTiles+1)² integer-weight bilinear with round-then-bilinear quantisation per LUT lookup). **tol=0 bit-exact** vs MATLAB R2025b on every probed pixel. Distribution!='uniform' deferred (throws). |
 | `decorrstretch` | ❌ |  |  |  |  | decorrelation stretch |
 | `histeq` | ✅ | 0.005 | 495.99× | 53.47× | OK | Sig: r = histeq(...). Spec-extension batch 2026-05-09. |
 | `imadjust` | ✅ | 0.005 | 581.76× | 104.49× | OK | Sig: r = imadjust(...). Spec-extension batch 2026-05-09. |
