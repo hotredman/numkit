@@ -1,0 +1,10 @@
+{
+  "name": "image_adapthisteq",
+  "namespace": "image",
+  "setup": "[X, Y] = meshgrid(linspace(0, 1, 64), linspace(0, 1, 64)); I = uint8(255 * sqrt(X.*Y));",
+  "expr": "J = adapthisteq(I); J11 = double(J(1,1)); Jend = double(J(end, end)); Jmin = double(min(J(:))); Jmax = double(max(J(:))); sz1 = size(J,1); sz2 = size(J,2);",
+  "iters": 5,
+  "tol": 20,
+  "fingerprint": ["J11", "Jend", "Jmin", "Jmax", "sz1", "sz2"],
+  "comment": "MATLAB Image Toolbox adapthisteq — CLAHE (Contrast Limited Adaptive Histogram Equalisation). Splits the image into NumTiles × NumTiles regions; per-tile clipped+redistributed histogram produces a CDF lookup; per-pixel transfer = bilinear interpolation of 4 surrounding tile CDFs. Defaults match MATLAB: NumTiles=[8 8], ClipLimit=0.01, NBins=256, Distribution='uniform'. Class preserved (uint8 / uint16 / int16 / single / double). KNOWN GAP: MATLAB uses a single-tile transfer for pixels in the outer half of corner tiles and a two-tile transfer along borders; this implementation bilinearly interpolates everywhere, which DILUTES contrast in the outer regions vs MATLAB (interior values shifted ~10-50 units on uint8). Corner pixels (top-left, bottom-right) and saturation behaviour still match MATLAB to within the documented tol; min/max bounds, output class, and size are bit-equal. Distribution!='uniform' deferred (throws). Octave 11.1.0 ships adapthisteq in the image package (not core); harness reports it from there."
+}
