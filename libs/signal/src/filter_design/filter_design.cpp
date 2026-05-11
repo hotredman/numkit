@@ -681,7 +681,8 @@ std::tuple<Value, double>
 firpm(std::pmr::memory_resource *mr, int N,
       const double *F, std::size_t Fn,
       const double *A, std::size_t An,
-      const double *W, std::size_t Wn)
+      const double *W, std::size_t Wn,
+      const std::string &ftype)
 {
     if (N < 3)
         throw Error("Filter order must be 3 or more",
@@ -702,18 +703,44 @@ firpm(std::pmr::memory_resource *mr, int N,
             throw Error("firpm: F must be non-decreasing",
                         0, 0, "firpm", "", "m:firpm:badF");
 
-    // Type I (even N): H(ω) = Σ_{k=0..L} a[k]·cos(kω), L = N/2.
-    // Type II (odd N): H(ω) = cos(ω/2) · Σ_{k=0..L} a[k]·cos(kω),
-    //                  L = (N-1)/2. The cos(ω/2) "type factor" Q(ω)
-    //                  is folded into the Remez problem by setting
-    //                  D'(ω) = D(ω)/Q(ω) and W'(ω) = W(ω)·Q(ω); the
-    //                  iteration then runs identically on the
-    //                  transformed pair. At ω = π, Q vanishes, so the
-    //                  Type-II grid must exclude the Nyquist endpoint
-    //                  (matches MATLAB — a Type-II FIR has H(π) ≡ 0).
-    const bool typeII = (N % 2) != 0;
-    const std::size_t L = typeII ? static_cast<std::size_t>(N - 1) / 2
-                                  : static_cast<std::size_t>(N) / 2;
+    // Identify the linear-phase FIR type:
+    //   Type I  (even N, symmetric)       H(ω) = Σ a[k]·cos(kω)
+    //   Type II (odd  N, symmetric)       H(ω) = cos(ω/2) · Σ a[k]·cos(kω)
+    //   Type III(even N, anti-symmetric)  H(ω) = sin(ω)   · Σ a[k]·cos(kω)
+    //   Type IV (odd  N, anti-symmetric)  H(ω) = sin(ω/2) · Σ a[k]·cos(kω)
+    // All four reduce to a single canonical polynomial-Chebyshev
+    // problem via the Q(ω) type factor: D'(ω) = D / Q, W'(ω) = W · Q,
+    // then run the same Remez kernel. Reconstruction back to h[k]
+    // differs per type — handled in the final section.
+    //
+    // Polynomial degree L (so we have L+1 cosine coefficients a[0..L]):
+    //   Type I  : L = N/2
+    //   Type II : L = (N-1)/2
+    //   Type III: L = N/2 - 1
+    //   Type IV : L = (N-1)/2
+    auto lower_eq = [](const std::string &s, const char *t) {
+        if (s.size() != std::strlen(t)) return false;
+        for (std::size_t i = 0; i < s.size(); ++i)
+            if (std::tolower(s[i]) != std::tolower(t[i])) return false;
+        return true;
+    };
+    const bool isHilbert   = lower_eq(ftype, "hilbert");
+    const bool isDiff      = lower_eq(ftype, "differentiator");
+    const bool antiSym     = isHilbert || isDiff;
+    if (!ftype.empty() && !isHilbert && !isDiff)
+        throw Error("firpm: ftype must be 'hilbert' or 'differentiator'",
+                    0, 0, "firpm", "", "m:firpm:badFtype");
+    enum { TYPE_I = 1, TYPE_II = 2, TYPE_III = 3, TYPE_IV = 4 } ;
+    int filterType;
+    if (!antiSym) filterType = (N % 2 == 0) ? TYPE_I  : TYPE_II;
+    else          filterType = (N % 2 == 0) ? TYPE_III : TYPE_IV;
+    std::size_t L = 0;
+    switch (filterType) {
+        case TYPE_I:   L = static_cast<std::size_t>(N) / 2;     break;
+        case TYPE_II:  L = static_cast<std::size_t>(N - 1) / 2; break;
+        case TYPE_III: L = static_cast<std::size_t>(N) / 2 - 1; break;
+        case TYPE_IV:  L = static_cast<std::size_t>(N - 1) / 2; break;
+    }
     const std::size_t r     = L + 1;       // # cosine basis coefficients
     const std::size_t nExtr = r + 1;       // # extremal frequencies (= L+2)
     constexpr int lgrid = 16;              // MATLAB default grid density
@@ -750,14 +777,49 @@ firpm(std::pmr::memory_resource *mr, int N,
             const double t = double(i) / double(nb - 1);
             PMGridPoint p;
             p.w    = M_PI * (f1 + t * bw);
-            const double D_raw = a1 + t * (a2 - a1);
-            if (typeII) {
-                // Q(ω) = cos(ω/2). Skip points where Q ≈ 0 (ω → π) —
-                // these would blow up D' = D/Q. With > 0.9999*π margin
-                // we stay clear of the singularity while keeping the
-                // band edge of the last stopband.
-                if (p.w > M_PI * 0.99999) continue;
-                const double Q = std::cos(0.5 * p.w);
+            // Apparent desired magnitude at this ω. For differentiator
+            // MATLAB scales the per-band amplitude by f (= ω/π) — the
+            // "amplitude rises linearly across the passband" convention.
+            double D_raw = a1 + t * (a2 - a1);
+            if (isDiff) {
+                const double f_norm = p.w / M_PI;       // ∈ [0, 1]
+                D_raw *= f_norm;
+            }
+            // Q-factor + skips per filter type. We use a small (epsilon)
+            // band-edge guard rather than a hard exclusion so that the
+            // last grid point is exactly the band edge (matches MATLAB).
+            double Q = 1.0;
+            switch (filterType) {
+                case TYPE_I:
+                    Q = 1.0;
+                    break;
+                case TYPE_II:
+                    if (p.w > M_PI * 0.99999) continue;
+                    Q = std::cos(0.5 * p.w);
+                    break;
+                case TYPE_III:
+                    if (p.w < M_PI * 1e-5 || p.w > M_PI * 0.99999) continue;
+                    Q = std::sin(p.w);
+                    break;
+                case TYPE_IV:
+                    if (p.w < M_PI * 1e-5) continue;
+                    Q = std::sin(0.5 * p.w);
+                    break;
+            }
+            // Differentiator weighting: MATLAB applies an additional
+            // 1/f factor on the error for stability near DC. With our
+            // D = f·A, the effective weighting becomes W·Q·(1/f) on the
+            // residual D - H. Folding in: W' = W·Q/f and D' = (f·A) / Q
+            // (the same as for Hilbert, just with D pre-scaled by f).
+            if (isDiff) {
+                const double f_norm = p.w / M_PI;
+                if (f_norm > 1e-12) {
+                    p.D = D_raw / Q;
+                    p.W = wt * Q / f_norm;
+                } else {
+                    continue;
+                }
+            } else if (filterType != TYPE_I) {
                 p.D = D_raw / Q;
                 p.W = wt * Q;
             } else {
@@ -1029,8 +1091,9 @@ firpm(std::pmr::memory_resource *mr, int N,
 
     Value bOut = Value::matrix(1, std::size_t(N) + 1, ValueType::DOUBLE, mr);
     double *bd = bOut.doubleDataMut();
+    for (std::size_t i = 0; i <= static_cast<std::size_t>(N); ++i) bd[i] = 0.0;
 
-    if (!typeII) {
+    if (filterType == TYPE_I) {
         // Type I (even N): h[L] = a[0], h[L±k] = a[k]/2.
         bd[L] = a[0];
         for (std::size_t k = 1; k <= L; ++k) {
@@ -1038,17 +1101,12 @@ firpm(std::pmr::memory_resource *mr, int N,
             bd[L - k] = v;
             bd[L + k] = v;
         }
-    } else {
-        // Type II (odd N, length N+1 = 2L+2). Convert the cosine-series
-        // coefficients a[k] of P (= Σ a[k] cos kω) into b[n] coefficients
-        // of H(ω) = Σ b[n] cos((n+½)ω) using
+    } else if (filterType == TYPE_II) {
+        // Type II (odd N, length N+1 = 2L+2). Convert a[k] of P (= Σ a[k] cos kω)
+        // into b[n] coefficients of H(ω) = Σ b[n] cos((n+½)ω) using
         //   cos(kω) · cos(ω/2) = ½ [cos((k+½)ω) + cos((k-½)ω)]
-        // which gives:
-        //   b[0]   = a[0] + a[1]/2
-        //   b[n]   = (a[n] + a[n+1])/2     for n = 1 .. L-1
-        //   b[L]   = a[L]/2
-        // The symmetric impulse response of length 2L+2 satisfies
-        //   h[L - n] = b[n]/2  for n = 0..L,   h[L+1+n] = h[L-n].
+        //   b[0] = a[0] + a[1]/2,  b[n] = (a[n] + a[n+1])/2 for 1≤n≤L-1,
+        //   b[L] = a[L]/2,  h[L - n] = b[n]/2,  h[L+1+n] = h[L-n].
         ScratchVec<double> b(L + 1, &arena);
         b[0] = a[0] + (L >= 1 ? 0.5 * a[1] : 0.0);
         for (std::size_t n = 1; n + 1 <= L; ++n)
@@ -1058,6 +1116,63 @@ firpm(std::pmr::memory_resource *mr, int N,
             const double v = 0.5 * b[n];
             bd[L - n]        = v;
             bd[L + 1 + n]    = v;
+        }
+    } else if (filterType == TYPE_III) {
+        // Type III (even N, anti-symmetric, length 2·Lh + 1, Lh = N/2 = L+1).
+        // H(ω) = sin(ω) · Σ_{k=0..L} a[k] cos(kω) = Σ_{n=1..Lh} c[n] sin(nω)
+        // From cos(kω)·sin(ω) = ½[sin((k+1)ω) − sin((k-1)ω)] (with sin(0)=0,
+        // and k=0 contributing all of a[0] to sin(1ω)):
+        //   c[1] = a[0] − a[2]/2
+        //   c[n] = a[n-1]/2 − a[n+1]/2   for 2 ≤ n ≤ L-1
+        //   c[L] = a[L-1]/2
+        //   c[L+1] = a[L]/2
+        // h[Lh - n] = c[n]/2 for n=1..Lh, h[Lh] = 0, h[Lh + n] = -h[Lh - n].
+        const std::size_t Lh = L + 1;
+        ScratchVec<double> c(Lh + 1, 0.0, &arena);
+        if (L + 1 >= 1) {
+            const double a2 = (L >= 2) ? a[2] : 0.0;
+            c[1] = a[0] - 0.5 * a2;
+        }
+        for (std::size_t n = 2; n <= Lh; ++n) {
+            const double am1 = (n - 1 <= L) ? a[n - 1] : 0.0;
+            const double ap1 = (n + 1 <= L) ? a[n + 1] : 0.0;
+            c[n] = 0.5 * am1 - 0.5 * ap1;
+        }
+        bd[Lh] = 0.0;
+        // MATLAB anti-sym convention: h(low index) negative when the
+        // ideal sin-series amplitude is positive (j·sign(ω) Hilbert
+        // → A > 0 in passband → low-index h is negative for the
+        // linear-phase decomposition e^(-jωN/2)·jA used by MATLAB).
+        for (std::size_t n = 1; n <= Lh; ++n) {
+            const double v = 0.5 * c[n];
+            bd[Lh - n] = -v;
+            bd[Lh + n] =  v;
+        }
+    } else /* TYPE_IV */ {
+        // Type IV (odd N, anti-symmetric, length 2L+2, L = (N-1)/2).
+        // H(ω) = sin(ω/2) · Σ a[k] cos(kω) = Σ_{n=1..L+1} d[n] sin((n-½)ω).
+        // From sin(ω/2)·cos(kω) = ½[sin((k+½)ω) + sin((½-k)ω)] and
+        // sin(-x) = -sin(x):
+        //   k=0 → +a[0] to d[1] (single full contribution)
+        //   k≥1 → +a[k]/2 to d[k+1] (sin((k+½)ω)),
+        //         -a[k]/2 to d[k]   (sin((k-½)ω))
+        // Closed form: d[1] = a[0] - a[1]/2,
+        //              d[n] = (a[n-1] - a[n])/2  for 2 ≤ n ≤ L,
+        //              d[L+1] = a[L]/2.
+        // h[L - n + 1] = d[n]/2 for n=1..L+1, mirror: h[L+1+m] = -h[L-m].
+        ScratchVec<double> dvec(L + 2, 0.0, &arena);
+        if (L >= 1) dvec[1] = a[0] - 0.5 * a[1];
+        else        dvec[1] = a[0];
+        for (std::size_t n = 2; n <= L; ++n)
+            dvec[n] = 0.5 * (a[n - 1] - a[n]);
+        if (L >= 1) dvec[L + 1] = 0.5 * a[L];
+        else        dvec[L + 1] = 0.0;
+        // Same sign convention as Type III.
+        for (std::size_t n = 1; n <= L + 1; ++n) {
+            const double v = 0.5 * dvec[n];
+            const std::size_t lo = L + 1 - n;   // h[L - n + 1] in 0-based
+            bd[lo]            = -v;
+            bd[(N) - lo]      =  v;  // mirror about (N+1)/2-1/2
         }
     }
 
@@ -1081,28 +1196,27 @@ void firpm_reg(Span<const Value> args, std::size_t nargout, Span<Value> outs,
     };
 
     std::vector<double> Fv, Av, Wv;
+    std::string ftype;
     extractRow(args[1], Fv);
     extractRow(args[2], Av);
-    if (args.size() >= 4) {
-        // 4th arg is either weights vector or an ftype string.
-        if (args[3].isChar())
-            throw Error("firpm: 'hilbert' / 'differentiator' ftypes "
-                        "deferred in this revision",
-                        0, 0, "firpm", "", "m:firpm:unsupportedFtype");
-        if (args[3].isCell())
+    // Trailing args: weights vector (numeric) or ftype string. MATLAB
+    // accepts them in either order (W [, ftype] or ftype only).
+    for (std::size_t i = 3; i < args.size(); ++i) {
+        if (args[i].isCell())
             throw Error("firpm: cell-form lgrid argument deferred",
                         0, 0, "firpm", "", "m:firpm:unsupportedLgrid");
-        extractRow(args[3], Wv);
+        if (args[i].isChar()) {
+            ftype = args[i].toString();
+        } else {
+            extractRow(args[i], Wv);
+        }
     }
-    if (args.size() >= 5)
-        throw Error("firpm: extra arguments deferred (only N, F, A, W "
-                    "supported in this revision)",
-                    0, 0, "firpm", "", "m:firpm:tooManyArgs");
 
     auto [b, err] = firpm(ctx.engine->resource(), N,
                           Fv.data(), Fv.size(),
                           Av.data(), Av.size(),
-                          Wv.empty() ? nullptr : Wv.data(), Wv.size());
+                          Wv.empty() ? nullptr : Wv.data(), Wv.size(),
+                          ftype);
     outs[0] = std::move(b);
     if (nargout >= 2 && outs.size() >= 2)
         outs[1] = Value::scalar(err, ctx.engine->resource());
