@@ -514,7 +514,14 @@ function datasetToLayer(d, palette_idx, ctx) {
     // Linespec extras parsed from styleObj. lineStyle drives strokeDasharray
     // in CompositePlot; marker triggers an overlay layer of point glyphs
     // along the line. mode === 'scatter' ignores lineStyle (no path drawn).
-    lineStyle: styleObj.lineStyle || '-',
+    //
+    // MATLAB linespec rule: if the user provided a marker glyph but NO
+    // explicit line style (i.e. `plot(x, y, 'r+')` not `'r-+'`), draw
+    // markers ONLY — no connecting line. Forcing lineStyle='-' on every
+    // series broke this: stray scatter-style calls came out as a zigzag
+    // polyline through arbitrary point order. Use 'none' to suppress the
+    // path render; lineStyle='-' default still applies when no marker.
+    lineStyle: styleObj.lineStyle || (styleObj.marker ? 'none' : '-'),
     marker: styleObj.marker || (t === 'scatter' ? 'o' : null),
     // comet animation hint — when true, CompositePlot animates the
     // polyline progressively via RAF on first mount.

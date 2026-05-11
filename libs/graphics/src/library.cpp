@@ -1437,24 +1437,31 @@ void GraphicsLibrary::install(Engine &engine)
             }
 
             fm.pushDataset(std::move(ds));
-            // MATLAB convention: imagesc auto-sets axis ij (yDir='reverse',
-            // origin top-left, matrix-row-1 at top), unconditionally — even
-            // if user previously called axis('xy'). Override comes from
-            // calling axis('xy') AFTER imagesc. pcolor stays on the default
-            // axis xy (Y up). v3 renderer reads yDir only; axisMode='ij' is
-            // kept for legacy renderer tick alignment.
-            if (std::string(typeName) == "imagesc") {
-                if (fm.currentAxes().axisMode.empty()) {
-                    fm.currentAxes().axisMode = "ij";
-                }
-                fm.currentAxes().yDir = "reverse";
-            }
+            // NOTE: axis-ij setting moved OUT of heatmapImpl. Setting yDir
+            // here would ride on emitModified() below, freezing it into
+            // the JSON before histogram2 (which delegates here) gets a
+            // chance to override. The imagesc wrapper now applies axis ij
+            // BEFORE delegating; histogram2 leaves yDir alone.
             fm.emitModified();
             outs[0] = Value::empty();
     };  // heatmapImpl
 
     using namespace std::placeholders;
-    reg("image", "imagesc", std::bind(heatmapImpl, "imagesc", _1, _2, _3, _4));
+    // imagesc wrapper: apply MATLAB axis ij (yDir='reverse', matrix-row-1
+    // at top) BEFORE delegating. heatmapImpl will then emit the JSON with
+    // the new yDir baked in. pcolor and histogram2 (which both delegate
+    // here too) stay on axis xy because they don't go through this wrapper.
+    reg("image", "imagesc",
+        [heatmapImpl](Span<const Value> args, size_t nargout,
+                      Span<Value> outs, CallContext &ctx) {
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            if (fm.currentAxes().axisMode.empty()) {
+                fm.currentAxes().axisMode = "ij";
+            }
+            fm.currentAxes().yDir = "reverse";
+            heatmapImpl("imagesc", args, nargout, outs, ctx);
+        });
     reg("image", "pcolor",  std::bind(heatmapImpl, "pcolor",  _1, _2, _3, _4));
 
     // ────────────────────────────────────────────────────────────────
@@ -1871,6 +1878,9 @@ void GraphicsLibrary::install(Engine &engine)
             // adapter routes through the existing heatmap renderer with
             // its full quantization + LUT path.
             std::vector<Value> proxied = { centers_x, centers_y, counts };
+            // Delegate directly to heatmapImpl. histogram2 stays on axis
+            // xy by default — heatmapImpl no longer forces axis ij; only
+            // the imagesc wrapper does that.
             heatmapImpl("imagesc", Span<const Value>(proxied.data(), proxied.size()),
                         nargout, outs, ctx);
         });
@@ -3190,9 +3200,23 @@ void GraphicsLibrary::install(Engine &engine)
         const size_t N = dims.cols();
         const size_t P = dims.pages();
 
-        // Resolve grid coords.
+        // Resolve grid coords. X/Y/Z come in as meshgrid 3-D outputs:
+        //   X(i,j,k) = x(j), Y(i,j,k) = y(i), Z(i,j,k) = z(k)
+        // Column-major linear index for (i,j,k) is k*M*N + j*M + i. So
+        // unique x-values live at stride M (along columns), z-values at
+        // stride M*N (along pages). Y already varies along i so the
+        // first M elements are exactly y(1..M). The pre-fix code read
+        // `X[i]` which gave x(1) for every i — all cones collapsed into
+        // a single x/z slice and the field rendered as a flat row.
         std::vector<double> Xs(N), Ys(M), Zs(P);
-        if (X && Y && Z && X->numel() >= N && Y->numel() >= M && Z->numel() >= P) {
+        if (X && Y && Z && X->numel() >= M * N * P
+            && Y->numel() >= M * N * P && Z->numel() >= M * N * P) {
+            for (size_t j = 0; j < N; ++j) Xs[j] = X->doubleData()[j * M];
+            for (size_t i = 0; i < M; ++i) Ys[i] = Y->doubleData()[i];
+            for (size_t k = 0; k < P; ++k) Zs[k] = Z->doubleData()[k * M * N];
+        } else if (X && Y && Z && X->numel() >= N && Y->numel() >= M && Z->numel() >= P) {
+            // Fallback for the 1-D vector form: x, y, z passed as
+            // straight vectors rather than meshgrid output.
             for (size_t i = 0; i < N; ++i) Xs[i] = X->doubleData()[i];
             for (size_t i = 0; i < M; ++i) Ys[i] = Y->doubleData()[i];
             for (size_t i = 0; i < P; ++i) Zs[i] = Z->doubleData()[i];
