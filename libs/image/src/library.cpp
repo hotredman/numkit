@@ -127,6 +127,11 @@ void imhist_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void stretchlim_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imadjust_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void histeq_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void adapthisteq_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// texture/texture.cpp
+void graycomatrix_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void graycoprops_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void adaptthresh_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imhistmatch_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imflatfield_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -143,6 +148,7 @@ void imquantize_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void strel_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imerode_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imdilate_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bwmorph_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imopen_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imclose_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imreconstruct_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -355,6 +361,9 @@ void ImageLibrary::install(Engine &engine)
     reg("contrast", "stretchlim", &image::detail::stretchlim_reg);
     reg("contrast", "imadjust",   &image::detail::imadjust_reg);
     reg("contrast", "histeq",     &image::detail::histeq_reg);
+    reg("contrast", "adapthisteq",&image::detail::adapthisteq_reg);
+    reg("texture",  "graycomatrix", &image::detail::graycomatrix_reg);
+    reg("texture",  "graycoprops",  &image::detail::graycoprops_reg);
     reg("contrast", "adaptthresh",&image::detail::adaptthresh_reg);
     reg("contrast", "imhistmatch",&image::detail::imhistmatch_reg);
     reg("contrast", "imflatfield",&image::detail::imflatfield_reg);
@@ -382,6 +391,7 @@ void ImageLibrary::install(Engine &engine)
     reg("morph", "strel",     &image::detail::strel_reg);
     reg("morph", "imerode",   &image::detail::imerode_reg);
     reg("morph", "imdilate",  &image::detail::imdilate_reg);
+    reg("morph", "bwmorph",   &image::detail::bwmorph_reg);
     reg("morph", "imopen",    &image::detail::imopen_reg);
     reg("morph", "imclose",   &image::detail::imclose_reg);
     reg("morph", "imreconstruct", &image::detail::imreconstruct_reg);

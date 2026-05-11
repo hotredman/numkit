@@ -1,7 +1,9 @@
 // libs/builtin/src/data_io/saveload.cpp
 //
-// Workspace-persistence builtins (save / load). The last of the legacy
-// I/O TU's functions to migrate to the data_io/ split.
+// Workspace-persistence builtins (save / load). Dispatches between the
+// ascii backend (this file) and the matio v5 .mat backend
+// (saveload_mat.cpp) based on flags and the filename's extension —
+// matching MATLAB's defaults (binary .mat unless `-ascii` is given).
 
 #include <numkit/io/workspace/saveload.hpp>
 
@@ -10,30 +12,63 @@
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <sstream>
 #include <string>
+#include <vector>
 
 namespace numkit::io {
 
+// Implemented in saveload_mat.cpp.
+void saveMat(Engine &engine, Environment &env,
+             const std::string &filename,
+             const std::vector<std::string> &varnames);
+void loadMat(Engine &engine, Environment &env,
+             const std::string &filename,
+             size_t nargout, Span<Value> outs);
+
+namespace {
+
+bool endsWithIgnoreCase(const std::string &s, const std::string &suffix)
+{
+    if (s.size() < suffix.size()) return false;
+    for (size_t i = 0; i < suffix.size(); ++i) {
+        char a = s[s.size() - suffix.size() + i];
+        char b = suffix[i];
+        if (std::tolower(static_cast<unsigned char>(a))
+            != std::tolower(static_cast<unsigned char>(b)))
+            return false;
+    }
+    return true;
+}
+
+} // namespace
+
 // ════════════════════════════════════════════════════════════════════════
-// save / load (ascii)
+// save / load
 //
-//   save(filename, var1 [, var2 …] [, '-ascii'])
+//   save(filename, var1 [, var2 …] [, '-ascii' | '-mat' | '-v6' | '-v7'])
 //   A = load(filename)
-//   load(filename)   — without LHS, assigns to a var named after the
-//                      file's stem (sans path + extension)
+//   load(filename)   — without LHS:
+//                       • ASCII: assigns to a var named after the file's
+//                         stem (sans path + extension).
+//                       • MAT:   assigns each stored variable into the
+//                         caller's workspace under its stored name.
 //
-// Scope: MATLAB's -ascii text format only. Binary .mat isn't plumbed;
-// if no flag is given we still use ascii so simple "save/load"
-// workflows work. Callers asking for -mat get a clear "not supported"
-// error. Numeric (DOUBLE) matrices only; each row emits on its own
-// line, columns separated by spaces, 17-significant-digit precision
-// (round-trip-safe for doubles). Multiple vars in one save are
-// concatenated with a blank line.
+// Default format follows MATLAB: binary .mat (v5 via matio). `-ascii`
+// forces the text backend. `-v7.3` (HDF5) is rejected — matio is built
+// without the HDF5 backend in this project.
+//
+// ASCII scope: numeric (DOUBLE) matrices only; each row on its own
+// line, columns space-separated, 17-significant-digit precision.
+// Multiple vars in one save are blank-line separated.
+//
+// MAT scope: full v5 — numeric (real & complex), logical, char, cell,
+// struct, struct arrays. See saveload_mat.cpp.
 // ════════════════════════════════════════════════════════════════════════
 
 void save(Engine &engine, Environment &env, Span<const Value> args)
@@ -42,22 +77,43 @@ void save(Engine &engine, Environment &env, Span<const Value> args)
         throw Error("save: filename required");
     std::string filename = args[0].toString();
 
-    bool asciiFlag = false;
+    // Three-way mode pick: explicit flag wins; otherwise extension hint;
+    // otherwise MATLAB default (binary mat).
+    enum class Mode { Auto, Ascii, Mat };
+    Mode mode = Mode::Auto;
+
     ScratchArena scratch(engine.resource());
     ScratchVec<std::string> varnames(&scratch);
     for (size_t i = 1; i < args.size(); ++i) {
         if (!args[i].isChar())
             continue;
         std::string s = args[i].toString();
-        if (s == "-ascii") { asciiFlag = true; continue; }
-        if (s == "-mat" || s == "-v7" || s == "-v7.3")
-            throw Error("save: binary .mat formats are not supported");
+        if (s == "-ascii") { mode = Mode::Ascii; continue; }
+        if (s == "-mat" || s == "-v4" || s == "-v6" || s == "-v7") {
+            mode = Mode::Mat; continue;
+        }
+        if (s == "-v7.3")
+            throw Error("save: -v7.3 (HDF5) is not supported in this build");
+        if (s == "-append" || s == "-nocompression" || s == "-struct") {
+            // accepted no-ops for now; -append is binary-only in MATLAB.
+            if (s == "-append") mode = Mode::Mat;
+            continue;
+        }
         if (!s.empty() && s.front() == '-')
             throw Error("save: unsupported flag '" + s + "'");
         varnames.push_back(s);
     }
-    (void)asciiFlag; // currently the only supported format
 
+    if (mode == Mode::Auto)
+        mode = endsWithIgnoreCase(filename, ".mat") ? Mode::Mat : Mode::Ascii;
+
+    if (mode == Mode::Mat) {
+        std::vector<std::string> names(varnames.begin(), varnames.end());
+        saveMat(engine, env, filename, names);
+        return;
+    }
+
+    // ── ASCII backend ─────────────────────────────────────────────
     if (varnames.empty())
         throw Error("save: at least one variable name is required");
 
@@ -100,17 +156,30 @@ void load(Engine &engine, Environment &env, Span<const Value> args,
         throw Error("load: filename required");
     std::string filename = args[0].toString();
 
-    // Ignore -ascii flag; we only support ascii anyway.
+    enum class Mode { Auto, Ascii, Mat };
+    Mode mode = Mode::Auto;
     for (size_t i = 1; i < args.size(); ++i) {
         if (!args[i].isChar()) continue;
         std::string s = args[i].toString();
-        if (s == "-mat" || s == "-v7" || s == "-v7.3")
-            throw Error("load: binary .mat formats are not supported");
-        if (s == "-ascii") continue;
+        if (s == "-ascii") { mode = Mode::Ascii; continue; }
+        if (s == "-mat" || s == "-v4" || s == "-v6" || s == "-v7") {
+            mode = Mode::Mat; continue;
+        }
+        if (s == "-v7.3")
+            throw Error("load: -v7.3 (HDF5) is not supported in this build");
         if (!s.empty() && s.front() == '-')
             throw Error("load: unsupported flag '" + s + "'");
     }
 
+    if (mode == Mode::Auto)
+        mode = endsWithIgnoreCase(filename, ".mat") ? Mode::Mat : Mode::Ascii;
+
+    if (mode == Mode::Mat) {
+        loadMat(engine, env, filename, nargout, outs);
+        return;
+    }
+
+    // ── ASCII backend ─────────────────────────────────────────────
     auto resolved = engine.resolvePath(filename);
     std::string content;
     try {

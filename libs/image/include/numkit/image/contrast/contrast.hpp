@@ -48,6 +48,34 @@ Value adaptthresh(std::pmr::memory_resource *mr, const Value &I,
 /// histeq(I[, n]) — histogram equalisation with n=64 default bins.
 Value histeq(std::pmr::memory_resource *mr, const Value &I, int n);
 
+/// adapthisteq(I, ...) — Contrast Limited Adaptive Histogram
+/// Equalisation (CLAHE). Divides the image into NumTilesR × NumTilesC
+/// regions, builds a clipped-redistribute histogram per tile, and
+/// applies the bilinearly-interpolated per-tile CDF as the per-pixel
+/// transfer function. Mirrors MATLAB's `adapthisteq`.
+///
+/// @param I            2-D image (uint8 / uint16 / int16 / single /
+///                     double). Returned in the same class.
+/// @param numTilesR    NumTiles along the row axis (default 8).
+/// @param numTilesC    NumTiles along the column axis (default 8).
+/// @param clipLimit    Histogram clip fraction in [0, 1]; 0 disables
+///                     clipping. Default 0.01.
+/// @param nBins        Histogram bin count (default 256).
+/// @param distribution "uniform" (default). "rayleigh" and
+///                     "exponential" deferred — throw.
+/// @param alpha        Distribution shape parameter; only consulted for
+///                     non-uniform distributions (deferred).
+///
+/// KNOWN GAPS:
+///   - 3-D / RGB input. MATLAB accepts greyscale only too, so this
+///     matches MATLAB scope.
+///   - "rayleigh" / "exponential" distributions.
+///   - Range='original' option (always 'full' here).
+Value adapthisteq(std::pmr::memory_resource *mr, const Value &I,
+                  int numTilesR, int numTilesC,
+                  double clipLimit, int nBins,
+                  const std::string &distribution, double alpha);
+
 // ── Thresholding ──────────────────────────────────────────────────────
 
 /// graythresh(I) — Otsu's threshold + effectiveness metric.

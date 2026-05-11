@@ -30,7 +30,7 @@ FAIL (down from 12 — this test was the 12th).
 
 ---
 
-## 2. `core/`: `eval('expr')` captured by outer assignment leaks `ans` display — **P2**
+## 2. `core/`: `eval('expr')` captured by outer assignment leaks `ans` display — **P2** ✅ FIXED 2026-05-11
 
 **Test:** `TW_VM/EvalRegressionTest.AssignmentCaptureSuppressesInnerAns/{TW,VM}`
 **File:** [libs/builtin/tests/frame_introspection_test.cpp:474](libs/builtin/tests/frame_introspection_test.cpp:474)
@@ -40,10 +40,24 @@ behaviour). Both TW and VM print `ans` — fails reliably on both
 backends at HEAD `4eb6c22`, before any of my changes.
 **Status:** pre-existing, not caused by parity cycle.
 **First seen:** present at 2026-05-03 baseline.
+**Fix (2026-05-11):** Added `suppressTopLevelDisplay` flag to both
+`Engine::eval(code)` and `Engine::eval(code, scope)` overloads
+([core/include/numkit/core/engine.hpp](core/include/numkit/core/engine.hpp),
+[core/src/engine.cpp](core/src/engine.cpp)). When set, a helper
+walks the freshly-parsed AST and flips `suppressOutput=true` on
+each top-level statement, which both TW and VM already gate their
+DISPLAY emission on — single hook covers EXPR_STMT, ASSIGN,
+FIELD_ASSIGN, etc. The `eval` builtin
+([libs/builtin/src/library.cpp:3076](libs/builtin/src/library.cpp:3076))
+passes `suppress = (nargout >= 1)` so bare `eval('a+b')` still
+displays ans, but `r = eval('a+b')` doesn't. Side-effect prints
+inside called functions (disp, fprintf, …) are unaffected — those
+originate inside CALL nodes whose own statement-level flag isn't
+touched.
 
 ---
 
-## 3. `core/`: `eval([fname, '(x)'])` access-violation in loop inside function — **P0** flaky
+## 3. `core/`: `eval([fname, '(x)'])` access-violation in loop inside function — **P0** ✅ FIXED 2026-05-11
 
 **Test:** `TW_VM/EvalRegressionTest.BracketConcatInLoopInsideFunction/VM`
 **File:** [libs/builtin/tests/frame_introspection_test.cpp:507-536](libs/builtin/tests/frame_introspection_test.cpp:507)
@@ -56,6 +70,29 @@ successive calls in the same VM frame.
 **Stability:** flaky — passes ~2/3 runs at baseline `4eb6c22`. Not
 introduced by parity work.
 **First seen:** in tree before 2026-05-03.
+**Root cause (2026-05-11):** Not eval arg-cleanup as the header
+guessed — `VM::dispatchLoop` captures a reference into the
+per-chunk call cache:
+```cpp
+auto &resolvedFuncs = chunkCallCache_[frame.chunk];
+```
+The `eval` builtin re-enters `Engine::eval` → `VM::execute`. On
+re-entry, `VM::startExecution` calls `chunkCallCache_.clear()`,
+which destroys the cache node `resolvedFuncs` referenced. After
+the inner returns, the outer dispatch loop resumes with a dangling
+reference. Reading it as a vector header sometimes gives `size==0`
+(falls through harmlessly, test passes) and sometimes gives garbage
+that triggers SEH on the next CALL — explaining the ~9/10 pass
+rate. `savePausedState` rescued frames / forStack / tryStack /
+registers across re-entry but missed the call cache.
+**Fix:** Added `chunkCallCache` to `PausedState`
+([core/include/numkit/core/vm.hpp:241-256](core/include/numkit/core/vm.hpp:241))
+and move-save it in `savePausedState`, move-restore it in
+`restorePausedState`
+([core/src/vm.cpp:167-211](core/src/vm.cpp:167)). `unordered_map`
+move preserves node addresses, so the outer's `resolvedFuncs`
+reference reclaims live memory after the inner exits. Stress-test:
+100/100 pass post-fix (was 9/10 baseline).
 
 ---
 

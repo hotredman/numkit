@@ -23,6 +23,9 @@ void fft_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
 void ifft_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void fft2_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void ifft2_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void fftn_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void ifftn_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void czt_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void interpft_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void conv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void deconv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -55,6 +58,7 @@ void butter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 void fir1_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void firls_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void fir2_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void firpm_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void cell2sos_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void ctf2zp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void scaleFilterSections_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -94,6 +98,8 @@ void tfestimate_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Ca
 void pyulear_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void pburg_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void spectrogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void stft_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void istft_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void hamming_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void hann_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void blackman_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -302,6 +308,9 @@ void SignalLibrary::install(Engine &engine)
     reg("transforms", "ifft",      &signal::detail::ifft_reg);
     reg("transforms", "fft2",      &signal::detail::fft2_reg);
     reg("transforms", "ifft2",     &signal::detail::ifft2_reg);
+    reg("transforms", "fftn",      &signal::detail::fftn_reg);
+    reg("transforms", "ifftn",     &signal::detail::ifftn_reg);
+    reg("transforms", "czt",       &signal::detail::czt_reg);
     reg("transforms", "fftshift",  &signal::detail::fftshift_reg);
     reg("transforms", "ifftshift", &signal::detail::ifftshift_reg);
     reg("transforms", "interpft",  &signal::detail::interpft_reg);
@@ -357,6 +366,7 @@ void SignalLibrary::install(Engine &engine)
     reg("filter_design", "fir1",       &signal::detail::fir1_reg);
     reg("filter_design", "firls",      &signal::detail::firls_reg);
     reg("filter_design", "fir2",       &signal::detail::fir2_reg);
+    reg("filter_design", "firpm",      &signal::detail::firpm_reg);
     reg("filter_implementation", "cell2sos", &signal::detail::cell2sos_reg);
     reg("filter_implementation", "ctf2zp",   &signal::detail::ctf2zp_reg);
     reg("filter_implementation", "scaleFilterSections", &signal::detail::scaleFilterSections_reg);
@@ -416,6 +426,8 @@ void SignalLibrary::install(Engine &engine)
 
     // ── Time-frequency (spectrogram / STFT family) ─────────────────────
     reg("time_frequency", "spectrogram", &signal::detail::spectrogram_reg);
+    reg("time_frequency", "stft",        &signal::detail::stft_reg);
+    reg("time_frequency", "istft",       &signal::detail::istft_reg);
 
     // ── Windows (hamming / hann / blackman / kaiser / rectwin / bartlett) ─
     reg("windows", "hamming",  &signal::detail::hamming_reg);

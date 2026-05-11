@@ -731,6 +731,208 @@ Value ifft2(std::pmr::memory_resource *mr, const Value &X, int m, int n)
     return ifft(mr, step1, n, 2);
 }
 
+// ── N-D FFT (added 2026-05-11) ────────────────────────────────────────
+//
+// fftn(X[, sz]) — apply 1-D FFT along every dimension of X. Like
+// MATLAB / NumPy / SciPy this commutes, so order doesn't matter; we
+// walk dims 1 → 2 → 3 because that's how the active Dims model is
+// laid out (rows / cols / pages). `sz` overrides per-axis transform
+// length (zero-pad or truncate before that axis's FFT). With the
+// current 3-D-cap MValue, the maximum supported ndim is 3 — higher
+// inputs would require the N-D refactor (planned, not yet landed).
+//
+// Empty input passes through with empty output (no-op).
+namespace {
+
+inline int effectiveNdim(const Value &X)
+{
+    const auto &d = X.dims();
+    if (d.is3D()) return 3;
+    if (d.cols() > 1 || d.rows() == 0) return 2;  // matrix or empty matrix
+    return 2;  // 1-D row/column still counts as 2-D in our Dims model
+}
+
+Value fftnImpl(std::pmr::memory_resource *mr, const Value &X,
+               const std::size_t *sz, std::size_t szLen,
+               Value (*op)(std::pmr::memory_resource *, const Value &, int, int))
+{
+    if (X.isEmpty()) return X;
+    const int ndim = effectiveNdim(X);
+    if (szLen > static_cast<std::size_t>(ndim))
+        throw Error("fftn: size vector length exceeds ndims(X)",
+                     0, 0, "fftn", "", "m:fftn:badSize");
+    Value Y = X;
+    for (int d = 1; d <= ndim; ++d) {
+        int n = -1;
+        if (sz && static_cast<std::size_t>(d) <= szLen)
+            n = static_cast<int>(sz[d - 1]);
+        Y = op(mr, Y, n, d);
+    }
+    return Y;
+}
+
+} // anonymous namespace
+
+Value fftn(std::pmr::memory_resource *mr, const Value &X,
+           const std::size_t *sz, std::size_t szLen)
+{
+    return fftnImpl(mr, X, sz, szLen, &fft);
+}
+
+Value ifftn(std::pmr::memory_resource *mr, const Value &X,
+            const std::size_t *sz, std::size_t szLen)
+{
+    return fftnImpl(mr, X, sz, szLen, &ifft);
+}
+
+// ── Chirp Z-transform (Bluestein) ─────────────────────────────────────
+//
+// czt(x, m, w, a) = Σ_{n=0..N-1} x[n] · a^(-n) · w^(n·k),  k=0..m-1
+//
+// Bluestein identity: n·k = (n² + k² − (k−n)²) / 2, so
+//   Y[k] = w^(k²/2) · ((g ⋆ h)[k]) where
+//     g[n] = x[n] · a^(-n) · w^(n²/2)         for n = 0..N-1
+//     h[n] = w^(-n²/2)                        for n = -(N-1)..m-1
+//
+// Convolution evaluated via length-L FFT with L = nextPow2(N + m - 1).
+// The W^(±n²/2) "chirp" terms use complex pow() — for real-w inputs
+// the imaginary part comes out at fp-noise level on common parities.
+//
+// Single-vector kernel; matrix inputs delegate by-column above.
+static Value cztVector(std::pmr::memory_resource *mr,
+                       const Complex *xData, std::size_t N,
+                       int m, Complex w, Complex a)
+{
+    using Cd = std::complex<double>;
+    if (m <= 0) return Value::complexMatrix(0, 0, mr);
+    const std::size_t M = static_cast<std::size_t>(m);
+    if (N == 0) {
+        // MATLAB czt of empty input → empty.
+        return Value::complexMatrix(0, 0, mr);
+    }
+
+    // L = smallest power of 2 ≥ N + M - 1 (so the underlying fft hits
+    // the radix-2 fast path).
+    std::size_t L = 1;
+    while (L < N + M - 1) L <<= 1;
+
+    // g[n] = x[n] · a^(-n) · w^(n²/2), zero-padded to L.
+    Value g = Value::complexMatrix(L, 1, mr);
+    Cd *gd = g.complexDataMut();
+    for (std::size_t n = 0; n < N; ++n) {
+        const double n2_half = 0.5 * static_cast<double>(n) * static_cast<double>(n);
+        const Cd a_negn = std::pow(a, -static_cast<double>(n));
+        const Cd w_n2   = std::pow(w,  n2_half);
+        gd[n] = xData[n] * a_negn * w_n2;
+    }
+    for (std::size_t n = N; n < L; ++n) gd[n] = Cd(0, 0);
+
+    // h[n] = w^(-n²/2) for n ∈ {0..M-1} placed at h[0..M-1], plus the
+    // negative-n branch n ∈ {1..N-1} placed at the upper end h[L-n].
+    // That layout makes the circular convolution g ⊛ h (length L) equal
+    // the linear convolution on the first M output samples.
+    Value h = Value::complexMatrix(L, 1, mr);
+    Cd *hd = h.complexDataMut();
+    for (std::size_t k = 0; k < M; ++k) {
+        const double k2_half = 0.5 * static_cast<double>(k) * static_cast<double>(k);
+        hd[k] = std::pow(w, -k2_half);
+    }
+    for (std::size_t n = M; n < L; ++n) hd[n] = Cd(0, 0);
+    for (std::size_t n = 1; n < N; ++n) {
+        const double n2_half = 0.5 * static_cast<double>(n) * static_cast<double>(n);
+        hd[L - n] = std::pow(w, -n2_half);
+    }
+
+    // FFT both, point-multiply, IFFT — standard convolution.
+    Value G = fft(mr, g, static_cast<int>(L), 1);
+    Value H = fft(mr, h, static_cast<int>(L), 1);
+    const Cd *Gd = G.complexData();
+    const Cd *Hd = H.complexData();
+    Value P = Value::complexMatrix(L, 1, mr);
+    Cd *Pd = P.complexDataMut();
+    for (std::size_t i = 0; i < L; ++i) Pd[i] = Gd[i] * Hd[i];
+    Value yL = ifft(mr, P, static_cast<int>(L), 1);
+
+    // Take the first M samples and apply the post-multiplier
+    // w^(k²/2). ifft may return real-typed when imag is ulp-clean.
+    Value Y = Value::complexMatrix(1, M, mr);
+    Cd *Yd = Y.complexDataMut();
+    if (yL.isComplex()) {
+        const Cd *yd = yL.complexData();
+        for (std::size_t k = 0; k < M; ++k) {
+            const double k2_half = 0.5 * static_cast<double>(k) * static_cast<double>(k);
+            Yd[k] = yd[k] * std::pow(w, k2_half);
+        }
+    } else {
+        const double *yd = yL.doubleData();
+        for (std::size_t k = 0; k < M; ++k) {
+            const double k2_half = 0.5 * static_cast<double>(k) * static_cast<double>(k);
+            Yd[k] = Cd(yd[k], 0.0) * std::pow(w, k2_half);
+        }
+    }
+    return Y;
+}
+
+Value czt(std::pmr::memory_resource *mr, const Value &x,
+          int m, Complex w, Complex a)
+{
+    using Cd = std::complex<double>;
+    if (x.isEmpty()) return Value::complexMatrix(0, 0, mr);
+
+    const auto &d = x.dims();
+    const std::size_t R = d.rows();
+    const std::size_t C = d.cols();
+
+    // Auto-orient like fft: for a row or column vector, use the length;
+    // for a matrix, run czt on each column independently.
+    const bool isVector = (R == 1 || C == 1) && !d.is3D();
+    if (isVector) {
+        const std::size_t N = x.numel();
+        // Build complex source view (a private buffer when input is real).
+        ScratchArena arena(mr);
+        ScratchVec<Cd> buf(N, &arena);
+        if (x.isComplex()) {
+            const Cd *xc = x.complexData();
+            for (std::size_t i = 0; i < N; ++i) buf[i] = xc[i];
+        } else {
+            const double *xr = x.doubleData();
+            for (std::size_t i = 0; i < N; ++i) buf[i] = Cd(xr[i], 0.0);
+        }
+        Value y = cztVector(mr, buf.data(), N, m, w, a);
+        // Match input shape (row vector → row, column → column).
+        if (R == 1) return y;            // already row
+        // Reshape row to column.
+        Value yCol = Value::complexMatrix(static_cast<std::size_t>(m), 1, mr);
+        Cd *col = yCol.complexDataMut();
+        const Cd *row = y.complexData();
+        for (int k = 0; k < m; ++k) col[k] = row[k];
+        return yCol;
+    }
+
+    if (d.is3D())
+        throw Error("czt: 3-D input not supported",
+                     0, 0, "czt", "", "m:czt:unsupportedNd");
+
+    // Matrix: czt each column independently.
+    Value out = Value::complexMatrix(static_cast<std::size_t>(m), C, mr);
+    Cd *od = out.complexDataMut();
+    ScratchArena arena(mr);
+    ScratchVec<Cd> col(R, &arena);
+    for (std::size_t c = 0; c < C; ++c) {
+        if (x.isComplex()) {
+            const Cd *xc = x.complexData();
+            for (std::size_t r = 0; r < R; ++r) col[r] = xc[c * R + r];
+        } else {
+            const double *xr = x.doubleData();
+            for (std::size_t r = 0; r < R; ++r) col[r] = Cd(xr[c * R + r], 0.0);
+        }
+        Value y = cztVector(mr, col.data(), R, m, w, a);
+        const Cd *yd = y.complexData();
+        for (int k = 0; k < m; ++k) od[c * m + k] = yd[k];
+    }
+    return out;
+}
+
 Value interpft(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
 {
     if (n <= 0)
@@ -940,6 +1142,88 @@ void interpft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     int dim = 0;
     if (args.size() >= 3) dim = static_cast<int>(args[2].toScalar());
     outs[0] = interpft(ctx.engine->resource(), args[0], n, dim);
+}
+
+// Shared helper for fftn_reg / ifftn_reg: unpack the optional `sz`
+// vector into a std::vector<size_t>. MATLAB accepts an empty / missing
+// 2nd arg.
+static void extractSizeArg(const Value &v, std::vector<std::size_t> &dst)
+{
+    const std::size_t n = v.numel();
+    dst.resize(n);
+    for (std::size_t i = 0; i < n; ++i) {
+        const double d = v.elemAsDouble(i);
+        if (d <= 0 || d != std::floor(d))
+            throw Error("fftn: size entries must be positive integers",
+                         0, 0, "fftn", "", "m:fftn:badSize");
+        dst[i] = static_cast<std::size_t>(d);
+    }
+}
+
+void fftn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+              CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("fftn: requires at least 1 argument",
+                     0, 0, "fftn", "", "m:fftn:nargin");
+    std::vector<std::size_t> sz;
+    if (args.size() >= 2 && !args[1].isEmpty())
+        extractSizeArg(args[1], sz);
+    outs[0] = fftn(ctx.engine->resource(), args[0],
+                   sz.empty() ? nullptr : sz.data(), sz.size());
+}
+
+void ifftn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+               CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("ifftn: requires at least 1 argument",
+                     0, 0, "ifftn", "", "m:ifftn:nargin");
+    std::vector<std::size_t> sz;
+    if (args.size() >= 2 && !args[1].isEmpty())
+        extractSizeArg(args[1], sz);
+    outs[0] = ifftn(ctx.engine->resource(), args[0],
+                    sz.empty() ? nullptr : sz.data(), sz.size());
+}
+
+void czt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+             CallContext &ctx)
+{
+    using Cd = std::complex<double>;
+    if (args.empty())
+        throw Error("czt: requires at least 1 argument",
+                     0, 0, "czt", "", "m:czt:nargin");
+    const Value &x = args[0];
+
+    // MATLAB: czt([]) returns empty without complaining about defaults.
+    if (x.isEmpty()) {
+        outs[0] = czt(ctx.engine->resource(), x, 0, Cd(1, 0), Cd(1, 0));
+        return;
+    }
+
+    // MATLAB defaults: m = length(x), w = exp(-2π·j/m), a = 1.
+    int m = static_cast<int>(x.numel());
+    if (args.size() >= 2 && !args[1].isEmpty())
+        m = static_cast<int>(args[1].toScalar());
+    if (m <= 0)
+        throw Error("czt: m must be a positive integer",
+                     0, 0, "czt", "", "m:czt:badM");
+
+    Cd w(std::cos(-2.0 * M_PI / m), std::sin(-2.0 * M_PI / m));
+    if (args.size() >= 3 && !args[2].isEmpty()) {
+        const Value &wv = args[2];
+        if (wv.isComplex()) w = wv.complexData()[0];
+        else                w = Cd(wv.toScalar(), 0.0);
+    }
+
+    Cd a(1.0, 0.0);
+    if (args.size() >= 4 && !args[3].isEmpty()) {
+        const Value &av = args[3];
+        if (av.isComplex()) a = av.complexData()[0];
+        else                a = Cd(av.toScalar(), 0.0);
+    }
+
+    outs[0] = czt(ctx.engine->resource(), x, m, w, a);
 }
 
 } // namespace detail
