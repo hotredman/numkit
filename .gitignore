@@ -69,9 +69,15 @@ __pycache__/
 # ── Temporary MATLAB / Octave probe scripts ───────────
 # Throwaway .m files used to probe reference output during dev
 # (probe_*.m and any scratch-named .m at repo root). Real .m fixtures
-# live under ide/public/examples/ and tools/parity/specs/.
+# live under docs/examples/ and tools/parity/specs/.
 /probe_*.m
 /scratch*.m
 # Per-cycle scratch probe directory (main worker dumps .m files
 # here while iterating on parity refs).
 tools/probe_tmp/
+
+# ── Generated example mirror ──────────────────────────
+# ide/public/examples/ is regenerated from docs/examples/ on every
+# `npm run dev` / `npm run build` (predev / prebuild → generate-
+# manifest.js). Single source of truth: docs/examples/.
+ide/public/examples/
