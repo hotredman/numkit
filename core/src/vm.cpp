@@ -2433,14 +2433,25 @@ void VM::execIndirectIndex(const Instruction &I, Value *R)
             auto indices = Value::resolveIndices(ix, mv.numel());
             R[I.a] = mv.indexGet(indices.data(), indices.size(), engine_.mr_);
         } else if (ix.isChar() && ix.numel() == 1 && ix.charData()[0] == ':') {
-            size_t n = mv.numel();
-            ValueType t = mv.type();
-            auto res = Value::matrix(n, 1, t, engine_.mr_);
-            if (n > 0) {
-                size_t es = elementSize(t);
-                std::memcpy(res.rawDataMut(), mv.rawData(), n * es);
+            // BUG #14: scalar(:) on a tag-stored value (e.g. `true(:)`,
+            // `false(:)`) used to segfault here — the previous fast path
+            // memcpy'd `n*es` bytes from `mv.rawData()`, but tag scalars
+            // have no heap buffer, so rawData() returned nullptr/garbage.
+            // Identity short-circuit covers every scalar type (DOUBLE /
+            // LOGICAL tag / INT* / STRUCT / etc.) without touching the
+            // raw byte representation.
+            if (mv.isScalar()) {
+                R[I.a] = mv;
+            } else {
+                size_t n = mv.numel();
+                ValueType t = mv.type();
+                auto res = Value::matrix(n, 1, t, engine_.mr_);
+                if (n > 0) {
+                    size_t es = elementSize(t);
+                    std::memcpy(res.rawDataMut(), mv.rawData(), n * es);
+                }
+                R[I.a] = std::move(res);
             }
-            R[I.a] = std::move(res);
         } else if (mv.isScalar() && ix.isDoubleScalar()) {
             checkedIndex(ix.scalarVal(), 1);
             R[I.a] = mv;
