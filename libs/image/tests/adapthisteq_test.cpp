@@ -27,16 +27,40 @@ TEST_F(AdaptHistEqTest, PreservesClassAndSize)
     EXPECT_DOUBLE_EQ(eval_scalar("size(J, 2)"), 16.0);
 }
 
-// Smooth gradient: top-left corner saturates near 0 of remapped range,
-// bottom-right saturates at 255. (Tile-corner pixels use a single-tile
-// transform, so corners reach the extremes of the per-tile CDF.)
-TEST_F(AdaptHistEqTest, GradientCornerSaturates)
+// Smooth gradient: pins specific pixel values against MATLAB R2025b.
+// CLAHE port follows MATLAB adapthisteq.m exactly (clip+redistribute,
+// (numTiles+1)² integer-weight bilinear, padding) — uint8 outputs
+// match MATLAB within ±1 due to per-pixel rounding boundaries.
+TEST_F(AdaptHistEqTest, GradientMatchesMatlab)
 {
     engine.eval("[X, Y] = meshgrid(linspace(0, 1, 64), linspace(0, 1, 64));");
     engine.eval("I = uint8(255 * sqrt(X.*Y));");
     engine.eval("J = adapthisteq(I);");
-    EXPECT_DOUBLE_EQ(eval_scalar("double(J(end, end))"), 255.0);  // bottom-right max
-    EXPECT_LT(eval_scalar("double(J(1, 1))"), 30.0);              // top-left near 0
+    EXPECT_NEAR(eval_scalar("double(J(1, 1))"),     8.0,  1.0);
+    EXPECT_NEAR(eval_scalar("double(J(16, 16))"), 134.0,  1.0);
+    EXPECT_NEAR(eval_scalar("double(J(32, 32))"), 137.0,  1.0);
+    EXPECT_NEAR(eval_scalar("double(J(48, 48))"), 166.0,  1.0);
+    EXPECT_DOUBLE_EQ(eval_scalar("double(J(64, 64))"), 255.0);
+}
+
+// 8x8 rotational pattern with [2 2] tiles — every pixel of MATLAB's
+// output is reproduced bit-exact (no rounding boundary issues at
+// this scale).
+TEST_F(AdaptHistEqTest, SmallPatternBitExactMatch)
+{
+    engine.eval("I = uint8([0 32 64 96 128 160 192 224;"
+                          " 32 64 96 128 160 192 224 32;"
+                          " 64 96 128 160 192 224 32 64;"
+                          " 96 128 160 192 224 32 64 96;"
+                          " 128 160 192 224 32 64 96 128;"
+                          " 160 192 224 32 64 96 128 160;"
+                          " 192 224 32 64 96 128 160 192;"
+                          " 224 32 64 96 128 160 192 224]);");
+    engine.eval("J = adapthisteq(I, 'NumTiles', [2 2], 'ClipLimit', 0.01);");
+    EXPECT_DOUBLE_EQ(eval_scalar("double(J(1, 1))"),  16.0);
+    EXPECT_DOUBLE_EQ(eval_scalar("double(J(1, 4))"), 112.0);
+    EXPECT_DOUBLE_EQ(eval_scalar("double(J(4, 5))"), 239.0);
+    EXPECT_DOUBLE_EQ(eval_scalar("double(J(8, 8))"), 239.0);
 }
 
 // NumTiles must be >= 2.
