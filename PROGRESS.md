@@ -1752,7 +1752,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `adapthisteq` | ⚠️ | 0.16 | 27.4× |  | OK | Sig: J = adapthisteq(I[, NV-pairs]). CLAHE via per-tile clipped+redistributed histogram + bilinear LUT interpolation. KNOWN GAP: MATLAB uses single-tile transfer in outer half of corner tiles; this impl bilinears everywhere (interior pixels shift ~10-50 units on uint8). Corner / saturation behaviour matches. Distribution!='uniform' deferred. |
+| `adapthisteq` | ⚠️ | 0.16 | 27.4× |  | OK | Sig: J = adapthisteq(I[, NV-pairs]). CLAHE via Zuiderveld 1994 algorithm — per-tile clipped+redistributed histogram, per-region transfer function, 4-/2-/1-tile interpolation (interior/edge/corner). Corner pixels + saturation match MATLAB; interior pixels shift ~10-50 units uint8. ROOT CAUSE (investigated 2026-05-11): MATLAB's histeq applies a non-standard CDF→LUT mapping — empirical T-values e.g. 1/9, 11/63, 15/63 on a uniform 8-pixel test signal — neither textbook `cdf/N`, `(cdf-cdf_min)/(1-cdf_min)`, nor `cdf/(M+1)` reproduces this pattern. Bit-exact match BLOCKED on MATLAB-source / public reference of their exact CDF normalization. Distribution!='uniform' deferred. |
 | `decorrstretch` | ❌ |  |  |  |  | decorrelation stretch |
 | `histeq` | ✅ | 0.005 | 495.99× | 53.47× | OK | Sig: r = histeq(...). Spec-extension batch 2026-05-09. |
 | `imadjust` | ✅ | 0.005 | 581.76× | 104.49× | OK | Sig: r = imadjust(...). Spec-extension batch 2026-05-09. |
