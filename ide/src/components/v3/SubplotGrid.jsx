@@ -36,6 +36,16 @@ function defaultViewport(cell) {
   return { x: [-1, 1], y: [-1, 1] };
 }
 
+function sameViewport(a, b) {
+  if (!a || !b) return a === b;
+  if (a.x && a.y && b.x && b.y) {
+    return a.x[0] === b.x[0] && a.x[1] === b.x[1]
+        && a.y[0] === b.y[0] && a.y[1] === b.y[1];
+  }
+  // polar viewport shape: { rmin, rmax, ... }
+  return a.rmin === b.rmin && a.rmax === b.rmax;
+}
+
 export default function SubplotGrid({
   figure, width, height,
   fontScale = 1,
@@ -69,13 +79,44 @@ export default function SubplotGrid({
   // (e.g. 3 → 5 cells, polar → cartesian) viewports stays stale and
   // viewports[idx] is undefined for new cells → CompositePlot crashes on
   // viewport.x[0]. Re-init on cell count or figure-id change.
+  //
+  // We also re-init when a cell's xRange/yRange changes while the cell's
+  // viewport still matches its previous default. This catches the
+  // imhist-in-subplot case: subplot(2,2,3) creates cell 3 with the
+  // inherited axes from cell 2 (e.g. an imshow's [0.5, 64.5]), then
+  // imhist pushes bar data and the cell's xRange updates to [-0.04, 1.04].
+  // Without this refresh the bars compress to a 1-pixel strip on the
+  // left of the preview because viewports[2] is locked at [0.5, 64.5].
+  // We only refresh cells whose viewport still equals the previous default
+  // (i.e. user hasn't pan/zoomed), so interactive panning isn't reset on
+  // every script re-run.
   const lastShapeRef = useRef('');
+  const lastDefaultsRef = useRef([]);
   useEffect(() => {
     const shape = `${figure.id}:${figure.cells.length}:${figure.cells.map((c) => c.kind).join(',')}`;
+    const newDefaults = figure.cells.map(defaultViewport);
     if (shape !== lastShapeRef.current) {
       lastShapeRef.current = shape;
-      setViewports(figure.cells.map(defaultViewport));
+      lastDefaultsRef.current = newDefaults;
+      setViewports(newDefaults);
+      return;
     }
+    // Same shape — refresh per-cell viewports whose previous default
+    // matches the current viewport (== untouched by user pan/zoom).
+    setViewports((prev) => {
+      const next = prev.slice();
+      let changed = false;
+      for (let i = 0; i < figure.cells.length; i++) {
+        const oldDef = lastDefaultsRef.current[i];
+        const newDef = newDefaults[i];
+        if (!sameViewport(oldDef, newDef) && sameViewport(prev[i], oldDef)) {
+          next[i] = newDef;
+          changed = true;
+        }
+      }
+      lastDefaultsRef.current = newDefaults;
+      return changed ? next : prev;
+    });
   }, [figure.id, figure.cells]);
 
   return (
