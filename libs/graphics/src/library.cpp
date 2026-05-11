@@ -6106,24 +6106,97 @@ void GraphicsLibrary::install(Engine &engine)
                 ccs[t].x = (ax2_ay2*(by-cy) + bx2_by2*(cy-ay) + cx2_cy2*(ay-by)) / d;
                 ccs[t].y = (ax2_ay2*(cx-bx) + bx2_by2*(ax-cx) + cx2_cy2*(bx-ax)) / d;
             }
-            // For each ordered triangle pair, check if they share an
-            // edge — if so emit a line segment between their CCs.
-            auto sharesEdge = [&](const std::array<size_t,3> &A,
-                                   const std::array<size_t,3> &B) {
-                int shared = 0;
-                for (auto a : A) for (auto b : B) if (a == b) shared++;
-                return shared == 2;
+            // Compute the input-points extent up-front — we need it
+            // both for clipping unbounded ray endpoints and (later) for
+            // setting xlim/ylim on the axes.
+            double xMin = X[0], xMax = X[0], yMin = Y[0], yMax = Y[0];
+            for (size_t i = 1; i < n; ++i) {
+                if (X[i] < xMin) xMin = X[i];
+                if (X[i] > xMax) xMax = X[i];
+                if (Y[i] < yMin) yMin = Y[i];
+                if (Y[i] > yMax) yMax = Y[i];
+            }
+            const double xPad = std::max(0.1, (xMax - xMin) * 0.1);
+            const double yPad = std::max(0.1, (yMax - yMin) * 0.1);
+            const double clipXLo = xMin - xPad, clipXHi = xMax + xPad;
+            const double clipYLo = yMin - yPad, clipYHi = yMax + yPad;
+
+            // Build edge-to-triangles map. Each Delaunay edge is shared
+            // by exactly 1 triangle (= convex-hull edge → unbounded
+            // Voronoi cell, draw a ray) or 2 triangles (= interior
+            // edge, draw the finite segment between their CCs).
+            std::map<std::pair<size_t, size_t>, std::vector<size_t>> edge2tri;
+            for (size_t t = 0; t < tris.size(); ++t) {
+                const auto &T = tris[t];
+                for (int e = 0; e < 3; ++e) {
+                    size_t u = T[e], v = T[(e + 1) % 3];
+                    if (u > v) std::swap(u, v);
+                    edge2tri[{u, v}].push_back(t);
+                }
+            }
+            // Liang-Barsky line clip to [clipXLo, clipXHi] × [clipYLo, clipYHi].
+            // Returns clipped segment in (xa, ya, xb, yb); false if entirely outside.
+            auto clipSeg = [&](double &xa, double &ya, double &xb, double &yb) {
+                double t0 = 0.0, t1 = 1.0;
+                const double dx = xb - xa, dy = yb - ya;
+                const double p[4] = { -dx, dx, -dy, dy };
+                const double q[4] = { xa - clipXLo, clipXHi - xa,
+                                       ya - clipYLo, clipYHi - ya };
+                for (int i = 0; i < 4; ++i) {
+                    if (std::abs(p[i]) < 1e-15) { if (q[i] < 0) return false; }
+                    else {
+                        const double r = q[i] / p[i];
+                        if (p[i] < 0) { if (r > t1) return false; if (r > t0) t0 = r; }
+                        else          { if (r < t0) return false; if (r < t1) t1 = r; }
+                    }
+                }
+                xb = xa + t1 * dx; yb = ya + t1 * dy;
+                xa = xa + t0 * dx; ya = ya + t0 * dy;
+                return true;
             };
+
             std::ostringstream xs, ys;
             xs << '['; ys << '[';
             bool first = true;
-            for (size_t i = 0; i < tris.size(); ++i) {
-                for (size_t j = i + 1; j < tris.size(); ++j) {
-                    if (!sharesEdge(tris[i], tris[j])) continue;
-                    if (!first) { xs << ",null,"; ys << ",null,"; }
-                    first = false;
-                    xs << ccs[i].x << ',' << ccs[j].x;
-                    ys << ccs[i].y << ',' << ccs[j].y;
+            const auto emit = [&](double xa, double ya, double xb, double yb) {
+                if (!clipSeg(xa, ya, xb, yb)) return;
+                if (!first) { xs << ",null,"; ys << ",null,"; }
+                first = false;
+                xs << xa << ',' << xb;
+                ys << ya << ',' << yb;
+            };
+
+            for (auto &kv : edge2tri) {
+                const size_t u = kv.first.first, v = kv.first.second;
+                const auto &neighbors = kv.second;
+                if (neighbors.size() == 2) {
+                    // Interior edge — bounded segment between two CCs.
+                    const auto &A = ccs[neighbors[0]];
+                    const auto &B = ccs[neighbors[1]];
+                    emit(A.x, A.y, B.x, B.y);
+                } else if (neighbors.size() == 1) {
+                    // Hull edge — unbounded ray from the CC, perpendicular
+                    // to the edge, going AWAY from the third triangle vertex.
+                    const size_t t = neighbors[0];
+                    const auto &T = tris[t];
+                    const size_t third = (T[0] != u && T[0] != v) ? T[0]
+                                       : (T[1] != u && T[1] != v) ? T[1] : T[2];
+                    const double ex = X[v] - X[u], ey = Y[v] - Y[u];
+                    // Perpendicular candidate (one of two normals).
+                    double nx = -ey, ny = ex;
+                    // Make it point AWAY from the third vertex.
+                    const double midX = 0.5 * (X[u] + X[v]);
+                    const double midY = 0.5 * (Y[u] + Y[v]);
+                    const double tx = X[third] - midX;
+                    const double ty = Y[third] - midY;
+                    if (nx * tx + ny * ty > 0) { nx = -nx; ny = -ny; }
+                    // Extend the ray FAR — clipSeg will trim to the bbox.
+                    const double far = (clipXHi - clipXLo) + (clipYHi - clipYLo);
+                    const double nlen = std::sqrt(nx * nx + ny * ny);
+                    if (nlen < 1e-15) continue;
+                    const double endX = ccs[t].x + (nx / nlen) * far;
+                    const double endY = ccs[t].y + (ny / nlen) * far;
+                    emit(ccs[t].x, ccs[t].y, endX, endY);
                 }
             }
             xs << ']'; ys << ']';
@@ -6147,24 +6220,12 @@ void GraphicsLibrary::install(Engine &engine)
                       Span<Value>(outBuf.data(), 1), ctx);
                 fm.currentAxes().holdOn = wasHold;
             }
-            // Clamp the axis to the input-points extent plus a small
-            // margin. Without this, the auto-axis includes far-away
-            // circumcenters from nearly-degenerate triangles and the
-            // visible cell cluster gets squeezed into a corner. MATLAB
-            // does the same — voronoi() bounds the view to the data,
-            // not to every emitted CC.
-            double xMin = X[0], xMax = X[0], yMin = Y[0], yMax = Y[0];
-            for (size_t i = 1; i < n; ++i) {
-                if (X[i] < xMin) xMin = X[i];
-                if (X[i] > xMax) xMax = X[i];
-                if (Y[i] < yMin) yMin = Y[i];
-                if (Y[i] > yMax) yMax = Y[i];
-            }
-            const double xPad = std::max(0.1, (xMax - xMin) * 0.1);
-            const double yPad = std::max(0.1, (yMax - yMin) * 0.1);
+            // Clamp axis to the data extent (computed above as
+            // clipX/Y Lo/Hi). Same range we used for ray clipping —
+            // both come from the input-points bbox plus 10% margin.
             std::ostringstream xlim, ylim;
-            xlim << '[' << (xMin - xPad) << ',' << (xMax + xPad) << ']';
-            ylim << '[' << (yMin - yPad) << ',' << (yMax + yPad) << ']';
+            xlim << '[' << clipXLo << ',' << clipXHi << ']';
+            ylim << '[' << clipYLo << ',' << clipYHi << ']';
             fm.currentAxes().xlimJson = xlim.str();
             fm.currentAxes().ylimJson = ylim.str();
             // scatter() above already called emitModified, clearing the
