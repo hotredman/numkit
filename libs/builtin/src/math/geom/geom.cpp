@@ -7,14 +7,17 @@
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/figure_manager.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <map>
 #include <set>
+#include <sstream>
 #include <vector>
 
 namespace numkit::builtin {
@@ -305,7 +308,12 @@ void polyarea_reg(Span<const Value> args, size_t /*nargout*/,
 // point cloud, in CCW order, with the first vertex repeated at the
 // end (MATLAB convention). Andrew's monotone-chain algorithm:
 // O(N log N) sort + O(N) scan.
-void convhull_reg(Span<const Value> args, size_t /*nargout*/,
+//
+// Auto-plot: when called with nargout == 0 (no LHS), MATLAB plots the
+// hull polygon — `plot(x(k), y(k))`. We mirror that by pushing a line
+// dataset directly through the figure manager so users get the visual
+// without needing to wire up a plot() call.
+void convhull_reg(Span<const Value> args, size_t nargout,
                   Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
@@ -371,7 +379,28 @@ void convhull_reg(Span<const Value> args, size_t /*nargout*/,
     double *dst = out.doubleDataMut();
     for (std::size_t i = 0; i < hull.size(); ++i)
         dst[i] = static_cast<double>(hull[i] + 1);   // 1-based
-    outs[0] = std::move(out);
+    if (nargout > 0) outs[0] = std::move(out);
+
+    // Auto-plot when no LHS — MATLAB convention.
+    if (nargout == 0) {
+        auto &fm = ctx.engine->figureManager();
+        fm.prepareForPlot();
+        std::ostringstream xs, ys;
+        xs << '['; ys << '[';
+        for (std::size_t i = 0; i < hull.size(); ++i) {
+            if (i) { xs << ','; ys << ','; }
+            xs << X[hull[i]];
+            ys << Y[hull[i]];
+        }
+        xs << ']'; ys << ']';
+        DatasetInfo ds;
+        ds.type  = "line";
+        ds.xJson = xs.str();
+        ds.yJson = ys.str();
+        ds.style = "color=#1f77b4";
+        fm.pushDataset(std::move(ds));
+        fm.emitModified();
+    }
 }
 
 // ── histcounts2 ──────────────────────────────────────────────────────
