@@ -1,0 +1,10 @@
+{
+  "name": "signal_firpm",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[b1, err1] = firpm(20, [0 0.4 0.5 1], [1 1 0 0]); b1_1 = b1(1); b1_11 = b1(11);\n[b2, err2] = firpm(30, [0 0.2 0.3 0.6 0.7 1], [0 0 1 1 0 0]); b2_1 = b2(1); b2_16 = b2(16);\n[b3, err3] = firpm(30, [0 0.3 0.4 1], [0 0 1 1]); b3_1 = b3(1); b3_16 = b3(16);\n[b4, err4] = firpm(30, [0 0.2 0.3 0.6 0.7 1], [0 0 1 1 0 0], [10 1 10]); b4_1 = b4(1); b4_16 = b4(16);\n[b5, err5] = firpm(21, [0 0.4 0.5 1], [1 1 0 0]); b5_1 = b5(1); b5_11 = b5(11);\n[b6, err6] = firpm(20, [0.1 0.9], [1 1], 'hilbert'); b6_6 = b6(6); b6_18 = b6(18);\n[b7, err7] = firpm(20, [0 0.9], [0 0.9], 'differentiator'); b7_1 = b7(1); b7_6 = b7(6); b7_15 = b7(15);",
+  "iters": 5,
+  "tol": 1e-3,
+  "fingerprint": ["b1_1", "b1_11", "err1", "b2_1", "b2_16", "b3_1", "b3_16", "b4_1", "b4_16", "err4", "b5_1", "b5_11", "err5", "b6_6", "b6_18", "err6", "b7_1", "b7_6", "b7_15", "err7"],
+  "comment": "MATLAB Signal Toolbox firpm — Parks-McClellan optimal equiripple FIR via Remez exchange. Supports all four linear-phase types + Hilbert + Differentiator (matches MATLAB R2025b firpm.m semantics): Type I (even N, sym, Q=1), Type II (odd N, sym, Q=cos(ω/2)), Type III (even N, anti-sym, Q=sin(ω) — 'hilbert' or 'differentiator'), Type IV (odd N, anti-sym, Q=sin(ω/2)). For differentiator, MATLAB firpmfrf weights non-zero bands by 1/(GF/2) and applies an h-sign flip post-Remez ('make sure differentiator has correct sign' — firpm.m line 152-154). Approximate-equal MATLAB R2025b ~1e-3 across seven probed designs covering Type I LP/BP/HP/weighted + Type II LP + Type III Hilbert + Differentiator. KNOWN GAPS: fresp function-handle form, 3rd `res` output struct, lgrid cell-form override. Octave 11.1.0 ships firpm in the signal package (not core)."
+}

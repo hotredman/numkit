@@ -246,6 +246,16 @@ public:
         std::vector<Value> regSnapshot;
         size_t regStackTop = 0;
         Value lastResult;
+        // BUG #3: outer dispatch loop holds `auto &resolvedFuncs =
+        // chunkCallCache_[frame.chunk];` (a reference into the map's
+        // node memory). startExecution() on the inner re-entry clears
+        // chunkCallCache_, which destroys that node and dangles the
+        // reference. unordered_map move preserves node addresses, so
+        // saving here + restoring on exit keeps the outer's reference
+        // pointing at live memory.
+        std::unordered_map<const BytecodeChunk *,
+                           std::vector<const BytecodeChunk *>>
+            chunkCallCache;
     };
 private:
 

@@ -227,6 +227,354 @@ Value histeq(std::pmr::memory_resource *mr, const Value &I, int n)
 }
 
 // ════════════════════════════════════════════════════════════════════
+// adapthisteq — Contrast Limited Adaptive Histogram Equalisation
+// ════════════════════════════════════════════════════════════════════
+//
+// Faithful port of MATLAB R2025b's adapthisteq.m. The algorithm:
+//
+//   1. Pad image symmetrically so dims divide by numTiles and tile
+//      dims are even.
+//   2. For each of numTiles × numTiles tiles:
+//      a. Build a histogram with NBins bins.
+//      b. Clip + redistribute per MATLAB's two-pass algorithm:
+//           - clipLimit = ceil(N/NBins) + round(normCL·(N - minCL))
+//           - excess = sum(max(h - clipLimit, 0))
+//           - avgBinIncr = floor(excess/NBins)
+//           - per-bin: if > cap, cap; elif > cap - avgIncr, cap +
+//             reduce excess; else add avgIncr.
+//           - second pass: distribute remaining excess 1 pixel at a
+//             time with stepSize = max(floor(N/excess), 1) wrap-around.
+//      c. Compute mapping: m[k] = min(Lo + cumsum[k]·valSpread/N, Hi)
+//         then normalise to [0, 1] by dividing by fullRange.
+//   3. Output assembled by (numTiles+1) × (numTiles+1) "interpolation
+//      tiles" — first/last row/col are half-tile borders that use a
+//      single mapping; the rest interpolate the 4 surrounding tile
+//      mappings via INTEGER-weight bilinear:
+//        out = (rowRevW·(colRevW·ulMap + colW·urMap) +
+//               rowW·(colRevW·blMap + colW·brMap)) / (H · W)
+//      with rowW = 0..H-1 and rowRevW = H..1 inside each integration
+//      tile of size H × W (similar for cols).
+//   4. Strip padding from the output.
+//
+// 2-D greyscale input only — RGB / N-D throw (matches MATLAB).
+Value adapthisteq(std::pmr::memory_resource *mr, const Value &I,
+                  int numTilesR, int numTilesC,
+                  double clipLimit, int nBins,
+                  const std::string &distribution, double /*alpha*/)
+{
+    if (numTilesR < 2 || numTilesC < 2)
+        throw Error("adapthisteq: NumTiles components must each be >= 2",
+                    0, 0, "adapthisteq", "", "m:adapthisteq:badTiles");
+    if (clipLimit < 0.0 || clipLimit > 1.0)
+        throw Error("adapthisteq: ClipLimit must be in [0, 1]",
+                    0, 0, "adapthisteq", "", "m:adapthisteq:badClip");
+    if (nBins < 2)
+        throw Error("adapthisteq: NBins must be >= 2",
+                    0, 0, "adapthisteq", "", "m:adapthisteq:badBins");
+    if (distribution != "uniform")
+        throw Error("adapthisteq: only 'uniform' Distribution supported "
+                    "in this revision (rayleigh / exponential deferred)",
+                    0, 0, "adapthisteq", "", "m:adapthisteq:distDeferred");
+
+    const auto &d = I.dims();
+    if (d.is3D())
+        throw Error("adapthisteq: 2-D grayscale input only",
+                    0, 0, "adapthisteq", "", "m:adapthisteq:unsupportedShape");
+    const size_t R0 = d.rows();
+    const size_t C0 = d.cols();
+    if (R0 == 0 || C0 == 0)
+        return I;
+
+    const size_t TR = static_cast<size_t>(numTilesR);
+    const size_t TC = static_cast<size_t>(numTilesC);
+    if (TR > R0 || TC > C0)
+        throw Error("adapthisteq: NumTiles exceeds image dimensions",
+                    0, 0, "adapthisteq", "", "m:adapthisteq:tilesTooMany");
+
+    // ── Step 1: pad to dims divisible by numTiles AND even tile dims.
+    // MATLAB pads symmetrically with floor/ceil split.
+    auto padFor = [](size_t dim, size_t T) -> std::pair<size_t,size_t> {
+        // pad to make (dim+pad) divisible by T AND (dim+pad)/T even.
+        size_t pad = 0;
+        size_t newDim = dim;
+        if (dim % T != 0) {
+            const size_t tDim = dim / T + 1;
+            pad = tDim * T - dim;
+            newDim = dim + pad;
+        }
+        size_t tileDim = newDim / T;
+        if (tileDim % 2 != 0) {
+            pad += T;  // adding one row/col per tile makes tile-dim even
+        }
+        const size_t pre = pad / 2;
+        const size_t post = pad - pre;
+        return {pre, post};
+    };
+    auto [padRowPre, padRowPost] = padFor(R0, TR);
+    auto [padColPre, padColPost] = padFor(C0, TC);
+    const size_t R = R0 + padRowPre + padRowPost;
+    const size_t C = C0 + padColPre + padColPost;
+    const size_t tileH = R / TR;
+    const size_t tileW = C / TC;
+
+    // Padded image accessor — reflect at the boundary (symmetric pad).
+    auto pixelAt = [&](size_t r, size_t c) -> double {
+        // r,c are in padded space.
+        long long rIn = static_cast<long long>(r) - static_cast<long long>(padRowPre);
+        long long cIn = static_cast<long long>(c) - static_cast<long long>(padColPre);
+        // Reflect.
+        const long long Rl = static_cast<long long>(R0);
+        const long long Cl = static_cast<long long>(C0);
+        if (rIn < 0)         rIn = -rIn - 1;
+        if (rIn >= Rl)       rIn = 2 * Rl - rIn - 1;
+        if (cIn < 0)         cIn = -cIn - 1;
+        if (cIn >= Cl)       cIn = 2 * Cl - cIn - 1;
+        if (rIn < 0) rIn = 0; if (rIn >= Rl) rIn = Rl - 1;
+        if (cIn < 0) cIn = 0; if (cIn >= Cl) cIn = Cl - 1;
+        return element_to_unit(I,
+            static_cast<size_t>(rIn) +
+            static_cast<size_t>(cIn) * static_cast<size_t>(R0));
+    };
+
+    // ── Step 2: compute per-tile mapping LUTs.
+    // numPixInTile = tileH * tileW (uniform; image now divides evenly).
+    // clipLimit (real) = minCL + round(normCL · (N - minCL)),
+    // minCL = ceil(N / NBins).
+    const size_t numPixInTile = tileH * tileW;
+    const int64_t minCL = static_cast<int64_t>(
+        std::ceil(static_cast<double>(numPixInTile) /
+                  static_cast<double>(nBins)));
+    const int64_t cap = minCL + static_cast<int64_t>(
+        std::round(clipLimit *
+                   (static_cast<double>(numPixInTile) - static_cast<double>(minCL))));
+
+    // mapping LUT (TR × TC × nBins). Stored as float[0,1].
+    std::vector<double> lut(TR * TC * nBins);
+
+    for (size_t tr = 0; tr < TR; ++tr) {
+        const size_t r0 = tr * tileH;
+        for (size_t tc = 0; tc < TC; ++tc) {
+            const size_t c0 = tc * tileW;
+
+            // 2a. Histogram.
+            std::vector<int64_t> h(nBins, 0);
+            for (size_t rr = 0; rr < tileH; ++rr)
+                for (size_t cc = 0; cc < tileW; ++cc) {
+                    const double u = pixelAt(r0 + rr, c0 + cc);
+                    if (std::isnan(u)) continue;
+                    int bin = (int)std::round(u * (nBins - 1));
+                    if (bin < 0) bin = 0;
+                    if (bin >= nBins) bin = nBins - 1;
+                    ++h[bin];
+                }
+
+            // 2b. Clip + redistribute per MATLAB clipHistogram().
+            int64_t totalExcess = 0;
+            for (int b = 0; b < nBins; ++b)
+                if (h[b] > cap) totalExcess += (h[b] - cap);
+            const int64_t avgBinIncr = totalExcess / nBins;
+            const int64_t upperLimit = cap - avgBinIncr;
+            // First pass.
+            for (int b = 0; b < nBins; ++b) {
+                if (h[b] > cap) {
+                    h[b] = cap;
+                } else if (h[b] > upperLimit) {
+                    totalExcess -= (cap - h[b]);
+                    h[b] = cap;
+                } else {
+                    totalExcess -= avgBinIncr;
+                    h[b] += avgBinIncr;
+                }
+            }
+            // Second pass: distribute remaining excess 1 pixel at a time.
+            int k = 0;
+            int safety = 0;
+            const int safety_limit = nBins * nBins;
+            while (totalExcess != 0 && safety < safety_limit) {
+                const int64_t stepSize =
+                    std::max<int64_t>(static_cast<int64_t>(nBins) / totalExcess, 1);
+                for (int m = k; m < nBins && totalExcess > 0; m += (int)stepSize) {
+                    if (h[m] < cap) {
+                        h[m] += 1;
+                        --totalExcess;
+                        if (totalExcess == 0) break;
+                    }
+                }
+                if (totalExcess == 0) break;
+                ++k;
+                if (k >= nBins) k = 0;
+                ++safety;
+            }
+
+            // 2c. Mapping: m[k] = cumsum[k] / numPixInTile (clamped to 1).
+            //     For Range='full' / uint8: equivalent to MATLAB
+            //     `min(0 + cumsum*255/N, 255) / 255`.
+            int64_t acc = 0;
+            for (int b = 0; b < nBins; ++b) {
+                acc += h[b];
+                double cdf = static_cast<double>(acc) /
+                             static_cast<double>(numPixInTile);
+                if (cdf > 1.0) cdf = 1.0;
+                lut[(tr * TC + tc) * nBins + b] = cdf;
+            }
+        }
+    }
+
+    // ── Step 3: assemble output via (TR+1) × (TC+1) interpolation tiles.
+    Value outPadded = Value::matrix(R, C, I.type(), mr);
+    // Zero-init via type-aware store.
+    for (size_t i = 0; i < R * C; ++i) store_classed(outPadded, i, 0.0, I.type());
+
+    const size_t halfH = tileH / 2;
+    const size_t halfW = tileW / 2;
+
+    size_t imgTileRow = 0;
+    for (size_t k = 0; k <= TR; ++k) {
+        size_t imgTileNumRows;
+        size_t mapTileR1, mapTileR2;
+        if (k == 0) {
+            imgTileNumRows = halfH;
+            mapTileR1 = 0; mapTileR2 = 0;
+        } else if (k == TR) {
+            imgTileNumRows = halfH;
+            mapTileR1 = TR - 1; mapTileR2 = TR - 1;
+        } else {
+            imgTileNumRows = tileH;
+            mapTileR1 = k - 1; mapTileR2 = k;
+        }
+
+        size_t imgTileCol = 0;
+        for (size_t l = 0; l <= TC; ++l) {
+            size_t imgTileNumCols;
+            size_t mapTileC1, mapTileC2;
+            if (l == 0) {
+                imgTileNumCols = halfW;
+                mapTileC1 = 0; mapTileC2 = 0;
+            } else if (l == TC) {
+                imgTileNumCols = halfW;
+                mapTileC1 = TC - 1; mapTileC2 = TC - 1;
+            } else {
+                imgTileNumCols = tileW;
+                mapTileC1 = l - 1; mapTileC2 = l;
+            }
+
+            const double *ulMap = &lut[(mapTileR1 * TC + mapTileC1) * nBins];
+            const double *urMap = &lut[(mapTileR1 * TC + mapTileC2) * nBins];
+            const double *blMap = &lut[(mapTileR2 * TC + mapTileC1) * nBins];
+            const double *brMap = &lut[(mapTileR2 * TC + mapTileC2) * nBins];
+
+            const double normFactor =
+                static_cast<double>(imgTileNumRows * imgTileNumCols);
+
+            for (size_t rr = 0; rr < imgTileNumRows; ++rr) {
+                const size_t rowW    = rr;
+                const size_t rowRevW = imgTileNumRows - rr;
+                const size_t rOut    = imgTileRow + rr;
+                for (size_t cc = 0; cc < imgTileNumCols; ++cc) {
+                    const size_t colW    = cc;
+                    const size_t colRevW = imgTileNumCols - cc;
+                    const size_t cOut    = imgTileCol + cc;
+
+                    const double u = pixelAt(rOut, cOut);
+                    int bin = (int)std::round(u * (nBins - 1));
+                    if (bin < 0) bin = 0;
+                    if (bin >= nBins) bin = nBins - 1;
+                    // MATLAB's grayxform(imgPixVals, mapTile) quantises
+                    // each of the four LUT lookups to the target class
+                    // BEFORE the weighted sum. Order matters for uint8
+                    // — round-then-bilinear differs from
+                    // bilinear-then-round on rounding boundaries
+                    // (off-by-1 on diagonal pixels). To match, apply
+                    // store_classed per-lookup then read back as
+                    // double, then weighted sum, then final store.
+                    auto qLut = [&](double cdf) -> double {
+                        // Replicate `double(grayxform(imgPixVals, ulMap))`
+                        // semantics: quantise to output class, read back.
+                        switch (I.type()) {
+                            case ValueType::UINT8: {
+                                double w = std::round(cdf * 255.0);
+                                if (w < 0) w = 0; if (w > 255) w = 255;
+                                return w;
+                            }
+                            case ValueType::UINT16: {
+                                double w = std::round(cdf * 65535.0);
+                                if (w < 0) w = 0; if (w > 65535) w = 65535;
+                                return w;
+                            }
+                            case ValueType::INT16: {
+                                double w = std::round(cdf * 65535.0) - 32768.0;
+                                if (w < -32768) w = -32768;
+                                if (w >  32767) w =  32767;
+                                return w;
+                            }
+                            default:
+                                // double / single: no quantisation step.
+                                return cdf;
+                        }
+                    };
+                    const double ul = qLut(ulMap[bin]);
+                    const double ur = qLut(urMap[bin]);
+                    const double bl = qLut(blMap[bin]);
+                    const double br = qLut(brMap[bin]);
+
+                    const double v_int =
+                        ((static_cast<double>(rowRevW) *
+                          (static_cast<double>(colRevW) * ul +
+                           static_cast<double>(colW)    * ur)) +
+                         (static_cast<double>(rowW) *
+                          (static_cast<double>(colRevW) * bl +
+                           static_cast<double>(colW)    * br))) / normFactor;
+                    // v_int is now in the output class's raw integer
+                    // domain (0..255 for uint8 etc.). For double inputs
+                    // it's still in [0, 1]. Write directly.
+                    if (I.type() == ValueType::DOUBLE ||
+                        I.type() == ValueType::SINGLE)
+                    {
+                        store_classed(outPadded, rOut + cOut * R,
+                                      v_int, I.type());
+                    } else {
+                        // Write integer-domain value directly so we
+                        // don't run a second store_classed scaling.
+                        switch (I.type()) {
+                            case ValueType::UINT8:
+                                outPadded.uint8DataMut()[rOut + cOut * R] =
+                                    static_cast<uint8_t>(std::lround(v_int));
+                                break;
+                            case ValueType::UINT16:
+                                outPadded.uint16DataMut()[rOut + cOut * R] =
+                                    static_cast<uint16_t>(std::lround(v_int));
+                                break;
+                            case ValueType::INT16:
+                                outPadded.int16DataMut()[rOut + cOut * R] =
+                                    static_cast<int16_t>(std::lround(v_int));
+                                break;
+                            default:
+                                store_classed(outPadded, rOut + cOut * R,
+                                              v_int, I.type());
+                        }
+                    }
+                }
+            }
+            imgTileCol += imgTileNumCols;
+        }
+        imgTileRow += imgTileNumRows;
+    }
+
+    // ── Step 4: strip padding back to original size.
+    if (padRowPre == 0 && padRowPost == 0 && padColPre == 0 && padColPost == 0)
+        return outPadded;
+    Value out = Value::matrix(R0, C0, I.type(), mr);
+    for (size_t c = 0; c < C0; ++c)
+        for (size_t r = 0; r < R0; ++r) {
+            // Copy via doubles to handle any class.
+            const double v = outPadded.elemAsDouble(
+                (r + padRowPre) + (c + padColPre) * R);
+            store_classed(out, r + c * R0, v, I.type());
+        }
+    return out;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Otsu thresholding
 // ════════════════════════════════════════════════════════════════════
 
@@ -1060,6 +1408,58 @@ void histeq_reg(Span<const Value> args, size_t /*nargout*/,
                     "m:histeq:nargin");
     int n = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 64;
     outs[0] = histeq(ctx.engine->resource(), args[0], n);
+}
+
+void adapthisteq_reg(Span<const Value> args, size_t /*nargout*/,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("adapthisteq: requires (I[, NV-pairs...])",
+                     0, 0, "adapthisteq", "", "m:adapthisteq:nargin");
+
+    int    numTilesR  = 8;
+    int    numTilesC  = 8;
+    double clipLimit  = 0.01;
+    int    nBins      = 256;
+    std::string distribution = "uniform";
+    double alpha      = 0.4;
+
+    auto eqIgnoreCase = [](const std::string &a, const char *b) {
+        if (a.size() != std::strlen(b)) return false;
+        for (size_t i = 0; i < a.size(); ++i)
+            if (std::tolower(a[i]) != std::tolower(b[i])) return false;
+        return true;
+    };
+    for (size_t i = 1; i + 1 < args.size(); i += 2) {
+        if (!args[i].isChar())
+            throw Error("adapthisteq: NV-pair name must be a string",
+                         0, 0, "adapthisteq", "", "m:adapthisteq:badNVName");
+        const std::string key = args[i].toString();
+        const Value &v        = args[i + 1];
+        if (eqIgnoreCase(key, "NumTiles")) {
+            if (v.numel() < 2)
+                throw Error("adapthisteq: NumTiles must be 2-element",
+                             0, 0, "adapthisteq", "", "m:adapthisteq:badNumTiles");
+            numTilesR = (int)v.elemAsDouble(0);
+            numTilesC = (int)v.elemAsDouble(1);
+        } else if (eqIgnoreCase(key, "ClipLimit"))    clipLimit    = v.toScalar();
+        else if (eqIgnoreCase(key, "NBins"))          nBins        = (int)v.toScalar();
+        else if (eqIgnoreCase(key, "Distribution"))   distribution = v.toString();
+        else if (eqIgnoreCase(key, "Alpha"))          alpha        = v.toScalar();
+        else if (eqIgnoreCase(key, "Range")) {
+            const std::string r = v.toString();
+            if (r != "full")
+                throw Error("adapthisteq: Range='" + r + "' deferred "
+                            "(only 'full' supported in this revision)",
+                             0, 0, "adapthisteq", "", "m:adapthisteq:rangeDeferred");
+        } else {
+            throw Error("adapthisteq: unknown NV-pair key '" + key + "'",
+                         0, 0, "adapthisteq", "", "m:adapthisteq:badNVKey");
+        }
+    }
+    outs[0] = adapthisteq(ctx.engine->resource(), args[0],
+                          numTilesR, numTilesC, clipLimit, nBins,
+                          distribution, alpha);
 }
 
 void graythresh_reg(Span<const Value> args, size_t nargout,

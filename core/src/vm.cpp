@@ -175,6 +175,11 @@ std::unique_ptr<VM::PausedState> VM::savePausedState()
     s->tryStack = std::move(tryStack_);
     s->regStackTop = regStackTop_;
     s->lastResult = std::move(lastResult_);
+    // BUG #3: rescue chunkCallCache_ before startExecution clears it.
+    // The outer dispatch loop holds a reference into one of the map's
+    // value vectors; unordered_map move preserves node addresses, so
+    // taking custody here keeps the outer's reference valid.
+    s->chunkCallCache = std::move(chunkCallCache_);
     // Snapshot only the used portion of the register stack
     s->regSnapshot.assign(regStack_.begin(), regStack_.begin() + regStackTop_);
     return s;
@@ -188,6 +193,11 @@ void VM::restorePausedState(std::unique_ptr<PausedState> s)
     tryStack_ = std::move(s->tryStack);
     regStackTop_ = s->regStackTop;
     lastResult_ = std::move(s->lastResult);
+    // BUG #3: restore the outer's call-target cache. The inner's
+    // cache (built up during re-entry) is destroyed by this move-assign;
+    // outer's nodes reclaim their original addresses, so the dispatch
+    // loop's captured `resolvedFuncs` reference becomes live again.
+    chunkCallCache_ = std::move(s->chunkCallCache);
     // Restore registers
     std::copy(s->regSnapshot.begin(), s->regSnapshot.end(), regStack_.begin());
     // Fix R pointers in frames (they pointed into regStack_)
