@@ -21,8 +21,14 @@ namespace numkit::signal {
 /// @see idct
 Value dct(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-/// Inverse Type-II DCT (1-D form).
-/// @copydoc dct(const Value &, std::pmr::memory_resource *)
+/// @brief Inverse Type-II DCT (1-D form).
+///
+/// Exact left-inverse of @ref dct(const Value &, std::pmr::memory_resource *).
+///
+/// @param x   Real 1-D vector (DCT coefficients).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Same-shape DOUBLE vector (reconstructed signal).
+/// @see dct
 Value idct(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// DCT-II with explicit length / axis.
@@ -43,11 +49,19 @@ Value dct(const Value &                x,
           int                          dim,
           std::pmr::memory_resource *  mr = nullptr);
 
-/// Inverse DCT-II with explicit length / axis.
-/// @copydoc dct(const Value &, int, int, std::pmr::memory_resource *)
-Value idct(const Value &                x,
-           int                          n,
-           int                          dim,
-           std::pmr::memory_resource *  mr = nullptr);
+/// @brief Inverse DCT-II with explicit length / axis.
+///
+/// Exact left-inverse of @ref dct(const Value &, int, int, std::pmr::memory_resource *).
+///
+/// @param x    Real input (1-D or 2-D) of DCT coefficients.
+/// @param n    Output length along `dim`. `n <= 0` ≡ use native extent.
+///             `n > axis_len` zero-pads; `n < axis_len` truncates.
+/// @param dim  Axis to transform along. `0` (default) = first non-singleton.
+///             `1` = rows, `2` = columns.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     DOUBLE array with `dim` axis replaced by length `n`.
+/// @see dct
+Value idct(const Value &x, int n, int dim,
+           std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal

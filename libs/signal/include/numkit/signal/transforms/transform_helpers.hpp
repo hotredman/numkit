@@ -43,11 +43,15 @@ Value nextpow2(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @see ifftshift, fft
 Value fftshift(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-/// Inverse of `fftshift` — shift by `floor(extent/2)`.
+/// @brief Inverse of @ref fftshift — shift by `floor(extent/2)`.
 ///
 /// `fftshift` and `ifftshift` are exact inverses for any extent (they
 /// differ only when N is odd; for even N they coincide).
-/// @copydoc fftshift(const Value &, std::pmr::memory_resource *)
+///
+/// @param x   Input array (any shape, any type).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Same-shape and same-type array with elements permuted.
+/// @see fftshift
 Value ifftshift(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// Single-dim `fftshift` — shift only along axis `dim`.
@@ -60,10 +64,13 @@ Value fftshift(const Value &                x,
                int                          dim,
                std::pmr::memory_resource *  mr = nullptr);
 
-/// Single-dim `ifftshift` — inverse of single-dim `fftshift`.
-/// @copydoc fftshift(const Value &, int, std::pmr::memory_resource *)
-Value ifftshift(const Value &                x,
-                int                          dim,
-                std::pmr::memory_resource *  mr = nullptr);
+/// @brief Single-dim `ifftshift` — inverse of single-dim @ref fftshift.
+///
+/// @param x    Input array.
+/// @param dim  Axis (1 = rows, 2 = cols, 3 = pages).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Same-shape array shifted along `dim`.
+Value ifftshift(const Value &x, int dim,
+                std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal
