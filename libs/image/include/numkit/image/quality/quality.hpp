@@ -1,7 +1,6 @@
 // libs/image/include/numkit/image/quality/quality.hpp
 //
-// Image-quality metrics: similarity / error between two same-sized
-// images, plus 2-D summary statistics.
+// Image-quality metrics.
 
 #pragma once
 
@@ -10,62 +9,80 @@
 
 namespace numkit::image {
 
-/// Mean squared error between two images (`err = immse(A, B)`).
+/// @brief Mean squared error (`err = immse(A, B)`).
 ///
-/// @f$ \text{MSE} = \frac{1}{N}\sum_i (A_i - B_i)^2 @f$.
+/// @f$ \text{MSE} = \dfrac{1}{N}\sum_i (A_i - B_i)^2 @f$.
 ///
-/// @param A,B  Same-sized images.
-/// @param mr   Memory resource (nullptr → process default).
-/// @return     Real scalar Value.
-///
+/// @param A   First image.
+/// @param B   Second image (same shape as `A`).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Real scalar MSE.
 /// @see psnr, ssim
 Value immse(const Value &A, const Value &B,
             std::pmr::memory_resource *mr = nullptr);
 
-/// Peak signal-to-noise ratio (`r = psnr(A, B, peak)`).
+/// @brief Peak signal-to-noise ratio (`r = psnr(A, B, peak)`).
 ///
-/// @f$ \text{PSNR} = 10\log_{10}\!\left(\frac{\text{peak}^2}{\text{MSE}(A,B)}\right) @f$
-/// in dB. `peak` defaults to the class maximum: 255 for uint8,
-/// 65535 for uint16, 1.0 for floating point. Pass a positive value
-/// to override.
+/// @f$ \text{PSNR} = 10\log_{10}\!\left(\dfrac{\text{peak}^2}{\text{MSE}(A, B)}\right) @f$
+/// in dB. `peak` defaults to the class maximum: 255 for UINT8, 65535
+/// for UINT16, 1.0 for floating point. Pass a positive value to override.
 ///
-/// @param A,B   Same-sized images.
-/// @param peak  Peak intensity (positive; 0 → use class default).
+/// @param A     First image.
+/// @param B     Second image (same shape as `A`).
+/// @param peak  Peak intensity (positive; 0 → class default).
 /// @param mr    Memory resource (nullptr → process default).
-/// @return      PSNR in dB. Returns +Inf when MSE = 0.
-///
+/// @return      PSNR in dB. Returns `+Inf` when MSE = 0.
 /// @see immse, ssim
 Value psnr(const Value &A, const Value &B, double peak,
            std::pmr::memory_resource *mr = nullptr);
 
-/// Structural similarity index (`r = ssim(A, B)`).
+/// @brief Structural similarity index (`r = ssim(A, B)`).
 ///
-/// Wang–Bovik SSIM with a fixed 11×11 Gaussian window (σ = 1.5)
+/// Wang-Bovik SSIM with a fixed `11 × 11` Gaussian window (σ = 1.5)
 /// and constants `K1 = 0.01`, `K2 = 0.03`. Matches MATLAB R2025b
-/// defaults. Output is a real scalar in roughly [-1, 1] (1 = identical).
+/// defaults. Output is a real scalar in roughly `[-1, 1]` (1 = identical).
 ///
+/// @param A   First image.
+/// @param B   Second image (same shape).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    SSIM scalar.
 /// @see immse, psnr
 Value ssim(const Value &A, const Value &B,
            std::pmr::memory_resource *mr = nullptr);
 
-/// 2-D correlation coefficient (`r = corr2(A, B)`).
+/// @brief 2-D correlation coefficient (`r = corr2(A, B)`).
 ///
-/// Pearson @f$ r @f$ computed over all elements of `A` and `B`
-/// (flattened). Class is converted to double for the computation;
-/// `A` and `B` must have the same `numel`.
+/// Pearson `r` computed over all elements (flattened). Class is
+/// converted to DOUBLE for the computation; `A` and `B` must have the
+/// same `numel`.
+///
+/// @param A   First image.
+/// @param B   Second image (same `numel`).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Pearson correlation scalar.
 Value corr2(const Value &A, const Value &B,
             std::pmr::memory_resource *mr = nullptr);
 
-/// Mean of every element (`m = mean2(A)`).
+/// @brief Mean of every element (`m = mean2(A)`).
 ///
 /// 2-D semantics: higher-dimensional inputs are treated as flat and
 /// averaged element-wise.
+///
+/// @param A   Input image.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Scalar mean.
+/// @see std2
 Value mean2(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
-/// Standard deviation of every element (`s = std2(A)`).
+/// @brief Standard deviation of every element (`s = std2(A)`).
 ///
-/// Normalised by `N − 1` (sample standard deviation), matching
+/// Normalised by `N - 1` (sample standard deviation), matching
 /// MATLAB's `std2`.
+///
+/// @param A   Input image.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Scalar standard deviation.
+/// @see mean2
 Value std2(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::image
