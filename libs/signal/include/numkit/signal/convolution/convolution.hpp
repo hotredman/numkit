@@ -81,8 +81,13 @@ xcorr(const Value &                x,
       const Value &                y,
       std::pmr::memory_resource *  mr = nullptr);
 
-/// Auto-correlation — equivalent to `xcorr(x, x)`.
-/// @copydoc xcorr(const Value &, const Value &, std::pmr::memory_resource *)
+/// @brief Auto-correlation — equivalent to `xcorr(x, x)`.
+///
+/// @param x   Signal (real, row or column).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(c, lags)` — same shape as the two-arg form;
+///            `c` has length `2 · numel(x) - 1`.
+/// @see xcorr(const Value &, const Value &, std::pmr::memory_resource *)
 inline std::tuple<Value, Value>
 xcorr(const Value &x, std::pmr::memory_resource *mr = nullptr)
 {
@@ -105,8 +110,13 @@ xcov(const Value &                x,
      const Value &                y,
      std::pmr::memory_resource *  mr = nullptr);
 
-/// Auto-covariance — equivalent to `xcov(x, x)`.
-/// @copydoc xcov(const Value &, const Value &, std::pmr::memory_resource *)
+/// @brief Auto-covariance — equivalent to `xcov(x, x)`.
+///
+/// @param x   Signal (real, row or column).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(c, lags)` — DC-removed auto-correlation; same
+///            shape as the two-arg form.
+/// @see xcov(const Value &, const Value &, std::pmr::memory_resource *)
 inline std::tuple<Value, Value>
 xcov(const Value &x, std::pmr::memory_resource *mr = nullptr)
 {

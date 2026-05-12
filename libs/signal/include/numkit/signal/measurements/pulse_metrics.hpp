@@ -67,11 +67,17 @@ Value risetime(const Value &                x,
                const Value &                fs = Value::Empty,
                std::pmr::memory_resource *  mr = nullptr);
 
-/// Fall time of negative-going transitions (90% → 10%).
-/// @copydoc risetime
-Value falltime(const Value &                x,
-               const Value &                fs = Value::Empty,
-               std::pmr::memory_resource *  mr = nullptr);
+/// @brief Fall time of negative-going transitions (90% → 10%).
+///
+/// Mirror of @ref risetime for downward transitions.
+///
+/// @param x   Real 1-D signal.
+/// @param fs  Sample rate in Hz. `Value::Empty` → samples.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Column vector of fall times; one per detected transition.
+/// @see risetime, slewrate
+Value falltime(const Value &x, const Value &fs = Value::Empty,
+               std::pmr::memory_resource *mr = nullptr);
 
 /// Slew rate of each transition.
 ///
@@ -88,20 +94,30 @@ Value slewrate(const Value &                x,
                const Value &                fs = Value::Empty,
                std::pmr::memory_resource *  mr = nullptr);
 
-/// Percent overshoot above the upper state for each positive transition.
+/// @brief Percent overshoot above the upper state.
 ///
-/// @return Column vector of percentages — e.g. `5.0` ≡ 5% above the
-///         upper state level.
-/// @copydoc risetime
-Value overshoot(const Value &                x,
-                const Value &                fs = Value::Empty,
-                std::pmr::memory_resource *  mr = nullptr);
+/// One entry per positive-going transition. `5.0` ≡ 5% above the
+/// upper state level.
+///
+/// @param x   Real 1-D signal.
+/// @param fs  Sample rate in Hz. `Value::Empty` → samples.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Column vector of percentages, one per transition.
+/// @see undershoot, settlingtime
+Value overshoot(const Value &x, const Value &fs = Value::Empty,
+                std::pmr::memory_resource *mr = nullptr);
 
-/// Percent undershoot below the lower state level.
-/// @copydoc overshoot
-Value undershoot(const Value &                x,
-                 const Value &                fs = Value::Empty,
-                 std::pmr::memory_resource *  mr = nullptr);
+/// @brief Percent undershoot below the lower state level.
+///
+/// Mirror of @ref overshoot for downward transitions.
+///
+/// @param x   Real 1-D signal.
+/// @param fs  Sample rate in Hz. `Value::Empty` → samples.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Column vector of percentages.
+/// @see overshoot
+Value undershoot(const Value &x, const Value &fs = Value::Empty,
+                 std::pmr::memory_resource *mr = nullptr);
 
 /// Settling time of each transition.
 ///
@@ -132,17 +148,25 @@ Value pulsewidth(const Value &                x,
                  const Value &                fs = Value::Empty,
                  std::pmr::memory_resource *  mr = nullptr);
 
-/// Period between consecutive same-direction crossings of the mid-state.
-/// @copydoc pulsewidth
-Value pulseperiod(const Value &                x,
-                  const Value &                fs = Value::Empty,
-                  std::pmr::memory_resource *  mr = nullptr);
+/// @brief Period between consecutive same-direction mid-state crossings.
+///
+/// @param x   Real 1-D signal.
+/// @param fs  Sample rate in Hz. `Value::Empty` → samples.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Column vector of periods, one per consecutive pulse pair.
+/// @see pulsewidth, dutycycle
+Value pulseperiod(const Value &x, const Value &fs = Value::Empty,
+                  std::pmr::memory_resource *mr = nullptr);
 
-/// Separation between consecutive pulses (time below mid-state).
-/// @copydoc pulsewidth
-Value pulsesep(const Value &                x,
-               const Value &                fs = Value::Empty,
-               std::pmr::memory_resource *  mr = nullptr);
+/// @brief Separation between consecutive pulses (time below mid-state).
+///
+/// @param x   Real 1-D signal.
+/// @param fs  Sample rate in Hz. `Value::Empty` → samples.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Column vector of separations.
+/// @see pulsewidth, pulseperiod
+Value pulsesep(const Value &x, const Value &fs = Value::Empty,
+               std::pmr::memory_resource *mr = nullptr);
 
 /// Duty cycle: fraction of each pulse period spent above the mid-state.
 ///
