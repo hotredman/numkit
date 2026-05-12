@@ -589,7 +589,7 @@ Value normxcorr2(std::pmr::memory_resource *mr,
             ard[(mW - 1 - c) * mH + (mH - 1 - r)] = ad[c * mH + r];
 
     // Numerator: conv2(b, ar, 'full').
-    Value c_num = signal::conv2(mr, b, ar, "full");
+    Value c_num = signal::conv2(b, ar, "full", mr);
 
     // Denominator pieces use a1 = ones(size(a)).
     Value a1 = Value::matrix(mH, mW, ValueType::DOUBLE, mr);
@@ -601,8 +601,8 @@ Value normxcorr2(std::pmr::memory_resource *mr,
     double *bsd = b_sq.doubleDataMut();
     for (size_t i = 0; i < bH * bW; ++i) bsd[i] = bd[i] * bd[i];
 
-    Value sum_b_sq = signal::conv2(mr, b_sq, a1, "full");
-    Value sum_b    = signal::conv2(mr, b,    a1, "full");
+    Value sum_b_sq = signal::conv2(b_sq, a1, "full", mr);
+    Value sum_b    = signal::conv2(b, a1, "full", mr);
 
     // c_denom = sum_b_sq - sum_b.^2 / mN (clamped at 0).
     const size_t outH = bH + mH - 1;

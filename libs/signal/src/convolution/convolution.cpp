@@ -19,7 +19,7 @@
 namespace numkit::signal {
 
 // ── conv ──────────────────────────────────────────────────────────────
-Value conv(std::pmr::memory_resource *mr, const Value &a, const Value &b, const std::string &shape)
+Value conv(const Value &a, const Value &b, const std::string &shape, std::pmr::memory_resource *mr)
 {
     const size_t na = a.numel(), nb = b.numel();
 
@@ -49,7 +49,7 @@ Value conv(std::pmr::memory_resource *mr, const Value &a, const Value &b, const 
 
 // ── deconv ────────────────────────────────────────────────────────────
 std::tuple<Value, Value>
-deconv(std::pmr::memory_resource *mr, const Value &b, const Value &a)
+deconv(const Value &b, const Value &a, std::pmr::memory_resource *mr)
 {
     const size_t nb = b.numel(), na = a.numel();
     if (na > nb)
@@ -87,7 +87,7 @@ deconv(std::pmr::memory_resource *mr, const Value &b, const Value &a)
 
 // ── xcorr ─────────────────────────────────────────────────────────────
 std::tuple<Value, Value>
-xcorr(std::pmr::memory_resource *mr, const Value &x, const Value &y)
+xcorr(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 {
     const double *xd = x.doubleData();
     const size_t nx = x.numel();
@@ -120,7 +120,7 @@ xcorr(std::pmr::memory_resource *mr, const Value &x, const Value &y)
 
 // ── Pack 36: xcov ────────────────────────────────────────────────────
 std::tuple<Value, Value>
-xcov(std::pmr::memory_resource *mr, const Value &x, const Value &y)
+xcov(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 {
     // xcov = xcorr on the centered signals.
     auto centerInPlace = [mr](const Value &v) -> Value {
@@ -137,7 +137,7 @@ xcov(std::pmr::memory_resource *mr, const Value &x, const Value &y)
     };
     Value xc = centerInPlace(x);
     Value yc = centerInPlace(y);
-    return xcorr(mr, xc, yc);
+    return xcorr(xc, yc, mr);
 }
 
 // ── Pack 36: conv2 / filter2 / convn ─────────────────────────────────
@@ -171,10 +171,7 @@ void conv2Direct(const double *A, size_t M, size_t N,
 // Returns a fresh Value sized appropriately. fullR/fullC are dims of
 // the full result; A is the first input (size M×N), B is the second
 // (size P×Q).
-Value cropConv2(std::pmr::memory_resource *mr, const double *full,
-                size_t fullR, size_t fullC,
-                size_t M, size_t N, size_t P, size_t Q,
-                const std::string &shape)
+Value cropConv2(const double *full, size_t fullR, size_t fullC, size_t M, size_t N, size_t P, size_t Q, const std::string &shape, std::pmr::memory_resource *mr)
 {
     if (shape == "full") {
         auto out = Value::matrix(fullR, fullC, ValueType::DOUBLE, mr);
@@ -225,9 +222,7 @@ void requireDouble2D(const Value &v, const char *name)
 
 } // namespace
 
-Value conv2(std::pmr::memory_resource *mr,
-            const Value &A, const Value &B,
-            const std::string &shape)
+Value conv2(const Value &A, const Value &B, const std::string &shape, std::pmr::memory_resource *mr)
 {
     requireDouble2D(A, "conv2");
     requireDouble2D(B, "conv2");
@@ -243,12 +238,10 @@ Value conv2(std::pmr::memory_resource *mr,
     ScratchVec<double> full(fullR * fullC, &scratch);
     conv2Direct(A.doubleData(), M, N, B.doubleData(), P, Q, full.data());
 
-    return cropConv2(mr, full.data(), fullR, fullC, M, N, P, Q, shape);
+    return cropConv2(full.data(), fullR, fullC, M, N, P, Q, shape, mr);
 }
 
-Value filter2(std::pmr::memory_resource *mr,
-              const Value &h, const Value &X,
-              const std::string &shape)
+Value filter2(const Value &h, const Value &X, const std::string &shape, std::pmr::memory_resource *mr)
 {
     requireDouble2D(h, "filter2");
     requireDouble2D(X, "filter2");
@@ -262,12 +255,10 @@ Value filter2(std::pmr::memory_resource *mr,
     for (size_t j = 0; j < Q; ++j)
         for (size_t i = 0; i < P; ++i)
             dst[j * P + i] = src[(Q - 1 - j) * P + (P - 1 - i)];
-    return conv2(mr, X, hf, shape);
+    return conv2(X, hf, shape, mr);
 }
 
-Value convn(std::pmr::memory_resource *mr,
-            const Value &A, const Value &B,
-            const std::string &shape)
+Value convn(const Value &A, const Value &B, const std::string &shape, std::pmr::memory_resource *mr)
 {
     if (A.type() != ValueType::DOUBLE || B.type() != ValueType::DOUBLE)
         throw Error("convn: only DOUBLE inputs are supported",
@@ -275,10 +266,10 @@ Value convn(std::pmr::memory_resource *mr,
     const int da = A.dims().ndim(), db = B.dims().ndim();
     const int nd = std::max(da, db);
     if (nd <= 1) {
-        return conv(mr, A, B, shape);
+        return conv(A, B, shape, mr);
     }
     if (nd == 2) {
-        return conv2(mr, A, B, shape);
+        return conv2(A, B, shape, mr);
     }
     if (nd != 3) {
         throw Error("convn: only 1-D, 2-D, 3-D inputs supported",
@@ -375,7 +366,7 @@ void conv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.size() >= 3 && args[2].isChar())
         shape = args[2].toString();
 
-    outs[0] = conv(ctx.engine->resource(), args[0], args[1], shape);
+    outs[0] = conv(args[0], args[1], shape, ctx.engine->resource());
 }
 
 void deconv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -384,7 +375,7 @@ void deconv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
         throw Error("deconv: requires 2 arguments",
                      0, 0, "deconv", "", "m:deconv:nargin");
 
-    auto [q, r] = deconv(ctx.engine->resource(), args[0], args[1]);
+    auto [q, r] = deconv(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(q);
     if (nargout > 1)
         outs[1] = std::move(r);
@@ -402,8 +393,8 @@ void xcorr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     const bool autoCorr = (args.size() < 2 || args[1].isChar());
 
     std::tuple<Value, Value> result = autoCorr
-        ? xcorr(ctx.engine->resource(), args[0])
-        : xcorr(ctx.engine->resource(), args[0], args[1]);
+        ? xcorr(args[0], ctx.engine->resource())
+        : xcorr(args[0], args[1], ctx.engine->resource());
 
     outs[0] = std::move(std::get<0>(result));
     if (nargout > 1)
@@ -418,8 +409,8 @@ void xcov_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                      0, 0, "xcov", "", "m:xcov:nargin");
     auto *mr = ctx.engine->resource();
     auto result = (args.size() >= 2)
-        ? xcov(mr, args[0], args[1])
-        : xcov(mr, args[0]);
+        ? xcov(args[0], args[1], mr)
+        : xcov(args[0], mr);
     outs[0] = std::move(std::get<0>(result));
     if (nargout > 1) outs[1] = std::move(std::get<1>(result));
 }
@@ -433,7 +424,7 @@ void conv2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     std::string shape = "full";
     if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
         shape = args[2].toString();
-    outs[0] = conv2(ctx.engine->resource(), args[0], args[1], shape);
+    outs[0] = conv2(args[0], args[1], shape, ctx.engine->resource());
 }
 
 void filter2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -445,7 +436,7 @@ void filter2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     std::string shape = "same";
     if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
         shape = args[2].toString();
-    outs[0] = filter2(ctx.engine->resource(), args[0], args[1], shape);
+    outs[0] = filter2(args[0], args[1], shape, ctx.engine->resource());
 }
 
 void convn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -457,7 +448,7 @@ void convn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     std::string shape = "full";
     if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
         shape = args[2].toString();
-    outs[0] = convn(ctx.engine->resource(), args[0], args[1], shape);
+    outs[0] = convn(args[0], args[1], shape, ctx.engine->resource());
 }
 
 } // namespace detail

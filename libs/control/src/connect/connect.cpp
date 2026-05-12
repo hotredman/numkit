@@ -98,7 +98,7 @@ std::vector<double> polyMul(std::pmr::memory_resource *mr,
     if (a.empty() || b.empty()) return {};
     Value av = rowOf(mr, a);
     Value bv = rowOf(mr, b);
-    Value y = signal::conv(mr, av, bv, "full");
+    Value y = signal::conv(av, bv, "full", mr);
     return coeffsReal(y);
 }
 
