@@ -120,10 +120,14 @@ SERVER_BASED_SEARCH    = NO
 # ── Math rendering: MathJax for HTML ─────────────────────────────────
 # Renders @f$...@f$ formulas client-side in the browser. Requires no
 # extra installation — MathJax loads from CDN by default.
+#
+# NB: Doxygen 1.17 appends `es5/<format>.js` itself, so MATHJAX_RELPATH
+# must end at `mathjax@3/` (NOT `mathjax@3/es5/`) — otherwise the URL
+# becomes `.../es5/es5/tex-chtml.js` (404).
 USE_MATHJAX            = YES
 MATHJAX_VERSION        = MathJax_3
 MATHJAX_FORMAT         = HTML-CSS
-MATHJAX_RELPATH        = https://cdn.jsdelivr.net/npm/mathjax@3/es5/
+MATHJAX_RELPATH        = https://cdn.jsdelivr.net/npm/mathjax@3/
 
 # ── LaTeX / PDF output ───────────────────────────────────────────────
 # Builds a reference PDF via pdflatex. Requires MiKTeX (Windows) or
