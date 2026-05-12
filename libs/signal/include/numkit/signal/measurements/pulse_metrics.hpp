@@ -38,49 +38,49 @@ Value statelevels(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// reference level (linearly interpolated). Returns a column vector
 /// (length depends on the data). With fs=NULL, times are sample
 /// indices (1-based, fractional).
-Value midcross(const Value &x, const Value *fs = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value midcross(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 
 /// risetime(x[, fs]) — duration of the lower-to-upper state boundary
 /// transitions (10% → 90% by default). Returns a column vector with
 /// one entry per detected positive-going transition; empty if none.
-Value risetime(const Value &x, const Value *fs = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value risetime(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 
 /// falltime(x[, fs]) — duration of upper-to-lower state boundary
 /// transitions (90% → 10%). Returns column vector; empty if none.
-Value falltime(const Value &x, const Value *fs = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value falltime(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 
 /// slewrate(x[, fs]) — slope of each transition: (upper - lower) /
 /// transition_duration, sign matches direction. Column vector.
-Value slewrate(const Value &x, const Value *fs = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value slewrate(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 
 /// overshoot(x[, fs]) — percent overshoot above the upper state level
 /// for each positive-going transition. Returned as a column vector of
 /// percentages (e.g. 5.0 means 5% above the upper level).
-Value overshoot(const Value &x, const Value *fs = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value overshoot(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 
 /// undershoot(x[, fs]) — percent undershoot below the lower state
 /// level. Column vector.
-Value undershoot(const Value &x, const Value *fs = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value undershoot(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 
 /// settlingtime(x[, fs, tol]) — time from the start of each transition
 /// until x stays within `tol` (default 2%) of the destination state.
 /// Column vector.
-Value settlingtime(const Value &x, const Value *fs = nullptr, double tol = 0.02, std::pmr::memory_resource *mr = nullptr);
+Value settlingtime(const Value &x, const Value &fs = Value::Empty, double tol = 0.02, std::pmr::memory_resource *mr = nullptr);
 
 /// pulsewidth(x[, fs]) — duration each pulse stays above the mid-state.
 /// Column vector with one entry per pulse.
-Value pulsewidth(const Value &x, const Value *fs = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value pulsewidth(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 
 /// pulseperiod(x[, fs]) — period between consecutive same-direction
 /// crossings of the mid-state. Column vector.
-Value pulseperiod(const Value &x, const Value *fs = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value pulseperiod(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 
 /// pulsesep(x[, fs]) — separation between consecutive pulses (the
 /// time spent below the mid-state between two pulses). Column vector.
-Value pulsesep(const Value &x, const Value *fs = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value pulsesep(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 
 /// dutycycle(x[, fs]) — fraction (0..1) of each pulse period spent
 /// above the mid-state. Column vector with one entry per period.
-Value dutycycle(const Value &x, const Value *fs = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value dutycycle(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal

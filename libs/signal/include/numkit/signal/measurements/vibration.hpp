@@ -28,7 +28,7 @@ envspectrum(const Value &x, double fs = 0.0, std::pmr::memory_resource *mr = nul
 /// Returns (rpm, t_pulse) — rpm[i] is the RPM at the i-th detected
 /// pulse, t_pulse[i] the time stamp.
 std::tuple<Value, Value>
-tachorpm(const Value &x, double fs, const Value *threshold = nullptr, int ppr = 1, std::pmr::memory_resource *mr = nullptr);
+tachorpm(const Value &x, double fs, const Value &threshold = Value::Empty, int ppr = 1, std::pmr::memory_resource *mr = nullptr);
 
 /// rainflow(x) — ASTM E1049-85 cycle counting on the input signal.
 /// Returns a matrix [count, range, mean] with one row per counted

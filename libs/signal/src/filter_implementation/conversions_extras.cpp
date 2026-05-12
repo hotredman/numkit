@@ -362,7 +362,7 @@ Value ss2sos(const Value &A, const Value &B, const Value &C, const Value &D, std
 // Loops over each section: tf2zpk(NUM(i,:), DEN(i,:)) → accumulate.
 // Final gain = prod(SV) * prod(per-section gains).
 std::tuple<Value, Value, double>
-ctf2zp(const Value &NUM, const Value &DEN, const Value *SV, std::pmr::memory_resource *mr)
+ctf2zp(const Value &NUM, const Value &DEN, const Value &SV, std::pmr::memory_resource *mr)
 {
     // Vector inputs → reshape to single-row "section".
     auto rowsOf = [](const Value &v) -> std::size_t {
@@ -380,14 +380,14 @@ ctf2zp(const Value &NUM, const Value &DEN, const Value *SV, std::pmr::memory_res
 
     // SV defaults to 1 if not provided.
     std::vector<double> sv;
-    if (SV == nullptr || SV->isEmpty()) {
+    if (SV.isEmpty() || SV.isEmpty()) {
         sv.assign(K + 1, 1.0);
-    } else if (SV->numel() == 1) {
+    } else if (SV.numel() == 1) {
         sv.assign(K + 1, 1.0);
-        sv[0] = SV->toScalar();  // overall gain in first slot — others stay 1.
-    } else if (SV->numel() == K + 1) {
+        sv[0] = SV.toScalar();  // overall gain in first slot — others stay 1.
+    } else if (SV.numel() == K + 1) {
         sv.resize(K + 1);
-        for (std::size_t i = 0; i <= K; ++i) sv[i] = SV->elemAsDouble(i);
+        for (std::size_t i = 0; i <= K; ++i) sv[i] = SV.elemAsDouble(i);
     } else {
         throw Error("ctf2zp: SV must be scalar or K+1 vector",
                     0, 0, "ctf2zp", "", "m:ctf2zp:invalidSVDims");
@@ -626,7 +626,7 @@ void ctf2zp_reg(Span<const Value> args, size_t nargout,
                     0, 0, "ctf2zp", "", "m:ctf2zp:nargin");
     auto *mr = ctx.engine->resource();
     Value DEN = (args.size() >= 2) ? args[1] : Value::scalar(1.0, mr);
-    const Value *SV = (args.size() >= 3) ? &args[2] : nullptr;
+    const Value &SV = (args.size() >= 3) ? args[2] : Value::Empty;
     auto [Z, P, k] = ctf2zp(args[0], DEN, SV, mr);
     outs[0] = std::move(Z);
     if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(P);

@@ -40,7 +40,7 @@ tf2zpk(const Value &b, const Value &a, std::pmr::memory_resource *mr = nullptr);
 /// SV (scalar or K+1 vector) optional scale values; defaults to 1.
 /// Returns (Z, P, K_gain).
 std::tuple<Value, Value, double>
-ctf2zp(const Value &NUM, const Value &DEN, const Value *SV = nullptr, std::pmr::memory_resource *mr = nullptr);
+ctf2zp(const Value &NUM, const Value &DEN, const Value &SV = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 
 /// scaleFilterSections(CTFNum, SV) — scale numerator coefficients of a
 /// cascaded-transfer-function NUM matrix by per-section scale values.

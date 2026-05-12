@@ -89,13 +89,13 @@ envspectrum(const Value &x, double fs, std::pmr::memory_resource *mr)
 
 std::tuple<Value, Value>
 tachorpm(const Value &x, double fs,
-         const Value *threshold, int ppr, std::pmr::memory_resource *mr)
+         const Value &threshold, int ppr, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     const size_t N = v.size();
     double thr;
-    if (threshold && !threshold->isEmpty()) {
-        thr = threshold->toScalar();
+    if (!threshold.isEmpty()) {
+        thr = threshold.toScalar();
     } else {
         double lo = v.empty() ? 0.0 : v[0], hi = lo;
         for (double y : v) { if (y < lo) lo = y; if (y > hi) hi = y; }
@@ -297,7 +297,7 @@ void tachorpm_reg(Span<const Value> args, size_t nargout,
         throw Error("tachorpm: requires (x, fs[, threshold[, ppr]])",
                      0, 0, "tachorpm", "", "m:tachorpm:nargin");
     const double fs = args[1].toScalar();
-    const Value *thr = (args.size() >= 3 && !args[2].isEmpty()) ? &args[2] : nullptr;
+    const Value &thr = (args.size() >= 3) ? args[2] : Value::Empty;
     int ppr = 1;
     if (args.size() >= 4 && !args[3].isEmpty()) ppr = static_cast<int>(args[3].toScalar());
     auto [rpm, t] = tachorpm(args[0], fs, thr, ppr, ctx.engine->resource());
