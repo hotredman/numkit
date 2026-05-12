@@ -103,7 +103,7 @@ ScratchVec<double> ampl_fir(std::pmr::memory_resource *mr,
     auto x = read_real(x_centered, mr);
 
     // Kaiser window via numkit::signal::kaiser (returns Value 1×n).
-    Value kw = numkit::signal::kaiser(mr, n, 8.0);
+    Value kw = numkit::signal::kaiser(n, 8.0, mr);
     const double *kd = kw.doubleData();
 
     // hfilt[k] = sinc(t_k) · exp(iπ·t_k), windowed.

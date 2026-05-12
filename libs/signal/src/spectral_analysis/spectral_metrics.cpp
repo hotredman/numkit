@@ -387,7 +387,7 @@ namespace {
 PsdPair computePsdKaiser(std::pmr::memory_resource *mr, const Value &x, double fs)
 {
     // Build Kaiser(beta=38) window of length numel(x).
-    Value win = kaiser(mr, x.numel(), 38.0);
+    Value win = kaiser(x.numel(), 38.0, mr);
     auto [Pxx, F] = periodogram(mr, x, win, /*nfft=*/0);
     const size_t n = Pxx.numel();
     PsdPair p;

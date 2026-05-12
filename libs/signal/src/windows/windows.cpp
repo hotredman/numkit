@@ -50,7 +50,7 @@ double chebyT(int n, double x)
 } // anonymous namespace
 
 // ── hamming ───────────────────────────────────────────────────────────
-Value hamming(std::pmr::memory_resource *mr, size_t N)
+Value hamming(size_t N, std::pmr::memory_resource *mr)
 {
     auto r = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
@@ -63,7 +63,7 @@ Value hamming(std::pmr::memory_resource *mr, size_t N)
 }
 
 // ── hann ──────────────────────────────────────────────────────────────
-Value hann(std::pmr::memory_resource *mr, size_t N)
+Value hann(size_t N, std::pmr::memory_resource *mr)
 {
     auto r = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
@@ -76,7 +76,7 @@ Value hann(std::pmr::memory_resource *mr, size_t N)
 }
 
 // ── blackman ──────────────────────────────────────────────────────────
-Value blackman(std::pmr::memory_resource *mr, size_t N)
+Value blackman(size_t N, std::pmr::memory_resource *mr)
 {
     auto r = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
@@ -91,7 +91,7 @@ Value blackman(std::pmr::memory_resource *mr, size_t N)
 }
 
 // ── kaiser ────────────────────────────────────────────────────────────
-Value kaiser(std::pmr::memory_resource *mr, size_t N, double beta)
+Value kaiser(size_t N, double beta, std::pmr::memory_resource *mr)
 {
     auto r = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
@@ -107,7 +107,7 @@ Value kaiser(std::pmr::memory_resource *mr, size_t N, double beta)
 }
 
 // ── rectwin ───────────────────────────────────────────────────────────
-Value rectwin(std::pmr::memory_resource *mr, size_t N)
+Value rectwin(size_t N, std::pmr::memory_resource *mr)
 {
     auto r = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < N; ++i)
@@ -116,7 +116,7 @@ Value rectwin(std::pmr::memory_resource *mr, size_t N)
 }
 
 // ── bartlett ──────────────────────────────────────────────────────────
-Value bartlett(std::pmr::memory_resource *mr, size_t N)
+Value bartlett(size_t N, std::pmr::memory_resource *mr)
 {
     auto r = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
@@ -133,7 +133,7 @@ Value bartlett(std::pmr::memory_resource *mr, size_t N)
 // Differs from bartlett: endpoints are non-zero. Even-N formula uses
 // 1 - |2k - (N-1)| / N; odd-N uses 1 - |2k - (N-1)| / (N+1) (matches
 // MATLAB's `triang` reference output).
-Value triang(std::pmr::memory_resource *mr, size_t N)
+Value triang(size_t N, std::pmr::memory_resource *mr)
 {
     auto r = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
@@ -155,7 +155,7 @@ Value triang(std::pmr::memory_resource *mr, size_t N)
 }
 
 // ── tukeywin ──────────────────────────────────────────────────────────
-Value tukeywin(std::pmr::memory_resource *mr, size_t N, double r)
+Value tukeywin(size_t N, double r, std::pmr::memory_resource *mr)
 {
     if (r < 0.0) r = 0.0;
     if (r > 1.0) r = 1.0;
@@ -187,7 +187,7 @@ Value tukeywin(std::pmr::memory_resource *mr, size_t N, double r)
 
 // ── flattopwin ────────────────────────────────────────────────────────
 // Matlab "symmetric" 5-term coefficients (R2018b reference).
-Value flattopwin(std::pmr::memory_resource *mr, size_t N)
+Value flattopwin(size_t N, std::pmr::memory_resource *mr)
 {
     auto out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
@@ -210,7 +210,7 @@ Value flattopwin(std::pmr::memory_resource *mr, size_t N)
 }
 
 // ── gausswin ──────────────────────────────────────────────────────────
-Value gausswin(std::pmr::memory_resource *mr, size_t N, double alpha)
+Value gausswin(size_t N, double alpha, std::pmr::memory_resource *mr)
 {
     if (alpha <= 0)
         throw Error("gausswin: alpha must be positive",
@@ -251,7 +251,7 @@ Value gausswin(std::pmr::memory_resource *mr, size_t N, double alpha)
 // Direct O(N²) — windows are small (N ≤ ~few thousand). Replaces the
 // previous FFT-based path that was numerically fragile on even N
 // (degenerate all-ones output) due to a half-bin offset bug.
-Value chebwin(std::pmr::memory_resource *mr, size_t N, double at)
+Value chebwin(size_t N, double at, std::pmr::memory_resource *mr)
 {
     if (at <= 0)
         throw Error("chebwin: at must be positive (sidelobe attenuation in dB)",
@@ -308,7 +308,7 @@ Value chebwin(std::pmr::memory_resource *mr, size_t N, double at)
 
 // ── parzenwin ─────────────────────────────────────────────────────────
 // Piecewise cubic, defined symmetrically around the centre.
-Value parzenwin(std::pmr::memory_resource *mr, size_t N)
+Value parzenwin(size_t N, std::pmr::memory_resource *mr)
 {
     auto out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
@@ -333,7 +333,7 @@ Value parzenwin(std::pmr::memory_resource *mr, size_t N)
 
 // ── nuttallwin ────────────────────────────────────────────────────────
 // 4-term, "minimum 4-term" Nuttall coefficients (matches MATLAB default).
-Value nuttallwin(std::pmr::memory_resource *mr, size_t N)
+Value nuttallwin(size_t N, std::pmr::memory_resource *mr)
 {
     auto out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
@@ -370,7 +370,7 @@ Value nuttallwin(std::pmr::memory_resource *mr, size_t N)
 // Bug fix 2026-05-08: previous impl used (-1)^m sign instead of
 // (-1)^(m+1), inverting the window (peak at edges, dip at centre);
 // also wrongly normalised peak to 1.
-Value taylorwin(std::pmr::memory_resource *mr, size_t N, int nbar, double sll)
+Value taylorwin(size_t N, int nbar, double sll, std::pmr::memory_resource *mr)
 {
     if (sll >= 0)
         throw Error("taylorwin: sll must be negative (peak sidelobe in dB)",
@@ -420,7 +420,7 @@ Value taylorwin(std::pmr::memory_resource *mr, size_t N, int nbar, double sll)
 }
 
 // ── blackmanharris ────────────────────────────────────────────────────
-Value blackmanharris(std::pmr::memory_resource *mr, size_t N)
+Value blackmanharris(size_t N, std::pmr::memory_resource *mr)
 {
     auto out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
@@ -442,7 +442,7 @@ Value blackmanharris(std::pmr::memory_resource *mr, size_t N)
 }
 
 // ── bohmanwin ─────────────────────────────────────────────────────────
-Value bohmanwin(std::pmr::memory_resource *mr, size_t N)
+Value bohmanwin(size_t N, std::pmr::memory_resource *mr)
 {
     auto out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
@@ -464,7 +464,7 @@ Value bohmanwin(std::pmr::memory_resource *mr, size_t N)
 }
 
 // ── barthannwin ───────────────────────────────────────────────────────
-Value barthannwin(std::pmr::memory_resource *mr, size_t N)
+Value barthannwin(size_t N, std::pmr::memory_resource *mr)
 {
     auto out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
@@ -507,7 +507,7 @@ size_t parseSflag(Span<const Value> args, bool &periodic)
 // symmetric variant, the MATLAB periodic variant is the first N samples
 // of f(N+1). This avoids modifying every window's implementation.
 template <typename Fn>
-Value applySflag(std::pmr::memory_resource *mr, size_t N, bool periodic, Fn impl)
+Value applySflag(size_t N, bool periodic, Fn impl, std::pmr::memory_resource *mr)
 {
     if (!periodic) return impl(N);
     Value full = impl(N + 1);
@@ -545,8 +545,7 @@ void hamming_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
                      0, 0, "hamming", "", "m:hamming:nargin");
     bool periodic = false; (void)parseSflag(args, periodic);
     auto *mr = ctx.engine->resource();
-    outs[0] = applySflag(mr, static_cast<size_t>(args[0].toScalar()), periodic,
-                         [&](size_t M){ return hamming(mr, M); });
+    outs[0] = applySflag(static_cast<size_t>(args[0].toScalar()), periodic, [&](size_t M){ return hamming(M, mr); }, mr);
 }
 
 void hann_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -556,8 +555,7 @@ void hann_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
                      0, 0, "hann", "", "m:hann:nargin");
     bool periodic = false; (void)parseSflag(args, periodic);
     auto *mr = ctx.engine->resource();
-    outs[0] = applySflag(mr, static_cast<size_t>(args[0].toScalar()), periodic,
-                         [&](size_t M){ return hann(mr, M); });
+    outs[0] = applySflag(static_cast<size_t>(args[0].toScalar()), periodic, [&](size_t M){ return hann(M, mr); }, mr);
 }
 
 void blackman_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -567,8 +565,7 @@ void blackman_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
                      0, 0, "blackman", "", "m:blackman:nargin");
     bool periodic = false; (void)parseSflag(args, periodic);
     auto *mr = ctx.engine->resource();
-    outs[0] = applySflag(mr, static_cast<size_t>(args[0].toScalar()), periodic,
-                         [&](size_t M){ return blackman(mr, M); });
+    outs[0] = applySflag(static_cast<size_t>(args[0].toScalar()), periodic, [&](size_t M){ return blackman(M, mr); }, mr);
 }
 
 void kaiser_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -578,7 +575,7 @@ void kaiser_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
                      0, 0, "kaiser", "", "m:kaiser:nargin");
     const size_t N = static_cast<size_t>(args[0].toScalar());
     const double beta = (args.size() >= 2) ? args[1].toScalar() : 0.5;
-    outs[0] = kaiser(ctx.engine->resource(), N, beta);
+    outs[0] = kaiser(N, beta, ctx.engine->resource());
 }
 
 void rectwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -587,7 +584,7 @@ void rectwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         throw Error("rectwin: requires (N[, typeName])",
                      0, 0, "rectwin", "", "m:rectwin:nargin");
     parseTypeNameOnly(args, "rectwin");
-    outs[0] = rectwin(ctx.engine->resource(), static_cast<size_t>(args[0].toScalar()));
+    outs[0] = rectwin(static_cast<size_t>(args[0].toScalar()), ctx.engine->resource());
 }
 
 void bartlett_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -596,7 +593,7 @@ void bartlett_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         throw Error("bartlett: requires (N[, typeName])",
                      0, 0, "bartlett", "", "m:bartlett:nargin");
     parseTypeNameOnly(args, "bartlett");
-    outs[0] = bartlett(ctx.engine->resource(), static_cast<size_t>(args[0].toScalar()));
+    outs[0] = bartlett(static_cast<size_t>(args[0].toScalar()), ctx.engine->resource());
 }
 
 // Local helper: extract N from arg[0] with a `name` for error messages.
@@ -612,7 +609,7 @@ void triang_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
         throw Error("triang: requires (N[, typeName])",
                      0, 0, "triang", "", "m:triang:nargin");
     parseTypeNameOnly(args, "triang");
-    outs[0] = triang(ctx.engine->resource(), windowN(args[0], "triang"));
+    outs[0] = triang(windowN(args[0], "triang"), ctx.engine->resource());
 }
 
 void tukeywin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -622,7 +619,7 @@ void tukeywin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
                      0, 0, "tukeywin", "", "m:tukeywin:nargin");
     const size_t N = windowN(args[0], "tukeywin");
     const double r = (args.size() >= 2) ? args[1].toScalar() : 0.5;
-    outs[0] = tukeywin(ctx.engine->resource(), N, r);
+    outs[0] = tukeywin(N, r, ctx.engine->resource());
 }
 
 void flattopwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -632,8 +629,7 @@ void flattopwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
                      0, 0, "flattopwin", "", "m:flattopwin:nargin");
     bool periodic = false; (void)parseSflag(args, periodic);
     auto *mr = ctx.engine->resource();
-    outs[0] = applySflag(mr, windowN(args[0], "flattopwin"), periodic,
-                         [&](size_t M){ return flattopwin(mr, M); });
+    outs[0] = applySflag(windowN(args[0], "flattopwin"), periodic, [&](size_t M){ return flattopwin(M, mr); }, mr);
 }
 
 void gausswin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -643,7 +639,7 @@ void gausswin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
                      0, 0, "gausswin", "", "m:gausswin:nargin");
     const size_t N = windowN(args[0], "gausswin");
     const double alpha = (args.size() >= 2) ? args[1].toScalar() : 2.5;
-    outs[0] = gausswin(ctx.engine->resource(), N, alpha);
+    outs[0] = gausswin(N, alpha, ctx.engine->resource());
 }
 
 void chebwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -653,7 +649,7 @@ void chebwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
                      0, 0, "chebwin", "", "m:chebwin:nargin");
     const size_t N = windowN(args[0], "chebwin");
     const double at = (args.size() >= 2) ? args[1].toScalar() : 100.0;
-    outs[0] = chebwin(ctx.engine->resource(), N, at);
+    outs[0] = chebwin(N, at, ctx.engine->resource());
 }
 
 void parzenwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -662,7 +658,7 @@ void parzenwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("parzenwin: requires (N[, typeName])",
                      0, 0, "parzenwin", "", "m:parzenwin:nargin");
     parseTypeNameOnly(args, "parzenwin");
-    outs[0] = parzenwin(ctx.engine->resource(), windowN(args[0], "parzenwin"));
+    outs[0] = parzenwin(windowN(args[0], "parzenwin"), ctx.engine->resource());
 }
 
 void nuttallwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -672,8 +668,7 @@ void nuttallwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
                      0, 0, "nuttallwin", "", "m:nuttallwin:nargin");
     bool periodic = false; (void)parseSflag(args, periodic);
     auto *mr = ctx.engine->resource();
-    outs[0] = applySflag(mr, windowN(args[0], "nuttallwin"), periodic,
-                         [&](size_t M){ return nuttallwin(mr, M); });
+    outs[0] = applySflag(windowN(args[0], "nuttallwin"), periodic, [&](size_t M){ return nuttallwin(M, mr); }, mr);
 }
 
 void taylorwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -684,7 +679,7 @@ void taylorwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     const size_t N = windowN(args[0], "taylorwin");
     const int nbar = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 4;
     const double sll = (args.size() >= 3) ? args[2].toScalar() : -30.0;
-    outs[0] = taylorwin(ctx.engine->resource(), N, nbar, sll);
+    outs[0] = taylorwin(N, nbar, sll, ctx.engine->resource());
 }
 
 void blackmanharris_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -694,8 +689,7 @@ void blackmanharris_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> 
                      0, 0, "blackmanharris", "", "m:blackmanharris:nargin");
     bool periodic = false; (void)parseSflag(args, periodic);
     auto *mr = ctx.engine->resource();
-    outs[0] = applySflag(mr, windowN(args[0], "blackmanharris"), periodic,
-                         [&](size_t M){ return blackmanharris(mr, M); });
+    outs[0] = applySflag(windowN(args[0], "blackmanharris"), periodic, [&](size_t M){ return blackmanharris(M, mr); }, mr);
 }
 
 void bohmanwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -704,7 +698,7 @@ void bohmanwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("bohmanwin: requires (N[, typeName])",
                      0, 0, "bohmanwin", "", "m:bohmanwin:nargin");
     parseTypeNameOnly(args, "bohmanwin");
-    outs[0] = bohmanwin(ctx.engine->resource(), windowN(args[0], "bohmanwin"));
+    outs[0] = bohmanwin(windowN(args[0], "bohmanwin"), ctx.engine->resource());
 }
 
 void barthannwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -713,7 +707,7 @@ void barthannwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
         throw Error("barthannwin: requires (N[, typeName])",
                      0, 0, "barthannwin", "", "m:barthannwin:nargin");
     parseTypeNameOnly(args, "barthannwin");
-    outs[0] = barthannwin(ctx.engine->resource(), windowN(args[0], "barthannwin"));
+    outs[0] = barthannwin(windowN(args[0], "barthannwin"), ctx.engine->resource());
 }
 
 } // namespace detail
