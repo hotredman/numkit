@@ -74,8 +74,7 @@ Value lowpass(std::pmr::memory_resource *mr, const Value &x,
     const double Wp = normaliseW(fpass, fs, "lowpass");
     // honour explicit order; remap legacy default 8 -> 7 to match MATLAB
     const int N = (order == 8) ? kDefaultIirOrder : order;
-    auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
-                        scalarWn(mr, Wp), FilterType::Lowpass, /*analog=*/false);
+    auto [b, a] = ellip(N, kDefaultRp, kDefaultRs, scalarWn(mr, Wp), FilterType::Lowpass, /*analog=*/false, mr);
     // SOS-form filtfilt is numerically stable for high-order IIR --
     // matches MATLAB filtfilt(d, x) for digitalFilter SOS objects.
     auto sos = tf2sos(b, a, mr);
@@ -88,8 +87,7 @@ Value highpass(std::pmr::memory_resource *mr, const Value &x,
     validateOrder(order, "highpass");
     const double Wp = normaliseW(fpass, fs, "highpass");
     const int N = (order == 8) ? kDefaultIirOrder : order;
-    auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
-                        scalarWn(mr, Wp), FilterType::Highpass, /*analog=*/false);
+    auto [b, a] = ellip(N, kDefaultRp, kDefaultRs, scalarWn(mr, Wp), FilterType::Highpass, /*analog=*/false, mr);
     auto sos = tf2sos(b, a, mr);
     return sosfiltfilt(mr, sos, x);
 }
@@ -104,9 +102,7 @@ Value bandpass(std::pmr::memory_resource *mr, const Value &x,
     const double Wlo = normaliseW(flo, fs, "bandpass");
     const double Whi = normaliseW(fhi, fs, "bandpass");
     const int N = (order == 8) ? kDefaultIirOrder : order;
-    auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
-                        pairWn(mr, Wlo, Whi),
-                        FilterType::Bandpass, /*analog=*/false);
+    auto [b, a] = ellip(N, kDefaultRp, kDefaultRs, pairWn(mr, Wlo, Whi), FilterType::Bandpass, /*analog=*/false, mr);
     auto sos = tf2sos(b, a, mr);
     return sosfiltfilt(mr, sos, x);
 }
@@ -121,9 +117,7 @@ Value bandstop(std::pmr::memory_resource *mr, const Value &x,
     const double Wlo = normaliseW(flo, fs, "bandstop");
     const double Whi = normaliseW(fhi, fs, "bandstop");
     const int N = (order == 8) ? kDefaultIirOrder : order;
-    auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
-                        pairWn(mr, Wlo, Whi),
-                        FilterType::Bandstop, /*analog=*/false);
+    auto [b, a] = ellip(N, kDefaultRp, kDefaultRs, pairWn(mr, Wlo, Whi), FilterType::Bandstop, /*analog=*/false, mr);
     auto sos = tf2sos(b, a, mr);
     return sosfiltfilt(mr, sos, x);
 }

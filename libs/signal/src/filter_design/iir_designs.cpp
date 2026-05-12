@@ -50,25 +50,22 @@ inline double prewarp(double Wn_norm) {
 
 // Apply lp2X transform per ftype to (z, p, k).
 std::tuple<Value, Value, Value>
-applyLp2X(std::pmr::memory_resource *mr,
-          Value z, Value p, double k,
-          FilterType ftype,
-          const std::vector<double> &Wo_analog)
+applyLp2X(Value z, Value p, double k, FilterType ftype, const std::vector<double> &Wo_analog, std::pmr::memory_resource *mr)
 {
     switch (ftype) {
         case FilterType::Lowpass:
-            return lp2lp(mr, z, p, k, Wo_analog[0]);
+            return lp2lp(z, p, k, Wo_analog[0], mr);
         case FilterType::Highpass:
-            return lp2hp(mr, z, p, k, Wo_analog[0]);
+            return lp2hp(z, p, k, Wo_analog[0], mr);
         case FilterType::Bandpass: {
             const double Wo = std::sqrt(Wo_analog[0] * Wo_analog[1]);
             const double Bw = Wo_analog[1] - Wo_analog[0];
-            return lp2bp(mr, z, p, k, Wo, Bw);
+            return lp2bp(z, p, k, Wo, Bw, mr);
         }
         case FilterType::Bandstop: {
             const double Wo = std::sqrt(Wo_analog[0] * Wo_analog[1]);
             const double Bw = Wo_analog[1] - Wo_analog[0];
-            return lp2bs(mr, z, p, k, Wo, Bw);
+            return lp2bs(z, p, k, Wo, Bw, mr);
         }
     }
     throw std::runtime_error("iir_designs: bad ftype");
@@ -85,15 +82,14 @@ void validateWn(FilterType ftype, const std::vector<double> &Wn) {
 
 // Common end-of-pipe: zpk → tf → bilinear (or stay analog).
 std::tuple<Value, Value>
-finishDesign(std::pmr::memory_resource *mr,
-             Value z, Value p, Value k_v, bool analog)
+finishDesign(Value z, Value p, Value k_v, bool analog, std::pmr::memory_resource *mr)
 {
     const double k = k_v.toScalar();
     auto [b, a] = ::numkit::builtin::zp2tf(mr, z, p, k);
     if (analog) return std::make_tuple(std::move(b), std::move(a));
     // bilinear with fs = 1 reverses the pre-warp we applied earlier
     // (Ω = 2·tan(π·Wn/2) with fs = 1).
-    return bilinear(mr, b, a, /*fs=*/1.0, /*fp=*/0.0);
+    return bilinear(b, a, /*fs=*/1.0, /*fp=*/0.0, mr);
 }
 
 // Translate raw Wn (digital normalised or analog rad/s) into the
@@ -108,55 +104,47 @@ std::vector<double> wnToAnalog(const std::vector<double> &Wn, bool analog) {
 } // anonymous
 
 std::tuple<Value, Value>
-cheby1(std::pmr::memory_resource *mr, int N, double Rp,
-       const Value &Wn, FilterType ftype, bool analog)
+cheby1(int N, double Rp, const Value &Wn, FilterType ftype, bool analog, std::pmr::memory_resource *mr)
 {
     auto wn = readWn(Wn);
     validateWn(ftype, wn);
-    auto [z, p, k_v] = cheb1ap(mr, N, Rp);
+    auto [z, p, k_v] = cheb1ap(N, Rp, mr);
     auto Wo = wnToAnalog(wn, analog);
-    auto [z2, p2, k2] = applyLp2X(mr, std::move(z), std::move(p), k_v.toScalar(),
-                                   ftype, Wo);
-    return finishDesign(mr, std::move(z2), std::move(p2), std::move(k2), analog);
+    auto [z2, p2, k2] = applyLp2X(std::move(z), std::move(p), k_v.toScalar(), ftype, Wo, mr);
+    return finishDesign(std::move(z2), std::move(p2), std::move(k2), analog, mr);
 }
 
 std::tuple<Value, Value>
-cheby2(std::pmr::memory_resource *mr, int N, double Rs,
-       const Value &Wn, FilterType ftype, bool analog)
+cheby2(int N, double Rs, const Value &Wn, FilterType ftype, bool analog, std::pmr::memory_resource *mr)
 {
     auto wn = readWn(Wn);
     validateWn(ftype, wn);
-    auto [z, p, k_v] = cheb2ap(mr, N, Rs);
+    auto [z, p, k_v] = cheb2ap(N, Rs, mr);
     auto Wo = wnToAnalog(wn, analog);
-    auto [z2, p2, k2] = applyLp2X(mr, std::move(z), std::move(p), k_v.toScalar(),
-                                   ftype, Wo);
-    return finishDesign(mr, std::move(z2), std::move(p2), std::move(k2), analog);
+    auto [z2, p2, k2] = applyLp2X(std::move(z), std::move(p), k_v.toScalar(), ftype, Wo, mr);
+    return finishDesign(std::move(z2), std::move(p2), std::move(k2), analog, mr);
 }
 
 std::tuple<Value, Value>
-besself(std::pmr::memory_resource *mr, int N,
-        const Value &Wn, FilterType ftype, bool analog)
+besself(int N, const Value &Wn, FilterType ftype, bool analog, std::pmr::memory_resource *mr)
 {
     auto wn = readWn(Wn);
     validateWn(ftype, wn);
-    auto [z, p, k_v] = besselap(mr, N);
+    auto [z, p, k_v] = besselap(N, mr);
     auto Wo = wnToAnalog(wn, analog);
-    auto [z2, p2, k2] = applyLp2X(mr, std::move(z), std::move(p), k_v.toScalar(),
-                                   ftype, Wo);
-    return finishDesign(mr, std::move(z2), std::move(p2), std::move(k2), analog);
+    auto [z2, p2, k2] = applyLp2X(std::move(z), std::move(p), k_v.toScalar(), ftype, Wo, mr);
+    return finishDesign(std::move(z2), std::move(p2), std::move(k2), analog, mr);
 }
 
 std::tuple<Value, Value>
-ellip(std::pmr::memory_resource *mr, int N, double Rp, double Rs,
-      const Value &Wn, FilterType ftype, bool analog)
+ellip(int N, double Rp, double Rs, const Value &Wn, FilterType ftype, bool analog, std::pmr::memory_resource *mr)
 {
     auto wn = readWn(Wn);
     validateWn(ftype, wn);
-    auto [z, p, k_v] = ellipap(mr, N, Rp, Rs);
+    auto [z, p, k_v] = ellipap(N, Rp, Rs, mr);
     auto Wo = wnToAnalog(wn, analog);
-    auto [z2, p2, k2] = applyLp2X(mr, std::move(z), std::move(p), k_v.toScalar(),
-                                   ftype, Wo);
-    return finishDesign(mr, std::move(z2), std::move(p2), std::move(k2), analog);
+    auto [z2, p2, k2] = applyLp2X(std::move(z), std::move(p), k_v.toScalar(), ftype, Wo, mr);
+    return finishDesign(std::move(z2), std::move(p2), std::move(k2), analog, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -246,9 +234,7 @@ OrdNormalised normaliseOrd(const std::vector<double> &Wp,
 }
 
 // Convert the prototype Ω back into the requested Wn vector.
-Value wnFromPrototype(std::pmr::memory_resource *mr,
-                      const OrdNormalised &n, double Wn_analog,
-                      bool analog)
+Value wnFromPrototype(const OrdNormalised &n, double Wn_analog, bool analog, std::pmr::memory_resource *mr)
 {
     switch (n.ftype) {
         case FilterType::Lowpass:
@@ -273,8 +259,7 @@ Value wnFromPrototype(std::pmr::memory_resource *mr,
 } // anonymous
 
 std::tuple<int, Value>
-buttord(std::pmr::memory_resource *mr, const Value &Wp_v, const Value &Ws_v,
-        double Rp, double Rs, bool analog)
+buttord(const Value &Wp_v, const Value &Ws_v, double Rp, double Rs, bool analog, std::pmr::memory_resource *mr)
 {
     auto Wp = readWn(Wp_v);
     auto Ws = readWn(Ws_v);
@@ -297,13 +282,12 @@ buttord(std::pmr::memory_resource *mr, const Value &Wp_v, const Value &Ws_v,
         case FilterType::Bandpass:
         case FilterType::Bandstop: Wn_analog = 1.0; break;
     }
-    Value Wn = wnFromPrototype(mr, n, Wn_analog, analog);
+    Value Wn = wnFromPrototype(n, Wn_analog, analog, mr);
     return std::make_tuple(N, std::move(Wn));
 }
 
 std::tuple<int, Value>
-cheb1ord(std::pmr::memory_resource *mr, const Value &Wp_v, const Value &Ws_v,
-         double Rp, double Rs, bool analog)
+cheb1ord(const Value &Wp_v, const Value &Ws_v, double Rp, double Rs, bool analog, std::pmr::memory_resource *mr)
 {
     auto Wp = readWn(Wp_v);
     auto Ws = readWn(Ws_v);
@@ -324,8 +308,7 @@ cheb1ord(std::pmr::memory_resource *mr, const Value &Wp_v, const Value &Ws_v,
 }
 
 std::tuple<int, Value>
-cheb2ord(std::pmr::memory_resource *mr, const Value &Wp_v, const Value &Ws_v,
-         double Rp, double Rs, bool analog)
+cheb2ord(const Value &Wp_v, const Value &Ws_v, double Rp, double Rs, bool analog, std::pmr::memory_resource *mr)
 {
     auto Wp = readWn(Wp_v);
     auto Ws = readWn(Ws_v);
@@ -409,7 +392,7 @@ void cheby1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const Value &Wn = args[2];
     auto t = parseTrailing(args, 3);
     auto ftype = defaultFtype(Wn, t.ftype, t.ftype_set);
-    auto [b, a] = cheby1(ctx.engine->resource(), N, R, Wn, ftype, t.analog);
+    auto [b, a] = cheby1(N, R, Wn, ftype, t.analog, ctx.engine->resource());
     outs[0] = std::move(b);
     if (outs.size() > 1) outs[1] = std::move(a);
 }
@@ -424,7 +407,7 @@ void cheby2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const Value &Wn = args[2];
     auto t = parseTrailing(args, 3);
     auto ftype = defaultFtype(Wn, t.ftype, t.ftype_set);
-    auto [b, a] = cheby2(ctx.engine->resource(), N, R, Wn, ftype, t.analog);
+    auto [b, a] = cheby2(N, R, Wn, ftype, t.analog, ctx.engine->resource());
     outs[0] = std::move(b);
     if (outs.size() > 1) outs[1] = std::move(a);
 }
@@ -438,7 +421,7 @@ void besself_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const Value &Wn = args[1];
     auto t = parseTrailing(args, 2);
     auto ftype = defaultFtype(Wn, t.ftype, t.ftype_set);
-    auto [b, a] = besself(ctx.engine->resource(), N, Wn, ftype, t.analog);
+    auto [b, a] = besself(N, Wn, ftype, t.analog, ctx.engine->resource());
     outs[0] = std::move(b);
     if (outs.size() > 1) outs[1] = std::move(a);
 }
@@ -454,7 +437,7 @@ void ellip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     const Value &Wn  = args[3];
     auto t = parseTrailing(args, 4);
     auto ftype = defaultFtype(Wn, t.ftype, t.ftype_set);
-    auto [b, a] = ellip(ctx.engine->resource(), N, Rp, Rs, Wn, ftype, t.analog);
+    auto [b, a] = ellip(N, Rp, Rs, Wn, ftype, t.analog, ctx.engine->resource());
     outs[0] = std::move(b);
     if (outs.size() > 1) outs[1] = std::move(a);
 }
@@ -480,7 +463,7 @@ inline bool parseAnalogFromOrdArgs(Span<const Value> args, size_t start) {
         const double Rp = args[2].toScalar();                                     \
         const double Rs = args[3].toScalar();                                     \
         const bool analog = parseAnalogFromOrdArgs(args, 4);                      \
-        auto [N, Wn] = name(ctx.engine->resource(), Wp, Ws, Rp, Rs, analog);     \
+        auto [N, Wn] = name(Wp, Ws, Rp, Rs, analog, ctx.engine->resource());     \
         outs[0] = Value::scalar(static_cast<double>(N), ctx.engine->resource()); \
         if (nargout > 1) outs[1] = std::move(Wn);                                 \
     }
@@ -512,8 +495,7 @@ NK_ORD_REG(cheb2ord)
 
 namespace {
 
-double findElliporderImpl(std::pmr::memory_resource *mr,
-                           const std::vector<double> &WA, double Rp, double Rs)
+double findElliporderImpl(const std::vector<double> &WA, double Rp, double Rs, std::pmr::memory_resource *mr)
 {
     double WAmin = std::abs(WA[0]);
     for (size_t i = 1; i < WA.size(); ++i)
@@ -548,8 +530,7 @@ double findElliporderImpl(std::pmr::memory_resource *mr,
 } // anon
 
 std::tuple<int, Value>
-ellipord(std::pmr::memory_resource *mr, const Value &Wp_v, const Value &Ws_v,
-         double Rp, double Rs, bool analog)
+ellipord(const Value &Wp_v, const Value &Ws_v, double Rp, double Rs, bool analog, std::pmr::memory_resource *mr)
 {
     if (Rp <= 0.0 || Rs <= 0.0)
         throw Error("ellipord: Rp, Rs must be positive",
@@ -589,12 +570,12 @@ ellipord(std::pmr::memory_resource *mr, const Value &Wp_v, const Value &Ws_v,
     switch (ftype) {
         case 1: { // lowpass: WA = WS / WP
             WA.push_back(WS[0] / WP[0]);
-            N = static_cast<int>(findElliporderImpl(mr, WA, Rp, Rs));
+            N = static_cast<int>(findElliporderImpl(WA, Rp, Rs, mr));
             break;
         }
         case 2: { // highpass: WA = WP / WS
             WA.push_back(WP[0] / WS[0]);
-            N = static_cast<int>(findElliporderImpl(mr, WA, Rp, Rs));
+            N = static_cast<int>(findElliporderImpl(WA, Rp, Rs, mr));
             break;
         }
         case 3: { // bandstop — KNOWN GAP, deferred
@@ -606,7 +587,7 @@ ellipord(std::pmr::memory_resource *mr, const Value &Wp_v, const Value &Ws_v,
                 const double w = WS[i];
                 WA.push_back((w * w - WP[0] * WP[1]) / (w * (WP[0] - WP[1])));
             }
-            N = static_cast<int>(findElliporderImpl(mr, WA, Rp, Rs));
+            N = static_cast<int>(findElliporderImpl(WA, Rp, Rs, mr));
             break;
         }
         default:
@@ -639,9 +620,7 @@ void ellipord_reg(Span<const Value> args, size_t nargout,
         std::string s = args[4].toString();
         analog = (s == "s" || s == "S");
     }
-    auto [N, Wn] = ellipord(ctx.engine->resource(),
-                              args[0], args[1],
-                              args[2].toScalar(), args[3].toScalar(), analog);
+    auto [N, Wn] = ellipord(args[0], args[1], args[2].toScalar(), args[3].toScalar(), analog, ctx.engine->resource());
     outs[0] = Value::scalar(static_cast<double>(N), ctx.engine->resource());
     if (nargout > 1) outs[1] = std::move(Wn);
 }
@@ -678,8 +657,7 @@ double remlpord(double f1, double f2, double d1, double d2)
 } // anon
 
 std::tuple<int, Value, Value, Value>
-firpmord(std::pmr::memory_resource *mr,
-         const Value &F, const Value &A, const Value &dev, double fs)
+firpmord(const Value &F, const Value &A, const Value &dev, double fs, std::pmr::memory_resource *mr)
 {
     const size_t mf     = F.numel();
     const size_t nbands = A.numel();
@@ -797,8 +775,7 @@ void firpmord_reg(Span<const Value> args, size_t nargout,
                     0, 0, "firpmord", "", "m:firpmord:nargin");
     double fs = 2.0;
     if (args.size() >= 4 && !args[3].isEmpty()) fs = args[3].toScalar();
-    auto [N, ff, aa, wts] = firpmord(ctx.engine->resource(),
-                                       args[0], args[1], args[2], fs);
+    auto [N, ff, aa, wts] = firpmord(args[0], args[1], args[2], fs, ctx.engine->resource());
     outs[0] = Value::scalar(static_cast<double>(N), ctx.engine->resource());
     if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(ff);
     if (nargout >= 3 && outs.size() >= 3) outs[2] = std::move(aa);
@@ -837,8 +814,7 @@ KaislpResult kaislpord(double f1, double f2, double d1, double d2)
 } // anon
 
 std::tuple<int, Value, double, std::string>
-kaiserord(std::pmr::memory_resource *mr,
-          const Value &F, const Value &A, const Value &dev, double fs)
+kaiserord(const Value &F, const Value &A, const Value &dev, double fs, std::pmr::memory_resource *mr)
 {
     const size_t mf     = F.numel();
     const size_t nbands = A.numel();
@@ -936,8 +912,7 @@ void kaiserord_reg(Span<const Value> args, size_t nargout,
                     0, 0, "kaiserord", "", "m:kaiserord:nargin");
     double fs = 2.0;
     if (args.size() >= 4 && !args[3].isEmpty()) fs = args[3].toScalar();
-    auto [N, Wn, beta, ftype] = kaiserord(ctx.engine->resource(),
-                                            args[0], args[1], args[2], fs);
+    auto [N, Wn, beta, ftype] = kaiserord(args[0], args[1], args[2], fs, ctx.engine->resource());
     auto *mr = ctx.engine->resource();
     outs[0] = Value::scalar(static_cast<double>(N), mr);
     if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(Wn);

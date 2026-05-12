@@ -39,7 +39,7 @@ ScratchVec<double> valueToDoubleRow(const Value &v, ScratchArena &arena)
     return dst;
 }
 
-ScratchVec<Complex> butterworthPoles(std::pmr::memory_resource *mr, int N)
+ScratchVec<Complex> butterworthPoles(int N, std::pmr::memory_resource *mr)
 {
     ScratchVec<Complex> poles(mr);
     poles.reserve(N);
@@ -57,11 +57,7 @@ using numkit::builtin::detail::polyExpandFromRoots;
 // real-coefficient digital (b, a). Caller is responsible for the analog
 // → analog transformations (LP scale, LP→HP); this function just maps
 // each s-plane root through z = (2+s)/(2-s).
-void bilinearTransformPZ(std::pmr::memory_resource *mr,
-                         const Complex *sPoles, std::size_t pN,
-                         const Complex *sZeros, std::size_t zN,
-                         ScratchVec<double> &bOut,
-                         ScratchVec<double> &aOut)
+void bilinearTransformPZ(const Complex *sPoles, std::size_t pN, const Complex *sZeros, std::size_t zN, ScratchVec<double> &bOut, ScratchVec<double> &aOut, std::pmr::memory_resource *mr)
 {
     ScratchVec<Complex> zPoles(pN, mr);
     for (std::size_t i = 0; i < pN; ++i) {
@@ -118,7 +114,7 @@ butter(int N, double Wn, const std::string &type, std::pmr::memory_resource *mr)
     const double Wa = 2.0 * std::tan(M_PI * Wn / 2.0);
 
     ScratchArena scratch(mr);
-    auto sPoles = butterworthPoles(&scratch, N);   // unit-cutoff prototype
+    auto sPoles = butterworthPoles(N, &scratch);   // unit-cutoff prototype
 
     // Apply the LP scale or LP→HP transform IN THE ANALOG DOMAIN before
     // the bilinear map. For LP: s_k = sp_k * Wa, no finite zeros. For
@@ -135,8 +131,7 @@ butter(int N, double Wn, const std::string &type, std::pmr::memory_resource *mr)
     }
 
     ScratchVec<double> b(&scratch), a(&scratch);
-    bilinearTransformPZ(&scratch, sP.data(), sP.size(),
-                        sZ.data(), sZ.size(), b, a);
+    bilinearTransformPZ(sP.data(), sP.size(), sZ.data(), sZ.size(), b, a, &scratch);
 
     // Normalise the gain at the reference frequency: DC (z=1) for LP,
     // Nyquist (z=-1) for HP.
@@ -160,9 +155,7 @@ namespace {
 // Solve A·x = b for symmetric positive-definite A via Cholesky
 // (in-place on copies in scratch). A is n×n row-major.
 // Returns false on non-PD pivot.
-bool solveSPD(std::pmr::memory_resource *mr,
-              const double *A_in, std::size_t n,
-              const double *b_in, double *x_out)
+bool solveSPD(const double *A_in, std::size_t n, const double *b_in, double *x_out, std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
     ScratchVec<double> L(n * n, &scratch);
@@ -292,7 +285,7 @@ Value firls(int N, const Value &Farg, const Value &Aarg,
     }
 
     ScratchVec<double> c(M1, 0.0, &scratch);
-    if (!solveSPD(&scratch, Q.data(), M1, bvec.data(), c.data()))
+    if (!solveSPD(Q.data(), M1, bvec.data(), c.data(), &scratch))
         throw Error("firls: Q matrix is not positive-definite",
                     0, 0, "firls", "", "m:firls:singular");
 
