@@ -394,16 +394,16 @@ Value catND(int dim, const Value *values, size_t count, std::pmr::memory_resourc
 
 } // namespace
 
-Value cat(int dim, const Value *values, size_t count, std::pmr::memory_resource *mr)
+Value cat(int dim, Span<const Value> values, std::pmr::memory_resource *mr)
 {
     if (dim < 1)
         throw Error("cat: dim must be a positive integer",
                      0, 0, "cat", "", "m:cat:badDim");
     switch (dim) {
-        case 1: return vertcat(values, count, mr);
-        case 2: return horzcat(values, count, mr);
-        case 3: return catDim3(values, count, mr);
-        default: return catND(dim, values, count, mr);
+        case 1: return vertcat(values, mr);
+        case 2: return horzcat(values, mr);
+        case 3: return catDim3(values.data(), values.size(), mr);
+        default: return catND(dim, values.data(), values.size(), mr);
     }
 }
 
@@ -413,8 +413,9 @@ Value cat(int dim, const Value *values, size_t count, std::pmr::memory_resource 
 //
 // Block-diagonal matrix: diagonal blocks are the inputs (in order),
 // off-diagonal regions are zero. 2D inputs only.
-Value blkdiag(const Value *values, size_t count, std::pmr::memory_resource *mr)
+Value blkdiag(Span<const Value> values, std::pmr::memory_resource *mr)
 {
+    const size_t count = values.size();
     if (count == 0) return Value::empty();
 
     size_t totalRows = 0, totalCols = 0;
@@ -579,13 +580,13 @@ void cat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                      0, 0, "cat", "", "m:cat:nargin");
     const int dim = static_cast<int>(args[0].toScalar());
     // Pass &args[1] as the start of the values array.
-    outs[0] = cat(dim, &args[1], args.size() - 1, ctx.engine->resource());
+    outs[0] = cat(dim, args.subspan(1), ctx.engine->resource());
 }
 
 void blkdiag_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                  CallContext &ctx)
 {
-    outs[0] = blkdiag(args.data(), args.size(), ctx.engine->resource());
+    outs[0] = blkdiag(args, ctx.engine->resource());
 }
 
 void shiftdim_reg(Span<const Value> args, size_t nargout, Span<Value> outs,

@@ -2,6 +2,7 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 
 #include <string>
@@ -468,10 +469,10 @@ Value nnz(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value nonzeros(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 //// Horizontal concatenation (along columns).
-Value horzcat(const Value *values, size_t count, std::pmr::memory_resource *mr = nullptr);
+Value horzcat(Span<const Value> values, std::pmr::memory_resource *mr = nullptr);
 
 /// Vertical concatenation (along rows).
-Value vertcat(const Value *values, size_t count, std::pmr::memory_resource *mr = nullptr);
+Value vertcat(Span<const Value> values, std::pmr::memory_resource *mr = nullptr);
 
 //// meshgrid(x, y) returns (X, Y) matrices of size [ny, nx].
 std::tuple<Value, Value> meshgrid(const Value &x, const Value &y, std::pmr::memory_resource *mr = nullptr);

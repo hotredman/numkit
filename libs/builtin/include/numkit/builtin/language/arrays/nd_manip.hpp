@@ -8,6 +8,7 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 
 #include <cstddef>
@@ -32,11 +33,11 @@ Value squeeze(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// dim=1 == vertcat, dim=2 == horzcat, dim=3 stacks 2D pages into 3D
 /// (or extends an existing 3D's page count). All inputs must agree on
 /// the non-`dim` dimensions.
-Value cat(int dim, const Value *values, size_t count, std::pmr::memory_resource *mr = nullptr);
+Value cat(int dim, Span<const Value> values, std::pmr::memory_resource *mr = nullptr);
 
 /// blkdiag(A, B, C, ...) — block-diagonal matrix with the inputs on
 /// the diagonal and zeros elsewhere. 2D inputs only.
-Value blkdiag(const Value *values, size_t count, std::pmr::memory_resource *mr = nullptr);
+Value blkdiag(Span<const Value> values, std::pmr::memory_resource *mr = nullptr);
 
 /// shiftdim(A, n) — cyclic-left shift of dim ordering by n. For n > 0:
 /// equivalent to permute with `[n+1, n+2, ..., N, 1, 2, ..., n]`. For
