@@ -145,17 +145,23 @@ lp2bp(const Value &                z,
       double                       Bw,
       std::pmr::memory_resource *  mr = nullptr);
 
-/// Lowpass → bandstop frequency transformation.
+/// @brief Lowpass → bandstop frequency transformation
+/// (`[z', p', k'] = lp2bs(z, p, k, Wo, Bw)`).
 ///
-/// Applies `s → (Bw · s) / (s² + Wo²)`. Order doubles.
-/// @copydoc lp2bp
+/// Applies the substitution `s → (Bw · s) / (s² + Wo²)`. Order doubles.
+///
+/// @param z   Prototype zeros.
+/// @param p   Prototype poles.
+/// @param k   Prototype gain.
+/// @param Wo  Centre frequency in rad/s.
+/// @param Bw  Bandwidth in rad/s.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(z', p', k')` of the bandstop filter.
+/// @see lp2bp
 std::tuple<Value, Value, Value>
-lp2bs(const Value &                z,
-      const Value &                p,
-      double                       k,
-      double                       Wo,
-      double                       Bw,
-      std::pmr::memory_resource *  mr = nullptr);
+lp2bs(const Value &z, const Value &p, double k,
+      double Wo, double Bw,
+      std::pmr::memory_resource *mr = nullptr);
 
 // ─────────────────────────────────────────────────────────────────────
 // Analog → digital

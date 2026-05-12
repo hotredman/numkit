@@ -151,40 +151,46 @@ buttord(const Value &                Wp,
         bool                         analog = false,
         std::pmr::memory_resource *  mr     = nullptr);
 
-/// Chebyshev type-I order estimator. Returns `(N, Wn)` where `Wn` is
-/// the passband edge usable directly with `cheby1`.
-/// @copydoc buttord
-std::tuple<int, Value>
-cheb1ord(const Value &                Wp,
-         const Value &                Ws,
-         double                       Rp,
-         double                       Rs,
-         bool                         analog = false,
-         std::pmr::memory_resource *  mr     = nullptr);
-
-/// Chebyshev type-II order estimator. Returns `(N, Wn)` where `Wn` is
-/// the stopband edge usable directly with `cheby2`.
-/// @copydoc buttord
-std::tuple<int, Value>
-cheb2ord(const Value &                Wp,
-         const Value &                Ws,
-         double                       Rp,
-         double                       Rs,
-         bool                         analog = false,
-         std::pmr::memory_resource *  mr     = nullptr);
-
-/// Elliptic (Cauer) order estimator. Returns `(N, Wn)` for `ellip`.
+/// @brief Chebyshev type-I order estimator
+/// (`[N, Wn] = cheb1ord(Wp, Ws, Rp, Rs, analog)`).
 ///
-/// @note  KNOWN GAP: bandstop case (Wp 2-vec with `Wp[0] > Ws[0]`) is
-///        deferred. Lowpass / highpass / bandpass supported.
-/// @copydoc buttord
+/// `Wn` is the passband edge, usable directly with `cheby1`.
+///
+/// @param Wp,Ws,Rp,Rs,analog,mr  See @ref buttord.
+/// @return                       Tuple `(N, Wn)`.
+/// @see buttord, cheby1
 std::tuple<int, Value>
-ellipord(const Value &                Wp,
-         const Value &                Ws,
-         double                       Rp,
-         double                       Rs,
-         bool                         analog = false,
-         std::pmr::memory_resource *  mr     = nullptr);
+cheb1ord(const Value &Wp, const Value &Ws, double Rp, double Rs,
+         bool analog = false,
+         std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Chebyshev type-II order estimator
+/// (`[N, Wn] = cheb2ord(Wp, Ws, Rp, Rs, analog)`).
+///
+/// `Wn` is the stopband edge, usable directly with `cheby2`.
+///
+/// @param Wp,Ws,Rp,Rs,analog,mr  See @ref buttord.
+/// @return                       Tuple `(N, Wn)`.
+/// @see buttord, cheby2
+std::tuple<int, Value>
+cheb2ord(const Value &Wp, const Value &Ws, double Rp, double Rs,
+         bool analog = false,
+         std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Elliptic (Cauer) order estimator
+/// (`[N, Wn] = ellipord(Wp, Ws, Rp, Rs, analog)`).
+///
+/// `Wn` for direct use with `ellip`. KNOWN GAP: bandstop case (`Wp`
+/// 2-vec with `Wp[0] > Ws[0]`) deferred. Lowpass / highpass / bandpass
+/// supported.
+///
+/// @param Wp,Ws,Rp,Rs,analog,mr  See @ref buttord.
+/// @return                       Tuple `(N, Wn)`.
+/// @see buttord, ellip
+std::tuple<int, Value>
+ellipord(const Value &Wp, const Value &Ws, double Rp, double Rs,
+         bool analog = false,
+         std::pmr::memory_resource *mr = nullptr);
 
 /// Parks-McClellan FIR order estimator.
 ///

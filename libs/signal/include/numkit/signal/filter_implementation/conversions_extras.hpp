@@ -132,14 +132,21 @@ ss2tf(const Value &                A,
       const Value &                D,
       std::pmr::memory_resource *  mr = nullptr);
 
-/// State space to zero / pole / gain (via `ss2tf` then `tf2zpk`).
-/// @copydoc ss2tf
+/// @brief State space → zero / pole / gain
+/// (`[z, p, k] = ss2zp(A, B, C, D)`).
+///
+/// Composes @ref ss2tf with `tf2zpk` internally. SISO only.
+///
+/// @param A   N × N state-transition matrix.
+/// @param B   N × 1 input vector.
+/// @param C   1 × N output vector.
+/// @param D   1 × 1 direct feed-through scalar.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(z, p, k)` — zeros, poles, gain.
+/// @see ss2tf, zp2ss
 std::tuple<Value, Value, double>
-ss2zp(const Value &                A,
-      const Value &                B,
-      const Value &                C,
-      const Value &                D,
-      std::pmr::memory_resource *  mr = nullptr);
+ss2zp(const Value &A, const Value &B, const Value &C, const Value &D,
+      std::pmr::memory_resource *mr = nullptr);
 
 /// Zero / pole / gain to state space (via `zp2tf` then `tf2ss`).
 ///
@@ -165,12 +172,18 @@ sos2ss(const Value &                sos,
        double                       g  = 1.0,
        std::pmr::memory_resource *  mr = nullptr);
 
-/// State space to second-order sections (via `ss2tf` then `tf2sos`).
-/// @copydoc ss2tf
-Value ss2sos(const Value &                A,
-             const Value &                B,
-             const Value &                C,
-             const Value &                D,
-             std::pmr::memory_resource *  mr = nullptr);
+/// @brief State space → second-order sections (`sos = ss2sos(A, B, C, D)`).
+///
+/// Composes @ref ss2tf with @ref tf2sos. SISO only.
+///
+/// @param A   N × N state-transition matrix.
+/// @param B   N × 1 input vector.
+/// @param C   1 × N output vector.
+/// @param D   1 × 1 direct feed-through scalar.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `L × 6` SOS matrix.
+/// @see ss2tf, sos2ss
+Value ss2sos(const Value &A, const Value &B, const Value &C, const Value &D,
+             std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal

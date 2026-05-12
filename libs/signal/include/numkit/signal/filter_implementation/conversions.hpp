@@ -75,11 +75,20 @@ Value tf2sos(const Value &                b,
              const Value &                a,
              std::pmr::memory_resource *  mr = nullptr);
 
-/// Two-output form of tf2sos: returns `(sos, g)`.
-/// @copydoc tf2sos
+/// @brief Two-output form of @ref tf2sos: returns `(sos, g)`.
+///
+/// Equivalent to @ref tf2sos but returns the residual gain `g` as the
+/// second tuple element instead of folding it into the SOS biquads'
+/// numerators.
+///
+/// @param b   Numerator polynomial.
+/// @param a   Denominator polynomial.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(sos, g)` — SOS matrix (without gain) and the
+///            residual scalar gain.
+/// @see tf2sos, zp2sosWithGain
 std::tuple<Value, double>
-tf2sosWithGain(const Value &                b,
-               const Value &                a,
-               std::pmr::memory_resource *  mr = nullptr);
+tf2sosWithGain(const Value &b, const Value &a,
+               std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal
