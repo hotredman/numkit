@@ -67,7 +67,7 @@ inline Value emptyRow(std::pmr::memory_resource *mr)
     return Value::matrix(1, 0, ValueType::DOUBLE, mr);
 }
 
-inline Value rowFromVec(std::pmr::memory_resource *mr, const double *data, std::size_t n)
+inline Value rowFromVec(const double *data, std::size_t n, std::pmr::memory_resource *mr)
 {
     auto r = Value::matrix(1, n, ValueType::DOUBLE, mr);
     if (n > 0)
@@ -115,8 +115,7 @@ inline bool rowHasNan(const double *p, size_t cols, size_t rows, size_t r)
     return false;
 }
 
-inline RowKey extractRow(std::pmr::memory_resource *mr,
-                          const double *p, size_t cols, size_t rows, size_t r)
+inline RowKey extractRow(const double *p, size_t cols, size_t rows, size_t r, std::pmr::memory_resource *mr)
 {
     RowKey k(cols, mr);
     for (size_t c = 0; c < cols; ++c) {
@@ -137,7 +136,7 @@ inline int rowLexCmp(const double *p, size_t cols, size_t rows, size_t a, size_t
     return 0;
 }
 
-inline Value emptyRowsResult(std::pmr::memory_resource *mr, size_t cols)
+inline Value emptyRowsResult(size_t cols, std::pmr::memory_resource *mr)
 {
     return Value::matrix(0, cols, ValueType::DOUBLE, mr);
 }
@@ -157,7 +156,7 @@ void validateUniqueRowsInput(const Value &x, const char *fn)
 }
 
 std::pmr::unordered_set<double, DoubleHashEq0>
-hashSetNoNaN(std::pmr::memory_resource *mr, const Value &x)
+hashSetNoNaN(const Value &x, std::pmr::memory_resource *mr)
 {
     std::pmr::unordered_set<double, DoubleHashEq0> s(mr);
     s.reserve(x.numel() / 2 + 1);
@@ -198,7 +197,7 @@ bool edgesAreUniform(const double *e, size_t nEdges, double &outStep)
 
 // ── unique ─────────────────────────────────────────────────────────
 
-Value unique(std::pmr::memory_resource *mr, const Value &x)
+Value unique(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t n = x.numel();
     if (n == 0) return emptyRow(mr);
@@ -219,11 +218,11 @@ Value unique(std::pmr::memory_resource *mr, const Value &x)
     std::sort(out.begin(), out.end());
     for (size_t i = 0; i < nanCount; ++i)
         out.push_back(std::nan(""));
-    return rowFromVec(mr, out.data(), out.size());
+    return rowFromVec(out.data(), out.size(), mr);
 }
 
 std::tuple<Value, Value, Value>
-uniqueWithIndices(std::pmr::memory_resource *mr, const Value &x)
+uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t n = x.numel();
     if (n == 0) {
@@ -286,12 +285,12 @@ uniqueWithIndices(std::pmr::memory_resource *mr, const Value &x)
 
 // ── unique with 'rows' flag ────────────────────────────────────────
 
-Value uniqueRows(std::pmr::memory_resource *mr, const Value &x)
+Value uniqueRows(const Value &x, std::pmr::memory_resource *mr)
 {
     validateUniqueRowsInput(x, "unique");
     const size_t rows = x.dims().rows();
     const size_t cols = x.dims().cols();
-    if (rows == 0) return emptyRowsResult(mr, cols);
+    if (rows == 0) return emptyRowsResult(cols, mr);
 
     const double *src = x.doubleData();
     ScratchArena scratch(mr);
@@ -302,7 +301,7 @@ Value uniqueRows(std::pmr::memory_resource *mr, const Value &x)
         if (rowHasNan(src, cols, rows, r)) {
             nanRows.push_back(r);
         } else {
-            firstIdx.try_emplace(extractRow(&scratch, src, cols, rows, r), r);
+            firstIdx.try_emplace(extractRow(src, cols, rows, r, &scratch), r);
         }
     }
 
@@ -319,13 +318,13 @@ Value uniqueRows(std::pmr::memory_resource *mr, const Value &x)
 }
 
 std::tuple<Value, Value, Value>
-uniqueRowsWithIndices(std::pmr::memory_resource *mr, const Value &x)
+uniqueRowsWithIndices(const Value &x, std::pmr::memory_resource *mr)
 {
     validateUniqueRowsInput(x, "unique");
     const size_t rows = x.dims().rows();
     const size_t cols = x.dims().cols();
     if (rows == 0) {
-        return std::make_tuple(emptyRowsResult(mr, cols),
+        return std::make_tuple(emptyRowsResult(cols, mr),
                                emptyRow(mr), emptyRow(mr));
     }
 
@@ -338,7 +337,7 @@ uniqueRowsWithIndices(std::pmr::memory_resource *mr, const Value &x)
         if (rowHasNan(src, cols, rows, r)) {
             nanRowOrder.push_back(r);
         } else {
-            firstIdx.try_emplace(extractRow(&scratch, src, cols, rows, r), r);
+            firstIdx.try_emplace(extractRow(src, cols, rows, r, &scratch), r);
         }
     }
 
@@ -355,7 +354,7 @@ uniqueRowsWithIndices(std::pmr::memory_resource *mr, const Value &x)
     std::pmr::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> rankByKey(&scratch);
     rankByKey.reserve(nanRankBase);
     for (size_t r = 0; r < nanRankBase; ++r)
-        rankByKey[extractRow(&scratch, src, cols, rows, uniqRows[r])] = r;
+        rankByKey[extractRow(src, cols, rows, uniqRows[r], &scratch)] = r;
 
     auto icRow = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
     double *ic = icRow.doubleDataMut();
@@ -365,7 +364,7 @@ uniqueRowsWithIndices(std::pmr::memory_resource *mr, const Value &x)
             ic[r] = static_cast<double>(nanRankBase + nanSeen + 1);
             ++nanSeen;
         } else {
-            ic[r] = static_cast<double>(rankByKey[extractRow(&scratch, src, cols, rows, r)] + 1);
+            ic[r] = static_cast<double>(rankByKey[extractRow(src, cols, rows, r, &scratch)] + 1);
         }
     }
 
@@ -380,7 +379,7 @@ uniqueRowsWithIndices(std::pmr::memory_resource *mr, const Value &x)
 
 // ── ismember ───────────────────────────────────────────────────────
 
-Value ismember(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value ismember(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     const size_t na = a.numel();
     const size_t nb = b.numel();
@@ -410,26 +409,26 @@ Value ismember(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 
 // ── union / intersect / setdiff ────────────────────────────────────
 
-Value setUnion(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value setUnion(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
-    auto s = hashSetNoNaN(&scratch, a);
+    auto s = hashSetNoNaN(a, &scratch);
     const double *pb = b.doubleData();
     for (size_t i = 0; i < b.numel(); ++i)
         if (!std::isnan(pb[i])) s.insert(pb[i]);
     ScratchVec<double> out(s.begin(), s.end(), &scratch);
     std::sort(out.begin(), out.end());
-    return rowFromVec(mr, out.data(), out.size());
+    return rowFromVec(out.data(), out.size(), mr);
 }
 
-Value setIntersect(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value setIntersect(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     const bool aSmaller = a.numel() <= b.numel();
     const Value &small = aSmaller ? a : b;
     const Value &large = aSmaller ? b : a;
 
     ScratchArena scratch(mr);
-    auto smallSet = hashSetNoNaN(&scratch, small);
+    auto smallSet = hashSetNoNaN(small, &scratch);
     std::pmr::unordered_set<double, DoubleHashEq0> seenInLarge(&scratch);
     seenInLarge.reserve(smallSet.size());
     auto out = ScratchVec<double>(&scratch);
@@ -443,13 +442,13 @@ Value setIntersect(std::pmr::memory_resource *mr, const Value &a, const Value &b
             out.push_back(v);
     }
     std::sort(out.begin(), out.end());
-    return rowFromVec(mr, out.data(), out.size());
+    return rowFromVec(out.data(), out.size(), mr);
 }
 
-Value setDiff(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value setDiff(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
-    auto setB = hashSetNoNaN(&scratch, b);
+    auto setB = hashSetNoNaN(b, &scratch);
     std::pmr::unordered_set<double, DoubleHashEq0> seen(&scratch);
     seen.reserve(a.numel() / 2 + 1);
     auto out = ScratchVec<double>(&scratch);
@@ -462,12 +461,12 @@ Value setDiff(std::pmr::memory_resource *mr, const Value &a, const Value &b)
             out.push_back(v);
     }
     std::sort(out.begin(), out.end());
-    return rowFromVec(mr, out.data(), out.size());
+    return rowFromVec(out.data(), out.size(), mr);
 }
 
 // ── histcounts / discretize ────────────────────────────────────────
 
-Value histcounts(std::pmr::memory_resource *mr, const Value &x, const Value &edges)
+Value histcounts(const Value &x, const Value &edges, std::pmr::memory_resource *mr)
 {
     validateEdges(edges, "histcounts");
     const size_t nBins = edges.numel() - 1;
@@ -530,7 +529,7 @@ Value histcounts(std::pmr::memory_resource *mr, const Value &x, const Value &edg
     return r;
 }
 
-Value discretize(std::pmr::memory_resource *mr, const Value &x, const Value &edges)
+Value discretize(const Value &x, const Value &edges, std::pmr::memory_resource *mr)
 {
     validateEdges(edges, "discretize");
     auto r = createLike(x, ValueType::DOUBLE, mr);
@@ -631,7 +630,7 @@ bool isPrimeDouble(double v)
 
 } // namespace (number-theory helpers)
 
-Value primes(std::pmr::memory_resource *mr, double n)
+Value primes(double n, std::pmr::memory_resource *mr)
 {
     if (!std::isfinite(n) || n < 2)
         return Value::matrix(1, 0, ValueType::DOUBLE, mr);
@@ -660,7 +659,7 @@ Value primes(std::pmr::memory_resource *mr, double n)
     return out;
 }
 
-Value isprime(std::pmr::memory_resource *mr, const Value &x)
+Value isprime(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error("isprime: complex inputs are not supported",
@@ -675,7 +674,7 @@ Value isprime(std::pmr::memory_resource *mr, const Value &x)
     return out;
 }
 
-Value factor(std::pmr::memory_resource *mr, double n)
+Value factor(double n, std::pmr::memory_resource *mr)
 {
     std::uint64_t u;
     if (!isExactNonnegInt(n, u))
@@ -739,7 +738,7 @@ double factorialDouble(double v, const char *fn)
 
 } // namespace (combinatorics helpers)
 
-Value perms(std::pmr::memory_resource *mr, const Value &v)
+Value perms(const Value &v, std::pmr::memory_resource *mr)
 {
     if (v.type() == ValueType::COMPLEX)
         throw Error("perms: complex inputs are not supported",
@@ -778,7 +777,7 @@ Value perms(std::pmr::memory_resource *mr, const Value &v)
     return out;
 }
 
-Value factorial(std::pmr::memory_resource *mr, const Value &n)
+Value factorial(const Value &n, std::pmr::memory_resource *mr)
 {
     if (n.type() == ValueType::COMPLEX)
         throw Error("factorial: complex inputs are not supported",
@@ -791,7 +790,7 @@ Value factorial(std::pmr::memory_resource *mr, const Value &n)
     return out;
 }
 
-Value nchoosek(std::pmr::memory_resource *mr, double n, double k)
+Value nchoosek(double n, double k, std::pmr::memory_resource *mr)
 {
     if (!std::isfinite(n) || !std::isfinite(k))
         throw Error("nchoosek: arguments must be finite",
@@ -823,7 +822,7 @@ Value nchoosek(std::pmr::memory_resource *mr, double n, double k)
 // `union` / `intersect`. The tolerant variants do an O(N²) sweep — fine
 // for the typical cell sizes (≤ 1e4) where these get called.
 
-Value setxor(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value setxor(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     // Symmetric difference: { x : x ∈ A xor x ∈ B }.
     if (a.numel() == 0 && b.numel() == 0) return emptyRow(mr);
@@ -840,10 +839,10 @@ Value setxor(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     for (double v : sa) if (!sb.count(v)) out.push_back(v);
     for (double v : sb) if (!sa.count(v)) out.push_back(v);
     std::sort(out.begin(), out.end());
-    return rowFromVec(mr, out.data(), out.size());
+    return rowFromVec(out.data(), out.size(), mr);
 }
 
-Value allunique(std::pmr::memory_resource *mr, const Value &x)
+Value allunique(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t n = x.numel();
     if (n <= 1) return Value::logicalScalar(true, mr);
@@ -861,7 +860,7 @@ Value allunique(std::pmr::memory_resource *mr, const Value &x)
     return Value::logicalScalar(true, mr);
 }
 
-Value numunique(std::pmr::memory_resource *mr, const Value &x)
+Value numunique(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t n = x.numel();
     if (n == 0) return Value::scalar(0.0, mr);
@@ -887,8 +886,7 @@ inline bool nearlyEqualTol(double x, double y, double tol)
 }
 } // anon
 
-Value ismembertol(std::pmr::memory_resource *mr,
-                  const Value &a, const Value &s, double tol)
+Value ismembertol(const Value &a, const Value &s, double tol, std::pmr::memory_resource *mr)
 {
     // Returns logical of size(a). For each a[i], true if there exists
     // s[j] with |a[i] - s[j]| ≤ tol * max(1, |a|, |s|). Naive O(|a||s|).
@@ -906,7 +904,7 @@ Value ismembertol(std::pmr::memory_resource *mr,
     return r;
 }
 
-Value uniquetol(std::pmr::memory_resource *mr, const Value &x, double tol)
+Value uniquetol(const Value &x, double tol, std::pmr::memory_resource *mr)
 {
     // MATLAB convention (doc uniquetol): two values u and v are within
     // tolerance iff
@@ -954,7 +952,7 @@ Value uniquetol(std::pmr::memory_resource *mr, const Value &x, double tol)
             out.push_back(v);
         }
     }
-    return rowFromVec(mr, out.data(), out.size());
+    return rowFromVec(out.data(), out.size(), mr);
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -989,8 +987,8 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     }
 
     if (useRows) {
-        if (nargout <= 1) { outs[0] = uniqueRows(mr, args[0]); return; }
-        auto [c, ia, ic] = uniqueRowsWithIndices(mr, args[0]);
+        if (nargout <= 1) { outs[0] = uniqueRows(args[0], mr); return; }
+        auto [c, ia, ic] = uniqueRowsWithIndices(args[0], mr);
         outs[0] = std::move(c);
         if (nargout > 1) outs[1] = std::move(ia);
         if (nargout > 2) outs[2] = std::move(ic);
@@ -998,10 +996,10 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     }
 
     if (nargout <= 1) {
-        outs[0] = unique(mr, args[0]);
+        outs[0] = unique(args[0], mr);
         return;
     }
-    auto [c, ia, ic] = uniqueWithIndices(mr, args[0]);
+    auto [c, ia, ic] = uniqueWithIndices(args[0], mr);
     outs[0] = std::move(c);
     if (nargout > 1) outs[1] = std::move(ia);
     if (nargout > 2) outs[2] = std::move(ic);
@@ -1014,7 +1012,7 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         if (args.size() < 2)                                                   \
             throw Error(#name ": requires 2 arguments",                       \
                          0, 0, #name, "", "m:" #name ":nargin");               \
-        outs[0] = fn(ctx.engine->resource(), args[0], args[1]);               \
+        outs[0] = fn(args[0], args[1], ctx.engine->resource());               \
     }
 
 NK_BIN_SETOP_REG(ismember,  ismember)
@@ -1031,7 +1029,7 @@ void primes_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.empty())
         throw Error("primes: requires 1 argument",
                      0, 0, "primes", "", "m:primes:nargin");
-    outs[0] = primes(ctx.engine->resource(), args[0].toScalar());
+    outs[0] = primes(args[0].toScalar(), ctx.engine->resource());
 }
 
 void isprime_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1039,7 +1037,7 @@ void isprime_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.empty())
         throw Error("isprime: requires 1 argument",
                      0, 0, "isprime", "", "m:isprime:nargin");
-    outs[0] = isprime(ctx.engine->resource(), args[0]);
+    outs[0] = isprime(args[0], ctx.engine->resource());
 }
 
 void factor_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1050,7 +1048,7 @@ void factor_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (!args[0].isScalar())
         throw Error("factor: argument must be a scalar",
                      0, 0, "factor", "", "m:factor:notScalar");
-    outs[0] = factor(ctx.engine->resource(), args[0].toScalar());
+    outs[0] = factor(args[0].toScalar(), ctx.engine->resource());
 }
 
 void perms_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1058,7 +1056,7 @@ void perms_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.empty())
         throw Error("perms: requires 1 argument",
                      0, 0, "perms", "", "m:perms:nargin");
-    outs[0] = perms(ctx.engine->resource(), args[0]);
+    outs[0] = perms(args[0], ctx.engine->resource());
 }
 
 void factorial_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1066,7 +1064,7 @@ void factorial_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("factorial: requires 1 argument",
                      0, 0, "factorial", "", "m:factorial:nargin");
-    outs[0] = factorial(ctx.engine->resource(), args[0]);
+    outs[0] = factorial(args[0], ctx.engine->resource());
 }
 
 void nchoosek_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1078,8 +1076,7 @@ void nchoosek_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         throw Error("nchoosek: vector input form is not yet supported "
                      "(nchoosek(v, k) for k-combinations of v)",
                      0, 0, "nchoosek", "", "m:nchoosek:vectorForm");
-    outs[0] = nchoosek(ctx.engine->resource(),
-                       args[0].toScalar(), args[1].toScalar());
+    outs[0] = nchoosek(args[0].toScalar(), args[1].toScalar(), ctx.engine->resource());
 }
 
 // ── Pack 16 adapters ─────────────────────────────────────────────────
@@ -1090,7 +1087,7 @@ void setxor_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("setxor: requires 2 arguments",
                      0, 0, "setxor", "", "m:setxor:nargin");
-    outs[0] = setxor(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = setxor(args[0], args[1], ctx.engine->resource());
 }
 
 void allunique_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1099,7 +1096,7 @@ void allunique_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("allunique: requires 1 argument",
                      0, 0, "allunique", "", "m:allunique:nargin");
-    outs[0] = allunique(ctx.engine->resource(), args[0]);
+    outs[0] = allunique(args[0], ctx.engine->resource());
 }
 
 void numunique_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1108,7 +1105,7 @@ void numunique_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("numunique: requires 1 argument",
                      0, 0, "numunique", "", "m:numunique:nargin");
-    outs[0] = numunique(ctx.engine->resource(), args[0]);
+    outs[0] = numunique(args[0], ctx.engine->resource());
 }
 
 void ismembertol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1120,7 +1117,7 @@ void ismembertol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
     double tol = (args.size() >= 3 && !args[2].isEmpty())
                      ? args[2].toScalar()
                      : 1e-6;
-    outs[0] = ismembertol(ctx.engine->resource(), args[0], args[1], tol);
+    outs[0] = ismembertol(args[0], args[1], tol, ctx.engine->resource());
 }
 
 void uniquetol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1132,7 +1129,7 @@ void uniquetol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     double tol = (args.size() >= 2 && !args[1].isEmpty())
                      ? args[1].toScalar()
                      : 1e-6;
-    outs[0] = uniquetol(ctx.engine->resource(), args[0], tol);
+    outs[0] = uniquetol(args[0], tol, ctx.engine->resource());
 }
 
 } // namespace detail

@@ -89,7 +89,7 @@ Value fcdf(const Value &x, double v1, double v2, std::pmr::memory_resource *mr)
     }, mr);
     Value a = Value::scalar(0.5 * v1, mr);
     Value b = Value::scalar(0.5 * v2, mr);
-    return ::numkit::builtin::betainc(mr, z, a, b);
+    return ::numkit::builtin::betainc(z, a, b, mr);
 }
 
 Value finv(const Value &p, double v1, double v2, std::pmr::memory_resource *mr)
@@ -98,7 +98,7 @@ Value finv(const Value &p, double v1, double v2, std::pmr::memory_resource *mr)
         return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     Value a = Value::scalar(0.5 * v1, mr);
     Value b = Value::scalar(0.5 * v2, mr);
-    Value z = ::numkit::builtin::betaincinv(mr, p, a, b);
+    Value z = ::numkit::builtin::betaincinv(p, a, b, mr);
     // x = (v2 / v1) · z / (1 - z)
     return elementwise(z, [=](double zi){
         if (zi <= 0.0) return 0.0;

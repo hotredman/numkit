@@ -38,14 +38,14 @@ inline double gammainc_scalar(double xx, double a, std::pmr::memory_resource *mr
 {
     Value xv = Value::scalar(xx, mr);
     Value av = Value::scalar(a,  mr);
-    return ::numkit::builtin::gammainc(mr, xv, av).toScalar();
+    return ::numkit::builtin::gammainc(xv, av, mr).toScalar();
 }
 
 inline double gammaincinv_scalar(double p, double a, std::pmr::memory_resource *mr)
 {
     Value pv = Value::scalar(p, mr);
     Value av = Value::scalar(a, mr);
-    return ::numkit::builtin::gammaincinv(mr, pv, av).toScalar();
+    return ::numkit::builtin::gammaincinv(pv, av, mr).toScalar();
 }
 
 } // anonymous

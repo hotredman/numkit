@@ -797,10 +797,10 @@ void BuiltinLibrary::install(Engine &engine)
             const Value a = builtin::toDouble(mr, args[0]);
             const Value b = builtin::toDouble(mr, args[1]);
             Value q = builtin::rdivide(mr, a, b);
-            if (opt == "fix" || opt.empty()) q = builtin::fix(mr, q);
-            else if (opt == "floor")          q = builtin::floor(mr, q);
-            else if (opt == "ceil")           q = builtin::ceil(mr, q);
-            else if (opt == "round")          q = builtin::round(mr, q);
+            if (opt == "fix" || opt.empty()) q = builtin::fix(q, mr);
+            else if (opt == "floor")          q = builtin::floor(q, mr);
+            else if (opt == "ceil")           q = builtin::ceil(q, mr);
+            else if (opt == "round")          q = builtin::round(q, mr);
             else
                 throw std::runtime_error(
                     "idivide: opt must be 'fix', 'floor', 'ceil', or 'round'");

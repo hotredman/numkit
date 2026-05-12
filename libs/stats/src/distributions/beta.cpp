@@ -70,7 +70,7 @@ Value betacdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
         if (xi >= 1.0) return 1.0;
         return xi;
     }, mr);
-    return ::numkit::builtin::betainc(mr, xc, av, bv);
+    return ::numkit::builtin::betainc(xc, av, bv, mr);
 }
 
 Value betainv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
@@ -79,7 +79,7 @@ Value betainv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
         return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     Value av = Value::scalar(a, mr);
     Value bv = Value::scalar(b, mr);
-    return ::numkit::builtin::betaincinv(mr, p, av, bv);
+    return ::numkit::builtin::betaincinv(p, av, bv, mr);
 }
 
 Value betarnd(double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)

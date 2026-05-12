@@ -26,7 +26,7 @@ Value structure(std::pmr::memory_resource *)
     return Value::structure();
 }
 
-Value structure(std::pmr::memory_resource *mr, Span<const Value> nameValuePairs)
+Value structure(Span<const Value> nameValuePairs, std::pmr::memory_resource *mr)
 {
     // First pass: validate names and determine array shape. If any value
     // is a CELL, struct() returns a struct array of that cell's shape;
@@ -78,7 +78,7 @@ Value structure(std::pmr::memory_resource *mr, Span<const Value> nameValuePairs)
     return s;
 }
 
-Value fieldnames(std::pmr::memory_resource *mr, const Value &s)
+Value fieldnames(const Value &s, std::pmr::memory_resource *mr)
 {
     if (!s.isStruct())
         throw Error("fieldnames requires a struct", 0, 0, "fieldnames", "",
@@ -93,7 +93,7 @@ Value fieldnames(std::pmr::memory_resource *mr, const Value &s)
     return c;
 }
 
-Value isfield(std::pmr::memory_resource *mr, const Value &s, const Value &name)
+Value isfield(const Value &s, const Value &name, std::pmr::memory_resource *mr)
 {
     if (!s.isStruct())
         return Value::logicalScalar(false, mr);
@@ -107,7 +107,7 @@ Value isfield(std::pmr::memory_resource *mr, const Value &s, const Value &name)
     return Value::logicalScalar(s.hasField(name.toString()), mr);
 }
 
-Value rmfield(std::pmr::memory_resource *, const Value &s, const Value &name)
+Value rmfield(const Value &s, const Value &name, std::pmr::memory_resource *)
 {
     if (!s.isStruct())
         throw Error("rmfield requires a struct", 0, 0, "rmfield", "",
@@ -117,8 +117,7 @@ Value rmfield(std::pmr::memory_resource *, const Value &s, const Value &name)
     return out;
 }
 
-Value structfun(std::pmr::memory_resource *mr, const Value &fn, const Value &s,
-                 bool uniformOutput, Engine *engine)
+Value structfun(const Value &fn, const Value &s, bool uniformOutput, Engine *engine, std::pmr::memory_resource *mr)
 {
     if (!s.isStruct())
         throw Error("structfun: second argument must be a scalar struct",
@@ -172,7 +171,7 @@ Value structfun(std::pmr::memory_resource *mr, const Value &fn, const Value &s,
 // Pack 14: getfield / setfield / orderfields / struct2cell / cell2struct
 // ════════════════════════════════════════════════════════════════════════
 
-Value getfield(std::pmr::memory_resource *, const Value &s, const Value &name)
+Value getfield(const Value &s, const Value &name, std::pmr::memory_resource *)
 {
     if (!s.isStruct())
         throw Error("getfield requires a struct", 0, 0, "getfield", "",
@@ -195,8 +194,7 @@ Value getfield(std::pmr::memory_resource *, const Value &s, const Value &name)
     return s.field(n);
 }
 
-Value setfield(std::pmr::memory_resource *mr, const Value &s,
-               const Value &name, const Value &value)
+Value setfield(const Value &s, const Value &name, const Value &value, std::pmr::memory_resource *mr)
 {
     Value out;
     if (s.isStruct()) {
@@ -215,7 +213,7 @@ Value setfield(std::pmr::memory_resource *mr, const Value &s,
     return out;
 }
 
-Value orderfields(std::pmr::memory_resource *mr, const Value &s)
+Value orderfields(const Value &s, std::pmr::memory_resource *mr)
 {
     if (!s.isStruct())
         throw Error("orderfields requires a struct", 0, 0, "orderfields", "",
@@ -250,7 +248,7 @@ Value orderfields(std::pmr::memory_resource *mr, const Value &s)
     return out;
 }
 
-Value struct2cell(std::pmr::memory_resource *mr, const Value &s)
+Value struct2cell(const Value &s, std::pmr::memory_resource *mr)
 {
     if (!s.isStruct())
         throw Error("struct2cell requires a struct", 0, 0, "struct2cell", "",
@@ -266,7 +264,7 @@ Value struct2cell(std::pmr::memory_resource *mr, const Value &s)
     return c;
 }
 
-Value cell2struct(std::pmr::memory_resource *mr, const Value &c, const Value &fields)
+Value cell2struct(const Value &c, const Value &fields, std::pmr::memory_resource *mr)
 {
     if (!c.isCell())
         throw Error("cell2struct: first argument must be a cell array",
@@ -294,7 +292,7 @@ namespace detail {
 
 void struct_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = structure(ctx.engine->resource(), args);
+    outs[0] = structure(args, ctx.engine->resource());
 }
 
 void fieldnames_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -302,7 +300,7 @@ void fieldnames_reg(Span<const Value> args, size_t, Span<Value> outs, CallContex
     if (args.empty())
         throw Error("fieldnames: requires 1 argument", 0, 0, "fieldnames", "",
                      "m:fieldnames:nargin");
-    outs[0] = fieldnames(ctx.engine->resource(), args[0]);
+    outs[0] = fieldnames(args[0], ctx.engine->resource());
 }
 
 void isfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -310,7 +308,7 @@ void isfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.size() < 2)
         throw Error("isfield requires 2 arguments", 0, 0, "isfield", "",
                      "m:isfield:nargin");
-    outs[0] = isfield(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = isfield(args[0], args[1], ctx.engine->resource());
 }
 
 void rmfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -318,7 +316,7 @@ void rmfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.size() < 2)
         throw Error("rmfield requires 2 arguments", 0, 0, "rmfield", "",
                      "m:rmfield:nargin");
-    outs[0] = rmfield(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = rmfield(args[0], args[1], ctx.engine->resource());
 }
 
 void structfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -327,7 +325,7 @@ void structfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
         throw Error("structfun: requires at least 2 arguments (fn, S)",
                      0, 0, "structfun", "", "m:structfun:nargin");
     bool uniform = hf::parseUniformOutputFlag(args, 2, "structfun");
-    outs[0] = structfun(ctx.engine->resource(), args[0], args[1], uniform, ctx.engine);
+    outs[0] = structfun(args[0], args[1], uniform, ctx.engine, ctx.engine->resource());
 }
 
 void getfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -335,7 +333,7 @@ void getfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
     if (args.size() < 2)
         throw Error("getfield requires (S, name)",
                      0, 0, "getfield", "", "m:getfield:nargin");
-    outs[0] = getfield(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = getfield(args[0], args[1], ctx.engine->resource());
 }
 
 void setfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -343,7 +341,7 @@ void setfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
     if (args.size() < 3)
         throw Error("setfield requires (S, name, value)",
                      0, 0, "setfield", "", "m:setfield:nargin");
-    outs[0] = setfield(ctx.engine->resource(), args[0], args[1], args[2]);
+    outs[0] = setfield(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 void orderfields_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -351,7 +349,7 @@ void orderfields_reg(Span<const Value> args, size_t, Span<Value> outs, CallConte
     if (args.empty())
         throw Error("orderfields requires 1 argument",
                      0, 0, "orderfields", "", "m:orderfields:nargin");
-    outs[0] = orderfields(ctx.engine->resource(), args[0]);
+    outs[0] = orderfields(args[0], ctx.engine->resource());
 }
 
 void struct2cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -359,7 +357,7 @@ void struct2cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallConte
     if (args.empty())
         throw Error("struct2cell requires 1 argument",
                      0, 0, "struct2cell", "", "m:struct2cell:nargin");
-    outs[0] = struct2cell(ctx.engine->resource(), args[0]);
+    outs[0] = struct2cell(args[0], ctx.engine->resource());
 }
 
 void cell2struct_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -367,7 +365,7 @@ void cell2struct_reg(Span<const Value> args, size_t, Span<Value> outs, CallConte
     if (args.size() < 2)
         throw Error("cell2struct requires (C, fields)",
                      0, 0, "cell2struct", "", "m:cell2struct:nargin");
-    outs[0] = cell2struct(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = cell2struct(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail

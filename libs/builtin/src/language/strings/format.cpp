@@ -158,8 +158,7 @@ size_t countFormatSpecs(const std::string &fmt)
     return n;
 }
 
-std::string formatCyclic(std::pmr::memory_resource *mr, const std::string &fmt,
-                         Span<const Value> args, size_t argStart)
+std::string formatCyclic(const std::string &fmt, Span<const Value> args, size_t argStart, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     ScratchArena scratch(mr);
@@ -195,12 +194,12 @@ std::string formatCyclic(std::pmr::memory_resource *mr, const std::string &fmt,
     return out;
 }
 
-Value sprintf(std::pmr::memory_resource *mr, const Value &fmt, Span<const Value> args)
+Value sprintf(const Value &fmt, Span<const Value> args, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (!fmt.isChar())
         return Value::fromString("", p);
-    std::string result = formatCyclic(mr, fmt.toString(), args, 0);
+    std::string result = formatCyclic(fmt.toString(), args, 0, mr);
     return Value::fromString(result, p);
 }
 
@@ -218,7 +217,7 @@ void sprintf_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
         return;
     }
     Span<const Value> rest{args.data() + 1, args.size() - 1};
-    outs[0] = sprintf(mr, args[0], rest);
+    outs[0] = sprintf(args[0], rest, mr);
 }
 
 } // namespace detail

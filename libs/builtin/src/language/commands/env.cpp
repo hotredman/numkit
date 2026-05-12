@@ -45,7 +45,7 @@ void setenv(Span<const Value> args)
 #endif
 }
 
-Value getenv(std::pmr::memory_resource *mr, Span<const Value> args)
+Value getenv(Span<const Value> args, std::pmr::memory_resource *mr)
 {
     if (args.empty() || !args[0].isChar())
         throw Error("getenv: argument must be a variable name");
@@ -69,7 +69,7 @@ void setenv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 void getenv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     (void)nargout;
-    outs[0] = getenv(ctx.engine->resource(), args);
+    outs[0] = getenv(args, ctx.engine->resource());
 }
 
 } // namespace detail

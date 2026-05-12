@@ -191,7 +191,7 @@ Value phon2sone(std::pmr::memory_resource *mr, const Value &phon,
             phonVal = linearExtrap(kTab5Sone, kTab5Phon, kTab5N, s);
         } else {
             Value q = Value::scalar(s, mr);
-            Value y = builtin::pchip(mr, xs_s, ys_p, q);
+            Value y = builtin::pchip(xs_s, ys_p, q, mr);
             phonVal = y.toScalar();
         }
         if (phonVal < 0.0) phonVal = 0.0;
@@ -204,7 +204,7 @@ Value phon2sone(std::pmr::memory_resource *mr, const Value &phon,
         double guess;
         {
             Value q = Value::scalar(pCapped, mr);
-            Value y = builtin::pchip(mr, xs, ys, q);
+            Value y = builtin::pchip(xs, ys, q, mr);
             guess = y.toScalar();
         }
         if (guess <= 0.0) return guess;  // matches MATLAB low-p path
@@ -257,7 +257,7 @@ Value sone2phon(std::pmr::memory_resource *mr, const Value &sone,
             phon = linearExtrap(kTab5Sone, kTab5Phon, kTab5N, s);
         } else {
             Value q = Value::scalar(s, mr);
-            Value y = builtin::pchip(mr, xs, ys, q);
+            Value y = builtin::pchip(xs, ys, q, mr);
             phon = y.toScalar();
         }
         if (phon < 0.0) phon = 0.0;

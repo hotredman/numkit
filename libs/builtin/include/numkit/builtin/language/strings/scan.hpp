@@ -23,7 +23,7 @@ namespace numkit::builtin {
 // ════════════════════════════════════════════════════════════════════════
 
 void fscanf(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
-void sscanf(std::pmr::memory_resource *mr, Span<const Value> args, size_t nargout, Span<Value> outs);
+void sscanf(Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr = nullptr);
 void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
 
 } // namespace numkit::builtin

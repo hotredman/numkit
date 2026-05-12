@@ -14,6 +14,6 @@ namespace numkit::builtin {
 // ════════════════════════════════════════════════════════════════════════
 
 void setenv(Span<const Value> args);
-Value getenv(std::pmr::memory_resource *mr, Span<const Value> args);
+Value getenv(Span<const Value> args, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

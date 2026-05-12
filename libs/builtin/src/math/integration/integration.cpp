@@ -74,7 +74,7 @@ void gradientAlongRows(const double *src, double *dst, size_t R, size_t C, doubl
     (void)invH;
 }
 
-Value toDoubleCopy(std::pmr::memory_resource *mr, const Value &x)
+Value toDoubleCopy(const Value &x, std::pmr::memory_resource *mr)
 {
     auto r = createLike(x, ValueType::DOUBLE, mr);
     if (x.type() == ValueType::DOUBLE) {
@@ -90,7 +90,7 @@ Value toDoubleCopy(std::pmr::memory_resource *mr, const Value &x)
 
 } // namespace
 
-Value gradient(std::pmr::memory_resource *mr, const Value &f, double h)
+Value gradient(const Value &f, double h, std::pmr::memory_resource *mr)
 {
     if (h <= 0)
         throw Error("gradient: spacing h must be positive",
@@ -99,7 +99,7 @@ Value gradient(std::pmr::memory_resource *mr, const Value &f, double h)
         throw Error("gradient: complex inputs are not supported",
                      0, 0, "gradient", "", "m:gradient:complex");
 
-    auto src = toDoubleCopy(mr, f);
+    auto src = toDoubleCopy(f, mr);
     auto out = createLike(f, ValueType::DOUBLE, mr);
     const auto &d = f.dims();
 
@@ -116,7 +116,7 @@ Value gradient(std::pmr::memory_resource *mr, const Value &f, double h)
 }
 
 std::tuple<Value, Value>
-gradient2(std::pmr::memory_resource *mr, const Value &f, double hx, double hy)
+gradient2(const Value &f, double hx, double hy, std::pmr::memory_resource *mr)
 {
     if (hx <= 0 || hy <= 0)
         throw Error("gradient: spacing arguments must be positive",
@@ -129,7 +129,7 @@ gradient2(std::pmr::memory_resource *mr, const Value &f, double hx, double hy)
         throw Error("gradient: 2-output form requires a 2D matrix input",
                      0, 0, "gradient", "", "m:gradient:rank");
 
-    auto src = toDoubleCopy(mr, f);
+    auto src = toDoubleCopy(f, mr);
     auto fx = createLike(f, ValueType::DOUBLE, mr);
     auto fy = createLike(f, ValueType::DOUBLE, mr);
 
@@ -148,8 +148,7 @@ gradient2(std::pmr::memory_resource *mr, const Value &f, double hx, double hy)
 // ── cumtrapz ─────────────────────────────────────────────────────────
 namespace {
 
-Value cumtrapzVector(std::pmr::memory_resource *mr, const double *y, const double *x,
-                      size_t n, const Dims &shape, bool unitSpacing)
+Value cumtrapzVector(const double *y, const double *x, size_t n, const Dims &shape, bool unitSpacing, std::pmr::memory_resource *mr)
 {
     auto out = Value::matrix(shape.rows(), shape.cols(), ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
@@ -169,9 +168,7 @@ namespace {
 // Matrix form: integrate along columns (MATLAB default for matrix
 // inputs — first non-singleton dim is rows). xData==nullptr → unit
 // spacing. xData layout: same shape as src, used per-column.
-Value cumtrapzMatrixCols(std::pmr::memory_resource *mr,
-                          const double *src, const double *xData,
-                          size_t rows, size_t cols)
+Value cumtrapzMatrixCols(const double *src, const double *xData, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
@@ -191,28 +188,26 @@ Value cumtrapzMatrixCols(std::pmr::memory_resource *mr,
 
 } // namespace
 
-Value cumtrapz(std::pmr::memory_resource *mr, const Value &y)
+Value cumtrapz(const Value &y, std::pmr::memory_resource *mr)
 {
     if (y.type() == ValueType::COMPLEX)
         throw Error("cumtrapz: complex inputs are not supported",
                      0, 0, "cumtrapz", "", "m:cumtrapz:complex");
 
-    auto ys = toDoubleCopy(mr, y);
+    auto ys = toDoubleCopy(y, mr);
     if (y.dims().isVector() || y.isScalar()) {
-        return cumtrapzVector(mr, ys.doubleData(), nullptr, y.numel(),
-                              y.dims(), /*unitSpacing=*/true);
+        return cumtrapzVector(ys.doubleData(), nullptr, y.numel(), y.dims(), /*unitSpacing=*/true, mr);
     }
-    return cumtrapzMatrixCols(mr, ys.doubleData(), nullptr,
-                               y.dims().rows(), y.dims().cols());
+    return cumtrapzMatrixCols(ys.doubleData(), nullptr, y.dims().rows(), y.dims().cols(), mr);
 }
 
-Value cumtrapz(std::pmr::memory_resource *mr, const Value &x, const Value &y)
+Value cumtrapz(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 {
     if (x.type() == ValueType::COMPLEX || y.type() == ValueType::COMPLEX)
         throw Error("cumtrapz: complex inputs are not supported",
                      0, 0, "cumtrapz", "", "m:cumtrapz:complex");
 
-    auto ys = toDoubleCopy(mr, y);
+    auto ys = toDoubleCopy(y, mr);
     if (y.dims().isVector() || y.isScalar()) {
         if (!x.dims().isVector() && !x.isScalar())
             throw Error("cumtrapz: when y is a vector, x must also be a vector",
@@ -220,16 +215,15 @@ Value cumtrapz(std::pmr::memory_resource *mr, const Value &x, const Value &y)
         if (x.numel() != y.numel())
             throw Error("cumtrapz: x and y must have the same length",
                          0, 0, "cumtrapz", "", "m:cumtrapz:lengthMismatch");
-        auto xs = toDoubleCopy(mr, x);
-        return cumtrapzVector(mr, ys.doubleData(), xs.doubleData(),
-                              y.numel(), y.dims(), /*unitSpacing=*/false);
+        auto xs = toDoubleCopy(x, mr);
+        return cumtrapzVector(ys.doubleData(), xs.doubleData(), y.numel(), y.dims(), /*unitSpacing=*/false, mr);
     }
 
     // Matrix y. x may be a vector (broadcast across every column) or
     // matrix of the same shape as y (per-column spacing).
     const size_t rows = y.dims().rows();
     const size_t cols = y.dims().cols();
-    auto xs = toDoubleCopy(mr, x);
+    auto xs = toDoubleCopy(x, mr);
     if (x.dims().isVector() && x.numel() == rows) {
         // Broadcast x to every column.
         auto xMat = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -237,13 +231,12 @@ Value cumtrapz(std::pmr::memory_resource *mr, const Value &x, const Value &y)
         const double *src = xs.doubleData();
         for (size_t c = 0; c < cols; ++c)
             std::memcpy(dx + c * rows, src, rows * sizeof(double));
-        return cumtrapzMatrixCols(mr, ys.doubleData(), dx, rows, cols);
+        return cumtrapzMatrixCols(ys.doubleData(), dx, rows, cols, mr);
     }
     if (x.dims().rows() != rows || x.dims().cols() != cols)
         throw Error("cumtrapz: x size must match y or be a column-length vector",
                      0, 0, "cumtrapz", "", "m:cumtrapz:shapeMismatch");
-    return cumtrapzMatrixCols(mr, ys.doubleData(), xs.doubleData(),
-                               rows, cols);
+    return cumtrapzMatrixCols(ys.doubleData(), xs.doubleData(), rows, cols, mr);
 }
 
 // ── integral (adaptive Gauss-Kronrod) ────────────────────────────────
@@ -324,8 +317,7 @@ double adaptiveIntegral(Engine *engine, const Value &fn, double a, double b,
 
 } // namespace
 
-Value integral(std::pmr::memory_resource *mr, const Value &fn, double a, double b,
-                double absTol, Engine *engine)
+Value integral(const Value &fn, double a, double b, double absTol, Engine *engine, std::pmr::memory_resource *mr)
 {
     if (engine == nullptr)
         throw Error("integral: requires an Engine pointer (callback API)",
@@ -364,10 +356,10 @@ void gradient_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     else                  hy = hx;  // single spacing applies to both axes
 
     if (nargout <= 1) {
-        outs[0] = gradient(mr, args[0], hx);
+        outs[0] = gradient(args[0], hx, mr);
         return;
     }
-    auto [fx, fy] = gradient2(mr, args[0], hx, hy);
+    auto [fx, fy] = gradient2(args[0], hx, hy, mr);
     outs[0] = std::move(fx);
     outs[1] = std::move(fy);
 }
@@ -379,10 +371,10 @@ void cumtrapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
                      0, 0, "cumtrapz", "", "m:cumtrapz:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 1) {
-        outs[0] = cumtrapz(mr, args[0]);
+        outs[0] = cumtrapz(args[0], mr);
         return;
     }
-    outs[0] = cumtrapz(mr, args[0], args[1]);
+    outs[0] = cumtrapz(args[0], args[1], mr);
 }
 
 void integral_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -406,7 +398,7 @@ void integral_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
                          0, 0, "integral", "", "m:integral:badFlag");
         }
     }
-    outs[0] = integral(ctx.engine->resource(), args[0], a, b, absTol, ctx.engine);
+    outs[0] = integral(args[0], a, b, absTol, ctx.engine, ctx.engine->resource());
 }
 
 void trapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -415,9 +407,9 @@ void trapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
         throw Error("trapz: requires at least 1 argument",
                      0, 0, "trapz", "", "m:trapz:nargin");
     if (args.size() == 1)
-        outs[0] = trapz(ctx.engine->resource(), args[0]);
+        outs[0] = trapz(args[0], ctx.engine->resource());
     else
-        outs[0] = trapz(ctx.engine->resource(), args[0], args[1]);
+        outs[0] = trapz(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail
@@ -426,7 +418,7 @@ void trapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 // trapz (moved from libs/fit) — uniform-spacing trapezoidal integration.
 // ════════════════════════════════════════════════════════════════════════
 
-Value trapz(std::pmr::memory_resource *mr, const Value &y)
+Value trapz(const Value &y, std::pmr::memory_resource *mr)
 {
     const double *yd = y.doubleData();
     const size_t n = y.numel();
@@ -436,7 +428,7 @@ Value trapz(std::pmr::memory_resource *mr, const Value &y)
     return Value::scalar(s, mr);
 }
 
-Value trapz(std::pmr::memory_resource *mr, const Value &x, const Value &y)
+Value trapz(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 {
     const size_t n = x.numel();
     if (y.numel() != n)

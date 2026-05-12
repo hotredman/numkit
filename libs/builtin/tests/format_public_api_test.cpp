@@ -87,8 +87,7 @@ TEST(BuiltinFormatPublicApi, FormatCyclicRepeatsOverArray)
     double *d = arr.doubleDataMut();
     d[0] = 1; d[1] = 2; d[2] = 3; d[3] = 4;
     Value args[] = {arr};
-    std::string out = numkit::builtin::formatCyclic(
-        mr, "%d ", Span<const Value>(args, 1), 0);
+    std::string out = numkit::builtin::formatCyclic("%d ", Span<const Value>(args, 1), 0, mr);
     EXPECT_EQ(out, "1 2 3 4 ");
 }
 
@@ -100,16 +99,14 @@ TEST(BuiltinFormatPublicApi, FormatCyclicMultipleSpecsPerCycle)
     d[0] = 1; d[1] = 2; d[2] = 3; d[3] = 4;
     Value args[] = {arr};
     // Two specs → two pairs: "1 2\n3 4\n"
-    std::string out = numkit::builtin::formatCyclic(
-        mr, "%d %d\\n", Span<const Value>(args, 1), 0);
+    std::string out = numkit::builtin::formatCyclic("%d %d\\n", Span<const Value>(args, 1), 0, mr);
     EXPECT_EQ(out, "1 2\n3 4\n");
 }
 
 TEST(BuiltinFormatPublicApi, FormatCyclicEmptyArgsJustPrintsFmt)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    std::string out = numkit::builtin::formatCyclic(
-        mr, "just text\\n", Span<const Value>{}, 0);
+    std::string out = numkit::builtin::formatCyclic("just text\\n", Span<const Value>{}, 0, mr);
     EXPECT_EQ(out, "just text\n");
 }
 
@@ -118,8 +115,7 @@ TEST(BuiltinFormatPublicApi, SprintfReturnsCharArray)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value args[] = {Value::scalar(7.0, mr), mkStr(mr, "foo")};
-    Value r = numkit::builtin::sprintf(mr, mkStr(mr, "%d/%s"),
-                                           Span<const Value>(args, 2));
+    Value r = numkit::builtin::sprintf(mkStr(mr, "%d/%s"), Span<const Value>(args, 2), mr);
     ASSERT_TRUE(r.isChar());
     EXPECT_EQ(r.toString(), "7/foo");
 }
@@ -127,8 +123,7 @@ TEST(BuiltinFormatPublicApi, SprintfReturnsCharArray)
 TEST(BuiltinFormatPublicApi, SprintfNonCharFmtReturnsEmpty)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::sprintf(mr, Value::scalar(1.0, mr),
-                                           Span<const Value>{});
+    Value r = numkit::builtin::sprintf(Value::scalar(1.0, mr), Span<const Value>{}, mr);
     ASSERT_TRUE(r.isChar());
     EXPECT_EQ(r.toString(), "");
 }

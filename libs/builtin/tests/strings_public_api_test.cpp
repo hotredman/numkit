@@ -28,7 +28,7 @@ Value mkStr(std::pmr::memory_resource *mr, const char *s) { return Value::fromSt
 TEST(BuiltinStringsPublicApi, Num2StrScalar)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::num2str(mr, Value::scalar(3.14, mr));
+    Value r = numkit::builtin::num2str(Value::scalar(3.14, mr), mr);
     ASSERT_TRUE(r.isChar());
     EXPECT_EQ(r.toString(), "3.14");
 }
@@ -36,28 +36,28 @@ TEST(BuiltinStringsPublicApi, Num2StrScalar)
 TEST(BuiltinStringsPublicApi, Str2NumSuccess)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::str2num(mr, mkStr(mr, "42.5"));
+    Value r = numkit::builtin::str2num(mkStr(mr, "42.5"), mr);
     EXPECT_DOUBLE_EQ(r.toScalar(), 42.5);
 }
 
 TEST(BuiltinStringsPublicApi, Str2NumFailureReturnsEmpty)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::str2num(mr, mkStr(mr, "not a number"));
+    Value r = numkit::builtin::str2num(mkStr(mr, "not a number"), mr);
     EXPECT_TRUE(r.isEmpty());
 }
 
 TEST(BuiltinStringsPublicApi, Str2DoubleSuccess)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::str2double(mr, mkStr(mr, "3.14e2"));
+    Value r = numkit::builtin::str2double(mkStr(mr, "3.14e2"), mr);
     EXPECT_DOUBLE_EQ(r.toScalar(), 314.0);
 }
 
 TEST(BuiltinStringsPublicApi, Str2DoubleFailureReturnsNaN)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::str2double(mr, mkStr(mr, "xyz"));
+    Value r = numkit::builtin::str2double(mkStr(mr, "xyz"), mr);
     EXPECT_TRUE(std::isnan(r.toScalar()));
 }
 
@@ -65,7 +65,7 @@ TEST(BuiltinStringsPublicApi, Str2DoubleFailureReturnsNaN)
 TEST(BuiltinStringsPublicApi, ToStringFromScalar)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::toString(mr, Value::scalar(7.5, mr));
+    Value r = numkit::builtin::toString(Value::scalar(7.5, mr), mr);
     ASSERT_TRUE(r.isString());
     EXPECT_EQ(r.toString(), "7.5");
 }
@@ -76,7 +76,7 @@ TEST(BuiltinStringsPublicApi, ToCharFromAsciiCodes)
     auto v = Value::matrix(1, 3, ValueType::DOUBLE, mr);
     double *d = v.doubleDataMut();
     d[0] = 72; d[1] = 105; d[2] = 33; // "Hi!"
-    Value r = numkit::builtin::toChar(mr, v);
+    Value r = numkit::builtin::toChar(v, mr);
     ASSERT_TRUE(r.isChar());
     EXPECT_EQ(r.toString(), "Hi!");
 }
@@ -85,19 +85,16 @@ TEST(BuiltinStringsPublicApi, ToCharFromAsciiCodes)
 TEST(BuiltinStringsPublicApi, StrcmpExact)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    EXPECT_TRUE(numkit::builtin::strcmp(mr, mkStr(mr, "abc"),
-                                           mkStr(mr, "abc"))
+    EXPECT_TRUE(numkit::builtin::strcmp(mkStr(mr, "abc"), mkStr(mr, "abc"), mr)
                     .toBool());
-    EXPECT_FALSE(numkit::builtin::strcmp(mr, mkStr(mr, "abc"),
-                                            mkStr(mr, "ABC"))
+    EXPECT_FALSE(numkit::builtin::strcmp(mkStr(mr, "abc"), mkStr(mr, "ABC"), mr)
                      .toBool());
 }
 
 TEST(BuiltinStringsPublicApi, StrcmpiCaseInsensitive)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    EXPECT_TRUE(numkit::builtin::strcmpi(mr, mkStr(mr, "Hello"),
-                                            mkStr(mr, "hELLO"))
+    EXPECT_TRUE(numkit::builtin::strcmpi(mkStr(mr, "Hello"), mkStr(mr, "hELLO"), mr)
                     .toBool());
 }
 
@@ -105,14 +102,14 @@ TEST(BuiltinStringsPublicApi, StrcmpiCaseInsensitive)
 TEST(BuiltinStringsPublicApi, UpperAscii)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::upper(mr, mkStr(mr, "Mixed Case"));
+    Value r = numkit::builtin::upper(mkStr(mr, "Mixed Case"), mr);
     EXPECT_EQ(r.toString(), "MIXED CASE");
 }
 
 TEST(BuiltinStringsPublicApi, LowerAscii)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::lower(mr, mkStr(mr, "Mixed Case"));
+    Value r = numkit::builtin::lower(mkStr(mr, "Mixed Case"), mr);
     EXPECT_EQ(r.toString(), "mixed case");
 }
 
@@ -120,14 +117,14 @@ TEST(BuiltinStringsPublicApi, LowerAscii)
 TEST(BuiltinStringsPublicApi, StrtrimStripsWhitespace)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::strtrim(mr, mkStr(mr, "  \t hello\n "));
+    Value r = numkit::builtin::strtrim(mkStr(mr, "  \t hello\n "), mr);
     EXPECT_EQ(r.toString(), "hello");
 }
 
 TEST(BuiltinStringsPublicApi, StrtrimAllWhitespaceReturnsEmpty)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::strtrim(mr, mkStr(mr, "   \n\t"));
+    Value r = numkit::builtin::strtrim(mkStr(mr, "   \n\t"), mr);
     EXPECT_EQ(r.toString(), "");
 }
 
@@ -135,7 +132,7 @@ TEST(BuiltinStringsPublicApi, StrtrimAllWhitespaceReturnsEmpty)
 TEST(BuiltinStringsPublicApi, StrsplitDefaultDelimIsSpace)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::strsplit(mr, mkStr(mr, "one two three"));
+    Value r = numkit::builtin::strsplit(mkStr(mr, "one two three"), mr);
     ASSERT_EQ(r.numel(), 3u);
     EXPECT_EQ(r.cellAt(0).toString(), "one");
     EXPECT_EQ(r.cellAt(1).toString(), "two");
@@ -145,8 +142,7 @@ TEST(BuiltinStringsPublicApi, StrsplitDefaultDelimIsSpace)
 TEST(BuiltinStringsPublicApi, StrsplitCustomDelim)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::strsplit(mr, mkStr(mr, "a,b,c"),
-                                            mkStr(mr, ","));
+    Value r = numkit::builtin::strsplit(mkStr(mr, "a,b,c"), mkStr(mr, ","), mr);
     ASSERT_EQ(r.numel(), 3u);
     EXPECT_EQ(r.cellAt(0).toString(), "a");
     EXPECT_EQ(r.cellAt(2).toString(), "c");
@@ -161,7 +157,7 @@ TEST(BuiltinStringsPublicApi, StrcatConcatenatesAll)
     Value c = mkStr(mr, "baz");
     Value parts[] = {a, b, c};
     numkit::Span<const Value> span(parts, 3);
-    Value r = numkit::builtin::strcat(mr, span);
+    Value r = numkit::builtin::strcat(span, mr);
     EXPECT_EQ(r.toString(), "foobarbaz");
 }
 
@@ -169,7 +165,7 @@ TEST(BuiltinStringsPublicApi, StrcatConcatenatesAll)
 TEST(BuiltinStringsPublicApi, StrlengthOfCharArray)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::strlength(mr, mkStr(mr, "hello"));
+    Value r = numkit::builtin::strlength(mkStr(mr, "hello"), mr);
     EXPECT_DOUBLE_EQ(r.toScalar(), 5.0);
 }
 
@@ -177,19 +173,14 @@ TEST(BuiltinStringsPublicApi, StrlengthOfCharArray)
 TEST(BuiltinStringsPublicApi, StrrepReplacesAllOccurrences)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::strrep(mr,
-                                          mkStr(mr, "foo bar foo baz foo"),
-                                          mkStr(mr, "foo"),
-                                          mkStr(mr, "XYZ"));
+    Value r = numkit::builtin::strrep(mkStr(mr, "foo bar foo baz foo"), mkStr(mr, "foo"), mkStr(mr, "XYZ"), mr);
     EXPECT_EQ(r.toString(), "XYZ bar XYZ baz XYZ");
 }
 
 TEST(BuiltinStringsPublicApi, StrrepEmptyOldPatIsPassThrough)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::strrep(mr, mkStr(mr, "abc"),
-                                          mkStr(mr, ""),
-                                          mkStr(mr, "X"));
+    Value r = numkit::builtin::strrep(mkStr(mr, "abc"), mkStr(mr, ""), mkStr(mr, "X"), mr);
     EXPECT_EQ(r.toString(), "abc");
 }
 
@@ -197,38 +188,32 @@ TEST(BuiltinStringsPublicApi, StrrepEmptyOldPatIsPassThrough)
 TEST(BuiltinStringsPublicApi, ContainsPositive)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    EXPECT_TRUE(numkit::builtin::contains(mr, mkStr(mr, "hello world"),
-                                             mkStr(mr, "lo wo"))
+    EXPECT_TRUE(numkit::builtin::contains(mkStr(mr, "hello world"), mkStr(mr, "lo wo"), mr)
                     .toBool());
 }
 
 TEST(BuiltinStringsPublicApi, ContainsNegative)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    EXPECT_FALSE(numkit::builtin::contains(mr, mkStr(mr, "hello"),
-                                              mkStr(mr, "xyz"))
+    EXPECT_FALSE(numkit::builtin::contains(mkStr(mr, "hello"), mkStr(mr, "xyz"), mr)
                      .toBool());
 }
 
 TEST(BuiltinStringsPublicApi, StartsWithTrueFalse)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    EXPECT_TRUE(numkit::builtin::startsWith(mr, mkStr(mr, "hello"),
-                                               mkStr(mr, "hel"))
+    EXPECT_TRUE(numkit::builtin::startsWith(mkStr(mr, "hello"), mkStr(mr, "hel"), mr)
                     .toBool());
-    EXPECT_FALSE(numkit::builtin::startsWith(mr, mkStr(mr, "hello"),
-                                                mkStr(mr, "world"))
+    EXPECT_FALSE(numkit::builtin::startsWith(mkStr(mr, "hello"), mkStr(mr, "world"), mr)
                      .toBool());
 }
 
 TEST(BuiltinStringsPublicApi, EndsWithTrueFalse)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    EXPECT_TRUE(numkit::builtin::endsWith(mr, mkStr(mr, "hello.txt"),
-                                             mkStr(mr, ".txt"))
+    EXPECT_TRUE(numkit::builtin::endsWith(mkStr(mr, "hello.txt"), mkStr(mr, ".txt"), mr)
                     .toBool());
-    EXPECT_FALSE(numkit::builtin::endsWith(mr, mkStr(mr, "hello"),
-                                              mkStr(mr, ".txt"))
+    EXPECT_FALSE(numkit::builtin::endsWith(mkStr(mr, "hello"), mkStr(mr, ".txt"), mr)
                      .toBool());
 }
 
@@ -245,7 +230,7 @@ TEST(BuiltinStringsPublicApi, NewlineIsLfChar)
 TEST(BuiltinStringsPublicApi, StringsZeroArgIsEmptyScalar)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::stringsND(mr, nullptr, 0);
+    Value r = numkit::builtin::stringsND(nullptr, 0, mr);
     EXPECT_EQ(r.dims().rows(), 1u);
     EXPECT_EQ(r.dims().cols(), 1u);
     EXPECT_EQ(r.numel(), 1u);
@@ -256,7 +241,7 @@ TEST(BuiltinStringsPublicApi, StringsNxNFromSingleArg)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     size_t d[] = {4};
-    Value r = numkit::builtin::stringsND(mr, d, 1);
+    Value r = numkit::builtin::stringsND(d, 1, mr);
     EXPECT_EQ(r.dims().rows(), 4u);
     EXPECT_EQ(r.dims().cols(), 4u);
     EXPECT_EQ(r.numel(), 16u);
@@ -268,7 +253,7 @@ TEST(BuiltinStringsPublicApi, StringsMxN)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     size_t d[] = {2, 3};
-    Value r = numkit::builtin::stringsND(mr, d, 2);
+    Value r = numkit::builtin::stringsND(d, 2, mr);
     EXPECT_EQ(r.dims().rows(), 2u);
     EXPECT_EQ(r.dims().cols(), 3u);
     EXPECT_EQ(r.numel(), 6u);
@@ -278,7 +263,7 @@ TEST(BuiltinStringsPublicApi, Strings3D)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     size_t d[] = {2, 3, 4};
-    Value r = numkit::builtin::stringsND(mr, d, 3);
+    Value r = numkit::builtin::stringsND(d, 3, mr);
     EXPECT_EQ(r.dims().rows(), 2u);
     EXPECT_EQ(r.dims().cols(), 3u);
     EXPECT_EQ(r.numel(), 24u);
@@ -291,7 +276,7 @@ TEST(BuiltinStringsPublicApi, ComposeBroadcastsOverArray)
     auto a = Value::matrix(1, 3, numkit::ValueType::DOUBLE, mr);
     a.doubleDataMut()[0] = 1; a.doubleDataMut()[1] = 2; a.doubleDataMut()[2] = 3;
     auto fmt = mkStr(mr, "v%d");
-    Value c = numkit::builtin::compose(mr, fmt, a);
+    Value c = numkit::builtin::compose(fmt, a, mr);
     ASSERT_TRUE(c.isCell());
     EXPECT_EQ(c.dims().rows(), 1u);
     EXPECT_EQ(c.dims().cols(), 3u);
@@ -303,7 +288,7 @@ TEST(BuiltinStringsPublicApi, ComposeBroadcastsOverArray)
 TEST(BuiltinStringsPublicApi, ComposeScalar)
 {
     auto *mr = std::pmr::get_default_resource();
-    Value c = numkit::builtin::compose(mr, mkStr(mr, "x=%g"), Value::scalar(2.5, mr));
+    Value c = numkit::builtin::compose(mkStr(mr, "x=%g"), Value::scalar(2.5, mr), mr);
     ASSERT_TRUE(c.isCell());
     EXPECT_EQ(c.numel(), 1u);
     EXPECT_EQ(c.cellAt(0).toString(), "x=2.5");
@@ -323,7 +308,7 @@ TEST(BuiltinStringsPublicApi, StrjustRight)
     put(0,0,'a'); put(0,1,'b'); put(0,2,' '); put(0,3,' ');
     put(1,0,'c'); put(1,1,' '); put(1,2,' '); put(1,3,' ');
     put(2,0,' '); put(2,1,'d'); put(2,2,'e'); put(2,3,' ');
-    Value r = numkit::builtin::strjust(mr, m, "right");
+    Value r = numkit::builtin::strjust(m, "right", mr);
     EXPECT_EQ(r.dims().rows(), 3u);
     EXPECT_EQ(r.dims().cols(), 4u);
     const char *q = r.charData();
@@ -336,7 +321,7 @@ TEST(BuiltinStringsPublicApi, StrjustRight)
 TEST(BuiltinStringsPublicApi, ExtractMultipleMatches)
 {
     auto *mr = std::pmr::get_default_resource();
-    Value c = numkit::builtin::extract(mr, mkStr(mr, "hello hello world"), mkStr(mr, "hello"));
+    Value c = numkit::builtin::extract(mkStr(mr, "hello hello world"), mkStr(mr, "hello"), mr);
     ASSERT_TRUE(c.isCell());
     EXPECT_EQ(c.dims().rows(), 2u);
     EXPECT_EQ(c.dims().cols(), 1u);
@@ -347,7 +332,7 @@ TEST(BuiltinStringsPublicApi, ExtractMultipleMatches)
 TEST(BuiltinStringsPublicApi, ExtractNoMatch)
 {
     auto *mr = std::pmr::get_default_resource();
-    Value c = numkit::builtin::extract(mr, mkStr(mr, "hi"), mkStr(mr, "world"));
+    Value c = numkit::builtin::extract(mkStr(mr, "hi"), mkStr(mr, "world"), mr);
     ASSERT_TRUE(c.isCell());
     EXPECT_EQ(c.numel(), 0u);
 }
@@ -355,7 +340,7 @@ TEST(BuiltinStringsPublicApi, ExtractNoMatch)
 TEST(BuiltinStringsPublicApi, SplitKeepsEmptyTokens)
 {
     auto *mr = std::pmr::get_default_resource();
-    Value c = numkit::builtin::split(mr, mkStr(mr, "a,b,,c"), mkStr(mr, ","));
+    Value c = numkit::builtin::split(mkStr(mr, "a,b,,c"), mkStr(mr, ","), mr);
     ASSERT_TRUE(c.isCell());
     EXPECT_EQ(c.dims().rows(), 4u);
     EXPECT_EQ(c.dims().cols(), 1u);
@@ -371,7 +356,7 @@ TEST(BuiltinStringsPublicApi, JoinStringArray)
     Value arr = Value::stringArray(1, 3, mr);
     arr.stringElemSet(0, "a"); arr.stringElemSet(1, "b"); arr.stringElemSet(2, "c");
     Value d = mkStr(mr, "-");
-    Value j = numkit::builtin::join(mr, arr, &d);
+    Value j = numkit::builtin::join(arr, &d, mr);
     EXPECT_TRUE(j.isString());
     EXPECT_EQ(j.numel(), 1u);
     EXPECT_EQ(j.stringElem(0), "a-b-c");
@@ -382,6 +367,6 @@ TEST(BuiltinStringsPublicApi, JoinDefaultDelimIsSpace)
     auto *mr = std::pmr::get_default_resource();
     Value arr = Value::stringArray(1, 3, mr);
     arr.stringElemSet(0, "x"); arr.stringElemSet(1, "y"); arr.stringElemSet(2, "z");
-    Value j = numkit::builtin::join(mr, arr, nullptr);
+    Value j = numkit::builtin::join(arr, nullptr, mr);
     EXPECT_EQ(j.stringElem(0), "x y z");
 }

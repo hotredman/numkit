@@ -26,8 +26,7 @@ namespace {
 // a fresh result and apply ScalarOp element-wise. See the docblock
 // on abs() in math/elementary/misc.hpp for the full hint contract.
 template <typename ScalarOp, typename ComplexOp>
-Value unaryRealDoubleHint(std::pmr::memory_resource *mr, const Value &x, Value *hint,
-                           ScalarOp scalarOp, ComplexOp complexOp)
+Value unaryRealDoubleHint(const Value &x, Value *hint, ScalarOp scalarOp, ComplexOp complexOp, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, complexOp, mr);
@@ -48,72 +47,68 @@ Value unaryRealDoubleHint(std::pmr::memory_resource *mr, const Value &x, Value *
 
 } // namespace
 
-Value sin(std::pmr::memory_resource *mr, const Value &x, Value *hint)
+Value sin(const Value &x, Value *hint, std::pmr::memory_resource *mr)
 {
-    return unaryRealDoubleHint(mr, x, hint,
-        [](double v) { return std::sin(v); },
-        [](const Complex &c) { return std::sin(c); });
+    return unaryRealDoubleHint(x, hint, [](double v) { return std::sin(v); }, [](const Complex &c) { return std::sin(c); }, mr);
 }
 
-Value cos(std::pmr::memory_resource *mr, const Value &x, Value *hint)
+Value cos(const Value &x, Value *hint, std::pmr::memory_resource *mr)
 {
-    return unaryRealDoubleHint(mr, x, hint,
-        [](double v) { return std::cos(v); },
-        [](const Complex &c) { return std::cos(c); });
+    return unaryRealDoubleHint(x, hint, [](double v) { return std::cos(v); }, [](const Complex &c) { return std::cos(c); }, mr);
 }
 
 // ── Hyperbolic + inverse trig (scalar fallback) ──────────────────────
 
-Value sinh(std::pmr::memory_resource *mr, const Value &x)
+Value sinh(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::sinh(c); }, mr);
     return unaryDouble(x, [](double v) { return std::sinh(v); }, mr);
 }
 
-Value cosh(std::pmr::memory_resource *mr, const Value &x)
+Value cosh(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::cosh(c); }, mr);
     return unaryDouble(x, [](double v) { return std::cosh(v); }, mr);
 }
 
-Value tanh(std::pmr::memory_resource *mr, const Value &x)
+Value tanh(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::tanh(c); }, mr);
     return unaryDouble(x, [](double v) { return std::tanh(v); }, mr);
 }
 
-Value asin(std::pmr::memory_resource *mr, const Value &x)
+Value asin(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::asin(c); }, mr);
     return unaryDouble(x, [](double v) { return std::asin(v); }, mr);
 }
 
-Value acos(std::pmr::memory_resource *mr, const Value &x)
+Value acos(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::acos(c); }, mr);
     return unaryDouble(x, [](double v) { return std::acos(v); }, mr);
 }
 
-Value atan(std::pmr::memory_resource *mr, const Value &x)
+Value atan(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::atan(c); }, mr);
     return unaryDouble(x, [](double v) { return std::atan(v); }, mr);
 }
 
-Value asinh(std::pmr::memory_resource *mr, const Value &x)
+Value asinh(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::asinh(c); }, mr);
     return unaryDouble(x, [](double v) { return std::asinh(v); }, mr);
 }
 
-Value atanh(std::pmr::memory_resource *mr, const Value &x)
+Value atanh(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::atanh(c); }, mr);
@@ -125,19 +120,19 @@ Value atanh(std::pmr::memory_resource *mr, const Value &x)
     return unaryDouble(x, [](double v) { return std::atanh(v); }, mr);
 }
 
-Value atan2(std::pmr::memory_resource *mr, const Value &y, const Value &x)
+Value atan2(const Value &y, const Value &x, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(y, x, [](double yy, double xx) { return std::atan2(yy, xx); }, mr);
 }
 
-Value tan(std::pmr::memory_resource *mr, const Value &x)
+Value tan(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::tan(c); }, mr);
     return unaryDouble(x, [](double v) { return std::tan(v); }, mr);
 }
 
-Value acosh(std::pmr::memory_resource *mr, const Value &x)
+Value acosh(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::acosh(c); }, mr);
@@ -204,60 +199,60 @@ inline double cospi_scalar_p(double x)
 }
 } // anonymous
 
-Value sind(std::pmr::memory_resource *mr, const Value &x)
+Value sind(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::sin(c * kDeg2Rad_p); }, mr);
     return unaryDouble(x, [](double v) { return sind_scalar_p(v); }, mr);
 }
-Value cosd(std::pmr::memory_resource *mr, const Value &x)
+Value cosd(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::cos(c * kDeg2Rad_p); }, mr);
     return unaryDouble(x, [](double v) { return cosd_scalar_p(v); }, mr);
 }
-Value tand(std::pmr::memory_resource *mr, const Value &x)
+Value tand(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::tan(c * kDeg2Rad_p); }, mr);
     return unaryDouble(x, [](double v) { return tand_scalar_p(v); }, mr);
 }
-Value asind(std::pmr::memory_resource *mr, const Value &x)
+Value asind(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::asin(c) * kRad2Deg_p; }, mr);
     return unaryDouble(x, [](double v) { return std::asin(v) * kRad2Deg_p; }, mr);
 }
-Value acosd(std::pmr::memory_resource *mr, const Value &x)
+Value acosd(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::acos(c) * kRad2Deg_p; }, mr);
     return unaryDouble(x, [](double v) { return std::acos(v) * kRad2Deg_p; }, mr);
 }
-Value atand(std::pmr::memory_resource *mr, const Value &x)
+Value atand(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::atan(c) * kRad2Deg_p; }, mr);
     return unaryDouble(x, [](double v) { return std::atan(v) * kRad2Deg_p; }, mr);
 }
-Value atan2d(std::pmr::memory_resource *mr, const Value &y, const Value &x)
+Value atan2d(const Value &y, const Value &x, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(y, x, [](double yy, double xx) { return std::atan2(yy, xx) * kRad2Deg_p; }, mr);
 }
-Value sinpi(std::pmr::memory_resource *mr, const Value &x)
+Value sinpi(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::sin(kPi_p * c); }, mr);
     return unaryDouble(x, [](double v) { return sinpi_scalar_p(v); }, mr);
 }
-Value cospi(std::pmr::memory_resource *mr, const Value &x)
+Value cospi(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::cos(kPi_p * c); }, mr);
     return unaryDouble(x, [](double v) { return cospi_scalar_p(v); }, mr);
 }
 
-Value hypot(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value hypot(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(a, b, [](double aa, double bb) { return std::hypot(aa, bb); }, mr);
 }

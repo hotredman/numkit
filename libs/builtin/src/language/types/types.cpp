@@ -587,8 +587,8 @@ Value cast(std::pmr::memory_resource *mr, const Value &x,
     if (classname == "uint32")  return uint32(mr, x);
     if (classname == "uint64")  return uint64(mr, x);
     if (classname == "logical") return logical(mr, x);
-    if (classname == "char")    return toChar(mr, x);
-    if (classname == "string")  return toString(mr, x);
+    if (classname == "char")    return toChar(x, mr);
+    if (classname == "string")  return toString(x, mr);
     throw Error("cast: unsupported class '" + classname + "'",
                  0, 0, "cast", "", "m:cast:badClass");
 }

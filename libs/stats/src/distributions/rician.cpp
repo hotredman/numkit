@@ -43,7 +43,7 @@ inline double besseli_scalar(double nu, double xx, std::pmr::memory_resource *mr
 {
     Value nv = Value::scalar(nu, mr);
     Value xv = Value::scalar(xx, mr);
-    return ::numkit::builtin::besseli(mr, nv, xv).toScalar();
+    return ::numkit::builtin::besseli(nv, xv, mr).toScalar();
 }
 
 inline double marcumq_scalar(double a, double b, std::pmr::memory_resource *mr)

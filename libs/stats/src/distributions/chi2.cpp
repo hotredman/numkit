@@ -71,7 +71,7 @@ Value chi2cdf(const Value &x, double k, std::pmr::memory_resource *mr)
     // builtin::gammainc takes Values for x and a — call elementwise.
     auto out = elementwise(x, [](double xi){ return std::max(0.0, 0.5 * xi); }, mr);
     Value ar = Value::scalar(0.5 * k, mr);
-    return ::numkit::builtin::gammainc(mr, out, ar);
+    return ::numkit::builtin::gammainc(out, ar, mr);
 }
 
 Value chi2inv(const Value &p, double k, std::pmr::memory_resource *mr)
@@ -86,7 +86,7 @@ Value chi2inv(const Value &p, double k, std::pmr::memory_resource *mr)
                                             : std::numeric_limits<double>::quiet_NaN();
         }, mr);
     Value ar = Value::scalar(0.5 * k, mr);
-    Value q = ::numkit::builtin::gammaincinv(mr, p, ar);
+    Value q = ::numkit::builtin::gammaincinv(p, ar, mr);
     // x = 2 * gammaincinv(p, k/2)
     return elementwise(q, [](double v){ return 2.0 * v; }, mr);
 }

@@ -38,7 +38,7 @@ void     lastwarnSet(const std::string &msg, const std::string &id);
 // ── MATLAB MException() ──────────────────────────────────────────────
 /// Create an MException-like struct with "identifier" and "message"
 /// fields. Form: MException(id, msg, arg1, ...). Throws on <2 args.
-Value mexception(std::pmr::memory_resource *mr, Span<const Value> args);
+Value mexception(Span<const Value> args, std::pmr::memory_resource *mr = nullptr);
 
 // ── rethrow(ME) / throw(ME) ──────────────────────────────────────────
 /// Extract "message" + "identifier" from the struct and throw Error.

@@ -17,7 +17,7 @@ namespace numkit::builtin {
 // Public API
 // ════════════════════════════════════════════════════════════════════════
 
-Value real(std::pmr::memory_resource *mr, const Value &x)
+Value real(const Value &x, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (!x.isComplex())
@@ -30,7 +30,7 @@ Value real(std::pmr::memory_resource *mr, const Value &x)
     return r;
 }
 
-Value imag(std::pmr::memory_resource *mr, const Value &x)
+Value imag(const Value &x, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (!x.isComplex())
@@ -43,7 +43,7 @@ Value imag(std::pmr::memory_resource *mr, const Value &x)
     return r;
 }
 
-Value conj(std::pmr::memory_resource *mr, const Value &x)
+Value conj(const Value &x, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (!x.isComplex())
@@ -51,7 +51,7 @@ Value conj(std::pmr::memory_resource *mr, const Value &x)
     return unaryComplex(x, [](const Complex &c) { return std::conj(c); }, p);
 }
 
-Value complex(std::pmr::memory_resource *mr, const Value &re)
+Value complex(const Value &re, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (re.isScalar())
@@ -63,7 +63,7 @@ Value complex(std::pmr::memory_resource *mr, const Value &re)
     return r;
 }
 
-Value complex(std::pmr::memory_resource *mr, const Value &re, const Value &im)
+Value complex(const Value &re, const Value &im, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (re.isScalar() && im.isScalar())
@@ -85,7 +85,7 @@ Value complex(std::pmr::memory_resource *mr, const Value &re, const Value &im)
     return r;
 }
 
-Value angle(std::pmr::memory_resource *mr, const Value &x)
+Value angle(const Value &x, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (x.isComplex()) {
@@ -109,21 +109,21 @@ void real_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx
 {
     if (args.empty())
         throw Error("real: requires 1 argument", 0, 0, "real", "", "m:real:nargin");
-    outs[0] = real(ctx.engine->resource(), args[0]);
+    outs[0] = real(args[0], ctx.engine->resource());
 }
 
 void imag_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("imag: requires 1 argument", 0, 0, "imag", "", "m:imag:nargin");
-    outs[0] = imag(ctx.engine->resource(), args[0]);
+    outs[0] = imag(args[0], ctx.engine->resource());
 }
 
 void conj_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("conj: requires 1 argument", 0, 0, "conj", "", "m:conj:nargin");
-    outs[0] = conj(ctx.engine->resource(), args[0]);
+    outs[0] = conj(args[0], ctx.engine->resource());
 }
 
 void complex_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -132,16 +132,16 @@ void complex_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
         throw Error("complex: requires 1 or 2 arguments", 0, 0, "complex", "",
                      "m:complex:nargin");
     if (args.size() == 1)
-        outs[0] = complex(ctx.engine->resource(), args[0]);
+        outs[0] = complex(args[0], ctx.engine->resource());
     else
-        outs[0] = complex(ctx.engine->resource(), args[0], args[1]);
+        outs[0] = complex(args[0], args[1], ctx.engine->resource());
 }
 
 void angle_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("angle: requires 1 argument", 0, 0, "angle", "", "m:angle:nargin");
-    outs[0] = angle(ctx.engine->resource(), args[0]);
+    outs[0] = angle(args[0], ctx.engine->resource());
 }
 
 } // namespace detail

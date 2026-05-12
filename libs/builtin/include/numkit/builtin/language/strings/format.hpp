@@ -28,11 +28,10 @@ size_t countFormatSpecs(const std::string &fmt);
 /// (MATLAB %s consumes the whole string).
 ///
 /// Takes a memory_resource because intermediate scalar MValues are allocated.
-std::string formatCyclic(std::pmr::memory_resource *mr, const std::string &fmt,
-                         Span<const Value> args, size_t argStart);
+std::string formatCyclic(const std::string &fmt, Span<const Value> args, size_t argStart, std::pmr::memory_resource *mr = nullptr);
 
 /// MATLAB sprintf(fmt, args...) — char-array result. Empty fmt / non-char
 /// fmt both return an empty char array (MATLAB behavior).
-Value sprintf(std::pmr::memory_resource *mr, const Value &fmt, Span<const Value> args);
+Value sprintf(const Value &fmt, Span<const Value> args, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

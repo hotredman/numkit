@@ -109,7 +109,7 @@ ScratchVec<double> polyderRaw(std::pmr::memory_resource *mr,
     return r;
 }
 
-Value rowFromVec(std::pmr::memory_resource *mr, const double *v, std::size_t n)
+Value rowFromVec(const double *v, std::size_t n, std::pmr::memory_resource *mr)
 {
     auto out = Value::matrix(1, n, ValueType::DOUBLE, mr);
     if (n > 0)
@@ -136,7 +136,7 @@ Value polyder(std::pmr::memory_resource *mr, const Value &p)
     // (no leading zeros), so a polyder result like [0, 1, 2] must be
     // trimmed to [1, 2]. See BUGS.md #12.
     trimLeadingZeros(deriv);
-    return rowFromVec(mr, deriv.data(), deriv.size());
+    return rowFromVec(deriv.data(), deriv.size(), mr);
 }
 
 std::tuple<Value, Value>
@@ -158,8 +158,8 @@ polyder(std::pmr::memory_resource *mr, const Value &b, const Value &a)
     trimLeadingZeros(num);
     auto den = polyConv(&scratch, av.data(), av.size(), av.data(), av.size());
     trimLeadingZeros(den);
-    return std::make_tuple(rowFromVec(mr, num.data(), num.size()),
-                           rowFromVec(mr, den.data(), den.size()));
+    return std::make_tuple(rowFromVec(num.data(), num.size(), mr),
+                           rowFromVec(den.data(), den.size(), mr));
 }
 
 // Read a vector input of (real or COMPLEX) numbers as a Complex vector.
@@ -227,7 +227,7 @@ Value polyint(std::pmr::memory_resource *mr, const Value &p, double k)
         r[i] = pv[i] / exponent;
     }
     r[n] = k;
-    return rowFromVec(mr, r.data(), r.size());
+    return rowFromVec(r.data(), r.size(), mr);
 }
 
 // ── tf2zp / zp2tf ───────────────────────────────────────────────────
@@ -266,8 +266,8 @@ zp2tf(std::pmr::memory_resource *mr, const Value &z, const Value &p, double k)
     auto bRaw = detail::polyExpandFromRoots(&scratch, zv.data(), zv.size());
     auto aRaw = detail::polyExpandFromRoots(&scratch, pv.data(), pv.size());
     for (auto &v : bRaw) v *= k;
-    return std::make_tuple(rowFromVec(mr, bRaw.data(), bRaw.size()),
-                           rowFromVec(mr, aRaw.data(), aRaw.size()));
+    return std::make_tuple(rowFromVec(bRaw.data(), bRaw.size(), mr),
+                           rowFromVec(aRaw.data(), aRaw.size(), mr));
 }
 
 // ── Pack 29: poly / polyvalm / polydiv ───────────────────────────────
@@ -277,7 +277,7 @@ Value poly(std::pmr::memory_resource *mr, const Value &r)
     // Vector-of-roots → coefficient row. Real-only path uses the
     // existing helper (which drops the imaginary residue, fine when
     // the roots have come from `roots(p)` of a real polynomial).
-    if (r.isEmpty()) return rowFromVec(mr, nullptr, 0);
+    if (r.isEmpty()) return rowFromVec(nullptr, 0, mr);
     ScratchArena scratch(mr);
     const size_t n = r.numel();
     auto cv = ScratchVec<Complex>(n, &scratch);
@@ -289,7 +289,7 @@ Value poly(std::pmr::memory_resource *mr, const Value &r)
         for (size_t i = 0; i < n; ++i) cv[i] = Complex(p[i], 0.0);
     }
     auto coeffs = detail::polyExpandFromRoots(&scratch, cv.data(), n);
-    return rowFromVec(mr, coeffs.data(), coeffs.size());
+    return rowFromVec(coeffs.data(), coeffs.size(), mr);
 }
 
 Value polyvalm(std::pmr::memory_resource *mr, const Value &p, const Value &A)
@@ -384,9 +384,9 @@ PolyDiv polydiv(std::pmr::memory_resource *mr, const Value &b, const Value &a)
         rOut = Value::matrix(1, 1, ValueType::DOUBLE, mr);
         rOut.doubleDataMut()[0] = 0.0;
     } else {
-        rOut = rowFromVec(mr, bb.data() + rOff, nb - rOff);
+        rOut = rowFromVec(bb.data() + rOff, nb - rOff, mr);
     }
-    return { rowFromVec(mr, qv.data(), qLen), std::move(rOut) };
+    return { rowFromVec(qv.data(), qLen, mr), std::move(rOut) };
 }
 
 // ── Pack 36: padecoef ────────────────────────────────────────────────

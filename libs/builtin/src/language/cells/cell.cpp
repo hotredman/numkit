@@ -22,25 +22,24 @@ namespace hf = ::numkit::builtin::detail::handlefn;
 // Public API
 // ════════════════════════════════════════════════════════════════════════
 
-Value cell(std::pmr::memory_resource *, size_t n)
+Value cell(size_t n, std::pmr::memory_resource *)
 {
     return Value::cell(n, n);
 }
 
-Value cell(std::pmr::memory_resource *, size_t rows, size_t cols)
+Value cell(size_t rows, size_t cols, std::pmr::memory_resource *)
 {
     return Value::cell(rows, cols);
 }
 
-Value cell(std::pmr::memory_resource *, size_t rows, size_t cols, size_t pages)
+Value cell(size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *)
 {
     if (pages > 0)
         return Value::cell3D(rows, cols, pages);
     return Value::cell(rows, cols);
 }
 
-Value cellfun(std::pmr::memory_resource *mr, const Value &fn, const Value &c,
-               bool uniformOutput, Engine *engine)
+Value cellfun(const Value &fn, const Value &c, bool uniformOutput, Engine *engine, std::pmr::memory_resource *mr)
 {
     if (!c.isCell())
         throw Error("cellfun: second argument must be a cell array",
@@ -97,7 +96,7 @@ Value cellfun(std::pmr::memory_resource *mr, const Value &fn, const Value &c,
 // Pack 15: num2cell / cell2mat / iscellstr / cellstr
 // ════════════════════════════════════════════════════════════════════════
 
-Value num2cell(std::pmr::memory_resource *mr, const Value &x)
+Value num2cell(const Value &x, std::pmr::memory_resource *mr)
 {
     // Wraps each element of x in its own scalar cell. Supports DOUBLE,
     // SINGLE, integer, LOGICAL, COMPLEX, CHAR. Output mirrors input
@@ -120,7 +119,7 @@ Value num2cell(std::pmr::memory_resource *mr, const Value &x)
     return c;
 }
 
-Value cell2mat(std::pmr::memory_resource *mr, const Value &c)
+Value cell2mat(const Value &c, std::pmr::memory_resource *mr)
 {
     if (!c.isCell())
         throw Error("cell2mat: input must be a cell array",
@@ -180,7 +179,7 @@ Value cell2mat(std::pmr::memory_resource *mr, const Value &c)
     return vertcat(mr, rowBlocks.data(), R);
 }
 
-Value iscellstr(std::pmr::memory_resource *mr, const Value &c)
+Value iscellstr(const Value &c, std::pmr::memory_resource *mr)
 {
     if (!c.isCell()) return Value::logicalScalar(false, mr);
     for (size_t i = 0; i < c.numel(); ++i) {
@@ -192,7 +191,7 @@ Value iscellstr(std::pmr::memory_resource *mr, const Value &c)
     return Value::logicalScalar(true, mr);
 }
 
-Value cellstr(std::pmr::memory_resource *mr, const Value &x)
+Value cellstr(const Value &x, std::pmr::memory_resource *mr)
 {
     // char row → 1×1 cell of that char row.
     // M-by-N char matrix → M-by-1 cell, each element a deblank'd row.
@@ -241,9 +240,7 @@ Value cellstr(std::pmr::memory_resource *mr, const Value &x)
                  0, 0, "cellstr", "", "m:cellstr:type");
 }
 
-Value mat2cell(std::pmr::memory_resource *mr, const Value &x,
-               const double *rowSizes, size_t nRow,
-               const double *colSizes, size_t nCol)
+Value mat2cell(const Value &x, const double *rowSizes, size_t nRow, const double *colSizes, size_t nCol, std::pmr::memory_resource *mr)
 {
     if (x.dims().ndim() > 2)
         throw Error("mat2cell: only 2-D inputs are supported",
@@ -324,7 +321,7 @@ void cellfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
         throw Error("cellfun: requires at least 2 arguments (fn, C)",
                      0, 0, "cellfun", "", "m:cellfun:nargin");
     bool uniform = hf::parseUniformOutputFlag(args, 2, "cellfun");
-    outs[0] = cellfun(ctx.engine->resource(), args[0], args[1], uniform, ctx.engine);
+    outs[0] = cellfun(args[0], args[1], uniform, ctx.engine, ctx.engine->resource());
 }
 
 void cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -370,7 +367,7 @@ void num2cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
     if (args.empty())
         throw Error("num2cell requires 1 argument",
                      0, 0, "num2cell", "", "m:num2cell:nargin");
-    outs[0] = num2cell(ctx.engine->resource(), args[0]);
+    outs[0] = num2cell(args[0], ctx.engine->resource());
 }
 
 void cell2mat_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -378,7 +375,7 @@ void cell2mat_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
     if (args.empty())
         throw Error("cell2mat requires 1 argument",
                      0, 0, "cell2mat", "", "m:cell2mat:nargin");
-    outs[0] = cell2mat(ctx.engine->resource(), args[0]);
+    outs[0] = cell2mat(args[0], ctx.engine->resource());
 }
 
 void iscellstr_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -386,7 +383,7 @@ void iscellstr_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
     if (args.empty())
         throw Error("iscellstr requires 1 argument",
                      0, 0, "iscellstr", "", "m:iscellstr:nargin");
-    outs[0] = iscellstr(ctx.engine->resource(), args[0]);
+    outs[0] = iscellstr(args[0], ctx.engine->resource());
 }
 
 void cellstr_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -394,7 +391,7 @@ void cellstr_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.empty())
         throw Error("cellstr requires 1 argument",
                      0, 0, "cellstr", "", "m:cellstr:nargin");
-    outs[0] = cellstr(ctx.engine->resource(), args[0]);
+    outs[0] = cellstr(args[0], ctx.engine->resource());
 }
 
 void mat2cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -405,13 +402,10 @@ void mat2cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
     auto *mr = ctx.engine->resource();
     const Value &rArg = args[1];
     if (args.size() == 2) {
-        outs[0] = mat2cell(mr, args[0], rArg.doubleData(), rArg.numel(),
-                           nullptr, 0);
+        outs[0] = mat2cell(args[0], rArg.doubleData(), rArg.numel(), nullptr, 0, mr);
     } else {
         const Value &cArg = args[2];
-        outs[0] = mat2cell(mr, args[0],
-                           rArg.doubleData(), rArg.numel(),
-                           cArg.doubleData(), cArg.numel());
+        outs[0] = mat2cell(args[0], rArg.doubleData(), rArg.numel(), cArg.doubleData(), cArg.numel(), mr);
     }
 }
 

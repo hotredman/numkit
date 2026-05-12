@@ -545,8 +545,8 @@ Value diff(std::pmr::memory_resource *mr, const Value &x, int n = 1, int dim = 0
 // Logical reductions: collapse the chosen dim to a single 0/1 value.
 // Empty slices: any → false, all → true (matches MATLAB).
 // Output type is LOGICAL.
-Value anyOf(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
-Value allOf(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+Value anyOf(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value allOf(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 // Elementwise xor — both inputs treated as boolean (non-zero = true).
 // Output type is LOGICAL. Standard broadcasting rules apply.

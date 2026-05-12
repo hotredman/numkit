@@ -70,7 +70,7 @@ uint8_t scanSlice(const Value &x, std::size_t base, std::size_t n, std::size_t s
 }
 
 template <bool IsAny>
-Value logicalReduceImpl(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value logicalReduceImpl(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (x.isEmpty())
         return Value::logicalScalar(IsAny ? false : true, mr);
@@ -142,14 +142,14 @@ Value logicalReduceImpl(std::pmr::memory_resource *mr, const Value &x, int dim)
 
 } // namespace
 
-Value anyOf(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value anyOf(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
-    return logicalReduceImpl<true>(mr, x, dim);
+    return logicalReduceImpl<true>(x, dim, mr);
 }
 
-Value allOf(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value allOf(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
-    return logicalReduceImpl<false>(mr, x, dim);
+    return logicalReduceImpl<false>(x, dim, mr);
 }
 
 } // namespace numkit::builtin

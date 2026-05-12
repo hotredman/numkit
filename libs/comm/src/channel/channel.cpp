@@ -356,7 +356,7 @@ static double betaincinv_scalar(std::pmr::memory_resource *mr,
     Value pV = Value::scalar(p, mr);
     Value aV = Value::scalar(a, mr);
     Value bV = Value::scalar(b, mr);
-    return ::numkit::builtin::betaincinv(mr, pV, aV, bV).toScalar();
+    return ::numkit::builtin::betaincinv(pV, aV, bV, mr).toScalar();
 }
 
 std::tuple<Value, Value>
