@@ -7,11 +7,9 @@
 
 namespace numkit::builtin {
 
-// ════════════════════════════════════════════════════════════════════════
-// Process-environment builtins — thin wrappers over _putenv_s / ::setenv
-// and the cross-platform envGet from numkit/core/branding.hpp. No Engine
-// needed; getenv just needs a memory_resource for its Value result.
-// ════════════════════════════════════════════════════════════════════════
+/// Process-environment builtins — thin wrappers over _putenv_s / ::setenv
+/// and the cross-platform envGet from numkit/core/branding.hpp. No Engine
+/// needed; getenv just needs a memory_resource for its Value result.
 
 void setenv(Span<const Value> args);
 Value getenv(Span<const Value> args, std::pmr::memory_resource *mr = nullptr);

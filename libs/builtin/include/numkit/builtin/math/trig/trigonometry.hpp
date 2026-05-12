@@ -22,7 +22,7 @@ Value acos(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value atan(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value atan2(const Value &y, const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// Hyperbolic — sinh/cosh/tanh and their inverses.
+/// Hyperbolic — sinh/cosh/tanh and their inverses.
 Value sinh(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value cosh(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value tanh(const Value &x, std::pmr::memory_resource *mr = nullptr);
@@ -30,7 +30,7 @@ Value asinh(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value acosh(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value atanh(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// Degree-input/-output forms — sind(x) = sin(x*pi/180) etc.
+/// Degree-input/-output forms — sind(x) = sin(x*pi/180) etc.
 Value sind(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value cosd(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value tand(const Value &x, std::pmr::memory_resource *mr = nullptr);
@@ -39,12 +39,12 @@ Value acosd(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value atand(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value atan2d(const Value &y, const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// Pi-scaled forms — sinpi(x) = sin(pi*x), accurate near integers.
+/// Pi-scaled forms — sinpi(x) = sin(pi*x), accurate near integers.
 Value sinpi(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value cospi(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// Reciprocal-trig family: sec/csc/cot and their hyperbolic / degree /
-// inverse / inverse-hyperbolic / inverse-degree forms.
+/// Reciprocal-trig family: sec/csc/cot and their hyperbolic / degree /
+/// inverse / inverse-hyperbolic / inverse-degree forms.
 Value sec(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value csc(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value cot(const Value &x, std::pmr::memory_resource *mr = nullptr);
@@ -64,9 +64,9 @@ Value asecd(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value acscd(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value acotd(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// Coordinate transforms — Cartesian ↔ polar / cylindrical / spherical.
-// 2-arg cart2pol/pol2cart are the planar (polar) form; 3-arg variants
-// pass z through unchanged (cylindrical).
+/// Coordinate transforms — Cartesian ↔ polar / cylindrical / spherical.
+/// 2-arg cart2pol/pol2cart are the planar (polar) form; 3-arg variants
+/// pass z through unchanged (cylindrical).
 struct PolarPair { Value theta, rho; };
 struct CylTriple { Value theta, rho, z; };
 struct CartPair  { Value x, y; };

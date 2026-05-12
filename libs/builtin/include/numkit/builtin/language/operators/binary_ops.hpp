@@ -6,9 +6,8 @@
 
 namespace numkit::builtin {
 
-// ── Arithmetic ───────────────────────────────────────────────────────
-/// a + b. Numeric addition with broadcasting; string concatenation for
-/// char/string operands; mixed char+double promotes char to double.
+//// a + b. Numeric addition with broadcasting; string concatenation for
+//// char/string operands; mixed char+double promotes char to double.
 Value plus(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
 /// a - b. Numeric subtraction with broadcasting.
@@ -37,7 +36,6 @@ Value power(const Value &a, const Value &b, std::pmr::memory_resource *mr = null
 /// a .^ b — elementwise power with broadcasting.
 Value elementPower(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-// ── Comparisons (return logical) ─────────────────────────────────────
 Value eq(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 Value ne(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 Value lt(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
@@ -45,8 +43,7 @@ Value gt(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr
 Value le(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 Value ge(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-// ── Logical (elementwise) ────────────────────────────────────────────
-/// a & b — elementwise logical AND (non-zero-to-bool coercion).
+//// a & b — elementwise logical AND (non-zero-to-bool coercion).
 Value logicalAnd(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
 /// a | b — elementwise logical OR.

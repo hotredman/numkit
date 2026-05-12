@@ -62,10 +62,9 @@ Value polyfit(const Value &x, const Value &y, int n, std::pmr::memory_resource *
 /// Horner evaluation of polynomial p at x. Returns array same shape as x.
 Value polyval(const Value &p, const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Pack 29: poly / polyvalm / polydiv ───────────────────────────────
-/// poly(r) — coefficient row of the polynomial whose roots are the
-/// elements of r. Returns DOUBLE for real input; COMPLEX-valued roots
-/// must be passed as a complex vector (yielding a complex result).
+//// poly(r) — coefficient row of the polynomial whose roots are the
+//// elements of r. Returns DOUBLE for real input; COMPLEX-valued roots
+//// must be passed as a complex vector (yielding a complex result).
 Value poly(const Value &r, std::pmr::memory_resource *mr = nullptr);
 
 /// polyvalm(p, A) — matrix polynomial evaluation: p_0·I + p_1·A +
@@ -77,11 +76,10 @@ Value polyvalm(const Value &p, const Value &A, std::pmr::memory_resource *mr = n
 struct PolyDiv { Value q; Value r; };
 PolyDiv polydiv(const Value &b, const Value &a, std::pmr::memory_resource *mr = nullptr);
 
-// ── Pack 36: padecoef ────────────────────────────────────────────────
-/// padecoef(T, N) — coefficients of the (N,N) Padé approximant of
-/// e^{-T·s}. Returns (num, den) row vectors in descending order of s,
-/// normalized so the leading denominator coefficient is 1 (matches
-/// MATLAB's `[num,den] = padecoef(T,N)`).
+//// padecoef(T, N) — coefficients of the (N,N) Padé approximant of
+//// e^{-T·s}. Returns (num, den) row vectors in descending order of s,
+//// normalized so the leading denominator coefficient is 1 (matches
+//// MATLAB's `[num,den] = padecoef(T,N)`).
 struct PadeCoef { Value num; Value den; };
 PadeCoef padecoef(double T, int N, std::pmr::memory_resource *mr = nullptr);
 

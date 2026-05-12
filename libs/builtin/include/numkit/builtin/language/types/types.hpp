@@ -6,9 +6,8 @@
 
 namespace numkit::builtin {
 
-// ── Numeric type constructors (saturating for integers) ──────────────
-/// double(x) — convert to DOUBLE (MATLAB: double). Renamed in C++ because
-/// `double` is a keyword.
+//// double(x) — convert to DOUBLE (MATLAB: double). Renamed in C++ because
+//// `double` is a keyword.
 Value toDouble(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// logical(x) — convert to LOGICAL (non-zero → 1).
@@ -29,7 +28,6 @@ Value uint16(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value uint32(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value uint64(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Type predicates (logical scalar) ─────────────────────────────────
 Value isnumeric(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value islogical(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value ischar(const Value &x, std::pmr::memory_resource *mr = nullptr);
@@ -42,25 +40,22 @@ Value isreal(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value isinteger(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value isfloat(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value issingle(const Value &x, std::pmr::memory_resource *mr = nullptr);
-// numkit has no sparse-matrix storage class -- always returns false.
-// Stub for parity with MATLAB scripts that probe sparse-ness.
+/// numkit has no sparse-matrix storage class -- always returns false.
+/// Stub for parity with MATLAB scripts that probe sparse-ness.
 Value issparse(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Float-only predicates (elementwise) ──────────────────────────────
 Value isnan(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value isinf(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value isfinite(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Shape predicates ─────────────────────────────────────────────────
 Value isvector(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value isrow(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value iscolumn(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value ismatrix(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Order predicates ─────────────────────────────────────────────────
-/// issorted(A, mode?) — true if A is sorted under `mode` ("ascend",
-/// "descend", "monotonic", "strictascend", "strictdescend"). For matrix
-/// inputs, returns true iff every column is sorted under `mode`.
+//// issorted(A, mode?) — true if A is sorted under `mode` ("ascend",
+//// "descend", "monotonic", "strictascend", "strictdescend"). For matrix
+//// inputs, returns true iff every column is sorted under `mode`.
 Value issorted(const Value &x, const Value *mode = nullptr, std::pmr::memory_resource *mr = nullptr);
 /// issortedrows(A) — true if rows of A are in ascending lex order.
 Value issortedrows(const Value &x, std::pmr::memory_resource *mr = nullptr);
@@ -70,9 +65,8 @@ Value issortedrows(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// supported (no [tf, step] tuple).
 Value isuniform(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Numeric limits / whole-array float predicates ────────────────────
-/// flintmax(typeName?) — largest exact integer representable as the
-/// given float type. Default 'double' → 2^53. 'single' → 2^24.
+//// flintmax(typeName?) — largest exact integer representable as the
+//// given float type. Default 'double' → 2^53. 'single' → 2^24.
 Value flintmax(const Value *typeName = nullptr, std::pmr::memory_resource *mr = nullptr);
 /// intmax(typeName?) — largest value of the named integer class.
 /// Default 'int32'. Returns a typed integer scalar.
@@ -90,24 +84,21 @@ Value allfinite(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// anynan(A) — equivalent to any(isnan(A(:))).
 Value anynan(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Equality ─────────────────────────────────────────────────────────
-/// isequal(a, b) — deep equality, NaN != NaN.
+//// isequal(a, b) — deep equality, NaN != NaN.
 Value isequal(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
 /// isequaln(a, b) — deep equality, NaN == NaN.
 Value isequaln(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-// ── Introspection ────────────────────────────────────────────────────
-/// class(x) — MATLAB's class(). Returns char array with the type name
-/// ("double", "single", "int32", ...). Renamed in C++ because `class` is
-/// a keyword.
+//// class(x) — MATLAB's class(). Returns char array with the type name
+//// ("double", "single", "int32", ...). Renamed in C++ because `class` is
+//// a keyword.
 Value classOf(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Pack 36: cast + swapbytes ────────────────────────────────────────
-/// cast(x, classname) — convert x to the type named by `classname`.
-/// Accepted names: "double", "single", "int8".."int64", "uint8".."uint64",
-/// "logical", "char", "string". Saturating for integers, same as the
-/// per-type constructors (int32, etc.).
+//// cast(x, classname) — convert x to the type named by `classname`.
+//// Accepted names: "double", "single", "int8".."int64", "uint8".."uint64",
+//// "logical", "char", "string". Saturating for integers, same as the
+//// per-type constructors (int32, etc.).
 Value cast(const Value &x, const std::string &classname, std::pmr::memory_resource *mr = nullptr);
 
 /// swapbytes(x) — reverse byte order within each element. Per MATLAB:

@@ -11,8 +11,7 @@
 
 namespace numkit::builtin {
 
-// ── Constructors ──────────────────────────────────────────────────────
-/// All-zero matrix. pages == 0 → 2D matrix.
+//// All-zero matrix. pages == 0 → 2D matrix.
 Value zeros(size_t rows, size_t cols = 1, size_t pages = 0, std::pmr::memory_resource *mr = nullptr);
 Value ones(size_t rows, size_t cols = 1, size_t pages = 0, std::pmr::memory_resource *mr = nullptr);
 
@@ -289,15 +288,14 @@ hess(const Value &A, std::pmr::memory_resource *mr = nullptr);
 /// Hessenberg-only output -- matches MATLAB single-output hess(A).
 Value hess_H_only(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
-// ── Matrix-structure predicates ───────────────────────────────────────
-/// MATLAB-parity matrix predicates (predicates.cpp). All comparisons
-/// are exact (== 0); even 1e-300 in an off-band entry returns false.
-///
-/// isbanded(A, lower, upper) — outside-band entries are zero.
-/// isdiag/istril/istriu       — degenerate cases of isbanded.
-/// issymmetric(A [, skew])    — A == A.'  (transpose, no conj).
-/// ishermitian(A [, skew])    — A == A'   (conjugate transpose).
-/// 'skew' opt: A == -A.'  /  A == -A'.
+//// MATLAB-parity matrix predicates (predicates.cpp). All comparisons
+//// are exact (== 0); even 1e-300 in an off-band entry returns false.
+////
+//// isbanded(A, lower, upper) — outside-band entries are zero.
+//// isdiag/istril/istriu       — degenerate cases of isbanded.
+//// issymmetric(A [, skew])    — A == A.'  (transpose, no conj).
+//// ishermitian(A [, skew])    — A == A'   (conjugate transpose).
+//// 'skew' opt: A == -A.'  /  A == -A'.
 Value isbanded(const Value &A, long lower, long upper, std::pmr::memory_resource *mr = nullptr);
 Value isdiag(const Value &A, std::pmr::memory_resource *mr = nullptr);
 Value istril(const Value &A, std::pmr::memory_resource *mr = nullptr);
@@ -317,10 +315,9 @@ Value bandwidthOpt(const Value &A, const std::string &which, std::pmr::memory_re
 ///   p = Inf  → max(|A|), p = -Inf → min(|A|).
 Value vecnorm(const Value &A, double p = 2.0, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
-// ── Linalg extras (linalg_extras.cpp) ─────────────────────────────────
-/// rref(A [, tol]) — reduced row echelon form. Returns (R, jb) where
-/// jb is the 1-based pivot column indices. Default tol =
-/// max(M, N) * eps(norm(A, inf)). Real-only in v1.
+//// rref(A [, tol]) — reduced row echelon form. Returns (R, jb) where
+//// jb is the 1-based pivot column indices. Default tol =
+//// max(M, N) * eps(norm(A, inf)). Real-only in v1.
 std::pair<Value, Value>
 rref(const Value &A, bool have_tol, double tol_user, std::pmr::memory_resource *mr = nullptr);
 
@@ -359,10 +356,9 @@ BalanceResult balance_impl(const Value &A, bool noperm, std::pmr::memory_resourc
 std::tuple<Value, Value, Value>
 ldl(const Value &A, bool upper_form, bool p_as_vector, std::pmr::memory_resource *mr = nullptr);
 
-// ── Shape queries ────────────────────────────────────────────────────
-/// size(x) returns a row vector of dimensions.
-/// @param asVector  when true, returns [rows, cols] or [rows, cols, pages].
-///                  For nargout > 1 form, call sizePair or sizeTriple below.
+//// size(x) returns a row vector of dimensions.
+//// @param asVector  when true, returns [rows, cols] or [rows, cols, pages].
+////                  For nargout > 1 form, call sizePair or sizeTriple below.
 Value size(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// size(x, dim) — scalar = dim'th dimension (1-based).
@@ -380,11 +376,10 @@ Value numel(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// ndims(x) = number of dimensions (2 for matrix, 3 for 3D array).
 Value ndims(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Shape transformations ────────────────────────────────────────────
-/// Reshape preserving column-major element order. totalNumel must match:
-/// numel(x) == rows * cols * (pages == 0 ? 1 : pages). pages == 0 means 2D output.
-/// For dimension inference (MATLAB's [] placeholder), resolve in caller
-/// before invoking — this function requires concrete dims.
+//// Reshape preserving column-major element order. totalNumel must match:
+//// numel(x) == rows * cols * (pages == 0 ? 1 : pages). pages == 0 means 2D output.
+//// For dimension inference (MATLAB's [] placeholder), resolve in caller
+//// before invoking — this function requires concrete dims.
 Value reshape(const Value &x, size_t rows, size_t cols, size_t pages = 0, std::pmr::memory_resource *mr = nullptr);
 
 /// ND reshape — accepts a flat dim list of arbitrary rank (≥ 1). Same
@@ -444,9 +439,8 @@ Value pagemtimes(const Value &x, TranspOp tx, const Value &y, TranspOp ty, std::
 /// Main diagonal of a matrix as a column vector, or vector → diagonal matrix.
 Value diag(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Sort / find ──────────────────────────────────────────────────────
-/// Sort along first non-singleton dimension; returns (sorted, indices).
-/// Indices are 1-based permutation. For 3D input, operates per-slice.
+//// Sort along first non-singleton dimension; returns (sorted, indices).
+//// Indices are 1-based permutation. For 3D input, operates per-slice.
 std::tuple<Value, Value> sort(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// sortrows(M) — lex-sort the rows of a 2D matrix in ascending order
@@ -473,15 +467,13 @@ Value nnz(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// LOGICAL preserved).
 Value nonzeros(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Concatenation ────────────────────────────────────────────────────
-/// Horizontal concatenation (along columns).
+//// Horizontal concatenation (along columns).
 Value horzcat(const Value *values, size_t count, std::pmr::memory_resource *mr = nullptr);
 
 /// Vertical concatenation (along rows).
 Value vertcat(const Value *values, size_t count, std::pmr::memory_resource *mr = nullptr);
 
-// ── Grids ────────────────────────────────────────────────────────────
-/// meshgrid(x, y) returns (X, Y) matrices of size [ny, nx].
+//// meshgrid(x, y) returns (X, Y) matrices of size [ny, nx].
 std::tuple<Value, Value> meshgrid(const Value &x, const Value &y, std::pmr::memory_resource *mr = nullptr);
 
 /// meshgrid(x, y, z) returns three (X, Y, Z) 3-D arrays of size
@@ -505,31 +497,29 @@ ndgrid(const Value &x, const Value &y, const Value &z, std::pmr::memory_resource
 /// for now (integer/logical/single promoted; complex throws).
 Value kron(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-// ── Reductions and products ──────────────────────────────────────────
-//
-// Cumulative ops keep the input shape; sum/prod/max/min along the
-// chosen dim. Two-arg form auto-detects the first non-singleton dim;
-// three-arg form takes an explicit 1-based dim (0 = auto).
+/// Cumulative ops keep the input shape; sum/prod/max/min along the
+/// chosen dim. Two-arg form auto-detects the first non-singleton dim;
+/// three-arg form takes an explicit 1-based dim (0 = auto).
 Value cumsum (const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value cumsum (const Value &x, int dim, std::pmr::memory_resource *mr = nullptr);
 Value cumprod(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 Value cummax (const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 Value cummin (const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
-// diff(x[, n[, dim]]) — n-th order discrete difference along dim.
-// out[i] = x[i+1] - x[i]. Output shape: input with dim[d-1] decremented
-// by n (clamped to 0). n=0 returns a copy. Default dim = first non-
-// singleton. Scalar input returns 1×0 empty (MATLAB convention).
+/// diff(x[, n[, dim]]) — n-th order discrete difference along dim.
+/// out[i] = x[i+1] - x[i]. Output shape: input with dim[d-1] decremented
+/// by n (clamped to 0). n=0 returns a copy. Default dim = first non-
+/// singleton. Scalar input returns 1×0 empty (MATLAB convention).
 Value diff(const Value &x, int n = 1, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
-// Logical reductions: collapse the chosen dim to a single 0/1 value.
-// Empty slices: any → false, all → true (matches MATLAB).
-// Output type is LOGICAL.
+/// Logical reductions: collapse the chosen dim to a single 0/1 value.
+/// Empty slices: any → false, all → true (matches MATLAB).
+/// Output type is LOGICAL.
 Value anyOf(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 Value allOf(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
-// Elementwise xor — both inputs treated as boolean (non-zero = true).
-// Output type is LOGICAL. Standard broadcasting rules apply.
+/// Elementwise xor — both inputs treated as boolean (non-zero = true).
+/// Output type is LOGICAL. Standard broadcasting rules apply.
 Value xorOf(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
 /// Cross product of 3-element vectors. Row vector output.

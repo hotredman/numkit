@@ -21,23 +21,20 @@ namespace numkit::builtin {
 /// Always throws; never returns.
 [[noreturn]] void error(Span<const Value> args);
 
-// ── MATLAB warning() ─────────────────────────────────────────────────
-/// Engine-stateful — writes "Warning: ...\n" via engine.outputText().
-/// Same form-dispatch as error() but does not throw.
+//// Engine-stateful — writes "Warning: ...\n" via engine.outputText().
+//// Same form-dispatch as error() but does not throw.
 void warning(Engine &engine, Span<const Value> args);
 
-// ── MATLAB lastwarn() ────────────────────────────────────────────────
-/// Most-recent warning state. `warning(...)` updates these; the
-/// `lastwarn` builtin reads them. Storage is thread_local in the
-/// implementation TU, so concurrent engines on different threads
-/// each see their own last-warning. No core-side state involved.
+//// Most-recent warning state. `warning(...)` updates these; the
+//// `lastwarn` builtin reads them. Storage is thread_local in the
+//// implementation TU, so concurrent engines on different threads
+//// each see their own last-warning. No core-side state involved.
 struct LastWarn { std::string msg; std::string id; };
 LastWarn lastwarnGet();
 void     lastwarnSet(const std::string &msg, const std::string &id);
 
-// ── MATLAB MException() ──────────────────────────────────────────────
-/// Create an MException-like struct with "identifier" and "message"
-/// fields. Form: MException(id, msg, arg1, ...). Throws on <2 args.
+//// Create an MException-like struct with "identifier" and "message"
+//// fields. Form: MException(id, msg, arg1, ...). Throws on <2 args.
 Value mexception(Span<const Value> args, std::pmr::memory_resource *mr = nullptr);
 
 // ── rethrow(ME) / throw(ME) ──────────────────────────────────────────
@@ -45,12 +42,11 @@ Value mexception(Span<const Value> args, std::pmr::memory_resource *mr = nullptr
 /// Used by both MATLAB rethrow() and throw() (they are aliases).
 [[noreturn]] void rethrowStruct(const Value &me);
 
-// ── MATLAB assert() ──────────────────────────────────────────────────
-/// Throw Error if args[0] is false; otherwise return normally.
-///   assert(cond)
-///   assert(cond, msg, arg1, ...)
-///   assert(cond, id, msg, arg1, ...)    (id has ':')
-///   assert(cond, MException-struct)
+//// Throw Error if args[0] is false; otherwise return normally.
+////   assert(cond)
+////   assert(cond, msg, arg1, ...)
+////   assert(cond, id, msg, arg1, ...)    (id has ':')
+////   assert(cond, MException-struct)
 void assertCond(Span<const Value> args);
 
 } // namespace numkit::builtin

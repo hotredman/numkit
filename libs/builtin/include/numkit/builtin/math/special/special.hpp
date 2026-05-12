@@ -38,9 +38,8 @@ Value erfcinv(const Value &x, std::pmr::memory_resource *mr = nullptr);
 ///              Numerically stable for large x where erfc(x) underflows.
 Value erfcx(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Pack 19: extra special functions ─────────────────────────────────
-/// beta(z, w)    — B(z, w) = Γ(z)Γ(w)/Γ(z+w). Computed via lgamma to
-/// avoid overflow.
+//// beta(z, w)    — B(z, w) = Γ(z)Γ(w)/Γ(z+w). Computed via lgamma to
+//// avoid overflow.
 Value beta(const Value &z, const Value &w, std::pmr::memory_resource *mr = nullptr);
 /// betaln(z, w)  — log B(z, w) = lgamma(z) + lgamma(w) - lgamma(z+w).
 Value betaln(const Value &z, const Value &w, std::pmr::memory_resource *mr = nullptr);
@@ -52,9 +51,8 @@ Value expint(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// shift x ≥ 6, then asymptotic series.
 Value psi(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Pack 26: incomplete gamma / beta / Legendre ──────────────────────
-/// gammainc(x, a) — regularized lower incomplete gamma P(a, x) =
-/// γ(a, x)/Γ(a). x ≥ 0, a > 0.
+//// gammainc(x, a) — regularized lower incomplete gamma P(a, x) =
+//// γ(a, x)/Γ(a). x ≥ 0, a > 0.
 Value gammainc(const Value &x, const Value &a, std::pmr::memory_resource *mr = nullptr);
 /// betainc(x, a, b) — regularized incomplete beta I_x(a, b).
 Value betainc(const Value &x, const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
@@ -62,8 +60,7 @@ Value betainc(const Value &x, const Value &a, const Value &b, std::pmr::memory_r
 /// (n+1) × length(x) matrix; row m+1 is P_n^m(x).
 Value legendre(int n, const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Pack 27: Bessel functions (C++17 std::cyl_*) ─────────────────────
-/// besselj(nu, x) — Bessel function of the first kind J_ν(x).
+//// besselj(nu, x) — Bessel function of the first kind J_ν(x).
 Value besselj(const Value &nu, const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// bessely(nu, x) — Bessel of the second kind Y_ν(x).
 Value bessely(const Value &nu, const Value &x, std::pmr::memory_resource *mr = nullptr);
@@ -72,9 +69,8 @@ Value besseli(const Value &nu, const Value &x, std::pmr::memory_resource *mr = n
 /// besselk(nu, x) — modified Bessel of the second kind K_ν(x).
 Value besselk(const Value &nu, const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Pack 28: Hankel + elliptic integrals ─────────────────────────────
-/// besselh(nu, k, x) — Hankel function. k == 1 → J_ν + i·Y_ν;
-/// k == 2 → J_ν − i·Y_ν. Returns complex.
+//// besselh(nu, k, x) — Hankel function. k == 1 → J_ν + i·Y_ν;
+//// k == 2 → J_ν − i·Y_ν. Returns complex.
 Value besselh(const Value &nu, int k, const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// ellipke(m) — complete elliptic integrals of the first (K) and
@@ -83,15 +79,14 @@ Value besselh(const Value &nu, int k, const Value &x, std::pmr::memory_resource 
 struct EllipKE { Value K; Value E; };
 EllipKE ellipke(const Value &m, std::pmr::memory_resource *mr = nullptr);
 
-// ── Pack 36: airy ────────────────────────────────────────────────────
-/// airy(k, x) — Airy function family per MATLAB:
-///   k = 0 → Ai(x)         (default in MATLAB if k omitted)
-///   k = 1 → Ai'(x)        (derivative)
-///   k = 2 → Bi(x)         (second-kind Airy)
-///   k = 3 → Bi'(x)
-/// Implemented via std::cyl_bessel_{j,i,k} of fractional order
-/// ±1/3, ±2/3 using the connection formulas in DLMF §9.6.
-/// Vectorizes over `x`; `k` must be a scalar in {0,1,2,3}.
+//// airy(k, x) — Airy function family per MATLAB:
+////   k = 0 → Ai(x)         (default in MATLAB if k omitted)
+////   k = 1 → Ai'(x)        (derivative)
+////   k = 2 → Bi(x)         (second-kind Airy)
+////   k = 3 → Bi'(x)
+//// Implemented via std::cyl_bessel_{j,i,k} of fractional order
+//// ±1/3, ±2/3 using the connection formulas in DLMF §9.6.
+//// Vectorizes over `x`; `k` must be a scalar in {0,1,2,3}.
 Value airy(int k, const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// gammaincinv(P, a) — inverse of regularized lower incomplete gamma:

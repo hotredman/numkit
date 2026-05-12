@@ -18,7 +18,6 @@
 
 namespace numkit::builtin {
 
-// ── Single-return reductions ─────────────────────────────────────────
 Value sum(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value sum(const Value &x, int dim, std::pmr::memory_resource *mr = nullptr);
 Value prod(const Value &x, std::pmr::memory_resource *mr = nullptr);
@@ -26,10 +25,9 @@ Value prod(const Value &x, int dim, std::pmr::memory_resource *mr = nullptr);
 Value mean(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value mean(const Value &x, int dim, std::pmr::memory_resource *mr = nullptr);
 
-// ── max/min — multi-return (value, index) or elementwise binary ──────
-/// Vector input → scalar (value, 1-based idx). Matrix input → column-
-/// wise reduction (row vector of values + indices). 3D input →
-/// reduction along first non-singleton dim.
+//// Vector input → scalar (value, 1-based idx). Matrix input → column-
+//// wise reduction (row vector of values + indices). 3D input →
+//// reduction along first non-singleton dim.
 std::tuple<Value, Value> max(const Value &x, std::pmr::memory_resource *mr = nullptr);
 std::tuple<Value, Value> min(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
@@ -41,8 +39,7 @@ std::tuple<Value, Value> min(const Value &x, int dim, std::pmr::memory_resource 
 Value max(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 Value min(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-// ── Array generators ─────────────────────────────────────────────────
-/// Equally spaced vector, length n (default 100). Endpoints included.
+//// Equally spaced vector, length n (default 100). Endpoints included.
 Value linspace(double a, double b, size_t n = 100, std::pmr::memory_resource *mr = nullptr);
 
 /// Logarithmically-spaced vector: 10^a ... 10^b, length n (default 50).
