@@ -172,9 +172,9 @@ inline Value applyBuiltin(std::pmr::memory_resource *mr, BuiltinFn f, const Valu
                          0, 0, fn, "", std::string("m:") + fn + ":notScalar");
         return Value::logicalScalar(std::isfinite(v.toScalar()), mr);
     }
-    case BuiltinFn::Sum:  return ::numkit::builtin::sum (mr, v);
-    case BuiltinFn::Prod: return ::numkit::builtin::prod(mr, v);
-    case BuiltinFn::Mean: return ::numkit::builtin::mean(mr, v);
+    case BuiltinFn::Sum:  return ::numkit::builtin::sum (v, mr);
+    case BuiltinFn::Prod: return ::numkit::builtin::prod(v, mr);
+    case BuiltinFn::Mean: return ::numkit::builtin::mean(v, mr);
     case BuiltinFn::ClassName: {
         const char *name = classNameOf(v);
         return Value::fromString(std::string(name), mr);

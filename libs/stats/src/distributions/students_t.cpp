@@ -80,7 +80,7 @@ Value tcdf(const Value &x, double nu, std::pmr::memory_resource *mr)
     Value z = elementwise(x, [=](double xi){ return nu / (nu + xi * xi); }, mr);
     Value a = Value::scalar(0.5 * nu, mr);
     Value b = Value::scalar(0.5, mr);
-    Value Iz = ::numkit::builtin::betainc(mr, z, a, b);
+    Value Iz = ::numkit::builtin::betainc(z, a, b, mr);
 
     // Walk x and Iz in parallel, picking branch by sign of x.
     auto out = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, mr);
@@ -136,7 +136,7 @@ Value tinv(const Value &p, double nu, std::pmr::memory_resource *mr)
     }, mr);
     Value a = Value::scalar(0.5 * nu, mr);
     Value b = Value::scalar(0.5, mr);
-    Value zv = ::numkit::builtin::betaincinv(mr, qv, a, b);
+    Value zv = ::numkit::builtin::betaincinv(qv, a, b, mr);
 
     auto out = Value::matrix(p.dims().rows(), p.dims().cols(), ValueType::DOUBLE, mr);
     if (p.dims().is3D())

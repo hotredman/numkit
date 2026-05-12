@@ -38,14 +38,14 @@ namespace numkit::builtin {
 //   num2str(X, N)      → N significant digits, where N is integer
 //   num2str(X, FMT)    → printf-style format
 // See BUGS.md #26.
-Value num2str(std::pmr::memory_resource *mr, const Value &x)
+Value num2str(const Value &x, std::pmr::memory_resource *mr)
 {
     char buf[64];
     std::snprintf(buf, sizeof(buf), "%.5g", x.toScalar());
     return Value::fromString(std::string(buf), mr);
 }
 
-Value num2str(std::pmr::memory_resource *mr, const Value &x, const Value &spec)
+Value num2str(const Value &x, const Value &spec, std::pmr::memory_resource *mr)
 {
     const double v = x.toScalar();
     char buf[256];
@@ -66,7 +66,7 @@ Value num2str(std::pmr::memory_resource *mr, const Value &x, const Value &spec)
     return Value::fromString(std::string(buf), mr);
 }
 
-Value str2num(std::pmr::memory_resource *mr, const Value &s)
+Value str2num(const Value &s, std::pmr::memory_resource *mr)
 {
     try {
         return Value::scalar(std::stod(s.toString()), mr);
@@ -75,7 +75,7 @@ Value str2num(std::pmr::memory_resource *mr, const Value &s)
     }
 }
 
-Value str2double(std::pmr::memory_resource *mr, const Value &s)
+Value str2double(const Value &s, std::pmr::memory_resource *mr)
 {
     try {
         return Value::scalar(std::stod(s.toString()), mr);
@@ -84,7 +84,7 @@ Value str2double(std::pmr::memory_resource *mr, const Value &s)
     }
 }
 
-Value toString(std::pmr::memory_resource *mr, const Value &x)
+Value toString(const Value &x, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (x.isString())
@@ -132,7 +132,7 @@ Value toString(std::pmr::memory_resource *mr, const Value &x)
                  "m:string:unsupportedType");
 }
 
-Value toChar(std::pmr::memory_resource *mr, const Value &x)
+Value toChar(const Value &x, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (x.isChar())
@@ -155,12 +155,12 @@ Value toChar(std::pmr::memory_resource *mr, const Value &x)
 
 // ── Comparisons ─────────────────────────────────────────────────────────
 
-Value strcmp(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value strcmp(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     return Value::logicalScalar(a.toString() == b.toString(), mr);
 }
 
-Value strcmpi(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value strcmpi(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::string sa = a.toString(), sb = b.toString();
     std::transform(sa.begin(), sa.end(), sa.begin(), ::tolower);
@@ -168,14 +168,14 @@ Value strcmpi(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     return Value::logicalScalar(sa == sb, mr);
 }
 
-Value strncmp(std::pmr::memory_resource *mr, const Value &a, const Value &b, size_t n)
+Value strncmp(const Value &a, const Value &b, size_t n, std::pmr::memory_resource *mr)
 {
     std::string sa = a.toString(), sb = b.toString();
     if (sa.size() < n || sb.size() < n) return Value::logicalScalar(false, mr);
     return Value::logicalScalar(sa.compare(0, n, sb, 0, n) == 0, mr);
 }
 
-Value strncmpi(std::pmr::memory_resource *mr, const Value &a, const Value &b, size_t n)
+Value strncmpi(const Value &a, const Value &b, size_t n, std::pmr::memory_resource *mr)
 {
     std::string sa = a.toString(), sb = b.toString();
     if (sa.size() < n || sb.size() < n) return Value::logicalScalar(false, mr);
@@ -186,14 +186,14 @@ Value strncmpi(std::pmr::memory_resource *mr, const Value &a, const Value &b, si
 
 // ── Case transforms ─────────────────────────────────────────────────────
 
-Value upper(std::pmr::memory_resource *mr, const Value &s)
+Value upper(const Value &s, std::pmr::memory_resource *mr)
 {
     std::string r = s.toString();
     std::transform(r.begin(), r.end(), r.begin(), ::toupper);
     return Value::fromString(r, mr);
 }
 
-Value lower(std::pmr::memory_resource *mr, const Value &s)
+Value lower(const Value &s, std::pmr::memory_resource *mr)
 {
     std::string r = s.toString();
     std::transform(r.begin(), r.end(), r.begin(), ::tolower);
@@ -202,7 +202,7 @@ Value lower(std::pmr::memory_resource *mr, const Value &s)
 
 // ── Trim / split / concat ───────────────────────────────────────────────
 
-Value strtrim(std::pmr::memory_resource *mr, const Value &s)
+Value strtrim(const Value &s, std::pmr::memory_resource *mr)
 {
     std::string r = s.toString();
     size_t start = r.find_first_not_of(" \t\r\n");
@@ -212,7 +212,7 @@ Value strtrim(std::pmr::memory_resource *mr, const Value &s)
     return Value::fromString(r.substr(start, end - start + 1), mr);
 }
 
-Value deblank(std::pmr::memory_resource *mr, const Value &s)
+Value deblank(const Value &s, std::pmr::memory_resource *mr)
 {
     std::string r = s.toString();
     size_t end = r.find_last_not_of(" \t\r\n\f\v");
@@ -221,14 +221,14 @@ Value deblank(std::pmr::memory_resource *mr, const Value &s)
     return Value::fromString(r.substr(0, end + 1), mr);
 }
 
-Value blanks(std::pmr::memory_resource *mr, size_t n)
+Value blanks(size_t n, std::pmr::memory_resource *mr)
 {
     return Value::fromString(std::string(n, ' '), mr);
 }
 
 namespace {
 
-Value strsplitImpl(std::pmr::memory_resource *mr, const std::string &s, char delim)
+Value strsplitImpl(const std::string &s, char delim, std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
     ScratchVec<std::string> parts(&scratch);
@@ -245,19 +245,19 @@ Value strsplitImpl(std::pmr::memory_resource *mr, const std::string &s, char del
 
 } // namespace
 
-Value strsplit(std::pmr::memory_resource *mr, const Value &s)
+Value strsplit(const Value &s, std::pmr::memory_resource *mr)
 {
-    return strsplitImpl(mr, s.toString(), ' ');
+    return strsplitImpl(s.toString(), ' ', mr);
 }
 
-Value strsplit(std::pmr::memory_resource *mr, const Value &s, const Value &delim)
+Value strsplit(const Value &s, const Value &delim, std::pmr::memory_resource *mr)
 {
     std::string d = delim.toString();
     char ch = d.empty() ? ' ' : d[0];
-    return strsplitImpl(mr, s.toString(), ch);
+    return strsplitImpl(s.toString(), ch, mr);
 }
 
-Value strcat(std::pmr::memory_resource *mr, Span<const Value> parts)
+Value strcat(Span<const Value> parts, std::pmr::memory_resource *mr)
 {
     std::string result;
     for (const auto &p : parts)
@@ -267,7 +267,7 @@ Value strcat(std::pmr::memory_resource *mr, Span<const Value> parts)
 
 // ── Length ──────────────────────────────────────────────────────────────
 
-Value strlength(std::pmr::memory_resource *mr, const Value &s)
+Value strlength(const Value &s, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (s.isString()) {
@@ -286,7 +286,7 @@ Value strlength(std::pmr::memory_resource *mr, const Value &s)
 
 // ── Search / replace ────────────────────────────────────────────────────
 
-Value strfind(std::pmr::memory_resource *mr, const Value &s, const Value &pat)
+Value strfind(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 {
     const std::string ss = s.toString();
     const std::string pp = pat.toString();
@@ -309,7 +309,7 @@ Value strfind(std::pmr::memory_resource *mr, const Value &s, const Value &pat)
     return r;
 }
 
-Value mat2str(std::pmr::memory_resource *mr, const Value &x, int precision)
+Value mat2str(const Value &x, int precision, std::pmr::memory_resource *mr)
 {
     if (x.isEmpty())
         return Value::fromString("[]", mr);
@@ -345,7 +345,7 @@ Value mat2str(std::pmr::memory_resource *mr, const Value &x, int precision)
     return Value::fromString(out, mr);
 }
 
-Value strjoin(std::pmr::memory_resource *mr, const Value &c, const Value *delim)
+Value strjoin(const Value &c, const Value *delim, std::pmr::memory_resource *mr)
 {
     if (!c.isCell())
         throw Error("strjoin: first argument must be a cell array",
@@ -362,7 +362,7 @@ Value strjoin(std::pmr::memory_resource *mr, const Value &c, const Value *delim)
 
 // ── Pack 18 ──────────────────────────────────────────────────────────
 
-Value append(std::pmr::memory_resource *mr, Span<const Value> parts)
+Value append(Span<const Value> parts, std::pmr::memory_resource *mr)
 {
     // Same shape as strcat but does NOT trim trailing whitespace from
     // char-array operands (MATLAB's "append" is the literal-concatenate
@@ -373,7 +373,7 @@ Value append(std::pmr::memory_resource *mr, Span<const Value> parts)
     return Value::fromString(out, mr);
 }
 
-Value count(std::pmr::memory_resource *mr, const Value &s, const Value &pat)
+Value count(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 {
     const std::string ss = s.toString();
     const std::string pp = pat.toString();
@@ -386,7 +386,7 @@ Value count(std::pmr::memory_resource *mr, const Value &s, const Value &pat)
     return Value::scalar(static_cast<double>(n), mr);
 }
 
-Value erase(std::pmr::memory_resource *mr, const Value &s, const Value &pat)
+Value erase(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 {
     std::string r = s.toString();
     const std::string pp = pat.toString();
@@ -401,13 +401,12 @@ Value erase(std::pmr::memory_resource *mr, const Value &s, const Value &pat)
     return Value::fromString(r, mr);
 }
 
-Value replace(std::pmr::memory_resource *mr, const Value &s,
-              const Value &oldPat, const Value &newPat)
+Value replace(const Value &s, const Value &oldPat, const Value &newPat, std::pmr::memory_resource *mr)
 {
-    return strrep(mr, s, oldPat, newPat);
+    return strrep(s, oldPat, newPat, mr);
 }
 
-Value reverse(std::pmr::memory_resource *mr, const Value &s)
+Value reverse(const Value &s, std::pmr::memory_resource *mr)
 {
     std::string r = s.toString();
     std::reverse(r.begin(), r.end());
@@ -415,7 +414,7 @@ Value reverse(std::pmr::memory_resource *mr, const Value &s)
     return Value::fromString(r, mr);
 }
 
-Value splitlines(std::pmr::memory_resource *mr, const Value &s)
+Value splitlines(const Value &s, std::pmr::memory_resource *mr)
 {
     const std::string ss = s.toString();
     ScratchArena scratch(mr);
@@ -456,8 +455,7 @@ inline std::string readSide(const Value *side, const char *def)
 }
 } // anon
 
-Value pad(std::pmr::memory_resource *mr, const Value &s, size_t n,
-          const Value *side, const Value *padChar)
+Value pad(const Value &s, size_t n, const Value *side, const Value *padChar, std::pmr::memory_resource *mr)
 {
     std::string r = s.toString();
     if (r.size() >= n) {
@@ -488,8 +486,7 @@ Value pad(std::pmr::memory_resource *mr, const Value &s, size_t n,
     return Value::fromString(r, mr);
 }
 
-Value strip(std::pmr::memory_resource *mr, const Value &s,
-            const Value *side, const Value *ch)
+Value strip(const Value &s, const Value *side, const Value *ch, std::pmr::memory_resource *mr)
 {
     std::string r = s.toString();
     const std::string sd = readSide(side, "both");
@@ -516,7 +513,7 @@ Value strip(std::pmr::memory_resource *mr, const Value &s,
     return Value::fromString(r, mr);
 }
 
-Value matches(std::pmr::memory_resource *mr, const Value &s, const Value &pat)
+Value matches(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 {
     const std::string ss = s.toString();
     if (pat.isCell()) {
@@ -532,7 +529,7 @@ Value matches(std::pmr::memory_resource *mr, const Value &s, const Value &pat)
 
 // ── Pack 21 ──────────────────────────────────────────────────────────
 
-Value convertCharsToStrings(std::pmr::memory_resource *mr, const Value &x)
+Value convertCharsToStrings(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isString()) return x;
     if (x.isChar())   return Value::stringScalar(x.toString(), mr);
@@ -554,7 +551,7 @@ Value convertCharsToStrings(std::pmr::memory_resource *mr, const Value &x)
     return x;
 }
 
-Value convertStringsToChars(std::pmr::memory_resource *mr, const Value &x)
+Value convertStringsToChars(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isChar()) return x;
     if (x.isString()) {
@@ -587,7 +584,7 @@ Value convertStringsToChars(std::pmr::memory_resource *mr, const Value &x)
     return x;
 }
 
-Value isstringscalar(std::pmr::memory_resource *mr, const Value &x)
+Value isstringscalar(const Value &x, std::pmr::memory_resource *mr)
 {
     return Value::logicalScalar(x.isString() && x.numel() == 1, mr);
 }
@@ -596,7 +593,7 @@ namespace {
 // Build a logical array shaped like the input char/string by running
 // `predFn(c)` over each character.
 template <typename PredFn>
-Value applyCharPred(std::pmr::memory_resource *mr, const Value &s, PredFn pred)
+Value applyCharPred(const Value &s, PredFn pred, std::pmr::memory_resource *mr)
 {
     if (s.isChar()) {
         const std::string str = s.toString();
@@ -630,7 +627,7 @@ Value applyCharPred(std::pmr::memory_resource *mr, const Value &s, PredFn pred)
 }
 } // anon
 
-Value isstrprop(std::pmr::memory_resource *mr, const Value &s, const Value &category)
+Value isstrprop(const Value &s, const Value &category, std::pmr::memory_resource *mr)
 {
     if (!category.isChar() && !category.isString())
         throw Error("isstrprop: category must be a string",
@@ -638,39 +635,39 @@ Value isstrprop(std::pmr::memory_resource *mr, const Value &s, const Value &cate
     auto cat = category.toString();
     for (auto &c : cat) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     if (cat == "alpha")
-        return applyCharPred(mr, s, [](unsigned char c) { return std::isalpha(c) != 0; });
+        return applyCharPred(s, [](unsigned char c) { return std::isalpha(c) != 0; }, mr);
     if (cat == "digit")
-        return applyCharPred(mr, s, [](unsigned char c) { return std::isdigit(c) != 0; });
+        return applyCharPred(s, [](unsigned char c) { return std::isdigit(c) != 0; }, mr);
     if (cat == "alphanum")
-        return applyCharPred(mr, s, [](unsigned char c) { return std::isalnum(c) != 0; });
+        return applyCharPred(s, [](unsigned char c) { return std::isalnum(c) != 0; }, mr);
     if (cat == "lower")
-        return applyCharPred(mr, s, [](unsigned char c) { return std::islower(c) != 0; });
+        return applyCharPred(s, [](unsigned char c) { return std::islower(c) != 0; }, mr);
     if (cat == "upper")
-        return applyCharPred(mr, s, [](unsigned char c) { return std::isupper(c) != 0; });
+        return applyCharPred(s, [](unsigned char c) { return std::isupper(c) != 0; }, mr);
     if (cat == "punct")
-        return applyCharPred(mr, s, [](unsigned char c) { return std::ispunct(c) != 0; });
+        return applyCharPred(s, [](unsigned char c) { return std::ispunct(c) != 0; }, mr);
     if (cat == "space" || cat == "wspace")
-        return applyCharPred(mr, s, [](unsigned char c) { return std::isspace(c) != 0; });
+        return applyCharPred(s, [](unsigned char c) { return std::isspace(c) != 0; }, mr);
     if (cat == "xdigit")
-        return applyCharPred(mr, s, [](unsigned char c) { return std::isxdigit(c) != 0; });
+        return applyCharPred(s, [](unsigned char c) { return std::isxdigit(c) != 0; }, mr);
     if (cat == "cntrl")
-        return applyCharPred(mr, s, [](unsigned char c) { return std::iscntrl(c) != 0; });
+        return applyCharPred(s, [](unsigned char c) { return std::iscntrl(c) != 0; }, mr);
     if (cat == "graphic")
-        return applyCharPred(mr, s, [](unsigned char c) { return std::isgraph(c) != 0; });
+        return applyCharPred(s, [](unsigned char c) { return std::isgraph(c) != 0; }, mr);
     if (cat == "print")
-        return applyCharPred(mr, s, [](unsigned char c) { return std::isprint(c) != 0; });
+        return applyCharPred(s, [](unsigned char c) { return std::isprint(c) != 0; }, mr);
     throw Error("isstrprop: unknown category '" + cat + "'",
                  0, 0, "isstrprop", "", "m:isstrprop:badCat");
 }
 
-Value isletter(std::pmr::memory_resource *mr, const Value &s)
+Value isletter(const Value &s, std::pmr::memory_resource *mr)
 {
-    return applyCharPred(mr, s, [](unsigned char c) { return std::isalpha(c) != 0; });
+    return applyCharPred(s, [](unsigned char c) { return std::isalpha(c) != 0; }, mr);
 }
 
-Value isspaceFn(std::pmr::memory_resource *mr, const Value &s)
+Value isspaceFn(const Value &s, std::pmr::memory_resource *mr)
 {
-    return applyCharPred(mr, s, [](unsigned char c) { return std::isspace(c) != 0; });
+    return applyCharPred(s, [](unsigned char c) { return std::isspace(c) != 0; }, mr);
 }
 
 // ── Pack 22 ──────────────────────────────────────────────────────────
@@ -700,28 +697,27 @@ PosRange resolvePos(const std::string &s, const Value &p)
     return {static_cast<size_t>(p1 - 1), static_cast<size_t>(p1), true};
 }
 
-inline Value strLikeOf(std::pmr::memory_resource *mr, const Value &s,
-                       const std::string &out)
+inline Value strLikeOf(const Value &s, const std::string &out, std::pmr::memory_resource *mr)
 {
     if (s.isString()) return Value::stringScalar(out, mr);
     return Value::fromString(out, mr);
 }
 } // anon
 
-Value extractAfter(std::pmr::memory_resource *mr, const Value &s, const Value &p)
+Value extractAfter(const Value &s, const Value &p, std::pmr::memory_resource *mr)
 {
     const std::string ss = s.toString();
     const auto r = resolvePos(ss, p);
-    if (!r.found) return strLikeOf(mr, s, "");
-    return strLikeOf(mr, s, ss.substr(r.end));
+    if (!r.found) return strLikeOf(s, "", mr);
+    return strLikeOf(s, ss.substr(r.end), mr);
 }
 
-Value extractBefore(std::pmr::memory_resource *mr, const Value &s, const Value &p)
+Value extractBefore(const Value &s, const Value &p, std::pmr::memory_resource *mr)
 {
     const std::string ss = s.toString();
     const auto r = resolvePos(ss, p);
-    if (!r.found) return strLikeOf(mr, s, "");
-    return strLikeOf(mr, s, ss.substr(0, r.begin));
+    if (!r.found) return strLikeOf(s, "", mr);
+    return strLikeOf(s, ss.substr(0, r.begin), mr);
 }
 
 namespace {
@@ -777,8 +773,7 @@ findAllBetweenPairs(const std::string &ss, const Value &start, const Value &end)
 
 } // namespace
 
-Value extractBetween(std::pmr::memory_resource *mr, const Value &s,
-                     const Value &start, const Value &end)
+Value extractBetween(const Value &s, const Value &start, const Value &end, std::pmr::memory_resource *mr)
 {
     const std::string ss = s.toString();
     const auto matches = findAllBetweenPairs(ss, start, end);
@@ -788,33 +783,30 @@ Value extractBetween(std::pmr::memory_resource *mr, const Value &s,
     for (size_t i = 0; i < matches.size(); ++i) {
         const auto &m = matches[i];
         const std::string inner = ss.substr(m.openEnd, m.closeBegin - m.openEnd);
-        c.cellAt(i) = strLikeOf(mr, s, inner);
+        c.cellAt(i) = strLikeOf(s, inner, mr);
     }
     return c;
 }
 
-Value insertAfter(std::pmr::memory_resource *mr, const Value &s,
-                  const Value &p, const Value &newText)
+Value insertAfter(const Value &s, const Value &p, const Value &newText, std::pmr::memory_resource *mr)
 {
     std::string ss = s.toString();
     const auto r = resolvePos(ss, p);
     if (!r.found) return s;
     ss.insert(r.end, newText.toString());
-    return strLikeOf(mr, s, ss);
+    return strLikeOf(s, ss, mr);
 }
 
-Value insertBefore(std::pmr::memory_resource *mr, const Value &s,
-                   const Value &p, const Value &newText)
+Value insertBefore(const Value &s, const Value &p, const Value &newText, std::pmr::memory_resource *mr)
 {
     std::string ss = s.toString();
     const auto r = resolvePos(ss, p);
     if (!r.found) return s;
     ss.insert(r.begin, newText.toString());
-    return strLikeOf(mr, s, ss);
+    return strLikeOf(s, ss, mr);
 }
 
-Value eraseBetween(std::pmr::memory_resource *mr, const Value &s,
-                   const Value &start, const Value &end)
+Value eraseBetween(const Value &s, const Value &start, const Value &end, std::pmr::memory_resource *mr)
 {
     const std::string ss = s.toString();
     const auto matches = findAllBetweenPairs(ss, start, end);
@@ -829,12 +821,10 @@ Value eraseBetween(std::pmr::memory_resource *mr, const Value &s,
         cursor = m.closeBegin;                          // skip the inner text
     }
     out.append(ss, cursor, ss.size() - cursor);
-    return strLikeOf(mr, s, out);
+    return strLikeOf(s, out, mr);
 }
 
-Value replaceBetween(std::pmr::memory_resource *mr, const Value &s,
-                     const Value &start, const Value &end,
-                     const Value &newText)
+Value replaceBetween(const Value &s, const Value &start, const Value &end, const Value &newText, std::pmr::memory_resource *mr)
 {
     const std::string ss = s.toString();
     const std::string nt = newText.toString();
@@ -849,7 +839,7 @@ Value replaceBetween(std::pmr::memory_resource *mr, const Value &s,
         cursor = m.closeBegin;                          // resume at closing delim
     }
     out.append(ss, cursor, ss.size() - cursor);
-    return strLikeOf(mr, s, out);
+    return strLikeOf(s, out, mr);
 }
 
 // ── Pack 23 ──────────────────────────────────────────────────────────
@@ -896,8 +886,7 @@ uint64_t parseBase(const std::string &s, int base)
 // Convert an N-element double vector to a 2-D char matrix where each
 // row holds the base-`base` representation, padded to the maximum
 // observed width (and at least minWidth).
-Value vecToBaseMatrix(std::pmr::memory_resource *mr, const Value &d,
-                      int base, int minWidth)
+Value vecToBaseMatrix(const Value &d, int base, int minWidth, std::pmr::memory_resource *mr)
 {
     const size_t n = d.numel();
     if (n == 0) return Value::fromString("", mr);
@@ -934,22 +923,22 @@ Value vecToBaseMatrix(std::pmr::memory_resource *mr, const Value &d,
 }
 } // anon
 
-Value dec2bin(std::pmr::memory_resource *mr, const Value &d, int minWidth)
+Value dec2bin(const Value &d, int minWidth, std::pmr::memory_resource *mr)
 {
-    return vecToBaseMatrix(mr, d, 2, minWidth);
+    return vecToBaseMatrix(d, 2, minWidth, mr);
 }
 
-Value dec2hex(std::pmr::memory_resource *mr, const Value &d, int minWidth)
+Value dec2hex(const Value &d, int minWidth, std::pmr::memory_resource *mr)
 {
-    return vecToBaseMatrix(mr, d, 16, minWidth);
+    return vecToBaseMatrix(d, 16, minWidth, mr);
 }
 
-Value bin2dec(std::pmr::memory_resource *mr, const Value &s)
+Value bin2dec(const Value &s, std::pmr::memory_resource *mr)
 {
     return Value::scalar(static_cast<double>(parseBase(s.toString(), 2)), mr);
 }
 
-Value hex2dec(std::pmr::memory_resource *mr, const Value &s)
+Value hex2dec(const Value &s, std::pmr::memory_resource *mr)
 {
     return Value::scalar(static_cast<double>(parseBase(s.toString(), 16)), mr);
 }
@@ -1036,7 +1025,7 @@ inline double defaultRatTol(double x)
 
 // Single-element CF expansion, used by both 1-output (string form) and
 // 2-output (numeric N, D) callsites.
-Value rat(std::pmr::memory_resource *mr, const Value &x, double tol)
+Value rat(const Value &x, double tol, std::pmr::memory_resource *mr)
 {
     const double v = x.toScalar();
     if (!std::isfinite(v))
@@ -1054,7 +1043,7 @@ Value rat(std::pmr::memory_resource *mr, const Value &x, double tol)
 // width = len + 1 here matches `strlength(rats(0.5))` = 14 in MATLAB R2025b.
 // For a vector input MATLAB concatenates the per-element fields into one
 // big string row.
-Value rats(std::pmr::memory_resource *mr, const Value &x, int len)
+Value rats(const Value &x, int len, std::pmr::memory_resource *mr)
 {
     if (len <= 0) len = 13;
     const int field_width = len + 1;  // MATLAB reserves 1 col for leading sign
@@ -1100,7 +1089,7 @@ Value rats(std::pmr::memory_resource *mr, const Value &x, int len)
     return Value::fromString(out, mr);
 }
 
-Value strrep(std::pmr::memory_resource *mr, const Value &s, const Value &oldPat, const Value &newPat)
+Value strrep(const Value &s, const Value &oldPat, const Value &newPat, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     std::string r = s.toString();
@@ -1118,14 +1107,14 @@ Value strrep(std::pmr::memory_resource *mr, const Value &s, const Value &oldPat,
     return Value::fromString(r, p);
 }
 
-Value contains(std::pmr::memory_resource *mr, const Value &s, const Value &pat)
+Value contains(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 {
     std::string ss = s.toString();
     std::string pp = pat.toString();
     return Value::logicalScalar(ss.find(pp) != std::string::npos, mr);
 }
 
-Value startsWith(std::pmr::memory_resource *mr, const Value &s, const Value &prefix)
+Value startsWith(const Value &s, const Value &prefix, std::pmr::memory_resource *mr)
 {
     std::string ss = s.toString();
     std::string pp = prefix.toString();
@@ -1133,7 +1122,7 @@ Value startsWith(std::pmr::memory_resource *mr, const Value &s, const Value &pre
         ss.size() >= pp.size() && ss.compare(0, pp.size(), pp) == 0, mr);
 }
 
-Value endsWith(std::pmr::memory_resource *mr, const Value &s, const Value &suffix)
+Value endsWith(const Value &s, const Value &suffix, std::pmr::memory_resource *mr)
 {
     std::string ss = s.toString();
     std::string pp = suffix.toString();
@@ -1148,7 +1137,7 @@ Value endsWith(std::pmr::memory_resource *mr, const Value &s, const Value &suffi
 namespace {
 
 // Read element i of x as a Value scalar to feed sprintf.
-Value elemScalar(std::pmr::memory_resource *mr, const Value &x, size_t i)
+Value elemScalar(const Value &x, size_t i, std::pmr::memory_resource *mr)
 {
     if (x.isNumeric()) {
         return Value::scalar(x.elemAsDouble(i), mr);
@@ -1203,8 +1192,7 @@ void splitKeepEmpty(const std::string &s, const std::string &delim,
 
 } // namespace
 
-Value compose(std::pmr::memory_resource *mr,
-              const Value &fmt, const Value &x)
+Value compose(const Value &fmt, const Value &x, std::pmr::memory_resource *mr)
 {
     if (!fmt.isChar() && !fmt.isString())
         throw Error("compose: format must be a char or string",
@@ -1212,7 +1200,7 @@ Value compose(std::pmr::memory_resource *mr,
     const std::string fmtStr = fmt.toString();
 
     if (x.isScalar()) {
-        Value one = elemScalar(mr, x, 0);
+        Value one = elemScalar(x, 0, mr);
         Value c = Value::cell(1, 1, mr);
         c.cellAt(0) = Value::fromString(formatOnce(fmtStr, {&one, 1}, 0), mr);
         return c;
@@ -1222,14 +1210,13 @@ Value compose(std::pmr::memory_resource *mr,
     Value c = Value::cell(dims.rows(), dims.cols(), mr);
     const size_t n = x.numel();
     for (size_t i = 0; i < n; ++i) {
-        Value one = elemScalar(mr, x, i);
+        Value one = elemScalar(x, i, mr);
         c.cellAt(i) = Value::fromString(formatOnce(fmtStr, {&one, 1}, 0), mr);
     }
     return c;
 }
 
-Value strjust(std::pmr::memory_resource *mr,
-              const Value &M, const std::string &side)
+Value strjust(const Value &M, const std::string &side, std::pmr::memory_resource *mr)
 {
     if (!M.isChar())
         throw Error("strjust: input must be a char matrix",
@@ -1273,8 +1260,7 @@ Value strjust(std::pmr::memory_resource *mr,
     return r;
 }
 
-Value extract(std::pmr::memory_resource *mr,
-              const Value &s, const Value &pat)
+Value extract(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 {
     const std::string sStr = strInput(s);
     const std::string pStr = strInput(pat);
@@ -1289,8 +1275,7 @@ Value extract(std::pmr::memory_resource *mr,
     return c;
 }
 
-Value split(std::pmr::memory_resource *mr,
-            const Value &s, const Value &delim)
+Value split(const Value &s, const Value &delim, std::pmr::memory_resource *mr)
 {
     const std::string sStr = strInput(s);
     const std::string dStr = strInput(delim);
@@ -1304,8 +1289,7 @@ Value split(std::pmr::memory_resource *mr,
     return c;
 }
 
-Value join(std::pmr::memory_resource *mr,
-           const Value &arr, const Value *delim)
+Value join(const Value &arr, const Value *delim, std::pmr::memory_resource *mr)
 {
     const std::string d = delim ? strInput(*delim) : std::string(" ");
 
@@ -1353,8 +1337,7 @@ Value newlineFn(std::pmr::memory_resource *mr)
     return Value::fromString("\n", mr);
 }
 
-Value stringsND(std::pmr::memory_resource *mr,
-                const size_t *dims, size_t ndim)
+Value stringsND(const size_t *dims, size_t ndim, std::pmr::memory_resource *mr)
 {
     if (ndim == 0)
         return Value::stringScalar("", mr);
@@ -1387,16 +1370,16 @@ void num2str_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.empty())
         throw Error("num2str: requires 1 argument", 0, 0, "num2str", "", "m:num2str:nargin");
     if (args.size() >= 2)
-        outs[0] = num2str(ctx.engine->resource(), args[0], args[1]);
+        outs[0] = num2str(args[0], args[1], ctx.engine->resource());
     else
-        outs[0] = num2str(ctx.engine->resource(), args[0]);
+        outs[0] = num2str(args[0], ctx.engine->resource());
 }
 
 void str2num_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("str2num: requires 1 argument", 0, 0, "str2num", "", "m:str2num:nargin");
-    outs[0] = str2num(ctx.engine->resource(), args[0]);
+    outs[0] = str2num(args[0], ctx.engine->resource());
 }
 
 void str2double_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1404,7 +1387,7 @@ void str2double_reg(Span<const Value> args, size_t, Span<Value> outs, CallContex
     if (args.empty())
         throw Error("str2double: requires 1 argument", 0, 0, "str2double", "",
                      "m:str2double:nargin");
-    outs[0] = str2double(ctx.engine->resource(), args[0]);
+    outs[0] = str2double(args[0], ctx.engine->resource());
 }
 
 void string_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1414,21 +1397,21 @@ void string_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &c
         outs[0] = Value::stringScalar("", mr);
         return;
     }
-    outs[0] = toString(mr, args[0]);
+    outs[0] = toString(args[0], mr);
 }
 
 void char_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("char requires an argument", 0, 0, "char", "", "m:char:nargin");
-    outs[0] = toChar(ctx.engine->resource(), args[0]);
+    outs[0] = toChar(args[0], ctx.engine->resource());
 }
 
 void strcmp_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("strcmp: requires 2 arguments", 0, 0, "strcmp", "", "m:strcmp:nargin");
-    outs[0] = strcmp(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = strcmp(args[0], args[1], ctx.engine->resource());
 }
 
 void strcmpi_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1436,21 +1419,21 @@ void strcmpi_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.size() < 2)
         throw Error("strcmpi: requires 2 arguments", 0, 0, "strcmpi", "",
                      "m:strcmpi:nargin");
-    outs[0] = strcmpi(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = strcmpi(args[0], args[1], ctx.engine->resource());
 }
 
 void upper_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("upper: requires 1 argument", 0, 0, "upper", "", "m:upper:nargin");
-    outs[0] = upper(ctx.engine->resource(), args[0]);
+    outs[0] = upper(args[0], ctx.engine->resource());
 }
 
 void lower_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("lower: requires 1 argument", 0, 0, "lower", "", "m:lower:nargin");
-    outs[0] = lower(ctx.engine->resource(), args[0]);
+    outs[0] = lower(args[0], ctx.engine->resource());
 }
 
 void strtrim_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1458,7 +1441,7 @@ void strtrim_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.empty())
         throw Error("strtrim: requires 1 argument", 0, 0, "strtrim", "",
                      "m:strtrim:nargin");
-    outs[0] = strtrim(ctx.engine->resource(), args[0]);
+    outs[0] = strtrim(args[0], ctx.engine->resource());
 }
 
 void strsplit_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1467,14 +1450,14 @@ void strsplit_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
         throw Error("strsplit: requires 1 argument", 0, 0, "strsplit", "",
                      "m:strsplit:nargin");
     if (args.size() == 1)
-        outs[0] = strsplit(ctx.engine->resource(), args[0]);
+        outs[0] = strsplit(args[0], ctx.engine->resource());
     else
-        outs[0] = strsplit(ctx.engine->resource(), args[0], args[1]);
+        outs[0] = strsplit(args[0], args[1], ctx.engine->resource());
 }
 
 void strcat_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = strcat(ctx.engine->resource(), args);
+    outs[0] = strcat(args, ctx.engine->resource());
 }
 
 void strlength_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1482,14 +1465,14 @@ void strlength_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
     if (args.empty())
         throw Error("strlength: requires 1 argument", 0, 0, "strlength", "",
                      "m:strlength:nargin");
-    outs[0] = strlength(ctx.engine->resource(), args[0]);
+    outs[0] = strlength(args[0], ctx.engine->resource());
 }
 
 void strrep_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
         throw Error("strrep requires 3 arguments", 0, 0, "strrep", "", "m:strrep:nargin");
-    outs[0] = strrep(ctx.engine->resource(), args[0], args[1], args[2]);
+    outs[0] = strrep(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 void contains_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1497,7 +1480,7 @@ void contains_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
     if (args.size() < 2)
         throw Error("contains requires 2 arguments", 0, 0, "contains", "",
                      "m:contains:nargin");
-    outs[0] = contains(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = contains(args[0], args[1], ctx.engine->resource());
 }
 
 void startsWith_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1505,7 +1488,7 @@ void startsWith_reg(Span<const Value> args, size_t, Span<Value> outs, CallContex
     if (args.size() < 2)
         throw Error("startsWith requires 2 arguments", 0, 0, "startsWith", "",
                      "m:startsWith:nargin");
-    outs[0] = startsWith(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = startsWith(args[0], args[1], ctx.engine->resource());
 }
 
 void endsWith_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1513,7 +1496,7 @@ void endsWith_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
     if (args.size() < 2)
         throw Error("endsWith requires 2 arguments", 0, 0, "endsWith", "",
                      "m:endsWith:nargin");
-    outs[0] = endsWith(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = endsWith(args[0], args[1], ctx.engine->resource());
 }
 
 void strncmp_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1522,7 +1505,7 @@ void strncmp_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
         throw Error("strncmp: requires 3 arguments", 0, 0, "strncmp", "",
                      "m:strncmp:nargin");
     const size_t n = static_cast<size_t>(args[2].toScalar());
-    outs[0] = strncmp(ctx.engine->resource(), args[0], args[1], n);
+    outs[0] = strncmp(args[0], args[1], n, ctx.engine->resource());
 }
 
 void strncmpi_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1531,7 +1514,7 @@ void strncmpi_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
         throw Error("strncmpi: requires 3 arguments", 0, 0, "strncmpi", "",
                      "m:strncmpi:nargin");
     const size_t n = static_cast<size_t>(args[2].toScalar());
-    outs[0] = strncmpi(ctx.engine->resource(), args[0], args[1], n);
+    outs[0] = strncmpi(args[0], args[1], n, ctx.engine->resource());
 }
 
 void strfind_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1539,7 +1522,7 @@ void strfind_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.size() < 2)
         throw Error("strfind: requires 2 arguments", 0, 0, "strfind", "",
                      "m:strfind:nargin");
-    outs[0] = strfind(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = strfind(args[0], args[1], ctx.engine->resource());
 }
 
 void blanks_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1548,7 +1531,7 @@ void blanks_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &c
         throw Error("blanks: requires 1 argument", 0, 0, "blanks", "",
                      "m:blanks:nargin");
     const size_t n = static_cast<size_t>(args[0].toScalar());
-    outs[0] = blanks(ctx.engine->resource(), n);
+    outs[0] = blanks(n, ctx.engine->resource());
 }
 
 void deblank_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1556,7 +1539,7 @@ void deblank_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.empty())
         throw Error("deblank: requires 1 argument", 0, 0, "deblank", "",
                      "m:deblank:nargin");
-    outs[0] = deblank(ctx.engine->resource(), args[0]);
+    outs[0] = deblank(args[0], ctx.engine->resource());
 }
 
 void mat2str_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1567,7 +1550,7 @@ void mat2str_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     int prec = 15;
     if (args.size() >= 2 && !args[1].isEmpty())
         prec = static_cast<int>(args[1].toScalar());
-    outs[0] = mat2str(ctx.engine->resource(), args[0], prec);
+    outs[0] = mat2str(args[0], prec, ctx.engine->resource());
 }
 
 void strjoin_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1576,12 +1559,12 @@ void strjoin_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
         throw Error("strjoin: requires at least 1 argument", 0, 0, "strjoin", "",
                      "m:strjoin:nargin");
     const Value *delim = (args.size() >= 2) ? &args[1] : nullptr;
-    outs[0] = strjoin(ctx.engine->resource(), args[0], delim);
+    outs[0] = strjoin(args[0], delim, ctx.engine->resource());
 }
 
 void append_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = append(ctx.engine->resource(), args);
+    outs[0] = append(args, ctx.engine->resource());
 }
 
 void count_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1589,7 +1572,7 @@ void count_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ct
     if (args.size() < 2)
         throw Error("count: requires (s, pat)",
                      0, 0, "count", "", "m:count:nargin");
-    outs[0] = count(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = count(args[0], args[1], ctx.engine->resource());
 }
 
 void erase_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1597,7 +1580,7 @@ void erase_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ct
     if (args.size() < 2)
         throw Error("erase: requires (s, pat)",
                      0, 0, "erase", "", "m:erase:nargin");
-    outs[0] = erase(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = erase(args[0], args[1], ctx.engine->resource());
 }
 
 void replace_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1605,7 +1588,7 @@ void replace_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.size() < 3)
         throw Error("replace: requires (s, old, new)",
                      0, 0, "replace", "", "m:replace:nargin");
-    outs[0] = replace(ctx.engine->resource(), args[0], args[1], args[2]);
+    outs[0] = replace(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 void reverse_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1613,7 +1596,7 @@ void reverse_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.empty())
         throw Error("reverse: requires 1 argument",
                      0, 0, "reverse", "", "m:reverse:nargin");
-    outs[0] = reverse(ctx.engine->resource(), args[0]);
+    outs[0] = reverse(args[0], ctx.engine->resource());
 }
 
 void splitlines_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1621,7 +1604,7 @@ void splitlines_reg(Span<const Value> args, size_t, Span<Value> outs, CallContex
     if (args.empty())
         throw Error("splitlines: requires 1 argument",
                      0, 0, "splitlines", "", "m:splitlines:nargin");
-    outs[0] = splitlines(ctx.engine->resource(), args[0]);
+    outs[0] = splitlines(args[0], ctx.engine->resource());
 }
 
 void pad_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1632,7 +1615,7 @@ void pad_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
     const size_t n = static_cast<size_t>(args[1].toScalar());
     const Value *side = (args.size() >= 3 && !args[2].isEmpty()) ? &args[2] : nullptr;
     const Value *ch   = (args.size() >= 4 && !args[3].isEmpty()) ? &args[3] : nullptr;
-    outs[0] = pad(ctx.engine->resource(), args[0], n, side, ch);
+    outs[0] = pad(args[0], n, side, ch, ctx.engine->resource());
 }
 
 void strip_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1642,7 +1625,7 @@ void strip_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ct
                      0, 0, "strip", "", "m:strip:nargin");
     const Value *side = (args.size() >= 2 && !args[1].isEmpty()) ? &args[1] : nullptr;
     const Value *ch   = (args.size() >= 3 && !args[2].isEmpty()) ? &args[2] : nullptr;
-    outs[0] = strip(ctx.engine->resource(), args[0], side, ch);
+    outs[0] = strip(args[0], side, ch, ctx.engine->resource());
 }
 
 void matches_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1650,7 +1633,7 @@ void matches_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.size() < 2)
         throw Error("matches: requires (s, pat)",
                      0, 0, "matches", "", "m:matches:nargin");
-    outs[0] = matches(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = matches(args[0], args[1], ctx.engine->resource());
 }
 
 void convertCharsToStrings_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1658,7 +1641,7 @@ void convertCharsToStrings_reg(Span<const Value> args, size_t, Span<Value> outs,
     if (args.empty())
         throw Error("convertCharsToStrings: requires 1 argument",
                      0, 0, "convertCharsToStrings", "", "m:convertCharsToStrings:nargin");
-    outs[0] = convertCharsToStrings(ctx.engine->resource(), args[0]);
+    outs[0] = convertCharsToStrings(args[0], ctx.engine->resource());
 }
 
 void convertStringsToChars_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1666,7 +1649,7 @@ void convertStringsToChars_reg(Span<const Value> args, size_t, Span<Value> outs,
     if (args.empty())
         throw Error("convertStringsToChars: requires 1 argument",
                      0, 0, "convertStringsToChars", "", "m:convertStringsToChars:nargin");
-    outs[0] = convertStringsToChars(ctx.engine->resource(), args[0]);
+    outs[0] = convertStringsToChars(args[0], ctx.engine->resource());
 }
 
 void isstringscalar_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1674,7 +1657,7 @@ void isstringscalar_reg(Span<const Value> args, size_t, Span<Value> outs, CallCo
     if (args.empty())
         throw Error("isstringscalar: requires 1 argument",
                      0, 0, "isstringscalar", "", "m:isstringscalar:nargin");
-    outs[0] = isstringscalar(ctx.engine->resource(), args[0]);
+    outs[0] = isstringscalar(args[0], ctx.engine->resource());
 }
 
 void isstrprop_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1682,7 +1665,7 @@ void isstrprop_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
     if (args.size() < 2)
         throw Error("isstrprop: requires (s, category)",
                      0, 0, "isstrprop", "", "m:isstrprop:nargin");
-    outs[0] = isstrprop(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = isstrprop(args[0], args[1], ctx.engine->resource());
 }
 
 void isletter_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1690,7 +1673,7 @@ void isletter_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
     if (args.empty())
         throw Error("isletter: requires 1 argument",
                      0, 0, "isletter", "", "m:isletter:nargin");
-    outs[0] = isletter(ctx.engine->resource(), args[0]);
+    outs[0] = isletter(args[0], ctx.engine->resource());
 }
 
 void isspace_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1698,7 +1681,7 @@ void isspace_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.empty())
         throw Error("isspace: requires 1 argument",
                      0, 0, "isspace", "", "m:isspace:nargin");
-    outs[0] = isspaceFn(ctx.engine->resource(), args[0]);
+    outs[0] = isspaceFn(args[0], ctx.engine->resource());
 }
 
 #define NK_STR_BIN_REG(FN)                                                       \
@@ -1708,7 +1691,7 @@ void isspace_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
         if (args.size() < 2)                                                      \
             throw Error(#FN " requires 2 arguments",                             \
                          0, 0, #FN, "", "m:" #FN ":nargin");                      \
-        outs[0] = FN(ctx.engine->resource(), args[0], args[1]);                  \
+        outs[0] = FN(args[0], args[1], ctx.engine->resource());                  \
     }
 
 NK_STR_BIN_REG(extractAfter)
@@ -1721,7 +1704,7 @@ void extractBetween_reg(Span<const Value> args, size_t, Span<Value> outs, CallCo
     if (args.size() < 3)
         throw Error("extractBetween requires (s, start, end)",
                      0, 0, "extractBetween", "", "m:extractBetween:nargin");
-    outs[0] = extractBetween(ctx.engine->resource(), args[0], args[1], args[2]);
+    outs[0] = extractBetween(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 #define NK_STR_TRI_REG(FN)                                                       \
@@ -1731,7 +1714,7 @@ void extractBetween_reg(Span<const Value> args, size_t, Span<Value> outs, CallCo
         if (args.size() < 3)                                                      \
             throw Error(#FN " requires 3 arguments",                             \
                          0, 0, #FN, "", "m:" #FN ":nargin");                      \
-        outs[0] = FN(ctx.engine->resource(), args[0], args[1], args[2]);         \
+        outs[0] = FN(args[0], args[1], args[2], ctx.engine->resource());         \
     }
 
 NK_STR_TRI_REG(insertAfter)
@@ -1745,8 +1728,7 @@ void replaceBetween_reg(Span<const Value> args, size_t, Span<Value> outs, CallCo
     if (args.size() < 4)
         throw Error("replaceBetween requires (s, start, end, new)",
                      0, 0, "replaceBetween", "", "m:replaceBetween:nargin");
-    outs[0] = replaceBetween(ctx.engine->resource(),
-                             args[0], args[1], args[2], args[3]);
+    outs[0] = replaceBetween(args[0], args[1], args[2], args[3], ctx.engine->resource());
 }
 
 void dec2bin_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1756,7 +1738,7 @@ void dec2bin_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
                      0, 0, "dec2bin", "", "m:dec2bin:nargin");
     int n = (args.size() >= 2 && !args[1].isEmpty())
               ? static_cast<int>(args[1].toScalar()) : 0;
-    outs[0] = dec2bin(ctx.engine->resource(), args[0], n);
+    outs[0] = dec2bin(args[0], n, ctx.engine->resource());
 }
 
 void dec2hex_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1766,7 +1748,7 @@ void dec2hex_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
                      0, 0, "dec2hex", "", "m:dec2hex:nargin");
     int n = (args.size() >= 2 && !args[1].isEmpty())
               ? static_cast<int>(args[1].toScalar()) : 0;
-    outs[0] = dec2hex(ctx.engine->resource(), args[0], n);
+    outs[0] = dec2hex(args[0], n, ctx.engine->resource());
 }
 
 void bin2dec_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1774,7 +1756,7 @@ void bin2dec_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.empty())
         throw Error("bin2dec requires 1 argument",
                      0, 0, "bin2dec", "", "m:bin2dec:nargin");
-    outs[0] = bin2dec(ctx.engine->resource(), args[0]);
+    outs[0] = bin2dec(args[0], ctx.engine->resource());
 }
 
 void hex2dec_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1782,7 +1764,7 @@ void hex2dec_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.empty())
         throw Error("hex2dec requires 1 argument",
                      0, 0, "hex2dec", "", "m:hex2dec:nargin");
-    outs[0] = hex2dec(ctx.engine->resource(), args[0]);
+    outs[0] = hex2dec(args[0], ctx.engine->resource());
 }
 
 void rat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -1800,7 +1782,7 @@ void rat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
         // version returns a multi-line char array; numkit only emits
         // the scalar form for now (matrix-of-strings is a separate
         // edge — never hit by realistic call sites).
-        outs[0] = rat(mr, x, user_tol > 0 ? user_tol : 0.0);
+        outs[0] = rat(x, user_tol > 0 ? user_tol : 0.0, mr);
         return;
     }
 
@@ -1845,7 +1827,7 @@ void rats_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx
                      0, 0, "rats", "", "m:rats:nargin");
     int len = (args.size() >= 2 && !args[1].isEmpty())
                   ? static_cast<int>(args[1].toScalar()) : 13;
-    outs[0] = rats(ctx.engine->resource(), args[0], len);
+    outs[0] = rats(args[0], len, ctx.engine->resource());
 }
 
 // strtok(s, delim?) — split at first delim char. Returns [token, rem].
@@ -1888,7 +1870,7 @@ void strings_reg(Span<const Value> args, size_t, Span<Value> outs,
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto d = parseDimsArgsND(&scratch, args);
-    outs[0] = stringsND(mr, d.data(), d.size());
+    outs[0] = stringsND(d.data(), d.size(), mr);
 }
 
 void compose_reg(Span<const Value> args, size_t, Span<Value> outs,
@@ -1897,7 +1879,7 @@ void compose_reg(Span<const Value> args, size_t, Span<Value> outs,
     if (args.size() < 2)
         throw Error("compose: requires 2 arguments (fmt, x)",
                      0, 0, "compose", "", "m:compose:nargin");
-    outs[0] = compose(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = compose(args[0], args[1], ctx.engine->resource());
 }
 
 void strjust_reg(Span<const Value> args, size_t, Span<Value> outs,
@@ -1913,7 +1895,7 @@ void strjust_reg(Span<const Value> args, size_t, Span<Value> outs,
                          0, 0, "strjust", "", "m:strjust:badSide");
         side = args[1].toString();
     }
-    outs[0] = strjust(ctx.engine->resource(), args[0], side);
+    outs[0] = strjust(args[0], side, ctx.engine->resource());
 }
 
 void extract_reg(Span<const Value> args, size_t, Span<Value> outs,
@@ -1922,7 +1904,7 @@ void extract_reg(Span<const Value> args, size_t, Span<Value> outs,
     if (args.size() < 2)
         throw Error("extract: requires 2 arguments (s, pat)",
                      0, 0, "extract", "", "m:extract:nargin");
-    outs[0] = extract(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = extract(args[0], args[1], ctx.engine->resource());
 }
 
 void split_reg(Span<const Value> args, size_t, Span<Value> outs,
@@ -1935,10 +1917,10 @@ void split_reg(Span<const Value> args, size_t, Span<Value> outs,
     if (args.size() == 1) {
         // Default delimiter is whitespace per MATLAB; we use ' '.
         Value sp = Value::fromString(" ", mr);
-        outs[0] = split(mr, args[0], sp);
+        outs[0] = split(args[0], sp, mr);
         return;
     }
-    outs[0] = split(mr, args[0], args[1]);
+    outs[0] = split(args[0], args[1], mr);
 }
 
 void join_reg(Span<const Value> args, size_t, Span<Value> outs,
@@ -1948,9 +1930,9 @@ void join_reg(Span<const Value> args, size_t, Span<Value> outs,
         throw Error("join: requires at least 1 argument",
                      0, 0, "join", "", "m:join:nargin");
     if (args.size() >= 2) {
-        outs[0] = join(ctx.engine->resource(), args[0], &args[1]);
+        outs[0] = join(args[0], &args[1], ctx.engine->resource());
     } else {
-        outs[0] = join(ctx.engine->resource(), args[0], nullptr);
+        outs[0] = join(args[0], nullptr, ctx.engine->resource());
     }
 }
 

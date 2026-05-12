@@ -17,31 +17,31 @@
 
 namespace numkit::builtin {
 
-Value sqrt(std::pmr::memory_resource *mr, const Value &x);
-Value exp(std::pmr::memory_resource *mr, const Value &x, Value *hint = nullptr);
-Value log(std::pmr::memory_resource *mr, const Value &x, Value *hint = nullptr);
-Value log2(std::pmr::memory_resource *mr, const Value &x);
-Value log10(std::pmr::memory_resource *mr, const Value &x);
+Value sqrt(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value exp(const Value &x, Value *hint = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value log(const Value &x, Value *hint = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value log2(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value log10(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// expm1(x) — exp(x) - 1, accurate near zero.
-Value expm1(std::pmr::memory_resource *mr, const Value &x);
+Value expm1(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// log1p(x) — log(1 + x), accurate near zero.
-Value log1p(std::pmr::memory_resource *mr, const Value &x);
+Value log1p(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// pow2(y)        — 2 .^ y elementwise.
 /// pow2(f, e)     — f .* 2 .^ e elementwise (libc ldexp).
-Value pow2(std::pmr::memory_resource *mr, const Value &y);
-Value pow2(std::pmr::memory_resource *mr, const Value &f, const Value &e);
+Value pow2(const Value &y, std::pmr::memory_resource *mr = nullptr);
+Value pow2(const Value &f, const Value &e, std::pmr::memory_resource *mr = nullptr);
 
 /// realpow(x, y)  — x .^ y, but errors if any result would be complex
 /// (negative base with non-integer exponent).
-Value realpow(std::pmr::memory_resource *mr, const Value &x, const Value &y);
+Value realpow(const Value &x, const Value &y, std::pmr::memory_resource *mr = nullptr);
 
 /// reallog(x)     — log(x), errors on x < 0 (would be complex).
-Value reallog(std::pmr::memory_resource *mr, const Value &x);
+Value reallog(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// realsqrt(x)    — sqrt(x), errors on x < 0.
-Value realsqrt(std::pmr::memory_resource *mr, const Value &x);
+Value realsqrt(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

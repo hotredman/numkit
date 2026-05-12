@@ -382,7 +382,7 @@ void fscanf(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> 
         f->lastError = "Matching failure.";
 }
 
-void sscanf(std::pmr::memory_resource *mr, Span<const Value> args, size_t nargout, Span<Value> outs)
+void sscanf(Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr)
 {
     if (args.size() < 2 || !args[0].isChar() || !args[1].isChar())
         throw Error("sscanf: requires (str, format [, size])");
@@ -464,8 +464,7 @@ struct TextscanConv { char spec; bool suppress; int width; };
 
 // Parse formatSpec into an ordered conversion list. Unrecognised
 // % codes throw before any scanning happens.
-ScratchVec<TextscanConv> parseTextscanFormat(std::pmr::memory_resource *mr,
-                                              const std::string &fmt)
+ScratchVec<TextscanConv> parseTextscanFormat(const std::string &fmt, std::pmr::memory_resource *mr)
 {
     ScratchVec<TextscanConv> out(mr);
     for (size_t i = 0; i < fmt.size(); ++i) {
@@ -527,7 +526,7 @@ void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value
 
     std::string fmt = args[1].toString();
     ScratchArena scratch(mr);
-    auto convs = parseTextscanFormat(&scratch, fmt);
+    auto convs = parseTextscanFormat(fmt, &scratch);
 
     // Optional positional N, then name-value pairs.
     size_t argIdx = 2;
@@ -894,7 +893,7 @@ void fscanf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 
 void sscanf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    sscanf(ctx.engine->resource(), args, nargout, outs);
+    sscanf(args, nargout, outs, ctx.engine->resource());
 }
 
 void textscan_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

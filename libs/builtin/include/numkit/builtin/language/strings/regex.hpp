@@ -20,18 +20,15 @@ namespace numkit::builtin {
 //
 // regexprep(str, pat, rep) — substitute every non-overlapping match.
 // `rep` may use `$1`/`$2`/... back-references (ECMAScript syntax).
-Value regexpFind(std::pmr::memory_resource *mr, const Value &s, const Value &pat,
-                  const std::string &option = "", bool ignoreCase = false);
+Value regexpFind(const Value &s, const Value &pat, const std::string &option = "", bool ignoreCase = false, std::pmr::memory_resource *mr = nullptr);
 
-Value regexprep(std::pmr::memory_resource *mr, const Value &s, const Value &pat,
-                 const Value &rep, bool ignoreCase = false);
+Value regexprep(const Value &s, const Value &pat, const Value &rep, bool ignoreCase = false, std::pmr::memory_resource *mr = nullptr);
 
 /// regexptranslate(op, str)
 ///   op = "escape"   — escape regex metacharacters with `\`.
 ///   op = "wildcard" — translate MATLAB glob wildcards to a regex
 ///                     (`*` → `.*`, `?` → `.`, escape rest).
 /// "compose" / "flexible" not implemented (NaN-string case + multi-arg).
-Value regexptranslate(std::pmr::memory_resource *mr, const std::string &op,
-                       const std::string &s);
+Value regexptranslate(const std::string &op, const std::string &s, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

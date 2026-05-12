@@ -23,8 +23,7 @@ namespace {
 // loop; other numeric types → fall through to unaryDouble (which calls
 // Value::elemAsDouble per element).
 template <typename ScalarOp, typename SimdOp>
-Value roundLikeDispatch(std::pmr::memory_resource *mr, const Value &x,
-                        ScalarOp scalar, SimdOp simdLoop)
+Value roundLikeDispatch(const Value &x, ScalarOp scalar, SimdOp simdLoop, std::pmr::memory_resource *mr)
 {
     if (x.isScalar())
         return Value::scalar(scalar(x.toScalar()), mr);
@@ -39,35 +38,27 @@ Value roundLikeDispatch(std::pmr::memory_resource *mr, const Value &x,
 
 } // namespace
 
-Value floor(std::pmr::memory_resource *mr, const Value &x)
+Value floor(const Value &x, std::pmr::memory_resource *mr)
 {
-    return roundLikeDispatch(mr, x,
-        [](double v) { return std::floor(v); },
-        ::numkit::builtin::detail::doubleFloorLoop);
+    return roundLikeDispatch(x, [](double v) { return std::floor(v); }, ::numkit::builtin::detail::doubleFloorLoop, mr);
 }
 
-Value ceil(std::pmr::memory_resource *mr, const Value &x)
+Value ceil(const Value &x, std::pmr::memory_resource *mr)
 {
-    return roundLikeDispatch(mr, x,
-        [](double v) { return std::ceil(v); },
-        ::numkit::builtin::detail::doubleCeilLoop);
+    return roundLikeDispatch(x, [](double v) { return std::ceil(v); }, ::numkit::builtin::detail::doubleCeilLoop, mr);
 }
 
-Value round(std::pmr::memory_resource *mr, const Value &x)
+Value round(const Value &x, std::pmr::memory_resource *mr)
 {
-    return roundLikeDispatch(mr, x,
-        [](double v) { return std::round(v); },
-        ::numkit::builtin::detail::doubleRoundLoop);
+    return roundLikeDispatch(x, [](double v) { return std::round(v); }, ::numkit::builtin::detail::doubleRoundLoop, mr);
 }
 
-Value fix(std::pmr::memory_resource *mr, const Value &x)
+Value fix(const Value &x, std::pmr::memory_resource *mr)
 {
-    return roundLikeDispatch(mr, x,
-        [](double v) { return std::trunc(v); },
-        ::numkit::builtin::detail::doubleFixLoop);
+    return roundLikeDispatch(x, [](double v) { return std::trunc(v); }, ::numkit::builtin::detail::doubleFixLoop, mr);
 }
 
-Value sign(std::pmr::memory_resource *mr, const Value &x)
+Value sign(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x,
                        [](double v) {
@@ -76,7 +67,7 @@ Value sign(std::pmr::memory_resource *mr, const Value &x)
                        mr);
 }
 
-Value subplus(std::pmr::memory_resource *mr, const Value &x)
+Value subplus(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x,
                        [](double v) {
@@ -95,7 +86,7 @@ namespace detail {
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
-        outs[0] = fn(ctx.engine->resource(), args[0]);                          \
+        outs[0] = fn(args[0], ctx.engine->resource());                          \
     }
 
 NK_UNARY_ADAPTER(floor,   floor)

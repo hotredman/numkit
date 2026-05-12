@@ -12,13 +12,13 @@ using ::numkit::Engine;
 
 // ── Cell construction ─────────────────────────────────────────────────
 /// cell(n) — n×n cell array. MATLAB behavior.
-Value cell(std::pmr::memory_resource *mr, size_t n);
+Value cell(size_t n, std::pmr::memory_resource *mr = nullptr);
 
 /// cell(r, c) — r×c cell array.
-Value cell(std::pmr::memory_resource *mr, size_t rows, size_t cols);
+Value cell(size_t rows, size_t cols, std::pmr::memory_resource *mr = nullptr);
 
 /// cell(r, c, p) — 3D cell array when p > 0; else 2D r×c.
-Value cell(std::pmr::memory_resource *mr, size_t rows, size_t cols, size_t pages);
+Value cell(size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr = nullptr);
 
 // ── cellfun ───────────────────────────────────────────────────────────
 //
@@ -38,23 +38,22 @@ Value cell(std::pmr::memory_resource *mr, size_t rows, size_t cols, size_t pages
 // Default uniformOutput=true packs scalars into a numeric/logical array
 // of the same shape as `C`. uniformOutput=false packs into a cell array
 // of the same shape.
-Value cellfun(std::pmr::memory_resource *mr, const Value &fn, const Value &c,
-               bool uniformOutput, Engine *engine = nullptr);
+Value cellfun(const Value &fn, const Value &c, bool uniformOutput, Engine *engine = nullptr, std::pmr::memory_resource *mr = nullptr);
 
 // ── Pack 15: cell idioms ──────────────────────────────────────────────
 /// num2cell(A) — wrap each element of A in a scalar cell.
-Value num2cell(std::pmr::memory_resource *mr, const Value &x);
+Value num2cell(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// cell2mat(C) — concatenate cells back into a single matrix. Fast
 /// path for cell of DOUBLE scalars; general case horzcat-then-vertcat.
-Value cell2mat(std::pmr::memory_resource *mr, const Value &c);
+Value cell2mat(const Value &c, std::pmr::memory_resource *mr = nullptr);
 
 /// iscellstr(C) — true iff C is a cell whose every entry is a char row.
-Value iscellstr(std::pmr::memory_resource *mr, const Value &c);
+Value iscellstr(const Value &c, std::pmr::memory_resource *mr = nullptr);
 
 /// cellstr(s) — char row → 1×1 cell; string array → N×1 cell;
 /// cell-of-strings → identity.
-Value cellstr(std::pmr::memory_resource *mr, const Value &x);
+Value cellstr(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 // ── Pack 24 ──────────────────────────────────────────────────────────
 /// mat2cell(A, R)        — vector input: split into a 1×N cell where
@@ -62,8 +61,6 @@ Value cellstr(std::pmr::memory_resource *mr, const Value &x);
 /// mat2cell(A, R, C)     — 2-D input: split rows by R and cols by C.
 /// sum(R) == size(A,1), sum(C) == size(A,2). Block at (i, j) has
 /// shape R(i) × C(j).
-Value mat2cell(std::pmr::memory_resource *mr, const Value &x,
-               const double *rowSizes, size_t nRow,
-               const double *colSizes, size_t nCol);
+Value mat2cell(const Value &x, const double *rowSizes, size_t nRow, const double *colSizes, size_t nCol, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

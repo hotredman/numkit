@@ -5016,7 +5016,7 @@ void diff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         int dim = 0;                                                           \
         if (args.size() >= 2 && !args[1].isEmpty())                            \
             dim = static_cast<int>(args[1].toScalar());                        \
-        outs[0] = fn(ctx.engine->resource(), args[0], dim);                   \
+        outs[0] = fn(args[0], dim, ctx.engine->resource());                   \
     }
 
 NK_LOGICAL_RED_REG(any, anyOf)

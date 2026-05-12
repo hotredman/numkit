@@ -23,12 +23,12 @@ using ::numkit::Engine;
 ///   1-D vector input → 1-D gradient.
 ///   2-D matrix input → ∂F/∂x (along dim-2, columns). MATLAB convention.
 /// Output is DOUBLE, same shape as F.
-Value gradient(std::pmr::memory_resource *mr, const Value &f, double h = 1.0);
+Value gradient(const Value &f, double h = 1.0, std::pmr::memory_resource *mr = nullptr);
 
 /// [Fx, Fy] = gradient2(F[, hx, hy]) — 2-D gradients along dim-2 and
 /// dim-1 respectively (MATLAB ordering: x-direction first).
 std::tuple<Value, Value>
-gradient2(std::pmr::memory_resource *mr, const Value &f, double hx = 1.0, double hy = 1.0);
+gradient2(const Value &f, double hx = 1.0, double hy = 1.0, std::pmr::memory_resource *mr = nullptr);
 
 /// cumtrapz(y) / cumtrapz(x, y) — cumulative trapezoidal integration.
 /// One-arg form uses unit spacing; two-arg form uses the spacing from x.
@@ -36,22 +36,21 @@ gradient2(std::pmr::memory_resource *mr, const Value &f, double hx = 1.0, double
 /// column (MATLAB's default along the first non-singleton dim). For
 /// matrix y, x may be a column-length vector (broadcast per column) or
 /// a matrix of the same shape as y (per-column spacing).
-Value cumtrapz(std::pmr::memory_resource *mr, const Value &y);
-Value cumtrapz(std::pmr::memory_resource *mr, const Value &x, const Value &y);
+Value cumtrapz(const Value &y, std::pmr::memory_resource *mr = nullptr);
+Value cumtrapz(const Value &x, const Value &y, std::pmr::memory_resource *mr = nullptr);
 
 /// integral(fn, a, b[, absTol]) — definite integral via adaptive
 /// Gauss-Kronrod quadrature (15-point Kronrod with embedded 7-point
 /// Gauss). Recurses on subintervals where the absolute difference
 /// between G and K exceeds absTol. Default absTol = 1e-10.
 /// Up to ~16 subdivision levels per branch.
-Value integral(std::pmr::memory_resource *mr, const Value &fn, double a, double b,
-                double absTol, Engine *engine);
+Value integral(const Value &fn, double a, double b, double absTol, Engine *engine, std::pmr::memory_resource *mr = nullptr);
 
 /// trapz(y) — trapezoidal numerical integration over uniform spacing (dx = 1).
-Value trapz(std::pmr::memory_resource *mr, const Value &y);
+Value trapz(const Value &y, std::pmr::memory_resource *mr = nullptr);
 
 /// trapz(x, y) — trapezoidal numerical integration with explicit x values.
 /// @throws Error if numel(x) != numel(y).
-Value trapz(std::pmr::memory_resource *mr, const Value &x, const Value &y);
+Value trapz(const Value &x, const Value &y, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

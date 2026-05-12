@@ -98,14 +98,14 @@ Value reduce(const Value &x, Op op, double init, std::pmr::memory_resource *mr, 
 
 } // anonymous namespace
 
-Value sum(std::pmr::memory_resource *mr, const Value &x)
+Value sum(const Value &x, std::pmr::memory_resource *mr)
 {
     return reduce(x, [](double a, double b) { return a + b; }, 0.0, mr);
 }
 
-Value sum(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value sum(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
-    if (dim <= 0) return sum(mr, x);
+    if (dim <= 0) return sum(x, mr);
     const int d = detail::resolveDim(x, dim, "sum");
 
     // Phase P6 followup: 2D dim=2 column-pass row reduction. The
@@ -137,14 +137,14 @@ Value sum(std::pmr::memory_resource *mr, const Value &x, int dim)
         }, mr);
 }
 
-Value prod(std::pmr::memory_resource *mr, const Value &x)
+Value prod(const Value &x, std::pmr::memory_resource *mr)
 {
     return reduce(x, [](double a, double b) { return a * b; }, 1.0, mr);
 }
 
-Value prod(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value prod(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
-    if (dim <= 0) return prod(mr, x);
+    if (dim <= 0) return prod(x, mr);
     const int d = detail::resolveDim(x, dim, "prod");
     return detail::applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
@@ -154,14 +154,14 @@ Value prod(std::pmr::memory_resource *mr, const Value &x, int dim)
         }, mr);
 }
 
-Value mean(std::pmr::memory_resource *mr, const Value &x)
+Value mean(const Value &x, std::pmr::memory_resource *mr)
 {
     return reduce(x, [](double a, double b) { return a + b; }, 0.0, mr, /*meanMode=*/true);
 }
 
-Value mean(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value mean(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
-    if (dim <= 0) return mean(mr, x);
+    if (dim <= 0) return mean(x, mr);
     const int d = detail::resolveDim(x, dim, "mean");
     return detail::applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
@@ -218,9 +218,7 @@ inline Value makeScalarT(T v, ValueType outType, std::pmr::memory_resource *mr)
 // dst[outIdx] and (1-based) source position to dstI[outIdx]. Handles
 // 2D / 3D / ND uniformly via stride arithmetic.
 template <typename T, typename Cmp>
-void minMaxAlongDim(std::pmr::memory_resource *mr,
-                    const Value &x, int redDim, T *dst, double *dstI, Cmp cmp,
-                    bool typeMatch)
+void minMaxAlongDim(const Value &x, int redDim, T *dst, double *dstI, Cmp cmp, bool typeMatch, std::pmr::memory_resource *mr)
 {
     const auto &d = x.dims();
     const int redAxis = redDim - 1;
@@ -296,10 +294,7 @@ reduceMinMaxAllT(const Value &x, Cmp cmp, ValueType outType, std::pmr::memory_re
     const int redDim = detail::firstNonSingletonDim(x);
     auto [out, outIdx] = allocMinMaxOutputs(x, redDim, outType, mr);
     ScratchArena scratch(mr);
-    minMaxAlongDim<T>(&scratch, x, redDim,
-                     static_cast<T *>(out.rawDataMut()),
-                     outIdx.doubleDataMut(),
-                     cmp, typeMatch);
+    minMaxAlongDim<T>(x, redDim, static_cast<T *>(out.rawDataMut()), outIdx.doubleDataMut(), cmp, typeMatch, &scratch);
     return std::make_tuple(std::move(out), std::move(outIdx));
 }
 
@@ -338,10 +333,7 @@ reduceMinMaxAlongDimT(const Value &x, int dim, Cmp cmp, ValueType outType, std::
     }
     auto [out, outIdx] = allocMinMaxOutputs(x, dim, outType, mr);
     ScratchArena scratch(mr);
-    minMaxAlongDim<T>(&scratch, x, dim,
-                     static_cast<T *>(out.rawDataMut()),
-                     outIdx.doubleDataMut(),
-                     cmp, typeMatch);
+    minMaxAlongDim<T>(x, dim, static_cast<T *>(out.rawDataMut()), outIdx.doubleDataMut(), cmp, typeMatch, &scratch);
     return std::make_tuple(std::move(out), std::move(outIdx));
 }
 
@@ -841,24 +833,24 @@ dispatchMinMaxAlongDim(const Value &x, int dim, Cmp cmp, std::pmr::memory_resour
 
 } // anonymous namespace
 
-std::tuple<Value, Value> max(std::pmr::memory_resource *mr, const Value &x)
+std::tuple<Value, Value> max(const Value &x, std::pmr::memory_resource *mr)
 {
     return dispatchMinMaxAll<true>(x, [](auto v, auto best) { return v > best; }, mr, "max");
 }
 
-std::tuple<Value, Value> min(std::pmr::memory_resource *mr, const Value &x)
+std::tuple<Value, Value> min(const Value &x, std::pmr::memory_resource *mr)
 {
     return dispatchMinMaxAll<false>(x, [](auto v, auto best) { return v < best; }, mr, "min");
 }
 
-std::tuple<Value, Value> max(std::pmr::memory_resource *mr, const Value &x, int dim)
+std::tuple<Value, Value> max(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
-    if (dim <= 0) return max(mr, x);
+    if (dim <= 0) return max(x, mr);
     const int d = detail::resolveDim(x, dim, "max");
     return dispatchMinMaxAlongDim<true>(x, d, [](auto v, auto best) { return v > best; }, mr, "max");
 }
 
-std::tuple<Value, Value> maxOmitNan(std::pmr::memory_resource *mr, const Value &x, int dim)
+std::tuple<Value, Value> maxOmitNan(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (dim <= 0)
         return dispatchMinMaxNanAll<true>(x, [](auto v, auto best) { return v > best; }, mr, "max");
@@ -866,7 +858,7 @@ std::tuple<Value, Value> maxOmitNan(std::pmr::memory_resource *mr, const Value &
     return dispatchMinMaxNanAlongDim<true>(x, d, [](auto v, auto best) { return v > best; }, mr, "max");
 }
 
-std::tuple<Value, Value> minOmitNan(std::pmr::memory_resource *mr, const Value &x, int dim)
+std::tuple<Value, Value> minOmitNan(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (dim <= 0)
         return dispatchMinMaxNanAll<false>(x, [](auto v, auto best) { return v < best; }, mr, "min");
@@ -874,14 +866,14 @@ std::tuple<Value, Value> minOmitNan(std::pmr::memory_resource *mr, const Value &
     return dispatchMinMaxNanAlongDim<false>(x, d, [](auto v, auto best) { return v < best; }, mr, "min");
 }
 
-std::tuple<Value, Value> min(std::pmr::memory_resource *mr, const Value &x, int dim)
+std::tuple<Value, Value> min(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
-    if (dim <= 0) return min(mr, x);
+    if (dim <= 0) return min(x, mr);
     const int d = detail::resolveDim(x, dim, "min");
     return dispatchMinMaxAlongDim<false>(x, d, [](auto v, auto best) { return v < best; }, mr, "min");
 }
 
-Value max(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value max(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     // Integer / single binary form: result follows MATLAB type promotion
@@ -895,7 +887,7 @@ Value max(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     return elementwiseDouble(a, b, [](double aa, double bb) { return std::max(aa, bb); }, p);
 }
 
-Value min(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value min(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     {
@@ -910,7 +902,7 @@ Value min(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 // "missing": when one arg is NaN, take the other; both NaN → NaN.
 // For integer types, NaN can't occur so omitnan is a no-op (same as
 // the regular max/min).
-Value maxOmitNanBinary(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value maxOmitNanBinary(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     {
@@ -932,7 +924,7 @@ Value maxOmitNanBinary(std::pmr::memory_resource *mr, const Value &a, const Valu
     }, p);
 }
 
-Value minOmitNanBinary(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value minOmitNanBinary(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     {
@@ -955,7 +947,7 @@ Value minOmitNanBinary(std::pmr::memory_resource *mr, const Value &a, const Valu
 }
 
 // ── Generators ───────────────────────────────────────────────────────
-Value linspace(std::pmr::memory_resource *mr, double a, double b, size_t n)
+Value linspace(double a, double b, size_t n, std::pmr::memory_resource *mr)
 {
     auto r = Value::matrix(1, n, ValueType::DOUBLE, mr);
     if (n == 0)
@@ -969,7 +961,7 @@ Value linspace(std::pmr::memory_resource *mr, double a, double b, size_t n)
     return r;
 }
 
-Value logspace(std::pmr::memory_resource *mr, double a, double b, size_t n)
+Value logspace(double a, double b, size_t n, std::pmr::memory_resource *mr)
 {
     auto r = Value::matrix(1, n, ValueType::DOUBLE, mr);
     if (n == 0)
@@ -1001,7 +993,7 @@ namespace detail {
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");           \
-        outs[0] = fn(ctx.engine->resource(), args[0]);                         \
+        outs[0] = fn(args[0], ctx.engine->resource());                         \
     }
 
 // Same as NK_UNARY_ADAPTER but passes &outs[0] through as an
@@ -1018,7 +1010,7 @@ namespace detail {
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");           \
-        outs[0] = fn(ctx.engine->resource(), args[0], &outs[0]);               \
+        outs[0] = fn(args[0], &outs[0], ctx.engine->resource());               \
     }
 
 // SIMD-backed unaries — abs lives in backends/MStdAbs_*.cpp,
@@ -1765,8 +1757,8 @@ Value dispatchReductionAdapter(Span<const Value> args, const char *fn,
                 if (isAll)                                                        \
                     return runNativeReduction<op>(x, 0, ValueType::DOUBLE,            \
                                                   ctx.engine->resource(), true);\
-                return (dim > 0) ? fn(ctx.engine->resource(), x, dim)            \
-                                 : fn(ctx.engine->resource(), x);                \
+                return (dim > 0) ? fn(x, dim, ctx.engine->resource())            \
+                                 : fn(x, ctx.engine->resource());                \
             },                                                                    \
             [&](const Value &x, int dim, ValueType outT, bool isAll) {               \
                 return runNativeReduction<op>(x, dim, outT,                       \
@@ -1839,8 +1831,8 @@ void max_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
         // Elementwise max(A, B) — single-return form. NaN-aware variant
         // when 'omitnan' was passed.
         outs[0] = omitNan
-            ? maxOmitNanBinary(ctx.engine->resource(), args[0], args[1])
-            : max(ctx.engine->resource(), args[0], args[1]);
+            ? maxOmitNanBinary(args[0], args[1], ctx.engine->resource())
+            : max(args[0], args[1], ctx.engine->resource());
         return;
     }
     // Reduction: optional dim as args[2].
@@ -1848,8 +1840,8 @@ void max_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
     if (n >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
     auto [val, idx] = omitNan
-        ? maxOmitNan(ctx.engine->resource(), args[0], dim)
-        : max(ctx.engine->resource(), args[0], dim);
+        ? maxOmitNan(args[0], dim, ctx.engine->resource())
+        : max(args[0], dim, ctx.engine->resource());
     outs[0] = std::move(val);
     if (nargout > 1)
         outs[1] = std::move(idx);
@@ -1864,16 +1856,16 @@ void min_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
     const size_t n = stripTrailingNanFlag(args, omitNan);
     if (n >= 2 && !args[1].isEmpty()) {
         outs[0] = omitNan
-            ? minOmitNanBinary(ctx.engine->resource(), args[0], args[1])
-            : min(ctx.engine->resource(), args[0], args[1]);
+            ? minOmitNanBinary(args[0], args[1], ctx.engine->resource())
+            : min(args[0], args[1], ctx.engine->resource());
         return;
     }
     int dim = 0;
     if (n >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
     auto [val, idx] = omitNan
-        ? minOmitNan(ctx.engine->resource(), args[0], dim)
-        : min(ctx.engine->resource(), args[0], dim);
+        ? minOmitNan(args[0], dim, ctx.engine->resource())
+        : min(args[0], dim, ctx.engine->resource());
     outs[0] = std::move(val);
     if (nargout > 1)
         outs[1] = std::move(idx);
@@ -1888,7 +1880,7 @@ void linspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
     const size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 100u;
-    outs[0] = linspace(ctx.engine->resource(), a, b, n);
+    outs[0] = linspace(a, b, n, ctx.engine->resource());
 }
 
 void logspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1899,7 +1891,7 @@ void logspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
     const size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 50u;
-    outs[0] = logspace(ctx.engine->resource(), a, b, n);
+    outs[0] = logspace(a, b, n, ctx.engine->resource());
 }
 
 // rand_reg / randn_reg moved to rng.cpp — they share a single

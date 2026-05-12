@@ -47,14 +47,14 @@ inline int64_t gcdInt(int64_t a, int64_t b)
 // gcd / lcm
 // ────────────────────────────────────────────────────────────────────
 
-Value gcd(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value gcd(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(a, b, [](double xv, double yv) {
         return static_cast<double>(gcdInt(toInt64(xv), toInt64(yv)));
     }, mr);
 }
 
-Value lcm(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value lcm(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(a, b, [](double xv, double yv) {
         const int64_t x = toInt64(xv);
@@ -72,28 +72,28 @@ Value lcm(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 // bitwise
 // ────────────────────────────────────────────────────────────────────
 
-Value bitand_(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value bitand_(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(a, b, [](double xv, double yv) {
         return static_cast<double>(toInt64(xv) & toInt64(yv));
     }, mr);
 }
 
-Value bitor_(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value bitor_(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(a, b, [](double xv, double yv) {
         return static_cast<double>(toInt64(xv) | toInt64(yv));
     }, mr);
 }
 
-Value bitxor_(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value bitxor_(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(a, b, [](double xv, double yv) {
         return static_cast<double>(toInt64(xv) ^ toInt64(yv));
     }, mr);
 }
 
-Value bitshift(std::pmr::memory_resource *mr, const Value &a, const Value &k)
+Value bitshift(const Value &a, const Value &k, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(a, k, [](double xv, double kv) {
         const int64_t x = toInt64(xv);
@@ -121,7 +121,7 @@ Value bitshift(std::pmr::memory_resource *mr, const Value &a, const Value &k)
     }, mr);
 }
 
-Value bitcmp(std::pmr::memory_resource *mr, const Value &a, int width)
+Value bitcmp(const Value &a, int width, std::pmr::memory_resource *mr)
 {
     if (width != 8 && width != 16 && width != 32 && width != 64)
         throw Error("bitcmp: width must be 8, 16, 32, or 64",
@@ -137,8 +137,7 @@ Value bitcmp(std::pmr::memory_resource *mr, const Value &a, int width)
 // bitset(A, n)        — set bit n (1-based) of each A_i to 1.
 // bitset(A, n, val)   — set bit n to `val` (0 or 1).
 // MATLAB convention: bit 1 is the LSB.
-Value bitset(std::pmr::memory_resource *mr, const Value &a, const Value &n,
-             const Value *val)
+Value bitset(const Value &a, const Value &n, const Value *val, std::pmr::memory_resource *mr)
 {
     const int v = val ? static_cast<int>(val->toScalar()) : 1;
     if (v != 0 && v != 1)
@@ -156,7 +155,7 @@ Value bitset(std::pmr::memory_resource *mr, const Value &a, const Value &n,
 }
 
 // bitget(A, n)        — return the n-th bit (0 or 1) of each A_i.
-Value bitget(std::pmr::memory_resource *mr, const Value &a, const Value &n)
+Value bitget(const Value &a, const Value &n, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(a, n, [](double xv, double nv) {
         const int64_t x = toInt64(xv);
@@ -215,14 +214,12 @@ ValueType pickBitwiseResultType(const Value &a, const Value &b, const char *fn)
 // possibly-int inputs. Casts both inputs to DOUBLE; restores the
 // integer class on the result if MATLAB would.
 template <typename Fn>
-Value runBitwiseBinary(std::pmr::memory_resource *mr,
-                       const Value &a, const Value &b,
-                       const char *fnName, Fn fn)
+Value runBitwiseBinary(const Value &a, const Value &b, const char *fnName, Fn fn, std::pmr::memory_resource *mr)
 {
     const ValueType rt = pickBitwiseResultType(a, b, fnName);
     Value ad = (a.type() == ValueType::DOUBLE) ? a : toDouble(mr, a);
     Value bd = (b.type() == ValueType::DOUBLE) ? b : toDouble(mr, b);
-    Value r = fn(mr, ad, bd);
+    Value r = fn(ad, bd, mr);
     if (rt != ValueType::DOUBLE)
         r = cast(mr, r, mtypeName(rt));
     return r;
@@ -237,8 +234,8 @@ Value runBitwiseBinary(std::pmr::memory_resource *mr,
         if (args.size() < 2)                                                           \
             throw Error(#name ": requires 2 arguments",                               \
                          0, 0, #name, "", "m:" #name ":nargin");                       \
-        outs[0] = runBitwiseBinary(ctx.engine->resource(), args[0], args[1],           \
-                                   #name, fn);                                         \
+        outs[0] = runBitwiseBinary(args[0], args[1], \
+                                   #name, fn, ctx.engine->resource());                                         \
     }
 
 #define NK_BIN_REG(name, fn)                                                   \
@@ -248,7 +245,7 @@ Value runBitwiseBinary(std::pmr::memory_resource *mr,
         if (args.size() < 2)                                                   \
             throw Error(#name ": requires 2 arguments",                       \
                          0, 0, #name, "", "m:" #name ":nargin");               \
-        outs[0] = fn(ctx.engine->resource(), args[0], args[1]);               \
+        outs[0] = fn(args[0], args[1], ctx.engine->resource());               \
     }
 
 NK_BIN_REG(gcd,      gcd)
@@ -307,7 +304,7 @@ void bitcmp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     // Run the bitwise complement in DOUBLE space, then cast back to
     // the integer class if specified.
     Value input = isIntegerType(args[0].type()) ? toDouble(mr, args[0]) : args[0];
-    Value r = bitcmp(mr, input, width);
+    Value r = bitcmp(input, width, mr);
     if (!explicitType.empty())
         r = cast(mr, r, explicitType);
     outs[0] = std::move(r);
@@ -321,7 +318,7 @@ void bitset_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                      0, 0, "bitset", "", "m:bitset:nargin");
     const Value *val = (args.size() >= 3 && !args[2].isEmpty())
                            ? &args[2] : nullptr;
-    outs[0] = bitset(ctx.engine->resource(), args[0], args[1], val);
+    outs[0] = bitset(args[0], args[1], val, ctx.engine->resource());
 }
 
 void bitget_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -330,7 +327,7 @@ void bitget_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("bitget: requires (A, n)",
                      0, 0, "bitget", "", "m:bitget:nargin");
-    outs[0] = bitget(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = bitget(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail

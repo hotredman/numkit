@@ -508,13 +508,13 @@ double findElliporderImpl(const std::vector<double> &WA, double Rp, double Rs, s
     Value mk = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     mk.doubleDataMut()[0] = k * k;
     mk.doubleDataMut()[1] = 1.0 - k * k;
-    auto capk = builtin::ellipke(mr, mk);
+    auto capk = builtin::ellipke(mk, mr);
 
     // capk1 = ellipke([k1², 1-k1²])
     Value mk1 = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     mk1.doubleDataMut()[0] = k1 * k1;
     mk1.doubleDataMut()[1] = 1.0 - k1 * k1;
-    auto capk1 = builtin::ellipke(mr, mk1);
+    auto capk1 = builtin::ellipke(mk1, mr);
 
     // capk.K is 1×2: [K(k²), K(1-k²)]; same for capk.E. Need:
     //   N = ceil(K(k²) * E1(1-k1²) / (K(k²)... wait MATLAB uses capk(2) for

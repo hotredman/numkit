@@ -149,7 +149,7 @@ void fprintf(Engine &engine, Span<const Value> args)
     if (!args[fmtIdx].isChar())
         return;
 
-    std::string result = formatCyclic(mr, args[fmtIdx].toString(), args, fmtIdx + 1);
+    std::string result = formatCyclic(args[fmtIdx].toString(), args, fmtIdx + 1, mr);
 
     if (fid == 1 || fid == 2) {
         engine.outputText(result);

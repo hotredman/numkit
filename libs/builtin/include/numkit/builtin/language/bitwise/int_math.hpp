@@ -17,23 +17,23 @@ namespace numkit::builtin {
 
 /// gcd(a, b) — greatest common divisor (element-wise). gcd(0,0) = 0.
 /// gcd(a,0) = |a|. Result is always non-negative.
-Value gcd(std::pmr::memory_resource *mr, const Value &a, const Value &b);
+Value gcd(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
 /// lcm(a, b) — least common multiple (element-wise). lcm(0, x) = 0.
 /// Result is always non-negative.
-Value lcm(std::pmr::memory_resource *mr, const Value &a, const Value &b);
+Value lcm(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
 /// bitand(a, b) — bitwise AND over int64 reinterpretation.
-Value bitand_(std::pmr::memory_resource *mr, const Value &a, const Value &b);
-Value bitor_ (std::pmr::memory_resource *mr, const Value &a, const Value &b);
-Value bitxor_(std::pmr::memory_resource *mr, const Value &a, const Value &b);
+Value bitand_(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+Value bitor_ (const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+Value bitxor_(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
 /// bitshift(a, k) — positive k = left shift, negative k = right shift
 /// (arithmetic shift — sign-preserving for negative values).
-Value bitshift(std::pmr::memory_resource *mr, const Value &a, const Value &k);
+Value bitshift(const Value &a, const Value &k, std::pmr::memory_resource *mr = nullptr);
 
 /// bitcmp(a) — bitwise complement. Default width: 64 bits (uint64 mask).
 /// Pass `width` to restrict to fewer bits (8, 16, 32, 64).
-Value bitcmp(std::pmr::memory_resource *mr, const Value &a, int width = 64);
+Value bitcmp(const Value &a, int width = 64, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin
