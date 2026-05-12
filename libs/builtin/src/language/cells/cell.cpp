@@ -159,13 +159,13 @@ Value cell2mat(const Value &c, std::pmr::memory_resource *mr)
         ScratchArena scratch(mr);
         ScratchVec<Value> row(C, &scratch);
         for (size_t j = 0; j < C; ++j) row[j] = c.cellAt(j);
-        return horzcat(mr, row.data(), C);
+        return horzcat(row.data(), C, mr);
     }
     if (C == 1) {
         ScratchArena scratch(mr);
         ScratchVec<Value> col(R, &scratch);
         for (size_t i = 0; i < R; ++i) col[i] = c.cellAt(i);
-        return vertcat(mr, col.data(), R);
+        return vertcat(col.data(), R, mr);
     }
     // Full 2-D: horzcat each row, then vertcat results.
     ScratchArena scratch(mr);
@@ -174,9 +174,9 @@ Value cell2mat(const Value &c, std::pmr::memory_resource *mr)
         ScratchVec<Value> rowCells(C, &scratch);
         for (size_t j = 0; j < C; ++j)
             rowCells[j] = c.cellAt(j * R + i);  // column-major linear index
-        rowBlocks[i] = horzcat(mr, rowCells.data(), C);
+        rowBlocks[i] = horzcat(rowCells.data(), C, mr);
     }
-    return vertcat(mr, rowBlocks.data(), R);
+    return vertcat(rowBlocks.data(), R, mr);
 }
 
 Value iscellstr(const Value &c, std::pmr::memory_resource *mr)

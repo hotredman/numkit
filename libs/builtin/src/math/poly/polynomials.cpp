@@ -529,7 +529,7 @@ void poly_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (A.dims().ndim() == 2
         && A.dims().dim(0) == A.dims().dim(1)
         && A.dims().dim(0) > 1) {
-        outs[0] = poly_of_matrix(mr, A);
+        outs[0] = poly_of_matrix(A, mr);
     } else {
         outs[0] = poly(A, mr);
     }

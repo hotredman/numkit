@@ -104,8 +104,7 @@ void symmetrise(double *A, size_t n)
 // is controlled by `upper_form`. P is returned as a matrix unless
 // `p_as_vector` is true.
 std::tuple<Value, Value, Value>
-ldl(std::pmr::memory_resource *mr, const Value &A,
-    bool upper_form, bool p_as_vector)
+ldl(const Value &A, bool upper_form, bool p_as_vector, std::pmr::memory_resource *mr)
 {
     if (A.dims().is3D())
         throw Error("ldl: input must be 2D",
@@ -192,7 +191,7 @@ void ldl_reg(Span<const Value> args, size_t nargout,
                         0, 0, "ldl", "", "m:ldl:BadOpt");
     }
 
-    auto [L, D, P] = ldl(ctx.engine->resource(), args[0], upper, vec_perm);
+    auto [L, D, P] = ldl(args[0], upper, vec_perm, ctx.engine->resource());
     outs[0] = L;
     if (nargout >= 2 && outs.size() >= 2) outs[1] = D;
     if (nargout >= 3 && outs.size() >= 3) outs[2] = P;

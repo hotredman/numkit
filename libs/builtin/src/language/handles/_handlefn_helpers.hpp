@@ -129,9 +129,9 @@ inline Value applyBuiltin(std::pmr::memory_resource *mr, BuiltinFn f, const Valu
     case BuiltinFn::Numel:
         return Value::scalar(static_cast<double>(v.numel()), mr);
     case BuiltinFn::Length:
-        return ::numkit::builtin::length(mr, v);
+        return ::numkit::builtin::length(v, mr);
     case BuiltinFn::Ndims:
-        return ::numkit::builtin::ndims(mr, v);
+        return ::numkit::builtin::ndims(v, mr);
     case BuiltinFn::IsEmpty:
         return Value::logicalScalar(v.isEmpty() || v.numel() == 0, mr);
     case BuiltinFn::IsNumeric: {

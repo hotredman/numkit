@@ -49,7 +49,7 @@ projPSD(const std::vector<double> &M, size_t n, std::pmr::memory_resource *mr)
     Value M_v = Value::matrix(n, n, ValueType::DOUBLE, mr);
     std::copy(Msym.begin(), Msym.end(), M_v.doubleDataMut());
 
-    auto [V, D] = ::numkit::builtin::eig_symmetric(mr, M_v);
+    auto [V, D] = ::numkit::builtin::eig_symmetric(M_v, mr);
     const double *vd = V.doubleData();
     const double *dd = D.doubleData();
 
