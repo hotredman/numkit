@@ -217,11 +217,11 @@ template <typename Fn>
 Value runBitwiseBinary(const Value &a, const Value &b, const char *fnName, Fn fn, std::pmr::memory_resource *mr)
 {
     const ValueType rt = pickBitwiseResultType(a, b, fnName);
-    Value ad = (a.type() == ValueType::DOUBLE) ? a : toDouble(mr, a);
-    Value bd = (b.type() == ValueType::DOUBLE) ? b : toDouble(mr, b);
+    Value ad = (a.type() == ValueType::DOUBLE) ? a : toDouble(a, mr);
+    Value bd = (b.type() == ValueType::DOUBLE) ? b : toDouble(b, mr);
     Value r = fn(ad, bd, mr);
     if (rt != ValueType::DOUBLE)
-        r = cast(mr, r, mtypeName(rt));
+        r = cast(r, mtypeName(rt), mr);
     return r;
 }
 
@@ -303,10 +303,10 @@ void bitcmp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 
     // Run the bitwise complement in DOUBLE space, then cast back to
     // the integer class if specified.
-    Value input = isIntegerType(args[0].type()) ? toDouble(mr, args[0]) : args[0];
+    Value input = isIntegerType(args[0].type()) ? toDouble(args[0], mr) : args[0];
     Value r = bitcmp(input, width, mr);
     if (!explicitType.empty())
-        r = cast(mr, r, explicitType);
+        r = cast(r, explicitType, mr);
     outs[0] = std::move(r);
 }
 

@@ -794,8 +794,8 @@ void BuiltinLibrary::install(Engine &engine)
 
             // Compose: round(A ./ B). rdivide on integer arrays returns
             // double, so the rounding helpers see DOUBLE input.
-            const Value a = builtin::toDouble(mr, args[0]);
-            const Value b = builtin::toDouble(mr, args[1]);
+            const Value a = builtin::toDouble(args[0], mr);
+            const Value b = builtin::toDouble(args[1], mr);
             Value q = builtin::rdivide(a, b, mr);
             if (opt == "fix" || opt.empty()) q = builtin::fix(q, mr);
             else if (opt == "floor")          q = builtin::floor(q, mr);
@@ -805,7 +805,7 @@ void BuiltinLibrary::install(Engine &engine)
                 throw std::runtime_error(
                     "idivide: opt must be 'fix', 'floor', 'ceil', or 'round'");
 
-            outs[0] = builtin::cast(mr, q, mtypeName(resultType));
+            outs[0] = builtin::cast(q, mtypeName(resultType), mr);
         });
 
     // bsxfun(fn, A, B) — apply fn elementwise to (A, B). numkit's
