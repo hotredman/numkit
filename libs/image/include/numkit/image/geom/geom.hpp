@@ -12,39 +12,92 @@
 
 namespace numkit::image {
 
-/// `B = imresize(A, scale)` or `imresize(A, [outH outW])` —
-/// resample to a new size. method = "nearest" | "bilinear" (default).
-Value imresize(const Value &A, double scale, const std::string &method, std::pmr::memory_resource *mr = nullptr);
-Value imresize(const Value &A, size_t outH, size_t outW, const std::string &method, std::pmr::memory_resource *mr = nullptr);
+/// Resample an image to a new size by a uniform scale factor
+/// (`B = imresize(A, scale, method)`).
+///
+/// @param A       Input image (H×W or H×W×C).
+/// @param scale   Positive scale factor (> 1 enlarges, < 1 shrinks).
+/// @param method  `"nearest"` or `"bilinear"` (default).
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Resampled image; element type preserved.
+///
+/// @see imcrop, imrotate
+Value imresize(const Value &A, double scale, const std::string &method,
+               std::pmr::memory_resource *mr = nullptr);
 
-/// `B = imcrop(A, [xmin ymin width height])` — return the rectangle
-/// (1-based, MATLAB style). Coordinates clamped to the image bounds.
-Value imcrop(const Value &A, double xmin, double ymin, double width, double height, std::pmr::memory_resource *mr = nullptr);
+/// Resample an image to an explicit output size
+/// (`B = imresize(A, [outH outW], method)`).
+///
+/// Same as the scale-factor overload but with explicit target rows /
+/// cols.
+Value imresize(const Value &A, size_t outH, size_t outW,
+               const std::string &method,
+               std::pmr::memory_resource *mr = nullptr);
 
-/// `B = imrotate(A, angle [, method [, bbox]])` — rotate CCW by
-/// `angle` degrees. method = "nearest" | "bilinear" (default).
-/// bbox = "loose" (default, expand to fit rotated extent) | "crop"
-/// (keep input dims). Out-of-source pixels filled with 0.
-Value imrotate(const Value &A, double angle, const std::string &method, const std::string &bbox, std::pmr::memory_resource *mr = nullptr);
+/// Crop a rectangular region (`B = imcrop(A, [xmin ymin width height])`).
+///
+/// Coordinates are 1-based MATLAB style. Sub-pixel coordinates are
+/// rounded; out-of-bounds requests are clamped to the image extent.
+///
+/// @param A         Input image.
+/// @param xmin,ymin Top-left corner (1-based; column = xmin, row = ymin).
+/// @param width,height  Rectangle dimensions.
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          Cropped sub-image.
+Value imcrop(const Value &A, double xmin, double ymin,
+             double width, double height,
+             std::pmr::memory_resource *mr = nullptr);
 
-/// `B = imtranslate(A, [dx dy])` — shift the image by (dx, dy).
-/// Same dims as input; out-of-source pixels filled with 0.
-/// Half-pixel shifts use bilinear interpolation.
-Value imtranslate(const Value &A, double dx, double dy, std::pmr::memory_resource *mr = nullptr);
+/// Rotate an image counter-clockwise (`B = imrotate(A, angle, method, bbox)`).
+///
+/// @param A       Input image.
+/// @param angle   Rotation in degrees, CCW positive.
+/// @param method  `"nearest"` or `"bilinear"` (default).
+/// @param bbox    `"loose"` (default — expand to fit rotated extent)
+///                or `"crop"` (keep input dims; clip rotated pixels
+///                that fall outside).
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Rotated image; pixels outside source filled with 0.
+Value imrotate(const Value &A, double angle, const std::string &method,
+               const std::string &bbox,
+               std::pmr::memory_resource *mr = nullptr);
 
-/// `pix = axes2pix(n, extent, axesCoord)` — convert world-axis
-/// coordinates to intrinsic pixel coordinates (1-based) for an
-/// `n`-row-or-col image whose first / last pixel centers lie at
-/// `extent(1)` / `extent(end)`. Degenerate cases (n=1 or
-/// extent(1)==extent(end)) collapse the mapping to a translation.
-/// Output keeps the shape of `axesCoord`.
-Value axes2pix(double n, const Value &extent, const Value &axesCoord, std::pmr::memory_resource *mr = nullptr);
+/// Shift an image by an arbitrary (dx, dy) translation
+/// (`B = imtranslate(A, [dx dy])`).
+///
+/// Half-pixel shifts use bilinear interpolation; integer shifts use a
+/// fast nearest-neighbour copy. Same dims as input; out-of-source
+/// pixels filled with 0.
+Value imtranslate(const Value &A, double dx, double dy,
+                  std::pmr::memory_resource *mr = nullptr);
 
-/// `B = impyramid(A, type)` — Burt-Adelson 2-D pyramid step.
-/// type = "reduce" → output ceil(M/2)×ceil(N/2) after low-pass filtering
-/// type = "expand" → output (2M-1)×(2N-1) after zero-stuffing + filter
-/// 5-tap separable kernel [0.05 0.25 0.4 0.25 0.05] with replicate
-/// boundary; 3-D inputs processed per-channel.
-Value impyramid(const Value &A, const std::string &type, std::pmr::memory_resource *mr = nullptr);
+/// World-axis ↔ pixel coordinate mapping (`pix = axes2pix(n, extent, axesCoord)`).
+///
+/// Maps user-axis coordinates back to 1-based intrinsic pixel
+/// coordinates assuming the first / last pixel centres lie at
+/// `extent(1)` / `extent(end)`. Degenerate cases (n = 1 or
+/// `extent(1) == extent(end)`) collapse the mapping to a translation.
+///
+/// @param n         Pixel count along the axis.
+/// @param extent    Two-element vector [low, high] of axis bounds.
+/// @param axesCoord Array of axis-space coordinates to convert.
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          Pixel-space coordinates, same shape as `axesCoord`.
+Value axes2pix(double n, const Value &extent, const Value &axesCoord,
+               std::pmr::memory_resource *mr = nullptr);
+
+/// Burt–Adelson image pyramid step (`B = impyramid(A, type)`).
+///
+/// Implements one level of the classic Burt–Adelson Gaussian pyramid
+/// with a 5-tap separable kernel `[0.05 0.25 0.4 0.25 0.05]` and
+/// replicate boundary handling. 3-D inputs are processed per-channel.
+///
+/// @param A     Input image.
+/// @param type  `"reduce"` (output ceil(M/2)×ceil(N/2) after low-pass)
+///              or `"expand"` (output (2M-1)×(2N-1) after zero-stuff).
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      Downsampled / upsampled image.
+Value impyramid(const Value &A, const std::string &type,
+                std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::image
