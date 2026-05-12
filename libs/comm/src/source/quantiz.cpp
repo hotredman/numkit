@@ -26,8 +26,8 @@ bool isRow(const Value &v)
 
 } // namespace
 
-Value quantiz_indx(std::pmr::memory_resource *mr, const Value &sig,
-                   const Value &partition)
+Value quantiz_indx(const Value &sig, const Value &partition,
+                   std::pmr::memory_resource *mr)
 {
     const size_t N = sig.numel();
     const size_t M = partition.numel();
@@ -47,10 +47,9 @@ Value quantiz_indx(std::pmr::memory_resource *mr, const Value &sig,
     return indx;
 }
 
-std::pair<Value, double>
-quantiz_distor(std::pmr::memory_resource *mr, const Value &sig,
-               const Value &partition, const Value &codebook,
-               Value *quantv_out)
+QuantizResult
+quantiz(const Value &sig, const Value &partition, const Value &codebook,
+        std::pmr::memory_resource *mr)
 {
     const size_t N = sig.numel();
     if (codebook.numel() != partition.numel() + 1)
@@ -58,7 +57,7 @@ quantiz_distor(std::pmr::memory_resource *mr, const Value &sig,
                     "length(partition) + 1",
                     0, 0, "quantiz", "", "m:quantiz:invalidCodebook");
 
-    Value indx = quantiz_indx(mr, sig, partition);
+    Value indx = quantiz_indx(sig, partition, mr);
     const double *idx = indx.doubleData();
 
     Value quantv = Value::matrix(indx.dims().rows(), indx.dims().cols(),
@@ -72,8 +71,8 @@ quantiz_distor(std::pmr::memory_resource *mr, const Value &sig,
         const double d = sig.elemAsDouble(i) - cv;
         sse += d * d;
     }
-    if (quantv_out) *quantv_out = std::move(quantv);
-    return {std::move(indx), N > 0 ? sse / static_cast<double>(N) : 0.0};
+    return {std::move(indx), std::move(quantv),
+            N > 0 ? sse / static_cast<double>(N) : 0.0};
 }
 
 namespace detail {
@@ -88,18 +87,16 @@ void quantiz_reg(Span<const Value> args, size_t nargout,
 
     if (nargout <= 1 && args.size() == 2) {
         // 2-arg form, single output: just indx.
-        outs[0] = quantiz_indx(mr, args[0], args[1]);
+        outs[0] = quantiz_indx(args[0], args[1], mr);
         return;
     }
     if (args.size() < 3)
         throw Error("quantiz: codebook required for quantv/distor outputs",
                     0, 0, "quantiz", "", "m:quantiz:fewInputs");
-    Value quantv;
-    auto [indx, distor] = quantiz_distor(mr, args[0], args[1],
-                                         args[2], &quantv);
-    outs[0] = std::move(indx);
-    if (nargout > 1) outs[1] = std::move(quantv);
-    if (nargout > 2) outs[2] = Value::scalar(distor, mr);
+    auto r = quantiz(args[0], args[1], args[2], mr);
+    outs[0] = std::move(r.indx);
+    if (nargout > 1) outs[1] = std::move(r.quantv);
+    if (nargout > 2) outs[2] = Value::scalar(r.distor, mr);
 }
 
 } // namespace detail
