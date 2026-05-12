@@ -23,7 +23,8 @@ OUTPUT_LANGUAGE        = English
 # ── Input ────────────────────────────────────────────────────────────
 # Only the public include trees of each lib. Implementation .cpp files
 # under libs/*/src are excluded (they're not user-facing API).
-INPUT                  = libs/audio/include    \
+INPUT                  = docs/doxygen_mainpage.dox \
+                         libs/audio/include    \
                          libs/image/include    \
                          libs/signal/include   \
                          libs/stats/include    \
@@ -33,7 +34,7 @@ INPUT                  = libs/audio/include    \
                          libs/comm/include     \
                          libs/graphics/include \
                          libs/io/include
-FILE_PATTERNS          = *.hpp *.h
+FILE_PATTERNS          = *.hpp *.h *.dox
 RECURSIVE              = YES
 EXCLUDE                = build build-* .claude
 EXCLUDE_PATTERNS       = */_deps/* */tests/* */backends/*
