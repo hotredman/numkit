@@ -14,6 +14,7 @@ namespace numkit::signal {
 /// isfir(b) / isfir(b, a) — true when the filter is FIR (a is scalar 1
 /// or a vector with only a(0) ~= 0). Tolerance is 1e-12.
 bool isfir(const Value &b);
+/// @copydoc isfir(const Value &)
 bool isfir(const Value &b, const Value &a);
 
 /// isstable(b, a) — true when every pole of A(z) is strictly inside
@@ -42,6 +43,7 @@ bool isallpass(const Value &b, const Value &a);
 ///   IIR:                    max(length(b_trimmed), length(a_trimmed)) - 1
 /// Trailing zeros are trimmed before counting. Returns int (as double).
 int filtord(const Value &b);
+/// @copydoc filtord(const Value &)
 int filtord(const Value &b, const Value &a);
 
 /// firtype(b) — FIR filter type per MATLAB convention:
