@@ -118,7 +118,7 @@ static void BM_Pwelch(benchmark::State &s)
     Value emptyWin = Value::matrix(0, 0, ValueType::DOUBLE, nullptr);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto [pxx, f] = signal::pwelch(mr, x, emptyWin, 0, 0);
+        auto [pxx, f] = signal::pwelch(x, emptyWin, 0, 0, mr);
         benchmark::DoNotOptimize(pxx);
         benchmark::DoNotOptimize(f);
     }
@@ -149,7 +149,7 @@ static void BM_Medfilt1_K7(benchmark::State &s)
     auto x = makeSignal(n);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = signal::medfilt1(mr, x, 7);
+        auto y = signal::medfilt1(x, 7, mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -162,7 +162,7 @@ static void BM_Findpeaks(benchmark::State &s)
     auto x = makeSignal(n);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto [v, idx] = signal::findpeaks(mr, x);
+        auto [v, idx] = signal::findpeaks(x, mr);
         benchmark::DoNotOptimize(v);
         benchmark::DoNotOptimize(idx);
     }

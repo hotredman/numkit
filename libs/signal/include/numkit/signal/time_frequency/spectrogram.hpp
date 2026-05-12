@@ -20,11 +20,7 @@ namespace numkit::signal {
 /// @param noverlap  Samples of overlap between segments. 0 → winLen / 2.
 /// @param nfft      FFT size. 0 → auto-pick nextPow2(winLen).
 std::tuple<Value, Value, Value>
-spectrogram(std::pmr::memory_resource *mr,
-            const Value &x,
-            const Value &window,
-            size_t noverlap,
-            size_t nfft);
+spectrogram(const Value &x, const Value &window, size_t noverlap, size_t nfft, std::pmr::memory_resource *mr = nullptr);
 
 /// stft(x, ...) — full two-sided / centered / one-sided STFT matching
 /// MATLAB's `stft`. Defaults match MATLAB R2025b: window =
@@ -43,12 +39,7 @@ spectrogram(std::pmr::memory_resource *mr,
 /// KNOWN GAPS: fs argument and the 3-output `[S, F, T]` form (time /
 /// frequency axes) are deferred. Multi-channel matrix input is also
 /// deferred (currently only vectors).
-Value stft(std::pmr::memory_resource *mr,
-           const Value &x,
-           const Value &window,
-           std::size_t overlap,
-           std::size_t fftLength,
-           const std::string &range);
+Value stft(const Value &x, const Value &window, std::size_t overlap, std::size_t fftLength, const std::string &range, std::pmr::memory_resource *mr = nullptr);
 
 /// istft(S, ...) — inverse STFT via overlap-add with the same synthesis
 /// window used for analysis. Round-trips x = istft(stft(x, ...))
@@ -58,11 +49,6 @@ Value stft(std::pmr::memory_resource *mr,
 /// Signature mirrors stft. Reconstructed signal is returned as a column
 /// vector. `range` must match the analysis-side spelling so we know
 /// whether to undo a one-sided or centered packing before the IFFT.
-Value istft(std::pmr::memory_resource *mr,
-            const Value &S,
-            const Value &window,
-            std::size_t overlap,
-            std::size_t fftLength,
-            const std::string &range);
+Value istft(const Value &S, const Value &window, std::size_t overlap, std::size_t fftLength, const std::string &range, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal

@@ -21,7 +21,7 @@ namespace numkit::signal {
 //
 // At the boundaries the window is truncated rather than zero-padded,
 // so output length always equals input length.
-Value medfilt1(std::pmr::memory_resource *mr, const Value &x, size_t k)
+Value medfilt1(const Value &x, size_t k, std::pmr::memory_resource *mr)
 {
     if (k == 0)
         throw Error("medfilt1: window length must be >= 1",
@@ -101,7 +101,7 @@ void medfilt1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     size_t k = 3;
     if (args.size() >= 2 && !args[1].isEmpty())
         k = static_cast<size_t>(args[1].toScalar());
-    outs[0] = medfilt1(ctx.engine->resource(), args[0], k);
+    outs[0] = medfilt1(args[0], k, ctx.engine->resource());
 }
 
 } // namespace detail

@@ -34,7 +34,7 @@ int resolveDim(const Value &x, int dim, const char *fn)
 } // namespace
 
 // ── rms ────────────────────────────────────────────────────────────────
-Value rms(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value rms(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     const int d = resolveDim(x, dim, "rms");
     return applyAlongDim(x, d,
@@ -48,7 +48,7 @@ Value rms(std::pmr::memory_resource *mr, const Value &x, int dim)
 }
 
 // ── rssq ───────────────────────────────────────────────────────────────
-Value rssq(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value rssq(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     const int d = resolveDim(x, dim, "rssq");
     return applyAlongDim(x, d,
@@ -61,7 +61,7 @@ Value rssq(std::pmr::memory_resource *mr, const Value &x, int dim)
 }
 
 // ── peak2peak ──────────────────────────────────────────────────────────
-Value peak2peak(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value peak2peak(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     const int d = resolveDim(x, dim, "peak2peak");
     return applyAlongDim(x, d,
@@ -81,7 +81,7 @@ Value peak2peak(std::pmr::memory_resource *mr, const Value &x, int dim)
 }
 
 // ── peak2rms ───────────────────────────────────────────────────────────
-Value peak2rms(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value peak2rms(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     const int d = resolveDim(x, dim, "peak2rms");
     return applyAlongDim(x, d,
@@ -111,7 +111,7 @@ void rms_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     if (args.empty())
         throw Error("rms: requires at least 1 argument",
                      0, 0, "rms", "", "m:rms:nargin");
-    outs[0] = rms(ctx.engine->resource(), args[0], dimFromArg(args));
+    outs[0] = rms(args[0], dimFromArg(args), ctx.engine->resource());
 }
 
 void rssq_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -119,7 +119,7 @@ void rssq_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.empty())
         throw Error("rssq: requires at least 1 argument",
                      0, 0, "rssq", "", "m:rssq:nargin");
-    outs[0] = rssq(ctx.engine->resource(), args[0], dimFromArg(args));
+    outs[0] = rssq(args[0], dimFromArg(args), ctx.engine->resource());
 }
 
 void peak2peak_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -127,7 +127,7 @@ void peak2peak_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("peak2peak: requires at least 1 argument",
                      0, 0, "peak2peak", "", "m:peak2peak:nargin");
-    outs[0] = peak2peak(ctx.engine->resource(), args[0], dimFromArg(args));
+    outs[0] = peak2peak(args[0], dimFromArg(args), ctx.engine->resource());
 }
 
 void peak2rms_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -135,7 +135,7 @@ void peak2rms_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.empty())
         throw Error("peak2rms: requires at least 1 argument",
                      0, 0, "peak2rms", "", "m:peak2rms:nargin");
-    outs[0] = peak2rms(ctx.engine->resource(), args[0], dimFromArg(args));
+    outs[0] = peak2rms(args[0], dimFromArg(args), ctx.engine->resource());
 }
 
 } // namespace detail

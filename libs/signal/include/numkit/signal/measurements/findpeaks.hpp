@@ -11,6 +11,6 @@ namespace numkit::signal {
 /// findpeaks(x) — strict local maxima (x[i-1] < x[i] > x[i+1]).
 /// Returns (peakValues, peakIndices_1based) as row vectors.
 std::tuple<Value, Value>
-findpeaks(std::pmr::memory_resource *mr, const Value &x);
+findpeaks(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal

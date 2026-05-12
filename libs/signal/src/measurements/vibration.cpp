@@ -47,7 +47,7 @@ Value vecCol(std::pmr::memory_resource *mr, const std::vector<double> &v)
 // ── envspectrum ────────────────────────────────────────────────────
 
 std::tuple<Value, Value>
-envspectrum(std::pmr::memory_resource *mr, const Value &x, double fs)
+envspectrum(const Value &x, double fs, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     if (N == 0)
@@ -88,8 +88,8 @@ envspectrum(std::pmr::memory_resource *mr, const Value &x, double fs)
 // ── tachorpm ───────────────────────────────────────────────────────
 
 std::tuple<Value, Value>
-tachorpm(std::pmr::memory_resource *mr, const Value &x, double fs,
-         const Value *threshold, int ppr)
+tachorpm(const Value &x, double fs,
+         const Value *threshold, int ppr, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     const size_t N = v.size();
@@ -150,7 +150,7 @@ std::vector<Turn> turningPointsWithIndex(const std::vector<double> &v)
 
 } // anonymous
 
-Value rainflow(std::pmr::memory_resource *mr, const Value &x)
+Value rainflow(const Value &x, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto tp = turningPointsWithIndex(v);
@@ -210,8 +210,9 @@ Value rainflow(std::pmr::memory_resource *mr, const Value &x)
 // ── tsa ────────────────────────────────────────────────────────────
 
 std::tuple<Value, Value>
-tsa(std::pmr::memory_resource *mr, const Value &x, double fs,
-    const Value &rpm, double fs_rpm, int n_per_rev)
+tsa(const Value &x, double fs,
+    const Value &rpm, double fs_rpm, int n_per_rev,
+    std::pmr::memory_resource *mr)
 {
     auto signal_v = readVec(x);
     auto rpm_v    = readVec(rpm);
@@ -284,7 +285,7 @@ void envspectrum_reg(Span<const Value> args, size_t nargout,
                      0, 0, "envspectrum", "", "m:envspectrum:nargin");
     double fs = 0.0;
     if (args.size() >= 2 && !args[1].isEmpty()) fs = args[1].toScalar();
-    auto [Es, F] = envspectrum(ctx.engine->resource(), args[0], fs);
+    auto [Es, F] = envspectrum(args[0], fs, ctx.engine->resource());
     outs[0] = std::move(Es);
     if (nargout > 1) outs[1] = std::move(F);
 }
@@ -299,7 +300,7 @@ void tachorpm_reg(Span<const Value> args, size_t nargout,
     const Value *thr = (args.size() >= 3 && !args[2].isEmpty()) ? &args[2] : nullptr;
     int ppr = 1;
     if (args.size() >= 4 && !args[3].isEmpty()) ppr = static_cast<int>(args[3].toScalar());
-    auto [rpm, t] = tachorpm(ctx.engine->resource(), args[0], fs, thr, ppr);
+    auto [rpm, t] = tachorpm(args[0], fs, thr, ppr, ctx.engine->resource());
     outs[0] = std::move(rpm);
     if (nargout > 1) outs[1] = std::move(t);
 }
@@ -310,7 +311,7 @@ void rainflow_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("rainflow: requires 1 argument",
                      0, 0, "rainflow", "", "m:rainflow:nargin");
-    outs[0] = rainflow(ctx.engine->resource(), args[0]);
+    outs[0] = rainflow(args[0], ctx.engine->resource());
 }
 
 // MATLAB tsa convention: tsa(x, fs, tPulse) where tPulse is a vector
@@ -408,7 +409,7 @@ void tsa_reg(Span<const Value> args, size_t nargout,
     const double fs_rpm = args[3].toScalar();
     int npr = 1024;
     if (args.size() >= 5 && !args[4].isEmpty()) npr = static_cast<int>(args[4].toScalar());
-    auto [avg, th] = tsa(ctx.engine->resource(), args[0], fs, args[2], fs_rpm, npr);
+    auto [avg, th] = tsa(args[0], fs, args[2], fs_rpm, npr, ctx.engine->resource());
     outs[0] = std::move(avg);
     if (nargout > 1) outs[1] = std::move(th);
 }
