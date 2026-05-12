@@ -20,8 +20,7 @@ namespace numkit::stats {
 /// The MATLAB `rint` (outlier-detection intervals on residuals) is
 /// currently not provided.
 std::tuple<Value, Value, Value, Value>
-regress(std::pmr::memory_resource *mr, const Value &y, const Value &X,
-        double alpha);
+regress(const Value &y, const Value &X, double alpha, std::pmr::memory_resource *mr = nullptr);
 
 /// `B = ridge(y, X, k[, scaled])` — ridge regression. `k` may be a
 /// scalar or vector of regularisation parameters; output has one
@@ -29,15 +28,13 @@ regress(std::pmr::memory_resource *mr, const Value &y, const Value &X,
 /// standardised feature space (centred + unit-variance X). With
 /// `scaled = 0` the output is in the original units, with an
 /// intercept prepended (size = (p+1)×length(k)).
-Value ridge(std::pmr::memory_resource *mr, const Value &y, const Value &X,
-            const Value &k, bool scaled);
+Value ridge(const Value &y, const Value &X, const Value &k, bool scaled, std::pmr::memory_resource *mr = nullptr);
 
 /// `[x, stdx, mse, S] = lscov(A, b[, w])` — weighted least squares.
 /// `w` is an optional length-N vector of (positive) row weights;
 /// omit / empty means uniform weights (= regular OLS).
 /// Full N×N covariance form V intentionally not yet supported.
 std::tuple<Value, Value, Value, Value>
-lscov(std::pmr::memory_resource *mr, const Value &A, const Value &b,
-      const Value &w);
+lscov(const Value &A, const Value &b, const Value &w, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

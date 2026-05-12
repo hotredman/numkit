@@ -17,20 +17,18 @@ namespace numkit::stats {
 /// Returns N×1 column of densities.
 /// `mu` may be empty (Value()) → defaults to zeros.
 /// `Sigma` may be empty → defaults to identity.
-Value mvnpdf(std::pmr::memory_resource *mr, const Value &X,
-             const Value &mu, const Value &Sigma);
+Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma, std::pmr::memory_resource *mr = nullptr);
 
 /// `mvtpdf(X, C, df)` — multivariate t PDF. `C` is treated as a
 /// correlation matrix; if the diagonal is not all 1, the input is
 /// normalised to a correlation matrix (matches MATLAB R2025b).
 /// Returns N×1 column.
-Value mvtpdf(std::pmr::memory_resource *mr, const Value &X,
-             const Value &C, double df);
+Value mvtpdf(const Value &X, const Value &C, double df, std::pmr::memory_resource *mr = nullptr);
 
 /// `mnpdf(X, P)` — multinomial PMF.
 ///   X — 1×k counts (or N×k batch).
 ///   P — 1×k probabilities (sum to 1).
 /// Returns N×1 column of probabilities.
-Value mnpdf(std::pmr::memory_resource *mr, const Value &X, const Value &P);
+Value mnpdf(const Value &X, const Value &P, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

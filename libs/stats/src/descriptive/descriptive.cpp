@@ -1123,8 +1123,8 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
             return varianceComplex(x, normFlag, dim, mr, sqrtIt, true);
         }
         Value r = sqrtIt
-                    ? ::numkit::stats::nanstdev(mr, x, normFlag, dim)
-                    : ::numkit::stats::nanvar  (mr, x, normFlag, dim);
+                    ? ::numkit::stats::nanstdev(x, normFlag, dim, mr)
+                    : ::numkit::stats::nanvar  (x, normFlag, dim, mr);
         if (x.type() == ValueType::SINGLE)
             r = narrowToSingle(std::move(r), mr);
         return r;
@@ -1215,7 +1215,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     }
     if (omitNan) {
         rejectComplexOmitNan(args[0], "median");
-        Value r = ::numkit::stats::nanmedian(ctx.engine->resource(), args[0], dim);
+        Value r = ::numkit::stats::nanmedian(args[0], dim, ctx.engine->resource());
         if (args[0].type() == ValueType::SINGLE)
             r = narrowToSingle(std::move(r), ctx.engine->resource());
         outs[0] = std::move(r);
