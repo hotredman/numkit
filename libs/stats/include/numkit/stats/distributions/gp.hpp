@@ -15,15 +15,10 @@
 
 namespace numkit::stats {
 
-Value gppdf(std::pmr::memory_resource *mr, const Value &x,
-            double k, double sigma, double theta);
-Value gpcdf(std::pmr::memory_resource *mr, const Value &x,
-            double k, double sigma, double theta);
-Value gpinv(std::pmr::memory_resource *mr, const Value &p,
-            double k, double sigma, double theta);
-Value gprnd(std::pmr::memory_resource *mr,
-            double k, double sigma, double theta,
-            size_t rows = 1, size_t cols = 1);
+Value gppdf(const Value &x, double k, double sigma, double theta, std::pmr::memory_resource *mr = nullptr);
+Value gpcdf(const Value &x, double k, double sigma, double theta, std::pmr::memory_resource *mr = nullptr);
+Value gpinv(const Value &p, double k, double sigma, double theta, std::pmr::memory_resource *mr = nullptr);
+Value gprnd(double k, double sigma, double theta, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 std::tuple<double, double>
 gpstat(double k, double sigma, double theta);
 

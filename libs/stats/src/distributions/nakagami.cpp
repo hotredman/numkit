@@ -20,7 +20,7 @@ namespace numkit::stats {
 namespace {
 
 template <typename Op>
-Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
@@ -34,14 +34,14 @@ Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
     return out;
 }
 
-inline double gammainc_scalar(std::pmr::memory_resource *mr, double xx, double a)
+inline double gammainc_scalar(double xx, double a, std::pmr::memory_resource *mr)
 {
     Value xv = Value::scalar(xx, mr);
     Value av = Value::scalar(a,  mr);
     return ::numkit::builtin::gammainc(mr, xv, av).toScalar();
 }
 
-inline double gammaincinv_scalar(std::pmr::memory_resource *mr, double p, double a)
+inline double gammaincinv_scalar(double p, double a, std::pmr::memory_resource *mr)
 {
     Value pv = Value::scalar(p, mr);
     Value av = Value::scalar(a, mr);
@@ -50,48 +50,47 @@ inline double gammaincinv_scalar(std::pmr::memory_resource *mr, double p, double
 
 } // anonymous
 
-Value nakapdf(std::pmr::memory_resource *mr, const Value &x, double mu, double omega)
+Value nakapdf(const Value &x, double mu, double omega, std::pmr::memory_resource *mr)
 {
     if (mu <= 0.0 || omega <= 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     // Pre-compute constants
     const double C = 2.0 * std::pow(mu, mu) / (std::tgamma(mu) * std::pow(omega, mu));
     const double k = mu / omega;
-    return elementwise(mr, x, [=](double xi) {
+    return elementwise(x, [=](double xi) {
         if (xi < 0.0) return 0.0;
         if (xi == 0.0) return (mu < 0.5) ? std::numeric_limits<double>::infinity()
                                          : (mu == 0.5 ? C : 0.0);
         return C * std::pow(xi, 2.0 * mu - 1.0) * std::exp(-k * xi * xi);
-    });
+    }, mr);
 }
 
-Value nakacdf(std::pmr::memory_resource *mr, const Value &x, double mu, double omega)
+Value nakacdf(const Value &x, double mu, double omega, std::pmr::memory_resource *mr)
 {
     if (mu <= 0.0 || omega <= 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     const double k = mu / omega;
-    return elementwise(mr, x, [=](double xi) {
+    return elementwise(x, [=](double xi) {
         if (xi <= 0.0) return 0.0;
-        return gammainc_scalar(mr, k * xi * xi, mu);
-    });
+        return gammainc_scalar(k * xi * xi, mu, mr);
+    }, mr);
 }
 
-Value nakainv(std::pmr::memory_resource *mr, const Value &p, double mu, double omega)
+Value nakainv(const Value &p, double mu, double omega, std::pmr::memory_resource *mr)
 {
     if (mu <= 0.0 || omega <= 0.0)
-        return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     const double s = std::sqrt(omega / mu);
-    return elementwise(mr, p, [=](double pi) {
+    return elementwise(p, [=](double pi) {
         if (!(pi >= 0.0 && pi <= 1.0)) return std::numeric_limits<double>::quiet_NaN();
         if (pi == 0.0) return 0.0;
         if (pi >= 1.0) return std::numeric_limits<double>::infinity();
-        const double q = gammaincinv_scalar(mr, pi, mu);
+        const double q = gammaincinv_scalar(pi, mu, mr);
         return s * std::sqrt(q);
-    });
+    }, mr);
 }
 
-Value nakarnd(std::pmr::memory_resource *mr, double mu, double omega,
-              size_t rows, size_t cols)
+Value nakarnd(double mu, double omega, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -130,8 +129,7 @@ void nakapdf_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 3)
         throw Error("nakapdf: requires (x, mu, omega)",
                     0, 0, "nakapdf", "", "m:nakapdf:nargin");
-    outs[0] = nakapdf(ctx.engine->resource(), args[0],
-                      args[1].toScalar(), args[2].toScalar());
+    outs[0] = nakapdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void nakacdf_reg(Span<const Value> args, size_t /*nargout*/,
@@ -142,8 +140,7 @@ void nakacdf_reg(Span<const Value> args, size_t /*nargout*/,
     if (n < 3)
         throw Error("nakacdf: requires (x, mu, omega[, 'upper'])",
                     0, 0, "nakacdf", "", "m:nakacdf:nargin");
-    Value v = nakacdf(ctx.engine->resource(), args[0],
-                      args[1].toScalar(), args[2].toScalar());
+    Value v = nakacdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -154,8 +151,7 @@ void nakainv_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 3)
         throw Error("nakainv: requires (p, mu, omega)",
                     0, 0, "nakainv", "", "m:nakainv:nargin");
-    outs[0] = nakainv(ctx.engine->resource(), args[0],
-                      args[1].toScalar(), args[2].toScalar());
+    outs[0] = nakainv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void nakarnd_reg(Span<const Value> args, size_t /*nargout*/,
@@ -170,7 +166,7 @@ void nakarnd_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 3 && !args[2].isEmpty()) rows = static_cast<size_t>(args[2].toScalar());
     if (args.size() >= 4 && !args[3].isEmpty()) cols = static_cast<size_t>(args[3].toScalar());
     else if (args.size() >= 3) cols = rows;
-    outs[0] = nakarnd(ctx.engine->resource(), mu, omega, rows, cols);
+    outs[0] = nakarnd(mu, omega, rows, cols, ctx.engine->resource());
 }
 
 void nakastat_reg(Span<const Value> args, size_t nargout,

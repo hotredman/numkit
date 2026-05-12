@@ -14,12 +14,10 @@
 
 namespace numkit::stats {
 
-Value ricepdf(std::pmr::memory_resource *mr, const Value &x, double s, double sigma);
-Value ricecdf(std::pmr::memory_resource *mr, const Value &x, double s, double sigma);
-Value riceinv(std::pmr::memory_resource *mr, const Value &p, double s, double sigma);
-Value ricernd(std::pmr::memory_resource *mr, double s, double sigma,
-              size_t rows = 1, size_t cols = 1);
-std::tuple<double, double> ricestat(std::pmr::memory_resource *mr,
-                                    double s, double sigma);
+Value ricepdf(const Value &x, double s, double sigma, std::pmr::memory_resource *mr = nullptr);
+Value ricecdf(const Value &x, double s, double sigma, std::pmr::memory_resource *mr = nullptr);
+Value riceinv(const Value &p, double s, double sigma, std::pmr::memory_resource *mr = nullptr);
+Value ricernd(double s, double sigma, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
+std::tuple<double, double> ricestat(double s, double sigma, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

@@ -25,7 +25,7 @@ namespace numkit::stats {
 namespace {
 
 template <typename Op>
-Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
@@ -39,14 +39,14 @@ Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
     return out;
 }
 
-inline double besseli_scalar(std::pmr::memory_resource *mr, double nu, double xx)
+inline double besseli_scalar(double nu, double xx, std::pmr::memory_resource *mr)
 {
     Value nv = Value::scalar(nu, mr);
     Value xv = Value::scalar(xx, mr);
     return ::numkit::builtin::besseli(mr, nv, xv).toScalar();
 }
 
-inline double marcumq_scalar(std::pmr::memory_resource *mr, double a, double b)
+inline double marcumq_scalar(double a, double b, std::pmr::memory_resource *mr)
 {
     Value av = Value::scalar(a, mr);
     Value bv = Value::scalar(b, mr);
@@ -55,39 +55,39 @@ inline double marcumq_scalar(std::pmr::memory_resource *mr, double a, double b)
 
 } // anonymous
 
-Value ricepdf(std::pmr::memory_resource *mr, const Value &x, double s, double sigma)
+Value ricepdf(const Value &x, double s, double sigma, std::pmr::memory_resource *mr)
 {
     if (sigma <= 0.0 || s < 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     const double s2 = s * s;
     const double sg2 = sigma * sigma;
-    return elementwise(mr, x, [&](double xi) {
+    return elementwise(x, [&](double xi) {
         if (xi < 0.0) return 0.0;
         if (xi == 0.0) {
             // Limit: at x=0 the PDF is 0 unless s=0 (Rayleigh case).
             return (s == 0.0) ? 0.0 : 0.0;
         }
         const double arg = xi * s / sg2;
-        const double i0  = besseli_scalar(mr, 0.0, arg);
+        const double i0  = besseli_scalar(0.0, arg, mr);
         return (xi / sg2) * std::exp(-(xi * xi + s2) / (2.0 * sg2)) * i0;
-    });
+    }, mr);
 }
 
-Value ricecdf(std::pmr::memory_resource *mr, const Value &x, double s, double sigma)
+Value ricecdf(const Value &x, double s, double sigma, std::pmr::memory_resource *mr)
 {
     if (sigma <= 0.0 || s < 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, x, [&](double xi) {
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(x, [&](double xi) {
         if (xi <= 0.0) return 0.0;
-        return 1.0 - marcumq_scalar(mr, s / sigma, xi / sigma);
-    });
+        return 1.0 - marcumq_scalar(s / sigma, xi / sigma, mr);
+    }, mr);
 }
 
-Value riceinv(std::pmr::memory_resource *mr, const Value &p, double s, double sigma)
+Value riceinv(const Value &p, double s, double sigma, std::pmr::memory_resource *mr)
 {
     if (sigma <= 0.0 || s < 0.0)
-        return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, p, [&](double pi) {
+        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(p, [&](double pi) {
         if (!(pi >= 0.0 && pi <= 1.0)) return std::numeric_limits<double>::quiet_NaN();
         if (pi == 0.0) return 0.0;
         if (pi >= 1.0) return std::numeric_limits<double>::infinity();
@@ -96,7 +96,7 @@ Value riceinv(std::pmr::memory_resource *mr, const Value &p, double s, double si
         double hi = s + 8.0 * sigma;
         // Expand `hi` if needed.
         for (int iter = 0; iter < 50; ++iter) {
-            const double Fhi = 1.0 - marcumq_scalar(mr, s / sigma, hi / sigma);
+            const double Fhi = 1.0 - marcumq_scalar(s / sigma, hi / sigma, mr);
             if (Fhi >= pi) break;
             hi *= 2.0;
         }
@@ -104,15 +104,14 @@ Value riceinv(std::pmr::memory_resource *mr, const Value &p, double s, double si
         for (int iter = 0; iter < 80; ++iter) {
             const double mid = 0.5 * (lo + hi);
             if (mid == lo || mid == hi) return mid;
-            const double F = 1.0 - marcumq_scalar(mr, s / sigma, mid / sigma);
+            const double F = 1.0 - marcumq_scalar(s / sigma, mid / sigma, mr);
             if (F < pi) lo = mid; else hi = mid;
         }
         return 0.5 * (lo + hi);
-    });
+    }, mr);
 }
 
-Value ricernd(std::pmr::memory_resource *mr, double s, double sigma,
-              size_t rows, size_t cols)
+Value ricernd(double s, double sigma, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -131,8 +130,7 @@ Value ricernd(std::pmr::memory_resource *mr, double s, double sigma,
     return out;
 }
 
-std::tuple<double, double> ricestat(std::pmr::memory_resource *mr,
-                                    double s, double sigma)
+std::tuple<double, double> ricestat(double s, double sigma, std::pmr::memory_resource *mr)
 {
     if (sigma <= 0.0 || s < 0.0) {
         const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -146,8 +144,8 @@ std::tuple<double, double> ricestat(std::pmr::memory_resource *mr,
     const double sg2 = sigma * sigma;
     const double z = -s2 / (2.0 * sg2);
     const double half = s2 / (4.0 * sg2);
-    const double i0 = besseli_scalar(mr, 0.0, half);
-    const double i1 = besseli_scalar(mr, 1.0, half);
+    const double i0 = besseli_scalar(0.0, half, mr);
+    const double i1 = besseli_scalar(1.0, half, mr);
     const double L = std::exp(z / 2.0) * ((1.0 - z) * i0 - z * i1);
     const double mean = sigma * std::sqrt(M_PI / 2.0) * L;
     const double var  = 2.0 * sg2 + s2 - mean * mean;
@@ -166,8 +164,7 @@ void ricepdf_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 3)
         throw Error("ricepdf: requires (x, s, sigma)",
                     0, 0, "ricepdf", "", "m:ricepdf:nargin");
-    outs[0] = ricepdf(ctx.engine->resource(), args[0],
-                      args[1].toScalar(), args[2].toScalar());
+    outs[0] = ricepdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void ricecdf_reg(Span<const Value> args, size_t /*nargout*/,
@@ -178,8 +175,7 @@ void ricecdf_reg(Span<const Value> args, size_t /*nargout*/,
     if (n < 3)
         throw Error("ricecdf: requires (x, s, sigma[, 'upper'])",
                     0, 0, "ricecdf", "", "m:ricecdf:nargin");
-    Value v = ricecdf(ctx.engine->resource(), args[0],
-                      args[1].toScalar(), args[2].toScalar());
+    Value v = ricecdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -190,8 +186,7 @@ void riceinv_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 3)
         throw Error("riceinv: requires (p, s, sigma)",
                     0, 0, "riceinv", "", "m:riceinv:nargin");
-    outs[0] = riceinv(ctx.engine->resource(), args[0],
-                      args[1].toScalar(), args[2].toScalar());
+    outs[0] = riceinv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void ricernd_reg(Span<const Value> args, size_t /*nargout*/,
@@ -206,7 +201,7 @@ void ricernd_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 3 && !args[2].isEmpty()) rows = static_cast<size_t>(args[2].toScalar());
     if (args.size() >= 4 && !args[3].isEmpty()) cols = static_cast<size_t>(args[3].toScalar());
     else if (args.size() >= 3) cols = rows;
-    outs[0] = ricernd(ctx.engine->resource(), s, sigma, rows, cols);
+    outs[0] = ricernd(s, sigma, rows, cols, ctx.engine->resource());
 }
 
 void ricestat_reg(Span<const Value> args, size_t nargout,
@@ -214,7 +209,7 @@ void ricestat_reg(Span<const Value> args, size_t nargout,
 {
     auto *mr = ctx.engine->resource();
     emit_vec_stat_2arg(args, nargout, outs, ctx, "ricestat",
-                       [mr](double s, double sigma) { return ricestat(mr, s, sigma); });
+                       [mr](double s, double sigma) { return ricestat(s, sigma, mr); });
 }
 
 } // namespace detail

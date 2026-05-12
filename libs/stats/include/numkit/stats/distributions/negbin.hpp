@@ -13,11 +13,10 @@
 
 namespace numkit::stats {
 
-Value nbinpdf(std::pmr::memory_resource *mr, const Value &k, double r, double p);
-Value nbincdf(std::pmr::memory_resource *mr, const Value &k, double r, double p);
-Value nbininv(std::pmr::memory_resource *mr, const Value &q, double r, double p);
-Value nbinrnd(std::pmr::memory_resource *mr, double r, double p,
-              size_t rows = 1, size_t cols = 1);
+Value nbinpdf(const Value &k, double r, double p, std::pmr::memory_resource *mr = nullptr);
+Value nbincdf(const Value &k, double r, double p, std::pmr::memory_resource *mr = nullptr);
+Value nbininv(const Value &q, double r, double p, std::pmr::memory_resource *mr = nullptr);
+Value nbinrnd(double r, double p, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 std::tuple<double, double> nbinstat(double r, double p);
 
 } // namespace numkit::stats

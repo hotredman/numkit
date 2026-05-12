@@ -19,7 +19,7 @@ namespace numkit::stats {
 namespace {
 
 template <typename Op>
-Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
@@ -35,34 +35,34 @@ Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
 
 } // anonymous
 
-Value geopdf(std::pmr::memory_resource *mr, const Value &k, double p)
+Value geopdf(const Value &k, double p, std::pmr::memory_resource *mr)
 {
     if (p <= 0.0 || p > 1.0)
-        return elementwise(mr, k, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, k, [=](double ki) {
+        return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(k, [=](double ki) {
         if (ki < 0.0 || std::floor(ki) != ki) return 0.0;
         if (p == 1.0) return ki == 0.0 ? 1.0 : 0.0;
         return std::pow(1.0 - p, ki) * p;
-    });
+    }, mr);
 }
 
-Value geocdf(std::pmr::memory_resource *mr, const Value &k, double p)
+Value geocdf(const Value &k, double p, std::pmr::memory_resource *mr)
 {
     if (p <= 0.0 || p > 1.0)
-        return elementwise(mr, k, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, k, [=](double ki) {
+        return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(k, [=](double ki) {
         if (ki < 0.0) return 0.0;
         if (p == 1.0) return ki >= 0.0 ? 1.0 : 0.0;
         // F(k) = 1 - (1-p)^(⌊k⌋ + 1)
         return -std::expm1((std::floor(ki) + 1.0) * std::log1p(-p));
-    });
+    }, mr);
 }
 
-Value geoinv(std::pmr::memory_resource *mr, const Value &q, double p)
+Value geoinv(const Value &q, double p, std::pmr::memory_resource *mr)
 {
     if (p <= 0.0 || p > 1.0)
-        return elementwise(mr, q, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, q, [=](double qi) {
+        return elementwise(q, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(q, [=](double qi) {
         if (!(qi >= 0.0 && qi <= 1.0)) return std::numeric_limits<double>::quiet_NaN();
         if (qi == 0.0) return 0.0;
         if (qi >= 1.0) return std::numeric_limits<double>::infinity();
@@ -81,10 +81,10 @@ Value geoinv(std::pmr::memory_resource *mr, const Value &q, double p)
             if (cdf_prev >= qi - tol) k -= 1.0;
         }
         return k;
-    });
+    }, mr);
 }
 
-Value geornd(std::pmr::memory_resource *mr, double p, size_t rows, size_t cols)
+Value geornd(double p, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -118,7 +118,7 @@ void geopdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("geopdf: requires (k, p)", 0, 0, "geopdf", "", "m:geopdf:nargin");
-    outs[0] = geopdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    outs[0] = geopdf(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 void geocdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -127,7 +127,7 @@ void geocdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const size_t n = stripUpperFlag(args, upper);
     if (n < 2)
         throw Error("geocdf: requires (k, p[, 'upper'])", 0, 0, "geocdf", "", "m:geocdf:nargin");
-    Value v = geocdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    Value v = geocdf(args[0], args[1].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -136,7 +136,7 @@ void geoinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("geoinv: requires (q, p)", 0, 0, "geoinv", "", "m:geoinv:nargin");
-    outs[0] = geoinv(ctx.engine->resource(), args[0], args[1].toScalar());
+    outs[0] = geoinv(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 void geornd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -148,7 +148,7 @@ void geornd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() >= 2 && !args[1].isEmpty()) rows = static_cast<size_t>(args[1].toScalar());
     if (args.size() >= 3 && !args[2].isEmpty()) cols = static_cast<size_t>(args[2].toScalar());
     else if (args.size() >= 2) cols = rows;
-    outs[0] = geornd(ctx.engine->resource(), p, rows, cols);
+    outs[0] = geornd(p, rows, cols, ctx.engine->resource());
 }
 
 void geostat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

@@ -20,7 +20,7 @@ namespace numkit::stats {
 namespace {
 
 template <typename Op>
-Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
@@ -59,25 +59,25 @@ inline double bino_cdf_scalar(double k, double n, double p, std::pmr::memory_res
 
 } // anonymous
 
-Value binopdf(std::pmr::memory_resource *mr, const Value &k, double n, double p)
+Value binopdf(const Value &k, double n, double p, std::pmr::memory_resource *mr)
 {
     if (n < 0.0 || std::floor(n) != n || p < 0.0 || p > 1.0)
-        return elementwise(mr, k, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, k, [=](double ki){ return bino_pmf(ki, n, p); });
+        return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(k, [=](double ki){ return bino_pmf(ki, n, p); }, mr);
 }
 
-Value binocdf(std::pmr::memory_resource *mr, const Value &k, double n, double p)
+Value binocdf(const Value &k, double n, double p, std::pmr::memory_resource *mr)
 {
     if (n < 0.0 || std::floor(n) != n || p < 0.0 || p > 1.0)
-        return elementwise(mr, k, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, k, [=](double ki){ return bino_cdf_scalar(ki, n, p, mr); });
+        return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(k, [=](double ki){ return bino_cdf_scalar(ki, n, p, mr); }, mr);
 }
 
-Value binoinv(std::pmr::memory_resource *mr, const Value &p_in, double n, double p)
+Value binoinv(const Value &p_in, double n, double p, std::pmr::memory_resource *mr)
 {
     if (n < 0.0 || std::floor(n) != n || p < 0.0 || p > 1.0)
-        return elementwise(mr, p_in, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, p_in, [=](double pi) {
+        return elementwise(p_in, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(p_in, [=](double pi) {
         if (!(pi >= 0.0 && pi <= 1.0)) return std::numeric_limits<double>::quiet_NaN();
         if (pi == 0.0) return 0.0;
         if (pi >= 1.0) return n;
@@ -94,10 +94,10 @@ Value binoinv(std::pmr::memory_resource *mr, const Value &p_in, double n, double
             if (cdf >= pi - tol) return j + 1.0;
         }
         return n;
-    });
+    }, mr);
 }
 
-Value binornd(std::pmr::memory_resource *mr, double n, double p, size_t rows, size_t cols)
+Value binornd(double n, double p, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -130,7 +130,7 @@ void binopdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("binopdf: requires (k, n, p)", 0, 0, "binopdf", "", "m:binopdf:nargin");
-    outs[0] = binopdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    outs[0] = binopdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void binocdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -139,7 +139,7 @@ void binocdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
         throw Error("binocdf: requires (k, n, p[, 'upper'])", 0, 0, "binocdf", "", "m:binocdf:nargin");
-    Value v = binocdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    Value v = binocdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -148,7 +148,7 @@ void binoinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("binoinv: requires (p, n, prob)", 0, 0, "binoinv", "", "m:binoinv:nargin");
-    outs[0] = binoinv(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    outs[0] = binoinv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void binornd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -159,7 +159,7 @@ void binornd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const double p = args[1].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 2, rows, cols);
-    outs[0] = binornd(ctx.engine->resource(), n, p, rows, cols);
+    outs[0] = binornd(n, p, rows, cols, ctx.engine->resource());
 }
 
 void binostat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

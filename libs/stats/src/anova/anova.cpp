@@ -91,7 +91,7 @@ anova1(std::pmr::memory_resource *mr, const Value &y, const Value &group)
     const double F = msB / msW;
 
     Value Fv = Value::scalar(F, mr);
-    const double cdf = fcdf(mr, Fv, dfB, dfW).toScalar();
+    const double cdf = fcdf(Fv, dfB, dfW, mr).toScalar();
     const double p = std::max(0.0, 1.0 - cdf);
     return std::make_tuple(p, F, dfB, dfW, ssB, ssW);
 }
@@ -172,8 +172,8 @@ anova2(std::pmr::memory_resource *mr, const Value &Y)
     const double Frows = (ssRows / dfRows) / msErr;
     Value FcolsV = Value::scalar(Fcols, mr);
     Value FrowsV = Value::scalar(Frows, mr);
-    const double pCols = std::max(0.0, 1.0 - fcdf(mr, FcolsV, dfCols, dfErr).toScalar());
-    const double pRows = std::max(0.0, 1.0 - fcdf(mr, FrowsV, dfRows, dfErr).toScalar());
+    const double pCols = std::max(0.0, 1.0 - fcdf(FcolsV, dfCols, dfErr, mr).toScalar());
+    const double pRows = std::max(0.0, 1.0 - fcdf(FrowsV, dfRows, dfErr, mr).toScalar());
 
     return std::make_tuple(pCols, pRows, Fcols, Frows,
                            dfCols, dfRows, dfErr,
@@ -248,7 +248,7 @@ kruskalwallis(std::pmr::memory_resource *mr, const Value &y, const Value &group)
 
     const double df = double(buckets.size() - 1);
     Value Hv = Value::scalar(H, mr);
-    const double cdf = chi2cdf(mr, Hv, df).toScalar();
+    const double cdf = chi2cdf(Hv, df, mr).toScalar();
     const double p = std::max(0.0, 1.0 - cdf);
 
     return std::make_tuple(Value::scalar(p, mr),

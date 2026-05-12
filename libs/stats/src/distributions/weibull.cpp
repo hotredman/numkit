@@ -19,7 +19,7 @@ namespace numkit::stats {
 namespace {
 
 template <typename Op>
-Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
@@ -35,12 +35,12 @@ Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
 
 } // anonymous
 
-Value wblpdf(std::pmr::memory_resource *mr, const Value &x, double a, double b)
+Value wblpdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
 {
     const double NaN = std::numeric_limits<double>::quiet_NaN();
     if (!(a > 0.0) || !(b > 0.0))  // also catches NaN params
-        return elementwise(mr, x, [NaN](double){ return NaN; });
-    return elementwise(mr, x, [=](double xi) {
+        return elementwise(x, [NaN](double){ return NaN; }, mr);
+    return elementwise(x, [=](double xi) {
         if (std::isnan(xi)) return NaN;       // propagate NaN x as quiet NaN
         if (xi < 0.0) return 0.0;
         if (xi == 0.0) {
@@ -50,32 +50,32 @@ Value wblpdf(std::pmr::memory_resource *mr, const Value &x, double a, double b)
         }
         const double r = xi / a;
         return (b / a) * std::pow(r, b - 1.0) * std::exp(-std::pow(r, b));
-    });
+    }, mr);
 }
 
-Value wblcdf(std::pmr::memory_resource *mr, const Value &x, double a, double b)
+Value wblcdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
 {
     if (a <= 0.0 || b <= 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, x, [=](double xi) {
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(x, [=](double xi) {
         if (xi <= 0.0) return 0.0;
         return -std::expm1(-std::pow(xi / a, b));
-    });
+    }, mr);
 }
 
-Value wblinv(std::pmr::memory_resource *mr, const Value &p, double a, double b)
+Value wblinv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
 {
     if (a <= 0.0 || b <= 0.0)
-        return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, p, [=](double pi) {
+        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(p, [=](double pi) {
         if (pi < 0.0 || pi > 1.0) return std::numeric_limits<double>::quiet_NaN();
         if (pi == 0.0) return 0.0;
         if (pi >= 1.0) return std::numeric_limits<double>::infinity();
         return a * std::pow(-std::log1p(-pi), 1.0 / b);
-    });
+    }, mr);
 }
 
-Value wblrnd(std::pmr::memory_resource *mr, double a, double b, size_t rows, size_t cols)
+Value wblrnd(double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -123,7 +123,7 @@ void wblpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("wblpdf: requires (x[, a, b])", 0, 0, "wblpdf", "", "m:wblpdf:nargin");
-    outs[0] = wblpdf(ctx.engine->resource(), args[0], argA(args, 1), argB(args, 2));
+    outs[0] = wblpdf(args[0], argA(args, 1), argB(args, 2), ctx.engine->resource());
 }
 
 void wblcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -132,8 +132,7 @@ void wblcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const Span<const Value> stripped = args.subspan(0, stripUpperFlag(args, upper));
     if (stripped.empty())
         throw Error("wblcdf: requires (x[, a, b][, 'upper'])", 0, 0, "wblcdf", "", "m:wblcdf:nargin");
-    Value v = wblcdf(ctx.engine->resource(), stripped[0],
-                     argA(stripped, 1), argB(stripped, 2));
+    Value v = wblcdf(stripped[0], argA(stripped, 1), argB(stripped, 2), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -142,7 +141,7 @@ void wblinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("wblinv: requires (p[, a, b])", 0, 0, "wblinv", "", "m:wblinv:nargin");
-    outs[0] = wblinv(ctx.engine->resource(), args[0], argA(args, 1), argB(args, 2));
+    outs[0] = wblinv(args[0], argA(args, 1), argB(args, 2), ctx.engine->resource());
 }
 
 void wblrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -151,7 +150,7 @@ void wblrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const double b = argB(args, 1);
     size_t rows, cols;
     parse_rng_size(args, 2, rows, cols);
-    outs[0] = wblrnd(ctx.engine->resource(), a, b, rows, cols);
+    outs[0] = wblrnd(a, b, rows, cols, ctx.engine->resource());
 }
 
 void wblstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

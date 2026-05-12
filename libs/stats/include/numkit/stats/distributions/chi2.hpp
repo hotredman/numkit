@@ -13,18 +13,17 @@
 namespace numkit::stats {
 
 /// chi2pdf(x, k) — pdf at x with k > 0 degrees of freedom.
-Value chi2pdf(std::pmr::memory_resource *mr, const Value &x, double k);
+Value chi2pdf(const Value &x, double k, std::pmr::memory_resource *mr = nullptr);
 
 /// chi2cdf(x, k) — cdf, computed via the regularized lower-incomplete
 /// gamma function: F(x, k) = P(k/2, x/2) = gammainc(x/2, k/2).
-Value chi2cdf(std::pmr::memory_resource *mr, const Value &x, double k);
+Value chi2cdf(const Value &x, double k, std::pmr::memory_resource *mr = nullptr);
 
 /// chi2inv(p, k) — inverse cdf via gammaincinv.
-Value chi2inv(std::pmr::memory_resource *mr, const Value &p, double k);
+Value chi2inv(const Value &p, double k, std::pmr::memory_resource *mr = nullptr);
 
 /// chi2rnd(k[, m, n]) — sample from χ²(k) via Gamma(k/2, 2).
-Value chi2rnd(std::pmr::memory_resource *mr, double k,
-              size_t rows = 1, size_t cols = 1);
+Value chi2rnd(double k, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 
 /// chi2stat(k) — [mean, variance] = [k, 2k].
 std::tuple<double, double> chi2stat(double k);

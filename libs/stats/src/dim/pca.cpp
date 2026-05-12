@@ -93,7 +93,7 @@ void jacobi(std::vector<double> &A, std::vector<double> &V, size_t D) {
 } // anonymous
 
 std::tuple<Value, Value, Value, Value, Value, Value>
-pca(std::pmr::memory_resource *mr, const Value &X)
+pca(const Value &X, std::pmr::memory_resource *mr)
 {
     const size_t N = X.dims().rows();
     const size_t D = X.dims().cols();
@@ -195,7 +195,7 @@ pca(std::pmr::memory_resource *mr, const Value &X)
 }
 
 std::tuple<Value, Value, Value>
-pcacov(std::pmr::memory_resource *mr, const Value &C) {
+pcacov(const Value &C, std::pmr::memory_resource *mr) {
     const size_t D = C.dims().rows();
     if (C.dims().cols() != D)
         throw Error("pcacov: C must be square", 0, 0, "pcacov", "",
@@ -244,8 +244,8 @@ pcacov(std::pmr::memory_resource *mr, const Value &C) {
 
 // Internal: returns both residuals and reconstruction (MATLAB form).
 std::tuple<Value, Value>
-pcares_full(std::pmr::memory_resource *mr, const Value &X, int ndim) {
-    auto [coeff, score, latent, tsq, explained, mu] = pca(mr, X);
+pcares_full(const Value &X, int ndim, std::pmr::memory_resource *mr) {
+    auto [coeff, score, latent, tsq, explained, mu] = pca(X, mr);
     const size_t N = X.dims().rows();
     const size_t D = X.dims().cols();
     if (ndim < 0 || (size_t)ndim > D)
@@ -270,8 +270,8 @@ pcares_full(std::pmr::memory_resource *mr, const Value &X, int ndim) {
     return {std::move(res), std::move(recon)};
 }
 
-Value pcares(std::pmr::memory_resource *mr, const Value &X, int ndim) {
-    auto [res, recon] = pcares_full(mr, X, ndim);
+Value pcares(const Value &X, int ndim, std::pmr::memory_resource *mr) {
+    auto [res, recon] = pcares_full(X, ndim, mr);
     (void)recon;
     return res;
 }
@@ -288,7 +288,7 @@ void pca_reg(Span<const Value> args, size_t nargout,
     if (args.empty())
         throw Error("pca: requires X", 0, 0, "pca", "", "m:pca:nargin");
     auto [coeff, score, latent, tsq, explained, mu] =
-        pca(ctx.engine->resource(), args[0]);
+        pca(args[0], ctx.engine->resource());
     outs[0] = std::move(coeff);
     if (nargout > 1) outs[1] = std::move(score);
     if (nargout > 2) outs[2] = std::move(latent);
@@ -303,7 +303,7 @@ void pcacov_reg(Span<const Value> args, size_t nargout,
     if (args.empty())
         throw Error("pcacov: requires C", 0, 0, "pcacov", "",
                     "m:pcacov:nargin");
-    auto [coeff, latent, explained] = pcacov(ctx.engine->resource(), args[0]);
+    auto [coeff, latent, explained] = pcacov(args[0], ctx.engine->resource());
     outs[0] = std::move(coeff);
     if (nargout > 1) outs[1] = std::move(latent);
     if (nargout > 2) outs[2] = std::move(explained);
@@ -315,8 +315,7 @@ void pcares_reg(Span<const Value> args, size_t nargout,
     if (args.size() < 2)
         throw Error("pcares: requires (X, ndim)", 0, 0, "pcares", "",
                     "m:pcares:nargin");
-    auto [res, recon] = pcares_full(ctx.engine->resource(),
-                                    args[0], (int)args[1].toScalar());
+    auto [res, recon] = pcares_full(args[0], (int)args[1].toScalar(), ctx.engine->resource());
     outs[0] = std::move(res);
     if (nargout > 1) outs[1] = std::move(recon);
 }

@@ -23,7 +23,7 @@ namespace numkit::stats {
 namespace {
 
 template <typename Op>
-Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
@@ -100,28 +100,28 @@ inline double hyge_inv_scalar(double q, double M, double K, double N) {
 
 } // anonymous
 
-Value hygepdf(std::pmr::memory_resource *mr, const Value &k, double M, double K, double N)
+Value hygepdf(const Value &k, double M, double K, double N, std::pmr::memory_resource *mr)
 {
     if (!params_valid(M, K, N))
-        return elementwise(mr, k, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, k, [=](double ki){ return hyge_pmf(ki, M, K, N); });
+        return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(k, [=](double ki){ return hyge_pmf(ki, M, K, N); }, mr);
 }
 
-Value hygecdf(std::pmr::memory_resource *mr, const Value &k, double M, double K, double N)
+Value hygecdf(const Value &k, double M, double K, double N, std::pmr::memory_resource *mr)
 {
     if (!params_valid(M, K, N))
-        return elementwise(mr, k, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, k, [=](double ki){ return hyge_cdf_scalar(ki, M, K, N); });
+        return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(k, [=](double ki){ return hyge_cdf_scalar(ki, M, K, N); }, mr);
 }
 
-Value hygeinv(std::pmr::memory_resource *mr, const Value &q, double M, double K, double N)
+Value hygeinv(const Value &q, double M, double K, double N, std::pmr::memory_resource *mr)
 {
     if (!params_valid(M, K, N))
-        return elementwise(mr, q, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, q, [=](double qi){ return hyge_inv_scalar(qi, M, K, N); });
+        return elementwise(q, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(q, [=](double qi){ return hyge_inv_scalar(qi, M, K, N); }, mr);
 }
 
-Value hygernd(std::pmr::memory_resource *mr, double M, double K, double N, size_t rows, size_t cols)
+Value hygernd(double M, double K, double N, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -158,8 +158,7 @@ void hygepdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 4)
         throw Error("hygepdf: requires (k, M, K, N)", 0, 0, "hygepdf", "", "m:hygepdf:nargin");
-    outs[0] = hygepdf(ctx.engine->resource(), args[0],
-                      args[1].toScalar(), args[2].toScalar(), args[3].toScalar());
+    outs[0] = hygepdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
 }
 
 void hygecdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -168,8 +167,7 @@ void hygecdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const size_t n = stripUpperFlag(args, upper);
     if (n < 4)
         throw Error("hygecdf: requires (k, M, K, N[, 'upper'])", 0, 0, "hygecdf", "", "m:hygecdf:nargin");
-    Value v = hygecdf(ctx.engine->resource(), args[0],
-                      args[1].toScalar(), args[2].toScalar(), args[3].toScalar());
+    Value v = hygecdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -178,8 +176,7 @@ void hygeinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 4)
         throw Error("hygeinv: requires (q, M, K, N)", 0, 0, "hygeinv", "", "m:hygeinv:nargin");
-    outs[0] = hygeinv(ctx.engine->resource(), args[0],
-                      args[1].toScalar(), args[2].toScalar(), args[3].toScalar());
+    outs[0] = hygeinv(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
 }
 
 void hygernd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -193,7 +190,7 @@ void hygernd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() >= 4 && !args[3].isEmpty()) rows = static_cast<size_t>(args[3].toScalar());
     if (args.size() >= 5 && !args[4].isEmpty()) cols = static_cast<size_t>(args[4].toScalar());
     else if (args.size() >= 4) cols = rows;
-    outs[0] = hygernd(ctx.engine->resource(), M, K, N, rows, cols);
+    outs[0] = hygernd(M, K, N, rows, cols, ctx.engine->resource());
 }
 
 void hygestat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

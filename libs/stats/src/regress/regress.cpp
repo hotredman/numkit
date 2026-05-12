@@ -140,7 +140,7 @@ regress_full(std::pmr::memory_resource *mr, const Value &y, const Value &X,
     double tcrit = 0.0;
     if (dfErr > 0) {
         Value pV = Value::scalar(1.0 - alpha / 2.0, mr);
-        tcrit = tinv(mr, pV, dfErr).toScalar();
+        tcrit = tinv(pV, dfErr, mr).toScalar();
     }
     for (size_t j = 0; j < p; ++j) {
         bd[j] = beta[j];
@@ -170,7 +170,7 @@ regress_full(std::pmr::memory_resource *mr, const Value &y, const Value &X,
     double pF = std::numeric_limits<double>::quiet_NaN();
     if (!std::isnan(F)) {
         Value fv = Value::scalar(F, mr);
-        const double cdf = fcdf(mr, fv, dfModel, dfErr).toScalar();
+        const double cdf = fcdf(fv, dfModel, dfErr, mr).toScalar();
         pF = std::max(0.0, 1.0 - cdf);
     }
     Value statsV = Value::matrix(1, 4, ValueType::DOUBLE, mr);

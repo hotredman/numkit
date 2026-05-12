@@ -69,7 +69,7 @@ double sliceQuantile(double *s, size_t n, double p)
 
 // ── bounds ────────────────────────────────────────────────────────────
 std::tuple<Value, Value>
-bounds(std::pmr::memory_resource *mr, const Value &x, int dim)
+bounds(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     const int d = resolveDim(x, dim, "bounds");
     auto lo = applyAlongDim(x, d,
@@ -80,7 +80,7 @@ bounds(std::pmr::memory_resource *mr, const Value &x, int dim)
 }
 
 // ── iqr ───────────────────────────────────────────────────────────────
-Value iqr(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value iqr(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     const int d = resolveDim(x, dim, "iqr");
     return applyAlongDim(x, d,
@@ -99,8 +99,7 @@ namespace {
 // k-largest along a generic dim. Output keeps the input shape but with
 // the chosen dim shrunk to k. We allocate via createMatrix on the
 // 2D / 3D fast path, and fall back to matrixND otherwise.
-Value topKAlongDim(std::pmr::memory_resource *mr, const Value &x, int dim,
-                   int kReq, bool ascending, const char *fn)
+Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char *fn, std::pmr::memory_resource *mr)
 {
     if (kReq < 0)
         throw Error(std::string(fn) + ": k must be non-negative",
@@ -201,18 +200,18 @@ Value topKAlongDim(std::pmr::memory_resource *mr, const Value &x, int dim,
 } // namespace
 
 // ── maxk / mink ───────────────────────────────────────────────────────
-Value maxk(std::pmr::memory_resource *mr, const Value &x, int k, int dim)
+Value maxk(const Value &x, int k, int dim, std::pmr::memory_resource *mr)
 {
-    return topKAlongDim(mr, x, dim, k, /*ascending=*/false, "maxk");
+    return topKAlongDim(x, dim, k, /*ascending=*/false, "maxk", mr);
 }
 
-Value mink(std::pmr::memory_resource *mr, const Value &x, int k, int dim)
+Value mink(const Value &x, int k, int dim, std::pmr::memory_resource *mr)
 {
-    return topKAlongDim(mr, x, dim, k, /*ascending=*/true, "mink");
+    return topKAlongDim(x, dim, k, /*ascending=*/true, "mink", mr);
 }
 
 // ── rmse ──────────────────────────────────────────────────────────────
-Value rmse(std::pmr::memory_resource *mr, const Value &f, const Value &a, int dim)
+Value rmse(const Value &f, const Value &a, int dim, std::pmr::memory_resource *mr)
 {
     if (f.dims() != a.dims() && !(f.isScalar() || a.isScalar()))
         throw Error("rmse: F and A must have compatible sizes",
@@ -253,7 +252,7 @@ Value rmse(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
 }
 
 // ── mape ──────────────────────────────────────────────────────────────
-Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int dim)
+Value mape(const Value &f, const Value &a, int dim, std::pmr::memory_resource *mr)
 {
     if (f.dims() != a.dims() && !(f.isScalar() || a.isScalar()))
         throw Error("mape: F and A must have compatible sizes",
@@ -296,8 +295,7 @@ Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
 
 // ── partialcorr (regress-out + correlate) ───────────────────────────
 
-Value partialcorr_of(std::pmr::memory_resource *mr,
-                     const Value &X, const Value &Y, const Value &Z)
+Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, std::pmr::memory_resource *mr)
 {
     if (X.dims().ndim() != 2 || Y.dims().ndim() != 2 || Z.dims().ndim() != 2)
         throw Error("partialcorr: X, Y, Z must be 2D matrices",
@@ -434,14 +432,14 @@ Value partialcorr_of(std::pmr::memory_resource *mr,
 
 // ── corr (Pearson alias) ─────────────────────────────────────────────
 
-Value corr_xx(std::pmr::memory_resource *mr, const Value &X)
+Value corr_xx(const Value &X, std::pmr::memory_resource *mr)
 {
-    return corrcoef(mr, X);
+    return corrcoef(X, mr);
 }
 
-Value corr_xy(std::pmr::memory_resource *mr, const Value &X, const Value &Y)
+Value corr_xy(const Value &X, const Value &Y, std::pmr::memory_resource *mr)
 {
-    return corrcoef(mr, X, Y);
+    return corrcoef(X, Y, mr);
 }
 
 // ── detrend (polynomial trend removal) ──────────────────────────────
@@ -454,9 +452,7 @@ namespace {
 //
 // PMR HARD RULE: scratch via the supplied scratch arena. The vector
 // types are ScratchVec to preserve the per-call arena lifetime.
-ScratchVec<double> fitPolyLS(std::pmr::memory_resource *scratch_mr,
-                             const double *xidx, std::size_t n,
-                             const double *y, int order)
+ScratchVec<double> fitPolyLS(const double *xidx, std::size_t n, const double *y, int order, std::pmr::memory_resource *scratch_mr)
 {
     const std::size_t k = static_cast<std::size_t>(order) + 1;
     ScratchVec<double> M(k * k, 0.0, scratch_mr);
@@ -522,22 +518,21 @@ double evalPoly(const ScratchVec<double> &a, double x)
     return r;
 }
 
-void detrendColumn(std::pmr::memory_resource *scratch_mr,
-                   const double *src, double *dst, std::size_t n, int order)
+void detrendColumn(const double *src, double *dst, std::size_t n, int order, std::pmr::memory_resource *scratch_mr)
 {
     if (n == 0) return;
     if (order < 0) order = 1;
     ScratchVec<double> xidx(n, scratch_mr);
     for (std::size_t i = 0; i < n; ++i)
         xidx[i] = static_cast<double>(i);
-    auto coefs = fitPolyLS(scratch_mr, xidx.data(), n, src, order);
+    auto coefs = fitPolyLS(xidx.data(), n, src, order, scratch_mr);
     for (std::size_t i = 0; i < n; ++i)
         dst[i] = src[i] - evalPoly(coefs, xidx[i]);
 }
 
 } // anonymous namespace
 
-Value detrend_of(std::pmr::memory_resource *mr, const Value &x, int order)
+Value detrend_of(const Value &x, int order, std::pmr::memory_resource *mr)
 {
     if (x.numel() == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
@@ -549,11 +544,11 @@ Value detrend_of(std::pmr::memory_resource *mr, const Value &x, int order)
     double *od = out.doubleDataMut();
 
     if (r == 1 || c == 1) {
-        detrendColumn(&scratch, xd, od, r * c, order);
+        detrendColumn(xd, od, r * c, order, &scratch);
         return out;
     }
     for (std::size_t j = 0; j < c; ++j)
-        detrendColumn(&scratch, xd + j * r, od + j * r, r, order);
+        detrendColumn(xd + j * r, od + j * r, r, order, &scratch);
     return out;
 }
 
@@ -561,7 +556,7 @@ Value detrend_of(std::pmr::memory_resource *mr, const Value &x, int order)
 
 // isoutlier(x) — boolean array marking outliers via median + MAD
 // (default MATLAB method: more than 3 scaled MADs from median).
-Value isoutlier_of(std::pmr::memory_resource *mr, const Value &x)
+Value isoutlier_of(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.numel() == 0) return Value::matrix(0, 0, ValueType::LOGICAL, mr);
     const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
@@ -592,9 +587,9 @@ Value isoutlier_of(std::pmr::memory_resource *mr, const Value &x)
 }
 
 // rmoutliers(x) — drop elements flagged by isoutlier; vector form.
-Value rmoutliers_of(std::pmr::memory_resource *mr, const Value &x)
+Value rmoutliers_of(const Value &x, std::pmr::memory_resource *mr)
 {
-    auto mask = isoutlier_of(mr, x);
+    auto mask = isoutlier_of(x, mr);
     const std::size_t n = x.numel();
     const double *xd = x.doubleData();
     const uint8_t *m = mask.logicalData();
@@ -616,8 +611,7 @@ Value rmoutliers_of(std::pmr::memory_resource *mr, const Value &x)
 // MATLAB-canonical methods: 'constant' (needs value), 'previous',
 // 'next'. Internal 'mean'/'median' kept as a numkit convenience but
 // undocumented (use mean(x,'omitnan') + 'constant' for portability).
-Value fillmissing_of(std::pmr::memory_resource *mr, const Value &x,
-                     const std::string &method, double constVal)
+Value fillmissing_of(const Value &x, const std::string &method, double constVal, std::pmr::memory_resource *mr)
 {
     const std::size_t n = x.numel();
     if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -683,7 +677,7 @@ Value fillmissing_of(std::pmr::memory_resource *mr, const Value &x,
 }
 
 // rmmissing(x) — drop NaN entries.
-Value rmmissing_of(std::pmr::memory_resource *mr, const Value &x)
+Value rmmissing_of(const Value &x, std::pmr::memory_resource *mr)
 {
     const std::size_t n = x.numel();
     const double *xd = x.doubleData();
@@ -702,8 +696,7 @@ Value rmmissing_of(std::pmr::memory_resource *mr, const Value &x)
 }
 
 // standardizeMissing(x, sentinel) — replace sentinel with NaN.
-Value standardizeMissing_of(std::pmr::memory_resource *mr,
-                            const Value &x, double sentinel)
+Value standardizeMissing_of(const Value &x, double sentinel, std::pmr::memory_resource *mr)
 {
     const std::size_t n = x.numel();
     const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
@@ -722,7 +715,7 @@ Value standardizeMissing_of(std::pmr::memory_resource *mr,
 // ── range / mad / geomean / harmmean / moment / trimmean ─────────────
 
 // range(x) = max(x) - min(x) along dim.
-Value range_of(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value range_of(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     const int d = resolveDim(x, dim, "range");
     return applyAlongDim(x, d,
@@ -739,7 +732,7 @@ Value range_of(std::pmr::memory_resource *mr, const Value &x, int dim)
 
 // mad(x) -- mean absolute deviation: mean(abs(x - mean(x))).
 // mad(x, 1) -- median absolute deviation: median(abs(x - median(x))).
-Value mad_of(std::pmr::memory_resource *mr, const Value &x, int flag, int dim)
+Value mad_of(const Value &x, int flag, int dim, std::pmr::memory_resource *mr)
 {
     const int d = resolveDim(x, dim, "mad");
     if (flag == 0) {
@@ -768,7 +761,7 @@ Value mad_of(std::pmr::memory_resource *mr, const Value &x, int flag, int dim)
 }
 
 // geomean(x) = (prod(x))^(1/n) = exp(mean(log(x))). x must be >= 0.
-Value geomean_of(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value geomean_of(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     const int d = resolveDim(x, dim, "geomean");
     return applyAlongDim(x, d,
@@ -786,7 +779,7 @@ Value geomean_of(std::pmr::memory_resource *mr, const Value &x, int dim)
 }
 
 // harmmean(x) = n / sum(1./x). x must be > 0.
-Value harmmean_of(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value harmmean_of(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     const int d = resolveDim(x, dim, "harmmean");
     return applyAlongDim(x, d,
@@ -803,7 +796,7 @@ Value harmmean_of(std::pmr::memory_resource *mr, const Value &x, int dim)
 }
 
 // moment(x, k) = mean((x - mean(x))^k). k >= 2.
-Value moment_of(std::pmr::memory_resource *mr, const Value &x, int order, int dim)
+Value moment_of(const Value &x, int order, int dim, std::pmr::memory_resource *mr)
 {
     const int d = resolveDim(x, dim, "moment");
     const int k = order;
@@ -826,7 +819,7 @@ Value moment_of(std::pmr::memory_resource *mr, const Value &x, int order, int di
 }
 
 // trimmean(x, p) = mean of x after trimming p/2% from each end (p in [0, 100]).
-Value trimmean_of(std::pmr::memory_resource *mr, const Value &x, double pct, int dim)
+Value trimmean_of(const Value &x, double pct, int dim, std::pmr::memory_resource *mr)
 {
     if (pct < 0.0 || pct >= 100.0)
         throw Error("trimmean: percent must be in [0, 100)",
@@ -923,12 +916,7 @@ inline double ks_cdf(double u, KsKernel k) {
 struct KsdensityFull { Value f, xi, bw; };
 
 KsdensityFull
-ksdensity_full(std::pmr::memory_resource *mr,
-               const Value &x, const Value &pts,
-               double bw_user, const std::string &kernel_name,
-               const std::string &function_mode,
-               size_t numpoints,
-               const Value *weights)
+ksdensity_full(const Value &x, const Value &pts, double bw_user, const std::string &kernel_name, const std::string &function_mode, size_t numpoints, const Value *weights, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -1062,10 +1050,9 @@ ksdensity_full(std::pmr::memory_resource *mr,
 // Backward-compat 4-arg form: pdf with normal kernel, default
 // numpoints=100, no weights.
 std::tuple<Value, Value, Value>
-ksdensity(std::pmr::memory_resource *mr, const Value &x, const Value &pts,
-          double bw_user)
+ksdensity(const Value &x, const Value &pts, double bw_user, std::pmr::memory_resource *mr)
 {
-    auto R = ksdensity_full(mr, x, pts, bw_user, "normal", "pdf", 100, nullptr);
+    auto R = ksdensity_full(x, pts, bw_user, "normal", "pdf", 100, nullptr, mr);
     return std::make_tuple(std::move(R.f), std::move(R.xi), std::move(R.bw));
 }
 
@@ -1079,9 +1066,7 @@ inline bool finite_double(double v) {
 
 // Flatten + filter helper. `srcs` give pointer/numel pairs (already
 // linearised), `keep_mask[i]` indicates whether row i survives.
-Value pack_filtered(std::pmr::memory_resource *mr,
-                    const std::vector<double> &src,
-                    const std::vector<uint8_t> &keep)
+Value pack_filtered(const std::vector<double> &src, const std::vector<uint8_t> &keep, std::pmr::memory_resource *mr)
 {
     size_t kept = 0;
     for (uint8_t k : keep) if (k) ++kept;
@@ -1097,8 +1082,7 @@ Value pack_filtered(std::pmr::memory_resource *mr,
 } // anonymous
 
 std::tuple<Value, Value, Value>
-prepareCurveData(std::pmr::memory_resource *mr,
-                 const Value &x, const Value &y, const Value &w)
+prepareCurveData(const Value &x, const Value &y, const Value &w, std::pmr::memory_resource *mr)
 {
     const size_t Nx = x.numel();
     const size_t Ny = y.numel();
@@ -1120,16 +1104,15 @@ prepareCurveData(std::pmr::memory_resource *mr,
             keep[i] = 0;
     }
 
-    Value xo = pack_filtered(mr, xv, keep);
-    Value yo = pack_filtered(mr, yv, keep);
-    Value wo = hasW ? pack_filtered(mr, wv, keep)
+    Value xo = pack_filtered(xv, keep, mr);
+    Value yo = pack_filtered(yv, keep, mr);
+    Value wo = hasW ? pack_filtered(wv, keep, mr)
                     : Value::matrix(0, 1, ValueType::DOUBLE, mr);
     return {std::move(xo), std::move(yo), std::move(wo)};
 }
 
 std::tuple<Value, Value, Value>
-prepareSurfaceData(std::pmr::memory_resource *mr,
-                   const Value &x, const Value &y, const Value &z)
+prepareSurfaceData(const Value &x, const Value &y, const Value &z, std::pmr::memory_resource *mr)
 {
     // For surface fits MATLAB lets x and y be either vectors of length
     // numel(z), or matrices the same shape as z (meshgrid). Normalise
@@ -1177,9 +1160,9 @@ prepareSurfaceData(std::pmr::memory_resource *mr,
             keep[i] = 0;
     }
 
-    Value xo = pack_filtered(mr, xv, keep);
-    Value yo = pack_filtered(mr, yv, keep);
-    Value zo = pack_filtered(mr, zv, keep);
+    Value xo = pack_filtered(xv, keep, mr);
+    Value yo = pack_filtered(yv, keep, mr);
+    Value zo = pack_filtered(zv, keep, mr);
     (void)Nx; (void)Ny;
     return {std::move(xo), std::move(yo), std::move(zo)};
 }
@@ -1187,7 +1170,7 @@ prepareSurfaceData(std::pmr::memory_resource *mr,
 // ── datastats ─────────────────────────────────────────────────────────
 
 std::tuple<Value, Value, Value, Value, Value, Value, Value>
-datastats(std::pmr::memory_resource *mr, const Value &x)
+datastats(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     std::vector<double> v;
@@ -1238,18 +1221,11 @@ datastats(std::pmr::memory_resource *mr, const Value &x)
 
 // Forward declarations for ecdf (defined at the end of this TU).
 struct EcdfFull { Value f, x, flo, fup; };
-EcdfFull ecdf_full(std::pmr::memory_resource *mr,
-                   const Value &y, const Value *freq,
-                   const std::string &function_mode, double alpha,
-                   bool want_bounds);
+EcdfFull ecdf_full(const Value &y, const Value *freq, const std::string &function_mode, double alpha, bool want_bounds, std::pmr::memory_resource *mr);
 
 // Forward declaration for ksdensity_full. KsdensityFull is defined above.
 struct KsdensityFull;
-KsdensityFull ksdensity_full(std::pmr::memory_resource *mr,
-                             const Value &x, const Value &pts,
-                             double bw_user, const std::string &kernel_name,
-                             const std::string &function_mode,
-                             size_t numpoints, const Value *weights);
+KsdensityFull ksdensity_full(const Value &x, const Value &pts, double bw_user, const std::string &kernel_name, const std::string &function_mode, size_t numpoints, const Value *weights, std::pmr::memory_resource *mr);
 
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
@@ -1263,7 +1239,7 @@ void prepareCurveData_reg(Span<const Value> args, size_t nargout,
     auto *mr = ctx.engine->resource();
     Value w_empty = Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const Value &w = (args.size() >= 3) ? args[2] : w_empty;
-    auto [xo, yo, wo] = prepareCurveData(mr, args[0], args[1], w);
+    auto [xo, yo, wo] = prepareCurveData(args[0], args[1], w, mr);
     outs[0] = std::move(xo);
     if (nargout > 1) outs[1] = std::move(yo);
     if (nargout > 2) outs[2] = std::move(wo);
@@ -1275,8 +1251,7 @@ void prepareSurfaceData_reg(Span<const Value> args, size_t nargout,
     if (args.size() < 3)
         throw Error("prepareSurfaceData: requires (X, Y, Z)",
                     0, 0, "prepareSurfaceData", "", "m:prepSD:nargin");
-    auto [xo, yo, zo] = prepareSurfaceData(ctx.engine->resource(),
-                                            args[0], args[1], args[2]);
+    auto [xo, yo, zo] = prepareSurfaceData(args[0], args[1], args[2], ctx.engine->resource());
     outs[0] = std::move(xo);
     if (nargout > 1) outs[1] = std::move(yo);
     if (nargout > 2) outs[2] = std::move(zo);
@@ -1335,8 +1310,7 @@ void ksdensity_reg(Span<const Value> args, size_t nargout,
         // 'PlotFcn' silently ignored (no-op headless).
         i += 2;
     }
-    auto R = ksdensity_full(mr, args[0], pts, bw_user, kernel,
-                            function_mode, numpoints, weights);
+    auto R = ksdensity_full(args[0], pts, bw_user, kernel, function_mode, numpoints, weights, mr);
     outs[0] = std::move(R.f);
     if (nargout > 1) outs[1] = std::move(R.xi);
     if (nargout > 2) outs[2] = std::move(R.bw);
@@ -1350,7 +1324,7 @@ void datastats_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "datastats", "", "m:datastats:nargin");
     auto build = [&](const Value &v) {
         auto [num, mx, mn, me, md, rg, sd] =
-            datastats(ctx.engine->resource(), v);
+            datastats(v, ctx.engine->resource());
         Value s = Value::structure(ctx.engine->resource());
         s.field("num")    = num;
         s.field("max")    = mx;
@@ -1417,11 +1391,11 @@ void bounds_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
             const double *src = args[0].doubleData();
             std::copy(src, src + args[0].numel(), flat.doubleDataMut());
         }
-        auto [lo, hi] = bounds(mr, flat, 2);
+        auto [lo, hi] = bounds(flat, 2, mr);
         outs[0] = std::move(lo);
         if (nargout > 1) outs[1] = std::move(hi);
     } else {
-        auto [lo, hi] = bounds(mr, args[0], dim);
+        auto [lo, hi] = bounds(args[0], dim, mr);
         outs[0] = std::move(lo);
         if (nargout > 1) outs[1] = std::move(hi);
     }
@@ -1476,9 +1450,9 @@ void iqr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
             const double *src = args[0].doubleData();
             std::copy(src, src + args[0].numel(), flat.doubleDataMut());
         }
-        outs[0] = iqr(mr, flat, 2);
+        outs[0] = iqr(flat, 2, mr);
     } else {
-        outs[0] = iqr(mr, args[0], dim);
+        outs[0] = iqr(args[0], dim, mr);
     }
 }
 
@@ -1522,7 +1496,7 @@ void maxk_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         }
         i += 2;
     }
-    outs[0] = maxk(ctx.engine->resource(), args[0], k, dim);
+    outs[0] = maxk(args[0], k, dim, ctx.engine->resource());
 }
 
 void mink_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1560,7 +1534,7 @@ void mink_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         }
         i += 2;
     }
-    outs[0] = mink(ctx.engine->resource(), args[0], k, dim);
+    outs[0] = mink(args[0], k, dim, ctx.engine->resource());
 }
 
 // Common parser for mape/rmse trailing args: optional dim ('all', vecdim,
@@ -1601,7 +1575,7 @@ void parseDimOrAll(const Value &x, Span<const Value> args, size_t pos,
     flatten = true;
 }
 
-Value flattenToRow(std::pmr::memory_resource *mr, const Value &x)
+Value flattenToRow(const Value &x, std::pmr::memory_resource *mr)
 {
     Value flat = Value::matrix(1, x.numel(), ValueType::DOUBLE, mr);
     if (x.numel() > 0) {
@@ -1622,9 +1596,9 @@ void mape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     parseDimOrAll(args[0], args, 2, dim, flatten, "mape");
     auto *mr = ctx.engine->resource();
     if (flatten) {
-        outs[0] = mape(mr, flattenToRow(mr, args[0]), flattenToRow(mr, args[1]), 2);
+        outs[0] = mape(flattenToRow(args[0], mr), flattenToRow(args[1], mr), 2, mr);
     } else {
-        outs[0] = mape(mr, args[0], args[1], dim);
+        outs[0] = mape(args[0], args[1], dim, mr);
     }
 }
 
@@ -1637,9 +1611,9 @@ void rmse_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     parseDimOrAll(args[0], args, 2, dim, flatten, "rmse");
     auto *mr = ctx.engine->resource();
     if (flatten) {
-        outs[0] = rmse(mr, flattenToRow(mr, args[0]), flattenToRow(mr, args[1]), 2);
+        outs[0] = rmse(flattenToRow(args[0], mr), flattenToRow(args[1], mr), 2, mr);
     } else {
-        outs[0] = rmse(mr, args[0], args[1], dim);
+        outs[0] = rmse(args[0], args[1], dim, mr);
     }
 }
 
@@ -1678,7 +1652,7 @@ void ecdf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
         }
     }
     const bool want_bounds = (nargout > 2);
-    auto R = ecdf_full(mr, args[0], freq, function_mode, alpha, want_bounds);
+    auto R = ecdf_full(args[0], freq, function_mode, alpha, want_bounds, mr);
     outs[0] = std::move(R.f);
     if (nargout > 1) outs[1] = std::move(R.x);
     if (nargout > 2) outs[2] = std::move(R.flo);
@@ -1693,7 +1667,7 @@ void ecdfhist_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     int m = 10;
     if (args.size() >= 3 && !args[2].isEmpty())
         m = static_cast<int>(args[2].toScalar());
-    auto [n, c] = ecdfhist(ctx.engine->resource(), args[0], args[1], m);
+    auto [n, c] = ecdfhist(args[0], args[1], m, ctx.engine->resource());
     outs[0] = std::move(n);
     if (nargout > 1) outs[1] = std::move(c);
 }
@@ -1705,7 +1679,7 @@ void partialcorr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
     if (args.size() != 3)
         throw Error("partialcorr: requires (X, Y, Z)",
                     0, 0, "partialcorr", "", "m:partialcorr:nargin");
-    outs[0] = partialcorr_of(ctx.engine->resource(), args[0], args[1], args[2]);
+    outs[0] = partialcorr_of(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 // ── corr / detrend adapters ──────────────────────────────────────────
@@ -1717,7 +1691,7 @@ void corr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
                     "matrix-vs-matrix correlation matrix is deferred -- use "
                     "corr([X Y]) and slice the off-diagonal block instead.",
                     0, 0, "corr", "", "m:corr:nargin");
-    outs[0] = corr_xx(ctx.engine->resource(), args[0]);
+    outs[0] = corr_xx(args[0], ctx.engine->resource());
 }
 
 void detrend_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1737,7 +1711,7 @@ void detrend_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
             order = static_cast<int>(args[1].toScalar());
         }
     }
-    outs[0] = detrend_of(ctx.engine->resource(), args[0], order);
+    outs[0] = detrend_of(args[0], order, ctx.engine->resource());
 }
 
 // ── missing-data adapters ────────────────────────────────────────────
@@ -1747,7 +1721,7 @@ void isoutlier_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("isoutlier: requires at least 1 argument",
                     0, 0, "isoutlier", "", "m:isoutlier:nargin");
-    outs[0] = isoutlier_of(ctx.engine->resource(), args[0]);
+    outs[0] = isoutlier_of(args[0], ctx.engine->resource());
 }
 
 void rmoutliers_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1755,7 +1729,7 @@ void rmoutliers_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
     if (args.empty())
         throw Error("rmoutliers: requires at least 1 argument",
                     0, 0, "rmoutliers", "", "m:rmoutliers:nargin");
-    outs[0] = rmoutliers_of(ctx.engine->resource(), args[0]);
+    outs[0] = rmoutliers_of(args[0], ctx.engine->resource());
 }
 
 void fillmissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1768,7 +1742,7 @@ void fillmissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
                     0, 0, "fillmissing", "", "m:fillmissing:method");
     const std::string m = args[1].toString();
     const double cv = (args.size() >= 3) ? args[2].toScalar() : 0.0;
-    outs[0] = fillmissing_of(ctx.engine->resource(), args[0], m, cv);
+    outs[0] = fillmissing_of(args[0], m, cv, ctx.engine->resource());
 }
 
 void rmmissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1776,7 +1750,7 @@ void rmmissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("rmmissing: requires at least 1 argument",
                     0, 0, "rmmissing", "", "m:rmmissing:nargin");
-    outs[0] = rmmissing_of(ctx.engine->resource(), args[0]);
+    outs[0] = rmmissing_of(args[0], ctx.engine->resource());
 }
 
 void standardizeMissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1784,7 +1758,7 @@ void standardizeMissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Val
     if (args.size() < 2)
         throw Error("standardizeMissing: requires (x, sentinel)",
                     0, 0, "standardizeMissing", "", "m:standardizeMissing:nargin");
-    outs[0] = standardizeMissing_of(ctx.engine->resource(), args[0], args[1].toScalar());
+    outs[0] = standardizeMissing_of(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 // ── range / mad / geomean / harmmean / moment / trimmean adapters ────
@@ -1795,7 +1769,7 @@ void range_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
         throw Error("range: requires at least 1 argument",
                     0, 0, "range", "", "m:range:nargin");
     const int dim = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
-    outs[0] = range_of(ctx.engine->resource(), args[0], dim);
+    outs[0] = range_of(args[0], dim, ctx.engine->resource());
 }
 
 void mad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1805,7 +1779,7 @@ void mad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
                     0, 0, "mad", "", "m:mad:nargin");
     const int flag = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
     const int dim  = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
-    outs[0] = mad_of(ctx.engine->resource(), args[0], flag, dim);
+    outs[0] = mad_of(args[0], flag, dim, ctx.engine->resource());
 }
 
 void geomean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1814,7 +1788,7 @@ void geomean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         throw Error("geomean: requires at least 1 argument",
                     0, 0, "geomean", "", "m:geomean:nargin");
     const int dim = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
-    outs[0] = geomean_of(ctx.engine->resource(), args[0], dim);
+    outs[0] = geomean_of(args[0], dim, ctx.engine->resource());
 }
 
 void harmmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1823,7 +1797,7 @@ void harmmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         throw Error("harmmean: requires at least 1 argument",
                     0, 0, "harmmean", "", "m:harmmean:nargin");
     const int dim = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
-    outs[0] = harmmean_of(ctx.engine->resource(), args[0], dim);
+    outs[0] = harmmean_of(args[0], dim, ctx.engine->resource());
 }
 
 void moment_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1833,7 +1807,7 @@ void moment_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
                     0, 0, "moment", "", "m:moment:nargin");
     const int order = static_cast<int>(args[1].toScalar());
     const int dim   = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
-    outs[0] = moment_of(ctx.engine->resource(), args[0], order, dim);
+    outs[0] = moment_of(args[0], order, dim, ctx.engine->resource());
 }
 
 void trimmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1843,7 +1817,7 @@ void trimmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
                     0, 0, "trimmean", "", "m:trimmean:nargin");
     const double pct = args[1].toScalar();
     const int dim    = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
-    outs[0] = trimmean_of(ctx.engine->resource(), args[0], pct, dim);
+    outs[0] = trimmean_of(args[0], pct, dim, ctx.engine->resource());
 }
 
 } // namespace detail
@@ -1854,7 +1828,7 @@ void trimmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 // data values). Bin into m equal-width bins over [min(x), max(x)],
 // each height = sum(probs in bin) / bin_width.
 std::tuple<Value, Value>
-ecdfhist(std::pmr::memory_resource *mr, const Value &f, const Value &x, int m)
+ecdfhist(const Value &f, const Value &x, int m, std::pmr::memory_resource *mr)
 {
     if (m < 1)
         throw Error("ecdfhist: number of bins must be >= 1",
@@ -1926,12 +1900,7 @@ ecdfhist(std::pmr::memory_resource *mr, const Value &f, const Value &x, int m)
 // estimator, NOT -log(1-cdf).
 
 // `EcdfFull` forward-declared above. f/x/flo/fup are K+1 column vectors.
-EcdfFull ecdf_full(std::pmr::memory_resource *mr,
-                   const Value &y,
-                   const Value *freq,
-                   const std::string &function_mode,
-                   double alpha,
-                   bool want_bounds)
+EcdfFull ecdf_full(const Value &y, const Value *freq, const std::string &function_mode, double alpha, bool want_bounds, std::pmr::memory_resource *mr)
 {
     const size_t n = y.numel();
     const bool has_freq = (freq && freq->numel() == n);
@@ -2067,9 +2036,9 @@ EcdfFull ecdf_full(std::pmr::memory_resource *mr,
 
 // Backward-compat 1-arg form.
 std::tuple<Value, Value>
-ecdf(std::pmr::memory_resource *mr, const Value &y)
+ecdf(const Value &y, std::pmr::memory_resource *mr)
 {
-    auto R = ecdf_full(mr, y, nullptr, "cdf", 0.05, false);
+    auto R = ecdf_full(y, nullptr, "cdf", 0.05, false, mr);
     return {std::move(R.f), std::move(R.x)};
 }
 

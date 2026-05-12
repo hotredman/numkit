@@ -55,7 +55,7 @@ inline TestTail parse_tail(const std::string &s, TestTail def) {
 // Compute two-sided / one-sided p-value from a t-statistic and df.
 double tpvalue(std::pmr::memory_resource *mr, double tstat, double df, TestTail tail) {
     Value tv = Value::scalar(tstat, mr);
-    Value cdf_v = tcdf(mr, tv, df);
+    Value cdf_v = tcdf(tv, df, mr);
     const double cdf = cdf_v.toScalar();
     switch (tail) {
         case TestTail::Both:  return 2.0 * std::min(cdf, 1.0 - cdf);
@@ -67,7 +67,7 @@ double tpvalue(std::pmr::memory_resource *mr, double tstat, double df, TestTail 
 
 double zpvalue(std::pmr::memory_resource *mr, double z, TestTail tail) {
     Value zv = Value::scalar(z, mr);
-    Value cdf_v = normcdf(mr, zv, 0.0, 1.0);
+    Value cdf_v = normcdf(zv, 0.0, 1.0, mr);
     const double cdf = cdf_v.toScalar();
     switch (tail) {
         case TestTail::Both:  return 2.0 * std::min(cdf, 1.0 - cdf);
@@ -105,20 +105,20 @@ ttest(std::pmr::memory_resource *mr, const Value &x,
     // Confidence interval for the mean.
     double clo, chi;
     Value half = Value::scalar(1.0 - 0.5 * alpha, mr);
-    Value tcrit_v = tinv(mr, half, df);
+    Value tcrit_v = tinv(half, df, mr);
     const double tcrit = tcrit_v.toScalar();
     switch (tail) {
         case TestTail::Both:
             clo = mu_hat - tcrit * se; chi = mu_hat + tcrit * se; break;
         case TestTail::Right: {
             Value full = Value::scalar(1.0 - alpha, mr);
-            const double tc = tinv(mr, full, df).toScalar();
+            const double tc = tinv(full, df, mr).toScalar();
             clo = mu_hat - tc * se; chi = std::numeric_limits<double>::infinity();
             break;
         }
         case TestTail::Left: {
             Value full = Value::scalar(1.0 - alpha, mr);
-            const double tc = tinv(mr, full, df).toScalar();
+            const double tc = tinv(full, df, mr).toScalar();
             clo = -std::numeric_limits<double>::infinity(); chi = mu_hat + tc * se;
             break;
         }
@@ -167,7 +167,7 @@ ttest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
     const int    h = (p < alpha) ? 1 : 0;
 
     Value half = Value::scalar(1.0 - 0.5 * alpha, mr);
-    const double tcrit = tinv(mr, half, df).toScalar();
+    const double tcrit = tinv(half, df, mr).toScalar();
     Value ci = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     ci.doubleDataMut()[0] = (mx - my) - tcrit * se;
     ci.doubleDataMut()[1] = (mx - my) + tcrit * se;
@@ -203,7 +203,7 @@ ztest(std::pmr::memory_resource *mr, const Value &x,
     const int    h  = (p < alpha) ? 1 : 0;
 
     Value half = Value::scalar(1.0 - 0.5 * alpha, mr);
-    const double zcrit = norminv(mr, half, 0.0, 1.0).toScalar();
+    const double zcrit = norminv(half, 0.0, 1.0, mr).toScalar();
     Value ci = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     ci.doubleDataMut()[0] = mu_hat - zcrit * se;
     ci.doubleDataMut()[1] = mu_hat + zcrit * se;
@@ -236,7 +236,7 @@ vartest(std::pmr::memory_resource *mr, const Value &x,
     const double df = double(n - 1);
     const double T  = df * var_hat / v;
     Value Tv = Value::scalar(T, mr);
-    const double cdf = chi2cdf(mr, Tv, df).toScalar();
+    const double cdf = chi2cdf(Tv, df, mr).toScalar();
 
     double p;
     switch (tail) {
@@ -250,8 +250,8 @@ vartest(std::pmr::memory_resource *mr, const Value &x,
     // Confidence interval for σ² (two-sided).
     Value lo_v = Value::scalar(0.5 * alpha, mr);
     Value hi_v = Value::scalar(1.0 - 0.5 * alpha, mr);
-    const double chi_lo = chi2inv(mr, lo_v, df).toScalar();
-    const double chi_hi = chi2inv(mr, hi_v, df).toScalar();
+    const double chi_lo = chi2inv(lo_v, df, mr).toScalar();
+    const double chi_hi = chi2inv(hi_v, df, mr).toScalar();
     Value ci = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     ci.doubleDataMut()[0] = (chi_hi > 0.0) ? df * var_hat / chi_hi : 0.0;
     ci.doubleDataMut()[1] = (chi_lo > 0.0) ? df * var_hat / chi_lo
@@ -284,7 +284,7 @@ vartest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
     const double v1 = double(nx - 1);
     const double v2 = double(ny - 1);
     Value Fv = Value::scalar(F, mr);
-    const double cdf = fcdf(mr, Fv, v1, v2).toScalar();
+    const double cdf = fcdf(Fv, v1, v2, mr).toScalar();
 
     double p;
     switch (tail) {
@@ -298,8 +298,8 @@ vartest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
     // Confidence interval for the variance ratio σ_x²/σ_y².
     Value lo_v = Value::scalar(0.5 * alpha, mr);
     Value hi_v = Value::scalar(1.0 - 0.5 * alpha, mr);
-    const double f_lo = finv(mr, lo_v, v1, v2).toScalar();
-    const double f_hi = finv(mr, hi_v, v1, v2).toScalar();
+    const double f_lo = finv(lo_v, v1, v2, mr).toScalar();
+    const double f_hi = finv(hi_v, v1, v2, mr).toScalar();
     Value ci = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     ci.doubleDataMut()[0] = (f_hi > 0.0) ? F / f_hi : 0.0;
     ci.doubleDataMut()[1] = (f_lo > 0.0) ? F / f_lo
@@ -403,7 +403,7 @@ kstest(std::pmr::memory_resource *mr, const Value &x,
         }
         // Default: standard normal.
         Value s = Value::scalar(v, mr);
-        return normcdf(mr, s, 0.0, 1.0).toScalar();
+        return normcdf(s, 0.0, 1.0, mr).toScalar();
     };
 
     // Compute D⁺ and D⁻ relative to reference; combine per tail.
@@ -581,10 +581,10 @@ jbtest(std::pmr::memory_resource *mr, const Value &x, double alpha,
         cv = R.cv;
     } else {
         Value JBv = Value::scalar(JB, mr);
-        const double cdf = chi2cdf(mr, JBv, 2.0).toScalar();
+        const double cdf = chi2cdf(JBv, 2.0, mr).toScalar();
         p = 1.0 - cdf;
         Value oneMinusAlpha = Value::scalar(1.0 - alpha, mr);
-        cv = chi2inv(mr, oneMinusAlpha, 2.0).toScalar();
+        cv = chi2inv(oneMinusAlpha, 2.0, mr).toScalar();
     }
     const int h = (p < alpha) ? 1 : 0;
 
@@ -635,9 +635,9 @@ signtest(std::pmr::memory_resource *mr, const Value &x,
         // Binomial(n_eff, 0.5) tail probabilities via existing binocdf.
         Value kPos = Value::scalar(double(n_pos), mr);
         Value kPosM1 = Value::scalar(double(n_pos - 1), mr);
-        const double cdfLE = binocdf(mr, kPos, double(n_eff), 0.5).toScalar();
+        const double cdfLE = binocdf(kPos, double(n_eff), 0.5, mr).toScalar();
         const double cdfLT = (n_pos > 0)
-                           ? binocdf(mr, kPosM1, double(n_eff), 0.5).toScalar()
+                           ? binocdf(kPosM1, double(n_eff), 0.5, mr).toScalar()
                            : 0.0;
         const double pLeft  = cdfLE;            // P(X ≤ n_pos)
         const double pRight = 1.0 - cdfLT;      // P(X ≥ n_pos)
@@ -721,7 +721,7 @@ fishertest(std::pmr::memory_resource *mr, const Value &T,
         const double logOR = std::log(OR);
         const double se = std::sqrt(1.0 / a + 1.0 / b + 1.0 / c + 1.0 / d);
         Value pcrit = Value::scalar(1.0 - alpha / 2.0, mr);
-        const double zcrit = norminv(mr, pcrit, 0.0, 1.0).toScalar();
+        const double zcrit = norminv(pcrit, 0.0, 1.0, mr).toScalar();
         ci_lo = std::exp(logOR - zcrit * se);
         ci_hi = std::exp(logOR + zcrit * se);
     }
@@ -768,7 +768,7 @@ chi2gof(std::pmr::memory_resource *mr,
                                Value::scalar(df, mr));
 
     Value xv = Value::scalar(chi2, mr);
-    const double cdf = chi2cdf(mr, xv, df).toScalar();
+    const double cdf = chi2cdf(xv, df, mr).toScalar();
     const double p = std::max(0.0, 1.0 - cdf);
     const int h = (p < alpha) ? 1 : 0;
     return std::make_tuple(Value::scalar(p, mr),
@@ -873,7 +873,7 @@ AnovaOut anova1_on_groups(std::pmr::memory_resource *mr,
     const double MSW = SSW / df2;
     const double F = (MSW > 0.0) ? MSB / MSW : 0.0;
     Value Fv = Value::scalar(F, mr);
-    const double cdf = fcdf(mr, Fv, df1, df2).toScalar();
+    const double cdf = fcdf(Fv, df1, df2, mr).toScalar();
     return {F, df1, df2, std::max(0.0, 1.0 - cdf)};
 }
 
@@ -953,7 +953,7 @@ vartestn_full(std::pmr::memory_resource *mr,
         const double chisq = Q / C;
         const double df = double(k - 1);
         Value xv = Value::scalar(chisq, mr);
-        const double cdf = chi2cdf(mr, xv, df).toScalar();
+        const double cdf = chi2cdf(xv, df, mr).toScalar();
         const double p = std::max(0.0, 1.0 - cdf);
         return std::make_tuple(Value::scalar(p, mr),
                                Value::scalar(chisq, mr),
@@ -1131,7 +1131,7 @@ runstest(std::pmr::memory_resource *mr, const Value &x, double v_in,
         else if (R < mean) cc = -0.5;
         zval = (sd > 0.0) ? (R - mean - cc) / sd : 0.0;
         Value zV = Value::scalar(zval, mr);
-        const double cdf = normcdf(mr, zV, 0.0, 1.0).toScalar();
+        const double cdf = normcdf(zV, 0.0, 1.0, mr).toScalar();
         switch (tail) {
             case TestTail::Both:  p = 2.0 * std::min(cdf, 1.0 - cdf); break;
             case TestTail::Right: p = 1.0 - cdf; break;
@@ -1277,7 +1277,7 @@ ranksum(std::pmr::memory_resource *mr, const Value &x, const Value &y,
         else if (Wx < mean) cc = -0.5;
         zval = (sd > 0.0) ? (Wx - mean - cc) / sd : 0.0;
         Value zV = Value::scalar(zval, mr);
-        const double cdf = normcdf(mr, zV, 0.0, 1.0).toScalar();
+        const double cdf = normcdf(zV, 0.0, 1.0, mr).toScalar();
         switch (tail) {
             case TestTail::Both:  p = 2.0 * std::min(cdf, 1.0 - cdf); break;
             case TestTail::Right: p = 1.0 - cdf; break;
@@ -1404,7 +1404,7 @@ signrank(std::pmr::memory_resource *mr, const Value &x,
         const double sd = std::sqrt(var);
         zval = (sd > 0.0) ? (Wplus - mean) / sd : 0.0;
         Value zV = Value::scalar(zval, mr);
-        const double cdf = normcdf(mr, zV, 0.0, 1.0).toScalar();
+        const double cdf = normcdf(zV, 0.0, 1.0, mr).toScalar();
         switch (tail) {
             case TestTail::Both:  p = 2.0 * std::min(cdf, 1.0 - cdf); break;
             case TestTail::Right: p = 1.0 - cdf; break;
@@ -1954,7 +1954,7 @@ void chi2gof_reg(Span<const Value> args, size_t nargout,
     const int np = nparams_set ? nparams : 2;
     const double df = double(K_final) - 1.0 - double(np);
     Value chi2v = Value::scalar(chi2, mr);
-    const double cdf = (df > 0.0) ? chi2cdf(mr, chi2v, df).toScalar() : 1.0;
+    const double cdf = (df > 0.0) ? chi2cdf(chi2v, df, mr).toScalar() : 1.0;
     const double p = std::max(0.0, 1.0 - cdf);
     const int h = (p < alpha) ? 1 : 0;
 

@@ -33,8 +33,8 @@ namespace numkit::stats {
 //
 // Pass dim == 0 to mean "auto" (first non-singleton). normFlag must be
 // 0 or 1 — anything else throws.
-Value var(std::pmr::memory_resource *mr, const Value &x, int normFlag = 0, int dim = 0);
-Value stdev(std::pmr::memory_resource *mr, const Value &x, int normFlag = 0, int dim = 0);
+Value var(const Value &x, int normFlag = 0, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value stdev(const Value &x, int normFlag = 0, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 // ── median ─────────────────────────────────────────────────────────────
 // median(X)         → median along first non-singleton dim
@@ -43,7 +43,7 @@ Value stdev(std::pmr::memory_resource *mr, const Value &x, int normFlag = 0, int
 // MATLAB convention: for an even-length slice, returns the average of
 // the two middle elements. NaN in the slice currently propagates (the
 // nanmedian variant comes in Phase 2).
-Value median(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+Value median(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 // ── quantile / prctile ─────────────────────────────────────────────────
 // quantile(X, p)        → p in [0,1], scalar or vector
@@ -54,8 +54,8 @@ Value median(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
 // length k instead of 1 (matching MATLAB). The default interpolation
 // method is linear (between order statistics), MATLAB's default for
 // quantile/prctile.
-Value quantile(std::pmr::memory_resource *mr, const Value &x, const Value &p, int dim = 0);
-Value prctile(std::pmr::memory_resource *mr, const Value &x, const Value &p, int dim = 0);
+Value quantile(const Value &x, const Value &p, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value prctile(const Value &x, const Value &p, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 // ── mode ───────────────────────────────────────────────────────────────
 // mode(X)               → most-frequent value along first non-singleton dim
@@ -64,7 +64,7 @@ Value prctile(std::pmr::memory_resource *mr, const Value &x, const Value &p, int
 // Returns (mode_value, frequency). If multiple values tie for most
 // frequent, returns the smallest (MATLAB convention).
 std::tuple<Value, Value>
-mode(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+mode(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 // nan-aware reductions (nansum, nanmean, nanmax, nanmin, nanvar,
 // nanstdev, nanmedian) and the higher moments (skewness, kurtosis)
@@ -82,79 +82,76 @@ mode(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
 // cov(X, normFlag)  — normFlag=0 → divide by n-1 (default, sample);
 //                     normFlag=1 → divide by n (population).
 // 2D matrix path only — 3D / N-D arrays throw.
-Value cov(std::pmr::memory_resource *mr, const Value &x, int normFlag = 0);
-Value cov(std::pmr::memory_resource *mr, const Value &x, const Value &y, int normFlag = 0);
+Value cov(const Value &x, int normFlag = 0, std::pmr::memory_resource *mr = nullptr);
+Value cov(const Value &x, const Value &y, int normFlag = 0, std::pmr::memory_resource *mr = nullptr);
 
 // corrcoef(X) / corrcoef(X, Y) — correlation coefficient matrix.
 // R(i,j) = C(i,j) / sqrt(C(i,i) * C(j,j)) where C = cov(...).
-Value corrcoef(std::pmr::memory_resource *mr, const Value &x);
-Value corrcoef(std::pmr::memory_resource *mr, const Value &x, const Value &y);
+Value corrcoef(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value corrcoef(const Value &x, const Value &y, std::pmr::memory_resource *mr = nullptr);
 
 // ── bounds ─────────────────────────────────────────────────────────────
 // bounds(X[, dim]) → (min, max) along dim. Two-output form mirrors
 // MATLAB's [lo, hi] = bounds(X).
 std::tuple<Value, Value>
-bounds(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+bounds(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 // ── iqr ────────────────────────────────────────────────────────────────
 // iqr(X[, dim]) — interquartile range = quantile(X, 0.75) - quantile(X, 0.25).
-Value iqr(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+Value iqr(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 // ── maxk / mink ────────────────────────────────────────────────────────
 // maxk(X, k[, dim]) — k largest along dim, descending. mink — k smallest,
 // ascending. NaN sorts last (MATLAB convention).
-Value maxk(std::pmr::memory_resource *mr, const Value &x, int k, int dim = 0);
-Value mink(std::pmr::memory_resource *mr, const Value &x, int k, int dim = 0);
+Value maxk(const Value &x, int k, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value mink(const Value &x, int k, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 // ── rmse ───────────────────────────────────────────────────────────────
 // rmse(F, A[, dim]) — root-mean-square deviation of F from A.
 // F and A must be broadcast-compatible.
-Value rmse(std::pmr::memory_resource *mr, const Value &f, const Value &a, int dim = 0);
+Value rmse(const Value &f, const Value &a, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 // ── mape ───────────────────────────────────────────────────────────────
 // mape(F, A[, dim]) — mean absolute percentage error of forecast F vs
 // actual A: 100 * mean(|(A - F) / A|, dim). Zero entries in A produce
 // Inf in the per-element ratio (MATLAB matches this; the mean propagates
 // the Inf).
-Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int dim = 0);
+Value mape(const Value &f, const Value &a, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 // ── partialcorr (Pearson partial correlation) ──────────────────────
 // partialcorr(X, Y, Z) — partial correlation matrix between columns
 // of X and Y, controlling for the variables in Z. Same number of
 // rows in X, Y, Z; X and Y can have different column counts.
-Value partialcorr_of(std::pmr::memory_resource *mr,
-                     const Value &X, const Value &Y, const Value &Z);
+Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, std::pmr::memory_resource *mr = nullptr);
 
 // ── corr (Pearson form alias to corrcoef) ──────────────────────────
 // corr(X) — auto-correlation across columns of X (same as corrcoef(X))
 // corr(X, Y) — correlation matrix between X and Y columns
 // (Other types 'Spearman' / 'Kendall' / 'Type' option deferred.)
-Value corr_xx(std::pmr::memory_resource *mr, const Value &X);
-Value corr_xy(std::pmr::memory_resource *mr, const Value &X, const Value &Y);
+Value corr_xx(const Value &X, std::pmr::memory_resource *mr = nullptr);
+Value corr_xy(const Value &X, const Value &Y, std::pmr::memory_resource *mr = nullptr);
 
 // ── detrend ────────────────────────────────────────────────────────
 // Remove polynomial trend of order n from x (default n=1, linear).
 // Returns x minus best-fit polynomial; vector form. Matrix form
 // detrends each column separately.
-Value detrend_of(std::pmr::memory_resource *mr, const Value &x, int order = 1);
+Value detrend_of(const Value &x, int order = 1, std::pmr::memory_resource *mr = nullptr);
 
 // ── isoutlier / rmoutliers / fillmissing / rmmissing / standardizeMissing ──
-Value isoutlier_of(std::pmr::memory_resource *mr, const Value &x);
-Value rmoutliers_of(std::pmr::memory_resource *mr, const Value &x);
-Value fillmissing_of(std::pmr::memory_resource *mr, const Value &x,
-                     const std::string &method, double constVal = 0.0);
-Value rmmissing_of(std::pmr::memory_resource *mr, const Value &x);
-Value standardizeMissing_of(std::pmr::memory_resource *mr,
-                            const Value &x, double sentinel);
+Value isoutlier_of(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value rmoutliers_of(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value fillmissing_of(const Value &x, const std::string &method, double constVal = 0.0, std::pmr::memory_resource *mr = nullptr);
+Value rmmissing_of(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value standardizeMissing_of(const Value &x, double sentinel, std::pmr::memory_resource *mr = nullptr);
 
 // ── range / mad / geomean / harmmean / moment / trimmean ──────────────
 // All take optional dim; default dim=0 means first non-singleton.
-Value range_of(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
-Value mad_of(std::pmr::memory_resource *mr, const Value &x, int flag = 0, int dim = 0);
-Value geomean_of(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
-Value harmmean_of(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
-Value moment_of(std::pmr::memory_resource *mr, const Value &x, int order, int dim = 0);
-Value trimmean_of(std::pmr::memory_resource *mr, const Value &x, double pct, int dim = 0);
+Value range_of(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value mad_of(const Value &x, int flag = 0, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value geomean_of(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value harmmean_of(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value moment_of(const Value &x, int order, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value trimmean_of(const Value &x, double pct, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 // ── prepareCurveData ───────────────────────────────────────────────────
 // prepareCurveData(x, y[, w]) — strip NaN/Inf rows from paired data and
@@ -162,8 +159,7 @@ Value trimmean_of(std::pmr::memory_resource *mr, const Value &x, double pct, int
 // filtered (w == 0 is kept; only NaN/Inf in any of x/y/w drop the row).
 // Always returns column vectors; empty input → 0×1 columns.
 std::tuple<Value, Value, Value>
-prepareCurveData(std::pmr::memory_resource *mr,
-                 const Value &x, const Value &y, const Value &w);
+prepareCurveData(const Value &x, const Value &y, const Value &w, std::pmr::memory_resource *mr = nullptr);
 
 // ── prepareSurfaceData ─────────────────────────────────────────────────
 // prepareSurfaceData(x, y, z) — strip NaN/Inf entries from three-way
@@ -171,8 +167,7 @@ prepareCurveData(std::pmr::memory_resource *mr,
 // or matrices that share a shape (e.g. meshgrid output). All three are
 // linearised in column-major order before filtering.
 std::tuple<Value, Value, Value>
-prepareSurfaceData(std::pmr::memory_resource *mr,
-                   const Value &x, const Value &y, const Value &z);
+prepareSurfaceData(const Value &x, const Value &y, const Value &z, std::pmr::memory_resource *mr = nullptr);
 
 // ── datastats ──────────────────────────────────────────────────────────
 // datastats(x) — descriptive struct for a single dataset; engine-side
@@ -181,7 +176,7 @@ prepareSurfaceData(std::pmr::memory_resource *mr,
 // NaN values in `x` propagate via the underlying reductions (matching
 // MATLAB's datastats behaviour).
 std::tuple<Value, Value, Value, Value, Value, Value, Value>
-datastats(std::pmr::memory_resource *mr, const Value &x);
+datastats(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 // ── ecdf ───────────────────────────────────────────────────────────────
 // ecdf(y) — empirical cumulative distribution function. Returns a pair
@@ -193,7 +188,7 @@ datastats(std::pmr::memory_resource *mr, const Value &x);
 // Matches MATLAB's `[f, x] = ecdf(y)`. NaN values are excluded before
 // counting (MATLAB skips them silently; we do the same).
 std::tuple<Value, Value>
-ecdf(std::pmr::memory_resource *mr, const Value &y);
+ecdf(const Value &y, std::pmr::memory_resource *mr = nullptr);
 
 // ── ksdensity ──────────────────────────────────────────────────────────
 // [f, xi, bw] = ksdensity(x[, pts, 'Bandwidth', bw]) — Gaussian kernel
@@ -201,8 +196,7 @@ ecdf(std::pmr::memory_resource *mr, const Value &y);
 // Silverman's-rule bandwidth (might differ slightly from MATLAB's
 // internal heuristic). Empty `pts` requests the auto grid.
 std::tuple<Value, Value, Value>
-ksdensity(std::pmr::memory_resource *mr, const Value &x, const Value &pts,
-          double bw_user);
+ksdensity(const Value &x, const Value &pts, double bw_user, std::pmr::memory_resource *mr = nullptr);
 
 // ── ecdfhist ───────────────────────────────────────────────────────────
 // [n, c] = ecdfhist(f, x [, m]) — convert empirical CDF (`[f, x]`
@@ -213,7 +207,7 @@ ksdensity(std::pmr::memory_resource *mr, const Value &x, const Value &pts,
 // Each bin spans equal width (range/m). Last bin includes its right
 // edge; other bins are [a, b). NaN-safe for empty inputs.
 std::tuple<Value, Value>
-ecdfhist(std::pmr::memory_resource *mr, const Value &f, const Value &x, int m = 10);
+ecdfhist(const Value &f, const Value &x, int m = 10, std::pmr::memory_resource *mr = nullptr);
 
 // ── normalize ──────────────────────────────────────────────────────────
 // normalize(A[, method]) — column-wise data normalisation.
@@ -226,19 +220,17 @@ ecdfhist(std::pmr::memory_resource *mr, const Value &f, const Value &x, int m = 
 //     norm       : A / sqrt(sum(A²))   (unit ℓ²-norm per column)
 //     medianiqr  : (A − median) / iqr  (robust)
 // Output has the same shape as `A`; statistics are computed column-wise.
-Value normalize(std::pmr::memory_resource *mr, const Value &A,
-                const std::string &method);
+Value normalize(const Value &A, const std::string &method, std::pmr::memory_resource *mr = nullptr);
 
 // ── rescale ────────────────────────────────────────────────────────────
 // rescale(A[, lo, hi]) — linearly map A onto [lo, hi]. Defaults
 // lo=0, hi=1. Constant-data input collapses to lo (degenerate case
 // matching MATLAB).
-Value rescale(std::pmr::memory_resource *mr, const Value &A,
-              double lo, double hi);
+Value rescale(const Value &A, double lo, double hi, std::pmr::memory_resource *mr = nullptr);
 
 // ── zscore ─────────────────────────────────────────────────────────────
 // zscore(A) — alias for normalize(A, "zscore").
-Value zscore(std::pmr::memory_resource *mr, const Value &A);
+Value zscore(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
 // ── tiedrank ───────────────────────────────────────────────────────────
 // `[r, tieadj] = tiedrank(x)` — ranks adjusted for ties. Equal values
@@ -247,7 +239,7 @@ Value zscore(std::pmr::memory_resource *mr, const Value &A);
 // tieadj is a 1-by-cols row. NaN values keep NaN rank (skipped from
 // the ranking sequence).
 std::pair<Value, Value>
-tiedrank(std::pmr::memory_resource *mr, const Value &x);
+tiedrank(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 // ── corrcov ────────────────────────────────────────────────────────────
 // `[R, sigma] = corrcov(C)` — derive a correlation matrix R from a
@@ -255,7 +247,7 @@ tiedrank(std::pmr::memory_resource *mr, const Value &x);
 // sigma(i) = sqrt(C(i,i)) returned as a row vector. Negative diagonal
 // entries throw; off-diagonal divisions by zero return NaN.
 std::pair<Value, Value>
-corrcov(std::pmr::memory_resource *mr, const Value &C);
+corrcov(const Value &C, std::pmr::memory_resource *mr = nullptr);
 
 // ── tabulate ───────────────────────────────────────────────────────────
 // `T = tabulate(x)` — frequency table. Returns a 3-column
@@ -264,7 +256,7 @@ corrcov(std::pmr::memory_resource *mr, const Value &C);
 // (one row per unique non-NaN value sorted ascending). NaN values
 // are excluded both from the row set and from the percentage
 // denominator.
-Value tabulate(std::pmr::memory_resource *mr, const Value &x);
+Value tabulate(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 // ── cholcov ────────────────────────────────────────────────────────────
 // `[T, p] = cholcov(SIGMA)` — Cholesky-like factor of a (possibly
@@ -274,7 +266,7 @@ Value tabulate(std::pmr::memory_resource *mr, const Value &x);
 //   PSD < n  -> T = r×n,            p = 0
 //   indef    -> T = empty 0×0,      p = #(eig <= -tol)
 std::pair<Value, Value>
-cholcov(std::pmr::memory_resource *mr, const Value &SIGMA);
+cholcov(const Value &SIGMA, std::pmr::memory_resource *mr = nullptr);
 
 // ── crosstab ───────────────────────────────────────────────────────────
 // `[T, chi2, p] = crosstab(x [, y])` — contingency table.
@@ -284,7 +276,7 @@ cholcov(std::pmr::memory_resource *mr, const Value &SIGMA);
 //               supplied alongside.
 // Numeric input only for v1; cell/string deferred.
 std::tuple<Value, double, double>
-crosstab(std::pmr::memory_resource *mr, const Value &x, const Value *y_opt);
+crosstab(const Value &x, const Value *y_opt, std::pmr::memory_resource *mr = nullptr);
 
 // ── grpstats ───────────────────────────────────────────────────────────
 // Per-group statistics. `fn_names` is empty for default (mean) or a
@@ -293,8 +285,7 @@ crosstab(std::pmr::memory_resource *mr, const Value &x, const Value *y_opt);
 // where Ng is the number of unique non-NaN groups and C is the
 // number of columns of X.
 std::vector<Value>
-grpstats(std::pmr::memory_resource *mr, const Value &X, const Value &group,
-         const std::vector<std::string> &fn_names);
+grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_names, std::pmr::memory_resource *mr = nullptr);
 
 // ── nearcorr ───────────────────────────────────────────────────────────
 // `Y = nearcorr(A)` — nearest correlation matrix to A in Frobenius norm
@@ -303,6 +294,6 @@ grpstats(std::pmr::memory_resource *mr, const Value &X, const Value &group,
 // with Dykstra's correction. Y is symmetric, PSD and has unit diagonal.
 // Defaults: tol = 1e-10, maxits = 100. The 'tolconv'/'maxits' name-value
 // parameters are deferred for v1.
-Value nearcorr(std::pmr::memory_resource *mr, const Value &A);
+Value nearcorr(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

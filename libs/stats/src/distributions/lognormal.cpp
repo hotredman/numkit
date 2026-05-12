@@ -23,7 +23,7 @@ namespace numkit::stats {
 namespace {
 
 template <typename Op>
-Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
@@ -88,44 +88,44 @@ inline double phiInv(double p)
 
 } // anonymous
 
-Value lognpdf(std::pmr::memory_resource *mr, const Value &x, double mu, double sigma)
+Value lognpdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr)
 {
     if (sigma <= 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     const double inv_sig = 1.0 / sigma;
     const double inv_sqrt2pi = 1.0 / kSqrt2Pi;
-    return elementwise(mr, x, [=](double xi) {
+    return elementwise(x, [=](double xi) {
         if (xi <= 0.0) return 0.0;
         const double z = (std::log(xi) - mu) * inv_sig;
         return inv_sqrt2pi * inv_sig * std::exp(-0.5 * z * z) / xi;
-    });
+    }, mr);
 }
 
-Value logncdf(std::pmr::memory_resource *mr, const Value &x, double mu, double sigma)
+Value logncdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr)
 {
     if (sigma <= 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     const double inv_sig = 1.0 / sigma;
-    return elementwise(mr, x, [=](double xi) {
+    return elementwise(x, [=](double xi) {
         if (xi <= 0.0) return 0.0;
         return phi((std::log(xi) - mu) * inv_sig);
-    });
+    }, mr);
 }
 
-Value logninv(std::pmr::memory_resource *mr, const Value &p, double mu, double sigma)
+Value logninv(const Value &p, double mu, double sigma, std::pmr::memory_resource *mr)
 {
     if (sigma <= 0.0)
-        return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, p, [=](double pi) {
+        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(p, [=](double pi) {
         if (std::isnan(pi) || pi < 0.0 || pi > 1.0)
             return std::numeric_limits<double>::quiet_NaN();
         if (pi == 0.0) return 0.0;
         if (pi == 1.0) return std::numeric_limits<double>::infinity();
         return std::exp(mu + sigma * phiInv(pi));
-    });
+    }, mr);
 }
 
-Value lognrnd(std::pmr::memory_resource *mr, double mu, double sigma, size_t rows, size_t cols)
+Value lognrnd(double mu, double sigma, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -170,7 +170,7 @@ void lognpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("lognpdf: requires (x[, mu, sigma])", 0, 0, "lognpdf", "", "m:lognpdf:nargin");
-    outs[0] = lognpdf(ctx.engine->resource(), args[0], argMu(args, 1), argSigma(args, 2));
+    outs[0] = lognpdf(args[0], argMu(args, 1), argSigma(args, 2), ctx.engine->resource());
 }
 
 void logncdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -179,8 +179,7 @@ void logncdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const Span<const Value> stripped = args.subspan(0, stripUpperFlag(args, upper));
     if (stripped.empty())
         throw Error("logncdf: requires (x[, mu, sigma][, 'upper'])", 0, 0, "logncdf", "", "m:logncdf:nargin");
-    Value v = logncdf(ctx.engine->resource(), stripped[0],
-                      argMu(stripped, 1), argSigma(stripped, 2));
+    Value v = logncdf(stripped[0], argMu(stripped, 1), argSigma(stripped, 2), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -189,7 +188,7 @@ void logninv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("logninv: requires (p[, mu, sigma])", 0, 0, "logninv", "", "m:logninv:nargin");
-    outs[0] = logninv(ctx.engine->resource(), args[0], argMu(args, 1), argSigma(args, 2));
+    outs[0] = logninv(args[0], argMu(args, 1), argSigma(args, 2), ctx.engine->resource());
 }
 
 void lognrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -198,7 +197,7 @@ void lognrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const double sigma = argSigma(args, 1);
     size_t rows, cols;
     parse_rng_size(args, 2, rows, cols);
-    outs[0] = lognrnd(ctx.engine->resource(), mu, sigma, rows, cols);
+    outs[0] = lognrnd(mu, sigma, rows, cols, ctx.engine->resource());
 }
 
 void lognstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

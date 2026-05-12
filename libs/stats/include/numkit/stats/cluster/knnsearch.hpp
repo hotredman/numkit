@@ -19,11 +19,7 @@ namespace numkit::stats {
 ///   D   — M_Y × K matrix of the matching distances
 /// Ties are broken by ascending row index. Brute force, no kd-tree.
 std::tuple<Value, Value>
-knnsearch(std::pmr::memory_resource *mr,
-          const Value &X, const Value &Y,
-          int K = 1,
-          const std::string &metric = "euclidean",
-          double p = 2.0);
+knnsearch(const Value &X, const Value &Y, int K = 1, const std::string &metric = "euclidean", double p = 2.0, std::pmr::memory_resource *mr = nullptr);
 
 /// `[Idx, D] = rangesearch(X, Y, r, metric, p)` — for each row of Y
 /// list every row of X within distance r. Returns:
@@ -32,9 +28,6 @@ knnsearch(std::pmr::memory_resource *mr,
 ///   D   — M_Y × 1 cell array; matching distances
 /// Default metric "euclidean", p=2.
 std::tuple<Value, Value>
-rangesearch(std::pmr::memory_resource *mr,
-            const Value &X, const Value &Y, double r,
-            const std::string &metric = "euclidean",
-            double p = 2.0);
+rangesearch(const Value &X, const Value &Y, double r, const std::string &metric = "euclidean", double p = 2.0, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

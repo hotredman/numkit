@@ -16,15 +16,10 @@
 
 namespace numkit::stats {
 
-Value gevpdf(std::pmr::memory_resource *mr, const Value &x,
-             double k, double sigma, double mu);
-Value gevcdf(std::pmr::memory_resource *mr, const Value &x,
-             double k, double sigma, double mu);
-Value gevinv(std::pmr::memory_resource *mr, const Value &p,
-             double k, double sigma, double mu);
-Value gevrnd(std::pmr::memory_resource *mr,
-             double k, double sigma, double mu,
-             size_t rows = 1, size_t cols = 1);
+Value gevpdf(const Value &x, double k, double sigma, double mu, std::pmr::memory_resource *mr = nullptr);
+Value gevcdf(const Value &x, double k, double sigma, double mu, std::pmr::memory_resource *mr = nullptr);
+Value gevinv(const Value &p, double k, double sigma, double mu, std::pmr::memory_resource *mr = nullptr);
+Value gevrnd(double k, double sigma, double mu, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 std::tuple<double, double>
 gevstat(double k, double sigma, double mu);
 
