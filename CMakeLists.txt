@@ -303,3 +303,9 @@ if(NUMKIT_INSTALL AND NOT EMSCRIPTEN)
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/numkit
     )
 endif()
+
+# ── API documentation (Doxygen) ──────────────────────────────────────
+# Adds `docs` / `docs-pdf` / `docs-clean` targets when Doxygen is on
+# PATH. PDF target additionally requires pdflatex (MiKTeX / TeX Live).
+# Safe no-op if Doxygen is not installed.
+include(cmake/Doxygen.cmake)
