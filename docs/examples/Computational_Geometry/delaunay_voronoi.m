@@ -16,16 +16,12 @@ N = 15;
 x = rand(1, N) * 4;
 y = rand(1, N) * 4;
 
-% Delaunay triangulation — emit triangles as lines for visualization.
+% Delaunay triangulation — triplot draws all triangles as a single
+% null-separated polyline (one series), matching MATLAB.
 tri = delaunay(x, y);
 figure;
+triplot(tri, x, y, 'b-', 'LineWidth', 0.8);
 hold on;
-for i = 1:size(tri, 1)
-    j = tri(i, :);
-    plot([x(j(1)) x(j(2)) x(j(3)) x(j(1))], ...
-         [y(j(1)) y(j(2)) y(j(3)) y(j(1))], ...
-         'b-', 'LineWidth', 0.8);
-end
 plot(x, y, 'r.', 'MarkerSize', 8);
 title(sprintf('Delaunay triangulation — %d triangles over %d points', ...
               size(tri, 1), N));
