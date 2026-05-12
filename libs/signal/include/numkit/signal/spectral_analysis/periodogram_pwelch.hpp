@@ -155,13 +155,17 @@ pyulear(const Value &                x,
         size_t                       nfft,
         std::pmr::memory_resource *  mr = nullptr);
 
-/// Burg's AR PSD estimate.
+/// @brief Burg's AR PSD estimate (`[Pxx, F] = pburg(x, p, nfft)`).
 ///
 /// AR coefficients estimated by minimising the sum of forward and
 /// backward prediction-error variances iteratively. More numerically
 /// stable than Yule-Walker on short data.
 ///
-/// @copydoc pyulear
+/// @param x     Real 1-D signal.
+/// @param p     AR model order.
+/// @param nfft  Number of frequency points (≥ 2). `0` → `nextPow2(numel(x))`.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      Tuple `(Pxx, F)`.
 /// @see pyulear, arburg
 std::tuple<Value, Value>
 pburg(const Value &                x,

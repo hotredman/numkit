@@ -73,18 +73,21 @@ aryule(const Value &                x,
        int                          p,
        std::pmr::memory_resource *  mr = nullptr);
 
-/// Burg's AR(p) parameter estimation.
+/// @brief Burg's AR(p) parameter estimation.
 ///
 /// Minimises the sum of forward + backward prediction error variances
 /// in an order-recursive fashion. Numerically stable for short signals
 /// where Yule-Walker autocorrelation estimates are biased.
 ///
-/// @copydoc aryule
+/// @param x   Real 1-D signal.
+/// @param p   AR model order.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(a, e, k)` — AR poly, error variance, reflection
+///            coefficients (see @ref levinson).
 /// @see aryule, pburg
 std::tuple<Value, Value, Value>
-arburg(const Value &                x,
-       int                          p,
-       std::pmr::memory_resource *  mr = nullptr);
+arburg(const Value &x, int p,
+       std::pmr::memory_resource *mr = nullptr);
 
 /// Linear-prediction coefficients (`aryule` alias + sqrt-error gain).
 ///
@@ -137,11 +140,17 @@ ac2rc(const Value &                R,
 Value schurrc(const Value &                R,
               std::pmr::memory_resource *  mr = nullptr);
 
-/// Reflection coefficients + r[0] → autocorrelation.
-/// @copydoc rc2ac
-Value rc2ac(const Value &                k,
-            double                       r0,
-            std::pmr::memory_resource *  mr = nullptr);
+/// @brief Reflection coefficients + r[0] → autocorrelation.
+///
+/// Inverse of @ref ac2rc.
+///
+/// @param k   Reflection coefficients.
+/// @param r0  Zeroth autocorrelation sample.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Autocorrelation column of length `numel(k) + 1`.
+/// @see ac2rc
+Value rc2ac(const Value &k, double r0,
+            std::pmr::memory_resource *mr = nullptr);
 
 /// AR poly → reflection coefficients (step-down recursion).
 /// @param a   AR coefficient vector.
@@ -193,16 +202,19 @@ arcov(const Value &                x,
       int                          p,
       std::pmr::memory_resource *  mr = nullptr);
 
-/// Modified-covariance AR estimation.
+/// @brief Modified-covariance AR estimation.
 ///
 /// Averages forward + backward prediction error energies. Tighter peak
 /// detection than the basic covariance method.
 ///
-/// @copydoc arcov
+/// @param x   Real 1-D signal.
+/// @param p   AR order.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(a, e)`.
+/// @see arcov, arburg
 std::tuple<Value, Value>
-armcov(const Value &                x,
-       int                          p,
-       std::pmr::memory_resource *  mr = nullptr);
+armcov(const Value &x, int p,
+       std::pmr::memory_resource *mr = nullptr);
 
 /// Prony IIR identification from impulse response.
 ///
@@ -280,16 +292,19 @@ invfreqs(const Value &                H,
          int                          na,
          std::pmr::memory_resource *  mr = nullptr);
 
-/// Digital counterpart of `invfreqs`.
+/// @brief Digital counterpart of @ref invfreqs.
 ///
-/// `w` is in `[0, π]`; the polynomial is in z⁻¹.
-/// @copydoc invfreqs
+/// `w` is in `[0, π]`; the polynomial is in `z^{-1}`.
+///
+/// @param H   Desired complex response samples.
+/// @param w   Normalised digital frequencies in `[0, π]`, length matches `H`.
+/// @param nb  Numerator order.
+/// @param na  Denominator order.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(b, a)`.
 /// @see invfreqs, freqz
 std::tuple<Value, Value>
-invfreqz(const Value &                H,
-         const Value &                w,
-         int                          nb,
-         int                          na,
-         std::pmr::memory_resource *  mr = nullptr);
+invfreqz(const Value &H, const Value &w, int nb, int na,
+         std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal
