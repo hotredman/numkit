@@ -23,8 +23,7 @@ namespace numkit::signal {
 ///                for normalised radian frequency). Affects PSD scaling
 ///                and the returned frequency vector range [0, fs/2].
 std::tuple<Value, Value>
-periodogram(std::pmr::memory_resource *mr, const Value &x,
-            const Value &window, size_t nfft, double fs = 2.0 * 3.14159265358979323846);
+periodogram(const Value &x, const Value &window, size_t nfft, double fs = 2.0 * 3.14159265358979323846, std::pmr::memory_resource *mr = nullptr);
 
 /// Welch's method: averaged, modified periodogram. Returns (Pxx, F).
 ///
@@ -33,53 +32,37 @@ periodogram(std::pmr::memory_resource *mr, const Value &x,
 /// @param nfft      FFT size. 0 → auto-pick nextPow2(winLen).
 /// @param fs        Sample rate, default 2*pi (MATLAB convention).
 std::tuple<Value, Value>
-pwelch(std::pmr::memory_resource *mr,
-       const Value &x,
-       const Value &window,
-       size_t noverlap,
-       size_t nfft,
-       double fs = 2.0 * 3.14159265358979323846);
+pwelch(const Value &x, const Value &window, size_t noverlap, size_t nfft, double fs = 2.0 * 3.14159265358979323846, std::pmr::memory_resource *mr = nullptr);
 
 /// Cross-PSD via Welch's method. Returns (Pxy, F) where Pxy is the
 /// one-sided complex cross-spectrum E[X(f)·Y*(f)]. Same windowing
 /// and segmentation rules as pwelch.
 std::tuple<Value, Value>
-cpsd(std::pmr::memory_resource *mr,
-     const Value &x, const Value &y,
-     const Value &window, size_t noverlap, size_t nfft,
-     double fs = 2.0 * 3.14159265358979323846);
+cpsd(const Value &x, const Value &y, const Value &window, size_t noverlap, size_t nfft, double fs = 2.0 * 3.14159265358979323846, std::pmr::memory_resource *mr = nullptr);
 
 /// Magnitude-squared coherence via Welch's method. Returns (Cxy, F)
 /// with Cxy(f) = |Pxy(f)|² / (Pxx(f)·Pyy(f)), real-valued in [0, 1].
 std::tuple<Value, Value>
-mscohere(std::pmr::memory_resource *mr,
-         const Value &x, const Value &y,
-         const Value &window, size_t noverlap, size_t nfft,
-         double fs = 2.0 * 3.14159265358979323846);
+mscohere(const Value &x, const Value &y, const Value &window, size_t noverlap, size_t nfft, double fs = 2.0 * 3.14159265358979323846, std::pmr::memory_resource *mr = nullptr);
 
 /// Transfer-function estimate Txy(f) = Pyx(f) / Pxx(f). For an LTI
 /// system y = h * x this recovers H(f) up to finite-Welch bias.
 /// Same windowing/segmentation parameters as pwelch.
 std::tuple<Value, Value>
-tfestimate(std::pmr::memory_resource *mr,
-           const Value &x, const Value &y,
-           const Value &window, size_t noverlap, size_t nfft,
-           double fs = 2.0 * 3.14159265358979323846);
+tfestimate(const Value &x, const Value &y, const Value &window, size_t noverlap, size_t nfft, double fs = 2.0 * 3.14159265358979323846, std::pmr::memory_resource *mr = nullptr);
 
 /// Yule-Walker AR PSD of order p. Levinson-Durbin solves the
 /// normal equations from the autocorrelation; returns the all-pole
 /// PSD Pxx(f) = σ² / |1 + Σ a_k e^{-jωk}|² on a one-sided grid.
 std::tuple<Value, Value>
-pyulear(std::pmr::memory_resource *mr,
-        const Value &x, int p, size_t nfft);
+pyulear(const Value &x, int p, size_t nfft, std::pmr::memory_resource *mr = nullptr);
 
 /// Burg's AR PSD of order p. AR coefficients estimated by minimising
 /// the sum of forward + backward prediction-error variances
 /// iteratively — more numerically stable on short data than
 /// Yule-Walker. Same output convention as pyulear.
 std::tuple<Value, Value>
-pburg(std::pmr::memory_resource *mr,
-      const Value &x, int p, size_t nfft);
+pburg(const Value &x, int p, size_t nfft, std::pmr::memory_resource *mr = nullptr);
 
 // `aryule` and `lpc` live in libs/signal's parametric/signal_modeling
 // stack — they predate this TU.

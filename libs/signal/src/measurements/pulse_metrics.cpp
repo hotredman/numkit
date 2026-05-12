@@ -44,7 +44,7 @@ std::vector<double> readVec(const Value &x)
     return v;
 }
 
-Value colVec(std::pmr::memory_resource *mr, const std::vector<double> &v)
+Value colVec(const std::vector<double> &v, std::pmr::memory_resource *mr)
 {
     if (v.empty()) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
     auto out = Value::matrix(v.size(), 1, ValueType::DOUBLE, mr);
@@ -195,7 +195,7 @@ midcrossesAt(const double *x, size_t n, double level)
 
 // ── statelevels ────────────────────────────────────────────────────
 
-Value statelevels(std::pmr::memory_resource *mr, const Value &x)
+Value statelevels(const Value &x, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -207,7 +207,7 @@ Value statelevels(std::pmr::memory_resource *mr, const Value &x)
 
 // ── midcross ───────────────────────────────────────────────────────
 
-Value midcross(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
+Value midcross(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -216,12 +216,12 @@ Value midcross(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
     const double f = scalarOrDefault(fs, 0.0);
     std::vector<double> times(idx.size());
     for (size_t i = 0; i < idx.size(); ++i) times[i] = idxToTime(idx[i], f);
-    return colVec(mr, times);
+    return colVec(times, mr);
 }
 
 // ── risetime / falltime / slewrate ─────────────────────────────────
 
-Value risetime(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
+Value risetime(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -230,10 +230,10 @@ Value risetime(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
     std::vector<double> out;
     for (const auto &t : trs)
         if (t.sign > 0) out.push_back((t.endIdx - t.startIdx) / std::max(f, 1.0));
-    return colVec(mr, out);
+    return colVec(out, mr);
 }
 
-Value falltime(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
+Value falltime(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -242,10 +242,10 @@ Value falltime(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
     std::vector<double> out;
     for (const auto &t : trs)
         if (t.sign < 0) out.push_back((t.endIdx - t.startIdx) / std::max(f, 1.0));
-    return colVec(mr, out);
+    return colVec(out, mr);
 }
 
-Value slewrate(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
+Value slewrate(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -258,7 +258,7 @@ Value slewrate(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
         if (dur > 0.0) out.push_back(t.sign * range / dur);
         else           out.push_back(0.0);
     }
-    return colVec(mr, out);
+    return colVec(out, mr);
 }
 
 // ── overshoot / undershoot ─────────────────────────────────────────
@@ -266,7 +266,7 @@ Value slewrate(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
 // (high_state - low_state). The peak window is from the end of the
 // transition until the next opposite transition (or end of signal).
 
-Value overshoot(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
+Value overshoot(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
 {
     (void)fs; // overshoot uses transition list only, no time arg needed
     auto v = readVec(x);
@@ -274,7 +274,7 @@ Value overshoot(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
     auto trs = findTransitions(v.data(), v.size(), lh.low, lh.high);
     const double range = lh.high - lh.low;
     std::vector<double> out;
-    if (range <= 0.0) return colVec(mr, out);
+    if (range <= 0.0) return colVec(out, mr);
     for (size_t k = 0; k < trs.size(); ++k) {
         const auto &t = trs[k];
         if (t.sign <= 0) continue;
@@ -291,10 +291,10 @@ Value overshoot(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
             if (v[i] > peak) peak = v[i];
         out.push_back(100.0 * (peak - lh.high) / range);
     }
-    return colVec(mr, out);
+    return colVec(out, mr);
 }
 
-Value undershoot(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
+Value undershoot(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
 {
     (void)fs;
     auto v = readVec(x);
@@ -302,7 +302,7 @@ Value undershoot(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
     auto trs = findTransitions(v.data(), v.size(), lh.low, lh.high);
     const double range = lh.high - lh.low;
     std::vector<double> out;
-    if (range <= 0.0) return colVec(mr, out);
+    if (range <= 0.0) return colVec(out, mr);
     for (size_t k = 0; k < trs.size(); ++k) {
         const auto &t = trs[k];
         if (t.sign >= 0) continue;
@@ -318,15 +318,14 @@ Value undershoot(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
             if (v[i] < trough) trough = v[i];
         out.push_back(100.0 * (lh.low - trough) / range);
     }
-    return colVec(mr, out);
+    return colVec(out, mr);
 }
 
 // ── settlingtime ──────────────────────────────────────────────────
 // Time from the start of each transition until x stays within `tol`
 // of the destination state for the rest of the post-transition window.
 
-Value settlingtime(std::pmr::memory_resource *mr, const Value &x,
-                   const Value *fs, double tol)
+Value settlingtime(const Value &x, const Value *fs, double tol, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -334,7 +333,7 @@ Value settlingtime(std::pmr::memory_resource *mr, const Value &x,
     const double range = lh.high - lh.low;
     const double f = scalarOrDefault(fs, 1.0);
     std::vector<double> out;
-    if (range <= 0.0) return colVec(mr, out);
+    if (range <= 0.0) return colVec(out, mr);
     for (size_t k = 0; k < trs.size(); ++k) {
         const auto &t = trs[k];
         const double dest = (t.sign > 0) ? lh.high : lh.low;
@@ -353,7 +352,7 @@ Value settlingtime(std::pmr::memory_resource *mr, const Value &x,
         const double settled = static_cast<double>(lastOut) - t.startIdx;
         out.push_back(std::max(0.0, settled) / std::max(f, 1.0));
     }
-    return colVec(mr, out);
+    return colVec(out, mr);
 }
 
 // ── pulsewidth / pulseperiod / pulsesep / dutycycle ────────────────
@@ -377,7 +376,7 @@ midCrossesDirected(const double *x, size_t n, double mid)
 
 } // anonymous
 
-Value pulsewidth(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
+Value pulsewidth(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -390,10 +389,10 @@ Value pulsewidth(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
         if (crs[i].second == +1 && crs[i + 1].second == -1)
             out.push_back((crs[i + 1].first - crs[i].first) / std::max(f, 1.0));
     }
-    return colVec(mr, out);
+    return colVec(out, mr);
 }
 
-Value pulseperiod(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
+Value pulseperiod(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -406,10 +405,10 @@ Value pulseperiod(std::pmr::memory_resource *mr, const Value &x, const Value *fs
     for (const auto &c : crs) if (c.second == +1) rising.push_back(c.first);
     for (size_t i = 0; i + 1 < rising.size(); ++i)
         out.push_back((rising[i + 1] - rising[i]) / std::max(f, 1.0));
-    return colVec(mr, out);
+    return colVec(out, mr);
 }
 
-Value pulsesep(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
+Value pulsesep(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -422,10 +421,10 @@ Value pulsesep(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
         if (crs[i].second == -1 && crs[i + 1].second == +1)
             out.push_back((crs[i + 1].first - crs[i].first) / std::max(f, 1.0));
     }
-    return colVec(mr, out);
+    return colVec(out, mr);
 }
 
-Value dutycycle(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
+Value dutycycle(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -444,7 +443,7 @@ Value dutycycle(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
             if (period > 0) out.push_back(width / period);
         }
     }
-    return colVec(mr, out);
+    return colVec(out, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -462,7 +461,7 @@ namespace detail {
                          0, 0, #name, "", "m:" #name ":nargin");                 \
         const Value *fs = (args.size() >= 2 && !args[1].isEmpty())              \
                            ? &args[1] : nullptr;                                 \
-        outs[0] = fn(ctx.engine->resource(), args[0], fs);                      \
+        outs[0] = fn(args[0], fs, ctx.engine->resource());                      \
     }
 
 void statelevels_reg(Span<const Value> args, size_t /*nargout*/,
@@ -471,7 +470,7 @@ void statelevels_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("statelevels: requires 1 argument",
                      0, 0, "statelevels", "", "m:statelevels:nargin");
-    outs[0] = statelevels(ctx.engine->resource(), args[0]);
+    outs[0] = statelevels(args[0], ctx.engine->resource());
 }
 
 void settlingtime_reg(Span<const Value> args, size_t /*nargout*/,
@@ -484,7 +483,7 @@ void settlingtime_reg(Span<const Value> args, size_t /*nargout*/,
                        ? &args[1] : nullptr;
     double tol = 0.02;
     if (args.size() >= 3 && !args[2].isEmpty()) tol = args[2].toScalar();
-    outs[0] = settlingtime(ctx.engine->resource(), args[0], fs, tol);
+    outs[0] = settlingtime(args[0], fs, tol, ctx.engine->resource());
 }
 
 NK_PULSE_REG(midcross,    midcross)

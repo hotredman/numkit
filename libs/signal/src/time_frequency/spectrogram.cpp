@@ -47,11 +47,7 @@ void fillHannPeriodic(double *w, size_t N)
 } // anonymous namespace
 
 std::tuple<Value, Value, Value>
-spectrogram(std::pmr::memory_resource *mr,
-            const Value &x,
-            const Value &window,
-            size_t noverlap,
-            size_t nfft)
+spectrogram(const Value &x, const Value &window, size_t noverlap, size_t nfft, std::pmr::memory_resource *mr)
 {
     const size_t nx = x.numel();
     const double *xd = x.doubleData();
@@ -134,9 +130,7 @@ spectrogram(std::pmr::memory_resource *mr,
 // round-trip is bit-exact within ulp.
 namespace {
 
-void resolveWindow(std::pmr::memory_resource *mr,
-                   const Value &win,
-                   ScratchVec<double> &out)
+void resolveWindow(const Value &win, ScratchVec<double> &out, std::pmr::memory_resource *mr)
 {
     if (win.numel() > 0) {
         const size_t n = win.numel();
@@ -152,12 +146,7 @@ void resolveWindow(std::pmr::memory_resource *mr,
 
 } // anonymous namespace
 
-Value stft(std::pmr::memory_resource *mr,
-           const Value &x,
-           const Value &window,
-           std::size_t overlap,
-           std::size_t fftLength,
-           const std::string &range)
+Value stft(const Value &x, const Value &window, std::size_t overlap, std::size_t fftLength, const std::string &range, std::pmr::memory_resource *mr)
 {
     using Cd = std::complex<double>;
     const size_t N = x.numel();
@@ -166,7 +155,7 @@ Value stft(std::pmr::memory_resource *mr,
 
     ScratchArena scratch(mr);
     ScratchVec<double> win(&scratch);
-    resolveWindow(mr, window, win);
+    resolveWindow(window, win, mr);
     const size_t M = win.size();
     if (M == 0)
         throw Error("stft: window must be non-empty",
@@ -244,12 +233,7 @@ Value stft(std::pmr::memory_resource *mr,
     return S;
 }
 
-Value istft(std::pmr::memory_resource *mr,
-            const Value &S,
-            const Value &window,
-            std::size_t overlap,
-            std::size_t fftLength,
-            const std::string &range)
+Value istft(const Value &S, const Value &window, std::size_t overlap, std::size_t fftLength, const std::string &range, std::pmr::memory_resource *mr)
 {
     using Cd = std::complex<double>;
 
@@ -261,7 +245,7 @@ Value istft(std::pmr::memory_resource *mr,
 
     ScratchArena scratch(mr);
     ScratchVec<double> win(&scratch);
-    resolveWindow(mr, window, win);
+    resolveWindow(window, win, mr);
     const size_t M = win.size();
     if (M == 0)
         throw Error("istft: window must be non-empty",
@@ -383,7 +367,7 @@ void spectrogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
     const size_t noverlap = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
     const size_t nfft = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 0;
 
-    auto [S, F, T] = spectrogram(ctx.engine->resource(), args[0], window, noverlap, nfft);
+    auto [S, F, T] = spectrogram(args[0], window, noverlap, nfft, ctx.engine->resource());
     outs[0] = std::move(S);
     if (nargout > 1)
         outs[1] = std::move(F);
@@ -432,8 +416,7 @@ void stft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     std::size_t fftLength  = 0;
     std::string range      = "centered";  // matches MATLAB R2019b+ default
     parseStftNVPairs(args, 1, window, overlap, fftLength, range);
-    outs[0] = stft(ctx.engine->resource(), args[0], window,
-                   overlap, fftLength, range);
+    outs[0] = stft(args[0], window, overlap, fftLength, range, ctx.engine->resource());
 }
 
 void istft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -447,8 +430,7 @@ void istft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     std::size_t fftLength  = 0;
     std::string range      = "centered";  // matches MATLAB R2019b+ default
     parseStftNVPairs(args, 1, window, overlap, fftLength, range);
-    outs[0] = istft(ctx.engine->resource(), args[0], window,
-                    overlap, fftLength, range);
+    outs[0] = istft(args[0], window, overlap, fftLength, range, ctx.engine->resource());
 }
 
 } // namespace detail

@@ -19,13 +19,13 @@ namespace numkit::signal {
 /// Constraints (MATLAB-compatible):
 ///   * framelen must be odd and ≥ order + 1.
 ///   * 0 ≤ order < framelen.
-Value sgolay(std::pmr::memory_resource *mr, int order, int framelen);
+Value sgolay(int order, int framelen, std::pmr::memory_resource *mr = nullptr);
 
 /// sgolayfilt(x, order, framelen) — apply Savitzky-Golay smoothing to
 /// a 1-D signal. Interior samples use the central row of sgolay()'s
 /// projection matrix; edge samples (where a symmetric window can't
 /// fit) use the asymmetric rows. Output has the same length and shape
 /// as x.
-Value sgolayfilt(std::pmr::memory_resource *mr, const Value &x, int order, int framelen);
+Value sgolayfilt(const Value &x, int order, int framelen, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal

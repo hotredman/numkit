@@ -10,6 +10,6 @@ namespace numkit::signal {
 /// (default 3). Window is symmetric around the current sample with
 /// boundary truncation (no zero padding) — matches MATLAB's
 /// 'truncate' endpoint mode, which is the default.
-Value medfilt1(std::pmr::memory_resource *mr, const Value &x, size_t k = 3);
+Value medfilt1(const Value &x, size_t k = 3, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal

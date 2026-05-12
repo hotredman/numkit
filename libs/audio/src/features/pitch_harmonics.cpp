@@ -705,7 +705,7 @@ Value pitchSRH(std::pmr::memory_resource *mr, const Value &x, double fs,
             Value yCol = Value::matrix(Nsrh, 1, ValueType::DOUBLE, mr);
             std::copy(yd + f * Nsrh, yd + (f + 1) * Nsrh, yCol.doubleDataMut());
             // LPC: returns (a, g)
-            auto [a_row, g] = signal::lpc(mr, yCol, lpcOrder);
+            auto [a_row, g] = signal::lpc(yCol, lpcOrder, mr);
             // filter(a, 1, y_col) → residual estimate
             Value res = signal::filter(a_row, oneScalar, yCol, mr);
             const double *rd = res.doubleData();

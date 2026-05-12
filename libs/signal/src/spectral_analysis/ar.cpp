@@ -48,8 +48,7 @@ void requireValidArgs(const Value &x, int p, const char *fn) {
 // `a` holds AR coefficients (a_1 … a_p), and `sigma2` the prediction-
 // error variance. Returns (Pxx, F) Values sized nOut × 1.
 std::tuple<Value, Value>
-arSpectrum(std::pmr::memory_resource *mr,
-           const std::vector<double> &a, double sigma2, size_t nfft)
+arSpectrum(const std::vector<double> &a, double sigma2, size_t nfft, std::pmr::memory_resource *mr)
 {
     const size_t nOut = nfft / 2 + 1;
     Value Pxx = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
@@ -114,12 +113,12 @@ YWFit yuleWalkerFit(const Value &x, size_t pp) {
 } // anonymous
 
 std::tuple<Value, Value>
-pyulear(std::pmr::memory_resource *mr, const Value &x, int p, size_t nfft)
+pyulear(const Value &x, int p, size_t nfft, std::pmr::memory_resource *mr)
 {
     requireValidArgs(x, p, "pyulear");
     if (nfft == 0) nfft = 256;
     auto fit = yuleWalkerFit(x, static_cast<size_t>(p));
-    return arSpectrum(mr, fit.a, fit.sigma2, nfft);
+    return arSpectrum(fit.a, fit.sigma2, nfft, mr);
 }
 
 // `aryule` / `lpc` live in libs/signal/src/spectral_analysis/
@@ -129,7 +128,7 @@ pyulear(std::pmr::memory_resource *mr, const Value &x, int p, size_t nfft)
 // stack was even on the parity map.
 
 std::tuple<Value, Value>
-pburg(std::pmr::memory_resource *mr, const Value &x, int p, size_t nfft)
+pburg(const Value &x, int p, size_t nfft, std::pmr::memory_resource *mr)
 {
     requireValidArgs(x, p, "pburg");
     const size_t N = x.numel();
@@ -187,7 +186,7 @@ pburg(std::pmr::memory_resource *mr, const Value &x, int p, size_t nfft)
         f = std::move(fNew);
         b = std::move(bNew);
     }
-    return arSpectrum(mr, a, sigma2, nfft);
+    return arSpectrum(a, sigma2, nfft, mr);
 }
 
 namespace detail {
@@ -201,7 +200,7 @@ void pyulear_reg(Span<const Value> args, size_t nargout,
     const int p     = static_cast<int>(args[1].toScalar());
     const size_t nf = (args.size() >= 3 && !args[2].isEmpty())
                       ? static_cast<size_t>(args[2].toScalar()) : 0;
-    auto [Pxx, F] = pyulear(ctx.engine->resource(), args[0], p, nf);
+    auto [Pxx, F] = pyulear(args[0], p, nf, ctx.engine->resource());
     outs[0] = std::move(Pxx);
     if (nargout > 1) outs[1] = std::move(F);
 }
@@ -215,7 +214,7 @@ void pburg_reg(Span<const Value> args, size_t nargout,
     const int p     = static_cast<int>(args[1].toScalar());
     const size_t nf = (args.size() >= 3 && !args[2].isEmpty())
                       ? static_cast<size_t>(args[2].toScalar()) : 0;
-    auto [Pxx, F] = pburg(ctx.engine->resource(), args[0], p, nf);
+    auto [Pxx, F] = pburg(args[0], p, nf, ctx.engine->resource());
     outs[0] = std::move(Pxx);
     if (nargout > 1) outs[1] = std::move(F);
 }
