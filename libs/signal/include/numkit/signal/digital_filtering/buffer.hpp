@@ -12,19 +12,29 @@
 
 namespace numkit::signal {
 
-// buffer(x, n)            — non-overlapping frames of length n, last frame zero-padded
-// buffer(x, n, p)         — p > 0: overlap with p initial zeros; p < 0: skip |p|/frame
-// buffer(x, n, p, opt)    — for p > 0, opt='nodelay' removes initial zeros;
-//                            for p < 0, opt = numeric initial offset to skip [0..-p]
-//
-// Returns Y only. Use buffer2() for the [Y, Z] form which separates
-// complete frames from partial trailing samples.
-Value buffer(const Value &x, int n, int p = 0, const Value &opt = Value::Empty, std::pmr::memory_resource *mr = nullptr);
+/// Partition x into frames of length n.
+///
+/// @param x    Input signal (row or column vector).
+/// @param n    Frame length.
+/// @param p    Overlap behaviour:
+///               * `p == 0`: non-overlapping, last frame zero-padded;
+///               * `p > 0`:  overlap with p initial-zero samples;
+///               * `p < 0`:  skip |p| samples between frames.
+/// @param opt  String ("nodelay") or numeric initial-condition vector;
+///             see MATLAB `buffer` docs. `Value::Empty` = default.
+///
+/// Returns the frame matrix Y only. Use buffer2() for the (Y, Z) form
+/// where Z holds the partial trailing samples.
+Value buffer(const Value &x, int n, int p = 0,
+             const Value &opt = Value::Empty,
+             std::pmr::memory_resource *mr = nullptr);
 
-// 2-output form: [Y, Z] = buffer(...). Y has only complete frames (no
-// trailing zero-pad). Z has the partial-frame remainder (orientation
-// matches X). Returns (Y, Z).
+/// 2-output form: `[Y, Z] = buffer(x, n, p, opt)`. Y has only complete
+/// frames (no trailing zero-pad). Z holds the partial-frame remainder,
+/// shaped to match X's orientation.
 std::tuple<Value, Value>
-buffer2(const Value &x, int n, int p = 0, const Value &opt = Value::Empty, std::pmr::memory_resource *mr = nullptr);
+buffer2(const Value &x, int n, int p = 0,
+        const Value &opt = Value::Empty,
+        std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal
