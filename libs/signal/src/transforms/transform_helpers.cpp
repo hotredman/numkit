@@ -118,14 +118,14 @@ static double nextpow2Element(double v_abs)
     return std::ceil(std::log2(v_abs));
 }
 
-Value nextpow2(std::pmr::memory_resource *mr, double n)
+Value nextpow2(double n, std::pmr::memory_resource *mr)
 {
     return Value::scalar(nextpow2Element(std::abs(n)), mr);
 }
 
 // Vectorized form: applies nextpow2 elementwise. For complex input we
 // use |z| = sqrt(re² + im²) per MATLAB's documented behavior.
-Value nextpow2(std::pmr::memory_resource *mr, const Value &x)
+Value nextpow2(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isEmpty()) return x;
     if (x.isComplex()) {
@@ -149,22 +149,22 @@ Value nextpow2(std::pmr::memory_resource *mr, const Value &x)
     return out;
 }
 
-Value fftshift(std::pmr::memory_resource *mr, const Value &x)
+Value fftshift(const Value &x, std::pmr::memory_resource *mr)
 {
     return cyclicShiftAll(x, +1, mr);
 }
 
-Value ifftshift(std::pmr::memory_resource *mr, const Value &x)
+Value ifftshift(const Value &x, std::pmr::memory_resource *mr)
 {
     return cyclicShiftAll(x, -1, mr);
 }
 
-Value fftshift(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value fftshift(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     return cyclicShiftOneDim(x, dim, +1, mr);
 }
 
-Value ifftshift(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value ifftshift(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     return cyclicShiftOneDim(x, dim, -1, mr);
 }
@@ -176,7 +176,7 @@ void nextpow2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.empty())
         throw Error("nextpow2: requires 1 argument",
                      0, 0, "nextpow2", "", "m:nextpow2:nargin");
-    outs[0] = nextpow2(ctx.engine->resource(), args[0]);
+    outs[0] = nextpow2(args[0], ctx.engine->resource());
 }
 
 void fftshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -189,9 +189,9 @@ void fftshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         if (dim < 1 || dim > 3)
             throw Error("fftshift: dim must be 1, 2, or 3",
                          0, 0, "fftshift", "", "m:fftshift:dim");
-        outs[0] = fftshift(ctx.engine->resource(), args[0], dim);
+        outs[0] = fftshift(args[0], dim, ctx.engine->resource());
     } else {
-        outs[0] = fftshift(ctx.engine->resource(), args[0]);
+        outs[0] = fftshift(args[0], ctx.engine->resource());
     }
 }
 
@@ -205,9 +205,9 @@ void ifftshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         if (dim < 1 || dim > 3)
             throw Error("ifftshift: dim must be 1, 2, or 3",
                          0, 0, "ifftshift", "", "m:ifftshift:dim");
-        outs[0] = ifftshift(ctx.engine->resource(), args[0], dim);
+        outs[0] = ifftshift(args[0], dim, ctx.engine->resource());
     } else {
-        outs[0] = ifftshift(ctx.engine->resource(), args[0]);
+        outs[0] = ifftshift(args[0], ctx.engine->resource());
     }
 }
 

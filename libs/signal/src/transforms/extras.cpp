@@ -39,7 +39,7 @@ size_t bitReverse(size_t v, size_t bits)
 // fft of a real vector → complex column. Convenience wrapper that
 // zero-pads x to nfft and runs the in-place radix-2 over a scratch
 // arena. nfft must be a power of two.
-ScratchVec<Complex> fftReal(std::pmr::memory_resource *mr, const Value &x, size_t nfft)
+ScratchVec<Complex> fftReal(const Value &x, size_t nfft, std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
     auto buf = ScratchVec<Complex>(nfft, &scratch);
@@ -58,7 +58,7 @@ ScratchVec<Complex> fftReal(std::pmr::memory_resource *mr, const Value &x, size_
 } // namespace
 
 // ── dftmtx ────────────────────────────────────────────────────────────
-Value dftmtx(std::pmr::memory_resource *mr, size_t N)
+Value dftmtx(size_t N, std::pmr::memory_resource *mr)
 {
     if (N == 0)
         throw Error("dftmtx: N must be positive",
@@ -75,7 +75,7 @@ Value dftmtx(std::pmr::memory_resource *mr, size_t N)
 }
 
 // ── bitrevorder ───────────────────────────────────────────────────────
-Value bitrevorder(std::pmr::memory_resource *mr, const Value &x)
+Value bitrevorder(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t n = x.numel();
     if (!isPow2(n))
@@ -109,7 +109,7 @@ Value bitrevorder(std::pmr::memory_resource *mr, const Value &x)
 // ── dst / idst (Type-II) ──────────────────────────────────────────────
 // Y[k] = sum x[n] sin(π (n+1) (k+1) / (N+1)),  k=0..N-1.
 // Direct O(N²) — acceptable for N up to a few thousand.
-Value dst(std::pmr::memory_resource *mr, const Value &x)
+Value dst(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     auto out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
@@ -125,10 +125,10 @@ Value dst(std::pmr::memory_resource *mr, const Value &x)
     return out;
 }
 
-Value idst(std::pmr::memory_resource *mr, const Value &y)
+Value idst(const Value &y, std::pmr::memory_resource *mr)
 {
     // Type-II DST is self-inverse up to a factor of 2/(N+1).
-    auto x = dst(mr, y);
+    auto x = dst(y, mr);
     const size_t N = x.numel();
     if (N == 0) return x;
     const double scale = 2.0 / static_cast<double>(N + 1);
@@ -138,12 +138,12 @@ Value idst(std::pmr::memory_resource *mr, const Value &y)
 }
 
 // ── rceps ─────────────────────────────────────────────────────────────
-Value rceps(std::pmr::memory_resource *mr, const Value &x)
+Value rceps(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t n = x.numel();
     if (n == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
     const size_t nfft = nextPow2(n);
-    auto X = fftReal(mr, x, nfft);
+    auto X = fftReal(x, nfft, mr);
     // log |X|, set imag part to 0 so the inverse transform produces a real cepstrum.
     for (size_t i = 0; i < nfft; ++i) {
         const double mag = std::abs(X[i]);
@@ -168,12 +168,12 @@ Value rceps(std::pmr::memory_resource *mr, const Value &x)
 //   dir = +1  →  W[k] = exp(+2πj k/N)  →  INVERSE DFT (caller scales by 1/N)
 // The inverse-step here MUST be dir=+1; using -1 produces a forward DFT
 // which time-reverses the output (audit ТЗ signal/cceps, 2026-05-09).
-Value cceps(std::pmr::memory_resource *mr, const Value &x)
+Value cceps(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t n = x.numel();
     if (n == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
     const size_t nfft = nextPow2(n);
-    auto X = fftReal(mr, x, nfft);
+    auto X = fftReal(x, nfft, mr);
     // log + unwrap phase.
     double prevPhase = 0.0;
     for (size_t i = 0; i < nfft; ++i) {
@@ -197,12 +197,12 @@ Value cceps(std::pmr::memory_resource *mr, const Value &x)
 // ── icceps ────────────────────────────────────────────────────────────
 // Inverse complex cepstrum: ifft(exp(fft(c))). Same sign-convention fix
 // as cceps — the second pass MUST be inverse (dir=+1).
-Value icceps(std::pmr::memory_resource *mr, const Value &c)
+Value icceps(const Value &c, std::pmr::memory_resource *mr)
 {
     const size_t n = c.numel();
     if (n == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
     const size_t nfft = nextPow2(n);
-    auto X = fftReal(mr, c, nfft);
+    auto X = fftReal(c, nfft, mr);
     for (size_t i = 0; i < nfft; ++i)
         X[i] = std::exp(X[i]);
     fftRadix2(mr, X.data(), nfft, +1);
@@ -221,7 +221,7 @@ void dftmtx_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.empty())
         throw Error("dftmtx: requires N",
                      0, 0, "dftmtx", "", "m:dftmtx:nargin");
-    outs[0] = dftmtx(ctx.engine->resource(), static_cast<size_t>(args[0].toScalar()));
+    outs[0] = dftmtx(static_cast<size_t>(args[0].toScalar()), ctx.engine->resource());
 }
 
 void bitrevorder_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -230,7 +230,7 @@ void bitrevorder_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
         throw Error("bitrevorder: requires x",
                      0, 0, "bitrevorder", "", "m:bitrevorder:nargin");
     auto *mr = ctx.engine->resource();
-    outs[0] = bitrevorder(mr, args[0]);
+    outs[0] = bitrevorder(args[0], mr);
     // 2nd output: 1-based index vector I such that Y(k) = X(I(k)).
     // Same permutation applied to (1:N), preserving the input shape.
     if (nargout > 1) {
@@ -259,7 +259,7 @@ void dst_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     if (args.empty())
         throw Error("dst: requires x",
                      0, 0, "dst", "", "m:dst:nargin");
-    outs[0] = dst(ctx.engine->resource(), args[0]);
+    outs[0] = dst(args[0], ctx.engine->resource());
 }
 
 void idst_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -267,7 +267,7 @@ void idst_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.empty())
         throw Error("idst: requires y",
                      0, 0, "idst", "", "m:idst:nargin");
-    outs[0] = idst(ctx.engine->resource(), args[0]);
+    outs[0] = idst(args[0], ctx.engine->resource());
 }
 
 void rceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -275,7 +275,7 @@ void rceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.empty())
         throw Error("rceps: requires x",
                      0, 0, "rceps", "", "m:rceps:nargin");
-    outs[0] = rceps(ctx.engine->resource(), args[0]);
+    outs[0] = rceps(args[0], ctx.engine->resource());
 }
 
 void cceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -283,7 +283,7 @@ void cceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.empty())
         throw Error("cceps: requires x",
                      0, 0, "cceps", "", "m:cceps:nargin");
-    outs[0] = cceps(ctx.engine->resource(), args[0]);
+    outs[0] = cceps(args[0], ctx.engine->resource());
 }
 
 void icceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -291,7 +291,7 @@ void icceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.empty())
         throw Error("icceps: requires c",
                      0, 0, "icceps", "", "m:icceps:nargin");
-    outs[0] = icceps(ctx.engine->resource(), args[0]);
+    outs[0] = icceps(args[0], ctx.engine->resource());
 }
 
 } // namespace detail

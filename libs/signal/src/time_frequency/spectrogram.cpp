@@ -230,7 +230,7 @@ Value stft(std::pmr::memory_resource *mr,
                 frameRd[i] = xr[start + i] * win[i];
             for (size_t i = M; i < NFFT; ++i) frameRd[i] = 0.0;
         }
-        Value F = fft(mr, frameV, static_cast<int>(NFFT), 1);
+        Value F = fft(frameV, static_cast<int>(NFFT), 1, mr);
         const Cd *Fd = F.complexData();
         if (isCentered) {
             for (size_t r = 0; r < outRows; ++r)
@@ -330,7 +330,7 @@ Value istft(std::pmr::memory_resource *mr,
             for (size_t r = 0; r < NFFT; ++r) Fd[r] = Sd[k * inRows + r];
         }
 
-        Value t = ifft(mr, Fcol, static_cast<int>(NFFT), 1);
+        Value t = ifft(Fcol, static_cast<int>(NFFT), 1, mr);
         // ifft may return DOUBLE or COMPLEX.
         const Cd     *tc = (t.type() == ValueType::COMPLEX) ? t.complexData() : nullptr;
         const double *tr = (t.type() == ValueType::COMPLEX) ? nullptr        : t.doubleData();

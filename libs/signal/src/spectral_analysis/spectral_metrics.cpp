@@ -561,7 +561,7 @@ void readComplex(const Value &z, std::vector<double> &re, std::vector<double> &i
 Value instfreq(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
 {
     const double fsv = scalarOr(fs, 1.0);
-    Value z = hilbert(mr, x);
+    Value z = hilbert(x, mr);
     std::vector<double> re, im;
     readComplex(z, re, im);
     const size_t n = re.size();
@@ -593,7 +593,7 @@ Value instfreq(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
 Value instbw(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
 {
     const double fsv = scalarOr(fs, 1.0);
-    Value z = hilbert(mr, x);
+    Value z = hilbert(x, mr);
     std::vector<double> re, im;
     readComplex(z, re, im);
     const size_t n = re.size();

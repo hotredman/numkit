@@ -134,7 +134,7 @@ static void BM_Hilbert(benchmark::State &s)
     auto x = makeSignal(n);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = signal::hilbert(mr, x);
+        auto y = signal::hilbert(x, mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -177,7 +177,7 @@ static void BM_DCT(benchmark::State &s)
     auto x = makeSignal(n);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = signal::dct(mr, x);
+        auto y = signal::dct(x, mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetComplexityN(static_cast<int64_t>(n));

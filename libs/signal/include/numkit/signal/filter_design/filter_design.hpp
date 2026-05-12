@@ -118,7 +118,7 @@ std::tuple<Value, double>
 firpm(int                          N,
       const Value &                F,
       const Value &                A,
-      const Value &                W      = {},
+      const Value &                W      = Value::Empty,
       const std::string &          ftype  = "",
       std::pmr::memory_resource *  mr     = nullptr);
 

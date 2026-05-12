@@ -147,7 +147,7 @@ Value pitchCEP(std::pmr::memory_resource *mr, const Value &x, double fs,
     }
 
     // FFT along dim 1 (each column independently), then |·|², log, ifft → real.
-    Value Y = signal::fft(mr, framesV, static_cast<int>(NFFT), 1);
+    Value Y = signal::fft(framesV, static_cast<int>(NFFT), 1, mr);
     // Apply log(|Y|²) = 2*log(|Y|). Since input to ifft must be a Value:
     // build a complex Value of the log-power spectrum (imag=0).
     Value logPow = Value::matrix(NFFT, sp.numFrames, ValueType::COMPLEX, mr);
@@ -163,7 +163,7 @@ Value pitchCEP(std::pmr::memory_resource *mr, const Value &x, double fs,
     }
 
     // ifft along dim 1.
-    Value cepstrumV = signal::ifft(mr, logPow, static_cast<int>(NFFT), 1);
+    Value cepstrumV = signal::ifft(logPow, static_cast<int>(NFFT), 1, mr);
     // ifft of real-symmetric input is real. Take real part for the cepstrum domain.
     // cepstrumV may be returned as DOUBLE (auto-downgraded by libs/signal::ifft)
     // or COMPLEX. Handle both.
@@ -410,7 +410,7 @@ Value pitchPEF(std::pmr::memory_resource *mr, const Value &x, double fs,
         const double *src = pf.aFilt.doubleData();
         std::copy(src, src + aLen, p);
     }
-    Value Afft = signal::fft(mr, aFiltPad, static_cast<int>(m2), 1);
+    Value Afft = signal::fft(aFiltPad, static_cast<int>(m2), 1, mr);
     const Complex *Afd = Afft.complexData();
 
     // Per-frame buffers
@@ -432,7 +432,7 @@ Value pitchPEF(std::pmr::memory_resource *mr, const Value &x, double fs,
         // Y = fft(frame, NFFT) → take half → power
         std::fill(fp, fp + NFFT, 0.0);
         std::copy(frame.data(), frame.data() + sp.winLen, fp);
-        Value Y = signal::fft(mr, framePad, static_cast<int>(NFFT), 1);
+        Value Y = signal::fft(framePad, static_cast<int>(NFFT), 1, mr);
         const Complex *Yd = Y.complexData();
         for (size_t i = 0; i < Nhalf; ++i) {
             const double re = Yd[i].real();
@@ -449,7 +449,7 @@ Value pitchPEF(std::pmr::memory_resource *mr, const Value &x, double fs,
         std::fill(zp, zp + m2, 0.0);
         std::copy(Ylog.data(), Ylog.data() + std::min(NFFT, m2 - pf.numToPad),
                   zp + pf.numToPad);
-        Value Zfft = signal::fft(mr, Zpad, static_cast<int>(m2), 1);
+        Value Zfft = signal::fft(Zpad, static_cast<int>(m2), 1, mr);
         const Complex *Zd = Zfft.complexData();
 
         // C[k] = Zfft[k] * conj(Afft[k])
@@ -458,7 +458,7 @@ Value pitchPEF(std::pmr::memory_resource *mr, const Value &x, double fs,
         for (size_t i = 0; i < m2; ++i) {
             Cd[i] = Zd[i] * std::conj(Afd[i]);
         }
-        Value c1V = signal::ifft(mr, Cv, static_cast<int>(m2), 1);
+        Value c1V = signal::ifft(Cv, static_cast<int>(m2), 1, mr);
         // c1 may be DOUBLE or COMPLEX (auto-downgrade). Real part either way.
         auto getC1 = [&](size_t i) -> double {
             if (c1V.type() == ValueType::COMPLEX)
@@ -571,7 +571,7 @@ Value pitchLHS(std::pmr::memory_resource *mr, const Value &x, double fs,
         for (size_t i = 0; i < sp.winLen; ++i)
             fp[i] = x.elemAsDouble(start + i) * win[i];
 
-        Value Y = signal::fft(mr, framePad, static_cast<int>(fftLen), 1);
+        Value Y = signal::fft(framePad, static_cast<int>(fftLen), 1, mr);
         const Complex *Yd = Y.complexData();
         // S[k] = log(|Y[k]|) for k = 0..maxBin-1
         for (size_t k = 0; k < maxBin; ++k) {
@@ -770,7 +770,7 @@ Value pitchSRH(std::pmr::memory_resource *mr, const Value &x, double fs,
         for (size_t i = 0; i < winLenDefault; ++i)
             fp[i] = rbd[i + hop * winLenDefault];
 
-        Value Y = signal::fft(mr, framePad, static_cast<int>(fftLen), 1);
+        Value Y = signal::fft(framePad, static_cast<int>(fftLen), 1, mr);
         const Complex *Yd = Y.complexData();
         for (size_t k = 0; k < maxBin; ++k) E[k] = std::abs(Yd[k]);
 

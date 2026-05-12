@@ -29,7 +29,7 @@ namespace {
 // envelope(). Returns a buffer of length fftLen holding the analytic
 // signal (possibly zero-padded beyond N). Caller slices to the first N
 // samples. Backed by the caller's scratch arena.
-ScratchVec<Complex> hilbertBuf(std::pmr::memory_resource *mr, const Value &x)
+ScratchVec<Complex> hilbertBuf(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const size_t fftLen = nextPow2(N);
@@ -58,11 +58,11 @@ ScratchVec<Complex> hilbertBuf(std::pmr::memory_resource *mr, const Value &x)
 
 } // anonymous namespace
 
-Value hilbert(std::pmr::memory_resource *mr, const Value &x)
+Value hilbert(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     ScratchArena scratch(mr);
-    auto buf = hilbertBuf(&scratch, x);
+    auto buf = hilbertBuf(x, &scratch);
     return packComplexResult(buf.data(), N, mr);
 }
 
@@ -79,11 +79,10 @@ ScratchVec<double> read_real(const Value &x, std::pmr::memory_resource *mr)
 }
 
 // |hilbert(x)| amplitude — used by the default and 'analytic' (no n) paths.
-ScratchVec<double> ampl_fft_hilbert(std::pmr::memory_resource *mr,
-                                    const Value &x)
+ScratchVec<double> ampl_fft_hilbert(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
-    auto buf = hilbertBuf(mr, x);
+    auto buf = hilbertBuf(x, mr);
     ScratchVec<double> a(N, mr);
     for (size_t i = 0; i < N; ++i) a[i] = std::abs(buf[i]);
     return a;
@@ -96,8 +95,7 @@ ScratchVec<double> ampl_fft_hilbert(std::pmr::memory_resource *mr,
 //   firFilter = hfilt .* kaiser(n, 8)
 //   firFilter /= sum(real(firFilter))
 //   y = abs(conv2(x, firFilter, 'same'))
-ScratchVec<double> ampl_fir(std::pmr::memory_resource *mr,
-                            const Value &x_centered, size_t n)
+ScratchVec<double> ampl_fir(const Value &x_centered, size_t n, std::pmr::memory_resource *mr)
 {
     const size_t N = x_centered.numel();
     auto x = read_real(x_centered, mr);
@@ -143,8 +141,7 @@ ScratchVec<double> ampl_fir(std::pmr::memory_resource *mr,
 }
 
 // envRMS — sliding-window RMS. y = sqrt(movmean(x², n)).
-ScratchVec<double> ampl_rms(std::pmr::memory_resource *mr,
-                            const Value &x_centered, size_t n)
+ScratchVec<double> ampl_rms(const Value &x_centered, size_t n, std::pmr::memory_resource *mr)
 {
     const size_t N = x_centered.numel();
     auto x = read_real(x_centered, mr);
@@ -170,8 +167,7 @@ ScratchVec<double> ampl_rms(std::pmr::memory_resource *mr,
 // findpeaks with MinPeakDistance ≥ n. Greedy: sort indices by value
 // descending, accept peak if no already-accepted peak is within n samples.
 // Returns indices (0-based) in ascending order.
-ScratchVec<size_t> findpeaks_mindist(std::pmr::memory_resource *mr,
-                                     const ScratchVec<double> &x, size_t n)
+ScratchVec<size_t> findpeaks_mindist(const ScratchVec<double> &x, size_t n, std::pmr::memory_resource *mr)
 {
     const size_t N = x.size();
     ScratchVec<size_t> peaks(mr);
@@ -206,9 +202,7 @@ ScratchVec<size_t> findpeaks_mindist(std::pmr::memory_resource *mr,
 // envPeak — spline through local maxima/minima with MinPeakDistance n.
 // MATLAB convention: if <2 peaks found, fallback to including endpoints.
 // No DC removal in peak mode.
-void env_peak(std::pmr::memory_resource *mr,
-              const Value &x, size_t n,
-              ScratchVec<double> &up, ScratchVec<double> &lo)
+void env_peak(const Value &x, size_t n, ScratchVec<double> &up, ScratchVec<double> &lo, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     auto v = read_real(x, mr);
@@ -219,7 +213,7 @@ void env_peak(std::pmr::memory_resource *mr,
                               ScratchVec<double> &out) {
         ScratchVec<size_t> peaks(mr);
         if (N > n + 1)
-            peaks = findpeaks_mindist(mr, sig, n);
+            peaks = findpeaks_mindist(sig, n, mr);
         // If <2 peaks, fall back to endpoints + any peaks.
         ScratchVec<size_t> locs(mr);
         if (peaks.size() < 2) {
@@ -284,7 +278,7 @@ void env_peak(std::pmr::memory_resource *mr,
 
 } // anonymous
 
-Value envelope(std::pmr::memory_resource *mr, const Value &x)
+Value envelope(const Value &x, std::pmr::memory_resource *mr)
 {
     // Default: mean + |hilbert(x - mean)|.
     const size_t N = x.numel();
@@ -298,7 +292,7 @@ Value envelope(std::pmr::memory_resource *mr, const Value &x)
         double *cd = xc.doubleDataMut();
         for (size_t i = 0; i < N; ++i) cd[i] = v[i] - xmean;
     }
-    auto a = ampl_fft_hilbert(&scratch, xc);
+    auto a = ampl_fft_hilbert(xc, &scratch);
     auto r = createLike(x, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < N; ++i) r.doubleDataMut()[i] = xmean + a[i];
     return r;
@@ -309,8 +303,7 @@ Value envelope(std::pmr::memory_resource *mr, const Value &x)
 //   mode = 1 'analytic' (n-tap Kaiser-Hilbert FIR)
 //   mode = 2 'rms'      (sliding RMS over n samples)
 //   mode = 3 'peak'     (spline through extrema with MinPeakDistance n)
-void envelope_full(std::pmr::memory_resource *mr, const Value &x, int mode,
-                   size_t n, Value *yupper, Value *ylower)
+void envelope_full(const Value &x, int mode, size_t n, Value *yupper, Value *ylower, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     ScratchArena scratch(mr);
@@ -318,7 +311,7 @@ void envelope_full(std::pmr::memory_resource *mr, const Value &x, int mode,
     if (mode == 3) {
         // Peak mode — no DC removal.
         ScratchVec<double> up(&scratch), lo(&scratch);
-        env_peak(&scratch, x, n, up, lo);
+        env_peak(x, n, up, lo, &scratch);
         if (yupper) {
             *yupper = createLike(x, ValueType::DOUBLE, mr);
             for (size_t i = 0; i < N; ++i) yupper->doubleDataMut()[i] = up[i];
@@ -342,9 +335,9 @@ void envelope_full(std::pmr::memory_resource *mr, const Value &x, int mode,
     }
 
     ScratchVec<double> a(&scratch);
-    if      (mode == 0) a = ampl_fft_hilbert(&scratch, xc);
-    else if (mode == 1) a = ampl_fir       (&scratch, xc, n);
-    else                a = ampl_rms       (&scratch, xc, n);
+    if      (mode == 0) a = ampl_fft_hilbert(xc, &scratch);
+    else if (mode == 1) a = ampl_fir(xc, n, &scratch);
+    else                a = ampl_rms(xc, n, &scratch);
 
     if (yupper) {
         *yupper = createLike(x, ValueType::DOUBLE, mr);
@@ -357,10 +350,9 @@ void envelope_full(std::pmr::memory_resource *mr, const Value &x, int mode,
 }
 
 // Back-compat 2-output adapter: dispatches to default mode.
-void envelope_pair(std::pmr::memory_resource *mr, const Value &x,
-                   Value *yupper, Value *ylower)
+void envelope_pair(const Value &x, Value *yupper, Value *ylower, std::pmr::memory_resource *mr)
 {
-    envelope_full(mr, x, 0, 0, yupper, ylower);
+    envelope_full(x, 0, 0, yupper, ylower, mr);
 }
 
 // ── Engine adapters ───────────────────────────────────────────────────
@@ -371,7 +363,7 @@ void hilbert_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.empty())
         throw Error("hilbert: requires 1 argument",
                      0, 0, "hilbert", "", "m:hilbert:nargin");
-    outs[0] = hilbert(ctx.engine->resource(), args[0]);
+    outs[0] = hilbert(args[0], ctx.engine->resource());
 }
 
 void envelope_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -402,7 +394,7 @@ void envelope_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
                     "'analytic'/'rms'/'peak' modes",
                     0, 0, "envelope", "", "m:envelope:badn");
     Value up, lo;
-    envelope_full(mr, args[0], mode, n, &up, &lo);
+    envelope_full(args[0], mode, n, &up, &lo, mr);
     outs[0] = std::move(up);
     if (nargout > 1) outs[1] = std::move(lo);
 }
