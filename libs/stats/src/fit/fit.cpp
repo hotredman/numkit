@@ -46,12 +46,12 @@ Value rowCI(std::pmr::memory_resource *mr, double lo, double hi) {
 
 double tinv_scalar(std::pmr::memory_resource *mr, double p, double nu) {
     Value pv = Value::scalar(p, mr);
-    return tinv(mr, pv, nu).toScalar();
+    return tinv(pv, nu, mr).toScalar();
 }
 
 double chi2inv_scalar(std::pmr::memory_resource *mr, double p, double k) {
     Value pv = Value::scalar(p, mr);
-    return chi2inv(mr, pv, k).toScalar();
+    return chi2inv(pv, k, mr).toScalar();
 }
 
 // ── Normal MLE helpers (used by normfit / lognfit cens+freq paths) ────
@@ -399,7 +399,7 @@ double betainv_scalar2(std::pmr::memory_resource *mr,
     if (a <= 0.0 || b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
     if (p <= 0.0) return 0.0;
     if (p >= 1.0) return 1.0;
-    return betainv(mr, Value::scalar(p, mr), a, b).toScalar();
+    return betainv(Value::scalar(p, mr), a, b, mr).toScalar();
 }
 }
 

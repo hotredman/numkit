@@ -27,7 +27,7 @@ namespace numkit::stats {
 namespace {
 
 template <typename Op>
-Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
@@ -43,55 +43,55 @@ Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
 
 } // anonymous
 
-Value chi2pdf(std::pmr::memory_resource *mr, const Value &x, double k)
+Value chi2pdf(const Value &x, double k, std::pmr::memory_resource *mr)
 {
     // MATLAB convention: k < 0 ⇒ NaN; k == 0 ⇒ 0 (degenerate Chi²(0)
     // has all mass at 0, so density is 0 almost everywhere).
     if (k < 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     if (k == 0.0)
-        return elementwise(mr, x, [](double){ return 0.0; });
+        return elementwise(x, [](double){ return 0.0; }, mr);
     // pdf(x; k) = (1/(2^(k/2) Γ(k/2))) x^(k/2-1) e^(-x/2), x ≥ 0
     // Compute log-pdf and exp to avoid overflow on small/large k.
     const double half_k = 0.5 * k;
     const double log_norm = -half_k * std::log(2.0) - std::lgamma(half_k);
-    return elementwise(mr, x, [=](double xi) {
+    return elementwise(x, [=](double xi) {
         if (xi < 0.0) return 0.0;
         if (xi == 0.0) return (k == 2.0) ? 0.5 : (k > 2.0 ? 0.0 : std::numeric_limits<double>::infinity());
         const double lp = log_norm + (half_k - 1.0) * std::log(xi) - 0.5 * xi;
         return std::exp(lp);
-    });
+    }, mr);
 }
 
-Value chi2cdf(std::pmr::memory_resource *mr, const Value &x, double k)
+Value chi2cdf(const Value &x, double k, std::pmr::memory_resource *mr)
 {
     if (k <= 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     // F(x; k) = gammainc(x/2, k/2) (regularized lower).
     // builtin::gammainc takes Values for x and a — call elementwise.
-    auto out = elementwise(mr, x, [](double xi){ return std::max(0.0, 0.5 * xi); });
+    auto out = elementwise(x, [](double xi){ return std::max(0.0, 0.5 * xi); }, mr);
     Value ar = Value::scalar(0.5 * k, mr);
     return ::numkit::builtin::gammainc(mr, out, ar);
 }
 
-Value chi2inv(std::pmr::memory_resource *mr, const Value &p, double k)
+Value chi2inv(const Value &p, double k, std::pmr::memory_resource *mr)
 {
     // MATLAB convention: k < 0 ⇒ NaN; k == 0 ⇒ degenerate, quantile is 0
     // for any p in [0, 1] (out-of-range p still NaN).
     if (k < 0.0)
-        return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     if (k == 0.0)
-        return elementwise(mr, p, [](double pi){
+        return elementwise(p, [](double pi){
             return (pi >= 0.0 && pi <= 1.0) ? 0.0
                                             : std::numeric_limits<double>::quiet_NaN();
-        });
+        }, mr);
     Value ar = Value::scalar(0.5 * k, mr);
     Value q = ::numkit::builtin::gammaincinv(mr, p, ar);
     // x = 2 * gammaincinv(p, k/2)
-    return elementwise(mr, q, [](double v){ return 2.0 * v; });
+    return elementwise(q, [](double v){ return 2.0 * v; }, mr);
 }
 
-Value chi2rnd(std::pmr::memory_resource *mr, double k, size_t rows, size_t cols)
+Value chi2rnd(double k, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -126,7 +126,7 @@ void chi2pdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("chi2pdf: requires (x, k)", 0, 0, "chi2pdf", "", "m:chi2pdf:nargin");
-    outs[0] = chi2pdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    outs[0] = chi2pdf(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 void chi2cdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -135,7 +135,7 @@ void chi2cdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const size_t n = stripUpperFlag(args, upper);
     if (n < 2)
         throw Error("chi2cdf: requires (x, k[, 'upper'])", 0, 0, "chi2cdf", "", "m:chi2cdf:nargin");
-    Value v = chi2cdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    Value v = chi2cdf(args[0], args[1].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -144,7 +144,7 @@ void chi2inv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("chi2inv: requires (p, k)", 0, 0, "chi2inv", "", "m:chi2inv:nargin");
-    outs[0] = chi2inv(ctx.engine->resource(), args[0], args[1].toScalar());
+    outs[0] = chi2inv(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 void chi2rnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -154,7 +154,7 @@ void chi2rnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const double k = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols);
-    outs[0] = chi2rnd(ctx.engine->resource(), k, rows, cols);
+    outs[0] = chi2rnd(k, rows, cols, ctx.engine->resource());
 }
 
 void chi2stat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

@@ -19,7 +19,7 @@ namespace numkit::stats {
 namespace {
 
 template <typename Op>
-Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
@@ -46,50 +46,46 @@ inline double gp_inv_one(double u, double k, double sigma, double theta) {
 
 } // anonymous
 
-Value gppdf(std::pmr::memory_resource *mr, const Value &x,
-            double k, double sigma, double theta)
+Value gppdf(const Value &x, double k, double sigma, double theta, std::pmr::memory_resource *mr)
 {
     if (sigma <= 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     const double inv_s = 1.0 / sigma;
-    return elementwise(mr, x, [=](double xi) {
+    return elementwise(x, [=](double xi) {
         const double z = (xi - theta) * inv_s;
         if (z < 0.0) return 0.0;
         if (k == 0.0) return inv_s * std::exp(-z);
         const double t = 1.0 + k * z;
         if (t <= 0.0) return 0.0;
         return inv_s * std::pow(t, -1.0 / k - 1.0);
-    });
+    }, mr);
 }
 
-Value gpcdf(std::pmr::memory_resource *mr, const Value &x,
-            double k, double sigma, double theta)
+Value gpcdf(const Value &x, double k, double sigma, double theta, std::pmr::memory_resource *mr)
 {
     if (sigma <= 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     const double inv_s = 1.0 / sigma;
-    return elementwise(mr, x, [=](double xi) {
+    return elementwise(x, [=](double xi) {
         const double z = (xi - theta) * inv_s;
         if (z <= 0.0) return 0.0;
         if (k == 0.0) return -std::expm1(-z);
         const double t = 1.0 + k * z;
         if (t <= 0.0) return (k > 0) ? 0.0 : 1.0;
         return 1.0 - std::pow(t, -1.0 / k);
-    });
+    }, mr);
 }
 
-Value gpinv(std::pmr::memory_resource *mr, const Value &p,
-            double k, double sigma, double theta)
+Value gpinv(const Value &p, double k, double sigma, double theta, std::pmr::memory_resource *mr)
 {
     if (sigma <= 0.0)
-        return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, p, [=](double pi) {
+        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(p, [=](double pi) {
         return gp_inv_one(pi, k, sigma, theta);
-    });
+    }, mr);
 }
 
-Value gprnd(std::pmr::memory_resource *mr, double k, double sigma, double theta,
-            size_t rows, size_t cols)
+Value gprnd(double k, double sigma, double theta, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -142,8 +138,7 @@ void gppdf_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 4)
         throw Error("gppdf: requires (x, k, sigma, theta)",
                     0, 0, "gppdf", "", "m:gppdf:nargin");
-    outs[0] = gppdf(ctx.engine->resource(), args[0],
-                    args[1].toScalar(), args[2].toScalar(), args[3].toScalar());
+    outs[0] = gppdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
 }
 
 void gpcdf_reg(Span<const Value> args, size_t /*nargout*/,
@@ -154,8 +149,7 @@ void gpcdf_reg(Span<const Value> args, size_t /*nargout*/,
     if (n < 4)
         throw Error("gpcdf: requires (x, k, sigma, theta[, 'upper'])",
                     0, 0, "gpcdf", "", "m:gpcdf:nargin");
-    Value v = gpcdf(ctx.engine->resource(), args[0],
-                    args[1].toScalar(), args[2].toScalar(), args[3].toScalar());
+    Value v = gpcdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -166,8 +160,7 @@ void gpinv_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 4)
         throw Error("gpinv: requires (p, k, sigma, theta)",
                     0, 0, "gpinv", "", "m:gpinv:nargin");
-    outs[0] = gpinv(ctx.engine->resource(), args[0],
-                    args[1].toScalar(), args[2].toScalar(), args[3].toScalar());
+    outs[0] = gpinv(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
 }
 
 void gprnd_reg(Span<const Value> args, size_t /*nargout*/,
@@ -183,7 +176,7 @@ void gprnd_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 4 && !args[3].isEmpty()) rows = static_cast<size_t>(args[3].toScalar());
     if (args.size() >= 5 && !args[4].isEmpty()) cols = static_cast<size_t>(args[4].toScalar());
     else if (args.size() >= 4) cols = rows;
-    outs[0] = gprnd(ctx.engine->resource(), k, sigma, theta, rows, cols);
+    outs[0] = gprnd(k, sigma, theta, rows, cols, ctx.engine->resource());
 }
 
 void gpstat_reg(Span<const Value> args, size_t nargout,

@@ -16,11 +16,10 @@
 
 namespace numkit::stats {
 
-Value evpdf(std::pmr::memory_resource *mr, const Value &x, double mu, double sigma);
-Value evcdf(std::pmr::memory_resource *mr, const Value &x, double mu, double sigma);
-Value evinv(std::pmr::memory_resource *mr, const Value &p, double mu, double sigma);
-Value evrnd(std::pmr::memory_resource *mr, double mu, double sigma,
-            size_t rows = 1, size_t cols = 1);
+Value evpdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr = nullptr);
+Value evcdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr = nullptr);
+Value evinv(const Value &p, double mu, double sigma, std::pmr::memory_resource *mr = nullptr);
+Value evrnd(double mu, double sigma, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 std::tuple<double, double> evstat(double mu, double sigma);
 
 } // namespace numkit::stats

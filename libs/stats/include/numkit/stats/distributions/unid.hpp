@@ -11,11 +11,10 @@
 
 namespace numkit::stats {
 
-Value unidpdf(std::pmr::memory_resource *mr, const Value &k, double N);
-Value unidcdf(std::pmr::memory_resource *mr, const Value &k, double N);
-Value unidinv(std::pmr::memory_resource *mr, const Value &p, double N);
-Value unidrnd(std::pmr::memory_resource *mr, double N,
-              size_t rows = 1, size_t cols = 1);
+Value unidpdf(const Value &k, double N, std::pmr::memory_resource *mr = nullptr);
+Value unidcdf(const Value &k, double N, std::pmr::memory_resource *mr = nullptr);
+Value unidinv(const Value &p, double N, std::pmr::memory_resource *mr = nullptr);
+Value unidrnd(double N, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 std::tuple<double, double> unidstat(double N);
 
 } // namespace numkit::stats

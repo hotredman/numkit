@@ -19,7 +19,7 @@ namespace numkit::stats {
 namespace {
 
 template <typename Op>
-Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
@@ -35,44 +35,44 @@ Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
 
 } // anonymous
 
-Value unidpdf(std::pmr::memory_resource *mr, const Value &k, double N)
+Value unidpdf(const Value &k, double N, std::pmr::memory_resource *mr)
 {
     if (N < 1.0 || std::floor(N) != N)
-        return elementwise(mr, k, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     const double inv = 1.0 / N;
-    return elementwise(mr, k, [=](double ki) {
+    return elementwise(k, [=](double ki) {
         if (ki < 1.0 || ki > N || std::floor(ki) != ki) return 0.0;
         return inv;
-    });
+    }, mr);
 }
 
-Value unidcdf(std::pmr::memory_resource *mr, const Value &k, double N)
+Value unidcdf(const Value &k, double N, std::pmr::memory_resource *mr)
 {
     if (N < 1.0 || std::floor(N) != N)
-        return elementwise(mr, k, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     const double inv = 1.0 / N;
-    return elementwise(mr, k, [=](double ki) {
+    return elementwise(k, [=](double ki) {
         if (ki < 1.0) return 0.0;
         if (ki >= N) return 1.0;
         return std::floor(ki) * inv;
-    });
+    }, mr);
 }
 
-Value unidinv(std::pmr::memory_resource *mr, const Value &p, double N)
+Value unidinv(const Value &p, double N, std::pmr::memory_resource *mr)
 {
     if (!(N >= 1.0) || std::floor(N) != N)  // also catches NaN N
-        return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, p, [=](double pi) {
+        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(p, [=](double pi) {
         // MATLAB convention: p outside (0, 1] -> NaN. p=0 has no
         // integer pre-image in the support, so it is also NaN.
         if (std::isnan(pi) || pi <= 0.0 || pi > 1.0)
             return std::numeric_limits<double>::quiet_NaN();
         const double r = std::ceil(pi * N);
         return r < 1.0 ? 1.0 : (r > N ? N : r);
-    });
+    }, mr);
 }
 
-Value unidrnd(std::pmr::memory_resource *mr, double N, size_t rows, size_t cols)
+Value unidrnd(double N, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -105,7 +105,7 @@ void unidpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("unidpdf: requires (k, N)", 0, 0, "unidpdf", "", "m:unidpdf:nargin");
-    outs[0] = unidpdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    outs[0] = unidpdf(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 void unidcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -114,7 +114,7 @@ void unidcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const size_t n = stripUpperFlag(args, upper);
     if (n < 2)
         throw Error("unidcdf: requires (k, N[, 'upper'])", 0, 0, "unidcdf", "", "m:unidcdf:nargin");
-    Value v = unidcdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    Value v = unidcdf(args[0], args[1].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -123,7 +123,7 @@ void unidinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("unidinv: requires (p, N)", 0, 0, "unidinv", "", "m:unidinv:nargin");
-    outs[0] = unidinv(ctx.engine->resource(), args[0], args[1].toScalar());
+    outs[0] = unidinv(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 void unidrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -133,7 +133,7 @@ void unidrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const double N = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols);
-    outs[0] = unidrnd(ctx.engine->resource(), N, rows, cols);
+    outs[0] = unidrnd(N, rows, cols, ctx.engine->resource());
 }
 
 void unidstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

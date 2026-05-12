@@ -13,17 +13,16 @@
 namespace numkit::stats {
 
 /// exppdf(x, mu) — pdf at x with mean μ > 0.
-Value exppdf(std::pmr::memory_resource *mr, const Value &x, double mu);
+Value exppdf(const Value &x, double mu, std::pmr::memory_resource *mr = nullptr);
 
 /// expcdf(x, mu) — F(x) = 1 - exp(-x/μ).
-Value expcdf(std::pmr::memory_resource *mr, const Value &x, double mu);
+Value expcdf(const Value &x, double mu, std::pmr::memory_resource *mr = nullptr);
 
 /// expinv(p, mu) — F^{-1}(p) = -μ · log(1 - p).
-Value expinv(std::pmr::memory_resource *mr, const Value &p, double mu);
+Value expinv(const Value &p, double mu, std::pmr::memory_resource *mr = nullptr);
 
 /// exprnd(mu[, m, n]) — std::exponential_distribution with rate 1/μ.
-Value exprnd(std::pmr::memory_resource *mr, double mu,
-             size_t rows = 1, size_t cols = 1);
+Value exprnd(double mu, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 
 /// expstat(mu) — mean = μ, variance = μ².
 std::tuple<double, double> expstat(double mu);

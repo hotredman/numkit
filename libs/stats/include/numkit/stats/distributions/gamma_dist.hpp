@@ -14,18 +14,17 @@
 namespace numkit::stats {
 
 /// gampdf(x, a, b) — pdf at x with shape a > 0, scale b > 0.
-Value gampdf(std::pmr::memory_resource *mr, const Value &x, double a, double b);
+Value gampdf(const Value &x, double a, double b, std::pmr::memory_resource *mr = nullptr);
 
 /// gamcdf(x, a, b) — cdf via regularized lower incomplete gamma:
 ///   F(x) = P(a, x/b) = gammainc(x/b, a)
-Value gamcdf(std::pmr::memory_resource *mr, const Value &x, double a, double b);
+Value gamcdf(const Value &x, double a, double b, std::pmr::memory_resource *mr = nullptr);
 
 /// gaminv(p, a, b) — inverse cdf via gammaincinv: x = b · P^{-1}(p; a).
-Value gaminv(std::pmr::memory_resource *mr, const Value &p, double a, double b);
+Value gaminv(const Value &p, double a, double b, std::pmr::memory_resource *mr = nullptr);
 
 /// gamrnd(a, b[, m, n]) — draws from Gamma(shape=a, scale=b).
-Value gamrnd(std::pmr::memory_resource *mr, double a, double b,
-             size_t rows = 1, size_t cols = 1);
+Value gamrnd(double a, double b, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 
 /// gamstat(a, b) — mean = a·b, variance = a·b².
 std::tuple<double, double> gamstat(double a, double b);

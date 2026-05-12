@@ -14,11 +14,10 @@
 
 namespace numkit::stats {
 
-Value nakapdf(std::pmr::memory_resource *mr, const Value &x, double mu, double omega);
-Value nakacdf(std::pmr::memory_resource *mr, const Value &x, double mu, double omega);
-Value nakainv(std::pmr::memory_resource *mr, const Value &p, double mu, double omega);
-Value nakarnd(std::pmr::memory_resource *mr, double mu, double omega,
-              size_t rows = 1, size_t cols = 1);
+Value nakapdf(const Value &x, double mu, double omega, std::pmr::memory_resource *mr = nullptr);
+Value nakacdf(const Value &x, double mu, double omega, std::pmr::memory_resource *mr = nullptr);
+Value nakainv(const Value &p, double mu, double omega, std::pmr::memory_resource *mr = nullptr);
+Value nakarnd(double mu, double omega, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 std::tuple<double, double> nakastat(double mu, double omega);
 
 } // namespace numkit::stats

@@ -12,11 +12,10 @@
 
 namespace numkit::stats {
 
-Value raylpdf(std::pmr::memory_resource *mr, const Value &x, double b);
-Value raylcdf(std::pmr::memory_resource *mr, const Value &x, double b);
-Value raylinv(std::pmr::memory_resource *mr, const Value &p, double b);
-Value raylrnd(std::pmr::memory_resource *mr, double b,
-              size_t rows = 1, size_t cols = 1);
+Value raylpdf(const Value &x, double b, std::pmr::memory_resource *mr = nullptr);
+Value raylcdf(const Value &x, double b, std::pmr::memory_resource *mr = nullptr);
+Value raylinv(const Value &p, double b, std::pmr::memory_resource *mr = nullptr);
+Value raylrnd(double b, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 std::tuple<double, double> raylstat(double b);
 
 } // namespace numkit::stats

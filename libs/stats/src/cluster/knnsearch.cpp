@@ -64,9 +64,7 @@ KnnOpts parse_knn_args(Span<const Value> args, const char *fn)
 } // anonymous
 
 std::tuple<Value, Value>
-knnsearch(std::pmr::memory_resource *mr,
-          const Value &X, const Value &Y,
-          int K, const std::string &metric, double p)
+knnsearch(const Value &X, const Value &Y, int K, const std::string &metric, double p, std::pmr::memory_resource *mr)
 {
     const auto &dx = X.dims();
     const auto &dy = Y.dims();
@@ -89,7 +87,7 @@ knnsearch(std::pmr::memory_resource *mr,
     // pdist2 returns Nx × Ny distance matrix (rows = X, cols = Y) per
     // its doc note "rows of X, rows of Y", but check by fingerprinting:
     // pdist2(X, Y) → size(X,1) × size(Y,1).
-    Value D = pdist2(mr, X, Y, metric, p);
+    Value D = pdist2(X, Y, metric, p, mr);
     const size_t Dr = D.dims().rows();
     const size_t Dc = D.dims().cols();
     if (Dr != Nx || Dc != Ny)
@@ -129,9 +127,7 @@ knnsearch(std::pmr::memory_resource *mr,
 }
 
 std::tuple<Value, Value>
-rangesearch(std::pmr::memory_resource *mr,
-            const Value &X, const Value &Y, double r,
-            const std::string &metric, double p)
+rangesearch(const Value &X, const Value &Y, double r, const std::string &metric, double p, std::pmr::memory_resource *mr)
 {
     const auto &dx = X.dims();
     const auto &dy = Y.dims();
@@ -148,7 +144,7 @@ rangesearch(std::pmr::memory_resource *mr,
     Value DCells   = Value::cell(Ny, 1, mr);
     if (Nx == 0 || Ny == 0) return {std::move(IdxCells), std::move(DCells)};
 
-    Value D = pdist2(mr, X, Y, metric, p);
+    Value D = pdist2(X, Y, metric, p, mr);
     const double *dd = D.doubleData();
 
     std::vector<std::pair<double, size_t>> hits;
@@ -188,8 +184,7 @@ void knnsearch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
         throw Error("knnsearch: requires (X, Y [, K | name-value pairs])",
                     0, 0, "knnsearch", "", "m:knnsearch:nargin");
     KnnOpts o = parse_knn_args(args, "knnsearch");
-    auto [Idx, D] = knnsearch(ctx.engine->resource(), args[0], args[1],
-                              o.K, o.metric, o.p);
+    auto [Idx, D] = knnsearch(args[0], args[1], o.K, o.metric, o.p, ctx.engine->resource());
     outs[0] = std::move(Idx);
     if (nargout > 1) outs[1] = std::move(D);
 }
@@ -228,8 +223,7 @@ void rangesearch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
             i += 2;
         }
     }
-    auto [Idx, D] = rangesearch(ctx.engine->resource(), args[0], args[1], r,
-                                o.metric, o.p);
+    auto [Idx, D] = rangesearch(args[0], args[1], r, o.metric, o.p, ctx.engine->resource());
     outs[0] = std::move(Idx);
     if (nargout > 1) outs[1] = std::move(D);
 }

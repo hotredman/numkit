@@ -55,7 +55,7 @@ size_t indexOf(const std::vector<double> &u, double val)
 } // namespace
 
 std::tuple<Value, double, double>
-crosstab(std::pmr::memory_resource *mr, const Value &x, const Value *y_opt)
+crosstab(const Value &x, const Value *y_opt, std::pmr::memory_resource *mr)
 {
     const size_t Nx = x.numel();
     if (y_opt && y_opt->numel() != Nx)
@@ -123,7 +123,7 @@ crosstab(std::pmr::memory_resource *mr, const Value &x, const Value *y_opt)
         const double df = static_cast<double>((R - 1) * (C - 1));
         // p = 1 - chi2cdf(chi2, df); chi2cdf returns a Value of input shape.
         Value chi2_v = Value::scalar(chi2, mr);
-        Value cdf_v  = chi2cdf(mr, chi2_v, df);
+        Value cdf_v  = chi2cdf(chi2_v, df, mr);
         p = 1.0 - cdf_v.toScalar();
     }
     return {std::move(T), chi2, p};
@@ -139,7 +139,7 @@ void crosstab_reg(Span<const Value> args, size_t nargout,
                     0, 0, "crosstab", "", "m:crosstab:nargin");
     auto *mr = ctx.engine->resource();
     const Value *y_opt = (args.size() >= 2) ? &args[1] : nullptr;
-    auto [T, chi2, p] = crosstab(mr, args[0], y_opt);
+    auto [T, chi2, p] = crosstab(args[0], y_opt, mr);
     outs[0] = std::move(T);
     if (nargout > 1) outs[1] = Value::scalar(chi2, mr);
     if (nargout > 2) outs[2] = Value::scalar(p, mr);

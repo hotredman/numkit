@@ -18,14 +18,14 @@ namespace numkit::stats {
 ///   explained:D×1 percent variance per component
 ///   mu:       1×D column means subtracted
 std::tuple<Value, Value, Value, Value, Value, Value>
-pca(std::pmr::memory_resource *mr, const Value &X);
+pca(const Value &X, std::pmr::memory_resource *mr = nullptr);
 
 /// pcacov(C) — eigendecompose a D×D covariance matrix.
 /// Returns (coeff, latent, explained).
 std::tuple<Value, Value, Value>
-pcacov(std::pmr::memory_resource *mr, const Value &C);
+pcacov(const Value &C, std::pmr::memory_resource *mr = nullptr);
 
 /// pcares(X, ndim) — residuals after retaining `ndim` PCs.
-Value pcares(std::pmr::memory_resource *mr, const Value &X, int ndim);
+Value pcares(const Value &X, int ndim, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

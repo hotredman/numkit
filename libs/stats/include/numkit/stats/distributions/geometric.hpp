@@ -12,11 +12,10 @@
 
 namespace numkit::stats {
 
-Value geopdf(std::pmr::memory_resource *mr, const Value &k, double p);
-Value geocdf(std::pmr::memory_resource *mr, const Value &k, double p);
-Value geoinv(std::pmr::memory_resource *mr, const Value &q, double p);
-Value geornd(std::pmr::memory_resource *mr, double p,
-             size_t rows = 1, size_t cols = 1);
+Value geopdf(const Value &k, double p, std::pmr::memory_resource *mr = nullptr);
+Value geocdf(const Value &k, double p, std::pmr::memory_resource *mr = nullptr);
+Value geoinv(const Value &q, double p, std::pmr::memory_resource *mr = nullptr);
+Value geornd(double p, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 std::tuple<double, double> geostat(double p);
 
 } // namespace numkit::stats

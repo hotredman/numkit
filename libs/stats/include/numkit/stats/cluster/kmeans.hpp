@@ -20,7 +20,6 @@ namespace numkit::stats {
 ///   C:    K×D cluster centroids
 ///   sumd: K×1 within-cluster sum of squared distances
 std::tuple<Value, Value, Value>
-kmeans(std::pmr::memory_resource *mr, const Value &X, int K,
-       int max_iter, int replicates);
+kmeans(const Value &X, int K, int max_iter, int replicates, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

@@ -15,11 +15,10 @@
 
 namespace numkit::stats {
 
-Value ncx2pdf(std::pmr::memory_resource *mr, const Value &x, double k, double lambda);
-Value ncx2cdf(std::pmr::memory_resource *mr, const Value &x, double k, double lambda);
-Value ncx2inv(std::pmr::memory_resource *mr, const Value &p, double k, double lambda);
-Value ncx2rnd(std::pmr::memory_resource *mr, double k, double lambda,
-              size_t rows = 1, size_t cols = 1);
+Value ncx2pdf(const Value &x, double k, double lambda, std::pmr::memory_resource *mr = nullptr);
+Value ncx2cdf(const Value &x, double k, double lambda, std::pmr::memory_resource *mr = nullptr);
+Value ncx2inv(const Value &p, double k, double lambda, std::pmr::memory_resource *mr = nullptr);
+Value ncx2rnd(double k, double lambda, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 std::tuple<double, double> ncx2stat(double k, double lambda);
 
 } // namespace numkit::stats

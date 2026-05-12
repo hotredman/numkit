@@ -13,11 +13,10 @@
 
 namespace numkit::stats {
 
-Value wblpdf(std::pmr::memory_resource *mr, const Value &x, double a, double b);
-Value wblcdf(std::pmr::memory_resource *mr, const Value &x, double a, double b);
-Value wblinv(std::pmr::memory_resource *mr, const Value &p, double a, double b);
-Value wblrnd(std::pmr::memory_resource *mr, double a, double b,
-             size_t rows = 1, size_t cols = 1);
+Value wblpdf(const Value &x, double a, double b, std::pmr::memory_resource *mr = nullptr);
+Value wblcdf(const Value &x, double a, double b, std::pmr::memory_resource *mr = nullptr);
+Value wblinv(const Value &p, double a, double b, std::pmr::memory_resource *mr = nullptr);
+Value wblrnd(double a, double b, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 std::tuple<double, double> wblstat(double a, double b);
 
 } // namespace numkit::stats

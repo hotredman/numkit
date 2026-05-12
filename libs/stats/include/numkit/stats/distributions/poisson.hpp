@@ -12,11 +12,10 @@
 
 namespace numkit::stats {
 
-Value poisspdf(std::pmr::memory_resource *mr, const Value &k, double lambda);
-Value poisscdf(std::pmr::memory_resource *mr, const Value &k, double lambda);
-Value poissinv(std::pmr::memory_resource *mr, const Value &p, double lambda);
-Value poissrnd(std::pmr::memory_resource *mr, double lambda,
-               size_t rows = 1, size_t cols = 1);
+Value poisspdf(const Value &k, double lambda, std::pmr::memory_resource *mr = nullptr);
+Value poisscdf(const Value &k, double lambda, std::pmr::memory_resource *mr = nullptr);
+Value poissinv(const Value &p, double lambda, std::pmr::memory_resource *mr = nullptr);
+Value poissrnd(double lambda, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 std::tuple<double, double> poisstat(double lambda);
 
 } // namespace numkit::stats

@@ -22,9 +22,6 @@ namespace numkit::stats {
 /// Singleton clusters are assigned s(i) = 0.
 ///
 /// Output: column vector of length size(X, 1).
-Value silhouette(std::pmr::memory_resource *mr,
-                 const Value &X, const Value &clust,
-                 const std::string &metric = "sqeuclidean",
-                 double p = 2.0);
+Value silhouette(const Value &X, const Value &clust, const std::string &metric = "sqeuclidean", double p = 2.0, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

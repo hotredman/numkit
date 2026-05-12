@@ -12,11 +12,10 @@
 
 namespace numkit::stats {
 
-Value lognpdf(std::pmr::memory_resource *mr, const Value &x, double mu, double sigma);
-Value logncdf(std::pmr::memory_resource *mr, const Value &x, double mu, double sigma);
-Value logninv(std::pmr::memory_resource *mr, const Value &p, double mu, double sigma);
-Value lognrnd(std::pmr::memory_resource *mr, double mu, double sigma,
-              size_t rows = 1, size_t cols = 1);
+Value lognpdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr = nullptr);
+Value logncdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr = nullptr);
+Value logninv(const Value &p, double mu, double sigma, std::pmr::memory_resource *mr = nullptr);
+Value lognrnd(double mu, double sigma, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 std::tuple<double, double> lognstat(double mu, double sigma);
 
 } // namespace numkit::stats

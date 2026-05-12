@@ -13,11 +13,10 @@
 
 namespace numkit::stats {
 
-Value hygepdf(std::pmr::memory_resource *mr, const Value &k, double M, double K, double N);
-Value hygecdf(std::pmr::memory_resource *mr, const Value &k, double M, double K, double N);
-Value hygeinv(std::pmr::memory_resource *mr, const Value &q, double M, double K, double N);
-Value hygernd(std::pmr::memory_resource *mr, double M, double K, double N,
-              size_t rows = 1, size_t cols = 1);
+Value hygepdf(const Value &k, double M, double K, double N, std::pmr::memory_resource *mr = nullptr);
+Value hygecdf(const Value &k, double M, double K, double N, std::pmr::memory_resource *mr = nullptr);
+Value hygeinv(const Value &q, double M, double K, double N, std::pmr::memory_resource *mr = nullptr);
+Value hygernd(double M, double K, double N, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 std::tuple<double, double> hygestat(double M, double K, double N);
 
 } // namespace numkit::stats
