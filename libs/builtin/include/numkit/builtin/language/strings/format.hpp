@@ -9,29 +9,56 @@
 
 namespace numkit::builtin {
 
-/// Format a single printf-style invocation.
+/// @brief Format a single printf-style invocation.
 ///
-/// Does NOT cycle the format string over extra arguments — stops when the
-/// format is exhausted. Supports MATLAB-style %d/%i/%u/%x/%X/%o/%f/%e/%E/
-/// %g/%G/%s/%c/%% and backslash escapes (\n \t \\ \').
+/// Does NOT cycle the format string over extra arguments — stops when
+/// the format is exhausted. Supports MATLAB-style `%d` / `%i` / `%u` /
+/// `%x` / `%X` / `%o` / `%f` / `%e` / `%E` / `%g` / `%G` / `%s` / `%c` /
+/// `%%` and backslash escapes (`\n` `\t` `\\` `\'`).
+///
+/// @param fmt       printf-style format string.
+/// @param args      Arguments referenced by `fmt`.
+/// @param argStart  Index of the first arg to use (default 0).
+/// @return          Formatted string.
 std::string formatOnce(const std::string &fmt, Span<const Value> args,
                        size_t argStart = 0);
 
-/// Count format specifiers (%d, %s, ...) in fmt, excluding literal %%.
+/// @brief Count `%`-format specifiers in `fmt`.
+///
+/// Excludes literal `%%`. Used by @ref formatCyclic to determine the
+/// chunk size when cycling.
+///
+/// @param fmt  printf-style format string.
+/// @return     Number of format specifiers in `fmt`.
 size_t countFormatSpecs(const std::string &fmt);
 
-/// Format with MATLAB's cyclic application over array inputs.
+/// @brief MATLAB-style cyclic format (`s = formatCyclic(fmt, args, start, mr)`).
 ///
-/// Numeric arrays starting at `argStart` are flattened (column-major) into
-/// a scalar stream; the format is re-applied to successive chunks of
-/// countFormatSpecs(fmt) values. Char args pass through as single tokens
-/// (MATLAB %s consumes the whole string).
+/// Numeric arrays starting at `argStart` are flattened (column-major)
+/// into a scalar stream; the format is re-applied to successive chunks
+/// of `countFormatSpecs(fmt)` values. Char args pass through as single
+/// tokens (`%s` consumes the whole string).
 ///
-/// Takes a memory_resource because intermediate scalar MValues are allocated.
-std::string formatCyclic(const std::string &fmt, Span<const Value> args, size_t argStart, std::pmr::memory_resource *mr = nullptr);
+/// @param fmt       printf-style format string.
+/// @param args      Arguments to format.
+/// @param argStart  Index of the first arg to use.
+/// @param mr        Memory resource for intermediate scalar Values
+///                  (nullptr → process default).
+/// @return          Formatted string.
+std::string formatCyclic(const std::string &fmt, Span<const Value> args,
+                         size_t argStart,
+                         std::pmr::memory_resource *mr = nullptr);
 
-/// MATLAB sprintf(fmt, args...) — char-array result. Empty fmt / non-char
-/// fmt both return an empty char array (MATLAB behavior).
-Value sprintf(const Value &fmt, Span<const Value> args, std::pmr::memory_resource *mr = nullptr);
+/// @brief MATLAB `sprintf` (`s = sprintf(fmt, args...)`).
+///
+/// Returns a CHAR array. Empty `fmt` or non-char `fmt` both return an
+/// empty char array (MATLAB behaviour).
+///
+/// @param fmt   Format string Value (CHAR / STRING).
+/// @param args  Format arguments.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      Formatted CHAR array.
+Value sprintf(const Value &fmt, Span<const Value> args,
+              std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin
