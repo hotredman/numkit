@@ -845,7 +845,7 @@ void ellipap_reg(Span<const Value> args, size_t nargout,
         if (args.size() == 3) {                                                  \
             /* TF form: (b, a, Wo) -> (bt, at). */                               \
             const double Wo = args[2].toScalar();                                \
-            auto [z0, p0, k0] = tf2zpk(mr, args[0], args[1]);                    \
+            auto [z0, p0, k0] = tf2zpk(args[0], args[1], mr);                    \
             auto [zt, pt, kt] = fn(mr, z0, p0, k0, Wo);               \
             auto [bt, at] = builtin::zp2tf(mr, zt, pt, kt.toScalar());           \
             outs[0] = std::move(bt);                                             \
@@ -879,7 +879,7 @@ NK_LP2X1_REG(lp2hp, lp2hp)
             /* TF form: (b, a, Wo, Bw) -> (bt, at). */                           \
             const double Wo = args[2].toScalar();                                \
             const double Bw = args[3].toScalar();                                \
-            auto [z0, p0, k0] = tf2zpk(mr, args[0], args[1]);                    \
+            auto [z0, p0, k0] = tf2zpk(args[0], args[1], mr);                    \
             auto [zt, pt, kt] = fn(mr, z0, p0, k0, Wo, Bw);           \
             auto [bt, at] = builtin::zp2tf(mr, zt, pt, kt.toScalar());           \
             outs[0] = std::move(bt);                                             \
