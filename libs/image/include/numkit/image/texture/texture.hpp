@@ -35,12 +35,7 @@ namespace numkit::image {
 ///     Pass each offset separately for now.
 ///   - 'NumLevels' auto-default for floating-point inputs uses a
 ///     conservative 8 instead of 64.
-Value graycomatrix(std::pmr::memory_resource *mr,
-                   const Value &I,
-                   int numLevels,
-                   int offR, int offC,
-                   double gLow, double gHigh,
-                   bool symmetric);
+Value graycomatrix(const Value &I, int numLevels, int offR, int offC, double gLow, double gHigh, bool symmetric, std::pmr::memory_resource *mr = nullptr);
 
 /// graycoprops(G) — Texture statistics from a GLCM:
 ///   .Contrast     = sum (i - j)² · p(i, j)
@@ -50,6 +45,6 @@ Value graycomatrix(std::pmr::memory_resource *mr,
 /// where p is the joint probability (GLCM normalised by its sum).
 /// MATLAB's `graycoprops` returns a struct; this returns a struct
 /// `Value` with the same four field names.
-Value graycoprops(std::pmr::memory_resource *mr, const Value &G);
+Value graycoprops(const Value &G, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::image

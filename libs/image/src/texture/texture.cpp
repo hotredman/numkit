@@ -54,12 +54,7 @@ inline void default_gray_limits(const Value &I, double &lo, double &hi)
 
 } // anonymous namespace
 
-Value graycomatrix(std::pmr::memory_resource *mr,
-                   const Value &I,
-                   int numLevels,
-                   int offR, int offC,
-                   double gLow, double gHigh,
-                   bool symmetric)
+Value graycomatrix(const Value &I, int numLevels, int offR, int offC, double gLow, double gHigh, bool symmetric, std::pmr::memory_resource *mr)
 {
     if (numLevels < 2)
         throw Error("graycomatrix: NumLevels must be >= 2",
@@ -121,7 +116,7 @@ Value graycomatrix(std::pmr::memory_resource *mr,
     return G;
 }
 
-Value graycoprops(std::pmr::memory_resource *mr, const Value &G)
+Value graycoprops(const Value &G, std::pmr::memory_resource *mr)
 {
     const auto &d = G.dims();
     if (d.rows() != d.cols() || d.rows() == 0)
@@ -248,8 +243,7 @@ void graycomatrix_reg(Span<const Value> args, std::size_t /*nargout*/,
     }
     if (!limitsSet) default_gray_limits(I, gLow, gHigh);
 
-    outs[0] = graycomatrix(ctx.engine->resource(), I, numLevels,
-                           offR, offC, gLow, gHigh, symmetric);
+    outs[0] = graycomatrix(I, numLevels, offR, offC, gLow, gHigh, symmetric, ctx.engine->resource());
 }
 
 void graycoprops_reg(Span<const Value> args, std::size_t /*nargout*/,
@@ -258,7 +252,7 @@ void graycoprops_reg(Span<const Value> args, std::size_t /*nargout*/,
     if (args.empty())
         throw Error("graycoprops: requires (G)",
                      0, 0, "graycoprops", "", "m:graycoprops:nargin");
-    outs[0] = graycoprops(ctx.engine->resource(), args[0]);
+    outs[0] = graycoprops(args[0], ctx.engine->resource());
 }
 
 } // namespace detail

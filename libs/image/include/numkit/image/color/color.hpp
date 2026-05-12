@@ -19,51 +19,49 @@ namespace numkit::image {
 /// imsplit(I) — split an H×W×P volume into P planes (H×W each).
 /// For 2-D input returns a single H×W copy in planes[0]. Output
 /// vector is resized to P; output planes share the input's class.
-void imsplit(std::pmr::memory_resource *mr,
-             const Value &I, std::vector<Value> &planes);
+void imsplit(const Value &I, std::vector<Value> &planes, std::pmr::memory_resource *mr = nullptr);
 
-Value rgb2hsv  (std::pmr::memory_resource *mr, const Value &x);
-Value hsv2rgb  (std::pmr::memory_resource *mr, const Value &x);
-Value rgb2ycbcr(std::pmr::memory_resource *mr, const Value &x);
-Value ycbcr2rgb(std::pmr::memory_resource *mr, const Value &x);
+Value rgb2hsv  (const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value hsv2rgb  (const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value rgb2ycbcr(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value ycbcr2rgb(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-Value rgb2ntsc (std::pmr::memory_resource *mr, const Value &x);
-Value ntsc2rgb (std::pmr::memory_resource *mr, const Value &x);
+Value rgb2ntsc (const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value ntsc2rgb (const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-Value rgb2xyz  (std::pmr::memory_resource *mr, const Value &x);
-Value xyz2rgb  (std::pmr::memory_resource *mr, const Value &x);
-Value rgb2lab  (std::pmr::memory_resource *mr, const Value &x);
-Value lab2rgb  (std::pmr::memory_resource *mr, const Value &x);
+Value rgb2xyz  (const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value xyz2rgb  (const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value rgb2lab  (const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value lab2rgb  (const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// rgb2lightness(RGB) — lightness L (= L* of CIE Lab). Returns H×W
 /// single image. Equivalent to the first plane of rgb2lab(RGB).
-Value rgb2lightness(std::pmr::memory_resource *mr, const Value &RGB);
+Value rgb2lightness(const Value &RGB, std::pmr::memory_resource *mr = nullptr);
 
 /// rgb2ind with a fixed input colormap: nearest-neighbour quantization
 /// (squared Euclidean in normalized RGB). Output index is uint8 if cmap
 /// has ≤ 256 rows, else uint16. KNOWN GAP: scalar-Q (min-variance) and
 /// scalar-tol (uniform) forms deferred.
 std::pair<Value, Value>
-rgb2ind_inmap(std::pmr::memory_resource *mr, const Value &RGB, const Value &cmap);
-Value xyz2lab  (std::pmr::memory_resource *mr, const Value &x);
-Value lab2xyz  (std::pmr::memory_resource *mr, const Value &x);
+rgb2ind_inmap(const Value &RGB, const Value &cmap, std::pmr::memory_resource *mr = nullptr);
+Value xyz2lab  (const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value lab2xyz  (const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// L*a*b* class conversion: L* in [0, 100] (or 0..255 / 0..65280
 /// integer), a*/b* in [-128, 127] (or [0, 65280] for uint16). The
 /// helpers below dispatch on input class and rescale + offset
 /// per-channel; output keeps the input's shape (Mx3 colormap or
 /// MxNx3 image).
-Value lab2double (std::pmr::memory_resource *mr, const Value &lab);
-Value lab2single (std::pmr::memory_resource *mr, const Value &lab);
-Value lab2uint8  (std::pmr::memory_resource *mr, const Value &lab);
-Value lab2uint16 (std::pmr::memory_resource *mr, const Value &lab);
+Value lab2double (const Value &lab, std::pmr::memory_resource *mr = nullptr);
+Value lab2single (const Value &lab, std::pmr::memory_resource *mr = nullptr);
+Value lab2uint8  (const Value &lab, std::pmr::memory_resource *mr = nullptr);
+Value lab2uint16 (const Value &lab, std::pmr::memory_resource *mr = nullptr);
 
 /// `M = colorgradient(C [, w] [, n])` — colormap that smoothly
 /// traverses the K-by-3 anchor RGB colors `C` with relative segment
 /// weights `w` (length K-1, default ones) into `n` output rows
 /// (default 64). Per-segment linspace; output is double N×3.
-Value colorgradient(std::pmr::memory_resource *mr,
-                    const Value &C, const Value &w, int n);
+Value colorgradient(const Value &C, const Value &w, int n, std::pmr::memory_resource *mr = nullptr);
 
 /// `RGB = wavelength2rgb(wavelength [, class [, gamma]])` —
 /// piecewise visible-light wavelength → RGB mapping (Bruton 1996).
@@ -71,10 +69,7 @@ Value colorgradient(std::pmr::memory_resource *mr,
 /// 1×N×3 / N×1×3; 2-D matrix returns H×W×3. `class` defaults to
 /// "double" and `gamma` to 0.8. Output class follows `class`
 /// through the existing im2* helpers.
-Value wavelength2rgb(std::pmr::memory_resource *mr,
-                     const Value &wavelength,
-                     const std::string &out_class,
-                     double gamma);
+Value wavelength2rgb(const Value &wavelength, const std::string &out_class, double gamma, std::pmr::memory_resource *mr = nullptr);
 
 /// colorangle(rgb1, rgb2) — angle in degrees between two RGB
 /// colours: rad2deg(acos(dot(rgb1, rgb2) / (|rgb1|·|rgb2|))).
@@ -83,71 +78,70 @@ Value wavelength2rgb(std::pmr::memory_resource *mr,
 /// stack is supported. Returns 0 when both colours are zero, NaN
 /// when only one is zero. The cosine is clamped to [−1, 1] to
 /// guard against floating-point drift on identical colours.
-Value colorangle(std::pmr::memory_resource *mr,
-                 const Value &rgb1, const Value &rgb2);
+Value colorangle(const Value &rgb1, const Value &rgb2, std::pmr::memory_resource *mr = nullptr);
 
 /// `map = gray([n])` — N×3 grayscale colormap. Default n = 256 (we
 /// don't track figure state). n == 1 → [0, 0, 0]; n ≤ 0 → 0×3.
 /// Otherwise gr = (0:n-1)/(n-1), repeated across all 3 channels.
-Value gray_cmap(std::pmr::memory_resource *mr, int n);
+Value gray_cmap(int n, std::pmr::memory_resource *mr = nullptr);
 
 /// `map = hot([n])` — N×3 black-red-yellow-white colormap.
 /// Default n = 256. Octave behaviour: n==1 → [1 1 1]; n==2 →
 /// [1 1 0.5; 1 1 1]; n>2 piecewise R-then-G-then-B ramps with
 /// idx=floor(3/8·n). n ≤ 0 → 0×3.
-Value hot_cmap(std::pmr::memory_resource *mr, int n);
+Value hot_cmap(int n, std::pmr::memory_resource *mr = nullptr);
 
 /// `map = cool([n])` — N×3 cyan-to-magenta colormap. Default n=256.
 /// r = (0:n-1)/(n-1); g = 1 - r; b = 1. n==1 → [0 1 1]; n ≤ 0 → 0×3.
-Value cool_cmap(std::pmr::memory_resource *mr, int n);
+Value cool_cmap(int n, std::pmr::memory_resource *mr = nullptr);
 
 /// `map = spring([n])` — N×3 magenta-to-yellow colormap. Default n=256.
 /// r = 1; g = (0:n-1)/(n-1); b = 1 - g. n==1 → [1 0 1]; n ≤ 0 → 0×3.
-Value spring_cmap(std::pmr::memory_resource *mr, int n);
+Value spring_cmap(int n, std::pmr::memory_resource *mr = nullptr);
 
 /// `map = summer([n])` — N×3 green-to-yellow colormap. Default n=256.
 /// r = (0:n-1)/(n-1); g = 0.5 + r/2; b = 0.4. n==1 → [0 0.5 0.4];
 /// n ≤ 0 → 0×3.
-Value summer_cmap(std::pmr::memory_resource *mr, int n);
+Value summer_cmap(int n, std::pmr::memory_resource *mr = nullptr);
 
 /// `map = autumn([n])` — N×3 red-to-yellow colormap. Default n=256.
 /// r = 1; g = (0:n-1)/(n-1); b = 0. n==1 → [1 0 0]; n ≤ 0 → 0×3.
-Value autumn_cmap(std::pmr::memory_resource *mr, int n);
+Value autumn_cmap(int n, std::pmr::memory_resource *mr = nullptr);
 
 /// `map = winter([n])` — N×3 blue→cyan-ish colormap. Default n=256.
 /// r = 0; g = (0:n-1)/(n-1); b = 1 - g/2. n==1 → [0 0 1]; n ≤ 0 → 0×3.
-Value winter_cmap(std::pmr::memory_resource *mr, int n);
+Value winter_cmap(int n, std::pmr::memory_resource *mr = nullptr);
 
 /// `map = copper([n])` — N×3 copper-tinted colormap. Default n=256.
 /// x = (0:n-1)/(n-1); r = min(5/4·x, 1); g = 0.7812·x; b = 0.4975·x.
 /// n==1 → [0 0 0]; n ≤ 0 → 0×3.
-Value copper_cmap(std::pmr::memory_resource *mr, int n);
+Value copper_cmap(int n, std::pmr::memory_resource *mr = nullptr);
 
 /// `map = pink([n])` — N×3 pastel-pink colormap. Default n=256.
 /// idx = floor(3/8·n); piecewise linspace ramps for R/G/B then take
 /// the element-wise sqrt to lift saturation. n==1 → sqrt([1/3 1/3 1/3]);
 /// n==2 → sqrt([1/3 1/3 1/6; 1 1 1]); n ≤ 0 → 0×3.
-Value pink_cmap(std::pmr::memory_resource *mr, int n);
+Value pink_cmap(int n, std::pmr::memory_resource *mr = nullptr);
 
 /// `map = hsv([n])` — N×3 hue-rotation colormap. Default n=256. Equivalent
 /// to `hsv2rgb([(0:n-1)'/n, 1, 1])`. n==1 → [1 0 0]; n ≤ 0 → 0×3.
-Value hsv_cmap(std::pmr::memory_resource *mr, int n);
+Value hsv_cmap(int n, std::pmr::memory_resource *mr = nullptr);
 
 /// `map = flag([n])` — N×3 cyclic red/white/blue/black colormap.
 /// Rows cycle through the 4-row pattern `[1 0 0; 1 1 1; 0 0 1; 0 0 0]`.
 /// Default n = 256. n ≤ 0 → 0×3.
-Value flag_cmap(std::pmr::memory_resource *mr, int n);
+Value flag_cmap(int n, std::pmr::memory_resource *mr = nullptr);
 
 /// `map = prism([n])` — N×3 cyclic 6-row rainbow palette
 /// `[red, orange, yellow, green, blue, violet]` (`[1 0 0; 1 0.5 0;
 /// 1 1 0; 0 1 0; 0 0 1; 2/3 0 1]`). Default n = 256. n ≤ 0 → 0×3.
-Value prism_cmap(std::pmr::memory_resource *mr, int n);
+Value prism_cmap(int n, std::pmr::memory_resource *mr = nullptr);
 
 /// `map = lines([n])` — N×3 colormap that cycles through MATLAB's
 /// default axes color order (R2025b 7-row palette). n==1 → [0 0 1]
 /// (MATLAB convention); n ≤ 0 → 0×3. Default n = 256. NB: Octave's
 /// default palette differs slightly; we match MATLAB.
-Value lines_cmap(std::pmr::memory_resource *mr, int n);
+Value lines_cmap(int n, std::pmr::memory_resource *mr = nullptr);
 
 /// `map = bone([n])` — N×3 grayscale-with-blue-tint "bone" colormap.
 /// Per Octave's bone.m: x=(0:n-1)/(n-1) and per-channel piecewise
@@ -155,11 +149,11 @@ Value lines_cmap(std::pmr::memory_resource *mr, int n);
 /// `base` adjustment depends on mod(n,8) (cases {2,4}, {5,7},
 /// otherwise). Default n = 256. n==1 → [1/8 1/8 1/8];
 /// n==2 → [1/16 1/8 1/8; 1 1 1]; n ≤ 0 → 0×3.
-Value bone_cmap(std::pmr::memory_resource *mr, int n);
+Value bone_cmap(int n, std::pmr::memory_resource *mr = nullptr);
 
 /// `map = white([n])` — N×3 all-ones colormap. Default n=256.
 /// n ≤ 0 → 0×3.
-Value white_cmap(std::pmr::memory_resource *mr, int n);
+Value white_cmap(int n, std::pmr::memory_resource *mr = nullptr);
 
 /// `B = rgb2lin(A)` — sRGB → linear-RGB gamma inverse.
 /// Per-element piecewise: |x| < 0.04045 → x/12.92; otherwise
@@ -167,33 +161,32 @@ Value white_cmap(std::pmr::memory_resource *mr, int n);
 /// through the gamma curve. Output class is double if input is
 /// double, else single (MATLAB R2025b convention). Only the
 /// default "sRGB" colorspace is supported here.
-Value rgb2lin(std::pmr::memory_resource *mr, const Value &A);
+Value rgb2lin(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
 /// `B = lin2rgb(A)` — linear-RGB → sRGB gamma forward.
 /// Per-element piecewise: |x| ≤ 0.0031308 → 12.92·x; otherwise
 /// sign(x) · (1.055·|x|^(1/2.4) − 0.055). Inverse of rgb2lin.
 /// Same class-promotion rule as rgb2lin (integer in → single out).
-Value lin2rgb(std::pmr::memory_resource *mr, const Value &A);
+Value lin2rgb(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
 /// `xyzd = xyz2double(xyz)` — convert XYZ image/colormap to double.
 /// Following the ICC.1:2001-4 convention for uint16 XYZ:
 ///     uint16 0 → 0.0,  uint16 32768 → 1.0,  uint16 65535 → 1+32767/32768.
 /// Equivalently `double = uint16 / 32768`. Double input is passed through
 /// (sanitized to double class). Shape is preserved (M×3 or H×W×3).
-Value xyz2double(std::pmr::memory_resource *mr, const Value &xyz);
+Value xyz2double(const Value &xyz, std::pmr::memory_resource *mr = nullptr);
 
 /// `xyzu16 = xyz2uint16(xyz)` — convert XYZ to uint16 ICC encoding.
 /// Inverse of xyz2double: `uint16 = saturate(round(double * 32768))`.
 /// Negative values clip to 0; values ≥ 65535/32768 ≈ 1.99997 saturate
 /// to 65535. uint16 input is passed through. Shape preserved.
-Value xyz2uint16(std::pmr::memory_resource *mr, const Value &xyz);
+Value xyz2uint16(const Value &xyz, std::pmr::memory_resource *mr = nullptr);
 
 /// `rmap = brighten(map, beta)` — gamma-adjust an N×3 colormap.
 /// `beta` ∈ (−1, 1). Output is `map .^ gamma` where gamma = 1−β
 /// for β>0 (brighter) or gamma = 1/(1+β) for β≤0 (darker).
 /// Range outside the open interval errors.
-Value brighten(std::pmr::memory_resource *mr,
-               const Value &map, double beta);
+Value brighten(const Value &map, double beta, std::pmr::memory_resource *mr = nullptr);
 
 /// `cmap = contrast(x[, m])` — gray colormap that equalises image
 /// histogram. Per MATLAB R2025b: scale x to [0, m-1] integers,
@@ -202,7 +195,7 @@ Value brighten(std::pmr::memory_resource *mr,
 /// columns. Default `m` = 64 in our impl (no figure colormap to
 /// inherit). Octave ships a similar function but its output
 /// disagrees with MATLAB's; we follow MATLAB.
-Value contrast(std::pmr::memory_resource *mr, const Value &x, int m);
+Value contrast(const Value &x, int m, std::pmr::memory_resource *mr = nullptr);
 
 /// `delE = deltaE(I1, I2[, 'isInputLab', tf])` — CIE76 colour
 /// difference. Default treats inputs as RGB and converts to L*a*b*
@@ -211,8 +204,7 @@ Value contrast(std::pmr::memory_resource *mr, const Value &x, int m);
 /// in CIELAB. Inputs are M×3 colormaps (output M×1) or H×W×3
 /// images (output H×W). Class promotion: any double → double,
 /// otherwise single.
-Value deltaE(std::pmr::memory_resource *mr,
-             const Value &I1, const Value &I2, bool isInputLab);
+Value deltaE(const Value &I1, const Value &I2, bool isInputLab, std::pmr::memory_resource *mr = nullptr);
 
 /// `wp = whitepoint([illuminant])` — 1×3 XYZ tristimulus value of
 /// a CIE reference illuminant. Supported (case-insensitive):
@@ -223,8 +215,7 @@ Value deltaE(std::pmr::memory_resource *mr,
 ///   'd65' → [0.95047 1.0 1.08883]       (Noon daylight)
 ///   'e'   → [1 1 1]                     (Equal-energy)
 ///   'icc' → [0.96420288 1.0 0.82489014] (default; ICC profile D50)
-Value whitepoint(std::pmr::memory_resource *mr,
-                 const std::string &illuminant);
+Value whitepoint(const std::string &illuminant, std::pmr::memory_resource *mr = nullptr);
 
 /// `gmap = cmap2gray(cmap)` — colormap → grayscale colormap.
 /// Input is an N×3 RGB colormap (treated as double). Output is N×3
@@ -232,7 +223,7 @@ Value whitepoint(std::pmr::memory_resource *mr,
 /// the inv(YIQ→RGB) first row weights (0.298936, 0.587043, 0.114021),
 /// clipped to [0, 1]. Matches MATLAB R2020b+. Octave-image 2.18.2
 /// doesn't ship cmap2gray.
-Value cmap2gray(std::pmr::memory_resource *mr, const Value &cmap);
+Value cmap2gray(const Value &cmap, std::pmr::memory_resource *mr = nullptr);
 
 /// label2rgb(L, cmap [, background]) — colourise a labelled image.
 /// `L` is an H×W non-negative integer-valued matrix. `cmap` is an
@@ -244,8 +235,6 @@ Value cmap2gray(std::pmr::memory_resource *mr, const Value &cmap);
 /// function handle for `cmap`; both require a `jet` / `hsv` / etc.
 /// generator that we don't expose yet, so callers must pass an
 /// explicit N×3 matrix here.
-Value label2rgb(std::pmr::memory_resource *mr,
-                const Value &L, const Value &cmap,
-                const Value &background);
+Value label2rgb(const Value &L, const Value &cmap, const Value &background, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::image

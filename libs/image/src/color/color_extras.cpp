@@ -36,12 +36,12 @@ namespace numkit::image {
 // ── rgb2lightness ─────────────────────────────────────────────────────
 // L = first channel of rgb2lab(RGB). MATLAB's rgb2lightness returns
 // single. Numkit's rgb2lab returns double, so we cast on the way out.
-Value rgb2lightness(std::pmr::memory_resource *mr, const Value &RGB)
+Value rgb2lightness(const Value &RGB, std::pmr::memory_resource *mr)
 {
     if (!RGB.dims().is3D() || RGB.dims().pages() != 3)
         throw Error("rgb2lightness: input must be H×W×3",
                     0, 0, "rgb2lightness", "", "m:rgb2lightness:Shape");
-    Value lab = rgb2lab(mr, RGB);
+    Value lab = rgb2lab(RGB, mr);
     const size_t H = lab.dims().rows();
     const size_t W = lab.dims().cols();
     Value out = Value::matrix(H, W, ValueType::SINGLE, mr);
@@ -69,7 +69,7 @@ Value rgb2lightness(std::pmr::memory_resource *mr, const Value &RGB)
 // the output is double, which our v1 doesn't produce). Tie-breaking
 // picks the lowest cmap index (matches MATLAB's nodither path).
 std::pair<Value, Value>
-rgb2ind_inmap(std::pmr::memory_resource *mr, const Value &RGB, const Value &cmap)
+rgb2ind_inmap(const Value &RGB, const Value &cmap, std::pmr::memory_resource *mr)
 {
     if (!RGB.dims().is3D() || RGB.dims().pages() != 3)
         throw Error("rgb2ind: input must be H×W×3",
@@ -139,7 +139,7 @@ void rgb2lightness_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("rgb2lightness: requires (RGB)",
                     0, 0, "rgb2lightness", "", "m:rgb2lightness:nargin");
-    outs[0] = rgb2lightness(ctx.engine->resource(), args[0]);
+    outs[0] = rgb2lightness(args[0], ctx.engine->resource());
 }
 
 void rgb2ind_reg(Span<const Value> args, size_t nargout,
@@ -169,7 +169,7 @@ void rgb2ind_reg(Span<const Value> args, size_t nargout,
                     "an explicit K×3 colormap instead (KNOWN GAP)",
                     0, 0, "rgb2ind", "", "m:rgb2ind:NotImpl");
     }
-    auto [X, cmap] = rgb2ind_inmap(ctx.engine->resource(), args[0], args[1]);
+    auto [X, cmap] = rgb2ind_inmap(args[0], args[1], ctx.engine->resource());
     outs[0] = X;
     if (nargout >= 2 && outs.size() >= 2) outs[1] = cmap;
 }
