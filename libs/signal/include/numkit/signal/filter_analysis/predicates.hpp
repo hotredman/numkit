@@ -21,8 +21,14 @@ namespace numkit::signal {
 /// @return    `true` if FIR. The single-arg form assumes `a == [1]`.
 bool isfir(const Value &b);
 
-/// @copydoc isfir(const Value &)
+/// @brief Detects FIR with explicit denominator.
+///
+/// Same FIR criterion as @ref isfir(const Value &): denominator
+/// must be effectively `[1]` within tolerance.
+///
+/// @param b   Numerator polynomial.
 /// @param a   Denominator polynomial.
+/// @return    `true` if FIR.
 bool isfir(const Value &b, const Value &a);
 
 /// Detects whether a digital filter is BIBO-stable.
@@ -106,8 +112,14 @@ bool isallpass(const Value &b, const Value &a);
 /// @return    Integer filter order.
 int filtord(const Value &b);
 
-/// @copydoc filtord(const Value &)
+/// @brief Filter order with explicit denominator (`n = filtord(b, a)`).
+///
+/// IIR formula: `max(length(b_trimmed), length(a_trimmed)) - 1`.
+/// Trailing zeros of `b` and `a` are trimmed before counting.
+///
+/// @param b   Numerator polynomial.
 /// @param a   Denominator polynomial.
+/// @return    Integer filter order.
 int filtord(const Value &b, const Value &a);
 
 /// FIR filter type classification (1–4) per MATLAB convention.
