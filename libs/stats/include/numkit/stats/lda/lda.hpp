@@ -25,8 +25,6 @@ namespace numkit::stats {
 /// probabilities (Nsamp × K), and log unconditional density (Nsamp × 1).
 /// Prior assumed empirical (n_k / N).
 std::tuple<Value, Value, Value, Value>
-classify(std::pmr::memory_resource *mr,
-         const Value &sample, const Value &training, const Value &group,
-         const std::string &type);
+classify(const Value &sample, const Value &training, const Value &group, const std::string &type, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

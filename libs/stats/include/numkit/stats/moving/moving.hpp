@@ -19,15 +19,15 @@
 
 namespace numkit::stats {
 
-Value movmean  (std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim = 0);
-Value movmedian(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim = 0);
-Value movsum   (std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim = 0);
-Value movmin   (std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim = 0);
-Value movmax   (std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim = 0);
-Value movstd   (std::pmr::memory_resource *mr, const Value &x, const Value &k, int normFlag = 0, int dim = 0);
-Value movvar   (std::pmr::memory_resource *mr, const Value &x, const Value &k, int normFlag = 0, int dim = 0);
-Value movmad   (std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim = 0);
-Value movprod  (std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim = 0);
+Value movmean  (const Value &x, const Value &k, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value movmedian(const Value &x, const Value &k, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value movsum   (const Value &x, const Value &k, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value movmin   (const Value &x, const Value &k, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value movmax   (const Value &x, const Value &k, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value movstd   (const Value &x, const Value &k, int normFlag = 0, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value movvar   (const Value &x, const Value &k, int normFlag = 0, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value movmad   (const Value &x, const Value &k, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value movprod  (const Value &x, const Value &k, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 /// smoothdata(x[, method[, k]]) — wrapper over moving stats.
 /// method: "movmean" (default), "movmedian", "gaussian", "lowess",
@@ -35,14 +35,11 @@ Value movprod  (std::pmr::memory_resource *mr, const Value &x, const Value &k, i
 /// Currently supported: movmean, movmedian, gaussian (Gaussian-weighted
 /// running mean). Other methods throw m:smoothdata:unsupportedMethod.
 /// Without explicit k, picks a heuristic window from the data length.
-Value smoothdata(std::pmr::memory_resource *mr, const Value &x,
-                 const std::string &method = "movmean",
-                 int k = 0, int dim = 0);
+Value smoothdata(const Value &x, const std::string &method = "movmean", int k = 0, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 /// hampel(x[, k[, nsigmas]]) — Hampel outlier-resilient median filter.
 /// Replaces samples that deviate by > nsigmas·MAD from the local median
 /// (window 2k+1). Default k=3, nsigmas=3.0.
-Value hampel(std::pmr::memory_resource *mr, const Value &x,
-             int k = 3, double nsigmas = 3.0);
+Value hampel(const Value &x, int k = 3, double nsigmas = 3.0, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats
