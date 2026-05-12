@@ -78,12 +78,19 @@ Value fft2(const Value &                X,
            int                          n  = -1,
            std::pmr::memory_resource *  mr = nullptr);
 
-/// 2-D inverse FFT — same shape semantics as `fft2`.
-/// @copydoc fft2(const Value &, int, int, std::pmr::memory_resource *)
-Value ifft2(const Value &                X,
-            int                          m  = -1,
-            int                          n  = -1,
-            std::pmr::memory_resource *  mr = nullptr);
+/// @brief 2-D inverse FFT (`Y = ifft2(X, m, n)`).
+///
+/// Inverse of @ref fft2; same shape semantics. May downgrade output
+/// to DOUBLE when the result is real within tolerance (imag ≤ 1e-10).
+///
+/// @param X   2-D input spectrum.
+/// @param m   Number of rows, `-1` keeps `size(X, 1)`.
+/// @param n   Number of columns, `-1` keeps `size(X, 2)`.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `m × n` array (COMPLEX or DOUBLE).
+/// @see fft2, ifft, ifftn
+Value ifft2(const Value &X, int m = -1, int n = -1,
+            std::pmr::memory_resource *mr = nullptr);
 
 /// N-D forward FFT.
 ///
@@ -108,13 +115,20 @@ Value fftn(const Value &                X,
            std::size_t                  szLen = 0,
            std::pmr::memory_resource *  mr    = nullptr);
 
-/// N-D inverse FFT — same shape semantics as `fftn`. May downgrade
-/// to real output when imag(Y) ≤ 1e-10 everywhere.
-/// @copydoc fftn(const Value &, const std::size_t *, std::size_t, std::pmr::memory_resource *)
-Value ifftn(const Value &                X,
-            const std::size_t *          sz    = nullptr,
-            std::size_t                  szLen = 0,
-            std::pmr::memory_resource *  mr    = nullptr);
+/// @brief N-D inverse FFT (`Y = ifftn(X, sz, szLen)`).
+///
+/// Inverse of @ref fftn; same shape semantics. May downgrade to DOUBLE
+/// when `imag(Y) ≤ 1e-10` everywhere.
+///
+/// @param X       N-D input spectrum.
+/// @param sz      Per-axis target sizes (nullptr → use X's current shape).
+/// @param szLen   Length of `sz`, `<= ndims(X)`. 0 ≡ no overrides.
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Same-shape (or `sz`-shape) array (COMPLEX or DOUBLE).
+/// @see fftn, ifft, ifft2
+Value ifftn(const Value &X,
+            const std::size_t *sz = nullptr, std::size_t szLen = 0,
+            std::pmr::memory_resource *mr = nullptr);
 
 /// Chirp Z-transform (Bluestein).
 ///
