@@ -6,21 +6,18 @@
 
 namespace numkit::builtin {
 
-// ── Unary arithmetic ─────────────────────────────────────────────────
-/// -x with type-preserving semantics. Char/logical promote to double.
-/// Signed integers saturate at type min; unsigned becomes zero.
+//// -x with type-preserving semantics. Char/logical promote to double.
+//// Signed integers saturate at type min; unsigned becomes zero.
 Value uminus(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// +x — identity (returns x unchanged). Provided for operator symmetry.
 Value uplus(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Logical ──────────────────────────────────────────────────────────
-/// ~x — elementwise logical NOT. Non-zero → 0, zero → 1. Returns logical.
+//// ~x — elementwise logical NOT. Non-zero → 0, zero → 1. Returns logical.
 Value logicalNot(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Transposes ───────────────────────────────────────────────────────
-/// x' — conjugate transpose. For complex matrices, conjugates each element.
-/// Throws Error on 3D input. Supports DOUBLE and COMPLEX.
+//// x' — conjugate transpose. For complex matrices, conjugates each element.
+//// Throws Error on 3D input. Supports DOUBLE and COMPLEX.
 Value ctranspose(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// x.' — non-conjugate transpose. For complex matrices, does NOT conjugate.

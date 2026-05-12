@@ -7,8 +7,7 @@
 
 namespace numkit::builtin {
 
-// ── Conversion ───────────────────────────────────────────────────────
-/// num2str(x) — scalar number → char array (5 significant digits).
+//// num2str(x) — scalar number → char array (5 significant digits).
 Value num2str(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// num2str(x, N) — N significant digits if N is an integer.
 /// num2str(x, fmt) — printf-style format string.
@@ -28,22 +27,19 @@ Value toString(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// in C++ because `char` is a keyword.
 Value toChar(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Comparisons ──────────────────────────────────────────────────────
-/// strcmp(a, b) — equal-strings test (case-sensitive). Logical scalar.
+//// strcmp(a, b) — equal-strings test (case-sensitive). Logical scalar.
 Value strcmp(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
 /// strcmpi(a, b) — equal-strings test (case-insensitive, ASCII).
 Value strcmpi(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-// ── Case transforms ──────────────────────────────────────────────────
-/// upper(s) — ASCII uppercase.
+//// upper(s) — ASCII uppercase.
 Value upper(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
 /// lower(s) — ASCII lowercase.
 Value lower(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
-// ── Trim / split / concat ────────────────────────────────────────────
-/// strtrim(s) — strip leading/trailing whitespace (space/tab/CR/LF).
+//// strtrim(s) — strip leading/trailing whitespace (space/tab/CR/LF).
 Value strtrim(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
 /// strsplit(s) — split on whitespace (default delim = space).
@@ -56,13 +52,11 @@ Value strsplit(const Value &s, const Value &delim, std::pmr::memory_resource *mr
 /// strcat(parts) — concatenate N strings/char arrays into one char array.
 Value strcat(Span<const Value> parts, std::pmr::memory_resource *mr = nullptr);
 
-// ── Length ───────────────────────────────────────────────────────────
-/// strlength(s) — length of each string (elementwise for string array).
+//// strlength(s) — length of each string (elementwise for string array).
 Value strlength(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
-// ── Search / replace ─────────────────────────────────────────────────
-/// strrep(s, oldPat, newPat) — replace all non-overlapping occurrences.
-/// Output is string-typed if s was string-typed, else char.
+//// strrep(s, oldPat, newPat) — replace all non-overlapping occurrences.
+//// Output is string-typed if s was string-typed, else char.
 Value strrep(const Value &s, const Value &oldPat, const Value &newPat, std::pmr::memory_resource *mr = nullptr);
 
 /// contains(s, pat) — logical scalar: does s contain pat as substring?
@@ -74,8 +68,7 @@ Value startsWith(const Value &s, const Value &prefix, std::pmr::memory_resource 
 /// endsWith(s, suffix) — logical scalar.
 Value endsWith(const Value &s, const Value &suffix, std::pmr::memory_resource *mr = nullptr);
 
-// ── Pack 10: extra string utilities ──────────────────────────────────
-/// strncmp(a, b, n) — first n chars equal, case-sensitive. Logical scalar.
+//// strncmp(a, b, n) — first n chars equal, case-sensitive. Logical scalar.
 Value strncmp(const Value &a, const Value &b, size_t n, std::pmr::memory_resource *mr = nullptr);
 /// strncmpi(a, b, n) — first n chars equal, case-insensitive ASCII.
 Value strncmpi(const Value &a, const Value &b, size_t n, std::pmr::memory_resource *mr = nullptr);
@@ -94,9 +87,8 @@ Value mat2str(const Value &x, int precision = 15, std::pmr::memory_resource *mr 
 /// space). Returns a single char row.
 Value strjoin(const Value &c, const Value *delim = nullptr, std::pmr::memory_resource *mr = nullptr);
 
-// ── Pack 18: extra string utilities ──────────────────────────────────
-/// append(s1, s2, ...) — concatenate strings, preserving trailing
-/// whitespace (unlike strcat).
+//// append(s1, s2, ...) — concatenate strings, preserving trailing
+//// whitespace (unlike strcat).
 Value append(Span<const Value> parts, std::pmr::memory_resource *mr = nullptr);
 /// count(s, pat) — number of non-overlapping occurrences of pat in s.
 Value count(const Value &s, const Value &pat, std::pmr::memory_resource *mr = nullptr);
@@ -120,9 +112,8 @@ Value strip(const Value &s, const Value *side = nullptr, const Value *ch = nullp
 /// of strings, true iff s equals any element of pat.
 Value matches(const Value &s, const Value &pat, std::pmr::memory_resource *mr = nullptr);
 
-// ── Pack 21: string ↔ char conversion + char predicates ──────────────
-/// convertCharsToStrings(x) — char array → string scalar. Already-string
-/// inputs pass through unchanged; cells of chars become string arrays.
+//// convertCharsToStrings(x) — char array → string scalar. Already-string
+//// inputs pass through unchanged; cells of chars become string arrays.
 Value convertCharsToStrings(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// convertStringsToChars(x) — string → char row. Already-char inputs
 /// pass through. String array → cell of char rows.
@@ -138,12 +129,10 @@ Value isletter(const Value &s, std::pmr::memory_resource *mr = nullptr);
 /// isspace(s) — true for ASCII whitespace (' ', '\t', '\n', '\r', '\f', '\v').
 Value isspaceFn(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
-// ── Pack 22: extract / insert / erase / replace at positions ─────────
-//
-// Each function accepts a position-or-pattern argument:
-//   numeric scalar  — 1-based character index
-//   char/string     — first occurrence of the literal pattern in s
-// `Between` variants take two such arguments.
+/// Each function accepts a position-or-pattern argument:
+///   numeric scalar  — 1-based character index
+///   char/string     — first occurrence of the literal pattern in s
+/// `Between` variants take two such arguments.
 
 Value extractAfter(const Value &s, const Value &p, std::pmr::memory_resource *mr = nullptr);
 Value extractBefore(const Value &s, const Value &p, std::pmr::memory_resource *mr = nullptr);
@@ -153,9 +142,8 @@ Value insertBefore(const Value &s, const Value &p, const Value &newText, std::pm
 Value eraseBetween(const Value &s, const Value &start, const Value &end, std::pmr::memory_resource *mr = nullptr);
 Value replaceBetween(const Value &s, const Value &start, const Value &end, const Value &newText, std::pmr::memory_resource *mr = nullptr);
 
-// ── Pack 23: numeric base / fraction conversion ──────────────────────
-/// dec2bin(d[, n]) — non-negative integer → binary char row, padded to
-/// at least n digits. Vector input → 2-D char matrix (one row per d_i).
+//// dec2bin(d[, n]) — non-negative integer → binary char row, padded to
+//// at least n digits. Vector input → 2-D char matrix (one row per d_i).
 Value dec2bin(const Value &d, int minWidth, std::pmr::memory_resource *mr = nullptr);
 /// dec2hex(d[, n]) — uppercase hex char row, padded to ≥ n.
 Value dec2hex(const Value &d, int minWidth, std::pmr::memory_resource *mr = nullptr);
@@ -170,10 +158,9 @@ Value rat(const Value &x, double tol, std::pmr::memory_resource *mr = nullptr);
 /// rats(x[, len]) — same as rat but pads to fixed width `len`.
 Value rats(const Value &x, int len, std::pmr::memory_resource *mr = nullptr);
 
-// ── Pack 36: array constructors / character constants ────────────────
-/// newline — ASCII LF as a 1×1 char. Equivalent to `char(10)` /
-/// `sprintf('\n')`. Takes no input; the `mr` argument is just for the
-/// allocator-passing convention.
+//// newline — ASCII LF as a 1×1 char. Equivalent to `char(10)` /
+//// `sprintf('\n')`. Takes no input; the `mr` argument is just for the
+//// allocator-passing convention.
 Value newlineFn(std::pmr::memory_resource *mr = nullptr);
 
 /// strings(d1, d2, ...) — string array of given shape, every element "".

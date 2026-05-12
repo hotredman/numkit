@@ -48,9 +48,8 @@ Value spline(const Value &x, const Value &y, const Value &xq, std::pmr::memory_r
 /// Piecewise cubic Hermite — equivalent to interp1(..., "pchip").
 Value pchip(const Value &x, const Value &y, const Value &xq, std::pmr::memory_resource *mr = nullptr);
 
-// ── Pack 30: piecewise polynomial accessors ──────────────────────────
-/// mkpp(breaks, coefs) — build a MATLAB-style pp struct with fields
-/// {form='pp', breaks, coefs, pieces, order, dim}. coefs is pieces×order.
+//// mkpp(breaks, coefs) — build a MATLAB-style pp struct with fields
+//// {form='pp', breaks, coefs, pieces, order, dim}. coefs is pieces×order.
 Value mkpp(const Value &breaks, const Value &coefs, std::pmr::memory_resource *mr = nullptr);
 
 /// ppval(pp, x) — evaluate the piecewise polynomial in pp at every

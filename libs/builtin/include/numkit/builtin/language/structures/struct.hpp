@@ -11,9 +11,8 @@ namespace numkit::builtin {
 
 using ::numkit::Engine;
 
-// ── Struct ────────────────────────────────────────────────────────────
-/// Empty struct scalar. Named `structure` in C++ because `struct` is a
-/// keyword (the MATLAB registered name remains `struct`).
+//// Empty struct scalar. Named `structure` in C++ because `struct` is a
+//// keyword (the MATLAB registered name remains `struct`).
 Value structure(std::pmr::memory_resource *mr = nullptr);
 
 /// Build a struct from alternating {name, value, name, value, ...} pairs.
@@ -33,11 +32,9 @@ Value isfield(const Value &s, const Value &name, std::pmr::memory_resource *mr =
 /// Silently ignores missing field names.
 Value rmfield(const Value &s, const Value &name, std::pmr::memory_resource *mr = nullptr);
 
-// ── structfun ─────────────────────────────────────────────────────────
-//
-// Apply a function handle to each field of `S`. Built-in fast-path set
-// matches cellfun (see datatypes/cell/cell.hpp). uniformOutput=true
-// produces a column vector of length numFields; false → 1×N cell row.
+/// Apply a function handle to each field of `S`. Built-in fast-path set
+/// matches cellfun (see datatypes/cell/cell.hpp). uniformOutput=true
+/// produces a column vector of length numFields; false → 1×N cell row.
 Value structfun(const Value &fn, const Value &s, bool uniformOutput, Engine *engine = nullptr, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

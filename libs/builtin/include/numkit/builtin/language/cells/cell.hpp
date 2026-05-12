@@ -10,8 +10,7 @@ namespace numkit::builtin {
 
 using ::numkit::Engine;
 
-// ── Cell construction ─────────────────────────────────────────────────
-/// cell(n) — n×n cell array. MATLAB behavior.
+//// cell(n) — n×n cell array. MATLAB behavior.
 Value cell(size_t n, std::pmr::memory_resource *mr = nullptr);
 
 /// cell(r, c) — r×c cell array.
@@ -20,28 +19,22 @@ Value cell(size_t rows, size_t cols, std::pmr::memory_resource *mr = nullptr);
 /// cell(r, c, p) — 3D cell array when p > 0; else 2D r×c.
 Value cell(size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr = nullptr);
 
-// ── cellfun ───────────────────────────────────────────────────────────
-//
-// Apply a function handle to each cell of `C`.
-// Built-in handles supported (fast path via funcHandleName()):
-//
-//   shape:    numel, length, ndims, isempty
-//   type:     isnumeric, ischar, islogical, iscell, isstruct,
-//             isreal, isnan, isinf, isfinite
-//   reduce:   sum, prod, mean
-//   text:     class           (always non-uniform — string output)
-//
-// Custom (anonymous) handles route through `Engine::callFunctionHandle`
-// when an Engine pointer is supplied. Without an Engine, custom handles
-// throw `m:cellfun:fnUnsupported`.
-//
-// Default uniformOutput=true packs scalars into a numeric/logical array
-// of the same shape as `C`. uniformOutput=false packs into a cell array
-// of the same shape.
+/// Apply a function handle to each cell of `C`.
+/// Built-in handles supported (fast path via funcHandleName()):
+///   shape:    numel, length, ndims, isempty
+///   type:     isnumeric, ischar, islogical, iscell, isstruct,
+///             isreal, isnan, isinf, isfinite
+///   reduce:   sum, prod, mean
+///   text:     class           (always non-uniform — string output)
+/// Custom (anonymous) handles route through `Engine::callFunctionHandle`
+/// when an Engine pointer is supplied. Without an Engine, custom handles
+/// throw `m:cellfun:fnUnsupported`.
+/// Default uniformOutput=true packs scalars into a numeric/logical array
+/// of the same shape as `C`. uniformOutput=false packs into a cell array
+/// of the same shape.
 Value cellfun(const Value &fn, const Value &c, bool uniformOutput, Engine *engine = nullptr, std::pmr::memory_resource *mr = nullptr);
 
-// ── Pack 15: cell idioms ──────────────────────────────────────────────
-/// num2cell(A) — wrap each element of A in a scalar cell.
+//// num2cell(A) — wrap each element of A in a scalar cell.
 Value num2cell(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// cell2mat(C) — concatenate cells back into a single matrix. Fast
@@ -55,12 +48,11 @@ Value iscellstr(const Value &c, std::pmr::memory_resource *mr = nullptr);
 /// cell-of-strings → identity.
 Value cellstr(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-// ── Pack 24 ──────────────────────────────────────────────────────────
-/// mat2cell(A, R)        — vector input: split into a 1×N cell where
-///                         element i is A[..., R(i)].
-/// mat2cell(A, R, C)     — 2-D input: split rows by R and cols by C.
-/// sum(R) == size(A,1), sum(C) == size(A,2). Block at (i, j) has
-/// shape R(i) × C(j).
+//// mat2cell(A, R)        — vector input: split into a 1×N cell where
+////                         element i is A[..., R(i)].
+//// mat2cell(A, R, C)     — 2-D input: split rows by R and cols by C.
+//// sum(R) == size(A,1), sum(C) == size(A,2). Block at (i, j) has
+//// shape R(i) × C(j).
 Value mat2cell(const Value &x, const double *rowSizes, size_t nRow, const double *colSizes, size_t nCol, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

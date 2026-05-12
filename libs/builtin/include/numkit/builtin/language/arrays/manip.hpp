@@ -61,9 +61,8 @@ Value flip(const Value &x, int dim1Based = 0, std::pmr::memory_resource *mr = nu
 Value repelem(const Value &x, size_t n, std::pmr::memory_resource *mr = nullptr);
 Value repelem(const Value &x, size_t m, size_t n, std::pmr::memory_resource *mr = nullptr);
 
-// ── Pack 32: array shape pads (vectors only) ─────────────────────────
-/// paddata(v, n) — pad v with zeros (trailing) until length == n.
-/// If numel(v) ≥ n, returns v unchanged.
+//// paddata(v, n) — pad v with zeros (trailing) until length == n.
+//// If numel(v) ≥ n, returns v unchanged.
 Value paddata(const Value &v, size_t n, std::pmr::memory_resource *mr = nullptr);
 /// trimdata(v, n) — truncate v from the trailing end to length n.
 Value trimdata(const Value &v, size_t n, std::pmr::memory_resource *mr = nullptr);
