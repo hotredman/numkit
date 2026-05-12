@@ -22,14 +22,11 @@ namespace numkit::signal {
 // Returns (shifted, perm, nshifts). perm is empty when dim was unspecified
 // (or 0); nshifts is empty when dim was specified.
 std::tuple<Value, Value, Value>
-shiftdata(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+shiftdata(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 // unshiftdata(x, perm, nshifts) — inverse of shiftdata.
 // If perm is empty: y = shiftdim(x, -nshifts).
 // Otherwise:        y = ipermute(x, perm).
-Value unshiftdata(std::pmr::memory_resource *mr,
-                   const Value &x,
-                   const Value &perm,
-                   const Value &nshifts);
+Value unshiftdata(const Value &x, const Value &perm, const Value &nshifts, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal

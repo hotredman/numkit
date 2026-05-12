@@ -33,7 +33,7 @@ size_t mtlNdims(const Value &x)
 } // anon
 
 std::tuple<Value, Value, Value>
-shiftdata(std::pmr::memory_resource *mr, const Value &x, int dim)
+shiftdata(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (dim == 0) {
         // Auto path: shiftdim(x) drops leading singletons.
@@ -67,10 +67,7 @@ shiftdata(std::pmr::memory_resource *mr, const Value &x, int dim)
     return {std::move(shifted), std::move(permV), std::move(emptyNsh)};
 }
 
-Value unshiftdata(std::pmr::memory_resource *mr,
-                   const Value &x,
-                   const Value &perm,
-                   const Value &nshifts)
+Value unshiftdata(const Value &x, const Value &perm, const Value &nshifts, std::pmr::memory_resource *mr)
 {
     if (perm.isEmpty()) {
         const int n = nshifts.isEmpty() ? 0 : static_cast<int>(nshifts.toScalar());
@@ -95,7 +92,7 @@ void shiftdata_reg(Span<const Value> args, size_t nargout,
     int dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty())
         dim = static_cast<int>(args[1].toScalar());
-    auto [shifted, permV, nshV] = shiftdata(ctx.engine->resource(), args[0], dim);
+    auto [shifted, permV, nshV] = shiftdata(args[0], dim, ctx.engine->resource());
     outs[0] = shifted;
     if (nargout >= 2 && outs.size() >= 2) outs[1] = permV;
     if (nargout >= 3 && outs.size() >= 3) outs[2] = nshV;
@@ -107,7 +104,7 @@ void unshiftdata_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 3)
         throw Error("unshiftdata: requires (x, perm, nshifts)",
                     0, 0, "unshiftdata", "", "m:unshiftdata:nargin");
-    outs[0] = unshiftdata(ctx.engine->resource(), args[0], args[1], args[2]);
+    outs[0] = unshiftdata(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 } // namespace detail

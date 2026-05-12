@@ -9,11 +9,11 @@ namespace numkit::signal {
 /// Direct Form II transposed IIR/FIR filter: y = filter(b, a, x).
 /// a[0] must be non-zero (gets normalized out).
 /// @throws Error if a[0] == 0.
-Value filter(std::pmr::memory_resource *mr, const Value &b, const Value &a, const Value &x);
+Value filter(const Value &b, const Value &a, const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// Zero-phase forward-backward filtering: applies filter() twice with
 /// edge-reflected padding (length 3 * max(nb, na)), reverses each pass.
 /// @throws Error if a[0] == 0.
-Value filtfilt(std::pmr::memory_resource *mr, const Value &b, const Value &a, const Value &x);
+Value filtfilt(const Value &b, const Value &a, const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal

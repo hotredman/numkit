@@ -27,8 +27,7 @@ bool isRealValue(const Value &v)
 
 } // anon
 
-Value polyscale(std::pmr::memory_resource *mr,
-                const Value &p, const Value &scale)
+Value polyscale(const Value &p, const Value &scale, std::pmr::memory_resource *mr)
 {
     const size_t N = p.numel();
     if (N == 0) {
@@ -70,7 +69,7 @@ Value polyscale(std::pmr::memory_resource *mr,
     }
 }
 
-Value polystab(std::pmr::memory_resource *mr, const Value &a)
+Value polystab(const Value &a, std::pmr::memory_resource *mr)
 {
     const size_t N = a.numel();
     if (N == 0 || N == 1) {
@@ -175,7 +174,7 @@ void polyscale_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("polyscale: requires (p, scale)",
                     0, 0, "polyscale", "", "m:polyscale:nargin");
-    outs[0] = polyscale(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = polyscale(args[0], args[1], ctx.engine->resource());
 }
 
 void polystab_reg(Span<const Value> args, size_t /*nargout*/,
@@ -184,7 +183,7 @@ void polystab_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("polystab: requires (a)",
                     0, 0, "polystab", "", "m:polystab:nargin");
-    outs[0] = polystab(ctx.engine->resource(), args[0]);
+    outs[0] = polystab(args[0], ctx.engine->resource());
 }
 
 } // namespace detail

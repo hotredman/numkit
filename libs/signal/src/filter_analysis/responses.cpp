@@ -112,7 +112,7 @@ impz(const Value &b, const Value &a, size_t n, std::pmr::memory_resource *mr)
 {
     if (n == 0) n = impzlength(b, a, mr);
     auto x = makeColVector(n, [](size_t i) { return i == 0 ? 1.0 : 0.0; }, mr);
-    auto h = filter(mr, b, a, x);
+    auto h = filter(b, a, x, mr);
     return std::make_tuple(std::move(h), sampleIndex(n, mr));
 }
 
@@ -122,7 +122,7 @@ stepz(const Value &b, const Value &a, size_t n, std::pmr::memory_resource *mr)
 {
     if (n == 0) n = impzlength(b, a, mr);
     auto x = makeColVector(n, [](size_t) { return 1.0; }, mr);
-    auto s = filter(mr, b, a, x);
+    auto s = filter(b, a, x, mr);
     return std::make_tuple(std::move(s), sampleIndex(n, mr));
 }
 

@@ -18,10 +18,7 @@ namespace {
 
 // Direct Form II transposed core, applied to a flat input buffer.
 // Used by both filter() and filtfilt()'s forward/backward passes.
-ScratchVec<double> applyFilterDf2t(std::pmr::memory_resource *mr,
-                                   const double *bn, size_t nb,
-                                   const double *an, size_t na,
-                                   const double *input, size_t len)
+ScratchVec<double> applyFilterDf2t(const double *bn, size_t nb, const double *an, size_t na, const double *input, size_t len, std::pmr::memory_resource *mr)
 {
     const size_t nfilt = std::max(nb, na);
     ScratchVec<double> out(len, mr);
@@ -40,7 +37,7 @@ ScratchVec<double> applyFilterDf2t(std::pmr::memory_resource *mr,
 } // namespace
 
 // ── filter ────────────────────────────────────────────────────────────
-Value filter(std::pmr::memory_resource *mr, const Value &b, const Value &a, const Value &x)
+Value filter(const Value &b, const Value &a, const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t nb = b.numel(), na = a.numel(), nx = x.numel();
     const double *bd = b.doubleData();
@@ -60,8 +57,7 @@ Value filter(std::pmr::memory_resource *mr, const Value &b, const Value &a, cons
     for (size_t i = 0; i < na; ++i)
         an[i] = ad[i] / a0;
 
-    auto out = applyFilterDf2t(&scratch,
-                               bn.data(), nb, an.data(), na, xd, nx);
+    auto out = applyFilterDf2t(bn.data(), nb, an.data(), na, xd, nx, &scratch);
 
     auto r = createLike(x, ValueType::DOUBLE, mr);
     double *y = r.doubleDataMut();
@@ -70,7 +66,7 @@ Value filter(std::pmr::memory_resource *mr, const Value &b, const Value &a, cons
 }
 
 // ── filtfilt ──────────────────────────────────────────────────────────
-Value filtfilt(std::pmr::memory_resource *mr, const Value &b, const Value &a, const Value &x)
+Value filtfilt(const Value &b, const Value &a, const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t nb = b.numel(), na = a.numel(), nx = x.numel();
     const double *bd = b.doubleData();
@@ -106,11 +102,9 @@ Value filtfilt(std::pmr::memory_resource *mr, const Value &b, const Value &a, co
     for (size_t i = 0; i < nEdge; ++i)
         ext[nEdge + nx + i] = 2.0 * xd[nx - 1] - xd[nx - 2 - i];
 
-    auto fwd = applyFilterDf2t(&scratch,
-                               bn.data(), nb, an.data(), na, ext.data(), extLen);
+    auto fwd = applyFilterDf2t(bn.data(), nb, an.data(), na, ext.data(), extLen, &scratch);
     std::reverse(fwd.begin(), fwd.end());
-    auto bwd = applyFilterDf2t(&scratch,
-                               bn.data(), nb, an.data(), na, fwd.data(), fwd.size());
+    auto bwd = applyFilterDf2t(bn.data(), nb, an.data(), na, fwd.data(), fwd.size(), &scratch);
     std::reverse(bwd.begin(), bwd.end());
 
     auto r = createLike(x, ValueType::DOUBLE, mr);
@@ -127,7 +121,7 @@ void filter_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 3)
         throw Error("filter: requires 3 arguments",
                      0, 0, "filter", "", "m:filter:nargin");
-    outs[0] = filter(ctx.engine->resource(), args[0], args[1], args[2]);
+    outs[0] = filter(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 void filtfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -135,7 +129,7 @@ void filtfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.size() < 3)
         throw Error("filtfilt: requires 3 arguments",
                      0, 0, "filtfilt", "", "m:filtfilt:nargin");
-    outs[0] = filtfilt(ctx.engine->resource(), args[0], args[1], args[2]);
+    outs[0] = filtfilt(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 } // namespace detail

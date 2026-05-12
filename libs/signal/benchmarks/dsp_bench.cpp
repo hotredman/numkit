@@ -71,7 +71,7 @@ static void BM_FilterFIR33(benchmark::State &s)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     auto coeffs = makeLowpass32(mr);
     for (auto _ : s) {
-        auto y = signal::filter(mr, coeffs.b, coeffs.a, x);
+        auto y = signal::filter(coeffs.b, coeffs.a, x, mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -85,7 +85,7 @@ static void BM_FiltfiltFIR33(benchmark::State &s)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     auto coeffs = makeLowpass32(mr);
     for (auto _ : s) {
-        auto y = signal::filtfilt(mr, coeffs.b, coeffs.a, x);
+        auto y = signal::filtfilt(coeffs.b, coeffs.a, x, mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));

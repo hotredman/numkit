@@ -17,15 +17,11 @@ namespace numkit::signal {
 // `signedOutput=true`  → int8/int16/int32 output.
 // N must be in [2, 32]. Output type chosen by least-bits rule
 // (≤8 → 8-bit, ≤16 → 16-bit, else 32-bit).
-Value uencode(std::pmr::memory_resource *mr,
-              const Value &u, int N, double V = 1.0,
-              bool signedOutput = false);
+Value uencode(const Value &u, int N, double V = 1.0, bool signedOutput = false, std::pmr::memory_resource *mr = nullptr);
 
 // Decode integer data back to double, with peak value ±V (default 1.0).
 // `wrapOnOverflow=false` (default) → saturate; `=true` → wrap modulo 2^N.
 // Input must be one of int8/16/32 or uint8/16/32.
-Value udecode(std::pmr::memory_resource *mr,
-              const Value &u, int N, double V = 1.0,
-              bool wrapOnOverflow = false);
+Value udecode(const Value &u, int N, double V = 1.0, bool wrapOnOverflow = false, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal
