@@ -12,17 +12,30 @@
 
 namespace numkit::signal {
 
-// shiftdata(x, dim) — move dim to leading; returns (shifted, perm, nshifts).
-// dim = 0 (or empty) means "first non-singleton dim"; in that case
-// the auto path is used: shifted = shiftdim(x), perm = [] (1×0 row),
-// nshifts = number of leading singletons dropped.
-// Otherwise: perm = [dim, 1..dim-1, dim+1..ndims], x = permute(x, perm),
-// nshifts = empty.
-//
-// Returns (shifted, perm, nshifts). perm is empty when dim was unspecified
-// (or 0); nshifts is empty when dim was specified.
+/// Move a chosen dimension to the leading axis for dim-aware processing.
+///
+/// Two operating modes:
+///   * `dim == 0` (or unspecified): "auto" mode. Calls `shiftdim(x)` to
+///     drop leading singleton dimensions. `perm` is returned empty;
+///     `nshifts` contains the number of dimensions rolled up.
+///   * `dim > 0`: explicit dim mode. Calls `permute(x, perm)` where
+///     `perm = [dim, 1..dim-1, dim+1..ndims]`. `nshifts` is empty.
+///
+/// Useful when implementing a function that operates "along the first
+/// non-singleton dimension by default, or along an explicit dim if
+/// provided" — the standard MATLAB convention.
+///
+/// @param x    Input array.
+/// @param dim  Dimension to move to the front. `0` (default) = auto.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Tuple `(shifted, perm, nshifts)`. Use `unshiftdata` to
+///             reverse.
+///
+/// @see unshiftdata
 std::tuple<Value, Value, Value>
-shiftdata(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+shiftdata(const Value &                x,
+          int                          dim = 0,
+          std::pmr::memory_resource *  mr  = nullptr);
 
 /// Inverse of shiftdata.
 ///
