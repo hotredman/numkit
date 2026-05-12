@@ -14,74 +14,210 @@
 
 namespace numkit::signal {
 
-// ── Analog lowpass prototypes (cutoff Ω = 1 rad/s) ─────────────────
-// Each returns (z, p, k) — zeros, poles, gain — of the prototype.
-// Zeros come back as a possibly-empty COMPLEX column vector; poles
-// are always COMPLEX column; gain is a real DOUBLE scalar.
+// ─────────────────────────────────────────────────────────────────────
+// Analog lowpass prototypes (cutoff Ω = 1 rad/s)
+//
+// Each returns (z, p, k) — zeros, poles, gain. `z` may be empty
+// (all-pole filters); `p` is always a COMPLEX column vector; `k` is a
+// real DOUBLE scalar.
+// ─────────────────────────────────────────────────────────────────────
 
-/// buttap(N) — Butterworth analog prototype.
+/// Butterworth analog lowpass prototype.
+///
+/// All poles lie on the unit circle in the s-plane. Maximally flat
+/// magnitude response. No finite zeros (all-pole).
+///
+/// @param N   Filter order, ≥ 1.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(z, p, k)` — empty zeros, N poles, scalar gain.
+///
+/// @see cheb1ap, cheb2ap, besselap, ellipap
 std::tuple<Value, Value, Value>
 buttap(int N, std::pmr::memory_resource *mr = nullptr);
 
-/// cheb1ap(N, Rp) — Chebyshev type I (passband ripple Rp dB) prototype.
+/// Chebyshev type-I analog lowpass prototype.
+///
+/// Equiripple passband at Rp dB; no finite zeros (all-pole).
+///
+/// @param N   Filter order, ≥ 1.
+/// @param Rp  Passband ripple in dB, > 0.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(z, p, k)`.
 std::tuple<Value, Value, Value>
 cheb1ap(int N, double Rp, std::pmr::memory_resource *mr = nullptr);
 
-/// cheb2ap(N, Rs) — Chebyshev type II (stopband attenuation Rs dB)
-/// prototype. Has finite zeros on the imaginary axis.
+/// Chebyshev type-II analog lowpass prototype.
+///
+/// Monotonic passband, equiripple stopband at Rs dB. Has finite zeros
+/// on the imaginary axis.
+///
+/// @param N   Filter order, ≥ 1.
+/// @param Rs  Stopband attenuation in dB, > 0.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(z, p, k)`.
 std::tuple<Value, Value, Value>
 cheb2ap(int N, double Rs, std::pmr::memory_resource *mr = nullptr);
 
-/// besselap(N) — Bessel/Thompson prototype. Returns the standard
-/// "no normalisation" form (poles of a Bessel polynomial). MATLAB's
-/// besselap normalises so the magnitude equals 1/√2 at Ω = 1 rad/s
-/// (group-delay, not magnitude); we match that convention.
+/// Bessel-Thompson analog lowpass prototype.
+///
+/// Poles of a reverse Bessel polynomial. Maximally flat group delay
+/// (linear phase) in the passband. MATLAB's `besselap` normalises so
+/// |H(jΩ)| = 1/√2 at Ω = 1 rad/s — group-delay normalisation, not
+/// magnitude — and this function matches.
+///
+/// @param N   Filter order, ≥ 1.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(z, p, k)` — empty zeros, N poles, scalar gain.
 std::tuple<Value, Value, Value>
 besselap(int N, std::pmr::memory_resource *mr = nullptr);
 
-/// ellipap(N, Rp, Rs) — Cauer (elliptic) analog prototype. Order N,
-/// passband ripple Rp (dB), stopband attenuation Rs (dB). Has finite
-/// zeros on the imaginary axis. Algorithm: Sophocleous/Orfanidis
-/// formulas built on Jacobi elliptic functions and the degree
-/// equation K(k')/K(k) = (1/N) * K(k1')/K(k1).
+/// Elliptic (Cauer) analog lowpass prototype.
+///
+/// Equiripple in both bands. Algorithm: Sophocleous / Orfanidis formulas
+/// built on Jacobi elliptic functions and the degree equation
+/// `K(k')/K(k) = (1/N) · K(k1')/K(k1)`. Has finite zeros on the
+/// imaginary axis (transmission zeros).
+///
+/// @param N   Filter order, ≥ 1.
+/// @param Rp  Passband ripple in dB, > 0.
+/// @param Rs  Stopband attenuation in dB, > Rp.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(z, p, k)`.
 std::tuple<Value, Value, Value>
 ellipap(int N, double Rp, double Rs, std::pmr::memory_resource *mr = nullptr);
 
-// ── Lowpass → X transformations on (z, p, k) ───────────────────────
+// ─────────────────────────────────────────────────────────────────────
+// Lowpass → X frequency transformations on (z, p, k)
+// ─────────────────────────────────────────────────────────────────────
 
-/// lp2lp(z, p, k, Wo) — scale a lowpass prototype to cutoff Wo.
+/// Scale an analog lowpass prototype to cutoff `Wo`.
+///
+/// Applies the substitution `s → s / Wo`. The result is an analog
+/// lowpass filter with cutoff Wo rad/s.
+///
+/// @param z   Prototype zeros (may be empty).
+/// @param p   Prototype poles.
+/// @param k   Prototype gain.
+/// @param Wo  Target cutoff frequency in rad/s.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(z', p', k')` of the transformed filter.
 std::tuple<Value, Value, Value>
-lp2lp(const Value &z, const Value &p, double k, double Wo, std::pmr::memory_resource *mr = nullptr);
+lp2lp(const Value &                z,
+      const Value &                p,
+      double                       k,
+      double                       Wo,
+      std::pmr::memory_resource *  mr = nullptr);
 
-/// lp2hp(z, p, k, Wo) — lowpass → highpass at cutoff Wo.
+/// Lowpass → highpass frequency transformation.
+///
+/// Applies the substitution `s → Wo / s`. Result is an analog
+/// highpass filter with cutoff Wo rad/s.
+///
+/// @param z   Prototype zeros.
+/// @param p   Prototype poles.
+/// @param k   Prototype gain.
+/// @param Wo  Target cutoff frequency in rad/s.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(z', p', k')`.
 std::tuple<Value, Value, Value>
-lp2hp(const Value &z, const Value &p, double k, double Wo, std::pmr::memory_resource *mr = nullptr);
+lp2hp(const Value &                z,
+      const Value &                p,
+      double                       k,
+      double                       Wo,
+      std::pmr::memory_resource *  mr = nullptr);
 
-/// lp2bp(z, p, k, Wo, Bw) — lowpass → bandpass centred at Wo with
-/// bandwidth Bw.
+/// Lowpass → bandpass frequency transformation.
+///
+/// Applies the substitution `s → (s² + Wo²) / (Bw · s)`. Order doubles.
+///
+/// @param z   Prototype zeros.
+/// @param p   Prototype poles.
+/// @param k   Prototype gain.
+/// @param Wo  Centre frequency in rad/s.
+/// @param Bw  Bandwidth in rad/s (Wo_high − Wo_low).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(z', p', k')`.
 std::tuple<Value, Value, Value>
-lp2bp(const Value &z, const Value &p, double k, double Wo, double Bw, std::pmr::memory_resource *mr = nullptr);
+lp2bp(const Value &                z,
+      const Value &                p,
+      double                       k,
+      double                       Wo,
+      double                       Bw,
+      std::pmr::memory_resource *  mr = nullptr);
 
-/// lp2bs(z, p, k, Wo, Bw) — lowpass → bandstop centred at Wo, bw Bw.
+/// Lowpass → bandstop frequency transformation.
+///
+/// Applies `s → (Bw · s) / (s² + Wo²)`. Order doubles.
+/// @copydoc lp2bp
 std::tuple<Value, Value, Value>
-lp2bs(const Value &z, const Value &p, double k, double Wo, double Bw, std::pmr::memory_resource *mr = nullptr);
+lp2bs(const Value &                z,
+      const Value &                p,
+      double                       k,
+      double                       Wo,
+      double                       Bw,
+      std::pmr::memory_resource *  mr = nullptr);
 
-// ── Analog → digital ───────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────
+// Analog → digital
+// ─────────────────────────────────────────────────────────────────────
 
-/// bilinear(b, a, fs[, fp]) — bilinear transform of an analog filter
-/// (b, a) to digital. With prewarp frequency `fp` non-zero, scales fs
-/// to preserve the response at fp.
+/// Bilinear (Tustin) transform of an analog filter (b, a) to digital.
+///
+/// Maps `s → (2/T)·(z-1)/(z+1)` with `T = 1/fs`. The optional pre-warp
+/// frequency `fp` adjusts the effective sample rate so that the
+/// digital response matches the analog response exactly at `fp`.
+///
+/// @param b   Analog numerator polynomial.
+/// @param a   Analog denominator polynomial.
+/// @param fs  Sample rate (Hz).
+/// @param fp  Pre-warp frequency (Hz). `0.0` (default) → no pre-warp.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(bd, ad)` — digital numerator / denominator.
+///
+/// @see impinvar
 std::tuple<Value, Value>
-bilinear(const Value &b, const Value &a, double fs, double fp = 0.0, std::pmr::memory_resource *mr = nullptr);
+bilinear(const Value &                b,
+         const Value &                a,
+         double                       fs,
+         double                       fp = 0.0,
+         std::pmr::memory_resource *  mr = nullptr);
 
-/// impinvar(b, a, fs[, tol]) — impulse-invariance design: digital
-/// filter with the same impulse response samples as the analog filter
-/// (b/a) sampled at rate fs. Partial-fraction-based.
+/// Impulse-invariance design: digital filter with the same impulse-response
+/// samples as the analog filter sampled at rate `fs`.
+///
+/// Partial-fraction-based; preserves transient response of the analog
+/// filter. Aliasing may be significant if the analog filter has
+/// significant energy above fs/2.
+///
+/// @param b    Analog numerator polynomial.
+/// @param a    Analog denominator polynomial.
+/// @param fs   Sample rate (Hz).
+/// @param tol  Tolerance for pole multiplicity detection. Default 1e-3.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Tuple `(bd, ad)` — digital coefficients.
+///
+/// @see bilinear
 std::tuple<Value, Value>
-impinvar(const Value &b, const Value &a, double fs, double tol = 1e-3, std::pmr::memory_resource *mr = nullptr);
+impinvar(const Value &                b,
+         const Value &                a,
+         double                       fs,
+         double                       tol = 1e-3,
+         std::pmr::memory_resource *  mr  = nullptr);
 
-/// freqs(b, a, w) — magnitude/complex response of the analog filter
-/// b(s)/a(s) at angular frequencies w (rad/s). Returns the complex H(jw).
-Value freqs(const Value &b, const Value &a, const Value &w, std::pmr::memory_resource *mr = nullptr);
+/// Frequency response of an analog filter b(s)/a(s).
+///
+/// Evaluates `H(jω) = B(jω) / A(jω)` at the angular frequencies in `w`.
+///
+/// @param b   Analog numerator polynomial.
+/// @param a   Analog denominator polynomial.
+/// @param w   Angular frequencies in rad/s.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    COMPLEX vector of `H(jω)` values, same shape as `w`.
+///
+/// @see freqz
+Value freqs(const Value &                b,
+            const Value &                a,
+            const Value &                w,
+            std::pmr::memory_resource *  mr = nullptr);
 
 } // namespace numkit::signal

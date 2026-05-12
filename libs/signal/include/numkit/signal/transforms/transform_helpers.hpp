@@ -10,28 +10,60 @@
 
 namespace numkit::signal {
 
-/// Smallest integer p such that 2^p >= n. Returns 0 for n <= 0.
-/// MATLAB's nextpow2 (scalar form).
+/// Smallest integer p such that \f$ 2^p \ge n \f$ (scalar form).
+///
+/// MATLAB's `nextpow2`. Useful for padding sequences to a length suitable
+/// for radix-2 FFT.
+///
+/// @param n   Input scalar. Negative / zero → returns 0.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Scalar DOUBLE.
+///
+/// @code  size_t pad = 1ull << (size_t)nextpow2(numel(x)).toScalar();  @endcode
 Value nextpow2(double n, std::pmr::memory_resource *mr = nullptr);
 
-/// Vectorized form: applies nextpow2 elementwise to any-shape input.
-/// Returns a DOUBLE array with the same shape as `x`.
+/// Vectorised `nextpow2` — applies elementwise to an array.
+///
+/// @param x   Real input array (any shape).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    DOUBLE array with the same shape as `x`.
 Value nextpow2(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-/// Cyclic shift along every non-singleton dim by ceil(extent/2). For odd
-/// extents the first ceil(N/2) elements move to the back. Matches MATLAB
-/// R2025b for vectors, matrices, and 3-D arrays.
+/// DC-to-center reordering for FFT output (multidim form).
+///
+/// Cyclically shifts `x` by `ceil(extent/2)` along every non-singleton
+/// dimension. After `fftshift(fft(x))` the DC component (`k = 0`) lies
+/// at the center of each axis. For odd extents the first `ceil(N/2)`
+/// elements move to the back.
+///
+/// @param x   Input array (any shape, any type).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Same-shape and same-type array with elements permuted.
+///
+/// @see ifftshift, fft
 Value fftshift(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-/// Inverse of fftshift — cyclic shift by floor(extent/2) along every
-/// non-singleton dim. fftshift and ifftshift are inverses for any extent.
+/// Inverse of `fftshift` — shift by `floor(extent/2)`.
+///
+/// `fftshift` and `ifftshift` are exact inverses for any extent (they
+/// differ only when N is odd; for even N they coincide).
+/// @copydoc fftshift(const Value &, std::pmr::memory_resource *)
 Value ifftshift(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-/// Single-dim form: shift only along the requested dim (1=rows, 2=cols,
-/// 3=pages). MATLAB syntax: fftshift(X, dim).
-Value fftshift(const Value &x, int dim, std::pmr::memory_resource *mr = nullptr);
+/// Single-dim `fftshift` — shift only along axis `dim`.
+///
+/// @param x    Input array.
+/// @param dim  Axis (1 = rows, 2 = cols, 3 = pages).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Same-shape array shifted along `dim`.
+Value fftshift(const Value &                x,
+               int                          dim,
+               std::pmr::memory_resource *  mr = nullptr);
 
-/// Single-dim form for ifftshift.
-Value ifftshift(const Value &x, int dim, std::pmr::memory_resource *mr = nullptr);
+/// Single-dim `ifftshift` — inverse of single-dim `fftshift`.
+/// @copydoc fftshift(const Value &, int, std::pmr::memory_resource *)
+Value ifftshift(const Value &                x,
+                int                          dim,
+                std::pmr::memory_resource *  mr = nullptr);
 
 } // namespace numkit::signal
