@@ -16,12 +16,12 @@
 
 namespace numkit::stats {
 
-Value nansum   (std::pmr::memory_resource *mr, const Value &x, int dim = 0);
-Value nanmean  (std::pmr::memory_resource *mr, const Value &x, int dim = 0);
-Value nanmax   (std::pmr::memory_resource *mr, const Value &x, int dim = 0);
-Value nanmin   (std::pmr::memory_resource *mr, const Value &x, int dim = 0);
-Value nanvar   (std::pmr::memory_resource *mr, const Value &x, int normFlag = 0, int dim = 0);
-Value nanstdev (std::pmr::memory_resource *mr, const Value &x, int normFlag = 0, int dim = 0);
-Value nanmedian(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+Value nansum   (const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value nanmean  (const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value nanmax   (const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value nanmin   (const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value nanvar   (const Value &x, int normFlag = 0, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value nanstdev (const Value &x, int normFlag = 0, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value nanmedian(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats
