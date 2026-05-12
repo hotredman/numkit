@@ -160,8 +160,7 @@ bool popClosestZeroPair(ScratchVec<Complex> &zeros, Complex target,
     return true;
 }
 
-ScratchVec<Complex> readComplexVec(std::pmr::memory_resource *mr,
-                                   const Value &v, const char *fn)
+ScratchVec<Complex> readComplexVec(const Value &v, const char *fn, std::pmr::memory_resource *mr)
 {
     if (v.isEmpty()) return ScratchVec<Complex>(mr);
     ScratchVec<Complex> out(mr);
@@ -179,11 +178,7 @@ ScratchVec<Complex> readComplexVec(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value buildSosMatrix(std::pmr::memory_resource *mr,
-                     const double *b1s, const double *b2s,
-                     const double *a1s, const double *a2s,
-                     std::size_t L,
-                     double leadingGain)
+Value buildSosMatrix(const double *b1s, const double *b2s, const double *a1s, const double *a2s, std::size_t L, double leadingGain, std::pmr::memory_resource *mr)
 {
     auto sos = Value::matrix(L, 6, ValueType::DOUBLE, mr);
     double *p = sos.doubleDataMut();
@@ -199,8 +194,7 @@ Value buildSosMatrix(std::pmr::memory_resource *mr,
     return sos;
 }
 
-inline ScratchVec<double> coeffsAsVector(std::pmr::memory_resource *mr,
-                                         const Value &v)
+inline ScratchVec<double> coeffsAsVector(const Value &v, std::pmr::memory_resource *mr)
 {
     if (v.type() != ValueType::DOUBLE || !v.dims().isVector())
         throw Error("tf2sos: b/a must be DOUBLE row/column vectors",
@@ -215,15 +209,15 @@ inline ScratchVec<double> coeffsAsVector(std::pmr::memory_resource *mr,
 } // namespace
 
 std::tuple<Value, double>
-zp2sosWithGain(std::pmr::memory_resource *mr, const Value &zerosV, const Value &polesV, double gain)
+zp2sosWithGain(const Value &zerosV, const Value &polesV, double gain, std::pmr::memory_resource *mr)
 {
     if (polesV.isEmpty())
         throw Error("zp2sos: at least one pole is required",
                      0, 0, "zp2sos", "", "m:zp2sos:noPoles");
 
     ScratchArena scratch(mr);
-    auto zeros = readComplexVec(&scratch, zerosV, "zp2sos");
-    auto poles = readComplexVec(&scratch, polesV, "zp2sos");
+    auto zeros = readComplexVec(zerosV, "zp2sos", &scratch);
+    auto poles = readComplexVec(polesV, "zp2sos", &scratch);
 
     const size_t L = (poles.size() + 1) / 2;
 
@@ -255,15 +249,13 @@ zp2sosWithGain(std::pmr::memory_resource *mr, const Value &zerosV, const Value &
         throw Error("zp2sos: more zeros than poles is not supported",
                      0, 0, "zp2sos", "", "m:zp2sos:moreZeros");
 
-    return std::make_tuple(buildSosMatrix(mr, b1s.data(), b2s.data(),
-                                          a1s.data(), a2s.data(), L,
-                                          /*leadingGain=*/1.0),
+    return std::make_tuple(buildSosMatrix(b1s.data(), b2s.data(), a1s.data(), a2s.data(), L, /*leadingGain=*/1.0, mr),
                            gain);
 }
 
-Value zp2sos(std::pmr::memory_resource *mr, const Value &zerosV, const Value &polesV, double gain)
+Value zp2sos(const Value &zerosV, const Value &polesV, double gain, std::pmr::memory_resource *mr)
 {
-    auto [sos, g] = zp2sosWithGain(mr, zerosV, polesV, gain);
+    auto [sos, g] = zp2sosWithGain(zerosV, polesV, gain, mr);
     const size_t L = sos.dims().rows();
     double *p = sos.doubleDataMut();
     p[0 * L + 0] *= g;
@@ -273,11 +265,11 @@ Value zp2sos(std::pmr::memory_resource *mr, const Value &zerosV, const Value &po
 }
 
 std::tuple<Value, double>
-tf2sosWithGain(std::pmr::memory_resource *mr, const Value &b, const Value &a)
+tf2sosWithGain(const Value &b, const Value &a, std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
-    auto bv = coeffsAsVector(&scratch, b);
-    auto av = coeffsAsVector(&scratch, a);
+    auto bv = coeffsAsVector(b, &scratch);
+    auto av = coeffsAsVector(a, &scratch);
     if (av.empty() || av[0] == 0.0)
         throw Error("tf2sos: a(1) must be nonzero",
                      0, 0, "tf2sos", "", "m:tf2sos:zeroLead");
@@ -297,12 +289,12 @@ tf2sosWithGain(std::pmr::memory_resource *mr, const Value &b, const Value &a)
         for (size_t i = 0; i < v.size(); ++i) p[i] = v[i];
         return r;
     };
-    return zp2sosWithGain(mr, toCplxVec(zeros), toCplxVec(poles), gain);
+    return zp2sosWithGain(toCplxVec(zeros), toCplxVec(poles), gain, mr);
 }
 
-Value tf2sos(std::pmr::memory_resource *mr, const Value &b, const Value &a)
+Value tf2sos(const Value &b, const Value &a, std::pmr::memory_resource *mr)
 {
-    auto [sos, g] = tf2sosWithGain(mr, b, a);
+    auto [sos, g] = tf2sosWithGain(b, a, mr);
     const size_t L = sos.dims().rows();
     double *p = sos.doubleDataMut();
     p[0 * L + 0] *= g;
@@ -324,11 +316,11 @@ void zp2sos_reg(Span<const Value> args, size_t nargout,
                             : 1.0;
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
-        auto [sos, g] = zp2sosWithGain(mr, args[0], args[1], gain);
+        auto [sos, g] = zp2sosWithGain(args[0], args[1], gain, mr);
         outs[0] = std::move(sos);
         outs[1] = Value::scalar(g, mr);
     } else {
-        outs[0] = zp2sos(mr, args[0], args[1], gain);
+        outs[0] = zp2sos(args[0], args[1], gain, mr);
     }
 }
 
@@ -340,11 +332,11 @@ void tf2sos_reg(Span<const Value> args, size_t nargout,
                      0, 0, "tf2sos", "", "m:tf2sos:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
-        auto [sos, g] = tf2sosWithGain(mr, args[0], args[1]);
+        auto [sos, g] = tf2sosWithGain(args[0], args[1], mr);
         outs[0] = std::move(sos);
         outs[1] = Value::scalar(g, mr);
     } else {
-        outs[0] = tf2sos(mr, args[0], args[1]);
+        outs[0] = tf2sos(args[0], args[1], mr);
     }
 }
 

@@ -78,7 +78,7 @@ Value lowpass(std::pmr::memory_resource *mr, const Value &x,
                         scalarWn(mr, Wp), FilterType::Lowpass, /*analog=*/false);
     // SOS-form filtfilt is numerically stable for high-order IIR --
     // matches MATLAB filtfilt(d, x) for digitalFilter SOS objects.
-    auto sos = tf2sos(mr, b, a);
+    auto sos = tf2sos(b, a, mr);
     return sosfiltfilt(mr, sos, x);
 }
 
@@ -90,7 +90,7 @@ Value highpass(std::pmr::memory_resource *mr, const Value &x,
     const int N = (order == 8) ? kDefaultIirOrder : order;
     auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
                         scalarWn(mr, Wp), FilterType::Highpass, /*analog=*/false);
-    auto sos = tf2sos(mr, b, a);
+    auto sos = tf2sos(b, a, mr);
     return sosfiltfilt(mr, sos, x);
 }
 
@@ -107,7 +107,7 @@ Value bandpass(std::pmr::memory_resource *mr, const Value &x,
     auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
                         pairWn(mr, Wlo, Whi),
                         FilterType::Bandpass, /*analog=*/false);
-    auto sos = tf2sos(mr, b, a);
+    auto sos = tf2sos(b, a, mr);
     return sosfiltfilt(mr, sos, x);
 }
 
@@ -124,7 +124,7 @@ Value bandstop(std::pmr::memory_resource *mr, const Value &x,
     auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
                         pairWn(mr, Wlo, Whi),
                         FilterType::Bandstop, /*analog=*/false);
-    auto sos = tf2sos(mr, b, a);
+    auto sos = tf2sos(b, a, mr);
     return sosfiltfilt(mr, sos, x);
 }
 
