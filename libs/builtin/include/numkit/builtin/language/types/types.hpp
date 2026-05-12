@@ -56,7 +56,7 @@ Value ismatrix(const Value &x, std::pmr::memory_resource *mr = nullptr);
 //// issorted(A, mode?) — true if A is sorted under `mode` ("ascend",
 //// "descend", "monotonic", "strictascend", "strictdescend"). For matrix
 //// inputs, returns true iff every column is sorted under `mode`.
-Value issorted(const Value &x, const Value *mode = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value issorted(const Value &x, const Value &mode = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 /// issortedrows(A) — true if rows of A are in ascending lex order.
 Value issortedrows(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// isuniform(x) — true if vector x has constant first-differences (within
@@ -67,17 +67,17 @@ Value isuniform(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 //// flintmax(typeName?) — largest exact integer representable as the
 //// given float type. Default 'double' → 2^53. 'single' → 2^24.
-Value flintmax(const Value *typeName = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value flintmax(const Value &typeName = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 /// intmax(typeName?) — largest value of the named integer class.
 /// Default 'int32'. Returns a typed integer scalar.
-Value intmax(const Value *typeName = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value intmax(const Value &typeName = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 /// intmin(typeName?) — smallest value of the named integer class.
-Value intmin(const Value *typeName = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value intmin(const Value &typeName = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 /// realmax(typeName?) — largest finite value of the named float class.
-Value realmax(const Value *typeName = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value realmax(const Value &typeName = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 /// realmin(typeName?) — smallest positive normal value of the named
 /// float class.
-Value realmin(const Value *typeName = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value realmin(const Value &typeName = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 
 /// allfinite(A) — equivalent to all(isfinite(A(:))) but single-pass.
 Value allfinite(const Value &x, std::pmr::memory_resource *mr = nullptr);

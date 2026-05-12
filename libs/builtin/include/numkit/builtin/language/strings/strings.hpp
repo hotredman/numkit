@@ -85,7 +85,7 @@ Value deblank(const Value &s, std::pmr::memory_resource *mr = nullptr);
 Value mat2str(const Value &x, int precision = 15, std::pmr::memory_resource *mr = nullptr);
 /// strjoin(c, delim?) — join a 1-D cell of strings with `delim` (default
 /// space). Returns a single char row.
-Value strjoin(const Value &c, const Value *delim = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value strjoin(const Value &c, const Value &delim = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 
 //// append(s1, s2, ...) — concatenate strings, preserving trailing
 //// whitespace (unlike strcat).
@@ -104,10 +104,10 @@ Value reverse(const Value &s, std::pmr::memory_resource *mr = nullptr);
 Value splitlines(const Value &s, std::pmr::memory_resource *mr = nullptr);
 /// pad(s, n[, side[, padChar]]) — pad to length n. `side` ∈
 /// {"right","left","both"}, default "right". `padChar` default ' '.
-Value pad(const Value &s, size_t n, const Value *side = nullptr, const Value *padChar = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value pad(const Value &s, size_t n, const Value &side = Value::Empty, const Value &padChar = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 /// strip(s[, side[, ch]]) — strip whitespace (or `ch`). side ∈
 /// {"both","left","right"}, default "both".
-Value strip(const Value &s, const Value *side = nullptr, const Value *ch = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value strip(const Value &s, const Value &side = Value::Empty, const Value &ch = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 /// matches(s, pat) — logical: s exactly equals pat. For pat a cell
 /// of strings, true iff s equals any element of pat.
 Value matches(const Value &s, const Value &pat, std::pmr::memory_resource *mr = nullptr);
@@ -192,6 +192,6 @@ Value split(const Value &s, const Value &delim, std::pmr::memory_resource *mr = 
 /// join(arr, delim) — concatenate elements of string array `arr`
 /// separated by `delim`. 2-D arrays are joined along columns,
 /// producing one row per source row (N×1). Default delim is ' '.
-Value join(const Value &arr, const Value *delim, std::pmr::memory_resource *mr = nullptr);
+Value join(const Value &arr, const Value &delim = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

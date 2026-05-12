@@ -345,12 +345,12 @@ Value mat2str(const Value &x, int precision, std::pmr::memory_resource *mr)
     return Value::fromString(out, mr);
 }
 
-Value strjoin(const Value &c, const Value *delim, std::pmr::memory_resource *mr)
+Value strjoin(const Value &c, const Value &delim, std::pmr::memory_resource *mr)
 {
     if (!c.isCell())
         throw Error("strjoin: first argument must be a cell array",
                      0, 0, "strjoin", "", "m:strjoin:notCell");
-    const std::string sep = delim ? delim->toString() : std::string(" ");
+    const std::string sep = delim.isEmpty() ? std::string(" ") : delim.toString();
     std::string out;
     const size_t n = c.numel();
     for (size_t i = 0; i < n; ++i) {
@@ -444,18 +444,18 @@ Value splitlines(const Value &s, std::pmr::memory_resource *mr)
 }
 
 namespace {
-inline std::string readSide(const Value *side, const char *def)
+inline std::string readSide(const Value &side, const char *def)
 {
-    if (!side) return def;
-    if (!side->isChar() && !side->isString())
+    if (side.isEmpty()) return def;
+    if (!side.isChar() && !side.isString())
         throw std::runtime_error("string-side argument must be a string");
-    auto s = side->toString();
+    auto s = side.toString();
     for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
 }
 } // anon
 
-Value pad(const Value &s, size_t n, const Value *side, const Value *padChar, std::pmr::memory_resource *mr)
+Value pad(const Value &s, size_t n, const Value &side, const Value &padChar, std::pmr::memory_resource *mr)
 {
     std::string r = s.toString();
     if (r.size() >= n) {
@@ -464,8 +464,8 @@ Value pad(const Value &s, size_t n, const Value *side, const Value *padChar, std
     }
     const std::string sd = readSide(side, "right");
     char ch = ' ';
-    if (padChar && (padChar->isChar() || padChar->isString())) {
-        const auto p = padChar->toString();
+    if (!padChar.isEmpty() && (padChar.isChar() || padChar.isString())) {
+        const auto p = padChar.toString();
         if (!p.empty()) ch = p[0];
     }
     const size_t pad = n - r.size();
@@ -486,13 +486,13 @@ Value pad(const Value &s, size_t n, const Value *side, const Value *padChar, std
     return Value::fromString(r, mr);
 }
 
-Value strip(const Value &s, const Value *side, const Value *ch, std::pmr::memory_resource *mr)
+Value strip(const Value &s, const Value &side, const Value &ch, std::pmr::memory_resource *mr)
 {
     std::string r = s.toString();
     const std::string sd = readSide(side, "both");
     std::string charsToStrip = " \t\r\n\f\v";
-    if (ch && (ch->isChar() || ch->isString())) {
-        charsToStrip = ch->toString();
+    if (!ch.isEmpty() && (ch.isChar() || ch.isString())) {
+        charsToStrip = ch.toString();
         if (charsToStrip.empty()) {
             if (s.isString()) return Value::stringScalar(r, mr);
             return Value::fromString(r, mr);
@@ -1289,9 +1289,9 @@ Value split(const Value &s, const Value &delim, std::pmr::memory_resource *mr)
     return c;
 }
 
-Value join(const Value &arr, const Value *delim, std::pmr::memory_resource *mr)
+Value join(const Value &arr, const Value &delim, std::pmr::memory_resource *mr)
 {
-    const std::string d = delim ? strInput(*delim) : std::string(" ");
+    const std::string d = delim.isEmpty() ? std::string(" ") : strInput(delim);
 
     auto getElem = [&](size_t i) -> std::string {
         if (arr.isString()) return arr.stringElem(i);
@@ -1558,7 +1558,7 @@ void strjoin_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.empty())
         throw Error("strjoin: requires at least 1 argument", 0, 0, "strjoin", "",
                      "m:strjoin:nargin");
-    const Value *delim = (args.size() >= 2) ? &args[1] : nullptr;
+    const Value &delim = (args.size() >= 2) ? args[1] : Value::Empty;
     outs[0] = strjoin(args[0], delim, ctx.engine->resource());
 }
 
@@ -1613,8 +1613,8 @@ void pad_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
         throw Error("pad: requires (s, n[, side[, ch]])",
                      0, 0, "pad", "", "m:pad:nargin");
     const size_t n = static_cast<size_t>(args[1].toScalar());
-    const Value *side = (args.size() >= 3 && !args[2].isEmpty()) ? &args[2] : nullptr;
-    const Value *ch   = (args.size() >= 4 && !args[3].isEmpty()) ? &args[3] : nullptr;
+    const Value &side = (args.size() >= 3 && !args[2].isEmpty()) ? args[2] : Value::Empty;
+    const Value &ch   = (args.size() >= 4 && !args[3].isEmpty()) ? args[3] : Value::Empty;
     outs[0] = pad(args[0], n, side, ch, ctx.engine->resource());
 }
 
@@ -1623,8 +1623,8 @@ void strip_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ct
     if (args.empty())
         throw Error("strip: requires (s[, side[, ch]])",
                      0, 0, "strip", "", "m:strip:nargin");
-    const Value *side = (args.size() >= 2 && !args[1].isEmpty()) ? &args[1] : nullptr;
-    const Value *ch   = (args.size() >= 3 && !args[2].isEmpty()) ? &args[2] : nullptr;
+    const Value &side = (args.size() >= 2 && !args[1].isEmpty()) ? args[1] : Value::Empty;
+    const Value &ch   = (args.size() >= 3 && !args[2].isEmpty()) ? args[2] : Value::Empty;
     outs[0] = strip(args[0], side, ch, ctx.engine->resource());
 }
 
@@ -1929,11 +1929,8 @@ void join_reg(Span<const Value> args, size_t, Span<Value> outs,
     if (args.empty())
         throw Error("join: requires at least 1 argument",
                      0, 0, "join", "", "m:join:nargin");
-    if (args.size() >= 2) {
-        outs[0] = join(args[0], &args[1], ctx.engine->resource());
-    } else {
-        outs[0] = join(args[0], nullptr, ctx.engine->resource());
-    }
+    const Value &delim = (args.size() >= 2) ? args[1] : Value::Empty;
+    outs[0] = join(args[0], delim, ctx.engine->resource());
 }
 
 } // namespace detail
