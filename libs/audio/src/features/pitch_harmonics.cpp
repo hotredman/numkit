@@ -116,8 +116,7 @@ size_t nextPow2(size_t x)
 //   6. f0 = fs / peakLag.
 //
 // Reference: Noll, "Cepstrum Pitch Determination", JASA 41(2), 1967.
-Value pitchCEP(std::pmr::memory_resource *mr, const Value &x, double fs,
-                double minF, double maxF)
+Value pitchCEP(const Value &x, double fs, double minF, double maxF, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const FrameSpec sp = frameSpec(N, fs, 0.052, 0.042);
@@ -236,7 +235,7 @@ struct PefFilter {
     size_t numToPad;
 };
 
-PefFilter buildPefFilter(std::pmr::memory_resource *mr, size_t NFFT)
+PefFilter buildPefFilter(size_t NFFT, std::pmr::memory_resource *mr)
 {
     constexpr double K = 10.0;
     constexpr double gamma = 1.8;
@@ -327,8 +326,7 @@ void linearInterp(const double *xs, const double *ys, size_t N,
 
 } // anon
 
-Value pitchPEF(std::pmr::memory_resource *mr, const Value &x, double fs,
-                double minF, double maxF)
+Value pitchPEF(const Value &x, double fs, double minF, double maxF, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const FrameSpec sp = frameSpec(N, fs, 0.052, 0.042);
@@ -388,7 +386,7 @@ Value pitchPEF(std::pmr::memory_resource *mr, const Value &x, double fs,
     }
 
     // PEF filter
-    PefFilter pf = buildPefFilter(mr, NFFT);
+    PefFilter pf = buildPefFilter(NFFT, mr);
     const size_t aLen = pf.aFilt.dims().rows();
     const size_t Zlen = pf.numToPad + NFFT;
 
@@ -533,8 +531,7 @@ Value pitchPEF(std::pmr::memory_resource *mr, const Value &x, double fs,
 // range that has the input freq as a multiple — MATLAB returns ~50 Hz
 // for a 220 Hz sine because the harmonic-sum maximum lies near the
 // search lower bound. This is correct LHS behavior (documented in Hermes).
-Value pitchLHS(std::pmr::memory_resource *mr, const Value &x, double fs,
-                double minF, double maxF)
+Value pitchLHS(const Value &x, double fs, double minF, double maxF, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const FrameSpec sp = frameSpec(N, fs, 0.052, 0.042);
@@ -639,8 +636,7 @@ Value pitchLHS(std::pmr::memory_resource *mr, const Value &x, double fs,
 // Note: this function frames internally per pitch.m wrapper — caller
 // passes raw `x`, framing happens inside (matches MATLAB's iDetectPitch
 // dispatch structure).
-Value pitchSRH(std::pmr::memory_resource *mr, const Value &x, double fs,
-                double minF, double maxF)
+Value pitchSRH(const Value &x, double fs, double minF, double maxF, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     if (N == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -816,8 +812,7 @@ Value pitchSRH(std::pmr::memory_resource *mr, const Value &x, double fs,
 }
 
 // ── pitch ─────────────────────────────────────────────────────────────
-Value pitch(std::pmr::memory_resource *mr, const Value &x, double fs,
-             double minF, double maxF)
+Value pitch(const Value &x, double fs, double minF, double maxF, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const FrameSpec sp = frameSpec(N, fs, 0.052, 0.042);
@@ -875,7 +870,7 @@ Value pitch(std::pmr::memory_resource *mr, const Value &x, double fs,
 //   2. Search peak γ in [lowEdge, highEdge=winLen-1].
 //   3. Parabolic interpolation around peak (Smith's quadratic peak).
 //   4. Clip to [0, 1].
-Value harmonicRatio(std::pmr::memory_resource *mr, const Value &x, double fs)
+Value harmonicRatio(const Value &x, double fs, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const FrameSpec sp = frameSpec(N, fs, 0.03, 0.02);
@@ -1001,15 +996,15 @@ void pitch_reg(Span<const Value> args, size_t /*nargout*/,
     }
     const double fs = args[1].toScalar();
     if (method == "CEP")
-        outs[0] = pitchCEP(ctx.engine->resource(), args[0], fs, minF, maxF);
+        outs[0] = pitchCEP(args[0], fs, minF, maxF, ctx.engine->resource());
     else if (method == "PEF")
-        outs[0] = pitchPEF(ctx.engine->resource(), args[0], fs, minF, maxF);
+        outs[0] = pitchPEF(args[0], fs, minF, maxF, ctx.engine->resource());
     else if (method == "LHS")
-        outs[0] = pitchLHS(ctx.engine->resource(), args[0], fs, minF, maxF);
+        outs[0] = pitchLHS(args[0], fs, minF, maxF, ctx.engine->resource());
     else if (method == "SRH")
-        outs[0] = pitchSRH(ctx.engine->resource(), args[0], fs, minF, maxF);
+        outs[0] = pitchSRH(args[0], fs, minF, maxF, ctx.engine->resource());
     else
-        outs[0] = pitch(ctx.engine->resource(), args[0], fs, minF, maxF);
+        outs[0] = pitch(args[0], fs, minF, maxF, ctx.engine->resource());
 }
 
 void harmonicRatio_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1018,7 +1013,7 @@ void harmonicRatio_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("harmonicRatio: requires (x, fs)",
                     0, 0, "harmonicRatio", "", "m:harmonicRatio:nargin");
-    outs[0] = harmonicRatio(ctx.engine->resource(), args[0], args[1].toScalar());
+    outs[0] = harmonicRatio(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 } // namespace detail
