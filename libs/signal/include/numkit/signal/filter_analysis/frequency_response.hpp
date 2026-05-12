@@ -8,26 +8,71 @@
 
 namespace numkit::signal {
 
-/// Frequency response H(e^{j omega}) of an IIR/FIR filter: H = b(e^{-jw}) / a(e^{-jw}).
-/// Returns (H, W) — complex response and the grid of frequencies w in [0, pi].
+/// Frequency response of a digital filter.
+///
+/// Computes
+/// \f$ H(e^{j\omega}) = \frac{B(e^{j\omega})}{A(e^{j\omega})} \f$
+/// on a uniform grid \f$ \omega \in [0, \pi] \f$.
+///
+/// @param b     Numerator polynomial (real row / column vector).
+/// @param a     Denominator polynomial. For FIR, pass `{1.0}`.
+///              `a[0]` must be non-zero.
+/// @param npts  Number of frequency points. Default 512.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      Tuple `(H, W)`:
+///                - `H` — `npts × 1` COMPLEX vector of response values.
+///                - `W` — `npts × 1` DOUBLE vector of frequencies in rad/sample.
+///
+/// @code
+/// auto [b, a] = butter(4, 0.3);
+/// auto [H, w] = freqz(b, a, 1024);
+/// // magnitude in dB:
+/// // mag_dB = 20*log10(abs(H))
+/// @endcode
+///
+/// @see phasez, grpdelay, freqs
+std::tuple<Value, Value>
+freqz(const Value &                b,
+      const Value &                a,
+      size_t                       npts = 512,
+      std::pmr::memory_resource *  mr   = nullptr);
+
+/// Unwrapped phase response of a digital filter.
+///
+/// Equivalent to `unwrap(angle(freqz(b, a, npts)))`.
 ///
 /// @param b     Numerator polynomial.
 /// @param a     Denominator polynomial.
-/// @param npts  Number of frequency points (default 512).
+/// @param npts  Number of frequency points. Default 512.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      Tuple `(phi, W)` — phase in radians and frequencies.
+///
+/// @see freqz, grpdelay
 std::tuple<Value, Value>
-freqz(const Value &b, const Value &a, size_t npts = 512, std::pmr::memory_resource *mr = nullptr);
+phasez(const Value &                b,
+       const Value &                a,
+       size_t                       npts = 512,
+       std::pmr::memory_resource *  mr   = nullptr);
 
-/// phasez(b, a[, n]) — unwrapped phase response of H(e^{jw}).
-/// Returns (phi, W) — phi = unwrap(angle(H)) and the same frequency
-/// grid that freqz produces. Output length is n (default 512).
+/// Group delay of a digital filter.
+///
+/// Computes the negative derivative of the unwrapped phase response
+/// with respect to ω, i.e. \f$ \tau_g(\omega) = -\frac{d\phi}{d\omega} \f$.
+/// Implemented via finite-differences of `unwrap(angle(freqz(…)))` on
+/// the uniform grid; endpoint values use one-sided differences.
+///
+/// @param b     Numerator polynomial.
+/// @param a     Denominator polynomial.
+/// @param npts  Number of frequency points. Default 512.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      Tuple `(gd, W)` — group delay in samples per radian
+///              and frequency grid in rad/sample.
+///
+/// @see freqz, phasez, phasedelay
 std::tuple<Value, Value>
-phasez(const Value &b, const Value &a, size_t npts = 512, std::pmr::memory_resource *mr = nullptr);
-
-/// grpdelay(b, a[, n]) — group delay = -d(phase)/d(omega).
-/// Computed as the discrete derivative of unwrap(angle(freqz)) on the
-/// uniform grid w in [0, π]. Returns (gd, W). Endpoints use the same
-/// step (forward at 0, backward at π).
-std::tuple<Value, Value>
-grpdelay(const Value &b, const Value &a, size_t npts = 512, std::pmr::memory_resource *mr = nullptr);
+grpdelay(const Value &                b,
+         const Value &                a,
+         size_t                       npts = 512,
+         std::pmr::memory_resource *  mr   = nullptr);
 
 } // namespace numkit::signal
