@@ -6,6 +6,7 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 #include <string>
 #include <tuple>
@@ -89,7 +90,7 @@ Value normxcorr2(const Value &templ, const Value &img,
 /// @return         Complex OTF.
 ///
 /// @see otf2psf
-Value psf2otf(const Value &PSF, const Value &outsize,
+Value psf2otf(const Value &PSF, Span<const size_t> outsize = {},
               std::pmr::memory_resource *mr = nullptr);
 
 /// 2-D convolution via FFT (`Y = fftconv2(A, B, shape)`).
@@ -114,7 +115,7 @@ Value bestblk(const Value &IMS, double k,
 /// circularly shifts by `+floor(size(PSF)/2)` to recover the centred
 /// PSF. Output is double if the imaginary part is negligible,
 /// complex otherwise.
-Value otf2psf(const Value &OTF, const Value &outsize,
+Value otf2psf(const Value &OTF, Span<const size_t> outsize = {},
               std::pmr::memory_resource *mr = nullptr);
 
 /// Shepp–Logan computational head phantom (`[P, E] = phantom(model, n)`).
