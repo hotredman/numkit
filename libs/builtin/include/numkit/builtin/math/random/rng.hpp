@@ -23,6 +23,7 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 
 #include <numkit/builtin/math/random/matlab_mt19937.hpp>
@@ -40,10 +41,10 @@ Value rand(detail::MatlabMT19937 &rng, size_t rows, size_t cols = 1, size_t page
 Value randn(detail::MatlabMT19937 &rng, size_t rows, size_t cols = 1, size_t pages = 0, std::pmr::memory_resource *mr = nullptr);
 
 /// ND uniform [0, 1) — accepts any rank ≥ 1.
-Value randND(detail::MatlabMT19937 &rng, const size_t *dims, int ndims, std::pmr::memory_resource *mr = nullptr);
+Value randND(detail::MatlabMT19937 &rng, Span<const size_t> dims, std::pmr::memory_resource *mr = nullptr);
 
 /// ND standard normal — accepts any rank ≥ 1.
-Value randnND(detail::MatlabMT19937 &rng, const size_t *dims, int ndims, std::pmr::memory_resource *mr = nullptr);
+Value randnND(detail::MatlabMT19937 &rng, Span<const size_t> dims, std::pmr::memory_resource *mr = nullptr);
 
 // ── Seeding / state control ──────────────────────────────────────────
 

@@ -159,17 +159,17 @@ Value randn(detail::MatlabMT19937 &rng, size_t rows, size_t cols, size_t pages, 
     return m;
 }
 
-Value randND(detail::MatlabMT19937 &rng, const size_t *dims, int ndims, std::pmr::memory_resource *mr)
+Value randND(detail::MatlabMT19937 &rng, Span<const size_t> dims, std::pmr::memory_resource *mr)
 {
-    auto m = Value::matrixND(dims, ndims, ValueType::DOUBLE, mr);
+    auto m = Value::matrixND(dims.data(), static_cast<int>(dims.size()), ValueType::DOUBLE, mr);
     for (size_t i = 0; i < m.numel(); ++i)
         m.doubleDataMut()[i] = rng.genRes53();
     return m;
 }
 
-Value randnND(detail::MatlabMT19937 &rng, const size_t *dims, int ndims, std::pmr::memory_resource *mr)
+Value randnND(detail::MatlabMT19937 &rng, Span<const size_t> dims, std::pmr::memory_resource *mr)
 {
-    auto m = Value::matrixND(dims, ndims, ValueType::DOUBLE, mr);
+    auto m = Value::matrixND(dims.data(), static_cast<int>(dims.size()), ValueType::DOUBLE, mr);
     std::normal_distribution<double> dist(0.0, 1.0);
     for (size_t i = 0; i < m.numel(); ++i)
         m.doubleDataMut()[i] = dist(rng);
@@ -313,7 +313,7 @@ void rand_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             const size_t p = dims.size() >= 3 ? dims[2] : 0;
             out = rand(sharedEngine(), r, c, p, mr);
         } else {
-            out = randND(sharedEngine(), dims.data(), static_cast<int>(dims.size()), mr);
+            out = randND(sharedEngine(), Span<const size_t>(dims.data(), dims.size()), mr);
         }
     }
     outs[0] = (t == ValueType::SINGLE) ? castDoubleToSingle(out, mr) : std::move(out);
@@ -340,7 +340,7 @@ void randn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             const size_t p = dims.size() >= 3 ? dims[2] : 0;
             out = randn(sharedEngine(), r, c, p, mr);
         } else {
-            out = randnND(sharedEngine(), dims.data(), static_cast<int>(dims.size()), mr);
+            out = randnND(sharedEngine(), Span<const size_t>(dims.data(), dims.size()), mr);
         }
     }
     outs[0] = (t == ValueType::SINGLE) ? castDoubleToSingle(out, mr) : std::move(out);

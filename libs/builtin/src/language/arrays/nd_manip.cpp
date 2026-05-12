@@ -95,9 +95,10 @@ void transposePage(const double *src, double *dst, size_t inR, size_t inC)
 //   B(i_1, i_2, ..., i_N) = A(i_{p_1}, i_{p_2}, ..., i_{p_N})
 // i.e. output axis k corresponds to input axis perm[k]. So the size
 // of output along axis k equals the size of input along perm[k].
-Value permute(const Value &x, const int *perm, std::size_t n, std::pmr::memory_resource *mr)
+Value permute(const Value &x, Span<const int> perm, std::pmr::memory_resource *mr)
 {
-    validatePerm(perm, n, "permute");
+    const std::size_t n = perm.size();
+    validatePerm(perm.data(), n, "permute");
 
     const auto &dd = x.dims();
     const int inNd = std::max<int>(dd.ndim(), static_cast<int>(n));
@@ -198,15 +199,16 @@ Value permute(const Value &x, const int *perm, std::size_t n, std::pmr::memory_r
     return r;
 }
 
-Value ipermute(const Value &x, const int *perm, std::size_t n, std::pmr::memory_resource *mr)
+Value ipermute(const Value &x, Span<const int> perm, std::pmr::memory_resource *mr)
 {
-    validatePerm(perm, n, "ipermute");
+    const std::size_t n = perm.size();
+    validatePerm(perm.data(), n, "ipermute");
     // Compute inverse permutation: invPerm[perm[i] - 1] = i + 1.
     // Stack-mounted: perm length is bounded by Dims::kMaxRank.
     int inv[Dims::kMaxRank];
     for (std::size_t i = 0; i < n; ++i)
         inv[perm[i] - 1] = static_cast<int>(i + 1);
-    return permute(x, inv, n, mr);
+    return permute(x, Span<const int>(inv, n), mr);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -247,7 +249,7 @@ Value squeeze(const Value &x, std::pmr::memory_resource *mr)
     }
     while (kept.size() < 2) kept.push_back(1);
 
-    return reshapeND(x, kept.data(), kept.size(), mr);
+    return reshapeND(x, Span<const size_t>(kept.data(), kept.size()), mr);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -475,7 +477,7 @@ Value shiftdim(const Value &x, int n, std::pmr::memory_resource *mr)
         int perm[kMaxNd];
         for (int i = 0; i < N; ++i)
             perm[i] = ((i + eff) % N) + 1;  // 1-based
-        return permute(x, perm, static_cast<std::size_t>(N), mr);
+        return permute(x, Span<const int>(perm, static_cast<std::size_t>(N)), mr);
     }
 
     // n < 0: prepend |n| singleton dims via reshape.
@@ -488,7 +490,7 @@ Value shiftdim(const Value &x, int n, std::pmr::memory_resource *mr)
     size_t newDims[kMaxNd];
     for (int i = 0; i < k; ++i) newDims[i] = 1;
     for (int i = 0; i < N; ++i) newDims[k + i] = d.dim(i);
-    return reshapeND(x, newDims, static_cast<std::size_t>(newN), mr);
+    return reshapeND(x, Span<const size_t>(newDims, static_cast<std::size_t>(newN)), mr);
 }
 
 ShiftDimAuto shiftdimAuto(const Value &x, std::pmr::memory_resource *mr)
@@ -516,7 +518,7 @@ ShiftDimAuto shiftdimAuto(const Value &x, std::pmr::memory_resource *mr)
         constexpr int kMaxNd = Dims::kMaxRank;
         size_t trimmed[kMaxNd];
         for (int i = 0; i < newN; ++i) trimmed[i] = yd.dim(i);
-        y = reshapeND(y, trimmed, static_cast<std::size_t>(newN), mr);
+        y = reshapeND(y, Span<const size_t>(trimmed, static_cast<std::size_t>(newN)), mr);
     }
     return { std::move(y), k };
 }
@@ -548,7 +550,7 @@ void permute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto perm = permFromValue(args[1], &scratch);
-    outs[0] = permute(args[0], perm.data(), perm.size(), mr);
+    outs[0] = permute(args[0], Span<const int>(perm.data(), perm.size()), mr);
 }
 
 void ipermute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -560,7 +562,7 @@ void ipermute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto perm = permFromValue(args[1], &scratch);
-    outs[0] = ipermute(args[0], perm.data(), perm.size(), mr);
+    outs[0] = ipermute(args[0], Span<const int>(perm.data(), perm.size()), mr);
 }
 
 void squeeze_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,

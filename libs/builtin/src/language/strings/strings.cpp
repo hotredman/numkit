@@ -1337,8 +1337,9 @@ Value newlineFn(std::pmr::memory_resource *mr)
     return Value::fromString("\n", mr);
 }
 
-Value stringsND(const size_t *dims, size_t ndim, std::pmr::memory_resource *mr)
+Value stringsND(Span<const size_t> dims, std::pmr::memory_resource *mr)
 {
+    const size_t ndim = dims.size();
     if (ndim == 0)
         return Value::stringScalar("", mr);
 
@@ -1870,7 +1871,7 @@ void strings_reg(Span<const Value> args, size_t, Span<Value> outs,
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto d = parseDimsArgsND(&scratch, args);
-    outs[0] = stringsND(d.data(), d.size(), mr);
+    outs[0] = stringsND(Span<const size_t>(d.data(), d.size()), mr);
 }
 
 void compose_reg(Span<const Value> args, size_t, Span<Value> outs,

@@ -53,6 +53,7 @@ Value cellstr(const Value &x, std::pmr::memory_resource *mr = nullptr);
 //// mat2cell(A, R, C)     — 2-D input: split rows by R and cols by C.
 //// sum(R) == size(A,1), sum(C) == size(A,2). Block at (i, j) has
 //// shape R(i) × C(j).
-Value mat2cell(const Value &x, const double *rowSizes, size_t nRow, const double *colSizes, size_t nCol, std::pmr::memory_resource *mr = nullptr);
+Value mat2cell(const Value &x, const Value &rowSizes, const Value &colSizes = Value::Empty,
+               std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin
