@@ -4934,7 +4934,7 @@ Value runCumWithFlags(std::pmr::memory_resource *mr, const Value &x,
     int dim; bool reverse; bool include_nan;
     parseCumDirNan(args, 1, dim, reverse, include_nan);
     Value src = x;
-    if (reverse) src = flip(mr, src, dim);
+    if (reverse) src = flip(src, dim, mr);
     Value out = (dim > 0) ? impl(mr, src, dim) : impl(mr, src, 0);
     if (include_nan) {
         // Determine effective dim (firstNonSingleton when dim=0).
@@ -4955,7 +4955,7 @@ Value runCumWithFlags(std::pmr::memory_resource *mr, const Value &x,
             for (int k = 0; k < dd.ndim(); ++k)
                 if (dd.dim(k) > 1) { effDim = k + 1; break; }
         }
-        out = flip(mr, out, effDim);
+        out = flip(out, effDim, mr);
     }
     return out;
 }

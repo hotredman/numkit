@@ -494,10 +494,9 @@ Value psf2otf(const Value &PSF, const Value &outsize, std::pmr::memory_resource 
     const int64_t shiftC = -static_cast<int64_t>(inW / 2);
     Value shifted;
     if (is1D) {
-        shifted = builtin::circshift(mr, padded,
-                                     (inH == 1) ? shiftC : shiftR);
+        shifted = builtin::circshift(padded, (inH == 1) ? shiftC : shiftR, mr);
     } else {
-        shifted = builtin::circshift(mr, padded, shiftR, shiftC);
+        shifted = builtin::circshift(padded, shiftR, shiftC, mr);
     }
 
     // FFT.
@@ -522,10 +521,9 @@ Value otf2psf(const Value &OTF, const Value &outsize, std::pmr::memory_resource 
     const int64_t shiftC =  static_cast<int64_t>(dp.cols() / 2);
     Value shifted;
     if (is1D) {
-        shifted = builtin::circshift(mr, psf,
-                                     (dp.rows() == 1) ? shiftC : shiftR);
+        shifted = builtin::circshift(psf, (dp.rows() == 1) ? shiftC : shiftR, mr);
     } else {
-        shifted = builtin::circshift(mr, psf, shiftR, shiftC);
+        shifted = builtin::circshift(psf, shiftR, shiftC, mr);
     }
 
     // Note: optional outsize-based cropping not yet implemented;

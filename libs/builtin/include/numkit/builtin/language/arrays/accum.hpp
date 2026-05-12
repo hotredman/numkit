@@ -29,11 +29,6 @@ enum class AccumReducer { Sum, Max, Min, Prod, Mean, Any, All };
 // nOutShape == 0 → derive shape from max(subs) per column.
 // `vals` may be a scalar (broadcast to every subscript row) or a
 // length-N vector (one value per subscript row).
-Value accumarray(std::pmr::memory_resource *mr,
-                  const Value &subs,
-                  const Value &vals,
-                  const size_t *outShape, std::size_t nOutShape,
-                  AccumReducer op,
-                  double fillVal);
+Value accumarray(const Value &subs, const Value &vals, const size_t *outShape, std::size_t nOutShape, AccumReducer op, double fillVal, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

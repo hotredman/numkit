@@ -37,7 +37,7 @@ shiftdata(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (dim == 0) {
         // Auto path: shiftdim(x) drops leading singletons.
-        auto res = builtin::shiftdimAuto(mr, x);
+        auto res = builtin::shiftdimAuto(x, mr);
         // perm = []  (return as 1×0 double matrix)
         Value emptyPerm = Value::matrix(0, 0, ValueType::DOUBLE, mr);
         Value nsh = Value::scalar(static_cast<double>(res.dropped), mr);
@@ -55,7 +55,7 @@ shiftdata(const Value &x, int dim, std::pmr::memory_resource *mr)
     for (int i = 1; i < dim; ++i) perm[k++] = i;
     for (size_t i = dim + 1; i <= N; ++i) perm[k++] = static_cast<int>(i);
 
-    Value shifted = builtin::permute(mr, x, perm.data(), N);
+    Value shifted = builtin::permute(x, perm.data(), N, mr);
 
     // Build perm Value (1 × N row).
     Value permV = Value::matrix(1, N, ValueType::DOUBLE, mr);
@@ -71,14 +71,14 @@ Value unshiftdata(const Value &x, const Value &perm, const Value &nshifts, std::
 {
     if (perm.isEmpty()) {
         const int n = nshifts.isEmpty() ? 0 : static_cast<int>(nshifts.toScalar());
-        return builtin::shiftdim(mr, x, -n);
+        return builtin::shiftdim(x, -n, mr);
     }
     // ipermute(x, perm)
     const size_t N = perm.numel();
     std::vector<int> permVec(N);
     for (size_t i = 0; i < N; ++i)
         permVec[i] = static_cast<int>(perm.elemAsDouble(i));
-    return builtin::ipermute(mr, x, permVec.data(), N);
+    return builtin::ipermute(x, permVec.data(), N, mr);
 }
 
 namespace detail {
