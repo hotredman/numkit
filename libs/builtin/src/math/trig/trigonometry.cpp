@@ -10,6 +10,8 @@
 #include <numkit/builtin/math/arithmetic/misc.hpp>          // hypot decl
 #include <numkit/builtin/math/trig/trigonometry.hpp>
 
+#include "../_unary_hint.hpp"   // 3-arg sin/cos hint overloads
+
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
@@ -70,6 +72,11 @@ inline double tand_scalar(double x)
 }
 
 } // anonymous
+
+// Public 2-arg wrappers — delegate to the 3-arg overload in the SIMD
+// backends (trig_highway.cpp / trig_portable.cpp) with no buffer hint.
+Value sin(const Value &x, std::pmr::memory_resource *mr) { return sin(x, nullptr, mr); }
+Value cos(const Value &x, std::pmr::memory_resource *mr) { return cos(x, nullptr, mr); }
 
 // sind / cosd / tand / asind / acosd / atand / atan2d / sinpi / cospi
 // now live in trig_highway.cpp / trig_portable.cpp. The snap-helpers

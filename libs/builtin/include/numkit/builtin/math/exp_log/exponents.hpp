@@ -18,8 +18,8 @@
 namespace numkit::builtin {
 
 Value sqrt(const Value &x, std::pmr::memory_resource *mr = nullptr);
-Value exp(const Value &x, Value *hint = nullptr, std::pmr::memory_resource *mr = nullptr);
-Value log(const Value &x, Value *hint = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value exp(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value log(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value log2(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value log10(const Value &x, std::pmr::memory_resource *mr = nullptr);
 

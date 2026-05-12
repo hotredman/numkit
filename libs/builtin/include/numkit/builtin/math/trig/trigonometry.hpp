@@ -12,10 +12,8 @@
 
 namespace numkit::builtin {
 
-/// `hint` is passed through to SIMD-backed unaries — see
-/// `math/elementary/exponents.hpp` for the contract.
-Value sin(const Value &x, Value *hint = nullptr, std::pmr::memory_resource *mr = nullptr);
-Value cos(const Value &x, Value *hint = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value sin(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value cos(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value tan(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value asin(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value acos(const Value &x, std::pmr::memory_resource *mr = nullptr);
