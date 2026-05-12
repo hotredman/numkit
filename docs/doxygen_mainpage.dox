@@ -1,0 +1,181 @@
+// docs/doxygen_mainpage.dox
+//
+// This file is read by Doxygen only (file pattern `*.dox` is ignored
+// by C++ compilation). It adds a landing page and namespace summary
+// pages so the public function catalog becomes discoverable from the
+// "Namespaces" tab.
+
+/// @mainpage numkit-m — C++ MATLAB-compatible runtime
+///
+/// @section nav Quick navigation
+///
+/// numkit-m is a C++ runtime with a MATLAB-compatible script engine
+/// and a public C++ library API. Most of the **API surface is free
+/// functions inside `numkit::<lib>` namespaces** — not classes.
+///
+/// To browse the function catalog:
+///
+/// - **Namespaces** tab (top) → pick a sub-namespace below to see every
+///   function, struct, and enum exposed by that library:
+///   - @ref numkit::builtin "numkit::builtin"  — array / matrix / linalg
+///     / strings / types / I/O builtins (the bulk of the surface)
+///   - @ref numkit::stats   "numkit::stats"    — descriptive statistics,
+///     distributions, hypothesis tests, regression, fit, spline, PCA, …
+///   - @ref numkit::signal  "numkit::signal"   — DSP: filter design /
+///     analysis / implementation, transforms, windows, measurements
+///   - @ref numkit::image   "numkit::image"    — colour, morphology,
+///     transforms, quality metrics
+///   - @ref numkit::audio   "numkit::audio"    — pitch, harmonics,
+///     spectral shape, cepstral, mel
+///   - @ref numkit::wavelet "numkit::wavelet"  — DWT / SWT / wavelet
+///     filters / wavelet denoising
+///   - @ref numkit::control "numkit::control"  — LTI conversions, freq
+///     response, time response, props
+///   - @ref numkit::comm    "numkit::comm"     — modulation, channels,
+///     source coding, equalisation
+///
+/// - **Files** tab — same content browsable by physical layout
+///   (`libs/<lib>/include/numkit/<lib>/.../*.hpp`).
+///
+/// - **Classes** tab — small set; mostly named-return structs
+///   (e.g. @ref numkit::builtin::BalanceResult,
+///   @ref numkit::stats::EllipKE).
+///
+/// @section conv API conventions
+///
+/// All public functions follow @ref public_api_rules:
+/// - Last parameter is always `std::pmr::memory_resource *mr = nullptr`.
+/// - Numeric data inputs are `const Value &` (handles any numeric
+///   class — DOUBLE / SINGLE / INT* / LOGICAL — via `elemAsDouble`).
+/// - Structural inputs (shape vectors, permutations, window
+///   descriptors) are `Span<const T>` for type-safe small spans.
+/// - Optional `Value`-typed args default to `Value::Empty` and are
+///   checked via `isEmpty()`.
+///
+/// @section build Building the docs
+///
+/// ```bash
+/// cmake --build build/<preset> --target docs       # HTML (this site)
+/// cmake --build build/<preset> --target docs-pdf   # PDF reference
+/// ```
+///
+/// LaTeX formulas (`@f$ ... @f$`) render via MathJax in HTML and via
+/// pdflatex (MiKTeX / TeX Live) in PDF.
+
+// ── Namespace stubs ──────────────────────────────────────────────────
+//
+// Each @namespace block triggers Doxygen to emit a dedicated summary
+// page listing every function, struct, and enum inside that namespace.
+// The pages are linked from the "Namespaces" tab.
+
+/// @namespace numkit
+/// @brief Root namespace for the numkit-m library.
+///
+/// Top-level. Most user-facing API lives in the sub-namespaces listed
+/// on the @ref index "main page".
+
+/// @namespace numkit::builtin
+/// @brief MATLAB-language builtins — the bulk of the public API.
+///
+/// Covers MATLAB's language-level builtins:
+/// - **Math:** `sin`, `cos`, `exp`, `log`, `gamma`, `besselj`, etc.
+///   (`numkit/builtin/math/`).
+/// - **Arithmetic / reductions:** `sum`, `prod`, `mean`, `max`, `min`,
+///   `linspace`, `logspace`, `cumsum`, `diff`, …
+/// - **Linear algebra:** `inv`, `lu_decompose`, `qr_decompose`,
+///   `svd_decompose`, `chol`, `eig_symmetric`, `expm`, `pinv`, `rank_of`,
+///   `norm_value`, `cond_2norm` — see `language/arrays/matrix.hpp`.
+/// - **Array manipulation:** `reshape`, `permute`, `cat`, `horzcat`,
+///   `vertcat`, `repmat`, `circshift`, `tril`, `triu`, `flip`, …
+/// - **Types & casts:** `toDouble`, `int8`..`int64`, `uint8`..`uint64`,
+///   `single`, `logical`, `isnumeric`, `isfinite`, `isnan`, `class`, …
+/// - **Strings:** `sprintf`, `num2str`, `str2double`, `strcmp`, `regexp`,
+///   `split`, `join`, `compose`, …
+/// - **Cells / structs:** `cell`, `cellfun`, `cell2mat`, `struct`,
+///   `fieldnames`, `isfield`, `rmfield`, `structfun`.
+/// - **Interpolation:** `interp1`, `interp2`, `interp3`, `spline`,
+///   `pchip`, `mkpp`, `ppval`.
+/// - **Polynomials:** `polyfit`, `polyval`, `roots`, `poly`, `polyder`,
+///   `polyint`.
+/// - **Random:** `rand`, `randn`, `randi`, `randperm`, `rngSeed`, …
+/// - **Bitwise / I/O / programming primitives.**
+
+/// @namespace numkit::stats
+/// @brief Statistics Toolbox parity.
+///
+/// - **Descriptive:** `var`, `std`, `median`, `quantile`, `prctile`,
+///   `cov`, `corrcoef`, `iqr`, `mad`, `range`, `zscore`, …
+/// - **Distributions** (`stats/distributions/`): `normpdf` / `normcdf` /
+///   `norminv` / `normrnd` / `normstat` + similar 5-tuple for binomial,
+///   poisson, gamma, beta, chi², F, t, weibull, exponential, lognormal,
+///   rayleigh, rician, nakagami, GEV, GP, NCX², negbin, hypergeometric,
+///   discrete uniform, continuous uniform, extreme value.
+/// - **Hypothesis tests:** `ttest`, `ttest2`, `ztest`, `vartest`,
+///   `vartest2`, `kstest`, `kstest2`, `jbtest`, `signtest`, `vartestn`,
+///   `fishertest`, `chi2gof`, `runstest`, `ranksum`, `signrank`.
+/// - **Moving windows:** `movmean`, `movmedian`, `movsum`, `movstd`,
+///   `movvar`, `movmin`, `movmax`, `movmad`, `movprod`, `smoothdata`,
+///   `hampel`.
+/// - **NaN-aware:** `nansum`, `nanmean`, `nanstdev`, `nanvar`,
+///   `nanmedian`, `nanmax`, `nanmin`.
+/// - **Fitters:** `normfit`, `expfit`, `lognfit`, `binofit`, `raylfit`,
+///   `unifit`, `poissfit` + `*like` (negative-log-likelihood) for each.
+/// - **Regression / clustering / PCA / spline / QMC / resampling.**
+
+/// @namespace numkit::signal
+/// @brief Signal Toolbox: DSP primitives.
+///
+/// Filter design / analysis / implementation, transforms (FFT, DCT,
+/// Hilbert), windows, measurements, multirate, convolution, smoothing,
+/// spectral analysis, time-frequency.
+
+/// @namespace numkit::image
+/// @brief Image Processing Toolbox.
+///
+/// Colour-space conversions (`rgb2hsv`, `rgb2lab`, …), 16 standard
+/// colormaps (`hot`, `cool`, `jet`, …), morphology (`imerode`,
+/// `imdilate`, `imreconstruct`, `bwmorph`, …), transforms
+/// (`dct2`, `psf2otf`, `integralImage`, `normxcorr2`, …), type
+/// conversions (`im2double`, `im2uint8`, …), quality metrics
+/// (`immse`, `psnr`, `ssim`).
+
+/// @namespace numkit::audio
+/// @brief Audio Toolbox.
+///
+/// Pitch & harmonics (`pitch`, `pitchCEP`, `pitchPEF`, `pitchLHS`,
+/// `pitchSRH`, `harmonicRatio`), spectral shape (`spectralCentroid`,
+/// `spectralSpread`, `spectralRolloffPoint`, `spectralFlux`, …),
+/// cepstral (`mfcc`, …), mel-spectrogram, frequency-scale conversions.
+
+/// @namespace numkit::wavelet
+/// @brief Wavelet Toolbox.
+///
+/// 1-D / 2-D DWT, SWT / MODWT, undecimated wavelet transforms,
+/// wavelet filters (`wfilters`, `orthfilt`, `qmf`), continuous wavelets
+/// (`gauswavf`, `mexihat`, `morlet`, `meyeraux`, …), wavelet
+/// reconstruction (`appcoef`, `detcoef`, `waverec`, `wrcoef`),
+/// denoising (`wnoisest`).
+
+/// @namespace numkit::control
+/// @brief Control System Toolbox.
+///
+/// LTI conversions (`tf2ss`, `ss2tf`, `tf2zp`, `zp2tf`, `zpk`), frequency
+/// response (`bode`, `nyquist`, `freqresp`), time response (`step`,
+/// `impulse`, `lsim`), properties (`pole`, `zero`, `dcgain`, `damp`).
+
+/// @namespace numkit::comm
+/// @brief Communications Toolbox.
+///
+/// Modulation (PSK, QAM, APSK, FSK, OFDM, generic-QAM, analog,
+/// MIL-188), channel models, source coding (Huffman, arithmetic
+/// coding, DPCM, Lloyd quantisation), equalisation, scrambling.
+
+/// @namespace numkit::builtin::detail
+/// @brief Implementation detail of @ref numkit::builtin.
+///
+/// Not part of the stable public API.
+
+/// @namespace numkit::stats::detail
+/// @brief Implementation detail of @ref numkit::stats.
+///
+/// Not part of the stable public API.
