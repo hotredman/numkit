@@ -1,10 +1,6 @@
 // libs/stats/include/numkit/stats/test/hypothesis.hpp
 //
-// Parametric hypothesis tests. All return a 4-tuple:
-//   (h, p, ci, tstat)
-// where h ∈ {0, 1} (1 = reject H0 at given α), p is the p-value,
-// ci is a 1×2 (or 2×1) confidence interval at level (1 - α), and tstat
-// is the test statistic.
+// Parametric and non-parametric hypothesis tests.
 
 #pragma once
 
@@ -16,112 +12,298 @@
 
 namespace numkit::stats {
 
+/// @file
+/// @brief Hypothesis tests. Most parametric tests return `(h, p, ci, tstat)`:
+/// - `h ∈ {0, 1}`: 1 if H0 is rejected at the given significance level `α`
+/// - `p`: two-sided (or one-sided per `tail`) p-value
+/// - `ci`: `1 × 2` or `2 × 1` confidence interval at level `1 - α`
+/// - `tstat`: test statistic
+
+/// @brief Direction of the alternative hypothesis.
 enum class TestTail {
-    Both,    // two-sided (default)
-    Right,   // x > μ₀
-    Left     // x < μ₀
+    Both,    ///< Two-sided alternative (default).
+    Right,   ///< Upper-tailed (statistic > null).
+    Left     ///< Lower-tailed (statistic < null).
 };
 
-/// ttest(x[, m, alpha, tail]) — one-sample Student's t-test.
-/// H0: mean(x) = m   (default m = 0).
+/// @brief One-sample Student's t-test (`[h, p, ci, t] = ttest(x, m, alpha, tail)`).
+///
+/// Tests `H0: mean(x) = m` versus the alternative selected by `tail`.
+///
+/// @param x      Sample data (1-D).
+/// @param m      Hypothesised mean (default 0).
+/// @param alpha  Significance level (default 0.05).
+/// @param tail   Direction of the alternative.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `(h, p, ci, tstat)`.
+/// @see ttest2, ztest
 std::tuple<Value, Value, Value, Value>
-ttest(const Value &x, double m, double alpha, TestTail tail, std::pmr::memory_resource *mr = nullptr);
+ttest(const Value &x, double m, double alpha, TestTail tail,
+      std::pmr::memory_resource *mr = nullptr);
 
-/// ttest2(x, y[, alpha, tail, vartype]) — two-sample t-test.
-/// vartype: "equal" (pooled variance) or "unequal" (Welch, default).
+/// @brief Two-sample t-test (`[h, p, ci, t] = ttest2(x, y, alpha, tail, vartype)`).
+///
+/// `H0: mean(x) = mean(y)`.
+///
+/// @param x        First sample.
+/// @param y        Second sample.
+/// @param alpha    Significance level.
+/// @param tail     Direction of the alternative.
+/// @param vartype  `"equal"` (pooled variance) or `"unequal"` (Welch, default).
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         `(h, p, ci, tstat)`.
+/// @see ttest, vartest2
 std::tuple<Value, Value, Value, Value>
-ttest2(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &vartype, std::pmr::memory_resource *mr = nullptr);
+ttest2(const Value &x, const Value &y, double alpha, TestTail tail,
+       const std::string &vartype, std::pmr::memory_resource *mr = nullptr);
 
-/// ztest(x, m, sigma[, alpha, tail]) — z-test with known σ.
+/// @brief Z-test with known σ (`[h, p, ci, z] = ztest(x, m, sigma, alpha, tail)`).
+///
+/// `H0: mean(x) = m` assuming the population standard deviation `sigma` is known.
+///
+/// @param x      Sample data.
+/// @param m      Hypothesised mean.
+/// @param sigma  Known population standard deviation (`sigma > 0`).
+/// @param alpha  Significance level.
+/// @param tail   Direction of the alternative.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `(h, p, ci, zstat)`.
+/// @see ttest
 std::tuple<Value, Value, Value, Value>
-ztest(const Value &x, double m, double sigma, double alpha, TestTail tail, std::pmr::memory_resource *mr = nullptr);
+ztest(const Value &x, double m, double sigma, double alpha, TestTail tail,
+      std::pmr::memory_resource *mr = nullptr);
 
-/// vartest(x, v[, alpha, tail]) — chi-squared one-sample variance test.
-/// H0: var(x) = v.
+/// @brief Chi-squared one-sample variance test
+/// (`[h, p, ci, chi2] = vartest(x, v, alpha, tail)`).
+///
+/// `H0: var(x) = v`.
+///
+/// @param x      Sample data.
+/// @param v      Hypothesised variance.
+/// @param alpha  Significance level.
+/// @param tail   Direction of the alternative.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `(h, p, ci, chisqstat)`.
+/// @see vartest2
 std::tuple<Value, Value, Value, Value>
-vartest(const Value &x, double v, double alpha, TestTail tail, std::pmr::memory_resource *mr = nullptr);
+vartest(const Value &x, double v, double alpha, TestTail tail,
+        std::pmr::memory_resource *mr = nullptr);
 
-/// vartest2(x, y[, alpha, tail]) — F-test for equality of variances.
+/// @brief F-test for equality of two variances
+/// (`[h, p, ci, F] = vartest2(x, y, alpha, tail)`).
+///
+/// `H0: var(x) = var(y)`.
+///
+/// @param x      First sample.
+/// @param y      Second sample.
+/// @param alpha  Significance level.
+/// @param tail   Direction of the alternative.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `(h, p, ci, Fstat)`.
+/// @see vartest
 std::tuple<Value, Value, Value, Value>
-vartest2(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::memory_resource *mr = nullptr);
+vartest2(const Value &x, const Value &y, double alpha, TestTail tail,
+         std::pmr::memory_resource *mr = nullptr);
 
-/// kstest(x[, cdf, alpha, tail]) — one-sample Kolmogorov-Smirnov.
-/// `cdf` is a 2-column matrix [x_grid, F_grid] giving the reference CDF;
-/// when empty, defaults to standard normal N(0, 1).
-/// Returns (h, p, ksstat, cv).
+/// @brief One-sample Kolmogorov-Smirnov test
+/// (`[h, p, ksstat, cv] = kstest(x, cdf, alpha, tail)`).
+///
+/// `H0`: `x` is drawn from the reference CDF.
+///
+/// @param x      Sample data.
+/// @param cdf    Reference CDF as a 2-column `[x_grid, F_grid]` matrix.
+///               Empty → standard normal `N(0, 1)`.
+/// @param alpha  Significance level.
+/// @param tail   Direction of the alternative.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `(h, p, ksstat, cv)` — h, p-value, KS statistic, critical value.
+/// @see kstest2
 std::tuple<Value, Value, Value, Value>
-kstest(const Value &x, const Value &cdf, double alpha, TestTail tail, std::pmr::memory_resource *mr = nullptr);
+kstest(const Value &x, const Value &cdf, double alpha, TestTail tail,
+       std::pmr::memory_resource *mr = nullptr);
 
-/// kstest2(x, y[, alpha, tail]) — two-sample KS.
+/// @brief Two-sample Kolmogorov-Smirnov test
+/// (`[h, p, ksstat, cv] = kstest2(x, y, alpha, tail)`).
+///
+/// `H0`: `x` and `y` come from the same continuous distribution.
+///
+/// @param x      First sample.
+/// @param y      Second sample.
+/// @param alpha  Significance level.
+/// @param tail   Direction of the alternative.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `(h, p, ksstat, cv)`.
+/// @see kstest
 std::tuple<Value, Value, Value, Value>
-kstest2(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::memory_resource *mr = nullptr);
+kstest2(const Value &x, const Value &y, double alpha, TestTail tail,
+        std::pmr::memory_resource *mr = nullptr);
 
-/// jbtest(x[, alpha[, mctol]]) — Jarque-Bera normality test.
-/// Returns (h, p, jbstat, cv). For small samples (n < 2000) uses
-/// Monte-Carlo simulation under H₀ for the p-value (matching
-/// MATLAB R2025b's tabulated-p behavior); for large n the χ²(2)
-/// asymptotic. mctol: target MC standard-error tolerance (default
-/// 1e-3); supply NaN to force the asymptotic path even at small n.
-/// p is capped at 0.5 like MATLAB.
+/// @brief Jarque-Bera normality test
+/// (`[h, p, jbstat, cv] = jbtest(x, alpha)`).
+///
+/// Small samples (`n < 2000`) use Monte-Carlo simulation under H0
+/// for the p-value (matches MATLAB R2025b's tabulated-p behaviour);
+/// large `n` uses the asymptotic χ²(2). `p` capped at 0.5 like MATLAB.
+///
+/// @param x      Sample data.
+/// @param alpha  Significance level.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `(h, p, jbstat, cv)`.
+/// @see jbtest(x, alpha, mctol, mr)
 std::tuple<Value, Value, Value, Value>
 jbtest(const Value &x, double alpha, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Jarque-Bera with explicit Monte-Carlo tolerance
+/// (`[h, p, jbstat, cv] = jbtest(x, alpha, mctol)`).
+///
+/// @param x      Sample data.
+/// @param alpha  Significance level.
+/// @param mctol  Target MC standard-error tolerance (default 1e-3 in the
+///               other overload). Pass `NaN` to force the asymptotic path
+///               even for small `n`.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `(h, p, jbstat, cv)`.
 std::tuple<Value, Value, Value, Value>
-jbtest(const Value &x, double alpha, double mctol, std::pmr::memory_resource *mr = nullptr);
+jbtest(const Value &x, double alpha, double mctol,
+       std::pmr::memory_resource *mr = nullptr);
 
-/// signtest(x[, m | y][, alpha, tail]) — non-parametric sign test.
-/// H0: median(x - m₀) = 0 (or median(x - y) = 0 for paired).
-/// Returns (p, h, sign) where `sign` = number of positive differences;
-/// engine-side wraps `sign` (and other diagnostics) into a struct.
+/// @brief Non-parametric sign test
+/// (`[p, h, sign] = signtest(x, y_or_m, alpha, tail)`).
+///
+/// `H0: median(x - m0) = 0` (one-sample) or `median(x - y) = 0` (paired).
+///
+/// @param x        Sample data.
+/// @param y_or_m   Paired sample (same length as `x`) or scalar hypothesised
+///                 median, depending on `y_or_m.numel()`.
+/// @param alpha    Significance level.
+/// @param tail     Direction of the alternative.
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         `(p, h, sign)` — p-value, decision, # positive differences.
+/// @see signrank
 std::tuple<Value, Value, Value>
-signtest(const Value &x, const Value &y_or_m, double alpha, TestTail tail, std::pmr::memory_resource *mr = nullptr);
+signtest(const Value &x, const Value &y_or_m, double alpha, TestTail tail,
+         std::pmr::memory_resource *mr = nullptr);
 
-/// vartestn(x, group[, alpha]) — Bartlett's k-sample variance test.
-/// H0: all group variances are equal. Returns (p, chisqstat, df).
+/// @brief Bartlett's k-sample variance test (`[p, chi2, df] = vartestn(x, group, alpha)`).
+///
+/// `H0`: all group variances are equal.
+///
+/// @param x      Pooled sample column.
+/// @param group  Group labels (same length as `x`).
+/// @param alpha  Significance level.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `(p, chisqstat, df)`.
+/// @see vartestn_full
 std::tuple<Value, Value, Value>
-vartestn(const Value &x, const Value &group, double alpha, std::pmr::memory_resource *mr = nullptr);
+vartestn(const Value &x, const Value &group, double alpha,
+         std::pmr::memory_resource *mr = nullptr);
 
-/// Full vartestn API with TestType selection. Returns (p, stat, df1, df2).
-/// test 0=Bartlett, 1=LeveneQuadratic, 2=LeveneAbsolute, 3=BrownForsythe,
-/// 4=OBrien. For Bartlett, df2 is NaN; for others, df1 = k-1, df2 = N-k.
+/// @brief Full k-sample variance test with method selection
+/// (`vartestn_full(x, group, test)`).
+///
+/// `test` selects the statistic:
+/// - 0 = Bartlett (χ², `df2 = NaN`)
+/// - 1 = Levene quadratic
+/// - 2 = Levene absolute
+/// - 3 = Brown-Forsythe
+/// - 4 = O'Brien
+///
+/// For non-Bartlett tests `df1 = k - 1`, `df2 = N - k`.
+///
+/// @param x      Pooled sample column.
+/// @param group  Group labels.
+/// @param test   Statistic selector (0..4).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `(p, stat, df1, df2)`.
 std::tuple<Value, Value, Value, Value>
-vartestn_full(const Value &x, const Value &group, int test, std::pmr::memory_resource *mr = nullptr);
+vartestn_full(const Value &x, const Value &group, int test,
+              std::pmr::memory_resource *mr = nullptr);
 
-/// fishertest(T[, alpha, tail]) — Fisher's exact test for a 2×2
-/// contingency table T = [a b; c d]. Returns (h, p, OR, ci_lo, ci_hi)
-/// where OR is the odds ratio a·d/(b·c) and the 95% (or 1−α) Woolf
-/// log-OR confidence interval.
+/// @brief Fisher's exact test for a 2×2 table
+/// (`[h, p, OR, ci_lo, ci_hi] = fishertest(T, alpha, tail)`).
+///
+/// `T = [a b; c d]`. Returns the odds ratio `OR = a·d / (b·c)` and a
+/// `1 - α` Woolf log-OR confidence interval.
+///
+/// @param T      `2 × 2` contingency table.
+/// @param alpha  Significance level.
+/// @param tail   Direction of the alternative.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `(h, p, OR, ci_lo, ci_hi)`.
 std::tuple<Value, Value, Value, Value, Value>
-fishertest(const Value &T, double alpha, TestTail tail, std::pmr::memory_resource *mr = nullptr);
+fishertest(const Value &T, double alpha, TestTail tail,
+           std::pmr::memory_resource *mr = nullptr);
 
-/// chi2gof — frequency form: given Observed counts and Expected counts,
-/// compute chi² goodness-of-fit. df = k − 1 − nparams.
-/// (Auto-binned distribution-fit form — chi2gof(x) without Frequency —
-///  is intentionally not supported in this release.)
+/// @brief Chi-squared goodness-of-fit (frequency form)
+/// (`[h, p, chi2, df] = chi2gof(observed, expected, nparams, alpha)`).
+///
+/// `df = k - 1 - nparams`. The auto-binned distribution-fit form
+/// (without `Frequency`) is not supported in this release.
+///
+/// @param observed  Observed count vector (length k).
+/// @param expected  Expected count vector (length k).
+/// @param nparams   Number of distribution parameters estimated from data
+///                  (0 for fully specified null).
+/// @param alpha     Significance level.
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          `(h, p, chi2stat, df)`.
 std::tuple<Value, Value, Value, Value>
-chi2gof(const Value &observed, const Value &expected, int nparams, double alpha, std::pmr::memory_resource *mr = nullptr);
+chi2gof(const Value &observed, const Value &expected, int nparams,
+        double alpha, std::pmr::memory_resource *mr = nullptr);
 
-/// runstest(x[, v][, alpha, tail][, method]) — Wald-Wolfowitz runs
-/// test for randomness. Default `v` = median(x); values exactly equal
-/// to v are dropped. Default `method` = "exact". Returns
-/// (p, h, nruns, n1, n0, zval) — the engine wrapper packs everything
-/// after `h` into a stats struct (zval omitted in exact mode).
+/// @brief Wald-Wolfowitz runs test for randomness
+/// (`[p, h, nruns, n1, n0, zval] = runstest(x, v, alpha, tail, method)`).
+///
+/// Default `v = median(x)`; values exactly equal to `v` are dropped.
+/// `method` ∈ {`"exact"`, `"approximate"`}. `zval` is `NaN` in exact mode.
+///
+/// @param x       Sample data.
+/// @param v       Threshold for the binary split (NaN → use `median(x)`).
+/// @param alpha   Significance level.
+/// @param tail    Direction of the alternative.
+/// @param method  Computation method.
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        `(p, h, nruns, n1, n0, zval)`.
 std::tuple<Value, Value, Value, Value, Value, Value>
-runstest(const Value &x, double v, double alpha, TestTail tail, const std::string &method, std::pmr::memory_resource *mr = nullptr);
+runstest(const Value &x, double v, double alpha, TestTail tail,
+         const std::string &method, std::pmr::memory_resource *mr = nullptr);
 
-/// ranksum(x, y[, alpha, tail][, method]) — Wilcoxon rank-sum
-/// (Mann-Whitney U). H0: median(x) = median(y).
-/// Default `method` = "exact" iff both samples have < 10 observations,
-/// else "approximate" (normal w/ tie + continuity correction).
-/// Returns (p, h, ranksum_x, zval). zval is NaN unless approximate.
+/// @brief Wilcoxon rank-sum (Mann-Whitney U) test
+/// (`[p, h, ranksum_x, zval] = ranksum(x, y, alpha, tail, method)`).
+///
+/// `H0: median(x) = median(y)`. Default `method` is `"exact"` when both
+/// samples have `< 10` observations, else `"approximate"` (normal with
+/// tie and continuity correction). `zval` is `NaN` in exact mode.
+///
+/// @param x       First sample.
+/// @param y       Second sample.
+/// @param alpha   Significance level.
+/// @param tail    Direction of the alternative.
+/// @param method  `"exact"` or `"approximate"`.
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        `(p, h, ranksum_x, zval)`.
+/// @see signrank
 std::tuple<Value, Value, Value, Value>
-ranksum(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &method, std::pmr::memory_resource *mr = nullptr);
+ranksum(const Value &x, const Value &y, double alpha, TestTail tail,
+        const std::string &method, std::pmr::memory_resource *mr = nullptr);
 
-/// signrank(x[, m | y][, alpha, tail][, method]) — Wilcoxon signed-rank.
-/// H0: median(x - m₀) = 0 (or median(x - y) = 0 for paired).
-/// `method` ∈ {"exact", "approximate"}. Default: "exact" if n_eff ≤ 15,
-/// otherwise "approximate". Returns (p, h, signedrank, zval). `zval` is
-/// NaN unless approximate mode was used.
+/// @brief Wilcoxon signed-rank test
+/// (`[p, h, signedrank, zval] = signrank(x, y_or_m, alpha, tail, method)`).
+///
+/// `H0: median(x - m0) = 0` (one-sample) or `median(x - y) = 0` (paired).
+/// Default `method` = `"exact"` if `n_eff ≤ 15`, else `"approximate"`.
+/// `zval` is `NaN` in exact mode.
+///
+/// @param x        Sample data.
+/// @param y_or_m   Paired sample or scalar hypothesised median.
+/// @param alpha    Significance level.
+/// @param tail     Direction of the alternative.
+/// @param method   `"exact"` or `"approximate"`.
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         `(p, h, signedrank, zval)`.
+/// @see ranksum, signtest
 std::tuple<Value, Value, Value, Value>
-signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, const std::string &method, std::pmr::memory_resource *mr = nullptr);
+signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail,
+         const std::string &method, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats
