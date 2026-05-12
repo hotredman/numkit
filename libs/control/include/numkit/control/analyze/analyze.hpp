@@ -13,22 +13,26 @@ namespace numkit::control {
 /// `dcgain(sys)` — steady-state gain.
 ///   continuous : H(0)
 ///   discrete   : H(1) (i.e. evaluate tf at z = 1)
-Value dcgain(std::pmr::memory_resource *mr, const Value &sys);
+Value dcgain(const Value &sys, std::pmr::memory_resource *mr = nullptr);
+
+/// Result of `margin(sys)`.
+struct MarginResult {
+    Value Gm;    ///< linear gain margin (NOT dB; MATLAB convention)
+    Value Pm;    ///< phase margin (degrees)
+    Value Wcg;   ///< phase crossover (phase = -180°)
+    Value Wcp;   ///< gain  crossover (|H| = 1)
+};
 
 /// `[Gm, Pm, Wcg, Wcp] = margin(sys)` — gain and phase margins.
-///   Gm  : linear gain margin (NOT dB; MATLAB convention).
-///   Pm  : phase margin in degrees.
-///   Wcg : phase crossover frequency (phase = -180°).
-///   Wcp : gain crossover frequency (|H| = 1).
 /// Any margin that does not exist is returned as Inf (no crossing
 /// found on the default frequency grid).
-void margin(std::pmr::memory_resource *mr, const Value &sys,
-            Value *Gm, Value *Pm, Value *Wcg, Value *Wcp);
+MarginResult margin(const Value &sys,
+                    std::pmr::memory_resource *mr = nullptr);
 
 /// `S = stepinfo(sys)` — struct with fields:
 ///   RiseTime, SettlingTime, SettlingMin, SettlingMax,
 ///   Overshoot, Undershoot, Peak, PeakTime.
 /// All times in seconds. Defaults: 10–90 % rise, 2 % settling band.
-Value stepinfo(std::pmr::memory_resource *mr, const Value &sys);
+Value stepinfo(const Value &sys, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::control

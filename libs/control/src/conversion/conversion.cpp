@@ -43,16 +43,13 @@ std::vector<double> stripLeading(const std::vector<double> &v) {
     return std::vector<double>(v.begin() + i, v.end());
 }
 
-Value rowOfDoubles(std::pmr::memory_resource *mr,
-                   const std::vector<double> &v) {
+Value rowOfDoubles(const std::vector<double> &v, std::pmr::memory_resource *mr) {
     Value r = Value::matrix(1, v.size(), ValueType::DOUBLE, mr);
     if (!v.empty()) std::copy(v.begin(), v.end(), r.doubleDataMut());
     return r;
 }
 
-Value matrixFromVec(std::pmr::memory_resource *mr,
-                    size_t rows, size_t cols,
-                    const std::vector<double> &v) {
+Value matrixFromVec(size_t rows, size_t cols, const std::vector<double> &v, std::pmr::memory_resource *mr) {
     Value m = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (!v.empty()) std::copy(v.begin(), v.end(), m.doubleDataMut());
     return m;
@@ -60,9 +57,8 @@ Value matrixFromVec(std::pmr::memory_resource *mr,
 
 } // anonymous
 
-void tf2zp(std::pmr::memory_resource *mr,
-           const Value &num, const Value &den,
-           Value *zOut, Value *pOut, Value *kOut)
+Tf2ZpResult tf2zp(const Value &num, const Value &den,
+                  std::pmr::memory_resource *mr)
 {
     auto numV = stripLeading(coeffsReal(num));
     auto denV = stripLeading(coeffsReal(den));
@@ -78,14 +74,13 @@ void tf2zp(std::pmr::memory_resource *mr,
     Value zRoots = builtin::roots(mr, num);
     Value pRoots = builtin::roots(mr, den);
 
-    if (zOut) *zOut = zRoots;
-    if (pOut) *pOut = pRoots;
-    if (kOut) *kOut = Value::scalar(k, mr);
+    return {std::move(zRoots), std::move(pRoots),
+            Value::scalar(k, mr)};
 }
 
-void zp2tf(std::pmr::memory_resource *mr,
-           const Value &z, const Value &p, const Value &k,
-           Value *numOut, Value *denOut)
+std::pair<Value, Value>
+zp2tf(const Value &z, const Value &p, const Value &k,
+      std::pmr::memory_resource *mr)
 {
     // num = k * poly(z), den = poly(p). builtin::poly takes a column
     // vector of roots and returns the row of polynomial coefficients
@@ -111,13 +106,11 @@ void zp2tf(std::pmr::memory_resource *mr,
         num = scaled;
     }
 
-    if (numOut) *numOut = num;
-    if (denOut) *denOut = den;
+    return {std::move(num), std::move(den)};
 }
 
-void tf2ss(std::pmr::memory_resource *mr,
-           const Value &num, const Value &den,
-           Value *Aout, Value *Bout, Value *Cout, Value *Dout)
+StateSpace tf2ss(const Value &num, const Value &den,
+                 std::pmr::memory_resource *mr)
 {
     auto denV = stripLeading(coeffsReal(den));
     if (denV.empty() || denV[0] == 0.0)
@@ -140,11 +133,10 @@ void tf2ss(std::pmr::memory_resource *mr,
     const size_t n = a.size() - 1;  // state-space order
     if (n == 0) {
         // Pure feedthrough: A=0×0, B=0×1, C=1×0, D=b[0].
-        if (Aout) *Aout = Value::matrix(0, 0, ValueType::DOUBLE, mr);
-        if (Bout) *Bout = Value::matrix(0, 1, ValueType::DOUBLE, mr);
-        if (Cout) *Cout = Value::matrix(1, 0, ValueType::DOUBLE, mr);
-        if (Dout) *Dout = Value::scalar(b.empty() ? 0.0 : b[0], mr);
-        return;
+        return {Value::matrix(0, 0, ValueType::DOUBLE, mr),
+                Value::matrix(0, 1, ValueType::DOUBLE, mr),
+                Value::matrix(1, 0, ValueType::DOUBLE, mr),
+                Value::scalar(b.empty() ? 0.0 : b[0], mr)};
     }
 
     // Controllable canonical form (column-major storage).
@@ -177,16 +169,16 @@ void tf2ss(std::pmr::memory_resource *mr,
         Cvec[k] = b[n - k] - b[0] * a[n - k];
     }
 
-    if (Aout) *Aout = matrixFromVec(mr, n, n, Avec);
-    if (Bout) *Bout = matrixFromVec(mr, n, 1, Bvec);
-    if (Cout) *Cout = matrixFromVec(mr, 1, n, Cvec);
-    if (Dout) *Dout = Value::scalar(b[0], mr);
+    return {matrixFromVec(n, n, Avec, mr),
+            matrixFromVec(n, 1, Bvec, mr),
+            matrixFromVec(1, n, Cvec, mr),
+            Value::scalar(b[0], mr)};
 }
 
-void ss2tf(std::pmr::memory_resource *mr,
-           const Value &A, const Value &B,
-           const Value &C, const Value &D, int iu,
-           Value *numOut, Value *denOut)
+std::pair<Value, Value>
+ss2tf(const Value &A, const Value &B,
+      const Value &C, const Value &D, int iu,
+      std::pmr::memory_resource *mr)
 {
     const size_t n = A.dims().rows();
     if (A.dims().cols() != n)
@@ -303,8 +295,8 @@ void ss2tf(std::pmr::memory_resource *mr,
     // den is the char poly: length n+1, leading 1.
     std::vector<double> denOutVec = coeff;
 
-    if (numOut) *numOut = rowOfDoubles(mr, numOutVec);
-    if (denOut) *denOut = rowOfDoubles(mr, denOutVec);
+    return {rowOfDoubles(numOutVec, mr),
+            rowOfDoubles(denOutVec, mr)};
 }
 
 // No `*_reg` adapters are provided here — every conversion entry

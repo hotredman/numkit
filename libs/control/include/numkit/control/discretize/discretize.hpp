@@ -16,14 +16,12 @@ namespace numkit::control {
 ///   method = "zoh"     (default): zero-order hold via Van Loan expm.
 ///   method = "tustin"            : bilinear,
 ///                                  z = (1 + s·Ts/2) / (1 − s·Ts/2).
-Value c2d(std::pmr::memory_resource *mr,
-          const Value &sys, double Ts, const std::string &method);
+Value c2d(const Value &sys, double Ts, const std::string &method, std::pmr::memory_resource *mr = nullptr);
 
 /// `d2c(sys [, method])` — discrete → continuous.
 ///   method = "tustin"            : bilinear (default).
 ///   method = "zoh"               : not implemented (would require
 ///                                  a matrix logarithm).
-Value d2c(std::pmr::memory_resource *mr,
-          const Value &sys, const std::string &method);
+Value d2c(const Value &sys, const std::string &method, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::control

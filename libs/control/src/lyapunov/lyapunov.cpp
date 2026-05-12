@@ -41,8 +41,7 @@ Mat readMat(const Value &v, size_t r, size_t c) {
     return M;
 }
 
-Value matFromVec(std::pmr::memory_resource *mr,
-                 size_t r, size_t c, const Mat &v) {
+Value matFromVec(size_t r, size_t c, const Mat &v, std::pmr::memory_resource *mr) {
     Value m = Value::matrix(r, c, ValueType::DOUBLE, mr);
     if (!v.empty()) std::copy(v.begin(), v.end(), m.doubleDataMut());
     return m;
@@ -75,7 +74,7 @@ Vec solveKron(Mat &M, Vec &rhs, size_t n2)
 
 } // anonymous
 
-Value lyap(std::pmr::memory_resource *mr, const Value &Av, const Value &Qv)
+Value lyap(const Value &Av, const Value &Qv, std::pmr::memory_resource *mr)
 {
     checkABQ(Av, Qv, "lyap");
     const size_t n = Av.dims().rows();
@@ -126,10 +125,10 @@ Value lyap(std::pmr::memory_resource *mr, const Value &Av, const Value &Qv)
     for (size_t j = 0; j < n; ++j)
         for (size_t i = 0; i < n; ++i)
             X[j * n + i] = x[i + n * j];
-    return matFromVec(mr, n, n, X);
+    return matFromVec(n, n, X, mr);
 }
 
-Value dlyap(std::pmr::memory_resource *mr, const Value &Av, const Value &Qv)
+Value dlyap(const Value &Av, const Value &Qv, std::pmr::memory_resource *mr)
 {
     checkABQ(Av, Qv, "dlyap");
     const size_t n = Av.dims().rows();
@@ -164,7 +163,7 @@ Value dlyap(std::pmr::memory_resource *mr, const Value &Av, const Value &Qv)
     for (size_t j = 0; j < n; ++j)
         for (size_t i = 0; i < n; ++i)
             X[j * n + i] = x[i + n * j];
-    return matFromVec(mr, n, n, X);
+    return matFromVec(n, n, X, mr);
 }
 
 namespace detail {
@@ -174,7 +173,7 @@ void lyap_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     if (a.size() < 2)
         throw Error("lyap: requires (A, Q)",
                     0, 0, "lyap", "", "m:lyap:nargin");
-    o[0] = lyap(c.engine->resource(), a[0], a[1]);
+    o[0] = lyap(a[0], a[1], c.engine->resource());
 }
 
 void dlyap_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
@@ -182,7 +181,7 @@ void dlyap_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     if (a.size() < 2)
         throw Error("dlyap: requires (A, Q)",
                     0, 0, "dlyap", "", "m:dlyap:nargin");
-    o[0] = dlyap(c.engine->resource(), a[0], a[1]);
+    o[0] = dlyap(a[0], a[1], c.engine->resource());
 }
 
 } // namespace detail

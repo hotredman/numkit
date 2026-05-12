@@ -44,7 +44,7 @@ std::vector<double> coeffsReal(const Value &v) {
     return out;
 }
 
-Value rowOf(std::pmr::memory_resource *mr, const std::vector<double> &v) {
+Value rowOf(const std::vector<double> &v, std::pmr::memory_resource *mr) {
     Value r = Value::matrix(1, v.size(), ValueType::DOUBLE, mr);
     if (!v.empty()) std::copy(v.begin(), v.end(), r.doubleDataMut());
     return r;
@@ -55,20 +55,17 @@ Value rowOf(std::pmr::memory_resource *mr, const std::vector<double> &v) {
 // a (num, den) coefficient pair.
 struct NumDen { std::vector<double> num, den; };
 
-NumDen toNumDen(std::pmr::memory_resource *mr, const Value &sys) {
+NumDen toNumDen(const Value &sys, std::pmr::memory_resource *mr) {
     if (hasKind(sys, "tf")) {
         return {coeffsReal(sys.field("num")), coeffsReal(sys.field("den"))};
     }
     if (hasKind(sys, "zpk")) {
-        Value num, den;
-        zp2tf(mr, sys.field("z"), sys.field("p"), sys.field("k"),
-              &num, &den);
+        auto [num, den] = zp2tf(sys.field("z"), sys.field("p"), sys.field("k"), mr);
         return {coeffsReal(num), coeffsReal(den)};
     }
     if (hasKind(sys, "ss")) {
-        Value num, den;
-        ss2tf(mr, sys.field("A"), sys.field("B"),
-              sys.field("C"), sys.field("D"), /*iu=*/1, &num, &den);
+        auto [num, den] = ss2tf(sys.field("A"), sys.field("B"),
+                                 sys.field("C"), sys.field("D"), /*iu=*/1, mr);
         return {coeffsReal(num), coeffsReal(den)};
     }
     throw Error("control connect: expected tf/zpk/ss struct",
@@ -91,13 +88,11 @@ std::vector<double> polyAdd(const std::vector<double> &a,
 }
 
 // Polynomial multiplication via signal::conv.
-std::vector<double> polyMul(std::pmr::memory_resource *mr,
-                            const std::vector<double> &a,
-                            const std::vector<double> &b)
+std::vector<double> polyMul(const std::vector<double> &a, const std::vector<double> &b, std::pmr::memory_resource *mr)
 {
     if (a.empty() || b.empty()) return {};
-    Value av = rowOf(mr, a);
-    Value bv = rowOf(mr, b);
+    Value av = rowOf(a, mr);
+    Value bv = rowOf(b, mr);
     Value y = signal::conv(av, bv, "full", mr);
     return coeffsReal(y);
 }
@@ -117,46 +112,43 @@ double Ts_combine(double Ts1, double Ts2, const char *op) {
 
 } // anonymous
 
-Value series(std::pmr::memory_resource *mr,
-             const Value &sys1, const Value &sys2)
+Value series(const Value &sys1, const Value &sys2, std::pmr::memory_resource *mr)
 {
-    auto a = toNumDen(mr, sys1);
-    auto b = toNumDen(mr, sys2);
-    auto num = polyMul(mr, a.num, b.num);
-    auto den = polyMul(mr, a.den, b.den);
+    auto a = toNumDen(sys1, mr);
+    auto b = toNumDen(sys2, mr);
+    auto num = polyMul(a.num, b.num, mr);
+    auto den = polyMul(a.den, b.den, mr);
     const double Ts = Ts_combine(sampleTime(sys1), sampleTime(sys2),
                                  "series");
-    return tf(mr, rowOf(mr, num), rowOf(mr, den), Ts);
+    return tf(rowOf(num, mr), rowOf(den, mr), Ts, mr);
 }
 
-Value parallel(std::pmr::memory_resource *mr,
-               const Value &sys1, const Value &sys2)
+Value parallel(const Value &sys1, const Value &sys2, std::pmr::memory_resource *mr)
 {
-    auto a = toNumDen(mr, sys1);
-    auto b = toNumDen(mr, sys2);
-    auto t1 = polyMul(mr, a.num, b.den); // n1·d2
-    auto t2 = polyMul(mr, b.num, a.den); // n2·d1
+    auto a = toNumDen(sys1, mr);
+    auto b = toNumDen(sys2, mr);
+    auto t1 = polyMul(a.num, b.den, mr); // n1·d2
+    auto t2 = polyMul(b.num, a.den, mr); // n2·d1
     auto num = polyAdd(t1, t2);
-    auto den = polyMul(mr, a.den, b.den);
+    auto den = polyMul(a.den, b.den, mr);
     const double Ts = Ts_combine(sampleTime(sys1), sampleTime(sys2),
                                  "parallel");
-    return tf(mr, rowOf(mr, num), rowOf(mr, den), Ts);
+    return tf(rowOf(num, mr), rowOf(den, mr), Ts, mr);
 }
 
-Value feedback(std::pmr::memory_resource *mr,
-               const Value &G, const Value &H, int sign)
+Value feedback(const Value &G, const Value &H, int sign, std::pmr::memory_resource *mr)
 {
-    auto g = toNumDen(mr, G);
-    auto h = toNumDen(mr, H);
+    auto g = toNumDen(G, mr);
+    auto h = toNumDen(H, mr);
     // T(s) = num_G · den_H / (den_G · den_H − sign · num_G · num_H)
-    auto numT = polyMul(mr, g.num, h.den);
-    auto loop = polyMul(mr, g.num, h.num);
-    auto denBase = polyMul(mr, g.den, h.den);
+    auto numT = polyMul(g.num, h.den, mr);
+    auto loop = polyMul(g.num, h.num, mr);
+    auto denBase = polyMul(g.den, h.den, mr);
     // sign convention: MATLAB feedback default is -1 (negative
     // feedback), giving denBase + loop. sign = +1 ⇒ denBase − loop.
     auto denT = polyAdd(denBase, loop, -static_cast<double>(sign));
     const double Ts = Ts_combine(sampleTime(G), sampleTime(H), "feedback");
-    return tf(mr, rowOf(mr, numT), rowOf(mr, denT), Ts);
+    return tf(rowOf(numT, mr), rowOf(denT, mr), Ts, mr);
 }
 
 namespace detail {
@@ -165,14 +157,14 @@ void series_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
     if (a.size() < 2)
         throw Error("series: requires (sys1, sys2)",
                     0, 0, "series", "", "m:series:nargin");
-    o[0] = series(c.engine->resource(), a[0], a[1]);
+    o[0] = series(a[0], a[1], c.engine->resource());
 }
 
 void parallel_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
     if (a.size() < 2)
         throw Error("parallel: requires (sys1, sys2)",
                     0, 0, "parallel", "", "m:parallel:nargin");
-    o[0] = parallel(c.engine->resource(), a[0], a[1]);
+    o[0] = parallel(a[0], a[1], c.engine->resource());
 }
 
 void feedback_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
@@ -182,7 +174,7 @@ void feedback_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
     int sign = -1;
     if (a.size() >= 3 && !a[2].isEmpty())
         sign = static_cast<int>(a[2].toScalar());
-    o[0] = feedback(c.engine->resource(), a[0], a[1], sign);
+    o[0] = feedback(a[0], a[1], sign, c.engine->resource());
 }
 
 } // namespace detail

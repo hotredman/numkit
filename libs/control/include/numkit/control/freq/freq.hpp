@@ -9,29 +9,42 @@
 
 #include <memory_resource>
 #include <numkit/core/value.hpp>
+#include <utility>
 
 namespace numkit::control {
 
 /// `H = evalfr(sys, f)` — single complex H(jω) (continuous) or H(z)
 /// (discrete) at frequency `f` (rad/s).
-Value evalfr(std::pmr::memory_resource *mr,
-             const Value &sys, double f);
+Value evalfr(const Value &sys, double f,
+             std::pmr::memory_resource *mr = nullptr);
 
 /// `H = freqresp(sys, w)` — column vector of complex H values at each
 /// ω in `w`.
-Value freqresp(std::pmr::memory_resource *mr,
-               const Value &sys, const Value &w);
+Value freqresp(const Value &sys, const Value &w,
+               std::pmr::memory_resource *mr = nullptr);
+
+/// Result of `bode(sys [, w])`.
+struct BodeResult {
+    Value mag;     ///< magnitude (linear), column vector
+    Value phase;   ///< phase (deg),         column vector
+    Value w;       ///< frequencies used (rad/s)
+};
 
 /// `[mag, phase, w] = bode(sys [, w])` — magnitude (linear), phase (deg).
 /// `w` defaults to a logarithmic grid covering the dominant poles.
-void bode(std::pmr::memory_resource *mr,
-          const Value &sys, const Value &wArg,
-          Value *magOut, Value *phaseOut, Value *wOut);
+BodeResult bode(const Value &sys, const Value &wArg,
+                std::pmr::memory_resource *mr = nullptr);
+
+/// Result of `nyquist(sys [, w])`.
+struct NyquistResult {
+    Value re;
+    Value im;
+    Value w;
+};
 
 /// `[re, im, w] = nyquist(sys [, w])` — real and imaginary parts of H.
-void nyquist(std::pmr::memory_resource *mr,
-             const Value &sys, const Value &wArg,
-             Value *reOut, Value *imOut, Value *wOut);
+NyquistResult nyquist(const Value &sys, const Value &wArg,
+                      std::pmr::memory_resource *mr = nullptr);
 
 /// `[r, k] = rlocus(sys [, kVec])` — root locus.
 /// For each gain k in `kVec`, compute the n closed-loop poles of
@@ -41,8 +54,8 @@ void nyquist(std::pmr::memory_resource *mr,
 ///   k : the gain vector actually used
 /// If `kVec` is empty, a default logarithmic sweep is generated
 /// covering 0 plus 100 points from 1e-2 to 1e3.
-void rlocus(std::pmr::memory_resource *mr,
-            const Value &sys, const Value &kVec,
-            Value *rOut, Value *kOut);
+std::pair<Value, Value>
+rlocus(const Value &sys, const Value &kVec,
+       std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::control

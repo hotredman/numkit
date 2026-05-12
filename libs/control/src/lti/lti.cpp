@@ -20,7 +20,7 @@ namespace numkit::control {
 
 namespace {
 
-Value rowVec(std::pmr::memory_resource *mr, const Value &v) {
+Value rowVec(const Value &v, std::pmr::memory_resource *mr) {
     // Always represent coefficient lists as a row vector, copying
     // through the user memory resource so the struct fields don't
     // alias caller-side scratch memory.
@@ -38,7 +38,7 @@ Value rowVec(std::pmr::memory_resource *mr, const Value &v) {
     return r;
 }
 
-Value tagStruct(std::pmr::memory_resource *mr, const char *kind, double Ts) {
+Value tagStruct(const char *kind, double Ts, std::pmr::memory_resource *mr) {
     Value s = Value::structure(mr);
     s.field("kind") = Value::fromString(kind, mr);
     s.field("Ts") = Value::scalar(Ts, mr);
@@ -47,34 +47,30 @@ Value tagStruct(std::pmr::memory_resource *mr, const char *kind, double Ts) {
 
 } // anonymous
 
-Value tf(std::pmr::memory_resource *mr,
-         const Value &num, const Value &den, double Ts)
+Value tf(const Value &num, const Value &den, double Ts, std::pmr::memory_resource *mr)
 {
     if (den.numel() == 0)
         throw Error("tf: denominator must not be empty",
                     0, 0, "tf", "", "m:tf:den");
-    Value s = tagStruct(mr, "tf", Ts);
-    s.field("num") = rowVec(mr, num);
-    s.field("den") = rowVec(mr, den);
+    Value s = tagStruct("tf", Ts, mr);
+    s.field("num") = rowVec(num, mr);
+    s.field("den") = rowVec(den, mr);
     return s;
 }
 
-Value zpk(std::pmr::memory_resource *mr,
-          const Value &z, const Value &p, const Value &k, double Ts)
+Value zpk(const Value &z, const Value &p, const Value &k, double Ts, std::pmr::memory_resource *mr)
 {
-    Value s = tagStruct(mr, "zpk", Ts);
-    s.field("z") = rowVec(mr, z);
-    s.field("p") = rowVec(mr, p);
+    Value s = tagStruct("zpk", Ts, mr);
+    s.field("z") = rowVec(z, mr);
+    s.field("p") = rowVec(p, mr);
     // gain is a scalar
     s.field("k") = Value::scalar(k.toScalar(), mr);
     return s;
 }
 
-Value ss(std::pmr::memory_resource *mr,
-         const Value &A, const Value &B,
-         const Value &C, const Value &D, double Ts)
+Value ss(const Value &A, const Value &B, const Value &C, const Value &D, double Ts, std::pmr::memory_resource *mr)
 {
-    Value s = tagStruct(mr, "ss", Ts);
+    Value s = tagStruct("ss", Ts, mr);
     // Copy state-space matrices through the user resource. We don't
     // dimensional-check here (zero-state, no inputs, etc. are valid).
     auto copyMat = [&](const Value &m) {
@@ -99,26 +95,24 @@ Value ss(std::pmr::memory_resource *mr,
     return s;
 }
 
-Value filt(std::pmr::memory_resource *mr,
-           const Value &num, const Value &den, double Ts)
+Value filt(const Value &num, const Value &den, double Ts, std::pmr::memory_resource *mr)
 {
     if (den.numel() == 0)
         throw Error("filt: denominator must not be empty",
                     0, 0, "filt", "", "m:filt:den");
-    Value s = tagStruct(mr, "tf", Ts);
-    s.field("num") = rowVec(mr, num);
-    s.field("den") = rowVec(mr, den);
+    Value s = tagStruct("tf", Ts, mr);
+    s.field("num") = rowVec(num, mr);
+    s.field("den") = rowVec(den, mr);
     s.field("variable") = Value::fromString("z^-1", mr);
     return s;
 }
 
-Value frd(std::pmr::memory_resource *mr,
-          const Value &response, const Value &frequency, double Ts)
+Value frd(const Value &response, const Value &frequency, double Ts, std::pmr::memory_resource *mr)
 {
     if (response.numel() != frequency.numel())
         throw Error("frd: response and frequency must have the same length",
                     0, 0, "frd", "", "m:frd:size");
-    Value s = tagStruct(mr, "frd", Ts);
+    Value s = tagStruct("frd", Ts, mr);
     const size_t N = frequency.numel();
     // resp may be complex; copy as column vector.
     if (response.type() == ValueType::COMPLEX) {
@@ -251,9 +245,9 @@ const std::string &kindOf(const Value &sys) {
 }
 
 // Pad num with leading zeros to match den length (MATLAB tfdata convention).
-Value padToLen(std::pmr::memory_resource *mr, const Value &row, size_t targetLen) {
+Value padToLen(const Value &row, size_t targetLen, std::pmr::memory_resource *mr) {
     const size_t N = row.numel();
-    if (N >= targetLen) return rowVec(mr, row);
+    if (N >= targetLen) return rowVec(row, mr);
     Value out = Value::matrix(1, targetLen, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
     const size_t pad = targetLen - N;
@@ -263,14 +257,14 @@ Value padToLen(std::pmr::memory_resource *mr, const Value &row, size_t targetLen
 }
 
 // Wrap a single value in a 1×1 cell.
-Value wrapCell(std::pmr::memory_resource *mr, const Value &v) {
+Value wrapCell(const Value &v, std::pmr::memory_resource *mr) {
     Value c = Value::cell(1, 1, mr);
     c.cellAt(0) = v;
     return c;
 }
 
 // Column-vector copy (used for zpkdata's z/p outputs).
-Value colVec(std::pmr::memory_resource *mr, const Value &v) {
+Value colVec(const Value &v, std::pmr::memory_resource *mr) {
     const size_t N = v.numel();
     if (v.type() == ValueType::COMPLEX) {
         Value r = Value::matrix(N, 1, ValueType::COMPLEX, mr);
@@ -288,7 +282,7 @@ Value colVec(std::pmr::memory_resource *mr, const Value &v) {
 } // anonymous
 
 std::tuple<Value, Value>
-tfdata(std::pmr::memory_resource *mr, const Value &sys, bool asVector)
+tfdata(const Value &sys, bool asVector, std::pmr::memory_resource *mr)
 {
     Value num, den;
     const std::string &k = kindOf(sys);
@@ -296,54 +290,52 @@ tfdata(std::pmr::memory_resource *mr, const Value &sys, bool asVector)
         num = sys.field("num");
         den = sys.field("den");
     } else if (k == "zpk") {
-        zp2tf(mr, sys.field("z"), sys.field("p"), sys.field("k"), &num, &den);
+        std::tie(num, den) = zp2tf(sys.field("z"), sys.field("p"), sys.field("k"), mr);
     } else if (k == "ss") {
-        ss2tf(mr, sys.field("A"), sys.field("B"),
-              sys.field("C"), sys.field("D"), 1, &num, &den);
+        std::tie(num, den) = ss2tf(sys.field("A"), sys.field("B"),
+                                    sys.field("C"), sys.field("D"), 1, mr);
     } else {
         throw Error("tfdata: input must be tf / zpk / ss",
                     0, 0, "tfdata", "", "m:tfdata:kind");
     }
     const size_t L = std::max(num.numel(), den.numel());
-    Value np = padToLen(mr, num, L);
-    Value dp = padToLen(mr, den, L);
+    Value np = padToLen(num, L, mr);
+    Value dp = padToLen(den, L, mr);
     if (asVector) return {std::move(np), std::move(dp)};
-    return {wrapCell(mr, np), wrapCell(mr, dp)};
+    return {wrapCell(np, mr), wrapCell(dp, mr)};
 }
 
 std::tuple<Value, Value, Value>
-zpkdata(std::pmr::memory_resource *mr, const Value &sys, bool asVector)
+zpkdata(const Value &sys, bool asVector, std::pmr::memory_resource *mr)
 {
     Value z, p, k;
     const std::string &kind = kindOf(sys);
     if (kind == "zpk") {
-        z = colVec(mr, sys.field("z"));
-        p = colVec(mr, sys.field("p"));
+        z = colVec(sys.field("z"), mr);
+        p = colVec(sys.field("p"), mr);
         k = Value::scalar(sys.field("k").toScalar(), mr);
     } else if (kind == "tf") {
-        Value zr, pr, kr;
-        tf2zp(mr, sys.field("num"), sys.field("den"), &zr, &pr, &kr);
-        z = colVec(mr, zr);
-        p = colVec(mr, pr);
-        k = Value::scalar(kr.toScalar(), mr);
+        auto r = tf2zp(sys.field("num"), sys.field("den"), mr);
+        z = colVec(r.z, mr);
+        p = colVec(r.p, mr);
+        k = Value::scalar(r.k.toScalar(), mr);
     } else if (kind == "ss") {
-        Value n, d, zr, pr, kr;
-        ss2tf(mr, sys.field("A"), sys.field("B"),
-              sys.field("C"), sys.field("D"), 1, &n, &d);
-        tf2zp(mr, n, d, &zr, &pr, &kr);
-        z = colVec(mr, zr);
-        p = colVec(mr, pr);
-        k = Value::scalar(kr.toScalar(), mr);
+        auto [n, d] = ss2tf(sys.field("A"), sys.field("B"),
+                            sys.field("C"), sys.field("D"), 1, mr);
+        auto r = tf2zp(n, d, mr);
+        z = colVec(r.z, mr);
+        p = colVec(r.p, mr);
+        k = Value::scalar(r.k.toScalar(), mr);
     } else {
         throw Error("zpkdata: input must be tf / zpk / ss",
                     0, 0, "zpkdata", "", "m:zpkdata:kind");
     }
     if (asVector) return {std::move(z), std::move(p), std::move(k)};
-    return {wrapCell(mr, z), wrapCell(mr, p), std::move(k)};
+    return {wrapCell(z, mr), wrapCell(p, mr), std::move(k)};
 }
 
 std::tuple<Value, Value, Value, Value>
-ssdata(std::pmr::memory_resource *mr, const Value &sys)
+ssdata(const Value &sys, std::pmr::memory_resource *mr)
 {
     const std::string &kind = kindOf(sys);
     Value A, B, C, D;
@@ -353,11 +345,14 @@ ssdata(std::pmr::memory_resource *mr, const Value &sys)
         C = sys.field("C");
         D = sys.field("D");
     } else if (kind == "tf") {
-        tf2ss(mr, sys.field("num"), sys.field("den"), &A, &B, &C, &D);
+        auto ss = tf2ss(sys.field("num"), sys.field("den"), mr);
+        A = std::move(ss.A); B = std::move(ss.B);
+        C = std::move(ss.C); D = std::move(ss.D);
     } else if (kind == "zpk") {
-        Value n, d;
-        zp2tf(mr, sys.field("z"), sys.field("p"), sys.field("k"), &n, &d);
-        tf2ss(mr, n, d, &A, &B, &C, &D);
+        auto [n, d] = zp2tf(sys.field("z"), sys.field("p"), sys.field("k"), mr);
+        auto ss = tf2ss(n, d, mr);
+        A = std::move(ss.A); B = std::move(ss.B);
+        C = std::move(ss.C); D = std::move(ss.D);
     } else {
         throw Error("ssdata: input must be tf / zpk / ss",
                     0, 0, "ssdata", "", "m:ssdata:kind");
@@ -366,7 +361,7 @@ ssdata(std::pmr::memory_resource *mr, const Value &sys)
 }
 
 std::tuple<Value, Value>
-frdata(std::pmr::memory_resource *mr, const Value &sys)
+frdata(const Value &sys, std::pmr::memory_resource *mr)
 {
     if (kindOf(sys) != "frd")
         throw Error("frdata: input must be an frd model",
@@ -393,7 +388,7 @@ frdata(std::pmr::memory_resource *mr, const Value &sys)
     return {copyV(resp), copyV(freq)};
 }
 
-Value ss2ss(std::pmr::memory_resource *mr, const Value &sys, const Value &T)
+Value ss2ss(const Value &sys, const Value &T, std::pmr::memory_resource *mr)
 {
     if (kindOf(sys) != "ss")
         throw Error("ss2ss: input must be an ss model",
@@ -432,7 +427,7 @@ Value ss2ss(std::pmr::memory_resource *mr, const Value &sys, const Value &T)
         return out;
     };
 
-    Value out = tagStruct(mr, "ss", sys.field("Ts").toScalar());
+    Value out = tagStruct("ss", sys.field("Ts").toScalar(), mr);
     out.field("A") = putMat(Anew, n, n);
     out.field("B") = putMat(Bnew, n, m);
     out.field("C") = putMat(Cnew, p, n);
@@ -453,7 +448,7 @@ void tf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("tf: requires (num, den [, Ts])",
                     0, 0, "tf", "", "m:tf:nargin");
-    outs[0] = tf(ctx.engine->resource(), args[0], args[1], argTs(args, 2));
+    outs[0] = tf(args[0], args[1], argTs(args, 2), ctx.engine->resource());
 }
 
 void zpk_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -462,8 +457,7 @@ void zpk_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 3)
         throw Error("zpk: requires (z, p, k [, Ts])",
                     0, 0, "zpk", "", "m:zpk:nargin");
-    outs[0] = zpk(ctx.engine->resource(),
-                  args[0], args[1], args[2], argTs(args, 3));
+    outs[0] = zpk(args[0], args[1], args[2], argTs(args, 3), ctx.engine->resource());
 }
 
 void ss_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -472,8 +466,7 @@ void ss_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 4)
         throw Error("ss: requires (A, B, C, D [, Ts])",
                     0, 0, "ss", "", "m:ss:nargin");
-    outs[0] = ss(ctx.engine->resource(),
-                 args[0], args[1], args[2], args[3], argTs(args, 4));
+    outs[0] = ss(args[0], args[1], args[2], args[3], argTs(args, 4), ctx.engine->resource());
 }
 
 void filt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -485,7 +478,7 @@ void filt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     // MATLAB default Ts for filt is -1 (unspecified discrete).
     const double Ts = (args.size() >= 3 && !args[2].isEmpty())
                       ? args[2].toScalar() : -1.0;
-    outs[0] = filt(ctx.engine->resource(), args[0], args[1], Ts);
+    outs[0] = filt(args[0], args[1], Ts, ctx.engine->resource());
 }
 
 void frd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -494,7 +487,7 @@ void frd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("frd: requires (response, frequency [, Ts])",
                     0, 0, "frd", "", "m:frd:nargin");
-    outs[0] = frd(ctx.engine->resource(), args[0], args[1], argTs(args, 2));
+    outs[0] = frd(args[0], args[1], argTs(args, 2), ctx.engine->resource());
 }
 
 static bool wantVector(Span<const Value> args, size_t pos) {
@@ -511,7 +504,7 @@ void tfdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     if (args.empty())
         throw Error("tfdata: requires (sys [, 'v'])",
                     0, 0, "tfdata", "", "m:tfdata:nargin");
-    auto [num, den] = tfdata(ctx.engine->resource(), args[0], wantVector(args, 1));
+    auto [num, den] = tfdata(args[0], wantVector(args, 1), ctx.engine->resource());
     outs[0] = std::move(num);
     if (nargout > 1) outs[1] = std::move(den);
 }
@@ -522,7 +515,7 @@ void zpkdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     if (args.empty())
         throw Error("zpkdata: requires (sys [, 'v'])",
                     0, 0, "zpkdata", "", "m:zpkdata:nargin");
-    auto [z, p, k] = zpkdata(ctx.engine->resource(), args[0], wantVector(args, 1));
+    auto [z, p, k] = zpkdata(args[0], wantVector(args, 1), ctx.engine->resource());
     outs[0] = std::move(z);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(k);
@@ -534,7 +527,7 @@ void ssdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     if (args.empty())
         throw Error("ssdata: requires (sys)",
                     0, 0, "ssdata", "", "m:ssdata:nargin");
-    auto [A, B, C, D] = ssdata(ctx.engine->resource(), args[0]);
+    auto [A, B, C, D] = ssdata(args[0], ctx.engine->resource());
     outs[0] = std::move(A);
     if (nargout > 1) outs[1] = std::move(B);
     if (nargout > 2) outs[2] = std::move(C);
@@ -547,7 +540,7 @@ void ss2ss_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("ss2ss: requires (sys, T)",
                     0, 0, "ss2ss", "", "m:ss2ss:nargin");
-    outs[0] = ss2ss(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = ss2ss(args[0], args[1], ctx.engine->resource());
 }
 
 void frdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
@@ -559,7 +552,7 @@ void frdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     // 'v' flag accepted for MATLAB compatibility; frdata always returns
     // column vectors regardless (we don't model SISO 1×1×N tensors).
     (void)wantVector(args, 1);
-    auto [resp, freq] = frdata(ctx.engine->resource(), args[0]);
+    auto [resp, freq] = frdata(args[0], ctx.engine->resource());
     outs[0] = std::move(resp);
     if (nargout > 1) outs[1] = std::move(freq);
 }

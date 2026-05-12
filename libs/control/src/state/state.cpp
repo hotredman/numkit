@@ -27,19 +27,20 @@ bool hasKind(const Value &sys, const char *want) {
 // the input form. The shapes are ss-canonical:
 //   A : n×n, B : n×m, C : p×n.
 struct ABC { Value A, B, C, D; };
-ABC pullABC(std::pmr::memory_resource *mr, const Value &sys) {
+ABC pullABC(const Value &sys, std::pmr::memory_resource *mr) {
     ABC out;
     if (hasKind(sys, "ss")) {
         out.A = sys.field("A"); out.B = sys.field("B");
         out.C = sys.field("C"); out.D = sys.field("D");
     } else if (hasKind(sys, "tf")) {
-        tf2ss(mr, sys.field("num"), sys.field("den"),
-              &out.A, &out.B, &out.C, &out.D);
+        auto ss = tf2ss(sys.field("num"), sys.field("den"), mr);
+        out.A = std::move(ss.A); out.B = std::move(ss.B);
+        out.C = std::move(ss.C); out.D = std::move(ss.D);
     } else if (hasKind(sys, "zpk")) {
-        Value num, den;
-        zp2tf(mr, sys.field("z"), sys.field("p"), sys.field("k"),
-              &num, &den);
-        tf2ss(mr, num, den, &out.A, &out.B, &out.C, &out.D);
+        auto [num, den] = zp2tf(sys.field("z"), sys.field("p"), sys.field("k"), mr);
+        auto ss = tf2ss(num, den, mr);
+        out.A = std::move(ss.A); out.B = std::move(ss.B);
+        out.C = std::move(ss.C); out.D = std::move(ss.D);
     } else {
         throw Error("ctrb/obsv: expected an LTI struct (tf/zpk/ss)",
                     0, 0, "control", "", "m:control:kind");
@@ -54,8 +55,7 @@ std::vector<double> readMat(const Value &v, size_t r, size_t c) {
     return M;
 }
 
-Value matFromVec(std::pmr::memory_resource *mr,
-                 size_t r, size_t c, const std::vector<double> &v) {
+Value matFromVec(size_t r, size_t c, const std::vector<double> &v, std::pmr::memory_resource *mr) {
     Value m = Value::matrix(r, c, ValueType::DOUBLE, mr);
     if (!v.empty()) std::copy(v.begin(), v.end(), m.doubleDataMut());
     return m;
@@ -63,8 +63,7 @@ Value matFromVec(std::pmr::memory_resource *mr,
 
 } // anonymous
 
-Value ctrb_AB(std::pmr::memory_resource *mr,
-              const Value &Av, const Value &Bv)
+Value ctrb_AB(const Value &Av, const Value &Bv, std::pmr::memory_resource *mr)
 {
     const size_t n = Av.dims().rows();
     if (Av.dims().cols() != n)
@@ -104,11 +103,10 @@ Value ctrb_AB(std::pmr::memory_resource *mr,
                 Co[(colOffset + j) * n + i] = next[j * n + i];
         prev = std::move(next);
     }
-    return matFromVec(mr, n, n * m, Co);
+    return matFromVec(n, n * m, Co, mr);
 }
 
-Value obsv_AC(std::pmr::memory_resource *mr,
-              const Value &Av, const Value &Cv)
+Value obsv_AC(const Value &Av, const Value &Cv, std::pmr::memory_resource *mr)
 {
     const size_t n = Av.dims().rows();
     if (Av.dims().cols() != n)
@@ -146,17 +144,17 @@ Value obsv_AC(std::pmr::memory_resource *mr,
                 Ob[j * (n * p) + (rowOffset + i)] = next[j * p + i];
         prev = std::move(next);
     }
-    return matFromVec(mr, n * p, n, Ob);
+    return matFromVec(n * p, n, Ob, mr);
 }
 
-Value ctrb_sys(std::pmr::memory_resource *mr, const Value &sys) {
-    auto abc = pullABC(mr, sys);
-    return ctrb_AB(mr, abc.A, abc.B);
+Value ctrb_sys(const Value &sys, std::pmr::memory_resource *mr) {
+    auto abc = pullABC(sys, mr);
+    return ctrb_AB(abc.A, abc.B, mr);
 }
 
-Value obsv_sys(std::pmr::memory_resource *mr, const Value &sys) {
-    auto abc = pullABC(mr, sys);
-    return obsv_AC(mr, abc.A, abc.C);
+Value obsv_sys(const Value &sys, std::pmr::memory_resource *mr) {
+    auto abc = pullABC(sys, mr);
+    return obsv_AC(abc.A, abc.C, mr);
 }
 
 namespace detail {
@@ -169,10 +167,10 @@ void ctrb_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     auto *mr = c.engine->resource();
     if (a.size() == 1) {
         // Single-arg form: must be a sys struct.
-        o[0] = ctrb_sys(mr, a[0]);
+        o[0] = ctrb_sys(a[0], mr);
         return;
     }
-    o[0] = ctrb_AB(mr, a[0], a[1]);
+    o[0] = ctrb_AB(a[0], a[1], mr);
 }
 
 void obsv_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
@@ -182,10 +180,10 @@ void obsv_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
                     0, 0, "obsv", "", "m:obsv:nargin");
     auto *mr = c.engine->resource();
     if (a.size() == 1) {
-        o[0] = obsv_sys(mr, a[0]);
+        o[0] = obsv_sys(a[0], mr);
         return;
     }
-    o[0] = obsv_AC(mr, a[0], a[1]);
+    o[0] = obsv_AC(a[0], a[1], mr);
 }
 
 } // namespace detail
