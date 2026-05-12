@@ -56,10 +56,7 @@ struct BufferResult {
     size_t partialEnd;    // index into x where partial-frame Z ends (excl)
 };
 
-BufferResult bufferCore(std::pmr::memory_resource *mr,
-                         const Value &x, int n, int p,
-                         const Value *opt,
-                         bool forceCompleteOnly /* true if [Y,Z] form */)
+BufferResult bufferCore(const Value &x, int n, int p, const Value *opt, bool forceCompleteOnly /* true if [Y, Z] form */, std::pmr::memory_resource *mr)
 {
     if (n <= 0) {
         BufferResult r;
@@ -190,8 +187,7 @@ BufferResult bufferCore(std::pmr::memory_resource *mr,
     return r;
 }
 
-Value makePartialZ(std::pmr::memory_resource *mr, const Value &x,
-                    size_t startIdx, size_t endIdx, int xOrient)
+Value makePartialZ(const Value &x, size_t startIdx, size_t endIdx, int xOrient, std::pmr::memory_resource *mr)
 {
     const size_t len = (endIdx > startIdx) ? (endIdx - startIdx) : 0;
     const size_t rows = (xOrient == 1) ? 1 : len;
@@ -206,19 +202,17 @@ Value makePartialZ(std::pmr::memory_resource *mr, const Value &x,
 
 } // anon
 
-Value buffer(std::pmr::memory_resource *mr,
-              const Value &x, int n, int p, const Value *opt)
+Value buffer(const Value &x, int n, int p, const Value *opt, std::pmr::memory_resource *mr)
 {
-    BufferResult r = bufferCore(mr, x, n, p, opt, /*forceCompleteOnly=*/false);
+    BufferResult r = bufferCore(x, n, p, opt, /*forceCompleteOnly=*/false, mr);
     return r.Y;
 }
 
 std::tuple<Value, Value>
-buffer2(std::pmr::memory_resource *mr,
-         const Value &x, int n, int p, const Value *opt)
+buffer2(const Value &x, int n, int p, const Value *opt, std::pmr::memory_resource *mr)
 {
-    BufferResult r = bufferCore(mr, x, n, p, opt, /*forceCompleteOnly=*/true);
-    Value z = makePartialZ(mr, x, r.partialStart, r.partialEnd, rowOrCol(x));
+    BufferResult r = bufferCore(x, n, p, opt, /*forceCompleteOnly=*/true, mr);
+    Value z = makePartialZ(x, r.partialStart, r.partialEnd, rowOrCol(x), mr);
     return {r.Y, z};
 }
 
@@ -235,11 +229,11 @@ void buffer_reg(Span<const Value> args, size_t nargout,
     if (args.size() >= 3 && !args[2].isEmpty()) p = static_cast<int>(args[2].toScalar());
     const Value *opt = (args.size() >= 4) ? &args[3] : nullptr;
     if (nargout >= 2 && outs.size() >= 2) {
-        auto [Y, Z] = buffer2(ctx.engine->resource(), args[0], n, p, opt);
+        auto [Y, Z] = buffer2(args[0], n, p, opt, ctx.engine->resource());
         outs[0] = Y;
         outs[1] = Z;
     } else {
-        outs[0] = buffer(ctx.engine->resource(), args[0], n, p, opt);
+        outs[0] = buffer(args[0], n, p, opt, ctx.engine->resource());
     }
 }
 

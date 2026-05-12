@@ -707,7 +707,7 @@ Value pitchSRH(std::pmr::memory_resource *mr, const Value &x, double fs,
             // LPC: returns (a, g)
             auto [a_row, g] = signal::lpc(mr, yCol, lpcOrder);
             // filter(a, 1, y_col) → residual estimate
-            Value res = signal::filter(mr, a_row, oneScalar, yCol);
+            Value res = signal::filter(a_row, oneScalar, yCol, mr);
             const double *rd = res.doubleData();
             std::copy(rd, rd + Nsrh, invd + f * Nsrh);
         }

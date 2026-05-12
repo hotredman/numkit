@@ -14,12 +14,11 @@ namespace numkit::signal {
 // polyscale(p, scale) — y[k] = p[k] * scale^k for k = 0..N-1.
 // Equivalent to scaling the roots of polynomial p in the z-plane.
 // Input may be real or complex; scale may be real or complex.
-Value polyscale(std::pmr::memory_resource *mr,
-                const Value &p, const Value &scale);
+Value polyscale(const Value &p, const Value &scale, std::pmr::memory_resource *mr = nullptr);
 
 // polystab(a) — reflect any root with |root|>1 to its reciprocal-conjugate
 // inside the unit circle, preserving magnitude response. Returns the
 // resulting polynomial coefficient vector (real if input was real).
-Value polystab(std::pmr::memory_resource *mr, const Value &a);
+Value polystab(const Value &a, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal

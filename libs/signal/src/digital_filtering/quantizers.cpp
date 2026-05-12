@@ -50,7 +50,7 @@ ValueType pickSignedType(int N)
 }
 
 // Allocate output Value of the requested integer type with same shape as u.
-Value allocLikeIntType(std::pmr::memory_resource *mr, const Value &u, ValueType vt)
+Value allocLikeIntType(const Value &u, ValueType vt, std::pmr::memory_resource *mr)
 {
     if (u.dims().is3D())
         return Value::matrix3d(u.dims().rows(), u.dims().cols(),
@@ -68,8 +68,7 @@ inline double floorClip(double x, double lo, double hi)
 
 } // anon
 
-Value uencode(std::pmr::memory_resource *mr,
-              const Value &u, int N, double V, bool signedOutput)
+Value uencode(const Value &u, int N, double V, bool signedOutput, std::pmr::memory_resource *mr)
 {
     if (N < 2 || N > 32)
         throw Error("uencode: N must be in [2, 32]",
@@ -84,7 +83,7 @@ Value uencode(std::pmr::memory_resource *mr,
     const double signMin = -(1.0 + signMax);
 
     const ValueType vt = signedOutput ? pickSignedType(N) : pickUnsignedType(N);
-    Value out = allocLikeIntType(mr, u, vt);
+    Value out = allocLikeIntType(u, vt, mr);
     const size_t M = u.numel();
     if (M == 0) return out;
 
@@ -116,8 +115,7 @@ Value uencode(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value udecode(std::pmr::memory_resource *mr,
-              const Value &u, int N, double V, bool wrapOnOverflow)
+Value udecode(const Value &u, int N, double V, bool wrapOnOverflow, std::pmr::memory_resource *mr)
 {
     if (N < 2 || N > 32)
         throw Error("udecode: N must be in [2, 32]",
@@ -189,7 +187,7 @@ void uencode_reg(Span<const Value> args, size_t /*nargout*/,
         else throw Error("uencode: 4th arg must be 'signed' or 'unsigned'",
                           0, 0, "uencode", "", "m:uencode:Polarity");
     }
-    outs[0] = uencode(ctx.engine->resource(), args[0], N, V, signedOut);
+    outs[0] = uencode(args[0], N, V, signedOut, ctx.engine->resource());
 }
 
 void udecode_reg(Span<const Value> args, size_t /*nargout*/,
@@ -211,7 +209,7 @@ void udecode_reg(Span<const Value> args, size_t /*nargout*/,
         else throw Error("udecode: 4th arg must be 'saturate' or 'wrap'",
                           0, 0, "udecode", "", "m:udecode:BadOpt");
     }
-    outs[0] = udecode(ctx.engine->resource(), args[0], N, V, wrap);
+    outs[0] = udecode(args[0], N, V, wrap, ctx.engine->resource());
 }
 
 } // namespace detail

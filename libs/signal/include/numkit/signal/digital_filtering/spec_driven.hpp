@@ -14,23 +14,19 @@ namespace numkit::signal {
 /// lowpass(x, fpass, fs) — zero-phase Butterworth lowpass at order 8.
 /// fpass is the cutoff in Hz, fs the sample rate. Returns the filtered
 /// signal with the same shape as x.
-Value lowpass(std::pmr::memory_resource *mr, const Value &x,
-              double fpass, double fs, int order = 8);
+Value lowpass(const Value &x, double fpass, double fs, int order = 8, std::pmr::memory_resource *mr = nullptr);
 
 /// highpass(x, fpass, fs) — same as lowpass but high-side.
-Value highpass(std::pmr::memory_resource *mr, const Value &x,
-               double fpass, double fs, int order = 8);
+Value highpass(const Value &x, double fpass, double fs, int order = 8, std::pmr::memory_resource *mr = nullptr);
 
 /// bandpass(x, [flo fhi], fs) — implemented as cascaded high+low pass
 /// (filter twice through filtfilt). Edge-case approximation; accurate
 /// enough for typical wide passbands. Default order 8 per stage.
-Value bandpass(std::pmr::memory_resource *mr, const Value &x,
-               double flo, double fhi, double fs, int order = 8);
+Value bandpass(const Value &x, double flo, double fhi, double fs, int order = 8, std::pmr::memory_resource *mr = nullptr);
 
 /// bandstop(x, [flo fhi], fs) — cascaded low(flo) + high(fhi) on the
 /// inverse path: x_out = lowpass(x, flo) + highpass(x, fhi).
 /// Cancellation in the stopband is approximate.
-Value bandstop(std::pmr::memory_resource *mr, const Value &x,
-               double flo, double fhi, double fs, int order = 8);
+Value bandstop(const Value &x, double flo, double fhi, double fs, int order = 8, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal

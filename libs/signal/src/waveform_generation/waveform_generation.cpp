@@ -479,7 +479,7 @@ Value demod(std::pmr::memory_resource *mr,
     if (Wn > 0.0 && Wn < 1.0) {
         auto [bp, ap] = numkit::signal::butter(5, Wn, "low", mr);
         // filtfilt per column: process the entire matrix (filtfilt handles cols).
-        out = numkit::signal::filtfilt(mr, bp, ap, mixed);
+        out = numkit::signal::filtfilt(bp, ap, mixed, mr);
     } else {
         out = mixed;
     }
