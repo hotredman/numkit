@@ -116,10 +116,10 @@ BENCHMARK(BM_MeanDim2)->RangeMultiplier(4)->Range(1 << 10, 1 << 22);
 
 // ── Phase 1 stats ───────────────────────────────────────────
 
-static void BM_Var   (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return stats::var(a, x); }); }
-static void BM_Std   (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return stats::stdev(a, x); }); }
-static void BM_Median(benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return stats::median(a, x); }); }
-static void BM_Mode  (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return std::get<0>(stats::mode(a, x)); }); }
+static void BM_Var   (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return stats::var(x, 0, 0, a); }); }
+static void BM_Std   (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return stats::stdev(x, 0, 0, a); }); }
+static void BM_Median(benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return stats::median(x, 0, a); }); }
+static void BM_Mode  (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return std::get<0>(stats::mode(x, 0, a)); }); }
 
 BENCHMARK(BM_Var)   ->RangeMultiplier(4)->Range(1 << 10, 1 << 20);
 BENCHMARK(BM_Std)   ->RangeMultiplier(4)->Range(1 << 10, 1 << 20);
@@ -141,9 +141,9 @@ static void runNanBench(benchmark::State &s, Fn fn)
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
 }
 
-static void BM_Nansum   (benchmark::State &s) { runNanBench(s, [](auto &a, auto &x){ return stats::nansum   (a, x); }); }
-static void BM_Nanmean  (benchmark::State &s) { runNanBench(s, [](auto &a, auto &x){ return stats::nanmean  (a, x); }); }
-static void BM_Nanmedian(benchmark::State &s) { runNanBench(s, [](auto &a, auto &x){ return stats::nanmedian(a, x); }); }
+static void BM_Nansum   (benchmark::State &s) { runNanBench(s, [](auto &a, auto &x){ return stats::nansum   (x, 0, a); }); }
+static void BM_Nanmean  (benchmark::State &s) { runNanBench(s, [](auto &a, auto &x){ return stats::nanmean  (x, 0, a); }); }
+static void BM_Nanmedian(benchmark::State &s) { runNanBench(s, [](auto &a, auto &x){ return stats::nanmedian(x, 0, a); }); }
 
 BENCHMARK(BM_Nansum)   ->RangeMultiplier(4)->Range(1 << 10, 1 << 22);
 BENCHMARK(BM_Nanmean)  ->RangeMultiplier(4)->Range(1 << 10, 1 << 22);
