@@ -70,8 +70,15 @@ Value phon2sone(const Value &phon,
                 bool standardIs532_2 = false,
                 std::pmr::memory_resource *mr = nullptr);
 
-/// Sone → Phon — loudness to loudness-level conversion.
-/// @copydoc phon2sone
+/// @brief Sone → Phon — loudness to loudness-level conversion.
+///
+/// Inverse of @ref phon2sone.
+///
+/// @param sone              Loudness in sone (any shape).
+/// @param standardIs532_2   Use ISO 532-2 table form instead of 532-1.
+/// @param mr                Memory resource (nullptr → process default).
+/// @return                  Same-shape DOUBLE array of loudness in phon.
+/// @see phon2sone
 Value sone2phon(const Value &sone,
                 bool standardIs532_2 = false,
                 std::pmr::memory_resource *mr = nullptr);
