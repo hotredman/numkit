@@ -32,7 +32,7 @@ template <> inline double satCast<double>(double v) { return v; }
 template <> inline float  satCast<float>(double v)  { return static_cast<float>(v); }
 
 // Allocate an output Value matching X's shape and class.
-inline Value makeOutLike(std::pmr::memory_resource *mr, const Value &x) {
+inline Value makeOutLike(const Value &x, std::pmr::memory_resource *mr) {
     const auto &d = x.dims();
     if (x.isScalar()) return Value::scalar(0.0, mr);  // overwritten by caller
     if (d.is3D()) return Value::matrix3d(d.rows(), d.cols(), d.pages(), x.type(), mr);
@@ -41,9 +41,9 @@ inline Value makeOutLike(std::pmr::memory_resource *mr, const Value &x) {
 
 // Dispatch a binary op on element pairs (xi, yi) producing xi.class.
 template <typename Op>
-Value binop(std::pmr::memory_resource *mr, const Value &x, const Value &y, Op op) {
+Value binop(const Value &x, const Value &y, Op op, std::pmr::memory_resource *mr) {
     const size_t n = std::max(x.numel(), y.numel());
-    if (n == 0) return makeOutLike(mr, x);
+    if (n == 0) return makeOutLike(x, mr);
     Value out;
     if (x.isScalar() && !y.isScalar()) {
         // Output shape matches y, but class matches x.
@@ -51,7 +51,7 @@ Value binop(std::pmr::memory_resource *mr, const Value &x, const Value &y, Op op
         if (d.is3D()) out = Value::matrix3d(d.rows(), d.cols(), d.pages(), x.type(), mr);
         else          out = Value::matrix(d.rows(), d.cols(), x.type(), mr);
     } else {
-        out = makeOutLike(mr, x);
+        out = makeOutLike(x, mr);
     }
 
     auto getX = [&](size_t i){ return x.elemAsDouble(x.isScalar() ? 0 : i); };
@@ -97,9 +97,9 @@ Value binop(std::pmr::memory_resource *mr, const Value &x, const Value &y, Op op
 
 // Unary variant.
 template <typename Op>
-Value unop(std::pmr::memory_resource *mr, const Value &x, Op op) {
+Value unop(const Value &x, Op op, std::pmr::memory_resource *mr) {
     const size_t n = x.numel();
-    Value out = makeOutLike(mr, x);
+    Value out = makeOutLike(x, mr);
     if (n == 0) return out;
     auto getX = [&](size_t i){ return x.elemAsDouble(i); };
     switch (x.type()) {
@@ -155,42 +155,39 @@ inline double classMax(ValueType t) {
 
 } // anonymous
 
-Value imadd(std::pmr::memory_resource *mr, const Value &x, const Value &y) {
-    return binop(mr, x, y, [](double a, double b){ return a + b; });
+Value imadd(const Value &x, const Value &y, std::pmr::memory_resource *mr) {
+    return binop(x, y, [](double a, double b){ return a + b; }, mr);
 }
 
-Value imsubtract(std::pmr::memory_resource *mr, const Value &x, const Value &y) {
-    return binop(mr, x, y, [](double a, double b){ return a - b; });
+Value imsubtract(const Value &x, const Value &y, std::pmr::memory_resource *mr) {
+    return binop(x, y, [](double a, double b){ return a - b; }, mr);
 }
 
-Value immultiply(std::pmr::memory_resource *mr, const Value &x, const Value &y) {
-    return binop(mr, x, y, [](double a, double b){ return a * b; });
+Value immultiply(const Value &x, const Value &y, std::pmr::memory_resource *mr) {
+    return binop(x, y, [](double a, double b){ return a * b; }, mr);
 }
 
-Value imdivide(std::pmr::memory_resource *mr, const Value &x, const Value &y) {
-    return binop(mr, x, y, [](double a, double b){
+Value imdivide(const Value &x, const Value &y, std::pmr::memory_resource *mr) {
+    return binop(x, y, [](double a, double b){
         if (b == 0.0) {
             if (a > 0.0) return std::numeric_limits<double>::infinity();
             if (a < 0.0) return -std::numeric_limits<double>::infinity();
             return std::numeric_limits<double>::quiet_NaN();
         }
         return a / b;
-    });
+    }, mr);
 }
 
-Value imabsdiff(std::pmr::memory_resource *mr, const Value &x, const Value &y) {
-    return binop(mr, x, y, [](double a, double b){ return std::fabs(a - b); });
+Value imabsdiff(const Value &x, const Value &y, std::pmr::memory_resource *mr) {
+    return binop(x, y, [](double a, double b){ return std::fabs(a - b); }, mr);
 }
 
-Value imcomplement(std::pmr::memory_resource *mr, const Value &x) {
+Value imcomplement(const Value &x, std::pmr::memory_resource *mr) {
     const double cmax = classMax(x.type());
-    return unop(mr, x, [=](double v){ return cmax - v; });
+    return unop(x, [=](double v){ return cmax - v; }, mr);
 }
 
-Value imlincomb(std::pmr::memory_resource *mr,
-                const std::vector<double> &coefs,
-                const std::vector<Value> &images,
-                ValueType output_class)
+Value imlincomb(const std::vector<double> &coefs, const std::vector<Value> &images, ValueType output_class, std::pmr::memory_resource *mr)
 {
     if (coefs.size() != images.size() && coefs.size() != images.size() + 1)
         throw Error("imlincomb: number of coefficients must equal number of images "
@@ -249,9 +246,7 @@ Value imlincomb(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value imapplymatrix(std::pmr::memory_resource *mr,
-                    const Value &M, const Value &x,
-                    ValueType output_class)
+Value imapplymatrix(const Value &M, const Value &x, ValueType output_class, std::pmr::memory_resource *mr)
 {
     const auto &dx = x.dims();
     const size_t pages = dx.is3D() ? dx.pages() : 1;
@@ -325,7 +320,7 @@ ValueType classFromString(const Value &v) {
         if (args.size() < 2)                                                       \
             throw Error(#name ": requires (X, Y)",                                \
                          0, 0, #name, "", "m:" #name ":nargin");                  \
-        outs[0] = fn(ctx.engine->resource(), args[0], args[1]);                   \
+        outs[0] = fn(args[0], args[1], ctx.engine->resource());                   \
     }
 
 NK_BIN_REG(imadd,      imadd)
@@ -342,7 +337,7 @@ void imcomplement_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("imcomplement: requires X", 0, 0, "imcomplement", "",
                     "m:imcomplement:nargin");
-    outs[0] = imcomplement(ctx.engine->resource(), args[0]);
+    outs[0] = imcomplement(args[0], ctx.engine->resource());
 }
 
 void imlincomb_reg(Span<const Value> args, size_t /*nargout*/,
@@ -375,7 +370,7 @@ void imlincomb_reg(Span<const Value> args, size_t /*nargout*/,
     }
     if ((end & 1) == 1) coefs.push_back(args[end - 1].toScalar()); // trailing additive
 
-    outs[0] = imlincomb(ctx.engine->resource(), coefs, images, out_class);
+    outs[0] = imlincomb(coefs, images, out_class, ctx.engine->resource());
 }
 
 void imapplymatrix_reg(Span<const Value> args, size_t /*nargout*/,
@@ -387,7 +382,7 @@ void imapplymatrix_reg(Span<const Value> args, size_t /*nargout*/,
     ValueType out_class = (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
         ? classFromString(args[2])
         : args[1].type();
-    outs[0] = imapplymatrix(ctx.engine->resource(), args[0], args[1], out_class);
+    outs[0] = imapplymatrix(args[0], args[1], out_class, ctx.engine->resource());
 }
 
 } // namespace detail

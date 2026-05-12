@@ -17,34 +17,33 @@ namespace numkit::image {
 /// `conn` ∈ {4, 8} (default 8). Returns (L, num) where L is uint16
 /// label image and num is the count of components.
 std::tuple<Value, Value>
-bwlabel(std::pmr::memory_resource *mr, const Value &BW, int conn);
+bwlabel(const Value &BW, int conn, std::pmr::memory_resource *mr = nullptr);
 
 /// bwconncomp(BW[, conn]) — connected-component labeling that returns
 /// a MATLAB-style 1×1 struct with fields:
 ///   Connectivity (scalar), ImageSize ([H W]), NumObjects (scalar),
 ///   PixelIdxList (1×K cell of column-vector 1-based linear indices).
-Value bwconncomp(std::pmr::memory_resource *mr, const Value &BW, int conn);
+Value bwconncomp(const Value &BW, int conn, std::pmr::memory_resource *mr = nullptr);
 
 /// bwarea(BW) — total area (number of foreground pixels with optional
 /// quarter-pixel boundary correction). For first cut, returns the
 /// integer pixel count.
-Value bwarea(std::pmr::memory_resource *mr, const Value &BW);
+Value bwarea(const Value &BW, std::pmr::memory_resource *mr = nullptr);
 
 /// bwperim(BW[, conn]) — perimeter mask. Foreground pixel survives iff
 /// at least one of its `conn`-neighbours is background.
-Value bwperim(std::pmr::memory_resource *mr, const Value &BW, int conn);
+Value bwperim(const Value &BW, int conn, std::pmr::memory_resource *mr = nullptr);
 
 /// bwareaopen(BW, P[, conn]) — remove components with fewer than P
 /// pixels.
-Value bwareaopen(std::pmr::memory_resource *mr, const Value &BW, int P, int conn);
+Value bwareaopen(const Value &BW, int P, int conn, std::pmr::memory_resource *mr = nullptr);
 
 /// bwboundaries(BW [, conn]) — trace outer boundaries of every
 /// connected component via Moore-neighbour walking with Jacob's
 /// stopping criterion. Returns a cell column where each entry is a
 /// P×2 [row col] uint32 matrix listing boundary pixels in clockwise
 /// order, including the start pixel as the closing entry.
-Value bwboundaries(std::pmr::memory_resource *mr,
-                   const Value &BW, int conn);
+Value bwboundaries(const Value &BW, int conn, std::pmr::memory_resource *mr = nullptr);
 
 /// regionprops(BW_or_L [, props…]) — struct array of per-region
 /// descriptors. Supported `props` (case-insensitive):
@@ -55,9 +54,7 @@ Value bwboundaries(std::pmr::memory_resource *mr,
 /// Default (no `props`): all of the above.
 /// Accepts either a binary image (runs bwlabel internally) or a
 /// pre-labelled integer array.
-Value regionprops(std::pmr::memory_resource *mr,
-                  const Value &BW_or_L,
-                  const std::vector<std::string> &props);
+Value regionprops(const Value &BW_or_L, const std::vector<std::string> &props, std::pmr::memory_resource *mr = nullptr);
 
 /// `D = bwdist(BW)` — Euclidean distance transform. For each pixel
 /// returns the distance to the nearest non-zero pixel in `BW`.
@@ -65,7 +62,7 @@ Value regionprops(std::pmr::memory_resource *mr,
 /// yields +Inf everywhere. Implementation is the Felzenszwalb-
 /// Huttenlocher 1-D parabolic-envelope DT applied row-wise then
 /// column-wise (exact, O(H·W)).
-Value bwdist(std::pmr::memory_resource *mr, const Value &BW);
+Value bwdist(const Value &BW, std::pmr::memory_resource *mr = nullptr);
 
 /// `BW = roicolor(A, low, high)` — region-of-interest mask via
 /// inclusive range threshold: BW = (A >= low) & (A <= high).
@@ -73,8 +70,7 @@ Value bwdist(std::pmr::memory_resource *mr, const Value &BW);
 /// A(i) matches any element of vector v. Output is logical, same
 /// shape as A. Use range-form when `is_range` is true; otherwise
 /// `low_or_v` is treated as a value vector.
-Value roicolor(std::pmr::memory_resource *mr, const Value &A,
-               const Value &low_or_v, double high, bool is_range);
+Value roicolor(const Value &A, const Value &low_or_v, double high, bool is_range, std::pmr::memory_resource *mr = nullptr);
 
 /// `fcc = fchcode(bound)` — Freeman 8-direction chain code for a
 /// closed K-by-2 boundary (rows / cols). Returns a struct with
@@ -83,12 +79,12 @@ Value roicolor(std::pmr::memory_resource *mr, const Value &A,
 ///   diff — 1×K mod-8 first-difference (cyclic)
 /// Direction map: 3 2 1 / 4 . 0 / 5 6 7. If the boundary doesn't
 /// already close on itself, the first point is appended.
-Value fchcode(std::pmr::memory_resource *mr, const Value &bound);
+Value fchcode(const Value &bound, std::pmr::memory_resource *mr = nullptr);
 
 /// bweuler(BW [, n]) — Euler number (objects − holes) of a 2-D
 /// binary image, computed via Pratt's bit-quad LUT method. `n`
 /// is the connectivity for foreground (4 or 8); default 8.
-Value bweuler(std::pmr::memory_resource *mr, const Value &BW, int conn);
+Value bweuler(const Value &BW, int conn, std::pmr::memory_resource *mr = nullptr);
 
 /// bwareafilt(BW, range_or_n [, keep_str] [, conn]) — keep
 /// connected components by area.
@@ -98,9 +94,7 @@ Value bweuler(std::pmr::memory_resource *mr, const Value &BW, int conn);
 ///     false → "smallest".
 ///   - `conn` ∈ {4, 8}; default 8.
 /// Output is a logical mask, same H × W as BW.
-Value bwareafilt(std::pmr::memory_resource *mr,
-                 const Value &BW, double lo, double hi,
-                 size_t n_keep, bool keep_largest, int conn);
+Value bwareafilt(const Value &BW, double lo, double hi, size_t n_keep, bool keep_largest, int conn, std::pmr::memory_resource *mr = nullptr);
 
 /// `[imout, idx] = bwselect(BW, cols, rows[, conn])` — select all
 /// connected components that contain any of the seed pixels
@@ -108,7 +102,6 @@ Value bwareafilt(std::pmr::memory_resource *mr,
 /// Returns a logical mask of the same size as BW; second output is a
 /// column of 1-based linear (column-major) pixel indices that survive.
 std::tuple<Value, Value>
-bwselect(std::pmr::memory_resource *mr, const Value &BW,
-         const Value &cols, const Value &rows, int conn);
+bwselect(const Value &BW, const Value &cols, const Value &rows, int conn, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::image

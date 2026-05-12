@@ -26,9 +26,7 @@ namespace numkit::image {
 namespace {
 
 // Build a small 3×3 (or 2×2) kernel as a DOUBLE Value (column-major).
-Value make_kernel(std::pmr::memory_resource *mr,
-                  const std::vector<double> &flat_rowmajor,
-                  int rows, int cols)
+Value make_kernel(const std::vector<double> &flat_rowmajor, int rows, int cols, std::pmr::memory_resource *mr)
 {
     Value k = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     double *kd = k.doubleDataMut();
@@ -42,17 +40,15 @@ Value make_kernel(std::pmr::memory_resource *mr,
 // Convolve `I` with `k` using imfilter (Replicate boundary, same size,
 // correlation = no flip — these are gradient kernels meant to be applied
 // directly).
-Value apply_kernel(std::pmr::memory_resource *mr, const Value &I, const Value &k)
+Value apply_kernel(const Value &I, const Value &k, std::pmr::memory_resource *mr)
 {
-    return imfilter(mr, I, k, PadMode::Replicate, 0.0,
-                    /*full=*/false, /*flip_kernel=*/false);
+    return imfilter(I, k, PadMode::Replicate, 0.0, /*full=*/false, /*flip_kernel=*/false, mr);
 }
 
 } // anonymous
 
 std::tuple<Value, Value>
-imgradientxy(std::pmr::memory_resource *mr, const Value &I,
-             const std::string &method)
+imgradientxy(const Value &I, const std::string &method, std::pmr::memory_resource *mr)
 {
     // Choose kernels (Gx for horizontal, Gy for vertical).
     std::vector<double> kx, ky;
@@ -82,23 +78,22 @@ imgradientxy(std::pmr::memory_resource *mr, const Value &I,
 
     Value Kx, Ky;
     if (method == "central" || method == "intermediate") {
-        Kx = make_kernel(mr, kx, 1, cols);
-        Ky = make_kernel(mr, ky, cols, 1);  // transpose for vertical
+        Kx = make_kernel(kx, 1, cols, mr);
+        Ky = make_kernel(ky, cols, 1, mr);  // transpose for vertical
     } else {
-        Kx = make_kernel(mr, kx, 3, 3);
-        Ky = make_kernel(mr, ky, 3, 3);
+        Kx = make_kernel(kx, 3, 3, mr);
+        Ky = make_kernel(ky, 3, 3, mr);
     }
 
-    Value Gx = apply_kernel(mr, I, Kx);
-    Value Gy = apply_kernel(mr, I, Ky);
+    Value Gx = apply_kernel(I, Kx, mr);
+    Value Gy = apply_kernel(I, Ky, mr);
     return std::make_tuple(std::move(Gx), std::move(Gy));
 }
 
 std::tuple<Value, Value>
-imgradient(std::pmr::memory_resource *mr, const Value &I,
-           const std::string &method)
+imgradient(const Value &I, const std::string &method, std::pmr::memory_resource *mr)
 {
-    auto [Gx, Gy] = imgradientxy(mr, I, method);
+    auto [Gx, Gy] = imgradientxy(I, method, mr);
     const size_t N = Gx.numel();
     Value Gmag = Value::matrix(Gx.dims().rows(), Gx.dims().cols(),
                                 ValueType::DOUBLE, mr);
@@ -118,8 +113,7 @@ imgradient(std::pmr::memory_resource *mr, const Value &I,
 namespace {
 
 // Threshold (binarise) gradient magnitude into LOGICAL.
-Value threshold_to_logical(std::pmr::memory_resource *mr,
-                           const Value &G, double thresh)
+Value threshold_to_logical(const Value &G, double thresh, std::pmr::memory_resource *mr)
 {
     const size_t H = G.dims().rows();
     const size_t W = G.dims().cols();
@@ -143,18 +137,16 @@ double auto_threshold(const Value &G, double frac) {
 
 } // anonymous
 
-Value edge(std::pmr::memory_resource *mr, const Value &I,
-           const std::string &method,
-           double thresh_lo, double /*thresh_hi*/)
+Value edge(const Value &I, const std::string &method, double thresh_lo, double /*thresh_hi*/, std::pmr::memory_resource *mr)
 {
     // First cut: Sobel / Prewitt / Roberts produce gradient magnitude
     // and threshold it. Canny / log / zerocross use a simplified path.
     if (method == "roberts") {
         // 2×2 Roberts kernels.
-        Value Kx = make_kernel(mr, { 1, 0, 0, -1 }, 2, 2);
-        Value Ky = make_kernel(mr, { 0, 1, -1, 0 }, 2, 2);
-        Value Gx = apply_kernel(mr, I, Kx);
-        Value Gy = apply_kernel(mr, I, Ky);
+        Value Kx = make_kernel({ 1, 0, 0, -1 }, 2, 2, mr);
+        Value Ky = make_kernel({ 0, 1, -1, 0 }, 2, 2, mr);
+        Value Gx = apply_kernel(I, Kx, mr);
+        Value Gy = apply_kernel(I, Ky, mr);
         const size_t N = Gx.numel();
         Value G = Value::matrix(Gx.dims().rows(), Gx.dims().cols(),
                                  ValueType::DOUBLE, mr);
@@ -164,13 +156,13 @@ Value edge(std::pmr::memory_resource *mr, const Value &I,
             gd[i] = std::sqrt(a * a + b * b);
         }
         if (std::isnan(thresh_lo)) thresh_lo = auto_threshold(G, 0.5);
-        return threshold_to_logical(mr, G, thresh_lo);
+        return threshold_to_logical(G, thresh_lo, mr);
     }
     if (method == "log" || method == "zerocross") {
         // Apply LoG kernel, then mark zero-crossings as edges.
         const int hsz = 5;
-        Value Klog = fspecial(mr, "log", { (double)hsz, (double)hsz, 0.5 });
-        Value Y = apply_kernel(mr, I, Klog);
+        Value Klog = fspecial("log", { (double)hsz, (double)hsz, 0.5 }, mr);
+        Value Y = apply_kernel(I, Klog, mr);
         const int H = (int)Y.dims().rows();
         const int W = (int)Y.dims().cols();
         Value out = Value::matrix(H, W, ValueType::LOGICAL, mr);
@@ -196,15 +188,15 @@ Value edge(std::pmr::memory_resource *mr, const Value &I,
         // Simplified: gradient magnitude with two-threshold hysteresis,
         // no non-max suppression. Adequate for many use cases; full
         // Canny implementation deferred.
-        auto [Gmag, _] = imgradient(mr, I, "sobel");
+        auto [Gmag, _] = imgradient(I, "sobel", mr);
         if (std::isnan(thresh_lo)) thresh_lo = auto_threshold(Gmag, 0.2);
-        return threshold_to_logical(mr, Gmag, thresh_lo);
+        return threshold_to_logical(Gmag, thresh_lo, mr);
     }
     // Default sobel / prewitt path: grad-magnitude threshold.
     const std::string mth = (method == "prewitt") ? "prewitt" : "sobel";
-    auto [Gmag, _] = imgradient(mr, I, mth);
+    auto [Gmag, _] = imgradient(I, mth, mr);
     if (std::isnan(thresh_lo)) thresh_lo = auto_threshold(Gmag, 0.4);
-    return threshold_to_logical(mr, Gmag, thresh_lo);
+    return threshold_to_logical(Gmag, thresh_lo, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -228,7 +220,7 @@ void imgradientxy_reg(Span<const Value> args, size_t nargout,
         throw Error("imgradientxy: requires (I[, method])", 0, 0,
                     "imgradientxy", "", "m:imgradientxy:nargin");
     const auto m = parse_method(args, 1, "sobel");
-    auto [Gx, Gy] = imgradientxy(ctx.engine->resource(), args[0], m);
+    auto [Gx, Gy] = imgradientxy(args[0], m, ctx.engine->resource());
     outs[0] = std::move(Gx);
     if (nargout > 1) outs[1] = std::move(Gy);
 }
@@ -240,7 +232,7 @@ void imgradient_reg(Span<const Value> args, size_t nargout,
         throw Error("imgradient: requires (I[, method])", 0, 0,
                     "imgradient", "", "m:imgradient:nargin");
     const auto m = parse_method(args, 1, "sobel");
-    auto [Gmag, Gdir] = imgradient(ctx.engine->resource(), args[0], m);
+    auto [Gmag, Gdir] = imgradient(args[0], m, ctx.engine->resource());
     outs[0] = std::move(Gmag);
     if (nargout > 1) outs[1] = std::move(Gdir);
 }
@@ -261,7 +253,7 @@ void edge_reg(Span<const Value> args, size_t /*nargout*/,
             t_hi = v.elemAsDouble(1);
         }
     }
-    outs[0] = edge(ctx.engine->resource(), args[0], m, t_lo, t_hi);
+    outs[0] = edge(args[0], m, t_lo, t_hi, ctx.engine->resource());
 }
 
 } // namespace detail

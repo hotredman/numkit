@@ -22,19 +22,18 @@ namespace numkit::image {
 ///   RGB   → H×W×3 uint8 (channels = R, G, B)
 ///   RGBA  → H×W×4 uint8 (channels = R, G, B, A)
 /// Throws Error on missing file or unsupported / corrupt format.
-Value imread(std::pmr::memory_resource *mr, const std::string &path);
+Value imread(const std::string &path, std::pmr::memory_resource *mr = nullptr);
 
 /// `imwrite(A, path)` — encode an H×W or H×W×{1,3,4} uint8 array to
 /// disk. Format inferred from the path extension: .png / .bmp / .tga
 /// / .jpg|.jpeg. Returns nothing.
-void imwrite(std::pmr::memory_resource *mr,
-             const Value &A, const std::string &path);
+void imwrite(const Value &A, const std::string &path, std::pmr::memory_resource *mr = nullptr);
 
 /// `imfinfo(path)` — read header metadata without decoding pixels.
 /// Returns a struct with fields:
 ///   Filename, Format ('png'|'jpg'|'bmp'|'gif'|'pnm'|'hdr'|'psd'|'tga'),
 ///   Width, Height, NumberOfChannels (1/3/4), ColorType
 ///   ('grayscale'|'truecolor'|'truecoloralpha'), FileSize.
-Value imfinfo(std::pmr::memory_resource *mr, const std::string &path);
+Value imfinfo(const std::string &path, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::image
