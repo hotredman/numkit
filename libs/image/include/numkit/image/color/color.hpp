@@ -16,22 +16,58 @@
 
 namespace numkit::image {
 
-/// imsplit(I) — split an H×W×P volume into P planes (H×W each).
-/// For 2-D input returns a single H×W copy in planes[0]. Output
-/// vector is resized to P; output planes share the input's class.
-void imsplit(const Value &I, std::vector<Value> &planes, std::pmr::memory_resource *mr = nullptr);
+/// Split a multi-plane image into per-plane Values (`imsplit(I, planes)`).
+///
+/// Splits an H×W×P volume into P planes (H×W each). For 2-D input
+/// returns a single H×W copy in `planes[0]`. `planes` is resized to P;
+/// output planes share the input's class.
+///
+/// @param I       Input image.
+/// @param planes  Output vector — resized in-place.
+/// @param mr      Memory resource (nullptr → process default).
+void imsplit(const Value &I, std::vector<Value> &planes,
+             std::pmr::memory_resource *mr = nullptr);
 
+/// RGB → HSV (`hsv = rgb2hsv(rgb)`).
+///
+/// Accepts either H×W×3 image or N×3 colormap. Output is double:
+/// H ∈ [0, 1] (hue normalised), S ∈ [0, 1], V ∈ [0, 1]. Float input
+/// in [0, 1] is taken at face value; integer input is rescaled by
+/// class range first.
+/// @see hsv2rgb
 Value rgb2hsv  (const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// HSV → RGB inverse of @ref rgb2hsv.
 Value hsv2rgb  (const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// RGB → YCbCr (BT.601) — Y, Cb, Cr packaged like the input (H×W×3 or N×3).
+/// Output is double. @see ycbcr2rgb
 Value rgb2ycbcr(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// Inverse of @ref rgb2ycbcr.
 Value ycbcr2rgb(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
+/// RGB → NTSC YIQ. Y ∈ [0, 1], I / Q ∈ [-1, 1] roughly.
+/// @see ntsc2rgb
 Value rgb2ntsc (const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// Inverse of @ref rgb2ntsc.
 Value ntsc2rgb (const Value &x, std::pmr::memory_resource *mr = nullptr);
 
+/// sRGB → CIE XYZ (D65). Applies sRGB linearisation then the standard
+/// 3×3 matrix transform. Output is double XYZ. @see xyz2rgb
 Value rgb2xyz  (const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// CIE XYZ → sRGB inverse of @ref rgb2xyz.
 Value xyz2rgb  (const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// sRGB → CIE L*a*b* (D65). Internally goes through @ref rgb2xyz
+/// then @ref xyz2lab. Output is double Lab in MATLAB-canonical scale
+/// (L* ∈ [0, 100], a*, b* ∈ [-128, 127] roughly).
+/// @see lab2rgb, rgb2lightness
 Value rgb2lab  (const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// CIE L*a*b* → sRGB inverse of @ref rgb2lab.
 Value lab2rgb  (const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// rgb2lightness(RGB) — lightness L (= L* of CIE Lab). Returns H×W
@@ -44,18 +80,28 @@ Value rgb2lightness(const Value &RGB, std::pmr::memory_resource *mr = nullptr);
 /// scalar-tol (uniform) forms deferred.
 std::pair<Value, Value>
 rgb2ind_inmap(const Value &RGB, const Value &cmap, std::pmr::memory_resource *mr = nullptr);
+/// CIE XYZ → CIE L*a*b* with the D50 / ICC reference white. @see lab2xyz
 Value xyz2lab  (const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// CIE L*a*b* → CIE XYZ inverse of @ref xyz2lab.
 Value lab2xyz  (const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-/// L*a*b* class conversion: L* in [0, 100] (or 0..255 / 0..65280
-/// integer), a*/b* in [-128, 127] (or [0, 65280] for uint16). The
-/// helpers below dispatch on input class and rescale + offset
-/// per-channel; output keeps the input's shape (Mx3 colormap or
-/// MxNx3 image).
+/// CIE L*a*b* class conversion helpers.
+///
+/// Scale conventions:
+///   - double / single: L* ∈ [0, 100], a*/b* ∈ [-128, 127].
+///   - uint8:  L* ∈ [0, 255],   a*/b* ∈ [0, 255]   with offset 128.
+///   - uint16: L* ∈ [0, 65280], a*/b* ∈ [0, 65280] with offset 32768.
+///
+/// Each helper dispatches on input class and rescales + offsets
+/// per-channel; output keeps the input's shape (M×3 colormap or
+/// M×N×3 image).
+///@{
 Value lab2double (const Value &lab, std::pmr::memory_resource *mr = nullptr);
 Value lab2single (const Value &lab, std::pmr::memory_resource *mr = nullptr);
 Value lab2uint8  (const Value &lab, std::pmr::memory_resource *mr = nullptr);
 Value lab2uint16 (const Value &lab, std::pmr::memory_resource *mr = nullptr);
+///@}
 
 /// `M = colorgradient(C [, w] [, n])` — colormap that smoothly
 /// traverses the K-by-3 anchor RGB colors `C` with relative segment
