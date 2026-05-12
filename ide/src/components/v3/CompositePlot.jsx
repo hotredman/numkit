@@ -120,6 +120,12 @@ export default function CompositePlot({
   major = true,
   minor = true,
   showLegend = true,
+  // Visibility flags owned by FigureWindow's `display ▾` menu. Default
+  // true so non-modal renderers (preview cards, subplot cells without
+  // explicit prop forwarding) keep the script's text visible.
+  showTitle  = true,
+  showXLabel = true,
+  showYLabel = true,
   fontScale = 1,
   interactive = true,
   engine = null,
@@ -1676,22 +1682,24 @@ export default function CompositePlot({
         );
       })()}
 
-      {/* Axis titles */}
-      {figure.xLabel && (
+      {/* Axis titles. Each render gates on the corresponding showXxx
+          flag from FigureWindow's display ▾ menu so the user can hide
+          the text without losing it from the figure data. */}
+      {showXLabel && figure.xLabel && (
         <text x={padL + W / 2} y={height - 8} fill="var(--plot-text)" fontSize={11 * fontScale} textAnchor="middle">{figure.xLabel}</text>
       )}
-      {figure.yLabel && (
+      {showYLabel && figure.yLabel && (
         <text x={14} y={padT + H / 2} fill="var(--plot-text)" fontSize={11 * fontScale} textAnchor="middle"
           transform={`rotate(-90 14 ${padT + H / 2})`}>{figure.yLabel}</text>
       )}
-      {yy2 && figure.yLabel2 && (
+      {yy2 && showYLabel && figure.yLabel2 && (
         <text x={padL + W + 56 * fontScale} y={padT + H / 2}
           fill="var(--plot-text)" fontSize={11 * fontScale} textAnchor="middle"
           transform={`rotate(90 ${padL + W + 56 * fontScale} ${padT + H / 2})`}>
           {figure.yLabel2}
         </text>
       )}
-      {figure.title && (
+      {showTitle && figure.title && (
         <text x={padL + W / 2} y={padT - (figure.subtitle ? 22 : 12) * fontScale}
               fill="var(--plot-text-strong)" fontSize={12 * fontScale} textAnchor="middle">{figure.title}</text>
       )}

@@ -152,8 +152,26 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   // yscale('log')) and re-synced when those props change at script time.
   const [xLog, setXLog] = useState(figure.xscale === 'log');
   const [yLog, setYLog] = useState(figure.yscale === 'log');
+  // zLog: 3-D-only. Wired through to Composite3DPlot; no script-level
+  // initialiser yet (zscale('log') unimplemented), so state starts off.
+  const [zLog, setZLog] = useState(false);
   useEffect(() => { setXLog(figure.xscale === 'log'); }, [figure.xscale]);
   useEffect(() => { setYLog(figure.yscale === 'log'); }, [figure.yscale]);
+
+  // Visibility toggles for title / xlabel / ylabel / zlabel. State is
+  // local — we don't mutate figure data, so the underlying script-set
+  // text survives a re-show. Initialise true: all labels visible by
+  // default, matching MATLAB's "if you set it, you see it" behaviour.
+  const [showTitle,  setShowTitle]  = useState(true);
+  const [showXLabel, setShowXLabel] = useState(true);
+  const [showYLabel, setShowYLabel] = useState(true);
+  const [showZLabel, setShowZLabel] = useState(true);
+  // Re-default to visible on figure-id swap so an earlier "hide" doesn't
+  // leak across unrelated figures landing on the same modal.
+  useEffect(() => {
+    setShowTitle(true); setShowXLabel(true);
+    setShowYLabel(true); setShowZLabel(true);
+  }, [figure.id]);
 
   // Color-limit override for heatmap window/level autoscale. Lifted so the
   // toolbar fit menu and the panel's ПКМ menu share one state. null = use
@@ -240,12 +258,37 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     }
   }
   const [fitOpen, setFitOpen]     = useState(false);
+  const [displayOpen, setDisplayOpen] = useState(false);
   const [saveOpen, setSaveOpen]   = useState(false);
   const [viewOpen, setViewOpen]   = useState(false);
   const [maximized, setMaximized] = useState(false);
   const fitRef  = useRef(null);
+  const displayRef = useRef(null);
   const saveRef = useRef(null);
   const viewRef = useRef(null);
+
+  // ── display-menu disabled rules ──────────────────────────────────────
+  // For non-subplot figures we look at top-level fields. For subplots,
+  // we scan cells — a toggle is enabled if AT LEAST one cell satisfies
+  // the precondition (the toggle is global; per-cell handlers ignore
+  // cells that can't apply).
+  const cellsList = isSubplot && Array.isArray(figure.cells) ? figure.cells : [figure];
+  const anyCellHas = (pred) => cellsList.some(pred);
+  const xLogEnabled = anyCellHas((c) => Array.isArray(c.xRange) && c.xRange[1] > 0);
+  const yLogEnabled = anyCellHas((c) => Array.isArray(c.yRange) && c.yRange[1] > 0);
+  // zLog/zLabel: 3-D only. For subplot, enabled if any cell is 3-D.
+  const has3DCell = isSubplot
+    ? cellsList.some((c) => c.kind === 'composite3d')
+    : is3D;
+  // titleEnabled — script-set titles only. The adapter substitutes a
+  // default "Figure N" when the script didn't call title(); titleAuto
+  // marks that case so the toggle stays disabled.
+  const titleEnabled  = anyCellHas((c) => typeof c.title  === 'string' && c.title.length  > 0
+                                          && !c.titleAuto);
+  const xLabelEnabled = anyCellHas((c) => typeof c.xLabel === 'string' && c.xLabel.length > 0);
+  const yLabelEnabled = anyCellHas((c) => typeof c.yLabel === 'string' && c.yLabel.length > 0);
+  const zLabelEnabled = has3DCell
+    && anyCellHas((c) => typeof c.zLabel === 'string' && c.zLabel.length > 0);
   const wrapRef = useRef(null);
   const [size, setSize] = useState({ w: 1100, h: 600 });
 
@@ -260,9 +303,10 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
 
   useEffect(() => {
     function onDoc(e) {
-      if (fitRef.current  && !fitRef.current.contains(e.target))  setFitOpen(false);
-      if (saveRef.current && !saveRef.current.contains(e.target)) setSaveOpen(false);
-      if (viewRef.current && !viewRef.current.contains(e.target)) setViewOpen(false);
+      if (fitRef.current     && !fitRef.current.contains(e.target))     setFitOpen(false);
+      if (displayRef.current && !displayRef.current.contains(e.target)) setDisplayOpen(false);
+      if (saveRef.current    && !saveRef.current.contains(e.target))    setSaveOpen(false);
+      if (viewRef.current    && !viewRef.current.contains(e.target))    setViewOpen(false);
     }
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
@@ -848,34 +892,90 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               bar now — see below. The toolbar keeps fit / grid / log /
               save / export buttons only. */}
 
-          <div className="ve-tools-group">
-            <button className={`ve-btn ${showMajor ? 'is-active' : ''}`} onClick={() => setShowMajor((g) => !g)} title="Major grid">grid</button>
-            <button className={`ve-btn ${showMinor ? 'is-active' : ''}`} onClick={() => setShowMinor((g) => !g)} title="Minor grid">minor</button>
+          <div className="ve-tools-group" ref={displayRef}>
+            <button className="ve-btn"
+                    onClick={() => setDisplayOpen((o) => !o)}
+                    title="Toggle grid / scale / labels visibility">
+              display ▾
+            </button>
+            {displayOpen && (
+              <div className="fw-pop">
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">grid</div>
+                  <button className={showMajor ? 'is-active' : ''}
+                          onClick={() => setShowMajor((g) => !g)}>
+                    {showMajor ? '✓ ' : ''}grid
+                  </button>
+                  <button className={showMinor ? 'is-active' : ''}
+                          onClick={() => setShowMinor((g) => !g)}>
+                    {showMinor ? '✓ ' : ''}minor
+                  </button>
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">scale</div>
+                  <button className={xLog ? 'is-active' : ''}
+                          disabled={!xLogEnabled}
+                          title={!xLogEnabled ? 'X range has no positive max — log scale undefined' : ''}
+                          onClick={() => { if (isHeatmap) toggleAxisLog('x'); else setXLog((v) => !v); }}>
+                    {xLog ? '✓ ' : ''}xlog
+                  </button>
+                  <button className={yLog ? 'is-active' : ''}
+                          disabled={!yLogEnabled}
+                          title={!yLogEnabled ? 'Y range has no positive max — log scale undefined' : ''}
+                          onClick={() => { if (isHeatmap) toggleAxisLog('y'); else setYLog((v) => !v); }}>
+                    {yLog ? '✓ ' : ''}ylog
+                  </button>
+                  <button className={zLog ? 'is-active' : ''}
+                          disabled={!has3DCell}
+                          title={!has3DCell ? 'Z log scale only applies to 3-D figures' : ''}
+                          onClick={() => setZLog((v) => !v)}>
+                    {zLog ? '✓ ' : ''}zlog
+                  </button>
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">labels</div>
+                  <button className={showTitle ? 'is-active' : ''}
+                          disabled={!titleEnabled}
+                          title={!titleEnabled ? 'not set' : ''}
+                          onClick={() => setShowTitle((v) => !v)}>
+                    {showTitle ? '✓ ' : ''}title
+                  </button>
+                  <button className={showXLabel ? 'is-active' : ''}
+                          disabled={!xLabelEnabled}
+                          title={!xLabelEnabled ? 'not set' : ''}
+                          onClick={() => setShowXLabel((v) => !v)}>
+                    {showXLabel ? '✓ ' : ''}xlabel
+                  </button>
+                  <button className={showYLabel ? 'is-active' : ''}
+                          disabled={!yLabelEnabled}
+                          title={!yLabelEnabled ? 'not set' : ''}
+                          onClick={() => setShowYLabel((v) => !v)}>
+                    {showYLabel ? '✓ ' : ''}ylabel
+                  </button>
+                  <button className={showZLabel ? 'is-active' : ''}
+                          disabled={!zLabelEnabled}
+                          title={!zLabelEnabled
+                            ? (has3DCell ? 'not set' : 'Z label only applies to 3-D figures')
+                            : ''}
+                          onClick={() => setShowZLabel((v) => !v)}>
+                    {showZLabel ? '✓ ' : ''}zlabel
+                  </button>
+                </div>
+              </div>
+            )}
             {isHeatmap && (
-              <>
-                <button
-                  className={`ve-btn ${xLog ? 'is-active' : ''}`}
-                  onClick={() => toggleAxisLog('x')}
-                  disabled={figure.xRange[1] <= 0}
-                  title="Log X axis (also: ПКМ → Axes → X axis · log)">x log</button>
-                <button
-                  className={`ve-btn ${yLog ? 'is-active' : ''}`}
-                  onClick={() => toggleAxisLog('y')}
-                  disabled={figure.yRange[1] <= 0}
-                  title="Log Y axis (also: ПКМ → Axes → Y axis · log)">y log</button>
-                <select
-                  className="ve-btn fw-cmap-select"
-                  value={colormapOverride ?? heatmapLayer.colormap ?? 'parula'}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setColormapOverride(v === (heatmapLayer.colormap ?? 'parula') ? null : v);
-                  }}
-                  title="Colormap (overrides script-level colormap())">
-                  {['parula', 'jet', 'hot', 'cool', 'gray', 'bone', 'copper',
-                    'spring', 'summer', 'autumn', 'winter', 'hsv', 'viridis']
-                    .map((cm) => <option key={cm} value={cm}>{cm}</option>)}
-                </select>
-              </>
+              <select
+                className="ve-btn fw-cmap-select"
+                value={colormapOverride ?? heatmapLayer.colormap ?? 'parula'}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setColormapOverride(v === (heatmapLayer.colormap ?? 'parula') ? null : v);
+                }}
+                title="Colormap (overrides script-level colormap())">
+                {['parula', 'jet', 'hot', 'cool', 'gray', 'bone', 'copper',
+                  'spring', 'summer', 'autumn', 'winter', 'hsv', 'viridis']
+                  .map((cm) => <option key={cm} value={cm}>{cm}</option>)}
+              </select>
             )}
             {/* Legend toggle hidden for pure heatmap (colorbar IS the legend),
                 shown when at least one series layer exists or the figure is
@@ -936,7 +1036,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               major: showMajor, minor: showMinor,
               fontScale: 1.15,
               engine,
-              xLog, yLog,
+              xLog, yLog, zLog,
               setXLog, setYLog,
               colorOverride, setColorOverride,
               colormapOverride,
@@ -944,6 +1044,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               // legend block and the (now removed) HTML overlay. One
               // legend, controlled by the toolbar toggle.
               showLegend,
+              // Visibility flags from display ▾. CompositePlot /
+              // Composite3DPlot / SubplotGrid honour these by skipping
+              // the corresponding <text> render path. State lives here
+              // (not in figure JSON) so a script re-run doesn't reset.
+              showTitle, showXLabel, showYLabel, showZLabel,
               // 3-D specific — Composite3DPlot ignores these for non-3-D.
               // Skip the override on the very first render when viewport
               // is still the [-1,1] placeholder cube (otherwise computeBBox

@@ -938,13 +938,17 @@ function buildAxesFrame(bbox, scl, opts) {
     if (obj) { group.add(obj); labels.push(obj); }
   }
 
-  // Axis name labels at the midpoint of each axis.
+  // Axis name labels at the midpoint of each axis. Each gets a
+  // userData.axisName tag so the parent component can later flip
+  // .visible on display-menu toggles without rebuilding the frame.
+  const axisLabels = { x: null, y: null, z: null };
   if (xLabel) {
     const obj = makeLabel(xLabel, 0, -1.2, 1.2);
     if (obj) {
       obj.element.style.fontSize = `${12 * fontScale}px`;
       obj.element.style.fontWeight = '600';
-      group.add(obj); labels.push(obj);
+      obj.userData.axisName = 'x';
+      group.add(obj); labels.push(obj); axisLabels.x = obj;
     }
   }
   if (yLabel) {
@@ -952,7 +956,8 @@ function buildAxesFrame(bbox, scl, opts) {
     if (obj) {
       obj.element.style.fontSize = `${12 * fontScale}px`;
       obj.element.style.fontWeight = '600';
-      group.add(obj); labels.push(obj);
+      obj.userData.axisName = 'y';
+      group.add(obj); labels.push(obj); axisLabels.y = obj;
     }
   }
   if (zLabel) {
@@ -960,11 +965,12 @@ function buildAxesFrame(bbox, scl, opts) {
     if (obj) {
       obj.element.style.fontSize = `${12 * fontScale}px`;
       obj.element.style.fontWeight = '600';
-      group.add(obj); labels.push(obj);
+      obj.userData.axisName = 'z';
+      group.add(obj); labels.push(obj); axisLabels.z = obj;
     }
   }
 
-  return { group, labels, gridMajorByFace, gridMinorByFace };
+  return { group, labels, axisLabels, gridMajorByFace, gridMinorByFace };
 }
 
 /** Recursively dispose every disposable in a subtree. */
@@ -994,6 +1000,12 @@ function Composite3DPlot({
   // CompositePlot uses for 2-D so the parent can pass one set.
   major,
   minor,
+  // Visibility toggles from display ▾. All default true; FigureWindow
+  // flips to false when the user un-ticks the corresponding row.
+  showTitle  = true,
+  showXLabel = true,
+  showYLabel = true,
+  showZLabel = true,
   viewport3d = null,         // optional override of figure.xlim/ylim/zlim
   onBBox = null,             // (bbox) => void — fired on each rebuild
 }, ref) {
@@ -1251,7 +1263,7 @@ function Composite3DPlot({
     // loop picks back-faces per-frame. effectiveMajor/Minor are read
     // from the refs the grid-toggle effect maintains; this effect
     // doesn't depend on them, so the frame survives grid toggles.
-    const { group: axesFrame, gridMajorByFace, gridMinorByFace }
+    const { group: axesFrame, axisLabels, gridMajorByFace, gridMinorByFace }
       = buildAxesFrame(bbox, scl, {
           showBox: true, fontScale,
           xLabel: figure.xLabel || '',
@@ -1259,6 +1271,7 @@ function Composite3DPlot({
           zLabel: figure.zLabel || '',
         });
     c.axesGroup.add(axesFrame);
+    c.axisLabels = axisLabels;
     c.gridMajorByFace = gridMajorByFace;
     c.gridMinorByFace = gridMinorByFace;
 
@@ -1343,6 +1356,18 @@ function Composite3DPlot({
     if (c.wantMajorRef) c.wantMajorRef.current = !!effectiveMajor;
     if (c.wantMinorRef) c.wantMinorRef.current = !!effectiveMinor;
   }, [effectiveMajor, effectiveMinor]);
+
+  // Axis-name label visibility — flip CSS2DObject .visible directly.
+  // Cheap (no rebuild). The objects are tagged in buildAxesFrame and
+  // collected into ctx.axisLabels. Missing labels (script never set
+  // xlabel/etc) are simply absent from axisLabels so we no-op.
+  useEffect(() => {
+    const c = ctxRef.current;
+    if (!c || !c.axisLabels) return;
+    if (c.axisLabels.x) c.axisLabels.x.visible = !!showXLabel;
+    if (c.axisLabels.y) c.axisLabels.y.visible = !!showYLabel;
+    if (c.axisLabels.z) c.axisLabels.z.visible = !!showZLabel;
+  }, [showXLabel, showYLabel, showZLabel, frameCount]);
 
   useEffect(() => {
     const c = ctxRef.current;
@@ -1466,7 +1491,7 @@ function Composite3DPlot({
              width: '100%', height: '100%',
              pointerEvents: 'none', overflow: 'hidden',
            }} />
-      {figure?.title && (
+      {showTitle && figure?.title && (
         <div style={{
           position: 'absolute', top: 8, left: 0, right: 0,
           textAlign: 'center', fontSize: 12 * fontScale,

@@ -51,6 +51,18 @@ export default function SubplotGrid({
   fontScale = 1,
   major = true,
   minor = false,
+  // Visibility flags from FigureWindow's display ▾ menu — fanned out
+  // to every cell so a single toggle applies to the whole subplot
+  // grid. CompositePlot / Composite3DPlot inside each cell decides if
+  // the flag actually has anything to apply (e.g. cells without an
+  // ylabel ignore showYLabel).
+  showTitle  = true,
+  showXLabel = true,
+  showYLabel = true,
+  showZLabel = true,
+  xLog,
+  yLog,
+  zLog,
   interactive = true,
   engine = null,
 }) {
@@ -171,6 +183,8 @@ export default function SubplotGrid({
                 return next;
               }),
               major, minor,
+              showTitle, showXLabel, showYLabel, showZLabel,
+              xLog, yLog, zLog,
               fontScale: subFont,
               interactive,
               engine,
