@@ -58,7 +58,7 @@ Value lsqminnorm(std::pmr::memory_resource *mr, const Value &A,
 
     // Existing pinv signature: pinv(mr, A, tol) where tol < 0 means default.
     Value Ap = pinv(mr, A, have_tol ? tol_user : -1.0);
-    return mtimes(mr, Ap, B);
+    return mtimes(Ap, B, mr);
 }
 
 // ── lsqnonneg ─────────────────────────────────────────────────────────
@@ -216,7 +216,7 @@ lsqnonneg_impl(std::pmr::memory_resource *mr, const Value &C, const Value &d)
             }
             // Solve CtC * sP = Ctd via la_solve (LU on small system).
             sP.assign(p, 0.0);
-            if (!detail::la_solve(&scratch, CtC.data(), p, p, Ctd.data(), 1, sP.data())) {
+            if (!detail::la_solve(CtC.data(), p, p, Ctd.data(), 1, sP.data(), &scratch)) {
                 // Singular sub-system — bail with whatever feasible x we have.
                 R.exitflag = 1;
                 break;

@@ -82,12 +82,12 @@ Value rowFromCoeffs(const std::vector<double> &v, std::pmr::memory_resource *mr)
 // Helper: poles as a column Value, regardless of input form.
 Value polesOf(const Value &sys, std::pmr::memory_resource *mr) {
     if (hasKind(sys, "tf"))
-        return builtin::roots(mr, sys.field("den"));
+        return builtin::roots(sys.field("den"), mr);
     if (hasKind(sys, "zpk"))
         return sys.field("p");
     if (hasKind(sys, "ss")) {
         auto cp = charPoly(sys.field("A"));
-        return builtin::roots(mr, rowFromCoeffs(cp, mr));
+        return builtin::roots(rowFromCoeffs(cp, mr), mr);
     }
     throw Error("expected an LTI struct (tf/zpk/ss)",
                 0, 0, "lti", "", "m:lti:kind");
@@ -95,7 +95,7 @@ Value polesOf(const Value &sys, std::pmr::memory_resource *mr) {
 
 Value zerosOf(const Value &sys, std::pmr::memory_resource *mr) {
     if (hasKind(sys, "tf"))
-        return builtin::roots(mr, sys.field("num"));
+        return builtin::roots(sys.field("num"), mr);
     if (hasKind(sys, "zpk"))
         return sys.field("z");
     if (hasKind(sys, "ss")) {
@@ -116,7 +116,7 @@ Value zerosOf(const Value &sys, std::pmr::memory_resource *mr) {
                         0, 0, "zero", "", "m:zero:miso");
         }
         auto [num, den] = ss2tf(A, B, C, D, /*iu=*/1, mr);
-        return builtin::roots(mr, num);
+        return builtin::roots(num, mr);
     }
     throw Error("expected an LTI struct (tf/zpk/ss)",
                 0, 0, "lti", "", "m:lti:kind");

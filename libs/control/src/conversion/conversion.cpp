@@ -71,8 +71,8 @@ Tf2ZpResult tf2zp(const Value &num, const Value &den,
 
     // Roots of num and den. The existing builtin::roots already
     // handles both real-and-complex output and trailing-zero roots.
-    Value zRoots = builtin::roots(mr, num);
-    Value pRoots = builtin::roots(mr, den);
+    Value zRoots = builtin::roots(num, mr);
+    Value pRoots = builtin::roots(den, mr);
 
     return {std::move(zRoots), std::move(pRoots),
             Value::scalar(k, mr)};
@@ -85,8 +85,8 @@ zp2tf(const Value &z, const Value &p, const Value &k,
     // num = k * poly(z), den = poly(p). builtin::poly takes a column
     // vector of roots and returns the row of polynomial coefficients
     // (leading 1, descending powers).
-    Value den = builtin::poly(mr, p);
-    Value num = builtin::poly(mr, z);
+    Value den = builtin::poly(p, mr);
+    Value num = builtin::poly(z, mr);
 
     // Multiply num by the gain (real scalar in our zpk; we handle the
     // complex-product case by promoting num if k or num is complex).

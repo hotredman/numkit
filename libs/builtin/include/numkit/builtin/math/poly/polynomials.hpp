@@ -22,25 +22,25 @@ namespace numkit::builtin {
 ///   * Real polynomial → output column is COMPLEX if any root has a
 ///     non-trivial imaginary part; otherwise DOUBLE.
 ///   * Trailing zeros in p → corresponding number of roots at 0.
-Value roots(std::pmr::memory_resource *mr, const Value &p);
+Value roots(const Value &p, std::pmr::memory_resource *mr = nullptr);
 
 /// polyder(p) — coefficient row of d/dx p(x). For p of length n+1 the
 /// derivative has length n.
-Value polyder(std::pmr::memory_resource *mr, const Value &p);
+Value polyder(const Value &p, std::pmr::memory_resource *mr = nullptr);
 
 /// polyder(b, a) — coefficients of d/dx (b(x) / a(x)) as (numerator,
 /// denominator). The denominator becomes a^2; numerator is a·b' - b·a'.
 std::tuple<Value, Value>
-polyder(std::pmr::memory_resource *mr, const Value &b, const Value &a);
+polyder(const Value &b, const Value &a, std::pmr::memory_resource *mr = nullptr);
 
 /// polyint(p[, k]) — coefficients of the antiderivative ∫ p(x) dx with
 /// integration constant k (default 0). Output length is length(p) + 1.
-Value polyint(std::pmr::memory_resource *mr, const Value &p, double k = 0.0);
+Value polyint(const Value &p, double k = 0.0, std::pmr::memory_resource *mr = nullptr);
 
 /// tf2zp(b, a) — transfer function H(z) = b(z)/a(z) → (zeros, poles, gain).
 /// gain = b(1)/a(1) (leading coefficient ratio).
 std::tuple<Value, Value, Value>
-tf2zp(std::pmr::memory_resource *mr, const Value &b, const Value &a);
+tf2zp(const Value &b, const Value &a, std::pmr::memory_resource *mr = nullptr);
 
 /// zp2tf(z, p, k) — zero/pole/gain → (b, a) coefficient rows.
 /// b = k · ∏ (x - z); a = ∏ (x - p). Roots may be complex but must
@@ -48,7 +48,7 @@ tf2zp(std::pmr::memory_resource *mr, const Value &b, const Value &a);
 /// non-conjugate input would yield a non-real polynomial; caller is
 /// responsible for the pairing).
 std::tuple<Value, Value>
-zp2tf(std::pmr::memory_resource *mr, const Value &z, const Value &p, double k);
+zp2tf(const Value &z, const Value &p, double k, std::pmr::memory_resource *mr = nullptr);
 
 // ── Curve fitting / evaluation ───────────────────────────────────────
 
@@ -57,25 +57,25 @@ zp2tf(std::pmr::memory_resource *mr, const Value &z, const Value &p, double k);
 ///
 /// @throws Error on singular normal-matrix (ill-conditioned) or not enough
 ///         data points (need at least n+1).
-Value polyfit(std::pmr::memory_resource *mr, const Value &x, const Value &y, int n);
+Value polyfit(const Value &x, const Value &y, int n, std::pmr::memory_resource *mr = nullptr);
 
 /// Horner evaluation of polynomial p at x. Returns array same shape as x.
-Value polyval(std::pmr::memory_resource *mr, const Value &p, const Value &x);
+Value polyval(const Value &p, const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 // ── Pack 29: poly / polyvalm / polydiv ───────────────────────────────
 /// poly(r) — coefficient row of the polynomial whose roots are the
 /// elements of r. Returns DOUBLE for real input; COMPLEX-valued roots
 /// must be passed as a complex vector (yielding a complex result).
-Value poly(std::pmr::memory_resource *mr, const Value &r);
+Value poly(const Value &r, std::pmr::memory_resource *mr = nullptr);
 
 /// polyvalm(p, A) — matrix polynomial evaluation: p_0·I + p_1·A +
 /// p_2·A² + … (Horner at the matrix level). A must be square.
-Value polyvalm(std::pmr::memory_resource *mr, const Value &p, const Value &A);
+Value polyvalm(const Value &p, const Value &A, std::pmr::memory_resource *mr = nullptr);
 
 /// polydiv(b, a) — long-division of b(x) by a(x) returning the
 /// quotient q and remainder r such that b = q*a + r. Returns the pair.
 struct PolyDiv { Value q; Value r; };
-PolyDiv polydiv(std::pmr::memory_resource *mr, const Value &b, const Value &a);
+PolyDiv polydiv(const Value &b, const Value &a, std::pmr::memory_resource *mr = nullptr);
 
 // ── Pack 36: padecoef ────────────────────────────────────────────────
 /// padecoef(T, N) — coefficients of the (N,N) Padé approximant of
@@ -83,6 +83,6 @@ PolyDiv polydiv(std::pmr::memory_resource *mr, const Value &b, const Value &a);
 /// normalized so the leading denominator coefficient is 1 (matches
 /// MATLAB's `[num,den] = padecoef(T,N)`).
 struct PadeCoef { Value num; Value den; };
-PadeCoef padecoef(std::pmr::memory_resource *mr, double T, int N);
+PadeCoef padecoef(double T, int N, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

@@ -172,7 +172,7 @@ bool laSolveWrap(std::pmr::memory_resource *mr,
                  const double *B_buf, std::size_t nrhs,
                  double *outX)
 {
-    return detail::la_solve(mr, A_buf, m, n, B_buf, nrhs, outX);
+    return detail::la_solve(A_buf, m, n, B_buf, nrhs, outX, mr);
 }
 
 // Build an n×n identity into a contiguous column-major buffer.
@@ -576,7 +576,7 @@ Value poly_of_matrix(std::pmr::memory_resource *mr, const Value &A)
 Value eig_general_values(std::pmr::memory_resource *mr, const Value &A)
 {
     auto p = poly_of_matrix(mr, A);
-    return roots(mr, p);
+    return roots(p, mr);
 }
 
 std::tuple<Value, Value>
@@ -1111,8 +1111,7 @@ Value expm(std::pmr::memory_resource *mr, const Value &A)
 
     // Solve Q * X = P for X (i.e. X = Q^-1 * P).
     auto out = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    if (!detail::la_solve(&scratch, Q.data(), n, n, P.data(), n,
-                          out.doubleDataMut()))
+    if (!detail::la_solve(Q.data(), n, n, P.data(), n, out.doubleDataMut(), &scratch))
         throw Error("expm: Padé denominator is singular",
                     0, 0, "expm", "", "m:expm:singular");
 

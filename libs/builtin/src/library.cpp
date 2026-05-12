@@ -796,7 +796,7 @@ void BuiltinLibrary::install(Engine &engine)
             // double, so the rounding helpers see DOUBLE input.
             const Value a = builtin::toDouble(mr, args[0]);
             const Value b = builtin::toDouble(mr, args[1]);
-            Value q = builtin::rdivide(mr, a, b);
+            Value q = builtin::rdivide(a, b, mr);
             if (opt == "fix" || opt.empty()) q = builtin::fix(q, mr);
             else if (opt == "floor")          q = builtin::floor(q, mr);
             else if (opt == "ceil")           q = builtin::ceil(q, mr);
