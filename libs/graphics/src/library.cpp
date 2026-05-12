@@ -6030,6 +6030,72 @@ void GraphicsLibrary::install(Engine &engine)
         });
 
     // ────────────────────────────────────────────────────────────────
+    // triplot(TRI, X, Y [, LineSpec, ...]) — plot a triangulation.
+    //
+    // TRI is M×3 (column-major) with 1-based vertex indices into X/Y.
+    // Emits ONE `line` dataset with null-separated triangle loops:
+    //   a → b → c → a → null → a' → b' → c' → a' → null …
+    // so the entire triangulation is a single series in the figure
+    // (one legend entry, one colour) instead of M independent series.
+    // This matches MATLAB's triplot semantics — the canonical way to
+    // visualise `delaunay(x, y)` output without exploding the series
+    // count.
+    //
+    // Optional 4th positional arg = LineSpec ("b-", "k--", etc). After
+    // that, standard plot N-V pairs (LineWidth / MarkerSize) flow
+    // through parsePlotArgs.
+    // ────────────────────────────────────────────────────────────────
+    reg("line", "triplot",
+        [parsePlotArgs](Span<const Value> args, size_t /*nargout*/,
+                        Span<Value> outs, CallContext &ctx) {
+            if (args.size() < 3) { outs[0] = Value::empty(); return; }
+            const auto &TRI = args[0];
+            const auto &xv  = args[1];
+            const auto &yv  = args[2];
+            const std::size_t M = TRI.dims().rows();
+            const std::size_t N = xv.numel();
+            if (yv.numel() != N || TRI.dims().cols() != 3 || M == 0) {
+                outs[0] = Value::empty();
+                return;
+            }
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+
+            // Walk TRI column-major: row i, column k → T[k*M + i] (1-based).
+            const double *T = TRI.doubleData();
+            std::ostringstream xs, ys;
+            xs << '['; ys << '[';
+            bool first = true;
+            for (std::size_t i = 0; i < M; ++i) {
+                const std::size_t a = static_cast<std::size_t>(T[0 * M + i]) - 1;
+                const std::size_t b = static_cast<std::size_t>(T[1 * M + i]) - 1;
+                const std::size_t c = static_cast<std::size_t>(T[2 * M + i]) - 1;
+                if (a >= N || b >= N || c >= N) continue;
+                if (!first) { xs << ",null,"; ys << ",null,"; }
+                first = false;
+                xs << xv.elemAsDouble(a) << ',' << xv.elemAsDouble(b) << ','
+                   << xv.elemAsDouble(c) << ',' << xv.elemAsDouble(a);
+                ys << yv.elemAsDouble(a) << ',' << yv.elemAsDouble(b) << ','
+                   << yv.elemAsDouble(c) << ',' << yv.elemAsDouble(a);
+            }
+            xs << ']'; ys << ']';
+
+            DatasetInfo ds;
+            ds.type = "line";
+            ds.xJson = xs.str();
+            ds.yJson = ys.str();
+            std::size_t nvStart = 3;
+            if (args.size() >= 4 && args[3].isChar()) {
+                ds.style = args[3].toString();
+                nvStart = 4;
+            }
+            parsePlotArgs(args, nvStart, ds);
+            fm.pushDataset(std::move(ds));
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
+    // ────────────────────────────────────────────────────────────────
     // voronoi(x, y) — Voronoi diagram via Delaunay dual.
     //
     // Algorithm:
