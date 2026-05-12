@@ -12,10 +12,25 @@
 
 namespace numkit::stats {
 
-Value geopdf(const Value &k, double p, std::pmr::memory_resource *mr = nullptr);
-Value geocdf(const Value &k, double p, std::pmr::memory_resource *mr = nullptr);
-Value geoinv(const Value &q, double p, std::pmr::memory_resource *mr = nullptr);
-Value geornd(double p, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
+/// Geometric pmf (`y = geopdf(k, p)`) — @f$ f(k; p) = (1-p)^k\,p @f$.
+Value geopdf(const Value &k, double p,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// Geometric CDF (`F = geocdf(k, p)`) — @f$ F(k) = 1 - (1-p)^{k+1} @f$.
+Value geocdf(const Value &k, double p,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// Geometric inverse CDF (`k = geoinv(q, p)`).
+Value geoinv(const Value &q, double p,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// Geometric random samples (`r = geornd(p, rows, cols)`).
+Value geornd(double p, size_t rows = 1, size_t cols = 1,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// Geometric mean / variance (`[m, v] = geostat(p)`).
+///
+/// `m = (1-p)/p`, `v = (1-p)/p²`.
 std::tuple<double, double> geostat(double p);
 
 } // namespace numkit::stats

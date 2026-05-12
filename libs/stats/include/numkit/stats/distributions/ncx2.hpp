@@ -15,10 +15,31 @@
 
 namespace numkit::stats {
 
-Value ncx2pdf(const Value &x, double k, double lambda, std::pmr::memory_resource *mr = nullptr);
-Value ncx2cdf(const Value &x, double k, double lambda, std::pmr::memory_resource *mr = nullptr);
-Value ncx2inv(const Value &p, double k, double lambda, std::pmr::memory_resource *mr = nullptr);
-Value ncx2rnd(double k, double lambda, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
+/// Noncentral chi-squared density (`y = ncx2pdf(x, k, lambda)`).
+///
+/// `k > 0` degrees of freedom, `lambda ≥ 0` noncentrality. For
+/// `lambda == 0` reduces to @ref chi2pdf.
+Value ncx2pdf(const Value &x, double k, double lambda,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// Noncentral χ² CDF (`p = ncx2cdf(x, k, lambda)`).
+///
+/// Computed via the Poisson mixture
+/// @f$ F(x) = \sum_{j \ge 0} \text{Poisson}(j; \lambda/2)\,\chi^2_{\text{cdf}}(x; k + 2j) @f$.
+Value ncx2cdf(const Value &x, double k, double lambda,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// Noncentral χ² inverse CDF (`x = ncx2inv(p, k, lambda)`).
+Value ncx2inv(const Value &p, double k, double lambda,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// Noncentral χ² random samples (`r = ncx2rnd(k, lambda, rows, cols)`).
+Value ncx2rnd(double k, double lambda, size_t rows = 1, size_t cols = 1,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// Noncentral χ² mean / variance (`[m, v] = ncx2stat(k, lambda)`).
+///
+/// `m = k + lambda`, `v = 2k + 4·lambda`.
 std::tuple<double, double> ncx2stat(double k, double lambda);
 
 } // namespace numkit::stats

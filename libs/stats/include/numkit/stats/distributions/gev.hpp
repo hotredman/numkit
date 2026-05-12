@@ -16,10 +16,32 @@
 
 namespace numkit::stats {
 
-Value gevpdf(const Value &x, double k, double sigma, double mu, std::pmr::memory_resource *mr = nullptr);
-Value gevcdf(const Value &x, double k, double sigma, double mu, std::pmr::memory_resource *mr = nullptr);
-Value gevinv(const Value &p, double k, double sigma, double mu, std::pmr::memory_resource *mr = nullptr);
-Value gevrnd(double k, double sigma, double mu, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
+/// GEV density (`y = gevpdf(x, k, sigma, mu)`).
+///
+/// Three sub-families depending on the shape `k`:
+///   - `k > 0`: Fréchet (heavy-tailed).
+///   - `k = 0`: Gumbel-for-maxima (limit case).
+///   - `k < 0`: Reverse Weibull (bounded above).
+Value gevpdf(const Value &x, double k, double sigma, double mu,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// GEV CDF (`p = gevcdf(x, k, sigma, mu)`).
+Value gevcdf(const Value &x, double k, double sigma, double mu,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// GEV inverse CDF (`x = gevinv(p, k, sigma, mu)`).
+Value gevinv(const Value &p, double k, double sigma, double mu,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// GEV random samples (`r = gevrnd(k, sigma, mu, rows, cols)`).
+Value gevrnd(double k, double sigma, double mu,
+             size_t rows = 1, size_t cols = 1,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// GEV mean / variance (`[m, v] = gevstat(k, sigma, mu)`).
+///
+/// Defined only for `k < 1` (mean) and `k < 1/2` (variance); falls
+/// back to NaN outside those ranges.
 std::tuple<double, double>
 gevstat(double k, double sigma, double mu);
 
