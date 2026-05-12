@@ -3080,18 +3080,18 @@ Value nonzeros(const Value &x, std::pmr::memory_resource *mr)
 }
 
 // ── Concatenation ────────────────────────────────────────────────────
-Value horzcat(const Value *values, size_t count, std::pmr::memory_resource *mr)
+Value horzcat(Span<const Value> values, std::pmr::memory_resource *mr)
 {
-    if (count == 0)
+    if (values.empty())
         return Value::empty();
-    return Value::horzcat(values, count, mr);
+    return Value::horzcat(values.data(), values.size(), mr);
 }
 
-Value vertcat(const Value *values, size_t count, std::pmr::memory_resource *mr)
+Value vertcat(Span<const Value> values, std::pmr::memory_resource *mr)
 {
-    if (count == 0)
+    if (values.empty())
         return Value::empty();
-    return Value::vertcat(values, count, mr);
+    return Value::vertcat(values.data(), values.size(), mr);
 }
 
 // ── Grids ────────────────────────────────────────────────────────────
@@ -4707,12 +4707,12 @@ void nonzeros_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 
 void horzcat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = horzcat(args.data(), args.size(), ctx.engine->resource());
+    outs[0] = horzcat(args, ctx.engine->resource());
 }
 
 void vertcat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = vertcat(args.data(), args.size(), ctx.engine->resource());
+    outs[0] = vertcat(args, ctx.engine->resource());
 }
 
 void meshgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
