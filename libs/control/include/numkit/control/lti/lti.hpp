@@ -9,57 +9,172 @@
 
 #include <memory_resource>
 #include <numkit/core/value.hpp>
+#include <tuple>
 
 namespace numkit::control {
 
-/// `tf(num, den [, Ts])` — transfer function in the variable s
-/// (or z if Ts > 0). num/den are row coefficient vectors with the
-/// leading coefficient first (MATLAB convention).
-Value tf(const Value &num, const Value &den, double Ts, std::pmr::memory_resource *mr = nullptr);
+/// Transfer-function LTI constructor (`tf(num, den, Ts)`).
+///
+/// Builds a `tf`-tagged struct value with fields `{kind="tf",
+/// num, den, Ts, variable}`. The numerator and denominator are row
+/// coefficient vectors with the **leading coefficient first**
+/// (MATLAB convention). `Ts` selects the time domain:
+///   - `Ts == 0` → continuous, variable = `"s"`.
+///   - `Ts > 0`  → discrete with that sample time, variable = `"z"`.
+///   - `Ts == -1`→ discrete "unspecified" (matches MATLAB).
+///
+/// @param num  Numerator coefficients.
+/// @param den  Denominator coefficients (leading coefficient nonzero).
+/// @param Ts   Sample time in seconds; 0 for continuous.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Struct Value tagged `kind="tf"`.
+///
+/// @code
+/// auto sys = tf({1, 2}, {1, 3, 2}, 0);   // (s + 2) / (s² + 3s + 2)
+/// @endcode
+///
+/// @see zpk, ss, filt, frd
+Value tf(const Value &num, const Value &den, double Ts,
+         std::pmr::memory_resource *mr = nullptr);
 
-/// `zpk(z, p, k [, Ts])` — zero-pole-gain form.
-Value zpk(const Value &z, const Value &p, const Value &k, double Ts, std::pmr::memory_resource *mr = nullptr);
+/// Zero-pole-gain LTI constructor (`zpk(z, p, k, Ts)`).
+///
+/// Builds a `zpk`-tagged struct value with fields `{kind="zpk",
+/// z, p, k, Ts}`. `z` and `p` are vectors of zeros and poles
+/// (real or complex); `k` is a real scalar gain.
+///
+/// @param z   Zero list.
+/// @param p   Pole list.
+/// @param k   Gain scalar.
+/// @param Ts  Sample time (0 for continuous).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Struct Value tagged `kind="zpk"`.
+///
+/// @see tf, ss
+Value zpk(const Value &z, const Value &p, const Value &k, double Ts,
+          std::pmr::memory_resource *mr = nullptr);
 
-/// `ss(A, B, C, D [, Ts])` — state-space (continuous if Ts==0).
-Value ss(const Value &A, const Value &B, const Value &C, const Value &D, double Ts, std::pmr::memory_resource *mr = nullptr);
+/// State-space LTI constructor (`ss(A, B, C, D, Ts)`).
+///
+/// Builds an `ss`-tagged struct value with fields `{kind="ss",
+/// A, B, C, D, Ts}`. Dimensions:
+///   - A is n×n,
+///   - B is n×nin,
+///   - C is nout×n,
+///   - D is nout×nin (a scalar 0 is broadcast when D is empty).
+///
+/// @param A,B,C,D  State-space matrices.
+/// @param Ts       Sample time (0 for continuous).
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         Struct Value tagged `kind="ss"`.
+///
+/// @see tf, zpk
+Value ss(const Value &A, const Value &B, const Value &C, const Value &D,
+        double Ts, std::pmr::memory_resource *mr = nullptr);
 
-/// `filt(num, den [, Ts])` — discrete tf with z^-1 variable convention.
-/// Numerator and denominator coefficients are kept as-is; the only
-/// difference vs `tf` is the default Ts (-1, "unspecified discrete")
-/// and an informational `variable` field set to "z^-1".
-Value filt(const Value &num, const Value &den, double Ts, std::pmr::memory_resource *mr = nullptr);
+/// Discrete tf with `z^-1` variable convention (`filt(num, den, Ts)`).
+///
+/// Equivalent to @ref tf except:
+///   - default `Ts` is −1 ("unspecified discrete"),
+///   - `variable` field is set to `"z^-1"`,
+///   - coefficient order matches MATLAB's filt: num/den as in
+///     `Y(z)/U(z) = (b0 + b1 z^-1 + …) / (a0 + a1 z^-1 + …)`.
+///
+/// @param num  Numerator coefficients (z^-1 ascending powers).
+/// @param den  Denominator coefficients.
+/// @param Ts   Sample time (−1 = unspecified, > 0 = explicit).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Struct Value tagged `kind="tf"` with variable = "z^-1".
+///
+/// @see tf
+Value filt(const Value &num, const Value &den, double Ts,
+           std::pmr::memory_resource *mr = nullptr);
 
-/// `frd(response, frequency [, Ts])` — frequency-response data model.
-/// Builds a struct {kind='frd', resp, freq, Ts}. `response` may be
-/// complex; `frequency` is a real vector. Both stored as column
-/// vectors to match MATLAB's convention.
-Value frd(const Value &response, const Value &frequency, double Ts, std::pmr::memory_resource *mr = nullptr);
+/// Frequency-response data model (`frd(response, frequency, Ts)`).
+///
+/// Builds a struct `{kind="frd", resp, freq, Ts}`. `response` may be
+/// complex; `frequency` is a real vector (rad/s). Both are stored as
+/// column vectors to match MATLAB.
+///
+/// @param response   Complex response samples.
+/// @param frequency  Real frequency grid (rad/s).
+/// @param Ts         Sample time (0 = continuous).
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           Struct Value tagged `kind="frd"`.
+///
+/// @see frdata
+Value frd(const Value &response, const Value &frequency, double Ts,
+          std::pmr::memory_resource *mr = nullptr);
 
-/// `frdata(sys)` — extract response / frequency vectors from an frd.
+/// Extract `(resp, freq)` from an frd model.
+///
+/// @param sys  frd struct.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     `(resp, freq)`; bind via `auto [r, f] = frdata(sys);`.
+/// @throws     Error if `kind != "frd"`.
+///
+/// @see frd
 std::tuple<Value, Value>
 frdata(const Value &sys, std::pmr::memory_resource *mr = nullptr);
 
-/// `tfdata(sys[, 'v'])` — extract num/den. With 'v' returns numeric row
-/// vectors padded so num and den have equal length (leading zeros on
-/// num); without 'v', wraps each row vector in a 1×1 cell.
-/// Accepts tf or zpk / ss inputs (the latter are converted via the
-/// existing zp2tf / ss2tf paths).
+/// Extract numerator / denominator from any LTI form (`tfdata`).
+///
+/// With `asVector = true` returns row vectors padded so num and den
+/// have equal length (leading zeros on num).
+/// With `asVector = false` wraps each row vector in a 1×1 cell
+/// (MATLAB's default).
+///
+/// Accepts tf inputs directly; zpk and ss inputs are converted via
+/// @ref zp2tf and @ref ss2tf.
+///
+/// @param sys       LTI struct (tf / zpk / ss).
+/// @param asVector  `true` for raw row vectors, `false` for 1×1 cells.
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          `(num, den)`.
+/// @throws          Error on unrecognised kind.
+///
+/// @see zpkdata, ssdata
 std::tuple<Value, Value>
 tfdata(const Value &sys, bool asVector, std::pmr::memory_resource *mr = nullptr);
 
-/// `zpkdata(sys[, 'v'])` — extract zeros / poles / gain. `z` and `p`
-/// are returned as column vectors (or 1×1 cells without 'v'). `k` is
-/// always a numeric scalar.
+/// Extract zeros, poles, and gain (`zpkdata`).
+///
+/// `z` and `p` are column vectors (or 1×1 cells without `asVector`).
+/// `k` is always a numeric scalar.
+///
+/// @param sys       LTI struct (tf / zpk / ss).
+/// @param asVector  `true` for raw vectors, `false` for cell-wrapped.
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          `(z, p, k)`.
+///
+/// @see tfdata, ssdata
 std::tuple<Value, Value, Value>
 zpkdata(const Value &sys, bool asVector, std::pmr::memory_resource *mr = nullptr);
 
-/// `ssdata(sys)` — extract A, B, C, D matrices.
+/// Extract A, B, C, D from any LTI form (`ssdata`).
+///
+/// tf / zpk inputs are first converted via @ref tf2ss / @ref zp2tf+@ref tf2ss.
+///
+/// @param sys  LTI struct (tf / zpk / ss).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     `(A, B, C, D)`.
+///
+/// @see tfdata, zpkdata
 std::tuple<Value, Value, Value, Value>
 ssdata(const Value &sys, std::pmr::memory_resource *mr = nullptr);
 
-/// `ss2ss(sys, T)` — similarity transform of a state-space model.
-///   A' = T·A·T⁻¹,  B' = T·B,  C' = C·T⁻¹,  D' = D
-/// Returns a new ss struct. T must be invertible.
-Value ss2ss(const Value &sys, const Value &T, std::pmr::memory_resource *mr = nullptr);
+/// Similarity transform of a state-space model (`ss2ss(sys, T)`).
+///
+/// Applies the change of basis `x' = T · x`:
+/// @f$ A' = T A T^{-1},\ B' = T B,\ C' = C T^{-1},\ D' = D @f$.
+/// Returns a fresh ss struct; the original is untouched.
+///
+/// @param sys  Input ss struct.
+/// @param T    n×n invertible similarity matrix.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     New ss-tagged struct with transformed (A,B,C,D).
+/// @throws     Error if T is singular.
+Value ss2ss(const Value &sys, const Value &T,
+            std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::control
