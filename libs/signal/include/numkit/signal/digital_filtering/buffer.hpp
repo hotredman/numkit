@@ -19,12 +19,12 @@ namespace numkit::signal {
 //
 // Returns Y only. Use buffer2() for the [Y, Z] form which separates
 // complete frames from partial trailing samples.
-Value buffer(const Value &x, int n, int p = 0, const Value *opt = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value buffer(const Value &x, int n, int p = 0, const Value &opt = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 
 // 2-output form: [Y, Z] = buffer(...). Y has only complete frames (no
 // trailing zero-pad). Z has the partial-frame remainder (orientation
 // matches X). Returns (Y, Z).
 std::tuple<Value, Value>
-buffer2(const Value &x, int n, int p = 0, const Value *opt = nullptr, std::pmr::memory_resource *mr = nullptr);
+buffer2(const Value &x, int n, int p = 0, const Value &opt = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal

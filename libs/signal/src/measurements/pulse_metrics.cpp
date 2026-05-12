@@ -24,9 +24,9 @@ constexpr double kHighPct = 0.90;   // upper state boundary fraction
 constexpr double kMidPct  = 0.50;   // mid-reference level
 constexpr int    kHistBins = 100;
 
-double scalarOrDefault(const Value *v, double dflt)
+double scalarOrDefault(const Value &v, double dflt)
 {
-    return (v && !v->isEmpty()) ? v->toScalar() : dflt;
+    return v.isEmpty() ? dflt : v.toScalar();
 }
 
 // Read x as a contiguous double vector. If x is not DOUBLE, copy via
@@ -207,7 +207,7 @@ Value statelevels(const Value &x, std::pmr::memory_resource *mr)
 
 // ── midcross ───────────────────────────────────────────────────────
 
-Value midcross(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value midcross(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -221,7 +221,7 @@ Value midcross(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
 
 // ── risetime / falltime / slewrate ─────────────────────────────────
 
-Value risetime(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value risetime(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -233,7 +233,7 @@ Value risetime(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
     return colVec(out, mr);
 }
 
-Value falltime(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value falltime(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -245,7 +245,7 @@ Value falltime(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
     return colVec(out, mr);
 }
 
-Value slewrate(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value slewrate(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -266,7 +266,7 @@ Value slewrate(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
 // (high_state - low_state). The peak window is from the end of the
 // transition until the next opposite transition (or end of signal).
 
-Value overshoot(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value overshoot(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     (void)fs; // overshoot uses transition list only, no time arg needed
     auto v = readVec(x);
@@ -294,7 +294,7 @@ Value overshoot(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
     return colVec(out, mr);
 }
 
-Value undershoot(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value undershoot(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     (void)fs;
     auto v = readVec(x);
@@ -325,7 +325,7 @@ Value undershoot(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
 // Time from the start of each transition until x stays within `tol`
 // of the destination state for the rest of the post-transition window.
 
-Value settlingtime(const Value &x, const Value *fs, double tol, std::pmr::memory_resource *mr)
+Value settlingtime(const Value &x, const Value &fs, double tol, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -376,7 +376,7 @@ midCrossesDirected(const double *x, size_t n, double mid)
 
 } // anonymous
 
-Value pulsewidth(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value pulsewidth(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -392,7 +392,7 @@ Value pulsewidth(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
     return colVec(out, mr);
 }
 
-Value pulseperiod(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value pulseperiod(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -408,7 +408,7 @@ Value pulseperiod(const Value &x, const Value *fs, std::pmr::memory_resource *mr
     return colVec(out, mr);
 }
 
-Value pulsesep(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value pulsesep(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -424,7 +424,7 @@ Value pulsesep(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
     return colVec(out, mr);
 }
 
-Value dutycycle(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value dutycycle(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -459,8 +459,7 @@ namespace detail {
         if (args.empty())                                                        \
             throw Error(#name ": requires at least 1 argument",                 \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
-        const Value *fs = (args.size() >= 2 && !args[1].isEmpty())              \
-                           ? &args[1] : nullptr;                                 \
+        const Value &fs = (args.size() >= 2) ? args[1] : Value::Empty;         \
         outs[0] = fn(args[0], fs, ctx.engine->resource());                      \
     }
 
@@ -479,8 +478,7 @@ void settlingtime_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("settlingtime: requires at least 1 argument",
                      0, 0, "settlingtime", "", "m:settlingtime:nargin");
-    const Value *fs = (args.size() >= 2 && !args[1].isEmpty())
-                       ? &args[1] : nullptr;
+    const Value &fs = (args.size() >= 2) ? args[1] : Value::Empty;
     double tol = 0.02;
     if (args.size() >= 3 && !args[2].isEmpty()) tol = args[2].toScalar();
     outs[0] = settlingtime(args[0], fs, tol, ctx.engine->resource());

@@ -368,9 +368,9 @@ Value chirp(std::pmr::memory_resource *mr, const Value &t,
 // KNOWN GAPs: fm/pm modes (use hilbert which depends on libs/signal::fft
 // sign-convention bug — same blocker as Cycle J / pitch LHS/SRH).
 // amssb / pwm / ptm/ppm / qam similarly deferred.
-Value demod(std::pmr::memory_resource *mr,
-            const Value &y, double Fc, double Fs,
-            const std::string &method, const Value *opt)
+Value demod(const Value &y, double Fc, double Fs,
+            const std::string &method, const Value &opt,
+            std::pmr::memory_resource *mr)
 {
     constexpr double kPi = 3.14159265358979323846;
     if (Fs <= 0.0)
@@ -402,7 +402,7 @@ Value demod(std::pmr::memory_resource *mr,
         // FM: x = (1/P1) · diff(unwrap(angle(yq))) prepended with 0
         // PM: x = (1/P1) · angle(yq)
         double P1 = 1.0;
-        if (opt && !opt->isEmpty()) P1 = opt->toScalar();
+        if (!opt.isEmpty()) P1 = opt.toScalar();
 
         // Compute hilbert on y.
         Value yVal = Value::matrix(len, cols, ValueType::DOUBLE, mr);
@@ -487,7 +487,7 @@ Value demod(std::pmr::memory_resource *mr,
     // Step 3: amdsb-tc subtracts opt offset.
     if (m == "amdsb-tc") {
         double offset = 0.0;
-        if (opt && !opt->isEmpty()) offset = opt->toScalar();
+        if (!opt.isEmpty()) offset = opt.toScalar();
         if (offset != 0.0) {
             double *od = out.doubleDataMut();
             for (std::size_t i = 0; i < len * cols; ++i) od[i] -= offset;
@@ -508,9 +508,9 @@ Value demod(std::pmr::memory_resource *mr,
 // Analog modulation. Supports am/amdsb-sc (alias)/amdsb-tc/fm/pm.
 // Matches MATLAB R2025b modulate.m for these 4 modes one-to-one.
 // amssb (uses hilbert), pwm/ptm/ppm/qam deferred — KNOWN GAPs.
-Value modulate(std::pmr::memory_resource *mr,
-               const Value &x, double Fc, double Fs,
-               const std::string &method, const Value *opt)
+Value modulate(const Value &x, double Fc, double Fs,
+               const std::string &method, const Value &opt,
+               std::pmr::memory_resource *mr)
 {
     constexpr double kPi = 3.14159265358979323846;
     if (Fs <= 0.0)
@@ -565,8 +565,8 @@ Value modulate(std::pmr::memory_resource *mr,
         }
     } else if (m == "amdsb-tc") {
         double offset;
-        if (opt && !opt->isEmpty()) {
-            offset = opt->toScalar();
+        if (!opt.isEmpty()) {
+            offset = opt.toScalar();
         } else {
             offset = x.elemAsDouble(0);
             for (std::size_t i = 1; i < N; ++i) {
@@ -582,8 +582,8 @@ Value modulate(std::pmr::memory_resource *mr,
         }
     } else if (m == "fm") {
         double kf;
-        if (opt && !opt->isEmpty()) {
-            kf = opt->toScalar();
+        if (!opt.isEmpty()) {
+            kf = opt.toScalar();
         } else {
             double xMax = 0.0;
             for (std::size_t i = 0; i < N; ++i) {
@@ -602,8 +602,8 @@ Value modulate(std::pmr::memory_resource *mr,
         }
     } else if (m == "pm") {
         double kp;
-        if (opt && !opt->isEmpty()) {
-            kp = opt->toScalar();
+        if (!opt.isEmpty()) {
+            kp = opt.toScalar();
         } else {
             double xMax = 0.0;
             for (std::size_t i = 0; i < N; ++i) {
@@ -718,8 +718,8 @@ void demod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
         throw Error("demod: method must be a string",
                     0, 0, "demod", "", "m:demod:BadMethodType");
     std::string method = args[3].toString();
-    const Value *opt = (args.size() >= 5) ? &args[4] : nullptr;
-    outs[0] = demod(ctx.engine->resource(), args[0], Fc, Fs, method, opt);
+    const Value &opt = (args.size() >= 5) ? args[4] : Value::Empty;
+    outs[0] = demod(args[0], Fc, Fs, method, opt, ctx.engine->resource());
 }
 
 void modulate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -733,8 +733,8 @@ void modulate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         throw Error("modulate: method must be a string",
                     0, 0, "modulate", "", "m:modulate:BadMethodType");
     std::string method = args[3].toString();
-    const Value *opt = (args.size() >= 5) ? &args[4] : nullptr;
-    outs[0] = modulate(ctx.engine->resource(), args[0], Fc, Fs, method, opt);
+    const Value &opt = (args.size() >= 5) ? args[4] : Value::Empty;
+    outs[0] = modulate(args[0], Fc, Fs, method, opt, ctx.engine->resource());
 }
 
 void vco_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

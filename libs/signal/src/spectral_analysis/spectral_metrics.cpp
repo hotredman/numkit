@@ -32,9 +32,9 @@ namespace numkit::signal {
 
 namespace {
 
-double scalarOr(const Value *v, double dflt)
+double scalarOr(const Value &v, double dflt)
 {
-    return (v && !v->isEmpty()) ? v->toScalar() : dflt;
+    return v.isEmpty() ? dflt : v.toScalar();
 }
 
 // Compute single-segment periodogram of x, returning (Pxx, F) where F
@@ -130,11 +130,11 @@ double integrate(const std::vector<double> &P, const std::vector<double> &F,
 
 // ── bandpower ──────────────────────────────────────────────────────
 
-Value bandpower(const Value &x, const Value *fs, const Value *freqrange, std::pmr::memory_resource *mr)
+Value bandpower(const Value &x, const Value &fs, const Value &freqrange, std::pmr::memory_resource *mr)
 {
     // 1-arg: total signal power = mean(|x|^2). Cheaper than going
     // through PSD (Parseval's theorem makes them equal anyway).
-    if (!fs || fs->isEmpty()) {
+    if (fs.isEmpty()) {
         const size_t n = x.numel();
         if (n == 0) return Value::scalar(0.0, mr);
         double s = 0.0;
@@ -144,20 +144,20 @@ Value bandpower(const Value &x, const Value *fs, const Value *freqrange, std::pm
         }
         return Value::scalar(s / n, mr);
     }
-    const double fsv = fs->toScalar();
+    const double fsv = fs.toScalar();
     auto p = computePsd(x, fsv, mr);
     double fLo = p.F.front();
     double fHi = p.F.back();
-    if (freqrange && !freqrange->isEmpty() && freqrange->numel() >= 2) {
-        fLo = freqrange->elemAsDouble(0);
-        fHi = freqrange->elemAsDouble(1);
+    if (!freqrange.isEmpty() && freqrange.numel() >= 2) {
+        fLo = freqrange.elemAsDouble(0);
+        fHi = freqrange.elemAsDouble(1);
     }
     return Value::scalar(integrate(p.Pxx, p.F, fLo, fHi), mr);
 }
 
 // ── meanfreq / medfreq ────────────────────────────────────────────
 
-Value meanfreq(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value meanfreq(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     const double fsv = scalarOr(fs, 0.0);
     auto p = computePsd(x, fsv, mr);
@@ -172,7 +172,7 @@ Value meanfreq(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
     return Value::scalar(den > 0 ? num / den : 0.0, mr);
 }
 
-Value medfreq(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value medfreq(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     const double fsv = scalarOr(fs, 0.0);
     auto p = computePsd(x, fsv, mr);
@@ -197,7 +197,7 @@ Value medfreq(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
 
 // ── enbw ──────────────────────────────────────────────────────────
 
-Value enbw(const Value &window, const Value *fs, std::pmr::memory_resource *mr)
+Value enbw(const Value &window, const Value &fs, std::pmr::memory_resource *mr)
 {
     const size_t n = window.numel();
     if (n == 0) return Value::scalar(0.0, mr);
@@ -214,7 +214,7 @@ Value enbw(const Value &window, const Value *fs, std::pmr::memory_resource *mr)
 
 // ── obw ───────────────────────────────────────────────────────────
 
-Value obw(const Value &x, const Value *fs, double p, std::pmr::memory_resource *mr)
+Value obw(const Value &x, const Value &fs, double p, std::pmr::memory_resource *mr)
 {
     const double fsv = scalarOr(fs, 0.0);
     auto psd = computePsd(x, fsv, mr);
@@ -243,7 +243,7 @@ Value obw(const Value &x, const Value *fs, double p, std::pmr::memory_resource *
 
 // ── powerbw ───────────────────────────────────────────────────────
 
-Value powerbw(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value powerbw(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     const double fsv = scalarOr(fs, 0.0);
     auto p = computePsd(x, fsv, mr);
@@ -307,7 +307,7 @@ PsdMoments computePsdMoments(const std::vector<double> &P,
 
 } // anonymous
 
-Value spectralcrest(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value spectralcrest(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     const double fsv = scalarOr(fs, 0.0);
     auto p = computePsd(x, fsv, mr);
@@ -318,7 +318,7 @@ Value spectralcrest(const Value &x, const Value *fs, std::pmr::memory_resource *
     return Value::scalar(mean > 0 ? mx / mean : 0.0, mr);
 }
 
-Value spectralflatness(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value spectralflatness(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     const double fsv = scalarOr(fs, 0.0);
     auto p = computePsd(x, fsv, mr);
@@ -335,7 +335,7 @@ Value spectralflatness(const Value &x, const Value *fs, std::pmr::memory_resourc
     return Value::scalar(geom / arith, mr);
 }
 
-Value spectralentropy(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value spectralentropy(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     const double fsv = scalarOr(fs, 0.0);
     auto p = computePsd(x, fsv, mr);
@@ -352,7 +352,7 @@ Value spectralentropy(const Value &x, const Value *fs, std::pmr::memory_resource
     return Value::scalar(H / std::log(static_cast<double>(p.Pxx.size())), mr);
 }
 
-Value spectralkurtosis(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value spectralkurtosis(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     const double fsv = scalarOr(fs, 0.0);
     auto p = computePsd(x, fsv, mr);
@@ -361,7 +361,7 @@ Value spectralkurtosis(const Value &x, const Value *fs, std::pmr::memory_resourc
     return Value::scalar(m.m4 / (m.var * m.var), mr);
 }
 
-Value spectralskewness(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value spectralskewness(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     const double fsv = scalarOr(fs, 0.0);
     auto p = computePsd(x, fsv, mr);
@@ -496,7 +496,7 @@ double safeDb(double num, double den)
 
 } // anonymous
 
-Value snr(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value snr(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     const double fsv = scalarOr(fs, 0.0);
     auto p = computePsdKaiser(x, fsv, mr);
@@ -504,7 +504,7 @@ Value snr(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
     return Value::scalar(safeDb(h.pSig, h.pNoise), mr);
 }
 
-Value sinad(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value sinad(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     const double fsv = scalarOr(fs, 0.0);
     auto p = computePsdKaiser(x, fsv, mr);
@@ -512,7 +512,7 @@ Value sinad(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
     return Value::scalar(safeDb(h.pSig, h.pNoise + h.pHarm), mr);
 }
 
-Value thd(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value thd(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     const double fsv = scalarOr(fs, 0.0);
     auto p = computePsdKaiser(x, fsv, mr);
@@ -520,7 +520,7 @@ Value thd(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
     return Value::scalar(safeDb(h.pHarm, h.pSig), mr);
 }
 
-Value sfdr(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value sfdr(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     const double fsv = scalarOr(fs, 0.0);
     auto p = computePsdKaiser(x, fsv, mr);
@@ -556,7 +556,7 @@ void readComplex(const Value &z, std::vector<double> &re, std::vector<double> &i
 
 } // anonymous
 
-Value instfreq(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value instfreq(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     const double fsv = scalarOr(fs, 1.0);
     Value z = hilbert(x, mr);
@@ -588,7 +588,7 @@ Value instfreq(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
     return out;
 }
 
-Value instbw(const Value &x, const Value *fs, std::pmr::memory_resource *mr)
+Value instbw(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
 {
     const double fsv = scalarOr(fs, 1.0);
     Value z = hilbert(x, mr);
@@ -624,8 +624,8 @@ void bandpower_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("bandpower: requires at least 1 argument",
                      0, 0, "bandpower", "", "m:bandpower:nargin");
-    const Value *fs = (args.size() >= 2 && !args[1].isEmpty()) ? &args[1] : nullptr;
-    const Value *fr = (args.size() >= 3 && !args[2].isEmpty()) ? &args[2] : nullptr;
+    const Value &fs = (args.size() >= 2) ? args[1] : Value::Empty;
+    const Value &fr = (args.size() >= 3) ? args[2] : Value::Empty;
     outs[0] = bandpower(args[0], fs, fr, ctx.engine->resource());
 }
 
@@ -635,7 +635,7 @@ void obw_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("obw: requires at least 1 argument",
                      0, 0, "obw", "", "m:obw:nargin");
-    const Value *fs = (args.size() >= 2 && !args[1].isEmpty()) ? &args[1] : nullptr;
+    const Value &fs = (args.size() >= 2) ? args[1] : Value::Empty;
     double p = 0.99;
     if (args.size() >= 3 && !args[2].isEmpty()) p = args[2].toScalar();
     outs[0] = obw(args[0], fs, p, ctx.engine->resource());
@@ -648,8 +648,7 @@ void obw_reg(Span<const Value> args, size_t /*nargout*/,
         if (args.empty())                                                        \
             throw Error(#name ": requires at least 1 argument",                 \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
-        const Value *fs = (args.size() >= 2 && !args[1].isEmpty())              \
-                            ? &args[1] : nullptr;                                \
+        const Value &fs = (args.size() >= 2) ? args[1] : Value::Empty;          \
         outs[0] = fn(args[0], fs, ctx.engine->resource());                      \
     }
 
