@@ -37,7 +37,15 @@ INPUT                  = docs/doxygen_mainpage.dox \
 FILE_PATTERNS          = *.hpp *.h *.dox
 RECURSIVE              = YES
 EXCLUDE                = build build-* .claude
-EXCLUDE_PATTERNS       = */_deps/* */tests/* */backends/*
+# Drop:
+#   - library.hpp     — engine-registry hub (just install(Engine&)),
+#                       duplicates the sub-namespace listing in the tree
+#   - matlab_mt19937  — internal RNG, not part of the user-facing API
+EXCLUDE_PATTERNS       = */_deps/*                      \
+                         */tests/*                      \
+                         */backends/*                   \
+                         */library.hpp                  \
+                         */matlab_mt19937.hpp
 INPUT_ENCODING         = UTF-8
 
 # ── Build options ────────────────────────────────────────────────────
