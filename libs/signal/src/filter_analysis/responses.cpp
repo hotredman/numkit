@@ -27,7 +27,7 @@ namespace {
 
 // Build a length-n column vector of doubles from a generator.
 template <typename Gen>
-Value makeColVector(std::pmr::memory_resource *mr, size_t n, Gen &&g)
+Value makeColVector(size_t n, Gen &&g, std::pmr::memory_resource *mr)
 {
     auto v = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     double *dst = v.doubleDataMut();
@@ -36,9 +36,9 @@ Value makeColVector(std::pmr::memory_resource *mr, size_t n, Gen &&g)
 }
 
 // 0-based time-index column vector [0, 1, ..., n-1] as doubles.
-Value sampleIndex(std::pmr::memory_resource *mr, size_t n)
+Value sampleIndex(size_t n, std::pmr::memory_resource *mr)
 {
-    return makeColVector(mr, n, [](size_t i) { return static_cast<double>(i); });
+    return makeColVector(n, [](size_t i) { return static_cast<double>(i); }, mr);
 }
 
 // True if `a` is "the trivial denominator" — scalar 1 or a vector
@@ -55,7 +55,7 @@ bool isTrivialA(const Value &a)
 }
 
 // Largest-magnitude root of a polynomial. Empty / scalar → 0.
-double maxRootRadius(std::pmr::memory_resource *mr, const Value &p)
+double maxRootRadius(const Value &p, std::pmr::memory_resource *mr)
 {
     if (p.numel() < 2) return 0.0;
     auto r = builtin::roots(mr, p);
@@ -80,13 +80,13 @@ double maxRootRadius(std::pmr::memory_resource *mr, const Value &p)
 // impulse response to decay to 0.00005 (= 5e-5) of its peak. Formula:
 //   N = floor(log(5e-5) / log(rho))
 // where rho is the largest pole magnitude.
-size_t impzlength(std::pmr::memory_resource *mr, const Value &b, const Value &a)
+size_t impzlength(const Value &b, const Value &a, std::pmr::memory_resource *mr)
 {
     if (isTrivialA(a)) {
         // FIR: response length is degree + 1 = numel(b).
         return std::max<size_t>(b.numel(), 1);
     }
-    const double rho = maxRootRadius(mr, a);
+    const double rho = maxRootRadius(a, mr);
     if (!(rho > 0.0)) {
         // Trivial / no IIR contribution -> fall back to FIR length.
         return std::max<size_t>(b.numel(), 1);
@@ -108,29 +108,29 @@ size_t impzlength(std::pmr::memory_resource *mr, const Value &b, const Value &a)
 
 // ── impz ──────────────────────────────────────────────────────────────
 std::tuple<Value, Value>
-impz(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t n)
+impz(const Value &b, const Value &a, size_t n, std::pmr::memory_resource *mr)
 {
-    if (n == 0) n = impzlength(mr, b, a);
-    auto x = makeColVector(mr, n, [](size_t i) { return i == 0 ? 1.0 : 0.0; });
+    if (n == 0) n = impzlength(b, a, mr);
+    auto x = makeColVector(n, [](size_t i) { return i == 0 ? 1.0 : 0.0; }, mr);
     auto h = filter(mr, b, a, x);
-    return std::make_tuple(std::move(h), sampleIndex(mr, n));
+    return std::make_tuple(std::move(h), sampleIndex(n, mr));
 }
 
 // ── stepz ─────────────────────────────────────────────────────────────
 std::tuple<Value, Value>
-stepz(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t n)
+stepz(const Value &b, const Value &a, size_t n, std::pmr::memory_resource *mr)
 {
-    if (n == 0) n = impzlength(mr, b, a);
-    auto x = makeColVector(mr, n, [](size_t) { return 1.0; });
+    if (n == 0) n = impzlength(b, a, mr);
+    auto x = makeColVector(n, [](size_t) { return 1.0; }, mr);
     auto s = filter(mr, b, a, x);
-    return std::make_tuple(std::move(s), sampleIndex(mr, n));
+    return std::make_tuple(std::move(s), sampleIndex(n, mr));
 }
 
 // ── phasedelay ────────────────────────────────────────────────────────
 std::tuple<Value, Value>
-phasedelay(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t n)
+phasedelay(const Value &b, const Value &a, size_t n, std::pmr::memory_resource *mr)
 {
-    auto [phi, w] = phasez(mr, b, a, n);
+    auto [phi, w] = phasez(b, a, n, mr);
     // phi is column vector of length n; w too. Compute pd = -phi/w.
     auto pd = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     double *dst = pd.doubleDataMut();
@@ -157,9 +157,9 @@ phasedelay(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t
 //   Hr(w) = H(e^{jw}) * exp(j * w * (N-1)/2)         (FIR symmetric)
 // We just multiply freqz by exp(j*w*tau) where tau is half the order.
 std::tuple<Value, Value>
-zerophase(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t n)
+zerophase(const Value &b, const Value &a, size_t n, std::pmr::memory_resource *mr)
 {
-    auto [H, w] = freqz(mr, b, a, n);
+    auto [H, w] = freqz(b, a, n, mr);
     const double tau = (b.numel() > 0)
                        ? (static_cast<double>(b.numel()) - 1.0) / 2.0
                        : 0.0;
@@ -187,7 +187,7 @@ void impz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     const Value &b = args[0];
     Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
     size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
-    auto [h, t] = impz(ctx.engine->resource(), b, a, n);
+    auto [h, t] = impz(b, a, n, ctx.engine->resource());
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(t);
 }
@@ -199,7 +199,7 @@ void impzlength_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
                      0, 0, "impzlength", "", "m:impzlength:nargin");
     const Value &b = args[0];
     Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
-    const size_t n = impzlength(ctx.engine->resource(), b, a);
+    const size_t n = impzlength(b, a, ctx.engine->resource());
     outs[0] = Value::scalar(static_cast<double>(n), ctx.engine->resource());
 }
 
@@ -211,7 +211,7 @@ void stepz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     const Value &b = args[0];
     Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
     size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
-    auto [s, t] = stepz(ctx.engine->resource(), b, a, n);
+    auto [s, t] = stepz(b, a, n, ctx.engine->resource());
     outs[0] = std::move(s);
     if (nargout > 1) outs[1] = std::move(t);
 }
@@ -224,7 +224,7 @@ void phasedelay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Ca
     const Value &b = args[0];
     Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
     size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
-    auto [pd, w] = phasedelay(ctx.engine->resource(), b, a, n);
+    auto [pd, w] = phasedelay(b, a, n, ctx.engine->resource());
     outs[0] = std::move(pd);
     if (nargout > 1) outs[1] = std::move(w);
 }
@@ -237,7 +237,7 @@ void zerophase_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
     const Value &b = args[0];
     Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
     size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
-    auto [Hr, w] = zerophase(ctx.engine->resource(), b, a, n);
+    auto [Hr, w] = zerophase(b, a, n, ctx.engine->resource());
     outs[0] = std::move(Hr);
     if (nargout > 1) outs[1] = std::move(w);
 }

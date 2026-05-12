@@ -15,19 +15,19 @@ namespace numkit::signal {
 /// @param a     Denominator polynomial.
 /// @param npts  Number of frequency points (default 512).
 std::tuple<Value, Value>
-freqz(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t npts = 512);
+freqz(const Value &b, const Value &a, size_t npts = 512, std::pmr::memory_resource *mr = nullptr);
 
 /// phasez(b, a[, n]) — unwrapped phase response of H(e^{jw}).
 /// Returns (phi, W) — phi = unwrap(angle(H)) and the same frequency
 /// grid that freqz produces. Output length is n (default 512).
 std::tuple<Value, Value>
-phasez(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t npts = 512);
+phasez(const Value &b, const Value &a, size_t npts = 512, std::pmr::memory_resource *mr = nullptr);
 
 /// grpdelay(b, a[, n]) — group delay = -d(phase)/d(omega).
 /// Computed as the discrete derivative of unwrap(angle(freqz)) on the
 /// uniform grid w in [0, π]. Returns (gd, W). Endpoints use the same
 /// step (forward at 0, backward at π).
 std::tuple<Value, Value>
-grpdelay(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t npts = 512);
+grpdelay(const Value &b, const Value &a, size_t npts = 512, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal

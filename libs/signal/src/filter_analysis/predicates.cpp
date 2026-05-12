@@ -30,7 +30,7 @@ bool isTrivialA(const Value &a)
     return true;
 }
 
-double maxRootRadius(std::pmr::memory_resource *mr, const Value &p)
+double maxRootRadius(const Value &p, std::pmr::memory_resource *mr)
 {
     if (p.numel() < 2) return 0.0;
     auto r = builtin::roots(mr, p);
@@ -83,21 +83,21 @@ bool isfir(const Value & /*b*/, const Value &a)
 }
 
 // ── isstable ──────────────────────────────────────────────────────────
-bool isstable(std::pmr::memory_resource *mr, const Value & /*b*/, const Value &a)
+bool isstable(const Value & /*b*/, const Value &a, std::pmr::memory_resource *mr)
 {
     if (isTrivialA(a)) return true;          // FIR is always stable
-    return maxRootRadius(mr, a) < 1.0 - 1e-9;
+    return maxRootRadius(a, mr) < 1.0 - 1e-9;
 }
 
 // ── isminphase ────────────────────────────────────────────────────────
-bool isminphase(std::pmr::memory_resource *mr, const Value &b, const Value &a)
+bool isminphase(const Value &b, const Value &a, std::pmr::memory_resource *mr)
 {
-    if (!isstable(mr, b, a)) return false;
-    return maxRootRadius(mr, b) < 1.0 - 1e-9;
+    if (!isstable(b, a, mr)) return false;
+    return maxRootRadius(b, mr) < 1.0 - 1e-9;
 }
 
 // ── ismaxphase ────────────────────────────────────────────────────────
-bool ismaxphase(std::pmr::memory_resource *mr, const Value &b, const Value &a)
+bool ismaxphase(const Value &b, const Value &a, std::pmr::memory_resource *mr)
 {
     // All zeros must be OUTSIDE the unit circle. Implementation: invert
     // the polynomial (reverse coefficients) and check that *its* roots
@@ -110,7 +110,7 @@ bool ismaxphase(std::pmr::memory_resource *mr, const Value &b, const Value &a)
     auto reversed = Value::matrix(1, coeffs.size(), ValueType::DOUBLE, mr);
     double *dst = reversed.doubleDataMut();
     for (size_t i = 0; i < coeffs.size(); ++i) dst[i] = coeffs[i];
-    if (maxRootRadius(mr, reversed) >= 1.0 - 1e-9)
+    if (maxRootRadius(reversed, mr) >= 1.0 - 1e-9)
         return false;
     // Plus the filter must be FIR (denominator trivial) — IIR maxphase
     // is rare; MATLAB checks denominator separately.
@@ -170,7 +170,7 @@ void isstable_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
                      0, 0, "isstable", "", "m:isstable:nargin");
     const Value &b = args[0];
     Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
-    outs[0] = boolVal(isstable(ctx.engine->resource(), b, a), ctx.engine->resource());
+    outs[0] = boolVal(isstable(b, a, ctx.engine->resource()), ctx.engine->resource());
 }
 
 void isminphase_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -180,7 +180,7 @@ void isminphase_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
                      0, 0, "isminphase", "", "m:isminphase:nargin");
     const Value &b = args[0];
     Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
-    outs[0] = boolVal(isminphase(ctx.engine->resource(), b, a), ctx.engine->resource());
+    outs[0] = boolVal(isminphase(b, a, ctx.engine->resource()), ctx.engine->resource());
 }
 
 void ismaxphase_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -190,7 +190,7 @@ void ismaxphase_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
                      0, 0, "ismaxphase", "", "m:ismaxphase:nargin");
     const Value &b = args[0];
     Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
-    outs[0] = boolVal(ismaxphase(ctx.engine->resource(), b, a), ctx.engine->resource());
+    outs[0] = boolVal(ismaxphase(b, a, ctx.engine->resource()), ctx.engine->resource());
 }
 
 void islinphase_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -237,7 +237,7 @@ void filternorm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
                      0, 0, "filternorm", "", "m:filternorm:nargin");
     double p = 2.0;
     if (args.size() >= 3 && !args[2].isEmpty()) p = args[2].toScalar();
-    outs[0] = Value::scalar(filternorm(ctx.engine->resource(), args[0], args[1], p),
+    outs[0] = Value::scalar(filternorm(args[0], args[1], p, ctx.engine->resource()),
                             ctx.engine->resource());
 }
 
@@ -281,11 +281,10 @@ int firtype(const Value &b)
 }
 
 // ── filternorm ─────────────────────────────────────────────────────
-double filternorm(std::pmr::memory_resource *mr,
-                  const Value &b, const Value &a, double pnorm)
+double filternorm(const Value &b, const Value &a, double pnorm, std::pmr::memory_resource *mr)
 {
     constexpr size_t kNpts = 8192;
-    auto [H, W] = freqz(mr, b, a, kNpts);
+    auto [H, W] = freqz(b, a, kNpts, mr);
     const Complex *hd = H.complexData();
 
     if (std::isinf(pnorm)) {

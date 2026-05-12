@@ -18,7 +18,7 @@
 
 namespace numkit::signal {
 
-Value unwrap(std::pmr::memory_resource *mr, const Value &phase)
+Value unwrap(const Value &phase, std::pmr::memory_resource *mr)
 {
     const size_t n = phase.numel();
     const double *p = phase.doubleData();
@@ -44,7 +44,7 @@ void unwrap_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.empty())
         throw Error("unwrap: requires 1 argument",
                      0, 0, "unwrap", "", "m:unwrap:nargin");
-    outs[0] = unwrap(ctx.engine->resource(), args[0]);
+    outs[0] = unwrap(args[0], ctx.engine->resource());
 }
 
 } // namespace detail
