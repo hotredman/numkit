@@ -6,25 +6,68 @@
 
 namespace numkit::builtin {
 
-/// real(x) — real part. For non-complex input returns x unchanged.
+/// @brief Real part (`y = real(x)`).
+///
+/// For non-complex input returns `x` unchanged. Elementwise.
+///
+/// @param x   Input array.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Real part, same shape as `x`.
+/// @see imag, conj
 Value real(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-/// imag(x) — imaginary part (as double of the same shape as x).
-/// For non-complex input returns scalar 0.
+/// @brief Imaginary part (`y = imag(x)`).
+///
+/// For non-complex input returns scalar 0 (matches MATLAB).
+///
+/// @param x   Input array.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Imaginary part as DOUBLE, same shape as `x`
+///            (or scalar 0 for non-complex `x`).
+/// @see real, conj
 Value imag(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-/// conj(x) — complex conjugate. For non-complex input returns x unchanged.
+/// @brief Complex conjugate (`y = conj(x)`).
+///
+/// For non-complex input returns `x` unchanged.
+///
+/// @param x   Input array.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Conjugate, same shape as `x`.
+/// @see real, imag
 Value conj(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-/// complex(re) — re + 0i, elementwise, same shape as re.
+/// @brief Single-arg complex constructor (`y = complex(re)`).
+///
+/// `y = re + 0i` elementwise. Useful for forcing a real array into the
+/// COMPLEX type.
+///
+/// @param re  Real part (any numeric type).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    COMPLEX array, same shape as `re`.
+/// @see complex(re, im)
 Value complex(const Value &re, std::pmr::memory_resource *mr = nullptr);
 
-/// complex(re, im) — re + im*i elementwise; one side may be scalar and
-/// will broadcast. Throws Error on shape mismatch.
+/// @brief Two-arg complex constructor (`y = complex(re, im)`).
+///
+/// `y = re + im · i` elementwise. One side may be scalar and will
+/// broadcast. Throws on shape mismatch.
+///
+/// @param re  Real part.
+/// @param im  Imaginary part.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    COMPLEX array, broadcast shape.
+/// @throws Error  Shape mismatch (`m:complex:badShape`).
 Value complex(const Value &re, const Value &im, std::pmr::memory_resource *mr = nullptr);
 
-/// angle(x) — argument (phase) in radians. For real input uses atan2(0,x)
-/// so angle(-1) = pi, angle(0) = 0, etc.
+/// @brief Argument / phase angle (`y = angle(x)`).
+///
+/// Returns the argument in radians. For real input uses `atan2(0, x)`
+/// so `angle(-1) = π`, `angle(0) = 0`, etc.
+///
+/// @param x   Input array.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Phase angles in `(-π, π]`.
 Value angle(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin
