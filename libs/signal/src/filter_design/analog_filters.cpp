@@ -50,7 +50,7 @@ std::vector<double> readVec(const Value &v)
     return out;
 }
 
-Value packComplexCol(std::pmr::memory_resource *mr, const std::vector<Cd> &v)
+Value packComplexCol(const std::vector<Cd> &v, std::pmr::memory_resource *mr)
 {
     auto out = Value::complexMatrix(v.size(), 1, mr);
     if (v.empty()) return out;
@@ -59,7 +59,7 @@ Value packComplexCol(std::pmr::memory_resource *mr, const std::vector<Cd> &v)
     return out;
 }
 
-Value packDoubleRow(std::pmr::memory_resource *mr, const std::vector<double> &v)
+Value packDoubleRow(const std::vector<double> &v, std::pmr::memory_resource *mr)
 {
     auto out = Value::matrix(1, v.size(), ValueType::DOUBLE, mr);
     if (!v.empty()) std::memcpy(out.doubleDataMut(), v.data(), v.size() * sizeof(double));
@@ -73,7 +73,7 @@ Value packDoubleRow(std::pmr::memory_resource *mr, const std::vector<double> &v)
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value>
-buttap(std::pmr::memory_resource *mr, int N)
+buttap(int N, std::pmr::memory_resource *mr)
 {
     // Butterworth poles: equally-spaced on the left half of the unit
     // circle. p_k = exp(j π (2k - 1) / (2N) + j π/2) for k = 1..N.
@@ -83,13 +83,13 @@ buttap(std::pmr::memory_resource *mr, int N)
         const double theta = M_PI * (2.0 * k - 1.0) / (2.0 * N) + 0.5 * M_PI;
         p[k - 1] = std::exp(Cd(0.0, theta));
     }
-    return std::make_tuple(packComplexCol(mr, z),
-                           packComplexCol(mr, p),
+    return std::make_tuple(packComplexCol(z, mr),
+                           packComplexCol(p, mr),
                            Value::scalar(1.0, mr));
 }
 
 std::tuple<Value, Value, Value>
-cheb1ap(std::pmr::memory_resource *mr, int N, double Rp)
+cheb1ap(int N, double Rp, std::pmr::memory_resource *mr)
 {
     // Chebyshev type I prototype. Passband ripple Rp dB.
     // ε² = 10^(Rp/10) - 1.
@@ -109,8 +109,8 @@ cheb1ap(std::pmr::memory_resource *mr, int N, double Rp)
     for (auto &pp : p) kc *= -pp;
     double k = kc.real();
     if ((N % 2) == 0) k /= std::sqrt(1.0 + eps * eps);
-    return std::make_tuple(packComplexCol(mr, z),
-                           packComplexCol(mr, p),
+    return std::make_tuple(packComplexCol(z, mr),
+                           packComplexCol(p, mr),
                            Value::scalar(k, mr));
 }
 
@@ -266,15 +266,15 @@ inline Cd cdComplex(Cd uc, double k)
 //   7. gain = real(prod(-poles) / prod(-zeros)),
 //      divide by sqrt(1+eps^2) when N is even.
 std::tuple<Value, Value, Value>
-ellipap(std::pmr::memory_resource *mr, int N, double Rp, double Rs)
+ellipap(int N, double Rp, double Rs, std::pmr::memory_resource *mr)
 {
     if (N <= 0)
-        return std::make_tuple(packComplexCol(mr, std::vector<Cd>{}),
-                               packComplexCol(mr, std::vector<Cd>{}),
+        return std::make_tuple(packComplexCol(std::vector<Cd>{}, mr),
+                               packComplexCol(std::vector<Cd>{}, mr),
                                Value::scalar(std::pow(10.0, -Rp / 20.0), mr));
     if (Rp <= 0.0 || Rs <= 0.0)
-        return std::make_tuple(packComplexCol(mr, std::vector<Cd>{}),
-                               packComplexCol(mr, std::vector<Cd>{}),
+        return std::make_tuple(packComplexCol(std::vector<Cd>{}, mr),
+                               packComplexCol(std::vector<Cd>{}, mr),
                                Value::scalar(1.0, mr));
 
     const double eps2  = std::pow(10.0, Rp / 10.0) - 1.0;
@@ -333,13 +333,13 @@ ellipap(std::pmr::memory_resource *mr, int N, double Rp, double Rs)
     double gain = (std::abs(den) > 0) ? (num / den).real() : num.real();
     if ((N % 2) == 0) gain /= std::sqrt(1.0 + eps2);
 
-    return std::make_tuple(packComplexCol(mr, zeros),
-                           packComplexCol(mr, poles),
+    return std::make_tuple(packComplexCol(zeros, mr),
+                           packComplexCol(poles, mr),
                            Value::scalar(gain, mr));
 }
 
 std::tuple<Value, Value, Value>
-cheb2ap(std::pmr::memory_resource *mr, int N, double Rs)
+cheb2ap(int N, double Rs, std::pmr::memory_resource *mr)
 {
     // Chebyshev type II ("inverse"): zeros on imaginary axis.
     // Stopband attenuation Rs dB.
@@ -373,13 +373,13 @@ cheb2ap(std::pmr::memory_resource *mr, int N, double Rs)
     for (auto &zz : z) den *= -zz;
     const double k = (std::abs(den) > 0)
                      ? (num / den).real() : num.real();
-    return std::make_tuple(packComplexCol(mr, z),
-                           packComplexCol(mr, p),
+    return std::make_tuple(packComplexCol(z, mr),
+                           packComplexCol(p, mr),
                            Value::scalar(k, mr));
 }
 
 std::tuple<Value, Value, Value>
-besselap(std::pmr::memory_resource *mr, int N)
+besselap(int N, std::pmr::memory_resource *mr)
 {
     // For modest N (≤ 25, MATLAB's documented support) we use the
     // hard-coded Bessel-polynomial-pole tables. This file ships only
@@ -426,8 +426,8 @@ besselap(std::pmr::memory_resource *mr, int N)
     std::vector<Cd> p;
     if (N >= 0 && N < static_cast<int>(tables.size())) p = tables[N];
     std::vector<Cd> z;
-    return std::make_tuple(packComplexCol(mr, z),
-                           packComplexCol(mr, p),
+    return std::make_tuple(packComplexCol(z, mr),
+                           packComplexCol(p, mr),
                            Value::scalar(1.0, mr));
 }
 
@@ -436,7 +436,7 @@ besselap(std::pmr::memory_resource *mr, int N)
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value>
-lp2lp(std::pmr::memory_resource *mr, const Value &z, const Value &p, double k, double Wo)
+lp2lp(const Value &z, const Value &p, double k, double Wo, std::pmr::memory_resource *mr)
 {
     // s → s/Wo: poles and zeros scale by Wo; gain scales by Wo^(N-M).
     auto zv = readComplexVec(z);
@@ -446,13 +446,13 @@ lp2lp(std::pmr::memory_resource *mr, const Value &z, const Value &p, double k, d
     for (auto &zz : zv) zz *= Wo;
     for (auto &pp : pv) pp *= Wo;
     const double kn = k * std::pow(Wo, N - M);
-    return std::make_tuple(packComplexCol(mr, zv),
-                           packComplexCol(mr, pv),
+    return std::make_tuple(packComplexCol(zv, mr),
+                           packComplexCol(pv, mr),
                            Value::scalar(kn, mr));
 }
 
 std::tuple<Value, Value, Value>
-lp2hp(std::pmr::memory_resource *mr, const Value &z, const Value &p, double k, double Wo)
+lp2hp(const Value &z, const Value &p, double k, double Wo, std::pmr::memory_resource *mr)
 {
     // s → Wo/s: each zero/pole becomes Wo/old. Add (N-M) zeros at 0.
     auto zv = readComplexVec(z);
@@ -467,14 +467,13 @@ lp2hp(std::pmr::memory_resource *mr, const Value &z, const Value &p, double k, d
     const double kn = k * (Pz / Pp).real();
     // Add zeros at origin to balance the pole count.
     for (int i = 0; i < N - M; ++i) zv.push_back(Cd(0.0, 0.0));
-    return std::make_tuple(packComplexCol(mr, zv),
-                           packComplexCol(mr, pv),
+    return std::make_tuple(packComplexCol(zv, mr),
+                           packComplexCol(pv, mr),
                            Value::scalar(kn, mr));
 }
 
 std::tuple<Value, Value, Value>
-lp2bp(std::pmr::memory_resource *mr, const Value &z, const Value &p, double k,
-      double Wo, double Bw)
+lp2bp(const Value &z, const Value &p, double k, double Wo, double Bw, std::pmr::memory_resource *mr)
 {
     // s → (s² + Wo²) / (Bw·s). Each prototype zero/pole maps to TWO
     // new zeros/poles, plus M new zeros at origin.
@@ -496,14 +495,13 @@ lp2bp(std::pmr::memory_resource *mr, const Value &z, const Value &p, double k,
     // Add (N - M) zeros at origin.
     for (int i = 0; i < N - M; ++i) nz.push_back(Cd(0.0, 0.0));
     const double kn = k * std::pow(Bw, N - M);
-    return std::make_tuple(packComplexCol(mr, nz),
-                           packComplexCol(mr, np),
+    return std::make_tuple(packComplexCol(nz, mr),
+                           packComplexCol(np, mr),
                            Value::scalar(kn, mr));
 }
 
 std::tuple<Value, Value, Value>
-lp2bs(std::pmr::memory_resource *mr, const Value &z, const Value &p, double k,
-      double Wo, double Bw)
+lp2bs(const Value &z, const Value &p, double k, double Wo, double Bw, std::pmr::memory_resource *mr)
 {
     // s → Bw·s / (s² + Wo²). Each prototype root maps to two new
     // roots; M new zeros at ±jWo from finite-zero substitution.
@@ -531,8 +529,8 @@ lp2bs(std::pmr::memory_resource *mr, const Value &z, const Value &p, double k,
         nz.push_back(Cd(0.0, -Wo));
     }
     const double kn = k * (Pz / Pp).real();
-    return std::make_tuple(packComplexCol(mr, nz),
-                           packComplexCol(mr, np),
+    return std::make_tuple(packComplexCol(nz, mr),
+                           packComplexCol(np, mr),
                            Value::scalar(kn, mr));
 }
 
@@ -541,8 +539,7 @@ lp2bs(std::pmr::memory_resource *mr, const Value &z, const Value &p, double k,
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value>
-bilinear(std::pmr::memory_resource *mr, const Value &b, const Value &a,
-         double fs, double fp)
+bilinear(const Value &b, const Value &a, double fs, double fp, std::pmr::memory_resource *mr)
 {
     // Standard bilinear: substitute s ↔ 2·fs·(z-1)/(z+1) into b(s)/a(s).
     // With prewarp frequency fp, scale fs to preserve the response at fp.
@@ -551,8 +548,8 @@ bilinear(std::pmr::memory_resource *mr, const Value &b, const Value &a,
     const int Nb = static_cast<int>(bv.size()) - 1;
     const int Na = static_cast<int>(av.size()) - 1;
     if (Nb < 0 || Na < 0)
-        return std::make_tuple(packDoubleRow(mr, {}),
-                               packDoubleRow(mr, {}));
+        return std::make_tuple(packDoubleRow({}, mr),
+                               packDoubleRow({}, mr));
 
     double fsEff = fs;
     if (fp > 0.0) {
@@ -611,7 +608,7 @@ bilinear(std::pmr::memory_resource *mr, const Value &b, const Value &a,
         for (auto &x : Bd) x /= a0;
         for (auto &x : Ad) x /= a0;
     }
-    return std::make_tuple(packDoubleRow(mr, Bd), packDoubleRow(mr, Ad));
+    return std::make_tuple(packDoubleRow(Bd, mr), packDoubleRow(Ad, mr));
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -661,8 +658,7 @@ std::vector<Cd> polyFromRootsComplex(const std::vector<Cd> &roots) {
 } // anonymous
 
 std::tuple<Value, Value>
-impinvar(std::pmr::memory_resource *mr, const Value &b, const Value &a,
-         double fs, double /*tol*/)
+impinvar(const Value &b, const Value &a, double fs, double /*tol*/, std::pmr::memory_resource *mr)
 {
     auto bv = readVec(b);
     auto av = readVec(a);
@@ -742,15 +738,14 @@ impinvar(std::pmr::memory_resource *mr, const Value &b, const Value &a,
     std::vector<double> bd_d(N);
     for (int i = 0; i < N; ++i) bd_d[i] = bd_c[i].real();
 
-    return std::make_tuple(packDoubleRow(mr, bd_d), packDoubleRow(mr, ad_d));
+    return std::make_tuple(packDoubleRow(bd_d, mr), packDoubleRow(ad_d, mr));
 }
 
 // ════════════════════════════════════════════════════════════════════
 // Analog frequency response (freqs)
 // ════════════════════════════════════════════════════════════════════
 
-Value freqs(std::pmr::memory_resource *mr, const Value &b, const Value &a,
-            const Value &w)
+Value freqs(const Value &b, const Value &a, const Value &w, std::pmr::memory_resource *mr)
 {
     // H(jw) = b(jw) / a(jw). Evaluate poly directly.
     auto bv = readVec(b);
@@ -787,7 +782,7 @@ namespace detail {
             throw Error(#name ": requires N",                                    \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
         const int N = static_cast<int>(args[0].toScalar());                     \
-        auto [z, p, k] = name(ctx.engine->resource(), N);                       \
+        auto [z, p, k] = name(N, ctx.engine->resource());                       \
         outs[0] = std::move(z);                                                  \
         if (nargout > 1) outs[1] = std::move(p);                                 \
         if (nargout > 2) outs[2] = std::move(k);                                 \
@@ -802,7 +797,7 @@ namespace detail {
                          0, 0, #name, "", "m:" #name ":nargin");                 \
         const int N = static_cast<int>(args[0].toScalar());                     \
         const double r = args[1].toScalar();                                    \
-        auto [z, p, k] = name(ctx.engine->resource(), N, r);                    \
+        auto [z, p, k] = name(N, r, ctx.engine->resource());                    \
         outs[0] = std::move(z);                                                  \
         if (nargout > 1) outs[1] = std::move(p);                                 \
         if (nargout > 2) outs[2] = std::move(k);                                 \
@@ -823,7 +818,7 @@ void ellipap_reg(Span<const Value> args, size_t nargout,
     const int N     = static_cast<int>(args[0].toScalar());
     const double Rp = args[1].toScalar();
     const double Rs = args[2].toScalar();
-    auto [z, p, k] = ellipap(ctx.engine->resource(), N, Rp, Rs);
+    auto [z, p, k] = ellipap(N, Rp, Rs, ctx.engine->resource());
     outs[0] = std::move(z);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(k);
@@ -846,7 +841,7 @@ void ellipap_reg(Span<const Value> args, size_t nargout,
             /* TF form: (b, a, Wo) -> (bt, at). */                               \
             const double Wo = args[2].toScalar();                                \
             auto [z0, p0, k0] = tf2zpk(args[0], args[1], mr);                    \
-            auto [zt, pt, kt] = fn(mr, z0, p0, k0, Wo);               \
+            auto [zt, pt, kt] = fn(z0, p0, k0, Wo, mr);                          \
             auto [bt, at] = builtin::zp2tf(mr, zt, pt, kt.toScalar());           \
             outs[0] = std::move(bt);                                             \
             if (nargout > 1) outs[1] = std::move(at);                            \
@@ -856,7 +851,7 @@ void ellipap_reg(Span<const Value> args, size_t nargout,
             throw Error(#name ": requires (z, p, k, Wo) or (b, a, Wo)",         \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
         const double Wo = args[3].toScalar();                                   \
-        auto [z, p, k] = fn(mr, args[0], args[1], args[2].toScalar(), Wo);      \
+        auto [z, p, k] = fn(args[0], args[1], args[2].toScalar(), Wo, mr);      \
         outs[0] = std::move(z);                                                  \
         if (nargout > 1) outs[1] = std::move(p);                                 \
         if (nargout > 2) outs[2] = std::move(k);                                 \
@@ -880,7 +875,7 @@ NK_LP2X1_REG(lp2hp, lp2hp)
             const double Wo = args[2].toScalar();                                \
             const double Bw = args[3].toScalar();                                \
             auto [z0, p0, k0] = tf2zpk(args[0], args[1], mr);                    \
-            auto [zt, pt, kt] = fn(mr, z0, p0, k0, Wo, Bw);           \
+            auto [zt, pt, kt] = fn(z0, p0, k0, Wo, Bw, mr);                      \
             auto [bt, at] = builtin::zp2tf(mr, zt, pt, kt.toScalar());           \
             outs[0] = std::move(bt);                                             \
             if (nargout > 1) outs[1] = std::move(at);                            \
@@ -891,7 +886,7 @@ NK_LP2X1_REG(lp2hp, lp2hp)
                          0, 0, #name, "", "m:" #name ":nargin");                 \
         const double Wo = args[3].toScalar();                                   \
         const double Bw = args[4].toScalar();                                   \
-        auto [z, p, k] = fn(mr, args[0], args[1], args[2].toScalar(), Wo, Bw);  \
+        auto [z, p, k] = fn(args[0], args[1], args[2].toScalar(), Wo, Bw, mr);  \
         outs[0] = std::move(z);                                                  \
         if (nargout > 1) outs[1] = std::move(p);                                 \
         if (nargout > 2) outs[2] = std::move(k);                                 \
@@ -909,7 +904,7 @@ void bilinear_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
                      0, 0, "bilinear", "", "m:bilinear:nargin");
     const double fs = args[2].toScalar();
     const double fp = (args.size() >= 4 && !args[3].isEmpty()) ? args[3].toScalar() : 0.0;
-    auto [bd, ad] = bilinear(ctx.engine->resource(), args[0], args[1], fs, fp);
+    auto [bd, ad] = bilinear(args[0], args[1], fs, fp, ctx.engine->resource());
     outs[0] = std::move(bd);
     if (nargout > 1) outs[1] = std::move(ad);
 }
@@ -921,7 +916,7 @@ void impinvar_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
                      0, 0, "impinvar", "", "m:impinvar:nargin");
     const double fs  = args[2].toScalar();
     const double tol = (args.size() >= 4 && !args[3].isEmpty()) ? args[3].toScalar() : 1e-3;
-    auto [bd, ad] = impinvar(ctx.engine->resource(), args[0], args[1], fs, tol);
+    auto [bd, ad] = impinvar(args[0], args[1], fs, tol, ctx.engine->resource());
     outs[0] = std::move(bd);
     if (nargout > 1) outs[1] = std::move(ad);
 }
@@ -931,7 +926,7 @@ void freqs_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.size() < 3)
         throw Error("freqs: requires (b, a, w)",
                      0, 0, "freqs", "", "m:freqs:nargin");
-    outs[0] = freqs(ctx.engine->resource(), args[0], args[1], args[2]);
+    outs[0] = freqs(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 } // namespace detail
