@@ -70,8 +70,7 @@ std::vector<double> read_vec(const Value &v) {
 
 } // anonymous
 
-Value randsample(std::pmr::memory_resource *mr, int N, int K,
-                 bool with_replacement, const Value &weights)
+Value randsample(int N, int K, bool with_replacement, const Value &weights, std::pmr::memory_resource *mr)
 {
     if (N <= 0 || K <= 0)
         return Value::matrix(K > 0 ? K : 0, 1, ValueType::DOUBLE, mr);
@@ -95,8 +94,7 @@ Value randsample(std::pmr::memory_resource *mr, int N, int K,
     return out;
 }
 
-Value datasample(std::pmr::memory_resource *mr, const Value &X, int K,
-                 int dim, bool with_replacement, const Value &weights)
+Value datasample(const Value &X, int K, int dim, bool with_replacement, const Value &weights, std::pmr::memory_resource *mr)
 {
     const size_t M = X.dims().rows();
     const size_t D = X.dims().cols();
@@ -141,8 +139,7 @@ Value datasample(std::pmr::memory_resource *mr, const Value &X, int K,
 // function `fn` to each bootstrap sample. For now we support the common
 // case where `fn` is a function handle in the engine. The first
 // bootstrap iteration determines output dimension D (must be a row).
-Value bootstrp(std::pmr::memory_resource *mr, int nboot,
-               const Value & /*fn*/, const Value & /*X*/)
+Value bootstrp(int nboot, const Value & /*fn*/, const Value & /*X*/, std::pmr::memory_resource *mr)
 {
     // Function-handle invocation requires Engine::call which we don't
     // have directly here. Defer until we expose a function-handle
@@ -152,14 +149,13 @@ Value bootstrp(std::pmr::memory_resource *mr, int nboot,
                 0, 0, "bootstrp", "", "m:bootstrp:nyi");
 }
 
-Value jackknife(std::pmr::memory_resource * /*mr*/,
-                const Value & /*fn*/, const Value & /*X*/)
+Value jackknife(const Value & /*fn*/, const Value & /*X*/, std::pmr::memory_resource * /*mr*/)
 {
     throw Error("jackknife: function-handle invocation not yet supported",
                 0, 0, "jackknife", "", "m:jackknife:nyi");
 }
 
-Value combnk(std::pmr::memory_resource *mr, const Value &v, int K) {
+Value combnk(const Value &v, int K, std::pmr::memory_resource *mr) {
     // Coerce v to either an N-element vector (combinations of its values)
     // or a scalar N (combinations of 1..N).
     std::vector<double> items;
@@ -229,12 +225,10 @@ void randsample_reg(Span<const Value> args, size_t /*nargout*/,
     if (args[0].numel() == 1) {
         const int N = (int)args[0].toScalar();
         const int K = (int)args[1].toScalar();
-        outs[0] = randsample(ctx.engine->resource(), N, K,
-                             with_replacement, weights);
+        outs[0] = randsample(N, K, with_replacement, weights, ctx.engine->resource());
     } else {
         const int K = (int)args[1].toScalar();
-        outs[0] = datasample(ctx.engine->resource(), args[0], K, 1,
-                             with_replacement, weights);
+        outs[0] = datasample(args[0], K, 1, with_replacement, weights, ctx.engine->resource());
     }
 }
 
@@ -262,8 +256,7 @@ void datasample_reg(Span<const Value> args, size_t /*nargout*/,
             else if (k == "Weights")  weights = args[i + 1];
         }
     }
-    outs[0] = datasample(ctx.engine->resource(), args[0], K, dim,
-                          with_replacement, weights);
+    outs[0] = datasample(args[0], K, dim, with_replacement, weights, ctx.engine->resource());
 }
 
 // Helper: draw N indices in [0, N-1] with replacement, write into idx_out.
@@ -277,8 +270,7 @@ static void drawBootstrapIndices(int N, int *idx_out)
 }
 
 // Resample row indices of X into a same-shape Value.
-static Value resampleRows(std::pmr::memory_resource *mr, const Value &X,
-                          const int *idx, int N)
+static Value resampleRows(const Value &X, const int *idx, int N, std::pmr::memory_resource *mr)
 {
     if (X.dims().ndim() <= 1 || X.dims().dim(1) == 1) {
         // Vector input: return same-orientation vector of N samples.
@@ -327,7 +319,7 @@ void bootstrp_reg(Span<const Value> args, size_t /*nargout*/,
 
     // First call to determine output dimensionality of fn(sample).
     drawBootstrapIndices(N, idx.data());
-    auto sample0 = resampleRows(mr, X, idx.data(), N);
+    auto sample0 = resampleRows(X, idx.data(), N, mr);
     Value callArgs0[1] = { sample0 };
     auto stat0 = ctx.engine->callFunctionHandle(
         args[1], Span<const Value>(callArgs0, 1), ctx.env);
@@ -348,7 +340,7 @@ void bootstrp_reg(Span<const Value> args, size_t /*nargout*/,
     // Rows 1..nboot-1.
     for (int b = 1; b < nboot; ++b) {
         drawBootstrapIndices(N, idx.data());
-        auto sample = resampleRows(mr, X, idx.data(), N);
+        auto sample = resampleRows(X, idx.data(), N, mr);
         Value callArgs[1] = { sample };
         auto stat = ctx.engine->callFunctionHandle(
             args[1], Span<const Value>(callArgs, 1), ctx.env);
@@ -519,7 +511,7 @@ void jackknife_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("jackknife: requires (fn, X)", 0, 0, "jackknife", "",
                     "m:jackknife:nargin");
-    outs[0] = jackknife(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = jackknife(args[0], args[1], ctx.engine->resource());
 }
 
 void combnk_reg(Span<const Value> args, size_t /*nargout*/,
@@ -529,7 +521,7 @@ void combnk_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("combnk: requires (v, K)", 0, 0, "combnk", "",
                     "m:combnk:nargin");
     const int K = (int)args[1].toScalar();
-    outs[0] = combnk(ctx.engine->resource(), args[0], K);
+    outs[0] = combnk(args[0], K, ctx.engine->resource());
 }
 
 } // namespace detail
