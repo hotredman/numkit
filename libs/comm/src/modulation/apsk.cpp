@@ -18,6 +18,7 @@
 #include <numkit/comm/modulation/apsk.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <cmath>
@@ -37,21 +38,21 @@ namespace {
 
 // Build the natural-order constellation: for each ring r, its M[r]
 // points at radii[r] * exp(i * (phaseoffset[r] + 2π·k/M[r])).
-std::vector<Cd> buildConstellation(const std::vector<int> &M,
-                                   const std::vector<double> &radii,
+std::vector<Cd> buildConstellation(Span<const size_t> M,
+                                   Span<const double> radii,
                                    const std::vector<double> &phaseoffset)
 {
     const size_t R = M.size();
-    int N = 0;
-    for (int m : M) N += m;
+    size_t N = 0;
+    for (size_t m : M) N += m;
     std::vector<Cd> C;
     C.reserve(N);
     for (size_t r = 0; r < R; ++r) {
-        const int Mr = M[r];
+        const size_t Mr = M[r];
         const double radr = radii[r];
         const double pho  = phaseoffset[r];
-        for (int k = 0; k < Mr; ++k) {
-            const double theta = pho + 2.0 * M_PI * k / static_cast<double>(Mr);
+        for (size_t k = 0; k < Mr; ++k) {
+            const double theta = pho + 2.0 * M_PI * static_cast<double>(k) / static_cast<double>(Mr);
             C.emplace_back(radr * std::cos(theta), radr * std::sin(theta));
         }
     }
@@ -92,18 +93,16 @@ std::vector<int> invertMapping(const std::vector<int> &mapping)
 
 } // namespace
 
-Value apskmod(std::pmr::memory_resource *mr, const Value &x,
-              const Value &M_v, const Value &radii_v,
-              const Value *phaseoffset_v, const Value *mapping_v)
+Value apskmod(const Value &x, Span<const size_t> M, Span<const double> radii,
+              const Value &phaseoffset_v, const Value &mapping_v,
+              std::pmr::memory_resource *mr)
 {
-    std::vector<int>    M;       readVecInt(M_v, M);
-    std::vector<double> radii;   readVec(radii_v, radii);
     if (M.empty() || M.size() != radii.size())
         throw Error("apskmod: M and radii must be vectors of same length",
                     0, 0, "apskmod", "", "m:apskmod:DimMismatch");
     std::vector<double> phaseoffset(M.size());
-    if (phaseoffset_v && !phaseoffset_v->isEmpty()) {
-        readVec(*phaseoffset_v, phaseoffset);
+    if (!phaseoffset_v.isEmpty()) {
+        readVec(phaseoffset_v, phaseoffset);
         if (phaseoffset.size() == 1) {
             // Scalar broadcast.
             const double v = phaseoffset[0];
@@ -117,23 +116,23 @@ Value apskmod(std::pmr::memory_resource *mr, const Value &x,
             phaseoffset[r] = M_PI / static_cast<double>(M[r]);
     }
 
-    int Ntot = 0;
-    for (int m : M) Ntot += m;
+    size_t Ntot = 0;
+    for (size_t m : M) Ntot += m;
 
     std::vector<Cd> C = buildConstellation(M, radii, phaseoffset);
 
     // Mapping: identity by default; otherwise length-Ntot permutation.
     std::vector<int> invmap;
-    if (mapping_v && !mapping_v->isEmpty()) {
+    if (!mapping_v.isEmpty()) {
         std::vector<int> mapping;
-        readVecInt(*mapping_v, mapping);
-        if (mapping.size() != static_cast<size_t>(Ntot))
+        readVecInt(mapping_v, mapping);
+        if (mapping.size() != Ntot)
             throw Error("apskmod: SymbolMapping length must equal sum(M)",
                         0, 0, "apskmod", "", "m:apskmod:MappingLen");
         invmap = invertMapping(mapping);
     } else {
-        invmap.resize(static_cast<size_t>(Ntot));
-        for (int i = 0; i < Ntot; ++i) invmap[i] = i;
+        invmap.resize(Ntot);
+        for (size_t i = 0; i < Ntot; ++i) invmap[i] = static_cast<int>(i);
     }
 
     Value out = Value::matrix(x.dims().rows(), x.dims().cols(),
@@ -141,8 +140,8 @@ Value apskmod(std::pmr::memory_resource *mr, const Value &x,
     Cd *o = out.complexDataMut();
     const size_t Nx = x.numel();
     for (size_t i = 0; i < Nx; ++i) {
-        const int xi = static_cast<int>(x.elemAsDouble(i));
-        if (xi < 0 || xi >= Ntot)
+        const long xi = static_cast<long>(x.elemAsDouble(i));
+        if (xi < 0 || static_cast<size_t>(xi) >= Ntot)
             throw Error("apskmod: input index out of range [0, sum(M)-1]",
                         0, 0, "apskmod", "", "m:apskmod:OutOfRange");
         o[i] = C[static_cast<size_t>(invmap[static_cast<size_t>(xi)])];
@@ -150,18 +149,16 @@ Value apskmod(std::pmr::memory_resource *mr, const Value &x,
     return out;
 }
 
-Value apskdemod(std::pmr::memory_resource *mr, const Value &y,
-                const Value &M_v, const Value &radii_v,
-                const Value *phaseoffset_v, const Value *mapping_v)
+Value apskdemod(const Value &y, Span<const size_t> M, Span<const double> radii,
+                const Value &phaseoffset_v, const Value &mapping_v,
+                std::pmr::memory_resource *mr)
 {
-    std::vector<int>    M;       readVecInt(M_v, M);
-    std::vector<double> radii;   readVec(radii_v, radii);
     if (M.empty() || M.size() != radii.size())
         throw Error("apskdemod: M and radii must be vectors of same length",
                     0, 0, "apskdemod", "", "m:apskdemod:DimMismatch");
     std::vector<double> phaseoffset(M.size());
-    if (phaseoffset_v && !phaseoffset_v->isEmpty()) {
-        readVec(*phaseoffset_v, phaseoffset);
+    if (!phaseoffset_v.isEmpty()) {
+        readVec(phaseoffset_v, phaseoffset);
         if (phaseoffset.size() == 1) {
             const double v = phaseoffset[0];
             phaseoffset.assign(M.size(), v);
@@ -174,19 +171,19 @@ Value apskdemod(std::pmr::memory_resource *mr, const Value &y,
             phaseoffset[r] = M_PI / static_cast<double>(M[r]);
     }
 
-    int Ntot = 0;
-    for (int m : M) Ntot += m;
+    size_t Ntot = 0;
+    for (size_t m : M) Ntot += m;
     std::vector<Cd> C = buildConstellation(M, radii, phaseoffset);
 
     std::vector<int> mapping;
-    if (mapping_v && !mapping_v->isEmpty()) {
-        readVecInt(*mapping_v, mapping);
-        if (mapping.size() != static_cast<size_t>(Ntot))
+    if (!mapping_v.isEmpty()) {
+        readVecInt(mapping_v, mapping);
+        if (mapping.size() != Ntot)
             throw Error("apskdemod: SymbolMapping length must equal sum(M)",
                         0, 0, "apskdemod", "", "m:apskdemod:MappingLen");
     } else {
-        mapping.resize(static_cast<size_t>(Ntot));
-        for (int i = 0; i < Ntot; ++i) mapping[i] = i;
+        mapping.resize(Ntot);
+        for (size_t i = 0; i < Ntot; ++i) mapping[i] = static_cast<int>(i);
     }
 
     Value out = Value::matrix(y.dims().rows(), y.dims().cols(),
@@ -215,13 +212,30 @@ Value apskdemod(std::pmr::memory_resource *mr, const Value &y,
 
 namespace detail {
 
-// Helpers to extract optional phase / mapping arguments, treating
-// 'SymbolMapping' name-value pairs as a positional 5th arg.
-const Value *optArg(Span<const Value> args, size_t pos)
+namespace {
+
+// Build a ScratchVec<size_t> from a Value's elements via elemAsDouble.
+ScratchVec<size_t> valueToScratchSizes(const Value &v, std::pmr::memory_resource *mr)
 {
-    if (args.size() > pos && !args[pos].isEmpty()) return &args[pos];
-    return nullptr;
+    ScratchVec<size_t> out(mr);
+    const size_t n = v.numel();
+    out.reserve(n);
+    for (size_t i = 0; i < n; ++i)
+        out.push_back(static_cast<size_t>(v.elemAsDouble(i)));
+    return out;
 }
+
+ScratchVec<double> valueToScratchDoubles(const Value &v, std::pmr::memory_resource *mr)
+{
+    ScratchVec<double> out(mr);
+    const size_t n = v.numel();
+    out.reserve(n);
+    for (size_t i = 0; i < n; ++i)
+        out.push_back(v.elemAsDouble(i));
+    return out;
+}
+
+} // namespace
 
 void apskmod_reg(Span<const Value> args, size_t /*nargout*/,
                  Span<Value> outs, CallContext &ctx)
@@ -230,9 +244,15 @@ void apskmod_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("apskmod: requires (x, M, radii [, phaseoffset [, mapping]])",
                     0, 0, "apskmod", "", "m:apskmod:nargin");
     auto *mr = ctx.engine->resource();
-    const Value *po = optArg(args, 3);
-    const Value *mp = optArg(args, 4);
-    outs[0] = apskmod(mr, args[0], args[1], args[2], po, mp);
+    ScratchArena scratch(mr);
+    auto Mv = valueToScratchSizes(args[1], &scratch);
+    auto Rv = valueToScratchDoubles(args[2], &scratch);
+    const Value &po = (args.size() > 3) ? args[3] : Value::Empty;
+    const Value &mp = (args.size() > 4) ? args[4] : Value::Empty;
+    outs[0] = apskmod(args[0],
+                      Span<const size_t>(Mv.data(), Mv.size()),
+                      Span<const double>(Rv.data(), Rv.size()),
+                      po, mp, mr);
 }
 
 void apskdemod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -242,9 +262,15 @@ void apskdemod_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("apskdemod: requires (y, M, radii [, phaseoffset [, mapping]])",
                     0, 0, "apskdemod", "", "m:apskdemod:nargin");
     auto *mr = ctx.engine->resource();
-    const Value *po = optArg(args, 3);
-    const Value *mp = optArg(args, 4);
-    outs[0] = apskdemod(mr, args[0], args[1], args[2], po, mp);
+    ScratchArena scratch(mr);
+    auto Mv = valueToScratchSizes(args[1], &scratch);
+    auto Rv = valueToScratchDoubles(args[2], &scratch);
+    const Value &po = (args.size() > 3) ? args[3] : Value::Empty;
+    const Value &mp = (args.size() > 4) ? args[4] : Value::Empty;
+    outs[0] = apskdemod(args[0],
+                        Span<const size_t>(Mv.data(), Mv.size()),
+                        Span<const double>(Rv.data(), Rv.size()),
+                        po, mp, mr);
 }
 
 } // namespace detail

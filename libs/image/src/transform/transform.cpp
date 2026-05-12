@@ -455,7 +455,7 @@ Value fftconv2(const Value &A, const Value &B, const std::string &shape, std::pm
     return Ycrop;
 }
 
-Value psf2otf(const Value &PSF, const Value &outsize, std::pmr::memory_resource *mr)
+Value psf2otf(const Value &PSF, Span<const size_t> outsize, std::pmr::memory_resource *mr)
 {
     const auto &d = PSF.dims();
     const size_t inH = d.rows();
@@ -467,11 +467,11 @@ Value psf2otf(const Value &PSF, const Value &outsize, std::pmr::memory_resource 
     //   outsize as scalar L           — for 1-D = new length; 2-D = L×L.
     size_t outH = inH;
     size_t outW = inW;
-    if (outsize.numel() >= 2) {
-        outH = static_cast<size_t>(outsize.elemAsDouble(0));
-        outW = static_cast<size_t>(outsize.elemAsDouble(1));
-    } else if (outsize.numel() == 1) {
-        const size_t L = static_cast<size_t>(outsize.elemAsDouble(0));
+    if (outsize.size() >= 2) {
+        outH = outsize[0];
+        outW = outsize[1];
+    } else if (outsize.size() == 1) {
+        const size_t L = outsize[0];
         if (is1D) {
             if (inH == 1) { outH = 1; outW = L; }
             else          { outH = L; outW = 1; }
@@ -504,7 +504,7 @@ Value psf2otf(const Value &PSF, const Value &outsize, std::pmr::memory_resource 
                 : signal::fft2(shifted, -1, -1, mr);
 }
 
-Value otf2psf(const Value &OTF, const Value &outsize, std::pmr::memory_resource *mr)
+Value otf2psf(const Value &OTF, Span<const size_t> outsize, std::pmr::memory_resource *mr)
 {
     const auto &d = OTF.dims();
     const size_t inH = d.rows();
@@ -741,9 +741,16 @@ void psf2otf_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("psf2otf: requires (PSF [, outsize])",
                     0, 0, "psf2otf", "", "m:psf2otf:nargin");
-    Value outsize;
-    if (args.size() >= 2 && !args[1].isEmpty()) outsize = args[1];
-    outs[0] = psf2otf(args[0], outsize, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    ScratchVec<size_t> outsizeBuf(&scratch);
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const size_t n = args[1].numel();
+        outsizeBuf.reserve(n);
+        for (size_t i = 0; i < n; ++i)
+            outsizeBuf.push_back(static_cast<size_t>(args[1].elemAsDouble(i)));
+    }
+    outs[0] = psf2otf(args[0], Span<const size_t>(outsizeBuf.data(), outsizeBuf.size()), mr);
 }
 
 void bestblk_reg(Span<const Value> args, size_t nargout,
@@ -787,9 +794,16 @@ void otf2psf_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("otf2psf: requires (OTF [, outsize])",
                     0, 0, "otf2psf", "", "m:otf2psf:nargin");
-    Value outsize;
-    if (args.size() >= 2 && !args[1].isEmpty()) outsize = args[1];
-    outs[0] = otf2psf(args[0], outsize, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    ScratchVec<size_t> outsizeBuf(&scratch);
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const size_t n = args[1].numel();
+        outsizeBuf.reserve(n);
+        for (size_t i = 0; i < n; ++i)
+            outsizeBuf.push_back(static_cast<size_t>(args[1].elemAsDouble(i)));
+    }
+    outs[0] = otf2psf(args[0], Span<const size_t>(outsizeBuf.data(), outsizeBuf.size()), mr);
 }
 
 void checkerboard_reg(Span<const Value> args, size_t /*nargout*/,
