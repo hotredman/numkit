@@ -27,6 +27,18 @@ namespace numkit::signal {
 
 namespace {
 
+// Extract a numeric Value (any class) into a contiguous double row on
+// the supplied arena. Mirrors the `extractRow` lambda that used to be
+// duplicated in every filter_design dispatcher.
+ScratchVec<double> valueToDoubleRow(const Value &v, ScratchArena &arena)
+{
+    const std::size_t n = v.numel();
+    ScratchVec<double> dst(n, &arena);
+    for (std::size_t i = 0; i < n; ++i)
+        dst[i] = v.elemAsDouble(i);
+    return dst;
+}
+
 ScratchVec<Complex> butterworthPoles(std::pmr::memory_resource *mr, int N)
 {
     ScratchVec<Complex> poles(mr);
@@ -93,7 +105,7 @@ void normaliseAtRef(ScratchVec<double> &b, const ScratchVec<double> &a,
 } // anonymous namespace
 
 std::tuple<Value, Value>
-butter(std::pmr::memory_resource *mr, int N, double Wn, const std::string &type)
+butter(int N, double Wn, const std::string &type, std::pmr::memory_resource *mr)
 {
     if (Wn <= 0.0 || Wn >= 1.0)
         throw Error("butter: Wn must be between 0 and 1",
@@ -210,13 +222,21 @@ inline double Iclin(int k, double w, double w0)
 
 } // anonymous namespace
 
-Value firls(std::pmr::memory_resource *mr, int N,
-            const double *F, std::size_t Fn,
-            const double *A, std::size_t An)
+Value firls(int N, const Value &Farg, const Value &Aarg,
+            std::pmr::memory_resource *mr)
 {
     if (N < 2 || (N % 2) != 0)
         throw Error("firls: filter order must be even (Type-I) and >= 2",
                     0, 0, "firls", "", "m:firls:badOrder");
+
+    ScratchArena scratch(mr);
+    auto Fv = valueToDoubleRow(Farg, scratch);
+    auto Av = valueToDoubleRow(Aarg, scratch);
+    const double *F = Fv.data();
+    const double *A = Av.data();
+    const std::size_t Fn = Fv.size();
+    const std::size_t An = Av.size();
+
     if (Fn == 0 || Fn != An)
         throw Error("firls: F and A must have the same non-empty length",
                     0, 0, "firls", "", "m:firls:badLen");
@@ -236,7 +256,6 @@ Value firls(std::pmr::memory_resource *mr, int N,
     const std::size_t M1 = M + 1;
     const std::size_t numBands = Fn / 2;
 
-    ScratchArena scratch(mr);
     ScratchVec<double> Q(M1 * M1, 0.0, &scratch);
     ScratchVec<double> bvec(M1, 0.0, &scratch);
 
@@ -290,7 +309,7 @@ Value firls(std::pmr::memory_resource *mr, int N,
     return bv;
 }
 
-Value fir1(std::pmr::memory_resource *mr, int N, double Wn, const std::string &type)
+Value fir1(int N, double Wn, const std::string &type, std::pmr::memory_resource *mr)
 {
     if (Wn <= 0.0 || Wn >= 1.0)
         throw Error("fir1: Wn must be between 0 and 1",
@@ -347,7 +366,7 @@ void butter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
     if (args.size() >= 3 && args[2].isChar())
         type = args[2].toString();
 
-    auto [bv, av] = butter(ctx.engine->resource(), N, Wn, type);
+    auto [bv, av] = butter(N, Wn, type, ctx.engine->resource());
     outs[0] = std::move(bv);
     if (nargout > 1)
         outs[1] = std::move(av);
@@ -364,7 +383,7 @@ void fir1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.size() >= 3 && args[2].isChar())
         type = args[2].toString();
 
-    outs[0] = fir1(ctx.engine->resource(), N, Wn, type);
+    outs[0] = fir1(N, Wn, type, ctx.engine->resource());
 }
 
 void firls_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -373,19 +392,7 @@ void firls_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
         throw Error("firls: requires 3 arguments (N, F, A)",
                     0, 0, "firls", "", "m:firls:nargin");
     const int N = static_cast<int>(args[0].toScalar());
-
-    auto extractRow = [](const Value &v, std::vector<double> &dst) {
-        const std::size_t n = v.numel();
-        dst.resize(n);
-        for (std::size_t i = 0; i < n; ++i) dst[i] = v.elemAsDouble(i);
-    };
-
-    std::vector<double> Fv, Av;
-    extractRow(args[1], Fv);
-    extractRow(args[2], Av);
-
-    outs[0] = firls(ctx.engine->resource(), N,
-                    Fv.data(), Fv.size(), Av.data(), Av.size());
+    outs[0] = firls(N, args[1], args[2], ctx.engine->resource());
 }
 
 void fir2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -394,16 +401,7 @@ void fir2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         throw Error("fir2: requires (N, F, A)",
                     0, 0, "fir2", "", "m:fir2:nargin");
     const int N = static_cast<int>(args[0].toScalar());
-    auto extractRow = [](const Value &v, std::vector<double> &dst) {
-        const std::size_t n = v.numel();
-        dst.resize(n);
-        for (std::size_t i = 0; i < n; ++i) dst[i] = v.elemAsDouble(i);
-    };
-    std::vector<double> Fv, Av;
-    extractRow(args[1], Fv);
-    extractRow(args[2], Av);
-    outs[0] = fir2(ctx.engine->resource(), N,
-                    Fv.data(), Fv.size(), Av.data(), Av.size());
+    outs[0] = fir2(N, args[1], args[2], ctx.engine->resource());
 }
 
 } // namespace detail
@@ -415,7 +413,7 @@ void fir2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 // extracts a leading scalar gain section if present.
 
 std::tuple<Value, Value>
-cell2sos(std::pmr::memory_resource *mr, const Value &C)
+cell2sos(const Value &C, std::pmr::memory_resource *mr)
 {
     if (!C.isCell())
         throw Error("cell2sos: input must be a cell array",
@@ -479,7 +477,7 @@ void cell2sos_reg(Span<const Value> args, size_t nargout,
     if (args.empty())
         throw Error("cell2sos: requires (C)",
                     0, 0, "cell2sos", "", "m:cell2sos:nargin");
-    auto [S, g] = cell2sos(ctx.engine->resource(), args[0]);
+    auto [S, g] = cell2sos(args[0], ctx.engine->resource());
     outs[0] = std::move(S);
     if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(g);
 }
@@ -511,13 +509,21 @@ void cell2sos_reg(Span<const Value> args, size_t nargout,
 //   Mirror: H_full = [H, conj(H[end-1..1])]   length = 2 * npt
 //   ht = real(ifft(H_full))                   uses power-of-2 ifft
 //   b  = ht[0..nn-1] .* wind
-Value fir2(std::pmr::memory_resource *mr, int N,
-           const double *F, std::size_t Fn,
-           const double *A, std::size_t An)
+Value fir2(int N, const Value &Farg, const Value &Aarg,
+           std::pmr::memory_resource *mr)
 {
     if (N < 0)
         throw Error("fir2: N must be >= 0",
                     0, 0, "fir2", "", "m:fir2:BadN");
+
+    ScratchArena scratch(mr);
+    auto Fv = valueToDoubleRow(Farg, scratch);
+    auto Av = valueToDoubleRow(Aarg, scratch);
+    const double *F = Fv.data();
+    const double *A = Av.data();
+    const std::size_t Fn = Fv.size();
+    const std::size_t An = Av.size();
+
     if (Fn != An)
         throw Error("fir2: F and A must have same length",
                     0, 0, "fir2", "", "m:fir2:MismatchedDimensions");
@@ -545,7 +551,6 @@ Value fir2(std::pmr::memory_resource *mr, int N,
     const std::size_t lap = npt / 25;
     const std::size_t nptP1 = npt + 1;  // length of [DC..Nyquist] grid
 
-    ScratchArena scratch(mr);
     ScratchVec<double> H(nptP1, &scratch);
     std::fill(H.data(), H.data() + nptP1, 0.0);
     H[0] = A[0];
@@ -678,15 +683,24 @@ struct PMGridPoint {
 } // anonymous namespace
 
 std::tuple<Value, double>
-firpm(std::pmr::memory_resource *mr, int N,
-      const double *F, std::size_t Fn,
-      const double *A, std::size_t An,
-      const double *W, std::size_t Wn,
-      const std::string &ftype)
+firpm(int N, const Value &Farg, const Value &Aarg, const Value &Warg,
+      const std::string &ftype, std::pmr::memory_resource *mr)
 {
     if (N < 3)
         throw Error("Filter order must be 3 or more",
                     0, 0, "firpm", "", "m:firpm:badOrder");
+
+    ScratchArena arena(mr);
+    auto Fv = valueToDoubleRow(Farg, arena);
+    auto Av = valueToDoubleRow(Aarg, arena);
+    auto Wv = valueToDoubleRow(Warg, arena);
+    const double *F = Fv.data();
+    const double *A = Av.data();
+    const double *W = Wv.empty() ? nullptr : Wv.data();
+    const std::size_t Fn = Fv.size();
+    const std::size_t An = Av.size();
+    const std::size_t Wn = Wv.size();
+
     if (Fn == 0 || Fn != An || (Fn % 2) != 0)
         throw Error("firpm: F and A must be non-empty equal-length even-length",
                     0, 0, "firpm", "", "m:firpm:badLen");
@@ -744,8 +758,6 @@ firpm(std::pmr::memory_resource *mr, int N,
     const std::size_t r     = L + 1;       // # cosine basis coefficients
     const std::size_t nExtr = r + 1;       // # extremal frequencies (= L+2)
     constexpr int lgrid = 16;              // MATLAB default grid density
-
-    ScratchArena arena(mr);
 
     // Total fractional width across all bands (proportional grid alloc).
     double totalWidth = 0.0;
@@ -1191,34 +1203,22 @@ void firpm_reg(Span<const Value> args, std::size_t nargout, Span<Value> outs,
                     0, 0, "firpm", "", "m:firpm:nargin");
     const int N = static_cast<int>(args[0].toScalar());
 
-    auto extractRow = [](const Value &v, std::vector<double> &dst) {
-        const std::size_t n = v.numel();
-        dst.resize(n);
-        for (std::size_t i = 0; i < n; ++i) dst[i] = v.elemAsDouble(i);
-    };
-
-    std::vector<double> Fv, Av, Wv;
-    std::string ftype;
-    extractRow(args[1], Fv);
-    extractRow(args[2], Av);
     // Trailing args: weights vector (numeric) or ftype string. MATLAB
     // accepts them in either order (W [, ftype] or ftype only).
+    Value W;
+    std::string ftype;
     for (std::size_t i = 3; i < args.size(); ++i) {
         if (args[i].isCell())
             throw Error("firpm: cell-form lgrid argument deferred",
                         0, 0, "firpm", "", "m:firpm:unsupportedLgrid");
-        if (args[i].isChar()) {
+        if (args[i].isChar())
             ftype = args[i].toString();
-        } else {
-            extractRow(args[i], Wv);
-        }
+        else
+            W = args[i];
     }
 
-    auto [b, err] = firpm(ctx.engine->resource(), N,
-                          Fv.data(), Fv.size(),
-                          Av.data(), Av.size(),
-                          Wv.empty() ? nullptr : Wv.data(), Wv.size(),
-                          ftype);
+    auto [b, err] = firpm(N, args[1], args[2], W, ftype,
+                          ctx.engine->resource());
     outs[0] = std::move(b);
     if (nargout >= 2 && outs.size() >= 2)
         outs[1] = Value::scalar(err, ctx.engine->resource());

@@ -255,11 +255,14 @@ Value histeq(std::pmr::memory_resource *mr, const Value &I, int n)
 //   4. Strip padding from the output.
 //
 // 2-D greyscale input only — RGB / N-D throw (matches MATLAB).
-Value adapthisteq(std::pmr::memory_resource *mr, const Value &I,
-                  int numTilesR, int numTilesC,
-                  double clipLimit, int nBins,
-                  const std::string &distribution, double /*alpha*/)
+Value adapthisteq(const Value &I, const AdaptHistEqOptions &opts,
+                  std::pmr::memory_resource *mr)
 {
+    const int          numTilesR    = opts.numTilesR;
+    const int          numTilesC    = opts.numTilesC;
+    const double       clipLimit    = opts.clipLimit;
+    const int          nBins        = opts.nBins;
+    const std::string &distribution = opts.distribution;
     if (numTilesR < 2 || numTilesC < 2)
         throw Error("adapthisteq: NumTiles components must each be >= 2",
                     0, 0, "adapthisteq", "", "m:adapthisteq:badTiles");
@@ -1390,12 +1393,7 @@ void adapthisteq_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("adapthisteq: requires (I[, NV-pairs...])",
                      0, 0, "adapthisteq", "", "m:adapthisteq:nargin");
 
-    int    numTilesR  = 8;
-    int    numTilesC  = 8;
-    double clipLimit  = 0.01;
-    int    nBins      = 256;
-    std::string distribution = "uniform";
-    double alpha      = 0.4;
+    AdaptHistEqOptions opts;
 
     auto eqIgnoreCase = [](const std::string &a, const char *b) {
         if (a.size() != std::strlen(b)) return false;
@@ -1413,12 +1411,12 @@ void adapthisteq_reg(Span<const Value> args, size_t /*nargout*/,
             if (v.numel() < 2)
                 throw Error("adapthisteq: NumTiles must be 2-element",
                              0, 0, "adapthisteq", "", "m:adapthisteq:badNumTiles");
-            numTilesR = (int)v.elemAsDouble(0);
-            numTilesC = (int)v.elemAsDouble(1);
-        } else if (eqIgnoreCase(key, "ClipLimit"))    clipLimit    = v.toScalar();
-        else if (eqIgnoreCase(key, "NBins"))          nBins        = (int)v.toScalar();
-        else if (eqIgnoreCase(key, "Distribution"))   distribution = v.toString();
-        else if (eqIgnoreCase(key, "Alpha"))          alpha        = v.toScalar();
+            opts.numTilesR = (int)v.elemAsDouble(0);
+            opts.numTilesC = (int)v.elemAsDouble(1);
+        } else if (eqIgnoreCase(key, "ClipLimit"))    opts.clipLimit    = v.toScalar();
+        else if (eqIgnoreCase(key, "NBins"))          opts.nBins        = (int)v.toScalar();
+        else if (eqIgnoreCase(key, "Distribution"))   opts.distribution = v.toString();
+        else if (eqIgnoreCase(key, "Alpha"))          opts.alpha        = v.toScalar();
         else if (eqIgnoreCase(key, "Range")) {
             const std::string r = v.toString();
             if (r != "full")
@@ -1430,9 +1428,7 @@ void adapthisteq_reg(Span<const Value> args, size_t /*nargout*/,
                          0, 0, "adapthisteq", "", "m:adapthisteq:badNVKey");
         }
     }
-    outs[0] = adapthisteq(ctx.engine->resource(), args[0],
-                          numTilesR, numTilesC, clipLimit, nBins,
-                          distribution, alpha);
+    outs[0] = adapthisteq(args[0], opts, ctx.engine->resource());
 }
 
 void graythresh_reg(Span<const Value> args, size_t nargout,

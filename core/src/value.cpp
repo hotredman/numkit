@@ -84,7 +84,11 @@ void Value::detach()
 {
     if (!isHeap())
         return;
-    if (heap_->refCount.load(std::memory_order_acquire) <= 1)
+    // Views (non-owning buffers wrapped via Value::view) must clone
+    // unconditionally — refcount alone doesn't capture the "external
+    // memory we promised not to write" invariant.
+    const bool isView = heap_->buffer && !heap_->buffer->owns();
+    if (!isView && heap_->refCount.load(std::memory_order_acquire) <= 1)
         return;
     HeapObject *c = heap_->clone();
     releaseHeap();
@@ -94,6 +98,43 @@ HeapObject *Value::mutableHeap()
 {
     detach();
     return heap_;
+}
+
+// ── Ergonomic ctors / view ─────────────────────────────────────
+// Shared between Value(initializer_list) / Value(Span) / Value(vector)
+// / Value(array). Allocates a 1×count row of `type` and memcpy's the
+// source bytes in. count=0 returns an empty 1×0 matrix.
+Value Value::makeContiguous(const void *src, size_t count,
+                            ValueType type, size_t elemSize,
+                            std::pmr::memory_resource *mr)
+{
+    Value v = Value::matrix(1, count, type, mr);
+    if (count > 0 && src != nullptr) {
+        std::memcpy(v.rawDataMut(), src, count * elemSize);
+    }
+    return v;
+}
+
+Value::Value(std::initializer_list<double> il, std::pmr::memory_resource *mr)
+    : Value()
+{
+    *this = makeContiguous(il.begin(), il.size(),
+                            ValueType::DOUBLE, sizeof(double), mr);
+}
+
+Value Value::view(const void *data, ValueType type, Dims dims)
+{
+    Value v;
+    auto *h = new HeapObject();
+    h->type = type;
+    h->dims = std::move(dims);
+    h->mr = std::pmr::get_default_resource();
+    const size_t bytes = h->dims.numel() * elementSize(type);
+    h->buffer = new DataBuffer(DataBuffer::ViewTag{},
+                                const_cast<void *>(data),
+                                bytes);
+    v.heap_ = h;
+    return v;
 }
 
 Value Value::scalar(double v, std::pmr::memory_resource *)
