@@ -85,7 +85,7 @@ Value polystab(const Value &a, std::pmr::memory_resource *mr)
     }
 
     // 1. Compute roots(a) via libs/builtin.
-    Value rv = builtin::roots(mr, a);
+    Value rv = builtin::roots(a, mr);
     const size_t R = rv.numel();
     // Roots may come back as DOUBLE (real-only) or COMPLEX.
     const bool rootsCplx = (rv.type() == ValueType::COMPLEX);
@@ -121,7 +121,7 @@ Value polystab(const Value &a, std::pmr::memory_resource *mr)
         Complex *p = rootsStableV.complexDataMut();
         std::copy(stable.data(), stable.data() + R, p);
     }
-    Value bRaw = builtin::poly(mr, rootsStableV);
+    Value bRaw = builtin::poly(rootsStableV, mr);
 
     // 4. Multiply by leading nonzero coefficient of a (matches MATLAB:
     //    `b = a(find(ind, 1)) * poly(v)`).

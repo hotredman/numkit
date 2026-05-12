@@ -59,14 +59,14 @@ namespace numkit::builtin {
 
 // ── Arithmetic ──────────────────────────────────────────────────────────
 
-Value plus(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value plus(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
     // MATLAB auto-coerces logical to double for arithmetic. See BUGS.md #24.
     if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
-        return plus(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
+        return plus(coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p), p);
     if (a.isComplex() || b.isComplex())
         return elementwiseComplex(a, b, std::plus<Complex>{}, p);
     if (a.type() == ValueType::DOUBLE && b.type() == ValueType::DOUBLE) {
@@ -112,13 +112,13 @@ Value plus(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     throw Error("Unsupported types for +", 0, 0, "plus", "", "m:plus:unsupportedTypes");
 }
 
-Value minus(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value minus(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
     if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
-        return minus(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
+        return minus(coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p), p);
     if (a.isComplex() || b.isComplex())
         return elementwiseComplex(a, b, std::minus<Complex>{}, p);
     if (a.type() == ValueType::DOUBLE && b.type() == ValueType::DOUBLE) {
@@ -136,13 +136,13 @@ Value minus(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     throw Error("Unsupported types for -", 0, 0, "minus", "", "m:minus:unsupportedTypes");
 }
 
-Value times(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value times(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
     if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
-        return times(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
+        return times(coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p), p);
     if (a.isComplex() || b.isComplex())
         return elementwiseComplex(a, b, std::multiplies<Complex>{}, p);
     if (a.type() == ValueType::DOUBLE && b.type() == ValueType::DOUBLE) {
@@ -160,12 +160,12 @@ Value times(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     throw Error("Unsupported types for .*", 0, 0, "times", "", "m:times:unsupportedTypes");
 }
 
-Value mtimes(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value mtimes(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
 
     if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
-        return mtimes(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
+        return mtimes(coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p), p);
 
     // Matrix-multiply is undefined for N-D arrays (N > 2) except the
     // scalar * NDArray degenerate form, which is just an elementwise
@@ -214,13 +214,13 @@ Value mtimes(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     throw Error("Unsupported types for *", 0, 0, "mtimes", "", "m:mtimes:unsupportedTypes");
 }
 
-Value rdivide(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value rdivide(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
     if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
-        return rdivide(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
+        return rdivide(coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p), p);
     if (a.isComplex() || b.isComplex())
         return elementwiseComplex(a, b, std::divides<Complex>{}, p);
     if (a.type() == ValueType::DOUBLE && b.type() == ValueType::DOUBLE) {
@@ -259,8 +259,7 @@ void copyColumnMajorDouble(const Value &v, double *dst)
 
 // Solve A·X = B via la_solve, packed up as Value math. A is m×n, B is m×k.
 // Output is n×k. Uses scratch arena; final result is placed on `mr`.
-Value matrixSolve(std::pmr::memory_resource *mr,
-                  const Value &A, const Value &B, const char *opname)
+Value matrixSolve(const Value &A, const Value &B, const char *opname, std::pmr::memory_resource *mr)
 {
     const std::size_t m  = A.dims().rows();
     const std::size_t n  = A.dims().cols();
@@ -283,8 +282,7 @@ Value matrixSolve(std::pmr::memory_resource *mr,
 
     Value X = Value::matrix(n, k, ValueType::DOUBLE, mr);
     double *Xd = X.doubleDataMut();
-    if (!detail::la_solve(&arena, A_buf.data(), m, n,
-                          B_buf.data(), k, Xd))
+    if (!detail::la_solve(A_buf.data(), m, n, B_buf.data(), k, Xd, &arena))
         throw Error(std::string(opname)
                     + ": matrix is singular or rank-deficient",
                     0, 0, opname, "",
@@ -294,7 +292,7 @@ Value matrixSolve(std::pmr::memory_resource *mr,
 
 // Compute the transpose of an m×n DOUBLE Value (column-major) into a
 // new n×m DOUBLE Value on `mr`.
-Value transposeDouble(std::pmr::memory_resource *mr, const Value &A)
+Value transposeDouble(const Value &A, std::pmr::memory_resource *mr)
 {
     const std::size_t m = A.dims().rows();
     const std::size_t n = A.dims().cols();
@@ -315,13 +313,13 @@ Value transposeDouble(std::pmr::memory_resource *mr, const Value &A)
 
 } // namespace
 
-Value mrdivide(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value mrdivide(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
     if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
-        return mrdivide(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
+        return mrdivide(coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p), p);
     if (a.isComplex() || b.isComplex())
         return elementwiseComplex(a, b, std::divides<Complex>{}, p);
     {
@@ -342,20 +340,20 @@ Value mrdivide(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     // Matrix right division: X = A / B  ↔  X · B = A.
     // Standard identity: X = (B' \ A')'. Same LU/QR primitives as mldivide.
     {
-        Value Bt = transposeDouble(p, b);
-        Value At = transposeDouble(p, a);
-        Value Y  = matrixSolve(p, Bt, At, "mrdivide");
-        return transposeDouble(p, Y);
+        Value Bt = transposeDouble(b, p);
+        Value At = transposeDouble(a, p);
+        Value Y  = matrixSolve(Bt, At, "mrdivide", p);
+        return transposeDouble(Y, p);
     }
 }
 
-Value mldivide(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value mldivide(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
     if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
-        return mldivide(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
+        return mldivide(coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p), p);
     if (a.isComplex() || b.isComplex())
         throw Error("mldivide: complex matrix systems not yet supported",
                     0, 0, "mldivide", "", "m:mldivide:complex");
@@ -366,16 +364,16 @@ Value mldivide(std::pmr::memory_resource *mr, const Value &a, const Value &b)
         return elementwiseDouble(b, a, std::divides<double>{}, p);
     }
     // Matrix left division: A·X = B.  Square → LU; tall → QR (LSQ).
-    return matrixSolve(p, a, b, "mldivide");
+    return matrixSolve(a, b, "mldivide", p);
 }
 
-Value power(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value power(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
     if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
-        return power(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
+        return power(coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p), p);
     if (a.isComplex() || b.isComplex()) {
         auto [ca, cb] = promoteToComplex(a, b, p);
         return Value::complexScalar(std::pow(ca.toComplex(), cb.toComplex()), p);
@@ -403,7 +401,7 @@ Value power(std::pmr::memory_resource *mr, const Value &a, const Value &b)
             }
             // Repeat-multiply via existing mtimes.
             Value acc = a;
-            for (long k = 1; k < n; ++k) acc = mtimes(p, acc, a);
+            for (long k = 1; k < n; ++k) acc = mtimes(acc, a, p);
             return acc;
         }
     }
@@ -411,13 +409,13 @@ Value power(std::pmr::memory_resource *mr, const Value &a, const Value &b)
                  "m:power:notImplemented");
 }
 
-Value elementPower(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value elementPower(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
     if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
-        return elementPower(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
+        return elementPower(coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p), p);
     if (a.isComplex() || b.isComplex()) {
         return elementwiseComplex(
             a, b, [](const Complex &x, const Complex &y) { return std::pow(x, y); }, p);
@@ -695,18 +693,18 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
 
 } // namespace
 
-Value eq(std::pmr::memory_resource *, const Value &a, const Value &b) { return compareImpl(Cmp::EQ, a, b); }
-Value ne(std::pmr::memory_resource *, const Value &a, const Value &b) { return compareImpl(Cmp::NE, a, b); }
-Value lt(std::pmr::memory_resource *, const Value &a, const Value &b) { return compareImpl(Cmp::LT, a, b); }
-Value gt(std::pmr::memory_resource *, const Value &a, const Value &b) { return compareImpl(Cmp::GT, a, b); }
-Value le(std::pmr::memory_resource *, const Value &a, const Value &b) { return compareImpl(Cmp::LE, a, b); }
-Value ge(std::pmr::memory_resource *, const Value &a, const Value &b) { return compareImpl(Cmp::GE, a, b); }
+Value eq(const Value &a, const Value &b, std::pmr::memory_resource *) { return compareImpl(Cmp::EQ, a, b); }
+Value ne(const Value &a, const Value &b, std::pmr::memory_resource *) { return compareImpl(Cmp::NE, a, b); }
+Value lt(const Value &a, const Value &b, std::pmr::memory_resource *) { return compareImpl(Cmp::LT, a, b); }
+Value gt(const Value &a, const Value &b, std::pmr::memory_resource *) { return compareImpl(Cmp::GT, a, b); }
+Value le(const Value &a, const Value &b, std::pmr::memory_resource *) { return compareImpl(Cmp::LE, a, b); }
+Value ge(const Value &a, const Value &b, std::pmr::memory_resource *) { return compareImpl(Cmp::GE, a, b); }
 
 // ── Logical ──────────────────────────────────────────────────────────────
 
 namespace {
 
-ScratchVec<uint8_t> toBoolArray(std::pmr::memory_resource *mr, const Value &v)
+ScratchVec<uint8_t> toBoolArray(const Value &v, std::pmr::memory_resource *mr)
 {
     ScratchVec<uint8_t> r(v.numel(), mr);
     if (v.isLogical()) {
@@ -732,7 +730,7 @@ Value logicalBinary(const char *opName, Op op,
     ScratchArena scratch(mr);
     if (a.isScalar()) {
         bool av = a.toBool();
-        auto bb = toBoolArray(&scratch, b);
+        auto bb = toBoolArray(b, &scratch);
         auto r = createLike(b, ValueType::LOGICAL, mr);
         uint8_t *dst = r.logicalDataMut();
         for (size_t i = 0; i < bb.size(); ++i)
@@ -741,7 +739,7 @@ Value logicalBinary(const char *opName, Op op,
     }
     if (b.isScalar()) {
         bool bv = b.toBool();
-        auto aa = toBoolArray(&scratch, a);
+        auto aa = toBoolArray(a, &scratch);
         auto r = createLike(a, ValueType::LOGICAL, mr);
         uint8_t *dst = r.logicalDataMut();
         for (size_t i = 0; i < aa.size(); ++i)
@@ -751,8 +749,8 @@ Value logicalBinary(const char *opName, Op op,
     if (a.numel() != b.numel())
         throw Error(std::string("Matrix dimensions must agree for ") + opName,
                      0, 0, opName, "", "m:dimagree");
-    auto aa = toBoolArray(&scratch, a);
-    auto bb = toBoolArray(&scratch, b);
+    auto aa = toBoolArray(a, &scratch);
+    auto bb = toBoolArray(b, &scratch);
     auto r = createLike(a, ValueType::LOGICAL, mr);
     uint8_t *dst = r.logicalDataMut();
     for (size_t i = 0; i < aa.size(); ++i)
@@ -762,12 +760,12 @@ Value logicalBinary(const char *opName, Op op,
 
 } // namespace
 
-Value logicalAnd(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value logicalAnd(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     return logicalBinary("&", [](bool x, bool y) { return x && y; }, mr, a, b);
 }
 
-Value logicalOr(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value logicalOr(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     return logicalBinary("|", [](bool x, bool y) { return x || y; }, mr, a, b);
 }
@@ -785,7 +783,7 @@ namespace detail {
         if (args.size() < 2)                                                          \
             throw Error(#MATLAB_NAME ": requires 2 arguments",                       \
                          0, 0, #MATLAB_NAME, "", "m:" #MATLAB_NAME ":nargin");        \
-        outs[0] = CXX_FN(ctx.engine->resource(), args[0], args[1]);                  \
+        outs[0] = CXX_FN(args[0], args[1], ctx.engine->resource());                  \
     }
 
 NK_BINOP_REG(plus,     plus)
@@ -813,7 +811,7 @@ void ldivide_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("ldivide: requires 2 arguments",
                      0, 0, "ldivide", "", "m:ldivide:nargin");
-    outs[0] = rdivide(ctx.engine->resource(), args[1], args[0]);
+    outs[0] = rdivide(args[1], args[0], ctx.engine->resource());
 }
 
 // `and` / `or` builtins map to logicalAnd / logicalOr.
@@ -823,7 +821,7 @@ void and_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("and: requires 2 arguments",
                      0, 0, "and", "", "m:and:nargin");
-    outs[0] = logicalAnd(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = logicalAnd(args[0], args[1], ctx.engine->resource());
 }
 
 void or_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -832,7 +830,7 @@ void or_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("or: requires 2 arguments",
                      0, 0, "or", "", "m:or:nargin");
-    outs[0] = logicalOr(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = logicalOr(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail
@@ -847,25 +845,25 @@ namespace numkit {
 
 void BuiltinLibrary::registerBinaryOps(Engine &engine)
 {
-    engine.registerBinaryOp("+",  [&engine](const Value &a, const Value &b) { return builtin::plus(engine.resource(), a, b); });
-    engine.registerBinaryOp("-",  [&engine](const Value &a, const Value &b) { return builtin::minus(engine.resource(), a, b); });
-    engine.registerBinaryOp(".*", [&engine](const Value &a, const Value &b) { return builtin::times(engine.resource(), a, b); });
-    engine.registerBinaryOp("*",  [&engine](const Value &a, const Value &b) { return builtin::mtimes(engine.resource(), a, b); });
-    engine.registerBinaryOp("./", [&engine](const Value &a, const Value &b) { return builtin::rdivide(engine.resource(), a, b); });
-    engine.registerBinaryOp("/",  [&engine](const Value &a, const Value &b) { return builtin::mrdivide(engine.resource(), a, b); });
-    engine.registerBinaryOp("\\", [&engine](const Value &a, const Value &b) { return builtin::mldivide(engine.resource(), a, b); });
-    engine.registerBinaryOp("^",  [&engine](const Value &a, const Value &b) { return builtin::power(engine.resource(), a, b); });
-    engine.registerBinaryOp(".^", [&engine](const Value &a, const Value &b) { return builtin::elementPower(engine.resource(), a, b); });
+    engine.registerBinaryOp("+",  [&engine](const Value &a, const Value &b) { return builtin::plus(a, b, engine.resource()); });
+    engine.registerBinaryOp("-",  [&engine](const Value &a, const Value &b) { return builtin::minus(a, b, engine.resource()); });
+    engine.registerBinaryOp(".*", [&engine](const Value &a, const Value &b) { return builtin::times(a, b, engine.resource()); });
+    engine.registerBinaryOp("*",  [&engine](const Value &a, const Value &b) { return builtin::mtimes(a, b, engine.resource()); });
+    engine.registerBinaryOp("./", [&engine](const Value &a, const Value &b) { return builtin::rdivide(a, b, engine.resource()); });
+    engine.registerBinaryOp("/",  [&engine](const Value &a, const Value &b) { return builtin::mrdivide(a, b, engine.resource()); });
+    engine.registerBinaryOp("\\", [&engine](const Value &a, const Value &b) { return builtin::mldivide(a, b, engine.resource()); });
+    engine.registerBinaryOp("^",  [&engine](const Value &a, const Value &b) { return builtin::power(a, b, engine.resource()); });
+    engine.registerBinaryOp(".^", [&engine](const Value &a, const Value &b) { return builtin::elementPower(a, b, engine.resource()); });
 
-    engine.registerBinaryOp("==", [&engine](const Value &a, const Value &b) { return builtin::eq(engine.resource(), a, b); });
-    engine.registerBinaryOp("~=", [&engine](const Value &a, const Value &b) { return builtin::ne(engine.resource(), a, b); });
-    engine.registerBinaryOp("<",  [&engine](const Value &a, const Value &b) { return builtin::lt(engine.resource(), a, b); });
-    engine.registerBinaryOp(">",  [&engine](const Value &a, const Value &b) { return builtin::gt(engine.resource(), a, b); });
-    engine.registerBinaryOp("<=", [&engine](const Value &a, const Value &b) { return builtin::le(engine.resource(), a, b); });
-    engine.registerBinaryOp(">=", [&engine](const Value &a, const Value &b) { return builtin::ge(engine.resource(), a, b); });
+    engine.registerBinaryOp("==", [&engine](const Value &a, const Value &b) { return builtin::eq(a, b, engine.resource()); });
+    engine.registerBinaryOp("~=", [&engine](const Value &a, const Value &b) { return builtin::ne(a, b, engine.resource()); });
+    engine.registerBinaryOp("<",  [&engine](const Value &a, const Value &b) { return builtin::lt(a, b, engine.resource()); });
+    engine.registerBinaryOp(">",  [&engine](const Value &a, const Value &b) { return builtin::gt(a, b, engine.resource()); });
+    engine.registerBinaryOp("<=", [&engine](const Value &a, const Value &b) { return builtin::le(a, b, engine.resource()); });
+    engine.registerBinaryOp(">=", [&engine](const Value &a, const Value &b) { return builtin::ge(a, b, engine.resource()); });
 
-    engine.registerBinaryOp("&",  [&engine](const Value &a, const Value &b) { return builtin::logicalAnd(engine.resource(), a, b); });
-    engine.registerBinaryOp("|",  [&engine](const Value &a, const Value &b) { return builtin::logicalOr(engine.resource(), a, b); });
+    engine.registerBinaryOp("&",  [&engine](const Value &a, const Value &b) { return builtin::logicalAnd(a, b, engine.resource()); });
+    engine.registerBinaryOp("|",  [&engine](const Value &a, const Value &b) { return builtin::logicalOr(a, b, engine.resource()); });
 }
 
 } // namespace numkit

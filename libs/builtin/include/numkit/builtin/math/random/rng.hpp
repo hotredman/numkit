@@ -35,26 +35,16 @@ namespace numkit::builtin {
 
 // ── Real-valued generators (mt19937-driven) ──────────────────────────
 /// Uniform [0, 1) random matrix. rows/cols/pages == 0 for pages means 2D.
-Value rand(std::pmr::memory_resource *mr,
-            detail::MatlabMT19937 &rng,
-            size_t rows,
-            size_t cols = 1,
-            size_t pages = 0);
+Value rand(detail::MatlabMT19937 &rng, size_t rows, size_t cols = 1, size_t pages = 0, std::pmr::memory_resource *mr = nullptr);
 
 /// Standard normal random matrix.
-Value randn(std::pmr::memory_resource *mr,
-             detail::MatlabMT19937 &rng,
-             size_t rows,
-             size_t cols = 1,
-             size_t pages = 0);
+Value randn(detail::MatlabMT19937 &rng, size_t rows, size_t cols = 1, size_t pages = 0, std::pmr::memory_resource *mr = nullptr);
 
 /// ND uniform [0, 1) — accepts any rank ≥ 1.
-Value randND(std::pmr::memory_resource *mr, detail::MatlabMT19937 &rng,
-              const size_t *dims, int ndims);
+Value randND(detail::MatlabMT19937 &rng, const size_t *dims, int ndims, std::pmr::memory_resource *mr = nullptr);
 
 /// ND standard normal — accepts any rank ≥ 1.
-Value randnND(std::pmr::memory_resource *mr, detail::MatlabMT19937 &rng,
-               const size_t *dims, int ndims);
+Value randnND(detail::MatlabMT19937 &rng, const size_t *dims, int ndims, std::pmr::memory_resource *mr = nullptr);
 
 // ── Seeding / state control ──────────────────────────────────────────
 
@@ -74,28 +64,26 @@ void rngShuffle();
 
 /// Snapshot the current state into a struct {.Type='twister', .State=…}.
 /// Pass the same struct back to rngRestore to reproduce subsequent calls.
-Value rngState(std::pmr::memory_resource *mr);
+Value rngState(std::pmr::memory_resource *mr = nullptr);
 
 /// Restore from a previously-snapshotted state struct.
 void rngRestore(const Value &state);
 
 // ── Integer random ──────────────────────────────────────────────────
 /// randi(imax) — uniform integer in [1, imax].
-Value randi(std::pmr::memory_resource *mr, int64_t imax);
+Value randi(int64_t imax, std::pmr::memory_resource *mr = nullptr);
 
 /// randi(imax, rows, cols, pages) — array of ints in [1, imax].
-Value randi(std::pmr::memory_resource *mr, int64_t imax,
-             size_t rows, size_t cols, size_t pages = 0);
+Value randi(int64_t imax, size_t rows, size_t cols, size_t pages = 0, std::pmr::memory_resource *mr = nullptr);
 
 /// randi([imin imax], …) — uniform integer in [imin, imax].
-Value randi(std::pmr::memory_resource *mr, int64_t imin, int64_t imax,
-             size_t rows, size_t cols, size_t pages = 0);
+Value randi(int64_t imin, int64_t imax, size_t rows, size_t cols, size_t pages = 0, std::pmr::memory_resource *mr = nullptr);
 
 // ── Permutations ────────────────────────────────────────────────────
 /// randperm(n) — random permutation of 1:n.
-Value randperm(std::pmr::memory_resource *mr, size_t n);
+Value randperm(size_t n, std::pmr::memory_resource *mr = nullptr);
 
 /// randperm(n, k) — k unique random ints from 1:n (k <= n).
-Value randperm(std::pmr::memory_resource *mr, size_t n, size_t k);
+Value randperm(size_t n, size_t k, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

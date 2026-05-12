@@ -80,10 +80,7 @@ void lu_solve_one(const double *LU, const std::int32_t *piv,
 //
 // Returns false if a zero column-norm is hit (rank-deficient A) or if
 // the resulting R has a zero diagonal entry.
-bool qr_solve_house(std::pmr::memory_resource *mr,
-                    double *A, std::size_t m, std::size_t n,
-                    double *B, std::size_t nrhs,
-                    double *X)
+bool qr_solve_house(double *A, std::size_t m, std::size_t n, double *B, std::size_t nrhs, double *X, std::pmr::memory_resource *mr)
 {
     ScratchVec<double> v(m, mr);
 
@@ -149,10 +146,7 @@ bool qr_solve_house(std::pmr::memory_resource *mr,
 
 } // anonymous namespace
 
-bool la_solve(std::pmr::memory_resource *mr,
-              const double *A, std::size_t m, std::size_t n,
-              const double *B, std::size_t nrhs,
-              double *X)
+bool la_solve(const double *A, std::size_t m, std::size_t n, const double *B, std::size_t nrhs, double *X, std::pmr::memory_resource *mr)
 {
     if (m < n || m == 0 || n == 0 || nrhs == 0) return false;
 
@@ -177,8 +171,7 @@ bool la_solve(std::pmr::memory_resource *mr,
     ScratchVec<double> B_qr(m * nrhs, &arena);
     std::copy(A, A + m * n, A_qr.begin());
     std::copy(B, B + m * nrhs, B_qr.begin());
-    return qr_solve_house(&arena, A_qr.data(), m, n,
-                          B_qr.data(), nrhs, X);
+    return qr_solve_house(A_qr.data(), m, n, B_qr.data(), nrhs, X, &arena);
 }
 
 } // namespace numkit::builtin::detail

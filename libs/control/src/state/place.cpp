@@ -85,7 +85,7 @@ Value acker(const Value &Av, const Value &Bv, const Value &pv, std::pmr::memory_
     auto B = readMat(Bv, n, 1);
 
     // Desired characteristic polynomial φ(s) = ∏(s − p_i).
-    Value coeffs = builtin::poly(mr, pv);
+    Value coeffs = builtin::poly(pv, mr);
     Vec c(coeffs.numel());
     for (size_t i = 0; i < coeffs.numel(); ++i) c[i] = coeffs.elemAsDouble(i);
     if (c.size() != n + 1)

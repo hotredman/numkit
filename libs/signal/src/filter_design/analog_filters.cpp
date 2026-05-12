@@ -670,13 +670,13 @@ impinvar(const Value &b, const Value &a, double fs, double /*tol*/, std::pmr::me
     const double T = 1.0 / fs;
 
     // 1) Roots of a → analog poles.
-    Value pV = ::numkit::builtin::roots(mr, a);
+    Value pV = ::numkit::builtin::roots(a, mr);
     auto pv = readComplexVec(pV);
     if (static_cast<int>(pv.size()) != N)
         throw std::runtime_error("impinvar: roots() returned unexpected count");
 
     // 2) Compute residues r_k = b(p_k) / a'(p_k).
-    Value aprimeV = ::numkit::builtin::polyder(mr, a);
+    Value aprimeV = ::numkit::builtin::polyder(a, mr);
     auto apv = readVec(aprimeV);
     std::vector<Cd> r(N);
     for (int k = 0; k < N; ++k) {
@@ -842,7 +842,7 @@ void ellipap_reg(Span<const Value> args, size_t nargout,
             const double Wo = args[2].toScalar();                                \
             auto [z0, p0, k0] = tf2zpk(args[0], args[1], mr);                    \
             auto [zt, pt, kt] = fn(z0, p0, k0, Wo, mr);                          \
-            auto [bt, at] = builtin::zp2tf(mr, zt, pt, kt.toScalar());           \
+            auto [bt, at] = builtin::zp2tf(zt, pt, kt.toScalar(), mr);           \
             outs[0] = std::move(bt);                                             \
             if (nargout > 1) outs[1] = std::move(at);                            \
             return;                                                              \
@@ -876,7 +876,7 @@ NK_LP2X1_REG(lp2hp, lp2hp)
             const double Bw = args[3].toScalar();                                \
             auto [z0, p0, k0] = tf2zpk(args[0], args[1], mr);                    \
             auto [zt, pt, kt] = fn(z0, p0, k0, Wo, Bw, mr);                      \
-            auto [bt, at] = builtin::zp2tf(mr, zt, pt, kt.toScalar());           \
+            auto [bt, at] = builtin::zp2tf(zt, pt, kt.toScalar(), mr);           \
             outs[0] = std::move(bt);                                             \
             if (nargout > 1) outs[1] = std::move(at);                            \
             return;                                                              \

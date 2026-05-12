@@ -85,7 +85,7 @@ std::tuple<Value, Value>
 finishDesign(Value z, Value p, Value k_v, bool analog, std::pmr::memory_resource *mr)
 {
     const double k = k_v.toScalar();
-    auto [b, a] = ::numkit::builtin::zp2tf(mr, z, p, k);
+    auto [b, a] = ::numkit::builtin::zp2tf(z, p, k, mr);
     if (analog) return std::make_tuple(std::move(b), std::move(a));
     // bilinear with fs = 1 reverses the pre-warp we applied earlier
     // (Ω = 2·tan(π·Wn/2) with fs = 1).

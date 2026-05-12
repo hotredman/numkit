@@ -33,9 +33,9 @@ namespace numkit::builtin::detail {
 //
 // Internal scratch is allocated via the supplied memory_resource (typically
 // the per-call ScratchArena from the callsite).
-bool la_solve(std::pmr::memory_resource *mr,
-              const double *A, std::size_t m, std::size_t n,
+bool la_solve(const double *A, std::size_t m, std::size_t n,
               const double *B, std::size_t nrhs,
-              double *X);
+              double *X,
+              std::pmr::memory_resource *mr);
 
 } // namespace numkit::builtin::detail
