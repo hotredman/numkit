@@ -41,7 +41,7 @@ namespace numkit::signal {
 
 // ── seqperiod ─────────────────────────────────────────────────────────
 std::pair<Value, Value>
-seqperiod(std::pmr::memory_resource *mr, const Value &x, double tol)
+seqperiod(const Value &x, double tol, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     if (N == 0) {
@@ -65,7 +65,7 @@ seqperiod(std::pmr::memory_resource *mr, const Value &x, double tol)
 // Count sign changes relative to `level` (default 0); add 0.5 boundary
 // half-credit (matches MATLAB R2025b default ZeroPositive=false).
 std::pair<Value, Value>
-zerocrossrate(std::pmr::memory_resource *mr, const Value &x, double level)
+zerocrossrate(const Value &x, double level, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     if (N <= 1) {
@@ -164,7 +164,7 @@ void seqperiod_reg(Span<const Value> args, size_t nargout,
                     0, 0, "seqperiod", "", "m:seqperiod:nargin");
     double tol = 1e-10;
     if (args.size() >= 2) tol = args[1].toScalar();
-    auto [p, nr] = seqperiod(ctx.engine->resource(), args[0], tol);
+    auto [p, nr] = seqperiod(args[0], tol, ctx.engine->resource());
     outs[0] = p;
     if (nargout >= 2 && outs.size() >= 2) outs[1] = nr;
 }
@@ -177,7 +177,7 @@ void zerocrossrate_reg(Span<const Value> args, size_t nargout,
                     0, 0, "zerocrossrate", "", "m:zerocrossrate:nargin");
     double level = 0.0;
     if (args.size() >= 2) level = args[1].toScalar();
-    auto [r, c] = zerocrossrate(ctx.engine->resource(), args[0], level);
+    auto [r, c] = zerocrossrate(args[0], level, ctx.engine->resource());
     outs[0] = r;
     if (nargout >= 2 && outs.size() >= 2) outs[1] = c;
 }
