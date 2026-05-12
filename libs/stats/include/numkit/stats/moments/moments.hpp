@@ -1,9 +1,6 @@
 // libs/stats/include/numkit/stats/moments/moments.hpp
 //
-// Higher moments: skewness, kurtosis. Both follow MATLAB Statistics
-// Toolbox semantics — default normFlag = 1 (uncorrected); normFlag = 0
-// applies the bias correction (requires n >= 3 for skewness, n >= 4
-// for kurtosis).
+// Higher moments: skewness, kurtosis. MATLAB Statistics Toolbox semantics.
 
 #pragma once
 
@@ -12,17 +9,36 @@
 
 namespace numkit::stats {
 
-/// skewness(X[, normFlag[, dim]]) — sample skewness E[((X-μ)/σ)^3].
-///   normFlag = 1 (default): uncorrected y = m3 / m2^1.5
-///   normFlag = 0: bias-corrected y *= sqrt(n*(n-1))/(n-2). Requires n ≥ 3.
-Value skewness(const Value &x, int normFlag = 1, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+/// @brief Sample skewness along `dim` (`y = skewness(X, normFlag, dim)`).
+///
+/// Standardised third central moment: @f$ E[((X-\mu)/\sigma)^3] @f$.
+/// - `normFlag = 1` (default): uncorrected `y = m3 / m2^1.5`
+/// - `normFlag = 0`: bias-corrected `y *= sqrt(n·(n-1))/(n-2)`. Requires `n >= 3`.
+///
+/// @param x         Input array.
+/// @param normFlag  Bias correction switch (`0` or `1`).
+/// @param dim       1-based dimension; 0 → first non-singleton dim.
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          Skewness reduced along `dim`.
+/// @see kurtosis
+Value skewness(const Value &x, int normFlag = 1, int dim = 0,
+               std::pmr::memory_resource *mr = nullptr);
 
-/// kurtosis(X[, normFlag[, dim]]) — sample kurtosis (NON-excess; equals
-/// 3 for a normal distribution per MATLAB convention).
-///   normFlag = 1 (default): uncorrected y = m4 / m2^2
-///   normFlag = 0: bias-corrected
-///     y = ((n-1)/((n-2)(n-3))) * ((n+1)*g2 - 3*(n-1)) + 3,
-///     where g2 = m4/m2^2. Requires n ≥ 4.
-Value kurtosis(const Value &x, int normFlag = 1, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+/// @brief Sample kurtosis along `dim` (`y = kurtosis(X, normFlag, dim)`).
+///
+/// MATLAB convention: **non-excess** kurtosis (`= 3` for a standard normal).
+/// - `normFlag = 1` (default): uncorrected `y = m4 / m2^2`
+/// - `normFlag = 0`: bias-corrected
+///   `y = ((n-1)/((n-2)(n-3))) · ((n+1)·g2 - 3·(n-1)) + 3` where `g2 = m4/m2^2`.
+///   Requires `n >= 4`.
+///
+/// @param x         Input array.
+/// @param normFlag  Bias correction switch (`0` or `1`).
+/// @param dim       1-based dimension; 0 → first non-singleton dim.
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          Kurtosis reduced along `dim`.
+/// @see skewness
+Value kurtosis(const Value &x, int normFlag = 1, int dim = 0,
+               std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats
