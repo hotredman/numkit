@@ -24,7 +24,7 @@
 namespace numkit::signal {
 
 std::tuple<Value, Value>
-freqz(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t npts)
+freqz(const Value &b, const Value &a, size_t npts, std::pmr::memory_resource *mr)
 {
     const double *bd = b.doubleData();
     const double *ad = a.doubleData();
@@ -80,9 +80,9 @@ void unwrapInPlace(double *p, size_t n)
 } // namespace
 
 std::tuple<Value, Value>
-phasez(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t npts)
+phasez(const Value &b, const Value &a, size_t npts, std::pmr::memory_resource *mr)
 {
-    auto [H, W] = freqz(mr, b, a, npts);
+    auto [H, W] = freqz(b, a, npts, mr);
     auto phi = Value::matrix(npts, 1, ValueType::DOUBLE, mr);
     const Complex *hd = H.complexData();
     double *pd = phi.doubleDataMut();
@@ -103,9 +103,9 @@ phasez(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t npt
 }
 
 std::tuple<Value, Value>
-grpdelay(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t npts)
+grpdelay(const Value &b, const Value &a, size_t npts, std::pmr::memory_resource *mr)
 {
-    auto [phi, W] = phasez(mr, b, a, npts);
+    auto [phi, W] = phasez(b, a, npts, mr);
     auto gd = Value::matrix(npts, 1, ValueType::DOUBLE, mr);
     const double *p = phi.doubleData();
     const double *w = W.doubleData();
@@ -132,7 +132,7 @@ void freqz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
                      0, 0, "freqz", "", "m:freqz:nargin");
     const size_t npts = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
 
-    auto [H, W] = freqz(ctx.engine->resource(), args[0], args[1], npts);
+    auto [H, W] = freqz(args[0], args[1], npts, ctx.engine->resource());
     outs[0] = std::move(H);
     if (nargout > 1)
         outs[1] = std::move(W);
@@ -144,7 +144,7 @@ void phasez_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
         throw Error("phasez: requires at least 2 arguments",
                      0, 0, "phasez", "", "m:phasez:nargin");
     const size_t npts = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
-    auto [phi, W] = phasez(ctx.engine->resource(), args[0], args[1], npts);
+    auto [phi, W] = phasez(args[0], args[1], npts, ctx.engine->resource());
     outs[0] = std::move(phi);
     if (nargout > 1) outs[1] = std::move(W);
 }
@@ -155,7 +155,7 @@ void grpdelay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
         throw Error("grpdelay: requires at least 2 arguments",
                      0, 0, "grpdelay", "", "m:grpdelay:nargin");
     const size_t npts = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
-    auto [gd, W] = grpdelay(ctx.engine->resource(), args[0], args[1], npts);
+    auto [gd, W] = grpdelay(args[0], args[1], npts, ctx.engine->resource());
     outs[0] = std::move(gd);
     if (nargout > 1) outs[1] = std::move(W);
 }

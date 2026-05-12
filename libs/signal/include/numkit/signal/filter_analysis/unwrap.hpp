@@ -8,6 +8,6 @@ namespace numkit::signal {
 
 /// Unwrap radian phase by adding multiples of +/-2*pi when the jump between
 /// consecutive samples exceeds pi.
-Value unwrap(std::pmr::memory_resource *mr, const Value &phase);
+Value unwrap(const Value &phase, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal

@@ -18,15 +18,15 @@ bool isfir(const Value &b, const Value &a);
 
 /// isstable(b, a) — true when every pole of A(z) is strictly inside
 /// the unit circle (radius < 1 - tol).
-bool isstable(std::pmr::memory_resource *mr, const Value &b, const Value &a);
+bool isstable(const Value &b, const Value &a, std::pmr::memory_resource *mr = nullptr);
 
 /// isminphase(b, a) — true when every zero of B(z) is inside the unit
 /// circle AND the filter is stable.
-bool isminphase(std::pmr::memory_resource *mr, const Value &b, const Value &a);
+bool isminphase(const Value &b, const Value &a, std::pmr::memory_resource *mr = nullptr);
 
 /// ismaxphase(b, a) — true when every zero of B(z) is OUTSIDE the unit
 /// circle (radius > 1 + tol).
-bool ismaxphase(std::pmr::memory_resource *mr, const Value &b, const Value &a);
+bool ismaxphase(const Value &b, const Value &a, std::pmr::memory_resource *mr = nullptr);
 
 /// islinphase(b, a) — true when the filter has linear phase. For FIR
 /// this requires b symmetric (b == flip(b)) or antisymmetric. IIR with
@@ -56,7 +56,6 @@ int firtype(const Value &b);
 ///   pnorm = 2   (default): sqrt((1/π) ∫_0^π |H(e^{jw})|² dw)
 ///   pnorm = inf:           max_w |H(e^{jw})|
 /// Both via freqz on a default 8192-point grid.
-double filternorm(std::pmr::memory_resource *mr,
-                  const Value &b, const Value &a, double pnorm = 2.0);
+double filternorm(const Value &b, const Value &a, double pnorm = 2.0, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal
