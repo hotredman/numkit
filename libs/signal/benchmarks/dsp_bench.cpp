@@ -53,7 +53,7 @@ struct FilterCoeffs {
 // passed the empty-check, masking the bug).
 FilterCoeffs makeLowpass32(std::pmr::memory_resource *mr)
 {
-    auto b = signal::fir1(mr, 32, 0.25, "low");  // 33-tap FIR
+    auto b = signal::fir1(32, 0.25, "low", mr);  // 33-tap FIR
     // a = [1] for FIR
     Value a = Value::matrix(1, 1, ValueType::DOUBLE, nullptr);
     a.doubleDataMut()[0] = 1.0;

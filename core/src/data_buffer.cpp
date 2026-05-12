@@ -10,6 +10,7 @@ DataBuffer::DataBuffer(size_t bytes, std::pmr::memory_resource *mr)
     : bytes_(bytes)
     , refCount_(1)
     , mr_(mr ? mr : std::pmr::get_default_resource())
+    , owns_(true)
 {
     if (bytes > 0) {
         data_ = mr_->allocate(bytes, alignof(std::max_align_t));
@@ -18,9 +19,17 @@ DataBuffer::DataBuffer(size_t bytes, std::pmr::memory_resource *mr)
     }
 }
 
+DataBuffer::DataBuffer(ViewTag, void *external, size_t bytes) noexcept
+    : data_(external)
+    , bytes_(bytes)
+    , refCount_(1)
+    , mr_(std::pmr::get_default_resource())
+    , owns_(false)
+{}
+
 DataBuffer::~DataBuffer()
 {
-    if (data_)
+    if (data_ && owns_)
         mr_->deallocate(data_, bytes_, alignof(std::max_align_t));
 }
 

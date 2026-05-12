@@ -45,6 +45,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/vco_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fir2_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/firpm_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_design_cpp_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fftn_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/czt_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/stft_test.cpp
