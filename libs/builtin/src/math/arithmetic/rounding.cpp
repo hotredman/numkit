@@ -12,10 +12,16 @@
 
 #include "helpers.hpp"
 #include "rounding.hpp"      // detail::doubleCeilLoop / FloorLoop / RoundLoop / FixLoop
+#include "../_unary_hint.hpp"  // 3-arg abs hint overload
 
 #include <cmath>
 
 namespace numkit::builtin {
+
+// Public 2-arg wrapper — delegates to the 3-arg overload in the SIMD
+// backends with no buffer hint.
+Value abs(const Value &x, std::pmr::memory_resource *mr) { return abs(x, nullptr, mr); }
+
 
 namespace {
 

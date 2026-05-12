@@ -10,8 +10,7 @@
 
 namespace numkit::builtin {
 
-/// `hint` — see math/elementary/exponents.hpp for the contract.
-Value abs(const Value &x, Value *hint = nullptr, std::pmr::memory_resource *mr = nullptr);
+Value abs(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 Value floor(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value ceil(const Value &x, std::pmr::memory_resource *mr = nullptr);

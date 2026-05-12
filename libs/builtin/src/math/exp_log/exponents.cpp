@@ -12,11 +12,18 @@
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
+#include "../_unary_hint.hpp"   // 3-arg exp/log hint overloads
 
 #include <cmath>
 #include <complex>
 
 namespace numkit::builtin {
+
+// Public 2-arg wrappers — delegate to the 3-arg overload in the SIMD
+// backends with no buffer hint.
+Value exp(const Value &x, std::pmr::memory_resource *mr) { return exp(x, nullptr, mr); }
+Value log(const Value &x, std::pmr::memory_resource *mr) { return log(x, nullptr, mr); }
+
 
 Value sqrt(const Value &x, std::pmr::memory_resource *mr)
 {
