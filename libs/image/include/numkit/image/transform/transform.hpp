@@ -1,7 +1,7 @@
 // libs/image/include/numkit/image/transform/transform.hpp
 //
 // Image transforms: 2-D DCT, integral images, checkerboard / phantom
-// patterns, normalised cross-correlation, OTF/PSF conversions.
+// patterns, normalised cross-correlation, OTF / PSF conversions.
 
 #pragma once
 
@@ -13,121 +13,158 @@
 
 namespace numkit::image {
 
-/// 2-D Type-II orthonormal discrete cosine transform (`B = dct2(A)`).
+/// @brief 2-D Type-II orthonormal DCT (`B = dct2(A)`).
 ///
 /// Separable: `dct2(A) == dct(dct(A).').'`. Internally applies the
 /// 1-D `signal::dct` along columns first, then along rows.
 ///
 /// @param A   2-D real matrix.
 /// @param mr  Memory resource (nullptr → process default).
-/// @return    M×N DCT coefficients of the same size as `A`.
-///
+/// @return    `M × N` DCT coefficients of the same size as `A`.
 /// @see idct2, dctmtx
 Value dct2(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
-/// Inverse 2-D DCT (`A = idct2(B)`).
+/// @brief Inverse 2-D DCT (`A = idct2(B)`).
 ///
 /// Exact left-inverse of @ref dct2.
+///
+/// @param B   2-D DCT coefficients.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Reconstructed `M × N` matrix.
+/// @see dct2
 Value idct2(const Value &B, std::pmr::memory_resource *mr = nullptr);
 
-/// N×N DCT-II transform matrix (`D = dctmtx(N)`).
+/// @brief `N × N` DCT-II transform matrix (`D = dctmtx(N)`).
 ///
-/// Returns an orthonormal matrix D (D'·D = I) such that `D * A`
-/// applies the 1-D DCT to each column of `A`. Useful for block DCTs.
+/// Returns an orthonormal matrix `D` (`D' · D == I`) such that
+/// `D * A` applies the 1-D DCT to each column of `A`. Useful for
+/// block-DCT pipelines.
+///
+/// @param N   Block size.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `N × N` orthonormal matrix.
+/// @see dct2
 Value dctmtx(double N, std::pmr::memory_resource *mr = nullptr);
 
-/// Summed-area table (`J = integralImage(I)`).
+/// @brief Summed-area table (`J = integralImage(I)`).
 ///
-/// Output is (M+1)×(N+1) double with a leading zero row and column
-/// so that the rectangle sum @f$ \sum_{r=r_0}^{r_1} \sum_{c=c_0}^{c_1} I @f$
+/// Output is `(M+1) × (N+1)` DOUBLE with a leading zero row and column,
+/// so the rectangle sum @f$ \sum_{r=r_0}^{r_1} \sum_{c=c_0}^{c_1} I @f$
 /// equals
 /// @f$ J[r_1+1, c_1+1] - J[r_0, c_1+1] - J[r_1+1, c_0] + J[r_0, c_0] @f$.
 ///
+/// @param I   Input image.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `(M+1) × (N+1)` integral image.
 /// @see integralImage3
-Value integralImage(const Value &I,
-                    std::pmr::memory_resource *mr = nullptr);
+Value integralImage(const Value &I, std::pmr::memory_resource *mr = nullptr);
 
-/// 3-D summed-volume table (`J = integralImage3(V)`).
+/// @brief 3-D summed-volume table (`J = integralImage3(V)`).
 ///
-/// Output is (M+1)×(N+1)×(P+1) double with a leading zero plane,
+/// Output is `(M+1) × (N+1) × (P+1)` DOUBLE with a leading zero plane,
 /// row, and column. Direct 3-D extension of @ref integralImage.
-Value integralImage3(const Value &V,
-                     std::pmr::memory_resource *mr = nullptr);
+///
+/// @param V   Input volume.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `(M+1) × (N+1) × (P+1)` integral volume.
+/// @see integralImage
+Value integralImage3(const Value &V, std::pmr::memory_resource *mr = nullptr);
 
-/// Checkerboard test pattern (`I = checkerboard(side, M, N)`).
+/// @brief Checkerboard test pattern (`I = checkerboard(side, M, N)`).
 ///
-/// Produces a `2·M·side × 2·N·side` double image with alternating
+/// Produces a `2·M·side × 2·N·side` DOUBLE image with alternating
 /// black / white squares; the right half is dimmed to grey (×0.7).
-/// Matches Octave-image's `checkerboard.m`.
+/// Matches Octave-image's `checkerboard.m`. Pass `0` to any arg to
+/// use defaults: `side = 10`, `M = 4`, `N = 4`.
 ///
-/// Defaults if 0 / 0 / 0 are passed: side = 10, M = 4, N = 4.
+/// @param side  Square edge length in pixels (0 → default 10).
+/// @param M     Vertical block count (0 → default 4).
+/// @param N     Horizontal block count (0 → default 4).
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      `2·M·side × 2·N·side` checkerboard.
 Value checkerboard(size_t side, size_t M, size_t N,
                    std::pmr::memory_resource *mr = nullptr);
 
-/// Normalised cross-correlation for template matching
-/// (`C = normxcorr2(template, img)`).
+/// @brief Normalised cross-correlation (`C = normxcorr2(template, img)`).
 ///
-/// Output is (M+m−1)×(N+n−1) double in [-1, 1] (numerical noise
+/// Output is `(M+m-1) × (N+n-1)` DOUBLE in `[-1, 1]` (numerical noise
 /// outside this range is clamped to 0 by the inf/NaN guard).
 /// Algorithm follows Octave-image's `normxcorr2.m`.
 ///
-/// @param templ  Template image (m×n).
-/// @param img    Search image (M×N), must be larger than `templ`.
+/// @param templ  Template image (`m × n`).
+/// @param img    Search image (`M × N`, must be larger than `templ`).
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Correlation map.
 Value normxcorr2(const Value &templ, const Value &img,
                  std::pmr::memory_resource *mr = nullptr);
 
-/// PSF → OTF (`OTF = psf2otf(PSF, outsize)`).
+/// @brief PSF → OTF (`OTF = psf2otf(PSF, outsize)`).
 ///
 /// Pads `PSF` with zeros to `outsize`, circularly shifts by
-/// @f$ -\lfloor \text{size}(PSF)/2 \rfloor @f$ so the PSF centre
+/// @f$ -\lfloor \text{size}(PSF) / 2 \rfloor @f$ so the PSF centre
 /// lands at the origin, then applies 2-D FFT (or 1-D for vectors).
 ///
 /// @param PSF      Point spread function.
-/// @param outsize  Desired output size (vector); empty → same as PSF.
+/// @param outsize  Desired output size; empty span → same as `PSF`.
 /// @param mr       Memory resource (nullptr → process default).
-/// @return         Complex OTF.
-///
+/// @return         COMPLEX OTF.
 /// @see otf2psf
 Value psf2otf(const Value &PSF, Span<const size_t> outsize = {},
               std::pmr::memory_resource *mr = nullptr);
 
-/// 2-D convolution via FFT (`Y = fftconv2(A, B, shape)`).
+/// @brief 2-D convolution via FFT (`Y = fftconv2(A, B, shape)`).
 ///
-/// Faster than direct conv2 for large inputs, less accurate. `shape`
-/// is `"full"` (default), `"same"`, or `"valid"`. Output is complex
-/// (a tiny imaginary part appears even for real inputs).
+/// Faster than direct `conv2` for large inputs, less accurate. Output
+/// is COMPLEX (a tiny imaginary part appears even for real inputs).
+///
+/// @param A      First input.
+/// @param B      Second input.
+/// @param shape  `"full"` (default), `"same"`, or `"valid"`.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Convolution result.
+/// @throws Error  Unknown `shape` (`m:fftconv2:shape`).
 Value fftconv2(const Value &A, const Value &B, const std::string &shape,
                std::pmr::memory_resource *mr = nullptr);
 
-/// Best block size for block-wise processing (`siz = bestblk(IMS, k)`).
+/// @brief Best block size for block-wise processing
+/// (`siz = bestblk(IMS, k)`).
 ///
-/// For each dim of `IMS`: keep it if it's ≤ k (default 100); else
-/// scan from k down to `max(dim/10, k/2)` and pick the largest size
+/// For each dim of `IMS`: keep it if it's `<= k` (default 100); else
+/// scan from `k` down to `max(dim/10, k/2)` and pick the largest size
 /// with the smallest mod-padding `mod(-dim, p)`.
+///
+/// @param IMS  Image size vector.
+/// @param k    Maximum block size (default 100).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Best block size vector.
 Value bestblk(const Value &IMS, double k,
               std::pmr::memory_resource *mr = nullptr);
 
-/// OTF → PSF (`PSF = otf2psf(OTF, outsize)`).
+/// @brief OTF → PSF (`PSF = otf2psf(OTF, outsize)`).
 ///
 /// Inverse of @ref psf2otf: applies the inverse 2-D FFT, then
-/// circularly shifts by `+floor(size(PSF)/2)` to recover the centred
-/// PSF. Output is double if the imaginary part is negligible,
-/// complex otherwise.
+/// circularly shifts by `+floor(size(PSF) / 2)` to recover the centred
+/// PSF. Output is DOUBLE if the imaginary part is negligible, COMPLEX
+/// otherwise.
+///
+/// @param OTF      Optical transfer function.
+/// @param outsize  Desired output size; empty span → no crop.
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         PSF (DOUBLE or COMPLEX).
+/// @see psf2otf
 Value otf2psf(const Value &OTF, Span<const size_t> outsize = {},
               std::pmr::memory_resource *mr = nullptr);
 
-/// Shepp–Logan computational head phantom (`[P, E] = phantom(model, n)`).
+/// @brief Shepp-Logan computational head phantom
+/// (`[P, E] = phantom(model_or_E, n)`).
 ///
-/// Generates the classic CT test image of the same name. `model_or_E`
-/// is either:
-///   - a string: `"Shepp-Logan"` or `"Modified Shepp-Logan"` (default).
-///   - a matrix: N×6 of ellipse parameters
-///     `{I, a, b, x0, y0, phi_deg}` to use directly.
+/// Generates the classic CT test image.
 ///
-/// @param model_or_E  String name or ellipse parameter matrix.
-/// @param n           Output size (n × n).
+/// @param model_or_E  Either a string `"Shepp-Logan"` /
+///                    `"Modified Shepp-Logan"` (default), or an
+///                    `N × 6` matrix of ellipse parameters
+///                    `{I, a, b, x0, y0, phi_deg}`.
+/// @param n           Output size (`n × n`).
 /// @param mr          Memory resource (nullptr → process default).
 /// @return            `(P, E)` — image and ellipse matrix actually used.
 std::tuple<Value, Value>
