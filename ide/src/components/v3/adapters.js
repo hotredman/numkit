@@ -906,7 +906,13 @@ export function adaptFigure(fig) {
   const { datasets, cfg } = flatten(fig);
   const adapted = adaptAxes(fig.id, fig.id, datasets, cfg);
   if (!adapted) return null;
-  if (!adapted.title) adapted.title = `Figure ${fig.id}`;
+  // Auto-substitute a default heading when the script didn't call title().
+  // Track this in titleAuto so display ▾ can keep its "title" toggle
+  // disabled — the user only cares about toggling user-set titles.
+  if (!adapted.title) {
+    adapted.title = `Figure ${fig.id}`;
+    adapted.titleAuto = true;
+  }
   adapted._raw = fig;
   return adapted;
 }
