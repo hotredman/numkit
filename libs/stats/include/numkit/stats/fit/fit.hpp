@@ -18,15 +18,14 @@ namespace numkit::stats {
 /// chi² for sigma in the basic+freq case; Wald (analytic Fisher info)
 /// + log-σ transform for the censored case.
 std::tuple<Value, Value, Value, Value>
-normfit(std::pmr::memory_resource *mr, const Value &x, double alpha);
+normfit(const Value &x, double alpha, std::pmr::memory_resource *mr = nullptr);
 std::tuple<Value, Value, Value, Value>
-normfit(std::pmr::memory_resource *mr, const Value &x, double alpha,
-        const Value *cens, const Value *freq);
+normfit(const Value &x, double alpha, const Value *cens, const Value *freq, std::pmr::memory_resource *mr = nullptr);
 
 /// `[lhat, lci] = poissfit(x[, alpha])` — lambda = mean(x); exact CI
 /// from chi² inversion of cumulative Poisson tail.
 std::tuple<Value, Value>
-poissfit(std::pmr::memory_resource *mr, const Value &x, double alpha);
+poissfit(const Value &x, double alpha, std::pmr::memory_resource *mr = nullptr);
 
 /// `[muhat, muci] = expfit(x[, alpha[, censoring[, freq]]])` —
 /// MLE μ = Σ(freq·x) / Σ(freq·(1-cens)); exact CI via χ²(2D) where
@@ -34,13 +33,12 @@ poissfit(std::pmr::memory_resource *mr, const Value &x, double alpha);
 /// nullptr (default: no censoring, freq=1) or empty Value to mean
 /// "use defaults". Lengths must match x.numel() when non-empty.
 std::tuple<Value, Value>
-expfit(std::pmr::memory_resource *mr, const Value &x, double alpha,
-       const Value *cens = nullptr, const Value *freq = nullptr);
+expfit(const Value &x, double alpha, const Value *cens = nullptr, const Value *freq = nullptr, std::pmr::memory_resource *mr = nullptr);
 
 /// `[ahat, bhat, aci, bci] = unifit(x[, alpha])` — uniform U(a,b)
 /// MLE: a=min, b=max. CI based on (b-a) · (alpha^(-1/n) − 1).
 std::tuple<Value, Value, Value, Value>
-unifit(std::pmr::memory_resource *mr, const Value &x, double alpha);
+unifit(const Value &x, double alpha, std::pmr::memory_resource *mr = nullptr);
 
 /// `[parm, pci] = lognfit(x[, alpha[, cens[, freq]]])` — lognormal MLE
 /// of muhat / sigmahat of log(x). Closed-form weighted moments when
@@ -49,22 +47,20 @@ unifit(std::pmr::memory_resource *mr, const Value &x, double alpha);
 /// row, pci = 2×2 (column 1 = mu CI, column 2 = sigma CI; row 1 =
 /// lower, row 2 = upper).
 std::tuple<Value, Value>
-lognfit(std::pmr::memory_resource *mr, const Value &x, double alpha);
+lognfit(const Value &x, double alpha, std::pmr::memory_resource *mr = nullptr);
 std::tuple<Value, Value>
-lognfit(std::pmr::memory_resource *mr, const Value &x, double alpha,
-        const Value *cens, const Value *freq);
+lognfit(const Value &x, double alpha, const Value *cens, const Value *freq, std::pmr::memory_resource *mr = nullptr);
 
 /// `[phat, pci] = binofit(x, n[, alpha])` — Clopper–Pearson exact
 /// binomial CI for `x` successes out of `n` trials. Vector inputs
 /// (same length) produce a column vector phat and Nx2 pci.
 std::tuple<Value, Value>
-binofit(std::pmr::memory_resource *mr, const Value &x, const Value &n,
-        double alpha);
+binofit(const Value &x, const Value &n, double alpha, std::pmr::memory_resource *mr = nullptr);
 
 /// `[shat, sci] = raylfit(x[, alpha])` — Rayleigh MLE:
 /// σ̂ = √(Σx² / (2N)); CI from chi² inversion of 2N·σ̂² ~ σ²·χ²(2N).
 std::tuple<Value, Value>
-raylfit(std::pmr::memory_resource *mr, const Value &x, double alpha);
+raylfit(const Value &x, double alpha, std::pmr::memory_resource *mr = nullptr);
 
 // ── Negative log-likelihoods ───────────────────────────────────────────
 // Each *like(params, data) returns the scalar nLogL = −Σ log f(x_i; θ).
@@ -80,21 +76,18 @@ raylfit(std::pmr::memory_resource *mr, const Value &x, double alpha);
 //     `freq[i] == 0` removes the element from the sum (matches MATLAB).
 // Boundary handling: σ ≤ 0 → NaN; any NaN in x → NaN; empty x → 0.
 
-double normlike (std::pmr::memory_resource *mr, double mu, double sigma,
-                 const Value &x, const Value &cens, const Value &freq);
-double explike  (std::pmr::memory_resource *mr, double mu,                const Value &x);
-double lognlike (std::pmr::memory_resource *mr, double mu, double sigma, const Value &x);
-double gamlike  (std::pmr::memory_resource *mr, double a,  double b,     const Value &x);
-double betalike (std::pmr::memory_resource *mr, double a,  double b,     const Value &x);
-double wbllike  (std::pmr::memory_resource *mr, double a,  double b,     const Value &x);
-double evlike   (std::pmr::memory_resource *mr, double mu, double sigma, const Value &x);
+double normlike (double mu, double sigma, const Value &x, const Value &cens, const Value &freq, std::pmr::memory_resource *mr = nullptr);
+double explike  (double mu, const Value &x, std::pmr::memory_resource *mr = nullptr);
+double lognlike (double mu, double sigma, const Value &x, std::pmr::memory_resource *mr = nullptr);
+double gamlike  (double a, double b, const Value &x, std::pmr::memory_resource *mr = nullptr);
+double betalike (double a, double b, const Value &x, std::pmr::memory_resource *mr = nullptr);
+double wbllike  (double a, double b, const Value &x, std::pmr::memory_resource *mr = nullptr);
+double evlike   (double mu, double sigma, const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// gevlike([k, sigma, mu], x) — Generalised Extreme Value nLogL.
-double gevlike (std::pmr::memory_resource *mr, double k, double sigma,
-                double mu, const Value &x);
+double gevlike (double k, double sigma, double mu, const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// gplike([k, sigma], x) — Generalised Pareto nLogL (theta=0).
-double gplike  (std::pmr::memory_resource *mr, double k, double sigma,
-                const Value &x);
+double gplike  (double k, double sigma, const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

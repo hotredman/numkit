@@ -15,7 +15,7 @@ namespace numkit::stats {
 /// skewness(X[, normFlag[, dim]]) — sample skewness E[((X-μ)/σ)^3].
 ///   normFlag = 1 (default): uncorrected y = m3 / m2^1.5
 ///   normFlag = 0: bias-corrected y *= sqrt(n*(n-1))/(n-2). Requires n ≥ 3.
-Value skewness(std::pmr::memory_resource *mr, const Value &x, int normFlag = 1, int dim = 0);
+Value skewness(const Value &x, int normFlag = 1, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 /// kurtosis(X[, normFlag[, dim]]) — sample kurtosis (NON-excess; equals
 /// 3 for a normal distribution per MATLAB convention).
@@ -23,6 +23,6 @@ Value skewness(std::pmr::memory_resource *mr, const Value &x, int normFlag = 1, 
 ///   normFlag = 0: bias-corrected
 ///     y = ((n-1)/((n-2)(n-3))) * ((n+1)*g2 - 3*(n-1)) + 3,
 ///     where g2 = m4/m2^2. Requires n ≥ 4.
-Value kurtosis(std::pmr::memory_resource *mr, const Value &x, int normFlag = 1, int dim = 0);
+Value kurtosis(const Value &x, int normFlag = 1, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats
