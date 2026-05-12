@@ -17,6 +17,12 @@ HeapObject Value::sDeletedTag;
 const Dims Value::sScalarDims{1, 1};
 const Dims Value::sEmptyDims{};
 
+// MATLAB-style empty: 0×0 DOUBLE matrix with a real HeapObject (NOT
+// the emptyTag sentinel). isEmpty() == true, isUnset() == false.
+// Used as the canonical default for optional `const Value &` arguments
+// in libs/ public API.
+const Value Value::Empty = Value::matrix(0, 0, ValueType::DOUBLE, nullptr);
+
 Value Value::deleted()
 {
     Value v;

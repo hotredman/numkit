@@ -66,7 +66,7 @@ static void BM_Fft_PowerOfTwo(benchmark::State &state)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        Value y = signal::fft(mr, x, /*n=*/-1, /*dim=*/1);
+        Value y = signal::fft(x, /*n=*/-1, /*dim=*/1, mr);
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));
@@ -96,7 +96,7 @@ static void BM_Fft_PowerOfTwo_Complex(benchmark::State &state)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        Value y = signal::fft(mr, x, /*n=*/-1, /*dim=*/1);
+        Value y = signal::fft(x, /*n=*/-1, /*dim=*/1, mr);
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));

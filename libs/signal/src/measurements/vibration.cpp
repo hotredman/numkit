@@ -55,7 +55,7 @@ envspectrum(std::pmr::memory_resource *mr, const Value &x, double fs)
                                Value::matrix(0, 1, ValueType::DOUBLE, mr));
 
     // 1. Analytic-signal envelope.
-    Value env = envelope(mr, x);
+    Value env = envelope(x, mr);
     // 2. AC-couple by subtracting the mean.
     auto e = readVec(env);
     double m = 0.0;
@@ -65,7 +65,7 @@ envspectrum(std::pmr::memory_resource *mr, const Value &x, double fs)
 
     // 3. FFT of the AC envelope, magnitude on the one-sided half.
     Value envAc = vecCol(mr, e);
-    Value Z = fft(mr, envAc, /*n=*/-1, /*dim=*/0);
+    Value Z = fft(envAc, /*n=*/-1, /*dim=*/0, mr);
     const size_t nFft = Z.numel();
     const size_t nOne = nFft / 2 + 1;
 

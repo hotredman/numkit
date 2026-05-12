@@ -116,6 +116,20 @@ public:
                       ValueType type,
                       Dims dims);
 
+    /// MATLAB-style empty matrix sentinel — a 0×0 DOUBLE value.
+    ///
+    /// Use as the default for optional `const Value &` parameters in
+    /// public library API. Equivalent to MATLAB `[]`. Inside the
+    /// function, check via `x.isEmpty()` (or `x.numel() == 0`) which
+    /// also catches truly Unset Values, giving uniform MATLAB-style
+    /// "use default if empty" semantics.
+    ///
+    ///   isEmpty() = true
+    ///   isUnset() = false       (distinct from default-constructed Value)
+    ///   type()    = DOUBLE
+    ///   dims()    = {0, 0}
+    static const Value Empty;
+
     // ── Factories — real ─────────────────────────────────────
     static Value scalar(double v, std::pmr::memory_resource *mr = nullptr);
     static Value logicalScalar(bool v, std::pmr::memory_resource *mr = nullptr);
@@ -151,6 +165,11 @@ public:
     static Value structArray(size_t rows, size_t cols,
                               std::pmr::memory_resource *mr = nullptr);
     static Value funcHandle(const std::string &name, std::pmr::memory_resource *mr = nullptr);
+    /// Returns a default-constructed (Unset) Value — NOT a MATLAB
+    /// empty matrix despite the name. New code should use
+    /// `Value::Empty` for MATLAB-style empty (0×0 DOUBLE) or
+    /// `Value()` directly for the unset sentinel.
+    [[deprecated("Use Value::Empty (MATLAB 0x0 DOUBLE) or Value() (unset sentinel)")]]
     static Value empty();
     static Value deleted();
 

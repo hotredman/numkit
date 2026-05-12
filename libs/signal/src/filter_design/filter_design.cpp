@@ -609,7 +609,7 @@ Value fir2(int N, const Value &Farg, const Value &Aarg,
         Cd *cd = Hv.complexDataMut();
         std::copy(Hc.data(), Hc.data() + 2 * npt, cd);
     }
-    Value htV = numkit::signal::ifft(mr, Hv, static_cast<int>(2 * npt), 1);
+    Value htV = numkit::signal::ifft(Hv, static_cast<int>(2 * npt), 1, mr);
 
     // Hamming window: w[k] = 0.54 - 0.46*cos(2π·k/(nn-1))  (symmetric)
     ScratchVec<double> wind(nn, &scratch);

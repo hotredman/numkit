@@ -28,16 +28,16 @@ namespace numkit::signal {
 ///               is within 1e-10 everywhere.
 /// @throws       Error on dim outside {0, 1, 2, 3}, or when the requested
 ///               transform would extend dimensionality (axis length 1, n > 1).
-Value fft(std::pmr::memory_resource *mr, const Value &x, int n = -1, int dim = 0);
+Value fft(const Value &x, int n = -1, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 /// 1D inverse DFT along a given dimension. Same parameter semantics as `fft`.
-Value ifft(std::pmr::memory_resource *mr, const Value &X, int n = -1, int dim = 0);
+Value ifft(const Value &X, int n = -1, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 /// 2-D DFT. fft2(X) ≡ fft(fft(X, m, 1), n, 2). m = -1 / n = -1 use size(X).
-Value fft2(std::pmr::memory_resource *mr, const Value &X, int m = -1, int n = -1);
+Value fft2(const Value &X, int m = -1, int n = -1, std::pmr::memory_resource *mr = nullptr);
 
 /// 2-D inverse DFT. Same shape semantics as fft2.
-Value ifft2(std::pmr::memory_resource *mr, const Value &X, int m = -1, int n = -1);
+Value ifft2(const Value &X, int m = -1, int n = -1, std::pmr::memory_resource *mr = nullptr);
 
 /// N-D forward FFT. Mirrors MATLAB `fftn`:
 ///   fftn(X)        — FFT along every dimension of X using each axis's
@@ -49,13 +49,11 @@ Value ifft2(std::pmr::memory_resource *mr, const Value &X, int m = -1, int n = -
 /// MATLAB / NumPy / SciPy). Output is always complex-typed.
 /// `sz` is passed as a pointer + length; pass `nullptr` / 0 for the
 /// no-override form.
-Value fftn(std::pmr::memory_resource *mr, const Value &X,
-           const std::size_t *sz = nullptr, std::size_t szLen = 0);
+Value fftn(const Value &X, const std::size_t *sz = nullptr, std::size_t szLen = 0, std::pmr::memory_resource *mr = nullptr);
 
 /// N-D inverse FFT. Same shape semantics as `fftn`. May downgrade to
 /// real output if the imaginary part is within 1e-10 everywhere.
-Value ifftn(std::pmr::memory_resource *mr, const Value &X,
-            const std::size_t *sz = nullptr, std::size_t szLen = 0);
+Value ifftn(const Value &X, const std::size_t *sz = nullptr, std::size_t szLen = 0, std::pmr::memory_resource *mr = nullptr);
 
 /// czt(x, m, w, a) — discrete chirp Z-transform.
 /// Computes Y[k] = Σ_{n=0..N-1} x[n] · a^(-n) · w^(n·k) for k=0..m-1.
@@ -73,12 +71,11 @@ Value ifftn(std::pmr::memory_resource *mr, const Value &X,
 /// For 2-D input, transforms each column independently (MATLAB
 /// semantics). 3-D not supported (matches existing fft policy on
 /// transforms with explicit length args).
-Value czt(std::pmr::memory_resource *mr, const Value &x,
-          int m, Complex w, Complex a);
+Value czt(const Value &x, int m, Complex w, Complex a, std::pmr::memory_resource *mr = nullptr);
 
 /// interpft(x, n[, dim]) — band-limited (FFT-based) interpolation of `x`
 /// to `n` equispaced samples along `dim`. dim=0 means "first non-singleton".
 /// Implementation: FFT → zero-pad in frequency domain → IFFT → scale by n/m.
-Value interpft(std::pmr::memory_resource *mr, const Value &x, int n, int dim = 0);
+Value interpft(const Value &x, int n, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal

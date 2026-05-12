@@ -324,7 +324,7 @@ Value ssbmod(std::pmr::memory_resource *mr, const Value &x,
             cp[r] = was_row ? x.elemAsDouble(r)
                             : x.elemAsDouble(c * H + r);
         }
-        Value analytic = numkit::signal::hilbert(mr, col_in);
+        Value analytic = numkit::signal::hilbert(col_in, mr);
         // analytic.complexData()[i].imag() is imag(hilbert(col_in))
         const auto *cdat = analytic.complexData();
         for (size_t r = 0; r < H; ++r) {

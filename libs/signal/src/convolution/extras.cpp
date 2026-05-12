@@ -67,15 +67,15 @@ Value cconv(std::pmr::memory_resource *mr, const Value &x, const Value &y, size_
         const size_t fftLen = [&]() {
             size_t r = 1; while (r < n) r <<= 1; return r;
         }();
-        Value X = fft(mr, xp, static_cast<int>(fftLen), /*dim=*/0);
-        Value Y = fft(mr, yp, static_cast<int>(fftLen), /*dim=*/0);
+        Value X = fft(xp, static_cast<int>(fftLen), /*dim=*/0, mr);
+        Value Y = fft(yp, static_cast<int>(fftLen), /*dim=*/0, mr);
         // Pointwise multiply.
         auto Z = Value::complexMatrix(fftLen, 1, mr);
         const std::complex<double> *Xc = X.complexData();
         const std::complex<double> *Yc = Y.complexData();
         std::complex<double> *Zc = Z.complexDataMut();
         for (size_t k = 0; k < fftLen; ++k) Zc[k] = Xc[k] * Yc[k];
-        Value z = ifft(mr, Z, /*n=*/-1, /*dim=*/0);
+        Value z = ifft(Z, /*n=*/-1, /*dim=*/0, mr);
         // ifft can return REAL when the spectrum is conjugate-symmetric.
         if (z.type() == ValueType::COMPLEX) {
             const std::complex<double> *zd = z.complexData();
@@ -189,14 +189,14 @@ Value xcorr2(std::pmr::memory_resource *mr, const Value &A, const Value &B)
             for (size_t i = 0; i < rB; ++i)
                 bd[i + j * rOut] = B(rB - 1 - i, cB - 1 - j);
 
-        Value FA = fft2(mr, Ap);
-        Value FB = fft2(mr, Bf);
+        Value FA = fft2(Ap, -1, -1, mr);
+        Value FB = fft2(Bf, -1, -1, mr);
         const Complex *fa = FA.complexData();
         const Complex *fb = FB.complexData();
         auto Z = Value::complexMatrix(rOut, cOut, mr);
         Complex *zd = Z.complexDataMut();
         for (size_t k = 0; k < cellsOut; ++k) zd[k] = fa[k] * fb[k];
-        Value z = ifft2(mr, Z);
+        Value z = ifft2(Z, -1, -1, mr);
         if (z.type() == ValueType::COMPLEX) {
             const Complex *zr = z.complexData();
             for (size_t k = 0; k < cellsOut; ++k) dst[k] = zr[k].real();

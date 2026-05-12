@@ -162,7 +162,7 @@ Value ofdmmod(std::pmr::memory_resource *mr, const Value &in,
             else
                 cd[i] = Cd(in.elemAsDouble(s * (size_t)nfft + (size_t)i), 0.0);
         }
-        Value tx = ::numkit::signal::ifft(mr, col, -1, 1);
+        Value tx = ::numkit::signal::ifft(col, -1, 1, mr);
 
         Cd *txd = nullptr;
         std::vector<Cd> tmp;
@@ -212,7 +212,7 @@ Value ofdmdemod(std::pmr::memory_resource *mr, const Value &in,
             if (in.type() == ValueType::COMPLEX) cd[i] = in.complexData()[src];
             else                                  cd[i] = Cd(in.elemAsDouble(src), 0.0);
         }
-        Value rx = ::numkit::signal::fft(mr, col, -1, 1);
+        Value rx = ::numkit::signal::fft(col, -1, 1, mr);
         // Pack into the output column.
         const Cd *rxd = rx.complexData();
         for (int i = 0; i < nfft; ++i)

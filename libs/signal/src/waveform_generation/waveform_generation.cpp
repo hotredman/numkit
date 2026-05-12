@@ -413,7 +413,7 @@ Value demod(std::pmr::memory_resource *mr,
                                               : y.elemAsDouble(r + c * len);
             }
         }
-        Value h = numkit::signal::hilbert(mr, yVal);
+        Value h = numkit::signal::hilbert(yVal, mr);
         const Complex *hd = h.complexData();
 
         Value out = Value::matrix(len, cols, ValueType::DOUBLE, mr);
@@ -551,7 +551,7 @@ Value modulate(std::pmr::memory_resource *mr,
         for (std::size_t c = 0; c < cols; ++c)
             for (std::size_t r = 0; r < len; ++r)
                 xd[r + c * len] = getX(r, c);
-        Value h = numkit::signal::hilbert(mr, xVal);
+        Value h = numkit::signal::hilbert(xVal, mr);
         const Complex *hd = h.complexData();
         for (std::size_t c = 0; c < cols; ++c) {
             for (std::size_t r = 0; r < len; ++r) {

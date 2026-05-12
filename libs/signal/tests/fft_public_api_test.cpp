@@ -53,8 +53,8 @@ TEST(DspFftPublicApi, RoundTripRealVector)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = makeRealRow(mr, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
 
-    Value X = numkit::signal::fft(mr, x);
-    Value y = numkit::signal::ifft(mr, X);
+    Value X = numkit::signal::fft(x, -1, 0, mr);
+    Value y = numkit::signal::ifft(X, -1, 0, mr);
 
     ASSERT_EQ(y.numel(), x.numel());
     const double *xData = x.doubleData();
@@ -76,7 +76,7 @@ TEST(DspFftPublicApi, DcBinOfConstant)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = makeRealRow(mr, {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0});
 
-    Value X = numkit::signal::fft(mr, x);
+    Value X = numkit::signal::fft(x, -1, 0, mr);
     ASSERT_TRUE(X.isComplex());
     const Complex *Xd = X.complexData();
     EXPECT_NEAR(Xd[0].real(), 8.0, 1e-10);  // DC = sum = N
@@ -95,7 +95,7 @@ TEST(DspFftPublicApi, ForwardSignsMatchMatlab)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = makeRealRow(mr, {1.0, 2.0, 3.0, 4.0});
-    Value X = numkit::signal::fft(mr, x);
+    Value X = numkit::signal::fft(x, -1, 0, mr);
     ASSERT_TRUE(X.isComplex());
     const Complex *Xd = X.complexData();
     EXPECT_NEAR(Xd[0].real(), 10.0, 1e-12);
@@ -120,7 +120,7 @@ TEST(DspFftPublicApi, IfftComplexImpulseSpectrumPosition)
     Xd[1] = Complex( 0.0,  1.0);
     Xd[2] = Complex(-1.0,  0.0);
     Xd[3] = Complex( 0.0, -1.0);
-    Value y = numkit::signal::ifft(mr, X);
+    Value y = numkit::signal::ifft(X, -1, 0, mr);
     // ifft auto-downgrades to DOUBLE when every imag is < 1e-10; that's
     // the case here ([0,0,0,1] is real). Handle either layout.
     auto re = [&](size_t i) {
@@ -152,7 +152,7 @@ TEST(DspFftPublicApi, IfftPhaseRampLocatesImpulse)
                                   * static_cast<double>(d) / static_cast<double>(N);
         Hd[k] = Complex(std::cos(phase), std::sin(phase));
     }
-    Value h = numkit::signal::ifft(mr, H);
+    Value h = numkit::signal::ifft(H, -1, 0, mr);
     // h is conjugate-symmetric so ifft auto-downgrades to real.
     ASSERT_FALSE(h.isComplex());
     const double *hd = h.doubleData();
@@ -178,7 +178,7 @@ TEST(DspFftPublicApi, CosinePeakBin)
     for (size_t i = 0; i < N; ++i)
         xd[i] = std::cos(2.0 * M_PI * k * i / static_cast<double>(N));
 
-    Value X = numkit::signal::fft(mr, x);
+    Value X = numkit::signal::fft(x, -1, 0, mr);
     const Complex *Xd = X.complexData();
     // Peak of a real cosine at bin k should be N/2 in magnitude at both k and N-k
     EXPECT_NEAR(std::abs(Xd[k]), N / 2.0, 1e-9);
@@ -191,7 +191,7 @@ TEST(DspFftPublicApi, ZeroPadExtendsOutput)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = makeRealRow(mr, {1.0, 2.0, 3.0, 4.0});
 
-    Value X = numkit::signal::fft(mr, x, /*n=*/8);
+    Value X = numkit::signal::fft(x, /*n=*/8, 0, mr);
     EXPECT_EQ(X.numel(), 8u);
 }
 
@@ -201,7 +201,7 @@ TEST(DspFftPublicApi, TruncateShortensOutput)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = makeRealRow(mr, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
 
-    Value X = numkit::signal::fft(mr, x, /*n=*/4);
+    Value X = numkit::signal::fft(x, /*n=*/4, 0, mr);
     EXPECT_EQ(X.numel(), 4u);
 }
 
@@ -212,11 +212,11 @@ TEST(DspFftPublicApi, InvalidDimThrows)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = makeRealRow(mr, {1.0, 2.0, 3.0, 4.0});
 
-    EXPECT_THROW(numkit::signal::fft(mr, x, /*n=*/-1, /*dim=*/4),
+    EXPECT_THROW(numkit::signal::fft(x, /*n=*/-1, /*dim=*/4, mr),
                  numkit::Error);
-    EXPECT_THROW(numkit::signal::fft(mr, x, /*n=*/-1, /*dim=*/-1),
+    EXPECT_THROW(numkit::signal::fft(x, /*n=*/-1, /*dim=*/-1, mr),
                  numkit::Error);
-    EXPECT_THROW(numkit::signal::ifft(mr, x, /*n=*/-1, /*dim=*/99),
+    EXPECT_THROW(numkit::signal::ifft(x, /*n=*/-1, /*dim=*/99, mr),
                  numkit::Error);
 }
 
@@ -227,7 +227,7 @@ TEST(DspFftPublicApi, Dim3OnVectorIsIdentity)
     Value x = makeRealRow(mr, {1.0, 2.0, 3.0, 4.0});
     // dim=3 on a 1x4 row vector: the page axis has length 1, so the
     // per-slice FFT is of length 1 (identity). Result shape matches input.
-    Value X = numkit::signal::fft(mr, x, /*n=*/-1, /*dim=*/3);
+    Value X = numkit::signal::fft(x, /*n=*/-1, /*dim=*/3, mr);
     EXPECT_EQ(X.dims().rows(), 1u);
     EXPECT_EQ(X.dims().cols(), 4u);
     ASSERT_EQ(X.numel(), 4u);
@@ -245,7 +245,7 @@ TEST(DspFftPublicApi, Dim0AutoOnRowVector)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = makeRealRow(mr, {1.0, 1.0, 1.0, 1.0});
-    Value X = numkit::signal::fft(mr, x, /*n=*/-1, /*dim=*/0);
+    Value X = numkit::signal::fft(x, /*n=*/-1, /*dim=*/0, mr);
     // Row vector: non-singleton is cols — FFT along the row → DC = 4.
     ASSERT_TRUE(X.isComplex());
     EXPECT_NEAR(X.complexData()[0].real(), 4.0, 1e-10);
@@ -262,7 +262,7 @@ TEST(DspFftPublicApi, Fft3DDim1PreservesShape)
     for (size_t i = 0; i < R * C * P; ++i)
         x.doubleDataMut()[i] = double(i + 1);
 
-    Value X = numkit::signal::fft(mr, x, /*n=*/-1, /*dim=*/1);
+    Value X = numkit::signal::fft(x, /*n=*/-1, /*dim=*/1, mr);
     ASSERT_TRUE(X.dims().is3D());
     EXPECT_EQ(X.dims().rows(), R);
     EXPECT_EQ(X.dims().cols(), C);
@@ -293,7 +293,7 @@ TEST(DspFftPublicApi, Fft3DDim2PreservesShape)
     for (size_t i = 0; i < R * C * P; ++i)
         x.doubleDataMut()[i] = double(i + 1);
 
-    Value X = numkit::signal::fft(mr, x, /*n=*/-1, /*dim=*/2);
+    Value X = numkit::signal::fft(x, /*n=*/-1, /*dim=*/2, mr);
     ASSERT_TRUE(X.dims().is3D());
     EXPECT_EQ(X.dims().rows(), R);
     EXPECT_EQ(X.dims().cols(), C);
@@ -322,7 +322,7 @@ TEST(DspFftPublicApi, Fft3DDim3PreservesShape)
     for (size_t i = 0; i < R * C * P; ++i)
         x.doubleDataMut()[i] = double(i + 1);
 
-    Value X = numkit::signal::fft(mr, x, /*n=*/-1, /*dim=*/3);
+    Value X = numkit::signal::fft(x, /*n=*/-1, /*dim=*/3, mr);
     ASSERT_TRUE(X.dims().is3D());
     EXPECT_EQ(X.dims().rows(), R);
     EXPECT_EQ(X.dims().cols(), C);
@@ -367,7 +367,7 @@ TEST(DspFftPublicApi, NonPow2RealInputMatchesNaiveDFT)
             xd[n] = std::sin(2.0 * M_PI * 0.07 * n)
                   + 0.5 * std::cos(2.0 * M_PI * 0.13 * n);
 
-        Value X = numkit::signal::fft(mr, x);
+        Value X = numkit::signal::fft(x, -1, 0, mr);
         ASSERT_TRUE(X.isComplex()) << "N=" << N;
         ASSERT_EQ(X.numel(), N) << "N=" << N;
         const Complex *Xd = X.complexData();
@@ -408,8 +408,8 @@ TEST(DspFftPublicApi, NonPow2RoundTrip)
             x.doubleDataMut()[n] = std::sin(0.13 * double(n))
                                  + 0.4 * std::cos(0.21 * double(n));
 
-        Value X = numkit::signal::fft(mr, x);
-        Value y = numkit::signal::ifft(mr, X);
+        Value X = numkit::signal::fft(x, -1, 0, mr);
+        Value y = numkit::signal::ifft(X, -1, 0, mr);
         ASSERT_EQ(y.numel(), N);
         const double *xd = x.doubleData();
         for (size_t n = 0; n < N; ++n) {
@@ -443,7 +443,7 @@ TEST(DspFftPublicApi, Radix4PathPowerOfFourSize)
         sumX2 += xd[i] * xd[i];
     }
 
-    Value X = numkit::signal::fft(mr, x);
+    Value X = numkit::signal::fft(x, -1, 0, mr);
     ASSERT_TRUE(X.isComplex());
     ASSERT_EQ(X.numel(), N);
     const Complex *Xd = X.complexData();
@@ -458,7 +458,7 @@ TEST(DspFftPublicApi, Radix4PathPowerOfFourSize)
     EXPECT_NEAR(sumPow, double(N) * sumX2, 1e-3);
 
     // Round-trip restores input.
-    Value y = numkit::signal::ifft(mr, X);
+    Value y = numkit::signal::ifft(X, -1, 0, mr);
     ASSERT_EQ(y.numel(), N);
     const double *yd = y.isComplex() ? nullptr : y.doubleData();
     if (y.isComplex()) {
@@ -647,8 +647,8 @@ TEST(DspFftPublicApi, RoundTrip3DOnEachDim)
         x.doubleDataMut()[i] = std::sin(0.37 * double(i));
 
     for (int dim = 1; dim <= 3; ++dim) {
-        Value X = numkit::signal::fft(mr, x, /*n=*/-1, dim);
-        Value y = numkit::signal::ifft(mr, X, /*n=*/-1, dim);
+        Value X = numkit::signal::fft(x, /*n=*/-1, dim, mr);
+        Value y = numkit::signal::ifft(X, /*n=*/-1, dim, mr);
         ASSERT_EQ(y.numel(), R * C * P) << "dim=" << dim;
         ASSERT_TRUE(y.dims().is3D()) << "dim=" << dim;
         // ifft should downgrade to real (imag < 1e-10 everywhere).
@@ -668,12 +668,12 @@ TEST(SignalFftPublicApi, Fft2RoundTripIsIdentity)
     auto *mr = std::pmr::get_default_resource();
     auto x = numkit::Value::matrix(4, 4, numkit::ValueType::DOUBLE, mr);
     for (int i = 0; i < 16; ++i) x.doubleDataMut()[i] = i + 1;
-    numkit::Value Y = numkit::signal::fft2(mr, x);
+    numkit::Value Y = numkit::signal::fft2(x, -1, -1, mr);
     EXPECT_EQ(Y.type(), numkit::ValueType::COMPLEX);
     EXPECT_EQ(Y.dims().rows(), 4u);
     EXPECT_EQ(Y.dims().cols(), 4u);
 
-    numkit::Value Z = numkit::signal::ifft2(mr, Y);
+    numkit::Value Z = numkit::signal::ifft2(Y, -1, -1, mr);
     for (int i = 0; i < 16; ++i) {
         const double got = Z.isComplex() ? Z.complexData()[i].real()
                                          : Z.doubleData()[i];
@@ -687,7 +687,7 @@ TEST(SignalFftPublicApi, Fft2WithExplicitSizes)
     auto x = numkit::Value::matrix(2, 3, numkit::ValueType::DOUBLE, mr);
     for (int i = 0; i < 6; ++i) x.doubleDataMut()[i] = i + 1;
     // Pad to 4×5 in frequency.
-    numkit::Value Y = numkit::signal::fft2(mr, x, 4, 5);
+    numkit::Value Y = numkit::signal::fft2(x, 4, 5, mr);
     EXPECT_EQ(Y.dims().rows(), 4u);
     EXPECT_EQ(Y.dims().cols(), 5u);
 }
@@ -698,10 +698,10 @@ TEST(SignalFftPublicApi, InterpftLengthMatches)
     auto x = numkit::Value::matrix(1, 8, numkit::ValueType::DOUBLE, mr);
     for (int i = 0; i < 8; ++i)
         x.doubleDataMut()[i] = std::sin(2.0 * M_PI * i / 8.0);
-    numkit::Value y = numkit::signal::interpft(mr, x, 32);
+    numkit::Value y = numkit::signal::interpft(x, 32, 0, mr);
     EXPECT_EQ(y.numel(), 32u);
     // Identity case: n == length(x).
-    numkit::Value y2 = numkit::signal::interpft(mr, x, 8);
+    numkit::Value y2 = numkit::signal::interpft(x, 8, 0, mr);
     EXPECT_EQ(y2.numel(), 8u);
 }
 
@@ -715,7 +715,7 @@ TEST(SignalFftPublicApi, InterpftPureSinusoidExact)
     for (size_t i = 0; i < M; ++i)
         x.doubleDataMut()[i] = std::cos(2.0 * M_PI * 2.0 * i / M);  // freq=2
 
-    numkit::Value y = numkit::signal::interpft(mr, x, N);
+    numkit::Value y = numkit::signal::interpft(x, N, 0, mr);
     ASSERT_EQ(y.numel(), N);
     for (size_t i = 0; i < N; ++i) {
         const double ref = std::cos(2.0 * M_PI * 2.0 * i / N);

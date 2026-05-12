@@ -694,7 +694,7 @@ static int resolveDefaultDim(const Value &x)
     return 1;
 }
 
-Value fft(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
+Value fft(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
 {
     if (dim < 0 || dim > 3)
         throw Error("fft: dim must be 0 (auto), 1, 2, or 3",
@@ -705,7 +705,7 @@ Value fft(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
     return fftAlongDim(x, N, dim, /*dir=*/1, mr);
 }
 
-Value ifft(std::pmr::memory_resource *mr, const Value &X, int n, int dim)
+Value ifft(const Value &X, int n, int dim, std::pmr::memory_resource *mr)
 {
     if (dim < 0 || dim > 3)
         throw Error("ifft: dim must be 0 (auto), 1, 2, or 3",
@@ -717,18 +717,18 @@ Value ifft(std::pmr::memory_resource *mr, const Value &X, int n, int dim)
 }
 
 // ── 2-D DFT and FFT-based interpolation (added 2026-05-03 batch 6) ───
-Value fft2(std::pmr::memory_resource *mr, const Value &X, int m, int n)
+Value fft2(const Value &X, int m, int n, std::pmr::memory_resource *mr)
 {
     // fft2(X[, m, n]) = fft(fft(X, m, 1), n, 2). MATLAB pads/truncates
     // to (m, n); when omitted, uses size(X).
-    Value step1 = fft(mr, X, m, 1);
-    return fft(mr, step1, n, 2);
+    Value step1 = fft(X, m, 1, mr);
+    return fft(step1, n, 2, mr);
 }
 
-Value ifft2(std::pmr::memory_resource *mr, const Value &X, int m, int n)
+Value ifft2(const Value &X, int m, int n, std::pmr::memory_resource *mr)
 {
-    Value step1 = ifft(mr, X, m, 1);
-    return ifft(mr, step1, n, 2);
+    Value step1 = ifft(X, m, 1, mr);
+    return ifft(step1, n, 2, mr);
 }
 
 // ── N-D FFT (added 2026-05-11) ────────────────────────────────────────
@@ -752,9 +752,9 @@ inline int effectiveNdim(const Value &X)
     return 2;  // 1-D row/column still counts as 2-D in our Dims model
 }
 
-Value fftnImpl(std::pmr::memory_resource *mr, const Value &X,
-               const std::size_t *sz, std::size_t szLen,
-               Value (*op)(std::pmr::memory_resource *, const Value &, int, int))
+Value fftnImpl(const Value &X, const std::size_t *sz, std::size_t szLen,
+               Value (*op)(const Value &, int, int, std::pmr::memory_resource *),
+               std::pmr::memory_resource *mr)
 {
     if (X.isEmpty()) return X;
     const int ndim = effectiveNdim(X);
@@ -766,23 +766,21 @@ Value fftnImpl(std::pmr::memory_resource *mr, const Value &X,
         int n = -1;
         if (sz && static_cast<std::size_t>(d) <= szLen)
             n = static_cast<int>(sz[d - 1]);
-        Y = op(mr, Y, n, d);
+        Y = op(Y, n, d, mr);
     }
     return Y;
 }
 
 } // anonymous namespace
 
-Value fftn(std::pmr::memory_resource *mr, const Value &X,
-           const std::size_t *sz, std::size_t szLen)
+Value fftn(const Value &X, const std::size_t *sz, std::size_t szLen, std::pmr::memory_resource *mr)
 {
-    return fftnImpl(mr, X, sz, szLen, &fft);
+    return fftnImpl(X, sz, szLen, &fft, mr);
 }
 
-Value ifftn(std::pmr::memory_resource *mr, const Value &X,
-            const std::size_t *sz, std::size_t szLen)
+Value ifftn(const Value &X, const std::size_t *sz, std::size_t szLen, std::pmr::memory_resource *mr)
 {
-    return fftnImpl(mr, X, sz, szLen, &ifft);
+    return fftnImpl(X, sz, szLen, &ifft, mr);
 }
 
 // ── Chirp Z-transform (Bluestein) ─────────────────────────────────────
@@ -799,9 +797,7 @@ Value ifftn(std::pmr::memory_resource *mr, const Value &X,
 // the imaginary part comes out at fp-noise level on common parities.
 //
 // Single-vector kernel; matrix inputs delegate by-column above.
-static Value cztVector(std::pmr::memory_resource *mr,
-                       const Complex *xData, std::size_t N,
-                       int m, Complex w, Complex a)
+static Value cztVector(const Complex *xData, std::size_t N, int m, Complex w, Complex a, std::pmr::memory_resource *mr)
 {
     using Cd = std::complex<double>;
     if (m <= 0) return Value::complexMatrix(0, 0, mr);
@@ -844,14 +840,14 @@ static Value cztVector(std::pmr::memory_resource *mr,
     }
 
     // FFT both, point-multiply, IFFT — standard convolution.
-    Value G = fft(mr, g, static_cast<int>(L), 1);
-    Value H = fft(mr, h, static_cast<int>(L), 1);
+    Value G = fft(g, static_cast<int>(L), 1, mr);
+    Value H = fft(h, static_cast<int>(L), 1, mr);
     const Cd *Gd = G.complexData();
     const Cd *Hd = H.complexData();
     Value P = Value::complexMatrix(L, 1, mr);
     Cd *Pd = P.complexDataMut();
     for (std::size_t i = 0; i < L; ++i) Pd[i] = Gd[i] * Hd[i];
-    Value yL = ifft(mr, P, static_cast<int>(L), 1);
+    Value yL = ifft(P, static_cast<int>(L), 1, mr);
 
     // Take the first M samples and apply the post-multiplier
     // w^(k²/2). ifft may return real-typed when imag is ulp-clean.
@@ -873,8 +869,7 @@ static Value cztVector(std::pmr::memory_resource *mr,
     return Y;
 }
 
-Value czt(std::pmr::memory_resource *mr, const Value &x,
-          int m, Complex w, Complex a)
+Value czt(const Value &x, int m, Complex w, Complex a, std::pmr::memory_resource *mr)
 {
     using Cd = std::complex<double>;
     if (x.isEmpty()) return Value::complexMatrix(0, 0, mr);
@@ -898,7 +893,7 @@ Value czt(std::pmr::memory_resource *mr, const Value &x,
             const double *xr = x.doubleData();
             for (std::size_t i = 0; i < N; ++i) buf[i] = Cd(xr[i], 0.0);
         }
-        Value y = cztVector(mr, buf.data(), N, m, w, a);
+        Value y = cztVector(buf.data(), N, m, w, a, mr);
         // Match input shape (row vector → row, column → column).
         if (R == 1) return y;            // already row
         // Reshape row to column.
@@ -926,14 +921,14 @@ Value czt(std::pmr::memory_resource *mr, const Value &x,
             const double *xr = x.doubleData();
             for (std::size_t r = 0; r < R; ++r) col[r] = Cd(xr[c * R + r], 0.0);
         }
-        Value y = cztVector(mr, col.data(), R, m, w, a);
+        Value y = cztVector(col.data(), R, m, w, a, mr);
         const Cd *yd = y.complexData();
         for (int k = 0; k < m; ++k) od[c * m + k] = yd[k];
     }
     return out;
 }
 
-Value interpft(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
+Value interpft(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
 {
     if (n <= 0)
         throw Error("interpft: output length n must be positive",
@@ -964,7 +959,7 @@ Value interpft(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
         return x;  // identity case
 
     // FFT along that axis. fft always returns COMPLEX for non-empty input.
-    Value X = fft(mr, x, /*n=*/-1, useDim);
+    Value X = fft(x, /*n=*/-1, useDim, mr);
 
     // Zero-pad / truncate in frequency domain. The trick: keep the
     // first half (positive frequencies) and the last half (negative
@@ -1030,7 +1025,7 @@ Value interpft(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
                     dst[dstCol + nOut - mid] = src[srcCol + mid] * 0.5;
             }
         }
-        return scaleVal(ifft(mr, Y, /*n=*/-1, 1));
+        return scaleVal(ifft(Y, /*n=*/-1, 1, mr));
     }
 
     if (useDim == 2 && (d.ndim() <= 2)) {
@@ -1056,7 +1051,7 @@ Value interpft(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
                     dst[(nOut - mid) * rows + r] = src[mid * rows + r] * 0.5;
             }
         }
-        return scaleVal(ifft(mr, Y, /*n=*/-1, 2));
+        return scaleVal(ifft(Y, /*n=*/-1, 2, mr));
     }
 
     throw Error("interpft: dim 3 / N-D inputs not yet supported",
@@ -1085,7 +1080,7 @@ void fft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     if (args.size() >= 3)
         dim = static_cast<int>(args[2].toScalar());
 
-    outs[0] = fft(ctx.engine->resource(), args[0], n, dim);
+    outs[0] = fft(args[0], n, dim, ctx.engine->resource());
 }
 
 void ifft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1101,7 +1096,7 @@ void ifft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.size() >= 3)
         dim = static_cast<int>(args[2].toScalar());
 
-    outs[0] = ifft(ctx.engine->resource(), args[0], n, dim);
+    outs[0] = ifft(args[0], n, dim, ctx.engine->resource());
 }
 
 void fft2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1115,7 +1110,7 @@ void fft2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         m = static_cast<int>(args[1].toScalar());
     if (args.size() >= 3 && !args[2].isEmpty())
         n = static_cast<int>(args[2].toScalar());
-    outs[0] = fft2(ctx.engine->resource(), args[0], m, n);
+    outs[0] = fft2(args[0], m, n, ctx.engine->resource());
 }
 
 void ifft2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1129,7 +1124,7 @@ void ifft2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         m = static_cast<int>(args[1].toScalar());
     if (args.size() >= 3 && !args[2].isEmpty())
         n = static_cast<int>(args[2].toScalar());
-    outs[0] = ifft2(ctx.engine->resource(), args[0], m, n);
+    outs[0] = ifft2(args[0], m, n, ctx.engine->resource());
 }
 
 void interpft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1141,7 +1136,7 @@ void interpft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     const int n = static_cast<int>(args[1].toScalar());
     int dim = 0;
     if (args.size() >= 3) dim = static_cast<int>(args[2].toScalar());
-    outs[0] = interpft(ctx.engine->resource(), args[0], n, dim);
+    outs[0] = interpft(args[0], n, dim, ctx.engine->resource());
 }
 
 // Shared helper for fftn_reg / ifftn_reg: unpack the optional `sz`
@@ -1169,8 +1164,7 @@ void fftn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     std::vector<std::size_t> sz;
     if (args.size() >= 2 && !args[1].isEmpty())
         extractSizeArg(args[1], sz);
-    outs[0] = fftn(ctx.engine->resource(), args[0],
-                   sz.empty() ? nullptr : sz.data(), sz.size());
+    outs[0] = fftn(args[0], sz.empty() ? nullptr : sz.data(), sz.size(), ctx.engine->resource());
 }
 
 void ifftn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1182,8 +1176,7 @@ void ifftn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     std::vector<std::size_t> sz;
     if (args.size() >= 2 && !args[1].isEmpty())
         extractSizeArg(args[1], sz);
-    outs[0] = ifftn(ctx.engine->resource(), args[0],
-                    sz.empty() ? nullptr : sz.data(), sz.size());
+    outs[0] = ifftn(args[0], sz.empty() ? nullptr : sz.data(), sz.size(), ctx.engine->resource());
 }
 
 void czt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1197,7 +1190,7 @@ void czt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 
     // MATLAB: czt([]) returns empty without complaining about defaults.
     if (x.isEmpty()) {
-        outs[0] = czt(ctx.engine->resource(), x, 0, Cd(1, 0), Cd(1, 0));
+        outs[0] = czt(x, 0, Cd(1, 0), Cd(1, 0), ctx.engine->resource());
         return;
     }
 
@@ -1223,7 +1216,7 @@ void czt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         else                a = Cd(av.toScalar(), 0.0);
     }
 
-    outs[0] = czt(ctx.engine->resource(), x, m, w, a);
+    outs[0] = czt(x, m, w, a, ctx.engine->resource());
 }
 
 } // namespace detail

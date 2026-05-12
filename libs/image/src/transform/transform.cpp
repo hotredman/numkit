@@ -48,7 +48,7 @@ Value apply_along_columns(std::pmr::memory_resource *mr,
     for (size_t c = 0; c < N; ++c) {
         for (size_t r = 0; r < M; ++r)
             cd[r] = A.elemAsDouble(c * M + r);
-        Value Y = fn1d(mr, col);
+        Value Y = fn1d(col, mr);
         const double *yd = Y.doubleData();
         for (size_t r = 0; r < M; ++r)
             dst[c * M + r] = yd[r];
@@ -74,7 +74,7 @@ Value apply_along_rows(std::pmr::memory_resource *mr,
     for (size_t r = 0; r < M; ++r) {
         for (size_t c = 0; c < N; ++c)
             rd[c] = A.elemAsDouble(c * M + r);
-        Value Y = fn1d(mr, row);
+        Value Y = fn1d(row, mr);
         const double *yd = Y.doubleData();
         for (size_t c = 0; c < N; ++c)
             dst[c * M + r] = yd[c];
@@ -89,7 +89,7 @@ Value dct2(std::pmr::memory_resource *mr, const Value &A)
     // Two passes of orthonormal Type-II DCT (separable). Columns first,
     // then rows — output is identical either way.
     // Disambiguate the 1-D dct overload (a 4-arg matrix form also exists).
-    using Dct1D = Value (*)(std::pmr::memory_resource *, const Value &);
+    using Dct1D = Value (*)(const Value &, std::pmr::memory_resource *);
     Dct1D dct1 = &numkit::signal::dct;
     Value Y = apply_along_columns(mr, A, dct1);
     return apply_along_rows(mr, Y, dct1);
@@ -97,7 +97,7 @@ Value dct2(std::pmr::memory_resource *mr, const Value &A)
 
 Value idct2(std::pmr::memory_resource *mr, const Value &A)
 {
-    using Idct1D = Value (*)(std::pmr::memory_resource *, const Value &);
+    using Idct1D = Value (*)(const Value &, std::pmr::memory_resource *);
     Idct1D idct1 = &numkit::signal::idct;
     Value Y = apply_along_columns(mr, A, idct1);
     return apply_along_rows(mr, Y, idct1);
@@ -391,8 +391,8 @@ Value fftconv2(std::pmr::memory_resource *mr,
     Value Ap = pad_post(A, Hp, Wp);
     Value Bp = pad_post(B, Hp, Wp);
 
-    Value FA = signal::fft2(mr, Ap);
-    Value FB = signal::fft2(mr, Bp);
+    Value FA = signal::fft2(Ap, -1, -1, mr);
+    Value FB = signal::fft2(Bp, -1, -1, mr);
 
     Value FY = Value::matrix(Hp, Wp, ValueType::COMPLEX, mr);
     {
@@ -403,7 +403,7 @@ Value fftconv2(std::pmr::memory_resource *mr,
         for (size_t i = 0; i < N; ++i) y_[i] = a_[i] * b_[i];
     }
 
-    Value Yfull = signal::ifft2(mr, FY);
+    Value Yfull = signal::ifft2(FY, -1, -1, mr);
 
     // Crop back to the linear-convolution size Hf × Wf.
     Value Y = Value::matrix(Hf, Wf, Yfull.type(), mr);
@@ -513,8 +513,8 @@ Value psf2otf(std::pmr::memory_resource *mr,
     }
 
     // FFT.
-    return is1D ? signal::fft(mr, shifted)
-                : signal::fft2(mr, shifted);
+    return is1D ? signal::fft(shifted, -1, 0, mr)
+                : signal::fft2(shifted, -1, -1, mr);
 }
 
 Value otf2psf(std::pmr::memory_resource *mr,
@@ -526,8 +526,8 @@ Value otf2psf(std::pmr::memory_resource *mr,
     const bool is1D = (inH == 1 || inW == 1);
 
     // Inverse FFT.
-    Value psf = is1D ? signal::ifft(mr, OTF)
-                     : signal::ifft2(mr, OTF);
+    Value psf = is1D ? signal::ifft(OTF, -1, 0, mr)
+                     : signal::ifft2(OTF, -1, -1, mr);
 
     // Circular shift by +floor(insize / 2) (inverse of psf2otf shift).
     const auto &dp = psf.dims();
