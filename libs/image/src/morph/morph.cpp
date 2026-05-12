@@ -949,7 +949,7 @@ Value applylut(std::pmr::memory_resource *mr,
     }
 
     // filter2(w, BW, 'same') = index per pixel.
-    Value idx = signal::filter2(mr, w, bw_d, "same");
+    Value idx = signal::filter2(w, bw_d, "same", mr);
     const double *id = idx.doubleData();
     const size_t N = H * W;
 

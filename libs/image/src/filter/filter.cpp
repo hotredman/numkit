@@ -1206,8 +1206,8 @@ wiener2(std::pmr::memory_resource *mr, const Value &I,
     }
 
     // Local mean and mean-of-squares via zero-pad conv2 'same'.
-    Value mean_im = signal::conv2(mr, Id, k, "same");
-    Value mean_sq = signal::conv2(mr, Id_sq, k, "same");
+    Value mean_im = signal::conv2(Id, k, "same", mr);
+    Value mean_sq = signal::conv2(Id_sq, k, "same", mr);
 
     // variance_im = mean_sq - mean_im^2.
     Value var_im = Value::matrix(H, W, ValueType::DOUBLE, mr);

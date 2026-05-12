@@ -101,7 +101,7 @@ static void BM_Xcorr(benchmark::State &s)
     auto y = makeSignal(n, 2);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto [c, lags] = signal::xcorr(mr, x, y);
+        auto [c, lags] = signal::xcorr(x, y, mr);
         benchmark::DoNotOptimize(c);
         benchmark::DoNotOptimize(lags);
     }
