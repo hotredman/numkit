@@ -8,24 +8,39 @@
 
 namespace numkit::signal {
 
-/// seqperiod(x[, tol]) — find smallest period `d` ≤ N such that
-/// x(i) ≈ x(((i-1) mod d) + 1) for all i within `tol`. Returns
-/// (period, numRepetitions) where numRepetitions = N/period.
+/// Find the smallest repetition period of a signal.
 ///
-/// Vector input only (v1). MATLAB matrix form operates column-wise —
-/// deferred.
+/// Returns the smallest integer `d` ≤ N such that
+/// `|x[i] - x[i mod d]| ≤ tol` for every i. Useful for detecting if a
+/// captured waveform is periodic.
+///
+/// @param x    Real 1-D signal of length N.
+/// @param tol  Maximum allowed deviation between equivalent samples.
+///             Default 0.0 (exact match).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Pair `(period, numRepetitions)` where
+///             `numRepetitions = N / period` (as DOUBLE scalars).
+///
+/// @note Vector input only in v1. MATLAB's matrix form operates
+///       column-wise — deferred.
 std::pair<Value, Value>
 seqperiod(const Value &                x,
           double                       tol = 0.0,
           std::pmr::memory_resource *  mr  = nullptr);
 
-/// zerocrossrate(x[, level]) — count sign changes of (x - level) and
-/// return (rate, count) where rate = count / numel(x). Boundary
-/// half-credit (+0.5) applied per MATLAB R2025b default
-/// `ZeroPositive=false`.
+/// Zero-crossing rate of a signal.
 ///
-/// Vector input only (v1). Name=Value args ('Threshold',
-/// 'TransitionEdge', 'WindowLength') deferred.
+/// Counts sign changes of `(x - level)` over the input and returns the
+/// rate per sample. Boundary half-credit `+0.5` is applied per MATLAB
+/// R2025b's default `ZeroPositive = false`.
+///
+/// @param x      Real 1-D signal.
+/// @param level  Threshold around which crossings are counted. Default 0.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Pair `(rate, count)` where `rate = count / numel(x)`.
+///
+/// @note Name=Value args (`'Threshold'`, `'TransitionEdge'`,
+///       `'WindowLength'`) and matrix input deferred.
 std::pair<Value, Value>
 zerocrossrate(const Value &                x,
               double                       level = 0.0,
