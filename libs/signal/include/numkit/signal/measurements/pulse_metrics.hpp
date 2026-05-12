@@ -6,20 +6,14 @@
 // pulseperiod / pulsesep / slewrate / statelevels` family.
 //
 // Conventions:
-//   * `x` is a real, sampled time-series (1-D or vector along first dim).
-//   * `fs` is the sample rate in Hz; pass nullptr to default to fs=1
-//     (samples become the unit). When supplied, returned times are in
+//   * `x` is a real, sampled time-series (1-D vector).
+//   * `fs` is the sample rate in Hz. `Value::Empty` (default) → fs = 1,
+//     so samples are the time unit. When supplied, returned times are in
 //     seconds.
-//   * Reference levels are computed from `statelevels(x)` (histogram
-//     mode of two halves) unless explicit levels are supplied. The
-//     state boundaries are the canonical MATLAB defaults: 10% / 90%
-//     for rise/fall, 50% for mid-state, with a 2% tolerance for
-//     "settled".
-//   * Outputs are scalars when only one transition / pulse is found,
-//     vectors when many.
-//
-// `statelevels` is the foundation; all of the rest delegate to it
-// (or accept user-supplied levels via a 2-arg form not exposed yet).
+//   * Reference levels come from `statelevels(x)` unless explicit levels
+//     are supplied. State boundaries are the canonical MATLAB defaults:
+//     10% / 90% for rise / fall, 50% for mid-state, 2% for "settled".
+//   * Outputs are column vectors; empty when no transition / pulse found.
 
 #pragma once
 
@@ -28,59 +22,139 @@
 
 namespace numkit::signal {
 
-/// statelevels(x) — return [low, high] state levels via histogram-mode
-/// estimate (MATLAB default: 100 bins, split at mean(x)). Returns a
-/// 1×2 row vector. For input that is too flat (single bin populated)
-/// returns [min, max].
-Value statelevels(const Value &x, std::pmr::memory_resource *mr = nullptr);
+/// Estimate the [low, high] state levels of a step-shaped signal.
+///
+/// Uses a histogram-mode estimator: 100 bins, split at `mean(x)`. The
+/// mode bin in each half gives the corresponding state level. For inputs
+/// that are too flat for the histogram to separate, returns `[min, max]`.
+///
+/// @param x   Real 1-D signal.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    1 × 2 DOUBLE row vector `[low, high]`.
+///
+/// @see risetime, falltime, midcross
+Value statelevels(const Value &                x,
+                  std::pmr::memory_resource *  mr = nullptr);
 
-/// midcross(x[, fs]) — time stamps where x crosses the 50% mid-state
-/// reference level (linearly interpolated). Returns a column vector
-/// (length depends on the data). With fs=NULL, times are sample
-/// indices (1-based, fractional).
-Value midcross(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
+/// Mid-state crossing times.
+///
+/// Returns the (fractional) times at which `x` crosses the 50%
+/// mid-state level, linearly interpolated between adjacent samples.
+///
+/// @param x   Real 1-D signal.
+/// @param fs  Sample rate in Hz. `Value::Empty` → fs = 1, output is
+///            1-based fractional sample index.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Column vector of crossing times. Empty if none.
+///
+/// @see statelevels
+Value midcross(const Value &                x,
+               const Value &                fs = Value::Empty,
+               std::pmr::memory_resource *  mr = nullptr);
 
-/// risetime(x[, fs]) — duration of the lower-to-upper state boundary
-/// transitions (10% → 90% by default). Returns a column vector with
-/// one entry per detected positive-going transition; empty if none.
-Value risetime(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
+/// Rise time of positive-going transitions.
+///
+/// Duration spent crossing from the 10% to the 90% state-boundary
+/// during each positive-going transition.
+///
+/// @param x   Real 1-D signal.
+/// @param fs  Sample rate in Hz. `Value::Empty` → samples.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Column vector of rise times; one per detected transition.
+///
+/// @see falltime, slewrate
+Value risetime(const Value &                x,
+               const Value &                fs = Value::Empty,
+               std::pmr::memory_resource *  mr = nullptr);
 
-/// falltime(x[, fs]) — duration of upper-to-lower state boundary
-/// transitions (90% → 10%). Returns column vector; empty if none.
-Value falltime(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
+/// Fall time of negative-going transitions (90% → 10%).
+/// @copydoc risetime
+Value falltime(const Value &                x,
+               const Value &                fs = Value::Empty,
+               std::pmr::memory_resource *  mr = nullptr);
 
-/// slewrate(x[, fs]) — slope of each transition: (upper - lower) /
-/// transition_duration, sign matches direction. Column vector.
-Value slewrate(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
+/// Slew rate of each transition.
+///
+/// Computed as `(upper - lower) / transition_duration`; sign matches
+/// direction (positive for rising, negative for falling).
+///
+/// @param x   Real 1-D signal.
+/// @param fs  Sample rate in Hz. `Value::Empty` → samples.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Column vector, one entry per transition.
+///
+/// @see risetime, falltime
+Value slewrate(const Value &                x,
+               const Value &                fs = Value::Empty,
+               std::pmr::memory_resource *  mr = nullptr);
 
-/// overshoot(x[, fs]) — percent overshoot above the upper state level
-/// for each positive-going transition. Returned as a column vector of
-/// percentages (e.g. 5.0 means 5% above the upper level).
-Value overshoot(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
+/// Percent overshoot above the upper state for each positive transition.
+///
+/// @return Column vector of percentages — e.g. `5.0` ≡ 5% above the
+///         upper state level.
+/// @copydoc risetime
+Value overshoot(const Value &                x,
+                const Value &                fs = Value::Empty,
+                std::pmr::memory_resource *  mr = nullptr);
 
-/// undershoot(x[, fs]) — percent undershoot below the lower state
-/// level. Column vector.
-Value undershoot(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
+/// Percent undershoot below the lower state level.
+/// @copydoc overshoot
+Value undershoot(const Value &                x,
+                 const Value &                fs = Value::Empty,
+                 std::pmr::memory_resource *  mr = nullptr);
 
-/// settlingtime(x[, fs, tol]) — time from the start of each transition
-/// until x stays within `tol` (default 2%) of the destination state.
-/// Column vector.
-Value settlingtime(const Value &x, const Value &fs = Value::Empty, double tol = 0.02, std::pmr::memory_resource *mr = nullptr);
+/// Settling time of each transition.
+///
+/// Time from the start of each transition until `x` stays within `tol`
+/// (default 2%) of the destination state.
+///
+/// @param x    Real 1-D signal.
+/// @param fs   Sample rate in Hz. `Value::Empty` → samples.
+/// @param tol  Settling tolerance as a fraction. Default 0.02.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Column vector, one entry per transition.
+///
+/// @see risetime
+Value settlingtime(const Value &                x,
+                   const Value &                fs = Value::Empty,
+                   double                       tol = 0.02,
+                   std::pmr::memory_resource *  mr  = nullptr);
 
-/// pulsewidth(x[, fs]) — duration each pulse stays above the mid-state.
-/// Column vector with one entry per pulse.
-Value pulsewidth(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
+/// Duration each pulse stays above the mid-state.
+///
+/// @param x   Real 1-D signal.
+/// @param fs  Sample rate in Hz. `Value::Empty` → samples.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Column vector, one entry per pulse.
+///
+/// @see pulseperiod, dutycycle
+Value pulsewidth(const Value &                x,
+                 const Value &                fs = Value::Empty,
+                 std::pmr::memory_resource *  mr = nullptr);
 
-/// pulseperiod(x[, fs]) — period between consecutive same-direction
-/// crossings of the mid-state. Column vector.
-Value pulseperiod(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
+/// Period between consecutive same-direction crossings of the mid-state.
+/// @copydoc pulsewidth
+Value pulseperiod(const Value &                x,
+                  const Value &                fs = Value::Empty,
+                  std::pmr::memory_resource *  mr = nullptr);
 
-/// pulsesep(x[, fs]) — separation between consecutive pulses (the
-/// time spent below the mid-state between two pulses). Column vector.
-Value pulsesep(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
+/// Separation between consecutive pulses (time below mid-state).
+/// @copydoc pulsewidth
+Value pulsesep(const Value &                x,
+               const Value &                fs = Value::Empty,
+               std::pmr::memory_resource *  mr = nullptr);
 
-/// dutycycle(x[, fs]) — fraction (0..1) of each pulse period spent
-/// above the mid-state. Column vector with one entry per period.
-Value dutycycle(const Value &x, const Value &fs = Value::Empty, std::pmr::memory_resource *mr = nullptr);
+/// Duty cycle: fraction of each pulse period spent above the mid-state.
+///
+/// @param x   Real 1-D signal.
+/// @param fs  Sample rate in Hz. `Value::Empty` → samples (units cancel
+///            in the ratio).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Column vector of values in [0, 1], one entry per period.
+///
+/// @see pulsewidth, pulseperiod
+Value dutycycle(const Value &                x,
+                const Value &                fs = Value::Empty,
+                std::pmr::memory_resource *  mr = nullptr);
 
 } // namespace numkit::signal

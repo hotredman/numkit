@@ -12,23 +12,69 @@
 
 namespace numkit::signal {
 
-/// db(x[, signalType]) — convert magnitude to decibels.
-///   signalType "voltage" (default): db = 20·log10(|x|).
-///   signalType "power":             db = 10·log10(|x|).
-/// Complex input → magnitude is taken first.
-Value db(const Value &x, const std::string &signalType = "voltage", std::pmr::memory_resource *mr = nullptr);
+/// Convert magnitude or power to decibels.
+///
+/// For `signalType == "voltage"` (default):
+/// \f$ y = 20 \log_{10} |x| \f$.
+///
+/// For `signalType == "power"`:
+/// \f$ y = 10 \log_{10} |x| \f$.
+///
+/// Complex input is reduced to magnitude before the log.
+///
+/// @param x           Input (real or complex, any shape). Non-positive
+///                    magnitudes yield `-inf`.
+/// @param signalType  `"voltage"` (default) or `"power"`.
+/// @param mr          Memory resource (nullptr → process default).
+/// @return            DOUBLE array, same shape as `x`.
+/// @throws            numkit::Error  on unknown `signalType`.
+///
+/// @see db2mag, db2pow, mag2db, pow2db
+Value db(const Value &                x,
+         const std::string &          signalType = "voltage",
+         std::pmr::memory_resource *  mr         = nullptr);
 
-/// db2mag(d) — inverse of `db` in voltage form: 10^(d/20).
-Value db2mag(const Value &d, std::pmr::memory_resource *mr = nullptr);
+/// Inverse of `db` in voltage form: \f$ y = 10^{d/20} \f$.
+///
+/// @param d   Magnitudes in dB.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    DOUBLE array, same shape as `d`.
+///
+/// @see db, mag2db
+Value db2mag(const Value &                d,
+             std::pmr::memory_resource *  mr = nullptr);
 
-/// mag2db(x) — alias of db with signalType="voltage" but does NOT take
-/// abs(x) first (matches MATLAB: input is required to be non-negative).
-Value mag2db(const Value &x, std::pmr::memory_resource *mr = nullptr);
+/// Magnitude to decibels (voltage form): \f$ y = 20 \log_{10} x \f$.
+///
+/// Unlike `db("voltage")`, does NOT take `abs(x)` first — matches MATLAB
+/// `mag2db`, which requires the input to be non-negative.
+///
+/// @param x   Non-negative magnitudes. Negative values → `nan`.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    DOUBLE array of dB values.
+///
+/// @see db2mag, db
+Value mag2db(const Value &                x,
+             std::pmr::memory_resource *  mr = nullptr);
 
-/// db2pow(d) — inverse of pow2db: 10^(d/10).
-Value db2pow(const Value &d, std::pmr::memory_resource *mr = nullptr);
+/// Inverse of `pow2db`: \f$ y = 10^{d/10} \f$.
+///
+/// @param d   Power values in dB.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    DOUBLE array of linear-power values.
+///
+/// @see pow2db
+Value db2pow(const Value &                d,
+             std::pmr::memory_resource *  mr = nullptr);
 
-/// pow2db(p) — 10·log10(p). Input must be non-negative.
-Value pow2db(const Value &p, std::pmr::memory_resource *mr = nullptr);
+/// Power to decibels: \f$ y = 10 \log_{10} p \f$.
+///
+/// @param p   Non-negative power values. Negative → `nan`; zero → `-inf`.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    DOUBLE array of dB values.
+///
+/// @see db2pow, mag2db
+Value pow2db(const Value &                p,
+             std::pmr::memory_resource *  mr = nullptr);
 
 } // namespace numkit::signal
