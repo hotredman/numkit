@@ -15,10 +15,29 @@
 
 namespace numkit::stats {
 
-Value gppdf(const Value &x, double k, double sigma, double theta, std::pmr::memory_resource *mr = nullptr);
-Value gpcdf(const Value &x, double k, double sigma, double theta, std::pmr::memory_resource *mr = nullptr);
-Value gpinv(const Value &p, double k, double sigma, double theta, std::pmr::memory_resource *mr = nullptr);
-Value gprnd(double k, double sigma, double theta, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
+/// Generalised Pareto density (`y = gppdf(x, k, sigma, theta)`).
+///
+/// Threshold `theta`, scale `sigma > 0`, shape `k`.
+Value gppdf(const Value &x, double k, double sigma, double theta,
+            std::pmr::memory_resource *mr = nullptr);
+
+/// GP CDF (`p = gpcdf(x, k, sigma, theta)`).
+Value gpcdf(const Value &x, double k, double sigma, double theta,
+            std::pmr::memory_resource *mr = nullptr);
+
+/// GP inverse CDF (`x = gpinv(p, k, sigma, theta)`).
+Value gpinv(const Value &p, double k, double sigma, double theta,
+            std::pmr::memory_resource *mr = nullptr);
+
+/// GP random samples (`r = gprnd(k, sigma, theta, rows, cols)`).
+Value gprnd(double k, double sigma, double theta,
+            size_t rows = 1, size_t cols = 1,
+            std::pmr::memory_resource *mr = nullptr);
+
+/// GP mean / variance (`[m, v] = gpstat(k, sigma, theta)`).
+///
+/// Defined only for `k < 1` (mean) and `k < 1/2` (variance); falls
+/// back to NaN outside those ranges.
 std::tuple<double, double>
 gpstat(double k, double sigma, double theta);
 

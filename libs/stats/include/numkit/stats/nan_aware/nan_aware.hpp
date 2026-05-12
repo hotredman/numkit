@@ -16,12 +16,34 @@
 
 namespace numkit::stats {
 
-Value nansum   (const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
-Value nanmean  (const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
-Value nanmax   (const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
-Value nanmin   (const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
-Value nanvar   (const Value &x, int normFlag = 0, int dim = 0, std::pmr::memory_resource *mr = nullptr);
-Value nanstdev (const Value &x, int normFlag = 0, int dim = 0, std::pmr::memory_resource *mr = nullptr);
-Value nanmedian(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+/// NaN-aware sum (`y = nansum(x, dim)`). All-NaN slices return 0.
+Value nansum(const Value &x, int dim = 0,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// NaN-aware mean (`y = nanmean(x, dim)`). All-NaN slices return NaN.
+Value nanmean(const Value &x, int dim = 0,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// NaN-aware maximum (`y = nanmax(x, dim)`).
+Value nanmax(const Value &x, int dim = 0,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// NaN-aware minimum (`y = nanmin(x, dim)`).
+Value nanmin(const Value &x, int dim = 0,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// NaN-aware variance (`y = nanvar(x, normFlag, dim)`). `normFlag`
+/// follows @ref var (0 = N-1, 1 = N), where N is the count of
+/// non-NaN observations.
+Value nanvar(const Value &x, int normFlag = 0, int dim = 0,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// NaN-aware standard deviation (`y = nanstdev(x, normFlag, dim)`).
+Value nanstdev(const Value &x, int normFlag = 0, int dim = 0,
+               std::pmr::memory_resource *mr = nullptr);
+
+/// NaN-aware median (`y = nanmedian(x, dim)`).
+Value nanmedian(const Value &x, int dim = 0,
+                std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

@@ -9,17 +9,25 @@
 
 namespace numkit::stats {
 
-/// kmeans(X, K[, MaxIter, Replicates]) — Lloyd's k-means.
-///   X:           N×D data matrix
-///   K:           number of clusters
-///   MaxIter:     iteration cap (default 100)
-///   Replicates:  how many random restarts to keep the best of (default 1)
+/// Lloyd's k-means clustering (`[idx, C, sumd] = kmeans(X, K, …)`).
 ///
-/// Returns (idx, C, sumd):
-///   idx:  N×1 cluster assignments (1..K)
-///   C:    K×D cluster centroids
-///   sumd: K×1 within-cluster sum of squared distances
+/// Standard Euclidean k-means with random initial seeding. Multiple
+/// restarts are run and the lowest-distortion solution is returned.
+///
+/// @param X           N×D data matrix (one observation per row).
+/// @param K           Number of clusters (≥ 1).
+/// @param max_iter    Maximum Lloyd iterations (default 100).
+/// @param replicates  Number of random restarts; the best (lowest sum
+///                    of squared distances) is returned (default 1).
+/// @param mr          Memory resource (nullptr → process default).
+/// @return            `(idx, C, sumd)`:
+///                      - `idx`  : N×1 cluster assignments in {1, …, K}.
+///                      - `C`    : K×D cluster centroids.
+///                      - `sumd` : K×1 within-cluster sum of squared distances.
+///
+/// @see kmedoids, linkage
 std::tuple<Value, Value, Value>
-kmeans(const Value &X, int K, int max_iter, int replicates, std::pmr::memory_resource *mr = nullptr);
+kmeans(const Value &X, int K, int max_iter, int replicates,
+       std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

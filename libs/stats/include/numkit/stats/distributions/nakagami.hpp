@@ -14,10 +14,26 @@
 
 namespace numkit::stats {
 
-Value nakapdf(const Value &x, double mu, double omega, std::pmr::memory_resource *mr = nullptr);
-Value nakacdf(const Value &x, double mu, double omega, std::pmr::memory_resource *mr = nullptr);
-Value nakainv(const Value &p, double mu, double omega, std::pmr::memory_resource *mr = nullptr);
-Value nakarnd(double mu, double omega, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
+/// Nakagami density (`y = nakapdf(x, mu, omega)`).
+///
+/// @f$ f(x; \mu, \Omega) = \frac{2\mu^{\mu}}{\Gamma(\mu)\,\Omega^{\mu}}\,x^{2\mu-1}\,e^{-\mu x^2/\Omega} @f$
+/// for x ≥ 0; `mu ≥ 0.5`, `omega > 0`.
+Value nakapdf(const Value &x, double mu, double omega,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// Nakagami CDF (`p = nakacdf(x, mu, omega)`).
+Value nakacdf(const Value &x, double mu, double omega,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// Nakagami inverse CDF (`x = nakainv(p, mu, omega)`).
+Value nakainv(const Value &p, double mu, double omega,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// Nakagami random samples (`r = nakarnd(mu, omega, rows, cols)`).
+Value nakarnd(double mu, double omega, size_t rows = 1, size_t cols = 1,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// Nakagami mean / variance (`[m, v] = nakastat(mu, omega)`).
 std::tuple<double, double> nakastat(double mu, double omega);
 
 } // namespace numkit::stats

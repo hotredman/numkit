@@ -12,10 +12,25 @@
 
 namespace numkit::stats {
 
-Value unifpdf(const Value &x, double a, double b, std::pmr::memory_resource *mr = nullptr);
-Value unifcdf(const Value &x, double a, double b, std::pmr::memory_resource *mr = nullptr);
-Value unifinv(const Value &p, double a, double b, std::pmr::memory_resource *mr = nullptr);
-Value unifrnd(double a, double b, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
+/// Continuous-uniform density (`y = unifpdf(x, a, b)`) — `1/(b-a)` on [a, b].
+Value unifpdf(const Value &x, double a, double b,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// Continuous-uniform CDF (`p = unifcdf(x, a, b)`).
+Value unifcdf(const Value &x, double a, double b,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// Continuous-uniform inverse CDF (`x = unifinv(p, a, b)`) — `a + p·(b−a)`.
+Value unifinv(const Value &p, double a, double b,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// Continuous-uniform random samples (`r = unifrnd(a, b, rows, cols)`).
+Value unifrnd(double a, double b, size_t rows = 1, size_t cols = 1,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// Continuous-uniform mean / variance (`[m, v] = unifstat(a, b)`).
+///
+/// `m = (a+b)/2`, `v = (b-a)²/12`.
 std::tuple<double, double> unifstat(double a, double b);
 
 } // namespace numkit::stats

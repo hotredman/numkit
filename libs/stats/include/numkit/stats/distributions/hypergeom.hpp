@@ -13,10 +13,32 @@
 
 namespace numkit::stats {
 
-Value hygepdf(const Value &k, double M, double K, double N, std::pmr::memory_resource *mr = nullptr);
-Value hygecdf(const Value &k, double M, double K, double N, std::pmr::memory_resource *mr = nullptr);
-Value hygeinv(const Value &q, double M, double K, double N, std::pmr::memory_resource *mr = nullptr);
-Value hygernd(double M, double K, double N, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
+/// Hypergeometric pmf (`y = hygepdf(k, M, K, N)`).
+///
+/// @f$ f(k; M, K, N) = \binom{K}{k}\binom{M-K}{N-k} / \binom{M}{N} @f$.
+///
+/// @param M  Population size.
+/// @param K  Number of successes in population.
+/// @param N  Sample size.
+Value hygepdf(const Value &k, double M, double K, double N,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// Hypergeometric CDF (`F = hygecdf(k, M, K, N)`).
+Value hygecdf(const Value &k, double M, double K, double N,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// Hypergeometric inverse CDF (`k = hygeinv(q, M, K, N)`).
+Value hygeinv(const Value &q, double M, double K, double N,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// Hypergeometric random samples (`r = hygernd(M, K, N, rows, cols)`).
+Value hygernd(double M, double K, double N,
+              size_t rows = 1, size_t cols = 1,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// Hypergeometric mean / variance (`[m, v] = hygestat(M, K, N)`).
+///
+/// `m = N·K/M`, `v = N·K(M−K)(M−N) / (M² (M−1))`.
 std::tuple<double, double> hygestat(double M, double K, double N);
 
 } // namespace numkit::stats

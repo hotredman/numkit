@@ -62,19 +62,17 @@ binofit(const Value &x, const Value &n, double alpha, std::pmr::memory_resource 
 std::tuple<Value, Value>
 raylfit(const Value &x, double alpha, std::pmr::memory_resource *mr = nullptr);
 
-// ── Negative log-likelihoods ───────────────────────────────────────────
-// Each *like(params, data) returns the scalar nLogL = −Σ log f(x_i; θ).
-// `params` is a 1×k row vector; `data` is the sample vector. The second
-// MATLAB output `avar` (inverse observed-Fisher information) is wired up
-// for `normlike` only; the other *like fitters return only nLogL today.
-//
-// `normlike` additionally honours MATLAB's `(censoring, freq)` optional
-// args:
-//   * `censoring[i] != 0` → element i is right-censored; contribute
-//     -log(1 - F(z_i)) = -log(0.5·erfc(z_i/sqrt(2))) instead of -log(f).
-//   * `freq[i]` (default 1) → multiplies the element's contribution.
-//     `freq[i] == 0` removes the element from the sum (matches MATLAB).
-// Boundary handling: σ ≤ 0 → NaN; any NaN in x → NaN; empty x → 0.
+/// Each *like(params, data) returns the scalar nLogL = −Σ log f(x_i; θ).
+/// `params` is a 1×k row vector; `data` is the sample vector. The second
+/// MATLAB output `avar` (inverse observed-Fisher information) is wired up
+/// for `normlike` only; the other *like fitters return only nLogL today.
+/// `normlike` additionally honours MATLAB's `(censoring, freq)` optional
+/// args:
+///   * `censoring[i] != 0` → element i is right-censored; contribute
+///     -log(1 - F(z_i)) = -log(0.5·erfc(z_i/sqrt(2))) instead of -log(f).
+///   * `freq[i]` (default 1) → multiplies the element's contribution.
+///     `freq[i] == 0` removes the element from the sum (matches MATLAB).
+/// Boundary handling: σ ≤ 0 → NaN; any NaN in x → NaN; empty x → 0.
 
 double normlike (double mu, double sigma, const Value &x, const Value &cens, const Value &freq, std::pmr::memory_resource *mr = nullptr);
 double explike  (double mu, const Value &x, std::pmr::memory_resource *mr = nullptr);
