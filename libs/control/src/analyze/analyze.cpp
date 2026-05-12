@@ -77,25 +77,23 @@ double interpAt(const std::vector<double> &x,
 
 } // anonymous
 
-Value dcgain(std::pmr::memory_resource *mr, const Value &sys)
+Value dcgain(const Value &sys, std::pmr::memory_resource *mr)
 {
     // evalfr already does the right thing: at f=0 it evaluates s = j0
     // = 0 for continuous, and z = exp(j·0·Ts) = 1 for discrete.
-    return evalfr(mr, sys, 0.0);
+    return evalfr(sys, 0.0, mr);
 }
 
-void margin(std::pmr::memory_resource *mr, const Value &sys,
-            Value *GmOut, Value *PmOut, Value *WcgOut, Value *WcpOut)
+MarginResult margin(const Value &sys, std::pmr::memory_resource *mr)
 {
     // Build a dense default Bode grid (the auto-pick chooses ~200
     // points spanning two decades around the dominant poles).
-    Value magV, phV, wV;
     Value emptyW = Value::matrix(0, 0, ValueType::DOUBLE, mr);
-    bode(mr, sys, emptyW, &magV, &phV, &wV);
+    auto bodeOut = bode(sys, emptyW, mr);
 
-    auto w = readCol(wV);
-    auto mag = readCol(magV);
-    auto phase = readCol(phV);
+    auto w = readCol(bodeOut.w);
+    auto mag = readCol(bodeOut.mag);
+    auto phase = readCol(bodeOut.phase);
 
     // Phase crossover (where phase = -180°). On a typical loop the
     // phase descends through -180; we scan from low to high frequency.
@@ -121,21 +119,20 @@ void margin(std::pmr::memory_resource *mr, const Value &sys,
         Pm = phAtGc + 180.0;
     }
 
-    if (GmOut)  *GmOut  = Value::scalar(Gm,  mr);
-    if (PmOut)  *PmOut  = Value::scalar(Pm,  mr);
-    if (WcgOut) *WcgOut = Value::scalar(Wcg, mr);
-    if (WcpOut) *WcpOut = Value::scalar(Wcp, mr);
+    return {Value::scalar(Gm,  mr),
+            Value::scalar(Pm,  mr),
+            Value::scalar(Wcg, mr),
+            Value::scalar(Wcp, mr)};
 }
 
-Value stepinfo(std::pmr::memory_resource *mr, const Value &sys)
+Value stepinfo(const Value &sys, std::pmr::memory_resource *mr)
 {
     // Use a deliberately long horizon (multiplier on top of the
     // default Tfinal pickup) so settling-time detection has enough
     // tail to register. We do that by pre-computing the default
     // grid via step(sys), then re-running on a 2× tFinal vector.
-    Value y0, t0;
     Value emptyT = Value::matrix(0, 0, ValueType::DOUBLE, mr);
-    step_response(mr, sys, emptyT, &y0, &t0);
+    auto [y0, t0] = step_response(sys, emptyT, mr);
     auto t = readCol(t0);
     auto y = readCol(y0);
     if (t.size() < 2) {
@@ -145,8 +142,7 @@ Value stepinfo(std::pmr::memory_resource *mr, const Value &sys)
     const double Tfinal = t.back();
     // Re-grid out to 2× Tfinal.
     Value tArg = Value::scalar(2.0 * Tfinal, mr);
-    Value y1, t1;
-    step_response(mr, sys, tArg, &y1, &t1);
+    auto [y1, t1] = step_response(sys, tArg, mr);
     t = readCol(t1);
     y = readCol(y1);
 
@@ -241,7 +237,7 @@ void dcgain_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     if (a.empty())
         throw Error("dcgain: requires sys",
                     0, 0, "dcgain", "", "m:dcgain:nargin");
-    o[0] = dcgain(c.engine->resource(), a[0]);
+    o[0] = dcgain(a[0], c.engine->resource());
 }
 
 void margin_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
@@ -249,12 +245,11 @@ void margin_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     if (a.empty())
         throw Error("margin: requires sys",
                     0, 0, "margin", "", "m:margin:nargin");
-    Value Gm, Pm, Wcg, Wcp;
-    margin(c.engine->resource(), a[0], &Gm, &Pm, &Wcg, &Wcp);
-    if (o.size() >= 1) o[0] = Gm;
-    if (o.size() >= 2) o[1] = Pm;
-    if (o.size() >= 3) o[2] = Wcg;
-    if (o.size() >= 4) o[3] = Wcp;
+    auto m = margin(a[0], c.engine->resource());
+    if (o.size() >= 1) o[0] = std::move(m.Gm);
+    if (o.size() >= 2) o[1] = std::move(m.Pm);
+    if (o.size() >= 3) o[2] = std::move(m.Wcg);
+    if (o.size() >= 4) o[3] = std::move(m.Wcp);
 }
 
 void stepinfo_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
@@ -262,7 +257,7 @@ void stepinfo_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     if (a.empty())
         throw Error("stepinfo: requires sys",
                     0, 0, "stepinfo", "", "m:stepinfo:nargin");
-    o[0] = stepinfo(c.engine->resource(), a[0]);
+    o[0] = stepinfo(a[0], c.engine->resource());
 }
 
 } // namespace detail

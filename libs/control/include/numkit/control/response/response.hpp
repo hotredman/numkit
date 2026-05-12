@@ -10,27 +10,30 @@
 
 #include <memory_resource>
 #include <numkit/core/value.hpp>
+#include <utility>
 
 namespace numkit::control {
 
 /// `[y, t] = step(sys [, tFinal_or_t])` — unit-step response.
+///
 /// `tFinal_or_t`: scalar = simulate up to that time (auto-picks dt);
 ///                vector = use as the time grid (uniform stride
 ///                expected for continuous models — we use mean dt).
 ///                empty/missing = pick Tfinal ≈ 8/|Re λ_min|.
-void step_response(std::pmr::memory_resource *mr,
-                   const Value &sys, const Value &tArg,
-                   Value *yOut, Value *tOut);
+/// @return `(y, t)`; bind as `auto [y, t] = step_response(sys, tArg);`.
+std::pair<Value, Value>
+step_response(const Value &sys, const Value &tArg,
+              std::pmr::memory_resource *mr = nullptr);
 
 /// `[y, t] = impulse(sys [, tFinal_or_t])` — impulse response.
-void impulse_response(std::pmr::memory_resource *mr,
-                      const Value &sys, const Value &tArg,
-                      Value *yOut, Value *tOut);
+std::pair<Value, Value>
+impulse_response(const Value &sys, const Value &tArg,
+                 std::pmr::memory_resource *mr = nullptr);
 
 /// `y = lsim(sys, u, t [, x0])` — general linear simulation.
 /// `u` must have length(t) rows (one row per sample).
-Value lsim(std::pmr::memory_resource *mr,
-           const Value &sys, const Value &u, const Value &t,
-           const Value &x0);
+Value lsim(const Value &sys, const Value &u, const Value &t,
+           const Value &x0,
+           std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::control

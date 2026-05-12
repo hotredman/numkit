@@ -16,9 +16,9 @@
 namespace numkit::control {
 
 /// Continuous Lyapunov solver.
-Value lyap(std::pmr::memory_resource *mr, const Value &A, const Value &Q);
+Value lyap(const Value &A, const Value &Q, std::pmr::memory_resource *mr = nullptr);
 
 /// Discrete Lyapunov solver.
-Value dlyap(std::pmr::memory_resource *mr, const Value &A, const Value &Q);
+Value dlyap(const Value &A, const Value &Q, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::control
