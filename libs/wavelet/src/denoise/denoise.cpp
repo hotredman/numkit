@@ -76,7 +76,7 @@ Value wnoisest(std::pmr::memory_resource *mr,
 
     for (size_t i = 0; i < k; ++i) {
         const int level = static_cast<int>(S.elemAsDouble(i));
-        Value cD = detcoef(mr, C, L, level);
+        Value cD = detcoef(C, L, level, mr);
         auto v = vecFromValue(cD);
         const double med = median_abs(std::move(v));
         od[i] = med / 0.6745;
@@ -107,12 +107,11 @@ Value wdenoise(std::pmr::memory_resource *mr,
     const std::string w = wname.empty() ? std::string("sym4") : wname;
 
     // 1. Multi-level decomposition.
-    Value C, L;
-    wavedec(mr, x, level, w, &C, &L);
+    auto [C, L] = wavedec(x, level, w, mr);
 
     // 2. Robust noise σ from the finest detail band (MATLAB default).
     {
-        Value cD1 = detcoef(mr, C, L, 1);
+        Value cD1 = detcoef(C, L, 1, mr);
         auto v = vecFromValue(cD1);
         const double sigma = median_abs(std::move(v)) / 0.6745;
 
@@ -139,7 +138,7 @@ Value wdenoise(std::pmr::memory_resource *mr,
     }
 
     // 5. Reconstruct.
-    return waverec(mr, C, L, w);
+    return waverec(C, L, w, mr);
 }
 
 namespace detail {

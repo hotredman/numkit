@@ -303,7 +303,8 @@ Value envelope(const Value &x, std::pmr::memory_resource *mr)
 //   mode = 1 'analytic' (n-tap Kaiser-Hilbert FIR)
 //   mode = 2 'rms'      (sliding RMS over n samples)
 //   mode = 3 'peak'     (spline through extrema with MinPeakDistance n)
-void envelope_full(const Value &x, int mode, size_t n, Value *yupper, Value *ylower, std::pmr::memory_resource *mr)
+std::pair<Value, Value>
+envelope_full(const Value &x, int mode, size_t n, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     ScratchArena scratch(mr);
@@ -312,15 +313,11 @@ void envelope_full(const Value &x, int mode, size_t n, Value *yupper, Value *ylo
         // Peak mode — no DC removal.
         ScratchVec<double> up(&scratch), lo(&scratch);
         env_peak(x, n, up, lo, &scratch);
-        if (yupper) {
-            *yupper = createLike(x, ValueType::DOUBLE, mr);
-            for (size_t i = 0; i < N; ++i) yupper->doubleDataMut()[i] = up[i];
-        }
-        if (ylower) {
-            *ylower = createLike(x, ValueType::DOUBLE, mr);
-            for (size_t i = 0; i < N; ++i) ylower->doubleDataMut()[i] = lo[i];
-        }
-        return;
+        Value yupper = createLike(x, ValueType::DOUBLE, mr);
+        Value ylower = createLike(x, ValueType::DOUBLE, mr);
+        for (size_t i = 0; i < N; ++i) yupper.doubleDataMut()[i] = up[i];
+        for (size_t i = 0; i < N; ++i) ylower.doubleDataMut()[i] = lo[i];
+        return {std::move(yupper), std::move(ylower)};
     }
 
     // Modes 0/1/2: remove DC, compute amplitude, restore.
@@ -339,20 +336,18 @@ void envelope_full(const Value &x, int mode, size_t n, Value *yupper, Value *ylo
     else if (mode == 1) a = ampl_fir(xc, n, &scratch);
     else                a = ampl_rms(xc, n, &scratch);
 
-    if (yupper) {
-        *yupper = createLike(x, ValueType::DOUBLE, mr);
-        for (size_t i = 0; i < N; ++i) yupper->doubleDataMut()[i] = xmean + a[i];
-    }
-    if (ylower) {
-        *ylower = createLike(x, ValueType::DOUBLE, mr);
-        for (size_t i = 0; i < N; ++i) ylower->doubleDataMut()[i] = xmean - a[i];
-    }
+    Value yupper = createLike(x, ValueType::DOUBLE, mr);
+    Value ylower = createLike(x, ValueType::DOUBLE, mr);
+    for (size_t i = 0; i < N; ++i) yupper.doubleDataMut()[i] = xmean + a[i];
+    for (size_t i = 0; i < N; ++i) ylower.doubleDataMut()[i] = xmean - a[i];
+    return {std::move(yupper), std::move(ylower)};
 }
 
 // Back-compat 2-output adapter: dispatches to default mode.
-void envelope_pair(const Value &x, Value *yupper, Value *ylower, std::pmr::memory_resource *mr)
+std::pair<Value, Value>
+envelope_pair(const Value &x, std::pmr::memory_resource *mr)
 {
-    envelope_full(x, 0, 0, yupper, ylower, mr);
+    return envelope_full(x, 0, 0, mr);
 }
 
 // ── Engine adapters ───────────────────────────────────────────────────
@@ -393,8 +388,7 @@ void envelope_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
         throw Error("envelope: n must be a positive integer for "
                     "'analytic'/'rms'/'peak' modes",
                     0, 0, "envelope", "", "m:envelope:badn");
-    Value up, lo;
-    envelope_full(args[0], mode, n, &up, &lo, mr);
+    auto [up, lo] = envelope_full(args[0], mode, n, mr);
     outs[0] = std::move(up);
     if (nargout > 1) outs[1] = std::move(lo);
 }
