@@ -356,7 +356,7 @@ TEST(BuiltinStringsPublicApi, JoinStringArray)
     Value arr = Value::stringArray(1, 3, mr);
     arr.stringElemSet(0, "a"); arr.stringElemSet(1, "b"); arr.stringElemSet(2, "c");
     Value d = mkStr(mr, "-");
-    Value j = numkit::builtin::join(arr, &d, mr);
+    Value j = numkit::builtin::join(arr, d, mr);
     EXPECT_TRUE(j.isString());
     EXPECT_EQ(j.numel(), 1u);
     EXPECT_EQ(j.stringElem(0), "a-b-c");
@@ -367,6 +367,6 @@ TEST(BuiltinStringsPublicApi, JoinDefaultDelimIsSpace)
     auto *mr = std::pmr::get_default_resource();
     Value arr = Value::stringArray(1, 3, mr);
     arr.stringElemSet(0, "x"); arr.stringElemSet(1, "y"); arr.stringElemSet(2, "z");
-    Value j = numkit::builtin::join(arr, nullptr, mr);
+    Value j = numkit::builtin::join(arr, Value::Empty, mr);
     EXPECT_EQ(j.stringElem(0), "x y z");
 }

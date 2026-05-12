@@ -288,12 +288,12 @@ Value ismatrix(const Value &x, std::pmr::memory_resource *mr)
 namespace {
 enum class SortMode { Ascend, Descend, Monotonic, StrictAscend, StrictDescend };
 
-inline bool readSortMode(const Value *m, SortMode &out)
+inline bool readSortMode(const Value &m, SortMode &out)
 {
     out = SortMode::Ascend;
-    if (!m) return true;
-    if (!m->isChar() && !m->isString()) return false;
-    auto s = m->toString();
+    if (m.isEmpty()) return true;
+    if (!m.isChar() && !m.isString()) return false;
+    auto s = m.toString();
     for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     if (s == "ascend")        { out = SortMode::Ascend;        return true; }
     if (s == "descend")       { out = SortMode::Descend;       return true; }
@@ -338,7 +338,7 @@ inline bool runSorted(const double *first, size_t n, SortMode mode)
 }
 } // anon
 
-Value issorted(const Value &x, const Value *mode, std::pmr::memory_resource *mr)
+Value issorted(const Value &x, const Value &mode, std::pmr::memory_resource *mr)
 {
     SortMode m = SortMode::Ascend;
     if (!readSortMode(mode, m))
@@ -417,12 +417,12 @@ Value isuniform(const Value &x, std::pmr::memory_resource *mr)
 // ── Numeric limits ───────────────────────────────────────────────────
 
 namespace {
-inline std::string readTypeName(const Value *t, const char *def)
+inline std::string readTypeName(const Value &t, const char *def)
 {
-    if (!t) return def;
-    if (!t->isChar() && !t->isString())
+    if (t.isEmpty()) return def;
+    if (!t.isChar() && !t.isString())
         throw std::runtime_error("numeric-limit: type argument must be a string");
-    auto s = t->toString();
+    auto s = t.toString();
     for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
 }
@@ -436,7 +436,7 @@ inline Value typedScalar(ValueType vt, T v, std::pmr::memory_resource *mr)
 }
 } // anon
 
-Value flintmax(const Value *t, std::pmr::memory_resource *mr)
+Value flintmax(const Value &t, std::pmr::memory_resource *mr)
 {
     auto name = readTypeName(t, "double");
     if (name == "single")
@@ -446,7 +446,7 @@ Value flintmax(const Value *t, std::pmr::memory_resource *mr)
     throw std::runtime_error("flintmax: type must be 'double' or 'single'");
 }
 
-Value intmax(const Value *t, std::pmr::memory_resource *mr)
+Value intmax(const Value &t, std::pmr::memory_resource *mr)
 {
     auto name = readTypeName(t, "int32");
     if (name == "int8")   return typedScalar<int8_t>(ValueType::INT8, std::numeric_limits<int8_t>::max(), mr);
@@ -460,7 +460,7 @@ Value intmax(const Value *t, std::pmr::memory_resource *mr)
     throw std::runtime_error("intmax: unsupported integer class");
 }
 
-Value intmin(const Value *t, std::pmr::memory_resource *mr)
+Value intmin(const Value &t, std::pmr::memory_resource *mr)
 {
     auto name = readTypeName(t, "int32");
     if (name == "int8")   return typedScalar<int8_t>(ValueType::INT8, std::numeric_limits<int8_t>::min(), mr);
@@ -474,7 +474,7 @@ Value intmin(const Value *t, std::pmr::memory_resource *mr)
     throw std::runtime_error("intmin: unsupported integer class");
 }
 
-Value realmax(const Value *t, std::pmr::memory_resource *mr)
+Value realmax(const Value &t, std::pmr::memory_resource *mr)
 {
     auto name = readTypeName(t, "double");
     if (name == "single")
@@ -484,7 +484,7 @@ Value realmax(const Value *t, std::pmr::memory_resource *mr)
     throw std::runtime_error("realmax: type must be 'double' or 'single'");
 }
 
-Value realmin(const Value *t, std::pmr::memory_resource *mr)
+Value realmin(const Value &t, std::pmr::memory_resource *mr)
 {
     auto name = readTypeName(t, "double");
     if (name == "single")
@@ -819,7 +819,7 @@ void issorted_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
     if (args.empty())
         throw Error("issorted: requires 1 argument", 0, 0, "issorted", "",
                      "m:issorted:nargin");
-    const Value *mode = (args.size() >= 2) ? &args[1] : nullptr;
+    const Value &mode = (args.size() >= 2) ? args[1] : Value::Empty;
     outs[0] = issorted(args[0], mode, ctx.engine->resource());
 }
 
@@ -829,7 +829,7 @@ void issorted_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 #define NK_LIMIT_REG(FN)                                                              \
     void FN##_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) \
     {                                                                                  \
-        const Value *t = args.empty() ? nullptr : &args[0];                            \
+        const Value &t = args.empty() ? Value::Empty : args[0];                       \
         outs[0] = FN(t, ctx.engine->resource());                                       \
     }
 
