@@ -13,36 +13,115 @@
 
 namespace numkit::wavelet {
 
-/// `[C, L] = wavedec(x, n, wname)` — multi-level 1-D DWT.
-/// C concatenates [cA_n, cD_n, cD_{n-1}, ..., cD_1] as a single row.
-/// L = [length(cA_n), length(cD_n), ..., length(cD_1), length(x)].
+/// Multi-level 1-D DWT (`[C, L] = wavedec(x, n, wname)`).
+///
+/// Runs `n` successive single-level @ref dwt passes on the running
+/// approximation band. Packs the result into the MATLAB-canonical
+/// `(C, L)` layout:
+///
+///   `C = [cA_n, cD_n, cD_{n-1}, ..., cD_1]`           (concatenated row)
+///   `L = [|cA_n|, |cD_n|, ..., |cD_1|, |x|]`         (length n+2)
+///
+/// @param x      Input signal (vector).
+/// @param n      Decomposition depth (≥ 1).
+/// @param wname  Wavelet name.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `(C, L)`; bind via `auto [C, L] = wavedec(x, n, wname);`.
+/// @throws       Error if `n < 1`.
+///
+/// @code
+/// auto [C, L] = wavedec(signal, 3, "sym4");
+/// // appcoef(C, L, "sym4", 3)  ≈ coarsest approximation
+/// // detcoef(C, L, 1)          ≈ finest detail
+/// @endcode
+///
+/// @see waverec, appcoef, detcoef, wrcoef
 std::pair<Value, Value>
 wavedec(const Value &x, int n, const std::string &wname,
         std::pmr::memory_resource *mr = nullptr);
 
-/// Inverse of wavedec.
+/// Inverse of @ref wavedec.
+///
+/// Iteratively applies @ref idwt from coarsest to finest, using the
+/// length bookkeeping in `L` to set each reconstruction target.
+///
+/// @param C      Coefficient row from @ref wavedec.
+/// @param L      Bookkeeping row from @ref wavedec.
+/// @param wname  Wavelet name (must match decomposition).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Reconstructed row vector of length `L(end)`.
+/// @throws       Error if `length(L) < 3` or C/L sizes are inconsistent.
+///
+/// @see wavedec
 Value waverec(const Value &C, const Value &L, const std::string &wname,
               std::pmr::memory_resource *mr = nullptr);
 
-/// `appcoef(C, L, wname [, level])` — extract the approximation at
-/// `level`. `level == -1` (the default in this API) returns the
-/// coarsest approximation (cA at the deepest level).
+/// Extract approximation coefficients at a given level (`appcoef`).
+///
+/// Equivalent to MATLAB's `appcoef(C, L, wname, level)`.
+/// - `level == nMax = length(L) - 2` (the default if `level == -1`)
+///   returns the coarsest cA stored verbatim at the front of C.
+/// - `level < nMax` rebuilds the approximation by running idwt
+///   `nMax - level` times.
+///
+/// @param C      Coefficient row from @ref wavedec.
+/// @param L      Bookkeeping row.
+/// @param wname  Wavelet name.
+/// @param level  Target level (or -1 for default = coarsest).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Row vector of approximation coefficients.
+/// @throws       Error on out-of-range level.
+///
+/// @see detcoef, wrcoef
 Value appcoef(const Value &C, const Value &L, const std::string &wname,
               int level,
               std::pmr::memory_resource *mr = nullptr);
 
-/// `detcoef(C, L, level)` — extract the detail vector at `level`
-/// (1-based; level=1 is the finest). MATLAB also accepts a 'cells'
-/// keyword to return all details at once — we expose that via
-/// `level == 0` returning a cell-like row of `Value`s, but the C++
-/// helper here keeps the simple single-level form.
+/// Extract detail coefficients at a given level (`detcoef(C, L, level)`).
+///
+/// `level` is 1-based: level = 1 is the finest detail, level =
+/// `length(L) - 2` the coarsest. Returns a row vector slice of C.
+///
+/// MATLAB's `detcoef(C, L, levels, 'cells')` (multi-level form) is
+/// reachable through the engine-level adapter; the C++ helper here
+/// keeps the simple single-level form.
+///
+/// @param C      Coefficient row from @ref wavedec.
+/// @param L      Bookkeeping row.
+/// @param level  1-based level (1 = finest).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Row vector of detail coefficients.
+/// @throws       Error on out-of-range level.
+///
+/// @see appcoef, wrcoef
 Value detcoef(const Value &C, const Value &L, int level,
               std::pmr::memory_resource *mr = nullptr);
 
-/// `wrcoef(type, c, l, wname[, n])` — single-band reconstruction.
-/// type ∈ {'a', 'd'}; n is the level (default = max = length(l)-2;
-/// 'a' allows n=0 for full reconstruction; 'd' requires n ∈ [1, max]).
-/// Pass n = -1 to request the default. Output is a row of length |x|.
+/// Single-band reconstruction (`wrcoef(type, c, l, wname, n)`).
+///
+/// Reconstructs the approximation (`type = "a"`) or a single detail
+/// band (`type = "d"`) of `(c, l)` at level `n`, with all other bands
+/// zeroed out before running @ref waverec. Output is a row of length
+/// `|x|` (= `l(end)`).
+///
+/// - `type = "a"`: `n ∈ [0, N]`. `n = 0` reconstructs the full
+///   signal (identity); `n = N` reconstructs only the coarsest
+///   approximation.
+/// - `type = "d"`: `n ∈ [1, N]`. Reconstructs only the detail at
+///   level `n`.
+///
+/// Pass `n = -1` to use the default (n = N = `length(l) - 2`).
+///
+/// @param type   `"a"` or `"d"`.
+/// @param c      Coefficient row from @ref wavedec.
+/// @param l      Bookkeeping row.
+/// @param wname  Wavelet name.
+/// @param n      Level (or -1 for default).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Row vector of reconstructed band.
+/// @throws       Error on bad type, level out of range, or C/L mismatch.
+///
+/// @see appcoef, detcoef, waverec
 Value wrcoef(const std::string &type, const Value &c, const Value &l,
              const std::string &wname, int n,
              std::pmr::memory_resource *mr = nullptr);

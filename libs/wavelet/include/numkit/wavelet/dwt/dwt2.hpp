@@ -8,11 +8,13 @@
 
 namespace numkit::wavelet {
 
-/// Result of a single-level 2-D DWT (MATLAB `[cA, cH, cV, cD] = dwt2(...)`).
-///   cA — approximation (Lo-rows then Lo-cols)
-///   cH — horizontal detail (Lo-rows then Hi-cols)
-///   cV — vertical detail   (Hi-rows then Lo-cols)
-///   cD — diagonal detail   (Hi-rows then Hi-cols)
+/// Result of @ref dwt2 — MATLAB `[cA, cH, cV, cD] = dwt2(X, wname)`.
+///
+/// Naming follows the standard 2-D wavelet decomposition:
+///   - cA — approximation (Lo-rows then Lo-cols, the LL band).
+///   - cH — horizontal detail (Lo-rows then Hi-cols, the LH band).
+///   - cV — vertical detail   (Hi-rows then Lo-cols, the HL band).
+///   - cD — diagonal detail   (Hi-rows then Hi-cols, the HH band).
 struct Dwt2Result {
     Value cA;
     Value cH;
@@ -20,16 +22,42 @@ struct Dwt2Result {
     Value cD;
 };
 
-/// `[cA, cH, cV, cD] = dwt2(X, wname)` — separable 2-D single-level
-/// DWT. Composes the 1-D dwt of cycle 26: a row pass first (each row
-/// of X analysed into a low + high half), then a column pass on each
-/// half.
+/// 2-D separable single-level wavelet transform.
+///
+/// Composes the 1-D @ref dwt: a row pass first (each row of `X`
+/// analysed into lo + hi halves), then a column pass on each half.
+/// Returns the four bands packaged in @ref Dwt2Result.
+///
+/// @param X      Input image (2-D matrix).
+/// @param wname  Wavelet name (see @ref wavelet_filters for the
+///               supported family list).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       @ref Dwt2Result; bind via `auto r = dwt2(X, wname);`.
+///
+/// @code
+/// auto r = dwt2(image, "db2");
+/// // r.cA is the LL band, r.cH/cV/cD are the detail bands.
+/// @endcode
+///
+/// @see idwt2, dwt
 Dwt2Result dwt2(const Value &X, const std::string &wname,
                 std::pmr::memory_resource *mr = nullptr);
 
-/// Inverse 2-D DWT. Optional `outRows`/`outCols` (≥0) crop the
-/// reconstruction to the requested size; pass -1 to use the natural
-/// length 2*la - Lf + 2 in each dim.
+/// 2-D inverse single-level wavelet transform.
+///
+/// Reconstructs the image from the four bands produced by @ref dwt2.
+/// Optional `outRows` / `outCols` (≥ 0) crop the reconstruction to
+/// the requested size; pass -1 to use the natural length
+/// `2·la - L_f + 2` in each dim.
+///
+/// @param cA,cH,cV,cD  The four bands.
+/// @param wname        Wavelet name (must match decomposition).
+/// @param outRows      Output rows (-1 for natural).
+/// @param outCols      Output cols (-1 for natural).
+/// @param mr           Memory resource (nullptr → process default).
+/// @return             Reconstructed `outRows × outCols` matrix.
+///
+/// @see dwt2
 Value idwt2(const Value &cA, const Value &cH,
             const Value &cV, const Value &cD,
             const std::string &wname,

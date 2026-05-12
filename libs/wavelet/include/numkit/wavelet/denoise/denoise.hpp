@@ -1,4 +1,8 @@
 // libs/wavelet/include/numkit/wavelet/denoise/denoise.hpp
+//
+// Wavelet-domain denoising: thresholding rules (wthresh), noise σ
+// estimation (wnoisest), and the composite VisuShrink-style
+// denoiser (wdenoise).
 
 #pragma once
 
@@ -8,26 +12,71 @@
 
 namespace numkit::wavelet {
 
-/// `wthresh(X, sorh, T)` — element-wise wavelet thresholding.
-///   sorh = "h" : hard,  Y = X .* (|X| > T)
-///   sorh = "s" : soft,  Y = sign(X) .* max(|X| - T, 0)
-/// Shape and class of X are preserved (always returned as DOUBLE).
-Value wthresh(const Value &X, const std::string &sorh, double T, std::pmr::memory_resource *mr = nullptr);
+/// Element-wise wavelet coefficient thresholding (`Y = wthresh(X, sorh, T)`).
+///
+/// Applies one of two thresholding rules at level `T`:
+///   - `sorh = "h"` (hard): @f$ Y = X\,\cdot\,\mathbb{1}(|X| > T) @f$
+///     — zero out coefficients below the threshold, leave the rest
+///     unchanged.
+///   - `sorh = "s"` (soft): @f$ Y = \text{sign}(X)\,\max(|X|-T,\,0) @f$
+///     — shrink every coefficient toward zero by `T`.
+///
+/// Shape of X is preserved; output type is always DOUBLE.
+///
+/// @param X     Input coefficients (any numeric Value).
+/// @param sorh  `"h"` or `"s"`.
+/// @param T     Non-negative threshold.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      Thresholded coefficients.
+/// @throws      Error if `sorh` is not `"h"`/`"H"`/`"s"`/`"S"`.
+///
+/// @see wnoisest, wdenoise
+Value wthresh(const Value &X, const std::string &sorh, double T,
+              std::pmr::memory_resource *mr = nullptr);
 
-/// `wnoisest(C, L, S)` — noise σ estimator per level via the MAD rule
-///   σ̂ = median(|cD_k|) / 0.6745
-/// `S` is a vector of 1-based detail levels (1=finest). Returns a row
-/// of the same length as S.
-Value wnoisest(const Value &C, const Value &L, const Value &S, std::pmr::memory_resource *mr = nullptr);
+/// Per-level noise σ estimate (`σ = wnoisest(C, L, S)`).
+///
+/// Uses the median-absolute-deviation rule on each requested detail
+/// band:
+/// @f[ \hat\sigma_k = \text{median}(|cD_k|) / 0.6745 @f]
+/// This is the standard robust estimator (matches MATLAB R2025b).
+///
+/// @param C   Coefficient row from @ref wavedec.
+/// @param L   Bookkeeping row.
+/// @param S   Row of 1-based detail levels (1 = finest).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Row of σ̂ estimates, one per element of `S`.
+///
+/// @see wthresh, wdenoise
+Value wnoisest(const Value &C, const Value &L, const Value &S,
+               std::pmr::memory_resource *mr = nullptr);
 
-/// `wdenoise(x [, level [, wname]])` — soft-threshold denoising.
-/// Defaults: level = min(floor(log2(N)), 5), wname = "sym4".
-/// Pipeline:
-///   1. [C, L] = wavedec(x, level, wname)
-///   2. σ̂ = median(|cD_1|) / 0.6745
-///   3. T = σ̂ · sqrt(2 · ln(N))   (universal / VisuShrink threshold)
-///   4. Apply soft-threshold to every detail band; leave cA untouched.
-///   5. waverec(C', L, wname)
-Value wdenoise(const Value &x, int level, const std::string &wname, std::pmr::memory_resource *mr = nullptr);
+/// VisuShrink-style soft-threshold denoising (`y = wdenoise(x, level, wname)`).
+///
+/// Pipeline (MATLAB R2025b default):
+///   1. `[C, L] = wavedec(x, level, wname)` — multi-level DWT.
+///   2. @f$ \hat\sigma = \text{median}(|cD_1|) / 0.6745 @f$ on the
+///      finest detail band.
+///   3. Universal (VisuShrink) threshold
+///      @f$ T = \hat\sigma\,\sqrt{2\ln N} @f$ where N = length(x).
+///   4. Soft-threshold every detail band in-place; leave cA untouched.
+///   5. `y = waverec(C', L, wname)` — reconstruct.
+///
+/// Defaults: `level = min(floor(log2(N)), 5)`, `wname = "sym4"`. Pass
+/// `level ≤ 0` or empty `wname` to request the default.
+///
+/// @param x      Noisy input signal.
+/// @param level  Decomposition depth (≤ 0 → default).
+/// @param wname  Wavelet name (empty → "sym4").
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Denoised signal of the same shape as `x`.
+///
+/// @code
+/// auto y = wdenoise(noisy, 0, "");      // defaults: 5 levels, sym4
+/// @endcode
+///
+/// @see wthresh, wnoisest, wavedec
+Value wdenoise(const Value &x, int level, const std::string &wname,
+               std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::wavelet
