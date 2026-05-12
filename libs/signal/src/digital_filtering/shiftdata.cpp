@@ -55,7 +55,7 @@ shiftdata(const Value &x, int dim, std::pmr::memory_resource *mr)
     for (int i = 1; i < dim; ++i) perm[k++] = i;
     for (size_t i = dim + 1; i <= N; ++i) perm[k++] = static_cast<int>(i);
 
-    Value shifted = builtin::permute(x, perm.data(), N, mr);
+    Value shifted = builtin::permute(x, Span<const int>(perm.data(), N), mr);
 
     // Build perm Value (1 × N row).
     Value permV = Value::matrix(1, N, ValueType::DOUBLE, mr);
@@ -78,7 +78,7 @@ Value unshiftdata(const Value &x, const Value &perm, const Value &nshifts, std::
     std::vector<int> permVec(N);
     for (size_t i = 0; i < N; ++i)
         permVec[i] = static_cast<int>(perm.elemAsDouble(i));
-    return builtin::ipermute(x, permVec.data(), N, mr);
+    return builtin::ipermute(x, Span<const int>(permVec.data(), N), mr);
 }
 
 namespace detail {

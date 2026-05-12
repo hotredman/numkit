@@ -6,6 +6,7 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 
 #include <cstdint>
@@ -20,7 +21,7 @@ Value repmat(const Value &x, size_t m, size_t n, size_t p = 1, std::pmr::memory_
 /// ND repmat — tile vector of arbitrary length. Output rank =
 /// max(input ndim, ntiles). Both input dims and tile vector are
 /// padded to that rank with trailing 1s. DOUBLE inputs only for now.
-Value repmatND(const Value &x, const size_t *tiles, int ntiles, std::pmr::memory_resource *mr = nullptr);
+Value repmatND(const Value &x, Span<const size_t> tiles, std::pmr::memory_resource *mr = nullptr);
 
 /// Flip along columns (left-right). Each row is reversed.
 Value fliplr(const Value &x, std::pmr::memory_resource *mr = nullptr);
@@ -41,7 +42,7 @@ Value circshift(const Value &x, int64_t kRow, int64_t kCol, std::pmr::memory_res
 /// ND circshift — shift vector of arbitrary length. shifts[i] applies to
 /// axis i; entries past input rank are no-ops. Negative shifts wrap.
 /// DOUBLE inputs only.
-Value circshiftND(const Value &x, const int64_t *shifts, int nshifts, std::pmr::memory_resource *mr = nullptr);
+Value circshiftND(const Value &x, Span<const int64_t> shifts, std::pmr::memory_resource *mr = nullptr);
 
 /// Lower / upper triangular extraction. k is the diagonal offset
 /// (0 = main, +1 = above main, -1 = below main). 2D only.

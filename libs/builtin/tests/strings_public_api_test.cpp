@@ -230,7 +230,7 @@ TEST(BuiltinStringsPublicApi, NewlineIsLfChar)
 TEST(BuiltinStringsPublicApi, StringsZeroArgIsEmptyScalar)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::stringsND(nullptr, 0, mr);
+    Value r = numkit::builtin::stringsND({}, mr);
     EXPECT_EQ(r.dims().rows(), 1u);
     EXPECT_EQ(r.dims().cols(), 1u);
     EXPECT_EQ(r.numel(), 1u);
@@ -241,7 +241,7 @@ TEST(BuiltinStringsPublicApi, StringsNxNFromSingleArg)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     size_t d[] = {4};
-    Value r = numkit::builtin::stringsND(d, 1, mr);
+    Value r = numkit::builtin::stringsND(numkit::Span<const size_t>(d, 1), mr);
     EXPECT_EQ(r.dims().rows(), 4u);
     EXPECT_EQ(r.dims().cols(), 4u);
     EXPECT_EQ(r.numel(), 16u);
@@ -253,7 +253,7 @@ TEST(BuiltinStringsPublicApi, StringsMxN)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     size_t d[] = {2, 3};
-    Value r = numkit::builtin::stringsND(d, 2, mr);
+    Value r = numkit::builtin::stringsND(numkit::Span<const size_t>(d, 2), mr);
     EXPECT_EQ(r.dims().rows(), 2u);
     EXPECT_EQ(r.dims().cols(), 3u);
     EXPECT_EQ(r.numel(), 6u);
@@ -263,7 +263,7 @@ TEST(BuiltinStringsPublicApi, Strings3D)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     size_t d[] = {2, 3, 4};
-    Value r = numkit::builtin::stringsND(d, 3, mr);
+    Value r = numkit::builtin::stringsND(numkit::Span<const size_t>(d, 3), mr);
     EXPECT_EQ(r.dims().rows(), 2u);
     EXPECT_EQ(r.dims().cols(), 3u);
     EXPECT_EQ(r.numel(), 24u);

@@ -1882,10 +1882,32 @@ Value topkrows(const Value &A, std::size_t k, std::pmr::memory_resource *mr)
 
 // ── Toeplitz / Hankel / Vandermonde / Companion ─────────────────────
 
-Value toeplitz(const double *c, std::size_t m, const double *r, std::size_t n, std::pmr::memory_resource *mr)
+namespace {
+
+// Extract Value as a flat double buffer in linear element order via
+// elemAsDouble (handles every numeric/logical type). Returns the
+// buffer; live for the lifetime of `scratch`.
+ScratchVec<double> valueToScratchDoubles(const Value &v, ScratchArena &scratch)
 {
+    const std::size_t n = v.numel();
+    ScratchVec<double> out(n, &scratch);
+    for (std::size_t i = 0; i < n; ++i) out[i] = v.elemAsDouble(i);
+    return out;
+}
+
+} // namespace
+
+Value toeplitz(const Value &cV, const Value &rV, std::pmr::memory_resource *mr)
+{
+    ScratchArena scratch(mr);
+    auto c = valueToScratchDoubles(cV, scratch);
+    // Single-arg / Empty rV: r = c (MATLAB convention; real input).
+    auto r = rV.isEmpty() ? c : valueToScratchDoubles(rV, scratch);
+    const std::size_t m = c.size();
+    const std::size_t n = r.size();
     if (m == 0 || n == 0)
-        return Value::matrix(m, n, ValueType::DOUBLE, mr);
+        throw Error("toeplitz: inputs must be non-empty",
+                    0, 0, "toeplitz", "", "m:toeplitz:empty");
     auto M = Value::matrix(m, n, ValueType::DOUBLE, mr);
     // T[i, j] = c[i-j]  (i >= j)
     //        = r[j-i]  (i <  j)
@@ -1897,16 +1919,26 @@ Value toeplitz(const double *c, std::size_t m, const double *r, std::size_t n, s
     return M;
 }
 
-Value hankel(const double *c, std::size_t m, const double *r, std::size_t n, std::pmr::memory_resource *mr)
+Value hankel(const Value &cV, const Value &rV, std::pmr::memory_resource *mr)
 {
+    ScratchArena scratch(mr);
+    auto c = valueToScratchDoubles(cV, scratch);
+    const std::size_t m = c.size();
+    // Single-arg / Empty rV: r is all zeros, length = m
+    // (anti-triangular Hankel).
+    ScratchVec<double> r(&scratch);
+    if (rV.isEmpty()) {
+        r.assign(m, 0.0);
+    } else {
+        r = valueToScratchDoubles(rV, scratch);
+    }
+    const std::size_t n = r.size();
     if (m == 0 || n == 0)
-        return Value::matrix(m, n, ValueType::DOUBLE, mr);
+        throw Error("hankel: inputs must be non-empty",
+                    0, 0, "hankel", "", "m:hankel:empty");
     auto M = Value::matrix(m, n, ValueType::DOUBLE, mr);
     // H[i, j] = c[i + j]                       if i + j <  m
     //         = r[i + j - m + 1]               otherwise
-    // (i, j 0-indexed; r index also 0-indexed -- offset reflects the
-    // overlap cell c[m-1] == r[0] which MATLAB enforces by overriding
-    // r[0]).
     for (size_t j = 0; j < n; ++j)
         for (size_t i = 0; i < m; ++i) {
             const size_t s = i + j;
@@ -1915,16 +1947,17 @@ Value hankel(const double *c, std::size_t m, const double *r, std::size_t n, std
     return M;
 }
 
-Value vander(const double *v, std::size_t n, std::pmr::memory_resource *mr)
+Value vander(const Value &vV, std::pmr::memory_resource *mr)
 {
+    ScratchArena scratch(mr);
+    auto v = valueToScratchDoubles(vV, scratch);
+    const std::size_t n = v.size();
     if (n == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     auto M = Value::matrix(n, n, ValueType::DOUBLE, mr);
     // V[i, j] = v[i] ^ (n - 1 - j) -- highest power on the LEFT.
-    // Build per-row to keep the powers in a single multiply.
     for (size_t i = 0; i < n; ++i) {
         const double x = v[i];
-        // Last column = v^0 = 1; walk right→left multiplying by x.
         M.elem(i, n - 1) = 1.0;
         for (size_t k = 1; k < n; ++k)
             M.elem(i, n - 1 - k) = M.elem(i, n - k) * x;
@@ -1932,8 +1965,11 @@ Value vander(const double *v, std::size_t n, std::pmr::memory_resource *mr)
     return M;
 }
 
-Value compan(const double *p, std::size_t pn, std::pmr::memory_resource *mr)
+Value compan(const Value &pV, std::pmr::memory_resource *mr)
 {
+    ScratchArena scratch(mr);
+    auto p = valueToScratchDoubles(pV, scratch);
+    const std::size_t pn = p.size();
     if (pn < 2)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if (p[0] == 0.0)
@@ -1943,10 +1979,8 @@ Value compan(const double *p, std::size_t pn, std::pmr::memory_resource *mr)
     const std::size_t n = pn - 1;
     auto M = Value::matrix(n, n, ValueType::DOUBLE, mr);
     const double inv = 1.0 / p[0];
-    // Top row: -p[1]/p[0], -p[2]/p[0], ..., -p[n]/p[0]
     for (std::size_t j = 0; j < n; ++j)
         M.elem(0, j) = -p[j + 1] * inv;
-    // Subdiagonal: ones at (i, i-1) for i = 1..n-1
     for (std::size_t i = 1; i < n; ++i)
         M.elem(i, i - 1) = 1.0;
     return M;
@@ -2204,8 +2238,9 @@ Value reshape(const Value &x, size_t rows, size_t cols, size_t pages, std::pmr::
 // ND reshape. Same elem-count check, then route to matrixND for nd > 3.
 // CELL/STRING ND not supported yet (matches the 2D/3D behaviour: only
 // CELL/STRING currently handles 2D and 3D shapes via cell3D/stringArray3D).
-Value reshapeND(const Value &x, const size_t *dims, std::size_t nDims, std::pmr::memory_resource *mr)
+Value reshapeND(const Value &x, Span<const size_t> dims, std::pmr::memory_resource *mr)
 {
+    const std::size_t nDims = dims.size();
     size_t newNumel = 1;
     for (std::size_t i = 0; i < nDims; ++i) newNumel *= dims[i];
     if (newNumel != x.numel())
@@ -2223,7 +2258,7 @@ Value reshapeND(const Value &x, const size_t *dims, std::size_t nDims, std::pmr:
         return reshape(x, r, c, p, mr);
     }
 
-    auto r = createMatrixND(dims, nDims, x.type(), mr);
+    auto r = createMatrixND(dims.data(), nDims, x.type(), mr);
     if (x.rawBytes() > 0)
         std::memcpy(r.rawDataMut(), x.rawData(), x.rawBytes());
     return r;
@@ -2860,9 +2895,9 @@ std::tuple<Value, Value> sortrows(const Value &x, std::pmr::memory_resource *mr)
     return sortRowsImpl(x, nullptr, 0, mr);
 }
 
-std::tuple<Value, Value> sortrows(const Value &x, const int *cols, std::size_t nCols, std::pmr::memory_resource *mr)
+std::tuple<Value, Value> sortrows(const Value &x, Span<const int> cols, std::pmr::memory_resource *mr)
 {
-    return sortRowsImpl(x, cols, nCols, mr);
+    return sortRowsImpl(x, cols.data(), cols.size(), mr);
 }
 
 Value find(const Value &x, std::pmr::memory_resource *mr)
@@ -3981,38 +4016,13 @@ void magic_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     outs[0] = magic(static_cast<size_t>(nd), ctx.engine->resource());
 }
 
-namespace {
-
-// Collect a row/column vector of doubles in linear element order via
-// elemAsDouble. Used by toeplitz/hankel/vander/compan. Caller-owned
-// buffer to avoid an allocation hop through pmr::vector.
-void valueToDoubleVec(const Value &v, std::vector<double> &dst)
-{
-    const std::size_t n = v.numel();
-    dst.resize(n);
-    for (std::size_t i = 0; i < n; ++i) dst[i] = v.elemAsDouble(i);
-}
-
-} // anonymous namespace
-
 void toeplitz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 1 || args.size() > 2)
         throw Error("toeplitz: requires 1 or 2 arguments",
                     0, 0, "toeplitz", "", "m:toeplitz:nargin");
-    std::vector<double> cv, rv;
-    valueToDoubleVec(args[0], cv);
-    if (args.size() == 2) {
-        valueToDoubleVec(args[1], rv);
-    } else {
-        // Single-arg: r = c (real input). r[0] always overridden by c[0]
-        // in the implementation, so any difference is irrelevant.
-        rv = cv;
-    }
-    if (cv.empty() || rv.empty())
-        throw Error("toeplitz: inputs must be non-empty",
-                    0, 0, "toeplitz", "", "m:toeplitz:empty");
-    outs[0] = toeplitz(cv.data(), cv.size(), rv.data(), rv.size(), ctx.engine->resource());
+    const Value &r = args.size() == 2 ? args[1] : Value::Empty;
+    outs[0] = toeplitz(args[0], r, ctx.engine->resource());
 }
 
 void hankel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4020,18 +4030,8 @@ void hankel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 1 || args.size() > 2)
         throw Error("hankel: requires 1 or 2 arguments",
                     0, 0, "hankel", "", "m:hankel:nargin");
-    std::vector<double> cv, rv;
-    valueToDoubleVec(args[0], cv);
-    if (args.size() == 2) {
-        valueToDoubleVec(args[1], rv);
-    } else {
-        // Single-arg: r is all zeros, length = numel(c) (anti-triangular Hankel).
-        rv.assign(cv.size(), 0.0);
-    }
-    if (cv.empty() || rv.empty())
-        throw Error("hankel: inputs must be non-empty",
-                    0, 0, "hankel", "", "m:hankel:empty");
-    outs[0] = hankel(cv.data(), cv.size(), rv.data(), rv.size(), ctx.engine->resource());
+    const Value &r = args.size() == 2 ? args[1] : Value::Empty;
+    outs[0] = hankel(args[0], r, ctx.engine->resource());
 }
 
 void vander_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4039,9 +4039,7 @@ void vander_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() != 1)
         throw Error("vander: requires exactly 1 argument",
                     0, 0, "vander", "", "m:vander:nargin");
-    std::vector<double> v;
-    valueToDoubleVec(args[0], v);
-    outs[0] = vander(v.data(), v.size(), ctx.engine->resource());
+    outs[0] = vander(args[0], ctx.engine->resource());
 }
 
 void compan_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4049,9 +4047,7 @@ void compan_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() != 1)
         throw Error("compan: requires exactly 1 argument",
                     0, 0, "compan", "", "m:compan:nargin");
-    std::vector<double> p;
-    valueToDoubleVec(args[0], p);
-    outs[0] = compan(p.data(), p.size(), ctx.engine->resource());
+    outs[0] = compan(args[0], ctx.engine->resource());
 }
 
 namespace {
@@ -4503,7 +4499,7 @@ void reshape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
     // Strip trailing 1s past the 2nd dim (MATLAB convention).
     stripTrailingOnes(dims);
-    outs[0] = reshapeND(x, dims.data(), dims.size(), mr);
+    outs[0] = reshapeND(x, Span<const size_t>(dims.data(), dims.size()), mr);
 }
 
 void transpose_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4675,7 +4671,7 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
             cols.push_back(static_cast<int>(v));
         }
     }
-    auto [sorted, idx] = sortrows(args[0], cols.data(), cols.size(), mr);
+    auto [sorted, idx] = sortrows(args[0], Span<const int>(cols.data(), cols.size()), mr);
     outs[0] = std::move(sorted);
     if (nargout > 1)
         outs[1] = std::move(idx);

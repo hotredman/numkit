@@ -143,7 +143,7 @@ inline double readVal(const Value &vals, size_t i, bool valIsScalar)
 
 } // namespace
 
-Value accumarray(const Value &subs, const Value &vals, const size_t *outShape, std::size_t nOutShape, AccumReducer op, double fillVal, std::pmr::memory_resource *mr)
+Value accumarray(const Value &subs, const Value &vals, Span<const size_t> outShape, AccumReducer op, double fillVal, std::pmr::memory_resource *mr)
 {
     const char *fn = "accumarray";
 
@@ -168,7 +168,7 @@ Value accumarray(const Value &subs, const Value &vals, const size_t *outShape, s
                      0, 0, fn, "", "m:accumarray:valSize");
 
     ScratchArena scratch(mr);
-    auto shape = resolveOutShape(subs, outShape, nOutShape, fn, &scratch);
+    auto shape = resolveOutShape(subs, outShape.data(), outShape.size(), fn, &scratch);
     if (shape.size() < D) shape.resize(D, 1);
 
     Value out = allocOutput(shape.data(), shape.size(), mr);
@@ -304,7 +304,7 @@ void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
                          0, 0, "accumarray", "", "m:accumarray:sparse");
     }
 
-    outs[0] = accumarray(args[0], args[1], shape.data(), shape.size(), op, fillVal, mr);
+    outs[0] = accumarray(args[0], args[1], Span<const size_t>(shape.data(), shape.size()), op, fillVal, mr);
 }
 
 } // namespace detail

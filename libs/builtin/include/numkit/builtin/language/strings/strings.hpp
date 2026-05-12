@@ -167,7 +167,7 @@ Value newlineFn(std::pmr::memory_resource *mr = nullptr);
 /// Same dim-arg conventions as `zeros` / `cell`: scalar `n` → n×n,
 /// `(m,n)` → m×n, `(m,n,p)` → m×n×p, single vector arg → its elements.
 /// `dims` may have 0..N entries; ndim<2 is normalized to {n,n} or {1,1}.
-Value stringsND(const size_t *dims, size_t ndim, std::pmr::memory_resource *mr = nullptr);
+Value stringsND(Span<const size_t> dims, std::pmr::memory_resource *mr = nullptr);
 
 /// compose(fmt, x) — apply sprintf-style `fmt` to each element of `x`,
 /// returning a same-shaped cell of char arrays. fmt is consumed once

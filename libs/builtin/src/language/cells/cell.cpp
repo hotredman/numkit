@@ -240,7 +240,7 @@ Value cellstr(const Value &x, std::pmr::memory_resource *mr)
                  0, 0, "cellstr", "", "m:cellstr:type");
 }
 
-Value mat2cell(const Value &x, const double *rowSizes, size_t nRow, const double *colSizes, size_t nCol, std::pmr::memory_resource *mr)
+Value mat2cell(const Value &x, const Value &rowSizesV, const Value &colSizesV, std::pmr::memory_resource *mr)
 {
     if (x.dims().ndim() > 2)
         throw Error("mat2cell: only 2-D inputs are supported",
@@ -250,10 +250,12 @@ Value mat2cell(const Value &x, const double *rowSizes, size_t nRow, const double
                      0, 0, "mat2cell", "", "m:mat2cell:type");
 
     const size_t R = x.dims().rows(), C = x.dims().cols();
+    const size_t nRow = rowSizesV.numel();
+    const size_t nCol = colSizesV.numel();
 
     // Vector form: mat2cell(v, sizes). Treat sizes as row-direction
     // when v is a column, column-direction when v is a row.
-    const bool vectorForm = (nCol == 0);
+    const bool vectorForm = colSizesV.isEmpty();
     ScratchArena scratch(mr);
     auto rowS = ScratchVec<size_t>(&scratch);
     auto colS = ScratchVec<size_t>(&scratch);
@@ -263,20 +265,20 @@ Value mat2cell(const Value &x, const double *rowSizes, size_t nRow, const double
             rowS.assign({R});
             colS.reserve(nRow);
             for (size_t i = 0; i < nRow; ++i)
-                colS.push_back(static_cast<size_t>(rowSizes[i]));
+                colS.push_back(static_cast<size_t>(rowSizesV.elemAsDouble(i)));
         } else {
             rowS.reserve(nRow);
             for (size_t i = 0; i < nRow; ++i)
-                rowS.push_back(static_cast<size_t>(rowSizes[i]));
+                rowS.push_back(static_cast<size_t>(rowSizesV.elemAsDouble(i)));
             colS.assign({C});
         }
     } else {
         rowS.reserve(nRow);
         for (size_t i = 0; i < nRow; ++i)
-            rowS.push_back(static_cast<size_t>(rowSizes[i]));
+            rowS.push_back(static_cast<size_t>(rowSizesV.elemAsDouble(i)));
         colS.reserve(nCol);
         for (size_t j = 0; j < nCol; ++j)
-            colS.push_back(static_cast<size_t>(colSizes[j]));
+            colS.push_back(static_cast<size_t>(colSizesV.elemAsDouble(j)));
     }
 
     size_t rsum = 0, csum = 0;
@@ -402,10 +404,9 @@ void mat2cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
     auto *mr = ctx.engine->resource();
     const Value &rArg = args[1];
     if (args.size() == 2) {
-        outs[0] = mat2cell(args[0], rArg.doubleData(), rArg.numel(), nullptr, 0, mr);
+        outs[0] = mat2cell(args[0], rArg, Value::Empty, mr);
     } else {
-        const Value &cArg = args[2];
-        outs[0] = mat2cell(args[0], rArg.doubleData(), rArg.numel(), cArg.doubleData(), cArg.numel(), mr);
+        outs[0] = mat2cell(args[0], rArg, args[2], mr);
     }
 }
 

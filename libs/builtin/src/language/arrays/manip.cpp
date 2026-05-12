@@ -34,8 +34,8 @@ Value repmat(const Value &x, size_t m, size_t n, size_t p, std::pmr::memory_reso
     const ValueType t = x.type();
     if (t != ValueType::DOUBLE) {
         const size_t tiles[3] = { m, n, p };
-        const int nd = (p > 1 || x.dims().is3D()) ? 3 : 2;
-        return repmatND(x, tiles, nd, mr);
+        const size_t nd = (p > 1 || x.dims().is3D()) ? 3 : 2;
+        return repmatND(x, Span<const size_t>(tiles, nd), mr);
     }
     const auto &dd = x.dims();
     const size_t R = dd.rows(), C = dd.cols();
@@ -82,7 +82,7 @@ Value repmat(const Value &x, size_t m, size_t n, size_t p, std::pmr::memory_reso
 // each output column-of-axis-0 back to its source column via per-axis
 // modulo, then memcpys axis-0-bytes tilesPadded[0] times to fill the
 // output column. Type-preserving via byte-copy (elementSize-based).
-Value repmatND(const Value &x, const size_t *tiles, int ntiles, std::pmr::memory_resource *mr)
+Value repmatND(const Value &x, Span<const size_t> tiles, std::pmr::memory_resource *mr)
 {
     const ValueType t = x.type();
     if (t == ValueType::STRUCT || t == ValueType::FUNC_HANDLE)
@@ -92,6 +92,7 @@ Value repmatND(const Value &x, const size_t *tiles, int ntiles, std::pmr::memory
 
     const auto &inDims = x.dims();
     constexpr int kMaxNd = Dims::kMaxRank;
+    const int ntiles = static_cast<int>(tiles.size());
     int outNdim = std::max(inDims.ndim(), ntiles);
     if (outNdim > kMaxNd)
         throw Error("repmat: rank exceeds 32",
@@ -526,7 +527,7 @@ Value circshift(const Value &x, int64_t k, std::pmr::memory_resource *mr)
     return circshift(x, k, 0, mr);
 }
 
-Value circshiftND(const Value &x, const int64_t *shifts, int nshifts, std::pmr::memory_resource *mr)
+Value circshiftND(const Value &x, Span<const int64_t> shifts, std::pmr::memory_resource *mr)
 {
     const ValueType t = x.type();
     if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
@@ -546,6 +547,7 @@ Value circshiftND(const Value &x, const int64_t *shifts, int nshifts, std::pmr::
     auto r = Value::matrixND(outDims, nd, t, mr);
     if (x.numel() == 0) return r;
 
+    const int nshifts = static_cast<int>(shifts.size());
     size_t shiftMod[kMaxNd] = {0};
     for (int i = 0; i < nd; ++i) {
         const int64_t s = (i < nshifts) ? shifts[i] : 0;
@@ -611,7 +613,7 @@ Value circshift(const Value &x, int64_t kRow, int64_t kCol, std::pmr::memory_res
     }
     if (dd.ndim() >= 4) {
         const int64_t shifts[2] = {kRow, kCol};
-        return circshiftND(x, shifts, 2, mr);
+        return circshiftND(x, Span<const int64_t>(shifts, 2), mr);
     }
     const size_t R = dd.rows(), C = dd.cols();
     auto r = Value::matrix(R, C, ValueType::DOUBLE, mr);
@@ -961,7 +963,7 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         const size_t p = tiles.size() >= 3 ? tiles[2] : 1;
         outs[0] = repmat(args[0], m, n, p, mr);
     } else {
-        outs[0] = repmatND(args[0], tiles.data(), static_cast<int>(tiles.size()), mr);
+        outs[0] = repmatND(args[0], Span<const size_t>(tiles.data(), tiles.size()), mr);
     }
 }
 
@@ -1018,7 +1020,7 @@ void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     auto shifts = ScratchVec<int64_t>(nk, &scratch);
     for (size_t i = 0; i < nk; ++i)
         shifts[i] = static_cast<int64_t>(k.doubleData()[i]);
-    outs[0] = circshiftND(args[0], shifts.data(), static_cast<int>(nk), mr);
+    outs[0] = circshiftND(args[0], Span<const int64_t>(shifts.data(), nk), mr);
 }
 
 #define NK_TRI_REG(name)                                                       \

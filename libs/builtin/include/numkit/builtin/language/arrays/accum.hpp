@@ -15,6 +15,7 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 
 #include <cstddef>
@@ -26,9 +27,11 @@ namespace numkit::builtin {
 /// layer with a clear error — this surface is the 99% MATLAB use case.
 enum class AccumReducer { Sum, Max, Min, Prod, Mean, Any, All };
 
-/// nOutShape == 0 → derive shape from max(subs) per column.
+/// Empty `outShape` → derive from max(subs) per column.
 /// `vals` may be a scalar (broadcast to every subscript row) or a
 /// length-N vector (one value per subscript row).
-Value accumarray(const Value &subs, const Value &vals, const size_t *outShape, std::size_t nOutShape, AccumReducer op, double fillVal, std::pmr::memory_resource *mr = nullptr);
+Value accumarray(const Value &subs, const Value &vals, Span<const size_t> outShape,
+                 AccumReducer op, double fillVal,
+                 std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

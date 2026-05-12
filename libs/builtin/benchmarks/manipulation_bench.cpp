@@ -105,7 +105,7 @@ static void BM_PermuteTranspose(benchmark::State &s)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     const int perm[] = {2, 1};
     for (auto _ : s) {
-        auto y = builtin::permute(mr, m, perm, 2);
+        auto y = builtin::permute(m, Span<const int>(perm, 2), mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(side * side));
@@ -120,7 +120,7 @@ static void BM_Permute3D(benchmark::State &s)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     const int perm[] = {3, 1, 2};
     for (auto _ : s) {
-        auto y = builtin::permute(mr, m, perm, 3);
+        auto y = builtin::permute(m, Span<const int>(perm, 3), mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(side * side * side));
