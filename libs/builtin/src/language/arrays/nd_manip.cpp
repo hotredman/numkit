@@ -232,7 +232,7 @@ Value squeeze(const Value &x, std::pmr::memory_resource *mr)
 
     // 2D and below: shape preserved (MATLAB never collapses below 2D).
     if (nd <= 2)
-        return reshape(mr, x, dd.rows(), dd.cols(), 0);
+        return reshape(x, dd.rows(), dd.cols(), 0, mr);
 
     // ND (≥ 3): drop every singleton dim, preserve the rest in order.
     // Pad to at least 2 dims with trailing 1s so a fully-singleton input
@@ -247,7 +247,7 @@ Value squeeze(const Value &x, std::pmr::memory_resource *mr)
     }
     while (kept.size() < 2) kept.push_back(1);
 
-    return reshapeND(mr, x, kept.data(), kept.size());
+    return reshapeND(x, kept.data(), kept.size(), mr);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -400,8 +400,8 @@ Value cat(int dim, const Value *values, size_t count, std::pmr::memory_resource 
         throw Error("cat: dim must be a positive integer",
                      0, 0, "cat", "", "m:cat:badDim");
     switch (dim) {
-        case 1: return vertcat(mr, values, count);
-        case 2: return horzcat(mr, values, count);
+        case 1: return vertcat(values, count, mr);
+        case 2: return horzcat(values, count, mr);
         case 3: return catDim3(values, count, mr);
         default: return catND(dim, values, count, mr);
     }
@@ -487,7 +487,7 @@ Value shiftdim(const Value &x, int n, std::pmr::memory_resource *mr)
     size_t newDims[kMaxNd];
     for (int i = 0; i < k; ++i) newDims[i] = 1;
     for (int i = 0; i < N; ++i) newDims[k + i] = d.dim(i);
-    return reshapeND(mr, x, newDims, static_cast<std::size_t>(newN));
+    return reshapeND(x, newDims, static_cast<std::size_t>(newN), mr);
 }
 
 ShiftDimAuto shiftdimAuto(const Value &x, std::pmr::memory_resource *mr)
@@ -515,7 +515,7 @@ ShiftDimAuto shiftdimAuto(const Value &x, std::pmr::memory_resource *mr)
         constexpr int kMaxNd = Dims::kMaxRank;
         size_t trimmed[kMaxNd];
         for (int i = 0; i < newN; ++i) trimmed[i] = yd.dim(i);
-        y = reshapeND(mr, y, trimmed, static_cast<std::size_t>(newN));
+        y = reshapeND(y, trimmed, static_cast<std::size_t>(newN), mr);
     }
     return { std::move(y), k };
 }

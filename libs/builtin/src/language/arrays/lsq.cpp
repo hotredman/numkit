@@ -41,8 +41,7 @@ namespace numkit::builtin {
 // For full-rank A this collapses to the same answer as A\B; for
 // rank-deficient A it returns the unique min-norm solution to the
 // least-squares problem.
-Value lsqminnorm(std::pmr::memory_resource *mr, const Value &A,
-                 const Value &B, bool have_tol, double tol_user)
+Value lsqminnorm(const Value &A, const Value &B, bool have_tol, double tol_user, std::pmr::memory_resource *mr)
 {
     if (A.dims().is3D() || B.dims().is3D())
         throw Error("lsqminnorm: inputs must be 2D",
@@ -57,7 +56,7 @@ Value lsqminnorm(std::pmr::memory_resource *mr, const Value &A,
                     0, 0, "lsqminnorm", "", "m:lsqminnorm:DimMismatch");
 
     // Existing pinv signature: pinv(mr, A, tol) where tol < 0 means default.
-    Value Ap = pinv(mr, A, have_tol ? tol_user : -1.0);
+    Value Ap = pinv(A, have_tol ? tol_user : -1.0, mr);
     return mtimes(Ap, B, mr);
 }
 
@@ -96,7 +95,7 @@ struct NnlsResult {
 };
 
 NnlsResult
-lsqnonneg_impl(std::pmr::memory_resource *mr, const Value &C, const Value &d)
+lsqnonneg_impl(const Value &C, const Value &d, std::pmr::memory_resource *mr)
 {
     if (C.dims().is3D() || d.dims().is3D())
         throw Error("lsqnonneg: inputs must be 2D",
@@ -275,7 +274,7 @@ void lsqminnorm_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "lsqminnorm", "", "m:lsqminnorm:nargin");
     bool have_tol = (args.size() >= 3);
     double tol = have_tol ? args[2].toScalar() : 0.0;
-    outs[0] = lsqminnorm(ctx.engine->resource(), args[0], args[1], have_tol, tol);
+    outs[0] = lsqminnorm(args[0], args[1], have_tol, tol, ctx.engine->resource());
 }
 
 void lsqnonneg_reg(Span<const Value> args, size_t nargout,
@@ -284,7 +283,7 @@ void lsqnonneg_reg(Span<const Value> args, size_t nargout,
     if (args.size() < 2)
         throw Error("lsqnonneg: requires (C, d)",
                     0, 0, "lsqnonneg", "", "m:lsqnonneg:nargin");
-    auto R = lsqnonneg_impl(ctx.engine->resource(), args[0], args[1]);
+    auto R = lsqnonneg_impl(args[0], args[1], ctx.engine->resource());
     outs[0] = R.x;
     if (nargout >= 2 && outs.size() >= 2)
         outs[1] = Value::scalar(R.resnorm, ctx.engine->resource());

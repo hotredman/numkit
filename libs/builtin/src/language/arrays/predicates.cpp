@@ -77,7 +77,7 @@ bool isbandedImpl(const Value &A, long lower, long upper)
     return true;
 }
 
-Value isbanded(std::pmr::memory_resource *mr, const Value &A, long lower, long upper)
+Value isbanded(const Value &A, long lower, long upper, std::pmr::memory_resource *mr)
 {
     requireMatrix(A, "isbanded");
     if (lower < 0 || upper < 0)
@@ -87,13 +87,13 @@ Value isbanded(std::pmr::memory_resource *mr, const Value &A, long lower, long u
 }
 
 // ── isdiag / istril / istriu ──────────────────────────────────────────
-Value isdiag(std::pmr::memory_resource *mr, const Value &A)
+Value isdiag(const Value &A, std::pmr::memory_resource *mr)
 {
     requireMatrix(A, "isdiag");
     return Value::logicalScalar(isbandedImpl(A, 0, 0), mr);
 }
 
-Value istril(std::pmr::memory_resource *mr, const Value &A)
+Value istril(const Value &A, std::pmr::memory_resource *mr)
 {
     requireMatrix(A, "istril");
     const long R = static_cast<long>(A.dims().rows());
@@ -101,7 +101,7 @@ Value istril(std::pmr::memory_resource *mr, const Value &A)
     return Value::logicalScalar(isbandedImpl(A, R, 0), mr);
 }
 
-Value istriu(std::pmr::memory_resource *mr, const Value &A)
+Value istriu(const Value &A, std::pmr::memory_resource *mr)
 {
     requireMatrix(A, "istriu");
     const long C = static_cast<long>(A.dims().cols());
@@ -142,7 +142,7 @@ bool issymmetricImpl(const Value &A, bool skew)
     return true;
 }
 
-Value issymmetric(std::pmr::memory_resource *mr, const Value &A, bool skew)
+Value issymmetric(const Value &A, bool skew, std::pmr::memory_resource *mr)
 {
     return Value::logicalScalar(issymmetricImpl(A, skew), mr);
 }
@@ -171,7 +171,7 @@ bool ishermitianImpl(const Value &A, bool skew)
     return issymmetricImpl(A, skew);
 }
 
-Value ishermitian(std::pmr::memory_resource *mr, const Value &A, bool skew)
+Value ishermitian(const Value &A, bool skew, std::pmr::memory_resource *mr)
 {
     return Value::logicalScalar(ishermitianImpl(A, skew), mr);
 }
@@ -211,7 +211,7 @@ std::pair<long, long> bandwidthImpl(const Value &A)
 }
 
 std::pair<Value, Value>
-bandwidth(std::pmr::memory_resource *mr, const Value &A)
+bandwidth(const Value &A, std::pmr::memory_resource *mr)
 {
     requireMatrix(A, "bandwidth");
     auto [lo, up] = bandwidthImpl(A);
@@ -219,8 +219,7 @@ bandwidth(std::pmr::memory_resource *mr, const Value &A)
             Value::scalar(static_cast<double>(up), mr)};
 }
 
-Value bandwidthOpt(std::pmr::memory_resource *mr, const Value &A,
-                   const std::string &which)
+Value bandwidthOpt(const Value &A, const std::string &which, std::pmr::memory_resource *mr)
 {
     requireMatrix(A, "bandwidth");
     auto [lo, up] = bandwidthImpl(A);
@@ -238,8 +237,7 @@ Value bandwidthOpt(std::pmr::memory_resource *mr, const Value &A,
 //   else     → (sum |A|^p) ^ (1/p)
 //
 // Output shape matches A with the reduced dim collapsed to length 1.
-Value vecnorm(std::pmr::memory_resource *mr, const Value &A,
-              double p, int dim)
+Value vecnorm(const Value &A, double p, int dim, std::pmr::memory_resource *mr)
 {
     if (A.dims().is3D())
         throw Error("vecnorm: 3-D arrays not supported",
@@ -345,7 +343,7 @@ void issymmetric_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("issymmetric: requires (A)",
                     0, 0, "issymmetric", "", "m:issymmetric:nargin");
     bool skew = (args.size() >= 2) && parseSkewOpt(args[1], "issymmetric");
-    outs[0] = issymmetric(ctx.engine->resource(), args[0], skew);
+    outs[0] = issymmetric(args[0], skew, ctx.engine->resource());
 }
 
 void ishermitian_reg(Span<const Value> args, size_t /*nargout*/,
@@ -355,7 +353,7 @@ void ishermitian_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("ishermitian: requires (A)",
                     0, 0, "ishermitian", "", "m:ishermitian:nargin");
     bool skew = (args.size() >= 2) && parseSkewOpt(args[1], "ishermitian");
-    outs[0] = ishermitian(ctx.engine->resource(), args[0], skew);
+    outs[0] = ishermitian(args[0], skew, ctx.engine->resource());
 }
 
 void isbanded_reg(Span<const Value> args, size_t /*nargout*/,
@@ -366,7 +364,7 @@ void isbanded_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "isbanded", "", "m:isbanded:nargin");
     long lower = static_cast<long>(args[1].toScalar());
     long upper = static_cast<long>(args[2].toScalar());
-    outs[0] = isbanded(ctx.engine->resource(), args[0], lower, upper);
+    outs[0] = isbanded(args[0], lower, upper, ctx.engine->resource());
 }
 
 void isdiag_reg(Span<const Value> args, size_t /*nargout*/,
@@ -374,7 +372,7 @@ void isdiag_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("isdiag: requires (A)", 0, 0, "isdiag", "", "m:isdiag:nargin");
-    outs[0] = isdiag(ctx.engine->resource(), args[0]);
+    outs[0] = isdiag(args[0], ctx.engine->resource());
 }
 
 void istril_reg(Span<const Value> args, size_t /*nargout*/,
@@ -382,7 +380,7 @@ void istril_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("istril: requires (A)", 0, 0, "istril", "", "m:istril:nargin");
-    outs[0] = istril(ctx.engine->resource(), args[0]);
+    outs[0] = istril(args[0], ctx.engine->resource());
 }
 
 void istriu_reg(Span<const Value> args, size_t /*nargout*/,
@@ -390,7 +388,7 @@ void istriu_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("istriu: requires (A)", 0, 0, "istriu", "", "m:istriu:nargin");
-    outs[0] = istriu(ctx.engine->resource(), args[0]);
+    outs[0] = istriu(args[0], ctx.engine->resource());
 }
 
 void bandwidth_reg(Span<const Value> args, size_t nargout,
@@ -402,7 +400,7 @@ void bandwidth_reg(Span<const Value> args, size_t nargout,
     if (args.size() == 1) {
         // Two-output canonical form. Single-output returns lower bandwidth
         // (matches MATLAB behaviour: x = bandwidth(A) → first output).
-        auto [lo, up] = bandwidth(ctx.engine->resource(), args[0]);
+        auto [lo, up] = bandwidth(args[0], ctx.engine->resource());
         outs[0] = lo;
         if (nargout >= 2 && outs.size() >= 2) outs[1] = up;
         return;
@@ -411,7 +409,7 @@ void bandwidth_reg(Span<const Value> args, size_t nargout,
     if (!args[1].isChar() && !args[1].isString())
         throw Error("bandwidth: option must be 'lower' or 'upper'",
                     0, 0, "bandwidth", "", "m:bandwidth:BadOpt");
-    outs[0] = bandwidthOpt(ctx.engine->resource(), args[0], args[1].toString());
+    outs[0] = bandwidthOpt(args[0], args[1].toString(), ctx.engine->resource());
 }
 
 void vecnorm_reg(Span<const Value> args, size_t /*nargout*/,
@@ -424,7 +422,7 @@ void vecnorm_reg(Span<const Value> args, size_t /*nargout*/,
     int dim = 0;
     if (args.size() >= 2) p = args[1].toScalar();
     if (args.size() >= 3) dim = static_cast<int>(args[2].toScalar());
-    outs[0] = vecnorm(ctx.engine->resource(), args[0], p, dim);
+    outs[0] = vecnorm(args[0], p, dim, ctx.engine->resource());
 }
 
 } // namespace detail

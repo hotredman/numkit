@@ -30,12 +30,12 @@ namespace numkit::builtin {
 // ════════════════════════════════════════════════════════════════════════
 
 // ── Constructors ──────────────────────────────────────────────────────
-Value zeros(std::pmr::memory_resource *mr, size_t rows, size_t cols, size_t pages)
+Value zeros(size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
 {
     return createMatrix({rows, cols, pages}, ValueType::DOUBLE, mr);
 }
 
-Value ones(std::pmr::memory_resource *mr, size_t rows, size_t cols, size_t pages)
+Value ones(size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
 {
     auto m = createMatrix({rows, cols, pages}, ValueType::DOUBLE, mr);
     double *p = m.doubleDataMut();
@@ -47,12 +47,12 @@ Value ones(std::pmr::memory_resource *mr, size_t rows, size_t cols, size_t pages
 // ND overloads: caller passes a flat dim list. For nd <= 3 these just
 // route to the legacy 2D/3D ctors via createMatrixND; nd > 3 hits the
 // Value::matrixND ctor and the SBO Dims storage.
-Value zerosND(std::pmr::memory_resource *mr, const size_t *dims, std::size_t nDims)
+Value zerosND(const size_t *dims, std::size_t nDims, std::pmr::memory_resource *mr)
 {
     return createMatrixND(dims, nDims, ValueType::DOUBLE, mr);
 }
 
-Value onesND(std::pmr::memory_resource *mr, const size_t *dims, std::size_t nDims)
+Value onesND(const size_t *dims, std::size_t nDims, std::pmr::memory_resource *mr)
 {
     auto m = createMatrixND(dims, nDims, ValueType::DOUBLE, mr);
     double *p = m.doubleDataMut();
@@ -61,7 +61,7 @@ Value onesND(std::pmr::memory_resource *mr, const size_t *dims, std::size_t nDim
     return m;
 }
 
-Value eye(std::pmr::memory_resource *mr, size_t rows, size_t cols)
+Value eye(size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto m = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < std::min(rows, cols); ++i)
@@ -167,10 +167,7 @@ namespace {
 // write the result (n×nrhs) into outX. Common helper for inv /
 // linsolve / pageinv. Returns false on singular / rank-deficient /
 // wide A.
-bool laSolveWrap(std::pmr::memory_resource *mr,
-                 const double *A_buf, std::size_t m, std::size_t n,
-                 const double *B_buf, std::size_t nrhs,
-                 double *outX)
+bool laSolveWrap(const double *A_buf, std::size_t m, std::size_t n, const double *B_buf, std::size_t nrhs, double *outX, std::pmr::memory_resource *mr)
 {
     return detail::la_solve(A_buf, m, n, B_buf, nrhs, outX, mr);
 }
@@ -185,7 +182,7 @@ void fillIdentity(double *buf, std::size_t n)
 
 } // anonymous namespace
 
-Value inv(std::pmr::memory_resource *mr, const Value &A)
+Value inv(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("inv: input must be a 2D matrix",
@@ -206,14 +203,13 @@ Value inv(std::pmr::memory_resource *mr, const Value &A)
     fillIdentity(I_buf.data(), n);
 
     auto out = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    if (!laSolveWrap(&scratch, A_buf.data(), m, n,
-                     I_buf.data(), n, out.doubleDataMut()))
+    if (!laSolveWrap(A_buf.data(), m, n, I_buf.data(), n, out.doubleDataMut(), &scratch))
         throw Error("inv: matrix is singular to working precision",
                     0, 0, "inv", "", "m:inv:singular");
     return out;
 }
 
-Value linsolve(std::pmr::memory_resource *mr, const Value &A, const Value &B)
+Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2 || B.dims().ndim() != 2)
         throw Error("linsolve: A and B must be 2D matrices",
@@ -233,14 +229,13 @@ Value linsolve(std::pmr::memory_resource *mr, const Value &A, const Value &B)
     std::copy(B.doubleData(), B.doubleData() + m * nrhs, B_buf.begin());
 
     auto out = Value::matrix(n, nrhs, ValueType::DOUBLE, mr);
-    if (!laSolveWrap(&scratch, A_buf.data(), m, n,
-                     B_buf.data(), nrhs, out.doubleDataMut()))
+    if (!laSolveWrap(A_buf.data(), m, n, B_buf.data(), nrhs, out.doubleDataMut(), &scratch))
         throw Error("linsolve: A is singular or rank-deficient",
                     0, 0, "linsolve", "", "m:linsolve:singular");
     return out;
 }
 
-Value pageinv(std::pmr::memory_resource *mr, const Value &A)
+Value pageinv(const Value &A, std::pmr::memory_resource *mr)
 {
     const auto &dims = A.dims();
     const int nd = dims.ndim();
@@ -270,8 +265,7 @@ Value pageinv(std::pmr::memory_resource *mr, const Value &A)
                   src + (p + 1) * pageStride,
                   A_buf.begin());
         fillIdentity(I_buf.data(), n);
-        if (!laSolveWrap(&scratch, A_buf.data(), m, n,
-                         I_buf.data(), n, dst + p * pageStride))
+        if (!laSolveWrap(A_buf.data(), m, n, I_buf.data(), n, dst + p * pageStride, &scratch))
             throw Error("pageinv: page is singular",
                         0, 0, "pageinv", "", "m:pageinv:singular");
     }
@@ -355,7 +349,7 @@ void jacobiSvdInplace(double *A, std::size_t m, std::size_t n,
 } // anonymous namespace
 
 std::tuple<Value, Value, Value>
-svd_decompose(std::pmr::memory_resource *mr, const Value &A)
+svd_decompose(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("svd: input must be a 2D matrix",
@@ -491,9 +485,9 @@ svd_decompose(std::pmr::memory_resource *mr, const Value &A)
     return std::make_tuple(std::move(Vout), std::move(S_out_tr), std::move(Uout));
 }
 
-Value svd_values(std::pmr::memory_resource *mr, const Value &A)
+Value svd_values(const Value &A, std::pmr::memory_resource *mr)
 {
-    auto [U, S, V] = svd_decompose(mr, A);
+    auto [U, S, V] = svd_decompose(A, mr);
     const std::size_t m = static_cast<std::size_t>(S.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(S.dims().dim(1));
     const std::size_t k = std::min(m, n);
@@ -507,7 +501,7 @@ Value svd_values(std::pmr::memory_resource *mr, const Value &A)
 
 // ── Characteristic polynomial + general eig via roots ───────────────
 
-Value poly_of_matrix(std::pmr::memory_resource *mr, const Value &A)
+Value poly_of_matrix(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("poly: input must be a 2D matrix",
@@ -573,14 +567,14 @@ Value poly_of_matrix(std::pmr::memory_resource *mr, const Value &A)
     return out;
 }
 
-Value eig_general_values(std::pmr::memory_resource *mr, const Value &A)
+Value eig_general_values(const Value &A, std::pmr::memory_resource *mr)
 {
-    auto p = poly_of_matrix(mr, A);
+    auto p = poly_of_matrix(A, mr);
     return roots(p, mr);
 }
 
 std::tuple<Value, Value>
-eig_general_VD(std::pmr::memory_resource *mr, const Value &A)
+eig_general_VD(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("eig: input must be a 2D matrix",
@@ -590,7 +584,7 @@ eig_general_VD(std::pmr::memory_resource *mr, const Value &A)
         throw Error("eig: matrix must be square",
                     0, 0, "eig", "", "m:eig:notSquare");
 
-    auto eig_vals = eig_general_values(mr, A);
+    auto eig_vals = eig_general_values(A, mr);
     const std::size_t k = eig_vals.numel();
     if (k != n)
         throw Error("eig: char-poly returned wrong number of eigenvalues",
@@ -641,7 +635,7 @@ eig_general_VD(std::pmr::memory_resource *mr, const Value &A)
         for (std::size_t i = 0; i < n; ++i) AL[i + i * n] -= lam;
         // Right null vector = last column of V from svd(Ali).
         // Singular values are descending; smallest = last index.
-        auto [Us, Ss, Vs] = svd_decompose(mr, Ali);
+        auto [Us, Ss, Vs] = svd_decompose(Ali, mr);
         const std::size_t nv = static_cast<std::size_t>(Vs.dims().dim(0));
         const double *Vsdata = Vs.doubleData();
         // Eigenvector = Vs(:, n-1) (the column corresponding to smallest sigma).
@@ -653,8 +647,7 @@ eig_general_VD(std::pmr::memory_resource *mr, const Value &A)
 
 // ── Sylvester equation (symmetric A, B) ─────────────────────────────
 
-Value sylvester_sym(std::pmr::memory_resource *mr,
-                    const Value &A, const Value &B, const Value &C)
+Value sylvester_sym(const Value &A, const Value &B, const Value &C, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2 || B.dims().ndim() != 2 || C.dims().ndim() != 2)
         throw Error("sylvester: A, B, C must be 2D matrices",
@@ -672,8 +665,8 @@ Value sylvester_sym(std::pmr::memory_resource *mr,
         throw Error("sylvester: C must be n × m where A is n×n, B is m×m",
                     0, 0, "sylvester", "", "m:sylvester:badC");
 
-    auto [Va, Da] = eig_symmetric(mr, A);   // throws if non-sym
-    auto [Vb, Db] = eig_symmetric(mr, B);   // throws if non-sym
+    auto [Va, Da] = eig_symmetric(A, mr);   // throws if non-sym
+    auto [Vb, Db] = eig_symmetric(B, mr);   // throws if non-sym
 
     const double *Vad = Va.doubleData();
     const double *Dad = Da.doubleData();
@@ -749,7 +742,7 @@ bool isVectorShape(const Value &x)
 
 } // anonymous namespace
 
-Value norm_value(std::pmr::memory_resource *mr, const Value &x, double p)
+Value norm_value(const Value &x, double p, std::pmr::memory_resource *mr)
 {
     if (x.numel() == 0) return Value::scalar(0.0, mr);
 
@@ -781,7 +774,7 @@ Value norm_value(std::pmr::memory_resource *mr, const Value &x, double p)
 
     if (p == 2.0) {
         // Largest singular value.
-        auto sv = svd_values(mr, x);
+        auto sv = svd_values(x, mr);
         if (sv.numel() == 0) return Value::scalar(0.0, mr);
         return Value::scalar(sv.doubleData()[0], mr);
     }
@@ -798,7 +791,7 @@ Value norm_value(std::pmr::memory_resource *mr, const Value &x, double p)
                 0, 0, "norm", "", "m:norm:badP");
 }
 
-Value norm_inf(std::pmr::memory_resource *mr, const Value &x)
+Value norm_inf(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.numel() == 0) return Value::scalar(0.0, mr);
     if (isVectorShape(x)) {
@@ -825,7 +818,7 @@ Value norm_inf(std::pmr::memory_resource *mr, const Value &x)
     return Value::scalar(mx, mr);
 }
 
-Value norm_fro(std::pmr::memory_resource *mr, const Value &x)
+Value norm_fro(const Value &x, std::pmr::memory_resource *mr)
 {
     const std::size_t n = x.numel();
     if (n == 0) return Value::scalar(0.0, mr);
@@ -835,7 +828,7 @@ Value norm_fro(std::pmr::memory_resource *mr, const Value &x)
     return Value::scalar(std::sqrt(s), mr);
 }
 
-Value subspace(std::pmr::memory_resource *mr, const Value &A, const Value &B)
+Value subspace(const Value &A, const Value &B, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2 || B.dims().ndim() != 2)
         throw Error("subspace: inputs must be 2D matrices",
@@ -846,8 +839,8 @@ Value subspace(std::pmr::memory_resource *mr, const Value &A, const Value &B)
         throw Error("subspace: inputs must have the same number of rows",
                     0, 0, "subspace", "", "m:subspace:dimMismatch");
 
-    auto Qa = orth(mr, A);
-    auto Qb = orth(mr, B);
+    auto Qa = orth(A, -1.0, mr);
+    auto Qb = orth(B, -1.0, mr);
     const std::size_t na = static_cast<std::size_t>(Qa.dims().dim(1));
     const std::size_t nb = static_cast<std::size_t>(Qb.dims().dim(1));
     if (na == 0 || nb == 0) return Value::scalar(0.0, mr);
@@ -867,7 +860,7 @@ Value subspace(std::pmr::memory_resource *mr, const Value &A, const Value &B)
         }
 
     // SVD of M -- singular values are cosines of principal angles.
-    auto s = svd_values(mr, Mout);
+    auto s = svd_values(Mout, mr);
     const std::size_t k = s.numel();
     if (k == 0) return Value::scalar(0.0, mr);
     const double *sd = s.doubleData();
@@ -955,7 +948,7 @@ void hessReduceInplace(double *A, std::size_t n, double *P,
 } // anonymous namespace
 
 std::tuple<Value, Value>
-hess(std::pmr::memory_resource *mr, const Value &A)
+hess(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("hess: input must be a 2D matrix",
@@ -973,9 +966,9 @@ hess(std::pmr::memory_resource *mr, const Value &A)
     return std::make_tuple(std::move(Pout), std::move(Hout));
 }
 
-Value hess_H_only(std::pmr::memory_resource *mr, const Value &A)
+Value hess_H_only(const Value &A, std::pmr::memory_resource *mr)
 {
-    auto [P, H] = hess(mr, A);
+    auto [P, H] = hess(A, mr);
     return H;
 }
 
@@ -1010,7 +1003,7 @@ double mat1Norm(const double *A, std::size_t n)
 
 } // anonymous namespace
 
-Value expm(std::pmr::memory_resource *mr, const Value &A)
+Value expm(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("expm: input must be a 2D matrix",
@@ -1131,11 +1124,9 @@ namespace {
 
 // Apply scalar function f to symmetric A's eigenvalues and reconstruct:
 //   result = V * diag(f(eig)) * V'
-Value applyScalarFnSym(std::pmr::memory_resource *mr, const Value &A,
-                       double (*f)(double),
-                       const char *fnName, const char *errId)
+Value applyScalarFnSym(const Value &A, double (*f)(double), const char *fnName, const char *errId, std::pmr::memory_resource *mr)
 {
-    auto [V, D] = eig_symmetric(mr, A);
+    auto [V, D] = eig_symmetric(A, mr);
     const std::size_t n = static_cast<std::size_t>(D.dims().dim(0));
     if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
@@ -1170,26 +1161,22 @@ Value applyScalarFnSym(std::pmr::memory_resource *mr, const Value &A,
 
 } // anonymous namespace
 
-Value logm_sym(std::pmr::memory_resource *mr, const Value &A)
+Value logm_sym(const Value &A, std::pmr::memory_resource *mr)
 {
-    return applyScalarFnSym(mr, A,
-        [](double x) { return std::log(x); },
-        "logm", "m:logm:negativeEigenvalue");
+    return applyScalarFnSym(A, [](double x) { return std::log(x); }, "logm", "m:logm:negativeEigenvalue", mr);
 }
 
-Value sqrtm_sym(std::pmr::memory_resource *mr, const Value &A)
+Value sqrtm_sym(const Value &A, std::pmr::memory_resource *mr)
 {
-    return applyScalarFnSym(mr, A,
-        [](double x) { return std::sqrt(x); },
-        "sqrtm", "m:sqrtm:negativeEigenvalue");
+    return applyScalarFnSym(A, [](double x) { return std::sqrt(x); }, "sqrtm", "m:sqrtm:negativeEigenvalue", mr);
 }
 
 std::tuple<Value, Value>
-schur_sym(std::pmr::memory_resource *mr, const Value &A)
+schur_sym(const Value &A, std::pmr::memory_resource *mr)
 {
     // For symmetric A, Schur decomposition is the same as eig:
     // A = U * T * U' where T is diagonal (real eigenvalues), U orthogonal.
-    return eig_symmetric(mr, A);
+    return eig_symmetric(A, mr);
 }
 
 // ── Symmetric eigenvalue problem (classical Jacobi) ─────────────────
@@ -1292,7 +1279,7 @@ bool isSymmetric(const Value &A, double tol)
 } // anonymous namespace
 
 std::tuple<Value, Value>
-eig_symmetric(std::pmr::memory_resource *mr, const Value &A)
+eig_symmetric(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("eig: input must be a 2D matrix",
@@ -1341,9 +1328,9 @@ eig_symmetric(std::pmr::memory_resource *mr, const Value &A)
     return std::make_tuple(std::move(Vout), std::move(Dout));
 }
 
-Value eig_values(std::pmr::memory_resource *mr, const Value &A)
+Value eig_values(const Value &A, std::pmr::memory_resource *mr)
 {
-    auto [V, D] = eig_symmetric(mr, A);
+    auto [V, D] = eig_symmetric(A, mr);
     const std::size_t n = static_cast<std::size_t>(D.dims().dim(0));
     auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     const double *Ddata = D.doubleData();
@@ -1366,9 +1353,9 @@ double defaultRankTol(std::size_t m, std::size_t n, double sigma_max)
 
 } // anonymous namespace
 
-Value rank_of(std::pmr::memory_resource *mr, const Value &A, double tol)
+Value rank_of(const Value &A, double tol, std::pmr::memory_resource *mr)
 {
-    auto sv = svd_values(mr, A);
+    auto sv = svd_values(A, mr);
     const std::size_t k = sv.numel();
     const double *s = sv.doubleData();
     if (k == 0) return Value::scalar(0.0, mr);
@@ -1382,9 +1369,9 @@ Value rank_of(std::pmr::memory_resource *mr, const Value &A, double tol)
     return Value::scalar(static_cast<double>(r), mr);
 }
 
-Value pinv(std::pmr::memory_resource *mr, const Value &A, double tol)
+Value pinv(const Value &A, double tol, std::pmr::memory_resource *mr)
 {
-    auto [U, S, V] = svd_decompose(mr, A);
+    auto [U, S, V] = svd_decompose(A, mr);
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t k = std::min(m, n);
@@ -1434,9 +1421,9 @@ Value pinv(std::pmr::memory_resource *mr, const Value &A, double tol)
     return out;
 }
 
-Value cond_2norm(std::pmr::memory_resource *mr, const Value &A)
+Value cond_2norm(const Value &A, std::pmr::memory_resource *mr)
 {
-    auto sv = svd_values(mr, A);
+    auto sv = svd_values(A, mr);
     const std::size_t k = sv.numel();
     if (k == 0) return Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr);
     const double *s = sv.doubleData();
@@ -1447,9 +1434,9 @@ Value cond_2norm(std::pmr::memory_resource *mr, const Value &A)
     return Value::scalar(sigma_max / sigma_min, mr);
 }
 
-Value orth(std::pmr::memory_resource *mr, const Value &A, double tol)
+Value orth(const Value &A, double tol, std::pmr::memory_resource *mr)
 {
-    auto [U, S, V] = svd_decompose(mr, A);
+    auto [U, S, V] = svd_decompose(A, mr);
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t k = std::min(m, n);
@@ -1474,9 +1461,9 @@ Value orth(std::pmr::memory_resource *mr, const Value &A, double tol)
     return out;
 }
 
-Value null_basis(std::pmr::memory_resource *mr, const Value &A, double tol)
+Value null_basis(const Value &A, double tol, std::pmr::memory_resource *mr)
 {
-    auto [U, S, V] = svd_decompose(mr, A);
+    auto [U, S, V] = svd_decompose(A, mr);
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t k = std::min(m, n);
@@ -1505,9 +1492,9 @@ Value null_basis(std::pmr::memory_resource *mr, const Value &A, double tol)
     return out;
 }
 
-Value normest(std::pmr::memory_resource *mr, const Value &A)
+Value normest(const Value &A, std::pmr::memory_resource *mr)
 {
-    auto sv = svd_values(mr, A);
+    auto sv = svd_values(A, mr);
     if (sv.numel() == 0) return Value::scalar(0.0, mr);
     return Value::scalar(sv.doubleData()[0], mr);
 }
@@ -1551,7 +1538,7 @@ bool luPivotInplace(double *LU, std::int32_t *piv, std::size_t n)
 } // anonymous namespace
 
 std::tuple<Value, Value, Value>
-lu_decompose(std::pmr::memory_resource *mr, const Value &A)
+lu_decompose(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("lu: input must be a 2D matrix",
@@ -1599,7 +1586,7 @@ lu_decompose(std::pmr::memory_resource *mr, const Value &A)
     return std::make_tuple(std::move(Lout), std::move(Uout), std::move(Pout));
 }
 
-Value lu_combined(std::pmr::memory_resource *mr, const Value &A)
+Value lu_combined(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("lu: input must be a 2D matrix",
@@ -1626,9 +1613,7 @@ namespace {
 // (m >= n) into Q (m×m orthogonal) and R (m×n upper-triangular)
 // such that A = Q*R. Q built by applying Householder reflectors
 // to identity from the back (LAPACK DORG2R style).
-void qrFullHouseholder(std::pmr::memory_resource *mr,
-                       const double *A_in, std::size_t m, std::size_t n,
-                       double *Qout, double *Rout)
+void qrFullHouseholder(const double *A_in, std::size_t m, std::size_t n, double *Qout, double *Rout, std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
     ScratchVec<double> R_work(m * n, &scratch);
@@ -1708,7 +1693,7 @@ void qrFullHouseholder(std::pmr::memory_resource *mr,
 } // anonymous namespace
 
 std::tuple<Value, Value>
-qr_decompose(std::pmr::memory_resource *mr, const Value &A)
+qr_decompose(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("qr: input must be a 2D matrix",
@@ -1721,12 +1706,11 @@ qr_decompose(std::pmr::memory_resource *mr, const Value &A)
                     0, 0, "qr", "", "m:qr:wide");
     auto Q = Value::matrix(m, m, ValueType::DOUBLE, mr);
     auto R = Value::matrix(m, n, ValueType::DOUBLE, mr);
-    qrFullHouseholder(mr, A.doubleData(), m, n,
-                      Q.doubleDataMut(), R.doubleDataMut());
+    qrFullHouseholder(A.doubleData(), m, n, Q.doubleDataMut(), R.doubleDataMut(), mr);
     return std::make_tuple(std::move(Q), std::move(R));
 }
 
-Value qr_R_only(std::pmr::memory_resource *mr, const Value &A)
+Value qr_R_only(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("qr: input must be a 2D matrix",
@@ -1739,14 +1723,13 @@ Value qr_R_only(std::pmr::memory_resource *mr, const Value &A)
     ScratchArena scratch(mr);
     ScratchVec<double> Q_unused(m * m, &scratch);
     auto R = Value::matrix(m, n, ValueType::DOUBLE, mr);
-    qrFullHouseholder(mr, A.doubleData(), m, n,
-                      Q_unused.data(), R.doubleDataMut());
+    qrFullHouseholder(A.doubleData(), m, n, Q_unused.data(), R.doubleDataMut(), mr);
     return R;
 }
 
 // ── trace / det / chol / topkrows ────────────────────────────────────
 
-Value trace(std::pmr::memory_resource *mr, const Value &A)
+Value trace(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("trace: input must be a 2D matrix",
@@ -1795,7 +1778,7 @@ bool luPartialPivotInplace(double *A, std::size_t n, int &sign)
 
 } // anonymous namespace
 
-Value det(std::pmr::memory_resource *mr, const Value &A)
+Value det(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("det: input must be a 2D matrix",
@@ -1822,7 +1805,7 @@ Value det(std::pmr::memory_resource *mr, const Value &A)
     return Value::scalar(static_cast<double>(prod), mr);
 }
 
-Value chol(std::pmr::memory_resource *mr, const Value &A)
+Value chol(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("chol: input must be a 2D matrix",
@@ -1863,7 +1846,7 @@ Value chol(std::pmr::memory_resource *mr, const Value &A)
     return R;
 }
 
-Value topkrows(std::pmr::memory_resource *mr, const Value &A, std::size_t k)
+Value topkrows(const Value &A, std::size_t k, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("topkrows: input must be a 2D matrix",
@@ -1899,9 +1882,7 @@ Value topkrows(std::pmr::memory_resource *mr, const Value &A, std::size_t k)
 
 // ── Toeplitz / Hankel / Vandermonde / Companion ─────────────────────
 
-Value toeplitz(std::pmr::memory_resource *mr,
-               const double *c, std::size_t m,
-               const double *r, std::size_t n)
+Value toeplitz(const double *c, std::size_t m, const double *r, std::size_t n, std::pmr::memory_resource *mr)
 {
     if (m == 0 || n == 0)
         return Value::matrix(m, n, ValueType::DOUBLE, mr);
@@ -1916,9 +1897,7 @@ Value toeplitz(std::pmr::memory_resource *mr,
     return M;
 }
 
-Value hankel(std::pmr::memory_resource *mr,
-             const double *c, std::size_t m,
-             const double *r, std::size_t n)
+Value hankel(const double *c, std::size_t m, const double *r, std::size_t n, std::pmr::memory_resource *mr)
 {
     if (m == 0 || n == 0)
         return Value::matrix(m, n, ValueType::DOUBLE, mr);
@@ -1936,7 +1915,7 @@ Value hankel(std::pmr::memory_resource *mr,
     return M;
 }
 
-Value vander(std::pmr::memory_resource *mr, const double *v, std::size_t n)
+Value vander(const double *v, std::size_t n, std::pmr::memory_resource *mr)
 {
     if (n == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -1953,7 +1932,7 @@ Value vander(std::pmr::memory_resource *mr, const double *v, std::size_t n)
     return M;
 }
 
-Value compan(std::pmr::memory_resource *mr, const double *p, std::size_t pn)
+Value compan(const double *p, std::size_t pn, std::pmr::memory_resource *mr)
 {
     if (pn < 2)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -1975,7 +1954,7 @@ Value compan(std::pmr::memory_resource *mr, const double *p, std::size_t pn)
 
 // ── Pascal / Hilbert / Wilkinson / Hadamard / Rosser ────────────────
 
-Value pascal(std::pmr::memory_resource *mr, size_t n)
+Value pascal(size_t n, std::pmr::memory_resource *mr)
 {
     if (n == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -1992,7 +1971,7 @@ Value pascal(std::pmr::memory_resource *mr, size_t n)
     return M;
 }
 
-Value hilb(std::pmr::memory_resource *mr, size_t n)
+Value hilb(size_t n, std::pmr::memory_resource *mr)
 {
     if (n == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -2003,7 +1982,7 @@ Value hilb(std::pmr::memory_resource *mr, size_t n)
     return M;
 }
 
-Value invhilb(std::pmr::memory_resource *mr, size_t n)
+Value invhilb(size_t n, std::pmr::memory_resource *mr)
 {
     if (n == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -2037,7 +2016,7 @@ Value invhilb(std::pmr::memory_resource *mr, size_t n)
     return M;
 }
 
-Value wilkinson(std::pmr::memory_resource *mr, size_t n)
+Value wilkinson(size_t n, std::pmr::memory_resource *mr)
 {
     if (n == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -2054,7 +2033,7 @@ Value wilkinson(std::pmr::memory_resource *mr, size_t n)
     return M;
 }
 
-Value hadamard(std::pmr::memory_resource *mr, size_t n)
+Value hadamard(size_t n, std::pmr::memory_resource *mr)
 {
     if (n == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -2106,7 +2085,7 @@ Value rosser(std::pmr::memory_resource *mr)
     return M;
 }
 
-Value magic(std::pmr::memory_resource *mr, size_t N)
+Value magic(size_t N, std::pmr::memory_resource *mr)
 {
     if (N == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -2144,7 +2123,7 @@ Value magic(std::pmr::memory_resource *mr, size_t N)
 }
 
 // ── Shape queries ────────────────────────────────────────────────────
-Value size(std::pmr::memory_resource *mr, const Value &x)
+Value size(const Value &x, std::pmr::memory_resource *mr)
 {
     const auto &dims = x.dims();
     // Output ndim: at least 2 (MATLAB convention — a row vector reports
@@ -2158,12 +2137,12 @@ Value size(std::pmr::memory_resource *mr, const Value &x)
     return sv;
 }
 
-Value size(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value size(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     return Value::scalar(static_cast<double>(x.dims().dimSize(dim - 1)), mr);
 }
 
-std::tuple<Value, Value> sizePair(std::pmr::memory_resource *mr, const Value &x)
+std::tuple<Value, Value> sizePair(const Value &x, std::pmr::memory_resource *mr)
 {
     const auto &dims = x.dims();
     return std::make_tuple(
@@ -2171,7 +2150,7 @@ std::tuple<Value, Value> sizePair(std::pmr::memory_resource *mr, const Value &x)
         Value::scalar(static_cast<double>(dims.cols()), mr));
 }
 
-Value length(std::pmr::memory_resource *mr, const Value &x)
+Value length(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isEmpty() || x.numel() == 0)
         return Value::scalar(0.0, mr);
@@ -2180,18 +2159,18 @@ Value length(std::pmr::memory_resource *mr, const Value &x)
     return Value::scalar(len, mr);
 }
 
-Value numel(std::pmr::memory_resource *mr, const Value &x)
+Value numel(const Value &x, std::pmr::memory_resource *mr)
 {
     return Value::scalar(static_cast<double>(x.numel()), mr);
 }
 
-Value ndims(std::pmr::memory_resource *mr, const Value &x)
+Value ndims(const Value &x, std::pmr::memory_resource *mr)
 {
     return Value::scalar(static_cast<double>(x.dims().ndims()), mr);
 }
 
 // ── Shape transformations ────────────────────────────────────────────
-Value reshape(std::pmr::memory_resource *mr, const Value &x, size_t rows, size_t cols, size_t pages)
+Value reshape(const Value &x, size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
 {
     const size_t newNumel = rows * cols * (pages == 0 ? 1 : pages);
     if (newNumel != x.numel())
@@ -2225,8 +2204,7 @@ Value reshape(std::pmr::memory_resource *mr, const Value &x, size_t rows, size_t
 // ND reshape. Same elem-count check, then route to matrixND for nd > 3.
 // CELL/STRING ND not supported yet (matches the 2D/3D behaviour: only
 // CELL/STRING currently handles 2D and 3D shapes via cell3D/stringArray3D).
-Value reshapeND(std::pmr::memory_resource *mr, const Value &x,
-                 const size_t *dims, std::size_t nDims)
+Value reshapeND(const Value &x, const size_t *dims, std::size_t nDims, std::pmr::memory_resource *mr)
 {
     size_t newNumel = 1;
     for (std::size_t i = 0; i < nDims; ++i) newNumel *= dims[i];
@@ -2242,7 +2220,7 @@ Value reshapeND(std::pmr::memory_resource *mr, const Value &x,
         const size_t r = nDims > 0 ? dims[0] : 1;
         const size_t c = nDims > 1 ? dims[1] : 1;
         const size_t p = nDims > 2 ? dims[2] : 0;
-        return reshape(mr, x, r, c, p);
+        return reshape(x, r, c, p, mr);
     }
 
     auto r = createMatrixND(dims, nDims, x.type(), mr);
@@ -2251,7 +2229,7 @@ Value reshapeND(std::pmr::memory_resource *mr, const Value &x,
     return r;
 }
 
-Value transpose(std::pmr::memory_resource *mr, const Value &x)
+Value transpose(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.dims().is3D())
         throw Error("transpose is not defined for N-D arrays",
@@ -2271,8 +2249,7 @@ namespace {
 // parts when input is COMPLEX. For DOUBLE / SINGLE inputs the flag is
 // ignored at the element level (no-op).
 template <typename T>
-Value pageTransposeT(std::pmr::memory_resource *mr, const Value &x,
-                     ValueType ty, bool conjugate)
+Value pageTransposeT(const Value &x, ValueType ty, bool conjugate, std::pmr::memory_resource *mr)
 {
     const auto &d = x.dims();
     const size_t M = d.rows(), N = d.cols();
@@ -2305,22 +2282,21 @@ Value pageTransposeT(std::pmr::memory_resource *mr, const Value &x,
     return out;
 }
 
-Value pageTransposeAny(std::pmr::memory_resource *mr, const Value &x,
-                       bool conjugate)
+Value pageTransposeAny(const Value &x, bool conjugate, std::pmr::memory_resource *mr)
 {
     switch (x.type()) {
-    case ValueType::DOUBLE:  return pageTransposeT<double>(mr, x, ValueType::DOUBLE, conjugate);
-    case ValueType::SINGLE:  return pageTransposeT<float>(mr, x, ValueType::SINGLE, conjugate);
-    case ValueType::COMPLEX: return pageTransposeT<Complex>(mr, x, ValueType::COMPLEX, conjugate);
-    case ValueType::INT8:    return pageTransposeT<int8_t>(mr, x, ValueType::INT8, conjugate);
-    case ValueType::INT16:   return pageTransposeT<int16_t>(mr, x, ValueType::INT16, conjugate);
-    case ValueType::INT32:   return pageTransposeT<int32_t>(mr, x, ValueType::INT32, conjugate);
-    case ValueType::INT64:   return pageTransposeT<int64_t>(mr, x, ValueType::INT64, conjugate);
-    case ValueType::UINT8:   return pageTransposeT<uint8_t>(mr, x, ValueType::UINT8, conjugate);
-    case ValueType::UINT16:  return pageTransposeT<uint16_t>(mr, x, ValueType::UINT16, conjugate);
-    case ValueType::UINT32:  return pageTransposeT<uint32_t>(mr, x, ValueType::UINT32, conjugate);
-    case ValueType::UINT64:  return pageTransposeT<uint64_t>(mr, x, ValueType::UINT64, conjugate);
-    case ValueType::LOGICAL: return pageTransposeT<uint8_t>(mr, x, ValueType::LOGICAL, conjugate);
+    case ValueType::DOUBLE:  return pageTransposeT<double>(x, ValueType::DOUBLE, conjugate, mr);
+    case ValueType::SINGLE:  return pageTransposeT<float>(x, ValueType::SINGLE, conjugate, mr);
+    case ValueType::COMPLEX: return pageTransposeT<Complex>(x, ValueType::COMPLEX, conjugate, mr);
+    case ValueType::INT8:    return pageTransposeT<int8_t>(x, ValueType::INT8, conjugate, mr);
+    case ValueType::INT16:   return pageTransposeT<int16_t>(x, ValueType::INT16, conjugate, mr);
+    case ValueType::INT32:   return pageTransposeT<int32_t>(x, ValueType::INT32, conjugate, mr);
+    case ValueType::INT64:   return pageTransposeT<int64_t>(x, ValueType::INT64, conjugate, mr);
+    case ValueType::UINT8:   return pageTransposeT<uint8_t>(x, ValueType::UINT8, conjugate, mr);
+    case ValueType::UINT16:  return pageTransposeT<uint16_t>(x, ValueType::UINT16, conjugate, mr);
+    case ValueType::UINT32:  return pageTransposeT<uint32_t>(x, ValueType::UINT32, conjugate, mr);
+    case ValueType::UINT64:  return pageTransposeT<uint64_t>(x, ValueType::UINT64, conjugate, mr);
+    case ValueType::LOGICAL: return pageTransposeT<uint8_t>(x, ValueType::LOGICAL, conjugate, mr);
     default:
         throw Error("pagetranspose: unsupported input type",
                      0, 0, "pagetranspose", "", "m:pagetranspose:badType");
@@ -2329,18 +2305,18 @@ Value pageTransposeAny(std::pmr::memory_resource *mr, const Value &x,
 
 } // namespace
 
-Value pagetranspose(std::pmr::memory_resource *mr, const Value &x)
+Value pagetranspose(const Value &x, std::pmr::memory_resource *mr)
 {
-    return pageTransposeAny(mr, x, /*conjugate=*/false);
+    return pageTransposeAny(x, /*conjugate=*/false, mr);
 }
 
-Value pagectranspose(std::pmr::memory_resource *mr, const Value &x)
+Value pagectranspose(const Value &x, std::pmr::memory_resource *mr)
 {
-    return pageTransposeAny(mr, x, /*conjugate=*/true);
+    return pageTransposeAny(x, /*conjugate=*/true, mr);
 }
 
 // ── sphere / cylinder / ellipsoid ───────────────────────────────────
-Surface3 sphere(std::pmr::memory_resource *mr, size_t n)
+Surface3 sphere(size_t n, std::pmr::memory_resource *mr)
 {
     // Match MATLAB's parametrisation exactly:
     //   theta = (-n:2:n)/n * pi          → linspace(-π,  π,  n+1)
@@ -2392,7 +2368,7 @@ Surface3 sphere(std::pmr::memory_resource *mr, size_t n)
     return { std::move(X), std::move(Y), std::move(Z) };
 }
 
-Surface3 cylinder(std::pmr::memory_resource *mr, const Value &R, size_t n)
+Surface3 cylinder(const Value &R, size_t n, std::pmr::memory_resource *mr)
 {
     // Profile R is a 1-D vector of radii along z. Output is length(R) ×
     // (n+1). z is linspace(0, 1, length(R)) repeated across columns.
@@ -2426,13 +2402,10 @@ Surface3 cylinder(std::pmr::memory_resource *mr, const Value &R, size_t n)
     return { std::move(X), std::move(Y), std::move(Z) };
 }
 
-Surface3 ellipsoid(std::pmr::memory_resource *mr,
-                   double xc, double yc, double zc,
-                   double xr, double yr, double zr,
-                   size_t n)
+Surface3 ellipsoid(double xc, double yc, double zc, double xr, double yr, double zr, size_t n, std::pmr::memory_resource *mr)
 {
     // Same parametrisation as sphere, scaled by (xr, yr, zr) and shifted.
-    auto sph = sphere(mr, n);
+    auto sph = sphere(n, mr);
     const size_t total = sph.X.numel();
     double *xd = sph.X.doubleDataMut();
     double *yd = sph.Y.doubleDataMut();
@@ -2446,7 +2419,7 @@ Surface3 ellipsoid(std::pmr::memory_resource *mr,
 }
 
 // ── peaks ────────────────────────────────────────────────────────────
-Value peaks(std::pmr::memory_resource *mr, size_t n)
+Value peaks(size_t n, std::pmr::memory_resource *mr)
 {
     if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
@@ -2603,9 +2576,7 @@ void materialisePage(T *dst, const Value &src, size_t pageOff,
 }
 
 template <typename T>
-Value pagemtimesImpl(std::pmr::memory_resource *mr,
-                      const Value &x, TranspOp tx,
-                      const Value &y, TranspOp ty)
+Value pagemtimesImpl(const Value &x, TranspOp tx, const Value &y, TranspOp ty, std::pmr::memory_resource *mr)
 {
     const auto &xd = x.dims();
     const auto &yd = y.dims();
@@ -2720,14 +2691,12 @@ Value pagemtimesImpl(std::pmr::memory_resource *mr,
 
 } // namespace
 
-Value pagemtimes(std::pmr::memory_resource *mr, const Value &x, const Value &y)
+Value pagemtimes(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 {
-    return pagemtimes(mr, x, TranspOp::None, y, TranspOp::None);
+    return pagemtimes(x, TranspOp::None, y, TranspOp::None, mr);
 }
 
-Value pagemtimes(std::pmr::memory_resource *mr,
-                  const Value &x, TranspOp tx,
-                  const Value &y, TranspOp ty)
+Value pagemtimes(const Value &x, TranspOp tx, const Value &y, TranspOp ty, std::pmr::memory_resource *mr)
 {
     // MATLAB type promotion: COMPLEX wins over real; SINGLE wins over
     // DOUBLE. Integer/logical/char inputs are rejected — pagemtimes
@@ -2739,13 +2708,13 @@ Value pagemtimes(std::pmr::memory_resource *mr,
         throw Error("pagemtimes: inputs must be 'single', 'double', or complex",
                      0, 0, "pagemtimes", "", "m:pagemtimes:type");
     if (x.isComplex() || y.isComplex())
-        return pagemtimesImpl<Complex>(mr, x, tx, y, ty);
+        return pagemtimesImpl<Complex>(x, tx, y, ty, mr);
     if (x.type() == ValueType::SINGLE || y.type() == ValueType::SINGLE)
-        return pagemtimesImpl<float  >(mr, x, tx, y, ty);
-    return     pagemtimesImpl<double >(mr, x, tx, y, ty);
+        return pagemtimesImpl<float  >(x, tx, y, ty, mr);
+    return     pagemtimesImpl<double >(x, tx, y, ty, mr);
 }
 
-Value diag(std::pmr::memory_resource *mr, const Value &x)
+Value diag(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.dims().isVector()) {
         const size_t n = x.numel();
@@ -2762,7 +2731,7 @@ Value diag(std::pmr::memory_resource *mr, const Value &x)
 }
 
 // ── Sort / find ──────────────────────────────────────────────────────
-std::tuple<Value, Value> sort(std::pmr::memory_resource *mr, const Value &x)
+std::tuple<Value, Value> sort(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isScalar())
         return std::make_tuple(x, Value::scalar(1.0, mr));
@@ -2812,7 +2781,7 @@ namespace {
 // Promote to a 2D DOUBLE matrix for row-tuple ops. Returns a copy if the
 // type or shape differs; for already-2D-DOUBLE input returns by value
 // (cheap COW in the engine).
-Value toDoubleMatrix2D(std::pmr::memory_resource *mr, const Value &x, const char *fn)
+Value toDoubleMatrix2D(const Value &x, const char *fn, std::pmr::memory_resource *mr)
 {
     if (x.dims().is3D() || x.dims().ndim() > 2)
         throw Error(std::string(fn) + ": input must be 2D",
@@ -2836,10 +2805,9 @@ Value toDoubleMatrix2D(std::pmr::memory_resource *mr, const Value &x, const char
 }
 
 std::tuple<Value, Value>
-sortRowsImpl(std::pmr::memory_resource *mr, const Value &x,
-             const int *cols, std::size_t nCols)
+sortRowsImpl(const Value &x, const int *cols, std::size_t nCols, std::pmr::memory_resource *mr)
 {
-    auto m = toDoubleMatrix2D(mr, x, "sortrows");
+    auto m = toDoubleMatrix2D(x, "sortrows", mr);
     const size_t R = m.dims().rows();
     const size_t C = m.dims().cols();
 
@@ -2887,18 +2855,17 @@ sortRowsImpl(std::pmr::memory_resource *mr, const Value &x,
 
 } // namespace
 
-std::tuple<Value, Value> sortrows(std::pmr::memory_resource *mr, const Value &x)
+std::tuple<Value, Value> sortrows(const Value &x, std::pmr::memory_resource *mr)
 {
-    return sortRowsImpl(mr, x, nullptr, 0);
+    return sortRowsImpl(x, nullptr, 0, mr);
 }
 
-std::tuple<Value, Value> sortrows(std::pmr::memory_resource *mr, const Value &x,
-                                    const int *cols, std::size_t nCols)
+std::tuple<Value, Value> sortrows(const Value &x, const int *cols, std::size_t nCols, std::pmr::memory_resource *mr)
 {
-    return sortRowsImpl(mr, x, cols, nCols);
+    return sortRowsImpl(x, cols, nCols, mr);
 }
 
-Value find(std::pmr::memory_resource *mr, const Value &x)
+Value find(const Value &x, std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
     auto indices = ScratchVec<double>(&scratch);
@@ -3026,8 +2993,7 @@ T *typedDstFor(Value &r, ValueType outType)
 }
 
 template <typename T, typename Reader>
-Value collectTypedNonzeros(std::pmr::memory_resource *mr, const Value &x,
-                            ValueType outType, Reader read)
+Value collectTypedNonzeros(const Value &x, ValueType outType, Reader read, std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
     ScratchVec<T> vals(&scratch);
@@ -3042,7 +3008,7 @@ Value collectTypedNonzeros(std::pmr::memory_resource *mr, const Value &x,
 
 } // namespace
 
-Value nnz(std::pmr::memory_resource *mr, const Value &x)
+Value nnz(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.numel() == 0)
         return Value::scalar(0.0, mr);
@@ -3051,7 +3017,7 @@ Value nnz(std::pmr::memory_resource *mr, const Value &x)
     return Value::scalar(static_cast<double>(count), mr);
 }
 
-Value nonzeros(std::pmr::memory_resource *mr, const Value &x)
+Value nonzeros(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.numel() == 0) {
         // Empty input → 0×1 column of the source type (DOUBLE if unknown).
@@ -3061,63 +3027,51 @@ Value nonzeros(std::pmr::memory_resource *mr, const Value &x)
     switch (x.type()) {
     case ValueType::LOGICAL: {
         const uint8_t *p = x.logicalData();
-        return collectTypedNonzeros<uint8_t>(mr, x, ValueType::LOGICAL,
-            [&](size_t i) -> uint8_t { return p[i]; });
+        return collectTypedNonzeros<uint8_t>(x, ValueType::LOGICAL, [&](size_t i) -> uint8_t { return p[i]; }, mr);
     }
     case ValueType::DOUBLE: {
         const double *p = x.doubleData();
-        return collectTypedNonzeros<double>(mr, x, ValueType::DOUBLE,
-            [&](size_t i) -> double { return p[i]; });
+        return collectTypedNonzeros<double>(x, ValueType::DOUBLE, [&](size_t i) -> double { return p[i]; }, mr);
     }
     case ValueType::SINGLE: {
         const float *p = x.singleData();
-        return collectTypedNonzeros<float>(mr, x, ValueType::SINGLE,
-            [&](size_t i) -> float { return p[i]; });
+        return collectTypedNonzeros<float>(x, ValueType::SINGLE, [&](size_t i) -> float { return p[i]; }, mr);
     }
     case ValueType::COMPLEX: {
         const Complex *p = x.complexData();
-        return collectTypedNonzeros<Complex>(mr, x, ValueType::COMPLEX,
-            [&](size_t i) -> Complex { return p[i]; });
+        return collectTypedNonzeros<Complex>(x, ValueType::COMPLEX, [&](size_t i) -> Complex { return p[i]; }, mr);
     }
     case ValueType::INT8: {
         const int8_t *p = x.int8Data();
-        return collectTypedNonzeros<int8_t>(mr, x, ValueType::INT8,
-            [&](size_t i) -> int8_t { return p[i]; });
+        return collectTypedNonzeros<int8_t>(x, ValueType::INT8, [&](size_t i) -> int8_t { return p[i]; }, mr);
     }
     case ValueType::INT16: {
         const int16_t *p = x.int16Data();
-        return collectTypedNonzeros<int16_t>(mr, x, ValueType::INT16,
-            [&](size_t i) -> int16_t { return p[i]; });
+        return collectTypedNonzeros<int16_t>(x, ValueType::INT16, [&](size_t i) -> int16_t { return p[i]; }, mr);
     }
     case ValueType::INT32: {
         const int32_t *p = x.int32Data();
-        return collectTypedNonzeros<int32_t>(mr, x, ValueType::INT32,
-            [&](size_t i) -> int32_t { return p[i]; });
+        return collectTypedNonzeros<int32_t>(x, ValueType::INT32, [&](size_t i) -> int32_t { return p[i]; }, mr);
     }
     case ValueType::INT64: {
         const int64_t *p = x.int64Data();
-        return collectTypedNonzeros<int64_t>(mr, x, ValueType::INT64,
-            [&](size_t i) -> int64_t { return p[i]; });
+        return collectTypedNonzeros<int64_t>(x, ValueType::INT64, [&](size_t i) -> int64_t { return p[i]; }, mr);
     }
     case ValueType::UINT8: {
         const uint8_t *p = x.uint8Data();
-        return collectTypedNonzeros<uint8_t>(mr, x, ValueType::UINT8,
-            [&](size_t i) -> uint8_t { return p[i]; });
+        return collectTypedNonzeros<uint8_t>(x, ValueType::UINT8, [&](size_t i) -> uint8_t { return p[i]; }, mr);
     }
     case ValueType::UINT16: {
         const uint16_t *p = x.uint16Data();
-        return collectTypedNonzeros<uint16_t>(mr, x, ValueType::UINT16,
-            [&](size_t i) -> uint16_t { return p[i]; });
+        return collectTypedNonzeros<uint16_t>(x, ValueType::UINT16, [&](size_t i) -> uint16_t { return p[i]; }, mr);
     }
     case ValueType::UINT32: {
         const uint32_t *p = x.uint32Data();
-        return collectTypedNonzeros<uint32_t>(mr, x, ValueType::UINT32,
-            [&](size_t i) -> uint32_t { return p[i]; });
+        return collectTypedNonzeros<uint32_t>(x, ValueType::UINT32, [&](size_t i) -> uint32_t { return p[i]; }, mr);
     }
     case ValueType::UINT64: {
         const uint64_t *p = x.uint64Data();
-        return collectTypedNonzeros<uint64_t>(mr, x, ValueType::UINT64,
-            [&](size_t i) -> uint64_t { return p[i]; });
+        return collectTypedNonzeros<uint64_t>(x, ValueType::UINT64, [&](size_t i) -> uint64_t { return p[i]; }, mr);
     }
     default:
         throw Error("nonzeros: unsupported element type",
@@ -3126,14 +3080,14 @@ Value nonzeros(std::pmr::memory_resource *mr, const Value &x)
 }
 
 // ── Concatenation ────────────────────────────────────────────────────
-Value horzcat(std::pmr::memory_resource *mr, const Value *values, size_t count)
+Value horzcat(const Value *values, size_t count, std::pmr::memory_resource *mr)
 {
     if (count == 0)
         return Value::empty();
     return Value::horzcat(values, count, mr);
 }
 
-Value vertcat(std::pmr::memory_resource *mr, const Value *values, size_t count)
+Value vertcat(const Value *values, size_t count, std::pmr::memory_resource *mr)
 {
     if (count == 0)
         return Value::empty();
@@ -3141,7 +3095,7 @@ Value vertcat(std::pmr::memory_resource *mr, const Value *values, size_t count)
 }
 
 // ── Grids ────────────────────────────────────────────────────────────
-std::tuple<Value, Value> meshgrid(std::pmr::memory_resource *mr, const Value &x, const Value &y)
+std::tuple<Value, Value> meshgrid(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 {
     const size_t nx = x.numel(), ny = y.numel();
     auto X = Value::matrix(ny, nx, ValueType::DOUBLE, mr);
@@ -3156,8 +3110,7 @@ std::tuple<Value, Value> meshgrid(std::pmr::memory_resource *mr, const Value &x,
 
 // 3-arg meshgrid: returns three [ny, nx, nz] 3-D arrays. See BUGS.md #23.
 std::tuple<Value, Value, Value>
-meshgrid(std::pmr::memory_resource *mr, const Value &x, const Value &y,
-         const Value &z)
+meshgrid(const Value &x, const Value &y, const Value &z, std::pmr::memory_resource *mr)
 {
     const size_t nx = x.numel(), ny = y.numel(), nz = z.numel();
     auto X = Value::matrix3d(ny, nx, nz, ValueType::DOUBLE, mr);
@@ -3183,7 +3136,7 @@ meshgrid(std::pmr::memory_resource *mr, const Value &x, const Value &y,
 
 // ── ndgrid ──────────────────────────────────────────────────────────
 std::tuple<Value, Value>
-ndgrid(std::pmr::memory_resource *mr, const Value &x, const Value &y)
+ndgrid(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 {
     const size_t nx = x.numel(), ny = y.numel();
     // Output shape: [nx, ny] — first arg is row dim (axes-major).
@@ -3198,7 +3151,7 @@ ndgrid(std::pmr::memory_resource *mr, const Value &x, const Value &y)
 }
 
 std::tuple<Value, Value, Value>
-ndgrid(std::pmr::memory_resource *mr, const Value &x, const Value &y, const Value &z)
+ndgrid(const Value &x, const Value &y, const Value &z, std::pmr::memory_resource *mr)
 {
     const size_t nx = x.numel(), ny = y.numel(), nz = z.numel();
     auto X = Value::matrix3d(nx, ny, nz, ValueType::DOUBLE, mr);
@@ -3215,7 +3168,7 @@ ndgrid(std::pmr::memory_resource *mr, const Value &x, const Value &y, const Valu
 }
 
 // ── kron ────────────────────────────────────────────────────────────
-Value kron(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value kron(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     if (a.type() == ValueType::COMPLEX || b.type() == ValueType::COMPLEX)
         throw Error("kron: complex inputs are not supported",
@@ -3249,7 +3202,7 @@ Value kron(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 }
 
 // ── Reductions and products ──────────────────────────────────────────
-Value cumsum(std::pmr::memory_resource *mr, const Value &x)
+Value cumsum(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) {
         auto r = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, mr);
@@ -3273,10 +3226,10 @@ Value cumsum(std::pmr::memory_resource *mr, const Value &x)
 
 // cumsum along an explicit dim. Output shape equals input shape (this is
 // not a reduction). Vector / scalar input ignores dim and walks linearly.
-Value cumsum(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value cumsum(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
-    if (dim <= 0) return cumsum(mr, x);
-    if (x.dims().isVector() || x.isScalar()) return cumsum(mr, x);
+    if (dim <= 0) return cumsum(x, mr);
+    if (x.dims().isVector() || x.isScalar()) return cumsum(x, mr);
 
     const int d = detail::resolveDim(x, dim, "cumsum");
     const auto &dd = x.dims();
@@ -3416,8 +3369,7 @@ void cumKernel(const Value &x, int d, Op op, double *dst)
 }
 
 template <typename Op>
-Value cumImpl(std::pmr::memory_resource *mr, const Value &x, int dim,
-               Op op, const char *fn)
+Value cumImpl(const Value &x, int dim, Op op, const char *fn, std::pmr::memory_resource *mr)
 {
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -3457,8 +3409,7 @@ namespace {
 using ScanFn = void (*)(const double *, double *, std::size_t);
 
 template <typename Op>
-Value cumScanDispatch(std::pmr::memory_resource *mr, const Value &x, int dim,
-                       ScanFn scan, Op scalarOp, const char *fn)
+Value cumScanDispatch(const Value &x, int dim, ScanFn scan, Op scalarOp, const char *fn, std::pmr::memory_resource *mr)
 {
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -3536,33 +3487,30 @@ Value cumScanDispatch(std::pmr::memory_resource *mr, const Value &x, int dim,
 
 } // namespace
 
-Value cumprod(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value cumprod(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
-    return cumScanDispatch(mr, x, dim, cumprodScan,
-                           [](double a, double b) { return a * b; }, "cumprod");
+    return cumScanDispatch(x, dim, cumprodScan, [](double a, double b) { return a * b; }, "cumprod", mr);
 }
 
-Value cummax(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value cummax(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     // NaN propagation: MATLAB cummax skips NaN if 'omitnan' is passed
     // and propagates otherwise. Default = 'omitnan' since R2018a; we
     // skip NaN here, treating them as identity.
-    return cumScanDispatch(mr, x, dim, cummaxScan,
-                           [](double a, double b) {
+    return cumScanDispatch(x, dim, cummaxScan, [](double a, double b) {
                                if (std::isnan(b)) return a;
                                if (std::isnan(a)) return b;
                                return std::max(a, b);
-                           }, "cummax");
+                           }, "cummax", mr);
 }
 
-Value cummin(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value cummin(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
-    return cumScanDispatch(mr, x, dim, cumminScan,
-                           [](double a, double b) {
+    return cumScanDispatch(x, dim, cumminScan, [](double a, double b) {
                                if (std::isnan(b)) return a;
                                if (std::isnan(a)) return b;
                                return std::min(a, b);
-                           }, "cummin");
+                           }, "cummin", mr);
 }
 
 // ── diff: discrete difference ────────────────────────────────────────
@@ -3605,7 +3553,7 @@ void diffOnceDouble(const double *src, double *dst,
     }
 }
 
-Value makeDiffOutput(std::pmr::memory_resource *mr, const Dims &srcDims, int d, size_t step)
+Value makeDiffOutput(const Dims &srcDims, int d, size_t step, std::pmr::memory_resource *mr)
 {
     const int nd = srcDims.ndim();
     constexpr int kMaxNd = Dims::kMaxRank;
@@ -3618,7 +3566,7 @@ Value makeDiffOutput(std::pmr::memory_resource *mr, const Dims &srcDims, int d, 
     return Value::matrixND(outDims, nd, ValueType::DOUBLE, mr);
 }
 
-Value copyToDouble(std::pmr::memory_resource *mr, const Value &x)
+Value copyToDouble(const Value &x, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
     const int nd = dd.ndim();
@@ -3639,7 +3587,7 @@ Value copyToDouble(std::pmr::memory_resource *mr, const Value &x)
 
 } // namespace
 
-Value diff(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
+Value diff(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
 {
     if (n < 0)
         throw Error("diff: order n must be non-negative",
@@ -3647,7 +3595,7 @@ Value diff(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
 
     if (n == 0) {
         // Identity copy preserving DOUBLE shape.
-        return copyToDouble(mr, x);
+        return copyToDouble(x, mr);
     }
 
     // Scalar: MATLAB returns 1×0 empty.
@@ -3660,14 +3608,14 @@ Value diff(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
 
     // If n collapses or exceeds the dim, return correctly-shaped empty.
     if (sliceLen <= static_cast<size_t>(n))
-        return makeDiffOutput(mr, dd, d, sliceLen);
+        return makeDiffOutput(dd, d, sliceLen, mr);
 
     // Promote integer/logical to DOUBLE first (consistent with cumsum).
-    Value cur = copyToDouble(mr, x);
+    Value cur = copyToDouble(x, mr);
 
     for (int pass = 0; pass < n; ++pass) {
         const auto &curDims = cur.dims();
-        auto out = makeDiffOutput(mr, curDims, d, 1);
+        auto out = makeDiffOutput(curDims, d, 1, mr);
         diffOnceDouble(cur.doubleData(), out.doubleDataMut(), curDims, d);
         cur = std::move(out);
     }
@@ -3697,7 +3645,7 @@ Value promoteToDouble(const Value &x, std::pmr::memory_resource *mr)
 } // namespace
 
 // ── xor (elementwise logical) ────────────────────────────────────────
-Value xorOf(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value xorOf(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     auto ad = promoteToDouble(a, mr);
     auto bd = promoteToDouble(b, mr);
@@ -3712,7 +3660,7 @@ Value xorOf(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     return r;
 }
 
-Value cross(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value cross(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     // MATLAB: cross(A, B) operates along the first dimension with
     // size 3. Common shapes: 1x3, 3x1, 3xN, Nx3. The result has the
@@ -3764,7 +3712,7 @@ Value cross(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     return out;
 }
 
-Value dot(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value dot(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     if (a.numel() != b.numel())
         throw Error("dot: vectors must have same length",
@@ -3999,7 +3947,7 @@ void eye_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     auto d = parseDimsArgs(dimArgs);
     if (t == ValueType::DOUBLE) {
         // Fast path: direct double eye().
-        outs[0] = eye(mr, d.rows, d.cols);
+        outs[0] = eye(d.rows, d.cols, mr);
         return;
     }
     // Typed eye: zero-fill matrix of `t`, then set diagonal to one.
@@ -4030,7 +3978,7 @@ void magic_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (nd < 0.0 || nd != std::floor(nd))
         throw Error("magic: N must be a non-negative integer",
                      0, 0, "magic", "", "m:magic:badN");
-    outs[0] = magic(ctx.engine->resource(), static_cast<size_t>(nd));
+    outs[0] = magic(static_cast<size_t>(nd), ctx.engine->resource());
 }
 
 namespace {
@@ -4064,9 +4012,7 @@ void toeplitz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (cv.empty() || rv.empty())
         throw Error("toeplitz: inputs must be non-empty",
                     0, 0, "toeplitz", "", "m:toeplitz:empty");
-    outs[0] = toeplitz(ctx.engine->resource(),
-                       cv.data(), cv.size(),
-                       rv.data(), rv.size());
+    outs[0] = toeplitz(cv.data(), cv.size(), rv.data(), rv.size(), ctx.engine->resource());
 }
 
 void hankel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4085,9 +4031,7 @@ void hankel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (cv.empty() || rv.empty())
         throw Error("hankel: inputs must be non-empty",
                     0, 0, "hankel", "", "m:hankel:empty");
-    outs[0] = hankel(ctx.engine->resource(),
-                     cv.data(), cv.size(),
-                     rv.data(), rv.size());
+    outs[0] = hankel(cv.data(), cv.size(), rv.data(), rv.size(), ctx.engine->resource());
 }
 
 void vander_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4097,7 +4041,7 @@ void vander_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
                     0, 0, "vander", "", "m:vander:nargin");
     std::vector<double> v;
     valueToDoubleVec(args[0], v);
-    outs[0] = vander(ctx.engine->resource(), v.data(), v.size());
+    outs[0] = vander(v.data(), v.size(), ctx.engine->resource());
 }
 
 void compan_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4107,7 +4051,7 @@ void compan_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
                     0, 0, "compan", "", "m:compan:nargin");
     std::vector<double> p;
     valueToDoubleVec(args[0], p);
-    outs[0] = compan(ctx.engine->resource(), p.data(), p.size());
+    outs[0] = compan(p.data(), p.size(), ctx.engine->resource());
 }
 
 namespace {
@@ -4130,27 +4074,27 @@ size_t requireSizeArg(Span<const Value> args, const char *fn)
 
 void pascal_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = pascal(ctx.engine->resource(), requireSizeArg(args, "pascal"));
+    outs[0] = pascal(requireSizeArg(args, "pascal"), ctx.engine->resource());
 }
 
 void hilb_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = hilb(ctx.engine->resource(), requireSizeArg(args, "hilb"));
+    outs[0] = hilb(requireSizeArg(args, "hilb"), ctx.engine->resource());
 }
 
 void invhilb_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = invhilb(ctx.engine->resource(), requireSizeArg(args, "invhilb"));
+    outs[0] = invhilb(requireSizeArg(args, "invhilb"), ctx.engine->resource());
 }
 
 void wilkinson_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = wilkinson(ctx.engine->resource(), requireSizeArg(args, "wilkinson"));
+    outs[0] = wilkinson(requireSizeArg(args, "wilkinson"), ctx.engine->resource());
 }
 
 void hadamard_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = hadamard(ctx.engine->resource(), requireSizeArg(args, "hadamard"));
+    outs[0] = hadamard(requireSizeArg(args, "hadamard"), ctx.engine->resource());
 }
 
 void rosser_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4166,7 +4110,7 @@ void inv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     if (args.size() != 1)
         throw Error("inv: requires exactly 1 argument",
                     0, 0, "inv", "", "m:inv:nargin");
-    outs[0] = inv(ctx.engine->resource(), args[0]);
+    outs[0] = inv(args[0], ctx.engine->resource());
 }
 
 void linsolve_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4175,7 +4119,7 @@ void linsolve_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         throw Error("linsolve: requires (A, B[, opts])",
                     0, 0, "linsolve", "", "m:linsolve:nargin");
     // 3rd arg (opts struct) accepted for MATLAB-compat but ignored.
-    outs[0] = linsolve(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = linsolve(args[0], args[1], ctx.engine->resource());
 }
 
 void pageinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4183,7 +4127,7 @@ void pageinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() != 1)
         throw Error("pageinv: requires exactly 1 argument",
                     0, 0, "pageinv", "", "m:pageinv:nargin");
-    outs[0] = pageinv(ctx.engine->resource(), args[0]);
+    outs[0] = pageinv(args[0], ctx.engine->resource());
 }
 
 void trace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4191,7 +4135,7 @@ void trace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.size() != 1)
         throw Error("trace: requires exactly 1 argument",
                     0, 0, "trace", "", "m:trace:nargin");
-    outs[0] = trace(ctx.engine->resource(), args[0]);
+    outs[0] = trace(args[0], ctx.engine->resource());
 }
 
 void det_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4199,7 +4143,7 @@ void det_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     if (args.size() != 1)
         throw Error("det: requires exactly 1 argument",
                     0, 0, "det", "", "m:det:nargin");
-    outs[0] = det(ctx.engine->resource(), args[0]);
+    outs[0] = det(args[0], ctx.engine->resource());
 }
 
 void chol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4207,7 +4151,7 @@ void chol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.size() != 1)
         throw Error("chol: requires exactly 1 argument",
                     0, 0, "chol", "", "m:chol:nargin");
-    outs[0] = chol(ctx.engine->resource(), args[0]);
+    outs[0] = chol(args[0], ctx.engine->resource());
 }
 
 void lu_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -4217,12 +4161,12 @@ void lu_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContex
                     0, 0, "lu", "", "m:lu:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
-        auto [L, U, P] = lu_decompose(mr, args[0]);
+        auto [L, U, P] = lu_decompose(args[0], mr);
         outs[0] = std::move(L);
         outs[1] = std::move(U);
         if (nargout >= 3) outs[2] = std::move(P);
     } else {
-        outs[0] = lu_combined(mr, args[0]);
+        outs[0] = lu_combined(args[0], mr);
     }
 }
 
@@ -4233,11 +4177,11 @@ void qr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContex
                     0, 0, "qr", "", "m:qr:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
-        auto [Q, R] = qr_decompose(mr, args[0]);
+        auto [Q, R] = qr_decompose(args[0], mr);
         outs[0] = std::move(Q);
         outs[1] = std::move(R);
     } else {
-        outs[0] = qr_R_only(mr, args[0]);
+        outs[0] = qr_R_only(args[0], mr);
     }
 }
 
@@ -4248,12 +4192,12 @@ void svd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
                     0, 0, "svd", "", "m:svd:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
-        auto [U, S, V] = svd_decompose(mr, args[0]);
+        auto [U, S, V] = svd_decompose(args[0], mr);
         outs[0] = std::move(U);
         outs[1] = std::move(S);
         if (nargout >= 3) outs[2] = std::move(V);
     } else {
-        outs[0] = svd_values(mr, args[0]);
+        outs[0] = svd_values(args[0], mr);
     }
 }
 
@@ -4263,7 +4207,7 @@ void rank_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         throw Error("rank: requires (A) or (A, tol)",
                     0, 0, "rank", "", "m:rank:nargin");
     const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
-    outs[0] = rank_of(ctx.engine->resource(), args[0], tol);
+    outs[0] = rank_of(args[0], tol, ctx.engine->resource());
 }
 
 void pinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4272,7 +4216,7 @@ void pinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         throw Error("pinv: requires (A) or (A, tol)",
                     0, 0, "pinv", "", "m:pinv:nargin");
     const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
-    outs[0] = pinv(ctx.engine->resource(), args[0], tol);
+    outs[0] = pinv(args[0], tol, ctx.engine->resource());
 }
 
 void cond_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4280,7 +4224,7 @@ void cond_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.size() != 1)
         throw Error("cond: requires exactly 1 argument (2-norm only in this revision)",
                     0, 0, "cond", "", "m:cond:nargin");
-    outs[0] = cond_2norm(ctx.engine->resource(), args[0]);
+    outs[0] = cond_2norm(args[0], ctx.engine->resource());
 }
 
 void orth_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4289,7 +4233,7 @@ void orth_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         throw Error("orth: requires (A) or (A, tol)",
                     0, 0, "orth", "", "m:orth:nargin");
     const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
-    outs[0] = orth(ctx.engine->resource(), args[0], tol);
+    outs[0] = orth(args[0], tol, ctx.engine->resource());
 }
 
 void null_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4298,7 +4242,7 @@ void null_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         throw Error("null: requires (A) or (A, tol)",
                     0, 0, "null", "", "m:null:nargin");
     const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
-    outs[0] = null_basis(ctx.engine->resource(), args[0], tol);
+    outs[0] = null_basis(args[0], tol, ctx.engine->resource());
 }
 
 void normest_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4306,7 +4250,7 @@ void normest_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() != 1)
         throw Error("normest: requires exactly 1 argument",
                     0, 0, "normest", "", "m:normest:nargin");
-    outs[0] = normest(ctx.engine->resource(), args[0]);
+    outs[0] = normest(args[0], ctx.engine->resource());
 }
 
 void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -4321,22 +4265,22 @@ void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
     // eigenvectors deferred to Phase 2c-3 with QR iteration).
     if (isSymmetric(args[0], 1e-10)) {
         if (nargout >= 2) {
-            auto [V, D] = eig_symmetric(mr, args[0]);
+            auto [V, D] = eig_symmetric(args[0], mr);
             outs[0] = std::move(V);
             outs[1] = std::move(D);
         } else {
-            outs[0] = eig_values(mr, args[0]);
+            outs[0] = eig_values(args[0], mr);
         }
     } else {
         if (nargout >= 2) {
             // [V, D] for asymmetric: works when all eigenvalues are
             // real (via null-space of A - lam*I); throws if complex
             // eigenvalues are present (Francis QR deferred).
-            auto [V, D] = eig_general_VD(mr, args[0]);
+            auto [V, D] = eig_general_VD(args[0], mr);
             outs[0] = std::move(V);
             outs[1] = std::move(D);
         } else {
-            outs[0] = eig_general_values(mr, args[0]);
+            outs[0] = eig_general_values(args[0], mr);
         }
     }
 }
@@ -4346,7 +4290,7 @@ void expm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.size() != 1)
         throw Error("expm: requires exactly 1 argument",
                     0, 0, "expm", "", "m:expm:nargin");
-    outs[0] = expm(ctx.engine->resource(), args[0]);
+    outs[0] = expm(args[0], ctx.engine->resource());
 }
 
 void logm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4354,7 +4298,7 @@ void logm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.size() != 1)
         throw Error("logm: requires exactly 1 argument",
                     0, 0, "logm", "", "m:logm:nargin");
-    outs[0] = logm_sym(ctx.engine->resource(), args[0]);
+    outs[0] = logm_sym(args[0], ctx.engine->resource());
 }
 
 void sqrtm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4362,7 +4306,7 @@ void sqrtm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.size() != 1)
         throw Error("sqrtm: requires exactly 1 argument",
                     0, 0, "sqrtm", "", "m:sqrtm:nargin");
-    outs[0] = sqrtm_sym(ctx.engine->resource(), args[0]);
+    outs[0] = sqrtm_sym(args[0], ctx.engine->resource());
 }
 
 void schur_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -4371,7 +4315,7 @@ void schur_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
         throw Error("schur: requires exactly 1 argument",
                     0, 0, "schur", "", "m:schur:nargin");
     auto *mr = ctx.engine->resource();
-    auto [U, T] = schur_sym(mr, args[0]);
+    auto [U, T] = schur_sym(args[0], mr);
     if (nargout >= 2) {
         outs[0] = std::move(U);
         outs[1] = std::move(T);
@@ -4385,7 +4329,7 @@ void sylvester_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() != 3)
         throw Error("sylvester: requires (A, B, C)",
                     0, 0, "sylvester", "", "m:sylvester:nargin");
-    outs[0] = sylvester_sym(ctx.engine->resource(), args[0], args[1], args[2]);
+    outs[0] = sylvester_sym(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 void norm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4395,18 +4339,18 @@ void norm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
                     0, 0, "norm", "", "m:norm:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 1) {
-        outs[0] = norm_value(mr, args[0], 2.0);
+        outs[0] = norm_value(args[0], 2.0, mr);
         return;
     }
     const Value &p = args[1];
     if (p.isChar() || p.isString()) {
         const auto s = p.toString();
         if (s == "fro" || s == "Fro") {
-            outs[0] = norm_fro(mr, args[0]);
+            outs[0] = norm_fro(args[0], mr);
             return;
         }
         if (s == "inf" || s == "Inf") {
-            outs[0] = norm_inf(mr, args[0]);
+            outs[0] = norm_inf(args[0], mr);
             return;
         }
         throw Error("norm: string p must be 'fro' or 'inf'",
@@ -4414,10 +4358,10 @@ void norm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     }
     const double pv = p.toScalar();
     if (std::isinf(pv)) {
-        outs[0] = norm_inf(mr, args[0]);
+        outs[0] = norm_inf(args[0], mr);
         return;
     }
-    outs[0] = norm_value(mr, args[0], pv);
+    outs[0] = norm_value(args[0], pv, mr);
 }
 
 void subspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4425,7 +4369,7 @@ void subspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.size() != 2)
         throw Error("subspace: requires (A, B)",
                     0, 0, "subspace", "", "m:subspace:nargin");
-    outs[0] = subspace(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = subspace(args[0], args[1], ctx.engine->resource());
 }
 
 void hess_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -4435,11 +4379,11 @@ void hess_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
                     0, 0, "hess", "", "m:hess:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
-        auto [P, H] = hess(mr, args[0]);
+        auto [P, H] = hess(args[0], mr);
         outs[0] = std::move(P);
         outs[1] = std::move(H);
     } else {
-        outs[0] = hess_H_only(mr, args[0]);
+        outs[0] = hess_H_only(args[0], mr);
     }
 }
 
@@ -4452,7 +4396,7 @@ void topkrows_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (kd < 0.0 || kd != std::floor(kd))
         throw Error("topkrows: k must be a non-negative integer",
                     0, 0, "topkrows", "", "m:topkrows:badK");
-    outs[0] = topkrows(ctx.engine->resource(), args[0], static_cast<std::size_t>(kd));
+    outs[0] = topkrows(args[0], static_cast<std::size_t>(kd), ctx.engine->resource());
 }
 
 void size_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -4463,7 +4407,7 @@ void size_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     auto *mr = ctx.engine->resource();
 
     if (args.size() >= 2) {
-        outs[0] = size(mr, args[0], static_cast<int>(args[1].toScalar()));
+        outs[0] = size(args[0], static_cast<int>(args[1].toScalar()), mr);
         return;
     }
 
@@ -4490,7 +4434,7 @@ void size_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
         return;
     }
 
-    outs[0] = size(mr, args[0]);
+    outs[0] = size(args[0], mr);
 }
 
 void length_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4498,7 +4442,7 @@ void length_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.empty())
         throw Error("length: requires 1 argument",
                      0, 0, "length", "", "m:length:nargin");
-    outs[0] = length(ctx.engine->resource(), args[0]);
+    outs[0] = length(args[0], ctx.engine->resource());
 }
 
 void numel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4506,7 +4450,7 @@ void numel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.empty())
         throw Error("numel: requires 1 argument",
                      0, 0, "numel", "", "m:numel:nargin");
-    outs[0] = numel(ctx.engine->resource(), args[0]);
+    outs[0] = numel(args[0], ctx.engine->resource());
 }
 
 void ndims_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4514,7 +4458,7 @@ void ndims_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.empty())
         throw Error("ndims: requires 1 argument",
                      0, 0, "ndims", "", "m:ndims:nargin");
-    outs[0] = ndims(ctx.engine->resource(), args[0]);
+    outs[0] = ndims(args[0], ctx.engine->resource());
 }
 
 void reshape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4559,7 +4503,7 @@ void reshape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
     // Strip trailing 1s past the 2nd dim (MATLAB convention).
     stripTrailingOnes(dims);
-    outs[0] = reshapeND(mr, x, dims.data(), dims.size());
+    outs[0] = reshapeND(x, dims.data(), dims.size(), mr);
 }
 
 void transpose_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4567,7 +4511,7 @@ void transpose_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("transpose: requires 1 argument",
                      0, 0, "transpose", "", "m:transpose:nargin");
-    outs[0] = transpose(ctx.engine->resource(), args[0]);
+    outs[0] = transpose(args[0], ctx.engine->resource());
 }
 
 void pagetranspose_reg(Span<const Value> args, size_t, Span<Value> outs,
@@ -4576,7 +4520,7 @@ void pagetranspose_reg(Span<const Value> args, size_t, Span<Value> outs,
     if (args.empty())
         throw Error("pagetranspose: requires 1 argument",
                      0, 0, "pagetranspose", "", "m:pagetranspose:nargin");
-    outs[0] = pagetranspose(ctx.engine->resource(), args[0]);
+    outs[0] = pagetranspose(args[0], ctx.engine->resource());
 }
 
 void pagectranspose_reg(Span<const Value> args, size_t, Span<Value> outs,
@@ -4585,7 +4529,7 @@ void pagectranspose_reg(Span<const Value> args, size_t, Span<Value> outs,
     if (args.empty())
         throw Error("pagectranspose: requires 1 argument",
                      0, 0, "pagectranspose", "", "m:pagectranspose:nargin");
-    outs[0] = pagectranspose(ctx.engine->resource(), args[0]);
+    outs[0] = pagectranspose(args[0], ctx.engine->resource());
 }
 
 void peaks_reg(Span<const Value> args, size_t, Span<Value> outs,
@@ -4599,7 +4543,7 @@ void peaks_reg(Span<const Value> args, size_t, Span<Value> outs,
                          0, 0, "peaks", "", "m:peaks:badN");
         n = static_cast<size_t>(dn);
     }
-    outs[0] = peaks(ctx.engine->resource(), n);
+    outs[0] = peaks(n, ctx.engine->resource());
 }
 
 void sphere_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
@@ -4607,7 +4551,7 @@ void sphere_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     size_t n = 20;  // MATLAB default
     if (!args.empty()) n = static_cast<size_t>(args[0].toScalar());
-    auto s = sphere(ctx.engine->resource(), n);
+    auto s = sphere(n, ctx.engine->resource());
     outs[0] = std::move(s.X);
     if (nargout > 1) outs[1] = std::move(s.Y);
     if (nargout > 2) outs[2] = std::move(s.Z);
@@ -4637,7 +4581,7 @@ void cylinder_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                 n = static_cast<size_t>(args[1].toScalar());
         }
     }
-    auto s = cylinder(mr, R, n);
+    auto s = cylinder(R, n, mr);
     outs[0] = std::move(s.X);
     if (nargout > 1) outs[1] = std::move(s.Y);
     if (nargout > 2) outs[2] = std::move(s.Z);
@@ -4657,7 +4601,7 @@ void ellipsoid_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     const double zr = args[5].toScalar();
     size_t n = 20;
     if (args.size() >= 7) n = static_cast<size_t>(args[6].toScalar());
-    auto s = ellipsoid(ctx.engine->resource(), xc, yc, zc, xr, yr, zr, n);
+    auto s = ellipsoid(xc, yc, zc, xr, yr, zr, n, ctx.engine->resource());
     outs[0] = std::move(s.X);
     if (nargout > 1) outs[1] = std::move(s.Y);
     if (nargout > 2) outs[2] = std::move(s.Z);
@@ -4679,13 +4623,11 @@ void pagemtimes_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
     };
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 2) {
-        outs[0] = pagemtimes(mr, args[0], args[1]);
+        outs[0] = pagemtimes(args[0], args[1], mr);
         return;
     }
     if (args.size() == 4) {
-        outs[0] = pagemtimes(mr,
-                             args[0], parseFlag(args[1]),
-                             args[2], parseFlag(args[3]));
+        outs[0] = pagemtimes(args[0], parseFlag(args[1]), args[2], parseFlag(args[3]), mr);
         return;
     }
     throw Error("pagemtimes: expected 2 or 4 arguments",
@@ -4697,7 +4639,7 @@ void diag_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.empty())
         throw Error("diag: requires 1 argument",
                      0, 0, "diag", "", "m:diag:nargin");
-    outs[0] = diag(ctx.engine->resource(), args[0]);
+    outs[0] = diag(args[0], ctx.engine->resource());
 }
 
 void sort_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -4705,7 +4647,7 @@ void sort_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     if (args.empty())
         throw Error("sort: requires 1 argument",
                      0, 0, "sort", "", "m:sort:nargin");
-    auto [sorted, idx] = sort(ctx.engine->resource(), args[0]);
+    auto [sorted, idx] = sort(args[0], ctx.engine->resource());
     outs[0] = std::move(sorted);
     if (nargout > 1)
         outs[1] = std::move(idx);
@@ -4733,7 +4675,7 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
             cols.push_back(static_cast<int>(v));
         }
     }
-    auto [sorted, idx] = sortrows(mr, args[0], cols.data(), cols.size());
+    auto [sorted, idx] = sortrows(args[0], cols.data(), cols.size(), mr);
     outs[0] = std::move(sorted);
     if (nargout > 1)
         outs[1] = std::move(idx);
@@ -4744,7 +4686,7 @@ void find_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.empty())
         throw Error("find: requires 1 argument",
                      0, 0, "find", "", "m:find:nargin");
-    outs[0] = find(ctx.engine->resource(), args[0]);
+    outs[0] = find(args[0], ctx.engine->resource());
 }
 
 void nnz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4752,7 +4694,7 @@ void nnz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     if (args.empty())
         throw Error("nnz: requires 1 argument",
                      0, 0, "nnz", "", "m:nnz:nargin");
-    outs[0] = nnz(ctx.engine->resource(), args[0]);
+    outs[0] = nnz(args[0], ctx.engine->resource());
 }
 
 void nonzeros_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4760,17 +4702,17 @@ void nonzeros_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.empty())
         throw Error("nonzeros: requires 1 argument",
                      0, 0, "nonzeros", "", "m:nonzeros:nargin");
-    outs[0] = nonzeros(ctx.engine->resource(), args[0]);
+    outs[0] = nonzeros(args[0], ctx.engine->resource());
 }
 
 void horzcat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = horzcat(ctx.engine->resource(), args.data(), args.size());
+    outs[0] = horzcat(args.data(), args.size(), ctx.engine->resource());
 }
 
 void vertcat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = vertcat(ctx.engine->resource(), args.data(), args.size());
+    outs[0] = vertcat(args.data(), args.size(), ctx.engine->resource());
 }
 
 void meshgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -4781,19 +4723,19 @@ void meshgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     auto *mr = ctx.engine->resource();
     if (args.size() == 1) {
         // meshgrid(x) ≡ meshgrid(x, x). See BUGS.md #21.
-        auto [X, Y] = meshgrid(mr, args[0], args[0]);
+        auto [X, Y] = meshgrid(args[0], args[0], mr);
         outs[0] = std::move(X);
         if (nargout > 1) outs[1] = std::move(Y);
         return;
     }
     if (args.size() == 2) {
-        auto [X, Y] = meshgrid(mr, args[0], args[1]);
+        auto [X, Y] = meshgrid(args[0], args[1], mr);
         outs[0] = std::move(X);
         if (nargout > 1) outs[1] = std::move(Y);
         return;
     }
     if (args.size() == 3) {
-        auto [X, Y, Z] = meshgrid(mr, args[0], args[1], args[2]);
+        auto [X, Y, Z] = meshgrid(args[0], args[1], args[2], mr);
         outs[0] = std::move(X);
         if (nargout > 1) outs[1] = std::move(Y);
         if (nargout > 2) outs[2] = std::move(Z);
@@ -4810,13 +4752,13 @@ void ndgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
                      0, 0, "ndgrid", "", "m:ndgrid:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 2) {
-        auto [X, Y] = ndgrid(mr, args[0], args[1]);
+        auto [X, Y] = ndgrid(args[0], args[1], mr);
         outs[0] = std::move(X);
         if (nargout > 1) outs[1] = std::move(Y);
         return;
     }
     if (args.size() == 3) {
-        auto [X, Y, Z] = ndgrid(mr, args[0], args[1], args[2]);
+        auto [X, Y, Z] = ndgrid(args[0], args[1], args[2], mr);
         outs[0] = std::move(X);
         if (nargout > 1) outs[1] = std::move(Y);
         if (nargout > 2) outs[2] = std::move(Z);
@@ -4831,7 +4773,7 @@ void kron_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.size() < 2)
         throw Error("kron: requires 2 arguments",
                      0, 0, "kron", "", "m:kron:nargin");
-    outs[0] = kron(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = kron(args[0], args[1], ctx.engine->resource());
 }
 
 void cumsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4842,8 +4784,8 @@ void cumsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     int dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty())
         dim = static_cast<int>(args[1].toScalar());
-    outs[0] = (dim > 0) ? cumsum(ctx.engine->resource(), args[0], dim)
-                        : cumsum(ctx.engine->resource(), args[0]);
+    outs[0] = (dim > 0) ? cumsum(args[0], dim, ctx.engine->resource())
+                        : cumsum(args[0], ctx.engine->resource());
 }
 
 #define NK_CUM_REG(name)                                                       \
@@ -4856,7 +4798,7 @@ void cumsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
         int dim = 0;                                                           \
         if (args.size() >= 2 && !args[1].isEmpty())                            \
             dim = static_cast<int>(args[1].toScalar());                        \
-        outs[0] = name(ctx.engine->resource(), args[0], dim);                 \
+        outs[0] = name(args[0], dim, ctx.engine->resource());                 \
     }
 
 NK_CUM_REG(cumprod)
@@ -4928,14 +4870,13 @@ void propagateNanFromSrc(Value &out, const Value &src, int dim1Based)
 }
 
 template <typename Fn>
-Value runCumWithFlags(std::pmr::memory_resource *mr, const Value &x,
-                      Span<const Value> args, Fn impl)
+Value runCumWithFlags(const Value &x, Span<const Value> args, Fn impl, std::pmr::memory_resource *mr)
 {
     int dim; bool reverse; bool include_nan;
     parseCumDirNan(args, 1, dim, reverse, include_nan);
     Value src = x;
     if (reverse) src = flip(src, dim, mr);
-    Value out = (dim > 0) ? impl(mr, src, dim) : impl(mr, src, 0);
+    Value out = (dim > 0) ? impl(src, dim, mr) : impl(src, 0, mr);
     if (include_nan) {
         // Determine effective dim (firstNonSingleton when dim=0).
         int effDim = dim;
@@ -4967,10 +4908,9 @@ void cummax_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.empty())
         throw Error("cummax: requires at least 1 argument",
                      0, 0, "cummax", "", "m:cummax:nargin");
-    outs[0] = runCumWithFlags(ctx.engine->resource(), args[0], args,
-                              [](std::pmr::memory_resource *mr, const Value &v, int d) {
-                                  return cummax(mr, v, d);
-                              });
+    outs[0] = runCumWithFlags(args[0], args, [](const Value &v, int d, std::pmr::memory_resource *mr) {
+                                  return cummax(v, d, mr);
+                              }, ctx.engine->resource());
 }
 
 void cummin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -4978,10 +4918,9 @@ void cummin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.empty())
         throw Error("cummin: requires at least 1 argument",
                      0, 0, "cummin", "", "m:cummin:nargin");
-    outs[0] = runCumWithFlags(ctx.engine->resource(), args[0], args,
-                              [](std::pmr::memory_resource *mr, const Value &v, int d) {
-                                  return cummin(mr, v, d);
-                              });
+    outs[0] = runCumWithFlags(args[0], args, [](const Value &v, int d, std::pmr::memory_resource *mr) {
+                                  return cummin(v, d, mr);
+                              }, ctx.engine->resource());
 }
 
 void diff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -5000,7 +4939,7 @@ void diff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     }
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
-    outs[0] = diff(ctx.engine->resource(), args[0], n, dim);
+    outs[0] = diff(args[0], n, dim, ctx.engine->resource());
 }
 
 #undef NK_CUM_REG
@@ -5028,7 +4967,7 @@ void xor_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     if (args.size() < 2)
         throw Error("xor: requires 2 arguments",
                      0, 0, "xor", "", "m:xor:nargin");
-    outs[0] = xorOf(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = xorOf(args[0], args[1], ctx.engine->resource());
 }
 
 void cross_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -5036,7 +4975,7 @@ void cross_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.size() < 2)
         throw Error("cross: requires 2 arguments",
                      0, 0, "cross", "", "m:cross:nargin");
-    outs[0] = cross(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = cross(args[0], args[1], ctx.engine->resource());
 }
 
 void dot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -5044,7 +4983,7 @@ void dot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     if (args.size() < 2)
         throw Error("dot: requires 2 arguments",
                      0, 0, "dot", "", "m:dot:nargin");
-    outs[0] = dot(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = dot(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail

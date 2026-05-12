@@ -86,7 +86,7 @@ cholcov(const Value &SIGMA, std::pmr::memory_resource *mr)
 
     // 2. Fall back to eigendecomposition. Treat SIGMA as symmetric;
     //    eig_symmetric throws if it's not symmetric.
-    auto [V, D] = ::numkit::builtin::eig_symmetric(mr, SIGMA);
+    auto [V, D] = ::numkit::builtin::eig_symmetric(SIGMA, mr);
 
     // D is n×n diagonal; extract eigvals into a flat vector.
     std::vector<double> d(R);

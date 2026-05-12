@@ -100,8 +100,7 @@ void balanceScale(double *B, size_t n, double *d)
 // v1: noperm is always effectively true. The arg is kept for signature
 // compat but doesn't change behaviour beyond documentation.
 BalanceResult
-balance_impl(std::pmr::memory_resource *mr, const Value &A,
-             bool /*noperm*/)
+balance_impl(const Value &A, bool /*noperm*/, std::pmr::memory_resource *mr)
 {
     if (A.dims().is3D())
         throw Error("balance: input must be 2D",
@@ -158,7 +157,7 @@ void balance_reg(Span<const Value> args, size_t nargout,
                         0, 0, "balance", "", "m:balance:BadOpt");
     }
 
-    auto R = balance_impl(ctx.engine->resource(), args[0], noperm);
+    auto R = balance_impl(args[0], noperm, ctx.engine->resource());
     const size_t n = R.B.dims().rows();
 
     if (nargout <= 1) {
