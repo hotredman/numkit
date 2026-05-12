@@ -79,11 +79,11 @@ std::vector<double> downsample_evens(const std::vector<double> &y) {
 // Internal entry point: takes Lo_D / Hi_D directly. Used by both the
 // `dwt(x, wname)` path (which looks up filters via wfilters) and the
 // `dwt(x, Lo_D, Hi_D)` custom-filter path.
-static void dwt_with_filters(std::pmr::memory_resource *mr,
-                             const Value &x,
-                             const std::vector<double> &Lo_D,
-                             const std::vector<double> &Hi_D,
-                             Value *cA, Value *cD)
+static std::pair<Value, Value>
+dwt_with_filters(const Value &x,
+                 const std::vector<double> &Lo_D,
+                 const std::vector<double> &Hi_D,
+                 std::pmr::memory_resource *mr)
 {
     const size_t Lf = Lo_D.size();
     if (Lf < 2 || Hi_D.size() != Lf)
@@ -91,11 +91,9 @@ static void dwt_with_filters(std::pmr::memory_resource *mr,
                     0, 0, "dwt", "", "m:dwt:filt");
 
     const size_t N = x.numel();
-    if (N == 0) {
-        if (cA) *cA = Value::matrix(1, 0, ValueType::DOUBLE, mr);
-        if (cD) *cD = Value::matrix(1, 0, ValueType::DOUBLE, mr);
-        return;
-    }
+    if (N == 0)
+        return {Value::matrix(1, 0, ValueType::DOUBLE, mr),
+                Value::matrix(1, 0, ValueType::DOUBLE, mr)};
     std::vector<double> xv(N);
     for (size_t i = 0; i < N; ++i) xv[i] = x.elemAsDouble(i);
 
@@ -132,25 +130,24 @@ static void dwt_with_filters(std::pmr::memory_resource *mr,
         if (!v.empty()) std::copy(v.begin(), v.end(), r.doubleDataMut());
         return r;
     };
-    if (cA) *cA = pack(a);
-    if (cD) *cD = pack(d);
+    return {pack(a), pack(d)};
 }
 
 // Public entry: wname → look up filters via wfilters, dispatch to helper.
-void dwt(std::pmr::memory_resource *mr,
-         const Value &x, const std::string &wname,
-         Value *cA, Value *cD)
+std::pair<Value, Value>
+dwt(const Value &x, const std::string &wname,
+    std::pmr::memory_resource *mr)
 {
     auto fb = wavelet_filters(wname);
-    dwt_with_filters(mr, x, fb.Lo_D, fb.Hi_D, cA, cD);
+    return dwt_with_filters(x, fb.Lo_D, fb.Hi_D, mr);
 }
 
 // Internal entry: takes Lo_R / Hi_R directly.
-Value idwt_with_filters(std::pmr::memory_resource *mr,
-                        const Value &cA, const Value &cD,
+Value idwt_with_filters(const Value &cA, const Value &cD,
                         const std::vector<double> &Lo_R,
                         const std::vector<double> &Hi_R,
-                        long long len)
+                        long long len,
+                        std::pmr::memory_resource *mr)
 {
     const size_t Lf = Lo_R.size();
     if (Lf < 2 || Hi_R.size() != Lf)
@@ -203,24 +200,24 @@ Value idwt_with_filters(std::pmr::memory_resource *mr,
 }
 
 // Public entry: wname → look up filters via wfilters, dispatch to helper.
-Value idwt(std::pmr::memory_resource *mr,
-           const Value &cA, const Value &cD,
+Value idwt(const Value &cA, const Value &cD,
            const std::string &wname,
-           long long len)
+           long long len,
+           std::pmr::memory_resource *mr)
 {
     auto fb = wavelet_filters(wname);
-    return idwt_with_filters(mr, cA, cD, fb.Lo_R, fb.Hi_R, len);
+    return idwt_with_filters(cA, cD, fb.Lo_R, fb.Hi_R, len, mr);
 }
 
 // Cross-TU access for appcoef (custom-filter form needs to call this
 // from libs/wavelet/src/dwt/multilevel.cpp).
-Value idwt_with_filters_pub(std::pmr::memory_resource *mr,
-                            const Value &cA, const Value &cD,
+Value idwt_with_filters_pub(const Value &cA, const Value &cD,
                             const std::vector<double> &Lo_R,
                             const std::vector<double> &Hi_R,
-                            long long len)
+                            long long len,
+                            std::pmr::memory_resource *mr)
 {
-    return idwt_with_filters(mr, cA, cD, Lo_R, Hi_R, len);
+    return idwt_with_filters(cA, cD, Lo_R, Hi_R, len, mr);
 }
 
 namespace detail {
@@ -275,16 +272,16 @@ void dwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args[1].isChar() || args[1].isString()) {
         // dwt(x, wname[, 'mode', extmode])
         parse_mode_nv(args, 2, "dwt");
-        dwt(mr, args[0], args[1].toString(), &cA, &cD);
+        std::tie(cA, cD) = dwt(args[0], args[1].toString(), mr);
     } else {
         // dwt(x, Lo_D, Hi_D[, 'mode', extmode])
         if (args.size() < 3 || (args[2].isChar() || args[2].isString()))
             throw Error("dwt: custom-filter form requires (x, Lo_D, Hi_D)",
                         0, 0, "dwt", "", "m:dwt:nargin");
         parse_mode_nv(args, 3, "dwt");
-        dwt_with_filters(mr, args[0],
-                         readVec(args[1]), readVec(args[2]),
-                         &cA, &cD);
+        std::tie(cA, cD) = dwt_with_filters(args[0],
+                                            readVec(args[1]), readVec(args[2]),
+                                            mr);
     }
     if (outs.size() >= 1) outs[0] = cA;
     if (outs.size() >= 2) outs[1] = cD;
@@ -311,7 +308,7 @@ void idwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             ++i;
         }
         parse_mode_nv(args, i, "idwt");
-        outs[0] = idwt(mr, args[0], args[1], wname, len);
+        outs[0] = idwt(args[0], args[1], wname, len, mr);
     } else {
         // idwt(cA, cD, Lo_R, Hi_R[, len][, 'mode', extmode])
         if (args.size() < 4 || (args[3].isChar() || args[3].isString()))
@@ -325,9 +322,9 @@ void idwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             ++i;
         }
         parse_mode_nv(args, i, "idwt");
-        outs[0] = idwt_with_filters(mr, args[0], args[1],
+        outs[0] = idwt_with_filters(args[0], args[1],
                                     readVec(args[2]), readVec(args[3]),
-                                    len);
+                                    len, mr);
     }
 }
 

@@ -25,14 +25,28 @@ struct FilterBank {
 
 FilterBank wavelet_filters(const std::string &name);
 
-/// MATLAB `wfilters(wname)` — returns 4 outputs in MATLAB order.
-/// `wfilters(wname, 'd')` → [Lo_D, Hi_D]
-/// `wfilters(wname, 'r')` → [Lo_R, Hi_R]
-/// `wfilters(wname, 'l')` → [Lo_D, Lo_R]
-/// `wfilters(wname, 'h')` → [Hi_D, Hi_R]
-void wfilters(std::pmr::memory_resource *mr,
-              const std::string &name, const std::string &kind,
-              Value *out0, Value *out1,
-              Value *out2, Value *out3);
+/// Result of MATLAB `wfilters(wname[, kind])`. Which fields are
+/// populated depends on `kind`:
+///   "" / "all": all four set.
+///   "d":  Lo_D, Hi_D set; Lo_R, Hi_R empty.
+///   "r":  Lo_R, Hi_R set; Lo_D, Hi_D empty.
+///   "l":  Lo_D, Lo_R set; Hi_D, Hi_R empty.
+///   "h":  Hi_D, Hi_R set; Lo_D, Lo_R empty.
+struct WFiltersResult {
+    Value Lo_D;
+    Value Hi_D;
+    Value Lo_R;
+    Value Hi_R;
+};
+
+/// MATLAB `wfilters(wname[, kind])`.
+///
+/// @param name  Wavelet family name (haar, db1..db4, sym2, sym4, coif1, …).
+/// @param kind  Selector: "", "d", "r", "l", "h". Empty/missing returns
+///              all four filters (4-output MATLAB form).
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      Populated subset of `{Lo_D, Hi_D, Lo_R, Hi_R}` per `kind`.
+WFiltersResult wfilters(const std::string &name, const std::string &kind = "",
+                        std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::wavelet

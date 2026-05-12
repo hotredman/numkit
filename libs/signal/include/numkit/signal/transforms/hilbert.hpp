@@ -2,6 +2,7 @@
 #pragma once
 
 #include <memory_resource>
+#include <utility>
 #include <numkit/core/value.hpp>
 
 namespace numkit::signal {
@@ -46,37 +47,32 @@ Value envelope(const Value &                x,
 /// `ylower = mean - |hilbert(x - mean)|`. Subtracting the mean before
 /// the Hilbert transform avoids edge artefacts from a DC offset.
 ///
-/// @param x         Real input signal.
-/// @param[out] yupper  Upper envelope (must be a writable Value pointer).
-/// @param[out] ylower  Lower envelope.
-/// @param mr        Memory resource (nullptr → process default).
-void envelope_pair(const Value &                x,
-                   Value *                      yupper,
-                   Value *                      ylower,
-                   std::pmr::memory_resource *  mr = nullptr);
+/// @param x   Real input signal.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `(yupper, ylower)` — bind with `auto [up, lo] = envelope_pair(x);`.
+std::pair<Value, Value>
+envelope_pair(const Value &                x,
+              std::pmr::memory_resource *  mr = nullptr);
 
 /// Full multi-mode envelope — matches MATLAB R2025b `envelope.m`.
 ///
-/// @param x           Real input signal.
-/// @param mode        Envelope algorithm:
-///                      - 0: default, FFT-based `|hilbert(x - mean)|`
-///                      - 1: 'analytic' — n-tap Kaiser-tapered Hilbert FIR
-///                      - 2: 'rms'      — sliding RMS over n-sample window
-///                      - 3: 'peak'     — cubic spline through local
-///                                        maxima / minima with
-///                                        MinPeakDistance = n
-/// @param n           Window / filter length (modes 1, 2, 3); ignored for 0.
-/// @param[out] yupper Upper envelope.
-/// @param[out] ylower Lower envelope.
-/// @param mr          Memory resource (nullptr → process default).
-///
-/// For modes 0–2 the envelopes are symmetric around the signal mean.
-/// For mode 3 they are spline-interpolated and generally asymmetric.
-void envelope_full(const Value &                x,
-                   int                          mode,
-                   std::size_t                  n,
-                   Value *                      yupper,
-                   Value *                      ylower,
-                   std::pmr::memory_resource *  mr = nullptr);
+/// @param x     Real input signal.
+/// @param mode  Envelope algorithm:
+///                - 0: default, FFT-based `|hilbert(x - mean)|`
+///                - 1: 'analytic' — n-tap Kaiser-tapered Hilbert FIR
+///                - 2: 'rms'      — sliding RMS over n-sample window
+///                - 3: 'peak'     — cubic spline through local
+///                                  maxima / minima with
+///                                  MinPeakDistance = n
+/// @param n     Window / filter length (modes 1, 2, 3); ignored for 0.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      `(yupper, ylower)`. For modes 0–2 the envelopes are
+///              symmetric around the signal mean; mode 3 is
+///              spline-interpolated and generally asymmetric.
+std::pair<Value, Value>
+envelope_full(const Value &                x,
+              int                          mode,
+              std::size_t                  n,
+              std::pmr::memory_resource *  mr = nullptr);
 
 } // namespace numkit::signal

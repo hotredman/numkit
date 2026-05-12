@@ -19,31 +19,29 @@
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
+#include <utility>
 #include <vector>
 
 namespace numkit::wavelet {
 
 namespace {
 
-// Apply 1-D dwt to every row of X. Returns Lo (M × outCols) and Hi.
-void dwt_rows(std::pmr::memory_resource *mr,
-              const Value &X, const std::string &wname,
-              Value *Lo, Value *Hi)
+// Apply 1-D dwt to every row of X. Returns (Lo, Hi), each M × outCols.
+std::pair<Value, Value>
+dwt_rows(const Value &X, const std::string &wname,
+         std::pmr::memory_resource *mr)
 {
     const size_t M = X.dims().rows();
     const size_t N = X.dims().cols();
-    if (M == 0 || N == 0) {
-        if (Lo) *Lo = Value::matrix(M, 0, ValueType::DOUBLE, mr);
-        if (Hi) *Hi = Value::matrix(M, 0, ValueType::DOUBLE, mr);
-        return;
-    }
+    if (M == 0 || N == 0)
+        return {Value::matrix(M, 0, ValueType::DOUBLE, mr),
+                Value::matrix(M, 0, ValueType::DOUBLE, mr)};
 
     // Determine the per-row output length by running one row first.
     auto row = Value::matrix(1, N, ValueType::DOUBLE, mr);
     double *rd = row.doubleDataMut();
     for (size_t c = 0; c < N; ++c) rd[c] = X.elemAsDouble(c * M + 0);
-    Value cA0, cD0;
-    dwt(mr, row, wname, &cA0, &cD0);
+    auto [cA0, cD0] = dwt(row, wname, mr);
     const size_t outN = cA0.numel();
 
     Value loM = Value::matrix(M, outN, ValueType::DOUBLE, mr);
@@ -61,8 +59,7 @@ void dwt_rows(std::pmr::memory_resource *mr,
     }
     for (size_t r = 1; r < M; ++r) {
         for (size_t c = 0; c < N; ++c) rd[c] = X.elemAsDouble(c * M + r);
-        Value cA, cD;
-        dwt(mr, row, wname, &cA, &cD);
+        auto [cA, cD] = dwt(row, wname, mr);
         const double *aL = cA.doubleData();
         const double *aH = cD.doubleData();
         for (size_t c = 0; c < outN; ++c) {
@@ -70,28 +67,24 @@ void dwt_rows(std::pmr::memory_resource *mr,
             hd[c * M + r] = aH[c];
         }
     }
-    if (Lo) *Lo = loM;
-    if (Hi) *Hi = hiM;
+    return {std::move(loM), std::move(hiM)};
 }
 
-// Apply 1-D dwt to every column of X. Returns Lo (outRows × N) and Hi.
-void dwt_cols(std::pmr::memory_resource *mr,
-              const Value &X, const std::string &wname,
-              Value *Lo, Value *Hi)
+// Apply 1-D dwt to every column of X. Returns (Lo, Hi), each outRows × N.
+std::pair<Value, Value>
+dwt_cols(const Value &X, const std::string &wname,
+         std::pmr::memory_resource *mr)
 {
     const size_t M = X.dims().rows();
     const size_t N = X.dims().cols();
-    if (M == 0 || N == 0) {
-        if (Lo) *Lo = Value::matrix(0, N, ValueType::DOUBLE, mr);
-        if (Hi) *Hi = Value::matrix(0, N, ValueType::DOUBLE, mr);
-        return;
-    }
+    if (M == 0 || N == 0)
+        return {Value::matrix(0, N, ValueType::DOUBLE, mr),
+                Value::matrix(0, N, ValueType::DOUBLE, mr)};
 
     auto col = Value::matrix(M, 1, ValueType::DOUBLE, mr);
     double *cd = col.doubleDataMut();
     for (size_t r = 0; r < M; ++r) cd[r] = X.elemAsDouble(0 * M + r);
-    Value cA0, cD0;
-    dwt(mr, col, wname, &cA0, &cD0);
+    auto [cA0, cD0] = dwt(col, wname, mr);
     const size_t outM = cA0.numel();
 
     Value loM = Value::matrix(outM, N, ValueType::DOUBLE, mr);
@@ -108,8 +101,7 @@ void dwt_cols(std::pmr::memory_resource *mr,
     }
     for (size_t c = 1; c < N; ++c) {
         for (size_t r = 0; r < M; ++r) cd[r] = X.elemAsDouble(c * M + r);
-        Value cA, cD;
-        dwt(mr, col, wname, &cA, &cD);
+        auto [cA, cD] = dwt(col, wname, mr);
         const double *aL = cA.doubleData();
         const double *aH = cD.doubleData();
         for (size_t r = 0; r < outM; ++r) {
@@ -117,16 +109,15 @@ void dwt_cols(std::pmr::memory_resource *mr,
             hd[c * outM + r] = aH[r];
         }
     }
-    if (Lo) *Lo = loM;
-    if (Hi) *Hi = hiM;
+    return {std::move(loM), std::move(hiM)};
 }
 
 // Inverse: combine a (lo, hi) pair into a single matrix by running
 // 1-D idwt along each column, with target length outRows.
-Value idwt_cols(std::pmr::memory_resource *mr,
-                const Value &Lo, const Value &Hi,
+Value idwt_cols(const Value &Lo, const Value &Hi,
                 const std::string &wname,
-                size_t outRows)
+                size_t outRows,
+                std::pmr::memory_resource *mr)
 {
     const size_t M = Lo.dims().rows();
     const size_t N = Lo.dims().cols();
@@ -143,8 +134,8 @@ Value idwt_cols(std::pmr::memory_resource *mr,
             ad[r] = Lo.elemAsDouble(c * M + r);
             dd[r] = Hi.elemAsDouble(c * M + r);
         }
-        Value y = idwt(mr, colA, colD, wname,
-                       static_cast<long long>(outRows));
+        Value y = idwt(colA, colD, wname,
+                       static_cast<long long>(outRows), mr);
         const double *yd = y.doubleData();
         for (size_t r = 0; r < outRows; ++r)
             od[c * outRows + r] = yd[r];
@@ -153,10 +144,10 @@ Value idwt_cols(std::pmr::memory_resource *mr,
 }
 
 // Inverse along rows, target length outCols.
-Value idwt_rows(std::pmr::memory_resource *mr,
-                const Value &Lo, const Value &Hi,
+Value idwt_rows(const Value &Lo, const Value &Hi,
                 const std::string &wname,
-                size_t outCols)
+                size_t outCols,
+                std::pmr::memory_resource *mr)
 {
     const size_t M = Lo.dims().rows();
     const size_t N = Lo.dims().cols();
@@ -173,8 +164,8 @@ Value idwt_rows(std::pmr::memory_resource *mr,
             ad[c] = Lo.elemAsDouble(c * M + r);
             dd[c] = Hi.elemAsDouble(c * M + r);
         }
-        Value y = idwt(mr, rowA, rowD, wname,
-                       static_cast<long long>(outCols));
+        Value y = idwt(rowA, rowD, wname,
+                       static_cast<long long>(outCols), mr);
         const double *yd = y.doubleData();
         for (size_t c = 0; c < outCols; ++c)
             od[c * M + r] = yd[c];
@@ -184,30 +175,27 @@ Value idwt_rows(std::pmr::memory_resource *mr,
 
 } // anonymous
 
-void dwt2(std::pmr::memory_resource *mr,
-          const Value &X, const std::string &wname,
-          Value *cA, Value *cH, Value *cV, Value *cD)
+Dwt2Result dwt2(const Value &X, const std::string &wname,
+                std::pmr::memory_resource *mr)
 {
     // Pass 1: rows (each row → Lo + Hi halves, each M × outN).
-    Value LoR, HiR;
-    dwt_rows(mr, X, wname, &LoR, &HiR);
+    auto [LoR, HiR] = dwt_rows(X, wname, mr);
 
     // Pass 2: columns of LoR  → cA / cH; columns of HiR → cV / cD.
-    Value Lo_of_LoR, Hi_of_LoR, Lo_of_HiR, Hi_of_HiR;
-    dwt_cols(mr, LoR, wname, &Lo_of_LoR, &Hi_of_LoR);
-    dwt_cols(mr, HiR, wname, &Lo_of_HiR, &Hi_of_HiR);
+    auto [Lo_of_LoR, Hi_of_LoR] = dwt_cols(LoR, wname, mr);
+    auto [Lo_of_HiR, Hi_of_HiR] = dwt_cols(HiR, wname, mr);
 
-    if (cA) *cA = Lo_of_LoR;          // LL
-    if (cH) *cH = Hi_of_LoR;          // LH (horizontal detail)
-    if (cV) *cV = Lo_of_HiR;          // HL (vertical detail)
-    if (cD) *cD = Hi_of_HiR;          // HH (diagonal detail)
+    return {std::move(Lo_of_LoR),   // cA = LL
+            std::move(Hi_of_LoR),   // cH = LH (horizontal detail)
+            std::move(Lo_of_HiR),   // cV = HL (vertical detail)
+            std::move(Hi_of_HiR)};  // cD = HH (diagonal detail)
 }
 
-Value idwt2(std::pmr::memory_resource *mr,
-            const Value &cA, const Value &cH,
+Value idwt2(const Value &cA, const Value &cH,
             const Value &cV, const Value &cD,
             const std::string &wname,
-            long long outRows, long long outCols)
+            long long outRows, long long outCols,
+            std::pmr::memory_resource *mr)
 {
     // Default reconstruction lengths (MATLAB's "2*la - Lf + 2" rule
     // applied per dim). We pick from cA's dims and the filter length
@@ -221,13 +209,13 @@ Value idwt2(std::pmr::memory_resource *mr,
         // Use a dummy column of length la_rows to discover natural row length.
         auto a = Value::matrix(la_rows, 1, ValueType::DOUBLE, mr);
         auto d = Value::matrix(la_rows, 1, ValueType::DOUBLE, mr);
-        Value probe = idwt(mr, a, d, wname, /*len=*/-1);
+        Value probe = idwt(a, d, wname, /*len=*/-1, mr);
         natRows = probe.numel();
     }
     {
         auto a = Value::matrix(la_cols, 1, ValueType::DOUBLE, mr);
         auto d = Value::matrix(la_cols, 1, ValueType::DOUBLE, mr);
-        Value probe = idwt(mr, a, d, wname, /*len=*/-1);
+        Value probe = idwt(a, d, wname, /*len=*/-1, mr);
         natCols = probe.numel();
     }
 
@@ -238,11 +226,11 @@ Value idwt2(std::pmr::memory_resource *mr,
 
     // Step 1: invert the column pass, recovering LoR (from cA, cH) and
     // HiR (from cV, cD), each with `targetRows` rows.
-    Value LoR = idwt_cols(mr, cA, cH, wname, targetRows);
-    Value HiR = idwt_cols(mr, cV, cD, wname, targetRows);
+    Value LoR = idwt_cols(cA, cH, wname, targetRows, mr);
+    Value HiR = idwt_cols(cV, cD, wname, targetRows, mr);
 
     // Step 2: invert the row pass.
-    return idwt_rows(mr, LoR, HiR, wname, targetCols);
+    return idwt_rows(LoR, HiR, wname, targetCols, mr);
 }
 
 namespace detail {
@@ -261,12 +249,11 @@ void dwt2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("dwt2: requires (X, wname)",
                     0, 0, "dwt2", "", "m:dwt2:nargin");
     auto *mr = ctx.engine->resource();
-    Value cA, cH, cV, cD;
-    dwt2(mr, args[0], argString(args[1]), &cA, &cH, &cV, &cD);
-    if (outs.size() >= 1) outs[0] = cA;
-    if (outs.size() >= 2) outs[1] = cH;
-    if (outs.size() >= 3) outs[2] = cV;
-    if (outs.size() >= 4) outs[3] = cD;
+    auto r = dwt2(args[0], argString(args[1]), mr);
+    if (outs.size() >= 1) outs[0] = std::move(r.cA);
+    if (outs.size() >= 2) outs[1] = std::move(r.cH);
+    if (outs.size() >= 3) outs[2] = std::move(r.cV);
+    if (outs.size() >= 4) outs[3] = std::move(r.cD);
 }
 
 void idwt2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -285,9 +272,9 @@ void idwt2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             outCols = static_cast<long long>(args[5].elemAsDouble(1));
         }
     }
-    outs[0] = idwt2(ctx.engine->resource(),
-                    args[0], args[1], args[2], args[3],
-                    argString(args[4]), outRows, outCols);
+    outs[0] = idwt2(args[0], args[1], args[2], args[3],
+                    argString(args[4]), outRows, outCols,
+                    ctx.engine->resource());
 }
 
 } // namespace detail
