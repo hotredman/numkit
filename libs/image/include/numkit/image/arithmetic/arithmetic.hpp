@@ -35,29 +35,52 @@ namespace numkit::image {
 Value imadd(const Value &x, const Value &y,
             std::pmr::memory_resource *mr = nullptr);
 
-/// Saturating image subtraction (`Z = imsubtract(X, Y)`).
+/// @brief Saturating image subtraction (`Z = imsubtract(X, Y)`).
 ///
-/// Same semantics as @ref imadd but for @f$ Z = X - Y @f$.
+/// Same semantics as @ref imadd but for `Z = X - Y`.
+///
+/// @param x   First image (or scalar).
+/// @param y   Second image (or scalar).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Image of the same class and shape as `X`.
+/// @see imadd, imabsdiff
 Value imsubtract(const Value &x, const Value &y,
                  std::pmr::memory_resource *mr = nullptr);
 
-/// Saturating element-wise multiplication (`Z = immultiply(X, Y)`).
+/// @brief Saturating element-wise multiplication
+/// (`Z = immultiply(X, Y)`).
 ///
-/// Computes @f$ Z = X \odot Y @f$ (element-wise).
+/// @param x   First image (or scalar).
+/// @param y   Second image (or scalar).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Image of the same class and shape as `X`.
+/// @see imadd, imdivide
 Value immultiply(const Value &x, const Value &y,
                  std::pmr::memory_resource *mr = nullptr);
 
-/// Saturating element-wise division (`Z = imdivide(X, Y)`).
+/// @brief Saturating element-wise division
+/// (`Z = imdivide(X, Y)`).
 ///
-/// Computes @f$ Z = X / Y @f$. Division by zero in integer classes
-/// saturates to the output type's max value; in floats it produces
-/// `Inf`/`NaN` per IEEE-754.
+/// Division by zero in integer classes saturates to the output
+/// type's max value; in floats it produces `Inf`/`NaN` per IEEE-754.
+///
+/// @param x   Numerator image (or scalar).
+/// @param y   Denominator image (or scalar).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Image of the same class and shape as `X`.
+/// @see imadd, immultiply
 Value imdivide(const Value &x, const Value &y,
                std::pmr::memory_resource *mr = nullptr);
 
-/// Saturating absolute difference (`Z = imabsdiff(X, Y)`).
+/// @brief Saturating absolute difference (`Z = imabsdiff(X, Y)`).
 ///
-/// Computes @f$ Z = |X - Y| @f$ with saturation.
+/// Computes `Z = |X − Y|` with saturation.
+///
+/// @param x   First image.
+/// @param y   Second image.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Image of the same class and shape as `X`.
+/// @see imsubtract
 Value imabsdiff(const Value &x, const Value &y,
                 std::pmr::memory_resource *mr = nullptr);
 

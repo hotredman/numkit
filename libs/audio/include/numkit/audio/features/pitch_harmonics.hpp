@@ -47,8 +47,11 @@ Value pitch(const Value &x, double fs,
 ///
 /// Same arg semantics as @ref pitch.
 ///
-/// @param x,fs,minF,maxF  See @ref pitch.
-/// @param mr              Memory resource (nullptr → process default).
+/// @param x     See @ref pitch.
+/// @param fs    See @ref pitch.
+/// @param minF  See @ref pitch.
+/// @param maxF  See @ref pitch.
+/// @param mr    Memory resource (nullptr → process default).
 /// @return                Column vector of per-frame `f0` in Hz.
 /// @see pitch
 Value pitchCEP(const Value &x, double fs,
@@ -60,8 +63,11 @@ Value pitchCEP(const Value &x, double fs,
 ///
 /// Same arg semantics as @ref pitch.
 ///
-/// @param x,fs,minF,maxF  See @ref pitch.
-/// @param mr              Memory resource (nullptr → process default).
+/// @param x     See @ref pitch.
+/// @param fs    See @ref pitch.
+/// @param minF  See @ref pitch.
+/// @param maxF  See @ref pitch.
+/// @param mr    Memory resource (nullptr → process default).
 /// @return                Column vector of per-frame `f0` in Hz.
 /// @see pitch
 Value pitchPEF(const Value &x, double fs,
@@ -73,8 +79,11 @@ Value pitchPEF(const Value &x, double fs,
 ///
 /// Same arg semantics as @ref pitch.
 ///
-/// @param x,fs,minF,maxF  See @ref pitch.
-/// @param mr              Memory resource (nullptr → process default).
+/// @param x     See @ref pitch.
+/// @param fs    See @ref pitch.
+/// @param minF  See @ref pitch.
+/// @param maxF  See @ref pitch.
+/// @param mr    Memory resource (nullptr → process default).
 /// @return                Column vector of per-frame `f0` in Hz.
 /// @see pitch
 Value pitchLHS(const Value &x, double fs,
@@ -87,8 +96,11 @@ Value pitchLHS(const Value &x, double fs,
 /// LPC inverse filtering + harmonic summation on the residual spectrum.
 /// Same arg semantics as @ref pitch.
 ///
-/// @param x,fs,minF,maxF  See @ref pitch.
-/// @param mr              Memory resource (nullptr → process default).
+/// @param x     See @ref pitch.
+/// @param fs    See @ref pitch.
+/// @param minF  See @ref pitch.
+/// @param maxF  See @ref pitch.
+/// @param mr    Memory resource (nullptr → process default).
 /// @return                Column vector of per-frame `f0` in Hz.
 /// @see pitch
 Value pitchSRH(const Value &x, double fs,

@@ -24,7 +24,7 @@ namespace numkit::image {
 std::tuple<Value, Value>
 imhist(const Value &I, int n, std::pmr::memory_resource *mr = nullptr);
 
-/// Stretch limits from saturation tolerances
+/// @brief Stretch limits from saturation tolerances
 /// (`lim = stretchlim(I, [low_tol, high_tol])`).
 ///
 /// Returns a 2-element column with the low / high intensities chosen
@@ -32,6 +32,11 @@ imhist(const Value &I, int n, std::pmr::memory_resource *mr = nullptr);
 /// `1 − high_tol` fraction above the upper limit. Default
 /// `low_tol = 0.01`, `high_tol = 0.99`. Computed per channel for RGB.
 ///
+/// @param I         Input image.
+/// @param low_tol   Lower-tail fraction in [0, 1].
+/// @param high_tol  Upper-tail cutoff in [0, 1].
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          2-element column `[low, high]` (or 2×3 for RGB).
 /// @see imadjust
 Value stretchlim(const Value &I, double low_tol, double high_tol,
                  std::pmr::memory_resource *mr = nullptr);
@@ -80,11 +85,15 @@ Value adaptthresh(const Value &I, double sensitivity, int neighborhood,
                   const std::string &statistic,
                   std::pmr::memory_resource *mr = nullptr);
 
-/// Histogram equalisation (`J = histeq(I, n)`).
+/// @brief Histogram equalisation (`J = histeq(I, n)`).
 ///
 /// Equalises the image histogram across `n` bins (default 64).
 ///
-/// @see adapthisteq
+/// @param I   Input image.
+/// @param n   Number of histogram bins (default 64).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Equalised image, same class as `I`.
+/// @see adapthisteq, imadjust
 Value histeq(const Value &I, int n,
              std::pmr::memory_resource *mr = nullptr);
 
@@ -148,57 +157,94 @@ Value adapthisteq(const Value &                I,
 
 // ── Thresholding ──────────────────────────────────────────────────────
 
-/// Otsu's threshold and effectiveness metric
+/// @brief Otsu's threshold and effectiveness metric
 /// (`[level, em] = graythresh(I)`).
 ///
 /// Returns `(threshold, em)` both in [0, 1].
 ///
+/// @param I   Input image.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(level, em)`.
 /// @see otsuthresh, multithresh, imbinarize
 std::tuple<Value, Value>
 graythresh(const Value &I, std::pmr::memory_resource *mr = nullptr);
 
-/// Otsu's threshold from a precomputed histogram
+/// @brief Otsu's threshold from a precomputed histogram
 /// (`[level, em] = otsuthresh(counts)`).
 ///
+/// @param counts  Histogram counts (length L vector).
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Tuple `(level, em)` both in [0, 1].
 /// @see graythresh
 std::tuple<Value, Value>
 otsuthresh(const Value &counts,
            std::pmr::memory_resource *mr = nullptr);
 
-/// N-level Otsu (`[thresh, em] = multithresh(I, N)`).
+/// @brief N-level Otsu (`[thresh, em] = multithresh(I, N)`).
 ///
-/// Returns N thresholds and the global effectiveness metric.
+/// Returns `N` thresholds and the global effectiveness metric.
+///
+/// @param I   Input image.
+/// @param N   Number of thresholds.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(thresh, em)`.
+/// @see graythresh
 std::tuple<Value, Value>
 multithresh(const Value &I, int N,
             std::pmr::memory_resource *mr = nullptr);
 
-/// Threshold an image (`BW = imbinarize(I, thresh)`).
+/// @brief Threshold an image (`BW = imbinarize(I, thresh)`).
 ///
 /// Scalar-threshold overload. Pass `NaN` for `thresh` to auto-pick
 /// via @ref graythresh.
+///
+/// @param I       Input image.
+/// @param thresh  Scalar threshold (NaN → auto via graythresh).
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        LOGICAL mask, same shape as `I`.
+/// @see graythresh, adaptthresh
 Value imbinarize(const Value &I, double thresh,
                  std::pmr::memory_resource *mr = nullptr);
 
-/// Per-pixel threshold (`BW = imbinarize(I, T)`).
+/// @brief Per-pixel threshold (`BW = imbinarize(I, T)`).
 ///
 /// `T` must have the same `numel` as `I`. Composes naturally with
 /// @ref adaptthresh.
+///
+/// @param I   Input image.
+/// @param T   Per-pixel threshold matrix.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    LOGICAL mask, same shape as `I`.
+/// @see adaptthresh
 Value imbinarize(const Value &I, const Value &T,
                  std::pmr::memory_resource *mr = nullptr);
 
-/// Quantise into N+1 classes (`L = imquantize(I, levels)`).
+/// @brief Quantise into N+1 classes (`L = imquantize(I, levels)`).
 ///
 /// `levels` is an N-vector of thresholds; output is the class index
 /// (1-based) of each pixel.
+///
+/// @param I       Input image.
+/// @param levels  Sorted threshold vector (length N).
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Integer class map (1-based, same shape as `I`).
+/// @see multithresh
 Value imquantize(const Value &I, const Value &levels,
                  std::pmr::memory_resource *mr = nullptr);
 
-/// Histogram matching to a reference image
+/// @brief Histogram matching to a reference image
 /// (`J = imhistmatch(I, ref, nbins)`).
 ///
 /// Adjusts `I`'s histogram to match `ref`'s via CDF matching
 /// (single-channel). `nbins` default: 64 for double/single, 256 for
 /// uint8, 65536 for uint16. Output class matches `I`.
+///
+/// @param I      Source image.
+/// @param ref    Reference image (its histogram is the target).
+/// @param nbins  Histogram bin count.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Matched image, same class as `I`.
+/// @see histeq
 Value imhistmatch(const Value &I, const Value &ref, int nbins,
                   std::pmr::memory_resource *mr = nullptr);
 
@@ -219,35 +265,55 @@ Value imhistmatch(const Value &I, const Value &ref, int nbins,
 Value imflatfield(const Value &I, double sigma, const Value &mask,
                   std::pmr::memory_resource *mr = nullptr);
 
-/// Wavelet-display quantisation (`Y = wcodemat(X, nb, opt, absol)`).
+/// @brief Wavelet-display quantisation
+/// (`Y = wcodemat(X, nb, opt, absol)`).
 ///
-/// Quantises and scales `X` into integer codes in [1, nb].
-/// `opt` ∈ {`"mat"` (default, global), `"row"`, `"col"`}.
-/// `absol` controls whether to use `abs(X)` (1, default) or `X` (0).
-/// Output is double; this is the canonical wavelet-display helper
-/// from MATLAB's Wavelet Toolbox.
+/// Quantises and scales `X` into integer codes in `[1, nb]`.
+/// Output is DOUBLE; canonical wavelet-display helper from MATLAB's
+/// Wavelet Toolbox.
+///
+/// @param X      Input coefficient matrix.
+/// @param nb     Code range upper bound.
+/// @param opt    `"mat"` (default, global), `"row"`, or `"col"`.
+/// @param absol  1 → use `abs(X)` (default), 0 → use `X`.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       DOUBLE matrix of integer codes in `[1, nb]`.
 Value wcodemat(const Value &X, int nb, const std::string &opt, int absol,
                std::pmr::memory_resource *mr = nullptr);
 
-/// Shannon entropy of the image histogram (`H = entropy(I, nbins)`).
+/// @brief Shannon entropy of the image histogram
+/// (`H = entropy(I, nbins)`).
 ///
 /// In bits. For non-logical images the image is first converted to
 /// uint8 with 256 bins by default; logical images use 2 bins. Zero
 /// counts are skipped before the log₂ sum.
+///
+/// @param I      Input image.
+/// @param nbins  Histogram bin count.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Scalar entropy in bits.
+/// @see entropyfilt
 Value entropy(const Value &I, int nbins,
               std::pmr::memory_resource *mr = nullptr);
 
-/// Multilevel thresholding into an indexed image
+/// @brief Multilevel thresholding into an indexed image
 /// (`L = grayslice(I, n)`).
 ///
 /// - `n` scalar ≥ 1: thresholds at `(1/n, 2/n, …, (n-1)/n)` of the
 ///   image's class range.
 /// - `n` a vector or `0 < n < 1`: explicit threshold values; for
-///   floating-point images the vector is clamped to `[min(I), max(I)]`
-///   (extending toward image bounds, never shrinking).
+///   floating-point images the vector is clamped to
+///   `[min(I), max(I)]` (extending toward image bounds, never
+///   shrinking).
 ///
 /// Output is uint8 if the number of levels < 256, else `double + 1`
 /// (1-based indexing per MATLAB).
+///
+/// @param I   Input image.
+/// @param n   Scalar level count or explicit threshold vector.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Indexed image (uint8 or double).
+/// @see imquantize, multithresh
 Value grayslice(const Value &I, const Value &n,
                 std::pmr::memory_resource *mr = nullptr);
 

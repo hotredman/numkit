@@ -57,10 +57,14 @@ Value ctrb_sys(const Value &sys, std::pmr::memory_resource *mr = nullptr);
 Value obsv_AC(const Value &A, const Value &C,
               std::pmr::memory_resource *mr = nullptr);
 
-/// Observability matrix from a system struct (`O = obsv(sys)`).
+/// @brief Observability matrix from a system struct
+/// (`O = obsv(sys)`).
 ///
 /// Convenience wrapper analogous to @ref ctrb_sys.
 ///
+/// @param sys  LTI struct.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Observability matrix.
 /// @see obsv_AC
 Value obsv_sys(const Value &sys, std::pmr::memory_resource *mr = nullptr);
 

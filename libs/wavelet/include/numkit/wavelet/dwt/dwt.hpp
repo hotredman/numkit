@@ -64,10 +64,12 @@ Value idwt(const Value &cA, const Value &cD,
 /// cascade step. Public so other libs/wavelet TUs can call it; not
 /// commonly needed by end users.
 ///
-/// @param cA, cD    Approximation / detail coefficients.
-/// @param Lo_R,Hi_R Synthesis lowpass / highpass filters.
-/// @param len       Output length (-1 for natural).
-/// @param mr        Memory resource (nullptr → process default).
+/// @param cA   Approximation coefficients.
+/// @param cD   Detail coefficients.
+/// @param Lo_R Synthesis lowpass filter coefficients.
+/// @param Hi_R Synthesis highpass filter coefficients.
+/// @param len  Output length (-1 for natural).
+/// @param mr   Memory resource (nullptr → process default).
 /// @return          Reconstructed row vector.
 ///
 /// @see idwt, appcoef

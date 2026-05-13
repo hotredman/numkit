@@ -25,25 +25,37 @@ namespace numkit::image {
 Value imresize(const Value &A, double scale, const std::string &method,
                std::pmr::memory_resource *mr = nullptr);
 
-/// Resample an image to an explicit output size
+/// @brief Resample an image to an explicit output size
 /// (`B = imresize(A, [outH outW], method)`).
 ///
 /// Same as the scale-factor overload but with explicit target rows /
 /// cols.
+///
+/// @param A       Input image (H×W or H×W×C).
+/// @param outH    Output row count.
+/// @param outW    Output column count.
+/// @param method  `"nearest"` or `"bilinear"` (default).
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Resampled image; element type preserved.
+/// @see imcrop, imrotate
 Value imresize(const Value &A, size_t outH, size_t outW,
                const std::string &method,
                std::pmr::memory_resource *mr = nullptr);
 
-/// Crop a rectangular region (`B = imcrop(A, [xmin ymin width height])`).
+/// @brief Crop a rectangular region
+/// (`B = imcrop(A, [xmin ymin width height])`).
 ///
 /// Coordinates are 1-based MATLAB style. Sub-pixel coordinates are
 /// rounded; out-of-bounds requests are clamped to the image extent.
 ///
-/// @param A         Input image.
-/// @param xmin,ymin Top-left corner (1-based; column = xmin, row = ymin).
-/// @param width,height  Rectangle dimensions.
-/// @param mr        Memory resource (nullptr → process default).
-/// @return          Cropped sub-image.
+/// @param A       Input image.
+/// @param xmin    Top-left column (1-based).
+/// @param ymin    Top-left row (1-based).
+/// @param width   Rectangle width (columns).
+/// @param height  Rectangle height (rows).
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Cropped sub-image.
+/// @see imresize
 Value imcrop(const Value &A, double xmin, double ymin,
              double width, double height,
              std::pmr::memory_resource *mr = nullptr);
@@ -62,12 +74,19 @@ Value imrotate(const Value &A, double angle, const std::string &method,
                const std::string &bbox,
                std::pmr::memory_resource *mr = nullptr);
 
-/// Shift an image by an arbitrary (dx, dy) translation
+/// @brief Shift an image by an arbitrary `(dx, dy)` translation
 /// (`B = imtranslate(A, [dx dy])`).
 ///
-/// Half-pixel shifts use bilinear interpolation; integer shifts use a
-/// fast nearest-neighbour copy. Same dims as input; out-of-source
+/// Half-pixel shifts use bilinear interpolation; integer shifts use
+/// a fast nearest-neighbour copy. Same dims as input; out-of-source
 /// pixels filled with 0.
+///
+/// @param A   Input image.
+/// @param dx  Shift along columns (sub-pixel allowed).
+/// @param dy  Shift along rows.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Translated image, same shape and class as `A`.
+/// @see imrotate, imresize
 Value imtranslate(const Value &A, double dx, double dy,
                   std::pmr::memory_resource *mr = nullptr);
 

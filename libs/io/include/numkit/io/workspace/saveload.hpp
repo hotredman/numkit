@@ -1,4 +1,4 @@
-// libs/builtin/include/numkit/builtin/data_io/saveload.hpp
+// libs/io/include/numkit/io/workspace/saveload.hpp
 #pragma once
 
 #include <numkit/core/span.hpp>
@@ -11,19 +11,52 @@ class Environment;
 
 namespace numkit::io {
 
-// ════════════════════════════════════════════════════════════════════════
-// Workspace persistence — MATLAB's save / load (-ascii only).
-//
-// Separate from the session-state workspace builtins (clear / who /
-// whos / tic / toc) registered via BuiltinLibrary::registerWorkspaceBuiltins;
-// those live in-process, these read/write files. Both touch the VM's
-// variable environment, so the public C++ API takes Engine& (for Vfs)
-// and Environment& (for var lookup / assignment). load's no-LHS branch
-// writes into Environment using a stem-derived var name; the
-// `(nargout, outs)` pair lets the same entry point serve both forms.
-// ════════════════════════════════════════════════════════════════════════
+/// @file
+/// @brief Workspace persistence — MATLAB's `save` / `load` (ASCII).
+///
+/// Separate from the session-state workspace builtins (`clear` /
+/// `who` / `whos` / `tic` / `toc`) registered via
+/// `BuiltinLibrary::registerWorkspaceBuiltins`; those live
+/// in-process, these read/write files. Both touch the VM's variable
+/// environment, so the public C++ API takes `Engine&` (for VFS) and
+/// `Environment&` (for var lookup / assignment).
+///
+/// `load`'s no-LHS branch writes into `Environment` using a
+/// stem-derived var name; the `(nargout, outs)` pair lets the same
+/// entry point serve both forms.
 
+/// @brief Save workspace variables to an ASCII file
+/// (`save filename var1 var2 ...`).
+///
+/// Looks each requested variable up in `env`, formats it as ASCII,
+/// and writes the file through `engine`'s VFS. With no variables
+/// specified, saves the entire workspace.
+///
+/// @param engine  Engine context (VFS).
+/// @param env     Variable environment to read from.
+/// @param args    `(filename [, var1, var2, …])` — strings or symbol
+///                names.
+/// @throws Error  On VFS failure or unknown variable name.
+/// @see load
 void save(Engine &engine, Environment &env, Span<const Value> args);
+
+/// @brief Load workspace variables from an ASCII file
+/// (`load filename` / `S = load(filename)`).
+///
+/// Reads the file through `engine`'s VFS, parses ASCII matrices, and
+/// either:
+/// - (no-LHS form) writes each parsed variable into `env` using a
+///   stem-derived var name, or
+/// - (LHS form) returns a struct with one field per variable.
+///
+/// @param engine   Engine context (VFS).
+/// @param env      Variable environment to assign into.
+/// @param args     `(filename [, var1, var2, …])`.
+/// @param nargout  Number of requested outputs (0 = assign into
+///                 `env`, 1 = return struct).
+/// @param outs     Output slot for the struct form.
+/// @throws Error   On VFS failure, parse failure, or unknown variable.
+/// @see save
 void load(Engine &engine, Environment &env, Span<const Value> args,
           size_t nargout, Span<Value> outs);
 

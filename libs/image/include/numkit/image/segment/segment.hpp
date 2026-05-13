@@ -11,26 +11,30 @@
 
 namespace numkit::image {
 
-/// Sørensen–Dice similarity coefficient (`d = dice(BW1, BW2)`).
+/// @brief Sørensen–Dice similarity coefficient
+/// (`d = dice(BW1, BW2)`).
 ///
-/// @f$ d = 2\,\frac{|A \cap B|}{|A| + |B|} @f$.
-/// Operates on binary masks; any non-zero pixel counts as foreground.
-/// Returns 1 when both masks are empty (degenerate convention).
+/// `d = 2·|A ∩ B| / (|A| + |B|)`. Operates on binary masks; any
+/// non-zero pixel counts as foreground. Returns 1 when both masks
+/// are empty (degenerate convention).
 ///
-/// @param A,B  Same-sized binary masks.
-/// @param mr   Memory resource (nullptr → process default).
-/// @return     Scalar in [0, 1].
-///
+/// @param A   Same-sized binary mask.
+/// @param B   Same-sized binary mask.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Scalar in `[0, 1]`.
 /// @see jaccard
 Value dice(const Value &A, const Value &B,
            std::pmr::memory_resource *mr = nullptr);
 
-/// Intersection-over-union (`j = jaccard(BW1, BW2)`).
+/// @brief Intersection-over-union (`j = jaccard(BW1, BW2)`).
 ///
-/// @f$ j = \frac{|A \cap B|}{|A \cup B|} @f$.
-/// Same input semantics as @ref dice. Related by
-/// @f$ d = 2j / (1 + j) @f$.
+/// `j = |A ∩ B| / |A ∪ B|`. Same input semantics as @ref dice.
+/// Related by `d = 2j / (1 + j)`.
 ///
+/// @param A   Same-sized binary mask.
+/// @param B   Same-sized binary mask.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Scalar in `[0, 1]`.
 /// @see dice
 Value jaccard(const Value &A, const Value &B,
               std::pmr::memory_resource *mr = nullptr);

@@ -40,14 +40,21 @@ namespace numkit::control {
 Value acker(const Value &A, const Value &B, const Value &p,
             std::pmr::memory_resource *mr = nullptr);
 
-/// SISO alias for @ref acker — `K = place(A, B, p)`.
+/// @brief SISO alias for @ref acker — `K = place(A, B, p)`.
 ///
 /// MATLAB's robust multi-input variant (Kautsky–Nichols eigenvector
 /// assignment) is intentionally not re-implemented here; calling
 /// `place` on a multi-input system therefore behaves identically to
-/// the SISO Ackermann path and will throw on B with more than one
+/// the SISO Ackermann path and will throw on `B` with more than one
 /// column.
 ///
+/// @param A   n×n state matrix.
+/// @param B   n×1 input column.
+/// @param p   n-element vector of desired closed-loop poles.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    1×n state-feedback gain row K.
+/// @throws    Error if B has more than one column, dimensions
+///            disagree, or `(A, B)` is uncontrollable.
 /// @see acker
 Value place(const Value &A, const Value &B, const Value &p,
             std::pmr::memory_resource *mr = nullptr);
