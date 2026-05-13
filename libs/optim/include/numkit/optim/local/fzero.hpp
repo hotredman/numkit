@@ -3,6 +3,7 @@
 
 #include <memory_resource>
 #include <numkit/core/fn_handle.hpp>
+#include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 
 namespace numkit::optim {
@@ -15,25 +16,36 @@ namespace numkit::optim {
 /// adapter wraps a MATLAB function-handle Value in a lambda and
 /// passes it as @ref FnHandle.
 
-/// @brief Scalar root-finder (`x = fzero(fn, x0_or_interval)`).
+/// @brief Scalar root-finder, initial-guess form (`x = fzero(fn, x0)`).
 ///
-/// - `fzero(fn, x0)`     — root near `x0`. Expands an initial bracket
-///   around `x0` until a sign change is found, then runs Brent's
-///   method.
-/// - `fzero(fn, [a b])`  — root inside the interval `[a, b]`. Throws
-///   if `sign(fn(a)) == sign(fn(b))` (no obvious root).
+/// Expands an outward bracket around `x0` until a sign change is
+/// detected, then runs Brent's method.
 ///
 /// The callback receives a 1-element `args` (the scalar evaluation
 /// point) and writes its scalar result into `outs[0]`.
 ///
-/// @param fn              MATLAB-style callback (scalar in, scalar out).
-/// @param x0OrInterval    Either a scalar starting point or a 2-vector
-///                        `[a, b]`.
-/// @param mr              Memory resource (nullptr → process default).
-/// @return                Scalar root.
-/// @throws Error          No sign change in user-supplied interval.
+/// @param fn   MATLAB-style callback (scalar in, scalar out).
+/// @param x0   Initial guess.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Scalar root.
+/// @throws Error  No sign change found near `x0`.
 /// @see fminbnd
-Value fzero(FnHandle fn, const Value &x0OrInterval,
+Value fzero(FnHandle fn, double x0,
+            std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Scalar root-finder, bracket form (`x = fzero(fn, a, b)`).
+///
+/// Runs Brent's method on `[a, b]`. Throws if `sign(fn(a)) ==
+/// sign(fn(b))` (no sign change inside the interval).
+///
+/// @param fn   MATLAB-style callback (scalar in, scalar out).
+/// @param a    Lower bracket bound (must be finite, `a < b`).
+/// @param b    Upper bracket bound (must be finite, `a < b`).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Scalar root.
+/// @throws Error  No sign change in `[a, b]`, or invalid bounds.
+/// @see fminbnd
+Value fzero(FnHandle fn, double a, double b,
             std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Bounded scalar minimisation
@@ -55,18 +67,18 @@ Value fminbnd(FnHandle fn, double lo, double hi, double tol,
 /// @brief Multi-dimensional unconstrained minimisation
 /// (`x = fminsearch(fn, x0, tol)`).
 ///
-/// Nelder-Mead simplex starting at `x0` (column vector). The
-/// callback receives a 1-element `args` whose [0] entry is a column
-/// vector Value of length `numel(x0)`, and writes a scalar value
-/// into `outs[0]`.
+/// Nelder-Mead simplex starting at `x0`. The callback receives a
+/// 1-element `args` whose `[0]` entry is a `1 × n` DOUBLE row Value
+/// of length `n = x0.size()`, and writes a scalar into `outs[0]`.
 ///
 /// @param fn   MATLAB-style callback (vector in, scalar out).
-/// @param x0   Starting point (column vector of any length ≥ 1).
+/// @param x0   Starting point (any length ≥ 1).
 /// @param tol  Convergence tolerance.
 /// @param mr   Memory resource (nullptr → process default).
-/// @return     Minimiser vector, same shape as `x0`.
+/// @return     Minimiser as a `n × 1` DOUBLE column Value (length
+///             `n = x0.size()`).
 /// @see fminbnd
-Value fminsearch(FnHandle fn, const Value &x0, double tol,
+Value fminsearch(FnHandle fn, Span<const double> x0, double tol,
                  std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::optim

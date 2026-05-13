@@ -97,22 +97,24 @@ Value gauspuls(std::pmr::memory_resource *mr, const Value &t, double fc, double 
     return out;
 }
 
-Value pulstranHandle(const Value &t, const Value &d, FnHandle fn,
-                     std::pmr::memory_resource *mr)
+Value pulstranHandle(Span<const double> t, Span<const double> d,
+                     FnHandle fn, std::pmr::memory_resource *mr)
 {
-    auto out = createLike(t, ValueType::DOUBLE, mr);
-    const size_t n = t.numel();
-    std::memset(out.doubleDataMut(), 0, n * sizeof(double));
-    double *dst = out.doubleDataMut();
-    const size_t nd = d.numel();
+    const size_t n  = t.size();
+    const size_t nd = d.size();
 
-    auto shifted = Value::matrix(t.dims().rows(), t.dims().cols(),
-                                  ValueType::DOUBLE, mr);
+    Value out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    if (n) std::memset(dst, 0, n * sizeof(double));
+
+    // Per-iteration shifted-`t` buffer (row vector, matching MATLAB
+    // convention for the callback input).
+    Value shifted = Value::matrix(1, n, ValueType::DOUBLE, mr);
     double *sh = shifted.doubleDataMut();
     for (size_t k = 0; k < nd; ++k) {
-        const double dk = d.elemAsDouble(k);
+        const double dk = d[k];
         for (size_t i = 0; i < n; ++i)
-            sh[i] = t.elemAsDouble(i) - dk;
+            sh[i] = t[i] - dk;
         Value r;
         Value args[1] = { shifted };
         Span<const Value> ar(args, 1);
@@ -635,8 +637,11 @@ Value modulate(const Value &x, double Fc, double Fs,
 //            y = cos(2π·Fc·t + range1·cum)  (rectangular integral approx).
 // Where range scalar => Fc=range, range1=(Fc/Fs)·2π;
 //       range vector => Fc=mean(range), range1=(range[1]-Fc)/Fs·2π.
-Value vco(std::pmr::memory_resource *mr,
-          const Value &x, const Value &range, double fs)
+namespace {
+// Shared body: `Fc` is the centre frequency, `range1` is the
+// instantaneous-modulation factor (rad / sample / unit-x).
+Value vcoImpl(const Value &x, double Fc, double range1, double fs,
+              std::pmr::memory_resource *mr)
 {
     constexpr double kPi = 3.14159265358979323846;
     if (fs <= 0.0)
@@ -649,19 +654,6 @@ Value vco(std::pmr::memory_resource *mr,
         if (v > 1.0 || v < -1.0)
             throw Error("vco: x values must be in [-1, 1]",
                         0, 0, "vco", "", "m:vco:InvalidRange");
-    }
-    double Fc = 0.0, range1 = 0.0;
-    if (range.numel() == 1) {
-        Fc = range.toScalar();
-        range1 = (Fc / fs) * 2.0 * kPi;
-    } else if (range.numel() == 2) {
-        const double r0 = range.elemAsDouble(0);
-        const double r1 = range.elemAsDouble(1);
-        Fc = 0.5 * (r0 + r1);
-        range1 = (r1 - Fc) / fs * 2.0 * kPi;
-    } else {
-        throw Error("vco: range must be scalar Fc or [Fmin Fmax]",
-                    0, 0, "vco", "", "m:vco:BadRange");
     }
 
     // Allocate output (same shape as x).
@@ -698,6 +690,26 @@ Value vco(std::pmr::memory_resource *mr,
         }
     }
     return out;
+}
+} // anon
+
+Value vco(const Value &x, double fc, double fs,
+          std::pmr::memory_resource *mr)
+{
+    // Centre-form: Fc = fc, range1 = (Fc / fs) * 2π.
+    constexpr double kPi = 3.14159265358979323846;
+    const double range1 = (fc / fs) * 2.0 * kPi;
+    return vcoImpl(x, fc, range1, fs, mr);
+}
+
+Value vco(const Value &x, double fmin, double fmax, double fs,
+          std::pmr::memory_resource *mr)
+{
+    // Range-form: Fc = mean(fmin, fmax), range1 = (fmax - Fc)/fs * 2π.
+    constexpr double kPi = 3.14159265358979323846;
+    const double fc     = 0.5 * (fmin + fmax);
+    const double range1 = (fmax - fc) / fs * 2.0 * kPi;
+    return vcoImpl(x, fc, range1, fs, mr);
 }
 
 namespace detail {
@@ -740,13 +752,19 @@ void vco_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     auto *mr = ctx.engine->resource();
     double fs = 1.0;
     if (args.size() >= 3 && !args[2].isEmpty()) fs = args[2].toScalar();
-    Value rng;
     if (args.size() >= 2 && !args[1].isEmpty()) {
-        rng = args[1];
+        const Value &rng = args[1];
+        if (rng.numel() == 1)
+            outs[0] = vco(args[0], rng.toScalar(), fs, mr);
+        else if (rng.numel() == 2)
+            outs[0] = vco(args[0], rng.elemAsDouble(0), rng.elemAsDouble(1),
+                          fs, mr);
+        else
+            throw Error("vco: range must be scalar Fc or [Fmin Fmax]",
+                        0, 0, "vco", "", "m:vco:BadRange");
     } else {
-        rng = Value::scalar(fs / 4.0, mr);
+        outs[0] = vco(args[0], fs / 4.0, fs, mr);
     }
-    outs[0] = vco(mr, args[0], rng, fs);
 }
 
 void rectpuls_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -791,7 +809,31 @@ void pulstran_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
             for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
                 ou[i] = std::move(r[i]);
         };
-        outs[0] = pulstranHandle(args[0], args[1], cb, mr);
+        // Extract t and d into double buffers; library takes Span.
+        const Value &tv = args[0];
+        const Value &dv = args[1];
+        const size_t nt = tv.numel();
+        const size_t nd = dv.numel();
+        ScratchArena scratch(mr);
+        ScratchVec<double> tbuf(nt, &scratch);
+        ScratchVec<double> dbuf(nd, &scratch);
+        for (size_t i = 0; i < nt; ++i) tbuf[i] = tv.elemAsDouble(i);
+        for (size_t i = 0; i < nd; ++i) dbuf[i] = dv.elemAsDouble(i);
+
+        Value r = pulstranHandle(
+            Span<const double>(tbuf.data(), nt),
+            Span<const double>(dbuf.data(), nd),
+            cb, mr);
+
+        // MATLAB convention: output shape mirrors t's shape.
+        // Library returns a column; if t was a row, reshape.
+        if (tv.dims().rows() == 1 && tv.dims().cols() >= 1) {
+            Value row = Value::matrix(1, nt, ValueType::DOUBLE, mr);
+            for (size_t i = 0; i < nt; ++i)
+                row.doubleDataMut()[i] = r.doubleData()[i];
+            r = std::move(row);
+        }
+        outs[0] = std::move(r);
         return;
     }
     if (!args[2].isChar() && !args[2].isString())

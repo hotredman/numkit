@@ -214,7 +214,7 @@ Value packResult(const Mat &Ad, const Vec &Bd, const Vec &Cd, double Dd, size_t 
         size_t id = 0; while (id + 1 < denVec.size() && denVec[id] == 0.0) ++id;
         const double k = (in < numVec.size() && id < denVec.size())
                          ? numVec[in] / denVec[id] : 0.0;
-        return zpk(zV, pV, Value::scalar(k, mr), Ts, mr);
+        return zpk(zV, pV, k, Ts, mr);
     }
     return ss(Av, Bv, Cv, Dv, Ts, mr);
 }

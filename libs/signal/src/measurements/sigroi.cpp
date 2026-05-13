@@ -274,31 +274,39 @@ Value extractsigroi(const Value &x, const Value &roi, bool concat,
 //   bound is 2-vec   → mask where bound(1) <= x <= bound(2)
 //                      (default Relationship='inside', closed interval)
 // 'Relationship' / 'IntervalType' name-value args deferred (KNOWN GAP).
-Value sigrangebinmask(const Value &x, const Value &bound,
-                      std::pmr::memory_resource *mr)
+namespace {
+// Common shape-preserving LOGICAL output allocator.
+Value allocLogicalLike(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t L = x.numel();
-    Value out;
     if (x.dims().rows() == 1)
-        out = Value::matrix(1, L, ValueType::LOGICAL, mr);
-    else
-        out = Value::matrix(L, L == 0 ? 0 : 1, ValueType::LOGICAL, mr);
+        return Value::matrix(1, L, ValueType::LOGICAL, mr);
+    return Value::matrix(L, L == 0 ? 0 : 1, ValueType::LOGICAL, mr);
+}
+} // anon
+
+Value sigrangebinmask(const Value &x, double threshold,
+                      std::pmr::memory_resource *mr)
+{
+    Value out = allocLogicalLike(x, mr);
+    const size_t L = x.numel();
     if (L == 0) return out;
     uint8_t *od = out.logicalDataMut();
-    if (bound.numel() == 1) {
-        const double b = bound.toScalar();
-        for (size_t i = 0; i < L; ++i)
-            od[i] = (x.elemAsDouble(i) > b) ? 1 : 0;
-    } else if (bound.numel() == 2) {
-        const double vmin = bound.elemAsDouble(0);
-        const double vmax = bound.elemAsDouble(1);
-        for (size_t i = 0; i < L; ++i) {
-            const double v = x.elemAsDouble(i);
-            od[i] = (v >= vmin && v <= vmax) ? 1 : 0;
-        }
-    } else {
-        throw Error("sigrangebinmask: bound must be scalar or 2-element vector",
-                    0, 0, "sigrangebinmask", "", "m:sigrangebinmask:BadBound");
+    for (size_t i = 0; i < L; ++i)
+        od[i] = (x.elemAsDouble(i) > threshold) ? 1 : 0;
+    return out;
+}
+
+Value sigrangebinmask(const Value &x, double lo, double hi,
+                      std::pmr::memory_resource *mr)
+{
+    Value out = allocLogicalLike(x, mr);
+    const size_t L = x.numel();
+    if (L == 0) return out;
+    uint8_t *od = out.logicalDataMut();
+    for (size_t i = 0; i < L; ++i) {
+        const double v = x.elemAsDouble(i);
+        od[i] = (v >= lo && v <= hi) ? 1 : 0;
     }
     return out;
 }
@@ -389,7 +397,16 @@ void sigrangebinmask_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("sigrangebinmask: requires (x, bound) where bound is "
                     "scalar (above) or 2-vec [vmin vmax] (inside)",
                     0, 0, "sigrangebinmask", "", "m:sigrangebinmask:nargin");
-    outs[0] = sigrangebinmask(args[0], args[1], ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &bound = args[1];
+    if (bound.numel() == 1)
+        outs[0] = sigrangebinmask(args[0], bound.toScalar(), mr);
+    else if (bound.numel() == 2)
+        outs[0] = sigrangebinmask(args[0], bound.elemAsDouble(0),
+                                  bound.elemAsDouble(1), mr);
+    else
+        throw Error("sigrangebinmask: bound must be scalar or 2-element vector",
+                    0, 0, "sigrangebinmask", "", "m:sigrangebinmask:BadBound");
 }
 
 } // namespace detail

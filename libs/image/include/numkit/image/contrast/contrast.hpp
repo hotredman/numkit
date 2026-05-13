@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 
 #include <string>
@@ -296,25 +297,35 @@ Value wcodemat(const Value &X, int nb, const std::string &opt, int absol,
 Value entropy(const Value &I, int nbins,
               std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Multilevel thresholding into an indexed image
-/// (`L = grayslice(I, n)`).
+/// @brief Multilevel thresholding into an indexed image, level-count
+/// form (`L = grayslice(I, N)`).
 ///
-/// - `n` scalar ≥ 1: thresholds at `(1/n, 2/n, …, (n-1)/n)` of the
-///   image's class range.
-/// - `n` a vector or `0 < n < 1`: explicit threshold values; for
-///   floating-point images the vector is clamped to
-///   `[min(I), max(I)]` (extending toward image bounds, never
-///   shrinking).
-///
-/// Output is uint8 if the number of levels < 256, else `double + 1`
-/// (1-based indexing per MATLAB).
+/// Equivalent to `grayslice(I, [(1/N) … ((N-1)/N)])` scaled to the
+/// image's class range. Output is uint8 if `N < 256`, else `double`
+/// (1-based MATLAB indexing).
 ///
 /// @param I   Input image.
-/// @param n   Scalar level count or explicit threshold vector.
+/// @param N   Number of output levels (≥ 1).
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Indexed image (uint8 or double).
 /// @see imquantize, multithresh
-Value grayslice(const Value &I, const Value &n,
+Value grayslice(const Value &I, int N,
+                std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Multilevel thresholding into an indexed image, explicit
+/// thresholds form (`L = grayslice(I, [t1, t2, …])`).
+///
+/// For floating-point images the threshold vector is clamped to
+/// `[min(I), max(I)]` (extending toward image bounds, never
+/// shrinking). Output is uint8 if `levels.size() < 256`, else
+/// `double` (1-based MATLAB indexing).
+///
+/// @param I       Input image.
+/// @param levels  Explicit threshold values (any length).
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Indexed image.
+/// @see imquantize, multithresh
+Value grayslice(const Value &I, Span<const double> levels,
                 std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::image

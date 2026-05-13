@@ -226,7 +226,8 @@ tf2ss(const Value &b, const Value &a, std::pmr::memory_resource *mr)
 //   b = numerator built from the resolvent (a*D + C * adj(zI - A) * B)
 // This is heavy linear algebra; use Faddeev's algorithm.
 std::tuple<Value, Value>
-ss2tf(const Value &A, const Value &B, const Value &C, const Value &D, std::pmr::memory_resource *mr)
+ss2tf(const Value &A, const Value &B, const Value &C, double D,
+      std::pmr::memory_resource *mr)
 {
     if (A.dims().rows() != A.dims().cols())
         throw Error("ss2tf: A must be square",
@@ -239,7 +240,7 @@ ss2tf(const Value &A, const Value &B, const Value &C, const Value &D, std::pmr::
         throw Error("ss2tf: C must be 1×N",
                      0, 0, "ss2tf", "", "m:ss2tf:badShape");
 
-    const double Dscalar = (D.numel() == 0) ? 0.0 : D.elemAsDouble(0);
+    const double Dscalar = D;
 
     // Faddeev–LeVerrier:
     //   M_0 = I,   c_n = 1
@@ -328,7 +329,8 @@ ss2tf(const Value &A, const Value &B, const Value &C, const Value &D, std::pmr::
 
 // ── ss2zp ─────────────────────────────────────────────────────────────
 std::tuple<Value, Value, double>
-ss2zp(const Value &A, const Value &B, const Value &C, const Value &D, std::pmr::memory_resource *mr)
+ss2zp(const Value &A, const Value &B, const Value &C, double D,
+      std::pmr::memory_resource *mr)
 {
     auto [b, a] = ss2tf(A, B, C, D, mr);
     return tf2zpk(b, a, mr);
@@ -351,7 +353,8 @@ sos2ss(const Value &sos, double g, std::pmr::memory_resource *mr)
 }
 
 // ── ss2sos ────────────────────────────────────────────────────────────
-Value ss2sos(const Value &A, const Value &B, const Value &C, const Value &D, std::pmr::memory_resource *mr)
+Value ss2sos(const Value &A, const Value &B, const Value &C, double D,
+             std::pmr::memory_resource *mr)
 {
     auto [b, a] = ss2tf(A, B, C, D, mr);
     return tf2sos(b, a, mr);
@@ -569,7 +572,8 @@ void ss2tf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     if (args.size() < 4)
         throw Error("ss2tf: requires (A, B, C, D)",
                      0, 0, "ss2tf", "", "m:ss2tf:nargin");
-    auto [b, a] = ss2tf(args[0], args[1], args[2], args[3], ctx.engine->resource());
+    const double D = (args[3].numel() == 0) ? 0.0 : args[3].elemAsDouble(0);
+    auto [b, a] = ss2tf(args[0], args[1], args[2], D, ctx.engine->resource());
     outs[0] = std::move(b);
     if (nargout > 1) outs[1] = std::move(a);
 }
@@ -579,7 +583,8 @@ void ss2zp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     if (args.size() < 4)
         throw Error("ss2zp: requires (A, B, C, D)",
                      0, 0, "ss2zp", "", "m:ss2zp:nargin");
-    auto [z, p, gain] = ss2zp(args[0], args[1], args[2], args[3], ctx.engine->resource());
+    const double D = (args[3].numel() == 0) ? 0.0 : args[3].elemAsDouble(0);
+    auto [z, p, gain] = ss2zp(args[0], args[1], args[2], D, ctx.engine->resource());
     outs[0] = std::move(z);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = Value::scalar(gain, ctx.engine->resource());
@@ -615,7 +620,8 @@ void ss2sos_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 4)
         throw Error("ss2sos: requires (A, B, C, D)",
                      0, 0, "ss2sos", "", "m:ss2sos:nargin");
-    outs[0] = ss2sos(args[0], args[1], args[2], args[3], ctx.engine->resource());
+    const double D = (args[3].numel() == 0) ? 0.0 : args[3].elemAsDouble(0);
+    outs[0] = ss2sos(args[0], args[1], args[2], D, ctx.engine->resource());
 }
 
 void ctf2zp_reg(Span<const Value> args, size_t nargout,

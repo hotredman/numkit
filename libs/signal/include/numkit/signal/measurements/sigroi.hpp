@@ -100,17 +100,27 @@ Value removesigroi(const Value &roi, int64_t maxLen,
 Value extractsigroi(const Value &x, const Value &roi, bool concat = false,
                     std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Range-based binary mask (`m = sigrangebinmask(x, bound)`).
+/// @brief Range-based binary mask, single-threshold form
+/// (`m = sigrangebinmask(x, threshold)` ≡ `x > threshold`).
 ///
-/// - `bound` scalar → mask where `x > bound`.
-/// - `bound` 2-vector `[lo, hi]` → mask where `lo <= x <= hi`.
-///
-/// @param x      Source signal column.
-/// @param bound  Scalar threshold or 2-vector `[lo, hi]`.
-/// @param mr     Memory resource (nullptr → process default).
-/// @return       LOGICAL column, same length as `x`.
+/// @param x          Source signal column.
+/// @param threshold  Scalar threshold.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           LOGICAL column, same length as `x`.
 /// @see binmask2sigroi
-Value sigrangebinmask(const Value &x, const Value &bound,
+Value sigrangebinmask(const Value &x, double threshold,
+                      std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Range-based binary mask, interval form
+/// (`m = sigrangebinmask(x, [lo, hi])` ≡ `lo <= x <= hi`).
+///
+/// @param x   Source signal column.
+/// @param lo  Lower bound (inclusive).
+/// @param hi  Upper bound (inclusive).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    LOGICAL column, same length as `x`.
+/// @see binmask2sigroi
+Value sigrangebinmask(const Value &x, double lo, double hi,
                       std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal

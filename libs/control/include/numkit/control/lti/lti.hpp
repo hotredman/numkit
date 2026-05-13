@@ -51,7 +51,7 @@ Value tf(const Value &num, const Value &den, double Ts,
 /// @return    Struct Value tagged `kind="zpk"`.
 ///
 /// @see tf, ss
-Value zpk(const Value &z, const Value &p, const Value &k, double Ts,
+Value zpk(const Value &z, const Value &p, double k, double Ts,
           std::pmr::memory_resource *mr = nullptr);
 
 /// State-space LTI constructor (`ss(A, B, C, D, Ts)`).

@@ -58,13 +58,13 @@ Value tf(const Value &num, const Value &den, double Ts, std::pmr::memory_resourc
     return s;
 }
 
-Value zpk(const Value &z, const Value &p, const Value &k, double Ts, std::pmr::memory_resource *mr)
+Value zpk(const Value &z, const Value &p, double k, double Ts,
+          std::pmr::memory_resource *mr)
 {
     Value s = tagStruct("zpk", Ts, mr);
     s.field("z") = rowVec(z, mr);
     s.field("p") = rowVec(p, mr);
-    // gain is a scalar
-    s.field("k") = Value::scalar(k.toScalar(), mr);
+    s.field("k") = Value::scalar(k, mr);
     return s;
 }
 
@@ -457,7 +457,8 @@ void zpk_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 3)
         throw Error("zpk: requires (z, p, k [, Ts])",
                     0, 0, "zpk", "", "m:zpk:nargin");
-    outs[0] = zpk(args[0], args[1], args[2], argTs(args, 3), ctx.engine->resource());
+    outs[0] = zpk(args[0], args[1], args[2].toScalar(), argTs(args, 3),
+                  ctx.engine->resource());
 }
 
 void ss_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
