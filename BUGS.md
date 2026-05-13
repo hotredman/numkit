@@ -1260,6 +1260,162 @@ construction, and per-frame visibility flips on orbit.
 
 ---
 
+## 40. `libs/builtin`: matrix `A^k` doesn't throw on non-square / bad shape — **P2**
+
+**Test:** `ArithBatchTest.MatrixPowerThrows`
+**File:** [libs/builtin/tests/arith_batch_test.cpp:81](libs/builtin/tests/arith_batch_test.cpp:81)
+**Symptom:** `Value of: threw` is `false`. The test expected `^`
+applied to a matrix whose shape disallows the operation (rectangular
+or other invalid combination) to throw; numkit returns a result
+silently.
+**Reproducer:** see test body around line 81 — feeds an invalid shape
+to `^` / `mpower`.
+**Impact:** Wrong result instead of an error; silent corruption.
+**Status:** pre-existing; not caused by 2026-05-13 API/Doxygen sweep
+(test failed on baseline too, no impl files in the relevant TU were
+touched).
+**First seen:** present at 2026-05-13 baseline.
+
+---
+
+## 41. `libs/builtin`: `interp2` array-query path wrong + missing shape-mismatch error — **P1**
+
+**Tests:**
+- `InterpTest.Interp2ArrayQuery`
+- `InterpTest.Interp2QueryShapeMismatchThrows`
+
+**File:** [libs/builtin/tests/interp_test.cpp:329,359](libs/builtin/tests/interp_test.cpp:329)
+
+**Symptom 1 (Interp2ArrayQuery):** With array query coordinates
+`interp2(V, Xq, Yq)` returns wrong values. Test expectations are
+`y(2)=0.25`, `y(3)=1.0`; we return `0.5` and `2.0`.
+
+**Symptom 2 (Interp2QueryShapeMismatchThrows):** With mismatched
+query-coord shapes `interp2(V, [1 1.5], [1 1.5 2])` should throw;
+numkit returns a result silently.
+
+**Impact:** Wrong numeric results on bilinear interp + missing input
+validation. Common pattern in image-resampling code.
+**Status:** pre-existing.
+**First seen:** present at 2026-05-13 baseline.
+
+---
+
+## 42. `libs/stats`: `quantile` linear interpolation uses wrong formula — **P1**
+
+**Tests:**
+- `TW_VM/StatsTest.QuantileLinearInterp/{TW,VM}`
+- `TW_VM/StatsTest.QuantileVectorPMatrixDim2/{TW,VM}`
+
+**File:** [libs/builtin/tests/stats_test.cpp:222,267](libs/builtin/tests/stats_test.cpp:222)
+
+**Symptom:**
+- `quantile([1 2 3 4 5], 0.25)` → `1.75` (MATLAB: **2.0**)
+- `quantile([1 2 3 4 5], 0.10)` → `1.0`  (MATLAB: **1.4**)
+- Matrix-form along dim 2 mismatches by a fixed 0.25 / 2.5 offset
+  across every output entry — consistent off-by-one in the
+  position-to-quantile mapping.
+
+**MATLAB:** uses `p_i = (i - 0.5) / N` for the data points (Type-5).
+Our formula appears to be Type-7 (`p_i = (i - 1) / (N - 1)`).
+
+**Impact:** Statistical quantiles wrong everywhere — `iqr`, `prctile`,
+percentile-based estimators all downstream.
+**Status:** pre-existing; correlated with bug #42a.
+**First seen:** present at 2026-05-13 baseline.
+
+---
+
+## 42a. `libs/stats`: `iqr` default off — propagation of #42 — **P1**
+
+**Test:** `MovingTest.IqrUniformVector`
+**File:** [libs/stats/tests/moving_extras_test.cpp:167](libs/stats/tests/moving_extras_test.cpp:167)
+**Symptom:** `iqr(1:9)` → `4.5` (MATLAB: **4.0**). Q3 − Q1 with the
+Type-7 formula from bug #42 yields `7 − 2.5 = 4.5`; Type-5 (MATLAB)
+yields `7 − 3 = 4`. Same root cause — fixing #42 fixes this.
+**Status:** pre-existing.
+**First seen:** present at 2026-05-13 baseline.
+
+---
+
+## 43. `libs/graphics`: `imshow` doesn't tag RGB image type on the resulting handle — **P2**
+
+**Test:** `ImshowTest.RGBPathSetsImageRgbType`
+**File:** [libs/graphics/tests/figure_test.cpp:1374](libs/graphics/tests/figure_test.cpp:1374)
+**Symptom:** After `imshow(rgbImage)` the resulting image handle
+lacks the expected `rgb` type tag (or `CData` shape signalling RGB
+mode). Equality assertion fails.
+**Impact:** Downstream consumers checking `h.Type` / `image.CData`
+size to branch on RGB-vs-grayscale don't see the right tag; mostly
+affects test introspection + property-driven re-render logic.
+**Status:** pre-existing.
+**First seen:** present at 2026-05-13 baseline.
+
+---
+
+## 44. `core/`: VM destructure-then-reference shadows local with single-letter / short names — **P1**
+
+**Smokes affected:**
+- `libs/image/tests/smoke/graycomatrix_smoke.m` — `[r, c, v] = find(G); … c(k) …`
+  fails with `VM: undefined function 'c' (in call to 'c')`.
+- `libs/image/tests/smoke/region_smoke.m` — `[c, sz, n2, p] = bwconncomp(A); …`
+  fails with `VM: undefined function 'sz' (in call to 'sz')`.
+
+**Symptom:** A variable bound via `[a, b, …] = fn(...)` destructure
+is treated by the VM as an unresolved function on a subsequent
+`var(k)` index — even though it should be the local variable from
+the destructure. Looks like a sibling of bug #1 (the `split.m`
+shadowing fix from 2026-05-11) but on the destructure path.
+
+**Note on `region_smoke.m`:** the smoke itself is also semantically
+incorrect — `bwconncomp` returns a 1×1 struct, not a 4-output
+destructure (that pattern is non-MATLAB). But the parse / VM error
+message is masking the underlying type mismatch; should report
+"too many output arguments" or similar rather than a phantom
+"undefined function" lookup.
+
+**Status:** pre-existing; core/ scope.
+**First seen:** present at 2026-05-13 baseline.
+
+---
+
+## 45. `core/parser`: string-literal flag arg `'reverse'` not parsed inside `disp(cummax(A, ''reverse''))` — **P2**
+
+**Smoke:** `libs/stats/tests/smoke/cummax_cummin_smoke.m`
+**Symptom:** `Parse error at line 9 col 18: expected ), got 'reverse'`
+on the smoke line:
+```matlab
+disp(cummax(A, ''reverse'')');
+```
+The doubled single-quotes are an escape attempt inside a string the
+smoke author meant to keep literal. Either the smoke needs a
+different escape mechanism or the parser should handle this form.
+
+**Impact:** Cosmetic for users (the canonical form
+`cummax(A, 'reverse')` parses fine), but blocks this particular
+smoke.
+
+**Workaround:** rewrite the smoke without the nested-quote pattern.
+**Status:** pre-existing; smoke-author + parser interaction.
+**First seen:** present at 2026-05-13 baseline.
+
+---
+
+## 46. `libs/image`: `morph_smoke.m` — `strel(...)` struct used as scalar — **P3**
+
+**Smoke:** `libs/image/tests/smoke/morph_smoke.m`
+**Symptom:** Line 8 — `Cannot read element as double from type 'struct'`.
+The smoke calls `strel('square', 3)` (returns a struct value) and
+then immediately tries to use it where a numeric scalar is expected.
+
+**Root cause:** Smoke-script bug — should use `getnhood(se)` or
+access `.Neighborhood` field, not the struct itself.
+
+**Status:** pre-existing; smoke-author bug, not a numkit defect.
+**First seen:** present at 2026-05-13 baseline.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one
