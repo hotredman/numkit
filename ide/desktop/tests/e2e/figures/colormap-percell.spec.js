@@ -134,6 +134,44 @@ test('colormap ▾ has reset button — clears override + per-cell picks', async
   expect(after[1], `cellB after reset: ${after[1]}`).toBe('parula');
 });
 
+test('toolbar colormap reset clears per-cell pick when no figure-wide override was set', async ({ ide, page }) => {
+  // Repro of user-reported bug: 3-cell subplot, set per-cell colormap
+  // on cell A, click toolbar colormap ▾ reset → cell A used to keep its
+  // jet because setColormapOverride(null) didn't change null→null and
+  // the effect that clears cellColormap skipped.
+  await ide.runScript(
+    'import compat.*;\n'
+    + 'figure;\n'
+    + 'subplot(1,3,1); imagesc(rand(8,8));\n'
+    + 'subplot(1,3,2); imagesc(rand(8,8));\n'
+    + 'subplot(1,3,3); imagesc(rand(8,8));\n'
+  );
+  await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+  await ide.figureCards.first().click();
+  await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(150);
+
+  // Per-cell A → jet (no toolbar pick first, so figure-wide stays null).
+  await rightClickCell(page, 0);
+  await page.locator('.ctx-sub-trigger', { hasText: /Colormap/ }).hover();
+  await page.waitForTimeout(60);
+  await page.locator('.ctx-submenu button', { hasText: /^(✓ )?jet$/ }).click();
+  await page.waitForTimeout(120);
+  expect((await cellEffectiveCmaps(page))[0]).toBe('jet');
+
+  // Toolbar colormap ▾ reset.
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /^colormap/i }).click();
+  await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
+  await page.locator('.fw-pop button', { hasText: /^reset$/ }).click();
+  await page.waitForTimeout(120);
+
+  // All three cells back to script default.
+  const after = await cellEffectiveCmaps(page);
+  expect(after[0]).toBe('parula');
+  expect(after[1]).toBe('parula');
+  expect(after[2]).toBe('parula');
+});
+
 test('global Reset clears colormap override', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
