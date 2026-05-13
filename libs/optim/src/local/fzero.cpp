@@ -126,29 +126,23 @@ double brent(FnHandle fn, double a, double b, std::pmr::memory_resource *mr)
 
 } // namespace
 
-Value fzero(FnHandle fn, const Value &x0OrInterval,
-            std::pmr::memory_resource *mr)
+Value fzero(FnHandle fn, double x0, std::pmr::memory_resource *mr)
 {
-    if (x0OrInterval.numel() == 2) {
-        const double a = x0OrInterval.elemAsDouble(0);
-        const double b = x0OrInterval.elemAsDouble(1);
-        if (!std::isfinite(a) || !std::isfinite(b) || a >= b)
-            throw Error("fzero: interval [a, b] must satisfy a < b and be finite",
-                         0, 0, "fzero", "", "m:fzero:badInterval");
-        return Value::scalar(brent(fn, a, b, mr), mr);
-    }
-
-    if (!x0OrInterval.isScalar())
-        throw Error("fzero: 2nd argument must be a scalar x0 or a 2-element "
-                     "interval",
-                     0, 0, "fzero", "", "m:fzero:badX0");
-    const double x0 = x0OrInterval.toScalar();
     if (!std::isfinite(x0))
         throw Error("fzero: x0 must be finite",
                      0, 0, "fzero", "", "m:fzero:badX0");
     auto [a, b] = findBracket(fn, x0, mr);
     if (a == b) return Value::scalar(a, mr);
     if (a > b) std::swap(a, b);
+    return Value::scalar(brent(fn, a, b, mr), mr);
+}
+
+Value fzero(FnHandle fn, double a, double b,
+            std::pmr::memory_resource *mr)
+{
+    if (!std::isfinite(a) || !std::isfinite(b) || a >= b)
+        throw Error("fzero: interval [a, b] must satisfy a < b and be finite",
+                     0, 0, "fzero", "", "m:fzero:badInterval");
     return Value::scalar(brent(fn, a, b, mr), mr);
 }
 
@@ -343,19 +337,17 @@ Value fminbnd(FnHandle fn, double lo, double hi, double tol,
     return Value::scalar(brentMin(fn, lo, hi, tol, mr), mr);
 }
 
-Value fminsearch(FnHandle fn, const Value &x0, double tol,
+Value fminsearch(FnHandle fn, Span<const double> x0, double tol,
                  std::pmr::memory_resource *mr)
 {
-    const size_t n = x0.numel();
+    const size_t n = x0.size();
     if (n == 0)
         throw Error("fminsearch: x0 must be non-empty",
                      0, 0, "fminsearch", "", "m:fminsearch:badX0");
     if (!(tol > 0)) tol = 1e-4;
     ScratchArena scratch(mr);
-    auto xv = ScratchVec<double>(n, &scratch);
-    for (size_t i = 0; i < n; ++i) xv[i] = x0.elemAsDouble(i);
-    auto best = nelderMead(fn, xv.data(), n, tol, &scratch);
-    Value r = Value::matrix(x0.dims().rows(), x0.dims().cols(), ValueType::DOUBLE, mr);
+    auto best = nelderMead(fn, x0.data(), n, tol, &scratch);
+    Value r = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < n; ++i) r.doubleDataMut()[i] = best[i];
     return r;
 }
@@ -392,7 +384,17 @@ void fzero_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
         for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
             ou[i] = std::move(r[i]);
     };
-    outs[0] = fzero(cb, args[1], ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &v = args[1];
+    if (v.numel() == 1) {
+        outs[0] = fzero(cb, v.toScalar(), mr);
+    } else if (v.numel() == 2) {
+        outs[0] = fzero(cb, v.elemAsDouble(0), v.elemAsDouble(1), mr);
+    } else {
+        throw Error("fzero: 2nd argument must be a scalar x0 or a 2-element "
+                     "interval [a, b]",
+                     0, 0, "fzero", "", "m:fzero:badX0");
+    }
 }
 
 void fminbnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -428,7 +430,27 @@ void fminsearch_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
         for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
             ou[i] = std::move(r[i]);
     };
-    outs[0] = fminsearch(cb, args[1], tol, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+
+    // Extract x0 into a temporary double buffer; the library API takes
+    // Span<const double>. Buffer lives until the fminsearch call returns.
+    const Value &x0v = args[1];
+    const size_t n = x0v.numel();
+    ScratchArena scratch(mr);
+    ScratchVec<double> x0buf(n, &scratch);
+    for (size_t i = 0; i < n; ++i) x0buf[i] = x0v.elemAsDouble(i);
+
+    Value r = fminsearch(cb, Span<const double>(x0buf.data(), n), tol, mr);
+
+    // MATLAB convention: output shape mirrors input. Library returns
+    // a column; if the user passed a row, copy into a row Value.
+    if (x0v.dims().rows() == 1 && x0v.dims().cols() >= 1) {
+        Value row = Value::matrix(1, n, ValueType::DOUBLE, mr);
+        for (size_t i = 0; i < n; ++i)
+            row.doubleDataMut()[i] = r.doubleData()[i];
+        r = std::move(row);
+    }
+    outs[0] = std::move(r);
 }
 
 } // namespace detail

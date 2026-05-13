@@ -6,6 +6,7 @@
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/figure_manager.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
@@ -1188,73 +1189,13 @@ Value entropy(const Value &I, int nbins, std::pmr::memory_resource *mr)
     return Value::scalar(H, mr);
 }
 
-Value grayslice(const Value &I, const Value &n, std::pmr::memory_resource *mr)
+namespace {
+// Common quantisation tail: given a sorted threshold vector and the
+// resulting level count, build the output indexed image.
+Value graysliceQuantize(const Value &I, const std::vector<double> &thresh,
+                        size_t n_levels, std::pmr::memory_resource *mr)
 {
-    const ValueType ct = I.type();
     const size_t N = I.numel();
-    const bool isInt16 = (ct == ValueType::INT16);
-    const bool isFloat = (ct == ValueType::DOUBLE || ct == ValueType::SINGLE);
-
-    bool n_scalar_ge1 = false;
-    bool n_is_vec     = false;
-    double n_scalar = 0.0;
-    if (n.numel() == 1) {
-        n_scalar = n.toScalar();
-        if (n_scalar >= 1.0) n_scalar_ge1 = true;
-        else if (n_scalar > 0.0) n_is_vec = true;
-        else
-            throw Error("grayslice: N must be a positive number",
-                        0, 0, "grayslice", "", "m:grayslice:n");
-    } else if (n.numel() > 1) {
-        n_is_vec = true;
-    } else {
-        throw Error("grayslice: N must be scalar ≥ 1 or a vector",
-                    0, 0, "grayslice", "", "m:grayslice:nargin");
-    }
-
-    // Build threshold vector in the image's value scale.
-    std::vector<double> thresh;
-    size_t n_levels = 0;
-    if (n_scalar_ge1) {
-        const size_t k_max = static_cast<size_t>(std::floor(n_scalar - 1.0));
-        thresh.reserve(k_max);
-        const double scale =
-              (ct == ValueType::UINT8)  ? 255.0
-            : (ct == ValueType::UINT16) ? 65535.0
-            : isInt16                   ? 65535.0
-            : 1.0;
-        for (size_t k = 1; k <= k_max; ++k) {
-            const double v_unit = static_cast<double>(k) / n_scalar;
-            double v_class;
-            if (isFloat) v_class = v_unit;
-            else {
-                v_class = std::round(v_unit * scale);
-                if (isInt16) v_class -= 32768.0;
-            }
-            thresh.push_back(v_class);
-        }
-        n_levels = k_max + 1;
-    } else {
-        const size_t M = n.numel();
-        thresh.resize(M);
-        for (size_t i = 0; i < M; ++i) thresh[i] = n.elemAsDouble(i);
-        std::sort(thresh.begin(), thresh.end());
-        if (isFloat && N > 0) {
-            double imin =  std::numeric_limits<double>::infinity();
-            double imax = -std::numeric_limits<double>::infinity();
-            for (size_t i = 0; i < N; ++i) {
-                const double v = I.elemAsDouble(i);
-                if (v < imin) imin = v;
-                if (v > imax) imax = v;
-            }
-            for (size_t i = 0; i < M; ++i) {
-                if (thresh[i] < imin) thresh[i] = imin;
-                if (thresh[i] > imax) thresh[i] = imax;
-            }
-        }
-        n_levels = M + 1;
-    }
-
     const ValueType outT = (n_levels < 256) ? ValueType::UINT8
                                             : ValueType::DOUBLE;
     const auto &d = I.dims();
@@ -1263,7 +1204,6 @@ Value grayslice(const Value &I, const Value &n, std::pmr::memory_resource *mr)
                                         outT, mr);
     else          out = Value::matrix(d.rows(), d.cols(), outT, mr);
     if (N == 0) return out;
-
     const bool baseOne = (outT == ValueType::DOUBLE);
     for (size_t i = 0; i < N; ++i) {
         const double iv = I.elemAsDouble(i);
@@ -1281,6 +1221,62 @@ Value grayslice(const Value &I, const Value &n, std::pmr::memory_resource *mr)
         }
     }
     return out;
+}
+} // anon
+
+Value grayslice(const Value &I, int N, std::pmr::memory_resource *mr)
+{
+    if (N < 1)
+        throw Error("grayslice: N must be a positive integer",
+                    0, 0, "grayslice", "", "m:grayslice:n");
+    const ValueType ct = I.type();
+    const bool isInt16 = (ct == ValueType::INT16);
+    const bool isFloat = (ct == ValueType::DOUBLE || ct == ValueType::SINGLE);
+    const double n_scalar = static_cast<double>(N);
+    const size_t k_max = static_cast<size_t>(N - 1);
+    std::vector<double> thresh;
+    thresh.reserve(k_max);
+    const double scale =
+          (ct == ValueType::UINT8)  ? 255.0
+        : (ct == ValueType::UINT16) ? 65535.0
+        : isInt16                   ? 65535.0
+        : 1.0;
+    for (size_t k = 1; k <= k_max; ++k) {
+        const double v_unit = static_cast<double>(k) / n_scalar;
+        double v_class;
+        if (isFloat) v_class = v_unit;
+        else {
+            v_class = std::round(v_unit * scale);
+            if (isInt16) v_class -= 32768.0;
+        }
+        thresh.push_back(v_class);
+    }
+    return graysliceQuantize(I, thresh, k_max + 1, mr);
+}
+
+Value grayslice(const Value &I, Span<const double> levels,
+                std::pmr::memory_resource *mr)
+{
+    const ValueType ct = I.type();
+    const bool isFloat = (ct == ValueType::DOUBLE || ct == ValueType::SINGLE);
+    const size_t M = levels.size();
+    std::vector<double> thresh(levels.begin(), levels.end());
+    std::sort(thresh.begin(), thresh.end());
+    const size_t N = I.numel();
+    if (isFloat && N > 0) {
+        double imin =  std::numeric_limits<double>::infinity();
+        double imax = -std::numeric_limits<double>::infinity();
+        for (size_t i = 0; i < N; ++i) {
+            const double v = I.elemAsDouble(i);
+            if (v < imin) imin = v;
+            if (v > imax) imax = v;
+        }
+        for (size_t i = 0; i < M; ++i) {
+            if (thresh[i] < imin) thresh[i] = imin;
+            if (thresh[i] > imax) thresh[i] = imax;
+        }
+    }
+    return graysliceQuantize(I, thresh, M + 1, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1577,11 +1573,38 @@ void grayslice_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("grayslice: requires (I [, n])", 0, 0, "grayslice", "",
                     "m:grayslice:nargin");
-    Value n;
-    if (args.size() >= 2 && !args[1].isEmpty()) n = args[1];
-    else                                        n = Value::scalar(10.0,
-                                                  ctx.engine->resource());
-    outs[0] = grayslice(args[0], n, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    // Decide which overload to dispatch on, mirroring MATLAB's
+    // magic-polymorphism of grayslice's 2nd argument.
+    //   - missing / empty         → default 10 levels
+    //   - scalar ≥ 1              → level-count overload
+    //   - vector or scalar 0<n<1  → explicit-thresholds overload
+    if (args.size() < 2 || args[1].isEmpty()) {
+        outs[0] = grayslice(args[0], 10, mr);
+        return;
+    }
+    const Value &n = args[1];
+    if (n.numel() == 1) {
+        const double nv = n.toScalar();
+        if (nv >= 1.0) {
+            outs[0] = grayslice(args[0], static_cast<int>(nv), mr);
+        } else if (nv > 0.0) {
+            const double levels[1] = { nv };
+            outs[0] = grayslice(args[0], Span<const double>(levels, 1), mr);
+        } else {
+            throw Error("grayslice: N must be a positive number",
+                        0, 0, "grayslice", "", "m:grayslice:n");
+        }
+    } else if (n.numel() > 1) {
+        ScratchArena scratch(mr);
+        ScratchVec<double> buf(n.numel(), &scratch);
+        for (size_t i = 0; i < n.numel(); ++i) buf[i] = n.elemAsDouble(i);
+        outs[0] = grayslice(args[0], Span<const double>(buf.data(), buf.size()),
+                            mr);
+    } else {
+        throw Error("grayslice: N must be scalar >= 1 or a vector",
+                    0, 0, "grayslice", "", "m:grayslice:nargin");
+    }
 }
 
 } // namespace detail
