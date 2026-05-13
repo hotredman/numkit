@@ -57,8 +57,9 @@ Value alloc_complex_like(std::pmr::memory_resource *mr, const Value &x) {
 
 } // anonymous
 
-Value pammod(std::pmr::memory_resource *mr, const Value &x, int M,
-             double ini_phase, const std::string &symbol_order)
+Value pammod(const Value &x, int M, double ini_phase,
+             const std::string &symbol_order,
+             std::pmr::memory_resource *mr)
 {
     if (M < 2)
         throw Error("pammod: M must be ≥ 2", 0, 0, "pammod", "",
@@ -79,8 +80,9 @@ Value pammod(std::pmr::memory_resource *mr, const Value &x, int M,
     return out;
 }
 
-Value pamdemod(std::pmr::memory_resource *mr, const Value &y, int M,
-               double ini_phase, const std::string &symbol_order)
+Value pamdemod(const Value &y, int M, double ini_phase,
+               const std::string &symbol_order,
+               std::pmr::memory_resource *mr)
 {
     if (M < 2)
         throw Error("pamdemod: M must be ≥ 2", 0, 0, "pamdemod", "",
@@ -109,8 +111,8 @@ std::pair<int, int> qam_grid(int M) {
 }
 } // anonymous
 
-Value qammod(std::pmr::memory_resource *mr, const Value &x, int M,
-             const std::string &symbol_order, bool unit_power)
+Value qammod(const Value &x, int M, const std::string &symbol_order,
+             bool unit_power, std::pmr::memory_resource *mr)
 {
     if (M < 4)
         throw Error("qammod: M must be ≥ 4", 0, 0, "qammod", "",
@@ -145,8 +147,8 @@ Value qammod(std::pmr::memory_resource *mr, const Value &x, int M,
     return out;
 }
 
-Value qamdemod(std::pmr::memory_resource *mr, const Value &y, int M,
-               const std::string &symbol_order, bool unit_power)
+Value qamdemod(const Value &y, int M, const std::string &symbol_order,
+               bool unit_power, std::pmr::memory_resource *mr)
 {
     if (M < 4)
         throw Error("qamdemod: M must be ≥ 4", 0, 0, "qamdemod", "",
@@ -180,8 +182,8 @@ Value qamdemod(std::pmr::memory_resource *mr, const Value &y, int M,
     return out;
 }
 
-Value modnorm(std::pmr::memory_resource *mr, const Value &ref,
-              const std::string &type, double target)
+Value modnorm(const Value &ref, const std::string &type, double target,
+              std::pmr::memory_resource *mr)
 {
     const size_t N = ref.numel();
     if (N == 0) return Value::scalar(1.0, mr);
@@ -250,7 +252,7 @@ void pammod_reg(Span<const Value> args, size_t /*nargout*/,
                         && !(args[2].isChar() || args[2].isString()))
                         ? args[2].toScalar() : 0.0;
     auto order = parse_order(args, 2);
-    outs[0] = pammod(ctx.engine->resource(), args[0], M, ini, order);
+    outs[0] = pammod(args[0], M, ini, order, ctx.engine->resource());
 }
 
 void pamdemod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -264,7 +266,7 @@ void pamdemod_reg(Span<const Value> args, size_t /*nargout*/,
                         && !(args[2].isChar() || args[2].isString()))
                         ? args[2].toScalar() : 0.0;
     auto order = parse_order(args, 2);
-    outs[0] = pamdemod(ctx.engine->resource(), args[0], M, ini, order);
+    outs[0] = pamdemod(args[0], M, ini, order, ctx.engine->resource());
 }
 
 void qammod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -276,7 +278,7 @@ void qammod_reg(Span<const Value> args, size_t /*nargout*/,
     const int M = (int)args[1].toScalar();
     auto order = parse_order(args, 2);
     bool up = parse_unit_power(args, 2);
-    outs[0] = qammod(ctx.engine->resource(), args[0], M, order, up);
+    outs[0] = qammod(args[0], M, order, up, ctx.engine->resource());
 }
 
 void qamdemod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -288,7 +290,7 @@ void qamdemod_reg(Span<const Value> args, size_t /*nargout*/,
     const int M = (int)args[1].toScalar();
     auto order = parse_order(args, 2);
     bool up = parse_unit_power(args, 2);
-    outs[0] = qamdemod(ctx.engine->resource(), args[0], M, order, up);
+    outs[0] = qamdemod(args[0], M, order, up, ctx.engine->resource());
 }
 
 void modnorm_reg(Span<const Value> args, size_t /*nargout*/,
@@ -300,7 +302,7 @@ void modnorm_reg(Span<const Value> args, size_t /*nargout*/,
     std::string type = "avpow";
     if (args[1].isChar() || args[1].isString()) type = args[1].toString();
     const double target = args[2].toScalar();
-    outs[0] = modnorm(ctx.engine->resource(), args[0], type, target);
+    outs[0] = modnorm(args[0], type, target, ctx.engine->resource());
 }
 
 } // namespace detail

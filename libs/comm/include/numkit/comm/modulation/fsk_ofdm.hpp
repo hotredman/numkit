@@ -11,39 +11,70 @@
 
 namespace numkit::comm {
 
-/// fskmod(x, M, freq_sep, nsamp, fs[, phase_continuity, symbol_order])
-///   x:               column or row of integers in 0..M-1
-///   M:               number of frequency tones
-///   freq_sep:        spacing between tones in Hz
-///   nsamp:           samples per symbol
-///   fs:              sampling rate in Hz
-///   phase_continuity:"cont" (default) or "discont"
-///   symbol_order:    "gray" (default) or "bin"
-/// Returns complex-valued baseband waveform of length numel(x)·nsamp.
-Value fskmod(std::pmr::memory_resource *mr, const Value &x, int M,
-             double freq_sep, int nsamp, double fs,
-             const std::string &phase_continuity,
-             const std::string &symbol_order);
+/// @brief M-ary FSK modulator
+/// (`y = fskmod(x, M, freq_sep, nsamp, fs, phase_continuity, symbol_order)`).
+///
+/// @param x                 Integer symbols in `0..M-1` (column or row).
+/// @param M                 Number of frequency tones.
+/// @param freq_sep          Spacing between tones in Hz.
+/// @param nsamp             Samples per symbol.
+/// @param fs                Sample rate in Hz.
+/// @param phase_continuity  `"cont"` (default) or `"discont"`.
+/// @param symbol_order      `"gray"` (default) or `"bin"`.
+/// @param mr                Memory resource (nullptr → process default).
+/// @return                  Complex baseband waveform of length
+///                          `numel(x)·nsamp`.
+/// @see fskdemod
+Value fskmod(const Value &x, int M, double freq_sep, int nsamp,
+             double fs, const std::string &phase_continuity,
+             const std::string &symbol_order,
+             std::pmr::memory_resource *mr = nullptr);
 
-/// fskdemod(y, M, freq_sep, nsamp, fs[, symbol_order])
-/// Per-symbol energy detection across the M candidate tones; returns
-/// integer symbols of length numel(y) / nsamp.
-Value fskdemod(std::pmr::memory_resource *mr, const Value &y, int M,
-               double freq_sep, int nsamp, double fs,
-               const std::string &symbol_order);
+/// @brief M-ary FSK demodulator
+/// (`x = fskdemod(y, M, freq_sep, nsamp, fs, symbol_order)`).
+///
+/// Per-symbol energy detection across the `M` candidate tones.
+///
+/// @param y             Complex baseband waveform.
+/// @param M             Number of frequency tones.
+/// @param freq_sep      Spacing between tones in Hz.
+/// @param nsamp         Samples per symbol.
+/// @param fs            Sample rate in Hz.
+/// @param symbol_order  `"gray"` (default) or `"bin"`.
+/// @param mr            Memory resource (nullptr → process default).
+/// @return              Integer symbol vector of length
+///                      `numel(y) / nsamp`.
+/// @see fskmod
+Value fskdemod(const Value &y, int M, double freq_sep, int nsamp,
+               double fs, const std::string &symbol_order,
+               std::pmr::memory_resource *mr = nullptr);
 
-/// ofdmmod(in, nfft, cplen) — basic OFDM modulator.
-///   in:    nfft × Nsymbols complex matrix of subcarrier values
-///   nfft:  IFFT length
-///   cplen: cyclic prefix length
-/// Returns column vector of length (nfft + cplen)·Nsymbols.
-Value ofdmmod(std::pmr::memory_resource *mr, const Value &in,
-              int nfft, int cplen);
+/// @brief Basic OFDM modulator
+/// (`y = ofdmmod(in, nfft, cplen)`).
+///
+/// @param in     `nfft`×Nsymbols complex matrix of subcarrier values.
+/// @param nfft   IFFT length.
+/// @param cplen  Cyclic prefix length.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Column vector of length `(nfft + cplen)·Nsymbols`.
+/// @see ofdmdemod
+Value ofdmmod(const Value &in, int nfft, int cplen,
+              std::pmr::memory_resource *mr = nullptr);
 
-/// ofdmdemod(in, nfft, cplen[, symoffset]) — basic OFDM demodulator.
-/// `symoffset` (default = cplen) drops the CP.
-/// Returns nfft × Nsymbols complex matrix.
-Value ofdmdemod(std::pmr::memory_resource *mr, const Value &in,
-                int nfft, int cplen, int symoffset);
+/// @brief Basic OFDM demodulator
+/// (`out = ofdmdemod(in, nfft, cplen, symoffset)`).
+///
+/// `symoffset` (default = `cplen`) drops the cyclic prefix.
+///
+/// @param in         Time-domain OFDM signal.
+/// @param nfft       FFT length.
+/// @param cplen      Cyclic prefix length.
+/// @param symoffset  Sample offset within each symbol to start the
+///                   FFT window.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           `nfft`×Nsymbols complex matrix of subcarriers.
+/// @see ofdmmod
+Value ofdmdemod(const Value &in, int nfft, int cplen, int symoffset,
+                std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::comm

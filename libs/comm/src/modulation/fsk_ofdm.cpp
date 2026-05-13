@@ -38,10 +38,10 @@ inline int freq_idx_to_symbol(int k, int M, const std::string &order) {
 
 } // anonymous
 
-Value fskmod(std::pmr::memory_resource *mr, const Value &x, int M,
-             double freq_sep, int nsamp, double fs,
-             const std::string &phase_continuity,
-             const std::string &symbol_order)
+Value fskmod(const Value &x, int M, double freq_sep, int nsamp,
+             double fs, const std::string &phase_continuity,
+             const std::string &symbol_order,
+             std::pmr::memory_resource *mr)
 {
     if (M < 2)
         throw Error("fskmod: M must be ≥ 2", 0, 0, "fskmod", "",
@@ -78,9 +78,9 @@ Value fskmod(std::pmr::memory_resource *mr, const Value &x, int M,
     return out;
 }
 
-Value fskdemod(std::pmr::memory_resource *mr, const Value &y, int M,
-               double freq_sep, int nsamp, double fs,
-               const std::string &symbol_order)
+Value fskdemod(const Value &y, int M, double freq_sep, int nsamp,
+               double fs, const std::string &symbol_order,
+               std::pmr::memory_resource *mr)
 {
     if (M < 2)
         throw Error("fskdemod: M must be ≥ 2", 0, 0, "fskdemod", "",
@@ -133,8 +133,8 @@ Value fskdemod(std::pmr::memory_resource *mr, const Value &y, int M,
 // ofdmmod / ofdmdemod
 // ════════════════════════════════════════════════════════════════════
 
-Value ofdmmod(std::pmr::memory_resource *mr, const Value &in,
-              int nfft, int cplen)
+Value ofdmmod(const Value &in, int nfft, int cplen,
+              std::pmr::memory_resource *mr)
 {
     if (nfft <= 0 || cplen < 0)
         throw Error("ofdmmod: bad nfft / cplen", 0, 0, "ofdmmod", "",
@@ -184,8 +184,8 @@ Value ofdmmod(std::pmr::memory_resource *mr, const Value &in,
     return out;
 }
 
-Value ofdmdemod(std::pmr::memory_resource *mr, const Value &in,
-                int nfft, int cplen, int symoffset)
+Value ofdmdemod(const Value &in, int nfft, int cplen, int symoffset,
+                std::pmr::memory_resource *mr)
 {
     if (nfft <= 0 || cplen < 0)
         throw Error("ofdmdemod: bad nfft / cplen", 0, 0, "ofdmdemod", "",
@@ -255,7 +255,7 @@ void fskmod_reg(Span<const Value> args, size_t /*nargout*/,
             else if (s == "cont" || s == "discont") cont = s;
         }
     }
-    outs[0] = fskmod(ctx.engine->resource(), args[0], M, sep, n, fs, cont, order);
+    outs[0] = fskmod(args[0], M, sep, n, fs, cont, order, ctx.engine->resource());
 }
 
 void fskdemod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -269,7 +269,7 @@ void fskdemod_reg(Span<const Value> args, size_t /*nargout*/,
     const int    n   = (int)args[3].toScalar();
     const double fs  = args[4].toScalar();
     auto order = parse_str(args, 5, "gray");
-    outs[0] = fskdemod(ctx.engine->resource(), args[0], M, sep, n, fs, order);
+    outs[0] = fskdemod(args[0], M, sep, n, fs, order, ctx.engine->resource());
 }
 
 void ofdmmod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -280,7 +280,7 @@ void ofdmmod_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "ofdmmod", "", "m:ofdmmod:nargin");
     const int nfft  = (int)args[1].toScalar();
     const int cplen = (int)args[2].toScalar();
-    outs[0] = ofdmmod(ctx.engine->resource(), args[0], nfft, cplen);
+    outs[0] = ofdmmod(args[0], nfft, cplen, ctx.engine->resource());
 }
 
 void ofdmdemod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -293,7 +293,7 @@ void ofdmdemod_reg(Span<const Value> args, size_t /*nargout*/,
     const int cplen = (int)args[2].toScalar();
     const int sym   = (args.size() >= 4 && !args[3].isEmpty())
                       ? (int)args[3].toScalar() : cplen;
-    outs[0] = ofdmdemod(ctx.engine->resource(), args[0], nfft, cplen, sym);
+    outs[0] = ofdmdemod(args[0], nfft, cplen, sym, ctx.engine->resource());
 }
 
 } // namespace detail
