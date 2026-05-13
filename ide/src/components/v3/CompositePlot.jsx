@@ -127,6 +127,16 @@ export default function CompositePlot({
   yGrid: yGridProp,
   xMinor: xMinorProp,
   yMinor: yMinorProp,
+  // MATLAB axis-visibility / box / direction overrides. undefined =
+  // fall back to the figure JSON (script-set value).
+  axisVisible: axisVisibleProp,
+  boxOn: boxOnProp,
+  xReverse: xReverseProp,
+  yReverse: yReverseProp,
+  // Legend / colorbar placement overrides — null/undefined = follow
+  // script's figure.legendLocation / figure.colorbarLocation.
+  legendLocation: legendLocationProp,
+  colorbarLocation: colorbarLocationProp,
   showLegend = true,
   // Visibility flags owned by FigureWindow's `display ▾` menu. Default
   // true so non-modal renderers (preview cards, subplot cells without
@@ -200,7 +210,9 @@ export default function CompositePlot({
   const hasHeatmap = !!heatmapLayer;
   // imshow's defining trait — hide axis ticks/labels/box. Default true
   // preserves the existing wire format for figures that didn't set it.
-  const axisVisible = figure.axisVisible !== false;
+  const axisVisible = (axisVisibleProp !== undefined)
+    ? !!axisVisibleProp : (figure.axisVisible !== false);
+  const boxOn = (boxOnProp !== undefined) ? !!boxOnProp : (figure.boxOn !== false);
 
   // Effective colormap: runtime override (toolbar combo) > script-level
   // colormap on the heatmap layer > default 'parula'. A custom M×3
@@ -447,8 +459,8 @@ export default function CompositePlot({
   // the corresponding axis. xDir='reverse' means x increases right→left;
   // yDir='reverse' means y increases top→bottom (the default for image
   // axes, but here it's an explicit user request, separate from imagesc).
-  const xRev = figure.xDir === 'reverse';
-  const yRev = figure.yDir === 'reverse';
+  const xRev = (xReverseProp !== undefined) ? !!xReverseProp : (figure.xDir === 'reverse');
+  const yRev = (yReverseProp !== undefined) ? !!yReverseProp : (figure.yDir === 'reverse');
   const sx = xLogActive
     ? (xRev
        ? (v) => padL + W - (Math.log(v / xMin) / Math.log(xMax / xMin)) * W
@@ -1203,7 +1215,9 @@ export default function CompositePlot({
      'south' / 'southoutside' → horizontal bar below plot
      We collapse 'inside' / 'outside' variants to the same screen
      position; 'inside' would overlap data. */
-  const cbarLocRaw = figure.colorbarLocation || '';
+  // colorbarLocationProp override wins — UI submenu can pin the bar
+  // to a specific edge regardless of script's choice.
+  const cbarLocRaw = colorbarLocationProp || figure.colorbarLocation || '';
   // Resolve "want bar?" — explicit toggle wins; otherwise follow script.
   const cbarWanted = showColorbar === true
                   || (showColorbar !== false && !!cbarLocRaw);
@@ -1394,7 +1408,7 @@ export default function CompositePlot({
         <line key={`gy${i}`} x1={padL} x2={padL + W} y1={sy(v)} y2={sy(v)} stroke="var(--plot-grid)" />
       ))}
 
-      {axisVisible && (figure.boxOn !== false ? (
+      {axisVisible && (boxOn ? (
         <rect x={padL} y={padT} width={W} height={H} fill="none" stroke="var(--plot-frame)" />
       ) : (
         // box off — only left + bottom edges (MATLAB convention).
@@ -1879,7 +1893,7 @@ export default function CompositePlot({
         const longest = items.reduce((m, it) => Math.max(m, it.text.length), 0);
         const boxW = padInner * 2 + swatchW + 4 + Math.min(longest, 24) * 6.5;
         const boxH = padInner * 2 + items.length * lineH;
-        const loc = (figure.legendLocation || 'best')
+        const loc = ((legendLocationProp != null ? legendLocationProp : figure.legendLocation) || 'best')
                     .replace(/outside$/, '');
         // Resolve box anchor to (x, y) inside the panel rect.
         const anchorMargin = 8;

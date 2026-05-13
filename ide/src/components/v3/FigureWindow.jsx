@@ -68,6 +68,51 @@ function NumberInput({ value, onCommit, width = 88 }) {
  *  button's getBoundingClientRect — bypasses the parent .fw-pop's
  *  overflow:auto (which would otherwise clip the absolute-positioned
  *  child and surface a scrollbar instead of opening). */
+/** Side-opening submenu for picking one location value from a fixed
+ *  list. Used by display ▾ for legend / colorbar location pickers.
+ *  `value` is the current selection; null = "follow script". `options`
+ *  is `[{ value, label }]`. ✓ marks the active one. */
+function FwPopLocationSubmenu({ label, value, options, onPick }) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState(null);
+  const triggerRef = useRef(null);
+  useLayoutEffect(() => {
+    if (!open) return;
+    const el = triggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setCoords({ left: r.right + 2, top: r.top - 4 });
+  }, [open]);
+  return (
+    <div className={`fw-pop-sub-wrap ${open ? 'is-open' : ''}`}
+         onMouseEnter={() => setOpen(true)}
+         onMouseLeave={() => setOpen(false)}>
+      <button ref={triggerRef}
+              className="fw-pop-sub-trigger"
+              onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}>
+        <span>{label}</span>
+        <span className="fw-pop-sub-arrow">▶</span>
+      </button>
+      {open && coords && (
+        <div className="fw-pop fw-pop-sub"
+             style={{ position: 'fixed', left: coords.left, top: coords.top }}>
+          {options.map((o) => {
+            const active = (value || null) === o.value;
+            return (
+              <button key={String(o.value)}
+                      className="fw-pop-toggle"
+                      onClick={() => { onPick(o.value); setOpen(false); }}>
+                <span>{o.label}</span>
+                <span className="fw-pop-check">{active ? '✓' : ''}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FwPopRowsOrSubmenu({ rows, label, threshold = 5 }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState(null);
@@ -235,6 +280,12 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       showZLabel:   isOn(axes.ZLabel   && axes.ZLabel.Visible),
       showLegend:   isOn(axes.Legend   && axes.Legend.Visible),
       showColorbar: isOn(axes.Colorbar && axes.Colorbar.Visible),
+      showAxis:     isOn(axes.Visible),
+      showBox:      isOn(axes.Box),
+      xReverse:     axes.XDir === 'reverse',
+      yReverse:     axes.YDir === 'reverse',
+      legendLocation:   axes.Legend   && axes.Legend.Location,
+      colorbarLocation: axes.Colorbar && axes.Colorbar.Location,
       colormap:     axes.Colormap || null,
     };
   }
@@ -266,6 +317,12 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       case 'showZLabel':   return isOn(a.ZLabel   && a.ZLabel.Visible);
       case 'showLegend':   return isOn(a.Legend   && a.Legend.Visible);
       case 'showColorbar': return isOn(a.Colorbar && a.Colorbar.Visible);
+      case 'showAxis':     return isOn(a.Visible);
+      case 'showBox':      return isOn(a.Box);
+      case 'xReverse':     return a.XDir === 'reverse';
+      case 'yReverse':     return a.YDir === 'reverse';
+      case 'legendLocation':   return a.Legend   && a.Legend.Location;
+      case 'colorbarLocation': return a.Colorbar && a.Colorbar.Location;
       case 'colormap':     return a.Colormap;
       case 'viewport':     return viewportFromAxes(a);
       default: return undefined;
@@ -290,6 +347,12 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       case 'showZLabel':   return setProp(a, ['ZLabel',   'Visible'], onOff(!!value));
       case 'showLegend':   return setProp(a, ['Legend',   'Visible'], onOff(!!value));
       case 'showColorbar': return setProp(a, ['Colorbar', 'Visible'], onOff(!!value));
+      case 'showAxis':     return { ...a, Visible: onOff(!!value) };
+      case 'showBox':      return { ...a, Box:     onOff(!!value) };
+      case 'xReverse':     return { ...a, XDir: value ? 'reverse' : 'normal' };
+      case 'yReverse':     return { ...a, YDir: value ? 'reverse' : 'normal' };
+      case 'legendLocation':   return setProp(a, ['Legend',   'Location'], value);
+      case 'colorbarLocation': return setProp(a, ['Colorbar', 'Location'], value);
       case 'colormap':     return { ...a, Colormap: value };
       case 'viewport':     return applyViewport(a, value);
       default: return a;
@@ -332,6 +395,23 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   const xGrid        = everyAxes(axesArr, ['XGrid'], isOn);
   const yGrid        = everyAxes(axesArr, ['YGrid'], isOn);
   const zGrid        = everyAxes(axesArr, ['ZGrid'], isOn);
+  // MATLAB Visible / Box / XDir / YDir aggregates.
+  const showAxis     = everyAxes(axesArr, ['Visible'], isOn);
+  const showBox      = everyAxes(axesArr, ['Box'], isOn);
+  const xReverse     = axesArr.length > 0 && axesArr.every((a) => a.XDir === 'reverse');
+  const yReverse     = axesArr.length > 0 && axesArr.every((a) => a.YDir === 'reverse');
+  // Legend / colorbar location aggregates — uniform across cells →
+  // that value; mixed → null. null also means "follow script".
+  const legendLocationAgg = (() => {
+    if (axesArr.length === 0) return null;
+    const v0 = axesArr[0].Legend && axesArr[0].Legend.Location;
+    return axesArr.every((a) => (a.Legend && a.Legend.Location) === v0) ? v0 : null;
+  })();
+  const colorbarLocationAgg = (() => {
+    if (axesArr.length === 0) return null;
+    const v0 = axesArr[0].Colorbar && axesArr[0].Colorbar.Location;
+    return axesArr.every((a) => (a.Colorbar && a.Colorbar.Location) === v0) ? v0 : null;
+  })();
   // Colormap aggregate — uniform across heatmap-bearing axes; mixed → null.
   const colormapOverride = (() => {
     if (axesArr.length === 0) return null;
@@ -369,6 +449,12 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   const setShowZLabel   = (u) => fanAll('showZLabel',   u);
   const setShowLegend   = (u) => fanAll('showLegend',   u);
   const setShowColorbar = (u) => fanAll('showColorbar', u);
+  const setShowAxis     = (u) => fanAll('showAxis',     u);
+  const setShowBox      = (u) => fanAll('showBox',      u);
+  const setXReverse     = (u) => fanAll('xReverse',     u);
+  const setYReverse     = (u) => fanAll('yReverse',     u);
+  const setLegendLocation   = (v) => fanAll('legendLocation',   v);
+  const setColorbarLocation = (v) => fanAll('colorbarLocation', v);
   function setColormapOverride(value) {
     setAxesArr((prev) => prev.map((a) => ({ ...a, Colormap: value })));
   }
@@ -1209,6 +1295,17 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                                  onClick={() => setShowMinor((g) => !g)} />
                 </div>
                 <div className="fw-pop-section">
+                  <div className="fw-pop-head">axes</div>
+                  <DisplayToggle label="axis" active={showAxis}
+                                 onClick={() => setShowAxis((v) => !v)} />
+                  <DisplayToggle label="box"  active={showBox}
+                                 onClick={() => setShowBox((v) => !v)} />
+                  <DisplayToggle label="X reverse" active={xReverse}
+                                 onClick={() => setXReverse((v) => !v)} />
+                  <DisplayToggle label="Y reverse" active={yReverse}
+                                 onClick={() => setYReverse((v) => !v)} />
+                </div>
+                <div className="fw-pop-section">
                   <div className="fw-pop-head">scale</div>
                   {/* Toolbar toggles are NEVER disabled — they're a
                       figure-wide brush. Clicking xlog when no positive
@@ -1237,8 +1334,35 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                                  onClick={() => setShowZLabel((v) => !v)} />
                   <DisplayToggle label="legend" active={showLegend}
                                  onClick={() => setShowLegend((v) => !v)} />
+                  <FwPopLocationSubmenu
+                    label="legend location"
+                    value={legendLocationAgg}
+                    options={[
+                      { value: null,        label: '(script default)' },
+                      { value: 'best',      label: 'best' },
+                      { value: 'north',     label: 'north' },
+                      { value: 'south',     label: 'south' },
+                      { value: 'east',      label: 'east' },
+                      { value: 'west',      label: 'west' },
+                      { value: 'northeast', label: 'northeast' },
+                      { value: 'northwest', label: 'northwest' },
+                      { value: 'southeast', label: 'southeast' },
+                      { value: 'southwest', label: 'southwest' },
+                    ]}
+                    onPick={(v) => setLegendLocation(v)} />
                   <DisplayToggle label="colorbar" active={showColorbar}
                                  onClick={() => setShowColorbar((v) => !v)} />
+                  <FwPopLocationSubmenu
+                    label="colorbar location"
+                    value={colorbarLocationAgg}
+                    options={[
+                      { value: null,    label: '(script default)' },
+                      { value: 'east',  label: 'east' },
+                      { value: 'west',  label: 'west' },
+                      { value: 'north', label: 'north' },
+                      { value: 'south', label: 'south' },
+                    ]}
+                    onPick={(v) => setColorbarLocation(v)} />
                 </div>
               </div>
             )}
@@ -1379,6 +1503,15 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               // Grid forwards each cell's own axes-derived value.
               xGrid: xGrid, yGrid: yGrid,
               xMinor: showMinor, yMinor: showMinor,
+              // MATLAB Visible / Box / XDir / YDir overrides. Pass only
+              // for non-subplot — SubplotGrid resolves per-cell.
+              ...(isSubplot ? {} : {
+                axisVisible: showAxis,
+                boxOn: showBox,
+                xReverse, yReverse,
+                legendLocation: legendLocationAgg,
+                colorbarLocation: colorbarLocationAgg,
+              }),
               fontScale: 1.15,
               engine,
               xLog, yLog, zLog,

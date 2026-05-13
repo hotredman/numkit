@@ -283,6 +283,13 @@ export default function SubplotGrid({
                   yGrid: s.showMajor !== undefined ? !!s.showMajor : (cell.grid === 'on'),
                   xMinor: s.showMinor !== undefined ? !!s.showMinor : (cell.gridMinor === 'on'),
                   yMinor: s.showMinor !== undefined ? !!s.showMinor : (cell.gridMinor === 'on'),
+                  // MATLAB Visible / Box / Reverse forwarded per-cell.
+                  axisVisible: s.showAxis !== undefined ? !!s.showAxis : (cell.axisVisible !== false),
+                  boxOn:       s.showBox  !== undefined ? !!s.showBox  : (cell.boxOn !== false),
+                  xReverse:    s.xReverse !== undefined ? !!s.xReverse : (cell.xDir === 'reverse'),
+                  yReverse:    s.yReverse !== undefined ? !!s.yReverse : (cell.yDir === 'reverse'),
+                  legendLocation:   s.legendLocation   !== undefined ? s.legendLocation   : null,
+                  colorbarLocation: s.colorbarLocation !== undefined ? s.colorbarLocation : null,
                   minor: s.showMinor !== undefined ? !!s.showMinor : (cell.gridMinor === 'on'),
                   xLog:  s.xLog      !== undefined ? !!s.xLog      : (cell.xscale === 'log'),
                   yLog:  s.yLog      !== undefined ? !!s.yLog      : (cell.yscale === 'log'),
