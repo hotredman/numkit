@@ -346,6 +346,14 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   function fitAllCells(axis) {
     setFitSignal((prev) => ({ axis, n: prev.n + 1 }));
   }
+  // displayResetSignal — when toolbar Reset / display ▾ Reset fires we
+  // also need SubplotGrid to drop every per-cell display override that
+  // the per-cell ПКМ might have set, so the cells follow the (now-reset)
+  // figure-wide toggles again.
+  const [displayResetSignal, setDisplayResetSignal] = useState({ n: 0 });
+  function fanDisplayReset() {
+    setDisplayResetSignal((prev) => ({ n: prev.n + 1 }));
+  }
   // ── Reset helpers ────────────────────────────────────────────────
   // The toolbar exposes three flavours of reset:
   //   • fit ▾ → reset    — viewport only (zoom/pan back to defaults)
@@ -366,6 +374,9 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     setYLog(figure.yscale === 'log');
     setZLog(false);
     setShowLegend(!!legendUserAsked);
+    // Drop per-cell ПКМ overrides too so the subplot grid follows the
+    // reset figure-wide values rather than holding onto user tweaks.
+    fanDisplayReset();
   }
   function viewportReset() {
     if (isSubplot) {
@@ -1161,6 +1172,9 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               // to fit each cell's viewport when the toolbar Fit X/Y/Z
               // is clicked on a subplot figure.
               fitSignal,
+              // displayResetSignal — clears per-cell ПКМ display overrides
+              // when the toolbar Reset (or display ▾ reset) fires.
+              displayResetSignal,
               // 3-D specific — Composite3DPlot ignores these for non-3-D.
               // Skip the override on the very first render when viewport
               // is still the [-1,1] placeholder cube (otherwise computeBBox
