@@ -427,12 +427,18 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     setShowLegend(!!legendUserAsked);
     setShowColorbar(colorbarUserAsked);
     // Drop the figure-wide colormap override too — global Reset should
-    // return the heatmap to its script-set palette. Per-cell overrides
-    // are cleared by fanDisplayReset() below.
+    // return the heatmap to its script-set palette.
     setColormapOverride(null);
     setColorOverride(null);
-    // Drop per-cell ПКМ overrides too so the subplot grid follows the
-    // reset figure-wide values rather than holding onto user tweaks.
+    // Drop per-cell ПКМ overrides directly. We don't rely on
+    // setColormapOverride(null) cascading through the change-detect
+    // effect because it only fires when the value actually changes —
+    // if override was already null (e.g. user only set per-cell), the
+    // effect skips and per-cell entries leak across the reset.
+    setCellDisplay(Array.from({ length: cellsCount }, () => ({})));
+    setCellColormap(Array.from({ length: cellsCount }, () => null));
+    // Bump the counter too — kept for compatibility with code paths
+    // that still listen to it (legacy SubplotGrid used to own this state).
     fanDisplayReset();
   }
   function viewportReset() {
@@ -1232,10 +1238,13 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 <div className="fw-pop">
                   <div className="fw-pop-section">
                     <button onClick={() => {
-                      // Reset to script palette: clears the figure-wide
-                      // override (which in turn drops every per-cell
-                      // override via the colormapOverride effect above).
+                      // Reset to script palette. Clears the figure-wide
+                      // override AND every per-cell override directly —
+                      // can't rely on the override-change effect alone
+                      // because if override was already null (e.g. user
+                      // only made per-cell picks), it wouldn't fire.
                       setColormapOverride(null);
+                      setCellColormap(Array.from({ length: cellsCount }, () => null));
                       setCmapOpen(false);
                     }}>reset</button>
                   </div>
