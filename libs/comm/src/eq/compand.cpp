@@ -28,8 +28,9 @@
 
 namespace numkit::comm {
 
-Value compand(std::pmr::memory_resource *mr, const Value &x,
-              double param, double V, const std::string &method)
+Value compand(const Value &x, double param, double V,
+              const std::string &method,
+              std::pmr::memory_resource *mr)
 {
     if (param <= 0.0)
         throw Error("compand: param (μ or A) must be positive",
@@ -129,7 +130,7 @@ void compand_reg(Span<const Value> args, size_t /*nargout*/,
     const double param = args[1].toScalar();
     const double V     = args[2].toScalar();
     const std::string method = args[3].toString();
-    outs[0] = compand(ctx.engine->resource(), args[0], param, V, method);
+    outs[0] = compand(args[0], param, V, method, ctx.engine->resource());
 }
 
 } // namespace detail

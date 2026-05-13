@@ -50,7 +50,7 @@ inline double marcumq_scalar(double a, double b, std::pmr::memory_resource *mr)
 {
     Value av = Value::scalar(a, mr);
     Value bv = Value::scalar(b, mr);
-    return ::numkit::comm::marcumq(mr, av, bv, 1).toScalar();
+    return ::numkit::comm::marcumq(av, bv, 1, mr).toScalar();
 }
 
 } // anonymous
