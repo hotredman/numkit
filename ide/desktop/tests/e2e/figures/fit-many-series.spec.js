@@ -1,5 +1,5 @@
 // fit-many-series.spec.js — per-series fit lives in a top-level
-// "Curves ▶" submenu in ПКМ (parallel to Display ▶ / Colormap ▶).
+// "Series ▶" submenu in ПКМ (parallel to Display ▶ / Colormap ▶).
 // Toolbar fit ▾ stays figure-wide only — no per-curve rows there.
 
 import { test, expect } from '../../helpers/shared.js';
@@ -34,7 +34,7 @@ test('toolbar fit ▾ shows no per-series rows + Z disabled for 2-D', async ({ i
   await expect(page.locator('.fw-pop button', { hasText: /^Z only$/ })).toBeDisabled();
 });
 
-test('ПКМ — multi-series figure has Curves ▶ submenu with one row per curve', async ({ ide, page }) => {
+test('ПКМ — multi-series figure has Series ▶ submenu with one row per curve', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
     + 'figure;\n'
@@ -49,10 +49,10 @@ test('ПКМ — multi-series figure has Curves ▶ submenu with one row per cur
   await page.waitForTimeout(150);
   await rightClickPlot(page);
 
-  // Curves submenu trigger present, count badge shows 4.
-  const trigger = page.locator('.ctx-sub-trigger', { hasText: /Curves/ });
+  // Series submenu trigger present, count badge shows 4.
+  const trigger = page.locator('.ctx-sub-trigger', { hasText: /Series/ });
   await expect(trigger).toBeVisible();
-  await expect(trigger).toContainText(/Curves/);
+  await expect(trigger).toContainText(/Series/);
   await expect(trigger).toContainText('(4)');
 
   // No flat .ctx-row in the parent menu — they all live inside the submenu.
@@ -64,7 +64,7 @@ test('ПКМ — multi-series figure has Curves ▶ submenu with one row per cur
   await expect(page.locator('.ctx-submenu .ctx-row')).toHaveCount(4);
 });
 
-test('ПКМ — 12-series figure puts all rows inside Curves ▶ submenu', async ({ ide, page }) => {
+test('ПКМ — 12-series figure puts all rows inside Series ▶ submenu', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
     + 'figure;\n'
@@ -79,14 +79,14 @@ test('ПКМ — 12-series figure puts all rows inside Curves ▶ submenu', asyn
   await page.waitForTimeout(150);
   await rightClickPlot(page);
 
-  const trigger = page.locator('.ctx-sub-trigger', { hasText: /Curves/ });
+  const trigger = page.locator('.ctx-sub-trigger', { hasText: /Series/ });
   await expect(trigger).toContainText('(12)');
   await trigger.hover();
   await page.waitForTimeout(60);
   await expect(page.locator('.ctx-submenu .ctx-row')).toHaveCount(12);
 });
 
-test('ПКМ — single-series figure has NO Curves submenu', async ({ ide, page }) => {
+test('ПКМ — single-series figure has NO Series submenu', async ({ ide, page }) => {
   // For a single-series plot the submenu would be a one-row noise; skip.
   await ide.runScript('import compat.*;\nplot(1:10);\n');
   await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
@@ -95,10 +95,10 @@ test('ПКМ — single-series figure has NO Curves submenu', async ({ ide, page
   await page.waitForTimeout(150);
   await rightClickPlot(page);
 
-  // Curves submenu only built when at least one series exists; we
+  // Series submenu only built when at least one series exists; we
   // permit it for single-series too (consistent), so check it shows
   // exactly one row inside.
-  const trigger = page.locator('.ctx-sub-trigger', { hasText: /Curves/ });
+  const trigger = page.locator('.ctx-sub-trigger', { hasText: /Series/ });
   if (await trigger.count() > 0) {
     await trigger.hover();
     await page.waitForTimeout(60);
