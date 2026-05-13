@@ -29,7 +29,7 @@ import { buildHeatmapLUT, renderHeatmapDataURLFromIndices,
          renderHeatmapDataURLFromFlat, getColormap,
          makeCustomColormap } from './colormaps';
 import ContextMenu, { foldRowsToSubmenu } from './ContextMenu';
-import { computeFitViewport, exportSvgNode, exportPngNode, exportPngForPrint } from './plotUtils';
+import { computeFitViewport, exportSvgNode, exportPngNode, exportPngForPrint, downloadBlob } from './plotUtils';
 
 // MATLAB linespec → SVG strokeDasharray. '-' (or absent) means solid;
 // returning undefined keeps the default solid stroke. Pixel patterns
@@ -761,19 +761,85 @@ export default function CompositePlot({
     { label: 'CSV',  onClick: onExportCsv,  disabled: !onExportCsv },
     { label: 'TSV',  onClick: onExportTsv,  disabled: !onExportTsv },
     { label: 'JSON', onClick: onExportJson, disabled: !onExportJson },
-  ] : [
-    { label: 'SVG (vector)',
-      onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
-    { label: 'PNG @2×',
-      onClick: () => exportPngNode(svgRef.current, width, height, 2, `figure_${figure.id}.png`) },
-    { head: 'print (300 DPI)' },
-    { label: 'PNG · 1 column (85 mm)',
-      onClick: () => exportPngForPrint(svgRef.current, width, height, 85, 300, `figure_${figure.id}`) },
-    { label: 'PNG · 2 columns (170 mm)',
-      onClick: () => exportPngForPrint(svgRef.current, width, height, 170, 300, `figure_${figure.id}`) },
-    { label: 'PNG · A4 width (210 mm)',
-      onClick: () => exportPngForPrint(svgRef.current, width, height, 210, 300, `figure_${figure.id}`) },
-  ];
+  ] : (() => {
+    // Local fallback exporters — used by subplot cells (where parent
+    // handlers would save the WHOLE figure, not just this cell). The
+    // image exporters use the cell's own svgRef; data exporters walk
+    // figure.layers (already cell-scoped when SubplotGrid hands off
+    // each cell as `figure`).
+    //
+    // Filename uses cell.subplotIndex / id when available so multiple
+    // saves from different cells don't collide. Falls back to figure.id.
+    const tag = figure.subplotIndex
+      ? `figure_${figure.id}_cell${figure.subplotIndex}`
+      : `figure_${figure.id}`;
+    // Build a series-row table per layer: alternating x_<name>, y_<name>
+    // columns, blank cells for ragged lengths.
+    const dataLayers = (figure.layers || []).filter(
+      (ly) => ly.kind === 'series' && Array.isArray(ly.x) && Array.isArray(ly.y)
+    );
+    function seriesRows(sep) {
+      if (dataLayers.length === 0) return '';
+      const head = dataLayers
+        .flatMap((ly, i) => [`x_${ly.name || 'series' + (i + 1)}`,
+                             `y_${ly.name || 'series' + (i + 1)}`])
+        .join(sep);
+      const N = dataLayers.reduce((m, ly) => Math.max(m, ly.x.length), 0);
+      const rows = [head];
+      for (let i = 0; i < N; i++) {
+        const cells = dataLayers.flatMap((ly) => [
+          ly.x[i] != null ? String(ly.x[i]) : '',
+          ly.y[i] != null ? String(ly.y[i]) : '',
+        ]);
+        rows.push(cells.join(sep));
+      }
+      return rows.join('\n');
+    }
+    function dumpCsv() {
+      downloadBlob(new Blob([seriesRows(',')], { type: 'text/csv' }), `${tag}.csv`);
+    }
+    function dumpTsv() {
+      downloadBlob(new Blob([seriesRows('\t')], { type: 'text/tab-separated-values' }), `${tag}.tsv`);
+    }
+    function dumpJson() {
+      const payload = {
+        id: figure.id,
+        cellIndex: figure.subplotIndex || null,
+        title: figure.title || '',
+        xLabel: figure.xLabel || '', yLabel: figure.yLabel || '',
+        xRange: figure.xRange, yRange: figure.yRange,
+        layers: (figure.layers || []).map((ly) => {
+          const out = { kind: ly.kind, mode: ly.mode || '', name: ly.name || '',
+                        color: ly.color || '' };
+          if (Array.isArray(ly.x)) out.x = ly.x;
+          if (Array.isArray(ly.y)) out.y = ly.y;
+          if (Array.isArray(ly.z)) out.z = ly.z;
+          return out;
+        }),
+      };
+      downloadBlob(new Blob([JSON.stringify(payload, null, 2)],
+        { type: 'application/json' }), `${tag}.json`);
+    }
+    const dataDisabled = dataLayers.length === 0;
+    return [
+      { head: 'image · screen' },
+      { label: 'SVG (vector)',
+        onClick: () => exportSvgNode(svgRef.current, `${tag}.svg`) },
+      { label: 'PNG @2×',
+        onClick: () => exportPngNode(svgRef.current, width, height, 2, `${tag}.png`) },
+      { head: 'image · print (300 DPI)' },
+      { label: 'PNG · 1 column (85 mm)',
+        onClick: () => exportPngForPrint(svgRef.current, width, height, 85, 300, tag) },
+      { label: 'PNG · 2 columns (170 mm)',
+        onClick: () => exportPngForPrint(svgRef.current, width, height, 170, 300, tag) },
+      { label: 'PNG · A4 width (210 mm)',
+        onClick: () => exportPngForPrint(svgRef.current, width, height, 210, 300, tag) },
+      { head: 'data' },
+      { label: 'CSV',  onClick: dumpCsv,  disabled: dataDisabled },
+      { label: 'TSV',  onClick: dumpTsv,  disabled: dataDisabled },
+      { label: 'JSON', onClick: dumpJson, disabled: dataDisabled },
+    ];
+  })();
   // Display submenu — mirrors the toolbar's display ▾ popover layout
   // (grid / scale / labels sections). Only surfaced when the parent
   // provided the setters (modal mode). Z-axis toggles intentionally

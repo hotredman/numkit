@@ -305,9 +305,11 @@ export default function SubplotGrid({
               })(),
               zLog,
               onResetAll,
-              onExportSvg, onExportPng2x,
-              onExportPngPrint85, onExportPngPrint170, onExportPngPrint210,
-              onExportCsv, onExportTsv, onExportJson,
+              // Image + data exports inside a subplot cell must save
+              // ONLY that cell's content. We deliberately DON'T forward
+              // the figure-wide handlers from FigureWindow — CompositePlot
+              // falls back to its local exporters which act on the cell's
+              // own SVG ref + the cell's `figure.layers` data.
               fontScale: subFont,
               interactive,
               engine,
