@@ -43,13 +43,13 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await expect(titleLoc).toBeVisible({ timeout: 2_000 });
 
     await openDisplayMenu(page);
-    await page.locator('.fw-pop button', { hasText: /^✓?\s*title$/ }).click();
+    await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'title' }) }).click();
 
     // Title gone after toggle.
     await expect(titleLoc).toHaveCount(0, { timeout: 2_000 });
 
     // Re-toggle restores it.
-    await page.locator('.fw-pop button', { hasText: /^✓?\s*title$/ }).click();
+    await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'title' }) }).click();
     await expect(titleLoc).toBeVisible({ timeout: 2_000 });
   });
 
@@ -64,7 +64,7 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
 
     await openDisplayMenu(page);
-    await page.locator('.fw-pop button', { hasText: /^✓?\s*xlabel$/ }).click();
+    await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'xlabel' }) }).click();
 
     await expect(page.locator('.fw-window svg text', { hasText: 'the x' })).toHaveCount(0);
     await expect(page.locator('.fw-window svg text', { hasText: 'the y' })).toBeVisible();
@@ -85,7 +85,7 @@ test.describe('display ▾ menu — toggle visibility', () => {
     expect(beforeCount).toBeGreaterThan(0);
 
     await openDisplayMenu(page);
-    await page.locator('.fw-pop button', { hasText: /^✓?\s*grid$/ }).click();
+    await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: /^grid$/ }) }).click();
     await page.waitForTimeout(100);
 
     const afterCount = await page.locator('.fw-window svg line[stroke*="--plot-grid"]').count();
@@ -103,8 +103,8 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
 
     await openDisplayMenu(page);
-    const zlog = page.locator('.fw-pop button', { hasText: /^✓?\s*zlog$/ });
-    const zlabel = page.locator('.fw-pop button', { hasText: /^✓?\s*zlabel$/ });
+    const zlog = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'zlog' }) });
+    const zlabel = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'zlabel' }) });
     await expect(zlog).toBeDisabled();
     await expect(zlabel).toBeDisabled();
   });
@@ -125,8 +125,8 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
 
     await openDisplayMenu(page);
-    const titleBtn = page.locator('.fw-pop button', { hasText: /^✓?\s*title$/ });
-    const xlabelBtn = page.locator('.fw-pop button', { hasText: /^✓?\s*xlabel$/ });
+    const titleBtn = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'title' }) });
+    const xlabelBtn = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'xlabel' }) });
     await expect(titleBtn).toBeDisabled();
     await expect(xlabelBtn).toBeDisabled();
   });
@@ -147,7 +147,7 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await expect(page.locator('.fw-window svg text', { hasText: 'Cell B' })).toBeVisible();
 
     await openDisplayMenu(page);
-    await page.locator('.fw-pop button', { hasText: /^✓?\s*title$/ }).click();
+    await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'title' }) }).click();
     await page.waitForTimeout(100);
 
     // Both gone.

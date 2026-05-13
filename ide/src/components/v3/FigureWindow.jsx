@@ -55,6 +55,71 @@ function NumberInput({ value, onCommit, width = 88 }) {
   );
 }
 
+/** Tiny SVG glyph for one display ▾ row. Pure visual hint — keeps the
+ *  popover scannable without taking screen space. */
+function DisplayIcon({ kind }) {
+  const s = { stroke: 'currentColor', strokeWidth: 1.2, fill: 'none', strokeLinecap: 'round' };
+  switch (kind) {
+    case 'grid': return (
+      <svg width="12" height="12" viewBox="0 0 12 12">
+        <path {...s} d="M0 4h12 M0 8h12 M4 0v12 M8 0v12" />
+      </svg>);
+    case 'grid-min': return (
+      <svg width="12" height="12" viewBox="0 0 12 12">
+        <path {...s} d="M0 4h12 M0 8h12 M4 0v12 M8 0v12" />
+        <path stroke="currentColor" strokeWidth="0.5" fill="none" strokeDasharray="1 1"
+              d="M0 2h12 M0 6h12 M0 10h12 M2 0v12 M6 0v12 M10 0v12" />
+      </svg>);
+    case 'logx': return (
+      <svg width="12" height="12" viewBox="0 0 12 12">
+        <path {...s} d="M1 11V1 M1 11h11" />
+        <text x="6" y="9" fontSize="6" fill="currentColor" textAnchor="middle">㏒x</text>
+      </svg>);
+    case 'logy': return (
+      <svg width="12" height="12" viewBox="0 0 12 12">
+        <path {...s} d="M1 11V1 M1 11h11" />
+        <text x="6" y="9" fontSize="6" fill="currentColor" textAnchor="middle">㏒y</text>
+      </svg>);
+    case 'logz': return (
+      <svg width="12" height="12" viewBox="0 0 12 12">
+        <path {...s} d="M1 11V1 M1 11h11 M1 11l4-4" />
+        <text x="6" y="6" fontSize="5.5" fill="currentColor" textAnchor="middle">㏒z</text>
+      </svg>);
+    case 'title': return (
+      <svg width="12" height="12" viewBox="0 0 12 12">
+        <path {...s} d="M2 2h8 M6 2v8 M3 10h6" />
+      </svg>);
+    case 'lblx': return (
+      <svg width="12" height="12" viewBox="0 0 12 12">
+        <path {...s} d="M1 3v6 M1 9h10 M3.5 11l1.5-1.5 M6 11h2 M9 11l1.5-1.5" />
+      </svg>);
+    case 'lbly': return (
+      <svg width="12" height="12" viewBox="0 0 12 12">
+        <path {...s} d="M3 2v8 M3 10h8 M1 3.5l1.5 1.5 M1 6h2 M1 8.5l1.5-1.5" />
+      </svg>);
+    case 'lblz': return (
+      <svg width="12" height="12" viewBox="0 0 12 12">
+        <path {...s} d="M2 2h6 M2 2l6 6 M2 8h6" />
+      </svg>);
+    default: return <span />;
+  }
+}
+
+/** Toggle row for the display ▾ popover. Three-column grid:
+ *  [ icon | label | ✓ ]. CSS class `is-active` highlights checked rows. */
+function DisplayToggle({ icon, label, active, disabled = false, disabledHint = '', onClick }) {
+  return (
+    <button className={`fw-pop-toggle ${active ? 'is-active' : ''}`}
+            disabled={disabled}
+            title={disabled ? disabledHint : ''}
+            onClick={onClick}>
+      <DisplayIcon kind={icon} />
+      <span>{label}</span>
+      <span className="fw-pop-check">{active ? '✓' : ''}</span>
+    </button>
+  );
+}
+
 export default function FigureWindow({ figure, onClose, engine = null }) {
   const isPolar   = figure.kind === 'polar';
   const isSubplot = figure.kind === 'subplot';
@@ -232,27 +297,48 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     });
   }
 
-  // Toggle that also auto-clamps the viewport's lo bound to the smallest
-  // positive cell-centre when entering log mode (yRange[0] is typically
-  // -cellH/2 due to imagesc padding — log of that is undefined).
+  // Toggle that also auto-clamps the viewport's lo bound to a positive
+  // value when entering log mode. Two paths:
+  //   - heatmap: clamp to half a cell width (smallest meaningful unit
+  //     that still lands inside the data grid).
+  //   - line/scatter/etc: clamp to xRange[1]/1e4 (gives ~4 decades of
+  //     visible range — a sane default for plot(1:1000) where the
+  //     adapter's 4% padding pushed viewport.x[0] negative).
+  // Without the clamp, xLogActive in CompositePlot stays false (its
+  // guard is xMin > 0 && xMax > 0) and the toggle has no visual effect.
   function toggleAxisLog(axis) {
-    if (!isHeatmap) return;          // log toggles only meaningful for heatmap toolbar
     if (axis === 'x') {
       const next = !xLog;
       if (next && (viewport.x[0] <= 0 || viewport.x[1] <= 0)) {
-        const fullCols = heatmapLayer?.originalCols || 1;
-        const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
-        const lo = Math.max(cellW * 0.5, 1e-6);
-        setViewport({ ...viewport, x: [lo, Math.max(lo * 10, figure.xRange[1])] });
+        let lo;
+        if (isHeatmap) {
+          const fullCols = heatmapLayer?.originalCols || 1;
+          const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
+          lo = Math.max(cellW * 0.5, 1e-6);
+        } else {
+          // Use the highest-positive data extent we know about as the
+          // anchor — fall back to figure.xRange or viewport upper.
+          const hi = Math.max(figure.xRange?.[1] || viewport.x[1], 1e-6);
+          lo = Math.max(hi / 1e4, 1e-6);
+        }
+        const hiClamped = Math.max(lo * 10, figure.xRange?.[1] || viewport.x[1]);
+        setViewport({ ...viewport, x: [lo, hiClamped] });
       }
       setXLog(next);
     } else {
       const next = !yLog;
       if (next && (viewport.y[0] <= 0 || viewport.y[1] <= 0)) {
-        const fullRows = heatmapLayer?.originalRows || 1;
-        const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
-        const lo = Math.max(cellH * 0.5, 1e-6);
-        setViewport({ ...viewport, y: [lo, Math.max(lo * 10, figure.yRange[1])] });
+        let lo;
+        if (isHeatmap) {
+          const fullRows = heatmapLayer?.originalRows || 1;
+          const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
+          lo = Math.max(cellH * 0.5, 1e-6);
+        } else {
+          const hi = Math.max(figure.yRange?.[1] || viewport.y[1], 1e-6);
+          lo = Math.max(hi / 1e4, 1e-6);
+        }
+        const hiClamped = Math.max(lo * 10, figure.yRange?.[1] || viewport.y[1]);
+        setViewport({ ...viewport, y: [lo, hiClamped] });
       }
       setYLog(next);
     }
@@ -795,7 +881,8 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   <div className="fw-pop-head">all curves</div>
                   <button onClick={() => applyFit('all', 'both')}>fit r-range</button>
                 </div>
-                {Array.isArray(figure.series) && figure.series.length > 1 && (
+                {Array.isArray(figure.series) && figure.series.length > 1
+                  && figure.series.length <= 8 && (
                   <div className="fw-pop-section">
                     <div className="fw-pop-head">single curve</div>
                     {figure.series.map((s) => (
@@ -804,6 +891,14 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                         <button onClick={() => applyFit(s.name, 'both')}>fit r</button>
                       </div>
                     ))}
+                  </div>
+                )}
+                {Array.isArray(figure.series) && figure.series.length > 8 && (
+                  <div className="fw-pop-section">
+                    <div className="fw-pop-head">single curve</div>
+                    <div className="fw-pop-note">
+                      {figure.series.length} series — per-series fit hidden
+                    </div>
                   </div>
                 )}
               </div>
@@ -818,7 +913,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   <button onClick={() => applyFit('all', 'x')}>X only</button>
                   <button onClick={() => applyFit('all', 'y')}>Y only</button>
                 </div>
-                {seriesLayers.length > 1 && (
+                {seriesLayers.length > 1 && seriesLayers.length <= 8 && (
                   <div className="fw-pop-section">
                     <div className="fw-pop-head">single curve</div>
                     {seriesLayers.map((s) => (
@@ -829,6 +924,14 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                         <button onClick={() => applyFit(s.name, 'y')}>y</button>
                       </div>
                     ))}
+                  </div>
+                )}
+                {seriesLayers.length > 8 && (
+                  <div className="fw-pop-section">
+                    <div className="fw-pop-head">single curve</div>
+                    <div className="fw-pop-note">
+                      {seriesLayers.length} series — per-series fit hidden
+                    </div>
                   </div>
                 )}
               </div>
@@ -902,64 +1005,44 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               <div className="fw-pop">
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">grid</div>
-                  <button className={showMajor ? 'is-active' : ''}
-                          onClick={() => setShowMajor((g) => !g)}>
-                    {showMajor ? '✓ ' : ''}grid
-                  </button>
-                  <button className={showMinor ? 'is-active' : ''}
-                          onClick={() => setShowMinor((g) => !g)}>
-                    {showMinor ? '✓ ' : ''}minor
-                  </button>
+                  <DisplayToggle icon="grid" label="grid"  active={showMajor}
+                                 onClick={() => setShowMajor((g) => !g)} />
+                  <DisplayToggle icon="grid-min" label="minor" active={showMinor}
+                                 onClick={() => setShowMinor((g) => !g)} />
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">scale</div>
-                  <button className={xLog ? 'is-active' : ''}
-                          disabled={!xLogEnabled}
-                          title={!xLogEnabled ? 'X range has no positive max — log scale undefined' : ''}
-                          onClick={() => { if (isHeatmap) toggleAxisLog('x'); else setXLog((v) => !v); }}>
-                    {xLog ? '✓ ' : ''}xlog
-                  </button>
-                  <button className={yLog ? 'is-active' : ''}
-                          disabled={!yLogEnabled}
-                          title={!yLogEnabled ? 'Y range has no positive max — log scale undefined' : ''}
-                          onClick={() => { if (isHeatmap) toggleAxisLog('y'); else setYLog((v) => !v); }}>
-                    {yLog ? '✓ ' : ''}ylog
-                  </button>
-                  <button className={zLog ? 'is-active' : ''}
-                          disabled={!has3DCell}
-                          title={!has3DCell ? 'Z log scale only applies to 3-D figures' : ''}
-                          onClick={() => setZLog((v) => !v)}>
-                    {zLog ? '✓ ' : ''}zlog
-                  </button>
+                  <DisplayToggle icon="logx" label="xlog" active={xLog}
+                                 disabled={!xLogEnabled}
+                                 disabledHint="X range has no positive max — log scale undefined"
+                                 onClick={() => toggleAxisLog('x')} />
+                  <DisplayToggle icon="logy" label="ylog" active={yLog}
+                                 disabled={!yLogEnabled}
+                                 disabledHint="Y range has no positive max — log scale undefined"
+                                 onClick={() => toggleAxisLog('y')} />
+                  <DisplayToggle icon="logz" label="zlog" active={zLog}
+                                 disabled={!has3DCell}
+                                 disabledHint="Z log scale only applies to 3-D figures"
+                                 onClick={() => setZLog((v) => !v)} />
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">labels</div>
-                  <button className={showTitle ? 'is-active' : ''}
-                          disabled={!titleEnabled}
-                          title={!titleEnabled ? 'not set' : ''}
-                          onClick={() => setShowTitle((v) => !v)}>
-                    {showTitle ? '✓ ' : ''}title
-                  </button>
-                  <button className={showXLabel ? 'is-active' : ''}
-                          disabled={!xLabelEnabled}
-                          title={!xLabelEnabled ? 'not set' : ''}
-                          onClick={() => setShowXLabel((v) => !v)}>
-                    {showXLabel ? '✓ ' : ''}xlabel
-                  </button>
-                  <button className={showYLabel ? 'is-active' : ''}
-                          disabled={!yLabelEnabled}
-                          title={!yLabelEnabled ? 'not set' : ''}
-                          onClick={() => setShowYLabel((v) => !v)}>
-                    {showYLabel ? '✓ ' : ''}ylabel
-                  </button>
-                  <button className={showZLabel ? 'is-active' : ''}
-                          disabled={!zLabelEnabled}
-                          title={!zLabelEnabled
-                            ? (has3DCell ? 'not set' : 'Z label only applies to 3-D figures')
-                            : ''}
-                          onClick={() => setShowZLabel((v) => !v)}>
-                    {showZLabel ? '✓ ' : ''}zlabel
-                  </button>
+                  <DisplayToggle icon="title" label="title" active={showTitle}
+                                 disabled={!titleEnabled}
+                                 disabledHint="not set"
+                                 onClick={() => setShowTitle((v) => !v)} />
+                  <DisplayToggle icon="lblx" label="xlabel" active={showXLabel}
+                                 disabled={!xLabelEnabled}
+                                 disabledHint="not set"
+                                 onClick={() => setShowXLabel((v) => !v)} />
+                  <DisplayToggle icon="lbly" label="ylabel" active={showYLabel}
+                                 disabled={!yLabelEnabled}
+                                 disabledHint="not set"
+                                 onClick={() => setShowYLabel((v) => !v)} />
+                  <DisplayToggle icon="lblz" label="zlabel" active={showZLabel}
+                                 disabled={!zLabelEnabled}
+                                 disabledHint={has3DCell ? 'not set' : 'Z label only applies to 3-D figures'}
+                                 onClick={() => setShowZLabel((v) => !v)} />
                 </div>
               </div>
             )}
