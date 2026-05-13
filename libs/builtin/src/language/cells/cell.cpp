@@ -55,7 +55,7 @@ Value cellfun(FnHandle fn, const Value &c, bool uniformOutput,
         Value out;
         Span<const Value> ar(&arg, 1);
         Span<Value>       ou(&out, 1);
-        fn(ar, ou);
+        fn(ar, ou, mr);
         results.push_back(std::move(out));
     }
 
@@ -334,13 +334,15 @@ void cellfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
                      0, 0, "cellfun", "", "m:cellfun:nonUniform");
 
     if (isBuiltin) {
-        auto cb = [mr, f](Span<const Value> ar, Span<Value> ou) {
-            ou[0] = hf::applyBuiltin(mr, f, ar[0], "cellfun");
+        auto cb = [f](Span<const Value> ar, Span<Value> ou,
+                      std::pmr::memory_resource *mr_) {
+            ou[0] = hf::applyBuiltin(mr_, f, ar[0], "cellfun");
         };
         outs[0] = cellfun(cb, args[1], uniform, mr);
     } else {
         const auto &handle = args[0];
-        auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou) {
+        auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou,
+                                   std::pmr::memory_resource * /*mr*/) {
             auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
             for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
                 ou[i] = std::move(r[i]);

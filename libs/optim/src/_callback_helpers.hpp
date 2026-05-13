@@ -20,15 +20,18 @@ namespace numkit::optim::detail::callback {
 ///
 /// @param fn  MATLAB-style callback.
 /// @param x   Scalar evaluation point.
+/// @param mr  Memory resource passed through to the callback for any
+///            Value construction it does.
 /// @return    `fn(x)` as a double.
 /// @throws Error  If the callback returns a non-scalar value.
-inline double evalScalar(FnHandle fn, double x)
+inline double evalScalar(FnHandle fn, double x,
+                         std::pmr::memory_resource *mr)
 {
-    Value arg = Value::scalar(x);
+    Value arg = Value::scalar(x, mr);
     Value out;
     Span<const Value> args(&arg, 1);
     Span<Value>       outs(&out, 1);
-    fn(args, outs);
+    fn(args, outs, mr);
     if (!out.isScalar() && out.numel() != 1)
         throw Error("callback: handle must return a scalar value",
                      0, 0, "callback", "", "m:callback:nonScalar");
@@ -43,7 +46,8 @@ inline double evalScalar(FnHandle fn, double x)
 /// @param fn  MATLAB-style callback.
 /// @param x   Vector evaluation point (length n).
 /// @param n   Vector length.
-/// @param mr  Memory resource used for the intermediate Value.
+/// @param mr  Memory resource used for the intermediate Value and
+///            passed through to the callback.
 /// @return    `fn(x)` as a double.
 inline double evalVecToScalar(FnHandle fn, const double *x, std::size_t n,
                               std::pmr::memory_resource *mr)
@@ -55,7 +59,7 @@ inline double evalVecToScalar(FnHandle fn, const double *x, std::size_t n,
     }
     Value out;
     Value args[1] = { std::move(v) };
-    fn(Span<const Value>(args, 1), Span<Value>(&out, 1));
+    fn(Span<const Value>(args, 1), Span<Value>(&out, 1), mr);
     return out.toScalar();
 }
 

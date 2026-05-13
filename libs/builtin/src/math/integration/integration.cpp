@@ -289,14 +289,15 @@ constexpr double kGaussW[7] = {
 };
 
 std::pair<double, double>
-gaussKronrod15(FnHandle fn, double a, double b)
+gaussKronrod15(FnHandle fn, double a, double b,
+               std::pmr::memory_resource *mr)
 {
     const double half  = 0.5 * (b - a);
     const double mid   = 0.5 * (b + a);
     double K = 0.0, G = 0.0;
     for (int i = 0; i < 15; ++i) {
         const double x  = mid + half * kKronrodX[i];
-        const double fv = cb::evalScalar(fn, x);
+        const double fv = cb::evalScalar(fn, x, mr);
         K += kKronrodW[i] * fv;
         if (i % 2 == 1)
             G += kGaussW[i / 2] * fv;
@@ -305,14 +306,15 @@ gaussKronrod15(FnHandle fn, double a, double b)
 }
 
 double adaptiveIntegral(FnHandle fn, double a, double b,
-                        double absTol, int depth, int maxDepth)
+                        double absTol, int depth, int maxDepth,
+                        std::pmr::memory_resource *mr)
 {
-    auto [K, G] = gaussKronrod15(fn, a, b);
+    auto [K, G] = gaussKronrod15(fn, a, b, mr);
     const double err = std::abs(K - G);
     if (err < absTol || depth >= maxDepth) return K;
     const double mid = 0.5 * (a + b);
-    return adaptiveIntegral(fn, a, mid, absTol * 0.5, depth + 1, maxDepth)
-         + adaptiveIntegral(fn, mid, b, absTol * 0.5, depth + 1, maxDepth);
+    return adaptiveIntegral(fn, a, mid, absTol * 0.5, depth + 1, maxDepth, mr)
+         + adaptiveIntegral(fn, mid, b, absTol * 0.5, depth + 1, maxDepth, mr);
 }
 
 } // namespace
@@ -330,7 +332,7 @@ Value integral(FnHandle fn, double a, double b, double absTol,
     if (b < a) std::swap(a, b);
     if (a == b) return Value::scalar(0.0, mr);
     constexpr int kMaxDepth = 20;
-    const double r = adaptiveIntegral(fn, a, b, absTol, 0, kMaxDepth);
+    const double r = adaptiveIntegral(fn, a, b, absTol, 0, kMaxDepth, mr);
     return Value::scalar(sign * r, mr);
 }
 
@@ -398,7 +400,8 @@ void integral_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         }
     }
     auto handle = args[0];
-    auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou) {
+    auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou,
+                               std::pmr::memory_resource * /*mr*/) {
         auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
         for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
             ou[i] = std::move(r[i]);

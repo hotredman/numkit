@@ -134,7 +134,7 @@ Value structfun(FnHandle fn, const Value &s, bool uniformOutput,
         Value out;
         Span<const Value> ar(&arg, 1);
         Span<Value>       ou(&out, 1);
-        fn(ar, ou);
+        fn(ar, ou, mr);
         results.push_back(std::move(out));
     }
 
@@ -332,13 +332,15 @@ void structfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
                      0, 0, "structfun", "", "m:structfun:nonUniform");
 
     if (isBuiltin) {
-        auto cb = [mr, f](Span<const Value> ar, Span<Value> ou) {
-            ou[0] = hf::applyBuiltin(mr, f, ar[0], "structfun");
+        auto cb = [f](Span<const Value> ar, Span<Value> ou,
+                      std::pmr::memory_resource *mr_) {
+            ou[0] = hf::applyBuiltin(mr_, f, ar[0], "structfun");
         };
         outs[0] = structfun(cb, args[1], uniform, mr);
     } else {
         const auto &handle = args[0];
-        auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou) {
+        auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou,
+                                   std::pmr::memory_resource * /*mr*/) {
             auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
             for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
                 ou[i] = std::move(r[i]);

@@ -14,22 +14,29 @@
 //
 // User-side (C++):
 //   auto root = fzero(
-//       [](auto args, auto outs) {
+//       [](auto args, auto outs, auto *mr) {
 //           double x = args[0].toScalar();
-//           outs[0] = Value::scalar(x*x - 2.0);
+//           outs[0] = Value::scalar(x*x - 2.0, mr);  // honour caller mr
 //       },
 //       Value::matrix(...), mr);
 //
 // Engine-adapter side (libs/optim/src/local/fzero.cpp):
 //   void fzero_reg(args, nargout, outs, ctx) {
 //       auto handle = args[0];
-//       auto cb = [&ctx, &handle](Span<const Value> a, Span<Value> o) {
-//           ctx.engine->callFunctionHandle(handle, a, o);
+//       auto cb = [&ctx, &handle](Span<const Value> a, Span<Value> o,
+//                                 std::pmr::memory_resource * /*mr*/) {
+//           // Engine allocates results; library caller absorbs them
+//           // via move-assign into o, so mr is unused on this side.
+//           auto r = ctx.engine->callFunctionHandleMulti(handle, a, o.size());
+//           for (size_t i = 0; i < o.size() && i < r.size(); ++i)
+//               o[i] = std::move(r[i]);
 //       };
 //       outs[0] = fzero(cb, args[1], ctx.engine->resource());
 //   }
 
 #pragma once
+
+#include <memory_resource>
 
 #include <numkit/core/function_ref.hpp>
 #include <numkit/core/span.hpp>
@@ -40,9 +47,12 @@ namespace numkit {
 /// @brief MATLAB-style function-handle callback.
 ///
 /// `args` carries the per-call inputs; `outs` is the caller-allocated
-/// output buffer (its `.size()` is the requested `nargout`). The
-/// callback fills `outs[0..outs.size())`.
-using FnHandle = function_ref<void(Span<const Value> args,
-                                    Span<Value>       outs)>;
+/// output buffer (its `.size()` is the requested `nargout`). `mr` is
+/// the caller's memory resource — the callback should honour it when
+/// constructing the output Values so PMR allocation chains through.
+/// The callback fills `outs[0..outs.size())`.
+using FnHandle = function_ref<void(Span<const Value>           args,
+                                    Span<Value>                 outs,
+                                    std::pmr::memory_resource * mr)>;
 
 } // namespace numkit
