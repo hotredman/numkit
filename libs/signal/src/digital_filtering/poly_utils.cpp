@@ -27,46 +27,55 @@ bool isRealValue(const Value &v)
 
 } // anon
 
-Value polyscale(const Value &p, const Value &scale, std::pmr::memory_resource *mr)
+Value polyscale(const Value &p, double scale, std::pmr::memory_resource *mr)
 {
     const size_t N = p.numel();
-    if (N == 0) {
+    if (N == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
-    }
-    // Determine output complexity: if either input is complex, output complex.
-    const bool cplx = !isRealValue(p) || !isRealValue(scale);
-    // scale must be scalar.
-    if (scale.numel() != 1)
-        throw Error("polyscale: SCALE must be a scalar",
-                    0, 0, "polyscale", "", "m:polyscale:BadScale");
 
-    if (cplx) {
+    // Output is complex iff p is complex; scale is real here.
+    if (!isRealValue(p)) {
         Value out = Value::matrix(p.dims().rows(), p.dims().cols(),
                                    ValueType::COMPLEX, mr);
         Complex *od = out.complexDataMut();
-        const Complex *pcd = (p.type() == ValueType::COMPLEX) ? p.complexData() : nullptr;
-        const Complex sc = (scale.type() == ValueType::COMPLEX)
-                            ? scale.complexData()[0]
-                            : Complex(scale.toScalar(), 0.0);
-        Complex pow = Complex(1.0, 0.0);
+        const Complex *pcd = p.complexData();
+        const Complex sc(scale, 0.0);
+        Complex pow(1.0, 0.0);
         for (size_t k = 0; k < N; ++k) {
-            const Complex pk = pcd ? pcd[k] : Complex(p.elemAsDouble(k), 0.0);
-            od[k] = pk * pow;
-            pow *= sc;
-        }
-        return out;
-    } else {
-        Value out = Value::matrix(p.dims().rows(), p.dims().cols(),
-                                   ValueType::DOUBLE, mr);
-        double *od = out.doubleDataMut();
-        const double sc = scale.toScalar();
-        double pow = 1.0;
-        for (size_t k = 0; k < N; ++k) {
-            od[k] = p.elemAsDouble(k) * pow;
+            od[k] = pcd[k] * pow;
             pow *= sc;
         }
         return out;
     }
+
+    Value out = Value::matrix(p.dims().rows(), p.dims().cols(),
+                               ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    double pow = 1.0;
+    for (size_t k = 0; k < N; ++k) {
+        od[k] = p.elemAsDouble(k) * pow;
+        pow *= scale;
+    }
+    return out;
+}
+
+Value polyscale(const Value &p, Complex scale, std::pmr::memory_resource *mr)
+{
+    const size_t N = p.numel();
+    if (N == 0)
+        return Value::matrix(0, 0, ValueType::COMPLEX, mr);
+
+    Value out = Value::matrix(p.dims().rows(), p.dims().cols(),
+                               ValueType::COMPLEX, mr);
+    Complex *od = out.complexDataMut();
+    const Complex *pcd = (p.type() == ValueType::COMPLEX) ? p.complexData() : nullptr;
+    Complex pow(1.0, 0.0);
+    for (size_t k = 0; k < N; ++k) {
+        const Complex pk = pcd ? pcd[k] : Complex(p.elemAsDouble(k), 0.0);
+        od[k] = pk * pow;
+        pow *= scale;
+    }
+    return out;
 }
 
 Value polystab(const Value &a, std::pmr::memory_resource *mr)
@@ -174,7 +183,15 @@ void polyscale_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("polyscale: requires (p, scale)",
                     0, 0, "polyscale", "", "m:polyscale:nargin");
-    outs[0] = polyscale(args[0], args[1], ctx.engine->resource());
+    const Value &scale = args[1];
+    if (scale.numel() != 1)
+        throw Error("polyscale: SCALE must be a scalar",
+                    0, 0, "polyscale", "", "m:polyscale:BadScale");
+    auto *mr = ctx.engine->resource();
+    if (scale.type() == ValueType::COMPLEX)
+        outs[0] = polyscale(args[0], scale.complexData()[0], mr);
+    else
+        outs[0] = polyscale(args[0], scale.toScalar(), mr);
 }
 
 void polystab_reg(Span<const Value> args, size_t /*nargout*/,

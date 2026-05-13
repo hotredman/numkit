@@ -31,15 +31,25 @@ namespace numkit::builtin {
 /// @see num2str(x, spec, mr), mat2str, str2num
 Value num2str(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Number → CHAR row with precision / format spec
-/// (`s = num2str(x, spec)`).
-/// @param x     Scalar / matrix to format.
-/// @param spec  Integer scalar `N` → N significant digits;
-///              CHAR / STRING → printf-style format.
-/// @param mr    Memory resource (nullptr → process default).
-/// @return      CHAR formatted string.
-/// @see num2str(x, mr)
-Value num2str(const Value &x, const Value &spec, std::pmr::memory_resource *mr = nullptr);
+/// @brief Number → CHAR row with N significant digits
+/// (`s = num2str(x, N)`).
+/// @param x   Scalar / matrix to format.
+/// @param N   Number of significant digits (clamped to `[1, 99]`).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    CHAR formatted string.
+/// @see num2str(x, mr), num2str(x, fmt, mr)
+Value num2str(const Value &x, int N,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Number → CHAR row with printf-style format
+/// (`s = num2str(x, fmt)`).
+/// @param x    Scalar / matrix to format.
+/// @param fmt  Printf-style format string.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     CHAR formatted string.
+/// @see num2str(x, mr), num2str(x, N, mr)
+Value num2str(const Value &x, const std::string &fmt,
+              std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Parse string as number (`x = str2num(s)`).
 ///

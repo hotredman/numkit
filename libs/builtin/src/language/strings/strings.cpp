@@ -45,24 +45,25 @@ Value num2str(const Value &x, std::pmr::memory_resource *mr)
     return Value::fromString(std::string(buf), mr);
 }
 
-Value num2str(const Value &x, const Value &spec, std::pmr::memory_resource *mr)
+Value num2str(const Value &x, int N, std::pmr::memory_resource *mr)
 {
     const double v = x.toScalar();
-    char buf[256];
-    if (spec.isChar() || spec.isString()) {
-        // Format-string form: pass through sprintf. Single-arg only;
-        // MATLAB allows multi-arg formats but our path is scalar.
-        const std::string fmt = spec.toString();
-        std::snprintf(buf, sizeof(buf), fmt.c_str(), v);
-        return Value::fromString(std::string(buf), mr);
-    }
-    // Numeric N: N significant digits via %.<N>g.
-    int n = static_cast<int>(spec.toScalar());
+    int n = N;
     if (n < 1)  n = 1;
     if (n > 99) n = 99;
     char fmt[16];
     std::snprintf(fmt, sizeof(fmt), "%%.%dg", n);
+    char buf[256];
     std::snprintf(buf, sizeof(buf), fmt, v);
+    return Value::fromString(std::string(buf), mr);
+}
+
+Value num2str(const Value &x, const std::string &fmt,
+              std::pmr::memory_resource *mr)
+{
+    const double v = x.toScalar();
+    char buf[256];
+    std::snprintf(buf, sizeof(buf), fmt.c_str(), v);
     return Value::fromString(std::string(buf), mr);
 }
 
@@ -1370,10 +1371,16 @@ void num2str_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("num2str: requires 1 argument", 0, 0, "num2str", "", "m:num2str:nargin");
-    if (args.size() >= 2)
-        outs[0] = num2str(args[0], args[1], ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    if (args.size() < 2) {
+        outs[0] = num2str(args[0], mr);
+        return;
+    }
+    const Value &spec = args[1];
+    if (spec.isChar() || spec.isString())
+        outs[0] = num2str(args[0], spec.toString(), mr);
     else
-        outs[0] = num2str(args[0], ctx.engine->resource());
+        outs[0] = num2str(args[0], static_cast<int>(spec.toScalar()), mr);
 }
 
 void str2num_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
