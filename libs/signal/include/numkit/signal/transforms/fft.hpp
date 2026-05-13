@@ -2,6 +2,7 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 
 namespace numkit::signal {
@@ -92,42 +93,40 @@ Value fft2(const Value &                X,
 Value ifft2(const Value &X, int m = -1, int n = -1,
             std::pmr::memory_resource *mr = nullptr);
 
-/// N-D forward FFT.
+/// @brief N-D forward FFT.
 ///
 /// Mirrors MATLAB's `fftn`:
-///   * `fftn(X)`     — FFT along every dimension of X at its current length.
-///   * `fftn(X, sz)` — same, but axis k is zero-padded or truncated to
-///                     `sz[k-1]` before its FFT. `sz` length must be
-///                     ≤ ndims(X).
+/// - `fftn(X)`     — FFT along every dimension of X at its current
+///   length.
+/// - `fftn(X, sz)` — same, but axis `k` is zero-padded or truncated
+///   to `sz[k]` before its FFT. `sz.size()` must be ≤ `ndims(X)`.
 ///
 /// Implemented as `fft` along each axis in turn (commutes, like
 /// MATLAB / NumPy / SciPy).
 ///
-/// @param X       N-D input.
-/// @param sz      Per-axis target sizes (nullptr → use X's current shape).
-/// @param szLen   Length of `sz`, ≤ ndims(X). 0 ≡ no overrides.
-/// @param mr      Memory resource (nullptr → process default).
-/// @return        Same-shape (or `sz`-shape) COMPLEX array.
-///
+/// @param X    N-D input.
+/// @param sz   Per-axis target sizes (empty Span → use X's current
+///             shape).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Same-shape (or `sz`-shape) COMPLEX array.
 /// @see fft, fft2, ifftn
-Value fftn(const Value &                X,
-           const std::size_t *          sz    = nullptr,
-           std::size_t                  szLen = 0,
-           std::pmr::memory_resource *  mr    = nullptr);
+Value fftn(const Value &              X,
+           Span<const std::size_t>    sz = {},
+           std::pmr::memory_resource *mr = nullptr);
 
-/// @brief N-D inverse FFT (`Y = ifftn(X, sz, szLen)`).
+/// @brief N-D inverse FFT (`Y = ifftn(X, sz)`).
 ///
-/// Inverse of @ref fftn; same shape semantics. May downgrade to DOUBLE
-/// when `imag(Y) ≤ 1e-10` everywhere.
+/// Inverse of @ref fftn; same shape semantics. May downgrade to
+/// DOUBLE when `imag(Y) ≤ 1e-10` everywhere.
 ///
-/// @param X       N-D input spectrum.
-/// @param sz      Per-axis target sizes (nullptr → use X's current shape).
-/// @param szLen   Length of `sz`, `<= ndims(X)`. 0 ≡ no overrides.
-/// @param mr      Memory resource (nullptr → process default).
-/// @return        Same-shape (or `sz`-shape) array (COMPLEX or DOUBLE).
+/// @param X    N-D input spectrum.
+/// @param sz   Per-axis target sizes (empty Span → use X's current
+///             shape).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Same-shape (or `sz`-shape) array (COMPLEX or DOUBLE).
 /// @see fftn, ifft, ifft2
-Value ifftn(const Value &X,
-            const std::size_t *sz = nullptr, std::size_t szLen = 0,
+Value ifftn(const Value &              X,
+            Span<const std::size_t>    sz = {},
             std::pmr::memory_resource *mr = nullptr);
 
 /// Chirp Z-transform (Bluestein).

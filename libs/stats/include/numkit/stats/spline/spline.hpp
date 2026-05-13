@@ -143,19 +143,21 @@ Value fnbrk(const Value &pp, const std::string &part,
 /// @brief Combine pp-form splines linearly
 /// (`pp = fncmb(pp1, c1, pp2, c2)`).
 ///
-/// - Two-arg form (`pp2 == nullptr`): `c1 · pp1` (scalar multiply).
+/// - Two-arg form (`pp2.isEmpty()`): `c1 · pp1` (scalar multiply).
 /// - Four-arg form: `c1 · pp1 + c2 · pp2` — requires `pp1` and `pp2`
 ///   to share breaks, order and dim.
 ///
 /// @param pp1  First pp-form spline.
 /// @param c1   Coefficient on `pp1`.
-/// @param pp2  Second spline (or nullptr for scalar-multiply form).
-/// @param c2   Coefficient on `pp2` (ignored when `pp2 == nullptr`).
+/// @param pp2  Second spline. Pass `Value::Empty` for the
+///             scalar-multiply form.
+/// @param c2   Coefficient on `pp2` (ignored when `pp2.isEmpty()`).
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Combined pp-form spline.
 /// @throws Error  Mismatched breaks / order / dim
 ///                (`m:fncmb:incompatible`).
-Value fncmb(const Value &pp1, double c1, const Value *pp2, double c2,
+Value fncmb(const Value &pp1, double c1,
+            const Value &pp2 = Value::Empty, double c2 = 0.0,
             std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats
