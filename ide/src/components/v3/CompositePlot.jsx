@@ -979,41 +979,37 @@ export default function CompositePlot({
     </svg>
   );
 
+  // Curves ▶ submenu — per-series fit rows lifted out of the Fit
+  // section into their own top-level submenu, matching the Display ▶ /
+  // Colormap ▶ layout. Always built when at least one series exists.
+  const curvesSubmenuItems = seriesLayers.length > 0 ? seriesLayers.map((s, i) => ({
+    row: true, color: s.color, name: s.name || `series ${i + 1}`,
+    buttons: [
+      { label: 'xy', onClick: () => applyFitSeries(i, 'both') },
+      { label: 'x',  onClick: () => applyFitSeries(i, 'x') },
+      { label: 'y',  onClick: () => applyFitSeries(i, 'y') },
+    ],
+  })) : null;
+
   const ctxItems = [
-    // Order: Reset · Save · Display · Colormap · Fit (per UX spec).
+    // Order: Reset · Save · Display · Colormap · Curves · Fit (UX spec).
     { label: <span>{houseIcon}Reset</span>, onClick: onReset },
     { submenu: 'Save / Export ▶', items: exportItems },
     ...(displaySubmenuItems ? [{ submenu: 'Display ▶', items: displaySubmenuItems }] : []),
     ...(colormapSubmenuItems ? [{ submenu: 'Colormap ▶', items: colormapSubmenuItems }] : []),
+    ...(curvesSubmenuItems ? [{
+      submenu: `Curves ▶${seriesLayers.length > 1 ? ` (${seriesLayers.length})` : ''}`,
+      items: curvesSubmenuItems,
+    }] : []),
     { separator: true },
-    // For figures with series layers (line/scatter), surface "fit all curves"
-    // and per-curve rows like InteractivePlot did. Falls back to data-extent
-    // fit when there are no series (pure heatmap / annotations only).
+    // Fit section now carries only figure-wide / data-extent rows;
+    // per-curve fit lives in the Curves ▶ submenu above.
     ...(seriesLayers.length > 0 ? [
-      { head: multiSeries ? 'Fit all curves' : 'Fit data extent' },
-      // reset on top mirrors the toolbar fit ▾ layout — viewport-only
-      // reset for THIS cell (or figure when not a subplot).
+      { head: 'Fit data extent' },
       { label: 'reset',         onClick: () => applyFitAllSeries('both') },
       { label: 'Fit all axes',  onClick: () => applyFitAllSeries('both') },
       { label: 'Fit X only',    onClick: () => applyFitAllSeries('x') },
       { label: 'Fit Y only',    onClick: () => applyFitAllSeries('y') },
-      ...(multiSeries ? [
-        { head: 'Fit single curve' },
-        // Per-series rows. With more than 5 series the flat list
-        // dominates the context menu; fold into a "single curve ▶"
-        // submenu so the parent menu stays compact.
-        ...foldRowsToSubmenu(
-          seriesLayers.map((s, i) => ({
-            row: true, color: s.color, name: s.name || `series ${i + 1}`,
-            buttons: [
-              { label: 'xy', onClick: () => applyFitSeries(i, 'both') },
-              { label: 'x',  onClick: () => applyFitSeries(i, 'x') },
-              { label: 'y',  onClick: () => applyFitSeries(i, 'y') },
-            ],
-          })),
-          `${seriesLayers.length} curves`,
-        ),
-      ] : []),
     ] : [
       { head: 'Fit data extent' },
       { label: 'reset',        onClick: () => fitAxes('both') },
