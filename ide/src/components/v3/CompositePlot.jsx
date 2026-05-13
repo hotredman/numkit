@@ -991,7 +991,10 @@ export default function CompositePlot({
     // fit when there are no series (pure heatmap / annotations only).
     ...(seriesLayers.length > 0 ? [
       { head: multiSeries ? 'Fit all curves' : 'Fit data extent' },
-      { label: 'Fit both axes', onClick: () => applyFitAllSeries('both') },
+      // reset on top mirrors the toolbar fit ▾ layout — viewport-only
+      // reset for THIS cell (or figure when not a subplot).
+      { label: 'reset',         onClick: () => applyFitAllSeries('both') },
+      { label: 'Fit all axes',  onClick: () => applyFitAllSeries('both') },
       { label: 'Fit X only',    onClick: () => applyFitAllSeries('x') },
       { label: 'Fit Y only',    onClick: () => applyFitAllSeries('y') },
       ...(multiSeries ? [
@@ -1013,7 +1016,8 @@ export default function CompositePlot({
       ] : []),
     ] : [
       { head: 'Fit data extent' },
-      { label: 'Fit both axes', onClick: () => fitAxes('both') },
+      { label: 'reset',        onClick: () => fitAxes('both') },
+      { label: 'Fit all axes', onClick: () => fitAxes('both') },
       { label: 'Fit X only',    onClick: () => fitAxes('x') },
       { label: 'Fit Y only',    onClick: () => fitAxes('y') },
     ]),

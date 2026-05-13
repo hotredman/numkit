@@ -992,7 +992,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   <button onClick={() => {
                     if (isSubplot) fitAllCells('both'); else applyFit('all', 'both');
                     setFitOpen(false);
-                  }}>both axes</button>
+                  }}>all axes</button>
                   <button onClick={() => {
                     if (isSubplot) fitAllCells('x'); else applyFit('all', 'x');
                     setFitOpen(false);

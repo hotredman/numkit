@@ -259,23 +259,31 @@ export default function SubplotGrid({
               }),
               ...(() => {
                 // Read this cell's state directly — single source of
-                // truth, no override resolution. Setter factories may
-                // be absent in preview-card mode (FiguresPane doesn't
-                // pass them); guard with no-op fallbacks.
+                // truth in modal mode (FigureWindow seeds cellState
+                // from initCellState). For preview-card mode FiguresPane
+                // doesn't pass cellState, so the entry is missing every
+                // key; in that case we fall back to script defaults
+                // derived from the cell itself.
                 const s = cellState[idx] || {};
+                const legendUserAsked = (Array.isArray(cell.legend) && cell.legend.length > 0)
+                                     || (cell.legendLocation && cell.legendLocation !== 'none');
+                const colorbarUserAsked = !!cell.colorbarLocation
+                                       && cell.colorbarLocation !== 'off';
                 const mks = (...a) => makeCellDisplaySetter ? makeCellDisplaySetter(...a) : null;
                 const mkc = (...a) => makeCellColormapSetter ? makeCellColormapSetter(...a) : null;
                 const mkdr = (...a) => makeCellDisplayReset ? makeCellDisplayReset(...a) : null;
                 const mkcr = (...a) => makeCellColormapReset ? makeCellColormapReset(...a) : null;
                 return {
-                  major: !!s.showMajor, minor: !!s.showMinor,
-                  xLog: !!s.xLog, yLog: !!s.yLog,
-                  showTitle: s.showTitle !== false,
-                  showXLabel: s.showXLabel !== false,
-                  showYLabel: s.showYLabel !== false,
-                  showZLabel: s.showZLabel !== false,
-                  showLegend: !!s.showLegend,
-                  showColorbar: !!s.showColorbar,
+                  major: s.showMajor !== undefined ? !!s.showMajor : (cell.grid === 'on'),
+                  minor: s.showMinor !== undefined ? !!s.showMinor : (cell.gridMinor === 'on'),
+                  xLog:  s.xLog      !== undefined ? !!s.xLog      : (cell.xscale === 'log'),
+                  yLog:  s.yLog      !== undefined ? !!s.yLog      : (cell.yscale === 'log'),
+                  showTitle:    s.showTitle    !== undefined ? !!s.showTitle    : true,
+                  showXLabel:   s.showXLabel   !== undefined ? !!s.showXLabel   : true,
+                  showYLabel:   s.showYLabel   !== undefined ? !!s.showYLabel   : true,
+                  showZLabel:   s.showZLabel   !== undefined ? !!s.showZLabel   : true,
+                  showLegend:   s.showLegend   !== undefined ? !!s.showLegend   : !!legendUserAsked,
+                  showColorbar: s.showColorbar !== undefined ? !!s.showColorbar : colorbarUserAsked,
                   setShowMajor:    mks(idx, 'showMajor'),
                   setShowMinor:    mks(idx, 'showMinor'),
                   setXLog:         mks(idx, 'xLog'),
