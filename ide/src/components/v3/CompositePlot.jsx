@@ -979,10 +979,11 @@ export default function CompositePlot({
     </svg>
   );
 
-  // Curves ▶ submenu — per-series fit rows lifted out of the Fit
-  // section into their own top-level submenu, matching the Display ▶ /
-  // Colormap ▶ layout. Always built when at least one series exists.
-  const curvesSubmenuItems = seriesLayers.length > 0 ? seriesLayers.map((s, i) => ({
+  // Series ▶ submenu — per-series fit rows lifted into their own
+  // top-level submenu, matching the Display ▶ / Colormap ▶ layout.
+  // "Series" matches MATLAB legend / docs terminology and is generic
+  // enough for line / scatter / bar / area / stem / quiver layers.
+  const seriesSubmenuItems = seriesLayers.length > 0 ? seriesLayers.map((s, i) => ({
     row: true, color: s.color, name: s.name || `series ${i + 1}`,
     buttons: [
       { label: 'xy', onClick: () => applyFitSeries(i, 'both') },
@@ -992,14 +993,14 @@ export default function CompositePlot({
   })) : null;
 
   const ctxItems = [
-    // Order: Reset · Save · Display · Colormap · Curves · Fit (UX spec).
+    // Order: Reset · Save · Display · Colormap · Series · Fit (UX spec).
     { label: <span>{houseIcon}Reset</span>, onClick: onReset },
     { submenu: 'Save / Export ▶', items: exportItems },
     ...(displaySubmenuItems ? [{ submenu: 'Display ▶', items: displaySubmenuItems }] : []),
     ...(colormapSubmenuItems ? [{ submenu: 'Colormap ▶', items: colormapSubmenuItems }] : []),
-    ...(curvesSubmenuItems ? [{
-      submenu: `Curves ▶${seriesLayers.length > 1 ? ` (${seriesLayers.length})` : ''}`,
-      items: curvesSubmenuItems,
+    ...(seriesSubmenuItems ? [{
+      submenu: `Series ▶${seriesLayers.length > 1 ? ` (${seriesLayers.length})` : ''}`,
+      items: seriesSubmenuItems,
     }] : []),
     { separator: true },
     // Fit section now carries only figure-wide / data-extent rows;
