@@ -37,7 +37,12 @@ Value mel2hz(const Value &mel, std::pmr::memory_resource *mr = nullptr);
 /// @see bark2hz
 Value hz2bark(const Value &hz, std::pmr::memory_resource *mr = nullptr);
 
-/// Bark → Hertz (inverse of `hz2bark`).
+/// @brief Bark → Hertz (inverse of @ref hz2bark).
+///
+/// @param bark  Bark-scale values.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      Same-shape DOUBLE array of Hz values.
+/// @see hz2bark
 Value bark2hz(const Value &bark, std::pmr::memory_resource *mr = nullptr);
 
 /// Hertz → ERB (Glasberg & Moore 1990 with MATLAB-exact constants).
@@ -51,7 +56,12 @@ Value bark2hz(const Value &bark, std::pmr::memory_resource *mr = nullptr);
 /// @see erb2hz
 Value hz2erb(const Value &hz, std::pmr::memory_resource *mr = nullptr);
 
-/// ERB → Hertz (inverse of `hz2erb`).
+/// @brief ERB → Hertz (inverse of @ref hz2erb).
+///
+/// @param erb  ERB-scale values.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Same-shape DOUBLE array of Hz values.
+/// @see hz2erb
 Value erb2hz(const Value &erb, std::pmr::memory_resource *mr = nullptr);
 
 /// Phon → Sone — loudness-level to loudness conversion.

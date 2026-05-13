@@ -50,11 +50,14 @@ Dwt2Result dwt2(const Value &X, const std::string &wname,
 /// the requested size; pass -1 to use the natural length
 /// `2·la - L_f + 2` in each dim.
 ///
-/// @param cA,cH,cV,cD  The four bands.
-/// @param wname        Wavelet name (must match decomposition).
-/// @param outRows      Output rows (-1 for natural).
-/// @param outCols      Output cols (-1 for natural).
-/// @param mr           Memory resource (nullptr → process default).
+/// @param cA       Approximation band (LL).
+/// @param cH       Horizontal detail band (LH).
+/// @param cV       Vertical detail band (HL).
+/// @param cD       Diagonal detail band (HH).
+/// @param wname    Wavelet name (must match decomposition).
+/// @param outRows  Output rows (-1 for natural).
+/// @param outCols  Output cols (-1 for natural).
+/// @param mr       Memory resource (nullptr → process default).
 /// @return             Reconstructed `outRows × outCols` matrix.
 ///
 /// @see dwt2

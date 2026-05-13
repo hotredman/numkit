@@ -37,14 +37,18 @@ shiftdata(const Value &                x,
           int                          dim = 0,
           std::pmr::memory_resource *  mr  = nullptr);
 
-/// Inverse of shiftdata.
-///
-/// @param x         Reshaped array from shiftdata.
-/// @param perm      Permutation vector from shiftdata (empty → use nshifts).
-/// @param nshifts   Number of dimensions shiftdata had to roll up.
+/// @brief Inverse of @ref shiftdata.
 ///
 /// If `perm` is empty: `y = shiftdim(x, -nshifts)`.
 /// Otherwise:          `y = ipermute(x, perm)`.
+///
+/// @param x         Reshaped array from @ref shiftdata.
+/// @param perm      Permutation vector from @ref shiftdata
+///                  (empty → use `nshifts`).
+/// @param nshifts   Number of dimensions @ref shiftdata had to roll up.
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          Restored array in original layout.
+/// @see shiftdata
 Value unshiftdata(const Value &x, const Value &perm, const Value &nshifts,
                   std::pmr::memory_resource *mr = nullptr);
 

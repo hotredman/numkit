@@ -166,19 +166,39 @@ Value poly2rc(const Value &                a,
 Value rc2poly(const Value &                k,
               std::pmr::memory_resource *  mr = nullptr);
 
-/// Inverse-sine parameterisation → reflection coefficients.
+/// @brief Inverse-sine parameterisation → reflection coefficients.
+///
+/// @param is  Inverse-sine parameter vector.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Reflection-coefficient vector.
+/// @see rc2is
 Value is2rc(const Value &                is,
             std::pmr::memory_resource *  mr = nullptr);
 
-/// Reflection coefficients → inverse-sine parameterisation.
+/// @brief Reflection coefficients → inverse-sine parameterisation.
+///
+/// @param k   Reflection-coefficient vector.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Inverse-sine parameter vector.
+/// @see is2rc
 Value rc2is(const Value &                k,
             std::pmr::memory_resource *  mr = nullptr);
 
-/// Log-area-ratio → reflection coefficients.
+/// @brief Log-area-ratio → reflection coefficients.
+///
+/// @param g   Log-area-ratio vector.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Reflection-coefficient vector.
+/// @see rc2lar
 Value lar2rc(const Value &                g,
              std::pmr::memory_resource *  mr = nullptr);
 
-/// Reflection coefficients → log-area-ratio.
+/// @brief Reflection coefficients → log-area-ratio.
+///
+/// @param k   Reflection-coefficient vector.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Log-area-ratio vector.
+/// @see lar2rc
 Value rc2lar(const Value &                k,
              std::pmr::memory_resource *  mr = nullptr);
 

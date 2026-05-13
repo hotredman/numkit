@@ -39,26 +39,44 @@ namespace numkit::stats {
 Value pdist(const Value &X, const std::string &metric, double p,
             std::pmr::memory_resource *mr = nullptr);
 
-/// Cross-set pairwise distances (`D = pdist2(X, Y, metric, p)`).
+/// @brief Cross-set pairwise distances
+/// (`D = pdist2(X, Y, metric, p)`).
 ///
 /// Distances between rows of `X` (M×D) and rows of `Y` (N×D); output
 /// is M×N. Metric and `p` follow @ref pdist.
+///
+/// @param X       M×D matrix.
+/// @param Y       N×D matrix.
+/// @param metric  Metric name (see @ref pdist).
+/// @param p       Minkowski exponent.
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        M×N distance matrix.
+/// @see pdist
 Value pdist2(const Value &X, const Value &Y, const std::string &metric, double p,
              std::pmr::memory_resource *mr = nullptr);
 
-/// Pack / unpack the pdist row form (`Y = squareform(d)`).
+/// @brief Pack / unpack the pdist row form (`Y = squareform(d)`).
 ///
 /// Converts a pdist row into a symmetric square matrix, or a square
 /// matrix back into a pdist row.
+///
+/// @param d   pdist row OR symmetric square matrix.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Square matrix or pdist row, the other shape.
+/// @see pdist
 Value squareform(const Value &d,
                  std::pmr::memory_resource *mr = nullptr);
 
-/// Mahalanobis distance squared (`d² = mahal(Y, X)`).
+/// @brief Mahalanobis distance squared (`d² = mahal(Y, X)`).
 ///
 /// For each row of `Y`, computes
-/// @f$ d^2 = (y - \bar x)\,S^{-1}\,(y - \bar x)^\top @f$
+/// `d² = (y − x̄) · S⁻¹ · (y − x̄)ᵀ`
 /// where `S` is the sample covariance of `X` and `x̄` its mean.
-/// Returns an N×1 column.
+///
+/// @param Y   N×D query rows.
+/// @param X   M×D reference rows defining the covariance.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    N×1 column of squared Mahalanobis distances.
 Value mahal(const Value &Y, const Value &X,
             std::pmr::memory_resource *mr = nullptr);
 

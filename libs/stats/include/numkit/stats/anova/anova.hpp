@@ -45,12 +45,18 @@ std::tuple<Value, Value, Value, Value>
 kruskalwallis(const Value &y, const Value &group,
               std::pmr::memory_resource *mr = nullptr);
 
-/// Convert categorical labels to indicator columns (`X = dummyvar(group)`).
+/// @brief Convert categorical labels to indicator columns
+/// (`X = dummyvar(group)`).
 ///
 /// Result is N×K where K is the number of distinct labels (sorted
 /// ascending for numeric labels; string labels are normalised via
 /// `toString` conversion first). Useful as the design matrix for
 /// regression with categorical predictors.
+///
+/// @param group  Categorical labels (N-element vector).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       N×K indicator matrix.
+/// @see anova1
 Value dummyvar(const Value &group,
                std::pmr::memory_resource *mr = nullptr);
 

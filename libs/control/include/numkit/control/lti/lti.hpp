@@ -63,9 +63,12 @@ Value zpk(const Value &z, const Value &p, const Value &k, double Ts,
 ///   - C is nout×n,
 ///   - D is nout×nin (a scalar 0 is broadcast when D is empty).
 ///
-/// @param A,B,C,D  State-space matrices.
-/// @param Ts       Sample time (0 for continuous).
-/// @param mr       Memory resource (nullptr → process default).
+/// @param A    State matrix (n×n).
+/// @param B    Input matrix (n×nin).
+/// @param C    Output matrix (nout×n).
+/// @param D    Feedthrough matrix (nout×nin); empty → broadcast 0.
+/// @param Ts   Sample time (0 for continuous).
+/// @param mr   Memory resource (nullptr → process default).
 /// @return         Struct Value tagged `kind="ss"`.
 ///
 /// @see tf, zpk
