@@ -110,7 +110,37 @@ test('display ▾ reset re-syncs to script defaults', async ({ ide, page }) => {
   await expect(page.locator('.fw-window svg text', { hasText: 'h' })).toBeVisible();
 });
 
-test('ПКМ has 🏠 Reset + Save/Export submenu', async ({ ide, page }) => {
+test('ПКМ order: Reset · Save · Display · Fit', async ({ ide, page }) => {
+  await ide.runScript(
+    'import compat.*;\n'
+    + 'plot(1:10);\n'
+    + 'title("h"); xlabel("x");\n'
+  );
+  await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+  await ide.figureCards.first().click();
+  await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(120);
+
+  await rightClickPlot(page);
+
+  // Read text of every direct child of the parent .ctx-menu in order.
+  const labels = await page.locator('.ctx-menu:not(.ctx-submenu)')
+    .first()
+    .locator(':scope > .ctx-item, :scope > .ctx-sub-wrap > .ctx-sub-trigger, :scope > .ctx-head, :scope > .ctx-sep')
+    .evaluateAll((els) => els.map((el) => el.textContent.trim()));
+
+  // Find indices of the four key entries.
+  const idxReset   = labels.findIndex((s) => /^Reset$/i.test(s));
+  const idxSave    = labels.findIndex((s) => /Save \/ Export/.test(s));
+  const idxDisplay = labels.findIndex((s) => /Display/.test(s));
+  const idxFit     = labels.findIndex((s) => /^Fit /.test(s));
+  expect(idxReset, `labels: ${labels.join(' | ')}`).toBeGreaterThanOrEqual(0);
+  expect(idxSave).toBeGreaterThan(idxReset);
+  expect(idxDisplay).toBeGreaterThan(idxSave);
+  expect(idxFit).toBeGreaterThan(idxDisplay);
+});
+
+test('ПКМ Reset row uses SVG house icon, not emoji', async ({ ide, page }) => {
   await ide.runScript('import compat.*;\nplot(1:10);\n');
   await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
   await ide.figureCards.first().click();
@@ -118,8 +148,36 @@ test('ПКМ has 🏠 Reset + Save/Export submenu', async ({ ide, page }) => {
   await page.waitForTimeout(120);
 
   await rightClickPlot(page);
-  // Reset row.
-  await expect(page.locator('.ctx-menu .ctx-item', { hasText: /Reset/ })).toBeVisible();
-  // Save/Export submenu trigger.
-  await expect(page.locator('.ctx-sub-trigger', { hasText: /Save \/ Export/ })).toBeVisible();
+
+  const reset = page.locator('.ctx-menu .ctx-item', { hasText: /^Reset$/ }).first();
+  await expect(reset).toBeVisible();
+  // Inline SVG present (no emoji).
+  await expect(reset.locator('svg')).toHaveCount(1);
+  // Text content is "Reset" only — no 🏠 codepoint.
+  const text = await reset.textContent();
+  expect(text).not.toContain('🏠');
+});
+
+test('ПКМ Display submenu has grid / scale / labels section heads + legend', async ({ ide, page }) => {
+  await ide.runScript(
+    'import compat.*;\n'
+    + 'plot(1:10);\n'
+    + 'title("t"); xlabel("x"); ylabel("y");\n'
+    + 'legend(\'a\');\n'
+  );
+  await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+  await ide.figureCards.first().click();
+  await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(120);
+
+  await rightClickPlot(page);
+  await page.locator('.ctx-sub-trigger', { hasText: /Display/ }).hover();
+  await page.waitForTimeout(80);
+
+  const sub = page.locator('.ctx-submenu').first();
+  // Three section heads, in order.
+  const heads = await sub.locator('.ctx-head').allTextContents();
+  expect(heads).toEqual(['grid', 'scale', 'labels']);
+  // Legend toggle present (under labels section).
+  await expect(sub.locator('button', { hasText: /^(✓ )?legend$/ })).toBeVisible();
 });

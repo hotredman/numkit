@@ -1142,6 +1142,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               // the toolbar's display ▾ state.
               setShowMajor, setShowMinor,
               setShowTitle, setShowXLabel, setShowYLabel,
+              setShowLegend,
               // Top-level Reset + Save/Export bridge for the context
               // menu. ПКМ surfaces these as a 🏠 Reset row + Save/Export
               // submenu. Handlers run with no extra wrapping — the menu
