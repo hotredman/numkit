@@ -1902,7 +1902,14 @@ Value toeplitz(const Value &cV, const Value &rV, std::pmr::memory_resource *mr)
     ScratchArena scratch(mr);
     auto c = valueToScratchDoubles(cV, scratch);
     // Single-arg / Empty rV: r = c (MATLAB convention; real input).
-    auto r = rV.isEmpty() ? c : valueToScratchDoubles(rV, scratch);
+    // ScratchVec has deleted copy ctor — duplicate c element-wise instead
+    // of relying on a ternary that would force a copy.
+    ScratchVec<double> r(&scratch);
+    if (rV.isEmpty()) {
+        r.assign(c.begin(), c.end());
+    } else {
+        r = valueToScratchDoubles(rV, scratch);
+    }
     const std::size_t m = c.size();
     const std::size_t n = r.size();
     if (m == 0 || n == 0)

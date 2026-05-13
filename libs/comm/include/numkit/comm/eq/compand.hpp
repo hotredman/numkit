@@ -10,23 +10,28 @@
 
 namespace numkit::comm {
 
-/// `y = compand(x, param, V, method)` — apply μ-law / A-law
-/// compression or expansion to a signal.
+/// @brief μ-law / A-law signal compander
+/// (`y = compand(x, param, V, method)`).
 ///
-///   x       : input signal (any shape)
-///   param   : μ for μ-law (typical 255), A for A-law (typical 87.6)
-///   V       : peak magnitude
-///   method  : "mu/compressor" | "mu/expander" |
-///             "A/compressor"  | "A/expander"
-///
-/// μ-law compress:  y = sign(x) · V · log(1 + μ|x|/V) / log(1 + μ)
-/// μ-law expand:    x = sign(y) · (V/μ) · (exp(|y|/V · log(1+μ)) − 1)
-///
-/// A-law compress, |x|/V ≤ 1/A: y = sign(x) · A·|x| / (1 + log A)
-///                       else : y = sign(x) · V · (1 + log(A·|x|/V)) / (1 + log A)
+/// Formulas:
+/// - μ-law compress: `y = sign(x) · V · log(1 + μ|x|/V) / log(1 + μ)`
+/// - μ-law expand:   `x = sign(y) · (V/μ) · (exp(|y|/V · log(1+μ)) - 1)`
+/// - A-law compress, `|x|/V ≤ 1/A`: `y = sign(x) · A·|x| / (1 + log A)`
+/// - A-law compress, else:          `y = sign(x) · V · (1 + log(A·|x|/V)) / (1 + log A)`
 ///
 /// Output preserves input shape; bit-equal with MATLAB R2025b.
-Value compand(std::pmr::memory_resource *mr, const Value &x,
-              double param, double V, const std::string &method);
+///
+/// @param x       Input signal (any shape).
+/// @param param   `μ` for μ-law (typical 255) or `A` for A-law
+///                (typical 87.6).
+/// @param V       Peak magnitude.
+/// @param method  `"mu/compressor"`, `"mu/expander"`, `"A/compressor"`,
+///                or `"A/expander"`.
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Companded signal of the same shape as `x`.
+/// @throws Error  Unknown `method` string.
+Value compand(const Value &x, double param, double V,
+              const std::string &method,
+              std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::comm

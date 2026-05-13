@@ -34,9 +34,9 @@ double sinc_pi(double x) {
 
 } // anonymous
 
-Value rcosdesign(std::pmr::memory_resource *mr,
-                 double beta, int span, int sps,
-                 const std::string &shape)
+Value rcosdesign(double beta, int span, int sps,
+                 const std::string &shape,
+                 std::pmr::memory_resource *mr)
 {
     if (!(beta >= 0.0 && beta <= 1.0))
         throw Error("rcosdesign: beta must be in [0, 1]",
@@ -121,8 +121,8 @@ Value rcosdesign(std::pmr::memory_resource *mr,
 //   alpha   = sqrt(log(2)/2) / BT
 //   h       = (sqrt(pi)/alpha) * exp(-(pi*t/alpha).^2)
 //   h       = h / sum(h)                                (unit-area)
-Value gaussdesign(std::pmr::memory_resource *mr,
-                  double BT, int span, int sps)
+Value gaussdesign(double BT, int span, int sps,
+                  std::pmr::memory_resource *mr)
 {
     if (!(BT > 0.0))
         throw Error("gaussdesign: BT must be positive",
@@ -162,7 +162,7 @@ Value gaussdesign(std::pmr::memory_resource *mr,
 // rectpulse(x, n) repeats each sample of x n times along the leading
 // non-singleton dimension. Vector inputs preserve orientation; matrix
 // inputs repeat each row n times (column count unchanged).
-Value rectpulse(std::pmr::memory_resource *mr, const Value &x, int n)
+Value rectpulse(const Value &x, int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0)
         throw Error("rectpulse: n must be a positive integer",
@@ -210,7 +210,7 @@ Value rectpulse(std::pmr::memory_resource *mr, const Value &x, int n)
 // Inverse of rectpulse: average each n consecutive samples along the
 // leading non-singleton dimension. Length along that axis must be
 // divisible by n.
-Value intdump(std::pmr::memory_resource *mr, const Value &x, int n)
+Value intdump(const Value &x, int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0)
         throw Error("intdump: n must be a positive integer",
@@ -288,7 +288,7 @@ void rcosdesign_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "rcosdesign", "", "m:rcosdesign:shape");
         shape = args[3].toString();
     }
-    outs[0] = rcosdesign(ctx.engine->resource(), beta, span, sps, shape);
+    outs[0] = rcosdesign(beta, span, sps, shape, ctx.engine->resource());
 }
 
 void gaussdesign_reg(Span<const Value> args, size_t /*nargout*/,
@@ -300,7 +300,7 @@ void gaussdesign_reg(Span<const Value> args, size_t /*nargout*/,
     const double BT  = args[0].toScalar();
     const int span   = static_cast<int>(args[1].toScalar());
     const int sps    = static_cast<int>(args[2].toScalar());
-    outs[0] = gaussdesign(ctx.engine->resource(), BT, span, sps);
+    outs[0] = gaussdesign(BT, span, sps, ctx.engine->resource());
 }
 
 void rectpulse_reg(Span<const Value> args, size_t /*nargout*/,
@@ -310,7 +310,7 @@ void rectpulse_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("rectpulse: requires (x, n)",
                     0, 0, "rectpulse", "", "m:rectpulse:nargin");
     const int n = static_cast<int>(args[1].toScalar());
-    outs[0] = rectpulse(ctx.engine->resource(), args[0], n);
+    outs[0] = rectpulse(args[0], n, ctx.engine->resource());
 }
 
 void intdump_reg(Span<const Value> args, size_t /*nargout*/,
@@ -320,7 +320,7 @@ void intdump_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("intdump: requires (x, n)",
                     0, 0, "intdump", "", "m:intdump:nargin");
     const int n = static_cast<int>(args[1].toScalar());
-    outs[0] = intdump(ctx.engine->resource(), args[0], n);
+    outs[0] = intdump(args[0], n, ctx.engine->resource());
 }
 
 } // namespace detail
