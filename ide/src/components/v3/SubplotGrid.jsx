@@ -258,47 +258,54 @@ export default function SubplotGrid({
                 return next;
               }),
               ...(() => {
-                // Read this cell's state directly — single source of
-                // truth in modal mode (FigureWindow seeds cellState
-                // from initCellState). For preview-card mode FiguresPane
-                // doesn't pass cellState, so the entry is missing every
-                // key; in that case we fall back to script defaults
-                // derived from the cell itself.
+                // Single source of truth: cellState[idx] is the
+                // FigureWindow-owned axes-derived snapshot for this
+                // cell. For preview-card mode FiguresPane doesn't pass
+                // cellState — every prop falls back to a script-derived
+                // default computed from the raw cell JSON.
                 const s = cellState[idx] || {};
                 const legendUserAsked = (Array.isArray(cell.legend) && cell.legend.length > 0)
                                      || (cell.legendLocation && cell.legendLocation !== 'none');
                 const colorbarUserAsked = !!cell.colorbarLocation
                                        && cell.colorbarLocation !== 'off';
-                const mks = (...a) => makeCellDisplaySetter ? makeCellDisplaySetter(...a) : null;
-                const mkc = (...a) => makeCellColormapSetter ? makeCellColormapSetter(...a) : null;
-                const mkdr = (...a) => makeCellDisplayReset ? makeCellDisplayReset(...a) : null;
-                const mkcr = (...a) => makeCellColormapReset ? makeCellColormapReset(...a) : null;
+                const pick = (key, fb) => (s[key] !== undefined ? s[key] : fb);
+                // Setter factory dispatchers — guarded so preview mode
+                // (no factories provided) renders statically.
+                const mk   = (fn) => (...a) => fn ? fn(...a) : null;
+                const mks  = mk(makeCellDisplaySetter);
+                const mkc  = mk(makeCellColormapSetter);
+                const mkdr = mk(makeCellDisplayReset);
+                const mkcr = mk(makeCellColormapReset);
                 return {
-                  // major (combined) = OR of per-axis grids. Cells emit
-                  // per-axis xGrid/yGrid for the renderer to split into
-                  // vertical/horizontal lines. Fallback for preview-card
-                  // mode (no axes-derived state) reads cell.grid.
-                  major: s.showMajor !== undefined ? !!s.showMajor : (cell.grid === 'on'),
-                  xGrid: s.showMajor !== undefined ? !!s.showMajor : (cell.grid === 'on'),
-                  yGrid: s.showMajor !== undefined ? !!s.showMajor : (cell.grid === 'on'),
-                  xMinor: s.showMinor !== undefined ? !!s.showMinor : (cell.gridMinor === 'on'),
-                  yMinor: s.showMinor !== undefined ? !!s.showMinor : (cell.gridMinor === 'on'),
-                  // MATLAB Visible / Box / Reverse forwarded per-cell.
-                  axisVisible: s.showAxis !== undefined ? !!s.showAxis : (cell.axisVisible !== false),
-                  boxOn:       s.showBox  !== undefined ? !!s.showBox  : (cell.boxOn !== false),
-                  xReverse:    s.xReverse !== undefined ? !!s.xReverse : (cell.xDir === 'reverse'),
-                  yReverse:    s.yReverse !== undefined ? !!s.yReverse : (cell.yDir === 'reverse'),
-                  legendLocation:   s.legendLocation   !== undefined ? s.legendLocation   : null,
-                  colorbarLocation: s.colorbarLocation !== undefined ? s.colorbarLocation : null,
-                  minor: s.showMinor !== undefined ? !!s.showMinor : (cell.gridMinor === 'on'),
-                  xLog:  s.xLog      !== undefined ? !!s.xLog      : (cell.xscale === 'log'),
-                  yLog:  s.yLog      !== undefined ? !!s.yLog      : (cell.yscale === 'log'),
-                  showTitle:    s.showTitle    !== undefined ? !!s.showTitle    : !!(cell.title && !cell.titleAuto),
-                  showXLabel:   s.showXLabel   !== undefined ? !!s.showXLabel   : !!cell.xLabel,
-                  showYLabel:   s.showYLabel   !== undefined ? !!s.showYLabel   : !!cell.yLabel,
-                  showZLabel:   s.showZLabel   !== undefined ? !!s.showZLabel   : !!cell.zLabel,
-                  showLegend:   s.showLegend   !== undefined ? !!s.showLegend   : !!legendUserAsked,
-                  showColorbar: s.showColorbar !== undefined ? !!s.showColorbar : colorbarUserAsked,
+                  // Combined grid for legacy paths; per-axis below for
+                  // CompositePlot's renderer split (XGrid / YGrid).
+                  major:  pick('showMajor', cell.grid === 'on'),
+                  minor:  pick('showMinor', cell.gridMinor === 'on'),
+                  xGrid:  pick('xGrid',  cell.grid === 'on'),
+                  yGrid:  pick('yGrid',  cell.grid === 'on'),
+                  xMinor: pick('xMinor', cell.gridMinor === 'on'),
+                  yMinor: pick('yMinor', cell.gridMinor === 'on'),
+                  // Scale + direction
+                  xLog:     pick('xLog',     cell.xscale === 'log'),
+                  yLog:     pick('yLog',     cell.yscale === 'log'),
+                  xReverse: pick('xReverse', cell.xDir === 'reverse'),
+                  yReverse: pick('yReverse', cell.yDir === 'reverse'),
+                  // Visibility / box
+                  axisVisible: pick('showAxis', cell.axisVisible !== false),
+                  boxOn:       pick('showBox',  cell.boxOn       !== false),
+                  // Labels
+                  showTitle:  pick('showTitle',  !!(cell.title && !cell.titleAuto)),
+                  showXLabel: pick('showXLabel', !!cell.xLabel),
+                  showYLabel: pick('showYLabel', !!cell.yLabel),
+                  showZLabel: pick('showZLabel', !!cell.zLabel),
+                  // Legend / colorbar
+                  showLegend:       pick('showLegend',       !!legendUserAsked),
+                  showColorbar:     pick('showColorbar',     !!colorbarUserAsked),
+                  legendLocation:   pick('legendLocation',   null),
+                  colorbarLocation: pick('colorbarLocation', null),
+                  // Colormap
+                  colormapOverride: s.colormap != null ? s.colormap : null,
+                  // Per-cell setters (no-op in preview mode).
                   setShowMajor:    mks(idx, 'showMajor'),
                   setShowMinor:    mks(idx, 'showMinor'),
                   setXLog:         mks(idx, 'xLog'),
@@ -308,10 +315,6 @@ export default function SubplotGrid({
                   setShowYLabel:   mks(idx, 'showYLabel'),
                   setShowLegend:   mks(idx, 'showLegend'),
                   setShowColorbar: mks(idx, 'showColorbar'),
-                  // colormap field on the cell entry IS the override
-                  // (null = follow script). CompositePlot reads it as
-                  // colormapOverride.
-                  colormapOverride: s.colormap != null ? s.colormap : null,
                   setColormapOverride: mkc(idx),
                   onDisplayReset:  mkdr(idx),
                   onColormapReset: mkcr(idx),
