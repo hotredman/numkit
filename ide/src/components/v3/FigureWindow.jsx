@@ -414,11 +414,13 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     displayReset();
   }
   const [displayOpen, setDisplayOpen] = useState(false);
+  const [cmapOpen, setCmapOpen]   = useState(false);
   const [saveOpen, setSaveOpen]   = useState(false);
   const [viewOpen, setViewOpen]   = useState(false);
   const [maximized, setMaximized] = useState(false);
   const fitRef  = useRef(null);
   const displayRef = useRef(null);
+  const cmapRef = useRef(null);
   const saveRef = useRef(null);
   const viewRef = useRef(null);
 
@@ -429,6 +431,18 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   // cells that can't apply).
   const cellsList = isSubplot && Array.isArray(figure.cells) ? figure.cells : [figure];
   const anyCellHas = (pred) => cellsList.some(pred);
+  // Find the first heatmap layer ANYWHERE in the figure (top-level or
+  // inside a subplot cell). Drives the toolbar Colormap ▾ visibility +
+  // its "script default" anchor for marking the active palette.
+  const findFirstHeatmap = () => {
+    for (const c of cellsList) {
+      const layers = (c && Array.isArray(c.layers)) ? c.layers : [];
+      const hm = layers.find((l) => l && l.kind === 'heatmap');
+      if (hm) return hm;
+    }
+    return null;
+  };
+  const anyHeatmap = findFirstHeatmap();
   const xLogEnabled = anyCellHas((c) => Array.isArray(c.xRange) && c.xRange[1] > 0);
   const yLogEnabled = anyCellHas((c) => Array.isArray(c.yRange) && c.yRange[1] > 0);
   // zLog/zLabel: 3-D only. For subplot, enabled if any cell is 3-D.
@@ -460,6 +474,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     function onDoc(e) {
       if (fitRef.current     && !fitRef.current.contains(e.target))     setFitOpen(false);
       if (displayRef.current && !displayRef.current.contains(e.target)) setDisplayOpen(false);
+      if (cmapRef.current    && !cmapRef.current.contains(e.target))    setCmapOpen(false);
       if (saveRef.current    && !saveRef.current.contains(e.target))    setSaveOpen(false);
       if (viewRef.current    && !viewRef.current.contains(e.target))    setViewOpen(false);
     }
@@ -1076,20 +1091,52 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 </div>
               </div>
             )}
-            {isHeatmap && (
-              <select
-                className="ve-btn fw-cmap-select"
-                value={colormapOverride ?? heatmapLayer.colormap ?? 'parula'}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setColormapOverride(v === (heatmapLayer.colormap ?? 'parula') ? null : v);
-                }}
-                title="Colormap (overrides script-level colormap())">
-                {['parula', 'jet', 'hot', 'cool', 'gray', 'bone', 'copper',
-                  'spring', 'summer', 'autumn', 'winter', 'hsv', 'viridis']
-                  .map((cm) => <option key={cm} value={cm}>{cm}</option>)}
-              </select>
-            )}
+          {/* colormap ▾ — figure-wide picker. Visible whenever there's
+              ANY heatmap layer in the figure (top-level OR inside a
+              subplot cell). Click sets the figure-wide override; any
+              per-cell ПКМ overrides are dropped (toolbar wins). */}
+          {anyHeatmap && (
+            <div className="ve-tools-group" ref={cmapRef}>
+              <button className="ve-btn"
+                      onClick={() => setCmapOpen((o) => !o)}
+                      title="Colormap (figure-wide; overrides per-cell picks)">
+                <svg width="11" height="11" viewBox="0 0 12 12">
+                  <rect x="1" y="3" width="10" height="6" fill="none"
+                        stroke="currentColor" strokeWidth="1"/>
+                  <rect x="1" y="3" width="2" height="6" fill="currentColor" opacity="0.25"/>
+                  <rect x="3" y="3" width="2" height="6" fill="currentColor" opacity="0.5"/>
+                  <rect x="5" y="3" width="2" height="6" fill="currentColor" opacity="0.75"/>
+                  <rect x="7" y="3" width="2" height="6" fill="currentColor"/>
+                  <rect x="9" y="3" width="2" height="6" fill="currentColor" opacity="0.5"/>
+                </svg>
+                colormap ▾
+              </button>
+              {cmapOpen && (
+                <div className="fw-pop">
+                  <div className="fw-pop-section">
+                    <div className="fw-pop-head">palette</div>
+                    {['parula', 'jet', 'hot', 'cool', 'gray', 'bone', 'copper',
+                      'spring', 'summer', 'autumn', 'winter', 'hsv', 'viridis']
+                      .map((cm) => {
+                        const scriptDefault = anyHeatmap.colormap || 'parula';
+                        const active = (colormapOverride || scriptDefault) === cm;
+                        return (
+                          <button key={cm}
+                                  className="fw-pop-toggle"
+                                  onClick={() => {
+                                    setColormapOverride(cm === scriptDefault ? null : cm);
+                                    setCmapOpen(false);
+                                  }}>
+                            <span>{cm}</span>
+                            <span className="fw-pop-check">{active ? '✓' : ''}</span>
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
             {/* Legend toggle hidden for pure heatmap (colorbar IS the legend),
                 shown when at least one series layer exists or the figure is
                 a legacy line/polar shape. */}

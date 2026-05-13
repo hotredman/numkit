@@ -75,9 +75,10 @@ export default function SubplotGrid({
   // major/minor/title etc.) for the per-cell ПКМ.
   showColorbar = null,
   setShowColorbar = null,
-  // Colormap override + setter for ПКМ Colormap submenu inside cells.
-  // Setter is figure-wide (heatmap inside any cell shares the override
-  // — matches how the toolbar's <select> works).
+  // Figure-wide colormap override from FigureWindow's toolbar. Used as
+  // the FALLBACK for cells without their own per-cell override; when it
+  // changes (toolbar pick), per-cell overrides are dropped — toolbar
+  // wins ("панель = ко всем").
   colormapOverride = null,
   setColormapOverride = null,
   // ПКМ bridge — top-level reset + save/export handlers. Same per-cell
@@ -205,6 +206,40 @@ export default function SubplotGrid({
       return next;
     });
   };
+
+  // Per-cell colormap overrides — separate from cellDisplay because the
+  // shape is a single string (or null) per cell, not a flag dictionary.
+  // Right-click → Colormap inside a cell mutates this; the toolbar's
+  // figure-wide colormapOverride still wins via the effect below.
+  const [cellColormap, setCellColormap] = useState(() => figure.cells.map(() => null));
+  useEffect(() => {
+    setCellColormap((prev) => {
+      if (prev.length === figure.cells.length) return prev;
+      return figure.cells.map((_, i) => (prev[i] !== undefined ? prev[i] : null));
+    });
+  }, [figure.cells.length]);
+  // Toolbar colormap pick → drop every per-cell colormap override so
+  // every cell follows the new figure-wide value. Skip first run when
+  // both are null (initial mount with no override).
+  const lastGlobalColormapRef = useRef(colormapOverride);
+  useEffect(() => {
+    if (colormapOverride === lastGlobalColormapRef.current) return;
+    lastGlobalColormapRef.current = colormapOverride;
+    setCellColormap(figure.cells.map(() => null));
+  }, [colormapOverride, figure.cells.length]);
+  // displayResetSignal already clears cellDisplay; do the same for
+  // colormap so a single Reset returns every cell to script defaults.
+  useEffect(() => {
+    if (!displayResetSignal || displayResetSignal.n === 0) return;
+    setCellColormap(figure.cells.map(() => null));
+  }, [displayResetSignal, figure.cells.length]);
+  const makeCellColormapSetter = (idx) => (value) => {
+    setCellColormap((prev) => {
+      const next = prev.slice();
+      next[idx] = value;
+      return next;
+    });
+  };
   useEffect(() => {
     const shape = `${figure.id}:${figure.cells.length}:${figure.cells.map((c) => c.kind).join(',')}`;
     const newDefaults = figure.cells.map(defaultViewport);
@@ -315,8 +350,14 @@ export default function SubplotGrid({
                   setShowYLabel: makeCellSetter(idx, 'showYLabel', () => eShowYLabel),
                   setShowLegend: makeCellSetter(idx, 'showLegend', () => eShowLegend),
                   setShowColorbar: makeCellSetter(idx, 'showColorbar', () => eShowColorbar),
-                  // Colormap stays figure-wide — same select fires across all cells.
-                  setColormapOverride,
+                  // Colormap: effective = per-cell override ?? figure-wide.
+                  // ПКМ Colormap inside this cell only mutates THIS cell's
+                  // entry (per user spec). Toolbar pick clears overrides
+                  // via the colormapOverride effect above.
+                  colormapOverride: cellColormap[idx] !== null && cellColormap[idx] !== undefined
+                                    ? cellColormap[idx]
+                                    : colormapOverride,
+                  setColormapOverride: makeCellColormapSetter(idx),
                 };
               })(),
               zLog,
