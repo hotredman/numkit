@@ -27,8 +27,8 @@ static Cd constAt(const Value &c, size_t k) {
     return Cd(c.elemAsDouble(k), 0.0);
 }
 
-Value genqammod(std::pmr::memory_resource *mr, const Value &x,
-                const Value &constellation)
+Value genqammod(const Value &x, const Value &constellation,
+                std::pmr::memory_resource *mr)
 {
     const size_t M = constellation.numel();
     if (M == 0)
@@ -73,8 +73,8 @@ Value genqammod(std::pmr::memory_resource *mr, const Value &x,
     return out;
 }
 
-Value genqamdemod(std::pmr::memory_resource *mr, const Value &y,
-                  const Value &constellation)
+Value genqamdemod(const Value &y, const Value &constellation,
+                  std::pmr::memory_resource *mr)
 {
     const size_t M = constellation.numel();
     if (M == 0)
@@ -124,7 +124,7 @@ void genqammod_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("genqammod: name-value options not yet supported "
                     "(bit-input mode deferred)",
                     0, 0, "genqammod", "", "m:genqammod:NotSupported");
-    outs[0] = genqammod(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = genqammod(args[0], args[1], ctx.engine->resource());
 }
 
 void genqamdemod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -137,7 +137,7 @@ void genqamdemod_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("genqamdemod: name-value options not yet supported "
                     "(bit-output mode deferred)",
                     0, 0, "genqamdemod", "", "m:genqamdemod:NotSupported");
-    outs[0] = genqamdemod(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = genqamdemod(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail

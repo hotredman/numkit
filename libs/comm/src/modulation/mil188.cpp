@@ -441,7 +441,7 @@ const Cd *constellationFor(int M, size_t &len_out)
 
 } // namespace
 
-Value mil188qammod(std::pmr::memory_resource *mr, const Value &x, int M)
+Value mil188qammod(const Value &x, int M, std::pmr::memory_resource *mr)
 {
     size_t N = 0;
     const Cd *C = constellationFor(M, N);
@@ -461,7 +461,7 @@ Value mil188qammod(std::pmr::memory_resource *mr, const Value &x, int M)
     return out;
 }
 
-Value mil188qamdemod(std::pmr::memory_resource *mr, const Value &y, int M)
+Value mil188qamdemod(const Value &y, int M, std::pmr::memory_resource *mr)
 {
     size_t N = 0;
     const Cd *C = constellationFor(M, N);
@@ -498,7 +498,7 @@ void mil188qammod_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "mil188qammod", "",
                     "m:mil188qammod:nargin");
     const int M = static_cast<int>(args[1].toScalar());
-    outs[0] = mil188qammod(ctx.engine->resource(), args[0], M);
+    outs[0] = mil188qammod(args[0], M, ctx.engine->resource());
 }
 
 void mil188qamdemod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -509,7 +509,7 @@ void mil188qamdemod_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "mil188qamdemod", "",
                     "m:mil188qamdemod:nargin");
     const int M = static_cast<int>(args[1].toScalar());
-    outs[0] = mil188qamdemod(ctx.engine->resource(), args[0], M);
+    outs[0] = mil188qamdemod(args[0], M, ctx.engine->resource());
 }
 
 } // namespace detail

@@ -34,8 +34,8 @@ using Cd = std::complex<double>;
 //
 // Vector-orientation contract: 1-D row preserved as row in output;
 // columns processed independently.
-Value pmmod(std::pmr::memory_resource *mr, const Value &x,
-            double fc, double fs, double phasedev, double ini_phase)
+Value pmmod(const Value &x, double fc, double fs, double phasedev,
+            double ini_phase, std::pmr::memory_resource *mr)
 {
     if (!(fs > 0.0))
         throw Error("pmmod: Fs must be positive",
@@ -95,8 +95,8 @@ Value pmmod(std::pmr::memory_resource *mr, const Value &x,
 // carr_amp != 0 -> DSB-TC (transmitted carrier)
 //
 // Vector-orientation contract identical to pmmod.
-Value ammod(std::pmr::memory_resource *mr, const Value &x,
-            double fc, double fs, double ini_phase, double carr_amp)
+Value ammod(const Value &x, double fc, double fs, double ini_phase,
+            double carr_amp, std::pmr::memory_resource *mr)
 {
     if (!(fs > 0.0))
         throw Error("ammod: Fs must be positive",
@@ -148,8 +148,8 @@ Value ammod(std::pmr::memory_resource *mr, const Value &x,
 //   y      = cos(2*pi*Fc*t + 2*pi*freqdev*int_x + ini_phase)
 //
 // Vector-orientation contract identical to pmmod / ammod.
-Value fmmod(std::pmr::memory_resource *mr, const Value &x,
-            double fc, double fs, double freqdev, double ini_phase)
+Value fmmod(const Value &x, double fc, double fs, double freqdev,
+            double ini_phase, std::pmr::memory_resource *mr)
 {
     if (!(fs > 0.0))
         throw Error("fmmod: Fs must be positive",
@@ -219,8 +219,8 @@ Value fmmod(std::pmr::memory_resource *mr, const Value &x,
 // KNOWN GAP: non-differential MSK path is deferred -- it requires
 // rectpulse + circshift on the I/Q rails (we have rectpulse but the
 // arrangement is more involved; will get its own cycle).
-Value mskmod(std::pmr::memory_resource *mr, const Value &x,
-             int nSamp, double ini_phase)
+Value mskmod(const Value &x, int nSamp, double ini_phase,
+             std::pmr::memory_resource *mr)
 {
     if (nSamp <= 0)
         throw Error("mskmod: nSamp must be a positive integer",
@@ -286,8 +286,8 @@ Value mskmod(std::pmr::memory_resource *mr, const Value &x,
 //       - imag(hilbert(x)).*sin(2π·Fc·t + ini_phase)
 //
 // Vector-orientation contract identical to pmmod / ammod / fmmod.
-Value ssbmod(std::pmr::memory_resource *mr, const Value &x,
-             double fc, double fs, double ini_phase, bool upper)
+Value ssbmod(const Value &x, double fc, double fs, double ini_phase,
+             bool upper, std::pmr::memory_resource *mr)
 {
     if (!(fs > 0.0))
         throw Error("ssbmod: Fs must be positive",
@@ -359,8 +359,8 @@ void pmmod_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 5 && !args[4].isEmpty()) {
         ini_phase = args[4].toScalar();
     }
-    outs[0] = pmmod(ctx.engine->resource(), args[0], fc, fs, phasedev,
-                    ini_phase);
+    outs[0] = pmmod(args[0], fc, fs, phasedev, ini_phase,
+                    ctx.engine->resource());
 }
 
 void ammod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -377,8 +377,8 @@ void ammod_reg(Span<const Value> args, size_t /*nargout*/,
         ini_phase = args[3].toScalar();
     if (args.size() >= 5 && !args[4].isEmpty())
         carr_amp = args[4].toScalar();
-    outs[0] = ammod(ctx.engine->resource(), args[0], fc, fs, ini_phase,
-                    carr_amp);
+    outs[0] = ammod(args[0], fc, fs, ini_phase, carr_amp,
+                    ctx.engine->resource());
 }
 
 void fmmod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -393,8 +393,8 @@ void fmmod_reg(Span<const Value> args, size_t /*nargout*/,
     double ini_phase = 0.0;
     if (args.size() >= 5 && !args[4].isEmpty())
         ini_phase = args[4].toScalar();
-    outs[0] = fmmod(ctx.engine->resource(), args[0], fc, fs, freqdev,
-                    ini_phase);
+    outs[0] = fmmod(args[0], fc, fs, freqdev, ini_phase,
+                    ctx.engine->resource());
 }
 
 void mskmod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -407,7 +407,7 @@ void mskmod_reg(Span<const Value> args, size_t /*nargout*/,
     double ini_phase = 0.0;
     if (args.size() >= 3 && !args[2].isEmpty())
         ini_phase = args[2].toScalar();
-    outs[0] = mskmod(ctx.engine->resource(), args[0], nSamp, ini_phase);
+    outs[0] = mskmod(args[0], nSamp, ini_phase, ctx.engine->resource());
 }
 
 void ssbmod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -434,8 +434,8 @@ void ssbmod_reg(Span<const Value> args, size_t /*nargout*/,
             throw Error("ssbmod: method must be 'upper'",
                         0, 0, "ssbmod", "", "m:ssbmod:InvStr");
     }
-    outs[0] = ssbmod(ctx.engine->resource(), args[0], fc, fs, ini_phase,
-                     upper);
+    outs[0] = ssbmod(args[0], fc, fs, ini_phase, upper,
+                     ctx.engine->resource());
 }
 
 } // namespace detail
