@@ -988,7 +988,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   <button onClick={() => { viewportReset(); setFitOpen(false); }}>reset</button>
                 </div>
                 <div className="fw-pop-section">
-                  <div className="fw-pop-head">data extent</div>
+                  <div className="fw-pop-head">Fit All</div>
                   <button onClick={() => {
                     if (isSubplot) fitAllCells('both'); else applyFit('all', 'both');
                     setFitOpen(false);
