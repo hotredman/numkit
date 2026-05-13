@@ -57,12 +57,14 @@ Value charValue(std::pmr::memory_resource *mr, const std::string &s)
 
 Value filesep(std::pmr::memory_resource *mr)
 {
+    // (mr-last by convention; only one arg here.)
     return charValue(mr, std::string(1, kPathSepChar));
 }
 
-Value fullfile(std::pmr::memory_resource *mr,
-               const std::string *parts, size_t n)
+Value fullfile(Span<const std::string> parts,
+               std::pmr::memory_resource *mr)
 {
+    const size_t n = parts.size();
     if (n == 0)
         return charValue(mr, std::string{});
     std::string out = parts[0];
@@ -81,7 +83,7 @@ Value fullfile(std::pmr::memory_resource *mr,
 }
 
 std::tuple<Value, Value, Value>
-fileparts(std::pmr::memory_resource *mr, const std::string &path)
+fileparts(const std::string &path, std::pmr::memory_resource *mr)
 {
     // Find last separator.
     size_t lastSep = std::string::npos;
@@ -112,7 +114,7 @@ fileparts(std::pmr::memory_resource *mr, const std::string &path)
                             charValue(mr, ext));
 }
 
-Value tempdir(std::pmr::memory_resource *mr, Engine &engine)
+Value tempdir(Engine &engine, std::pmr::memory_resource *mr)
 {
     // Prefer the resolved-FS temp area when available (lets hosts hook
     // a virtual temp area — IDE / WASM use this). Fall back to host OS.
@@ -131,7 +133,7 @@ Value tempdir(std::pmr::memory_resource *mr, Engine &engine)
     return charValue(mr, td);
 }
 
-Value tempname(std::pmr::memory_resource *mr, Engine &engine)
+Value tempname(Engine &engine, std::pmr::memory_resource *mr)
 {
     static std::atomic<uint64_t> counter{0};
     const uint64_t n = counter.fetch_add(1, std::memory_order_relaxed);
@@ -144,7 +146,7 @@ Value tempname(std::pmr::memory_resource *mr, Engine &engine)
             std::chrono::high_resolution_clock::now().time_since_epoch().count())};
     const uint64_t r = rng();
 
-    auto td = tempdir(mr, engine).toString();
+    auto td = tempdir(engine, mr).toString();
     std::ostringstream os;
     os << td << "tp"
        << std::hex << ns << "_" << r << "_" << n;
@@ -172,7 +174,7 @@ void fullfile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
                          0, 0, "fullfile", "", "m:fullfile:badArg");
         parts.push_back(a.toString());
     }
-    outs[0] = fullfile(ctx.engine->resource(), parts.data(), parts.size());
+    outs[0] = fullfile(Span<const std::string>(parts.data(), parts.size()), ctx.engine->resource());
 }
 
 void fileparts_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -180,7 +182,7 @@ void fileparts_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
     if (args.empty() || (!args[0].isChar() && !args[0].isString()))
         throw Error("fileparts: requires a string path",
                      0, 0, "fileparts", "", "m:fileparts:nargin");
-    auto [folder, name, ext] = fileparts(ctx.engine->resource(), args[0].toString());
+    auto [folder, name, ext] = fileparts(args[0].toString(), ctx.engine->resource());
     outs[0] = std::move(folder);
     if (nargout > 1) outs[1] = std::move(name);
     if (nargout > 2) outs[2] = std::move(ext);
@@ -188,12 +190,12 @@ void fileparts_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
 
 void tempdir_reg(Span<const Value> /*args*/, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = tempdir(ctx.engine->resource(), *ctx.engine);
+    outs[0] = tempdir(*ctx.engine, ctx.engine->resource());
 }
 
 void tempname_reg(Span<const Value> /*args*/, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = tempname(ctx.engine->resource(), *ctx.engine);
+    outs[0] = tempname(*ctx.engine, ctx.engine->resource());
 }
 
 } // namespace detail
