@@ -2,13 +2,10 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/core/fn_handle.hpp>
 #include <numkit/core/value.hpp>
 
-namespace numkit { class Engine; }
-
 namespace numkit::builtin {
-
-using ::numkit::Engine;
 
 /// @brief Square cell array (`c = cell(n)`).
 ///
@@ -39,30 +36,31 @@ Value cell(size_t rows, size_t cols, std::pmr::memory_resource *mr = nullptr);
 /// @return       Empty cell array.
 Value cell(size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Apply a function handle to each cell (`y = cellfun(fn, c, uniformOutput, engine)`).
+/// @brief Apply a callback to each cell
+/// (`y = cellfun(fn, c, uniformOutput)`).
 ///
-/// Built-in handles supported via the fast path:
-/// - shape: `numel`, `length`, `ndims`, `isempty`
-/// - type:  `isnumeric`, `ischar`, `islogical`, `iscell`, `isstruct`,
-///          `isreal`, `isnan`, `isinf`, `isfinite`
-/// - reduce: `sum`, `prod`, `mean`
-/// - text:  `class` (always non-uniform — string output)
+/// The callback is invoked once per cell with a 1-element `args`
+/// holding `c.cellAt(i)` and writes a single Value into `outs[0]`.
 ///
-/// Anonymous handles route through `Engine::callFunctionHandle` when an
-/// `Engine *` is supplied; without an Engine they throw
-/// `m:cellfun:fnUnsupported`.
+/// `uniformOutput = true` packs scalar results into a numeric or
+/// LOGICAL array of the same shape as `c` (type chosen from the
+/// first result). `uniformOutput = false` packs results into a cell
+/// of the same shape.
 ///
-/// @param fn             Function handle.
+/// Engine-side fast path for MATLAB built-in handles (`@numel`,
+/// `@isempty`, `@sum`, `@class`, …) is handled by the engine
+/// adapter — it pre-resolves to a direct C++ helper and wraps that
+/// in the same callback signature before calling this function.
+///
+/// @param fn             MATLAB-style callback.
 /// @param c              Cell array input.
-/// @param uniformOutput  `true` → pack scalar results into a numeric /
-///                       LOGICAL array of the same shape as `c`;
-///                       `false` → pack into a cell array of the same shape.
-/// @param engine         Engine context (required for non-fastpath handles).
+/// @param uniformOutput  See above.
 /// @param mr             Memory resource (nullptr → process default).
-/// @return               Per-cell results (shape depends on `uniformOutput`).
-/// @throws Error  Bad function handle (`m:cellfun:fnUnsupported`).
-Value cellfun(const Value &fn, const Value &c, bool uniformOutput,
-              Engine *engine = nullptr,
+/// @return               Per-cell results (shape depends on
+///                       `uniformOutput`).
+/// @throws Error         Non-cell `c`, or non-scalar result in
+///                       uniform mode.
+Value cellfun(FnHandle fn, const Value &c, bool uniformOutput,
               std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Wrap each element in a scalar cell (`c = num2cell(A)`).

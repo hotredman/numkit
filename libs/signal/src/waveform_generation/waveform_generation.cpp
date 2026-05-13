@@ -97,17 +97,9 @@ Value gauspuls(std::pmr::memory_resource *mr, const Value &t, double fc, double 
     return out;
 }
 
-Value pulstranHandle(std::pmr::memory_resource *mr, const Value &t, const Value &d,
-                      const Value &fnHandle, Engine *engine)
+Value pulstranHandle(const Value &t, const Value &d, FnHandle fn,
+                     std::pmr::memory_resource *mr)
 {
-    if (engine == nullptr)
-        throw Error("pulstran: custom function handles need an Engine "
-                     "(callback API not available in this context)",
-                     0, 0, "pulstran", "", "m:pulstran:fnUnsupported");
-    if (!fnHandle.isFuncHandle())
-        throw Error("pulstran: 3rd argument must be a function handle or pulse name",
-                     0, 0, "pulstran", "", "m:pulstran:fnType");
-
     auto out = createLike(t, ValueType::DOUBLE, mr);
     const size_t n = t.numel();
     std::memset(out.doubleDataMut(), 0, n * sizeof(double));
@@ -121,8 +113,11 @@ Value pulstranHandle(std::pmr::memory_resource *mr, const Value &t, const Value 
         const double dk = d.elemAsDouble(k);
         for (size_t i = 0; i < n; ++i)
             sh[i] = t.elemAsDouble(i) - dk;
-        Span<const Value> args(&shifted, 1);
-        Value r = engine->callFunctionHandle(fnHandle, args);
+        Value r;
+        Value args[1] = { shifted };
+        Span<const Value> ar(args, 1);
+        Span<Value>       ou(&r, 1);
+        fn(ar, ou);
         if (r.numel() != n)
             throw Error("pulstran: handle must return a vector of the same "
                          "length as t",
@@ -789,7 +784,13 @@ void pulstran_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
                      0, 0, "pulstran", "", "m:pulstran:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args[2].isFuncHandle()) {
-        outs[0] = pulstranHandle(mr, args[0], args[1], args[2], ctx.engine);
+        const auto &handle = args[2];
+        auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou) {
+            auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
+            for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
+                ou[i] = std::move(r[i]);
+        };
+        outs[0] = pulstranHandle(args[0], args[1], cb, mr);
         return;
     }
     if (!args[2].isChar() && !args[2].isString())

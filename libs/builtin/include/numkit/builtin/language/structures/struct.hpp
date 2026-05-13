@@ -2,14 +2,11 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/core/fn_handle.hpp>
 #include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 
-namespace numkit { class Engine; }
-
 namespace numkit::builtin {
-
-using ::numkit::Engine;
 
 /// @brief Empty struct scalar (`s = struct()`).
 ///
@@ -73,17 +70,20 @@ Value rmfield(const Value &s, const Value &name,
 ///
 /// Built-in fast-path set matches @ref cellfun.
 ///
-/// @param fn             Function handle (single-argument).
+/// The callback is invoked once per field with a 1-element `args`
+/// holding the field value and writes a single Value into `outs[0]`.
+///
+/// @param fn             MATLAB-style callback.
 /// @param s              Struct Value.
 /// @param uniformOutput  `true` → numeric column vector of length
-///                       `numFields`; `false` → `1 × N` cell row.
-/// @param engine         Engine context (required for non-fastpath
-///                       function handle invocation).
+///                       `numFields` (type from first result);
+///                       `false` → `numFields × 1` cell column.
 /// @param mr             Memory resource (nullptr → process default).
-/// @return               Per-field results (shape depends on `uniformOutput`).
-/// @throws Error  Bad inputs or function handle.
-Value structfun(const Value &fn, const Value &s, bool uniformOutput,
-                Engine *engine = nullptr,
+/// @return               Per-field results (shape depends on
+///                       `uniformOutput`).
+/// @throws Error         Non-struct `s`, or non-scalar result in
+///                       uniform mode.
+Value structfun(FnHandle fn, const Value &s, bool uniformOutput,
                 std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin
