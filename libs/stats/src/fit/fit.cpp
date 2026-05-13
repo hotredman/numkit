@@ -211,7 +211,7 @@ normal_fit_mle(const ScratchVec<double> &y, const ScratchVec<double> &fr, const 
 } // anonymous
 
 std::tuple<Value, Value, Value, Value>
-normfit(const Value &x, double alpha, const Value *cens, const Value *freq, std::pmr::memory_resource *mr)
+normfit(const Value &x, double alpha, const Value &cens, const Value &freq, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -232,10 +232,10 @@ normfit(const Value &x, double alpha, const Value *cens, const Value *freq, std:
                                rowCI(nan, nan, mr),
                                rowCI(nan, nan, mr));
     }
-    if (cens && cens->numel() != 0 && cens->numel() != N) return fail();
-    if (freq && freq->numel() != 0 && freq->numel() != N) return fail();
-    const bool has_cens = (cens && cens->numel() == N);
-    const bool has_freq = (freq && freq->numel() == N);
+    if (!cens.isEmpty() && cens.numel() != N) return fail();
+    if (!freq.isEmpty() && freq.numel() != N) return fail();
+    const bool has_cens = !cens.isEmpty();
+    const bool has_freq = !freq.isEmpty();
 
     ScratchArena scratch(mr);
     ScratchVec<double>  y(N, &scratch);
@@ -243,8 +243,8 @@ normfit(const Value &x, double alpha, const Value *cens, const Value *freq, std:
     ScratchVec<uint8_t> cn(N, 0, &scratch);
     for (size_t i = 0; i < N; ++i) {
         y[i] = x.elemAsDouble(i);
-        if (has_freq) fr[i] = freq->elemAsDouble(i);
-        if (has_cens) cn[i] = cens->elemAsDouble(i) > 0.5 ? 1 : 0;
+        if (has_freq) fr[i] = freq.elemAsDouble(i);
+        if (has_cens) cn[i] = cens.elemAsDouble(i) > 0.5 ? 1 : 0;
     }
     auto R = normal_fit_mle(y, fr, cn, alpha, mr);
     if (!R.ok) return fail();
@@ -258,7 +258,7 @@ normfit(const Value &x, double alpha, const Value *cens, const Value *freq, std:
 std::tuple<Value, Value, Value, Value>
 normfit(const Value &x, double alpha, std::pmr::memory_resource *mr)
 {
-    return normfit(x, alpha, nullptr, nullptr, mr);
+    return normfit(x, alpha, Value::Empty, Value::Empty, mr);
 }
 
 std::tuple<Value, Value>
@@ -278,24 +278,24 @@ poissfit(const Value &x, double alpha, std::pmr::memory_resource *mr)
 }
 
 std::tuple<Value, Value>
-expfit(const Value &x, double alpha, const Value *cens, const Value *freq, std::pmr::memory_resource *mr)
+expfit(const Value &x, double alpha, const Value &cens, const Value &freq, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
     if (N == 0) return {Value::scalar(nan, mr), rowCI(nan, nan, mr)};
     // Validate optional vector lengths.
-    if (cens && cens->numel() != 0 && cens->numel() != N)
+    if (!cens.isEmpty() && cens.numel() != N)
         return {Value::scalar(nan, mr), rowCI(nan, nan, mr)};
-    if (freq && freq->numel() != 0 && freq->numel() != N)
+    if (!freq.isEmpty() && freq.numel() != N)
         return {Value::scalar(nan, mr), rowCI(nan, nan, mr)};
-    const bool has_cens = (cens && cens->numel() == N);
-    const bool has_freq = (freq && freq->numel() == N);
+    const bool has_cens = !cens.isEmpty();
+    const bool has_freq = !freq.isEmpty();
     // Total observation time T = Σ(freq · x); event count D = Σ(freq · (1-cens)).
     double T = 0.0, D = 0.0;
     for (size_t i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
-        const double fi = has_freq ? freq->elemAsDouble(i) : 1.0;
-        const double ci = has_cens ? cens->elemAsDouble(i) : 0.0;
+        const double fi = has_freq ? freq.elemAsDouble(i) : 1.0;
+        const double ci = has_cens ? cens.elemAsDouble(i) : 0.0;
         T += fi * xi;
         D += fi * (1.0 - ci);
     }
@@ -337,7 +337,7 @@ unifit(const Value &x, double alpha, std::pmr::memory_resource *mr)
 // ── lognfit ───────────────────────────────────────────────────────────
 
 std::tuple<Value, Value>
-lognfit(const Value &x, double alpha, const Value *cens, const Value *freq, std::pmr::memory_resource *mr)
+lognfit(const Value &x, double alpha, const Value &cens, const Value &freq, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -351,10 +351,10 @@ lognfit(const Value &x, double alpha, const Value *cens, const Value *freq, std:
         return std::make_tuple(std::move(parm), std::move(pci));
     };
     if (N < 2) return fail();
-    if (cens && cens->numel() != 0 && cens->numel() != N) return fail();
-    if (freq && freq->numel() != 0 && freq->numel() != N) return fail();
-    const bool has_cens = (cens && cens->numel() == N);
-    const bool has_freq = (freq && freq->numel() == N);
+    if (!cens.isEmpty() && cens.numel() != N) return fail();
+    if (!freq.isEmpty() && freq.numel() != N) return fail();
+    const bool has_cens = !cens.isEmpty();
+    const bool has_freq = !freq.isEmpty();
 
     // Build y = log(x); reject non-positive x.
     ScratchArena scratch(mr);
@@ -365,8 +365,8 @@ lognfit(const Value &x, double alpha, const Value *cens, const Value *freq, std:
         const double xi = x.elemAsDouble(i);
         if (!(xi > 0.0)) return fail();
         y[i] = std::log(xi);
-        if (has_freq) fr[i] = freq->elemAsDouble(i);
-        if (has_cens) cn[i] = cens->elemAsDouble(i) > 0.5 ? 1 : 0;
+        if (has_freq) fr[i] = freq.elemAsDouble(i);
+        if (has_cens) cn[i] = cens.elemAsDouble(i) > 0.5 ? 1 : 0;
     }
     auto R = normal_fit_mle(y, fr, cn, alpha, mr);
     if (!R.ok) return fail();
@@ -380,7 +380,7 @@ lognfit(const Value &x, double alpha, const Value *cens, const Value *freq, std:
 std::tuple<Value, Value>
 lognfit(const Value &x, double alpha, std::pmr::memory_resource *mr)
 {
-    return lognfit(x, alpha, nullptr, nullptr, mr);
+    return lognfit(x, alpha, Value::Empty, Value::Empty, mr);
 }
 
 // ── binofit ───────────────────────────────────────────────────────────
@@ -897,8 +897,8 @@ void normfit_reg(Span<const Value> args, size_t nargout,
         throw Error("normfit: requires X[, alpha[, censoring[, freq[, options]]]]",
                     0, 0, "normfit", "", "m:normfit:nargin");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
-    const Value *cens = (args.size() > 2 && !args[2].isEmpty()) ? &args[2] : nullptr;
-    const Value *freq = (args.size() > 3 && !args[3].isEmpty()) ? &args[3] : nullptr;
+    const Value &cens = (args.size() > 2) ? args[2] : Value::Empty;
+    const Value &freq = (args.size() > 3) ? args[3] : Value::Empty;
     auto [mu, sd, muci, sdci] = normfit(args[0], alpha, cens, freq, ctx.engine->resource());
     outs[0] = std::move(mu);
     if (nargout > 1) outs[1] = std::move(sd);
@@ -925,8 +925,8 @@ void expfit_reg(Span<const Value> args, size_t nargout,
         throw Error("expfit: requires X[, alpha[, censoring[, freq]]]",
                     0, 0, "expfit", "", "m:expfit:nargin");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
-    const Value *cens = (args.size() > 2) ? &args[2] : nullptr;
-    const Value *freq = (args.size() > 3) ? &args[3] : nullptr;
+    const Value &cens = (args.size() > 2) ? args[2] : Value::Empty;
+    const Value &freq = (args.size() > 3) ? args[3] : Value::Empty;
     auto [mu, ci] = expfit(args[0], alpha, cens, freq, ctx.engine->resource());
     outs[0] = std::move(mu);
     if (nargout > 1) outs[1] = std::move(ci);
@@ -955,8 +955,8 @@ void lognfit_reg(Span<const Value> args, size_t nargout,
     const double alpha = parse_alpha_arg(args, 1, 0.05);
     // 3rd arg = censoring (may be empty []), 4th = freq (may be empty),
     // 5th = options struct (silently ignored — we use fixed 200 / 1e-10).
-    const Value *cens = (args.size() > 2 && !args[2].isEmpty()) ? &args[2] : nullptr;
-    const Value *freq = (args.size() > 3 && !args[3].isEmpty()) ? &args[3] : nullptr;
+    const Value &cens = (args.size() > 2) ? args[2] : Value::Empty;
+    const Value &freq = (args.size() > 3) ? args[3] : Value::Empty;
     auto [parm, pci] = lognfit(args[0], alpha, cens, freq, ctx.engine->resource());
     outs[0] = std::move(parm);
     if (nargout > 1) outs[1] = std::move(pci);
