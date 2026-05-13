@@ -9,20 +9,37 @@
 
 namespace numkit::comm {
 
-/// `indx = quantiz(sig, partition)` — bin index per sample.
-///   indx(i) = sum(partition < sig(i)) ∈ [0, length(partition)]
-/// Output preserves sig orientation.
+/// @brief One-output form of `quantiz` — bin index per sample
+/// (`indx = quantiz(sig, partition)`).
+///
+/// `indx(i) = sum(partition < sig(i))`, in the range
+/// `[0, length(partition)]`. Output preserves `sig`'s orientation.
+///
+/// @param sig        Input signal (real vector).
+/// @param partition  Strictly increasing partition vector.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           Bin index per sample.
+/// @see quantiz, lloyds
 Value quantiz_indx(const Value &sig, const Value &partition,
                    std::pmr::memory_resource *mr = nullptr);
 
-/// Result of MATLAB `[indx, quantv, distor] = quantiz(sig, partition, codebook)`.
+/// @brief Result of the three-output form of MATLAB's `quantiz`.
 struct QuantizResult {
-    Value  indx;     ///< bin index per sample
-    Value  quantv;   ///< codebook(indx + 1)
-    double distor;   ///< mean((sig - quantv)^2)
+    Value  indx;     ///< Bin index per sample.
+    Value  quantv;   ///< `codebook(indx + 1)`.
+    double distor;   ///< `mean((sig - quantv)^2)`.
 };
 
-/// `[indx, quantv, distor] = quantiz(sig, partition, codebook)`.
+/// @brief Three-output form of `quantiz`
+/// (`[indx, quantv, distor] = quantiz(sig, partition, codebook)`).
+///
+/// @param sig        Input signal.
+/// @param partition  Strictly increasing partition vector (length K-1).
+/// @param codebook   Codebook vector (length K).
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           @ref QuantizResult with index, quantised values,
+///                   and mean-square distortion.
+/// @see quantiz_indx, lloyds
 QuantizResult
 quantiz(const Value &sig, const Value &partition, const Value &codebook,
         std::pmr::memory_resource *mr = nullptr);

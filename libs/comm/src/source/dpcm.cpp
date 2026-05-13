@@ -55,9 +55,9 @@ bool isRow(const Value &v)
 } // namespace
 
 std::pair<Value, Value>
-dpcmenco(std::pmr::memory_resource *mr, const Value &sig,
-         const Value &codebook, const Value &partition,
-         const Value &predictor)
+dpcmenco(const Value &sig, const Value &codebook,
+         const Value &partition, const Value &predictor,
+         std::pmr::memory_resource *mr)
 {
     if (codebook.numel() != partition.numel() + 1)
         throw Error("dpcmenco: length(codebook) must equal "
@@ -95,8 +95,9 @@ dpcmenco(std::pmr::memory_resource *mr, const Value &sig,
 }
 
 std::pair<Value, Value>
-dpcmdeco(std::pmr::memory_resource *mr, const Value &indx,
-         const Value &codebook, const Value &predictor)
+dpcmdeco(const Value &indx, const Value &codebook,
+         const Value &predictor,
+         std::pmr::memory_resource *mr)
 {
     std::vector<double> pred;
     readPredictor(predictor, pred);
@@ -141,7 +142,7 @@ void dpcmenco_reg(Span<const Value> args, size_t nargout,
         throw Error("dpcmenco: requires (sig, codebook, partition, predictor)",
                     0, 0, "dpcmenco", "", "m:dpcmenco:nargin");
     auto *mr = ctx.engine->resource();
-    auto [indx, quanterr] = dpcmenco(mr, args[0], args[1], args[2], args[3]);
+    auto [indx, quanterr] = dpcmenco(args[0], args[1], args[2], args[3], mr);
     outs[0] = std::move(indx);
     if (nargout > 1) outs[1] = std::move(quanterr);
 }
@@ -153,7 +154,7 @@ void dpcmdeco_reg(Span<const Value> args, size_t nargout,
         throw Error("dpcmdeco: requires (indx, codebook, predictor)",
                     0, 0, "dpcmdeco", "", "m:dpcmdeco:nargin");
     auto *mr = ctx.engine->resource();
-    auto [sig, quanterr] = dpcmdeco(mr, args[0], args[1], args[2]);
+    auto [sig, quanterr] = dpcmdeco(args[0], args[1], args[2], mr);
     outs[0] = std::move(sig);
     if (nargout > 1) outs[1] = std::move(quanterr);
 }

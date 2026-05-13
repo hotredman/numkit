@@ -52,8 +52,9 @@ Value rowFrom(std::pmr::memory_resource *mr,
 } // namespace
 
 DpcmOptResult
-dpcmopt(std::pmr::memory_resource *mr, const Value &training_set,
-        int ord, const Value *ini_codebook)
+dpcmopt(const Value &training_set, int ord,
+        const Value &ini_codebook,
+        std::pmr::memory_resource *mr)
 {
     if (ord < 1)
         throw Error("dpcmopt: ord must be a positive integer",
@@ -109,7 +110,7 @@ dpcmopt(std::pmr::memory_resource *mr, const Value &training_set,
     DpcmOptResult res;
     res.predictor = rowFrom(mr, predictor);
 
-    if (ini_codebook) {
+    if (!ini_codebook.isEmpty()) {
         // Compute prediction residual.
         // err(k) = training(ord+1+k) - predictor * training(ord+1+k:-1:1+k)
         // 0-based: for i = ord..N-1,
@@ -124,7 +125,7 @@ dpcmopt(std::pmr::memory_resource *mr, const Value &training_set,
         }
         Value err_v = rowFrom(mr, err);
         auto [partition, codebook, distor, rel] =
-            lloyds(mr, err_v, *ini_codebook, 1e-7);
+            lloyds(err_v, ini_codebook, 1e-7, mr);
         res.codebook  = std::move(codebook);
         res.partition = std::move(partition);
     }
@@ -142,15 +143,13 @@ void dpcmopt_reg(Span<const Value> args, size_t nargout,
     auto *mr = ctx.engine->resource();
     const int ord = static_cast<int>(args[1].toScalar());
 
-    const Value *ini = nullptr;
-    if (args.size() >= 3 && !args[2].isEmpty()) {
-        ini = &args[2];
-    } else if (nargout > 1) {
+    const Value &ini = (args.size() >= 3 && !args[2].isEmpty())
+                          ? args[2] : Value::Empty;
+    if (ini.isEmpty() && nargout > 1)
         throw Error("dpcmopt: ini_codebook required for codebook/partition outputs",
                     0, 0, "dpcmopt", "", "m:dpcmopt:NeedIniCodebook");
-    }
 
-    auto res = dpcmopt(mr, args[0], ord, ini);
+    auto res = dpcmopt(args[0], ord, ini, mr);
     outs[0] = std::move(res.predictor);
     if (nargout > 1) outs[1] = std::move(res.codebook);
     if (nargout > 2) outs[2] = std::move(res.partition);
