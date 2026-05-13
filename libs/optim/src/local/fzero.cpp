@@ -125,8 +125,9 @@ double brent(Engine *engine, const Value &fn, double a, double b)
 
 } // namespace
 
-Value fzero(std::pmr::memory_resource *mr, const Value &fn, const Value &x0OrInterval,
-             Engine *engine)
+Value fzero(const Value &fn, const Value &x0OrInterval,
+            Engine *engine,
+            std::pmr::memory_resource *mr)
 {
     if (engine == nullptr)
         throw Error("fzero: requires an Engine pointer (callback API)",
@@ -343,8 +344,9 @@ ScratchVec<double> nelderMead(Engine *engine, const Value &fn,
 
 } // anon
 
-Value fminbnd(std::pmr::memory_resource *mr, const Value &fn,
-              double lo, double hi, double tol, Engine *engine)
+Value fminbnd(const Value &fn, double lo, double hi, double tol,
+              Engine *engine,
+              std::pmr::memory_resource *mr)
 {
     if (engine == nullptr)
         throw Error("fminbnd: requires an Engine pointer",
@@ -356,8 +358,9 @@ Value fminbnd(std::pmr::memory_resource *mr, const Value &fn,
     return Value::scalar(brentMin(engine, fn, lo, hi, tol), mr);
 }
 
-Value fminsearch(std::pmr::memory_resource *mr, const Value &fn,
-                 const Value &x0, double tol, Engine *engine)
+Value fminsearch(const Value &fn, const Value &x0, double tol,
+                 Engine *engine,
+                 std::pmr::memory_resource *mr)
 {
     if (engine == nullptr)
         throw Error("fminsearch: requires an Engine pointer",
@@ -384,7 +387,7 @@ void fzero_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.size() < 2)
         throw Error("fzero: requires at least 2 arguments (fn, x0 or [a, b])",
                      0, 0, "fzero", "", "m:fzero:nargin");
-    outs[0] = fzero(ctx.engine->resource(), args[0], args[1], ctx.engine);
+    outs[0] = fzero(args[0], args[1], ctx.engine, ctx.engine->resource());
 }
 
 void fminbnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -395,7 +398,7 @@ void fminbnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const double lo = args[1].toScalar();
     const double hi = args[2].toScalar();
     const double tol = (args.size() >= 4 && !args[3].isEmpty()) ? args[3].toScalar() : 1e-6;
-    outs[0] = fminbnd(ctx.engine->resource(), args[0], lo, hi, tol, ctx.engine);
+    outs[0] = fminbnd(args[0], lo, hi, tol, ctx.engine, ctx.engine->resource());
 }
 
 void fminsearch_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -404,7 +407,7 @@ void fminsearch_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
         throw Error("fminsearch: requires (fn, x0[, tol])",
                      0, 0, "fminsearch", "", "m:fminsearch:nargin");
     const double tol = (args.size() >= 3 && !args[2].isEmpty()) ? args[2].toScalar() : 1e-4;
-    outs[0] = fminsearch(ctx.engine->resource(), args[0], args[1], tol, ctx.engine);
+    outs[0] = fminsearch(args[0], args[1], tol, ctx.engine, ctx.engine->resource());
 }
 
 } // namespace detail
