@@ -42,13 +42,13 @@ normfit(const Value &x, double alpha,
 /// @param x      Sample data.
 /// @param alpha  Significance level.
 /// @param cens   Right-censoring mask (`cens[i] != 0` → censored).
-///               Pass `nullptr` or empty Value for no censoring.
-/// @param freq   Per-sample weights. `nullptr` / empty → all ones.
+///               Pass `Value::Empty` for no censoring.
+/// @param freq   Per-sample weights. `Value::Empty` → all ones.
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(muhat, sigmahat, muci, sigmaci)`.
 /// @see normfit(x, alpha, mr)
 std::tuple<Value, Value, Value, Value>
-normfit(const Value &x, double alpha, const Value *cens, const Value *freq,
+normfit(const Value &x, double alpha, const Value &cens, const Value &freq,
         std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Poisson MLE (`[lhat, lci] = poissfit(x, alpha)`).
@@ -72,14 +72,14 @@ poissfit(const Value &x, double alpha,
 ///
 /// @param x      Sample data.
 /// @param alpha  Significance level.
-/// @param cens   Right-censoring mask (nullptr / empty → no censoring).
-/// @param freq   Per-sample weights (nullptr / empty → ones).
+/// @param cens   Right-censoring mask (`Value::Empty` → no censoring).
+/// @param freq   Per-sample weights (`Value::Empty` → ones).
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(muhat, muci)`.
 /// @see explike
 std::tuple<Value, Value>
 expfit(const Value &x, double alpha,
-       const Value *cens = nullptr, const Value *freq = nullptr,
+       const Value &cens = Value::Empty, const Value &freq = Value::Empty,
        std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Continuous-uniform MLE
@@ -119,13 +119,13 @@ lognfit(const Value &x, double alpha,
 ///
 /// @param x      Sample data.
 /// @param alpha  Significance level.
-/// @param cens   Right-censoring mask.
-/// @param freq   Per-sample weights.
+/// @param cens   Right-censoring mask (`Value::Empty` → no censoring).
+/// @param freq   Per-sample weights (`Value::Empty` → ones).
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(parm, pci)`.
 /// @see lognfit(x, alpha, mr)
 std::tuple<Value, Value>
-lognfit(const Value &x, double alpha, const Value *cens, const Value *freq,
+lognfit(const Value &x, double alpha, const Value &cens, const Value &freq,
         std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Binomial parameter CI (`[phat, pci] = binofit(x, n, alpha)`).

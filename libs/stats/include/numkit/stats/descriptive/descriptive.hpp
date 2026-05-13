@@ -555,17 +555,19 @@ cholcov(const Value &SIGMA, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Contingency table (`[T, chi2, p] = crosstab(x, y_opt)`).
 ///
-/// Single-arg: `T` is a column vector of frequency counts of unique `x`.
-/// Two-arg: `T(i, j)` counts pairs `(x_k, y_k)` where `x_k = unique_x(i)`
-/// and `y_k = unique_y(j)`; `chi2` and `p` give a χ² test of independence.
-/// Numeric input only in v1; cell / string deferred.
+/// Single-arg form (pass `Value::Empty` for `y_opt`): `T` is a column
+/// vector of frequency counts of unique `x`. Two-arg: `T(i, j)` counts
+/// pairs `(x_k, y_k)` where `x_k = unique_x(i)` and `y_k = unique_y(j)`;
+/// `chi2` and `p` give a χ² test of independence. Numeric input only
+/// in v1; cell / string deferred.
 ///
 /// @param x      Input data column.
-/// @param y_opt  Pointer to second column, or `nullptr` for single-arg form.
+/// @param y_opt  Second column (`Value::Empty` for single-arg form).
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(T, chi2, p)` — table, χ² statistic, p-value.
 std::tuple<Value, double, double>
-crosstab(const Value &x, const Value *y_opt, std::pmr::memory_resource *mr = nullptr);
+crosstab(const Value &x, const Value &y_opt = Value::Empty,
+         std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Per-group statistics (`grpstats(X, group, fn_names)`).
 ///
