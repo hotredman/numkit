@@ -52,6 +52,38 @@ test('ПКМ grid toggle in cell A does not enable grid in cell B', async ({ ide
   expect(afterB, `cell B grid count must stay 0, got ${afterB}`).toBe(0);
 });
 
+test('ПКМ Reset on cell A resets ONLY cell A (not siblings)', async ({ ide, page }) => {
+  await ide.runScript(
+    'import compat.*;\n'
+    + 'figure;\n'
+    + 'subplot(1,2,1); plot(1:10);\n'
+    + 'subplot(1,2,2); plot(1:10);\n'
+  );
+  await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+  await ide.figureCards.first().click();
+  await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(120);
+
+  // Toggle grid on BOTH cells via ПКМ.
+  for (const idx of [0, 1]) {
+    await rightClickCellSvg(page, idx);
+    await page.locator('.ctx-sub-trigger', { hasText: /Display/ }).hover();
+    await page.waitForTimeout(60);
+    await page.locator('.ctx-submenu button', { hasText: /^(✓ )?grid$/ }).click();
+    await page.waitForTimeout(80);
+  }
+  expect(await gridLineCount(page, 0)).toBeGreaterThan(0);
+  expect(await gridLineCount(page, 1)).toBeGreaterThan(0);
+
+  // ПКМ Reset on cell A should clear ONLY cell A's grid.
+  await rightClickCellSvg(page, 0);
+  await page.locator('.ctx-menu .ctx-item', { hasText: /^Reset$/ }).first().click();
+  await page.waitForTimeout(120);
+
+  expect(await gridLineCount(page, 0), 'cell A grid should be cleared').toBe(0);
+  expect(await gridLineCount(page, 1), 'cell B grid must stay').toBeGreaterThan(0);
+});
+
 test('ПКМ Save/Export in cell A produces a cell-scoped download', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
