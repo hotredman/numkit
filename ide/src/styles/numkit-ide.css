@@ -659,6 +659,15 @@ input, select { font-family: inherit; color: inherit; }
   font-family: var(--font-mono); font-size: 10.5px;
   color: var(--fg-3); font-style: italic;
 }
+/* Show count next to the "single curve" heading when many series are
+   present, so users see at a glance how many rows are below before
+   scrolling. The outer .fw-pop already caps at 75vh + overflow-y:auto
+   — no inner scroll needed. */
+.fw-pop-count {
+  color: var(--fg-3);
+  font-weight: 400;
+  margin-left: 4px;
+}
 .fw-pop-row button {
   font-size: 10px; padding: 2px 6px;
   background: var(--bg-3); border: 1px solid var(--line);

@@ -881,24 +881,20 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   <div className="fw-pop-head">all curves</div>
                   <button onClick={() => applyFit('all', 'both')}>fit r-range</button>
                 </div>
-                {Array.isArray(figure.series) && figure.series.length > 1
-                  && figure.series.length <= 8 && (
+                {Array.isArray(figure.series) && figure.series.length > 1 && (
                   <div className="fw-pop-section">
-                    <div className="fw-pop-head">single curve</div>
+                    <div className="fw-pop-head">
+                      single curve
+                      {figure.series.length > 8 && (
+                        <span className="fw-pop-count"> · {figure.series.length}</span>
+                      )}
+                    </div>
                     {figure.series.map((s) => (
                       <div key={s.name} className="fw-pop-row">
                         <span className="fw-pop-name"><i style={{ background: s.color }} />{s.name}</span>
                         <button onClick={() => applyFit(s.name, 'both')}>fit r</button>
                       </div>
                     ))}
-                  </div>
-                )}
-                {Array.isArray(figure.series) && figure.series.length > 8 && (
-                  <div className="fw-pop-section">
-                    <div className="fw-pop-head">single curve</div>
-                    <div className="fw-pop-note">
-                      {figure.series.length} series — per-series fit hidden
-                    </div>
                   </div>
                 )}
               </div>
@@ -913,9 +909,14 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   <button onClick={() => applyFit('all', 'x')}>X only</button>
                   <button onClick={() => applyFit('all', 'y')}>Y only</button>
                 </div>
-                {seriesLayers.length > 1 && seriesLayers.length <= 8 && (
+                {seriesLayers.length > 1 && (
                   <div className="fw-pop-section">
-                    <div className="fw-pop-head">single curve</div>
+                    <div className="fw-pop-head">
+                      single curve
+                      {seriesLayers.length > 8 && (
+                        <span className="fw-pop-count"> · {seriesLayers.length}</span>
+                      )}
+                    </div>
                     {seriesLayers.map((s) => (
                       <div key={s.name} className="fw-pop-row">
                         <span className="fw-pop-name"><i style={{ background: s.color }} />{s.name}</span>
@@ -924,14 +925,6 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                         <button onClick={() => applyFit(s.name, 'y')}>y</button>
                       </div>
                     ))}
-                  </div>
-                )}
-                {seriesLayers.length > 8 && (
-                  <div className="fw-pop-section">
-                    <div className="fw-pop-head">single curve</div>
-                    <div className="fw-pop-note">
-                      {seriesLayers.length} series — per-series fit hidden
-                    </div>
                   </div>
                 )}
               </div>
