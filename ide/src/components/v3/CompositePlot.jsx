@@ -983,14 +983,30 @@ export default function CompositePlot({
   // top-level submenu, matching the Display ▶ / Colormap ▶ layout.
   // "Series" matches MATLAB legend / docs terminology and is generic
   // enough for line / scatter / bar / area / stem / quiver layers.
-  const seriesSubmenuItems = seriesLayers.length > 0 ? seriesLayers.map((s, i) => ({
-    row: true, color: s.color, name: s.name || `series ${i + 1}`,
-    buttons: [
-      { label: 'xy', onClick: () => applyFitSeries(i, 'both') },
-      { label: 'x',  onClick: () => applyFitSeries(i, 'x') },
-      { label: 'y',  onClick: () => applyFitSeries(i, 'y') },
-    ],
-  })) : null;
+  //
+  // Filtered to FITTABLE series only:
+  //   • text layers already excluded by the kind === 'series' filter
+  //     above (text has kind === 'text')
+  //   • require ≥2 data points — fitting a viewport to a single point
+  //     gives a degenerate (zero-width) range; skip those rows
+  //
+  // Preserve the ORIGINAL seriesLayers index so applyFitSeries(i, axis)
+  // still targets the right layer after filtering.
+  const fittableSeries = seriesLayers
+    .map((s, i) => ({ s, i }))
+    .filter(({ s }) =>
+      Array.isArray(s.x) && s.x.length >= 2
+      && Array.isArray(s.y) && s.y.length >= 2);
+  const seriesSubmenuItems = fittableSeries.length > 0
+    ? fittableSeries.map(({ s, i }) => ({
+        row: true, color: s.color, name: s.name || `series ${i + 1}`,
+        buttons: [
+          { label: 'xy', onClick: () => applyFitSeries(i, 'both') },
+          { label: 'x',  onClick: () => applyFitSeries(i, 'x') },
+          { label: 'y',  onClick: () => applyFitSeries(i, 'y') },
+        ],
+      }))
+    : null;
 
   const ctxItems = [
     // Order: Reset · Save · Display · Colormap · Series · Fit (UX spec).
@@ -999,7 +1015,7 @@ export default function CompositePlot({
     ...(displaySubmenuItems ? [{ submenu: 'Display ▶', items: displaySubmenuItems }] : []),
     ...(colormapSubmenuItems ? [{ submenu: 'Colormap ▶', items: colormapSubmenuItems }] : []),
     ...(seriesSubmenuItems ? [{
-      submenu: `Series ▶${seriesLayers.length > 1 ? ` (${seriesLayers.length})` : ''}`,
+      submenu: `Series ▶${fittableSeries.length > 1 ? ` (${fittableSeries.length})` : ''}`,
       items: seriesSubmenuItems,
     }] : []),
     { separator: true },
