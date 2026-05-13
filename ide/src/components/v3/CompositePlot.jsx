@@ -167,6 +167,13 @@ export default function CompositePlot({
   setColorOverride: setColorOverrideProp,
   colormapOverride = null,
   setColormapOverride = null,
+  // Per-cell reset callbacks for the ПКМ Display ▶ reset / Colormap ▶
+  // reset rows. SubplotGrid wires these to clear THIS cell's overrides
+  // (cell falls back to figure-wide); for non-subplot CompositePlot the
+  // parent (FigureWindow) wires figure-wide displayReset / setColormap
+  // Override(null) instead.
+  onDisplayReset = null,
+  onColormapReset = null,
 }) {
   // Layers — empty array if none. The renderer walks them in order so the
   // user controls z-order via call sequence (heatmap first, scatter on top,
@@ -854,6 +861,10 @@ export default function CompositePlot({
   const displaySubmenuItems = (setShowMajor || setShowMinor
       || setShowTitle || setShowXLabel || setShowYLabel
       || setXLog || setYLog || setShowLegend) ? [
+    // Reset always at the TOP of the menu so the user can find it
+    // without scrolling past every toggle.
+    ...(onDisplayReset ? [{ label: 'reset', onClick: onDisplayReset },
+                          { separator: true }] : []),
     { head: 'grid' },
     ...(setShowMajor ? [{ label: major ? '✓ grid'  : 'grid',
                           onClick: () => setShowMajor((v) => !v) }] : []),
@@ -918,13 +929,18 @@ export default function CompositePlot({
   // there's a heatmap layer to colour. Marks the active palette with ✓.
   const COLORMAP_NAMES = ['parula', 'jet', 'hot', 'cool', 'gray', 'bone',
     'copper', 'spring', 'summer', 'autumn', 'winter', 'hsv', 'viridis'];
-  const colormapSubmenuItems = (setColormapOverride && hasHeatmap) ? COLORMAP_NAMES.map((name) => ({
-    label: (effectiveColormap === name ? '✓ ' : '') + name,
-    onClick: () => {
-      const scriptDefault = heatmapLayer?.colormap || 'parula';
-      setColormapOverride(name === scriptDefault ? null : name);
-    },
-  })) : null;
+  const colormapSubmenuItems = (setColormapOverride && hasHeatmap) ? [
+    // reset on top mirrors the toolbar layout.
+    ...(onColormapReset ? [{ label: 'reset', onClick: onColormapReset },
+                           { separator: true }] : []),
+    ...COLORMAP_NAMES.map((name) => ({
+      label: (effectiveColormap === name ? '✓ ' : '') + name,
+      onClick: () => {
+        const scriptDefault = heatmapLayer?.colormap || 'parula';
+        setColormapOverride(name === scriptDefault ? null : name);
+      },
+    })),
+  ] : null;
 
   // House icon used for the Reset row. Same SVG as the toolbar
   // standalone Reset button — uses currentColor so it inherits the

@@ -104,6 +104,16 @@ export default function SubplotGrid({
   // tell SubplotGrid to drop every cell's per-cell display override
   // back to the figure-wide value. Counter pattern (same as fitSignal).
   displayResetSignal = null,
+  // Per-cell display + colormap state lives in FigureWindow now (so
+  // the toolbar can compute aggregate "set on every cell?" checkmarks).
+  // SubplotGrid receives ready-resolved arrays + per-cell setter
+  // factories from the parent.
+  cellDisplay = [],
+  cellColormap = [],
+  makeCellDisplaySetter = null,
+  makeCellColormapSetter = null,
+  makeCellDisplayReset = null,
+  makeCellColormapReset = null,
   interactive = true,
   engine = null,
 }) {
@@ -167,79 +177,9 @@ export default function SubplotGrid({
     }));
   }, [fitSignal, figure.cells]);
 
-  // ── Per-cell display overrides ────────────────────────────────────
-  // Right-click toggles inside a single cell store overrides here so
-  // a sub-plot user can flip grid/log/labels for ONE cell without
-  // affecting the others. Shape: array<{ major?, minor?, xLog?, yLog?,
-  // showTitle?, showXLabel?, showYLabel?, showLegend? }>. An undefined
-  // entry means "use the figure-wide value passed via props".
-  //
-  // The toolbar Reset / display ▾ Reset increments displayResetSignal
-  // which clears every override back to {} so the cells follow the
-  // global toggles again.
-  const [cellDisplay, setCellDisplay] = useState(() => figure.cells.map(() => ({})));
-  useEffect(() => {
-    setCellDisplay((prev) => {
-      // Re-init when cell count changed; otherwise keep existing overrides.
-      if (prev.length === figure.cells.length) return prev;
-      return figure.cells.map((_, i) => prev[i] || {});
-    });
-  }, [figure.cells.length]);
-  const lastDisplayResetNRef = useRef(0);
-  useEffect(() => {
-    if (!displayResetSignal || displayResetSignal.n === lastDisplayResetNRef.current) return;
-    lastDisplayResetNRef.current = displayResetSignal.n;
-    setCellDisplay(figure.cells.map(() => ({})));
-  }, [displayResetSignal, figure.cells.length]);
-  // Per-cell setter factory. Returns a function with the same updater
-  // shape as React's setState, so callers can write `cellSetter((v) => !v)`.
-  // When the override is unset, we read the figure-wide effective value
-  // (passed in via the resolveDefault closure) so toggling starts from
-  // the visible state.
-  const makeCellSetter = (idx, key, resolveDefault) => (updater) => {
-    setCellDisplay((prev) => {
-      const next = prev.slice();
-      const entry = next[idx] || {};
-      const cur = entry[key] !== undefined ? entry[key] : resolveDefault();
-      const value = typeof updater === 'function' ? updater(cur) : updater;
-      next[idx] = { ...entry, [key]: value };
-      return next;
-    });
-  };
-
-  // Per-cell colormap overrides — separate from cellDisplay because the
-  // shape is a single string (or null) per cell, not a flag dictionary.
-  // Right-click → Colormap inside a cell mutates this; the toolbar's
-  // figure-wide colormapOverride still wins via the effect below.
-  const [cellColormap, setCellColormap] = useState(() => figure.cells.map(() => null));
-  useEffect(() => {
-    setCellColormap((prev) => {
-      if (prev.length === figure.cells.length) return prev;
-      return figure.cells.map((_, i) => (prev[i] !== undefined ? prev[i] : null));
-    });
-  }, [figure.cells.length]);
-  // Toolbar colormap pick → drop every per-cell colormap override so
-  // every cell follows the new figure-wide value. Skip first run when
-  // both are null (initial mount with no override).
-  const lastGlobalColormapRef = useRef(colormapOverride);
-  useEffect(() => {
-    if (colormapOverride === lastGlobalColormapRef.current) return;
-    lastGlobalColormapRef.current = colormapOverride;
-    setCellColormap(figure.cells.map(() => null));
-  }, [colormapOverride, figure.cells.length]);
-  // displayResetSignal already clears cellDisplay; do the same for
-  // colormap so a single Reset returns every cell to script defaults.
-  useEffect(() => {
-    if (!displayResetSignal || displayResetSignal.n === 0) return;
-    setCellColormap(figure.cells.map(() => null));
-  }, [displayResetSignal, figure.cells.length]);
-  const makeCellColormapSetter = (idx) => (value) => {
-    setCellColormap((prev) => {
-      const next = prev.slice();
-      next[idx] = value;
-      return next;
-    });
-  };
+  // Per-cell display + colormap overrides are owned by FigureWindow now
+  // (it needs the data to compute aggregate "✓ on every cell?" marks
+  // for the toolbar). We only consume them here via the props above.
   useEffect(() => {
     const shape = `${figure.id}:${figure.cells.length}:${figure.cells.map((c) => c.kind).join(',')}`;
     const newDefaults = figure.cells.map(defaultViewport);
@@ -333,6 +273,13 @@ export default function SubplotGrid({
                 const eShowYLabel = o.showYLabel !== undefined ? o.showYLabel : showYLabel;
                 const eShowLegend = o.showLegend !== undefined ? o.showLegend : true;
                 const eShowColorbar = o.showColorbar !== undefined ? o.showColorbar : showColorbar;
+                // Setter factories may be absent in preview-card mode
+                // (FiguresPane doesn't pass them). Guard each call so the
+                // grid can render statically.
+                const mks = (...a) => makeCellDisplaySetter ? makeCellDisplaySetter(...a) : null;
+                const mkc = (...a) => makeCellColormapSetter ? makeCellColormapSetter(...a) : null;
+                const mkdr = (...a) => makeCellDisplayReset ? makeCellDisplayReset(...a) : null;
+                const mkcr = (...a) => makeCellColormapReset ? makeCellColormapReset(...a) : null;
                 return {
                   major: eMajor, minor: eMinor,
                   xLog: eXLog, yLog: eYLog,
@@ -340,24 +287,28 @@ export default function SubplotGrid({
                   showYLabel: eShowYLabel, showZLabel,
                   showLegend: eShowLegend,
                   showColorbar: eShowColorbar,
-                  colormapOverride,
-                  setShowMajor:  makeCellSetter(idx, 'major',     () => eMajor),
-                  setShowMinor:  makeCellSetter(idx, 'minor',     () => eMinor),
-                  setXLog:       makeCellSetter(idx, 'xLog',      () => eXLog),
-                  setYLog:       makeCellSetter(idx, 'yLog',      () => eYLog),
-                  setShowTitle:  makeCellSetter(idx, 'showTitle',  () => eShowTitle),
-                  setShowXLabel: makeCellSetter(idx, 'showXLabel', () => eShowXLabel),
-                  setShowYLabel: makeCellSetter(idx, 'showYLabel', () => eShowYLabel),
-                  setShowLegend: makeCellSetter(idx, 'showLegend', () => eShowLegend),
-                  setShowColorbar: makeCellSetter(idx, 'showColorbar', () => eShowColorbar),
+                  setShowMajor:  mks(idx, 'major',     () => eMajor),
+                  setShowMinor:  mks(idx, 'minor',     () => eMinor),
+                  setXLog:       mks(idx, 'xLog',      () => eXLog),
+                  setYLog:       mks(idx, 'yLog',      () => eYLog),
+                  setShowTitle:  mks(idx, 'showTitle',  () => eShowTitle),
+                  setShowXLabel: mks(idx, 'showXLabel', () => eShowXLabel),
+                  setShowYLabel: mks(idx, 'showYLabel', () => eShowYLabel),
+                  setShowLegend: mks(idx, 'showLegend', () => eShowLegend),
+                  setShowColorbar: mks(idx, 'showColorbar', () => eShowColorbar),
                   // Colormap: effective = per-cell override ?? figure-wide.
                   // ПКМ Colormap inside this cell only mutates THIS cell's
                   // entry (per user spec). Toolbar pick clears overrides
                   // via the colormapOverride effect above.
-                  colormapOverride: cellColormap[idx] !== null && cellColormap[idx] !== undefined
+                  colormapOverride: cellColormap[idx] != null
                                     ? cellColormap[idx]
                                     : colormapOverride,
-                  setColormapOverride: makeCellColormapSetter(idx),
+                  setColormapOverride: mkc(idx),
+                  // Per-cell resets for ПКМ Display ▶ reset / Colormap ▶
+                  // reset: clear THIS cell's override entry. Cell falls
+                  // back to the figure-wide value.
+                  onDisplayReset:  mkdr(idx),
+                  onColormapReset: mkcr(idx),
                 };
               })(),
               zLog,
