@@ -217,6 +217,17 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   useEffect(() => { setXLog(figure.xscale === 'log'); }, [figure.xscale]);
   useEffect(() => { setYLog(figure.yscale === 'log'); }, [figure.yscale]);
 
+  // Colorbar visibility — defaults to "shown" only when the script
+  // actually called colorbar() (which sets figure.colorbarLocation to a
+  // non-empty placement string). Without an explicit call we leave it
+  // off, matching MATLAB. Toolbar/ПКМ toggle then lets the user flip.
+  const colorbarUserAsked = !!figure.colorbarLocation
+                          && figure.colorbarLocation !== 'off';
+  const [showColorbar, setShowColorbar] = useState(colorbarUserAsked);
+  useEffect(() => { setShowColorbar(colorbarUserAsked); },
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+            [figure.id, figure.colorbarLocation]);
+
   // Visibility toggles for title / xlabel / ylabel / zlabel. State is
   // local — we don't mutate figure data, so the underlying script-set
   // text survives a re-show. Initialise true: all labels visible by
@@ -374,6 +385,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     setYLog(figure.yscale === 'log');
     setZLog(false);
     setShowLegend(!!legendUserAsked);
+    setShowColorbar(colorbarUserAsked);
     // Drop per-cell ПКМ overrides too so the subplot grid follows the
     // reset figure-wide values rather than holding onto user tweaks.
     fanDisplayReset();
@@ -1056,6 +1068,8 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                                  onClick={() => setShowZLabel((v) => !v)} />
                   <DisplayToggle label="legend" active={showLegend}
                                  onClick={() => setShowLegend((v) => !v)} />
+                  <DisplayToggle label="colorbar" active={showColorbar}
+                                 onClick={() => setShowColorbar((v) => !v)} />
                 </div>
                 <div className="fw-pop-section">
                   <button onClick={() => { displayReset(); setDisplayOpen(false); }}>reset</button>
@@ -1138,7 +1152,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               xLog, yLog, zLog,
               setXLog, setYLog,
               colorOverride, setColorOverride,
-              colormapOverride,
+              colormapOverride, setColormapOverride,
               // showLegend gates BOTH the CompositePlot SVG-internal
               // legend block and the (now removed) HTML overlay. One
               // legend, controlled by the toolbar toggle.
@@ -1148,12 +1162,13 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               // the corresponding <text> render path. State lives here
               // (not in figure JSON) so a script re-run doesn't reset.
               showTitle, showXLabel, showYLabel, showZLabel,
+              showColorbar,
               // Display setters — passed so the right-click menu inside
               // CompositePlot can surface a Display submenu that mirrors
               // the toolbar's display ▾ state.
               setShowMajor, setShowMinor,
               setShowTitle, setShowXLabel, setShowYLabel,
-              setShowLegend,
+              setShowLegend, setShowColorbar,
               // Top-level Reset + Save/Export bridge for the context
               // menu. ПКМ surfaces these as a 🏠 Reset row + Save/Export
               // submenu. Handlers run with no extra wrapping — the menu
