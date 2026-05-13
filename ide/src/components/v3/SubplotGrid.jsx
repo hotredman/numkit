@@ -89,6 +89,10 @@ export default function SubplotGrid({
   // Counter pattern so React reliably notices a re-fit even when the same
   // axis is requested twice in a row.
   fitSignal = null,
+  // Toolbar Reset / display ▾ Reset increments displayResetSignal.n to
+  // tell SubplotGrid to drop every cell's per-cell display override
+  // back to the figure-wide value. Counter pattern (same as fitSignal).
+  displayResetSignal = null,
   interactive = true,
   engine = null,
 }) {
@@ -151,6 +155,46 @@ export default function SubplotGrid({
       return cur;
     }));
   }, [fitSignal, figure.cells]);
+
+  // ── Per-cell display overrides ────────────────────────────────────
+  // Right-click toggles inside a single cell store overrides here so
+  // a sub-plot user can flip grid/log/labels for ONE cell without
+  // affecting the others. Shape: array<{ major?, minor?, xLog?, yLog?,
+  // showTitle?, showXLabel?, showYLabel?, showLegend? }>. An undefined
+  // entry means "use the figure-wide value passed via props".
+  //
+  // The toolbar Reset / display ▾ Reset increments displayResetSignal
+  // which clears every override back to {} so the cells follow the
+  // global toggles again.
+  const [cellDisplay, setCellDisplay] = useState(() => figure.cells.map(() => ({})));
+  useEffect(() => {
+    setCellDisplay((prev) => {
+      // Re-init when cell count changed; otherwise keep existing overrides.
+      if (prev.length === figure.cells.length) return prev;
+      return figure.cells.map((_, i) => prev[i] || {});
+    });
+  }, [figure.cells.length]);
+  const lastDisplayResetNRef = useRef(0);
+  useEffect(() => {
+    if (!displayResetSignal || displayResetSignal.n === lastDisplayResetNRef.current) return;
+    lastDisplayResetNRef.current = displayResetSignal.n;
+    setCellDisplay(figure.cells.map(() => ({})));
+  }, [displayResetSignal, figure.cells.length]);
+  // Per-cell setter factory. Returns a function with the same updater
+  // shape as React's setState, so callers can write `cellSetter((v) => !v)`.
+  // When the override is unset, we read the figure-wide effective value
+  // (passed in via the resolveDefault closure) so toggling starts from
+  // the visible state.
+  const makeCellSetter = (idx, key, resolveDefault) => (updater) => {
+    setCellDisplay((prev) => {
+      const next = prev.slice();
+      const entry = next[idx] || {};
+      const cur = entry[key] !== undefined ? entry[key] : resolveDefault();
+      const value = typeof updater === 'function' ? updater(cur) : updater;
+      next[idx] = { ...entry, [key]: value };
+      return next;
+    });
+  };
   useEffect(() => {
     const shape = `${figure.id}:${figure.cells.length}:${figure.cells.map((c) => c.kind).join(',')}`;
     const newDefaults = figure.cells.map(defaultViewport);
@@ -229,16 +273,41 @@ export default function SubplotGrid({
                 next[idx] = v;
                 return next;
               }),
-              major, minor,
-              showTitle, showXLabel, showYLabel, showZLabel,
-              setShowMajor, setShowMinor,
-              setShowTitle, setShowXLabel, setShowYLabel,
-              setShowLegend,
+              ...(() => {
+                // Resolve effective per-cell display values: per-cell
+                // override wins, otherwise fall back to the figure-wide
+                // value passed in via props. Per-cell setters wrap
+                // makeCellSetter so a ПКМ click only mutates this cell.
+                const o = cellDisplay[idx] || {};
+                const eMajor     = o.major     !== undefined ? o.major     : major;
+                const eMinor     = o.minor     !== undefined ? o.minor     : minor;
+                const eXLog      = o.xLog      !== undefined ? o.xLog      : xLog;
+                const eYLog      = o.yLog      !== undefined ? o.yLog      : yLog;
+                const eShowTitle  = o.showTitle  !== undefined ? o.showTitle  : showTitle;
+                const eShowXLabel = o.showXLabel !== undefined ? o.showXLabel : showXLabel;
+                const eShowYLabel = o.showYLabel !== undefined ? o.showYLabel : showYLabel;
+                const eShowLegend = o.showLegend !== undefined ? o.showLegend : true;
+                return {
+                  major: eMajor, minor: eMinor,
+                  xLog: eXLog, yLog: eYLog,
+                  showTitle: eShowTitle, showXLabel: eShowXLabel,
+                  showYLabel: eShowYLabel, showZLabel,
+                  showLegend: eShowLegend,
+                  setShowMajor:  makeCellSetter(idx, 'major',     () => eMajor),
+                  setShowMinor:  makeCellSetter(idx, 'minor',     () => eMinor),
+                  setXLog:       makeCellSetter(idx, 'xLog',      () => eXLog),
+                  setYLog:       makeCellSetter(idx, 'yLog',      () => eYLog),
+                  setShowTitle:  makeCellSetter(idx, 'showTitle',  () => eShowTitle),
+                  setShowXLabel: makeCellSetter(idx, 'showXLabel', () => eShowXLabel),
+                  setShowYLabel: makeCellSetter(idx, 'showYLabel', () => eShowYLabel),
+                  setShowLegend: makeCellSetter(idx, 'showLegend', () => eShowLegend),
+                };
+              })(),
+              zLog,
               onResetAll,
               onExportSvg, onExportPng2x,
               onExportPngPrint85, onExportPngPrint170, onExportPngPrint210,
               onExportCsv, onExportTsv, onExportJson,
-              xLog, yLog, zLog,
               fontScale: subFont,
               interactive,
               engine,
