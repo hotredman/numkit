@@ -295,7 +295,20 @@ export default function SubplotGrid({
                 };
               })(),
               zLog,
-              onResetAll,
+              // ПКМ Reset row inside a subplot cell must reset ONLY this
+              // cell — never fan out to siblings. Combine the per-cell
+              // display+colormap resets with a per-cell viewport reset
+              // (defaultViewport for this cell). Toolbar 🏠 Reset still
+              // does figure-wide via FigureWindow's resetAll.
+              onResetAll: () => {
+                if (makeCellDisplayReset)  makeCellDisplayReset(idx)();
+                if (makeCellColormapReset) makeCellColormapReset(idx)();
+                setViewports((prev) => {
+                  const next = prev.slice();
+                  next[idx] = defaultViewport(figure.cells[idx]);
+                  return next;
+                });
+              },
               // Image + data exports inside a subplot cell must save
               // ONLY that cell's content. We deliberately DON'T forward
               // the figure-wide handlers from FigureWindow — CompositePlot
