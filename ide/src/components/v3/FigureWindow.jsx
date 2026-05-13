@@ -55,6 +55,34 @@ function NumberInput({ value, onCommit, width = 88 }) {
   );
 }
 
+/** Per-series rows for fit ▾. When `rows.length` is over `threshold`
+ *  (default 5), wraps the list in a side-opening submenu so the
+ *  popover doesn't grow tall. Below the threshold, renders inline.
+ *  Each row is a JSX element produced by the caller. */
+function FwPopRowsOrSubmenu({ rows, label, threshold = 5 }) {
+  const [open, setOpen] = useState(false);
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  if (rows.length <= threshold) {
+    return <>{rows}</>;
+  }
+  return (
+    <div className={`fw-pop-sub-wrap ${open ? 'is-open' : ''}`}
+         onMouseEnter={() => setOpen(true)}
+         onMouseLeave={() => setOpen(false)}>
+      <button className="fw-pop-sub-trigger"
+              onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}>
+        <span>{label}</span>
+        <span className="fw-pop-sub-arrow">▶</span>
+      </button>
+      {open && (
+        <div className="fw-pop fw-pop-sub">
+          {rows}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Tiny SVG glyph for one display ▾ row. Pure visual hint — keeps the
  *  popover scannable without taking screen space. */
 function DisplayIcon({ kind }) {
@@ -885,16 +913,17 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   <div className="fw-pop-section">
                     <div className="fw-pop-head">
                       single curve
-                      {figure.series.length > 8 && (
-                        <span className="fw-pop-count"> · {figure.series.length}</span>
-                      )}
+                      <span className="fw-pop-count"> · {figure.series.length}</span>
                     </div>
-                    {figure.series.map((s) => (
-                      <div key={s.name} className="fw-pop-row">
-                        <span className="fw-pop-name"><i style={{ background: s.color }} />{s.name}</span>
-                        <button onClick={() => applyFit(s.name, 'both')}>fit r</button>
-                      </div>
-                    ))}
+                    <FwPopRowsOrSubmenu
+                      label={`${figure.series.length} curves`}
+                      rows={figure.series.map((s) => (
+                        <div key={s.name} className="fw-pop-row">
+                          <span className="fw-pop-name"><i style={{ background: s.color }} />{s.name}</span>
+                          <button onClick={() => applyFit(s.name, 'both')}>fit r</button>
+                        </div>
+                      ))}
+                    />
                   </div>
                 )}
               </div>
@@ -913,18 +942,19 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   <div className="fw-pop-section">
                     <div className="fw-pop-head">
                       single curve
-                      {seriesLayers.length > 8 && (
-                        <span className="fw-pop-count"> · {seriesLayers.length}</span>
-                      )}
+                      <span className="fw-pop-count"> · {seriesLayers.length}</span>
                     </div>
-                    {seriesLayers.map((s) => (
-                      <div key={s.name} className="fw-pop-row">
-                        <span className="fw-pop-name"><i style={{ background: s.color }} />{s.name}</span>
-                        <button onClick={() => applyFit(s.name, 'both')}>xy</button>
-                        <button onClick={() => applyFit(s.name, 'x')}>x</button>
-                        <button onClick={() => applyFit(s.name, 'y')}>y</button>
-                      </div>
-                    ))}
+                    <FwPopRowsOrSubmenu
+                      label={`${seriesLayers.length} curves`}
+                      rows={seriesLayers.map((s) => (
+                        <div key={s.name} className="fw-pop-row">
+                          <span className="fw-pop-name"><i style={{ background: s.color }} />{s.name}</span>
+                          <button onClick={() => applyFit(s.name, 'both')}>xy</button>
+                          <button onClick={() => applyFit(s.name, 'x')}>x</button>
+                          <button onClick={() => applyFit(s.name, 'y')}>y</button>
+                        </div>
+                      ))}
+                    />
                   </div>
                 )}
               </div>

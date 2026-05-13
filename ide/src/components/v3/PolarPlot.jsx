@@ -16,7 +16,7 @@
  *   { r: [rMin, rMax] }
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import ContextMenu from './ContextMenu';
+import ContextMenu, { foldRowsToSubmenu } from './ContextMenu';
 import { exportSvgNode, exportPngNode, exportPngForPrint } from './plotUtils';
 
 const PALETTE = ['#7fd99a', '#5fb3d4', '#e9b870', '#9b8cf2', '#e26a6a',
@@ -265,10 +265,13 @@ export default function PolarPlot({
     },
     ...(multiSeries ? [
       { head: 'Fit single curve' },
-      ...figure.series.map((s) => ({
-        row: true, color: s.color, name: s.name,
-        buttons: [{ label: 'fit', onClick: () => fitRho(s.name), disabled: !setViewport }],
-      })),
+      ...foldRowsToSubmenu(
+        figure.series.map((s) => ({
+          row: true, color: s.color, name: s.name,
+          buttons: [{ label: 'fit', onClick: () => fitRho(s.name), disabled: !setViewport }],
+        })),
+        `${figure.series.length} curves`,
+      ),
     ] : []),
   ];
 
