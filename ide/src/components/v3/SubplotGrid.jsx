@@ -70,6 +70,16 @@ export default function SubplotGrid({
   setShowXLabel = null,
   setShowYLabel = null,
   setShowLegend = null,
+  // Colorbar visibility — figure-wide; falls through to each cell as
+  // showColorbar prop, with per-cell override pattern (same as
+  // major/minor/title etc.) for the per-cell ПКМ.
+  showColorbar = null,
+  setShowColorbar = null,
+  // Colormap override + setter for ПКМ Colormap submenu inside cells.
+  // Setter is figure-wide (heatmap inside any cell shares the override
+  // — matches how the toolbar's <select> works).
+  colormapOverride = null,
+  setColormapOverride = null,
   // ПКМ bridge — top-level reset + save/export handlers. Same per-cell
   // ContextMenu ends up surfacing them.
   onResetAll          = null,
@@ -287,12 +297,15 @@ export default function SubplotGrid({
                 const eShowXLabel = o.showXLabel !== undefined ? o.showXLabel : showXLabel;
                 const eShowYLabel = o.showYLabel !== undefined ? o.showYLabel : showYLabel;
                 const eShowLegend = o.showLegend !== undefined ? o.showLegend : true;
+                const eShowColorbar = o.showColorbar !== undefined ? o.showColorbar : showColorbar;
                 return {
                   major: eMajor, minor: eMinor,
                   xLog: eXLog, yLog: eYLog,
                   showTitle: eShowTitle, showXLabel: eShowXLabel,
                   showYLabel: eShowYLabel, showZLabel,
                   showLegend: eShowLegend,
+                  showColorbar: eShowColorbar,
+                  colormapOverride,
                   setShowMajor:  makeCellSetter(idx, 'major',     () => eMajor),
                   setShowMinor:  makeCellSetter(idx, 'minor',     () => eMinor),
                   setXLog:       makeCellSetter(idx, 'xLog',      () => eXLog),
@@ -301,6 +314,9 @@ export default function SubplotGrid({
                   setShowXLabel: makeCellSetter(idx, 'showXLabel', () => eShowXLabel),
                   setShowYLabel: makeCellSetter(idx, 'showYLabel', () => eShowYLabel),
                   setShowLegend: makeCellSetter(idx, 'showLegend', () => eShowLegend),
+                  setShowColorbar: makeCellSetter(idx, 'showColorbar', () => eShowColorbar),
+                  // Colormap stays figure-wide — same select fires across all cells.
+                  setColormapOverride,
                 };
               })(),
               zLog,

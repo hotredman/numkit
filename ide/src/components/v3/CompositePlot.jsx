@@ -136,6 +136,12 @@ export default function CompositePlot({
   setShowXLabel = null,
   setShowYLabel = null,
   setShowLegend = null,
+  // Colorbar visibility — true → render at script-set location or
+  // 'east' default; false → hide; null → follow script (figure.color
+  // barLocation). Preview cards / standalone use null so they stay in
+  // sync with the script. FigureWindow passes a real boolean.
+  showColorbar = null,
+  setShowColorbar = null,
   // ПКМ bridge — top-level Reset + Save/Export bound from FigureWindow.
   // Each is a no-arg handler; absent → corresponding ПКМ row is omitted.
   onResetAll          = null,
@@ -160,6 +166,7 @@ export default function CompositePlot({
   colorOverride: colorOverrideProp,
   setColorOverride: setColorOverrideProp,
   colormapOverride = null,
+  setColormapOverride = null,
 }) {
   // Layers — empty array if none. The renderer walks them in order so the
   // user controls z-order via call sequence (heatmap first, scatter on top,
@@ -899,7 +906,25 @@ export default function CompositePlot({
       label: showLegend ? '✓ legend' : 'legend',
       onClick: () => setShowLegend((v) => !v),
     }] : []),
+    ...(setShowColorbar ? [{
+      label: showColorbar ? '✓ colorbar' : 'colorbar',
+      onClick: () => setShowColorbar((v) => !v),
+    }] : []),
   ] : null;
+
+  // Colormap submenu — list of available palettes; click sets
+  // colormapOverride which propagates back to FigureWindow's state.
+  // Only built when the parent provided the setter (modal mode) AND
+  // there's a heatmap layer to colour. Marks the active palette with ✓.
+  const COLORMAP_NAMES = ['parula', 'jet', 'hot', 'cool', 'gray', 'bone',
+    'copper', 'spring', 'summer', 'autumn', 'winter', 'hsv', 'viridis'];
+  const colormapSubmenuItems = (setColormapOverride && hasHeatmap) ? COLORMAP_NAMES.map((name) => ({
+    label: (effectiveColormap === name ? '✓ ' : '') + name,
+    onClick: () => {
+      const scriptDefault = heatmapLayer?.colormap || 'parula';
+      setColormapOverride(name === scriptDefault ? null : name);
+    },
+  })) : null;
 
   // House icon used for the Reset row. Same SVG as the toolbar
   // standalone Reset button — uses currentColor so it inherits the
@@ -913,10 +938,11 @@ export default function CompositePlot({
   );
 
   const ctxItems = [
-    // Order: Reset · Save · Display · Fit (per UX spec).
+    // Order: Reset · Save · Display · Colormap · Fit (per UX spec).
     { label: <span>{houseIcon}Reset</span>, onClick: onReset },
     { submenu: 'Save / Export ▶', items: exportItems },
     ...(displaySubmenuItems ? [{ submenu: 'Display ▶', items: displaySubmenuItems }] : []),
+    ...(colormapSubmenuItems ? [{ submenu: 'Colormap ▶', items: colormapSubmenuItems }] : []),
     { separator: true },
     // For figures with series layers (line/scatter), surface "fit all curves"
     // and per-curve rows like InteractivePlot did. Falls back to data-extent
@@ -1092,20 +1118,22 @@ export default function CompositePlot({
   const imgH = Math.abs(syLo - syHi);
 
   /* ─── colorbar — placement honours figure.colorbarLocation ─────
-     'off'  → hidden (explicit user hide). null/'' → default for
-     heatmap = 'east' (IDE convenience; MATLAB requires explicit
-     colorbar call).
+     MATLAB parity: the bar appears ONLY when the script called
+     colorbar() (which sets figure.colorbarLocation to a non-empty
+     placement string) OR when the user enabled it via the toolbar /
+     ПКМ display toggle (showColorbar === true).
      'east' / 'eastoutside'  → vertical bar right of plot
      'west' / 'westoutside'  → vertical bar left of plot
      'north' / 'northoutside' → horizontal bar above plot
      'south' / 'southoutside' → horizontal bar below plot
      We collapse 'inside' / 'outside' variants to the same screen
-     position; 'inside' would overlap data, which is unusual for
-     real-world MATLAB scripts. */
+     position; 'inside' would overlap data. */
   const cbarLocRaw = figure.colorbarLocation || '';
-  const cbarLoc = cbarLocRaw === 'off'
-    ? null
-    : (cbarLocRaw || (hasHeatmap ? 'east' : null));
+  // Resolve "want bar?" — explicit toggle wins; otherwise follow script.
+  const cbarWanted = showColorbar === true
+                  || (showColorbar !== false && !!cbarLocRaw);
+  // When wanted but script didn't set a location, fall back to 'east'.
+  const cbarLoc = cbarWanted ? (cbarLocRaw || 'east') : null;
   // Strip the 'outside' suffix so the placement switch is compact.
   const cbarSide = cbarLoc ? cbarLoc.replace(/outside$/, '') : null;
   const cbarThick = 12;
