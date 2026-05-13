@@ -57,6 +57,37 @@ test('ylog toggle switches Y axis from linear to log scale', async ({ ide, page 
   expect(looksLog, `log ticks ${JSON.stringify(logTicks)}`).toBe(true);
 });
 
+test('toolbar xlog applies log scale to ALL subplot cells', async ({ ide, page }) => {
+  await ide.runScript(
+    'import compat.*;\n'
+    + 'figure;\n'
+    + 'subplot(1,2,1); plot(1:1000);\n'
+    + 'subplot(1,2,2); plot(1:1000);\n'
+  );
+  await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+  await ide.figureCards.first().click();
+  await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(150);
+
+  await openDisplay(page);
+  await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'xlog' }) }).click();
+  await page.waitForTimeout(200);
+
+  // Both cells should now show log-scale ticks (powers of 10).
+  const tickPerCell = await page.locator('.fw-window .fw-canvas-wrap svg').evaluateAll((els) =>
+    els.map((svg) => Array.from(svg.querySelectorAll('text'))
+      .filter((t) => parseFloat(t.getAttribute('y') || '0') > 200
+                  && /^-?\d/.test(t.textContent || ''))
+      .map((t) => t.textContent))
+  );
+  // Each cell's tick set should contain at least one decade label.
+  const looksLog = (ticks) => ticks.some((t) => /^(10|10\.0|100|1000|1\.00)$/.test(t));
+  expect(tickPerCell[0].length, `cell A ticks empty: ${JSON.stringify(tickPerCell)}`).toBeGreaterThan(0);
+  expect(tickPerCell[1].length, `cell B ticks empty: ${JSON.stringify(tickPerCell)}`).toBeGreaterThan(0);
+  expect(looksLog(tickPerCell[0]), `cell A not log: ${JSON.stringify(tickPerCell[0])}`).toBe(true);
+  expect(looksLog(tickPerCell[1]), `cell B not log: ${JSON.stringify(tickPerCell[1])}`).toBe(true);
+});
+
 test('xlog toggle switches X axis from linear to log scale', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'

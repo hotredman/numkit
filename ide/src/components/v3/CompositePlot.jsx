@@ -253,6 +253,32 @@ export default function CompositePlot({
   const setXLog = setXLogProp || setXLogLocal;
   const setYLog = setYLogProp || setYLogLocal;
 
+  // Auto-clamp viewport when xLog/yLog flips on but the visible range
+  // includes ≤0 — log mapping needs strictly positive bounds. The ПКМ
+  // path inside CompositePlot used to do this inline, but the toolbar
+  // (and toolbar-fanned subplot updates) only flip the flag, leaving
+  // the per-cell viewport untouched. Effect makes the clamp universal:
+  // any code path that sets xLog/yLog to true with an invalid viewport
+  // gets a sane log range without re-implementing the math.
+  useEffect(() => {
+    if (!xLog || !setViewport || !viewport || !viewport.x) return;
+    const [xMinV, xMaxV] = viewport.x;
+    if (xMinV > 0 && xMaxV > 0) return;
+    const hi = Math.max(figure.xRange?.[1] || xMaxV, 1e-6);
+    const lo = Math.max(hi / 1e4, 1e-6);
+    const hiClamped = Math.max(lo * 10, hi);
+    setViewport({ ...viewport, x: [lo, hiClamped] });
+  }, [xLog]);  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!yLog || !setViewport || !viewport || !viewport.y) return;
+    const [yMinV, yMaxV] = viewport.y;
+    if (yMinV > 0 && yMaxV > 0) return;
+    const hi = Math.max(figure.yRange?.[1] || yMaxV, 1e-6);
+    const lo = Math.max(hi / 1e4, 1e-6);
+    const hiClamped = Math.max(lo * 10, hi);
+    setViewport({ ...viewport, y: [lo, hiClamped] });
+  }, [yLog]);  // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Color-limit override ────────────────────────────────────────────
   // "Fit colors to visible" pulls cmin/cmax from the currently-visible
   // source-rect via getFigureTile, so a low-contrast region zoomed in
