@@ -1227,10 +1227,32 @@ input, select { font-family: inherit; color: inherit; }
   overflow: hidden;
 }
 .ve-body.has-plot {
-  grid-template-columns: 1fr 520px;
+  grid-template-columns: 1fr 6px 520px;
 }
 .ve-body.has-plot .ve-table-wrap {
   border-right: 1px solid var(--line);
+}
+/* Vertical drag handle between the table and the inline plot. 6 px
+   gutter (matches grid track), centered hairline glows on hover. */
+.ve-divider {
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  user-select: none;
+}
+.ve-divider::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: 50%;
+  width: 1px;
+  background: var(--line);
+  transform: translateX(-0.5px);
+}
+.ve-divider:hover::before,
+.ve-divider:active::before {
+  background: var(--accent, #7fd99a);
+  width: 2px;
+  transform: translateX(-1px);
 }
 
 /* Save As menu */
