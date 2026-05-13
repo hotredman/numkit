@@ -7,6 +7,10 @@ import SubplotGrid from './SubplotGrid';
 import { computeFitViewport,
   composeSvgsToString, exportSvgString, exportPngString,
   downloadBlob as utilDownloadBlob } from './plotUtils';
+import { initCellSettings, aggOn, aggColormap, cellsArrayFromFigure,
+  defaultViewport } from './figureCellState';
+import { initAxesFromCell, getProp, setProp, setAllAxes, setAxesAt,
+  everyAxes, isOn, onOff } from './figureSchema';
 
 function renderFigure(figure, props, threeRef) {
   if (figure.kind === 'subplot')     return <SubplotGrid     figure={figure} {...props} />;
@@ -140,16 +144,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   // computed by Composite3DPlot via its bbox helper. We start with a
   // safe placeholder ([-1, 1] cube) and fill in the real extent
   // through the onBBox callback below.
-  const figDefault = isSubplot
-    ? null
-    : is3D
-      ? { x: [-1, 1], y: [-1, 1], z: [-1, 1] }
-      : isPolar
-        ? defaultPolarViewport(figure)
-        : (figure.xRange && figure.yRange)
-          ? { x: figure.xRange.slice(), y: figure.yRange.slice() }
-          : { x: [-1, 1], y: [-1, 1] };
-  const [viewport, setViewport]   = useState(figDefault);
+  // figDefault & viewport now live in cells[0].viewport (single source
+  // of truth — see figureCellState.js). The non-subplot getter below
+  // exposes a `viewport` / `setViewport` compat pair for legacy call
+  // sites; subplot uses per-cell viewports inside SubplotGrid.
+  const figDefault = isSubplot ? null : defaultViewport(figure);
   // 3-D bbox cache — Composite3DPlot reports it via onBBox each
   // figure rebuild. Used as the "fit to data" target.
   const [bbox3d, setBbox3d] = useState(null);
@@ -184,110 +183,179 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       };
     });
   }
-  // ── PER-CELL STATE — single source of truth ──────────────────────
+  // ── AXES STATE — MATLAB HG2 schema (single source of truth) ──────
   //
-  // Rather than carry a "figure-wide" snapshot + per-cell override layer,
-  // we model the figure as an array of N cell-state entries. For
-  // non-subplot figures N=1 (the figure IS its single cell); for subplot
-  // N=cells.length.
+  // Schema lives in ./figureSchema.js. We model the figure as an array
+  // of Axes objects (one per cell; non-subplot figures have one).
+  // Property names (XGrid, YGrid, XScale, Title.Visible, ...) match
+  // MATLAB R2025b — see figureSchema.js for the type definition.
   //
-  // Each entry carries every display-related flag PLUS the colormap.
-  // Toolbar setters fan an update across all entries; ПКМ setters
-  // mutate one. Aggregate ✓ in the toolbar = "every entry has it set".
-  //
-  // The model removes the previous figure-wide / override duplication
-  // and the brittle reset-cascade effects that came with it.
-  const cellsArr = isSubplot && Array.isArray(figure.cells) ? figure.cells : [figure];
-  function initCellState(cell) {
-    const legendUserAsked = (Array.isArray(cell.legend) && cell.legend.length > 0)
-                         || (cell.legendLocation && cell.legendLocation !== 'none');
-    const colorbarUserAsked = !!cell.colorbarLocation && cell.colorbarLocation !== 'off';
-    // Title / xlabel / ylabel / zlabel toggles default ON only when
-    // the script actually set the corresponding text. MATLAB parity:
-    // never call xlabel() → no x-axis label drawn → toolbar ✓ stays
-    // off → user click flips the state (a no-op visually because
-    // figure.xLabel is empty, but the cell-state flag still lights
-    // up so subsequent script setups can show through). titleAuto
-    // marks the adapter-substituted "Figure N" so it doesn't count.
-    const titleSet  = !!(cell.title && !cell.titleAuto);
-    const xLabelSet = !!cell.xLabel;
-    const yLabelSet = !!cell.yLabel;
-    const zLabelSet = !!cell.zLabel;
-    return {
-      showMajor:    cell.grid === 'on',
-      showMinor:    cell.gridMinor === 'on',
-      xLog:         cell.xscale === 'log',
-      yLog:         cell.yscale === 'log',
-      zLog:         false,
-      showTitle:    titleSet,
-      showXLabel:   xLabelSet,
-      showYLabel:   yLabelSet,
-      showZLabel:   zLabelSet,
-      showLegend:   !!legendUserAsked,
-      showColorbar: !!colorbarUserAsked,
-      // null = "follow this cell's script-set heatmap.colormap"
-      colormap:     null,
-    };
-  }
-  const [cellState, setCellState] = useState(() => cellsArr.map(initCellState));
-  // Re-init on figure identity change OR when the cell count changes.
-  // Same-id figure with same cell count keeps user toggles — script
-  // re-run shouldn't wipe ПКМ tweaks.
+  // Toolbar setters fan an update across every Axes; ПКМ setters
+  // mutate one. Aggregate ✓ in the toolbar = `every Axes has prop on`.
+  // Reset = re-init from script via initAxesFromCell().
+  const cellsArr = cellsArrayFromFigure(figure);
+  const [axesArr, setAxesArr] = useState(() => cellsArr.map(initAxesFromCell));
+  // Re-init on figure identity / shape change. Same-id same-shape
+  // re-run keeps user toggles (ПКМ tweaks survive script re-runs).
   useEffect(() => {
-    setCellState((prev) => {
+    setAxesArr((prev) => {
       if (prev.length === cellsArr.length) return prev;
-      return cellsArr.map((c, i) => prev[i] || initCellState(c));
+      return cellsArr.map((c, i) => prev[i] || initAxesFromCell(c));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [figure.id, cellsArr.length]);
 
-  // Color-limit override for heatmap window/level autoscale. Stays as
-  // its own state (cmin/cmax pair, not a flag) — fitColorsToVisible
-  // writes into it; reset paths clear it.
-  const [colorOverride, setColorOverride] = useState(null);
-  useEffect(() => { setColorOverride(null); }, [figure.id]);
+  // ── Legacy compat layer — reads ──────────────────────────────────
+  // Down-stream code (CompositePlot, SubplotGrid, ПКМ Display submenu
+  // etc.) still consumes flat boolean props (showMajor, xLog, ...).
+  // Derive them from axesArr aggregates. This boundary lets us keep
+  // the canonical state in MATLAB schema while not touching every
+  // call site of the legacy API.
+  function axisGridOn(axes) {
+    return isOn(axes && axes.XGrid) || isOn(axes && axes.YGrid)
+        || isOn(axes && axes.ZGrid);
+  }
+  function axisGridMinorOn(axes) {
+    return isOn(axes && axes.XMinorGrid) || isOn(axes && axes.YMinorGrid)
+        || isOn(axes && axes.ZMinorGrid);
+  }
+  // Adapter — same shape the old `cells: CellSettings[]` exposed.
+  // Used by SubplotGrid (fed via the cellState renderFigure prop).
+  function axesToLegacyCell(axes) {
+    if (!axes) return {};
+    return {
+      showMajor:    axisGridOn(axes),
+      showMinor:    axisGridMinorOn(axes),
+      xLog:         axes.XScale === 'log',
+      yLog:         axes.YScale === 'log',
+      zLog:         axes.ZScale === 'log',
+      showTitle:    isOn(axes.Title    && axes.Title.Visible),
+      showXLabel:   isOn(axes.XLabel   && axes.XLabel.Visible),
+      showYLabel:   isOn(axes.YLabel   && axes.YLabel.Visible),
+      showZLabel:   isOn(axes.ZLabel   && axes.ZLabel.Visible),
+      showLegend:   isOn(axes.Legend   && axes.Legend.Visible),
+      showColorbar: isOn(axes.Colorbar && axes.Colorbar.Visible),
+      colormap:     axes.Colormap || null,
+    };
+  }
+  const cells = axesArr.map(axesToLegacyCell);
 
-  // ── Aggregates (read-only views over cellState) ──────────────────
-  // Toolbar uses these for ✓ marks and as the "current value" the
-  // aggregate-flip toggles compare against.
-  const allOn = (key) => cellState.length > 0 && cellState.every((s) => !!s[key]);
-  const showMajor    = allOn('showMajor');
-  const showMinor    = allOn('showMinor');
-  const xLog         = allOn('xLog');
-  const yLog         = allOn('yLog');
-  const zLog         = allOn('zLog');
-  const showTitle    = allOn('showTitle');
-  const showXLabel   = allOn('showXLabel');
-  const showYLabel   = allOn('showYLabel');
-  const showZLabel   = allOn('showZLabel');
-  const showLegend   = allOn('showLegend');
-  const showColorbar = allOn('showColorbar');
-  // Backward-compat: some downstream paths (non-subplot CompositePlot,
-  // pass-through props) read `colormapOverride`. For uniform colormap
-  // across cells return that value; mixed = null.
-  const colormapOverride =
-    cellState.length > 0 && cellState.every((s) => s.colormap === cellState[0].colormap)
-      ? cellState[0].colormap
-      : null;
-  function aggColormap(name, scriptDefault) {
-    if (cellState.length === 0) return false;
-    return cellState.every((s, i) => {
-      const cell = cellsArr[i];
-      const hm = (cell.layers || []).find((l) => l && l.kind === 'heatmap');
-      const eff = s.colormap || (hm && hm.colormap) || scriptDefault || 'parula';
-      return eff === name;
-    });
+  // Compat: viewport / setViewport read-write pair, derived from
+  // axesArr[0]'s XLim/YLim/ZLim (or RLim for polar). For subplot the
+  // figure-level viewport is null — per-cell viewports live inside
+  // each axes entry.
+  const viewport = isSubplot ? null : (viewportFromAxes(axesArr[0]) || figDefault);
+  const setViewport = isSubplot ? null
+    : (vOrFn) => setCellKey(0, 'viewport', vOrFn);
+
+  // Aggregates (read-only views).
+  // ── Legacy ↔ MATLAB schema bridges ───────────────────────────────
+  // Map flat boolean keys used throughout the existing UI / renderer
+  // to MATLAB property paths.
+  function legacyRead(a, key) {
+    if (!a) return undefined;
+    switch (key) {
+      case 'showMajor':    return axisGridOn(a);
+      case 'showMinor':    return axisGridMinorOn(a);
+      case 'xLog':         return a.XScale === 'log';
+      case 'yLog':         return a.YScale === 'log';
+      case 'zLog':         return a.ZScale === 'log';
+      case 'showTitle':    return isOn(a.Title    && a.Title.Visible);
+      case 'showXLabel':   return isOn(a.XLabel   && a.XLabel.Visible);
+      case 'showYLabel':   return isOn(a.YLabel   && a.YLabel.Visible);
+      case 'showZLabel':   return isOn(a.ZLabel   && a.ZLabel.Visible);
+      case 'showLegend':   return isOn(a.Legend   && a.Legend.Visible);
+      case 'showColorbar': return isOn(a.Colorbar && a.Colorbar.Visible);
+      case 'colormap':     return a.Colormap;
+      case 'viewport':     return viewportFromAxes(a);
+      default: return undefined;
+    }
+  }
+  function legacyWrite(a, key, value) {
+    switch (key) {
+      case 'showMajor':    {
+        const f = onOff(!!value);
+        return { ...a, XGrid: f, YGrid: f, ZGrid: f };
+      }
+      case 'showMinor':    {
+        const f = onOff(!!value);
+        return { ...a, XMinorGrid: f, YMinorGrid: f, ZMinorGrid: f };
+      }
+      case 'xLog':         return { ...a, XScale: value ? 'log' : 'linear' };
+      case 'yLog':         return { ...a, YScale: value ? 'log' : 'linear' };
+      case 'zLog':         return { ...a, ZScale: value ? 'log' : 'linear' };
+      case 'showTitle':    return setProp(a, ['Title',    'Visible'], onOff(!!value));
+      case 'showXLabel':   return setProp(a, ['XLabel',   'Visible'], onOff(!!value));
+      case 'showYLabel':   return setProp(a, ['YLabel',   'Visible'], onOff(!!value));
+      case 'showZLabel':   return setProp(a, ['ZLabel',   'Visible'], onOff(!!value));
+      case 'showLegend':   return setProp(a, ['Legend',   'Visible'], onOff(!!value));
+      case 'showColorbar': return setProp(a, ['Colorbar', 'Visible'], onOff(!!value));
+      case 'colormap':     return { ...a, Colormap: value };
+      case 'viewport':     return applyViewport(a, value);
+      default: return a;
+    }
+  }
+  function viewportFromAxes(a) {
+    if (!a) return null;
+    if (Array.isArray(a.RLim)) {
+      return { rmin: a.RLim[0], rmax: a.RLim[1] };
+    }
+    const out = {};
+    if (Array.isArray(a.XLim)) out.x = a.XLim.slice();
+    if (Array.isArray(a.YLim)) out.y = a.YLim.slice();
+    if (Array.isArray(a.ZLim)) out.z = a.ZLim.slice();
+    return Object.keys(out).length > 0 ? out : null;
+  }
+  function applyViewport(a, vp) {
+    if (!vp) return a;
+    const out = { ...a };
+    if (Array.isArray(vp.x)) out.XLim = vp.x.slice();
+    if (Array.isArray(vp.y)) out.YLim = vp.y.slice();
+    if (Array.isArray(vp.z)) out.ZLim = vp.z.slice();
+    if (vp.rmin != null && vp.rmax != null) out.RLim = [vp.rmin, vp.rmax];
+    return out;
   }
 
-  // ── Setters: toolbar (fan-all) and per-cell ──────────────────────
-  // Toolbar setter takes the React updater shape (value or fn). When it
-  // gets a function we evaluate against the current AGGREGATE so the
+  // ── Legacy aggregate readers ─────────────────────────────────────
+  const showMajor    = everyAxes(axesArr, ['XGrid'], isOn) || everyAxes(axesArr, ['YGrid'], isOn);
+  const showMinor    = everyAxes(axesArr, ['XMinorGrid'], isOn) || everyAxes(axesArr, ['YMinorGrid'], isOn);
+  const xLog         = axesArr.length > 0 && axesArr.every((a) => a.XScale === 'log');
+  const yLog         = axesArr.length > 0 && axesArr.every((a) => a.YScale === 'log');
+  const zLog         = axesArr.length > 0 && axesArr.every((a) => a.ZScale === 'log');
+  const showTitle    = everyAxes(axesArr, ['Title',    'Visible']);
+  const showXLabel   = everyAxes(axesArr, ['XLabel',   'Visible']);
+  const showYLabel   = everyAxes(axesArr, ['YLabel',   'Visible']);
+  const showZLabel   = everyAxes(axesArr, ['ZLabel',   'Visible']);
+  const showLegend   = everyAxes(axesArr, ['Legend',   'Visible']);
+  const showColorbar = everyAxes(axesArr, ['Colorbar', 'Visible']);
+  // Per-axis aggregates — used by the new X grid / Y grid display ▾ rows.
+  const xGrid        = everyAxes(axesArr, ['XGrid'], isOn);
+  const yGrid        = everyAxes(axesArr, ['YGrid'], isOn);
+  const zGrid        = everyAxes(axesArr, ['ZGrid'], isOn);
+  // Colormap aggregate — uniform across heatmap-bearing axes; mixed → null.
+  const colormapOverride = (() => {
+    if (axesArr.length === 0) return null;
+    const v0 = axesArr[0].Colormap;
+    return axesArr.every((a) => a.Colormap === v0) ? v0 : null;
+  })();
+  // Color autoscale (CLim) — figure-wide for the toolbar.
+  const colorOverride = axesArr.length > 0 && axesArr[0].CLim
+    ? { cmin: axesArr[0].CLim[0], cmax: axesArr[0].CLim[1] }
+    : null;
+  function setColorOverride(v) {
+    const clim = v ? [v.cmin, v.cmax] : null;
+    setAxesArr((prev) => prev.map((a) => ({ ...a, CLim: clim })));
+  }
+
+  // ── Setters (toolbar fan-all + per-cell) ─────────────────────────
+  // Toolbar setters take the React updater shape (value | fn). When a
+  // function we evaluate it against the current AGGREGATE so the
   // common pattern `(v) => !v` flips from the visible aggregate state.
   function fanAll(key, updater) {
-    setCellState((prev) => {
-      const cur = prev.length > 0 ? prev.every((s) => !!s[key]) : false;
+    setAxesArr((prev) => {
+      const cur = prev.length > 0 ? !!prev.every((a) => !!legacyRead(a, key)) : false;
       const next = typeof updater === 'function' ? updater(cur) : updater;
-      return prev.map((s) => ({ ...s, [key]: next }));
+      return prev.map((a) => legacyWrite(a, key, next));
     });
   }
   const setShowMajor    = (u) => fanAll('showMajor',    u);
@@ -301,40 +369,62 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   const setShowZLabel   = (u) => fanAll('showZLabel',   u);
   const setShowLegend   = (u) => fanAll('showLegend',   u);
   const setShowColorbar = (u) => fanAll('showColorbar', u);
-  // Colormap toolbar setter: writes a literal value (not a flag, no
-  // aggregate flip). null clears every per-cell colormap pick.
   function setColormapOverride(value) {
-    setCellState((prev) => prev.map((s) => ({ ...s, colormap: value })));
+    setAxesArr((prev) => prev.map((a) => ({ ...a, Colormap: value })));
   }
-
-  // Per-cell setter factories used by SubplotGrid → CompositePlot ПКМ.
-  function setCellKey(idx, key, updater) {
-    setCellState((prev) => {
-      const next = prev.slice();
-      const entry = next[idx] || initCellState(cellsArr[idx] || {});
-      const cur = entry[key];
-      const value = typeof updater === 'function' ? updater(cur) : updater;
-      next[idx] = { ...entry, [key]: value };
-      return next;
+  // Path-based setter: writes the same value to every Axes at the
+  // given MATLAB property path. Used by the new per-axis display ▾
+  // rows (X grid, Y grid, ...).
+  function fanAllPath(path, updater) {
+    setAxesArr((prev) => {
+      const cur = prev.length > 0
+                  ? prev.every((a) => isOn(getProp(a, path))) : false;
+      const next = typeof updater === 'function' ? updater(cur) : updater;
+      return prev.map((a) => setProp(a, path, onOff(!!next)));
     });
   }
-  const makeCellDisplaySetter = (idx, key) => (u) => setCellKey(idx, key, u);
+  const setXGrid = (u) => fanAllPath(['XGrid'], u);
+  const setYGrid = (u) => fanAllPath(['YGrid'], u);
+  const setZGrid = (u) => fanAllPath(['ZGrid'], u);
+
+  // Per-cell setters — write to one Axes by index.
+  function setCellKey(idx, key, updater) {
+    setAxesArr((prev) => {
+      const a = prev[idx] || initAxesFromCell(cellsArr[idx]);
+      const cur = legacyRead(a, key);
+      const value = typeof updater === 'function' ? updater(cur) : updater;
+      const out = prev.slice();
+      out[idx] = legacyWrite(a, key, value);
+      return out;
+    });
+  }
+  const makeCellDisplaySetter  = (idx, key) => (u) => setCellKey(idx, key, u);
   const makeCellColormapSetter = (idx) => (v) => setCellKey(idx, 'colormap', v);
   const makeCellDisplayReset = (idx) => () => {
-    setCellState((prev) => {
+    setAxesArr((prev) => {
+      const init = initAxesFromCell(cellsArr[idx] || {});
+      const cur  = prev[idx] || init;
+      // Reset display flags but keep Colormap, CLim, XLim/YLim/ZLim, View.
       const next = prev.slice();
-      const init = initCellState(cellsArr[idx] || {});
-      // Reset display flags, leave colormap untouched.
-      const { colormap: _drop, ...flags } = init;
-      next[idx] = { ...(next[idx] || {}), ...flags };
+      next[idx] = {
+        ...cur,
+        Visible: init.Visible, Box: init.Box,
+        XGrid: init.XGrid, YGrid: init.YGrid, ZGrid: init.ZGrid,
+        XMinorGrid: init.XMinorGrid, YMinorGrid: init.YMinorGrid, ZMinorGrid: init.ZMinorGrid,
+        XScale: init.XScale, YScale: init.YScale, ZScale: init.ZScale,
+        XDir: init.XDir, YDir: init.YDir, ZDir: init.ZDir,
+        Title: init.Title, Subtitle: init.Subtitle,
+        XLabel: init.XLabel, YLabel: init.YLabel, ZLabel: init.ZLabel, YLabel2: init.YLabel2,
+        Legend: init.Legend, Colorbar: init.Colorbar,
+      };
       return next;
     });
   };
   const makeCellColormapReset = (idx) => () => {
-    setCellState((prev) => {
-      const next = prev.slice();
-      next[idx] = { ...(next[idx] || initCellState(cellsArr[idx] || {})), colormap: null };
-      return next;
+    setAxesArr((prev) => {
+      const out = prev.slice();
+      out[idx] = { ...(out[idx] || initAxesFromCell(cellsArr[idx] || {})), Colormap: null };
+      return out;
     });
   };
 
@@ -449,12 +539,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   //   • display ▾ → reset  — display state + colormap, ALL cells back
   //                          to script defaults
   //   • 🏠 Reset toolbar   — viewport + display
-  // Display reset re-inits cellState from script defaults, which
-  // covers every flag AND drops every per-cell colormap pick in one
-  // operation — no cascade effects, no signal counters.
+  // Display reset re-inits cells from script defaults — covers every
+  // flag, the colormap, and (now) the viewport in one operation. No
+  // cascade effects, no signal counters.
   function displayReset() {
-    setCellState(cellsArr.map(initCellState));
-    setColorOverride(null);
+    setAxesArr(cellsArr.map(initAxesFromCell));
   }
   function viewportReset() {
     if (isSubplot) {
@@ -488,11 +577,6 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   const cmapRef = useRef(null);
   const saveRef = useRef(null);
   const viewRef = useRef(null);
-
-  // Aggregation + per-cell setter helpers were declared earlier as
-  // part of the per-cell-state model (allOn / aggColormap +
-  // makeCellDisplaySetter / makeCellColormapSetter / makeCellDisplay
-  // Reset / makeCellColormapReset).
 
   // ── display-menu disabled rules ──────────────────────────────────────
   // For non-subplot figures we look at top-level fields. For subplots,
@@ -1112,9 +1196,16 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   {/* aggOn shows ✓ only when EVERY cell has the option set
                       (after applying per-cell overrides). For non-subplot
                       figures it just returns the figure-wide state. */}
-                  <DisplayToggle label="grid"  active={showMajor}
+                  {/* Per-axis grid toggles match MATLAB HG2 (XGrid /
+                      YGrid / ZGrid). The combined "grid" row is kept
+                      as a quick all-axes flip. */}
+                  <DisplayToggle label="grid"   active={showMajor}
                                  onClick={() => setShowMajor((g) => !g)} />
-                  <DisplayToggle label="minor" active={showMinor}
+                  <DisplayToggle label="X grid" active={xGrid}
+                                 onClick={() => setXGrid((g) => !g)} />
+                  <DisplayToggle label="Y grid" active={yGrid}
+                                 onClick={() => setYGrid((g) => !g)} />
+                  <DisplayToggle label="minor"  active={showMinor}
                                  onClick={() => setShowMinor((g) => !g)} />
                 </div>
                 <div className="fw-pop-section">
@@ -1194,7 +1285,8 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                         // per-cell overrides). For non-subplot figures
                         // it just compares the figure-wide effective
                         // value.
-                        const active = aggColormap(cm, scriptDefault);
+                        const active = aggColormap(
+                          axesArr.map(axesToLegacyCell), cellsArr, cm);
                         return (
                           <button key={cm}
                                   className="fw-pop-toggle"
@@ -1325,11 +1417,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               // Per-cell state (single source of truth) lives in
               // FigureWindow now. SubplotGrid receives the array + per-
               // cell setter factories and fans them out to each cell's
-              // CompositePlot. Non-subplot CompositePlot uses cellState[0]
+              // CompositePlot. Non-subplot CompositePlot uses cells[0]
               // values flattened into the same prop names already passed
               // above (showMajor / xLog / ...), and the figure-wide
               // setters wrap fanAll().
-              cellState,
+              cellState: cells,
               makeCellDisplaySetter, makeCellColormapSetter,
               makeCellDisplayReset, makeCellColormapReset,
               // Non-subplot CompositePlot uses these directly (no

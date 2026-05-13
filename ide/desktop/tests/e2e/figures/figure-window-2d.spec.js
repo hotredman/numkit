@@ -85,7 +85,8 @@ test.describe('FigureWindow — 2-D layout', () => {
     await expect(popup).toBeVisible({ timeout: 5_000 });
     await expect(popup.locator('button', { hasText: 'X only' })).toBeVisible();
     await expect(popup.locator('button', { hasText: 'Y only' })).toBeVisible();
-    // 2-D popup must NOT have a Z option.
-    expect(await popup.locator('button', { hasText: 'Z only' }).count()).toBe(0);
+    // 2-D popup keeps Z only visible but disabled (UX rule: panel
+    // toggles never hide; they grey out when not applicable).
+    await expect(popup.locator('button', { hasText: 'Z only' })).toBeDisabled();
   });
 });
