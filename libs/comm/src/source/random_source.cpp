@@ -89,8 +89,9 @@ void parseAlphabet(const Value &a,
 
 } // namespace
 
-Value randsrc(std::pmr::memory_resource *mr, size_t m, size_t n,
-              const Value &alphabet, bool have_state, uint32_t state)
+Value randsrc(size_t m, size_t n, const Value &alphabet,
+              bool have_state, uint32_t state,
+              std::pmr::memory_resource *mr)
 {
     using ::numkit::builtin::detail::MatlabMT19937;
 
@@ -242,8 +243,9 @@ void fillOneRow(double *o_col_major, size_t i, size_t m, size_t n,
 
 } // namespace
 
-Value randerr(std::pmr::memory_resource *mr, size_t m, size_t n,
-              const Value &errspec, bool have_state, uint32_t state)
+Value randerr(size_t m, size_t n, const Value &errspec,
+              bool have_state, uint32_t state,
+              std::pmr::memory_resource *mr)
 {
     using ::numkit::builtin::detail::MatlabMT19937;
 
@@ -312,7 +314,7 @@ void randsrc_reg(Span<const Value> args, size_t /*nargout*/,
         state = static_cast<uint32_t>(s);
     }
 
-    outs[0] = randsrc(mr, m, n, *alphabet, have_state, state);
+    outs[0] = randsrc(m, n, *alphabet, have_state, state, mr);
 }
 
 void randerr_reg(Span<const Value> args, size_t /*nargout*/,
@@ -346,7 +348,7 @@ void randerr_reg(Span<const Value> args, size_t /*nargout*/,
         state = static_cast<uint32_t>(s);
     }
 
-    outs[0] = randerr(mr, m, n, *errspec, have_state, state);
+    outs[0] = randerr(m, n, *errspec, have_state, state, mr);
 }
 
 } // namespace detail

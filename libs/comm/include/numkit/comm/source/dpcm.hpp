@@ -10,19 +10,41 @@
 
 namespace numkit::comm {
 
-/// `[indx, quanterr] = dpcmenco(sig, codebook, partition, predictor)` —
-/// encode `sig` via DPCM. The predictor's leading element is the
-/// MATLAB sentinel 0; remaining M elements are the FIR coefficients.
+/// @brief DPCM encoder
+/// (`[indx, quanterr] = dpcmenco(sig, codebook, partition, predictor)`).
+///
+/// The predictor's leading element is the MATLAB sentinel 0; the
+/// remaining M elements are the FIR coefficients.
 /// `length(codebook) == length(partition) + 1`.
+///
+/// @param sig        Real input vector.
+/// @param codebook   Quantization codebook (length K).
+/// @param partition  Strictly increasing partition (length K − 1).
+/// @param predictor  `[0, p1, …, pM]`.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           Tuple `(indx, quanterr)` — index sequence and
+///                   quantisation error per sample.
+/// @see dpcmdeco, dpcmopt
 std::pair<Value, Value>
-dpcmenco(std::pmr::memory_resource *mr, const Value &sig,
-         const Value &codebook, const Value &partition,
-         const Value &predictor);
+dpcmenco(const Value &sig, const Value &codebook,
+         const Value &partition, const Value &predictor,
+         std::pmr::memory_resource *mr = nullptr);
 
-/// `[sig, quanterr] = dpcmdeco(indx, codebook, predictor)` — invert
-/// dpcmenco using the same `codebook` and `predictor`.
+/// @brief DPCM decoder — invert @ref dpcmenco
+/// (`[sig, quanterr] = dpcmdeco(indx, codebook, predictor)`).
+///
+/// Recovers the signal from the index sequence using the same
+/// `codebook` and `predictor` as the encoder.
+///
+/// @param indx       Index sequence from @ref dpcmenco.
+/// @param codebook   Quantization codebook (length K).
+/// @param predictor  Same `[0, p1, …, pM]` used at encode time.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           Tuple `(sig, quanterr)`.
+/// @see dpcmenco
 std::pair<Value, Value>
-dpcmdeco(std::pmr::memory_resource *mr, const Value &indx,
-         const Value &codebook, const Value &predictor);
+dpcmdeco(const Value &indx, const Value &codebook,
+         const Value &predictor,
+         std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::comm
