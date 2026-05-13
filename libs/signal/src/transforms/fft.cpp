@@ -752,19 +752,19 @@ inline int effectiveNdim(const Value &X)
     return 2;  // 1-D row/column still counts as 2-D in our Dims model
 }
 
-Value fftnImpl(const Value &X, const std::size_t *sz, std::size_t szLen,
+Value fftnImpl(const Value &X, Span<const std::size_t> sz,
                Value (*op)(const Value &, int, int, std::pmr::memory_resource *),
                std::pmr::memory_resource *mr)
 {
     if (X.isEmpty()) return X;
     const int ndim = effectiveNdim(X);
-    if (szLen > static_cast<std::size_t>(ndim))
+    if (sz.size() > static_cast<std::size_t>(ndim))
         throw Error("fftn: size vector length exceeds ndims(X)",
                      0, 0, "fftn", "", "m:fftn:badSize");
     Value Y = X;
     for (int d = 1; d <= ndim; ++d) {
         int n = -1;
-        if (sz && static_cast<std::size_t>(d) <= szLen)
+        if (static_cast<std::size_t>(d) <= sz.size())
             n = static_cast<int>(sz[d - 1]);
         Y = op(Y, n, d, mr);
     }
@@ -773,14 +773,16 @@ Value fftnImpl(const Value &X, const std::size_t *sz, std::size_t szLen,
 
 } // anonymous namespace
 
-Value fftn(const Value &X, const std::size_t *sz, std::size_t szLen, std::pmr::memory_resource *mr)
+Value fftn(const Value &X, Span<const std::size_t> sz,
+           std::pmr::memory_resource *mr)
 {
-    return fftnImpl(X, sz, szLen, &fft, mr);
+    return fftnImpl(X, sz, &fft, mr);
 }
 
-Value ifftn(const Value &X, const std::size_t *sz, std::size_t szLen, std::pmr::memory_resource *mr)
+Value ifftn(const Value &X, Span<const std::size_t> sz,
+            std::pmr::memory_resource *mr)
 {
-    return fftnImpl(X, sz, szLen, &ifft, mr);
+    return fftnImpl(X, sz, &ifft, mr);
 }
 
 // ── Chirp Z-transform (Bluestein) ─────────────────────────────────────
@@ -1164,7 +1166,7 @@ void fftn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     std::vector<std::size_t> sz;
     if (args.size() >= 2 && !args[1].isEmpty())
         extractSizeArg(args[1], sz);
-    outs[0] = fftn(args[0], sz.empty() ? nullptr : sz.data(), sz.size(), ctx.engine->resource());
+    outs[0] = fftn(args[0], Span<const std::size_t>(sz.data(), sz.size()), ctx.engine->resource());
 }
 
 void ifftn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1176,7 +1178,7 @@ void ifftn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     std::vector<std::size_t> sz;
     if (args.size() >= 2 && !args[1].isEmpty())
         extractSizeArg(args[1], sz);
-    outs[0] = ifftn(args[0], sz.empty() ? nullptr : sz.data(), sz.size(), ctx.engine->resource());
+    outs[0] = ifftn(args[0], Span<const std::size_t>(sz.data(), sz.size()), ctx.engine->resource());
 }
 
 void czt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,

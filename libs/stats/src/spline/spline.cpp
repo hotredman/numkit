@@ -416,18 +416,19 @@ Value csapi(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     return buildPP(bv, coefs, L, 4, L, 1, mr);
 }
 
-Value fncmb(const Value &pp1, double c1, const Value *pp2, double c2, std::pmr::memory_resource *mr)
+Value fncmb(const Value &pp1, double c1, const Value &pp2, double c2,
+            std::pmr::memory_resource *mr)
 {
     PPView v1 = readPP(pp1);
     const size_t cR = v1.coefs.dims().rows();
     const size_t cC = v1.coefs.dims().cols();
     std::vector<double> nc(cR * cC, 0.0);
-    if (pp2 == nullptr) {
+    if (pp2.isEmpty()) {
         for (size_t i = 0; i < cR * cC; ++i)
             nc[i] = c1 * v1.coefs.elemAsDouble(i);
         return buildPP(v1.breaks, nc, cR, cC, v1.L, v1.d, mr);
     }
-    PPView v2 = readPP(*pp2);
+    PPView v2 = readPP(pp2);
     if (v2.L != v1.L || v2.K != v1.K || v2.d != v1.d)
         throw Error("fncmb: pp1 and pp2 must share pieces / order / dim",
                     0, 0, "fncmb", "", "m:fncmb:shape");
@@ -566,9 +567,9 @@ void fncmb_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() == 2) {
         // fncmb(pp, c) or fncmb(c, pp)
         if (isStruct(args[0]) && !isStruct(args[1])) {
-            outs[0] = fncmb(args[0], args[1].toScalar(), nullptr, 0.0, mr);
+            outs[0] = fncmb(args[0], args[1].toScalar(), Value::Empty, 0.0, mr);
         } else if (!isStruct(args[0]) && isStruct(args[1])) {
-            outs[0] = fncmb(args[1], args[0].toScalar(), nullptr, 0.0, mr);
+            outs[0] = fncmb(args[1], args[0].toScalar(), Value::Empty, 0.0, mr);
         } else {
             throw Error("fncmb: 2-arg form requires (pp, scalar) or (scalar, pp)",
                         0, 0, "fncmb", "", "m:fncmb:nargin");
@@ -576,7 +577,7 @@ void fncmb_reg(Span<const Value> args, size_t /*nargout*/,
         return;
     }
     if (args.size() == 4) {
-        outs[0] = fncmb(args[0], args[1].toScalar(), &args[2], args[3].toScalar(), mr);
+        outs[0] = fncmb(args[0], args[1].toScalar(), args[2], args[3].toScalar(), mr);
         return;
     }
     throw Error("fncmb: requires (pp, c) or (pp1, c1, pp2, c2)",
