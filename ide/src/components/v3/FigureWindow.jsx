@@ -386,6 +386,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     setZLog(false);
     setShowLegend(!!legendUserAsked);
     setShowColorbar(colorbarUserAsked);
+    // Drop the figure-wide colormap override too — global Reset should
+    // return the heatmap to its script-set palette. Per-cell overrides
+    // are cleared by fanDisplayReset() below.
+    setColormapOverride(null);
+    setColorOverride(null);
     // Drop per-cell ПКМ overrides too so the subplot grid follows the
     // reset figure-wide values rather than holding onto user tweaks.
     fanDisplayReset();
@@ -1132,6 +1137,15 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                           </button>
                         );
                       })}
+                  </div>
+                  <div className="fw-pop-section">
+                    <button onClick={() => {
+                      // Reset to script palette: clears the figure-wide
+                      // override (which in turn drops every per-cell
+                      // override via SubplotGrid's effect on the prop).
+                      setColormapOverride(null);
+                      setCmapOpen(false);
+                    }}>reset</button>
                   </div>
                 </div>
               )}
