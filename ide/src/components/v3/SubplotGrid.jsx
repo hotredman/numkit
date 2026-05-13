@@ -274,7 +274,15 @@ export default function SubplotGrid({
                 const mkdr = (...a) => makeCellDisplayReset ? makeCellDisplayReset(...a) : null;
                 const mkcr = (...a) => makeCellColormapReset ? makeCellColormapReset(...a) : null;
                 return {
+                  // major (combined) = OR of per-axis grids. Cells emit
+                  // per-axis xGrid/yGrid for the renderer to split into
+                  // vertical/horizontal lines. Fallback for preview-card
+                  // mode (no axes-derived state) reads cell.grid.
                   major: s.showMajor !== undefined ? !!s.showMajor : (cell.grid === 'on'),
+                  xGrid: s.showMajor !== undefined ? !!s.showMajor : (cell.grid === 'on'),
+                  yGrid: s.showMajor !== undefined ? !!s.showMajor : (cell.grid === 'on'),
+                  xMinor: s.showMinor !== undefined ? !!s.showMinor : (cell.gridMinor === 'on'),
+                  yMinor: s.showMinor !== undefined ? !!s.showMinor : (cell.gridMinor === 'on'),
                   minor: s.showMinor !== undefined ? !!s.showMinor : (cell.gridMinor === 'on'),
                   xLog:  s.xLog      !== undefined ? !!s.xLog      : (cell.xscale === 'log'),
                   yLog:  s.yLog      !== undefined ? !!s.yLog      : (cell.yscale === 'log'),
