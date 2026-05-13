@@ -625,26 +625,18 @@ input, select { font-family: inherit; color: inherit; }
   color: var(--fg-3); opacity: 0.4;
   background: transparent; cursor: not-allowed;
 }
-/* `is-active` toggle in display ▾ — checkmark prefix is already in the
-   label; tint slightly so the active row reads at a glance without
-   looking like a hover. */
-.fw-pop button.is-active {
-  color: var(--accent, #7fd99a);
-}
-/* display ▾ rows: icon on the left, label fills the rest, checkmark on
-   the right column. Keeps everything column-aligned regardless of label
-   length. */
+/* display ▾ rows: label fills the row, ✓ marker on the right column.
+   No per-item icon (button-level icon telegraphs the menu kind), no
+   active colour tint — only the ✓ marks active toggles. */
 .fw-pop-toggle {
   display: grid !important;
-  grid-template-columns: 14px 1fr 12px;
+  grid-template-columns: 1fr 12px;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 4px 8px !important;
   text-align: left;
 }
-.fw-pop-toggle svg { color: var(--fg-2); }
-.fw-pop-toggle.is-active svg { color: var(--accent, #7fd99a); }
-.fw-pop-toggle .fw-pop-check { color: var(--accent, #7fd99a); font-weight: 700; }
+.fw-pop-toggle .fw-pop-check { color: var(--fg-1); font-weight: 700; }
 .fw-pop-row {
   display: flex; align-items: center; gap: 4px;
   padding: 2px 4px;

@@ -126,6 +126,15 @@ export default function CompositePlot({
   showTitle  = true,
   showXLabel = true,
   showYLabel = true,
+  // Display ▾ setters — when provided (modal context), the right-click
+  // menu surfaces a Display submenu mirroring the toolbar toggles. In
+  // preview cards / subplot cells these aren't passed; the submenu is
+  // simply omitted in that case.
+  setShowMajor  = null,
+  setShowMinor  = null,
+  setShowTitle  = null,
+  setShowXLabel = null,
+  setShowYLabel = null,
   fontScale = 1,
   interactive = true,
   engine = null,
@@ -778,35 +787,61 @@ export default function CompositePlot({
         onClick: resetColors,
         disabled: !colorOverride },
     ] : []),
-    { head: 'Axes' },
-    { label: xLog ? '✓ X axis · log' : 'X axis · log',
-      onClick: () => {
-        // Switching to log requires a strictly-positive xMin. Clamp viewport
-        // up to half-cell-width (the lowest positive cell-centre worth showing)
-        // when currently viewing through zero. For pure-series figures with
-        // no cell grid, fall back to a small positive seed.
-        if (!xLog && (xMin <= 0 || xMax <= 0)) {
-          const cellW = hFullCols > 0 ? (figure.xRange[1] - figure.xRange[0]) / hFullCols : 0;
-          const safeLo = Math.max(cellW * 0.5, figure.xRange[0] > 0 ? figure.xRange[0] : 1e-6);
-          const safeHi = Math.max(safeLo * 10, figure.xRange[1]);
-          setViewport({ ...viewport, x: [safeLo, safeHi] });
-        }
-        setXLog((v) => !v);
-      },
-      disabled: figure.xRange[1] <= 0,
-    },
-    { label: yLog ? '✓ Y axis · log' : 'Y axis · log',
-      onClick: () => {
-        if (!yLog && (yMin <= 0 || yMax <= 0)) {
-          const cellH = hFullRows > 0 ? (figure.yRange[1] - figure.yRange[0]) / hFullRows : 0;
-          const safeLo = Math.max(cellH * 0.5, figure.yRange[0] > 0 ? figure.yRange[0] : 1e-6);
-          const safeHi = Math.max(safeLo * 10, figure.yRange[1]);
-          setViewport({ ...viewport, y: [safeLo, safeHi] });
-        }
-        setYLog((v) => !v);
-      },
-      disabled: figure.yRange[1] <= 0,
-    },
+    // Display submenu — mirrors the toolbar's display ▾ popover.
+    // Only surfaced when the parent provided the setters (modal mode).
+    // Z-axis toggles intentionally absent: this is a 2-D plot context
+    // and the user asked we keep ПКМ figure-specific.
+    ...((setShowMajor || setShowMinor || setShowTitle || setShowXLabel
+        || setShowYLabel || setXLog || setYLog) ? [
+      { separator: true },
+      { submenu: 'Display ▶', items: [
+          ...(setShowMajor ? [{ label: major ? '✓ grid'  : 'grid',
+                                onClick: () => setShowMajor((v) => !v) }] : []),
+          ...(setShowMinor ? [{ label: minor ? '✓ minor' : 'minor',
+                                onClick: () => setShowMinor((v) => !v) }] : []),
+          ...(setXLog ? [{
+            label: xLog ? '✓ xlog' : 'xlog',
+            disabled: figure.xRange[1] <= 0,
+            onClick: () => {
+              if (!xLog && (xMin <= 0 || xMax <= 0)) {
+                const cellW = hFullCols > 0 ? (figure.xRange[1] - figure.xRange[0]) / hFullCols : 0;
+                const safeLo = Math.max(cellW * 0.5, figure.xRange[0] > 0 ? figure.xRange[0] : 1e-6);
+                const safeHi = Math.max(safeLo * 10, figure.xRange[1]);
+                setViewport({ ...viewport, x: [safeLo, safeHi] });
+              }
+              setXLog((v) => !v);
+            },
+          }] : []),
+          ...(setYLog ? [{
+            label: yLog ? '✓ ylog' : 'ylog',
+            disabled: figure.yRange[1] <= 0,
+            onClick: () => {
+              if (!yLog && (yMin <= 0 || yMax <= 0)) {
+                const cellH = hFullRows > 0 ? (figure.yRange[1] - figure.yRange[0]) / hFullRows : 0;
+                const safeLo = Math.max(cellH * 0.5, figure.yRange[0] > 0 ? figure.yRange[0] : 1e-6);
+                const safeHi = Math.max(safeLo * 10, figure.yRange[1]);
+                setViewport({ ...viewport, y: [safeLo, safeHi] });
+              }
+              setYLog((v) => !v);
+            },
+          }] : []),
+          ...(setShowTitle ? [{
+            label: showTitle ? '✓ title' : 'title',
+            disabled: !figure.title || figure.titleAuto,
+            onClick: () => setShowTitle((v) => !v),
+          }] : []),
+          ...(setShowXLabel ? [{
+            label: showXLabel ? '✓ xlabel' : 'xlabel',
+            disabled: !figure.xLabel,
+            onClick: () => setShowXLabel((v) => !v),
+          }] : []),
+          ...(setShowYLabel ? [{
+            label: showYLabel ? '✓ ylabel' : 'ylabel',
+            disabled: !figure.yLabel,
+            onClick: () => setShowYLabel((v) => !v),
+          }] : []),
+      ]},
+    ] : []),
   ];
 
   useEffect(() => {
