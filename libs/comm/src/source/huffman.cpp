@@ -48,8 +48,8 @@ struct TreeNode {
 } // namespace
 
 std::pair<Value, double>
-huffmandict(std::pmr::memory_resource *mr,
-            const Value &symbols, const Value &probs)
+huffmandict(const Value &symbols, const Value &probs,
+            std::pmr::memory_resource *mr)
 {
     const size_t K = symbols.numel();
     if (K == 0)
@@ -218,8 +218,8 @@ bool isRowOriented(const Value &v)
 
 } // namespace
 
-Value huffmanenco(std::pmr::memory_resource *mr,
-                  const Value &sig, const Value &dict)
+Value huffmanenco(const Value &sig, const Value &dict,
+                  std::pmr::memory_resource *mr)
 {
     DictView dv = readDict(dict);
 
@@ -251,8 +251,8 @@ Value huffmanenco(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value huffmandeco(std::pmr::memory_resource *mr,
-                  const Value &bits, const Value &dict)
+Value huffmandeco(const Value &bits, const Value &dict,
+                  std::pmr::memory_resource *mr)
 {
     DictView dv = readDict(dict);
 
@@ -305,7 +305,7 @@ void huffmandict_reg(Span<const Value> args, size_t nargout,
         throw Error("huffmandict: requires (symbols, probs)",
                     0, 0, "huffmandict", "", "m:huffmandict:nargin");
     auto *mr = ctx.engine->resource();
-    auto [dict, avglen] = huffmandict(mr, args[0], args[1]);
+    auto [dict, avglen] = huffmandict(args[0], args[1], mr);
     outs[0] = std::move(dict);
     if (nargout > 1)
         outs[1] = Value::scalar(avglen, mr);
@@ -317,7 +317,7 @@ void huffmanenco_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("huffmanenco: requires (sig, dict)",
                     0, 0, "huffmanenco", "", "m:huffmanenco:nargin");
-    outs[0] = huffmanenco(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = huffmanenco(args[0], args[1], ctx.engine->resource());
 }
 
 void huffmandeco_reg(Span<const Value> args, size_t /*nargout*/,
@@ -326,7 +326,7 @@ void huffmandeco_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("huffmandeco: requires (bits, dict)",
                     0, 0, "huffmandeco", "", "m:huffmandeco:nargin");
-    outs[0] = huffmandeco(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = huffmandeco(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail

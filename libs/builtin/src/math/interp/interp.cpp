@@ -39,9 +39,7 @@ size_t findInterval(const double *xData, size_t n, double xq)
 }
 
 ScratchVec<double>
-interpLinear(std::pmr::memory_resource *mr,
-             const double *x, const double *y, size_t n,
-             const double *xq, size_t nq)
+interpLinear(const double *x, const double *y, size_t n, const double *xq, size_t nq, std::pmr::memory_resource *mr)
 {
     ScratchVec<double> yq(nq, mr);
     for (size_t k = 0; k < nq; ++k) {
@@ -58,9 +56,7 @@ interpLinear(std::pmr::memory_resource *mr,
 }
 
 ScratchVec<double>
-interpNearest(std::pmr::memory_resource *mr,
-              const double *x, const double *y, size_t n,
-              const double *xq, size_t nq)
+interpNearest(const double *x, const double *y, size_t n, const double *xq, size_t nq, std::pmr::memory_resource *mr)
 {
     ScratchVec<double> yq(nq, mr);
     for (size_t k = 0; k < nq; ++k) {
@@ -79,9 +75,7 @@ interpNearest(std::pmr::memory_resource *mr,
 // interior rows (j=1..n-2) with the first/last rows modified to
 // substitute sigma_0 / sigma_{n-1} with their NaK linear combinations.
 ScratchVec<double>
-computeSplineSigma(std::pmr::memory_resource *mr,
-                   const double *x, const double *y, size_t n,
-                   const double *h)
+computeSplineSigma(const double *x, const double *y, size_t n, const double *h, std::pmr::memory_resource *mr)
 {
     ScratchVec<double> sigma(n, 0.0, mr);
     if (n < 3) return sigma;
@@ -138,12 +132,10 @@ computeSplineSigma(std::pmr::memory_resource *mr,
 }
 
 ScratchVec<double>
-interpSpline(std::pmr::memory_resource *mr,
-             const double *x, const double *y, size_t n,
-             const double *xq, size_t nq)
+interpSpline(const double *x, const double *y, size_t n, const double *xq, size_t nq, std::pmr::memory_resource *mr)
 {
     if (n < 3)
-        return interpLinear(mr, x, y, n, xq, nq);
+        return interpLinear(x, y, n, xq, nq, mr);
 
     const size_t nm1 = n - 1;
 
@@ -151,7 +143,7 @@ interpSpline(std::pmr::memory_resource *mr,
     for (size_t i = 0; i < nm1; ++i)
         h[i] = x[i + 1] - x[i];
 
-    auto sigma = computeSplineSigma(mr, x, y, n, h.data());
+    auto sigma = computeSplineSigma(x, y, n, h.data(), mr);
 
     ScratchVec<double> yq(nq, mr);
     for (size_t k = 0; k < nq; ++k) {
@@ -169,12 +161,10 @@ interpSpline(std::pmr::memory_resource *mr,
 }
 
 ScratchVec<double>
-interpPchip(std::pmr::memory_resource *mr,
-            const double *x, const double *y, size_t n,
-            const double *xq, size_t nq)
+interpPchip(const double *x, const double *y, size_t n, const double *xq, size_t nq, std::pmr::memory_resource *mr)
 {
     if (n < 3)
-        return interpLinear(mr, x, y, n, xq, nq);
+        return interpLinear(x, y, n, xq, nq, mr);
 
     const size_t nm1 = n - 1;
 
@@ -243,11 +233,7 @@ Value packInterpResult(const double *yq, std::size_t nq,
 } // anonymous namespace
 
 // ── interp1 ───────────────────────────────────────────────────────────
-Value interp1(std::pmr::memory_resource *mr,
-               const Value &x,
-               const Value &y,
-               const Value &xq,
-               const std::string &method)
+Value interp1(const Value &x, const Value &y, const Value &xq, const std::string &method, std::pmr::memory_resource *mr)
 {
     const size_t n = x.numel();
     const size_t nq = xq.numel();
@@ -266,19 +252,19 @@ Value interp1(std::pmr::memory_resource *mr,
     ScratchArena scratch(mr);
 
     if (method == "linear") {
-        auto yq = interpLinear(&scratch, xd, yd, n, xqd, nq);
+        auto yq = interpLinear(xd, yd, n, xqd, nq, &scratch);
         return packInterpResult(yq.data(), yq.size(), xq, mr);
     }
     if (method == "nearest") {
-        auto yq = interpNearest(&scratch, xd, yd, n, xqd, nq);
+        auto yq = interpNearest(xd, yd, n, xqd, nq, &scratch);
         return packInterpResult(yq.data(), yq.size(), xq, mr);
     }
     if (method == "spline") {
-        auto yq = interpSpline(&scratch, xd, yd, n, xqd, nq);
+        auto yq = interpSpline(xd, yd, n, xqd, nq, &scratch);
         return packInterpResult(yq.data(), yq.size(), xq, mr);
     }
     if (method == "pchip") {
-        auto yq = interpPchip(&scratch, xd, yd, n, xqd, nq);
+        auto yq = interpPchip(xd, yd, n, xqd, nq, &scratch);
         return packInterpResult(yq.data(), yq.size(), xq, mr);
     }
     throw Error("interp1: unknown method '" + method + "'",
@@ -416,12 +402,7 @@ void readGridAxis(const Value &g, ScratchVec<double> &out, const char *axis)
     out = extractAlong(preferred);
 }
 
-Value interp2Impl(std::pmr::memory_resource *mr,
-                   const Value &V,
-                   const double *xGrid, std::size_t xN,
-                   const double *yGrid, std::size_t yN,
-                   const Value &Xq, const Value &Yq,
-                   const std::string &method)
+Value interp2Impl(const Value &V, const double *xGrid, std::size_t xN, const double *yGrid, std::size_t yN, const Value &Xq, const Value &Yq, const std::string &method, std::pmr::memory_resource *mr)
 {
     if (V.type() == ValueType::COMPLEX)
         throw Error("interp2: complex inputs are not supported",
@@ -516,8 +497,7 @@ Value interp2Impl(std::pmr::memory_resource *mr,
 
 } // namespace
 
-Value interp2(std::pmr::memory_resource *mr, const Value &V,
-               const Value &Xq, const Value &Yq, const std::string &method)
+Value interp2(const Value &V, const Value &Xq, const Value &Yq, const std::string &method, std::pmr::memory_resource *mr)
 {
     if (V.dims().is3D() || V.dims().ndim() > 2)
         throw Error("interp2: V must be a 2D matrix",
@@ -529,20 +509,16 @@ Value interp2(std::pmr::memory_resource *mr, const Value &V,
     auto yGrid = ScratchVec<double>(R, &scratch);
     for (std::size_t i = 0; i < C; ++i) xGrid[i] = static_cast<double>(i + 1);
     for (std::size_t i = 0; i < R; ++i) yGrid[i] = static_cast<double>(i + 1);
-    return interp2Impl(mr, V, xGrid.data(), xGrid.size(),
-                       yGrid.data(), yGrid.size(), Xq, Yq, method);
+    return interp2Impl(V, xGrid.data(), xGrid.size(), yGrid.data(), yGrid.size(), Xq, Yq, method, mr);
 }
 
-Value interp2(std::pmr::memory_resource *mr, const Value &X, const Value &Y,
-               const Value &V, const Value &Xq, const Value &Yq,
-               const std::string &method)
+Value interp2(const Value &X, const Value &Y, const Value &V, const Value &Xq, const Value &Yq, const std::string &method, std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
     ScratchVec<double> xGrid(&scratch), yGrid(&scratch);
     readGridAxis(X, xGrid, "X");
     readGridAxis(Y, yGrid, "Y");
-    return interp2Impl(mr, V, xGrid.data(), xGrid.size(),
-                       yGrid.data(), yGrid.size(), Xq, Yq, method);
+    return interp2Impl(V, xGrid.data(), xGrid.size(), yGrid.data(), yGrid.size(), Xq, Yq, method, mr);
 }
 
 // ── interp3 ───────────────────────────────────────────────────────────
@@ -592,13 +568,7 @@ double interp3Sample(const double *V, std::size_t R, std::size_t C, std::size_t 
     return (1 - tz) * c0 + tz * c1;
 }
 
-Value interp3Impl(std::pmr::memory_resource *mr,
-                   const Value &V,
-                   const double *xGrid, std::size_t xN,
-                   const double *yGrid, std::size_t yN,
-                   const double *zGrid, std::size_t zN,
-                   const Value &Xq, const Value &Yq, const Value &Zq,
-                   const std::string &method)
+Value interp3Impl(const Value &V, const double *xGrid, std::size_t xN, const double *yGrid, std::size_t yN, const double *zGrid, std::size_t zN, const Value &Xq, const Value &Yq, const Value &Zq, const std::string &method, std::pmr::memory_resource *mr)
 {
     if (V.type() == ValueType::COMPLEX)
         throw Error("interp3: complex inputs are not supported",
@@ -645,9 +615,7 @@ Value interp3Impl(std::pmr::memory_resource *mr,
 
 } // namespace
 
-Value interp3(std::pmr::memory_resource *mr, const Value &V,
-               const Value &Xq, const Value &Yq, const Value &Zq,
-               const std::string &method)
+Value interp3(const Value &V, const Value &Xq, const Value &Yq, const Value &Zq, const std::string &method, std::pmr::memory_resource *mr)
 {
     if (!V.dims().is3D())
         throw Error("interp3: V must be a 3D array",
@@ -662,14 +630,10 @@ Value interp3(std::pmr::memory_resource *mr, const Value &V,
     for (std::size_t i = 0; i < C; ++i) xGrid[i] = static_cast<double>(i + 1);
     for (std::size_t i = 0; i < R; ++i) yGrid[i] = static_cast<double>(i + 1);
     for (std::size_t i = 0; i < P; ++i) zGrid[i] = static_cast<double>(i + 1);
-    return interp3Impl(mr, V, xGrid.data(), xGrid.size(),
-                       yGrid.data(), yGrid.size(),
-                       zGrid.data(), zGrid.size(), Xq, Yq, Zq, method);
+    return interp3Impl(V, xGrid.data(), xGrid.size(), yGrid.data(), yGrid.size(), zGrid.data(), zGrid.size(), Xq, Yq, Zq, method, mr);
 }
 
-Value interp3(std::pmr::memory_resource *mr, const Value &X, const Value &Y, const Value &Z,
-               const Value &V, const Value &Xq, const Value &Yq, const Value &Zq,
-               const std::string &method)
+Value interp3(const Value &X, const Value &Y, const Value &Z, const Value &V, const Value &Xq, const Value &Yq, const Value &Zq, const std::string &method, std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
     ScratchVec<double> xGrid(&scratch), yGrid(&scratch),
@@ -677,13 +641,11 @@ Value interp3(std::pmr::memory_resource *mr, const Value &X, const Value &Y, con
     readGridAxis(X, xGrid, "X");
     readGridAxis(Y, yGrid, "Y");
     readGridAxis(Z, zGrid, "Z");
-    return interp3Impl(mr, V, xGrid.data(), xGrid.size(),
-                       yGrid.data(), yGrid.size(),
-                       zGrid.data(), zGrid.size(), Xq, Yq, Zq, method);
+    return interp3Impl(V, xGrid.data(), xGrid.size(), yGrid.data(), yGrid.size(), zGrid.data(), zGrid.size(), Xq, Yq, Zq, method, mr);
 }
 
 // ── spline ────────────────────────────────────────────────────────────
-Value spline(std::pmr::memory_resource *mr, const Value &x, const Value &y, const Value &xq)
+Value spline(const Value &x, const Value &y, const Value &xq, std::pmr::memory_resource *mr)
 {
     const size_t n = x.numel();
     if (n != y.numel())
@@ -694,14 +656,12 @@ Value spline(std::pmr::memory_resource *mr, const Value &x, const Value &y, cons
                      0, 0, "spline", "", "m:spline:tooFewPoints");
 
     ScratchArena scratch(mr);
-    auto yq = interpSpline(&scratch,
-                           x.doubleData(), y.doubleData(), n,
-                           xq.doubleData(), xq.numel());
+    auto yq = interpSpline(x.doubleData(), y.doubleData(), n, xq.doubleData(), xq.numel(), &scratch);
     return packInterpResult(yq.data(), yq.size(), xq, mr);
 }
 
 // ── pchip ─────────────────────────────────────────────────────────────
-Value pchip(std::pmr::memory_resource *mr, const Value &x, const Value &y, const Value &xq)
+Value pchip(const Value &x, const Value &y, const Value &xq, std::pmr::memory_resource *mr)
 {
     const size_t n = x.numel();
     if (n != y.numel())
@@ -712,9 +672,7 @@ Value pchip(std::pmr::memory_resource *mr, const Value &x, const Value &y, const
                      0, 0, "pchip", "", "m:pchip:tooFewPoints");
 
     ScratchArena scratch(mr);
-    auto yq = interpPchip(&scratch,
-                          x.doubleData(), y.doubleData(), n,
-                          xq.doubleData(), xq.numel());
+    auto yq = interpPchip(x.doubleData(), y.doubleData(), n, xq.doubleData(), xq.numel(), &scratch);
     return packInterpResult(yq.data(), yq.size(), xq, mr);
 }
 
@@ -723,7 +681,7 @@ Value pchip(std::pmr::memory_resource *mr, const Value &x, const Value &y, const
 
 // ── Pack 30: mkpp / ppval ────────────────────────────────────────────
 
-Value mkpp(std::pmr::memory_resource *mr, const Value &breaks, const Value &coefs)
+Value mkpp(const Value &breaks, const Value &coefs, std::pmr::memory_resource *mr)
 {
     if (breaks.numel() < 2)
         throw Error("mkpp: breaks must have at least 2 entries",
@@ -748,7 +706,7 @@ Value mkpp(std::pmr::memory_resource *mr, const Value &breaks, const Value &coef
     return pp;
 }
 
-Value ppval(std::pmr::memory_resource *mr, const Value &pp, const Value &x)
+Value ppval(const Value &pp, const Value &x, std::pmr::memory_resource *mr)
 {
     if (!pp.isStruct() || !pp.hasField("breaks") || !pp.hasField("coefs"))
         throw Error("ppval: first argument must be a pp struct",
@@ -800,7 +758,7 @@ void interp1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     std::string method = "linear";
     if (args.size() >= 4 && args[3].isChar())
         method = args[3].toString();
-    outs[0] = interp1(ctx.engine->resource(), args[0], args[1], args[2], method);
+    outs[0] = interp1(args[0], args[1], args[2], method, ctx.engine->resource());
 }
 
 // 2-arg `spline(x, y)` returns a pp struct (piecewise polynomial form)
@@ -809,7 +767,7 @@ void interp1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 // (see comment block in implementation). See BUGS.md #22.
 namespace {
 
-Value splinePp(std::pmr::memory_resource *mr, const Value &x, const Value &y)
+Value splinePp(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 {
     const size_t n = x.numel();
     if (n != y.numel())
@@ -827,7 +785,7 @@ Value splinePp(std::pmr::memory_resource *mr, const Value &x, const Value &y)
     const size_t nm1 = n - 1;
     ScratchVec<double> h(nm1, &scratch);
     for (size_t i = 0; i < nm1; ++i) h[i] = xd[i + 1] - xd[i];
-    auto sigma = computeSplineSigma(&scratch, xd, yd, n, h.data());
+    auto sigma = computeSplineSigma(xd, yd, n, h.data(), &scratch);
 
     // Build [nm1 x 4] coefficient matrix in column-major order.
     // For each interval i, with dx = x - xd[i] in [0, h_i]:
@@ -850,7 +808,7 @@ Value splinePp(std::pmr::memory_resource *mr, const Value &x, const Value &y)
         cp[i + 2 * nm1] = c;
         cp[i + 3 * nm1] = d;
     }
-    return mkpp(mr, x, coefs);
+    return mkpp(x, coefs, mr);
 }
 
 } // namespace
@@ -860,13 +818,13 @@ void spline_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     auto *mr = ctx.engine->resource();
     if (args.size() == 2) {
         // pp-struct form. See BUGS.md #22.
-        outs[0] = splinePp(mr, args[0], args[1]);
+        outs[0] = splinePp(args[0], args[1], mr);
         return;
     }
     if (args.size() < 3)
         throw Error("spline: requires (x, y) or (x, y, xq)",
                      0, 0, "spline", "", "m:spline:nargin");
-    outs[0] = spline(mr, args[0], args[1], args[2]);
+    outs[0] = spline(args[0], args[1], args[2], mr);
 }
 
 void interp2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -883,13 +841,13 @@ void interp2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() == 3 || (args.size() == 4 && isMethodArg(args[3]))) {
         std::string method = "linear";
         if (args.size() == 4) method = args[3].toString();
-        outs[0] = interp2(mr, args[0], args[1], args[2], method);
+        outs[0] = interp2(args[0], args[1], args[2], method, mr);
         return;
     }
     if (args.size() == 5 || (args.size() == 6 && isMethodArg(args[5]))) {
         std::string method = "linear";
         if (args.size() == 6) method = args[5].toString();
-        outs[0] = interp2(mr, args[0], args[1], args[2], args[3], args[4], method);
+        outs[0] = interp2(args[0], args[1], args[2], args[3], args[4], method, mr);
         return;
     }
     throw Error("interp2: invalid argument count or types",
@@ -909,15 +867,14 @@ void interp3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() == 4 || (args.size() == 5 && isMethodArg(args[4]))) {
         std::string method = "linear";
         if (args.size() == 5) method = args[4].toString();
-        outs[0] = interp3(mr, args[0], args[1], args[2], args[3], method);
+        outs[0] = interp3(args[0], args[1], args[2], args[3], method, mr);
         return;
     }
     // Form B: interp3(X, Y, Z, V, Xq, Yq, Zq[, method]) — 7 or 8 args.
     if (args.size() == 7 || (args.size() == 8 && isMethodArg(args[7]))) {
         std::string method = "linear";
         if (args.size() == 8) method = args[7].toString();
-        outs[0] = interp3(mr, args[0], args[1], args[2], args[3],
-                          args[4], args[5], args[6], method);
+        outs[0] = interp3(args[0], args[1], args[2], args[3], args[4], args[5], args[6], method, mr);
         return;
     }
     throw Error("interp3: invalid argument count or types",
@@ -929,7 +886,7 @@ void pchip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.size() < 3)
         throw Error("pchip: requires 3 arguments",
                      0, 0, "pchip", "", "m:pchip:nargin");
-    outs[0] = pchip(ctx.engine->resource(), args[0], args[1], args[2]);
+    outs[0] = pchip(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 // interpn — dispatch to interp2 / interp3 based on V's ndim. Form A
@@ -965,7 +922,7 @@ void mkpp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.size() < 2)
         throw Error("mkpp: requires (breaks, coefs)",
                      0, 0, "mkpp", "", "m:mkpp:nargin");
-    outs[0] = mkpp(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = mkpp(args[0], args[1], ctx.engine->resource());
 }
 
 void ppval_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -973,7 +930,7 @@ void ppval_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.size() < 2)
         throw Error("ppval: requires (pp, x)",
                      0, 0, "ppval", "", "m:ppval:nargin");
-    outs[0] = ppval(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = ppval(args[0], args[1], ctx.engine->resource());
 }
 
 void unmkpp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

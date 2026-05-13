@@ -19,7 +19,7 @@ namespace numkit::stats {
 namespace {
 
 template <typename Op>
-Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
@@ -35,43 +35,43 @@ Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
 
 } // anonymous
 
-Value unifpdf(std::pmr::memory_resource *mr, const Value &x, double a, double b)
+Value unifpdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
 {
     const double NaN = std::numeric_limits<double>::quiet_NaN();
     // b <= a -> NaN (matches MATLAB; a==b is degenerate 0-width support).
     if (b <= a)
-        return elementwise(mr, x, [NaN](double){ return NaN; });
+        return elementwise(x, [NaN](double){ return NaN; }, mr);
     const double inv = 1.0 / (b - a);
-    return elementwise(mr, x, [=](double xi) {
+    return elementwise(x, [=](double xi) {
         if (std::isnan(xi)) return NaN;  // propagate NaN x — matches MATLAB
         return (xi >= a && xi <= b) ? inv : 0.0;
-    });
+    }, mr);
 }
 
-Value unifcdf(std::pmr::memory_resource *mr, const Value &x, double a, double b)
+Value unifcdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
 {
     if (b <= a)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     const double inv = 1.0 / (b - a);
-    return elementwise(mr, x, [=](double xi) {
+    return elementwise(x, [=](double xi) {
         if (xi <= a) return 0.0;
         if (xi >= b) return 1.0;
         return (xi - a) * inv;
-    });
+    }, mr);
 }
 
-Value unifinv(std::pmr::memory_resource *mr, const Value &p, double a, double b)
+Value unifinv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
 {
     if (b <= a)
-        return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     const double w = b - a;
-    return elementwise(mr, p, [=](double pi) {
+    return elementwise(p, [=](double pi) {
         if (pi < 0.0 || pi > 1.0) return std::numeric_limits<double>::quiet_NaN();
         return a + pi * w;
-    });
+    }, mr);
 }
 
-Value unifrnd(std::pmr::memory_resource *mr, double a, double b, size_t rows, size_t cols)
+Value unifrnd(double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -115,7 +115,7 @@ void unifpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("unifpdf: requires (x[, a, b])", 0, 0, "unifpdf", "", "m:unifpdf:nargin");
-    outs[0] = unifpdf(ctx.engine->resource(), args[0], argA(args, 1), argB(args, 2));
+    outs[0] = unifpdf(args[0], argA(args, 1), argB(args, 2), ctx.engine->resource());
 }
 
 void unifcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -124,8 +124,7 @@ void unifcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const Span<const Value> stripped = args.subspan(0, stripUpperFlag(args, upper));
     if (stripped.empty())
         throw Error("unifcdf: requires (x[, a, b][, 'upper'])", 0, 0, "unifcdf", "", "m:unifcdf:nargin");
-    Value v = unifcdf(ctx.engine->resource(), stripped[0],
-                      argA(stripped, 1), argB(stripped, 2));
+    Value v = unifcdf(stripped[0], argA(stripped, 1), argB(stripped, 2), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -134,7 +133,7 @@ void unifinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("unifinv: requires (p[, a, b])", 0, 0, "unifinv", "", "m:unifinv:nargin");
-    outs[0] = unifinv(ctx.engine->resource(), args[0], argA(args, 1), argB(args, 2));
+    outs[0] = unifinv(args[0], argA(args, 1), argB(args, 2), ctx.engine->resource());
 }
 
 void unifrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -145,7 +144,7 @@ void unifrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const double b = args[1].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 2, rows, cols);
-    outs[0] = unifrnd(ctx.engine->resource(), a, b, rows, cols);
+    outs[0] = unifrnd(a, b, rows, cols, ctx.engine->resource());
 }
 
 void unifstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

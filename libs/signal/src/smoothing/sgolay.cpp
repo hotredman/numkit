@@ -53,8 +53,7 @@ void gaussJordan(double *A, double *B, int N, int M)
 
 // Build the (framelen × (order+1)) Vandermonde matrix V where
 // V[i, k] = (i - center)^k for i = 0..framelen-1 and k = 0..order.
-ScratchVec<double> buildVandermonde(std::pmr::memory_resource *mr,
-                                    int order, int framelen)
+ScratchVec<double> buildVandermonde(int order, int framelen, std::pmr::memory_resource *mr)
 {
     const int n = framelen;
     const int p = order + 1;
@@ -74,12 +73,11 @@ ScratchVec<double> buildVandermonde(std::pmr::memory_resource *mr,
 // Compute B = V · (V' · V)^-1 · V'   (the framelen × framelen
 // projection matrix). Each row r of B gives the filter coefficients
 // for sample r in the window: y_r = B[r, :] · x_window.
-ScratchVec<double> buildProjection(std::pmr::memory_resource *mr,
-                                   int order, int framelen)
+ScratchVec<double> buildProjection(int order, int framelen, std::pmr::memory_resource *mr)
 {
     const int n = framelen;
     const int p = order + 1;
-    auto V = buildVandermonde(mr, order, framelen);      // n × p
+    auto V = buildVandermonde(order, framelen, mr);      // n × p
 
     // Form V' · V  (p × p) and V'  (p × n) on the side.
     ScratchVec<double> VtV(static_cast<std::size_t>(p * p), mr);
@@ -112,7 +110,7 @@ ScratchVec<double> buildProjection(std::pmr::memory_resource *mr,
 
 } // namespace
 
-Value sgolay(std::pmr::memory_resource *mr, int order, int framelen)
+Value sgolay(int order, int framelen, std::pmr::memory_resource *mr)
 {
     if (framelen <= 0)
         throw Error("sgolay: framelen must be positive",
@@ -128,7 +126,7 @@ Value sgolay(std::pmr::memory_resource *mr, int order, int framelen)
                      0, 0, "sgolay", "", "m:sgolay:orderTooHigh");
 
     ScratchArena scratch(mr);
-    auto B = buildProjection(&scratch, order, framelen);
+    auto B = buildProjection(order, framelen, &scratch);
     // Convert row-major B to column-major Value (R = framelen, C = framelen).
     auto out = Value::matrix(framelen, framelen, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
@@ -138,7 +136,7 @@ Value sgolay(std::pmr::memory_resource *mr, int order, int framelen)
     return out;
 }
 
-Value sgolayfilt(std::pmr::memory_resource *mr, const Value &x, int order, int framelen)
+Value sgolayfilt(const Value &x, int order, int framelen, std::pmr::memory_resource *mr)
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error("sgolayfilt: complex inputs are not supported",
@@ -153,7 +151,7 @@ Value sgolayfilt(std::pmr::memory_resource *mr, const Value &x, int order, int f
                      0, 0, "sgolayfilt", "", "m:sgolayfilt:tooShort");
 
     ScratchArena scratch(mr);
-    auto B = buildProjection(&scratch, order, framelen);  // throws if shape invalid
+    auto B = buildProjection(order, framelen, &scratch);  // throws if shape invalid
     const int half = framelen / 2;
 
     // Source as DOUBLE.
@@ -201,9 +199,7 @@ void sgolay_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 2)
         throw Error("sgolay: requires 2 arguments (order, framelen)",
                      0, 0, "sgolay", "", "m:sgolay:nargin");
-    outs[0] = sgolay(ctx.engine->resource(),
-                     static_cast<int>(args[0].toScalar()),
-                     static_cast<int>(args[1].toScalar()));
+    outs[0] = sgolay(static_cast<int>(args[0].toScalar()), static_cast<int>(args[1].toScalar()), ctx.engine->resource());
 }
 
 void sgolayfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -211,9 +207,7 @@ void sgolayfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
     if (args.size() < 3)
         throw Error("sgolayfilt: requires 3 arguments (x, order, framelen)",
                      0, 0, "sgolayfilt", "", "m:sgolayfilt:nargin");
-    outs[0] = sgolayfilt(ctx.engine->resource(), args[0],
-                         static_cast<int>(args[1].toScalar()),
-                         static_cast<int>(args[2].toScalar()));
+    outs[0] = sgolayfilt(args[0], static_cast<int>(args[1].toScalar()), static_cast<int>(args[2].toScalar()), ctx.engine->resource());
 }
 
 } // namespace detail

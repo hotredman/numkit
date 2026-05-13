@@ -15,19 +15,19 @@
 
 namespace numkit::builtin {
 
-Value deg2rad(std::pmr::memory_resource *mr, const Value &x)
+Value deg2rad(const Value &x, std::pmr::memory_resource *mr)
 {
     constexpr double k = 3.14159265358979323846 / 180.0;
     return unaryDouble(x, [k](double v) { return v * k; }, mr);
 }
 
-Value rad2deg(std::pmr::memory_resource *mr, const Value &x)
+Value rad2deg(const Value &x, std::pmr::memory_resource *mr)
 {
     constexpr double k = 180.0 / 3.14159265358979323846;
     return unaryDouble(x, [k](double v) { return v * k; }, mr);
 }
 
-Value mod(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value mod(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(a, b,
                              [](double aa, double bb) {
@@ -36,7 +36,7 @@ Value mod(std::pmr::memory_resource *mr, const Value &a, const Value &b)
                              mr);
 }
 
-Value rem(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value rem(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(a, b, [](double aa, double bb) { return std::fmod(aa, bb); }, mr);
 }
@@ -48,7 +48,7 @@ Value rem(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 // nthroot(x, n): real n-th root. For negative x with odd integer n,
 // returns the negative real root (sign(x) * |x|^(1/n)). For negative x
 // with non-odd n, returns NaN.
-Value nthroot(std::pmr::memory_resource *mr, const Value &x, const Value &n)
+Value nthroot(const Value &x, const Value &n, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(x, n, [](double xv, double nv) {
         if (nv == 0.0) return std::nan("");
@@ -71,7 +71,7 @@ namespace detail {
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
-        outs[0] = fn(ctx.engine->resource(), args[0]);                          \
+        outs[0] = fn(args[0], ctx.engine->resource());                          \
     }
 
 NK_UNARY_ADAPTER(deg2rad, deg2rad)
@@ -84,7 +84,7 @@ void mod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     if (args.size() < 2)
         throw Error("mod: requires 2 arguments",
                      0, 0, "mod", "", "m:mod:nargin");
-    outs[0] = mod(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = mod(args[0], args[1], ctx.engine->resource());
 }
 
 void rem_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -92,7 +92,7 @@ void rem_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     if (args.size() < 2)
         throw Error("rem: requires 2 arguments",
                      0, 0, "rem", "", "m:rem:nargin");
-    outs[0] = rem(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = rem(args[0], args[1], ctx.engine->resource());
 }
 
 void hypot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -100,7 +100,7 @@ void hypot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.size() < 2)
         throw Error("hypot: requires 2 arguments",
                      0, 0, "hypot", "", "m:hypot:nargin");
-    outs[0] = hypot(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = hypot(args[0], args[1], ctx.engine->resource());
 }
 
 void nthroot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -108,7 +108,7 @@ void nthroot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() < 2)
         throw Error("nthroot: requires 2 arguments",
                      0, 0, "nthroot", "", "m:nthroot:nargin");
-    outs[0] = nthroot(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = nthroot(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail

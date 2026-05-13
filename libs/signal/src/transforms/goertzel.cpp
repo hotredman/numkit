@@ -26,7 +26,7 @@ namespace numkit::signal {
 //
 // Two-coefficient form. Numerically stable for reasonable N; matches
 // MATLAB's `goertzel(x, ind)` to FP roundoff.
-Value goertzel(std::pmr::memory_resource *mr, const Value &x, const Value &ind)
+Value goertzel(const Value &x, const Value &ind, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const size_t M = ind.numel();
@@ -88,10 +88,10 @@ void goertzel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         double *id = ind.doubleDataMut();
         for (size_t i = 0; i < N; ++i)
             id[i] = static_cast<double>(i + 1);
-        outs[0] = goertzel(mr, x, ind);
+        outs[0] = goertzel(x, ind, mr);
         return;
     }
-    outs[0] = goertzel(mr, args[0], args[1]);
+    outs[0] = goertzel(args[0], args[1], mr);
 }
 
 } // namespace detail

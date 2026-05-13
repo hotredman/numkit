@@ -26,7 +26,7 @@ namespace numkit::builtin {
 //
 // Tile the input matrix m × n times (and optionally p times along
 // pages for the 3D form). Output dims: (R*m) × (C*n) × (P*p).
-Value repmat(std::pmr::memory_resource *mr, const Value &x, size_t m, size_t n, size_t p)
+Value repmat(const Value &x, size_t m, size_t n, size_t p, std::pmr::memory_resource *mr)
 {
     // STRING / CELL / non-DOUBLE types delegate to the ND path which
     // handles them. The fast 2-D DOUBLE memcpy loop below assumes
@@ -34,8 +34,8 @@ Value repmat(std::pmr::memory_resource *mr, const Value &x, size_t m, size_t n, 
     const ValueType t = x.type();
     if (t != ValueType::DOUBLE) {
         const size_t tiles[3] = { m, n, p };
-        const int nd = (p > 1 || x.dims().is3D()) ? 3 : 2;
-        return repmatND(mr, x, tiles, nd);
+        const size_t nd = (p > 1 || x.dims().is3D()) ? 3 : 2;
+        return repmatND(x, Span<const size_t>(tiles, nd), mr);
     }
     const auto &dd = x.dims();
     const size_t R = dd.rows(), C = dd.cols();
@@ -82,8 +82,7 @@ Value repmat(std::pmr::memory_resource *mr, const Value &x, size_t m, size_t n, 
 // each output column-of-axis-0 back to its source column via per-axis
 // modulo, then memcpys axis-0-bytes tilesPadded[0] times to fill the
 // output column. Type-preserving via byte-copy (elementSize-based).
-Value repmatND(std::pmr::memory_resource *mr, const Value &x,
-                const size_t *tiles, int ntiles)
+Value repmatND(const Value &x, Span<const size_t> tiles, std::pmr::memory_resource *mr)
 {
     const ValueType t = x.type();
     if (t == ValueType::STRUCT || t == ValueType::FUNC_HANDLE)
@@ -93,6 +92,7 @@ Value repmatND(std::pmr::memory_resource *mr, const Value &x,
 
     const auto &inDims = x.dims();
     constexpr int kMaxNd = Dims::kMaxRank;
+    const int ntiles = static_cast<int>(tiles.size());
     int outNdim = std::max(inDims.ndim(), ntiles);
     if (outNdim > kMaxNd)
         throw Error("repmat: rank exceeds 32",
@@ -220,8 +220,7 @@ namespace {
 // The slab stride is B = prod(dims[0..axis-1]) elements; outer count
 // O = prod(dims[axis+1..N-1]). Used by the ND fallback for fliplr
 // (axis=1) and flipud (axis=0). Type-preserving via byte-copy.
-Value flipNDAlongAxis(std::pmr::memory_resource *mr, const Value &x, int axis,
-                       const char *fn)
+Value flipNDAlongAxis(const Value &x, int axis, const char *fn, std::pmr::memory_resource *mr)
 {
     const ValueType t = x.type();
     if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
@@ -270,10 +269,10 @@ Value flipNDAlongAxis(std::pmr::memory_resource *mr, const Value &x, int axis,
 
 } // namespace
 
-Value fliplr(std::pmr::memory_resource *mr, const Value &x)
+Value fliplr(const Value &x, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
-    if (dd.ndim() >= 4) return flipNDAlongAxis(mr, x, 1, "fliplr");
+    if (dd.ndim() >= 4) return flipNDAlongAxis(x, 1, "fliplr", mr);
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
@@ -292,10 +291,10 @@ Value fliplr(std::pmr::memory_resource *mr, const Value &x)
     return r;
 }
 
-Value flipud(std::pmr::memory_resource *mr, const Value &x)
+Value flipud(const Value &x, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
-    if (dd.ndim() >= 4) return flipNDAlongAxis(mr, x, 0, "flipud");
+    if (dd.ndim() >= 4) return flipNDAlongAxis(x, 0, "flipud", mr);
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
@@ -385,7 +384,7 @@ inline void rot270PageBytes(const char *src, char *dst,
 
 } // namespace
 
-Value rot90(std::pmr::memory_resource *mr, const Value &x, int k)
+Value rot90(const Value &x, int k, std::pmr::memory_resource *mr)
 {
     int kMod = k % 4;
     if (kMod < 0) kMod += 4;
@@ -510,7 +509,7 @@ void shift2D(const double *src, double *dst, size_t R, size_t C,
 
 } // namespace
 
-Value circshift(std::pmr::memory_resource *mr, const Value &x, int64_t k)
+Value circshift(const Value &x, int64_t k, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
     if (x.isScalar()) return Value::scalar(x.toScalar(), mr);
@@ -525,11 +524,10 @@ Value circshift(std::pmr::memory_resource *mr, const Value &x, int64_t k)
     // 2D / 3D matrix: scalar k shifts along first non-singleton dim.
     // For 2D matrices that's dim=1 (rows). For 3D, dim 1 too (since
     // rows is typically > 1).
-    return circshift(mr, x, k, 0);
+    return circshift(x, k, 0, mr);
 }
 
-Value circshiftND(std::pmr::memory_resource *mr, const Value &x,
-                   const int64_t *shifts, int nshifts)
+Value circshiftND(const Value &x, Span<const int64_t> shifts, std::pmr::memory_resource *mr)
 {
     const ValueType t = x.type();
     if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
@@ -549,6 +547,7 @@ Value circshiftND(std::pmr::memory_resource *mr, const Value &x,
     auto r = Value::matrixND(outDims, nd, t, mr);
     if (x.numel() == 0) return r;
 
+    const int nshifts = static_cast<int>(shifts.size());
     size_t shiftMod[kMaxNd] = {0};
     for (int i = 0; i < nd; ++i) {
         const int64_t s = (i < nshifts) ? shifts[i] : 0;
@@ -599,7 +598,7 @@ Value circshiftND(std::pmr::memory_resource *mr, const Value &x,
     return r;
 }
 
-Value circshift(std::pmr::memory_resource *mr, const Value &x, int64_t kRow, int64_t kCol)
+Value circshift(const Value &x, int64_t kRow, int64_t kCol, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
     if (x.isScalar()) return Value::scalar(x.toScalar(), mr);
@@ -614,7 +613,7 @@ Value circshift(std::pmr::memory_resource *mr, const Value &x, int64_t kRow, int
     }
     if (dd.ndim() >= 4) {
         const int64_t shifts[2] = {kRow, kCol};
-        return circshiftND(mr, x, shifts, 2);
+        return circshiftND(x, Span<const int64_t>(shifts, 2), mr);
     }
     const size_t R = dd.rows(), C = dd.cols();
     auto r = Value::matrix(R, C, ValueType::DOUBLE, mr);
@@ -689,8 +688,7 @@ inline void triuPageBytes(const char *src, char *dst, size_t R, size_t C,
 namespace {
 
 template <typename PageBytesFn>
-Value trilTriuND(std::pmr::memory_resource *mr, const Value &x, int k,
-                  PageBytesFn pageFn, const char *fn)
+Value trilTriuND(const Value &x, int k, PageBytesFn pageFn, const char *fn, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
     constexpr int kMaxNd = Dims::kMaxRank;
@@ -723,11 +721,11 @@ Value trilTriuND(std::pmr::memory_resource *mr, const Value &x, int k,
 
 } // namespace
 
-Value tril(std::pmr::memory_resource *mr, const Value &x, int k)
+Value tril(const Value &x, int k, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
     if (dd.ndim() >= 4)
-        return trilTriuND(mr, x, k, trilPageBytes, "tril");
+        return trilTriuND(x, k, trilPageBytes, "tril", mr);
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
@@ -741,11 +739,11 @@ Value tril(std::pmr::memory_resource *mr, const Value &x, int k)
     return r;
 }
 
-Value triu(std::pmr::memory_resource *mr, const Value &x, int k)
+Value triu(const Value &x, int k, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
     if (dd.ndim() >= 4)
-        return trilTriuND(mr, x, k, triuPageBytes, "triu");
+        return trilTriuND(x, k, triuPageBytes, "triu", mr);
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
@@ -763,7 +761,7 @@ Value triu(std::pmr::memory_resource *mr, const Value &x, int k)
 // flip — generalized N-D flip
 // ────────────────────────────────────────────────────────────────────
 
-Value flip(std::pmr::memory_resource *mr, const Value &x, int dim1Based)
+Value flip(const Value &x, int dim1Based, std::pmr::memory_resource *mr)
 {
     int axis;
     if (dim1Based <= 0) {
@@ -776,7 +774,7 @@ Value flip(std::pmr::memory_resource *mr, const Value &x, int dim1Based)
     } else {
         axis = dim1Based - 1;
     }
-    return flipNDAlongAxis(mr, x, axis, "flip");
+    return flipNDAlongAxis(x, axis, "flip", mr);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -794,7 +792,7 @@ Value flip(std::pmr::memory_resource *mr, const Value &x, int dim1Based)
 // DOUBLE inputs only for now (covers ~all script use). Other types
 // would need the typed-byte-copy treatment used by repmat / flip.
 
-Value repelem(std::pmr::memory_resource *mr, const Value &x, size_t n)
+Value repelem(const Value &x, size_t n, std::pmr::memory_resource *mr)
 {
     const auto &d = x.dims();
     if (d.ndim() > 2 || (d.rows() != 1 && d.cols() != 1 && !x.isScalar()))
@@ -822,7 +820,7 @@ Value repelem(std::pmr::memory_resource *mr, const Value &x, size_t n)
     return r;
 }
 
-Value repelem(std::pmr::memory_resource *mr, const Value &x, size_t m, size_t n)
+Value repelem(const Value &x, size_t m, size_t n, std::pmr::memory_resource *mr)
 {
     const auto &d = x.dims();
     if (d.ndim() > 2)
@@ -869,7 +867,7 @@ inline bool isVectorLike(const Value &v)
 }
 } // anon
 
-Value paddata(std::pmr::memory_resource *mr, const Value &v, size_t n)
+Value paddata(const Value &v, size_t n, std::pmr::memory_resource *mr)
 {
     if (!isVectorLike(v))
         throw Error("paddata: vector input required",
@@ -889,7 +887,7 @@ Value paddata(std::pmr::memory_resource *mr, const Value &v, size_t n)
     return out;
 }
 
-Value trimdata(std::pmr::memory_resource *mr, const Value &v, size_t n)
+Value trimdata(const Value &v, size_t n, std::pmr::memory_resource *mr)
 {
     if (!isVectorLike(v))
         throw Error("trimdata: vector input required",
@@ -907,9 +905,9 @@ Value trimdata(std::pmr::memory_resource *mr, const Value &v, size_t n)
     return out;
 }
 
-Value resize(std::pmr::memory_resource *mr, const Value &v, size_t n)
+Value resize(const Value &v, size_t n, std::pmr::memory_resource *mr)
 {
-    return (v.numel() < n) ? paddata(mr, v, n) : trimdata(mr, v, n);
+    return (v.numel() < n) ? paddata(v, n, mr) : trimdata(v, n, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -963,9 +961,9 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         const size_t m = tiles[0];
         const size_t n = tiles.size() >= 2 ? tiles[1] : 1;
         const size_t p = tiles.size() >= 3 ? tiles[2] : 1;
-        outs[0] = repmat(mr, args[0], m, n, p);
+        outs[0] = repmat(args[0], m, n, p, mr);
     } else {
-        outs[0] = repmatND(mr, args[0], tiles.data(), static_cast<int>(tiles.size()));
+        outs[0] = repmatND(args[0], Span<const size_t>(tiles.data(), tiles.size()), mr);
     }
 }
 
@@ -976,7 +974,7 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         if (args.empty())                                                      \
             throw Error(#name ": requires 1 argument",                        \
                          0, 0, #name, "", "m:" #name ":nargin");               \
-        outs[0] = name(ctx.engine->resource(), args[0]);                      \
+        outs[0] = name(args[0], ctx.engine->resource());                      \
     }
 
 NK_FLIP_REG(fliplr)
@@ -993,7 +991,7 @@ void rot90_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     int k = (args.size() >= 2 && !args[1].isEmpty())
                 ? static_cast<int>(args[1].toScalar())
                 : 1;
-    outs[0] = rot90(ctx.engine->resource(), args[0], k);
+    outs[0] = rot90(args[0], k, ctx.engine->resource());
 }
 
 void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1010,13 +1008,11 @@ void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                      0, 0, "circshift", "", "m:circshift:badShift");
 
     if (nk == 1) {
-        outs[0] = circshift(mr, args[0], static_cast<int64_t>(k.toScalar()));
+        outs[0] = circshift(args[0], static_cast<int64_t>(k.toScalar()), mr);
         return;
     }
     if (nk == 2 && args[0].dims().ndim() <= 3) {
-        outs[0] = circshift(mr, args[0],
-                            static_cast<int64_t>(k.doubleData()[0]),
-                            static_cast<int64_t>(k.doubleData()[1]));
+        outs[0] = circshift(args[0], static_cast<int64_t>(k.doubleData()[0]), static_cast<int64_t>(k.doubleData()[1]), mr);
         return;
     }
     // ND path: shift vector ≥ 3 entries OR input rank ≥ 4.
@@ -1024,7 +1020,7 @@ void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     auto shifts = ScratchVec<int64_t>(nk, &scratch);
     for (size_t i = 0; i < nk; ++i)
         shifts[i] = static_cast<int64_t>(k.doubleData()[i]);
-    outs[0] = circshiftND(mr, args[0], shifts.data(), static_cast<int>(nk));
+    outs[0] = circshiftND(args[0], Span<const int64_t>(shifts.data(), nk), mr);
 }
 
 #define NK_TRI_REG(name)                                                       \
@@ -1037,7 +1033,7 @@ void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         int k = (args.size() >= 2 && !args[1].isEmpty())                       \
                     ? static_cast<int>(args[1].toScalar())                     \
                     : 0;                                                        \
-        outs[0] = name(ctx.engine->resource(), args[0], k);                   \
+        outs[0] = name(args[0], k, ctx.engine->resource());                   \
     }
 
 NK_TRI_REG(tril)
@@ -1054,7 +1050,7 @@ void flip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     int dim = (args.size() >= 2 && !args[1].isEmpty())
                   ? static_cast<int>(args[1].toScalar())
                   : 0;
-    outs[0] = flip(ctx.engine->resource(), args[0], dim);
+    outs[0] = flip(args[0], dim, ctx.engine->resource());
 }
 
 void repelem_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1066,12 +1062,12 @@ void repelem_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     auto *mr = ctx.engine->resource();
     if (args.size() == 2) {
         const size_t n = static_cast<size_t>(args[1].toScalar());
-        outs[0] = repelem(mr, args[0], n);
+        outs[0] = repelem(args[0], n, mr);
         return;
     }
     const size_t m = static_cast<size_t>(args[1].toScalar());
     const size_t n = static_cast<size_t>(args[2].toScalar());
-    outs[0] = repelem(mr, args[0], m, n);
+    outs[0] = repelem(args[0], m, n, mr);
 }
 
 // sub2ind(siz, i1, i2, ...) → linear index. Column-major, 1-based.
@@ -1142,7 +1138,7 @@ void sub2ind_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             throw Error(#FN " requires (v, n)",                                  \
                          0, 0, #FN, "", "m:" #FN ":nargin");                     \
         const size_t n = static_cast<size_t>(args[1].toScalar());                \
-        outs[0] = FN(ctx.engine->resource(), args[0], n);                       \
+        outs[0] = FN(args[0], n, ctx.engine->resource());                       \
     }
 
 NK_RESIZE_REG(paddata)

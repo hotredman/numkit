@@ -120,9 +120,7 @@ inline Value allocVarianceOutput(const Value &x, int redDim, std::pmr::memory_re
 // Complex variance along dim: walks slices via stride math, gathers
 // each slice into a Complex scratch buffer, computes per-slice complex
 // variance, writes DOUBLE output.
-void complexVarianceAlongDim(std::pmr::memory_resource *mr,
-                             const Value &x, int redDim, double *dst, int normFlag,
-                             bool omitNan = false)
+void complexVarianceAlongDim(const Value &x, int redDim, double *dst, int normFlag, bool omitNan, std::pmr::memory_resource *mr)
 {
     const auto &d = x.dims();
     const int redAxis = redDim - 1;
@@ -162,8 +160,7 @@ Value varianceComplex(const Value &x, int normFlag, int dim,
     const int d = (dim > 0) ? dim : firstNonSingletonDim(x);
     Value out = allocVarianceOutput(x, d, mr);
     ScratchArena scratch(mr);
-    complexVarianceAlongDim(&scratch, x, d,
-                            out.doubleDataMut(), normFlag, omitNan);
+    complexVarianceAlongDim(x, d, out.doubleDataMut(), normFlag, omitNan, &scratch);
     if (sqrtIt) {
         double *p = out.doubleDataMut();
         const size_t n = out.numel();
@@ -175,7 +172,7 @@ Value varianceComplex(const Value &x, int normFlag, int dim,
 
 } // namespace
 
-Value var(std::pmr::memory_resource *mr, const Value &x, int normFlag, int dim)
+Value var(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
 {
     validateNormFlag(normFlag, "var");
     if (x.type() == ValueType::COMPLEX)
@@ -195,7 +192,7 @@ Value var(std::pmr::memory_resource *mr, const Value &x, int normFlag, int dim)
     return r;
 }
 
-Value stdev(std::pmr::memory_resource *mr, const Value &x, int normFlag, int dim)
+Value stdev(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
 {
     validateNormFlag(normFlag, "std");
     if (x.type() == ValueType::COMPLEX)
@@ -244,7 +241,7 @@ double medianFromSlice(double *data, size_t n)
 
 } // namespace
 
-Value median(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value median(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error("median: complex inputs are not supported (no defined ordering)",
@@ -318,8 +315,7 @@ double quantileFromSortedSlice(const double *sorted, size_t n, double p,
 // raw user input to a [0,1] probability (1.0 for quantile, 1/100 for
 // prctile). `method` selects the interpolation rule (default Midpoint
 // = MATLAB R2025b default).
-Value quantileImpl(std::pmr::memory_resource *mr, const Value &x, const Value &p,
-                    int dim, double pScale, QMethod method, const char *fn)
+Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMethod method, const char *fn, std::pmr::memory_resource *mr)
 {
     if (p.numel() == 0)
         throw Error(std::string(fn) + ": p must be non-empty",
@@ -431,22 +427,20 @@ Value quantileImpl(std::pmr::memory_resource *mr, const Value &x, const Value &p
 
 } // namespace
 
-Value quantile(std::pmr::memory_resource *mr, const Value &x, const Value &p, int dim)
+Value quantile(const Value &x, const Value &p, int dim, std::pmr::memory_resource *mr)
 {
-    return quantileImpl(mr, x, p, dim, 1.0, QMethod::Midpoint, "quantile");
+    return quantileImpl(x, p, dim, 1.0, QMethod::Midpoint, "quantile", mr);
 }
 
-Value prctile(std::pmr::memory_resource *mr, const Value &x, const Value &p, int dim)
+Value prctile(const Value &x, const Value &p, int dim, std::pmr::memory_resource *mr)
 {
-    return quantileImpl(mr, x, p, dim, 0.01, QMethod::Midpoint, "prctile");
+    return quantileImpl(x, p, dim, 0.01, QMethod::Midpoint, "prctile", mr);
 }
 
 // Internal entry point used by registration adapters which parsed
 // 'all' / vecdim / Method themselves. `flatten = true` collapses x to
 // a flat row vector before reduction; `method` selects the algorithm.
-Value quantileWithOpts(std::pmr::memory_resource *mr, const Value &x,
-                       const Value &p, int dim, bool flatten,
-                       QMethod method, double pScale, const char *fn)
+Value quantileWithOpts(const Value &x, const Value &p, int dim, bool flatten, QMethod method, double pScale, const char *fn, std::pmr::memory_resource *mr)
 {
     if (flatten) {
         // Reshape into a 1×N row, then reduce along dim 2 (the only
@@ -456,9 +450,9 @@ Value quantileWithOpts(std::pmr::memory_resource *mr, const Value &x,
             const double *src = x.doubleData();
             std::copy(src, src + x.numel(), flat.doubleDataMut());
         }
-        return quantileImpl(mr, flat, p, 2, pScale, method, fn);
+        return quantileImpl(flat, p, 2, pScale, method, fn, mr);
     }
-    return quantileImpl(mr, x, p, dim, pScale, method, fn);
+    return quantileImpl(x, p, dim, pScale, method, fn, mr);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -561,9 +555,7 @@ inline void modeFromSliceT(T *data, size_t n, T &outVal, double &outCount)
 // On empty slices (sliceLen == 0) fills outputs with NaN/0 (or 0/0 for
 // integer T) — matches MATLAB's mode-of-empty-slice convention.
 template <typename T>
-void modeAlongDim(std::pmr::memory_resource *mr,
-                  const Value &x, int redDim, T *dst, double *dstC,
-                  bool typeMatch)
+void modeAlongDim(const Value &x, int redDim, T *dst, double *dstC, bool typeMatch, std::pmr::memory_resource *mr)
 {
     const auto &d = x.dims();
     const int redAxis = redDim - 1;
@@ -638,10 +630,7 @@ modeAllT(const Value &x, ValueType outType, std::pmr::memory_resource *mr)
     }
     const int redDim = firstNonSingletonDim(x);
     auto [out, outC] = allocModeOutputs(x, redDim, outType, mr);
-    modeAlongDim<T>(&scratch, x, redDim,
-                    static_cast<T *>(out.rawDataMut()),
-                    outC.doubleDataMut(),
-                    typeMatch);
+    modeAlongDim<T>(x, redDim, static_cast<T *>(out.rawDataMut()), outC.doubleDataMut(), typeMatch, &scratch);
     return std::make_tuple(std::move(out), std::move(outC));
 }
 
@@ -679,10 +668,7 @@ modeAlongDimT(const Value &x, int dim, ValueType outType, std::pmr::memory_resou
     }
     auto [out, outC] = allocModeOutputs(x, dim, outType, mr);
     ScratchArena scratch(mr);
-    modeAlongDim<T>(&scratch, x, dim,
-                    static_cast<T *>(out.rawDataMut()),
-                    outC.doubleDataMut(),
-                    typeMatch);
+    modeAlongDim<T>(x, dim, static_cast<T *>(out.rawDataMut()), outC.doubleDataMut(), typeMatch, &scratch);
     return std::make_tuple(std::move(out), std::move(outC));
 }
 
@@ -724,7 +710,7 @@ dispatchMode(const Value &x, int dim, std::pmr::memory_resource *mr, const char 
 } // namespace
 
 std::tuple<Value, Value>
-mode(std::pmr::memory_resource *mr, const Value &x, int dim)
+mode(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     const int d = resolveDim(x, dim, "mode");
     return dispatchMode(x, d, mr, "mode");
@@ -793,8 +779,7 @@ void centerColumns(double *data, std::size_t n, std::size_t p)
 }
 
 // covImpl: take a centered n×p buffer, compute X' * X / divisor → p×p.
-Value covMatrixFromCentered(std::pmr::memory_resource *mr, const double *X,
-                             std::size_t n, std::size_t p, double divisor)
+Value covMatrixFromCentered(const double *X, std::size_t n, std::size_t p, double divisor, std::pmr::memory_resource *mr)
 {
     auto out = Value::matrix(p, p, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
@@ -810,7 +795,7 @@ Value covMatrixFromCentered(std::pmr::memory_resource *mr, const double *X,
 
 } // namespace
 
-Value cov(std::pmr::memory_resource *mr, const Value &x, int normFlag)
+Value cov(const Value &x, int normFlag, std::pmr::memory_resource *mr)
 {
     validateNormFlagCov(normFlag, "cov");
     validateCovInputs(x, "cov");
@@ -836,10 +821,10 @@ Value cov(std::pmr::memory_resource *mr, const Value &x, int normFlag)
         for (std::size_t i = 0; i < n; ++i) s += data[i] * data[i];
         return Value::scalar(s / divisor, mr);
     }
-    return covMatrixFromCentered(mr, data.data(), n, p, divisor);
+    return covMatrixFromCentered(data.data(), n, p, divisor, mr);
 }
 
-Value cov(std::pmr::memory_resource *mr, const Value &x, const Value &y, int normFlag)
+Value cov(const Value &x, const Value &y, int normFlag, std::pmr::memory_resource *mr)
 {
     validateNormFlagCov(normFlag, "cov");
     validateCovInputs(x, "cov");
@@ -863,12 +848,12 @@ Value cov(std::pmr::memory_resource *mr, const Value &x, const Value &y, int nor
     const double divisor = (normFlag == 0)
         ? std::max(1.0, static_cast<double>(n) - 1.0)
         : static_cast<double>(n);
-    return covMatrixFromCentered(mr, data.data(), n, 2, divisor);
+    return covMatrixFromCentered(data.data(), n, 2, divisor, mr);
 }
 
 namespace {
 
-Value corrcoefFromCov(std::pmr::memory_resource *mr, const Value &C)
+Value corrcoefFromCov(const Value &C, std::pmr::memory_resource *mr)
 {
     if (C.dims().rows() != C.dims().cols())
         throw Error("corrcoef: covariance matrix must be square",
@@ -892,7 +877,7 @@ Value corrcoefFromCov(std::pmr::memory_resource *mr, const Value &C)
 
 } // namespace
 
-Value corrcoef(std::pmr::memory_resource *mr, const Value &x)
+Value corrcoef(const Value &x, std::pmr::memory_resource *mr)
 {
     // Special case: vector input → 1×1 matrix [1] (variable correlated
     // with itself). Matches MATLAB's `corrcoef(rand(5,1))` behaviour.
@@ -901,14 +886,14 @@ Value corrcoef(std::pmr::memory_resource *mr, const Value &x)
         R.doubleDataMut()[0] = 1.0;
         return R;
     }
-    auto C = cov(mr, x);
-    return corrcoefFromCov(mr, C);
+    auto C = cov(x, 0, mr);
+    return corrcoefFromCov(C, mr);
 }
 
-Value corrcoef(std::pmr::memory_resource *mr, const Value &x, const Value &y)
+Value corrcoef(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 {
-    auto C = cov(mr, x, y);
-    return corrcoefFromCov(mr, C);
+    auto C = cov(x, y, 0, mr);
+    return corrcoefFromCov(C, mr);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -1041,8 +1026,7 @@ std::vector<double> flatten(const Value &x)
 // 'all', vecdim full-flatten, weight vector).
 //
 // `sqrtIt = true` makes this `std`.
-Value varStdDispatch(std::pmr::memory_resource *mr, Span<const Value> args,
-                     bool sqrtIt, const char *fn)
+Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::pmr::memory_resource *mr)
 {
     bool omitNan = false;
     size_t n = stripNanFlag(args, omitNan, fn);
@@ -1139,13 +1123,13 @@ Value varStdDispatch(std::pmr::memory_resource *mr, Span<const Value> args,
             return varianceComplex(x, normFlag, dim, mr, sqrtIt, true);
         }
         Value r = sqrtIt
-                    ? ::numkit::stats::nanstdev(mr, x, normFlag, dim)
-                    : ::numkit::stats::nanvar  (mr, x, normFlag, dim);
+                    ? ::numkit::stats::nanstdev(x, normFlag, dim, mr)
+                    : ::numkit::stats::nanvar  (x, normFlag, dim, mr);
         if (x.type() == ValueType::SINGLE)
             r = narrowToSingle(std::move(r), mr);
         return r;
     }
-    return sqrtIt ? stdev(mr, x, normFlag, dim) : var(mr, x, normFlag, dim);
+    return sqrtIt ? stdev(x, normFlag, dim, mr) : var(x, normFlag, dim, mr);
 }
 
 void var_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1154,8 +1138,7 @@ void var_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("var: requires at least 1 argument",
                      0, 0, "var", "", "m:var:nargin");
-    outs[0] = varStdDispatch(ctx.engine->resource(), args,
-                             /*sqrtIt=*/false, "var");
+    outs[0] = varStdDispatch(args, /*sqrtIt=*/false, "var", ctx.engine->resource());
 }
 
 void std_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1164,8 +1147,7 @@ void std_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("std: requires at least 1 argument",
                      0, 0, "std", "", "m:std:nargin");
-    outs[0] = varStdDispatch(ctx.engine->resource(), args,
-                             /*sqrtIt=*/true, "std");
+    outs[0] = varStdDispatch(args, /*sqrtIt=*/true, "std", ctx.engine->resource());
 }
 
 void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1233,13 +1215,13 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     }
     if (omitNan) {
         rejectComplexOmitNan(args[0], "median");
-        Value r = ::numkit::stats::nanmedian(ctx.engine->resource(), args[0], dim);
+        Value r = ::numkit::stats::nanmedian(args[0], dim, ctx.engine->resource());
         if (args[0].type() == ValueType::SINGLE)
             r = narrowToSingle(std::move(r), ctx.engine->resource());
         outs[0] = std::move(r);
         return;
     }
-    outs[0] = median(ctx.engine->resource(), args[0], dim);
+    outs[0] = median(args[0], dim, ctx.engine->resource());
 }
 
 // Common parser for the trailing args of quantile/prctile:
@@ -1340,8 +1322,7 @@ void quantile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("quantile: requires (X, p[, dim] [, Method=method])",
                      0, 0, "quantile", "", "m:quantile:nargin");
     auto q = parseQArgs(args, 2, args[0], "quantile");
-    outs[0] = quantileWithOpts(ctx.engine->resource(), args[0], args[1],
-                                q.dim, q.flatten, q.method, 1.0, "quantile");
+    outs[0] = quantileWithOpts(args[0], args[1], q.dim, q.flatten, q.method, 1.0, "quantile", ctx.engine->resource());
 }
 
 void prctile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1351,8 +1332,7 @@ void prctile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("prctile: requires (X, p[, dim] [, Method=method])",
                      0, 0, "prctile", "", "m:prctile:nargin");
     auto q = parseQArgs(args, 2, args[0], "prctile");
-    outs[0] = quantileWithOpts(ctx.engine->resource(), args[0], args[1],
-                                q.dim, q.flatten, q.method, 0.01, "prctile");
+    outs[0] = quantileWithOpts(args[0], args[1], q.dim, q.flatten, q.method, 0.01, "prctile", ctx.engine->resource());
 }
 
 void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
@@ -1401,12 +1381,12 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
             const double *src = args[0].doubleData();
             std::copy(src, src + args[0].numel(), flat.doubleDataMut());
         }
-        auto [v, c] = mode(mr, flat, 2);
+        auto [v, c] = mode(flat, 2, mr);
         outs[0] = std::move(v);
         if (nargout > 1) outs[1] = std::move(c);
         return;
     }
-    auto [v, c] = mode(mr, args[0], dim);
+    auto [v, c] = mode(args[0], dim, mr);
     outs[0] = std::move(v);
     if (nargout > 1)
         outs[1] = std::move(c);
@@ -1422,7 +1402,7 @@ void cov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                      0, 0, "cov", "", "m:cov:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 1) {
-        outs[0] = cov(mr, args[0]);
+        outs[0] = cov(args[0], 0, mr);
         return;
     }
     // 2-arg form is ambiguous: cov(x, normFlag) vs cov(x, y).
@@ -1432,16 +1412,16 @@ void cov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         if (args[1].isScalar()) {
             const double v = args[1].toScalar();
             if (v == 0.0 || v == 1.0) {
-                outs[0] = cov(mr, args[0], static_cast<int>(v));
+                outs[0] = cov(args[0], static_cast<int>(v), mr);
                 return;
             }
         }
-        outs[0] = cov(mr, args[0], args[1]);
+        outs[0] = cov(args[0], args[1], 0, mr);
         return;
     }
     // 3-arg form: cov(x, y, normFlag).
     const int w = static_cast<int>(args[2].toScalar());
-    outs[0] = cov(mr, args[0], args[1], w);
+    outs[0] = cov(args[0], args[1], w, mr);
 }
 
 void corrcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1452,10 +1432,10 @@ void corrcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                      0, 0, "corrcoef", "", "m:corrcoef:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 1) {
-        outs[0] = corrcoef(mr, args[0]);
+        outs[0] = corrcoef(args[0], mr);
         return;
     }
-    outs[0] = corrcoef(mr, args[0], args[1]);
+    outs[0] = corrcoef(args[0], args[1], mr);
 }
 
 // nan*_reg adapters all moved to libs/stats/src/nan_aware/nan_aware.cpp.

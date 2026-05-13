@@ -123,8 +123,7 @@ void writePixel(Value &out, const Shape &s,
     writeNative(out, idx3D(s, y, x, c), v, srcType);
 }
 
-Value makeOut(std::pmr::memory_resource *mr,
-              size_t H, size_t W, size_t C, ValueType t) {
+Value makeOut(size_t H, size_t W, size_t C, ValueType t, std::pmr::memory_resource *mr) {
     if (C == 1) return Value::matrix(H, W, t, mr);
     return Value::matrix3d(H, W, C, t, mr);
 }
@@ -136,14 +135,12 @@ bool methodIsNearest(const std::string &m) {
 
 } // anonymous
 
-Value imresize(std::pmr::memory_resource *mr,
-               const Value &A, size_t outH, size_t outW,
-               const std::string &method)
+Value imresize(const Value &A, size_t outH, size_t outW, const std::string &method, std::pmr::memory_resource *mr)
 {
     const Shape s = shapeOf(A);
     const ValueType t = A.type();
     if (outH == 0 || outW == 0)
-        return makeOut(mr, outH, outW, s.C, t);
+        return makeOut(outH, outW, s.C, t, mr);
 
     // Map output (yo, xo) → source coordinate via the centre-aligned
     // formula MATLAB / OpenCV use for resampling:
@@ -152,7 +149,7 @@ Value imresize(std::pmr::memory_resource *mr,
     const double sy = double(s.H) / double(outH);
     const bool nearest = methodIsNearest(method);
 
-    Value B = makeOut(mr, outH, outW, s.C, t);
+    Value B = makeOut(outH, outW, s.C, t, mr);
     Shape sd{outH, outW, s.C};
     for (size_t c = 0; c < s.C; ++c) {
         for (size_t yo = 0; yo < outH; ++yo) {
@@ -178,9 +175,7 @@ Value imresize(std::pmr::memory_resource *mr,
     return B;
 }
 
-Value imresize(std::pmr::memory_resource *mr,
-               const Value &A, double scale,
-               const std::string &method)
+Value imresize(const Value &A, double scale, const std::string &method, std::pmr::memory_resource *mr)
 {
     const Shape s = shapeOf(A);
     if (!(scale > 0.0))
@@ -188,12 +183,10 @@ Value imresize(std::pmr::memory_resource *mr,
                     0, 0, "imresize", "", "m:imresize:scale");
     const size_t outH = static_cast<size_t>(std::round(scale * double(s.H)));
     const size_t outW = static_cast<size_t>(std::round(scale * double(s.W)));
-    return imresize(mr, A, outH, outW, method);
+    return imresize(A, outH, outW, method, mr);
 }
 
-Value imcrop(std::pmr::memory_resource *mr,
-             const Value &A, double xmin, double ymin,
-             double width, double height)
+Value imcrop(const Value &A, double xmin, double ymin, double width, double height, std::pmr::memory_resource *mr)
 {
     const Shape s = shapeOf(A);
     const ValueType t = A.type();
@@ -207,9 +200,9 @@ Value imcrop(std::pmr::memory_resource *mr,
     if (x0 + w > int(s.W)) w = int(s.W) - x0;
     if (y0 + h > int(s.H)) h = int(s.H) - y0;
     if (w <= 0 || h <= 0)
-        return makeOut(mr, 0, 0, s.C, t);
+        return makeOut(0, 0, s.C, t, mr);
 
-    Value B = makeOut(mr, size_t(h), size_t(w), s.C, t);
+    Value B = makeOut(size_t(h), size_t(w), s.C, t, mr);
     Shape sd{size_t(h), size_t(w), s.C};
     for (size_t c = 0; c < s.C; ++c)
         for (int y = 0; y < h; ++y)
@@ -221,9 +214,7 @@ Value imcrop(std::pmr::memory_resource *mr,
     return B;
 }
 
-Value imrotate(std::pmr::memory_resource *mr,
-               const Value &A, double angle,
-               const std::string &method, const std::string &bbox)
+Value imrotate(const Value &A, double angle, const std::string &method, const std::string &bbox, std::pmr::memory_resource *mr)
 {
     const Shape s = shapeOf(A);
     const ValueType t = A.type();
@@ -264,7 +255,7 @@ Value imrotate(std::pmr::memory_resource *mr,
     //   pᵢₙ = R(+θ) · (pₒᵤₜ − cₒᵤₜ) + cᵢₙ
     // — i.e. (cos, −sin; +sin, cos) — gives the canonical MATLAB
     // imrotate output (verified against Octave 11.1).
-    Value B = makeOut(mr, outH, outW, s.C, t);
+    Value B = makeOut(outH, outW, s.C, t, mr);
     Shape sd{outH, outW, s.C};
     for (size_t c = 0; c < s.C; ++c)
         for (size_t y = 0; y < outH; ++y) {
@@ -287,12 +278,11 @@ Value imrotate(std::pmr::memory_resource *mr,
     return B;
 }
 
-Value imtranslate(std::pmr::memory_resource *mr,
-                  const Value &A, double dx, double dy)
+Value imtranslate(const Value &A, double dx, double dy, std::pmr::memory_resource *mr)
 {
     const Shape s = shapeOf(A);
     const ValueType t = A.type();
-    Value B = makeOut(mr, s.H, s.W, s.C, t);
+    Value B = makeOut(s.H, s.W, s.C, t, mr);
     for (size_t c = 0; c < s.C; ++c)
         for (size_t y = 0; y < s.H; ++y)
             for (size_t x = 0; x < s.W; ++x) {
@@ -304,8 +294,7 @@ Value imtranslate(std::pmr::memory_resource *mr,
     return B;
 }
 
-Value axes2pix(std::pmr::memory_resource *mr,
-               double n, const Value &extent, const Value &axesCoord)
+Value axes2pix(double n, const Value &extent, const Value &axesCoord, std::pmr::memory_resource *mr)
 {
     if (extent.numel() < 1)
         throw Error("axes2pix: EXTENT must be a non-empty vector",
@@ -336,8 +325,7 @@ Value axes2pix(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value impyramid(std::pmr::memory_resource *mr,
-                const Value &A, const std::string &type)
+Value impyramid(const Value &A, const std::string &type, std::pmr::memory_resource *mr)
 {
     // Binomial 5-tap kernel [1 4 6 4 1]/16 (MATLAB / Octave default).
     static constexpr double kBurt[5] = {1.0 / 16, 4.0 / 16, 6.0 / 16,
@@ -356,7 +344,7 @@ Value impyramid(std::pmr::memory_resource *mr,
     else        { Hout = s.H ? 2 * s.H - 1 : 0;
                   Wout = s.W ? 2 * s.W - 1 : 0; }
 
-    Value B = makeOut(mr, Hout, Wout, s.C, t);
+    Value B = makeOut(Hout, Wout, s.C, t, mr);
     if (s.H == 0 || s.W == 0 || Hout == 0 || Wout == 0) return B;
     Shape sd{Hout, Wout, s.C};
 
@@ -473,11 +461,11 @@ void imresize_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     std::string method = "bilinear";
     if (args.size() >= 3 && !args[2].isEmpty()) method = argString(args[2]);
     if (args[1].numel() == 1) {
-        outs[0] = imresize(mr, args[0], args[1].toScalar(), method);
+        outs[0] = imresize(args[0], args[1].toScalar(), method, mr);
     } else if (args[1].numel() == 2) {
         const size_t outH = size_t(args[1].elemAsDouble(0));
         const size_t outW = size_t(args[1].elemAsDouble(1));
-        outs[0] = imresize(mr, args[0], outH, outW, method);
+        outs[0] = imresize(args[0], outH, outW, method, mr);
     } else {
         throw Error("imresize: 2nd arg must be a scalar scale "
                     "or a 2-element [outH outW]",
@@ -494,9 +482,7 @@ void imcrop_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args[1].numel() < 4)
         throw Error("imcrop: rect must have 4 elements",
                     0, 0, "imcrop", "", "m:imcrop:rect");
-    outs[0] = imcrop(ctx.engine->resource(), args[0],
-                     args[1].elemAsDouble(0), args[1].elemAsDouble(1),
-                     args[1].elemAsDouble(2), args[1].elemAsDouble(3));
+    outs[0] = imcrop(args[0], args[1].elemAsDouble(0), args[1].elemAsDouble(1), args[1].elemAsDouble(2), args[1].elemAsDouble(3), ctx.engine->resource());
 }
 
 void imrotate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -509,8 +495,7 @@ void imrotate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     std::string bbox   = "loose";
     if (args.size() >= 3 && !args[2].isEmpty()) method = argString(args[2]);
     if (args.size() >= 4 && !args[3].isEmpty()) bbox   = argString(args[3]);
-    outs[0] = imrotate(ctx.engine->resource(), args[0],
-                       args[1].toScalar(), method, bbox);
+    outs[0] = imrotate(args[0], args[1].toScalar(), method, bbox, ctx.engine->resource());
 }
 
 void imtranslate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -522,9 +507,7 @@ void imtranslate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
     if (args[1].numel() < 2)
         throw Error("imtranslate: vector must have 2 elements",
                     0, 0, "imtranslate", "", "m:imtranslate:vec");
-    outs[0] = imtranslate(ctx.engine->resource(), args[0],
-                          args[1].elemAsDouble(0),
-                          args[1].elemAsDouble(1));
+    outs[0] = imtranslate(args[0], args[1].elemAsDouble(0), args[1].elemAsDouble(1), ctx.engine->resource());
 }
 
 void axes2pix_reg(Span<const Value> args, size_t /*nargout*/,
@@ -534,7 +517,7 @@ void axes2pix_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("axes2pix: requires (n, extent, axesCoord)",
                     0, 0, "axes2pix", "", "m:axes2pix:nargin");
     const double n = args[0].toScalar();
-    outs[0] = axes2pix(ctx.engine->resource(), n, args[1], args[2]);
+    outs[0] = axes2pix(n, args[1], args[2], ctx.engine->resource());
 }
 
 void impyramid_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -544,7 +527,7 @@ void impyramid_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("impyramid: requires (A, type)", 0, 0, "impyramid", "",
                     "m:impyramid:nargin");
     const std::string type = argString(args[1]);
-    outs[0] = impyramid(ctx.engine->resource(), args[0], type);
+    outs[0] = impyramid(args[0], type, ctx.engine->resource());
 }
 
 } // namespace detail

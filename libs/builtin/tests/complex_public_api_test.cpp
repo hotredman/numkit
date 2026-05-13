@@ -53,7 +53,7 @@ TEST(BuiltinComplexPublicApi, RealOfComplexScalar)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = Value::complexScalar(Complex(3.0, 4.0), mr);
-    Value r = numkit::builtin::real(mr, x);
+    Value r = numkit::builtin::real(x, mr);
     ASSERT_TRUE(r.isScalar());
     EXPECT_DOUBLE_EQ(r.toScalar(), 3.0);
 }
@@ -62,7 +62,7 @@ TEST(BuiltinComplexPublicApi, RealOfComplexVector)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = makeComplexRow(mr, {Complex(1, 10), Complex(2, 20), Complex(3, 30)});
-    Value r = numkit::builtin::real(mr, x);
+    Value r = numkit::builtin::real(x, mr);
     ASSERT_EQ(r.type(), ValueType::DOUBLE);
     ASSERT_EQ(r.numel(), 3u);
     EXPECT_DOUBLE_EQ(r.doubleData()[0], 1.0);
@@ -74,7 +74,7 @@ TEST(BuiltinComplexPublicApi, RealOfRealIsPassThrough)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = Value::scalar(5.0, mr);
-    Value r = numkit::builtin::real(mr, x);
+    Value r = numkit::builtin::real(x, mr);
     EXPECT_DOUBLE_EQ(r.toScalar(), 5.0);
 }
 
@@ -83,7 +83,7 @@ TEST(BuiltinComplexPublicApi, ImagOfComplexScalar)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = Value::complexScalar(Complex(3.0, 4.0), mr);
-    Value r = numkit::builtin::imag(mr, x);
+    Value r = numkit::builtin::imag(x, mr);
     EXPECT_DOUBLE_EQ(r.toScalar(), 4.0);
 }
 
@@ -91,7 +91,7 @@ TEST(BuiltinComplexPublicApi, ImagOfRealReturnsZero)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = Value::scalar(7.0, mr);
-    Value r = numkit::builtin::imag(mr, x);
+    Value r = numkit::builtin::imag(x, mr);
     EXPECT_DOUBLE_EQ(r.toScalar(), 0.0);
 }
 
@@ -100,7 +100,7 @@ TEST(BuiltinComplexPublicApi, ConjFlipsImagSign)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = makeComplexRow(mr, {Complex(1, 2), Complex(-3, 4), Complex(0, -5)});
-    Value r = numkit::builtin::conj(mr, x);
+    Value r = numkit::builtin::conj(x, mr);
     ASSERT_TRUE(r.isComplex());
     const Complex *c = r.complexData();
     EXPECT_EQ(c[0], Complex(1, -2));
@@ -112,7 +112,7 @@ TEST(BuiltinComplexPublicApi, ConjOfRealIsPassThrough)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = makeRealRow(mr, {1.0, 2.0, 3.0});
-    Value r = numkit::builtin::conj(mr, x);
+    Value r = numkit::builtin::conj(x, mr);
     ASSERT_EQ(r.numel(), 3u);
     EXPECT_DOUBLE_EQ(r.doubleData()[0], 1.0);
 }
@@ -122,7 +122,7 @@ TEST(BuiltinComplexPublicApi, ComplexOneArgAddsZeroImag)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value re = Value::scalar(3.0, mr);
-    Value r = numkit::builtin::complex(mr, re);
+    Value r = numkit::builtin::complex(re, mr);
     ASSERT_TRUE(r.isComplex());
     EXPECT_EQ(r.toComplex(), Complex(3.0, 0.0));
 }
@@ -132,7 +132,7 @@ TEST(BuiltinComplexPublicApi, ComplexTwoArgsScalar)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value re = Value::scalar(3.0, mr);
     Value im = Value::scalar(4.0, mr);
-    Value r = numkit::builtin::complex(mr, re, im);
+    Value r = numkit::builtin::complex(re, im, mr);
     EXPECT_EQ(r.toComplex(), Complex(3.0, 4.0));
 }
 
@@ -141,7 +141,7 @@ TEST(BuiltinComplexPublicApi, ComplexBroadcastsScalarImag)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value re = makeRealRow(mr, {1.0, 2.0, 3.0});
     Value im = Value::scalar(10.0, mr);
-    Value r = numkit::builtin::complex(mr, re, im);
+    Value r = numkit::builtin::complex(re, im, mr);
     ASSERT_TRUE(r.isComplex());
     ASSERT_EQ(r.numel(), 3u);
     const Complex *c = r.complexData();
@@ -155,7 +155,7 @@ TEST(BuiltinComplexPublicApi, ComplexMismatchedDimsThrows)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value re = makeRealRow(mr, {1.0, 2.0, 3.0});
     Value im = makeRealRow(mr, {1.0, 2.0});
-    EXPECT_THROW(numkit::builtin::complex(mr, re, im), Error);
+    EXPECT_THROW(numkit::builtin::complex(re, im, mr), Error);
 }
 
 // ── angle ───────────────────────────────────────────────────────────────
@@ -163,7 +163,7 @@ TEST(BuiltinComplexPublicApi, AngleOfUnitImag)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = Value::complexScalar(Complex(0, 1), mr);
-    Value r = numkit::builtin::angle(mr, x);
+    Value r = numkit::builtin::angle(x, mr);
     EXPECT_NEAR(r.toScalar(), M_PI / 2.0, 1e-12);
 }
 
@@ -171,7 +171,7 @@ TEST(BuiltinComplexPublicApi, AngleOfNegativeRealIsPi)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = Value::scalar(-1.0, mr);
-    Value r = numkit::builtin::angle(mr, x);
+    Value r = numkit::builtin::angle(x, mr);
     EXPECT_NEAR(r.toScalar(), M_PI, 1e-12);
 }
 
@@ -179,7 +179,7 @@ TEST(BuiltinComplexPublicApi, AngleOfPositiveRealIsZero)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = Value::scalar(5.0, mr);
-    Value r = numkit::builtin::angle(mr, x);
+    Value r = numkit::builtin::angle(x, mr);
     EXPECT_NEAR(r.toScalar(), 0.0, 1e-12);
 }
 
@@ -187,7 +187,7 @@ TEST(BuiltinComplexPublicApi, AngleOfComplexVector)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = makeComplexRow(mr, {Complex(1, 0), Complex(0, 1), Complex(-1, 0)});
-    Value r = numkit::builtin::angle(mr, x);
+    Value r = numkit::builtin::angle(x, mr);
     ASSERT_EQ(r.numel(), 3u);
     EXPECT_NEAR(r.doubleData()[0], 0.0, 1e-12);
     EXPECT_NEAR(r.doubleData()[1], M_PI / 2.0, 1e-12);

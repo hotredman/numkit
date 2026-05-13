@@ -161,8 +161,7 @@ struct KmeansResult {
 };
 
 KmeansResult
-kmeans_full(std::pmr::memory_resource *mr, const Value &X, int K,
-            int max_iter, int replicates)
+kmeans_full(const Value &X, int K, int max_iter, int replicates, std::pmr::memory_resource *mr)
 {
     if (max_iter <= 0)   max_iter = 100;
     if (replicates <= 0) replicates = 1;
@@ -236,10 +235,9 @@ kmeans_full(std::pmr::memory_resource *mr, const Value &X, int K,
 
 // Backward-compat 3-output wrapper.
 std::tuple<Value, Value, Value>
-kmeans(std::pmr::memory_resource *mr, const Value &X, int K,
-       int max_iter, int replicates)
+kmeans(const Value &X, int K, int max_iter, int replicates, std::pmr::memory_resource *mr)
 {
-    auto R = kmeans_full(mr, X, K, max_iter, replicates);
+    auto R = kmeans_full(X, K, max_iter, replicates, mr);
     return std::make_tuple(std::move(R.idx), std::move(R.C),
                            std::move(R.sumd));
 }
@@ -286,8 +284,7 @@ void kmeans_reg(Span<const Value> args, size_t nargout,
         // 'Display' / 'EmptyAction' / 'OnlinePhase' / 'Options' silently
         // accepted (no-op).
     }
-    auto R = kmeans_full(ctx.engine->resource(), args[0], K,
-                         max_iter, replicates);
+    auto R = kmeans_full(args[0], K, max_iter, replicates, ctx.engine->resource());
     outs[0] = std::move(R.idx);
     if (nargout > 1) outs[1] = std::move(R.C);
     if (nargout > 2) outs[2] = std::move(R.sumd);

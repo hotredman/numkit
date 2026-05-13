@@ -25,7 +25,7 @@ inline T satCast(double v) {
     return static_cast<T>(std::lround(v));
 }
 
-inline Value alloc_like(std::pmr::memory_resource *mr, const Value &x, ValueType t) {
+inline Value alloc_like(const Value &x, ValueType t, std::pmr::memory_resource *mr) {
     const auto &d = x.dims();
     if (x.isScalar()) return Value::scalar(0.0, mr);
     if (d.is3D()) return Value::matrix3d(d.rows(), d.cols(), d.pages(), t, mr);
@@ -48,13 +48,13 @@ inline double element_to_unit(const Value &x, size_t i) {
 
 // Generic float-output helper.
 template <typename Float>
-Value to_float_impl(std::pmr::memory_resource *mr, const Value &x, ValueType target) {
+Value to_float_impl(const Value &x, ValueType target, std::pmr::memory_resource *mr) {
     const size_t n = x.numel();
     Value out;
     if (x.isScalar()) {
         out = Value::matrix(1, 1, target, mr);
     } else {
-        out = alloc_like(mr, x, target);
+        out = alloc_like(x, target, mr);
     }
     if (n == 0) return out;
 
@@ -72,12 +72,11 @@ Value to_float_impl(std::pmr::memory_resource *mr, const Value &x, ValueType tar
 // → 32767.5; rounded gives 32768, then -32768 → 0; the alternative
 // rounds (32767.5 - 32768) = -0.5 → -1, which is wrong).
 template <typename Int>
-Value to_int_impl(std::pmr::memory_resource *mr, const Value &x, ValueType target,
-                  double scale, double bias_after) {
+Value to_int_impl(const Value &x, ValueType target, double scale, double bias_after, std::pmr::memory_resource *mr) {
     const size_t n = x.numel();
     Value out;
     if (x.isScalar()) out = Value::matrix(1, 1, target, mr);
-    else              out = alloc_like(mr, x, target);
+    else              out = alloc_like(x, target, mr);
     if (n == 0) return out;
 
     Int *od = nullptr;
@@ -155,33 +154,33 @@ Value to_int_impl(std::pmr::memory_resource *mr, const Value &x, ValueType targe
 
 } // anonymous
 
-Value im2double(std::pmr::memory_resource *mr, const Value &x) {
+Value im2double(const Value &x, std::pmr::memory_resource *mr) {
     if (x.type() == ValueType::DOUBLE) return x;
-    return to_float_impl<double>(mr, x, ValueType::DOUBLE);
+    return to_float_impl<double>(x, ValueType::DOUBLE, mr);
 }
 
-Value im2single(std::pmr::memory_resource *mr, const Value &x) {
+Value im2single(const Value &x, std::pmr::memory_resource *mr) {
     if (x.type() == ValueType::SINGLE) return x;
-    return to_float_impl<float>(mr, x, ValueType::SINGLE);
+    return to_float_impl<float>(x, ValueType::SINGLE, mr);
 }
 
-Value im2uint8(std::pmr::memory_resource *mr, const Value &x) {
+Value im2uint8(const Value &x, std::pmr::memory_resource *mr) {
     if (x.type() == ValueType::UINT8) return x;
-    return to_int_impl<uint8_t>(mr, x, ValueType::UINT8, 255.0, 0.0);
+    return to_int_impl<uint8_t>(x, ValueType::UINT8, 255.0, 0.0, mr);
 }
 
-Value im2uint16(std::pmr::memory_resource *mr, const Value &x) {
+Value im2uint16(const Value &x, std::pmr::memory_resource *mr) {
     if (x.type() == ValueType::UINT16) return x;
-    return to_int_impl<uint16_t>(mr, x, ValueType::UINT16, 65535.0, 0.0);
+    return to_int_impl<uint16_t>(x, ValueType::UINT16, 65535.0, 0.0, mr);
 }
 
-Value im2int16(std::pmr::memory_resource *mr, const Value &x) {
+Value im2int16(const Value &x, std::pmr::memory_resource *mr) {
     if (x.type() == ValueType::INT16) return x;
     // [0, 1] float → [-32768, 32767]: round(x*65535) - 32768.
-    return to_int_impl<int16_t>(mr, x, ValueType::INT16, 65535.0, -32768.0);
+    return to_int_impl<int16_t>(x, ValueType::INT16, 65535.0, -32768.0, mr);
 }
 
-Value mat2gray(std::pmr::memory_resource *mr, const Value &x, double lo, double hi)
+Value mat2gray(const Value &x, double lo, double hi, std::pmr::memory_resource *mr)
 {
     const size_t n = x.numel();
     if (std::isnan(lo) || std::isnan(hi)) {
@@ -198,7 +197,7 @@ Value mat2gray(std::pmr::memory_resource *mr, const Value &x, double lo, double 
             lo = 0.0; hi = 0.0;
         }
     }
-    Value out = alloc_like(mr, x, ValueType::DOUBLE);
+    Value out = alloc_like(x, ValueType::DOUBLE, mr);
     if (x.isScalar()) out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
     if (n == 0) return out;
     double *od = out.doubleDataMut();
@@ -218,7 +217,7 @@ Value mat2gray(std::pmr::memory_resource *mr, const Value &x, double lo, double 
     return out;
 }
 
-Value rgb2gray(std::pmr::memory_resource *mr, const Value &x)
+Value rgb2gray(const Value &x, std::pmr::memory_resource *mr)
 {
     const auto &d = x.dims();
     if (!d.is3D() || d.pages() != 3)
@@ -251,9 +250,9 @@ Value rgb2gray(std::pmr::memory_resource *mr, const Value &x)
     return out;
 }
 
-Value im2gray(std::pmr::memory_resource *mr, const Value &x) {
+Value im2gray(const Value &x, std::pmr::memory_resource *mr) {
     const auto &d = x.dims();
-    if (d.is3D() && d.pages() == 3) return rgb2gray(mr, x);
+    if (d.is3D() && d.pages() == 3) return rgb2gray(x, mr);
     return x;  // already grayscale (or unsupported shape — pass through)
 }
 
@@ -307,7 +306,7 @@ bool all_zero_or_one(const Value &x) {
     return true;
 }
 
-inline Value bool_scalar(std::pmr::memory_resource *mr, bool b) {
+inline Value bool_scalar(bool b, std::pmr::memory_resource *mr) {
     Value out = Value::matrix(1, 1, ValueType::LOGICAL, mr);
     out.logicalDataMut()[0] = b ? 1u : 0u;
     return out;
@@ -315,7 +314,7 @@ inline Value bool_scalar(std::pmr::memory_resource *mr, bool b) {
 
 } // anonymous
 
-Value iptnum2ordinal(std::pmr::memory_resource *mr, double n)
+Value iptnum2ordinal(double n, std::pmr::memory_resource *mr)
 {
     if (!std::isfinite(n) || n <= 0.0 || n != std::floor(n))
         throw Error("iptnum2ordinal: num must be a real positive integer",
@@ -346,8 +345,7 @@ Value iptnum2ordinal(std::pmr::memory_resource *mr, double n)
     return Value::fromString(s, mr);
 }
 
-Value imcast(std::pmr::memory_resource *mr,
-             const Value &I, const std::string &type)
+Value imcast(const Value &I, const std::string &type, std::pmr::memory_resource *mr)
 {
     std::string lo;
     lo.reserve(type.size());
@@ -367,11 +365,11 @@ Value imcast(std::pmr::memory_resource *mr,
 
     if (lo == cls_of(I.type())) return I;
 
-    if (lo == "double")  return im2double(mr, I);
-    if (lo == "single")  return im2single(mr, I);
-    if (lo == "uint8")   return im2uint8(mr, I);
-    if (lo == "uint16")  return im2uint16(mr, I);
-    if (lo == "int16")   return im2int16(mr, I);
+    if (lo == "double")  return im2double(I, mr);
+    if (lo == "single")  return im2single(I, mr);
+    if (lo == "uint8")   return im2uint8(I, mr);
+    if (lo == "uint16")  return im2uint16(I, mr);
+    if (lo == "int16")   return im2int16(I, mr);
     if (lo == "logical") {
         const auto &d = I.dims();
         Value out = d.is3D()
@@ -392,7 +390,7 @@ Value imcast(std::pmr::memory_resource *mr,
 
 namespace {
 
-Value gray_colormap(std::pmr::memory_resource *mr, int n)
+Value gray_colormap(int n, std::pmr::memory_resource *mr)
 {
     Value map = Value::matrix(static_cast<size_t>(n), 3,
                               ValueType::DOUBLE, mr);
@@ -414,7 +412,7 @@ Value gray_colormap(std::pmr::memory_resource *mr, int n)
 } // anonymous
 
 std::tuple<Value, Value>
-gray2ind(std::pmr::memory_resource *mr, const Value &I, int n)
+gray2ind(const Value &I, int n, std::pmr::memory_resource *mr)
 {
     if (n < 1 || n > 65536)
         throw Error("gray2ind: N must be in [1, 65536]",
@@ -430,7 +428,7 @@ gray2ind(std::pmr::memory_resource *mr, const Value &I, int n)
     Value out = d.is3D()
         ? Value::matrix3d(H, W, d.pages(), outT, mr)
         : Value::matrix(H, W, outT, mr);
-    Value map = gray_colormap(mr, n);
+    Value map = gray_colormap(n, mr);
     if (N == 0) return {std::move(out), std::move(map)};
 
     double low = 0.0, scale = 1.0;
@@ -477,8 +475,7 @@ gray2ind(std::pmr::memory_resource *mr, const Value &I, int n)
     return {std::move(out), std::move(map)};
 }
 
-Value ind2gray(std::pmr::memory_resource *mr,
-               const Value &idx, const Value &map)
+Value ind2gray(const Value &idx, const Value &map, std::pmr::memory_resource *mr)
 {
     const auto &d = idx.dims();
     const size_t H = d.rows();
@@ -498,7 +495,7 @@ Value ind2gray(std::pmr::memory_resource *mr,
             if (v > mx) mx = v;
         }
         M = std::max(64, static_cast<int>(std::ceil(mx)) + 1);
-        m_eff = gray_colormap(mr, M);
+        m_eff = gray_colormap(M, mr);
     } else {
         if (map.dims().cols() != 3)
             throw Error("ind2gray: map must be N-by-3",
@@ -522,8 +519,7 @@ Value ind2gray(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value ind2rgb(std::pmr::memory_resource *mr,
-              const Value &idx, const Value &map)
+Value ind2rgb(const Value &idx, const Value &map, std::pmr::memory_resource *mr)
 {
     if (map.dims().cols() != 3)
         throw Error("ind2rgb: map must be N-by-3",
@@ -561,7 +557,7 @@ Value ind2rgb(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value getrangefromclass(std::pmr::memory_resource *mr, const Value &I)
+Value getrangefromclass(const Value &I, std::pmr::memory_resource *mr)
 {
     Value r = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     double *rd = r.doubleDataMut();
@@ -580,62 +576,61 @@ Value getrangefromclass(std::pmr::memory_resource *mr, const Value &I)
     return r;
 }
 
-Value isbw(std::pmr::memory_resource *mr, const Value &BW,
-           const std::string &mode)
+Value isbw(const Value &BW, const std::string &mode, std::pmr::memory_resource *mr)
 {
-    if (!spatial_pages_eq(BW, 1)) return bool_scalar(mr, false);
-    if (BW.numel() == 0)          return bool_scalar(mr, false);
+    if (!spatial_pages_eq(BW, 1)) return bool_scalar(false, mr);
+    if (BW.numel() == 0)          return bool_scalar(false, mr);
     if (mode == "logical")
-        return bool_scalar(mr, BW.type() == ValueType::LOGICAL);
+        return bool_scalar(BW.type() == ValueType::LOGICAL, mr);
     if (mode != "non-logical")
         throw Error("isbw: MODE must be 'logical' or 'non-logical'",
                     0, 0, "isbw", "", "m:isbw:mode");
-    if (BW.type() == ValueType::LOGICAL) return bool_scalar(mr, true);
+    if (BW.type() == ValueType::LOGICAL) return bool_scalar(true, mr);
     if (is_int_image_class(BW.type()) ||
         BW.type() == ValueType::DOUBLE || BW.type() == ValueType::SINGLE)
-        return bool_scalar(mr, all_zero_or_one(BW));
-    return bool_scalar(mr, false);
+        return bool_scalar(all_zero_or_one(BW), mr);
+    return bool_scalar(false, mr);
 }
 
-Value isgray(std::pmr::memory_resource *mr, const Value &I)
+Value isgray(const Value &I, std::pmr::memory_resource *mr)
 {
-    if (!spatial_pages_eq(I, 1)) return bool_scalar(mr, false);
-    if (I.numel() == 0)          return bool_scalar(mr, false);
-    if (is_int_image_class(I.type())) return bool_scalar(mr, true);
-    return bool_scalar(mr, is_float_unit_image(I));
+    if (!spatial_pages_eq(I, 1)) return bool_scalar(false, mr);
+    if (I.numel() == 0)          return bool_scalar(false, mr);
+    if (is_int_image_class(I.type())) return bool_scalar(true, mr);
+    return bool_scalar(is_float_unit_image(I), mr);
 }
 
-Value isind(std::pmr::memory_resource *mr, const Value &I)
+Value isind(const Value &I, std::pmr::memory_resource *mr)
 {
-    if (!spatial_pages_eq(I, 1)) return bool_scalar(mr, false);
-    if (I.numel() == 0)          return bool_scalar(mr, false);
+    if (!spatial_pages_eq(I, 1)) return bool_scalar(false, mr);
+    if (I.numel() == 0)          return bool_scalar(false, mr);
     if (I.type() == ValueType::UINT8 || I.type() == ValueType::UINT16)
-        return bool_scalar(mr, true);
-    return bool_scalar(mr, is_pos_int_float(I));
+        return bool_scalar(true, mr);
+    return bool_scalar(is_pos_int_float(I), mr);
 }
 
-Value isrgb(std::pmr::memory_resource *mr, const Value &I)
+Value isrgb(const Value &I, std::pmr::memory_resource *mr)
 {
-    if (!spatial_pages_eq(I, 3)) return bool_scalar(mr, false);
-    if (I.numel() == 0)          return bool_scalar(mr, false);
-    if (is_int_image_class(I.type())) return bool_scalar(mr, true);
-    return bool_scalar(mr, is_float_unit_image(I));
+    if (!spatial_pages_eq(I, 3)) return bool_scalar(false, mr);
+    if (I.numel() == 0)          return bool_scalar(false, mr);
+    if (is_int_image_class(I.type())) return bool_scalar(true, mr);
+    return bool_scalar(is_float_unit_image(I), mr);
 }
 
-Value iscolormap(std::pmr::memory_resource *mr, const Value &cmap)
+Value iscolormap(const Value &cmap, std::pmr::memory_resource *mr)
 {
     const auto &d = cmap.dims();
-    if (d.is3D())                return bool_scalar(mr, false);
-    if (d.cols() != 3)           return bool_scalar(mr, false);
-    if (cmap.numel() == 0)       return bool_scalar(mr, false);
+    if (d.is3D())                return bool_scalar(false, mr);
+    if (d.cols() != 3)           return bool_scalar(false, mr);
+    if (cmap.numel() == 0)       return bool_scalar(false, mr);
     const ValueType t = cmap.type();
     if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
-        return bool_scalar(mr, false);
-    if (cmap.isComplex())        return bool_scalar(mr, false);
-    return bool_scalar(mr, true);
+        return bool_scalar(false, mr);
+    if (cmap.isComplex())        return bool_scalar(false, mr);
+    return bool_scalar(true, mr);
 }
 
-Value intlut(std::pmr::memory_resource *mr, const Value &A, const Value &LUT)
+Value intlut(const Value &A, const Value &LUT, std::pmr::memory_resource *mr)
 {
     const ValueType atype = A.type();
     const ValueType ltype = LUT.type();
@@ -657,7 +652,7 @@ Value intlut(std::pmr::memory_resource *mr, const Value &A, const Value &LUT)
         throw Error("intlut: LUT length does not match input class range",
                     0, 0, "intlut", "", "m:intlut:lutsize");
 
-    Value out = alloc_like(mr, A, ltype);
+    Value out = alloc_like(A, ltype, mr);
     const size_t N = A.numel();
     if (N == 0) return out;
 
@@ -705,7 +700,7 @@ namespace detail {
         if (args.empty())                                                        \
             throw Error(#name ": requires X", 0, 0, #name, "",                  \
                         "m:" #name ":nargin");                                  \
-        outs[0] = name(ctx.engine->resource(), args[0]);                        \
+        outs[0] = name(args[0], ctx.engine->resource());                        \
     }
 
 NK_IM_UNARY_REG(im2double)
@@ -733,7 +728,7 @@ void mat2gray_reg(Span<const Value> args, size_t /*nargout*/,
         lo = args[1].elemAsDouble(0);
         hi = args[1].elemAsDouble(1);
     }
-    outs[0] = mat2gray(ctx.engine->resource(), args[0], lo, hi);
+    outs[0] = mat2gray(args[0], lo, hi, ctx.engine->resource());
 }
 
 void iptnum2ordinal_reg(Span<const Value> args, size_t /*nargout*/,
@@ -742,8 +737,7 @@ void iptnum2ordinal_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("iptnum2ordinal: requires (n)",
                     0, 0, "iptnum2ordinal", "", "m:iptnum2ordinal:nargin");
-    outs[0] = iptnum2ordinal(ctx.engine->resource(),
-                             args[0].toScalar());
+    outs[0] = iptnum2ordinal(args[0].toScalar(), ctx.engine->resource());
 }
 
 void imcast_reg(Span<const Value> args, size_t /*nargout*/,
@@ -755,7 +749,7 @@ void imcast_reg(Span<const Value> args, size_t /*nargout*/,
     if (!args[1].isChar() && !args[1].isString())
         throw Error("imcast: TYPE must be a string",
                     0, 0, "imcast", "", "m:imcast:type");
-    outs[0] = imcast(ctx.engine->resource(), args[0], args[1].toString());
+    outs[0] = imcast(args[0], args[1].toString(), ctx.engine->resource());
 }
 
 void gray2ind_reg(Span<const Value> args, size_t nargout,
@@ -767,7 +761,7 @@ void gray2ind_reg(Span<const Value> args, size_t nargout,
     int n = (args[0].type() == ValueType::LOGICAL) ? 2 : 64;
     if (args.size() >= 2 && !args[1].isEmpty())
         n = static_cast<int>(args[1].toScalar());
-    auto [ind, map] = gray2ind(ctx.engine->resource(), args[0], n);
+    auto [ind, map] = gray2ind(args[0], n, ctx.engine->resource());
     outs[0] = std::move(ind);
     if (nargout > 1) outs[1] = std::move(map);
 }
@@ -780,7 +774,7 @@ void ind2gray_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "ind2gray", "", "m:ind2gray:nargin");
     Value mp;
     if (args.size() >= 2 && !args[1].isEmpty()) mp = args[1];
-    outs[0] = ind2gray(ctx.engine->resource(), args[0], mp);
+    outs[0] = ind2gray(args[0], mp, ctx.engine->resource());
 }
 
 void ind2rgb_reg(Span<const Value> args, size_t /*nargout*/,
@@ -789,7 +783,7 @@ void ind2rgb_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("ind2rgb: requires (idx, map)",
                     0, 0, "ind2rgb", "", "m:ind2rgb:nargin");
-    outs[0] = ind2rgb(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = ind2rgb(args[0], args[1], ctx.engine->resource());
 }
 
 void getrangefromclass_reg(Span<const Value> args, size_t /*nargout*/,
@@ -799,7 +793,7 @@ void getrangefromclass_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("getrangefromclass: requires (I)",
                     0, 0, "getrangefromclass", "",
                     "m:getrangefromclass:nargin");
-    outs[0] = getrangefromclass(ctx.engine->resource(), args[0]);
+    outs[0] = getrangefromclass(args[0], ctx.engine->resource());
 }
 
 void isbw_reg(Span<const Value> args, size_t /*nargout*/,
@@ -815,7 +809,7 @@ void isbw_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "isbw", "", "m:isbw:mode");
         mode = args[1].toString();
     }
-    outs[0] = isbw(ctx.engine->resource(), args[0], mode);
+    outs[0] = isbw(args[0], mode, ctx.engine->resource());
 }
 
 void isgray_reg(Span<const Value> args, size_t /*nargout*/,
@@ -824,7 +818,7 @@ void isgray_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("isgray: requires (I)", 0, 0, "isgray", "",
                     "m:isgray:nargin");
-    outs[0] = isgray(ctx.engine->resource(), args[0]);
+    outs[0] = isgray(args[0], ctx.engine->resource());
 }
 
 void isind_reg(Span<const Value> args, size_t /*nargout*/,
@@ -833,7 +827,7 @@ void isind_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("isind: requires (I)", 0, 0, "isind", "",
                     "m:isind:nargin");
-    outs[0] = isind(ctx.engine->resource(), args[0]);
+    outs[0] = isind(args[0], ctx.engine->resource());
 }
 
 void isrgb_reg(Span<const Value> args, size_t /*nargout*/,
@@ -842,7 +836,7 @@ void isrgb_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("isrgb: requires (I)", 0, 0, "isrgb", "",
                     "m:isrgb:nargin");
-    outs[0] = isrgb(ctx.engine->resource(), args[0]);
+    outs[0] = isrgb(args[0], ctx.engine->resource());
 }
 
 void iscolormap_reg(Span<const Value> args, size_t /*nargout*/,
@@ -851,7 +845,7 @@ void iscolormap_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("iscolormap: requires (cmap)", 0, 0, "iscolormap", "",
                     "m:iscolormap:nargin");
-    outs[0] = iscolormap(ctx.engine->resource(), args[0]);
+    outs[0] = iscolormap(args[0], ctx.engine->resource());
 }
 
 void intlut_reg(Span<const Value> args, size_t /*nargout*/,
@@ -860,7 +854,7 @@ void intlut_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("intlut: requires (A, LUT)", 0, 0, "intlut", "",
                     "m:intlut:nargin");
-    outs[0] = intlut(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = intlut(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail

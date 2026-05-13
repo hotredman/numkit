@@ -45,21 +45,21 @@ inline double cosd_scalar(double x)
 
 // ── Forward reciprocal ─────────────────────────────────────────────
 
-Value sec(std::pmr::memory_resource *mr, const Value &x)
+Value sec(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return Complex(1.0) / std::cos(c); }, mr);
     return unaryDouble(x, [](double v) { return 1.0 / std::cos(v); }, mr);
 }
 
-Value csc(std::pmr::memory_resource *mr, const Value &x)
+Value csc(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return Complex(1.0) / std::sin(c); }, mr);
     return unaryDouble(x, [](double v) { return 1.0 / std::sin(v); }, mr);
 }
 
-Value cot(std::pmr::memory_resource *mr, const Value &x)
+Value cot(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::cos(c) / std::sin(c); }, mr);
@@ -68,21 +68,21 @@ Value cot(std::pmr::memory_resource *mr, const Value &x)
 
 // ── Hyperbolic reciprocal ──────────────────────────────────────────
 
-Value sech(std::pmr::memory_resource *mr, const Value &x)
+Value sech(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return Complex(1.0) / std::cosh(c); }, mr);
     return unaryDouble(x, [](double v) { return 1.0 / std::cosh(v); }, mr);
 }
 
-Value csch(std::pmr::memory_resource *mr, const Value &x)
+Value csch(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return Complex(1.0) / std::sinh(c); }, mr);
     return unaryDouble(x, [](double v) { return 1.0 / std::sinh(v); }, mr);
 }
 
-Value coth(std::pmr::memory_resource *mr, const Value &x)
+Value coth(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::cosh(c) / std::sinh(c); }, mr);
@@ -91,21 +91,21 @@ Value coth(std::pmr::memory_resource *mr, const Value &x)
 
 // ── Degree reciprocal ──────────────────────────────────────────────
 
-Value secd(std::pmr::memory_resource *mr, const Value &x)
+Value secd(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return Complex(1.0) / std::cos(c * kDeg2Rad); }, mr);
     return unaryDouble(x, [](double v) { return 1.0 / cosd_scalar(v); }, mr);
 }
 
-Value cscd(std::pmr::memory_resource *mr, const Value &x)
+Value cscd(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return Complex(1.0) / std::sin(c * kDeg2Rad); }, mr);
     return unaryDouble(x, [](double v) { return 1.0 / sind_scalar(v); }, mr);
 }
 
-Value cotd(std::pmr::memory_resource *mr, const Value &x)
+Value cotd(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) {
@@ -116,7 +116,7 @@ Value cotd(std::pmr::memory_resource *mr, const Value &x)
 
 // ── Inverse reciprocal ─────────────────────────────────────────────
 
-Value asec(std::pmr::memory_resource *mr, const Value &x)
+Value asec(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::acos(Complex(1.0) / c); }, mr);
@@ -128,7 +128,7 @@ Value asec(std::pmr::memory_resource *mr, const Value &x)
     return unaryDouble(x, [](double v) { return std::acos(1.0 / v); }, mr);
 }
 
-Value acsc(std::pmr::memory_resource *mr, const Value &x)
+Value acsc(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::asin(Complex(1.0) / c); }, mr);
@@ -140,7 +140,7 @@ Value acsc(std::pmr::memory_resource *mr, const Value &x)
     return unaryDouble(x, [](double v) { return std::asin(1.0 / v); }, mr);
 }
 
-Value acot(std::pmr::memory_resource *mr, const Value &x)
+Value acot(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::atan(Complex(1.0) / c); }, mr);
@@ -149,7 +149,7 @@ Value acot(std::pmr::memory_resource *mr, const Value &x)
 
 // ── Inverse hyperbolic reciprocal ──────────────────────────────────
 
-Value asech(std::pmr::memory_resource *mr, const Value &x)
+Value asech(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::acosh(Complex(1.0) / c); }, mr);
@@ -161,14 +161,14 @@ Value asech(std::pmr::memory_resource *mr, const Value &x)
     return unaryDouble(x, [](double v) { return std::acosh(1.0 / v); }, mr);
 }
 
-Value acsch(std::pmr::memory_resource *mr, const Value &x)
+Value acsch(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::asinh(Complex(1.0) / c); }, mr);
     return unaryDouble(x, [](double v) { return std::asinh(1.0 / v); }, mr);
 }
 
-Value acoth(std::pmr::memory_resource *mr, const Value &x)
+Value acoth(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::atanh(Complex(1.0) / c); }, mr);
@@ -182,7 +182,7 @@ Value acoth(std::pmr::memory_resource *mr, const Value &x)
 
 // ── Inverse degree reciprocal ──────────────────────────────────────
 
-Value asecd(std::pmr::memory_resource *mr, const Value &x)
+Value asecd(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) {
@@ -196,7 +196,7 @@ Value asecd(std::pmr::memory_resource *mr, const Value &x)
     return unaryDouble(x, [](double v) { return std::acos(1.0 / v) * kRad2Deg; }, mr);
 }
 
-Value acscd(std::pmr::memory_resource *mr, const Value &x)
+Value acscd(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) {
@@ -210,7 +210,7 @@ Value acscd(std::pmr::memory_resource *mr, const Value &x)
     return unaryDouble(x, [](double v) { return std::asin(1.0 / v) * kRad2Deg; }, mr);
 }
 
-Value acotd(std::pmr::memory_resource *mr, const Value &x)
+Value acotd(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) {

@@ -30,7 +30,7 @@ double readReal(const Value &v, size_t i)
 // MATLAB default for cconv(x, y) (no N): N = length(x) + length(y) - 1
 // — the linear-convolution length. The 3-arg form cconv(x, y, n) does
 // true circular convolution with period n. See BUGS.md #33.
-Value cconv(std::pmr::memory_resource *mr, const Value &x, const Value &y, size_t n)
+Value cconv(const Value &x, const Value &y, size_t n, std::pmr::memory_resource *mr)
 {
     const size_t nx = x.numel(), ny = y.numel();
     if (n == 0) {
@@ -67,15 +67,15 @@ Value cconv(std::pmr::memory_resource *mr, const Value &x, const Value &y, size_
         const size_t fftLen = [&]() {
             size_t r = 1; while (r < n) r <<= 1; return r;
         }();
-        Value X = fft(mr, xp, static_cast<int>(fftLen), /*dim=*/0);
-        Value Y = fft(mr, yp, static_cast<int>(fftLen), /*dim=*/0);
+        Value X = fft(xp, static_cast<int>(fftLen), /*dim=*/0, mr);
+        Value Y = fft(yp, static_cast<int>(fftLen), /*dim=*/0, mr);
         // Pointwise multiply.
         auto Z = Value::complexMatrix(fftLen, 1, mr);
         const std::complex<double> *Xc = X.complexData();
         const std::complex<double> *Yc = Y.complexData();
         std::complex<double> *Zc = Z.complexDataMut();
         for (size_t k = 0; k < fftLen; ++k) Zc[k] = Xc[k] * Yc[k];
-        Value z = ifft(mr, Z, /*n=*/-1, /*dim=*/0);
+        Value z = ifft(Z, /*n=*/-1, /*dim=*/0, mr);
         // ifft can return REAL when the spectrum is conjugate-symmetric.
         if (z.type() == ValueType::COMPLEX) {
             const std::complex<double> *zd = z.complexData();
@@ -109,7 +109,7 @@ Value cconv(std::pmr::memory_resource *mr, const Value &x, const Value &y, size_
 //   * h is a column → returns (n+nh-1) × n matrix; column k is h
 //     shifted down by k.
 // See BUGS.md #34.
-Value convmtx(std::pmr::memory_resource *mr, const Value &h, size_t n)
+Value convmtx(const Value &h, size_t n, std::pmr::memory_resource *mr)
 {
     if (n == 0)
         throw Error("convmtx: n must be positive",
@@ -154,7 +154,7 @@ Value convmtx(std::pmr::memory_resource *mr, const Value &h, size_t n)
 
 // ── xcorr2 ────────────────────────────────────────────────────────────
 // Direct O(rA*cA*rB*cB). Output shape (rA+rB-1) × (cA+cB-1).
-Value xcorr2(std::pmr::memory_resource *mr, const Value &A, const Value &B)
+Value xcorr2(const Value &A, const Value &B, std::pmr::memory_resource *mr)
 {
     const size_t rA = A.dims().rows(), cA = A.dims().cols();
     const size_t rB = B.dims().rows(), cB = B.dims().cols();
@@ -189,14 +189,14 @@ Value xcorr2(std::pmr::memory_resource *mr, const Value &A, const Value &B)
             for (size_t i = 0; i < rB; ++i)
                 bd[i + j * rOut] = B(rB - 1 - i, cB - 1 - j);
 
-        Value FA = fft2(mr, Ap);
-        Value FB = fft2(mr, Bf);
+        Value FA = fft2(Ap, -1, -1, mr);
+        Value FB = fft2(Bf, -1, -1, mr);
         const Complex *fa = FA.complexData();
         const Complex *fb = FB.complexData();
         auto Z = Value::complexMatrix(rOut, cOut, mr);
         Complex *zd = Z.complexDataMut();
         for (size_t k = 0; k < cellsOut; ++k) zd[k] = fa[k] * fb[k];
-        Value z = ifft2(mr, Z);
+        Value z = ifft2(Z, -1, -1, mr);
         if (z.type() == ValueType::COMPLEX) {
             const Complex *zr = z.complexData();
             for (size_t k = 0; k < cellsOut; ++k) dst[k] = zr[k].real();
@@ -226,9 +226,9 @@ Value xcorr2(std::pmr::memory_resource *mr, const Value &A, const Value &B)
 }
 
 // ── finddelay ─────────────────────────────────────────────────────────
-long finddelay(std::pmr::memory_resource *mr, const Value &x, const Value &y, long max_lag)
+long finddelay(const Value &x, const Value &y, long max_lag, std::pmr::memory_resource *mr)
 {
-    auto [c, lags] = xcorr(mr, x, y);
+    auto [c, lags] = xcorr(x, y, mr);
     const size_t n = c.numel();
     const double *cp = c.doubleData();
     const double *lp = lags.doubleData();
@@ -250,9 +250,9 @@ long finddelay(std::pmr::memory_resource *mr, const Value &x, const Value &y, lo
 
 // ── alignsignals ──────────────────────────────────────────────────────
 std::tuple<Value, Value>
-alignsignals(std::pmr::memory_resource *mr, const Value &x, const Value &y, long max_lag)
+alignsignals(const Value &x, const Value &y, long max_lag, std::pmr::memory_resource *mr)
 {
-    const long d = finddelay(mr, x, y, max_lag);
+    const long d = finddelay(x, y, max_lag, mr);
     const size_t nx = x.numel(), ny = y.numel();
 
     // Lead-pad whichever signal is "leading" so peaks line up:
@@ -286,7 +286,7 @@ void cconv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
         throw Error("cconv: requires (x, y[, n])",
                      0, 0, "cconv", "", "m:cconv:nargin");
     const size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
-    outs[0] = cconv(ctx.engine->resource(), args[0], args[1], n);
+    outs[0] = cconv(args[0], args[1], n, ctx.engine->resource());
 }
 
 void convmtx_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -294,8 +294,7 @@ void convmtx_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() < 2)
         throw Error("convmtx: requires (h, n)",
                      0, 0, "convmtx", "", "m:convmtx:nargin");
-    outs[0] = convmtx(ctx.engine->resource(), args[0],
-                      static_cast<size_t>(args[1].toScalar()));
+    outs[0] = convmtx(args[0], static_cast<size_t>(args[1].toScalar()), ctx.engine->resource());
 }
 
 void xcorr2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -305,7 +304,7 @@ void xcorr2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
                      0, 0, "xcorr2", "", "m:xcorr2:nargin");
     const Value &A = args[0];
     const Value &B = (args.size() >= 2) ? args[1] : args[0];
-    outs[0] = xcorr2(ctx.engine->resource(), A, B);
+    outs[0] = xcorr2(A, B, ctx.engine->resource());
 }
 
 void finddelay_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -314,7 +313,7 @@ void finddelay_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("finddelay: requires (x, y[, max_lag])",
                      0, 0, "finddelay", "", "m:finddelay:nargin");
     const long max_lag = (args.size() >= 3) ? static_cast<long>(args[2].toScalar()) : 0;
-    const long d = finddelay(ctx.engine->resource(), args[0], args[1], max_lag);
+    const long d = finddelay(args[0], args[1], max_lag, ctx.engine->resource());
     outs[0] = Value::scalar(static_cast<double>(d), ctx.engine->resource());
 }
 
@@ -324,7 +323,7 @@ void alignsignals_reg(Span<const Value> args, size_t nargout, Span<Value> outs, 
         throw Error("alignsignals: requires (x, y[, max_lag])",
                      0, 0, "alignsignals", "", "m:alignsignals:nargin");
     const long max_lag = (args.size() >= 3) ? static_cast<long>(args[2].toScalar()) : 0;
-    auto [xa, ya] = alignsignals(ctx.engine->resource(), args[0], args[1], max_lag);
+    auto [xa, ya] = alignsignals(args[0], args[1], max_lag, ctx.engine->resource());
     outs[0] = std::move(xa);
     if (nargout > 1) outs[1] = std::move(ya);
 }

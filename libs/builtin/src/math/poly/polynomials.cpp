@@ -18,7 +18,7 @@
 
 namespace numkit::builtin {
 
-Value roots(std::pmr::memory_resource *mr, const Value &p)
+Value roots(const Value &p, std::pmr::memory_resource *mr)
 {
     if (p.type() == ValueType::COMPLEX)
         throw Error("roots: complex coefficient input is not supported",
@@ -61,8 +61,7 @@ Value roots(std::pmr::memory_resource *mr, const Value &p)
 // ── polyder / polyint ───────────────────────────────────────────────
 namespace {
 
-ScratchVec<double> readPolyAsDouble(std::pmr::memory_resource *mr,
-                                    const Value &p, const char *fn)
+ScratchVec<double> readPolyAsDouble(const Value &p, const char *fn, std::pmr::memory_resource *mr)
 {
     if (p.type() == ValueType::COMPLEX)
         throw Error(std::string(fn) + ": complex coefficient input is not supported",
@@ -79,9 +78,7 @@ ScratchVec<double> readPolyAsDouble(std::pmr::memory_resource *mr,
 // Convolve two real polynomial coefficient vectors (length-N + length-M
 // → length-N+M-1). Pointer + size for inputs so the same helper composes
 // with std::vector and std::pmr::vector backings.
-ScratchVec<double> polyConv(std::pmr::memory_resource *mr,
-                            const double *a, std::size_t na,
-                            const double *b, std::size_t nb)
+ScratchVec<double> polyConv(const double *a, std::size_t na, const double *b, std::size_t nb, std::pmr::memory_resource *mr)
 {
     if (na == 0 || nb == 0) return ScratchVec<double>(mr);
     ScratchVec<double> r(na + nb - 1, mr);
@@ -92,8 +89,7 @@ ScratchVec<double> polyConv(std::pmr::memory_resource *mr,
 }
 
 // d/dx of a coefficient vector in MATLAB order.
-ScratchVec<double> polyderRaw(std::pmr::memory_resource *mr,
-                              const double *p, std::size_t pn)
+ScratchVec<double> polyderRaw(const double *p, std::size_t pn, std::pmr::memory_resource *mr)
 {
     if (pn <= 1) {
         ScratchVec<double> r(1, mr);
@@ -109,7 +105,7 @@ ScratchVec<double> polyderRaw(std::pmr::memory_resource *mr,
     return r;
 }
 
-Value rowFromVec(std::pmr::memory_resource *mr, const double *v, std::size_t n)
+Value rowFromVec(const double *v, std::size_t n, std::pmr::memory_resource *mr)
 {
     auto out = Value::matrix(1, n, ValueType::DOUBLE, mr);
     if (n > 0)
@@ -127,46 +123,45 @@ void trimLeadingZeros(ScratchVec<double> &v)
 
 } // namespace
 
-Value polyder(std::pmr::memory_resource *mr, const Value &p)
+Value polyder(const Value &p, std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
-    auto pv = readPolyAsDouble(&scratch, p, "polyder");
-    auto deriv = polyderRaw(&scratch, pv.data(), pv.size());
+    auto pv = readPolyAsDouble(p, "polyder", &scratch);
+    auto deriv = polyderRaw(pv.data(), pv.size(), &scratch);
     // MATLAB convention: polynomial coefficient vectors are canonical
     // (no leading zeros), so a polyder result like [0, 1, 2] must be
     // trimmed to [1, 2]. See BUGS.md #12.
     trimLeadingZeros(deriv);
-    return rowFromVec(mr, deriv.data(), deriv.size());
+    return rowFromVec(deriv.data(), deriv.size(), mr);
 }
 
 std::tuple<Value, Value>
-polyder(std::pmr::memory_resource *mr, const Value &b, const Value &a)
+polyder(const Value &b, const Value &a, std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
-    auto bv = readPolyAsDouble(&scratch, b, "polyder");
-    auto av = readPolyAsDouble(&scratch, a, "polyder");
-    auto bp = polyderRaw(&scratch, bv.data(), bv.size());
-    auto ap = polyderRaw(&scratch, av.data(), av.size());
+    auto bv = readPolyAsDouble(b, "polyder", &scratch);
+    auto av = readPolyAsDouble(a, "polyder", &scratch);
+    auto bp = polyderRaw(bv.data(), bv.size(), &scratch);
+    auto ap = polyderRaw(av.data(), av.size(), &scratch);
     // num = a * b' - b * a'
-    auto t1 = polyConv(&scratch, av.data(), av.size(), bp.data(), bp.size());
-    auto t2 = polyConv(&scratch, bv.data(), bv.size(), ap.data(), ap.size());
+    auto t1 = polyConv(av.data(), av.size(), bp.data(), bp.size(), &scratch);
+    auto t2 = polyConv(bv.data(), bv.size(), ap.data(), ap.size(), &scratch);
     // Align lengths (pad with leading zeros so subtraction is safe).
     if (t1.size() < t2.size()) t1.insert(t1.begin(), t2.size() - t1.size(), 0.0);
     if (t2.size() < t1.size()) t2.insert(t2.begin(), t1.size() - t2.size(), 0.0);
     ScratchVec<double> num(t1.size(), &scratch);
     for (std::size_t i = 0; i < t1.size(); ++i) num[i] = t1[i] - t2[i];
     trimLeadingZeros(num);
-    auto den = polyConv(&scratch, av.data(), av.size(), av.data(), av.size());
+    auto den = polyConv(av.data(), av.size(), av.data(), av.size(), &scratch);
     trimLeadingZeros(den);
-    return std::make_tuple(rowFromVec(mr, num.data(), num.size()),
-                           rowFromVec(mr, den.data(), den.size()));
+    return std::make_tuple(rowFromVec(num.data(), num.size(), mr),
+                           rowFromVec(den.data(), den.size(), mr));
 }
 
 // Read a vector input of (real or COMPLEX) numbers as a Complex vector.
 namespace {
 
-ScratchVec<detail::Complex> readVecAsComplex(std::pmr::memory_resource *mr,
-                                             const Value &v, const char *fn)
+ScratchVec<detail::Complex> readVecAsComplex(const Value &v, const char *fn, std::pmr::memory_resource *mr)
 {
     if (!v.dims().isVector() && !v.isScalar() && !v.isEmpty())
         throw Error(std::string(fn) + ": argument must be a vector",
@@ -183,7 +178,7 @@ ScratchVec<detail::Complex> readVecAsComplex(std::pmr::memory_resource *mr,
     return r;
 }
 
-Value complexColFromVec(std::pmr::memory_resource *mr, const detail::Complex *v, std::size_t n)
+Value complexColFromVec(const detail::Complex *v, std::size_t n, std::pmr::memory_resource *mr)
 {
     auto out = Value::complexMatrix(n, 1, mr);
     for (std::size_t i = 0; i < n; ++i)
@@ -191,7 +186,7 @@ Value complexColFromVec(std::pmr::memory_resource *mr, const detail::Complex *v,
     return out;
 }
 
-Value realColIfFlat(std::pmr::memory_resource *mr, const detail::Complex *v, std::size_t n)
+Value realColIfFlat(const detail::Complex *v, std::size_t n, std::pmr::memory_resource *mr)
 {
     bool anyComplex = false;
     for (std::size_t i = 0; i < n; ++i)
@@ -205,15 +200,15 @@ Value realColIfFlat(std::pmr::memory_resource *mr, const detail::Complex *v, std
             out.doubleDataMut()[i] = v[i].real();
         return out;
     }
-    return complexColFromVec(mr, v, n);
+    return complexColFromVec(v, n, mr);
 }
 
 } // namespace
 
-Value polyint(std::pmr::memory_resource *mr, const Value &p, double k)
+Value polyint(const Value &p, double k, std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
-    auto pv = readPolyAsDouble(&scratch, p, "polyint");
+    auto pv = readPolyAsDouble(p, "polyint", &scratch);
     if (pv.empty()) {
         // ∫ 0 dx = k.
         auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
@@ -227,16 +222,16 @@ Value polyint(std::pmr::memory_resource *mr, const Value &p, double k)
         r[i] = pv[i] / exponent;
     }
     r[n] = k;
-    return rowFromVec(mr, r.data(), r.size());
+    return rowFromVec(r.data(), r.size(), mr);
 }
 
 // ── tf2zp / zp2tf ───────────────────────────────────────────────────
 std::tuple<Value, Value, Value>
-tf2zp(std::pmr::memory_resource *mr, const Value &b, const Value &a)
+tf2zp(const Value &b, const Value &a, std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
-    auto bv = readPolyAsDouble(&scratch, b, "tf2zp");
-    auto av = readPolyAsDouble(&scratch, a, "tf2zp");
+    auto bv = readPolyAsDouble(b, "tf2zp", &scratch);
+    auto av = readPolyAsDouble(a, "tf2zp", &scratch);
     if (av.empty() || av[0] == 0.0)
         throw Error("tf2zp: leading denominator coefficient must be non-zero",
                      0, 0, "tf2zp", "", "m:tf2zp:badDen");
@@ -244,7 +239,7 @@ tf2zp(std::pmr::memory_resource *mr, const Value &b, const Value &a)
         // Numerator = 0 → no zeros, gain 0.
         auto z = Value::matrix(0, 1, ValueType::DOUBLE, mr);
         auto pRoots = detail::polyRootsDurandKerner(&scratch, av.data(), av.size());
-        auto p = realColIfFlat(mr, pRoots.data(), pRoots.size());
+        auto p = realColIfFlat(pRoots.data(), pRoots.size(), mr);
         auto k = Value::scalar(0.0, mr);
         return std::make_tuple(std::move(z), std::move(p), std::move(k));
     }
@@ -252,32 +247,32 @@ tf2zp(std::pmr::memory_resource *mr, const Value &b, const Value &a)
     auto pRoots = detail::polyRootsDurandKerner(&scratch, av.data(), av.size());
     const double k = bv[0] / av[0];
 
-    return std::make_tuple(realColIfFlat(mr, zRoots.data(), zRoots.size()),
-                           realColIfFlat(mr, pRoots.data(), pRoots.size()),
+    return std::make_tuple(realColIfFlat(zRoots.data(), zRoots.size(), mr),
+                           realColIfFlat(pRoots.data(), pRoots.size(), mr),
                            Value::scalar(k, mr));
 }
 
 std::tuple<Value, Value>
-zp2tf(std::pmr::memory_resource *mr, const Value &z, const Value &p, double k)
+zp2tf(const Value &z, const Value &p, double k, std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
-    auto zv = readVecAsComplex(&scratch, z, "zp2tf");
-    auto pv = readVecAsComplex(&scratch, p, "zp2tf");
+    auto zv = readVecAsComplex(z, "zp2tf", &scratch);
+    auto pv = readVecAsComplex(p, "zp2tf", &scratch);
     auto bRaw = detail::polyExpandFromRoots(&scratch, zv.data(), zv.size());
     auto aRaw = detail::polyExpandFromRoots(&scratch, pv.data(), pv.size());
     for (auto &v : bRaw) v *= k;
-    return std::make_tuple(rowFromVec(mr, bRaw.data(), bRaw.size()),
-                           rowFromVec(mr, aRaw.data(), aRaw.size()));
+    return std::make_tuple(rowFromVec(bRaw.data(), bRaw.size(), mr),
+                           rowFromVec(aRaw.data(), aRaw.size(), mr));
 }
 
 // ── Pack 29: poly / polyvalm / polydiv ───────────────────────────────
 
-Value poly(std::pmr::memory_resource *mr, const Value &r)
+Value poly(const Value &r, std::pmr::memory_resource *mr)
 {
     // Vector-of-roots → coefficient row. Real-only path uses the
     // existing helper (which drops the imaginary residue, fine when
     // the roots have come from `roots(p)` of a real polynomial).
-    if (r.isEmpty()) return rowFromVec(mr, nullptr, 0);
+    if (r.isEmpty()) return rowFromVec(nullptr, 0, mr);
     ScratchArena scratch(mr);
     const size_t n = r.numel();
     auto cv = ScratchVec<Complex>(n, &scratch);
@@ -289,10 +284,10 @@ Value poly(std::pmr::memory_resource *mr, const Value &r)
         for (size_t i = 0; i < n; ++i) cv[i] = Complex(p[i], 0.0);
     }
     auto coeffs = detail::polyExpandFromRoots(&scratch, cv.data(), n);
-    return rowFromVec(mr, coeffs.data(), coeffs.size());
+    return rowFromVec(coeffs.data(), coeffs.size(), mr);
 }
 
-Value polyvalm(std::pmr::memory_resource *mr, const Value &p, const Value &A)
+Value polyvalm(const Value &p, const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() > 2 || A.dims().rows() != A.dims().cols())
         throw Error("polyvalm: A must be a square matrix",
@@ -340,7 +335,7 @@ Value polyvalm(std::pmr::memory_resource *mr, const Value &p, const Value &A)
     return result;
 }
 
-PolyDiv polydiv(std::pmr::memory_resource *mr, const Value &b, const Value &a)
+PolyDiv polydiv(const Value &b, const Value &a, std::pmr::memory_resource *mr)
 {
     if (a.isEmpty() || a.numel() == 0)
         throw Error("polydiv: divisor must be non-empty",
@@ -384,9 +379,9 @@ PolyDiv polydiv(std::pmr::memory_resource *mr, const Value &b, const Value &a)
         rOut = Value::matrix(1, 1, ValueType::DOUBLE, mr);
         rOut.doubleDataMut()[0] = 0.0;
     } else {
-        rOut = rowFromVec(mr, bb.data() + rOff, nb - rOff);
+        rOut = rowFromVec(bb.data() + rOff, nb - rOff, mr);
     }
-    return { rowFromVec(mr, qv.data(), qLen), std::move(rOut) };
+    return { rowFromVec(qv.data(), qLen, mr), std::move(rOut) };
 }
 
 // ── Pack 36: padecoef ────────────────────────────────────────────────
@@ -406,7 +401,7 @@ PolyDiv polydiv(std::pmr::memory_resource *mr, const Value &b, const Value &a)
 // denominator. After computing both vectors we divide through by
 // den[0] so the leading denominator coefficient is 1 (matches
 // `padecoef(T,N)` in MATLAB).
-PadeCoef padecoef(std::pmr::memory_resource *mr, double T, int N)
+PadeCoef padecoef(double T, int N, std::pmr::memory_resource *mr)
 {
     if (N < 0)
         throw Error("padecoef: order N must be >= 0",
@@ -455,7 +450,7 @@ void roots_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.empty())
         throw Error("roots: requires 1 argument",
                      0, 0, "roots", "", "m:roots:nargin");
-    outs[0] = roots(ctx.engine->resource(), args[0]);
+    outs[0] = roots(args[0], ctx.engine->resource());
 }
 
 void polyder_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -465,10 +460,10 @@ void polyder_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
                      0, 0, "polyder", "", "m:polyder:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 1) {
-        outs[0] = polyder(mr, args[0]);
+        outs[0] = polyder(args[0], mr);
         return;
     }
-    auto [num, den] = polyder(mr, args[0], args[1]);
+    auto [num, den] = polyder(args[0], args[1], mr);
     outs[0] = std::move(num);
     if (nargout > 1) outs[1] = std::move(den);
 }
@@ -481,7 +476,7 @@ void polyint_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     std::pmr::memory_resource *mr = ctx.engine->resource();
     double k = 0.0;
     if (args.size() >= 2) k = args[1].toScalar();
-    outs[0] = polyint(mr, args[0], k);
+    outs[0] = polyint(args[0], k, mr);
 }
 
 void tf2zp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -489,7 +484,7 @@ void tf2zp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     if (args.size() < 2)
         throw Error("tf2zp: requires 2 arguments (b, a)",
                      0, 0, "tf2zp", "", "m:tf2zp:nargin");
-    auto [zr, pr, kr] = tf2zp(ctx.engine->resource(), args[0], args[1]);
+    auto [zr, pr, kr] = tf2zp(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(zr);
     if (nargout > 1) outs[1] = std::move(pr);
     if (nargout > 2) outs[2] = std::move(kr);
@@ -500,8 +495,7 @@ void zp2tf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     if (args.size() < 3)
         throw Error("zp2tf: requires 3 arguments (z, p, k)",
                      0, 0, "zp2tf", "", "m:zp2tf:nargin");
-    auto [bv, av] = zp2tf(ctx.engine->resource(), args[0], args[1],
-                          args[2].toScalar());
+    auto [bv, av] = zp2tf(args[0], args[1], args[2].toScalar(), ctx.engine->resource());
     outs[0] = std::move(bv);
     if (nargout > 1) outs[1] = std::move(av);
 }
@@ -511,9 +505,7 @@ void polyfit_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() < 3)
         throw Error("polyfit: requires 3 arguments",
                      0, 0, "polyfit", "", "m:polyfit:nargin");
-    outs[0] = polyfit(ctx.engine->resource(),
-                      args[0], args[1],
-                      static_cast<int>(args[2].toScalar()));
+    outs[0] = polyfit(args[0], args[1], static_cast<int>(args[2].toScalar()), ctx.engine->resource());
 }
 
 void polyval_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -521,7 +513,7 @@ void polyval_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() < 2)
         throw Error("polyval: requires 2 arguments",
                      0, 0, "polyval", "", "m:polyval:nargin");
-    outs[0] = polyval(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = polyval(args[0], args[1], ctx.engine->resource());
 }
 
 void poly_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -537,9 +529,9 @@ void poly_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (A.dims().ndim() == 2
         && A.dims().dim(0) == A.dims().dim(1)
         && A.dims().dim(0) > 1) {
-        outs[0] = poly_of_matrix(mr, A);
+        outs[0] = poly_of_matrix(A, mr);
     } else {
-        outs[0] = poly(mr, A);
+        outs[0] = poly(A, mr);
     }
 }
 
@@ -548,7 +540,7 @@ void polyvalm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.size() < 2)
         throw Error("polyvalm: requires (p, A)",
                      0, 0, "polyvalm", "", "m:polyvalm:nargin");
-    outs[0] = polyvalm(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = polyvalm(args[0], args[1], ctx.engine->resource());
 }
 
 void padecoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
@@ -559,7 +551,7 @@ void padecoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                      0, 0, "padecoef", "", "m:padecoef:nargin");
     const double T = args[0].toScalar();
     const int    N = static_cast<int>(args[1].toScalar());
-    auto p = padecoef(ctx.engine->resource(), T, N);
+    auto p = padecoef(T, N, ctx.engine->resource());
     outs[0] = std::move(p.num);
     if (nargout > 1) outs[1] = std::move(p.den);
 }
@@ -569,7 +561,7 @@ void polydiv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
     if (args.size() < 2)
         throw Error("polydiv: requires (b, a)",
                      0, 0, "polydiv", "", "m:polydiv:nargin");
-    auto res = polydiv(ctx.engine->resource(), args[0], args[1]);
+    auto res = polydiv(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(res.q);
     if (nargout > 1) outs[1] = std::move(res.r);
 }
@@ -580,7 +572,7 @@ void polydiv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 // Curve fitting / evaluation (moved from libs/fit)
 // ════════════════════════════════════════════════════════════════════════
 
-Value polyfit(std::pmr::memory_resource *mr, const Value &x, const Value &y, int deg)
+Value polyfit(const Value &x, const Value &y, int deg, std::pmr::memory_resource *mr)
 {
     const size_t m = x.numel();
     const int np = deg + 1;
@@ -657,7 +649,7 @@ Value polyfit(std::pmr::memory_resource *mr, const Value &x, const Value &y, int
     return p;
 }
 
-Value polyval(std::pmr::memory_resource *mr, const Value &p, const Value &x)
+Value polyval(const Value &p, const Value &x, std::pmr::memory_resource *mr)
 {
     const double *pd = p.doubleData();
     const size_t np = p.numel();

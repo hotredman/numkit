@@ -34,7 +34,7 @@ inline void fftPowerHalf(std::pmr::memory_resource *mr,
     Value frame = Value::matrix(N, 1, ValueType::DOUBLE, &arena);
     double *fd = frame.doubleDataMut();
     for (std::size_t i = 0; i < N; ++i) fd[i] = x[i];
-    Value Y = signal::fft(&arena, frame);
+    Value Y = signal::fft(frame, -1, 0, &arena);
     const std::complex<double> *Yd = Y.complexData();
     const std::size_t H = N / 2 + 1;
     for (std::size_t k = 0; k < H; ++k) out_pow_half[k] = std::norm(Yd[k]);
@@ -48,7 +48,7 @@ inline void fftMagHalf(std::pmr::memory_resource *mr,
     Value frame = Value::matrix(N, 1, ValueType::DOUBLE, &arena);
     double *fd = frame.doubleDataMut();
     for (std::size_t i = 0; i < N; ++i) fd[i] = x[i];
-    Value Y = signal::fft(&arena, frame);
+    Value Y = signal::fft(frame, -1, 0, &arena);
     const std::complex<double> *Yd = Y.complexData();
     const std::size_t H = N / 2 + 1;
     for (std::size_t k = 0; k < H; ++k) out_mag_half[k] = std::abs(Yd[k]);

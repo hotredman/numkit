@@ -469,8 +469,7 @@ inline double cospi_scalar(double x)
 // per-call N-element mr that dominates at large N. See the
 // docblock on abs() in math/elementary/misc.hpp for the full hint contract.
 template <typename LoopDispatch, typename ScalarOp, typename ComplexOp>
-Value unaryRealDouble(std::pmr::memory_resource *mr, const Value &x, Value *hint,
-                       LoopDispatch loop, ScalarOp scalarOp, ComplexOp complexOp)
+Value unaryRealDouble(const Value &x, Value *hint, LoopDispatch loop, ScalarOp scalarOp, ComplexOp complexOp, std::pmr::memory_resource *mr)
 {
     if (x.isComplex()) {
         if (x.isScalar())
@@ -506,26 +505,18 @@ Value unaryRealDouble(std::pmr::memory_resource *mr, const Value &x, Value *hint
 
 } // namespace
 
-Value sin(std::pmr::memory_resource *mr, const Value &x, Value *hint)
+Value sin(const Value &x, Value *hint, std::pmr::memory_resource *mr)
 {
-    return unaryRealDouble(
-        mr, x, hint,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, hint, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(SinLoop)(in, out, n);
-        },
-        [](double v) { return std::sin(v); },
-        [](const Complex &c) { return std::sin(c); });
+        }, [](double v) { return std::sin(v); }, [](const Complex &c) { return std::sin(c); }, mr);
 }
 
-Value cos(std::pmr::memory_resource *mr, const Value &x, Value *hint)
+Value cos(const Value &x, Value *hint, std::pmr::memory_resource *mr)
 {
-    return unaryRealDouble(
-        mr, x, hint,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, hint, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(CosLoop)(in, out, n);
-        },
-        [](double v) { return std::cos(v); },
-        [](const Complex &c) { return std::cos(c); });
+        }, [](double v) { return std::cos(v); }, [](const Complex &c) { return std::cos(c); }, mr);
 }
 
 // ── Hyperbolic + inverse trig: SIMD-dispatched real-vector path. ─────
@@ -533,84 +524,56 @@ Value cos(std::pmr::memory_resource *mr, const Value &x, Value *hint)
 // Wrap unaryRealDouble; complex / scalar paths delegate to std::,
 // matching the portable backend bit-for-bit.
 
-Value sinh(std::pmr::memory_resource *mr, const Value &x)
+Value sinh(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDouble(
-        mr, x, /*hint*/ nullptr,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, /*hint*/ nullptr, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(SinhLoop)(in, out, n);
-        },
-        [](double v) { return std::sinh(v); },
-        [](const Complex &c) { return std::sinh(c); });
+        }, [](double v) { return std::sinh(v); }, [](const Complex &c) { return std::sinh(c); }, mr);
 }
 
-Value cosh(std::pmr::memory_resource *mr, const Value &x)
+Value cosh(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDouble(
-        mr, x, /*hint*/ nullptr,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, /*hint*/ nullptr, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(CoshLoop)(in, out, n);
-        },
-        [](double v) { return std::cosh(v); },
-        [](const Complex &c) { return std::cosh(c); });
+        }, [](double v) { return std::cosh(v); }, [](const Complex &c) { return std::cosh(c); }, mr);
 }
 
-Value tanh(std::pmr::memory_resource *mr, const Value &x)
+Value tanh(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDouble(
-        mr, x, /*hint*/ nullptr,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, /*hint*/ nullptr, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(TanhLoop)(in, out, n);
-        },
-        [](double v) { return std::tanh(v); },
-        [](const Complex &c) { return std::tanh(c); });
+        }, [](double v) { return std::tanh(v); }, [](const Complex &c) { return std::tanh(c); }, mr);
 }
 
-Value asin(std::pmr::memory_resource *mr, const Value &x)
+Value asin(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDouble(
-        mr, x, /*hint*/ nullptr,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, /*hint*/ nullptr, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(AsinLoop)(in, out, n);
-        },
-        [](double v) { return std::asin(v); },
-        [](const Complex &c) { return std::asin(c); });
+        }, [](double v) { return std::asin(v); }, [](const Complex &c) { return std::asin(c); }, mr);
 }
 
-Value acos(std::pmr::memory_resource *mr, const Value &x)
+Value acos(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDouble(
-        mr, x, /*hint*/ nullptr,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, /*hint*/ nullptr, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(AcosLoop)(in, out, n);
-        },
-        [](double v) { return std::acos(v); },
-        [](const Complex &c) { return std::acos(c); });
+        }, [](double v) { return std::acos(v); }, [](const Complex &c) { return std::acos(c); }, mr);
 }
 
-Value atan(std::pmr::memory_resource *mr, const Value &x)
+Value atan(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDouble(
-        mr, x, /*hint*/ nullptr,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, /*hint*/ nullptr, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(AtanLoop)(in, out, n);
-        },
-        [](double v) { return std::atan(v); },
-        [](const Complex &c) { return std::atan(c); });
+        }, [](double v) { return std::atan(v); }, [](const Complex &c) { return std::atan(c); }, mr);
 }
 
-Value asinh(std::pmr::memory_resource *mr, const Value &x)
+Value asinh(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDouble(
-        mr, x, /*hint*/ nullptr,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, /*hint*/ nullptr, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(AsinhLoop)(in, out, n);
-        },
-        [](double v) { return std::asinh(v); },
-        [](const Complex &c) { return std::asinh(c); });
+        }, [](double v) { return std::asinh(v); }, [](const Complex &c) { return std::asinh(c); }, mr);
 }
 
-Value atanh(std::pmr::memory_resource *mr, const Value &x)
+Value atanh(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::atanh(c); }, mr);
@@ -619,27 +582,19 @@ Value atanh(std::pmr::memory_resource *mr, const Value &x)
         if (v < -1.0 || v > 1.0)
             return Value::complexScalar(std::atanh(Complex(v, 0.0)), mr);
     }
-    return unaryRealDouble(
-        mr, x, /*hint*/ nullptr,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, /*hint*/ nullptr, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(AtanhLoop)(in, out, n);
-        },
-        [](double v) { return std::atanh(v); },
-        [](const Complex &c) { return std::atanh(c); });
+        }, [](double v) { return std::atanh(v); }, [](const Complex &c) { return std::atanh(c); }, mr);
 }
 
-Value tan(std::pmr::memory_resource *mr, const Value &x)
+Value tan(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDouble(
-        mr, x, /*hint*/ nullptr,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, /*hint*/ nullptr, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(TanLoop)(in, out, n);
-        },
-        [](double v) { return std::tan(v); },
-        [](const Complex &c) { return std::tan(c); });
+        }, [](double v) { return std::tan(v); }, [](const Complex &c) { return std::tan(c); }, mr);
 }
 
-Value acosh(std::pmr::memory_resource *mr, const Value &x)
+Value acosh(const Value &x, std::pmr::memory_resource *mr)
 {
     // MATLAB promotes a scalar |x|<1 to complex (so acosh(0.5) → 1.0472i,
     // not NaN). Vector path matches std::acosh — NaN for out-of-domain.
@@ -647,19 +602,15 @@ Value acosh(std::pmr::memory_resource *mr, const Value &x)
         return unaryComplex(x, [](const Complex &c) { return std::acosh(c); }, mr);
     if (x.isScalar() && x.toScalar() < 1.0)
         return Value::complexScalar(std::acosh(Complex(x.toScalar(), 0.0)), mr);
-    return unaryRealDouble(
-        mr, x, /*hint*/ nullptr,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, /*hint*/ nullptr, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(AcoshLoop)(in, out, n);
-        },
-        [](double v) { return std::acosh(v); },
-        [](const Complex &c) { return std::acosh(c); });
+        }, [](double v) { return std::acosh(v); }, [](const Complex &c) { return std::acosh(c); }, mr);
 }
 
 // atan2 is binary: y, x → P. Real same-shape case uses the SIMD
 // loop; mixed/broadcast/complex cases fall through to the generic
 // scalar scaffold.
-Value atan2(std::pmr::memory_resource *mr, const Value &y, const Value &x)
+Value atan2(const Value &y, const Value &x, std::pmr::memory_resource *mr)
 {
     if (y.isComplex() || x.isComplex())
         return elementwiseDouble(y, x, [](double yy, double xx) { return std::atan2(yy, xx); }, mr);
@@ -689,85 +640,61 @@ Value atan2(std::pmr::memory_resource *mr, const Value &y, const Value &x)
 // (sinpi/cospi). Vector SIMD path multiplies-and-calls Sin/Cos/Atan
 // without snapping; for typical bench inputs this is correct to ULP.
 
-Value sind(std::pmr::memory_resource *mr, const Value &x)
+Value sind(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::sin(c * kDeg2Rad); }, mr);
     if (x.isScalar())
         return Value::scalar(sind_scalar(x.toScalar()), mr);
-    return unaryRealDouble(
-        mr, x, /*hint*/ nullptr,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, /*hint*/ nullptr, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(SindLoop)(in, out, n);
-        },
-        sind_scalar,
-        [](const Complex &c) { return std::sin(c * kDeg2Rad); });
+        }, sind_scalar, [](const Complex &c) { return std::sin(c * kDeg2Rad); }, mr);
 }
 
-Value cosd(std::pmr::memory_resource *mr, const Value &x)
+Value cosd(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::cos(c * kDeg2Rad); }, mr);
     if (x.isScalar())
         return Value::scalar(cosd_scalar(x.toScalar()), mr);
-    return unaryRealDouble(
-        mr, x, /*hint*/ nullptr,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, /*hint*/ nullptr, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(CosdLoop)(in, out, n);
-        },
-        cosd_scalar,
-        [](const Complex &c) { return std::cos(c * kDeg2Rad); });
+        }, cosd_scalar, [](const Complex &c) { return std::cos(c * kDeg2Rad); }, mr);
 }
 
-Value tand(std::pmr::memory_resource *mr, const Value &x)
+Value tand(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::tan(c * kDeg2Rad); }, mr);
     if (x.isScalar())
         return Value::scalar(tand_scalar(x.toScalar()), mr);
-    return unaryRealDouble(
-        mr, x, /*hint*/ nullptr,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, /*hint*/ nullptr, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(TandLoop)(in, out, n);
-        },
-        tand_scalar,
-        [](const Complex &c) { return std::tan(c * kDeg2Rad); });
+        }, tand_scalar, [](const Complex &c) { return std::tan(c * kDeg2Rad); }, mr);
 }
 
-Value asind(std::pmr::memory_resource *mr, const Value &x)
+Value asind(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDouble(
-        mr, x, /*hint*/ nullptr,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, /*hint*/ nullptr, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(AsindLoop)(in, out, n);
-        },
-        [](double v) { return std::asin(v) * kRad2Deg; },
-        [](const Complex &c) { return std::asin(c) * kRad2Deg; });
+        }, [](double v) { return std::asin(v) * kRad2Deg; }, [](const Complex &c) { return std::asin(c) * kRad2Deg; }, mr);
 }
 
-Value acosd(std::pmr::memory_resource *mr, const Value &x)
+Value acosd(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDouble(
-        mr, x, /*hint*/ nullptr,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, /*hint*/ nullptr, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(AcosdLoop)(in, out, n);
-        },
-        [](double v) { return std::acos(v) * kRad2Deg; },
-        [](const Complex &c) { return std::acos(c) * kRad2Deg; });
+        }, [](double v) { return std::acos(v) * kRad2Deg; }, [](const Complex &c) { return std::acos(c) * kRad2Deg; }, mr);
 }
 
-Value atand(std::pmr::memory_resource *mr, const Value &x)
+Value atand(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDouble(
-        mr, x, /*hint*/ nullptr,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, /*hint*/ nullptr, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(AtandLoop)(in, out, n);
-        },
-        [](double v) { return std::atan(v) * kRad2Deg; },
-        [](const Complex &c) { return std::atan(c) * kRad2Deg; });
+        }, [](double v) { return std::atan(v) * kRad2Deg; }, [](const Complex &c) { return std::atan(c) * kRad2Deg; }, mr);
 }
 
-Value atan2d(std::pmr::memory_resource *mr, const Value &y, const Value &x)
+Value atan2d(const Value &y, const Value &x, std::pmr::memory_resource *mr)
 {
     if (y.isComplex() || x.isComplex())
         return elementwiseDouble(y, x, [](double yy, double xx) { return std::atan2(yy, xx) * kRad2Deg; }, mr);
@@ -790,40 +717,32 @@ Value atan2d(std::pmr::memory_resource *mr, const Value &y, const Value &x)
     return elementwiseDouble(y, x, [](double yy, double xx) { return std::atan2(yy, xx) * kRad2Deg; }, mr);
 }
 
-Value sinpi(std::pmr::memory_resource *mr, const Value &x)
+Value sinpi(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::sin(kPi * c); }, mr);
     if (x.isScalar())
         return Value::scalar(sinpi_scalar(x.toScalar()), mr);
-    return unaryRealDouble(
-        mr, x, /*hint*/ nullptr,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, /*hint*/ nullptr, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(SinpiLoop)(in, out, n);
-        },
-        sinpi_scalar,
-        [](const Complex &c) { return std::sin(kPi * c); });
+        }, sinpi_scalar, [](const Complex &c) { return std::sin(kPi * c); }, mr);
 }
 
-Value cospi(std::pmr::memory_resource *mr, const Value &x)
+Value cospi(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::cos(kPi * c); }, mr);
     if (x.isScalar())
         return Value::scalar(cospi_scalar(x.toScalar()), mr);
-    return unaryRealDouble(
-        mr, x, /*hint*/ nullptr,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, /*hint*/ nullptr, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(CospiLoop)(in, out, n);
-        },
-        cospi_scalar,
-        [](const Complex &c) { return std::cos(kPi * c); });
+        }, cospi_scalar, [](const Complex &c) { return std::cos(kPi * c); }, mr);
 }
 
 // hypot binary: same shape pattern as atan2 — same-shape real path
 // goes SIMD; mixed/scalar/complex falls back to std::hypot via the
 // generic scaffold.
-Value hypot(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value hypot(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     if (a.isComplex() || b.isComplex())
         return elementwiseDouble(a, b, [](double aa, double bb) { return std::hypot(aa, bb); }, mr);

@@ -39,7 +39,7 @@ Mat readMat(const Value &v, size_t r, size_t c) {
     return M;
 }
 
-Value rowFromVec(std::pmr::memory_resource *mr, const Vec &v) {
+Value rowFromVec(const Vec &v, std::pmr::memory_resource *mr) {
     Value r = Value::matrix(1, v.size(), ValueType::DOUBLE, mr);
     if (!v.empty()) std::copy(v.begin(), v.end(), r.doubleDataMut());
     return r;
@@ -68,8 +68,7 @@ Mat phiOfA(const Mat &A, size_t n, const Vec &c) {
 
 } // anonymous
 
-Value acker(std::pmr::memory_resource *mr,
-            const Value &Av, const Value &Bv, const Value &pv)
+Value acker(const Value &Av, const Value &Bv, const Value &pv, std::pmr::memory_resource *mr)
 {
     const size_t n = Av.dims().rows();
     if (Av.dims().cols() != n)
@@ -86,7 +85,7 @@ Value acker(std::pmr::memory_resource *mr,
     auto B = readMat(Bv, n, 1);
 
     // Desired characteristic polynomial φ(s) = ∏(s − p_i).
-    Value coeffs = builtin::poly(mr, pv);
+    Value coeffs = builtin::poly(pv, mr);
     Vec c(coeffs.numel());
     for (size_t i = 0; i < coeffs.numel(); ++i) c[i] = coeffs.elemAsDouble(i);
     if (c.size() != n + 1)
@@ -97,7 +96,7 @@ Value acker(std::pmr::memory_resource *mr,
     Mat phi = phiOfA(A, n, c);
 
     // Co = ctrb(A, B), n×n for SISO.
-    Value CoV = ctrb_AB(mr, Av, Bv);
+    Value CoV = ctrb_AB(Av, Bv, mr);
     Mat Co = readMat(CoV, n, n);
 
     // Ackermann's formula:  K = e_nᵀ · Co⁻¹ · φ(A).
@@ -127,13 +126,12 @@ Value acker(std::pmr::memory_resource *mr,
             s += eN[j] * phi[k * n + j];
         K[k] = s;
     }
-    return rowFromVec(mr, K);
+    return rowFromVec(K, mr);
 }
 
-Value place(std::pmr::memory_resource *mr,
-            const Value &A, const Value &B, const Value &p)
+Value place(const Value &A, const Value &B, const Value &p, std::pmr::memory_resource *mr)
 {
-    return acker(mr, A, B, p);
+    return acker(A, B, p, mr);
 }
 
 namespace detail {
@@ -143,7 +141,7 @@ void acker_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     if (a.size() < 3)
         throw Error("acker: requires (A, B, p)",
                     0, 0, "acker", "", "m:acker:nargin");
-    o[0] = acker(c.engine->resource(), a[0], a[1], a[2]);
+    o[0] = acker(a[0], a[1], a[2], c.engine->resource());
 }
 
 void place_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
@@ -151,7 +149,7 @@ void place_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     if (a.size() < 3)
         throw Error("place: requires (A, B, p)",
                     0, 0, "place", "", "m:place:nargin");
-    o[0] = place(c.engine->resource(), a[0], a[1], a[2]);
+    o[0] = place(a[0], a[1], a[2], c.engine->resource());
 }
 
 } // namespace detail

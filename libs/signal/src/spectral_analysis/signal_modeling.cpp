@@ -34,14 +34,14 @@ std::vector<double> readVec(const Value &x)
     return v;
 }
 
-Value rowVec(std::pmr::memory_resource *mr, const std::vector<double> &v)
+Value rowVec(const std::vector<double> &v, std::pmr::memory_resource *mr)
 {
     auto out = Value::matrix(1, v.size(), ValueType::DOUBLE, mr);
     if (!v.empty()) std::memcpy(out.doubleDataMut(), v.data(), v.size() * sizeof(double));
     return out;
 }
 
-Value colVec(std::pmr::memory_resource *mr, const std::vector<double> &v)
+Value colVec(const std::vector<double> &v, std::pmr::memory_resource *mr)
 {
     auto out = Value::matrix(v.size(), 1, ValueType::DOUBLE, mr);
     if (!v.empty()) std::memcpy(out.doubleDataMut(), v.data(), v.size() * sizeof(double));
@@ -109,23 +109,23 @@ LevinsonResult levinsonCore(const std::vector<double> &r, int p)
 // ── Levinson-Durbin ────────────────────────────────────────────────
 
 std::tuple<Value, Value, Value>
-levinson(std::pmr::memory_resource *mr, const Value &r, int n)
+levinson(const Value &r, int n, std::pmr::memory_resource *mr)
 {
     auto rv = readVec(r);
     if (n < 0) n = static_cast<int>(rv.size()) - 1;
     if (n < 0) n = 0;
     if (n + 1 > static_cast<int>(rv.size())) rv.resize(n + 1, 0.0);
     auto res = levinsonCore(rv, n);
-    return std::make_tuple(rowVec(mr, res.a),
+    return std::make_tuple(rowVec(res.a, mr),
                            Value::scalar(res.e, mr),
-                           colVec(mr, res.k));
+                           colVec(res.k, mr));
 }
 
 // rlevinson(a, e): given AR poly a and final prediction error e,
 // recover the autocorrelation sequence + reflection coefficients via
 // step-down. Returns (R, k).
 std::tuple<Value, Value>
-rlevinson(std::pmr::memory_resource *mr, const Value &a, double efinal)
+rlevinson(const Value &a, double efinal, std::pmr::memory_resource *mr)
 {
     auto av = readVec(a);
     const int p = static_cast<int>(av.size()) - 1;
@@ -156,24 +156,24 @@ rlevinson(std::pmr::memory_resource *mr, const Value &a, double efinal)
         for (int j = 1; j <= i - 1; ++j) s += av[j] * R[i - j];
         R[i] = -av[i] * R[0] - s;
     }
-    return std::make_tuple(rowVec(mr, R), colVec(mr, k));
+    return std::make_tuple(rowVec(R, mr), colVec(k, mr));
 }
 
 // ── AR estimation ─────────────────────────────────────────────────
 
 std::tuple<Value, Value, Value>
-aryule(std::pmr::memory_resource *mr, const Value &x, int p)
+aryule(const Value &x, int p, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto R = biasedAutocorr(v, p);
     auto res = levinsonCore(R, p);
-    return std::make_tuple(rowVec(mr, res.a),
+    return std::make_tuple(rowVec(res.a, mr),
                            Value::scalar(res.e, mr),
-                           colVec(mr, res.k));
+                           colVec(res.k, mr));
 }
 
 std::tuple<Value, Value, Value>
-arburg(std::pmr::memory_resource *mr, const Value &x, int p)
+arburg(const Value &x, int p, std::pmr::memory_resource *mr)
 {
     // Burg's algorithm. Maintains forward / backward prediction
     // errors and updates AR coefficients via reflection coefficients
@@ -217,18 +217,18 @@ arburg(std::pmr::memory_resource *mr, const Value &x, int p)
         E *= (1.0 - ki * ki);
     }
 
-    return std::make_tuple(rowVec(mr, a),
+    return std::make_tuple(rowVec(a, mr),
                            Value::scalar(E, mr),
-                           colVec(mr, k));
+                           colVec(k, mr));
 }
 
 std::tuple<Value, Value>
-lpc(std::pmr::memory_resource *mr, const Value &x, int p)
+lpc(const Value &x, int p, std::pmr::memory_resource *mr)
 {
     // MATLAB's lpc returns (a, g) where g is the prediction error
     // variance (NOT its sqrt — the docs are explicit). Same numbers
     // as aryule, just without the reflection-coef return.
-    auto [a, e, k] = aryule(mr, x, p);
+    auto [a, e, k] = aryule(x, p, mr);
     (void)k;
     return std::make_tuple(std::move(a), std::move(e));
 }
@@ -236,32 +236,32 @@ lpc(std::pmr::memory_resource *mr, const Value &x, int p)
 // ── Representation conversions ────────────────────────────────────
 
 std::tuple<Value, Value>
-ac2poly(std::pmr::memory_resource *mr, const Value &R)
+ac2poly(const Value &R, std::pmr::memory_resource *mr)
 {
     auto rv = readVec(R);
     const int p = static_cast<int>(rv.size()) - 1;
     auto res = levinsonCore(rv, std::max(p, 0));
-    return std::make_tuple(rowVec(mr, res.a), Value::scalar(res.e, mr));
+    return std::make_tuple(rowVec(res.a, mr), Value::scalar(res.e, mr));
 }
 
-Value poly2ac(std::pmr::memory_resource *mr, const Value &a, double e)
+Value poly2ac(const Value &a, double e, std::pmr::memory_resource *mr)
 {
-    auto [Rv, kv] = rlevinson(mr, a, e);
+    auto [Rv, kv] = rlevinson(a, e, mr);
     (void)kv;
     return Rv;
 }
 
 std::tuple<Value, Value>
-ac2rc(std::pmr::memory_resource *mr, const Value &R)
+ac2rc(const Value &R, std::pmr::memory_resource *mr)
 {
     auto rv = readVec(R);
     const int p = static_cast<int>(rv.size()) - 1;
     auto res = levinsonCore(rv, std::max(p, 0));
-    return std::make_tuple(colVec(mr, res.k),
+    return std::make_tuple(colVec(res.k, mr),
                            Value::scalar(rv.empty() ? 0.0 : rv[0], mr));
 }
 
-Value schurrc(std::pmr::memory_resource *mr, const Value &R)
+Value schurrc(const Value &R, std::pmr::memory_resource *mr)
 {
     // Standalone Schur / Levinson reflection-coeff recursion. Does NOT
     // bail on negative residual energy — schurrc returns the math-valid
@@ -270,7 +270,7 @@ Value schurrc(std::pmr::memory_resource *mr, const Value &R)
     // fitted poly stable; schurrc doesn't want that.
     auto rv = readVec(R);
     const int p = static_cast<int>(rv.size()) - 1;
-    if (p <= 0) return colVec(mr, std::vector<double>{});
+    if (p <= 0) return colVec(std::vector<double>{}, mr);
 
     std::vector<double> k(p, 0.0);
     std::vector<double> a_prev(p + 1, 0.0); a_prev[0] = 1.0;
@@ -289,10 +289,10 @@ Value schurrc(std::pmr::memory_resource *mr, const Value &R)
         a_prev = std::move(a_new);
         e *= (1.0 - ki * ki);
     }
-    return colVec(mr, k);
+    return colVec(k, mr);
 }
 
-Value rc2ac(std::pmr::memory_resource *mr, const Value &k, double r0)
+Value rc2ac(const Value &k, double r0, std::pmr::memory_resource *mr)
 {
     auto kv = readVec(k);
     const int p = static_cast<int>(kv.size());
@@ -315,10 +315,10 @@ Value rc2ac(std::pmr::memory_resource *mr, const Value &k, double r0)
         a = std::move(a_new);
         e *= (1.0 - ki * ki);
     }
-    return rowVec(mr, R);
+    return rowVec(R, mr);
 }
 
-Value poly2rc(std::pmr::memory_resource *mr, const Value &a)
+Value poly2rc(const Value &a, std::pmr::memory_resource *mr)
 {
     auto av = readVec(a);
     const int p = static_cast<int>(av.size()) - 1;
@@ -334,10 +334,10 @@ Value poly2rc(std::pmr::memory_resource *mr, const Value &a)
             prev[j] = (cur[j] - ki * cur[i - j]) / denom;
         cur = prev;
     }
-    return colVec(mr, k);
+    return colVec(k, mr);
 }
 
-Value rc2poly(std::pmr::memory_resource *mr, const Value &k)
+Value rc2poly(const Value &k, std::pmr::memory_resource *mr)
 {
     auto kv = readVec(k);
     const int p = static_cast<int>(kv.size());
@@ -350,17 +350,17 @@ Value rc2poly(std::pmr::memory_resource *mr, const Value &k)
         a_new[i] = ki;
         a = std::move(a_new);
     }
-    return rowVec(mr, a);
+    return rowVec(a, mr);
 }
 
 // is2rc / rc2is — inverse-sine parameterisation, k = sin(is).
-Value is2rc(std::pmr::memory_resource *mr, const Value &is)
+Value is2rc(const Value &is, std::pmr::memory_resource *mr)
 {
     auto v = readVec(is);
     for (auto &y : v) y = std::sin(y);
-    return colVec(mr, v);
+    return colVec(v, mr);
 }
-Value rc2is(std::pmr::memory_resource *mr, const Value &k)
+Value rc2is(const Value &k, std::pmr::memory_resource *mr)
 {
     auto v = readVec(k);
     for (auto &y : v) {
@@ -369,27 +369,27 @@ Value rc2is(std::pmr::memory_resource *mr, const Value &k)
         const double c = std::max(-1.0, std::min(1.0, y));
         y = std::asin(c);
     }
-    return colVec(mr, v);
+    return colVec(v, mr);
 }
 
 // lar2rc / rc2lar — log-area-ratio: lar = log((1+k)/(1-k)).
-Value lar2rc(std::pmr::memory_resource *mr, const Value &g)
+Value lar2rc(const Value &g, std::pmr::memory_resource *mr)
 {
     auto v = readVec(g);
     for (auto &y : v) {
         const double e = std::exp(y);
         y = (e - 1.0) / (e + 1.0);
     }
-    return colVec(mr, v);
+    return colVec(v, mr);
 }
-Value rc2lar(std::pmr::memory_resource *mr, const Value &k)
+Value rc2lar(const Value &k, std::pmr::memory_resource *mr)
 {
     auto v = readVec(k);
     for (auto &y : v) {
         const double c = std::max(-0.99999999, std::min(0.99999999, y));
         y = std::log((1.0 + c) / (1.0 - c));
     }
-    return colVec(mr, v);
+    return colVec(v, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -488,7 +488,7 @@ ArCovResult solveArCov(const std::vector<double> &R, int p)
 } // anonymous
 
 std::tuple<Value, Value>
-arcov(std::pmr::memory_resource *mr, const Value &x, int p)
+arcov(const Value &x, int p, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto R = covMatrixForward(v, p);
@@ -498,11 +498,11 @@ arcov(std::pmr::memory_resource *mr, const Value &x, int p)
     const double norm = static_cast<double>(std::max(N - p, 1));
     for (auto &r : R) r /= norm;
     auto res = solveArCov(R, p);
-    return std::make_tuple(rowVec(mr, res.a), Value::scalar(res.e, mr));
+    return std::make_tuple(rowVec(res.a, mr), Value::scalar(res.e, mr));
 }
 
 std::tuple<Value, Value>
-armcov(std::pmr::memory_resource *mr, const Value &x, int p)
+armcov(const Value &x, int p, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     auto R = covMatrixForwardBackward(v, p);
@@ -510,7 +510,7 @@ armcov(std::pmr::memory_resource *mr, const Value &x, int p)
     const double norm = static_cast<double>(std::max(2 * (N - p), 1));
     for (auto &r : R) r /= norm;
     auto res = solveArCov(R, p);
-    return std::make_tuple(rowVec(mr, res.a), Value::scalar(res.e, mr));
+    return std::make_tuple(rowVec(res.a, mr), Value::scalar(res.e, mr));
 }
 
 // ── prony ─────────────────────────────────────────────────────────
@@ -522,7 +522,7 @@ armcov(std::pmr::memory_resource *mr, const Value &x, int p)
 //   2. Solve by least squares.
 //   3. b = (a convolved with h) truncated to nb+1 terms.
 std::tuple<Value, Value>
-prony(std::pmr::memory_resource *mr, const Value &h, int nb, int na)
+prony(const Value &h, int nb, int na, std::pmr::memory_resource *mr)
 {
     auto hv = readVec(h);
     const int N = static_cast<int>(hv.size());
@@ -567,12 +567,12 @@ prony(std::pmr::memory_resource *mr, const Value &h, int nb, int na)
                 if (i - k < N) s += a[k] * hv[i - k];
             b[i] = s;
         }
-        return std::make_tuple(rowVec(mr, b), rowVec(mr, a));
+        return std::make_tuple(rowVec(b, mr), rowVec(a, mr));
     }
     // na == 0: pure FIR. b[i] = h[i] for i = 0..nb, a = [1].
     std::vector<double> b(nb + 1, 0.0);
     for (int i = 0; i <= nb && i < N; ++i) b[i] = hv[i];
-    return std::make_tuple(rowVec(mr, b), rowVec(mr, std::vector<double>{1.0}));
+    return std::make_tuple(rowVec(b, mr), rowVec(std::vector<double>{1.0}, mr));
 }
 
 // ── corrmtx ───────────────────────────────────────────────────────
@@ -580,7 +580,7 @@ prony(std::pmr::memory_resource *mr, const Value &h, int nb, int na)
 // data matrix X with X(i, j) = x(i-j+1), zero-padded outside the
 // input range, such that X' * X is the (m+1)×(m+1) autocorrelation
 // matrix.
-Value corrmtx(std::pmr::memory_resource *mr, const Value &x, int m)
+Value corrmtx(const Value &x, int m, std::pmr::memory_resource *mr)
 {
     auto v = readVec(x);
     const int N = static_cast<int>(v.size());
@@ -622,11 +622,11 @@ std::vector<double> padLeft(const std::vector<double> &p, int n)
 
 } // anonymous
 
-Value poly2lsf(std::pmr::memory_resource *mr, const Value &a)
+Value poly2lsf(const Value &a, std::pmr::memory_resource *mr)
 {
     auto av = readVec(a);
     const int N = static_cast<int>(av.size()) - 1;
-    if (N <= 0) return colVec(mr, std::vector<double>{});
+    if (N <= 0) return colVec(std::vector<double>{}, mr);
 
     // Build P = A + A_R_shifted, Q = A - A_R_shifted, both length N+2.
     auto ar = reverseVec(av);
@@ -642,8 +642,8 @@ Value poly2lsf(std::pmr::memory_resource *mr, const Value &a)
     // Find roots and pick angles in (0, π).
     std::vector<double> angles;
     for (auto &poly : {P, Q}) {
-        Value polyV = rowVec(mr, poly);
-        Value rts = numkit::builtin::roots(mr, polyV);
+        Value polyV = rowVec(poly, mr);
+        Value rts = numkit::builtin::roots(polyV, mr);
         const size_t n = rts.numel();
         for (size_t i = 0; i < n; ++i) {
             const Complex c = rts.complexData()[i];
@@ -654,14 +654,14 @@ Value poly2lsf(std::pmr::memory_resource *mr, const Value &a)
     std::sort(angles.begin(), angles.end());
     // Should yield N angles.
     if (static_cast<int>(angles.size()) > N) angles.resize(N);
-    return colVec(mr, angles);
+    return colVec(angles, mr);
 }
 
-Value lsf2poly(std::pmr::memory_resource *mr, const Value &lsf)
+Value lsf2poly(const Value &lsf, std::pmr::memory_resource *mr)
 {
     auto lv = readVec(lsf);
     const int m = static_cast<int>(lv.size());
-    if (m == 0) return rowVec(mr, std::vector<double>{1.0});
+    if (m == 0) return rowVec(std::vector<double>{1.0}, mr);
 
     // MATLAB algorithm (Signal Processing Toolbox lsf2poly):
     //   p_roots = lsf(1:2:end)  (1-indexed odd → 0-indexed even)
@@ -724,7 +724,7 @@ Value lsf2poly(std::pmr::memory_resource *mr, const Value &lsf)
     std::vector<double> a(P.size(), 0.0);
     for (size_t i = 0; i < P.size(); ++i) a[i] = 0.5 * (P[i] + Q[i]);
     if (a.size() > 1) a.pop_back();
-    return rowVec(mr, a);
+    return rowVec(a, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -821,8 +821,7 @@ invfreqLSQ(const std::vector<Cd_invfreq> &H,
 } // anonymous
 
 std::tuple<Value, Value>
-invfreqs(std::pmr::memory_resource *mr, const Value &H, const Value &w,
-         int nb, int na)
+invfreqs(const Value &H, const Value &w, int nb, int na, std::pmr::memory_resource *mr)
 {
     auto Hv = readComplexVecLocal(H);
     auto wv = readVec(w);
@@ -831,12 +830,11 @@ invfreqs(std::pmr::memory_resource *mr, const Value &H, const Value &w,
     std::vector<Cd_invfreq> x(wv.size());
     for (size_t k = 0; k < wv.size(); ++k) x[k] = Cd_invfreq(0.0, wv[k]); // jω
     auto [b, a] = invfreqLSQ(Hv, x, nb, na);
-    return std::make_tuple(rowVec(mr, b), rowVec(mr, a));
+    return std::make_tuple(rowVec(b, mr), rowVec(a, mr));
 }
 
 std::tuple<Value, Value>
-invfreqz(std::pmr::memory_resource *mr, const Value &H, const Value &w,
-         int nb, int na)
+invfreqz(const Value &H, const Value &w, int nb, int na, std::pmr::memory_resource *mr)
 {
     auto Hv = readComplexVecLocal(H);
     auto wv = readVec(w);
@@ -846,7 +844,7 @@ invfreqz(std::pmr::memory_resource *mr, const Value &H, const Value &w,
     for (size_t k = 0; k < wv.size(); ++k)
         x[k] = std::exp(Cd_invfreq(0.0, -wv[k])); // z⁻¹
     auto [b, a] = invfreqLSQ(Hv, x, nb, na);
-    return std::make_tuple(rowVec(mr, b), rowVec(mr, a));
+    return std::make_tuple(rowVec(b, mr), rowVec(a, mr));
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -863,7 +861,7 @@ void levinson_reg(Span<const Value> args, size_t nargout,
                      0, 0, "levinson", "", "m:levinson:nargin");
     int n = -1;
     if (args.size() >= 2 && !args[1].isEmpty()) n = static_cast<int>(args[1].toScalar());
-    auto [a, e, k] = levinson(ctx.engine->resource(), args[0], n);
+    auto [a, e, k] = levinson(args[0], n, ctx.engine->resource());
     outs[0] = std::move(a);
     if (nargout > 1) outs[1] = std::move(e);
     if (nargout > 2) outs[2] = std::move(k);
@@ -875,7 +873,7 @@ void rlevinson_reg(Span<const Value> args, size_t nargout,
     if (args.size() < 2)
         throw Error("rlevinson: requires (a, e)",
                      0, 0, "rlevinson", "", "m:rlevinson:nargin");
-    auto [R, k] = rlevinson(ctx.engine->resource(), args[0], args[1].toScalar());
+    auto [R, k] = rlevinson(args[0], args[1].toScalar(), ctx.engine->resource());
     outs[0] = std::move(R);
     if (nargout > 1) outs[1] = std::move(k);
 }
@@ -888,7 +886,7 @@ void rlevinson_reg(Span<const Value> args, size_t nargout,
             throw Error(#name ": requires (x, p)",                              \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
         const int p = static_cast<int>(args[1].toScalar());                     \
-        auto [a, e, k] = fn(ctx.engine->resource(), args[0], p);                \
+        auto [a, e, k] = fn(args[0], p, ctx.engine->resource());                \
         outs[0] = std::move(a);                                                  \
         if (nargout > 1) outs[1] = std::move(e);                                 \
         if (nargout > 2) outs[2] = std::move(k);                                 \
@@ -906,7 +904,7 @@ void lpc_reg(Span<const Value> args, size_t nargout,
         throw Error("lpc: requires (x, p)",
                      0, 0, "lpc", "", "m:lpc:nargin");
     const int p = static_cast<int>(args[1].toScalar());
-    auto [a, g] = lpc(ctx.engine->resource(), args[0], p);
+    auto [a, g] = lpc(args[0], p, ctx.engine->resource());
     outs[0] = std::move(a);
     if (nargout > 1) outs[1] = std::move(g);
 }
@@ -914,7 +912,7 @@ void lpc_reg(Span<const Value> args, size_t nargout,
 void ac2poly_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty()) throw Error("ac2poly: requires 1 argument", 0, 0, "ac2poly", "", "m:ac2poly:nargin");
-    auto [a, e] = ac2poly(ctx.engine->resource(), args[0]);
+    auto [a, e] = ac2poly(args[0], ctx.engine->resource());
     outs[0] = std::move(a);
     if (nargout > 1) outs[1] = std::move(e);
 }
@@ -923,13 +921,13 @@ void poly2ac_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty()) throw Error("poly2ac: requires 1 argument", 0, 0, "poly2ac", "", "m:poly2ac:nargin");
     const double e = (args.size() >= 2 && !args[1].isEmpty()) ? args[1].toScalar() : 1.0;
-    outs[0] = poly2ac(ctx.engine->resource(), args[0], e);
+    outs[0] = poly2ac(args[0], e, ctx.engine->resource());
 }
 
 void ac2rc_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty()) throw Error("ac2rc: requires 1 argument", 0, 0, "ac2rc", "", "m:ac2rc:nargin");
-    auto [k, r0] = ac2rc(ctx.engine->resource(), args[0]);
+    auto [k, r0] = ac2rc(args[0], ctx.engine->resource());
     outs[0] = std::move(k);
     if (nargout > 1) outs[1] = std::move(r0);
 }
@@ -937,13 +935,13 @@ void ac2rc_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 void schurrc_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty()) throw Error("schurrc: requires 1 argument (R)", 0, 0, "schurrc", "", "m:schurrc:nargin");
-    outs[0] = schurrc(ctx.engine->resource(), args[0]);
+    outs[0] = schurrc(args[0], ctx.engine->resource());
 }
 
 void rc2ac_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2) throw Error("rc2ac: requires (k, r0)", 0, 0, "rc2ac", "", "m:rc2ac:nargin");
-    outs[0] = rc2ac(ctx.engine->resource(), args[0], args[1].toScalar());
+    outs[0] = rc2ac(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 #define NK_UNARY_CONV_REG(name)                                                 \
@@ -953,7 +951,7 @@ void rc2ac_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
-        outs[0] = name(ctx.engine->resource(), args[0]);                         \
+        outs[0] = name(args[0], ctx.engine->resource());                         \
     }
 
 NK_UNARY_CONV_REG(poly2rc)
@@ -975,7 +973,7 @@ NK_UNARY_CONV_REG(lsf2poly)
             throw Error(#name ": requires (x, p)",                              \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
         const int p = static_cast<int>(args[1].toScalar());                     \
-        auto [a, e] = fn(ctx.engine->resource(), args[0], p);                   \
+        auto [a, e] = fn(args[0], p, ctx.engine->resource());                   \
         outs[0] = std::move(a);                                                  \
         if (nargout > 1) outs[1] = std::move(e);                                 \
     }
@@ -993,7 +991,7 @@ void prony_reg(Span<const Value> args, size_t nargout,
                      0, 0, "prony", "", "m:prony:nargin");
     const int nb = static_cast<int>(args[1].toScalar());
     const int na = static_cast<int>(args[2].toScalar());
-    auto [b, a] = prony(ctx.engine->resource(), args[0], nb, na);
+    auto [b, a] = prony(args[0], nb, na, ctx.engine->resource());
     outs[0] = std::move(b);
     if (nargout > 1) outs[1] = std::move(a);
 }
@@ -1005,7 +1003,7 @@ void corrmtx_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("corrmtx: requires (x, m)",
                      0, 0, "corrmtx", "", "m:corrmtx:nargin");
     const int m = static_cast<int>(args[1].toScalar());
-    outs[0] = corrmtx(ctx.engine->resource(), args[0], m);
+    outs[0] = corrmtx(args[0], m, ctx.engine->resource());
 }
 
 void invfreqs_reg(Span<const Value> args, size_t nargout,
@@ -1016,7 +1014,7 @@ void invfreqs_reg(Span<const Value> args, size_t nargout,
                      0, 0, "invfreqs", "", "m:invfreqs:nargin");
     const int nb = static_cast<int>(args[2].toScalar());
     const int na = static_cast<int>(args[3].toScalar());
-    auto [b, a] = invfreqs(ctx.engine->resource(), args[0], args[1], nb, na);
+    auto [b, a] = invfreqs(args[0], args[1], nb, na, ctx.engine->resource());
     outs[0] = std::move(b);
     if (nargout > 1) outs[1] = std::move(a);
 }
@@ -1029,7 +1027,7 @@ void invfreqz_reg(Span<const Value> args, size_t nargout,
                      0, 0, "invfreqz", "", "m:invfreqz:nargin");
     const int nb = static_cast<int>(args[2].toScalar());
     const int na = static_cast<int>(args[3].toScalar());
-    auto [b, a] = invfreqz(ctx.engine->resource(), args[0], args[1], nb, na);
+    auto [b, a] = invfreqz(args[0], args[1], nb, na, ctx.engine->resource());
     outs[0] = std::move(b);
     if (nargout > 1) outs[1] = std::move(a);
 }

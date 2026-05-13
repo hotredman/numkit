@@ -169,26 +169,26 @@ bool valuesEqual(const Value &a, const Value &b, bool nanEqual)
 // Public API — numeric constructors
 // ════════════════════════════════════════════════════════════════════════
 
-Value toDouble(std::pmr::memory_resource *mr, const Value &x)
+Value toDouble(const Value &x, std::pmr::memory_resource *mr)
 {
     return numericConstructor<double>(ValueType::DOUBLE, x, mr);
 }
 
-Value single(std::pmr::memory_resource *mr, const Value &x)
+Value single(const Value &x, std::pmr::memory_resource *mr)
 {
     return numericConstructor<float>(ValueType::SINGLE, x, mr);
 }
 
-Value int8(std::pmr::memory_resource *mr, const Value &x)   { return numericConstructor<int8_t>(ValueType::INT8, x, mr); }
-Value int16(std::pmr::memory_resource *mr, const Value &x)  { return numericConstructor<int16_t>(ValueType::INT16, x, mr); }
-Value int32(std::pmr::memory_resource *mr, const Value &x)  { return numericConstructor<int32_t>(ValueType::INT32, x, mr); }
-Value int64(std::pmr::memory_resource *mr, const Value &x)  { return numericConstructor<int64_t>(ValueType::INT64, x, mr); }
-Value uint8(std::pmr::memory_resource *mr, const Value &x)  { return numericConstructor<uint8_t>(ValueType::UINT8, x, mr); }
-Value uint16(std::pmr::memory_resource *mr, const Value &x) { return numericConstructor<uint16_t>(ValueType::UINT16, x, mr); }
-Value uint32(std::pmr::memory_resource *mr, const Value &x) { return numericConstructor<uint32_t>(ValueType::UINT32, x, mr); }
-Value uint64(std::pmr::memory_resource *mr, const Value &x) { return numericConstructor<uint64_t>(ValueType::UINT64, x, mr); }
+Value int8(const Value &x, std::pmr::memory_resource *mr)   { return numericConstructor<int8_t>(ValueType::INT8, x, mr); }
+Value int16(const Value &x, std::pmr::memory_resource *mr)  { return numericConstructor<int16_t>(ValueType::INT16, x, mr); }
+Value int32(const Value &x, std::pmr::memory_resource *mr)  { return numericConstructor<int32_t>(ValueType::INT32, x, mr); }
+Value int64(const Value &x, std::pmr::memory_resource *mr)  { return numericConstructor<int64_t>(ValueType::INT64, x, mr); }
+Value uint8(const Value &x, std::pmr::memory_resource *mr)  { return numericConstructor<uint8_t>(ValueType::UINT8, x, mr); }
+Value uint16(const Value &x, std::pmr::memory_resource *mr) { return numericConstructor<uint16_t>(ValueType::UINT16, x, mr); }
+Value uint32(const Value &x, std::pmr::memory_resource *mr) { return numericConstructor<uint32_t>(ValueType::UINT32, x, mr); }
+Value uint64(const Value &x, std::pmr::memory_resource *mr) { return numericConstructor<uint64_t>(ValueType::UINT64, x, mr); }
 
-Value logical(std::pmr::memory_resource *mr, const Value &x)
+Value logical(const Value &x, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (x.isLogical())
@@ -205,24 +205,24 @@ Value logical(std::pmr::memory_resource *mr, const Value &x)
 // Public API — type predicates
 // ════════════════════════════════════════════════════════════════════════
 
-Value isnumeric(std::pmr::memory_resource *mr, const Value &x) { return Value::logicalScalar(x.isNumeric(), mr); }
-Value islogical(std::pmr::memory_resource *mr, const Value &x) { return Value::logicalScalar(x.isLogical(), mr); }
-Value ischar(std::pmr::memory_resource *mr, const Value &x)    { return Value::logicalScalar(x.isChar(), mr); }
-Value isstring(std::pmr::memory_resource *mr, const Value &x)  { return Value::logicalScalar(x.isString(), mr); }
-Value iscell(std::pmr::memory_resource *mr, const Value &x)    { return Value::logicalScalar(x.isCell(), mr); }
-Value isstruct(std::pmr::memory_resource *mr, const Value &x)  { return Value::logicalScalar(x.isStruct(), mr); }
-Value isempty(std::pmr::memory_resource *mr, const Value &x)   { return Value::logicalScalar(x.isEmpty(), mr); }
-Value isscalar(std::pmr::memory_resource *mr, const Value &x)  { return Value::logicalScalar(x.isScalar(), mr); }
-Value isreal(std::pmr::memory_resource *mr, const Value &x)    { return Value::logicalScalar(!x.isComplex(), mr); }
-Value isinteger(std::pmr::memory_resource *mr, const Value &x) { return Value::logicalScalar(isIntegerType(x.type()), mr); }
-Value isfloat(std::pmr::memory_resource *mr, const Value &x)   { return Value::logicalScalar(isFloatType(x.type()), mr); }
-Value issingle(std::pmr::memory_resource *mr, const Value &x)  { return Value::logicalScalar(x.type() == ValueType::SINGLE, mr); }
+Value isnumeric(const Value &x, std::pmr::memory_resource *mr) { return Value::logicalScalar(x.isNumeric(), mr); }
+Value islogical(const Value &x, std::pmr::memory_resource *mr) { return Value::logicalScalar(x.isLogical(), mr); }
+Value ischar(const Value &x, std::pmr::memory_resource *mr)    { return Value::logicalScalar(x.isChar(), mr); }
+Value isstring(const Value &x, std::pmr::memory_resource *mr)  { return Value::logicalScalar(x.isString(), mr); }
+Value iscell(const Value &x, std::pmr::memory_resource *mr)    { return Value::logicalScalar(x.isCell(), mr); }
+Value isstruct(const Value &x, std::pmr::memory_resource *mr)  { return Value::logicalScalar(x.isStruct(), mr); }
+Value isempty(const Value &x, std::pmr::memory_resource *mr)   { return Value::logicalScalar(x.isEmpty(), mr); }
+Value isscalar(const Value &x, std::pmr::memory_resource *mr)  { return Value::logicalScalar(x.isScalar(), mr); }
+Value isreal(const Value &x, std::pmr::memory_resource *mr)    { return Value::logicalScalar(!x.isComplex(), mr); }
+Value isinteger(const Value &x, std::pmr::memory_resource *mr) { return Value::logicalScalar(isIntegerType(x.type()), mr); }
+Value isfloat(const Value &x, std::pmr::memory_resource *mr)   { return Value::logicalScalar(isFloatType(x.type()), mr); }
+Value issingle(const Value &x, std::pmr::memory_resource *mr)  { return Value::logicalScalar(x.type() == ValueType::SINGLE, mr); }
 // numkit has no sparse-matrix storage class -- issparse always returns
 // false for any input. Matches MATLAB on dense inputs (which is all
 // numkit can produce). Covers the FAIL row in PROGRESS for issparse.
-Value issparse(std::pmr::memory_resource *mr, const Value & /*x*/) { return Value::logicalScalar(false, mr); }
+Value issparse(const Value & /*x*/, std::pmr::memory_resource *mr) { return Value::logicalScalar(false, mr); }
 
-Value isnan(std::pmr::memory_resource *mr, const Value &x)
+Value isnan(const Value &x, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (x.isScalar())
@@ -233,7 +233,7 @@ Value isnan(std::pmr::memory_resource *mr, const Value &x)
     return r;
 }
 
-Value isinf(std::pmr::memory_resource *mr, const Value &x)
+Value isinf(const Value &x, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (x.isScalar())
@@ -244,7 +244,7 @@ Value isinf(std::pmr::memory_resource *mr, const Value &x)
     return r;
 }
 
-Value isfinite(std::pmr::memory_resource *mr, const Value &x)
+Value isfinite(const Value &x, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (x.isScalar())
@@ -257,28 +257,28 @@ Value isfinite(std::pmr::memory_resource *mr, const Value &x)
 
 // ── Shape predicates ─────────────────────────────────────────────────
 
-Value isvector(std::pmr::memory_resource *mr, const Value &x)
+Value isvector(const Value &x, std::pmr::memory_resource *mr)
 {
     const auto &d = x.dims();
     bool tf = d.ndim() <= 2 && (d.rows() == 1 || d.cols() == 1) && x.numel() > 0;
     return Value::logicalScalar(tf, mr);
 }
 
-Value isrow(std::pmr::memory_resource *mr, const Value &x)
+Value isrow(const Value &x, std::pmr::memory_resource *mr)
 {
     const auto &d = x.dims();
     bool tf = d.ndim() <= 2 && d.rows() == 1;
     return Value::logicalScalar(tf, mr);
 }
 
-Value iscolumn(std::pmr::memory_resource *mr, const Value &x)
+Value iscolumn(const Value &x, std::pmr::memory_resource *mr)
 {
     const auto &d = x.dims();
     bool tf = d.ndim() <= 2 && d.cols() == 1;
     return Value::logicalScalar(tf, mr);
 }
 
-Value ismatrix(std::pmr::memory_resource *mr, const Value &x)
+Value ismatrix(const Value &x, std::pmr::memory_resource *mr)
 {
     return Value::logicalScalar(x.dims().ndim() <= 2, mr);
 }
@@ -288,12 +288,12 @@ Value ismatrix(std::pmr::memory_resource *mr, const Value &x)
 namespace {
 enum class SortMode { Ascend, Descend, Monotonic, StrictAscend, StrictDescend };
 
-inline bool readSortMode(const Value *m, SortMode &out)
+inline bool readSortMode(const Value &m, SortMode &out)
 {
     out = SortMode::Ascend;
-    if (!m) return true;
-    if (!m->isChar() && !m->isString()) return false;
-    auto s = m->toString();
+    if (m.isEmpty()) return true;
+    if (!m.isChar() && !m.isString()) return false;
+    auto s = m.toString();
     for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     if (s == "ascend")        { out = SortMode::Ascend;        return true; }
     if (s == "descend")       { out = SortMode::Descend;       return true; }
@@ -338,7 +338,7 @@ inline bool runSorted(const double *first, size_t n, SortMode mode)
 }
 } // anon
 
-Value issorted(std::pmr::memory_resource *mr, const Value &x, const Value *mode)
+Value issorted(const Value &x, const Value &mode, std::pmr::memory_resource *mr)
 {
     SortMode m = SortMode::Ascend;
     if (!readSortMode(mode, m))
@@ -361,7 +361,7 @@ Value issorted(std::pmr::memory_resource *mr, const Value &x, const Value *mode)
     return Value::logicalScalar(true, mr);
 }
 
-Value issortedrows(std::pmr::memory_resource *mr, const Value &x)
+Value issortedrows(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isEmpty() || x.isScalar())
         return Value::logicalScalar(true, mr);
@@ -387,7 +387,7 @@ Value issortedrows(std::pmr::memory_resource *mr, const Value &x)
     return Value::logicalScalar(true, mr);
 }
 
-Value isuniform(std::pmr::memory_resource *mr, const Value &x)
+Value isuniform(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isEmpty()) return Value::logicalScalar(true, mr);
     if (x.isScalar()) return Value::logicalScalar(true, mr);
@@ -417,18 +417,18 @@ Value isuniform(std::pmr::memory_resource *mr, const Value &x)
 // ── Numeric limits ───────────────────────────────────────────────────
 
 namespace {
-inline std::string readTypeName(const Value *t, const char *def)
+inline std::string readTypeName(const Value &t, const char *def)
 {
-    if (!t) return def;
-    if (!t->isChar() && !t->isString())
+    if (t.isEmpty()) return def;
+    if (!t.isChar() && !t.isString())
         throw std::runtime_error("numeric-limit: type argument must be a string");
-    auto s = t->toString();
+    auto s = t.toString();
     for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
 }
 
 template <typename T>
-inline Value typedScalar(std::pmr::memory_resource *mr, ValueType vt, T v)
+inline Value typedScalar(ValueType vt, T v, std::pmr::memory_resource *mr)
 {
     auto r = Value::matrix(1, 1, vt, mr);
     *static_cast<T *>(r.rawDataMut()) = v;
@@ -436,59 +436,59 @@ inline Value typedScalar(std::pmr::memory_resource *mr, ValueType vt, T v)
 }
 } // anon
 
-Value flintmax(std::pmr::memory_resource *mr, const Value *t)
+Value flintmax(const Value &t, std::pmr::memory_resource *mr)
 {
     auto name = readTypeName(t, "double");
     if (name == "single")
-        return typedScalar<float>(mr, ValueType::SINGLE, static_cast<float>(1u << 24));
+        return typedScalar<float>(ValueType::SINGLE, static_cast<float>(1u << 24), mr);
     if (name == "double")
         return Value::scalar(9007199254740992.0, mr);  // 2^53 exactly
     throw std::runtime_error("flintmax: type must be 'double' or 'single'");
 }
 
-Value intmax(std::pmr::memory_resource *mr, const Value *t)
+Value intmax(const Value &t, std::pmr::memory_resource *mr)
 {
     auto name = readTypeName(t, "int32");
-    if (name == "int8")   return typedScalar<int8_t>(mr,   ValueType::INT8,   std::numeric_limits<int8_t>::max());
-    if (name == "int16")  return typedScalar<int16_t>(mr,  ValueType::INT16,  std::numeric_limits<int16_t>::max());
-    if (name == "int32")  return typedScalar<int32_t>(mr,  ValueType::INT32,  std::numeric_limits<int32_t>::max());
-    if (name == "int64")  return typedScalar<int64_t>(mr,  ValueType::INT64,  std::numeric_limits<int64_t>::max());
-    if (name == "uint8")  return typedScalar<uint8_t>(mr,  ValueType::UINT8,  std::numeric_limits<uint8_t>::max());
-    if (name == "uint16") return typedScalar<uint16_t>(mr, ValueType::UINT16, std::numeric_limits<uint16_t>::max());
-    if (name == "uint32") return typedScalar<uint32_t>(mr, ValueType::UINT32, std::numeric_limits<uint32_t>::max());
-    if (name == "uint64") return typedScalar<uint64_t>(mr, ValueType::UINT64, std::numeric_limits<uint64_t>::max());
+    if (name == "int8")   return typedScalar<int8_t>(ValueType::INT8, std::numeric_limits<int8_t>::max(), mr);
+    if (name == "int16")  return typedScalar<int16_t>(ValueType::INT16, std::numeric_limits<int16_t>::max(), mr);
+    if (name == "int32")  return typedScalar<int32_t>(ValueType::INT32, std::numeric_limits<int32_t>::max(), mr);
+    if (name == "int64")  return typedScalar<int64_t>(ValueType::INT64, std::numeric_limits<int64_t>::max(), mr);
+    if (name == "uint8")  return typedScalar<uint8_t>(ValueType::UINT8, std::numeric_limits<uint8_t>::max(), mr);
+    if (name == "uint16") return typedScalar<uint16_t>(ValueType::UINT16, std::numeric_limits<uint16_t>::max(), mr);
+    if (name == "uint32") return typedScalar<uint32_t>(ValueType::UINT32, std::numeric_limits<uint32_t>::max(), mr);
+    if (name == "uint64") return typedScalar<uint64_t>(ValueType::UINT64, std::numeric_limits<uint64_t>::max(), mr);
     throw std::runtime_error("intmax: unsupported integer class");
 }
 
-Value intmin(std::pmr::memory_resource *mr, const Value *t)
+Value intmin(const Value &t, std::pmr::memory_resource *mr)
 {
     auto name = readTypeName(t, "int32");
-    if (name == "int8")   return typedScalar<int8_t>(mr,   ValueType::INT8,   std::numeric_limits<int8_t>::min());
-    if (name == "int16")  return typedScalar<int16_t>(mr,  ValueType::INT16,  std::numeric_limits<int16_t>::min());
-    if (name == "int32")  return typedScalar<int32_t>(mr,  ValueType::INT32,  std::numeric_limits<int32_t>::min());
-    if (name == "int64")  return typedScalar<int64_t>(mr,  ValueType::INT64,  std::numeric_limits<int64_t>::min());
-    if (name == "uint8")  return typedScalar<uint8_t>(mr,  ValueType::UINT8,  static_cast<uint8_t>(0));
-    if (name == "uint16") return typedScalar<uint16_t>(mr, ValueType::UINT16, static_cast<uint16_t>(0));
-    if (name == "uint32") return typedScalar<uint32_t>(mr, ValueType::UINT32, static_cast<uint32_t>(0));
-    if (name == "uint64") return typedScalar<uint64_t>(mr, ValueType::UINT64, static_cast<uint64_t>(0));
+    if (name == "int8")   return typedScalar<int8_t>(ValueType::INT8, std::numeric_limits<int8_t>::min(), mr);
+    if (name == "int16")  return typedScalar<int16_t>(ValueType::INT16, std::numeric_limits<int16_t>::min(), mr);
+    if (name == "int32")  return typedScalar<int32_t>(ValueType::INT32, std::numeric_limits<int32_t>::min(), mr);
+    if (name == "int64")  return typedScalar<int64_t>(ValueType::INT64, std::numeric_limits<int64_t>::min(), mr);
+    if (name == "uint8")  return typedScalar<uint8_t>(ValueType::UINT8, static_cast<uint8_t>(0), mr);
+    if (name == "uint16") return typedScalar<uint16_t>(ValueType::UINT16, static_cast<uint16_t>(0), mr);
+    if (name == "uint32") return typedScalar<uint32_t>(ValueType::UINT32, static_cast<uint32_t>(0), mr);
+    if (name == "uint64") return typedScalar<uint64_t>(ValueType::UINT64, static_cast<uint64_t>(0), mr);
     throw std::runtime_error("intmin: unsupported integer class");
 }
 
-Value realmax(std::pmr::memory_resource *mr, const Value *t)
+Value realmax(const Value &t, std::pmr::memory_resource *mr)
 {
     auto name = readTypeName(t, "double");
     if (name == "single")
-        return typedScalar<float>(mr, ValueType::SINGLE, std::numeric_limits<float>::max());
+        return typedScalar<float>(ValueType::SINGLE, std::numeric_limits<float>::max(), mr);
     if (name == "double")
         return Value::scalar(std::numeric_limits<double>::max(), mr);
     throw std::runtime_error("realmax: type must be 'double' or 'single'");
 }
 
-Value realmin(std::pmr::memory_resource *mr, const Value *t)
+Value realmin(const Value &t, std::pmr::memory_resource *mr)
 {
     auto name = readTypeName(t, "double");
     if (name == "single")
-        return typedScalar<float>(mr, ValueType::SINGLE, std::numeric_limits<float>::min());
+        return typedScalar<float>(ValueType::SINGLE, std::numeric_limits<float>::min(), mr);
     if (name == "double")
         return Value::scalar(std::numeric_limits<double>::min(), mr);
     throw std::runtime_error("realmin: type must be 'double' or 'single'");
@@ -496,7 +496,7 @@ Value realmin(std::pmr::memory_resource *mr, const Value *t)
 
 // ── Whole-array float predicates ────────────────────────────────────
 
-Value allfinite(std::pmr::memory_resource *mr, const Value &x)
+Value allfinite(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isEmpty()) return Value::logicalScalar(true, mr);
     if (!x.isNumeric()) return Value::logicalScalar(false, mr);
@@ -525,7 +525,7 @@ Value allfinite(std::pmr::memory_resource *mr, const Value &x)
     return Value::logicalScalar(true, mr);
 }
 
-Value anynan(std::pmr::memory_resource *mr, const Value &x)
+Value anynan(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isEmpty()) return Value::logicalScalar(false, mr);
     if (!x.isNumeric()) return Value::logicalScalar(false, mr);
@@ -557,38 +557,37 @@ Value anynan(std::pmr::memory_resource *mr, const Value &x)
 // Public API — equality + introspection
 // ════════════════════════════════════════════════════════════════════════
 
-Value isequal(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value isequal(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     return Value::logicalScalar(valuesEqual(a, b, false), mr);
 }
 
-Value isequaln(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+Value isequaln(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     return Value::logicalScalar(valuesEqual(a, b, true), mr);
 }
 
-Value classOf(std::pmr::memory_resource *mr, const Value &x)
+Value classOf(const Value &x, std::pmr::memory_resource *mr)
 {
     return Value::fromString(mtypeName(x.type()), mr);
 }
 
 // ── Pack 36: cast + swapbytes ────────────────────────────────────────
-Value cast(std::pmr::memory_resource *mr, const Value &x,
-           const std::string &classname)
+Value cast(const Value &x, const std::string &classname, std::pmr::memory_resource *mr)
 {
-    if (classname == "double")  return toDouble(mr, x);
-    if (classname == "single")  return single(mr, x);
-    if (classname == "int8")    return int8(mr, x);
-    if (classname == "int16")   return int16(mr, x);
-    if (classname == "int32")   return int32(mr, x);
-    if (classname == "int64")   return int64(mr, x);
-    if (classname == "uint8")   return uint8(mr, x);
-    if (classname == "uint16")  return uint16(mr, x);
-    if (classname == "uint32")  return uint32(mr, x);
-    if (classname == "uint64")  return uint64(mr, x);
-    if (classname == "logical") return logical(mr, x);
-    if (classname == "char")    return toChar(mr, x);
-    if (classname == "string")  return toString(mr, x);
+    if (classname == "double")  return toDouble(x, mr);
+    if (classname == "single")  return single(x, mr);
+    if (classname == "int8")    return int8(x, mr);
+    if (classname == "int16")   return int16(x, mr);
+    if (classname == "int32")   return int32(x, mr);
+    if (classname == "int64")   return int64(x, mr);
+    if (classname == "uint8")   return uint8(x, mr);
+    if (classname == "uint16")  return uint16(x, mr);
+    if (classname == "uint32")  return uint32(x, mr);
+    if (classname == "uint64")  return uint64(x, mr);
+    if (classname == "logical") return logical(x, mr);
+    if (classname == "char")    return toChar(x, mr);
+    if (classname == "string")  return toString(x, mr);
     throw Error("cast: unsupported class '" + classname + "'",
                  0, 0, "cast", "", "m:cast:badClass");
 }
@@ -623,7 +622,7 @@ T swapBytesScalar(T v)
 }
 
 template <typename T>
-Value swapBytesArray(std::pmr::memory_resource *mr, const Value &x)
+Value swapBytesArray(const Value &x, std::pmr::memory_resource *mr)
 {
     Value r = createLike(x, x.type(), mr);
     const T *src = static_cast<const T *>(x.rawData());
@@ -680,8 +679,7 @@ size_t elemSizeOf(ValueType t)
 
 } // namespace
 
-Value typecast(std::pmr::memory_resource *mr, const Value &x,
-               const std::string &classname)
+Value typecast(const Value &x, const std::string &classname, std::pmr::memory_resource *mr)
 {
     TypeInfo info = typeInfoFor(classname);
     if (info.elemSize == 0)
@@ -707,20 +705,20 @@ Value typecast(std::pmr::memory_resource *mr, const Value &x,
     return out;
 }
 
-Value swapbytes(std::pmr::memory_resource *mr, const Value &x)
+Value swapbytes(const Value &x, std::pmr::memory_resource *mr)
 {
     switch (x.type()) {
-    case ValueType::INT8:    return int8(mr, x);     // copy through (1 byte = identity)
-    case ValueType::UINT8:   return uint8(mr, x);
-    case ValueType::LOGICAL: return logical(mr, x);
-    case ValueType::INT16:   return swapBytesArray<int16_t>(mr, x);
-    case ValueType::UINT16:  return swapBytesArray<uint16_t>(mr, x);
-    case ValueType::INT32:   return swapBytesArray<int32_t>(mr, x);
-    case ValueType::UINT32:  return swapBytesArray<uint32_t>(mr, x);
-    case ValueType::INT64:   return swapBytesArray<int64_t>(mr, x);
-    case ValueType::UINT64:  return swapBytesArray<uint64_t>(mr, x);
-    case ValueType::SINGLE:  return swapBytesArray<float>(mr, x);
-    case ValueType::DOUBLE:  return swapBytesArray<double>(mr, x);
+    case ValueType::INT8:    return int8(x, mr);     // copy through (1 byte = identity)
+    case ValueType::UINT8:   return uint8(x, mr);
+    case ValueType::LOGICAL: return logical(x, mr);
+    case ValueType::INT16:   return swapBytesArray<int16_t>(x, mr);
+    case ValueType::UINT16:  return swapBytesArray<uint16_t>(x, mr);
+    case ValueType::INT32:   return swapBytesArray<int32_t>(x, mr);
+    case ValueType::UINT32:  return swapBytesArray<uint32_t>(x, mr);
+    case ValueType::INT64:   return swapBytesArray<int64_t>(x, mr);
+    case ValueType::UINT64:  return swapBytesArray<uint64_t>(x, mr);
+    case ValueType::SINGLE:  return swapBytesArray<float>(x, mr);
+    case ValueType::DOUBLE:  return swapBytesArray<double>(x, mr);
     default:
         throw Error("swapbytes: input must be a numeric or logical array",
                      0, 0, "swapbytes", "", "m:swapbytes:badType");
@@ -777,7 +775,7 @@ void logical_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.empty())
         throw Error("logical: requires 1 argument", 0, 0, "logical", "",
                      "m:logical:nargin");
-    outs[0] = logical(ctx.engine->resource(), args[0]);
+    outs[0] = logical(args[0], ctx.engine->resource());
 }
 
 // ── Simple predicate adapters ────────────────────────────────────────────
@@ -788,7 +786,7 @@ void logical_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
         if (args.empty())                                                           \
             throw Error(#FN ": requires 1 argument", 0, 0, #FN, "",                \
                          "m:" #FN ":nargin");                                  \
-        outs[0] = FN(ctx.engine->resource(), args[0]);                             \
+        outs[0] = FN(args[0], ctx.engine->resource());                             \
     }
 
 NK_PRED_REG(isnumeric)
@@ -821,8 +819,8 @@ void issorted_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
     if (args.empty())
         throw Error("issorted: requires 1 argument", 0, 0, "issorted", "",
                      "m:issorted:nargin");
-    const Value *mode = (args.size() >= 2) ? &args[1] : nullptr;
-    outs[0] = issorted(ctx.engine->resource(), args[0], mode);
+    const Value &mode = (args.size() >= 2) ? args[1] : Value::Empty;
+    outs[0] = issorted(args[0], mode, ctx.engine->resource());
 }
 
 // flintmax/intmax/intmin/realmax/realmin all share an "optional type-name
@@ -831,8 +829,8 @@ void issorted_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 #define NK_LIMIT_REG(FN)                                                              \
     void FN##_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) \
     {                                                                                  \
-        const Value *t = args.empty() ? nullptr : &args[0];                            \
-        outs[0] = FN(ctx.engine->resource(), t);                                       \
+        const Value &t = args.empty() ? Value::Empty : args[0];                       \
+        outs[0] = FN(t, ctx.engine->resource());                                       \
     }
 
 NK_LIMIT_REG(flintmax)
@@ -848,7 +846,7 @@ void allfinite_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
     if (args.empty())
         throw Error("allfinite: requires 1 argument", 0, 0, "allfinite", "",
                      "m:allfinite:nargin");
-    outs[0] = allfinite(ctx.engine->resource(), args[0]);
+    outs[0] = allfinite(args[0], ctx.engine->resource());
 }
 
 void anynan_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -856,7 +854,7 @@ void anynan_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &c
     if (args.empty())
         throw Error("anynan: requires 1 argument", 0, 0, "anynan", "",
                      "m:anynan:nargin");
-    outs[0] = anynan(ctx.engine->resource(), args[0]);
+    outs[0] = anynan(args[0], ctx.engine->resource());
 }
 
 void isequal_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -886,7 +884,7 @@ void class_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ct
     if (args.empty())
         throw Error("class: requires 1 argument", 0, 0, "class", "",
                      "m:class:nargin");
-    outs[0] = classOf(ctx.engine->resource(), args[0]);
+    outs[0] = classOf(args[0], ctx.engine->resource());
 }
 
 // ── Pack 36 adapters ─────────────────────────────────────────────────
@@ -907,10 +905,10 @@ void cast_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx
         // mtypeName mirrors MATLAB's class() output (double / single /
         // int*/ uint* / logical / char / string); cast() dispatches on
         // these strings.
-        outs[0] = cast(mr, args[0], mtypeName(args[2].type()));
+        outs[0] = cast(args[0], mtypeName(args[2].type()), mr);
         return;
     }
-    outs[0] = cast(mr, args[0], args[1].toString());
+    outs[0] = cast(args[0], args[1].toString(), mr);
 }
 
 void swapbytes_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -918,7 +916,7 @@ void swapbytes_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
     if (args.empty())
         throw Error("swapbytes: requires 1 argument",
                      0, 0, "swapbytes", "", "m:swapbytes:nargin");
-    outs[0] = swapbytes(ctx.engine->resource(), args[0]);
+    outs[0] = swapbytes(args[0], ctx.engine->resource());
 }
 
 void typecast_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -929,7 +927,7 @@ void typecast_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
     if (!args[1].isChar() && !args[1].isString())
         throw Error("typecast: classname must be a char or string",
                      0, 0, "typecast", "", "m:typecast:badClass");
-    outs[0] = typecast(ctx.engine->resource(), args[0], args[1].toString());
+    outs[0] = typecast(args[0], args[1].toString(), ctx.engine->resource());
 }
 
 } // namespace detail

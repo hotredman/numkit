@@ -376,8 +376,23 @@ void writeWholeFile(const std::string &osPath, const std::string &bytes)
 
 void saveMat(Engine &engine, Environment &env,
              const std::string &filename,
-             const std::vector<std::string> &varnames)
+             const std::vector<std::string> &varnames,
+             int matVersion)
 {
+    // Map MATLAB-flag version (4/5/7) → matio file type + compression.
+    // `-v7` is a v5 container with zlib compression, matching MATLAB's
+    // convention (full v7.3 is HDF5 and intentionally not linked).
+    mat_ft       fileType    = MAT_FT_MAT5;
+    matio_compression compression = MAT_COMPRESSION_NONE;
+    switch (matVersion) {
+        case 4: fileType = MAT_FT_MAT4; compression = MAT_COMPRESSION_NONE; break;
+        case 5:
+        case 6: fileType = MAT_FT_MAT5; compression = MAT_COMPRESSION_NONE; break;
+        case 7: fileType = MAT_FT_MAT5; compression = MAT_COMPRESSION_ZLIB; break;
+        default:
+            throw Error("save: unsupported MAT version (only -v4 / -v6 / -v7)");
+    }
+
     auto resolved = engine.resolvePath(filename);
     if (!resolved.fs)
         throw Error("save: cannot resolve '" + filename + "'");
@@ -385,7 +400,7 @@ void saveMat(Engine &engine, Environment &env,
     bool stage = !isNativeFs(resolved.fs);
     std::string osPath = stage ? makeTempMatPath() : resolved.path;
 
-    mat_t *matfp = Mat_CreateVer(osPath.c_str(), nullptr, MAT_FT_MAT5);
+    mat_t *matfp = Mat_CreateVer(osPath.c_str(), nullptr, fileType);
     if (!matfp) {
         if (stage) { std::error_code ec; std::filesystem::remove(osPath, ec); }
         throw Error("save: cannot create '" + filename + "'");
@@ -404,7 +419,7 @@ void saveMat(Engine &engine, Environment &env,
             matvar_t *mv = valueToMat(nm, *v);
             if (!mv)
                 throw Error("save: cannot encode variable '" + nm + "'");
-            int rc = Mat_VarWrite(matfp, mv, MAT_COMPRESSION_NONE);
+            int rc = Mat_VarWrite(matfp, mv, compression);
             Mat_VarFree(mv);
             if (rc != 0)
                 throw Error("save: write failed for '" + nm + "'");

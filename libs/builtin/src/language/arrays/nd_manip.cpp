@@ -95,9 +95,10 @@ void transposePage(const double *src, double *dst, size_t inR, size_t inC)
 //   B(i_1, i_2, ..., i_N) = A(i_{p_1}, i_{p_2}, ..., i_{p_N})
 // i.e. output axis k corresponds to input axis perm[k]. So the size
 // of output along axis k equals the size of input along perm[k].
-Value permute(std::pmr::memory_resource *mr, const Value &x, const int *perm, std::size_t n)
+Value permute(const Value &x, Span<const int> perm, std::pmr::memory_resource *mr)
 {
-    validatePerm(perm, n, "permute");
+    const std::size_t n = perm.size();
+    validatePerm(perm.data(), n, "permute");
 
     const auto &dd = x.dims();
     const int inNd = std::max<int>(dd.ndim(), static_cast<int>(n));
@@ -198,15 +199,16 @@ Value permute(std::pmr::memory_resource *mr, const Value &x, const int *perm, st
     return r;
 }
 
-Value ipermute(std::pmr::memory_resource *mr, const Value &x, const int *perm, std::size_t n)
+Value ipermute(const Value &x, Span<const int> perm, std::pmr::memory_resource *mr)
 {
-    validatePerm(perm, n, "ipermute");
+    const std::size_t n = perm.size();
+    validatePerm(perm.data(), n, "ipermute");
     // Compute inverse permutation: invPerm[perm[i] - 1] = i + 1.
     // Stack-mounted: perm length is bounded by Dims::kMaxRank.
     int inv[Dims::kMaxRank];
     for (std::size_t i = 0; i < n; ++i)
         inv[perm[i] - 1] = static_cast<int>(i + 1);
-    return permute(mr, x, inv, n);
+    return permute(x, Span<const int>(inv, n), mr);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -225,14 +227,14 @@ Value ipermute(std::pmr::memory_resource *mr, const Value &x, const int *perm, s
 // squeeze is essentially reshape-with-new-dims. For 1×3×4 this means
 // the data layout still matches: the singleton dim collapses cleanly
 // because a stride of 1 doesn't introduce gaps.
-Value squeeze(std::pmr::memory_resource *mr, const Value &x)
+Value squeeze(const Value &x, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
     const int nd = dd.ndim();
 
     // 2D and below: shape preserved (MATLAB never collapses below 2D).
     if (nd <= 2)
-        return reshape(mr, x, dd.rows(), dd.cols(), 0);
+        return reshape(x, dd.rows(), dd.cols(), 0, mr);
 
     // ND (≥ 3): drop every singleton dim, preserve the rest in order.
     // Pad to at least 2 dims with trailing 1s so a fully-singleton input
@@ -247,7 +249,7 @@ Value squeeze(std::pmr::memory_resource *mr, const Value &x)
     }
     while (kept.size() < 2) kept.push_back(1);
 
-    return reshapeND(mr, x, kept.data(), kept.size());
+    return reshapeND(x, Span<const size_t>(kept.data(), kept.size()), mr);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -258,7 +260,7 @@ Value squeeze(std::pmr::memory_resource *mr, const Value &x)
 // stack 2D pages or extend 3D page count. Other dims throw.
 namespace {
 
-Value catDim3(std::pmr::memory_resource *mr, const Value *values, size_t count)
+Value catDim3(const Value *values, size_t count, std::pmr::memory_resource *mr)
 {
     if (count == 0) return Value::empty();
 
@@ -304,7 +306,7 @@ Value catDim3(std::pmr::memory_resource *mr, const Value *values, size_t count)
 // max(dim, max input ndim). All numeric types supported via byte-copy
 // (elementSize-based). All inputs must share a type (no implicit
 // promotion). CELL / STRUCT / STRING / FUNC_HANDLE rejected.
-Value catND(std::pmr::memory_resource *mr, int dim, const Value *values, size_t count)
+Value catND(int dim, const Value *values, size_t count, std::pmr::memory_resource *mr)
 {
     if (count == 0) return Value::empty();
     const int k = dim - 1;
@@ -394,16 +396,16 @@ Value catND(std::pmr::memory_resource *mr, int dim, const Value *values, size_t 
 
 } // namespace
 
-Value cat(std::pmr::memory_resource *mr, int dim, const Value *values, size_t count)
+Value cat(int dim, Span<const Value> values, std::pmr::memory_resource *mr)
 {
     if (dim < 1)
         throw Error("cat: dim must be a positive integer",
                      0, 0, "cat", "", "m:cat:badDim");
     switch (dim) {
-        case 1: return vertcat(mr, values, count);
-        case 2: return horzcat(mr, values, count);
-        case 3: return catDim3(mr, values, count);
-        default: return catND(mr, dim, values, count);
+        case 1: return vertcat(values, mr);
+        case 2: return horzcat(values, mr);
+        case 3: return catDim3(values.data(), values.size(), mr);
+        default: return catND(dim, values.data(), values.size(), mr);
     }
 }
 
@@ -413,8 +415,9 @@ Value cat(std::pmr::memory_resource *mr, int dim, const Value *values, size_t co
 //
 // Block-diagonal matrix: diagonal blocks are the inputs (in order),
 // off-diagonal regions are zero. 2D inputs only.
-Value blkdiag(std::pmr::memory_resource *mr, const Value *values, size_t count)
+Value blkdiag(Span<const Value> values, std::pmr::memory_resource *mr)
 {
+    const size_t count = values.size();
     if (count == 0) return Value::empty();
 
     size_t totalRows = 0, totalCols = 0;
@@ -459,7 +462,7 @@ Value blkdiag(std::pmr::memory_resource *mr, const Value *values, size_t count)
 // Cyclic semantics: n is taken mod N for n > 0 (so shiftdim(A, N) is
 // the identity, matching MATLAB).
 
-Value shiftdim(std::pmr::memory_resource *mr, const Value &x, int n)
+Value shiftdim(const Value &x, int n, std::pmr::memory_resource *mr)
 {
     if (n == 0) return x;
 
@@ -474,7 +477,7 @@ Value shiftdim(std::pmr::memory_resource *mr, const Value &x, int n)
         int perm[kMaxNd];
         for (int i = 0; i < N; ++i)
             perm[i] = ((i + eff) % N) + 1;  // 1-based
-        return permute(mr, x, perm, static_cast<std::size_t>(N));
+        return permute(x, Span<const int>(perm, static_cast<std::size_t>(N)), mr);
     }
 
     // n < 0: prepend |n| singleton dims via reshape.
@@ -487,10 +490,10 @@ Value shiftdim(std::pmr::memory_resource *mr, const Value &x, int n)
     size_t newDims[kMaxNd];
     for (int i = 0; i < k; ++i) newDims[i] = 1;
     for (int i = 0; i < N; ++i) newDims[k + i] = d.dim(i);
-    return reshapeND(mr, x, newDims, static_cast<std::size_t>(newN));
+    return reshapeND(x, Span<const size_t>(newDims, static_cast<std::size_t>(newN)), mr);
 }
 
-ShiftDimAuto shiftdimAuto(std::pmr::memory_resource *mr, const Value &x)
+ShiftDimAuto shiftdimAuto(const Value &x, std::pmr::memory_resource *mr)
 {
     const auto &d = x.dims();
     const int N = d.ndim();
@@ -502,7 +505,7 @@ ShiftDimAuto shiftdimAuto(std::pmr::memory_resource *mr, const Value &x)
     // returns a 1×3 row, not a 0-D scalar).
     if (k == N) k = N - 1;
     if (k <= 0) return { x, 0 };
-    Value y = shiftdim(mr, x, k);
+    Value y = shiftdim(x, k, mr);
     // MATLAB-spec: the auto form ALSO strips trailing singletons (so
     // shiftdim(ones(1,1000,1000)) returns a 2-D 1000x1000, not a
     // 3-D 1000x1000x1). The explicit shiftdim(A, n) form does not.
@@ -515,7 +518,7 @@ ShiftDimAuto shiftdimAuto(std::pmr::memory_resource *mr, const Value &x)
         constexpr int kMaxNd = Dims::kMaxRank;
         size_t trimmed[kMaxNd];
         for (int i = 0; i < newN; ++i) trimmed[i] = yd.dim(i);
-        y = reshapeND(mr, y, trimmed, static_cast<std::size_t>(newN));
+        y = reshapeND(y, Span<const size_t>(trimmed, static_cast<std::size_t>(newN)), mr);
     }
     return { std::move(y), k };
 }
@@ -527,7 +530,7 @@ namespace detail {
 
 namespace {
 
-ScratchVec<int> permFromValue(std::pmr::memory_resource *mr, const Value &v)
+ScratchVec<int> permFromValue(const Value &v, std::pmr::memory_resource *mr)
 {
     ScratchVec<int> p(mr);
     p.reserve(v.numel());
@@ -546,8 +549,8 @@ void permute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                      0, 0, "permute", "", "m:permute:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
-    auto perm = permFromValue(&scratch, args[1]);
-    outs[0] = permute(mr, args[0], perm.data(), perm.size());
+    auto perm = permFromValue(args[1], &scratch);
+    outs[0] = permute(args[0], Span<const int>(perm.data(), perm.size()), mr);
 }
 
 void ipermute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -558,8 +561,8 @@ void ipermute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                      0, 0, "ipermute", "", "m:ipermute:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
-    auto perm = permFromValue(&scratch, args[1]);
-    outs[0] = ipermute(mr, args[0], perm.data(), perm.size());
+    auto perm = permFromValue(args[1], &scratch);
+    outs[0] = ipermute(args[0], Span<const int>(perm.data(), perm.size()), mr);
 }
 
 void squeeze_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -568,7 +571,7 @@ void squeeze_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("squeeze: requires 1 argument",
                      0, 0, "squeeze", "", "m:squeeze:nargin");
-    outs[0] = squeeze(ctx.engine->resource(), args[0]);
+    outs[0] = squeeze(args[0], ctx.engine->resource());
 }
 
 void cat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -579,14 +582,13 @@ void cat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                      0, 0, "cat", "", "m:cat:nargin");
     const int dim = static_cast<int>(args[0].toScalar());
     // Pass &args[1] as the start of the values array.
-    outs[0] = cat(ctx.engine->resource(), dim,
-                  &args[1], args.size() - 1);
+    outs[0] = cat(dim, args.subspan(1), ctx.engine->resource());
 }
 
 void blkdiag_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                  CallContext &ctx)
 {
-    outs[0] = blkdiag(ctx.engine->resource(), args.data(), args.size());
+    outs[0] = blkdiag(args, ctx.engine->resource());
 }
 
 void shiftdim_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
@@ -598,11 +600,11 @@ void shiftdim_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     auto *mr = ctx.engine->resource();
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const int n = static_cast<int>(args[1].toScalar());
-        outs[0] = shiftdim(mr, args[0], n);
+        outs[0] = shiftdim(args[0], n, mr);
         return;
     }
     // Auto form: [B, k] = shiftdim(A).
-    auto res = shiftdimAuto(mr, args[0]);
+    auto res = shiftdimAuto(args[0], mr);
     outs[0] = std::move(res.v);
     if (nargout > 1)
         outs[1] = Value::scalar(static_cast<double>(res.dropped), mr);

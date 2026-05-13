@@ -37,7 +37,7 @@ namespace numkit::wavelet {
 
 namespace {
 
-Value linspace_row(std::pmr::memory_resource *mr, double lb, double ub, size_t N)
+Value linspace_row(double lb, double ub, size_t N, std::pmr::memory_resource *mr)
 {
     Value xv = Value::matrix(1, N, ValueType::DOUBLE, mr);
     if (N == 0) return xv;
@@ -90,9 +90,9 @@ double dblfact_norm_sq(int p)
 } // anonymous
 
 std::tuple<Value, Value>
-gauswavf(std::pmr::memory_resource *mr, double lb, double ub, size_t N, int p)
+gauswavf(double lb, double ub, size_t N, int p, std::pmr::memory_resource *mr)
 {
-    Value xv = linspace_row(mr, lb, ub, N);
+    Value xv = linspace_row(lb, ub, N, mr);
     Value pv = Value::matrix(1, N, ValueType::DOUBLE, mr);
     if (N == 0) return {std::move(pv), std::move(xv)};
     if (p < 1)
@@ -114,9 +114,9 @@ gauswavf(std::pmr::memory_resource *mr, double lb, double ub, size_t N, int p)
 }
 
 std::tuple<Value, Value>
-cgauwavf(std::pmr::memory_resource *mr, double lb, double ub, size_t N, int p)
+cgauwavf(double lb, double ub, size_t N, int p, std::pmr::memory_resource *mr)
 {
-    Value xv = linspace_row(mr, lb, ub, N);
+    Value xv = linspace_row(lb, ub, N, mr);
     Value pv = Value::matrix(1, N, ValueType::COMPLEX, mr);
     if (N == 0) return {std::move(pv), std::move(xv)};
     if (p < 1)
@@ -196,7 +196,7 @@ void gauswavf_reg(Span<const Value> args, size_t nargout,
     const size_t N  = static_cast<size_t>(args[2].toScalar());
     int p = 1;
     if (args.size() >= 4) p = parseGaussOrder(args[3], "gaus", "gauswavf");
-    auto [psi, x] = gauswavf(ctx.engine->resource(), lb, ub, N, p);
+    auto [psi, x] = gauswavf(lb, ub, N, p, ctx.engine->resource());
     outs[0] = std::move(psi);
     if (nargout > 1) outs[1] = std::move(x);
 }
@@ -212,7 +212,7 @@ void cgauwavf_reg(Span<const Value> args, size_t nargout,
     const size_t N  = static_cast<size_t>(args[2].toScalar());
     int p = 1;
     if (args.size() >= 4) p = parseGaussOrder(args[3], "cgau", "cgauwavf");
-    auto [psi, x] = cgauwavf(ctx.engine->resource(), lb, ub, N, p);
+    auto [psi, x] = cgauwavf(lb, ub, N, p, ctx.engine->resource());
     outs[0] = std::move(psi);
     if (nargout > 1) outs[1] = std::move(x);
 }

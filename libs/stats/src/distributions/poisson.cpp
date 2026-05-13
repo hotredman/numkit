@@ -20,7 +20,7 @@ namespace numkit::stats {
 namespace {
 
 template <typename Op>
-Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
@@ -55,26 +55,26 @@ inline double poiss_cdf_scalar(double k, double lambda) {
 
 } // anonymous
 
-Value poisspdf(std::pmr::memory_resource *mr, const Value &k, double lambda)
+Value poisspdf(const Value &k, double lambda, std::pmr::memory_resource *mr)
 {
     if (lambda < 0.0)
-        return elementwise(mr, k, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, k, [=](double ki){ return poiss_pmf(ki, lambda); });
+        return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(k, [=](double ki){ return poiss_pmf(ki, lambda); }, mr);
 }
 
-Value poisscdf(std::pmr::memory_resource *mr, const Value &k, double lambda)
+Value poisscdf(const Value &k, double lambda, std::pmr::memory_resource *mr)
 {
     if (lambda < 0.0)
-        return elementwise(mr, k, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     if (lambda == 0.0)
-        return elementwise(mr, k, [](double ki){ return ki >= 0.0 ? 1.0 : 0.0; });
+        return elementwise(k, [](double ki){ return ki >= 0.0 ? 1.0 : 0.0; }, mr);
     // Build a vector x = floor(k) + 1, run gammainc(λ, x), then F = 1 - that.
-    Value xs = elementwise(mr, k, [=](double ki) {
+    Value xs = elementwise(k, [=](double ki) {
         if (ki < 0.0) return 0.0;        // clamp; gammainc(λ, 0) sentinel
         return std::floor(ki) + 1.0;
-    });
+    }, mr);
     Value lam = Value::scalar(lambda, mr);
-    Value lower = ::numkit::builtin::gammainc(mr, lam, xs);
+    Value lower = ::numkit::builtin::gammainc(lam, xs, mr);
     // F = 1 - P, but: for ki < 0, xs = 0 and we want F = 0. gammainc(λ, 0) is
     // technically undefined; if it returns 0, F = 1 — wrong. Patch via a
     // walk that knows the original ki.
@@ -182,14 +182,14 @@ inline double poiss_inv_scalar(double p, double lambda) {
 
 } // anonymous
 
-Value poissinv(std::pmr::memory_resource *mr, const Value &p, double lambda)
+Value poissinv(const Value &p, double lambda, std::pmr::memory_resource *mr)
 {
     if (lambda < 0.0)
-        return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, p, [=](double pi){ return poiss_inv_scalar(pi, lambda); });
+        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(p, [=](double pi){ return poiss_inv_scalar(pi, lambda); }, mr);
 }
 
-Value poissrnd(std::pmr::memory_resource *mr, double lambda, size_t rows, size_t cols)
+Value poissrnd(double lambda, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -227,7 +227,7 @@ void poisspdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 2)
         throw Error("poisspdf: requires (k, lambda)", 0, 0, "poisspdf", "", "m:poisspdf:nargin");
-    outs[0] = poisspdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    outs[0] = poisspdf(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 void poisscdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -236,7 +236,7 @@ void poisscdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     const size_t n = stripUpperFlag(args, upper);
     if (n < 2)
         throw Error("poisscdf: requires (k, lambda[, 'upper'])", 0, 0, "poisscdf", "", "m:poisscdf:nargin");
-    Value v = poisscdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    Value v = poisscdf(args[0], args[1].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -245,7 +245,7 @@ void poissinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 2)
         throw Error("poissinv: requires (p, lambda)", 0, 0, "poissinv", "", "m:poissinv:nargin");
-    outs[0] = poissinv(ctx.engine->resource(), args[0], args[1].toScalar());
+    outs[0] = poissinv(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 void poissrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -255,7 +255,7 @@ void poissrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     const double lambda = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols);
-    outs[0] = poissrnd(ctx.engine->resource(), lambda, rows, cols);
+    outs[0] = poissrnd(lambda, rows, cols, ctx.engine->resource());
 }
 
 void poisstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

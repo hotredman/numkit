@@ -25,7 +25,7 @@ namespace numkit::stats {
 namespace {
 
 template <typename Op>
-Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
@@ -41,10 +41,10 @@ Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
 
 } // anonymous
 
-Value fpdf(std::pmr::memory_resource *mr, const Value &x, double v1, double v2)
+Value fpdf(const Value &x, double v1, double v2, std::pmr::memory_resource *mr)
 {
     if (v1 <= 0.0 || v2 <= 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     // log f(x; v1, v2) = (v1/2) log(v1) + (v2/2) log(v2)
     //                  + (v1/2 - 1) log x
     //                  - ((v1+v2)/2) log(v2 + v1 x)
@@ -55,7 +55,7 @@ Value fpdf(std::pmr::memory_resource *mr, const Value &x, double v1, double v2)
     const double lbeta = std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
     const double log_v1 = std::log(v1);
     const double log_v2 = std::log(v2);
-    return elementwise(mr, x, [=](double xi) {
+    return elementwise(x, [=](double xi) {
         if (xi < 0.0) return 0.0;
         if (xi == 0.0) {
             // Density at 0 has three regimes (limit of x^(v1/2 - 1) as x → 0+):
@@ -76,38 +76,38 @@ Value fpdf(std::pmr::memory_resource *mr, const Value &x, double v1, double v2)
                         - (a + b) * std::log(v2 + v1 * xi)
                         - lbeta;
         return std::exp(lp);
-    });
+    }, mr);
 }
 
-Value fcdf(std::pmr::memory_resource *mr, const Value &x, double v1, double v2)
+Value fcdf(const Value &x, double v1, double v2, std::pmr::memory_resource *mr)
 {
     if (v1 <= 0.0 || v2 <= 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    Value z = elementwise(mr, x, [=](double xi) {
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    Value z = elementwise(x, [=](double xi) {
         if (xi <= 0.0) return 0.0;
         return (v1 * xi) / (v1 * xi + v2);
-    });
+    }, mr);
     Value a = Value::scalar(0.5 * v1, mr);
     Value b = Value::scalar(0.5 * v2, mr);
-    return ::numkit::builtin::betainc(mr, z, a, b);
+    return ::numkit::builtin::betainc(z, a, b, mr);
 }
 
-Value finv(std::pmr::memory_resource *mr, const Value &p, double v1, double v2)
+Value finv(const Value &p, double v1, double v2, std::pmr::memory_resource *mr)
 {
     if (v1 <= 0.0 || v2 <= 0.0)
-        return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     Value a = Value::scalar(0.5 * v1, mr);
     Value b = Value::scalar(0.5 * v2, mr);
-    Value z = ::numkit::builtin::betaincinv(mr, p, a, b);
+    Value z = ::numkit::builtin::betaincinv(p, a, b, mr);
     // x = (v2 / v1) · z / (1 - z)
-    return elementwise(mr, z, [=](double zi){
+    return elementwise(z, [=](double zi){
         if (zi <= 0.0) return 0.0;
         if (zi >= 1.0) return std::numeric_limits<double>::infinity();
         return (v2 / v1) * zi / (1.0 - zi);
-    });
+    }, mr);
 }
 
-Value frnd(std::pmr::memory_resource *mr, double v1, double v2, size_t rows, size_t cols)
+Value frnd(double v1, double v2, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -151,7 +151,7 @@ void fpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 3)
         throw Error("fpdf: requires (x, v1, v2)", 0, 0, "fpdf", "", "m:fpdf:nargin");
-    outs[0] = fpdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    outs[0] = fpdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void fcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -160,7 +160,7 @@ void fcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
         throw Error("fcdf: requires (x, v1, v2[, 'upper'])", 0, 0, "fcdf", "", "m:fcdf:nargin");
-    Value v = fcdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    Value v = fcdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -169,7 +169,7 @@ void finv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 3)
         throw Error("finv: requires (p, v1, v2)", 0, 0, "finv", "", "m:finv:nargin");
-    outs[0] = finv(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    outs[0] = finv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void frnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -180,7 +180,7 @@ void frnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     const double v2 = args[1].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 2, rows, cols);
-    outs[0] = frnd(ctx.engine->resource(), v1, v2, rows, cols);
+    outs[0] = frnd(v1, v2, rows, cols, ctx.engine->resource());
 }
 
 void fstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

@@ -44,7 +44,7 @@ double sampleTime(const Value &sys) {
     return 0.0;
 }
 
-Value boolValue(std::pmr::memory_resource *mr, bool b) {
+Value boolValue(bool b, std::pmr::memory_resource *mr) {
     return Value::logicalScalar(b, mr);
 }
 
@@ -73,30 +73,29 @@ std::vector<Cd> toComplexVec(const Value &v) {
     return out;
 }
 
-Value rowFromCoeffs(std::pmr::memory_resource *mr,
-                    const std::vector<double> &v) {
+Value rowFromCoeffs(const std::vector<double> &v, std::pmr::memory_resource *mr) {
     Value r = Value::matrix(1, v.size(), ValueType::DOUBLE, mr);
     if (!v.empty()) std::copy(v.begin(), v.end(), r.doubleDataMut());
     return r;
 }
 
 // Helper: poles as a column Value, regardless of input form.
-Value polesOf(std::pmr::memory_resource *mr, const Value &sys) {
+Value polesOf(const Value &sys, std::pmr::memory_resource *mr) {
     if (hasKind(sys, "tf"))
-        return builtin::roots(mr, sys.field("den"));
+        return builtin::roots(sys.field("den"), mr);
     if (hasKind(sys, "zpk"))
         return sys.field("p");
     if (hasKind(sys, "ss")) {
         auto cp = charPoly(sys.field("A"));
-        return builtin::roots(mr, rowFromCoeffs(mr, cp));
+        return builtin::roots(rowFromCoeffs(cp, mr), mr);
     }
     throw Error("expected an LTI struct (tf/zpk/ss)",
                 0, 0, "lti", "", "m:lti:kind");
 }
 
-Value zerosOf(std::pmr::memory_resource *mr, const Value &sys) {
+Value zerosOf(const Value &sys, std::pmr::memory_resource *mr) {
     if (hasKind(sys, "tf"))
-        return builtin::roots(mr, sys.field("num"));
+        return builtin::roots(sys.field("num"), mr);
     if (hasKind(sys, "zpk"))
         return sys.field("z");
     if (hasKind(sys, "ss")) {
@@ -116,9 +115,8 @@ Value zerosOf(std::pmr::memory_resource *mr, const Value &sys) {
                         "not yet implemented in this build.",
                         0, 0, "zero", "", "m:zero:miso");
         }
-        Value num, den;
-        ss2tf(mr, A, B, C, D, /*iu=*/1, &num, &den);
-        return builtin::roots(mr, num);
+        auto [num, den] = ss2tf(A, B, C, D, /*iu=*/1, mr);
+        return builtin::roots(num, mr);
     }
     throw Error("expected an LTI struct (tf/zpk/ss)",
                 0, 0, "lti", "", "m:lti:kind");
@@ -126,57 +124,55 @@ Value zerosOf(std::pmr::memory_resource *mr, const Value &sys) {
 
 } // anonymous
 
-Value isct(std::pmr::memory_resource *mr, const Value &sys) {
-    return boolValue(mr, sampleTime(sys) == 0.0);
+Value isct(const Value &sys, std::pmr::memory_resource *mr) {
+    return boolValue(sampleTime(sys) == 0.0, mr);
 }
 
-Value isdt(std::pmr::memory_resource *mr, const Value &sys) {
+Value isdt(const Value &sys, std::pmr::memory_resource *mr) {
     const double Ts = sampleTime(sys);
-    return boolValue(mr, Ts > 0.0 || Ts == -1.0);
+    return boolValue(Ts > 0.0 || Ts == -1.0, mr);
 }
 
-Value issiso(std::pmr::memory_resource *mr, const Value &sys) {
+Value issiso(const Value &sys, std::pmr::memory_resource *mr) {
     if (hasKind(sys, "tf") || hasKind(sys, "zpk"))
-        return boolValue(mr, true);   // single-output by construction here
+        return boolValue(true, mr);   // single-output by construction here
     if (hasKind(sys, "ss")) {
         const Value &B = sys.field("B");
         const Value &C = sys.field("C");
         const bool one_in  = (B.dims().cols() == 1);
         const bool one_out = (C.dims().rows() == 1);
-        return boolValue(mr, one_in && one_out);
+        return boolValue(one_in && one_out, mr);
     }
-    return boolValue(mr, false);
+    return boolValue(false, mr);
 }
 
-Value isproper(std::pmr::memory_resource *mr, const Value &sys) {
+Value isproper(const Value &sys, std::pmr::memory_resource *mr) {
     if (hasKind(sys, "tf"))
-        return boolValue(mr,
-            sys.field("num").numel() <= sys.field("den").numel());
+        return boolValue(sys.field("num").numel() <= sys.field("den").numel(), mr);
     if (hasKind(sys, "zpk"))
-        return boolValue(mr,
-            sys.field("z").numel() <= sys.field("p").numel());
+        return boolValue(sys.field("z").numel() <= sys.field("p").numel(), mr);
     if (hasKind(sys, "ss"))
-        return boolValue(mr, true);
-    return boolValue(mr, false);
+        return boolValue(true, mr);
+    return boolValue(false, mr);
 }
 
-Value isstable(std::pmr::memory_resource *mr, const Value &sys) {
-    Value p = polesOf(mr, sys);
+Value isstable(const Value &sys, std::pmr::memory_resource *mr) {
+    Value p = polesOf(sys, mr);
     auto pv = toComplexVec(p);
     const bool discrete = (sampleTime(sys) > 0.0);
     for (const auto &z : pv) {
         if (discrete) {
             if (std::abs(z) >= 1.0)
-                return boolValue(mr, false);
+                return boolValue(false, mr);
         } else {
             if (z.real() >= 0.0)
-                return boolValue(mr, false);
+                return boolValue(false, mr);
         }
     }
-    return boolValue(mr, true);
+    return boolValue(true, mr);
 }
 
-Value order(std::pmr::memory_resource *mr, const Value &sys) {
+Value order(const Value &sys, std::pmr::memory_resource *mr) {
     if (hasKind(sys, "tf")) {
         // order = max(deg num, deg den) = max(numel-1).
         const size_t n = sys.field("num").numel();
@@ -194,18 +190,17 @@ Value order(std::pmr::memory_resource *mr, const Value &sys) {
     return Value::scalar(0.0, mr);
 }
 
-Value pole(std::pmr::memory_resource *mr, const Value &sys) {
-    return polesOf(mr, sys);
+Value pole(const Value &sys, std::pmr::memory_resource *mr) {
+    return polesOf(sys, mr);
 }
 
-Value zero(std::pmr::memory_resource *mr, const Value &sys) {
-    return zerosOf(mr, sys);
+Value zero(const Value &sys, std::pmr::memory_resource *mr) {
+    return zerosOf(sys, mr);
 }
 
-void damp(std::pmr::memory_resource *mr, const Value &sys,
-          Value *wnOut, Value *zetaOut, Value *pOut)
+DampResult damp(const Value &sys, std::pmr::memory_resource *mr)
 {
-    Value p = polesOf(mr, sys);
+    Value p = polesOf(sys, mr);
     auto pv = toComplexVec(p);
     const bool discrete = (sampleTime(sys) > 0.0);
     const double Ts = sampleTime(sys);
@@ -227,95 +222,90 @@ void damp(std::pmr::memory_resource *mr, const Value &sys,
         zd[i] = zeta_i;
     }
 
-    if (wnOut)   *wnOut = wn;
-    if (zetaOut) *zetaOut = zeta;
-    if (pOut)    *pOut = p;
+    return {std::move(wn), std::move(zeta), std::move(p)};
 }
 
-void pzmap(std::pmr::memory_resource *mr, const Value &sys,
-           Value *pOut, Value *zOut)
+std::pair<Value, Value>
+pzmap(const Value &sys, std::pmr::memory_resource *mr)
 {
-    if (pOut) *pOut = polesOf(mr, sys);
-    if (zOut) *zOut = zerosOf(mr, sys);
+    return {polesOf(sys, mr), zerosOf(sys, mr)};
 }
 
-Value isstatic(std::pmr::memory_resource *mr, const Value &sys)
+Value isstatic(const Value &sys, std::pmr::memory_resource *mr)
 {
-    Value ord = order(mr, sys);
+    Value ord = order(sys, mr);
     return Value::logicalScalar(ord.toScalar() == 0.0, mr);
 }
 
-Value tzero(std::pmr::memory_resource *mr, const Value &sys)
+Value tzero(const Value &sys, std::pmr::memory_resource *mr)
 {
     // SISO build: transmission zeros == ordinary zeros.
-    Value siso = issiso(mr, sys);
+    Value siso = issiso(sys, mr);
     if (siso.toScalar() == 0.0)
         throw Error("tzero: only SISO systems supported in this build "
                     "(MIMO transmission zeros need a generalized eigenproblem)",
                     0, 0, "tzero", "", "m:tzero:miso");
-    return zerosOf(mr, sys);
+    return zerosOf(sys, mr);
 }
 
 namespace detail {
 
 void isct_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 { if (a.empty()) throw Error("isct: needs sys", 0, 0, "isct", "", "m:isct:nargin");
-  o[0] = isct(c.engine->resource(), a[0]); }
+  o[0] = isct(a[0], c.engine->resource()); }
 
 void isdt_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 { if (a.empty()) throw Error("isdt: needs sys", 0, 0, "isdt", "", "m:isdt:nargin");
-  o[0] = isdt(c.engine->resource(), a[0]); }
+  o[0] = isdt(a[0], c.engine->resource()); }
 
 void issiso_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 { if (a.empty()) throw Error("issiso: needs sys", 0, 0, "issiso", "", "m:issiso:nargin");
-  o[0] = issiso(c.engine->resource(), a[0]); }
+  o[0] = issiso(a[0], c.engine->resource()); }
 
 void isproper_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 { if (a.empty()) throw Error("isproper: needs sys", 0, 0, "isproper", "", "m:isproper:nargin");
-  o[0] = isproper(c.engine->resource(), a[0]); }
+  o[0] = isproper(a[0], c.engine->resource()); }
 
 void isstable_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 { if (a.empty()) throw Error("isstable: needs sys", 0, 0, "isstable", "", "m:isstable:nargin");
-  o[0] = isstable(c.engine->resource(), a[0]); }
+  o[0] = isstable(a[0], c.engine->resource()); }
 
 void order_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 { if (a.empty()) throw Error("order: needs sys", 0, 0, "order", "", "m:order:nargin");
-  o[0] = order(c.engine->resource(), a[0]); }
+  o[0] = order(a[0], c.engine->resource()); }
 
 void pole_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 { if (a.empty()) throw Error("pole: needs sys", 0, 0, "pole", "", "m:pole:nargin");
-  o[0] = pole(c.engine->resource(), a[0]); }
+  o[0] = pole(a[0], c.engine->resource()); }
 
 void zero_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 { if (a.empty()) throw Error("zero: needs sys", 0, 0, "zero", "", "m:zero:nargin");
-  o[0] = zero(c.engine->resource(), a[0]); }
+  o[0] = zero(a[0], c.engine->resource()); }
 
 void damp_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.empty()) throw Error("damp: needs sys", 0, 0, "damp", "", "m:damp:nargin");
-    Value wn, zeta, p;
-    damp(c.engine->resource(), a[0], &wn, &zeta, &p);
-    if (o.size() >= 1) o[0] = wn;
-    if (o.size() >= 2) o[1] = zeta;
-    if (o.size() >= 3) o[2] = p;
+    auto d = damp(a[0], c.engine->resource());
+    if (o.size() >= 1) o[0] = std::move(d.wn);
+    if (o.size() >= 2) o[1] = std::move(d.zeta);
+    if (o.size() >= 3) o[2] = std::move(d.p);
 }
 
 void pzmap_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.empty()) throw Error("pzmap: needs sys", 0, 0, "pzmap", "", "m:pzmap:nargin");
-    Value p, z;
-    pzmap(c.engine->resource(), a[0], &p, &z);
-    if (o.size() >= 1) o[0] = p;
-    if (o.size() >= 2) o[1] = z;
+    auto [p, z] = pzmap(a[0], c.engine->resource());
+    if (o.size() >= 1) o[0] = std::move(p);
+    if (o.size() >= 2) o[1] = std::move(z);
 }
 
 void isstatic_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 { if (a.empty()) throw Error("isstatic: needs sys", 0, 0, "isstatic", "", "m:isstatic:nargin");
-  o[0] = isstatic(c.engine->resource(), a[0]); }
+  o[0] = isstatic(a[0], c.engine->resource()); }
 
 void tzero_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 { if (a.empty()) throw Error("tzero: needs sys", 0, 0, "tzero", "", "m:tzero:nargin");
-  o[0] = tzero(c.engine->resource(), a[0]); }
+  o[0] = tzero(a[0], c.engine->resource()); }
 
 } // namespace detail
 

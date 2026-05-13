@@ -50,8 +50,8 @@ Value vecToRow(std::pmr::memory_resource *mr, const std::vector<double> &v)
 } // namespace
 
 std::tuple<Value, Value, double, double>
-lloyds(std::pmr::memory_resource *mr, const Value &training_set,
-       const Value &ini_codebook, double tol)
+lloyds(const Value &training_set, const Value &ini_codebook,
+       double tol, std::pmr::memory_resource *mr)
 {
     std::vector<double> training;
     readVector(training_set, training);
@@ -205,7 +205,7 @@ void lloyds_reg(Span<const Value> args, size_t nargout,
     if (args.size() >= 3 && !args[2].isEmpty())
         tol = args[2].toScalar();
     auto [partition, codebook, distor, rel] =
-        lloyds(mr, args[0], args[1], tol);
+        lloyds(args[0], args[1], tol, mr);
     outs[0] = std::move(partition);
     if (nargout > 1) outs[1] = std::move(codebook);
     if (nargout > 2) outs[2] = Value::scalar(distor, mr);

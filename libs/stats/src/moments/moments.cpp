@@ -92,9 +92,7 @@ double kurtosisFromSlice(const double *data, size_t n, int normFlag)
     return y;
 }
 
-Value dispatchMomentReduction(std::pmr::memory_resource *mr, const Value &x, int dim,
-                               int normFlag, const char *fn,
-                               double (*fromSlice)(const double *, size_t, int))
+Value dispatchMomentReduction(const Value &x, int dim, int normFlag, const char *fn, double (*fromSlice)(const double *, size_t, int), std::pmr::memory_resource *mr)
 {
     if (normFlag != 0 && normFlag != 1)
         throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
@@ -116,16 +114,14 @@ Value dispatchMomentReduction(std::pmr::memory_resource *mr, const Value &x, int
 
 } // namespace
 
-Value skewness(std::pmr::memory_resource *mr, const Value &x, int normFlag, int dim)
+Value skewness(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
 {
-    return dispatchMomentReduction(mr, x, dim, normFlag, "skewness",
-                                   skewnessFromSlice);
+    return dispatchMomentReduction(x, dim, normFlag, "skewness", skewnessFromSlice, mr);
 }
 
-Value kurtosis(std::pmr::memory_resource *mr, const Value &x, int normFlag, int dim)
+Value kurtosis(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
 {
-    return dispatchMomentReduction(mr, x, dim, normFlag, "kurtosis",
-                                   kurtosisFromSlice);
+    return dispatchMomentReduction(x, dim, normFlag, "kurtosis", kurtosisFromSlice, mr);
 }
 
 // ── Engine adapters ──────────────────────────────────────────────────
@@ -143,7 +139,7 @@ void skewness_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         normFlag = static_cast<int>(args[1].toScalar());
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
-    outs[0] = skewness(ctx.engine->resource(), args[0], normFlag, dim);
+    outs[0] = skewness(args[0], normFlag, dim, ctx.engine->resource());
 }
 
 void kurtosis_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -158,7 +154,7 @@ void kurtosis_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         normFlag = static_cast<int>(args[1].toScalar());
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
-    outs[0] = kurtosis(ctx.engine->resource(), args[0], normFlag, dim);
+    outs[0] = kurtosis(args[0], normFlag, dim, ctx.engine->resource());
 }
 
 } // namespace detail

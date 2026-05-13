@@ -17,9 +17,7 @@
 
 namespace numkit::stats {
 
-Value silhouette(std::pmr::memory_resource *mr,
-                 const Value &X, const Value &clust,
-                 const std::string &metric, double p)
+Value silhouette(const Value &X, const Value &clust, const std::string &metric, double p, std::pmr::memory_resource *mr)
 {
     const auto &dx = X.dims();
     const size_t N = dx.rows();
@@ -42,7 +40,7 @@ Value silhouette(std::pmr::memory_resource *mr,
     for (size_t i = 0; i < N; ++i) groups[lbl[i]].push_back(i);
 
     // N×N distance matrix from pdist2.
-    Value D = pdist2(mr, X, X, metric, p);
+    Value D = pdist2(X, X, metric, p, mr);
     if (D.dims().rows() != N || D.dims().cols() != N)
         throw Error("silhouette: pdist2 returned unexpected shape",
                     0, 0, "silhouette", "", "m:silhouette:internal");
@@ -105,7 +103,7 @@ void silhouette_reg(Span<const Value> args, size_t /*nargout*/,
     }
     double p = 2.0;
     if (args.size() >= 4 && !args[3].isEmpty()) p = args[3].toScalar();
-    outs[0] = silhouette(ctx.engine->resource(), args[0], args[1], metric, p);
+    outs[0] = silhouette(args[0], args[1], metric, p, ctx.engine->resource());
 }
 
 } // namespace detail

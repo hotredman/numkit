@@ -38,7 +38,7 @@ std::vector<double> polyConv(const std::vector<double> &a, const std::vector<dou
     return out;
 }
 
-Value rowFromVec(std::pmr::memory_resource *mr, const std::vector<double> &v)
+Value rowFromVec(const std::vector<double> &v, std::pmr::memory_resource *mr)
 {
     auto out = Value::matrix(1, v.size(), ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
@@ -47,9 +47,7 @@ Value rowFromVec(std::pmr::memory_resource *mr, const std::vector<double> &v)
 }
 
 // Append row's roots (as Complex) to the running list.
-void appendRoots(std::pmr::memory_resource *mr,
-                 const double *coeffs, size_t n,
-                 std::vector<Complex> &out)
+void appendRoots(const double *coeffs, size_t n, std::vector<Complex> &out, std::pmr::memory_resource *mr)
 {
     // Build a 1×n DOUBLE Value to feed roots(). Trim trailing zeros so
     // roots() doesn't add spurious roots at 0.
@@ -59,7 +57,7 @@ void appendRoots(std::pmr::memory_resource *mr,
     auto p = Value::matrix(1, trimmed.size(), ValueType::DOUBLE, mr);
     for (size_t i = 0; i < trimmed.size(); ++i)
         p.doubleDataMut()[i] = trimmed[i];
-    auto r = builtin::roots(mr, p);
+    auto r = builtin::roots(p, mr);
     if (r.isComplex()) {
         const Complex *src = r.complexData();
         for (size_t i = 0; i < r.numel(); ++i) out.push_back(src[i]);
@@ -69,7 +67,7 @@ void appendRoots(std::pmr::memory_resource *mr,
     }
 }
 
-Value complexColFromVec(std::pmr::memory_resource *mr, const std::vector<Complex> &v)
+Value complexColFromVec(const std::vector<Complex> &v, std::pmr::memory_resource *mr)
 {
     bool anyImag = false;
     for (const auto &c : v)
@@ -97,7 +95,7 @@ void requireSosShape(const Value &sos, const char *fn)
 
 // ── sos2tf ────────────────────────────────────────────────────────────
 std::tuple<Value, Value>
-sos2tf(std::pmr::memory_resource *mr, const Value &sos, double g)
+sos2tf(const Value &sos, double g, std::pmr::memory_resource *mr)
 {
     requireSosShape(sos, "sos2tf");
     const size_t L = sos.dims().rows();
@@ -110,12 +108,12 @@ sos2tf(std::pmr::memory_resource *mr, const Value &sos, double g)
     }
     if (g != 1.0)
         for (auto &v : b) v *= g;
-    return std::make_tuple(rowFromVec(mr, b), rowFromVec(mr, a));
+    return std::make_tuple(rowFromVec(b, mr), rowFromVec(a, mr));
 }
 
 // ── sos2zp ────────────────────────────────────────────────────────────
 std::tuple<Value, Value, double>
-sos2zp(std::pmr::memory_resource *mr, const Value &sos, double g)
+sos2zp(const Value &sos, double g, std::pmr::memory_resource *mr)
 {
     requireSosShape(sos, "sos2zp");
     const size_t L = sos.dims().rows();
@@ -124,29 +122,29 @@ sos2zp(std::pmr::memory_resource *mr, const Value &sos, double g)
     for (size_t i = 0; i < L; ++i) {
         const double bArr[3] = {sos(i, 0), sos(i, 1), sos(i, 2)};
         const double aArr[3] = {sos(i, 3), sos(i, 4), sos(i, 5)};
-        appendRoots(mr, bArr, 3, zeros);
-        appendRoots(mr, aArr, 3, poles);
+        appendRoots(bArr, 3, zeros, mr);
+        appendRoots(aArr, 3, poles, mr);
         // Per-section gain factor: b0 / a0 for that section.
         if (std::abs(aArr[0]) > 1e-15)
             gain *= bArr[0] / aArr[0];
     }
-    return std::make_tuple(complexColFromVec(mr, zeros),
-                            complexColFromVec(mr, poles),
+    return std::make_tuple(complexColFromVec(zeros, mr),
+                            complexColFromVec(poles, mr),
                             gain);
 }
 
 // ── tf2zpk ────────────────────────────────────────────────────────────
 std::tuple<Value, Value, double>
-tf2zpk(std::pmr::memory_resource *mr, const Value &b, const Value &a)
+tf2zpk(const Value &b, const Value &a, std::pmr::memory_resource *mr)
 {
-    auto [z, p, k] = builtin::tf2zp(mr, b, a);
+    auto [z, p, k] = builtin::tf2zp(b, a, mr);
     return std::make_tuple(std::move(z), std::move(p),
                             (k.numel() == 0) ? 0.0 : k.toScalar());
 }
 
 // ── tf2ss (controllable canonical form) ───────────────────────────────
 std::tuple<Value, Value, Value, Value>
-tf2ss(std::pmr::memory_resource *mr, const Value &b, const Value &a)
+tf2ss(const Value &b, const Value &a, std::pmr::memory_resource *mr)
 {
     if (a.numel() == 0)
         throw Error("tf2ss: denominator a must be non-empty",
@@ -228,8 +226,7 @@ tf2ss(std::pmr::memory_resource *mr, const Value &b, const Value &a)
 //   b = numerator built from the resolvent (a*D + C * adj(zI - A) * B)
 // This is heavy linear algebra; use Faddeev's algorithm.
 std::tuple<Value, Value>
-ss2tf(std::pmr::memory_resource *mr, const Value &A, const Value &B,
-       const Value &C, const Value &D)
+ss2tf(const Value &A, const Value &B, const Value &C, const Value &D, std::pmr::memory_resource *mr)
 {
     if (A.dims().rows() != A.dims().cols())
         throw Error("ss2tf: A must be square",
@@ -326,40 +323,38 @@ ss2tf(std::pmr::memory_resource *mr, const Value &A, const Value &B,
     std::reverse(a_coeffs.begin(), a_coeffs.end());
     std::reverse(b_coeffs.begin(), b_coeffs.end());
 
-    return std::make_tuple(rowFromVec(mr, b_coeffs), rowFromVec(mr, a_coeffs));
+    return std::make_tuple(rowFromVec(b_coeffs, mr), rowFromVec(a_coeffs, mr));
 }
 
 // ── ss2zp ─────────────────────────────────────────────────────────────
 std::tuple<Value, Value, double>
-ss2zp(std::pmr::memory_resource *mr, const Value &A, const Value &B,
-       const Value &C, const Value &D)
+ss2zp(const Value &A, const Value &B, const Value &C, const Value &D, std::pmr::memory_resource *mr)
 {
-    auto [b, a] = ss2tf(mr, A, B, C, D);
-    return tf2zpk(mr, b, a);
+    auto [b, a] = ss2tf(A, B, C, D, mr);
+    return tf2zpk(b, a, mr);
 }
 
 // ── zp2ss ─────────────────────────────────────────────────────────────
 std::tuple<Value, Value, Value, Value>
-zp2ss(std::pmr::memory_resource *mr, const Value &z, const Value &p, double k)
+zp2ss(const Value &z, const Value &p, double k, std::pmr::memory_resource *mr)
 {
-    auto [b, a] = builtin::zp2tf(mr, z, p, k);
-    return tf2ss(mr, b, a);
+    auto [b, a] = builtin::zp2tf(z, p, k, mr);
+    return tf2ss(b, a, mr);
 }
 
 // ── sos2ss ────────────────────────────────────────────────────────────
 std::tuple<Value, Value, Value, Value>
-sos2ss(std::pmr::memory_resource *mr, const Value &sos, double g)
+sos2ss(const Value &sos, double g, std::pmr::memory_resource *mr)
 {
-    auto [b, a] = sos2tf(mr, sos, g);
-    return tf2ss(mr, b, a);
+    auto [b, a] = sos2tf(sos, g, mr);
+    return tf2ss(b, a, mr);
 }
 
 // ── ss2sos ────────────────────────────────────────────────────────────
-Value ss2sos(std::pmr::memory_resource *mr, const Value &A, const Value &B,
-              const Value &C, const Value &D)
+Value ss2sos(const Value &A, const Value &B, const Value &C, const Value &D, std::pmr::memory_resource *mr)
 {
-    auto [b, a] = ss2tf(mr, A, B, C, D);
-    return tf2sos(mr, b, a);
+    auto [b, a] = ss2tf(A, B, C, D, mr);
+    return tf2sos(b, a, mr);
 }
 
 // ── ctf2zp (Phase 4.11) ───────────────────────────────────────────────
@@ -367,8 +362,7 @@ Value ss2sos(std::pmr::memory_resource *mr, const Value &A, const Value &B,
 // Loops over each section: tf2zpk(NUM(i,:), DEN(i,:)) → accumulate.
 // Final gain = prod(SV) * prod(per-section gains).
 std::tuple<Value, Value, double>
-ctf2zp(std::pmr::memory_resource *mr, const Value &NUM, const Value &DEN,
-       const Value *SV)
+ctf2zp(const Value &NUM, const Value &DEN, const Value &SV, std::pmr::memory_resource *mr)
 {
     // Vector inputs → reshape to single-row "section".
     auto rowsOf = [](const Value &v) -> std::size_t {
@@ -386,14 +380,14 @@ ctf2zp(std::pmr::memory_resource *mr, const Value &NUM, const Value &DEN,
 
     // SV defaults to 1 if not provided.
     std::vector<double> sv;
-    if (SV == nullptr || SV->isEmpty()) {
+    if (SV.isEmpty() || SV.isEmpty()) {
         sv.assign(K + 1, 1.0);
-    } else if (SV->numel() == 1) {
+    } else if (SV.numel() == 1) {
         sv.assign(K + 1, 1.0);
-        sv[0] = SV->toScalar();  // overall gain in first slot — others stay 1.
-    } else if (SV->numel() == K + 1) {
+        sv[0] = SV.toScalar();  // overall gain in first slot — others stay 1.
+    } else if (SV.numel() == K + 1) {
         sv.resize(K + 1);
-        for (std::size_t i = 0; i <= K; ++i) sv[i] = SV->elemAsDouble(i);
+        for (std::size_t i = 0; i <= K; ++i) sv[i] = SV.elemAsDouble(i);
     } else {
         throw Error("ctf2zp: SV must be scalar or K+1 vector",
                     0, 0, "ctf2zp", "", "m:ctf2zp:invalidSVDims");
@@ -423,7 +417,7 @@ ctf2zp(std::pmr::memory_resource *mr, const Value &NUM, const Value &DEN,
     for (std::size_t i = 0; i < K; ++i) {
         Value brow = extractRow(NUM, std::min(i, Knum - 1), Knum);
         Value arow = extractRow(DEN, std::min(i, Kden - 1), Kden);
-        auto [zsec, psec, gsec] = tf2zpk(mr, brow, arow);
+        auto [zsec, psec, gsec] = tf2zpk(brow, arow, mr);
         const std::size_t nz = zsec.numel();
         const std::size_t np = psec.numel();
         // Append zeros/poles
@@ -470,8 +464,7 @@ ctf2zp(std::pmr::memory_resource *mr, const Value &NUM, const Value &DEN,
 // vector SV (length K+1):
 //   numsv[k, :] = |sv[K]|^(1/K) * sv[k] * num[k, :]
 //   numsv[K-1, :] *= sign(sv[K])
-Value scaleFilterSections(std::pmr::memory_resource *mr,
-                          const Value &CTFNum, const Value &SV)
+Value scaleFilterSections(const Value &CTFNum, const Value &SV, std::pmr::memory_resource *mr)
 {
     const std::size_t K = (CTFNum.dims().rows() == 1 && CTFNum.dims().cols() > 1)
                            ? 1 : CTFNum.dims().rows();
@@ -531,7 +524,7 @@ void sos2tf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
         throw Error("sos2tf: requires at least 1 argument (sos)",
                      0, 0, "sos2tf", "", "m:sos2tf:nargin");
     const double g = (args.size() >= 2) ? args[1].toScalar() : 1.0;
-    auto [b, a] = sos2tf(ctx.engine->resource(), args[0], g);
+    auto [b, a] = sos2tf(args[0], g, ctx.engine->resource());
     outs[0] = std::move(b);
     if (nargout > 1) outs[1] = std::move(a);
 }
@@ -542,7 +535,7 @@ void sos2zp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
         throw Error("sos2zp: requires at least 1 argument (sos)",
                      0, 0, "sos2zp", "", "m:sos2zp:nargin");
     const double g = (args.size() >= 2) ? args[1].toScalar() : 1.0;
-    auto [z, p, gain] = sos2zp(ctx.engine->resource(), args[0], g);
+    auto [z, p, gain] = sos2zp(args[0], g, ctx.engine->resource());
     outs[0] = std::move(z);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = Value::scalar(gain, ctx.engine->resource());
@@ -553,7 +546,7 @@ void tf2zpk_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
     if (args.size() < 2)
         throw Error("tf2zpk: requires (b, a)",
                      0, 0, "tf2zpk", "", "m:tf2zpk:nargin");
-    auto [z, p, gain] = tf2zpk(ctx.engine->resource(), args[0], args[1]);
+    auto [z, p, gain] = tf2zpk(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(z);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = Value::scalar(gain, ctx.engine->resource());
@@ -564,7 +557,7 @@ void tf2ss_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     if (args.size() < 2)
         throw Error("tf2ss: requires (b, a)",
                      0, 0, "tf2ss", "", "m:tf2ss:nargin");
-    auto [A, B, C, D] = tf2ss(ctx.engine->resource(), args[0], args[1]);
+    auto [A, B, C, D] = tf2ss(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(A);
     if (nargout > 1) outs[1] = std::move(B);
     if (nargout > 2) outs[2] = std::move(C);
@@ -576,7 +569,7 @@ void ss2tf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     if (args.size() < 4)
         throw Error("ss2tf: requires (A, B, C, D)",
                      0, 0, "ss2tf", "", "m:ss2tf:nargin");
-    auto [b, a] = ss2tf(ctx.engine->resource(), args[0], args[1], args[2], args[3]);
+    auto [b, a] = ss2tf(args[0], args[1], args[2], args[3], ctx.engine->resource());
     outs[0] = std::move(b);
     if (nargout > 1) outs[1] = std::move(a);
 }
@@ -586,7 +579,7 @@ void ss2zp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     if (args.size() < 4)
         throw Error("ss2zp: requires (A, B, C, D)",
                      0, 0, "ss2zp", "", "m:ss2zp:nargin");
-    auto [z, p, gain] = ss2zp(ctx.engine->resource(), args[0], args[1], args[2], args[3]);
+    auto [z, p, gain] = ss2zp(args[0], args[1], args[2], args[3], ctx.engine->resource());
     outs[0] = std::move(z);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = Value::scalar(gain, ctx.engine->resource());
@@ -597,7 +590,7 @@ void zp2ss_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     if (args.size() < 3)
         throw Error("zp2ss: requires (z, p, k)",
                      0, 0, "zp2ss", "", "m:zp2ss:nargin");
-    auto [A, B, C, D] = zp2ss(ctx.engine->resource(), args[0], args[1], args[2].toScalar());
+    auto [A, B, C, D] = zp2ss(args[0], args[1], args[2].toScalar(), ctx.engine->resource());
     outs[0] = std::move(A);
     if (nargout > 1) outs[1] = std::move(B);
     if (nargout > 2) outs[2] = std::move(C);
@@ -610,7 +603,7 @@ void sos2ss_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
         throw Error("sos2ss: requires at least 1 argument (sos)",
                      0, 0, "sos2ss", "", "m:sos2ss:nargin");
     const double g = (args.size() >= 2) ? args[1].toScalar() : 1.0;
-    auto [A, B, C, D] = sos2ss(ctx.engine->resource(), args[0], g);
+    auto [A, B, C, D] = sos2ss(args[0], g, ctx.engine->resource());
     outs[0] = std::move(A);
     if (nargout > 1) outs[1] = std::move(B);
     if (nargout > 2) outs[2] = std::move(C);
@@ -622,7 +615,7 @@ void ss2sos_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 4)
         throw Error("ss2sos: requires (A, B, C, D)",
                      0, 0, "ss2sos", "", "m:ss2sos:nargin");
-    outs[0] = ss2sos(ctx.engine->resource(), args[0], args[1], args[2], args[3]);
+    outs[0] = ss2sos(args[0], args[1], args[2], args[3], ctx.engine->resource());
 }
 
 void ctf2zp_reg(Span<const Value> args, size_t nargout,
@@ -633,8 +626,8 @@ void ctf2zp_reg(Span<const Value> args, size_t nargout,
                     0, 0, "ctf2zp", "", "m:ctf2zp:nargin");
     auto *mr = ctx.engine->resource();
     Value DEN = (args.size() >= 2) ? args[1] : Value::scalar(1.0, mr);
-    const Value *SV = (args.size() >= 3) ? &args[2] : nullptr;
-    auto [Z, P, k] = ctf2zp(mr, args[0], DEN, SV);
+    const Value &SV = (args.size() >= 3) ? args[2] : Value::Empty;
+    auto [Z, P, k] = ctf2zp(args[0], DEN, SV, mr);
     outs[0] = std::move(Z);
     if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(P);
     if (nargout >= 3 && outs.size() >= 3) outs[2] = Value::scalar(k, mr);
@@ -647,7 +640,7 @@ void scaleFilterSections_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("scaleFilterSections: requires (CTFNum, SV)",
                     0, 0, "scaleFilterSections", "",
                     "m:scaleFilterSections:nargin");
-    outs[0] = scaleFilterSections(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = scaleFilterSections(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail

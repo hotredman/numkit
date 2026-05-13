@@ -29,7 +29,7 @@ std::regex compileRegex(const std::string &pat, bool ignoreCase)
     }
 }
 
-Value rowFromIndices(std::pmr::memory_resource *mr, const double *v, std::size_t n)
+Value rowFromIndices(const double *v, std::size_t n, std::pmr::memory_resource *mr)
 {
     auto out = Value::matrix(1, n, ValueType::DOUBLE, mr);
     for (std::size_t i = 0; i < n; ++i)
@@ -37,7 +37,7 @@ Value rowFromIndices(std::pmr::memory_resource *mr, const double *v, std::size_t
     return out;
 }
 
-Value rowCellOfStrings(std::pmr::memory_resource *mr, const std::string *v, std::size_t n)
+Value rowCellOfStrings(const std::string *v, std::size_t n, std::pmr::memory_resource *mr)
 {
     auto out = Value::cell(1, n);
     for (std::size_t i = 0; i < n; ++i)
@@ -47,8 +47,7 @@ Value rowCellOfStrings(std::pmr::memory_resource *mr, const std::string *v, std:
 
 } // namespace
 
-Value regexpFind(std::pmr::memory_resource *mr, const Value &s, const Value &pat,
-                  const std::string &option, bool ignoreCase)
+Value regexpFind(const Value &s, const Value &pat, const std::string &option, bool ignoreCase, std::pmr::memory_resource *mr)
 {
     if ((!s.isChar() && !s.isString()) || (!pat.isChar() && !pat.isString()))
         throw Error("regexp: s and pat must be strings",
@@ -73,7 +72,7 @@ Value regexpFind(std::pmr::memory_resource *mr, const Value &s, const Value &pat
             prev = m.position() + m.length();
         }
         parts.emplace_back(text.substr(prev));
-        return rowCellOfStrings(mr, parts.data(), parts.size());
+        return rowCellOfStrings(parts.data(), parts.size(), mr);
     }
 
     if (opt == "match") {
@@ -81,7 +80,7 @@ Value regexpFind(std::pmr::memory_resource *mr, const Value &s, const Value &pat
         for (auto it = std::sregex_iterator(text.begin(), text.end(), re),
                   end = std::sregex_iterator(); it != end; ++it)
             matches.emplace_back(it->str());
-        return rowCellOfStrings(mr, matches.data(), matches.size());
+        return rowCellOfStrings(matches.data(), matches.size(), mr);
     }
 
     if (opt == "tokens") {
@@ -98,7 +97,7 @@ Value regexpFind(std::pmr::memory_resource *mr, const Value &s, const Value &pat
         }
         auto out = Value::cell(1, all.size());
         for (std::size_t i = 0; i < all.size(); ++i)
-            out.cellAt(i) = rowCellOfStrings(mr, all[i].data(), all[i].size());
+            out.cellAt(i) = rowCellOfStrings(all[i].data(), all[i].size(), mr);
         return out;
     }
 
@@ -112,11 +111,10 @@ Value regexpFind(std::pmr::memory_resource *mr, const Value &s, const Value &pat
     for (auto it = std::sregex_iterator(text.begin(), text.end(), re),
               end = std::sregex_iterator(); it != end; ++it)
         idx.push_back(static_cast<double>(it->position() + 1));
-    return rowFromIndices(mr, idx.data(), idx.size());
+    return rowFromIndices(idx.data(), idx.size(), mr);
 }
 
-Value regexprep(std::pmr::memory_resource *mr, const Value &s, const Value &pat,
-                 const Value &rep, bool ignoreCase)
+Value regexprep(const Value &s, const Value &pat, const Value &rep, bool ignoreCase, std::pmr::memory_resource *mr)
 {
     if ((!s.isChar() && !s.isString())
         || (!pat.isChar() && !pat.isString())
@@ -131,8 +129,7 @@ Value regexprep(std::pmr::memory_resource *mr, const Value &s, const Value &pat,
 }
 
 // ── Pack 36: regexptranslate ─────────────────────────────────────────
-Value regexptranslate(std::pmr::memory_resource *mr, const std::string &op,
-                       const std::string &s)
+Value regexptranslate(const std::string &op, const std::string &s, std::pmr::memory_resource *mr)
 {
     // Characters that carry special meaning in ECMAScript regex syntax —
     // matches the set MATLAB's regexptranslate('escape', …) prepends `\`
@@ -194,7 +191,7 @@ void regexp_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &c
                          0, 0, "regexp", "", "m:regexp:badOption");
         opt = args[2].toString();
     }
-    outs[0] = regexpFind(ctx.engine->resource(), args[0], args[1], opt, false);
+    outs[0] = regexpFind(args[0], args[1], opt, false, ctx.engine->resource());
 }
 
 void regexpi_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -209,7 +206,7 @@ void regexpi_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
                          0, 0, "regexpi", "", "m:regexpi:badOption");
         opt = args[2].toString();
     }
-    outs[0] = regexpFind(ctx.engine->resource(), args[0], args[1], opt, true);
+    outs[0] = regexpFind(args[0], args[1], opt, true, ctx.engine->resource());
 }
 
 void regexprep_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -217,7 +214,7 @@ void regexprep_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
     if (args.size() < 3)
         throw Error("regexprep: requires 3 arguments (s, pat, rep)",
                      0, 0, "regexprep", "", "m:regexprep:nargin");
-    outs[0] = regexprep(ctx.engine->resource(), args[0], args[1], args[2], false);
+    outs[0] = regexprep(args[0], args[1], args[2], false, ctx.engine->resource());
 }
 
 void regexptranslate_reg(Span<const Value> args, size_t, Span<Value> outs,
@@ -232,8 +229,7 @@ void regexptranslate_reg(Span<const Value> args, size_t, Span<Value> outs,
     if (!args[1].isChar() && !args[1].isString())
         throw Error("regexptranslate: str must be a char or string",
                      0, 0, "regexptranslate", "", "m:regexptranslate:badStr");
-    outs[0] = regexptranslate(ctx.engine->resource(),
-                              args[0].toString(), args[1].toString());
+    outs[0] = regexptranslate(args[0].toString(), args[1].toString(), ctx.engine->resource());
 }
 
 } // namespace detail

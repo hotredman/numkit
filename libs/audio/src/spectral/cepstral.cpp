@@ -281,8 +281,7 @@ void computeGammatoneFreqRespOneSided(double fs, const double *Fc, size_t numBan
 
 // ── cepstralCoefficients ──────────────────────────────────────────────
 // S: L × M (filterbank bands × frames). Output: M × NumCoeffs.
-Value cepstralCoefficients(std::pmr::memory_resource *mr, const Value &S,
-                           int numCoeffs)
+Value cepstralCoefficients(const Value &S, int numCoeffs, std::pmr::memory_resource *mr)
 {
     if (S.dims().is3D())
         throw Error("cepstralCoefficients: input must be 2-D",
@@ -336,7 +335,7 @@ Value cepstralCoefficients(std::pmr::memory_resource *mr, const Value &S,
 //   5. cepstralCoefficients (log10 + DCT-II unitary, NumCoeffs=13).
 //   6. Prepend logE column → numFrames × (NumCoeffs+1).
 std::tuple<Value, Value, Value>
-mfcc(std::pmr::memory_resource *mr, const Value &x, double fs, int numCoeffs)
+mfcc(const Value &x, double fs, int numCoeffs, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const size_t winLen  = static_cast<size_t>(std::round(fs * 0.03));
@@ -406,7 +405,7 @@ mfcc(std::pmr::memory_resource *mr, const Value &x, double fs, int numCoeffs)
         double *md = melMagV.doubleDataMut();
         std::copy(melMag.data(), melMag.data() + numBands * numFrames, md);
     }
-    Value coeffs = cepstralCoefficients(mr, melMagV, static_cast<int>(NC));
+    Value coeffs = cepstralCoefficients(melMagV, static_cast<int>(NC), mr);
 
     // Assemble out: [logE, coeffs] (numFrames × (NC+1)).
     double *od = out.doubleDataMut();
@@ -416,8 +415,8 @@ mfcc(std::pmr::memory_resource *mr, const Value &x, double fs, int numCoeffs)
         for (size_t f = 0; f < numFrames; ++f)
             od[f + (n + 1) * numFrames] = Cd[f + n * numFrames];
 
-    Value delta      = audioDelta(mr, out, 9);
-    Value deltaDelta = audioDelta(mr, delta, 9);
+    Value delta      = audioDelta(out, 9, mr);
+    Value deltaDelta = audioDelta(delta, 9, mr);
     return {out, delta, deltaDelta};
 }
 
@@ -446,7 +445,7 @@ mfcc(std::pmr::memory_resource *mr, const Value &x, double fs, int numCoeffs)
 //   6. cepstralCoefficients (log10 + DCT-II unitary).
 //   7. Prepend logE column → numFrames × (NumCoeffs+1).
 std::tuple<Value, Value, Value>
-gtcc(std::pmr::memory_resource *mr, const Value &x, double fs, int numCoeffs)
+gtcc(const Value &x, double fs, int numCoeffs, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const size_t winLen  = static_cast<size_t>(std::round(fs * 0.03));
@@ -547,7 +546,7 @@ gtcc(std::pmr::memory_resource *mr, const Value &x, double fs, int numCoeffs)
         double *md = melMagV.doubleDataMut();
         std::copy(melMag.data(), melMag.data() + numBands * numFrames, md);
     }
-    Value coeffs = cepstralCoefficients(mr, melMagV, static_cast<int>(NC));
+    Value coeffs = cepstralCoefficients(melMagV, static_cast<int>(NC), mr);
 
     // Assemble out: [logE, coeffs] (numFrames × (NC+1)).
     double *od = out.doubleDataMut();
@@ -557,8 +556,8 @@ gtcc(std::pmr::memory_resource *mr, const Value &x, double fs, int numCoeffs)
         for (size_t f = 0; f < numFrames; ++f)
             od[f + (n + 1) * numFrames] = Cd[f + n * numFrames];
 
-    Value delta      = audioDelta(mr, out, 9);
-    Value deltaDelta = audioDelta(mr, delta, 9);
+    Value delta      = audioDelta(out, 9, mr);
+    Value deltaDelta = audioDelta(delta, 9, mr);
     return {out, delta, deltaDelta};
 }
 
@@ -573,7 +572,7 @@ void cepstralCoefficients_reg(Span<const Value> args, size_t /*nargout*/,
                     "m:cepstralCoefficients:nargin");
     int nc = 13;
     if (args.size() >= 2) nc = static_cast<int>(args[1].toScalar());
-    outs[0] = cepstralCoefficients(ctx.engine->resource(), args[0], nc);
+    outs[0] = cepstralCoefficients(args[0], nc, ctx.engine->resource());
 }
 
 void mfcc_reg(Span<const Value> args, size_t nargout,
@@ -584,8 +583,8 @@ void mfcc_reg(Span<const Value> args, size_t nargout,
                     0, 0, "mfcc", "", "m:mfcc:nargin");
     int nc = 13;
     if (args.size() >= 3) nc = static_cast<int>(args[2].toScalar());
-    auto [c, d, dd] = mfcc(ctx.engine->resource(), args[0],
-                            args[1].toScalar(), nc);
+    auto [c, d, dd] = mfcc(args[0], args[1].toScalar(), nc,
+                            ctx.engine->resource());
     outs[0] = c;
     if (nargout >= 2 && outs.size() >= 2) outs[1] = d;
     if (nargout >= 3 && outs.size() >= 3) outs[2] = dd;
@@ -599,8 +598,8 @@ void gtcc_reg(Span<const Value> args, size_t nargout,
                     0, 0, "gtcc", "", "m:gtcc:nargin");
     int nc = 13;
     if (args.size() >= 3) nc = static_cast<int>(args[2].toScalar());
-    auto [c, d, dd] = gtcc(ctx.engine->resource(), args[0],
-                            args[1].toScalar(), nc);
+    auto [c, d, dd] = gtcc(args[0], args[1].toScalar(), nc,
+                            ctx.engine->resource());
     outs[0] = c;
     if (nargout >= 2 && outs.size() >= 2) outs[1] = d;
     if (nargout >= 3 && outs.size() >= 3) outs[2] = dd;

@@ -1,6 +1,6 @@
 // libs/audio/include/numkit/audio/features/pitch_harmonics.hpp
 //
-// Audio Cycle E: pitch + harmonicRatio.
+// Pitch + harmonicRatio.
 
 #pragma once
 
@@ -9,42 +9,118 @@
 
 namespace numkit::audio {
 
-// pitch(x, fs) — fundamental frequency estimation per frame.
-// Method='NCF' (default, Normalized Cross-correlation Function).
-// Defaults: WindowLength=round(0.052*fs), OverlapLength=round(0.042*fs),
-// Range=[50, 400] Hz. Returns column vector of f0 values per frame.
-//
-// Cycle K added Method='CEP' (Cepstrum, Noll 1967) via pitchCEP().
-// Cycle K-2 added Method='PEF' (Pitch Estimation Filter, Gonzalez &
-// Brookes 2011) via pitchPEF().
-// Cycle K-3 added Method='LHS' (Subharmonic Summation, Hermes 1988).
-// Cycle K-4 added Method='SRH' (Summation of Residual Harmonics,
-//   Drugman & Alwan 2011 — LPC inverse + harmonic summation).
-// Cycle L (partial) added 'Range' NV arg — minF/maxF override [50, 400].
-// All 5 MATLAB pitch methods now shipped. pitchnn deferred (DNN runtime).
-// MedianFilterLength / WindowLength / OverlapLength NV args deferred.
-Value pitch(std::pmr::memory_resource *mr, const Value &x, double fs,
-             double minF = 50.0, double maxF = 400.0);
+/// @file
+/// @brief Fundamental-frequency estimation and harmonic-content metrics.
+///
+/// MATLAB R2025b's `pitch` accepts 5 method strings. Each method gets
+/// its own dedicated entry point here (`pitch`, `pitchCEP`, `pitchPEF`,
+/// `pitchLHS`, `pitchSRH`); `pitch` is the default (`Method = 'NCF'`).
+///
+/// **Shared semantics** across the five estimators:
+/// - `x` is a real 1-D audio signal, `fs` the sample rate in Hz.
+/// - `minF` / `maxF` bound the pitch search range (defaults 50 / 400 Hz).
+/// - Output is a column vector of per-frame `f0` values in Hz.
+/// - `MedianFilterLength` / `WindowLength` / `OverlapLength` NV-pair
+///   args are deferred. `pitchnn` (DNN-based) deferred.
 
-// Cepstrum-based pitch method (Method='CEP'). Same I/O as pitch().
-Value pitchCEP(std::pmr::memory_resource *mr, const Value &x, double fs,
-                double minF = 50.0, double maxF = 400.0);
+/// @brief Pitch via Normalised Cross-correlation Function
+/// (MATLAB default, `Method = 'NCF'`).
+///
+/// Per-frame f0 estimation via normalised autocorrelation, peak-picked
+/// within `[minF, maxF]`. Defaults match MATLAB R2025b:
+/// - `WindowLength`  = `round(0.052 · fs)`
+/// - `OverlapLength` = `round(0.042 · fs)`
+/// - `Range`         = `[50, 400] Hz`
+///
+/// @param x     Real 1-D audio signal.
+/// @param fs    Sample rate in Hz.
+/// @param minF  Minimum pitch search bound in Hz (default 50).
+/// @param maxF  Maximum pitch search bound in Hz (default 400).
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      Column vector of per-frame `f0` in Hz.
+/// @see pitchCEP, pitchPEF, pitchLHS, pitchSRH, harmonicRatio
+Value pitch(const Value &x, double fs,
+            double minF = 50.0, double maxF = 400.0,
+            std::pmr::memory_resource *mr = nullptr);
 
-// Pitch Estimation Filter method (Method='PEF'). Same I/O as pitch().
-Value pitchPEF(std::pmr::memory_resource *mr, const Value &x, double fs,
-                double minF = 50.0, double maxF = 400.0);
+/// @brief Pitch via Cepstrum method (Noll 1967, MATLAB `Method='CEP'`).
+///
+/// Same arg semantics as @ref pitch.
+///
+/// @param x     See @ref pitch.
+/// @param fs    See @ref pitch.
+/// @param minF  See @ref pitch.
+/// @param maxF  See @ref pitch.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return                Column vector of per-frame `f0` in Hz.
+/// @see pitch
+Value pitchCEP(const Value &x, double fs,
+               double minF = 50.0, double maxF = 400.0,
+               std::pmr::memory_resource *mr = nullptr);
 
-// Log Harmonic Sum method (Method='LHS'). Same I/O as pitch().
-Value pitchLHS(std::pmr::memory_resource *mr, const Value &x, double fs,
-                double minF = 50.0, double maxF = 400.0);
+/// @brief Pitch Estimation Filter
+/// (Gonzalez & Brookes 2011, MATLAB `Method='PEF'`).
+///
+/// Same arg semantics as @ref pitch.
+///
+/// @param x     See @ref pitch.
+/// @param fs    See @ref pitch.
+/// @param minF  See @ref pitch.
+/// @param maxF  See @ref pitch.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return                Column vector of per-frame `f0` in Hz.
+/// @see pitch
+Value pitchPEF(const Value &x, double fs,
+               double minF = 50.0, double maxF = 400.0,
+               std::pmr::memory_resource *mr = nullptr);
 
-// Summation of Residual Harmonics method (Method='SRH'). Same I/O.
-Value pitchSRH(std::pmr::memory_resource *mr, const Value &x, double fs,
-                double minF = 50.0, double maxF = 400.0);
+/// @brief Log Harmonic Sum / Subharmonic Summation
+/// (Hermes 1988, MATLAB `Method='LHS'`).
+///
+/// Same arg semantics as @ref pitch.
+///
+/// @param x     See @ref pitch.
+/// @param fs    See @ref pitch.
+/// @param minF  See @ref pitch.
+/// @param maxF  See @ref pitch.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return                Column vector of per-frame `f0` in Hz.
+/// @see pitch
+Value pitchLHS(const Value &x, double fs,
+               double minF = 50.0, double maxF = 400.0,
+               std::pmr::memory_resource *mr = nullptr);
 
-// harmonicRatio(x, fs) — strength of harmonic content per frame, via
-// normalized autocorrelation peak. Range [0, 1]. Defaults: WindowLength=
-// round(0.03*fs), OverlapLength=round(0.02*fs).
-Value harmonicRatio(std::pmr::memory_resource *mr, const Value &x, double fs);
+/// @brief Summation of Residual Harmonics
+/// (Drugman & Alwan 2011, MATLAB `Method='SRH'`).
+///
+/// LPC inverse filtering + harmonic summation on the residual spectrum.
+/// Same arg semantics as @ref pitch.
+///
+/// @param x     See @ref pitch.
+/// @param fs    See @ref pitch.
+/// @param minF  See @ref pitch.
+/// @param maxF  See @ref pitch.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return                Column vector of per-frame `f0` in Hz.
+/// @see pitch
+Value pitchSRH(const Value &x, double fs,
+               double minF = 50.0, double maxF = 400.0,
+               std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Harmonic ratio — strength of harmonic content per frame.
+///
+/// Computed as the maximum of the normalised autocorrelation function
+/// over the search range, clipped to `[0, 1]`. High values indicate
+/// periodic (tonal) content; low values indicate noise. Defaults match
+/// MATLAB R2025b: `WindowLength = round(0.03 · fs)`,
+/// `OverlapLength = round(0.02 · fs)`.
+///
+/// @param x   Real 1-D audio signal.
+/// @param fs  Sample rate in Hz.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Column vector of per-frame harmonic ratios in `[0, 1]`.
+/// @see pitch
+Value harmonicRatio(const Value &x, double fs,
+                    std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::audio

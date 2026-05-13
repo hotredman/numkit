@@ -18,7 +18,7 @@ namespace numkit::wavelet {
 namespace {
 
 // linspace(LB, UB, N) into a freshly-allocated Value row.
-Value linspace_row(std::pmr::memory_resource *mr, double lb, double ub, size_t N)
+Value linspace_row(double lb, double ub, size_t N, std::pmr::memory_resource *mr)
 {
     Value xv = Value::matrix(1, N, ValueType::DOUBLE, mr);
     if (N == 0) return xv;
@@ -34,9 +34,9 @@ Value linspace_row(std::pmr::memory_resource *mr, double lb, double ub, size_t N
 } // anonymous
 
 std::tuple<Value, Value>
-mexihat(std::pmr::memory_resource *mr, double lb, double ub, size_t N)
+mexihat(double lb, double ub, size_t N, std::pmr::memory_resource *mr)
 {
-    Value xv = linspace_row(mr, lb, ub, N);
+    Value xv = linspace_row(lb, ub, N, mr);
     Value pv = Value::matrix(1, N, ValueType::DOUBLE, mr);
     if (N == 0) return {std::move(pv), std::move(xv)};
     const double *xd = xv.doubleData();
@@ -52,9 +52,9 @@ mexihat(std::pmr::memory_resource *mr, double lb, double ub, size_t N)
 }
 
 std::tuple<Value, Value>
-morlet(std::pmr::memory_resource *mr, double lb, double ub, size_t N)
+morlet(double lb, double ub, size_t N, std::pmr::memory_resource *mr)
 {
-    Value xv = linspace_row(mr, lb, ub, N);
+    Value xv = linspace_row(lb, ub, N, mr);
     Value pv = Value::matrix(1, N, ValueType::DOUBLE, mr);
     if (N == 0) return {std::move(pv), std::move(xv)};
     const double *xd = xv.doubleData();
@@ -85,10 +85,9 @@ inline Complex cexp_2pi(double kx)
 } // anonymous
 
 std::tuple<Value, Value>
-shanwavf(std::pmr::memory_resource *mr, double lb, double ub, size_t N,
-         double fb, double fc)
+shanwavf(double lb, double ub, size_t N, double fb, double fc, std::pmr::memory_resource *mr)
 {
-    Value xv = linspace_row(mr, lb, ub, N);
+    Value xv = linspace_row(lb, ub, N, mr);
     Value pv = Value::matrix(1, N, ValueType::COMPLEX, mr);
     if (N == 0) return {std::move(pv), std::move(xv)};
     const double *xd = xv.doubleData();
@@ -103,10 +102,9 @@ shanwavf(std::pmr::memory_resource *mr, double lb, double ub, size_t N,
 }
 
 std::tuple<Value, Value>
-cmorwavf(std::pmr::memory_resource *mr, double lb, double ub, size_t N,
-         double fb, double fc)
+cmorwavf(double lb, double ub, size_t N, double fb, double fc, std::pmr::memory_resource *mr)
 {
-    Value xv = linspace_row(mr, lb, ub, N);
+    Value xv = linspace_row(lb, ub, N, mr);
     Value pv = Value::matrix(1, N, ValueType::COMPLEX, mr);
     if (N == 0) return {std::move(pv), std::move(xv)};
     const double *xd = xv.doubleData();
@@ -121,13 +119,12 @@ cmorwavf(std::pmr::memory_resource *mr, double lb, double ub, size_t N,
 }
 
 std::tuple<Value, Value>
-fbspwavf(std::pmr::memory_resource *mr, double lb, double ub, size_t N,
-         int m, double fb, double fc)
+fbspwavf(double lb, double ub, size_t N, int m, double fb, double fc, std::pmr::memory_resource *mr)
 {
     if (m < 1)
         throw Error("fbspwavf: order m must be >= 1",
                     0, 0, "fbspwavf", "", "m:fbspwavf:order");
-    Value xv = linspace_row(mr, lb, ub, N);
+    Value xv = linspace_row(lb, ub, N, mr);
     Value pv = Value::matrix(1, N, ValueType::COMPLEX, mr);
     if (N == 0) return {std::move(pv), std::move(xv)};
     const double *xd = xv.doubleData();
@@ -144,7 +141,7 @@ fbspwavf(std::pmr::memory_resource *mr, double lb, double ub, size_t N,
     return {std::move(pv), std::move(xv)};
 }
 
-Value meyeraux(std::pmr::memory_resource *mr, const Value &x)
+Value meyeraux(const Value &x, std::pmr::memory_resource *mr)
 {
     // MATLAB R2025b clips outside [0, 1]: x<0 -> 0, x>1 -> 1, otherwise
     // applies the polynomial 35v⁴ - 84v⁵ + 70v⁶ - 20v⁷.
@@ -177,8 +174,7 @@ Value meyeraux(std::pmr::memory_resource *mr, const Value &x)
 namespace detail {
 
 static void shape_grid_reg(const char *fn,
-                           std::tuple<Value, Value> (*impl)(
-                               std::pmr::memory_resource *, double, double, size_t),
+                           std::tuple<Value, Value> (*impl)(double, double, size_t, std::pmr::memory_resource *),
                            Span<const Value> args, size_t nargout,
                            Span<Value> outs, CallContext &ctx)
 {
@@ -192,7 +188,7 @@ static void shape_grid_reg(const char *fn,
         throw Error(std::string(fn) + ": N must be non-negative",
                     0, 0, fn, "", "m:wav:N");
     const size_t N = static_cast<size_t>(Nd);
-    auto [psi, x] = impl(ctx.engine->resource(), lb, ub, N);
+    auto [psi, x] = impl(lb, ub, N, ctx.engine->resource());
     outs[0] = std::move(psi);
     if (nargout > 1) outs[1] = std::move(x);
 }
@@ -215,7 +211,7 @@ void meyeraux_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("meyeraux: requires x",
                     0, 0, "meyeraux", "", "m:meyeraux:nargin");
-    outs[0] = meyeraux(ctx.engine->resource(), args[0]);
+    outs[0] = meyeraux(args[0], ctx.engine->resource());
 }
 
 void shanwavf_reg(Span<const Value> args, size_t nargout,
@@ -229,7 +225,7 @@ void shanwavf_reg(Span<const Value> args, size_t nargout,
     const size_t N  = static_cast<size_t>(args[2].toScalar());
     const double fb = args[3].toScalar();
     const double fc = args[4].toScalar();
-    auto [psi, x] = shanwavf(ctx.engine->resource(), lb, ub, N, fb, fc);
+    auto [psi, x] = shanwavf(lb, ub, N, fb, fc, ctx.engine->resource());
     outs[0] = std::move(psi);
     if (nargout > 1) outs[1] = std::move(x);
 }
@@ -246,7 +242,7 @@ void cmorwavf_reg(Span<const Value> args, size_t nargout,
     // MATLAB R2025b defaults when only 3 args supplied: fb = fc = 1.
     const double fb = (args.size() >= 4) ? args[3].toScalar() : 1.0;
     const double fc = (args.size() >= 5) ? args[4].toScalar() : 1.0;
-    auto [psi, x] = cmorwavf(ctx.engine->resource(), lb, ub, N, fb, fc);
+    auto [psi, x] = cmorwavf(lb, ub, N, fb, fc, ctx.engine->resource());
     outs[0] = std::move(psi);
     if (nargout > 1) outs[1] = std::move(x);
 }
@@ -263,7 +259,7 @@ void fbspwavf_reg(Span<const Value> args, size_t nargout,
     const int    m  = static_cast<int>(args[3].toScalar());
     const double fb = args[4].toScalar();
     const double fc = args[5].toScalar();
-    auto [psi, x] = fbspwavf(ctx.engine->resource(), lb, ub, N, m, fb, fc);
+    auto [psi, x] = fbspwavf(lb, ub, N, m, fb, fc, ctx.engine->resource());
     outs[0] = std::move(psi);
     if (nargout > 1) outs[1] = std::move(x);
 }

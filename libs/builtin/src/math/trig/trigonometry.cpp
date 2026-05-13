@@ -10,6 +10,8 @@
 #include <numkit/builtin/math/arithmetic/misc.hpp>          // hypot decl
 #include <numkit/builtin/math/trig/trigonometry.hpp>
 
+#include "../_unary_hint.hpp"   // 3-arg sin/cos hint overloads
+
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
@@ -71,6 +73,11 @@ inline double tand_scalar(double x)
 
 } // anonymous
 
+// Public 2-arg wrappers — delegate to the 3-arg overload in the SIMD
+// backends (trig_highway.cpp / trig_portable.cpp) with no buffer hint.
+Value sin(const Value &x, std::pmr::memory_resource *mr) { return sin(x, nullptr, mr); }
+Value cos(const Value &x, std::pmr::memory_resource *mr) { return cos(x, nullptr, mr); }
+
 // sind / cosd / tand / asind / acosd / atand / atan2d / sinpi / cospi
 // now live in trig_highway.cpp / trig_portable.cpp. The snap-helpers
 // (sind_scalar, cosd_scalar, tand_scalar) remain in this file's
@@ -92,24 +99,22 @@ inline double tand_scalar(double x)
 //                        y = r*cos(el)*sin(az),
 //                        z = r*sin(el)
 
-PolarPair cart2pol(std::pmr::memory_resource *mr, const Value &x, const Value &y)
+PolarPair cart2pol(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 {
     // Compose via the SIMD-dispatched atan2 + hypot (in trig_highway.cpp).
     // Each call gets the full vector SIMD path on real-same-shape inputs.
-    Value theta = atan2(mr, y, x);
-    Value rho   = hypot(mr, x, y);
+    Value theta = atan2(y, x, mr);
+    Value rho   = hypot(x, y, mr);
     return { std::move(theta), std::move(rho) };
 }
 
-CylTriple cart2pol(std::pmr::memory_resource *mr,
-                   const Value &x, const Value &y, const Value &z)
+CylTriple cart2pol(const Value &x, const Value &y, const Value &z, std::pmr::memory_resource *mr)
 {
-    auto [theta, rho] = cart2pol(mr, x, y);
+    auto [theta, rho] = cart2pol(x, y, mr);
     return { std::move(theta), std::move(rho), z };
 }
 
-CartPair pol2cart(std::pmr::memory_resource *mr,
-                  const Value &theta, const Value &rho)
+CartPair pol2cart(const Value &theta, const Value &rho, std::pmr::memory_resource *mr)
 {
     Value xv = elementwiseDouble(rho, theta,
         [](double r, double t) { return r * std::cos(t); }, mr);
@@ -118,15 +123,13 @@ CartPair pol2cart(std::pmr::memory_resource *mr,
     return { std::move(xv), std::move(yv) };
 }
 
-CartTriple pol2cart(std::pmr::memory_resource *mr,
-                    const Value &theta, const Value &rho, const Value &z)
+CartTriple pol2cart(const Value &theta, const Value &rho, const Value &z, std::pmr::memory_resource *mr)
 {
-    auto [xv, yv] = pol2cart(mr, theta, rho);
+    auto [xv, yv] = pol2cart(theta, rho, mr);
     return { std::move(xv), std::move(yv), z };
 }
 
-SphTriple cart2sph(std::pmr::memory_resource *mr,
-                   const Value &x, const Value &y, const Value &z)
+SphTriple cart2sph(const Value &x, const Value &y, const Value &z, std::pmr::memory_resource *mr)
 {
     Value az = elementwiseDouble(y, x,
         [](double yy, double xx) { return std::atan2(yy, xx); }, mr);
@@ -139,8 +142,7 @@ SphTriple cart2sph(std::pmr::memory_resource *mr,
     return { std::move(az), std::move(el), std::move(r) };
 }
 
-CartTriple sph2cart(std::pmr::memory_resource *mr,
-                    const Value &az, const Value &el, const Value &r)
+CartTriple sph2cart(const Value &az, const Value &el, const Value &r, std::pmr::memory_resource *mr)
 {
     // r * cos(el)
     Value rcos_el = elementwiseDouble(r, el,
@@ -164,7 +166,7 @@ namespace detail {
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
-        outs[0] = fn(ctx.engine->resource(), args[0]);                          \
+        outs[0] = fn(args[0], ctx.engine->resource());                          \
     }
 
 NK_UNARY_ADAPTER(tan,  tan)
@@ -215,7 +217,7 @@ void atan2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.size() < 2)
         throw Error("atan2: requires 2 arguments",
                      0, 0, "atan2", "", "m:atan2:nargin");
-    outs[0] = atan2(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = atan2(args[0], args[1], ctx.engine->resource());
 }
 
 void atan2d_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -223,7 +225,7 @@ void atan2d_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 2)
         throw Error("atan2d: requires 2 arguments",
                      0, 0, "atan2d", "", "m:atan2d:nargin");
-    outs[0] = atan2d(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = atan2d(args[0], args[1], ctx.engine->resource());
 }
 
 void cart2pol_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -233,13 +235,13 @@ void cart2pol_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
                      0, 0, "cart2pol", "", "m:cart2pol:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() >= 3) {
-        auto [theta, rho, z] = cart2pol(mr, args[0], args[1], args[2]);
+        auto [theta, rho, z] = cart2pol(args[0], args[1], args[2], mr);
         outs[0] = std::move(theta);
         if (nargout > 1) outs[1] = std::move(rho);
         if (nargout > 2) outs[2] = std::move(z);
         return;
     }
-    auto [theta, rho] = cart2pol(mr, args[0], args[1]);
+    auto [theta, rho] = cart2pol(args[0], args[1], mr);
     outs[0] = std::move(theta);
     if (nargout > 1) outs[1] = std::move(rho);
 }
@@ -251,13 +253,13 @@ void pol2cart_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
                      0, 0, "pol2cart", "", "m:pol2cart:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() >= 3) {
-        auto [xv, yv, zv] = pol2cart(mr, args[0], args[1], args[2]);
+        auto [xv, yv, zv] = pol2cart(args[0], args[1], args[2], mr);
         outs[0] = std::move(xv);
         if (nargout > 1) outs[1] = std::move(yv);
         if (nargout > 2) outs[2] = std::move(zv);
         return;
     }
-    auto [xv, yv] = pol2cart(mr, args[0], args[1]);
+    auto [xv, yv] = pol2cart(args[0], args[1], mr);
     outs[0] = std::move(xv);
     if (nargout > 1) outs[1] = std::move(yv);
 }
@@ -267,7 +269,7 @@ void cart2sph_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     if (args.size() < 3)
         throw Error("cart2sph: requires 3 arguments",
                      0, 0, "cart2sph", "", "m:cart2sph:nargin");
-    auto [az, el, r] = cart2sph(ctx.engine->resource(), args[0], args[1], args[2]);
+    auto [az, el, r] = cart2sph(args[0], args[1], args[2], ctx.engine->resource());
     outs[0] = std::move(az);
     if (nargout > 1) outs[1] = std::move(el);
     if (nargout > 2) outs[2] = std::move(r);
@@ -278,7 +280,7 @@ void sph2cart_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     if (args.size() < 3)
         throw Error("sph2cart: requires 3 arguments",
                      0, 0, "sph2cart", "", "m:sph2cart:nargin");
-    auto [xv, yv, zv] = sph2cart(ctx.engine->resource(), args[0], args[1], args[2]);
+    auto [xv, yv, zv] = sph2cart(args[0], args[1], args[2], ctx.engine->resource());
     outs[0] = std::move(xv);
     if (nargout > 1) outs[1] = std::move(yv);
     if (nargout > 2) outs[2] = std::move(zv);

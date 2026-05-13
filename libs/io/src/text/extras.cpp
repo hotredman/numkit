@@ -118,16 +118,16 @@ std::string trimWs(const std::string &s)
 } // namespace
 
 // ── fileread ──────────────────────────────────────────────────────────
-Value fileread(std::pmr::memory_resource *mr, Engine &engine,
-               const std::string &filename)
+Value fileread(Engine &engine, const std::string &filename,
+               std::pmr::memory_resource *mr)
 {
     return charRow(mr, slurpFile(engine, filename, "fileread"));
 }
 
 // ── readlines ─────────────────────────────────────────────────────────
 // Returns a STRING array (column vector), N×1.
-Value readlines(std::pmr::memory_resource *mr, Engine &engine,
-                const std::string &filename)
+Value readlines(Engine &engine, const std::string &filename,
+                std::pmr::memory_resource *mr)
 {
     auto lines = splitLines(slurpFile(engine, filename, "readlines"));
     auto out = Value::stringArray(lines.size(), 1, mr);
@@ -173,8 +173,8 @@ void writelines(Engine &engine, const Value &lines, const std::string &filename)
 }
 
 // ── readmatrix ────────────────────────────────────────────────────────
-Value readmatrix(std::pmr::memory_resource *mr, Engine &engine,
-                 const std::string &filename)
+Value readmatrix(Engine &engine, const std::string &filename,
+                 std::pmr::memory_resource *mr)
 {
     auto lines = splitLines(slurpFile(engine, filename, "readmatrix"));
 
@@ -265,7 +265,7 @@ void fileread_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.empty() || (!args[0].isChar() && !args[0].isString()))
         throw Error("fileread: requires a filename string",
                      0, 0, "fileread", "", "m:fileread:nargin");
-    outs[0] = fileread(ctx.engine->resource(), *ctx.engine, args[0].toString());
+    outs[0] = fileread(*ctx.engine, args[0].toString(), ctx.engine->resource());
 }
 
 void readlines_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -273,7 +273,7 @@ void readlines_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty() || (!args[0].isChar() && !args[0].isString()))
         throw Error("readlines: requires a filename string",
                      0, 0, "readlines", "", "m:readlines:nargin");
-    outs[0] = readlines(ctx.engine->resource(), *ctx.engine, args[0].toString());
+    outs[0] = readlines(*ctx.engine, args[0].toString(), ctx.engine->resource());
 }
 
 void writelines_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -293,7 +293,7 @@ void readmatrix_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
     if (args.empty() || (!args[0].isChar() && !args[0].isString()))
         throw Error("readmatrix: requires a filename string",
                      0, 0, "readmatrix", "", "m:readmatrix:nargin");
-    outs[0] = readmatrix(ctx.engine->resource(), *ctx.engine, args[0].toString());
+    outs[0] = readmatrix(*ctx.engine, args[0].toString(), ctx.engine->resource());
 }
 
 void writematrix_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

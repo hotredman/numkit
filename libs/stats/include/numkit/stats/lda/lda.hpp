@@ -12,21 +12,33 @@
 
 namespace numkit::stats {
 
-/// `[c, err, posterior, logp] = classify(sample, training, group[, type])`
-///   sample    — Nsamp × d points to classify
-///   training  — Ntrn  × d training data
-///   group     — Ntrn × 1 vector of class labels (numeric)
-///   type      — "linear" (default, LDA pooled cov) or
-///               "diaglinear" (LDA with diagonal pooled cov) or
-///               "quadratic" (QDA, separate cov per class) or
-///               "diagquadratic" / "mahalanobis"
+/// @brief Classify samples via LDA / QDA
+/// (`[c, err, posterior, logp] = classify(sample, training, group, type)`).
 ///
-/// Returns labels (Nsamp × 1), apparent training error rate, posterior
-/// probabilities (Nsamp × K), and log unconditional density (Nsamp × 1).
-/// Prior assumed empirical (n_k / N).
+/// Fits a discriminant model on `(training, group)` and assigns labels
+/// to each row of `sample`. Empirical priors (`n_k / N`).
+///
+/// Supported `type`:
+/// - `"linear"`        — LDA with pooled covariance (default)
+/// - `"diaglinear"`    — LDA with diagonal pooled covariance (naive Bayes)
+/// - `"quadratic"`     — QDA with per-class covariance
+/// - `"diagquadratic"` — QDA with per-class diagonal covariance
+/// - `"mahalanobis"`   — class-pooled Mahalanobis distance
+///
+/// @param sample    `N_samp × d` points to classify.
+/// @param training  `N_trn × d` training data.
+/// @param group     `N_trn × 1` numeric class labels.
+/// @param type      Discriminant model — see list above.
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          Tuple `(c, err, posterior, logp)`:
+///                  - `c`         : `N_samp × 1` predicted labels.
+///                  - `err`       : apparent training error rate.
+///                  - `posterior` : `N_samp × K` posterior probabilities.
+///                  - `logp`      : `N_samp × 1` log unconditional density.
+/// @see pca
 std::tuple<Value, Value, Value, Value>
-classify(std::pmr::memory_resource *mr,
-         const Value &sample, const Value &training, const Value &group,
-         const std::string &type);
+classify(const Value &sample, const Value &training, const Value &group,
+         const std::string &type,
+         std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

@@ -50,9 +50,7 @@ void fwd_solve(const double *L, double *z, const double *b, size_t d)
 } // anonymous
 
 std::tuple<Value, Value, Value, Value>
-classify(std::pmr::memory_resource *mr,
-         const Value &sample, const Value &training, const Value &group,
-         const std::string &type_in)
+classify(const Value &sample, const Value &training, const Value &group, const std::string &type_in, std::pmr::memory_resource *mr)
 {
     const size_t d     = training.dims().cols();
     const size_t Ntr   = training.dims().rows();
@@ -238,8 +236,7 @@ void classify_reg(Span<const Value> args, size_t nargout,
     std::string type;
     if (args.size() >= 4 && (args[3].isChar() || args[3].isString()))
         type = args[3].toString();
-    auto [c, err, post, logp] = classify(ctx.engine->resource(),
-                                          args[0], args[1], args[2], type);
+    auto [c, err, post, logp] = classify(args[0], args[1], args[2], type, ctx.engine->resource());
     outs[0] = std::move(c);
     if (nargout > 1) outs[1] = std::move(err);
     if (nargout > 2) outs[2] = std::move(post);

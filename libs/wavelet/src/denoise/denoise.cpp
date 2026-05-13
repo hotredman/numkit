@@ -37,8 +37,7 @@ std::vector<double> vecFromValue(const Value &v) {
 
 } // anonymous
 
-Value wthresh(std::pmr::memory_resource *mr,
-              const Value &X, const std::string &sorh, double T)
+Value wthresh(const Value &X, const std::string &sorh, double T, std::pmr::memory_resource *mr)
 {
     const size_t N = X.numel();
     Value Y = Value::matrix(X.dims().rows(), X.dims().cols(),
@@ -66,8 +65,7 @@ Value wthresh(std::pmr::memory_resource *mr,
     return Y;
 }
 
-Value wnoisest(std::pmr::memory_resource *mr,
-               const Value &C, const Value &L, const Value &S)
+Value wnoisest(const Value &C, const Value &L, const Value &S, std::pmr::memory_resource *mr)
 {
     const size_t k = S.numel();
     Value out = Value::matrix(1, k, ValueType::DOUBLE, mr);
@@ -76,7 +74,7 @@ Value wnoisest(std::pmr::memory_resource *mr,
 
     for (size_t i = 0; i < k; ++i) {
         const int level = static_cast<int>(S.elemAsDouble(i));
-        Value cD = detcoef(mr, C, L, level);
+        Value cD = detcoef(C, L, level, mr);
         auto v = vecFromValue(cD);
         const double med = median_abs(std::move(v));
         od[i] = med / 0.6745;
@@ -84,8 +82,7 @@ Value wnoisest(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value wdenoise(std::pmr::memory_resource *mr,
-               const Value &x, int level, const std::string &wname)
+Value wdenoise(const Value &x, int level, const std::string &wname, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     if (N < 2) {
@@ -107,12 +104,11 @@ Value wdenoise(std::pmr::memory_resource *mr,
     const std::string w = wname.empty() ? std::string("sym4") : wname;
 
     // 1. Multi-level decomposition.
-    Value C, L;
-    wavedec(mr, x, level, w, &C, &L);
+    auto [C, L] = wavedec(x, level, w, mr);
 
     // 2. Robust noise σ from the finest detail band (MATLAB default).
     {
-        Value cD1 = detcoef(mr, C, L, 1);
+        Value cD1 = detcoef(C, L, 1, mr);
         auto v = vecFromValue(cD1);
         const double sigma = median_abs(std::move(v)) / 0.6745;
 
@@ -139,7 +135,7 @@ Value wdenoise(std::pmr::memory_resource *mr,
     }
 
     // 5. Reconstruct.
-    return waverec(mr, C, L, w);
+    return waverec(C, L, w, mr);
 }
 
 namespace detail {
@@ -157,8 +153,7 @@ void wthresh_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 3)
         throw Error("wthresh: requires (X, sorh, T)",
                     0, 0, "wthresh", "", "m:wthresh:nargin");
-    outs[0] = wthresh(ctx.engine->resource(),
-                      args[0], argString(args[1]), args[2].toScalar());
+    outs[0] = wthresh(args[0], argString(args[1]), args[2].toScalar(), ctx.engine->resource());
 }
 
 void wnoisest_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -167,7 +162,7 @@ void wnoisest_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 3)
         throw Error("wnoisest: requires (C, L, S)",
                     0, 0, "wnoisest", "", "m:wnoisest:nargin");
-    outs[0] = wnoisest(ctx.engine->resource(), args[0], args[1], args[2]);
+    outs[0] = wnoisest(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 void wdenoise_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -182,7 +177,7 @@ void wdenoise_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     std::string wname;
     if (args.size() >= 3 && !args[2].isEmpty())
         wname = argString(args[2]);
-    outs[0] = wdenoise(ctx.engine->resource(), args[0], level, wname);
+    outs[0] = wdenoise(args[0], level, wname, ctx.engine->resource());
 }
 
 } // namespace detail

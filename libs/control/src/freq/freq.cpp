@@ -51,19 +51,16 @@ std::vector<double> coeffsReal(const Value &v) {
 
 struct NumDen { std::vector<double> num, den; };
 
-NumDen toNumDen(std::pmr::memory_resource *mr, const Value &sys) {
+NumDen toNumDen(const Value &sys, std::pmr::memory_resource *mr) {
     if (hasKind(sys, "tf"))
         return {coeffsReal(sys.field("num")), coeffsReal(sys.field("den"))};
     if (hasKind(sys, "zpk")) {
-        Value num, den;
-        zp2tf(mr, sys.field("z"), sys.field("p"), sys.field("k"),
-              &num, &den);
+        auto [num, den] = zp2tf(sys.field("z"), sys.field("p"), sys.field("k"), mr);
         return {coeffsReal(num), coeffsReal(den)};
     }
     if (hasKind(sys, "ss")) {
-        Value num, den;
-        ss2tf(mr, sys.field("A"), sys.field("B"),
-              sys.field("C"), sys.field("D"), /*iu=*/1, &num, &den);
+        auto [num, den] = ss2tf(sys.field("A"), sys.field("B"),
+                                 sys.field("C"), sys.field("D"), /*iu=*/1, mr);
         return {coeffsReal(num), coeffsReal(den)};
     }
     throw Error("control freq: expected an LTI struct (tf/zpk/ss)",
@@ -88,11 +85,10 @@ Cd hAt(const std::vector<double> &num, const std::vector<double> &den, Cd s) {
 // Default log-spaced ω grid spanning ~ 2 decades around the
 // pole/zero magnitudes. For discrete systems the upper bound is the
 // Nyquist frequency π / Ts.
-std::vector<double> pickW(std::pmr::memory_resource *mr, const Value &sys,
-                          size_t N = 200)
+std::vector<double> pickW(const Value &sys, size_t N, std::pmr::memory_resource *mr)
 {
-    Value pV = pole(mr, sys);
-    Value zV = zero(mr, sys);
+    Value pV = pole(sys, mr);
+    Value zV = zero(sys, mr);
     auto magsOf = [](const Value &v) {
         std::vector<double> mags;
         const size_t k = v.numel();
@@ -144,22 +140,21 @@ std::vector<double> pickW(std::pmr::memory_resource *mr, const Value &sys,
     return w;
 }
 
-std::vector<double> readW(std::pmr::memory_resource *mr,
-                          const Value &sys, const Value &wArg)
+std::vector<double> readW(const Value &sys, const Value &wArg, std::pmr::memory_resource *mr)
 {
-    if (wArg.numel() == 0) return pickW(mr, sys);
+    if (wArg.numel() == 0) return pickW(sys, /*N=*/200, mr);
     std::vector<double> w(wArg.numel());
     for (size_t i = 0; i < wArg.numel(); ++i) w[i] = wArg.elemAsDouble(i);
     return w;
 }
 
-Value colDouble(std::pmr::memory_resource *mr, const std::vector<double> &v) {
+Value colDouble(const std::vector<double> &v, std::pmr::memory_resource *mr) {
     Value r = Value::matrix(v.size(), 1, ValueType::DOUBLE, mr);
     if (!v.empty()) std::copy(v.begin(), v.end(), r.doubleDataMut());
     return r;
 }
 
-Value colComplex(std::pmr::memory_resource *mr, const std::vector<Cd> &v) {
+Value colComplex(const std::vector<Cd> &v, std::pmr::memory_resource *mr) {
     Value r = Value::matrix(v.size(), 1, ValueType::COMPLEX, mr);
     if (!v.empty()) {
         Cd *dst = r.complexDataMut();
@@ -176,10 +171,9 @@ Cd freqArg(double w, double Ts) {
 
 } // anonymous
 
-Value evalfr(std::pmr::memory_resource *mr,
-             const Value &sys, double f)
+Value evalfr(const Value &sys, double f, std::pmr::memory_resource *mr)
 {
-    auto nd = toNumDen(mr, sys);
+    auto nd = toNumDen(sys, mr);
     const double Ts = sampleTime(sys);
     const Cd h = hAt(nd.num, nd.den, freqArg(f, Ts));
     Value out = Value::matrix(1, 1, ValueType::COMPLEX, mr);
@@ -187,25 +181,22 @@ Value evalfr(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value freqresp(std::pmr::memory_resource *mr,
-               const Value &sys, const Value &w)
+Value freqresp(const Value &sys, const Value &w, std::pmr::memory_resource *mr)
 {
-    auto nd = toNumDen(mr, sys);
+    auto nd = toNumDen(sys, mr);
     const double Ts = sampleTime(sys);
-    auto wv = readW(mr, sys, w);
+    auto wv = readW(sys, w, mr);
     std::vector<Cd> h(wv.size());
     for (size_t i = 0; i < wv.size(); ++i)
         h[i] = hAt(nd.num, nd.den, freqArg(wv[i], Ts));
-    return colComplex(mr, h);
+    return colComplex(h, mr);
 }
 
-void bode(std::pmr::memory_resource *mr,
-          const Value &sys, const Value &wArg,
-          Value *magOut, Value *phaseOut, Value *wOut)
+BodeResult bode(const Value &sys, const Value &wArg, std::pmr::memory_resource *mr)
 {
-    auto nd = toNumDen(mr, sys);
+    auto nd = toNumDen(sys, mr);
     const double Ts = sampleTime(sys);
-    auto w = readW(mr, sys, wArg);
+    auto w = readW(sys, wArg, mr);
     std::vector<double> mag(w.size()), phase(w.size());
     double prev = 0.0;
     for (size_t i = 0; i < w.size(); ++i) {
@@ -220,34 +211,29 @@ void bode(std::pmr::memory_resource *mr,
         phase[i] = ph;
         prev = ph;
     }
-    if (magOut)   *magOut = colDouble(mr, mag);
-    if (phaseOut) *phaseOut = colDouble(mr, phase);
-    if (wOut)     *wOut = colDouble(mr, w);
+    return {colDouble(mag, mr),
+            colDouble(phase, mr),
+            colDouble(w, mr)};
 }
 
-void nyquist(std::pmr::memory_resource *mr,
-             const Value &sys, const Value &wArg,
-             Value *reOut, Value *imOut, Value *wOut)
+NyquistResult nyquist(const Value &sys, const Value &wArg, std::pmr::memory_resource *mr)
 {
-    auto nd = toNumDen(mr, sys);
+    auto nd = toNumDen(sys, mr);
     const double Ts = sampleTime(sys);
-    auto w = readW(mr, sys, wArg);
+    auto w = readW(sys, wArg, mr);
     std::vector<double> re(w.size()), im(w.size());
     for (size_t i = 0; i < w.size(); ++i) {
         Cd h = hAt(nd.num, nd.den, freqArg(w[i], Ts));
         re[i] = h.real();
         im[i] = h.imag();
     }
-    if (reOut) *reOut = colDouble(mr, re);
-    if (imOut) *imOut = colDouble(mr, im);
-    if (wOut)  *wOut = colDouble(mr, w);
+    return {colDouble(re, mr), colDouble(im, mr), colDouble(w, mr)};
 }
 
-void rlocus(std::pmr::memory_resource *mr,
-            const Value &sys, const Value &kArg,
-            Value *rOut, Value *kOut)
+std::pair<Value, Value>
+rlocus(const Value &sys, const Value &kArg, std::pmr::memory_resource *mr)
 {
-    auto nd = toNumDen(mr, sys);
+    auto nd = toNumDen(sys, mr);
     // Strip any leading-zero padding so the polynomial sums align on
     // the trailing (constant) term.
     auto strip = [](std::vector<double> v) {
@@ -301,7 +287,7 @@ void rlocus(std::pmr::memory_resource *mr,
                                      ValueType::DOUBLE, mr);
             std::copy(charPoly.begin(), charPoly.end(),
                       cp.doubleDataMut());
-            Value rs = builtin::roots(mr, cp);
+            Value rs = builtin::roots(cp, mr);
             // rs is a column of length n (for this n-th order polynomial).
             // Pack into row `row` of R (column-major: R[row, j] is at
             // index j*K + row).
@@ -318,8 +304,7 @@ void rlocus(std::pmr::memory_resource *mr,
             }
         }
     }
-    if (rOut) *rOut = R;
-    if (kOut) *kOut = colDouble(mr, ks);
+    return {std::move(R), colDouble(ks, mr)};
 }
 
 namespace detail {
@@ -329,7 +314,7 @@ void evalfr_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     if (a.size() < 2)
         throw Error("evalfr: requires (sys, f)",
                     0, 0, "evalfr", "", "m:evalfr:nargin");
-    o[0] = evalfr(c.engine->resource(), a[0], a[1].toScalar());
+    o[0] = evalfr(a[0], a[1].toScalar(), c.engine->resource());
 }
 
 void freqresp_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
@@ -337,7 +322,7 @@ void freqresp_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     if (a.size() < 2)
         throw Error("freqresp: requires (sys, w)",
                     0, 0, "freqresp", "", "m:freqresp:nargin");
-    o[0] = freqresp(c.engine->resource(), a[0], a[1]);
+    o[0] = freqresp(a[0], a[1], c.engine->resource());
 }
 
 void bode_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
@@ -347,11 +332,10 @@ void bode_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
                     0, 0, "bode", "", "m:bode:nargin");
     Value wArg = (a.size() >= 2) ? a[1]
                 : Value::matrix(0, 0, ValueType::DOUBLE, c.engine->resource());
-    Value mag, ph, w;
-    bode(c.engine->resource(), a[0], wArg, &mag, &ph, &w);
-    if (o.size() >= 1) o[0] = mag;
-    if (o.size() >= 2) o[1] = ph;
-    if (o.size() >= 3) o[2] = w;
+    auto b = bode(a[0], wArg, c.engine->resource());
+    if (o.size() >= 1) o[0] = std::move(b.mag);
+    if (o.size() >= 2) o[1] = std::move(b.phase);
+    if (o.size() >= 3) o[2] = std::move(b.w);
 }
 
 void nyquist_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
@@ -361,11 +345,10 @@ void nyquist_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
                     0, 0, "nyquist", "", "m:nyquist:nargin");
     Value wArg = (a.size() >= 2) ? a[1]
                 : Value::matrix(0, 0, ValueType::DOUBLE, c.engine->resource());
-    Value re, im, w;
-    nyquist(c.engine->resource(), a[0], wArg, &re, &im, &w);
-    if (o.size() >= 1) o[0] = re;
-    if (o.size() >= 2) o[1] = im;
-    if (o.size() >= 3) o[2] = w;
+    auto n = nyquist(a[0], wArg, c.engine->resource());
+    if (o.size() >= 1) o[0] = std::move(n.re);
+    if (o.size() >= 2) o[1] = std::move(n.im);
+    if (o.size() >= 3) o[2] = std::move(n.w);
 }
 
 void rlocus_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
@@ -375,10 +358,9 @@ void rlocus_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
                     0, 0, "rlocus", "", "m:rlocus:nargin");
     Value kArg = (a.size() >= 2) ? a[1]
                 : Value::matrix(0, 0, ValueType::DOUBLE, c.engine->resource());
-    Value r, k;
-    rlocus(c.engine->resource(), a[0], kArg, &r, &k);
-    if (o.size() >= 1) o[0] = r;
-    if (o.size() >= 2) o[1] = k;
+    auto [r, k] = rlocus(a[0], kArg, c.engine->resource());
+    if (o.size() >= 1) o[0] = std::move(r);
+    if (o.size() >= 2) o[1] = std::move(k);
 }
 
 } // namespace detail

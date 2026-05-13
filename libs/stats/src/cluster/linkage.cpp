@@ -72,9 +72,7 @@ inline double lance_williams(LinkMethod m, double d_ak, double d_bk, double d_ab
 
 } // anonymous
 
-Value linkage(std::pmr::memory_resource *mr, const Value &Y,
-              const std::string &method,
-              const std::string &metric, double p)
+Value linkage(const Value &Y, const std::string &method, const std::string &metric, double p, std::pmr::memory_resource *mr)
 {
     const LinkMethod m = parse_link(method);
     ScratchArena scratch(mr);
@@ -95,7 +93,7 @@ Value linkage(std::pmr::memory_resource *mr, const Value &Y,
         for (size_t i = 0; i < n; ++i) D[i] = Y.elemAsDouble(i);
     } else {
         // Treat as raw data: compute pdist with the requested metric.
-        Value Yp = pdist(mr, Y, metric, p);
+        Value Yp = pdist(Y, metric, p, mr);
         const size_t n = Yp.numel();
         N = Yrows;
         if (N * (N - 1) / 2 != n)
@@ -198,10 +196,9 @@ Value linkage(std::pmr::memory_resource *mr, const Value &Y,
 }
 
 // Backward-compat 2-arg wrapper: defaults to euclidean.
-Value linkage(std::pmr::memory_resource *mr, const Value &Y,
-              const std::string &method)
+Value linkage(const Value &Y, const std::string &method, std::pmr::memory_resource *mr)
 {
-    return linkage(mr, Y, method, "euclidean", 2.0);
+    return linkage(Y, method, "euclidean", 2.0, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -209,12 +206,9 @@ Value linkage(std::pmr::memory_resource *mr, const Value &Y,
 // ════════════════════════════════════════════════════════════════════
 
 // Forward decl for inconsistency cutoff.
-Value inconsistent(std::pmr::memory_resource *mr, const Value &Z, int depth);
+Value inconsistent(const Value &Z, int depth, std::pmr::memory_resource *mr);
 
-Value cluster_from_linkage(std::pmr::memory_resource *mr, const Value &Z,
-                           int maxclust, double cutoff,
-                           const std::string &criterion,
-                           int depth)
+Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff, const std::string &criterion, int depth, std::pmr::memory_resource *mr)
 {
     const size_t M = Z.dims().rows();
     if (Z.dims().cols() != 3)
@@ -287,7 +281,7 @@ Value cluster_from_linkage(std::pmr::memory_resource *mr, const Value &Z,
         walk((int)N + (int)M - 1);
     } else if (cutoff > 0.0) {
         // Inconsistency criterion (MATLAB default).
-        Value Yinc = inconsistent(mr, Z, depth);
+        Value Yinc = inconsistent(Z, depth, mr);
         const double *yi = Yinc.doubleData();
         // inc per non-leaf node: column 4 (= 3 in 0-based), row layout col-major M×4.
         ScratchVec<double> inc(M, &scratch);
@@ -334,42 +328,26 @@ Value cluster_from_linkage(std::pmr::memory_resource *mr, const Value &Z,
 }
 
 // Backward-compat wrapper without depth.
-Value cluster_from_linkage(std::pmr::memory_resource *mr, const Value &Z,
-                           int maxclust, double cutoff,
-                           const std::string &criterion)
+Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff, const std::string &criterion, std::pmr::memory_resource *mr)
 {
-    return cluster_from_linkage(mr, Z, maxclust, cutoff, criterion, 2);
+    return cluster_from_linkage(Z, maxclust, cutoff, criterion, 2, mr);
 }
 
-Value clusterdata(std::pmr::memory_resource *mr, const Value &X,
-                  int maxclust, double cutoff,
-                  const std::string &linkage_method,
-                  const std::string &criterion,
-                  int depth,
-                  const std::string &distance_metric,
-                  double p)
+Value clusterdata(const Value &X, int maxclust, double cutoff, const std::string &linkage_method, const std::string &criterion, int depth, const std::string &distance_metric, double p, std::pmr::memory_resource *mr)
 {
-    Value Y = pdist(mr, X, distance_metric, p);
-    Value Z = linkage(mr, Y, linkage_method);
-    return cluster_from_linkage(mr, Z, maxclust, cutoff, criterion, depth);
+    Value Y = pdist(X, distance_metric, p, mr);
+    Value Z = linkage(Y, linkage_method, mr);
+    return cluster_from_linkage(Z, maxclust, cutoff, criterion, depth, mr);
 }
 
-Value clusterdata(std::pmr::memory_resource *mr, const Value &X,
-                  int maxclust, double cutoff,
-                  const std::string &linkage_method,
-                  const std::string &criterion,
-                  int depth)
+Value clusterdata(const Value &X, int maxclust, double cutoff, const std::string &linkage_method, const std::string &criterion, int depth, std::pmr::memory_resource *mr)
 {
-    return clusterdata(mr, X, maxclust, cutoff, linkage_method, criterion,
-                       depth, "euclidean", 2.0);
+    return clusterdata(X, maxclust, cutoff, linkage_method, criterion, depth, "euclidean", 2.0, mr);
 }
 
-Value clusterdata(std::pmr::memory_resource *mr, const Value &X,
-                  int maxclust, double cutoff,
-                  const std::string &linkage_method,
-                  const std::string &criterion)
+Value clusterdata(const Value &X, int maxclust, double cutoff, const std::string &linkage_method, const std::string &criterion, std::pmr::memory_resource *mr)
 {
-    return clusterdata(mr, X, maxclust, cutoff, linkage_method, criterion, 2);
+    return clusterdata(X, maxclust, cutoff, linkage_method, criterion, 2, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -382,8 +360,7 @@ Value clusterdata(std::pmr::memory_resource *mr, const Value &X,
 // Bug fix 2026-05-08: previously returned only the scalar correlation;
 // MATLAB's `[c, d] = cophenet(Z, Y)` 2-output form was throwing
 // "Undefined function or variable 'd'". Now both outputs are produced.
-std::tuple<Value, Value> cophenet_full(std::pmr::memory_resource *mr,
-                                        const Value &Z, const Value &Y)
+std::tuple<Value, Value> cophenet_full(const Value &Z, const Value &Y, std::pmr::memory_resource *mr)
 {
     const size_t M = Z.dims().rows();
     const size_t N = M + 1;
@@ -452,9 +429,9 @@ std::tuple<Value, Value> cophenet_full(std::pmr::memory_resource *mr,
     return {std::move(cv), std::move(dv)};
 }
 
-Value cophenet(std::pmr::memory_resource *mr, const Value &Z, const Value &Y)
+Value cophenet(const Value &Z, const Value &Y, std::pmr::memory_resource *mr)
 {
-    auto [c, _d] = cophenet_full(mr, Z, Y);
+    auto [c, _d] = cophenet_full(Z, Y, mr);
     return c;
 }
 
@@ -462,7 +439,7 @@ Value cophenet(std::pmr::memory_resource *mr, const Value &Z, const Value &Y)
 // inconsistent — inconsistency coefficient
 // ════════════════════════════════════════════════════════════════════
 
-Value inconsistent(std::pmr::memory_resource *mr, const Value &Z, int depth) {
+Value inconsistent(const Value &Z, int depth, std::pmr::memory_resource *mr) {
     const size_t M = Z.dims().rows();
     if (Z.dims().cols() != 3)
         throw Error("inconsistent: Z must be (N-1)×3", 0, 0, "inconsistent", "",
@@ -544,7 +521,7 @@ void linkage_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 4 && args[3].numel() == 1
         && !(args[3].isChar() || args[3].isString()))
         p = args[3].toScalar();
-    outs[0] = linkage(ctx.engine->resource(), args[0], method, metric, p);
+    outs[0] = linkage(args[0], method, metric, p, ctx.engine->resource());
 }
 
 void cluster_reg(Span<const Value> args, size_t /*nargout*/,
@@ -571,8 +548,7 @@ void cluster_reg(Span<const Value> args, size_t /*nargout*/,
             else if (s == "depth")     depth     = (int)args[i + 1].toScalar();
         }
     }
-    outs[0] = cluster_from_linkage(ctx.engine->resource(), args[0],
-                                    maxclust, cutoff, criterion, depth);
+    outs[0] = cluster_from_linkage(args[0], maxclust, cutoff, criterion, depth, ctx.engine->resource());
 }
 
 void clusterdata_reg(Span<const Value> args, size_t /*nargout*/,
@@ -615,8 +591,7 @@ void clusterdata_reg(Span<const Value> args, size_t /*nargout*/,
             // 'savememory' and other doc'd N-V silently ignored.
         }
     }
-    outs[0] = clusterdata(ctx.engine->resource(), args[0], maxclust, cutoff,
-                          method, criterion, depth, distance_metric, p);
+    outs[0] = clusterdata(args[0], maxclust, cutoff, method, criterion, depth, distance_metric, p, ctx.engine->resource());
 }
 
 void cophenet_reg(Span<const Value> args, size_t nargout,
@@ -625,7 +600,7 @@ void cophenet_reg(Span<const Value> args, size_t nargout,
     if (args.size() < 2)
         throw Error("cophenet: requires (Z, Y)", 0, 0, "cophenet", "",
                     "m:cophenet:nargin");
-    auto [c, d] = cophenet_full(ctx.engine->resource(), args[0], args[1]);
+    auto [c, d] = cophenet_full(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(c);
     if (nargout > 1) outs[1] = std::move(d);
 }
@@ -638,7 +613,7 @@ void inconsistent_reg(Span<const Value> args, size_t /*nargout*/,
                     "", "m:inconsistent:nargin");
     int depth = (args.size() >= 2 && !args[1].isEmpty())
                 ? (int)args[1].toScalar() : 2;
-    outs[0] = inconsistent(ctx.engine->resource(), args[0], depth);
+    outs[0] = inconsistent(args[0], depth, ctx.engine->resource());
 }
 
 } // namespace detail

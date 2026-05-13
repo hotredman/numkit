@@ -30,7 +30,7 @@ void requireSameShape(const Value &A, const Value &B, const char *fn) {
 
 } // anonymous
 
-Value dice(std::pmr::memory_resource *mr, const Value &A, const Value &B)
+Value dice(const Value &A, const Value &B, std::pmr::memory_resource *mr)
 {
     requireSameShape(A, B, "dice");
     const size_t N = A.numel();
@@ -48,7 +48,7 @@ Value dice(std::pmr::memory_resource *mr, const Value &A, const Value &B)
     return Value::scalar(d, mr);
 }
 
-Value jaccard(std::pmr::memory_resource *mr, const Value &A, const Value &B)
+Value jaccard(const Value &A, const Value &B, std::pmr::memory_resource *mr)
 {
     requireSameShape(A, B, "jaccard");
     const size_t N = A.numel();
@@ -64,8 +64,7 @@ Value jaccard(std::pmr::memory_resource *mr, const Value &A, const Value &B)
     return Value::scalar(j, mr);
 }
 
-Value boundarymask(std::pmr::memory_resource *mr,
-                   const Value &L, int conn)
+Value boundarymask(const Value &L, int conn, std::pmr::memory_resource *mr)
 {
     if (conn != 4) conn = 8;
     const int H = static_cast<int>(L.dims().rows());
@@ -116,7 +115,7 @@ Value boundarymask(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value label2idx(std::pmr::memory_resource *mr, const Value &L)
+Value label2idx(const Value &L, std::pmr::memory_resource *mr)
 {
     const size_t N = L.numel();
     long long maxLab = 0;
@@ -163,8 +162,7 @@ Value label2idx(std::pmr::memory_resource *mr, const Value &L)
     return cell;
 }
 
-Value grayconnected(std::pmr::memory_resource *mr,
-                    const Value &I, int row, int col, double tol)
+Value grayconnected(const Value &I, int row, int col, double tol, std::pmr::memory_resource *mr)
 {
     const int H = static_cast<int>(I.dims().rows());
     const int W = static_cast<int>(I.dims().cols());
@@ -231,8 +229,7 @@ Value grayconnected(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value imoverlay(std::pmr::memory_resource *mr,
-                const Value &I, const Value &BW, const Value &color)
+Value imoverlay(const Value &I, const Value &BW, const Value &color, std::pmr::memory_resource *mr)
 {
     if (color.numel() != 3)
         throw Error("imoverlay: color must be a 1×3 RGB triple",
@@ -316,7 +313,7 @@ void imoverlay_reg(Span<const Value> a, size_t, Span<Value> o,
     if (a.size() < 3)
         throw Error("imoverlay: requires (I, BW, color)",
                     0, 0, "imoverlay", "", "m:imoverlay:nargin");
-    o[0] = imoverlay(c.engine->resource(), a[0], a[1], a[2]);
+    o[0] = imoverlay(a[0], a[1], a[2], c.engine->resource());
 }
 
 void grayconnected_reg(Span<const Value> a, size_t, Span<Value> o,
@@ -329,7 +326,7 @@ void grayconnected_reg(Span<const Value> a, size_t, Span<Value> o,
     const int col = static_cast<int>(a[2].toScalar());
     double tol = -1.0;
     if (a.size() >= 4 && !a[3].isEmpty()) tol = a[3].toScalar();
-    o[0] = grayconnected(c.engine->resource(), a[0], row, col, tol);
+    o[0] = grayconnected(a[0], row, col, tol, c.engine->resource());
 }
 
 void dice_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
@@ -337,7 +334,7 @@ void dice_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     if (a.size() < 2)
         throw Error("dice: requires (BW1, BW2)",
                     0, 0, "dice", "", "m:dice:nargin");
-    o[0] = dice(c.engine->resource(), a[0], a[1]);
+    o[0] = dice(a[0], a[1], c.engine->resource());
 }
 
 void jaccard_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
@@ -345,7 +342,7 @@ void jaccard_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     if (a.size() < 2)
         throw Error("jaccard: requires (BW1, BW2)",
                     0, 0, "jaccard", "", "m:jaccard:nargin");
-    o[0] = jaccard(c.engine->resource(), a[0], a[1]);
+    o[0] = jaccard(a[0], a[1], c.engine->resource());
 }
 
 void boundarymask_reg(Span<const Value> a, size_t, Span<Value> o,
@@ -356,7 +353,7 @@ void boundarymask_reg(Span<const Value> a, size_t, Span<Value> o,
                     0, 0, "boundarymask", "", "m:boundarymask:nargin");
     const int conn = (a.size() >= 2 && !a[1].isEmpty())
                      ? static_cast<int>(a[1].toScalar()) : 8;
-    o[0] = boundarymask(c.engine->resource(), a[0], conn);
+    o[0] = boundarymask(a[0], conn, c.engine->resource());
 }
 
 void label2idx_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
@@ -364,7 +361,7 @@ void label2idx_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     if (a.empty())
         throw Error("label2idx: requires (L)",
                     0, 0, "label2idx", "", "m:label2idx:nargin");
-    o[0] = label2idx(c.engine->resource(), a[0]);
+    o[0] = label2idx(a[0], c.engine->resource());
 }
 
 } // namespace detail

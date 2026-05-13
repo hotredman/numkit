@@ -45,7 +45,7 @@ std::string toLower(const std::string &s)
 } // namespace
 
 // ── db ─────────────────────────────────────────────────────────────────
-Value db(std::pmr::memory_resource *mr, const Value &x, const std::string &signalType)
+Value db(const Value &x, const std::string &signalType, std::pmr::memory_resource *mr)
 {
     const std::string mode = toLower(signalType);
     double scale;
@@ -63,7 +63,7 @@ Value db(std::pmr::memory_resource *mr, const Value &x, const std::string &signa
 }
 
 // ── db2mag ─────────────────────────────────────────────────────────────
-Value db2mag(std::pmr::memory_resource *mr, const Value &d)
+Value db2mag(const Value &d, std::pmr::memory_resource *mr)
 {
     auto out = createLike(d, ValueType::DOUBLE, mr);
     forEachAsMag(d, out.doubleDataMut(),
@@ -72,7 +72,7 @@ Value db2mag(std::pmr::memory_resource *mr, const Value &d)
 }
 
 // ── mag2db ─────────────────────────────────────────────────────────────
-Value mag2db(std::pmr::memory_resource *mr, const Value &x)
+Value mag2db(const Value &x, std::pmr::memory_resource *mr)
 {
     auto out = createLike(x, ValueType::DOUBLE, mr);
     forEachAsMag(x, out.doubleDataMut(),
@@ -81,7 +81,7 @@ Value mag2db(std::pmr::memory_resource *mr, const Value &x)
 }
 
 // ── db2pow ─────────────────────────────────────────────────────────────
-Value db2pow(std::pmr::memory_resource *mr, const Value &d)
+Value db2pow(const Value &d, std::pmr::memory_resource *mr)
 {
     auto out = createLike(d, ValueType::DOUBLE, mr);
     forEachAsMag(d, out.doubleDataMut(),
@@ -90,7 +90,7 @@ Value db2pow(std::pmr::memory_resource *mr, const Value &d)
 }
 
 // ── pow2db ─────────────────────────────────────────────────────────────
-Value pow2db(std::pmr::memory_resource *mr, const Value &p)
+Value pow2db(const Value &p, std::pmr::memory_resource *mr)
 {
     auto out = createLike(p, ValueType::DOUBLE, mr);
     forEachAsMag(p, out.doubleDataMut(),
@@ -112,7 +112,7 @@ void db_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallCo
                          0, 0, "db", "", "m:db:badType");
         mode = args[1].toString();
     }
-    outs[0] = db(ctx.engine->resource(), args[0], mode);
+    outs[0] = db(args[0], mode, ctx.engine->resource());
 }
 
 void db2mag_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -120,7 +120,7 @@ void db2mag_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.empty())
         throw Error("db2mag: requires 1 argument",
                      0, 0, "db2mag", "", "m:db2mag:nargin");
-    outs[0] = db2mag(ctx.engine->resource(), args[0]);
+    outs[0] = db2mag(args[0], ctx.engine->resource());
 }
 
 void mag2db_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -128,7 +128,7 @@ void mag2db_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.empty())
         throw Error("mag2db: requires 1 argument",
                      0, 0, "mag2db", "", "m:mag2db:nargin");
-    outs[0] = mag2db(ctx.engine->resource(), args[0]);
+    outs[0] = mag2db(args[0], ctx.engine->resource());
 }
 
 void db2pow_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -136,7 +136,7 @@ void db2pow_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.empty())
         throw Error("db2pow: requires 1 argument",
                      0, 0, "db2pow", "", "m:db2pow:nargin");
-    outs[0] = db2pow(ctx.engine->resource(), args[0]);
+    outs[0] = db2pow(args[0], ctx.engine->resource());
 }
 
 void pow2db_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -144,7 +144,7 @@ void pow2db_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.empty())
         throw Error("pow2db: requires 1 argument",
                      0, 0, "pow2db", "", "m:pow2db:nargin");
-    outs[0] = pow2db(ctx.engine->resource(), args[0]);
+    outs[0] = pow2db(args[0], ctx.engine->resource());
 }
 
 } // namespace detail

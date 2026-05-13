@@ -1,17 +1,8 @@
 // libs/signal/include/numkit/signal/filter_design/iir_designs.hpp
 //
-// Top-level digital/analog IIR filter designs that compose the analog
-// prototypes (cheb1ap/cheb2ap/besselap) with lp2X transforms,
-// zp2tf, and bilinear:
-//
-//   cheby1(N, Rp,    Wn[, ftype][, 's'])
-//   cheby2(N, Rs,    Wn[, ftype][, 's'])
-//   besself(N,       Wn[, ftype][, 's'])
-//
-// Wn is normalised to Nyquist (0..1) for digital, rad/s for analog.
-// Wn can be scalar (low/high) or 2-vector (bandpass/bandstop).
-// ftype: "low" | "high" | "bandpass" | "stop". Default = lowpass when
-// scalar Wn, bandpass when 2-vector.
+// Top-level IIR filter designs that compose the analog prototypes
+// (cheb1ap / cheb2ap / besselap / ellipap) with the LP→{HP,BP,BS}
+// frequency transforms, zp2tf, and bilinear.
 
 #pragma once
 
@@ -24,82 +15,227 @@
 
 namespace numkit::signal {
 
-enum class FilterType { Lowpass, Highpass, Bandpass, Bandstop };
+/// Filter response type for IIR designs.
+enum class FilterType {
+    Lowpass,   ///< Pass below the cutoff, stop above.
+    Highpass,  ///< Pass above the cutoff, stop below.
+    Bandpass,  ///< Pass between two cutoffs.
+    Bandstop   ///< Stop between two cutoffs, pass elsewhere.
+};
 
-/// cheby1 — Chebyshev type I IIR design.
+/// Chebyshev type-I IIR filter design.
+///
+/// Returns digital (or analog) filter coefficients (b, a) of order N
+/// with equiripple passband and monotonic stopband. The order-N filter
+/// has Rp dB peak-to-peak ripple in the passband.
+///
+/// @param N       Filter order, ≥ 1. For bandpass / bandstop the output
+///                order is 2N (each transform doubles).
+/// @param Rp      Passband ripple in dB, > 0 (typical 0.1–3 dB).
+/// @param Wn      Cutoff frequency. Digital: normalised to Nyquist
+///                (0 < Wn < 1). Analog: rad/s. Scalar for LP/HP, 2-vector
+///                `[lo hi]` for BP/BS.
+/// @param ftype   Response type (default Lowpass for scalar Wn,
+///                Bandpass for 2-vector Wn).
+/// @param analog  `true` → analog-domain design (skip bilinear).
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Tuple `(b, a)` — numerator and denominator coefficients.
+///
+/// @code
+/// auto [b, a] = cheby1(4, 0.5, 0.3);                     // 0.5 dB ripple LP
+/// auto [b, a] = cheby1(4, 1.0, {0.3, 0.6}, FilterType::Bandpass);
+/// @endcode
+///
+/// @see cheby2, ellip, butter
 std::tuple<Value, Value>
-cheby1(std::pmr::memory_resource *mr, int N, double Rp,
-       const Value &Wn, FilterType ftype = FilterType::Lowpass, bool analog = false);
+cheby1(int                          N,
+       double                       Rp,
+       const Value &                Wn,
+       FilterType                   ftype  = FilterType::Lowpass,
+       bool                         analog = false,
+       std::pmr::memory_resource *  mr     = nullptr);
 
-/// cheby2 — Chebyshev type II IIR design.
+/// Chebyshev type-II (inverse Chebyshev) IIR filter design.
+///
+/// Equiripple stopband at Rs dB attenuation, monotonic passband.
+///
+/// @param N       Filter order.
+/// @param Rs      Stopband attenuation in dB, > 0 (typical 40–60 dB).
+/// @param Wn      Cutoff frequency (see cheby1).
+/// @param ftype   Response type.
+/// @param analog  Analog-domain flag.
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Tuple `(b, a)`.
+///
+/// @see cheby1, ellip
 std::tuple<Value, Value>
-cheby2(std::pmr::memory_resource *mr, int N, double Rs,
-       const Value &Wn, FilterType ftype = FilterType::Lowpass, bool analog = false);
+cheby2(int                          N,
+       double                       Rs,
+       const Value &                Wn,
+       FilterType                   ftype  = FilterType::Lowpass,
+       bool                         analog = false,
+       std::pmr::memory_resource *  mr     = nullptr);
 
-/// besself — Bessel/Thompson IIR design (analog only by default in MATLAB,
-/// but we support the digital path via bilinear if `analog == false`).
+/// Bessel-Thompson IIR filter design.
+///
+/// Maximally flat group delay in the passband. MATLAB's `besself` is
+/// analog-only by default; here `analog = false` enables a digital
+/// design via the bilinear transform (the resulting digital filter
+/// approximates the analog group-delay characteristic).
+///
+/// @param N       Filter order.
+/// @param Wn      Cutoff frequency (digital: normalised; analog: rad/s).
+/// @param ftype   Response type.
+/// @param analog  Analog-domain flag.
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Tuple `(b, a)`.
 std::tuple<Value, Value>
-besself(std::pmr::memory_resource *mr, int N,
-        const Value &Wn, FilterType ftype = FilterType::Lowpass, bool analog = false);
+besself(int                          N,
+        const Value &                Wn,
+        FilterType                   ftype  = FilterType::Lowpass,
+        bool                         analog = false,
+        std::pmr::memory_resource *  mr     = nullptr);
 
-/// ellip — Cauer (elliptic) IIR design. Passband ripple Rp dB,
-/// stopband attenuation Rs dB. Same call shape as cheby1/cheby2.
+/// Elliptic (Cauer) IIR filter design.
+///
+/// Equiripple in both passband (Rp dB) and stopband (Rs dB). The most
+/// frequency-selective IIR design for a given order.
+///
+/// @param N       Filter order.
+/// @param Rp      Passband ripple in dB, > 0.
+/// @param Rs      Stopband attenuation in dB, > 0, > Rp.
+/// @param Wn      Cutoff frequency (see cheby1).
+/// @param ftype   Response type.
+/// @param analog  Analog-domain flag.
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Tuple `(b, a)`.
 std::tuple<Value, Value>
-ellip(std::pmr::memory_resource *mr, int N, double Rp, double Rs,
-      const Value &Wn, FilterType ftype = FilterType::Lowpass, bool analog = false);
+ellip(int                          N,
+      double                       Rp,
+      double                       Rs,
+      const Value &                Wn,
+      FilterType                   ftype  = FilterType::Lowpass,
+      bool                         analog = false,
+      std::pmr::memory_resource *  mr     = nullptr);
 
-// ── Order estimators (digital, normalised Wn ∈ (0, 1)) ─────────────
+// ─────────────────────────────────────────────────────────────────────
+// Order estimators — pick the minimum order to meet given specs.
+// ─────────────────────────────────────────────────────────────────────
 
-/// buttord(Wp, Ws, Rp, Rs[, 's']) — minimum order Butterworth filter
-/// meeting passband ripple ≤ Rp and stopband attenuation ≥ Rs.
-/// Returns (N, Wn) where Wn is the natural / cutoff frequency.
-/// Wp, Ws are scalars (low/highpass) or 2-vectors (band{pass,stop}).
+/// Butterworth filter order estimator.
+///
+/// Returns the minimum order `N` and natural frequency `Wn` such that a
+/// Butterworth filter `butter(N, Wn, …)` has passband ripple ≤ `Rp` dB
+/// and stopband attenuation ≥ `Rs` dB.
+///
+/// @param Wp      Passband edge(s). Scalar for LP/HP; 2-vector for BP/BS.
+///                Digital: normalised to Nyquist (0..1).
+/// @param Ws      Stopband edge(s), same shape as `Wp`.
+/// @param Rp      Maximum allowed passband ripple in dB, > 0.
+/// @param Rs      Minimum required stopband attenuation in dB, > 0.
+/// @param analog  Analog-domain flag.
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Tuple `(N, Wn)` — order and cutoff(s) for `butter`.
+///
+/// @code
+/// auto [N, Wn] = buttord(0.2, 0.3, 1.0, 30.0);   // LP: 1 dB pass / 30 dB stop
+/// auto [b, a]  = butter(N, Wn);
+/// @endcode
+///
+/// @see butter, cheb1ord, cheb2ord, ellipord
 std::tuple<int, Value>
-buttord(std::pmr::memory_resource *mr, const Value &Wp, const Value &Ws,
-        double Rp, double Rs, bool analog = false);
+buttord(const Value &                Wp,
+        const Value &                Ws,
+        double                       Rp,
+        double                       Rs,
+        bool                         analog = false,
+        std::pmr::memory_resource *  mr     = nullptr);
 
-/// cheb1ord(Wp, Ws, Rp, Rs[, 's']) — minimum order Chebyshev type I.
-/// Returns (N, Wn) where Wn is the passband edge.
+/// @brief Chebyshev type-I order estimator
+/// (`[N, Wn] = cheb1ord(Wp, Ws, Rp, Rs, analog)`).
+///
+/// `Wn` is the passband edge, usable directly with `cheby1`.
+///
+/// @param Wp,Ws,Rp,Rs,analog,mr  See @ref buttord.
+/// @return                       Tuple `(N, Wn)`.
+/// @see buttord, cheby1
 std::tuple<int, Value>
-cheb1ord(std::pmr::memory_resource *mr, const Value &Wp, const Value &Ws,
-         double Rp, double Rs, bool analog = false);
+cheb1ord(const Value &Wp, const Value &Ws, double Rp, double Rs,
+         bool analog = false,
+         std::pmr::memory_resource *mr = nullptr);
 
-/// cheb2ord(Wp, Ws, Rp, Rs[, 's']) — minimum order Chebyshev type II.
-/// Returns (N, Wn) where Wn is the stopband edge.
+/// @brief Chebyshev type-II order estimator
+/// (`[N, Wn] = cheb2ord(Wp, Ws, Rp, Rs, analog)`).
+///
+/// `Wn` is the stopband edge, usable directly with `cheby2`.
+///
+/// @param Wp,Ws,Rp,Rs,analog,mr  See @ref buttord.
+/// @return                       Tuple `(N, Wn)`.
+/// @see buttord, cheby2
 std::tuple<int, Value>
-cheb2ord(std::pmr::memory_resource *mr, const Value &Wp, const Value &Ws,
-         double Rp, double Rs, bool analog = false);
+cheb2ord(const Value &Wp, const Value &Ws, double Rp, double Rs,
+         bool analog = false,
+         std::pmr::memory_resource *mr = nullptr);
 
-/// ellipord(Wp, Ws, Rp, Rs[, 's']) — minimum order Elliptic (Cauer) filter
-/// meeting passband ripple ≤ Rp dB and stopband attenuation ≥ Rs dB.
-/// Returns (N, Wn). Bandstop (Wp 2-vec, Wp(1) > Ws(1)) is deferred —
-/// KNOWN GAP. Lowpass / highpass / bandpass cases supported.
+/// @brief Elliptic (Cauer) order estimator
+/// (`[N, Wn] = ellipord(Wp, Ws, Rp, Rs, analog)`).
+///
+/// `Wn` for direct use with `ellip`. KNOWN GAP: bandstop case (`Wp`
+/// 2-vec with `Wp[0] > Ws[0]`) deferred. Lowpass / highpass / bandpass
+/// supported.
+///
+/// @param Wp,Ws,Rp,Rs,analog,mr  See @ref buttord.
+/// @return                       Tuple `(N, Wn)`.
+/// @see buttord, ellip
 std::tuple<int, Value>
-ellipord(std::pmr::memory_resource *mr, const Value &Wp, const Value &Ws,
-         double Rp, double Rs, bool analog = false);
+ellipord(const Value &Wp, const Value &Ws, double Rp, double Rs,
+         bool analog = false,
+         std::pmr::memory_resource *mr = nullptr);
 
-/// firpmord(F, A, dev[, fs]) — Parks-McClellan FIR order estimator.
-/// Returns (N, ff, aa, wts) where N is filter order suitable for firpm,
-/// ff/aa/wts are the band-edge / amplitude / weight vectors for firpm.
-/// F: vector of band edges (length 2·numel(A) - 2).
-/// A: vector of binary amplitudes per band.
-/// dev: max linear deviation per band.
-/// fs: optional sample rate (default 2 → normalized).
+/// Parks-McClellan FIR order estimator.
+///
+/// Returns `(N, ff, aa, wts)` — order plus the band-edge, amplitude,
+/// and weight vectors suitable for direct use with `firpm`.
+///
+/// @param F    Vector of band-edge frequencies in Hz (length `2·numel(A) - 2`).
+/// @param A    Vector of binary amplitudes per band (0 = stopband, 1 = passband).
+/// @param dev  Maximum allowed linear deviation per band.
+/// @param fs   Sample rate. Default 2.0 → F is normalised to Nyquist.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Tuple `(N, ff, aa, wts)`.
+///
+/// @code
+/// auto [N, ff, aa, wts] = firpmord({1500, 2000}, {1, 0}, {0.01, 0.05}, 8000);
+/// auto [h, err] = firpm(N, ff, aa, wts);
+/// @endcode
+///
+/// @see firpm
 std::tuple<int, Value, Value, Value>
-firpmord(std::pmr::memory_resource *mr,
-         const Value &F, const Value &A, const Value &dev,
-         double fs = 2.0);
+firpmord(const Value &                F,
+         const Value &                A,
+         const Value &                dev,
+         double                       fs = 2.0,
+         std::pmr::memory_resource *  mr = nullptr);
 
-/// kaiserord(F, A, dev[, fs]) — Kaiser-window FIR order estimator.
-/// Returns (N, Wn, beta, ftype). N is the FIR filter order suitable for
-/// fir1(N, Wn, ftype, kaiser(N+1, beta), 'noscale') to meet the
-/// specifications given by F (transition-band edges in Hz), A (binary
-/// amplitudes per band), dev (max linear deviations per band),
-/// fs (sampling frequency, default 2 → normalized).
-/// ftype is one of "low", "high", "stop", "bandpass", "DC-0", "DC-1".
+/// Kaiser-window FIR order estimator.
+///
+/// Returns `(N, Wn, beta, ftype)` such that
+/// `fir1(N, Wn, ftype, kaiser(N+1, beta), 'noscale')` meets the design specs.
+///
+/// @param F    Transition-band edge frequencies in Hz.
+/// @param A    Binary amplitudes per band (0 / 1).
+/// @param dev  Maximum linear deviation per band.
+/// @param fs   Sample rate (default 2 → normalised).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Tuple `(N, Wn, beta, ftype)`. `ftype` is one of
+///             `"low"`, `"high"`, `"stop"`, `"bandpass"`, `"DC-0"`, `"DC-1"`.
+///
+/// @see fir1, kaiser
 std::tuple<int, Value, double, std::string>
-kaiserord(std::pmr::memory_resource *mr,
-          const Value &F, const Value &A, const Value &dev,
-          double fs = 2.0);
+kaiserord(const Value &                F,
+          const Value &                A,
+          const Value &                dev,
+          double                       fs = 2.0,
+          std::pmr::memory_resource *  mr = nullptr);
 
 } // namespace numkit::signal

@@ -39,7 +39,7 @@ namespace {
 // Symmetrise input first to guard against tiny asymmetry from the
 // previous iteration.
 std::vector<double>
-projPSD(std::pmr::memory_resource *mr, const std::vector<double> &M, size_t n)
+projPSD(const std::vector<double> &M, size_t n, std::pmr::memory_resource *mr)
 {
     // Symmetrise: M_sym = (M + M') / 2
     std::vector<double> Msym(n * n);
@@ -49,7 +49,7 @@ projPSD(std::pmr::memory_resource *mr, const std::vector<double> &M, size_t n)
     Value M_v = Value::matrix(n, n, ValueType::DOUBLE, mr);
     std::copy(Msym.begin(), Msym.end(), M_v.doubleDataMut());
 
-    auto [V, D] = ::numkit::builtin::eig_symmetric(mr, M_v);
+    auto [V, D] = ::numkit::builtin::eig_symmetric(M_v, mr);
     const double *vd = V.doubleData();
     const double *dd = D.doubleData();
 
@@ -84,7 +84,7 @@ double frobNorm(const std::vector<double> &M)
 
 } // namespace
 
-Value nearcorr(std::pmr::memory_resource *mr, const Value &A)
+Value nearcorr(const Value &A, std::pmr::memory_resource *mr)
 {
     const size_t R = A.dims().rows();
     const size_t C = A.dims().cols();
@@ -110,7 +110,7 @@ Value nearcorr(std::pmr::memory_resource *mr, const Value &A)
         // R = Y - dS
         for (size_t k = 0; k < R * R; ++k) Rmat[k] = Y[k] - dS[k];
         // X = proj_PSD(R)
-        X = projPSD(mr, Rmat, R);
+        X = projPSD(Rmat, R, mr);
         // dS = X - R
         for (size_t k = 0; k < R * R; ++k) dS[k] = X[k] - Rmat[k];
         // Y = proj_unit_diag(X)  (set diagonal to 1)
@@ -143,7 +143,7 @@ void nearcorr_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("nearcorr: requires (A)",
                     0, 0, "nearcorr", "", "m:nearcorr:nargin");
-    outs[0] = nearcorr(ctx.engine->resource(), args[0]);
+    outs[0] = nearcorr(args[0], ctx.engine->resource());
 }
 
 } // namespace detail

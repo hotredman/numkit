@@ -1,8 +1,6 @@
 // libs/stats/include/numkit/stats/distributions/beta.hpp
 //
-// Beta distribution. pdf/cdf are direct expressions of the regularized
-// incomplete beta; rnd uses the standard X = U/(U+V) construction with
-// U ~ Gamma(a, 1), V ~ Gamma(b, 1).
+// Beta distribution.
 
 #pragma once
 
@@ -13,21 +11,71 @@
 
 namespace numkit::stats {
 
-/// betapdf(x, a, b) — pdf at x with shape a, b > 0.
-Value betapdf(std::pmr::memory_resource *mr, const Value &x, double a, double b);
+/// @brief Beta pdf (`y = betapdf(x, a, b)`).
+///
+/// @f$ f(x; a, b) = \dfrac{x^{a-1}(1-x)^{b-1}}{B(a, b)} @f$ for `x ∈ [0, 1]`,
+/// 0 elsewhere.
+///
+/// @param x   Evaluation points (any shape).
+/// @param a   First shape parameter (`a > 0`).
+/// @param b   Second shape parameter (`b > 0`).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Array of pdf values, same shape as `x`.
+/// @see betacdf, betainv, betarnd, betastat
+Value betapdf(const Value &x, double a, double b,
+              std::pmr::memory_resource *mr = nullptr);
 
-/// betacdf(x, a, b) — cdf via regularized incomplete beta:
-///   F(x) = I_x(a, b)
-Value betacdf(std::pmr::memory_resource *mr, const Value &x, double a, double b);
+/// @brief Beta cdf (`p = betacdf(x, a, b)`).
+///
+/// Direct expression of the regularised incomplete beta:
+/// @f$ F(x; a, b) = I_x(a, b) @f$.
+///
+/// @param x   Evaluation points (any shape).
+/// @param a   First shape parameter (`a > 0`).
+/// @param b   Second shape parameter (`b > 0`).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Array of cdf values in `[0, 1]`.
+/// @see betapdf, betainv
+Value betacdf(const Value &x, double a, double b,
+              std::pmr::memory_resource *mr = nullptr);
 
-/// betainv(p, a, b) — inverse cdf via betaincinv.
-Value betainv(std::pmr::memory_resource *mr, const Value &p, double a, double b);
+/// @brief Beta inverse cdf (`x = betainv(p, a, b)`).
+///
+/// Computed via `betaincinv`.
+///
+/// @param p   Probability levels in `[0, 1]` (any shape).
+/// @param a   First shape parameter.
+/// @param b   Second shape parameter.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Quantile array, same shape as `p`.
+/// @see betacdf
+Value betainv(const Value &p, double a, double b,
+              std::pmr::memory_resource *mr = nullptr);
 
-/// betarnd(a, b[, m, n]) — X = U/(U+V), U~Gamma(a, 1), V~Gamma(b, 1).
-Value betarnd(std::pmr::memory_resource *mr, double a, double b,
-              size_t rows = 1, size_t cols = 1);
+/// @brief Beta random samples (`r = betarnd(a, b, rows, cols)`).
+///
+/// Generated as `X = U / (U + V)` with `U ~ Gamma(a, 1)`, `V ~ Gamma(b, 1)`.
+///
+/// @param a     First shape parameter (`a > 0`).
+/// @param b     Second shape parameter (`b > 0`).
+/// @param rows  Output rows (default 1).
+/// @param cols  Output columns (default 1).
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      `rows × cols` matrix of Beta samples.
+/// @see betapdf
+Value betarnd(double a, double b, size_t rows = 1, size_t cols = 1,
+              std::pmr::memory_resource *mr = nullptr);
 
-/// betastat(a, b) — mean = a/(a+b), var = ab/((a+b)²(a+b+1)).
+/// @brief Beta mean and variance (`[m, v] = betastat(a, b)`).
+///
+/// Closed form:
+/// `m = a / (a + b)`,
+/// `v = a·b / ((a + b)² · (a + b + 1))`.
+///
+/// @param a  First shape parameter.
+/// @param b  Second shape parameter.
+/// @return   `{mean, variance}` pair.
+/// @see betapdf
 std::tuple<double, double> betastat(double a, double b);
 
 } // namespace numkit::stats

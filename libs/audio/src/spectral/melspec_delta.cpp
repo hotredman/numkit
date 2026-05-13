@@ -179,7 +179,7 @@ melSpectrogram(std::pmr::memory_resource *mr, const Value &x, double fs,
 // b[k] = (M - k) / sum((1:M).^2) for k=0..2M (length 2M+1 = windowLength).
 // y[n] = Σ_{k=0..2M} b[k] * x[n-k] (causal filter, init zero).
 // Operates along dim 1 (rows are time, cols are channels).
-Value audioDelta(std::pmr::memory_resource *mr, const Value &x, int windowLength)
+Value audioDelta(const Value &x, int windowLength, std::pmr::memory_resource *mr)
 {
     if (windowLength < 3 || (windowLength % 2) == 0)
         throw Error("audioDelta: windowLength must be odd integer ≥ 3",
@@ -242,7 +242,7 @@ void audioDelta_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "audioDelta", "", "m:audioDelta:nargin");
     int wl = 9;
     if (args.size() >= 2) wl = static_cast<int>(args[1].toScalar());
-    outs[0] = audioDelta(ctx.engine->resource(), args[0], wl);
+    outs[0] = audioDelta(args[0], wl, ctx.engine->resource());
 }
 
 } // namespace detail

@@ -87,7 +87,7 @@ void lastwarnSet(const std::string &msg, const std::string &id)
     gLastWarnId  = id;
 }
 
-Value mexception(std::pmr::memory_resource *mr, Span<const Value> args)
+Value mexception(Span<const Value> args, std::pmr::memory_resource *mr)
 {
     if (args.size() < 2)
         throw Error("MException requires identifier and message", 0, 0,
@@ -195,7 +195,7 @@ void lastwarn_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 
 void MException_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = mexception(ctx.engine->resource(), args);
+    outs[0] = mexception(args, ctx.engine->resource());
 }
 
 void rethrow_reg(Span<const Value> args, size_t, Span<Value>, CallContext &)

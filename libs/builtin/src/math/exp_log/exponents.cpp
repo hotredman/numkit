@@ -12,13 +12,20 @@
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
+#include "../_unary_hint.hpp"   // 3-arg exp/log hint overloads
 
 #include <cmath>
 #include <complex>
 
 namespace numkit::builtin {
 
-Value sqrt(std::pmr::memory_resource *mr, const Value &x)
+// Public 2-arg wrappers — delegate to the 3-arg overload in the SIMD
+// backends with no buffer hint.
+Value exp(const Value &x, std::pmr::memory_resource *mr) { return exp(x, nullptr, mr); }
+Value log(const Value &x, std::pmr::memory_resource *mr) { return log(x, nullptr, mr); }
+
+
+Value sqrt(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::sqrt(c); }, mr);
@@ -27,34 +34,34 @@ Value sqrt(std::pmr::memory_resource *mr, const Value &x)
     return unaryDouble(x, [](double v) { return std::sqrt(v); }, mr);
 }
 
-Value log2(std::pmr::memory_resource *mr, const Value &x)
+Value log2(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x, [](double v) { return std::log2(v); }, mr);
 }
 
-Value log10(std::pmr::memory_resource *mr, const Value &x)
+Value log10(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x, [](double v) { return std::log10(v); }, mr);
 }
 
-Value expm1(std::pmr::memory_resource *mr, const Value &x)
+Value expm1(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x, [](double v) { return std::expm1(v); }, mr);
 }
 
-Value log1p(std::pmr::memory_resource *mr, const Value &x)
+Value log1p(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x, [](double v) { return std::log1p(v); }, mr);
 }
 
 // ── pow2 / realpow / reallog / realsqrt ──────────────────────────────
 
-Value pow2(std::pmr::memory_resource *mr, const Value &y)
+Value pow2(const Value &y, std::pmr::memory_resource *mr)
 {
     return unaryDouble(y, [](double v) { return std::exp2(v); }, mr);
 }
 
-Value pow2(std::pmr::memory_resource *mr, const Value &f, const Value &e)
+Value pow2(const Value &f, const Value &e, std::pmr::memory_resource *mr)
 {
     // ldexp(f, int_e) = f * 2^int_e. MATLAB's pow2(F, E) takes the
     // floor of E for the integer exponent.
@@ -64,7 +71,7 @@ Value pow2(std::pmr::memory_resource *mr, const Value &f, const Value &e)
         }, mr);
 }
 
-Value realpow(std::pmr::memory_resource *mr, const Value &x, const Value &y)
+Value realpow(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 {
     // Emit error if any (x_i < 0) AND (y_i is not an integer).
     auto checkPair = [](double xx, double yy) {
@@ -77,7 +84,7 @@ Value realpow(std::pmr::memory_resource *mr, const Value &x, const Value &y)
     return elementwiseDouble(x, y, checkPair, mr);
 }
 
-Value reallog(std::pmr::memory_resource *mr, const Value &x)
+Value reallog(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x, [](double v) {
         if (v < 0.0)
@@ -87,7 +94,7 @@ Value reallog(std::pmr::memory_resource *mr, const Value &x)
     }, mr);
 }
 
-Value realsqrt(std::pmr::memory_resource *mr, const Value &x)
+Value realsqrt(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x, [](double v) {
         if (v < 0.0)
@@ -107,7 +114,7 @@ namespace detail {
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
-        outs[0] = fn(ctx.engine->resource(), args[0]);                          \
+        outs[0] = fn(args[0], ctx.engine->resource());                          \
     }
 
 NK_UNARY_ADAPTER(sqrt,  sqrt)
@@ -128,9 +135,9 @@ void pow2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
                      0, 0, "pow2", "", "m:pow2:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() >= 2)
-        outs[0] = pow2(mr, args[0], args[1]);
+        outs[0] = pow2(args[0], args[1], mr);
     else
-        outs[0] = pow2(mr, args[0]);
+        outs[0] = pow2(args[0], mr);
 }
 
 void realpow_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -138,7 +145,7 @@ void realpow_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() < 2)
         throw Error("realpow: requires 2 arguments",
                      0, 0, "realpow", "", "m:realpow:nargin");
-    outs[0] = realpow(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = realpow(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail

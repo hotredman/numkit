@@ -87,8 +87,7 @@ std::vector<double> rowOf(const Value &M, size_t row, size_t cols) {
 
 } // anonymous
 
-Value swt(std::pmr::memory_resource *mr,
-          const Value &x, int n, const std::string &wname)
+Value swt(const Value &x, int n, const std::string &wname, std::pmr::memory_resource *mr)
 {
     if (n < 1)
         throw Error("swt: level must be ≥ 1",
@@ -124,8 +123,7 @@ Value swt(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value iswt(std::pmr::memory_resource *mr,
-           const Value &swc, const std::string &wname)
+Value iswt(const Value &swc, const std::string &wname, std::pmr::memory_resource *mr)
 {
     const size_t H = swc.dims().rows();
     const size_t N = swc.dims().cols();
@@ -171,8 +169,7 @@ Value iswt(std::pmr::memory_resource *mr,
 // Unlike SWT, MODWT does NOT require N to divide 2ⁿ — the transform
 // is shift-invariant and works for any N.
 
-Value modwt(std::pmr::memory_resource *mr,
-            const Value &x, int n, const std::string &wname)
+Value modwt(const Value &x, int n, const std::string &wname, std::pmr::memory_resource *mr)
 {
     if (n < 1)
         throw Error("modwt: level must be ≥ 1",
@@ -209,8 +206,7 @@ Value modwt(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value imodwt(std::pmr::memory_resource *mr,
-             const Value &swc, const std::string &wname)
+Value imodwt(const Value &swc, const std::string &wname, std::pmr::memory_resource *mr)
 {
     const size_t H = swc.dims().rows();
     const size_t N = swc.dims().cols();
@@ -259,9 +255,7 @@ void swt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 3)
         throw Error("swt: requires (x, n, wname)",
                     0, 0, "swt", "", "m:swt:nargin");
-    outs[0] = swt(ctx.engine->resource(),
-                  args[0], static_cast<int>(args[1].toScalar()),
-                  argString(args[2]));
+    outs[0] = swt(args[0], static_cast<int>(args[1].toScalar()), argString(args[2]), ctx.engine->resource());
 }
 
 void iswt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -270,7 +264,7 @@ void iswt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("iswt: requires (swc, wname)",
                     0, 0, "iswt", "", "m:iswt:nargin");
-    outs[0] = iswt(ctx.engine->resource(), args[0], argString(args[1]));
+    outs[0] = iswt(args[0], argString(args[1]), ctx.engine->resource());
 }
 
 void modwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -304,7 +298,7 @@ void modwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             lev = static_cast<int>(args[1].toScalar());
         }
     }
-    outs[0] = modwt(mr, x, lev, wname);
+    outs[0] = modwt(x, lev, wname, mr);
 }
 
 void imodwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -313,7 +307,7 @@ void imodwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("imodwt: requires (swc, wname)",
                     0, 0, "imodwt", "", "m:imodwt:nargin");
-    outs[0] = imodwt(ctx.engine->resource(), args[0], argString(args[1]));
+    outs[0] = imodwt(args[0], argString(args[1]), ctx.engine->resource());
 }
 
 } // namespace detail

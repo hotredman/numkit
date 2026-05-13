@@ -20,7 +20,7 @@ namespace numkit::stats {
 namespace {
 
 template <typename Op>
-Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
@@ -51,31 +51,31 @@ inline double nbin_cdf_scalar(double k, double r, double p, std::pmr::memory_res
     Value xv = Value::scalar(p, mr);
     Value av = Value::scalar(r, mr);
     Value bv = Value::scalar(kf + 1.0, mr);
-    Value rv = ::numkit::builtin::betainc(mr, xv, av, bv);
+    Value rv = ::numkit::builtin::betainc(xv, av, bv, mr);
     return rv.toScalar();
 }
 
 } // anonymous
 
-Value nbinpdf(std::pmr::memory_resource *mr, const Value &k, double r, double p)
+Value nbinpdf(const Value &k, double r, double p, std::pmr::memory_resource *mr)
 {
     if (r <= 0.0 || p <= 0.0 || p > 1.0)
-        return elementwise(mr, k, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, k, [=](double ki){ return nbin_pmf(ki, r, p); });
+        return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(k, [=](double ki){ return nbin_pmf(ki, r, p); }, mr);
 }
 
-Value nbincdf(std::pmr::memory_resource *mr, const Value &k, double r, double p)
+Value nbincdf(const Value &k, double r, double p, std::pmr::memory_resource *mr)
 {
     if (r <= 0.0 || p <= 0.0 || p > 1.0)
-        return elementwise(mr, k, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, k, [=](double ki){ return nbin_cdf_scalar(ki, r, p, mr); });
+        return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(k, [=](double ki){ return nbin_cdf_scalar(ki, r, p, mr); }, mr);
 }
 
-Value nbininv(std::pmr::memory_resource *mr, const Value &q, double r, double p)
+Value nbininv(const Value &q, double r, double p, std::pmr::memory_resource *mr)
 {
     if (r <= 0.0 || p <= 0.0 || p > 1.0)
-        return elementwise(mr, q, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, q, [=](double qi) {
+        return elementwise(q, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(q, [=](double qi) {
         if (!(qi >= 0.0 && qi <= 1.0)) return std::numeric_limits<double>::quiet_NaN();
         if (qi == 0.0) return 0.0;
         if (qi >= 1.0) return std::numeric_limits<double>::infinity();
@@ -92,10 +92,10 @@ Value nbininv(std::pmr::memory_resource *mr, const Value &q, double r, double p)
             if (cdf >= qi - tol) return k + 1.0;
         }
         return std::numeric_limits<double>::infinity();
-    });
+    }, mr);
 }
 
-Value nbinrnd(std::pmr::memory_resource *mr, double r, double p, size_t rows, size_t cols)
+Value nbinrnd(double r, double p, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -138,7 +138,7 @@ void nbinpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("nbinpdf: requires (k, r, p)", 0, 0, "nbinpdf", "", "m:nbinpdf:nargin");
-    outs[0] = nbinpdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    outs[0] = nbinpdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void nbincdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -147,7 +147,7 @@ void nbincdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
         throw Error("nbincdf: requires (k, r, p[, 'upper'])", 0, 0, "nbincdf", "", "m:nbincdf:nargin");
-    Value v = nbincdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    Value v = nbincdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -156,7 +156,7 @@ void nbininv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("nbininv: requires (q, r, p)", 0, 0, "nbininv", "", "m:nbininv:nargin");
-    outs[0] = nbininv(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    outs[0] = nbininv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void nbinrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -169,7 +169,7 @@ void nbinrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() >= 3 && !args[2].isEmpty()) rows = static_cast<size_t>(args[2].toScalar());
     if (args.size() >= 4 && !args[3].isEmpty()) cols = static_cast<size_t>(args[3].toScalar());
     else if (args.size() >= 3) cols = rows;
-    outs[0] = nbinrnd(ctx.engine->resource(), r, p, rows, cols);
+    outs[0] = nbinrnd(r, p, rows, cols, ctx.engine->resource());
 }
 
 void nbinstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

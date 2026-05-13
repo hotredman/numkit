@@ -55,10 +55,10 @@ constexpr int    kDefaultIirOrder  = 7; // matches MATLAB IIR-branch default
 // (Steepness=0.85 only affects the FIR branch's transition width; the
 // IIR ellip path uses the passband edge directly as Wp.)
 
-inline Value scalarWn(std::pmr::memory_resource *mr, double w) {
+inline Value scalarWn(double w, std::pmr::memory_resource *mr) {
     return Value::scalar(w, mr);
 }
-inline Value pairWn(std::pmr::memory_resource *mr, double w1, double w2) {
+inline Value pairWn(double w1, double w2, std::pmr::memory_resource *mr) {
     auto v = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     v.doubleDataMut()[0] = w1;
     v.doubleDataMut()[1] = w2;
@@ -67,35 +67,30 @@ inline Value pairWn(std::pmr::memory_resource *mr, double w1, double w2) {
 
 } // namespace
 
-Value lowpass(std::pmr::memory_resource *mr, const Value &x,
-              double fpass, double fs, int order)
+Value lowpass(const Value &x, double fpass, double fs, int order, std::pmr::memory_resource *mr)
 {
     validateOrder(order, "lowpass");
     const double Wp = normaliseW(fpass, fs, "lowpass");
     // honour explicit order; remap legacy default 8 -> 7 to match MATLAB
     const int N = (order == 8) ? kDefaultIirOrder : order;
-    auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
-                        scalarWn(mr, Wp), FilterType::Lowpass, /*analog=*/false);
+    auto [b, a] = ellip(N, kDefaultRp, kDefaultRs, scalarWn(Wp, mr), FilterType::Lowpass, /*analog=*/false, mr);
     // SOS-form filtfilt is numerically stable for high-order IIR --
     // matches MATLAB filtfilt(d, x) for digitalFilter SOS objects.
-    auto sos = tf2sos(mr, b, a);
-    return sosfiltfilt(mr, sos, x);
+    auto sos = tf2sos(b, a, mr);
+    return sosfiltfilt(sos, x, mr);
 }
 
-Value highpass(std::pmr::memory_resource *mr, const Value &x,
-               double fpass, double fs, int order)
+Value highpass(const Value &x, double fpass, double fs, int order, std::pmr::memory_resource *mr)
 {
     validateOrder(order, "highpass");
     const double Wp = normaliseW(fpass, fs, "highpass");
     const int N = (order == 8) ? kDefaultIirOrder : order;
-    auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
-                        scalarWn(mr, Wp), FilterType::Highpass, /*analog=*/false);
-    auto sos = tf2sos(mr, b, a);
-    return sosfiltfilt(mr, sos, x);
+    auto [b, a] = ellip(N, kDefaultRp, kDefaultRs, scalarWn(Wp, mr), FilterType::Highpass, /*analog=*/false, mr);
+    auto sos = tf2sos(b, a, mr);
+    return sosfiltfilt(sos, x, mr);
 }
 
-Value bandpass(std::pmr::memory_resource *mr, const Value &x,
-               double flo, double fhi, double fs, int order)
+Value bandpass(const Value &x, double flo, double fhi, double fs, int order, std::pmr::memory_resource *mr)
 {
     validateOrder(order, "bandpass");
     if (!(flo < fhi))
@@ -104,15 +99,12 @@ Value bandpass(std::pmr::memory_resource *mr, const Value &x,
     const double Wlo = normaliseW(flo, fs, "bandpass");
     const double Whi = normaliseW(fhi, fs, "bandpass");
     const int N = (order == 8) ? kDefaultIirOrder : order;
-    auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
-                        pairWn(mr, Wlo, Whi),
-                        FilterType::Bandpass, /*analog=*/false);
-    auto sos = tf2sos(mr, b, a);
-    return sosfiltfilt(mr, sos, x);
+    auto [b, a] = ellip(N, kDefaultRp, kDefaultRs, pairWn(Wlo, Whi, mr), FilterType::Bandpass, /*analog=*/false, mr);
+    auto sos = tf2sos(b, a, mr);
+    return sosfiltfilt(sos, x, mr);
 }
 
-Value bandstop(std::pmr::memory_resource *mr, const Value &x,
-               double flo, double fhi, double fs, int order)
+Value bandstop(const Value &x, double flo, double fhi, double fs, int order, std::pmr::memory_resource *mr)
 {
     validateOrder(order, "bandstop");
     if (!(flo < fhi))
@@ -121,11 +113,9 @@ Value bandstop(std::pmr::memory_resource *mr, const Value &x,
     const double Wlo = normaliseW(flo, fs, "bandstop");
     const double Whi = normaliseW(fhi, fs, "bandstop");
     const int N = (order == 8) ? kDefaultIirOrder : order;
-    auto [b, a] = ellip(mr, N, kDefaultRp, kDefaultRs,
-                        pairWn(mr, Wlo, Whi),
-                        FilterType::Bandstop, /*analog=*/false);
-    auto sos = tf2sos(mr, b, a);
-    return sosfiltfilt(mr, sos, x);
+    auto [b, a] = ellip(N, kDefaultRp, kDefaultRs, pairWn(Wlo, Whi, mr), FilterType::Bandstop, /*analog=*/false, mr);
+    auto sos = tf2sos(b, a, mr);
+    return sosfiltfilt(sos, x, mr);
 }
 
 namespace detail {
@@ -144,8 +134,7 @@ void lowpass_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
                      0, 0, "lowpass", "", "m:lowpass:nargin");
     const double fs = (args.size() >= 3) ? args[2].toScalar() : 2.0;
     const int order = (args.size() >= 4) ? static_cast<int>(args[3].toScalar()) : 8;
-    outs[0] = lowpass(ctx.engine->resource(), args[0],
-                      args[1].toScalar(), fs, order);
+    outs[0] = lowpass(args[0], args[1].toScalar(), fs, order, ctx.engine->resource());
 }
 
 void highpass_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -155,8 +144,7 @@ void highpass_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
                      0, 0, "highpass", "", "m:highpass:nargin");
     const double fs = (args.size() >= 3) ? args[2].toScalar() : 2.0;
     const int order = (args.size() >= 4) ? static_cast<int>(args[3].toScalar()) : 8;
-    outs[0] = highpass(ctx.engine->resource(), args[0],
-                       args[1].toScalar(), fs, order);
+    outs[0] = highpass(args[0], args[1].toScalar(), fs, order, ctx.engine->resource());
 }
 
 void bandpass_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -169,9 +157,7 @@ void bandpass_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
                      0, 0, "bandpass", "", "m:bandpass:badCutoff");
     const double fs = (args.size() >= 3) ? args[2].toScalar() : 2.0;
     const int order = (args.size() >= 4) ? static_cast<int>(args[3].toScalar()) : 8;
-    outs[0] = bandpass(ctx.engine->resource(), args[0],
-                       args[1].elemAsDouble(0), args[1].elemAsDouble(1),
-                       fs, order);
+    outs[0] = bandpass(args[0], args[1].elemAsDouble(0), args[1].elemAsDouble(1), fs, order, ctx.engine->resource());
 }
 
 void bandstop_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -184,9 +170,7 @@ void bandstop_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
                      0, 0, "bandstop", "", "m:bandstop:badCutoff");
     const double fs = (args.size() >= 3) ? args[2].toScalar() : 2.0;
     const int order = (args.size() >= 4) ? static_cast<int>(args[3].toScalar()) : 8;
-    outs[0] = bandstop(ctx.engine->resource(), args[0],
-                       args[1].elemAsDouble(0), args[1].elemAsDouble(1),
-                       fs, order);
+    outs[0] = bandstop(args[0], args[1].elemAsDouble(0), args[1].elemAsDouble(1), fs, order, ctx.engine->resource());
     (void)scalarOr;   // silence unused-helper warning
 }
 

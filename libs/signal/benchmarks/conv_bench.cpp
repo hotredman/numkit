@@ -42,7 +42,7 @@ static void BM_Conv_FixedKernel64(benchmark::State &state)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        Value y = signal::conv(mr, sig, kernel, "full");
+        Value y = signal::conv(sig, kernel, "full", mr);
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));
@@ -65,7 +65,7 @@ static void BM_Conv_SquareLen(benchmark::State &state)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        Value y = signal::conv(mr, a, b, "full");
+        Value y = signal::conv(a, b, "full", mr);
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));

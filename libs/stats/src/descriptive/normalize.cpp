@@ -109,8 +109,7 @@ bool methodMatches(const std::string &m, const char *want) {
 
 } // anonymous
 
-Value normalize(std::pmr::memory_resource *mr, const Value &A,
-                const std::string &method)
+Value normalize(const Value &A, const std::string &method, std::pmr::memory_resource *mr)
 {
     const size_t H = A.dims().rows();
     const size_t W = A.dims().cols();
@@ -163,8 +162,7 @@ Value normalize(std::pmr::memory_resource *mr, const Value &A,
     return out;
 }
 
-Value rescale(std::pmr::memory_resource *mr, const Value &A,
-              double lo, double hi)
+Value rescale(const Value &A, double lo, double hi, std::pmr::memory_resource *mr)
 {
     const size_t H = A.dims().rows();
     const size_t W = A.dims().cols();
@@ -189,9 +187,9 @@ Value rescale(std::pmr::memory_resource *mr, const Value &A,
     return out;
 }
 
-Value zscore(std::pmr::memory_resource *mr, const Value &A)
+Value zscore(const Value &A, std::pmr::memory_resource *mr)
 {
-    return normalize(mr, A, "zscore");
+    return normalize(A, "zscore", mr);
 }
 
 namespace detail {
@@ -209,7 +207,7 @@ void normalize_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "normalize", "", "m:normalize:type");
         method = args[1].toString();
     }
-    outs[0] = normalize(ctx.engine->resource(), args[0], method);
+    outs[0] = normalize(args[0], method, ctx.engine->resource());
 }
 
 void rescale_reg(Span<const Value> args, size_t /*nargout*/,
@@ -222,7 +220,7 @@ void rescale_reg(Span<const Value> args, size_t /*nargout*/,
                       ? args[1].toScalar() : 0.0;
     const double hi = (args.size() >= 3 && !args[2].isEmpty())
                       ? args[2].toScalar() : 1.0;
-    outs[0] = rescale(ctx.engine->resource(), args[0], lo, hi);
+    outs[0] = rescale(args[0], lo, hi, ctx.engine->resource());
 }
 
 void zscore_reg(Span<const Value> args, size_t /*nargout*/,
@@ -231,7 +229,7 @@ void zscore_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("zscore: requires (A)",
                     0, 0, "zscore", "", "m:zscore:nargin");
-    outs[0] = zscore(ctx.engine->resource(), args[0]);
+    outs[0] = zscore(args[0], ctx.engine->resource());
 }
 
 } // namespace detail

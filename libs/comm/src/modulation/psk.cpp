@@ -63,8 +63,9 @@ Value alloc_double_like(std::pmr::memory_resource *mr, const Value &x) {
 
 } // anonymous
 
-Value pskmod(std::pmr::memory_resource *mr, const Value &x, int M,
-             double ini_phase, const std::string &symbol_order)
+Value pskmod(const Value &x, int M, double ini_phase,
+             const std::string &symbol_order,
+             std::pmr::memory_resource *mr)
 {
     if (M < 2)
         throw Error("pskmod: M must be ≥ 2", 0, 0, "pskmod", "",
@@ -83,8 +84,9 @@ Value pskmod(std::pmr::memory_resource *mr, const Value &x, int M,
     return out;
 }
 
-Value pskdemod(std::pmr::memory_resource *mr, const Value &y, int M,
-               double ini_phase, const std::string &symbol_order)
+Value pskdemod(const Value &y, int M, double ini_phase,
+               const std::string &symbol_order,
+               std::pmr::memory_resource *mr)
 {
     if (M < 2)
         throw Error("pskdemod: M must be ≥ 2", 0, 0, "pskdemod", "",
@@ -108,8 +110,9 @@ Value pskdemod(std::pmr::memory_resource *mr, const Value &y, int M,
     return out;
 }
 
-Value dpskmod(std::pmr::memory_resource *mr, const Value &x, int M,
-              double phase_rot, const std::string &symbol_order)
+Value dpskmod(const Value &x, int M, double phase_rot,
+              const std::string &symbol_order,
+              std::pmr::memory_resource *mr)
 {
     if (M < 2)
         throw Error("dpskmod: M must be ≥ 2", 0, 0, "dpskmod", "",
@@ -129,8 +132,9 @@ Value dpskmod(std::pmr::memory_resource *mr, const Value &x, int M,
     return out;
 }
 
-Value dpskdemod(std::pmr::memory_resource *mr, const Value &y, int M,
-                double phase_rot, const std::string &symbol_order)
+Value dpskdemod(const Value &y, int M, double phase_rot,
+                const std::string &symbol_order,
+                std::pmr::memory_resource *mr)
 {
     if (M < 2)
         throw Error("dpskdemod: M must be ≥ 2", 0, 0, "dpskdemod", "",
@@ -182,7 +186,7 @@ void pskmod_reg(Span<const Value> args, size_t /*nargout*/,
                         && !(args[2].isChar() || args[2].isString()))
                         ? args[2].toScalar() : 0.0;
     auto order = parse_order(args, args.size() >= 4 ? 3 : 2, "gray");
-    outs[0] = pskmod(ctx.engine->resource(), args[0], M, ini, order);
+    outs[0] = pskmod(args[0], M, ini, order, ctx.engine->resource());
 }
 
 void pskdemod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -196,7 +200,7 @@ void pskdemod_reg(Span<const Value> args, size_t /*nargout*/,
                         && !(args[2].isChar() || args[2].isString()))
                         ? args[2].toScalar() : 0.0;
     auto order = parse_order(args, args.size() >= 4 ? 3 : 2, "gray");
-    outs[0] = pskdemod(ctx.engine->resource(), args[0], M, ini, order);
+    outs[0] = pskdemod(args[0], M, ini, order, ctx.engine->resource());
 }
 
 void dpskmod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -210,7 +214,7 @@ void dpskmod_reg(Span<const Value> args, size_t /*nargout*/,
                         && !(args[2].isChar() || args[2].isString()))
                         ? args[2].toScalar() : 0.0;
     auto order = parse_order(args, args.size() >= 4 ? 3 : 2, "gray");
-    outs[0] = dpskmod(ctx.engine->resource(), args[0], M, rot, order);
+    outs[0] = dpskmod(args[0], M, rot, order, ctx.engine->resource());
 }
 
 void dpskdemod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -224,7 +228,7 @@ void dpskdemod_reg(Span<const Value> args, size_t /*nargout*/,
                         && !(args[2].isChar() || args[2].isString()))
                         ? args[2].toScalar() : 0.0;
     auto order = parse_order(args, args.size() >= 4 ? 3 : 2, "gray");
-    outs[0] = dpskdemod(ctx.engine->resource(), args[0], M, rot, order);
+    outs[0] = dpskdemod(args[0], M, rot, order, ctx.engine->resource());
 }
 
 } // namespace detail

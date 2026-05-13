@@ -49,7 +49,7 @@ std::vector<Group> bucket(const Value &y, const Value &group)
 } // anonymous
 
 std::tuple<double, double, double, double, double, double>
-anova1(std::pmr::memory_resource *mr, const Value &y, const Value &group)
+anova1(const Value &y, const Value &group, std::pmr::memory_resource *mr)
 {
     auto buckets = bucket(y, group);
     const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -91,7 +91,7 @@ anova1(std::pmr::memory_resource *mr, const Value &y, const Value &group)
     const double F = msB / msW;
 
     Value Fv = Value::scalar(F, mr);
-    const double cdf = fcdf(mr, Fv, dfB, dfW).toScalar();
+    const double cdf = fcdf(Fv, dfB, dfW, mr).toScalar();
     const double p = std::max(0.0, 1.0 - cdf);
     return std::make_tuple(p, F, dfB, dfW, ssB, ssW);
 }
@@ -106,7 +106,7 @@ anova1(std::pmr::memory_resource *mr, const Value &y, const Value &group)
 std::tuple<double, double, double, double,
            double, double, double,
            double, double, double>
-anova2(std::pmr::memory_resource *mr, const Value &Y)
+anova2(const Value &Y, std::pmr::memory_resource *mr)
 {
     const double nan = std::numeric_limits<double>::quiet_NaN();
     if (Y.dims().ndim() != 2)
@@ -172,8 +172,8 @@ anova2(std::pmr::memory_resource *mr, const Value &Y)
     const double Frows = (ssRows / dfRows) / msErr;
     Value FcolsV = Value::scalar(Fcols, mr);
     Value FrowsV = Value::scalar(Frows, mr);
-    const double pCols = std::max(0.0, 1.0 - fcdf(mr, FcolsV, dfCols, dfErr).toScalar());
-    const double pRows = std::max(0.0, 1.0 - fcdf(mr, FrowsV, dfRows, dfErr).toScalar());
+    const double pCols = std::max(0.0, 1.0 - fcdf(FcolsV, dfCols, dfErr, mr).toScalar());
+    const double pRows = std::max(0.0, 1.0 - fcdf(FrowsV, dfRows, dfErr, mr).toScalar());
 
     return std::make_tuple(pCols, pRows, Fcols, Frows,
                            dfCols, dfRows, dfErr,
@@ -181,7 +181,7 @@ anova2(std::pmr::memory_resource *mr, const Value &Y)
 }
 
 std::tuple<Value, Value, Value, Value>
-kruskalwallis(std::pmr::memory_resource *mr, const Value &y, const Value &group)
+kruskalwallis(const Value &y, const Value &group, std::pmr::memory_resource *mr)
 {
     auto buckets = bucket(y, group);
     const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -248,7 +248,7 @@ kruskalwallis(std::pmr::memory_resource *mr, const Value &y, const Value &group)
 
     const double df = double(buckets.size() - 1);
     Value Hv = Value::scalar(H, mr);
-    const double cdf = chi2cdf(mr, Hv, df).toScalar();
+    const double cdf = chi2cdf(Hv, df, mr).toScalar();
     const double p = std::max(0.0, 1.0 - cdf);
 
     return std::make_tuple(Value::scalar(p, mr),
@@ -257,7 +257,7 @@ kruskalwallis(std::pmr::memory_resource *mr, const Value &y, const Value &group)
                            Value::scalar(sumR2_n, mr));
 }
 
-Value dummyvar(std::pmr::memory_resource *mr, const Value &group)
+Value dummyvar(const Value &group, std::pmr::memory_resource *mr)
 {
     const size_t N = group.numel();
     if (N == 0)
@@ -297,7 +297,7 @@ void anova1_reg(Span<const Value> args, size_t nargout,
         throw Error("anova1: requires (y, group[, 'off'])",
                     0, 0, "anova1", "", "m:anova1:nargin");
     auto *mr = ctx.engine->resource();
-    auto [p, F, dfB, dfW, ssB, ssW] = anova1(mr, args[0], args[1]);
+    auto [p, F, dfB, dfW, ssB, ssW] = anova1(args[0], args[1], mr);
     outs[0] = Value::scalar(p, mr);
     if (nargout > 1) {
         // 4×6 cell table { 'Source','SS','df','MS','F','Prob>F'
@@ -386,7 +386,7 @@ void kruskalwallis_reg(Span<const Value> args, size_t nargout,
                     0, 0, "kruskalwallis", "", "m:kruskalwallis:noGroup");
     }
     (void)flagPos;   // 'off'/'on' display flag accepted but ignored
-    auto [p, H, df, sumR2] = kruskalwallis(mr, yArg, gArg);
+    auto [p, H, df, sumR2] = kruskalwallis(yArg, gArg, mr);
     outs[0] = std::move(p);
     if (nargout > 1) {
         // 4×6 cell table { Source, SS, df, MS, Chi-sq, Prob>Chi-sq } —
@@ -497,7 +497,7 @@ void dummyvar_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("dummyvar: requires GROUP",
                     0, 0, "dummyvar", "", "m:dummyvar:nargin");
-    outs[0] = dummyvar(ctx.engine->resource(), args[0]);
+    outs[0] = dummyvar(args[0], ctx.engine->resource());
 }
 
 void anova2_reg(Span<const Value> args, size_t nargout,
@@ -517,7 +517,7 @@ void anova2_reg(Span<const Value> args, size_t nargout,
     }
     auto *mr = ctx.engine->resource();
     auto [pCols, pRows, Fc, Fr, dfC, dfR, dfE, ssC, ssR, ssE] =
-        anova2(mr, args[0]);
+        anova2(args[0], mr);
 
     // p output: 1×3 row [p_cols, p_rows, p_inter]. p_inter = NaN for reps=1.
     auto pV = Value::matrix(1, 3, ValueType::DOUBLE, mr);

@@ -10,25 +10,81 @@
 
 namespace numkit::control {
 
-/// `dcgain(sys)` — steady-state gain.
-///   continuous : H(0)
-///   discrete   : H(1) (i.e. evaluate tf at z = 1)
-Value dcgain(std::pmr::memory_resource *mr, const Value &sys);
+/// DC (steady-state) gain of an LTI system.
+///
+/// Equivalent to MATLAB's `dcgain(sys)`. Evaluates the transfer
+/// function at the steady-state frequency:
+///   - continuous (Ts == 0): @f$ H(0) @f$
+///   - discrete (Ts > 0):    @f$ H(1) @f$ (i.e. tf evaluated at z = 1)
+///
+/// @param sys  LTI struct (tf / zpk / ss as built by libs/control/lti).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Real scalar Value (or complex if the model is complex).
+///
+/// @code
+/// Value sys = tf({1}, {1, 2, 1});     // 1 / (s² + 2s + 1)
+/// Value g   = dcgain(sys);             // → 1.0
+/// @endcode
+///
+/// @see margin, stepinfo, evalfr
+Value dcgain(const Value &sys, std::pmr::memory_resource *mr = nullptr);
 
-/// `[Gm, Pm, Wcg, Wcp] = margin(sys)` — gain and phase margins.
-///   Gm  : linear gain margin (NOT dB; MATLAB convention).
-///   Pm  : phase margin in degrees.
-///   Wcg : phase crossover frequency (phase = -180°).
-///   Wcp : gain crossover frequency (|H| = 1).
-/// Any margin that does not exist is returned as Inf (no crossing
-/// found on the default frequency grid).
-void margin(std::pmr::memory_resource *mr, const Value &sys,
-            Value *Gm, Value *Pm, Value *Wcg, Value *Wcp);
+/// Result of @ref margin "margin(sys)" — gain / phase margin pair plus
+/// the frequencies at which they occur.
+///
+/// Any margin that does not exist on the default frequency grid is
+/// returned as +Inf (no crossover detected).
+struct MarginResult {
+    Value Gm;    ///< Gain margin (linear, **not** dB — MATLAB convention).
+    Value Pm;    ///< Phase margin in degrees.
+    Value Wcg;   ///< Phase-crossover frequency (where phase = −180°), rad/s.
+    Value Wcp;   ///< Gain-crossover frequency (where |H| = 1), rad/s.
+};
 
-/// `S = stepinfo(sys)` — struct with fields:
-///   RiseTime, SettlingTime, SettlingMin, SettlingMax,
-///   Overshoot, Undershoot, Peak, PeakTime.
-/// All times in seconds. Defaults: 10–90 % rise, 2 % settling band.
-Value stepinfo(std::pmr::memory_resource *mr, const Value &sys);
+/// Gain and phase margins (`[Gm, Pm, Wcg, Wcp] = margin(sys)`).
+///
+/// Builds a dense Bode grid via @ref bode "bode(sys)" and scans for
+/// the first crossings of phase = −180° (gain margin) and |H| = 1
+/// (phase margin) from low to high frequency. If a crossing isn't
+/// found the corresponding margin is +Inf.
+///
+/// @param sys  LTI struct (tf / zpk / ss).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     @ref MarginResult — bind via `auto m = margin(sys);`.
+///
+/// @code
+/// auto m = margin(plant);
+/// fprintf("GM = %.2f at ω = %.2f, PM = %.2f at ω = %.2f\n",
+///         m.Gm.toScalar(), m.Wcg.toScalar(),
+///         m.Pm.toScalar(), m.Wcp.toScalar());
+/// @endcode
+///
+/// @see bode, dcgain, stepinfo
+MarginResult margin(const Value &sys,
+                    std::pmr::memory_resource *mr = nullptr);
+
+/// Step-response quality metrics (`S = stepinfo(sys)`).
+///
+/// Runs the system through @ref step_response with a 2× extended
+/// horizon and returns a MATLAB-compatible struct with the fields:
+///
+///   - `RiseTime`    — 10 % → 90 % rise interval (s).
+///   - `SettlingTime`— last time |y − yfinal| exceeds the 2 % band (s).
+///   - `SettlingMin` — minimum of y inside the settling band.
+///   - `SettlingMax` — maximum of y inside the settling band.
+///   - `Overshoot`   — peak overshoot as a percentage of yfinal.
+///   - `Undershoot`  — peak undershoot as a percentage of yfinal.
+///   - `Peak`        — absolute peak value.
+///   - `PeakTime`    — time at which the peak occurs (s).
+///
+/// All times are in seconds. Defaults: 10–90 % rise band, 2 %
+/// settling band, both matching MATLAB R2025b.
+///
+/// @param sys  LTI struct (tf / zpk / ss).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Struct Value with the 8 fields above.
+///
+/// @see margin, dcgain, step_response
+Value stepinfo(const Value &sys, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::control

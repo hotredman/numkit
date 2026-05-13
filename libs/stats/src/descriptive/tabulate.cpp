@@ -31,7 +31,7 @@
 
 namespace numkit::stats {
 
-Value tabulate(std::pmr::memory_resource *mr, const Value &x)
+Value tabulate(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t N0 = x.numel();
     if (N0 == 0)
@@ -110,7 +110,7 @@ void tabulate_reg(Span<const Value> args, size_t /*nargout*/,
     if (args[0].isChar() || args[0].isString())
         throw Error("tabulate: string/cell inputs not yet supported",
                     0, 0, "tabulate", "", "m:tabulate:NotSupported");
-    outs[0] = tabulate(ctx.engine->resource(), args[0]);
+    outs[0] = tabulate(args[0], ctx.engine->resource());
 }
 
 } // namespace detail

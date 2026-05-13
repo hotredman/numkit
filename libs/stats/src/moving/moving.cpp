@@ -45,7 +45,7 @@ struct Window {
     long kf;   // samples forward
 };
 
-Window decodeWindow(const Value &k, const char *fn)
+Window decodeWindow(Span<const size_t> k, const char *fn)
 {
     auto badK = [&]() {
         throw Error(std::string(fn) + ": Window length must be a finite, "
@@ -53,22 +53,48 @@ Window decodeWindow(const Value &k, const char *fn)
                     "nonnegative, real scalars.",
                     0, 0, fn, "", std::string("m:") + fn + ":badK");
     };
+    if (k.size() == 1) {
+        const size_t n = k[0];
+        if (n == 0) badK();
+        return {static_cast<long>((n - 1) / 2), static_cast<long>(n / 2)};
+    }
+    if (k.size() == 2) {
+        return {static_cast<long>(k[0]), static_cast<long>(k[1])};
+    }
+    badK();
+    return {0, 0}; // unreachable
+}
+
+// Adapter / smoothdata path: extract k from a Value (scalar or 2-vec) into
+// a ScratchVec<size_t>, with the same validation that decodeWindow used to
+// do directly. Returns by value (live for the caller's scratch lifetime).
+ScratchVec<size_t> decodeWindowValueToScratch(const Value &k, const char *fn,
+                                               ScratchArena &scratch)
+{
+    auto badK = [&]() {
+        throw Error(std::string(fn) + ": Window length must be a finite, "
+                    "positive, real scalar or 2-element vector of finite, "
+                    "nonnegative, real scalars.",
+                    0, 0, fn, "", std::string("m:") + fn + ":badK");
+    };
+    ScratchVec<size_t> out(&scratch);
     if (k.isScalar()) {
         const double v = k.toScalar();
         if (!std::isfinite(v) || v <= 0 || std::floor(v) != v) badK();
-        const long n = static_cast<long>(v);
-        // MATLAB: centred window — leading floor((k-1)/2), trailing floor(k/2).
-        return {(n - 1) / 2, n / 2};
+        out.push_back(static_cast<size_t>(v));
+        return out;
     }
     if (k.numel() == 2) {
         const double a = k.elemAsDouble(0);
         const double b = k.elemAsDouble(1);
         if (!std::isfinite(a) || !std::isfinite(b) ||
             a < 0 || b < 0 || std::floor(a) != a || std::floor(b) != b) badK();
-        return {static_cast<long>(a), static_cast<long>(b)};
+        out.push_back(static_cast<size_t>(a));
+        out.push_back(static_cast<size_t>(b));
+        return out;
     }
     badK();
-    return {0, 0}; // unreachable
+    return out; // unreachable
 }
 
 // ── Mov-extras options (nanflag + Endpoints + SamplePoints) ───────────
@@ -167,7 +193,7 @@ MovOpts parseMovExtras(Span<const Value> args, size_t start, const char *fn)
 }
 
 // Allocate a same-shape DOUBLE output via createLike.
-Value allocSameShape(std::pmr::memory_resource *mr, const Value &x)
+Value allocSameShape(const Value &x, std::pmr::memory_resource *mr)
 {
     return createLike(x, ValueType::DOUBLE, mr);
 }
@@ -221,8 +247,7 @@ void runMoving(const double *src, size_t n, ptrdiff_t step,
 // (kb + kf) elements. For Shrink/Fill/Scalar the output keeps the same
 // shape as input.
 template <typename F>
-Value movingDriverDim(std::pmr::memory_resource *mr, const Value &x,
-                      const Window &w, int dim, const MovOpts &opt, F &&fn)
+Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &opt, F &&fn, std::pmr::memory_resource *mr)
 {
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -439,58 +464,46 @@ double winMadInPlace(double *w, size_t n, ScratchArena &scratch)
 
 namespace {
 
-Value movmean_impl(std::pmr::memory_resource *mr, const Value &x,
-                   const Value &k, const MovOpts &opt)
+Value movmean_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
 {
     const auto w = decodeWindow(k, "movmean");
     const int d = resolveDim(x, opt.dim, "movmean");
-    return movingDriverDim(mr, x, w, d, opt,
-        [](const double *win, size_t n) { return winMean(win, n); });
+    return movingDriverDim(x, w, d, opt, [](const double *win, size_t n) { return winMean(win, n); }, mr);
 }
 
-Value movsum_impl(std::pmr::memory_resource *mr, const Value &x,
-                  const Value &k, const MovOpts &opt)
+Value movsum_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
 {
     const auto w = decodeWindow(k, "movsum");
     const int d = resolveDim(x, opt.dim, "movsum");
-    return movingDriverDim(mr, x, w, d, opt,
-        [](const double *win, size_t n) { return winSum(win, n); });
+    return movingDriverDim(x, w, d, opt, [](const double *win, size_t n) { return winSum(win, n); }, mr);
 }
 
-Value movmin_impl(std::pmr::memory_resource *mr, const Value &x,
-                  const Value &k, const MovOpts &opt)
+Value movmin_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
 {
     const auto w = decodeWindow(k, "movmin");
     const int d = resolveDim(x, opt.dim, "movmin");
-    return movingDriverDim(mr, x, w, d, opt,
-        [](const double *win, size_t n) { return winMin(win, n); });
+    return movingDriverDim(x, w, d, opt, [](const double *win, size_t n) { return winMin(win, n); }, mr);
 }
 
-Value movmax_impl(std::pmr::memory_resource *mr, const Value &x,
-                  const Value &k, const MovOpts &opt)
+Value movmax_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
 {
     const auto w = decodeWindow(k, "movmax");
     const int d = resolveDim(x, opt.dim, "movmax");
-    return movingDriverDim(mr, x, w, d, opt,
-        [](const double *win, size_t n) { return winMax(win, n); });
+    return movingDriverDim(x, w, d, opt, [](const double *win, size_t n) { return winMax(win, n); }, mr);
 }
 
-Value movprod_impl(std::pmr::memory_resource *mr, const Value &x,
-                   const Value &k, const MovOpts &opt)
+Value movprod_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
 {
     const auto w = decodeWindow(k, "movprod");
     const int d = resolveDim(x, opt.dim, "movprod");
-    return movingDriverDim(mr, x, w, d, opt,
-        [](const double *win, size_t n) { return winProd(win, n); });
+    return movingDriverDim(x, w, d, opt, [](const double *win, size_t n) { return winProd(win, n); }, mr);
 }
 
-Value movmedian_impl(std::pmr::memory_resource *mr, const Value &x,
-                     const Value &k, const MovOpts &opt)
+Value movmedian_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
 {
     const auto w = decodeWindow(k, "movmedian");
     const int d = resolveDim(x, opt.dim, "movmedian");
-    return movingDriverDim(mr, x, w, d, opt,
-        [](const double *win, size_t n) {
+    return movingDriverDim(x, w, d, opt, [](const double *win, size_t n) {
             double tmp[1024];   // typical k <= a few hundred
             if (n <= sizeof(tmp) / sizeof(tmp[0])) {
                 std::copy(win, win + n, tmp);
@@ -498,25 +511,22 @@ Value movmedian_impl(std::pmr::memory_resource *mr, const Value &x,
             }
             std::vector<double> heap(win, win + n);
             return winMedianInPlace(heap.data(), n);
-        });
+        }, mr);
 }
 
-Value movvar_impl(std::pmr::memory_resource *mr, const Value &x,
-                  const Value &k, int normFlag, const MovOpts &opt)
+Value movvar_impl(const Value &x, Span<const size_t> k, int normFlag, const MovOpts &opt, std::pmr::memory_resource *mr)
 {
     if (normFlag != 0 && normFlag != 1)
         throw Error("movvar: normFlag must be 0 or 1",
                      0, 0, "movvar", "", "m:movvar:badNormFlag");
     const auto w = decodeWindow(k, "movvar");
     const int d = resolveDim(x, opt.dim, "movvar");
-    return movingDriverDim(mr, x, w, d, opt,
-        [normFlag](const double *win, size_t n) { return winVar(win, n, normFlag); });
+    return movingDriverDim(x, w, d, opt, [normFlag](const double *win, size_t n) { return winVar(win, n, normFlag); }, mr);
 }
 
-Value movstd_impl(std::pmr::memory_resource *mr, const Value &x,
-                  const Value &k, int normFlag, const MovOpts &opt)
+Value movstd_impl(const Value &x, Span<const size_t> k, int normFlag, const MovOpts &opt, std::pmr::memory_resource *mr)
 {
-    auto v = movvar_impl(mr, x, k, normFlag, opt);
+    auto v = movvar_impl(x, k, normFlag, opt, mr);
     double *p = v.doubleDataMut();
     const size_t n = v.numel();
     for (size_t i = 0; i < n; ++i)
@@ -524,48 +534,43 @@ Value movstd_impl(std::pmr::memory_resource *mr, const Value &x,
     return v;
 }
 
-Value movmad_impl(std::pmr::memory_resource *mr, const Value &x,
-                  const Value &k, const MovOpts &opt)
+Value movmad_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
 {
     const auto w = decodeWindow(k, "movmad");
     const int d = resolveDim(x, opt.dim, "movmad");
-    return movingDriverDim(mr, x, w, d, opt,
-        [mr](const double *win, size_t n) -> double {
+    return movingDriverDim(x, w, d, opt, [mr](const double *win, size_t n) -> double {
             ScratchArena local(mr);
             auto buf = ScratchVec<double>(n, &local);
             std::copy(win, win + n, buf.data());
             return winMadInPlace(buf.data(), n, local);
-        });
+        }, mr);
 }
 
 } // anonymous
 
 // ── public API (legacy dim-only sigs; defaults for extras) ────────────
 
-Value movmean(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
-{ MovOpts o; o.dim = dim; return movmean_impl(mr, x, k, o); }
-Value movsum(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
-{ MovOpts o; o.dim = dim; return movsum_impl(mr, x, k, o); }
-Value movmin(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
-{ MovOpts o; o.dim = dim; return movmin_impl(mr, x, k, o); }
-Value movmax(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
-{ MovOpts o; o.dim = dim; return movmax_impl(mr, x, k, o); }
-Value movprod(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
-{ MovOpts o; o.dim = dim; return movprod_impl(mr, x, k, o); }
-Value movmedian(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
-{ MovOpts o; o.dim = dim; return movmedian_impl(mr, x, k, o); }
-Value movvar(std::pmr::memory_resource *mr, const Value &x, const Value &k,
-             int normFlag, int dim)
-{ MovOpts o; o.dim = dim; return movvar_impl(mr, x, k, normFlag, o); }
-Value movstd(std::pmr::memory_resource *mr, const Value &x, const Value &k,
-             int normFlag, int dim)
-{ MovOpts o; o.dim = dim; return movstd_impl(mr, x, k, normFlag, o); }
-Value movmad(std::pmr::memory_resource *mr, const Value &x, const Value &k, int dim)
-{ MovOpts o; o.dim = dim; return movmad_impl(mr, x, k, o); }
+Value movmean(const Value &x, Span<const size_t> k, int dim, std::pmr::memory_resource *mr)
+{ MovOpts o; o.dim = dim; return movmean_impl(x, k, o, mr); }
+Value movsum(const Value &x, Span<const size_t> k, int dim, std::pmr::memory_resource *mr)
+{ MovOpts o; o.dim = dim; return movsum_impl(x, k, o, mr); }
+Value movmin(const Value &x, Span<const size_t> k, int dim, std::pmr::memory_resource *mr)
+{ MovOpts o; o.dim = dim; return movmin_impl(x, k, o, mr); }
+Value movmax(const Value &x, Span<const size_t> k, int dim, std::pmr::memory_resource *mr)
+{ MovOpts o; o.dim = dim; return movmax_impl(x, k, o, mr); }
+Value movprod(const Value &x, Span<const size_t> k, int dim, std::pmr::memory_resource *mr)
+{ MovOpts o; o.dim = dim; return movprod_impl(x, k, o, mr); }
+Value movmedian(const Value &x, Span<const size_t> k, int dim, std::pmr::memory_resource *mr)
+{ MovOpts o; o.dim = dim; return movmedian_impl(x, k, o, mr); }
+Value movvar(const Value &x, Span<const size_t> k, int normFlag, int dim, std::pmr::memory_resource *mr)
+{ MovOpts o; o.dim = dim; return movvar_impl(x, k, normFlag, o, mr); }
+Value movstd(const Value &x, Span<const size_t> k, int normFlag, int dim, std::pmr::memory_resource *mr)
+{ MovOpts o; o.dim = dim; return movstd_impl(x, k, normFlag, o, mr); }
+Value movmad(const Value &x, Span<const size_t> k, int dim, std::pmr::memory_resource *mr)
+{ MovOpts o; o.dim = dim; return movmad_impl(x, k, o, mr); }
 
 // ── smoothdata ────────────────────────────────────────────────────────
-Value smoothdata(std::pmr::memory_resource *mr, const Value &x,
-                 const std::string &method, int k, int dim)
+Value smoothdata(const Value &x, const std::string &method, int k, int dim, std::pmr::memory_resource *mr)
 {
     std::string m = method;
     for (auto &c : m) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -581,22 +586,22 @@ Value smoothdata(std::pmr::memory_resource *mr, const Value &x,
         k = static_cast<int>(auto_k);
         if (k < 1) k = 1;
     }
-    auto kVal = Value::scalar(static_cast<double>(k), mr);
+    const size_t kArr[1] = { static_cast<size_t>(k) };
+    Span<const size_t> kSpan(kArr, 1);
 
     MovOpts opt;
     opt.dim = dim;
     if (m == "movmean" || m.empty())
-        return movmean_impl(mr, x, kVal, opt);
+        return movmean_impl(x, kSpan, opt, mr);
     if (m == "movmedian")
-        return movmedian_impl(mr, x, kVal, opt);
+        return movmedian_impl(x, kSpan, opt, mr);
     if (m == "gaussian") {
         // Gaussian-weighted moving mean — use sigma = (k-1)/4 (MATLAB heuristic).
-        const auto w = decodeWindow(kVal, "smoothdata");
+        const auto w = decodeWindow(kSpan, "smoothdata");
         const int d = resolveDim(x, dim, "smoothdata");
         const double sigma = (k > 1) ? static_cast<double>(k - 1) / 4.0 : 1.0;
         const long kb = w.kb;
-        return movingDriverDim(mr, x, w, d, opt,
-            [sigma, kb](const double *win, size_t n) {
+        return movingDriverDim(x, w, d, opt, [sigma, kb](const double *win, size_t n) {
                 double sw = 0.0, ssum = 0.0;
                 for (size_t i = 0; i < n; ++i) {
                     const double dx = static_cast<double>(static_cast<long>(i) - kb);
@@ -605,7 +610,7 @@ Value smoothdata(std::pmr::memory_resource *mr, const Value &x,
                     sw   += wt;
                 }
                 return (sw > 0) ? ssum / sw : std::numeric_limits<double>::quiet_NaN();
-            });
+            }, mr);
     }
     throw Error("smoothdata: method '" + method + "' not supported "
                  "(supported: 'movmean', 'movmedian', 'gaussian')",
@@ -613,7 +618,7 @@ Value smoothdata(std::pmr::memory_resource *mr, const Value &x,
 }
 
 // ── hampel ────────────────────────────────────────────────────────────
-Value hampel(std::pmr::memory_resource *mr, const Value &x, int k, double nsigmas)
+Value hampel(const Value &x, int k, double nsigmas, std::pmr::memory_resource *mr)
 {
     if (k < 0)
         throw Error("hampel: k must be >= 0",
@@ -675,8 +680,11 @@ void movmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() < 2)
         throw Error("movmean: requires at least 2 arguments (x, k)",
                      0, 0, "movmean", "", "m:movmean:nargin");
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    auto kBuf = decodeWindowValueToScratch(args[1], "movmean", scratch);
     auto opt = parseMovExtras(args, 2, "movmean");
-    outs[0] = movmean_impl(ctx.engine->resource(), args[0], args[1], opt);
+    outs[0] = movmean_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
 void movsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -684,8 +692,11 @@ void movsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 2)
         throw Error("movsum: requires at least 2 arguments (x, k)",
                      0, 0, "movsum", "", "m:movsum:nargin");
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    auto kBuf = decodeWindowValueToScratch(args[1], "movsum", scratch);
     auto opt = parseMovExtras(args, 2, "movsum");
-    outs[0] = movsum_impl(ctx.engine->resource(), args[0], args[1], opt);
+    outs[0] = movsum_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
 void movmin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -693,8 +704,11 @@ void movmin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 2)
         throw Error("movmin: requires at least 2 arguments (x, k)",
                      0, 0, "movmin", "", "m:movmin:nargin");
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    auto kBuf = decodeWindowValueToScratch(args[1], "movmin", scratch);
     auto opt = parseMovExtras(args, 2, "movmin");
-    outs[0] = movmin_impl(ctx.engine->resource(), args[0], args[1], opt);
+    outs[0] = movmin_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
 void movmax_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -702,8 +716,11 @@ void movmax_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 2)
         throw Error("movmax: requires at least 2 arguments (x, k)",
                      0, 0, "movmax", "", "m:movmax:nargin");
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    auto kBuf = decodeWindowValueToScratch(args[1], "movmax", scratch);
     auto opt = parseMovExtras(args, 2, "movmax");
-    outs[0] = movmax_impl(ctx.engine->resource(), args[0], args[1], opt);
+    outs[0] = movmax_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
 void movprod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -711,8 +728,11 @@ void movprod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() < 2)
         throw Error("movprod: requires at least 2 arguments (x, k)",
                      0, 0, "movprod", "", "m:movprod:nargin");
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    auto kBuf = decodeWindowValueToScratch(args[1], "movprod", scratch);
     auto opt = parseMovExtras(args, 2, "movprod");
-    outs[0] = movprod_impl(ctx.engine->resource(), args[0], args[1], opt);
+    outs[0] = movprod_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
 void movmedian_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -720,8 +740,11 @@ void movmedian_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("movmedian: requires at least 2 arguments (x, k)",
                      0, 0, "movmedian", "", "m:movmedian:nargin");
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    auto kBuf = decodeWindowValueToScratch(args[1], "movmedian", scratch);
     auto opt = parseMovExtras(args, 2, "movmedian");
-    outs[0] = movmedian_impl(ctx.engine->resource(), args[0], args[1], opt);
+    outs[0] = movmedian_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
 void movvar_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -740,8 +763,11 @@ void movvar_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
             extras_start = 3;
         }
     }
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    auto kBuf = decodeWindowValueToScratch(args[1], "movvar", scratch);
     auto opt = parseMovExtras(args, extras_start, "movvar");
-    outs[0] = movvar_impl(ctx.engine->resource(), args[0], args[1], normFlag, opt);
+    outs[0] = movvar_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), normFlag, opt, mr);
 }
 
 void movstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -759,8 +785,11 @@ void movstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
             extras_start = 3;
         }
     }
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    auto kBuf = decodeWindowValueToScratch(args[1], "movstd", scratch);
     auto opt = parseMovExtras(args, extras_start, "movstd");
-    outs[0] = movstd_impl(ctx.engine->resource(), args[0], args[1], normFlag, opt);
+    outs[0] = movstd_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), normFlag, opt, mr);
 }
 
 void movmad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -768,8 +797,11 @@ void movmad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 2)
         throw Error("movmad: requires at least 2 arguments (x, k)",
                      0, 0, "movmad", "", "m:movmad:nargin");
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    auto kBuf = decodeWindowValueToScratch(args[1], "movmad", scratch);
     auto opt = parseMovExtras(args, 2, "movmad");
-    outs[0] = movmad_impl(ctx.engine->resource(), args[0], args[1], opt);
+    outs[0] = movmad_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
 void smoothdata_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -789,7 +821,7 @@ void smoothdata_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
         if (k == 0 && (args[2].isScalar() || args[2].numel() == 1))
             k = static_cast<int>(args[2].toScalar());
     }
-    outs[0] = smoothdata(ctx.engine->resource(), args[0], method, k);
+    outs[0] = smoothdata(args[0], method, k, 0, ctx.engine->resource());
 }
 
 void hampel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -799,7 +831,7 @@ void hampel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
                      0, 0, "hampel", "", "m:hampel:nargin");
     const int k = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 3;
     const double nsigmas = (args.size() >= 3) ? args[2].toScalar() : 3.0;
-    outs[0] = hampel(ctx.engine->resource(), args[0], k, nsigmas);
+    outs[0] = hampel(args[0], k, nsigmas, ctx.engine->resource());
 }
 
 } // namespace detail

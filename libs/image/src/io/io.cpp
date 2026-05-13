@@ -38,7 +38,7 @@ std::string lowerExt(const std::string &path) {
 
 } // anonymous
 
-Value imread(std::pmr::memory_resource *mr, const std::string &path)
+Value imread(const std::string &path, std::pmr::memory_resource *mr)
 {
     int W = 0, H = 0, channelsInFile = 0;
     // 0 = take whatever channel count the file has (1, 3, or 4).
@@ -98,8 +98,7 @@ Value imread(std::pmr::memory_resource *mr, const std::string &path)
     return out;
 }
 
-void imwrite(std::pmr::memory_resource * /*mr*/,
-             const Value &A, const std::string &path)
+void imwrite(const Value &A, const std::string &path, std::pmr::memory_resource * /*mr*/)
 {
     // Accept H×W or H×W×{1,3,4}. Read shape via Dims.
     const size_t H = A.dims().rows();
@@ -222,7 +221,7 @@ const char *colorTypeFromChannels(int c) {
 
 } // anonymous
 
-Value imfinfo(std::pmr::memory_resource *mr, const std::string &path)
+Value imfinfo(const std::string &path, std::pmr::memory_resource *mr)
 {
     int W = 0, H = 0, channels = 0;
     if (!stbi_info(path.c_str(), &W, &H, &channels)) {
@@ -268,7 +267,7 @@ void imread_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (!args[0].isChar() && !args[0].isString())
         throw Error("imread: path must be a string",
                     0, 0, "imread", "", "m:imread:type");
-    outs[0] = imread(ctx.engine->resource(), args[0].toString());
+    outs[0] = imread(args[0].toString(), ctx.engine->resource());
 }
 
 void imwrite_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> /*outs*/,
@@ -280,7 +279,7 @@ void imwrite_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> /*outs*
     if (!args[1].isChar() && !args[1].isString())
         throw Error("imwrite: path must be a string",
                     0, 0, "imwrite", "", "m:imwrite:type");
-    imwrite(ctx.engine->resource(), args[0], args[1].toString());
+    imwrite(args[0], args[1].toString(), ctx.engine->resource());
 }
 
 void imfinfo_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -292,7 +291,7 @@ void imfinfo_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (!args[0].isChar() && !args[0].isString())
         throw Error("imfinfo: path must be a string",
                     0, 0, "imfinfo", "", "m:imfinfo:type");
-    outs[0] = imfinfo(ctx.engine->resource(), args[0].toString());
+    outs[0] = imfinfo(args[0].toString(), ctx.engine->resource());
 }
 
 } // namespace detail

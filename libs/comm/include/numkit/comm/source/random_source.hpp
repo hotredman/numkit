@@ -1,6 +1,6 @@
 // libs/comm/include/numkit/comm/source/random_source.hpp
 //
-// Random data sources (randsrc; randerr planned).
+// Random data sources (randsrc / randerr).
 
 #pragma once
 
@@ -11,31 +11,51 @@
 
 namespace numkit::comm {
 
-/// `out = randsrc(m, n [, alphabet [, state]])` — generate an
-/// `m`-by-`n` random matrix whose entries are drawn from a finite
-/// alphabet.
+/// @brief Generate an `m`×`n` random matrix from a finite alphabet
+/// (`out = randsrc(m, n, alphabet, state)`).
 ///
-///   alphabet : either a row vector (uniform probability) or a
-///              2-row matrix `[symbols; probabilities]`.
-///              Probabilities must lie in [0, 1] and sum to 1
-///              (within sqrt(eps)). Default: [-1, 1] uniform.
-///   state    : if provided, seeds an isolated MT19937 (matching
-///              MATLAB's `RandStream('mt19937ar', 'Seed', state)`).
-///              Otherwise the shared engine is used.
+/// `alphabet` is either:
+/// - a row vector (uniform probability over its entries), or
+/// - a 2-row matrix `[symbols; probabilities]` where probabilities
+///   lie in [0, 1] and sum to 1 (within `sqrt(eps)`).
 ///
-/// Output preserves m × n shape.
-Value randsrc(std::pmr::memory_resource *mr, size_t m, size_t n,
-              const Value &alphabet, bool have_state, uint32_t state);
+/// When `have_state` is true, draws come from an isolated MT19937
+/// seeded with `state` (matches MATLAB's
+/// `RandStream('mt19937ar','Seed', state)`); otherwise the shared
+/// engine is used.
+///
+/// @param m           Row count.
+/// @param n           Column count.
+/// @param alphabet    Alphabet specification (see above). Default
+///                    `Value::Empty` → `[-1, 1]` uniform.
+/// @param have_state  If true, use the supplied seed.
+/// @param state       Seed for the isolated MT19937.
+/// @param mr          Memory resource (nullptr → process default).
+/// @return            `m`×`n` matrix of drawn symbols.
+/// @see randerr
+Value randsrc(size_t m, size_t n, const Value &alphabet,
+              bool have_state, uint32_t state,
+              std::pmr::memory_resource *mr = nullptr);
 
-/// `out = randerr(m, n [, errors [, state]])` — generate an
-/// `m`-by-`n` binary matrix where each row has a controlled number
-/// of 1s ("errors") at random column positions.
+/// @brief Generate an `m`×`n` binary error pattern
+/// (`out = randerr(m, n, errors, state)`).
 ///
-///   errors  : either a scalar (exact count per row), a row vector
-///             of possible counts (uniform), or a 2-row matrix
-///             `[counts; probabilities]`. Default: scalar 1.
-///   state   : explicit seed -> isolated MatlabMT19937 instance.
-Value randerr(std::pmr::memory_resource *mr, size_t m, size_t n,
-              const Value &errspec, bool have_state, uint32_t state);
+/// Each row contains a controlled number of 1s ("errors") at random
+/// column positions. `errspec` is either:
+/// - a scalar (exact count per row),
+/// - a row vector of possible counts (uniform), or
+/// - a 2-row matrix `[counts; probabilities]`.
+///
+/// @param m           Row count.
+/// @param n           Column count.
+/// @param errspec     Error count specification (see above).
+/// @param have_state  If true, use the supplied seed.
+/// @param state       Seed for the isolated MatlabMT19937 instance.
+/// @param mr          Memory resource (nullptr → process default).
+/// @return            `m`×`n` binary error matrix.
+/// @see randsrc
+Value randerr(size_t m, size_t n, const Value &errspec,
+              bool have_state, uint32_t state,
+              std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::comm

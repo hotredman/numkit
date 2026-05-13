@@ -15,7 +15,7 @@ namespace numkit::signal {
 // Strict local maximum: x[i-1] < x[i] > x[i+1]. NaN is never a peak.
 // First and last samples are skipped (no left/right neighbour).
 std::tuple<Value, Value>
-findpeaks(std::pmr::memory_resource *mr, const Value &x)
+findpeaks(const Value &x, std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
     auto peakVals = ScratchVec<double>(&scratch);
@@ -50,7 +50,7 @@ void findpeaks_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     if (args.empty())
         throw Error("findpeaks: requires 1 argument",
                      0, 0, "findpeaks", "", "m:findpeaks:nargin");
-    auto [vals, idxs] = findpeaks(ctx.engine->resource(), args[0]);
+    auto [vals, idxs] = findpeaks(args[0], ctx.engine->resource());
     outs[0] = std::move(vals);
     if (nargout > 1) outs[1] = std::move(idxs);
 }

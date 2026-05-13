@@ -211,9 +211,7 @@ inline void read_row(const Value &X, size_t r, double *out) {
 
 } // anonymous
 
-Value pdist(std::pmr::memory_resource *mr, const Value &X,
-            const std::string &metric, double p,
-            const Value *C_opt)
+Value pdist(const Value &X, const std::string &metric, double p, const Value *C_opt, std::pmr::memory_resource *mr)
 {
     const Metric m = parse_metric(metric);
     const size_t M = X.dims().rows();
@@ -266,15 +264,12 @@ Value pdist(std::pmr::memory_resource *mr, const Value &X,
 }
 
 // Backward-compat wrapper without C.
-Value pdist(std::pmr::memory_resource *mr, const Value &X,
-            const std::string &metric, double p)
+Value pdist(const Value &X, const std::string &metric, double p, std::pmr::memory_resource *mr)
 {
-    return pdist(mr, X, metric, p, nullptr);
+    return pdist(X, metric, p, nullptr, mr);
 }
 
-Value pdist2(std::pmr::memory_resource *mr, const Value &X, const Value &Y,
-             const std::string &metric, double p,
-             const Value *C_opt)
+Value pdist2(const Value &X, const Value &Y, const std::string &metric, double p, const Value *C_opt, std::pmr::memory_resource *mr)
 {
     const Metric m = parse_metric(metric);
     const size_t Mx = X.dims().rows();
@@ -329,20 +324,17 @@ Value pdist2(std::pmr::memory_resource *mr, const Value &X, const Value &Y,
     return out;
 }
 
-Value pdist2(std::pmr::memory_resource *mr, const Value &X, const Value &Y,
-             const std::string &metric, double p)
+Value pdist2(const Value &X, const Value &Y, const std::string &metric, double p, std::pmr::memory_resource *mr)
 {
-    return pdist2(mr, X, Y, metric, p, nullptr);
+    return pdist2(X, Y, metric, p, nullptr, mr);
 }
 
 // pdist2 with per-column top-k selection ('Smallest' / 'Largest').
 // Returns D (k × My, sorted asc/desc) and I (k × My, 1-based row indices
 // into X). On exit, D and I are k × My or min(Mx,k) × My when Mx < k.
-void pdist2_topk(std::pmr::memory_resource *mr, const Value &X, const Value &Y,
-                 const std::string &metric, double p, const Value *C_opt,
-                 size_t k, bool largest, Value &Dout, Value &Iout)
+void pdist2_topk(const Value &X, const Value &Y, const std::string &metric, double p, const Value *C_opt, size_t k, bool largest, Value &Dout, Value &Iout, std::pmr::memory_resource *mr)
 {
-    Value full = pdist2(mr, X, Y, metric, p, C_opt);
+    Value full = pdist2(X, Y, metric, p, C_opt, mr);
     const size_t Mx = X.dims().rows();
     const size_t My = Y.dims().rows();
     const size_t kk = std::min(k, Mx);
@@ -380,7 +372,7 @@ void pdist2_topk(std::pmr::memory_resource *mr, const Value &X, const Value &Y,
     }
 }
 
-Value squareform(std::pmr::memory_resource *mr, const Value &d) {
+Value squareform(const Value &d, std::pmr::memory_resource *mr) {
     // Detect whether `d` is a row vector (pdist form) or a square matrix.
     const auto &dims = d.dims();
     const size_t r = dims.rows(), c = dims.cols();
@@ -418,7 +410,7 @@ Value squareform(std::pmr::memory_resource *mr, const Value &d) {
     return out;
 }
 
-Value mahal(std::pmr::memory_resource *mr, const Value &Y, const Value &X)
+Value mahal(const Value &Y, const Value &X, std::pmr::memory_resource *mr)
 {
     const size_t Mx = X.dims().rows();
     const size_t D  = X.dims().cols();
@@ -523,7 +515,7 @@ void pdist_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("pdist: requires X[, metric[, p|C]]", 0, 0, "pdist", "",
                     "m:pdist:nargin");
     auto a = parse_metric_args(args, 1);
-    outs[0] = pdist(ctx.engine->resource(), args[0], a.metric, a.p, a.C);
+    outs[0] = pdist(args[0], a.metric, a.p, a.C, ctx.engine->resource());
 }
 
 void pdist2_reg(Span<const Value> args, size_t /*nargout*/,
@@ -574,13 +566,11 @@ void pdist2_reg(Span<const Value> args, size_t /*nargout*/,
 
     if (topk_mode) {
         Value D, I;
-        pdist2_topk(ctx.engine->resource(), args[0], args[1],
-                    a.metric, a.p, a.C, k, largest, D, I);
+        pdist2_topk(args[0], args[1], a.metric, a.p, a.C, k, largest, D, I, ctx.engine->resource());
         outs[0] = D;
         if (outs.size() > 1) outs[1] = I;
     } else {
-        outs[0] = pdist2(ctx.engine->resource(), args[0], args[1],
-                         a.metric, a.p, a.C);
+        outs[0] = pdist2(args[0], args[1], a.metric, a.p, a.C, ctx.engine->resource());
     }
 }
 
@@ -590,7 +580,7 @@ void squareform_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("squareform: requires d", 0, 0, "squareform", "",
                     "m:squareform:nargin");
-    outs[0] = squareform(ctx.engine->resource(), args[0]);
+    outs[0] = squareform(args[0], ctx.engine->resource());
 }
 
 void mahal_reg(Span<const Value> args, size_t /*nargout*/,
@@ -599,7 +589,7 @@ void mahal_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("mahal: requires (Y, X)", 0, 0, "mahal", "",
                     "m:mahal:nargin");
-    outs[0] = mahal(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = mahal(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail

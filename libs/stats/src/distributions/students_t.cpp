@@ -28,7 +28,7 @@ namespace numkit::stats {
 namespace {
 
 template <typename Op>
-Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
@@ -48,16 +48,16 @@ double scalarOf(const Value &v) { return v.toScalar(); }
 
 } // anonymous
 
-Value tpdf(std::pmr::memory_resource *mr, const Value &x, double nu)
+Value tpdf(const Value &x, double nu, std::pmr::memory_resource *mr)
 {
     if (!(nu > 0.0))  // nu <= 0 or NaN
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     // Gaussian limit: as nu -> Inf, t-PDF -> N(0, 1) PDF.
     if (std::isinf(nu)) {
         const double inv = 1.0 / std::sqrt(2.0 * M_PI);
-        return elementwise(mr, x, [inv](double xi){
+        return elementwise(x, [inv](double xi){
             return inv * std::exp(-0.5 * xi * xi);
-        });
+        }, mr);
     }
     // log f(x) = lgamma((ν+1)/2) - lgamma(ν/2) - 0.5*log(ν π)
     //          - ((ν+1)/2) * log(1 + x²/ν)
@@ -65,22 +65,22 @@ Value tpdf(std::pmr::memory_resource *mr, const Value &x, double nu)
                           - std::lgamma(0.5 * nu)
                           - 0.5 * std::log(nu * M_PI);
     const double exponent = -0.5 * (nu + 1.0);
-    return elementwise(mr, x, [=](double xi) {
+    return elementwise(x, [=](double xi) {
         return std::exp(log_norm + exponent * std::log1p(xi * xi / nu));
-    });
+    }, mr);
 }
 
-Value tcdf(std::pmr::memory_resource *mr, const Value &x, double nu)
+Value tcdf(const Value &x, double nu, std::pmr::memory_resource *mr)
 {
     if (nu <= 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     // Build z[i] = ν / (ν + x[i]²); pass through betainc with (ν/2, 1/2).
     // The cdf is then 1 - ½·I_z(ν/2, ½) for x ≥ 0 and ½·I_z otherwise.
     const size_t n = x.numel();
-    Value z = elementwise(mr, x, [=](double xi){ return nu / (nu + xi * xi); });
+    Value z = elementwise(x, [=](double xi){ return nu / (nu + xi * xi); }, mr);
     Value a = Value::scalar(0.5 * nu, mr);
     Value b = Value::scalar(0.5, mr);
-    Value Iz = ::numkit::builtin::betainc(mr, z, a, b);
+    Value Iz = ::numkit::builtin::betainc(z, a, b, mr);
 
     // Walk x and Iz in parallel, picking branch by sign of x.
     auto out = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, mr);
@@ -96,16 +96,16 @@ Value tcdf(std::pmr::memory_resource *mr, const Value &x, double nu)
     return out;
 }
 
-Value tinv(std::pmr::memory_resource *mr, const Value &p, double nu)
+Value tinv(const Value &p, double nu, std::pmr::memory_resource *mr)
 {
     const double NaN = std::numeric_limits<double>::quiet_NaN();
     const double PINF = std::numeric_limits<double>::infinity();
     const double NINF = -PINF;
     if (!(nu > 0.0))  // nu <= 0 or NaN
-        return elementwise(mr, p, [NaN](double){ return NaN; });
+        return elementwise(p, [NaN](double){ return NaN; }, mr);
     // Gaussian limit: as nu -> Inf, t-distribution -> N(0, 1), so tinv(p, Inf) = norminv(p).
     if (std::isinf(nu)) {
-        return elementwise(mr, p, [NaN, PINF, NINF](double pi){
+        return elementwise(p, [NaN, PINF, NINF](double pi){
             if (std::isnan(pi) || pi < 0.0 || pi > 1.0) return NaN;
             if (pi == 0.0) return NINF;
             if (pi == 1.0) return PINF;
@@ -123,20 +123,20 @@ Value tinv(std::pmr::memory_resource *mr, const Value &p, double nu)
                 xv -= e / de;
             }
             return std::sqrt(2.0) * xv;
-        });
+        }, mr);
     }
     // Use betaincinv: from p ↔ z via I_z(ν/2, 1/2) = q where:
     //   p ≥ 0.5: q = 2(1-p), x = +sqrt(ν · (1/z - 1))
     //   p < 0.5: q = 2p,     x = -sqrt(ν · (1/z - 1))
     const size_t n = p.numel();
-    auto qv = elementwise(mr, p, [](double pi){
+    auto qv = elementwise(p, [](double pi){
         // Out-of-range / NaN handled later; clamp to a valid betaincinv arg here.
         if (std::isnan(pi) || pi < 0.0 || pi > 1.0) return 0.5;
         return (pi >= 0.5) ? 2.0 * (1.0 - pi) : 2.0 * pi;
-    });
+    }, mr);
     Value a = Value::scalar(0.5 * nu, mr);
     Value b = Value::scalar(0.5, mr);
-    Value zv = ::numkit::builtin::betaincinv(mr, qv, a, b);
+    Value zv = ::numkit::builtin::betaincinv(qv, a, b, mr);
 
     auto out = Value::matrix(p.dims().rows(), p.dims().cols(), ValueType::DOUBLE, mr);
     if (p.dims().is3D())
@@ -156,7 +156,7 @@ Value tinv(std::pmr::memory_resource *mr, const Value &p, double nu)
     return out;
 }
 
-Value trnd(std::pmr::memory_resource *mr, double nu, size_t rows, size_t cols)
+Value trnd(double nu, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -195,7 +195,7 @@ void tpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("tpdf: requires (x, nu)", 0, 0, "tpdf", "", "m:tpdf:nargin");
-    outs[0] = tpdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    outs[0] = tpdf(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 void tcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -204,7 +204,7 @@ void tcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     const size_t n = stripUpperFlag(args, upper);
     if (n < 2)
         throw Error("tcdf: requires (x, nu[, 'upper'])", 0, 0, "tcdf", "", "m:tcdf:nargin");
-    Value v = tcdf(ctx.engine->resource(), args[0], args[1].toScalar());
+    Value v = tcdf(args[0], args[1].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -213,7 +213,7 @@ void tinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("tinv: requires (p, nu)", 0, 0, "tinv", "", "m:tinv:nargin");
-    outs[0] = tinv(ctx.engine->resource(), args[0], args[1].toScalar());
+    outs[0] = tinv(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 void trnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -223,7 +223,7 @@ void trnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     const double nu = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols);
-    outs[0] = trnd(ctx.engine->resource(), nu, rows, cols);
+    outs[0] = trnd(nu, rows, cols, ctx.engine->resource());
 }
 
 void tstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

@@ -1,12 +1,6 @@
 // libs/audio/include/numkit/audio/spectral/shape_descriptors.hpp
 //
-// MATLAB Audio Toolbox spectral shape descriptors. All take EITHER:
-//   * (x, fs)  — x is column vector signal, fs is sample rate. Internal
-//                STFT with rectwin(round(fs*0.03)), overlap=round(fs*0.02),
-//                FFTLength=winLen. Returns per-frame column vector.
-//   * (X, F)   — X is power spectrum (or magnitude), F is frequency
-//                vector. X may be M-by-N (one spectrum per column). Returns
-//                per-column metric value as a row vector.
+// MATLAB Audio Toolbox spectral shape descriptors.
 
 #pragma once
 
@@ -15,23 +9,144 @@
 
 namespace numkit::audio {
 
-Value spectralCentroid    (std::pmr::memory_resource *mr, const Value &x, const Value &f);
-Value spectralSpread      (std::pmr::memory_resource *mr, const Value &x, const Value &f);
-Value spectralRolloffPoint(std::pmr::memory_resource *mr, const Value &x, const Value &f,
-                           double percentile = 0.95);
-Value spectralDecrease    (std::pmr::memory_resource *mr, const Value &x, const Value &f);
-Value spectralSlope       (std::pmr::memory_resource *mr, const Value &x, const Value &f);
-Value spectralFlux        (std::pmr::memory_resource *mr, const Value &x, const Value &f,
-                           double p = 2.0);
+/// @file
+/// @brief Spectral-shape descriptors (Audio Toolbox).
+///
+/// **Two input forms** (shared by every function in this header):
+/// 1. `(x, fs)` — `x` is a column-vector time-domain signal, `fs` is
+///    the sample rate. Internally computes STFT with
+///    `rectwin(round(fs · 0.03))`, overlap `round(fs · 0.02)`,
+///    `FFTLength = winLen`. Returns a per-frame column vector.
+/// 2. `(X, F)` — `X` is a power (or magnitude) spectrum, `F` is the
+///    frequency vector. `X` may be `M × N` (one spectrum per column).
+///    Returns a per-column metric as a row vector.
+///
+/// Throughout this header `x` / `f` follow that convention; only
+/// descriptor-specific extra arguments (`percentile`, `p`) are called
+/// out separately.
 
-// ── Cycle I: spectralCrest/Entropy/Flatness/Kurtosis/Skewness ─────────
-// All match MATLAB R2025b Signal Toolbox semantics (per-frame STFT for
-// time-domain input). Frequency moments (Kurtosis/Skewness) use the
-// X-weighted central-moment formula from spectralSkewness.m / Kurtosis.m.
-Value spectralCrest       (std::pmr::memory_resource *mr, const Value &x, const Value &f);
-Value spectralEntropy     (std::pmr::memory_resource *mr, const Value &x, const Value &f);
-Value spectralFlatness    (std::pmr::memory_resource *mr, const Value &x, const Value &f);
-Value spectralKurtosis    (std::pmr::memory_resource *mr, const Value &x, const Value &f);
-Value spectralSkewness    (std::pmr::memory_resource *mr, const Value &x, const Value &f);
+/// @brief Spectral centroid — power-weighted mean frequency.
+///
+/// @f$ \mu_X = \sum_k f_k \cdot X_k \big/ \sum_k X_k @f$
+///
+/// @param x   Time signal or `M × N` spectrum (see file note).
+/// @param f   Sample rate or frequency vector (see file note).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Per-frame / per-column centroid.
+/// @see spectralSpread
+Value spectralCentroid(const Value &x, const Value &f,
+                       std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Spectral spread — power-weighted std around the centroid.
+///
+/// @param x   Time signal or spectrum.
+/// @param f   Sample rate or frequency vector.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Per-frame / per-column spread.
+/// @see spectralCentroid, spectralSkewness, spectralKurtosis
+Value spectralSpread(const Value &x, const Value &f,
+                     std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Spectral rolloff frequency.
+///
+/// `f` such that the cumulative spectral power below `f` equals
+/// `percentile` of the total power.
+///
+/// @param x           Time signal or spectrum.
+/// @param f           Sample rate or frequency vector.
+/// @param percentile  Cumulative power fraction in `(0, 1)`. Default 0.95.
+/// @param mr          Memory resource (nullptr → process default).
+/// @return            Per-frame / per-column rolloff frequency.
+Value spectralRolloffPoint(const Value &x, const Value &f,
+                           double percentile = 0.95,
+                           std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Spectral decrease — slope-like measure relative to first bin.
+///
+/// @f$ d = \dfrac{1}{\sum_{k \ge 2} X_k}\,\sum_{k \ge 2} \dfrac{X_k - X_1}{k - 1} @f$
+///
+/// @param x   Time signal or spectrum.
+/// @param f   Sample rate or frequency vector.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Per-frame / per-column decrease.
+Value spectralDecrease(const Value &x, const Value &f,
+                       std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Spectral slope — least-squares slope of `(f, X)`.
+///
+/// @param x   Time signal or spectrum.
+/// @param f   Sample rate or frequency vector.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Per-frame / per-column slope.
+Value spectralSlope(const Value &x, const Value &f,
+                    std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Spectral flux — `p`-norm of frame-to-frame spectrum differences.
+///
+/// @param x   Time signal or spectrum.
+/// @param f   Sample rate or frequency vector.
+/// @param p   Norm order (default 2 — Euclidean).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `N - 1` flux values (one per frame transition).
+Value spectralFlux(const Value &x, const Value &f, double p = 2.0,
+                   std::pmr::memory_resource *mr = nullptr);
+
+// ─────────────────────────────────────────────────────────────────────
+// Cycle I: shape statistics. All match MATLAB R2025b Signal Toolbox.
+// Frequency moments (Kurtosis / Skewness) use the X-weighted
+// central-moment formula from MATLAB's `spectralSkewness.m`.
+// ─────────────────────────────────────────────────────────────────────
+
+/// @brief Spectral crest — `max(X) / mean(X)` per frame.
+///
+/// @param x   Time signal or spectrum.
+/// @param f   Sample rate or frequency vector.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Per-frame / per-column crest.
+/// @see spectralFlatness
+Value spectralCrest(const Value &x, const Value &f,
+                    std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Spectral entropy — Shannon entropy of normalised spectrum.
+///
+/// @param x   Time signal or spectrum.
+/// @param f   Sample rate or frequency vector.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Per-frame / per-column entropy (nats or bits per MATLAB
+///            convention).
+Value spectralEntropy(const Value &x, const Value &f,
+                      std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Spectral flatness — `geomean(X) / mean(X)`.
+///
+/// `1` = white, `0` = tonal.
+///
+/// @param x   Time signal or spectrum.
+/// @param f   Sample rate or frequency vector.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Per-frame / per-column flatness.
+/// @see spectralCrest
+Value spectralFlatness(const Value &x, const Value &f,
+                       std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Spectral kurtosis — X-weighted 4th central moment.
+///
+/// @param x   Time signal or spectrum.
+/// @param f   Sample rate or frequency vector.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Per-frame / per-column kurtosis.
+/// @see spectralSkewness, spectralSpread
+Value spectralKurtosis(const Value &x, const Value &f,
+                       std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Spectral skewness — X-weighted 3rd central moment.
+///
+/// @param x   Time signal or spectrum.
+/// @param f   Sample rate or frequency vector.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Per-frame / per-column skewness.
+/// @see spectralKurtosis, spectralSpread
+Value spectralSkewness(const Value &x, const Value &f,
+                       std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::audio

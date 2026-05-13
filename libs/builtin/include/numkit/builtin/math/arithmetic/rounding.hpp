@@ -1,7 +1,6 @@
 // libs/builtin/include/numkit/builtin/math/arithmetic/rounding.hpp
 //
-// Rounding and sign builtins. abs has a SIMD backend (libs/builtin/src/
-// backends/MStdAbs_*.cpp); the rest are scalar wrappers.
+// Rounding and sign builtins.
 
 #pragma once
 
@@ -10,19 +9,69 @@
 
 namespace numkit::builtin {
 
-/// `hint` — see math/elementary/exponents.hpp for the contract.
-Value abs(std::pmr::memory_resource *mr, const Value &x, Value *hint = nullptr);
+/// @brief Absolute value (`y = abs(x)`).
+///
+/// Elementwise. For COMPLEX input returns `sqrt(re² + im²)` per element.
+/// Has a SIMD backend (Highway via `libs/builtin/src/backends/`).
+///
+/// @param x   Input array.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `|x|`, same shape as `x`.
+/// @see sign
+Value abs(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-Value floor(std::pmr::memory_resource *mr, const Value &x);
-Value ceil(std::pmr::memory_resource *mr, const Value &x);
-Value round(std::pmr::memory_resource *mr, const Value &x);
+/// @brief Round toward `-Inf` (`y = floor(x)`).
+///
+/// @param x   Input array.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Floor of each element, same shape as `x`.
+/// @see ceil, round, fix
+Value floor(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-/// fix(x) — truncate toward zero.
-Value fix(std::pmr::memory_resource *mr, const Value &x);
+/// @brief Round toward `+Inf` (`y = ceil(x)`).
+///
+/// @param x   Input array.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Ceiling of each element, same shape as `x`.
+/// @see floor, round, fix
+Value ceil(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-Value sign(std::pmr::memory_resource *mr, const Value &x);
+/// @brief Round to nearest integer (`y = round(x)`).
+///
+/// Ties round away from zero (MATLAB default).
+///
+/// @param x   Input array.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Nearest integer per element, same shape as `x`.
+/// @see floor, ceil, fix
+Value round(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-/// subplus(x) — truncated positive part: max(x, 0). NaN passes through.
-Value subplus(std::pmr::memory_resource *mr, const Value &x);
+/// @brief Truncate toward zero (`y = fix(x)`).
+///
+/// @param x   Input array.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Integer part toward zero, same shape as `x`.
+/// @see round, floor, ceil
+Value fix(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Sign function (`y = sign(x)`).
+///
+/// Returns `-1`, `0`, or `+1` per element. For COMPLEX input returns
+/// `x / |x|` (unit-magnitude phasor) or 0 for zero entries.
+///
+/// @param x   Input array.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Sign of each element, same shape as `x`.
+/// @see abs
+Value sign(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Positive part (`y = subplus(x)`).
+///
+/// `y = max(x, 0)`. NaN passes through unchanged.
+///
+/// @param x   Input array.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Truncated positive part, same shape as `x`.
+Value subplus(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

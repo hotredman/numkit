@@ -53,7 +53,7 @@ double medianFromSlice(double *data, size_t n)
 
 } // namespace
 
-Value nansum(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value nansum(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -67,7 +67,7 @@ Value nansum(std::pmr::memory_resource *mr, const Value &x, int dim)
         }, mr);
 }
 
-Value nanmean(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value nanmean(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -86,7 +86,7 @@ Value nanmean(std::pmr::memory_resource *mr, const Value &x, int dim)
         }, mr);
 }
 
-Value nanmax(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value nanmax(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -100,7 +100,7 @@ Value nanmax(std::pmr::memory_resource *mr, const Value &x, int dim)
         }, mr);
 }
 
-Value nanmin(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value nanmin(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -114,7 +114,7 @@ Value nanmin(std::pmr::memory_resource *mr, const Value &x, int dim)
         }, mr);
 }
 
-Value nanvar(std::pmr::memory_resource *mr, const Value &x, int normFlag, int dim)
+Value nanvar(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
 {
     validateNormFlag(normFlag, "nanvar");
     if (x.isEmpty())
@@ -129,7 +129,7 @@ Value nanvar(std::pmr::memory_resource *mr, const Value &x, int normFlag, int di
         }, mr);
 }
 
-Value nanstdev(std::pmr::memory_resource *mr, const Value &x, int normFlag, int dim)
+Value nanstdev(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
 {
     validateNormFlag(normFlag, "nanstd");
     if (x.isEmpty())
@@ -144,7 +144,7 @@ Value nanstdev(std::pmr::memory_resource *mr, const Value &x, int normFlag, int 
         }, mr);
 }
 
-Value nanmedian(std::pmr::memory_resource *mr, const Value &x, int dim)
+Value nanmedian(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     const int d = resolveDim(x, dim, "nanmedian");
     return applyAlongDim(x, d,
@@ -167,7 +167,7 @@ namespace detail {
         int dim = 0;                                                             \
         if (args.size() >= 2 && !args[1].isEmpty())                              \
             dim = static_cast<int>(args[1].toScalar());                          \
-        outs[0] = fn(ctx.engine->resource(), args[0], dim);                     \
+        outs[0] = fn(args[0], dim, ctx.engine->resource());                     \
     }
 
 NK_NAN_REDUCTION_ADAPTER(nansum,    nansum)
@@ -192,7 +192,7 @@ NK_NAN_REDUCTION_ADAPTER(nanmedian, nanmedian)
             dim = static_cast<int>(args[1].toScalar());                           \
         else if (args.size() >= 3 && !args[2].isEmpty())                          \
             dim = static_cast<int>(args[2].toScalar());                           \
-        outs[0] = fn(ctx.engine->resource(), args[0], dim);                      \
+        outs[0] = fn(args[0], dim, ctx.engine->resource());                      \
     }
 
 NK_NAN_MAXMIN_ADAPTER(nanmax, nanmax)
@@ -211,7 +211,7 @@ void nanvar_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         w = static_cast<int>(args[1].toScalar());
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
-    outs[0] = nanvar(ctx.engine->resource(), args[0], w, dim);
+    outs[0] = nanvar(args[0], w, dim, ctx.engine->resource());
 }
 
 void nanstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -225,7 +225,7 @@ void nanstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         w = static_cast<int>(args[1].toScalar());
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
-    outs[0] = nanstdev(ctx.engine->resource(), args[0], w, dim);
+    outs[0] = nanstdev(args[0], w, dim, ctx.engine->resource());
 }
 
 } // namespace detail

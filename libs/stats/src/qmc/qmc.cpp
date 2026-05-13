@@ -44,7 +44,7 @@ double radical_inverse(long long i, int p)
 
 } // anonymous
 
-Value haltonset(std::pmr::memory_resource *mr, int d, long long skip, long long leap)
+Value haltonset(int d, long long skip, long long leap, std::pmr::memory_resource *mr)
 {
     if (d < 1)
         throw Error("haltonset: dim must be ≥ 1",
@@ -57,7 +57,7 @@ Value haltonset(std::pmr::memory_resource *mr, int d, long long skip, long long 
     return s;
 }
 
-Value net(std::pmr::memory_resource *mr, const Value &stream, long long n)
+Value net(const Value &stream, long long n, std::pmr::memory_resource *mr)
 {
     if (!stream.isStruct() || !stream.hasField("kind"))
         throw Error("net: input must be a quasi-random stream struct",
@@ -112,7 +112,7 @@ void haltonset_reg(Span<const Value> args, size_t /*nargout*/,
         if      (name == "skip") skip = static_cast<long long>(v.toScalar());
         else if (name == "leap") leap = static_cast<long long>(v.toScalar());
     }
-    outs[0] = haltonset(ctx.engine->resource(), d, skip, leap);
+    outs[0] = haltonset(d, skip, leap, ctx.engine->resource());
 }
 
 void net_reg(Span<const Value> args, size_t /*nargout*/,
@@ -122,7 +122,7 @@ void net_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("net: requires (stream, n)",
                     0, 0, "net", "", "m:net:nargin");
     const long long n = static_cast<long long>(args[1].toScalar());
-    outs[0] = net(ctx.engine->resource(), args[0], n);
+    outs[0] = net(args[0], n, ctx.engine->resource());
 }
 
 } // namespace detail

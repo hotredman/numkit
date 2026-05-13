@@ -57,8 +57,7 @@ void forward_solve(const double *L, double *z, const double *b, size_t d)
 
 } // anonymous
 
-Value mvnpdf(std::pmr::memory_resource *mr, const Value &X,
-             const Value &mu, const Value &Sigma)
+Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma, std::pmr::memory_resource *mr)
 {
     // Determine dimensionality d. X is N×d (or 1×d for a single point).
     if (X.numel() == 0)
@@ -117,8 +116,7 @@ Value mvnpdf(std::pmr::memory_resource *mr, const Value &X,
     return out;
 }
 
-Value mvtpdf(std::pmr::memory_resource *mr, const Value &X,
-             const Value &C, double df)
+Value mvtpdf(const Value &X, const Value &C, double df, std::pmr::memory_resource *mr)
 {
     if (X.numel() == 0)
         return Value::matrix(0, 1, ValueType::DOUBLE, mr);
@@ -186,7 +184,7 @@ Value mvtpdf(std::pmr::memory_resource *mr, const Value &X,
     return out;
 }
 
-Value mnpdf(std::pmr::memory_resource *mr, const Value &X, const Value &P)
+Value mnpdf(const Value &X, const Value &P, std::pmr::memory_resource *mr)
 {
     // X is 1×k or N×k of integer counts. P is 1×k probability vector.
     const size_t k = P.numel();
@@ -239,7 +237,7 @@ void mvnpdf_reg(Span<const Value> args, size_t /*nargout*/,
     Value empty = Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const Value &mu  = (args.size() >= 2) ? args[1] : empty;
     const Value &sig = (args.size() >= 3) ? args[2] : empty;
-    outs[0] = mvnpdf(mr, args[0], mu, sig);
+    outs[0] = mvnpdf(args[0], mu, sig, mr);
 }
 
 void mnpdf_reg(Span<const Value> args, size_t /*nargout*/,
@@ -248,7 +246,7 @@ void mnpdf_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("mnpdf: requires (X, P)",
                     0, 0, "mnpdf", "", "m:mnpdf:nargin");
-    outs[0] = mnpdf(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = mnpdf(args[0], args[1], ctx.engine->resource());
 }
 
 void mvtpdf_reg(Span<const Value> args, size_t /*nargout*/,
@@ -258,7 +256,7 @@ void mvtpdf_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("mvtpdf: requires (X, C, df)",
                     0, 0, "mvtpdf", "", "m:mvtpdf:nargin");
     const double df = args[2].toScalar();
-    outs[0] = mvtpdf(ctx.engine->resource(), args[0], args[1], df);
+    outs[0] = mvtpdf(args[0], args[1], df, ctx.engine->resource());
 }
 
 } // namespace detail

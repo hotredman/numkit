@@ -82,7 +82,7 @@ namespace numkit::builtin {
 
 HWY_EXPORT(AbsLoop);
 
-Value abs(std::pmr::memory_resource *mr, const Value &x, Value *hint)
+Value abs(const Value &x, Value *hint, std::pmr::memory_resource *mr)
 {
     // Complex goes through scalar std::abs(Complex) — SIMD double-lane
     // implementations don't help here (sqrt of sum-of-squares with

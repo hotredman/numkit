@@ -1,12 +1,15 @@
 #pragma once
 
 #include <numkit/core/heap_object.hpp>
+#include <numkit/core/span.hpp>
 
+#include <array>
 #include <atomic>
 #include <complex>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <initializer_list>
 #include <map>
 #include <memory_resource>
 #include <string>
@@ -15,6 +18,25 @@
 namespace numkit {
 
 using Complex = std::complex<double>;
+
+namespace detail {
+/// Compile-time map from C++ type → numkit ValueType. Primary template
+/// is left undefined: instantiating it with an unsupported T yields a
+/// hard compile error pointing at the offending call site.
+template<class T> struct value_type_for;
+
+template<> struct value_type_for<double>        { static constexpr ValueType type = ValueType::DOUBLE;  };
+template<> struct value_type_for<float>         { static constexpr ValueType type = ValueType::SINGLE;  };
+template<> struct value_type_for<std::int8_t>   { static constexpr ValueType type = ValueType::INT8;    };
+template<> struct value_type_for<std::int16_t>  { static constexpr ValueType type = ValueType::INT16;   };
+template<> struct value_type_for<std::int32_t>  { static constexpr ValueType type = ValueType::INT32;   };
+template<> struct value_type_for<std::int64_t>  { static constexpr ValueType type = ValueType::INT64;   };
+template<> struct value_type_for<std::uint8_t>  { static constexpr ValueType type = ValueType::UINT8;   };
+template<> struct value_type_for<std::uint16_t> { static constexpr ValueType type = ValueType::UINT16;  };
+template<> struct value_type_for<std::uint32_t> { static constexpr ValueType type = ValueType::UINT32;  };
+template<> struct value_type_for<std::uint64_t> { static constexpr ValueType type = ValueType::UINT64;  };
+template<> struct value_type_for<std::complex<double>> { static constexpr ValueType type = ValueType::COMPLEX; };
+} // namespace detail
 
 // ============================================================
 // Value — 16-byte tagged pointer value
@@ -43,6 +65,70 @@ public:
     Value &operator=(Value &&other) noexcept;
 
     void swap(Value &other) noexcept;
+
+    // ── Ergonomic ctors — owning, COPY ────────────────────────
+    //
+    // Build a 1×N row vector from common C++ sources. All four COPY
+    // the input bytes into a fresh buffer on `mr` (nullptr → process
+    // default resource). Reshape afterwards if you need a matrix / ND.
+    //
+    // T must be one of: double, float, int8..int64, uint8..uint64,
+    // std::complex<double>. Other types fail to compile via
+    // detail::value_type_for.
+    //
+    // The initializer_list overload is non-template (always double) so
+    // that `Value v = {1, 2, 3};` works without int → DOUBLE surprises
+    // from template type deduction. For other types use the vector /
+    // array / Span overloads.
+
+    /// Row vector from a brace-enclosed list of doubles.
+    /// @code  Value v = {1.0, 2.0, 3.0};  // 1×3 DOUBLE  @endcode
+    Value(std::initializer_list<double> il,
+          std::pmr::memory_resource *mr = nullptr);
+
+    /// Row vector from a contiguous span.
+    template<class T>
+    Value(Span<const T> data,
+          std::pmr::memory_resource *mr = nullptr);
+
+    /// Row vector from std::vector — copies all elements.
+    template<class T>
+    Value(const std::vector<T> &v,
+          std::pmr::memory_resource *mr = nullptr);
+
+    /// Row vector from std::array — copies all elements.
+    template<class T, std::size_t N>
+    Value(const std::array<T, N> &a,
+          std::pmr::memory_resource *mr = nullptr);
+
+    /// Non-owning view over an externally-owned buffer.
+    ///
+    /// @warning  Caller MUST keep `data` alive for as long as the
+    ///           returned Value (or any copy of it) is in use. The
+    ///           Value never frees `data`. Mutating via doubleDataMut
+    ///           etc. silently clones into a fresh owning buffer (COW).
+    ///
+    /// @code
+    /// double buf[1024];
+    /// Value v = Value::view(buf, ValueType::DOUBLE, Dims{1, 1024});
+    /// @endcode
+    static Value view(const void *data,
+                      ValueType type,
+                      Dims dims);
+
+    /// MATLAB-style empty matrix sentinel — a 0×0 DOUBLE value.
+    ///
+    /// Use as the default for optional `const Value &` parameters in
+    /// public library API. Equivalent to MATLAB `[]`. Inside the
+    /// function, check via `x.isEmpty()` (or `x.numel() == 0`) which
+    /// also catches truly Unset Values, giving uniform MATLAB-style
+    /// "use default if empty" semantics.
+    ///
+    ///   isEmpty() = true
+    ///   isUnset() = false       (distinct from default-constructed Value)
+    ///   type()    = DOUBLE
+    ///   dims()    = {0, 0}
+    static const Value Empty;
 
     // ── Factories — real ─────────────────────────────────────
     static Value scalar(double v, std::pmr::memory_resource *mr = nullptr);
@@ -79,6 +165,11 @@ public:
     static Value structArray(size_t rows, size_t cols,
                               std::pmr::memory_resource *mr = nullptr);
     static Value funcHandle(const std::string &name, std::pmr::memory_resource *mr = nullptr);
+    /// Returns a default-constructed (Unset) Value — NOT a MATLAB
+    /// empty matrix despite the name. New code should use
+    /// `Value::Empty` for MATLAB-style empty (0×0 DOUBLE) or
+    /// `Value()` directly for the unset sentinel.
+    [[deprecated("Use Value::Empty (MATLAB 0x0 DOUBLE) or Value() (unset sentinel)")]]
     static Value empty();
     static Value deleted();
 
@@ -461,6 +552,41 @@ private:
     // Static dims for scalar returns
     static const Dims sScalarDims;
     static const Dims sEmptyDims;
+
+    // Shared body of the ergonomic ctors. Allocates a 1×count row of
+    // `type` on `mr` and memcpy's `count * elemSize` bytes from `src`.
+    static Value makeContiguous(const void *src, size_t count,
+                                ValueType type, size_t elemSize,
+                                std::pmr::memory_resource *mr);
 };
+
+// ── Inline template bodies ──────────────────────────────────────
+// Kept in the header because they're tiny — each one is a single
+// thunk into Value::makeContiguous. The compile-time cost per TU is
+// negligible compared to dragging value.cpp into every includer.
+
+template<class T>
+inline Value::Value(Span<const T> data, std::pmr::memory_resource *mr)
+    : Value()
+{
+    constexpr ValueType vt = detail::value_type_for<T>::type;
+    *this = makeContiguous(data.data(), data.size(), vt, sizeof(T), mr);
+}
+
+template<class T>
+inline Value::Value(const std::vector<T> &v, std::pmr::memory_resource *mr)
+    : Value()
+{
+    constexpr ValueType vt = detail::value_type_for<T>::type;
+    *this = makeContiguous(v.data(), v.size(), vt, sizeof(T), mr);
+}
+
+template<class T, std::size_t N>
+inline Value::Value(const std::array<T, N> &a, std::pmr::memory_resource *mr)
+    : Value()
+{
+    constexpr ValueType vt = detail::value_type_for<T>::type;
+    *this = makeContiguous(a.data(), N, vt, sizeof(T), mr);
+}
 
 } // namespace numkit

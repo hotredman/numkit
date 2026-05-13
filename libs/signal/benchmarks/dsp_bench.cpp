@@ -53,7 +53,7 @@ struct FilterCoeffs {
 // passed the empty-check, masking the bug).
 FilterCoeffs makeLowpass32(std::pmr::memory_resource *mr)
 {
-    auto b = signal::fir1(mr, 32, 0.25, "low");  // 33-tap FIR
+    auto b = signal::fir1(32, 0.25, "low", mr);  // 33-tap FIR
     // a = [1] for FIR
     Value a = Value::matrix(1, 1, ValueType::DOUBLE, nullptr);
     a.doubleDataMut()[0] = 1.0;
@@ -71,7 +71,7 @@ static void BM_FilterFIR33(benchmark::State &s)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     auto coeffs = makeLowpass32(mr);
     for (auto _ : s) {
-        auto y = signal::filter(mr, coeffs.b, coeffs.a, x);
+        auto y = signal::filter(coeffs.b, coeffs.a, x, mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -85,7 +85,7 @@ static void BM_FiltfiltFIR33(benchmark::State &s)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     auto coeffs = makeLowpass32(mr);
     for (auto _ : s) {
-        auto y = signal::filtfilt(mr, coeffs.b, coeffs.a, x);
+        auto y = signal::filtfilt(coeffs.b, coeffs.a, x, mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -101,7 +101,7 @@ static void BM_Xcorr(benchmark::State &s)
     auto y = makeSignal(n, 2);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto [c, lags] = signal::xcorr(mr, x, y);
+        auto [c, lags] = signal::xcorr(x, y, mr);
         benchmark::DoNotOptimize(c);
         benchmark::DoNotOptimize(lags);
     }
@@ -118,7 +118,7 @@ static void BM_Pwelch(benchmark::State &s)
     Value emptyWin = Value::matrix(0, 0, ValueType::DOUBLE, nullptr);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto [pxx, f] = signal::pwelch(mr, x, emptyWin, 0, 0);
+        auto [pxx, f] = signal::pwelch(x, emptyWin, 0, 0, mr);
         benchmark::DoNotOptimize(pxx);
         benchmark::DoNotOptimize(f);
     }
@@ -134,7 +134,7 @@ static void BM_Hilbert(benchmark::State &s)
     auto x = makeSignal(n);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = signal::hilbert(mr, x);
+        auto y = signal::hilbert(x, mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -149,7 +149,7 @@ static void BM_Medfilt1_K7(benchmark::State &s)
     auto x = makeSignal(n);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = signal::medfilt1(mr, x, 7);
+        auto y = signal::medfilt1(x, 7, mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -162,7 +162,7 @@ static void BM_Findpeaks(benchmark::State &s)
     auto x = makeSignal(n);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto [v, idx] = signal::findpeaks(mr, x);
+        auto [v, idx] = signal::findpeaks(x, mr);
         benchmark::DoNotOptimize(v);
         benchmark::DoNotOptimize(idx);
     }
@@ -177,7 +177,7 @@ static void BM_DCT(benchmark::State &s)
     auto x = makeSignal(n);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = signal::dct(mr, x);
+        auto y = signal::dct(x, mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetComplexityN(static_cast<int64_t>(n));

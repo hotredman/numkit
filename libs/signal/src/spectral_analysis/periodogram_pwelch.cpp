@@ -36,8 +36,7 @@ void fillHammingWindow(double *w, size_t N)
 } // anonymous namespace
 
 std::tuple<Value, Value>
-periodogram(std::pmr::memory_resource *mr, const Value &x,
-            const Value &window, size_t nfft, double fs)
+periodogram(const Value &x, const Value &window, size_t nfft, double fs, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const double *xd = x.doubleData();
@@ -86,12 +85,7 @@ periodogram(std::pmr::memory_resource *mr, const Value &x,
 }
 
 std::tuple<Value, Value>
-pwelch(std::pmr::memory_resource *mr,
-       const Value &x,
-       const Value &window,
-       size_t noverlap,
-       size_t nfft,
-       double fs)
+pwelch(const Value &x, const Value &window, size_t noverlap, size_t nfft, double fs, std::pmr::memory_resource *mr)
 {
     const size_t nx = x.numel();
     const double *xd = x.doubleData();
@@ -195,10 +189,7 @@ struct CrossWelchOut {
     size_t nfft = 0;
 };
 
-CrossWelchOut crossWelch(std::pmr::memory_resource *mr,
-                         const Value &x, const Value &y,
-                         const Value &window,
-                         size_t noverlap, size_t nfft)
+CrossWelchOut crossWelch(const Value &x, const Value &y, const Value &window, size_t noverlap, size_t nfft, std::pmr::memory_resource *mr)
 {
     const size_t nx = x.numel();
     const size_t ny = y.numel();
@@ -273,11 +264,9 @@ CrossWelchOut crossWelch(std::pmr::memory_resource *mr,
 } // anonymous
 
 std::tuple<Value, Value>
-cpsd(std::pmr::memory_resource *mr,
-     const Value &x, const Value &y,
-     const Value &window, size_t noverlap, size_t nfft, double fs)
+cpsd(const Value &x, const Value &y, const Value &window, size_t noverlap, size_t nfft, double fs, std::pmr::memory_resource *mr)
 {
-    auto o = crossWelch(mr, x, y, window, noverlap, nfft);
+    auto o = crossWelch(x, y, window, noverlap, nfft, mr);
     const size_t nOut = o.Sxx.size();
     // Rescale frequency vector to [0, fs/2] (crossWelch uses [0, pi]).
     auto rescaleF = [&]() {
@@ -310,11 +299,9 @@ cpsd(std::pmr::memory_resource *mr,
 }
 
 std::tuple<Value, Value>
-mscohere(std::pmr::memory_resource *mr,
-         const Value &x, const Value &y,
-         const Value &window, size_t noverlap, size_t nfft, double fs)
+mscohere(const Value &x, const Value &y, const Value &window, size_t noverlap, size_t nfft, double fs, std::pmr::memory_resource *mr)
 {
-    auto o = crossWelch(mr, x, y, window, noverlap, nfft);
+    auto o = crossWelch(x, y, window, noverlap, nfft, mr);
     const size_t nOut = o.Sxx.size();
     Value Cxy = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
     Value F   = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
@@ -331,11 +318,9 @@ mscohere(std::pmr::memory_resource *mr,
 }
 
 std::tuple<Value, Value>
-tfestimate(std::pmr::memory_resource *mr,
-           const Value &x, const Value &y,
-           const Value &window, size_t noverlap, size_t nfft, double fs)
+tfestimate(const Value &x, const Value &y, const Value &window, size_t noverlap, size_t nfft, double fs, std::pmr::memory_resource *mr)
 {
-    auto o = crossWelch(mr, x, y, window, noverlap, nfft);
+    auto o = crossWelch(x, y, window, noverlap, nfft, mr);
     const size_t nOut = o.Sxx.size();
     Value Txy = Value::matrix(nOut, 1, ValueType::COMPLEX, mr);
     Value F   = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
@@ -374,7 +359,7 @@ void periodogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
     const size_t nfft = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
     const double fs   = (args.size() >= 4) ? args[3].toScalar() : kDefaultFs;
 
-    auto [Pxx, F] = periodogram(ctx.engine->resource(), args[0], window, nfft, fs);
+    auto [Pxx, F] = periodogram(args[0], window, nfft, fs, ctx.engine->resource());
     outs[0] = std::move(Pxx);
     if (nargout > 1)
         outs[1] = std::move(F);
@@ -393,7 +378,7 @@ void pwelch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
     const size_t nfft = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 0;
     const double fs   = (args.size() >= 5) ? args[4].toScalar() : kDefaultFs;
 
-    auto [Pxx, F] = pwelch(ctx.engine->resource(), args[0], window, noverlap, nfft, fs);
+    auto [Pxx, F] = pwelch(args[0], window, noverlap, nfft, fs, ctx.engine->resource());
     outs[0] = std::move(Pxx);
     if (nargout > 1)
         outs[1] = std::move(F);
@@ -409,8 +394,7 @@ void cpsd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     const size_t noverlap = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 0;
     const size_t nfft     = (args.size() >= 5) ? static_cast<size_t>(args[4].toScalar()) : 0;
     const double fs       = (args.size() >= 6) ? args[5].toScalar() : kDefaultFs;
-    auto [Pxy, F] = cpsd(ctx.engine->resource(), args[0], args[1],
-                         window, noverlap, nfft, fs);
+    auto [Pxy, F] = cpsd(args[0], args[1], window, noverlap, nfft, fs, ctx.engine->resource());
     outs[0] = std::move(Pxy);
     if (nargout > 1) outs[1] = std::move(F);
 }
@@ -425,8 +409,7 @@ void mscohere_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     const size_t noverlap = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 0;
     const size_t nfft     = (args.size() >= 5) ? static_cast<size_t>(args[4].toScalar()) : 0;
     const double fs       = (args.size() >= 6) ? args[5].toScalar() : kDefaultFs;
-    auto [Cxy, F] = mscohere(ctx.engine->resource(), args[0], args[1],
-                             window, noverlap, nfft, fs);
+    auto [Cxy, F] = mscohere(args[0], args[1], window, noverlap, nfft, fs, ctx.engine->resource());
     outs[0] = std::move(Cxy);
     if (nargout > 1) outs[1] = std::move(F);
 }
@@ -441,8 +424,7 @@ void tfestimate_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Ca
     const size_t noverlap = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 0;
     const size_t nfft     = (args.size() >= 5) ? static_cast<size_t>(args[4].toScalar()) : 0;
     const double fs       = (args.size() >= 6) ? args[5].toScalar() : kDefaultFs;
-    auto [Txy, F] = tfestimate(ctx.engine->resource(), args[0], args[1],
-                               window, noverlap, nfft, fs);
+    auto [Txy, F] = tfestimate(args[0], args[1], window, noverlap, nfft, fs, ctx.engine->resource());
     outs[0] = std::move(Txy);
     if (nargout > 1) outs[1] = std::move(F);
 }
