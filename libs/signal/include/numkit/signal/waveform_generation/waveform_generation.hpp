@@ -5,15 +5,12 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/core/fn_handle.hpp>
 #include <numkit/core/value.hpp>
 
 #include <string>
 
-namespace numkit { class Engine; }
-
 namespace numkit::signal {
-
-using ::numkit::Engine;
 
 /// Rectangular pulse of unit amplitude on the open interval `(-w/2, w/2)`.
 ///
@@ -76,24 +73,22 @@ Value pulstran(const Value &                t,
                double                       bw    = 0.5,
                std::pmr::memory_resource *  mr    = nullptr);
 
-/// Pulse train with a function-handle pulse generator.
+/// Pulse train with a callback-based pulse generator.
 ///
-/// The handle is invoked once per delay as `fn(t - d_i)` (extra trailing
-/// args from the adapter are not forwarded — keep the handle a
-/// 1-input function).
+/// The callback is invoked once per delay with a 1-element `args`
+/// holding the shifted time vector `t - d_i` and writes the
+/// corresponding pulse vector into `outs[0]` (must have the same
+/// length as `t`).
 ///
-/// @param t         Output time grid.
-/// @param d         Delay vector.
-/// @param fnHandle  Function-handle Value (must accept one Value arg).
-/// @param engine    Engine pointer for handle invocation (must be valid).
-/// @param mr        Memory resource (nullptr → process default).
-/// @return          Same-shape DOUBLE array.
-///
+/// @param t   Output time grid.
+/// @param d   Delay vector.
+/// @param fn  MATLAB-style callback (1 vector in, 1 vector out).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Same-shape DOUBLE array.
 /// @see pulstran
 Value pulstranHandle(const Value &                t,
                      const Value &                d,
-                     const Value &                fnHandle,
-                     Engine *                     engine,
+                     FnHandle                     fn,
                      std::pmr::memory_resource *  mr = nullptr);
 
 /// Frequency-modulated cosine (chirp).

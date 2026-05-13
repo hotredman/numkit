@@ -6,9 +6,10 @@
 // interpolation hybrid.
 // fminsearch — multi-dimensional unconstrained minimum via Nelder-Mead.
 //
-// All three use the engine's function-handle-callback API for objective
-// evaluation. Callback helper lives next to this TU under the same
-// `numkit::optim` namespace tree (see _callback_helpers.hpp).
+// All three accept a numkit::FnHandle callback for objective
+// evaluation — no Engine dependency in the library API. Engine
+// adapters at the bottom of this TU wrap a function-handle Value in
+// a stack-resident lambda and pass it as FnHandle.
 
 #include <numkit/optim/local/fzero.hpp>
 
@@ -32,13 +33,13 @@ namespace {
 // factor until a sign change is detected. Throws if not found within
 // kMaxExpansions iterations.
 std::pair<double, double>
-findBracket(Engine *engine, const Value &fn, double x0)
+findBracket(FnHandle fn, double x0)
 {
     constexpr int kMaxExpansions = 60;
     double step = (x0 == 0.0) ? 0.02 : std::abs(x0) * 0.02;
     if (step == 0.0) step = 0.02;
     double a = x0, b = x0;
-    double fa = cb::evalCallback(engine, fn, a);
+    double fa = cb::evalScalar(fn,a);
     if (fa == 0.0) return {a, a};
     double fb = fa;
     for (int i = 0; i < kMaxExpansions; ++i) {
@@ -46,9 +47,9 @@ findBracket(Engine *engine, const Value &fn, double x0)
         const double aPrev = a, fAprev = fa;
         a = x0 - s;
         b = x0 + s;
-        fa = cb::evalCallback(engine, fn, a);
+        fa = cb::evalScalar(fn,a);
         if (fa == 0.0) return {a, a};
-        fb = cb::evalCallback(engine, fn, b);
+        fb = cb::evalScalar(fn,b);
         if (fb == 0.0) return {b, b};
         if ((fa < 0) != (fb < 0)) return {a, b};
         if ((fAprev < 0) != (fa < 0)) return {a, aPrev};
@@ -60,13 +61,13 @@ findBracket(Engine *engine, const Value &fn, double x0)
 
 // Brent's method on [a, b] with f(a)*f(b) < 0 (or one of them == 0).
 // Returns the root.
-double brent(Engine *engine, const Value &fn, double a, double b)
+double brent(FnHandle fn, double a, double b)
 {
     constexpr int    kMaxIter = 200;
     constexpr double kEps     = 1e-15;
 
-    double fa = cb::evalCallback(engine, fn, a);
-    double fb = cb::evalCallback(engine, fn, b);
+    double fa = cb::evalScalar(fn,a);
+    double fb = cb::evalScalar(fn,b);
     if (fa == 0.0) return a;
     if (fb == 0.0) return b;
     if ((fa < 0) == (fb < 0))
@@ -117,7 +118,7 @@ double brent(Engine *engine, const Value &fn, double a, double b)
             b += d;
         else
             b += (xm > 0 ? std::abs(tol1) : -std::abs(tol1));
-        fb = cb::evalCallback(engine, fn, b);
+        fb = cb::evalScalar(fn,b);
     }
     throw Error("fzero: failed to converge within iteration limit",
                  0, 0, "fzero", "", "m:fzero:noConverge");
@@ -125,25 +126,16 @@ double brent(Engine *engine, const Value &fn, double a, double b)
 
 } // namespace
 
-Value fzero(const Value &fn, const Value &x0OrInterval,
-            Engine *engine,
+Value fzero(FnHandle fn, const Value &x0OrInterval,
             std::pmr::memory_resource *mr)
 {
-    if (engine == nullptr)
-        throw Error("fzero: requires an Engine pointer (callback API)",
-                     0, 0, "fzero", "", "m:fzero:noEngine");
-    if (!fn.isFuncHandle()
-        && !(fn.isCell() && fn.numel() >= 1 && fn.cellAt(0).isFuncHandle()))
-        throw Error("fzero: 1st argument must be a function handle",
-                     0, 0, "fzero", "", "m:fzero:fnType");
-
     if (x0OrInterval.numel() == 2) {
         const double a = x0OrInterval.elemAsDouble(0);
         const double b = x0OrInterval.elemAsDouble(1);
         if (!std::isfinite(a) || !std::isfinite(b) || a >= b)
             throw Error("fzero: interval [a, b] must satisfy a < b and be finite",
                          0, 0, "fzero", "", "m:fzero:badInterval");
-        return Value::scalar(brent(engine, fn, a, b), mr);
+        return Value::scalar(brent(fn, a, b), mr);
     }
 
     if (!x0OrInterval.isScalar())
@@ -154,10 +146,10 @@ Value fzero(const Value &fn, const Value &x0OrInterval,
     if (!std::isfinite(x0))
         throw Error("fzero: x0 must be finite",
                      0, 0, "fzero", "", "m:fzero:badX0");
-    auto [a, b] = findBracket(engine, fn, x0);
+    auto [a, b] = findBracket(fn, x0);
     if (a == b) return Value::scalar(a, mr);
     if (a > b) std::swap(a, b);
-    return Value::scalar(brent(engine, fn, a, b), mr);
+    return Value::scalar(brent(fn, a, b), mr);
 }
 
 // ── fminbnd / fminsearch ─────────────────────────────────────────────
@@ -169,7 +161,7 @@ Value fzero(const Value &fn, const Value &x0OrInterval,
 
 namespace {
 
-double brentMin(Engine *engine, const Value &fn, double a, double b, double tol)
+double brentMin(FnHandle fn, double a, double b, double tol)
 {
     constexpr int    kMaxIter = 200;
     const double GOLD = 0.5 * (3.0 - std::sqrt(5.0));   // ≈ 0.381966
@@ -177,7 +169,7 @@ double brentMin(Engine *engine, const Value &fn, double a, double b, double tol)
 
     double x = a + GOLD * (b - a);
     double w = x, v = x;
-    double fx = cb::evalCallback(engine, fn, x);
+    double fx = cb::evalScalar(fn,x);
     double fw = fx, fv = fx;
     double d = 0.0, e = 0.0;
 
@@ -212,7 +204,7 @@ double brentMin(Engine *engine, const Value &fn, double a, double b, double tol)
             d = GOLD * e;
         }
         const double u = (std::abs(d) >= t1) ? x + d : x + (d >= 0 ? t1 : -t1);
-        const double fu = cb::evalCallback(engine, fn, u);
+        const double fu = cb::evalScalar(fn,u);
 
         if (fu <= fx) {
             if (u >= x) a = x; else b = x;
@@ -236,7 +228,7 @@ double brentMin(Engine *engine, const Value &fn, double a, double b, double tol)
 // tol is the f-value spread tolerance. The simplex is stored as a
 // flat (n+1)*n row-of-vertices buffer; sx[i*n + j] is the j-th
 // coordinate of vertex i.
-ScratchVec<double> nelderMead(Engine *engine, const Value &fn,
+ScratchVec<double> nelderMead(FnHandle fn,
                               const double *x0, size_t n, double tol,
                               std::pmr::memory_resource *mr)
 {
@@ -247,11 +239,7 @@ ScratchVec<double> nelderMead(Engine *engine, const Value &fn,
     constexpr double SIGMA = 0.5;   // shrink
 
     auto evalAt = [&](const double *x) -> double {
-        Value v = Value::matrix(1, n, ValueType::DOUBLE, mr);
-        for (size_t i = 0; i < n; ++i) v.doubleDataMut()[i] = x[i];
-        Value args[1] = { std::move(v) };
-        Value r = engine->callFunctionHandle(fn, Span<const Value>(args, 1));
-        return r.toScalar();
+        return cb::evalVecToScalar(fn, x, n, mr);
     };
 
     // Buffers (all on the per-call arena passed in via mr).
@@ -344,27 +332,19 @@ ScratchVec<double> nelderMead(Engine *engine, const Value &fn,
 
 } // anon
 
-Value fminbnd(const Value &fn, double lo, double hi, double tol,
-              Engine *engine,
+Value fminbnd(FnHandle fn, double lo, double hi, double tol,
               std::pmr::memory_resource *mr)
 {
-    if (engine == nullptr)
-        throw Error("fminbnd: requires an Engine pointer",
-                     0, 0, "fminbnd", "", "m:fminbnd:noEngine");
     if (!std::isfinite(lo) || !std::isfinite(hi) || lo >= hi)
         throw Error("fminbnd: lo < hi must be finite",
                      0, 0, "fminbnd", "", "m:fminbnd:badRange");
     if (!(tol > 0)) tol = 1e-6;
-    return Value::scalar(brentMin(engine, fn, lo, hi, tol), mr);
+    return Value::scalar(brentMin(fn, lo, hi, tol), mr);
 }
 
-Value fminsearch(const Value &fn, const Value &x0, double tol,
-                 Engine *engine,
+Value fminsearch(FnHandle fn, const Value &x0, double tol,
                  std::pmr::memory_resource *mr)
 {
-    if (engine == nullptr)
-        throw Error("fminsearch: requires an Engine pointer",
-                     0, 0, "fminsearch", "", "m:fminsearch:noEngine");
     const size_t n = x0.numel();
     if (n == 0)
         throw Error("fminsearch: x0 must be non-empty",
@@ -373,21 +353,44 @@ Value fminsearch(const Value &fn, const Value &x0, double tol,
     ScratchArena scratch(mr);
     auto xv = ScratchVec<double>(n, &scratch);
     for (size_t i = 0; i < n; ++i) xv[i] = x0.elemAsDouble(i);
-    auto best = nelderMead(engine, fn, xv.data(), n, tol, &scratch);
+    auto best = nelderMead(fn, xv.data(), n, tol, &scratch);
     Value r = Value::matrix(x0.dims().rows(), x0.dims().cols(), ValueType::DOUBLE, mr);
     for (size_t i = 0; i < n; ++i) r.doubleDataMut()[i] = best[i];
     return r;
 }
 
 // ── Engine adapter ───────────────────────────────────────────────────
+//
+// Each adapter validates that the user passed a function handle, then
+// wraps the (Engine, handle) pair into a stack-resident lambda that
+// looks like a numkit::FnHandle to the library functions. The lambda
+// outlives the call into fzero/fminbnd/fminsearch.
 namespace detail {
+
+namespace {
+// Validate args[0] is a callable handle (handle or cell-of-handle).
+void requireFuncHandle(const Value &fn, const char *who)
+{
+    if (!fn.isFuncHandle()
+        && !(fn.isCell() && fn.numel() >= 1 && fn.cellAt(0).isFuncHandle()))
+        throw Error(std::string(who) + ": 1st argument must be a function handle",
+                     0, 0, who, "", std::string("m:") + who + ":fnType");
+}
+} // anon
 
 void fzero_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("fzero: requires at least 2 arguments (fn, x0 or [a, b])",
                      0, 0, "fzero", "", "m:fzero:nargin");
-    outs[0] = fzero(args[0], args[1], ctx.engine, ctx.engine->resource());
+    requireFuncHandle(args[0], "fzero");
+    auto handle = args[0];
+    auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou) {
+        auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
+        for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
+            ou[i] = std::move(r[i]);
+    };
+    outs[0] = fzero(cb, args[1], ctx.engine->resource());
 }
 
 void fminbnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -395,10 +398,17 @@ void fminbnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() < 3)
         throw Error("fminbnd: requires (fn, lo, hi[, tol])",
                      0, 0, "fminbnd", "", "m:fminbnd:nargin");
+    requireFuncHandle(args[0], "fminbnd");
     const double lo = args[1].toScalar();
     const double hi = args[2].toScalar();
     const double tol = (args.size() >= 4 && !args[3].isEmpty()) ? args[3].toScalar() : 1e-6;
-    outs[0] = fminbnd(args[0], lo, hi, tol, ctx.engine, ctx.engine->resource());
+    auto handle = args[0];
+    auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou) {
+        auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
+        for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
+            ou[i] = std::move(r[i]);
+    };
+    outs[0] = fminbnd(cb, lo, hi, tol, ctx.engine->resource());
 }
 
 void fminsearch_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -406,8 +416,15 @@ void fminsearch_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
     if (args.size() < 2)
         throw Error("fminsearch: requires (fn, x0[, tol])",
                      0, 0, "fminsearch", "", "m:fminsearch:nargin");
+    requireFuncHandle(args[0], "fminsearch");
     const double tol = (args.size() >= 3 && !args[2].isEmpty()) ? args[2].toScalar() : 1e-4;
-    outs[0] = fminsearch(args[0], args[1], tol, ctx.engine, ctx.engine->resource());
+    auto handle = args[0];
+    auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou) {
+        auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
+        for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
+            ou[i] = std::move(r[i]);
+    };
+    outs[0] = fminsearch(cb, args[1], tol, ctx.engine->resource());
 }
 
 } // namespace detail

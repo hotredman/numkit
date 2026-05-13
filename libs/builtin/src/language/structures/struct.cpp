@@ -117,35 +117,32 @@ Value rmfield(const Value &s, const Value &name, std::pmr::memory_resource *)
     return out;
 }
 
-Value structfun(const Value &fn, const Value &s, bool uniformOutput, Engine *engine, std::pmr::memory_resource *mr)
+Value structfun(FnHandle fn, const Value &s, bool uniformOutput,
+                std::pmr::memory_resource *mr)
 {
     if (!s.isStruct())
         throw Error("structfun: second argument must be a scalar struct",
                      0, 0, "structfun", "", "m:structfun:notStruct");
-    hf::BuiltinFn f = hf::BuiltinFn::Numel;  // placeholder
-    const bool isBuiltin = hf::tryParseBuiltinHandle(fn, f, "structfun");
 
     const auto &fields = s.structFields();
     const size_t n = fields.size();
     ScratchArena scratch(mr);
     ScratchVec<Value> results(&scratch);
     results.reserve(n);
-    for (const auto &kv : fields)
-        results.push_back(hf::applyHandle(mr, fn, f, isBuiltin,
-                                          kv.second, engine, "structfun"));
+    for (const auto &kv : fields) {
+        Value arg = kv.second;
+        Value out;
+        Span<const Value> ar(&arg, 1);
+        Span<Value>       ou(&out, 1);
+        fn(ar, ou);
+        results.push_back(std::move(out));
+    }
 
     if (uniformOutput) {
         // Uniform: column vector of length n.
-        if (isBuiltin && hf::builtinReturnsString(f))
-            throw Error("structfun: @class output must use UniformOutput=false",
-                         0, 0, "structfun", "", "m:structfun:nonUniform");
-        // For built-in handles use the static return-type tag; for
-        // anonymous handles infer from the first result.
-        ValueType outT = ValueType::DOUBLE;
-        if (isBuiltin && hf::builtinReturnsLogical(f))
-            outT = ValueType::LOGICAL;
-        else if (!isBuiltin && n > 0 && results[0].isLogical())
-            outT = ValueType::LOGICAL;
+        // Output type follows the first result.
+        const ValueType outT = (n > 0 && results[0].isLogical())
+                                  ? ValueType::LOGICAL : ValueType::DOUBLE;
         auto out = Value::matrix(n, 1, outT, mr);
         for (size_t i = 0; i < n; ++i) {
             const Value &v = results[i];
@@ -325,7 +322,29 @@ void structfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
         throw Error("structfun: requires at least 2 arguments (fn, S)",
                      0, 0, "structfun", "", "m:structfun:nargin");
     bool uniform = hf::parseUniformOutputFlag(args, 2, "structfun");
-    outs[0] = structfun(args[0], args[1], uniform, ctx.engine, ctx.engine->resource());
+
+    auto *mr = ctx.engine->resource();
+    hf::BuiltinFn f = hf::BuiltinFn::Numel;
+    const bool isBuiltin = hf::tryParseBuiltinHandle(args[0], f, "structfun");
+
+    if (uniform && isBuiltin && hf::builtinReturnsString(f))
+        throw Error("structfun: @class output must use UniformOutput=false",
+                     0, 0, "structfun", "", "m:structfun:nonUniform");
+
+    if (isBuiltin) {
+        auto cb = [mr, f](Span<const Value> ar, Span<Value> ou) {
+            ou[0] = hf::applyBuiltin(mr, f, ar[0], "structfun");
+        };
+        outs[0] = structfun(cb, args[1], uniform, mr);
+    } else {
+        const auto &handle = args[0];
+        auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou) {
+            auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
+            for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
+                ou[i] = std::move(r[i]);
+        };
+        outs[0] = structfun(cb, args[1], uniform, mr);
+    }
 }
 
 void getfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)

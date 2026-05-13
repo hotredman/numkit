@@ -39,27 +39,28 @@ Value cell(size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *)
     return Value::cell(rows, cols);
 }
 
-Value cellfun(const Value &fn, const Value &c, bool uniformOutput, Engine *engine, std::pmr::memory_resource *mr)
+Value cellfun(FnHandle fn, const Value &c, bool uniformOutput,
+              std::pmr::memory_resource *mr)
 {
     if (!c.isCell())
         throw Error("cellfun: second argument must be a cell array",
                      0, 0, "cellfun", "", "m:cellfun:notCell");
-    hf::BuiltinFn f = hf::BuiltinFn::Numel;  // placeholder
-    const bool isBuiltin = hf::tryParseBuiltinHandle(fn, f, "cellfun");
 
     const size_t n = c.numel();
     ScratchArena scratch(mr);
     ScratchVec<Value> results(&scratch);
     results.reserve(n);
-    for (size_t i = 0; i < n; ++i)
-        results.push_back(hf::applyHandle(mr, fn, f, isBuiltin,
-                                          c.cellAt(i), engine, "cellfun"));
+    for (size_t i = 0; i < n; ++i) {
+        Value arg = c.cellAt(i);
+        Value out;
+        Span<const Value> ar(&arg, 1);
+        Span<Value>       ou(&out, 1);
+        fn(ar, ou);
+        results.push_back(std::move(out));
+    }
 
     if (uniformOutput) {
-        if (isBuiltin)
-            return hf::packUniform(mr, f, results.data(), results.size(),
-                                    c.dims(), "cellfun");
-        // Anonymous: pack as DOUBLE / LOGICAL based on first result's type.
+        // Pack as DOUBLE / LOGICAL based on first result's type.
         const ValueType outT = (n > 0 && results[0].isLogical())
                            ? ValueType::LOGICAL : ValueType::DOUBLE;
         const auto &d = c.dims();
@@ -323,7 +324,29 @@ void cellfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
         throw Error("cellfun: requires at least 2 arguments (fn, C)",
                      0, 0, "cellfun", "", "m:cellfun:nargin");
     bool uniform = hf::parseUniformOutputFlag(args, 2, "cellfun");
-    outs[0] = cellfun(args[0], args[1], uniform, ctx.engine, ctx.engine->resource());
+
+    auto *mr = ctx.engine->resource();
+    hf::BuiltinFn f = hf::BuiltinFn::Numel;
+    const bool isBuiltin = hf::tryParseBuiltinHandle(args[0], f, "cellfun");
+
+    if (uniform && isBuiltin && hf::builtinReturnsString(f))
+        throw Error("cellfun: @class output must use UniformOutput=false",
+                     0, 0, "cellfun", "", "m:cellfun:nonUniform");
+
+    if (isBuiltin) {
+        auto cb = [mr, f](Span<const Value> ar, Span<Value> ou) {
+            ou[0] = hf::applyBuiltin(mr, f, ar[0], "cellfun");
+        };
+        outs[0] = cellfun(cb, args[1], uniform, mr);
+    } else {
+        const auto &handle = args[0];
+        auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou) {
+            auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
+            for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
+                ou[i] = std::move(r[i]);
+        };
+        outs[0] = cellfun(cb, args[1], uniform, mr);
+    }
 }
 
 void cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)

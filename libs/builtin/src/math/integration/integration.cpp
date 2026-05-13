@@ -289,14 +289,14 @@ constexpr double kGaussW[7] = {
 };
 
 std::pair<double, double>
-gaussKronrod15(Engine *engine, const Value &fn, double a, double b)
+gaussKronrod15(FnHandle fn, double a, double b)
 {
     const double half  = 0.5 * (b - a);
     const double mid   = 0.5 * (b + a);
     double K = 0.0, G = 0.0;
     for (int i = 0; i < 15; ++i) {
         const double x  = mid + half * kKronrodX[i];
-        const double fv = cb::evalCallback(engine, fn, x);
+        const double fv = cb::evalScalar(fn, x);
         K += kKronrodW[i] * fv;
         if (i % 2 == 1)
             G += kGaussW[i / 2] * fv;
@@ -304,28 +304,22 @@ gaussKronrod15(Engine *engine, const Value &fn, double a, double b)
     return {half * K, half * G};
 }
 
-double adaptiveIntegral(Engine *engine, const Value &fn, double a, double b,
+double adaptiveIntegral(FnHandle fn, double a, double b,
                         double absTol, int depth, int maxDepth)
 {
-    auto [K, G] = gaussKronrod15(engine, fn, a, b);
+    auto [K, G] = gaussKronrod15(fn, a, b);
     const double err = std::abs(K - G);
     if (err < absTol || depth >= maxDepth) return K;
     const double mid = 0.5 * (a + b);
-    return adaptiveIntegral(engine, fn, a, mid, absTol * 0.5, depth + 1, maxDepth)
-         + adaptiveIntegral(engine, fn, mid, b, absTol * 0.5, depth + 1, maxDepth);
+    return adaptiveIntegral(fn, a, mid, absTol * 0.5, depth + 1, maxDepth)
+         + adaptiveIntegral(fn, mid, b, absTol * 0.5, depth + 1, maxDepth);
 }
 
 } // namespace
 
-Value integral(const Value &fn, double a, double b, double absTol, Engine *engine, std::pmr::memory_resource *mr)
+Value integral(FnHandle fn, double a, double b, double absTol,
+               std::pmr::memory_resource *mr)
 {
-    if (engine == nullptr)
-        throw Error("integral: requires an Engine pointer (callback API)",
-                     0, 0, "integral", "", "m:integral:noEngine");
-    if (!fn.isFuncHandle()
-        && !(fn.isCell() && fn.numel() >= 1 && fn.cellAt(0).isFuncHandle()))
-        throw Error("integral: 1st argument must be a function handle",
-                     0, 0, "integral", "", "m:integral:fnType");
     if (!std::isfinite(a) || !std::isfinite(b))
         throw Error("integral: bounds must be finite",
                      0, 0, "integral", "", "m:integral:badBounds");
@@ -336,7 +330,7 @@ Value integral(const Value &fn, double a, double b, double absTol, Engine *engin
     if (b < a) std::swap(a, b);
     if (a == b) return Value::scalar(0.0, mr);
     constexpr int kMaxDepth = 20;
-    const double r = adaptiveIntegral(engine, fn, a, b, absTol, 0, kMaxDepth);
+    const double r = adaptiveIntegral(fn, a, b, absTol, 0, kMaxDepth);
     return Value::scalar(sign * r, mr);
 }
 
@@ -382,6 +376,11 @@ void integral_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.size() < 3)
         throw Error("integral: requires at least 3 arguments (fn, a, b)",
                      0, 0, "integral", "", "m:integral:nargin");
+    if (!args[0].isFuncHandle()
+        && !(args[0].isCell() && args[0].numel() >= 1
+             && args[0].cellAt(0).isFuncHandle()))
+        throw Error("integral: 1st argument must be a function handle",
+                     0, 0, "integral", "", "m:integral:fnType");
     const double a = args[1].toScalar();
     const double b = args[2].toScalar();
     double absTol = 1e-10;
@@ -398,7 +397,13 @@ void integral_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
                          0, 0, "integral", "", "m:integral:badFlag");
         }
     }
-    outs[0] = integral(args[0], a, b, absTol, ctx.engine, ctx.engine->resource());
+    auto handle = args[0];
+    auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou) {
+        auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
+        for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
+            ou[i] = std::move(r[i]);
+    };
+    outs[0] = integral(cb, a, b, absTol, ctx.engine->resource());
 }
 
 void trapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
