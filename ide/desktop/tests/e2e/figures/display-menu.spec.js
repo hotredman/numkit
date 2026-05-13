@@ -112,11 +112,28 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await expect(zlabel).toBeEnabled();
   });
 
-  test('title button disabled when figure has no title set', async ({ ide, page }) => {
-    // Probe to surface the actual figure.title so the disabled rule is
-    // checked against fresh state. `figure;` forces a new axes; the
-    // explicit title("") + xlabel("") are belt-and-braces in case the
-    // figure manager carries strings across `close all`.
+  test('toolbar display ▾ — no toggle is ever disabled', async ({ ide, page }) => {
+    // Cover the worst-case figure that previously tripped disabled rules:
+    // bare `plot(1:10)` (no title, no xlabel, no ylabel, xRange[0] < 0
+    // due to padding so xlog used to be disabled). After the
+    // disabled-rule deletion every toggle should be clickable.
+    await ide.runScript('import compat.*;\nplot(1:10);\n');
+    await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+    await ide.figureCards.first().click();
+    await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+
+    await openDisplayMenu(page);
+    const buttons = await page.locator('.fw-pop .fw-pop-toggle').all();
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const btn of buttons) {
+      await expect(btn).toBeEnabled();
+    }
+  });
+
+  test('title and xlabel toggles stay enabled even when text is unset', async ({ ide, page }) => {
+    // Latest UX rule: toolbar display ▾ NEVER disables anything — the
+    // toolbar is a figure-wide brush. Toggling a label that was never
+    // set is a no-op visually but the cell-state flag still flips.
     await ide.runScript(
       'import compat.*;\n'
       + 'figure;\n'
@@ -130,8 +147,8 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await openDisplayMenu(page);
     const titleBtn = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'title' }) });
     const xlabelBtn = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'xlabel' }) });
-    await expect(titleBtn).toBeDisabled();
-    await expect(xlabelBtn).toBeDisabled();
+    await expect(titleBtn).toBeEnabled();
+    await expect(xlabelBtn).toBeEnabled();
   });
 
   test('subplot — title toggle applies to ALL cells', async ({ ide, page }) => {

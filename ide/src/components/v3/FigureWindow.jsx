@@ -502,21 +502,14 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     return null;
   };
   const anyHeatmap = findFirstHeatmap();
-  const xLogEnabled = anyCellHas((c) => Array.isArray(c.xRange) && c.xRange[1] > 0);
-  const yLogEnabled = anyCellHas((c) => Array.isArray(c.yRange) && c.yRange[1] > 0);
-  // zLog/zLabel: 3-D only. For subplot, enabled if any cell is 3-D.
+  // has3DCell still used by ПКМ Display submenu Z-row gating in
+  // CompositePlot (passed implicitly via the figure prop). Toolbar
+  // toggles themselves are never disabled — that was deliberately
+  // dropped because the aggregate disabled-rule lied about per-cell
+  // state for fresh subplots.
   const has3DCell = isSubplot
     ? cellsList.some((c) => c.kind === 'composite3d')
     : is3D;
-  // titleEnabled — script-set titles only. The adapter substitutes a
-  // default "Figure N" when the script didn't call title(); titleAuto
-  // marks that case so the toggle stays disabled.
-  const titleEnabled  = anyCellHas((c) => typeof c.title  === 'string' && c.title.length  > 0
-                                          && !c.titleAuto);
-  const xLabelEnabled = anyCellHas((c) => typeof c.xLabel === 'string' && c.xLabel.length > 0);
-  const yLabelEnabled = anyCellHas((c) => typeof c.yLabel === 'string' && c.yLabel.length > 0);
-  const zLabelEnabled = has3DCell
-    && anyCellHas((c) => typeof c.zLabel === 'string' && c.zLabel.length > 0);
   const wrapRef = useRef(null);
   const [size, setSize] = useState({ w: 1100, h: 600 });
 
@@ -1115,35 +1108,29 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">scale</div>
+                  {/* Toolbar toggles are NEVER disabled — they're a
+                      figure-wide brush. Clicking xlog when no positive
+                      max exists is a no-op visually but still flips the
+                      cell-state flag (consistent fan-out). The previous
+                      `disabled={!xLogEnabled}` made the toolbar lie
+                      about what was clickable, e.g. for fresh subplots
+                      where one cell could be log-fittable but the
+                      aggregate disabled-rule said no. */}
                   <DisplayToggle label="xlog" active={xLog}
-                                 disabled={!xLogEnabled}
-                                 disabledHint="X range has no positive max — log scale undefined"
                                  onClick={() => toggleAxisLog('x')} />
                   <DisplayToggle label="ylog" active={yLog}
-                                 disabled={!yLogEnabled}
-                                 disabledHint="Y range has no positive max — log scale undefined"
                                  onClick={() => toggleAxisLog('y')} />
-                  {/* zlog stays enabled even on 2-D figures: it's a no-op
-                      there, but the user explicitly asked we don't gate
-                      Z controls behind a 3-D check in the toolbar. */}
                   <DisplayToggle label="zlog" active={zLog}
                                  onClick={() => setZLog((v) => !v)} />
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">labels</div>
                   <DisplayToggle label="title" active={showTitle}
-                                 disabled={!titleEnabled}
-                                 disabledHint="not set"
                                  onClick={() => setShowTitle((v) => !v)} />
                   <DisplayToggle label="xlabel" active={showXLabel}
-                                 disabled={!xLabelEnabled}
-                                 disabledHint="not set"
                                  onClick={() => setShowXLabel((v) => !v)} />
                   <DisplayToggle label="ylabel" active={showYLabel}
-                                 disabled={!yLabelEnabled}
-                                 disabledHint="not set"
                                  onClick={() => setShowYLabel((v) => !v)} />
-                  {/* Same: zlabel stays enabled even on 2-D figures. */}
                   <DisplayToggle label="zlabel" active={showZLabel}
                                  onClick={() => setShowZLabel((v) => !v)} />
                   <DisplayToggle label="legend" active={showLegend}
