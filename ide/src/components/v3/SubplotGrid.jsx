@@ -60,9 +60,23 @@ export default function SubplotGrid({
   showXLabel = true,
   showYLabel = true,
   showZLabel = true,
+  // Display setters fanned out to each cell so the per-cell right-click
+  // menu can offer the same Display submenu as the toolbar. Toggles
+  // mutate the figure-wide state in FigureWindow, so a click in any cell
+  // updates every cell at once — matches the toolbar semantics.
+  setShowMajor  = null,
+  setShowMinor  = null,
+  setShowTitle  = null,
+  setShowXLabel = null,
+  setShowYLabel = null,
   xLog,
   yLog,
   zLog,
+  // FigureWindow's fit ▾ button increments fitSignal.n to ask SubplotGrid
+  // to reset every cell's viewport along fitSignal.axis ('both'|'x'|'y'|'z').
+  // Counter pattern so React reliably notices a re-fit even when the same
+  // axis is requested twice in a row.
+  fitSignal = null,
   interactive = true,
   engine = null,
 }) {
@@ -104,6 +118,27 @@ export default function SubplotGrid({
   // every script re-run.
   const lastShapeRef = useRef('');
   const lastDefaultsRef = useRef([]);
+  // Track the last-handled fitSignal counter so the effect doesn't
+  // re-fit on every render — only when n changes.
+  const lastFitNRef = useRef(0);
+  useEffect(() => {
+    if (!fitSignal || fitSignal.n === lastFitNRef.current) return;
+    lastFitNRef.current = fitSignal.n;
+    setViewports((prev) => figure.cells.map((cell, idx) => {
+      const def = defaultViewport(cell);
+      const cur = prev[idx] || def;
+      const axis = fitSignal.axis;
+      // Polar cells use a different viewport shape — applying x/y axis
+      // fits to them is undefined; fall back to the default viewport
+      // for 'both' only.
+      if (cell.kind === 'polar') return axis === 'both' ? def : cur;
+      if (axis === 'both') return def;
+      if (axis === 'x') return { ...cur, x: def.x };
+      if (axis === 'y') return { ...cur, y: def.y };
+      if (axis === 'z') return def.z ? { ...cur, z: def.z } : cur;
+      return cur;
+    }));
+  }, [fitSignal, figure.cells]);
   useEffect(() => {
     const shape = `${figure.id}:${figure.cells.length}:${figure.cells.map((c) => c.kind).join(',')}`;
     const newDefaults = figure.cells.map(defaultViewport);
@@ -184,6 +219,8 @@ export default function SubplotGrid({
               }),
               major, minor,
               showTitle, showXLabel, showYLabel, showZLabel,
+              setShowMajor, setShowMinor,
+              setShowTitle, setShowXLabel, setShowYLabel,
               xLog, yLog, zLog,
               fontScale: subFont,
               interactive,

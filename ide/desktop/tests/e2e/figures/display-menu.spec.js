@@ -92,7 +92,10 @@ test.describe('display ▾ menu — toggle visibility', () => {
     expect(afterCount).toBe(0);
   });
 
-  test('zlog and zlabel are disabled for non-3-D figure', async ({ ide, page }) => {
+  test('zlog and zlabel stay enabled even on 2-D figures', async ({ ide, page }) => {
+    // Per latest UX spec: toolbar display ▾ doesn't gate Z controls
+    // behind a 3-D check. Toggling them on a 2-D figure is a no-op,
+    // but the buttons are clickable.
     await ide.runScript(
       'import compat.*;\n'
       + 'plot(1:10);\n'
@@ -105,8 +108,8 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await openDisplayMenu(page);
     const zlog = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'zlog' }) });
     const zlabel = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'zlabel' }) });
-    await expect(zlog).toBeDisabled();
-    await expect(zlabel).toBeDisabled();
+    await expect(zlog).toBeEnabled();
+    await expect(zlabel).toBeEnabled();
   });
 
   test('title button disabled when figure has no title set', async ({ ide, page }) => {

@@ -99,65 +99,15 @@ function FwPopRowsOrSubmenu({ rows, label, threshold = 5 }) {
   );
 }
 
-/** Tiny SVG glyph for one display ▾ row. Pure visual hint — keeps the
- *  popover scannable without taking screen space. */
-function DisplayIcon({ kind }) {
-  const s = { stroke: 'currentColor', strokeWidth: 1.2, fill: 'none', strokeLinecap: 'round' };
-  switch (kind) {
-    case 'grid': return (
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <path {...s} d="M0 4h12 M0 8h12 M4 0v12 M8 0v12" />
-      </svg>);
-    case 'grid-min': return (
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <path {...s} d="M0 4h12 M0 8h12 M4 0v12 M8 0v12" />
-        <path stroke="currentColor" strokeWidth="0.5" fill="none" strokeDasharray="1 1"
-              d="M0 2h12 M0 6h12 M0 10h12 M2 0v12 M6 0v12 M10 0v12" />
-      </svg>);
-    case 'logx': return (
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <path {...s} d="M1 11V1 M1 11h11" />
-        <text x="6" y="9" fontSize="6" fill="currentColor" textAnchor="middle">㏒x</text>
-      </svg>);
-    case 'logy': return (
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <path {...s} d="M1 11V1 M1 11h11" />
-        <text x="6" y="9" fontSize="6" fill="currentColor" textAnchor="middle">㏒y</text>
-      </svg>);
-    case 'logz': return (
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <path {...s} d="M1 11V1 M1 11h11 M1 11l4-4" />
-        <text x="6" y="6" fontSize="5.5" fill="currentColor" textAnchor="middle">㏒z</text>
-      </svg>);
-    case 'title': return (
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <path {...s} d="M2 2h8 M6 2v8 M3 10h6" />
-      </svg>);
-    case 'lblx': return (
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <path {...s} d="M1 3v6 M1 9h10 M3.5 11l1.5-1.5 M6 11h2 M9 11l1.5-1.5" />
-      </svg>);
-    case 'lbly': return (
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <path {...s} d="M3 2v8 M3 10h8 M1 3.5l1.5 1.5 M1 6h2 M1 8.5l1.5-1.5" />
-      </svg>);
-    case 'lblz': return (
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <path {...s} d="M2 2h6 M2 2l6 6 M2 8h6" />
-      </svg>);
-    default: return <span />;
-  }
-}
-
-/** Toggle row for the display ▾ popover. Three-column grid:
- *  [ icon | label | ✓ ]. CSS class `is-active` highlights checked rows. */
-function DisplayToggle({ icon, label, active, disabled = false, disabledHint = '', onClick }) {
+/** Toggle row for the display ▾ popover. Two-column grid:
+ *  [ label | ✓ ]. No per-item icon (button-level icon already telegraphs
+ *  the menu's purpose). No active colour tint — only the ✓ marker. */
+function DisplayToggle({ label, active, disabled = false, disabledHint = '', onClick }) {
   return (
-    <button className={`fw-pop-toggle ${active ? 'is-active' : ''}`}
+    <button className="fw-pop-toggle"
             disabled={disabled}
             title={disabled ? disabledHint : ''}
             onClick={onClick}>
-      <DisplayIcon kind={icon} />
       <span>{label}</span>
       <span className="fw-pop-check">{active ? '✓' : ''}</span>
     </button>
@@ -388,6 +338,14 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     }
   }
   const [fitOpen, setFitOpen]     = useState(false);
+  // fitSignal fires every toolbar Fit click. SubplotGrid watches it
+  // (counter-based change detection) and resets every cell's viewport
+  // along the requested axis. Non-subplot figures use the legacy
+  // applyFit path directly; this signal is only consumed by SubplotGrid.
+  const [fitSignal, setFitSignal] = useState({ axis: '', n: 0 });
+  function fitAllCells(axis) {
+    setFitSignal((prev) => ({ axis, n: prev.n + 1 }));
+  }
   const [displayOpen, setDisplayOpen] = useState(false);
   const [saveOpen, setSaveOpen]   = useState(false);
   const [viewOpen, setViewOpen]   = useState(false);
@@ -860,7 +818,9 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
         </div>
 
         <div className="fw-toolbar">
-          {!isSubplot && (
+          {/* fit ▾ — always shown, applies to EVERY cell in subplot mode.
+              Per-series rows live in the right-click menu only; the
+              toolbar version is global by design. */}
           <div className="ve-tools-group" ref={fitRef}>
             <button className="ve-btn" onClick={() => setFitOpen((o) => !o)} title="Fit viewport">
               <svg width="11" height="11" viewBox="0 0 12 12">
@@ -868,115 +828,73 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               </svg>
               fit ▾
             </button>
-            {fitOpen && (is3D ? (
+            {fitOpen && (
               <div className="fw-pop">
                 <div className="fw-pop-section">
                   <button onClick={() => {
-                    if (bbox3d) {
-                      setViewport({
-                        x: [bbox3d.xMin, bbox3d.xMax],
-                        y: [bbox3d.yMin, bbox3d.yMax],
-                        z: [bbox3d.zMin, bbox3d.zMax],
-                      });
+                    if (isSubplot) {
+                      fitAllCells('both');
+                    } else if (is3D) {
+                      if (bbox3d) {
+                        setViewport({
+                          x: [bbox3d.xMin, bbox3d.xMax],
+                          y: [bbox3d.yMin, bbox3d.yMax],
+                          z: [bbox3d.zMin, bbox3d.zMax],
+                        });
+                      }
+                    } else if (isHeatmap) {
+                      setViewport(figDefault);
+                      setColorOverride(null);
+                    } else {
+                      setViewport(figDefault);
                     }
                     setFitOpen(false);
-                  }}>reset to data extent</button>
+                  }}>reset to default</button>
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">data extent</div>
-                  <button onClick={() => applyFit('all', 'both')}>all axes</button>
-                  <button onClick={() => applyFit('all', 'x')}>X only</button>
-                  <button onClick={() => applyFit('all', 'y')}>Y only</button>
-                  <button onClick={() => applyFit('all', 'z')}>Z only</button>
-                </div>
-              </div>
-            ) : isHeatmap ? (
-              <div className="fw-pop">
-                <div className="fw-pop-section">
-                  <button onClick={() => { setViewport(figDefault); setColorOverride(null); setFitOpen(false); }}>reset to default</button>
-                </div>
-                <div className="fw-pop-section">
-                  <div className="fw-pop-head">data extent</div>
-                  <button onClick={() => applyFit('all', 'both')}>both axes</button>
-                  <button onClick={() => applyFit('all', 'x')}>X only</button>
-                  <button onClick={() => applyFit('all', 'y')}>Y only</button>
-                </div>
-                <div className="fw-pop-section">
-                  <div className="fw-pop-head">colors</div>
+                  <button onClick={() => {
+                    if (isSubplot) fitAllCells('both'); else applyFit('all', 'both');
+                    setFitOpen(false);
+                  }}>both axes</button>
+                  <button onClick={() => {
+                    if (isSubplot) fitAllCells('x'); else applyFit('all', 'x');
+                    setFitOpen(false);
+                  }}>X only</button>
+                  <button onClick={() => {
+                    if (isSubplot) fitAllCells('y'); else applyFit('all', 'y');
+                    setFitOpen(false);
+                  }}>Y only</button>
                   <button
-                    onClick={() => { fitColorsToVisible(); setFitOpen(false); }}
-                    disabled={!engine || typeof engine.getFigureTile !== 'function'
-                              || !heatmapLayer || heatmapLayer._figId < 0}>
-                    fit to visible
-                  </button>
-                  <button
-                    onClick={() => { setColorOverride(null); setFitOpen(false); }}
-                    disabled={!colorOverride}>
-                    reset colors
-                  </button>
+                    disabled={!is3D && !isSubplot}
+                    title={(!is3D && !isSubplot) ? 'no Z axis on this figure' : ''}
+                    onClick={() => {
+                      if (isSubplot) fitAllCells('z'); else applyFit('all', 'z');
+                      setFitOpen(false);
+                    }}>Z only</button>
                 </div>
-              </div>
-            ) : isPolar ? (
-              <div className="fw-pop">
-                <div className="fw-pop-section">
-                  <button onClick={() => { setViewport(figDefault); setFitOpen(false); }}>reset to default</button>
-                </div>
-                <div className="fw-pop-section">
-                  <div className="fw-pop-head">all curves</div>
-                  <button onClick={() => applyFit('all', 'both')}>fit r-range</button>
-                </div>
-                {Array.isArray(figure.series) && figure.series.length > 1 && (
+                {/* Heatmap colour-fit affordance only for non-subplot
+                    heatmap figures — the toolbar Fit Z covers the per-
+                    cell colour reset isn't a user-facing concept yet. */}
+                {!isSubplot && isHeatmap && (
                   <div className="fw-pop-section">
-                    <div className="fw-pop-head">
-                      single curve
-                      <span className="fw-pop-count"> · {figure.series.length}</span>
-                    </div>
-                    <FwPopRowsOrSubmenu
-                      label={`${figure.series.length} curves`}
-                      rows={figure.series.map((s) => (
-                        <div key={s.name} className="fw-pop-row">
-                          <span className="fw-pop-name"><i style={{ background: s.color }} />{s.name}</span>
-                          <button onClick={() => applyFit(s.name, 'both')}>fit r</button>
-                        </div>
-                      ))}
-                    />
+                    <div className="fw-pop-head">colors</div>
+                    <button
+                      onClick={() => { fitColorsToVisible(); setFitOpen(false); }}
+                      disabled={!engine || typeof engine.getFigureTile !== 'function'
+                                || !heatmapLayer || heatmapLayer._figId < 0}>
+                      fit to visible
+                    </button>
+                    <button
+                      onClick={() => { setColorOverride(null); setFitOpen(false); }}
+                      disabled={!colorOverride}>
+                      reset colors
+                    </button>
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="fw-pop">
-                <div className="fw-pop-section">
-                  <button onClick={() => { setViewport(figDefault); setFitOpen(false); }}>reset to default</button>
-                </div>
-                <div className="fw-pop-section">
-                  <div className="fw-pop-head">all curves</div>
-                  <button onClick={() => applyFit('all', 'both')}>both axes</button>
-                  <button onClick={() => applyFit('all', 'x')}>X only</button>
-                  <button onClick={() => applyFit('all', 'y')}>Y only</button>
-                </div>
-                {seriesLayers.length > 1 && (
-                  <div className="fw-pop-section">
-                    <div className="fw-pop-head">
-                      single curve
-                      <span className="fw-pop-count"> · {seriesLayers.length}</span>
-                    </div>
-                    <FwPopRowsOrSubmenu
-                      label={`${seriesLayers.length} curves`}
-                      rows={seriesLayers.map((s) => (
-                        <div key={s.name} className="fw-pop-row">
-                          <span className="fw-pop-name"><i style={{ background: s.color }} />{s.name}</span>
-                          <button onClick={() => applyFit(s.name, 'both')}>xy</button>
-                          <button onClick={() => applyFit(s.name, 'x')}>x</button>
-                          <button onClick={() => applyFit(s.name, 'y')}>y</button>
-                        </div>
-                      ))}
-                    />
-                  </div>
-                )}
-              </div>
-            ))}
+            )}
           </div>
-          )}
 
           {/* View presets — 3-D only. Six standard MATLAB camera
               orientations: top (XY plane down), bottom (XY plane up),
@@ -1038,49 +956,53 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
             <button className="ve-btn"
                     onClick={() => setDisplayOpen((o) => !o)}
                     title="Toggle grid / scale / labels visibility">
+              <svg width="11" height="11" viewBox="0 0 12 12">
+                <path d="M0 4h12 M0 8h12 M4 0v12 M8 0v12"
+                      stroke="currentColor" strokeWidth="1.2" fill="none"/>
+              </svg>
               display ▾
             </button>
             {displayOpen && (
               <div className="fw-pop">
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">grid</div>
-                  <DisplayToggle icon="grid" label="grid"  active={showMajor}
+                  <DisplayToggle label="grid"  active={showMajor}
                                  onClick={() => setShowMajor((g) => !g)} />
-                  <DisplayToggle icon="grid-min" label="minor" active={showMinor}
+                  <DisplayToggle label="minor" active={showMinor}
                                  onClick={() => setShowMinor((g) => !g)} />
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">scale</div>
-                  <DisplayToggle icon="logx" label="xlog" active={xLog}
+                  <DisplayToggle label="xlog" active={xLog}
                                  disabled={!xLogEnabled}
                                  disabledHint="X range has no positive max — log scale undefined"
                                  onClick={() => toggleAxisLog('x')} />
-                  <DisplayToggle icon="logy" label="ylog" active={yLog}
+                  <DisplayToggle label="ylog" active={yLog}
                                  disabled={!yLogEnabled}
                                  disabledHint="Y range has no positive max — log scale undefined"
                                  onClick={() => toggleAxisLog('y')} />
-                  <DisplayToggle icon="logz" label="zlog" active={zLog}
-                                 disabled={!has3DCell}
-                                 disabledHint="Z log scale only applies to 3-D figures"
+                  {/* zlog stays enabled even on 2-D figures: it's a no-op
+                      there, but the user explicitly asked we don't gate
+                      Z controls behind a 3-D check in the toolbar. */}
+                  <DisplayToggle label="zlog" active={zLog}
                                  onClick={() => setZLog((v) => !v)} />
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">labels</div>
-                  <DisplayToggle icon="title" label="title" active={showTitle}
+                  <DisplayToggle label="title" active={showTitle}
                                  disabled={!titleEnabled}
                                  disabledHint="not set"
                                  onClick={() => setShowTitle((v) => !v)} />
-                  <DisplayToggle icon="lblx" label="xlabel" active={showXLabel}
+                  <DisplayToggle label="xlabel" active={showXLabel}
                                  disabled={!xLabelEnabled}
                                  disabledHint="not set"
                                  onClick={() => setShowXLabel((v) => !v)} />
-                  <DisplayToggle icon="lbly" label="ylabel" active={showYLabel}
+                  <DisplayToggle label="ylabel" active={showYLabel}
                                  disabled={!yLabelEnabled}
                                  disabledHint="not set"
                                  onClick={() => setShowYLabel((v) => !v)} />
-                  <DisplayToggle icon="lblz" label="zlabel" active={showZLabel}
-                                 disabled={!zLabelEnabled}
-                                 disabledHint={has3DCell ? 'not set' : 'Z label only applies to 3-D figures'}
+                  {/* Same: zlabel stays enabled even on 2-D figures. */}
+                  <DisplayToggle label="zlabel" active={showZLabel}
                                  onClick={() => setShowZLabel((v) => !v)} />
                 </div>
               </div>
@@ -1171,6 +1093,15 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               // the corresponding <text> render path. State lives here
               // (not in figure JSON) so a script re-run doesn't reset.
               showTitle, showXLabel, showYLabel, showZLabel,
+              // Display setters — passed so the right-click menu inside
+              // CompositePlot can surface a Display submenu that mirrors
+              // the toolbar's display ▾ state.
+              setShowMajor, setShowMinor,
+              setShowTitle, setShowXLabel, setShowYLabel,
+              // fitSignal — incrementing counter consumed by SubplotGrid
+              // to fit each cell's viewport when the toolbar Fit X/Y/Z
+              // is clicked on a subplot figure.
+              fitSignal,
               // 3-D specific — Composite3DPlot ignores these for non-3-D.
               // Skip the override on the very first render when viewport
               // is still the [-1,1] placeholder cube (otherwise computeBBox
