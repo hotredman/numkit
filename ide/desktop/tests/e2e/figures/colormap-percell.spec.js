@@ -97,6 +97,81 @@ test('ПКМ Colormap in cell A changes only cell A', async ({ ide, page }) => {
   expect(after[1], `cellB cmap must stay parula, got: ${after[1]}`).toBe('parula');
 });
 
+test('colormap ▾ has reset button — clears override + per-cell picks', async ({ ide, page }) => {
+  await ide.runScript(
+    'import compat.*;\n'
+    + 'figure;\n'
+    + 'subplot(1,2,1); imagesc(rand(8,8));\n'
+    + 'subplot(1,2,2); imagesc(rand(8,8));\n'
+  );
+  await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+  await ide.figureCards.first().click();
+  await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(150);
+
+  // Per-cell pick on cell B → jet.
+  await rightClickCell(page, 1);
+  await page.locator('.ctx-sub-trigger', { hasText: /Colormap/ }).hover();
+  await page.waitForTimeout(60);
+  await page.locator('.ctx-submenu button', { hasText: /^(✓ )?jet$/ }).click();
+  await page.waitForTimeout(120);
+
+  // Then toolbar colormap ▾ → hot.
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /^colormap/i }).click();
+  await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
+  await page.locator('.fw-pop button', { hasText: /^hot$/ }).click();
+  await page.waitForTimeout(120);
+  expect((await cellEffectiveCmaps(page))[0]).toBe('hot');
+
+  // Click reset in colormap ▾.
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /^colormap/i }).click();
+  await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
+  await page.locator('.fw-pop button', { hasText: /^reset$/ }).click();
+  await page.waitForTimeout(120);
+
+  const after = await cellEffectiveCmaps(page);
+  expect(after[0], `cellA after reset: ${after[0]}`).toBe('parula');
+  expect(after[1], `cellB after reset: ${after[1]}`).toBe('parula');
+});
+
+test('global Reset clears colormap override', async ({ ide, page }) => {
+  await ide.runScript(
+    'import compat.*;\n'
+    + 'imagesc(rand(8,8));\n'
+  );
+  await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+  await ide.figureCards.first().click();
+  await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(150);
+
+  // Right-click → Colormap → jet (the only cell).
+  const canvas = page.locator('.fw-window .fw-canvas-wrap svg').first();
+  const box = await canvas.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.up({ button: 'right' });
+  await expect(page.locator('.ctx-menu')).toBeVisible({ timeout: 2_000 });
+  await page.locator('.ctx-sub-trigger', { hasText: /Colormap/ }).hover();
+  await page.waitForTimeout(60);
+  await page.locator('.ctx-submenu button', { hasText: /^(✓ )?jet$/ }).click();
+  await page.waitForTimeout(120);
+
+  // Global toolbar Reset.
+  await page.locator('.fw-toolbar [data-fw-reset="all"]').click();
+  await page.waitForTimeout(120);
+
+  // Open colormap ▾, the active palette should be parula again.
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /^colormap/i }).click();
+  await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
+  // Find the parula row by its <span> child (label) — button text also
+  // contains the trailing ✓ when active so an anchored regex misses.
+  const parulaActive = await page.locator('.fw-pop button',
+    { has: page.locator('span', { hasText: /^parula$/ }) })
+    .first()
+    .locator('.fw-pop-check').textContent();
+  expect(parulaActive.trim()).toBe('✓');
+});
+
 test('toolbar Colormap ▾ applies to ALL cells, dropping per-cell picks', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
