@@ -7,10 +7,9 @@ import SubplotGrid from './SubplotGrid';
 import { computeFitViewport,
   composeSvgsToString, exportSvgString, exportPngString,
   downloadBlob as utilDownloadBlob } from './plotUtils';
-import { initCellSettings, aggOn, aggColormap, cellsArrayFromFigure,
-  defaultViewport } from './figureCellState';
 import { initAxesFromCell, getProp, setProp, setAllAxes, setAxesAt,
-  everyAxes, isOn, onOff } from './figureSchema';
+  everyAxes, isOn, onOff,
+  defaultViewport, cellsArrayFromFigure, aggColormap } from './figureSchema';
 
 function renderFigure(figure, props, threeRef) {
   if (figure.kind === 'subplot')     return <SubplotGrid     figure={figure} {...props} />;

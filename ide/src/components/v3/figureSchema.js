@@ -72,7 +72,58 @@
  *   onOff(bool): 'on' | 'off'
  */
 
-import { defaultViewport } from './figureCellState';
+import { defaultPolarViewport } from './PolarPlot';
+
+/** Compute the script-default viewport for a cell.
+ *    polar       → { rmax, rmin?, thetaMin?, thetaMax? }   (PolarPlot.defaultPolarViewport)
+ *    composite3d → { x, y, z }
+ *    everything  → { x, y }
+ *  Used as the initial XLim / YLim / ZLim / RLim seed and as the
+ *  reset target for the fit ▾ / 🏠 Reset paths. */
+export function defaultViewport(cell) {
+  if (!cell) return { x: [-1, 1], y: [-1, 1] };
+  if (cell.kind === 'polar') return defaultPolarViewport(cell);
+  if (cell.kind === 'composite3d') {
+    const x = Array.isArray(cell.xRange) ? cell.xRange.slice() : [-1, 1];
+    const y = Array.isArray(cell.yRange) ? cell.yRange.slice() : [-1, 1];
+    const z = Array.isArray(cell.zRange) ? cell.zRange.slice() : [-1, 1];
+    return { x, y, z };
+  }
+  if (Array.isArray(cell.xRange) && Array.isArray(cell.yRange)) {
+    return { x: cell.xRange.slice(), y: cell.yRange.slice() };
+  }
+  return { x: [-1, 1], y: [-1, 1] };
+}
+
+/** Normalise a figure prop into the cells array we model. Non-subplot
+ *  figures wrap the figure itself as the only cell. */
+export function cellsArrayFromFigure(figure) {
+  if (figure && figure.kind === 'subplot' && Array.isArray(figure.cells)) {
+    return figure.cells;
+  }
+  return [figure];
+}
+
+/** Aggregate colormap predicate — true iff every heatmap-bearing cell
+ *  currently resolves to the same palette name (per-cell colormap
+ *  override OR cell's script-set heatmap.colormap). Non-heatmap cells
+ *  are ignored — they have nothing to colour. The cellsState array
+ *  uses the legacy `{ colormap }` shape (axesToLegacyCell). */
+export function aggColormap(cellsState, cells, name) {
+  if (!Array.isArray(cellsState) || cellsState.length === 0) return false;
+  const heatmaps = cells
+    .map((c, i) => ({ c, i }))
+    .filter(({ c }) => Array.isArray(c.layers)
+                    && c.layers.some((l) => l && l.kind === 'heatmap'));
+  if (heatmaps.length === 0) return false;
+  return heatmaps.every(({ c, i }) => {
+    const s = cellsState[i] || {};
+    if (s.colormap != null) return s.colormap === name;
+    const hm = c.layers.find((l) => l && l.kind === 'heatmap');
+    const cellDef = (hm && hm.colormap) || 'parula';
+    return cellDef === name;
+  });
+}
 
 /** MATLAB convention — boolean as 'on'/'off' string. */
 export const onOff = (b) => (b ? 'on' : 'off');
