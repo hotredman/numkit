@@ -135,6 +135,7 @@ export default function CompositePlot({
   setShowTitle  = null,
   setShowXLabel = null,
   setShowYLabel = null,
+  setShowLegend = null,
   // ПКМ bridge — top-level Reset + Save/Export bound from FigureWindow.
   // Each is a no-arg handler; absent → corresponding ПКМ row is omitted.
   onResetAll          = null,
@@ -773,9 +774,83 @@ export default function CompositePlot({
     { label: 'PNG · A4 width (210 mm)',
       onClick: () => exportPngForPrint(svgRef.current, width, height, 210, 300, `figure_${figure.id}`) },
   ];
+  // Display submenu — mirrors the toolbar's display ▾ popover layout
+  // (grid / scale / labels sections). Only surfaced when the parent
+  // provided the setters (modal mode). Z-axis toggles intentionally
+  // absent: this is a 2-D plot context.
+  const displaySubmenuItems = (setShowMajor || setShowMinor
+      || setShowTitle || setShowXLabel || setShowYLabel
+      || setXLog || setYLog || setShowLegend) ? [
+    { head: 'grid' },
+    ...(setShowMajor ? [{ label: major ? '✓ grid'  : 'grid',
+                          onClick: () => setShowMajor((v) => !v) }] : []),
+    ...(setShowMinor ? [{ label: minor ? '✓ minor' : 'minor',
+                          onClick: () => setShowMinor((v) => !v) }] : []),
+    { head: 'scale' },
+    ...(setXLog ? [{
+      label: xLog ? '✓ xlog' : 'xlog',
+      disabled: figure.xRange[1] <= 0,
+      onClick: () => {
+        if (!xLog && (xMin <= 0 || xMax <= 0)) {
+          const cellW = hFullCols > 0 ? (figure.xRange[1] - figure.xRange[0]) / hFullCols : 0;
+          const safeLo = Math.max(cellW * 0.5, figure.xRange[0] > 0 ? figure.xRange[0] : 1e-6);
+          const safeHi = Math.max(safeLo * 10, figure.xRange[1]);
+          setViewport({ ...viewport, x: [safeLo, safeHi] });
+        }
+        setXLog((v) => !v);
+      },
+    }] : []),
+    ...(setYLog ? [{
+      label: yLog ? '✓ ylog' : 'ylog',
+      disabled: figure.yRange[1] <= 0,
+      onClick: () => {
+        if (!yLog && (yMin <= 0 || yMax <= 0)) {
+          const cellH = hFullRows > 0 ? (figure.yRange[1] - figure.yRange[0]) / hFullRows : 0;
+          const safeLo = Math.max(cellH * 0.5, figure.yRange[0] > 0 ? figure.yRange[0] : 1e-6);
+          const safeHi = Math.max(safeLo * 10, figure.yRange[1]);
+          setViewport({ ...viewport, y: [safeLo, safeHi] });
+        }
+        setYLog((v) => !v);
+      },
+    }] : []),
+    { head: 'labels' },
+    ...(setShowTitle ? [{
+      label: showTitle ? '✓ title' : 'title',
+      disabled: !figure.title || figure.titleAuto,
+      onClick: () => setShowTitle((v) => !v),
+    }] : []),
+    ...(setShowXLabel ? [{
+      label: showXLabel ? '✓ xlabel' : 'xlabel',
+      disabled: !figure.xLabel,
+      onClick: () => setShowXLabel((v) => !v),
+    }] : []),
+    ...(setShowYLabel ? [{
+      label: showYLabel ? '✓ ylabel' : 'ylabel',
+      disabled: !figure.yLabel,
+      onClick: () => setShowYLabel((v) => !v),
+    }] : []),
+    ...(setShowLegend ? [{
+      label: showLegend ? '✓ legend' : 'legend',
+      onClick: () => setShowLegend((v) => !v),
+    }] : []),
+  ] : null;
+
+  // House icon used for the Reset row. Same SVG as the toolbar
+  // standalone Reset button — uses currentColor so it inherits the
+  // menu text colour (no emoji colour).
+  const houseIcon = (
+    <svg width="11" height="11" viewBox="0 0 12 12"
+         style={{ verticalAlign: '-1px', marginRight: '6px' }}>
+      <path d="M1 6l5-5 5 5 M2 5v6h8V5"
+            stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round"/>
+    </svg>
+  );
+
   const ctxItems = [
-    { label: '🏠 Reset', onClick: onReset },
+    // Order: Reset · Save · Display · Fit (per UX spec).
+    { label: <span>{houseIcon}Reset</span>, onClick: onReset },
     { submenu: 'Save / Export ▶', items: exportItems },
+    ...(displaySubmenuItems ? [{ submenu: 'Display ▶', items: displaySubmenuItems }] : []),
     { separator: true },
     // For figures with series layers (line/scatter), surface "fit all curves"
     // and per-curve rows like InteractivePlot did. Falls back to data-extent
@@ -820,61 +895,6 @@ export default function CompositePlot({
           : 'Reset colors',
         onClick: resetColors,
         disabled: !colorOverride },
-    ] : []),
-    // Display submenu — mirrors the toolbar's display ▾ popover.
-    // Only surfaced when the parent provided the setters (modal mode).
-    // Z-axis toggles intentionally absent: this is a 2-D plot context
-    // and the user asked we keep ПКМ figure-specific.
-    ...((setShowMajor || setShowMinor || setShowTitle || setShowXLabel
-        || setShowYLabel || setXLog || setYLog) ? [
-      { separator: true },
-      { submenu: 'Display ▶', items: [
-          ...(setShowMajor ? [{ label: major ? '✓ grid'  : 'grid',
-                                onClick: () => setShowMajor((v) => !v) }] : []),
-          ...(setShowMinor ? [{ label: minor ? '✓ minor' : 'minor',
-                                onClick: () => setShowMinor((v) => !v) }] : []),
-          ...(setXLog ? [{
-            label: xLog ? '✓ xlog' : 'xlog',
-            disabled: figure.xRange[1] <= 0,
-            onClick: () => {
-              if (!xLog && (xMin <= 0 || xMax <= 0)) {
-                const cellW = hFullCols > 0 ? (figure.xRange[1] - figure.xRange[0]) / hFullCols : 0;
-                const safeLo = Math.max(cellW * 0.5, figure.xRange[0] > 0 ? figure.xRange[0] : 1e-6);
-                const safeHi = Math.max(safeLo * 10, figure.xRange[1]);
-                setViewport({ ...viewport, x: [safeLo, safeHi] });
-              }
-              setXLog((v) => !v);
-            },
-          }] : []),
-          ...(setYLog ? [{
-            label: yLog ? '✓ ylog' : 'ylog',
-            disabled: figure.yRange[1] <= 0,
-            onClick: () => {
-              if (!yLog && (yMin <= 0 || yMax <= 0)) {
-                const cellH = hFullRows > 0 ? (figure.yRange[1] - figure.yRange[0]) / hFullRows : 0;
-                const safeLo = Math.max(cellH * 0.5, figure.yRange[0] > 0 ? figure.yRange[0] : 1e-6);
-                const safeHi = Math.max(safeLo * 10, figure.yRange[1]);
-                setViewport({ ...viewport, y: [safeLo, safeHi] });
-              }
-              setYLog((v) => !v);
-            },
-          }] : []),
-          ...(setShowTitle ? [{
-            label: showTitle ? '✓ title' : 'title',
-            disabled: !figure.title || figure.titleAuto,
-            onClick: () => setShowTitle((v) => !v),
-          }] : []),
-          ...(setShowXLabel ? [{
-            label: showXLabel ? '✓ xlabel' : 'xlabel',
-            disabled: !figure.xLabel,
-            onClick: () => setShowXLabel((v) => !v),
-          }] : []),
-          ...(setShowYLabel ? [{
-            label: showYLabel ? '✓ ylabel' : 'ylabel',
-            disabled: !figure.yLabel,
-            onClick: () => setShowYLabel((v) => !v),
-          }] : []),
-      ]},
     ] : []),
   ];
 

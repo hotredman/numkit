@@ -69,6 +69,7 @@ export default function SubplotGrid({
   setShowTitle  = null,
   setShowXLabel = null,
   setShowYLabel = null,
+  setShowLegend = null,
   // ПКМ bridge — top-level reset + save/export handlers. Same per-cell
   // ContextMenu ends up surfacing them.
   onResetAll          = null,
@@ -232,6 +233,7 @@ export default function SubplotGrid({
               showTitle, showXLabel, showYLabel, showZLabel,
               setShowMajor, setShowMinor,
               setShowTitle, setShowXLabel, setShowYLabel,
+              setShowLegend,
               onResetAll,
               onExportSvg, onExportPng2x,
               onExportPngPrint85, onExportPngPrint170, onExportPngPrint210,
