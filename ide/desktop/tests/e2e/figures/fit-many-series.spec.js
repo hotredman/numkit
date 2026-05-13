@@ -86,6 +86,32 @@ test('ПКМ — 12-series figure puts all rows inside Series ▶ submenu', asyn
   await expect(page.locator('.ctx-submenu .ctx-row')).toHaveCount(12);
 });
 
+test('Series ▶ filters out single-point series + text annotations', async ({ ide, page }) => {
+  // Mix: 2-point line (fittable), single-point scatter (NOT fittable),
+  // text annotation (kind='text', already excluded). Submenu should
+  // contain only the line.
+  await ide.runScript(
+    'import compat.*;\n'
+    + 'figure;\n'
+    + 'plot([0 1], [0 1]);\n'        // fittable line
+    + 'hold on;\n'
+    + 'plot([5], [3], \'r.\');\n'    // single-point — exclude
+    + 'text(0.5, 0.5, \'hi\');\n'    // text — excluded by kind filter
+  );
+  await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+  await ide.figureCards.first().click();
+  await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(150);
+  await rightClickPlot(page);
+
+  const trigger = page.locator('.ctx-sub-trigger', { hasText: /Series/ });
+  await expect(trigger).toBeVisible();
+  await trigger.hover();
+  await page.waitForTimeout(60);
+  // Only the line is fittable → exactly 1 row in the submenu.
+  await expect(page.locator('.ctx-submenu .ctx-row')).toHaveCount(1);
+});
+
 test('ПКМ — single-series figure has NO Series submenu', async ({ ide, page }) => {
   // For a single-series plot the submenu would be a one-row noise; skip.
   await ide.runScript('import compat.*;\nplot(1:10);\n');
