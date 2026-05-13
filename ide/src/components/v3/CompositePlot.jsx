@@ -135,6 +135,17 @@ export default function CompositePlot({
   setShowTitle  = null,
   setShowXLabel = null,
   setShowYLabel = null,
+  // ПКМ bridge — top-level Reset + Save/Export bound from FigureWindow.
+  // Each is a no-arg handler; absent → corresponding ПКМ row is omitted.
+  onResetAll          = null,
+  onExportSvg         = null,
+  onExportPng2x       = null,
+  onExportPngPrint85  = null,
+  onExportPngPrint170 = null,
+  onExportPngPrint210 = null,
+  onExportCsv         = null,
+  onExportTsv         = null,
+  onExportJson        = null,
   fontScale = 1,
   interactive = true,
   engine = null,
@@ -723,25 +734,48 @@ export default function CompositePlot({
   }
 
   const multiSeries = seriesLayers.length > 1;
-  const ctxItems = [
-    { label: 'Reset to default',
-      onClick: () => {
-        setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() });
-        setColorOverride(null);
-        setXLog(false);
-        setYLog(false);
-      } },
-    { label: 'Save as SVG (vector)',
+  // Top-level Reset — prefer parent-supplied handler (modal: full reset
+  // of viewport + display state, fans out to every cell in subplot
+  // mode). Fallback to local viewport-only reset for preview cards
+  // / standalone usage.
+  const onReset = onResetAll || (() => {
+    setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() });
+    setColorOverride(null);
+    setXLog(false);
+    setYLog(false);
+  });
+  // Save/Export — bundle into a submenu when parent provided handlers,
+  // else fall back to local SVG-node exports (preview cards still get
+  // PNG @2× via the local helpers).
+  const useParentExport = !!(onExportSvg || onExportPng2x);
+  const exportItems = useParentExport ? [
+    { head: 'image · screen' },
+    { label: 'SVG (vector)',  onClick: onExportSvg,    disabled: !onExportSvg },
+    { label: 'PNG @2×',       onClick: onExportPng2x,  disabled: !onExportPng2x },
+    { head: 'image · print (300 DPI)' },
+    { label: 'PNG · 1 column (85 mm)',  onClick: onExportPngPrint85,  disabled: !onExportPngPrint85 },
+    { label: 'PNG · 2 columns (170 mm)', onClick: onExportPngPrint170, disabled: !onExportPngPrint170 },
+    { label: 'PNG · A4 width (210 mm)',  onClick: onExportPngPrint210, disabled: !onExportPngPrint210 },
+    { head: 'data' },
+    { label: 'CSV',  onClick: onExportCsv,  disabled: !onExportCsv },
+    { label: 'TSV',  onClick: onExportTsv,  disabled: !onExportTsv },
+    { label: 'JSON', onClick: onExportJson, disabled: !onExportJson },
+  ] : [
+    { label: 'SVG (vector)',
       onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
-    { label: 'Save as PNG (screen 2×)',
+    { label: 'PNG @2×',
       onClick: () => exportPngNode(svgRef.current, width, height, 2, `figure_${figure.id}.png`) },
-    { head: 'Save for print (300 DPI)' },
+    { head: 'print (300 DPI)' },
     { label: 'PNG · 1 column (85 mm)',
       onClick: () => exportPngForPrint(svgRef.current, width, height, 85, 300, `figure_${figure.id}`) },
     { label: 'PNG · 2 columns (170 mm)',
       onClick: () => exportPngForPrint(svgRef.current, width, height, 170, 300, `figure_${figure.id}`) },
     { label: 'PNG · A4 width (210 mm)',
       onClick: () => exportPngForPrint(svgRef.current, width, height, 210, 300, `figure_${figure.id}`) },
+  ];
+  const ctxItems = [
+    { label: '🏠 Reset', onClick: onReset },
+    { submenu: 'Save / Export ▶', items: exportItems },
     { separator: true },
     // For figures with series layers (line/scatter), surface "fit all curves"
     // and per-curve rows like InteractivePlot did. Falls back to data-extent
