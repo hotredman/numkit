@@ -1009,30 +1009,32 @@ export default function CompositePlot({
     : null;
 
   const ctxItems = [
-    // Order: Reset · Save · Display · Colormap · Series · Fit (UX spec).
+    // Order: Reset · Save · Display · Colormap · Fit Series · Fit All (UX spec).
     { label: <span>{houseIcon}Reset</span>, onClick: onReset },
     { submenu: 'Save / Export ▶', items: exportItems },
     ...(displaySubmenuItems ? [{ submenu: 'Display ▶', items: displaySubmenuItems }] : []),
     ...(colormapSubmenuItems ? [{ submenu: 'Colormap ▶', items: colormapSubmenuItems }] : []),
     ...(seriesSubmenuItems ? [{
-      submenu: `Series ▶${fittableSeries.length > 1 ? ` (${fittableSeries.length})` : ''}`,
+      submenu: `Fit Series ▶${fittableSeries.length > 1 ? ` (${fittableSeries.length})` : ''}`,
       items: seriesSubmenuItems,
     }] : []),
     { separator: true },
     // Fit section now carries only figure-wide / data-extent rows;
-    // per-curve fit lives in the Curves ▶ submenu above.
+    // per-curve fit lives in the Fit Series ▶ submenu above. Head
+    // "Fit All" makes child labels redundant so they shorten to
+    // bare axis names (matches the toolbar fit ▾ popover layout).
     ...(seriesLayers.length > 0 ? [
-      { head: 'Fit data extent' },
-      { label: 'reset',         onClick: () => applyFitAllSeries('both') },
-      { label: 'Fit all axes',  onClick: () => applyFitAllSeries('both') },
-      { label: 'Fit X only',    onClick: () => applyFitAllSeries('x') },
-      { label: 'Fit Y only',    onClick: () => applyFitAllSeries('y') },
+      { head: 'Fit All' },
+      { label: 'reset',    onClick: () => applyFitAllSeries('both') },
+      { label: 'all axes', onClick: () => applyFitAllSeries('both') },
+      { label: 'X only',   onClick: () => applyFitAllSeries('x') },
+      { label: 'Y only',   onClick: () => applyFitAllSeries('y') },
     ] : [
-      { head: 'Fit data extent' },
-      { label: 'reset',        onClick: () => fitAxes('both') },
-      { label: 'Fit all axes', onClick: () => fitAxes('both') },
-      { label: 'Fit X only',    onClick: () => fitAxes('x') },
-      { label: 'Fit Y only',    onClick: () => fitAxes('y') },
+      { head: 'Fit All' },
+      { label: 'reset',    onClick: () => fitAxes('both') },
+      { label: 'all axes', onClick: () => fitAxes('both') },
+      { label: 'X only',   onClick: () => fitAxes('x') },
+      { label: 'Y only',   onClick: () => fitAxes('y') },
     ]),
     // Color range — only meaningful for heatmap layers.
     ...(hasHeatmap ? [
