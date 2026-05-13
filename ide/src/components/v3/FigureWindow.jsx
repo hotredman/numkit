@@ -270,6 +270,12 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     return {
       showMajor:    axisGridOn(axes),
       showMinor:    axisGridMinorOn(axes),
+      // Per-axis grid (preserves XGrid/YGrid info for SubplotGrid →
+      // CompositePlot per-axis renderer split).
+      xGrid:        isOn(axes.XGrid),
+      yGrid:        isOn(axes.YGrid),
+      xMinor:       isOn(axes.XMinorGrid),
+      yMinor:       isOn(axes.YMinorGrid),
       xLog:         axes.XScale === 'log',
       yLog:         axes.YScale === 'log',
       zLog:         axes.ZScale === 'log',
