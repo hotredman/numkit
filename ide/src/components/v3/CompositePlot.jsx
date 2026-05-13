@@ -28,7 +28,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { buildHeatmapLUT, renderHeatmapDataURLFromIndices,
          renderHeatmapDataURLFromFlat, getColormap,
          makeCustomColormap } from './colormaps';
-import ContextMenu from './ContextMenu';
+import ContextMenu, { foldRowsToSubmenu } from './ContextMenu';
 import { computeFitViewport, exportSvgNode, exportPngNode, exportPngForPrint } from './plotUtils';
 
 // MATLAB linespec → SVG strokeDasharray. '-' (or absent) means solid;
@@ -744,14 +744,20 @@ export default function CompositePlot({
       { label: 'Fit Y only',    onClick: () => applyFitAllSeries('y') },
       ...(multiSeries ? [
         { head: 'Fit single curve' },
-        ...seriesLayers.map((s, i) => ({
-          row: true, color: s.color, name: s.name || `series ${i + 1}`,
-          buttons: [
-            { label: 'xy', onClick: () => applyFitSeries(i, 'both') },
-            { label: 'x',  onClick: () => applyFitSeries(i, 'x') },
-            { label: 'y',  onClick: () => applyFitSeries(i, 'y') },
-          ],
-        })),
+        // Per-series rows. With more than 5 series the flat list
+        // dominates the context menu; fold into a "single curve ▶"
+        // submenu so the parent menu stays compact.
+        ...foldRowsToSubmenu(
+          seriesLayers.map((s, i) => ({
+            row: true, color: s.color, name: s.name || `series ${i + 1}`,
+            buttons: [
+              { label: 'xy', onClick: () => applyFitSeries(i, 'both') },
+              { label: 'x',  onClick: () => applyFitSeries(i, 'x') },
+              { label: 'y',  onClick: () => applyFitSeries(i, 'y') },
+            ],
+          })),
+          `${seriesLayers.length} curves`,
+        ),
       ] : []),
     ] : [
       { head: 'Fit data extent' },

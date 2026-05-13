@@ -668,6 +668,30 @@ input, select { font-family: inherit; color: inherit; }
   font-weight: 400;
   margin-left: 4px;
 }
+/* Nested submenu inside fit ▾ — used when N series > 5 so the
+   per-series rows don't dominate the parent popover. Same opens-to-
+   the-right behavior as the ctx-menu submenu. */
+.fw-pop-sub-wrap { position: relative; }
+.fw-pop-sub-trigger {
+  background: transparent; border: none;
+  color: var(--fg-1); font-family: var(--font-mono); font-size: 11.5px;
+  text-align: left; padding: 4px 8px; border-radius: 3px; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+  width: 100%;
+}
+.fw-pop-sub-trigger:hover { background: var(--bg-3); color: var(--fg-0); }
+.fw-pop-sub-wrap.is-open .fw-pop-sub-trigger {
+  background: var(--bg-3); color: var(--fg-0);
+}
+.fw-pop-sub-arrow { color: var(--fg-3); margin-left: 12px; font-size: 9px; }
+.fw-pop-sub {
+  position: absolute !important;
+  left: 100% !important; top: -4px !important;
+  margin-left: 2px;
+  z-index: 210;
+  max-height: 70vh;
+  overflow-y: auto;
+}
 .fw-pop-row button {
   font-size: 10px; padding: 2px 6px;
   background: var(--bg-3); border: 1px solid var(--line);
@@ -1877,6 +1901,24 @@ select.ve-btn.fw-cmap-select {
   border-color: var(--accent);
 }
 .ctx-row-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ---------- Nested submenu inside ctx-menu ---------- */
+/* The submenu is anchored to its parent row and pops to the right. */
+.ctx-sub-wrap { position: relative; }
+.ctx-sub-trigger {
+  display: flex !important; justify-content: space-between; align-items: center;
+  width: 100%;
+}
+.ctx-sub-arrow { color: var(--fg-3); margin-left: 12px; font-size: 9px; }
+.ctx-sub-wrap.is-open .ctx-sub-trigger { background: var(--bg-3); color: var(--fg-0); }
+.ctx-submenu {
+  position: absolute !important;
+  left: 100%; top: -4px;
+  margin-left: 2px;
+  z-index: 2010;
+  max-height: 70vh;
+  overflow-y: auto;
+}
 
 /* ---------- Heatmap "preview · downsampled" banner ---------- */
 /* Surfaces when the engine downsampled an oversized imagesc matrix
