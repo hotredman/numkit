@@ -155,18 +155,12 @@ Value jackknife(const Value & /*fn*/, const Value & /*X*/, std::pmr::memory_reso
                 0, 0, "jackknife", "", "m:jackknife:nyi");
 }
 
-Value combnk(const Value &v, int K, std::pmr::memory_resource *mr) {
-    // Coerce v to either an N-element vector (combinations of its values)
-    // or a scalar N (combinations of 1..N).
-    std::vector<double> items;
-    if (v.numel() == 1) {
-        const int N = (int)v.toScalar();
-        items.resize((size_t)N);
-        for (int i = 0; i < N; ++i) items[i] = double(i + 1);
-    } else {
-        items = read_vec(v);
-    }
-    const int N = (int)items.size();
+namespace {
+// Shared enumeration: combinations of `items` taken `K` at a time.
+Value combnkImpl(const std::vector<double> &items, int K,
+                 std::pmr::memory_resource *mr)
+{
+    const int N = static_cast<int>(items.size());
     if (K < 0 || K > N)
         throw Error("combnk: K must be in 0..N", 0, 0, "combnk", "",
                     "m:combnk:badK");
@@ -180,14 +174,15 @@ Value combnk(const Value &v, int K, std::pmr::memory_resource *mr) {
     double *od = out.doubleDataMut();
     if (K == 0) return out;
 
-    // Enumerate combinations in lex order by mask (or by index recursion).
+    // Enumerate combinations in lex order by index recursion.
     std::vector<int> idx((size_t)K);
     for (int i = 0; i < K; ++i) idx[(size_t)i] = i;
     long long row = 0;
     while (true) {
-        for (int j = 0; j < K; ++j) od[(size_t)j * (size_t)C + (size_t)row] = items[(size_t)idx[(size_t)j]];
+        for (int j = 0; j < K; ++j)
+            od[(size_t)j * (size_t)C + (size_t)row] =
+                items[(size_t)idx[(size_t)j]];
         ++row;
-        // Advance to next combination in lex order.
         int j = K - 1;
         while (j >= 0 && idx[(size_t)j] == N - K + j) --j;
         if (j < 0) break;
@@ -195,6 +190,23 @@ Value combnk(const Value &v, int K, std::pmr::memory_resource *mr) {
         for (int k = j + 1; k < K; ++k) idx[(size_t)k] = idx[(size_t)k - 1] + 1;
     }
     return out;
+}
+} // anon
+
+Value combnk(int N, int K, std::pmr::memory_resource *mr)
+{
+    if (N < 0)
+        throw Error("combnk: N must be non-negative", 0, 0, "combnk", "",
+                    "m:combnk:badN");
+    std::vector<double> items((size_t)N);
+    for (int i = 0; i < N; ++i) items[(size_t)i] = double(i + 1);
+    return combnkImpl(items, K, mr);
+}
+
+Value combnk(Span<const double> v, int K, std::pmr::memory_resource *mr)
+{
+    std::vector<double> items(v.begin(), v.end());
+    return combnkImpl(items, K, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -521,7 +533,17 @@ void combnk_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("combnk: requires (v, K)", 0, 0, "combnk", "",
                     "m:combnk:nargin");
     const int K = (int)args[1].toScalar();
-    outs[0] = combnk(args[0], K, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &v = args[0];
+    if (v.numel() == 1) {
+        outs[0] = combnk(static_cast<int>(v.toScalar()), K, mr);
+    } else {
+        // Extract v's elements as doubles into a scratch buffer.
+        ScratchArena scratch(mr);
+        ScratchVec<double> buf(v.numel(), &scratch);
+        for (size_t i = 0; i < v.numel(); ++i) buf[i] = v.elemAsDouble(i);
+        outs[0] = combnk(Span<const double>(buf.data(), buf.size()), K, mr);
+    }
 }
 
 } // namespace detail
