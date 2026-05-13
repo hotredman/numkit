@@ -127,17 +127,14 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
-    // The colormap select in the modal toolbar should read 'gray'.
-    const cmapSelect = ide.figureWindow.locator('select.fw-cmap, select[data-fw-cmap], select').first();
-    // Be permissive about which select element — pick the one whose
-    // current value contains "gray".
-    const opts = await ide.figureWindow.locator('select').elementHandles();
-    let foundGray = false;
-    for (const sel of opts) {
-      const v = await sel.evaluate((el) => el.value);
-      if (v === 'gray') { foundGray = true; break; }
-    }
-    expect(foundGray).toBe(true);
+    // The colormap toolbar popover should mark `gray` as the active
+    // palette (✓). The old `<select>` was replaced by colormap ▾.
+    await page.locator('.fw-toolbar .ve-btn', { hasText: /^colormap/i }).click();
+    await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
+    const grayCheck = await page.locator('.fw-pop button',
+      { has: page.locator('span', { hasText: /^gray$/ }) }).first()
+      .locator('.fw-pop-check').textContent();
+    expect(grayCheck.trim()).toBe('✓');
   });
 
   test('imshow + DisplayRange N-V — same effect as positional [lo hi]', async ({ ide, page }) => {
@@ -177,14 +174,13 @@ test.describe('imshow — display image (BACKLOG: imshow)', () => {
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
-    // Colormap select on the toolbar should read 'jet'.
-    const opts = await ide.figureWindow.locator('select').elementHandles();
-    let foundJet = false;
-    for (const sel of opts) {
-      const v = await sel.evaluate((el) => el.value);
-      if (v === 'jet') { foundJet = true; break; }
-    }
-    expect(foundJet).toBe(true);
+    // Colormap toolbar popover should mark `jet` as the active palette.
+    await page.locator('.fw-toolbar .ve-btn', { hasText: /^colormap/i }).click();
+    await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
+    const jetCheck = await page.locator('.fw-pop button',
+      { has: page.locator('span', { hasText: /^jet$/ }) }).first()
+      .locator('.fw-pop-check').textContent();
+    expect(jetCheck.trim()).toBe('✓');
   });
 
   test('imshow(RGBA) — M×N×4 with alpha channel renders without error', async ({ ide, page }) => {
