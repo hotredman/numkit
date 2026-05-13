@@ -346,6 +346,50 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   function fitAllCells(axis) {
     setFitSignal((prev) => ({ axis, n: prev.n + 1 }));
   }
+  // ── Reset helpers ────────────────────────────────────────────────
+  // The toolbar exposes three flavours of reset:
+  //   • fit ▾ → reset    — viewport only (zoom/pan back to defaults)
+  //   • display ▾ → reset — display state only (grid/log/labels back
+  //                         to script defaults, legend re-synced)
+  //   • 🏠 Reset toolbar  — both (viewport + display state)
+  // For subplot the viewport reset is fanned out via fitSignal; the
+  // display-state reset re-syncs the figure-wide show* flags and
+  // propagates through props to every cell automatically.
+  function displayReset() {
+    setShowMajor(figure.grid === 'on');
+    setShowMinor(figure.gridMinor === 'on');
+    setShowTitle(true);
+    setShowXLabel(true);
+    setShowYLabel(true);
+    setShowZLabel(true);
+    setXLog(figure.xscale === 'log');
+    setYLog(figure.yscale === 'log');
+    setZLog(false);
+    setShowLegend(!!legendUserAsked);
+  }
+  function viewportReset() {
+    if (isSubplot) {
+      fitAllCells('both');
+    } else if (is3D) {
+      if (bbox3d) {
+        setViewport({
+          x: [bbox3d.xMin, bbox3d.xMax],
+          y: [bbox3d.yMin, bbox3d.yMax],
+          z: [bbox3d.zMin, bbox3d.zMax],
+        });
+      }
+    } else if (isHeatmap) {
+      setViewport(figDefault);
+      setColorOverride(null);
+      setColormapOverride(null);
+    } else {
+      setViewport(figDefault);
+    }
+  }
+  function resetAll() {
+    viewportReset();
+    displayReset();
+  }
   const [displayOpen, setDisplayOpen] = useState(false);
   const [saveOpen, setSaveOpen]   = useState(false);
   const [viewOpen, setViewOpen]   = useState(false);
@@ -818,6 +862,19 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
         </div>
 
         <div className="fw-toolbar">
+          {/* 🏠 Reset — full reset of viewport AND display state. For
+              subplot it fans out to every cell. Standalone toolbar
+              button (not a popover) for one-click access. */}
+          <button className="ve-btn"
+                  onClick={resetAll}
+                  title="Reset viewport + display state"
+                  data-fw-reset="all">
+            <svg width="11" height="11" viewBox="0 0 12 12">
+              <path d="M1 6l5-5 5 5 M2 5v6h8V5"
+                    stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round"/>
+            </svg>
+            reset
+          </button>
           {/* fit ▾ — always shown, applies to EVERY cell in subplot mode.
               Per-series rows live in the right-click menu only; the
               toolbar version is global by design. */}
@@ -831,25 +888,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
             {fitOpen && (
               <div className="fw-pop">
                 <div className="fw-pop-section">
-                  <button onClick={() => {
-                    if (isSubplot) {
-                      fitAllCells('both');
-                    } else if (is3D) {
-                      if (bbox3d) {
-                        setViewport({
-                          x: [bbox3d.xMin, bbox3d.xMax],
-                          y: [bbox3d.yMin, bbox3d.yMax],
-                          z: [bbox3d.zMin, bbox3d.zMax],
-                        });
-                      }
-                    } else if (isHeatmap) {
-                      setViewport(figDefault);
-                      setColorOverride(null);
-                    } else {
-                      setViewport(figDefault);
-                    }
-                    setFitOpen(false);
-                  }}>reset to default</button>
+                  <button onClick={() => { viewportReset(); setFitOpen(false); }}>reset</button>
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">data extent</div>
@@ -1004,6 +1043,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   {/* Same: zlabel stays enabled even on 2-D figures. */}
                   <DisplayToggle label="zlabel" active={showZLabel}
                                  onClick={() => setShowZLabel((v) => !v)} />
+                  <DisplayToggle label="legend" active={showLegend}
+                                 onClick={() => setShowLegend((v) => !v)} />
+                </div>
+                <div className="fw-pop-section">
+                  <button onClick={() => { displayReset(); setDisplayOpen(false); }}>reset</button>
                 </div>
               </div>
             )}
@@ -1098,6 +1142,20 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               // the toolbar's display ▾ state.
               setShowMajor, setShowMinor,
               setShowTitle, setShowXLabel, setShowYLabel,
+              // Top-level Reset + Save/Export bridge for the context
+              // menu. ПКМ surfaces these as a 🏠 Reset row + Save/Export
+              // submenu. Handlers run with no extra wrapping — the menu
+              // closes automatically after the click via ContextMenu's
+              // own onClose path.
+              onResetAll: resetAll,
+              onExportSvg: exportSvg,
+              onExportPng2x: () => exportPng(2),
+              onExportPngPrint85:  () => exportPngPrint(85),
+              onExportPngPrint170: () => exportPngPrint(170),
+              onExportPngPrint210: () => exportPngPrint(210),
+              onExportCsv: exportCsv,
+              onExportTsv: exportTsv,
+              onExportJson: exportJson,
               // fitSignal — incrementing counter consumed by SubplotGrid
               // to fit each cell's viewport when the toolbar Fit X/Y/Z
               // is clicked on a subplot figure.
