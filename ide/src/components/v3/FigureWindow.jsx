@@ -383,7 +383,12 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   function toggleAxisLog(axis) {
     if (axis === 'x') {
       const next = !xLog;
-      if (next && (viewport.x[0] <= 0 || viewport.x[1] <= 0)) {
+      // Top-level viewport is null for subplot figures (per-cell
+      // viewports live in SubplotGrid). Skip the clamp when viewport
+      // isn't an object — CompositePlot inside each cell now has a
+      // useEffect on xLog/yLog that does the per-cell clamp.
+      if (next && viewport && Array.isArray(viewport.x)
+          && (viewport.x[0] <= 0 || viewport.x[1] <= 0)) {
         let lo;
         if (isHeatmap) {
           const fullCols = heatmapLayer?.originalCols || 1;
@@ -401,7 +406,8 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       setXLog(next);
     } else {
       const next = !yLog;
-      if (next && (viewport.y[0] <= 0 || viewport.y[1] <= 0)) {
+      if (next && viewport && Array.isArray(viewport.y)
+          && (viewport.y[0] <= 0 || viewport.y[1] <= 0)) {
         let lo;
         if (isHeatmap) {
           const fullRows = heatmapLayer?.originalRows || 1;
