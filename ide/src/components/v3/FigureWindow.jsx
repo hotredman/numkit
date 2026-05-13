@@ -202,16 +202,27 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     const legendUserAsked = (Array.isArray(cell.legend) && cell.legend.length > 0)
                          || (cell.legendLocation && cell.legendLocation !== 'none');
     const colorbarUserAsked = !!cell.colorbarLocation && cell.colorbarLocation !== 'off';
+    // Title / xlabel / ylabel / zlabel toggles default ON only when
+    // the script actually set the corresponding text. MATLAB parity:
+    // never call xlabel() → no x-axis label drawn → toolbar ✓ stays
+    // off → user click flips the state (a no-op visually because
+    // figure.xLabel is empty, but the cell-state flag still lights
+    // up so subsequent script setups can show through). titleAuto
+    // marks the adapter-substituted "Figure N" so it doesn't count.
+    const titleSet  = !!(cell.title && !cell.titleAuto);
+    const xLabelSet = !!cell.xLabel;
+    const yLabelSet = !!cell.yLabel;
+    const zLabelSet = !!cell.zLabel;
     return {
       showMajor:    cell.grid === 'on',
       showMinor:    cell.gridMinor === 'on',
       xLog:         cell.xscale === 'log',
       yLog:         cell.yscale === 'log',
       zLog:         false,
-      showTitle:    true,
-      showXLabel:   true,
-      showYLabel:   true,
-      showZLabel:   true,
+      showTitle:    titleSet,
+      showXLabel:   xLabelSet,
+      showYLabel:   yLabelSet,
+      showZLabel:   zLabelSet,
       showLegend:   !!legendUserAsked,
       showColorbar: !!colorbarUserAsked,
       // null = "follow this cell's script-set heatmap.colormap"

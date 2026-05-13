@@ -112,6 +112,29 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await expect(zlabel).toBeEnabled();
   });
 
+  test('xlabel ✓ off when script never set xlabel; on when set', async ({ ide, page }) => {
+    // Script with no xlabel — toolbar xlabel ✓ should be empty.
+    await ide.runScript('import compat.*;\nplot(1:10);\n');
+    await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+    await ide.figureCards.first().click();
+    await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+    await openDisplayMenu(page);
+    const xlabelToggle = page.locator('.fw-pop-toggle',
+      { has: page.locator('span', { hasText: 'xlabel' }) });
+    expect((await xlabelToggle.locator('.fw-pop-check').textContent()).trim()).toBe('');
+  });
+
+  test('xlabel ✓ on when script DID call xlabel', async ({ ide, page }) => {
+    await ide.runScript('import compat.*;\nplot(1:10);\nxlabel("x axis");\n');
+    await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+    await ide.figureCards.first().click();
+    await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+    await openDisplayMenu(page);
+    const xlabelToggle = page.locator('.fw-pop-toggle',
+      { has: page.locator('span', { hasText: 'xlabel' }) });
+    expect((await xlabelToggle.locator('.fw-pop-check').textContent()).trim()).toBe('✓');
+  });
+
   test('toolbar display ▾ — no toggle is ever disabled', async ({ ide, page }) => {
     // Cover the worst-case figure that previously tripped disabled rules:
     // bare `plot(1:10)` (no title, no xlabel, no ylabel, xRange[0] < 0
