@@ -57,6 +57,55 @@ test('ylog toggle switches Y axis from linear to log scale', async ({ ide, page 
   expect(looksLog, `log ticks ${JSON.stringify(logTicks)}`).toBe(true);
 });
 
+test('toolbar display ▾ xlog ✓ on subplot_demo (2x2 sin/cos)', async ({ ide, page }) => {
+  // Reproduces user-reported bug: subplot_demo.m → click toolbar
+  // display ▾ xlog → ✓ wasn't appearing because toggleAxisLog
+  // dereferenced viewport.x[0] but FigureWindow.viewport is null for
+  // subplot figures (per-cell viewports live in SubplotGrid). The
+  // throw aborted the handler before setXLog ran.
+  await ide.runScript(
+    'import compat.*;\n'
+    + 'x = linspace(0, 2*pi, 100);\n'
+    + 'figure;\n'
+    + 'subplot(2,2,1); plot(x, sin(x));   title(\'sin(x)\');   grid on;\n'
+    + 'subplot(2,2,2); plot(x, cos(x));   title(\'cos(x)\');   grid on;\n'
+    + 'subplot(2,2,3); plot(x, sin(2*x)); title(\'sin(2x)\');  grid on;\n'
+    + 'subplot(2,2,4); plot(x, cos(2*x)); title(\'cos(2x)\');  grid on;\n'
+  );
+  await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+  await ide.figureCards.first().click();
+  await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(150);
+
+  await openDisplay(page);
+  const xlogToggle = page.locator('.fw-pop-toggle',
+    { has: page.locator('span', { hasText: 'xlog' }) });
+  expect((await xlogToggle.locator('.fw-pop-check').textContent()).trim()).toBe('');
+
+  await xlogToggle.click();
+  await page.waitForTimeout(120);
+  expect((await xlogToggle.locator('.fw-pop-check').textContent()).trim()).toBe('✓');
+});
+
+test('toolbar display ▾ xlog click sets the ✓ checkmark', async ({ ide, page }) => {
+  await ide.runScript('import compat.*;\nplot(1:1000);\n');
+  await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+  await ide.figureCards.first().click();
+  await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(120);
+
+  await openDisplay(page);
+  // Pre: xlog NOT active.
+  const xlogToggle = page.locator('.fw-pop-toggle',
+    { has: page.locator('span', { hasText: 'xlog' }) });
+  expect((await xlogToggle.locator('.fw-pop-check').textContent()).trim()).toBe('');
+
+  // Click. Menu stays open. ✓ should appear immediately.
+  await xlogToggle.click();
+  await page.waitForTimeout(80);
+  expect((await xlogToggle.locator('.fw-pop-check').textContent()).trim()).toBe('✓');
+});
+
 test('toolbar xlog applies log scale to ALL subplot cells', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
