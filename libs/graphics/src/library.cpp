@@ -1500,8 +1500,7 @@ void GraphicsLibrary::install(Engine &engine)
         Value decoded;   // owns lifetime of the decoded value
         const Value *img0 = &args[0];
         if (args[0].isChar()) {
-            decoded = numkit::image::imread(ctx.engine->resource(),
-                                            args[0].toString());
+            decoded = numkit::image::imread(args[0].toString(), ctx.engine->resource());
             img0 = &decoded;
         }
         const Value &I = *img0;

@@ -51,8 +51,8 @@ std::vector<double> vec_from_value(const Value &v)
     return out;
 }
 
-Value row_from_vec(std::pmr::memory_resource *mr,
-                   const std::vector<double> &v)
+Value row_from_vec(const std::vector<double> &v,
+                   std::pmr::memory_resource *mr)
 {
     Value r = Value::matrix(1, v.size(), ValueType::DOUBLE, mr);
     if (!v.empty()) std::copy(v.begin(), v.end(), r.doubleDataMut());
@@ -61,9 +61,9 @@ Value row_from_vec(std::pmr::memory_resource *mr,
 
 } // anonymous
 
-Value wrcoef(std::pmr::memory_resource *mr,
-             const std::string &type, const Value &c, const Value &l,
-             const std::string &wname, int n)
+Value wrcoef(const std::string &type, const Value &c, const Value &l,
+             const std::string &wname, int n,
+             std::pmr::memory_resource *mr)
 {
     if (type != "a" && type != "d")
         throw Error("wrcoef: type must be 'a' or 'd'",
@@ -132,8 +132,8 @@ Value wrcoef(std::pmr::memory_resource *mr,
         }
     }
 
-    Value cMod = row_from_vec(mr, cv);
-    return waverec(mr, cMod, l, wname);
+    Value cMod = row_from_vec(cv, mr);
+    return waverec(cMod, l, wname, mr);
 }
 
 namespace detail {
@@ -174,8 +174,8 @@ void wrcoef_reg(Span<const Value> args, size_t /*nargout*/,
         }
     }
 
-    outs[0] = wrcoef(ctx.engine->resource(), type, args[1], args[2],
-                     wname, n);
+    outs[0] = wrcoef(type, args[1], args[2], wname, n,
+                     ctx.engine->resource());
 }
 
 } // namespace detail

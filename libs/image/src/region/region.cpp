@@ -90,7 +90,7 @@ std::vector<uint8_t> read_bw(const Value &BW) {
 } // anonymous
 
 std::tuple<Value, Value>
-bwlabel(std::pmr::memory_resource *mr, const Value &BW, int conn)
+bwlabel(const Value &BW, int conn, std::pmr::memory_resource *mr)
 {
     if (conn != 4) conn = 8;
     const int H = (int)BW.dims().rows();
@@ -105,7 +105,7 @@ bwlabel(std::pmr::memory_resource *mr, const Value &BW, int conn)
     return std::make_tuple(std::move(out), Value::scalar(double(K), mr));
 }
 
-Value bwconncomp(std::pmr::memory_resource *mr, const Value &BW, int conn)
+Value bwconncomp(const Value &BW, int conn, std::pmr::memory_resource *mr)
 {
     if (conn != 4) conn = 8;
     const int H = (int)BW.dims().rows();
@@ -153,7 +153,7 @@ Value bwconncomp(std::pmr::memory_resource *mr, const Value &BW, int conn)
     return cc;
 }
 
-Value bwarea(std::pmr::memory_resource *mr, const Value &BW) {
+Value bwarea(const Value &BW, std::pmr::memory_resource *mr) {
     const size_t N = BW.numel();
     double area = 0.0;
     for (size_t i = 0; i < N; ++i)
@@ -161,7 +161,7 @@ Value bwarea(std::pmr::memory_resource *mr, const Value &BW) {
     return Value::scalar(area, mr);
 }
 
-Value bwperim(std::pmr::memory_resource *mr, const Value &BW, int conn) {
+Value bwperim(const Value &BW, int conn, std::pmr::memory_resource *mr) {
     if (conn != 4) conn = 8;
     const int H = (int)BW.dims().rows();
     const int W = (int)BW.dims().cols();
@@ -189,7 +189,7 @@ Value bwperim(std::pmr::memory_resource *mr, const Value &BW, int conn) {
     return out;
 }
 
-Value bwareaopen(std::pmr::memory_resource *mr, const Value &BW, int P, int conn)
+Value bwareaopen(const Value &BW, int P, int conn, std::pmr::memory_resource *mr)
 {
     if (conn != 4) conn = 8;
     if (P < 1) P = 1;
@@ -227,8 +227,7 @@ Value bwareaopen(std::pmr::memory_resource *mr, const Value &BW, int P, int conn
 // outer-only is what most scripts want and we'd need a second pass
 // to gather hole boundaries from the complement.
 
-Value bwboundaries(std::pmr::memory_resource *mr,
-                   const Value &BW, int conn)
+Value bwboundaries(const Value &BW, int conn, std::pmr::memory_resource *mr)
 {
     if (conn != 4) conn = 8;
     const int H = (int)BW.dims().rows();
@@ -341,9 +340,7 @@ Value bwboundaries(std::pmr::memory_resource *mr,
 // regionprops — basic descriptors per labelled region
 // ════════════════════════════════════════════════════════════════════
 
-Value regionprops(std::pmr::memory_resource *mr,
-                  const Value &BW_or_L,
-                  const std::vector<std::string> &propsIn)
+Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn, std::pmr::memory_resource *mr)
 {
     // Detect input: integer-valued matrix → treat as label image,
     // else binary → run bwlabel internally.
@@ -511,7 +508,7 @@ void dt1D(const std::vector<double> &f, std::vector<double> &d, size_t n)
 
 } // anonymous
 
-Value bwdist(std::pmr::memory_resource *mr, const Value &BW)
+Value bwdist(const Value &BW, std::pmr::memory_resource *mr)
 {
     const size_t H = BW.dims().rows();
     const size_t W = BW.dims().cols();
@@ -553,8 +550,7 @@ Value bwdist(std::pmr::memory_resource *mr, const Value &BW)
     return out;
 }
 
-Value roicolor(std::pmr::memory_resource *mr, const Value &A,
-               const Value &low_or_v, double high, bool is_range)
+Value roicolor(const Value &A, const Value &low_or_v, double high, bool is_range, std::pmr::memory_resource *mr)
 {
     const auto &d = A.dims();
     const size_t H = d.rows();
@@ -587,7 +583,7 @@ Value roicolor(std::pmr::memory_resource *mr, const Value &A,
     return out;
 }
 
-Value fchcode(std::pmr::memory_resource *mr, const Value &bound)
+Value fchcode(const Value &bound, std::pmr::memory_resource *mr)
 {
     if (bound.dims().cols() != 2)
         throw Error("fchcode: bound must be K-by-2",
@@ -664,9 +660,7 @@ Value fchcode(std::pmr::memory_resource *mr, const Value &bound)
     return out;
 }
 
-Value bwareafilt(std::pmr::memory_resource *mr,
-                 const Value &BW, double lo, double hi,
-                 size_t n_keep, bool keep_largest, int conn)
+Value bwareafilt(const Value &BW, double lo, double hi, size_t n_keep, bool keep_largest, int conn, std::pmr::memory_resource *mr)
 {
     if (conn != 4) conn = 8;
     const int H = static_cast<int>(BW.dims().rows());
@@ -730,8 +724,7 @@ Value bwareafilt(std::pmr::memory_resource *mr,
 }
 
 std::tuple<Value, Value>
-bwselect(std::pmr::memory_resource *mr, const Value &BW,
-         const Value &cols, const Value &rows, int conn)
+bwselect(const Value &BW, const Value &cols, const Value &rows, int conn, std::pmr::memory_resource *mr)
 {
     if (conn != 4) conn = 8;
     const int H = static_cast<int>(BW.dims().rows());
@@ -772,7 +765,7 @@ bwselect(std::pmr::memory_resource *mr, const Value &BW,
     return std::make_tuple(std::move(out), std::move(idx_out));
 }
 
-Value bweuler(std::pmr::memory_resource *mr, const Value &BW, int conn)
+Value bweuler(const Value &BW, int conn, std::pmr::memory_resource *mr)
 {
     // Pratt bit-quad LUT (Octave-image bweuler.m).
     static constexpr int lut8[16] = {0, 1, 1, 0, 1, 0, -2, -1,
@@ -831,7 +824,7 @@ void bwlabel_reg(Span<const Value> args, size_t nargout,
                     "m:bwlabel:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? (int)args[1].toScalar() : 8;
-    auto [L, n] = bwlabel(ctx.engine->resource(), args[0], conn);
+    auto [L, n] = bwlabel(args[0], conn, ctx.engine->resource());
     outs[0] = std::move(L);
     if (nargout > 1) outs[1] = std::move(n);
 }
@@ -844,7 +837,7 @@ void bwconncomp_reg(Span<const Value> args, size_t /*nargout*/,
                     "m:bwconncomp:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? (int)args[1].toScalar() : 8;
-    outs[0] = bwconncomp(ctx.engine->resource(), args[0], conn);
+    outs[0] = bwconncomp(args[0], conn, ctx.engine->resource());
 }
 
 void bwarea_reg(Span<const Value> args, size_t /*nargout*/,
@@ -853,7 +846,7 @@ void bwarea_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("bwarea: requires BW", 0, 0, "bwarea", "",
                     "m:bwarea:nargin");
-    outs[0] = bwarea(ctx.engine->resource(), args[0]);
+    outs[0] = bwarea(args[0], ctx.engine->resource());
 }
 
 void bwperim_reg(Span<const Value> args, size_t /*nargout*/,
@@ -864,7 +857,7 @@ void bwperim_reg(Span<const Value> args, size_t /*nargout*/,
                     "m:bwperim:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? (int)args[1].toScalar() : 8;
-    outs[0] = bwperim(ctx.engine->resource(), args[0], conn);
+    outs[0] = bwperim(args[0], conn, ctx.engine->resource());
 }
 
 void bwareaopen_reg(Span<const Value> args, size_t /*nargout*/,
@@ -876,7 +869,7 @@ void bwareaopen_reg(Span<const Value> args, size_t /*nargout*/,
     const int P = (int)args[1].toScalar();
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? (int)args[2].toScalar() : 8;
-    outs[0] = bwareaopen(ctx.engine->resource(), args[0], P, conn);
+    outs[0] = bwareaopen(args[0], P, conn, ctx.engine->resource());
 }
 
 void bwboundaries_reg(Span<const Value> args, size_t /*nargout*/,
@@ -887,7 +880,7 @@ void bwboundaries_reg(Span<const Value> args, size_t /*nargout*/,
                     "bwboundaries", "", "m:bwboundaries:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? (int)args[1].toScalar() : 8;
-    outs[0] = bwboundaries(ctx.engine->resource(), args[0], conn);
+    outs[0] = bwboundaries(args[0], conn, ctx.engine->resource());
 }
 
 void regionprops_reg(Span<const Value> args, size_t /*nargout*/,
@@ -903,7 +896,7 @@ void regionprops_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "regionprops", "", "m:regionprops:type");
         props.push_back(args[i].toString());
     }
-    outs[0] = regionprops(ctx.engine->resource(), args[0], props);
+    outs[0] = regionprops(args[0], props, ctx.engine->resource());
 }
 
 void bwdist_reg(Span<const Value> args, size_t /*nargout*/,
@@ -912,7 +905,7 @@ void bwdist_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("bwdist: requires (BW)",
                     0, 0, "bwdist", "", "m:bwdist:nargin");
-    outs[0] = bwdist(ctx.engine->resource(), args[0]);
+    outs[0] = bwdist(args[0], ctx.engine->resource());
 }
 
 void roicolor_reg(Span<const Value> args, size_t /*nargout*/,
@@ -923,11 +916,9 @@ void roicolor_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "roicolor", "", "m:roicolor:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() >= 3) {
-        outs[0] = roicolor(mr, args[0], args[1],
-                           args[2].toScalar(), /*is_range=*/true);
+        outs[0] = roicolor(args[0], args[1], args[2].toScalar(), /*is_range=*/true, mr);
     } else {
-        outs[0] = roicolor(mr, args[0], args[1], 0.0,
-                           /*is_range=*/false);
+        outs[0] = roicolor(args[0], args[1], 0.0, /*is_range=*/false, mr);
     }
 }
 
@@ -937,7 +928,7 @@ void fchcode_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("fchcode: requires (bound)",
                     0, 0, "fchcode", "", "m:fchcode:nargin");
-    outs[0] = fchcode(ctx.engine->resource(), args[0]);
+    outs[0] = fchcode(args[0], ctx.engine->resource());
 }
 
 void bwareafilt_reg(Span<const Value> args, size_t /*nargout*/,
@@ -980,7 +971,7 @@ void bwareafilt_reg(Span<const Value> args, size_t /*nargout*/,
         }
     }
 
-    outs[0] = bwareafilt(mr, args[0], lo, hi, n_keep, keep_largest, conn);
+    outs[0] = bwareafilt(args[0], lo, hi, n_keep, keep_largest, conn, mr);
 }
 
 void bwselect_reg(Span<const Value> args, size_t nargout,
@@ -992,8 +983,7 @@ void bwselect_reg(Span<const Value> args, size_t nargout,
     int conn = 8;
     if (args.size() >= 4 && !args[3].isEmpty())
         conn = static_cast<int>(args[3].toScalar());
-    auto [m, idx] = bwselect(ctx.engine->resource(), args[0],
-                              args[1], args[2], conn);
+    auto [m, idx] = bwselect(args[0], args[1], args[2], conn, ctx.engine->resource());
     outs[0] = std::move(m);
     if (nargout > 1) outs[1] = std::move(idx);
 }
@@ -1007,7 +997,7 @@ void bweuler_reg(Span<const Value> args, size_t /*nargout*/,
     int conn = 8;
     if (args.size() >= 2 && !args[1].isEmpty())
         conn = static_cast<int>(args[1].toScalar());
-    outs[0] = bweuler(ctx.engine->resource(), args[0], conn);
+    outs[0] = bweuler(args[0], conn, ctx.engine->resource());
 }
 
 } // namespace detail

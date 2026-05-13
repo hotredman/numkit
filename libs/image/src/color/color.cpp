@@ -70,16 +70,16 @@ inline double element_to_unit(const Value &x, size_t i) {
     }
 }
 
-Value alloc_out_double(std::pmr::memory_resource *mr, const Layout &lay) {
+Value alloc_out_double(const Layout &lay, std::pmr::memory_resource *mr) {
     if (lay.is_3d) return Value::matrix3d(lay.H, lay.W, 3, ValueType::DOUBLE, mr);
     return Value::matrix(lay.H, 3, ValueType::DOUBLE, mr);
 }
 
 // Generic per-pixel transform.
 template <typename Op>
-Value pixel_transform(std::pmr::memory_resource *mr, const Value &x, const char *fn, Op op) {
+Value pixel_transform(const Value &x, const char *fn, Op op, std::pmr::memory_resource *mr) {
     auto lay = detect_layout(x, fn);
-    Value out = alloc_out_double(mr, lay);
+    Value out = alloc_out_double(lay, mr);
     if (lay.npix == 0) return out;
     double *od = out.doubleDataMut();
 
@@ -99,9 +99,9 @@ Value pixel_transform(std::pmr::memory_resource *mr, const Value &x, const char 
 // is read as raw doubles (used for HSV / YCbCr / Lab → RGB where the
 // input is already in the appropriate domain).
 template <typename Op>
-Value pixel_transform_raw(std::pmr::memory_resource *mr, const Value &x, const char *fn, Op op) {
+Value pixel_transform_raw(const Value &x, const char *fn, Op op, std::pmr::memory_resource *mr) {
     auto lay = detect_layout(x, fn);
-    Value out = alloc_out_double(mr, lay);
+    Value out = alloc_out_double(lay, mr);
     if (lay.npix == 0) return out;
     double *od = out.doubleDataMut();
 
@@ -123,8 +123,8 @@ Value pixel_transform_raw(std::pmr::memory_resource *mr, const Value &x, const c
 // RGB ↔ HSV  (MATLAB convention: all channels in [0, 1])
 // ════════════════════════════════════════════════════════════════════
 
-Value rgb2hsv(std::pmr::memory_resource *mr, const Value &x) {
-    return pixel_transform(mr, x, "rgb2hsv", [](double r, double g, double b) {
+Value rgb2hsv(const Value &x, std::pmr::memory_resource *mr) {
+    return pixel_transform(x, "rgb2hsv", [](double r, double g, double b) {
         const double cmax = std::max({r, g, b});
         const double cmin = std::min({r, g, b});
         const double delta = cmax - cmin;
@@ -137,11 +137,11 @@ Value rgb2hsv(std::pmr::memory_resource *mr, const Value &x) {
         }
         const double s = (cmax == 0.0) ? 0.0 : delta / cmax;
         return std::array<double, 3>{h, s, cmax};
-    });
+    }, mr);
 }
 
-Value hsv2rgb(std::pmr::memory_resource *mr, const Value &x) {
-    return pixel_transform_raw(mr, x, "hsv2rgb", [](double h, double s, double v) {
+Value hsv2rgb(const Value &x, std::pmr::memory_resource *mr) {
+    return pixel_transform_raw(x, "hsv2rgb", [](double h, double s, double v) {
         // Wrap h into [0, 1).
         h = h - std::floor(h);
         const double H = h * 6.0;
@@ -158,7 +158,7 @@ Value hsv2rgb(std::pmr::memory_resource *mr, const Value &x) {
             case 4: return std::array<double, 3>{t, p, v};
             default:return std::array<double, 3>{v, p, q};
         }
-    });
+    }, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -172,19 +172,19 @@ Value hsv2rgb(std::pmr::memory_resource *mr, const Value &x) {
 // RGB ↔ NTSC (YIQ, 3-significant-figure matrix from Wikipedia/MATLAB)
 // ════════════════════════════════════════════════════════════════════
 
-Value rgb2ntsc(std::pmr::memory_resource *mr, const Value &x) {
+Value rgb2ntsc(const Value &x, std::pmr::memory_resource *mr) {
     // MATLAB R2025b forward coefficients (16-digit, probed via
     // rgb2ntsc(eye(3)). Octave-image uses lower-precision 3-sig-fig
     // matrix; we follow MATLAB per the source-of-truth rule.
-    return pixel_transform(mr, x, "rgb2ntsc", [](double r, double g, double b) {
+    return pixel_transform(x, "rgb2ntsc", [](double r, double g, double b) {
         const double y = 0.2989360212937755 * r + 0.5870430744511212 * g + 0.1140209042551033 * b;
         const double i = 0.5959457430707994 * r - 0.2743886357457893 * g - 0.3215571073250100 * b;
         const double q = 0.2114973403068283 * r - 0.5229106903029738 * g + 0.3114133499961453 * b;
         return std::array<double, 3>{y, i, q};
-    });
+    }, mr);
 }
 
-Value ntsc2rgb(std::pmr::memory_resource *mr, const Value &x) {
+Value ntsc2rgb(const Value &x, std::pmr::memory_resource *mr) {
     // MATLAB R2025b inverse coefficients (the canonical 3-digit set:
     // 0.956 / 0.621 / -0.272 / -0.647 / -1.106 / 1.703). Note that
     // these are NOT exactly inv(rgb2ntsc-forward); MATLAB stores the
@@ -193,7 +193,7 @@ Value ntsc2rgb(std::pmr::memory_resource *mr, const Value &x) {
     //
     // Post-process: negatives → 0 and per-pixel overshoot above 1 is
     // scaled down by the row max (MATLAB-compat clip / normalize).
-    return pixel_transform_raw(mr, x, "ntsc2rgb", [](double y, double i, double q) {
+    return pixel_transform_raw(x, "ntsc2rgb", [](double y, double i, double q) {
         double r = y + 0.956 * i + 0.621 * q;
         double g = y - 0.272 * i - 0.647 * q;
         double b = y - 1.106 * i + 1.703 * q;
@@ -203,21 +203,21 @@ Value ntsc2rgb(std::pmr::memory_resource *mr, const Value &x) {
         const double m = std::max({r, g, b});
         if (m > 1.0) { r /= m; g /= m; b /= m; }
         return std::array<double, 3>{r, g, b};
-    });
+    }, mr);
 }
 
-Value rgb2ycbcr(std::pmr::memory_resource *mr, const Value &x) {
-    return pixel_transform(mr, x, "rgb2ycbcr", [](double r, double g, double b) {
+Value rgb2ycbcr(const Value &x, std::pmr::memory_resource *mr) {
+    return pixel_transform(x, "rgb2ycbcr", [](double r, double g, double b) {
         // BT.601 conversion (8-bit-style numbers, normalised by 255).
         const double y  = ( 65.481 * r + 128.553 * g +  24.966 * b +  16.0) / 255.0;
         const double cb = (-37.797 * r -  74.203 * g + 112.0   * b + 128.0) / 255.0;
         const double cr = (112.0   * r -  93.786 * g -  18.214 * b + 128.0) / 255.0;
         return std::array<double, 3>{y, cb, cr};
-    });
+    }, mr);
 }
 
-Value ycbcr2rgb(std::pmr::memory_resource *mr, const Value &x) {
-    return pixel_transform_raw(mr, x, "ycbcr2rgb", [](double y, double cb, double cr) {
+Value ycbcr2rgb(const Value &x, std::pmr::memory_resource *mr) {
+    return pixel_transform_raw(x, "ycbcr2rgb", [](double y, double cb, double cr) {
         // Inverse BT.601 (matches MATLAB ycbcr2rgb on DOUBLE input).
         const double Y  = y  * 255.0;
         const double Cb = cb * 255.0;
@@ -242,7 +242,7 @@ Value ycbcr2rgb(std::pmr::memory_resource *mr, const Value &x) {
         B = std::clamp(B, 0.0, 1.0);
         (void)r; (void)g; (void)bo;  // silence unused warnings
         return std::array<double, 3>{R, G, B};
-    });
+    }, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -261,8 +261,8 @@ inline double srgb_encode(double c) {
 }
 } // anonymous
 
-Value rgb2xyz(std::pmr::memory_resource *mr, const Value &x) {
-    return pixel_transform(mr, x, "rgb2xyz", [](double r, double g, double b) {
+Value rgb2xyz(const Value &x, std::pmr::memory_resource *mr) {
+    return pixel_transform(x, "rgb2xyz", [](double r, double g, double b) {
         // sRGB → linear.
         const double Rl = srgb_decode(r);
         const double Gl = srgb_decode(g);
@@ -272,10 +272,10 @@ Value rgb2xyz(std::pmr::memory_resource *mr, const Value &x) {
         const double Y = 0.2126729 * Rl + 0.7151522 * Gl + 0.0721750 * Bl;
         const double Z = 0.0193339 * Rl + 0.1191920 * Gl + 0.9503041 * Bl;
         return std::array<double, 3>{X, Y, Z};
-    });
+    }, mr);
 }
 
-Value xyz2rgb(std::pmr::memory_resource *mr, const Value &x) {
+Value xyz2rgb(const Value &x, std::pmr::memory_resource *mr) {
     // MATLAB xyz2rgb does NOT clamp out-of-gamut linear RGB to [0,1];
     // it applies sign-preserving sRGB gamma so callers can detect and
     // handle out-of-gamut explicitly. Preserve that behaviour:
@@ -284,18 +284,15 @@ Value xyz2rgb(std::pmr::memory_resource *mr, const Value &x) {
         if (c >= 0.0) return srgb_encode(c);
         return -srgb_encode(-c);
     };
-    return pixel_transform_raw(mr, x, "xyz2rgb",
-        [&signed_srgb_encode](double X, double Y, double Z) {
+    return pixel_transform_raw(x, "xyz2rgb", [&signed_srgb_encode](double X, double Y, double Z) {
             // Inverse matrix (sRGB / D65).
             const double Rl =  3.2404542 * X - 1.5371385 * Y - 0.4985314 * Z;
             const double Gl = -0.9692660 * X + 1.8760108 * Y + 0.0415560 * Z;
             const double Bl =  0.0556434 * X - 0.2040259 * Y + 1.0572252 * Z;
             return std::array<double, 3>{
-                signed_srgb_encode(Rl),
-                signed_srgb_encode(Gl),
-                signed_srgb_encode(Bl)
+                signed_srgb_encode(Rl), signed_srgb_encode(Gl), signed_srgb_encode(Bl)
             };
-        });
+        }, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -319,8 +316,8 @@ inline double finv_lab(double t) {
 }
 } // anonymous
 
-Value xyz2lab(std::pmr::memory_resource *mr, const Value &x) {
-    return pixel_transform_raw(mr, x, "xyz2lab", [](double X, double Y, double Z) {
+Value xyz2lab(const Value &x, std::pmr::memory_resource *mr) {
+    return pixel_transform_raw(x, "xyz2lab", [](double X, double Y, double Z) {
         const double fx = f_lab(X / XYZ_Xn);
         const double fy = f_lab(Y / XYZ_Yn);
         const double fz = f_lab(Z / XYZ_Zn);
@@ -328,11 +325,11 @@ Value xyz2lab(std::pmr::memory_resource *mr, const Value &x) {
         const double a  = 500.0 * (fx - fy);
         const double b  = 200.0 * (fy - fz);
         return std::array<double, 3>{L, a, b};
-    });
+    }, mr);
 }
 
-Value lab2xyz(std::pmr::memory_resource *mr, const Value &x) {
-    return pixel_transform_raw(mr, x, "lab2xyz", [](double L, double a, double b) {
+Value lab2xyz(const Value &x, std::pmr::memory_resource *mr) {
+    return pixel_transform_raw(x, "lab2xyz", [](double L, double a, double b) {
         const double fy = (L + 16.0) / 116.0;
         const double fx = fy + a / 500.0;
         const double fz = fy - b / 200.0;
@@ -340,17 +337,17 @@ Value lab2xyz(std::pmr::memory_resource *mr, const Value &x) {
         const double Y = XYZ_Yn * finv_lab(fy);
         const double Z = XYZ_Zn * finv_lab(fz);
         return std::array<double, 3>{X, Y, Z};
-    });
+    }, mr);
 }
 
-Value rgb2lab(std::pmr::memory_resource *mr, const Value &x) {
-    Value xyz = rgb2xyz(mr, x);
-    return xyz2lab(mr, xyz);
+Value rgb2lab(const Value &x, std::pmr::memory_resource *mr) {
+    Value xyz = rgb2xyz(x, mr);
+    return xyz2lab(xyz, mr);
 }
 
-Value lab2rgb(std::pmr::memory_resource *mr, const Value &x) {
-    Value xyz = lab2xyz(mr, x);
-    return xyz2rgb(mr, xyz);
+Value lab2rgb(const Value &x, std::pmr::memory_resource *mr) {
+    Value xyz = lab2xyz(x, mr);
+    return xyz2rgb(xyz, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -406,8 +403,7 @@ inline void copy_plane(const Value &src, size_t plane,
 
 } // anonymous
 
-void imsplit(std::pmr::memory_resource *mr,
-             const Value &I, std::vector<Value> &planes)
+void imsplit(const Value &I, std::vector<Value> &planes, std::pmr::memory_resource *mr)
 {
     const auto &d = I.dims();
     const size_t H = d.rows();
@@ -480,8 +476,7 @@ LabLayout detect_lab_layout(const Value &v, const char *fn) {
 }
 
 template <typename T>
-Value lab_alloc_int(std::pmr::memory_resource *mr, const LabLayout &L,
-                    ValueType cls)
+Value lab_alloc_int(const LabLayout &L, ValueType cls, std::pmr::memory_resource *mr)
 {
     return L.is_3d ? Value::matrix3d(L.H, L.W, 3, cls, mr)
                    : Value::matrix(L.H, 3, cls, mr);
@@ -494,7 +489,7 @@ inline size_t lab_idx(const LabLayout &L, size_t pix, size_t ch) {
 
 } // anonymous
 
-Value lab2double(std::pmr::memory_resource *mr, const Value &lab)
+Value lab2double(const Value &lab, std::pmr::memory_resource *mr)
 {
     if (lab.type() == ValueType::DOUBLE) return lab;
     auto L = detect_lab_layout(lab, "lab2double");
@@ -533,10 +528,10 @@ Value lab2double(std::pmr::memory_resource *mr, const Value &lab)
     return out;
 }
 
-Value lab2single(std::pmr::memory_resource *mr, const Value &lab)
+Value lab2single(const Value &lab, std::pmr::memory_resource *mr)
 {
     if (lab.type() == ValueType::SINGLE) return lab;
-    Value asDouble = lab2double(mr, lab);
+    Value asDouble = lab2double(lab, mr);
     auto L = detect_lab_layout(asDouble, "lab2single");
     Value out = L.is_3d
         ? Value::matrix3d(L.H, L.W, 3, ValueType::SINGLE, mr)
@@ -548,7 +543,7 @@ Value lab2single(std::pmr::memory_resource *mr, const Value &lab)
     return out;
 }
 
-Value lab2uint8(std::pmr::memory_resource *mr, const Value &lab)
+Value lab2uint8(const Value &lab, std::pmr::memory_resource *mr)
 {
     if (lab.type() == ValueType::UINT8) return lab;
     auto L = detect_lab_layout(lab, "lab2uint8");
@@ -588,7 +583,7 @@ Value lab2uint8(std::pmr::memory_resource *mr, const Value &lab)
     return out;
 }
 
-Value lab2uint16(std::pmr::memory_resource *mr, const Value &lab)
+Value lab2uint16(const Value &lab, std::pmr::memory_resource *mr)
 {
     if (lab.type() == ValueType::UINT16) return lab;
     auto L = detect_lab_layout(lab, "lab2uint16");
@@ -670,8 +665,7 @@ void wavelength_to_rgb(double lambda, double gamma,
 
 } // anonymous
 
-Value colorgradient(std::pmr::memory_resource *mr,
-                    const Value &C, const Value &w, int n)
+Value colorgradient(const Value &C, const Value &w, int n, std::pmr::memory_resource *mr)
 {
     if (C.dims().cols() != 3)
         throw Error("colorgradient: C must be K-by-3",
@@ -735,10 +729,7 @@ Value colorgradient(std::pmr::memory_resource *mr,
     return map;
 }
 
-Value wavelength2rgb(std::pmr::memory_resource *mr,
-                     const Value &wavelength,
-                     const std::string &out_class,
-                     double gamma)
+Value wavelength2rgb(const Value &wavelength, const std::string &out_class, double gamma, std::pmr::memory_resource *mr)
 {
     if (!(gamma >= 0.0 && gamma <= 1.0))
         throw Error("wavelength2rgb: gamma must be in [0, 1]",
@@ -785,16 +776,15 @@ Value wavelength2rgb(std::pmr::memory_resource *mr,
     lo.reserve(out_class.size());
     for (char c : out_class) lo.push_back(static_cast<char>(std::tolower(c)));
     if (lo == "double" || lo.empty()) return out;
-    if (lo == "single") return im2single(mr, out);
-    if (lo == "uint8")  return im2uint8(mr, out);
-    if (lo == "uint16") return im2uint16(mr, out);
-    if (lo == "int16")  return im2int16(mr, out);
+    if (lo == "single") return im2single(out, mr);
+    if (lo == "uint8")  return im2uint8(out, mr);
+    if (lo == "uint16") return im2uint16(out, mr);
+    if (lo == "int16")  return im2int16(out, mr);
     throw Error("wavelength2rgb: unsupported class",
                 0, 0, "wavelength2rgb", "", "m:wavelength2rgb:cls");
 }
 
-Value colorangle(std::pmr::memory_resource *mr,
-                 const Value &rgb1, const Value &rgb2)
+Value colorangle(const Value &rgb1, const Value &rgb2, std::pmr::memory_resource *mr)
 {
     const auto a = rgb_rows(rgb1, "RGB1");
     const auto b = rgb_rows(rgb2, "RGB2");
@@ -829,7 +819,7 @@ Value colorangle(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value gray_cmap(std::pmr::memory_resource *mr, int n)
+Value gray_cmap(int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
     Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
@@ -849,7 +839,7 @@ Value gray_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
-Value hot_cmap(std::pmr::memory_resource *mr, int n)
+Value hot_cmap(int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
     Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
@@ -884,7 +874,7 @@ Value hot_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
-Value cool_cmap(std::pmr::memory_resource *mr, int n)
+Value cool_cmap(int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
     Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
@@ -905,7 +895,7 @@ Value cool_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
-Value spring_cmap(std::pmr::memory_resource *mr, int n)
+Value spring_cmap(int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
     Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
@@ -924,7 +914,7 @@ Value spring_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
-Value summer_cmap(std::pmr::memory_resource *mr, int n)
+Value summer_cmap(int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
     Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
@@ -943,7 +933,7 @@ Value summer_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
-Value autumn_cmap(std::pmr::memory_resource *mr, int n)
+Value autumn_cmap(int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
     Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
@@ -961,7 +951,7 @@ Value autumn_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
-Value winter_cmap(std::pmr::memory_resource *mr, int n)
+Value winter_cmap(int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
     Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
@@ -980,7 +970,7 @@ Value winter_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
-Value copper_cmap(std::pmr::memory_resource *mr, int n)
+Value copper_cmap(int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
     Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
@@ -1001,7 +991,7 @@ Value copper_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
-Value pink_cmap(std::pmr::memory_resource *mr, int n)
+Value pink_cmap(int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
     Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
@@ -1076,7 +1066,7 @@ Value pink_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
-Value hsv_cmap(std::pmr::memory_resource *mr, int n)
+Value hsv_cmap(int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
     if (n == 1) {
@@ -1094,10 +1084,10 @@ Value hsv_cmap(std::pmr::memory_resource *mr, int n)
         id[1 * n + i] = 1.0;                            // saturation
         id[2 * n + i] = 1.0;                            // value
     }
-    return hsv2rgb(mr, hsv_in);
+    return hsv2rgb(hsv_in, mr);
 }
 
-Value flag_cmap(std::pmr::memory_resource *mr, int n)
+Value flag_cmap(int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
     Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
@@ -1114,7 +1104,7 @@ Value flag_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
-Value prism_cmap(std::pmr::memory_resource *mr, int n)
+Value prism_cmap(int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
     Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
@@ -1136,7 +1126,7 @@ Value prism_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
-Value lines_cmap(std::pmr::memory_resource *mr, int n)
+Value lines_cmap(int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
     Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
@@ -1165,7 +1155,7 @@ Value lines_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
-Value bone_cmap(std::pmr::memory_resource *mr, int n)
+Value bone_cmap(int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
     Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
@@ -1245,7 +1235,7 @@ Value bone_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
-Value rgb2lin(std::pmr::memory_resource *mr, const Value &A)
+Value rgb2lin(const Value &A, std::pmr::memory_resource *mr)
 {
     // MATLAB R2025b convention: int classes float to single; else keep
     // input class. Range outside [0, 1] is allowed — the function uses
@@ -1253,7 +1243,7 @@ Value rgb2lin(std::pmr::memory_resource *mr, const Value &A)
     Value in;
     if (A.type() == ValueType::DOUBLE) in = A;
     else if (A.type() == ValueType::SINGLE) in = A;
-    else in = im2single(mr, A);
+    else in = im2single(A, mr);
 
     auto sRGBtoLin = [](double x) -> double {
         const double s = (x < 0.0) ? -1.0 : 1.0;
@@ -1281,7 +1271,7 @@ Value rgb2lin(std::pmr::memory_resource *mr, const Value &A)
     return out;
 }
 
-Value xyz2double(std::pmr::memory_resource *mr, const Value &xyz)
+Value xyz2double(const Value &xyz, std::pmr::memory_resource *mr)
 {
     const auto &d = xyz.dims();
     const bool ok_2d = !d.is3D() && d.cols() == 3;
@@ -1312,7 +1302,7 @@ Value xyz2double(std::pmr::memory_resource *mr, const Value &xyz)
     return out;
 }
 
-Value contrast(std::pmr::memory_resource *mr, const Value &x, int m)
+Value contrast(const Value &x, int m, std::pmr::memory_resource *mr)
 {
     if (m < 2)
         throw Error("contrast: M must be >= 2",
@@ -1367,7 +1357,7 @@ Value contrast(std::pmr::memory_resource *mr, const Value &x, int m)
     return out;
 }
 
-Value brighten(std::pmr::memory_resource *mr, const Value &map, double beta)
+Value brighten(const Value &map, double beta, std::pmr::memory_resource *mr)
 {
     if (!(beta > -1.0 && beta < 1.0))
         throw Error("brighten: BETA must be a scalar in the range (-1, 1)",
@@ -1387,7 +1377,7 @@ Value brighten(std::pmr::memory_resource *mr, const Value &map, double beta)
     return out;
 }
 
-Value xyz2uint16(std::pmr::memory_resource *mr, const Value &xyz)
+Value xyz2uint16(const Value &xyz, std::pmr::memory_resource *mr)
 {
     const auto &d = xyz.dims();
     const bool ok_2d = !d.is3D() && d.cols() == 3;
@@ -1421,8 +1411,7 @@ Value xyz2uint16(std::pmr::memory_resource *mr, const Value &xyz)
     return out;
 }
 
-Value deltaE(std::pmr::memory_resource *mr,
-             const Value &I1, const Value &I2, bool isInputLab)
+Value deltaE(const Value &I1, const Value &I2, bool isInputLab, std::pmr::memory_resource *mr)
 {
     const auto &d1 = I1.dims();
     const auto &d2 = I2.dims();
@@ -1454,11 +1443,11 @@ Value deltaE(std::pmr::memory_resource *mr,
     // Class promotion: double if either is double, else single.
     const bool to_double = (I1.type() == ValueType::DOUBLE) ||
                            (I2.type() == ValueType::DOUBLE);
-    Value A = to_double ? im2double(mr, I1) : im2single(mr, I1);
-    Value B = to_double ? im2double(mr, I2) : im2single(mr, I2);
+    Value A = to_double ? im2double(I1, mr) : im2single(I1, mr);
+    Value B = to_double ? im2double(I2, mr) : im2single(I2, mr);
     if (!isInputLab) {
-        A = rgb2lab(mr, A);
-        B = rgb2lab(mr, B);
+        A = rgb2lab(A, mr);
+        B = rgb2lab(B, mr);
     }
 
     Value out = Value::matrix(out_h, out_w,
@@ -1480,8 +1469,7 @@ Value deltaE(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value whitepoint(std::pmr::memory_resource *mr,
-                 const std::string &illuminant)
+Value whitepoint(const std::string &illuminant, std::pmr::memory_resource *mr)
 {
     std::string lo;
     lo.reserve(illuminant.size());
@@ -1509,12 +1497,12 @@ Value whitepoint(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value lin2rgb(std::pmr::memory_resource *mr, const Value &A)
+Value lin2rgb(const Value &A, std::pmr::memory_resource *mr)
 {
     Value in;
     if (A.type() == ValueType::DOUBLE) in = A;
     else if (A.type() == ValueType::SINGLE) in = A;
-    else in = im2single(mr, A);
+    else in = im2single(A, mr);
 
     auto linTosRGB = [](double x) -> double {
         const double s = (x < 0.0) ? -1.0 : 1.0;
@@ -1542,7 +1530,7 @@ Value lin2rgb(std::pmr::memory_resource *mr, const Value &A)
     return out;
 }
 
-Value white_cmap(std::pmr::memory_resource *mr, int n)
+Value white_cmap(int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
     Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
@@ -1552,7 +1540,7 @@ Value white_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
-Value cmap2gray(std::pmr::memory_resource *mr, const Value &cmap)
+Value cmap2gray(const Value &cmap, std::pmr::memory_resource *mr)
 {
     const auto &d = cmap.dims();
     if (d.is3D() || d.cols() != 3 || d.rows() < 1)
@@ -1584,9 +1572,7 @@ Value cmap2gray(std::pmr::memory_resource *mr, const Value &cmap)
     return out;
 }
 
-Value label2rgb(std::pmr::memory_resource *mr,
-                const Value &L, const Value &cmap,
-                const Value &background)
+Value label2rgb(const Value &L, const Value &cmap, const Value &background, std::pmr::memory_resource *mr)
 {
     const auto &dL = L.dims();
     const size_t H = dL.rows();
@@ -1659,7 +1645,7 @@ namespace detail {
         if (args.empty())                                                           \
             throw Error(#name ": requires X", 0, 0, #name, "",                     \
                         "m:" #name ":nargin");                                     \
-        outs[0] = name(ctx.engine->resource(), args[0]);                           \
+        outs[0] = name(args[0], ctx.engine->resource());                           \
     }
 
 void imsplit_reg(Span<const Value> args, size_t nargout,
@@ -1669,7 +1655,7 @@ void imsplit_reg(Span<const Value> args, size_t nargout,
         throw Error("imsplit: requires (I)", 0, 0, "imsplit", "",
                     "m:imsplit:nargin");
     std::vector<Value> planes;
-    imsplit(ctx.engine->resource(), args[0], planes);
+    imsplit(args[0], planes, ctx.engine->resource());
     const size_t M = std::min((size_t)outs.size(),
                                std::max(nargout, (size_t)1));
     for (size_t i = 0; i < M && i < planes.size(); ++i)
@@ -1703,7 +1689,7 @@ void label2rgb_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "label2rgb", "", "m:label2rgb:nargin");
     Value bg;
     if (args.size() >= 3 && !args[2].isEmpty()) bg = args[2];
-    outs[0] = label2rgb(ctx.engine->resource(), args[0], args[1], bg);
+    outs[0] = label2rgb(args[0], args[1], bg, ctx.engine->resource());
 }
 
 void colorgradient_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1726,7 +1712,7 @@ void colorgradient_reg(Span<const Value> args, size_t /*nargout*/,
     }
     if (args.size() >= 3 && !args[2].isEmpty())
         n = static_cast<int>(args[2].toScalar());
-    outs[0] = colorgradient(mr, args[0], w, n);
+    outs[0] = colorgradient(args[0], w, n, mr);
 }
 
 void wavelength2rgb_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1745,7 +1731,7 @@ void wavelength2rgb_reg(Span<const Value> args, size_t /*nargout*/,
         cls = args[1].toString();
     }
     if (args.size() >= 3 && !args[2].isEmpty()) gamma = args[2].toScalar();
-    outs[0] = wavelength2rgb(mr, args[0], cls, gamma);
+    outs[0] = wavelength2rgb(args[0], cls, gamma, mr);
 }
 
 void colorangle_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1754,7 +1740,7 @@ void colorangle_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("colorangle: requires (rgb1, rgb2)",
                     0, 0, "colorangle", "", "m:colorangle:nargin");
-    outs[0] = colorangle(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = colorangle(args[0], args[1], ctx.engine->resource());
 }
 
 void cmap2gray_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1763,7 +1749,7 @@ void cmap2gray_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("cmap2gray: requires (cmap)",
                     0, 0, "cmap2gray", "", "m:cmap2gray:nargin");
-    outs[0] = cmap2gray(ctx.engine->resource(), args[0]);
+    outs[0] = cmap2gray(args[0], ctx.engine->resource());
 }
 
 void gray_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1781,7 +1767,7 @@ void gray_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "gray", "", "m:gray:n");
         n = static_cast<int>(d);
     }
-    outs[0] = gray_cmap(ctx.engine->resource(), n);
+    outs[0] = gray_cmap(n, ctx.engine->resource());
 }
 
 void hot_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1799,7 +1785,7 @@ void hot_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "hot", "", "m:hot:n");
         n = static_cast<int>(d);
     }
-    outs[0] = hot_cmap(ctx.engine->resource(), n);
+    outs[0] = hot_cmap(n, ctx.engine->resource());
 }
 
 void cool_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1817,7 +1803,7 @@ void cool_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "cool", "", "m:cool:n");
         n = static_cast<int>(d);
     }
-    outs[0] = cool_cmap(ctx.engine->resource(), n);
+    outs[0] = cool_cmap(n, ctx.engine->resource());
 }
 
 void spring_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1835,7 +1821,7 @@ void spring_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "spring", "", "m:spring:n");
         n = static_cast<int>(d);
     }
-    outs[0] = spring_cmap(ctx.engine->resource(), n);
+    outs[0] = spring_cmap(n, ctx.engine->resource());
 }
 
 void summer_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1853,7 +1839,7 @@ void summer_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "summer", "", "m:summer:n");
         n = static_cast<int>(d);
     }
-    outs[0] = summer_cmap(ctx.engine->resource(), n);
+    outs[0] = summer_cmap(n, ctx.engine->resource());
 }
 
 void autumn_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1871,7 +1857,7 @@ void autumn_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "autumn", "", "m:autumn:n");
         n = static_cast<int>(d);
     }
-    outs[0] = autumn_cmap(ctx.engine->resource(), n);
+    outs[0] = autumn_cmap(n, ctx.engine->resource());
 }
 
 void winter_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1889,7 +1875,7 @@ void winter_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "winter", "", "m:winter:n");
         n = static_cast<int>(d);
     }
-    outs[0] = winter_cmap(ctx.engine->resource(), n);
+    outs[0] = winter_cmap(n, ctx.engine->resource());
 }
 
 void copper_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1907,7 +1893,7 @@ void copper_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "copper", "", "m:copper:n");
         n = static_cast<int>(d);
     }
-    outs[0] = copper_cmap(ctx.engine->resource(), n);
+    outs[0] = copper_cmap(n, ctx.engine->resource());
 }
 
 void pink_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1925,7 +1911,7 @@ void pink_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "pink", "", "m:pink:n");
         n = static_cast<int>(d);
     }
-    outs[0] = pink_cmap(ctx.engine->resource(), n);
+    outs[0] = pink_cmap(n, ctx.engine->resource());
 }
 
 void hsv_cmap_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1943,7 +1929,7 @@ void hsv_cmap_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "hsv", "", "m:hsv:n");
         n = static_cast<int>(d);
     }
-    outs[0] = hsv_cmap(ctx.engine->resource(), n);
+    outs[0] = hsv_cmap(n, ctx.engine->resource());
 }
 
 void flag_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1961,7 +1947,7 @@ void flag_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "flag", "", "m:flag:n");
         n = static_cast<int>(d);
     }
-    outs[0] = flag_cmap(ctx.engine->resource(), n);
+    outs[0] = flag_cmap(n, ctx.engine->resource());
 }
 
 void prism_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1979,7 +1965,7 @@ void prism_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "prism", "", "m:prism:n");
         n = static_cast<int>(d);
     }
-    outs[0] = prism_cmap(ctx.engine->resource(), n);
+    outs[0] = prism_cmap(n, ctx.engine->resource());
 }
 
 void lines_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1997,7 +1983,7 @@ void lines_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "lines", "", "m:lines:n");
         n = static_cast<int>(d);
     }
-    outs[0] = lines_cmap(ctx.engine->resource(), n);
+    outs[0] = lines_cmap(n, ctx.engine->resource());
 }
 
 void bone_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2015,7 +2001,7 @@ void bone_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "bone", "", "m:bone:n");
         n = static_cast<int>(d);
     }
-    outs[0] = bone_cmap(ctx.engine->resource(), n);
+    outs[0] = bone_cmap(n, ctx.engine->resource());
 }
 
 void white_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2033,7 +2019,7 @@ void white_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "white", "", "m:white:n");
         n = static_cast<int>(d);
     }
-    outs[0] = white_cmap(ctx.engine->resource(), n);
+    outs[0] = white_cmap(n, ctx.engine->resource());
 }
 
 void rgb2lin_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2042,7 +2028,7 @@ void rgb2lin_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("rgb2lin: requires (A)", 0, 0, "rgb2lin", "",
                     "m:rgb2lin:nargin");
-    outs[0] = rgb2lin(ctx.engine->resource(), args[0]);
+    outs[0] = rgb2lin(args[0], ctx.engine->resource());
 }
 
 void lin2rgb_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2051,7 +2037,7 @@ void lin2rgb_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("lin2rgb: requires (A)", 0, 0, "lin2rgb", "",
                     "m:lin2rgb:nargin");
-    outs[0] = lin2rgb(ctx.engine->resource(), args[0]);
+    outs[0] = lin2rgb(args[0], ctx.engine->resource());
 }
 
 void xyz2double_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2060,7 +2046,7 @@ void xyz2double_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("xyz2double: requires (xyz)", 0, 0, "xyz2double", "",
                     "m:xyz2double:nargin");
-    outs[0] = xyz2double(ctx.engine->resource(), args[0]);
+    outs[0] = xyz2double(args[0], ctx.engine->resource());
 }
 
 void xyz2uint16_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2069,7 +2055,7 @@ void xyz2uint16_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("xyz2uint16: requires (xyz)", 0, 0, "xyz2uint16", "",
                     "m:xyz2uint16:nargin");
-    outs[0] = xyz2uint16(ctx.engine->resource(), args[0]);
+    outs[0] = xyz2uint16(args[0], ctx.engine->resource());
 }
 
 void brighten_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2079,7 +2065,7 @@ void brighten_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("brighten: requires (map, beta)", 0, 0, "brighten", "",
                     "m:brighten:nargin");
     const double beta = args[1].toScalar();
-    outs[0] = brighten(ctx.engine->resource(), args[0], beta);
+    outs[0] = brighten(args[0], beta, ctx.engine->resource());
 }
 
 void contrast_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2096,7 +2082,7 @@ void contrast_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "contrast", "", "m:contrast:m");
         m = static_cast<int>(d);
     }
-    outs[0] = contrast(ctx.engine->resource(), args[0], m);
+    outs[0] = contrast(args[0], m, ctx.engine->resource());
 }
 
 void deltaE_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2120,7 +2106,7 @@ void deltaE_reg(Span<const Value> args, size_t /*nargout*/,
             throw Error("deltaE: unknown name '" + key + "'",
                         0, 0, "deltaE", "", "m:deltaE:nv");
     }
-    outs[0] = deltaE(ctx.engine->resource(), args[0], args[1], isInputLab);
+    outs[0] = deltaE(args[0], args[1], isInputLab, ctx.engine->resource());
 }
 
 void whitepoint_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2133,7 +2119,7 @@ void whitepoint_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "whitepoint", "", "m:whitepoint:type");
         illum = args[0].toString();
     }
-    outs[0] = whitepoint(ctx.engine->resource(), illum);
+    outs[0] = whitepoint(illum, ctx.engine->resource());
 }
 
 } // namespace detail

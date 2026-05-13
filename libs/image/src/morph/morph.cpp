@@ -25,8 +25,7 @@ namespace numkit::image {
 
 namespace {
 
-Value pack_logical(std::pmr::memory_resource *mr,
-                   const std::vector<uint8_t> &mask, int rows, int cols)
+Value pack_logical(const std::vector<uint8_t> &mask, int rows, int cols, std::pmr::memory_resource *mr)
 {
     Value out = Value::matrix(rows, cols, ValueType::LOGICAL, mr);
     if (mask.empty()) return out;
@@ -39,20 +38,20 @@ Value pack_logical(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value strel_square(std::pmr::memory_resource *mr, int N) {
+Value strel_square(int N, std::pmr::memory_resource *mr) {
     if (N < 1) N = 1;
     std::vector<uint8_t> m((size_t)N * (size_t)N, 1);
-    return pack_logical(mr, m, N, N);
+    return pack_logical(m, N, N, mr);
 }
 
-Value strel_rect(std::pmr::memory_resource *mr, int rows, int cols) {
+Value strel_rect(int rows, int cols, std::pmr::memory_resource *mr) {
     if (rows < 1) rows = 1;
     if (cols < 1) cols = 1;
     std::vector<uint8_t> m((size_t)rows * (size_t)cols, 1);
-    return pack_logical(mr, m, rows, cols);
+    return pack_logical(m, rows, cols, mr);
 }
 
-Value strel_diamond(std::pmr::memory_resource *mr, int r) {
+Value strel_diamond(int r, std::pmr::memory_resource *mr) {
     if (r < 1) r = 1;
     const int N = 2 * r + 1;
     std::vector<uint8_t> m((size_t)N * (size_t)N, 0);
@@ -60,10 +59,10 @@ Value strel_diamond(std::pmr::memory_resource *mr, int r) {
         for (int j = 0; j < N; ++j)
             if (std::abs(i - r) + std::abs(j - r) <= r)
                 m[(size_t)i * (size_t)N + (size_t)j] = 1;
-    return pack_logical(mr, m, N, N);
+    return pack_logical(m, N, N, mr);
 }
 
-Value strel_disk(std::pmr::memory_resource *mr, double r) {
+Value strel_disk(double r, std::pmr::memory_resource *mr) {
     if (r < 1.0) r = 1.0;
     const int R = (int)std::ceil(r);
     const int N = 2 * R + 1;
@@ -74,10 +73,10 @@ Value strel_disk(std::pmr::memory_resource *mr, double r) {
             if (std::sqrt(dy * dy + dx * dx) <= r)
                 m[(size_t)i * (size_t)N + (size_t)j] = 1;
         }
-    return pack_logical(mr, m, N, N);
+    return pack_logical(m, N, N, mr);
 }
 
-Value strel_line(std::pmr::memory_resource *mr, double len, double theta_deg) {
+Value strel_line(double len, double theta_deg, std::pmr::memory_resource *mr) {
     if (len < 1.0) len = 1.0;
     const double th = theta_deg * M_PI / 180.0;
     const double cx = (len - 1) * 0.5 * std::cos(th);
@@ -95,15 +94,12 @@ Value strel_line(std::pmr::memory_resource *mr, double len, double theta_deg) {
         if (rr >= 0 && rr < H && cc >= 0 && cc < W)
             m[(size_t)rr * (size_t)W + (size_t)cc] = 1;
     }
-    return pack_logical(mr, m, H, W);
+    return pack_logical(m, H, W, mr);
 }
 
 } // anonymous
 
-Value strel(std::pmr::memory_resource *mr,
-            const std::string &shape,
-            const std::vector<double> &params,
-            const Value &arbitrary_nhood)
+Value strel(const std::string &shape, const std::vector<double> &params, const Value &arbitrary_nhood, std::pmr::memory_resource *mr)
 {
     // Compute the raw logical neighbourhood, then wrap it in a 1x1
     // struct with fields {Neighborhood, Dimensionality} matching
@@ -113,21 +109,21 @@ Value strel(std::pmr::memory_resource *mr,
     Value nhood;
     if (shape == "square") {
         const int N = params.empty() ? 3 : (int)params[0];
-        nhood = strel_square(mr, N);
+        nhood = strel_square(N, mr);
     } else if (shape == "rectangle") {
         const int r = params.size() >= 1 ? (int)params[0] : 3;
         const int c = params.size() >= 2 ? (int)params[1] : r;
-        nhood = strel_rect(mr, r, c);
+        nhood = strel_rect(r, c, mr);
     } else if (shape == "diamond") {
         const int r = params.empty() ? 1 : (int)params[0];
-        nhood = strel_diamond(mr, r);
+        nhood = strel_diamond(r, mr);
     } else if (shape == "disk") {
         const double r = params.empty() ? 5.0 : params[0];
-        nhood = strel_disk(mr, r);
+        nhood = strel_disk(r, mr);
     } else if (shape == "line") {
         const double len = params.size() >= 1 ? params[0] : 3.0;
         const double th  = params.size() >= 2 ? params[1] : 0.0;
-        nhood = strel_line(mr, len, th);
+        nhood = strel_line(len, th, mr);
     } else if (shape == "arbitrary" || shape.empty()) {
         if (arbitrary_nhood.numel() == 0)
             throw Error("strel('arbitrary', NHOOD): NHOOD missing",
@@ -141,7 +137,7 @@ Value strel(std::pmr::memory_resource *mr,
                 const double v = arbitrary_nhood.elemAsDouble((size_t)c * (size_t)H + (size_t)r);
                 m[(size_t)r * (size_t)W + (size_t)c] = (v != 0.0) ? 1 : 0;
             }
-        nhood = pack_logical(mr, m, H, W);
+        nhood = pack_logical(m, H, W, mr);
     } else {
         throw Error("strel: unknown shape '" + shape + "'", 0, 0, "strel", "",
                     "m:strel:badshape");
@@ -215,7 +211,7 @@ SEInfo unpack_se(const Value &SE) {
 }
 
 template <bool IsErode>
-Value morph_op(std::pmr::memory_resource *mr, const Value &I, const Value &SE)
+Value morph_op(const Value &I, const Value &SE, std::pmr::memory_resource *mr)
 {
     auto se = unpack_se(SE);
     const int H = (int)I.dims().rows();
@@ -263,22 +259,22 @@ Value morph_op(std::pmr::memory_resource *mr, const Value &I, const Value &SE)
 
 } // anonymous
 
-Value imerode(std::pmr::memory_resource *mr, const Value &I, const Value &SE) {
-    return morph_op<true>(mr, I, SE);
+Value imerode(const Value &I, const Value &SE, std::pmr::memory_resource *mr) {
+    return morph_op<true>(I, SE, mr);
 }
 
-Value imdilate(std::pmr::memory_resource *mr, const Value &I, const Value &SE) {
-    return morph_op<false>(mr, I, SE);
+Value imdilate(const Value &I, const Value &SE, std::pmr::memory_resource *mr) {
+    return morph_op<false>(I, SE, mr);
 }
 
-Value imopen(std::pmr::memory_resource *mr, const Value &I, const Value &SE) {
-    Value e = imerode(mr, I, SE);
-    return imdilate(mr, e, SE);
+Value imopen(const Value &I, const Value &SE, std::pmr::memory_resource *mr) {
+    Value e = imerode(I, SE, mr);
+    return imdilate(e, SE, mr);
 }
 
-Value imclose(std::pmr::memory_resource *mr, const Value &I, const Value &SE) {
-    Value d = imdilate(mr, I, SE);
-    return imerode(mr, d, SE);
+Value imclose(const Value &I, const Value &SE, std::pmr::memory_resource *mr) {
+    Value d = imdilate(I, SE, mr);
+    return imerode(d, SE, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -293,8 +289,7 @@ Value imclose(std::pmr::memory_resource *mr, const Value &I, const Value &SE) {
 // the grayscale max-in-neighborhood form (which reduces to binary
 // dilation when the input is logical).
 
-Value imreconstruct(std::pmr::memory_resource *mr,
-                    const Value &marker, const Value &mask, int conn)
+Value imreconstruct(const Value &marker, const Value &mask, int conn, std::pmr::memory_resource *mr)
 {
     if (conn != 4) conn = 8;
     const size_t H = marker.dims().rows();
@@ -306,13 +301,9 @@ Value imreconstruct(std::pmr::memory_resource *mr,
     // Build the SE: 3×3 ones for conn=8, plus-shape for conn=4.
     Value SE;
     if (conn == 8) {
-        SE = strel(mr, "square",
-                   std::vector<double>{3.0},
-                   Value::matrix(0, 0, ValueType::DOUBLE, mr));
+        SE = strel("square", std::vector<double>{3.0}, Value::matrix(0, 0, ValueType::DOUBLE, mr), mr);
     } else {
-        SE = strel(mr, "diamond",
-                   std::vector<double>{1.0},
-                   Value::matrix(0, 0, ValueType::DOUBLE, mr));
+        SE = strel("diamond", std::vector<double>{1.0}, Value::matrix(0, 0, ValueType::DOUBLE, mr), mr);
     }
 
     const size_t N = marker.numel();
@@ -348,7 +339,7 @@ Value imreconstruct(std::pmr::memory_resource *mr,
     // dilations propagates at most that far.
     const size_t maxIter = static_cast<size_t>(H + W);
     for (size_t iter = 0; iter < maxIter; ++iter) {
-        Value Jd = imdilate(mr, J, SE);
+        Value Jd = imdilate(J, SE, mr);
         bool changed = false;
         Value Jnew = Value::matrix(H, W, srcT, mr);
         for (size_t i = 0; i < N; ++i) {
@@ -375,8 +366,7 @@ Value imreconstruct(std::pmr::memory_resource *mr,
 // the border becomes 1 in the output, which means foreground
 // pixels stay 1 and holes are filled.
 
-Value imfill_holes(std::pmr::memory_resource *mr,
-                   const Value &BW, int conn)
+Value imfill_holes(const Value &BW, int conn, std::pmr::memory_resource *mr)
 {
     if (conn != 4) conn = 8;
     const size_t H = BW.dims().rows();
@@ -400,7 +390,7 @@ Value imfill_holes(std::pmr::memory_resource *mr,
             md[idx] = (onRim && !fg) ? 1u : 0u; // marker = rim ∩ ~BW
         }
 
-    Value R = imreconstruct(mr, marker, mask, conn);
+    Value R = imreconstruct(marker, mask, conn, mr);
 
     // J = ~R.
     std::uint8_t *od = out.logicalDataMut();
@@ -428,8 +418,7 @@ Value imfill_holes(std::pmr::memory_resource *mr,
 // Inverting flips peaks↔troughs, so regional maxima of −I are the
 // regional minima of I.
 
-Value imregionalmax(std::pmr::memory_resource *mr,
-                    const Value &I, int conn)
+Value imregionalmax(const Value &I, int conn, std::pmr::memory_resource *mr)
 {
     const size_t H = I.dims().rows();
     const size_t W = I.dims().cols();
@@ -464,7 +453,7 @@ Value imregionalmax(std::pmr::memory_resource *mr,
         kd[i] = v;
         md[i] = (v == POS_INF) ? maxFin : (v - 1.0);
     }
-    Value R = imreconstruct(mr, marker, mask, conn);
+    Value R = imreconstruct(marker, mask, conn, mr);
 
     // Output = (I > R).
     std::uint8_t *od = out.logicalDataMut();
@@ -476,8 +465,7 @@ Value imregionalmax(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value imregionalmin(std::pmr::memory_resource *mr,
-                    const Value &I, int conn)
+Value imregionalmin(const Value &I, int conn, std::pmr::memory_resource *mr)
 {
     const size_t H = I.dims().rows();
     const size_t W = I.dims().cols();
@@ -499,7 +487,7 @@ Value imregionalmin(std::pmr::memory_resource *mr,
     for (size_t i = 0; i < N; ++i)
         id[i] = high - I.elemAsDouble(i);
 
-    return imregionalmax(mr, Iinv, conn);
+    return imregionalmax(Iinv, conn, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -512,8 +500,7 @@ Value imregionalmin(std::pmr::memory_resource *mr,
 // h-maxima suppresses regional maxima shallower than h. Used as a
 // precursor to imregionalmax to ignore small / noise-like peaks.
 
-Value imhmax(std::pmr::memory_resource *mr,
-             const Value &I, double h, int conn)
+Value imhmax(const Value &I, double h, int conn, std::pmr::memory_resource *mr)
 {
     if (!(h >= 0.0))
         throw Error("imhmax: h must be ≥ 0",
@@ -532,11 +519,10 @@ Value imhmax(std::pmr::memory_resource *mr,
         kd[i] = v;
         md[i] = v - h;
     }
-    return imreconstruct(mr, marker, mask, conn);
+    return imreconstruct(marker, mask, conn, mr);
 }
 
-Value imhmin(std::pmr::memory_resource *mr,
-             const Value &I, double h, int conn)
+Value imhmin(const Value &I, double h, int conn, std::pmr::memory_resource *mr)
 {
     if (!(h >= 0.0))
         throw Error("imhmin: h must be ≥ 0",
@@ -558,7 +544,7 @@ Value imhmin(std::pmr::memory_resource *mr,
     for (size_t i = 0; i < N; ++i)
         id[i] = high - I.elemAsDouble(i);
 
-    Value Jinv = imhmax(mr, Iinv, h, conn);
+    Value Jinv = imhmax(Iinv, h, conn, mr);
 
     // Invert back: J = high - Jinv.
     Value J = Value::matrix(H, W, ValueType::DOUBLE, mr);
@@ -580,16 +566,14 @@ Value imhmin(std::pmr::memory_resource *mr,
 // those that belong to a regional maximum at least h units above its
 // surroundings — the "tall enough" peaks.
 
-Value imextendedmax(std::pmr::memory_resource *mr,
-                    const Value &I, double h, int conn)
+Value imextendedmax(const Value &I, double h, int conn, std::pmr::memory_resource *mr)
 {
-    return imregionalmax(mr, imhmax(mr, I, h, conn), conn);
+    return imregionalmax(imhmax(I, h, conn, mr), conn, mr);
 }
 
-Value imextendedmin(std::pmr::memory_resource *mr,
-                    const Value &I, double h, int conn)
+Value imextendedmin(const Value &I, double h, int conn, std::pmr::memory_resource *mr)
 {
-    return imregionalmin(mr, imhmin(mr, I, h, conn), conn);
+    return imregionalmin(imhmin(I, h, conn, mr), conn, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -618,8 +602,7 @@ Value imextendedmin(std::pmr::memory_resource *mr,
 // MATLAB exactly); the existing imreconstruct propagates ±Inf as
 // expected because every internal min/max is over finite differences.
 
-Value imimposemin(std::pmr::memory_resource *mr,
-                  const Value &I, const Value &BW, int conn)
+Value imimposemin(const Value &I, const Value &BW, int conn, std::pmr::memory_resource *mr)
 {
     const size_t H = I.dims().rows();
     const size_t W = I.dims().cols();
@@ -676,7 +659,7 @@ Value imimposemin(std::pmr::memory_resource *mr,
         // are equal (+Inf). At non-marker g_inv = −Inf < m_inv ≥ 0.
     }
 
-    Value J_inv = imreconstruct(mr, g_inv, m_inv, conn);
+    Value J_inv = imreconstruct(g_inv, m_inv, conn, mr);
 
     Value J = Value::matrix(H, W, ValueType::DOUBLE, mr);
     double *jd = J.doubleDataMut();
@@ -698,8 +681,7 @@ Value imimposemin(std::pmr::memory_resource *mr,
 // foreground; we coerce to LOGICAL since MATLAB documents the result
 // as a logical mask.
 
-Value imclearborder(std::pmr::memory_resource *mr,
-                    const Value &BW, int conn)
+Value imclearborder(const Value &BW, int conn, std::pmr::memory_resource *mr)
 {
     if (conn != 4) conn = 8;
     const size_t H = BW.dims().rows();
@@ -721,7 +703,7 @@ Value imclearborder(std::pmr::memory_resource *mr,
             md[idx] = (onRim && fg) ? 1u : 0u;
         }
 
-    Value R = imreconstruct(mr, marker, mask, conn);
+    Value R = imreconstruct(marker, mask, conn, mr);
 
     std::uint8_t *od = out.logicalDataMut();
     for (size_t i = 0; i < H * W; ++i) {
@@ -745,8 +727,7 @@ Value imclearborder(std::pmr::memory_resource *mr,
 
 namespace {
 
-Value tophat_subtract(std::pmr::memory_resource *mr,
-                      const Value &lhs, const Value &rhs)
+Value tophat_subtract(const Value &lhs, const Value &rhs, std::pmr::memory_resource *mr)
 {
     const size_t H = lhs.dims().rows();
     const size_t W = lhs.dims().cols();
@@ -761,16 +742,16 @@ Value tophat_subtract(std::pmr::memory_resource *mr,
 
 } // anonymous
 
-Value imtophat(std::pmr::memory_resource *mr, const Value &I, const Value &SE)
+Value imtophat(const Value &I, const Value &SE, std::pmr::memory_resource *mr)
 {
-    Value opened = imopen(mr, I, SE);
-    return tophat_subtract(mr, I, opened);
+    Value opened = imopen(I, SE, mr);
+    return tophat_subtract(I, opened, mr);
 }
 
-Value imbothat(std::pmr::memory_resource *mr, const Value &I, const Value &SE)
+Value imbothat(const Value &I, const Value &SE, std::pmr::memory_resource *mr)
 {
-    Value closed = imclose(mr, I, SE);
-    return tophat_subtract(mr, closed, I);
+    Value closed = imclose(I, SE, mr);
+    return tophat_subtract(closed, I, mr);
 }
 
 namespace {
@@ -785,13 +766,12 @@ Value diamond_cross(std::pmr::memory_resource *mr) {
 }
 } // anonymous
 
-Value mmgradm(std::pmr::memory_resource *mr, const Value &I,
-              const Value &se_dil, const Value &se_ero)
+Value mmgradm(const Value &I, const Value &se_dil, const Value &se_ero, std::pmr::memory_resource *mr)
 {
     const bool dilEmpty = se_dil.numel() == 0;
     const bool eroEmpty = se_ero.numel() == 0;
-    Value dilated = dilEmpty ? Value{} : imdilate(mr, I, se_dil);
-    Value eroded  = eroEmpty ? Value{} : imerode (mr, I, se_ero);
+    Value dilated = dilEmpty ? Value{} : imdilate(I, se_dil, mr);
+    Value eroded  = eroEmpty ? Value{} : imerode(I, se_ero, mr);
 
     const size_t H = I.dims().rows();
     const size_t W = I.dims().cols();
@@ -858,7 +838,7 @@ Value mmgradm(std::pmr::memory_resource *mr, const Value &I,
     return out;
 }
 
-Value bwpack(std::pmr::memory_resource *mr, const Value &BW)
+Value bwpack(const Value &BW, std::pmr::memory_resource *mr)
 {
     constexpr size_t CLASS_BITS = 32;
     const size_t H = BW.dims().rows();
@@ -883,7 +863,7 @@ Value bwpack(std::pmr::memory_resource *mr, const Value &BW)
     return out;
 }
 
-Value bwunpack(std::pmr::memory_resource *mr, const Value &BWP, size_t M)
+Value bwunpack(const Value &BWP, size_t M, std::pmr::memory_resource *mr)
 {
     constexpr size_t CLASS_BITS = 32;
     const size_t pH = BWP.dims().rows();
@@ -909,8 +889,7 @@ Value bwunpack(std::pmr::memory_resource *mr, const Value &BWP, size_t M)
     return out;
 }
 
-Value applylut(std::pmr::memory_resource *mr,
-               const Value &BW, const Value &LUT)
+Value applylut(const Value &BW, const Value &LUT, std::pmr::memory_resource *mr)
 {
     const size_t lutLen = LUT.numel();
     if (lutLen == 0)
@@ -949,7 +928,7 @@ Value applylut(std::pmr::memory_resource *mr,
     }
 
     // filter2(w, BW, 'same') = index per pixel.
-    Value idx = signal::filter2(mr, w, bw_d, "same");
+    Value idx = signal::filter2(w, bw_d, "same", mr);
     const double *id = idx.doubleData();
     const size_t N = H * W;
 
@@ -978,8 +957,7 @@ Value applylut(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value bwhitmiss(std::pmr::memory_resource *mr,
-                const Value &BW, const Value &se1, const Value &se2)
+Value bwhitmiss(const Value &BW, const Value &se1, const Value &se2, std::pmr::memory_resource *mr)
 {
     const size_t H = BW.dims().rows();
     const size_t W = BW.dims().cols();
@@ -987,7 +965,7 @@ Value bwhitmiss(std::pmr::memory_resource *mr,
     if (H == 0 || W == 0) return out;
 
     // Foreground erosion: where se1 fits in BW.
-    Value e1 = imerode(mr, BW, se1);
+    Value e1 = imerode(BW, se1, mr);
 
     // Build !BW as a logical image, then erode with se2.
     Value notBW = Value::matrix(H, W, ValueType::LOGICAL, mr);
@@ -996,7 +974,7 @@ Value bwhitmiss(std::pmr::memory_resource *mr,
         for (size_t i = 0; i < H * W; ++i)
             nd[i] = (BW.elemAsDouble(i) != 0.0) ? 0u : 1u;
     }
-    Value e2 = imerode(mr, notBW, se2);
+    Value e2 = imerode(notBW, se2, mr);
 
     // J = e1 & e2.
     std::uint8_t *od = out.logicalDataMut();
@@ -1012,8 +990,7 @@ Value bwhitmiss(std::pmr::memory_resource *mr,
 //   marker = BW ∩ rim, J = imreconstruct(marker, BW, conn)
 // imreconstruct already returns a LOGICAL when marker+mask are LOGICAL,
 // so we just hand that through.
-Value imkeepborder(std::pmr::memory_resource *mr,
-                   const Value &BW, int conn)
+Value imkeepborder(const Value &BW, int conn, std::pmr::memory_resource *mr)
 {
     if (conn != 4) conn = 8;
     const size_t H = BW.dims().rows();
@@ -1034,7 +1011,7 @@ Value imkeepborder(std::pmr::memory_resource *mr,
                                   r + 1 == H || c + 1 == W);
             md[idx] = (onRim && fg) ? 1u : 0u;
         }
-    return imreconstruct(mr, marker, mask, conn);
+    return imreconstruct(marker, mask, conn, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1060,7 +1037,7 @@ void strel_reg(Span<const Value> args, size_t /*nargout*/,
                 params.push_back(args[i].elemAsDouble(j));
         }
     }
-    outs[0] = strel(ctx.engine->resource(), shape, params, arbitrary);
+    outs[0] = strel(shape, params, arbitrary, ctx.engine->resource());
 }
 
 #define NK_MORPH_REG(name)                                                       \
@@ -1070,7 +1047,7 @@ void strel_reg(Span<const Value> args, size_t /*nargout*/,
         if (args.size() < 2)                                                      \
             throw Error(#name ": requires (I, SE)", 0, 0, #name, "",             \
                         "m:" #name ":nargin");                                   \
-        outs[0] = name(ctx.engine->resource(), args[0], args[1]);                \
+        outs[0] = name(args[0], args[1], ctx.engine->resource());                \
     }
 
 NK_MORPH_REG(imerode)
@@ -1088,8 +1065,7 @@ void imreconstruct_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "imreconstruct", "", "m:imreconstruct:nargin");
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? static_cast<int>(args[2].toScalar()) : 8;
-    outs[0] = imreconstruct(ctx.engine->resource(),
-                            args[0], args[1], conn);
+    outs[0] = imreconstruct(args[0], args[1], conn, ctx.engine->resource());
 }
 
 void imfill_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1111,7 +1087,7 @@ void imfill_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "imfill", "", "m:imfill:mode");
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? static_cast<int>(args[2].toScalar()) : 8;
-    outs[0] = imfill_holes(mr, args[0], conn);
+    outs[0] = imfill_holes(args[0], conn, mr);
 }
 
 void imregionalmax_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1122,7 +1098,7 @@ void imregionalmax_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "imregionalmax", "", "m:imregionalmax:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? static_cast<int>(args[1].toScalar()) : 8;
-    outs[0] = imregionalmax(ctx.engine->resource(), args[0], conn);
+    outs[0] = imregionalmax(args[0], conn, ctx.engine->resource());
 }
 
 void imregionalmin_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1133,7 +1109,7 @@ void imregionalmin_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "imregionalmin", "", "m:imregionalmin:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? static_cast<int>(args[1].toScalar()) : 8;
-    outs[0] = imregionalmin(ctx.engine->resource(), args[0], conn);
+    outs[0] = imregionalmin(args[0], conn, ctx.engine->resource());
 }
 
 void imhmax_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1145,7 +1121,7 @@ void imhmax_reg(Span<const Value> args, size_t /*nargout*/,
     const double h = args[1].toScalar();
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? static_cast<int>(args[2].toScalar()) : 8;
-    outs[0] = imhmax(ctx.engine->resource(), args[0], h, conn);
+    outs[0] = imhmax(args[0], h, conn, ctx.engine->resource());
 }
 
 void imhmin_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1157,7 +1133,7 @@ void imhmin_reg(Span<const Value> args, size_t /*nargout*/,
     const double h = args[1].toScalar();
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? static_cast<int>(args[2].toScalar()) : 8;
-    outs[0] = imhmin(ctx.engine->resource(), args[0], h, conn);
+    outs[0] = imhmin(args[0], h, conn, ctx.engine->resource());
 }
 
 void imextendedmax_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1169,7 +1145,7 @@ void imextendedmax_reg(Span<const Value> args, size_t /*nargout*/,
     const double h = args[1].toScalar();
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? static_cast<int>(args[2].toScalar()) : 8;
-    outs[0] = imextendedmax(ctx.engine->resource(), args[0], h, conn);
+    outs[0] = imextendedmax(args[0], h, conn, ctx.engine->resource());
 }
 
 void imextendedmin_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1181,7 +1157,7 @@ void imextendedmin_reg(Span<const Value> args, size_t /*nargout*/,
     const double h = args[1].toScalar();
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? static_cast<int>(args[2].toScalar()) : 8;
-    outs[0] = imextendedmin(ctx.engine->resource(), args[0], h, conn);
+    outs[0] = imextendedmin(args[0], h, conn, ctx.engine->resource());
 }
 
 void imimposemin_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1192,7 +1168,7 @@ void imimposemin_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "imimposemin", "", "m:imimposemin:nargin");
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? static_cast<int>(args[2].toScalar()) : 8;
-    outs[0] = imimposemin(ctx.engine->resource(), args[0], args[1], conn);
+    outs[0] = imimposemin(args[0], args[1], conn, ctx.engine->resource());
 }
 
 void imclearborder_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1203,7 +1179,7 @@ void imclearborder_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "imclearborder", "", "m:imclearborder:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? static_cast<int>(args[1].toScalar()) : 8;
-    outs[0] = imclearborder(ctx.engine->resource(), args[0], conn);
+    outs[0] = imclearborder(args[0], conn, ctx.engine->resource());
 }
 
 void imkeepborder_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1214,7 +1190,7 @@ void imkeepborder_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "imkeepborder", "", "m:imkeepborder:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? static_cast<int>(args[1].toScalar()) : 8;
-    outs[0] = imkeepborder(ctx.engine->resource(), args[0], conn);
+    outs[0] = imkeepborder(args[0], conn, ctx.engine->resource());
 }
 
 void imtophat_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1223,7 +1199,7 @@ void imtophat_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("imtophat: requires (I, SE)", 0, 0, "imtophat", "",
                     "m:imtophat:nargin");
-    outs[0] = imtophat(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = imtophat(args[0], args[1], ctx.engine->resource());
 }
 
 void imbothat_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1232,7 +1208,7 @@ void imbothat_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("imbothat: requires (I, SE)", 0, 0, "imbothat", "",
                     "m:imbothat:nargin");
-    outs[0] = imbothat(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = imbothat(args[0], args[1], ctx.engine->resource());
 }
 
 void mmgradm_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1246,7 +1222,7 @@ void mmgradm_reg(Span<const Value> args, size_t /*nargout*/,
     // means half-gradient (the C++ function reads .numel() == 0).
     Value sed = (args.size() >= 2) ? args[1] : diamond_cross(mr);
     Value see = (args.size() >= 3) ? args[2] : diamond_cross(mr);
-    outs[0] = mmgradm(mr, args[0], sed, see);
+    outs[0] = mmgradm(args[0], sed, see, mr);
 }
 
 void bwpack_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1255,7 +1231,7 @@ void bwpack_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("bwpack: requires (BW)", 0, 0, "bwpack", "",
                     "m:bwpack:nargin");
-    outs[0] = bwpack(ctx.engine->resource(), args[0]);
+    outs[0] = bwpack(args[0], ctx.engine->resource());
 }
 
 void bwunpack_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1267,7 +1243,7 @@ void bwunpack_reg(Span<const Value> args, size_t /*nargout*/,
     size_t M = static_cast<size_t>(-1);
     if (args.size() >= 2 && !args[1].isEmpty())
         M = static_cast<size_t>(args[1].toScalar());
-    outs[0] = bwunpack(ctx.engine->resource(), args[0], M);
+    outs[0] = bwunpack(args[0], M, ctx.engine->resource());
 }
 
 void applylut_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1276,7 +1252,7 @@ void applylut_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("applylut: requires (BW, LUT)",
                     0, 0, "applylut", "", "m:applylut:nargin");
-    outs[0] = applylut(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = applylut(args[0], args[1], ctx.engine->resource());
 }
 
 void bwhitmiss_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1306,7 +1282,7 @@ void bwhitmiss_reg(Span<const Value> args, size_t /*nargout*/,
         se1 = args[1];
         se2 = args[2];
     }
-    outs[0] = bwhitmiss(mr, args[0], se1, se2);
+    outs[0] = bwhitmiss(args[0], se1, se2, mr);
 }
 
 } // namespace detail
@@ -1600,8 +1576,7 @@ bool bwmorphApplyOnce(std::uint8_t *bw, std::size_t R, std::size_t C,
 
 } // anonymous
 
-Value bwmorph(std::pmr::memory_resource *mr, const Value &BWin,
-              const std::string &op, int n)
+Value bwmorph(const Value &BWin, const std::string &op, int n, std::pmr::memory_resource *mr)
 {
     const auto &d = BWin.dims();
     if (d.is3D())
@@ -1671,7 +1646,7 @@ void bwmorph_reg(Span<const Value> args, std::size_t /*nargout*/,
         if (std::isinf(v)) n = -1;
         else               n = static_cast<int>(v);
     }
-    outs[0] = bwmorph(ctx.engine->resource(), args[0], op, n);
+    outs[0] = bwmorph(args[0], op, n, ctx.engine->resource());
 }
 
 } // namespace detail

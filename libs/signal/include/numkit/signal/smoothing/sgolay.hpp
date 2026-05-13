@@ -9,23 +9,51 @@
 
 namespace numkit::signal {
 
-/// sgolay(order, framelen) — Savitzky-Golay filter projection matrix.
-/// Returns a (framelen × framelen) DOUBLE matrix B where row r contains
-/// the filter coefficients producing the polynomial-fit estimate at
-/// the r-th sample of a length-framelen window. Row floor(framelen/2)
-/// is the central (symmetric) filter; the other rows are used at the
-/// signal edges.
+/// Savitzky-Golay filter projection matrix.
 ///
-/// Constraints (MATLAB-compatible):
-///   * framelen must be odd and ≥ order + 1.
-///   * 0 ≤ order < framelen.
-Value sgolay(std::pmr::memory_resource *mr, int order, int framelen);
+/// Returns the `framelen × framelen` projection matrix B such that row
+/// `r` contains the FIR coefficients producing the polynomial-fit
+/// estimate at the r-th sample of a length-`framelen` window. The
+/// central row (`r = floor(framelen/2)`) is the symmetric filter; the
+/// other rows are the asymmetric filters used at the signal edges.
+///
+/// @param order     Polynomial order. Must satisfy `0 ≤ order < framelen`.
+/// @param framelen  Window length. Must be odd and ≥ `order + 1`.
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          `framelen × framelen` DOUBLE projection matrix.
+/// @throws          numkit::Error  on invalid `order` / `framelen`.
+///
+/// @see sgolayfilt
+Value sgolay(int                          order,
+             int                          framelen,
+             std::pmr::memory_resource *  mr = nullptr);
 
-/// sgolayfilt(x, order, framelen) — apply Savitzky-Golay smoothing to
-/// a 1-D signal. Interior samples use the central row of sgolay()'s
-/// projection matrix; edge samples (where a symmetric window can't
-/// fit) use the asymmetric rows. Output has the same length and shape
-/// as x.
-Value sgolayfilt(std::pmr::memory_resource *mr, const Value &x, int order, int framelen);
+/// Savitzky-Golay smoothing of a 1-D signal.
+///
+/// Fits a local polynomial of `order` to a sliding window of
+/// `framelen` samples (via least-squares), then evaluates the
+/// polynomial at the centre. Smooths the signal while preserving
+/// features up to `order`-th derivative.
+///
+/// Interior samples use the central row of `sgolay`'s projection
+/// matrix; edge samples use the asymmetric rows so no zero-padding
+/// artefacts appear.
+///
+/// @param x         Real 1-D signal.
+/// @param order     Polynomial order (`0 ≤ order < framelen`).
+/// @param framelen  Window length (odd, ≥ `order + 1`).
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          Filtered signal, same shape as `x`.
+///
+/// @code
+/// // Smooth a noisy signal preserving local quadratic features:
+/// Value y = sgolayfilt(noisy, 2, 11);
+/// @endcode
+///
+/// @see sgolay, medfilt1
+Value sgolayfilt(const Value &                x,
+                 int                          order,
+                 int                          framelen,
+                 std::pmr::memory_resource *  mr = nullptr);
 
 } // namespace numkit::signal

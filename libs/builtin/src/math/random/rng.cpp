@@ -135,8 +135,7 @@ void rngRestore(const Value &state)
 // randi/randperm.
 // ────────────────────────────────────────────────────────────────────
 
-Value rand(std::pmr::memory_resource *mr, detail::MatlabMT19937 &rng,
-           size_t rows, size_t cols, size_t pages)
+Value rand(detail::MatlabMT19937 &rng, size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
 {
     auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, mr)
                          : Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -146,8 +145,7 @@ Value rand(std::pmr::memory_resource *mr, detail::MatlabMT19937 &rng,
     return m;
 }
 
-Value randn(std::pmr::memory_resource *mr, detail::MatlabMT19937 &rng,
-            size_t rows, size_t cols, size_t pages)
+Value randn(detail::MatlabMT19937 &rng, size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
 {
     // NOTE: std::normal_distribution is NOT MATLAB-bit-identical (MATLAB
     // uses Marsaglia-Tsang Ziggurat with specific tables). Bit-identity
@@ -161,19 +159,17 @@ Value randn(std::pmr::memory_resource *mr, detail::MatlabMT19937 &rng,
     return m;
 }
 
-Value randND(std::pmr::memory_resource *mr, detail::MatlabMT19937 &rng,
-             const size_t *dims, int ndims)
+Value randND(detail::MatlabMT19937 &rng, Span<const size_t> dims, std::pmr::memory_resource *mr)
 {
-    auto m = Value::matrixND(dims, ndims, ValueType::DOUBLE, mr);
+    auto m = Value::matrixND(dims.data(), static_cast<int>(dims.size()), ValueType::DOUBLE, mr);
     for (size_t i = 0; i < m.numel(); ++i)
         m.doubleDataMut()[i] = rng.genRes53();
     return m;
 }
 
-Value randnND(std::pmr::memory_resource *mr, detail::MatlabMT19937 &rng,
-              const size_t *dims, int ndims)
+Value randnND(detail::MatlabMT19937 &rng, Span<const size_t> dims, std::pmr::memory_resource *mr)
 {
-    auto m = Value::matrixND(dims, ndims, ValueType::DOUBLE, mr);
+    auto m = Value::matrixND(dims.data(), static_cast<int>(dims.size()), ValueType::DOUBLE, mr);
     std::normal_distribution<double> dist(0.0, 1.0);
     for (size_t i = 0; i < m.numel(); ++i)
         m.doubleDataMut()[i] = dist(rng);
@@ -197,8 +193,7 @@ void fillUniformInt(double *dst, size_t n, int64_t lo, int64_t hi)
         dst[i] = static_cast<double>(dist(sharedEngine()));
 }
 
-Value makeIntMatrix(std::pmr::memory_resource *mr, int64_t lo, int64_t hi,
-                     size_t rows, size_t cols, size_t pages)
+Value makeIntMatrix(int64_t lo, int64_t hi, size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
 {
     auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, mr)
                          : Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -208,23 +203,21 @@ Value makeIntMatrix(std::pmr::memory_resource *mr, int64_t lo, int64_t hi,
 
 } // namespace
 
-Value randi(std::pmr::memory_resource *mr, int64_t imax)
+Value randi(int64_t imax, std::pmr::memory_resource *mr)
 {
     std::lock_guard<std::mutex> lock(rngMutex());
     std::uniform_int_distribution<int64_t> dist(1, imax);
     return Value::scalar(static_cast<double>(dist(sharedEngine())), mr);
 }
 
-Value randi(std::pmr::memory_resource *mr, int64_t imax,
-             size_t rows, size_t cols, size_t pages)
+Value randi(int64_t imax, size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
 {
-    return makeIntMatrix(mr, 1, imax, rows, cols, pages);
+    return makeIntMatrix(1, imax, rows, cols, pages, mr);
 }
 
-Value randi(std::pmr::memory_resource *mr, int64_t imin, int64_t imax,
-             size_t rows, size_t cols, size_t pages)
+Value randi(int64_t imin, int64_t imax, size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
 {
-    return makeIntMatrix(mr, imin, imax, rows, cols, pages);
+    return makeIntMatrix(imin, imax, rows, cols, pages, mr);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -235,12 +228,12 @@ Value randi(std::pmr::memory_resource *mr, int64_t imin, int64_t imax,
 // randperm(n, k) : partial Fisher-Yates — k iterations are enough to
 // produce k unique values without fully shuffling the rest.
 
-Value randperm(std::pmr::memory_resource *mr, size_t n)
+Value randperm(size_t n, std::pmr::memory_resource *mr)
 {
-    return randperm(mr, n, n);
+    return randperm(n, n, mr);
 }
 
-Value randperm(std::pmr::memory_resource *mr, size_t n, size_t k)
+Value randperm(size_t n, size_t k, std::pmr::memory_resource *mr)
 {
     if (k > n)
         throw Error("randperm: k must not exceed n",
@@ -275,7 +268,7 @@ namespace detail {
 
 // Cast a DOUBLE Value buffer to single in-place (returns a new Value).
 // Used by rand/randn when the user requests 'single'.
-namespace { Value castDoubleToSingle(std::pmr::memory_resource *mr, const Value &src)
+namespace { Value castDoubleToSingle(const Value &src, std::pmr::memory_resource *mr)
 {
     Value dst;
     if (src.dims().is3D())
@@ -318,13 +311,12 @@ void rand_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             const size_t r = dims.size() >= 1 ? dims[0] : 1;
             const size_t c = dims.size() >= 2 ? dims[1] : 1;
             const size_t p = dims.size() >= 3 ? dims[2] : 0;
-            out = rand(mr, sharedEngine(), r, c, p);
+            out = rand(sharedEngine(), r, c, p, mr);
         } else {
-            out = randND(mr, sharedEngine(),
-                         dims.data(), static_cast<int>(dims.size()));
+            out = randND(sharedEngine(), Span<const size_t>(dims.data(), dims.size()), mr);
         }
     }
-    outs[0] = (t == ValueType::SINGLE) ? castDoubleToSingle(mr, out) : std::move(out);
+    outs[0] = (t == ValueType::SINGLE) ? castDoubleToSingle(out, mr) : std::move(out);
 }
 
 void randn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -346,19 +338,17 @@ void randn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             const size_t r = dims.size() >= 1 ? dims[0] : 1;
             const size_t c = dims.size() >= 2 ? dims[1] : 1;
             const size_t p = dims.size() >= 3 ? dims[2] : 0;
-            out = randn(mr, sharedEngine(), r, c, p);
+            out = randn(sharedEngine(), r, c, p, mr);
         } else {
-            out = randnND(mr, sharedEngine(),
-                          dims.data(), static_cast<int>(dims.size()));
+            out = randnND(sharedEngine(), Span<const size_t>(dims.data(), dims.size()), mr);
         }
     }
-    outs[0] = (t == ValueType::SINGLE) ? castDoubleToSingle(mr, out) : std::move(out);
+    outs[0] = (t == ValueType::SINGLE) ? castDoubleToSingle(out, mr) : std::move(out);
 }
 
 // Cast a DOUBLE Value to any integer or single class (for randi typed
 // outputs). Saturating cast (out-of-range int64 values clamp).
-namespace { Value castDoubleToType(std::pmr::memory_resource *mr,
-                                    const Value &src, ValueType t)
+namespace { Value castDoubleToType(const Value &src, ValueType t, std::pmr::memory_resource *mr)
 {
     if (t == ValueType::DOUBLE) return src;
     Value dst;
@@ -427,7 +417,7 @@ void randi_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     Value dbl_out;
     if (dimArgs.empty()) {
         // Scalar form.
-        dbl_out = randi(mr, imin, imax, 1, 1, 0);
+        dbl_out = randi(imin, imax, 1, 1, 0, mr);
     } else {
         ScratchArena scratch(mr);
         auto dims = parseDimsArgsND(&scratch, dimArgs);
@@ -436,7 +426,7 @@ void randi_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             const size_t r = dims.size() >= 1 ? dims[0] : 1;
             const size_t c = dims.size() >= 2 ? dims[1] : 1;
             const size_t p = dims.size() >= 3 ? dims[2] : 0;
-            dbl_out = randi(mr, imin, imax, r, c, p);
+            dbl_out = randi(imin, imax, r, c, p, mr);
         } else {
             // ND form: allocate matrixND and fill via the same uniform-int pass.
             auto m = Value::matrixND(dims.data(), static_cast<int>(dims.size()),
@@ -449,7 +439,7 @@ void randi_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         }
     }
     outs[0] = (t == ValueType::DOUBLE) ? std::move(dbl_out)
-                                       : castDoubleToType(mr, dbl_out, t);
+                                       : castDoubleToType(dbl_out, t, mr);
 }
 
 void randperm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -460,10 +450,10 @@ void randperm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                      0, 0, "randperm", "", "m:randperm:nargin");
     const size_t n = static_cast<size_t>(args[0].toScalar());
     if (args.size() == 1) {
-        outs[0] = randperm(ctx.engine->resource(), n);
+        outs[0] = randperm(n, ctx.engine->resource());
     } else {
         const size_t k = static_cast<size_t>(args[1].toScalar());
-        outs[0] = randperm(ctx.engine->resource(), n, k);
+        outs[0] = randperm(n, k, ctx.engine->resource());
     }
 }
 

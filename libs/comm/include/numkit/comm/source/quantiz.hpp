@@ -6,23 +6,42 @@
 
 #include <memory_resource>
 #include <numkit/core/value.hpp>
-#include <utility>
 
 namespace numkit::comm {
 
-/// `indx = quantiz(sig, partition)` — bin index per sample.
-///   indx(i) = sum(partition < sig(i)) ∈ [0, length(partition)]
-/// Output preserves sig orientation.
-Value quantiz_indx(std::pmr::memory_resource *mr, const Value &sig,
-                   const Value &partition);
+/// @brief One-output form of `quantiz` — bin index per sample
+/// (`indx = quantiz(sig, partition)`).
+///
+/// `indx(i) = sum(partition < sig(i))`, in the range
+/// `[0, length(partition)]`. Output preserves `sig`'s orientation.
+///
+/// @param sig        Input signal (real vector).
+/// @param partition  Strictly increasing partition vector.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           Bin index per sample.
+/// @see quantiz, lloyds
+Value quantiz_indx(const Value &sig, const Value &partition,
+                   std::pmr::memory_resource *mr = nullptr);
 
-/// `[indx, quantv (, distor)] = quantiz(sig, partition, codebook)` —
-/// also returns the codebook value selected for each sample
-/// (`codebook(indx + 1)`) and, if `quantv_out` is non-null, the
-/// distortion = mean((sig - quantv)^2). Returns {indx, distor}.
-std::pair<Value, double>
-quantiz_distor(std::pmr::memory_resource *mr, const Value &sig,
-               const Value &partition, const Value &codebook,
-               Value *quantv_out);
+/// @brief Result of the three-output form of MATLAB's `quantiz`.
+struct QuantizResult {
+    Value  indx;     ///< Bin index per sample.
+    Value  quantv;   ///< `codebook(indx + 1)`.
+    double distor;   ///< `mean((sig - quantv)^2)`.
+};
+
+/// @brief Three-output form of `quantiz`
+/// (`[indx, quantv, distor] = quantiz(sig, partition, codebook)`).
+///
+/// @param sig        Input signal.
+/// @param partition  Strictly increasing partition vector (length K-1).
+/// @param codebook   Codebook vector (length K).
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           @ref QuantizResult with index, quantised values,
+///                   and mean-square distortion.
+/// @see quantiz_indx, lloyds
+QuantizResult
+quantiz(const Value &sig, const Value &partition, const Value &codebook,
+        std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::comm

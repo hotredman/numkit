@@ -338,32 +338,32 @@ double erfinvScalar(double y)
 
 } // namespace
 
-Value gammaFn(std::pmr::memory_resource *mr, const Value &x)
+Value gammaFn(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x, [](double v) { return std::tgamma(v); }, mr);
 }
 
-Value gammaln(std::pmr::memory_resource *mr, const Value &x)
+Value gammaln(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x, [](double v) { return std::lgamma(v); }, mr);
 }
 
-Value erf(std::pmr::memory_resource *mr, const Value &x)
+Value erf(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x, [](double v) { return std::erf(v); }, mr);
 }
 
-Value erfc(std::pmr::memory_resource *mr, const Value &x)
+Value erfc(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x, [](double v) { return std::erfc(v); }, mr);
 }
 
-Value erfinv(std::pmr::memory_resource *mr, const Value &x)
+Value erfinv(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x, [](double v) { return erfinvScalar(v); }, mr);
 }
 
-Value erfcinv(std::pmr::memory_resource *mr, const Value &x)
+Value erfcinv(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x, [](double v) {
         // Domain check: (0, 2). y = 0 → +Inf, y = 2 → -Inf.
@@ -373,7 +373,7 @@ Value erfcinv(std::pmr::memory_resource *mr, const Value &x)
     }, mr);
 }
 
-Value erfcx(std::pmr::memory_resource *mr, const Value &x)
+Value erfcx(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x, [](double v) {
         // erfcx(x) = exp(x²) · erfc(x). Direct formula loses precision
@@ -399,7 +399,7 @@ Value erfcx(std::pmr::memory_resource *mr, const Value &x)
 
 // ── Pack 19: beta / betaln / expint / psi ────────────────────────────
 
-Value beta(std::pmr::memory_resource *mr, const Value &z, const Value &w)
+Value beta(const Value &z, const Value &w, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(z, w, [](double zz, double ww) {
         // Use the lgamma-then-exp form to avoid overflow at moderate
@@ -412,7 +412,7 @@ Value beta(std::pmr::memory_resource *mr, const Value &z, const Value &w)
     }, mr);
 }
 
-Value betaln(std::pmr::memory_resource *mr, const Value &z, const Value &w)
+Value betaln(const Value &z, const Value &w, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(z, w, [](double zz, double ww) {
         return std::lgamma(zz) + std::lgamma(ww) - std::lgamma(zz + ww);
@@ -491,12 +491,12 @@ double psiScalar(double x)
 }
 } // anon
 
-Value expint(std::pmr::memory_resource *mr, const Value &x)
+Value expint(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x, [](double v) { return expintScalar(v); }, mr);
 }
 
-Value psi(std::pmr::memory_resource *mr, const Value &x)
+Value psi(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x, [](double v) { return psiScalar(v); }, mr);
 }
@@ -609,14 +609,13 @@ double betaincScalar(double x, double a, double b)
 }
 } // anon
 
-Value gammainc(std::pmr::memory_resource *mr, const Value &x, const Value &a)
+Value gammainc(const Value &x, const Value &a, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(x, a,
         [](double xx, double aa) { return gammaincScalar(xx, aa); }, mr);
 }
 
-Value betainc(std::pmr::memory_resource *mr, const Value &x,
-              const Value &a, const Value &b)
+Value betainc(const Value &x, const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     // Compose two element-wise binaries: first build a tmp matrix of
     // (a, b) → fold with x as outer. Easier: walk arrays in parallel
@@ -644,7 +643,7 @@ Value betainc(std::pmr::memory_resource *mr, const Value &x,
     return r;
 }
 
-Value legendre(std::pmr::memory_resource *mr, int n, const Value &x)
+Value legendre(int n, const Value &x, std::pmr::memory_resource *mr)
 {
     if (n < 0)
         throw Error("legendre: n must be >= 0", 0, 0, "legendre", "",
@@ -690,25 +689,25 @@ Value legendre(std::pmr::memory_resource *mr, int n, const Value &x)
 
 // ── Pack 27: Bessel (C++17 std::cyl_* special math) ──────────────────
 
-Value besselj(std::pmr::memory_resource *mr, const Value &nu, const Value &x)
+Value besselj(const Value &nu, const Value &x, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(nu, x,
         [](double n, double xx) { return special_compat::cyl_bessel_j(n, xx); }, mr);
 }
 
-Value bessely(std::pmr::memory_resource *mr, const Value &nu, const Value &x)
+Value bessely(const Value &nu, const Value &x, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(nu, x,
         [](double n, double xx) { return special_compat::cyl_neumann(n, xx); }, mr);
 }
 
-Value besseli(std::pmr::memory_resource *mr, const Value &nu, const Value &x)
+Value besseli(const Value &nu, const Value &x, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(nu, x,
         [](double n, double xx) { return special_compat::cyl_bessel_i(n, xx); }, mr);
 }
 
-Value besselk(std::pmr::memory_resource *mr, const Value &nu, const Value &x)
+Value besselk(const Value &nu, const Value &x, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(nu, x,
         [](double n, double xx) { return special_compat::cyl_bessel_k(n, xx); }, mr);
@@ -716,8 +715,7 @@ Value besselk(std::pmr::memory_resource *mr, const Value &nu, const Value &x)
 
 // ── Pack 28: Hankel + complete elliptic integrals ────────────────────
 
-Value besselh(std::pmr::memory_resource *mr,
-              const Value &nu, int k, const Value &x)
+Value besselh(const Value &nu, int k, const Value &x, std::pmr::memory_resource *mr)
 {
     if (k != 1 && k != 2)
         throw Error("besselh: k must be 1 or 2",
@@ -793,7 +791,7 @@ std::pair<double, double> ellipKEScalar(double m)
 }
 } // anon
 
-EllipKE ellipke(std::pmr::memory_resource *mr, const Value &m)
+EllipKE ellipke(const Value &m, std::pmr::memory_resource *mr)
 {
     auto K = createLike(m, ValueType::DOUBLE, mr);
     auto E = createLike(m, ValueType::DOUBLE, mr);
@@ -887,7 +885,7 @@ double airyScalar(int k, double x)
 
 } // namespace
 
-Value airy(std::pmr::memory_resource *mr, int k, const Value &x)
+Value airy(int k, const Value &x, std::pmr::memory_resource *mr)
 {
     if (k < 0 || k > 3)
         throw Error("airy: kind k must be 0..3 (got " + std::to_string(k) + ")",
@@ -1033,14 +1031,13 @@ void ellipjScalar(double u, double m, double &sn, double &cn, double &dn)
 
 } // namespace
 
-Value gammaincinv(std::pmr::memory_resource *mr, const Value &P, const Value &a)
+Value gammaincinv(const Value &P, const Value &a, std::pmr::memory_resource *mr)
 {
     return elementwiseDouble(P, a,
         [](double pp, double aa) { return gammaincinvScalar(pp, aa); }, mr);
 }
 
-Value betaincinv(std::pmr::memory_resource *mr, const Value &P,
-                 const Value &a, const Value &b)
+Value betaincinv(const Value &P, const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     if (P.isScalar() && a.isScalar() && b.isScalar()) {
         return Value::scalar(
@@ -1063,7 +1060,7 @@ Value betaincinv(std::pmr::memory_resource *mr, const Value &P,
     return r;
 }
 
-EllipJ ellipj(std::pmr::memory_resource *mr, const Value &u, const Value &m)
+EllipJ ellipj(const Value &u, const Value &m, std::pmr::memory_resource *mr)
 {
     if (u.isScalar() && m.isScalar()) {
         double sn, cn, dn;
@@ -1098,7 +1095,7 @@ namespace detail {
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
-        outs[0] = fn(ctx.engine->resource(), args[0]);                          \
+        outs[0] = fn(args[0], ctx.engine->resource());                          \
     }
 
 NK_UNARY_ADAPTER(gamma,   gammaFn)
@@ -1119,7 +1116,7 @@ void beta_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("beta: requires (Z, W)",
                      0, 0, "beta", "", "m:beta:nargin");
-    outs[0] = beta(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = beta(args[0], args[1], ctx.engine->resource());
 }
 
 void betaln_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1128,21 +1125,21 @@ void betaln_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("betaln: requires (Z, W)",
                      0, 0, "betaln", "", "m:betaln:nargin");
-    outs[0] = betaln(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = betaln(args[0], args[1], ctx.engine->resource());
 }
 
 void gammainc_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("gammainc: requires (X, A)", 0, 0, "gammainc", "", "m:gammainc:nargin");
-    outs[0] = gammainc(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = gammainc(args[0], args[1], ctx.engine->resource());
 }
 
 void betainc_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
         throw Error("betainc: requires (X, A, B)", 0, 0, "betainc", "", "m:betainc:nargin");
-    outs[0] = betainc(ctx.engine->resource(), args[0], args[1], args[2]);
+    outs[0] = betainc(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 void legendre_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1150,7 +1147,7 @@ void legendre_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.size() < 2)
         throw Error("legendre: requires (n, x)", 0, 0, "legendre", "", "m:legendre:nargin");
     const int n = static_cast<int>(args[0].toScalar());
-    outs[0] = legendre(ctx.engine->resource(), n, args[1]);
+    outs[0] = legendre(n, args[1], ctx.engine->resource());
 }
 
 #define NK_BESSEL_REG(name)                                                       \
@@ -1160,7 +1157,7 @@ void legendre_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         if (args.size() < 2)                                                       \
             throw Error(#name ": requires (nu, x)",                              \
                          0, 0, #name, "", "m:" #name ":nargin");                  \
-        outs[0] = name(ctx.engine->resource(), args[0], args[1]);                \
+        outs[0] = name(args[0], args[1], ctx.engine->resource());                \
     }
 
 NK_BESSEL_REG(besselj)
@@ -1178,11 +1175,11 @@ void besselh_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     auto *mr = ctx.engine->resource();
     if (args.size() == 2) {
         // 2-arg form defaults to k = 1.
-        outs[0] = besselh(mr, args[0], 1, args[1]);
+        outs[0] = besselh(args[0], 1, args[1], mr);
         return;
     }
     const int k = static_cast<int>(args[1].toScalar());
-    outs[0] = besselh(mr, args[0], k, args[2]);
+    outs[0] = besselh(args[0], k, args[2], mr);
 }
 
 void ellipke_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -1190,7 +1187,7 @@ void ellipke_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
     if (args.empty())
         throw Error("ellipke: requires 1 argument",
                      0, 0, "ellipke", "", "m:ellipke:nargin");
-    auto res = ellipke(ctx.engine->resource(), args[0]);
+    auto res = ellipke(args[0], ctx.engine->resource());
     outs[0] = std::move(res.K);
     if (nargout > 1) outs[1] = std::move(res.E);
 }
@@ -1203,11 +1200,11 @@ void airy_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                      0, 0, "airy", "", "m:airy:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 1) {
-        outs[0] = airy(mr, 0, args[0]);  // default Ai
+        outs[0] = airy(0, args[0], mr);  // default Ai
         return;
     }
     int k = static_cast<int>(args[0].toScalar());
-    outs[0] = airy(mr, k, args[1]);
+    outs[0] = airy(k, args[1], mr);
 }
 
 void gammaincinv_reg(Span<const Value> args, size_t, Span<Value> outs,
@@ -1216,7 +1213,7 @@ void gammaincinv_reg(Span<const Value> args, size_t, Span<Value> outs,
     if (args.size() < 2)
         throw Error("gammaincinv: requires 2 arguments (P, a)",
                      0, 0, "gammaincinv", "", "m:gammaincinv:nargin");
-    outs[0] = gammaincinv(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = gammaincinv(args[0], args[1], ctx.engine->resource());
 }
 
 void betaincinv_reg(Span<const Value> args, size_t, Span<Value> outs,
@@ -1225,7 +1222,7 @@ void betaincinv_reg(Span<const Value> args, size_t, Span<Value> outs,
     if (args.size() < 3)
         throw Error("betaincinv: requires 3 arguments (P, a, b)",
                      0, 0, "betaincinv", "", "m:betaincinv:nargin");
-    outs[0] = betaincinv(ctx.engine->resource(), args[0], args[1], args[2]);
+    outs[0] = betaincinv(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 void ellipj_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
@@ -1234,7 +1231,7 @@ void ellipj_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     if (args.size() < 2)
         throw Error("ellipj: requires 2 arguments (u, m)",
                      0, 0, "ellipj", "", "m:ellipj:nargin");
-    auto r = ellipj(ctx.engine->resource(), args[0], args[1]);
+    auto r = ellipj(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(r.sn);
     if (nargout > 1) outs[1] = std::move(r.cn);
     if (nargout > 2) outs[2] = std::move(r.dn);

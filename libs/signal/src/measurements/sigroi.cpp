@@ -51,7 +51,7 @@ inline int64_t roiEnd(const Value &roi, size_t i)
 // ── binmask2sigroi ────────────────────────────────────────────────────
 // Find runs of true values in mask m. Returns N×2 [start, end] matrix
 // (1-based, inclusive).
-Value binmask2sigroi(std::pmr::memory_resource *mr, const Value &m)
+Value binmask2sigroi(const Value &m, std::pmr::memory_resource *mr)
 {
     const size_t L = m.numel();
     ScratchArena scratch(mr);
@@ -85,8 +85,8 @@ Value binmask2sigroi(std::pmr::memory_resource *mr, const Value &m)
 // ── sigroi2binmask ────────────────────────────────────────────────────
 // Build a logical column vector of length `len` (auto = max end) with
 // true on each [start..end] segment.
-Value sigroi2binmask(std::pmr::memory_resource *mr, const Value &roi,
-                     int64_t len_user)
+Value sigroi2binmask(const Value &roi, int64_t len_user,
+                     std::pmr::memory_resource *mr)
 {
     const size_t N = roi.dims().rows();
     int64_t len = len_user;
@@ -111,8 +111,8 @@ Value sigroi2binmask(std::pmr::memory_resource *mr, const Value &roi,
 // ── extendsigroi ──────────────────────────────────────────────────────
 // Extend each ROI by Lpre on the left and Lpost on the right (clamping
 // start to ≥ 1). End is unbounded (no signal length provided).
-Value extendsigroi(std::pmr::memory_resource *mr, const Value &roi,
-                   int64_t Lpre, int64_t Lpost)
+Value extendsigroi(const Value &roi, int64_t Lpre, int64_t Lpost,
+                   std::pmr::memory_resource *mr)
 {
     const size_t N = roi.dims().rows();
     Value out = Value::matrix(N, N == 0 ? 0 : 2, ValueType::DOUBLE, mr);
@@ -131,8 +131,8 @@ Value extendsigroi(std::pmr::memory_resource *mr, const Value &roi,
 // ── shortensigroi ─────────────────────────────────────────────────────
 // Inverse of extend: shrink each ROI by Lpre on the left, Lpost on right.
 // Drop ROIs that collapse (start > end).
-Value shortensigroi(std::pmr::memory_resource *mr, const Value &roi,
-                    int64_t Lpre, int64_t Lpost)
+Value shortensigroi(const Value &roi, int64_t Lpre, int64_t Lpost,
+                    std::pmr::memory_resource *mr)
 {
     const size_t N = roi.dims().rows();
     ScratchArena scratch(mr);
@@ -157,7 +157,7 @@ Value shortensigroi(std::pmr::memory_resource *mr, const Value &roi,
 // Sort ROIs by start, merge those with gap ≤ sep.
 //   sep == 0 → only overlapping ROIs merge
 //   sep ≥ 1 → adjacent or near-adjacent merge
-Value mergesigroi(std::pmr::memory_resource *mr, const Value &roi, int64_t sep)
+Value mergesigroi(const Value &roi, int64_t sep, std::pmr::memory_resource *mr)
 {
     const size_t N = roi.dims().rows();
     ScratchArena scratch(mr);
@@ -193,8 +193,8 @@ Value mergesigroi(std::pmr::memory_resource *mr, const Value &roi, int64_t sep)
 // Drop ROIs whose length (end - start + 1) is ≤ maxLen. Per MATLAB doc:
 // "removes signal regions of interest specified in roilims that have a
 // length of s samples or less."
-Value removesigroi(std::pmr::memory_resource *mr, const Value &roi,
-                   int64_t maxLen)
+Value removesigroi(const Value &roi, int64_t maxLen,
+                   std::pmr::memory_resource *mr)
 {
     const size_t N = roi.dims().rows();
     ScratchArena scratch(mr);
@@ -222,8 +222,8 @@ Value removesigroi(std::pmr::memory_resource *mr, const Value &roi,
 // ── extractsigroi ─────────────────────────────────────────────────────
 // Default: cell array (one cell per ROI, each a column vector slice).
 // concat=true: concatenate all slices into a single column vector.
-Value extractsigroi(std::pmr::memory_resource *mr, const Value &x,
-                    const Value &roi, bool concat)
+Value extractsigroi(const Value &x, const Value &roi, bool concat,
+                    std::pmr::memory_resource *mr)
 {
     const size_t N = roi.dims().rows();
     const int64_t L = static_cast<int64_t>(x.numel());
@@ -274,8 +274,8 @@ Value extractsigroi(std::pmr::memory_resource *mr, const Value &x,
 //   bound is 2-vec   → mask where bound(1) <= x <= bound(2)
 //                      (default Relationship='inside', closed interval)
 // 'Relationship' / 'IntervalType' name-value args deferred (KNOWN GAP).
-Value sigrangebinmask(std::pmr::memory_resource *mr, const Value &x,
-                      const Value &bound)
+Value sigrangebinmask(const Value &x, const Value &bound,
+                      std::pmr::memory_resource *mr)
 {
     const size_t L = x.numel();
     Value out;
@@ -311,7 +311,7 @@ void binmask2sigroi_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("binmask2sigroi: requires (mask)",
                     0, 0, "binmask2sigroi", "", "m:binmask2sigroi:nargin");
-    outs[0] = binmask2sigroi(ctx.engine->resource(), args[0]);
+    outs[0] = binmask2sigroi(args[0], ctx.engine->resource());
 }
 
 void sigroi2binmask_reg(Span<const Value> args, size_t /*nargout*/,
@@ -322,7 +322,7 @@ void sigroi2binmask_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "sigroi2binmask", "", "m:sigroi2binmask:nargin");
     int64_t len = -1;
     if (args.size() >= 2) len = static_cast<int64_t>(args[1].toScalar());
-    outs[0] = sigroi2binmask(ctx.engine->resource(), args[0], len);
+    outs[0] = sigroi2binmask(args[0], len, ctx.engine->resource());
 }
 
 void extendsigroi_reg(Span<const Value> args, size_t /*nargout*/,
@@ -331,9 +331,10 @@ void extendsigroi_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 3)
         throw Error("extendsigroi: requires (roi, Lpre, Lpost)",
                     0, 0, "extendsigroi", "", "m:extendsigroi:nargin");
-    outs[0] = extendsigroi(ctx.engine->resource(), args[0],
+    outs[0] = extendsigroi(args[0],
                            static_cast<int64_t>(args[1].toScalar()),
-                           static_cast<int64_t>(args[2].toScalar()));
+                           static_cast<int64_t>(args[2].toScalar()),
+                           ctx.engine->resource());
 }
 
 void shortensigroi_reg(Span<const Value> args, size_t /*nargout*/,
@@ -342,9 +343,10 @@ void shortensigroi_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 3)
         throw Error("shortensigroi: requires (roi, Lpre, Lpost)",
                     0, 0, "shortensigroi", "", "m:shortensigroi:nargin");
-    outs[0] = shortensigroi(ctx.engine->resource(), args[0],
+    outs[0] = shortensigroi(args[0],
                             static_cast<int64_t>(args[1].toScalar()),
-                            static_cast<int64_t>(args[2].toScalar()));
+                            static_cast<int64_t>(args[2].toScalar()),
+                            ctx.engine->resource());
 }
 
 void mergesigroi_reg(Span<const Value> args, size_t /*nargout*/,
@@ -353,8 +355,9 @@ void mergesigroi_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("mergesigroi: requires (roi, sep)",
                     0, 0, "mergesigroi", "", "m:mergesigroi:nargin");
-    outs[0] = mergesigroi(ctx.engine->resource(), args[0],
-                          static_cast<int64_t>(args[1].toScalar()));
+    outs[0] = mergesigroi(args[0],
+                          static_cast<int64_t>(args[1].toScalar()),
+                          ctx.engine->resource());
 }
 
 void removesigroi_reg(Span<const Value> args, size_t /*nargout*/,
@@ -363,8 +366,9 @@ void removesigroi_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("removesigroi: requires (roi, maxLen)",
                     0, 0, "removesigroi", "", "m:removesigroi:nargin");
-    outs[0] = removesigroi(ctx.engine->resource(), args[0],
-                           static_cast<int64_t>(args[1].toScalar()));
+    outs[0] = removesigroi(args[0],
+                           static_cast<int64_t>(args[1].toScalar()),
+                           ctx.engine->resource());
 }
 
 void extractsigroi_reg(Span<const Value> args, size_t /*nargout*/,
@@ -375,7 +379,7 @@ void extractsigroi_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "extractsigroi", "", "m:extractsigroi:nargin");
     bool concat = false;
     if (args.size() >= 3) concat = (args[2].toScalar() != 0.0);
-    outs[0] = extractsigroi(ctx.engine->resource(), args[0], args[1], concat);
+    outs[0] = extractsigroi(args[0], args[1], concat, ctx.engine->resource());
 }
 
 void sigrangebinmask_reg(Span<const Value> args, size_t /*nargout*/,
@@ -385,7 +389,7 @@ void sigrangebinmask_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("sigrangebinmask: requires (x, bound) where bound is "
                     "scalar (above) or 2-vec [vmin vmax] (inside)",
                     0, 0, "sigrangebinmask", "", "m:sigrangebinmask:nargin");
-    outs[0] = sigrangebinmask(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = sigrangebinmask(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail

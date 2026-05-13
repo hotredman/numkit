@@ -371,8 +371,7 @@ inline double cosd_scalar(double x)
 // in trig_highway.cpp; complex / scalar inputs delegate to the
 // reference path via scalarOp / complexOp lambdas.
 template <typename LoopDispatch, typename ScalarOp, typename ComplexOp>
-Value unaryRealDoubleRecip(std::pmr::memory_resource *mr, const Value &x,
-                           LoopDispatch loop, ScalarOp scalarOp, ComplexOp complexOp)
+Value unaryRealDoubleRecip(const Value &x, LoopDispatch loop, ScalarOp scalarOp, ComplexOp complexOp, std::pmr::memory_resource *mr)
 {
     if (x.isComplex()) {
         if (x.isScalar())
@@ -397,106 +396,79 @@ Value unaryRealDoubleRecip(std::pmr::memory_resource *mr, const Value &x,
 
 // ── Forward reciprocal ─────────────────────────────────────────────
 
-Value sec(std::pmr::memory_resource *mr, const Value &x)
+Value sec(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDoubleRecip(mr, x,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDoubleRecip(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(SecLoop)(in, out, n);
-        },
-        [](double v) { return 1.0 / std::cos(v); },
-        [](const Complex &c) { return Complex(1.0) / std::cos(c); });
+        }, [](double v) { return 1.0 / std::cos(v); }, [](const Complex &c) { return Complex(1.0) / std::cos(c); }, mr);
 }
 
-Value csc(std::pmr::memory_resource *mr, const Value &x)
+Value csc(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDoubleRecip(mr, x,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDoubleRecip(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(CscLoop)(in, out, n);
-        },
-        [](double v) { return 1.0 / std::sin(v); },
-        [](const Complex &c) { return Complex(1.0) / std::sin(c); });
+        }, [](double v) { return 1.0 / std::sin(v); }, [](const Complex &c) { return Complex(1.0) / std::sin(c); }, mr);
 }
 
-Value cot(std::pmr::memory_resource *mr, const Value &x)
+Value cot(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDoubleRecip(mr, x,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDoubleRecip(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(CotLoop)(in, out, n);
-        },
-        [](double v) { return std::cos(v) / std::sin(v); },
-        [](const Complex &c) { return std::cos(c) / std::sin(c); });
+        }, [](double v) { return std::cos(v) / std::sin(v); }, [](const Complex &c) { return std::cos(c) / std::sin(c); }, mr);
 }
 
 // ── Hyperbolic reciprocal ──────────────────────────────────────────
 
-Value sech(std::pmr::memory_resource *mr, const Value &x)
+Value sech(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDoubleRecip(mr, x,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDoubleRecip(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(SechLoop)(in, out, n);
-        },
-        [](double v) { return 1.0 / std::cosh(v); },
-        [](const Complex &c) { return Complex(1.0) / std::cosh(c); });
+        }, [](double v) { return 1.0 / std::cosh(v); }, [](const Complex &c) { return Complex(1.0) / std::cosh(c); }, mr);
 }
 
-Value csch(std::pmr::memory_resource *mr, const Value &x)
+Value csch(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDoubleRecip(mr, x,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDoubleRecip(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(CschLoop)(in, out, n);
-        },
-        [](double v) { return 1.0 / std::sinh(v); },
-        [](const Complex &c) { return Complex(1.0) / std::sinh(c); });
+        }, [](double v) { return 1.0 / std::sinh(v); }, [](const Complex &c) { return Complex(1.0) / std::sinh(c); }, mr);
 }
 
-Value coth(std::pmr::memory_resource *mr, const Value &x)
+Value coth(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDoubleRecip(mr, x,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDoubleRecip(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(CothLoop)(in, out, n);
-        },
-        [](double v) { return std::cosh(v) / std::sinh(v); },
-        [](const Complex &c) { return std::cosh(c) / std::sinh(c); });
+        }, [](double v) { return std::cosh(v) / std::sinh(v); }, [](const Complex &c) { return std::cosh(c) / std::sinh(c); }, mr);
 }
 
 // ── Degree reciprocal: scalar path keeps the integer-multiple-of-90° snap.
 
-Value secd(std::pmr::memory_resource *mr, const Value &x)
+Value secd(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDoubleRecip(mr, x,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDoubleRecip(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(SecdLoop)(in, out, n);
-        },
-        [](double v) { return 1.0 / cosd_scalar(v); },
-        [](const Complex &c) { return Complex(1.0) / std::cos(c * kDeg2Rad); });
+        }, [](double v) { return 1.0 / cosd_scalar(v); }, [](const Complex &c) { return Complex(1.0) / std::cos(c * kDeg2Rad); }, mr);
 }
 
-Value cscd(std::pmr::memory_resource *mr, const Value &x)
+Value cscd(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDoubleRecip(mr, x,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDoubleRecip(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(CscdLoop)(in, out, n);
-        },
-        [](double v) { return 1.0 / sind_scalar(v); },
-        [](const Complex &c) { return Complex(1.0) / std::sin(c * kDeg2Rad); });
+        }, [](double v) { return 1.0 / sind_scalar(v); }, [](const Complex &c) { return Complex(1.0) / std::sin(c * kDeg2Rad); }, mr);
 }
 
-Value cotd(std::pmr::memory_resource *mr, const Value &x)
+Value cotd(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDoubleRecip(mr, x,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDoubleRecip(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(CotdLoop)(in, out, n);
-        },
-        [](double v) { return cosd_scalar(v) / sind_scalar(v); },
-        [](const Complex &c) {
+        }, [](double v) { return cosd_scalar(v) / sind_scalar(v); }, [](const Complex &c) {
             return std::cos(c * kDeg2Rad) / std::sin(c * kDeg2Rad);
-        });
+        }, mr);
 }
 
 // ── Inverse reciprocal: scalar fast-path keeps the in-domain
 // complex fallback (asec(0.5) → complex in MATLAB).
 
-Value asec(std::pmr::memory_resource *mr, const Value &x)
+Value asec(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::acos(Complex(1.0) / c); }, mr);
@@ -505,15 +477,12 @@ Value asec(std::pmr::memory_resource *mr, const Value &x)
         if (v > -1.0 && v < 1.0)
             return Value::complexScalar(std::acos(Complex(1.0 / v, 0.0)), mr);
     }
-    return unaryRealDoubleRecip(mr, x,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDoubleRecip(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(AsecLoop)(in, out, n);
-        },
-        [](double v) { return std::acos(1.0 / v); },
-        [](const Complex &c) { return std::acos(Complex(1.0) / c); });
+        }, [](double v) { return std::acos(1.0 / v); }, [](const Complex &c) { return std::acos(Complex(1.0) / c); }, mr);
 }
 
-Value acsc(std::pmr::memory_resource *mr, const Value &x)
+Value acsc(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::asin(Complex(1.0) / c); }, mr);
@@ -522,27 +491,21 @@ Value acsc(std::pmr::memory_resource *mr, const Value &x)
         if (v > -1.0 && v < 1.0 && v != 0.0)
             return Value::complexScalar(std::asin(Complex(1.0 / v, 0.0)), mr);
     }
-    return unaryRealDoubleRecip(mr, x,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDoubleRecip(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(AcscLoop)(in, out, n);
-        },
-        [](double v) { return std::asin(1.0 / v); },
-        [](const Complex &c) { return std::asin(Complex(1.0) / c); });
+        }, [](double v) { return std::asin(1.0 / v); }, [](const Complex &c) { return std::asin(Complex(1.0) / c); }, mr);
 }
 
-Value acot(std::pmr::memory_resource *mr, const Value &x)
+Value acot(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDoubleRecip(mr, x,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDoubleRecip(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(AcotLoop)(in, out, n);
-        },
-        [](double v) { return std::atan(1.0 / v); },
-        [](const Complex &c) { return std::atan(Complex(1.0) / c); });
+        }, [](double v) { return std::atan(1.0 / v); }, [](const Complex &c) { return std::atan(Complex(1.0) / c); }, mr);
 }
 
 // ── Inverse hyperbolic reciprocal ──────────────────────────────────
 
-Value asech(std::pmr::memory_resource *mr, const Value &x)
+Value asech(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::acosh(Complex(1.0) / c); }, mr);
@@ -551,25 +514,19 @@ Value asech(std::pmr::memory_resource *mr, const Value &x)
         if (v <= 0.0 || v > 1.0)
             return Value::complexScalar(std::acosh(Complex(1.0 / v, 0.0)), mr);
     }
-    return unaryRealDoubleRecip(mr, x,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDoubleRecip(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(AsechLoop)(in, out, n);
-        },
-        [](double v) { return std::acosh(1.0 / v); },
-        [](const Complex &c) { return std::acosh(Complex(1.0) / c); });
+        }, [](double v) { return std::acosh(1.0 / v); }, [](const Complex &c) { return std::acosh(Complex(1.0) / c); }, mr);
 }
 
-Value acsch(std::pmr::memory_resource *mr, const Value &x)
+Value acsch(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDoubleRecip(mr, x,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDoubleRecip(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(AcschLoop)(in, out, n);
-        },
-        [](double v) { return std::asinh(1.0 / v); },
-        [](const Complex &c) { return std::asinh(Complex(1.0) / c); });
+        }, [](double v) { return std::asinh(1.0 / v); }, [](const Complex &c) { return std::asinh(Complex(1.0) / c); }, mr);
 }
 
-Value acoth(std::pmr::memory_resource *mr, const Value &x)
+Value acoth(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::atanh(Complex(1.0) / c); }, mr);
@@ -578,17 +535,14 @@ Value acoth(std::pmr::memory_resource *mr, const Value &x)
         if (v >= -1.0 && v <= 1.0)
             return Value::complexScalar(std::atanh(Complex(1.0 / v, 0.0)), mr);
     }
-    return unaryRealDoubleRecip(mr, x,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDoubleRecip(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(AcothLoop)(in, out, n);
-        },
-        [](double v) { return std::atanh(1.0 / v); },
-        [](const Complex &c) { return std::atanh(Complex(1.0) / c); });
+        }, [](double v) { return std::atanh(1.0 / v); }, [](const Complex &c) { return std::atanh(Complex(1.0) / c); }, mr);
 }
 
 // ── Inverse degree reciprocal ──────────────────────────────────────
 
-Value asecd(std::pmr::memory_resource *mr, const Value &x)
+Value asecd(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) {
@@ -599,15 +553,12 @@ Value asecd(std::pmr::memory_resource *mr, const Value &x)
         if (v > -1.0 && v < 1.0)
             return Value::complexScalar(std::acos(Complex(1.0 / v, 0.0)) * kRad2Deg, mr);
     }
-    return unaryRealDoubleRecip(mr, x,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDoubleRecip(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(AsecdLoop)(in, out, n);
-        },
-        [](double v) { return std::acos(1.0 / v) * kRad2Deg; },
-        [](const Complex &c) { return std::acos(Complex(1.0) / c) * kRad2Deg; });
+        }, [](double v) { return std::acos(1.0 / v) * kRad2Deg; }, [](const Complex &c) { return std::acos(Complex(1.0) / c) * kRad2Deg; }, mr);
 }
 
-Value acscd(std::pmr::memory_resource *mr, const Value &x)
+Value acscd(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) {
@@ -618,22 +569,16 @@ Value acscd(std::pmr::memory_resource *mr, const Value &x)
         if (v > -1.0 && v < 1.0 && v != 0.0)
             return Value::complexScalar(std::asin(Complex(1.0 / v, 0.0)) * kRad2Deg, mr);
     }
-    return unaryRealDoubleRecip(mr, x,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDoubleRecip(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(AcscdLoop)(in, out, n);
-        },
-        [](double v) { return std::asin(1.0 / v) * kRad2Deg; },
-        [](const Complex &c) { return std::asin(Complex(1.0) / c) * kRad2Deg; });
+        }, [](double v) { return std::asin(1.0 / v) * kRad2Deg; }, [](const Complex &c) { return std::asin(Complex(1.0) / c) * kRad2Deg; }, mr);
 }
 
-Value acotd(std::pmr::memory_resource *mr, const Value &x)
+Value acotd(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryRealDoubleRecip(mr, x,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDoubleRecip(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(AcotdLoop)(in, out, n);
-        },
-        [](double v) { return std::atan(1.0 / v) * kRad2Deg; },
-        [](const Complex &c) { return std::atan(Complex(1.0) / c) * kRad2Deg; });
+        }, [](double v) { return std::atan(1.0 / v) * kRad2Deg; }, [](const Complex &c) { return std::atan(Complex(1.0) / c) * kRad2Deg; }, mr);
 }
 
 } // namespace numkit::builtin

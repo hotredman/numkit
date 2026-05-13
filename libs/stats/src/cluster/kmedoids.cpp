@@ -131,8 +131,7 @@ struct KmedoidsResult {
 };
 
 KmedoidsResult
-kmedoids_full(std::pmr::memory_resource *mr, const Value &X, int K,
-              int max_iter, int replicates, const std::string &metric_name)
+kmedoids_full(const Value &X, int K, int max_iter, int replicates, const std::string &metric_name, std::pmr::memory_resource *mr)
 {
     if (max_iter <= 0)   max_iter = 100;
     if (replicates <= 0) replicates = 1;
@@ -281,10 +280,9 @@ kmedoids_full(std::pmr::memory_resource *mr, const Value &X, int K,
 
 // Backward-compat 3-output wrapper.
 std::tuple<Value, Value, Value>
-kmedoids(std::pmr::memory_resource *mr, const Value &X, int K,
-         int max_iter, int replicates, const std::string &metric_name)
+kmedoids(const Value &X, int K, int max_iter, int replicates, const std::string &metric_name, std::pmr::memory_resource *mr)
 {
-    auto R = kmedoids_full(mr, X, K, max_iter, replicates, metric_name);
+    auto R = kmedoids_full(X, K, max_iter, replicates, metric_name, mr);
     return std::make_tuple(std::move(R.idx), std::move(R.C),
                            std::move(R.sumd));
 }
@@ -294,9 +292,7 @@ kmedoids(std::pmr::memory_resource *mr, const Value &X, int K,
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value>
-dbscan(std::pmr::memory_resource *mr, const Value &X,
-       double eps, int minpts, const std::string &metric_name,
-       double p)
+dbscan(const Value &X, double eps, int minpts, const std::string &metric_name, double p, std::pmr::memory_resource *mr)
 {
     if (eps <= 0.0)  throw Error("dbscan: eps must be positive",
                                  0, 0, "dbscan", "", "m:dbscan:badeps");
@@ -389,10 +385,9 @@ dbscan(std::pmr::memory_resource *mr, const Value &X,
 
 // Backward-compat without p.
 std::tuple<Value, Value>
-dbscan(std::pmr::memory_resource *mr, const Value &X,
-       double eps, int minpts, const std::string &metric_name)
+dbscan(const Value &X, double eps, int minpts, const std::string &metric_name, std::pmr::memory_resource *mr)
 {
-    return dbscan(mr, X, eps, minpts, metric_name, 2.0);
+    return dbscan(X, eps, minpts, metric_name, 2.0, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -429,8 +424,7 @@ void kmedoids_reg(Span<const Value> args, size_t nargout,
         else if (key == "start")      start      = lower(v.toString());
         // 'OnlinePhase' / 'Options' / 'PercentNeighbors' silently accepted.
     }
-    auto R = kmedoids_full(ctx.engine->resource(), args[0], K,
-                           max_iter, replicates, metric);
+    auto R = kmedoids_full(args[0], K, max_iter, replicates, metric, ctx.engine->resource());
     outs[0] = std::move(R.idx);
     if (nargout > 1) outs[1] = std::move(R.C);
     if (nargout > 2) outs[2] = std::move(R.sumd);
@@ -481,8 +475,7 @@ void dbscan_reg(Span<const Value> args, size_t nargout,
         // 'Cov' and 'Scale' silently accepted but ignored — only matter
         // for mahalanobis / seuclidean which dbscan() doesn't yet wire up.
     }
-    auto [idx, core] = dbscan(ctx.engine->resource(), args[0],
-                              eps, minpts, metric, p);
+    auto [idx, core] = dbscan(args[0], eps, minpts, metric, p, ctx.engine->resource());
     outs[0] = std::move(idx);
     if (nargout > 1) outs[1] = std::move(core);
 }

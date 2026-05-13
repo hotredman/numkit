@@ -51,14 +51,13 @@ Vec coeffsReal(const Value &v) {
     return out;
 }
 
-Value rowOfDoubles(std::pmr::memory_resource *mr, const Vec &v) {
+Value rowOfDoubles(const Vec &v, std::pmr::memory_resource *mr) {
     Value r = Value::matrix(1, v.size(), ValueType::DOUBLE, mr);
     if (!v.empty()) std::copy(v.begin(), v.end(), r.doubleDataMut());
     return r;
 }
 
-Value matFromVec(std::pmr::memory_resource *mr,
-                 size_t r, size_t c, const Vec &v) {
+Value matFromVec(size_t r, size_t c, const Vec &v, std::pmr::memory_resource *mr) {
     Value m = Value::matrix(r, c, ValueType::DOUBLE, mr);
     if (!v.empty()) std::copy(v.begin(), v.end(), m.doubleDataMut());
     return m;
@@ -74,20 +73,21 @@ struct SS {
     double Ts;
 };
 
-SS toSSiso(std::pmr::memory_resource *mr, const Value &sys) {
+SS toSSiso(const Value &sys, std::pmr::memory_resource *mr) {
     Value Av, Bv, Cv, Dv;
     double Ts = sampleTime(sys);
     if (hasKind(sys, "ss")) {
         Av = sys.field("A"); Bv = sys.field("B");
         Cv = sys.field("C"); Dv = sys.field("D");
     } else if (hasKind(sys, "tf")) {
-        tf2ss(mr, sys.field("num"), sys.field("den"),
-              &Av, &Bv, &Cv, &Dv);
+        auto ss = tf2ss(sys.field("num"), sys.field("den"), mr);
+        Av = std::move(ss.A); Bv = std::move(ss.B);
+        Cv = std::move(ss.C); Dv = std::move(ss.D);
     } else if (hasKind(sys, "zpk")) {
-        Value num, den;
-        zp2tf(mr, sys.field("z"), sys.field("p"), sys.field("k"),
-              &num, &den);
-        tf2ss(mr, num, den, &Av, &Bv, &Cv, &Dv);
+        auto [num, den] = zp2tf(sys.field("z"), sys.field("p"), sys.field("k"), mr);
+        auto ss = tf2ss(num, den, mr);
+        Av = std::move(ss.A); Bv = std::move(ss.B);
+        Cv = std::move(ss.C); Dv = std::move(ss.D);
     } else {
         throw Error("c2d/d2c: expected an LTI struct (tf/zpk/ss)",
                     0, 0, "discretize", "", "m:control:kind");
@@ -189,29 +189,24 @@ void tustinDiscretise(const Mat &A, const Vec &B, const Vec &C, double D,
 }
 
 // Build an output struct of the requested kind from (A, B, C, D, Ts).
-Value packResult(std::pmr::memory_resource *mr,
-                 const Mat &Ad, const Vec &Bd,
-                 const Vec &Cd, double Dd,
-                 size_t n, double Ts,
-                 const std::string &origKind)
+Value packResult(const Mat &Ad, const Vec &Bd, const Vec &Cd, double Dd, size_t n, double Ts, const std::string &origKind, std::pmr::memory_resource *mr)
 {
-    Value Av = matFromVec(mr, n, n, Ad);
-    Value Bv = matFromVec(mr, n, 1, Bd);
-    Value Cv = matFromVec(mr, 1, n, Cd);
+    Value Av = matFromVec(n, n, Ad, mr);
+    Value Bv = matFromVec(n, 1, Bd, mr);
+    Value Cv = matFromVec(1, n, Cd, mr);
     Value Dv = Value::scalar(Dd, mr);
 
     if (origKind == "ss") {
-        return ss(mr, Av, Bv, Cv, Dv, Ts);
+        return ss(Av, Bv, Cv, Dv, Ts, mr);
     }
     // Convert (A, B, C, D) → (num, den) via libs/control's ss2tf.
-    Value numV, denV;
-    ss2tf(mr, Av, Bv, Cv, Dv, /*iu=*/1, &numV, &denV);
+    auto [numV, denV] = ss2tf(Av, Bv, Cv, Dv, /*iu=*/1, mr);
     if (origKind == "tf") {
-        return tf(mr, numV, denV, Ts);
+        return tf(numV, denV, Ts, mr);
     }
     if (origKind == "zpk") {
-        Value zV = builtin::roots(mr, numV);
-        Value pV = builtin::roots(mr, denV);
+        Value zV = builtin::roots(numV, mr);
+        Value pV = builtin::roots(denV, mr);
         // Gain = num(1)/den(1) (after stripping leading zeros).
         Vec numVec = coeffsReal(numV);
         Vec denVec = coeffsReal(denV);
@@ -219,20 +214,19 @@ Value packResult(std::pmr::memory_resource *mr,
         size_t id = 0; while (id + 1 < denVec.size() && denVec[id] == 0.0) ++id;
         const double k = (in < numVec.size() && id < denVec.size())
                          ? numVec[in] / denVec[id] : 0.0;
-        return zpk(mr, zV, pV, Value::scalar(k, mr), Ts);
+        return zpk(zV, pV, Value::scalar(k, mr), Ts, mr);
     }
-    return ss(mr, Av, Bv, Cv, Dv, Ts);
+    return ss(Av, Bv, Cv, Dv, Ts, mr);
 }
 
 } // anonymous
 
-Value c2d(std::pmr::memory_resource *mr,
-          const Value &sys, double Ts, const std::string &method)
+Value c2d(const Value &sys, double Ts, const std::string &method, std::pmr::memory_resource *mr)
 {
     if (Ts <= 0.0)
         throw Error("c2d: Ts must be positive",
                     0, 0, "c2d", "", "m:c2d:Ts");
-    SS s = toSSiso(mr, sys);
+    SS s = toSSiso(sys, mr);
     if (s.Ts > 0.0)
         throw Error("c2d: input system is already discrete (Ts > 0)",
                     0, 0, "c2d", "", "m:c2d:already_discrete");
@@ -253,13 +247,12 @@ Value c2d(std::pmr::memory_resource *mr,
     const std::string origKind = sys.isStruct() && sys.hasField("kind")
                                  ? sys.field("kind").toString()
                                  : std::string("ss");
-    return packResult(mr, Ad, Bd, Cd, Dd, s.n, Ts, origKind);
+    return packResult(Ad, Bd, Cd, Dd, s.n, Ts, origKind, mr);
 }
 
-Value d2c(std::pmr::memory_resource *mr,
-          const Value &sys, const std::string &method)
+Value d2c(const Value &sys, const std::string &method, std::pmr::memory_resource *mr)
 {
-    SS s = toSSiso(mr, sys);
+    SS s = toSSiso(sys, mr);
     if (s.Ts <= 0.0)
         throw Error("d2c: input system is already continuous (Ts == 0)",
                     0, 0, "d2c", "", "m:d2c:already_continuous");
@@ -352,7 +345,7 @@ Value d2c(std::pmr::memory_resource *mr,
                                  ? sys.field("kind").toString()
                                  : std::string("ss");
     // Continuous → Ts = 0.
-    return packResult(mr, Ac, Bc, Cc, Dc, s.n, 0.0, origKind);
+    return packResult(Ac, Bc, Cc, Dc, s.n, 0.0, origKind, mr);
 }
 
 namespace detail {
@@ -371,7 +364,7 @@ void c2d_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
                     0, 0, "c2d", "", "m:c2d:nargin");
     std::string method;
     if (a.size() >= 3 && !a[2].isEmpty()) method = argString(a[2]);
-    o[0] = c2d(c.engine->resource(), a[0], a[1].toScalar(), method);
+    o[0] = c2d(a[0], a[1].toScalar(), method, c.engine->resource());
 }
 
 void d2c_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
@@ -381,7 +374,7 @@ void d2c_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
                     0, 0, "d2c", "", "m:d2c:nargin");
     std::string method;
     if (a.size() >= 2 && !a[1].isEmpty()) method = argString(a[1]);
-    o[0] = d2c(c.engine->resource(), a[0], method);
+    o[0] = d2c(a[0], method, c.engine->resource());
 }
 
 } // namespace detail

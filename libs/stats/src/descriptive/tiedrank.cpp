@@ -88,7 +88,7 @@ bool isVector(const Value &v)
 } // namespace
 
 std::pair<Value, Value>
-tiedrank(std::pmr::memory_resource *mr, const Value &x)
+tiedrank(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t R = x.dims().rows();
     const size_t C = x.dims().cols();
@@ -128,7 +128,7 @@ void tiedrank_reg(Span<const Value> args, size_t nargout,
         throw Error("tiedrank: requires at least one argument",
                     0, 0, "tiedrank", "", "m:tiedrank:nargin");
     auto *mr = ctx.engine->resource();
-    auto [r, ta] = tiedrank(mr, args[0]);
+    auto [r, ta] = tiedrank(args[0], mr);
     outs[0] = std::move(r);
     if (nargout > 1) outs[1] = std::move(ta);
 }

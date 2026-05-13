@@ -61,8 +61,7 @@ void back_solve(const double *L, double *x, const double *z, size_t d)
 // 5-output form: [b, bint, r, rint, stats]. rint = residual CI for
 // outlier detection — added 2026-05-08.
 std::tuple<Value, Value, Value, Value, Value>
-regress_full(std::pmr::memory_resource *mr, const Value &y, const Value &X,
-             double alpha)
+regress_full(const Value &y, const Value &X, double alpha, std::pmr::memory_resource *mr)
 {
     const size_t N = y.numel();
     const size_t p = X.dims().cols();
@@ -140,7 +139,7 @@ regress_full(std::pmr::memory_resource *mr, const Value &y, const Value &X,
     double tcrit = 0.0;
     if (dfErr > 0) {
         Value pV = Value::scalar(1.0 - alpha / 2.0, mr);
-        tcrit = tinv(mr, pV, dfErr).toScalar();
+        tcrit = tinv(pV, dfErr, mr).toScalar();
     }
     for (size_t j = 0; j < p; ++j) {
         bd[j] = beta[j];
@@ -170,7 +169,7 @@ regress_full(std::pmr::memory_resource *mr, const Value &y, const Value &X,
     double pF = std::numeric_limits<double>::quiet_NaN();
     if (!std::isnan(F)) {
         Value fv = Value::scalar(F, mr);
-        const double cdf = fcdf(mr, fv, dfModel, dfErr).toScalar();
+        const double cdf = fcdf(fv, dfModel, dfErr, mr).toScalar();
         pF = std::max(0.0, 1.0 - cdf);
     }
     Value statsV = Value::matrix(1, 4, ValueType::DOUBLE, mr);
@@ -210,17 +209,15 @@ regress_full(std::pmr::memory_resource *mr, const Value &y, const Value &X,
 
 // Backward-compat 4-tuple wrapper (for legacy callers; rint dropped).
 std::tuple<Value, Value, Value, Value>
-regress(std::pmr::memory_resource *mr, const Value &y, const Value &X,
-        double alpha)
+regress(const Value &y, const Value &X, double alpha, std::pmr::memory_resource *mr)
 {
-    auto [b, bint, r, rint, stats] = regress_full(mr, y, X, alpha);
+    auto [b, bint, r, rint, stats] = regress_full(y, X, alpha, mr);
     (void)rint;
     return {std::move(b), std::move(bint), std::move(r), std::move(stats)};
 }
 
 std::tuple<Value, Value, Value, Value>
-lscov(std::pmr::memory_resource *mr, const Value &A, const Value &b,
-      const Value &w)
+lscov(const Value &A, const Value &b, const Value &w, std::pmr::memory_resource *mr)
 {
     const size_t N = b.numel();
     const size_t p = A.dims().cols();
@@ -312,8 +309,7 @@ lscov(std::pmr::memory_resource *mr, const Value &A, const Value &b,
     return {std::move(xV), std::move(stdxV), std::move(mseV), std::move(SV)};
 }
 
-Value ridge(std::pmr::memory_resource *mr, const Value &y, const Value &X,
-            const Value &kVec, bool scaled)
+Value ridge(const Value &y, const Value &X, const Value &kVec, bool scaled, std::pmr::memory_resource *mr)
 {
     const size_t N = y.numel();
     const size_t p = X.dims().cols();
@@ -416,8 +412,7 @@ void regress_reg(Span<const Value> args, size_t nargout,
                     0, 0, "regress", "", "m:regress:nargin");
     const double alpha = (args.size() >= 3 && !args[2].isEmpty())
                          ? args[2].toScalar() : 0.05;
-    auto [b, bint, r, rint, stats] = regress_full(ctx.engine->resource(),
-                                                   args[0], args[1], alpha);
+    auto [b, bint, r, rint, stats] = regress_full(args[0], args[1], alpha, ctx.engine->resource());
     outs[0] = std::move(b);
     if (nargout > 1) outs[1] = std::move(bint);
     if (nargout > 2) outs[2] = std::move(r);
@@ -434,7 +429,7 @@ void ridge_reg(Span<const Value> args, size_t /*nargout*/,
     bool scaled = true;
     if (args.size() >= 4 && !args[3].isEmpty())
         scaled = (args[3].toScalar() != 0.0);
-    outs[0] = ridge(ctx.engine->resource(), args[0], args[1], args[2], scaled);
+    outs[0] = ridge(args[0], args[1], args[2], scaled, ctx.engine->resource());
 }
 
 void lscov_reg(Span<const Value> args, size_t nargout,
@@ -446,7 +441,7 @@ void lscov_reg(Span<const Value> args, size_t nargout,
     auto *mr = ctx.engine->resource();
     Value w_empty = Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const Value &w = (args.size() >= 3) ? args[2] : w_empty;
-    auto [x, stdx, mse, S] = lscov(mr, args[0], args[1], w);
+    auto [x, stdx, mse, S] = lscov(args[0], args[1], w, mr);
     outs[0] = std::move(x);
     if (nargout > 1) outs[1] = std::move(stdx);
     if (nargout > 2) outs[2] = std::move(mse);

@@ -22,7 +22,7 @@ constexpr double kEulerGamma = 0.5772156649015328606065120900824024;
 constexpr double kPi2Over6   = 1.6449340668482264364724151666460252;
 
 template <typename Op>
-Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
@@ -50,29 +50,27 @@ inline double gev_inv_one(double u, double k, double sigma, double mu) {
 
 } // anonymous
 
-Value gevpdf(std::pmr::memory_resource *mr, const Value &x,
-             double k, double sigma, double mu)
+Value gevpdf(const Value &x, double k, double sigma, double mu, std::pmr::memory_resource *mr)
 {
     if (sigma <= 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     const double inv_s = 1.0 / sigma;
-    return elementwise(mr, x, [=](double xi) {
+    return elementwise(x, [=](double xi) {
         const double z = (xi - mu) * inv_s;
         if (k == 0.0) return inv_s * std::exp(-z - std::exp(-z));
         const double t = 1.0 + k * z;
         if (t <= 0.0) return 0.0;
         const double tinvk = std::pow(t, -1.0 / k);
         return inv_s * std::pow(t, -1.0 / k - 1.0) * std::exp(-tinvk);
-    });
+    }, mr);
 }
 
-Value gevcdf(std::pmr::memory_resource *mr, const Value &x,
-             double k, double sigma, double mu)
+Value gevcdf(const Value &x, double k, double sigma, double mu, std::pmr::memory_resource *mr)
 {
     if (sigma <= 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     const double inv_s = 1.0 / sigma;
-    return elementwise(mr, x, [=](double xi) {
+    return elementwise(x, [=](double xi) {
         const double z = (xi - mu) * inv_s;
         if (k == 0.0) return std::exp(-std::exp(-z));
         const double t = 1.0 + k * z;
@@ -82,21 +80,19 @@ Value gevcdf(std::pmr::memory_resource *mr, const Value &x,
             return (k > 0) ? 0.0 : 1.0;
         }
         return std::exp(-std::pow(t, -1.0 / k));
-    });
+    }, mr);
 }
 
-Value gevinv(std::pmr::memory_resource *mr, const Value &p,
-             double k, double sigma, double mu)
+Value gevinv(const Value &p, double k, double sigma, double mu, std::pmr::memory_resource *mr)
 {
     if (sigma <= 0.0)
-        return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    return elementwise(mr, p, [=](double pi) {
+        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    return elementwise(p, [=](double pi) {
         return gev_inv_one(pi, k, sigma, mu);
-    });
+    }, mr);
 }
 
-Value gevrnd(std::pmr::memory_resource *mr, double k, double sigma, double mu,
-             size_t rows, size_t cols)
+Value gevrnd(double k, double sigma, double mu, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -144,8 +140,7 @@ void gevpdf_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 4)
         throw Error("gevpdf: requires (x, k, sigma, mu)",
                     0, 0, "gevpdf", "", "m:gevpdf:nargin");
-    outs[0] = gevpdf(ctx.engine->resource(), args[0],
-                     args[1].toScalar(), args[2].toScalar(), args[3].toScalar());
+    outs[0] = gevpdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
 }
 
 void gevcdf_reg(Span<const Value> args, size_t /*nargout*/,
@@ -156,8 +151,7 @@ void gevcdf_reg(Span<const Value> args, size_t /*nargout*/,
     if (n < 4)
         throw Error("gevcdf: requires (x, k, sigma, mu[, 'upper'])",
                     0, 0, "gevcdf", "", "m:gevcdf:nargin");
-    Value v = gevcdf(ctx.engine->resource(), args[0],
-                     args[1].toScalar(), args[2].toScalar(), args[3].toScalar());
+    Value v = gevcdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -168,8 +162,7 @@ void gevinv_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 4)
         throw Error("gevinv: requires (p, k, sigma, mu)",
                     0, 0, "gevinv", "", "m:gevinv:nargin");
-    outs[0] = gevinv(ctx.engine->resource(), args[0],
-                     args[1].toScalar(), args[2].toScalar(), args[3].toScalar());
+    outs[0] = gevinv(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
 }
 
 void gevrnd_reg(Span<const Value> args, size_t /*nargout*/,
@@ -185,7 +178,7 @@ void gevrnd_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 4 && !args[3].isEmpty()) rows = static_cast<size_t>(args[3].toScalar());
     if (args.size() >= 5 && !args[4].isEmpty()) cols = static_cast<size_t>(args[4].toScalar());
     else if (args.size() >= 4) cols = rows;
-    outs[0] = gevrnd(ctx.engine->resource(), k, sigma, mu, rows, cols);
+    outs[0] = gevrnd(k, sigma, mu, rows, cols, ctx.engine->resource());
 }
 
 void gevstat_reg(Span<const Value> args, size_t nargout,

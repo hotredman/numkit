@@ -65,9 +65,9 @@ Value packDoubles(std::pmr::memory_resource *mr,
 
 } // anonymous
 
-Value scrambler(std::pmr::memory_resource *mr,
-                const Value &x, const Value &poly,
-                const Value &initState)
+Value scrambler(const Value &x, const Value &poly,
+                const Value &initState,
+                std::pmr::memory_resource *mr)
 {
     auto xBits   = readBitVec(x, "scrambler");
     auto polyVec = readBitVec(poly, "scrambler");
@@ -91,9 +91,9 @@ Value scrambler(std::pmr::memory_resource *mr,
     return packDoubles(mr, y);
 }
 
-Value descrambler(std::pmr::memory_resource *mr,
-                  const Value &y, const Value &poly,
-                  const Value &initState)
+Value descrambler(const Value &y, const Value &poly,
+                  const Value &initState,
+                  std::pmr::memory_resource *mr)
 {
     auto yBits   = readBitVec(y, "descrambler");
     auto polyVec = readBitVec(poly, "descrambler");
@@ -125,8 +125,8 @@ void scrambler_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 3)
         throw Error("scrambler: requires (x, poly, initState)",
                     0, 0, "scrambler", "", "m:scrambler:nargin");
-    outs[0] = scrambler(ctx.engine->resource(),
-                        args[0], args[1], args[2]);
+    outs[0] = scrambler(args[0], args[1], args[2],
+                        ctx.engine->resource());
 }
 
 void descrambler_reg(Span<const Value> args, size_t /*nargout*/,
@@ -135,8 +135,8 @@ void descrambler_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 3)
         throw Error("descrambler: requires (y, poly, initState)",
                     0, 0, "descrambler", "", "m:descrambler:nargin");
-    outs[0] = descrambler(ctx.engine->resource(),
-                          args[0], args[1], args[2]);
+    outs[0] = descrambler(args[0], args[1], args[2],
+                          ctx.engine->resource());
 }
 
 } // namespace detail

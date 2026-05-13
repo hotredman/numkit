@@ -78,7 +78,7 @@ TEST(SimdParity_Abs, MatchesScalarOnLargeRandomVector)
     for (auto &v : src) v = dist(rng);
 
     Value x = makeDoubleVector(mr, src);
-    Value y = numkit::builtin::abs(mr, x);
+    Value y = numkit::builtin::abs(x, mr);
 
     ASSERT_EQ(y.numel(), N);
     for (size_t i = 0; i < N; ++i) {
@@ -112,7 +112,7 @@ TEST(SimdParity_Abs, HandlesIeeeEdgeCases)
     };
 
     Value x = makeDoubleVector(mr, src);
-    Value y = numkit::builtin::abs(mr, x);
+    Value y = numkit::builtin::abs(x, mr);
 
     ASSERT_EQ(y.numel(), src.size());
     for (size_t i = 0; i < src.size(); ++i) {
@@ -137,7 +137,7 @@ TEST(SimdParity_Abs, ScalarInputStillWorks)
     // Scalar / small paths bypass the SIMD loop entirely; included
     // to catch regressions in the public wrapper's dispatch logic.
     Value x = Value::scalar(-3.5, mr);
-    Value y = numkit::builtin::abs(mr, x);
+    Value y = numkit::builtin::abs(x, mr);
     EXPECT_TRUE(bitEquals(y.toScalar(), 3.5));
 }
 
@@ -153,7 +153,7 @@ TEST(SimdParity_Abs, ComplexFallsBackToScalarImpl)
     v.complexDataMut()[1] = {-5.0, 12.0};
     v.complexDataMut()[2] = {0.0, 0.0};
 
-    Value y = numkit::builtin::abs(mr, v);
+    Value y = numkit::builtin::abs(v, mr);
     ASSERT_EQ(y.numel(), 3u);
     EXPECT_DOUBLE_EQ(y.doubleData()[0], 5.0);
     EXPECT_DOUBLE_EQ(y.doubleData()[1], 13.0);
@@ -228,7 +228,7 @@ void checkTranscendentalParity(SimdFn simdFn, ScalarFn scalarFn,
 TEST(SimdParity_Sin, WithinUlpBudget)
 {
     checkTranscendentalParity(
-        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::sin(a, x); },
+        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::sin(x, a); },
         [](double x) { return std::sin(x); },
         -10.0, 10.0, "sin");
 }
@@ -236,7 +236,7 @@ TEST(SimdParity_Sin, WithinUlpBudget)
 TEST(SimdParity_Cos, WithinUlpBudget)
 {
     checkTranscendentalParity(
-        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::cos(a, x); },
+        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::cos(x, a); },
         [](double x) { return std::cos(x); },
         -10.0, 10.0, "cos");
 }
@@ -246,7 +246,7 @@ TEST(SimdParity_Exp, WithinUlpBudget)
     // Clamp to a range where exp() doesn't overflow — past ~709 it
     // becomes Inf and ULP distance is undefined / infinite.
     checkTranscendentalParity(
-        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::exp(a, x); },
+        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::exp(x, a); },
         [](double x) { return std::exp(x); },
         -5.0, 5.0, "exp");
 }
@@ -256,7 +256,7 @@ TEST(SimdParity_Log, WithinUlpBudget)
     // Strictly positive inputs — negatives produce NaN, whose ULP
     // distance doesn't compare meaningfully.
     checkTranscendentalParity(
-        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::log(a, x); },
+        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::log(x, a); },
         [](double x) { return std::log(x); },
         0.01, 100.0, "log");
 }
@@ -265,7 +265,7 @@ TEST(SimdParity_Transcendental, NegativeLogScalarStillComplex)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     // MATLAB contract (preserved in both backends): scalar log(-1) → i·π.
-    Value y = numkit::builtin::log(mr, Value::scalar(-1.0, mr));
+    Value y = numkit::builtin::log(Value::scalar(-1.0, mr), mr);
     EXPECT_TRUE(y.isComplex());
     auto c = y.toComplex();
     EXPECT_NEAR(c.real(), 0.0, 1e-12);
@@ -320,28 +320,28 @@ void checkBinaryParity(SimdFn simdFn, ScalarOp op, const char *name)
 TEST(SimdParity_Plus,    MatchesScalar)
 {
     checkBinaryParity(
-        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::plus(a, x, y); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::plus(x, y, a); },
         [](double x, double y) { return x + y; }, "plus");
 }
 
 TEST(SimdParity_Minus,   MatchesScalar)
 {
     checkBinaryParity(
-        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::minus(a, x, y); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::minus(x, y, a); },
         [](double x, double y) { return x - y; }, "minus");
 }
 
 TEST(SimdParity_Times,   MatchesScalar)
 {
     checkBinaryParity(
-        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::times(a, x, y); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::times(x, y, a); },
         [](double x, double y) { return x * y; }, "times");
 }
 
 TEST(SimdParity_Rdivide, MatchesScalar)
 {
     checkBinaryParity(
-        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::rdivide(a, x, y); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::rdivide(x, y, a); },
         [](double x, double y) { return x / y; }, "rdivide");
 }
 
@@ -373,7 +373,7 @@ TEST(SimdParity_Mtimes, MatchesScalarSquareMatrix)
         B.doubleDataMut()[i] = dist(rng);
     }
 
-    Value C = numkit::builtin::mtimes(mr, A, B);
+    Value C = numkit::builtin::mtimes(A, B, mr);
     ASSERT_EQ(C.numel(), N * N);
 
     // Independent scalar reference with the same (j,k,i) order so the
@@ -424,7 +424,7 @@ TEST(SimdParity_Mtimes, MatchesScalarMultiKBlock)
     for (size_t i = 0; i < M * K; ++i) A.doubleDataMut()[i] = dist(rng);
     for (size_t i = 0; i < K * N; ++i) B.doubleDataMut()[i] = dist(rng);
 
-    Value C = numkit::builtin::mtimes(mr, A, B);
+    Value C = numkit::builtin::mtimes(A, B, mr);
     ASSERT_EQ(C.numel(), M * N);
 
     // Reference matches the kernel's (j, k, i) reduction order — the
@@ -471,7 +471,7 @@ TEST(SimdParity_Mtimes, MatchesScalarExactKBlockMultiple)
     for (size_t i = 0; i < M * K; ++i) A.doubleDataMut()[i] = dist(rng);
     for (size_t i = 0; i < K * N; ++i) B.doubleDataMut()[i] = dist(rng);
 
-    Value C = numkit::builtin::mtimes(mr, A, B);
+    Value C = numkit::builtin::mtimes(A, B, mr);
 
     std::vector<double> ref(M * N, 0.0);
     for (size_t j = 0; j < N; ++j)
@@ -506,7 +506,7 @@ TEST(SimdParity_Dim, AbsOn1DRow)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     auto x = Value::matrix(1, 256, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < 256; ++i) x.doubleDataMut()[i] = -double(i);
-    auto y = numkit::builtin::abs(mr, x);
+    auto y = numkit::builtin::abs(x, mr);
     EXPECT_EQ(y.dims().rows(), 1u);
     EXPECT_EQ(y.dims().cols(), 256u);
     for (size_t i = 0; i < 256; ++i)
@@ -518,7 +518,7 @@ TEST(SimdParity_Dim, AbsOn1DColumn)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     auto x = Value::matrix(256, 1, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < 256; ++i) x.doubleDataMut()[i] = -double(i);
-    auto y = numkit::builtin::abs(mr, x);
+    auto y = numkit::builtin::abs(x, mr);
     EXPECT_EQ(y.dims().rows(), 256u);
     EXPECT_EQ(y.dims().cols(), 1u);
     for (size_t i = 0; i < 256; ++i)
@@ -530,7 +530,7 @@ TEST(SimdParity_Dim, AbsOn3D)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     auto x = Value::matrix3d(3, 4, 5, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < x.numel(); ++i) x.doubleDataMut()[i] = -double(i);
-    auto y = numkit::builtin::abs(mr, x);
+    auto y = numkit::builtin::abs(x, mr);
     ASSERT_TRUE(y.dims().is3D());
     EXPECT_EQ(y.dims().rows(), 3u);
     EXPECT_EQ(y.dims().cols(), 4u);
@@ -545,7 +545,7 @@ TEST(SimdParity_Dim, SinOn3D)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     auto x = Value::matrix3d(2, 3, 4, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < x.numel(); ++i) x.doubleDataMut()[i] = 0.1 * double(i);
-    auto y = numkit::builtin::sin(mr, x);
+    auto y = numkit::builtin::sin(x, mr);
     ASSERT_TRUE(y.dims().is3D());
     EXPECT_EQ(y.numel(), 24u);
     for (size_t i = 0; i < y.numel(); ++i)
@@ -589,28 +589,28 @@ void checkBinaryOn3D(BinaryFn fn, ScalarOp op, const char *name)
 TEST(SimdParity_Dim, PlusOn3D)
 {
     checkBinaryOn3D(
-        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::plus(a, x, y); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::plus(x, y, a); },
         [](double x, double y) { return x + y; }, "plus");
 }
 
 TEST(SimdParity_Dim, MinusOn3D)
 {
     checkBinaryOn3D(
-        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::minus(a, x, y); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::minus(x, y, a); },
         [](double x, double y) { return x - y; }, "minus");
 }
 
 TEST(SimdParity_Dim, TimesOn3D)
 {
     checkBinaryOn3D(
-        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::times(a, x, y); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::times(x, y, a); },
         [](double x, double y) { return x * y; }, "times");
 }
 
 TEST(SimdParity_Dim, RdivideOn3D)
 {
     checkBinaryOn3D(
-        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::rdivide(a, x, y); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::rdivide(x, y, a); },
         [](double x, double y) { return x / y; }, "rdivide");
 }
 
@@ -625,7 +625,7 @@ TEST(SimdParity_Dim, PlusOn1DRowAndColumn)
         aRow.doubleDataMut()[i] = double(i);
         bRow.doubleDataMut()[i] = 3.0;
     }
-    auto cRow = numkit::builtin::plus(mr, aRow, bRow);
+    auto cRow = numkit::builtin::plus(aRow, bRow, mr);
     EXPECT_EQ(cRow.dims().rows(), 1u);
     EXPECT_EQ(cRow.dims().cols(), 256u);
     for (size_t i = 0; i < 256; ++i)
@@ -638,7 +638,7 @@ TEST(SimdParity_Dim, PlusOn1DRowAndColumn)
         aCol.doubleDataMut()[i] = double(i);
         bCol.doubleDataMut()[i] = 3.0;
     }
-    auto cCol = numkit::builtin::plus(mr, aCol, bCol);
+    auto cCol = numkit::builtin::plus(aCol, bCol, mr);
     EXPECT_EQ(cCol.dims().rows(), 256u);
     EXPECT_EQ(cCol.dims().cols(), 1u);
     for (size_t i = 0; i < 256; ++i)
@@ -657,7 +657,7 @@ TEST(SimdParity_Mtimes, ThrowsOn3DInput)
         auto B = Value::matrix3d(4, 3, 2, ValueType::DOUBLE, mr);
         for (size_t i = 0; i < A.numel(); ++i) A.doubleDataMut()[i] = 1.0;
         for (size_t i = 0; i < B.numel(); ++i) B.doubleDataMut()[i] = 1.0;
-        EXPECT_THROW({ (void)numkit::builtin::mtimes(mr, A, B); },
+        EXPECT_THROW({ (void)numkit::builtin::mtimes(A, B, mr); },
                      numkit::Error);
     }
 
@@ -667,7 +667,7 @@ TEST(SimdParity_Mtimes, ThrowsOn3DInput)
         auto B = Value::matrix(4, 3, ValueType::DOUBLE, mr);
         for (size_t i = 0; i < A.numel(); ++i) A.doubleDataMut()[i] = 1.0;
         for (size_t i = 0; i < B.numel(); ++i) B.doubleDataMut()[i] = 1.0;
-        EXPECT_THROW({ (void)numkit::builtin::mtimes(mr, A, B); },
+        EXPECT_THROW({ (void)numkit::builtin::mtimes(A, B, mr); },
                      numkit::Error);
     }
 }
@@ -683,7 +683,7 @@ TEST(SimdParity_Mtimes, ScalarTimes3DArrayStillWorks)
     for (size_t i = 0; i < A.numel(); ++i) A.doubleDataMut()[i] = double(i);
     auto s = Value::scalar(2.5, mr);
 
-    auto C = numkit::builtin::mtimes(mr, s, A);
+    auto C = numkit::builtin::mtimes(s, A, mr);
     ASSERT_TRUE(C.dims().is3D());
     EXPECT_EQ(C.dims().pages(), 4u);
     EXPECT_EQ(C.numel(), 24u);
@@ -706,7 +706,7 @@ TEST(SimdParity_Mtimes, HandlesNonSquareDimensions)
     for (size_t i = 0; i < M * K; ++i) A.doubleDataMut()[i] = dist(rng);
     for (size_t i = 0; i < K * N; ++i) B.doubleDataMut()[i] = dist(rng);
 
-    Value C = numkit::builtin::mtimes(mr, A, B);
+    Value C = numkit::builtin::mtimes(A, B, mr);
     ASSERT_EQ(C.dims().rows(), M);
     ASSERT_EQ(C.dims().cols(), N);
 
@@ -753,7 +753,7 @@ TEST(SimdParity_ParallelLarge, AbsBitIdenticalAcrossSplits)
     auto src = makeReals(N, 7, -1e6, 1e6);
 
     Value x = makeDoubleVector(mr, src);
-    Value y = numkit::builtin::abs(mr, x);
+    Value y = numkit::builtin::abs(x, mr);
     ASSERT_EQ(y.numel(), N);
     for (size_t i = 0; i < N; ++i)
         EXPECT_TRUE(bitEquals(y.doubleData()[i], std::fabs(src[i]))) << "i=" << i;
@@ -768,7 +768,7 @@ TEST(SimdParity_ParallelLarge, PlusBitIdenticalAcrossSplits)
 
     Value x = makeDoubleVector(mr, a);
     Value y = makeDoubleVector(mr, b);
-    Value z = numkit::builtin::plus(mr, x, y);
+    Value z = numkit::builtin::plus(x, y, mr);
     ASSERT_EQ(z.numel(), N);
     for (size_t i = 0; i < N; ++i)
         EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] + b[i])) << "i=" << i;
@@ -783,7 +783,7 @@ TEST(SimdParity_ParallelLarge, MinusBitIdenticalAcrossSplits)
 
     Value x = makeDoubleVector(mr, a);
     Value y = makeDoubleVector(mr, b);
-    Value z = numkit::builtin::minus(mr, x, y);
+    Value z = numkit::builtin::minus(x, y, mr);
     ASSERT_EQ(z.numel(), N);
     for (size_t i = 0; i < N; ++i)
         EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] - b[i])) << "i=" << i;
@@ -798,7 +798,7 @@ TEST(SimdParity_ParallelLarge, TimesBitIdenticalAcrossSplits)
 
     Value x = makeDoubleVector(mr, a);
     Value y = makeDoubleVector(mr, b);
-    Value z = numkit::builtin::times(mr, x, y);
+    Value z = numkit::builtin::times(x, y, mr);
     ASSERT_EQ(z.numel(), N);
     for (size_t i = 0; i < N; ++i)
         EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] * b[i])) << "i=" << i;
@@ -813,7 +813,7 @@ TEST(SimdParity_ParallelLarge, RdivideBitIdenticalAcrossSplits)
 
     Value x = makeDoubleVector(mr, a);
     Value y = makeDoubleVector(mr, b);
-    Value z = numkit::builtin::rdivide(mr, x, y);
+    Value z = numkit::builtin::rdivide(x, y, mr);
     ASSERT_EQ(z.numel(), N);
     for (size_t i = 0; i < N; ++i)
         EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] / b[i])) << "i=" << i;
@@ -832,9 +832,9 @@ TEST(SimdParity_ParallelLarge, SinDeterministicAcrossCalls)
     auto src = makeReals(N, 41, -10.0, 10.0);
 
     Value x  = makeDoubleVector(mr, src);
-    Value y1 = numkit::builtin::sin(mr, x);
-    Value y2 = numkit::builtin::sin(mr, x);
-    Value y3 = numkit::builtin::sin(mr, x);
+    Value y1 = numkit::builtin::sin(x, mr);
+    Value y2 = numkit::builtin::sin(x, mr);
+    Value y3 = numkit::builtin::sin(x, mr);
     ASSERT_EQ(y1.numel(), N);
     for (size_t i = 0; i < N; ++i) {
         EXPECT_TRUE(bitEquals(y1.doubleData()[i], y2.doubleData()[i])) << "i=" << i;
@@ -849,8 +849,8 @@ TEST(SimdParity_ParallelLarge, ExpDeterministicAcrossCalls)
     auto src = makeReals(N, 43, -5.0, 5.0);
 
     Value x  = makeDoubleVector(mr, src);
-    Value y1 = numkit::builtin::exp(mr, x);
-    Value y2 = numkit::builtin::exp(mr, x);
+    Value y1 = numkit::builtin::exp(x, mr);
+    Value y2 = numkit::builtin::exp(x, mr);
     ASSERT_EQ(y1.numel(), N);
     for (size_t i = 0; i < N; ++i)
         EXPECT_TRUE(bitEquals(y1.doubleData()[i], y2.doubleData()[i])) << "i=" << i;
@@ -865,7 +865,7 @@ TEST(SimdParity_ParallelLarge, ExactBoundaryCases)
         auto b = makeReals(N, 59 + static_cast<uint32_t>(N), -1.0, 1.0);
         Value x = makeDoubleVector(mr, a);
         Value y = makeDoubleVector(mr, b);
-        Value z = numkit::builtin::plus(mr, x, y);
+        Value z = numkit::builtin::plus(x, y, mr);
         ASSERT_EQ(z.numel(), N) << "N=" << N;
         for (size_t i = 0; i < N; ++i)
             EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] + b[i]))

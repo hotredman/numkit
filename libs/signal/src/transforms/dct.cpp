@@ -35,7 +35,7 @@ inline bool isPowerOfTwo(size_t n) { return n != 0 && (n & (n - 1)) == 0; }
 // isn't a power of two (numkit's fft pads non-pow2 inputs to the next
 // pow2 internally and slices the result, which doesn't match a true
 // length-N DFT — needed for the FFT-trick DCT to be exact).
-Value dctDirect(std::pmr::memory_resource *mr, const Value &x)
+Value dctDirect(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     auto r = createLike(x, ValueType::DOUBLE, mr);
@@ -55,7 +55,7 @@ Value dctDirect(std::pmr::memory_resource *mr, const Value &x)
     return r;
 }
 
-Value idctDirect(std::pmr::memory_resource *mr, const Value &x)
+Value idctDirect(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     auto r = createLike(x, ValueType::DOUBLE, mr);
@@ -84,7 +84,7 @@ Value idctDirect(std::pmr::memory_resource *mr, const Value &x)
 // Algorithm: build y of length 2N by mirroring x (y[n] = x[n] for
 // n < N, y[2N-1-n] = x[n] for n < N), take FFT(y), then
 // X[k] = Re(Y[k] · exp(-jπk/(2N))) / 2 with the orthonormal weights.
-Value dct(std::pmr::memory_resource *mr, const Value &x)
+Value dct(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     auto r = createLike(x, ValueType::DOUBLE, mr);
@@ -101,7 +101,7 @@ Value dct(std::pmr::memory_resource *mr, const Value &x)
     // to the direct path in that case; modern bench inputs (image
     // tiling, audio frames, etc.) are typically pow2 so the FFT fast
     // path covers the common case.
-    if (!isPowerOfTwo(N)) return dctDirect(mr, x);
+    if (!isPowerOfTwo(N)) return dctDirect(x, mr);
 
     // Build the length-2N mirrored signal y as a numkit Value so we
     // can call the existing FFT.
@@ -112,7 +112,7 @@ Value dct(std::pmr::memory_resource *mr, const Value &x)
         yd[n]         = xd[n];
         yd[M - 1 - n] = xd[n];
     }
-    Value Y = fft(mr, y, /*n=*/-1, /*dim=*/0);
+    Value Y = fft(y, /*n=*/-1, /*dim=*/0, mr);
     const Cd *Yc = Y.complexData();
 
     const double w0 = std::sqrt(1.0 / static_cast<double>(N));
@@ -136,7 +136,7 @@ Value dct(std::pmr::memory_resource *mr, const Value &x)
 // Z[k] = X[k]·exp(jπk/(2N)) for k = 0..N-1, Z[N] = 0, and the
 // remaining bins are conjugate-symmetric. Inverse FFT gives the
 // length-2N mirrored signal whose first N samples are x.
-Value idct(std::pmr::memory_resource *mr, const Value &x)
+Value idct(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     auto r = createLike(x, ValueType::DOUBLE, mr);
@@ -148,7 +148,7 @@ Value idct(std::pmr::memory_resource *mr, const Value &x)
         xt[0] = Xd[0];
         return r;
     }
-    if (!isPowerOfTwo(N)) return idctDirect(mr, x);
+    if (!isPowerOfTwo(N)) return idctDirect(x, mr);
 
     const double w0 = std::sqrt(1.0 / static_cast<double>(N));
     const double wk = std::sqrt(2.0 / static_cast<double>(N));
@@ -173,7 +173,7 @@ Value idct(std::pmr::memory_resource *mr, const Value &x)
     }
     for (size_t k = 1; k < N; ++k) Z[M - k] = std::conj(Z[k]);
 
-    Value Y = ifft(mr, Zv, /*n=*/-1, /*dim=*/0);
+    Value Y = ifft(Zv, /*n=*/-1, /*dim=*/0, mr);
     // y is real; first N samples are the recovered signal x.
     const double *yd = (Y.type() == ValueType::COMPLEX)
                        ? nullptr  // need real path below
@@ -197,8 +197,7 @@ namespace {
 
 // Extract a column (`dim`=1) or row (`dim`=2) into a contiguous length-N
 // 1-D Value, padding with zeros / truncating to `nOut`.
-Value extractLine(std::pmr::memory_resource *mr, const Value &x,
-                  int dim, size_t lineIdx, size_t nNative, size_t nOut)
+Value extractLine(const Value &x, int dim, size_t lineIdx, size_t nNative, size_t nOut, std::pmr::memory_resource *mr)
 {
     auto col = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
     double *dst = col.doubleDataMut();
@@ -242,7 +241,7 @@ int resolveDim(const Value &x, int dim)
 
 } // anonymous
 
-Value dct(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
+Value dct(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
 {
     if (x.numel() == 0) return createLike(x, ValueType::DOUBLE, mr);
     const int d = resolveDim(x, dim);
@@ -255,14 +254,14 @@ Value dct(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
     if (d == 1) out = Value::matrix(nOut, C, ValueType::DOUBLE, mr);
     else        out = Value::matrix(R, nOut, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < nLines; ++i) {
-        Value line = extractLine(mr, x, d, i, nNative, nOut);
-        Value tr   = dct(mr, line);  // 1-D core
+        Value line = extractLine(x, d, i, nNative, nOut, mr);
+        Value tr   = dct(line, mr);  // 1-D core
         writeLine(out, tr, d, i);
     }
     return out;
 }
 
-Value idct(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
+Value idct(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
 {
     if (x.numel() == 0) return createLike(x, ValueType::DOUBLE, mr);
     const int d = resolveDim(x, dim);
@@ -275,8 +274,8 @@ Value idct(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
     if (d == 1) out = Value::matrix(nOut, C, ValueType::DOUBLE, mr);
     else        out = Value::matrix(R, nOut, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < nLines; ++i) {
-        Value line = extractLine(mr, x, d, i, nNative, nOut);
-        Value tr   = idct(mr, line);
+        Value line = extractLine(x, d, i, nNative, nOut, mr);
+        Value tr   = idct(line, mr);
         writeLine(out, tr, d, i);
     }
     return out;
@@ -327,9 +326,9 @@ void dct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() == 1) {
         const auto &x = args[0];
         if (x.dims().rows() > 1 && x.dims().cols() > 1) {
-            outs[0] = dct(mr, x, /*n=*/0, /*dim=*/0);  // matrix column-wise
+            outs[0] = dct(x, /*n=*/0, /*dim=*/0, mr);  // matrix column-wise
         } else {
-            outs[0] = dct(mr, x);  // 1-D fast path
+            outs[0] = dct(x, mr);  // 1-D fast path
         }
         return;
     }
@@ -337,7 +336,7 @@ void dct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (a.hasType && a.typeVal != 2.0)
         throw Error("dct: 'Type' values other than 2 are not yet implemented",
                      0, 0, "dct", "", "m:dct:type");
-    outs[0] = dct(mr, args[0], a.n, a.dim);
+    outs[0] = dct(args[0], a.n, a.dim, mr);
 }
 
 void idct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -350,9 +349,9 @@ void idct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() == 1) {
         const auto &x = args[0];
         if (x.dims().rows() > 1 && x.dims().cols() > 1) {
-            outs[0] = idct(mr, x, /*n=*/0, /*dim=*/0);
+            outs[0] = idct(x, /*n=*/0, /*dim=*/0, mr);
         } else {
-            outs[0] = idct(mr, x);
+            outs[0] = idct(x, mr);
         }
         return;
     }
@@ -360,7 +359,7 @@ void idct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (a.hasType && a.typeVal != 2.0)
         throw Error("idct: 'Type' values other than 2 are not yet implemented",
                      0, 0, "idct", "", "m:idct:type");
-    outs[0] = idct(mr, args[0], a.n, a.dim);
+    outs[0] = idct(args[0], a.n, a.dim, mr);
 }
 
 } // namespace detail

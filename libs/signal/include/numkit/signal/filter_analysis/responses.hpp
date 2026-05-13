@@ -13,33 +13,103 @@
 
 namespace numkit::signal {
 
-/// impz(b, a[, n]) — impulse response of H(z) = B(z)/A(z), length n.
-/// When n is 0, impzlength() chooses a reasonable default. Returns
-/// (h, t) where t is the zero-based sample index column vector.
+/// Impulse response of a digital filter.
+///
+/// Computes the first `n` samples of `h[k] = filter(b, a, δ[k])`, where
+/// `δ` is the unit impulse.
+///
+/// @param b   Numerator polynomial.
+/// @param a   Denominator polynomial. Pass `{1.0}` for FIR.
+/// @param n   Number of output samples. `0` (default) → use `impzlength`
+///            to pick a reasonable default.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(h, t)` — impulse response samples and zero-based
+///            sample indices (DOUBLE column vectors of length `n`).
+///
+/// @code
+/// auto [b, a] = butter(4, 0.3);
+/// auto [h, t] = impz(b, a, 128);
+/// @endcode
+///
+/// @see impzlength, stepz
 std::tuple<Value, Value>
-impz(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t n = 0);
+impz(const Value &                b,
+     const Value &                a,
+     size_t                       n  = 0,
+     std::pmr::memory_resource *  mr = nullptr);
 
-/// impzlength(b, a) — heuristic count of significant impulse-response
-/// samples. For FIR (a is scalar 1) returns numel(b). For IIR uses
-/// `max(50, ceil(-log(1e-5)/log(max_pole_radius)))` clipped to [50, 8192].
-size_t impzlength(std::pmr::memory_resource *mr, const Value &b, const Value &a);
+/// Heuristic estimate of the number of significant impulse-response samples.
+///
+/// FIR filters (a is scalar 1) → returns `numel(b)`.
+/// IIR filters → returns
+/// `max(50, ceil(-log(1e-5) / log(max_pole_radius)))`, clipped to [50, 8192].
+///
+/// @param b   Numerator polynomial.
+/// @param a   Denominator polynomial.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Suggested impulse-response length.
+///
+/// @see impz
+size_t impzlength(const Value &                b,
+                  const Value &                a,
+                  std::pmr::memory_resource *  mr = nullptr);
 
-/// stepz(b, a[, n]) — step response: filter(b, a, ones(n,1)). Returns
-/// (s, t). Default n picked by impzlength.
+/// Step response of a digital filter.
+///
+/// Computes `s[k] = filter(b, a, ones(n, 1))` — the response to a unit
+/// step input.
+///
+/// @param b   Numerator polynomial.
+/// @param a   Denominator polynomial.
+/// @param n   Number of output samples. `0` (default) → `impzlength`.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(s, t)` — step response and sample indices.
+///
+/// @see impz
 std::tuple<Value, Value>
-stepz(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t n = 0);
+stepz(const Value &                b,
+      const Value &                a,
+      size_t                       n  = 0,
+      std::pmr::memory_resource *  mr = nullptr);
 
-/// phasedelay(b, a[, n]) — phase delay = -phase(H)/omega. Returns
-/// (pd, w) for w in [0, π]. Phase is unwrapped before the divide; the
-/// w=0 sample uses the next sample to dodge a 0/0.
+/// Phase delay of a digital filter.
+///
+/// Computes \f$ \tau_p(\omega) = -\phi(\omega) / \omega \f$ for
+/// ω ∈ [0, π]. Phase is unwrapped before division; the ω=0 sample uses
+/// the next-bin value to avoid 0/0.
+///
+/// @param b   Numerator polynomial.
+/// @param a   Denominator polynomial.
+/// @param n   Number of frequency points. Default 512.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(pd, w)` — phase delay (samples) and frequency grid.
+///
+/// @see grpdelay, phasez
 std::tuple<Value, Value>
-phasedelay(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t n = 512);
+phasedelay(const Value &                b,
+           const Value &                a,
+           size_t                       n  = 512,
+           std::pmr::memory_resource *  mr = nullptr);
 
-/// zerophase(b, a[, n]) — equivalent zero-phase response: complex H
-/// with the linear-phase delay component removed. For symmetric or
-/// antisymmetric FIR filters this returns a real-valued response that
-/// can be negative. Returns (Hr, w).
+/// Equivalent zero-phase response.
+///
+/// Removes the linear-phase delay component, returning the amplitude
+/// function `Hr(ω)` of the filter. For symmetric or antisymmetric FIR
+/// filters this is a real-valued function that may be negative
+/// (sign flip ↔ phase jump of π in the original `H(e^{jω})`).
+///
+/// @param b   Numerator polynomial.
+/// @param a   Denominator polynomial.
+/// @param n   Number of frequency points. Default 512.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Tuple `(Hr, w)` — amplitude function (real-valued for
+///            linear-phase FIR) and frequency grid in [0, π].
+///
+/// @see freqz, phasez
 std::tuple<Value, Value>
-zerophase(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t n = 512);
+zerophase(const Value &                b,
+          const Value &                a,
+          size_t                       n  = 512,
+          std::pmr::memory_resource *  mr = nullptr);
 
 } // namespace numkit::signal

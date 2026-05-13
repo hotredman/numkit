@@ -24,8 +24,7 @@ namespace {
 // a fresh result and apply ScalarOp element-wise. See the docblock
 // on abs() in math/elementary/misc.hpp for the full hint contract.
 template <typename ScalarOp, typename ComplexOp>
-Value unaryRealDoubleHint(std::pmr::memory_resource *mr, const Value &x, Value *hint,
-                           ScalarOp scalarOp, ComplexOp complexOp)
+Value unaryRealDoubleHint(const Value &x, Value *hint, ScalarOp scalarOp, ComplexOp complexOp, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, complexOp, mr);
@@ -46,22 +45,18 @@ Value unaryRealDoubleHint(std::pmr::memory_resource *mr, const Value &x, Value *
 
 } // namespace
 
-Value exp(std::pmr::memory_resource *mr, const Value &x, Value *hint)
+Value exp(const Value &x, Value *hint, std::pmr::memory_resource *mr)
 {
-    return unaryRealDoubleHint(mr, x, hint,
-        [](double v) { return std::exp(v); },
-        [](const Complex &c) { return std::exp(c); });
+    return unaryRealDoubleHint(x, hint, [](double v) { return std::exp(v); }, [](const Complex &c) { return std::exp(c); }, mr);
 }
 
-Value log(std::pmr::memory_resource *mr, const Value &x, Value *hint)
+Value log(const Value &x, Value *hint, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::log(c); }, mr);
     if (x.isScalar() && x.toScalar() < 0)
         return Value::complexScalar(std::log(Complex(x.toScalar(), 0.0)), mr);
-    return unaryRealDoubleHint(mr, x, hint,
-        [](double v) { return std::log(v); },
-        [](const Complex &c) { return std::log(c); });
+    return unaryRealDoubleHint(x, hint, [](double v) { return std::log(v); }, [](const Complex &c) { return std::log(c); }, mr);
 }
 
 } // namespace numkit::builtin

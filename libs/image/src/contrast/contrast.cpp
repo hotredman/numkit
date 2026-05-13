@@ -71,7 +71,7 @@ inline void store_classed(Value &out, size_t i, double v, ValueType t) {
 } // anonymous
 
 std::tuple<Value, Value>
-imhist(std::pmr::memory_resource *mr, const Value &I, int n)
+imhist(const Value &I, int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0) n = default_nbins(I);
     std::vector<int64_t> counts(n, 0);
@@ -98,8 +98,7 @@ imhist(std::pmr::memory_resource *mr, const Value &I, int n)
     return std::make_tuple(std::move(c), std::move(x));
 }
 
-Value stretchlim(std::pmr::memory_resource *mr, const Value &I,
-                 double low_tol, double high_tol)
+Value stretchlim(const Value &I, double low_tol, double high_tol, std::pmr::memory_resource *mr)
 {
     if (low_tol < 0.0)  low_tol  = 0.01;
     if (high_tol > 1.0 || high_tol <= low_tol) high_tol = 0.99;
@@ -157,13 +156,11 @@ Value stretchlim(std::pmr::memory_resource *mr, const Value &I,
     return out;
 }
 
-Value imadjust(std::pmr::memory_resource *mr, const Value &I,
-               double low_in, double high_in,
-               double low_out, double high_out, double gamma)
+Value imadjust(const Value &I, double low_in, double high_in, double low_out, double high_out, double gamma, std::pmr::memory_resource *mr)
 {
     // Auto-fill missing endpoints via stretchlim defaults.
     if (std::isnan(low_in) || std::isnan(high_in)) {
-        Value lim = stretchlim(mr, I, 0.01, 0.99);
+        Value lim = stretchlim(I, 0.01, 0.99, mr);
         if (std::isnan(low_in))  low_in  = lim.elemAsDouble(0);
         if (std::isnan(high_in)) high_in = lim.elemAsDouble(1);
     }
@@ -193,10 +190,10 @@ Value imadjust(std::pmr::memory_resource *mr, const Value &I,
     return out;
 }
 
-Value histeq(std::pmr::memory_resource *mr, const Value &I, int n)
+Value histeq(const Value &I, int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0) n = 64;
-    auto [counts_v, bins_v] = imhist(mr, I, n);
+    auto [counts_v, bins_v] = imhist(I, n, mr);
     const double *counts = counts_v.doubleData();
     // Cumulative distribution.
     std::vector<double> cdf(n);
@@ -257,11 +254,14 @@ Value histeq(std::pmr::memory_resource *mr, const Value &I, int n)
 //   4. Strip padding from the output.
 //
 // 2-D greyscale input only — RGB / N-D throw (matches MATLAB).
-Value adapthisteq(std::pmr::memory_resource *mr, const Value &I,
-                  int numTilesR, int numTilesC,
-                  double clipLimit, int nBins,
-                  const std::string &distribution, double /*alpha*/)
+Value adapthisteq(const Value &I, const AdaptHistEqOptions &opts,
+                  std::pmr::memory_resource *mr)
 {
+    const int          numTilesR    = opts.numTilesR;
+    const int          numTilesC    = opts.numTilesC;
+    const double       clipLimit    = opts.clipLimit;
+    const int          nBins        = opts.nBins;
+    const std::string &distribution = opts.distribution;
     if (numTilesR < 2 || numTilesC < 2)
         throw Error("adapthisteq: NumTiles components must each be >= 2",
                     0, 0, "adapthisteq", "", "m:adapthisteq:badTiles");
@@ -637,7 +637,7 @@ std::pair<double, double> otsu_one_level(const std::vector<double> &counts) {
 } // anonymous
 
 std::tuple<Value, Value>
-otsuthresh(std::pmr::memory_resource *mr, const Value &counts_v) {
+otsuthresh(const Value &counts_v, std::pmr::memory_resource *mr) {
     const size_t L = counts_v.numel();
     std::vector<double> c(L);
     for (size_t i = 0; i < L; ++i) c[i] = counts_v.elemAsDouble(i);
@@ -651,15 +651,15 @@ otsuthresh(std::pmr::memory_resource *mr, const Value &counts_v) {
 }
 
 std::tuple<Value, Value>
-graythresh(std::pmr::memory_resource *mr, const Value &I) {
-    auto [counts, _] = imhist(mr, I, default_nbins(I));
-    return otsuthresh(mr, counts);
+graythresh(const Value &I, std::pmr::memory_resource *mr) {
+    auto [counts, _] = imhist(I, default_nbins(I), mr);
+    return otsuthresh(counts, mr);
 }
 
 std::tuple<Value, Value>
-multithresh(std::pmr::memory_resource *mr, const Value &I, int N) {
+multithresh(const Value &I, int N, std::pmr::memory_resource *mr) {
     if (N <= 1) {
-        auto [t, em] = graythresh(mr, I);
+        auto [t, em] = graythresh(I, mr);
         return std::make_tuple(std::move(t), std::move(em));
     }
     if (N > 5)
@@ -667,7 +667,7 @@ multithresh(std::pmr::memory_resource *mr, const Value &I, int N) {
                     0, 0, "multithresh", "", "m:multithresh:tooMany");
 
     const int L = default_nbins(I);
-    auto [counts_v, _] = imhist(mr, I, L);
+    auto [counts_v, _] = imhist(I, L, mr);
     std::vector<double> counts(L);
     for (int i = 0; i < L; ++i) counts[i] = counts_v.doubleData()[i];
 
@@ -768,7 +768,7 @@ multithresh(std::pmr::memory_resource *mr, const Value &I, int N) {
     return std::make_tuple(std::move(t_out), Value::scalar(em, mr));
 }
 
-Value imbinarize(std::pmr::memory_resource *mr, const Value &I, double thresh) {
+Value imbinarize(const Value &I, double thresh, std::pmr::memory_resource *mr) {
     const size_t N = I.numel();
     Value out;
     const auto &d = I.dims();
@@ -788,8 +788,7 @@ Value imbinarize(std::pmr::memory_resource *mr, const Value &I, double thresh) {
 // when I is a same-shape volume). T's element scale is interpreted
 // in the same `element_to_unit` space as I, so the raw element
 // values are directly comparable. Composes with `adaptthresh`.
-Value imbinarize(std::pmr::memory_resource *mr, const Value &I,
-                 const Value &T)
+Value imbinarize(const Value &I, const Value &T, std::pmr::memory_resource *mr)
 {
     if (T.numel() != I.numel())
         throw Error("imbinarize: per-pixel T must have the same number "
@@ -812,7 +811,7 @@ Value imbinarize(std::pmr::memory_resource *mr, const Value &I,
     return out;
 }
 
-Value imquantize(std::pmr::memory_resource *mr, const Value &I, const Value &levels) {
+Value imquantize(const Value &I, const Value &levels, std::pmr::memory_resource *mr) {
     const size_t Lcount = levels.numel();
     std::vector<double> lv(Lcount);
     for (size_t i = 0; i < Lcount; ++i) lv[i] = levels.elemAsDouble(i);
@@ -855,8 +854,7 @@ Value imquantize(std::pmr::memory_resource *mr, const Value &I, const Value &lev
 // Default nbins: 256 for uint8, 65536 for uint16, 64 otherwise — same
 // rule as the existing default_nbins() helper.
 
-Value imhistmatch(std::pmr::memory_resource *mr,
-                  const Value &I, const Value &ref, int nbins)
+Value imhistmatch(const Value &I, const Value &ref, int nbins, std::pmr::memory_resource *mr)
 {
     if (nbins <= 0) nbins = std::max(default_nbins(I), default_nbins(ref));
     if (nbins < 2) nbins = 2;
@@ -927,9 +925,7 @@ Value imhistmatch(std::pmr::memory_resource *mr,
 // modest bias that empirically tracks MATLAB's behaviour on natural
 // imagery without needing the proprietary scale-factor.
 
-Value adaptthresh(std::pmr::memory_resource *mr, const Value &I,
-                  double sensitivity, int neighborhood,
-                  const std::string &statistic)
+Value adaptthresh(const Value &I, double sensitivity, int neighborhood, const std::string &statistic, std::pmr::memory_resource *mr)
 {
     if (!(sensitivity >= 0.0 && sensitivity <= 1.0))
         throw Error("adaptthresh: sensitivity must be in [0, 1]",
@@ -974,12 +970,12 @@ Value adaptthresh(std::pmr::memory_resource *mr, const Value &I,
     const std::string s = statistic.empty() ? std::string("mean")
                                             : statistic;
     if (s == "mean" || s == "Mean" || s == "MEAN") {
-        localStat = imboxfilt(mr, Inorm, neighborhood);
+        localStat = imboxfilt(Inorm, neighborhood, mr);
     } else if (s == "gaussian" || s == "Gaussian" || s == "GAUSSIAN") {
         // σ ≈ neighborhood/6: typical MATLAB default for adaptthresh's
         // Gaussian variant.
         const double sigma = double(neighborhood) / 6.0;
-        localStat = imgaussfilt(mr, Inorm, sigma, neighborhood);
+        localStat = imgaussfilt(Inorm, sigma, neighborhood, mr);
     } else {
         throw Error("adaptthresh: statistic must be 'mean' or 'gaussian'",
                     0, 0, "adaptthresh", "", "m:adaptthresh:stat");
@@ -1000,8 +996,7 @@ Value adaptthresh(std::pmr::memory_resource *mr, const Value &I,
     return T;
 }
 
-Value imflatfield(std::pmr::memory_resource *mr,
-                  const Value &I, double sigma, const Value &mask)
+Value imflatfield(const Value &I, double sigma, const Value &mask, std::pmr::memory_resource *mr)
 {
     const ValueType classin = I.type();
     const auto &d = I.dims();
@@ -1027,9 +1022,7 @@ Value imflatfield(std::pmr::memory_resource *mr,
     int filter_size = 2 * static_cast<int>(std::ceil(2.0 * sigma)) + 1;
     if (filter_size < 3) filter_size = 3;
     // fspecial("gaussian", {rows, cols, sigma}) — three-param form
-    Value gk = fspecial(mr, "gaussian",
-                        {static_cast<double>(filter_size),
-                         static_cast<double>(filter_size), sigma});
+    Value gk = fspecial("gaussian", {static_cast<double>(filter_size), static_cast<double>(filter_size), sigma}, mr);
 
     Value F;
     if (d.is3D())  F = Value::matrix3d(H, W, pages, ValueType::DOUBLE, mr);
@@ -1044,9 +1037,7 @@ Value imflatfield(std::pmr::memory_resource *mr,
             std::memcpy(plane2d.doubleDataMut(), idd + p * plane,
                         plane * sizeof(double));
         }
-        Value blurred = imfilter(mr, plane2d, gk,
-                                 PadMode::Symmetric, 0.0,
-                                 /*full=*/false, /*flip_kernel=*/false);
+        Value blurred = imfilter(plane2d, gk, PadMode::Symmetric, 0.0, /*full=*/false, /*flip_kernel=*/false, mr);
         std::memcpy(fd + p * plane, blurred.doubleData(),
                     plane * sizeof(double));
     }
@@ -1091,8 +1082,7 @@ Value imflatfield(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value wcodemat(std::pmr::memory_resource *mr, const Value &X,
-               int nb, const std::string &opt, int absol)
+Value wcodemat(const Value &X, int nb, const std::string &opt, int absol, std::pmr::memory_resource *mr)
 {
     if (nb < 1)
         throw Error("wcodemat: NB must be a positive integer",
@@ -1175,14 +1165,14 @@ Value wcodemat(std::pmr::memory_resource *mr, const Value &X,
     return out;
 }
 
-Value entropy(std::pmr::memory_resource *mr, const Value &I, int nbins)
+Value entropy(const Value &I, int nbins, std::pmr::memory_resource *mr)
 {
     const ValueType ct = I.type();
     const bool isLogical = (ct == ValueType::LOGICAL);
     if (nbins <= 0) nbins = isLogical ? 2 : 256;
 
-    Value Iu = isLogical ? I : im2uint8(mr, I);
-    auto [counts, _bins] = imhist(mr, Iu, nbins);
+    Value Iu = isLogical ? I : im2uint8(I, mr);
+    auto [counts, _bins] = imhist(Iu, nbins, mr);
     const double *cd = counts.doubleData();
 
     double total = 0.0;
@@ -1198,8 +1188,7 @@ Value entropy(std::pmr::memory_resource *mr, const Value &I, int nbins)
     return Value::scalar(H, mr);
 }
 
-Value grayslice(std::pmr::memory_resource *mr,
-                const Value &I, const Value &n)
+Value grayslice(const Value &I, const Value &n, std::pmr::memory_resource *mr)
 {
     const ValueType ct = I.type();
     const size_t N = I.numel();
@@ -1308,7 +1297,7 @@ void imhistmatch_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "imhistmatch", "", "m:imhistmatch:nargin");
     int n = (args.size() >= 3 && !args[2].isEmpty())
             ? (int)args[2].toScalar() : 0;
-    outs[0] = imhistmatch(ctx.engine->resource(), args[0], args[1], n);
+    outs[0] = imhistmatch(args[0], args[1], n, ctx.engine->resource());
 }
 
 void imhist_reg(Span<const Value> args, size_t nargout,
@@ -1318,7 +1307,7 @@ void imhist_reg(Span<const Value> args, size_t nargout,
         throw Error("imhist: requires (I[, n])", 0, 0, "imhist", "",
                     "m:imhist:nargin");
     int n = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 0;
-    auto [c, x] = imhist(ctx.engine->resource(), args[0], n);
+    auto [c, x] = imhist(args[0], n, ctx.engine->resource());
 
     // Auto-plot when called without LHS — MATLAB convention.
     // imhist(I) draws a vertical bar chart of the bin counts.
@@ -1365,7 +1354,7 @@ void stretchlim_reg(Span<const Value> args, size_t /*nargout*/,
             hi = t.elemAsDouble(1);
         }
     }
-    outs[0] = stretchlim(ctx.engine->resource(), args[0], lo, hi);
+    outs[0] = stretchlim(args[0], lo, hi, ctx.engine->resource());
 }
 
 void imadjust_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1396,8 +1385,7 @@ void imadjust_reg(Span<const Value> args, size_t /*nargout*/,
     }
     if (args.size() >= 4 && !args[3].isEmpty()) gamma = args[3].toScalar();
 
-    outs[0] = imadjust(ctx.engine->resource(), args[0],
-                       low_in, high_in, low_out, high_out, gamma);
+    outs[0] = imadjust(args[0], low_in, high_in, low_out, high_out, gamma, ctx.engine->resource());
 }
 
 void histeq_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1407,7 +1395,7 @@ void histeq_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("histeq: requires (I[, n])", 0, 0, "histeq", "",
                     "m:histeq:nargin");
     int n = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 64;
-    outs[0] = histeq(ctx.engine->resource(), args[0], n);
+    outs[0] = histeq(args[0], n, ctx.engine->resource());
 }
 
 void adapthisteq_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1417,12 +1405,7 @@ void adapthisteq_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("adapthisteq: requires (I[, NV-pairs...])",
                      0, 0, "adapthisteq", "", "m:adapthisteq:nargin");
 
-    int    numTilesR  = 8;
-    int    numTilesC  = 8;
-    double clipLimit  = 0.01;
-    int    nBins      = 256;
-    std::string distribution = "uniform";
-    double alpha      = 0.4;
+    AdaptHistEqOptions opts;
 
     auto eqIgnoreCase = [](const std::string &a, const char *b) {
         if (a.size() != std::strlen(b)) return false;
@@ -1440,12 +1423,12 @@ void adapthisteq_reg(Span<const Value> args, size_t /*nargout*/,
             if (v.numel() < 2)
                 throw Error("adapthisteq: NumTiles must be 2-element",
                              0, 0, "adapthisteq", "", "m:adapthisteq:badNumTiles");
-            numTilesR = (int)v.elemAsDouble(0);
-            numTilesC = (int)v.elemAsDouble(1);
-        } else if (eqIgnoreCase(key, "ClipLimit"))    clipLimit    = v.toScalar();
-        else if (eqIgnoreCase(key, "NBins"))          nBins        = (int)v.toScalar();
-        else if (eqIgnoreCase(key, "Distribution"))   distribution = v.toString();
-        else if (eqIgnoreCase(key, "Alpha"))          alpha        = v.toScalar();
+            opts.numTilesR = (int)v.elemAsDouble(0);
+            opts.numTilesC = (int)v.elemAsDouble(1);
+        } else if (eqIgnoreCase(key, "ClipLimit"))    opts.clipLimit    = v.toScalar();
+        else if (eqIgnoreCase(key, "NBins"))          opts.nBins        = (int)v.toScalar();
+        else if (eqIgnoreCase(key, "Distribution"))   opts.distribution = v.toString();
+        else if (eqIgnoreCase(key, "Alpha"))          opts.alpha        = v.toScalar();
         else if (eqIgnoreCase(key, "Range")) {
             const std::string r = v.toString();
             if (r != "full")
@@ -1457,9 +1440,7 @@ void adapthisteq_reg(Span<const Value> args, size_t /*nargout*/,
                          0, 0, "adapthisteq", "", "m:adapthisteq:badNVKey");
         }
     }
-    outs[0] = adapthisteq(ctx.engine->resource(), args[0],
-                          numTilesR, numTilesC, clipLimit, nBins,
-                          distribution, alpha);
+    outs[0] = adapthisteq(args[0], opts, ctx.engine->resource());
 }
 
 void graythresh_reg(Span<const Value> args, size_t nargout,
@@ -1468,7 +1449,7 @@ void graythresh_reg(Span<const Value> args, size_t nargout,
     if (args.empty())
         throw Error("graythresh: requires I", 0, 0, "graythresh", "",
                     "m:graythresh:nargin");
-    auto [t, em] = graythresh(ctx.engine->resource(), args[0]);
+    auto [t, em] = graythresh(args[0], ctx.engine->resource());
     outs[0] = std::move(t);
     if (nargout > 1) outs[1] = std::move(em);
 }
@@ -1479,7 +1460,7 @@ void otsuthresh_reg(Span<const Value> args, size_t nargout,
     if (args.empty())
         throw Error("otsuthresh: requires counts", 0, 0, "otsuthresh", "",
                     "m:otsuthresh:nargin");
-    auto [t, em] = otsuthresh(ctx.engine->resource(), args[0]);
+    auto [t, em] = otsuthresh(args[0], ctx.engine->resource());
     outs[0] = std::move(t);
     if (nargout > 1) outs[1] = std::move(em);
 }
@@ -1491,7 +1472,7 @@ void multithresh_reg(Span<const Value> args, size_t nargout,
         throw Error("multithresh: requires (I[, N])", 0, 0, "multithresh", "",
                     "m:multithresh:nargin");
     int N = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 1;
-    auto [t, em] = multithresh(ctx.engine->resource(), args[0], N);
+    auto [t, em] = multithresh(args[0], N, ctx.engine->resource());
     outs[0] = std::move(t);
     if (nargout > 1) outs[1] = std::move(em);
 }
@@ -1506,14 +1487,14 @@ void imbinarize_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 2 && !args[1].isEmpty()) {
         // Dispatch on T's shape: scalar → fast path, matrix → per-pixel.
         if (args[1].numel() == 1) {
-            outs[0] = imbinarize(mr, args[0], args[1].toScalar());
+            outs[0] = imbinarize(args[0], args[1].toScalar(), mr);
         } else {
-            outs[0] = imbinarize(mr, args[0], args[1]);
+            outs[0] = imbinarize(args[0], args[1], mr);
         }
     } else {
         // No threshold given: pick Otsu's automatically.
-        auto [t, _] = graythresh(mr, args[0]);
-        outs[0] = imbinarize(mr, args[0], t.toScalar());
+        auto [t, _] = graythresh(args[0], mr);
+        outs[0] = imbinarize(args[0], t.toScalar(), mr);
     }
 }
 
@@ -1523,7 +1504,7 @@ void imquantize_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("imquantize: requires (I, levels)", 0, 0, "imquantize", "",
                     "m:imquantize:nargin");
-    outs[0] = imquantize(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = imquantize(args[0], args[1], ctx.engine->resource());
 }
 
 void adaptthresh_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1543,7 +1524,7 @@ void adaptthresh_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "adaptthresh", "", "m:adaptthresh:type");
         stat = args[3].toString();
     }
-    outs[0] = adaptthresh(ctx.engine->resource(), args[0], sens, nbh, stat);
+    outs[0] = adaptthresh(args[0], sens, nbh, stat, ctx.engine->resource());
 }
 
 void imflatfield_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1555,7 +1536,7 @@ void imflatfield_reg(Span<const Value> args, size_t /*nargout*/,
     const double sigma = args[1].toScalar();
     Value mask;
     if (args.size() >= 3 && !args[2].isEmpty()) mask = args[2];
-    outs[0] = imflatfield(ctx.engine->resource(), args[0], sigma, mask);
+    outs[0] = imflatfield(args[0], sigma, mask, ctx.engine->resource());
 }
 
 void wcodemat_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1575,7 +1556,7 @@ void wcodemat_reg(Span<const Value> args, size_t /*nargout*/,
     }
     int absol = (args.size() >= 4 && !args[3].isEmpty())
                 ? static_cast<int>(args[3].toScalar()) : 1;
-    outs[0] = wcodemat(ctx.engine->resource(), args[0], nb, opt, absol);
+    outs[0] = wcodemat(args[0], nb, opt, absol, ctx.engine->resource());
 }
 
 void entropy_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1587,7 +1568,7 @@ void entropy_reg(Span<const Value> args, size_t /*nargout*/,
     int nbins = 0;
     if (args.size() >= 2 && !args[1].isEmpty())
         nbins = static_cast<int>(args[1].toScalar());
-    outs[0] = entropy(ctx.engine->resource(), args[0], nbins);
+    outs[0] = entropy(args[0], nbins, ctx.engine->resource());
 }
 
 void grayslice_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1600,7 +1581,7 @@ void grayslice_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 2 && !args[1].isEmpty()) n = args[1];
     else                                        n = Value::scalar(10.0,
                                                   ctx.engine->resource());
-    outs[0] = grayslice(ctx.engine->resource(), args[0], n);
+    outs[0] = grayslice(args[0], n, ctx.engine->resource());
 }
 
 } // namespace detail

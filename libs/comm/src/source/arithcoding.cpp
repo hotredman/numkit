@@ -59,8 +59,8 @@ inline uint64_t maskN(uint64_t x, int N)
 
 } // namespace
 
-Value arithenco(std::pmr::memory_resource *mr, const Value &seq,
-                const Value &counts)
+Value arithenco(const Value &seq, const Value &counts,
+                std::pmr::memory_resource *mr)
 {
     std::vector<uint64_t> cnt;
     readVecU(counts, cnt);
@@ -153,8 +153,8 @@ Value arithenco(std::pmr::memory_resource *mr, const Value &seq,
     return out;
 }
 
-Value arithdeco(std::pmr::memory_resource *mr, const Value &code,
-                const Value &counts, size_t len)
+Value arithdeco(const Value &code, const Value &counts, size_t len,
+                std::pmr::memory_resource *mr)
 {
     std::vector<uint64_t> cnt;
     readVecU(counts, cnt);
@@ -252,7 +252,7 @@ void arithenco_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("arithenco: requires (seq, counts)",
                     0, 0, "arithenco", "", "m:arithenco:nargin");
-    outs[0] = arithenco(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = arithenco(args[0], args[1], ctx.engine->resource());
 }
 
 void arithdeco_reg(Span<const Value> args, size_t /*nargout*/,
@@ -262,7 +262,7 @@ void arithdeco_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("arithdeco: requires (code, counts, len)",
                     0, 0, "arithdeco", "", "m:arithdeco:nargin");
     const size_t len = static_cast<size_t>(args[2].toScalar());
-    outs[0] = arithdeco(ctx.engine->resource(), args[0], args[1], len);
+    outs[0] = arithdeco(args[0], args[1], len, ctx.engine->resource());
 }
 
 } // namespace detail

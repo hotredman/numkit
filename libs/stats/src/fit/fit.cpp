@@ -36,7 +36,7 @@ void mean_var(const Value &x, double &mean, double &var, size_t &N) {
     var = sq / double(N - 1);
 }
 
-Value rowCI(std::pmr::memory_resource *mr, double lo, double hi) {
+Value rowCI(double lo, double hi, std::pmr::memory_resource *mr) {
     Value v = Value::matrix(2, 1, ValueType::DOUBLE, mr);
     double *d = v.doubleDataMut();
     d[0] = lo;
@@ -44,14 +44,14 @@ Value rowCI(std::pmr::memory_resource *mr, double lo, double hi) {
     return v;
 }
 
-double tinv_scalar(std::pmr::memory_resource *mr, double p, double nu) {
+double tinv_scalar(double p, double nu, std::pmr::memory_resource *mr) {
     Value pv = Value::scalar(p, mr);
-    return tinv(mr, pv, nu).toScalar();
+    return tinv(pv, nu, mr).toScalar();
 }
 
-double chi2inv_scalar(std::pmr::memory_resource *mr, double p, double k) {
+double chi2inv_scalar(double p, double k, std::pmr::memory_resource *mr) {
     Value pv = Value::scalar(p, mr);
-    return chi2inv(mr, pv, k).toScalar();
+    return chi2inv(pv, k, mr).toScalar();
 }
 
 // ── Normal MLE helpers (used by normfit / lognfit cens+freq paths) ────
@@ -90,11 +90,7 @@ struct NormalFitOut {
 };
 
 NormalFitOut
-normal_fit_mle(std::pmr::memory_resource *mr,
-               const ScratchVec<double> &y,
-               const ScratchVec<double> &fr,
-               const ScratchVec<uint8_t> &cn,
-               double alpha)
+normal_fit_mle(const ScratchVec<double> &y, const ScratchVec<double> &fr, const ScratchVec<uint8_t> &cn, double alpha, std::pmr::memory_resource *mr)
 {
     const double nan = std::numeric_limits<double>::quiet_NaN();
     NormalFitOut R{nan, nan, nan, nan, nan, nan, false};
@@ -123,10 +119,10 @@ normal_fit_mle(std::pmr::memory_resource *mr,
         }
         const double sd  = std::sqrt(sq / (sumf - 1.0));
         const double dof = sumf - 1.0;
-        const double t   = tinv_scalar(mr, 1.0 - alpha / 2.0, dof);
+        const double t   = tinv_scalar(1.0 - alpha / 2.0, dof, mr);
         const double sem = sd / std::sqrt(sumf);
-        const double chiU = chi2inv_scalar(mr, 1.0 - alpha / 2.0, dof);
-        const double chiL = chi2inv_scalar(mr,       alpha / 2.0, dof);
+        const double chiU = chi2inv_scalar(1.0 - alpha / 2.0, dof, mr);
+        const double chiL = chi2inv_scalar(alpha / 2.0, dof, mr);
         R.mu = mu; R.sd = sd;
         R.mu_lo = mu - t * sem; R.mu_hi = mu + t * sem;
         R.sd_lo = std::sqrt(dof * sd * sd / chiU);
@@ -215,8 +211,7 @@ normal_fit_mle(std::pmr::memory_resource *mr,
 } // anonymous
 
 std::tuple<Value, Value, Value, Value>
-normfit(std::pmr::memory_resource *mr, const Value &x, double alpha,
-        const Value *cens, const Value *freq)
+normfit(const Value &x, double alpha, const Value &cens, const Value &freq, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -226,21 +221,21 @@ normfit(std::pmr::memory_resource *mr, const Value &x, double alpha,
     auto fail = [&]() {
         return std::make_tuple(Value::scalar(nan, mr),
                                Value::scalar(nan, mr),
-                               rowCI(mr, nan, nan),
-                               rowCI(mr, nan, nan));
+                               rowCI(nan, nan, mr),
+                               rowCI(nan, nan, mr));
     };
     if (N == 0) return fail();
     if (N == 1) {
         const double v = x.elemAsDouble(0);
         return std::make_tuple(Value::scalar(v, mr),
                                Value::scalar(0.0, mr),
-                               rowCI(mr, nan, nan),
-                               rowCI(mr, nan, nan));
+                               rowCI(nan, nan, mr),
+                               rowCI(nan, nan, mr));
     }
-    if (cens && cens->numel() != 0 && cens->numel() != N) return fail();
-    if (freq && freq->numel() != 0 && freq->numel() != N) return fail();
-    const bool has_cens = (cens && cens->numel() == N);
-    const bool has_freq = (freq && freq->numel() == N);
+    if (!cens.isEmpty() && cens.numel() != N) return fail();
+    if (!freq.isEmpty() && freq.numel() != N) return fail();
+    const bool has_cens = !cens.isEmpty();
+    const bool has_freq = !freq.isEmpty();
 
     ScratchArena scratch(mr);
     ScratchVec<double>  y(N, &scratch);
@@ -248,83 +243,82 @@ normfit(std::pmr::memory_resource *mr, const Value &x, double alpha,
     ScratchVec<uint8_t> cn(N, 0, &scratch);
     for (size_t i = 0; i < N; ++i) {
         y[i] = x.elemAsDouble(i);
-        if (has_freq) fr[i] = freq->elemAsDouble(i);
-        if (has_cens) cn[i] = cens->elemAsDouble(i) > 0.5 ? 1 : 0;
+        if (has_freq) fr[i] = freq.elemAsDouble(i);
+        if (has_cens) cn[i] = cens.elemAsDouble(i) > 0.5 ? 1 : 0;
     }
-    auto R = normal_fit_mle(mr, y, fr, cn, alpha);
+    auto R = normal_fit_mle(y, fr, cn, alpha, mr);
     if (!R.ok) return fail();
     return std::make_tuple(Value::scalar(R.mu, mr),
                            Value::scalar(R.sd, mr),
-                           rowCI(mr, R.mu_lo, R.mu_hi),
-                           rowCI(mr, R.sd_lo, R.sd_hi));
+                           rowCI(R.mu_lo, R.mu_hi, mr),
+                           rowCI(R.sd_lo, R.sd_hi, mr));
 }
 
 // Backward-compat 2-arg form.
 std::tuple<Value, Value, Value, Value>
-normfit(std::pmr::memory_resource *mr, const Value &x, double alpha)
+normfit(const Value &x, double alpha, std::pmr::memory_resource *mr)
 {
-    return normfit(mr, x, alpha, nullptr, nullptr);
+    return normfit(x, alpha, Value::Empty, Value::Empty, mr);
 }
 
 std::tuple<Value, Value>
-poissfit(std::pmr::memory_resource *mr, const Value &x, double alpha)
+poissfit(const Value &x, double alpha, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
-    if (N == 0) return {Value::scalar(nan, mr), rowCI(mr, nan, nan)};
+    if (N == 0) return {Value::scalar(nan, mr), rowCI(nan, nan, mr)};
     double S = 0.0;
     for (size_t i = 0; i < N; ++i) S += x.elemAsDouble(i);
     const double lambda = S / double(N);
     // Exact CI via chi² inversion (Garwood).
     const double lo = (S == 0.0) ? 0.0
-                                 : chi2inv_scalar(mr, alpha / 2.0,       2.0 * S)       / (2.0 * N);
-    const double hi = chi2inv_scalar(mr, 1.0 - alpha / 2.0, 2.0 * (S + 1.0)) / (2.0 * N);
-    return {Value::scalar(lambda, mr), rowCI(mr, lo, hi)};
+                                 : chi2inv_scalar(alpha / 2.0, 2.0 * S, mr)       / (2.0 * N);
+    const double hi = chi2inv_scalar(1.0 - alpha / 2.0, 2.0 * (S + 1.0), mr) / (2.0 * N);
+    return {Value::scalar(lambda, mr), rowCI(lo, hi, mr)};
 }
 
 std::tuple<Value, Value>
-expfit(std::pmr::memory_resource *mr, const Value &x, double alpha,
-       const Value *cens, const Value *freq)
+expfit(const Value &x, double alpha, const Value &cens, const Value &freq, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
-    if (N == 0) return {Value::scalar(nan, mr), rowCI(mr, nan, nan)};
+    if (N == 0) return {Value::scalar(nan, mr), rowCI(nan, nan, mr)};
     // Validate optional vector lengths.
-    if (cens && cens->numel() != 0 && cens->numel() != N)
-        return {Value::scalar(nan, mr), rowCI(mr, nan, nan)};
-    if (freq && freq->numel() != 0 && freq->numel() != N)
-        return {Value::scalar(nan, mr), rowCI(mr, nan, nan)};
-    const bool has_cens = (cens && cens->numel() == N);
-    const bool has_freq = (freq && freq->numel() == N);
+    if (!cens.isEmpty() && cens.numel() != N)
+        return {Value::scalar(nan, mr), rowCI(nan, nan, mr)};
+    if (!freq.isEmpty() && freq.numel() != N)
+        return {Value::scalar(nan, mr), rowCI(nan, nan, mr)};
+    const bool has_cens = !cens.isEmpty();
+    const bool has_freq = !freq.isEmpty();
     // Total observation time T = Σ(freq · x); event count D = Σ(freq · (1-cens)).
     double T = 0.0, D = 0.0;
     for (size_t i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
-        const double fi = has_freq ? freq->elemAsDouble(i) : 1.0;
-        const double ci = has_cens ? cens->elemAsDouble(i) : 0.0;
+        const double fi = has_freq ? freq.elemAsDouble(i) : 1.0;
+        const double ci = has_cens ? cens.elemAsDouble(i) : 0.0;
         T += fi * xi;
         D += fi * (1.0 - ci);
     }
     if (!(D > 0.0))
-        return {Value::scalar(nan, mr), rowCI(mr, nan, nan)};
+        return {Value::scalar(nan, mr), rowCI(nan, nan, mr)};
     const double mu = T / D;
     // Exact CI via χ²(2D): 2T/μ̂ ~ χ²(2D); CI[μ] = [2T/χ²₁₋α/₂, 2T/χ²_α/₂].
     const double dof  = 2.0 * D;
-    const double chiU = chi2inv_scalar(mr, 1.0 - alpha / 2.0, dof);
-    const double chiL = chi2inv_scalar(mr,       alpha / 2.0, dof);
+    const double chiU = chi2inv_scalar(1.0 - alpha / 2.0, dof, mr);
+    const double chiL = chi2inv_scalar(alpha / 2.0, dof, mr);
     const double lo = 2.0 * T / chiU;
     const double hi = 2.0 * T / chiL;
-    return {Value::scalar(mu, mr), rowCI(mr, lo, hi)};
+    return {Value::scalar(mu, mr), rowCI(lo, hi, mr)};
 }
 
 std::tuple<Value, Value, Value, Value>
-unifit(std::pmr::memory_resource *mr, const Value &x, double alpha)
+unifit(const Value &x, double alpha, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
     if (N == 0) {
         return {Value::scalar(nan, mr), Value::scalar(nan, mr),
-                rowCI(mr, nan, nan), rowCI(mr, nan, nan)};
+                rowCI(nan, nan, mr), rowCI(nan, nan, mr)};
     }
     double mn = x.elemAsDouble(0), mx = mn;
     for (size_t i = 1; i < N; ++i) {
@@ -336,15 +330,14 @@ unifit(std::pmr::memory_resource *mr, const Value &x, double alpha)
     const double delta = range * (std::pow(alpha, -1.0 / double(N)) - 1.0);
     return {Value::scalar(mn, mr),
             Value::scalar(mx, mr),
-            rowCI(mr, mn - delta, mn),
-            rowCI(mr, mx, mx + delta)};
+            rowCI(mn - delta, mn, mr),
+            rowCI(mx, mx + delta, mr)};
 }
 
 // ── lognfit ───────────────────────────────────────────────────────────
 
 std::tuple<Value, Value>
-lognfit(std::pmr::memory_resource *mr, const Value &x, double alpha,
-        const Value *cens, const Value *freq)
+lognfit(const Value &x, double alpha, const Value &cens, const Value &freq, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -358,10 +351,10 @@ lognfit(std::pmr::memory_resource *mr, const Value &x, double alpha,
         return std::make_tuple(std::move(parm), std::move(pci));
     };
     if (N < 2) return fail();
-    if (cens && cens->numel() != 0 && cens->numel() != N) return fail();
-    if (freq && freq->numel() != 0 && freq->numel() != N) return fail();
-    const bool has_cens = (cens && cens->numel() == N);
-    const bool has_freq = (freq && freq->numel() == N);
+    if (!cens.isEmpty() && cens.numel() != N) return fail();
+    if (!freq.isEmpty() && freq.numel() != N) return fail();
+    const bool has_cens = !cens.isEmpty();
+    const bool has_freq = !freq.isEmpty();
 
     // Build y = log(x); reject non-positive x.
     ScratchArena scratch(mr);
@@ -372,10 +365,10 @@ lognfit(std::pmr::memory_resource *mr, const Value &x, double alpha,
         const double xi = x.elemAsDouble(i);
         if (!(xi > 0.0)) return fail();
         y[i] = std::log(xi);
-        if (has_freq) fr[i] = freq->elemAsDouble(i);
-        if (has_cens) cn[i] = cens->elemAsDouble(i) > 0.5 ? 1 : 0;
+        if (has_freq) fr[i] = freq.elemAsDouble(i);
+        if (has_cens) cn[i] = cens.elemAsDouble(i) > 0.5 ? 1 : 0;
     }
-    auto R = normal_fit_mle(mr, y, fr, cn, alpha);
+    auto R = normal_fit_mle(y, fr, cn, alpha, mr);
     if (!R.ok) return fail();
     pd[0] = R.mu;     pd[1] = R.sd;
     cd[0] = R.mu_lo;  cd[1] = R.mu_hi;
@@ -385,27 +378,25 @@ lognfit(std::pmr::memory_resource *mr, const Value &x, double alpha,
 
 // Backward-compat 2-arg form.
 std::tuple<Value, Value>
-lognfit(std::pmr::memory_resource *mr, const Value &x, double alpha)
+lognfit(const Value &x, double alpha, std::pmr::memory_resource *mr)
 {
-    return lognfit(mr, x, alpha, nullptr, nullptr);
+    return lognfit(x, alpha, Value::Empty, Value::Empty, mr);
 }
 
 // ── binofit ───────────────────────────────────────────────────────────
 
 namespace {
-double betainv_scalar2(std::pmr::memory_resource *mr,
-                       double p, double a, double b)
+double betainv_scalar2(double p, double a, double b, std::pmr::memory_resource *mr)
 {
     if (a <= 0.0 || b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
     if (p <= 0.0) return 0.0;
     if (p >= 1.0) return 1.0;
-    return betainv(mr, Value::scalar(p, mr), a, b).toScalar();
+    return betainv(Value::scalar(p, mr), a, b, mr).toScalar();
 }
 }
 
 std::tuple<Value, Value>
-binofit(std::pmr::memory_resource *mr, const Value &x, const Value &n,
-        double alpha)
+binofit(const Value &x, const Value &n, double alpha, std::pmr::memory_resource *mr)
 {
     const size_t Nx = x.numel();
     const size_t Nn = n.numel();
@@ -433,9 +424,9 @@ binofit(std::pmr::memory_resource *mr, const Value &x, const Value &n,
         pd[i] = p;
         // Clopper-Pearson exact CI.
         const double lo = (k == 0.0) ? 0.0
-                                     : betainv_scalar2(mr, alpha / 2.0, k, N - k + 1.0);
+                                     : betainv_scalar2(alpha / 2.0, k, N - k + 1.0, mr);
         const double hi = (k == N)   ? 1.0
-                                     : betainv_scalar2(mr, 1.0 - alpha / 2.0, k + 1.0, N - k);
+                                     : betainv_scalar2(1.0 - alpha / 2.0, k + 1.0, N - k, mr);
         // Column-major: pci(:,1) = lower, pci(:,2) = upper.
         cd[i]       = lo;
         cd[i + Nx]  = hi;
@@ -450,23 +441,23 @@ binofit(std::pmr::memory_resource *mr, const Value &x, const Value &n,
 // ── raylfit ───────────────────────────────────────────────────────────
 
 std::tuple<Value, Value>
-raylfit(std::pmr::memory_resource *mr, const Value &x, double alpha)
+raylfit(const Value &x, double alpha, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
     if (N == 0)
-        return {Value::scalar(nan, mr), rowCI(mr, nan, nan)};
+        return {Value::scalar(nan, mr), rowCI(nan, nan, mr)};
     double s2 = 0.0;
     for (size_t i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
         s2 += xi * xi;
     }
     const double sigma = std::sqrt(s2 / (2.0 * double(N)));
-    const double chiU = chi2inv_scalar(mr, 1.0 - alpha / 2.0, 2.0 * double(N));
-    const double chiL = chi2inv_scalar(mr,       alpha / 2.0, 2.0 * double(N));
+    const double chiU = chi2inv_scalar(1.0 - alpha / 2.0, 2.0 * double(N), mr);
+    const double chiL = chi2inv_scalar(alpha / 2.0, 2.0 * double(N), mr);
     const double lo = sigma * std::sqrt(2.0 * double(N) / chiU);
     const double hi = sigma * std::sqrt(2.0 * double(N) / chiL);
-    return {Value::scalar(sigma, mr), rowCI(mr, lo, hi)};
+    return {Value::scalar(sigma, mr), rowCI(lo, hi, mr)};
 }
 
 // ── Negative log-likelihoods ──────────────────────────────────────────
@@ -475,8 +466,7 @@ namespace {
 constexpr double kLog2Pi = 1.8378770664093454835606594728112352;
 }
 
-double normlike(std::pmr::memory_resource * /*mr*/, double mu, double sigma,
-                const Value &x, const Value &cens, const Value &freq)
+double normlike(double mu, double sigma, const Value &x, const Value &cens, const Value &freq, std::pmr::memory_resource * /*mr*/)
 {
     const size_t N = x.numel();
     if (N == 0) return 0.0;
@@ -516,7 +506,7 @@ double normlike(std::pmr::memory_resource * /*mr*/, double mu, double sigma,
     return nL;
 }
 
-double explike(std::pmr::memory_resource * /*mr*/, double mu, const Value &x)
+double explike(double mu, const Value &x, std::pmr::memory_resource * /*mr*/)
 {
     // Two-arg form: empty data ⇒ 0 (matches MATLAB R2025b),
     //               mu <= 0   ⇒ NaN.
@@ -589,8 +579,7 @@ static double explike_full(double mu, const Value &x,
     return any ? nL : 0.0;
 }
 
-double lognlike(std::pmr::memory_resource * /*mr*/, double mu, double sigma,
-                const Value &x)
+double lognlike(double mu, double sigma, const Value &x, std::pmr::memory_resource * /*mr*/)
 {
     // Two-arg form. Edges (matching MATLAB R2025b):
     //   empty data ⇒ 0;  sigma <= 0 ⇒ NaN;  any x[i] <= 0 ⇒ NaN.
@@ -701,8 +690,7 @@ static double lognlike_full(double mu, double sigma, const Value &x,
     return any ? nL : 0.0;
 }
 
-double gamlike(std::pmr::memory_resource * /*mr*/, double a, double b,
-               const Value &x)
+double gamlike(double a, double b, const Value &x, std::pmr::memory_resource * /*mr*/)
 {
     const size_t N = x.numel();
     if (N == 0) return std::numeric_limits<double>::infinity();
@@ -719,8 +707,7 @@ double gamlike(std::pmr::memory_resource * /*mr*/, double a, double b,
          + double(N) * a * std::log(b) + double(N) * std::lgamma(a);
 }
 
-double betalike(std::pmr::memory_resource * /*mr*/, double a, double b,
-                const Value &x)
+double betalike(double a, double b, const Value &x, std::pmr::memory_resource * /*mr*/)
 {
     const size_t N = x.numel();
     if (N == 0) return std::numeric_limits<double>::infinity();
@@ -738,8 +725,7 @@ double betalike(std::pmr::memory_resource * /*mr*/, double a, double b,
     return -(a - 1.0) * sumLog - (b - 1.0) * sumLog1m + double(N) * logBeta;
 }
 
-double wbllike(std::pmr::memory_resource * /*mr*/, double scale, double shape,
-               const Value &x)
+double wbllike(double scale, double shape, const Value &x, std::pmr::memory_resource * /*mr*/)
 {
     const size_t N = x.numel();
     if (N == 0) return 0.0;
@@ -761,8 +747,7 @@ double wbllike(std::pmr::memory_resource * /*mr*/, double scale, double shape,
 //   survival: S(x) = exp(-(x/scale)^shape)
 //   -log f:   -log(shape) + shape·log(scale) - (shape-1)·log(x) + (x/scale)^shape
 //   -log S:   (x/scale)^shape
-double wbllike_full(std::pmr::memory_resource * /*mr*/, double scale, double shape,
-                    const Value &x, const Value &cens, const Value &freq)
+double wbllike_full(double scale, double shape, const Value &x, const Value &cens, const Value &freq, std::pmr::memory_resource * /*mr*/)
 {
     const size_t N = x.numel();
     if (N == 0) return 0.0;
@@ -792,8 +777,7 @@ double wbllike_full(std::pmr::memory_resource * /*mr*/, double scale, double sha
     return nL;
 }
 
-double evlike(std::pmr::memory_resource * /*mr*/, double mu, double sigma,
-              const Value &x)
+double evlike(double mu, double sigma, const Value &x, std::pmr::memory_resource * /*mr*/)
 {
     const size_t N = x.numel();
     if (N == 0) return 0.0;                                  // matches MATLAB convention
@@ -811,8 +795,7 @@ double evlike(std::pmr::memory_resource * /*mr*/, double mu, double sigma,
 //   Gumbel-min (Type-I extreme value): density f(z) = (1/σ)·exp(z)·exp(-exp(z)).
 //   Uncensored contribution: log(σ) - z + exp(z), weight w.
 //   Right-censored contribution: -log S(z) = exp(z), weight w.
-double evlike_full(std::pmr::memory_resource * /*mr*/, double mu, double sigma,
-                   const Value &x, const Value &cens, const Value &freq)
+double evlike_full(double mu, double sigma, const Value &x, const Value &cens, const Value &freq, std::pmr::memory_resource * /*mr*/)
 {
     const size_t N = x.numel();
     if (N == 0) return 0.0;
@@ -842,8 +825,7 @@ double evlike_full(std::pmr::memory_resource * /*mr*/, double mu, double sigma,
     return nL;
 }
 
-double gevlike(std::pmr::memory_resource * /*mr*/, double k, double sigma,
-               double mu, const Value &x)
+double gevlike(double k, double sigma, double mu, const Value &x, std::pmr::memory_resource * /*mr*/)
 {
     const size_t N = x.numel();
     if (N == 0) return std::numeric_limits<double>::infinity();
@@ -868,8 +850,7 @@ double gevlike(std::pmr::memory_resource * /*mr*/, double k, double sigma,
     return double(N) * std::log(sigma) + (1.0 / k + 1.0) * sLogT + sTinvk;
 }
 
-double gplike(std::pmr::memory_resource * /*mr*/, double k, double sigma,
-              const Value &x)
+double gplike(double k, double sigma, const Value &x, std::pmr::memory_resource * /*mr*/)
 {
     // MATLAB's gplike does NOT enforce x >= 0 — it only requires the
     // per-point support condition `1 + k*x/sigma > 0`. With k>0 that
@@ -916,10 +897,9 @@ void normfit_reg(Span<const Value> args, size_t nargout,
         throw Error("normfit: requires X[, alpha[, censoring[, freq[, options]]]]",
                     0, 0, "normfit", "", "m:normfit:nargin");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
-    const Value *cens = (args.size() > 2 && !args[2].isEmpty()) ? &args[2] : nullptr;
-    const Value *freq = (args.size() > 3 && !args[3].isEmpty()) ? &args[3] : nullptr;
-    auto [mu, sd, muci, sdci] = normfit(ctx.engine->resource(), args[0],
-                                         alpha, cens, freq);
+    const Value &cens = (args.size() > 2) ? args[2] : Value::Empty;
+    const Value &freq = (args.size() > 3) ? args[3] : Value::Empty;
+    auto [mu, sd, muci, sdci] = normfit(args[0], alpha, cens, freq, ctx.engine->resource());
     outs[0] = std::move(mu);
     if (nargout > 1) outs[1] = std::move(sd);
     if (nargout > 2) outs[2] = std::move(muci);
@@ -933,7 +913,7 @@ void poissfit_reg(Span<const Value> args, size_t nargout,
         throw Error("poissfit: requires X[, alpha]",
                     0, 0, "poissfit", "", "m:poissfit:nargin");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
-    auto [lam, ci] = poissfit(ctx.engine->resource(), args[0], alpha);
+    auto [lam, ci] = poissfit(args[0], alpha, ctx.engine->resource());
     outs[0] = std::move(lam);
     if (nargout > 1) outs[1] = std::move(ci);
 }
@@ -945,9 +925,9 @@ void expfit_reg(Span<const Value> args, size_t nargout,
         throw Error("expfit: requires X[, alpha[, censoring[, freq]]]",
                     0, 0, "expfit", "", "m:expfit:nargin");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
-    const Value *cens = (args.size() > 2) ? &args[2] : nullptr;
-    const Value *freq = (args.size() > 3) ? &args[3] : nullptr;
-    auto [mu, ci] = expfit(ctx.engine->resource(), args[0], alpha, cens, freq);
+    const Value &cens = (args.size() > 2) ? args[2] : Value::Empty;
+    const Value &freq = (args.size() > 3) ? args[3] : Value::Empty;
+    auto [mu, ci] = expfit(args[0], alpha, cens, freq, ctx.engine->resource());
     outs[0] = std::move(mu);
     if (nargout > 1) outs[1] = std::move(ci);
 }
@@ -959,7 +939,7 @@ void unifit_reg(Span<const Value> args, size_t nargout,
         throw Error("unifit: requires X[, alpha]",
                     0, 0, "unifit", "", "m:unifit:nargin");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
-    auto [a, b, aci, bci] = unifit(ctx.engine->resource(), args[0], alpha);
+    auto [a, b, aci, bci] = unifit(args[0], alpha, ctx.engine->resource());
     outs[0] = std::move(a);
     if (nargout > 1) outs[1] = std::move(b);
     if (nargout > 2) outs[2] = std::move(aci);
@@ -975,10 +955,9 @@ void lognfit_reg(Span<const Value> args, size_t nargout,
     const double alpha = parse_alpha_arg(args, 1, 0.05);
     // 3rd arg = censoring (may be empty []), 4th = freq (may be empty),
     // 5th = options struct (silently ignored — we use fixed 200 / 1e-10).
-    const Value *cens = (args.size() > 2 && !args[2].isEmpty()) ? &args[2] : nullptr;
-    const Value *freq = (args.size() > 3 && !args[3].isEmpty()) ? &args[3] : nullptr;
-    auto [parm, pci] = lognfit(ctx.engine->resource(), args[0], alpha,
-                                cens, freq);
+    const Value &cens = (args.size() > 2) ? args[2] : Value::Empty;
+    const Value &freq = (args.size() > 3) ? args[3] : Value::Empty;
+    auto [parm, pci] = lognfit(args[0], alpha, cens, freq, ctx.engine->resource());
     outs[0] = std::move(parm);
     if (nargout > 1) outs[1] = std::move(pci);
 }
@@ -990,7 +969,7 @@ void binofit_reg(Span<const Value> args, size_t nargout,
         throw Error("binofit: requires (X, N[, alpha])",
                     0, 0, "binofit", "", "m:binofit:nargin");
     const double alpha = parse_alpha_arg(args, 2, 0.05);
-    auto [phat, pci] = binofit(ctx.engine->resource(), args[0], args[1], alpha);
+    auto [phat, pci] = binofit(args[0], args[1], alpha, ctx.engine->resource());
     outs[0] = std::move(phat);
     if (nargout > 1) outs[1] = std::move(pci);
 }
@@ -1002,7 +981,7 @@ void raylfit_reg(Span<const Value> args, size_t nargout,
         throw Error("raylfit: requires X[, alpha]",
                     0, 0, "raylfit", "", "m:raylfit:nargin");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
-    auto [shat, sci] = raylfit(ctx.engine->resource(), args[0], alpha);
+    auto [shat, sci] = raylfit(args[0], alpha, ctx.engine->resource());
     outs[0] = std::move(shat);
     if (nargout > 1) outs[1] = std::move(sci);
 }
@@ -1113,8 +1092,7 @@ static void fill_fd_avar3(double *p, double p0, double p1, double p2,
 }
 
 static void like2_reg(const char *fn,
-                      double (*impl)(std::pmr::memory_resource *,
-                                     double, double, const Value &),
+                      double (*impl)(double, double, const Value &, std::pmr::memory_resource *),
                       Span<const Value> args, Span<Value> outs,
                       CallContext &ctx)
 {
@@ -1123,7 +1101,7 @@ static void like2_reg(const char *fn,
                     0, 0, fn, "", "m:like:nargin");
     const double p0 = args[0].elemAsDouble(0);
     const double p1 = args[0].elemAsDouble(1);
-    const double nL = impl(ctx.engine->resource(), p0, p1, args[1]);
+    const double nL = impl(p0, p1, args[1], ctx.engine->resource());
     outs[0] = Value::scalar(nL, ctx.engine->resource());
 }
 
@@ -1138,8 +1116,7 @@ void normlike_reg(Span<const Value> args, size_t nargout,
     Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, ctx.engine->resource());
     const Value &cens = (args.size() >= 3) ? args[2] : emptyVal;
     const Value &freq = (args.size() >= 4) ? args[3] : emptyVal;
-    const double nL = normlike(ctx.engine->resource(), mu, sigma, args[1],
-                               cens, freq);
+    const double nL = normlike(mu, sigma, args[1], cens, freq, ctx.engine->resource());
     outs[0] = Value::scalar(nL, ctx.engine->resource());
 
     // Second output: aVar = inv(observed Fisher information).
@@ -1239,7 +1216,7 @@ void gamlike_reg(Span<const Value> args, size_t nargout,
     const double a  = args[0].elemAsDouble(0);
     const double b  = args[0].elemAsDouble(1);
     const Value &x  = args[1];
-    const double nL = gamlike(mr, a, b, x);
+    const double nL = gamlike(a, b, x, mr);
     outs[0] = Value::scalar(nL, mr);
 
     // Second output: 2×2 inverse observed-Fisher info, parameter order
@@ -1247,7 +1224,7 @@ void gamlike_reg(Span<const Value> args, size_t nargout,
     if (nargout >= 2) {
         Value av = Value::matrix(2, 2, ValueType::DOUBLE, mr);
         fill_fd_avar2(av.doubleDataMut(), a, b, nL,
-                      [&](double aa, double bb) { return gamlike(mr, aa, bb, x); });
+                      [&](double aa, double bb) { return gamlike(aa, bb, x, mr); });
         outs[1] = std::move(av);
     }
 }
@@ -1262,7 +1239,7 @@ void betalike_reg(Span<const Value> args, size_t nargout,
     const double a  = args[0].elemAsDouble(0);
     const double b  = args[0].elemAsDouble(1);
     const Value &x  = args[1];
-    const double nL = betalike(mr, a, b, x);
+    const double nL = betalike(a, b, x, mr);
     outs[0] = Value::scalar(nL, mr);
 
     // Second output: 2×2 inverse Fisher info, parameter order [a, b].
@@ -1320,7 +1297,7 @@ void wbllike_reg(Span<const Value> args, size_t /*nargout*/,
     Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, ctx.engine->resource());
     const Value &cens = (args.size() >= 3) ? args[2] : emptyVal;
     const Value &freq = (args.size() >= 4) ? args[3] : emptyVal;
-    const double nL = wbllike_full(ctx.engine->resource(), scale, shape, args[1], cens, freq);
+    const double nL = wbllike_full(scale, shape, args[1], cens, freq, ctx.engine->resource());
     outs[0] = Value::scalar(nL, ctx.engine->resource());
     // AVAR (2-output form): not yet implemented; observed Fisher info
     // for Weibull has nontrivial mixed partials. Deferred.
@@ -1337,7 +1314,7 @@ void evlike_reg(Span<const Value> args, size_t /*nargout*/,
     Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, ctx.engine->resource());
     const Value &cens = (args.size() >= 3) ? args[2] : emptyVal;
     const Value &freq = (args.size() >= 4) ? args[3] : emptyVal;
-    const double nL = evlike_full(ctx.engine->resource(), mu, sigma, args[1], cens, freq);
+    const double nL = evlike_full(mu, sigma, args[1], cens, freq, ctx.engine->resource());
     outs[0] = Value::scalar(nL, ctx.engine->resource());
     // AVAR (2-output form): not yet implemented — observed Fisher info
     // for Gumbel-min has nontrivial cross-terms; deferred. See
@@ -1373,13 +1350,13 @@ void gevlike_reg(Span<const Value> args, size_t nargout,
     const double sigma = args[0].elemAsDouble(1);
     const double mu    = args[0].elemAsDouble(2);
     const Value &x     = args[1];
-    const double nL = gevlike(mr, k, sigma, mu, x);
+    const double nL = gevlike(k, sigma, mu, x, mr);
     outs[0] = Value::scalar(nL, mr);
     if (nargout >= 2) {
         Value ac = Value::matrix(3, 3, ValueType::DOUBLE, mr);
         fill_fd_avar3(ac.doubleDataMut(), k, sigma, mu, nL,
                       [&](double kk, double ss, double mm) {
-                          return gevlike(mr, kk, ss, mm, x);
+                          return gevlike(kk, ss, mm, x, mr);
                       });
         outs[1] = std::move(ac);
     }
@@ -1395,12 +1372,12 @@ void gplike_reg(Span<const Value> args, size_t nargout,
     const double k     = args[0].elemAsDouble(0);
     const double sigma = args[0].elemAsDouble(1);
     const Value &x     = args[1];
-    const double nL = gplike(mr, k, sigma, x);
+    const double nL = gplike(k, sigma, x, mr);
     outs[0] = Value::scalar(nL, mr);
     if (nargout >= 2) {
         Value ac = Value::matrix(2, 2, ValueType::DOUBLE, mr);
         fill_fd_avar2(ac.doubleDataMut(), k, sigma, nL,
-                      [&](double kk, double ss) { return gplike(mr, kk, ss, x); });
+                      [&](double kk, double ss) { return gplike(kk, ss, x, mr); });
         outs[1] = std::move(ac);
     }
 }

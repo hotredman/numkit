@@ -6,50 +6,183 @@
 
 namespace numkit::builtin {
 
-// ── Arithmetic ───────────────────────────────────────────────────────
-/// a + b. Numeric addition with broadcasting; string concatenation for
-/// char/string operands; mixed char+double promotes char to double.
-Value plus(std::pmr::memory_resource *mr, const Value &a, const Value &b);
+/// @file
+/// @brief Binary operators (`+`, `-`, `.*`, `*`, `./`, `/`, `\`, `^`,
+/// `.^`, `==`, `~=`, `<`, `>`, `<=`, `>=`, `&`, `|`).
+///
+/// All operators broadcast elementwise unless noted otherwise.
 
-/// a - b. Numeric subtraction with broadcasting.
-Value minus(std::pmr::memory_resource *mr, const Value &a, const Value &b);
+/// @brief Addition (`y = a + b`).
+///
+/// Numeric addition with broadcasting; string concatenation for
+/// CHAR / STRING operands; mixed CHAR + DOUBLE promotes CHAR to DOUBLE.
+///
+/// @param a   Left operand.
+/// @param b   Right operand.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Sum, broadcast shape.
+/// @see minus
+Value plus(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-/// a .* b — elementwise multiplication with broadcasting.
-Value times(std::pmr::memory_resource *mr, const Value &a, const Value &b);
+/// @brief Subtraction (`y = a - b`).
+///
+/// @param a   Left operand.
+/// @param b   Right operand.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Difference, broadcast shape.
+/// @see plus
+Value minus(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-/// a * b — matrix multiplication (MxK * KxN → MxN). Scalars broadcast
-/// to elementwise multiplication.
-Value mtimes(std::pmr::memory_resource *mr, const Value &a, const Value &b);
+/// @brief Elementwise multiplication (`y = a .* b`).
+///
+/// @param a   Left operand.
+/// @param b   Right operand.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Elementwise product, broadcast shape.
+/// @see mtimes
+Value times(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-/// a ./ b — elementwise right division with broadcasting.
-Value rdivide(std::pmr::memory_resource *mr, const Value &a, const Value &b);
+/// @brief Matrix multiplication (`y = a * b`).
+///
+/// `M × K * K × N → M × N`. Scalars broadcast to elementwise.
+///
+/// @param a   Left matrix.
+/// @param b   Right matrix.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Matrix product.
+/// @throws Error  Inner-dim mismatch (`m:mtimes:innerDim`).
+/// @see times
+Value mtimes(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-/// a / b — matrix right division (currently only scalar denominator and
-/// scalar/scalar; matrix right division not implemented).
-Value mrdivide(std::pmr::memory_resource *mr, const Value &a, const Value &b);
+/// @brief Elementwise right division (`y = a ./ b`).
+///
+/// @param a   Numerator.
+/// @param b   Denominator.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Elementwise quotient, broadcast shape.
+/// @see mrdivide
+Value rdivide(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-/// a \ b — matrix left division (currently scalar/scalar only).
-Value mldivide(std::pmr::memory_resource *mr, const Value &a, const Value &b);
+/// @brief Matrix right division (`y = a / b`).
+///
+/// Currently only scalar denominator and scalar/scalar; full matrix
+/// right division is not implemented.
+///
+/// @param a   Numerator.
+/// @param b   Denominator.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Quotient.
+/// @see rdivide, mldivide
+Value mrdivide(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-/// a ^ b — matrix/scalar power (scalar/scalar only; matrix power NYI).
-Value power(std::pmr::memory_resource *mr, const Value &a, const Value &b);
+/// @brief Matrix left division (`y = a \ b`).
+///
+/// Currently scalar/scalar only; matrix left division is not
+/// implemented.
+///
+/// @param a   Left operand.
+/// @param b   Right operand.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Left-divided result.
+/// @see mrdivide
+Value mldivide(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-/// a .^ b — elementwise power with broadcasting.
-Value elementPower(std::pmr::memory_resource *mr, const Value &a, const Value &b);
+/// @brief Power (`y = a ^ b`).
+///
+/// Matrix / scalar power — scalar/scalar only in this revision;
+/// matrix power is not yet implemented.
+///
+/// @param a   Base.
+/// @param b   Exponent.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Power.
+/// @see elementPower
+Value power(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-// ── Comparisons (return logical) ─────────────────────────────────────
-Value eq(std::pmr::memory_resource *mr, const Value &a, const Value &b);
-Value ne(std::pmr::memory_resource *mr, const Value &a, const Value &b);
-Value lt(std::pmr::memory_resource *mr, const Value &a, const Value &b);
-Value gt(std::pmr::memory_resource *mr, const Value &a, const Value &b);
-Value le(std::pmr::memory_resource *mr, const Value &a, const Value &b);
-Value ge(std::pmr::memory_resource *mr, const Value &a, const Value &b);
+/// @brief Elementwise power (`y = a .^ b`).
+///
+/// Broadcasts elementwise. Negative base with non-integer exponent
+/// yields COMPLEX.
+///
+/// @param a   Base array.
+/// @param b   Exponent array.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Elementwise power, broadcast shape.
+/// @see power
+Value elementPower(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-// ── Logical (elementwise) ────────────────────────────────────────────
-/// a & b — elementwise logical AND (non-zero-to-bool coercion).
-Value logicalAnd(std::pmr::memory_resource *mr, const Value &a, const Value &b);
+/// @brief Elementwise equality (`y = a == b`).
+///
+/// @param a   Left operand.
+/// @param b   Right operand.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    LOGICAL array, broadcast shape.
+/// @see ne
+Value eq(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-/// a | b — elementwise logical OR.
-Value logicalOr(std::pmr::memory_resource *mr, const Value &a, const Value &b);
+/// @brief Elementwise inequality (`y = a ~= b`).
+///
+/// @param a   Left operand.
+/// @param b   Right operand.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    LOGICAL array, broadcast shape.
+/// @see eq
+Value ne(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Less than (`y = a < b`).
+///
+/// @param a   Left operand.
+/// @param b   Right operand.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    LOGICAL array, broadcast shape.
+/// @see gt, le, ge
+Value lt(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Greater than (`y = a > b`).
+///
+/// @param a   Left operand.
+/// @param b   Right operand.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    LOGICAL array, broadcast shape.
+/// @see lt, ge, le
+Value gt(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Less than or equal (`y = a <= b`).
+///
+/// @param a   Left operand.
+/// @param b   Right operand.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    LOGICAL array, broadcast shape.
+/// @see lt, ge
+Value le(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Greater than or equal (`y = a >= b`).
+///
+/// @param a   Left operand.
+/// @param b   Right operand.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    LOGICAL array, broadcast shape.
+/// @see gt, le
+Value ge(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Logical AND (`y = a & b`).
+///
+/// Elementwise; non-zero entries coerce to `true`.
+///
+/// @param a   Left operand.
+/// @param b   Right operand.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    LOGICAL array, broadcast shape.
+/// @see logicalOr
+Value logicalAnd(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Logical OR (`y = a | b`).
+///
+/// @param a   Left operand.
+/// @param b   Right operand.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    LOGICAL array, broadcast shape.
+/// @see logicalAnd
+Value logicalOr(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

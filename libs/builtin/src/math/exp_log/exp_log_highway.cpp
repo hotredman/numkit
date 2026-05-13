@@ -79,8 +79,7 @@ namespace {
 // per-call N-element mr that dominates at large N. See the
 // docblock on abs() in math/elementary/misc.hpp for the full hint contract.
 template <typename LoopDispatch, typename ScalarOp, typename ComplexOp>
-Value unaryRealDouble(std::pmr::memory_resource *mr, const Value &x, Value *hint,
-                       LoopDispatch loop, ScalarOp scalarOp, ComplexOp complexOp)
+Value unaryRealDouble(const Value &x, Value *hint, LoopDispatch loop, ScalarOp scalarOp, ComplexOp complexOp, std::pmr::memory_resource *mr)
 {
     if (x.isComplex()) {
         if (x.isScalar())
@@ -115,22 +114,18 @@ Value unaryRealDouble(std::pmr::memory_resource *mr, const Value &x, Value *hint
 
 } // namespace
 
-Value exp(std::pmr::memory_resource *mr, const Value &x, Value *hint)
+Value exp(const Value &x, Value *hint, std::pmr::memory_resource *mr)
 {
-    return unaryRealDouble(
-        mr, x, hint,
-        [](const double *in, double *out, std::size_t n) {
+    return unaryRealDouble(x, hint, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(ExpLoop)(in, out, n);
-        },
-        [](double v) { return std::exp(v); },
-        [](const Complex &c) { return std::exp(c); });
+        }, [](double v) { return std::exp(v); }, [](const Complex &c) { return std::exp(c); }, mr);
 }
 
 // log: MATLAB promotes a *scalar* negative input to complex (so
 // log(-1) → i·π), but the element-wise path on a real vector just
 // produces NaN for negatives — same as std::log. The SIMD Log()
 // mirrors that behaviour.
-Value log(std::pmr::memory_resource *mr, const Value &x, Value *hint)
+Value log(const Value &x, Value *hint, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::log(c); }, mr);

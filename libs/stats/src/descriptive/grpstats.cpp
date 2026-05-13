@@ -115,8 +115,7 @@ double aggregate(Agg fn, const std::vector<double> &vals)
 } // namespace
 
 std::vector<Value>
-grpstats(std::pmr::memory_resource *mr, const Value &X, const Value &group,
-         const std::vector<std::string> &fn_names)
+grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_names, std::pmr::memory_resource *mr)
 {
     const size_t Nrows = X.dims().rows();
     const size_t Ncols = X.dims().cols();
@@ -210,7 +209,7 @@ void grpstats_reg(Span<const Value> args, size_t nargout,
         }
     }
 
-    auto results = grpstats(mr, args[0], args[1], fn_names);
+    auto results = grpstats(args[0], args[1], fn_names, mr);
     // Distribute results across outputs (1-output gets the first;
     // multi-fn cell-of-fn fills successive outputs).
     const size_t emit = std::min<size_t>(results.size(),

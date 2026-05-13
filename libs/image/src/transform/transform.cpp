@@ -15,6 +15,7 @@
 #include <numkit/signal/convolution/convolution.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <cmath>
@@ -33,8 +34,7 @@ namespace {
 // signal::dct/idct on it, and copy the result back. Allocations come
 // from the engine arena (mr) so per-call cost stays bounded.
 template <typename Fn1D>
-Value apply_along_columns(std::pmr::memory_resource *mr,
-                          const Value &A, Fn1D &&fn1d)
+Value apply_along_columns(const Value &A, Fn1D &&fn1d, std::pmr::memory_resource *mr)
 {
     const size_t M = A.dims().rows();
     const size_t N = A.dims().cols();
@@ -48,7 +48,7 @@ Value apply_along_columns(std::pmr::memory_resource *mr,
     for (size_t c = 0; c < N; ++c) {
         for (size_t r = 0; r < M; ++r)
             cd[r] = A.elemAsDouble(c * M + r);
-        Value Y = fn1d(mr, col);
+        Value Y = fn1d(col, mr);
         const double *yd = Y.doubleData();
         for (size_t r = 0; r < M; ++r)
             dst[c * M + r] = yd[r];
@@ -59,8 +59,7 @@ Value apply_along_columns(std::pmr::memory_resource *mr,
 // Apply 1-D DCT/IDCT to every row of A. Allocates a length-N row
 // buffer per row.
 template <typename Fn1D>
-Value apply_along_rows(std::pmr::memory_resource *mr,
-                       const Value &A, Fn1D &&fn1d)
+Value apply_along_rows(const Value &A, Fn1D &&fn1d, std::pmr::memory_resource *mr)
 {
     const size_t M = A.dims().rows();
     const size_t N = A.dims().cols();
@@ -74,7 +73,7 @@ Value apply_along_rows(std::pmr::memory_resource *mr,
     for (size_t r = 0; r < M; ++r) {
         for (size_t c = 0; c < N; ++c)
             rd[c] = A.elemAsDouble(c * M + r);
-        Value Y = fn1d(mr, row);
+        Value Y = fn1d(row, mr);
         const double *yd = Y.doubleData();
         for (size_t c = 0; c < N; ++c)
             dst[c * M + r] = yd[c];
@@ -84,26 +83,26 @@ Value apply_along_rows(std::pmr::memory_resource *mr,
 
 } // anonymous
 
-Value dct2(std::pmr::memory_resource *mr, const Value &A)
+Value dct2(const Value &A, std::pmr::memory_resource *mr)
 {
     // Two passes of orthonormal Type-II DCT (separable). Columns first,
     // then rows — output is identical either way.
     // Disambiguate the 1-D dct overload (a 4-arg matrix form also exists).
-    using Dct1D = Value (*)(std::pmr::memory_resource *, const Value &);
+    using Dct1D = Value (*)(const Value &, std::pmr::memory_resource *);
     Dct1D dct1 = &numkit::signal::dct;
-    Value Y = apply_along_columns(mr, A, dct1);
-    return apply_along_rows(mr, Y, dct1);
+    Value Y = apply_along_columns(A, dct1, mr);
+    return apply_along_rows(Y, dct1, mr);
 }
 
-Value idct2(std::pmr::memory_resource *mr, const Value &A)
+Value idct2(const Value &A, std::pmr::memory_resource *mr)
 {
-    using Idct1D = Value (*)(std::pmr::memory_resource *, const Value &);
+    using Idct1D = Value (*)(const Value &, std::pmr::memory_resource *);
     Idct1D idct1 = &numkit::signal::idct;
-    Value Y = apply_along_columns(mr, A, idct1);
-    return apply_along_rows(mr, Y, idct1);
+    Value Y = apply_along_columns(A, idct1, mr);
+    return apply_along_rows(Y, idct1, mr);
 }
 
-Value dctmtx(std::pmr::memory_resource *mr, double Nd)
+Value dctmtx(double Nd, std::pmr::memory_resource *mr)
 {
     // MATLAB's dctmtx(N) returns an N×N matrix D whose rows are the
     // DCT-II basis vectors:
@@ -132,7 +131,7 @@ Value dctmtx(std::pmr::memory_resource *mr, double Nd)
     return D;
 }
 
-Value integralImage(std::pmr::memory_resource *mr, const Value &I)
+Value integralImage(const Value &I, std::pmr::memory_resource *mr)
 {
     const auto &d = I.dims();
     const size_t H = d.rows();
@@ -154,7 +153,7 @@ Value integralImage(std::pmr::memory_resource *mr, const Value &I)
     return out;
 }
 
-Value integralImage3(std::pmr::memory_resource *mr, const Value &V)
+Value integralImage3(const Value &V, std::pmr::memory_resource *mr)
 {
     const auto &d = V.dims();
     const size_t H = d.rows();
@@ -224,8 +223,7 @@ constexpr double kSheppLogan[10][6] = {
     { 0.01,  0.023,  0.046,  0.06,  -0.605,     0.0},
 };
 
-Value make_ellipse_matrix(std::pmr::memory_resource *mr,
-                          const double (*src)[6], size_t rows)
+Value make_ellipse_matrix(const double (*src)[6], size_t rows, std::pmr::memory_resource *mr)
 {
     Value E = Value::matrix(rows, 6, ValueType::DOUBLE, mr);
     double *ed = E.doubleDataMut();
@@ -239,24 +237,23 @@ Value make_ellipse_matrix(std::pmr::memory_resource *mr,
 } // anonymous
 
 std::tuple<Value, Value>
-phantom(std::pmr::memory_resource *mr,
-        const Value &model_or_E, size_t n)
+phantom(const Value &model_or_E, size_t n, std::pmr::memory_resource *mr)
 {
     if (n == 0) n = 256;
 
     // Determine ellipses matrix.
     Value E;
     if (model_or_E.numel() == 0) {
-        E = make_ellipse_matrix(mr, kModSheppLogan, 10);
+        E = make_ellipse_matrix(kModSheppLogan, 10, mr);
     } else if (model_or_E.isChar() || model_or_E.isString()) {
         const std::string m = model_or_E.toString();
         std::string lo;
         lo.reserve(m.size());
         for (char c : m) lo.push_back(static_cast<char>(std::tolower(c)));
         if (lo == "shepp-logan")
-            E = make_ellipse_matrix(mr, kSheppLogan, 10);
+            E = make_ellipse_matrix(kSheppLogan, 10, mr);
         else if (lo == "modified shepp-logan")
-            E = make_ellipse_matrix(mr, kModSheppLogan, 10);
+            E = make_ellipse_matrix(kModSheppLogan, 10, mr);
         else
             throw Error("phantom: unknown MODEL", 0, 0, "phantom", "",
                         "m:phantom:model");
@@ -314,8 +311,7 @@ phantom(std::pmr::memory_resource *mr,
     return {std::move(head), std::move(E)};
 }
 
-Value bestblk(std::pmr::memory_resource *mr,
-              const Value &IMS, double k)
+Value bestblk(const Value &IMS, double k, std::pmr::memory_resource *mr)
 {
     if (IMS.numel() < 2)
         throw Error("bestblk: IMS must have at least 2 elements",
@@ -359,9 +355,7 @@ Value bestblk(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value fftconv2(std::pmr::memory_resource *mr,
-               const Value &A, const Value &B,
-               const std::string &shape)
+Value fftconv2(const Value &A, const Value &B, const std::string &shape, std::pmr::memory_resource *mr)
 {
     const size_t ra = A.dims().rows(), ca = A.dims().cols();
     const size_t rb = B.dims().rows(), cb = B.dims().cols();
@@ -383,16 +377,13 @@ Value fftconv2(std::pmr::memory_resource *mr,
     const size_t Wp = next_pow2(Wf);
 
     auto pad_post = [&](const Value &X, size_t Hpad, size_t Wpad) {
-        return padarray(mr, X,
-                        {(int)(Hpad - X.dims().rows()),
-                         (int)(Wpad - X.dims().cols())},
-                        PadMode::Constant, 0.0, "post");
+        return padarray(X, {(int)(Hpad - X.dims().rows()), (int)(Wpad - X.dims().cols())}, PadMode::Constant, 0.0, "post", mr);
     };
     Value Ap = pad_post(A, Hp, Wp);
     Value Bp = pad_post(B, Hp, Wp);
 
-    Value FA = signal::fft2(mr, Ap);
-    Value FB = signal::fft2(mr, Bp);
+    Value FA = signal::fft2(Ap, -1, -1, mr);
+    Value FB = signal::fft2(Bp, -1, -1, mr);
 
     Value FY = Value::matrix(Hp, Wp, ValueType::COMPLEX, mr);
     {
@@ -403,7 +394,7 @@ Value fftconv2(std::pmr::memory_resource *mr,
         for (size_t i = 0; i < N; ++i) y_[i] = a_[i] * b_[i];
     }
 
-    Value Yfull = signal::ifft2(mr, FY);
+    Value Yfull = signal::ifft2(FY, -1, -1, mr);
 
     // Crop back to the linear-convolution size Hf × Wf.
     Value Y = Value::matrix(Hf, Wf, Yfull.type(), mr);
@@ -465,8 +456,7 @@ Value fftconv2(std::pmr::memory_resource *mr,
     return Ycrop;
 }
 
-Value psf2otf(std::pmr::memory_resource *mr,
-              const Value &PSF, const Value &outsize)
+Value psf2otf(const Value &PSF, Span<const size_t> outsize, std::pmr::memory_resource *mr)
 {
     const auto &d = PSF.dims();
     const size_t inH = d.rows();
@@ -478,11 +468,11 @@ Value psf2otf(std::pmr::memory_resource *mr,
     //   outsize as scalar L           — for 1-D = new length; 2-D = L×L.
     size_t outH = inH;
     size_t outW = inW;
-    if (outsize.numel() >= 2) {
-        outH = static_cast<size_t>(outsize.elemAsDouble(0));
-        outW = static_cast<size_t>(outsize.elemAsDouble(1));
-    } else if (outsize.numel() == 1) {
-        const size_t L = static_cast<size_t>(outsize.elemAsDouble(0));
+    if (outsize.size() >= 2) {
+        outH = outsize[0];
+        outW = outsize[1];
+    } else if (outsize.size() == 1) {
+        const size_t L = outsize[0];
         if (is1D) {
             if (inH == 1) { outH = 1; outW = L; }
             else          { outH = L; outW = 1; }
@@ -495,8 +485,7 @@ Value psf2otf(std::pmr::memory_resource *mr,
     // Pad PSF with zeros (post-pad).
     Value padded;
     if (outH != inH || outW != inW) {
-        padded = padarray(mr, PSF, {(int)(outH - inH), (int)(outW - inW)},
-                          PadMode::Constant, 0.0, "post");
+        padded = padarray(PSF, {(int)(outH - inH), (int)(outW - inW)}, PadMode::Constant, 0.0, "post", mr);
     } else {
         padded = PSF;
     }
@@ -506,19 +495,17 @@ Value psf2otf(std::pmr::memory_resource *mr,
     const int64_t shiftC = -static_cast<int64_t>(inW / 2);
     Value shifted;
     if (is1D) {
-        shifted = builtin::circshift(mr, padded,
-                                     (inH == 1) ? shiftC : shiftR);
+        shifted = builtin::circshift(padded, (inH == 1) ? shiftC : shiftR, mr);
     } else {
-        shifted = builtin::circshift(mr, padded, shiftR, shiftC);
+        shifted = builtin::circshift(padded, shiftR, shiftC, mr);
     }
 
     // FFT.
-    return is1D ? signal::fft(mr, shifted)
-                : signal::fft2(mr, shifted);
+    return is1D ? signal::fft(shifted, -1, 0, mr)
+                : signal::fft2(shifted, -1, -1, mr);
 }
 
-Value otf2psf(std::pmr::memory_resource *mr,
-              const Value &OTF, const Value &outsize)
+Value otf2psf(const Value &OTF, Span<const size_t> outsize, std::pmr::memory_resource *mr)
 {
     const auto &d = OTF.dims();
     const size_t inH = d.rows();
@@ -526,8 +513,8 @@ Value otf2psf(std::pmr::memory_resource *mr,
     const bool is1D = (inH == 1 || inW == 1);
 
     // Inverse FFT.
-    Value psf = is1D ? signal::ifft(mr, OTF)
-                     : signal::ifft2(mr, OTF);
+    Value psf = is1D ? signal::ifft(OTF, -1, 0, mr)
+                     : signal::ifft2(OTF, -1, -1, mr);
 
     // Circular shift by +floor(insize / 2) (inverse of psf2otf shift).
     const auto &dp = psf.dims();
@@ -535,10 +522,9 @@ Value otf2psf(std::pmr::memory_resource *mr,
     const int64_t shiftC =  static_cast<int64_t>(dp.cols() / 2);
     Value shifted;
     if (is1D) {
-        shifted = builtin::circshift(mr, psf,
-                                     (dp.rows() == 1) ? shiftC : shiftR);
+        shifted = builtin::circshift(psf, (dp.rows() == 1) ? shiftC : shiftR, mr);
     } else {
-        shifted = builtin::circshift(mr, psf, shiftR, shiftC);
+        shifted = builtin::circshift(psf, shiftR, shiftC, mr);
     }
 
     // Note: optional outsize-based cropping not yet implemented;
@@ -547,8 +533,7 @@ Value otf2psf(std::pmr::memory_resource *mr,
     return shifted;
 }
 
-Value normxcorr2(std::pmr::memory_resource *mr,
-                 const Value &templ, const Value &img)
+Value normxcorr2(const Value &templ, const Value &img, std::pmr::memory_resource *mr)
 {
     const size_t mH = templ.dims().rows();
     const size_t mW = templ.dims().cols();
@@ -589,7 +574,7 @@ Value normxcorr2(std::pmr::memory_resource *mr,
             ard[(mW - 1 - c) * mH + (mH - 1 - r)] = ad[c * mH + r];
 
     // Numerator: conv2(b, ar, 'full').
-    Value c_num = signal::conv2(mr, b, ar, "full");
+    Value c_num = signal::conv2(b, ar, "full", mr);
 
     // Denominator pieces use a1 = ones(size(a)).
     Value a1 = Value::matrix(mH, mW, ValueType::DOUBLE, mr);
@@ -601,8 +586,8 @@ Value normxcorr2(std::pmr::memory_resource *mr,
     double *bsd = b_sq.doubleDataMut();
     for (size_t i = 0; i < bH * bW; ++i) bsd[i] = bd[i] * bd[i];
 
-    Value sum_b_sq = signal::conv2(mr, b_sq, a1, "full");
-    Value sum_b    = signal::conv2(mr, b,    a1, "full");
+    Value sum_b_sq = signal::conv2(b_sq, a1, "full", mr);
+    Value sum_b    = signal::conv2(b, a1, "full", mr);
 
     // c_denom = sum_b_sq - sum_b.^2 / mN (clamped at 0).
     const size_t outH = bH + mH - 1;
@@ -636,8 +621,7 @@ Value normxcorr2(std::pmr::memory_resource *mr,
     return c_out;
 }
 
-Value checkerboard(std::pmr::memory_resource *mr,
-                   size_t side, size_t M, size_t N)
+Value checkerboard(size_t side, size_t M, size_t N, std::pmr::memory_resource *mr)
 {
     const size_t H = 2 * M * side;
     const size_t W = 2 * N * side;
@@ -678,7 +662,7 @@ void integralImage_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("integralImage: requires (I)",
                     0, 0, "integralImage", "", "m:integralImage:nargin");
-    outs[0] = integralImage(ctx.engine->resource(), args[0]);
+    outs[0] = integralImage(args[0], ctx.engine->resource());
 }
 
 void integralImage3_reg(Span<const Value> args, size_t /*nargout*/,
@@ -687,7 +671,7 @@ void integralImage3_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("integralImage3: requires (V)",
                     0, 0, "integralImage3", "", "m:integralImage3:nargin");
-    outs[0] = integralImage3(ctx.engine->resource(), args[0]);
+    outs[0] = integralImage3(args[0], ctx.engine->resource());
 }
 
 void dct2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -696,7 +680,7 @@ void dct2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("dct2: requires 1 argument",
                     0, 0, "dct2", "", "m:dct2:nargin");
-    outs[0] = dct2(ctx.engine->resource(), args[0]);
+    outs[0] = dct2(args[0], ctx.engine->resource());
 }
 
 void idct2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -705,7 +689,7 @@ void idct2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("idct2: requires 1 argument",
                     0, 0, "idct2", "", "m:idct2:nargin");
-    outs[0] = idct2(ctx.engine->resource(), args[0]);
+    outs[0] = idct2(args[0], ctx.engine->resource());
 }
 
 void dctmtx_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -714,7 +698,7 @@ void dctmtx_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("dctmtx: requires 1 argument (N)",
                     0, 0, "dctmtx", "", "m:dctmtx:nargin");
-    outs[0] = dctmtx(ctx.engine->resource(), args[0].toScalar());
+    outs[0] = dctmtx(args[0].toScalar(), ctx.engine->resource());
 }
 
 void phantom_reg(Span<const Value> args, size_t nargout,
@@ -738,7 +722,7 @@ void phantom_reg(Span<const Value> args, size_t nargout,
         if (!args[0].isEmpty()) model_or_E = args[0];
         if (!args[1].isEmpty()) n = static_cast<size_t>(args[1].toScalar());
     }
-    auto [head, E] = phantom(mr, model_or_E, n);
+    auto [head, E] = phantom(model_or_E, n, mr);
     outs[0] = std::move(head);
     if (nargout > 1) outs[1] = std::move(E);
 }
@@ -749,7 +733,7 @@ void normxcorr2_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("normxcorr2: requires (template, img)",
                     0, 0, "normxcorr2", "", "m:normxcorr2:nargin");
-    outs[0] = normxcorr2(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = normxcorr2(args[0], args[1], ctx.engine->resource());
 }
 
 void psf2otf_reg(Span<const Value> args, size_t /*nargout*/,
@@ -758,9 +742,16 @@ void psf2otf_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("psf2otf: requires (PSF [, outsize])",
                     0, 0, "psf2otf", "", "m:psf2otf:nargin");
-    Value outsize;
-    if (args.size() >= 2 && !args[1].isEmpty()) outsize = args[1];
-    outs[0] = psf2otf(ctx.engine->resource(), args[0], outsize);
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    ScratchVec<size_t> outsizeBuf(&scratch);
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const size_t n = args[1].numel();
+        outsizeBuf.reserve(n);
+        for (size_t i = 0; i < n; ++i)
+            outsizeBuf.push_back(static_cast<size_t>(args[1].elemAsDouble(i)));
+    }
+    outs[0] = psf2otf(args[0], Span<const size_t>(outsizeBuf.data(), outsizeBuf.size()), mr);
 }
 
 void bestblk_reg(Span<const Value> args, size_t nargout,
@@ -772,7 +763,7 @@ void bestblk_reg(Span<const Value> args, size_t nargout,
     auto *mr = ctx.engine->resource();
     const double k = (args.size() >= 2 && !args[1].isEmpty())
                        ? args[1].toScalar() : 100.0;
-    Value v = bestblk(mr, args[0], k);
+    Value v = bestblk(args[0], k, mr);
     if (nargout <= 1) { outs[0] = std::move(v); return; }
     // Multi-output form: split row vector into scalars.
     const size_t nd = v.numel();
@@ -795,7 +786,7 @@ void fftconv2_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "fftconv2", "", "m:fftconv2:shape");
         shape = args[2].toString();
     }
-    outs[0] = fftconv2(ctx.engine->resource(), args[0], args[1], shape);
+    outs[0] = fftconv2(args[0], args[1], shape, ctx.engine->resource());
 }
 
 void otf2psf_reg(Span<const Value> args, size_t /*nargout*/,
@@ -804,9 +795,16 @@ void otf2psf_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("otf2psf: requires (OTF [, outsize])",
                     0, 0, "otf2psf", "", "m:otf2psf:nargin");
-    Value outsize;
-    if (args.size() >= 2 && !args[1].isEmpty()) outsize = args[1];
-    outs[0] = otf2psf(ctx.engine->resource(), args[0], outsize);
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    ScratchVec<size_t> outsizeBuf(&scratch);
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const size_t n = args[1].numel();
+        outsizeBuf.reserve(n);
+        for (size_t i = 0; i < n; ++i)
+            outsizeBuf.push_back(static_cast<size_t>(args[1].elemAsDouble(i)));
+    }
+    outs[0] = otf2psf(args[0], Span<const size_t>(outsizeBuf.data(), outsizeBuf.size()), mr);
 }
 
 void checkerboard_reg(Span<const Value> args, size_t /*nargout*/,
@@ -830,7 +828,7 @@ void checkerboard_reg(Span<const Value> args, size_t /*nargout*/,
     }
     if (args.size() >= 3 && !args[2].isEmpty())
         N = static_cast<size_t>(args[2].toScalar());
-    outs[0] = checkerboard(ctx.engine->resource(), side, M, N);
+    outs[0] = checkerboard(side, M, N, ctx.engine->resource());
 }
 
 } // namespace detail

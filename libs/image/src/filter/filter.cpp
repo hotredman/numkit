@@ -54,10 +54,7 @@ inline int fold_index(int i, int n, PadMode m) {
 
 } // anonymous
 
-Value padarray(std::pmr::memory_resource *mr, const Value &x,
-               const std::vector<int> &padsize,
-               PadMode mode, double pad_value,
-               const std::string &direction)
+Value padarray(const Value &x, const std::vector<int> &padsize, PadMode mode, double pad_value, const std::string &direction, std::pmr::memory_resource *mr)
 {
     const auto &d = x.dims();
     int H = static_cast<int>(d.rows());
@@ -154,20 +151,19 @@ Value padarray(std::pmr::memory_resource *mr, const Value &x,
 
 namespace {
 
-Value mat_double(std::pmr::memory_resource *mr,
-                 const std::vector<double> &v, int rows, int cols) {
+Value mat_double(const std::vector<double> &v, int rows, int cols, std::pmr::memory_resource *mr) {
     Value out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (!v.empty()) std::memcpy(out.doubleDataMut(), v.data(), v.size() * sizeof(double));
     return out;
 }
 
-Value fspecial_average(std::pmr::memory_resource *mr, int rows, int cols) {
+Value fspecial_average(int rows, int cols, std::pmr::memory_resource *mr) {
     const double w = 1.0 / (double(rows) * double(cols));
     std::vector<double> data(size_t(rows) * size_t(cols), w);
-    return mat_double(mr, data, rows, cols);
+    return mat_double(data, rows, cols, mr);
 }
 
-Value fspecial_gaussian(std::pmr::memory_resource *mr, int rows, int cols, double sigma) {
+Value fspecial_gaussian(int rows, int cols, double sigma, std::pmr::memory_resource *mr) {
     if (sigma <= 0.0) throw Error("fspecial: sigma must be positive",
                                   0, 0, "fspecial", "", "m:fspecial:sigma");
     const double cy = (rows - 1) / 2.0;
@@ -183,10 +179,10 @@ Value fspecial_gaussian(std::pmr::memory_resource *mr, int rows, int cols, doubl
             sum += v;
         }
     if (sum > 0.0) for (auto &v : k) v /= sum;
-    return mat_double(mr, k, rows, cols);
+    return mat_double(k, rows, cols, mr);
 }
 
-Value fspecial_laplacian(std::pmr::memory_resource *mr, double alpha) {
+Value fspecial_laplacian(double alpha, std::pmr::memory_resource *mr) {
     // 3×3 Laplacian, controlled by alpha ∈ [0, 1] (default 0.2 in MATLAB).
     if (alpha < 0.0) alpha = 0.0; if (alpha > 1.0) alpha = 1.0;
     const double a = alpha;
@@ -196,10 +192,10 @@ Value fspecial_laplacian(std::pmr::memory_resource *mr, double alpha) {
         s * (1.0 - a) / 4.0, s * (-1.0),          s * (1.0 - a) / 4.0, // col 1
         s * a / 4.0,         s * (1.0 - a) / 4.0, s * a / 4.0,         // col 2
     };
-    return mat_double(mr, k, 3, 3);
+    return mat_double(k, 3, 3, mr);
 }
 
-Value fspecial_log(std::pmr::memory_resource *mr, int rows, int cols, double sigma) {
+Value fspecial_log(int rows, int cols, double sigma, std::pmr::memory_resource *mr) {
     // Laplacian-of-Gaussian. Convention from MATLAB: zero-mean, normalized.
     const double cy = (rows - 1) / 2.0;
     const double cx = (cols - 1) / 2.0;
@@ -228,23 +224,23 @@ Value fspecial_log(std::pmr::memory_resource *mr, int rows, int cols, double sig
     for (auto v : log_k) mean += v;
     mean /= double(log_k.size());
     for (auto &v : log_k) v -= mean;
-    return mat_double(mr, log_k, rows, cols);
+    return mat_double(log_k, rows, cols, mr);
 }
 
 Value fspecial_sobel(std::pmr::memory_resource *mr) {
     // MATLAB convention: [1 2 1; 0 0 0; -1 -2 -1]. Column-major storage:
     // col0 = [1, 0, -1], col1 = [2, 0, -2], col2 = [1, 0, -1].
     std::vector<double> k = {1, 0, -1,   2, 0, -2,   1, 0, -1};
-    return mat_double(mr, k, 3, 3);
+    return mat_double(k, 3, 3, mr);
 }
 
 Value fspecial_prewitt(std::pmr::memory_resource *mr) {
     // [1 1 1; 0 0 0; -1 -1 -1] column-major.
     std::vector<double> k = {1, 0, -1,   1, 0, -1,   1, 0, -1};
-    return mat_double(mr, k, 3, 3);
+    return mat_double(k, 3, 3, mr);
 }
 
-Value fspecial_disk(std::pmr::memory_resource *mr, double radius) {
+Value fspecial_disk(double radius, std::pmr::memory_resource *mr) {
     if (radius <= 0.0) throw Error("fspecial: radius must be positive",
                                    0, 0, "fspecial", "", "m:fspecial:radius");
     const int side = 2 * int(std::ceil(radius)) + 1;
@@ -265,41 +261,39 @@ Value fspecial_disk(std::pmr::memory_resource *mr, double radius) {
             sum += w;
         }
     if (sum > 0.0) for (auto &v : k) v /= sum;
-    return mat_double(mr, k, side, side);
+    return mat_double(k, side, side, mr);
 }
 
 } // anonymous
 
-Value fspecial(std::pmr::memory_resource *mr,
-               const std::string &type,
-               const std::vector<double> &params)
+Value fspecial(const std::string &type, const std::vector<double> &params, std::pmr::memory_resource *mr)
 {
     if (type == "average") {
         int rows = params.size() >= 1 ? int(params[0]) : 3;
         int cols = params.size() >= 2 ? int(params[1]) : rows;
-        return fspecial_average(mr, rows, cols);
+        return fspecial_average(rows, cols, mr);
     }
     if (type == "gaussian") {
         int rows = params.size() >= 1 ? int(params[0]) : 3;
         int cols = params.size() >= 2 ? int(params[1]) : rows;
         double sigma = params.size() >= 3 ? params[2] : 0.5;
-        return fspecial_gaussian(mr, rows, cols, sigma);
+        return fspecial_gaussian(rows, cols, sigma, mr);
     }
     if (type == "laplacian") {
         double alpha = params.size() >= 1 ? params[0] : 0.2;
-        return fspecial_laplacian(mr, alpha);
+        return fspecial_laplacian(alpha, mr);
     }
     if (type == "log") {
         int rows = params.size() >= 1 ? int(params[0]) : 5;
         int cols = params.size() >= 2 ? int(params[1]) : rows;
         double sigma = params.size() >= 3 ? params[2] : 0.5;
-        return fspecial_log(mr, rows, cols, sigma);
+        return fspecial_log(rows, cols, sigma, mr);
     }
     if (type == "sobel")   return fspecial_sobel(mr);
     if (type == "prewitt") return fspecial_prewitt(mr);
     if (type == "disk") {
         double radius = params.size() >= 1 ? params[0] : 5.0;
-        return fspecial_disk(mr, radius);
+        return fspecial_disk(radius, mr);
     }
     throw Error("fspecial: unknown filter type '" + type + "'",
                 0, 0, "fspecial", "", "m:fspecial:badtype");
@@ -346,10 +340,7 @@ inline void store_classed(Value &out, size_t i, double v, ValueType t) {
 
 } // anonymous
 
-Value imfilter(std::pmr::memory_resource *mr,
-               const Value &I, const Value &h,
-               PadMode boundary, double pad_value,
-               bool full, bool flip_kernel)
+Value imfilter(const Value &I, const Value &h, PadMode boundary, double pad_value, bool full, bool flip_kernel, std::pmr::memory_resource *mr)
 {
     const int H = (int)I.dims().rows();
     const int W = (int)I.dims().cols();
@@ -414,8 +405,7 @@ Value imfilter(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value imgaussfilt(std::pmr::memory_resource *mr,
-                  const Value &I, double sigma, int filter_size)
+Value imgaussfilt(const Value &I, double sigma, int filter_size, std::pmr::memory_resource *mr)
 {
     if (filter_size <= 0) {
         // Default: 2·ceil(2σ) + 1.
@@ -423,21 +413,19 @@ Value imgaussfilt(std::pmr::memory_resource *mr,
         if (filter_size < 3) filter_size = 3;
     }
     if (filter_size % 2 == 0) filter_size += 1;
-    Value k = fspecial_gaussian(mr, filter_size, filter_size, sigma);
-    return imfilter(mr, I, k, PadMode::Replicate, 0.0,
-                    /*full=*/false, /*flip_kernel=*/false);
+    Value k = fspecial_gaussian(filter_size, filter_size, sigma, mr);
+    return imfilter(I, k, PadMode::Replicate, 0.0, /*full=*/false, /*flip_kernel=*/false, mr);
 }
 
-Value imboxfilt(std::pmr::memory_resource *mr, const Value &I, int filter_size)
+Value imboxfilt(const Value &I, int filter_size, std::pmr::memory_resource *mr)
 {
     if (filter_size <= 0) filter_size = 3;
     if (filter_size % 2 == 0) filter_size += 1;
-    Value k = fspecial_average(mr, filter_size, filter_size);
-    return imfilter(mr, I, k, PadMode::Replicate, 0.0,
-                    /*full=*/false, /*flip_kernel=*/false);
+    Value k = fspecial_average(filter_size, filter_size, mr);
+    return imfilter(I, k, PadMode::Replicate, 0.0, /*full=*/false, /*flip_kernel=*/false, mr);
 }
 
-Value medfilt2(std::pmr::memory_resource *mr, const Value &I, int rows, int cols)
+Value medfilt2(const Value &I, int rows, int cols, std::pmr::memory_resource *mr)
 {
     const int H = (int)I.dims().rows();
     const int W = (int)I.dims().cols();
@@ -494,9 +482,7 @@ Value medfilt2(std::pmr::memory_resource *mr, const Value &I, int rows, int cols
 // MATLAB R2025b defaults: radius=1, amount=0.8, threshold=0. Output
 // has the same class as the input (saturating cast for ints).
 
-Value imsharpen(std::pmr::memory_resource *mr,
-                const Value &I,
-                double radius, double amount, double threshold)
+Value imsharpen(const Value &I, double radius, double amount, double threshold, std::pmr::memory_resource *mr)
 {
     if (!(radius > 0.0)) radius = 1.0;
     if (!(threshold >= 0.0 && threshold <= 1.0))
@@ -508,7 +494,7 @@ Value imsharpen(std::pmr::memory_resource *mr,
     if (fs < 3) fs = 3;
     if (fs % 2 == 0) fs += 1;
 
-    Value blurred = imgaussfilt(mr, I, radius, fs);
+    Value blurred = imgaussfilt(I, radius, fs, mr);
 
     const size_t Hh = I.dims().rows();
     const size_t Ww = I.dims().cols();
@@ -632,8 +618,7 @@ void im2col_distinct_typed(const Value &A, Value &B, size_t H, size_t W,
 
 } // anonymous
 
-Value im2col(std::pmr::memory_resource *mr,
-             const Value &A, int m, int n, const std::string &block_type)
+Value im2col(const Value &A, int m, int n, const std::string &block_type, std::pmr::memory_resource *mr)
 {
     if (m <= 0 || n <= 0)
         throw Error("im2col: block size must be positive",
@@ -704,9 +689,7 @@ Value im2col(std::pmr::memory_resource *mr,
 // precomputed once per call. Range weight is per (centre, neighbour)
 // pair — we eat the per-pixel exp; same cost as MATLAB's reference.
 
-Value imbilatfilt(std::pmr::memory_resource *mr,
-                  const Value &I,
-                  double degreeOfSmoothing, double spatialSigma)
+Value imbilatfilt(const Value &I, double degreeOfSmoothing, double spatialSigma, std::pmr::memory_resource *mr)
 {
     if (!(spatialSigma > 0.0)) spatialSigma = 1.0;
     if (!(degreeOfSmoothing > 0.0))
@@ -822,9 +805,7 @@ void col2im_distinct_typed(const Value &B, Value &A, size_t mm, size_t nn,
 
 } // anonymous
 
-Value col2im(std::pmr::memory_resource *mr,
-             const Value &B, int m, int n, int mm, int nn,
-             const std::string &block_type)
+Value col2im(const Value &B, int m, int n, int mm, int nn, const std::string &block_type, std::pmr::memory_resource *mr)
 {
     if (m <= 0 || n <= 0 || mm <= 0 || nn <= 0)
         throw Error("col2im: dimensions must be positive",
@@ -919,9 +900,7 @@ Value col2im(std::pmr::memory_resource *mr,
 //   speckle        J = I + I * sqrt(var) * N(0, 1)      multiplicative
 //   poisson        J = Poisson(I * scale) / scale       scale per class
 
-Value imnoise(std::pmr::memory_resource *mr,
-              const Value &I, const std::string &mode,
-              const Value &p1, const Value &p2)
+Value imnoise(const Value &I, const std::string &mode, const Value &p1, const Value &p2, std::pmr::memory_resource *mr)
 {
     const ValueType T = I.type();
     const size_t H = I.dims().rows();
@@ -1064,8 +1043,7 @@ inline double sample_sym(const Value &I, int r, int c, int H, int W) {
 
 } // anonymous
 
-Value stdfilt(std::pmr::memory_resource *mr,
-              const Value &I, const Value &domain)
+Value stdfilt(const Value &I, const Value &domain, std::pmr::memory_resource *mr)
 {
     const int H = static_cast<int>(I.dims().rows());
     const int W = static_cast<int>(I.dims().cols());
@@ -1106,9 +1084,7 @@ Value stdfilt(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value ordfilt2(std::pmr::memory_resource *mr,
-               const Value &A, int nth, const Value &domain,
-               const Value &S, PadMode boundary, double pad_value)
+Value ordfilt2(const Value &A, int nth, const Value &domain, const Value &S, PadMode boundary, double pad_value, std::pmr::memory_resource *mr)
 {
     const int H = static_cast<int>(A.dims().rows());
     const int W = static_cast<int>(A.dims().cols());
@@ -1166,8 +1142,7 @@ Value ordfilt2(std::pmr::memory_resource *mr,
 }
 
 std::tuple<Value, Value>
-wiener2(std::pmr::memory_resource *mr, const Value &I,
-        size_t nh, size_t nw, double noise)
+wiener2(const Value &I, size_t nh, size_t nw, double noise, std::pmr::memory_resource *mr)
 {
     const ValueType cls = I.type();
     const size_t H = I.dims().rows();
@@ -1181,10 +1156,10 @@ wiener2(std::pmr::memory_resource *mr, const Value &I,
     Value Id = (cls == ValueType::DOUBLE)
         ? I
         : (cls == ValueType::SINGLE
-           ? im2double(mr, I)
-           : im2double(mr, I));
+           ? im2double(I, mr)
+           : im2double(I, mr));
     if (Id.type() != ValueType::DOUBLE)
-        Id = im2double(mr, Id);
+        Id = im2double(Id, mr);
 
     if (nh == 0) nh = 3;
     if (nw == 0) nw = 3;
@@ -1206,8 +1181,8 @@ wiener2(std::pmr::memory_resource *mr, const Value &I,
     }
 
     // Local mean and mean-of-squares via zero-pad conv2 'same'.
-    Value mean_im = signal::conv2(mr, Id, k, "same");
-    Value mean_sq = signal::conv2(mr, Id_sq, k, "same");
+    Value mean_im = signal::conv2(Id, k, "same", mr);
+    Value mean_sq = signal::conv2(Id_sq, k, "same", mr);
 
     // variance_im = mean_sq - mean_im^2.
     Value var_im = Value::matrix(H, W, ValueType::DOUBLE, mr);
@@ -1252,17 +1227,15 @@ wiener2(std::pmr::memory_resource *mr, const Value &I,
         const double *o = out_d.doubleData();
         float *of = out.singleDataMut();
         for (size_t i = 0; i < H * W; ++i) of[i] = static_cast<float>(o[i]);
-    } else if (cls == ValueType::UINT8) out = im2uint8(mr, out_d);
-    else if (cls == ValueType::UINT16) out = im2uint16(mr, out_d);
-    else if (cls == ValueType::INT16)  out = im2int16(mr, out_d);
+    } else if (cls == ValueType::UINT8) out = im2uint8(out_d, mr);
+    else if (cls == ValueType::UINT16) out = im2uint16(out_d, mr);
+    else if (cls == ValueType::INT16)  out = im2int16(out_d, mr);
     else                                out = std::move(out_d);
 
     return {std::move(out), Value::scalar(noise, mr)};
 }
 
-Value imsmooth(std::pmr::memory_resource *mr,
-               const Value &I, const std::string &name,
-               double sigma)
+Value imsmooth(const Value &I, const std::string &name, double sigma, std::pmr::memory_resource *mr)
 {
     std::string lo;
     lo.reserve(name.size());
@@ -1329,8 +1302,7 @@ Value imsmooth(std::pmr::memory_resource *mr,
 // ════════════════════════════════════════════════════════════════════
 // imboxfilt3 — 3-D box (mean) filter, separable + replicate boundary
 // ════════════════════════════════════════════════════════════════════
-Value imboxfilt3(std::pmr::memory_resource *mr, const Value &V,
-                 int fH, int fW, int fP)
+Value imboxfilt3(const Value &V, int fH, int fW, int fP, std::pmr::memory_resource *mr)
 {
     if (fH <= 0) fH = 3;
     if (fW <= 0) fW = 3;
@@ -1425,8 +1397,7 @@ static std::vector<double> gauss1d_kernel(double sigma) {
     return k;
 }
 
-Value imgaussfilt3(std::pmr::memory_resource *mr, const Value &V,
-                   double sigH, double sigW, double sigP)
+Value imgaussfilt3(const Value &V, double sigH, double sigW, double sigP, std::pmr::memory_resource *mr)
 {
     const ValueType cls = V.type();
     const int H = static_cast<int>(V.dims().rows());
@@ -1496,8 +1467,7 @@ Value imgaussfilt3(std::pmr::memory_resource *mr, const Value &V,
     return out;
 }
 
-Value medfilt3(std::pmr::memory_resource *mr, const Value &V,
-               int M, int N, int P)
+Value medfilt3(const Value &V, int M, int N, int P, std::pmr::memory_resource *mr)
 {
     if (M <= 0) M = 3;
     if (N <= 0) N = 3;
@@ -1563,8 +1533,7 @@ Value medfilt3(std::pmr::memory_resource *mr, const Value &V,
     return out;
 }
 
-Value convmtx2(std::pmr::memory_resource *mr,
-               const Value &h, int m, int n)
+Value convmtx2(const Value &h, int m, int n, std::pmr::memory_resource *mr)
 {
     const auto &dh = h.dims();
     if (dh.is3D())
@@ -1608,15 +1577,14 @@ Value convmtx2(std::pmr::memory_resource *mr,
     return T;
 }
 
-Value entropyfilt(std::pmr::memory_resource *mr,
-                  const Value &I, const Value &domain)
+Value entropyfilt(const Value &I, const Value &domain, std::pmr::memory_resource *mr)
 {
     const bool isLogical = (I.type() == ValueType::LOGICAL);
     const int nbins = isLogical ? 2 : 256;
     // For non-logical, non-uint8 inputs, cast through im2uint8 to match
     // Octave-image's "do this for everything except logical/uint8" rule.
     Value Iu = (isLogical || I.type() == ValueType::UINT8)
-        ? I : im2uint8(mr, I);
+        ? I : im2uint8(I, mr);
 
     const int H = static_cast<int>(Iu.dims().rows());
     const int W = static_cast<int>(Iu.dims().cols());
@@ -1664,8 +1632,7 @@ Value entropyfilt(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value rangefilt(std::pmr::memory_resource *mr,
-                const Value &I, const Value &domain)
+Value rangefilt(const Value &I, const Value &domain, std::pmr::memory_resource *mr)
 {
     const int H = static_cast<int>(I.dims().rows());
     const int W = static_cast<int>(I.dims().cols());
@@ -1703,7 +1670,7 @@ Value rangefilt(std::pmr::memory_resource *mr,
 }
 
 std::tuple<Value, Value, Value>
-freqz2(std::pmr::memory_resource *mr, const Value &h, size_t M, size_t N)
+freqz2(const Value &h, size_t M, size_t N, std::pmr::memory_resource *mr)
 {
     if (h.dims().is3D())
         throw Error("freqz2: kernel must be 2-D",
@@ -1820,8 +1787,7 @@ void padarray_reg(Span<const Value> args, size_t /*nargout*/,
         }
     }
 
-    outs[0] = padarray(ctx.engine->resource(), args[0], padsize, mode,
-                       pad_value, direction);
+    outs[0] = padarray(args[0], padsize, mode, pad_value, direction, ctx.engine->resource());
 }
 
 void fspecial_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1850,7 +1816,7 @@ void fspecial_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 3 && args[2].numel() == 1)
         params.push_back(args[2].toScalar());
 
-    outs[0] = fspecial(ctx.engine->resource(), type, params);
+    outs[0] = fspecial(type, params, ctx.engine->resource());
 }
 
 void imfilter_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1879,8 +1845,7 @@ void imfilter_reg(Span<const Value> args, size_t /*nargout*/,
             boundary = PadMode::Constant;
         }
     }
-    outs[0] = imfilter(ctx.engine->resource(), args[0], args[1],
-                       boundary, pad_value, full, flip_kernel);
+    outs[0] = imfilter(args[0], args[1], boundary, pad_value, full, flip_kernel, ctx.engine->resource());
 }
 
 void imgaussfilt_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1899,7 +1864,7 @@ void imgaussfilt_reg(Span<const Value> args, size_t /*nargout*/,
             break;
         }
     }
-    outs[0] = imgaussfilt(ctx.engine->resource(), args[0], sigma, fs);
+    outs[0] = imgaussfilt(args[0], sigma, fs, ctx.engine->resource());
 }
 
 void imboxfilt_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1909,7 +1874,7 @@ void imboxfilt_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("imboxfilt: requires (I[, FilterSize])",
                     0, 0, "imboxfilt", "", "m:imboxfilt:nargin");
     int fs = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 3;
-    outs[0] = imboxfilt(ctx.engine->resource(), args[0], fs);
+    outs[0] = imboxfilt(args[0], fs, ctx.engine->resource());
 }
 
 void medfilt3_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1929,7 +1894,7 @@ void medfilt3_reg(Span<const Value> args, size_t /*nargout*/,
             P = static_cast<int>(v.elemAsDouble(2));
         }
     }
-    outs[0] = medfilt3(ctx.engine->resource(), args[0], M, N, P);
+    outs[0] = medfilt3(args[0], M, N, P, ctx.engine->resource());
 }
 
 void imgaussfilt3_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1949,7 +1914,7 @@ void imgaussfilt3_reg(Span<const Value> args, size_t /*nargout*/,
             sigP = v.elemAsDouble(2);
         }
     }
-    outs[0] = imgaussfilt3(ctx.engine->resource(), args[0], sigH, sigW, sigP);
+    outs[0] = imgaussfilt3(args[0], sigH, sigW, sigP, ctx.engine->resource());
 }
 
 void convmtx2_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1970,7 +1935,7 @@ void convmtx2_reg(Span<const Value> args, size_t /*nargout*/,
         m = static_cast<int>(v.elemAsDouble(0));
         n = static_cast<int>(v.elemAsDouble(1));
     }
-    outs[0] = convmtx2(ctx.engine->resource(), args[0], m, n);
+    outs[0] = convmtx2(args[0], m, n, ctx.engine->resource());
 }
 
 void imboxfilt3_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1990,7 +1955,7 @@ void imboxfilt3_reg(Span<const Value> args, size_t /*nargout*/,
             fP = (int)v.elemAsDouble(2);
         }
     }
-    outs[0] = imboxfilt3(ctx.engine->resource(), args[0], fH, fW, fP);
+    outs[0] = imboxfilt3(args[0], fH, fW, fP, ctx.engine->resource());
 }
 
 void freqz2_reg(Span<const Value> args, size_t nargout,
@@ -2011,7 +1976,7 @@ void freqz2_reg(Span<const Value> args, size_t nargout,
     }
     if (args.size() >= 3 && !args[2].isEmpty())
         N = static_cast<size_t>(args[2].toScalar());
-    auto [H, f1, f2] = freqz2(ctx.engine->resource(), args[0], M, N);
+    auto [H, f1, f2] = freqz2(args[0], M, N, ctx.engine->resource());
     outs[0] = std::move(H);
     if (nargout > 1) outs[1] = std::move(f1);
     if (nargout > 2) outs[2] = std::move(f2);
@@ -2033,7 +1998,7 @@ void medfilt2_reg(Span<const Value> args, size_t /*nargout*/,
             cols = (int)v.elemAsDouble(1);
         }
     }
-    outs[0] = medfilt2(ctx.engine->resource(), args[0], rows, cols);
+    outs[0] = medfilt2(args[0], rows, cols, ctx.engine->resource());
 }
 
 void im2col_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2056,7 +2021,7 @@ void im2col_reg(Span<const Value> args, size_t /*nargout*/,
     std::string mode = "sliding";
     if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
         mode = args[2].toString();
-    outs[0] = im2col(ctx.engine->resource(), args[0], m, n, mode);
+    outs[0] = im2col(args[0], m, n, mode, ctx.engine->resource());
 }
 
 void imbilatfilt_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2091,7 +2056,7 @@ void imbilatfilt_reg(Span<const Value> args, size_t /*nargout*/,
                     ? args[1].toScalar() : dos_default;
     double sigma  = (args.size() >= 3 && !args[2].isEmpty())
                     ? args[2].toScalar() : 1.0;
-    outs[0] = imbilatfilt(ctx.engine->resource(), I, dos, sigma);
+    outs[0] = imbilatfilt(I, dos, sigma, ctx.engine->resource());
 }
 
 void col2im_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2120,7 +2085,7 @@ void col2im_reg(Span<const Value> args, size_t /*nargout*/,
     std::string mode = "sliding";
     if (args.size() >= 4 && (args[3].isChar() || args[3].isString()))
         mode = args[3].toString();
-    outs[0] = col2im(ctx.engine->resource(), args[0], m, n, mm, nn, mode);
+    outs[0] = col2im(args[0], m, n, mm, nn, mode, ctx.engine->resource());
 }
 
 void imnoise_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2136,7 +2101,7 @@ void imnoise_reg(Span<const Value> args, size_t /*nargout*/,
     Value p1, p2;
     if (args.size() >= 3) p1 = args[2];
     if (args.size() >= 4) p2 = args[3];
-    outs[0] = imnoise(ctx.engine->resource(), args[0], mode, p1, p2);
+    outs[0] = imnoise(args[0], mode, p1, p2, ctx.engine->resource());
 }
 
 void imsharpen_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2175,8 +2140,7 @@ void imsharpen_reg(Span<const Value> args, size_t /*nargout*/,
             ++i;
         }
     }
-    outs[0] = imsharpen(ctx.engine->resource(), args[0],
-                        radius, amount, threshold);
+    outs[0] = imsharpen(args[0], radius, amount, threshold, ctx.engine->resource());
 }
 
 void stdfilt_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2187,7 +2151,7 @@ void stdfilt_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "stdfilt", "", "m:stdfilt:nargin");
     Value dom;
     if (args.size() >= 2 && !args[1].isEmpty()) dom = args[1];
-    outs[0] = stdfilt(ctx.engine->resource(), args[0], dom);
+    outs[0] = stdfilt(args[0], dom, ctx.engine->resource());
 }
 
 void rangefilt_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2198,7 +2162,7 @@ void rangefilt_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "rangefilt", "", "m:rangefilt:nargin");
     Value dom;
     if (args.size() >= 2 && !args[1].isEmpty()) dom = args[1];
-    outs[0] = rangefilt(ctx.engine->resource(), args[0], dom);
+    outs[0] = rangefilt(args[0], dom, ctx.engine->resource());
 }
 
 void imsmooth_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2220,7 +2184,7 @@ void imsmooth_reg(Span<const Value> args, size_t /*nargout*/,
             sigma = args[1].toScalar();
         }
     }
-    outs[0] = imsmooth(mr, args[0], name, sigma);
+    outs[0] = imsmooth(args[0], name, sigma, mr);
 }
 
 void entropyfilt_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2231,7 +2195,7 @@ void entropyfilt_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "entropyfilt", "", "m:entropyfilt:nargin");
     Value dom;
     if (args.size() >= 2 && !args[1].isEmpty()) dom = args[1];
-    outs[0] = entropyfilt(ctx.engine->resource(), args[0], dom);
+    outs[0] = entropyfilt(args[0], dom, ctx.engine->resource());
 }
 
 void ordfilt2_reg(Span<const Value> args, size_t /*nargout*/,
@@ -2274,7 +2238,7 @@ void ordfilt2_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "ordfilt2", "", "m:ordfilt2:arg");
         }
     }
-    outs[0] = ordfilt2(mr, args[0], nth, domain, S, pad, pad_value);
+    outs[0] = ordfilt2(args[0], nth, domain, S, pad, pad_value, mr);
 }
 
 void wiener2_reg(Span<const Value> args, size_t nargout,
@@ -2297,7 +2261,7 @@ void wiener2_reg(Span<const Value> args, size_t nargout,
     if (args.size() >= 3 && !args[2].isEmpty())
         noise = args[2].toScalar();
     auto [denoised, n] =
-        wiener2(ctx.engine->resource(), args[0], nh, nw, noise);
+        wiener2(args[0], nh, nw, noise, ctx.engine->resource());
     outs[0] = std::move(denoised);
     if (nargout > 1) outs[1] = std::move(n);
 }

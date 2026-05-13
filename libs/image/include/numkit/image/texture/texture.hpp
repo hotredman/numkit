@@ -12,44 +12,57 @@
 
 namespace numkit::image {
 
-/// graycomatrix(I[, NV-pairs]) — Gray-level co-occurrence matrix.
+/// Gray-level co-occurrence matrix (`G = graycomatrix(I, ...)`).
 ///
-/// Quantises I into `numLevels` bins over [gLow, gHigh], then for each
-/// pixel pair (p, q = p + (offR, offC)) increments G[ q_level, p_level ]
-/// — note MATLAB's GLCM rows index the FIRST pixel and columns the
-/// OFFSET pixel. When `symmetric` is true, G[ j, i ] is also
-/// incremented (matches MATLAB's 'Symmetric' option).
+/// Quantises `I` into `numLevels` bins over `[gLow, gHigh]`, then for
+/// every pixel pair `(p, q = p + (offR, offC))` increments
+/// `G[q_level, p_level]`.
+///
+/// Note: MATLAB's GLCM convention is that **rows** index the level of
+/// the first pixel and **columns** index the offset pixel. When
+/// `symmetric` is true, the reverse transition `G[j, i]` is also
+/// counted (matches MATLAB's `'Symmetric'` option).
 ///
 /// @param I          2-D grayscale image (any numeric class).
-/// @param numLevels  Number of quantization bins (default 8 for uint8,
-///                   2 for logical, 8 otherwise).
+/// @param numLevels  Number of quantisation bins (typical 8 for uint8,
+///                   2 for logical).
 /// @param offR       Row offset of the second pixel.
 /// @param offC       Column offset of the second pixel.
-/// @param gLow       Lower bound of GrayLimits (default = class min).
-/// @param gHigh      Upper bound of GrayLimits (default = class max).
+/// @param gLow       Lower bound of GrayLimits (class min if NaN).
+/// @param gHigh      Upper bound of GrayLimits (class max if NaN).
 /// @param symmetric  When true, also count the reverse transition.
-/// @returns          A numLevels × numLevels matrix of double counts.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           `numLevels × numLevels` double matrix of counts.
 ///
-/// KNOWN GAPS:
-///   - Multiple offsets in one call (returns a 3-D GLCM in MATLAB).
-///     Pass each offset separately for now.
-///   - 'NumLevels' auto-default for floating-point inputs uses a
+/// **KNOWN GAPS:**
+///   - Multiple offsets in one call (MATLAB returns a 3-D GLCM); pass
+///     each offset separately for now.
+///   - `'NumLevels'` auto-default for floating-point inputs uses a
 ///     conservative 8 instead of 64.
-Value graycomatrix(std::pmr::memory_resource *mr,
-                   const Value &I,
-                   int numLevels,
-                   int offR, int offC,
-                   double gLow, double gHigh,
-                   bool symmetric);
+///
+/// @see graycoprops
+Value graycomatrix(const Value &I, int numLevels, int offR, int offC,
+                   double gLow, double gHigh, bool symmetric,
+                   std::pmr::memory_resource *mr = nullptr);
 
-/// graycoprops(G) — Texture statistics from a GLCM:
-///   .Contrast     = sum (i - j)² · p(i, j)
-///   .Correlation  = sum (i - μ_i)(j - μ_j) · p(i, j) / (σ_i · σ_j)
-///   .Energy       = sum p(i, j)²
-///   .Homogeneity  = sum p(i, j) / (1 + |i - j|)
-/// where p is the joint probability (GLCM normalised by its sum).
-/// MATLAB's `graycoprops` returns a struct; this returns a struct
-/// `Value` with the same four field names.
-Value graycoprops(std::pmr::memory_resource *mr, const Value &G);
+/// Texture statistics from a GLCM (`S = graycoprops(G)`).
+///
+/// Given a GLCM `G` (assumed normalised internally to a probability
+/// matrix `p = G / sum(G)`), returns a struct Value with the four
+/// MATLAB-canonical fields:
+///
+///   - `Contrast`    @f$ = \sum_{i,j} (i - j)^2\,p(i, j) @f$
+///   - `Correlation` @f$ = \sum_{i,j} \frac{(i - \mu_i)(j - \mu_j)\,p(i, j)}{\sigma_i\,\sigma_j} @f$
+///   - `Energy`      @f$ = \sum_{i,j} p(i, j)^2 @f$
+///   - `Homogeneity` @f$ = \sum_{i,j} \frac{p(i, j)}{1 + |i - j|} @f$
+///
+/// @param G   GLCM (square matrix from @ref graycomatrix).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Struct Value with fields Contrast, Correlation,
+///            Energy, Homogeneity.
+///
+/// @see graycomatrix
+Value graycoprops(const Value &G,
+                  std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::image

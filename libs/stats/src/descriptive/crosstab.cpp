@@ -55,17 +55,18 @@ size_t indexOf(const std::vector<double> &u, double val)
 } // namespace
 
 std::tuple<Value, double, double>
-crosstab(std::pmr::memory_resource *mr, const Value &x, const Value *y_opt)
+crosstab(const Value &x, const Value &y_opt, std::pmr::memory_resource *mr)
 {
     const size_t Nx = x.numel();
-    if (y_opt && y_opt->numel() != Nx)
+    const bool have_y = !y_opt.isEmpty();
+    if (have_y && y_opt.numel() != Nx)
         throw Error("crosstab: x and y must have the same length",
                     0, 0, "crosstab", "", "m:crosstab:LenMismatch");
 
     auto u_x = sortedUniqueNoNaN(x);
     const size_t R = u_x.size();
 
-    if (!y_opt) {
+    if (!have_y) {
         // Single-arg form: column vector with frequency counts of unique x.
         std::vector<size_t> count(R, 0);
         for (size_t k = 0; k < Nx; ++k) {
@@ -80,7 +81,7 @@ crosstab(std::pmr::memory_resource *mr, const Value &x, const Value *y_opt)
     }
 
     // Two-arg form.
-    auto u_y = sortedUniqueNoNaN(*y_opt);
+    auto u_y = sortedUniqueNoNaN(y_opt);
     const size_t C = u_y.size();
 
     Value T = Value::matrix(R, C, ValueType::DOUBLE, mr);
@@ -90,7 +91,7 @@ crosstab(std::pmr::memory_resource *mr, const Value &x, const Value *y_opt)
     size_t Ntot = 0;
     for (size_t k = 0; k < Nx; ++k) {
         const double xk = x.elemAsDouble(k);
-        const double yk = y_opt->elemAsDouble(k);
+        const double yk = y_opt.elemAsDouble(k);
         if (std::isnan(xk) || std::isnan(yk)) continue;
         const size_t i = indexOf(u_x, xk);
         const size_t j = indexOf(u_y, yk);
@@ -123,7 +124,7 @@ crosstab(std::pmr::memory_resource *mr, const Value &x, const Value *y_opt)
         const double df = static_cast<double>((R - 1) * (C - 1));
         // p = 1 - chi2cdf(chi2, df); chi2cdf returns a Value of input shape.
         Value chi2_v = Value::scalar(chi2, mr);
-        Value cdf_v  = chi2cdf(mr, chi2_v, df);
+        Value cdf_v  = chi2cdf(chi2_v, df, mr);
         p = 1.0 - cdf_v.toScalar();
     }
     return {std::move(T), chi2, p};
@@ -138,8 +139,8 @@ void crosstab_reg(Span<const Value> args, size_t nargout,
         throw Error("crosstab: requires (x [, y])",
                     0, 0, "crosstab", "", "m:crosstab:nargin");
     auto *mr = ctx.engine->resource();
-    const Value *y_opt = (args.size() >= 2) ? &args[1] : nullptr;
-    auto [T, chi2, p] = crosstab(mr, args[0], y_opt);
+    const Value &y_opt = (args.size() >= 2) ? args[1] : Value::Empty;
+    auto [T, chi2, p] = crosstab(args[0], y_opt, mr);
     outs[0] = std::move(T);
     if (nargout > 1) outs[1] = Value::scalar(chi2, mr);
     if (nargout > 2) outs[2] = Value::scalar(p, mr);

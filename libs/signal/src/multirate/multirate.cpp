@@ -21,8 +21,7 @@ namespace {
 
 // Windowed-sinc lowpass FIR, Hamming window, cutoff wc (radians).
 // Normalized so DC gain is 1. Order is filtLen - 1; filtLen must be >= 2.
-ScratchVec<double> designLowpassFir(std::pmr::memory_resource *mr,
-                                    size_t filtLen, double wc)
+ScratchVec<double> designLowpassFir(size_t filtLen, double wc, std::pmr::memory_resource *mr)
 {
     const size_t filtOrder = filtLen - 1;
     const double half = filtOrder / 2.0;
@@ -45,9 +44,7 @@ ScratchVec<double> designLowpassFir(std::pmr::memory_resource *mr,
 
 // Direct Form II transposed FIR apply — matches filter.cpp's core for
 // the a = [1] denominator case. Used by decimate and resample.
-ScratchVec<double> applyFirDf2t(std::pmr::memory_resource *mr,
-                                const double *h, size_t filtLen,
-                                const double *x, size_t nx)
+ScratchVec<double> applyFirDf2t(const double *h, size_t filtLen, const double *x, size_t nx, std::pmr::memory_resource *mr)
 {
     ScratchVec<double> out(nx, mr);
     ScratchVec<double> z(filtLen, mr);
@@ -62,7 +59,7 @@ ScratchVec<double> applyFirDf2t(std::pmr::memory_resource *mr,
 } // anonymous namespace
 
 // ── downsample ────────────────────────────────────────────────────────
-Value downsample(std::pmr::memory_resource *mr, const Value &x, size_t n)
+Value downsample(const Value &x, size_t n, std::pmr::memory_resource *mr)
 {
     const size_t nx = x.numel();
     const size_t outLen = (nx + n - 1) / n;
@@ -76,7 +73,7 @@ Value downsample(std::pmr::memory_resource *mr, const Value &x, size_t n)
 }
 
 // ── upsample ──────────────────────────────────────────────────────────
-Value upsample(std::pmr::memory_resource *mr, const Value &x, size_t n)
+Value upsample(const Value &x, size_t n, std::pmr::memory_resource *mr)
 {
     const size_t nx = x.numel();
     const size_t outLen = nx * n;
@@ -92,7 +89,7 @@ Value upsample(std::pmr::memory_resource *mr, const Value &x, size_t n)
 }
 
 // ── decimate ──────────────────────────────────────────────────────────
-Value decimate(std::pmr::memory_resource *mr, const Value &x, size_t factor)
+Value decimate(const Value &x, size_t factor, std::pmr::memory_resource *mr)
 {
     const size_t nx = x.numel();
     const double *xd = x.doubleData();
@@ -104,8 +101,8 @@ Value decimate(std::pmr::memory_resource *mr, const Value &x, size_t factor)
     const double wc = M_PI / factor;
 
     ScratchArena scratch(mr);
-    auto h = designLowpassFir(&scratch, filtLen, wc);
-    auto filtered = applyFirDf2t(&scratch, h.data(), h.size(), xd, nx);
+    auto h = designLowpassFir(filtLen, wc, &scratch);
+    auto filtered = applyFirDf2t(h.data(), h.size(), xd, nx, &scratch);
 
     const size_t outLen = (nx + factor - 1) / factor;
     const bool isRow = x.dims().rows() == 1;
@@ -117,7 +114,7 @@ Value decimate(std::pmr::memory_resource *mr, const Value &x, size_t factor)
 }
 
 // ── resample ──────────────────────────────────────────────────────────
-Value resample(std::pmr::memory_resource *mr, const Value &x, size_t p, size_t q)
+Value resample(const Value &x, size_t p, size_t q, std::pmr::memory_resource *mr)
 {
     const size_t nx = x.numel();
     const double *xd = x.doubleData();
@@ -137,8 +134,8 @@ Value resample(std::pmr::memory_resource *mr, const Value &x, size_t p, size_t q
     const size_t filtLen = filtOrder + 1;
     const double wc = M_PI / std::max(p, q);
 
-    auto h = designLowpassFir(&scratch, filtLen, wc);
-    auto filtered = applyFirDf2t(&scratch, h.data(), h.size(), up.data(), upLen);
+    auto h = designLowpassFir(filtLen, wc, &scratch);
+    auto filtered = applyFirDf2t(h.data(), h.size(), up.data(), upLen, &scratch);
 
     // Downsample by q
     const size_t outLen = (upLen + q - 1) / q;
@@ -160,9 +157,7 @@ void downsample_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
     if (args.size() < 2)
         throw Error("downsample: requires 2 arguments",
                      0, 0, "downsample", "", "m:downsample:nargin");
-    outs[0] = downsample(ctx.engine->resource(),
-                         args[0],
-                         static_cast<size_t>(args[1].toScalar()));
+    outs[0] = downsample(args[0], static_cast<size_t>(args[1].toScalar()), ctx.engine->resource());
 }
 
 void upsample_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -170,9 +165,7 @@ void upsample_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.size() < 2)
         throw Error("upsample: requires 2 arguments",
                      0, 0, "upsample", "", "m:upsample:nargin");
-    outs[0] = upsample(ctx.engine->resource(),
-                       args[0],
-                       static_cast<size_t>(args[1].toScalar()));
+    outs[0] = upsample(args[0], static_cast<size_t>(args[1].toScalar()), ctx.engine->resource());
 }
 
 void decimate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -180,9 +173,7 @@ void decimate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.size() < 2)
         throw Error("decimate: requires 2 arguments",
                      0, 0, "decimate", "", "m:decimate:nargin");
-    outs[0] = decimate(ctx.engine->resource(),
-                       args[0],
-                       static_cast<size_t>(args[1].toScalar()));
+    outs[0] = decimate(args[0], static_cast<size_t>(args[1].toScalar()), ctx.engine->resource());
 }
 
 void resample_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -190,10 +181,7 @@ void resample_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.size() < 3)
         throw Error("resample: requires 3 arguments",
                      0, 0, "resample", "", "m:resample:nargin");
-    outs[0] = resample(ctx.engine->resource(),
-                       args[0],
-                       static_cast<size_t>(args[1].toScalar()),
-                       static_cast<size_t>(args[2].toScalar()));
+    outs[0] = resample(args[0], static_cast<size_t>(args[1].toScalar()), static_cast<size_t>(args[2].toScalar()), ctx.engine->resource());
 }
 
 } // namespace detail

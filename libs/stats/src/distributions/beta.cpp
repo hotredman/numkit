@@ -23,7 +23,7 @@ namespace numkit::stats {
 namespace {
 
 template <typename Op>
-Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
@@ -39,13 +39,13 @@ Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
 
 } // anonymous
 
-Value betapdf(std::pmr::memory_resource *mr, const Value &x, double a, double b)
+Value betapdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
 {
     if (a <= 0.0 || b <= 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     // log f(x) = (a-1) log x + (b-1) log(1-x) - lbeta(a, b)
     const double lbeta = std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
-    return elementwise(mr, x, [=](double xi) {
+    return elementwise(x, [=](double xi) {
         if (xi < 0.0 || xi > 1.0) return 0.0;
         if (xi == 0.0) return (a == 1.0) ? std::exp(-lbeta) * (b == 1.0 ? 1.0 : std::pow(1.0, b - 1.0))
                                           : (a > 1.0 ? 0.0 : std::numeric_limits<double>::infinity());
@@ -55,34 +55,34 @@ Value betapdf(std::pmr::memory_resource *mr, const Value &x, double a, double b)
                         + (b - 1.0) * std::log1p(-xi)
                         - lbeta;
         return std::exp(lp);
-    });
+    }, mr);
 }
 
-Value betacdf(std::pmr::memory_resource *mr, const Value &x, double a, double b)
+Value betacdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
 {
     if (a <= 0.0 || b <= 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     Value av = Value::scalar(a, mr);
     Value bv = Value::scalar(b, mr);
     // Clamp into [0, 1] so betainc behaves on out-of-domain input.
-    Value xc = elementwise(mr, x, [](double xi) {
+    Value xc = elementwise(x, [](double xi) {
         if (xi <= 0.0) return 0.0;
         if (xi >= 1.0) return 1.0;
         return xi;
-    });
-    return ::numkit::builtin::betainc(mr, xc, av, bv);
+    }, mr);
+    return ::numkit::builtin::betainc(xc, av, bv, mr);
 }
 
-Value betainv(std::pmr::memory_resource *mr, const Value &p, double a, double b)
+Value betainv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
 {
     if (a <= 0.0 || b <= 0.0)
-        return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     Value av = Value::scalar(a, mr);
     Value bv = Value::scalar(b, mr);
-    return ::numkit::builtin::betaincinv(mr, p, av, bv);
+    return ::numkit::builtin::betaincinv(p, av, bv, mr);
 }
 
-Value betarnd(std::pmr::memory_resource *mr, double a, double b, size_t rows, size_t cols)
+Value betarnd(double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -124,7 +124,7 @@ void betapdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("betapdf: requires (x, a, b)", 0, 0, "betapdf", "", "m:betapdf:nargin");
-    outs[0] = betapdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    outs[0] = betapdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void betacdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -133,7 +133,7 @@ void betacdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
         throw Error("betacdf: requires (x, a, b[, 'upper'])", 0, 0, "betacdf", "", "m:betacdf:nargin");
-    Value v = betacdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    Value v = betacdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -142,7 +142,7 @@ void betainv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("betainv: requires (p, a, b)", 0, 0, "betainv", "", "m:betainv:nargin");
-    outs[0] = betainv(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    outs[0] = betainv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void betarnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -153,7 +153,7 @@ void betarnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const double b = args[1].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 2, rows, cols);
-    outs[0] = betarnd(ctx.engine->resource(), a, b, rows, cols);
+    outs[0] = betarnd(a, b, rows, cols, ctx.engine->resource());
 }
 
 void betastat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

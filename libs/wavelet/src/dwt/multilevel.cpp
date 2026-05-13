@@ -21,14 +21,15 @@
 #include <algorithm>
 #include <cctype>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace numkit::wavelet {
 
 namespace {
 
-Value rowFromVec(std::pmr::memory_resource *mr,
-                 const std::vector<double> &v) {
+Value rowFromVec(const std::vector<double> &v,
+                 std::pmr::memory_resource *mr) {
     Value r = Value::matrix(1, v.size(), ValueType::DOUBLE, mr);
     if (!v.empty()) std::copy(v.begin(), v.end(), r.doubleDataMut());
     return r;
@@ -42,9 +43,9 @@ std::vector<double> vecFromValue(const Value &v) {
 
 } // anonymous
 
-void wavedec(std::pmr::memory_resource *mr,
-             const Value &x, int n, const std::string &wname,
-             Value *Cout, Value *Lout)
+std::pair<Value, Value>
+wavedec(const Value &x, int n, const std::string &wname,
+        std::pmr::memory_resource *mr)
 {
     if (n < 1)
         throw Error("wavedec: level must be ≥ 1",
@@ -62,8 +63,7 @@ void wavedec(std::pmr::memory_resource *mr,
 
     Value finalApprox;
     for (int k = 0; k < n; ++k) {
-        Value cA, cD;
-        dwt(mr, running, wname, &cA, &cD);
+        auto [cA, cD] = dwt(running, wname, mr);
         details[k] = vecFromValue(cD);
         running = cA;
         if (k == n - 1) finalApprox = cA;
@@ -87,12 +87,11 @@ void wavedec(std::pmr::memory_resource *mr,
     for (int k = n - 1; k >= 0; --k)
         C.insert(C.end(), details[k].begin(), details[k].end());
 
-    if (Cout) *Cout = rowFromVec(mr, C);
-    if (Lout) *Lout = rowFromVec(mr, L);
+    return {rowFromVec(C, mr), rowFromVec(L, mr)};
 }
 
-Value waverec(std::pmr::memory_resource *mr,
-              const Value &C, const Value &L, const std::string &wname)
+Value waverec(const Value &C, const Value &L, const std::string &wname,
+              std::pmr::memory_resource *mr)
 {
     const size_t Lcount = L.numel();
     if (Lcount < 3)
@@ -128,20 +127,20 @@ Value waverec(std::pmr::memory_resource *mr,
         const size_t recLen = sliceLen(2 + k);
 
         // Pack as Value rows for the idwt API.
-        Value cA = rowFromVec(mr, running);
-        Value cD = rowFromVec(mr, detail);
-        Value next = idwt(mr, cA, cD, wname, static_cast<long long>(recLen));
+        Value cA = rowFromVec(running, mr);
+        Value cD = rowFromVec(detail, mr);
+        Value next = idwt(cA, cD, wname, static_cast<long long>(recLen), mr);
         running = vecFromValue(next);
     }
-    return rowFromVec(mr, running);
+    return rowFromVec(running, mr);
 }
 
 // Internal: appcoef with explicit Lo_R / Hi_R synthesis filters.
-static Value appcoef_with_filters(std::pmr::memory_resource *mr,
-                                  const Value &C, const Value &L,
+static Value appcoef_with_filters(const Value &C, const Value &L,
                                   const std::vector<double> &Lo_R,
                                   const std::vector<double> &Hi_R,
-                                  int level)
+                                  int level,
+                                  std::pmr::memory_resource *mr)
 {
     const size_t Lcount = L.numel();
     if (Lcount < 3)
@@ -159,7 +158,7 @@ static Value appcoef_with_filters(std::pmr::memory_resource *mr,
     };
 
     std::vector<double> running(Cv.begin(), Cv.begin() + sliceLen(0));
-    if (level == nMax) return rowFromVec(mr, running);
+    if (level == nMax) return rowFromVec(running, mr);
 
     size_t off = sliceLen(0);
     for (int k = 0; k < nMax - level; ++k) {
@@ -167,25 +166,25 @@ static Value appcoef_with_filters(std::pmr::memory_resource *mr,
         std::vector<double> detail(Cv.begin() + off, Cv.begin() + off + dLen);
         off += dLen;
         const size_t recLen = sliceLen(2 + k);
-        Value cA = rowFromVec(mr, running);
-        Value cD = rowFromVec(mr, detail);
-        Value next = idwt_with_filters_pub(mr, cA, cD, Lo_R, Hi_R,
-                                            static_cast<long long>(recLen));
+        Value cA = rowFromVec(running, mr);
+        Value cD = rowFromVec(detail, mr);
+        Value next = idwt_with_filters_pub(cA, cD, Lo_R, Hi_R,
+                                           static_cast<long long>(recLen), mr);
         running = vecFromValue(next);
     }
-    return rowFromVec(mr, running);
+    return rowFromVec(running, mr);
 }
 
-Value appcoef(std::pmr::memory_resource *mr,
-              const Value &C, const Value &L, const std::string &wname,
-              int level)
+Value appcoef(const Value &C, const Value &L, const std::string &wname,
+              int level,
+              std::pmr::memory_resource *mr)
 {
     auto fb = wavelet_filters(wname);
-    return appcoef_with_filters(mr, C, L, fb.Lo_R, fb.Hi_R, level);
+    return appcoef_with_filters(C, L, fb.Lo_R, fb.Hi_R, level, mr);
 }
 
-Value detcoef(std::pmr::memory_resource *mr,
-              const Value &C, const Value &L, int level)
+Value detcoef(const Value &C, const Value &L, int level,
+              std::pmr::memory_resource *mr)
 {
     const size_t Lcount = L.numel();
     if (Lcount < 3)
@@ -214,7 +213,7 @@ Value detcoef(std::pmr::memory_resource *mr,
         throw Error("detcoef: C/L bounds",
                     0, 0, "detcoef", "", "m:detcoef:bounds");
     std::vector<double> out(Cv.begin() + off, Cv.begin() + off + dLen);
-    return rowFromVec(mr, out);
+    return rowFromVec(out, mr);
 }
 
 namespace detail {
@@ -233,11 +232,10 @@ void wavedec_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("wavedec: requires (x, n, wname)",
                     0, 0, "wavedec", "", "m:wavedec:nargin");
     auto *mr = ctx.engine->resource();
-    Value C, L;
-    wavedec(mr, args[0], static_cast<int>(args[1].toScalar()),
-            argString(args[2]), &C, &L);
-    if (outs.size() >= 1) outs[0] = C;
-    if (outs.size() >= 2) outs[1] = L;
+    auto [C, L] = wavedec(args[0], static_cast<int>(args[1].toScalar()),
+                          argString(args[2]), mr);
+    if (outs.size() >= 1) outs[0] = std::move(C);
+    if (outs.size() >= 2) outs[1] = std::move(L);
 }
 
 void waverec_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -246,8 +244,8 @@ void waverec_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 3)
         throw Error("waverec: requires (C, L, wname)",
                     0, 0, "waverec", "", "m:waverec:nargin");
-    outs[0] = waverec(ctx.engine->resource(),
-                      args[0], args[1], argString(args[2]));
+    outs[0] = waverec(args[0], args[1], argString(args[2]),
+                      ctx.engine->resource());
 }
 
 void appcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -296,7 +294,7 @@ void appcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             ++i;
         }
         check_mode_at(i);
-        outs[0] = appcoef(mr, args[0], args[1], args[2].toString(), level);
+        outs[0] = appcoef(args[0], args[1], args[2].toString(), level, mr);
     } else {
         // (C, L, Lo_R, Hi_R[, level][, 'mode', extmode])
         if (args.size() < 4 || (args[3].isChar() || args[3].isString()))
@@ -311,9 +309,9 @@ void appcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             ++i;
         }
         check_mode_at(i);
-        outs[0] = appcoef_with_filters(mr, args[0], args[1],
-                                        readVec(args[2]), readVec(args[3]),
-                                        level);
+        outs[0] = appcoef_with_filters(args[0], args[1],
+                                       readVec(args[2]), readVec(args[3]),
+                                       level, mr);
     }
 }
 
@@ -333,7 +331,7 @@ void detcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         if (maxLev < 1)
             throw Error("detcoef: L is too short to infer a default level",
                         0, 0, "detcoef", "", "m:detcoef:size");
-        outs[0] = detcoef(mr, args[0], args[1], static_cast<int>(maxLev));
+        outs[0] = detcoef(args[0], args[1], static_cast<int>(maxLev), mr);
         return;
     }
 
@@ -353,7 +351,7 @@ void detcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         Value cellOut = Value::cell(1, k);
         for (size_t i = 0; i < k; ++i) {
             const int lev = static_cast<int>(levArg.elemAsDouble(i));
-            cellOut.cellAt(i) = detcoef(mr, args[0], args[1], lev);
+            cellOut.cellAt(i) = detcoef(args[0], args[1], lev, mr);
         }
         outs[0] = std::move(cellOut);
         return;
@@ -364,7 +362,7 @@ void detcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("detcoef: level must be scalar (or use 'cells' form)",
                     0, 0, "detcoef", "", "m:detcoef:level");
     const int level = static_cast<int>(levArg.toScalar());
-    outs[0] = detcoef(mr, args[0], args[1], level);
+    outs[0] = detcoef(args[0], args[1], level, mr);
 }
 
 } // namespace detail

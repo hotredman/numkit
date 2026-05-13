@@ -53,9 +53,9 @@ inline TestTail parse_tail(const std::string &s, TestTail def) {
 }
 
 // Compute two-sided / one-sided p-value from a t-statistic and df.
-double tpvalue(std::pmr::memory_resource *mr, double tstat, double df, TestTail tail) {
+double tpvalue(double tstat, double df, TestTail tail, std::pmr::memory_resource *mr) {
     Value tv = Value::scalar(tstat, mr);
-    Value cdf_v = tcdf(mr, tv, df);
+    Value cdf_v = tcdf(tv, df, mr);
     const double cdf = cdf_v.toScalar();
     switch (tail) {
         case TestTail::Both:  return 2.0 * std::min(cdf, 1.0 - cdf);
@@ -65,9 +65,9 @@ double tpvalue(std::pmr::memory_resource *mr, double tstat, double df, TestTail 
     return 1.0;
 }
 
-double zpvalue(std::pmr::memory_resource *mr, double z, TestTail tail) {
+double zpvalue(double z, TestTail tail, std::pmr::memory_resource *mr) {
     Value zv = Value::scalar(z, mr);
-    Value cdf_v = normcdf(mr, zv, 0.0, 1.0);
+    Value cdf_v = normcdf(zv, 0.0, 1.0, mr);
     const double cdf = cdf_v.toScalar();
     switch (tail) {
         case TestTail::Both:  return 2.0 * std::min(cdf, 1.0 - cdf);
@@ -84,8 +84,7 @@ double zpvalue(std::pmr::memory_resource *mr, double z, TestTail tail) {
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-ttest(std::pmr::memory_resource *mr, const Value &x,
-      double m, double alpha, TestTail tail)
+ttest(const Value &x, double m, double alpha, TestTail tail, std::pmr::memory_resource *mr)
 {
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
 
@@ -99,26 +98,26 @@ ttest(std::pmr::memory_resource *mr, const Value &x,
     const double se  = sd / std::sqrt(double(n));
     const double t   = (mu_hat - m) / se;
     const double df  = double(n - 1);
-    const double p   = tpvalue(mr, t, df, tail);
+    const double p   = tpvalue(t, df, tail, mr);
     const int    h   = (p < alpha) ? 1 : 0;
 
     // Confidence interval for the mean.
     double clo, chi;
     Value half = Value::scalar(1.0 - 0.5 * alpha, mr);
-    Value tcrit_v = tinv(mr, half, df);
+    Value tcrit_v = tinv(half, df, mr);
     const double tcrit = tcrit_v.toScalar();
     switch (tail) {
         case TestTail::Both:
             clo = mu_hat - tcrit * se; chi = mu_hat + tcrit * se; break;
         case TestTail::Right: {
             Value full = Value::scalar(1.0 - alpha, mr);
-            const double tc = tinv(mr, full, df).toScalar();
+            const double tc = tinv(full, df, mr).toScalar();
             clo = mu_hat - tc * se; chi = std::numeric_limits<double>::infinity();
             break;
         }
         case TestTail::Left: {
             Value full = Value::scalar(1.0 - alpha, mr);
-            const double tc = tinv(mr, full, df).toScalar();
+            const double tc = tinv(full, df, mr).toScalar();
             clo = -std::numeric_limits<double>::infinity(); chi = mu_hat + tc * se;
             break;
         }
@@ -137,8 +136,7 @@ ttest(std::pmr::memory_resource *mr, const Value &x,
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-ttest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
-       double alpha, TestTail tail, const std::string &vartype)
+ttest2(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &vartype, std::pmr::memory_resource *mr)
 {
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
 
@@ -163,11 +161,11 @@ ttest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
         df = (den > 0.0) ? num / den : double(nx + ny - 2);
     }
     t = (mx - my) / se;
-    const double p = tpvalue(mr, t, df, tail);
+    const double p = tpvalue(t, df, tail, mr);
     const int    h = (p < alpha) ? 1 : 0;
 
     Value half = Value::scalar(1.0 - 0.5 * alpha, mr);
-    const double tcrit = tinv(mr, half, df).toScalar();
+    const double tcrit = tinv(half, df, mr).toScalar();
     Value ci = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     ci.doubleDataMut()[0] = (mx - my) - tcrit * se;
     ci.doubleDataMut()[1] = (mx - my) + tcrit * se;
@@ -183,8 +181,7 @@ ttest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-ztest(std::pmr::memory_resource *mr, const Value &x,
-      double m, double sigma, double alpha, TestTail tail)
+ztest(const Value &x, double m, double sigma, double alpha, TestTail tail, std::pmr::memory_resource *mr)
 {
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
     if (sigma <= 0.0)
@@ -199,11 +196,11 @@ ztest(std::pmr::memory_resource *mr, const Value &x,
 
     const double se = sigma / std::sqrt(double(n));
     const double z  = (mu_hat - m) / se;
-    const double p  = zpvalue(mr, z, tail);
+    const double p  = zpvalue(z, tail, mr);
     const int    h  = (p < alpha) ? 1 : 0;
 
     Value half = Value::scalar(1.0 - 0.5 * alpha, mr);
-    const double zcrit = norminv(mr, half, 0.0, 1.0).toScalar();
+    const double zcrit = norminv(half, 0.0, 1.0, mr).toScalar();
     Value ci = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     ci.doubleDataMut()[0] = mu_hat - zcrit * se;
     ci.doubleDataMut()[1] = mu_hat + zcrit * se;
@@ -219,8 +216,7 @@ ztest(std::pmr::memory_resource *mr, const Value &x,
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-vartest(std::pmr::memory_resource *mr, const Value &x,
-        double v, double alpha, TestTail tail)
+vartest(const Value &x, double v, double alpha, TestTail tail, std::pmr::memory_resource *mr)
 {
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
     if (v <= 0.0)
@@ -236,7 +232,7 @@ vartest(std::pmr::memory_resource *mr, const Value &x,
     const double df = double(n - 1);
     const double T  = df * var_hat / v;
     Value Tv = Value::scalar(T, mr);
-    const double cdf = chi2cdf(mr, Tv, df).toScalar();
+    const double cdf = chi2cdf(Tv, df, mr).toScalar();
 
     double p;
     switch (tail) {
@@ -250,8 +246,8 @@ vartest(std::pmr::memory_resource *mr, const Value &x,
     // Confidence interval for σ² (two-sided).
     Value lo_v = Value::scalar(0.5 * alpha, mr);
     Value hi_v = Value::scalar(1.0 - 0.5 * alpha, mr);
-    const double chi_lo = chi2inv(mr, lo_v, df).toScalar();
-    const double chi_hi = chi2inv(mr, hi_v, df).toScalar();
+    const double chi_lo = chi2inv(lo_v, df, mr).toScalar();
+    const double chi_hi = chi2inv(hi_v, df, mr).toScalar();
     Value ci = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     ci.doubleDataMut()[0] = (chi_hi > 0.0) ? df * var_hat / chi_hi : 0.0;
     ci.doubleDataMut()[1] = (chi_lo > 0.0) ? df * var_hat / chi_lo
@@ -268,8 +264,7 @@ vartest(std::pmr::memory_resource *mr, const Value &x,
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-vartest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
-         double alpha, TestTail tail)
+vartest2(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::memory_resource *mr)
 {
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
 
@@ -284,7 +279,7 @@ vartest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
     const double v1 = double(nx - 1);
     const double v2 = double(ny - 1);
     Value Fv = Value::scalar(F, mr);
-    const double cdf = fcdf(mr, Fv, v1, v2).toScalar();
+    const double cdf = fcdf(Fv, v1, v2, mr).toScalar();
 
     double p;
     switch (tail) {
@@ -298,8 +293,8 @@ vartest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
     // Confidence interval for the variance ratio σ_x²/σ_y².
     Value lo_v = Value::scalar(0.5 * alpha, mr);
     Value hi_v = Value::scalar(1.0 - 0.5 * alpha, mr);
-    const double f_lo = finv(mr, lo_v, v1, v2).toScalar();
-    const double f_hi = finv(mr, hi_v, v1, v2).toScalar();
+    const double f_lo = finv(lo_v, v1, v2, mr).toScalar();
+    const double f_hi = finv(hi_v, v1, v2, mr).toScalar();
     Value ci = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     ci.doubleDataMut()[0] = (f_hi > 0.0) ? F / f_hi : 0.0;
     ci.doubleDataMut()[1] = (f_lo > 0.0) ? F / f_lo
@@ -367,8 +362,7 @@ double interp_cdf(const std::vector<double> &xg,
 } // anonymous
 
 std::tuple<Value, Value, Value, Value>
-kstest(std::pmr::memory_resource *mr, const Value &x,
-       const Value &cdf, double alpha, TestTail tail)
+kstest(const Value &x, const Value &cdf, double alpha, TestTail tail, std::pmr::memory_resource *mr)
 {
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
     const size_t N = x.numel();
@@ -403,7 +397,7 @@ kstest(std::pmr::memory_resource *mr, const Value &x,
         }
         // Default: standard normal.
         Value s = Value::scalar(v, mr);
-        return normcdf(mr, s, 0.0, 1.0).toScalar();
+        return normcdf(s, 0.0, 1.0, mr).toScalar();
     };
 
     // Compute D⁺ and D⁻ relative to reference; combine per tail.
@@ -433,8 +427,7 @@ kstest(std::pmr::memory_resource *mr, const Value &x,
 }
 
 std::tuple<Value, Value, Value, Value>
-kstest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
-        double alpha, TestTail tail)
+kstest2(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::memory_resource *mr)
 {
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
     const size_t Nx = x.numel(), Ny = y.numel();
@@ -553,8 +546,7 @@ JBMCResult jb_montecarlo(size_t N, double JB_obs, double alpha, double mctol)
 } // anonymous
 
 std::tuple<Value, Value, Value, Value>
-jbtest(std::pmr::memory_resource *mr, const Value &x, double alpha,
-       double mctol)
+jbtest(const Value &x, double alpha, double mctol, std::pmr::memory_resource *mr)
 {
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
     const size_t N = x.numel();
@@ -581,10 +573,10 @@ jbtest(std::pmr::memory_resource *mr, const Value &x, double alpha,
         cv = R.cv;
     } else {
         Value JBv = Value::scalar(JB, mr);
-        const double cdf = chi2cdf(mr, JBv, 2.0).toScalar();
+        const double cdf = chi2cdf(JBv, 2.0, mr).toScalar();
         p = 1.0 - cdf;
         Value oneMinusAlpha = Value::scalar(1.0 - alpha, mr);
-        cv = chi2inv(mr, oneMinusAlpha, 2.0).toScalar();
+        cv = chi2inv(oneMinusAlpha, 2.0, mr).toScalar();
     }
     const int h = (p < alpha) ? 1 : 0;
 
@@ -596,10 +588,9 @@ jbtest(std::pmr::memory_resource *mr, const Value &x, double alpha,
 
 // Backward-compat 2-arg form — uses MC for small N (n < 2000).
 std::tuple<Value, Value, Value, Value>
-jbtest(std::pmr::memory_resource *mr, const Value &x, double alpha)
+jbtest(const Value &x, double alpha, std::pmr::memory_resource *mr)
 {
-    return jbtest(mr, x, alpha,
-                  std::numeric_limits<double>::quiet_NaN());
+    return jbtest(x, alpha, std::numeric_limits<double>::quiet_NaN(), mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -607,8 +598,7 @@ jbtest(std::pmr::memory_resource *mr, const Value &x, double alpha)
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value>
-signtest(std::pmr::memory_resource *mr, const Value &x,
-         const Value &y_or_m, double alpha, TestTail tail)
+signtest(const Value &x, const Value &y_or_m, double alpha, TestTail tail, std::pmr::memory_resource *mr)
 {
     const size_t Nx = x.numel();
     const bool paired = (!y_or_m.isEmpty() && !y_or_m.isScalar());
@@ -635,9 +625,9 @@ signtest(std::pmr::memory_resource *mr, const Value &x,
         // Binomial(n_eff, 0.5) tail probabilities via existing binocdf.
         Value kPos = Value::scalar(double(n_pos), mr);
         Value kPosM1 = Value::scalar(double(n_pos - 1), mr);
-        const double cdfLE = binocdf(mr, kPos, double(n_eff), 0.5).toScalar();
+        const double cdfLE = binocdf(kPos, double(n_eff), 0.5, mr).toScalar();
         const double cdfLT = (n_pos > 0)
-                           ? binocdf(mr, kPosM1, double(n_eff), 0.5).toScalar()
+                           ? binocdf(kPosM1, double(n_eff), 0.5, mr).toScalar()
                            : 0.0;
         const double pLeft  = cdfLE;            // P(X ≤ n_pos)
         const double pRight = 1.0 - cdfLT;      // P(X ≥ n_pos)
@@ -659,8 +649,7 @@ signtest(std::pmr::memory_resource *mr, const Value &x,
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value, Value>
-fishertest(std::pmr::memory_resource *mr, const Value &T,
-           double alpha, TestTail tail)
+fishertest(const Value &T, double alpha, TestTail tail, std::pmr::memory_resource *mr)
 {
     if (T.dims().rows() != 2 || T.dims().cols() != 2)
         throw Error("fishertest: T must be a 2×2 matrix",
@@ -721,7 +710,7 @@ fishertest(std::pmr::memory_resource *mr, const Value &T,
         const double logOR = std::log(OR);
         const double se = std::sqrt(1.0 / a + 1.0 / b + 1.0 / c + 1.0 / d);
         Value pcrit = Value::scalar(1.0 - alpha / 2.0, mr);
-        const double zcrit = norminv(mr, pcrit, 0.0, 1.0).toScalar();
+        const double zcrit = norminv(pcrit, 0.0, 1.0, mr).toScalar();
         ci_lo = std::exp(logOR - zcrit * se);
         ci_hi = std::exp(logOR + zcrit * se);
     }
@@ -737,9 +726,7 @@ fishertest(std::pmr::memory_resource *mr, const Value &T,
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-chi2gof(std::pmr::memory_resource *mr,
-        const Value &observed, const Value &expected,
-        int nparams, double alpha)
+chi2gof(const Value &observed, const Value &expected, int nparams, double alpha, std::pmr::memory_resource *mr)
 {
     const size_t K = observed.numel();
     if (expected.numel() != K)
@@ -768,7 +755,7 @@ chi2gof(std::pmr::memory_resource *mr,
                                Value::scalar(df, mr));
 
     Value xv = Value::scalar(chi2, mr);
-    const double cdf = chi2cdf(mr, xv, df).toScalar();
+    const double cdf = chi2cdf(xv, df, mr).toScalar();
     const double p = std::max(0.0, 1.0 - cdf);
     const int h = (p < alpha) ? 1 : 0;
     return std::make_tuple(Value::scalar(p, mr),
@@ -793,8 +780,7 @@ struct Groups {
         : ns(mr), offsets(mr), data(mr) {}
 };
 
-Groups bucket_by_group(std::pmr::memory_resource *scratch_mr,
-                       const Value &x, const Value &group)
+Groups bucket_by_group(const Value &x, const Value &group, std::pmr::memory_resource *scratch_mr)
 {
     const size_t Nx = x.numel();
     Groups G(scratch_mr);
@@ -838,10 +824,7 @@ Groups bucket_by_group(std::pmr::memory_resource *scratch_mr,
 // One-way ANOVA on Z values stored in groups buckets. Returns
 // (F, df1, df2, p).
 struct AnovaOut { double F, df1, df2, p; };
-AnovaOut anova1_on_groups(std::pmr::memory_resource *mr,
-                          const ScratchVec<double> &Z,
-                          const ScratchVec<size_t> &offsets,
-                          const ScratchVec<size_t> &ns)
+AnovaOut anova1_on_groups(const ScratchVec<double> &Z, const ScratchVec<size_t> &offsets, const ScratchVec<size_t> &ns, std::pmr::memory_resource *mr)
 {
     const size_t k = ns.size();
     size_t N = 0;
@@ -873,7 +856,7 @@ AnovaOut anova1_on_groups(std::pmr::memory_resource *mr,
     const double MSW = SSW / df2;
     const double F = (MSW > 0.0) ? MSB / MSW : 0.0;
     Value Fv = Value::scalar(F, mr);
-    const double cdf = fcdf(mr, Fv, df1, df2).toScalar();
+    const double cdf = fcdf(Fv, df1, df2, mr).toScalar();
     return {F, df1, df2, std::max(0.0, 1.0 - cdf)};
 }
 
@@ -888,8 +871,7 @@ inline double median_sorted(double *a, size_t n) {
 // Public API. test = 0 Bartlett, 1 LeveneQuadratic, 2 LeveneAbsolute,
 // 3 BrownForsythe, 4 OBrien.
 std::tuple<Value, Value, Value, Value>
-vartestn_full(std::pmr::memory_resource *mr,
-              const Value &x, const Value &group, int test)
+vartestn_full(const Value &x, const Value &group, int test, std::pmr::memory_resource *mr)
 {
     const size_t Nx = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -898,7 +880,7 @@ vartestn_full(std::pmr::memory_resource *mr,
                     0, 0, "vartestn", "", "m:vartestn:size");
 
     ScratchArena scratch(mr);
-    Groups G = bucket_by_group(&scratch, x, group);
+    Groups G = bucket_by_group(x, group, &scratch);
     // Drop groups with <2 observations (no sample variance / can't ANOVA).
     ScratchVec<size_t> ns(&scratch);   ns.reserve(G.ns.size());
     ScratchVec<size_t> offsets(&scratch); offsets.push_back(0);
@@ -953,7 +935,7 @@ vartestn_full(std::pmr::memory_resource *mr,
         const double chisq = Q / C;
         const double df = double(k - 1);
         Value xv = Value::scalar(chisq, mr);
-        const double cdf = chi2cdf(mr, xv, df).toScalar();
+        const double cdf = chi2cdf(xv, df, mr).toScalar();
         const double p = std::max(0.0, 1.0 - cdf);
         return std::make_tuple(Value::scalar(p, mr),
                                Value::scalar(chisq, mr),
@@ -989,7 +971,7 @@ vartestn_full(std::pmr::memory_resource *mr,
             }
         }
     }
-    auto A = anova1_on_groups(mr, Z, offsets, ns);
+    auto A = anova1_on_groups(Z, offsets, ns, mr);
     return std::make_tuple(Value::scalar(A.p, mr),
                            Value::scalar(A.F, mr),
                            Value::scalar(A.df1, mr),
@@ -997,10 +979,9 @@ vartestn_full(std::pmr::memory_resource *mr,
 }
 
 std::tuple<Value, Value, Value>
-vartestn(std::pmr::memory_resource *mr, const Value &x, const Value &group,
-         double /*alpha*/)
+vartestn(const Value &x, const Value &group, double /*alpha*/, std::pmr::memory_resource *mr)
 {
-    auto [p, stat, df1, df2] = vartestn_full(mr, x, group, /*Bartlett*/ 0);
+    auto [p, stat, df1, df2] = vartestn_full(x, group, /*Bartlett*/ 0, mr);
     (void)df2;
     return std::make_tuple(std::move(p), std::move(stat), std::move(df1));
 }
@@ -1051,8 +1032,7 @@ double exact_runs_pmf(int r, int n1, int n0)
 } // anonymous
 
 std::tuple<Value, Value, Value, Value, Value, Value>
-runstest(std::pmr::memory_resource *mr, const Value &x, double v_in,
-         double alpha, TestTail tail, const std::string &method_in)
+runstest(const Value &x, double v_in, double alpha, TestTail tail, const std::string &method_in, std::pmr::memory_resource *mr)
 {
     const size_t Nx = x.numel();
 
@@ -1131,7 +1111,7 @@ runstest(std::pmr::memory_resource *mr, const Value &x, double v_in,
         else if (R < mean) cc = -0.5;
         zval = (sd > 0.0) ? (R - mean - cc) / sd : 0.0;
         Value zV = Value::scalar(zval, mr);
-        const double cdf = normcdf(mr, zV, 0.0, 1.0).toScalar();
+        const double cdf = normcdf(zV, 0.0, 1.0, mr).toScalar();
         switch (tail) {
             case TestTail::Both:  p = 2.0 * std::min(cdf, 1.0 - cdf); break;
             case TestTail::Right: p = 1.0 - cdf; break;
@@ -1153,8 +1133,7 @@ runstest(std::pmr::memory_resource *mr, const Value &x, double v_in,
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-ranksum(std::pmr::memory_resource *mr, const Value &x, const Value &y,
-        double alpha, TestTail tail, const std::string &method_in)
+ranksum(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &method_in, std::pmr::memory_resource *mr)
 {
     const size_t nx = x.numel();
     const size_t ny = y.numel();
@@ -1277,7 +1256,7 @@ ranksum(std::pmr::memory_resource *mr, const Value &x, const Value &y,
         else if (Wx < mean) cc = -0.5;
         zval = (sd > 0.0) ? (Wx - mean - cc) / sd : 0.0;
         Value zV = Value::scalar(zval, mr);
-        const double cdf = normcdf(mr, zV, 0.0, 1.0).toScalar();
+        const double cdf = normcdf(zV, 0.0, 1.0, mr).toScalar();
         switch (tail) {
             case TestTail::Both:  p = 2.0 * std::min(cdf, 1.0 - cdf); break;
             case TestTail::Right: p = 1.0 - cdf; break;
@@ -1297,9 +1276,7 @@ ranksum(std::pmr::memory_resource *mr, const Value &x, const Value &y,
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-signrank(std::pmr::memory_resource *mr, const Value &x,
-         const Value &y_or_m, double alpha, TestTail tail,
-         const std::string &method_in)
+signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, const std::string &method_in, std::pmr::memory_resource *mr)
 {
     const size_t Nx = x.numel();
     const bool paired = (!y_or_m.isEmpty() && !y_or_m.isScalar());
@@ -1404,7 +1381,7 @@ signrank(std::pmr::memory_resource *mr, const Value &x,
         const double sd = std::sqrt(var);
         zval = (sd > 0.0) ? (Wplus - mean) / sd : 0.0;
         Value zV = Value::scalar(zval, mr);
-        const double cdf = normcdf(mr, zV, 0.0, 1.0).toScalar();
+        const double cdf = normcdf(zV, 0.0, 1.0, mr).toScalar();
         switch (tail) {
             case TestTail::Both:  p = 2.0 * std::min(cdf, 1.0 - cdf); break;
             case TestTail::Right: p = 1.0 - cdf; break;
@@ -1494,7 +1471,7 @@ void ttest_reg(Span<const Value> args, size_t nargout,
             alpha = a.toScalar(); ++i;
         }
     }
-    auto [h, p, ci, t] = ttest(mr, xData, m, alpha, tail);
+    auto [h, p, ci, t] = ttest(xData, m, alpha, tail, mr);
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(ci);
@@ -1523,8 +1500,7 @@ void ttest2_reg(Span<const Value> args, size_t nargout,
                             0, 0, "ttest2", "", "m:ttest2:dim");
         }
     }
-    auto [h, p, ci, t] = ttest2(ctx.engine->resource(), args[0], args[1],
-                                 alpha, tail, vartype);
+    auto [h, p, ci, t] = ttest2(args[0], args[1], alpha, tail, vartype, ctx.engine->resource());
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(ci);
@@ -1555,7 +1531,7 @@ void ztest_reg(Span<const Value> args, size_t nargout,
             else { tail = parse_tail(sl, tail); ++i; }
         } else { alpha = a.toScalar(); ++i; }
     }
-    auto [h, p, ci, z] = ztest(ctx.engine->resource(), args[0], m, sigma, alpha, tail);
+    auto [h, p, ci, z] = ztest(args[0], m, sigma, alpha, tail, ctx.engine->resource());
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(ci);
@@ -1585,7 +1561,7 @@ void vartest_reg(Span<const Value> args, size_t nargout,
             else { tail = parse_tail(sl, tail); ++i; }
         } else { alpha = a.toScalar(); ++i; }
     }
-    auto [h, p, ci, T] = vartest(ctx.engine->resource(), args[0], v, alpha, tail);
+    auto [h, p, ci, T] = vartest(args[0], v, alpha, tail, ctx.engine->resource());
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(ci);
@@ -1614,8 +1590,7 @@ void vartest2_reg(Span<const Value> args, size_t nargout,
             else { tail = parse_tail(sl, tail); ++i; }
         } else { alpha = a.toScalar(); ++i; }
     }
-    auto [h, p, ci, F] = vartest2(ctx.engine->resource(), args[0], args[1],
-                                   alpha, tail);
+    auto [h, p, ci, F] = vartest2(args[0], args[1], alpha, tail, ctx.engine->resource());
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(ci);
@@ -1658,7 +1633,7 @@ void kstest_reg(Span<const Value> args, size_t nargout,
             ++i;
         }
     }
-    auto [h, p, D, cv] = kstest(ctx.engine->resource(), args[0], cdf, alpha, tail);
+    auto [h, p, D, cv] = kstest(args[0], cdf, alpha, tail, ctx.engine->resource());
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(D);
@@ -1690,8 +1665,7 @@ void kstest2_reg(Span<const Value> args, size_t nargout,
             alpha = a.toScalar(); ++i;
         }
     }
-    auto [h, p, D, cv] = kstest2(ctx.engine->resource(), args[0], args[1],
-                                  alpha, tail);
+    auto [h, p, D, cv] = kstest2(args[0], args[1], alpha, tail, ctx.engine->resource());
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(D);
@@ -1709,8 +1683,7 @@ void jbtest_reg(Span<const Value> args, size_t nargout,
     const double mctol = (args.size() > 2 && !args[2].isEmpty())
                          ? args[2].toScalar()
                          : std::numeric_limits<double>::quiet_NaN();
-    auto [h, p, JB, cv] = jbtest(ctx.engine->resource(), args[0],
-                                  alpha, mctol);
+    auto [h, p, JB, cv] = jbtest(args[0], alpha, mctol, ctx.engine->resource());
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(JB);
@@ -1734,7 +1707,7 @@ void fishertest_reg(Span<const Value> args, size_t nargout,
         if      (name == "alpha") alpha = v.toScalar();
         else if (name == "tail")  tail  = parse_tail(v.toString(), TestTail::Both);
     }
-    auto [h, p, OR, lo, hi] = fishertest(mr, args[0], alpha, tail);
+    auto [h, p, OR, lo, hi] = fishertest(args[0], alpha, tail, mr);
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) {
@@ -1796,7 +1769,7 @@ void chi2gof_reg(Span<const Value> args, size_t nargout,
     // Path A: explicit Frequency + Expected (existing behavior).
     if (freq_set && expected_set) {
         const int np = nparams_set ? nparams : 0;
-        auto [p, h, chi2, df] = chi2gof(mr, freq, expected, np, alpha);
+        auto [p, h, chi2, df] = chi2gof(freq, expected, np, alpha, mr);
         outs[0] = std::move(h);
         if (nargout > 1) outs[1] = std::move(p);
         if (nargout > 2) {
@@ -1954,7 +1927,7 @@ void chi2gof_reg(Span<const Value> args, size_t nargout,
     const int np = nparams_set ? nparams : 2;
     const double df = double(K_final) - 1.0 - double(np);
     Value chi2v = Value::scalar(chi2, mr);
-    const double cdf = (df > 0.0) ? chi2cdf(mr, chi2v, df).toScalar() : 1.0;
+    const double cdf = (df > 0.0) ? chi2cdf(chi2v, df, mr).toScalar() : 1.0;
     const double p = std::max(0.0, 1.0 - cdf);
     const int h = (p < alpha) ? 1 : 0;
 
@@ -2046,7 +2019,7 @@ void vartestn_reg(Span<const Value> args, size_t nargout,
         G = std::move(Vg);
     }
 
-    auto [p, stat, df1, df2] = vartestn_full(mr, X, G, test);
+    auto [p, stat, df1, df2] = vartestn_full(X, G, test, mr);
     outs[0] = std::move(p);
     if (nargout > 1) {
         Value s = Value::structure(mr);
@@ -2132,7 +2105,7 @@ void runstest_reg(Span<const Value> args, size_t nargout,
         v = 0.0;       // reference value for the sign sequence
     }
 
-    auto [p, h, R, n1, n0, z] = runstest(mr, xUsed, v, alpha, tail, method);
+    auto [p, h, R, n1, n0, z] = runstest(xUsed, v, alpha, tail, method, mr);
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) {
@@ -2173,7 +2146,7 @@ void ranksum_reg(Span<const Value> args, size_t nargout,
         i += 2;
     }
 
-    auto [p, h, rs, z] = ranksum(mr, args[0], args[1], alpha, tail, method);
+    auto [p, h, rs, z] = ranksum(args[0], args[1], alpha, tail, method, mr);
     outs[0] = std::move(p);
     if (nargout > 1) outs[1] = std::move(h);
     if (nargout > 2) {
@@ -2218,7 +2191,7 @@ void signrank_reg(Span<const Value> args, size_t nargout,
         i += 2;
     }
 
-    auto [p, h, sr, z] = signrank(mr, args[0], y_or_m, alpha, tail, method);
+    auto [p, h, sr, z] = signrank(args[0], y_or_m, alpha, tail, method, mr);
     outs[0] = std::move(p);
     if (nargout > 1) outs[1] = std::move(h);
     if (nargout > 2) {
@@ -2266,7 +2239,7 @@ void signtest_reg(Span<const Value> args, size_t nargout,
         i += 2;
     }
 
-    auto [p, h, sig] = signtest(mr, args[0], y_or_m, alpha, tail);
+    auto [p, h, sig] = signtest(args[0], y_or_m, alpha, tail, mr);
     outs[0] = std::move(p);
     if (nargout > 1) outs[1] = std::move(h);
     if (nargout > 2) {

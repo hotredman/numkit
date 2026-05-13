@@ -25,7 +25,7 @@ namespace numkit::stats {
 namespace {
 
 template <typename Op>
-Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
@@ -41,17 +41,17 @@ Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
 
 } // anonymous
 
-Value gampdf(std::pmr::memory_resource *mr, const Value &x, double a, double b)
+Value gampdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
 {
     // MATLAB: a<0 or b<=0 → NaN; a==0 → 0 (degenerate, all mass at 0).
     if (a < 0.0 || b <= 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     if (a == 0.0)
-        return elementwise(mr, x, [](double){ return 0.0; });
+        return elementwise(x, [](double){ return 0.0; }, mr);
     // log f(x) = (a-1) log x - x/b - a log b - lgamma(a)
     const double log_b = std::log(b);
     const double lga   = std::lgamma(a);
-    return elementwise(mr, x, [=](double xi) {
+    return elementwise(x, [=](double xi) {
         if (xi < 0.0) return 0.0;
         if (xi == 0.0) {
             if (a < 1.0) return std::numeric_limits<double>::infinity();
@@ -63,36 +63,36 @@ Value gampdf(std::pmr::memory_resource *mr, const Value &x, double a, double b)
                         - a * log_b
                         - lga;
         return std::exp(lp);
-    });
+    }, mr);
 }
 
-Value gamcdf(std::pmr::memory_resource *mr, const Value &x, double a, double b)
+Value gamcdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
 {
     if (a <= 0.0 || b <= 0.0)
-        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
-    Value xs = elementwise(mr, x, [=](double xi) {
+        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
+    Value xs = elementwise(x, [=](double xi) {
         return (xi <= 0.0) ? 0.0 : xi / b;
-    });
+    }, mr);
     Value av = Value::scalar(a, mr);
-    return ::numkit::builtin::gammainc(mr, xs, av);
+    return ::numkit::builtin::gammainc(xs, av, mr);
 }
 
-Value gaminv(std::pmr::memory_resource *mr, const Value &p, double a, double b)
+Value gaminv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
 {
     // MATLAB: a<0 / b<=0 → NaN; a==0 → 0 for p∈[0,1] (degenerate quantile = 0).
     if (a < 0.0 || b <= 0.0)
-        return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     if (a == 0.0)
-        return elementwise(mr, p, [](double pi) {
+        return elementwise(p, [](double pi) {
             return (pi >= 0.0 && pi <= 1.0) ? 0.0
                                             : std::numeric_limits<double>::quiet_NaN();
-        });
+        }, mr);
     Value av = Value::scalar(a, mr);
-    Value q  = ::numkit::builtin::gammaincinv(mr, p, av);
-    return elementwise(mr, q, [=](double qi){ return b * qi; });
+    Value q  = ::numkit::builtin::gammaincinv(p, av, mr);
+    return elementwise(q, [=](double qi){ return b * qi; }, mr);
 }
 
-Value gamrnd(std::pmr::memory_resource *mr, double a, double b, size_t rows, size_t cols)
+Value gamrnd(double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -125,7 +125,7 @@ void gampdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 3)
         throw Error("gampdf: requires (x, a, b)", 0, 0, "gampdf", "", "m:gampdf:nargin");
-    outs[0] = gampdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    outs[0] = gampdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void gamcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -134,7 +134,7 @@ void gamcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
         throw Error("gamcdf: requires (x, a, b[, 'upper'])", 0, 0, "gamcdf", "", "m:gamcdf:nargin");
-    Value v = gamcdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    Value v = gamcdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -143,7 +143,7 @@ void gaminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 3)
         throw Error("gaminv: requires (p, a, b)", 0, 0, "gaminv", "", "m:gaminv:nargin");
-    outs[0] = gaminv(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+    outs[0] = gaminv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void gamrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -154,7 +154,7 @@ void gamrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const double b = args[1].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 2, rows, cols);
-    outs[0] = gamrnd(ctx.engine->resource(), a, b, rows, cols);
+    outs[0] = gamrnd(a, b, rows, cols, ctx.engine->resource());
 }
 
 void gamstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

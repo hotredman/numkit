@@ -468,7 +468,7 @@ const Spec *findSpec(const std::string &name) {
     return nullptr;
 }
 
-Value vecToRow(std::pmr::memory_resource *mr, const std::vector<double> &v) {
+Value vecToRow(const std::vector<double> &v, std::pmr::memory_resource *mr) {
     Value r = Value::matrix(1, v.size(), ValueType::DOUBLE, mr);
     if (!v.empty()) std::copy(v.begin(), v.end(), r.doubleDataMut());
     return r;
@@ -514,34 +514,35 @@ FilterBank wavelet_filters(const std::string &name) {
     return fb;
 }
 
-void wfilters(std::pmr::memory_resource *mr,
-              const std::string &name, const std::string &kind,
-              Value *o0, Value *o1, Value *o2, Value *o3)
+WFiltersResult wfilters(const std::string &name, const std::string &kind,
+                        std::pmr::memory_resource *mr)
 {
     auto fb = wavelet_filters(name);
-    if (kind.empty()) {
+    WFiltersResult r;
+    if (kind.empty() || kind == "all") {
         // Full quadruple, MATLAB order: Lo_D, Hi_D, Lo_R, Hi_R.
-        if (o0) *o0 = vecToRow(mr, fb.Lo_D);
-        if (o1) *o1 = vecToRow(mr, fb.Hi_D);
-        if (o2) *o2 = vecToRow(mr, fb.Lo_R);
-        if (o3) *o3 = vecToRow(mr, fb.Hi_R);
+        r.Lo_D = vecToRow(fb.Lo_D, mr);
+        r.Hi_D = vecToRow(fb.Hi_D, mr);
+        r.Lo_R = vecToRow(fb.Lo_R, mr);
+        r.Hi_R = vecToRow(fb.Hi_R, mr);
     } else if (kind == "d") {
-        if (o0) *o0 = vecToRow(mr, fb.Lo_D);
-        if (o1) *o1 = vecToRow(mr, fb.Hi_D);
+        r.Lo_D = vecToRow(fb.Lo_D, mr);
+        r.Hi_D = vecToRow(fb.Hi_D, mr);
     } else if (kind == "r") {
-        if (o0) *o0 = vecToRow(mr, fb.Lo_R);
-        if (o1) *o1 = vecToRow(mr, fb.Hi_R);
+        r.Lo_R = vecToRow(fb.Lo_R, mr);
+        r.Hi_R = vecToRow(fb.Hi_R, mr);
     } else if (kind == "l") {
-        if (o0) *o0 = vecToRow(mr, fb.Lo_D);
-        if (o1) *o1 = vecToRow(mr, fb.Lo_R);
+        r.Lo_D = vecToRow(fb.Lo_D, mr);
+        r.Lo_R = vecToRow(fb.Lo_R, mr);
     } else if (kind == "h") {
-        if (o0) *o0 = vecToRow(mr, fb.Hi_D);
-        if (o1) *o1 = vecToRow(mr, fb.Hi_R);
+        r.Hi_D = vecToRow(fb.Hi_D, mr);
+        r.Hi_R = vecToRow(fb.Hi_R, mr);
     } else {
         throw Error("wfilters: unknown kind '" + kind +
                     "' (expected 'd', 'r', 'l' or 'h')",
                     0, 0, "wfilters", "", "m:wfilters:kind");
     }
+    return r;
 }
 
 namespace detail {
@@ -564,20 +565,27 @@ void wfilters_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     if (args.size() >= 2) kind = argString(args[1]);
 
     auto *mr = ctx.engine->resource();
-    Value a, b, c, d;
-    wfilters(mr, name, kind, &a, &b, &c, &d);
+    auto r = wfilters(name, kind, mr);
 
     if (kind.empty()) {
         // 4-output form: [Lo_D, Hi_D, Lo_R, Hi_R].
-        if (outs.size() >= 1) outs[0] = a;
-        if (outs.size() >= 2) outs[1] = b;
-        if (outs.size() >= 3) outs[2] = c;
-        if (outs.size() >= 4) outs[3] = d;
+        if (outs.size() >= 1) outs[0] = std::move(r.Lo_D);
+        if (outs.size() >= 2) outs[1] = std::move(r.Hi_D);
+        if (outs.size() >= 3) outs[2] = std::move(r.Lo_R);
+        if (outs.size() >= 4) outs[3] = std::move(r.Hi_R);
         (void)nargout;
     } else {
         // 2026-05-08 audit ТЗ wavelet/wfilters fix: single-output form
         // returns a 2×Lf matrix `[a; b]` (per MATLAB R2025b), not two
         // separate row vectors. Pack column-major.
+        const Value &a = (kind == "d") ? r.Lo_D
+                       : (kind == "r") ? r.Lo_R
+                       : (kind == "l") ? r.Lo_D
+                                       : r.Hi_D;     // 'h'
+        const Value &b = (kind == "d") ? r.Hi_D
+                       : (kind == "r") ? r.Hi_R
+                       : (kind == "l") ? r.Lo_R
+                                       : r.Hi_R;     // 'h'
         const size_t Lf = (size_t)a.numel();
         Value M = Value::matrix(2, Lf, ValueType::DOUBLE, mr);
         double *mp = M.doubleDataMut();

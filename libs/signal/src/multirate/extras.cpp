@@ -43,7 +43,7 @@ Value sameOrientReal(const Value &like, size_t n, std::pmr::memory_resource *mr)
 } // namespace
 
 // ── intfilt (FIR design) ──────────────────────────────────────────────
-Value intfilt(std::pmr::memory_resource *mr, size_t r, size_t n, double alpha)
+Value intfilt(size_t r, size_t n, double alpha, std::pmr::memory_resource *mr)
 {
     if (r < 1)
         throw Error("intfilt: r must be >= 1",
@@ -91,8 +91,7 @@ Value intfilt(std::pmr::memory_resource *mr, size_t r, size_t n, double alpha)
 // has length (Lx-1)*p + 1 (NOT Lx*p -- no trailing zeros). Then
 // linear convolution with h gives length (Lx-1)*p + Lh, and downsample
 // by q yields ceil(/q) samples.
-Value upfirdn(std::pmr::memory_resource *mr, const Value &x, const Value &h,
-              size_t p, size_t q)
+Value upfirdn(const Value &x, const Value &h, size_t p, size_t q, std::pmr::memory_resource *mr)
 {
     if (p < 1 || q < 1)
         throw Error("upfirdn: p and q must be >= 1",
@@ -133,8 +132,7 @@ Value upfirdn(std::pmr::memory_resource *mr, const Value &x, const Value &h,
 }
 
 // ── interp ────────────────────────────────────────────────────────────
-Value interp(std::pmr::memory_resource *mr, const Value &x, size_t r,
-             size_t n, double alpha)
+Value interp(const Value &x, size_t r, size_t n, double alpha, std::pmr::memory_resource *mr)
 {
     if (r == 1) {
         // Pass-through: copy x.
@@ -142,8 +140,8 @@ Value interp(std::pmr::memory_resource *mr, const Value &x, size_t r,
         std::memcpy(out.doubleDataMut(), x.doubleData(), x.numel() * sizeof(double));
         return out;
     }
-    auto h = intfilt(mr, r, n, alpha);
-    auto y = upfirdn(mr, x, h, r, 1);
+    auto h = intfilt(r, n, alpha, mr);
+    auto y = upfirdn(x, h, r, 1, mr);
     // Trim group delay introduced by the symmetric FIR (length L=2nr+1
     // gives delay nr in upsampled samples). MATLAB's interp keeps the
     // first nx*r samples after the symmetric leading delay.
@@ -164,7 +162,7 @@ Value interp(std::pmr::memory_resource *mr, const Value &x, size_t r,
 // Overlap-add convolution. Choose block length L per typical heuristic:
 // L ≈ 2 * nb (rounded up to power of 2). NFFT = L + nb - 1 → next power
 // of 2.
-Value fftfilt(std::pmr::memory_resource *mr, const Value &b, const Value &x, size_t nfft)
+Value fftfilt(const Value &b, const Value &x, size_t nfft, std::pmr::memory_resource *mr)
 {
     const size_t nb = b.numel();
     const size_t nx = x.numel();
@@ -229,7 +227,7 @@ void upfirdn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
                      0, 0, "upfirdn", "", "m:upfirdn:nargin");
     const size_t p = static_cast<size_t>(args[2].toScalar());
     const size_t q = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 1;
-    outs[0] = upfirdn(ctx.engine->resource(), args[0], args[1], p, q);
+    outs[0] = upfirdn(args[0], args[1], p, q, ctx.engine->resource());
 }
 
 void interp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -240,7 +238,7 @@ void interp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const size_t r = static_cast<size_t>(args[1].toScalar());
     const size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 4;
     const double alpha = (args.size() >= 4) ? args[3].toScalar() : 0.5;
-    outs[0] = interp(ctx.engine->resource(), args[0], r, n, alpha);
+    outs[0] = interp(args[0], r, n, alpha, ctx.engine->resource());
 }
 
 void intfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -251,7 +249,7 @@ void intfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const size_t r = static_cast<size_t>(args[0].toScalar());
     const size_t n = (args.size() >= 2) ? static_cast<size_t>(args[1].toScalar()) : 4;
     const double alpha = (args.size() >= 3) ? args[2].toScalar() : 0.5;
-    outs[0] = intfilt(ctx.engine->resource(), r, n, alpha);
+    outs[0] = intfilt(r, n, alpha, ctx.engine->resource());
 }
 
 void fftfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -260,7 +258,7 @@ void fftfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         throw Error("fftfilt: requires (b, x[, nfft])",
                      0, 0, "fftfilt", "", "m:fftfilt:nargin");
     const size_t nfft = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
-    outs[0] = fftfilt(ctx.engine->resource(), args[0], args[1], nfft);
+    outs[0] = fftfilt(args[0], args[1], nfft, ctx.engine->resource());
 }
 
 } // namespace detail

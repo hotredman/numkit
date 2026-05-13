@@ -64,7 +64,7 @@ bool tryCholesky(const Value &SIGMA, std::vector<double> &out, size_t n)
 } // namespace
 
 std::pair<Value, Value>
-cholcov(std::pmr::memory_resource *mr, const Value &SIGMA)
+cholcov(const Value &SIGMA, std::pmr::memory_resource *mr)
 {
     const size_t R = SIGMA.dims().rows();
     const size_t C = SIGMA.dims().cols();
@@ -86,7 +86,7 @@ cholcov(std::pmr::memory_resource *mr, const Value &SIGMA)
 
     // 2. Fall back to eigendecomposition. Treat SIGMA as symmetric;
     //    eig_symmetric throws if it's not symmetric.
-    auto [V, D] = ::numkit::builtin::eig_symmetric(mr, SIGMA);
+    auto [V, D] = ::numkit::builtin::eig_symmetric(SIGMA, mr);
 
     // D is n×n diagonal; extract eigvals into a flat vector.
     std::vector<double> d(R);
@@ -134,7 +134,7 @@ void cholcov_reg(Span<const Value> args, size_t nargout,
         throw Error("cholcov: requires (SIGMA)",
                     0, 0, "cholcov", "", "m:cholcov:nargin");
     auto *mr = ctx.engine->resource();
-    auto [T, p] = cholcov(mr, args[0]);
+    auto [T, p] = cholcov(args[0], mr);
     outs[0] = std::move(T);
     if (nargout > 1) outs[1] = std::move(p);
 }

@@ -2,83 +2,188 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 
 namespace numkit::signal {
 
-/// 1D discrete Fourier transform along a given dimension.
+/// 1-D discrete Fourier transform along a given dimension.
 ///
 /// Mirrors MATLAB's `fft`:
-///   fft(x)         — along first non-singleton dimension
-///   fft(x, n)      — zero-pad or truncate to length n
-///   fft(x, [], k)  — along dimension k (1 = rows, 2 = cols, 3 = pages)
-///   fft(x, n,  k)
+///   * `fft(x)`         — along the first non-singleton dimension
+///   * `fft(x, n)`      — zero-pad or truncate to length n first
+///   * `fft(x, -1, k)`  — along dimension k (1=rows, 2=cols, 3=pages)
+///   * `fft(x, n,  k)`  — both n and dim explicit
 ///
-/// @param mr  memory_resource for the output Value and any intermediate buffers.
-/// @param x      Input — real or complex, 1-D / 2-D / 3-D. Empty → returns empty.
-/// @param n      Output length per transform. -1 (default) keeps input length.
-///               n > input length → zero-pad; n < input → truncate.
-/// @param dim    Axis to transform along. 1 = along rows, 2 = along cols,
-///               3 = along pages. 0 (default) means "first non-singleton
-///               dimension" — matches MATLAB's `fft(x)` behaviour so a
-///               row vector stays a row vector without explicit dim.
-/// @return       Value of the same shape as x with the chosen axis replaced
-///               by the output length. Forward FFT is always complex-typed;
-///               inverse FFT may downgrade to real when the imaginary part
-///               is within 1e-10 everywhere.
-/// @throws       Error on dim outside {0, 1, 2, 3}, or when the requested
-///               transform would extend dimensionality (axis length 1, n > 1).
-Value fft(std::pmr::memory_resource *mr, const Value &x, int n = -1, int dim = 0);
-
-/// 1D inverse DFT along a given dimension. Same parameter semantics as `fft`.
-Value ifft(std::pmr::memory_resource *mr, const Value &X, int n = -1, int dim = 0);
-
-/// 2-D DFT. fft2(X) ≡ fft(fft(X, m, 1), n, 2). m = -1 / n = -1 use size(X).
-Value fft2(std::pmr::memory_resource *mr, const Value &X, int m = -1, int n = -1);
-
-/// 2-D inverse DFT. Same shape semantics as fft2.
-Value ifft2(std::pmr::memory_resource *mr, const Value &X, int m = -1, int n = -1);
-
-/// N-D forward FFT. Mirrors MATLAB `fftn`:
-///   fftn(X)        — FFT along every dimension of X using each axis's
-///                    current length.
-///   fftn(X, sz)    — same, but axis k is zero-padded or truncated to
-///                    sz[k-1] before its FFT. `sz` length must not
-///                    exceed ndims(X).
-/// Implemented as fft along each axis in turn (commutes, like
-/// MATLAB / NumPy / SciPy). Output is always complex-typed.
-/// `sz` is passed as a pointer + length; pass `nullptr` / 0 for the
-/// no-override form.
-Value fftn(std::pmr::memory_resource *mr, const Value &X,
-           const std::size_t *sz = nullptr, std::size_t szLen = 0);
-
-/// N-D inverse FFT. Same shape semantics as `fftn`. May downgrade to
-/// real output if the imaginary part is within 1e-10 everywhere.
-Value ifftn(std::pmr::memory_resource *mr, const Value &X,
-            const std::size_t *sz = nullptr, std::size_t szLen = 0);
-
-/// czt(x, m, w, a) — discrete chirp Z-transform.
-/// Computes Y[k] = Σ_{n=0..N-1} x[n] · a^(-n) · w^(n·k) for k=0..m-1.
+/// Forward transform is always complex-typed; an inverse transform that
+/// happens to produce a real result (imaginary part ≤ 1e-10 everywhere)
+/// is automatically downgraded to DOUBLE.
 ///
-/// Defaults match MATLAB:
-///   m = N (input length)
-///   w = exp(-2·π·j / m)
-///   a = 1
-///   → czt(x) ≡ fft(x), czt(x, m) ≡ fft(x, m)
+/// @param x      Input — real or complex, 1-D / 2-D / 3-D. Empty → empty.
+/// @param n      Output length per transform along `dim`. `-1` (default) keeps
+///               the input length; `n > axis_len` zero-pads; `n < axis_len`
+///               truncates.
+/// @param dim    Axis to transform along. `0` (default) = first non-singleton
+///               dimension (a row vector therefore stays a row vector).
+///               `1` = rows, `2` = columns, `3` = pages.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Value of the same shape as `x` with the chosen axis replaced
+///               by the output length; COMPLEX-typed.
 ///
-/// Algorithm: Bluestein decomposition n·k = (n² + k² − (k−n)²)/2 →
-/// turns the chirp-z sum into a convolution g ⋆ h evaluated via FFT
-/// of length L = nextPow2(N + m − 1).
+/// @throws  numkit::Error  if `dim` is outside `{0, 1, 2, 3}`, or the
+///                         request would extend a singleton axis.
 ///
-/// For 2-D input, transforms each column independently (MATLAB
-/// semantics). 3-D not supported (matches existing fft policy on
-/// transforms with explicit length args).
-Value czt(std::pmr::memory_resource *mr, const Value &x,
-          int m, Complex w, Complex a);
+/// @code
+/// Value X = fft({1.0, 2.0, 3.0, 4.0});       // 4-pt FFT
+/// Value Y = fft(x, 8);                       // zero-pad to 8 samples
+/// Value Z = fft(matrix3d, -1, 2);            // transform along columns
+/// @endcode
+///
+/// @see ifft, fft2, fftn, czt
+Value fft(const Value &                x,
+          int                          n   = -1,
+          int                          dim = 0,
+          std::pmr::memory_resource *  mr  = nullptr);
 
-/// interpft(x, n[, dim]) — band-limited (FFT-based) interpolation of `x`
-/// to `n` equispaced samples along `dim`. dim=0 means "first non-singleton".
-/// Implementation: FFT → zero-pad in frequency domain → IFFT → scale by n/m.
-Value interpft(std::pmr::memory_resource *mr, const Value &x, int n, int dim = 0);
+/// 1-D inverse discrete Fourier transform along a given dimension.
+///
+/// Same parameter semantics as `fft`. The result may downgrade to
+/// DOUBLE when the spectrum is conjugate-symmetric (imag ≤ 1e-10).
+///
+/// @param X    Input spectrum (real or complex).
+/// @param n    Output length, `-1` keeps input length.
+/// @param dim  Transform axis (see `fft`).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Inverse-transformed Value.
+///
+/// @see fft
+Value ifft(const Value &                X,
+           int                          n   = -1,
+           int                          dim = 0,
+           std::pmr::memory_resource *  mr  = nullptr);
+
+/// 2-D forward FFT.
+///
+/// Equivalent to `fft(fft(X, m, 1), n, 2)`. `m == -1` and / or `n == -1`
+/// keep the corresponding dimension at its current length.
+///
+/// @param X   2-D input (real or complex).
+/// @param m   Number of rows for the FFT, `-1` keeps `size(X, 1)`.
+/// @param n   Number of columns, `-1` keeps `size(X, 2)`.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    m × n COMPLEX matrix.
+///
+/// @see ifft2, fftn
+Value fft2(const Value &                X,
+           int                          m  = -1,
+           int                          n  = -1,
+           std::pmr::memory_resource *  mr = nullptr);
+
+/// @brief 2-D inverse FFT (`Y = ifft2(X, m, n)`).
+///
+/// Inverse of @ref fft2; same shape semantics. May downgrade output
+/// to DOUBLE when the result is real within tolerance (imag ≤ 1e-10).
+///
+/// @param X   2-D input spectrum.
+/// @param m   Number of rows, `-1` keeps `size(X, 1)`.
+/// @param n   Number of columns, `-1` keeps `size(X, 2)`.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `m × n` array (COMPLEX or DOUBLE).
+/// @see fft2, ifft, ifftn
+Value ifft2(const Value &X, int m = -1, int n = -1,
+            std::pmr::memory_resource *mr = nullptr);
+
+/// @brief N-D forward FFT.
+///
+/// Mirrors MATLAB's `fftn`:
+/// - `fftn(X)`     — FFT along every dimension of X at its current
+///   length.
+/// - `fftn(X, sz)` — same, but axis `k` is zero-padded or truncated
+///   to `sz[k]` before its FFT. `sz.size()` must be ≤ `ndims(X)`.
+///
+/// Implemented as `fft` along each axis in turn (commutes, like
+/// MATLAB / NumPy / SciPy).
+///
+/// @param X    N-D input.
+/// @param sz   Per-axis target sizes (empty Span → use X's current
+///             shape).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Same-shape (or `sz`-shape) COMPLEX array.
+/// @see fft, fft2, ifftn
+Value fftn(const Value &              X,
+           Span<const std::size_t>    sz = {},
+           std::pmr::memory_resource *mr = nullptr);
+
+/// @brief N-D inverse FFT (`Y = ifftn(X, sz)`).
+///
+/// Inverse of @ref fftn; same shape semantics. May downgrade to
+/// DOUBLE when `imag(Y) ≤ 1e-10` everywhere.
+///
+/// @param X    N-D input spectrum.
+/// @param sz   Per-axis target sizes (empty Span → use X's current
+///             shape).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Same-shape (or `sz`-shape) array (COMPLEX or DOUBLE).
+/// @see fftn, ifft, ifft2
+Value ifftn(const Value &              X,
+            Span<const std::size_t>    sz = {},
+            std::pmr::memory_resource *mr = nullptr);
+
+/// Chirp Z-transform (Bluestein).
+///
+/// Computes
+/// \f$ Y[k] = \sum_{n=0}^{N-1} x[n] \cdot a^{-n} \cdot w^{n k} \f$
+/// for k = 0..m-1. Generalises `fft` to arbitrary contour points on the
+/// z-plane (zoom FFT, fractional-rate FFT, etc.).
+///
+/// Defaults that recover `fft`:
+///   * m = N (input length)
+///   * w = `exp(-2πj / m)`
+///   * a = 1.0
+///
+/// Algorithm: Bluestein decomposition `n·k = (n² + k² − (k−n)²)/2`
+/// converts the sum into a convolution `g ⋆ h` evaluated via an FFT of
+/// length `L = nextPow2(N + m − 1)`.
+///
+/// For 2-D input, transforms each column independently (MATLAB semantics).
+/// 3-D input is not supported.
+///
+/// @param x   Input (real or complex), 1-D or 2-D.
+/// @param m   Number of output points.
+/// @param w   Ratio between consecutive contour points (complex).
+/// @param a   Starting contour point (complex).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    m-length (or m × Ncols) COMPLEX result.
+///
+/// @code
+/// // Zoom around a narrow band [f1, f2] of an N-sample sequence,
+/// // sampling m points:
+/// Complex w = std::polar(1.0, -2 * M_PI * (f2 - f1) / m);
+/// Complex a = std::polar(1.0, -2 * M_PI * f1);
+/// Value Y = czt(x, m, w, a);
+/// @endcode
+Value czt(const Value &                x,
+          int                          m,
+          Complex                      w,
+          Complex                      a,
+          std::pmr::memory_resource *  mr = nullptr);
+
+/// FFT-based band-limited interpolation of `x` to `n` equispaced samples.
+///
+/// Algorithm: forward FFT → zero-pad in the frequency domain → inverse
+/// FFT → scale by `n / m`. The result is the trigonometric interpolant
+/// of `x` evaluated at n uniform points.
+///
+/// @param x    Input signal.
+/// @param n    Number of output samples along `dim`.
+/// @param dim  Axis to interpolate along. `0` → first non-singleton.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Same shape as `x` with `dim` axis replaced by length `n`.
+///
+/// @see fft
+Value interpft(const Value &                x,
+               int                          n,
+               int                          dim = 0,
+               std::pmr::memory_resource *  mr  = nullptr);
 
 } // namespace numkit::signal

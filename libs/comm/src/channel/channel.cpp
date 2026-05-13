@@ -58,8 +58,8 @@ Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op) {
 
 } // anonymous
 
-Value awgn(std::pmr::memory_resource *mr, const Value &x,
-           double snr_db, double sigpower_db)
+Value awgn(const Value &x, double snr_db, double sigpower_db,
+           std::pmr::memory_resource *mr)
 {
     const bool is_complex = (x.type() == ValueType::COMPLEX);
     double sig_pow = (sigpower_db < -1e9)  // -inf sentinel = "measured"
@@ -95,8 +95,8 @@ Value awgn(std::pmr::memory_resource *mr, const Value &x,
     return out;
 }
 
-Value wgn(std::pmr::memory_resource *mr, int m, int n,
-          double p, const std::string &type, bool complex_out)
+Value wgn(int m, int n, double p, const std::string &type,
+          bool complex_out, std::pmr::memory_resource *mr)
 {
     double power_lin = 0.0;
     if (type == "linear") power_lin = p;
@@ -124,7 +124,7 @@ Value wgn(std::pmr::memory_resource *mr, int m, int n,
     return out;
 }
 
-Value bsc(std::pmr::memory_resource *mr, const Value &x, double p) {
+Value bsc(const Value &x, double p, std::pmr::memory_resource *mr) {
     if (p < 0.0 || p > 1.0)
         throw Error("bsc: p must be in [0, 1]", 0, 0, "bsc", "",
                     "m:bsc:badp");
@@ -147,7 +147,7 @@ Value bsc(std::pmr::memory_resource *mr, const Value &x, double p) {
     return out;
 }
 
-Value qfunc(std::pmr::memory_resource *mr, const Value &x) {
+Value qfunc(const Value &x, std::pmr::memory_resource *mr) {
     return elementwise(mr, x, [](double v) {
         return 0.5 * std::erfc(v / std::sqrt(2.0));
     });
@@ -189,7 +189,7 @@ double erfcinv_approx(double x) {
 }
 } // anonymous
 
-Value qfuncinv(std::pmr::memory_resource *mr, const Value &p) {
+Value qfuncinv(const Value &p, std::pmr::memory_resource *mr) {
     return elementwise(mr, p, [](double v) {
         if (!(v > 0.0 && v < 1.0)) return std::numeric_limits<double>::quiet_NaN();
         // Q(x) = 0.5·erfc(x/√2). Inverse: x = √2·erfcinv(2v).
@@ -197,7 +197,8 @@ Value qfuncinv(std::pmr::memory_resource *mr, const Value &p) {
     });
 }
 
-Value marcumq(std::pmr::memory_resource *mr, const Value &a_v, const Value &b_v, int m)
+Value marcumq(const Value &a_v, const Value &b_v, int m,
+              std::pmr::memory_resource *mr)
 {
     // Power-series approximation: Q_m(a, b) = exp(-(a²+b²)/2) · Σ_{k=0..} (a/b)^(m-1+k) · I_{m-1+k}(ab)
     // For first-cut, only m=1 (standard Marcum Q) is implemented robustly via:
@@ -274,8 +275,8 @@ Value marcumq(std::pmr::memory_resource *mr, const Value &a_v, const Value &b_v,
     return out;
 }
 
-Value berawgn(std::pmr::memory_resource *mr, const Value &EbNo_dB,
-              const std::string &mod, int M)
+Value berawgn(const Value &EbNo_dB, const std::string &mod, int M,
+              std::pmr::memory_resource *mr)
 {
     return elementwise(mr, EbNo_dB, [&](double dB) {
         const double EbNo = std::pow(10.0, dB / 10.0);
@@ -311,8 +312,8 @@ Value berawgn(std::pmr::memory_resource *mr, const Value &EbNo_dB,
     });
 }
 
-Value noisebw(std::pmr::memory_resource *mr, const Value &num, const Value &den,
-              int Nsamp, double fs)
+Value noisebw(const Value &num, const Value &den, int Nsamp,
+              double fs, std::pmr::memory_resource *mr)
 {
     // MATLAB convention (noisebw):
     //   NBW = (fs / N) * sum(|H[k]|^2) / max(|H[k]|^2)
@@ -356,12 +357,12 @@ static double betaincinv_scalar(std::pmr::memory_resource *mr,
     Value pV = Value::scalar(p, mr);
     Value aV = Value::scalar(a, mr);
     Value bV = Value::scalar(b, mr);
-    return ::numkit::builtin::betaincinv(mr, pV, aV, bV).toScalar();
+    return ::numkit::builtin::betaincinv(pV, aV, bV, mr).toScalar();
 }
 
 std::tuple<Value, Value>
-berconfint(std::pmr::memory_resource *mr,
-           double numErrs, double numBits, double level)
+berconfint(double numErrs, double numBits, double level,
+           std::pmr::memory_resource *mr)
 {
     if (!(numBits > 0.0))
         throw Error("berconfint: numBits must be positive",
@@ -392,9 +393,11 @@ berconfint(std::pmr::memory_resource *mr,
     return {std::move(berV), std::move(ciV)};
 }
 
-Value convertSNR(std::pmr::memory_resource *mr, const Value &snr_in,
-                 const std::string &in_type, const std::string &out_type,
-                 int bits_per_symbol)
+Value convertSNR(const Value &snr_in,
+                 const std::string &in_type,
+                 const std::string &out_type,
+                 int bits_per_symbol,
+                 std::pmr::memory_resource *mr)
 {
     if (in_type == out_type) return snr_in;
     return elementwise(mr, snr_in, [&](double dB) {
@@ -430,7 +433,7 @@ void awgn_reg(Span<const Value> args, size_t /*nargout*/,
             sp = args[2].toScalar();
         }
     }
-    outs[0] = awgn(ctx.engine->resource(), args[0], snr, sp);
+    outs[0] = awgn(args[0], snr, sp, ctx.engine->resource());
 }
 
 void wgn_reg(Span<const Value> args, size_t /*nargout*/,
@@ -452,7 +455,7 @@ void wgn_reg(Span<const Value> args, size_t /*nargout*/,
             else if (s == "real")    complex_out = false;
         }
     }
-    outs[0] = wgn(ctx.engine->resource(), m, n, p, type, complex_out);
+    outs[0] = wgn(m, n, p, type, complex_out, ctx.engine->resource());
 }
 
 void bsc_reg(Span<const Value> args, size_t /*nargout*/,
@@ -461,7 +464,7 @@ void bsc_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("bsc: requires (input, p)", 0, 0, "bsc", "",
                     "m:bsc:nargin");
-    outs[0] = bsc(ctx.engine->resource(), args[0], args[1].toScalar());
+    outs[0] = bsc(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 void qfunc_reg(Span<const Value> args, size_t /*nargout*/,
@@ -469,7 +472,7 @@ void qfunc_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("qfunc: requires x", 0, 0, "qfunc", "", "m:qfunc:nargin");
-    outs[0] = qfunc(ctx.engine->resource(), args[0]);
+    outs[0] = qfunc(args[0], ctx.engine->resource());
 }
 
 void qfuncinv_reg(Span<const Value> args, size_t /*nargout*/,
@@ -478,7 +481,7 @@ void qfuncinv_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("qfuncinv: requires p", 0, 0, "qfuncinv", "",
                     "m:qfuncinv:nargin");
-    outs[0] = qfuncinv(ctx.engine->resource(), args[0]);
+    outs[0] = qfuncinv(args[0], ctx.engine->resource());
 }
 
 void marcumq_reg(Span<const Value> args, size_t /*nargout*/,
@@ -489,7 +492,7 @@ void marcumq_reg(Span<const Value> args, size_t /*nargout*/,
                     "m:marcumq:nargin");
     const int m = (args.size() >= 3 && !args[2].isEmpty())
                   ? (int)args[2].toScalar() : 1;
-    outs[0] = marcumq(ctx.engine->resource(), args[0], args[1], m);
+    outs[0] = marcumq(args[0], args[1], m, ctx.engine->resource());
 }
 
 void berawgn_reg(Span<const Value> args, size_t /*nargout*/,
@@ -500,7 +503,7 @@ void berawgn_reg(Span<const Value> args, size_t /*nargout*/,
                     "m:berawgn:nargin");
     std::string mod = args[1].toString();
     const int M = (int)args[2].toScalar();
-    outs[0] = berawgn(ctx.engine->resource(), args[0], mod, M);
+    outs[0] = berawgn(args[0], mod, M, ctx.engine->resource());
 }
 
 void noisebw_reg(Span<const Value> args, size_t /*nargout*/,
@@ -511,7 +514,7 @@ void noisebw_reg(Span<const Value> args, size_t /*nargout*/,
                     "", "m:noisebw:nargin");
     const int    n  = (int)args[2].toScalar();
     const double fs = args[3].toScalar();
-    outs[0] = noisebw(ctx.engine->resource(), args[0], args[1], n, fs);
+    outs[0] = noisebw(args[0], args[1], n, fs, ctx.engine->resource());
 }
 
 void berconfint_reg(Span<const Value> args, size_t nargout,
@@ -524,7 +527,7 @@ void berconfint_reg(Span<const Value> args, size_t nargout,
     const double n     = args[1].toScalar();
     const double level = (args.size() >= 3 && !args[2].isEmpty())
                          ? args[2].toScalar() : 0.95;
-    auto [ber, ci] = berconfint(ctx.engine->resource(), k, n, level);
+    auto [ber, ci] = berconfint(k, n, level, ctx.engine->resource());
     outs[0] = std::move(ber);
     if (nargout > 1) outs[1] = std::move(ci);
 }
@@ -546,7 +549,7 @@ void convertSNR_reg(Span<const Value> args, size_t /*nargout*/,
             else if (key == "To")       out_type = args[i + 1].toString();
         }
     }
-    outs[0] = convertSNR(ctx.engine->resource(), args[0], in_type, out_type, k);
+    outs[0] = convertSNR(args[0], in_type, out_type, k, ctx.engine->resource());
 }
 
 } // namespace detail

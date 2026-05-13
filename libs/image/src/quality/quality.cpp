@@ -38,7 +38,7 @@ double sum_squared_error(const Value &A, const Value &B) {
 
 } // anonymous
 
-Value immse(std::pmr::memory_resource *mr, const Value &A, const Value &B) {
+Value immse(const Value &A, const Value &B, std::pmr::memory_resource *mr) {
     if (A.numel() != B.numel())
         throw Error("immse: A and B must have the same number of elements",
                     0, 0, "immse", "", "m:immse:size");
@@ -48,7 +48,7 @@ Value immse(std::pmr::memory_resource *mr, const Value &A, const Value &B) {
     return Value::scalar(mse, mr);
 }
 
-Value psnr(std::pmr::memory_resource *mr, const Value &A, const Value &B, double peak) {
+Value psnr(const Value &A, const Value &B, double peak, std::pmr::memory_resource *mr) {
     if (A.numel() != B.numel())
         throw Error("psnr: A and B must have the same number of elements",
                     0, 0, "psnr", "", "m:psnr:size");
@@ -60,7 +60,7 @@ Value psnr(std::pmr::memory_resource *mr, const Value &A, const Value &B, double
     return Value::scalar(db, mr);
 }
 
-Value ssim(std::pmr::memory_resource *mr, const Value &A, const Value &B) {
+Value ssim(const Value &A, const Value &B, std::pmr::memory_resource *mr) {
     if (A.numel() != B.numel())
         throw Error("ssim: A and B must have the same number of elements",
                     0, 0, "ssim", "", "m:ssim:size");
@@ -79,7 +79,7 @@ Value ssim(std::pmr::memory_resource *mr, const Value &A, const Value &B) {
     auto Au = unit(A), Bu = unit(B);
 
     // Gaussian window kernel: 11×11, σ=1.5.
-    Value gK = fspecial(mr, "gaussian", { 11.0, 11.0, 1.5 });
+    Value gK = fspecial("gaussian", { 11.0, 11.0, 1.5 }, mr);
 
     // Wrap Au and Bu back as Values so we can re-use imfilter.
     auto pack = [&](const std::vector<double> &v) {
@@ -94,8 +94,7 @@ Value ssim(std::pmr::memory_resource *mr, const Value &A, const Value &B) {
 
     // Filtered means.
     auto box_filt = [&](const Value &X) {
-        return imfilter(mr, X, gK, PadMode::Replicate, 0.0,
-                        /*full=*/false, /*flip_kernel=*/false);
+        return imfilter(X, gK, PadMode::Replicate, 0.0, /*full=*/false, /*flip_kernel=*/false, mr);
     };
 
     Value mu_a = box_filt(Av);
@@ -142,7 +141,7 @@ Value ssim(std::pmr::memory_resource *mr, const Value &A, const Value &B) {
     return Value::scalar(s, mr);
 }
 
-Value mean2(std::pmr::memory_resource *mr, const Value &A)
+Value mean2(const Value &A, std::pmr::memory_resource *mr)
 {
     const size_t N = A.numel();
     if (N == 0) return Value::scalar(std::nan(""), mr);
@@ -152,7 +151,7 @@ Value mean2(std::pmr::memory_resource *mr, const Value &A)
                          mr);
 }
 
-Value std2(std::pmr::memory_resource *mr, const Value &A)
+Value std2(const Value &A, std::pmr::memory_resource *mr)
 {
     const size_t N = A.numel();
     if (N == 0) return Value::scalar(std::nan(""), mr);
@@ -170,7 +169,7 @@ Value std2(std::pmr::memory_resource *mr, const Value &A)
     return Value::scalar(static_cast<double>(std::sqrt((double)v)), mr);
 }
 
-Value corr2(std::pmr::memory_resource *mr, const Value &A, const Value &B)
+Value corr2(const Value &A, const Value &B, std::pmr::memory_resource *mr)
 {
     const size_t N = A.numel();
     if (B.numel() != N)
@@ -209,7 +208,7 @@ void immse_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("immse: requires (A, B)", 0, 0, "immse", "",
                     "m:immse:nargin");
-    outs[0] = immse(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = immse(args[0], args[1], ctx.engine->resource());
 }
 
 void psnr_reg(Span<const Value> args, size_t /*nargout*/,
@@ -220,7 +219,7 @@ void psnr_reg(Span<const Value> args, size_t /*nargout*/,
                     "m:psnr:nargin");
     const double peak = (args.size() >= 3 && !args[2].isEmpty())
                         ? args[2].toScalar() : std::nan("");
-    outs[0] = psnr(ctx.engine->resource(), args[0], args[1], peak);
+    outs[0] = psnr(args[0], args[1], peak, ctx.engine->resource());
 }
 
 void ssim_reg(Span<const Value> args, size_t /*nargout*/,
@@ -229,7 +228,7 @@ void ssim_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("ssim: requires (A, B)", 0, 0, "ssim", "",
                     "m:ssim:nargin");
-    outs[0] = ssim(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = ssim(args[0], args[1], ctx.engine->resource());
 }
 
 void mean2_reg(Span<const Value> args, size_t /*nargout*/,
@@ -238,7 +237,7 @@ void mean2_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("mean2: requires (A)", 0, 0, "mean2", "",
                     "m:mean2:nargin");
-    outs[0] = mean2(ctx.engine->resource(), args[0]);
+    outs[0] = mean2(args[0], ctx.engine->resource());
 }
 
 void std2_reg(Span<const Value> args, size_t /*nargout*/,
@@ -247,7 +246,7 @@ void std2_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("std2: requires (A)", 0, 0, "std2", "",
                     "m:std2:nargin");
-    outs[0] = std2(ctx.engine->resource(), args[0]);
+    outs[0] = std2(args[0], ctx.engine->resource());
 }
 
 void corr2_reg(Span<const Value> args, size_t /*nargout*/,
@@ -256,7 +255,7 @@ void corr2_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("corr2: requires (A, B)", 0, 0, "corr2", "",
                     "m:corr2:nargin");
-    outs[0] = corr2(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = corr2(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail

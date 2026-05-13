@@ -10,29 +10,66 @@
 
 namespace numkit::audio {
 
-// Generic cepstral extractor: log10/cubic-root rectification → DCT-II
-// → keep first NumCoeffs (default 13). Input S is L × M (filterbank
-// bands × frames). Output is M × NumCoeffs (frames first, MATLAB
-// convention).
-Value cepstralCoefficients(std::pmr::memory_resource *mr, const Value &S,
-                           int numCoeffs = 13);
+/// Generic cepstral coefficient extractor.
+///
+/// Pipeline: log10 / cubic-root rectification → DCT-II → keep first
+/// `numCoeffs` coefficients. Input `S` is `L × M` (filterbank bands ×
+/// frames). Output is `M × numCoeffs` (frames first, MATLAB convention).
+///
+/// @param S          `L × M` real filterbank energy matrix.
+/// @param numCoeffs  Number of cepstral coefficients to keep. Default 13.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           `M × numCoeffs` DOUBLE matrix.
+///
+/// @see mfcc, gtcc
+Value cepstralCoefficients(const Value &                S,
+                           int                          numCoeffs = 13,
+                           std::pmr::memory_resource *  mr        = nullptr);
 
-// Mel-frequency cepstral coefficients (Cycle G — bit-equal MATLAB R2025b).
-// Pipeline: hamming(0.03*fs,'periodic') STFT, |FFT| magnitude, Slaney
-// mel filterbank ('Bandwidth' norm), log10+DCT-II via cepstralCoefficients,
-// natural-log unwindowed-frame energy prepended ('append' default).
-// Returns (coeffs, delta, deltaDelta) all (NumFrames × (NumCoeffs+1)).
+/// Mel-frequency cepstral coefficients (MFCC).
+///
+/// Bit-equal MATLAB R2025b. Pipeline:
+///   1. Hamming `(0.03 · fs, 'periodic')` STFT.
+///   2. `|FFT|` magnitude.
+///   3. Slaney mel filterbank (`'Bandwidth'` normalisation).
+///   4. log10 + DCT-II via `cepstralCoefficients`.
+///   5. Natural-log unwindowed-frame energy prepended (`'append'` default).
+///
+/// @param x          Real 1-D audio signal.
+/// @param fs         Sample rate in Hz.
+/// @param numCoeffs  Number of cepstral coefficients. Default 13.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           Tuple `(coeffs, delta, deltaDelta)` — three matrices,
+///                   each `NumFrames × (numCoeffs + 1)`. `delta` and
+///                   `deltaDelta` are the first and second time-derivative
+///                   estimates of the coefficients.
+///
+/// @see cepstralCoefficients, audioDelta, gtcc
 std::tuple<Value, Value, Value>
-mfcc(std::pmr::memory_resource *mr, const Value &x, double fs,
-     int numCoeffs = 13);
+mfcc(const Value &                x,
+     double                       fs,
+     int                          numCoeffs = 13,
+     std::pmr::memory_resource *  mr        = nullptr);
 
-// Gammatone cepstral coefficients (Cycle H — bit-equal MATLAB R2025b).
-// Same STFT + cepstralCoefficients pipeline as mfcc but with ERB-spaced
-// Patterson-Holdsworth gammatone filterbank (Slaney 1993): cascaded
-// 4-stage biquad freq response, FrequencyRange=[50, fs/2],
-// NumFilters=ceil(hz2erb(fs/2)-hz2erb(50)).
+/// Gammatone cepstral coefficients (GTCC).
+///
+/// Bit-equal MATLAB R2025b. Same STFT + `cepstralCoefficients` pipeline
+/// as `mfcc` but with an ERB-spaced Patterson-Holdsworth gammatone
+/// filterbank (Slaney 1993): cascaded 4-stage biquad frequency response,
+/// `FrequencyRange = [50, fs/2]`,
+/// `NumFilters = ceil(hz2erb(fs/2) - hz2erb(50))`.
+///
+/// @param x          Real 1-D audio signal.
+/// @param fs         Sample rate in Hz.
+/// @param numCoeffs  Number of cepstral coefficients. Default 13.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           Tuple `(coeffs, delta, deltaDelta)`.
+///
+/// @see mfcc, hz2erb
 std::tuple<Value, Value, Value>
-gtcc(std::pmr::memory_resource *mr, const Value &x, double fs,
-     int numCoeffs = 13);
+gtcc(const Value &                x,
+     double                       fs,
+     int                          numCoeffs = 13,
+     std::pmr::memory_resource *  mr        = nullptr);
 
 } // namespace numkit::audio

@@ -25,7 +25,7 @@
 namespace numkit::stats {
 
 std::pair<Value, Value>
-corrcov(std::pmr::memory_resource *mr, const Value &C)
+corrcov(const Value &C, std::pmr::memory_resource *mr)
 {
     const size_t R = C.dims().rows();
     const size_t Cn = C.dims().cols();
@@ -75,7 +75,7 @@ void corrcov_reg(Span<const Value> args, size_t nargout,
         throw Error("corrcov: requires (C)",
                     0, 0, "corrcov", "", "m:corrcov:nargin");
     auto *mr = ctx.engine->resource();
-    auto [Rv, Sv] = corrcov(mr, args[0]);
+    auto [Rv, Sv] = corrcov(args[0], mr);
     outs[0] = std::move(Rv);
     if (nargout > 1) outs[1] = std::move(Sv);
 }

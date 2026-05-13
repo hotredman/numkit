@@ -70,8 +70,7 @@ double matrix_inf_norm(const double *A, size_t M, size_t N)
 //
 // jb is filled with the 1-based pivot column indices.
 std::pair<Value, Value>
-rref(std::pmr::memory_resource *mr, const Value &A,
-     bool have_tol, double tol_user)
+rref(const Value &A, bool have_tol, double tol_user, std::pmr::memory_resource *mr)
 {
     if (A.dims().is3D())
         throw Error("rref: input must be 2D",
@@ -175,7 +174,7 @@ rref(std::pmr::memory_resource *mr, const Value &A,
 // will produce slightly different values on near-singular matrices
 // because the LAPACK estimator approximates ||inv(A)||_1 without
 // computing inv(A) itself.
-Value rcond(std::pmr::memory_resource *mr, const Value &A)
+Value rcond(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().is3D())
         throw Error("rcond: input must be 2D",
@@ -196,7 +195,7 @@ Value rcond(std::pmr::memory_resource *mr, const Value &A)
 
     Value Ainv;
     try {
-        Ainv = inv(mr, A);
+        Ainv = inv(A, mr);
     } catch (...) {
         return Value::scalar(0.0, mr);
     }
@@ -214,7 +213,7 @@ Value rcond(std::pmr::memory_resource *mr, const Value &A)
 // Formula: r = hypot(x, y); c = x/r; s = y/r; G = [c s; -s c]; y = [r; 0].
 // Degenerate (x = y = 0): G = I, y = [0; 0].
 std::pair<Value, Value>
-planerot(std::pmr::memory_resource *mr, const Value &xy)
+planerot(const Value &xy, std::pmr::memory_resource *mr)
 {
     if (xy.dims().is3D() || xy.numel() != 2)
         throw Error("planerot: input must be a 2-element vector",
@@ -261,7 +260,7 @@ void rref_reg(Span<const Value> args, size_t nargout,
                     0, 0, "rref", "", "m:rref:nargin");
     bool have_tol = (args.size() >= 2);
     double tol = have_tol ? args[1].toScalar() : 0.0;
-    auto [R, jb] = rref(ctx.engine->resource(), args[0], have_tol, tol);
+    auto [R, jb] = rref(args[0], have_tol, tol, ctx.engine->resource());
     outs[0] = R;
     if (nargout >= 2 && outs.size() >= 2) outs[1] = jb;
 }
@@ -272,7 +271,7 @@ void rcond_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("rcond: requires (A)",
                     0, 0, "rcond", "", "m:rcond:nargin");
-    outs[0] = rcond(ctx.engine->resource(), args[0]);
+    outs[0] = rcond(args[0], ctx.engine->resource());
 }
 
 void planerot_reg(Span<const Value> args, size_t nargout,
@@ -281,7 +280,7 @@ void planerot_reg(Span<const Value> args, size_t nargout,
     if (args.empty())
         throw Error("planerot: requires ([x; y])",
                     0, 0, "planerot", "", "m:planerot:nargin");
-    auto [G, y] = planerot(ctx.engine->resource(), args[0]);
+    auto [G, y] = planerot(args[0], ctx.engine->resource());
     outs[0] = G;
     if (nargout >= 2 && outs.size() >= 2) outs[1] = y;
 }

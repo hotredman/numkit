@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <utility>
 #include <vector>
 
 namespace numkit::control {
@@ -55,7 +56,7 @@ struct SS {
     double Ts;
 };
 
-SS toSSiso(std::pmr::memory_resource *mr, const Value &sys) {
+SS toSSiso(const Value &sys, std::pmr::memory_resource *mr) {
     Value Av, Bv, Cv, Dv;
     double Ts = 0.0;
     if (sys.isStruct() && sys.hasField("kind")) {
@@ -65,13 +66,14 @@ SS toSSiso(std::pmr::memory_resource *mr, const Value &sys) {
             Av = sys.field("A"); Bv = sys.field("B");
             Cv = sys.field("C"); Dv = sys.field("D");
         } else if (k == "tf") {
-            tf2ss(mr, sys.field("num"), sys.field("den"),
-                  &Av, &Bv, &Cv, &Dv);
+            auto ss = tf2ss(sys.field("num"), sys.field("den"), mr);
+            Av = std::move(ss.A); Bv = std::move(ss.B);
+            Cv = std::move(ss.C); Dv = std::move(ss.D);
         } else if (k == "zpk") {
-            Value num, den;
-            zp2tf(mr, sys.field("z"), sys.field("p"), sys.field("k"),
-                  &num, &den);
-            tf2ss(mr, num, den, &Av, &Bv, &Cv, &Dv);
+            auto [num, den] = zp2tf(sys.field("z"), sys.field("p"), sys.field("k"), mr);
+            auto ss = tf2ss(num, den, mr);
+            Av = std::move(ss.A); Bv = std::move(ss.B);
+            Cv = std::move(ss.C); Dv = std::move(ss.D);
         } else {
             throw Error("control response: unknown LTI kind",
                         0, 0, "response", "", "m:control:kind");
@@ -119,10 +121,10 @@ void zohDiscretise(const Mat &A, const Vec &B, size_t n, double dt,
 // constants of the slowest stable mode, ~50 samples per slowest pole.
 struct Grid { Vec t; double dt; };
 
-Grid pickGrid(std::pmr::memory_resource *mr, const Value &sys) {
+Grid pickGrid(const Value &sys, std::pmr::memory_resource *mr) {
     // Find pole with smallest |real|, use that to set Tfinal; fastest
     // pole sets dt.
-    Value pV = pole(mr, sys);
+    Value pV = pole(sys, mr);
     const size_t np = pV.numel();
     double minAbsReal = 1.0;
     double maxAbsReal = 1.0;
@@ -162,15 +164,14 @@ Grid pickGrid(std::pmr::memory_resource *mr, const Value &sys) {
     return {t, dtFinal};
 }
 
-Vec readTimeArg(std::pmr::memory_resource *mr,
-                const Value &sys, const Value &tArg)
+Vec readTimeArg(const Value &sys, const Value &tArg, std::pmr::memory_resource *mr)
 {
     if (tArg.numel() == 0) {
-        return pickGrid(mr, sys).t;
+        return pickGrid(sys, mr).t;
     }
     if (tArg.numel() == 1) {
         const double Tfinal = tArg.toScalar();
-        const Grid g = pickGrid(mr, sys);
+        const Grid g = pickGrid(sys, mr);
         // Re-tile at the same dt up to user's Tfinal.
         const double dt = g.dt;
         const size_t N = static_cast<size_t>(std::ceil(Tfinal / dt)) + 1;
@@ -183,7 +184,7 @@ Vec readTimeArg(std::pmr::memory_resource *mr,
     return t;
 }
 
-Value rowFromVec(std::pmr::memory_resource *mr, const Vec &v) {
+Value rowFromVec(const Vec &v, std::pmr::memory_resource *mr) {
     Value r = Value::matrix(v.size(), 1, ValueType::DOUBLE, mr);
     if (!v.empty()) std::copy(v.begin(), v.end(), r.doubleDataMut());
     return r;
@@ -271,25 +272,24 @@ Vec simulate(const SS &sys, const Vec &t, const Vec &u, const Vec &x0)
 
 } // anonymous
 
-void step_response(std::pmr::memory_resource *mr,
-                   const Value &sys, const Value &tArg,
-                   Value *yOut, Value *tOut)
+std::pair<Value, Value>
+step_response(const Value &sys, const Value &tArg,
+              std::pmr::memory_resource *mr)
 {
-    SS s = toSSiso(mr, sys);
-    Vec t = readTimeArg(mr, sys, tArg);
+    SS s = toSSiso(sys, mr);
+    Vec t = readTimeArg(sys, tArg, mr);
     Vec u(t.size(), 1.0);   // unit step
     Vec x0(s.n, 0.0);
     Vec y = simulate(s, t, u, x0);
-    if (yOut) *yOut = rowFromVec(mr, y);
-    if (tOut) *tOut = rowFromVec(mr, t);
+    return {rowFromVec(y, mr), rowFromVec(t, mr)};
 }
 
-void impulse_response(std::pmr::memory_resource *mr,
-                      const Value &sys, const Value &tArg,
-                      Value *yOut, Value *tOut)
+std::pair<Value, Value>
+impulse_response(const Value &sys, const Value &tArg,
+                 std::pmr::memory_resource *mr)
 {
-    SS s = toSSiso(mr, sys);
-    Vec t = readTimeArg(mr, sys, tArg);
+    SS s = toSSiso(sys, mr);
+    Vec t = readTimeArg(sys, tArg, mr);
     Vec x0(s.n, 0.0);
     Vec u(t.size(), 0.0);
 
@@ -302,15 +302,14 @@ void impulse_response(std::pmr::memory_resource *mr,
         x0 = s.B;
     }
     Vec y = simulate(s, t, u, x0);
-    if (yOut) *yOut = rowFromVec(mr, y);
-    if (tOut) *tOut = rowFromVec(mr, t);
+    return {rowFromVec(y, mr), rowFromVec(t, mr)};
 }
 
-Value lsim(std::pmr::memory_resource *mr,
-           const Value &sys, const Value &uIn, const Value &tIn,
-           const Value &x0In)
+Value lsim(const Value &sys, const Value &uIn, const Value &tIn,
+           const Value &x0In,
+           std::pmr::memory_resource *mr)
 {
-    SS s = toSSiso(mr, sys);
+    SS s = toSSiso(sys, mr);
     if (tIn.numel() < 2)
         throw Error("lsim: t must have at least 2 samples",
                     0, 0, "lsim", "", "m:lsim:t");
@@ -325,7 +324,7 @@ Value lsim(std::pmr::memory_resource *mr,
     if (x0In.numel() == s.n)
         for (size_t i = 0; i < s.n; ++i) x0[i] = x0In.elemAsDouble(i);
     Vec y = simulate(s, t, u, x0);
-    return rowFromVec(mr, y);
+    return rowFromVec(y, mr);
 }
 
 namespace detail {
@@ -336,11 +335,10 @@ void step_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
     if (a.empty())
         throw Error("step: requires (sys [, t])",
                     0, 0, "step", "", "m:step:nargin");
-    Value y, t;
     Value tArg = (a.size() >= 2) ? a[1] : Value::matrix(1, 0, ValueType::DOUBLE, c.engine->resource());
-    step_response(c.engine->resource(), a[0], tArg, &y, &t);
-    if (outs.size() >= 1) outs[0] = y;
-    if (outs.size() >= 2) outs[1] = t;
+    auto [y, t] = step_response(a[0], tArg, c.engine->resource());
+    if (outs.size() >= 1) outs[0] = std::move(y);
+    if (outs.size() >= 2) outs[1] = std::move(t);
 }
 
 void impulse_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
@@ -349,11 +347,10 @@ void impulse_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
     if (a.empty())
         throw Error("impulse: requires (sys [, t])",
                     0, 0, "impulse", "", "m:impulse:nargin");
-    Value y, t;
     Value tArg = (a.size() >= 2) ? a[1] : Value::matrix(1, 0, ValueType::DOUBLE, c.engine->resource());
-    impulse_response(c.engine->resource(), a[0], tArg, &y, &t);
-    if (outs.size() >= 1) outs[0] = y;
-    if (outs.size() >= 2) outs[1] = t;
+    auto [y, t] = impulse_response(a[0], tArg, c.engine->resource());
+    if (outs.size() >= 1) outs[0] = std::move(y);
+    if (outs.size() >= 2) outs[1] = std::move(t);
 }
 
 void lsim_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
@@ -363,7 +360,7 @@ void lsim_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
         throw Error("lsim: requires (sys, u, t [, x0])",
                     0, 0, "lsim", "", "m:lsim:nargin");
     Value x0 = (a.size() >= 4) ? a[3] : Value::matrix(0, 0, ValueType::DOUBLE, c.engine->resource());
-    outs[0] = lsim(c.engine->resource(), a[0], a[1], a[2], x0);
+    outs[0] = lsim(a[0], a[1], a[2], x0, c.engine->resource());
 }
 
 } // namespace detail

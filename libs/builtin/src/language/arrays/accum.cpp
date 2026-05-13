@@ -80,10 +80,7 @@ inline double applyReducer(AccumReducer op, double acc, double v)
 // Build the output shape. `userShape` (passed-in) wins if non-zero
 // length, else derive from per-column max(subs). subs is N×D. Result
 // vector backed by `mr`.
-ScratchVec<size_t> resolveOutShape(std::pmr::memory_resource *mr,
-                                   const Value &subs,
-                                   const size_t *userShape, std::size_t nUserShape,
-                                   const char *fn)
+ScratchVec<size_t> resolveOutShape(const Value &subs, const size_t *userShape, std::size_t nUserShape, const char *fn, std::pmr::memory_resource *mr)
 {
     const auto &d = subs.dims();
     const size_t N = d.rows();
@@ -129,7 +126,7 @@ size_t linearIndexFromSubs(const Value &subs, size_t r, size_t N, size_t D,
 }
 
 // Allocate the output Value for the given shape.
-Value allocOutput(std::pmr::memory_resource *mr, const size_t *shape, std::size_t nShape)
+Value allocOutput(const size_t *shape, std::size_t nShape, std::pmr::memory_resource *mr)
 {
     if (nShape == 1)
         return Value::matrix(shape[0], 1, ValueType::DOUBLE, mr);
@@ -146,12 +143,7 @@ inline double readVal(const Value &vals, size_t i, bool valIsScalar)
 
 } // namespace
 
-Value accumarray(std::pmr::memory_resource *mr,
-                  const Value &subs,
-                  const Value &vals,
-                  const size_t *outShape, std::size_t nOutShape,
-                  AccumReducer op,
-                  double fillVal)
+Value accumarray(const Value &subs, const Value &vals, Span<const size_t> outShape, AccumReducer op, double fillVal, std::pmr::memory_resource *mr)
 {
     const char *fn = "accumarray";
 
@@ -176,10 +168,10 @@ Value accumarray(std::pmr::memory_resource *mr,
                      0, 0, fn, "", "m:accumarray:valSize");
 
     ScratchArena scratch(mr);
-    auto shape = resolveOutShape(&scratch, subs, outShape, nOutShape, fn);
+    auto shape = resolveOutShape(subs, outShape.data(), outShape.size(), fn, &scratch);
     if (shape.size() < D) shape.resize(D, 1);
 
-    Value out = allocOutput(mr, shape.data(), shape.size());
+    Value out = allocOutput(shape.data(), shape.size(), mr);
     const size_t total = out.numel();
     double *dst = out.doubleDataMut();
 
@@ -254,7 +246,7 @@ AccumReducer parseReducerFromHandle(const Value &h)
                  0, 0, "accumarray", "", "m:accumarray:fnUnsupported");
 }
 
-ScratchVec<size_t> parseSizeArg(std::pmr::memory_resource *mr, const Value &sz)
+ScratchVec<size_t> parseSizeArg(const Value &sz, std::pmr::memory_resource *mr)
 {
     ScratchVec<size_t> shape(mr);
     if (sz.isEmpty()) return shape;
@@ -290,7 +282,7 @@ void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
     ScratchArena scratch(mr);
     auto shape = ScratchVec<size_t>(&scratch);
     if (args.size() >= 3 && !args[2].isEmpty())
-        shape = parseSizeArg(&scratch, args[2]);
+        shape = parseSizeArg(args[2], &scratch);
 
     AccumReducer op = AccumReducer::Sum;
     if (args.size() >= 4 && !args[3].isEmpty())
@@ -312,8 +304,7 @@ void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
                          0, 0, "accumarray", "", "m:accumarray:sparse");
     }
 
-    outs[0] = accumarray(mr,
-                         args[0], args[1], shape.data(), shape.size(), op, fillVal);
+    outs[0] = accumarray(args[0], args[1], Span<const size_t>(shape.data(), shape.size()), op, fillVal, mr);
 }
 
 } // namespace detail

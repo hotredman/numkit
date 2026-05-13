@@ -18,7 +18,7 @@ namespace numkit::builtin {
 // Public API — unary operators
 // ════════════════════════════════════════════════════════════════════════
 
-Value uminus(std::pmr::memory_resource *mr, const Value &x)
+Value uminus(const Value &x, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (x.isEmpty()) {
@@ -49,12 +49,12 @@ Value uminus(std::pmr::memory_resource *mr, const Value &x)
     throw Error("Unsupported unary -", 0, 0, "uminus", "", "m:uminus:unsupportedTypes");
 }
 
-Value uplus(std::pmr::memory_resource *, const Value &x)
+Value uplus(const Value &x, std::pmr::memory_resource *)
 {
     return x;
 }
 
-Value logicalNot(std::pmr::memory_resource *mr, const Value &x)
+Value logicalNot(const Value &x, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (x.isLogical()) {
@@ -80,7 +80,7 @@ Value logicalNot(std::pmr::memory_resource *mr, const Value &x)
     return Value::logicalScalar(!x.toBool(), p);
 }
 
-Value ctranspose(std::pmr::memory_resource *mr, const Value &x)
+Value ctranspose(const Value &x, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (x.dims().is3D())
@@ -110,7 +110,7 @@ Value ctranspose(std::pmr::memory_resource *mr, const Value &x)
                  0, 0, "ctranspose", "", "m:transpose:unsupportedType");
 }
 
-Value transposeNC(std::pmr::memory_resource *mr, const Value &x)
+Value transposeNC(const Value &x, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
     if (x.dims().is3D())
@@ -152,7 +152,7 @@ namespace detail {
         if (args.empty())                                                             \
             throw Error(#MATLAB_NAME ": requires 1 argument",                        \
                          0, 0, #MATLAB_NAME, "", "m:" #MATLAB_NAME ":nargin");        \
-        outs[0] = CXX_FN(ctx.engine->resource(), args[0]);                           \
+        outs[0] = CXX_FN(args[0], ctx.engine->resource());                           \
     }
 
 NK_UNOP_REG(uminus,     uminus)
@@ -174,11 +174,11 @@ namespace numkit {
 
 void BuiltinLibrary::registerUnaryOps(Engine &engine)
 {
-    engine.registerUnaryOp("-",  [&engine](const Value &a) { return builtin::uminus(engine.resource(), a); });
-    engine.registerUnaryOp("+",  [&engine](const Value &a) { return builtin::uplus(engine.resource(), a); });
-    engine.registerUnaryOp("~",  [&engine](const Value &a) { return builtin::logicalNot(engine.resource(), a); });
-    engine.registerUnaryOp("'",  [&engine](const Value &a) { return builtin::ctranspose(engine.resource(), a); });
-    engine.registerUnaryOp(".'", [&engine](const Value &a) { return builtin::transposeNC(engine.resource(), a); });
+    engine.registerUnaryOp("-",  [&engine](const Value &a) { return builtin::uminus(a, engine.resource()); });
+    engine.registerUnaryOp("+",  [&engine](const Value &a) { return builtin::uplus(a, engine.resource()); });
+    engine.registerUnaryOp("~",  [&engine](const Value &a) { return builtin::logicalNot(a, engine.resource()); });
+    engine.registerUnaryOp("'",  [&engine](const Value &a) { return builtin::ctranspose(a, engine.resource()); });
+    engine.registerUnaryOp(".'", [&engine](const Value &a) { return builtin::transposeNC(a, engine.resource()); });
 }
 
 } // namespace numkit

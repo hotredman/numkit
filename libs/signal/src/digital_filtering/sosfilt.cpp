@@ -117,7 +117,7 @@ void applyCascade(const Value &sos, const double *xs, double *out, size_t n,
 
 } // namespace
 
-Value sosfilt(std::pmr::memory_resource *mr, const Value &sos, const Value &x)
+Value sosfilt(const Value &sos, const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t L = validateSosMatrix(sos);
     if (x.type() != ValueType::DOUBLE)
@@ -305,7 +305,7 @@ void sosfiltfiltColumn(const Value &sos, const double *xs, double *out,
 
 } // namespace
 
-Value sosfiltfilt(std::pmr::memory_resource *mr, const Value &sos, const Value &x)
+Value sosfiltfilt(const Value &sos, const Value &x, std::pmr::memory_resource *mr)
 {
     validateSosMatrix(sos);
     if (x.type() != ValueType::DOUBLE)
@@ -337,7 +337,7 @@ void sosfilt_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("sosfilt: requires (sos, x)",
                      0, 0, "sosfilt", "", "m:sosfilt:nargin");
-    outs[0] = sosfilt(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = sosfilt(args[0], args[1], ctx.engine->resource());
 }
 
 void sosfiltfilt_reg(Span<const Value> args, size_t /*nargout*/,
@@ -346,7 +346,7 @@ void sosfiltfilt_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("sosfiltfilt: requires (sos, x)",
                      0, 0, "sosfiltfilt", "", "m:sosfiltfilt:nargin");
-    outs[0] = sosfiltfilt(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = sosfiltfilt(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail
