@@ -119,6 +119,14 @@ export default function CompositePlot({
   setViewport,
   major = true,
   minor = true,
+  // Per-axis grid (MATLAB XGrid / YGrid / XMinorGrid / YMinorGrid).
+  // Default = the combined `major` / `minor` so callers that haven't
+  // migrated keep current behaviour. When the parent supplies the
+  // per-axis prop it wins, allowing fine-grained per-axis control.
+  xGrid: xGridProp,
+  yGrid: yGridProp,
+  xMinor: xMinorProp,
+  yMinor: yMinorProp,
   showLegend = true,
   // Visibility flags owned by FigureWindow's `display ▾` menu. Default
   // true so non-modal renderers (preview cards, subplot cells without
@@ -182,6 +190,12 @@ export default function CompositePlot({
   const heatmapLayer = layers.find((l) => l.kind === 'heatmap') || null;
   const rgbLayer = layers.find((l) => l.kind === 'image-rgb') || null;
   const seriesLayers = layers.filter((l) => l.kind === 'series');
+  // Resolve per-axis grid flags. Per-axis prop wins; otherwise fall
+  // back to the combined major/minor (legacy behavior).
+  const xGridOn = (xGridProp !== undefined) ? !!xGridProp : !!major;
+  const yGridOn = (yGridProp !== undefined) ? !!yGridProp : !!major;
+  const xMinorOn = (xMinorProp !== undefined) ? !!xMinorProp : !!minor;
+  const yMinorOn = (yMinorProp !== undefined) ? !!yMinorProp : !!minor;
   const textLayers = layers.filter((l) => l.kind === 'text');
   const hasHeatmap = !!heatmapLayer;
   // imshow's defining trait — hide axis ticks/labels/box. Default true
@@ -1362,16 +1376,21 @@ export default function CompositePlot({
       {/* Optional minor + major grid (faint, over the heatmap).
           axisVisible=false (imshow / `axis off`) suppresses gridlines,
           frame box, and tick labels — image-only viewport. */}
-      {axisVisible && minor && xTicks.minor.map((v, i) => (
+      {/* Grid lines split per MATLAB XGrid / YGrid semantics:
+            X grid → vertical lines at X-tick positions
+            Y grid → horizontal lines at Y-tick positions
+          xMinorOn / yMinorOn (XMinorGrid / YMinorGrid) drive the
+          fainter sub-tick lines independently. */}
+      {axisVisible && xMinorOn && xTicks.minor.map((v, i) => (
         <line key={`mx${i}`} x1={sx(v)} x2={sx(v)} y1={padT} y2={padT + H} stroke="var(--plot-grid-min)" />
       ))}
-      {axisVisible && minor && yTicks.minor.map((v, i) => (
+      {axisVisible && yMinorOn && yTicks.minor.map((v, i) => (
         <line key={`my${i}`} x1={padL} x2={padL + W} y1={sy(v)} y2={sy(v)} stroke="var(--plot-grid-min)" />
       ))}
-      {axisVisible && major && xTicks.major.map((v, i) => (
+      {axisVisible && xGridOn && xTicks.major.map((v, i) => (
         <line key={`gx${i}`} x1={sx(v)} x2={sx(v)} y1={padT} y2={padT + H} stroke="var(--plot-grid)" />
       ))}
-      {axisVisible && major && yTicks.major.map((v, i) => (
+      {axisVisible && yGridOn && yTicks.major.map((v, i) => (
         <line key={`gy${i}`} x1={padL} x2={padL + W} y1={sy(v)} y2={sy(v)} stroke="var(--plot-grid)" />
       ))}
 

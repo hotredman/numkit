@@ -1374,6 +1374,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               width: size.w, height: size.h,
               viewport, setViewport,
               major: showMajor, minor: showMinor,
+              // Per-axis grid (MATLAB XGrid / YGrid). For non-subplot the
+              // aggregate is the value (single axes); for subplot Subplot
+              // Grid forwards each cell's own axes-derived value.
+              xGrid: xGrid, yGrid: yGrid,
+              xMinor: showMinor, yMinor: showMinor,
               fontScale: 1.15,
               engine,
               xLog, yLog, zLog,
