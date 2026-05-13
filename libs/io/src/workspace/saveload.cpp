@@ -23,13 +23,35 @@
 
 namespace numkit::io {
 
-// Implemented in saveload_mat.cpp.
+// Implemented in saveload_mat.cpp when NUMKIT_WITH_MATIO is defined.
+// When matio is disabled at build time, stubs below throw with a clear
+// "binary .mat support disabled" message so `-mat` / `-v4` / `-v6` /
+// `-v7` paths fail predictably instead of silently corrupting writes.
+#ifdef NUMKIT_WITH_MATIO
 void saveMat(Engine &engine, Environment &env,
              const std::string &filename,
-             const std::vector<std::string> &varnames);
+             const std::vector<std::string> &varnames,
+             int matVersion);
 void loadMat(Engine &engine, Environment &env,
              const std::string &filename,
              size_t nargout, Span<Value> outs);
+#else
+static void saveMat(Engine &, Environment &,
+                    const std::string &,
+                    const std::vector<std::string> &,
+                    int)
+{
+    throw Error("save: binary .mat support not compiled in "
+                "(rebuild with NUMKIT_WITH_MATIO=ON)");
+}
+static void loadMat(Engine &, Environment &,
+                    const std::string &,
+                    size_t, Span<Value>)
+{
+    throw Error("load: binary .mat support not compiled in "
+                "(rebuild with NUMKIT_WITH_MATIO=ON)");
+}
+#endif
 
 namespace {
 
@@ -81,6 +103,10 @@ void save(Engine &engine, Environment &env, Span<const Value> args)
     // otherwise MATLAB default (binary mat).
     enum class Mode { Auto, Ascii, Mat };
     Mode mode = Mode::Auto;
+    // matVersion follows MATLAB-flag convention: 4 = MAT4, 5/6 = MAT5,
+    // 7 = MAT5 + zlib. `-mat` alone (no version suffix) defaults to 5.
+    // Whichever `-vN` appears last wins (mirrors MATLAB).
+    int matVersion = 5;
 
     ScratchArena scratch(engine.resource());
     ScratchVec<std::string> varnames(&scratch);
@@ -89,9 +115,10 @@ void save(Engine &engine, Environment &env, Span<const Value> args)
             continue;
         std::string s = args[i].toString();
         if (s == "-ascii") { mode = Mode::Ascii; continue; }
-        if (s == "-mat" || s == "-v4" || s == "-v6" || s == "-v7") {
-            mode = Mode::Mat; continue;
-        }
+        if (s == "-mat") { mode = Mode::Mat; continue; }
+        if (s == "-v4") { mode = Mode::Mat; matVersion = 4; continue; }
+        if (s == "-v6") { mode = Mode::Mat; matVersion = 6; continue; }
+        if (s == "-v7") { mode = Mode::Mat; matVersion = 7; continue; }
         if (s == "-v7.3")
             throw Error("save: -v7.3 (HDF5) is not supported in this build");
         if (s == "-append" || s == "-nocompression" || s == "-struct") {
@@ -109,7 +136,7 @@ void save(Engine &engine, Environment &env, Span<const Value> args)
 
     if (mode == Mode::Mat) {
         std::vector<std::string> names(varnames.begin(), varnames.end());
-        saveMat(engine, env, filename, names);
+        saveMat(engine, env, filename, names, matVersion);
         return;
     }
 
