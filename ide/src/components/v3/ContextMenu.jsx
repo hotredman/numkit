@@ -17,39 +17,51 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
+/** Render a single submenu trigger. The submenu uses position:fixed
+ *  with coords from the trigger's bounding rect so it pops over any
+ *  ancestor with overflow:auto (which would otherwise clip it). */
+function SubmenuItem({ item, onClose }) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState(null);
+  const triggerRef = useRef(null);
+  useLayoutEffect(() => {
+    if (!open) return;
+    const el = triggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setCoords({ left: r.right + 2, top: r.top - 4 });
+  }, [open]);
+  return (
+    <div className={`ctx-sub-wrap ${open ? 'is-open' : ''}`}
+         onMouseEnter={() => setOpen(true)}
+         onMouseLeave={() => setOpen(false)}>
+      <button ref={triggerRef}
+              className="ctx-item ctx-sub-trigger"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen((o) => !o);
+              }}>
+        <span>{item.submenu}</span>
+        <span className="ctx-sub-arrow">▶</span>
+      </button>
+      {open && coords && (
+        <div className="ctx-menu ctx-submenu"
+             style={{ position: 'fixed', left: coords.left, top: coords.top }}>
+          <MenuItems items={item.items || []} onClose={onClose} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Render a single item. Wrapped so the same renderer drives the
  *  top-level menu and any nested submenu. */
 function MenuItems({ items, onClose }) {
-  // Track which submenu is currently open by index. null = none.
-  const [openSubIdx, setOpenSubIdx] = useState(null);
   return items.map((it, i) => {
     if (it.separator) return <div key={i} className="ctx-sep" />;
     if (it.head)      return <div key={i} className="ctx-head">{it.head}</div>;
     if (it.submenu) {
-      // Nested submenu — opens on hover or click. The submenu sits to
-      // the right of its parent row; positioned absolutely relative to
-      // the row container.
-      const isOpen = openSubIdx === i;
-      return (
-        <div key={i}
-             className={`ctx-sub-wrap ${isOpen ? 'is-open' : ''}`}
-             onMouseEnter={() => setOpenSubIdx(i)}
-             onMouseLeave={() => setOpenSubIdx((cur) => (cur === i ? null : cur))}>
-          <button className="ctx-item ctx-sub-trigger"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setOpenSubIdx(isOpen ? null : i);
-                  }}>
-            <span>{it.submenu}</span>
-            <span className="ctx-sub-arrow">▶</span>
-          </button>
-          {isOpen && (
-            <div className="ctx-menu ctx-submenu">
-              <MenuItems items={it.items || []} onClose={onClose} />
-            </div>
-          )}
-        </div>
-      );
+      return <SubmenuItem key={i} item={it} onClose={onClose} />;
     }
     if (it.row) {
       return (

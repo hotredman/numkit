@@ -685,9 +685,7 @@ input, select { font-family: inherit; color: inherit; }
 }
 .fw-pop-sub-arrow { color: var(--fg-3); margin-left: 12px; font-size: 9px; }
 .fw-pop-sub {
-  position: absolute !important;
-  left: 100% !important; top: -4px !important;
-  margin-left: 2px;
+  /* position + left/top set via inline style; see .ctx-submenu. */
   z-index: 210;
   max-height: 70vh;
   overflow-y: auto;
@@ -1912,9 +1910,9 @@ select.ve-btn.fw-cmap-select {
 .ctx-sub-arrow { color: var(--fg-3); margin-left: 12px; font-size: 9px; }
 .ctx-sub-wrap.is-open .ctx-sub-trigger { background: var(--bg-3); color: var(--fg-0); }
 .ctx-submenu {
-  position: absolute !important;
-  left: 100%; top: -4px;
-  margin-left: 2px;
+  /* position + left/top set via inline style (computed from trigger
+     getBoundingClientRect) so the submenu escapes any ancestor with
+     overflow:auto. */
   z-index: 2010;
   max-height: 70vh;
   overflow-y: auto;

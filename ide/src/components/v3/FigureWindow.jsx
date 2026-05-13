@@ -58,9 +58,23 @@ function NumberInput({ value, onCommit, width = 88 }) {
 /** Per-series rows for fit ▾. When `rows.length` is over `threshold`
  *  (default 5), wraps the list in a side-opening submenu so the
  *  popover doesn't grow tall. Below the threshold, renders inline.
- *  Each row is a JSX element produced by the caller. */
+ *  Each row is a JSX element produced by the caller.
+ *
+ *  Submenu uses position:fixed with coords computed from the trigger
+ *  button's getBoundingClientRect — bypasses the parent .fw-pop's
+ *  overflow:auto (which would otherwise clip the absolute-positioned
+ *  child and surface a scrollbar instead of opening). */
 function FwPopRowsOrSubmenu({ rows, label, threshold = 5 }) {
   const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState(null);
+  const triggerRef = useRef(null);
+  useLayoutEffect(() => {
+    if (!open) return;
+    const el = triggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setCoords({ left: r.right + 2, top: r.top - 4 });
+  }, [open]);
   if (!Array.isArray(rows) || rows.length === 0) return null;
   if (rows.length <= threshold) {
     return <>{rows}</>;
@@ -69,13 +83,15 @@ function FwPopRowsOrSubmenu({ rows, label, threshold = 5 }) {
     <div className={`fw-pop-sub-wrap ${open ? 'is-open' : ''}`}
          onMouseEnter={() => setOpen(true)}
          onMouseLeave={() => setOpen(false)}>
-      <button className="fw-pop-sub-trigger"
+      <button ref={triggerRef}
+              className="fw-pop-sub-trigger"
               onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}>
         <span>{label}</span>
         <span className="fw-pop-sub-arrow">▶</span>
       </button>
-      {open && (
-        <div className="fw-pop fw-pop-sub">
+      {open && coords && (
+        <div className="fw-pop fw-pop-sub"
+             style={{ position: 'fixed', left: coords.left, top: coords.top }}>
           {rows}
         </div>
       )}
