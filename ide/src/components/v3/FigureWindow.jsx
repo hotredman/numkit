@@ -184,79 +184,148 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       };
     });
   }
-  // Major / minor grid state mirrors the script's. Both come from the
-  // engine as independent strings ("on" / "off"); we keep local state
-  // so the toolbar buttons can override without re-running the script,
-  // but re-sync to the script value whenever the underlying figure
-  // changes (so `grid minor` in a re-run propagates).
-  //   2-D figures default to no grid (matches MATLAB).
-  //   3-D figures: adapter forces grid='on' by default since a plain
-  //   wireframe sits in space with no frame otherwise.
-  const [showMajor, setShowMajor] = useState(figure.grid === 'on');
-  const [showMinor, setShowMinor] = useState(figure.gridMinor === 'on');
-  useEffect(() => { setShowMajor(figure.grid === 'on'); }, [figure.grid]);
-  useEffect(() => { setShowMinor(figure.gridMinor === 'on'); }, [figure.gridMinor]);
-  // Legend initial state mirrors what the script asked for: show only
-  // when `legend(...)` (or legend Location) was set — MATLAB parity.
-  // Toolbar toggle then lets the user override.
-  const legendUserAsked = (Array.isArray(figure.legend) && figure.legend.length > 0)
-                       || (figure.legendLocation && figure.legendLocation !== 'none');
-  const [showLegend, setShowLegend] = useState(!!legendUserAsked);
-  useEffect(() => { setShowLegend(!!legendUserAsked); },
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-            [figure.id, figure.legend, figure.legendLocation]);
-  // Log axis toggles — lifted from Heatmap so the toolbar can flip them
-  // alongside grid/minor and the ПКМ menu inside the panel can mirror.
-  // Initialised from figure.xscale/yscale (set by xscale('log') /
-  // yscale('log')) and re-synced when those props change at script time.
-  const [xLog, setXLog] = useState(figure.xscale === 'log');
-  const [yLog, setYLog] = useState(figure.yscale === 'log');
-  // zLog: 3-D-only. Wired through to Composite3DPlot; no script-level
-  // initialiser yet (zscale('log') unimplemented), so state starts off.
-  const [zLog, setZLog] = useState(false);
-  useEffect(() => { setXLog(figure.xscale === 'log'); }, [figure.xscale]);
-  useEffect(() => { setYLog(figure.yscale === 'log'); }, [figure.yscale]);
-
-  // Colorbar visibility — defaults to "shown" only when the script
-  // actually called colorbar() (which sets figure.colorbarLocation to a
-  // non-empty placement string). Without an explicit call we leave it
-  // off, matching MATLAB. Toolbar/ПКМ toggle then lets the user flip.
-  const colorbarUserAsked = !!figure.colorbarLocation
-                          && figure.colorbarLocation !== 'off';
-  const [showColorbar, setShowColorbar] = useState(colorbarUserAsked);
-  useEffect(() => { setShowColorbar(colorbarUserAsked); },
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-            [figure.id, figure.colorbarLocation]);
-
-  // Visibility toggles for title / xlabel / ylabel / zlabel. State is
-  // local — we don't mutate figure data, so the underlying script-set
-  // text survives a re-show. Initialise true: all labels visible by
-  // default, matching MATLAB's "if you set it, you see it" behaviour.
-  const [showTitle,  setShowTitle]  = useState(true);
-  const [showXLabel, setShowXLabel] = useState(true);
-  const [showYLabel, setShowYLabel] = useState(true);
-  const [showZLabel, setShowZLabel] = useState(true);
-  // Re-default to visible on figure-id swap so an earlier "hide" doesn't
-  // leak across unrelated figures landing on the same modal.
+  // ── PER-CELL STATE — single source of truth ──────────────────────
+  //
+  // Rather than carry a "figure-wide" snapshot + per-cell override layer,
+  // we model the figure as an array of N cell-state entries. For
+  // non-subplot figures N=1 (the figure IS its single cell); for subplot
+  // N=cells.length.
+  //
+  // Each entry carries every display-related flag PLUS the colormap.
+  // Toolbar setters fan an update across all entries; ПКМ setters
+  // mutate one. Aggregate ✓ in the toolbar = "every entry has it set".
+  //
+  // The model removes the previous figure-wide / override duplication
+  // and the brittle reset-cascade effects that came with it.
+  const cellsArr = isSubplot && Array.isArray(figure.cells) ? figure.cells : [figure];
+  function initCellState(cell) {
+    const legendUserAsked = (Array.isArray(cell.legend) && cell.legend.length > 0)
+                         || (cell.legendLocation && cell.legendLocation !== 'none');
+    const colorbarUserAsked = !!cell.colorbarLocation && cell.colorbarLocation !== 'off';
+    return {
+      showMajor:    cell.grid === 'on',
+      showMinor:    cell.gridMinor === 'on',
+      xLog:         cell.xscale === 'log',
+      yLog:         cell.yscale === 'log',
+      zLog:         false,
+      showTitle:    true,
+      showXLabel:   true,
+      showYLabel:   true,
+      showZLabel:   true,
+      showLegend:   !!legendUserAsked,
+      showColorbar: !!colorbarUserAsked,
+      // null = "follow this cell's script-set heatmap.colormap"
+      colormap:     null,
+    };
+  }
+  const [cellState, setCellState] = useState(() => cellsArr.map(initCellState));
+  // Re-init on figure identity change OR when the cell count changes.
+  // Same-id figure with same cell count keeps user toggles — script
+  // re-run shouldn't wipe ПКМ tweaks.
   useEffect(() => {
-    setShowTitle(true); setShowXLabel(true);
-    setShowYLabel(true); setShowZLabel(true);
-  }, [figure.id]);
+    setCellState((prev) => {
+      if (prev.length === cellsArr.length) return prev;
+      return cellsArr.map((c, i) => prev[i] || initCellState(c));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [figure.id, cellsArr.length]);
 
-  // Color-limit override for heatmap window/level autoscale. Lifted so the
-  // toolbar fit menu and the panel's ПКМ menu share one state. null = use
-  // figure.cmin/cmax directly.
+  // Color-limit override for heatmap window/level autoscale. Stays as
+  // its own state (cmin/cmax pair, not a flag) — fitColorsToVisible
+  // writes into it; reset paths clear it.
   const [colorOverride, setColorOverride] = useState(null);
-  // Colormap override — null falls back to figure.colormap. The toolbar
-  // combo lets the user switch palettes at runtime without changing the
-  // script.
-  const [colormapOverride, setColormapOverride] = useState(null);
-  // Reset both on figure identity change — old overrides don't apply to a
-  // freshly emitted dataset.
-  useEffect(() => {
-    setColorOverride(null);
-    setColormapOverride(null);
-  }, [figure._raw?.id, figure.id]);
+  useEffect(() => { setColorOverride(null); }, [figure.id]);
+
+  // ── Aggregates (read-only views over cellState) ──────────────────
+  // Toolbar uses these for ✓ marks and as the "current value" the
+  // aggregate-flip toggles compare against.
+  const allOn = (key) => cellState.length > 0 && cellState.every((s) => !!s[key]);
+  const showMajor    = allOn('showMajor');
+  const showMinor    = allOn('showMinor');
+  const xLog         = allOn('xLog');
+  const yLog         = allOn('yLog');
+  const zLog         = allOn('zLog');
+  const showTitle    = allOn('showTitle');
+  const showXLabel   = allOn('showXLabel');
+  const showYLabel   = allOn('showYLabel');
+  const showZLabel   = allOn('showZLabel');
+  const showLegend   = allOn('showLegend');
+  const showColorbar = allOn('showColorbar');
+  // Backward-compat: some downstream paths (non-subplot CompositePlot,
+  // pass-through props) read `colormapOverride`. For uniform colormap
+  // across cells return that value; mixed = null.
+  const colormapOverride =
+    cellState.length > 0 && cellState.every((s) => s.colormap === cellState[0].colormap)
+      ? cellState[0].colormap
+      : null;
+  function aggColormap(name, scriptDefault) {
+    if (cellState.length === 0) return false;
+    return cellState.every((s, i) => {
+      const cell = cellsArr[i];
+      const hm = (cell.layers || []).find((l) => l && l.kind === 'heatmap');
+      const eff = s.colormap || (hm && hm.colormap) || scriptDefault || 'parula';
+      return eff === name;
+    });
+  }
+
+  // ── Setters: toolbar (fan-all) and per-cell ──────────────────────
+  // Toolbar setter takes the React updater shape (value or fn). When it
+  // gets a function we evaluate against the current AGGREGATE so the
+  // common pattern `(v) => !v` flips from the visible aggregate state.
+  function fanAll(key, updater) {
+    setCellState((prev) => {
+      const cur = prev.length > 0 ? prev.every((s) => !!s[key]) : false;
+      const next = typeof updater === 'function' ? updater(cur) : updater;
+      return prev.map((s) => ({ ...s, [key]: next }));
+    });
+  }
+  const setShowMajor    = (u) => fanAll('showMajor',    u);
+  const setShowMinor    = (u) => fanAll('showMinor',    u);
+  const setXLog         = (u) => fanAll('xLog',         u);
+  const setYLog         = (u) => fanAll('yLog',         u);
+  const setZLog         = (u) => fanAll('zLog',         u);
+  const setShowTitle    = (u) => fanAll('showTitle',    u);
+  const setShowXLabel   = (u) => fanAll('showXLabel',   u);
+  const setShowYLabel   = (u) => fanAll('showYLabel',   u);
+  const setShowZLabel   = (u) => fanAll('showZLabel',   u);
+  const setShowLegend   = (u) => fanAll('showLegend',   u);
+  const setShowColorbar = (u) => fanAll('showColorbar', u);
+  // Colormap toolbar setter: writes a literal value (not a flag, no
+  // aggregate flip). null clears every per-cell colormap pick.
+  function setColormapOverride(value) {
+    setCellState((prev) => prev.map((s) => ({ ...s, colormap: value })));
+  }
+
+  // Per-cell setter factories used by SubplotGrid → CompositePlot ПКМ.
+  function setCellKey(idx, key, updater) {
+    setCellState((prev) => {
+      const next = prev.slice();
+      const entry = next[idx] || initCellState(cellsArr[idx] || {});
+      const cur = entry[key];
+      const value = typeof updater === 'function' ? updater(cur) : updater;
+      next[idx] = { ...entry, [key]: value };
+      return next;
+    });
+  }
+  const makeCellDisplaySetter = (idx, key) => (u) => setCellKey(idx, key, u);
+  const makeCellColormapSetter = (idx) => (v) => setCellKey(idx, 'colormap', v);
+  const makeCellDisplayReset = (idx) => () => {
+    setCellState((prev) => {
+      const next = prev.slice();
+      const init = initCellState(cellsArr[idx] || {});
+      // Reset display flags, leave colormap untouched.
+      const { colormap: _drop, ...flags } = init;
+      next[idx] = { ...(next[idx] || {}), ...flags };
+      return next;
+    });
+  };
+  const makeCellColormapReset = (idx) => () => {
+    setCellState((prev) => {
+      const next = prev.slice();
+      next[idx] = { ...(next[idx] || initCellState(cellsArr[idx] || {})), colormap: null };
+      return next;
+    });
+  };
 
   // Compute new color override from a coarse-LOD scan of the visible
   // source-rect. Mirrors Heatmap.fitColorsToVisible. Lives here so the
@@ -357,89 +426,18 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   function fitAllCells(axis) {
     setFitSignal((prev) => ({ axis, n: prev.n + 1 }));
   }
-  // displayResetSignal — when toolbar Reset / display ▾ Reset fires we
-  // also need SubplotGrid to drop every per-cell display override that
-  // the per-cell ПКМ might have set, so the cells follow the (now-reset)
-  // figure-wide toggles again.
-  const [displayResetSignal, setDisplayResetSignal] = useState({ n: 0 });
-  function fanDisplayReset() {
-    setDisplayResetSignal((prev) => ({ n: prev.n + 1 }));
-  }
-
-  // ── Per-cell display + colormap overrides (lifted from SubplotGrid) ──
-  // Owned here so the toolbar's display ▾ / colormap ▾ can compute
-  // aggregate "is option set on EVERY cell?" for the ✓ marks. Shape:
-  //   cellDisplay : Array<Partial<{ major, minor, xLog, yLog,
-  //                                  showTitle, showXLabel, showYLabel,
-  //                                  showLegend, showColorbar }>>
-  //   cellColormap: Array<string|null>
-  // For non-subplot figures these stay empty arrays (effective values
-  // are read straight from the figure-wide state below).
-  const cellsCount = isSubplot && Array.isArray(figure.cells) ? figure.cells.length : 0;
-  const [cellDisplay, setCellDisplay] = useState([]);
-  const [cellColormap, setCellColormap] = useState([]);
-  // Re-init on figure shape change (id swap or cells-length change).
-  useEffect(() => {
-    setCellDisplay((prev) =>
-      prev.length === cellsCount ? prev : Array.from({ length: cellsCount }, (_, i) => prev[i] || {})
-    );
-    setCellColormap((prev) =>
-      prev.length === cellsCount ? prev : Array.from({ length: cellsCount }, (_, i) => prev[i] ?? null)
-    );
-  }, [figure.id, cellsCount]);
-  // displayReset / fanDisplayReset increments the counter; clear all
-  // per-cell overrides so cells follow the freshly-reset figure-wide
-  // values again.
-  const lastDisplayResetNRef = useRef(0);
-  useEffect(() => {
-    if (displayResetSignal.n === lastDisplayResetNRef.current) return;
-    lastDisplayResetNRef.current = displayResetSignal.n;
-    setCellDisplay(Array.from({ length: cellsCount }, () => ({})));
-    setCellColormap(Array.from({ length: cellsCount }, () => null));
-  }, [displayResetSignal, cellsCount]);
-  // Toolbar colormap pick (figure-wide) → drop per-cell colormap picks
-  // so every cell follows the new value. Skip the initial null→null tick.
-  const lastGlobalColormapRef = useRef(colormapOverride);
-  useEffect(() => {
-    if (colormapOverride === lastGlobalColormapRef.current) return;
-    lastGlobalColormapRef.current = colormapOverride;
-    setCellColormap(Array.from({ length: cellsCount }, () => null));
-  }, [colormapOverride, cellsCount]);
   // ── Reset helpers ────────────────────────────────────────────────
-  // The toolbar exposes three flavours of reset:
-  //   • fit ▾ → reset    — viewport only (zoom/pan back to defaults)
-  //   • display ▾ → reset — display state only (grid/log/labels back
-  //                         to script defaults, legend re-synced)
-  //   • 🏠 Reset toolbar  — both (viewport + display state)
-  // For subplot the viewport reset is fanned out via fitSignal; the
-  // display-state reset re-syncs the figure-wide show* flags and
-  // propagates through props to every cell automatically.
+  // Three flavours, each with its own scope:
+  //   • fit ▾ → reset      — viewport only (zoom/pan defaults)
+  //   • display ▾ → reset  — display state + colormap, ALL cells back
+  //                          to script defaults
+  //   • 🏠 Reset toolbar   — viewport + display
+  // Display reset re-inits cellState from script defaults, which
+  // covers every flag AND drops every per-cell colormap pick in one
+  // operation — no cascade effects, no signal counters.
   function displayReset() {
-    setShowMajor(figure.grid === 'on');
-    setShowMinor(figure.gridMinor === 'on');
-    setShowTitle(true);
-    setShowXLabel(true);
-    setShowYLabel(true);
-    setShowZLabel(true);
-    setXLog(figure.xscale === 'log');
-    setYLog(figure.yscale === 'log');
-    setZLog(false);
-    setShowLegend(!!legendUserAsked);
-    setShowColorbar(colorbarUserAsked);
-    // Drop the figure-wide colormap override too — global Reset should
-    // return the heatmap to its script-set palette.
-    setColormapOverride(null);
+    setCellState(cellsArr.map(initCellState));
     setColorOverride(null);
-    // Drop per-cell ПКМ overrides directly. We don't rely on
-    // setColormapOverride(null) cascading through the change-detect
-    // effect because it only fires when the value actually changes —
-    // if override was already null (e.g. user only set per-cell), the
-    // effect skips and per-cell entries leak across the reset.
-    setCellDisplay(Array.from({ length: cellsCount }, () => ({})));
-    setCellColormap(Array.from({ length: cellsCount }, () => null));
-    // Bump the counter too — kept for compatibility with code paths
-    // that still listen to it (legacy SubplotGrid used to own this state).
-    fanDisplayReset();
   }
   function viewportReset() {
     if (isSubplot) {
@@ -455,7 +453,6 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     } else if (isHeatmap) {
       setViewport(figDefault);
       setColorOverride(null);
-      setColormapOverride(null);
     } else {
       setViewport(figDefault);
     }
@@ -475,74 +472,10 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   const saveRef = useRef(null);
   const viewRef = useRef(null);
 
-  // ── Aggregation helpers for toolbar checkmarks ───────────────────
-  // For non-subplot figures the figure-wide state IS the per-cell value.
-  // For subplot, a toolbar option shows ✓ only when EVERY cell has the
-  // option active (after applying per-cell overrides).
-  function aggOn(key, globalVal) {
-    if (!isSubplot) return globalVal;
-    if (cellsCount === 0) return globalVal;
-    return figure.cells.every((_, i) => {
-      const o = cellDisplay[i] || {};
-      return o[key] !== undefined ? !!o[key] : !!globalVal;
-    });
-  }
-  function aggColormap(name, scriptDefault) {
-    if (!isSubplot) {
-      return ((colormapOverride || scriptDefault) === name);
-    }
-    if (cellsCount === 0) return false;
-    return figure.cells.every((c, i) => {
-      const cellOv = cellColormap[i];
-      if (cellOv != null) return cellOv === name;
-      // Effective for this cell with no per-cell override:
-      const cellHm = (c.layers || []).find((l) => l && l.kind === 'heatmap');
-      const cellDef = (cellHm && cellHm.colormap) || scriptDefault || 'parula';
-      return ((colormapOverride || cellDef) === name);
-    });
-  }
-
-  // Per-cell setter factory used by SubplotGrid → CompositePlot ПКМ
-  // toggles. Same updater shape as React's setState.
-  function makeCellDisplaySetter(idx, key, resolveDefault) {
-    return (updater) => {
-      setCellDisplay((prev) => {
-        const next = prev.slice();
-        const entry = next[idx] || {};
-        const cur = entry[key] !== undefined ? entry[key] : resolveDefault();
-        const value = typeof updater === 'function' ? updater(cur) : updater;
-        next[idx] = { ...entry, [key]: value };
-        return next;
-      });
-    };
-  }
-  function makeCellColormapSetter(idx) {
-    return (value) => {
-      setCellColormap((prev) => {
-        const next = prev.slice();
-        next[idx] = value;
-        return next;
-      });
-    };
-  }
-  // Per-cell reset: clears overrides for one cell. Used by ПКМ Display
-  // / Colormap reset row inside a subplot cell. For non-subplot, the
-  // CompositePlot ПКМ uses the figure-wide displayReset / setColormap
-  // Override(null) directly.
-  function makeCellDisplayReset(idx) {
-    return () => setCellDisplay((prev) => {
-      const next = prev.slice();
-      next[idx] = {};
-      return next;
-    });
-  }
-  function makeCellColormapReset(idx) {
-    return () => setCellColormap((prev) => {
-      const next = prev.slice();
-      next[idx] = null;
-      return next;
-    });
-  }
+  // Aggregation + per-cell setter helpers were declared earlier as
+  // part of the per-cell-state model (allOn / aggColormap +
+  // makeCellDisplaySetter / makeCellColormapSetter / makeCellDisplay
+  // Reset / makeCellColormapReset).
 
   // ── display-menu disabled rules ──────────────────────────────────────
   // For non-subplot figures we look at top-level fields. For subplots,
@@ -1169,18 +1102,18 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   {/* aggOn shows ✓ only when EVERY cell has the option set
                       (after applying per-cell overrides). For non-subplot
                       figures it just returns the figure-wide state. */}
-                  <DisplayToggle label="grid"  active={aggOn('major', showMajor)}
+                  <DisplayToggle label="grid"  active={showMajor}
                                  onClick={() => setShowMajor((g) => !g)} />
-                  <DisplayToggle label="minor" active={aggOn('minor', showMinor)}
+                  <DisplayToggle label="minor" active={showMinor}
                                  onClick={() => setShowMinor((g) => !g)} />
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">scale</div>
-                  <DisplayToggle label="xlog" active={aggOn('xLog', xLog)}
+                  <DisplayToggle label="xlog" active={xLog}
                                  disabled={!xLogEnabled}
                                  disabledHint="X range has no positive max — log scale undefined"
                                  onClick={() => toggleAxisLog('x')} />
-                  <DisplayToggle label="ylog" active={aggOn('yLog', yLog)}
+                  <DisplayToggle label="ylog" active={yLog}
                                  disabled={!yLogEnabled}
                                  disabledHint="Y range has no positive max — log scale undefined"
                                  onClick={() => toggleAxisLog('y')} />
@@ -1192,24 +1125,24 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">labels</div>
-                  <DisplayToggle label="title" active={aggOn('showTitle', showTitle)}
+                  <DisplayToggle label="title" active={showTitle}
                                  disabled={!titleEnabled}
                                  disabledHint="not set"
                                  onClick={() => setShowTitle((v) => !v)} />
-                  <DisplayToggle label="xlabel" active={aggOn('showXLabel', showXLabel)}
+                  <DisplayToggle label="xlabel" active={showXLabel}
                                  disabled={!xLabelEnabled}
                                  disabledHint="not set"
                                  onClick={() => setShowXLabel((v) => !v)} />
-                  <DisplayToggle label="ylabel" active={aggOn('showYLabel', showYLabel)}
+                  <DisplayToggle label="ylabel" active={showYLabel}
                                  disabled={!yLabelEnabled}
                                  disabledHint="not set"
                                  onClick={() => setShowYLabel((v) => !v)} />
                   {/* Same: zlabel stays enabled even on 2-D figures. */}
                   <DisplayToggle label="zlabel" active={showZLabel}
                                  onClick={() => setShowZLabel((v) => !v)} />
-                  <DisplayToggle label="legend" active={aggOn('showLegend', showLegend)}
+                  <DisplayToggle label="legend" active={showLegend}
                                  onClick={() => setShowLegend((v) => !v)} />
-                  <DisplayToggle label="colorbar" active={aggOn('showColorbar', showColorbar)}
+                  <DisplayToggle label="colorbar" active={showColorbar}
                                  onClick={() => setShowColorbar((v) => !v)} />
                 </div>
               </div>
@@ -1238,13 +1171,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 <div className="fw-pop">
                   <div className="fw-pop-section">
                     <button onClick={() => {
-                      // Reset to script palette. Clears the figure-wide
-                      // override AND every per-cell override directly —
-                      // can't rely on the override-change effect alone
-                      // because if override was already null (e.g. user
-                      // only made per-cell picks), it wouldn't fire.
+                      // Reset to script palette. setColormapOverride
+                      // writes null to every cell's `colormap` field
+                      // (single source of truth — no separate per-cell
+                      // overrides to clear).
                       setColormapOverride(null);
-                      setCellColormap(Array.from({ length: cellsCount }, () => null));
                       setCmapOpen(false);
                     }}>reset</button>
                   </div>
@@ -1285,9 +1216,22 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 a button that toggles nothing on a plain plot()). 3-D
                 figures hide it because the WebGL renderer doesn't
                 draw a legend block. */}
-            {!is3D && legendUserAsked && (hasSeries || (!isHeatmap && !isComposite)) && (
-              <button className={`ve-btn ${showLegend ? 'is-active' : ''}`} onClick={() => setShowLegend((g) => !g)}>legend</button>
-            )}
+            {(() => {
+              // Legend toolbar shown only if SOMEWHERE in the figure the
+              // script asked for a legend. After the per-cell-state
+              // refactor we read this from figure props directly rather
+              // than the (removed) top-level legendUserAsked.
+              const askedHere = (cell) => (Array.isArray(cell.legend) && cell.legend.length > 0)
+                                       || (cell.legendLocation && cell.legendLocation !== 'none');
+              const wantBtn = !is3D
+                && (hasSeries || (!isHeatmap && !isComposite))
+                && cellsArr.some(askedHere);
+              if (!wantBtn) return null;
+              return (
+                <button className={`ve-btn ${showLegend ? 'is-active' : ''}`}
+                        onClick={() => setShowLegend((g) => !g)}>legend</button>
+              );
+            })()}
           </div>
 
           <div className="ve-tools-spacer" />
@@ -1374,14 +1318,14 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               // to fit each cell's viewport when the toolbar Fit X/Y/Z
               // is clicked on a subplot figure.
               fitSignal,
-              // displayResetSignal — clears per-cell ПКМ display overrides
-              // when the toolbar Reset (or display ▾ reset) fires.
-              displayResetSignal,
-              // Per-cell display + colormap state lives in FigureWindow
-              // (so the toolbar can compute "set on every cell?" ✓
-              // marks). SubplotGrid resolves effective values per cell
-              // and forwards setters to each CompositePlot.
-              cellDisplay, cellColormap,
+              // Per-cell state (single source of truth) lives in
+              // FigureWindow now. SubplotGrid receives the array + per-
+              // cell setter factories and fans them out to each cell's
+              // CompositePlot. Non-subplot CompositePlot uses cellState[0]
+              // values flattened into the same prop names already passed
+              // above (showMajor / xLog / ...), and the figure-wide
+              // setters wrap fanAll().
+              cellState,
               makeCellDisplaySetter, makeCellColormapSetter,
               makeCellDisplayReset, makeCellColormapReset,
               // Non-subplot CompositePlot uses these directly (no

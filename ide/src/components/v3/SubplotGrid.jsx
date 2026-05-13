@@ -104,12 +104,11 @@ export default function SubplotGrid({
   // tell SubplotGrid to drop every cell's per-cell display override
   // back to the figure-wide value. Counter pattern (same as fitSignal).
   displayResetSignal = null,
-  // Per-cell display + colormap state lives in FigureWindow now (so
-  // the toolbar can compute aggregate "set on every cell?" checkmarks).
-  // SubplotGrid receives ready-resolved arrays + per-cell setter
-  // factories from the parent.
-  cellDisplay = [],
-  cellColormap = [],
+  // Per-cell state (single source of truth) lives in FigureWindow now.
+  // SubplotGrid receives the resolved cellState array + per-cell setter
+  // factories from the parent and fans them out to each cell's
+  // CompositePlot.
+  cellState = [],
   makeCellDisplaySetter = null,
   makeCellColormapSetter = null,
   makeCellDisplayReset = null,
@@ -259,54 +258,38 @@ export default function SubplotGrid({
                 return next;
               }),
               ...(() => {
-                // Resolve effective per-cell display values: per-cell
-                // override wins, otherwise fall back to the figure-wide
-                // value passed in via props. Per-cell setters wrap
-                // makeCellSetter so a ПКМ click only mutates this cell.
-                const o = cellDisplay[idx] || {};
-                const eMajor     = o.major     !== undefined ? o.major     : major;
-                const eMinor     = o.minor     !== undefined ? o.minor     : minor;
-                const eXLog      = o.xLog      !== undefined ? o.xLog      : xLog;
-                const eYLog      = o.yLog      !== undefined ? o.yLog      : yLog;
-                const eShowTitle  = o.showTitle  !== undefined ? o.showTitle  : showTitle;
-                const eShowXLabel = o.showXLabel !== undefined ? o.showXLabel : showXLabel;
-                const eShowYLabel = o.showYLabel !== undefined ? o.showYLabel : showYLabel;
-                const eShowLegend = o.showLegend !== undefined ? o.showLegend : true;
-                const eShowColorbar = o.showColorbar !== undefined ? o.showColorbar : showColorbar;
-                // Setter factories may be absent in preview-card mode
-                // (FiguresPane doesn't pass them). Guard each call so the
-                // grid can render statically.
+                // Read this cell's state directly — single source of
+                // truth, no override resolution. Setter factories may
+                // be absent in preview-card mode (FiguresPane doesn't
+                // pass them); guard with no-op fallbacks.
+                const s = cellState[idx] || {};
                 const mks = (...a) => makeCellDisplaySetter ? makeCellDisplaySetter(...a) : null;
                 const mkc = (...a) => makeCellColormapSetter ? makeCellColormapSetter(...a) : null;
                 const mkdr = (...a) => makeCellDisplayReset ? makeCellDisplayReset(...a) : null;
                 const mkcr = (...a) => makeCellColormapReset ? makeCellColormapReset(...a) : null;
                 return {
-                  major: eMajor, minor: eMinor,
-                  xLog: eXLog, yLog: eYLog,
-                  showTitle: eShowTitle, showXLabel: eShowXLabel,
-                  showYLabel: eShowYLabel, showZLabel,
-                  showLegend: eShowLegend,
-                  showColorbar: eShowColorbar,
-                  setShowMajor:  mks(idx, 'major',     () => eMajor),
-                  setShowMinor:  mks(idx, 'minor',     () => eMinor),
-                  setXLog:       mks(idx, 'xLog',      () => eXLog),
-                  setYLog:       mks(idx, 'yLog',      () => eYLog),
-                  setShowTitle:  mks(idx, 'showTitle',  () => eShowTitle),
-                  setShowXLabel: mks(idx, 'showXLabel', () => eShowXLabel),
-                  setShowYLabel: mks(idx, 'showYLabel', () => eShowYLabel),
-                  setShowLegend: mks(idx, 'showLegend', () => eShowLegend),
-                  setShowColorbar: mks(idx, 'showColorbar', () => eShowColorbar),
-                  // Colormap: effective = per-cell override ?? figure-wide.
-                  // ПКМ Colormap inside this cell only mutates THIS cell's
-                  // entry (per user spec). Toolbar pick clears overrides
-                  // via the colormapOverride effect above.
-                  colormapOverride: cellColormap[idx] != null
-                                    ? cellColormap[idx]
-                                    : colormapOverride,
+                  major: !!s.showMajor, minor: !!s.showMinor,
+                  xLog: !!s.xLog, yLog: !!s.yLog,
+                  showTitle: s.showTitle !== false,
+                  showXLabel: s.showXLabel !== false,
+                  showYLabel: s.showYLabel !== false,
+                  showZLabel: s.showZLabel !== false,
+                  showLegend: !!s.showLegend,
+                  showColorbar: !!s.showColorbar,
+                  setShowMajor:    mks(idx, 'showMajor'),
+                  setShowMinor:    mks(idx, 'showMinor'),
+                  setXLog:         mks(idx, 'xLog'),
+                  setYLog:         mks(idx, 'yLog'),
+                  setShowTitle:    mks(idx, 'showTitle'),
+                  setShowXLabel:   mks(idx, 'showXLabel'),
+                  setShowYLabel:   mks(idx, 'showYLabel'),
+                  setShowLegend:   mks(idx, 'showLegend'),
+                  setShowColorbar: mks(idx, 'showColorbar'),
+                  // colormap field on the cell entry IS the override
+                  // (null = follow script). CompositePlot reads it as
+                  // colormapOverride.
+                  colormapOverride: s.colormap != null ? s.colormap : null,
                   setColormapOverride: mkc(idx),
-                  // Per-cell resets for ПКМ Display ▶ reset / Colormap ▶
-                  // reset: clear THIS cell's override entry. Cell falls
-                  // back to the figure-wide value.
                   onDisplayReset:  mkdr(idx),
                   onColormapReset: mkcr(idx),
                 };
