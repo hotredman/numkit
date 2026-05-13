@@ -33,13 +33,13 @@ namespace {
 // factor until a sign change is detected. Throws if not found within
 // kMaxExpansions iterations.
 std::pair<double, double>
-findBracket(FnHandle fn, double x0)
+findBracket(FnHandle fn, double x0, std::pmr::memory_resource *mr)
 {
     constexpr int kMaxExpansions = 60;
     double step = (x0 == 0.0) ? 0.02 : std::abs(x0) * 0.02;
     if (step == 0.0) step = 0.02;
     double a = x0, b = x0;
-    double fa = cb::evalScalar(fn,a);
+    double fa = cb::evalScalar(fn, a, mr);
     if (fa == 0.0) return {a, a};
     double fb = fa;
     for (int i = 0; i < kMaxExpansions; ++i) {
@@ -47,9 +47,9 @@ findBracket(FnHandle fn, double x0)
         const double aPrev = a, fAprev = fa;
         a = x0 - s;
         b = x0 + s;
-        fa = cb::evalScalar(fn,a);
+        fa = cb::evalScalar(fn, a, mr);
         if (fa == 0.0) return {a, a};
-        fb = cb::evalScalar(fn,b);
+        fb = cb::evalScalar(fn, b, mr);
         if (fb == 0.0) return {b, b};
         if ((fa < 0) != (fb < 0)) return {a, b};
         if ((fAprev < 0) != (fa < 0)) return {a, aPrev};
@@ -61,13 +61,13 @@ findBracket(FnHandle fn, double x0)
 
 // Brent's method on [a, b] with f(a)*f(b) < 0 (or one of them == 0).
 // Returns the root.
-double brent(FnHandle fn, double a, double b)
+double brent(FnHandle fn, double a, double b, std::pmr::memory_resource *mr)
 {
     constexpr int    kMaxIter = 200;
     constexpr double kEps     = 1e-15;
 
-    double fa = cb::evalScalar(fn,a);
-    double fb = cb::evalScalar(fn,b);
+    double fa = cb::evalScalar(fn, a, mr);
+    double fb = cb::evalScalar(fn, b, mr);
     if (fa == 0.0) return a;
     if (fb == 0.0) return b;
     if ((fa < 0) == (fb < 0))
@@ -118,7 +118,7 @@ double brent(FnHandle fn, double a, double b)
             b += d;
         else
             b += (xm > 0 ? std::abs(tol1) : -std::abs(tol1));
-        fb = cb::evalScalar(fn,b);
+        fb = cb::evalScalar(fn, b, mr);
     }
     throw Error("fzero: failed to converge within iteration limit",
                  0, 0, "fzero", "", "m:fzero:noConverge");
@@ -135,7 +135,7 @@ Value fzero(FnHandle fn, const Value &x0OrInterval,
         if (!std::isfinite(a) || !std::isfinite(b) || a >= b)
             throw Error("fzero: interval [a, b] must satisfy a < b and be finite",
                          0, 0, "fzero", "", "m:fzero:badInterval");
-        return Value::scalar(brent(fn, a, b), mr);
+        return Value::scalar(brent(fn, a, b, mr), mr);
     }
 
     if (!x0OrInterval.isScalar())
@@ -146,10 +146,10 @@ Value fzero(FnHandle fn, const Value &x0OrInterval,
     if (!std::isfinite(x0))
         throw Error("fzero: x0 must be finite",
                      0, 0, "fzero", "", "m:fzero:badX0");
-    auto [a, b] = findBracket(fn, x0);
+    auto [a, b] = findBracket(fn, x0, mr);
     if (a == b) return Value::scalar(a, mr);
     if (a > b) std::swap(a, b);
-    return Value::scalar(brent(fn, a, b), mr);
+    return Value::scalar(brent(fn, a, b, mr), mr);
 }
 
 // ── fminbnd / fminsearch ─────────────────────────────────────────────
@@ -161,7 +161,8 @@ Value fzero(FnHandle fn, const Value &x0OrInterval,
 
 namespace {
 
-double brentMin(FnHandle fn, double a, double b, double tol)
+double brentMin(FnHandle fn, double a, double b, double tol,
+                std::pmr::memory_resource *mr)
 {
     constexpr int    kMaxIter = 200;
     const double GOLD = 0.5 * (3.0 - std::sqrt(5.0));   // ≈ 0.381966
@@ -169,7 +170,7 @@ double brentMin(FnHandle fn, double a, double b, double tol)
 
     double x = a + GOLD * (b - a);
     double w = x, v = x;
-    double fx = cb::evalScalar(fn,x);
+    double fx = cb::evalScalar(fn, x, mr);
     double fw = fx, fv = fx;
     double d = 0.0, e = 0.0;
 
@@ -204,7 +205,7 @@ double brentMin(FnHandle fn, double a, double b, double tol)
             d = GOLD * e;
         }
         const double u = (std::abs(d) >= t1) ? x + d : x + (d >= 0 ? t1 : -t1);
-        const double fu = cb::evalScalar(fn,u);
+        const double fu = cb::evalScalar(fn, u, mr);
 
         if (fu <= fx) {
             if (u >= x) a = x; else b = x;
@@ -339,7 +340,7 @@ Value fminbnd(FnHandle fn, double lo, double hi, double tol,
         throw Error("fminbnd: lo < hi must be finite",
                      0, 0, "fminbnd", "", "m:fminbnd:badRange");
     if (!(tol > 0)) tol = 1e-6;
-    return Value::scalar(brentMin(fn, lo, hi, tol), mr);
+    return Value::scalar(brentMin(fn, lo, hi, tol, mr), mr);
 }
 
 Value fminsearch(FnHandle fn, const Value &x0, double tol,
@@ -385,7 +386,8 @@ void fzero_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
                      0, 0, "fzero", "", "m:fzero:nargin");
     requireFuncHandle(args[0], "fzero");
     auto handle = args[0];
-    auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou) {
+    auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou,
+                               std::pmr::memory_resource * /*mr*/) {
         auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
         for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
             ou[i] = std::move(r[i]);
@@ -403,7 +405,8 @@ void fminbnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const double hi = args[2].toScalar();
     const double tol = (args.size() >= 4 && !args[3].isEmpty()) ? args[3].toScalar() : 1e-6;
     auto handle = args[0];
-    auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou) {
+    auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou,
+                               std::pmr::memory_resource * /*mr*/) {
         auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
         for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
             ou[i] = std::move(r[i]);
@@ -419,7 +422,8 @@ void fminsearch_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
     requireFuncHandle(args[0], "fminsearch");
     const double tol = (args.size() >= 3 && !args[2].isEmpty()) ? args[2].toScalar() : 1e-4;
     auto handle = args[0];
-    auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou) {
+    auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou,
+                               std::pmr::memory_resource * /*mr*/) {
         auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
         for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
             ou[i] = std::move(r[i]);

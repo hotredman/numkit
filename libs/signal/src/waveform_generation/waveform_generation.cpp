@@ -117,7 +117,7 @@ Value pulstranHandle(const Value &t, const Value &d, FnHandle fn,
         Value args[1] = { shifted };
         Span<const Value> ar(args, 1);
         Span<Value>       ou(&r, 1);
-        fn(ar, ou);
+        fn(ar, ou, mr);
         if (r.numel() != n)
             throw Error("pulstran: handle must return a vector of the same "
                          "length as t",
@@ -785,7 +785,8 @@ void pulstran_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args[2].isFuncHandle()) {
         const auto &handle = args[2];
-        auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou) {
+        auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou,
+                                   std::pmr::memory_resource * /*mr*/) {
             auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
             for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
                 ou[i] = std::move(r[i]);

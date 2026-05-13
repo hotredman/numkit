@@ -21,13 +21,14 @@ namespace numkit::builtin::detail::callback {
 /// @param x   Scalar evaluation point.
 /// @return    `fn(x)` as a double.
 /// @throws Error  If the callback returns a non-scalar value.
-inline double evalScalar(FnHandle fn, double x)
+inline double evalScalar(FnHandle fn, double x,
+                         std::pmr::memory_resource *mr)
 {
-    Value arg = Value::scalar(x);
+    Value arg = Value::scalar(x, mr);
     Value out;
     Span<const Value> args(&arg, 1);
     Span<Value>       outs(&out, 1);
-    fn(args, outs);
+    fn(args, outs, mr);
     if (!out.isScalar() && out.numel() != 1)
         throw Error("callback: handle must return a scalar value",
                      0, 0, "callback", "", "m:callback:nonScalar");
