@@ -77,8 +77,10 @@ test('combined grid toggle drives both X grid AND Y grid', async ({ ide, page })
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
   await openDisplay(page);
 
+  // Master combined-grid row was renamed `grid` → `all` after the
+  // axes ▾ grid section split into grid / Cartesian / Polar.
   const gridRow = page.locator('.fw-pop-toggle',
-    { has: page.locator('span', { hasText: /^grid$/ }) });
+    { has: page.locator('span', { hasText: /^all$/ }) });
   const xRow = page.locator('.fw-pop-toggle',
     { has: page.locator('span', { hasText: 'X grid' }) });
   const yRow = page.locator('.fw-pop-toggle',

@@ -107,10 +107,13 @@ test('toolbar axes ▾ ✓ aggregates: only set when ALL cells have it', async (
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
   await page.waitForTimeout(120);
 
-  // Pre: nothing on. ✓ on grid is empty.
+  // Pre: nothing on. ✓ on combined-grid master is empty.
+  // Toolbar's master row was renamed `grid` → `all` after the axes ▾
+  // grid section split (ПКМ submenu still uses `grid` — that's
+  // unchanged below).
   await openToolbarMenu(page, 'axes');
   const gridToggle = page.locator('.fw-pop-toggle',
-    { has: page.locator('span', { hasText: /^grid$/ }) });
+    { has: page.locator('span', { hasText: /^all$/ }) });
   expect((await gridToggle.locator('.fw-pop-check').textContent()).trim()).toBe('');
   await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();  // close
   await page.waitForTimeout(50);
