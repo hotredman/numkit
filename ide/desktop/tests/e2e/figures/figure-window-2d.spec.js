@@ -83,11 +83,12 @@ test.describe('FigureWindow — 2-D layout', () => {
     await ide.figureWindow.locator('button', { hasText: 'fit' }).first().click();
     const popup = ide.figureWindow.locator('.fw-pop');
     await expect(popup).toBeVisible({ timeout: 5_000 });
-    await expect(popup.locator('button', { hasText: 'X only' })).toBeVisible();
-    await expect(popup.locator('button', { hasText: 'Y only' })).toBeVisible();
+    // Rows in fit ▾ are single letters now; section head `Cartesian`
+    // disambiguates. Use exact regex to avoid matching θ etc.
+    await expect(popup.locator('button', { hasText: /^X$/ })).toBeVisible();
+    await expect(popup.locator('button', { hasText: /^Y$/ })).toBeVisible();
     // Toolbar policy: every row is a figure-wide brush, always
-    // clickable. Z only on a 2-D figure is a visual no-op, never
-    // disabled.
-    await expect(popup.locator('button', { hasText: 'Z only' })).toBeEnabled();
+    // clickable. Z on a 2-D figure is a visual no-op, never disabled.
+    await expect(popup.locator('button', { hasText: /^Z$/ })).toBeEnabled();
   });
 });

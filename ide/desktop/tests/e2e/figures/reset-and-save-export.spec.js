@@ -46,12 +46,18 @@ test('toolbar Reset restores both viewport AND display state', async ({ ide, pag
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
   await page.waitForTimeout(150);
 
-  // After the axes/decoration split: ylog lives in axes ▾ (scale
-  // section), title lives in decoration ▾ (labels section). Flip
-  // each in its own popover. Close each popover by clicking the
-  // trigger again — Escape closes the whole modal.
+  // After the axes/decoration split: Y log lives in axes ▾ under
+  // `log scale:` section, title lives in decoration ▾ (labels).
+  // Section-scoped locator for the log row — `Y` also appears under
+  // axes ▾ `reverse:`.
+  const yLog = page.locator('.fw-pop-section', {
+    has: page.locator('.fw-pop-head', { hasText: /^log scale$/ }),
+  }).locator('.fw-pop-toggle', {
+    has: page.locator('span', { hasText: /^Y$/ }),
+  });
+
   await openAxesMenu(page);
-  await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'Y log' }) }).click();
+  await yLog.click();
   await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();
   await page.waitForTimeout(50);
 
@@ -69,12 +75,10 @@ test('toolbar Reset restores both viewport AND display state', async ({ ide, pag
 
   // Title visible again.
   await expect(page.locator('.fw-window svg text', { hasText: 'hello' })).toBeVisible();
-  // ylog inactive: open axes ▾, the ylog toggle should not show ✓.
+  // Y log inactive: open axes ▾, the row should not show ✓.
   await openAxesMenu(page);
-  const ylogActive = await page.locator('.fw-pop-toggle', {
-    has: page.locator('span', { hasText: 'Y log' })
-  }).locator('.fw-pop-check').textContent();
-  expect(ylogActive.trim()).toBe('');
+  const yLogCheck = await yLog.locator('.fw-pop-check').textContent();
+  expect(yLogCheck.trim()).toBe('');
 });
 
 test('decoration ▾ has legend toggle + `default` button', async ({ ide, page }) => {
@@ -170,7 +174,7 @@ test('ПКМ Reset row uses SVG house icon, not emoji', async ({ ide, page }) =>
   expect(text).not.toContain('🏠');
 });
 
-test('ПКМ Axes ▶ has grid / scale heads; Decoration ▶ has labels / annotations heads + legend', async ({ ide, page }) => {
+test('ПКМ Axes ▶ has visible/grid/reverse/log scale heads; Decoration ▶ has labels/annotations heads + legend', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
     + 'plot(1:10);\n'
@@ -184,12 +188,13 @@ test('ПКМ Axes ▶ has grid / scale heads; Decoration ▶ has labels / annota
 
   await rightClickPlot(page);
 
-  // Axes ▶ — visible / grid / direction / scale heads (HG2 Axes
-  // properties: Visible/Box, XGrid/YGrid, XDir/YDir, XScale/YScale).
+  // Axes ▶ — section heads describe ACTIVE state of each toggle
+  // group: `visible` (axis on/off), `grid` (per-axis grid), `reverse`
+  // (XDir/YDir reversed), `log scale` (XScale/YScale = log).
   await page.locator('.ctx-sub-trigger', { hasText: /Axes/ }).hover();
   await page.waitForTimeout(80);
   const axesHeads = await page.locator('.ctx-submenu .ctx-head').allTextContents();
-  expect(axesHeads).toEqual(['visible', 'grid', 'direction', 'scale']);
+  expect(axesHeads).toEqual(['visible', 'grid', 'reverse', 'log scale']);
 
   // Decoration ▶ — switching subs via hover (mouseleave on Axes
   // closes its sub; mouseenter on Decoration opens its sub). No need

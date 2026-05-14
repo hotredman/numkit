@@ -279,10 +279,11 @@ export default function PolarPlot({
     { separator: true },
     // ПКМ Fit — specialized to polar (this renderer is polar-only).
     // Rows mirror the toolbar fit ▾ Polar block, no cartesian rows.
+    // Single-letter row labels — `fit` implied by the section head.
     { head: 'Fit' },
-    { label: 'all',    onClick: fitAllPolar, disabled: !setViewport },
-    { label: 'R only', onClick: () => fitRho('all'), disabled: !setViewport },
-    { label: 'θ only', onClick: fitTheta,            disabled: !setViewport },
+    { label: 'all', onClick: fitAllPolar,         disabled: !setViewport },
+    { label: 'R',   onClick: () => fitRho('all'), disabled: !setViewport },
+    { label: 'θ',   onClick: fitTheta,            disabled: !setViewport },
     ...(multiSeries ? [
       { head: 'Fit single curve' },
       ...foldRowsToSubmenu(

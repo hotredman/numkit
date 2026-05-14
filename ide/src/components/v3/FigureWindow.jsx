@@ -1262,19 +1262,22 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   <div className="fw-pop-head">Cartesian</div>
                   {/* Toolbar policy: every row always clickable. Polar
                       cells ignore the cartesian fit signal (no-op);
-                      cartesian cells honour it. */}
+                      cartesian cells honour it. Per-axis rows are
+                      single letters — `fit` is implied by the menu
+                      name, section head names the coordinate system,
+                      same pattern as grid ▾. */}
                   <button onClick={() => {
                     if (isSubplot) fitAllCells('x'); else applyFit('all', 'x');
                     setFitOpen(false);
-                  }}>X only</button>
+                  }}>X</button>
                   <button onClick={() => {
                     if (isSubplot) fitAllCells('y'); else applyFit('all', 'y');
                     setFitOpen(false);
-                  }}>Y only</button>
+                  }}>Y</button>
                   <button onClick={() => {
                     if (isSubplot) fitAllCells('z'); else applyFit('all', 'z');
                     setFitOpen(false);
-                  }}>Z only</button>
+                  }}>Z</button>
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">Polar</div>
@@ -1284,11 +1287,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   <button onClick={() => {
                     if (isSubplot) fitAllCells('r'); else applyFit('all', 'r');
                     setFitOpen(false);
-                  }}>R only</button>
+                  }}>R</button>
                   <button onClick={() => {
                     if (isSubplot) fitAllCells('theta'); else applyFit('all', 'theta');
                     setFitOpen(false);
-                  }}>θ only</button>
+                  }}>θ</button>
                 </div>
                 {/* Heatmap colour-fit / reset-colors previously sat
                     here gated on `isHeatmap`. Dropped from the toolbar
@@ -1396,28 +1399,32 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                     of this popover so axes ▾ stays focused on the
                     HG2 Axes object's non-grid properties (visible /
                     direction / scale). */}
+                {/* Section heads describe the ACTIVE state of the
+                    toggle (`reverse` instead of `direction`, `log
+                    scale` instead of `scale`), so per-axis rows drop
+                    to single letters — `X ✓` under `reverse:` reads
+                    "X axis is reversed". Same compact pattern as
+                    grid ▾'s Cartesian / Polar sections. */}
                 <div className="fw-pop-section">
-                  <div className="fw-pop-head">direction</div>
-                  <DisplayToggle label="X reverse" active={xReverse}
+                  <div className="fw-pop-head">reverse</div>
+                  <DisplayToggle label="X" active={xReverse}
                                  onClick={() => setXReverse((v) => !v)} />
-                  <DisplayToggle label="Y reverse" active={yReverse}
+                  <DisplayToggle label="Y" active={yReverse}
                                  onClick={() => setYReverse((v) => !v)} />
-                  {/* Z reverse always visible — writes ZDir; no-op on
-                      2-D, parity-clean across kinds. */}
-                  <DisplayToggle label="Z reverse" active={zReverse}
+                  <DisplayToggle label="Z" active={zReverse}
                                  onClick={() => setZReverse((v) => !v)} />
                 </div>
                 <div className="fw-pop-section">
-                  <div className="fw-pop-head">scale</div>
+                  <div className="fw-pop-head">log scale</div>
                   {/* Toolbar toggles are NEVER disabled — figure-wide
                       brush. Clicking X log when no positive max exists
                       is a visual no-op but still flips the cell-state
                       flag (consistent fan-out). */}
-                  <DisplayToggle label="X log" active={xLog}
+                  <DisplayToggle label="X" active={xLog}
                                  onClick={() => toggleAxisLog('x')} />
-                  <DisplayToggle label="Y log" active={yLog}
+                  <DisplayToggle label="Y" active={yLog}
                                  onClick={() => toggleAxisLog('y')} />
-                  <DisplayToggle label="Z log" active={zLog}
+                  <DisplayToggle label="Z" active={zLog}
                                  onClick={() => setZLog((v) => !v)} />
                 </div>
               </div>

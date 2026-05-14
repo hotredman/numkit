@@ -1,28 +1,42 @@
-// display-axes-toggles.spec.js — axes ▾ button: axis, box, X reverse,
-// Y reverse, Z reverse. Map to MATLAB Visible / Box / XDir / YDir /
-// ZDir. axes ▾ also houses the scale toggles (xlog/ylog/zlog) — those
-// are covered by display-log-toggle.spec.js.
+// display-axes-toggles.spec.js — axes ▾ button: `visible: axis/box`,
+// `reverse: X/Y/Z`, `log scale: X/Y/Z`. Maps to MATLAB Visible / Box /
+// XDir·YDir·ZDir / XScale·YScale·ZScale.
+//
+// Section heads name the ACTIVE state (`reverse`, `log scale`) so
+// per-axis rows are single letters; same compact pattern as grid ▾.
+// Tests use a section-scoped selector because `X` / `Y` / `Z` appear
+// in BOTH `reverse` and `log scale` sections.
 
 import { test, expect } from '../../helpers/shared.js';
 
 async function openDisplay(page) {
-  // The /axes/ regex must NOT be anchored — the button textContent is
-  // `\n axes ▾\n` (whitespace wraps the SVG icon). `/^axes/i` would
-  // miss the leading whitespace.
   await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();
   await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
 }
 
-test('axes ▾ has axis / box / X reverse / Y reverse / Z reverse', async ({ ide, page }) => {
+/** Locate a `.fw-pop-toggle` row by its (section head, row text) pair.
+ *  Both match exactly via anchored regex — necessary because single-
+ *  letter rows like `X` appear in multiple sections. */
+function row(page, sectionHead, rowText) {
+  return page.locator('.fw-pop-section', {
+    has: page.locator('.fw-pop-head', { hasText: new RegExp(`^${sectionHead}$`) }),
+  }).locator('.fw-pop-toggle', {
+    has: page.locator('span', { hasText: new RegExp(`^${rowText}$`) }),
+  });
+}
+
+test('axes ▾ has visible/box + reverse{X,Y,Z} + log scale{X,Y,Z} rows', async ({ ide, page }) => {
   await ide.runScript('import compat.*;\nplot(1:10);\n');
   await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
   await ide.figureCards.first().click();
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
   await openDisplay(page);
 
-  for (const lbl of ['axis', 'box', 'X reverse', 'Y reverse', 'Z reverse']) {
-    await expect(page.locator('.fw-pop-toggle',
-      { has: page.locator('span', { hasText: lbl }) })).toBeVisible();
+  await expect(row(page, 'visible', 'axis')).toBeVisible();
+  await expect(row(page, 'visible', 'box')).toBeVisible();
+  for (const ax of ['X', 'Y', 'Z']) {
+    await expect(row(page, 'reverse',   ax)).toBeVisible();
+    await expect(row(page, 'log scale', ax)).toBeVisible();
   }
 });
 
@@ -71,8 +85,7 @@ test('toggle "Y reverse" flips axis direction', async ({ ide, page }) => {
   expect(topValBefore).toBeGreaterThan(botValBefore);
 
   await openDisplay(page);
-  await page.locator('.fw-pop-toggle',
-    { has: page.locator('span', { hasText: 'Y reverse' }) }).click();
+  await row(page, 'reverse', 'Y').click();
   await page.waitForTimeout(150);
 
   const after = await ytickPositions();
