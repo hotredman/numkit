@@ -91,7 +91,8 @@ test.describe('display ▾ menu — toggle visibility', () => {
     const beforeCount = await page.locator('.fw-window svg line[stroke*="--plot-grid"]').count();
     expect(beforeCount).toBeGreaterThan(0);
 
-    await openDecorationMenu(page);
+    // XGrid / YGrid are properties of the HG2 Axes object → axes ▾.
+    await openAxesMenu(page);
     await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: /^grid$/ }) }).click();
     await page.waitForTimeout(100);
 
@@ -99,10 +100,10 @@ test.describe('display ▾ menu — toggle visibility', () => {
     expect(afterCount).toBe(0);
   });
 
-  test('zlog and zlabel stay enabled even on 2-D figures', async ({ ide, page }) => {
+  test('Z log and zlabel stay enabled even on 2-D figures', async ({ ide, page }) => {
     // Per latest UX spec: toolbar doesn't gate Z controls behind a
     // 3-D check. Toggling them on a 2-D figure is a no-op, but the
-    // buttons are clickable. After the axes/decoration split: zlog
+    // buttons are clickable. After the axes/decoration split: Z log
     // lives in axes ▾ (scale section), zlabel lives in decoration ▾
     // (labels section).
     await ide.runScript(
@@ -115,7 +116,7 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
 
     await openAxesMenu(page);
-    const zlog = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'zlog' }) });
+    const zlog = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'Z log' }) });
     await expect(zlog).toBeEnabled();
     // Close axes ▾ by clicking its trigger again, then open decoration ▾.
     await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();

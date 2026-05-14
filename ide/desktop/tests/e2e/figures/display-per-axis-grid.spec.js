@@ -1,16 +1,17 @@
-// display-per-axis-grid.spec.js — toolbar display ▾ now exposes
-// per-axis grid toggles (X grid / Y grid) matching MATLAB HG2's
-// XGrid / YGrid properties. Combined "grid" row stays as quick
-// all-axes flip.
+// display-per-axis-grid.spec.js — toolbar axes ▾ exposes per-axis
+// grid toggles (X grid / Y grid) matching MATLAB HG2's XGrid / YGrid
+// properties. Combined "grid" row stays as a quick all-axes flip.
+// XGrid is a property of the Axes object, so it lives in the axes ▾
+// popover next to Visible / Box / XDir / XScale.
 
 import { test, expect } from '../../helpers/shared.js';
 
 async function openDisplay(page) {
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /decoration/i }).click();
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();
   await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
 }
 
-test('display ▾ has X grid + Y grid toggle rows', async ({ ide, page }) => {
+test('axes ▾ has X grid + Y grid toggle rows', async ({ ide, page }) => {
   await ide.runScript('import compat.*;\nplot(1:10);\n');
   await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
   await ide.figureCards.first().click();

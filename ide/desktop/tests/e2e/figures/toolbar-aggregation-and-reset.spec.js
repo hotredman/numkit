@@ -88,7 +88,9 @@ test('ПКМ Colormap submenu has reset row at TOP', async ({ ide, page }) => {
   await expect(firstBtn).toContainText(/^reset$/);
 });
 
-test('toolbar decoration ▾ ✓ aggregates: only set when ALL cells have it', async ({ ide, page }) => {
+test('toolbar axes ▾ ✓ aggregates: only set when ALL cells have it', async ({ ide, page }) => {
+  // XGrid is an Axes property → grid toggles live in axes ▾, not
+  // decoration ▾. Use grid as the probe (most common HG2 toggle).
   await ide.runScript(
     'import compat.*;\n'
     + 'figure;\n'
@@ -101,11 +103,11 @@ test('toolbar decoration ▾ ✓ aggregates: only set when ALL cells have it', a
   await page.waitForTimeout(120);
 
   // Pre: nothing on. ✓ on grid is empty.
-  await openToolbarMenu(page, 'decoration');
+  await openToolbarMenu(page, 'axes');
   const gridToggle = page.locator('.fw-pop-toggle',
     { has: page.locator('span', { hasText: /^grid$/ }) });
   expect((await gridToggle.locator('.fw-pop-check').textContent()).trim()).toBe('');
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /decoration/i }).click();  // close
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();  // close
   await page.waitForTimeout(50);
 
   // Toggle grid on cell A only via ПКМ.
@@ -115,11 +117,11 @@ test('toolbar decoration ▾ ✓ aggregates: only set when ALL cells have it', a
   await page.locator('.ctx-submenu button', { hasText: /^(✓ )?grid$/ }).click();
   await page.waitForTimeout(120);
 
-  // Toolbar decoration ▾ → grid still has NO ✓ (only one cell on, not all).
-  await openToolbarMenu(page, 'decoration');
+  // Toolbar axes ▾ → grid still has NO ✓ (only one cell on, not all).
+  await openToolbarMenu(page, 'axes');
   const partial = await gridToggle.locator('.fw-pop-check').textContent();
   expect(partial.trim(), `partial-state ✓ should be empty: '${partial}'`).toBe('');
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /decoration/i }).click();
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();
   await page.waitForTimeout(50);
 
   // Now toggle grid on cell B too.
@@ -130,7 +132,7 @@ test('toolbar decoration ▾ ✓ aggregates: only set when ALL cells have it', a
   await page.waitForTimeout(120);
 
   // Now toolbar shows ✓.
-  await openToolbarMenu(page, 'decoration');
+  await openToolbarMenu(page, 'axes');
   const allOn = await gridToggle.locator('.fw-pop-check').textContent();
   expect(allOn.trim(), `all-on ✓ should be set: '${allOn}'`).toBe('✓');
 });

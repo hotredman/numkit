@@ -51,7 +51,7 @@ test('toolbar Reset restores both viewport AND display state', async ({ ide, pag
   // each in its own popover. Close each popover by clicking the
   // trigger again — Escape closes the whole modal.
   await openAxesMenu(page);
-  await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'ylog' }) }).click();
+  await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'Y log' }) }).click();
   await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();
   await page.waitForTimeout(50);
 
@@ -72,7 +72,7 @@ test('toolbar Reset restores both viewport AND display state', async ({ ide, pag
   // ylog inactive: open axes ▾, the ylog toggle should not show ✓.
   await openAxesMenu(page);
   const ylogActive = await page.locator('.fw-pop-toggle', {
-    has: page.locator('span', { hasText: 'ylog' })
+    has: page.locator('span', { hasText: 'Y log' })
   }).locator('.fw-pop-check').textContent();
   expect(ylogActive.trim()).toBe('');
 });

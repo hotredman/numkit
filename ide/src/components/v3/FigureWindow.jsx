@@ -1275,15 +1275,16 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               bar now — see below. The toolbar keeps fit / grid / log /
               save / export buttons only. */}
 
-          {/* axes ▾ — coordinate-system properties (Visible / Box /
-              XDir·YDir·ZDir / XScale·YScale·ZScale). Mirrors MATLAB
-              Axes inspector's "Rulers" group. Decorations (grid /
-              labels / legend / colorbar) live in `decoration ▾` next.
-              Both popovers share the same reset → displayReset(). */}
+          {/* axes ▾ — every property of the Axes object itself:
+              Visible / Box / XGrid·YGrid·ZGrid / XDir·YDir·ZDir /
+              XScale·YScale·ZScale. Grouping rule: if it's a field on
+              the MATLAB HG2 Axes object, it lives here. Children of
+              the axes (Title, Legend, Colorbar, ...) live in
+              `decoration ▾` next. Both popovers share `displayReset`. */}
           <div className="ve-tools-group" ref={axesRef}>
             <button className="ve-btn"
                     onClick={() => setAxesOpen((o) => !o)}
-                    title="Coordinate system: visible / box / direction / scale">
+                    title="Axes object: visible / grid / direction / scale">
               <svg width="11" height="11" viewBox="0 0 12 12">
                 <path d="M2 1v10h10" stroke="currentColor" strokeWidth="1.2" fill="none"/>
               </svg>
@@ -1302,6 +1303,20 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                                  onClick={() => setShowBox((v) => !v)} />
                 </div>
                 <div className="fw-pop-section">
+                  <div className="fw-pop-head">grid</div>
+                  {/* Per-axis grid toggles match MATLAB HG2 (XGrid /
+                      YGrid / ZGrid). The combined "grid" row is a
+                      quick all-axes flip. */}
+                  <DisplayToggle label="grid"   active={showMajor}
+                                 onClick={() => setShowMajor((g) => !g)} />
+                  <DisplayToggle label="X grid" active={xGrid}
+                                 onClick={() => setXGrid((g) => !g)} />
+                  <DisplayToggle label="Y grid" active={yGrid}
+                                 onClick={() => setYGrid((g) => !g)} />
+                  <DisplayToggle label="minor"  active={showMinor}
+                                 onClick={() => setShowMinor((g) => !g)} />
+                </div>
+                <div className="fw-pop-section">
                   <div className="fw-pop-head">direction</div>
                   <DisplayToggle label="X reverse" active={xReverse}
                                  onClick={() => setXReverse((v) => !v)} />
@@ -1315,14 +1330,14 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">scale</div>
                   {/* Toolbar toggles are NEVER disabled — figure-wide
-                      brush. Clicking xlog when no positive max exists
+                      brush. Clicking X log when no positive max exists
                       is a visual no-op but still flips the cell-state
                       flag (consistent fan-out). */}
-                  <DisplayToggle label="xlog" active={xLog}
+                  <DisplayToggle label="X log" active={xLog}
                                  onClick={() => toggleAxisLog('x')} />
-                  <DisplayToggle label="ylog" active={yLog}
+                  <DisplayToggle label="Y log" active={yLog}
                                  onClick={() => toggleAxisLog('y')} />
-                  <DisplayToggle label="zlog" active={zLog}
+                  <DisplayToggle label="Z log" active={zLog}
                                  onClick={() => setZLog((v) => !v)} />
                 </div>
               </div>
@@ -1332,10 +1347,10 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
           <div className="ve-tools-group" ref={displayRef}>
             <button className="ve-btn"
                     onClick={() => setDisplayOpen((o) => !o)}
-                    title="Decorations: grid / labels / legend / colorbar">
+                    title="Decoration objects: labels / legend / colorbar">
               <svg width="11" height="11" viewBox="0 0 12 12">
-                <path d="M0 4h12 M0 8h12 M4 0v12 M8 0v12"
-                      stroke="currentColor" strokeWidth="1.2" fill="none"/>
+                <path d="M2 3h8M2 6h5M2 9h6"
+                      stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
               </svg>
               decoration ▾
             </button>
@@ -1345,21 +1360,10 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   <button onClick={() => { displayReset(); setDisplayOpen(false); }}>reset</button>
                 </div>
                 <div className="fw-pop-section">
-                  <div className="fw-pop-head">grid</div>
-                  {/* Per-axis grid toggles match MATLAB HG2 (XGrid /
-                      YGrid / ZGrid). The combined "grid" row is kept
-                      as a quick all-axes flip. */}
-                  <DisplayToggle label="grid"   active={showMajor}
-                                 onClick={() => setShowMajor((g) => !g)} />
-                  <DisplayToggle label="X grid" active={xGrid}
-                                 onClick={() => setXGrid((g) => !g)} />
-                  <DisplayToggle label="Y grid" active={yGrid}
-                                 onClick={() => setYGrid((g) => !g)} />
-                  <DisplayToggle label="minor"  active={showMinor}
-                                 onClick={() => setShowMinor((g) => !g)} />
-                </div>
-                <div className="fw-pop-section">
                   <div className="fw-pop-head">labels</div>
+                  {/* Pure text children of the Axes (HG2 Title / XLabel
+                      / YLabel / ZLabel objects). No Location picker —
+                      MATLAB Position is set by the renderer. */}
                   <DisplayToggle label="title" active={showTitle}
                                  onClick={() => setShowTitle((v) => !v)} />
                   <DisplayToggle label="xlabel" active={showXLabel}
@@ -1368,6 +1372,12 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                                  onClick={() => setShowYLabel((v) => !v)} />
                   <DisplayToggle label="zlabel" active={showZLabel}
                                  onClick={() => setShowZLabel((v) => !v)} />
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">annotations</div>
+                  {/* Standalone HG2 objects (Legend / Colorbar). Each
+                      carries its own Location so it gets a side-opening
+                      submenu next to the visibility toggle. */}
                   <DisplayToggle label="legend" active={showLegend}
                                  onClick={() => setShowLegend((v) => !v)} />
                   <FwPopLocationSubmenu
