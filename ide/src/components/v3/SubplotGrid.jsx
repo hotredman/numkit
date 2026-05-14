@@ -164,11 +164,17 @@ export default function SubplotGrid({
       const def = defaultViewport(cell);
       const cur = prev[idx] || def;
       const axis = fitSignal.axis;
-      // Polar cells use a different viewport shape — applying x/y axis
-      // fits to them is undefined; fall back to the default viewport
-      // for 'both' only.
-      if (cell.kind === 'polar') return axis === 'both' ? def : cur;
+      // Two coordinate systems share this signal: cartesian (x/y/z)
+      // and polar (r/theta). Each cell honours only its own — fits on
+      // axes the cell doesn't own resolve to `cur` (no-op, parity-
+      // clean with the toolbar policy). 'both' always resets the cell
+      // to its default viewport regardless of kind.
       if (axis === 'both') return def;
+      if (cell.kind === 'polar') {
+        if (axis === 'r')     return { ...cur, r:     def.r };
+        if (axis === 'theta') return { ...cur, theta: def.theta };
+        return cur;
+      }
       if (axis === 'x') return { ...cur, x: def.x };
       if (axis === 'y') return { ...cur, y: def.y };
       if (axis === 'z') return def.z ? { ...cur, z: def.z } : cur;
