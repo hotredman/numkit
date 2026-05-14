@@ -126,7 +126,7 @@ test('colormap ▾ has reset button — clears override + per-cell picks', async
   // Click reset in colormap ▾.
   await page.locator('.fw-toolbar .ve-btn', { hasText: /^colormap/i }).click();
   await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
-  await page.locator('.fw-pop button', { hasText: /^reset$/ }).click();
+  await page.locator('.fw-pop button', { hasText: /^default$/ }).click();
   await page.waitForTimeout(120);
 
   const after = await cellEffectiveCmaps(page);
@@ -162,7 +162,7 @@ test('toolbar colormap reset clears per-cell pick when no figure-wide override w
   // Toolbar colormap ▾ reset.
   await page.locator('.fw-toolbar .ve-btn', { hasText: /^colormap/i }).click();
   await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
-  await page.locator('.fw-pop button', { hasText: /^reset$/ }).click();
+  await page.locator('.fw-pop button', { hasText: /^default$/ }).click();
   await page.waitForTimeout(120);
 
   // All three cells back to script default.

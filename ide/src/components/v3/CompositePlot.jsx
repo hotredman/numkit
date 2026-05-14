@@ -913,9 +913,10 @@ export default function CompositePlot({
   const displaySubmenuItems = (setShowMajor || setShowMinor
       || setShowTitle || setShowXLabel || setShowYLabel
       || setXLog || setYLog || setShowLegend) ? [
-    // Reset always at the TOP of the menu so the user can find it
-    // without scrolling past every toggle.
-    ...(onDisplayReset ? [{ label: 'reset', onClick: onDisplayReset },
+    // Default always at the TOP of the menu so the user can find it
+    // without scrolling past every toggle. Same action as the toolbar
+    // popovers' `default` row — restores script values.
+    ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
                           { separator: true }] : []),
     { head: 'grid' },
     ...(setShowMajor ? [{ label: major ? '✓ grid'  : 'grid',
@@ -982,8 +983,9 @@ export default function CompositePlot({
   const COLORMAP_NAMES = ['parula', 'jet', 'hot', 'cool', 'gray', 'bone',
     'copper', 'spring', 'summer', 'autumn', 'winter', 'hsv', 'viridis'];
   const colormapSubmenuItems = (setColormapOverride && hasHeatmap) ? [
-    // reset on top mirrors the toolbar layout.
-    ...(onColormapReset ? [{ label: 'reset', onClick: onColormapReset },
+    // default on top mirrors the toolbar layout. Restores the script
+    // colormap (clears any UI override).
+    ...(onColormapReset ? [{ label: 'default', onClick: onColormapReset },
                            { separator: true }] : []),
     ...COLORMAP_NAMES.map((name) => ({
       label: (effectiveColormap === name ? '✓ ' : '') + name,
@@ -1051,13 +1053,13 @@ export default function CompositePlot({
     // bare axis names (matches the toolbar fit ▾ popover layout).
     ...(seriesLayers.length > 0 ? [
       { head: 'Fit All' },
-      { label: 'reset',    onClick: () => applyFitAllSeries('both') },
+      { label: 'default',  onClick: () => applyFitAllSeries('both') },
       { label: 'all axes', onClick: () => applyFitAllSeries('both') },
       { label: 'X only',   onClick: () => applyFitAllSeries('x') },
       { label: 'Y only',   onClick: () => applyFitAllSeries('y') },
     ] : [
       { head: 'Fit All' },
-      { label: 'reset',    onClick: () => fitAxes('both') },
+      { label: 'default',  onClick: () => fitAxes('both') },
       { label: 'all axes', onClick: () => fitAxes('both') },
       { label: 'X only',   onClick: () => fitAxes('x') },
       { label: 'Y only',   onClick: () => fitAxes('y') },

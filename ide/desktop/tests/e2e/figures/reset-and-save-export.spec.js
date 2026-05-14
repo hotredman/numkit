@@ -77,7 +77,7 @@ test('toolbar Reset restores both viewport AND display state', async ({ ide, pag
   expect(ylogActive.trim()).toBe('');
 });
 
-test('decoration ▾ has legend toggle + reset button', async ({ ide, page }) => {
+test('decoration ▾ has legend toggle + `default` button', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
     + 'plot(1:10);\n'
@@ -92,11 +92,11 @@ test('decoration ▾ has legend toggle + reset button', async ({ ide, page }) =>
   await expect(page.locator('.fw-pop-toggle', {
     has: page.locator('span', { hasText: 'legend' })
   })).toBeVisible();
-  // reset button present at the top of decoration ▾.
-  await expect(page.locator('.fw-pop button', { hasText: /^reset$/ })).toBeVisible();
+  // `default` button present at the top of decoration ▾.
+  await expect(page.locator('.fw-pop button', { hasText: /^default$/ })).toBeVisible();
 });
 
-test('decoration ▾ reset re-syncs to script defaults', async ({ ide, page }) => {
+test('decoration ▾ `default` re-syncs to script values', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
     + 'plot(1:1000);\n'
@@ -107,13 +107,13 @@ test('decoration ▾ reset re-syncs to script defaults', async ({ ide, page }) =
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
   await page.waitForTimeout(120);
 
-  // Toggle title off + click reset in the same menu session.
+  // Toggle title off + click `default` in the same menu session.
   await openDecorationMenu(page);
   await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'title' }) }).click();
   await page.waitForTimeout(80);
   await expect(page.locator('.fw-window svg text', { hasText: 'h' })).toHaveCount(0);
 
-  await page.locator('.fw-pop button', { hasText: /^reset$/ }).click();
+  await page.locator('.fw-pop button', { hasText: /^default$/ }).click();
   await page.waitForTimeout(120);
 
   // Title back.

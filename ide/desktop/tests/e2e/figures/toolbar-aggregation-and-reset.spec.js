@@ -21,35 +21,35 @@ async function openToolbarMenu(page, label) {
   await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
 }
 
-test('toolbar reset rows are at TOP of popovers (axes ▾, decoration ▾, colormap ▾)', async ({ ide, page }) => {
+test('toolbar `default` rows are at TOP of popovers (axes ▾, decoration ▾, colormap ▾)', async ({ ide, page }) => {
   await ide.runScript('import compat.*;\nimagesc(rand(8,8));\n');
   await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
   await ide.figureCards.first().click();
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
   await page.waitForTimeout(100);
 
-  // axes ▾ first child = "reset" button.
+  // axes ▾ first child = "default" button.
   await openToolbarMenu(page, 'axes');
   const firstAxes = page.locator('.fw-pop > .fw-pop-section').first()
     .locator('button').first();
-  await expect(firstAxes).toContainText(/^reset$/);
+  await expect(firstAxes).toContainText(/^default$/);
   await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click(); // close
 
-  // decoration ▾ first child = "reset" button.
+  // decoration ▾ first child = "default" button.
   await openToolbarMenu(page, 'decoration');
   const firstDecoration = page.locator('.fw-pop > .fw-pop-section').first()
     .locator('button').first();
-  await expect(firstDecoration).toContainText(/^reset$/);
+  await expect(firstDecoration).toContainText(/^default$/);
   await page.locator('.fw-toolbar .ve-btn', { hasText: /decoration/i }).click(); // close
 
-  // colormap ▾ first child = "reset" button.
+  // colormap ▾ first child = "default" button.
   await openToolbarMenu(page, 'colormap');
   const firstCmap = page.locator('.fw-pop > .fw-pop-section').first()
     .locator('button').first();
-  await expect(firstCmap).toContainText(/^reset$/);
+  await expect(firstCmap).toContainText(/^default$/);
 });
 
-test('ПКМ Display submenu has reset row at TOP', async ({ ide, page }) => {
+test('ПКМ Display submenu has `default` row at TOP', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
     + 'figure;\n'
@@ -66,10 +66,10 @@ test('ПКМ Display submenu has reset row at TOP', async ({ ide, page }) => {
   await page.waitForTimeout(60);
   // First button in the submenu should be "reset".
   const firstBtn = page.locator('.ctx-submenu > .ctx-item').first();
-  await expect(firstBtn).toContainText(/^reset$/);
+  await expect(firstBtn).toContainText(/^default$/);
 });
 
-test('ПКМ Colormap submenu has reset row at TOP', async ({ ide, page }) => {
+test('ПКМ Colormap submenu has `default` row at TOP', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
     + 'figure;\n'
@@ -85,7 +85,7 @@ test('ПКМ Colormap submenu has reset row at TOP', async ({ ide, page }) => {
   await page.locator('.ctx-sub-trigger', { hasText: /Colormap/ }).hover();
   await page.waitForTimeout(60);
   const firstBtn = page.locator('.ctx-submenu > .ctx-item').first();
-  await expect(firstBtn).toContainText(/^reset$/);
+  await expect(firstBtn).toContainText(/^default$/);
 });
 
 test('toolbar axes ▾ ✓ aggregates: only set when ALL cells have it', async ({ ide, page }) => {
