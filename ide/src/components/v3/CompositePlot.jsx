@@ -1054,7 +1054,7 @@ export default function CompositePlot({
     ...(setShowLegend ? [{ label: tag(showLegend, 'legend'),
                            onClick: () => setShowLegend((v) => !v) }] : []),
     ...(setLegendLocation ? [{
-      submenu: 'legend location ▶',
+      submenu: 'legend location',
       items: legendLocOptions.map((o) => ({
         label: tag((legendLocationProp || null) === o.value, o.label),
         onClick: () => setLegendLocation(o.value),
@@ -1063,7 +1063,7 @@ export default function CompositePlot({
     ...(setShowColorbar ? [{ label: tag(showColorbar, 'colorbar'),
                              onClick: () => setShowColorbar((v) => !v) }] : []),
     ...(setColorbarLocation ? [{
-      submenu: 'colorbar location ▶',
+      submenu: 'colorbar location',
       items: colorbarLocOptions.map((o) => ({
         label: tag((colorbarLocationProp || null) === o.value, o.label),
         onClick: () => setColorbarLocation(o.value),
