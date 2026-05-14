@@ -1183,12 +1183,12 @@ export default function CompositePlot({
     // Axes ▶ / Decoration ▶ mirror the toolbar's axes ▾ / decoration ▾
     // split (HG2 object vs. children).
     { label: <span>{houseIcon}Reset</span>, onClick: onReset },
-    { submenu: 'Save / Export ▶', items: exportItems },
-    ...(axesSubmenuItems ? [{ submenu: 'Axes ▶', items: axesSubmenuItems }] : []),
-    ...(decorationSubmenuItems ? [{ submenu: 'Decoration ▶', items: decorationSubmenuItems }] : []),
-    ...(colormapSubmenuItems ? [{ submenu: 'Colormap ▶', items: colormapSubmenuItems }] : []),
+    { submenu: 'Save / Export', items: exportItems },
+    ...(axesSubmenuItems ? [{ submenu: 'Axes', items: axesSubmenuItems }] : []),
+    ...(decorationSubmenuItems ? [{ submenu: 'Decoration', items: decorationSubmenuItems }] : []),
+    ...(colormapSubmenuItems ? [{ submenu: 'Colormap', items: colormapSubmenuItems }] : []),
     ...(seriesSubmenuItems ? [{
-      submenu: `Fit Series ▶${fittableSeries.length > 1 ? ` (${fittableSeries.length})` : ''}`,
+      submenu: `Fit Series${fittableSeries.length > 1 ? ` (${fittableSeries.length})` : ''}`,
       items: seriesSubmenuItems,
     }] : []),
     { separator: true },
