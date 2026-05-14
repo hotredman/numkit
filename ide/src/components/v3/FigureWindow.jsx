@@ -1422,12 +1422,17 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 </div>
               </div>
             )}
+          </div>
+
           {/* colormap ▾ — figure-wide palette picker. ALWAYS visible
               per the toolbar policy (universal brush). On a non-
               heatmap figure the picked palette is written to
               Axes.Colormap regardless — it has no visible effect now,
               but if a heatmap is later layered onto the same axes the
-              UI-picked palette wins over the script default. */}
+              UI-picked palette wins over the script default.
+              SIBLING of decoration ▾ (NOT nested) so click-outside on
+              the cmap trigger fires `setDisplayOpen(false)` via the
+              shared document-mousedown handler. */}
           <div className="ve-tools-group" ref={cmapRef}>
             <button className="ve-btn"
                     onClick={() => setCmapOpen((o) => !o)}
@@ -1485,14 +1490,6 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 </div>
               </div>
             )}
-          </div>
-            {/* The standalone `legend` toolbar button used to live
-                here, gated on "script asked for a legend AND not 3-D
-                AND has series". Removed — the legend toggle now lives
-                in decoration ▾ (under annotations), always present,
-                always clickable. Per the toolbar policy: every control
-                is visible regardless of figure kind; a click that
-                doesn't apply is a parity-clean no-op. */}
           </div>
 
           <div className="ve-tools-spacer" />
