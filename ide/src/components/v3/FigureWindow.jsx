@@ -1458,20 +1458,24 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   <DisplayToggle label="minor" active={showMinor}
                                  onClick={() => setShowMinor((g) => !g)} />
                 </div>
+                {/* Per-axis rows drop the `grid` suffix: the button
+                    name (`grid ▾`) and section head (Cartesian/Polar)
+                    already give the context. Saves 3-4 chars per row,
+                    no ambiguity inside a grid-dedicated popover. */}
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">Cartesian</div>
-                  <DisplayToggle label="X grid" active={xGrid}
+                  <DisplayToggle label="X" active={xGrid}
                                  onClick={() => setXGrid((g) => !g)} />
-                  <DisplayToggle label="Y grid" active={yGrid}
+                  <DisplayToggle label="Y" active={yGrid}
                                  onClick={() => setYGrid((g) => !g)} />
-                  <DisplayToggle label="Z grid" active={zGrid}
+                  <DisplayToggle label="Z" active={zGrid}
                                  onClick={() => setZGrid((g) => !g)} />
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">Polar</div>
-                  <DisplayToggle label="R grid" active={rGrid}
+                  <DisplayToggle label="R" active={rGrid}
                                  onClick={() => setRGrid((g) => !g)} />
-                  <DisplayToggle label="θ grid" active={thetaGrid}
+                  <DisplayToggle label="θ" active={thetaGrid}
                                  onClick={() => setThetaGrid((g) => !g)} />
                 </div>
               </div>

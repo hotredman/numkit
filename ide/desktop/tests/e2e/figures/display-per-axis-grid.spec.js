@@ -22,9 +22,9 @@ test('grid ▾ has X grid + Y grid toggle rows', async ({ ide, page }) => {
   await openDisplay(page);
 
   await expect(page.locator('.fw-pop-toggle',
-    { has: page.locator('span', { hasText: 'X grid' }) })).toBeVisible();
+    { has: page.locator('span', { hasText: /^X$/ }) })).toBeVisible();
   await expect(page.locator('.fw-pop-toggle',
-    { has: page.locator('span', { hasText: 'Y grid' }) })).toBeVisible();
+    { has: page.locator('span', { hasText: /^Y$/ }) })).toBeVisible();
 });
 
 test('X grid toggle flips ✓ independently of Y grid', async ({ ide, page }) => {
@@ -35,9 +35,9 @@ test('X grid toggle flips ✓ independently of Y grid', async ({ ide, page }) =>
   await openDisplay(page);
 
   const xRow = page.locator('.fw-pop-toggle',
-    { has: page.locator('span', { hasText: 'X grid' }) });
+    { has: page.locator('span', { hasText: /^X$/ }) });
   const yRow = page.locator('.fw-pop-toggle',
-    { has: page.locator('span', { hasText: 'Y grid' }) });
+    { has: page.locator('span', { hasText: /^Y$/ }) });
 
   // Click X grid only.
   await xRow.click();
@@ -56,7 +56,7 @@ test('X grid toggle draws ONLY vertical lines (no horizontal)', async ({ ide, pa
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
   await openDisplay(page);
   await page.locator('.fw-pop-toggle',
-    { has: page.locator('span', { hasText: 'X grid' }) }).click();
+    { has: page.locator('span', { hasText: /^X$/ }) }).click();
   await page.waitForTimeout(120);
 
   const lines = await page.locator('.fw-window svg line[stroke*="--plot-grid"]:not([stroke*="--plot-grid-min"])').evaluateAll((els) =>
@@ -85,9 +85,9 @@ test('combined grid toggle drives both X grid AND Y grid', async ({ ide, page })
   const gridRow = page.locator('.fw-pop-toggle',
     { has: page.locator('span', { hasText: /^all$/ }) });
   const xRow = page.locator('.fw-pop-toggle',
-    { has: page.locator('span', { hasText: 'X grid' }) });
+    { has: page.locator('span', { hasText: /^X$/ }) });
   const yRow = page.locator('.fw-pop-toggle',
-    { has: page.locator('span', { hasText: 'Y grid' }) });
+    { has: page.locator('span', { hasText: /^Y$/ }) });
 
   await gridRow.click();
   await page.waitForTimeout(80);
