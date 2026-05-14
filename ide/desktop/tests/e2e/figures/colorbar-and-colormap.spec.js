@@ -19,7 +19,7 @@ async function rightClickPlot(page) {
 }
 
 async function openDisplayMenu(page) {
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /display/i }).click();
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /decoration/i }).click();
   await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
 }
 

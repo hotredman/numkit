@@ -21,21 +21,28 @@ async function openToolbarMenu(page, label) {
   await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
 }
 
-test('toolbar reset rows are at TOP of popovers (display ▾ and colormap ▾)', async ({ ide, page }) => {
+test('toolbar reset rows are at TOP of popovers (axes ▾, decoration ▾, colormap ▾)', async ({ ide, page }) => {
   await ide.runScript('import compat.*;\nimagesc(rand(8,8));\n');
   await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
   await ide.figureCards.first().click();
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
   await page.waitForTimeout(100);
 
-  // display ▾ first child = "reset" button.
-  await openToolbarMenu(page, 'display');
-  const firstDisplay = page.locator('.fw-pop > .fw-pop-section').first()
+  // axes ▾ first child = "reset" button.
+  await openToolbarMenu(page, 'axes');
+  const firstAxes = page.locator('.fw-pop > .fw-pop-section').first()
     .locator('button').first();
-  await expect(firstDisplay).toContainText(/^reset$/);
+  await expect(firstAxes).toContainText(/^reset$/);
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click(); // close
+
+  // decoration ▾ first child = "reset" button.
+  await openToolbarMenu(page, 'decoration');
+  const firstDecoration = page.locator('.fw-pop > .fw-pop-section').first()
+    .locator('button').first();
+  await expect(firstDecoration).toContainText(/^reset$/);
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /decoration/i }).click(); // close
 
   // colormap ▾ first child = "reset" button.
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /display/i }).click(); // close
   await openToolbarMenu(page, 'colormap');
   const firstCmap = page.locator('.fw-pop > .fw-pop-section').first()
     .locator('button').first();
@@ -81,7 +88,7 @@ test('ПКМ Colormap submenu has reset row at TOP', async ({ ide, page }) => {
   await expect(firstBtn).toContainText(/^reset$/);
 });
 
-test('toolbar display ▾ ✓ aggregates: only set when ALL cells have it', async ({ ide, page }) => {
+test('toolbar decoration ▾ ✓ aggregates: only set when ALL cells have it', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
     + 'figure;\n'
@@ -94,11 +101,11 @@ test('toolbar display ▾ ✓ aggregates: only set when ALL cells have it', asyn
   await page.waitForTimeout(120);
 
   // Pre: nothing on. ✓ on grid is empty.
-  await openToolbarMenu(page, 'display');
+  await openToolbarMenu(page, 'decoration');
   const gridToggle = page.locator('.fw-pop-toggle',
     { has: page.locator('span', { hasText: /^grid$/ }) });
   expect((await gridToggle.locator('.fw-pop-check').textContent()).trim()).toBe('');
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /display/i }).click();  // close
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /decoration/i }).click();  // close
   await page.waitForTimeout(50);
 
   // Toggle grid on cell A only via ПКМ.
@@ -108,11 +115,11 @@ test('toolbar display ▾ ✓ aggregates: only set when ALL cells have it', asyn
   await page.locator('.ctx-submenu button', { hasText: /^(✓ )?grid$/ }).click();
   await page.waitForTimeout(120);
 
-  // Toolbar display ▾ → grid still has NO ✓ (only one cell on, not all).
-  await openToolbarMenu(page, 'display');
+  // Toolbar decoration ▾ → grid still has NO ✓ (only one cell on, not all).
+  await openToolbarMenu(page, 'decoration');
   const partial = await gridToggle.locator('.fw-pop-check').textContent();
   expect(partial.trim(), `partial-state ✓ should be empty: '${partial}'`).toBe('');
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /display/i }).click();
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /decoration/i }).click();
   await page.waitForTimeout(50);
 
   // Now toggle grid on cell B too.
@@ -123,7 +130,7 @@ test('toolbar display ▾ ✓ aggregates: only set when ALL cells have it', asyn
   await page.waitForTimeout(120);
 
   // Now toolbar shows ✓.
-  await openToolbarMenu(page, 'display');
+  await openToolbarMenu(page, 'decoration');
   const allOn = await gridToggle.locator('.fw-pop-check').textContent();
   expect(allOn.trim(), `all-on ✓ should be set: '${allOn}'`).toBe('✓');
 });

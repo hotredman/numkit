@@ -1,12 +1,15 @@
 // display-log-toggle.spec.js — verify xlog / ylog toggles inside the
-// display ▾ menu actually switch the axis to log mapping. Probe the
+// axes ▾ menu actually switch the axis to log mapping. Probe the
 // y-axis tick set: linear on plot(1:1000) gives ticks at 100 / 200 / …
 // while log gives 10 / 100 / 1000. After toggle we want the log set.
 
 import { test, expect } from '../../helpers/shared.js';
 
 async function openDisplay(page) {
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /display/i }).click();
+  // axes ▾ — coordinate-system properties popover. Regex without ^
+  // anchor because the button textContent is `\n axes ▾\n` (whitespace
+  // around the inline SVG icon).
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();
   await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
 }
 

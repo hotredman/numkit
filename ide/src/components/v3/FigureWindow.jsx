@@ -289,6 +289,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       showBox:      isOn(axes.Box),
       xReverse:     axes.XDir === 'reverse',
       yReverse:     axes.YDir === 'reverse',
+      zReverse:     axes.ZDir === 'reverse',
       legendLocation:   axes.Legend   && axes.Legend.Location,
       colorbarLocation: axes.Colorbar && axes.Colorbar.Location,
       colormap:     axes.Colormap || null,
@@ -326,6 +327,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       case 'showBox':      return isOn(a.Box);
       case 'xReverse':     return a.XDir === 'reverse';
       case 'yReverse':     return a.YDir === 'reverse';
+      case 'zReverse':     return a.ZDir === 'reverse';
       case 'legendLocation':   return a.Legend   && a.Legend.Location;
       case 'colorbarLocation': return a.Colorbar && a.Colorbar.Location;
       case 'colormap':     return a.Colormap;
@@ -356,6 +358,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       case 'showBox':      return { ...a, Box:     onOff(!!value) };
       case 'xReverse':     return { ...a, XDir: value ? 'reverse' : 'normal' };
       case 'yReverse':     return { ...a, YDir: value ? 'reverse' : 'normal' };
+      case 'zReverse':     return { ...a, ZDir: value ? 'reverse' : 'normal' };
       case 'legendLocation':   return setProp(a, ['Legend',   'Location'], value);
       case 'colorbarLocation': return setProp(a, ['Colorbar', 'Location'], value);
       case 'colormap':     return { ...a, Colormap: value };
@@ -405,6 +408,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   const showBox      = everyAxes(axesArr, ['Box'], isOn);
   const xReverse     = axesArr.length > 0 && axesArr.every((a) => a.XDir === 'reverse');
   const yReverse     = axesArr.length > 0 && axesArr.every((a) => a.YDir === 'reverse');
+  const zReverse     = axesArr.length > 0 && axesArr.every((a) => a.ZDir === 'reverse');
   // Legend / colorbar location aggregates — uniform across cells →
   // that value; mixed → null. null also means "follow script".
   const legendLocationAgg = (() => {
@@ -458,6 +462,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   const setShowBox      = (u) => fanAll('showBox',      u);
   const setXReverse     = (u) => fanAll('xReverse',     u);
   const setYReverse     = (u) => fanAll('yReverse',     u);
+  const setZReverse     = (u) => fanAll('zReverse',     u);
   const setLegendLocation   = (v) => fanAll('legendLocation',   v);
   const setColorbarLocation = (v) => fanAll('colorbarLocation', v);
   function setColormapOverride(value) {
@@ -658,12 +663,14 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     viewportReset();
     displayReset();
   }
+  const [axesOpen, setAxesOpen] = useState(false);
   const [displayOpen, setDisplayOpen] = useState(false);
   const [cmapOpen, setCmapOpen]   = useState(false);
   const [saveOpen, setSaveOpen]   = useState(false);
   const [viewOpen, setViewOpen]   = useState(false);
   const [maximized, setMaximized] = useState(false);
   const fitRef  = useRef(null);
+  const axesRef = useRef(null);
   const displayRef = useRef(null);
   const cmapRef = useRef(null);
   const saveRef = useRef(null);
@@ -711,6 +718,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   useEffect(() => {
     function onDoc(e) {
       if (fitRef.current     && !fitRef.current.contains(e.target))     setFitOpen(false);
+      if (axesRef.current    && !axesRef.current.contains(e.target))    setAxesOpen(false);
       if (displayRef.current && !displayRef.current.contains(e.target)) setDisplayOpen(false);
       if (cmapRef.current    && !cmapRef.current.contains(e.target))    setCmapOpen(false);
       if (saveRef.current    && !saveRef.current.contains(e.target))    setSaveOpen(false);
@@ -1267,15 +1275,69 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               bar now — see below. The toolbar keeps fit / grid / log /
               save / export buttons only. */}
 
+          {/* axes ▾ — coordinate-system properties (Visible / Box /
+              XDir·YDir·ZDir / XScale·YScale·ZScale). Mirrors MATLAB
+              Axes inspector's "Rulers" group. Decorations (grid /
+              labels / legend / colorbar) live in `decoration ▾` next.
+              Both popovers share the same reset → displayReset(). */}
+          <div className="ve-tools-group" ref={axesRef}>
+            <button className="ve-btn"
+                    onClick={() => setAxesOpen((o) => !o)}
+                    title="Coordinate system: visible / box / direction / scale">
+              <svg width="11" height="11" viewBox="0 0 12 12">
+                <path d="M2 1v10h10" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+              </svg>
+              axes ▾
+            </button>
+            {axesOpen && (
+              <div className="fw-pop">
+                <div className="fw-pop-section">
+                  <button onClick={() => { displayReset(); setAxesOpen(false); }}>reset</button>
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">visible</div>
+                  <DisplayToggle label="axis" active={showAxis}
+                                 onClick={() => setShowAxis((v) => !v)} />
+                  <DisplayToggle label="box"  active={showBox}
+                                 onClick={() => setShowBox((v) => !v)} />
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">direction</div>
+                  <DisplayToggle label="X reverse" active={xReverse}
+                                 onClick={() => setXReverse((v) => !v)} />
+                  <DisplayToggle label="Y reverse" active={yReverse}
+                                 onClick={() => setYReverse((v) => !v)} />
+                  {/* Z reverse always visible — writes ZDir; no-op on
+                      2-D, parity-clean across kinds. */}
+                  <DisplayToggle label="Z reverse" active={zReverse}
+                                 onClick={() => setZReverse((v) => !v)} />
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">scale</div>
+                  {/* Toolbar toggles are NEVER disabled — figure-wide
+                      brush. Clicking xlog when no positive max exists
+                      is a visual no-op but still flips the cell-state
+                      flag (consistent fan-out). */}
+                  <DisplayToggle label="xlog" active={xLog}
+                                 onClick={() => toggleAxisLog('x')} />
+                  <DisplayToggle label="ylog" active={yLog}
+                                 onClick={() => toggleAxisLog('y')} />
+                  <DisplayToggle label="zlog" active={zLog}
+                                 onClick={() => setZLog((v) => !v)} />
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="ve-tools-group" ref={displayRef}>
             <button className="ve-btn"
                     onClick={() => setDisplayOpen((o) => !o)}
-                    title="Toggle grid / scale / labels visibility">
+                    title="Decorations: grid / labels / legend / colorbar">
               <svg width="11" height="11" viewBox="0 0 12 12">
                 <path d="M0 4h12 M0 8h12 M4 0v12 M8 0v12"
                       stroke="currentColor" strokeWidth="1.2" fill="none"/>
               </svg>
-              display ▾
+              decoration ▾
             </button>
             {displayOpen && (
               <div className="fw-pop">
@@ -1284,9 +1346,6 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">grid</div>
-                  {/* aggOn shows ✓ only when EVERY cell has the option set
-                      (after applying per-cell overrides). For non-subplot
-                      figures it just returns the figure-wide state. */}
                   {/* Per-axis grid toggles match MATLAB HG2 (XGrid /
                       YGrid / ZGrid). The combined "grid" row is kept
                       as a quick all-axes flip. */}
@@ -1298,34 +1357,6 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                                  onClick={() => setYGrid((g) => !g)} />
                   <DisplayToggle label="minor"  active={showMinor}
                                  onClick={() => setShowMinor((g) => !g)} />
-                </div>
-                <div className="fw-pop-section">
-                  <div className="fw-pop-head">axes</div>
-                  <DisplayToggle label="axis" active={showAxis}
-                                 onClick={() => setShowAxis((v) => !v)} />
-                  <DisplayToggle label="box"  active={showBox}
-                                 onClick={() => setShowBox((v) => !v)} />
-                  <DisplayToggle label="X reverse" active={xReverse}
-                                 onClick={() => setXReverse((v) => !v)} />
-                  <DisplayToggle label="Y reverse" active={yReverse}
-                                 onClick={() => setYReverse((v) => !v)} />
-                </div>
-                <div className="fw-pop-section">
-                  <div className="fw-pop-head">scale</div>
-                  {/* Toolbar toggles are NEVER disabled — they're a
-                      figure-wide brush. Clicking xlog when no positive
-                      max exists is a no-op visually but still flips the
-                      cell-state flag (consistent fan-out). The previous
-                      `disabled={!xLogEnabled}` made the toolbar lie
-                      about what was clickable, e.g. for fresh subplots
-                      where one cell could be log-fittable but the
-                      aggregate disabled-rule said no. */}
-                  <DisplayToggle label="xlog" active={xLog}
-                                 onClick={() => toggleAxisLog('x')} />
-                  <DisplayToggle label="ylog" active={yLog}
-                                 onClick={() => toggleAxisLog('y')} />
-                  <DisplayToggle label="zlog" active={zLog}
-                                 onClick={() => setZLog((v) => !v)} />
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">labels</div>
