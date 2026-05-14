@@ -80,8 +80,15 @@ function MenuItems({ items, onClose }) {
         </div>
       );
     }
+    // `masked` = state-preserving dimming for "this row is currently a
+    // no-op because another setting masks it" (e.g. `box` while
+    // `axis=off`). Distinct from `disabled`: the button stays clickable
+    // so the user can pre-set a value that applies once the mask lifts.
     return (
-      <button key={i} className="ctx-item" disabled={!!it.disabled}
+      <button key={i}
+        className={`ctx-item${it.masked ? ' is-masked' : ''}`}
+        disabled={!!it.disabled}
+        title={it.maskedHint || ''}
         onClick={(e) => {
           e.stopPropagation();
           it.onClick?.();

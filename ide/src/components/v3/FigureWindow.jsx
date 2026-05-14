@@ -147,14 +147,22 @@ function FwPopRowsOrSubmenu({ rows, label, threshold = 5 }) {
   );
 }
 
-/** Toggle row for the display ▾ popover. Two-column grid:
+/** Toggle row for the axes / decoration popovers. Two-column grid:
  *  [ label | ✓ ]. No per-item icon (button-level icon already telegraphs
- *  the menu's purpose). No active colour tint — only the ✓ marker. */
-function DisplayToggle({ label, active, disabled = false, disabledHint = '', onClick }) {
+ *  the menu's purpose). No active colour tint — only the ✓ marker.
+ *
+ *  `masked` = state-preserving "this toggle is currently no-op because
+ *  another setting masks it" hint. Renders dimmed via `is-masked` CSS
+ *  but stays fully clickable (the user can pre-set a value that'll
+ *  apply once the mask lifts). Distinct from `disabled`, which blocks
+ *  the click entirely. */
+function DisplayToggle({ label, active, disabled = false, disabledHint = '',
+                        masked = false, maskedHint = '', onClick }) {
+  const title = disabled ? disabledHint : (masked ? maskedHint : '');
   return (
-    <button className="fw-pop-toggle"
+    <button className={`fw-pop-toggle${masked ? ' is-masked' : ''}`}
             disabled={disabled}
-            title={disabled ? disabledHint : ''}
+            title={title}
             onClick={onClick}>
       <span>{label}</span>
       <span className="fw-pop-check">{active ? '✓' : ''}</span>
@@ -1292,7 +1300,16 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   <div className="fw-pop-head">visible</div>
                   <DisplayToggle label="axis" active={showAxis}
                                  onClick={() => setShowAxis((v) => !v)} />
+                  {/* MATLAB HG2 rule: Axes.Visible='off' is the master
+                      switch — it hides ticks, axis lines AND the Box.
+                      We honour that: when axis is off the box doesn't
+                      render even with Box='on'. Dim the box row so the
+                      user sees their ✓ is currently no-op; click still
+                      flips the cell-state flag so it'll take effect
+                      once axis is turned back on. */}
                   <DisplayToggle label="box"  active={showBox}
+                                 masked={!showAxis}
+                                 maskedHint="Box is hidden because axis is off — turn axis on to see it."
                                  onClick={() => setShowBox((v) => !v)} />
                 </div>
                 <div className="fw-pop-section">
