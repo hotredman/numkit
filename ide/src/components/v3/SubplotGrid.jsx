@@ -328,6 +328,8 @@ export default function SubplotGrid({
                   setShowMinor:    mks(idx, 'showMinor'),
                   setXGrid:        mks(idx, 'xGrid'),
                   setYGrid:        mks(idx, 'yGrid'),
+                  setRGrid:        mks(idx, 'rGrid'),
+                  setThetaGrid:    mks(idx, 'thetaGrid'),
                   setShowAxis:     mks(idx, 'showAxis'),
                   setShowBox:      mks(idx, 'showBox'),
                   setXReverse:     mks(idx, 'xReverse'),

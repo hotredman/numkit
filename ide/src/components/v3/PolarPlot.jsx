@@ -86,6 +86,17 @@ export default function PolarPlot({
   // so preview cards and standalone callers keep current behaviour.
   rGrid: rGridProp,
   thetaGrid: thetaGridProp,
+  // ПКМ Axes ▶ setters — when provided (modal context), the right-
+  // click menu surfaces a polar-specialised Axes submenu mirroring
+  // the toolbar grid ▾ Polar section. Absent → submenu omitted.
+  setShowMajor = null,
+  setShowMinor = null,
+  setRGrid     = null,
+  setThetaGrid = null,
+  // Top-level Reset + figure-wide displayReset (matches CompositePlot's
+  // ПКМ bridge). FigureWindow wires `resetAll` / `displayReset`.
+  onResetAll     = null,
+  onDisplayReset = null,
   fontScale = 1,
   interactive = true,
 }) {
@@ -260,26 +271,71 @@ export default function PolarPlot({
     setViewport(defaultPolarViewport(figure));
   }
   const multiSeries = Array.isArray(figure.series) && figure.series.length > 1;
-  const ctxItems = [
-    { label: 'Reset to default',
-      onClick: () => setViewport && setViewport(defaultPolarViewport(figure)),
-      disabled: !setViewport,
-    },
-    { label: 'Save as SVG (vector)',
+
+  // ✓-prefix helper — same `tag(active, label)` pattern CompositePlot
+  // uses so PolarPlot's ПКМ toggle rows render checkmarks identically.
+  const tag = (active, label) => active ? `✓ ${label}` : label;
+
+  // House icon — same path used by the standalone toolbar Reset button
+  // and CompositePlot's ПКМ Reset row. Inlined here so PolarPlot's ПКМ
+  // top row matches the rest of the IDE.
+  const houseIcon = (
+    <svg width="11" height="11" viewBox="0 0 12 12"
+         style={{ verticalAlign: '-1px', marginRight: '6px' }}>
+      <path d="M1 6l5-5 5 5 M2 5v6h8V5"
+            stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round"/>
+    </svg>
+  );
+
+  // ПКМ structure parity with CompositePlot:
+  //   🏠 Reset · Save / Export ▶ · Axes ▶ · ───── · Fit · series rows
+  //
+  // Axes ▶ — polar-specialised, so it carries ONLY the grid section
+  // (master + R + θ + minor). No `visible / box`, no `reverse`, no
+  // `log scale` — those would need renderer support PolarPlot doesn't
+  // ship today.
+
+  const exportItems = [
+    { head: 'image · screen' },
+    { label: 'SVG (vector)',
       onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
-    { label: 'Save as PNG (screen 2×)',
+    { label: 'PNG @2×',
       onClick: () => exportPngNode(svgRef.current, width, height, 2, `figure_${figure.id}.png`) },
-    { head: 'Save for print (300 DPI)' },
+    { head: 'image · print (300 DPI)' },
     { label: 'PNG · 1 column (85 mm)',
       onClick: () => exportPngForPrint(svgRef.current, width, height, 85, 300, `figure_${figure.id}`) },
     { label: 'PNG · 2 columns (170 mm)',
       onClick: () => exportPngForPrint(svgRef.current, width, height, 170, 300, `figure_${figure.id}`) },
     { label: 'PNG · A4 width (210 mm)',
       onClick: () => exportPngForPrint(svgRef.current, width, height, 210, 300, `figure_${figure.id}`) },
+  ];
+
+  const axesItems = (setShowMajor || setShowMinor || setRGrid || setThetaGrid) ? [
+    ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
+                          { separator: true }] : []),
+    { head: 'grid' },
+    ...(setShowMajor ? [{ label: tag(major, 'all'), keepOpen: true,
+                          onClick: () => setShowMajor((v) => !v) }] : []),
+    ...(setRGrid     ? [{ label: tag(rGridOn, 'R'), keepOpen: true,
+                          onClick: () => setRGrid((v) => !v) }] : []),
+    ...(setThetaGrid ? [{ label: tag(thetaGridOn, 'θ'), keepOpen: true,
+                          onClick: () => setThetaGrid((v) => !v) }] : []),
+    ...(setShowMinor ? [{ label: tag(minor, 'minor'), keepOpen: true,
+                          onClick: () => setShowMinor((v) => !v) }] : []),
+  ] : null;
+
+  // Top-level Reset: prefer parent-supplied `onResetAll` (full
+  // viewport + display reset, same as toolbar's 🏠 button). Fall back
+  // to viewport-only when the parent didn't wire one.
+  const onReset = onResetAll || (() => setViewport && setViewport(defaultPolarViewport(figure)));
+
+  const ctxItems = [
+    { label: <span>{houseIcon}Reset</span>, onClick: onReset },
+    { submenu: 'Save / Export', items: exportItems },
+    ...(axesItems ? [{ submenu: 'Axes', items: axesItems }] : []),
     { separator: true },
-    // ПКМ Fit — specialized to polar (this renderer is polar-only).
-    // Rows mirror the toolbar fit ▾ Polar block, no cartesian rows.
-    // Single-letter row labels — `fit` implied by the section head.
+    // ПКМ Fit — specialised to polar. Single-letter row labels;
+    // `fit` implied by the section head.
     { head: 'Fit' },
     { label: 'all', onClick: fitAllPolar,         disabled: !setViewport },
     { label: 'R',   onClick: () => fitRho('all'), disabled: !setViewport },

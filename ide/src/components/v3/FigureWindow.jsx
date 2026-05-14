@@ -1721,6 +1721,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               ...(isSubplot ? {} : {
                 setShowMajor, setShowMinor,
                 setXGrid, setYGrid,
+                setRGrid, setThetaGrid,
                 setShowAxis, setShowBox,
                 setXReverse, setYReverse, setZReverse,
                 setShowTitle, setShowXLabel, setShowYLabel, setShowZLabel,
