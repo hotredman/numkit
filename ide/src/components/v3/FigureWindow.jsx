@@ -1064,16 +1064,39 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       return;
     }
     if (isPolar) {
-      // Polar fit: pick max |rho| across selected series, round up to a nice
-      // multiple, keep rMin at 0 (or whatever the figure's existing inner
-      // ring is). axisMode is ignored — there's only one axis.
-      const list = mode === 'all' ? figure.series : figure.series.filter((s) => s.name === mode);
-      let m = 0;
-      list.forEach((s) => s.rho?.forEach((v) => {
-        if (Number.isFinite(v) && Math.abs(v) > m) m = Math.abs(v);
-      }));
-      const lo = (Array.isArray(figure.rlim) && figure.rlim.length === 2) ? figure.rlim[0] : 0;
-      setViewport({ r: [lo, nicePolarMax(m || 1)] });
+      // Polar fit: two axes — R (radial extent) and θ (angular sweep).
+      // axisMode picks which to reset:
+      //   'r'              → R only, θ stays at current viewport
+      //   'theta'          → θ only, R stays
+      //   'rtheta'/'both'  → both
+      // Anything else (e.g. legacy 'x'/'y'/'z') falls through to fit-
+      // both for back-compat — the only direct call sites this matters
+      // for are the cartesian section, which only fires on
+      // !isPolar paths above.
+      const list = mode === 'all'
+        ? figure.series
+        : figure.series.filter((s) => s.name === mode);
+      const wantR = axisMode === 'r'      || axisMode === 'both' || axisMode === 'rtheta' || !axisMode;
+      const wantT = axisMode === 'theta'  || axisMode === 'both' || axisMode === 'rtheta';
+      const cur = viewport || {};
+      const next = {
+        r:     Array.isArray(cur.r)     ? cur.r.slice()     : [0, 1],
+        theta: Array.isArray(cur.theta) ? cur.theta.slice() : [0, 360],
+      };
+      if (wantR) {
+        let m = 0;
+        list.forEach((s) => s.rho?.forEach((v) => {
+          if (Number.isFinite(v) && Math.abs(v) > m) m = Math.abs(v);
+        }));
+        const lo = (Array.isArray(figure.rlim) && figure.rlim.length === 2)
+                   ? figure.rlim[0] : 0;
+        next.r = [lo, nicePolarMax(m || 1)];
+      }
+      if (wantT) {
+        next.theta = (Array.isArray(figure.thetalim) && figure.thetalim.length === 2)
+                     ? figure.thetalim.slice() : [0, 360];
+      }
+      setViewport(next);
       setFitOpen(false);
       return;
     }
@@ -1197,11 +1220,21 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                   <button onClick={() => { viewportReset(); setFitOpen(false); }}>default</button>
                 </div>
                 <div className="fw-pop-section">
-                  <div className="fw-pop-head">Fit All</div>
+                  {/* `all` sits on its own — it's the "fit everything"
+                      master that resets each cell to its default
+                      viewport regardless of coordinate system. Below
+                      it the per-axis rows split into Cartesian and
+                      Polar so the labels read unambiguously. */}
                   <button onClick={() => {
                     if (isSubplot) fitAllCells('both'); else applyFit('all', 'both');
                     setFitOpen(false);
-                  }}>all axes</button>
+                  }}>all</button>
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">Cartesian</div>
+                  {/* Toolbar policy: every row always clickable. Polar
+                      cells ignore the cartesian fit signal (no-op);
+                      cartesian cells honour it. */}
                   <button onClick={() => {
                     if (isSubplot) fitAllCells('x'); else applyFit('all', 'x');
                     setFitOpen(false);
@@ -1210,14 +1243,24 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                     if (isSubplot) fitAllCells('y'); else applyFit('all', 'y');
                     setFitOpen(false);
                   }}>Y only</button>
-                  {/* Toolbar policy: every row is a figure-wide brush,
-                      always clickable, never disabled. Clicking Z only
-                      on a 2-D figure flips the per-cell ZLim flag
-                      (visual no-op) — parity-clean across kinds. */}
                   <button onClick={() => {
                     if (isSubplot) fitAllCells('z'); else applyFit('all', 'z');
                     setFitOpen(false);
                   }}>Z only</button>
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">Polar</div>
+                  {/* Polar fits use a separate viewport shape
+                      ({r, theta}); cartesian cells ignore the polar
+                      signal — same universal-brush policy. */}
+                  <button onClick={() => {
+                    if (isSubplot) fitAllCells('r'); else applyFit('all', 'r');
+                    setFitOpen(false);
+                  }}>R only</button>
+                  <button onClick={() => {
+                    if (isSubplot) fitAllCells('theta'); else applyFit('all', 'theta');
+                    setFitOpen(false);
+                  }}>θ only</button>
                 </div>
                 {/* Heatmap colour-fit / reset-colors previously sat
                     here gated on `isHeatmap`. Dropped from the toolbar
