@@ -80,7 +80,9 @@ test('display ▾ has colorbar toggle and it flips visibility', async ({ ide, pa
   expect(await colorbarBarCount(page)).toBeGreaterThan(0);
 });
 
-test('ПКМ Display submenu includes colorbar toggle', async ({ ide, page }) => {
+test('ПКМ Decoration submenu includes colorbar toggle', async ({ ide, page }) => {
+  // colorbar is an annotation (Children of the Axes), lives in
+  // Decoration ▶, not Axes ▶.
   await ide.runScript(
     'import compat.*;\n'
     + 'imagesc(rand(8, 8));\n'
@@ -91,7 +93,7 @@ test('ПКМ Display submenu includes colorbar toggle', async ({ ide, page }) =>
   await page.waitForTimeout(150);
 
   await rightClickPlot(page);
-  await page.locator('.ctx-sub-trigger', { hasText: /Display/ }).hover();
+  await page.locator('.ctx-sub-trigger', { hasText: /Decoration/ }).hover();
   await page.waitForTimeout(60);
 
   await expect(page.locator('.ctx-submenu button',
