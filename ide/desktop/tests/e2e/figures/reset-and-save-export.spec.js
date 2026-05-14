@@ -120,7 +120,7 @@ test('decoration ▾ `default` re-syncs to script values', async ({ ide, page })
   await expect(page.locator('.fw-window svg text', { hasText: 'h' })).toBeVisible();
 });
 
-test('ПКМ order: Reset · Save · Display · Fit', async ({ ide, page }) => {
+test('ПКМ order: Reset · Save · Axes · Decoration · Fit', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
     + 'plot(1:10);\n'
@@ -139,15 +139,17 @@ test('ПКМ order: Reset · Save · Display · Fit', async ({ ide, page }) => {
     .locator(':scope > .ctx-item, :scope > .ctx-sub-wrap > .ctx-sub-trigger, :scope > .ctx-head, :scope > .ctx-sep')
     .evaluateAll((els) => els.map((el) => el.textContent.trim()));
 
-  // Find indices of the four key entries.
-  const idxReset   = labels.findIndex((s) => /^Reset$/i.test(s));
-  const idxSave    = labels.findIndex((s) => /Save \/ Export/.test(s));
-  const idxDisplay = labels.findIndex((s) => /Display/.test(s));
-  const idxFit     = labels.findIndex((s) => /^Fit /.test(s));
+  // Display ▶ has split into Axes ▶ + Decoration ▶ (mirrors toolbar).
+  const idxReset      = labels.findIndex((s) => /^Reset$/i.test(s));
+  const idxSave       = labels.findIndex((s) => /Save \/ Export/.test(s));
+  const idxAxes       = labels.findIndex((s) => /Axes/.test(s));
+  const idxDecoration = labels.findIndex((s) => /Decoration/.test(s));
+  const idxFit        = labels.findIndex((s) => /^Fit /.test(s));
   expect(idxReset, `labels: ${labels.join(' | ')}`).toBeGreaterThanOrEqual(0);
   expect(idxSave).toBeGreaterThan(idxReset);
-  expect(idxDisplay).toBeGreaterThan(idxSave);
-  expect(idxFit).toBeGreaterThan(idxDisplay);
+  expect(idxAxes).toBeGreaterThan(idxSave);
+  expect(idxDecoration).toBeGreaterThan(idxAxes);
+  expect(idxFit).toBeGreaterThan(idxDecoration);
 });
 
 test('ПКМ Reset row uses SVG house icon, not emoji', async ({ ide, page }) => {
@@ -168,7 +170,7 @@ test('ПКМ Reset row uses SVG house icon, not emoji', async ({ ide, page }) =>
   expect(text).not.toContain('🏠');
 });
 
-test('ПКМ Display submenu has grid / scale / labels section heads + legend', async ({ ide, page }) => {
+test('ПКМ Axes ▶ has grid / scale heads; Decoration ▶ has labels / annotations heads + legend', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
     + 'plot(1:10);\n'
@@ -181,13 +183,20 @@ test('ПКМ Display submenu has grid / scale / labels section heads + legend', 
   await page.waitForTimeout(120);
 
   await rightClickPlot(page);
-  await page.locator('.ctx-sub-trigger', { hasText: /Display/ }).hover();
-  await page.waitForTimeout(80);
 
-  const sub = page.locator('.ctx-submenu').first();
-  // Three section heads, in order.
-  const heads = await sub.locator('.ctx-head').allTextContents();
-  expect(heads).toEqual(['grid', 'scale', 'labels']);
-  // Legend toggle present (under labels section).
-  await expect(sub.locator('button', { hasText: /^(✓ )?legend$/ })).toBeVisible();
+  // Axes ▶ — grid + scale heads (HG2 Axes properties).
+  await page.locator('.ctx-sub-trigger', { hasText: /Axes/ }).hover();
+  await page.waitForTimeout(80);
+  const axesHeads = await page.locator('.ctx-submenu .ctx-head').allTextContents();
+  expect(axesHeads).toEqual(['grid', 'scale']);
+
+  // Decoration ▶ — switching subs via hover (mouseleave on Axes
+  // closes its sub; mouseenter on Decoration opens its sub). No need
+  // to dismiss the parent ПКМ — Escape would close the whole modal.
+  await page.locator('.ctx-sub-trigger', { hasText: /Decoration/ }).hover();
+  await page.waitForTimeout(80);
+  const decHeads = await page.locator('.ctx-submenu .ctx-head').allTextContents();
+  expect(decHeads).toEqual(['labels', 'annotations']);
+  // Legend toggle now under annotations section.
+  await expect(page.locator('.ctx-submenu button', { hasText: /^(✓ )?legend$/ })).toBeVisible();
 });

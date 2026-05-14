@@ -906,16 +906,19 @@ export default function CompositePlot({
       { label: 'JSON', onClick: dumpJson, disabled: dataDisabled },
     ];
   })();
-  // Display submenu — mirrors the toolbar's display ▾ popover layout
-  // (grid / scale / labels sections). Only surfaced when the parent
-  // provided the setters (modal mode). Z-axis toggles intentionally
-  // absent: this is a 2-D plot context.
-  const displaySubmenuItems = (setShowMajor || setShowMinor
-      || setShowTitle || setShowXLabel || setShowYLabel
-      || setXLog || setYLog || setShowLegend) ? [
-    // Default always at the TOP of the menu so the user can find it
-    // without scrolling past every toggle. Same action as the toolbar
-    // popovers' `default` row — restores script values.
+  // ── ПКМ submenus: Axes ▶ / Decoration ▶ ─────────────────────────
+  // Mirror the toolbar's axes ▾ / decoration ▾ split (HG2 grouping):
+  // anything that's a property of the Axes object lives in Axes ▶,
+  // anything that's a child OF the Axes (Title, Labels, Legend,
+  // Colorbar) lives in Decoration ▶. Both share `default` →
+  // onDisplayReset, identical to the toolbar layout.
+  //
+  // Z-axis toggles, per-axis grid (X grid / Y grid) and Location
+  // pickers are intentionally absent from ПКМ: this is a compact
+  // right-click context; the full per-prop surface lives in the
+  // toolbar popovers.
+  const axesSubmenuItems = (setShowMajor || setShowMinor
+      || setXLog || setYLog) ? [
     ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
                           { separator: true }] : []),
     { head: 'grid' },
@@ -925,7 +928,7 @@ export default function CompositePlot({
                           onClick: () => setShowMinor((v) => !v) }] : []),
     { head: 'scale' },
     ...(setXLog ? [{
-      label: xLog ? '✓ xlog' : 'xlog',
+      label: xLog ? '✓ X log' : 'X log',
       disabled: figure.xRange[1] <= 0,
       onClick: () => {
         if (!xLog && (xMin <= 0 || xMax <= 0)) {
@@ -938,7 +941,7 @@ export default function CompositePlot({
       },
     }] : []),
     ...(setYLog ? [{
-      label: yLog ? '✓ ylog' : 'ylog',
+      label: yLog ? '✓ Y log' : 'Y log',
       disabled: figure.yRange[1] <= 0,
       onClick: () => {
         if (!yLog && (yMin <= 0 || yMax <= 0)) {
@@ -950,6 +953,12 @@ export default function CompositePlot({
         setYLog((v) => !v);
       },
     }] : []),
+  ] : null;
+
+  const decorationSubmenuItems = (setShowTitle || setShowXLabel
+      || setShowYLabel || setShowLegend || setShowColorbar) ? [
+    ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
+                          { separator: true }] : []),
     { head: 'labels' },
     ...(setShowTitle ? [{
       label: showTitle ? '✓ title' : 'title',
@@ -966,6 +975,7 @@ export default function CompositePlot({
       disabled: !figure.yLabel,
       onClick: () => setShowYLabel((v) => !v),
     }] : []),
+    { head: 'annotations' },
     ...(setShowLegend ? [{
       label: showLegend ? '✓ legend' : 'legend',
       onClick: () => setShowLegend((v) => !v),
@@ -1037,10 +1047,13 @@ export default function CompositePlot({
     : null;
 
   const ctxItems = [
-    // Order: Reset · Save · Display · Colormap · Fit Series · Fit All (UX spec).
+    // Order: Reset · Save · Axes · Decoration · Colormap · Fit Series · Fit All.
+    // Axes ▶ / Decoration ▶ mirror the toolbar's axes ▾ / decoration ▾
+    // split (HG2 object vs. children).
     { label: <span>{houseIcon}Reset</span>, onClick: onReset },
     { submenu: 'Save / Export ▶', items: exportItems },
-    ...(displaySubmenuItems ? [{ submenu: 'Display ▶', items: displaySubmenuItems }] : []),
+    ...(axesSubmenuItems ? [{ submenu: 'Axes ▶', items: axesSubmenuItems }] : []),
+    ...(decorationSubmenuItems ? [{ submenu: 'Decoration ▶', items: decorationSubmenuItems }] : []),
     ...(colormapSubmenuItems ? [{ submenu: 'Colormap ▶', items: colormapSubmenuItems }] : []),
     ...(seriesSubmenuItems ? [{
       submenu: `Fit Series ▶${fittableSeries.length > 1 ? ` (${fittableSeries.length})` : ''}`,

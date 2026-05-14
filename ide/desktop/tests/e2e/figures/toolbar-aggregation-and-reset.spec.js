@@ -49,7 +49,7 @@ test('toolbar `default` rows are at TOP of popovers (axes ▾, decoration ▾, c
   await expect(firstCmap).toContainText(/^default$/);
 });
 
-test('ПКМ Display submenu has `default` row at TOP', async ({ ide, page }) => {
+test('ПКМ Axes ▶ and Decoration ▶ each have `default` row at TOP', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
     + 'figure;\n'
@@ -62,11 +62,16 @@ test('ПКМ Display submenu has `default` row at TOP', async ({ ide, page }) =>
   await page.waitForTimeout(100);
 
   await rightClickCell(page, 0);
-  await page.locator('.ctx-sub-trigger', { hasText: /Display/ }).hover();
-  await page.waitForTimeout(60);
-  // First button in the submenu should be "reset".
-  const firstBtn = page.locator('.ctx-submenu > .ctx-item').first();
-  await expect(firstBtn).toContainText(/^default$/);
+
+  // Axes ▶ — first item is `default`.
+  await page.locator('.ctx-sub-trigger', { hasText: /Axes/ }).hover();
+  await page.waitForTimeout(80);
+  await expect(page.locator('.ctx-submenu > .ctx-item').first()).toContainText(/^default$/);
+
+  // Decoration ▶ — switching subs via hover.
+  await page.locator('.ctx-sub-trigger', { hasText: /Decoration/ }).hover();
+  await page.waitForTimeout(80);
+  await expect(page.locator('.ctx-submenu > .ctx-item').first()).toContainText(/^default$/);
 });
 
 test('ПКМ Colormap submenu has `default` row at TOP', async ({ ide, page }) => {
@@ -112,7 +117,7 @@ test('toolbar axes ▾ ✓ aggregates: only set when ALL cells have it', async (
 
   // Toggle grid on cell A only via ПКМ.
   await rightClickCell(page, 0);
-  await page.locator('.ctx-sub-trigger', { hasText: /Display/ }).hover();
+  await page.locator('.ctx-sub-trigger', { hasText: /Axes/ }).hover();
   await page.waitForTimeout(60);
   await page.locator('.ctx-submenu button', { hasText: /^(✓ )?grid$/ }).click();
   await page.waitForTimeout(120);
@@ -126,7 +131,7 @@ test('toolbar axes ▾ ✓ aggregates: only set when ALL cells have it', async (
 
   // Now toggle grid on cell B too.
   await rightClickCell(page, 1);
-  await page.locator('.ctx-sub-trigger', { hasText: /Display/ }).hover();
+  await page.locator('.ctx-sub-trigger', { hasText: /Axes/ }).hover();
   await page.waitForTimeout(60);
   await page.locator('.ctx-submenu button', { hasText: /^(✓ )?grid$/ }).click();
   await page.waitForTimeout(120);
