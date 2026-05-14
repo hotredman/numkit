@@ -1176,18 +1176,21 @@ export default function CompositePlot({
     // per-curve fit lives in the Fit Series ▶ submenu above. Head
     // "Fit All" makes child labels redundant so they shorten to
     // bare axis names (matches the toolbar fit ▾ popover layout).
+    // ПКМ Fit — specialized to the cell's coordinate system.
+    // CompositePlot is always cartesian (polar uses PolarPlot, 3-D
+    // Composite3DPlot), so we expose only X / Y axes here. No `Z` (no
+    // 3-D context); no `R / θ` (no polar). Rows mirror the toolbar
+    // fit ▾ Cartesian block but specialised to THIS cell.
     ...(seriesLayers.length > 0 ? [
-      { head: 'Fit All' },
-      { label: 'default',  onClick: () => applyFitAllSeries('both') },
-      { label: 'all axes', onClick: () => applyFitAllSeries('both') },
-      { label: 'X only',   onClick: () => applyFitAllSeries('x') },
-      { label: 'Y only',   onClick: () => applyFitAllSeries('y') },
+      { head: 'Fit' },
+      { label: 'all',    onClick: () => applyFitAllSeries('both') },
+      { label: 'X only', onClick: () => applyFitAllSeries('x') },
+      { label: 'Y only', onClick: () => applyFitAllSeries('y') },
     ] : [
-      { head: 'Fit All' },
-      { label: 'default',  onClick: () => fitAxes('both') },
-      { label: 'all axes', onClick: () => fitAxes('both') },
-      { label: 'X only',   onClick: () => fitAxes('x') },
-      { label: 'Y only',   onClick: () => fitAxes('y') },
+      { head: 'Fit' },
+      { label: 'all',    onClick: () => fitAxes('both') },
+      { label: 'X only', onClick: () => fitAxes('x') },
+      { label: 'Y only', onClick: () => fitAxes('y') },
     ]),
     // Color range — only meaningful for heatmap layers.
     ...(hasHeatmap ? [
