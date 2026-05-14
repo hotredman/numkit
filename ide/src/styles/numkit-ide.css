@@ -1900,7 +1900,10 @@ select.ve-btn.fw-cmap-select {
   width: 100%;
 }
 .ctx-sub-arrow { color: var(--fg-3); margin-left: 12px; font-size: 9px; }
-.ctx-sub-wrap.is-open .ctx-sub-trigger { background: var(--bg-3); color: var(--fg-0); }
+/* Direct child only — nested .ctx-sub-trigger inside the popped submenu
+   (e.g. `legend location ▶` inside Decoration ▶) must NOT inherit the
+   "this submenu is open" highlight from its grandparent wrap. */
+.ctx-sub-wrap.is-open > .ctx-sub-trigger { background: var(--bg-3); color: var(--fg-0); }
 .ctx-submenu {
   /* position + left/top set via inline style (computed from trigger
      getBoundingClientRect) so the submenu escapes any ancestor with
