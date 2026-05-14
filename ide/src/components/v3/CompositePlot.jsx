@@ -1045,20 +1045,30 @@ export default function CompositePlot({
   // are gated out — avoids an empty section header on figures that
   // have neither.
   const hasSeriesLayer = seriesLayers.length > 0;
+  // Label rows: never hard-disabled by empty-text alone — use `masked`
+  // instead, so the user can flip Visible state in advance even before
+  // the script sets the text. If `xlabel(...)` is later called, the
+  // pre-set ✓ already takes effect. The only true hard-disable left is
+  // `titleAuto` (MATLAB auto-generated title from data) — that's a
+  // separate semantic, not a no-text condition.
   const labelRows = [
     ...(setShowTitle ? [{
       label: tag(showTitle, 'title'),
-      disabled: !figure.title || figure.titleAuto,
+      disabled: !!figure.titleAuto,
+      masked: !figure.title && !figure.titleAuto,
+      maskedHint: 'No title text — set title(...) in your script to add one.',
       onClick: () => setShowTitle((v) => !v),
     }] : []),
     ...(setShowXLabel ? [{
       label: tag(showXLabel, 'xlabel'),
-      disabled: !figure.xLabel,
+      masked: !figure.xLabel,
+      maskedHint: 'No xlabel text — set xlabel(...) in your script to add one.',
       onClick: () => setShowXLabel((v) => !v),
     }] : []),
     ...(setShowYLabel ? [{
       label: tag(showYLabel, 'ylabel'),
-      disabled: !figure.yLabel,
+      masked: !figure.yLabel,
+      maskedHint: 'No ylabel text — set ylabel(...) in your script to add one.',
       onClick: () => setShowYLabel((v) => !v),
     }] : []),
   ];
