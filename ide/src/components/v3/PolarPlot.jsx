@@ -80,9 +80,18 @@ export default function PolarPlot({
   viewport, setViewport,
   major = true,
   minor = true,
+  // Per-axis polar grid props (MATLAB RGrid / ThetaGrid). When the
+  // parent (FigureWindow) wires them, they take precedence over the
+  // combined `major` flag. Default (undefined) → fall back to `major`
+  // so preview cards and standalone callers keep current behaviour.
+  rGrid: rGridProp,
+  thetaGrid: thetaGridProp,
   fontScale = 1,
   interactive = true,
 }) {
+  // Resolve per-axis grid: per-axis prop wins, otherwise combined.
+  const rGridOn     = (rGridProp     !== undefined) ? !!rGridProp     : !!major;
+  const thetaGridOn = (thetaGridProp !== undefined) ? !!thetaGridProp : !!major;
   const svgRef  = useRef(null);
   const dragRef = useRef(null);
   const [ctxMenu, setCtxMenu] = useState(null);
@@ -336,8 +345,9 @@ export default function PolarPlot({
       )}
 
       <g transform={`translate(${cx}, ${cy})`}>
-        {/* Minor rings: faint, no labels */}
-        {minor && rTicksMinor.map((rho, i) => {
+        {/* Minor rings: faint, no labels. Gated on RGrid AND combined
+            minor flag — `RMinorGrid` is degenerate without RGrid. */}
+        {rGridOn && minor && rTicksMinor.map((rho, i) => {
           const r = rScale(rho);
           if (r <= 0 || r > radius + 0.5) return null;
           return (
@@ -345,8 +355,9 @@ export default function PolarPlot({
               stroke="var(--plot-grid-min)" />
           );
         })}
-        {/* Minor spokes — every 15°, between the 30° majors */}
-        {minor && Array.from({ length: 12 }, (_, k) => k * 30 + 15).map((deg) => {
+        {/* Minor spokes — every 15°, between the 30° majors. Gated on
+            ThetaGrid AND minor (same rule as minor rings). */}
+        {thetaGridOn && minor && Array.from({ length: 12 }, (_, k) => k * 30 + 15).map((deg) => {
           const a = zero + dirSign * (deg * Math.PI / 180);
           const x = Math.cos(a) * radius;
           const y = -Math.sin(a) * radius;
@@ -356,13 +367,18 @@ export default function PolarPlot({
           );
         })}
 
-        {/* Major rings + radial tick labels */}
-        {major && rTicksMajor.map((rho, i) => {
+        {/* Major rings + radial tick labels. MATLAB R2025b parity:
+            RGrid hides ONLY the ring strokes, not the tick labels —
+            labels belong to RAxis.Visible, a separate concern. So we
+            render the labels unconditionally; the ring is gated. */}
+        {rTicksMajor.map((rho, i) => {
           const r = rScale(rho);
           if (r <= 0 || r > radius + 0.5) return null;
           return (
             <g key={`rt${i}`}>
-              <circle cx={0} cy={0} r={r} fill="none" stroke="var(--plot-grid)" strokeDasharray="2 4" />
+              {rGridOn && (
+                <circle cx={0} cy={0} r={r} fill="none" stroke="var(--plot-grid)" strokeDasharray="2 4" />
+              )}
               <text x={3} y={-r - 2} fill="var(--plot-text)" fontSize={9 * fontScale}>
                 {fmtR(rho)}
               </text>
@@ -405,7 +421,9 @@ export default function PolarPlot({
           const yt = -Math.sin(a) * (radius + 14);
           return (
             <g key={`sp${deg}`}>
-              {major && (
+              {/* Spoke gated on ThetaGrid. Label is always shown —
+                  belongs to ThetaAxis.Visible, independent of grid. */}
+              {thetaGridOn && (
                 <line x1={0} y1={0} x2={x} y2={y}
                   stroke="var(--plot-grid)" strokeDasharray="2 4" />
               )}
