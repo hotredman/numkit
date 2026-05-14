@@ -637,6 +637,12 @@ input, select { font-family: inherit; color: inherit; }
   text-align: left;
 }
 .fw-pop-toggle .fw-pop-check { color: var(--fg-1); font-weight: 700; }
+/* Masked state — toggle is currently no-op because another setting
+   masks it (e.g. `box` while `axis=off`). Stays clickable; dimmed so
+   the user reads "I set this but it has no effect right now". Same
+   class used on .ctx-item for ПКМ rows in the same situation. */
+.fw-pop-toggle.is-masked,
+.ctx-item.is-masked { opacity: 0.55; }
 .fw-pop-row {
   display: flex; align-items: center; gap: 4px;
   padding: 2px 4px;

@@ -962,7 +962,12 @@ export default function CompositePlot({
     { head: 'visible' },
     ...(setShowAxis ? [{ label: tag(axisVisible, 'axis'),
                          onClick: () => setShowAxis((v) => !v) }] : []),
+    // Box is masked when axis is off — MATLAB HG2: Axes.Visible='off'
+    // hides the Box regardless of Box='on'. State is preserved; row
+    // stays clickable so the user can pre-set a value.
     ...(setShowBox  ? [{ label: tag(boxOn, 'box'),
+                         masked: !axisVisible,
+                         maskedHint: 'Box is hidden because axis is off.',
                          onClick: () => setShowBox((v) => !v) }] : []),
     { head: 'grid' },
     ...(setShowMajor ? [{ label: tag(major, 'grid'),
