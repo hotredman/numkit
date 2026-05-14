@@ -954,23 +954,31 @@ export default function CompositePlot({
                          masked: !axisVisible,
                          maskedHint: 'Box is hidden because axis is off.',
                          onClick: () => setShowBox((v) => !v) }] : []),
+    // Naming convention across all menus (toolbar + ПКМ):
+    //   • Section head names the ACTIVE state of the toggle group
+    //     (`reverse`, `log scale`) — or the group identity (`grid`,
+    //     `visible`).
+    //   • Row label is the axis name only — `fit` / `grid on` /
+    //     `reverse` / `log scale` are implied by the menu + head
+    //     chain. ПКМ is specialised cartesian-only (CompositePlot),
+    //     so just X/Y here.
     { head: 'grid' },
-    ...(setShowMajor ? [{ label: tag(major, 'grid'), keepOpen: true,
+    ...(setShowMajor ? [{ label: tag(major, 'all'), keepOpen: true,
                           onClick: () => setShowMajor((v) => !v) }] : []),
-    ...(setXGrid     ? [{ label: tag(xGridOn, 'X grid'), keepOpen: true,
+    ...(setXGrid     ? [{ label: tag(xGridOn, 'X'), keepOpen: true,
                           onClick: () => setXGrid((v) => !v) }] : []),
-    ...(setYGrid     ? [{ label: tag(yGridOn, 'Y grid'), keepOpen: true,
+    ...(setYGrid     ? [{ label: tag(yGridOn, 'Y'), keepOpen: true,
                           onClick: () => setYGrid((v) => !v) }] : []),
     ...(setShowMinor ? [{ label: tag(minor, 'minor'), keepOpen: true,
                           onClick: () => setShowMinor((v) => !v) }] : []),
-    { head: 'direction' },
-    ...(setXReverse ? [{ label: tag(xRev, 'X reverse'), keepOpen: true,
+    { head: 'reverse' },
+    ...(setXReverse ? [{ label: tag(xRev, 'X'), keepOpen: true,
                          onClick: () => setXReverse((v) => !v) }] : []),
-    ...(setYReverse ? [{ label: tag(yRev, 'Y reverse'), keepOpen: true,
+    ...(setYReverse ? [{ label: tag(yRev, 'Y'), keepOpen: true,
                          onClick: () => setYReverse((v) => !v) }] : []),
-    { head: 'scale' },
+    { head: 'log scale' },
     ...(setXLogProp ? [{
-      label: tag(xLog, 'X log'),
+      label: tag(xLog, 'X'),
       keepOpen: true,
       disabled: figure.xRange[1] <= 0,
       onClick: () => {
@@ -984,7 +992,7 @@ export default function CompositePlot({
       },
     }] : []),
     ...(setYLogProp ? [{
-      label: tag(yLog, 'Y log'),
+      label: tag(yLog, 'Y'),
       keepOpen: true,
       disabled: figure.yRange[1] <= 0,
       onClick: () => {
@@ -1180,17 +1188,18 @@ export default function CompositePlot({
     // CompositePlot is always cartesian (polar uses PolarPlot, 3-D
     // Composite3DPlot), so we expose only X / Y axes here. No `Z` (no
     // 3-D context); no `R / θ` (no polar). Rows mirror the toolbar
-    // fit ▾ Cartesian block but specialised to THIS cell.
+    // fit ▾ Cartesian block but specialised to THIS cell. Single-
+    // letter row labels — `fit` implied by section head.
     ...(seriesLayers.length > 0 ? [
       { head: 'Fit' },
-      { label: 'all',    onClick: () => applyFitAllSeries('both') },
-      { label: 'X only', onClick: () => applyFitAllSeries('x') },
-      { label: 'Y only', onClick: () => applyFitAllSeries('y') },
+      { label: 'all', onClick: () => applyFitAllSeries('both') },
+      { label: 'X',   onClick: () => applyFitAllSeries('x') },
+      { label: 'Y',   onClick: () => applyFitAllSeries('y') },
     ] : [
       { head: 'Fit' },
-      { label: 'all',    onClick: () => fitAxes('both') },
-      { label: 'X only', onClick: () => fitAxes('x') },
-      { label: 'Y only', onClick: () => fitAxes('y') },
+      { label: 'all', onClick: () => fitAxes('both') },
+      { label: 'X',   onClick: () => fitAxes('x') },
+      { label: 'Y',   onClick: () => fitAxes('y') },
     ]),
     // Color range — only meaningful for heatmap layers.
     ...(hasHeatmap ? [

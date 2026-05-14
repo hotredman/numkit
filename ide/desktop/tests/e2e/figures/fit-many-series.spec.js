@@ -29,11 +29,11 @@ test('toolbar fit ▾ shows no per-series rows; Z only stays enabled on 2-D (uni
   await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
 
   await expect(page.locator('.fw-pop .fw-pop-row')).toHaveCount(0);
-  await expect(page.locator('.fw-pop button', { hasText: /^X only$/ })).toBeVisible();
-  await expect(page.locator('.fw-pop button', { hasText: /^Y only$/ })).toBeVisible();
+  await expect(page.locator('.fw-pop button', { hasText: /^X$/ })).toBeVisible();
+  await expect(page.locator('.fw-pop button', { hasText: /^Y$/ })).toBeVisible();
   // Toolbar policy: figure-wide brush, never disabled by figure kind.
-  // Z only on a 2-D plot writes a per-cell flag, visually no-op.
-  await expect(page.locator('.fw-pop button', { hasText: /^Z only$/ })).toBeEnabled();
+  // Z on a 2-D plot writes a per-cell flag, visually no-op.
+  await expect(page.locator('.fw-pop button', { hasText: /^Z$/ })).toBeEnabled();
 });
 
 test('ПКМ — multi-series figure has Series ▶ submenu with one row per curve', async ({ ide, page }) => {

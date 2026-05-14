@@ -110,7 +110,7 @@ test('toolbar grid ▾ ✓ aggregates: only set when ALL cells have it', async (
   await rightClickCell(page, 0);
   await page.locator('.ctx-sub-trigger', { hasText: /Axes/ }).hover();
   await page.waitForTimeout(60);
-  await page.locator('.ctx-submenu button', { hasText: /^(✓ )?grid$/ }).click();
+  await page.locator('.ctx-submenu button', { hasText: /^(✓ )?all$/ }).click();
   await page.waitForTimeout(120);
 
   // Toolbar grid ▾ → all still has NO ✓ (only one cell on, not all).
@@ -124,7 +124,7 @@ test('toolbar grid ▾ ✓ aggregates: only set when ALL cells have it', async (
   await rightClickCell(page, 1);
   await page.locator('.ctx-sub-trigger', { hasText: /Axes/ }).hover();
   await page.waitForTimeout(60);
-  await page.locator('.ctx-submenu button', { hasText: /^(✓ )?grid$/ }).click();
+  await page.locator('.ctx-submenu button', { hasText: /^(✓ )?all$/ }).click();
   await page.waitForTimeout(120);
 
   // Now toolbar shows ✓.

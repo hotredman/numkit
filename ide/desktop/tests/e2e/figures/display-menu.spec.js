@@ -126,7 +126,13 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
 
     await openAxesMenu(page);
-    const zlog = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'Z log' }) });
+    // Section-scoped: `Z` lives in both `reverse:` and `log scale:`
+    // sections after axes ▾ row labels dropped their suffixes.
+    const zlog = page.locator('.fw-pop-section', {
+      has: page.locator('.fw-pop-head', { hasText: /^log scale$/ }),
+    }).locator('.fw-pop-toggle', {
+      has: page.locator('span', { hasText: /^Z$/ }),
+    });
     await expect(zlog).toBeEnabled();
     // Close axes ▾ by clicking its trigger again, then open decoration ▾.
     await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();
