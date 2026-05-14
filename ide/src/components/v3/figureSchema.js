@@ -14,6 +14,7 @@
  *
  *     // Per-axis grid (MATLAB lets X/Y/Z grid be toggled independently)
  *     XGrid, YGrid, ZGrid: 'on'|'off'
+ *     RGrid, ThetaGrid:    'on'|'off'  (polar)
  *     XMinorGrid, YMinorGrid, ZMinorGrid: 'on'|'off'
  *
  *     // Per-axis scale + direction
@@ -147,11 +148,16 @@ export function initAxesFromCell(cell) {
     Box:     onOff(cell.boxOn !== false),
 
     // Grid (per-axis). The wire `cell.grid` is figure-wide on/off; we
-    // copy it onto X/Y (and Z for 3-D) so each axis can be toggled
-    // independently from the toolbar.
+    // copy it onto X/Y (and Z for 3-D, R/Theta for polar) so each
+    // axis can be toggled independently from the toolbar. The toolbar
+    // surface is universal — every axis always has its own toggle;
+    // applying it on a figure kind that doesn't render that axis is
+    // a parity-clean no-op (state flips, no visual change).
     XGrid:      onOff(cell.grid === 'on'),
     YGrid:      onOff(cell.grid === 'on'),
     ZGrid:      onOff(cell.grid === 'on' && cell.kind === 'composite3d'),
+    RGrid:      onOff(cell.grid === 'on' && cell.kind === 'polar'),
+    ThetaGrid:  onOff(cell.grid === 'on' && cell.kind === 'polar'),
     XMinorGrid: onOff(cell.gridMinor === 'on'),
     YMinorGrid: onOff(cell.gridMinor === 'on'),
     ZMinorGrid: onOff(cell.gridMinor === 'on' && cell.kind === 'composite3d'),
@@ -217,6 +223,7 @@ export function initAxesFromCell(cell) {
 export const EMPTY_AXES = Object.freeze({
   Visible: 'on', Box: 'on',
   XGrid: 'off', YGrid: 'off', ZGrid: 'off',
+  RGrid: 'off', ThetaGrid: 'off',
   XMinorGrid: 'off', YMinorGrid: 'off', ZMinorGrid: 'off',
   XScale: 'linear', YScale: 'linear', ZScale: 'linear',
   XDir: 'normal', YDir: 'normal', ZDir: 'normal',
