@@ -13,7 +13,7 @@ async function rightClickPlot(page) {
   await expect(page.locator('.ctx-menu')).toBeVisible({ timeout: 2_000 });
 }
 
-test('toolbar fit ▾ shows no per-series rows + Z disabled for 2-D', async ({ ide, page }) => {
+test('toolbar fit ▾ shows no per-series rows; Z only stays enabled on 2-D (universal brush)', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
     + 'figure;\n'
@@ -31,7 +31,9 @@ test('toolbar fit ▾ shows no per-series rows + Z disabled for 2-D', async ({ i
   await expect(page.locator('.fw-pop .fw-pop-row')).toHaveCount(0);
   await expect(page.locator('.fw-pop button', { hasText: /^X only$/ })).toBeVisible();
   await expect(page.locator('.fw-pop button', { hasText: /^Y only$/ })).toBeVisible();
-  await expect(page.locator('.fw-pop button', { hasText: /^Z only$/ })).toBeDisabled();
+  // Toolbar policy: figure-wide brush, never disabled by figure kind.
+  // Z only on a 2-D plot writes a per-cell flag, visually no-op.
+  await expect(page.locator('.fw-pop button', { hasText: /^Z only$/ })).toBeEnabled();
 });
 
 test('ПКМ — multi-series figure has Series ▶ submenu with one row per curve', async ({ ide, page }) => {

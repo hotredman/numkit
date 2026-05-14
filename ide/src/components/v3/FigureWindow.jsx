@@ -1194,33 +1194,20 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                     if (isSubplot) fitAllCells('y'); else applyFit('all', 'y');
                     setFitOpen(false);
                   }}>Y only</button>
-                  <button
-                    disabled={!is3D && !isSubplot}
-                    title={(!is3D && !isSubplot) ? 'no Z axis on this figure' : ''}
-                    onClick={() => {
-                      if (isSubplot) fitAllCells('z'); else applyFit('all', 'z');
-                      setFitOpen(false);
-                    }}>Z only</button>
+                  {/* Toolbar policy: every row is a figure-wide brush,
+                      always clickable, never disabled. Clicking Z only
+                      on a 2-D figure flips the per-cell ZLim flag
+                      (visual no-op) — parity-clean across kinds. */}
+                  <button onClick={() => {
+                    if (isSubplot) fitAllCells('z'); else applyFit('all', 'z');
+                    setFitOpen(false);
+                  }}>Z only</button>
                 </div>
-                {/* Heatmap colour-fit affordance only for non-subplot
-                    heatmap figures — the toolbar Fit Z covers the per-
-                    cell colour reset isn't a user-facing concept yet. */}
-                {!isSubplot && isHeatmap && (
-                  <div className="fw-pop-section">
-                    <div className="fw-pop-head">colors</div>
-                    <button
-                      onClick={() => { fitColorsToVisible(); setFitOpen(false); }}
-                      disabled={!engine || typeof engine.getFigureTile !== 'function'
-                                || !heatmapLayer || heatmapLayer._figId < 0}>
-                      fit to visible
-                    </button>
-                    <button
-                      onClick={() => { setColorOverride(null); setFitOpen(false); }}
-                      disabled={!colorOverride}>
-                      reset colors
-                    </button>
-                  </div>
-                )}
+                {/* Heatmap colour-fit / reset-colors previously sat
+                    here gated on `isHeatmap`. Dropped from the toolbar
+                    so fit ▾ stays identical across figure kinds —
+                    those operations now live in the ПКМ "Color range"
+                    section (specialised, heatmap-only). */}
               </div>
             )}
           </div>
@@ -1418,92 +1405,77 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 </div>
               </div>
             )}
-          {/* colormap ▾ — figure-wide picker. Visible whenever there's
-              ANY heatmap layer in the figure (top-level OR inside a
-              subplot cell). Click sets the figure-wide override; any
-              per-cell ПКМ overrides are dropped (toolbar wins). */}
-          {anyHeatmap && (
-            <div className="ve-tools-group" ref={cmapRef}>
-              <button className="ve-btn"
-                      onClick={() => setCmapOpen((o) => !o)}
-                      title="Colormap (figure-wide; overrides per-cell picks)">
-                <svg width="11" height="11" viewBox="0 0 12 12">
-                  <rect x="1" y="3" width="10" height="6" fill="none"
-                        stroke="currentColor" strokeWidth="1"/>
-                  <rect x="1" y="3" width="2" height="6" fill="currentColor" opacity="0.25"/>
-                  <rect x="3" y="3" width="2" height="6" fill="currentColor" opacity="0.5"/>
-                  <rect x="5" y="3" width="2" height="6" fill="currentColor" opacity="0.75"/>
-                  <rect x="7" y="3" width="2" height="6" fill="currentColor"/>
-                  <rect x="9" y="3" width="2" height="6" fill="currentColor" opacity="0.5"/>
-                </svg>
-                colormap ▾
-              </button>
-              {cmapOpen && (
-                <div className="fw-pop">
-                  <div className="fw-pop-section">
-                    <button onClick={() => {
-                      // Reset to script palette. setColormapOverride
-                      // writes null to every cell's `colormap` field
-                      // (single source of truth — no separate per-cell
-                      // overrides to clear).
-                      setColormapOverride(null);
-                      setCmapOpen(false);
-                    }}>default</button>
-                  </div>
-                  <div className="fw-pop-section">
-                    <div className="fw-pop-head">palette</div>
-                    {['parula', 'jet', 'hot', 'cool', 'gray', 'bone', 'copper',
-                      'spring', 'summer', 'autumn', 'winter', 'hsv', 'viridis']
-                      .map((cm) => {
-                        const scriptDefault = anyHeatmap.colormap || 'parula';
-                        // ✓ shown only when EVERY heatmap-bearing cell
-                        // currently uses this palette (after applying
-                        // per-cell overrides). For non-subplot figures
-                        // it just compares the figure-wide effective
-                        // value.
-                        const active = aggColormap(
-                          axesArr.map(axesToLegacyCell), cellsArr, cm);
-                        return (
-                          <button key={cm}
-                                  className="fw-pop-toggle"
-                                  onClick={() => {
-                                    setColormapOverride(cm === scriptDefault ? null : cm);
-                                    setCmapOpen(false);
-                                  }}>
-                            <span>{cm}</span>
-                            <span className="fw-pop-check">{active ? '✓' : ''}</span>
-                          </button>
-                        );
-                      })}
-                  </div>
+          {/* colormap ▾ — figure-wide palette picker. ALWAYS visible
+              per the toolbar policy (universal brush). On a non-
+              heatmap figure the picked palette is written to
+              Axes.Colormap regardless — it has no visible effect now,
+              but if a heatmap is later layered onto the same axes the
+              UI-picked palette wins over the script default. */}
+          <div className="ve-tools-group" ref={cmapRef}>
+            <button className="ve-btn"
+                    onClick={() => setCmapOpen((o) => !o)}
+                    title="Colormap (figure-wide; overrides per-cell picks)">
+              <svg width="11" height="11" viewBox="0 0 12 12">
+                <rect x="1" y="3" width="10" height="6" fill="none"
+                      stroke="currentColor" strokeWidth="1"/>
+                <rect x="1" y="3" width="2" height="6" fill="currentColor" opacity="0.25"/>
+                <rect x="3" y="3" width="2" height="6" fill="currentColor" opacity="0.5"/>
+                <rect x="5" y="3" width="2" height="6" fill="currentColor" opacity="0.75"/>
+                <rect x="7" y="3" width="2" height="6" fill="currentColor"/>
+                <rect x="9" y="3" width="2" height="6" fill="currentColor" opacity="0.5"/>
+              </svg>
+              colormap ▾
+            </button>
+            {cmapOpen && (
+              <div className="fw-pop">
+                <div className="fw-pop-section">
+                  <button onClick={() => {
+                    // Reset to script palette. setColormapOverride
+                    // writes null to every cell's `colormap` field
+                    // (single source of truth — no separate per-cell
+                    // overrides to clear).
+                    setColormapOverride(null);
+                    setCmapOpen(false);
+                  }}>default</button>
                 </div>
-              )}
-            </div>
-          )}
-            {/* Legend toggle hidden for pure heatmap (colorbar IS the legend),
-                shown when at least one series layer exists or the figure is
-                a legacy line/polar shape. */}
-            {/* Legend toolbar toggle — shown only when the script
-                actually asked for a legend (so the IDE doesn't dangle
-                a button that toggles nothing on a plain plot()). 3-D
-                figures hide it because the WebGL renderer doesn't
-                draw a legend block. */}
-            {(() => {
-              // Legend toolbar shown only if SOMEWHERE in the figure the
-              // script asked for a legend. After the per-cell-state
-              // refactor we read this from figure props directly rather
-              // than the (removed) top-level legendUserAsked.
-              const askedHere = (cell) => (Array.isArray(cell.legend) && cell.legend.length > 0)
-                                       || (cell.legendLocation && cell.legendLocation !== 'none');
-              const wantBtn = !is3D
-                && (hasSeries || (!isHeatmap && !isComposite))
-                && cellsArr.some(askedHere);
-              if (!wantBtn) return null;
-              return (
-                <button className={`ve-btn ${showLegend ? 'is-active' : ''}`}
-                        onClick={() => setShowLegend((g) => !g)}>legend</button>
-              );
-            })()}
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">palette</div>
+                  {['parula', 'jet', 'hot', 'cool', 'gray', 'bone', 'copper',
+                    'spring', 'summer', 'autumn', 'winter', 'hsv', 'viridis']
+                    .map((cm) => {
+                      const scriptDefault = (anyHeatmap && anyHeatmap.colormap) || 'parula';
+                      // ✓ shown only when EVERY heatmap-bearing cell
+                      // currently uses this palette (after applying
+                      // per-cell overrides). For non-subplot figures
+                      // it just compares the figure-wide effective
+                      // value. For non-heatmap figures: ✓ tracks the
+                      // user's UI pick alone (no heatmap colormap to
+                      // compare against).
+                      const active = aggColormap(
+                        axesArr.map(axesToLegacyCell), cellsArr, cm);
+                      return (
+                        <button key={cm}
+                                className="fw-pop-toggle"
+                                onClick={() => {
+                                  setColormapOverride(cm === scriptDefault ? null : cm);
+                                  setCmapOpen(false);
+                                }}>
+                          <span>{cm}</span>
+                          <span className="fw-pop-check">{active ? '✓' : ''}</span>
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+          </div>
+            {/* The standalone `legend` toolbar button used to live
+                here, gated on "script asked for a legend AND not 3-D
+                AND has series". Removed — the legend toggle now lives
+                in decoration ▾ (under annotations), always present,
+                always clickable. Per the toolbar policy: every control
+                is visible regardless of figure kind; a click that
+                doesn't apply is a parity-clean no-op. */}
           </div>
 
           <div className="ve-tools-spacer" />
