@@ -184,11 +184,12 @@ test('ПКМ Axes ▶ has grid / scale heads; Decoration ▶ has labels / annota
 
   await rightClickPlot(page);
 
-  // Axes ▶ — grid + scale heads (HG2 Axes properties).
+  // Axes ▶ — visible / grid / direction / scale heads (HG2 Axes
+  // properties: Visible/Box, XGrid/YGrid, XDir/YDir, XScale/YScale).
   await page.locator('.ctx-sub-trigger', { hasText: /Axes/ }).hover();
   await page.waitForTimeout(80);
   const axesHeads = await page.locator('.ctx-submenu .ctx-head').allTextContents();
-  expect(axesHeads).toEqual(['grid', 'scale']);
+  expect(axesHeads).toEqual(['visible', 'grid', 'direction', 'scale']);
 
   // Decoration ▶ — switching subs via hover (mouseleave on Axes
   // closes its sub; mouseenter on Decoration opens its sub). No need
