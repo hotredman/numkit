@@ -411,17 +411,23 @@ export default function CompositePlot({
   let [xMin, xMax] = viewport.x;
   let [yMin, yMax] = viewport.y;
 
-  // axisMode === 'image' (set by imshow / `axis image`) — equivalent to
-  // `axis equal` + `axis tight`: 1:1 data-unit aspect AND keep the
-  // current data extent (no expansion to fill empty space). We do that
-  // by SHRINKING the panel to match the data aspect, letterboxing the
-  // unused side. This keeps preview and modal pixel-equivalent: a 64×64
-  // image renders as a square in both, regardless of the cell's outer
-  // aspect ratio.
-  if (figure.axisMode === 'image') {
+  // axisMode === 'image' (imshow / `axis image`) AND axisMode ===
+  // 'equal' (`axis equal`) both pin DataAspectRatio = [1 1 1]: 1 data
+  // unit on X must occupy the same number of screen pixels as 1 data
+  // unit on Y. We honour that by SHRINKING the panel to match the data
+  // aspect (letterboxing the unused side) rather than expanding the
+  // viewport — MATLAB R2025b's behaviour when xlim/ylim are explicit
+  // is to keep the limits and resize the plot box.
+  //
+  // The difference between the two modes is in *how* xRange/yRange got
+  // computed (image is also `axis tight`, equal keeps script margins),
+  // not in how the panel is rendered. Both paths shrink the panel.
+  if (figure.axisMode === 'image' || figure.axisMode === 'equal') {
     const dx = xMax - xMin;
     const dy = yMax - yMin;
-    if (dx > 0 && dy > 0) {
+    if (dx > 0 && dy > 0
+        && !(xLog && xMin > 0 && xMax > 0)
+        && !(yLog && yMin > 0 && yMax > 0)) {
       const dataAspect  = dx / dy;
       const panelAspect = W / H;
       if (panelAspect > dataAspect) {
@@ -452,37 +458,11 @@ export default function CompositePlot({
     padT += Math.max(0, Math.floor((H0 - H) / 2));
   }
 
-  // axisMode === 'equal' forces 1 data unit on the X axis to occupy
-  // the same number of screen pixels as 1 data unit on the Y axis.
-  // We achieve this by EXTENDING the viewport on whichever axis has
-  // more screen space per data unit — extending the visible range
-  // rather than shrinking the plot area keeps the panel size stable
-  // and the user sees the full data plus extra empty space (matches
-  // MATLAB's behaviour). Skipped under log on either axis (the
-  // notion of "equal units" doesn't translate to log space).
-  const wantEqual = figure.axisMode === 'equal'
-                  && !(xLog && xMin > 0 && xMax > 0)
-                  && !(yLog && yMin > 0 && yMax > 0);
-  if (wantEqual) {
-    const dx = xMax - xMin;
-    const dy = yMax - yMin;
-    if (dx > 0 && dy > 0) {
-      const unitX = W / dx;
-      const unitY = H / dy;
-      if (unitX > unitY) {
-        // X has more pixels per unit → extend xRange so unit shrinks to unitY.
-        const targetDx = W / unitY;
-        const xCtr = (xMin + xMax) / 2;
-        xMin = xCtr - targetDx / 2;
-        xMax = xCtr + targetDx / 2;
-      } else if (unitY > unitX) {
-        const targetDy = H / unitX;
-        const yCtr = (yMin + yMax) / 2;
-        yMin = yCtr - targetDy / 2;
-        yMax = yCtr + targetDy / 2;
-      }
-    }
-  }
+  // axis equal: panel-shrink path above already enforces 1 data unit
+  // X = 1 data unit Y by adjusting W/H. The old viewport-EXTENSION
+  // path that used to live here (widening xRange or yRange to fill a
+  // rectangular panel) was reverted — it broke explicit xlim/ylim
+  // calls in MATLAB-parity scripts like communications/qam_constellation.
   // Log axes: viewport bounds are still in original-data coordinates
   // (xMin..xMax = the user-visible range). The screen-mapping is log when
   // the corresponding axis flag is on. Requires lo > 0 — we sanitise by
