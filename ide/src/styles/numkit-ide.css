@@ -1382,10 +1382,10 @@ input, select { font-family: inherit; color: inherit; }
   box-shadow: 0 24px 80px oklch(0.05 0.01 220 / 0.6),
               0 0 0 1px oklch(0.78 0.16 145 / 0.08);
   display: grid;
-  /* 5 slots: titlebar | toolbar | canvas (1fr) | range-row (auto, may be
-     absent for subplots — collapses to 0) | status. Was a 4-row grid which
-     squeezed the range-row into the 22px status slot. */
-  grid-template-rows: 38px 40px 1fr auto 22px;
+  /* 6 slots: titlebar | toolbar | sgtitle (auto, collapses when no
+     super-title) | canvas (1fr) | range-row (auto, may be absent for
+     subplots) | status. */
+  grid-template-rows: 38px 40px auto 1fr auto 22px;
   overflow: hidden;
   position: relative;   /* anchor for the absolutely-pinned title-right */
   animation: scalein 160ms ease;
@@ -1434,6 +1434,36 @@ input, select { font-family: inherit; color: inherit; }
   font-size: 11.5px;
 }
 .fw-toolbar .ve-tools-spacer { flex: 1; }
+/* sgtitle strip — figure-level super-title above the canvas. The
+   FigureWindow JSX always emits an `.fw-supertitle` div so the
+   .fw-window grid keeps 6 children mapping to its 6 rows; when the
+   script didn't call sgtitle(...) the div has no text children and
+   `:empty` collapses it via `display:none` (the grid row's `auto`
+   sizing then resolves to 0). */
+.fw-supertitle {
+  padding: 8px 14px;
+  background: var(--bg-1);
+  color: var(--fg-0);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  border-bottom: 1px solid var(--line-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Collapse the strip when empty WITHOUT removing it from grid flow.
+   `display:none` would drop it from auto-placement and shift canvas-
+   wrap up by one row (into the `auto` slot, only 32 px) — visible as
+   a blank figure window. height:0 + zero padding/border keeps the
+   grid-row count stable; the `auto` row's content-size resolves to 0. */
+.fw-supertitle:empty {
+  height: 0;
+  padding: 0;
+  border: none;
+  visibility: hidden;
+}
 .fw-canvas-wrap {
   position: relative;
   background: var(--bg-0);

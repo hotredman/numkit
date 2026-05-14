@@ -1530,6 +1530,14 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
           </div>
         </div>
 
+        {/* sgtitle — figure-level "super-title", set via sgtitle(...).
+            Always rendered so the grid row count stays stable (6 rows,
+            see .fw-window grid-template-rows); CSS `.fw-supertitle:empty
+            { display:none }` collapses the strip when no super-title is
+            set. If we returned null instead, the grid would re-map
+            children-to-rows and shift canvas-wrap into the `auto` slot. */}
+        <div className="fw-supertitle">{figure.superTitle || ''}</div>
+
         <div className="fw-canvas-wrap" ref={wrapRef}>
           <div style={{ position: 'relative', width: '100%', height: '100%' }}>
             {renderFigure(figure, {
