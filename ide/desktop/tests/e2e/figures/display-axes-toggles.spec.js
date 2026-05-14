@@ -1,22 +1,26 @@
-// display-axes-toggles.spec.js — display ▾ "axes" section: axis,
-// box, X reverse, Y reverse. Map to MATLAB Visible / Box / XDir /
-// YDir.
+// display-axes-toggles.spec.js — axes ▾ button: axis, box, X reverse,
+// Y reverse, Z reverse. Map to MATLAB Visible / Box / XDir / YDir /
+// ZDir. axes ▾ also houses the scale toggles (xlog/ylog/zlog) — those
+// are covered by display-log-toggle.spec.js.
 
 import { test, expect } from '../../helpers/shared.js';
 
 async function openDisplay(page) {
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /display/i }).click();
+  // The /axes/ regex must NOT be anchored — the button textContent is
+  // `\n axes ▾\n` (whitespace wraps the SVG icon). `/^axes/i` would
+  // miss the leading whitespace.
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();
   await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
 }
 
-test('display ▾ "axes" section has axis / box / X reverse / Y reverse', async ({ ide, page }) => {
+test('axes ▾ has axis / box / X reverse / Y reverse / Z reverse', async ({ ide, page }) => {
   await ide.runScript('import compat.*;\nplot(1:10);\n');
   await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
   await ide.figureCards.first().click();
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
   await openDisplay(page);
 
-  for (const lbl of ['axis', 'box', 'X reverse', 'Y reverse']) {
+  for (const lbl of ['axis', 'box', 'X reverse', 'Y reverse', 'Z reverse']) {
     await expect(page.locator('.fw-pop-toggle',
       { has: page.locator('span', { hasText: lbl }) })).toBeVisible();
   }

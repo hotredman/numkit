@@ -13,8 +13,13 @@ async function rightClickPlot(page) {
   await expect(page.locator('.ctx-menu')).toBeVisible({ timeout: 2_000 });
 }
 
-async function openDisplayMenu(page) {
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /display/i }).click();
+async function openDecorationMenu(page) {
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /decoration/i }).click();
+  await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
+}
+
+async function openAxesMenu(page) {
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();
   await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
 }
 
@@ -41,13 +46,18 @@ test('toolbar Reset restores both viewport AND display state', async ({ ide, pag
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
   await page.waitForTimeout(150);
 
-  // Toggle ylog ON + title OFF in one menu session, then close menu
-  // by clicking the display ▾ trigger again (Escape closes the whole
-  // modal, not the popover).
-  await openDisplayMenu(page);
+  // After the axes/decoration split: ylog lives in axes ▾ (scale
+  // section), title lives in decoration ▾ (labels section). Flip
+  // each in its own popover. Close each popover by clicking the
+  // trigger again — Escape closes the whole modal.
+  await openAxesMenu(page);
   await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'ylog' }) }).click();
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();
+  await page.waitForTimeout(50);
+
+  await openDecorationMenu(page);
   await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'title' }) }).click();
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /display/i }).click();
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /decoration/i }).click();
   await page.waitForTimeout(80);
 
   // Title is hidden now.
@@ -59,15 +69,15 @@ test('toolbar Reset restores both viewport AND display state', async ({ ide, pag
 
   // Title visible again.
   await expect(page.locator('.fw-window svg text', { hasText: 'hello' })).toBeVisible();
-  // ylog inactive: open menu, the ylog toggle should not show ✓.
-  await openDisplayMenu(page);
+  // ylog inactive: open axes ▾, the ylog toggle should not show ✓.
+  await openAxesMenu(page);
   const ylogActive = await page.locator('.fw-pop-toggle', {
     has: page.locator('span', { hasText: 'ylog' })
   }).locator('.fw-pop-check').textContent();
   expect(ylogActive.trim()).toBe('');
 });
 
-test('display ▾ has legend toggle + reset button', async ({ ide, page }) => {
+test('decoration ▾ has legend toggle + reset button', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
     + 'plot(1:10);\n'
@@ -77,16 +87,16 @@ test('display ▾ has legend toggle + reset button', async ({ ide, page }) => {
   await ide.figureCards.first().click();
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
 
-  await openDisplayMenu(page);
+  await openDecorationMenu(page);
   // legend toggle present in the labels section.
   await expect(page.locator('.fw-pop-toggle', {
     has: page.locator('span', { hasText: 'legend' })
   })).toBeVisible();
-  // reset button present at the bottom of display ▾.
+  // reset button present at the top of decoration ▾.
   await expect(page.locator('.fw-pop button', { hasText: /^reset$/ })).toBeVisible();
 });
 
-test('display ▾ reset re-syncs to script defaults', async ({ ide, page }) => {
+test('decoration ▾ reset re-syncs to script defaults', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
     + 'plot(1:1000);\n'
@@ -98,7 +108,7 @@ test('display ▾ reset re-syncs to script defaults', async ({ ide, page }) => {
   await page.waitForTimeout(120);
 
   // Toggle title off + click reset in the same menu session.
-  await openDisplayMenu(page);
+  await openDecorationMenu(page);
   await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'title' }) }).click();
   await page.waitForTimeout(80);
   await expect(page.locator('.fw-window svg text', { hasText: 'h' })).toHaveCount(0);
