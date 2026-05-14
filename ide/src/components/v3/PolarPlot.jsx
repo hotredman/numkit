@@ -240,6 +240,16 @@ export default function PolarPlot({
     }));
     setViewport({ ...vp, r: [vp.r[0], nicePolarMax(m || 1)] });
   }
+  function fitTheta() {
+    if (!setViewport) return;
+    const thetaRange = (Array.isArray(figure.thetalim) && figure.thetalim.length === 2)
+      ? figure.thetalim.slice() : [0, 360];
+    setViewport({ ...vp, theta: thetaRange });
+  }
+  function fitAllPolar() {
+    if (!setViewport) return;
+    setViewport(defaultPolarViewport(figure));
+  }
   const multiSeries = Array.isArray(figure.series) && figure.series.length > 1;
   const ctxItems = [
     { label: 'Reset to default',
@@ -258,11 +268,12 @@ export default function PolarPlot({
     { label: 'PNG · A4 width (210 mm)',
       onClick: () => exportPngForPrint(svgRef.current, width, height, 210, 300, `figure_${figure.id}`) },
     { separator: true },
-    { head: 'Fit all curves' },
-    { label: 'Fit r-range',
-      onClick: () => fitRho('all'),
-      disabled: !setViewport,
-    },
+    // ПКМ Fit — specialized to polar (this renderer is polar-only).
+    // Rows mirror the toolbar fit ▾ Polar block, no cartesian rows.
+    { head: 'Fit' },
+    { label: 'all',    onClick: fitAllPolar, disabled: !setViewport },
+    { label: 'R only', onClick: () => fitRho('all'), disabled: !setViewport },
+    { label: 'θ only', onClick: fitTheta,            disabled: !setViewport },
     ...(multiSeries ? [
       { head: 'Fit single curve' },
       ...foldRowsToSubmenu(
