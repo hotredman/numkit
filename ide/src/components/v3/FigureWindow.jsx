@@ -325,6 +325,8 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       case 'xGrid':        return isOn(a.XGrid);
       case 'yGrid':        return isOn(a.YGrid);
       case 'zGrid':        return isOn(a.ZGrid);
+      case 'rGrid':        return isOn(a.RGrid);
+      case 'thetaGrid':    return isOn(a.ThetaGrid);
       case 'xLog':         return a.XScale === 'log';
       case 'yLog':         return a.YScale === 'log';
       case 'zLog':         return a.ZScale === 'log';
@@ -356,9 +358,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
         const f = onOff(!!value);
         return { ...a, XMinorGrid: f, YMinorGrid: f, ZMinorGrid: f };
       }
-      case 'xGrid':        return { ...a, XGrid: onOff(!!value) };
-      case 'yGrid':        return { ...a, YGrid: onOff(!!value) };
-      case 'zGrid':        return { ...a, ZGrid: onOff(!!value) };
+      case 'xGrid':        return { ...a, XGrid:     onOff(!!value) };
+      case 'yGrid':        return { ...a, YGrid:     onOff(!!value) };
+      case 'zGrid':        return { ...a, ZGrid:     onOff(!!value) };
+      case 'rGrid':        return { ...a, RGrid:     onOff(!!value) };
+      case 'thetaGrid':    return { ...a, ThetaGrid: onOff(!!value) };
       case 'xLog':         return { ...a, XScale: value ? 'log' : 'linear' };
       case 'yLog':         return { ...a, YScale: value ? 'log' : 'linear' };
       case 'zLog':         return { ...a, ZScale: value ? 'log' : 'linear' };
@@ -417,6 +421,8 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   const xGrid        = everyAxes(axesArr, ['XGrid'], isOn);
   const yGrid        = everyAxes(axesArr, ['YGrid'], isOn);
   const zGrid        = everyAxes(axesArr, ['ZGrid'], isOn);
+  const rGrid        = everyAxes(axesArr, ['RGrid'], isOn);
+  const thetaGrid    = everyAxes(axesArr, ['ThetaGrid'], isOn);
   // MATLAB Visible / Box / XDir / YDir aggregates.
   const showAxis     = everyAxes(axesArr, ['Visible'], isOn);
   const showBox      = everyAxes(axesArr, ['Box'], isOn);
@@ -493,9 +499,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       return prev.map((a) => setProp(a, path, onOff(!!next)));
     });
   }
-  const setXGrid = (u) => fanAllPath(['XGrid'], u);
-  const setYGrid = (u) => fanAllPath(['YGrid'], u);
-  const setZGrid = (u) => fanAllPath(['ZGrid'], u);
+  const setXGrid     = (u) => fanAllPath(['XGrid'], u);
+  const setYGrid     = (u) => fanAllPath(['YGrid'], u);
+  const setZGrid     = (u) => fanAllPath(['ZGrid'], u);
+  const setRGrid     = (u) => fanAllPath(['RGrid'], u);
+  const setThetaGrid = (u) => fanAllPath(['ThetaGrid'], u);
 
   // Per-cell setters — write to one Axes by index.
   function setCellKey(idx, key, updater) {
@@ -1315,15 +1323,27 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">grid</div>
                   {/* Per-axis grid toggles match MATLAB HG2 (XGrid /
-                      YGrid / ZGrid). The combined "grid" row is a
-                      quick all-axes flip. */}
-                  <DisplayToggle label="grid"   active={showMajor}
+                      YGrid / ZGrid for cartesian + 3-D; RGrid /
+                      ThetaGrid for polar). Every axis has its own
+                      toggle here per the toolbar=universal policy —
+                      clicking a row writes to the axes state regard-
+                      less of figure kind; visible no-op on kinds that
+                      don't render that axis (e.g. Theta grid on a
+                      cartesian plot stays as a state flag and would
+                      apply if the figure later became polar). */}
+                  <DisplayToggle label="grid"    active={showMajor}
                                  onClick={() => setShowMajor((g) => !g)} />
-                  <DisplayToggle label="X grid" active={xGrid}
+                  <DisplayToggle label="X grid"  active={xGrid}
                                  onClick={() => setXGrid((g) => !g)} />
-                  <DisplayToggle label="Y grid" active={yGrid}
+                  <DisplayToggle label="Y grid"  active={yGrid}
                                  onClick={() => setYGrid((g) => !g)} />
-                  <DisplayToggle label="minor"  active={showMinor}
+                  <DisplayToggle label="Z grid"  active={zGrid}
+                                 onClick={() => setZGrid((g) => !g)} />
+                  <DisplayToggle label="R grid"  active={rGrid}
+                                 onClick={() => setRGrid((g) => !g)} />
+                  <DisplayToggle label="θ grid"  active={thetaGrid}
+                                 onClick={() => setThetaGrid((g) => !g)} />
+                  <DisplayToggle label="minor"   active={showMinor}
                                  onClick={() => setShowMinor((g) => !g)} />
                 </div>
                 <div className="fw-pop-section">
