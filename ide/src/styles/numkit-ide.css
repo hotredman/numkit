@@ -1823,6 +1823,11 @@ select.ve-btn.fw-cmap-select {
   border-radius: 6px;
   padding: 4px 0;
   min-width: 180px;
+  /* Cap so long row text (e.g. legend label "measurement of pressure
+     sensor #4 at site B 2024-03-15" in Fit Series ▶) gets truncated
+     by `.ctx-name`'s `text-overflow: ellipsis` instead of stretching
+     the whole menu off-screen. */
+  max-width: 360px;
   max-height: min(560px, 75vh);
   overflow-y: auto;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
