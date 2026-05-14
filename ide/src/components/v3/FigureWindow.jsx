@@ -314,6 +314,9 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     switch (key) {
       case 'showMajor':    return axisGridOn(a);
       case 'showMinor':    return axisGridMinorOn(a);
+      case 'xGrid':        return isOn(a.XGrid);
+      case 'yGrid':        return isOn(a.YGrid);
+      case 'zGrid':        return isOn(a.ZGrid);
       case 'xLog':         return a.XScale === 'log';
       case 'yLog':         return a.YScale === 'log';
       case 'zLog':         return a.ZScale === 'log';
@@ -345,6 +348,9 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
         const f = onOff(!!value);
         return { ...a, XMinorGrid: f, YMinorGrid: f, ZMinorGrid: f };
       }
+      case 'xGrid':        return { ...a, XGrid: onOff(!!value) };
+      case 'yGrid':        return { ...a, YGrid: onOff(!!value) };
+      case 'zGrid':        return { ...a, ZGrid: onOff(!!value) };
       case 'xLog':         return { ...a, XScale: value ? 'log' : 'linear' };
       case 'yLog':         return { ...a, YScale: value ? 'log' : 'linear' };
       case 'zLog':         return { ...a, ZScale: value ? 'log' : 'linear' };
@@ -1549,19 +1555,20 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               // Grid forwards each cell's own axes-derived value.
               xGrid: xGrid, yGrid: yGrid,
               xMinor: showMinor, yMinor: showMinor,
-              // MATLAB Visible / Box / XDir / YDir overrides. Pass only
-              // for non-subplot — SubplotGrid resolves per-cell.
+              // MATLAB Visible / Box / XDir / YDir / ZDir overrides.
+              // Pass only for non-subplot — SubplotGrid resolves per-
+              // cell from each cell's axes (legacy cell prop).
               ...(isSubplot ? {} : {
                 axisVisible: showAxis,
                 boxOn: showBox,
-                xReverse, yReverse,
+                xReverse, yReverse, zReverse,
                 legendLocation: legendLocationAgg,
                 colorbarLocation: colorbarLocationAgg,
               }),
               fontScale: 1.15,
               engine,
               xLog, yLog, zLog,
-              setXLog, setYLog,
+              setXLog, setYLog, setZLog,
               colorOverride, setColorOverride,
               colormapOverride, setColormapOverride,
               // showLegend gates BOTH the CompositePlot SVG-internal
@@ -1574,12 +1581,21 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               // (not in figure JSON) so a script re-run doesn't reset.
               showTitle, showXLabel, showYLabel, showZLabel,
               showColorbar,
-              // Display setters — passed so the right-click menu inside
-              // CompositePlot can surface a Display submenu that mirrors
-              // the toolbar's display ▾ state.
-              setShowMajor, setShowMinor,
-              setShowTitle, setShowXLabel, setShowYLabel,
-              setShowLegend, setShowColorbar,
+              // Display setters — passed so the right-click ПКМ inside
+              // CompositePlot can surface Axes ▶ + Decoration ▶ submenus
+              // that mirror the toolbar's axes ▾ / decoration ▾ state.
+              // Non-subplot path uses figure-wide fanAll setters (one
+              // axes object); subplot wraps these per-cell in
+              // SubplotGrid via makeCellDisplaySetter.
+              ...(isSubplot ? {} : {
+                setShowMajor, setShowMinor,
+                setXGrid, setYGrid,
+                setShowAxis, setShowBox,
+                setXReverse, setYReverse, setZReverse,
+                setShowTitle, setShowXLabel, setShowYLabel, setShowZLabel,
+                setShowLegend, setShowColorbar,
+                setLegendLocation, setColorbarLocation,
+              }),
               // Top-level Reset + Save/Export bridge for the context
               // menu. ПКМ surfaces these as a 🏠 Reset row + Save/Export
               // submenu. Handlers run with no extra wrapping — the menu

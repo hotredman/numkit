@@ -133,27 +133,41 @@ export default function CompositePlot({
   boxOn: boxOnProp,
   xReverse: xReverseProp,
   yReverse: yReverseProp,
+  // Z-direction is a property of Axes too. No visual effect on 2-D,
+  // wired through so ПКМ axes ▶ stays parity-clean with the toolbar.
+  zReverse: zReverseProp,
   // Legend / colorbar placement overrides — null/undefined = follow
   // script's figure.legendLocation / figure.colorbarLocation.
   legendLocation: legendLocationProp,
   colorbarLocation: colorbarLocationProp,
   showLegend = true,
-  // Visibility flags owned by FigureWindow's `display ▾` menu. Default
+  // Visibility flags owned by FigureWindow's display menus. Default
   // true so non-modal renderers (preview cards, subplot cells without
   // explicit prop forwarding) keep the script's text visible.
   showTitle  = true,
   showXLabel = true,
   showYLabel = true,
-  // Display ▾ setters — when provided (modal context), the right-click
-  // menu surfaces a Display submenu mirroring the toolbar toggles. In
-  // preview cards / subplot cells these aren't passed; the submenu is
-  // simply omitted in that case.
+  showZLabel = false,
+  // ПКМ submenu setters — when provided (modal context), the right-
+  // click ПКМ surfaces full Axes ▶ / Decoration ▶ submenus mirroring
+  // the toolbar popovers. In preview cards / subplot cells these
+  // aren't passed; the submenu rows are simply omitted in that case.
   setShowMajor  = null,
   setShowMinor  = null,
+  setXGrid      = null,
+  setYGrid      = null,
+  setShowAxis   = null,
+  setShowBox    = null,
+  setXReverse   = null,
+  setYReverse   = null,
+  setZReverse   = null,
   setShowTitle  = null,
   setShowXLabel = null,
   setShowYLabel = null,
+  setShowZLabel = null,
   setShowLegend = null,
+  setLegendLocation   = null,
+  setColorbarLocation = null,
   // Colorbar visibility — true → render at script-set location or
   // 'east' default; false → hide; null → follow script (figure.color
   // barLocation). Preview cards / standalone use null so they stay in
@@ -179,8 +193,10 @@ export default function CompositePlot({
   // figure's xscale/yscale config when no parent provides setters.
   xLog: xLogProp,
   yLog: yLogProp,
+  zLog: zLogProp,
   setXLog: setXLogProp,
   setYLog: setYLogProp,
+  setZLog: setZLogProp,
   colorOverride: colorOverrideProp,
   setColorOverride: setColorOverrideProp,
   colormapOverride = null,
@@ -278,6 +294,11 @@ export default function CompositePlot({
   const yLog = (yLogProp !== undefined) ? yLogProp : yLogLocal;
   const setXLog = setXLogProp || setXLogLocal;
   const setYLog = setYLogProp || setYLogLocal;
+  // Z scale state — only meaningful for 3-D, but wired through so the
+  // ПКМ axes ▶ submenu (which mirrors the toolbar) can flip it
+  // without a separate code path. No local fallback: the toggle is
+  // simply omitted when the parent doesn't supply setZLog.
+  const zLog = !!zLogProp;
 
   // Auto-clamp viewport when xLog/yLog flips on but the visible range
   // includes ≤0 — log mapping needs strictly positive bounds. The ПКМ
@@ -461,6 +482,9 @@ export default function CompositePlot({
   // axes, but here it's an explicit user request, separate from imagesc).
   const xRev = (xReverseProp !== undefined) ? !!xReverseProp : (figure.xDir === 'reverse');
   const yRev = (yReverseProp !== undefined) ? !!yReverseProp : (figure.yDir === 'reverse');
+  // zRev: read-only echo for ПКМ axes ▶ ✓ marker. No 2-D renderer
+  // path uses it.
+  const zRev = !!zReverseProp;
   const sx = xLogActive
     ? (xRev
        ? (v) => padL + W - (Math.log(v / xMin) / Math.log(xMax / xMin)) * W
@@ -913,22 +937,44 @@ export default function CompositePlot({
   // Colorbar) lives in Decoration ▶. Both share `default` →
   // onDisplayReset, identical to the toolbar layout.
   //
-  // Z-axis toggles, per-axis grid (X grid / Y grid) and Location
-  // pickers are intentionally absent from ПКМ: this is a compact
-  // right-click context; the full per-prop surface lives in the
-  // toolbar popovers.
+  // Full surface — every section/row present in the toolbar popovers
+  // is replicated here. In a subplot cell the per-cell setters mutate
+  // only THIS cell's axes; on a non-subplot figure they fan out.
+  // Z toggles are wired regardless of dimensionality (parity with
+  // toolbar; no-op on 2-D, matches MATLAB R2025b behaviour).
+  const tag = (active, label) => active ? `✓ ${label}` : label;
+
   const axesSubmenuItems = (setShowMajor || setShowMinor
-      || setXLog || setYLog) ? [
+      || setXGrid || setYGrid
+      || setShowAxis || setShowBox
+      || setXReverse || setYReverse || setZReverse
+      || setXLog || setYLog || setZLog) ? [
     ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
                           { separator: true }] : []),
+    { head: 'visible' },
+    ...(setShowAxis ? [{ label: tag(axisVisible, 'axis'),
+                         onClick: () => setShowAxis((v) => !v) }] : []),
+    ...(setShowBox  ? [{ label: tag(boxOn, 'box'),
+                         onClick: () => setShowBox((v) => !v) }] : []),
     { head: 'grid' },
-    ...(setShowMajor ? [{ label: major ? '✓ grid'  : 'grid',
+    ...(setShowMajor ? [{ label: tag(major, 'grid'),
                           onClick: () => setShowMajor((v) => !v) }] : []),
-    ...(setShowMinor ? [{ label: minor ? '✓ minor' : 'minor',
+    ...(setXGrid     ? [{ label: tag(xGridOn, 'X grid'),
+                          onClick: () => setXGrid((v) => !v) }] : []),
+    ...(setYGrid     ? [{ label: tag(yGridOn, 'Y grid'),
+                          onClick: () => setYGrid((v) => !v) }] : []),
+    ...(setShowMinor ? [{ label: tag(minor, 'minor'),
                           onClick: () => setShowMinor((v) => !v) }] : []),
+    { head: 'direction' },
+    ...(setXReverse ? [{ label: tag(xRev, 'X reverse'),
+                         onClick: () => setXReverse((v) => !v) }] : []),
+    ...(setYReverse ? [{ label: tag(yRev, 'Y reverse'),
+                         onClick: () => setYReverse((v) => !v) }] : []),
+    ...(setZReverse ? [{ label: tag(zRev, 'Z reverse'),
+                         onClick: () => setZReverse((v) => !v) }] : []),
     { head: 'scale' },
-    ...(setXLog ? [{
-      label: xLog ? '✓ X log' : 'X log',
+    ...(setXLogProp ? [{
+      label: tag(xLog, 'X log'),
       disabled: figure.xRange[1] <= 0,
       onClick: () => {
         if (!xLog && (xMin <= 0 || xMax <= 0)) {
@@ -940,8 +986,8 @@ export default function CompositePlot({
         setXLog((v) => !v);
       },
     }] : []),
-    ...(setYLog ? [{
-      label: yLog ? '✓ Y log' : 'Y log',
+    ...(setYLogProp ? [{
+      label: tag(yLog, 'Y log'),
       disabled: figure.yRange[1] <= 0,
       onClick: () => {
         if (!yLog && (yMin <= 0 || yMax <= 0)) {
@@ -953,36 +999,75 @@ export default function CompositePlot({
         setYLog((v) => !v);
       },
     }] : []),
+    ...(setZLogProp ? [{ label: tag(zLog, 'Z log'),
+                         onClick: () => setZLogProp((v) => !v) }] : []),
   ] : null;
 
+  // Location options shared by legend / colorbar Location submenus.
+  // null → "default" (follow script). Order mirrors the toolbar's
+  // FwPopLocationSubmenu options.
+  const legendLocOptions = [
+    { value: null,        label: 'default' },
+    { value: 'best',      label: 'best' },
+    { value: 'north',     label: 'north' },
+    { value: 'south',     label: 'south' },
+    { value: 'east',      label: 'east' },
+    { value: 'west',      label: 'west' },
+    { value: 'northeast', label: 'northeast' },
+    { value: 'northwest', label: 'northwest' },
+    { value: 'southeast', label: 'southeast' },
+    { value: 'southwest', label: 'southwest' },
+  ];
+  const colorbarLocOptions = [
+    { value: null,    label: 'default' },
+    { value: 'east',  label: 'east' },
+    { value: 'west',  label: 'west' },
+    { value: 'north', label: 'north' },
+    { value: 'south', label: 'south' },
+  ];
+
   const decorationSubmenuItems = (setShowTitle || setShowXLabel
-      || setShowYLabel || setShowLegend || setShowColorbar) ? [
+      || setShowYLabel || setShowZLabel
+      || setShowLegend || setShowColorbar
+      || setLegendLocation || setColorbarLocation) ? [
     ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
                           { separator: true }] : []),
     { head: 'labels' },
     ...(setShowTitle ? [{
-      label: showTitle ? '✓ title' : 'title',
+      label: tag(showTitle, 'title'),
       disabled: !figure.title || figure.titleAuto,
       onClick: () => setShowTitle((v) => !v),
     }] : []),
     ...(setShowXLabel ? [{
-      label: showXLabel ? '✓ xlabel' : 'xlabel',
+      label: tag(showXLabel, 'xlabel'),
       disabled: !figure.xLabel,
       onClick: () => setShowXLabel((v) => !v),
     }] : []),
     ...(setShowYLabel ? [{
-      label: showYLabel ? '✓ ylabel' : 'ylabel',
+      label: tag(showYLabel, 'ylabel'),
       disabled: !figure.yLabel,
       onClick: () => setShowYLabel((v) => !v),
     }] : []),
+    ...(setShowZLabel ? [{ label: tag(showZLabel, 'zlabel'),
+                           onClick: () => setShowZLabel((v) => !v) }] : []),
     { head: 'annotations' },
-    ...(setShowLegend ? [{
-      label: showLegend ? '✓ legend' : 'legend',
-      onClick: () => setShowLegend((v) => !v),
+    ...(setShowLegend ? [{ label: tag(showLegend, 'legend'),
+                           onClick: () => setShowLegend((v) => !v) }] : []),
+    ...(setLegendLocation ? [{
+      submenu: 'legend location ▶',
+      items: legendLocOptions.map((o) => ({
+        label: tag((legendLocationProp || null) === o.value, o.label),
+        onClick: () => setLegendLocation(o.value),
+      })),
     }] : []),
-    ...(setShowColorbar ? [{
-      label: showColorbar ? '✓ colorbar' : 'colorbar',
-      onClick: () => setShowColorbar((v) => !v),
+    ...(setShowColorbar ? [{ label: tag(showColorbar, 'colorbar'),
+                             onClick: () => setShowColorbar((v) => !v) }] : []),
+    ...(setColorbarLocation ? [{
+      submenu: 'colorbar location ▶',
+      items: colorbarLocOptions.map((o) => ({
+        label: tag((colorbarLocationProp || null) === o.value, o.label),
+        onClick: () => setColorbarLocation(o.value),
+      })),
     }] : []),
   ] : null;
 

@@ -288,8 +288,10 @@ export default function SubplotGrid({
                   // Scale + direction
                   xLog:     pick('xLog',     cell.xscale === 'log'),
                   yLog:     pick('yLog',     cell.yscale === 'log'),
+                  zLog:     pick('zLog',     cell.zscale === 'log'),
                   xReverse: pick('xReverse', cell.xDir === 'reverse'),
                   yReverse: pick('yReverse', cell.yDir === 'reverse'),
+                  zReverse: pick('zReverse', cell.zDir === 'reverse'),
                   // Visibility / box
                   axisVisible: pick('showAxis', cell.axisVisible !== false),
                   boxOn:       pick('showBox',  cell.boxOn       !== false),
@@ -305,22 +307,36 @@ export default function SubplotGrid({
                   colorbarLocation: pick('colorbarLocation', null),
                   // Colormap
                   colormapOverride: s.colormap != null ? s.colormap : null,
-                  // Per-cell setters (no-op in preview mode).
+                  // Per-cell setters (no-op in preview mode). Mirrors
+                  // the toolbar's axes ▾ / decoration ▾ surface so the
+                  // ПКМ Axes ▶ / Decoration ▶ submenus inside this
+                  // cell expose the same toggles — but writing only to
+                  // THIS cell, not fanning out.
                   setShowMajor:    mks(idx, 'showMajor'),
                   setShowMinor:    mks(idx, 'showMinor'),
+                  setXGrid:        mks(idx, 'xGrid'),
+                  setYGrid:        mks(idx, 'yGrid'),
+                  setShowAxis:     mks(idx, 'showAxis'),
+                  setShowBox:      mks(idx, 'showBox'),
+                  setXReverse:     mks(idx, 'xReverse'),
+                  setYReverse:     mks(idx, 'yReverse'),
+                  setZReverse:     mks(idx, 'zReverse'),
                   setXLog:         mks(idx, 'xLog'),
                   setYLog:         mks(idx, 'yLog'),
+                  setZLog:         mks(idx, 'zLog'),
                   setShowTitle:    mks(idx, 'showTitle'),
                   setShowXLabel:   mks(idx, 'showXLabel'),
                   setShowYLabel:   mks(idx, 'showYLabel'),
+                  setShowZLabel:   mks(idx, 'showZLabel'),
                   setShowLegend:   mks(idx, 'showLegend'),
                   setShowColorbar: mks(idx, 'showColorbar'),
+                  setLegendLocation:   mks(idx, 'legendLocation'),
+                  setColorbarLocation: mks(idx, 'colorbarLocation'),
                   setColormapOverride: mkc(idx),
                   onDisplayReset:  mkdr(idx),
                   onColormapReset: mkcr(idx),
                 };
               })(),
-              zLog,
               // ПКМ Reset row inside a subplot cell must reset ONLY this
               // cell — never fan out to siblings. Combine the per-cell
               // display+colormap resets with a per-cell viewport reset
