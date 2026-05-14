@@ -1388,31 +1388,36 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                                  maskedHint="Box is hidden because axis is off — turn axis on to see it."
                                  onClick={() => setShowBox((v) => !v)} />
                 </div>
+                {/* Grid is split across three sub-sections:
+                      • grid       — master toggles (all axes / minor)
+                      • Cartesian  — X / Y / Z per-axis (HG2 X·Y·ZGrid)
+                      • Polar      — R / θ per-axis (HG2 R·ThetaGrid)
+                    Per the toolbar=universal policy each row is always
+                    visible and always clickable; rows for axes the
+                    current figure kind doesn't render flip the schema
+                    flag with no visual effect (parity-clean). */}
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">grid</div>
-                  {/* Per-axis grid toggles match MATLAB HG2 (XGrid /
-                      YGrid / ZGrid for cartesian + 3-D; RGrid /
-                      ThetaGrid for polar). Every axis has its own
-                      toggle here per the toolbar=universal policy —
-                      clicking a row writes to the axes state regard-
-                      less of figure kind; visible no-op on kinds that
-                      don't render that axis (e.g. Theta grid on a
-                      cartesian plot stays as a state flag and would
-                      apply if the figure later became polar). */}
-                  <DisplayToggle label="grid"    active={showMajor}
+                  <DisplayToggle label="all"   active={showMajor}
                                  onClick={() => setShowMajor((g) => !g)} />
-                  <DisplayToggle label="X grid"  active={xGrid}
-                                 onClick={() => setXGrid((g) => !g)} />
-                  <DisplayToggle label="Y grid"  active={yGrid}
-                                 onClick={() => setYGrid((g) => !g)} />
-                  <DisplayToggle label="Z grid"  active={zGrid}
-                                 onClick={() => setZGrid((g) => !g)} />
-                  <DisplayToggle label="R grid"  active={rGrid}
-                                 onClick={() => setRGrid((g) => !g)} />
-                  <DisplayToggle label="θ grid"  active={thetaGrid}
-                                 onClick={() => setThetaGrid((g) => !g)} />
-                  <DisplayToggle label="minor"   active={showMinor}
+                  <DisplayToggle label="minor" active={showMinor}
                                  onClick={() => setShowMinor((g) => !g)} />
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">Cartesian</div>
+                  <DisplayToggle label="X grid" active={xGrid}
+                                 onClick={() => setXGrid((g) => !g)} />
+                  <DisplayToggle label="Y grid" active={yGrid}
+                                 onClick={() => setYGrid((g) => !g)} />
+                  <DisplayToggle label="Z grid" active={zGrid}
+                                 onClick={() => setZGrid((g) => !g)} />
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">Polar</div>
+                  <DisplayToggle label="R grid" active={rGrid}
+                                 onClick={() => setRGrid((g) => !g)} />
+                  <DisplayToggle label="θ grid" active={thetaGrid}
+                                 onClick={() => setThetaGrid((g) => !g)} />
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">direction</div>

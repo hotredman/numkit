@@ -93,7 +93,9 @@ test.describe('display ▾ menu — toggle visibility', () => {
 
     // XGrid / YGrid are properties of the HG2 Axes object → axes ▾.
     await openAxesMenu(page);
-    await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: /^grid$/ }) }).click();
+    // Combined master grid row was renamed `grid` → `all` after the
+    // grid section was split into grid / Cartesian / Polar sub-sections.
+    await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: /^all$/ }) }).click();
     await page.waitForTimeout(100);
 
     const afterCount = await page.locator('.fw-window svg line[stroke*="--plot-grid"]').count();
