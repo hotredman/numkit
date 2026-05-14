@@ -17,8 +17,14 @@ async function openAxesMenu(page) {
   await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
 }
 
+async function openGridMenu(page) {
+  // `grid ▾` lives between axes ▾ and decoration ▾ in the toolbar.
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /grid/i }).click();
+  await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
+}
+
 test.describe('display ▾ menu — toggle visibility', () => {
-  test('axes ▾ and decoration ▾ buttons always present (incl. for subplot)', async ({ ide, page }) => {
+  test('axes ▾ / grid ▾ / decoration ▾ buttons always present (incl. for subplot)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'figure;\n'
@@ -30,6 +36,8 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
     await expect(page.locator('.fw-toolbar .ve-btn',
       { hasText: /axes/i })).toBeVisible({ timeout: 2_000 });
+    await expect(page.locator('.fw-toolbar .ve-btn',
+      { hasText: /grid/i })).toBeVisible({ timeout: 2_000 });
     await expect(page.locator('.fw-toolbar .ve-btn',
       { hasText: /decoration/i })).toBeVisible({ timeout: 2_000 });
   });
@@ -91,10 +99,10 @@ test.describe('display ▾ menu — toggle visibility', () => {
     const beforeCount = await page.locator('.fw-window svg line[stroke*="--plot-grid"]').count();
     expect(beforeCount).toBeGreaterThan(0);
 
-    // XGrid / YGrid are properties of the HG2 Axes object → axes ▾.
-    await openAxesMenu(page);
-    // Combined master grid row was renamed `grid` → `all` after the
-    // grid section was split into grid / Cartesian / Polar sub-sections.
+    // Grid lives in its own toolbar button now (split from axes ▾).
+    // Combined master row reads `all` after the grid / Cartesian /
+    // Polar sub-section split.
+    await openGridMenu(page);
     await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: /^all$/ }) }).click();
     await page.waitForTimeout(100);
 
@@ -164,6 +172,7 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
 
     for (const [open, label] of [[openAxesMenu, /axes/i],
+                                  [openGridMenu, /grid/i],
                                   [openDecorationMenu, /decoration/i]]) {
       await open(page);
       const buttons = await page.locator('.fw-pop .fw-pop-toggle').all();

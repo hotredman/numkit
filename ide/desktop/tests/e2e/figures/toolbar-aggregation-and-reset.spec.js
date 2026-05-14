@@ -21,32 +21,22 @@ async function openToolbarMenu(page, label) {
   await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
 }
 
-test('toolbar `default` rows are at TOP of popovers (axes ▾, decoration ▾, colormap ▾)', async ({ ide, page }) => {
+test('toolbar `default` rows are at TOP of popovers (axes ▾, grid ▾, decoration ▾, colormap ▾)', async ({ ide, page }) => {
   await ide.runScript('import compat.*;\nimagesc(rand(8,8));\n');
   await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
   await ide.figureCards.first().click();
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
   await page.waitForTimeout(100);
 
-  // axes ▾ first child = "default" button.
-  await openToolbarMenu(page, 'axes');
-  const firstAxes = page.locator('.fw-pop > .fw-pop-section').first()
-    .locator('button').first();
-  await expect(firstAxes).toContainText(/^default$/);
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click(); // close
-
-  // decoration ▾ first child = "default" button.
-  await openToolbarMenu(page, 'decoration');
-  const firstDecoration = page.locator('.fw-pop > .fw-pop-section').first()
-    .locator('button').first();
-  await expect(firstDecoration).toContainText(/^default$/);
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /decoration/i }).click(); // close
-
-  // colormap ▾ first child = "default" button.
-  await openToolbarMenu(page, 'colormap');
-  const firstCmap = page.locator('.fw-pop > .fw-pop-section').first()
-    .locator('button').first();
-  await expect(firstCmap).toContainText(/^default$/);
+  for (const name of ['axes', 'grid', 'decoration', 'colormap']) {
+    await openToolbarMenu(page, name);
+    const first = page.locator('.fw-pop > .fw-pop-section').first()
+      .locator('button').first();
+    await expect(first, `${name} ▾ first row should be "default"`).toContainText(/^default$/);
+    // Close before opening the next one — Escape would dismiss the modal.
+    await page.locator('.fw-toolbar .ve-btn', { hasText: new RegExp(name, 'i') }).click();
+    await page.waitForTimeout(50);
+  }
 });
 
 test('ПКМ Axes ▶ and Decoration ▶ each have `default` row at TOP', async ({ ide, page }) => {
@@ -93,9 +83,10 @@ test('ПКМ Colormap submenu has `default` row at TOP', async ({ ide, page }) =
   await expect(firstBtn).toContainText(/^default$/);
 });
 
-test('toolbar axes ▾ ✓ aggregates: only set when ALL cells have it', async ({ ide, page }) => {
-  // XGrid is an Axes property → grid toggles live in axes ▾, not
-  // decoration ▾. Use grid as the probe (most common HG2 toggle).
+test('toolbar grid ▾ ✓ aggregates: only set when ALL cells have it', async ({ ide, page }) => {
+  // XGrid is an Axes property; the toolbar master row for grid lives
+  // in the dedicated `grid ▾` popover (split from axes ▾). ПКМ still
+  // exposes `grid` inside Axes ▶ as a per-cell toggle.
   await ide.runScript(
     'import compat.*;\n'
     + 'figure;\n'
@@ -108,28 +99,25 @@ test('toolbar axes ▾ ✓ aggregates: only set when ALL cells have it', async (
   await page.waitForTimeout(120);
 
   // Pre: nothing on. ✓ on combined-grid master is empty.
-  // Toolbar's master row was renamed `grid` → `all` after the axes ▾
-  // grid section split (ПКМ submenu still uses `grid` — that's
-  // unchanged below).
-  await openToolbarMenu(page, 'axes');
+  await openToolbarMenu(page, 'grid');
   const gridToggle = page.locator('.fw-pop-toggle',
     { has: page.locator('span', { hasText: /^all$/ }) });
   expect((await gridToggle.locator('.fw-pop-check').textContent()).trim()).toBe('');
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();  // close
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /grid/i }).click();  // close
   await page.waitForTimeout(50);
 
-  // Toggle grid on cell A only via ПКМ.
+  // Toggle grid on cell A only via ПКМ (Axes ▶ submenu — per-cell).
   await rightClickCell(page, 0);
   await page.locator('.ctx-sub-trigger', { hasText: /Axes/ }).hover();
   await page.waitForTimeout(60);
   await page.locator('.ctx-submenu button', { hasText: /^(✓ )?grid$/ }).click();
   await page.waitForTimeout(120);
 
-  // Toolbar axes ▾ → grid still has NO ✓ (only one cell on, not all).
-  await openToolbarMenu(page, 'axes');
+  // Toolbar grid ▾ → all still has NO ✓ (only one cell on, not all).
+  await openToolbarMenu(page, 'grid');
   const partial = await gridToggle.locator('.fw-pop-check').textContent();
   expect(partial.trim(), `partial-state ✓ should be empty: '${partial}'`).toBe('');
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /grid/i }).click();
   await page.waitForTimeout(50);
 
   // Now toggle grid on cell B too.
@@ -140,7 +128,7 @@ test('toolbar axes ▾ ✓ aggregates: only set when ALL cells have it', async (
   await page.waitForTimeout(120);
 
   // Now toolbar shows ✓.
-  await openToolbarMenu(page, 'axes');
+  await openToolbarMenu(page, 'grid');
   const allOn = await gridToggle.locator('.fw-pop-check').textContent();
   expect(allOn.trim(), `all-on ✓ should be set: '${allOn}'`).toBe('✓');
 });
