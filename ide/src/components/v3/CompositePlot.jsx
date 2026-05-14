@@ -111,6 +111,19 @@ function MarkerGlyph({ marker, cx, cy, r, color, idx }) {
   }
 }
 
+/** Resolve the display name for one series layer. Priority matches
+ *  MATLAB / the legend block:
+ *    1. `figure.legend[idx]`  — the i-th label passed to legend(...)
+ *    2. `layer.name`          — the script-set DisplayName on the layer
+ *    3. `series ${idx+1}`     — guaranteed-non-empty fallback
+ *  Whitespace-only legend strings are treated as empty (fall through).
+ *  Used by both the in-figure legend block AND the ПКМ Fit Series ▶
+ *  rows so they always agree on what to call each curve. */
+function resolveSeriesName(figure, layer, idx) {
+  const fromLegend = ((figure.legend && figure.legend[idx]) || '').trim();
+  return fromLegend || layer.name || `series ${idx + 1}`;
+}
+
 export default function CompositePlot({
   figure,
   width,
@@ -1122,7 +1135,7 @@ export default function CompositePlot({
       && Array.isArray(s.y) && s.y.length >= 2);
   const seriesSubmenuItems = fittableSeries.length > 0
     ? fittableSeries.map(({ s, i }) => ({
-        row: true, color: s.color, name: s.name || `series ${i + 1}`,
+        row: true, color: s.color, name: resolveSeriesName(figure, s, i),
         buttons: [
           { label: 'xy', onClick: () => applyFitSeries(i, 'both') },
           { label: 'x',  onClick: () => applyFitSeries(i, 'x') },
@@ -1978,7 +1991,7 @@ export default function CompositePlot({
         if (!haveLabels) return null;
         const items = seriesLayers.slice(0, labels.length).map((l, i) => ({
           color: l.color,
-          text: labels[i] || l.name || `series ${i + 1}`,
+          text: resolveSeriesName(figure, l, i),
           // Mode drives swatch shape: 'circle' for point-like marks,
           // 'rect' for filled-region marks, 'line' for everything else.
           mode: l.mode || 'line',
