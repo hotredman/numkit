@@ -1172,7 +1172,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
             {fitOpen && (
               <div className="fw-pop">
                 <div className="fw-pop-section">
-                  <button onClick={() => { viewportReset(); setFitOpen(false); }}>reset</button>
+                  <button onClick={() => { viewportReset(); setFitOpen(false); }}>default</button>
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">Fit All</div>
@@ -1293,7 +1293,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
             {axesOpen && (
               <div className="fw-pop">
                 <div className="fw-pop-section">
-                  <button onClick={() => { displayReset(); setAxesOpen(false); }}>reset</button>
+                  <button onClick={() => { displayReset(); setAxesOpen(false); }}>default</button>
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">visible</div>
@@ -1357,7 +1357,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
             {displayOpen && (
               <div className="fw-pop">
                 <div className="fw-pop-section">
-                  <button onClick={() => { displayReset(); setDisplayOpen(false); }}>reset</button>
+                  <button onClick={() => { displayReset(); setDisplayOpen(false); }}>default</button>
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">labels</div>
@@ -1384,7 +1384,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                     label="legend location"
                     value={legendLocationAgg}
                     options={[
-                      { value: null,        label: '(script default)' },
+                      { value: null,        label: 'default' },
                       { value: 'best',      label: 'best' },
                       { value: 'north',     label: 'north' },
                       { value: 'south',     label: 'south' },
@@ -1402,7 +1402,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                     label="colorbar location"
                     value={colorbarLocationAgg}
                     options={[
-                      { value: null,    label: '(script default)' },
+                      { value: null,    label: 'default' },
                       { value: 'east',  label: 'east' },
                       { value: 'west',  label: 'west' },
                       { value: 'north', label: 'north' },
@@ -1442,7 +1442,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                       // overrides to clear).
                       setColormapOverride(null);
                       setCmapOpen(false);
-                    }}>reset</button>
+                    }}>default</button>
                   </div>
                   <div className="fw-pop-section">
                     <div className="fw-pop-head">palette</div>
