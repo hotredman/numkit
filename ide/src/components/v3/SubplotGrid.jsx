@@ -287,10 +287,16 @@ export default function SubplotGrid({
                   // CompositePlot's renderer split (XGrid / YGrid).
                   major:  pick('showMajor', cell.grid === 'on'),
                   minor:  pick('showMinor', cell.gridMinor === 'on'),
-                  xGrid:  pick('xGrid',  cell.grid === 'on'),
-                  yGrid:  pick('yGrid',  cell.grid === 'on'),
-                  xMinor: pick('xMinor', cell.gridMinor === 'on'),
-                  yMinor: pick('yMinor', cell.gridMinor === 'on'),
+                  xGrid:     pick('xGrid',     cell.grid === 'on'),
+                  yGrid:     pick('yGrid',     cell.grid === 'on'),
+                  // Polar grid (per-axis). Polar cells inherit cell.
+                  // grid only when this cell IS polar — cartesian
+                  // cells get 'off' so RGrid/ThetaGrid don't reach
+                  // them through the cellState aggregate.
+                  rGrid:     pick('rGrid',     cell.grid === 'on' && cell.kind === 'polar'),
+                  thetaGrid: pick('thetaGrid', cell.grid === 'on' && cell.kind === 'polar'),
+                  xMinor:    pick('xMinor',    cell.gridMinor === 'on'),
+                  yMinor:    pick('yMinor',    cell.gridMinor === 'on'),
                   // Scale + direction
                   xLog:     pick('xLog',     cell.xscale === 'log'),
                   yLog:     pick('yLog',     cell.yscale === 'log'),

@@ -1607,11 +1607,13 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               width: size.w, height: size.h,
               viewport, setViewport,
               major: showMajor, minor: showMinor,
-              // Per-axis grid (MATLAB XGrid / YGrid). For non-subplot the
-              // aggregate is the value (single axes); for subplot Subplot
-              // Grid forwards each cell's own axes-derived value.
+              // Per-axis grid (MATLAB XGrid / YGrid for cartesian +
+              // RGrid / ThetaGrid for polar). For non-subplot the
+              // aggregate is the value (single axes); for subplot
+              // SubplotGrid forwards each cell's own axes-derived value.
               xGrid: xGrid, yGrid: yGrid,
               xMinor: showMinor, yMinor: showMinor,
+              rGrid: rGrid, thetaGrid: thetaGrid,
               // MATLAB Visible / Box / XDir / YDir / ZDir overrides.
               // Pass only for non-subplot — SubplotGrid resolves per-
               // cell from each cell's axes (legacy cell prop).
