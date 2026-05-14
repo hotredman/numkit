@@ -263,11 +263,23 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   // Derive them from axesArr aggregates. This boundary lets us keep
   // the canonical state in MATLAB schema while not touching every
   // call site of the legacy API.
+  // `grid on` in MATLAB lights every axis grid the current axes type
+  // supports — XGrid/YGrid/ZGrid for cartesian + 3-D, RGrid/ThetaGrid
+  // for polar. The combined toolbar "grid" toggle mirrors that: the
+  // aggregate reads true when ANY of those is on; the fan-out
+  // (legacyWrite) sets all of them. Polar fields stay 'off' on
+  // cartesian cells per the schema initializer, so flipping the
+  // combined toggle on a cartesian figure visually lights only X+Y
+  // (R/θ are set in state but their renderer is in PolarPlot).
   function axisGridOn(axes) {
-    return isOn(axes && axes.XGrid) || isOn(axes && axes.YGrid)
-        || isOn(axes && axes.ZGrid);
+    return isOn(axes && axes.XGrid)     || isOn(axes && axes.YGrid)
+        || isOn(axes && axes.ZGrid)
+        || isOn(axes && axes.RGrid)     || isOn(axes && axes.ThetaGrid);
   }
   function axisGridMinorOn(axes) {
+    // Minor grids — no polar minor in the schema yet (MATLAB has
+    // RMinorGrid / ThetaMinorGrid but we don't model them). The
+    // combined "minor" toggle stays cartesian-only.
     return isOn(axes && axes.XMinorGrid) || isOn(axes && axes.YMinorGrid)
         || isOn(axes && axes.ZMinorGrid);
   }
@@ -351,10 +363,16 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   function legacyWrite(a, key, value) {
     switch (key) {
       case 'showMajor':    {
+        // Combined "grid" toggle — fan out to every per-axis major
+        // grid we model (MATLAB `grid on` does the same: lights every
+        // grid the axes type supports). Polar fields fan too so polar
+        // figures actually toggle visibly.
         const f = onOff(!!value);
-        return { ...a, XGrid: f, YGrid: f, ZGrid: f };
+        return { ...a, XGrid: f, YGrid: f, ZGrid: f, RGrid: f, ThetaGrid: f };
       }
       case 'showMinor':    {
+        // No polar minor grids in the schema yet — minor fan-out
+        // stays cartesian.
         const f = onOff(!!value);
         return { ...a, XMinorGrid: f, YMinorGrid: f, ZMinorGrid: f };
       }
@@ -406,7 +424,14 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   }
 
   // ── Legacy aggregate readers ─────────────────────────────────────
-  const showMajor    = everyAxes(axesArr, ['XGrid'], isOn) || everyAxes(axesArr, ['YGrid'], isOn);
+  // `showMajor` ✓ shows when EVERY cell has at least one grid axis on
+  // (cartesian X/Y/Z or polar R/θ). Matches `axisGridOn`'s per-cell
+  // semantics so the toolbar ✓ flips coherently with the click action.
+  const showMajor    = everyAxes(axesArr, ['XGrid'],     isOn)
+                    || everyAxes(axesArr, ['YGrid'],     isOn)
+                    || everyAxes(axesArr, ['ZGrid'],     isOn)
+                    || everyAxes(axesArr, ['RGrid'],     isOn)
+                    || everyAxes(axesArr, ['ThetaGrid'], isOn);
   const showMinor    = everyAxes(axesArr, ['XMinorGrid'], isOn) || everyAxes(axesArr, ['YMinorGrid'], isOn);
   const xLog         = axesArr.length > 0 && axesArr.every((a) => a.XScale === 'log');
   const yLog         = axesArr.length > 0 && axesArr.every((a) => a.YScale === 'log');
