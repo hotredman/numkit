@@ -944,24 +944,19 @@ export default function CompositePlot({
     ];
   })();
   // ── ПКМ submenus: Axes ▶ / Decoration ▶ ─────────────────────────
-  // Mirror the toolbar's axes ▾ / decoration ▾ split (HG2 grouping):
-  // anything that's a property of the Axes object lives in Axes ▶,
-  // anything that's a child OF the Axes (Title, Labels, Legend,
-  // Colorbar) lives in Decoration ▶. Both share `default` →
-  // onDisplayReset, identical to the toolbar layout.
-  //
-  // Full surface — every section/row present in the toolbar popovers
-  // is replicated here. In a subplot cell the per-cell setters mutate
-  // only THIS cell's axes; on a non-subplot figure they fan out.
-  // Z toggles are wired regardless of dimensionality (parity with
-  // toolbar; no-op on 2-D, matches MATLAB R2025b behaviour).
+  // Specialised — show only what's relevant to THIS plot. CompositePlot
+  // is always a 2-D context (3-D figures use Composite3DPlot), so Z
+  // toggles are simply absent here. Legend lives in Decoration ▶
+  // only when there's at least one series; colorbar + Location only
+  // when there's a heatmap. The toolbar popovers stay universal —
+  // everything always visible — but ПКМ is per-plot context.
   const tag = (active, label) => active ? `✓ ${label}` : label;
 
   const axesSubmenuItems = (setShowMajor || setShowMinor
       || setXGrid || setYGrid
       || setShowAxis || setShowBox
-      || setXReverse || setYReverse || setZReverse
-      || setXLog || setYLog || setZLog) ? [
+      || setXReverse || setYReverse
+      || setXLog || setYLog) ? [
     ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
                           { separator: true }] : []),
     { head: 'visible' },
@@ -983,8 +978,6 @@ export default function CompositePlot({
                          onClick: () => setXReverse((v) => !v) }] : []),
     ...(setYReverse ? [{ label: tag(yRev, 'Y reverse'),
                          onClick: () => setYReverse((v) => !v) }] : []),
-    ...(setZReverse ? [{ label: tag(zRev, 'Z reverse'),
-                         onClick: () => setZReverse((v) => !v) }] : []),
     { head: 'scale' },
     ...(setXLogProp ? [{
       label: tag(xLog, 'X log'),
@@ -1012,8 +1005,6 @@ export default function CompositePlot({
         setYLog((v) => !v);
       },
     }] : []),
-    ...(setZLogProp ? [{ label: tag(zLog, 'Z log'),
-                         onClick: () => setZLogProp((v) => !v) }] : []),
   ] : null;
 
   // Location options shared by legend / colorbar Location submenus.
@@ -1039,13 +1030,17 @@ export default function CompositePlot({
     { value: 'south', label: 'south' },
   ];
 
-  const decorationSubmenuItems = (setShowTitle || setShowXLabel
-      || setShowYLabel || setShowZLabel
-      || setShowLegend || setShowColorbar
-      || setLegendLocation || setColorbarLocation) ? [
-    ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
-                          { separator: true }] : []),
-    { head: 'labels' },
+  // Decoration ▶ — specialised per figure shape:
+  //   • zlabel:   absent (CompositePlot is 2-D only).
+  //   • legend:   only when seriesLayers.length > 0 (heatmap-only or
+  //               text-only figures don't get a legend).
+  //   • colorbar: only when hasHeatmap (no colorscale without a
+  //               colormap-driven layer).
+  // The annotations head itself is dropped if both legend AND colorbar
+  // are gated out — avoids an empty section header on figures that
+  // have neither.
+  const hasSeriesLayer = seriesLayers.length > 0;
+  const labelRows = [
     ...(setShowTitle ? [{
       label: tag(showTitle, 'title'),
       disabled: !figure.title || figure.titleAuto,
@@ -1061,27 +1056,36 @@ export default function CompositePlot({
       disabled: !figure.yLabel,
       onClick: () => setShowYLabel((v) => !v),
     }] : []),
-    ...(setShowZLabel ? [{ label: tag(showZLabel, 'zlabel'),
-                           onClick: () => setShowZLabel((v) => !v) }] : []),
-    { head: 'annotations' },
-    ...(setShowLegend ? [{ label: tag(showLegend, 'legend'),
-                           onClick: () => setShowLegend((v) => !v) }] : []),
-    ...(setLegendLocation ? [{
+  ];
+  const annotationRows = [
+    ...(hasSeriesLayer && setShowLegend ? [{
+      label: tag(showLegend, 'legend'),
+      onClick: () => setShowLegend((v) => !v),
+    }] : []),
+    ...(hasSeriesLayer && setLegendLocation ? [{
       submenu: 'legend location',
       items: legendLocOptions.map((o) => ({
         label: tag((legendLocationProp || null) === o.value, o.label),
         onClick: () => setLegendLocation(o.value),
       })),
     }] : []),
-    ...(setShowColorbar ? [{ label: tag(showColorbar, 'colorbar'),
-                             onClick: () => setShowColorbar((v) => !v) }] : []),
-    ...(setColorbarLocation ? [{
+    ...(hasHeatmap && setShowColorbar ? [{
+      label: tag(showColorbar, 'colorbar'),
+      onClick: () => setShowColorbar((v) => !v),
+    }] : []),
+    ...(hasHeatmap && setColorbarLocation ? [{
       submenu: 'colorbar location',
       items: colorbarLocOptions.map((o) => ({
         label: tag((colorbarLocationProp || null) === o.value, o.label),
         onClick: () => setColorbarLocation(o.value),
       })),
     }] : []),
+  ];
+  const decorationSubmenuItems = (labelRows.length || annotationRows.length) ? [
+    ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
+                          { separator: true }] : []),
+    ...(labelRows.length      ? [{ head: 'labels' },      ...labelRows]      : []),
+    ...(annotationRows.length ? [{ head: 'annotations' }, ...annotationRows] : []),
   ] : null;
 
   // Colormap submenu — list of available palettes; click sets

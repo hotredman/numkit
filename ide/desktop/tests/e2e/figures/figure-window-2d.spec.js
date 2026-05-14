@@ -85,8 +85,9 @@ test.describe('FigureWindow — 2-D layout', () => {
     await expect(popup).toBeVisible({ timeout: 5_000 });
     await expect(popup.locator('button', { hasText: 'X only' })).toBeVisible();
     await expect(popup.locator('button', { hasText: 'Y only' })).toBeVisible();
-    // 2-D popup keeps Z only visible but disabled (UX rule: panel
-    // toggles never hide; they grey out when not applicable).
-    await expect(popup.locator('button', { hasText: 'Z only' })).toBeDisabled();
+    // Toolbar policy: every row is a figure-wide brush, always
+    // clickable. Z only on a 2-D figure is a visual no-op, never
+    // disabled.
+    await expect(popup.locator('button', { hasText: 'Z only' })).toBeEnabled();
   });
 });
