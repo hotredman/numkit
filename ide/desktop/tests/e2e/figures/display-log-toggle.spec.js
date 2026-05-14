@@ -1,7 +1,8 @@
-// display-log-toggle.spec.js — verify xlog / ylog toggles inside the
-// axes ▾ menu actually switch the axis to log mapping. Probe the
-// y-axis tick set: linear on plot(1:1000) gives ticks at 100 / 200 / …
-// while log gives 10 / 100 / 1000. After toggle we want the log set.
+// display-log-toggle.spec.js — verify X log / Y log toggles inside
+// the axes ▾ menu (scale section) actually switch the axis to log
+// mapping. Probe the y-axis tick set: linear on plot(1:1000) gives
+// ticks at 100 / 200 / … while log gives 10 / 100 / 1000. After
+// toggle we want the log set.
 
 import { test, expect } from '../../helpers/shared.js';
 
@@ -49,7 +50,7 @@ test('ylog toggle switches Y axis from linear to log scale', async ({ ide, page 
   expect(looksLinear, `linear ticks ${JSON.stringify(linearTicks)}`).toBe(true);
 
   await openDisplay(page);
-  await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'ylog' }) }).click();
+  await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'Y log' }) }).click();
   await page.waitForTimeout(150);
 
   const logTicks = await yTicks(page);
@@ -82,7 +83,7 @@ test('toolbar display ▾ xlog ✓ on subplot_demo (2x2 sin/cos)', async ({ ide,
 
   await openDisplay(page);
   const xlogToggle = page.locator('.fw-pop-toggle',
-    { has: page.locator('span', { hasText: 'xlog' }) });
+    { has: page.locator('span', { hasText: 'X log' }) });
   expect((await xlogToggle.locator('.fw-pop-check').textContent()).trim()).toBe('');
 
   await xlogToggle.click();
@@ -100,7 +101,7 @@ test('toolbar display ▾ xlog click sets the ✓ checkmark', async ({ ide, page
   await openDisplay(page);
   // Pre: xlog NOT active.
   const xlogToggle = page.locator('.fw-pop-toggle',
-    { has: page.locator('span', { hasText: 'xlog' }) });
+    { has: page.locator('span', { hasText: 'X log' }) });
   expect((await xlogToggle.locator('.fw-pop-check').textContent()).trim()).toBe('');
 
   // Click. Menu stays open. ✓ should appear immediately.
@@ -122,7 +123,7 @@ test('toolbar xlog applies log scale to ALL subplot cells', async ({ ide, page }
   await page.waitForTimeout(150);
 
   await openDisplay(page);
-  await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'xlog' }) }).click();
+  await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'X log' }) }).click();
   await page.waitForTimeout(200);
 
   // Both cells should now show log-scale ticks (powers of 10).
@@ -151,7 +152,7 @@ test('xlog toggle switches X axis from linear to log scale', async ({ ide, page 
   await page.waitForTimeout(150);
 
   await openDisplay(page);
-  await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'xlog' }) }).click();
+  await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'X log' }) }).click();
   await page.waitForTimeout(150);
 
   // X tick labels live near the bottom (y close to height-padB).
