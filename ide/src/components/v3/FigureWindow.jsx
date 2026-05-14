@@ -711,6 +711,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     displayReset();
   }
   const [axesOpen, setAxesOpen] = useState(false);
+  const [gridOpen, setGridOpen] = useState(false);
   const [displayOpen, setDisplayOpen] = useState(false);
   const [cmapOpen, setCmapOpen]   = useState(false);
   const [saveOpen, setSaveOpen]   = useState(false);
@@ -718,6 +719,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   const [maximized, setMaximized] = useState(false);
   const fitRef  = useRef(null);
   const axesRef = useRef(null);
+  const gridRef = useRef(null);
   const displayRef = useRef(null);
   const cmapRef = useRef(null);
   const saveRef = useRef(null);
@@ -766,6 +768,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     function onDoc(e) {
       if (fitRef.current     && !fitRef.current.contains(e.target))     setFitOpen(false);
       if (axesRef.current    && !axesRef.current.contains(e.target))    setAxesOpen(false);
+      if (gridRef.current    && !gridRef.current.contains(e.target))    setGridOpen(false);
       if (displayRef.current && !displayRef.current.contains(e.target)) setDisplayOpen(false);
       if (cmapRef.current    && !cmapRef.current.contains(e.target))    setCmapOpen(false);
       if (saveRef.current    && !saveRef.current.contains(e.target))    setSaveOpen(false);
@@ -1388,37 +1391,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                                  maskedHint="Box is hidden because axis is off — turn axis on to see it."
                                  onClick={() => setShowBox((v) => !v)} />
                 </div>
-                {/* Grid is split across three sub-sections:
-                      • grid       — master toggles (all axes / minor)
-                      • Cartesian  — X / Y / Z per-axis (HG2 X·Y·ZGrid)
-                      • Polar      — R / θ per-axis (HG2 R·ThetaGrid)
-                    Per the toolbar=universal policy each row is always
-                    visible and always clickable; rows for axes the
-                    current figure kind doesn't render flip the schema
-                    flag with no visual effect (parity-clean). */}
-                <div className="fw-pop-section">
-                  <div className="fw-pop-head">grid</div>
-                  <DisplayToggle label="all"   active={showMajor}
-                                 onClick={() => setShowMajor((g) => !g)} />
-                  <DisplayToggle label="minor" active={showMinor}
-                                 onClick={() => setShowMinor((g) => !g)} />
-                </div>
-                <div className="fw-pop-section">
-                  <div className="fw-pop-head">Cartesian</div>
-                  <DisplayToggle label="X grid" active={xGrid}
-                                 onClick={() => setXGrid((g) => !g)} />
-                  <DisplayToggle label="Y grid" active={yGrid}
-                                 onClick={() => setYGrid((g) => !g)} />
-                  <DisplayToggle label="Z grid" active={zGrid}
-                                 onClick={() => setZGrid((g) => !g)} />
-                </div>
-                <div className="fw-pop-section">
-                  <div className="fw-pop-head">Polar</div>
-                  <DisplayToggle label="R grid" active={rGrid}
-                                 onClick={() => setRGrid((g) => !g)} />
-                  <DisplayToggle label="θ grid" active={thetaGrid}
-                                 onClick={() => setThetaGrid((g) => !g)} />
-                </div>
+                {/* Grid sub-sections moved into their own toolbar
+                    button `grid ▾` (next to axes ▾). Keeping them out
+                    of this popover so axes ▾ stays focused on the
+                    HG2 Axes object's non-grid properties (visible /
+                    direction / scale). */}
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">direction</div>
                   <DisplayToggle label="X reverse" active={xReverse}
@@ -1442,6 +1419,60 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                                  onClick={() => toggleAxisLog('y')} />
                   <DisplayToggle label="Z log" active={zLog}
                                  onClick={() => setZLog((v) => !v)} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* grid ▾ — every per-axis grid the schema models, plus the
+              combined master row. Lives in its own toolbar group
+              (between axes ▾ and decoration ▾) because the grid
+              surface alone is 3 sub-sections (master / Cartesian /
+              Polar) and would dominate the axes ▾ popover otherwise.
+              Mirrors MATLAB R2025b figure toolbar where Grid is a
+              primary control. */}
+          <div className="ve-tools-group" ref={gridRef}>
+            <button className="ve-btn"
+                    onClick={() => setGridOpen((o) => !o)}
+                    title="Grid lines: cartesian (X/Y/Z) + polar (R/θ)">
+              <svg width="11" height="11" viewBox="0 0 12 12">
+                <path d="M4 0v12 M8 0v12 M0 4h12 M0 8h12"
+                      stroke="currentColor" strokeWidth="1.2" fill="none"/>
+              </svg>
+              grid ▾
+            </button>
+            {gridOpen && (
+              <div className="fw-pop">
+                <div className="fw-pop-section">
+                  <button onClick={() => { displayReset(); setGridOpen(false); }}>default</button>
+                </div>
+                {/* Master toggles fan out to every axis the schema
+                    has (X/Y/Z/R/θ). Per the toolbar=universal policy
+                    every row stays clickable regardless of figure
+                    kind; clicks on inapplicable axes flip the schema
+                    flag without visual effect (parity-clean). */}
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">grid</div>
+                  <DisplayToggle label="all"   active={showMajor}
+                                 onClick={() => setShowMajor((g) => !g)} />
+                  <DisplayToggle label="minor" active={showMinor}
+                                 onClick={() => setShowMinor((g) => !g)} />
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">Cartesian</div>
+                  <DisplayToggle label="X grid" active={xGrid}
+                                 onClick={() => setXGrid((g) => !g)} />
+                  <DisplayToggle label="Y grid" active={yGrid}
+                                 onClick={() => setYGrid((g) => !g)} />
+                  <DisplayToggle label="Z grid" active={zGrid}
+                                 onClick={() => setZGrid((g) => !g)} />
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">Polar</div>
+                  <DisplayToggle label="R grid" active={rGrid}
+                                 onClick={() => setRGrid((g) => !g)} />
+                  <DisplayToggle label="θ grid" active={thetaGrid}
+                                 onClick={() => setThetaGrid((g) => !g)} />
                 </div>
               </div>
             )}

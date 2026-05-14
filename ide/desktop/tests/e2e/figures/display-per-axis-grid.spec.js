@@ -1,17 +1,20 @@
-// display-per-axis-grid.spec.js — toolbar axes ▾ exposes per-axis
+// display-per-axis-grid.spec.js — toolbar grid ▾ exposes per-axis
 // grid toggles (X grid / Y grid) matching MATLAB HG2's XGrid / YGrid
-// properties. Combined "grid" row stays as a quick all-axes flip.
-// XGrid is a property of the Axes object, so it lives in the axes ▾
-// popover next to Visible / Box / XDir / XScale.
+// properties. Combined master `all` row stays as a quick all-axes
+// flip. Grid lives in its own toolbar button (split from axes ▾ so
+// each menu stays focused).
 
 import { test, expect } from '../../helpers/shared.js';
 
 async function openDisplay(page) {
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();
+  // Click the `grid ▾` toolbar button. Regex without anchors because
+  // the button textContent is `\n grid ▾\n` (whitespace wraps the
+  // inline SVG icon).
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /grid/i }).click();
   await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
 }
 
-test('axes ▾ has X grid + Y grid toggle rows', async ({ ide, page }) => {
+test('grid ▾ has X grid + Y grid toggle rows', async ({ ide, page }) => {
   await ide.runScript('import compat.*;\nplot(1:10);\n');
   await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
   await ide.figureCards.first().click();
@@ -77,8 +80,8 @@ test('combined grid toggle drives both X grid AND Y grid', async ({ ide, page })
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
   await openDisplay(page);
 
-  // Master combined-grid row was renamed `grid` → `all` after the
-  // axes ▾ grid section split into grid / Cartesian / Polar.
+  // Master combined-grid row was renamed `grid` → `all` and now
+  // lives in the dedicated `grid ▾` popover (split from axes ▾).
   const gridRow = page.locator('.fw-pop-toggle',
     { has: page.locator('span', { hasText: /^all$/ }) });
   const xRow = page.locator('.fw-pop-toggle',
