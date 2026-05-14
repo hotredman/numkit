@@ -1376,11 +1376,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                       MATLAB Position is set by the renderer. */}
                   <DisplayToggle label="title" active={showTitle}
                                  onClick={() => setShowTitle((v) => !v)} />
-                  <DisplayToggle label="xlabel" active={showXLabel}
+                  <DisplayToggle label="X label" active={showXLabel}
                                  onClick={() => setShowXLabel((v) => !v)} />
-                  <DisplayToggle label="ylabel" active={showYLabel}
+                  <DisplayToggle label="Y label" active={showYLabel}
                                  onClick={() => setShowYLabel((v) => !v)} />
-                  <DisplayToggle label="zlabel" active={showZLabel}
+                  <DisplayToggle label="Z label" active={showZLabel}
                                  onClick={() => setShowZLabel((v) => !v)} />
                 </div>
                 <div className="fw-pop-section">

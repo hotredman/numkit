@@ -950,6 +950,11 @@ export default function CompositePlot({
   // only when there's at least one series; colorbar + Location only
   // when there's a heatmap. The toolbar popovers stay universal —
   // everything always visible — but ПКМ is per-plot context.
+  //
+  // Every toggle row carries `keepOpen: true` so the user can flip
+  // several values without re-summoning the menu. One-shot rows
+  // (`default`, palette pick, Fit option, Save/Export choice, Location
+  // pick) leave keepOpen unset and close on click per OS convention.
   const tag = (active, label) => active ? `✓ ${label}` : label;
 
   const axesSubmenuItems = (setShowMajor || setShowMinor
@@ -960,32 +965,33 @@ export default function CompositePlot({
     ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
                           { separator: true }] : []),
     { head: 'visible' },
-    ...(setShowAxis ? [{ label: tag(axisVisible, 'axis'),
+    ...(setShowAxis ? [{ label: tag(axisVisible, 'axis'), keepOpen: true,
                          onClick: () => setShowAxis((v) => !v) }] : []),
     // Box is masked when axis is off — MATLAB HG2: Axes.Visible='off'
     // hides the Box regardless of Box='on'. State is preserved; row
     // stays clickable so the user can pre-set a value.
-    ...(setShowBox  ? [{ label: tag(boxOn, 'box'),
+    ...(setShowBox  ? [{ label: tag(boxOn, 'box'), keepOpen: true,
                          masked: !axisVisible,
                          maskedHint: 'Box is hidden because axis is off.',
                          onClick: () => setShowBox((v) => !v) }] : []),
     { head: 'grid' },
-    ...(setShowMajor ? [{ label: tag(major, 'grid'),
+    ...(setShowMajor ? [{ label: tag(major, 'grid'), keepOpen: true,
                           onClick: () => setShowMajor((v) => !v) }] : []),
-    ...(setXGrid     ? [{ label: tag(xGridOn, 'X grid'),
+    ...(setXGrid     ? [{ label: tag(xGridOn, 'X grid'), keepOpen: true,
                           onClick: () => setXGrid((v) => !v) }] : []),
-    ...(setYGrid     ? [{ label: tag(yGridOn, 'Y grid'),
+    ...(setYGrid     ? [{ label: tag(yGridOn, 'Y grid'), keepOpen: true,
                           onClick: () => setYGrid((v) => !v) }] : []),
-    ...(setShowMinor ? [{ label: tag(minor, 'minor'),
+    ...(setShowMinor ? [{ label: tag(minor, 'minor'), keepOpen: true,
                           onClick: () => setShowMinor((v) => !v) }] : []),
     { head: 'direction' },
-    ...(setXReverse ? [{ label: tag(xRev, 'X reverse'),
+    ...(setXReverse ? [{ label: tag(xRev, 'X reverse'), keepOpen: true,
                          onClick: () => setXReverse((v) => !v) }] : []),
-    ...(setYReverse ? [{ label: tag(yRev, 'Y reverse'),
+    ...(setYReverse ? [{ label: tag(yRev, 'Y reverse'), keepOpen: true,
                          onClick: () => setYReverse((v) => !v) }] : []),
     { head: 'scale' },
     ...(setXLogProp ? [{
       label: tag(xLog, 'X log'),
+      keepOpen: true,
       disabled: figure.xRange[1] <= 0,
       onClick: () => {
         if (!xLog && (xMin <= 0 || xMax <= 0)) {
@@ -999,6 +1005,7 @@ export default function CompositePlot({
     }] : []),
     ...(setYLogProp ? [{
       label: tag(yLog, 'Y log'),
+      keepOpen: true,
       disabled: figure.yRange[1] <= 0,
       onClick: () => {
         if (!yLog && (yMin <= 0 || yMax <= 0)) {
@@ -1051,22 +1058,28 @@ export default function CompositePlot({
   // pre-set ✓ already takes effect. The only true hard-disable left is
   // `titleAuto` (MATLAB auto-generated title from data) — that's a
   // separate semantic, not a no-text condition.
+  //
+  // Naming: per-axis rows read `X foo / Y foo / Z foo` (matches X grid
+  // / X reverse / X log uppercased + spaced).
   const labelRows = [
     ...(setShowTitle ? [{
       label: tag(showTitle, 'title'),
+      keepOpen: true,
       disabled: !!figure.titleAuto,
       masked: !figure.title && !figure.titleAuto,
       maskedHint: 'No title text — set title(...) in your script to add one.',
       onClick: () => setShowTitle((v) => !v),
     }] : []),
     ...(setShowXLabel ? [{
-      label: tag(showXLabel, 'xlabel'),
+      label: tag(showXLabel, 'X label'),
+      keepOpen: true,
       masked: !figure.xLabel,
       maskedHint: 'No xlabel text — set xlabel(...) in your script to add one.',
       onClick: () => setShowXLabel((v) => !v),
     }] : []),
     ...(setShowYLabel ? [{
-      label: tag(showYLabel, 'ylabel'),
+      label: tag(showYLabel, 'Y label'),
+      keepOpen: true,
       masked: !figure.yLabel,
       maskedHint: 'No ylabel text — set ylabel(...) in your script to add one.',
       onClick: () => setShowYLabel((v) => !v),
@@ -1075,6 +1088,7 @@ export default function CompositePlot({
   const annotationRows = [
     ...(hasSeriesLayer && setShowLegend ? [{
       label: tag(showLegend, 'legend'),
+      keepOpen: true,
       onClick: () => setShowLegend((v) => !v),
     }] : []),
     ...(hasSeriesLayer && setLegendLocation ? [{
@@ -1086,6 +1100,7 @@ export default function CompositePlot({
     }] : []),
     ...(hasHeatmap && setShowColorbar ? [{
       label: tag(showColorbar, 'colorbar'),
+      keepOpen: true,
       onClick: () => setShowColorbar((v) => !v),
     }] : []),
     ...(hasHeatmap && setColorbarLocation ? [{
