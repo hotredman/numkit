@@ -71,7 +71,7 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
 
     await openDecorationMenu(page);
-    await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'xlabel' }) }).click();
+    await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'X label' }) }).click();
 
     await expect(page.locator('.fw-window svg text', { hasText: 'the x' })).toHaveCount(0);
     await expect(page.locator('.fw-window svg text', { hasText: 'the y' })).toBeVisible();
@@ -123,7 +123,7 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await page.waitForTimeout(50);
 
     await openDecorationMenu(page);
-    const zlabel = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'zlabel' }) });
+    const zlabel = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'Z label' }) });
     await expect(zlabel).toBeEnabled();
   });
 
@@ -135,7 +135,7 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
     await openDecorationMenu(page);
     const xlabelToggle = page.locator('.fw-pop-toggle',
-      { has: page.locator('span', { hasText: 'xlabel' }) });
+      { has: page.locator('span', { hasText: 'X label' }) });
     expect((await xlabelToggle.locator('.fw-pop-check').textContent()).trim()).toBe('');
   });
 
@@ -146,7 +146,7 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
     await openDecorationMenu(page);
     const xlabelToggle = page.locator('.fw-pop-toggle',
-      { has: page.locator('span', { hasText: 'xlabel' }) });
+      { has: page.locator('span', { hasText: 'X label' }) });
     expect((await xlabelToggle.locator('.fw-pop-check').textContent()).trim()).toBe('✓');
   });
 
@@ -192,7 +192,7 @@ test.describe('display ▾ menu — toggle visibility', () => {
 
     await openDecorationMenu(page);
     const titleBtn = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'title' }) });
-    const xlabelBtn = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'xlabel' }) });
+    const xlabelBtn = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'X label' }) });
     await expect(titleBtn).toBeEnabled();
     await expect(xlabelBtn).toBeEnabled();
   });

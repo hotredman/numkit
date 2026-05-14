@@ -16,6 +16,7 @@
  * edge / bottom edge — useful when ПКМ lands near the modal corner.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 /** Render a single submenu trigger. The submenu uses position:fixed
  *  with coords from the trigger's bounding rect so it pops over any
@@ -84,6 +85,12 @@ function MenuItems({ items, onClose }) {
     // no-op because another setting masks it" (e.g. `box` while
     // `axis=off`). Distinct from `disabled`: the button stays clickable
     // so the user can pre-set a value that applies once the mask lifts.
+    //
+    // `keepOpen` = don't dismiss the menu after the action. Used for
+    // toggle rows where the user typically flips several values in a
+    // row (axis / box / grid / labels / …). One-shot actions (Reset,
+    // palette pick, Fit option, Save/Export choice, Location pick)
+    // leave keepOpen unset and the menu closes per OS convention.
     return (
       <button key={i}
         className={`ctx-item${it.masked ? ' is-masked' : ''}`}
@@ -92,7 +99,7 @@ function MenuItems({ items, onClose }) {
         onClick={(e) => {
           e.stopPropagation();
           it.onClick?.();
-          onClose();
+          if (!it.keepOpen) onClose();
         }}
       >
         {it.label}
@@ -140,13 +147,23 @@ export default function ContextMenu({ x, y, items, onClose }) {
     };
   }, [onClose]);
 
-  return (
+  // Portal to document.body so the menu's DOM tree is NOT a child of
+  // the figure cell that invoked it. Two wins:
+  //   1. Tests using `.fw-canvas-wrap svg` to query the cell plot don't
+  //      pick up the icon <svg>s rendered inside ctx-menu rows.
+  //   2. Toggle rows with `keepOpen: true` (axes/decoration toggles)
+  //      can leave the menu open without trapping DOM queries scoped
+  //      to the canvas wrapper.
+  // Visually nothing changes — the menu is already `position: fixed`
+  // with viewport-coord positioning.
+  return createPortal(
     <div ref={ref} className="ctx-menu"
       style={{ position: 'fixed', left: pos.x, top: pos.y, zIndex: 2000 }}
       onContextMenu={(e) => e.preventDefault()}
     >
       <MenuItems items={items} onClose={onClose} />
-    </div>
+    </div>,
+    document.body
   );
 }
 
