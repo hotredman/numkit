@@ -643,6 +643,73 @@ input, select { font-family: inherit; color: inherit; }
    class used on .ctx-item for ПКМ rows in the same situation. */
 .fw-pop-toggle.is-masked,
 .ctx-item.is-masked { opacity: 0.55; }
+/* Grid ▾ matrix layout — one row per axis, two state-button columns
+   (major / minor). Replaces the 2-row-per-axis split (Cartesian: X /
+   Cartesian minor: X) so adding the minor family doesn't double the
+   popover height. The label column stretches; both button columns are
+   fixed-width for consistent visual rhythm across rows. */
+.fw-pop-matrix .fw-pop-mrow {
+  display: grid !important;
+  grid-template-columns: 1fr 30px 30px;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+}
+.fw-pop-matrix .fw-pop-mrow-label {
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-1);
+}
+.fw-pop-matrix .fw-pop-mrow-head {
+  font-family: var(--font-mono); font-size: 9.5px;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--fg-3);
+  padding-top: 2px; padding-bottom: 2px;
+  text-align: center;
+}
+.fw-pop-matrix .fw-pop-mrow-head > span:not(.fw-pop-mrow-label) {
+  text-align: center;
+}
+.fw-pop-mbtn {
+  background: var(--bg-2);
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  color: var(--fg-1);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+  padding: 1px 0 !important;
+  height: 18px;
+  cursor: pointer;
+  text-align: center;
+}
+.fw-pop-mbtn:hover {
+  background: var(--bg-3);
+  border-color: var(--line);
+}
+.fw-pop-mbtn.is-active {
+  background: var(--accent);
+  color: var(--bg-1);
+  border-color: var(--accent);
+}
+/* ПКМ Grid ▶ matrix mirror — column-header row in a context-menu
+   row layout. ctx-row already lays out [name | btns]; rowHead
+   reuses that with span colhead boxes the same width as buttons. */
+.ctx-row-head {
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+.ctx-row-colhead {
+  font-family: var(--font-mono); font-size: 9.5px;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--fg-3);
+  width: 28px;
+  text-align: center;
+}
+/* Pressed-state styling for ctx-row buttons used as toggle matrices
+   (grid maj/min). Same `is-active` paint as fw-pop-mbtn so toolbar
+   and ПКМ stay visually consistent. */
+.ctx-row-btn.is-active {
+  background: var(--accent);
+  color: var(--bg-1);
+  border-color: var(--accent);
+}
 .fw-pop-row {
   display: flex; align-items: center; gap: 4px;
   padding: 2px 4px;

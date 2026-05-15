@@ -100,10 +100,14 @@ test.describe('display ▾ menu — toggle visibility', () => {
     expect(beforeCount).toBeGreaterThan(0);
 
     // Grid lives in its own toolbar button now (split from axes ▾).
-    // Combined master row reads `all` after the grid / Cartesian /
-    // Polar sub-section split.
+    // After the matrix-layout refactor the combined master row is a
+    // `.fw-pop-mrow` with label `all` carrying TWO state buttons:
+    // [0] master major, [1] master minor. Click the major button to
+    // flip the figure-wide major-grid bit off.
     await openGridMenu(page);
-    await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: /^all$/ }) }).click();
+    await page.locator('.fw-pop-matrix .fw-pop-mrow', {
+      has: page.locator('.fw-pop-mrow-label', { hasText: /^all$/ }),
+    }).locator('.fw-pop-mbtn').nth(0).click();
     await page.waitForTimeout(100);
 
     const afterCount = await page.locator('.fw-window svg line[stroke*="--plot-grid"]').count();
@@ -181,7 +185,10 @@ test.describe('display ▾ menu — toggle visibility', () => {
                                   [openGridMenu, /grid/i],
                                   [openDecorationMenu, /decoration/i]]) {
       await open(page);
-      const buttons = await page.locator('.fw-pop .fw-pop-toggle').all();
+      // Match BOTH toggle shapes — `.fw-pop-toggle` (axes ▾, decoration ▾)
+      // and `.fw-pop-mbtn` (grid ▾ matrix layout, two state buttons per
+      // axis row). Both kinds must be clickable per toolbar=universal.
+      const buttons = await page.locator('.fw-pop .fw-pop-toggle, .fw-pop .fw-pop-mbtn').all();
       expect(buttons.length).toBeGreaterThan(0);
       for (const btn of buttons) {
         await expect(btn).toBeEnabled();

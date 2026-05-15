@@ -44,7 +44,11 @@ test('ПКМ grid toggle in cell A does not enable grid in cell B', async ({ ide
   await rightClickCellSvg(page, 0);
   await page.locator('.ctx-sub-trigger', { hasText: /Grid/ }).hover();
   await page.waitForTimeout(60);
-  await page.locator('.ctx-submenu button', { hasText: /^(✓ )?all$/ }).click();
+  // After the matrix-layout refactor: ПКМ Grid ▶ `all` row carries
+  // two state buttons (major/minor). Click the major button (col 0).
+  await page.locator('.ctx-submenu .ctx-row', {
+    has: page.locator('.ctx-name', { hasText: /^all$/ }),
+  }).locator('.ctx-row-btn').nth(0).click();
   await page.waitForTimeout(120);
 
   // After: cell A has grid lines, cell B still has none.
@@ -71,7 +75,11 @@ test('ПКМ Reset on cell A resets ONLY cell A (not siblings)', async ({ ide, p
     await rightClickCellSvg(page, idx);
     await page.locator('.ctx-sub-trigger', { hasText: /Grid/ }).hover();
     await page.waitForTimeout(60);
-    await page.locator('.ctx-submenu button', { hasText: /^(✓ )?all$/ }).click();
+    // After the matrix-layout refactor: ПКМ Grid ▶ `all` row carries
+  // two state buttons (major/minor). Click the major button (col 0).
+  await page.locator('.ctx-submenu .ctx-row', {
+    has: page.locator('.ctx-name', { hasText: /^all$/ }),
+  }).locator('.ctx-row-btn').nth(0).click();
     await page.waitForTimeout(80);
   }
   expect(await gridLineCount(page, 0)).toBeGreaterThan(0);
@@ -150,7 +158,11 @@ test('toolbar Reset clears per-cell overrides', async ({ ide, page }) => {
   await rightClickCellSvg(page, 0);
   await page.locator('.ctx-sub-trigger', { hasText: /Grid/ }).hover();
   await page.waitForTimeout(60);
-  await page.locator('.ctx-submenu button', { hasText: /^(✓ )?all$/ }).click();
+  // After the matrix-layout refactor: ПКМ Grid ▶ `all` row carries
+  // two state buttons (major/minor). Click the major button (col 0).
+  await page.locator('.ctx-submenu .ctx-row', {
+    has: page.locator('.ctx-name', { hasText: /^all$/ }),
+  }).locator('.ctx-row-btn').nth(0).click();
   await page.waitForTimeout(120);
   expect(await gridLineCount(page, 0)).toBeGreaterThan(0);
 
