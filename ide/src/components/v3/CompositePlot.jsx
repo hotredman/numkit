@@ -937,9 +937,19 @@ export default function CompositePlot({
   // pick) leave keepOpen unset and close on click per OS convention.
   const tag = (active, label) => active ? `✓ ${label}` : label;
 
-  const axesSubmenuItems = (setShowMajor || setShowMinor
-      || setXGrid || setYGrid
-      || setShowAxis || setShowBox
+  // Naming convention across all menus (toolbar + ПКМ):
+  //   • Section head names the ACTIVE state of the toggle group
+  //     (`reverse`, `log scale`) — or the group identity (`grid`,
+  //     `visible`).
+  //   • Row label is the axis name only — `fit` / `grid on` /
+  //     `reverse` / `log scale` are implied by the menu + head
+  //     chain. ПКМ is specialised cartesian-only (CompositePlot),
+  //     so just X/Y here.
+  // Two ПКМ submenus: Axes ▶ (Axes-object props minus grid) and
+  // Grid ▶ (split out, mirrors the toolbar grid ▾ button). Same
+  // split rationale: grid surface is busy enough to deserve its own
+  // group.
+  const axesSubmenuItems = (setShowAxis || setShowBox
       || setXReverse || setYReverse
       || setXLog || setYLog) ? [
     ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
@@ -954,23 +964,6 @@ export default function CompositePlot({
                          masked: !axisVisible,
                          maskedHint: 'Box is hidden because axis is off.',
                          onClick: () => setShowBox((v) => !v) }] : []),
-    // Naming convention across all menus (toolbar + ПКМ):
-    //   • Section head names the ACTIVE state of the toggle group
-    //     (`reverse`, `log scale`) — or the group identity (`grid`,
-    //     `visible`).
-    //   • Row label is the axis name only — `fit` / `grid on` /
-    //     `reverse` / `log scale` are implied by the menu + head
-    //     chain. ПКМ is specialised cartesian-only (CompositePlot),
-    //     so just X/Y here.
-    { head: 'grid' },
-    ...(setShowMajor ? [{ label: tag(major, 'all'), keepOpen: true,
-                          onClick: () => setShowMajor((v) => !v) }] : []),
-    ...(setXGrid     ? [{ label: tag(xGridOn, 'X'), keepOpen: true,
-                          onClick: () => setXGrid((v) => !v) }] : []),
-    ...(setYGrid     ? [{ label: tag(yGridOn, 'Y'), keepOpen: true,
-                          onClick: () => setYGrid((v) => !v) }] : []),
-    ...(setShowMinor ? [{ label: tag(minor, 'minor'), keepOpen: true,
-                          onClick: () => setShowMinor((v) => !v) }] : []),
     { head: 'reverse' },
     ...(setXReverse ? [{ label: tag(xRev, 'X'), keepOpen: true,
                          onClick: () => setXReverse((v) => !v) }] : []),
@@ -1005,6 +998,26 @@ export default function CompositePlot({
         setYLog((v) => !v);
       },
     }] : []),
+  ] : null;
+
+  // Grid ▶ — mirrors the toolbar grid ▾ button, specialised for
+  // CompositePlot (cartesian-only). Two sub-sections: master
+  // (all/minor) + Cartesian per-axis. Polar omitted — PolarPlot has
+  // its own ПКМ Grid ▶.
+  const gridSubmenuItems = (setShowMajor || setShowMinor
+      || setXGrid || setYGrid) ? [
+    ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
+                          { separator: true }] : []),
+    { head: 'grid' },
+    ...(setShowMajor ? [{ label: tag(major, 'all'), keepOpen: true,
+                          onClick: () => setShowMajor((v) => !v) }] : []),
+    ...(setShowMinor ? [{ label: tag(minor, 'minor'), keepOpen: true,
+                          onClick: () => setShowMinor((v) => !v) }] : []),
+    { head: 'Cartesian' },
+    ...(setXGrid     ? [{ label: tag(xGridOn, 'X'), keepOpen: true,
+                          onClick: () => setXGrid((v) => !v) }] : []),
+    ...(setYGrid     ? [{ label: tag(yGridOn, 'Y'), keepOpen: true,
+                          onClick: () => setYGrid((v) => !v) }] : []),
   ] : null;
 
   // Location options shared by legend / colorbar Location submenus.
@@ -1167,12 +1180,13 @@ export default function CompositePlot({
     : null;
 
   const ctxItems = [
-    // Order: Reset · Save · Axes · Decoration · Colormap · Fit Series · Fit All.
+    // Order: Reset · Save · Axes · Grid · Decoration · Colormap · Fit Series · Fit All.
     // Axes ▶ / Decoration ▶ mirror the toolbar's axes ▾ / decoration ▾
     // split (HG2 object vs. children).
     { label: <span>{houseIcon}Reset</span>, onClick: onReset },
     { submenu: 'Save / Export', items: exportItems },
     ...(axesSubmenuItems ? [{ submenu: 'Axes', items: axesSubmenuItems }] : []),
+    ...(gridSubmenuItems ? [{ submenu: 'Grid', items: gridSubmenuItems }] : []),
     ...(decorationSubmenuItems ? [{ submenu: 'Decoration', items: decorationSubmenuItems }] : []),
     ...(colormapSubmenuItems ? [{ submenu: 'Colormap', items: colormapSubmenuItems }] : []),
     ...(seriesSubmenuItems ? [{

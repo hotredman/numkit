@@ -124,7 +124,7 @@ test('decoration ▾ `default` re-syncs to script values', async ({ ide, page })
   await expect(page.locator('.fw-window svg text', { hasText: 'h' })).toBeVisible();
 });
 
-test('ПКМ order: Reset · Save · Axes · Decoration · Fit', async ({ ide, page }) => {
+test('ПКМ order: Reset · Save · Axes · Grid · Decoration · Fit', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
     + 'plot(1:10);\n'
@@ -143,16 +143,19 @@ test('ПКМ order: Reset · Save · Axes · Decoration · Fit', async ({ ide, p
     .locator(':scope > .ctx-item, :scope > .ctx-sub-wrap > .ctx-sub-trigger, :scope > .ctx-head, :scope > .ctx-sep')
     .evaluateAll((els) => els.map((el) => el.textContent.trim()));
 
-  // Display ▶ has split into Axes ▶ + Decoration ▶ (mirrors toolbar).
+  // Display ▶ split into Axes ▶ + Decoration ▶, then Grid ▶ extracted
+  // out of Axes ▶ — mirrors the toolbar's axes ▾ + grid ▾ split.
   const idxReset      = labels.findIndex((s) => /^Reset$/i.test(s));
   const idxSave       = labels.findIndex((s) => /Save \/ Export/.test(s));
   const idxAxes       = labels.findIndex((s) => /Axes/.test(s));
+  const idxGrid       = labels.findIndex((s) => /Grid/.test(s));
   const idxDecoration = labels.findIndex((s) => /Decoration/.test(s));
   const idxFit        = labels.findIndex((s) => /^Fit /.test(s));
   expect(idxReset, `labels: ${labels.join(' | ')}`).toBeGreaterThanOrEqual(0);
   expect(idxSave).toBeGreaterThan(idxReset);
   expect(idxAxes).toBeGreaterThan(idxSave);
-  expect(idxDecoration).toBeGreaterThan(idxAxes);
+  expect(idxGrid).toBeGreaterThan(idxAxes);
+  expect(idxDecoration).toBeGreaterThan(idxGrid);
   expect(idxFit).toBeGreaterThan(idxDecoration);
 });
 
@@ -174,7 +177,7 @@ test('ПКМ Reset row uses SVG house icon, not emoji', async ({ ide, page }) =>
   expect(text).not.toContain('🏠');
 });
 
-test('ПКМ Axes ▶ has visible/grid/reverse/log scale heads; Decoration ▶ has labels/annotations heads + legend', async ({ ide, page }) => {
+test('ПКМ Axes ▶ / Grid ▶ / Decoration ▶ each have the right section heads', async ({ ide, page }) => {
   await ide.runScript(
     'import compat.*;\n'
     + 'plot(1:10);\n'
@@ -188,13 +191,18 @@ test('ПКМ Axes ▶ has visible/grid/reverse/log scale heads; Decoration ▶ h
 
   await rightClickPlot(page);
 
-  // Axes ▶ — section heads describe ACTIVE state of each toggle
-  // group: `visible` (axis on/off), `grid` (per-axis grid), `reverse`
-  // (XDir/YDir reversed), `log scale` (XScale/YScale = log).
+  // Axes ▶ — Axes-object props minus grid (grid lives in Grid ▶ now).
+  // Heads name the active state of the toggle group.
   await page.locator('.ctx-sub-trigger', { hasText: /Axes/ }).hover();
   await page.waitForTimeout(80);
   const axesHeads = await page.locator('.ctx-submenu .ctx-head').allTextContents();
-  expect(axesHeads).toEqual(['visible', 'grid', 'reverse', 'log scale']);
+  expect(axesHeads).toEqual(['visible', 'reverse', 'log scale']);
+
+  // Grid ▶ — master + Cartesian (CompositePlot specialised).
+  await page.locator('.ctx-sub-trigger', { hasText: /Grid/ }).hover();
+  await page.waitForTimeout(80);
+  const gridHeads = await page.locator('.ctx-submenu .ctx-head').allTextContents();
+  expect(gridHeads).toEqual(['grid', 'Cartesian']);
 
   // Decoration ▶ — switching subs via hover (mouseleave on Axes
   // closes its sub; mouseenter on Decoration opens its sub). No need
