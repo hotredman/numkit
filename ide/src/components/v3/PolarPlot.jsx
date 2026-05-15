@@ -310,18 +310,25 @@ export default function PolarPlot({
       onClick: () => exportPngForPrint(svgRef.current, width, height, 210, 300, `figure_${figure.id}`) },
   ];
 
-  const axesItems = (setShowMajor || setShowMinor || setRGrid || setThetaGrid) ? [
+  // Grid ▶ — mirrors CompositePlot's grid ПКМ split. PolarPlot is
+  // polar-only (no cartesian X/Y), so the second sub-section is
+  // Polar instead of Cartesian. Master row + minor stay under
+  // `grid:`; per-axis rows live under their coord-system head.
+  // Axes ▶ entirely omitted — without grid the polar axes have no
+  // toggleable surface in PolarPlot today.
+  const gridItems = (setShowMajor || setShowMinor || setRGrid || setThetaGrid) ? [
     ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
                           { separator: true }] : []),
     { head: 'grid' },
     ...(setShowMajor ? [{ label: tag(major, 'all'), keepOpen: true,
                           onClick: () => setShowMajor((v) => !v) }] : []),
+    ...(setShowMinor ? [{ label: tag(minor, 'minor'), keepOpen: true,
+                          onClick: () => setShowMinor((v) => !v) }] : []),
+    { head: 'Polar' },
     ...(setRGrid     ? [{ label: tag(rGridOn, 'R'), keepOpen: true,
                           onClick: () => setRGrid((v) => !v) }] : []),
     ...(setThetaGrid ? [{ label: tag(thetaGridOn, 'θ'), keepOpen: true,
                           onClick: () => setThetaGrid((v) => !v) }] : []),
-    ...(setShowMinor ? [{ label: tag(minor, 'minor'), keepOpen: true,
-                          onClick: () => setShowMinor((v) => !v) }] : []),
   ] : null;
 
   // Top-level Reset: prefer parent-supplied `onResetAll` (full
@@ -332,7 +339,7 @@ export default function PolarPlot({
   const ctxItems = [
     { label: <span>{houseIcon}Reset</span>, onClick: onReset },
     { submenu: 'Save / Export', items: exportItems },
-    ...(axesItems ? [{ submenu: 'Axes', items: axesItems }] : []),
+    ...(gridItems ? [{ submenu: 'Grid', items: gridItems }] : []),
     { separator: true },
     // ПКМ Fit — specialised to polar. Single-letter row labels;
     // `fit` implied by the section head.

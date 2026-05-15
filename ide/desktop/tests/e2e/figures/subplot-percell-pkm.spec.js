@@ -38,10 +38,11 @@ test('ПКМ grid toggle in cell A does not enable grid in cell B', async ({ ide
   expect(beforeA).toBe(0);
   expect(beforeB).toBe(0);
 
-  // Right-click cell A (index 0), open Axes ▶ submenu, click 'grid'.
-  // (grid is an XGrid/YGrid Axes property → lives in Axes ▶.)
+  // Right-click cell A (index 0), open Grid ▶ submenu, click `all`.
+  // Grid was extracted from Axes ▶ into its own ПКМ submenu —
+  // mirrors the toolbar's grid ▾ split.
   await rightClickCellSvg(page, 0);
-  await page.locator('.ctx-sub-trigger', { hasText: /Axes/ }).hover();
+  await page.locator('.ctx-sub-trigger', { hasText: /Grid/ }).hover();
   await page.waitForTimeout(60);
   await page.locator('.ctx-submenu button', { hasText: /^(✓ )?all$/ }).click();
   await page.waitForTimeout(120);
@@ -68,7 +69,7 @@ test('ПКМ Reset on cell A resets ONLY cell A (not siblings)', async ({ ide, p
   // Toggle grid on BOTH cells via ПКМ.
   for (const idx of [0, 1]) {
     await rightClickCellSvg(page, idx);
-    await page.locator('.ctx-sub-trigger', { hasText: /Axes/ }).hover();
+    await page.locator('.ctx-sub-trigger', { hasText: /Grid/ }).hover();
     await page.waitForTimeout(60);
     await page.locator('.ctx-submenu button', { hasText: /^(✓ )?all$/ }).click();
     await page.waitForTimeout(80);
@@ -147,7 +148,7 @@ test('toolbar Reset clears per-cell overrides', async ({ ide, page }) => {
 
   // Toggle grid on for cell A only.
   await rightClickCellSvg(page, 0);
-  await page.locator('.ctx-sub-trigger', { hasText: /Axes/ }).hover();
+  await page.locator('.ctx-sub-trigger', { hasText: /Grid/ }).hover();
   await page.waitForTimeout(60);
   await page.locator('.ctx-submenu button', { hasText: /^(✓ )?all$/ }).click();
   await page.waitForTimeout(120);
