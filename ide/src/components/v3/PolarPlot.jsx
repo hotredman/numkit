@@ -86,13 +86,20 @@ export default function PolarPlot({
   // so preview cards and standalone callers keep current behaviour.
   rGrid: rGridProp,
   thetaGrid: thetaGridProp,
-  // ПКМ Axes ▶ setters — when provided (modal context), the right-
-  // click menu surfaces a polar-specialised Axes submenu mirroring
+  // Per-axis polar MINOR-grid props (MATLAB RMinorGrid / ThetaMinorGrid).
+  // Same per-axis-prop-wins rule as the major pair above; absent →
+  // fall back to the combined `minor` flag.
+  rMinor: rMinorProp,
+  thetaMinor: thetaMinorProp,
+  // ПКМ Grid ▶ setters — when provided (modal context), the right-
+  // click menu surfaces a polar-specialised Grid submenu mirroring
   // the toolbar grid ▾ Polar section. Absent → submenu omitted.
   setShowMajor = null,
   setShowMinor = null,
   setRGrid     = null,
   setThetaGrid = null,
+  setRMinor     = null,
+  setThetaMinor = null,
   // Top-level Reset + figure-wide displayReset (matches CompositePlot's
   // ПКМ bridge). FigureWindow wires `resetAll` / `displayReset`.
   onResetAll     = null,
@@ -103,6 +110,8 @@ export default function PolarPlot({
   // Resolve per-axis grid: per-axis prop wins, otherwise combined.
   const rGridOn     = (rGridProp     !== undefined) ? !!rGridProp     : !!major;
   const thetaGridOn = (thetaGridProp !== undefined) ? !!thetaGridProp : !!major;
+  const rMinorOn     = (rMinorProp     !== undefined) ? !!rMinorProp     : !!minor;
+  const thetaMinorOn = (thetaMinorProp !== undefined) ? !!thetaMinorProp : !!minor;
   const svgRef  = useRef(null);
   const dragRef = useRef(null);
   const [ctxMenu, setCtxMenu] = useState(null);
@@ -272,10 +281,6 @@ export default function PolarPlot({
   }
   const multiSeries = Array.isArray(figure.series) && figure.series.length > 1;
 
-  // ✓-prefix helper — same `tag(active, label)` pattern CompositePlot
-  // uses so PolarPlot's ПКМ toggle rows render checkmarks identically.
-  const tag = (active, label) => active ? `✓ ${label}` : label;
-
   // House icon — same path used by the standalone toolbar Reset button
   // and CompositePlot's ПКМ Reset row. Inlined here so PolarPlot's ПКМ
   // top row matches the rest of the IDE.
@@ -310,25 +315,32 @@ export default function PolarPlot({
       onClick: () => exportPngForPrint(svgRef.current, width, height, 210, 300, `figure_${figure.id}`) },
   ];
 
-  // Grid ▶ — mirrors CompositePlot's grid ПКМ split. PolarPlot is
-  // polar-only (no cartesian X/Y), so the second sub-section is
-  // Polar instead of Cartesian. Master row + minor stay under
-  // `grid:`; per-axis rows live under their coord-system head.
-  // Axes ▶ entirely omitted — without grid the polar axes have no
-  // toggleable surface in PolarPlot today.
+  // Grid ▶ — mirrors CompositePlot's grid ПКМ split, polar-specialised.
+  // Matrix layout: each axis row carries TWO buttons (major / minor).
+  // Replaces the 2-row-per-axis split (`R` / `R minor`) with a single
+  // row whose two buttons toggle the major / minor bit independently.
+  const gridMatrixRow = (label, major, minor, setMajor, setMinor) => ({
+    row: true, name: label,
+    buttons: [
+      { label: major ? '✓' : '·', active: !!major, keepOpen: true,
+        title: 'major grid',
+        onClick: setMajor ? () => setMajor((v) => !v) : null,
+        disabled: !setMajor },
+      { label: minor ? '✓' : '·', active: !!minor, keepOpen: true,
+        title: 'minor grid',
+        onClick: setMinor ? () => setMinor((v) => !v) : null,
+        disabled: !setMinor },
+    ],
+  });
   const gridItems = (setShowMajor || setShowMinor || setRGrid || setThetaGrid) ? [
     ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
                           { separator: true }] : []),
     { head: 'grid' },
-    ...(setShowMajor ? [{ label: tag(major, 'all'), keepOpen: true,
-                          onClick: () => setShowMajor((v) => !v) }] : []),
-    ...(setShowMinor ? [{ label: tag(minor, 'minor'), keepOpen: true,
-                          onClick: () => setShowMinor((v) => !v) }] : []),
+    { rowHead: true, columns: ['maj', 'min'] },
+    gridMatrixRow('all', major, minor, setShowMajor, setShowMinor),
     { head: 'Polar' },
-    ...(setRGrid     ? [{ label: tag(rGridOn, 'R'), keepOpen: true,
-                          onClick: () => setRGrid((v) => !v) }] : []),
-    ...(setThetaGrid ? [{ label: tag(thetaGridOn, 'θ'), keepOpen: true,
-                          onClick: () => setThetaGrid((v) => !v) }] : []),
+    gridMatrixRow('R', rGridOn, rMinorOn, setRGrid, setRMinor),
+    gridMatrixRow('θ', thetaGridOn, thetaMinorOn, setThetaGrid, setThetaMinor),
   ] : null;
 
   // Top-level Reset: prefer parent-supplied `onResetAll` (full
@@ -409,9 +421,11 @@ export default function PolarPlot({
       )}
 
       <g transform={`translate(${cx}, ${cy})`}>
-        {/* Minor rings: faint, no labels. Gated on RGrid AND combined
-            minor flag — `RMinorGrid` is degenerate without RGrid. */}
-        {rGridOn && minor && rTicksMinor.map((rho, i) => {
+        {/* Minor rings: faint, no labels. Gated on RGrid AND
+            RMinorGrid (per-axis when wired, else falls back to the
+            combined `minor` flag) — `RMinorGrid` is degenerate
+            without RGrid. */}
+        {rGridOn && rMinorOn && rTicksMinor.map((rho, i) => {
           const r = rScale(rho);
           if (r <= 0 || r > radius + 0.5) return null;
           return (
@@ -420,8 +434,9 @@ export default function PolarPlot({
           );
         })}
         {/* Minor spokes — every 15°, between the 30° majors. Gated on
-            ThetaGrid AND minor (same rule as minor rings). */}
-        {thetaGridOn && minor && Array.from({ length: 12 }, (_, k) => k * 30 + 15).map((deg) => {
+            ThetaGrid AND ThetaMinorGrid (same per-axis-prop-wins rule
+            as minor rings). */}
+        {thetaGridOn && thetaMinorOn && Array.from({ length: 12 }, (_, k) => k * 30 + 15).map((deg) => {
           const a = zero + dirSign * (deg * Math.PI / 180);
           const x = Math.cos(a) * radius;
           const y = -Math.sin(a) * radius;

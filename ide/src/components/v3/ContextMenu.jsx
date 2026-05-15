@@ -6,6 +6,21 @@
  *   { separator: true }                          — divider line
  *   { head: 'Section' }                          — section heading
  *   { row: true, name, color, buttons: [...] }   — series row (name + 3 buttons)
+ *                                                  buttons may carry
+ *                                                  { active, keepOpen, disabled }
+ *                                                  flags. `active` adds the
+ *                                                  is-active class (✓ pressed
+ *                                                  styling); `keepOpen` skips
+ *                                                  the auto-close on click —
+ *                                                  used for toggle matrices
+ *                                                  (e.g. grid X/Y maj+min).
+ *   { rowHead: true, name, columns: ['maj', 'min'] } — column-header row
+ *                                                  for matrix layouts.
+ *                                                  Renders `name` in the
+ *                                                  label column (usually
+ *                                                  empty) and `columns[]`
+ *                                                  as plain spans aligned
+ *                                                  with the row buttons.
  *   { submenu: 'Label', items: [...] }           — nested submenu
  *
  * Nested submenus open to the side on hover; the parent closes when the
@@ -64,6 +79,16 @@ function MenuItems({ items, onClose }) {
     if (it.submenu) {
       return <SubmenuItem key={i} item={it} onClose={onClose} />;
     }
+    if (it.rowHead) {
+      return (
+        <div key={i} className="ctx-row ctx-row-head">
+          <span className="ctx-name">{it.name || ''}</span>
+          {(it.columns || []).map((c, j) => (
+            <span key={j} className="ctx-row-colhead">{c}</span>
+          ))}
+        </div>
+      );
+    }
     if (it.row) {
       return (
         <div key={i} className="ctx-row">
@@ -72,8 +97,15 @@ function MenuItems({ items, onClose }) {
             <span>{it.name}</span>
           </span>
           {it.buttons.map((b, j) => (
-            <button key={j} className="ctx-row-btn" disabled={!!b.disabled}
-              onClick={(e) => { e.stopPropagation(); b.onClick?.(); onClose(); }}
+            <button key={j}
+              className={`ctx-row-btn${b.active ? ' is-active' : ''}`}
+              disabled={!!b.disabled}
+              title={b.title || ''}
+              onClick={(e) => {
+                e.stopPropagation();
+                b.onClick?.();
+                if (!b.keepOpen) onClose();
+              }}
             >
               {b.label}
             </button>

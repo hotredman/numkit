@@ -16,6 +16,7 @@
  *     XGrid, YGrid, ZGrid: 'on'|'off'
  *     RGrid, ThetaGrid:    'on'|'off'  (polar)
  *     XMinorGrid, YMinorGrid, ZMinorGrid: 'on'|'off'
+ *     RMinorGrid, ThetaMinorGrid: 'on'|'off' (polar)
  *
  *     // Per-axis scale + direction
  *     XScale, YScale, ZScale: 'linear'|'log'
@@ -158,9 +159,11 @@ export function initAxesFromCell(cell) {
     ZGrid:      onOff(cell.grid === 'on' && cell.kind === 'composite3d'),
     RGrid:      onOff(cell.grid === 'on' && cell.kind === 'polar'),
     ThetaGrid:  onOff(cell.grid === 'on' && cell.kind === 'polar'),
-    XMinorGrid: onOff(cell.gridMinor === 'on'),
-    YMinorGrid: onOff(cell.gridMinor === 'on'),
-    ZMinorGrid: onOff(cell.gridMinor === 'on' && cell.kind === 'composite3d'),
+    XMinorGrid:     onOff(cell.gridMinor === 'on'),
+    YMinorGrid:     onOff(cell.gridMinor === 'on'),
+    ZMinorGrid:     onOff(cell.gridMinor === 'on' && cell.kind === 'composite3d'),
+    RMinorGrid:     onOff(cell.gridMinor === 'on' && cell.kind === 'polar'),
+    ThetaMinorGrid: onOff(cell.gridMinor === 'on' && cell.kind === 'polar'),
 
     // Scale & direction
     XScale: cell.xscale === 'log' ? 'log' : 'linear',
@@ -225,6 +228,7 @@ export const EMPTY_AXES = Object.freeze({
   XGrid: 'off', YGrid: 'off', ZGrid: 'off',
   RGrid: 'off', ThetaGrid: 'off',
   XMinorGrid: 'off', YMinorGrid: 'off', ZMinorGrid: 'off',
+  RMinorGrid: 'off', ThetaMinorGrid: 'off',
   XScale: 'linear', YScale: 'linear', ZScale: 'linear',
   XDir: 'normal', YDir: 'normal', ZDir: 'normal',
   XLim: [-1, 1], YLim: [-1, 1], ZLim: null,

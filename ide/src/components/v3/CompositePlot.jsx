@@ -169,6 +169,8 @@ export default function CompositePlot({
   setShowMinor  = null,
   setXGrid      = null,
   setYGrid      = null,
+  setXMinor     = null,
+  setYMinor     = null,
   setShowAxis   = null,
   setShowBox    = null,
   setXReverse   = null,
@@ -1001,23 +1003,33 @@ export default function CompositePlot({
   ] : null;
 
   // Grid ▶ — mirrors the toolbar grid ▾ button, specialised for
-  // CompositePlot (cartesian-only). Two sub-sections: master
-  // (all/minor) + Cartesian per-axis. Polar omitted — PolarPlot has
-  // its own ПКМ Grid ▶.
+  // CompositePlot (cartesian-only). Matrix layout: each axis row
+  // carries TWO buttons (major / minor). The maj/min header row
+  // labels the columns once; per-row buttons stay compact. Polar
+  // omitted — PolarPlot has its own ПКМ Grid ▶.
+  const gridMatrixRow = (label, major, minor, setMajor, setMinor) => ({
+    row: true, name: label,
+    buttons: [
+      { label: major ? '✓' : '·', active: !!major, keepOpen: true,
+        title: 'major grid',
+        onClick: setMajor ? () => setMajor((v) => !v) : null,
+        disabled: !setMajor },
+      { label: minor ? '✓' : '·', active: !!minor, keepOpen: true,
+        title: 'minor grid',
+        onClick: setMinor ? () => setMinor((v) => !v) : null,
+        disabled: !setMinor },
+    ],
+  });
   const gridSubmenuItems = (setShowMajor || setShowMinor
       || setXGrid || setYGrid) ? [
     ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
                           { separator: true }] : []),
     { head: 'grid' },
-    ...(setShowMajor ? [{ label: tag(major, 'all'), keepOpen: true,
-                          onClick: () => setShowMajor((v) => !v) }] : []),
-    ...(setShowMinor ? [{ label: tag(minor, 'minor'), keepOpen: true,
-                          onClick: () => setShowMinor((v) => !v) }] : []),
+    { rowHead: true, columns: ['maj', 'min'] },
+    gridMatrixRow('all', major, minor, setShowMajor, setShowMinor),
     { head: 'Cartesian' },
-    ...(setXGrid     ? [{ label: tag(xGridOn, 'X'), keepOpen: true,
-                          onClick: () => setXGrid((v) => !v) }] : []),
-    ...(setYGrid     ? [{ label: tag(yGridOn, 'Y'), keepOpen: true,
-                          onClick: () => setYGrid((v) => !v) }] : []),
+    gridMatrixRow('X', xGridOn, xMinorOn, setXGrid, setXMinor),
+    gridMatrixRow('Y', yGridOn, yMinorOn, setYGrid, setYMinor),
   ] : null;
 
   // Location options shared by legend / colorbar Location submenus.

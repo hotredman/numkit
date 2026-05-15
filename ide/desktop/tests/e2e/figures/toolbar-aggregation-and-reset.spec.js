@@ -85,7 +85,10 @@ test('ПКМ Colormap submenu has `default` row at TOP', async ({ ide, page }) =
 test('toolbar grid ▾ ✓ aggregates: only set when ALL cells have it', async ({ ide, page }) => {
   // XGrid is an Axes property; the toolbar master row for grid lives
   // in the dedicated `grid ▾` popover (split from axes ▾). ПКМ still
-  // exposes `grid` inside Axes ▶ as a per-cell toggle.
+  // exposes `grid` inside Grid ▶ as a per-cell toggle.
+  // After the matrix-layout refactor: the master `all` row carries
+  // two state buttons (major/minor); we drive the major button [0]
+  // and read its `is-active` class for ✓-equivalent state.
   await ide.runScript(
     'import compat.*;\n'
     + 'figure;\n'
@@ -97,27 +100,39 @@ test('toolbar grid ▾ ✓ aggregates: only set when ALL cells have it', async (
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
   await page.waitForTimeout(120);
 
-  // Pre: nothing on. ✓ on combined-grid master is empty.
+  // Master `all` row's MAJOR button (column 0) drives the figure-wide
+  // major-grid bit; we read `is-active` on it as ✓-equivalent.
+  const allMajorBtn = () => page.locator('.fw-pop-matrix .fw-pop-mrow', {
+    has: page.locator('.fw-pop-mrow-label', { hasText: /^all$/ }),
+  }).locator('.fw-pop-mbtn').nth(0);
+  const isActive = async (btn) => /\bis-active\b/.test((await btn.getAttribute('class')) || '');
+
+  // ПКМ Grid ▶ → `all` row's MAJOR button. The submenu uses the same
+  // matrix layout: row[has .ctx-name='all'] → .ctx-row-btn nth(0).
+  const pkmAllRow = () => page.locator('.ctx-submenu .ctx-row', {
+    has: page.locator('.ctx-name', { hasText: /^all$/ }),
+  });
+  const pkmAllMajor = () => pkmAllRow().locator('.ctx-row-btn').nth(0);
+
+  // Pre: nothing on. Master row's major button must NOT be active.
   await openToolbarMenu(page, 'grid');
-  const gridToggle = page.locator('.fw-pop-toggle',
-    { has: page.locator('span', { hasText: /^all$/ }) });
-  expect((await gridToggle.locator('.fw-pop-check').textContent()).trim()).toBe('');
+  expect(await isActive(allMajorBtn()),
+    'master `all` major should start inactive').toBe(false);
   await page.locator('.fw-toolbar .ve-btn', { hasText: /grid/i }).click();  // close
   await page.waitForTimeout(50);
 
-  // Toggle grid on cell A only via ПКМ (Grid ▶ submenu — per-cell).
-  // Grid was extracted from Axes ▶ into its own ПКМ submenu, mirroring
-  // the toolbar grid ▾ split.
+  // Toggle grid on cell A only via ПКМ Grid ▶ (per-cell).
   await rightClickCell(page, 0);
   await page.locator('.ctx-sub-trigger', { hasText: /Grid/ }).hover();
   await page.waitForTimeout(60);
-  await page.locator('.ctx-submenu button', { hasText: /^(✓ )?all$/ }).click();
+  await pkmAllMajor().click();
   await page.waitForTimeout(120);
 
-  // Toolbar grid ▾ → all still has NO ✓ (only one cell on, not all).
+  // Toolbar grid ▾ → master `all` major still inactive (only one cell
+  // on, not ALL).
   await openToolbarMenu(page, 'grid');
-  const partial = await gridToggle.locator('.fw-pop-check').textContent();
-  expect(partial.trim(), `partial-state ✓ should be empty: '${partial}'`).toBe('');
+  expect(await isActive(allMajorBtn()),
+    'partial-state should keep master inactive (1 of 2 cells)').toBe(false);
   await page.locator('.fw-toolbar .ve-btn', { hasText: /grid/i }).click();
   await page.waitForTimeout(50);
 
@@ -125,13 +140,13 @@ test('toolbar grid ▾ ✓ aggregates: only set when ALL cells have it', async (
   await rightClickCell(page, 1);
   await page.locator('.ctx-sub-trigger', { hasText: /Grid/ }).hover();
   await page.waitForTimeout(60);
-  await page.locator('.ctx-submenu button', { hasText: /^(✓ )?all$/ }).click();
+  await pkmAllMajor().click();
   await page.waitForTimeout(120);
 
-  // Now toolbar shows ✓.
+  // Now master shows active.
   await openToolbarMenu(page, 'grid');
-  const allOn = await gridToggle.locator('.fw-pop-check').textContent();
-  expect(allOn.trim(), `all-on ✓ should be set: '${allOn}'`).toBe('✓');
+  expect(await isActive(allMajorBtn()),
+    'all-on master should be active (both cells on)').toBe(true);
 });
 
 test('toolbar colormap ▾ ✓ aggregates: only set when ALL cells use that palette', async ({ ide, page }) => {

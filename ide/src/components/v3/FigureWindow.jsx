@@ -170,6 +170,45 @@ function DisplayToggle({ label, active, disabled = false, disabledHint = '',
   );
 }
 
+/** Header row for the grid matrix layout — labels the major / minor
+ *  button columns. Rendered above the per-axis rows so users read
+ *  the column headings once. */
+function GridMatrixHead() {
+  return (
+    <div className="fw-pop-mrow fw-pop-mrow-head">
+      <span className="fw-pop-mrow-label" />
+      <span>maj</span>
+      <span>min</span>
+    </div>
+  );
+}
+
+/** One per-axis row for the grid ▾ matrix layout. Two buttons in
+ *  fixed columns (major / minor), each a self-contained toggle that
+ *  flips its own bit. Compresses what used to be 2 rows per axis
+ *  (Cartesian: X / Cartesian minor: X) into 1 row that carries both
+ *  state bits. Click on either button stays in the popover (parent
+ *  controls open/close).
+ *
+ *  Both setters are required — callers that only want to expose major
+ *  should pass an explicit no-op. We intentionally don't gracefully
+ *  hide a column: a missing column would mis-align rows. */
+function GridMatrixRow({ label, major, minor, setMajor, setMinor }) {
+  return (
+    <div className="fw-pop-mrow">
+      <span className="fw-pop-mrow-label">{label}</span>
+      <button className={`fw-pop-mbtn${major ? ' is-active' : ''}`}
+              onClick={() => setMajor((v) => !v)}>
+        {major ? '✓' : ''}
+      </button>
+      <button className={`fw-pop-mbtn${minor ? ' is-active' : ''}`}
+              onClick={() => setMinor((v) => !v)}>
+        {minor ? '✓' : ''}
+      </button>
+    </div>
+  );
+}
+
 export default function FigureWindow({ figure, onClose, engine = null }) {
   const isPolar   = figure.kind === 'polar';
   const isSubplot = figure.kind === 'subplot';
@@ -277,11 +316,12 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
         || isOn(axes && axes.RGrid)     || isOn(axes && axes.ThetaGrid);
   }
   function axisGridMinorOn(axes) {
-    // Minor grids — no polar minor in the schema yet (MATLAB has
-    // RMinorGrid / ThetaMinorGrid but we don't model them). The
-    // combined "minor" toggle stays cartesian-only.
-    return isOn(axes && axes.XMinorGrid) || isOn(axes && axes.YMinorGrid)
-        || isOn(axes && axes.ZMinorGrid);
+    // Minor grids on every axis the schema models — cartesian X/Y/Z
+    // and polar R/θ. Mirrors MATLAB R2025b: `grid minor` lights the
+    // minor grid for every axis the current axes type supports.
+    return isOn(axes && axes.XMinorGrid)     || isOn(axes && axes.YMinorGrid)
+        || isOn(axes && axes.ZMinorGrid)
+        || isOn(axes && axes.RMinorGrid)     || isOn(axes && axes.ThetaMinorGrid);
   }
   // Adapter — same shape the old `cells: CellSettings[]` exposed.
   // Used by SubplotGrid (fed via the cellState renderFigure prop).
@@ -296,6 +336,9 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       yGrid:        isOn(axes.YGrid),
       xMinor:       isOn(axes.XMinorGrid),
       yMinor:       isOn(axes.YMinorGrid),
+      zMinor:       isOn(axes.ZMinorGrid),
+      rMinor:       isOn(axes.RMinorGrid),
+      thetaMinor:   isOn(axes.ThetaMinorGrid),
       xLog:         axes.XScale === 'log',
       yLog:         axes.YScale === 'log',
       zLog:         axes.ZScale === 'log',
@@ -339,6 +382,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       case 'zGrid':        return isOn(a.ZGrid);
       case 'rGrid':        return isOn(a.RGrid);
       case 'thetaGrid':    return isOn(a.ThetaGrid);
+      case 'xMinor':       return isOn(a.XMinorGrid);
+      case 'yMinor':       return isOn(a.YMinorGrid);
+      case 'zMinor':       return isOn(a.ZMinorGrid);
+      case 'rMinor':       return isOn(a.RMinorGrid);
+      case 'thetaMinor':   return isOn(a.ThetaMinorGrid);
       case 'xLog':         return a.XScale === 'log';
       case 'yLog':         return a.YScale === 'log';
       case 'zLog':         return a.ZScale === 'log';
@@ -371,16 +419,24 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
         return { ...a, XGrid: f, YGrid: f, ZGrid: f, RGrid: f, ThetaGrid: f };
       }
       case 'showMinor':    {
-        // No polar minor grids in the schema yet — minor fan-out
-        // stays cartesian.
+        // Combined "minor" toggle — fan out to every per-axis minor
+        // grid we model. Same fan rule as showMajor but for the minor
+        // family.
         const f = onOff(!!value);
-        return { ...a, XMinorGrid: f, YMinorGrid: f, ZMinorGrid: f };
+        return { ...a,
+          XMinorGrid: f, YMinorGrid: f, ZMinorGrid: f,
+          RMinorGrid: f, ThetaMinorGrid: f };
       }
-      case 'xGrid':        return { ...a, XGrid:     onOff(!!value) };
-      case 'yGrid':        return { ...a, YGrid:     onOff(!!value) };
-      case 'zGrid':        return { ...a, ZGrid:     onOff(!!value) };
-      case 'rGrid':        return { ...a, RGrid:     onOff(!!value) };
-      case 'thetaGrid':    return { ...a, ThetaGrid: onOff(!!value) };
+      case 'xGrid':        return { ...a, XGrid:          onOff(!!value) };
+      case 'yGrid':        return { ...a, YGrid:          onOff(!!value) };
+      case 'zGrid':        return { ...a, ZGrid:          onOff(!!value) };
+      case 'rGrid':        return { ...a, RGrid:          onOff(!!value) };
+      case 'thetaGrid':    return { ...a, ThetaGrid:      onOff(!!value) };
+      case 'xMinor':       return { ...a, XMinorGrid:     onOff(!!value) };
+      case 'yMinor':       return { ...a, YMinorGrid:     onOff(!!value) };
+      case 'zMinor':       return { ...a, ZMinorGrid:     onOff(!!value) };
+      case 'rMinor':       return { ...a, RMinorGrid:     onOff(!!value) };
+      case 'thetaMinor':   return { ...a, ThetaMinorGrid: onOff(!!value) };
       case 'xLog':         return { ...a, XScale: value ? 'log' : 'linear' };
       case 'yLog':         return { ...a, YScale: value ? 'log' : 'linear' };
       case 'zLog':         return { ...a, ZScale: value ? 'log' : 'linear' };
@@ -432,7 +488,14 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                     || everyAxes(axesArr, ['ZGrid'],     isOn)
                     || everyAxes(axesArr, ['RGrid'],     isOn)
                     || everyAxes(axesArr, ['ThetaGrid'], isOn);
-  const showMinor    = everyAxes(axesArr, ['XMinorGrid'], isOn) || everyAxes(axesArr, ['YMinorGrid'], isOn);
+  // Same shape as showMajor — true iff EVERY cell has at least one
+  // minor-grid axis on. Includes polar (R/θ) so the toolbar minor row
+  // ✓ flips coherently for polar figures too.
+  const showMinor    = everyAxes(axesArr, ['XMinorGrid'],     isOn)
+                    || everyAxes(axesArr, ['YMinorGrid'],     isOn)
+                    || everyAxes(axesArr, ['ZMinorGrid'],     isOn)
+                    || everyAxes(axesArr, ['RMinorGrid'],     isOn)
+                    || everyAxes(axesArr, ['ThetaMinorGrid'], isOn);
   const xLog         = axesArr.length > 0 && axesArr.every((a) => a.XScale === 'log');
   const yLog         = axesArr.length > 0 && axesArr.every((a) => a.YScale === 'log');
   const zLog         = axesArr.length > 0 && axesArr.every((a) => a.ZScale === 'log');
@@ -448,6 +511,13 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   const zGrid        = everyAxes(axesArr, ['ZGrid'], isOn);
   const rGrid        = everyAxes(axesArr, ['RGrid'], isOn);
   const thetaGrid    = everyAxes(axesArr, ['ThetaGrid'], isOn);
+  // Per-axis MINOR aggregates — fed to the new grid ▾ matrix layout
+  // (one row per axis, two state-buttons per row: major + minor).
+  const xMinor       = everyAxes(axesArr, ['XMinorGrid'],     isOn);
+  const yMinor       = everyAxes(axesArr, ['YMinorGrid'],     isOn);
+  const zMinor       = everyAxes(axesArr, ['ZMinorGrid'],     isOn);
+  const rMinor       = everyAxes(axesArr, ['RMinorGrid'],     isOn);
+  const thetaMinor   = everyAxes(axesArr, ['ThetaMinorGrid'], isOn);
   // MATLAB Visible / Box / XDir / YDir aggregates.
   const showAxis     = everyAxes(axesArr, ['Visible'], isOn);
   const showBox      = everyAxes(axesArr, ['Box'], isOn);
@@ -529,6 +599,13 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   const setZGrid     = (u) => fanAllPath(['ZGrid'], u);
   const setRGrid     = (u) => fanAllPath(['RGrid'], u);
   const setThetaGrid = (u) => fanAllPath(['ThetaGrid'], u);
+  // Per-axis MINOR setters — companions to the major setters above.
+  // Drive the second button column in the new grid ▾ matrix layout.
+  const setXMinor     = (u) => fanAllPath(['XMinorGrid'],     u);
+  const setYMinor     = (u) => fanAllPath(['YMinorGrid'],     u);
+  const setZMinor     = (u) => fanAllPath(['ZMinorGrid'],     u);
+  const setRMinor     = (u) => fanAllPath(['RMinorGrid'],     u);
+  const setThetaMinor = (u) => fanAllPath(['ThetaMinorGrid'], u);
 
   // Per-cell setters — write to one Axes by index.
   function setCellKey(idx, key, updater) {
@@ -554,6 +631,8 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
         Visible: init.Visible, Box: init.Box,
         XGrid: init.XGrid, YGrid: init.YGrid, ZGrid: init.ZGrid,
         XMinorGrid: init.XMinorGrid, YMinorGrid: init.YMinorGrid, ZMinorGrid: init.ZMinorGrid,
+        RGrid: init.RGrid, ThetaGrid: init.ThetaGrid,
+        RMinorGrid: init.RMinorGrid, ThetaMinorGrid: init.ThetaMinorGrid,
         XScale: init.XScale, YScale: init.YScale, ZScale: init.ZScale,
         XDir: init.XDir, YDir: init.YDir, ZDir: init.ZDir,
         Title: init.Title, Subtitle: init.Subtitle,
@@ -1453,37 +1532,41 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 <div className="fw-pop-section">
                   <button onClick={() => { displayReset(); setGridOpen(false); }}>default</button>
                 </div>
-                {/* Master toggles fan out to every axis the schema
-                    has (X/Y/Z/R/θ). Per the toolbar=universal policy
+                {/* Matrix layout: one row per axis, two columns of
+                    state-buttons (major / minor). Replaces the 2-row-
+                    per-axis split (Cartesian: X / Cartesian minor: X)
+                    so adding the minor family doesn't double the
+                    popover height. Per the toolbar=universal policy
                     every row stays clickable regardless of figure
                     kind; clicks on inapplicable axes flip the schema
                     flag without visual effect (parity-clean). */}
-                <div className="fw-pop-section">
+                <div className="fw-pop-section fw-pop-matrix">
                   <div className="fw-pop-head">grid</div>
-                  <DisplayToggle label="all"   active={showMajor}
-                                 onClick={() => setShowMajor((g) => !g)} />
-                  <DisplayToggle label="minor" active={showMinor}
-                                 onClick={() => setShowMinor((g) => !g)} />
+                  <GridMatrixHead />
+                  <GridMatrixRow label="all"
+                    major={showMajor} setMajor={setShowMajor}
+                    minor={showMinor} setMinor={setShowMinor} />
                 </div>
-                {/* Per-axis rows drop the `grid` suffix: the button
-                    name (`grid ▾`) and section head (Cartesian/Polar)
-                    already give the context. Saves 3-4 chars per row,
-                    no ambiguity inside a grid-dedicated popover. */}
-                <div className="fw-pop-section">
+                <div className="fw-pop-section fw-pop-matrix">
                   <div className="fw-pop-head">Cartesian</div>
-                  <DisplayToggle label="X" active={xGrid}
-                                 onClick={() => setXGrid((g) => !g)} />
-                  <DisplayToggle label="Y" active={yGrid}
-                                 onClick={() => setYGrid((g) => !g)} />
-                  <DisplayToggle label="Z" active={zGrid}
-                                 onClick={() => setZGrid((g) => !g)} />
+                  <GridMatrixRow label="X"
+                    major={xGrid} setMajor={setXGrid}
+                    minor={xMinor} setMinor={setXMinor} />
+                  <GridMatrixRow label="Y"
+                    major={yGrid} setMajor={setYGrid}
+                    minor={yMinor} setMinor={setYMinor} />
+                  <GridMatrixRow label="Z"
+                    major={zGrid} setMajor={setZGrid}
+                    minor={zMinor} setMinor={setZMinor} />
                 </div>
-                <div className="fw-pop-section">
+                <div className="fw-pop-section fw-pop-matrix">
                   <div className="fw-pop-head">Polar</div>
-                  <DisplayToggle label="R" active={rGrid}
-                                 onClick={() => setRGrid((g) => !g)} />
-                  <DisplayToggle label="θ" active={thetaGrid}
-                                 onClick={() => setThetaGrid((g) => !g)} />
+                  <GridMatrixRow label="R"
+                    major={rGrid} setMajor={setRGrid}
+                    minor={rMinor} setMinor={setRMinor} />
+                  <GridMatrixRow label="θ"
+                    major={thetaGrid} setMajor={setThetaGrid}
+                    minor={thetaMinor} setMinor={setThetaMinor} />
                 </div>
               </div>
             )}
@@ -1684,8 +1767,9 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               // aggregate is the value (single axes); for subplot
               // SubplotGrid forwards each cell's own axes-derived value.
               xGrid: xGrid, yGrid: yGrid,
-              xMinor: showMinor, yMinor: showMinor,
+              xMinor: xMinor, yMinor: yMinor,
               rGrid: rGrid, thetaGrid: thetaGrid,
+              rMinor: rMinor, thetaMinor: thetaMinor,
               // MATLAB Visible / Box / XDir / YDir / ZDir overrides.
               // Pass only for non-subplot — SubplotGrid resolves per-
               // cell from each cell's axes (legacy cell prop).
@@ -1722,6 +1806,8 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 setShowMajor, setShowMinor,
                 setXGrid, setYGrid,
                 setRGrid, setThetaGrid,
+                setXMinor, setYMinor, setZMinor,
+                setRMinor, setThetaMinor,
                 setShowAxis, setShowBox,
                 setXReverse, setYReverse, setZReverse,
                 setShowTitle, setShowXLabel, setShowYLabel, setShowZLabel,
