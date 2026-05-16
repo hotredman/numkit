@@ -221,6 +221,83 @@ test('polar minor R grid renders independently of major R grid', async ({ ide, p
     'minor rings should render with R major OFF + R minor ON').toBeGreaterThan(0);
 });
 
+test('ПКМ on polar exposes Decoration ▶ with title + legend toggles', async ({ ide, page }) => {
+  // Polar ПКМ used to skip Decoration ▶ — title couldn't be hidden
+  // and legend wasn't even rendered. Now mirrors CompositePlot's
+  // Decoration ▶ shape: labels section (title) + annotations section
+  // (legend + legend location).
+  await ide.runScript(
+    'import compat.*;\n'
+    + 'theta = linspace(0, 2*pi, 200);\n'
+    + 'polarplot(theta, abs(sin(2*theta)));\n'
+    + 'title("polar test"); legend(\'wave\');\n'
+  );
+  await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+  await ide.figureCards.first().click();
+  await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(200);
+
+  await rightClickCell(page);
+  // Decoration ▶ submenu exists.
+  await page.locator('.ctx-sub-trigger', { hasText: /Decoration/ }).hover();
+  await page.waitForTimeout(100);
+  // Two heads: labels + annotations (same convention as CompositePlot).
+  const heads = await page.locator('.ctx-submenu .ctx-head').allTextContents();
+  expect(heads).toEqual(['labels', 'annotations']);
+  // title row + legend row visible.
+  await expect(page.locator('.ctx-submenu .ctx-item', { hasText: /title$/ })).toBeVisible();
+  await expect(page.locator('.ctx-submenu .ctx-item', { hasText: /legend$/ })).toBeVisible();
+});
+
+test('ПКМ Decoration ▶ title toggle hides polar title', async ({ ide, page }) => {
+  // The title strip used to render unconditionally on polar. Now
+  // gated on showTitle so the Decoration ▶ title row can hide it.
+  await ide.runScript(
+    'import compat.*;\n'
+    + 'theta = linspace(0, 2*pi, 200);\n'
+    + 'polarplot(theta, abs(sin(2*theta)));\n'
+    + 'title("polar test");\n'
+  );
+  await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+  await ide.figureCards.first().click();
+  await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(200);
+
+  // Pre: title text visible in the SVG.
+  await expect(page.locator('.fw-window svg text', { hasText: 'polar test' })).toBeVisible();
+
+  await rightClickCell(page);
+  await page.locator('.ctx-sub-trigger', { hasText: /Decoration/ }).hover();
+  await page.waitForTimeout(100);
+  // Click `title` row (currently active — ✓ prefix).
+  await page.locator('.ctx-submenu .ctx-item', { hasText: /title$/ }).first().click();
+  await page.waitForTimeout(200);
+
+  // Title gone.
+  await expect(page.locator('.fw-window svg text', { hasText: 'polar test' })).toHaveCount(0);
+});
+
+test('Fit Series ▶ is a submenu on polar (parity with CompositePlot)', async ({ ide, page }) => {
+  // Used to be a flat `Fit single curve` head + per-series rows in
+  // the main menu. Now nested in its own submenu with the same
+  // shape CompositePlot uses, including the (N) count suffix when
+  // multiple series.
+  await ide.runScript(
+    'import compat.*;\n'
+    + 'theta = linspace(0, 2*pi, 200);\n'
+    + 'polarplot(theta, abs(sin(2*theta)));\n'
+    + 'hold on; polarplot(theta, abs(cos(2*theta))); hold off;\n'
+  );
+  await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+  await ide.figureCards.first().click();
+  await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(200);
+
+  await rightClickCell(page);
+  // Submenu trigger with `Fit Series` text (and optional (N) suffix).
+  await expect(page.locator('.ctx-sub-trigger', { hasText: /Fit Series/ })).toBeVisible();
+});
+
 test('subplot with polar cell: toolbar fit R applies via SubplotGrid', async ({ ide, page }) => {
   // Subplot fit ▾ → R fires fitSignal{axis:'r'} → SubplotGrid effect
   // → fitCellViewport per cell. Polar cells honour 'r', cartesian
