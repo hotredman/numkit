@@ -1151,6 +1151,15 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
 
   function applyFit(mode, axisMode) {
     if (isSubplot) return;                 // subplot fit lives per-cell; close menu
+    // axis equal / axis image: refitting a single cartesian axis
+    // breaks the DataAspectRatio = [1 1 1] contract — see the same
+    // upgrade in SubplotGrid's fitSignal effect for the rationale.
+    // Apply at the figure level (non-subplot, non-polar; polar uses
+    // its own r/theta dispatch below).
+    if ((figure.axisMode === 'equal' || figure.axisMode === 'image')
+        && (axisMode === 'x' || axisMode === 'y' || axisMode === 'z')) {
+      axisMode = 'both';
+    }
     if (is3D) {
       // 3-D fit pulls the data bbox from Composite3DPlot's imperative
       // handle (Composite3DPlot reports it via onBBox each rebuild;
