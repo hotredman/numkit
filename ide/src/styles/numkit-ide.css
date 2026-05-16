@@ -735,7 +735,12 @@ input, select { font-family: inherit; color: inherit; }
   text-align: center !important;
   line-height: 1.3;
 }
-.fw-pop .fw-pop-radio:hover {
+/* Exclude .is-active from hover so the active pill's accent fill +
+   light text stays intact under the cursor. Without the
+   :not(.is-active) guard the hover background overrode the active
+   background and the active color (set by .is-active rule) bled
+   through as light-on-dark — unreadable on hover. */
+.fw-pop .fw-pop-radio:not(.is-active):hover {
   border-color: var(--accent) !important;
   background: var(--bg-2) !important;
 }
@@ -771,7 +776,10 @@ input, select { font-family: inherit; color: inherit; }
   text-align: center;
   line-height: 1.3;
 }
-.ctx-pill:hover:not(:disabled) {
+/* Active pill is excluded from hover paint — see toolbar
+   .fw-pop-radio rule above for the rationale (avoids unreadable
+   dark-on-dark when active+hover combine due to specificity). */
+.ctx-pill:not(.is-active):hover:not(:disabled) {
   border-color: var(--accent);
   background: var(--bg-2);
 }
