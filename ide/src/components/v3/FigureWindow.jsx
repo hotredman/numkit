@@ -4,7 +4,7 @@ import Composite3DPlot from './Composite3DPlot';
 import FigureErrorBoundary from './FigureErrorBoundary';
 import PolarPlot, { defaultPolarViewport, nicePolarMax } from './PolarPlot';
 import SubplotGrid from './SubplotGrid';
-import { computeFitViewport,
+import { computeFitViewport, fitCellViewport,
   composeSvgsToString, exportSvgString, exportPngString,
   downloadBlob as utilDownloadBlob } from './plotUtils';
 import { initAxesFromCell, getProp, setProp, setAllAxes, setAxesAt,
@@ -1191,16 +1191,10 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
 
   function applyFit(mode, axisMode) {
     if (isSubplot) return;                 // subplot fit lives per-cell; close menu
-    // Toolbar=universal: per-axis fit rows are always clickable.
-    // Aspect-equal / aspect-image cells can't refit one axis without
-    // the other (DataAspectRatio = [1 1 1] contract), so upgrade the
-    // request to 'both' transparently. User sees fit X "do the right
-    // thing" instead of either disabling the button or surprising
-    // them by silently scaling Y to match.
-    if ((figure.axisMode === 'equal' || figure.axisMode === 'image')
-        && (axisMode === 'x' || axisMode === 'y' || axisMode === 'z')) {
-      axisMode = 'both';
-    }
+    // Axis-equal upgrade lives inside fitCellViewport now — see the
+    // shared cartesian dispatch at the bottom of this function.
+    // 3D + polar branches have their own data-extent computation
+    // (bbox / rho-max) so they keep their own dispatch.
     if (is3D) {
       // 3-D fit pulls the data bbox from Composite3DPlot's imperative
       // handle (Composite3DPlot reports it via onBBox each rebuild;
@@ -1257,48 +1251,31 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       setFitOpen(false);
       return;
     }
-    if (isComposite && isHeatmap && !hasSeries) {
-      // Pure-heatmap composite: data extent is figure.xRange/yRange. Under
-      // a log axis the natural extent straddles zero (cellH/2 padding) and
-      // would silently flip back to linear. Clamp lo bound to half-cell.
-      const xLogNow = figure.xscale === 'log';
-      const yLogNow = figure.yscale === 'log';
-      const next = { x: viewport.x.slice(), y: viewport.y.slice() };
-      if (axisMode === 'both' || axisMode === 'x') {
-        if (xLogNow) {
-          const fullCols = heatmapLayer.originalCols || 1;
-          const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
-          const lo = Math.max(cellW * 0.5, 1e-6);
-          next.x = [lo, Math.max(lo * 10, figure.xRange[1])];
-        } else {
-          next.x = figure.xRange.slice();
-        }
-      }
-      if (axisMode === 'both' || axisMode === 'y') {
-        if (yLogNow) {
-          const fullRows = heatmapLayer.originalRows || 1;
-          const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
-          const lo = Math.max(cellH * 0.5, 1e-6);
-          next.y = [lo, Math.max(lo * 10, figure.yRange[1])];
-        } else {
-          next.y = figure.yRange.slice();
-        }
-      }
-      setViewport(next);
-      setFitOpen(false);
-      return;
+    // All cartesian (non-3D, non-polar) paths route through the
+    // shared fitCellViewport. Toolbar=universal: this is the SAME
+    // per-cell action SubplotGrid + CompositePlot ПКМ use, so the
+    // outcome doesn't drift between menus.
+    //
+    // Log axes get a half-cell lo-bound override (figure.xRange
+    // straddles zero for heatmap padding and would silently flip
+    // back to linear). Applied after the base fit so axis-equal
+    // upgrade is honoured first.
+    let next = fitCellViewport(figure, viewport, axisMode, { aspectMode: axisModeAgg });
+    const xLogNow = figure.xscale === 'log';
+    const yLogNow = figure.yscale === 'log';
+    if ((axisMode === 'both' || axisMode === 'x') && xLogNow) {
+      const fullCols = (isHeatmap ? heatmapLayer.originalCols : 0) || 1;
+      const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
+      const lo = Math.max(cellW * 0.5, 1e-6);
+      next = { ...next, x: [lo, Math.max(lo * 10, figure.xRange[1])] };
     }
-    if (isComposite) {
-      // Series composite (with or without heatmap underlay): fit to selected
-      // series. computeFitViewport accepts the series list — layer.x/y match
-      // the legacy series shape closely enough.
-      if (seriesLayers.length === 0) { setFitOpen(false); return; }
-      setViewport(computeFitViewport(seriesLayers, mode, axisMode, viewport, figDefault));
-      setFitOpen(false);
-      return;
+    if ((axisMode === 'both' || axisMode === 'y') && yLogNow) {
+      const fullRows = (isHeatmap ? heatmapLayer.originalRows : 0) || 1;
+      const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
+      const lo = Math.max(cellH * 0.5, 1e-6);
+      next = { ...next, y: [lo, Math.max(lo * 10, figure.yRange[1])] };
     }
-    if (!figure.series) return;
-    setViewport(computeFitViewport(figure.series, mode, axisMode, viewport, figDefault));
+    setViewport(next);
     setFitOpen(false);
   }
 
