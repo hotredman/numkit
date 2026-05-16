@@ -163,7 +163,19 @@ export default function SubplotGrid({
     setViewports((prev) => figure.cells.map((cell, idx) => {
       const def = defaultViewport(cell);
       const cur = prev[idx] || def;
-      const axis = fitSignal.axis;
+      let axis = fitSignal.axis;
+      // axis equal / axis image pins DataAspectRatio = [1 1 1] — 1
+      // data unit on X must occupy the same pixel count as 1 on Y.
+      // Refitting JUST X (or JUST Y) breaks that contract: the panel-
+      // shrink path in CompositePlot recomputes panel aspect from the
+      // new dx/dy ratio and the cell visibly changes size (1×3 subplot
+      // ends up with rectangles of different widths instead of three
+      // equal squares). Upgrade single-axis fit to 'both' for these
+      // cells so the original xlim/ylim relationship is preserved.
+      if ((cell.axisMode === 'equal' || cell.axisMode === 'image')
+          && (axis === 'x' || axis === 'y' || axis === 'z')) {
+        axis = 'both';
+      }
       // Two coordinate systems share this signal: cartesian (x/y/z)
       // and polar (r/theta). Each cell honours only its own — fits on
       // axes the cell doesn't own resolve to `cur` (no-op, parity-
