@@ -115,6 +115,83 @@ test('switch aspect to auto → fit ▾ X becomes enabled', async ({ ide, page }
   await expect(page.locator('.fw-pop button', { hasText: /^X$/ })).toBeEnabled();
 });
 
+test('toolbar 🏠 Reset clears aspect override back to script value', async ({ ide, page }) => {
+  // Script default is auto. User changes aspect to `equal` via UI.
+  // Toolbar Reset → aspect snaps back to `auto`.
+  await ide.runScript(
+    'import compat.*;\n'
+    + 'plot(1:10);\n'
+  );
+  await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+  await ide.figureCards.first().click();
+  await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(150);
+
+  await openAxes(page);
+  await page.locator('.fw-pop-radio', { hasText: /^equal$/ }).click();
+  await page.waitForTimeout(100);
+  await expect(page.locator('.fw-pop-radio', { hasText: /^equal$/ })).toHaveClass(/is-active/);
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();   // close axes ▾
+  await page.waitForTimeout(50);
+
+  // 🏠 Reset.
+  await page.locator('.fw-toolbar [data-fw-reset="all"]').click();
+  await page.waitForTimeout(150);
+
+  // Re-open axes ▾ → `auto` should be active again, `equal` not.
+  await openAxes(page);
+  await expect(page.locator('.fw-pop-radio', { hasText: /^auto$/ })).toHaveClass(/is-active/);
+  await expect(page.locator('.fw-pop-radio', { hasText: /^equal$/ })).not.toHaveClass(/is-active/);
+});
+
+test('ПКМ Reset on subplot cell clears aspect override on THAT cell only', async ({ ide, page }) => {
+  // Both cells start at auto (script default). Change cell A → equal
+  // via ПКМ Axes ▶ aspect. ПКМ Reset on cell A should restore A to
+  // auto WITHOUT touching cell B's already-default state.
+  // Mixed → uniform `auto` transition.
+  await ide.runScript(
+    'import compat.*;\n'
+    + 'figure;\n'
+    + 'subplot(1, 2, 1); plot(1:10);\n'
+    + 'subplot(1, 2, 2); plot(1:10);\n'
+  );
+  await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+  await ide.figureCards.first().click();
+  await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(150);
+
+  // Right-click cell A, set aspect=equal via ПКМ Axes ▶.
+  const svgA = page.locator('.fw-window .fw-canvas-wrap svg').nth(0);
+  const boxA = await svgA.boundingBox();
+  await page.mouse.move(boxA.x + boxA.width / 2, boxA.y + boxA.height / 2);
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.up({ button: 'right' });
+  await expect(page.locator('.ctx-menu')).toBeVisible({ timeout: 2_000 });
+  await page.locator('.ctx-sub-trigger', { hasText: /Axes/ }).hover();
+  await page.waitForTimeout(80);
+  await page.locator('.ctx-submenu button', { hasText: /^(✓ )?equal$/ }).click();
+  await page.waitForTimeout(150);
+
+  // Sanity: toolbar head should now say `mixed` (cell A=equal, B=auto).
+  await openAxes(page);
+  await expect(page.locator('.fw-pop-head', { hasText: /^aspect: mixed$/ })).toBeVisible();
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();
+  await page.waitForTimeout(50);
+
+  // ПКМ Reset on cell A.
+  await page.mouse.move(boxA.x + boxA.width / 2, boxA.y + boxA.height / 2);
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.up({ button: 'right' });
+  await expect(page.locator('.ctx-menu')).toBeVisible({ timeout: 2_000 });
+  await page.locator('.ctx-menu .ctx-item', { hasText: /^Reset$/ }).first().click();
+  await page.waitForTimeout(150);
+
+  // Now both cells should be auto → head reads plain `aspect` (uniform).
+  await openAxes(page);
+  await expect(page.locator('.fw-pop-radio', { hasText: /^auto$/ })).toHaveClass(/is-active/);
+  await expect(page.locator('.fw-pop-head', { hasText: /^aspect$/ })).toBeVisible();
+});
+
 test('subplot with mixed aspect: NO pill is active, head shows `mixed`', async ({ ide, page }) => {
   // Cell A is auto (default), cell B is `axis equal`. axisModeAgg = null
   // (mixed) → none of the 5 pills should have is-active, and the
