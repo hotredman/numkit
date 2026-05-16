@@ -192,11 +192,13 @@ test('ПКМ Axes ▶ / Grid ▶ / Decoration ▶ each have the right section he
   await rightClickPlot(page);
 
   // Axes ▶ — Axes-object props minus grid (grid lives in Grid ▶ now).
-  // Heads name the active state of the toggle group.
+  // Heads name the active state of the toggle group; `aspect` got
+  // added when the MATLAB `axis equal/square/image/tight/auto`
+  // shorthand got its own UI section in axes ▾ / ПКМ Axes ▶.
   await page.locator('.ctx-sub-trigger', { hasText: /Axes/ }).hover();
   await page.waitForTimeout(80);
   const axesHeads = await page.locator('.ctx-submenu .ctx-head').allTextContents();
-  expect(axesHeads).toEqual(['visible', 'reverse', 'log scale']);
+  expect(axesHeads).toEqual(['visible', 'reverse', 'log scale', 'aspect']);
 
   // Grid ▶ — master + Cartesian (CompositePlot specialised).
   await page.locator('.ctx-sub-trigger', { hasText: /Grid/ }).hover();
