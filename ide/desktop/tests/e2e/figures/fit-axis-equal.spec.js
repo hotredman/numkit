@@ -121,6 +121,43 @@ test('fit ▾ X on axis-equal acts as fit both (refits BOTH axes)', async ({ ide
     `panel height drifted ${before.height} → ${after.height}`).toBeLessThan(4);
 });
 
+test('ПКМ Fit X on axis-equal cell also upgrades to fit both (no panel drift)', async ({ ide, page }) => {
+  // Same axis-equal upgrade as the toolbar fit ▾ — ПКМ Fit X must
+  // dispatch as fit-both for axis-equal cells. Without the fix the
+  // ПКМ path bypassed applyFit and called computeFitViewport
+  // directly with axisMode='x', breaking the DataAspectRatio
+  // contract and visibly resizing the panel.
+  await ide.runScript(
+    'import compat.*;\n'
+    + 'rng(0);\n'
+    + 'scatter(randn(200,1), randn(200,1));\n'
+    + 'axis equal; xlim([-5 5]); ylim([-5 5]);\n'
+  );
+  await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+  await ide.figureCards.first().click();
+  await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(200);
+
+  const before = await page.locator('.fw-window .fw-canvas-wrap svg').first().boundingBox();
+
+  // Right-click in the plot → ПКМ Fit section → X.
+  const svg = page.locator('.fw-window .fw-canvas-wrap svg').first();
+  const box = await svg.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.up({ button: 'right' });
+  await expect(page.locator('.ctx-menu')).toBeVisible({ timeout: 2_000 });
+  // Fit X row — labelled `X` in the ПКМ Fit section.
+  await page.locator('.ctx-menu .ctx-item', { hasText: /^X$/ }).first().click();
+  await page.waitForTimeout(200);
+
+  const after = await page.locator('.fw-window .fw-canvas-wrap svg').first().boundingBox();
+  expect(Math.abs(after.width  - before.width),
+    `panel width drifted ${before.width} → ${after.width}`).toBeLessThan(4);
+  expect(Math.abs(after.height - before.height),
+    `panel height drifted ${before.height} → ${after.height}`).toBeLessThan(4);
+});
+
 test('toolbar 🏠 Reset clears aspect override back to script value', async ({ ide, page }) => {
   // Script default is auto. User changes aspect to `equal` via UI.
   // Toolbar Reset → aspect snaps back to `auto`.
