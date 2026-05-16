@@ -132,9 +132,10 @@ test('toolbar fit all on polar resets both R and θ', async ({ ide, page }) => {
 });
 
 test('toolbar fit X on polar is a no-op (cartesian axis ignored)', async ({ ide, page }) => {
-  // PolarPlot doesn't model cartesian X — toolbar fit X / Y / Z should
-  // resolve to no-op for polar figures. fitCellViewport's polar
-  // branch returns `cur` for unknown axes.
+  // PolarPlot doesn't model cartesian X — toolbar fit X / Y / Z
+  // resolves to no-op for polar figures. fitCellViewport's polar
+  // branch returns `cur` for cartesian axes, parity with the
+  // SubplotGrid per-cell routing.
   await ide.runScript(
     'import compat.*;\n'
     + 'theta = linspace(0, 2*pi, 200);\n'
@@ -148,17 +149,76 @@ test('toolbar fit X on polar is a no-op (cartesian axis ignored)', async ({ ide,
 
   const before = await rTicks(page);
 
-  // Note: for non-subplot polar the toolbar applyFit path remaps
-  // x/y/z → 'both' for safety. End result: rmax stays at rlim.
   await openFit(page);
   await page.locator('.fw-pop button', { hasText: /^X$/ }).first().click();
   await page.waitForTimeout(200);
 
   const after = await rTicks(page);
-  // rmax tick stays at script-set 5.
+  // rmax tick stays at script-set 5 (no change).
   expect(after.some((v) => Math.abs(v - 5) < 0.01),
     `fit X on polar should leave rmax at 5: ${JSON.stringify(after)}`).toBe(true);
   expect(after.length).toBe(before.length);
+});
+
+test('polar minor R grid renders independently of major R grid', async ({ ide, page }) => {
+  // MATLAB R2025b parity: RMinorGrid / ThetaMinorGrid are INDEPENDENT
+  // of RGrid / ThetaGrid. The user can have minor rings visible
+  // without the major ring strokes. Previously gated on rGridOn &&
+  // rMinorOn which made the per-axis minor checkbox a no-op when
+  // major was off. We assert: minor rings render even when R major
+  // is OFF — turn major off first, then toggle minor on, then count
+  // minor-stroke <circle> elements in the SVG.
+  await ide.runScript(
+    'import compat.*;\n'
+    + 'theta = linspace(0, 2*pi, 200);\n'
+    + 'polarplot(theta, 3 + sin(3*theta));\n'
+    + 'rlim([0 5]);\n'
+  );
+  await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+  await ide.figureCards.first().click();
+  await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(200);
+
+  async function minorRingCount() {
+    return await page.locator('.fw-window .fw-canvas-wrap svg circle')
+      .evaluateAll((els) => els.filter((el) =>
+        (el.getAttribute('stroke') || '').includes('plot-grid-min'),
+      ).length);
+  }
+
+  // Open grid ▾.
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /grid/i }).click();
+  await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
+  const rRow = page.locator('.fw-pop-matrix .fw-pop-mrow', {
+    has: page.locator('.fw-pop-mrow-label', { hasText: /^R$/ }),
+  });
+  const rMajor = rRow.locator('.fw-pop-mbtn').nth(0);
+  const rMinorBtn = rRow.locator('.fw-pop-mbtn').nth(1);
+  // Helper: read is-active on a button.
+  const isActive = async (btn) => /\bis-active\b/.test((await btn.getAttribute('class')) || '');
+
+  // Polar plot's adapter may leave RGrid on or off depending on the
+  // script's `grid on/off` state. Force major OFF first so the
+  // assertion below is unambiguous.
+  if (await isActive(rMajor)) {
+    await rMajor.click();
+    await page.waitForTimeout(120);
+  }
+  expect(await isActive(rMajor), 'R major must be off before toggling minor').toBe(false);
+
+  // Now turn R minor ON.
+  await rMinorBtn.click();
+  await page.waitForTimeout(150);
+  expect(await isActive(rMinorBtn), 'R minor should be active after click').toBe(true);
+  expect(await isActive(rMajor), 'R major must stay inactive').toBe(false);
+
+  // Close grid ▾ so it doesn't overlap the canvas measurement.
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /grid/i }).click();
+  await page.waitForTimeout(150);
+
+  // Minor rings should now be visible — the whole point of the fix.
+  expect(await minorRingCount(),
+    'minor rings should render with R major OFF + R minor ON').toBeGreaterThan(0);
 });
 
 test('subplot with polar cell: toolbar fit R applies via SubplotGrid', async ({ ide, page }) => {
