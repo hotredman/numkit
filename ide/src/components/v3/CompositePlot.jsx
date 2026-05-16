@@ -165,6 +165,11 @@ export default function CompositePlot({
   // click ПКМ surfaces full Axes ▶ / Decoration ▶ submenus mirroring
   // the toolbar popovers. In preview cards / subplot cells these
   // aren't passed; the submenu rows are simply omitted in that case.
+  // Aspect override — user-set axisMode from the axes ▾ aspect radio
+  // / ПКМ Axes ▶ aspect rows. When the parent supplies it, this wins
+  // over the script-set figure.axisMode for panel-shrink decisions.
+  axisMode: axisModeProp,
+  setAxisMode   = null,
   setShowMajor  = null,
   setShowMinor  = null,
   setXGrid      = null,
@@ -402,10 +407,17 @@ export default function CompositePlot({
   let W = W0;
   let H = H0;
 
+  // Effective axis mode — user-set override (via aspect radio in
+  // axes ▾ or ПКМ Axes ▶ → aspect rows) takes precedence over the
+  // script-set figure.axisMode. Empty string normalises to '' (auto).
+  const effectiveAxisMode = (axisModeProp !== undefined && axisModeProp !== null && axisModeProp !== '')
+    ? String(axisModeProp)
+    : (figure.axisMode || '');
+
   // axisMode === 'square' forces the plot box itself to be square
   // (equal screen pixels for both axes' EXTENT, regardless of data).
   // Apply by shrinking the larger dimension to the smaller.
-  if (figure.axisMode === 'square') {
+  if (effectiveAxisMode === 'square') {
     const side = Math.min(W, H);
     W = side; H = side;
   }
@@ -424,7 +436,7 @@ export default function CompositePlot({
   // The difference between the two modes is in *how* xRange/yRange got
   // computed (image is also `axis tight`, equal keeps script margins),
   // not in how the panel is rendered. Both paths shrink the panel.
-  if (figure.axisMode === 'image' || figure.axisMode === 'equal') {
+  if (effectiveAxisMode === 'image' || effectiveAxisMode === 'equal') {
     const dx = xMax - xMin;
     const dy = yMax - yMin;
     if (dx > 0 && dy > 0
@@ -1000,6 +1012,17 @@ export default function CompositePlot({
         setYLog((v) => !v);
       },
     }] : []),
+    // aspect: mirrors the toolbar axes ▾ aspect radio. 5 mutually-
+    // exclusive rows; active value gets the ✓ prefix.
+    ...(setAxisMode ? [
+      { head: 'aspect' },
+      ...['auto', 'equal', 'square', 'image', 'tight'].map((m) => ({
+        label: tag(effectiveAxisMode === m
+                || (m === 'auto' && !effectiveAxisMode), m),
+        keepOpen: true,
+        onClick: () => setAxisMode(m),
+      })),
+    ] : []),
   ] : null;
 
   // Grid ▶ — mirrors the toolbar grid ▾ button, specialised for

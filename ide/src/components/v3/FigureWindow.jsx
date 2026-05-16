@@ -353,6 +353,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       xReverse:     axes.XDir === 'reverse',
       yReverse:     axes.YDir === 'reverse',
       zReverse:     axes.ZDir === 'reverse',
+      // Aspect mode — UI-set value flows to CompositePlot's panel-
+      // shrink path. Defaults to '' (auto) when neither script nor UI
+      // set it. CompositePlot reads `axisMode` prop with fallback to
+      // figure.axisMode (script value).
+      axisMode:     axes.AxisMode || '',
       legendLocation:   axes.Legend   && axes.Legend.Location,
       colorbarLocation: axes.Colorbar && axes.Colorbar.Location,
       colormap:     axes.Colormap || null,
@@ -401,6 +406,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       case 'xReverse':     return a.XDir === 'reverse';
       case 'yReverse':     return a.YDir === 'reverse';
       case 'zReverse':     return a.ZDir === 'reverse';
+      case 'axisMode':     return a.AxisMode || 'auto';
       case 'legendLocation':   return a.Legend   && a.Legend.Location;
       case 'colorbarLocation': return a.Colorbar && a.Colorbar.Location;
       case 'colormap':     return a.Colormap;
@@ -451,6 +457,17 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       case 'xReverse':     return { ...a, XDir: value ? 'reverse' : 'normal' };
       case 'yReverse':     return { ...a, YDir: value ? 'reverse' : 'normal' };
       case 'zReverse':     return { ...a, ZDir: value ? 'reverse' : 'normal' };
+      case 'axisMode':     {
+        // Aspect — keeps the AxisMode shorthand in sync with the
+        // derived MATLAB property pair (DataAspectRatioMode /
+        // PlotBoxAspectRatioMode). Mirrors initAxesFromCell's mapping.
+        const v = String(value || 'auto');
+        return { ...a,
+          AxisMode: v,
+          DataAspectRatioMode:    (v === 'equal' || v === 'image') ? 'manual' : 'auto',
+          PlotBoxAspectRatioMode: (v === 'square') ? 'manual' : 'auto',
+        };
+      }
       case 'legendLocation':   return setProp(a, ['Legend',   'Location'], value);
       case 'colorbarLocation': return setProp(a, ['Colorbar', 'Location'], value);
       case 'colormap':     return { ...a, Colormap: value };
@@ -524,6 +541,22 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   const xReverse     = axesArr.length > 0 && axesArr.every((a) => a.XDir === 'reverse');
   const yReverse     = axesArr.length > 0 && axesArr.every((a) => a.YDir === 'reverse');
   const zReverse     = axesArr.length > 0 && axesArr.every((a) => a.ZDir === 'reverse');
+  // Aspect aggregate — uniform across cells → that value; mixed → null.
+  // 'auto' (or empty) is the universal default. Drives the radio in
+  // axes ▾ + the fit X/Y disable rule (equal/image lock single-axis fit).
+  const axisModeAgg = (() => {
+    if (axesArr.length === 0) return 'auto';
+    const norm = (a) => (a && a.AxisMode ? a.AxisMode : 'auto');
+    const v0 = norm(axesArr[0]);
+    return axesArr.every((a) => norm(a) === v0) ? v0 : null;
+  })();
+  // Single-axis fit is meaningless under equal/image — both axes are
+  // locked together by DataAspectRatio. Disable the X / Y / Z rows in
+  // those modes (and when MIXED across cells, since we can't fan-out
+  // a meaningful single-axis fit either).
+  const aspectLocksSingleAxisFit = (axisModeAgg === 'equal'
+                                 || axisModeAgg === 'image'
+                                 || axisModeAgg === null);
   // Legend / colorbar location aggregates — uniform across cells →
   // that value; mixed → null. null also means "follow script".
   const legendLocationAgg = (() => {
@@ -578,6 +611,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   const setXReverse     = (u) => fanAll('xReverse',     u);
   const setYReverse     = (u) => fanAll('yReverse',     u);
   const setZReverse     = (u) => fanAll('zReverse',     u);
+  const setAxisMode     = (v) => fanAll('axisMode',     v);
   const setLegendLocation   = (v) => fanAll('legendLocation',   v);
   const setColorbarLocation = (v) => fanAll('colorbarLocation', v);
   function setColormapOverride(value) {
@@ -1151,35 +1185,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
 
   function applyFit(mode, axisMode) {
     if (isSubplot) return;                 // subplot fit lives per-cell; close menu
-    // axis equal / axis image — single-axis fit refits the requested
-    // axis to its data extent and scales the OTHER axis so dy = dx
-    // (centred on its current midpoint), preserving the panel aspect
-    // expected by DataAspectRatio = [1 1 1]. See the same handling in
-    // SubplotGrid's fitSignal effect for the per-cell case. Only the
-    // cartesian xy path goes through here (3D + polar branches below
-    // have their own dispatch).
-    const equalLike = (figure.axisMode === 'equal' || figure.axisMode === 'image');
-    if (equalLike && !is3D && !isPolar
-        && (axisMode === 'x' || axisMode === 'y')) {
-      const def = figDefault || { x: [-1, 1], y: [-1, 1] };
-      const cur = viewport     || def;
-      let nextX = Array.isArray(cur.x) ? cur.x.slice() : def.x.slice();
-      let nextY = Array.isArray(cur.y) ? cur.y.slice() : def.y.slice();
-      if (axisMode === 'x' && Array.isArray(def.x) && Array.isArray(cur.y)) {
-        const newDx = def.x[1] - def.x[0];
-        const yMid  = (cur.y[0] + cur.y[1]) / 2;
-        nextX = def.x.slice();
-        nextY = [yMid - newDx / 2, yMid + newDx / 2];
-      } else if (axisMode === 'y' && Array.isArray(def.y) && Array.isArray(cur.x)) {
-        const newDy = def.y[1] - def.y[0];
-        const xMid  = (cur.x[0] + cur.x[1]) / 2;
-        nextY = def.y.slice();
-        nextX = [xMid - newDy / 2, xMid + newDy / 2];
-      }
-      setViewport({ ...cur, x: nextX, y: nextY });
-      setFitOpen(false);
-      return;
-    }
+    // Aspect-equal / aspect-image conflict with single-axis fit is
+    // handled UPSTREAM by disabling the X / Y / Z buttons in the
+    // toolbar fit ▾ popover (`aspectLocksSingleAxisFit`). If we get
+    // here, either aspect = auto/square/tight or the user clicked
+    // `all` — both safe to dispatch normally.
     if (is3D) {
       // 3-D fit pulls the data bbox from Composite3DPlot's imperative
       // handle (Composite3DPlot reports it via onBBox each rebuild;
@@ -1368,24 +1378,36 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">Cartesian</div>
-                  {/* Toolbar policy: every row always clickable. Polar
-                      cells ignore the cartesian fit signal (no-op);
-                      cartesian cells honour it. Per-axis rows are
-                      single letters — `fit` is implied by the menu
-                      name, section head names the coordinate system,
-                      same pattern as grid ▾. */}
-                  <button onClick={() => {
-                    if (isSubplot) fitAllCells('x'); else applyFit('all', 'x');
-                    setFitOpen(false);
-                  }}>X</button>
-                  <button onClick={() => {
-                    if (isSubplot) fitAllCells('y'); else applyFit('all', 'y');
-                    setFitOpen(false);
-                  }}>Y</button>
-                  <button onClick={() => {
-                    if (isSubplot) fitAllCells('z'); else applyFit('all', 'z');
-                    setFitOpen(false);
-                  }}>Z</button>
+                  {/* Per-axis fit. Disabled when aspect locks the
+                      axes together — `equal` / `image` pin
+                      DataAspectRatio = [1 1 1] so refitting one axis
+                      independently would break the contract. The
+                      `all` row above still works (resets BOTH to the
+                      script viewport while preserving aspect).
+                      Tooltip tells the user how to unlock — switch
+                      aspect to `auto` in axes ▾. */}
+                  {(() => {
+                    const lockMsg = `aspect = ${axisModeAgg || 'mixed'} locks the axes together — `
+                                  + 'switch aspect to auto in axes ▾ to refit one axis independently, '
+                                  + 'or click `all` above.';
+                    const lockTitle = aspectLocksSingleAxisFit ? lockMsg : '';
+                    return (
+                      <>
+                        <button onClick={() => {
+                          if (isSubplot) fitAllCells('x'); else applyFit('all', 'x');
+                          setFitOpen(false);
+                        }} disabled={aspectLocksSingleAxisFit} title={lockTitle}>X</button>
+                        <button onClick={() => {
+                          if (isSubplot) fitAllCells('y'); else applyFit('all', 'y');
+                          setFitOpen(false);
+                        }} disabled={aspectLocksSingleAxisFit} title={lockTitle}>Y</button>
+                        <button onClick={() => {
+                          if (isSubplot) fitAllCells('z'); else applyFit('all', 'z');
+                          setFitOpen(false);
+                        }} disabled={aspectLocksSingleAxisFit} title={lockTitle}>Z</button>
+                      </>
+                    );
+                  })()}
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">Polar</div>
@@ -1534,6 +1556,32 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                                  onClick={() => toggleAxisLog('y')} />
                   <DisplayToggle label="Z" active={zLog}
                                  onClick={() => setZLog((v) => !v)} />
+                </div>
+                {/* aspect: MATLAB `axis equal/square/image/tight/auto`
+                    shorthand surfaced as a 5-button radio group.
+                    Mutually-exclusive — clicking one sets it; the
+                    current value is highlighted. `auto` is the default
+                    (panel fills cell, no aspect lock). Active value
+                    flows into CompositePlot's panel-shrink path which
+                    enforces the corresponding contract. */}
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">aspect</div>
+                  <div className="fw-pop-radio-row">
+                    {['auto', 'equal', 'square', 'image', 'tight'].map((m) => (
+                      <button key={m}
+                              className={`fw-pop-radio${(axisModeAgg || 'auto') === m ? ' is-active' : ''}`}
+                              title={({
+                                auto:   'panel fills cell; no aspect lock',
+                                equal:  '1 data unit X = 1 data unit Y (DataAspectRatio = [1 1 1])',
+                                square: 'plot box square regardless of data',
+                                image:  'equal + tight (default for imshow)',
+                                tight:  'limits exactly at data extent — no padding',
+                              })[m] || ''}
+                              onClick={() => setAxisMode(m)}>
+                        {m}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -1806,6 +1854,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 axisVisible: showAxis,
                 boxOn: showBox,
                 xReverse, yReverse, zReverse,
+                axisMode: axisModeAgg,
                 legendLocation: legendLocationAgg,
                 colorbarLocation: colorbarLocationAgg,
               }),
@@ -1837,6 +1886,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 setRGrid, setThetaGrid,
                 setXMinor, setYMinor, setZMinor,
                 setRMinor, setThetaMinor,
+                setAxisMode,
                 setShowAxis, setShowBox,
                 setXReverse, setYReverse, setZReverse,
                 setShowTitle, setShowXLabel, setShowYLabel, setShowZLabel,
