@@ -1151,14 +1151,34 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
 
   function applyFit(mode, axisMode) {
     if (isSubplot) return;                 // subplot fit lives per-cell; close menu
-    // axis equal / axis image: refitting a single cartesian axis
-    // breaks the DataAspectRatio = [1 1 1] contract — see the same
-    // upgrade in SubplotGrid's fitSignal effect for the rationale.
-    // Apply at the figure level (non-subplot, non-polar; polar uses
-    // its own r/theta dispatch below).
-    if ((figure.axisMode === 'equal' || figure.axisMode === 'image')
-        && (axisMode === 'x' || axisMode === 'y' || axisMode === 'z')) {
-      axisMode = 'both';
+    // axis equal / axis image — single-axis fit refits the requested
+    // axis to its data extent and scales the OTHER axis so dy = dx
+    // (centred on its current midpoint), preserving the panel aspect
+    // expected by DataAspectRatio = [1 1 1]. See the same handling in
+    // SubplotGrid's fitSignal effect for the per-cell case. Only the
+    // cartesian xy path goes through here (3D + polar branches below
+    // have their own dispatch).
+    const equalLike = (figure.axisMode === 'equal' || figure.axisMode === 'image');
+    if (equalLike && !is3D && !isPolar
+        && (axisMode === 'x' || axisMode === 'y')) {
+      const def = figDefault || { x: [-1, 1], y: [-1, 1] };
+      const cur = viewport     || def;
+      let nextX = Array.isArray(cur.x) ? cur.x.slice() : def.x.slice();
+      let nextY = Array.isArray(cur.y) ? cur.y.slice() : def.y.slice();
+      if (axisMode === 'x' && Array.isArray(def.x) && Array.isArray(cur.y)) {
+        const newDx = def.x[1] - def.x[0];
+        const yMid  = (cur.y[0] + cur.y[1]) / 2;
+        nextX = def.x.slice();
+        nextY = [yMid - newDx / 2, yMid + newDx / 2];
+      } else if (axisMode === 'y' && Array.isArray(def.y) && Array.isArray(cur.x)) {
+        const newDy = def.y[1] - def.y[0];
+        const xMid  = (cur.x[0] + cur.x[1]) / 2;
+        nextY = def.y.slice();
+        nextX = [xMid - newDy / 2, xMid + newDy / 2];
+      }
+      setViewport({ ...cur, x: nextX, y: nextY });
+      setFitOpen(false);
+      return;
     }
     if (is3D) {
       // 3-D fit pulls the data bbox from Composite3DPlot's imperative
