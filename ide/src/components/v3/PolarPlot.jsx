@@ -431,11 +431,13 @@ export default function PolarPlot({
       )}
 
       <g transform={`translate(${cx}, ${cy})`}>
-        {/* Minor rings: faint, no labels. Gated on RGrid AND
-            RMinorGrid (per-axis when wired, else falls back to the
-            combined `minor` flag) — `RMinorGrid` is degenerate
-            without RGrid. */}
-        {rGridOn && rMinorOn && rTicksMinor.map((rho, i) => {
+        {/* Minor rings: faint, no labels. MATLAB R2025b parity —
+            RMinorGrid is INDEPENDENT of RGrid (set(pax,'RMinorGrid',
+            'on') shows minor rings even with RGrid off). Same for
+            θ. Previously gated on rGridOn AND rMinorOn which made
+            the per-axis minor toggle a no-op when the major was
+            off — visible bug. */}
+        {rMinorOn && rTicksMinor.map((rho, i) => {
           const r = rScale(rho);
           if (r <= 0 || r > radius + 0.5) return null;
           return (
@@ -443,10 +445,10 @@ export default function PolarPlot({
               stroke="var(--plot-grid-min)" />
           );
         })}
-        {/* Minor spokes — every 15°, between the 30° majors. Gated on
-            ThetaGrid AND ThetaMinorGrid (same per-axis-prop-wins rule
-            as minor rings). */}
-        {thetaGridOn && thetaMinorOn && Array.from({ length: 12 }, (_, k) => k * 30 + 15).map((deg) => {
+        {/* Minor spokes — every 15°, between the 30° majors.
+            ThetaMinorGrid independent of ThetaGrid (same MATLAB
+            parity rule). */}
+        {thetaMinorOn && Array.from({ length: 12 }, (_, k) => k * 30 + 15).map((deg) => {
           const a = zero + dirSign * (deg * Math.PI / 180);
           const x = Math.cos(a) * radius;
           const y = -Math.sin(a) * radius;

@@ -1217,12 +1217,13 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     if (isPolar) {
       // Polar fit — same fitCellViewport unification as the cartesian
       // branch below. defaultPolarViewport handles rlim/thetalim
-      // priority + data-extent nicePolarMax fallback. Axis aliases
-      // for back-compat: legacy 'x'/'y'/'z' or unset → 'both';
-      // 'rtheta' (PolarPlot's ПКМ alias) → 'both'.
+      // priority + data-extent nicePolarMax fallback. Axis aliases:
+      // legacy 'rtheta' → 'both'; unset → 'both'. Cartesian
+      // 'x'/'y'/'z' are NO-OPs (parity with SubplotGrid's per-cell
+      // polar routing — universal toolbar = clickable but does
+      // nothing on inapplicable axes).
       let polarAxis = axisMode || 'both';
       if (polarAxis === 'rtheta') polarAxis = 'both';
-      if (polarAxis === 'x' || polarAxis === 'y' || polarAxis === 'z') polarAxis = 'both';
       setViewport(fitCellViewport(figure, viewport, polarAxis));
       setFitOpen(false);
       return;
