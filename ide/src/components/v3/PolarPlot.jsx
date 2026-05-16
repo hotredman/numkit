@@ -16,7 +16,7 @@
  *   { r: [rMin, rMax] }
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import ContextMenu, { foldRowsToSubmenu } from './ContextMenu';
+import ContextMenu from './ContextMenu';
 import { fitCellViewport, exportSvgNode, exportPngNode, exportPngForPrint } from './plotUtils';
 
 const PALETTE = ['#7fd99a', '#5fb3d4', '#e9b870', '#9b8cf2', '#e26a6a',
@@ -100,6 +100,17 @@ export default function PolarPlot({
   setThetaGrid = null,
   setRMinor     = null,
   setThetaMinor = null,
+  // Decoration props — title / legend visibility + legend Location.
+  // PolarPlot now mirrors CompositePlot's Decoration ▶ submenu so the
+  // ПКМ surface is symmetric across plot kinds. Defaults: title shown
+  // when figure.title is set; legend hidden unless the script called
+  // legend(...) (figure.legend non-empty OR legendLocation set).
+  showTitle    = true,
+  showLegend   = true,
+  legendLocation: legendLocationProp,
+  setShowTitle      = null,
+  setShowLegend     = null,
+  setLegendLocation = null,
   // Top-level Reset + figure-wide displayReset (matches CompositePlot's
   // ПКМ bridge). FigureWindow wires `resetAll` / `displayReset`.
   onResetAll     = null,
@@ -135,7 +146,10 @@ export default function PolarPlot({
   const thMax = (thMaxDeg * Math.PI) / 180;
   const isFullSweep = Math.abs((thMaxDeg - thMinDeg) - 360) < 1e-6;
 
-  const padTop = (figure.title ? 28 : 12) * fontScale;
+  // padTop reserves space for the title strip — drop the reserve
+  // when title is either unset OR toggled off via Decoration ▶, so
+  // the polar disk gets the freed pixels back.
+  const padTop = ((figure.title && showTitle) ? 28 : 12) * fontScale;
   const padBot = 12 * fontScale;
   const padX   = 12 * fontScale;
   const cx = width / 2;
@@ -291,6 +305,11 @@ export default function PolarPlot({
   }
   const multiSeries = Array.isArray(figure.series) && figure.series.length > 1;
 
+  // ✓-prefix helper for active toggle rows — same `tag(active, label)`
+  // pattern CompositePlot's ПКМ uses so toggle rows render checkmarks
+  // identically across plot kinds.
+  const tag = (active, label) => active ? `✓ ${label}` : label;
+
   // House icon — same path used by the standalone toolbar Reset button
   // and CompositePlot's ПКМ Reset row. Inlined here so PolarPlot's ПКМ
   // top row matches the rest of the IDE.
@@ -358,27 +377,80 @@ export default function PolarPlot({
   // to viewport-only when the parent didn't wire one.
   const onReset = onResetAll || (() => setViewport && setViewport(defaultPolarViewport(figure)));
 
+  // Decoration ▶ — title + legend toggles + legend Location picker.
+  // Mirrors CompositePlot's Decoration ▶ shape but with the
+  // polar-relevant subset (no X/Y/Z labels — polar doesn't model
+  // them; no colorbar — polar isn't a heatmap surface). Sections
+  // labelled the same way for visual parity.
+  const decorationItems = (setShowTitle || setShowLegend) ? [
+    ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
+                          { separator: true }] : []),
+    { head: 'labels' },
+    ...(setShowTitle ? [{
+      label: tag(showTitle, 'title'), keepOpen: true,
+      onClick: () => setShowTitle((v) => !v),
+    }] : []),
+    { head: 'annotations' },
+    ...(setShowLegend ? [{
+      label: tag(showLegend, 'legend'), keepOpen: true,
+      onClick: () => setShowLegend((v) => !v),
+    }] : []),
+    ...(setLegendLocation ? [{
+      submenu: 'legend location',
+      items: [
+        { value: null,        label: 'default' },
+        { value: 'best',      label: 'best' },
+        { value: 'north',     label: 'north' },
+        { value: 'south',     label: 'south' },
+        { value: 'east',      label: 'east' },
+        { value: 'west',      label: 'west' },
+        { value: 'northeast', label: 'northeast' },
+        { value: 'northwest', label: 'northwest' },
+        { value: 'southeast', label: 'southeast' },
+        { value: 'southwest', label: 'southwest' },
+      ].map((o) => ({
+        label: tag((legendLocationProp || null) === o.value, o.label),
+        onClick: () => setLegendLocation(o.value),
+        keepOpen: true,
+      })),
+    }] : []),
+  ] : null;
+
+  // Fit Series ▶ — per-series fit submenu mirroring CompositePlot's
+  // shape. Filtered to series with ≥2 rho samples (fitting a
+  // single-point series gives a degenerate range). Each row has one
+  // `fit` button driving fitRho(seriesName) — polar's per-series fit
+  // only scales R (θ is global).
+  const fittableSeries = (figure.series || [])
+    .map((s, i) => ({ s, i }))
+    .filter(({ s }) => Array.isArray(s.rho) && s.rho.length >= 2);
+  const seriesSubmenuItems = fittableSeries.length > 0
+    ? fittableSeries.map(({ s, i }) => ({
+        row: true,
+        color: s.color || PALETTE[i % PALETTE.length],
+        name: s.name || `series ${i + 1}`,
+        buttons: [{ label: 'fit r',
+                    onClick: () => fitRho(s.name),
+                    disabled: !setViewport }],
+      }))
+    : null;
+
   const ctxItems = [
     { label: <span>{houseIcon}Reset</span>, onClick: onReset },
     { submenu: 'Save / Export', items: exportItems },
     ...(gridItems ? [{ submenu: 'Grid', items: gridItems }] : []),
+    ...(decorationItems ? [{ submenu: 'Decoration', items: decorationItems }] : []),
+    ...(seriesSubmenuItems ? [{
+      submenu: `Fit Series${fittableSeries.length > 1 ? ` (${fittableSeries.length})` : ''}`,
+      items: seriesSubmenuItems,
+    }] : []),
     { separator: true },
-    // ПКМ Fit — specialised to polar. Single-letter row labels;
-    // `fit` implied by the section head.
+    // ПКМ Fit — figure-wide / data-extent rows. Per-series fit lives
+    // in Fit Series ▶ above (parity with CompositePlot).
     { head: 'Fit' },
     { label: 'all', onClick: fitAllPolar, disabled: !setViewport },
     { label: 'R',   onClick: fitR,        disabled: !setViewport },
     { label: 'θ',   onClick: fitTheta,    disabled: !setViewport },
-    ...(multiSeries ? [
-      { head: 'Fit single curve' },
-      ...foldRowsToSubmenu(
-        figure.series.map((s) => ({
-          row: true, color: s.color, name: s.name,
-          buttons: [{ label: 'fit', onClick: () => fitRho(s.name), disabled: !setViewport }],
-        })),
-        `${figure.series.length} curves`,
-      ),
-    ] : []),
   ];
 
   // Wheel listener attached imperatively because React's onWheel is passive.
@@ -424,8 +496,10 @@ export default function PolarPlot({
     >
       <rect x={0} y={0} width={width} height={height} fill="var(--bg-1)" />
 
-      {/* Title */}
-      {figure.title && (
+      {/* Title — gated on showTitle so the ПКМ Decoration ▶ / toolbar
+          decoration ▾ `title` toggle can hide it. Same convention as
+          CompositePlot. */}
+      {figure.title && showTitle && (
         <text x={cx} y={padTop - 10} fill="var(--plot-text-strong)"
           fontSize={12 * fontScale} textAnchor="middle">{figure.title}</text>
       )}
@@ -611,6 +685,88 @@ export default function PolarPlot({
           })}
         </g>
       </g>
+
+      {/* Legend — ported from CompositePlot. Renders only when:
+            • showLegend toggle is on (toolbar decoration ▾ default), AND
+            • user asked via script (figure.legend non-empty OR explicit
+              legendLocation set — same rule as CompositePlot).
+          Positioning uses width/height as the anchor frame (polar has
+          no padL/W panel rect like cartesian); top-row positions reserve
+          the title strip so the legend doesn't overlap the figure name. */}
+      {(() => {
+        if (showLegend === false) return null;
+        const userAsked = (figure.legend && figure.legend.length > 0)
+                       || (figure.legendLocation && figure.legendLocation !== 'none');
+        if (!userAsked || !Array.isArray(figure.series) || figure.series.length === 0) return null;
+        const labels = (figure.legend && figure.legend.length > 0)
+          ? figure.legend
+          : figure.series.map((s) => s.name).filter(Boolean);
+        const haveLabels = labels.some((s) => s && s.trim() !== '');
+        if (!haveLabels) return null;
+        const items = figure.series.slice(0, labels.length).map((s, i) => ({
+          color: s.color || PALETTE[i % PALETTE.length],
+          text:  labels[i] || s.name || `series ${i + 1}`,
+          mode:  s.mode || 'line',
+        }));
+        if (items.length === 0) return null;
+        const fontSize = 10 * fontScale;
+        const lineH    = fontSize + 4;
+        const swatchW  = 14;
+        const padInner = 6;
+        const longest = items.reduce((m, it) => Math.max(m, it.text.length), 0);
+        const boxW = padInner * 2 + swatchW + 4 + Math.min(longest, 24) * 6.5;
+        const boxH = padInner * 2 + items.length * lineH;
+        const loc = ((legendLocationProp != null ? legendLocationProp : figure.legendLocation) || 'best')
+                    .replace(/outside$/, '');
+        // Anchor inside the FULL svg bounds (polar has no inner panel
+        // rect). Top edge respects padTop so the title strip stays clear.
+        const anchorMargin = 8;
+        const topEdge    = padTop + anchorMargin;
+        const bottomEdge = height - padBot - anchorMargin;
+        let bx, by;
+        switch (loc) {
+          case 'north':     bx = (width - boxW) / 2;          by = topEdge; break;
+          case 'south':     bx = (width - boxW) / 2;          by = bottomEdge - boxH; break;
+          case 'east':      bx = width - boxW - anchorMargin; by = (height - boxH) / 2; break;
+          case 'west':      bx = anchorMargin;                by = (height - boxH) / 2; break;
+          case 'northwest': bx = anchorMargin;                by = topEdge; break;
+          case 'southeast': bx = width - boxW - anchorMargin; by = bottomEdge - boxH; break;
+          case 'southwest': bx = anchorMargin;                by = bottomEdge - boxH; break;
+          case 'none':      return null;
+          // 'best' / 'northeast' / default → top-right.
+          default:          bx = width - boxW - anchorMargin; by = topEdge; break;
+        }
+        return (
+          <g pointerEvents="none">
+            <rect x={bx} y={by} width={boxW} height={boxH}
+              fill="var(--plot-bg)" stroke="var(--plot-frame)" strokeWidth="0.5"
+              rx="3" opacity="0.92" />
+            {items.map((it, i) => {
+              const cyL = by + padInner + i * lineH + lineH / 2;
+              const swX0 = bx + padInner;
+              const swX1 = swX0 + swatchW;
+              let swatch;
+              if (it.mode === 'scatter' || it.mode === 'stem') {
+                swatch = <circle cx={(swX0 + swX1) / 2} cy={cyL} r="3"
+                  fill={it.color} stroke="var(--plot-frame)" strokeWidth="0.6" />;
+              } else if (it.mode === 'bar') {
+                swatch = <rect x={swX0} y={cyL - 4} width={swatchW} height="8"
+                  fill={it.color} stroke={it.color} strokeWidth="1" />;
+              } else {
+                swatch = <line x1={swX0} x2={swX1} y1={cyL} y2={cyL}
+                  stroke={it.color} strokeWidth="2" />;
+              }
+              return (
+                <g key={i}>
+                  {swatch}
+                  <text x={swX1 + 4} y={cyL + fontSize / 3} fontSize={fontSize}
+                    fill="var(--plot-text-strong)">{it.text}</text>
+                </g>
+              );
+            })}
+          </g>
+        );
+      })()}
     </svg>
     </>
   );
