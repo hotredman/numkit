@@ -978,17 +978,12 @@ export default function CompositePlot({
                          masked: !axisVisible,
                          maskedHint: 'Box is hidden because axis is off.',
                          onClick: () => setShowBox((v) => !v) }] : []),
-    { head: 'reverse' },
-    ...(setXReverse ? [{ label: tag(xRev, 'X'), keepOpen: true,
-                         onClick: () => setXReverse((v) => !v) }] : []),
-    ...(setYReverse ? [{ label: tag(yRev, 'Y'), keepOpen: true,
-                         onClick: () => setYReverse((v) => !v) }] : []),
-    { head: 'log scale' },
-    ...(setXLogProp ? [{
-      label: tag(xLog, 'X'),
-      keepOpen: true,
-      disabled: figure.xRange[1] <= 0,
-      onClick: () => {
+    // Direction + scale collapsed into a single matrix — rows = X/Y,
+    // columns = reverse / log. Mirrors the toolbar axes ▾ matrix.
+    // Log toggle keeps its viewport-clamp logic inline (positive lo
+    // bound required for the log mapping to apply visibly).
+    ...((setXReverse || setYReverse || setXLogProp || setYLogProp) ? (() => {
+      const xLogClamp = () => {
         if (!xLog && (xMin <= 0 || xMax <= 0)) {
           const cellW = hFullCols > 0 ? (figure.xRange[1] - figure.xRange[0]) / hFullCols : 0;
           const safeLo = Math.max(cellW * 0.5, figure.xRange[0] > 0 ? figure.xRange[0] : 1e-6);
@@ -996,13 +991,8 @@ export default function CompositePlot({
           setViewport({ ...viewport, x: [safeLo, safeHi] });
         }
         setXLog((v) => !v);
-      },
-    }] : []),
-    ...(setYLogProp ? [{
-      label: tag(yLog, 'Y'),
-      keepOpen: true,
-      disabled: figure.yRange[1] <= 0,
-      onClick: () => {
+      };
+      const yLogClamp = () => {
         if (!yLog && (yMin <= 0 || yMax <= 0)) {
           const cellH = hFullRows > 0 ? (figure.yRange[1] - figure.yRange[0]) / hFullRows : 0;
           const safeLo = Math.max(cellH * 0.5, figure.yRange[0] > 0 ? figure.yRange[0] : 1e-6);
@@ -1010,8 +1000,33 @@ export default function CompositePlot({
           setViewport({ ...viewport, y: [safeLo, safeHi] });
         }
         setYLog((v) => !v);
-      },
-    }] : []),
+      };
+      const matrixRow = (label, cols) => ({
+        row: true, name: label,
+        buttons: cols.map((c) => ({
+          label: c.active ? '✓' : '', active: !!c.active, keepOpen: true, toggle: true,
+          title: c.title || '',
+          onClick: c.onClick,
+          disabled: !c.onClick || !!c.disabled,
+        })),
+      });
+      return [
+        { head: 'reverse · log scale' },
+        { rowHead: true, columns: ['rev', 'log'] },
+        matrixRow('X', [
+          { active: xRev, onClick: setXReverse ? () => setXReverse((v) => !v) : null,
+            title: 'reverse direction' },
+          { active: xLog, onClick: setXLogProp ? xLogClamp : null,
+            disabled: figure.xRange[1] <= 0, title: 'log scale' },
+        ]),
+        matrixRow('Y', [
+          { active: yRev, onClick: setYReverse ? () => setYReverse((v) => !v) : null,
+            title: 'reverse direction' },
+          { active: yLog, onClick: setYLogProp ? yLogClamp : null,
+            disabled: figure.yRange[1] <= 0, title: 'log scale' },
+        ]),
+      ];
+    })() : []),
     // aspect: mirrors the toolbar axes ▾ aspect radio. 5 mutually-
     // exclusive rows; active value gets the ✓ prefix.
     ...(setAxisMode ? [

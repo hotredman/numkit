@@ -650,7 +650,11 @@ input, select { font-family: inherit; color: inherit; }
    fixed-width for consistent visual rhythm across rows. */
 .fw-pop-matrix .fw-pop-mrow {
   display: grid !important;
-  grid-template-columns: 1fr 26px 26px;
+  /* Label stretches; each button column is fixed-width. Default
+     covers 2-column matrices (grid maj/min, axes reverse/log).
+     auto-sized columns based on the buttons themselves keep
+     alignment tight when column header text varies (`maj`/`rev`). */
+  grid-template-columns: 1fr 30px 30px;
   align-items: center;
   gap: 6px;
   padding: 3px 8px;
