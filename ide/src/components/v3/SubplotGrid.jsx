@@ -163,19 +163,7 @@ export default function SubplotGrid({
     setViewports((prev) => figure.cells.map((cell, idx) => {
       const def = defaultViewport(cell);
       const cur = prev[idx] || def;
-      let axis = fitSignal.axis;
-      // axis equal / axis image pins DataAspectRatio = [1 1 1] — 1
-      // data unit on X must occupy the same pixel count as 1 on Y.
-      // Refitting JUST X (or JUST Y) breaks that contract: the panel-
-      // shrink path in CompositePlot recomputes panel aspect from the
-      // new dx/dy ratio and the cell visibly changes size (1×3 subplot
-      // ends up with rectangles of different widths instead of three
-      // equal squares). Upgrade single-axis fit to 'both' for these
-      // cells so the original xlim/ylim relationship is preserved.
-      if ((cell.axisMode === 'equal' || cell.axisMode === 'image')
-          && (axis === 'x' || axis === 'y' || axis === 'z')) {
-        axis = 'both';
-      }
+      const axis = fitSignal.axis;
       // Two coordinate systems share this signal: cartesian (x/y/z)
       // and polar (r/theta). Each cell honours only its own — fits on
       // axes the cell doesn't own resolve to `cur` (no-op, parity-
@@ -186,6 +174,29 @@ export default function SubplotGrid({
         if (axis === 'r')     return { ...cur, r:     def.r };
         if (axis === 'theta') return { ...cur, theta: def.theta };
         return cur;
+      }
+      // axis equal / axis image pins DataAspectRatio = [1 1 1] — 1
+      // data unit on X must occupy the same pixel count as 1 on Y.
+      // Refitting JUST X to data extent without touching Y changes the
+      // dx/dy ratio, which the panel-shrink path in CompositePlot
+      // picks up and visibly resizes the panel (1×3 subplot ends up
+      // with rectangles of different widths). Preserve the contract:
+      // refit the requested axis to its data extent, then resize the
+      // OTHER axis to match (newDy = newDx) centred on the existing
+      // axis midpoint. Panel stays square, requested axis actually
+      // gets refit.
+      const equalLike = cell.axisMode === 'equal' || cell.axisMode === 'image';
+      if (equalLike && axis === 'x' && Array.isArray(def.x) && Array.isArray(cur.y)) {
+        const newDx = def.x[1] - def.x[0];
+        const yMid  = (cur.y[0] + cur.y[1]) / 2;
+        return { ...cur, x: def.x.slice(),
+                         y: [yMid - newDx / 2, yMid + newDx / 2] };
+      }
+      if (equalLike && axis === 'y' && Array.isArray(def.y) && Array.isArray(cur.x)) {
+        const newDy = def.y[1] - def.y[0];
+        const xMid  = (cur.x[0] + cur.x[1]) / 2;
+        return { ...cur, y: def.y.slice(),
+                         x: [xMid - newDy / 2, xMid + newDy / 2] };
       }
       if (axis === 'x') return { ...cur, x: def.x };
       if (axis === 'y') return { ...cur, y: def.y };
