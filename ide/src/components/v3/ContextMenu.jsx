@@ -23,6 +23,13 @@
  *                                                  empty) and `columns[]`
  *                                                  as plain spans aligned
  *                                                  with the row buttons.
+ *   { pillRow: true, options: [{ label, active, onClick, title? }] }
+ *                                                  — radio-style flex row
+ *                                                  of pills. Mirrors the
+ *                                                  toolbar `.fw-pop-radio`
+ *                                                  group; active pill picks
+ *                                                  up the accent fill. Used
+ *                                                  for aspect/auto/equal/...
  *   { submenu: 'Label', items: [...] }           — nested submenu
  *
  * Nested submenus open to the side on hover; the parent closes when the
@@ -80,6 +87,28 @@ function MenuItems({ items, onClose }) {
     if (it.head)      return <div key={i} className="ctx-head">{it.head}</div>;
     if (it.submenu) {
       return <SubmenuItem key={i} item={it} onClose={onClose} />;
+    }
+    if (it.pillRow) {
+      return (
+        <div key={i} className="ctx-pill-row">
+          {(it.options || []).map((o, j) => (
+            <button key={j}
+              className={`ctx-pill${o.active ? ' is-active' : ''}`}
+              disabled={!!o.disabled}
+              title={o.title || ''}
+              onClick={(e) => {
+                e.stopPropagation();
+                o.onClick?.();
+                // Pills are radio-style — clicking one stays in the
+                // menu so the user can compare options. Parent can
+                // override by setting onClose semantics elsewhere.
+              }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      );
     }
     if (it.rowHead) {
       return (
