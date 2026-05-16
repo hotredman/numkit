@@ -669,6 +669,13 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
         RMinorGrid: init.RMinorGrid, ThetaMinorGrid: init.ThetaMinorGrid,
         XScale: init.XScale, YScale: init.YScale, ZScale: init.ZScale,
         XDir: init.XDir, YDir: init.YDir, ZDir: init.ZDir,
+        // Aspect — UI-set axisMode override gets cleared back to the
+        // script value (`axis equal/square/image/tight/auto`). Three
+        // schema fields kept in sync: AxisMode (shorthand) and the
+        // two MATLAB-style mode flags.
+        AxisMode:               init.AxisMode,
+        DataAspectRatioMode:    init.DataAspectRatioMode,
+        PlotBoxAspectRatioMode: init.PlotBoxAspectRatioMode,
         Title: init.Title, Subtitle: init.Subtitle,
         XLabel: init.XLabel, YLabel: init.YLabel, ZLabel: init.ZLabel, YLabel2: init.YLabel2,
         Legend: init.Legend, Colorbar: init.Colorbar,
