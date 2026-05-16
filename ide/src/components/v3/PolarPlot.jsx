@@ -17,7 +17,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ContextMenu, { foldRowsToSubmenu } from './ContextMenu';
-import { exportSvgNode, exportPngNode, exportPngForPrint } from './plotUtils';
+import { fitCellViewport, exportSvgNode, exportPngNode, exportPngForPrint } from './plotUtils';
 
 const PALETTE = ['#7fd99a', '#5fb3d4', '#e9b870', '#9b8cf2', '#e26a6a',
                  '#d4a5e6', '#f2a37e', '#6fcfbf'];
@@ -258,26 +258,36 @@ export default function PolarPlot({
     e.preventDefault();
     setCtxMenu({ x: e.clientX, y: e.clientY });
   }
+  // Per-series fit (ПКМ "Fit single curve r") stays a data-scan
+  // analogous to CompositePlot.applyFitSeries — scans ONE series's
+  // rho for the tightest possible r-extent. Different scope from
+  // the "Fit R" button (which is "fit cell to all data") so kept
+  // as its own function. seriesName === 'all' is no longer used
+  // here — the all-series case goes through fitR / fitAllPolar.
   function fitRho(seriesName) {
     if (!setViewport) return;
-    const list = seriesName === 'all'
-      ? figure.series
-      : figure.series.filter((s) => s.name === seriesName);
+    const list = figure.series.filter((s) => s.name === seriesName);
     let m = 0;
     list?.forEach((s) => s.rho?.forEach((v) => {
       if (Number.isFinite(v) && Math.abs(v) > m) m = Math.abs(v);
     }));
     setViewport({ ...vp, r: [vp.r[0], nicePolarMax(m || 1)] });
   }
+  // Cell-level fits — routed through the unified fitCellViewport so
+  // toolbar fit ▾, SubplotGrid.fitSignal, and ПКМ Fit all share one
+  // implementation. defaultPolarViewport encapsulates rlim/thetalim
+  // priority + data-extent fallback.
+  function fitR() {
+    if (!setViewport) return;
+    setViewport(fitCellViewport(figure, vp, 'r'));
+  }
   function fitTheta() {
     if (!setViewport) return;
-    const thetaRange = (Array.isArray(figure.thetalim) && figure.thetalim.length === 2)
-      ? figure.thetalim.slice() : [0, 360];
-    setViewport({ ...vp, theta: thetaRange });
+    setViewport(fitCellViewport(figure, vp, 'theta'));
   }
   function fitAllPolar() {
     if (!setViewport) return;
-    setViewport(defaultPolarViewport(figure));
+    setViewport(fitCellViewport(figure, vp, 'both'));
   }
   const multiSeries = Array.isArray(figure.series) && figure.series.length > 1;
 
@@ -356,9 +366,9 @@ export default function PolarPlot({
     // ПКМ Fit — specialised to polar. Single-letter row labels;
     // `fit` implied by the section head.
     { head: 'Fit' },
-    { label: 'all', onClick: fitAllPolar,         disabled: !setViewport },
-    { label: 'R',   onClick: () => fitRho('all'), disabled: !setViewport },
-    { label: 'θ',   onClick: fitTheta,            disabled: !setViewport },
+    { label: 'all', onClick: fitAllPolar, disabled: !setViewport },
+    { label: 'R',   onClick: fitR,        disabled: !setViewport },
+    { label: 'θ',   onClick: fitTheta,    disabled: !setViewport },
     ...(multiSeries ? [
       { head: 'Fit single curve' },
       ...foldRowsToSubmenu(

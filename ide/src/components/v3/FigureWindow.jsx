@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import CompositePlot from './CompositePlot';
 import Composite3DPlot from './Composite3DPlot';
 import FigureErrorBoundary from './FigureErrorBoundary';
-import PolarPlot, { defaultPolarViewport, nicePolarMax } from './PolarPlot';
+import PolarPlot, { defaultPolarViewport } from './PolarPlot';
 import SubplotGrid from './SubplotGrid';
 import { computeFitViewport, fitCellViewport,
   composeSvgsToString, exportSvgString, exportPngString,
@@ -1215,39 +1215,15 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       return;
     }
     if (isPolar) {
-      // Polar fit: two axes — R (radial extent) and θ (angular sweep).
-      // axisMode picks which to reset:
-      //   'r'              → R only, θ stays at current viewport
-      //   'theta'          → θ only, R stays
-      //   'rtheta'/'both'  → both
-      // Anything else (e.g. legacy 'x'/'y'/'z') falls through to fit-
-      // both for back-compat — the only direct call sites this matters
-      // for are the cartesian section, which only fires on
-      // !isPolar paths above.
-      const list = mode === 'all'
-        ? figure.series
-        : figure.series.filter((s) => s.name === mode);
-      const wantR = axisMode === 'r'      || axisMode === 'both' || axisMode === 'rtheta' || !axisMode;
-      const wantT = axisMode === 'theta'  || axisMode === 'both' || axisMode === 'rtheta';
-      const cur = viewport || {};
-      const next = {
-        r:     Array.isArray(cur.r)     ? cur.r.slice()     : [0, 1],
-        theta: Array.isArray(cur.theta) ? cur.theta.slice() : [0, 360],
-      };
-      if (wantR) {
-        let m = 0;
-        list.forEach((s) => s.rho?.forEach((v) => {
-          if (Number.isFinite(v) && Math.abs(v) > m) m = Math.abs(v);
-        }));
-        const lo = (Array.isArray(figure.rlim) && figure.rlim.length === 2)
-                   ? figure.rlim[0] : 0;
-        next.r = [lo, nicePolarMax(m || 1)];
-      }
-      if (wantT) {
-        next.theta = (Array.isArray(figure.thetalim) && figure.thetalim.length === 2)
-                     ? figure.thetalim.slice() : [0, 360];
-      }
-      setViewport(next);
+      // Polar fit — same fitCellViewport unification as the cartesian
+      // branch below. defaultPolarViewport handles rlim/thetalim
+      // priority + data-extent nicePolarMax fallback. Axis aliases
+      // for back-compat: legacy 'x'/'y'/'z' or unset → 'both';
+      // 'rtheta' (PolarPlot's ПКМ alias) → 'both'.
+      let polarAxis = axisMode || 'both';
+      if (polarAxis === 'rtheta') polarAxis = 'both';
+      if (polarAxis === 'x' || polarAxis === 'y' || polarAxis === 'z') polarAxis = 'both';
+      setViewport(fitCellViewport(figure, viewport, polarAxis));
       setFitOpen(false);
       return;
     }
