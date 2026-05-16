@@ -322,11 +322,11 @@ export default function PolarPlot({
   const gridMatrixRow = (label, major, minor, setMajor, setMinor) => ({
     row: true, name: label,
     buttons: [
-      { label: major ? '✓' : '·', active: !!major, keepOpen: true,
+      { label: major ? '✓' : '', active: !!major, keepOpen: true, toggle: true,
         title: 'major grid',
         onClick: setMajor ? () => setMajor((v) => !v) : null,
         disabled: !setMajor },
-      { label: minor ? '✓' : '·', active: !!minor, keepOpen: true,
+      { label: minor ? '✓' : '', active: !!minor, keepOpen: true, toggle: true,
         title: 'minor grid',
         onClick: setMinor ? () => setMinor((v) => !v) : null,
         disabled: !setMinor },

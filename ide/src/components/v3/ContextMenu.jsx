@@ -7,13 +7,15 @@
  *   { head: 'Section' }                          — section heading
  *   { row: true, name, color, buttons: [...] }   — series row (name + 3 buttons)
  *                                                  buttons may carry
- *                                                  { active, keepOpen, disabled }
- *                                                  flags. `active` adds the
- *                                                  is-active class (✓ pressed
- *                                                  styling); `keepOpen` skips
- *                                                  the auto-close on click —
- *                                                  used for toggle matrices
- *                                                  (e.g. grid X/Y maj+min).
+ *                                                  { active, keepOpen, toggle,
+ *                                                    disabled } flags.
+ *                                                  `active` adds is-active
+ *                                                  (filled paint); `keepOpen`
+ *                                                  skips auto-close (toggle
+ *                                                  matrices); `toggle` opts
+ *                                                  into checkbox-style square
+ *                                                  rendering instead of a
+ *                                                  text-label button.
  *   { rowHead: true, name, columns: ['maj', 'min'] } — column-header row
  *                                                  for matrix layouts.
  *                                                  Renders `name` in the
@@ -98,7 +100,7 @@ function MenuItems({ items, onClose }) {
           </span>
           {it.buttons.map((b, j) => (
             <button key={j}
-              className={`ctx-row-btn${b.active ? ' is-active' : ''}`}
+              className={`ctx-row-btn${b.active ? ' is-active' : ''}${b.toggle ? ' is-toggle' : ''}`}
               disabled={!!b.disabled}
               title={b.title || ''}
               onClick={(e) => {
