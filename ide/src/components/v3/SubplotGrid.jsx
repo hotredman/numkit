@@ -13,6 +13,7 @@ import CompositePlot from './CompositePlot';
 import Composite3DPlot from './Composite3DPlot';
 import FigureErrorBoundary from './FigureErrorBoundary';
 import PolarPlot, { defaultPolarViewport } from './PolarPlot';
+import { fitCellViewport } from './plotUtils';
 
 function renderCell(cell, props) {
   if (cell.kind === 'composite3d') {
@@ -160,36 +161,13 @@ export default function SubplotGrid({
   useEffect(() => {
     if (!fitSignal || fitSignal.n === lastFitNRef.current) return;
     lastFitNRef.current = fitSignal.n;
+    // All per-cell fit routing lives in plotUtils.fitCellViewport —
+    // single source of truth shared with FigureWindow.applyFit and
+    // CompositePlot ПКМ Fit. Handles axis-equal upgrade + polar/
+    // cartesian dispatch.
     setViewports((prev) => figure.cells.map((cell, idx) => {
-      const def = defaultViewport(cell);
-      const cur = prev[idx] || def;
-      let axis = fitSignal.axis;
-      // Two coordinate systems share this signal: cartesian (x/y/z)
-      // and polar (r/theta). Each cell honours only its own — fits on
-      // axes the cell doesn't own resolve to `cur` (no-op, parity-
-      // clean with the toolbar policy). 'both' always resets the cell
-      // to its default viewport regardless of kind.
-      //
-      // Toolbar=universal: per-axis rows are always clickable. For
-      // cells with aspect=equal/image we upgrade single-axis fit to
-      // 'both' transparently — refitting one axis alone would break
-      // the DataAspectRatio=[1 1 1] contract. Per-cell here (subplot
-      // may have a mix of axis-equal and axis-auto cells, each picks
-      // its own routing).
-      if ((cell.axisMode === 'equal' || cell.axisMode === 'image')
-          && (axis === 'x' || axis === 'y' || axis === 'z')) {
-        axis = 'both';
-      }
-      if (axis === 'both') return def;
-      if (cell.kind === 'polar') {
-        if (axis === 'r')     return { ...cur, r:     def.r };
-        if (axis === 'theta') return { ...cur, theta: def.theta };
-        return cur;
-      }
-      if (axis === 'x') return { ...cur, x: def.x };
-      if (axis === 'y') return { ...cur, y: def.y };
-      if (axis === 'z') return def.z ? { ...cur, z: def.z } : cur;
-      return cur;
+      const cur = prev[idx] || defaultViewport(cell);
+      return fitCellViewport(cell, cur, fitSignal.axis);
     }));
   }, [fitSignal, figure.cells]);
 

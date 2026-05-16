@@ -29,7 +29,7 @@ import { buildHeatmapLUT, renderHeatmapDataURLFromIndices,
          renderHeatmapDataURLFromFlat, getColormap,
          makeCustomColormap } from './colormaps';
 import ContextMenu, { foldRowsToSubmenu } from './ContextMenu';
-import { computeFitViewport, exportSvgNode, exportPngNode, exportPngForPrint, downloadBlob } from './plotUtils';
+import { computeFitViewport, fitCellViewport, upgradeFitAxis, exportSvgNode, exportPngNode, exportPngForPrint, downloadBlob } from './plotUtils';
 
 // MATLAB linespec → SVG strokeDasharray. '-' (or absent) means solid;
 // returning undefined keeps the default solid stroke. Pixel patterns
@@ -740,48 +740,28 @@ export default function CompositePlot({
     e.preventDefault();
     setCtxMenu({ x: e.clientX, y: e.clientY });
   }
-  // Upgrade single-axis fit to 'both' when the cell's aspect locks
-  // the axes together (equal/image). Mirrors the same rule in
-  // FigureWindow.applyFit + SubplotGrid.fitSignal so toolbar fit X
-  // and ПКМ fit X behave identically — both refit BOTH axes when
-  // axis equal is on, preserving the DataAspectRatio = [1 1 1]
-  // contract. Without this guard ПКМ fit X bypassed the upgrade
-  // and broke the panel aspect.
-  function upgradeAxisModeForAspect(mode) {
-    if ((effectiveAxisMode === 'equal' || effectiveAxisMode === 'image')
-        && (mode === 'x' || mode === 'y' || mode === 'z')) {
-      return 'both';
-    }
-    return mode;
-  }
+  // ПКМ "Fit" (heatmap-like dispatch). Routes through the shared
+  // fitCellViewport so toolbar + ПКМ + SubplotGrid all behave
+  // identically (axis-equal upgrade, default-viewport target). Log
+  // mode overrides the X / Y target with a half-cell lo bound so log
+  // doesn't silently snap back to linear when figure.xRange straddles
+  // zero (cellH/2 heatmap padding). For pure-series figures there's
+  // no half-cell; falls back to a small positive seed.
   function fitAxes(axisMode) {
-    axisMode = upgradeAxisModeForAspect(axisMode);
-    const next = { x: viewport.x.slice(), y: viewport.y.slice() };
-    // Under log mode the figure's natural xRange/yRange straddle zero
-    // for heatmap (cellH/2 padding). Clamp the lo bound to half-cell so
-    // log doesn't silently snap back to linear. For pure-series figures
-    // there's no half-cell; use a small positive seed.
-    if (axisMode === 'both' || axisMode === 'x') {
-      if (xLog) {
-        const cellW = hFullCols > 0
-          ? (figure.xRange[1] - figure.xRange[0]) / hFullCols
-          : 0;
-        const lo = Math.max(cellW * 0.5, figure.xRange[0] > 0 ? figure.xRange[0] : 1e-6);
-        next.x = [lo, Math.max(lo * 10, figure.xRange[1])];
-      } else {
-        next.x = figure.xRange.slice();
-      }
+    const aspect = effectiveAxisMode;
+    const upgraded = upgradeFitAxis(aspect, axisMode);
+    let next = fitCellViewport(figure, viewport, axisMode, { aspectMode: aspect });
+    if ((upgraded === 'both' || upgraded === 'x') && xLog) {
+      const cellW = hFullCols > 0
+        ? (figure.xRange[1] - figure.xRange[0]) / hFullCols : 0;
+      const lo = Math.max(cellW * 0.5, figure.xRange[0] > 0 ? figure.xRange[0] : 1e-6);
+      next = { ...next, x: [lo, Math.max(lo * 10, figure.xRange[1])] };
     }
-    if (axisMode === 'both' || axisMode === 'y') {
-      if (yLog) {
-        const cellH = hFullRows > 0
-          ? (figure.yRange[1] - figure.yRange[0]) / hFullRows
-          : 0;
-        const lo = Math.max(cellH * 0.5, figure.yRange[0] > 0 ? figure.yRange[0] : 1e-6);
-        next.y = [lo, Math.max(lo * 10, figure.yRange[1])];
-      } else {
-        next.y = figure.yRange.slice();
-      }
+    if ((upgraded === 'both' || upgraded === 'y') && yLog) {
+      const cellH = hFullRows > 0
+        ? (figure.yRange[1] - figure.yRange[0]) / hFullRows : 0;
+      const lo = Math.max(cellH * 0.5, figure.yRange[0] > 0 ? figure.yRange[0] : 1e-6);
+      next = { ...next, y: [lo, Math.max(lo * 10, figure.yRange[1])] };
     }
     setViewport(next);
   }
@@ -832,20 +812,25 @@ export default function CompositePlot({
   // Per-series fit (line / scatter): scan x/y of selected layer and shrink
   // viewport to its data extent. Mirrors InteractivePlot's "Fit single
   // curve". `axisMode` is 'both' / 'x' / 'y'.
+  // Per-series fit (ПКМ "Fit single curve") stays a data-scan via
+  // computeFitViewport — scans ONE series's points for tighter bounds
+  // than the cell aggregate. Axis-equal upgrade applies here too so
+  // single-axis per-series fit doesn't break the contract.
   function applyFitSeries(seriesIdx, axisMode) {
-    axisMode = upgradeAxisModeForAspect(axisMode);
+    axisMode = upgradeFitAxis(effectiveAxisMode, axisMode);
     const ly = seriesLayers[seriesIdx];
     if (!ly) return;
     const figDefault = { x: figure.xRange.slice(), y: figure.yRange.slice() };
     setViewport(computeFitViewport([{ name: ly.name, x: ly.x, y: ly.y }],
                                    ly.name, axisMode, viewport, figDefault));
   }
+  // "Fit all series" routes through the shared fitCellViewport so it
+  // matches toolbar + SubplotGrid + ПКМ Fit. For composites with no
+  // series (pure heatmap) delegates to fitAxes which keeps log-clamp.
   function applyFitAllSeries(axisMode) {
-    axisMode = upgradeAxisModeForAspect(axisMode);
     if (seriesLayers.length === 0) return fitAxes(axisMode);
-    const figDefault = { x: figure.xRange.slice(), y: figure.yRange.slice() };
-    const all = seriesLayers.map((s) => ({ name: s.name, x: s.x, y: s.y }));
-    setViewport(computeFitViewport(all, 'all', axisMode, viewport, figDefault));
+    setViewport(fitCellViewport(figure, viewport, axisMode,
+                                { aspectMode: effectiveAxisMode }));
   }
 
   const multiSeries = seriesLayers.length > 1;
