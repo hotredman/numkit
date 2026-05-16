@@ -1027,17 +1027,27 @@ export default function CompositePlot({
         ]),
       ];
     })() : []),
-    // aspect: mirrors the toolbar axes ▾ aspect radio. 5 mutually-
-    // exclusive rows; active value gets the ✓ prefix.
-    ...(setAxisMode ? [
-      { head: 'aspect' },
-      ...['auto', 'equal', 'square', 'image', 'tight'].map((m) => ({
-        label: tag(effectiveAxisMode === m
-                || (m === 'auto' && !effectiveAxisMode), m),
-        keepOpen: true,
-        onClick: () => setAxisMode(m),
-      })),
-    ] : []),
+    // aspect: same pill-radio shape as the toolbar axes ▾ aspect row.
+    // Section head names the active value (`aspect: equal`) — matches
+    // the toolbar's `head names state` convention.
+    ...(setAxisMode ? (() => {
+      const cur = effectiveAxisMode || 'auto';
+      return [
+        { head: cur === 'auto' ? 'aspect' : `aspect: ${cur}` },
+        { pillRow: true, options: ['auto', 'equal', 'square', 'image', 'tight'].map((m) => ({
+          label: m,
+          active: cur === m,
+          title: ({
+            auto:   'panel fills cell; no aspect lock',
+            equal:  '1 data unit X = 1 data unit Y (DataAspectRatio = [1 1 1])',
+            square: 'plot box square regardless of data',
+            image:  'equal + tight (default for imshow)',
+            tight:  'limits exactly at data extent — no padding',
+          })[m] || '',
+          onClick: () => setAxisMode(m),
+        })) },
+      ];
+    })() : []),
   ] : null;
 
   // Grid ▶ — mirrors the toolbar grid ▾ button, specialised for

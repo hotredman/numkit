@@ -744,6 +744,37 @@ input, select { font-family: inherit; color: inherit; }
   color: var(--bg-1) !important;
   border-color: var(--accent) !important;
 }
+/* ПКМ pill-radio row — mirrors the toolbar `.fw-pop-radio-row`
+   shape. Used for aspect (auto/equal/square/image/tight) inside
+   ПКМ Axes ▶ so toolbar + ПКМ render the same radio UI. */
+.ctx-pill-row {
+  display: flex; flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px 14px;
+}
+.ctx-pill {
+  background: transparent;
+  border: 1.5px solid var(--line);
+  border-radius: 3px;
+  color: var(--fg-1);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  padding: 2px 8px;
+  cursor: pointer;
+  text-align: center;
+  line-height: 1.3;
+}
+.ctx-pill:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--bg-2);
+}
+.ctx-pill.is-active {
+  background: var(--accent);
+  color: var(--bg-1);
+  border-color: var(--accent);
+}
+.ctx-pill:disabled { opacity: 0.4; cursor: not-allowed; }
 /* ПКМ Grid ▶ matrix mirror — column-header row in a context-menu
    row layout. ctx-row already lays out [name | btns]; rowHead
    reuses that with span colhead boxes the same width as buttons. */
