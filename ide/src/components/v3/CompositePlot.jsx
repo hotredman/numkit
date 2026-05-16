@@ -740,7 +740,22 @@ export default function CompositePlot({
     e.preventDefault();
     setCtxMenu({ x: e.clientX, y: e.clientY });
   }
+  // Upgrade single-axis fit to 'both' when the cell's aspect locks
+  // the axes together (equal/image). Mirrors the same rule in
+  // FigureWindow.applyFit + SubplotGrid.fitSignal so toolbar fit X
+  // and ПКМ fit X behave identically — both refit BOTH axes when
+  // axis equal is on, preserving the DataAspectRatio = [1 1 1]
+  // contract. Without this guard ПКМ fit X bypassed the upgrade
+  // and broke the panel aspect.
+  function upgradeAxisModeForAspect(mode) {
+    if ((effectiveAxisMode === 'equal' || effectiveAxisMode === 'image')
+        && (mode === 'x' || mode === 'y' || mode === 'z')) {
+      return 'both';
+    }
+    return mode;
+  }
   function fitAxes(axisMode) {
+    axisMode = upgradeAxisModeForAspect(axisMode);
     const next = { x: viewport.x.slice(), y: viewport.y.slice() };
     // Under log mode the figure's natural xRange/yRange straddle zero
     // for heatmap (cellH/2 padding). Clamp the lo bound to half-cell so
@@ -818,6 +833,7 @@ export default function CompositePlot({
   // viewport to its data extent. Mirrors InteractivePlot's "Fit single
   // curve". `axisMode` is 'both' / 'x' / 'y'.
   function applyFitSeries(seriesIdx, axisMode) {
+    axisMode = upgradeAxisModeForAspect(axisMode);
     const ly = seriesLayers[seriesIdx];
     if (!ly) return;
     const figDefault = { x: figure.xRange.slice(), y: figure.yRange.slice() };
@@ -825,6 +841,7 @@ export default function CompositePlot({
                                    ly.name, axisMode, viewport, figDefault));
   }
   function applyFitAllSeries(axisMode) {
+    axisMode = upgradeAxisModeForAspect(axisMode);
     if (seriesLayers.length === 0) return fitAxes(axisMode);
     const figDefault = { x: figure.xRange.slice(), y: figure.yRange.slice() };
     const all = seriesLayers.map((s) => ({ name: s.name, x: s.x, y: s.y }));
