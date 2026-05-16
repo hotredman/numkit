@@ -1565,22 +1565,38 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                     flows into CompositePlot's panel-shrink path which
                     enforces the corresponding contract. */}
                 <div className="fw-pop-section">
-                  <div className="fw-pop-head">aspect</div>
+                  {/* Section head names the active aggregate value
+                      (`aspect: equal`) — when cells are mixed we show
+                      `aspect: mixed` so the user sees there's no
+                      uniform value before they look at the pills. */}
+                  <div className="fw-pop-head">
+                    aspect{axisModeAgg === null ? ': mixed'
+                                                : (axisModeAgg && axisModeAgg !== 'auto' ? `: ${axisModeAgg}` : '')}
+                  </div>
                   <div className="fw-pop-radio-row">
-                    {['auto', 'equal', 'square', 'image', 'tight'].map((m) => (
-                      <button key={m}
-                              className={`fw-pop-radio${(axisModeAgg || 'auto') === m ? ' is-active' : ''}`}
-                              title={({
-                                auto:   'panel fills cell; no aspect lock',
-                                equal:  '1 data unit X = 1 data unit Y (DataAspectRatio = [1 1 1])',
-                                square: 'plot box square regardless of data',
-                                image:  'equal + tight (default for imshow)',
-                                tight:  'limits exactly at data extent — no padding',
-                              })[m] || ''}
-                              onClick={() => setAxisMode(m)}>
-                        {m}
-                      </button>
-                    ))}
+                    {['auto', 'equal', 'square', 'image', 'tight'].map((m) => {
+                      // Active = uniform aggregate equals m. MIXED
+                      // (axisModeAgg === null) → no pill active so
+                      // the user doesn't think `auto` is the current
+                      // value when really it's different per cell.
+                      // Empty-string aggregate normalises to `auto`.
+                      const isActive = axisModeAgg !== null
+                                    && ((axisModeAgg || 'auto') === m);
+                      return (
+                        <button key={m}
+                                className={`fw-pop-radio${isActive ? ' is-active' : ''}`}
+                                title={({
+                                  auto:   'panel fills cell; no aspect lock',
+                                  equal:  '1 data unit X = 1 data unit Y (DataAspectRatio = [1 1 1])',
+                                  square: 'plot box square regardless of data',
+                                  image:  'equal + tight (default for imshow)',
+                                  tight:  'limits exactly at data extent — no padding',
+                                })[m] || ''}
+                                onClick={() => setAxisMode(m)}>
+                          {m}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

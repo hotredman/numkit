@@ -115,6 +115,29 @@ test('switch aspect to auto → fit ▾ X becomes enabled', async ({ ide, page }
   await expect(page.locator('.fw-pop button', { hasText: /^X$/ })).toBeEnabled();
 });
 
+test('subplot with mixed aspect: NO pill is active, head shows `mixed`', async ({ ide, page }) => {
+  // Cell A is auto (default), cell B is `axis equal`. axisModeAgg = null
+  // (mixed) → none of the 5 pills should have is-active, and the
+  // section head should annotate `mixed` so the user sees there is no
+  // uniform value.
+  await ide.runScript(
+    'import compat.*;\n'
+    + 'figure;\n'
+    + 'subplot(1, 2, 1); plot(1:10);\n'
+    + 'subplot(1, 2, 2); plot(1:10); axis equal;\n'
+  );
+  await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+  await ide.figureCards.first().click();
+  await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(150);
+
+  await openAxes(page);
+  // No pill carries is-active.
+  await expect(page.locator('.fw-pop-radio.is-active')).toHaveCount(0);
+  // Section head reflects the mixed state.
+  await expect(page.locator('.fw-pop-head', { hasText: /^aspect: mixed$/ })).toBeVisible();
+});
+
 test('subplot 1×3 axis equal: fit X disabled (per-cell axis lock)', async ({ ide, page }) => {
   // qam_constellation-style: 3 axis-equal cells. axisModeAgg = 'equal'
   // → toolbar fit X disabled across the figure.
