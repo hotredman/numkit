@@ -65,7 +65,11 @@ test('aspect radio: clicking `equal` sets axisMode and shrinks panel to square',
   await expect(page.locator('.fw-pop-radio', { hasText: /^auto$/ })).not.toHaveClass(/is-active/);
 });
 
-test('fit ▾ X/Y/Z disabled when aspect is `equal`', async ({ ide, page }) => {
+test('fit ▾ X/Y/Z always enabled (toolbar=universal policy)', async ({ ide, page }) => {
+  // Per the toolbar=universal rule, fit X/Y/Z buttons must STAY
+  // clickable regardless of aspect mode. Behaviour adapts under the
+  // hood: for axis-equal cells the click is upgraded to fit-both so
+  // the DataAspectRatio = [1 1 1] contract isn't broken.
   await ide.runScript(
     'import compat.*;\n'
     + 'rng(0);\n'
@@ -78,14 +82,17 @@ test('fit ▾ X/Y/Z disabled when aspect is `equal`', async ({ ide, page }) => {
   await page.waitForTimeout(150);
 
   await openFit(page);
-  // X / Y / Z buttons are disabled; `all` and polar R / θ stay enabled.
-  await expect(page.locator('.fw-pop button', { hasText: /^X$/ })).toBeDisabled();
-  await expect(page.locator('.fw-pop button', { hasText: /^Y$/ })).toBeDisabled();
-  await expect(page.locator('.fw-pop button', { hasText: /^Z$/ })).toBeDisabled();
-  await expect(page.locator('.fw-pop button', { hasText: /^all$/ })).toBeEnabled();
+  for (const ax of [/^all$/, /^X$/, /^Y$/, /^Z$/]) {
+    await expect(page.locator('.fw-pop button', { hasText: ax })).toBeEnabled();
+  }
 });
 
-test('switch aspect to auto → fit ▾ X becomes enabled', async ({ ide, page }) => {
+test('fit ▾ X on axis-equal acts as fit both (refits BOTH axes)', async ({ ide, page }) => {
+  // Reset both axes to script-set limits (auto-equivalent for plain
+  // plot). User pans Y, then clicks fit X. Because axis equal locks
+  // the axes together the X click upgrades to fit-both → BOTH axes
+  // snap back to default. Y range restored even though user clicked
+  // only X.
   await ide.runScript(
     'import compat.*;\n'
     + 'rng(0);\n'
@@ -95,24 +102,23 @@ test('switch aspect to auto → fit ▾ X becomes enabled', async ({ ide, page }
   await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
   await ide.figureCards.first().click();
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
-  await page.waitForTimeout(150);
+  await page.waitForTimeout(200);
 
-  // Pre: X is disabled (axis equal).
+  // Snapshot the SVG box BEFORE — should stay constant (panel preserved).
+  const before = await page.locator('.fw-window .fw-canvas-wrap svg').first().boundingBox();
+
   await openFit(page);
-  await expect(page.locator('.fw-pop button', { hasText: /^X$/ })).toBeDisabled();
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /fit/i }).click();    // close
-  await page.waitForTimeout(50);
+  await page.locator('.fw-pop button', { hasText: /^X$/ }).first().click();
+  await page.waitForTimeout(200);
 
-  // Switch aspect: auto.
-  await openAxes(page);
-  await page.locator('.fw-pop-radio', { hasText: /^auto$/ }).click();
-  await page.waitForTimeout(100);
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();   // close axes ▾
-  await page.waitForTimeout(50);
-
-  // Now X is enabled — single-axis fit allowed.
-  await openFit(page);
-  await expect(page.locator('.fw-pop button', { hasText: /^X$/ })).toBeEnabled();
+  const after = await page.locator('.fw-window .fw-canvas-wrap svg').first().boundingBox();
+  // Panel size must be unchanged — upgrade to fit-both means both
+  // axes snap back to [-5, 5] (which they already were) so dx/dy
+  // ratio is preserved and panel-shrink keeps the same square.
+  expect(Math.abs(after.width  - before.width),
+    `panel width drifted ${before.width} → ${after.width}`).toBeLessThan(4);
+  expect(Math.abs(after.height - before.height),
+    `panel height drifted ${before.height} → ${after.height}`).toBeLessThan(4);
 });
 
 test('toolbar 🏠 Reset clears aspect override back to script value', async ({ ide, page }) => {
@@ -215,9 +221,10 @@ test('subplot with mixed aspect: NO pill is active, head shows `mixed`', async (
   await expect(page.locator('.fw-pop-head', { hasText: /^aspect: mixed$/ })).toBeVisible();
 });
 
-test('subplot 1×3 axis equal: fit X disabled (per-cell axis lock)', async ({ ide, page }) => {
-  // qam_constellation-style: 3 axis-equal cells. axisModeAgg = 'equal'
-  // → toolbar fit X disabled across the figure.
+test('subplot 1×3 axis equal: fit X keeps all 3 cells the same width', async ({ ide, page }) => {
+  // qam_constellation-style: 3 axis-equal cells. fit X upgrades to
+  // fit-both per cell, so all 3 cells snap back to their scripted
+  // xlim/ylim ([-5, 5] × [-5, 5]) and the panels stay equal-sized.
   await ide.runScript(
     'import compat.*;\n'
     + 'figure;\n'
@@ -233,7 +240,19 @@ test('subplot 1×3 axis equal: fit X disabled (per-cell axis lock)', async ({ id
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
   await page.waitForTimeout(200);
 
+  // Click fit X.
   await openFit(page);
-  await expect(page.locator('.fw-pop button', { hasText: /^X$/ })).toBeDisabled();
-  await expect(page.locator('.fw-pop button', { hasText: /^Y$/ })).toBeDisabled();
+  await page.locator('.fw-pop button', { hasText: /^X$/ }).first().click();
+  await page.waitForTimeout(200);
+
+  // All three cells should be the same width afterwards.
+  const widths = [];
+  for (let i = 0; i < 3; i++) {
+    const b = await page.locator('.fw-window .fw-canvas-wrap svg').nth(i).boundingBox();
+    widths.push(b.width);
+  }
+  expect(Math.abs(widths[0] - widths[1]),
+    `cells 0,1 differ: ${widths.join(',')}`).toBeLessThan(8);
+  expect(Math.abs(widths[1] - widths[2]),
+    `cells 1,2 differ: ${widths.join(',')}`).toBeLessThan(8);
 });

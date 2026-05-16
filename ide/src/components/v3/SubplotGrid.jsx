@@ -163,19 +163,23 @@ export default function SubplotGrid({
     setViewports((prev) => figure.cells.map((cell, idx) => {
       const def = defaultViewport(cell);
       const cur = prev[idx] || def;
-      const axis = fitSignal.axis;
+      let axis = fitSignal.axis;
       // Two coordinate systems share this signal: cartesian (x/y/z)
       // and polar (r/theta). Each cell honours only its own — fits on
       // axes the cell doesn't own resolve to `cur` (no-op, parity-
       // clean with the toolbar policy). 'both' always resets the cell
       // to its default viewport regardless of kind.
       //
-      // Single-axis fit (x/y/z) is simple per-axis here. Aspect-equal
-      // / aspect-image conflict is handled UPSTREAM: the toolbar fit
-      // X/Y/Z buttons disable themselves when axis lock prevents a
-      // meaningful single-axis fit (axisModeAgg === 'equal'/'image').
-      // User flow: switch aspect to `auto` in axes ▾ → fit X works as
-      // expected → switch back to `equal`.
+      // Toolbar=universal: per-axis rows are always clickable. For
+      // cells with aspect=equal/image we upgrade single-axis fit to
+      // 'both' transparently — refitting one axis alone would break
+      // the DataAspectRatio=[1 1 1] contract. Per-cell here (subplot
+      // may have a mix of axis-equal and axis-auto cells, each picks
+      // its own routing).
+      if ((cell.axisMode === 'equal' || cell.axisMode === 'image')
+          && (axis === 'x' || axis === 'y' || axis === 'z')) {
+        axis = 'both';
+      }
       if (axis === 'both') return def;
       if (cell.kind === 'polar') {
         if (axis === 'r')     return { ...cur, r:     def.r };

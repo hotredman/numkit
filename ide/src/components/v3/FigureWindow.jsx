@@ -550,12 +550,12 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     return axesArr.every((a) => norm(a) === v0) ? v0 : null;
   })();
   // Single-axis fit is meaningless under equal/image — both axes are
-  // locked together by DataAspectRatio. Disable the X / Y / Z rows in
-  // those modes (and when MIXED across cells, since we can't fan-out
-  // a meaningful single-axis fit either).
-  const aspectLocksSingleAxisFit = (axisModeAgg === 'equal'
-                                 || axisModeAgg === 'image'
-                                 || axisModeAgg === null);
+  // locked together by DataAspectRatio. Per toolbar=universal policy
+  // we DON'T disable the rows. Instead the click handler upgrades
+  // 'x'/'y'/'z' → 'both' when the cell's aspect locks the axes,
+  // so the button still does something useful (refits both, panel
+  // stays at script aspect). Implemented in applyFit + SubplotGrid's
+  // fitSignal effect with per-cell axisMode awareness.
   // Legend / colorbar location aggregates — uniform across cells →
   // that value; mixed → null. null also means "follow script".
   const legendLocationAgg = (() => {
@@ -1191,11 +1191,16 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
 
   function applyFit(mode, axisMode) {
     if (isSubplot) return;                 // subplot fit lives per-cell; close menu
-    // Aspect-equal / aspect-image conflict with single-axis fit is
-    // handled UPSTREAM by disabling the X / Y / Z buttons in the
-    // toolbar fit ▾ popover (`aspectLocksSingleAxisFit`). If we get
-    // here, either aspect = auto/square/tight or the user clicked
-    // `all` — both safe to dispatch normally.
+    // Toolbar=universal: per-axis fit rows are always clickable.
+    // Aspect-equal / aspect-image cells can't refit one axis without
+    // the other (DataAspectRatio = [1 1 1] contract), so upgrade the
+    // request to 'both' transparently. User sees fit X "do the right
+    // thing" instead of either disabling the button or surprising
+    // them by silently scaling Y to match.
+    if ((figure.axisMode === 'equal' || figure.axisMode === 'image')
+        && (axisMode === 'x' || axisMode === 'y' || axisMode === 'z')) {
+      axisMode = 'both';
+    }
     if (is3D) {
       // 3-D fit pulls the data bbox from Composite3DPlot's imperative
       // handle (Composite3DPlot reports it via onBBox each rebuild;
@@ -1384,36 +1389,24 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">Cartesian</div>
-                  {/* Per-axis fit. Disabled when aspect locks the
-                      axes together — `equal` / `image` pin
-                      DataAspectRatio = [1 1 1] so refitting one axis
-                      independently would break the contract. The
-                      `all` row above still works (resets BOTH to the
-                      script viewport while preserving aspect).
-                      Tooltip tells the user how to unlock — switch
-                      aspect to `auto` in axes ▾. */}
-                  {(() => {
-                    const lockMsg = `aspect = ${axisModeAgg || 'mixed'} locks the axes together — `
-                                  + 'switch aspect to auto in axes ▾ to refit one axis independently, '
-                                  + 'or click `all` above.';
-                    const lockTitle = aspectLocksSingleAxisFit ? lockMsg : '';
-                    return (
-                      <>
-                        <button onClick={() => {
-                          if (isSubplot) fitAllCells('x'); else applyFit('all', 'x');
-                          setFitOpen(false);
-                        }} disabled={aspectLocksSingleAxisFit} title={lockTitle}>X</button>
-                        <button onClick={() => {
-                          if (isSubplot) fitAllCells('y'); else applyFit('all', 'y');
-                          setFitOpen(false);
-                        }} disabled={aspectLocksSingleAxisFit} title={lockTitle}>Y</button>
-                        <button onClick={() => {
-                          if (isSubplot) fitAllCells('z'); else applyFit('all', 'z');
-                          setFitOpen(false);
-                        }} disabled={aspectLocksSingleAxisFit} title={lockTitle}>Z</button>
-                      </>
-                    );
-                  })()}
+                  {/* Toolbar=universal: per-axis rows are ALWAYS
+                      clickable. For cells with aspect=equal/image
+                      the click handler upgrades single-axis fit to
+                      fit-both (handled per-cell in SubplotGrid /
+                      figure-wide in applyFit). Plain auto/tight
+                      cells get the literal single-axis fit. */}
+                  <button onClick={() => {
+                    if (isSubplot) fitAllCells('x'); else applyFit('all', 'x');
+                    setFitOpen(false);
+                  }}>X</button>
+                  <button onClick={() => {
+                    if (isSubplot) fitAllCells('y'); else applyFit('all', 'y');
+                    setFitOpen(false);
+                  }}>Y</button>
+                  <button onClick={() => {
+                    if (isSubplot) fitAllCells('z'); else applyFit('all', 'z');
+                    setFitOpen(false);
+                  }}>Z</button>
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">Polar</div>
