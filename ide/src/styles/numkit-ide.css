@@ -668,17 +668,23 @@ input, select { font-family: inherit; color: inherit; }
   text-align: center;
 }
 /* Checkbox-style state buttons used by both the toolbar grid ▾ matrix
-   (.fw-pop-mbtn) and the ПКМ Grid ▶ matrix (.ctx-row-btn.is-toggle).
-   Square frame ALWAYS visible — fixes the "where is the button?"
-   affordance problem with the previous fill-only style. Empty when
-   off, accent-filled + ✓ when on. Classic checkbox metaphor. */
-.fw-pop-mbtn,
+   (.fw-pop .fw-pop-mbtn) and the ПКМ Grid ▶ matrix
+   (.ctx-row-btn.is-toggle). Square frame ALWAYS visible — fixes the
+   "where is the button?" affordance problem with the previous
+   fill-only style. Empty when off, accent-filled + ✓ when on.
+   Classic checkbox metaphor.
+
+   Selectors are extra-specific (`.fw-pop .fw-pop-mbtn` instead of just
+   `.fw-pop-mbtn`) so they beat the generic `.fw-pop button` rule
+   above (which has `border: none` and would erase our frame). */
+.fw-pop .fw-pop-mbtn,
 .ctx-row-btn.is-toggle {
-  width: 18px; height: 18px;
+  width: 18px !important;
+  height: 18px !important;
   padding: 0 !important;
-  background: transparent;
-  border: 1.5px solid var(--line);
-  border-radius: 3px;
+  background: transparent !important;
+  border: 1.5px solid var(--line) !important;
+  border-radius: 3px !important;
   color: var(--fg-1);
   font-family: var(--font-mono);
   font-size: 11px;
@@ -688,18 +694,19 @@ input, select { font-family: inherit; color: inherit; }
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
+  text-align: center !important;
   box-sizing: border-box;
 }
-.fw-pop-mbtn:hover,
+.fw-pop .fw-pop-mbtn:hover,
 .ctx-row-btn.is-toggle:hover {
-  border-color: var(--accent);
-  background: var(--bg-2);
+  border-color: var(--accent) !important;
+  background: var(--bg-2) !important;
 }
-.fw-pop-mbtn.is-active,
+.fw-pop .fw-pop-mbtn.is-active,
 .ctx-row-btn.is-toggle.is-active {
-  background: var(--accent);
-  color: var(--bg-1);
-  border-color: var(--accent);
+  background: var(--accent) !important;
+  color: var(--bg-1) !important;
+  border-color: var(--accent) !important;
 }
 /* ПКМ Grid ▶ matrix mirror — column-header row in a context-menu
    row layout. ctx-row already lays out [name | btns]; rowHead
