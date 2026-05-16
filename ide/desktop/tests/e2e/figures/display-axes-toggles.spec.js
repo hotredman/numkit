@@ -1,11 +1,12 @@
-// display-axes-toggles.spec.js — axes ▾ button: `visible: axis/box`,
-// `reverse: X/Y/Z`, `log scale: X/Y/Z`. Maps to MATLAB Visible / Box /
-// XDir·YDir·ZDir / XScale·YScale·ZScale.
+// display-axes-toggles.spec.js — axes ▾ button: `visible: axis/box`
+// and a `reverse · log scale` matrix (rows = X/Y/Z, columns =
+// reverse / log). Maps to MATLAB Visible / Box / XDir·YDir·ZDir /
+// XScale·YScale·ZScale.
 //
-// Section heads name the ACTIVE state (`reverse`, `log scale`) so
-// per-axis rows are single letters; same compact pattern as grid ▾.
-// Tests use a section-scoped selector because `X` / `Y` / `Z` appear
-// in BOTH `reverse` and `log scale` sections.
+// Matrix layout collapses what used to be two separate per-axis
+// sections (`reverse:` and `log scale:`, 3 rows each) into one
+// 4-row block (header + X/Y/Z). Same checkbox-style cells as the
+// grid ▾ matrix.
 
 import { test, expect } from '../../helpers/shared.js';
 
@@ -14,29 +15,37 @@ async function openDisplay(page) {
   await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
 }
 
-/** Locate a `.fw-pop-toggle` row by its (section head, row text) pair.
- *  Both match exactly via anchored regex — necessary because single-
- *  letter rows like `X` appear in multiple sections. */
-function row(page, sectionHead, rowText) {
-  return page.locator('.fw-pop-section', {
-    has: page.locator('.fw-pop-head', { hasText: new RegExp(`^${sectionHead}$`) }),
-  }).locator('.fw-pop-toggle', {
-    has: page.locator('span', { hasText: new RegExp(`^${rowText}$`) }),
-  });
+/** Locate one cell in the axes-matrix by (axis, col index).
+ *  col: 0 = reverse, 1 = log. */
+function axisBtn(page, axis, col) {
+  return page.locator('.fw-pop-matrix .fw-pop-mrow', {
+    has: page.locator('.fw-pop-mrow-label', { hasText: new RegExp(`^${axis}$`) }),
+  }).locator('.fw-pop-mbtn').nth(col);
+}
+async function isActive(btn) {
+  const cls = (await btn.getAttribute('class')) || '';
+  return /\bis-active\b/.test(cls);
 }
 
-test('axes ▾ has visible/box + reverse{X,Y,Z} + log scale{X,Y,Z} rows', async ({ ide, page }) => {
+test('axes ▾ has visible/box rows + reverse/log matrix with X/Y/Z', async ({ ide, page }) => {
   await ide.runScript('import compat.*;\nplot(1:10);\n');
   await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
   await ide.figureCards.first().click();
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
   await openDisplay(page);
 
-  await expect(row(page, 'visible', 'axis')).toBeVisible();
-  await expect(row(page, 'visible', 'box')).toBeVisible();
+  // visible section — old DisplayToggle rows.
+  await expect(page.locator('.fw-pop-toggle', {
+    has: page.locator('span', { hasText: /^axis$/ }),
+  })).toBeVisible();
+  await expect(page.locator('.fw-pop-toggle', {
+    has: page.locator('span', { hasText: /^box$/ }),
+  })).toBeVisible();
+
+  // Matrix rows X/Y/Z, each with 2 buttons.
   for (const ax of ['X', 'Y', 'Z']) {
-    await expect(row(page, 'reverse',   ax)).toBeVisible();
-    await expect(row(page, 'log scale', ax)).toBeVisible();
+    await expect(axisBtn(page, ax, 0)).toBeVisible();   // reverse
+    await expect(axisBtn(page, ax, 1)).toBeVisible();   // log
   }
 });
 
@@ -46,7 +55,6 @@ test('toggle "axis" hides x/y tick lines + box', async ({ ide, page }) => {
   await ide.figureCards.first().click();
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
 
-  // Pre: axis ticks present (text labels for ticks).
   const ticksBefore = await page.locator('.fw-window svg text[text-anchor="end"]').count();
   expect(ticksBefore).toBeGreaterThan(0);
 
@@ -78,15 +86,16 @@ test('toggle "Y reverse" flips axis direction', async ({ ide, page }) => {
     );
   }
   const before = await ytickPositions();
-  // Default: top-most y label is the LARGEST (axis xy normal — y up).
-  // Smallest y attribute (top of SVG) corresponds to largest data value.
   const topValBefore = parseFloat(before[0]?.txt || '0');
   const botValBefore = parseFloat(before[before.length - 1]?.txt || '0');
   expect(topValBefore).toBeGreaterThan(botValBefore);
 
+  // Click the Y reverse cell (axis=Y, col=0).
   await openDisplay(page);
-  await row(page, 'reverse', 'Y').click();
+  await axisBtn(page, 'Y', 0).click();
   await page.waitForTimeout(150);
+  expect(await isActive(axisBtn(page, 'Y', 0)),
+    'Y reverse should be active after click').toBe(true);
 
   const after = await ytickPositions();
   const topValAfter = parseFloat(after[0]?.txt || '0');

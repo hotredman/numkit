@@ -170,41 +170,40 @@ function DisplayToggle({ label, active, disabled = false, disabledHint = '',
   );
 }
 
-/** Header row for the grid matrix layout — labels the major / minor
- *  button columns. Rendered above the per-axis rows so users read
+/** Header row for any matrix-layout popover section — labels the
+ *  N button columns. Rendered above the per-axis rows so users read
  *  the column headings once. */
-function GridMatrixHead() {
+function MatrixHead({ labels }) {
   return (
     <div className="fw-pop-mrow fw-pop-mrow-head">
       <span className="fw-pop-mrow-label" />
-      <span>maj</span>
-      <span>min</span>
+      {labels.map((l, i) => <span key={i}>{l}</span>)}
     </div>
   );
 }
 
-/** One per-axis row for the grid ▾ matrix layout. Two buttons in
- *  fixed columns (major / minor), each a self-contained toggle that
- *  flips its own bit. Compresses what used to be 2 rows per axis
- *  (Cartesian: X / Cartesian minor: X) into 1 row that carries both
- *  state bits. Click on either button stays in the popover (parent
- *  controls open/close).
- *
- *  Both setters are required — callers that only want to expose major
- *  should pass an explicit no-op. We intentionally don't gracefully
- *  hide a column: a missing column would mis-align rows. */
-function GridMatrixRow({ label, major, minor, setMajor, setMinor }) {
+/** Generic per-row matrix toggle. `label` is the row name (axis
+ *  letter); `cols` is an array of column descriptors:
+ *    { active, onClick, disabled?, title? }
+ *  Each column renders as a square checkbox button (✓ when active).
+ *  Used by:
+ *    • grid ▾ matrix — cols = [major, minor]
+ *    • axes ▾ matrix — cols = [reverse, log scale]
+ *  Same `.fw-pop-mbtn` styling. Grid template columns set by the
+ *  parent `.fw-pop-matrix` block based on column count. */
+function MatrixToggleRow({ label, cols }) {
   return (
     <div className="fw-pop-mrow">
       <span className="fw-pop-mrow-label">{label}</span>
-      <button className={`fw-pop-mbtn${major ? ' is-active' : ''}`}
-              onClick={() => setMajor((v) => !v)}>
-        {major ? '✓' : ''}
-      </button>
-      <button className={`fw-pop-mbtn${minor ? ' is-active' : ''}`}
-              onClick={() => setMinor((v) => !v)}>
-        {minor ? '✓' : ''}
-      </button>
+      {cols.map((c, i) => (
+        <button key={i}
+                className={`fw-pop-mbtn${c.active ? ' is-active' : ''}`}
+                disabled={!!c.disabled}
+                title={c.title || ''}
+                onClick={c.onClick}>
+          {c.active ? '✓' : ''}
+        </button>
+      ))}
     </div>
   );
 }
@@ -1536,33 +1535,27 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                     of this popover so axes ▾ stays focused on the
                     HG2 Axes object's non-grid properties (visible /
                     direction / scale). */}
-                {/* Section heads describe the ACTIVE state of the
-                    toggle (`reverse` instead of `direction`, `log
-                    scale` instead of `scale`), so per-axis rows drop
-                    to single letters — `X ✓` under `reverse:` reads
-                    "X axis is reversed". Same compact pattern as
-                    grid ▾'s Cartesian / Polar sections. */}
-                <div className="fw-pop-section">
-                  <div className="fw-pop-head">reverse</div>
-                  <DisplayToggle label="X" active={xReverse}
-                                 onClick={() => setXReverse((v) => !v)} />
-                  <DisplayToggle label="Y" active={yReverse}
-                                 onClick={() => setYReverse((v) => !v)} />
-                  <DisplayToggle label="Z" active={zReverse}
-                                 onClick={() => setZReverse((v) => !v)} />
-                </div>
-                <div className="fw-pop-section">
-                  <div className="fw-pop-head">log scale</div>
-                  {/* Toolbar toggles are NEVER disabled — figure-wide
-                      brush. Clicking X log when no positive max exists
-                      is a visual no-op but still flips the cell-state
-                      flag (consistent fan-out). */}
-                  <DisplayToggle label="X" active={xLog}
-                                 onClick={() => toggleAxisLog('x')} />
-                  <DisplayToggle label="Y" active={yLog}
-                                 onClick={() => toggleAxisLog('y')} />
-                  <DisplayToggle label="Z" active={zLog}
-                                 onClick={() => setZLog((v) => !v)} />
+                {/* Direction + scale collapsed into a single matrix —
+                    rows = X/Y/Z, columns = reverse / log. Replaces
+                    the two `reverse:` + `log scale:` sections (3 rows
+                    each = 8 lines) with a 4-line block. Same UX
+                    pattern as grid ▾'s matrix (checkbox-style toggle
+                    cells with ✓ on active). */}
+                <div className="fw-pop-section fw-pop-matrix">
+                  <div className="fw-pop-head">reverse · log scale</div>
+                  <MatrixHead labels={['rev', 'log']} />
+                  <MatrixToggleRow label="X" cols={[
+                    { active: xReverse, onClick: () => setXReverse((v) => !v), title: 'reverse direction' },
+                    { active: xLog,     onClick: () => toggleAxisLog('x'),     title: 'log scale' },
+                  ]} />
+                  <MatrixToggleRow label="Y" cols={[
+                    { active: yReverse, onClick: () => setYReverse((v) => !v), title: 'reverse direction' },
+                    { active: yLog,     onClick: () => toggleAxisLog('y'),     title: 'log scale' },
+                  ]} />
+                  <MatrixToggleRow label="Z" cols={[
+                    { active: zReverse, onClick: () => setZReverse((v) => !v), title: 'reverse direction' },
+                    { active: zLog,     onClick: () => setZLog((v) => !v),     title: 'log scale' },
+                  ]} />
                 </div>
                 {/* aspect: MATLAB `axis equal/square/image/tight/auto`
                     shorthand surfaced as a 5-button radio group.
@@ -1642,31 +1635,37 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                     flag without visual effect (parity-clean). */}
                 <div className="fw-pop-section fw-pop-matrix">
                   <div className="fw-pop-head">grid</div>
-                  <GridMatrixHead />
-                  <GridMatrixRow label="all"
-                    major={showMajor} setMajor={setShowMajor}
-                    minor={showMinor} setMinor={setShowMinor} />
+                  <MatrixHead labels={['maj', 'min']} />
+                  <MatrixToggleRow label="all" cols={[
+                    { active: showMajor, onClick: () => setShowMajor((v) => !v), title: 'major' },
+                    { active: showMinor, onClick: () => setShowMinor((v) => !v), title: 'minor' },
+                  ]} />
                 </div>
                 <div className="fw-pop-section fw-pop-matrix">
                   <div className="fw-pop-head">Cartesian</div>
-                  <GridMatrixRow label="X"
-                    major={xGrid} setMajor={setXGrid}
-                    minor={xMinor} setMinor={setXMinor} />
-                  <GridMatrixRow label="Y"
-                    major={yGrid} setMajor={setYGrid}
-                    minor={yMinor} setMinor={setYMinor} />
-                  <GridMatrixRow label="Z"
-                    major={zGrid} setMajor={setZGrid}
-                    minor={zMinor} setMinor={setZMinor} />
+                  <MatrixToggleRow label="X" cols={[
+                    { active: xGrid,  onClick: () => setXGrid((v) => !v),  title: 'major' },
+                    { active: xMinor, onClick: () => setXMinor((v) => !v), title: 'minor' },
+                  ]} />
+                  <MatrixToggleRow label="Y" cols={[
+                    { active: yGrid,  onClick: () => setYGrid((v) => !v),  title: 'major' },
+                    { active: yMinor, onClick: () => setYMinor((v) => !v), title: 'minor' },
+                  ]} />
+                  <MatrixToggleRow label="Z" cols={[
+                    { active: zGrid,  onClick: () => setZGrid((v) => !v),  title: 'major' },
+                    { active: zMinor, onClick: () => setZMinor((v) => !v), title: 'minor' },
+                  ]} />
                 </div>
                 <div className="fw-pop-section fw-pop-matrix">
                   <div className="fw-pop-head">Polar</div>
-                  <GridMatrixRow label="R"
-                    major={rGrid} setMajor={setRGrid}
-                    minor={rMinor} setMinor={setRMinor} />
-                  <GridMatrixRow label="θ"
-                    major={thetaGrid} setMajor={setThetaGrid}
-                    minor={thetaMinor} setMinor={setThetaMinor} />
+                  <MatrixToggleRow label="R" cols={[
+                    { active: rGrid,  onClick: () => setRGrid((v) => !v),  title: 'major' },
+                    { active: rMinor, onClick: () => setRMinor((v) => !v), title: 'minor' },
+                  ]} />
+                  <MatrixToggleRow label="θ" cols={[
+                    { active: thetaGrid,  onClick: () => setThetaGrid((v) => !v),  title: 'major' },
+                    { active: thetaMinor, onClick: () => setThetaMinor((v) => !v), title: 'minor' },
+                  ]} />
                 </div>
               </div>
             )}

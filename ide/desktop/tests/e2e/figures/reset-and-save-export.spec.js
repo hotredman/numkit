@@ -46,15 +46,14 @@ test('toolbar Reset restores both viewport AND display state', async ({ ide, pag
   await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
   await page.waitForTimeout(150);
 
-  // After the axes/decoration split: Y log lives in axes ▾ under
-  // `log scale:` section, title lives in decoration ▾ (labels).
-  // Section-scoped locator for the log row — `Y` also appears under
-  // axes ▾ `reverse:`.
-  const yLog = page.locator('.fw-pop-section', {
-    has: page.locator('.fw-pop-head', { hasText: /^log scale$/ }),
-  }).locator('.fw-pop-toggle', {
-    has: page.locator('span', { hasText: /^Y$/ }),
-  });
+  // After the axes/decoration split + matrix refactor: Y log lives in
+  // axes ▾ as the `Y` row's column-1 button (`.fw-pop-mbtn`), and
+  // title lives in decoration ▾ (labels). Active state = is-active
+  // class on the button.
+  const yLog = page.locator('.fw-pop-matrix .fw-pop-mrow', {
+    has: page.locator('.fw-pop-mrow-label', { hasText: /^Y$/ }),
+  }).locator('.fw-pop-mbtn').nth(1);
+  const isActive = async (btn) => /\bis-active\b/.test((await btn.getAttribute('class')) || '');
 
   await openAxesMenu(page);
   await yLog.click();
@@ -75,10 +74,9 @@ test('toolbar Reset restores both viewport AND display state', async ({ ide, pag
 
   // Title visible again.
   await expect(page.locator('.fw-window svg text', { hasText: 'hello' })).toBeVisible();
-  // Y log inactive: open axes ▾, the row should not show ✓.
+  // Y log inactive: open axes ▾, the matrix cell must NOT carry is-active.
   await openAxesMenu(page);
-  const yLogCheck = await yLog.locator('.fw-pop-check').textContent();
-  expect(yLogCheck.trim()).toBe('');
+  expect(await isActive(yLog), 'Y log should be cleared after Reset').toBe(false);
 });
 
 test('decoration ▾ has legend toggle + `default` button', async ({ ide, page }) => {
@@ -192,13 +190,15 @@ test('ПКМ Axes ▶ / Grid ▶ / Decoration ▶ each have the right section he
   await rightClickPlot(page);
 
   // Axes ▶ — Axes-object props minus grid (grid lives in Grid ▶ now).
-  // Heads name the active state of the toggle group; `aspect` got
-  // added when the MATLAB `axis equal/square/image/tight/auto`
-  // shorthand got its own UI section in axes ▾ / ПКМ Axes ▶.
+  // Heads name the active state of the toggle group; `reverse` +
+  // `log scale` were collapsed into a single `reverse · log scale`
+  // matrix when per-axis state moved to checkbox-style cells.
+  // `aspect` head was added when MATLAB `axis equal/square/image/
+  // tight/auto` shorthand got its own UI section.
   await page.locator('.ctx-sub-trigger', { hasText: /Axes/ }).hover();
   await page.waitForTimeout(80);
   const axesHeads = await page.locator('.ctx-submenu .ctx-head').allTextContents();
-  expect(axesHeads).toEqual(['visible', 'reverse', 'log scale', 'aspect']);
+  expect(axesHeads).toEqual(['visible', 'reverse · log scale', 'aspect']);
 
   // Grid ▶ — master + Cartesian (CompositePlot specialised).
   await page.locator('.ctx-sub-trigger', { hasText: /Grid/ }).hover();
