@@ -650,9 +650,9 @@ input, select { font-family: inherit; color: inherit; }
    fixed-width for consistent visual rhythm across rows. */
 .fw-pop-matrix .fw-pop-mrow {
   display: grid !important;
-  grid-template-columns: 1fr 30px 30px;
+  grid-template-columns: 1fr 26px 26px;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   padding: 3px 8px;
 }
 .fw-pop-matrix .fw-pop-mrow-label {
@@ -663,27 +663,40 @@ input, select { font-family: inherit; color: inherit; }
   text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--fg-3);
   padding-top: 2px; padding-bottom: 2px;
-  text-align: center;
 }
 .fw-pop-matrix .fw-pop-mrow-head > span:not(.fw-pop-mrow-label) {
   text-align: center;
 }
-.fw-pop-mbtn {
-  background: var(--bg-2);
-  border: 1px solid var(--line-soft);
+/* Checkbox-style state buttons used by both the toolbar grid ▾ matrix
+   (.fw-pop-mbtn) and the ПКМ Grid ▶ matrix (.ctx-row-btn.is-toggle).
+   Square frame ALWAYS visible — fixes the "where is the button?"
+   affordance problem with the previous fill-only style. Empty when
+   off, accent-filled + ✓ when on. Classic checkbox metaphor. */
+.fw-pop-mbtn,
+.ctx-row-btn.is-toggle {
+  width: 18px; height: 18px;
+  padding: 0 !important;
+  background: transparent;
+  border: 1.5px solid var(--line);
   border-radius: 3px;
   color: var(--fg-1);
-  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
-  padding: 1px 0 !important;
-  height: 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
   cursor: pointer;
-  text-align: center;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
-.fw-pop-mbtn:hover {
-  background: var(--bg-3);
-  border-color: var(--line);
+.fw-pop-mbtn:hover,
+.ctx-row-btn.is-toggle:hover {
+  border-color: var(--accent);
+  background: var(--bg-2);
 }
-.fw-pop-mbtn.is-active {
+.fw-pop-mbtn.is-active,
+.ctx-row-btn.is-toggle.is-active {
   background: var(--accent);
   color: var(--bg-1);
   border-color: var(--accent);
@@ -699,16 +712,8 @@ input, select { font-family: inherit; color: inherit; }
   font-family: var(--font-mono); font-size: 9.5px;
   text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--fg-3);
-  width: 28px;
+  width: 18px;
   text-align: center;
-}
-/* Pressed-state styling for ctx-row buttons used as toggle matrices
-   (grid maj/min). Same `is-active` paint as fw-pop-mbtn so toolbar
-   and ПКМ stay visually consistent. */
-.ctx-row-btn.is-active {
-  background: var(--accent);
-  color: var(--bg-1);
-  border-color: var(--accent);
 }
 .fw-pop-row {
   display: flex; align-items: center; gap: 4px;
