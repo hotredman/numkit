@@ -746,11 +746,17 @@ input, select { font-family: inherit; color: inherit; }
 }
 /* ПКМ pill-radio row — mirrors the toolbar `.fw-pop-radio-row`
    shape. Used for aspect (auto/equal/square/image/tight) inside
-   ПКМ Axes ▶ so toolbar + ПКМ render the same radio UI. */
+   ПКМ Axes ▶ so toolbar + ПКМ render the same radio UI.
+   max-width caps the row so 5 aspect pills wrap to 2 lines (same
+   visual rhythm as the toolbar popover where the narrow min-width
+   forces the same wrap). Without the cap the submenu sizes to its
+   widest sibling (`Save / Export ▶` etc) and all pills fit on one
+   line — visually cramped + harder to scan. */
 .ctx-pill-row {
   display: flex; flex-wrap: wrap;
   gap: 4px;
   padding: 3px 14px;
+  max-width: 180px;
 }
 .ctx-pill {
   background: transparent;
