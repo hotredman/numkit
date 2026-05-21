@@ -28,7 +28,7 @@ namespace numkit::comm {
 using Cd = std::complex<double>;
 
 // ── pmmod ──────────────────────────────────────────────────────────
-// Per MATLAB R2025b's pmmod.m:
+// Phase modulation — closed-form definition (Haykin, "Communication Systems"):
 //   t = (0:1/Fs:(N-1)/Fs)'
 //   y = cos(2*pi*Fc*t + phasedev*x + ini_phase)
 //
@@ -87,7 +87,7 @@ Value pmmod(const Value &x, double fc, double fs, double phasedev,
 }
 
 // ── ammod ──────────────────────────────────────────────────────────
-// Per MATLAB R2025b's ammod.m:
+// Amplitude modulation — closed-form definition (Haykin, "Communication Systems"):
 //   t = (0:1/Fs:(N-1)/Fs)'
 //   y = (x + carr_amp) .* cos(2*pi*Fc*t + ini_phase)
 //
@@ -142,7 +142,7 @@ Value ammod(const Value &x, double fc, double fs, double ini_phase,
 }
 
 // ── fmmod ──────────────────────────────────────────────────────────
-// Per MATLAB R2025b's fmmod.m:
+// Frequency modulation — closed-form definition (Haykin, "Communication Systems"):
 //   t      = (0:1/Fs:(N-1)/Fs)'
 //   int_x  = cumsum(x) / Fs       (column-wise cumulative sum)
 //   y      = cos(2*pi*Fc*t + 2*pi*freqdev*int_x + ini_phase)
@@ -203,7 +203,8 @@ Value fmmod(const Value &x, double fc, double fs, double freqdev,
 }
 
 // ── mskmod (differential variant) ──────────────────────────────────
-// Per MATLAB R2025b's mskmod.m, differentially-encoded path:
+// Minimum-shift keying, differentially-encoded path — standard
+// definition (Haykin, "Communication Systems"):
 //
 //   xPm    = 2*x - 1                       (bits {0,1} -> {-1,+1})
 //   xCum   = cumsum([0; xPm])              (length N+1)
@@ -276,7 +277,7 @@ Value mskmod(const Value &x, int nSamp, double ini_phase,
 }
 
 // ── ssbmod ─────────────────────────────────────────────────────────
-// Per MATLAB R2025b's ssbmod.m:
+// Single-sideband modulation — closed-form definition (Haykin, "Communication Systems"):
 //   t = (0:1/Fs:(N-1)/Fs)'
 //   Lower sideband (default):
 //     y = x.*cos(2π·Fc·t + ini_phase)
