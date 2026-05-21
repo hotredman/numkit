@@ -14,7 +14,7 @@ namespace numkit::stats {
 /// @brief Negative binomial pmf (`y = nbinpdf(k, r, p)`).
 ///
 /// @f$ f(k; r, p) = \binom{k + r - 1}{k}\,p^{r}(1-p)^{k} @f$ for `k = 0, 1, 2, …`.
-/// MATLAB convention: `k` counts failures before the `r`-th success;
+/// Convention: `k` counts failures before the `r`-th success;
 /// `r > 0` real-valued allowed; `0 < p ≤ 1`.
 ///
 /// @param k   Evaluation points (any shape).

@@ -61,7 +61,7 @@ cheb2ap(int N, double Rs, std::pmr::memory_resource *mr = nullptr);
 /// Bessel-Thompson analog lowpass prototype.
 ///
 /// Poles of a reverse Bessel polynomial. Maximally flat group delay
-/// (linear phase) in the passband. MATLAB's `besselap` normalises so
+/// (linear phase) in the passband. `besselap` normalises so
 /// |H(jΩ)| = 1/√2 at Ω = 1 rad/s — group-delay normalisation, not
 /// magnitude — and this function matches.
 ///

@@ -15,7 +15,7 @@ namespace numkit::builtin {
 /// @brief Built-in reducers recognised by @ref accumarray.
 ///
 /// Custom function handles are rejected at the adapter layer with a
-/// clear error — this enum covers the 99% MATLAB use case.
+/// clear error — this enum covers the 99% common use case.
 enum class AccumReducer {
     Sum,   ///< `@sum` (additive identity 0).
     Max,   ///< `@max`.
@@ -38,8 +38,7 @@ enum class AccumReducer {
 ///                  (broadcast to every row).
 /// @param outShape  Output shape; empty span → derive from `max(subs)`.
 /// @param op        Built-in reducer (see @ref AccumReducer).
-/// @param fillVal   Default value for untouched cells (matches MATLAB's
-///                  5-arg form, default 0).
+/// @param fillVal   Default value for untouched cells (default 0).
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          Accumulated output array of shape `outShape`
 ///                  (or auto-derived).

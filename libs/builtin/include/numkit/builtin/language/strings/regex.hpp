@@ -8,7 +8,7 @@
 
 namespace numkit::builtin {
 
-/// @brief MATLAB `regexp` / `regexpi` (`y = regexpFind(s, pat, option, ignoreCase)`).
+/// @brief `regexp` / `regexpi` (`y = regexpFind(s, pat, option, ignoreCase)`).
 ///
 /// Find non-overlapping matches of `pat` in `s`. Output shape depends
 /// on `option`:
@@ -29,7 +29,7 @@ Value regexpFind(const Value &s, const Value &pat,
                  const std::string &option = "", bool ignoreCase = false,
                  std::pmr::memory_resource *mr = nullptr);
 
-/// @brief MATLAB `regexprep` (`y = regexprep(s, pat, rep, ignoreCase)`).
+/// @brief `regexprep` (`y = regexprep(s, pat, rep, ignoreCase)`).
 ///
 /// Substitutes every non-overlapping match of `pat` in `s` with `rep`.
 /// `rep` may use `$1` / `$2` / … ECMAScript back-references.
@@ -45,11 +45,11 @@ Value regexprep(const Value &s, const Value &pat, const Value &rep,
                 bool ignoreCase = false,
                 std::pmr::memory_resource *mr = nullptr);
 
-/// @brief MATLAB `regexptranslate` (`y = regexptranslate(op, s)`).
+/// @brief `regexptranslate` (`y = regexptranslate(op, s)`).
 ///
 /// Supported `op`:
 /// - `"escape"`   → escape regex metacharacters with `\`
-/// - `"wildcard"` → translate MATLAB glob wildcards to a regex
+/// - `"wildcard"` → translate glob wildcards to a regex
 ///                  (`*` → `.*`, `?` → `.`, escape rest)
 ///
 /// `"compose"` / `"flexible"` are not implemented (NaN-string case +

@@ -13,7 +13,7 @@ namespace numkit::comm {
 /// @brief DPCM encoder
 /// (`[indx, quanterr] = dpcmenco(sig, codebook, partition, predictor)`).
 ///
-/// The predictor's leading element is the MATLAB sentinel 0; the
+/// The predictor's leading element is a sentinel 0; the
 /// remaining M elements are the FIR coefficients.
 /// `length(codebook) == length(partition) + 1`.
 ///

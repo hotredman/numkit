@@ -12,7 +12,7 @@ namespace numkit::stats {
 /// @file
 /// @brief NaN-aware reductions.
 ///
-/// **All-NaN slice handling** matches MATLAB:
+/// **All-NaN slice handling:**
 /// - `nansum` → returns 0 (NaN is the additive identity)
 /// - all others → return `NaN` (no defined value when nothing is observed)
 ///

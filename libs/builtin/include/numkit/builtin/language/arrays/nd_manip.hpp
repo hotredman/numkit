@@ -41,8 +41,8 @@ Value ipermute(const Value &x, Span<const int> perm,
 
 /// @brief Drop singleton dimensions (`B = squeeze(A)`).
 ///
-/// Vectors and 2-D matrices are returned unchanged (MATLAB doesn't
-/// squeeze below 2-D); higher-rank arrays with singleton dims collapse
+/// Vectors and 2-D matrices are returned unchanged (squeeze does
+/// not act below 2-D); higher-rank arrays with singleton dims collapse
 /// down.
 ///
 /// @param x   Input array.
@@ -100,7 +100,7 @@ struct ShiftDimAuto {
 
 /// @brief Auto-shift: drop leading singletons (`[B, k] = shiftdim(A)`).
 ///
-/// MATLAB's no-`n` form. Returns the array with leading singleton
+/// The no-`n` form. Returns the array with leading singleton
 /// dimensions stripped and the count `k` of dimensions dropped.
 /// If no leading singletons, returns `{A, 0}`.
 ///

@@ -55,7 +55,7 @@ LastWarn lastwarnGet();
 
 /// @brief Overwrite the most-recent warning state.
 ///
-/// Used internally by @ref warning; also exposed for MATLAB's
+/// Used internally by @ref warning; also exposed as the
 /// `lastwarn(MSG, ID)` setter form.
 ///
 /// @param msg  New message.
@@ -79,7 +79,7 @@ Value mexception(Span<const Value> args, std::pmr::memory_resource *mr = nullptr
 /// @brief Rethrow from an MException struct (`rethrow(me)` / `throw(me)`).
 ///
 /// Extracts `message` + `identifier` from the struct and throws Error.
-/// Used by both MATLAB `rethrow()` and `throw()` (they are aliases).
+/// Used by both `rethrow()` and `throw()` (they are aliases).
 ///
 /// @param me  MException-like struct.
 /// @throws Error  Always; reconstructed from `me.identifier` / `me.message`.

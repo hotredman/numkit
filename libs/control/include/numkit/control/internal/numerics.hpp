@@ -50,7 +50,7 @@ Mat expm(const Mat &A, std::size_t n);
 /// @brief Faddeev–LeVerrier characteristic polynomial of an n×n
 /// column-major matrix.
 ///
-/// Returns coefficients `[1, c1, c2, …, cn]` in MATLAB convention
+/// Returns coefficients `[1, c1, c2, …, cn]` in standard order
 /// (descending powers, leading 1):
 /// `det(sI − A) = sⁿ + c1·sⁿ⁻¹ + … + cn`.
 /// O(n⁴) work — fine for the n ≲ 32 typical of textbook problems.

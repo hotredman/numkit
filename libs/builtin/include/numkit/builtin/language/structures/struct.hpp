@@ -10,9 +10,9 @@ namespace numkit::builtin {
 
 /// @brief Empty struct scalar (`s = struct()`).
 ///
-/// MATLAB convention: `struct()` (no args) returns a 1×1 scalar struct
+/// `struct()` (no args) returns a 1×1 scalar struct
 /// with no fields. C++ name is `structure` because `struct` is a keyword
-/// (registered MATLAB name remains `struct`).
+/// (registered name remains `struct`).
 ///
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Empty scalar struct.
@@ -73,7 +73,7 @@ Value rmfield(const Value &s, const Value &name,
 /// The callback is invoked once per field with a 1-element `args`
 /// holding the field value and writes a single Value into `outs[0]`.
 ///
-/// @param fn             MATLAB-style callback.
+/// @param fn             Callback.
 /// @param s              Struct Value.
 /// @param uniformOutput  `true` → numeric column vector of length
 ///                       `numFields` (type from first result);

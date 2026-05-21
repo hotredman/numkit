@@ -10,7 +10,7 @@ namespace numkit::builtin {
 ///
 /// Type-preserving: CHAR / LOGICAL promote to DOUBLE; signed integer
 /// types saturate at type-min (i.e. `-INT_MIN` stays at `INT_MIN`);
-/// unsigned types map every value to 0 (consistent with MATLAB).
+/// unsigned types map every value to 0.
 ///
 /// @param x   Input array.
 /// @param mr  Memory resource (nullptr → process default).

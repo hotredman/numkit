@@ -17,11 +17,11 @@ namespace numkit::control {
 ///
 /// Builds a `tf`-tagged struct value with fields `{kind="tf",
 /// num, den, Ts, variable}`. The numerator and denominator are row
-/// coefficient vectors with the **leading coefficient first**
-/// (MATLAB convention). `Ts` selects the time domain:
+/// coefficient vectors with the **leading coefficient first**.
+/// `Ts` selects the time domain:
 ///   - `Ts == 0` → continuous, variable = `"s"`.
 ///   - `Ts > 0`  → discrete with that sample time, variable = `"z"`.
-///   - `Ts == -1`→ discrete "unspecified" (matches MATLAB).
+///   - `Ts == -1`→ discrete "unspecified".
 ///
 /// @param num  Numerator coefficients.
 /// @param den  Denominator coefficients (leading coefficient nonzero).
@@ -80,7 +80,7 @@ Value ss(const Value &A, const Value &B, const Value &C, const Value &D,
 /// Equivalent to @ref tf except:
 ///   - default `Ts` is −1 ("unspecified discrete"),
 ///   - `variable` field is set to `"z^-1"`,
-///   - coefficient order matches MATLAB's filt: num/den as in
+///   - coefficient order is that of `filt`: num/den as in
 ///     `Y(z)/U(z) = (b0 + b1 z^-1 + …) / (a0 + a1 z^-1 + …)`.
 ///
 /// @param num  Numerator coefficients (z^-1 ascending powers).
@@ -97,7 +97,7 @@ Value filt(const Value &num, const Value &den, double Ts,
 ///
 /// Builds a struct `{kind="frd", resp, freq, Ts}`. `response` may be
 /// complex; `frequency` is a real vector (rad/s). Both are stored as
-/// column vectors to match MATLAB.
+/// column vectors.
 ///
 /// @param response   Complex response samples.
 /// @param frequency  Real frequency grid (rad/s).
@@ -125,7 +125,7 @@ frdata(const Value &sys, std::pmr::memory_resource *mr = nullptr);
 /// With `asVector = true` returns row vectors padded so num and den
 /// have equal length (leading zeros on num).
 /// With `asVector = false` wraps each row vector in a 1×1 cell
-/// (MATLAB's default).
+/// (the default).
 ///
 /// Accepts tf inputs directly; zpk and ss inputs are converted via
 /// @ref zp2tf and @ref ss2tf.

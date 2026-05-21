@@ -29,7 +29,7 @@ mexihat(double lb, double ub, size_t N,
 
 /// Real Morlet wavelet (`[psi, x] = morlet(LB, UB, N)`).
 ///
-/// @f$ \psi(t) = e^{-t^2/2}\,\cos(5t) @f$ (MATLAB's centre frequency 5).
+/// @f$ \psi(t) = e^{-t^2/2}\,\cos(5t) @f$ (centre frequency 5).
 ///
 /// @param lb,ub  Grid endpoints.
 /// @param N      Number of samples.
@@ -45,7 +45,7 @@ morlet(double lb, double ub, size_t N,
 ///
 /// @f$ y(x) = 35x^4 - 84x^5 + 70x^6 - 20x^7 @f$. The function is
 /// defined on @f$ [0, 1] @f$ where it interpolates from 0 to 1, but
-/// MATLAB applies the polynomial without clipping; we match that.
+/// the polynomial is applied without clipping.
 ///
 /// @param x   Element-wise input.
 /// @param mr  Memory resource (nullptr → process default).
@@ -105,7 +105,7 @@ gauswavf(double lb, double ub, size_t N, int p,
 /// Complex Gaussian wavelet of order p (`[psi, x] = cgauwavf(LB, UB, N, p)`).
 ///
 /// Like @ref gauswavf but complex-valued and normalised by trapezoidal
-/// quadrature on the requested grid (matches MATLAB's grid-dependent
+/// quadrature on the requested grid (a grid-dependent
 /// normalisation).
 ///
 /// @see gauswavf

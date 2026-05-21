@@ -14,7 +14,7 @@ namespace numkit::stats {
 /// @brief Gamma pdf (`y = gampdf(x, a, b)`).
 ///
 /// @f$ f(x; a, b) = \dfrac{x^{a-1}\,e^{-x/b}}{b^{a}\,\Gamma(a)} @f$ for `x > 0`.
-/// MATLAB convention: `a` is the shape, `b` is the scale (NOT rate).
+/// Convention: `a` is the shape, `b` is the scale (NOT rate).
 ///
 /// @param x   Evaluation points (any shape).
 /// @param a   Shape parameter (`a > 0`).

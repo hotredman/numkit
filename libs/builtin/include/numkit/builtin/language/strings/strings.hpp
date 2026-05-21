@@ -10,7 +10,7 @@
 namespace numkit::builtin {
 
 /// @file
-/// @brief MATLAB-parity string and char builtins.
+/// @brief String and char builtins.
 ///
 /// **Type conventions:**
 /// - `s` / `pat` arguments accept either CHAR row or STRING.
@@ -53,7 +53,7 @@ Value num2str(const Value &x, const std::string &fmt,
 
 /// @brief Parse string as number (`x = str2num(s)`).
 ///
-/// Returns empty Value on parse failure (matches MATLAB).
+/// Returns empty Value on parse failure.
 ///
 /// @param s   CHAR / STRING input.
 /// @param mr  Memory resource (nullptr → process default).
@@ -63,7 +63,7 @@ Value str2num(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Parse string as scalar number (`x = str2double(s)`).
 ///
-/// Returns `NaN` on parse failure (matches MATLAB).
+/// Returns `NaN` on parse failure.
 ///
 /// @param s   CHAR / STRING input.
 /// @param mr  Memory resource (nullptr → process default).
@@ -188,7 +188,7 @@ Value strsplit(const Value &s, const Value &delim, std::pmr::memory_resource *mr
 
 /// @brief Split on every delimiter occurrence (`c = split(s, delim)`).
 ///
-/// Empty tokens KEPT (matches MATLAB; differs from `strsplit`).
+/// Empty tokens KEPT (differs from `strsplit`).
 ///
 /// @param s      Input string. @param delim  Delimiter (char or string).
 /// @param mr     Memory resource. @return  `N × 1` cell column.
@@ -207,7 +207,7 @@ Value splitlines(const Value &s, std::pmr::memory_resource *mr = nullptr);
 /// @brief Concatenate strings, **dropping** trailing whitespace
 /// (`s = strcat(parts)`).
 ///
-/// MATLAB convention: `strcat` strips trailing whitespace from each
+/// `strcat` strips trailing whitespace from each
 /// CHAR-array operand before joining.
 ///
 /// @param parts  Vector of strings.
@@ -308,7 +308,7 @@ Value matches(const Value &s, const Value &pat, std::pmr::memory_resource *mr = 
 Value strrep(const Value &s, const Value &oldPat, const Value &newPat,
              std::pmr::memory_resource *mr = nullptr);
 
-/// @brief MATLAB `replace` with overlapping-match semantics
+/// @brief `replace` with overlapping-match semantics
 /// (`s = replace(s, old, new)`).
 /// @param s       Source. @param oldPat  Pattern. @param newPat  Replacement.
 /// @param mr      Memory resource. @return  Modified string. @see strrep
@@ -443,7 +443,7 @@ Value isspaceFn(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
 // ── Matrix → string and base conversions ─────────────────────────────
 
-/// @brief Numeric matrix → MATLAB-syntax string (`s = mat2str(A, precision)`).
+/// @brief Numeric matrix → matrix-literal string (`s = mat2str(A, precision)`).
 ///
 /// E.g. `[1 2; 3 4]`. 2-D only. Scalars are unbracketed.
 ///
@@ -490,8 +490,8 @@ Value hex2dec(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Continued-fraction approximation (`s = rat(x, tol)`).
 ///
-/// Returns a CHAR string of the form `"n / d"` (matches MATLAB's `rat`
-/// with one output).
+/// Returns a CHAR string of the form `"n / d"` (the single-output
+/// `rat` form).
 ///
 /// @param x    Input scalar.
 /// @param tol  Tolerance (relative).
@@ -560,7 +560,7 @@ Value strjust(const Value &M, const std::string &side, std::pmr::memory_resource
 /// @brief Extract every literal match (`c = extract(s, pat)`).
 ///
 /// Returns a `K × 1` cell column of matched substrings (empty `0 × 0`
-/// if no matches). MATLAB Pattern objects are not supported.
+/// if no matches). Pattern objects are not supported.
 ///
 /// @param s    Source string.
 /// @param pat  Pattern (CHAR / STRING).

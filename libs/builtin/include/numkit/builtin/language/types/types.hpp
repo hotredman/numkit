@@ -12,7 +12,7 @@ namespace numkit::builtin {
 /// All predicate functions return LOGICAL scalars unless noted. All
 /// numeric casts saturate at the target type's range. The C++ names
 /// `toDouble` / `classOf` rename `double` / `class` (C++ keywords);
-/// the registered MATLAB names remain `double` / `class`.
+/// the registered names remain `double` / `class`.
 
 // ── Numeric casts ────────────────────────────────────────────────────
 
@@ -137,7 +137,7 @@ Value issingle(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Stub for `issparse(x)` — numkit has no sparse storage class.
 ///
-/// Always returns `false`. Provided for parity with MATLAB scripts that
+/// Always returns `false`. Provided for scripts that
 /// probe sparseness.
 ///
 /// @param x   Input. @param mr  Memory resource. @return  LOGICAL false scalar.

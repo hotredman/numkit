@@ -14,7 +14,7 @@ namespace numkit::builtin {
 /// @file
 /// @brief Polynomial-domain builtins.
 ///
-/// **Coefficient convention** matches MATLAB: `p(1)` is the leading
+/// **Coefficient convention:** `p(1)` is the leading
 /// coefficient, `p(end)` is the constant term. So
 /// `p = [1 -3 2] ↔ x² - 3x + 2`.
 
@@ -170,8 +170,7 @@ struct PadeCoef {
 /// (`[num, den] = padecoef(T, N)`).
 ///
 /// Returns `(num, den)` rows in descending order of `s`, normalised so
-/// the leading denominator coefficient is 1 (matches MATLAB's
-/// `[num,den] = padecoef(T,N)`).
+/// the leading denominator coefficient is 1.
 ///
 /// @param T   Delay.
 /// @param N   Approximation order.

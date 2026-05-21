@@ -15,12 +15,12 @@ namespace numkit::io {
 /// `findFile`.
 ///
 /// Each function takes the owning `Engine` (for the VFS + fid table)
-/// and the MATLAB-style argument span; results are written into
+/// and the argument span; results are written into
 /// `outs`. `nargout` is forwarded because several of these populate
 /// optional second returns (`[fid, errmsg]` from `fopen`,
 /// `[msg, code]` from `ferror`, …).
 ///
-/// The inherently variadic MATLAB surface makes a `Span`-based
+/// The inherently variadic call surface makes a `Span`-based
 /// signature the natural C++ API — typed wrappers would just re-parse
 /// the same args.
 
@@ -31,7 +31,7 @@ namespace numkit::io {
 /// and `errmsg` is populated.
 ///
 /// @param engine   Engine context (VFS + fid table).
-/// @param args     MATLAB-style args: `(filename [, permission
+/// @param args     Args: `(filename [, permission
 ///                 [, machineformat]])`.
 /// @param nargout  Number of requested outputs (1 = fid only, 2 =
 ///                 `[fid, errmsg]`).

@@ -26,8 +26,8 @@ namespace numkit::stats {
 ///               - `bint`  : `p × 2` confidence intervals at level `1 - α`
 ///               - `r`     : `N × 1` residuals
 ///               - `stats` : `1 × 4` row `[R², F, p_value, sigma²]`.
-///               MATLAB's `rint` (outlier intervals on residuals) is not
-///               provided in this revision.
+///               The `rint` output (outlier intervals on residuals)
+///               is not provided in this revision.
 /// @see ridge, lscov
 std::tuple<Value, Value, Value, Value>
 regress(const Value &y, const Value &X, double alpha,

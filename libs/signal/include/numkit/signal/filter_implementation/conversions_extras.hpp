@@ -53,7 +53,7 @@ sos2zp(const Value &                sos,
 
 /// Transfer function to zero / pole / gain.
 ///
-/// MATLAB-compatible alias of `tf2zp`. Roots `b` for zeros, `a` for
+/// Alias of `tf2zp`. Roots `b` for zeros, `a` for
 /// poles, and computes `gain = b[0] / a[0]`.
 ///
 /// @param b   Numerator polynomial.

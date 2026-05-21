@@ -17,7 +17,7 @@ namespace numkit::wavelet {
 ///   - `Lo_R` — synthesis lowpass.
 ///   - `Hi_R` — synthesis highpass.
 ///
-/// Relations (MATLAB convention):
+/// Relations:
 /// @f$ \text{Lo\_R}[k] = \text{Lo\_D}[N-1-k] @f$ (time reversal),
 /// @f$ \text{Hi\_R}[k] = (-1)^k\,\text{Lo\_D}[k] @f$ (QMF), and
 /// @f$ \text{Hi\_D}[k] = \text{Hi\_R}[N-1-k] @f$.
@@ -41,7 +41,7 @@ struct FilterBank {
 /// @see wfilters
 FilterBank wavelet_filters(const std::string &name);
 
-/// Result of @ref wfilters — MATLAB `[…] = wfilters(wname[, kind])`.
+/// Result of @ref wfilters (`[…] = wfilters(wname[, kind])`).
 ///
 /// Which fields are populated depends on `kind`:
 ///   - `""` / `"all"`: all four set.
@@ -58,9 +58,9 @@ struct WFiltersResult {
 
 /// Build the named wavelet's filters as numkit Value rows.
 ///
-/// MATLAB `wfilters(wname[, kind])`. The `kind` selector follows MATLAB:
+/// `wfilters(wname[, kind])`. The `kind` selector:
 ///
-/// | kind | populated fields  | MATLAB form               |
+/// | kind | populated fields  | call form                 |
 /// | ---- | ----------------- | ------------------------- |
 /// | `""` | all four          | `[LoD, HiD, LoR, HiR]`    |
 /// | `"d"`| Lo_D, Hi_D        | `[LoD, HiD]`              |

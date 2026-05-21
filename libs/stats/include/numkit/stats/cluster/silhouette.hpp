@@ -19,7 +19,7 @@ namespace numkit::stats {
 ///   to cluster `k'`
 /// - `s(i) = (b(i) - a(i)) / max(a(i), b(i))`
 ///
-/// Singleton clusters are assigned `s(i) = 0`. Matches MATLAB R2025b.
+/// Singleton clusters are assigned `s(i) = 0`.
 ///
 /// @param X       `N × d` data matrix (one observation per row).
 /// @param clust   `N × 1` integer cluster labels.

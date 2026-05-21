@@ -124,7 +124,7 @@ Value medfilt2(const Value &I, int rows = 3, int cols = 3,
 /// `mask  = |high| ≥ threshold · max|high|`;
 /// `B     = saturate(I + amount · mask · high)`.
 ///
-/// MATLAB defaults: `radius = 1`, `amount = 0.8`, `threshold = 0`.
+/// Defaults: `radius = 1`, `amount = 0.8`, `threshold = 0`.
 ///
 /// @param I          Input image.
 /// @param radius     Gaussian radius in pixels.
@@ -195,7 +195,7 @@ Value imbilatfilt(const Value &I, double degreeOfSmoothing, double spatialSigma,
 /// @brief Add synthetic noise to an image
 /// (`J = imnoise(I, mode, p1, p2)`).
 ///
-/// Modes (all match MATLAB R2025b semantics):
+/// Modes:
 ///
 ///   | mode              | params                  | output                                  |
 ///   | ----------------- | ----------------------- | --------------------------------------- |
@@ -286,8 +286,8 @@ Value imboxfilt3(const Value &V, int fH, int fW, int fP,
 /// Builds the dense matrix `T` for 2-D 'full' convolution. Shape:
 /// `(m+M-1)·(n+N-1) × m·n` where `h` is `M × N`. Multiplying T by
 /// `vec(I)` (column-major) produces `vec(conv2(I, h, 'full'))`.
-/// MATLAB returns a sparse matrix; we return dense (numkit doesn't
-/// have sparse yet). Output type is double regardless of input class.
+/// The result is returned dense (numkit has no sparse storage
+/// yet). Output type is double regardless of input class.
 ///
 /// @param h   Convolution kernel (`M × N`).
 /// @param m   Image row count.
@@ -317,7 +317,7 @@ Value imgaussfilt3(const Value &V, double sigH, double sigW, double sigP,
 /// @brief 3-D median filter (`J = medfilt3(V, [M N P])`).
 ///
 /// Default 3×3×3 neighbourhood; sizes must be odd positive. Boundary
-/// is symmetric (mirror reflection) per MATLAB R2025b default. Output
+/// is symmetric (mirror reflection) by default. Output
 /// class matches input. NB: only `'symmetric'` padopt is supported
 /// in this first cut.
 ///
@@ -373,7 +373,7 @@ Value ordfilt2(const Value &A, int nth, const Value &domain, const Value &S,
 /// Evaluates `h` on a freqspace-style `M × N` grid (default 64×64).
 /// `H[i, j] = Σ_{p, q} h[p, q]·exp(−iπ(f1[i]·p + f2[j]·q))`
 /// where `f1` / `f2` are the row/column frequency vectors from
-/// MATLAB's `freqspace`.
+/// the `freqspace` grid.
 ///
 /// @param h   Filter kernel.
 /// @param M   Number of frequency samples along rows.

@@ -39,8 +39,8 @@ Value psnr(const Value &A, const Value &B, double peak,
 /// @brief Structural similarity index (`r = ssim(A, B)`).
 ///
 /// Wang-Bovik SSIM with a fixed `11 × 11` Gaussian window (σ = 1.5)
-/// and constants `K1 = 0.01`, `K2 = 0.03`. Matches MATLAB R2025b
-/// defaults. Output is a real scalar in roughly `[-1, 1]` (1 = identical).
+/// and constants `K1 = 0.01`, `K2 = 0.03`. Output is a real scalar
+/// in roughly `[-1, 1]` (1 = identical).
 ///
 /// @param A   First image.
 /// @param B   Second image (same shape).
@@ -76,8 +76,7 @@ Value mean2(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Standard deviation of every element (`s = std2(A)`).
 ///
-/// Normalised by `N - 1` (sample standard deviation), matching
-/// MATLAB's `std2`.
+/// Normalised by `N - 1` (sample standard deviation).
 ///
 /// @param A   Input image.
 /// @param mr  Memory resource (nullptr → process default).

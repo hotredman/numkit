@@ -45,7 +45,7 @@ Value imresize(const Value &A, size_t outH, size_t outW,
 /// @brief Crop a rectangular region
 /// (`B = imcrop(A, [xmin ymin width height])`).
 ///
-/// Coordinates are 1-based MATLAB style. Sub-pixel coordinates are
+/// Coordinates are 1-based. Sub-pixel coordinates are
 /// rounded; out-of-bounds requests are clamped to the image extent.
 ///
 /// @param A       Input image.

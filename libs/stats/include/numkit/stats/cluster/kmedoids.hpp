@@ -34,7 +34,7 @@ kmedoids(const Value &X, int K, int max_iter, int replicates,
 ///
 /// Builds clusters from `corepts` — points with at least `minpts`
 /// neighbours within distance `eps`. Output labels: cluster index ≥ 1,
-/// or -1 for noise (MATLAB R2025b convention).
+/// or -1 for noise.
 ///
 /// Pass `metric = "precomputed"` to use `X` as a pre-built N×N
 /// pairwise distance matrix directly.

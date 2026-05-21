@@ -23,7 +23,7 @@ namespace numkit::builtin {
 /// a single process-static engine. Reproducibility:
 /// ```matlab
 ///   rng(0)            % deterministic seed
-///   rng('default')    % MATLAB's default seed (0)
+///   rng('default')    % the default seed (0)
 ///   rng('shuffle')    % seed from std::random_device
 ///   s = rng();        % save state (struct with .Type, .State)
 ///   rng(s);           % restore state — subsequent calls reproduce
@@ -101,7 +101,7 @@ std::mutex &rngMutex();
 
 /// @brief Seed the shared RNG.
 ///
-/// `seed = 0` matches MATLAB's `rng('default')`.
+/// `seed = 0` is equivalent to `rng('default')`.
 ///
 /// @param seed  Seed value.
 void rngSeed(uint64_t seed);

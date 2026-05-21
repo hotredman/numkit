@@ -41,7 +41,7 @@ imgradientxy(const Value &I, const std::string &method,
 /// Equivalent to running @ref imgradientxy and converting to polar:
 ///   @f$ G_\text{mag} = \sqrt{G_x^2 + G_y^2} @f$,
 ///   @f$ G_\text{dir} = \text{atan2}(-G_y, G_x) @f$ in degrees
-///   (MATLAB convention: −180 ≤ Gdir ≤ 180; the `-Gy` flip makes the
+///   (−180 ≤ Gdir ≤ 180; the `-Gy` flip makes the
 ///   angle increase counter-clockwise in screen coordinates).
 ///
 /// @see imgradientxy, edge

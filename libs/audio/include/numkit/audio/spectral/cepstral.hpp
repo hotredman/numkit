@@ -14,7 +14,7 @@ namespace numkit::audio {
 ///
 /// Pipeline: log10 / cubic-root rectification → DCT-II → keep first
 /// `numCoeffs` coefficients. Input `S` is `L × M` (filterbank bands ×
-/// frames). Output is `M × numCoeffs` (frames first, MATLAB convention).
+/// frames). Output is `M × numCoeffs` (frames first).
 ///
 /// @param S          `L × M` real filterbank energy matrix.
 /// @param numCoeffs  Number of cepstral coefficients to keep. Default 13.
@@ -28,7 +28,7 @@ Value cepstralCoefficients(const Value &                S,
 
 /// Mel-frequency cepstral coefficients (MFCC).
 ///
-/// Bit-equal MATLAB R2025b. Pipeline:
+/// Pipeline:
 ///   1. Hamming `(0.03 · fs, 'periodic')` STFT.
 ///   2. `|FFT|` magnitude.
 ///   3. Slaney mel filterbank (`'Bandwidth'` normalisation).
@@ -53,7 +53,7 @@ mfcc(const Value &                x,
 
 /// Gammatone cepstral coefficients (GTCC).
 ///
-/// Bit-equal MATLAB R2025b. Same STFT + `cepstralCoefficients` pipeline
+/// Same STFT + `cepstralCoefficients` pipeline
 /// as `mfcc` but with an ERB-spaced Patterson-Holdsworth gammatone
 /// filterbank (Slaney 1993): cascaded 4-stage biquad frequency response,
 /// `FrequencyRange = [50, fs/2]`,

@@ -112,8 +112,8 @@ Value spectralCrest(const Value &x, const Value &f,
 /// @param x   Time signal or spectrum.
 /// @param f   Sample rate or frequency vector.
 /// @param mr  Memory resource (nullptr → process default).
-/// @return    Per-frame / per-column entropy (nats or bits per MATLAB
-///            convention).
+/// @return    Per-frame / per-column normalised spectral entropy,
+///            in `[0, 1]`.
 Value spectralEntropy(const Value &x, const Value &f,
                       std::pmr::memory_resource *mr = nullptr);
 

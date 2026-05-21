@@ -130,7 +130,7 @@ Value spline(const Value &x, const Value &y, const Value &xq,
 Value pchip(const Value &x, const Value &y, const Value &xq,
             std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Build a MATLAB-style pp struct (`pp = mkpp(breaks, coefs)`).
+/// @brief Build a piecewise-polynomial (pp) struct (`pp = mkpp(breaks, coefs)`).
 ///
 /// Fields: `{form='pp', breaks, coefs, pieces, order, dim}`.
 /// `coefs` is `pieces × order`.

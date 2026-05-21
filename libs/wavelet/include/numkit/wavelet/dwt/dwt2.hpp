@@ -8,7 +8,7 @@
 
 namespace numkit::wavelet {
 
-/// Result of @ref dwt2 — MATLAB `[cA, cH, cV, cD] = dwt2(X, wname)`.
+/// Result of @ref dwt2 (`[cA, cH, cV, cD] = dwt2(X, wname)`).
 ///
 /// Naming follows the standard 2-D wavelet decomposition:
 ///   - cA — approximation (Lo-rows then Lo-cols, the LL band).

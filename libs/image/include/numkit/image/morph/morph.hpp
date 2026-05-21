@@ -340,7 +340,7 @@ Value bwhitmiss(const Value &BW, const Value &se1, const Value &se2,
 /// @brief Composite binary morphological operations
 /// (`J = bwmorph(BW, op, n)`).
 ///
-/// Faithful port of MATLAB R2025b's `bwmorph`. Each named operation
+/// Each named operation
 /// corresponds to a 512-entry LUT (or a chain of LUTs and bitwise
 /// compositions), indexed by the 3×3 neighbourhood of every pixel.
 /// Out-of-bounds pixels are 0.
@@ -356,7 +356,7 @@ Value bwhitmiss(const Value &BW, const Value &se1, const Value &se2,
 /// @param BW  Binary input.
 /// @param op  Operation name.
 /// @param n   Iteration count. `n = -1` means "until stable"
-///            (MATLAB's `Inf`); `n = 1` is the default.
+///            (i.e. `Inf` iterations); `n = 1` is the default.
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Processed binary image.
 /// @throws Error  Unknown `op` (`m:bwmorph:badOp`).
