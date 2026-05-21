@@ -406,4 +406,14 @@ COORDINATION.md                       # Multi-session protocol (currently dorman
 
 ## License
 
-Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE) for details.
+numkit is **source-available** and dual-licensed:
+
+- **Noncommercial use** — free under the
+  [PolyForm Noncommercial License 1.0.0](LICENSE). Personal, research,
+  educational, charitable, and government use is covered.
+- **Commercial use** — requires a separate, paid license. See
+  [LICENSE-COMMERCIAL.md](LICENSE-COMMERCIAL.md).
+
+This is **not** an OSI-approved open-source license — it restricts
+commercial use. See [NOTICE](NOTICE) for third-party component
+licenses.
