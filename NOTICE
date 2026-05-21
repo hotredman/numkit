@@ -1,7 +1,28 @@
 numkit
 Copyright 2026 The numkit Authors
 
-This product is licensed under the Apache License, Version 2.0.
-You may obtain a copy of the License at
+This software is source-available and dual-licensed:
 
-    http://www.apache.org/licenses/LICENSE-2.0
+  * Noncommercial use — PolyForm Noncommercial License 1.0.0
+    https://polyformproject.org/licenses/noncommercial/1.0.0
+    See LICENSE.
+
+  * Commercial use — a separate, paid license is required.
+    See LICENSE-COMMERCIAL.md.
+
+Required Notice: Copyright 2026 The numkit Authors
+
+--------------------------------------------------------------------
+
+Third-party components bundled with, or built into, numkit retain
+their own licenses. These are all permissive (Apache-2.0 / BSD / MIT)
+and include, among others:
+
+  * Highway (SIMD)            Apache-2.0 / BSD-3-Clause
+  * GoogleTest                BSD-3-Clause
+  * matio                     BSD-2-Clause
+  * three.js                  MIT
+  * Vite                      MIT
+  * Electron                  MIT
+
+Consult each component's own license text for its exact terms.

@@ -116,12 +116,17 @@ struct AdaptHistEqOptions {
 
     /// Target histogram shape:
     ///   - `"uniform"`     — flat (default)
-    ///   - `"rayleigh"`    — KNOWN GAP, throws
-    ///   - `"exponential"` — KNOWN GAP, throws
+    ///   - `"rayleigh"`    — bell-shaped (Rayleigh inverse CDF)
+    ///   - `"exponential"` — curved (exponential inverse CDF)
     std::string  distribution = "uniform";
 
-    /// Shape parameter for rayleigh / exponential (deferred).
+    /// Shape parameter for the rayleigh / exponential distributions.
     double       alpha        = 0.4;
+
+    /// Output intensity range:
+    ///   - `"full"`     — full range of the image class (default)
+    ///   - `"original"` — limited to the input's actual [min, max]
+    std::string  range        = "full";
 };
 
 /// Contrast Limited Adaptive Histogram Equalisation
@@ -130,17 +135,19 @@ struct AdaptHistEqOptions {
 /// Divides the image into `numTilesR × numTilesC` regions, builds a
 /// clipped-redistribute histogram per tile, and applies the
 /// bilinearly-interpolated per-tile CDF as the per-pixel transfer
-/// function. Mirrors MATLAB's `adapthisteq`.
+/// function. Behaviour matches MATLAB's `adapthisteq` — full argument
+/// set: NumTiles, ClipLimit, NBins, Range, Distribution, Alpha.
 ///
-/// @param I     2-D image (uint8 / uint16 / int16 / single / double).
-///              Returned in the same class.
+/// Clean-room implementation from public references (CLAHE — Zuiderveld
+/// 1994; contrast limiting — Pizer et al. 1990; non-uniform target
+/// distributions — Pizer et al. 1987). See cleanroom/specs/adapthisteq.md.
+///
+/// @param I     2-D greyscale image. Returned in the same class.
 /// @param opts  Algorithm parameters; see @ref AdaptHistEqOptions.
 /// @param mr    Memory resource (nullptr → process default).
 ///
-/// **KNOWN GAPS:**
-///   - 3-D / RGB input. MATLAB accepts greyscale only too.
-///   - `"rayleigh"` / `"exponential"` distributions.
-///   - `Range='original'` option (always 'full' here).
+/// @note 2-D greyscale input only; RGB / N-D input throws
+///       `m:adapthisteq:unsupportedShape` (as MATLAB).
 ///
 /// @code
 /// Value J1 = adapthisteq(I);                   // defaults

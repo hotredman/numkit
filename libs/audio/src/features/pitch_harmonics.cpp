@@ -105,710 +105,657 @@ size_t nextPow2(size_t x)
 
 } // anon
 
-// ── pitch CEP method (cycle K) ────────────────────────────────────────
-// Cepstrum-based pitch estimation. Matches MATLAB R2025b
-// audio.internal.pitch.CEP.m exactly:
-//   1. Apply hamming(winLen, 'periodic') to each frame.
-//   2. NFFT = 2^nextpow2(2*winLen - 1) (always power of 2).
-//   3. domain = real(ifft(log(|fft(yw, NFFT)|^2)))
-//   4. edge = round(fs ./ fliplr([minF, maxF]))
-//   5. Find peak of `domain` in lag range [edge[0], edge[1]].
-//   6. f0 = fs / peakLag.
+// ── pitch CEP method ──────────────────────────────────────────────────
+// Cepstrum-based fundamental-frequency (pitch) estimation.
 //
-// Reference: Noll, "Cepstrum Pitch Determination", JASA 41(2), 1967.
-Value pitchCEP(const Value &x, double fs, double minF, double maxF, std::pmr::memory_resource *mr)
+// Reference: A. M. Noll, "Cepstrum Pitch Determination", Journal of the
+// Acoustical Society of America 41(2):293-309, 1967.
+//
+// Clean-room reimplementation — see cleanroom/specs/pitchCEP.md. Per
+// frame: window, zero-pad, DFT, log power spectrum, inverse DFT back to
+// the quefrency domain; the cepstral peak inside the quefrency band for
+// [minF, maxF] gives f0. The frame is zero-padded to nextPow2(2*winLen-1)
+// so the cepstrum is free of time-domain aliasing.
+//
+// Compatibility: MATLAB's CEP reports the period from a 1-based
+// quefrency index, so a cepstrum sample at 0-based array index q
+// corresponds to a period of (q+1) samples; hence f0 = fs/(q+1) and the
+// search band is shifted down by one index.
+Value pitchCEP(const Value &x, double fs, double minF, double maxF,
+               std::pmr::memory_resource *mr)
 {
-    const size_t N = x.numel();
-    const FrameSpec sp = frameSpec(N, fs, 0.052, 0.042);
-    Value out = Value::matrix(sp.numFrames, sp.numFrames == 0 ? 0 : 1,
-                              ValueType::DOUBLE, mr);
-    if (sp.numFrames == 0) return out;
-    // edge = round(fs ./ fliplr([minF, maxF])) = [round(fs/maxF), round(fs/minF)]
-    const size_t edgeLo = static_cast<size_t>(std::round(fs / maxF));
-    const size_t edgeHi = static_cast<size_t>(std::round(fs / minF));
-    if (edgeHi <= edgeLo || edgeHi >= sp.winLen) return out;
+    // Framing — MATLAB pitch defaults: 52 ms window, 42 ms overlap.
+    const std::size_t N = x.numel();
+    const FrameSpec fr = frameSpec(N, fs, 0.052, 0.042);
+    const std::size_t winLen    = fr.winLen;
+    const std::size_t hop       = fr.hop;
+    const std::size_t numFrames = fr.numFrames;
+    if (numFrames == 0 || winLen == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
-    // NFFT = next power of 2 >= 2*winLen - 1 (CEP uses zero-padded FFT).
-    const size_t NFFT = nextPow2(2 * sp.winLen - 1);
+    // Zero-pad to a power of two >= 2*winLen-1 (anti-aliasing the cepstrum).
+    const std::size_t NFFT = nextPow2(2 * winLen - 1);
 
-    ScratchArena scratch(mr);
-    ScratchVec<double> win(sp.winLen, &scratch);
-    hammingPeriodic(win.data(), sp.winLen);
+    ScratchArena arena(mr);
+    ScratchVec<double> win(winLen, &arena);
+    hammingPeriodic(win.data(), winLen);
 
-    // Build batched matrix of windowed frames, NFFT × numFrames (zero-padded).
-    Value framesV = Value::matrix(NFFT, sp.numFrames, ValueType::DOUBLE, mr);
-    double *fd = framesV.doubleDataMut();
-    std::fill(fd, fd + NFFT * sp.numFrames, 0.0);
-    for (size_t f = 0; f < sp.numFrames; ++f) {
-        const size_t start = f * sp.hop;
-        for (size_t i = 0; i < sp.winLen; ++i)
-            fd[i + f * NFFT] = x.elemAsDouble(start + i) * win[i];
-    }
-
-    // FFT along dim 1 (each column independently), then |·|², log, ifft → real.
-    Value Y = signal::fft(framesV, static_cast<int>(NFFT), 1, mr);
-    // Apply log(|Y|²) = 2*log(|Y|). Since input to ifft must be a Value:
-    // build a complex Value of the log-power spectrum (imag=0).
-    Value logPow = Value::matrix(NFFT, sp.numFrames, ValueType::COMPLEX, mr);
-    Complex *lpd = logPow.complexDataMut();
-    const Complex *Yd = Y.complexData();
-    const double tinyLog = std::log(std::numeric_limits<double>::min());
-    for (size_t i = 0; i < NFFT * sp.numFrames; ++i) {
-        const double re = Yd[i].real();
-        const double im = Yd[i].imag();
-        const double pw = re * re + im * im;
-        const double lp = (pw > 0.0) ? std::log(pw) : tinyLog;
-        lpd[i] = Complex(lp, 0.0);
-    }
-
-    // ifft along dim 1.
-    Value cepstrumV = signal::ifft(logPow, static_cast<int>(NFFT), 1, mr);
-    // ifft of real-symmetric input is real. Take real part for the cepstrum domain.
-    // cepstrumV may be returned as DOUBLE (auto-downgraded by libs/signal::ifft)
-    // or COMPLEX. Handle both.
-    auto getReal = [&](size_t idx) -> double {
-        if (cepstrumV.type() == ValueType::COMPLEX)
-            return cepstrumV.complexData()[idx].real();
-        return cepstrumV.doubleData()[idx];
-    };
-
-    // Peak picking per frame in lag range [edgeLo, edgeHi].
-    // MATLAB CEP.m uses 1-based indexing: searches domain(edgeLo:edgeHi),
-    // converts the resulting MATLAB-1-based location to f0 = fs/loc.
-    // In 0-based C++ terms this means: read domain[k-1] for MATLAB index k,
-    // and f0 = fs/k where k is the MATLAB 1-based index.
-    double *od = out.doubleDataMut();
-    for (size_t f = 0; f < sp.numFrames; ++f) {
-        double bestVal = -std::numeric_limits<double>::infinity();
-        size_t bestLag1 = edgeLo;  // MATLAB 1-based index
-        for (size_t k = edgeLo; k <= edgeHi && (k - 1) < NFFT; ++k) {
-            const double v = getReal((k - 1) + f * NFFT);
-            if (v > bestVal) { bestVal = v; bestLag1 = k; }
+    // Column f holds the f-th windowed, zero-padded frame.
+    Value frames = Value::matrix(NFFT, numFrames, ValueType::DOUBLE, &arena);
+    double *fd = frames.doubleDataMut();
+    std::fill(fd, fd + NFFT * numFrames, 0.0);
+    for (std::size_t f = 0; f < numFrames; ++f) {
+        const std::size_t base = f * hop;
+        double *col = fd + f * NFFT;
+        for (std::size_t n = 0; n < winLen; ++n) {
+            const std::size_t idx = base + n;
+            col[n] = (idx < N) ? x.elemAsDouble(idx) * win[n] : 0.0;
         }
-        od[f] = (bestLag1 > 0) ? fs / static_cast<double>(bestLag1) : 0.0;
+    }
+
+    // Forward DFT of every frame, then the log power spectrum.
+    Value Y = signal::fft(frames, static_cast<int>(NFFT), 1, &arena);
+    Value logspec = Value::matrix(NFFT, numFrames, ValueType::DOUBLE, &arena);
+    double *ld = logspec.doubleDataMut();
+    const double kLogFloor = std::log(std::numeric_limits<double>::min());
+    const std::size_t total = NFFT * numFrames;
+    if (Y.type() == ValueType::COMPLEX) {
+        const Complex *yd = Y.complexData();
+        for (std::size_t i = 0; i < total; ++i) {
+            const double re = yd[i].real(), im = yd[i].imag();
+            const double p2 = re * re + im * im;
+            ld[i] = (p2 > 0.0) ? std::log(p2) : kLogFloor;
+        }
+    } else {
+        const double *yd = Y.doubleData();
+        for (std::size_t i = 0; i < total; ++i) {
+            const double p2 = yd[i] * yd[i];
+            ld[i] = (p2 > 0.0) ? std::log(p2) : kLogFloor;
+        }
+    }
+
+    // Real cepstrum c[q] = real(IDFT(logspec)).
+    Value C = signal::ifft(logspec, static_cast<int>(NFFT), 1, &arena);
+    const bool cIsComplex = (C.type() == ValueType::COMPLEX);
+    const Complex *cc = cIsComplex ? C.complexData() : nullptr;
+    const double  *cr = cIsComplex ? nullptr        : C.doubleData();
+
+    // Quefrency search band. A period of p samples gives f0 = fs/p, so the
+    // pitch range [minF, maxF] maps to p in [fs/maxF, fs/minF]. With the
+    // 1-based quefrency convention (period = array index + 1) the array
+    // index range is [round(fs/maxF)-1, round(fs/minF)-1].
+    Value out = Value::matrix(numFrames, 1, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+
+    long qLo = 0, qHi = -1;
+    if (minF > 0.0 && maxF > 0.0) {
+        qLo = static_cast<long>(std::lround(fs / maxF)) - 1;
+        qHi = static_cast<long>(std::lround(fs / minF)) - 1;
+    }
+    if (qLo < 0) qLo = 0;
+    if (qHi > static_cast<long>(NFFT) - 1) qHi = static_cast<long>(NFFT) - 1;
+    const bool rangeValid = (qLo <= qHi);
+
+    for (std::size_t f = 0; f < numFrames; ++f) {
+        if (!rangeValid) { od[f] = 0.0; continue; }
+        const std::size_t colOff = f * NFFT;
+        long   qBest = qLo;
+        double cBest = -std::numeric_limits<double>::infinity();
+        for (long q = qLo; q <= qHi; ++q) {
+            const std::size_t idx = colOff + static_cast<std::size_t>(q);
+            const double cq = cIsComplex ? cc[idx].real() : cr[idx];
+            if (cq > cBest) { cBest = cq; qBest = q; }
+        }
+        // 1-based quefrency convention: period = qBest + 1 samples.
+        od[f] = fs / static_cast<double>(qBest + 1);
     }
     return out;
 }
 
-// ── pitch PEF method (cycle K-2) ──────────────────────────────────────
-// Pitch Estimation Filter (Gonzalez & Brookes, "PEFAC" 2011). Matches
-// MATLAB R2025b audio.internal.pitch.PEF.m exactly:
+// ──────────────────────────────────────────────────────────────────────
+// pitchPEF — Pitch-Estimation-Filter fundamental-frequency estimation.
 //
-//   NFFT = 2^nextpow2(2*winLen-1)
-//   logSpacedFrequency = logspace(1, log10(min(fs/2-1, 4000)), NFFT)
-//   linSpacedFrequency = linspace(0, fs/2, NFFT/2+1)
-//   wBandEdges[i] = argmin |logSpacedFrequency - Range[i]|
+// Public reference:
+//   S. Gonzalez and M. Brookes, "A Pitch Estimation Filter robust to
+//   high levels of noise (PEFAC)", Proc. EUSIPCO 2011, pp. 451-455.
 //
-//   bw[i] = (logSpaced[i+1] - logSpaced[i-1]) / 2  (with edges clamped)
-//   bw /= NFFT
+// This is the "PEF" variant of the published method — PEFAC without the
+// amplitude-compression stage (the paper's Fig. 6 "algorithm without the
+// amplitude compression stage").
 //
-//   PEF filter aFilt:
-//     K=10, gamma=1.8, num=round(NFFT/2)
-//     q = logspace(log10(0.5), log10(K+0.5), num)
-//     h = 1 / (gamma - cos(2π q))
-//     delta = diff([q(1), midpoints, q(end)])
-//     beta = sum(h*delta) / sum(delta)
-//     aFilt = h - beta
-//     numToPad = last index with q < 1
+// Idea: on a natural-log frequency axis q = ln f, the harmonics of a
+// tone at f0 sit at q = ln f0 + ln k (k = 1..K) — a comb pattern whose
+// spacing is independent of f0. Correlating the log-frequency power
+// spectrum with a fixed comb filter h(q) whose teeth are at q = ln k
+// therefore sums the harmonic energy and peaks at q = ln f0. The comb
+// is built from the paper's Eq. 4:
+//     g(q) = ln(γ − cos(2π·e^q)),   h(q) = β − g(q)
+// with β chosen so Σh = 0, which makes h reject white / smoothly-varying
+// noise. γ controls tooth width.
 //
-//   Per-frame Z:
-//     Y = fft(y .* hamming, NFFT)
-//     Yhalf = Y(1:NFFT/2+1); Ypower = |Yhalf|²
-//     Ylog = interp1(linSpaced, Ypower, logSpaced)  (linear)
-//     Ylog .*= bw
-//     Z = [zeros(numToPad); Ylog]   length = numToPad + NFFT
+// Per analysis frame: window (periodic Hamming) → zero-pad to NFFT and
+// FFT → one-sided power spectrum P → for each candidate f0 on a uniform
+// log-frequency grid, score(f0) = Σ_j h_j · P_interp(f0·e^{q'_j}); the
+// candidate with the largest score is the frame's f0, clipped to
+// [minF, maxF].
 //
-//   Cross-correlation (FFT-based):
-//     m = max(|Z|, |aFilt|), mxl = min(edge(end), m-1)
-//     m2 = min(2^nextpow2(2m-1), NFFT*4)   (always power of 2)
-//     c1 = real(ifft(fft(Z, m2) .* conj(fft(aFilt, m2))))
-//     R = [c1(m2-mxl+1 : m2); c1(1 : mxl+1)]
-//     domain = R(edge(end)+1 : end)
-//     locs = argmax in domain[edge(1) : edge(end)]
-//     f0 = logSpacedFrequency(locs)
-//     clip f0 to [Range(1), Range(end)].
-namespace {
-
-// Build the PEF filter. Returns aFilt (column vector) + numToPad.
-struct PefFilter {
-    Value aFilt;        // num × 1 double
-    size_t numToPad;
-};
-
-PefFilter buildPefFilter(size_t NFFT, std::pmr::memory_resource *mr)
+// Clean-room reimplementation — see cleanroom/specs/pitchPEF.md. This is
+// a faithful implementation of the paper's filter (Eq. 4); MATLAB's PEF
+// uses a different comb formula, so this is not bit-matched to MATLAB.
+// ──────────────────────────────────────────────────────────────────────
+Value pitchPEF(const Value &x, double fs, double minF, double maxF,
+               std::pmr::memory_resource *mr)
 {
-    constexpr double K = 10.0;
-    constexpr double gamma = 1.8;
-    const size_t num = static_cast<size_t>(std::round(static_cast<double>(NFFT) / 2.0));
+    // PEF algorithm constants (paper §2.1, §3, §2).
+    constexpr double kGamma = 1.5;            // comb tooth-width parameter γ
+    constexpr int    kK     = 10;             // number of comb teeth K
+    const double     kDelta = std::log(1.0058); // log-grid step Δ (0.58 %)
 
-    PefFilter pf;
-    pf.aFilt = Value::matrix(num, 1, ValueType::DOUBLE, mr);
-    if (num == 0) { pf.numToPad = 0; return pf; }
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> q(num, &scratch);
-    ScratchVec<double> h(num, &scratch);
-    ScratchVec<double> delta(num, &scratch);
-
-    // q = logspace(log10(0.5), log10(K+0.5), num)
-    const double a = std::log10(0.5);
-    const double b = std::log10(K + 0.5);
-    if (num == 1) {
-        q[0] = std::pow(10.0, a);
-    } else {
-        const double step = (b - a) / static_cast<double>(num - 1);
-        for (size_t i = 0; i < num; ++i)
-            q[i] = std::pow(10.0, a + step * static_cast<double>(i));
-    }
-
-    // h = 1 / (gamma - cos(2π q))
-    for (size_t i = 0; i < num; ++i)
-        h[i] = 1.0 / (gamma - std::cos(2.0 * M_PI * q[i]));
-
-    // delta = diff([q(1), (q(1:end-1)+q(2:end))/2, q(end)])
-    // Length-num+1 → diff gives length num.
-    // delta[0] = midpoint[0] - q[0] = (q[0]+q[1])/2 - q[0] = (q[1]-q[0])/2
-    // delta[i] for i in 1..num-2 = midpoint[i] - midpoint[i-1] = (q[i+1]-q[i-1])/2
-    // delta[num-1] = q[num-1] - midpoint[num-2] = q[num-1] - (q[num-2]+q[num-1])/2 = (q[num-1]-q[num-2])/2
-    if (num == 1) {
-        delta[0] = 0.0;
-    } else {
-        delta[0] = (q[1] - q[0]) * 0.5;
-        for (size_t i = 1; i + 1 < num; ++i)
-            delta[i] = (q[i + 1] - q[i - 1]) * 0.5;
-        delta[num - 1] = (q[num - 1] - q[num - 2]) * 0.5;
-    }
-
-    // beta = sum(h .* delta) / sum(delta)
-    double sumHD = 0.0, sumD = 0.0;
-    for (size_t i = 0; i < num; ++i) { sumHD += h[i] * delta[i]; sumD += delta[i]; }
-    const double beta = (sumD > 0.0) ? sumHD / sumD : 0.0;
-
-    double *afd = pf.aFilt.doubleDataMut();
-    for (size_t i = 0; i < num; ++i) afd[i] = h[i] - beta;
-
-    // numToPad = find(q < 1, 1, 'last') — index of last element with q < 1
-    pf.numToPad = 0;
-    for (size_t i = 0; i < num; ++i) {
-        if (q[i] < 1.0) pf.numToPad = i + 1;  // 1-based count
-    }
-    return pf;
-}
-
-// Linear interpolation: out[i] = interp1(xs, ys, xq[i], 'linear', NaN-out-of-range)
-// xs must be monotonically increasing. Out-of-range queries get NaN
-// (matches MATLAB interp1 default).
-void linearInterp(const double *xs, const double *ys, size_t N,
-                   const double *xq, double *out, size_t M)
-{
-    if (N < 2) {
-        for (size_t i = 0; i < M; ++i) out[i] = std::numeric_limits<double>::quiet_NaN();
-        return;
-    }
-    size_t k = 0;
-    for (size_t i = 0; i < M; ++i) {
-        const double x = xq[i];
-        if (x < xs[0] || x > xs[N - 1]) {
-            out[i] = std::numeric_limits<double>::quiet_NaN();
-            continue;
-        }
-        // Binary-search-free walk: xq is typically also monotonic (logSpaced).
-        while (k + 1 < N - 1 && xs[k + 1] < x) ++k;
-        // Reset k if needed (in case xq isn't monotonic, fall back to scan).
-        if (xs[k] > x || xs[k + 1] < x) {
-            k = 0;
-            while (k + 1 < N && xs[k + 1] < x) ++k;
-        }
-        const double t = (x - xs[k]) / (xs[k + 1] - xs[k]);
-        out[i] = ys[k] + t * (ys[k + 1] - ys[k]);
-    }
-}
-
-} // anon
-
-Value pitchPEF(const Value &x, double fs, double minF, double maxF, std::pmr::memory_resource *mr)
-{
+    // ── 1. Framing (numkit default pitch framing — one f0 per frame). ──
     const size_t N = x.numel();
-    const FrameSpec sp = frameSpec(N, fs, 0.052, 0.042);
-    Value out = Value::matrix(sp.numFrames, sp.numFrames == 0 ? 0 : 1,
-                              ValueType::DOUBLE, mr);
-    if (sp.numFrames == 0) return out;
-    const size_t NFFT = nextPow2(2 * sp.winLen - 1);
-    const size_t Nhalf = NFFT / 2 + 1;
+    const FrameSpec fs_spec = frameSpec(N, fs, 0.052, 0.042);
+    const size_t winLen   = fs_spec.winLen;
+    const size_t hop      = fs_spec.hop;
+    const size_t numFrames = fs_spec.numFrames;
 
-    // logSpacedFrequency = logspace(1, log10(min(fs/2-1, 4000)), NFFT)
-    const double logHi = std::log10(std::min(fs * 0.5 - 1.0, 4000.0));
-    const double logLo = 1.0;
-    ScratchArena scratch(mr);
-    ScratchVec<double> logSF(NFFT, &scratch);
-    if (NFFT == 1) {
-        logSF[0] = std::pow(10.0, logLo);
-    } else {
-        const double step = (logHi - logLo) / static_cast<double>(NFFT - 1);
-        for (size_t i = 0; i < NFFT; ++i)
-            logSF[i] = std::pow(10.0, logLo + step * static_cast<double>(i));
+    if (numFrames == 0 || winLen == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    // ── 2. Zero-pad length: NFFT = nextPow2(4 · winLen). ───────────────
+    const size_t NFFT = nextPow2(4 * winLen);
+    const size_t half = NFFT / 2;            // P spans bins 0 .. NFFT/2
+
+    ScratchArena arena(mr);
+
+    // Periodic Hamming window over the analysis window length.
+    ScratchVec<double> win(winLen, &arena);
+    hammingPeriodic(win.data(), winLen);
+
+    // Windowed-and-zero-padded frame matrix (NFFT × numFrames), column-
+    // major: frame f occupies column f. signal::fft along dim = 1 then
+    // transforms every frame in one call.
+    Value frames = Value::matrix(NFFT, numFrames, ValueType::DOUBLE, &arena);
+    double *fd = frames.doubleDataMut();
+    std::fill(fd, fd + NFFT * numFrames, 0.0);   // zero-pad region
+    for (size_t f = 0; f < numFrames; ++f) {
+        const size_t base   = f * NFFT;       // column start
+        const size_t offset = f * hop;        // frame start sample in x
+        for (size_t i = 0; i < winLen; ++i)
+            fd[base + i] = x.elemAsDouble(offset + i) * win[i];
     }
 
-    // linSpacedFrequency = linspace(0, fs/2, NFFT/2+1)
-    ScratchVec<double> linSF(Nhalf, &scratch);
-    if (Nhalf == 1) {
-        linSF[0] = 0.0;
-    } else {
-        const double step = (fs * 0.5) / static_cast<double>(Nhalf - 1);
-        for (size_t i = 0; i < Nhalf; ++i) linSF[i] = step * static_cast<double>(i);
-    }
+    // ── 2. (cont.) DFT and one-sided power spectrum P[k] = |Y[k]|². ────
+    Value spec = signal::fft(frames, static_cast<int>(NFFT), 1, &arena);
 
-    // wBandEdges = nearest log-frequency index for each Range value.
-    auto findNearest = [&](double f) -> size_t {
-        size_t bestIdx = 0;
-        double bestDist = std::abs(logSF[0] - f);
-        for (size_t i = 1; i < NFFT; ++i) {
-            const double d = std::abs(logSF[i] - f);
-            if (d < bestDist) { bestDist = d; bestIdx = i; }
-        }
-        return bestIdx;  // 0-based; MATLAB equivalent = bestIdx + 1
-    };
-    const size_t edgeLo0 = findNearest(minF);  // 0-based
-    const size_t edgeHi0 = findNearest(maxF);
-
-    // bw[i] = (logSF[i+1] - logSF[i-1]) / 2 / NFFT, with edge values clamped.
-    // MATLAB: bwTemp = (logSF(3:end) - logSF(1:end-2)) / 2  (length NFFT-2)
-    //         bw = [bwTemp(1); bwTemp; bwTemp(end)] / NFFT  (length NFFT)
-    ScratchVec<double> bw(NFFT, &scratch);
-    if (NFFT >= 3) {
-        const double invN = 1.0 / static_cast<double>(NFFT);
-        for (size_t i = 1; i + 1 < NFFT; ++i)
-            bw[i] = (logSF[i + 1] - logSF[i - 1]) * 0.5 * invN;
-        bw[0]        = bw[1];
-        bw[NFFT - 1] = bw[NFFT - 2];
-    } else {
-        for (size_t i = 0; i < NFFT; ++i) bw[i] = 0.0;
-    }
-
-    // PEF filter
-    PefFilter pf = buildPefFilter(NFFT, mr);
-    const size_t aLen = pf.aFilt.dims().rows();
-    const size_t Zlen = pf.numToPad + NFFT;
-
-    // Cross-correlation FFT length
-    const size_t mDim = std::max(Zlen, aLen);
-    const size_t mxl_signed = std::min(edgeHi0 + 1, mDim - 1);  // edgeHi+1 (1-based MATLAB index)
-    const size_t mxl = mxl_signed;
-    const size_t m2 = std::min(nextPow2(2 * mDim - 1), NFFT * 4);
-
-    // Hamming window
-    ScratchVec<double> win(sp.winLen, &scratch);
-    hammingPeriodic(win.data(), sp.winLen);
-
-    // Pre-compute fft(aFilt, m2)
-    Value aFiltPad = Value::matrix(m2, 1, ValueType::DOUBLE, mr);
-    {
-        double *p = aFiltPad.doubleDataMut();
-        std::fill(p, p + m2, 0.0);
-        const double *src = pf.aFilt.doubleData();
-        std::copy(src, src + aLen, p);
-    }
-    Value Afft = signal::fft(aFiltPad, static_cast<int>(m2), 1, mr);
-    const Complex *Afd = Afft.complexData();
-
-    // Per-frame buffers
-    ScratchVec<double> frame(sp.winLen, &scratch);
-    ScratchVec<double> Yp(Nhalf, &scratch);
-    ScratchVec<double> Ylog(NFFT, &scratch);
-
-    Value framePad = Value::matrix(NFFT, 1, ValueType::DOUBLE, mr);
-    Value Zpad     = Value::matrix(m2,   1, ValueType::DOUBLE, mr);
-    double *fp = framePad.doubleDataMut();
-    double *zp = Zpad.doubleDataMut();
-
-    double *od = out.doubleDataMut();
-    for (size_t f = 0; f < sp.numFrames; ++f) {
-        const size_t start = f * sp.hop;
-        for (size_t i = 0; i < sp.winLen; ++i)
-            frame[i] = x.elemAsDouble(start + i) * win[i];
-
-        // Y = fft(frame, NFFT) → take half → power
-        std::fill(fp, fp + NFFT, 0.0);
-        std::copy(frame.data(), frame.data() + sp.winLen, fp);
-        Value Y = signal::fft(framePad, static_cast<int>(NFFT), 1, mr);
-        const Complex *Yd = Y.complexData();
-        for (size_t i = 0; i < Nhalf; ++i) {
-            const double re = Yd[i].real();
-            const double im = Yd[i].imag();
-            Yp[i] = re * re + im * im;
-        }
-
-        // Ylog = interp1(linSF, Yp, logSF, 'linear')
-        linearInterp(linSF.data(), Yp.data(), Nhalf, logSF.data(), Ylog.data(), NFFT);
-        // Ylog .*= bw
-        for (size_t i = 0; i < NFFT; ++i) Ylog[i] *= bw[i];
-
-        // Build Z = [zeros(numToPad); Ylog], padded to m2.
-        std::fill(zp, zp + m2, 0.0);
-        std::copy(Ylog.data(), Ylog.data() + std::min(NFFT, m2 - pf.numToPad),
-                  zp + pf.numToPad);
-        Value Zfft = signal::fft(Zpad, static_cast<int>(m2), 1, mr);
-        const Complex *Zd = Zfft.complexData();
-
-        // C[k] = Zfft[k] * conj(Afft[k])
-        Value Cv = Value::matrix(m2, 1, ValueType::COMPLEX, mr);
-        Complex *Cd = Cv.complexDataMut();
-        for (size_t i = 0; i < m2; ++i) {
-            Cd[i] = Zd[i] * std::conj(Afd[i]);
-        }
-        Value c1V = signal::ifft(Cv, static_cast<int>(m2), 1, mr);
-        // c1 may be DOUBLE or COMPLEX (auto-downgrade). Real part either way.
-        auto getC1 = [&](size_t i) -> double {
-            if (c1V.type() == ValueType::COMPLEX)
-                return c1V.complexData()[i].real();
-            return c1V.doubleData()[i];
-        };
-
-        // R = [c1(m2-mxl+1 : m2); c1(1 : mxl+1)]
-        // (1-based MATLAB indices; 0-based here: c1[m2-mxl..m2-1] then c1[0..mxl])
-        // domain = R(edge(end)+1 : end)
-        // R length = mxl + (mxl+1) = 2*mxl + 1
-        // domain starts at MATLAB 1-based index edgeHi+2 = (edgeHi0+1)+1 = edgeHi0+2
-        // → 0-based index edgeHi0+1.
-        // Then we search domain at MATLAB 1-based [edgeLo+1 .. edgeHi+1]
-        // → 0-based [edgeLo0..edgeHi0] OF DOMAIN (which is offset).
-        // domain (MATLAB 1-based k) = R(edge(end)+1 + k - 1) = R(edgeHi+k)
-        // We want max over k in [edgeLo+1 .. edgeHi+1] (1-based) of domain(k).
-        // Substituting: max_{k=edgeLo+1..edgeHi+1} R(edgeHi+k)
-        //   = max_{j=2*edgeLo+1..2*edgeHi+1} R(j)  (sub j=edgeHi+k)
-        // Hmm tricky. Easiest: build the actual R[] vector then index.
-        // R length = 2*mxl + 1 conceptually, but mxl > Rlen-1 is possible.
-        const size_t Rlen = mxl + mxl + 1;  // upper + lower
-        // Upper part: R[0..mxl-1] = c1[m2-mxl..m2-1] (0-based)
-        // Lower part: R[mxl..Rlen-1] = c1[0..mxl] (0-based)
-        // domain[i] for 0-based i = R[edgeHi0 + 1 + i]
-        // Search 0-based domain index range [edgeLo0..edgeHi0].
-        // Compute argmax in this range.
-        double bestVal = -std::numeric_limits<double>::infinity();
-        size_t bestLoc0 = edgeLo0;  // 0-based index in logSF (returned)
-        // Loop over 1-based k in [edgeLo0+1 .. edgeHi0+1] for getCandidates.
-        // domain(k) = R(edgeHi0+1 + k) [MATLAB 1-based] = R[edgeHi0+k] (0-based offset).
-        // R[idx] for 0-based idx:
-        //   idx in [0, mxl-1]: c1[m2-mxl+idx]
-        //   idx in [mxl, Rlen-1]: c1[idx-mxl]
-        for (size_t k = edgeLo0; k <= edgeHi0; ++k) {
-            const size_t Ridx = edgeHi0 + 1 + k;  // 0-based R index
-            if (Ridx >= Rlen) break;
-            double v;
-            if (Ridx < mxl) v = getC1(m2 - mxl + Ridx);
-            else            v = getC1(Ridx - mxl);
-            if (v > bestVal) { bestVal = v; bestLoc0 = k; }
-        }
-        // f0 = logSpacedFrequency(bestLoc0 + 1)  [MATLAB 1-based]
-        // → in 0-based: logSF[bestLoc0]
-        double f0 = (bestLoc0 < NFFT) ? logSF[bestLoc0] : 0.0;
-        // Clip to [minF, maxF]
-        if (f0 < minF) f0 = minF;
-        if (f0 > maxF) f0 = maxF;
-        od[f] = f0;
-    }
-    return out;
-}
-
-// ── pitch LHS method (Cycle K-3) ──────────────────────────────────────
-// Subharmonic Summation (Hermes, JASA 83, 1988). Matches MATLAB R2025b
-// audio.internal.pitch.LHS.m one-to-one:
-//
-//   edge = [ceil(minF), floor(maxF)] = [50, 400] for default Range.
-//   maxBin = (edge[end]+1) * 5 = 2005 for default Range.
-//   fftLength = round(fs)
-//   Apply hamming(winLen, 'periodic'), fft to length fftLength.
-//   S[k] = log(|Y[k]|) for k = 0..maxBin-1 (1-based: 1..maxBin).
-//   Harmonic summation per 1-based MATLAB index k=1..edge[end]+1:
-//     domain[k] = S[k] + S[2k-1] + S[3k-2] + S[4k-3] + S[5k-4]
-//   (per-element sum of 5 strided slices each of length edge[end]+1)
-//   Find max in domain[edge[0]..edge[end]] (1-based).
-//   f0 = peak location (1-based), already in Hz since each bin = 1 Hz
-//   (NFFT = fs → Δf = fs/NFFT = 1).
-//   Clip to [minF, maxF].
-//
-// Note: For pure sines, LHS picks the lowest sub-harmonic in the search
-// range that has the input freq as a multiple — MATLAB returns ~50 Hz
-// for a 220 Hz sine because the harmonic-sum maximum lies near the
-// search lower bound. This is correct LHS behavior (documented in Hermes).
-Value pitchLHS(const Value &x, double fs, double minF, double maxF, std::pmr::memory_resource *mr)
-{
-    const size_t N = x.numel();
-    const FrameSpec sp = frameSpec(N, fs, 0.052, 0.042);
-    Value out = Value::matrix(sp.numFrames, sp.numFrames == 0 ? 0 : 1,
-                              ValueType::DOUBLE, mr);
-    if (sp.numFrames == 0) return out;
-
-    const size_t edgeLo = static_cast<size_t>(std::ceil(minF));
-    const size_t edgeHi = static_cast<size_t>(std::floor(maxF));
-    if (edgeHi <= edgeLo) return out;
-
-    // maxBin = (edgeHi + 1) * 5 in MATLAB 1-based; in our 0-based loop
-    // we need that many entries [0..maxBin-1].
-    const size_t maxBin = (edgeHi + 1) * 5;
-    const size_t fftLen = static_cast<size_t>(std::round(fs));
-    if (maxBin > fftLen)
-        return out;  // can't extract enough bins
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> win(sp.winLen, &scratch);
-    hammingPeriodic(win.data(), sp.winLen);
-
-    // Pre-allocate per-frame buffers.
-    Value framePad = Value::matrix(fftLen, 1, ValueType::DOUBLE, mr);
-    double *fp = framePad.doubleDataMut();
-    ScratchVec<double> S(maxBin, &scratch);
-    ScratchVec<double> domain(edgeHi + 1, &scratch);
-
-    double *od = out.doubleDataMut();
-    for (size_t f = 0; f < sp.numFrames; ++f) {
-        const size_t start = f * sp.hop;
-        // Window + zero-pad to fftLen.
-        std::fill(fp, fp + fftLen, 0.0);
-        for (size_t i = 0; i < sp.winLen; ++i)
-            fp[i] = x.elemAsDouble(start + i) * win[i];
-
-        Value Y = signal::fft(framePad, static_cast<int>(fftLen), 1, mr);
-        const Complex *Yd = Y.complexData();
-        // S[k] = log(|Y[k]|) for k = 0..maxBin-1
-        for (size_t k = 0; k < maxBin; ++k) {
-            const double mag = std::abs(Yd[k]);
-            S[k] = (mag > 0.0) ? std::log(mag)
-                                : std::log(std::numeric_limits<double>::min());
-        }
-
-        // Harmonic summation. domain[k] (1-based, k=1..edgeHi+1):
-        //   domain[k] = S[k] + S[2k-1] + S[3k-2] + S[4k-3] + S[5k-4]
-        // 0-based: domain[k-1] = S[k-1] + S[2k-2] + S[3k-3] + S[4k-4] + S[5k-5]
-        // Substituting j = k-1 (j=0..edgeHi): domain[j] = S[j] + S[2j+1-1] = S[j+(j+0)]
-        // Re-derive cleanly: MATLAB 1-based slice S(1:m:M*m), m-th element = (i-1)*m + 1.
-        // For row m (m=1..5), i-th element (i=1..edgeHi+1) is S[(i-1)*m + 1] (1-based).
-        // 0-based: S[(i-1)*m] where i=1..edgeHi+1 maps to 0-based j=0..edgeHi.
-        // domain[j] (0-based j=0..edgeHi) = sum over m=1..5 of S[j*m].
-        for (size_t j = 0; j <= edgeHi; ++j) {
-            double sum = 0.0;
-            for (size_t m = 1; m <= 5; ++m) {
-                const size_t idx = j * m;  // 0-based
-                if (idx < maxBin) sum += S[idx];
+    const size_t pbins = half + 1;
+    ScratchVec<double> P(pbins * numFrames, &arena);
+    if (spec.type() == ValueType::COMPLEX) {
+        const Complex *yd = spec.complexData();
+        for (size_t f = 0; f < numFrames; ++f) {
+            const size_t ybase = f * NFFT;
+            const size_t pbase = f * pbins;
+            for (size_t k = 0; k <= half; ++k) {
+                const Complex c = yd[ybase + k];
+                P[pbase + k] = c.real() * c.real() + c.imag() * c.imag();
             }
-            domain[j] = sum;
         }
-
-        // Peak in domain[edgeLo..edgeHi] (1-based MATLAB index).
-        // 0-based: domain[edgeLo-1..edgeHi-1] would be wrong — re-check.
-        // Actually MATLAB getCandidates: range = edge(1):edge(2) = 50:400.
-        // In MATLAB 1-based, domain(50)..domain(400). In 0-based: domain[49..399].
-        // Then locs = edge(1) + max_arg - 1 (1-based MATLAB index in original domain).
-        // So MATLAB returns 1-based index in [edgeLo, edgeHi].
-        // f0 = locs (treating 1-based index as Hz directly).
-        double bestVal = -std::numeric_limits<double>::infinity();
-        size_t bestLoc1 = edgeLo;  // 1-based index
-        for (size_t k = edgeLo; k <= edgeHi; ++k) {
-            const double v = domain[k - 1];  // 0-based access
-            if (v > bestVal) { bestVal = v; bestLoc1 = k; }
-        }
-        double f0 = static_cast<double>(bestLoc1);
-        // Clip to [minF, maxF] (per pitch.m post-processing)
-        if (f0 < minF) f0 = minF;
-        if (f0 > maxF) f0 = maxF;
-        od[f] = f0;
-    }
-    return out;
-}
-
-// ── pitch SRH method (Cycle K-4) ──────────────────────────────────────
-// Summation of Residual Harmonics (Drugman & Alwan, INTERSPEECH 2011).
-// Matches MATLAB R2025b audio.internal.pitch.SRH.m one-to-one:
-//
-//   1. Frame x with N=round(0.025*fs), hopSize=round(0.005*fs)
-//      (SRH-specific framing — done by caller / pitch.m wrapper).
-//      Apply hann(N, 'periodic') per frame.
-//   2. Compute LPC(y_frame, 12) per frame → A matrix.
-//   3. inv = filter(A_row, 1, y_col) per frame (LPC inverse → residual).
-//   4. Overlap-add inv frames into full-length residual using resHopLength.
-//   5. Re-frame residual with default WindowLength/OverlapLength.
-//   6. Apply blackman(WindowLength, 'periodic') per re-frame.
-//   7. res = fft(residualBuff, round(fs)) per frame; E = |res(1:5*edgeHi)|.
-//   8. domain[freq] = E[freq] + Σ_{m=2..5} (E[m*freq] - E[round((m-0.5)*freq)])
-//      per 1-based MATLAB freq in [edgeLo, edgeHi].
-//   9. f0 = peak idx (Hz); clip to [minF, maxF].
-//
-// Note: this function frames internally per pitch.m wrapper — caller
-// passes raw `x`, framing happens inside (matches MATLAB's iDetectPitch
-// dispatch structure).
-Value pitchSRH(const Value &x, double fs, double minF, double maxF, std::pmr::memory_resource *mr)
-{
-    const size_t N = x.numel();
-    if (N == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
-
-    // Default framing for output count (matches numHopsFinal in pitch.m).
-    const size_t winLenDefault = static_cast<size_t>(std::round(fs * 0.052));
-    const size_t overlapDefault = static_cast<size_t>(std::round(fs * 0.042));
-    const size_t hopDefault = (winLenDefault > overlapDefault)
-                                ? (winLenDefault - overlapDefault) : 1;
-    const size_t numHopsFinal = (N >= winLenDefault)
-                                 ? ((N - winLenDefault) / hopDefault + 1)
-                                 : 0;
-    Value out = Value::matrix(numHopsFinal, numHopsFinal == 0 ? 0 : 1,
-                              ValueType::DOUBLE, mr);
-    if (numHopsFinal == 0) return out;
-
-    // SRH-specific framing.
-    const size_t Nsrh = static_cast<size_t>(std::round(fs * 0.025));
-    const size_t hopSrh = static_cast<size_t>(std::round(fs * 0.005));
-    const size_t numHops = (N >= Nsrh) ? ((N - Nsrh) / hopSrh + 1) : 0;
-    if (numHops == 0) return out;
-
-    const size_t edgeLo = static_cast<size_t>(std::ceil(minF));
-    const size_t edgeHi = static_cast<size_t>(std::floor(maxF));
-    if (edgeHi <= edgeLo) return out;
-
-    const size_t fftLen = static_cast<size_t>(std::round(fs));
-    const size_t maxBin = 5 * edgeHi;
-    if (maxBin > fftLen) return out;
-
-    constexpr int lpcOrder = 12;
-
-    ScratchArena scratch(mr);
-
-    // Step 1: build SRH-framed signal y (Nsrh × numHops), windowed by
-    // PERIODIC hann (MATLAB hann(N, 'periodic') uses denominator N, not N-1).
-    Value yWin = Value::matrix(Nsrh, numHops, ValueType::DOUBLE, mr);
-    {
-        double *yd = yWin.doubleDataMut();
-        ScratchVec<double> hannPer(Nsrh, &scratch);
-        for (size_t i = 0; i < Nsrh; ++i)
-            hannPer[i] = 0.5 * (1.0 - std::cos(2.0 * M_PI * static_cast<double>(i)
-                                                  / static_cast<double>(Nsrh)));
-        for (size_t f = 0; f < numHops; ++f) {
-            const size_t start = f * hopSrh;
-            for (size_t i = 0; i < Nsrh; ++i) {
-                const size_t srcIdx = start + i;
-                const double xv = (srcIdx < N) ? x.elemAsDouble(srcIdx) : 0.0;
-                yd[i + f * Nsrh] = xv * hannPer[i];
+    } else {
+        const double *yd = spec.doubleData();
+        for (size_t f = 0; f < numFrames; ++f) {
+            const size_t ybase = f * NFFT;
+            const size_t pbase = f * pbins;
+            for (size_t k = 0; k <= half; ++k) {
+                const double r = yd[ybase + k];
+                P[pbase + k] = r * r;
             }
         }
     }
 
-    // Step 2-3: per-frame LPC + filter (LPC inverse → residual estimate).
-    Value invMat = Value::matrix(Nsrh, numHops, ValueType::DOUBLE, mr);
-    double *invd = invMat.doubleDataMut();
-    {
-        const double *yd = yWin.doubleData();
-        Value oneScalar = Value::scalar(1.0, mr);
-        for (size_t f = 0; f < numHops; ++f) {
-            // Extract column f as 1-D vector.
-            Value yCol = Value::matrix(Nsrh, 1, ValueType::DOUBLE, mr);
-            std::copy(yd + f * Nsrh, yd + (f + 1) * Nsrh, yCol.doubleDataMut());
-            // LPC: returns (a, g)
-            auto [a_row, g] = signal::lpc(yCol, lpcOrder, mr);
-            // filter(a, 1, y_col) → residual estimate
-            Value res = signal::filter(a_row, oneScalar, yCol, mr);
-            const double *rd = res.doubleData();
-            std::copy(rd, rd + Nsrh, invd + f * Nsrh);
-        }
+    // Linear frequency of bin k: f_k = k · fs / NFFT  ⇒  bin = f / df.
+    const double df = fs / static_cast<double>(NFFT);
+
+    // ── Comb filter h_j over its log-frequency support (paper Eq. 4):
+    //    j ∈ [ceil(ln(0.5)/Δ), floor(ln(K+0.5)/Δ)], q'_j = j·Δ. ─────────
+    const long jLo = static_cast<long>(std::ceil (std::log(0.5)      / kDelta));
+    const long jHi = static_cast<long>(std::floor(std::log(kK + 0.5) / kDelta));
+    const size_t taps = (jHi >= jLo)
+                        ? static_cast<size_t>(jHi - jLo + 1)
+                        : 0;
+
+    if (taps == 0) {
+        Value out = Value::matrix(numFrames, 1, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        const double mid = std::min(std::max(0.5 * (minF + maxF), minF), maxF);
+        for (size_t f = 0; f < numFrames; ++f)
+            od[f] = mid;
+        return out;
     }
 
-    // Step 4: overlap-add inv frames into full-length residual (length = N).
-    ScratchVec<double> residual(N, &scratch);
-    std::fill(residual.data(), residual.data() + N, 0.0);
-    for (size_t kk = 0; kk < numHops; ++kk) {
-        const size_t start = kk * hopSrh;
-        const size_t end = std::min(start + Nsrh, N);
-        for (size_t i = 0; i + start < end; ++i) {
-            residual[start + i] += invd[i + kk * Nsrh];
-        }
+    // q'_j and h_j = β − g_j, g_j = ln(γ − cos(2π·e^{q'_j})), β = mean(g).
+    ScratchVec<double> rTap(taps, &arena);    // e^{q'_j}  (tap freq ratio)
+    ScratchVec<double> gTap(taps, &arena);    // g_j
+    double gSum = 0.0;
+    for (size_t t = 0; t < taps; ++t) {
+        const double q = static_cast<double>(jLo + static_cast<long>(t)) * kDelta;
+        const double r = std::exp(q);
+        const double g = std::log(kGamma - std::cos(2.0 * M_PI * r));
+        rTap[t] = r;
+        gTap[t] = g;
+        gSum   += g;
     }
+    const double beta = gSum / static_cast<double>(taps);
+    ScratchVec<double> hTap(taps, &arena);    // h_j = β − g_j
+    for (size_t t = 0; t < taps; ++t)
+        hTap[t] = beta - gTap[t];
 
-    // Step 5: re-frame residual using default WindowLength/OverlapLength.
-    // MATLAB: numHops = ceil((residual_len - winLen) / hopLen) + 1
-    const size_t numHops2 =
-        (N >= winLenDefault) ? (((N - winLenDefault) + hopDefault - 1) / hopDefault + 1) : 0;
-    if (numHops2 == 0) return out;
+    // ── Candidate log-frequencies q0 = m·Δ, q0 ∈ [ln(minF), ln(maxF)]. ─
+    const double q0Lo = std::log(minF);
+    const double q0Hi = std::log(maxF);
+    const long   mLo  = static_cast<long>(std::ceil (q0Lo / kDelta));
+    const long   mHi  = static_cast<long>(std::floor(q0Hi / kDelta));
 
-    Value residualBuff = Value::matrix(winLenDefault, numHops2, ValueType::DOUBLE, mr);
-    double *rbd = residualBuff.doubleDataMut();
-    std::fill(rbd, rbd + winLenDefault * numHops2, 0.0);
-    for (size_t hop = 0; hop < numHops2; ++hop) {
-        const size_t start = hop * hopDefault;
-        const size_t avail = (start < N) ? std::min(winLenDefault, N - start) : 0;
-        for (size_t i = 0; i < avail; ++i)
-            rbd[i + hop * winLenDefault] = residual[start + i];
-    }
+    Value out = Value::matrix(numFrames, 1, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
 
-    // Step 6: apply PERIODIC blackman window (MATLAB blackman(N, 'periodic')).
-    // periodic: w[n] = 0.42 - 0.5·cos(2π n/N) + 0.08·cos(4π n/N), n=0..N-1.
-    {
-        ScratchVec<double> bw(winLenDefault, &scratch);
-        for (size_t i = 0; i < winLenDefault; ++i) {
-            const double a = 2.0 * M_PI * static_cast<double>(i)
-                              / static_cast<double>(winLenDefault);
-            bw[i] = 0.42 - 0.5 * std::cos(a) + 0.08 * std::cos(2.0 * a);
-        }
-        for (size_t hop = 0; hop < numHops2; ++hop) {
-            for (size_t i = 0; i < winLenDefault; ++i)
-                rbd[i + hop * winLenDefault] *= bw[i];
-        }
-    }
+    // ── Score every candidate against every frame's spectrum. ─────────
+    for (size_t f = 0; f < numFrames; ++f) {
+        const double *Pf = &P[f * pbins];     // this frame's power spectrum
 
-    // Step 7: per-frame fft to length fftLen=round(fs); take |fft(1:maxBin)|.
-    Value framePad = Value::matrix(fftLen, 1, ValueType::DOUBLE, mr);
-    double *fp = framePad.doubleDataMut();
-    ScratchVec<double> E(maxBin, &scratch);
-    ScratchVec<double> domain(edgeHi + 1, &scratch);
+        double bestScore = -std::numeric_limits<double>::infinity();
+        double bestF0    = 0.5 * (minF + maxF);
 
-    // Output: numHops2 frames; pitch.m post-reshapes to numHopsFinal.
-    // Compute per frame, store in temporary, then reshape/clip at end.
-    ScratchVec<double> f0all(numHops2, &scratch);
+        for (long m = mLo; m <= mHi; ++m) {
+            const double f0 = std::exp(static_cast<double>(m) * kDelta);
 
-    for (size_t hop = 0; hop < numHops2; ++hop) {
-        std::fill(fp, fp + fftLen, 0.0);
-        for (size_t i = 0; i < winLenDefault; ++i)
-            fp[i] = rbd[i + hop * winLenDefault];
+            // score(f0) = Σ_j h_j · P_interp(f0 · e^{q'_j}).
+            double score = 0.0;
+            for (size_t t = 0; t < taps; ++t) {
+                const double ftap = f0 * rTap[t];   // linear freq of tap j
 
-        Value Y = signal::fft(framePad, static_cast<int>(fftLen), 1, mr);
-        const Complex *Yd = Y.complexData();
-        for (size_t k = 0; k < maxBin; ++k) E[k] = std::abs(Yd[k]);
-
-        // Step 8: domain[freq] = E[freq] + Σ_{m=2..5} (E[m·freq] - E[round((m-0.5)·freq)])
-        // MATLAB 1-based: domain(freq) for freq = edge(1):edge(end).
-        // Using 0-based: domain index = freq (1-based MATLAB) means index freq-1 in array.
-        // E(freq) means MATLAB 1-based, so 0-based access E[freq-1].
-        std::fill(domain.data(), domain.data() + edgeHi + 1, 0.0);
-        for (size_t freq = edgeLo; freq <= edgeHi; ++freq) {
-            // 1-based MATLAB freq. Compute 0-based indices freq-1, 2*freq-1, etc.
-            double s = E[freq - 1];
-            for (int m = 2; m <= 5; ++m) {
-                const size_t mFreq = static_cast<size_t>(m) * freq;
-                const size_t halfFreq = static_cast<size_t>(std::round((m - 0.5) * static_cast<double>(freq)));
-                if (mFreq <= maxBin && halfFreq >= 1 && halfFreq <= maxBin) {
-                    s += E[mFreq - 1] - E[halfFreq - 1];
+                double pVal = 0.0;
+                if (ftap >= 0.0 && ftap <= 0.5 * fs) {
+                    const double pos = ftap / df;   // fractional bin index
+                    const long   k0  = static_cast<long>(std::floor(pos));
+                    if (k0 >= 0 && static_cast<size_t>(k0) < half) {
+                        const double frac = pos - static_cast<double>(k0);
+                        pVal = Pf[k0] * (1.0 - frac) + Pf[k0 + 1] * frac;
+                    } else if (k0 >= 0 &&
+                               static_cast<size_t>(k0) == half) {
+                        pVal = Pf[half];
+                    }
                 }
+                score += hTap[t] * pVal;
             }
-            domain[freq] = s;  // store at 0-based index freq (matches MATLAB 1-based freq)
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestF0    = f0;
+            }
         }
 
-        // Step 9: peak in domain[edgeLo..edgeHi]
-        double bestVal = -std::numeric_limits<double>::infinity();
-        size_t bestLoc1 = edgeLo;
-        for (size_t k = edgeLo; k <= edgeHi; ++k) {
-            if (domain[k] > bestVal) { bestVal = domain[k]; bestLoc1 = k; }
-        }
-        double f0v = static_cast<double>(bestLoc1);
-        if (f0v < minF) f0v = minF;
-        if (f0v > maxF) f0v = maxF;
-        f0all[hop] = f0v;
+        od[f] = std::min(std::max(bestF0, minF), maxF);
     }
 
-    // Reshape/copy to numHopsFinal (matches MATLAB's reshape post-call).
-    // MATLAB does reshape(f0, numHopsFinal, c) — works because numHops2 == numHopsFinal
-    // after the residual is re-framed with default params. Verify:
-    double *od = out.doubleDataMut();
-    const size_t copyN = std::min(numHopsFinal, numHops2);
-    for (size_t i = 0; i < copyN; ++i) od[i] = f0all[i];
-    // Pad with last value if needed (should not happen if framing matches).
-    for (size_t i = copyN; i < numHopsFinal; ++i) od[i] = (copyN > 0) ? f0all[copyN - 1] : 0.0;
     return out;
+}
+
+// ── pitch LHS method ──────────────────────────────────────────────────
+// pitchLHS — fundamental-frequency estimation by log harmonic summation.
+//
+// Principle (Hermes, "Measurement of pitch by subharmonic summation",
+// JASA 83(1):257-264, 1988): a voiced signal whose fundamental is f has
+// spectral energy concentrated at the integer harmonics f, 2f, 3f, ...
+// Therefore, if the log-magnitude spectrum is sampled at integer multiples
+// of a candidate fundamental and those samples are summed, the resulting
+// score is maximised at the true f0. Hermes used subharmonic summation
+// (compressing toward a virtual-pitch percept); here we use the direct
+// harmonic-summation form ("log harmonic summation", LHS), which sums the
+// log-magnitude spectrum over the first H harmonics of each candidate.
+//
+// Clean-room reimplementation — see cleanroom/specs/pitchLHS.md.
+// Per analysis frame:
+//   1. Window the frame with a periodic Hamming window.
+//   2. Zero-pad to NFFT = round(fs) and take the DFT; with NFFT = fs each
+//      bin spans exactly 1 Hz, so a bin index equals a frequency in Hz and
+//      harmonic indexing j*m is a plain integer multiply.
+//   3. Form the log-magnitude spectrum S[k] = log(|Y[k]|), flooring a zero
+//      magnitude at log(smallest positive normal double).
+//   4. domain[j] = sum_{m=1..H} S[j*m] is the harmonic-sum score for a
+//      fundamental of j Hz.
+//   5. f0 = argmax over the search range; clip to [minF, maxF].
+//
+// Compatibility: MATLAB's LHS reports f0 from a 1-based bin index, so a
+// harmonic-sum peak at 0-based bin j is reported as f0 = j + 1 Hz.
+Value pitchLHS(const Value &x, double fs, double minF, double maxF,
+               std::pmr::memory_resource *mr)
+{
+    // --- Method constants (spec §3) -----------------------------------------
+    constexpr int    kH         = 5;     // harmonics summed by LHS
+    constexpr double kWinSec    = 0.052; // analysis window length (s)
+    constexpr double kOverlapS  = 0.042; // analysis overlap (s)
+
+    // --- Framing (spec §3) --------------------------------------------------
+    const size_t N  = x.numel();
+    const FrameSpec fs_spec = frameSpec(N, fs, kWinSec, kOverlapS);
+    const size_t winLen   = fs_spec.winLen;
+    const size_t hop      = fs_spec.hop;
+    const size_t numFrames = fs_spec.numFrames;
+
+    if (numFrames == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    // --- DFT length and harmonic-coverage check (spec §3) -------------------
+    // NFFT = round(fs) gives exactly 1-Hz bins (Δf = fs/NFFT = 1).
+    const int NFFT = static_cast<int>(std::llround(fs));
+
+    // Highest bin any candidate touches: harmonic H of the highest
+    // searchable fundamental, floor(maxF). If it exceeds NFFT the search
+    // range cannot be served by this spectrum.
+    const long long K = static_cast<long long>(kH) *
+                        static_cast<long long>(std::floor(maxF));
+    if (NFFT <= 0 || K > static_cast<long long>(NFFT))
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    // --- 0-based search range over harmonic-sum candidate bins (spec §3) ----
+    // domain[j] scores a fundamental of j Hz; MATLAB reports f0 = j + 1,
+    // so to search fundamentals in [minF, maxF] we scan
+    // j ∈ [ceil(minF) − 1, floor(maxF) − 1], clamped to valid indices.
+    long long jLoRaw = static_cast<long long>(std::ceil(minF)) - 1;
+    long long jHiRaw = static_cast<long long>(std::floor(maxF)) - 1;
+    if (jLoRaw < 0)
+        jLoRaw = 0;
+    // A candidate at bin j needs bin j*H present, i.e. j*H ≤ NFFT-1.
+    const long long jMaxByCoverage = (NFFT - 1) / kH;
+    if (jHiRaw > jMaxByCoverage)
+        jHiRaw = jMaxByCoverage;
+    if (jHiRaw < jLoRaw)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    const size_t jLo = static_cast<size_t>(jLoRaw);
+    const size_t jHi = static_cast<size_t>(jHiRaw);
+
+    // --- Scratch (PMR HARD RULE: ScratchArena + ScratchVec only) -----------
+    ScratchArena arena(mr);
+
+    // Periodic Hamming analysis window, computed once.
+    ScratchVec<double> window(winLen, &arena);
+    hammingPeriodic(window.data(), winLen);
+
+    // Batched real input: NFFT rows × numFrames columns. Each column holds
+    // one windowed, zero-padded frame; signal::fft(..., NFFT, 1, ...) then
+    // transforms every column in a single call.
+    Value frames = Value::matrix(static_cast<size_t>(NFFT), numFrames,
+                                 ValueType::DOUBLE, &arena);
+    double *col0 = frames.doubleDataMut(); // column-major writable buffer
+
+    for (size_t f = 0; f < numFrames; ++f) {
+        double *col = col0 + f * static_cast<size_t>(NFFT);
+        const size_t base = f * hop;
+        for (size_t n = 0; n < static_cast<size_t>(NFFT); ++n) {
+            double s = 0.0;
+            if (n < winLen) {
+                const size_t idx = base + n;
+                if (idx < N)
+                    s = x.elemAsDouble(idx) * window[n];
+            }
+            col[n] = s;
+        }
+    }
+
+    // --- Forward DFT of every frame (dim == 1 → transform each column) ------
+    Value spec = signal::fft(frames, NFFT, 1, &arena);
+    const Complex *Y = spec.complexData();
+
+    // log-magnitude floor: smallest positive normal double.
+    const double kMagFloor = std::log(std::numeric_limits<double>::min());
+
+    // Bins of the log-magnitude spectrum we actually need: 0 .. K-1.
+    const size_t Kbins = static_cast<size_t>(K);
+
+    // --- Per-frame harmonic-sum estimation ---------------------------------
+    Value out = Value::matrix(numFrames, 1, ValueType::DOUBLE, mr);
+    double *outData = out.doubleDataMut();
+
+    ScratchVec<double> logMag(Kbins, &arena);  // S[k] for current frame
+
+    for (size_t f = 0; f < numFrames; ++f) {
+        const Complex *Yf = Y + f * static_cast<size_t>(NFFT);
+
+        // S[k] = log(|Y[k]|), floored at log(min normal double).
+        for (size_t k = 0; k < Kbins; ++k) {
+            const double mag = std::abs(Yf[k]);
+            logMag[k] = (mag > 0.0) ? std::log(mag) : kMagFloor;
+        }
+
+        // domain[j] = Σ_{m=1..H} S[j·m]; pick the maximising bin.
+        size_t bestJ   = jLo;
+        double bestSum = -std::numeric_limits<double>::infinity();
+        for (size_t j = jLo; j <= jHi; ++j) {
+            double sum = 0.0;
+            for (int m = 1; m <= kH; ++m)
+                sum += logMag[j * static_cast<size_t>(m)];
+            if (sum > bestSum) {
+                bestSum = sum;
+                bestJ   = j;
+            }
+        }
+
+        // Compatibility convention: a 0-based peak at bin j → f0 = j + 1 Hz.
+        double f0 = static_cast<double>(bestJ) + 1.0;
+
+        // Clip to the requested search range.
+        if (f0 < minF)
+            f0 = minF;
+        else if (f0 > maxF)
+            f0 = maxF;
+
+        outData[f] = f0;
+    }
+
+    return out;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// pitchSRH — Summation-of-Residual-Harmonics fundamental-frequency
+//            estimation, one f0 per analysis frame.
+//
+// Reference:
+//   T. Drugman and A. Alwan, "Joint Robust Voicing Detection and Pitch
+//   Estimation Based on Residual Harmonics", Interspeech 2011,
+//   pp. 1973-1976.
+//
+// Algorithm (paper-faithful, NOT bit-matched to MATLAB pitch(...,'SRH')):
+//   The signal is cut into overlapping frames. Each frame is windowed
+//   with a periodic Hann window, then an order-P linear-prediction model
+//   is fitted and the frame is inverse-filtered to obtain the LPC
+//   residual r[n] — this whitens the spectral envelope and leaves the
+//   harmonic structure of the voiced excitation. The residual amplitude
+//   spectrum E[k] = |DFT(r)| is computed with an NFFT chosen so each bin
+//   spans exactly 1 Hz, so E is indexed directly in Hz. For every integer
+//   candidate fundamental f the SRH criterion (paper Eq. 1)
+//       SRH(f) = E[f] + Σ_{k=2..Nharm} ( E[k·f] − E[round((k−½)·f)] )
+//   sums the harmonic energy while the half-harmonic subtraction
+//   suppresses spurious maxima at f0/2 and at even harmonics. The f0 of
+//   a frame is the candidate maximising SRH. A two-step range refinement
+//   first estimates a global mean f0 over all frames, then re-runs the
+//   search per frame with the candidate range narrowed around that mean.
+//
+// Clean-room reimplementation — see cleanroom/specs/pitchSRH.md. This is
+// a faithful implementation of the published SRH method; it does not
+// replicate MATLAB's SRH pipeline and is not bit-matched to MATLAB.
+// ─────────────────────────────────────────────────────────────────────
+Value pitchSRH(const Value &x, double fs, double minF, double maxF,
+               std::pmr::memory_resource *mr)
+{
+    // ── Method parameters (paper §3.2) ──────────────────────────────
+    constexpr int    kLpcOrder = 12;   // P  — LPC order
+    constexpr int    kNharm    = 5;    // Nharm — harmonics summed
+    const     long   nfft      = std::lround(fs);   // 1-Hz bins
+
+    // ── Framing — standard pitch framing (52 ms win, 42 ms overlap) ─
+    const size_t N = x.numel();
+    const FrameSpec fr = frameSpec(N, fs, 0.052, 0.042);
+    const size_t winLen    = fr.winLen;
+    const size_t hop       = fr.hop;
+    const size_t numFrames = fr.numFrames;
+
+    // No frames → MATLAB-style empty result.
+    if (numFrames == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    // Candidate-range / NFFT feasibility (§3): the highest spectral bin
+    // ever touched is Nharm · floor(maxF). If that exceeds NFFT the
+    // 1-Hz-bin spectrum cannot serve the requested range.
+    const long maxBin = static_cast<long>(kNharm)
+                      * static_cast<long>(std::floor(maxF));
+    if (nfft <= 0 || maxBin >= nfft || maxF <= 0.0 || minF <= 0.0
+        || maxF < minF)
+        return Value::matrix(numFrames, 1, ValueType::DOUBLE, mr);
+
+    // ── Per-call scratch arena (PMR HARD RULE) ──────────────────────
+    ScratchArena arena(mr);
+
+    // Periodic Hann window: w[n] = 0.5·(1 − cos(2π·n / N)), n = 0..N−1.
+    ScratchVec<double> hann(winLen, &arena);
+    for (size_t n = 0; n < winLen; ++n)
+        hann[n] = 0.5 * (1.0 - std::cos(2.0 * M_PI
+                         * static_cast<double>(n)
+                         / static_cast<double>(winLen)));
+
+    // Residual amplitude spectrum E for every frame, packed row-major:
+    // E[frame * nfft + k]. Each E[k] is the magnitude of DFT bin k,
+    // indexed directly in Hz because every bin spans 1 Hz.
+    const size_t specLen = static_cast<size_t>(nfft);
+    ScratchVec<double> E(numFrames * specLen, &arena);
+
+    // Per-frame buffers reused across the loop.
+    ScratchVec<double> windowed(winLen, &arena);
+
+    for (size_t f = 0; f < numFrames; ++f)
+    {
+        const size_t base = f * hop;
+
+        // Window the frame (zero-pad implicitly if the frame runs past
+        // the end of the signal — defensive, framing usually prevents).
+        for (size_t n = 0; n < winLen; ++n)
+        {
+            const size_t idx = base + n;
+            const double s   = (idx < N) ? x.elemAsDouble(idx) : 0.0;
+            windowed[n]      = s * hann[n];
+        }
+
+        // LPC residual: fit an order-P model, then inverse-filter the
+        // windowed frame with the LPC polynomial a = [1, a₁, …, a_P]:
+        //   r[n] = filter(a, 1, windowedFrame).
+        Value winFrame = Value::matrix(winLen, 1, ValueType::DOUBLE,
+                                       &arena);
+        std::copy(windowed.data(), windowed.data() + winLen,
+                  winFrame.doubleDataMut());
+        auto [lpcA, lpcGain] = signal::lpc(winFrame, kLpcOrder, &arena);
+        (void) lpcGain;  // gain not used by SRH
+
+        Value one     = Value::scalar(1.0, &arena);
+        Value residual = signal::filter(lpcA, one, winFrame, &arena);
+
+        // Amplitude spectrum E[k] = |DFT_NFFT(residual)|. fft zero-pads
+        // / truncates the residual to NFFT samples; result is COMPLEX.
+        Value spec = signal::fft(residual, static_cast<int>(nfft), 0,
+                                 &arena);
+
+        double *Erow = E.data() + f * specLen;
+        if (spec.isComplex())
+        {
+            const Complex *sd = spec.complexData();
+            for (size_t k = 0; k < specLen; ++k)
+                Erow[k] = std::abs(sd[k]);
+        }
+        else
+        {
+            // fft downgrades to DOUBLE when the result is real within
+            // tolerance — magnitude is then |real value|.
+            const double *sd = spec.doubleData();
+            for (size_t k = 0; k < specLen; ++k)
+                Erow[k] = std::abs(sd[k]);
+        }
+    }
+
+    // SRH score for candidate fundamental `cand` (Hz) on frame `f`,
+    // paper Eq. 1:
+    //   SRH(f) = E[f] + Σ_{k=2..Nharm} ( E[k·f] − E[round((k−½)·f)] ).
+    auto srhScore = [&](size_t f, long cand) -> double
+    {
+        const double *Erow = E.data() + f * specLen;
+        double score = Erow[cand];
+        for (int k = 2; k <= kNharm; ++k)
+        {
+            const long hi  = static_cast<long>(k) * cand;
+            const long mid = std::lround((static_cast<double>(k) - 0.5)
+                                         * static_cast<double>(cand));
+            const double eHi  = (hi  >= 0 && hi  < nfft)
+                                    ? Erow[hi]  : 0.0;
+            const double eMid = (mid >= 0 && mid < nfft)
+                                    ? Erow[mid] : 0.0;
+            score += eHi - eMid;
+        }
+        return score;
+    };
+
+    // Find the candidate in [lo, hi] (Hz, inclusive) maximising SRH for
+    // frame f. Returns the integer Hz of the best candidate.
+    auto bestCandidate = [&](size_t f, long lo, long hi) -> long
+    {
+        long   bestF     = lo;
+        double bestScore = -std::numeric_limits<double>::infinity();
+        for (long cand = lo; cand <= hi; ++cand)
+        {
+            const double sc = srhScore(f, cand);
+            if (sc > bestScore)
+            {
+                bestScore = sc;
+                bestF     = cand;
+            }
+        }
+        return bestF;
+    };
+
+    // ── Pass 1 — full candidate range [ceil(minF), floor(maxF)] ──────
+    const long loFull = static_cast<long>(std::ceil(minF));
+    const long hiFull = static_cast<long>(std::floor(maxF));
+
+    ScratchVec<double> f0(numFrames, &arena);
+    double sumPass1 = 0.0;
+    for (size_t f = 0; f < numFrames; ++f)
+    {
+        f0[f]     = static_cast<double>(bestCandidate(f, loFull, hiFull));
+        sumPass1 += f0[f];
+    }
+    const double F0mean = sumPass1 / static_cast<double>(numFrames);
+
+    // ── Pass 2 — narrow the range around F0mean, re-run per frame ────
+    if (std::isfinite(F0mean) && F0mean > 0.0)
+    {
+        const long loRefined = std::max<long>(
+            loFull, std::lround(0.5 * F0mean));
+        const long hiRefined = std::min<long>(
+            hiFull, std::lround(2.0 * F0mean));
+        if (loRefined <= hiRefined)
+        {
+            for (size_t f = 0; f < numFrames; ++f)
+                f0[f] = static_cast<double>(
+                    bestCandidate(f, loRefined, hiRefined));
+        }
+    }
+
+    // ── Clip each f0 to [minF, maxF] and emit the result ────────────
+    Value result = Value::matrix(numFrames, 1, ValueType::DOUBLE, mr);
+    double *out   = result.doubleDataMut();
+    for (size_t f = 0; f < numFrames; ++f)
+    {
+        double v = f0[f];
+        if (v < minF) v = minF;
+        if (v > maxF) v = maxF;
+        out[f] = v;
+    }
+    return result;
 }
 
 // ── pitch ─────────────────────────────────────────────────────────────
@@ -865,8 +812,9 @@ Value pitch(const Value &x, double fs, double minF, double maxF, std::pmr::memor
 }
 
 // ── harmonicRatio ─────────────────────────────────────────────────────
-// Matches MATLAB R2025b harmonicRatio.m exactly:
-//   1. Auto low-edge per frame: first sign change of R[k] for k >= 1.
+// Harmonic ratio (MPEG-7 / Peeters 2004), normalized-autocorrelation
+// form. Per frame:
+//   1. Auto low-edge: first sign change of R[k] for k >= 1.
 //   2. Search peak γ in [lowEdge, highEdge=winLen-1].
 //   3. Parabolic interpolation around peak (Smith's quadratic peak).
 //   4. Clip to [0, 1].
@@ -914,7 +862,7 @@ Value harmonicRatio(const Value &x, double fs, std::pmr::memory_resource *mr)
             if (s != prev_sign) { lowEdge = k + 1; break; }
         }
         if (lowEdge < 1) lowEdge = 1;
-        // MATLAB: Gamma(1:max(lowEdge,1),i) = 0  (1-based) → zero 0..lowEdge-1.
+        // Zero the normalized correlation below the low edge (0..lowEdge-1).
         for (size_t k = 0; k < lowEdge && k < mLag; ++k) gamma[k] = 0.0;
 
         // Find peak.

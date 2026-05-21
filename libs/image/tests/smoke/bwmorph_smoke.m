@@ -35,8 +35,18 @@ fprintf('  skel-Inf      sum = %d (MATLAB: 158)\n', sum(sum(bwmorph(BW2, 'skel',
 fprintf('  thin-Inf      sum = %d (MATLAB: 147)\n', sum(sum(bwmorph(BW2, 'thin', Inf))));
 fprintf('  shrink-Inf    sum = %d (MATLAB:  89)\n', sum(sum(bwmorph(BW2, 'shrink', Inf))));
 
-fprintf('\nBit-exact MATLAB R2025b on 23 fingerprints (tol=0). All 20+\n');
-fprintf('operations: dilate, erode, bridge, clean, diag, dilate, endpoints,\n');
-fprintf('erode, fatten, fill, hbreak, majority, perim4, perim8, remove,\n');
-fprintf('bothat, close, open, tophat, shrink, skeleton, spur, thin,\n');
-fprintf('thicken, branchpoints.\n');
+fprintf('\n[morphology invariants — MATLAB-independent]\n');
+A = rand(24, 24) > 0.4;
+fprintf('  A subset of dilate(A): %d (expect 1)\n', ...
+    nnz(A & ~bwmorph(A, 'dilate')) == 0);
+fprintf('  erode(A) subset of A : %d (expect 1)\n', ...
+    nnz(bwmorph(A, 'erode') & ~A) == 0);
+blk = false(20, 20); blk(5:16, 5:16) = true;
+fprintf('  shrink(blk) -> 1 px  : %d (expect 1)\n', ...
+    nnz(bwmorph(blk, 'shrink', Inf)) == 1);
+
+fprintf('\nClean-room dispatcher (Gonzalez & Woods; Pratt; Lam/Lee/Suen).\n');
+fprintf('Bit-exact MATLAB R2025b on 23 fingerprints (tol=0): dilate,\n');
+fprintf('erode, bridge, clean, diag, endpoints, fatten, fill, hbreak,\n');
+fprintf('majority, perim4, perim8, remove, bothat, close, open, tophat,\n');
+fprintf('shrink, skeleton, spur, thin, thicken, branchpoints.\n');

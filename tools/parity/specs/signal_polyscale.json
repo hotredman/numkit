@@ -1,0 +1,10 @@
+{
+  "name": "signal_polyscale",
+  "namespace": "signal",
+  "setup": "p = [1 -2.5 1]; M = [1 2 3; 4 5 6];",
+  "expr": "y1 = polyscale(p, 0.5); s1 = y1(2); s2 = y1(3); ym = polyscale(M, 0.5); m11 = ym(1,1); m12 = ym(1,2); m23 = ym(2,3); yv = polyscale([1 2 3], [1 2 4]); v3 = yv(3); yc = polyscale([1 2 3], 1i); cr = real(yc(3)); ci = imag(yc(2));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": ["s1", "s2", "m11", "m12", "m23", "v3", "cr", "ci"],
+  "comment": "Signal Processing toolbox polyscale — radial scaling of polynomial roots (b[k] = a[k]*alpha^k, the z-transform scaling property A(z) -> A(z/alpha)). CLEAN-ROOM implementation from public references (Oppenheim & Schafer 3e §3.2 z-transform scaling; Markel & Gray 1976, LPC bandwidth expansion) — see cleanroom/specs/polystab_polyscale.md. Bit-exact MATLAB R2025b (tol=0) on the documented argument set: row-vector input + scalar alpha, matrix input (one polynomial per row) + scalar alpha, row-vector alpha (element k raised to power k), and complex alpha. DOCUMENTED DIVERGENCE: for a column-vector input MATLAB's implicit expansion of a .* alpha.^(0:length(a)-1) yields an N×N matrix; numkit treats any vector as a single polynomial and returns a 1×N row — the column-vector case is intentionally not in the fingerprint. Octave 11.1.0 does not ship polyscale in core — harness reports N/A there."
+}

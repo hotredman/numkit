@@ -115,7 +115,8 @@ Value rcosdesign(double beta, int span, int sps,
 }
 
 // ── gaussdesign ─────────────────────────────────────────────────────
-// Per MATLAB R2025b's gaussdesign.m:
+// Gaussian pulse-shaping filter (standard GMSK pulse; e.g. Proakis,
+// "Digital Communications"). Coefficients:
 //   filtLen = span*sps + 1
 //   t       = ((1:filtLen) - mean(1:filtLen)) / sps
 //   alpha   = sqrt(log(2)/2) / BT

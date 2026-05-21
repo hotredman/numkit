@@ -457,67 +457,123 @@ ctf2zp(const Value &NUM, const Value &DEN, const Value &SV, std::pmr::memory_res
     return {Z, P, gainAccum};
 }
 
-// ── scaleFilterSections (Phase 4.11) ──────────────────────────────────
-// Distribute scale values across cascade-section numerators per
-// MATLAB R2025b scaleFilterSections.m + scalectfnum.m.
+// ── scaleFilterSections — scale cascaded-transfer-function numerators ─
 //
-// scalar SV:
-//   numsv = |sv|^(1/K) * num
-//   numsv[K-1, :] *= sign(sv)
-// vector SV (length K+1):
-//   numsv[k, :] = |sv[K]|^(1/K) * sv[k] * num[k, :]
-//   numsv[K-1, :] *= sign(sv[K])
-Value scaleFilterSections(const Value &CTFNum, const Value &SV, std::pmr::memory_resource *mr)
-{
-    const std::size_t K = (CTFNum.dims().rows() == 1 && CTFNum.dims().cols() > 1)
-                           ? 1 : CTFNum.dims().rows();
-    const std::size_t P = (CTFNum.dims().rows() == 1 && CTFNum.dims().cols() > 1)
-                           ? CTFNum.dims().cols() : CTFNum.dims().cols();
-    const std::size_t Nsv = SV.numel();
-    if (Nsv != 1 && Nsv != K + 1)
-        throw Error("scaleFilterSections: SV length must be 1 or K+1",
-                    0, 0, "scaleFilterSections", "",
-                    "m:scaleFilterSections:invalidNumberOfScaleValues");
+// Clean-room implementation written from cleanroom/specs/scaleFilterSections.md
+// and the public references it cites:
+//   * L. B. Jackson, Digital Filters and Signal Processing, 3rd ed.,
+//     1996 — cascade (series) IIR realisation and distribution of an
+//     overall gain across the cascaded sections;
+//   * A. V. Oppenheim & R. W. Schafer, Discrete-Time Signal Processing,
+//     3rd ed., 2010 — §6.3, cascade-form filter structures (the overall
+//     transfer function is the product of the section transfer
+//     functions).
+//
+// Bg = scaleFilterSections(B, g). B (CTFNum) is a K×Q matrix — row k is
+// the length-Q numerator polynomial of cascade section k. g (SV) is a
+// scalar, or a vector of length K+1: the first K entries are per-section
+// factors, the (K+1)-th an extra overall gain distributed as a K-th
+// root. The overall gain magnitude is spread as |g|^(1/K) across all
+// sections; its sign is concentrated on the last section.
 
-    // Early out: all-ones SV → return CTFNum unchanged (fresh copy).
-    bool allOnes = true;
-    for (std::size_t i = 0; i < Nsv; ++i)
-        if (SV.elemAsDouble(i) != 1.0) { allOnes = false; break; }
-    if (allOnes) {
-        Value out = Value::matrix(K, P, ValueType::DOUBLE, mr);
-        std::copy(CTFNum.doubleData(), CTFNum.doubleData() + K * P,
-                  out.doubleDataMut());
-        return out;
+namespace {
+
+// Read element `i` (column-major linear index) of any numeric Value
+// uniformly as a Complex.
+inline Complex sfs_elemAsComplex(const Value &v, std::size_t i)
+{
+    if (v.type() == ValueType::COMPLEX)
+        return v.complexData()[i];
+    return Complex(v.elemAsDouble(i), 0.0);
+}
+
+// MATLAB sign(): real x → +1 / 0 / -1; complex x → x/|x| (0 when x==0).
+inline Complex sfs_sign(Complex x)
+{
+    if (x.imag() == 0.0) {
+        const double r = x.real();
+        if (r > 0.0) return Complex(1.0, 0.0);
+        if (r < 0.0) return Complex(-1.0, 0.0);
+        return Complex(0.0, 0.0);
+    }
+    const double mag = std::abs(x);
+    if (mag == 0.0) return Complex(0.0, 0.0);
+    return x / mag;
+}
+
+} // namespace
+
+Value scaleFilterSections(const Value &CTFNum, const Value &SV,
+                          std::pmr::memory_resource *mr)
+{
+    const Dims &bd = CTFNum.dims();
+    const std::size_t K = bd.rows();   // cascade sections
+    const std::size_t Q = bd.cols();   // numerator polynomial length
+
+    const std::size_t nsv = SV.numel();
+
+    // g must be a scalar or a vector of length K + 1.
+    const bool scalarG = (nsv == 1);
+    const bool vectorG = (nsv == K + 1);
+    if (!scalarG && !vectorG) {
+        throw numkit::Error(
+            "Invalid number of scale values. Specify either a scalar "
+            "or a vector of length equal to the number of sections + 1.",
+            0, 0, "scaleFilterSections", "",
+            "m:scaleFilterSections:invalidNumberOfScaleValues");
     }
 
-    Value out = Value::matrix(K, P, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
-    const double *Nd = CTFNum.doubleData();
-    const double Kd = static_cast<double>(K);
+    // Result type: COMPLEX iff either input carries complex data.
+    const bool resultComplex = (CTFNum.type() == ValueType::COMPLEX)
+                            || (SV.type() == ValueType::COMPLEX);
+    const ValueType outType = resultComplex ? ValueType::COMPLEX
+                                            : ValueType::DOUBLE;
 
-    if (Nsv == 1) {
-        const double s = SV.toScalar();
-        const double absRoot = std::pow(std::abs(s), 1.0 / Kd);
-        const double sgn = (s > 0.0) ? 1.0 : (s < 0.0 ? -1.0 : 0.0);
+    Value out = Value::matrix(K, Q, outType, mr);
+
+    // The overall extra gain is g (scalar case) or g[K] (vector case).
+    const Complex overall = scalarG ? sfs_elemAsComplex(SV, 0)
+                                    : sfs_elemAsComplex(SV, K);
+
+    // K-th root of the overall gain magnitude.
+    const double root = (K == 0)
+        ? 0.0
+        : std::pow(std::abs(overall), 1.0 / static_cast<double>(K));
+
+    // Sign of the overall gain — concentrated on the last section.
+    const Complex sgn = sfs_sign(overall);
+
+    if (resultComplex) {
+        Complex *od = out.complexDataMut();
         for (std::size_t k = 0; k < K; ++k) {
-            const double rowMul = (k == K - 1) ? sgn * absRoot : absRoot;
-            for (std::size_t j = 0; j < P; ++j)
-                od[k + j * K] = Nd[k + j * K] * rowMul;
+            // Per-section factor: root (scalar g) or root*g[k] (vector g);
+            // the last section additionally carries the sign.
+            Complex factor = vectorG ? root * sfs_elemAsComplex(SV, k)
+                                     : Complex(root, 0.0);
+            if (k + 1 == K)
+                factor *= sgn;
+            for (std::size_t j = 0; j < Q; ++j) {
+                const std::size_t idx = k + j * K;  // column-major
+                od[idx] = factor * sfs_elemAsComplex(CTFNum, idx);
+            }
         }
     } else {
-        const double svLast = SV.elemAsDouble(K);
-        const double absRoot = std::pow(std::abs(svLast), 1.0 / Kd);
-        const double sgnLast = (svLast > 0.0) ? 1.0 : (svLast < 0.0 ? -1.0 : 0.0);
+        // Real fast path — neither input is complex.
+        double *od = out.doubleDataMut();
         for (std::size_t k = 0; k < K; ++k) {
-            const double svk = SV.elemAsDouble(k);
-            double mul = absRoot * svk;
-            if (k == K - 1) mul *= sgnLast;
-            for (std::size_t j = 0; j < P; ++j)
-                od[k + j * K] = Nd[k + j * K] * mul;
+            double factor = vectorG ? root * SV.elemAsDouble(k) : root;
+            if (k + 1 == K)
+                factor *= sgn.real();
+            for (std::size_t j = 0; j < Q; ++j) {
+                const std::size_t idx = k + j * K;  // column-major
+                od[idx] = factor * CTFNum.elemAsDouble(idx);
+            }
         }
     }
+
     return out;
 }
+
 
 namespace detail {
 

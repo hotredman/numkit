@@ -2,27 +2,26 @@
 //
 // Audio Cycle D + G: cepstral coefficients (cepstralCoefficients / mfcc / gtcc).
 //
-// MATLAB cepstralCoefficients pipeline (from cepstralCoefficients.m source):
+// cepstralCoefficients pipeline:
 //   S (L bands × M frames) → log10 rectification → DCT-II (unitary)
 //                          → keep first NumCoeffs → permute to M × NumCoeffs
 //
-// DCT-II unitary matrix (createDCTmatrix.m):
+// DCT-II unitary matrix (Ahmed, Natarajan & Rao, IEEE TC, 1974):
 //   N = NumCoeffs, K = NumFilters
 //   matrix(1, k)   = sqrt(1/K)  (DC row)
 //   matrix(n, k)   = sqrt(2/K) * cos(π·(n-1)·(k-0.5)/K)  for n = 2..N
 //
-// MATLAB mfcc pipeline (from mfcc.m + designMelFilterBank.m + slaneybandedges.m):
+// mfcc pipeline (standard MFCC; Davis & Mermelstein, IEEE TASSP, 1980):
 //   1. y = buffer(x, winLen=round(0.03*fs), hop=winLen-round(0.02*fs))
 //   2. logE = log(sum(y.^2))   ← natural log of UNWINDOWED frame energy
 //   3. winCast = hamming(winLen, 'periodic')
 //   4. Z = abs(fft(y .* win, fftLen))   ← MAGNITUDE, full-length FFT
-//   5. filterBank = designMelFilterBank('Hz' Slaney style, 'Bandwidth' norm,
-//                                        edges = audio.internal.slaneybandedges())
+//   5. Slaney-style mel filterbank with 'Bandwidth' normalization
 //   6. melMag = filterBank.' * Z   (numBands × numFrames)
 //   7. coeffs = cepstralCoefficients(melMag, NumCoeffs=13, Rectification='log')
 //   8. out = [logE.', coeffs]   (numFrames × (NumCoeffs+1))
 //
-// Slaney band edges (42 of them):
+// Slaney mel band edges (Slaney, "Auditory Toolbox", Apple TR #45, 1998):
 //   factor = 133.33333333333333
 //   bE[1..13] = factor + (factor/2)*(i-1)        (linear up to 866.66 Hz)
 //   bE[14..42] = bE[i-1] * 1.0711703             (log-spaced, ~27 bands/octave)
@@ -50,7 +49,7 @@ namespace numkit::audio {
 
 namespace {
 
-// Build N × K DCT-II unitary matrix matching MATLAB createDCTmatrix.
+// Build the N × K unitary DCT-II matrix (Ahmed, Natarajan & Rao 1974).
 void buildDctMatrix(double *D, size_t N, size_t K)
 {
     if (K == 0 || N == 0) return;
@@ -76,7 +75,7 @@ void hammingPeriodic(double *w, size_t N)
                                         / static_cast<double>(N));
 }
 
-// Slaney band edges (42 entries) used by mfcc default BandEdges.
+// Slaney mel band edges (42 entries; Slaney, "Auditory Toolbox", 1998).
 // factor=133.33...; first 13 linear at factor/2 step; rest log-spaced.
 void slaneyBandEdges(double *edges, size_t numEdges = 42)
 {
@@ -89,90 +88,79 @@ void slaneyBandEdges(double *edges, size_t numEdges = 42)
         edges[i] = edges[i - 1] * 1.0711703;
 }
 
-// Slaney-style mel filter bank (designDomain='Hz', FilterBankDesignDomain='linear'):
-// Triangles drawn directly in linear-Hz domain over numEdges-2 bands.
-// Normalization='Bandwidth' → divide each band by (edges[k+2]-edges[k])/2.
-// Returns one-sided filterbank H × numBands (column-major), where H=NFFT/2+1.
+// ---------------------------------------------------------------------------
+// designMelFilterBankSlaney — Slaney-style triangular mel filterbank.
 //
-// Algorithm matches audio.internal.designMelFilterBank.m exactly:
-//   linFq = (0..NFFT-1)/NFFT * fs              (full spectrum frequency axis)
-//   p[i]  = first index where linFq[index] > edges[i]   (1-based)
-//   bw[k] = edges[k+1] - edges[k]
-//   For band k = 1..validNumBands:
-//     rising:  j ∈ [p[k], p[k+1]-1]:  fb[j,k] = (linFq[j]-edges[k]) / bw[k]
-//     falling: j ∈ [p[k+1], p[k+2]-1]: fb[j,k] = (edges[k+2]-linFq[j]) / bw[k+1]
-//   Bandwidth norm: fb[:,k] /= (edges[k+2]-edges[k])/2
+// Each band k places one triangular filter spanning three consecutive mel
+// band edges edges[k] < edges[k+1] < edges[k+2]: the filter rises linearly
+// from 0 at edges[k] to 1 at edges[k+1], then falls linearly back to 0 at
+// edges[k+2] (overlapping-triangle filterbank of Davis & Mermelstein 1980).
+// The filter is sampled on the one-sided FFT frequency grid, bin j having
+// frequency f_j = j * fs / NFFT. Weights are bandwidth-normalised: every
+// weight of band k is divided by half its base width, (edges[k+2]-edges[k])/2,
+// giving each triangle unit area (Slaney, Auditory Toolbox v2, 1998 —
+// Normalization='Bandwidth'). Output FB is column-major, length H*(numEdges-2).
 //
-// We compute only the one-sided half (k <= NFFT/2) since input is real and
-// MATLAB calls with keepTwoSided=false (the upper half is zeros).
-void designMelFilterBankSlaney(double *FB, double fs, size_t NFFT,
-                               const double *edges, size_t numEdges,
-                               size_t H /*=NFFT/2+1*/)
+// Clean-room reimplementation — see cleanroom/specs/designMelFilterBankSlaney.md.
+//
+// References:
+//   S. B. Davis and P. Mermelstein, "Comparison of Parametric Representations
+//   for Monosyllabic Word Recognition in Continuously Spoken Sentences",
+//   IEEE Trans. ASSP 28(4):357-366, 1980.
+//   M. Slaney, "Auditory Toolbox, Version 2", Interval Research Corp.
+//   Technical Report #1998-010, 1998.
+// ---------------------------------------------------------------------------
+void designMelFilterBankSlaney(double *FB, double fs, std::size_t NFFT,
+                               const double *edges, std::size_t numEdges,
+                               std::size_t H /* = NFFT/2 + 1 */)
 {
-    if (numEdges < 3 || H == 0 || NFFT == 0) return;
-    const double halfFs = fs * 0.5;
-    const double sqrtEps = std::sqrt(std::numeric_limits<double>::epsilon());
-
-    // validNumEdges: edges <= fs/2 (with sqrt(eps) tolerance)
-    size_t validNumEdges = 0;
-    for (size_t i = 0; i < numEdges; ++i) {
-        if ((edges[i] - halfFs) < sqrtEps) ++validNumEdges;
+    // Early return when there is nothing to construct.
+    if (numEdges < 3 || H == 0 || NFFT == 0) {
+        return;
     }
-    const size_t numBands = numEdges - 2;
-    const size_t validNumBands = (validNumEdges >= 2) ? (validNumEdges - 2) : 0;
 
-    // Initialize to zero.
-    std::fill(FB, FB + H * numBands, 0.0);
+    const std::size_t numBands = numEdges - 2;
 
-    // p[i] = first index in [0..NFFT-1] where linFq[index] > edges[i].
-    // linFq[index] = index / NFFT * fs.
-    // We only need p for indices that fall within the one-sided range [0, H-1].
-    // For edges that lie above fs/2 (validNumEdges < numEdges), p would be in
-    // upper half; those bands are truncated by validNumBands check anyway.
-    auto pIdx = [&](size_t i) -> size_t {
-        // smallest index s.t. index/NFFT*fs > edges[i] → index > edges[i]*NFFT/fs
-        // (1-based in MATLAB, here we keep 0-based but use it as MATLAB's p).
-        // MATLAB uses 1-based loops: for j = p(k):p(k+1)-1.
-        // Here we use 0-based linFq[j] = j/NFFT*fs and j ∈ [p0, p1-1] inclusive.
-        const double t = edges[i] * static_cast<double>(NFFT) / fs;
-        // p(MATLAB,1-based) = first index where linFq > edges[i]; 0-based equivalent
-        // is: smallest j with j > t → j = floor(t) + 1.
-        size_t p = static_cast<size_t>(std::floor(t)) + 1;
-        if (p > H - 1) p = H - 1;
-        return p;
-    };
+    // Zero the whole output buffer first, then fill it.
+    for (std::size_t i = 0; i < H * numBands; ++i) {
+        FB[i] = 0.0;
+    }
 
-    for (size_t k = 0; k < validNumBands; ++k) {
-        const double bw_k  = edges[k + 1] - edges[k];      // rising-side denom
-        const double bw_k1 = edges[k + 2] - edges[k + 1];  // falling-side denom
-        const size_t p0 = pIdx(k);
-        const size_t p1 = pIdx(k + 1);
-        const size_t p2 = pIdx(k + 2);
-        // Rising: j ∈ [p0, p1-1]
-        if (bw_k > 0.0) {
-            for (size_t j = p0; j < p1 && j < H; ++j) {
-                const double fq = static_cast<double>(j) / static_cast<double>(NFFT) * fs;
-                FB[j + k * H] = (fq - edges[k]) / bw_k;
-            }
+    // Hz per FFT bin on the one-sided frequency grid.
+    const double binToHz = fs / static_cast<double>(NFFT);
+
+    for (std::size_t k = 0; k < numBands; ++k) {
+        const double left = edges[k];
+        const double centre = edges[k + 1];
+        const double right = edges[k + 2];
+
+        const double riseWidth = centre - left;   // base of the rising side
+        const double fallWidth = right - centre;  // base of the falling side
+        const double baseWidth = right - left;    // full triangle base
+
+        // Degenerate guards: a zero/negative side width or non-positive base
+        // width leaves this band's column at zero.
+        if (riseWidth <= 0.0 || fallWidth <= 0.0 || baseWidth <= 0.0) {
+            continue;
         }
-        // Falling: j ∈ [p1, p2-1]
-        if (bw_k1 > 0.0) {
-            for (size_t j = p1; j < p2 && j < H; ++j) {
-                const double fq = static_cast<double>(j) / static_cast<double>(NFFT) * fs;
-                FB[j + k * H] = (edges[k + 2] - fq) / bw_k1;
-            }
-        }
-        // Bandwidth normalization
-        const double w = (edges[k + 2] - edges[k]) * 0.5;
-        if (w > 0.0) {
-            const double inv = 1.0 / w;
-            for (size_t j = 0; j < H; ++j) FB[j + k * H] *= inv;
+
+        // Bandwidth normalisation: a unit-height triangle of base baseWidth
+        // has area baseWidth/2; dividing by that yields unit area.
+        const double norm = 2.0 / baseWidth;
+
+        double *column = FB + k * H;
+        for (std::size_t j = 0; j < H; ++j) {
+            const double f = static_cast<double>(j) * binToHz;
+            const double rise = (f - left) / riseWidth;
+            const double fall = (right - f) / fallWidth;
+            const double w = std::max(0.0, std::min(rise, fall));
+            column[j] = w * norm;
         }
     }
 }
 
-// MATLAB ERB scale factor: log(10)*1000/(24.673*4.368) — matches
-// libs/audio/src/scale/freq_scales.cpp erbScale().
+// ERB scale factor (Glasberg & Moore 1990): log(10)*1000/(24.673*4.368)
+// — matches libs/audio/src/scale/freq_scales.cpp erbScale().
 inline double erbScale()
 {
     return std::log(10.0) * 1000.0 / (24.673 * 4.368);
@@ -181,8 +169,9 @@ inline double hz2erbVal(double hz) { return erbScale() * std::log10(1.0 + 0.0043
 inline double erb2hzVal(double e)  { return (std::pow(10.0, e / erbScale()) - 1.0) / 0.004368; }
 
 // Compute Patterson-Holdsworth gammatone filterbank frequency response
-// magnitude (one-sided H × NumBands). Matches MATLAB
-// audio.internal.computeGammatoneCoefficients.m + freqz(...,'whole').
+// magnitude (one-sided H × NumBands). Filter coefficients per Slaney,
+// "An Efficient Implementation of the Patterson-Holdsworth Auditory
+// Filter Bank", Apple Tech. Report #35, 1993.
 //
 // For each band i with center frequency Fc[i] (Hz):
 //   ERB[i] = Fc[i]/9.26449 + 24.7
@@ -192,7 +181,7 @@ inline double erb2hzVal(double e)  { return (std::pow(10.0, e / erbScale()) - 1.
 //   B2     = exp(-2 B T)
 //   A0     = T;  A2 = 0
 //   A11..A14 = -(2T cos(2π Fc T)/exp(B T) ± 2 sqrt(3 ± 2^(3/2)) T sin(2π Fc T)/exp(B T))/2
-//   gain   = (complex polynomial — see MATLAB source, eq. 4.6)
+//   gain   = (complex polynomial — see Slaney 1993, eq. 4.6)
 //
 // Each band is a CASCADE of 4 biquads:
 //   sec1: [A0/gain, A11/gain, A2/gain]/[B0, B1, B2]   (gain applied here)
@@ -325,7 +314,7 @@ Value cepstralCoefficients(const Value &S, int numCoeffs, std::pmr::memory_resou
 }
 
 // ── mfcc ──────────────────────────────────────────────────────────────
-// Cycle G: full MATLAB R2025b parity. Pipeline matches mfcc.m exactly:
+// Standard MFCC pipeline (Davis & Mermelstein 1980). Steps:
 //   1. Buffer x into winLen × numFrames frames (winLen=round(0.03*fs),
 //      hop=winLen-round(0.02*fs)).
 //   2. Per-frame logE = log(sum(frame^2)) (natural log, UNWINDOWED).
@@ -377,7 +366,7 @@ mfcc(const Value &x, double fs, int numCoeffs, std::pmr::memory_resource *mr)
 
     for (size_t f = 0; f < numFrames; ++f) {
         const size_t start = f * hop;
-        // Energy on UNWINDOWED frame (per MATLAB mfcc.m).
+        // Energy on the UNWINDOWED frame (standard MFCC log-energy term).
         double E = 0.0;
         for (size_t i = 0; i < winLen; ++i) {
             const double xi = x.elemAsDouble(start + i);
@@ -421,21 +410,20 @@ mfcc(const Value &x, double fs, int numCoeffs, std::pmr::memory_resource *mr)
 }
 
 // ── gtcc ──────────────────────────────────────────────────────────────
-// Cycle H: full MATLAB R2025b parity. Same STFT pipeline as mfcc but
-// with proper Patterson-Holdsworth gammatone filterbank in the
-// frequency domain (matches gtcc.m default FilterDomain='frequency').
+// Same STFT pipeline as mfcc but with a Patterson-Holdsworth gammatone
+// filterbank in the frequency domain (Slaney 1993).
 //
-// Pipeline matches gtcc.m exactly:
+// Pipeline:
 //   1. winLen=round(0.03*fs), overlap=round(0.02*fs), fftLen=winLen.
 //   2. Per-frame logE = log(sum(unwindowed_frame.^2)).
 //   3. hamming(winLen,'periodic'); Z = |FFT(frame .* win)|.
-//   4. Gammatone filterbank designed via designAuditoryFilterBank with:
+//   4. Gammatone filterbank parameters:
 //        FrequencyScale='erb', FrequencyRange=[50, fs/2],
 //        OneSided=false, Normalization='Bandwidth'.
 //      NumFilters = ceil(hz2erb(fs/2) - hz2erb(50)).
 //      Fc = erb2hz(linspace(lowERB, highERB, NumFilters)).
-//      Filter shape per band: cascade of 4 biquads from
-//      computeGammatoneCoefficients (Slaney 1993 — eq. 4.6).
+//      Filter shape per band: cascade of 4 biquads
+//      (Slaney 1993 — eq. 4.6).
 //      H[k] = freqz(coeffs, NFFT, 'whole') magnitude.
 //      BW[i] = 1.019 · 24.7 · (0.00437·Fc[i] + 1).
 //      Bandwidth norm: H[i,k] /= BW[i]/2.

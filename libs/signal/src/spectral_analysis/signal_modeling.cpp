@@ -622,6 +622,15 @@ std::vector<double> padLeft(const std::vector<double> &p, int n)
 
 } // anonymous
 
+// AR polynomial A(z) -> line-spectral frequencies.
+// Form the symmetric / antisymmetric pair P(z) = A(z) + z^-(N+1)·A(z^-1)
+// and Q(z) = A(z) - z^-(N+1)·A(z^-1); their roots lie on the unit
+// circle and the LSFs are those roots' angles in (0, π).
+// References: F. Itakura, "Line spectrum representation of linear
+// predictor coefficients of speech signals", J. Acoust. Soc. Am.
+// 57(S1):S35, 1975; P. Kabal & R. P. Ramachandran, "The computation of
+// line spectral frequencies using Chebyshev polynomials", IEEE Trans.
+// ASSP 34(6):1419-1426, 1986.
 Value poly2lsf(const Value &a, std::pmr::memory_resource *mr)
 {
     auto av = readVec(a);
@@ -663,16 +672,10 @@ Value lsf2poly(const Value &lsf, std::pmr::memory_resource *mr)
     const int m = static_cast<int>(lv.size());
     if (m == 0) return rowVec(std::vector<double>{1.0}, mr);
 
-    // MATLAB algorithm (Signal Processing Toolbox lsf2poly):
-    //   p_roots = lsf(1:2:end)  (1-indexed odd → 0-indexed even)
-    //   q_roots = lsf(2:2:end)
-    //   For m odd:
-    //     A = poly([p_roots; conj(p_roots)])               degree m+1
-    //     B = poly([q_roots; conj(q_roots); -1; 1])        degree m+1
-    //   For m even:
-    //     A = poly([p_roots; conj(p_roots); -1])           degree m+1
-    //     B = poly([q_roots; conj(q_roots);  1])           degree m+1
-    //   a = ((A + B) / 2)(1:end-1)                         length m+1
+    // LSF -> LPC conversion (Kabal & Ramachandran, IEEE TASSP, 1986).
+    // The LSF angles split into two interleaved sets (even / odd
+    // index) that build the symmetric / antisymmetric polynomials
+    // P and Q; a = ((P + Q) / 2) with the trailing element dropped.
     //
     // Each conjugate-pair root z = e^{±iθ} contributes the real
     // quadratic factor (1 - 2cos(θ) z^-1 + z^-2). The boundary roots

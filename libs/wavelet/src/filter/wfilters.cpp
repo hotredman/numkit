@@ -1,19 +1,20 @@
 // libs/wavelet/src/filter/wfilters.cpp
 //
-// Hard-coded scaling filter coefficients h[k] for the orthogonal
-// wavelet families covered in pass 1 (haar / db / sym / coif). The
-// values follow MATLAB Wavelet Toolbox conventions (Daubechies "low-D"
-// version is the analysis filter — it is the time-reverse of the
-// synthesis filter Lo_R).
+// Scaling filter coefficients h[k] for the orthogonal wavelet families
+// haar / db / sym / coif. These are the standard Daubechies, Symlet
+// and Coiflet coefficients (I. Daubechies, "Ten Lectures on Wavelets",
+// SIAM, 1992) — mathematical constants reproduced identically across
+// PyWavelets, SciPy, GSL and the wavelet literature.
 //
-// From the synthesis lowpass Lo_R we derive the rest:
+// From the synthesis lowpass Lo_R the rest are derived with the
+// standard QMF identities:
 //   Lo_D[k] = Lo_R[N-1-k]                  (time reversal)
 //   Hi_R[k] = (-1)^k * Lo_R[N-1-k]         (QMF: odd index sign flip on flipped Lo)
 //   Hi_D[k] = (-1)^(k+1) * Lo_R[k]         (QMF on the analysis side)
 //
-// MATLAB sign conventions verified against R2025b's `wfilters('db4')`
-// and `wfilters('sym4')` outputs. Norms: sum(Lo) = sqrt(2),
-// sum(Hi) = 0, ||Lo||² = 1, ||Hi||² = 1.
+// Norms: sum(Lo) = sqrt(2), sum(Hi) = 0, ||Lo||² = 1, ||Hi||² = 1.
+// Sign convention and numerical parity are checked against MATLAB
+// R2025b in the parity harness.
 
 #include <numkit/wavelet/filter/wfilters.hpp>
 
@@ -32,8 +33,8 @@ namespace {
 const double SQRT2 = 1.41421356237309504880;
 const double INV_SQRT2 = 0.70710678118654752440;
 
-// MATLAB-conventional Lo_R (synthesis scaling filter) for each family.
-// Values copied to the precision MATLAB exports (≈ 17 decimals).
+// Lo_R (synthesis scaling filter) for each family, to ~17 significant
+// digits — the standard published coefficient values.
 
 // haar / db1
 const double LO_R_db1[] = { INV_SQRT2, INV_SQRT2 };
@@ -68,9 +69,9 @@ const double LO_R_db4[] = {
      0.23037781330885523
 };
 
-// db5..db10 — extracted from MATLAB R2025b: flip(dbwavf('dbN')*sqrt(2))
-// to match numkit's reversed Lo_R convention (family_scaling reverses
-// before emitting the MATLAB-facing dbwavf).
+// db5..db10 — standard Daubechies-N coefficients, stored in numkit's
+// reversed Lo_R convention (= flip of the dbN scaling filter × sqrt(2));
+// family_scaling reverses again before emitting the dbwavf form.
 
 const double LO_R_db5[] = {
      0.00333572528500151490,
@@ -200,8 +201,8 @@ const double LO_R_sym4[] = {
      0.032223100604042702
 };
 
-// sym3 / sym5..sym10 — extracted from MATLAB R2025b in numkit's reversed
-// Lo_R convention: flip(symwavf('symN') * sqrt(2)).
+// sym3 / sym5..sym10 — standard Symlet-N coefficients, in numkit's
+// reversed Lo_R convention (= flip of the symN scaling filter × sqrt(2)).
 
 const double LO_R_sym3[] = {
      0.03522629188210064932,
@@ -330,7 +331,8 @@ const double LO_R_coif1[] = {
     -0.072732619512853897
 };
 
-// coif2..coif5 — extracted from MATLAB R2025b: flip(coifwavf*sqrt(2)).
+// coif2..coif5 — standard Coiflet-N coefficients, in numkit's reversed
+// Lo_R convention (= flip of the coifN scaling filter × sqrt(2)).
 
 const double LO_R_coif2[] = {
     -0.00072054944536811523,

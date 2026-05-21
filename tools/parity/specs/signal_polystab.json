@@ -1,0 +1,10 @@
+{
+  "name": "signal_polystab",
+  "namespace": "signal",
+  "setup": "a = [1 -2.5 1]; az = [0 1 -2.5 1]; as = [1 -0.5]; A = [1 -3.4 3.7 -1]; C = [1 -1.2 0.7 -2.1 0.3 0.5];",
+  "expr": "b = polystab(a); b1 = b(1); b2 = b(2); b3 = b(3); nb = numel(b); bz = polystab(az); bz1 = bz(1); bz2 = bz(2); bz3 = bz(3); nbz = numel(bz); bs = polystab(as); bs1 = bs(1); bs2 = bs(2); bA = polystab(A); A2 = bA(2); A3 = bA(3); A4 = bA(4); bC = polystab(C); C2 = bC(2); C3 = bC(3); C4 = bC(4); C5 = bC(5); C6 = bC(6);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["b1", "b2", "b3", "nb", "bz1", "bz2", "bz3", "nbz", "bs1", "bs2", "A2", "A3", "A4", "C2", "C3", "C4", "C5", "C6"],
+  "comment": "Signal Processing toolbox polystab — stabilise a polynomial (minimum-phase version): reflect every root with |root| > 1 to its conjugate reciprocal 1/conj(root) inside the unit circle, keeping the magnitude-response shape (scaled by a constant gain). CLEAN-ROOM implementation from public references (Oppenheim & Schafer 3e §5.6 minimum-phase systems / conjugate-reciprocal root reflection; Hayes 1996 spectral factorisation) — see cleanroom/specs/polystab_polyscale.md. Algorithm: roots(a) -> reflect outside roots -> poly() -> multiply by the first non-zero coefficient of a. Matches MATLAB R2025b within tol 1e-12 (the tolerance absorbs the roots->poly round-trip noise, observed ~1e-15). Fingerprint covers all algorithm paths: simple real roots ([1 -2.5 1] -> [1 -1 0.25]), leading zeros ignored ([0 1 -2.5 1] -> same length-3 result), already-stable input returned unchanged ([1 -0.5]), a complex-conjugate root pair OUTSIDE the unit circle reflected ([1 -3.4 3.7 -1] -> [1 -1.6 0.88 -0.16]), and a degree-5 polynomial with mixed real/complex roots (C) cross-checked coefficient-by-coefficient against MATLAB. KNOWN GAP: complex-coefficient input is unsupported because numkit's roots handles real polynomials only (the previous implementation had the same limitation). Octave 11.1.0 does not ship polystab in core — harness reports N/A there."
+}
