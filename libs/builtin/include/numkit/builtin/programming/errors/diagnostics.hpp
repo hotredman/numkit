@@ -36,7 +36,7 @@ namespace numkit::builtin {
 ///
 /// @param engine  Engine whose output stream receives the message.
 /// @param args    Form-dispatched as for @ref error.
-void warning(Engine &engine, Span<const Value> args);
+void warning(Engine &engine, Span<const Value> args);  // lint: engine-io
 
 /// @brief Snapshot of the most-recent warning.
 struct LastWarn {
