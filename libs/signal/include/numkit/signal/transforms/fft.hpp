@@ -9,7 +9,7 @@ namespace numkit::signal {
 
 /// 1-D discrete Fourier transform along a given dimension.
 ///
-/// Mirrors MATLAB's `fft`:
+/// Call forms:
 ///   * `fft(x)`         — along the first non-singleton dimension
 ///   * `fft(x, n)`      — zero-pad or truncate to length n first
 ///   * `fft(x, -1, k)`  — along dimension k (1=rows, 2=cols, 3=pages)
@@ -95,14 +95,14 @@ Value ifft2(const Value &X, int m = -1, int n = -1,
 
 /// @brief N-D forward FFT.
 ///
-/// Mirrors MATLAB's `fftn`:
+/// Call forms:
 /// - `fftn(X)`     — FFT along every dimension of X at its current
 ///   length.
 /// - `fftn(X, sz)` — same, but axis `k` is zero-padded or truncated
 ///   to `sz[k]` before its FFT. `sz.size()` must be ≤ `ndims(X)`.
 ///
-/// Implemented as `fft` along each axis in turn (commutes, like
-/// MATLAB / NumPy / SciPy).
+/// Implemented as `fft` along each axis in turn (axis order does
+/// not affect the result).
 ///
 /// @param X    N-D input.
 /// @param sz   Per-axis target sizes (empty Span → use X's current
@@ -145,7 +145,7 @@ Value ifftn(const Value &              X,
 /// converts the sum into a convolution `g ⋆ h` evaluated via an FFT of
 /// length `L = nextPow2(N + m − 1)`.
 ///
-/// For 2-D input, transforms each column independently (MATLAB semantics).
+/// For 2-D input, transforms each column independently.
 /// 3-D input is not supported.
 ///
 /// @param x   Input (real or complex), 1-D or 2-D.

@@ -13,10 +13,10 @@ namespace numkit::builtin {
 /// @brief Integer-flavoured arithmetic and bitwise operations.
 ///
 /// All inputs are read as doubles, converted to `int64_t` for the
-/// operation, and written back as doubles. This matches MATLAB's
-/// behaviour for "small integer" workflows without forcing callers
+/// operation, and written back as doubles. This suits
+/// "small integer" workflows without forcing callers
 /// into explicit integer casts. Values outside `[-2^53, 2^53]`
-/// round-trip lossily through double — the same constraint MATLAB has.
+/// round-trip lossily through double.
 
 /// @brief Greatest common divisor (`g = gcd(a, b)`).
 ///

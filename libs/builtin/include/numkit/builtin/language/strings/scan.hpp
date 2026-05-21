@@ -13,7 +13,7 @@ namespace numkit::builtin {
 /// @file
 /// @brief Scan family — `fscanf` / `sscanf` / `textscan`.
 ///
-/// MATLAB-compatible formatted reading. Like the other file-I/O
+/// Formatted reading. Like the other file-I/O
 /// builtins, the natural C++ surface is a Span-based shape because
 /// these functions are inherently variadic (optional size, optional
 /// name/value option pairs). Reshaping into typed overloads would

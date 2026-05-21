@@ -6,7 +6,7 @@
 
 namespace numkit::signal {
 
-/// Type-II discrete cosine transform (the MATLAB default).
+/// Type-II discrete cosine transform (the default form).
 ///
 /// 1-D entry point — computes
 /// \f$ Y[k] = w[k] \sum_{n=0}^{N-1} x[n] \cos\!\left(\frac{\pi (2n+1) k}{2N}\right) \f$

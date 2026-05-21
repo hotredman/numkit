@@ -9,7 +9,7 @@ namespace numkit::builtin {
 
 /// @brief Square cell array (`c = cell(n)`).
 ///
-/// MATLAB convention: `cell(n)` builds an `n × n` cell of empty matrices.
+/// `cell(n)` builds an `n × n` cell of empty matrices.
 ///
 /// @param n   Side length.
 /// @param mr  Memory resource (nullptr → process default).
@@ -47,12 +47,12 @@ Value cell(size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr
 /// first result). `uniformOutput = false` packs results into a cell
 /// of the same shape.
 ///
-/// Engine-side fast path for MATLAB built-in handles (`@numel`,
+/// Engine-side fast path for built-in handles (`@numel`,
 /// `@isempty`, `@sum`, `@class`, …) is handled by the engine
 /// adapter — it pre-resolves to a direct C++ helper and wraps that
 /// in the same callback signature before calling this function.
 ///
-/// @param fn             MATLAB-style callback.
+/// @param fn             Callback.
 /// @param c              Cell array input.
 /// @param uniformOutput  See above.
 /// @param mr             Memory resource (nullptr → process default).

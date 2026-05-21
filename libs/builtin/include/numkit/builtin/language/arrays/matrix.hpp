@@ -57,8 +57,7 @@ Value eye(size_t rows, size_t cols, std::pmr::memory_resource *mr = nullptr);
 ///
 /// `N × N` matrix where rows, columns, both diagonals sum to the magic
 /// constant `N · (N² + 1) / 2`. Three branches by `N`'s parity (Siamese
-/// for odd N, doubly-even, Strachey for singly-even — matches MATLAB
-/// R2025b).
+/// for odd N, doubly-even, Strachey for singly-even).
 ///
 /// Edge cases: `N == 0 → 0×0`, `N == 1 → [1]`, `N == 2 → [1 3; 4 2]`
 /// (preserved for parity; not strictly magic).
@@ -72,7 +71,7 @@ Value magic(size_t N, std::pmr::memory_resource *mr = nullptr);
 ///
 /// `T(i, j) = c(i - j)` for `i >= j`, else `r(j - i)`.
 /// Single-arg form (`r == Value::Empty`) takes `r = c` (real input).
-/// MATLAB convention: if `c(0) != r(0)`, `r(0)` is silently overridden.
+/// If `c(0) != r(0)`, `r(0)` is silently overridden.
 ///
 /// @param c   First column.
 /// @param r   First row (default `Value::Empty` → `r = c`).
@@ -96,7 +95,7 @@ Value hankel(const Value &c, const Value &r = Value::Empty,
 /// @brief Vandermonde matrix (`V = vander(v)`).
 ///
 /// `V(i, j) = v(i)^(n - 1 - j)`. Columns ordered from highest to lowest
-/// power (matches MATLAB R2025b).
+/// power.
 ///
 /// @param v   Generator vector.
 /// @param mr  Memory resource (nullptr → process default).
@@ -116,7 +115,7 @@ Value compan(const Value &p, std::pmr::memory_resource *mr = nullptr);
 /// @brief Pascal matrix (`P = pascal(n)`).
 ///
 /// Symmetric form `P(i, j) = C(i + j, i)`. Only `k = 0` (symmetric) is
-/// implemented; MATLAB's `k = 1, 2` deferred.
+/// implemented; the `k = 1, 2` forms are deferred.
 ///
 /// @param n   Order.
 /// @param mr  Memory resource (nullptr → process default).
@@ -156,7 +155,7 @@ Value wilkinson(size_t n, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Hadamard matrix via Sylvester construction (`H = hadamard(n)`).
 ///
-/// Requires `n` to be a power of 2. MATLAB's Paley constructions
+/// Requires `n` to be a power of 2. The Paley constructions
 /// (`12·2^k`, `20·2^k`) are deferred.
 ///
 /// @param n   Order (power of 2).
@@ -167,7 +166,7 @@ Value hadamard(size_t n, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Rosser's 8×8 eigenvalue test matrix (`R = rosser()`).
 ///
-/// Hardcoded constants from MATLAB R2025b's `gallery/rosser`.
+/// The 8×8 entries are fixed, hardcoded constants.
 ///
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `8 × 8` matrix.
@@ -190,7 +189,7 @@ Value inv(const Value &A, std::pmr::memory_resource *mr = nullptr);
 /// @brief Solve `A·X = B` (`X = linsolve(A, B)`).
 ///
 /// LU for square `A`, Householder QR for tall `A` (least-squares).
-/// Backs MATLAB's `mldivide` / `\`. The optional `opts` arg is
+/// Backs `mldivide` / `\`. The optional `opts` arg is
 /// accepted for compatibility but ignored — LU/QR auto-detection
 /// handles the same cases.
 ///
@@ -234,7 +233,6 @@ Value det(const Value &A, std::pmr::memory_resource *mr = nullptr);
 /// @brief Cholesky factorisation (`R = chol(A)`).
 ///
 /// Returns the upper-triangular `R` such that `R' · R == A`.
-/// Matches MATLAB R2025b's `chol(A)` default.
 ///
 /// @param A   Symmetric positive-definite matrix.
 /// @param mr  Memory resource (nullptr → process default).
@@ -260,7 +258,7 @@ Value topkrows(const Value &A, std::size_t k, std::pmr::memory_resource *mr = nu
 /// @brief LU with partial pivoting (`[L, U, P] = lu_decompose(A)`).
 ///
 /// `P · A == L · U` where `L` is unit-lower-triangular, `U` is
-/// upper-triangular, `P` is a permutation matrix. MATLAB's single-output
+/// upper-triangular, `P` is a permutation matrix. The single-output
 /// `LU = lu(A)` form lives in @ref lu_combined.
 ///
 /// @param A   Square matrix.
@@ -420,7 +418,7 @@ Value eig_values(const Value &A, std::pmr::memory_resource *mr = nullptr);
 /// @brief Characteristic polynomial of a matrix (`p = poly(A)`).
 ///
 /// Souriau-Faddeev-LeVerrier. `p(λ) = λ^n + p(2)·λ^(n-1) + … + p(n+1)`
-/// and `roots(p) == eig(A)`. Matches MATLAB's `poly(A)` for square inputs.
+/// and `roots(p) == eig(A)`. Square inputs only.
 ///
 /// @param A   Square matrix.
 /// @param mr  Memory resource (nullptr → process default).
@@ -637,8 +635,8 @@ Value ishermitian(const Value &A, bool skew = false, std::pmr::memory_resource *
 
 /// @brief Bandwidth pair (`[lower, upper] = bandwidth(A)`).
 ///
-/// Single-output form returns just the lower bandwidth (MATLAB's
-/// `x = bandwidth(A)`).
+/// Single-output form returns just the lower bandwidth
+/// (`x = bandwidth(A)`).
 ///
 /// @param A   Input matrix.
 /// @param mr  Memory resource (nullptr → process default).
@@ -687,7 +685,7 @@ rref(const Value &A, bool have_tol, double tol_user, std::pmr::memory_resource *
 /// @brief Reciprocal 1-norm condition estimate (`c = rcond(A)`).
 ///
 /// Cheap path: `1 / (norm(A, 1) · norm(inv(A), 1))`. Returns 0 for
-/// singular `A`. KNOWN GAP: matches MATLAB on well-conditioned cases;
+/// singular `A`. KNOWN GAP: accurate on well-conditioned cases;
 /// differs from LAPACK's `dgecon` on near-singular matrices.
 ///
 /// @param A   Input matrix.
@@ -810,7 +808,7 @@ Value ndims(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @brief Reshape preserving column-major order (`y = reshape(x, rows, cols, pages)`).
 ///
 /// `numel(x)` must equal `rows · cols · (pages == 0 ? 1 : pages)`.
-/// `pages == 0` → 2-D output. MATLAB's `[]` placeholder must be
+/// `pages == 0` → 2-D output. A `[]` dimension placeholder must be
 /// resolved by the caller — this function requires concrete dims.
 ///
 /// @param x      Input array.
@@ -874,7 +872,7 @@ Value pagectranspose(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 // ── Demo surfaces ────────────────────────────────────────────────────
 
-/// @brief MATLAB demo surface `peaks(n)`.
+/// @brief Demo surface `peaks(n)`.
 ///
 /// Sample points of the bivariate polynomial-exponential function on
 /// the `n × n` grid `(x, y) = linspace(-3, 3, n)`. Default `n = 49`.
@@ -894,7 +892,7 @@ struct Surface3 {
 
 /// @brief Unit sphere surface (`[X, Y, Z] = sphere(n)`).
 ///
-/// `(n + 1) × (n + 1)` grids. Default `n = 20`. Matches MATLAB to ULP.
+/// `(n + 1) × (n + 1)` grids. Default `n = 20`.
 ///
 /// @param n   Resolution.
 /// @param mr  Memory resource (nullptr → process default).
@@ -954,7 +952,7 @@ Value pagemtimes(const Value &x, const Value &y, std::pmr::memory_resource *mr =
 /// @brief Page-wise matmul with transpose flags
 /// (`C = pagemtimes(A, tx, B, ty)`).
 ///
-/// `tx` / `ty` map MATLAB strings: `"none"` = no op, `"transpose"` =
+/// `tx` / `ty` are option strings: `"none"` = no op, `"transpose"` =
 /// per-page transpose, `"ctranspose"` = per-page conjugate-transpose
 /// (identical to transpose for real input; complex input not yet
 /// supported).
@@ -1089,7 +1087,7 @@ meshgrid(const Value &x, const Value &y, const Value &z, std::pmr::memory_resour
 /// @brief 2-D N-D companion to meshgrid (`[X, Y] = ndgrid(x, y)`).
 ///
 /// Each output has shape `[numel(x), numel(y), …]` (first-arg axes-major)
-/// — the opposite of meshgrid's MATLAB convention.
+/// — the opposite of meshgrid's axis order.
 ///
 /// @param x   First-axis grid.
 /// @param y   Second-axis grid.

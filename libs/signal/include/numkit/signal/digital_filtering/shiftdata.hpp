@@ -23,7 +23,7 @@ namespace numkit::signal {
 ///
 /// Useful when implementing a function that operates "along the first
 /// non-singleton dimension by default, or along an explicit dim if
-/// provided" — the standard MATLAB convention.
+/// provided".
 ///
 /// @param x    Input array.
 /// @param dim  Dimension to move to the front. `0` (default) = auto.

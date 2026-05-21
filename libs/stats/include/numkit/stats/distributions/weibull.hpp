@@ -16,7 +16,7 @@ namespace numkit::stats {
 /// @brief Weibull pdf (`y = wblpdf(x, a, b)`).
 ///
 /// @f$ f(x; a, b) = (b/a)\,(x/a)^{b-1}\,e^{-(x/a)^b} @f$ for `x >= 0`.
-/// MATLAB convention: `a` = scale, `b` = shape. Note: `std::weibull_distribution`
+/// Convention: `a` = scale, `b` = shape. Note: `std::weibull_distribution`
 /// uses the opposite order `(shape, scale)`.
 ///
 /// @param x   Evaluation points (any shape).

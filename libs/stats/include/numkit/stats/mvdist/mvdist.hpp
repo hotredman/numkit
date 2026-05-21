@@ -26,8 +26,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
 /// @brief Multivariate Student-t pdf (`y = mvtpdf(X, C, df)`).
 ///
 /// `C` is treated as a correlation matrix; if its diagonal is not all
-/// 1, the input is normalised to a correlation matrix (matches MATLAB
-/// R2025b).
+/// 1, the input is normalised to a correlation matrix.
 ///
 /// @param X   `N × d` points.
 /// @param C   `d × d` correlation (or covariance — auto-normalised).

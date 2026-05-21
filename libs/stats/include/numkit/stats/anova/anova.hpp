@@ -16,8 +16,7 @@ namespace numkit::stats {
 /// Returns the standard test statistics: between-group p-value `p`,
 /// F-statistic, between/within degrees of freedom, and between/within
 /// sums-of-squares. The engine wrapper packs the auxiliary outputs
-/// into a 4×6 cell-array table to match MATLAB's
-/// `[p, tbl] = anova1(y, group, 'off')` form.
+/// into a 4×6 cell-array summary table.
 ///
 /// @param y      Response vector.
 /// @param group  Grouping labels (same length as `y`).

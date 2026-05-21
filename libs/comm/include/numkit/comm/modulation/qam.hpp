@@ -15,7 +15,7 @@ namespace numkit::comm {
 /// (`y = pammod(x, M, ini_phase, symbol_order)`).
 ///
 /// Maps a symbol `s ∈ 0..M-1` to a real-valued amplitude in
-/// `{-(M-1), …, -1, 1, …, (M-1)}`. MATLAB default: Gray ordering,
+/// `{-(M-1), …, -1, 1, …, (M-1)}`. Default: Gray ordering,
 /// no power normalisation.
 ///
 /// @param x             Integer symbols in `0..M-1`.

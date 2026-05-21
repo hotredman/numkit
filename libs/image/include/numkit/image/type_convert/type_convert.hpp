@@ -15,7 +15,7 @@ namespace numkit::image {
 /// @file
 /// @brief Image type-conversion helpers.
 ///
-/// **Scaling conventions** (matches MATLAB):
+/// **Scaling conventions:**
 /// - Float input is assumed to be in `[0, 1]` (clipped on conversion to
 ///   integer).
 /// - Integer ↔ float conversions scale by class range:
@@ -152,7 +152,7 @@ Value ind2gray(const Value &idx, const Value &map,
 
 /// @brief Indexed → RGB (`RGB = ind2rgb(idx, map)`).
 ///
-/// Float `idx` is 1-based; integer `idx` is 0-based (MATLAB convention).
+/// Float `idx` is 1-based; integer `idx` is 0-based.
 /// Out-of-range entries clip to the first / last colormap row.
 ///
 /// @param idx  Index image.
@@ -179,7 +179,7 @@ Value iptnum2ordinal(double n, std::pmr::memory_resource *mr = nullptr);
 /// Dispatches to the appropriate `im2*` helper based on the target
 /// class name. LOGICAL target maps non-zero entries to 1; casting
 /// from LOGICAL to integer maps true → `intmax` of the target.
-/// MATLAB's `"indexed"` third-arg mode is not yet supported.
+/// The `"indexed"` third-arg mode is not yet supported.
 ///
 /// @param I     Input image.
 /// @param type  Target class: `"double"`, `"single"`, `"uint8"`,
@@ -259,7 +259,7 @@ Value iscolormap(const Value &cmap, std::pmr::memory_resource *mr = nullptr);
 /// - 256 elements for UINT8 input.
 /// - 65536 elements for UINT16 / INT16 input.
 ///
-/// For INT16, the index is `A(i) + 32768` to match MATLAB semantics.
+/// For INT16, the index is `A(i) + 32768`.
 /// Output class equals `class(LUT)`.
 ///
 /// @param A    Integer image.

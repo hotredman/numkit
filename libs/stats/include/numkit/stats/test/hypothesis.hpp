@@ -142,8 +142,8 @@ kstest2(const Value &x, const Value &y, double alpha, TestTail tail,
 /// (`[h, p, jbstat, cv] = jbtest(x, alpha)`).
 ///
 /// Small samples (`n < 2000`) use Monte-Carlo simulation under H0
-/// for the p-value (matches MATLAB R2025b's tabulated-p behaviour);
-/// large `n` uses the asymptotic χ²(2). `p` capped at 0.5 like MATLAB.
+/// for the p-value; large `n` uses the asymptotic χ²(2). The
+/// p-value is capped at 0.5.
 ///
 /// @param x      Sample data.
 /// @param alpha  Significance level.

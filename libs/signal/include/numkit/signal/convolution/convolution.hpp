@@ -40,7 +40,7 @@ Value conv(const Value &                a,
 /// Polynomial long-division: `b = conv(a, q) + r`.
 ///
 /// Recovers the quotient `q` and remainder `r` such that the original
-/// polynomial relationship holds. MATLAB's `[q, r] = deconv(b, a)`.
+/// polynomial relationship holds (the `[q, r] = deconv(b, a)` form).
 ///
 /// @param b   Dividend polynomial (real row/column vector).
 /// @param a   Divisor polynomial.  `a[0]` must be non-zero.
@@ -148,7 +148,7 @@ Value conv2(const Value &                A,
             const std::string &          shape = "full",
             std::pmr::memory_resource *  mr    = nullptr);
 
-/// 2-D filter — MATLAB's `filter2(h, X[, shape])`.
+/// 2-D filter — `filter2(h, X[, shape])`.
 ///
 /// Equivalent to `conv2(X, rot90(h, 2), shape)`: the filter kernel `h`
 /// is rotated 180° before convolution, matching the engineering

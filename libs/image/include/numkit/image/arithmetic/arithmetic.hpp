@@ -18,7 +18,7 @@ namespace numkit::image {
 
 /// Saturating image addition (`Z = imadd(X, Y)`).
 ///
-/// Element-wise @f$ Z = X + Y @f$ with MATLAB-style saturation for
+/// Element-wise @f$ Z = X + Y @f$ with saturation for
 /// integer outputs (uint8 → clamp to [0, 255], uint16 → [0, 65535],
 /// int16 → [-32768, 32767]). Floating-point inputs pass through
 /// without clipping.
@@ -98,7 +98,7 @@ Value imcomplement(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// Linear combination of images (`Z = imlincomb(coefs, images, class)`).
 ///
 /// Computes @f$ Z = \sum_k c_k\,X_k @f$ and casts the result to
-/// `output_class` (with MATLAB-style saturation for integer classes).
+/// `output_class` (with saturation for integer classes).
 /// All images must share the same size.
 ///
 /// @param coefs         1-D vector of weights @f$ c_k @f$.

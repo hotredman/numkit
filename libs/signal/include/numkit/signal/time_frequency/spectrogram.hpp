@@ -43,7 +43,7 @@ spectrogram(const Value &                x,
 
 /// Full two-sided / centred / one-sided STFT.
 ///
-/// Matches MATLAB's `stft`. Defaults follow MATLAB R2025b:
+/// Defaults:
 ///   * window = `hann(128, 'periodic')`
 ///   * overlap = 96 (75%)
 ///   * fftLength = 128

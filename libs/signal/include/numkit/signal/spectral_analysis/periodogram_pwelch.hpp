@@ -23,7 +23,7 @@ namespace numkit::signal {
 /// @param window  Window vector (must have `numel(window) == numel(x)`).
 ///                `Value::Empty` → rectangular window (all ones).
 /// @param nfft    FFT size. `0` → `nextPow2(numel(x))`.
-/// @param fs      Sample rate in Hz. Default `2π` (matches MATLAB's
+/// @param fs      Sample rate in Hz. Default `2π` (the
 ///                normalised-radian convention).
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        Tuple `(Pxx, F)`:

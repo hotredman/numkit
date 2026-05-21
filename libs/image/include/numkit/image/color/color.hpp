@@ -16,11 +16,11 @@ namespace numkit::image {
 /// @brief Colour-space conversions, Lab helpers, colormaps.
 ///
 /// **Image shape convention.** Most colour-space conversions accept
-/// either an `H × W × 3` image (matching MATLAB) or an `N × 3` colormap
+/// either an `H × W × 3` image or an `N × 3` colormap
 /// (rows = pixels, cols = channels).
 ///
 /// **Output class.** `rgb2*` / `*2rgb` / `rgb2lab` / `lab2rgb` /
-/// `rgb2xyz` / `xyz2rgb` return DOUBLE (matches MATLAB).
+/// `rgb2xyz` / `xyz2rgb` return DOUBLE.
 ///
 /// **Integer input.** When the input is integer-typed, values are
 /// rescaled by the class range first; double / single inputs in
@@ -103,7 +103,7 @@ Value xyz2rgb(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @brief sRGB → CIE L\*a\*b\* (D65) (`lab = rgb2lab(rgb)`).
 ///
 /// Internally routes through @ref rgb2xyz → @ref xyz2lab. Output is
-/// DOUBLE Lab in MATLAB-canonical scale: `L* ∈ [0, 100]`,
+/// DOUBLE Lab in the canonical scale: `L* ∈ [0, 100]`,
 /// `a*, b* ∈ [-128, 127]` roughly.
 ///
 /// @param x   sRGB image / colormap.
@@ -308,8 +308,8 @@ Value flag_cmap(int n, std::pmr::memory_resource *mr = nullptr);
 /// @return    `n × 3` colormap.
 Value prism_cmap(int n, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief MATLAB axes-color-order palette (`map = lines(n)`).
-/// Cycles MATLAB R2025b's 7-row default order. `n == 1 → [0 0 1]`.
+/// @brief Axes-color-order palette (`map = lines(n)`).
+/// Cycles the 7-row default colour order. `n == 1 → [0 0 1]`.
 /// @param n   Row count. @param mr  Memory resource.
 /// @return    `n × 3` colormap.
 Value lines_cmap(int n, std::pmr::memory_resource *mr = nullptr);
@@ -390,7 +390,7 @@ Value brighten(const Value &map, double beta,
 
 /// @brief Histogram-equalising gray colormap (`cmap = contrast(x, m)`).
 ///
-/// Per MATLAB R2025b: scale `x` to `[0, m-1]` integers, concat with
+/// Algorithm: scale `x` to `[0, m-1]` integers, concat with
 /// `[0..m]`, sort, return rising-edge positions divided by their max
 /// as a length-≈`m` gray colormap. Three identical columns.
 ///
@@ -434,7 +434,6 @@ Value whitepoint(const std::string &illuminant,
 ///
 /// Each output row is `[y y y]` where `y` is the YIQ luminance
 /// `0.298936·R + 0.587043·G + 0.114021·B` clipped to `[0, 1]`.
-/// Matches MATLAB R2020b+.
 ///
 /// @param cmap  `N × 3` RGB colormap.
 /// @param mr    Memory resource (nullptr → process default).
@@ -448,7 +447,7 @@ Value cmap2gray(const Value &cmap, std::pmr::memory_resource *mr = nullptr);
 /// `N × 3` colormap (DOUBLE in `[0, 1]`). Pixels with label `== 0`
 /// take the `background` colour (default `[1, 1, 1]` = white).
 ///
-/// **MATLAB scope.** The full MATLAB signature accepts a colormap-name
+/// **Scope.** The full signature accepts a colormap-name
 /// string or a function handle for `cmap`; both require a `jet` /
 /// `hsv` / etc. generator that we don't expose yet, so callers must
 /// pass an explicit `N × 3` matrix here.

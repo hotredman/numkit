@@ -13,7 +13,7 @@ namespace numkit::signal {
 /// short outliers while preserving step-like edges (unlike linear
 /// smoothing, which blurs edges).
 ///
-/// Boundary handling uses truncation (MATLAB's default `'truncate'`
+/// Boundary handling uses truncation (the `'truncate'`
 /// mode): the window is shortened at the signal edges rather than
 /// zero-padded.
 ///

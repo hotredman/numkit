@@ -23,7 +23,7 @@ namespace numkit::comm {
 Value quantiz_indx(const Value &sig, const Value &partition,
                    std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Result of the three-output form of MATLAB's `quantiz`.
+/// @brief Result of the three-output form of `quantiz`.
 struct QuantizResult {
     Value  indx;     ///< Bin index per sample.
     Value  quantv;   ///< `codebook(indx + 1)`.

@@ -45,7 +45,7 @@ Value hz2bark(const Value &hz, std::pmr::memory_resource *mr = nullptr);
 /// @see hz2bark
 Value bark2hz(const Value &bark, std::pmr::memory_resource *mr = nullptr);
 
-/// Hertz → ERB (Glasberg & Moore 1990 with MATLAB-exact constants).
+/// Hertz → ERB (Glasberg & Moore 1990).
 ///
 /// Equivalent Rectangular Bandwidth scale used in psychoacoustic models.
 ///

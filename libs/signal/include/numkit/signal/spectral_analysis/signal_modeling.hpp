@@ -133,7 +133,7 @@ ac2rc(const Value &                R,
 
 /// Schur reflection coefficients from autocorrelation.
 ///
-/// Equivalent to the first output of `ac2rc`; matches MATLAB's `schurrc`.
+/// Equivalent to the first output of `ac2rc`.
 /// @param R   Autocorrelation sequence.
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Column vector of length `numel(R) - 1`.
@@ -258,7 +258,7 @@ prony(const Value &                h,
 ///
 /// Returns the `(n+m) × (m+1)` matrix X such that X'·X is the biased
 /// autocorrelation matrix Rxx (default `'autocorrelation'` method).
-/// Other MATLAB methods (`'covariance'`, `'prewindowed'`, etc.) deferred.
+/// Other methods (`'covariance'`, `'prewindowed'`, etc.) are deferred.
 ///
 /// @param x   Real 1-D signal.
 /// @param m   Order parameter (X has `m+1` columns).

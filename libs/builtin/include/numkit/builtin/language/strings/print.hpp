@@ -12,10 +12,10 @@ class Engine;
 
 namespace numkit::builtin {
 
-/// @brief Format one `Value` as MATLAB's `disp()` would, including
+/// @brief Format one `Value` the way `disp()` renders it, including
 /// the trailing newline.
 ///
-/// Exposed so embedders can reuse the MATLAB-style renderer without
+/// Exposed so embedders can reuse the renderer without
 /// needing an `Engine`.
 ///
 /// @param a  Value to render.
@@ -23,7 +23,7 @@ namespace numkit::builtin {
 /// @see disp, fprintf
 std::string dispFormat(const Value &a);
 
-/// @brief MATLAB `disp(a1, a2, …)` — render each argument and write
+/// @brief `disp(a1, a2, …)` — render each argument and write
 /// it to `engine.outputText()`.
 ///
 /// Engine-stateful — output is routed through the engine's text
@@ -35,9 +35,9 @@ std::string dispFormat(const Value &a);
 /// @see dispFormat, fprintf
 void disp(Engine &engine, Span<const Value> args);  // lint: engine-io
 
-/// @brief MATLAB `fprintf(...)`.
+/// @brief `fprintf(...)`.
 ///
-/// Two call forms (MATLAB disambiguation rule: "scalar then char"):
+/// Two call forms (disambiguation rule: "scalar then char"):
 /// - `fprintf(fmt, args…)`       — writes to stdout via
 ///                                  `engine.outputText()`.
 /// - `fprintf(fid, fmt, args…)`  — writes to file `fid` (≥ 3), or

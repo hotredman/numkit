@@ -38,7 +38,7 @@ Value ceil(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Round to nearest integer (`y = round(x)`).
 ///
-/// Ties round away from zero (MATLAB default).
+/// Ties round away from zero.
 ///
 /// @param x   Input array.
 /// @param mr  Memory resource (nullptr → process default).

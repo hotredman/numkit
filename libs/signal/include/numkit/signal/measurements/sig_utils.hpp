@@ -21,8 +21,8 @@ namespace numkit::signal {
 /// @return     Pair `(period, numRepetitions)` where
 ///             `numRepetitions = N / period` (as DOUBLE scalars).
 ///
-/// @note Vector input only in v1. MATLAB's matrix form operates
-///       column-wise — deferred.
+/// @note Vector input only in v1. The matrix (column-wise) form
+///       is deferred.
 std::pair<Value, Value>
 seqperiod(const Value &                x,
           double                       tol = 0.0,
@@ -31,8 +31,8 @@ seqperiod(const Value &                x,
 /// Zero-crossing rate of a signal.
 ///
 /// Counts sign changes of `(x - level)` over the input and returns the
-/// rate per sample. Boundary half-credit `+0.5` is applied per MATLAB
-/// R2025b's default `ZeroPositive = false`.
+/// rate per sample. Boundary half-credit `+0.5` is applied for the
+/// default `ZeroPositive = false` setting.
 ///
 /// @param x      Real 1-D signal.
 /// @param level  Threshold around which crossings are counted. Default 0.

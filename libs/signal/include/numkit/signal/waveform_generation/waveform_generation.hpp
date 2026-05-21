@@ -16,7 +16,7 @@ namespace numkit::signal {
 /// Rectangular pulse of unit amplitude on the open interval `(-w/2, w/2)`.
 ///
 /// \f$ y(t) = 1 \f$ inside the support, `0` outside; the boundary
-/// `|t| == w/2` returns `0` (open-interval convention, matches MATLAB).
+/// `|t| == w/2` returns `0` (open-interval convention).
 ///
 /// @param t   Time samples.
 /// @param w   Pulse width. Default 1.
@@ -42,7 +42,7 @@ Value tripuls(const Value &                t,
 ///
 /// \f$ y(t) = \exp(-\alpha t^2) \cos(2\pi f_c t) \f$
 /// where α is set so the envelope reaches `bw` fractional bandwidth at
-/// the -6 dB level (MATLAB convention, `bwr = -6 dB` hard-coded).
+/// the -6 dB level (`bwr = -6 dB` hard-coded).
 ///
 /// @param t   Time samples.
 /// @param fc  Centre frequency in Hz.
@@ -83,7 +83,7 @@ Value pulstran(const Value &                t,
 ///
 /// @param t   Output time grid (length n).
 /// @param d   Delay vector (length k).
-/// @param fn  MATLAB-style callback (1 vector in, 1 vector out).
+/// @param fn  Callback (1 vector in, 1 vector out).
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `n × 1` column-vector DOUBLE Value containing
 ///            `Σ_i fn(t - d_i)`.
@@ -240,8 +240,7 @@ Value demod(const Value &                y,
 ///
 /// `x ∈ [-1, 1]` modulates the instantaneous frequency. Centre-form:
 /// `-1 → 0 Hz`, `0 → Fc Hz`, `+1 → 2·Fc Hz`. Frequency modulation
-/// via rectangular `cumsum` integral approximation (matches MATLAB
-/// `modulate(..., 'fm')`).
+/// via rectangular `cumsum` integral approximation.
 ///
 /// @param x   Control signal in `[-1, 1]`.
 /// @param fc  Centre frequency in Hz (`x = 0` maps to this).

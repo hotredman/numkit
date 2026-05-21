@@ -247,8 +247,8 @@ EllipKE ellipke(const Value &m, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Airy function family (`y = airy(k, x)`).
 ///
-/// MATLAB convention:
-/// - `k = 0` → `Ai(x)`   (default in MATLAB if `k` omitted)
+/// Order convention:
+/// - `k = 0` → `Ai(x)`   (the default when `k` is omitted)
 /// - `k = 1` → `Ai'(x)`  (derivative)
 /// - `k = 2` → `Bi(x)`   (second-kind Airy)
 /// - `k = 3` → `Bi'(x)`

@@ -39,7 +39,7 @@ Value wthresh(const Value &X, const std::string &sorh, double T,
 /// Uses the median-absolute-deviation rule on each requested detail
 /// band:
 /// @f[ \hat\sigma_k = \text{median}(|cD_k|) / 0.6745 @f]
-/// This is the standard robust estimator (matches MATLAB R2025b).
+/// This is the standard robust estimator.
 ///
 /// @param C   Coefficient row from @ref wavedec.
 /// @param L   Bookkeeping row.
@@ -53,7 +53,7 @@ Value wnoisest(const Value &C, const Value &L, const Value &S,
 
 /// VisuShrink-style soft-threshold denoising (`y = wdenoise(x, level, wname)`).
 ///
-/// Pipeline (MATLAB R2025b default):
+/// Pipeline:
 ///   1. `[C, L] = wavedec(x, level, wname)` — multi-level DWT.
 ///   2. @f$ \hat\sigma = \text{median}(|cD_1|) / 0.6745 @f$ on the
 ///      finest detail band.

@@ -40,7 +40,7 @@ Value sosfilt(const Value &                sos,
 /// Equivalent to applying `sosfilt` once forward and once on the
 /// reversed signal (and reversing again), with Gustafsson initial
 /// conditions and reflection padding to suppress edge transients.
-/// Matches MATLAB's `filtfilt(d, x)` when `d` is a digitalFilter SOS
+/// This is the `filtfilt(d, x)` form where `d` is a digital-filter SOS
 /// object.
 ///
 /// Numerically stable for high-order IIR designs where direct (b, a)

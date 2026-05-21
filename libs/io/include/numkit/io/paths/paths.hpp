@@ -38,7 +38,7 @@ Value filesep(std::pmr::memory_resource *mr = nullptr);
 ///
 /// Joins `parts` with @ref filesep. Trailing separators on individual
 /// parts are normalised; absolute segments (after the first) are
-/// appended literally with a separator, matching MATLAB behaviour.
+/// appended literally with a separator, matching the platform convention.
 ///
 /// @param parts  Path segments to join.
 /// @param mr     Memory resource (nullptr → process default).

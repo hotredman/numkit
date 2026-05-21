@@ -12,7 +12,7 @@ namespace numkit::audio {
 
 /// Mel-band power spectrogram.
 ///
-/// Defaults (matching MATLAB R2025b):
+/// Defaults:
 ///   * `NumBands` = 32
 ///   * `FrequencyRange` = `[0, fs/2]`
 ///   * `MelStyle` = `'oshaughnessy'`

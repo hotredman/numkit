@@ -15,7 +15,7 @@ namespace numkit::stats {
 ///
 /// @f$ f(x; \mu, \sigma) = \dfrac{1}{\sigma}\,e^{t}\,e^{-e^{t}},
 ///     \ t = (x - \mu)/\sigma @f$.
-/// MATLAB parameterisation (`gumbel for minima`, NOT for maxima).
+/// Gumbel parameterisation for minima, NOT for maxima.
 ///
 /// @param x      Evaluation points (any shape).
 /// @param mu     Location parameter.

@@ -28,7 +28,7 @@ std::tuple<Value, Value>
 bwlabel(const Value &BW, int conn,
         std::pmr::memory_resource *mr = nullptr);
 
-/// @brief MATLAB-style connected-component struct
+/// @brief Connected-component struct
 /// (`CC = bwconncomp(BW, conn)`).
 ///
 /// Returns a 1×1 struct with fields:
@@ -48,8 +48,8 @@ Value bwconncomp(const Value &BW, int conn,
 
 /// @brief Total foreground area (`A = bwarea(BW)`).
 ///
-/// Returns the integer pixel count (the optional MATLAB
-/// quarter-pixel boundary correction is not applied).
+/// Returns the integer pixel count (the optional quarter-pixel
+/// boundary correction is not applied).
 ///
 /// @param BW  Binary image.
 /// @param mr  Memory resource (nullptr → process default).
@@ -212,8 +212,7 @@ Value bwareafilt(const Value &BW, double lo, double hi,
 /// (`[BW2, idx] = bwselect(BW, cols, rows, conn)`).
 ///
 /// Returns the union of every connected component that contains at
-/// least one of the seed pixels `(cols(k), rows(k))` (1-based,
-/// MATLAB convention).
+/// least one of the seed pixels `(cols(k), rows(k))` (1-based).
 ///
 /// @param BW    Binary image.
 /// @param cols  Seed column coordinates (1-based).

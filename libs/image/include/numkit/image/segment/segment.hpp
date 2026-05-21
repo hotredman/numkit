@@ -45,7 +45,7 @@ Value jaccard(const Value &A, const Value &B,
 /// connectivity-neighbour with a different label (i.e. a region
 /// edge).
 /// For a binary mask: returns the foreground perimeter, similar to
-/// MATLAB's `bwperim`.
+/// the `bwperim` operation.
 ///
 /// @param L_or_BW  Label image (any integer class) or binary mask.
 /// @param conn     Connectivity — 4 or 8 (default 8).
@@ -58,7 +58,7 @@ Value boundarymask(const Value &L_or_BW, int conn,
 /// (`idx = label2idx(L)`).
 ///
 /// Returns a column cell array. Entry `k` is a column vector of
-/// MATLAB-1-based linear indices of all pixels with label `k`. Label
+/// 1-based linear indices of all pixels with label `k`. Label
 /// 0 (background) is excluded.
 ///
 /// @param L   Integer-typed label image.
@@ -71,7 +71,7 @@ Value label2idx(const Value &L,
 ///
 /// 8-connected flood-fill: every neighbour whose intensity differs
 /// from the seed value by ≤ `tol` is accepted. Coordinates are
-/// 1-based (MATLAB convention).
+/// 1-based.
 ///
 /// @param I     Input image.
 /// @param row   Seed row (1-based).

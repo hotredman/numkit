@@ -20,7 +20,7 @@ namespace numkit::comm {
 ///   lie in [0, 1] and sum to 1 (within `sqrt(eps)`).
 ///
 /// When `have_state` is true, draws come from an isolated MT19937
-/// seeded with `state` (matches MATLAB's
+/// seeded with `state` (equivalent to
 /// `RandStream('mt19937ar','Seed', state)`); otherwise the shared
 /// engine is used.
 ///

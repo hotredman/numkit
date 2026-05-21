@@ -24,7 +24,7 @@ namespace numkit::signal {
 ///               * `p > 0`:  overlap with `p` initial-zero samples;
 ///               * `p < 0`:  skip `|p|` samples between frames.
 /// @param opt  String (`"nodelay"`) or numeric initial-condition
-///             vector; see MATLAB `buffer` docs.
+///             vector.
 ///             `Value::Empty` = default.
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Frame matrix `Y`.

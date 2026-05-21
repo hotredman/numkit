@@ -15,7 +15,7 @@ namespace numkit::stats {
 /// @brief Exponential pdf (`y = exppdf(x, mu)`).
 ///
 /// @f$ f(x; \mu) = e^{-x/\mu} / \mu @f$ for `x >= 0`, 0 elsewhere.
-/// MATLAB parameterises by the mean `mu`, NOT the rate (use `lambda = 1/mu`).
+/// Parameterised by the mean `mu`, NOT the rate (use `lambda = 1/mu`).
 ///
 /// @param x   Evaluation points (any shape).
 /// @param mu  Mean of the distribution (`mu > 0`).

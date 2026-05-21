@@ -16,8 +16,8 @@ namespace numkit::builtin {
 ///
 /// **Set ops** treat inputs as flat (column-major) value sets — no
 /// `'rows'` flag (`uniqueRows` is a separate function), no `'stable'`
-/// flag. Outputs are sorted ascending. NaN handling follows MATLAB
-/// convention: NaN compares unequal to itself, so each NaN counts as
+/// flag. Outputs are sorted ascending. NaN handling: NaN compares
+/// unequal to itself, so each NaN counts as
 /// distinct in `unique()` and is never matched in `ismember`.
 
 // ── Set operations ───────────────────────────────────────────────────
@@ -146,7 +146,7 @@ Value isprime(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @brief Prime factorisation (`f = factor(n)`).
 ///
 /// Returns the row of primes whose product is `n` (with multiplicity).
-/// MATLAB conventions: `factor(0) → [0]`, `factor(1) → [1]`.
+/// Edge cases: `factor(0) → [0]`, `factor(1) → [1]`.
 ///
 /// @param n   Scalar to factor.
 /// @param mr  Memory resource (nullptr → process default).

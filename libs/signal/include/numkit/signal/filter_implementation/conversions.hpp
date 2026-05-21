@@ -45,7 +45,7 @@ Value zp2sos(const Value &                zeros,
 ///
 /// Same biquad structure as `zp2sos` but the gain is returned separately;
 /// the SOS matrix itself has no leading scale (each first-numerator
-/// coefficient `b0` ≈ 1). Equivalent to MATLAB's `[sos, g] = zp2sos(…)`.
+/// coefficient `b0` ≈ 1). This is the `[sos, g] = zp2sos(…)` form.
 ///
 /// @param zeros  Zeros of the filter.
 /// @param poles  Poles of the filter.

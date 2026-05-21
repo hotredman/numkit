@@ -13,7 +13,7 @@ namespace numkit::optim {
 ///
 /// All functions take a @ref numkit::FnHandle callback for the user
 /// function — no `Engine` dependency in the library API. The engine
-/// adapter wraps a MATLAB function-handle Value in a lambda and
+/// adapter wraps a function-handle Value in a lambda and
 /// passes it as @ref FnHandle.
 
 /// @brief Scalar root-finder, initial-guess form (`x = fzero(fn, x0)`).
@@ -24,7 +24,7 @@ namespace numkit::optim {
 /// The callback receives a 1-element `args` (the scalar evaluation
 /// point) and writes its scalar result into `outs[0]`.
 ///
-/// @param fn   MATLAB-style callback (scalar in, scalar out).
+/// @param fn   Callback (scalar in, scalar out).
 /// @param x0   Initial guess.
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Scalar root.
@@ -38,7 +38,7 @@ Value fzero(FnHandle fn, double x0,
 /// Runs Brent's method on `[a, b]`. Throws if `sign(fn(a)) ==
 /// sign(fn(b))` (no sign change inside the interval).
 ///
-/// @param fn   MATLAB-style callback (scalar in, scalar out).
+/// @param fn   Callback (scalar in, scalar out).
 /// @param a    Lower bracket bound (must be finite, `a < b`).
 /// @param b    Upper bracket bound (must be finite, `a < b`).
 /// @param mr   Memory resource (nullptr → process default).
@@ -54,7 +54,7 @@ Value fzero(FnHandle fn, double a, double b,
 /// Brent's golden-section + parabolic-interpolation hybrid on
 /// `[lo, hi]`.
 ///
-/// @param fn   MATLAB-style callback (scalar in, scalar out).
+/// @param fn   Callback (scalar in, scalar out).
 /// @param lo   Lower bound.
 /// @param hi   Upper bound (`hi > lo`).
 /// @param tol  Convergence tolerance on the minimiser location.
@@ -71,7 +71,7 @@ Value fminbnd(FnHandle fn, double lo, double hi, double tol,
 /// 1-element `args` whose `[0]` entry is a `1 × n` DOUBLE row Value
 /// of length `n = x0.size()`, and writes a scalar into `outs[0]`.
 ///
-/// @param fn   MATLAB-style callback (vector in, scalar out).
+/// @param fn   Callback (vector in, scalar out).
 /// @param x0   Starting point (any length ≥ 1).
 /// @param tol  Convergence tolerance.
 /// @param mr   Memory resource (nullptr → process default).

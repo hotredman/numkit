@@ -15,12 +15,12 @@
 namespace numkit::stats {
 
 /// @file
-/// @brief Descriptive statistics. MATLAB-compatible signatures.
+/// @brief Descriptive statistics.
 ///
 /// **Conventions across this header:**
-/// - `dim` is 1-based (matches MATLAB).
-/// - `dim == 0` means "use the first non-singleton dim" (matches what
-///   MATLAB does when the user omits the argument).
+/// - `dim` is 1-based.
+/// - `dim == 0` means "use the first non-singleton dim" — the
+///   behaviour when the argument is omitted.
 /// - Vector / scalar inputs ignore `dim` — the whole input collapses
 ///   to a scalar.
 /// - For `var`/`std`: `normFlag == 0` → divide by `N-1` (unbiased,
@@ -63,7 +63,7 @@ Value median(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullpt
 
 /// @brief Empirical quantile (`q = quantile(X, p, dim)`).
 ///
-/// Linear interpolation between order statistics (MATLAB default).
+/// Linear interpolation between order statistics (the default).
 /// When `p` is a length-`k` vector, the reduced dim of the output has
 /// length `k` (one quantile per requested level).
 ///
@@ -90,7 +90,7 @@ Value prctile(const Value &x, const Value &p, int dim = 0, std::pmr::memory_reso
 /// @brief Mode and frequency (`[m, f] = mode(X, dim)`).
 ///
 /// Returns the most-frequent value (`m`) and its count (`f`). Ties
-/// are broken by returning the smallest value (MATLAB convention).
+/// are broken by returning the smallest value.
 ///
 /// @param x    Input array.
 /// @param dim  1-based dimension; 0 → first non-singleton dim.
@@ -169,7 +169,7 @@ Value iqr(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief `k` largest values along `dim` (`y = maxk(X, k, dim)`).
 ///
-/// Output is sorted descending. NaN sorts last (MATLAB convention).
+/// Output is sorted descending. NaN sorts last.
 ///
 /// @param x    Input array.
 /// @param k    Number of values to return.
@@ -206,7 +206,7 @@ Value rmse(const Value &f, const Value &a, int dim = 0, std::pmr::memory_resourc
 /// @brief Mean absolute percentage error (`e = mape(F, A, dim)`).
 ///
 /// `e = 100 · mean(|(A - F) / A|, dim)`. Zero entries in `A` produce
-/// `Inf` in the ratio (MATLAB matches).
+/// `Inf` in the ratio.
 ///
 /// @param f    Forecast values.
 /// @param a    Actual values.
@@ -412,7 +412,7 @@ prepareSurfaceData(const Value &x, const Value &y, const Value &z, std::pmr::mem
 /// @brief Dataset descriptive summary (`datastats(x)`).
 ///
 /// Returns the seven Curve-Fitting-Toolbox descriptors. `NaN` values
-/// propagate via the underlying reductions (matches MATLAB).
+/// propagate via the underlying reductions.
 ///
 /// @param x   Input array.
 /// @param mr  Memory resource (nullptr → process default).
