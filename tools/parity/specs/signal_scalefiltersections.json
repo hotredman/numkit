@@ -1,0 +1,10 @@
+{
+  "name": "signal_scalefiltersections",
+  "namespace": "signal",
+  "setup": "num = [1 0.5 0.2; 1 -0.3 0.1; 1 0.4 -0.05]; numc = [1 0.5+0.2i 0.1; 1 -0.3 0.4i];",
+  "expr": "rs = scaleFilterSections(num, 8); s11 = rs(1,1); s32 = rs(3,2); s33 = rs(3,3); rv = scaleFilterSections(num, [2 3 0.5 4]); v11 = rv(1,1); v21 = rv(2,1); v32 = rv(3,2); rk1 = scaleFilterSections([1 0.5 0.2], 8); k1 = rk1(2); rc = scaleFilterSections(numc, 8); cr = real(rc(1,2)); ci = imag(rc(1,2)); ci2 = imag(rc(2,3));",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["s11", "s32", "s33", "v11", "v21", "v32", "k1", "cr", "ci", "ci2"],
+  "comment": "Signal Processing toolbox scaleFilterSections — distribute scale values across the sections of a cascaded-transfer-function (CTF) numerator. CLEAN-ROOM implementation from public references (L. B. Jackson, Digital Filters and Signal Processing, 1996 — cascade realisation and gain distribution; Oppenheim & Schafer 3e §6.3, cascade-form structures) — see cleanroom/specs/scaleFilterSections.md. Algorithm: for K cascade sections the overall gain magnitude is spread as |g|^(1/K) across all sections and the sign is concentrated on the last section; a length-(K+1) scale vector additionally applies a per-section factor g[k]. Bit-equal MATLAB R2025b (tol 1e-9) on 10 fingerprints: scalar g on a 3-section filter, a length-4 scale vector, the single-section K=1 case, and complex numerator coefficients (the clean-room rewrite lifts a gap — the previous implementation handled real coefficients only). Octave 11.1.0 does not ship scaleFilterSections (introduced in MATLAB R2023b) — harness reports N/A there."
+}

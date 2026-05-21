@@ -85,5 +85,5 @@ recorded below.
 | bwmorph | Lam/Lee/Suen 1992; Pratt | (pending) | (pending) | (pending) | (pending) |
 | dpcmopt | Levinson-Durbin / Yule-Walker (textbook) | (pending) | (pending) | (pending) | (pending) |
 | polystab / polyscale | Oppenheim & Schafer 3e §3.2/§5.6; Markel & Gray 1976; Hayes 1996 | cleanroom/specs/polystab_polyscale.md | clean-room agent (per spec) | (this commit) | gtest 18/18 (incl. 3 MATLAB-independent property tests); parity signal_polyscale + signal_polystab correctness=OK |
-| scaleFilterSections | Jackson, Digital Filters & Signal Processing | (pending) | (pending) | (pending) | (pending) |
+| scaleFilterSections | Jackson, Digital Filters & Signal Processing 1996; O&S 3e §6.3 | cleanroom/specs/scaleFilterSections.md | clean-room agent (per spec) | (this commit) | gtest 11/11 CtfUtilsTest (incl. MATLAB-independent cascade-product test); parity signal_scalefiltersections correctness=OK — bit-equal MATLAB R2025b incl. complex coefficients |
 | fir2 | Oppenheim & Schafer 3e §7.4-7.5; Rabiner & Gold 1975; Parks & Burrus 1987 | cleanroom/specs/fir2.md | clean-room agent (per spec) | (this commit) | gtest 9/9 Fir2Test (incl. MATLAB-independent response test); parity signal_fir2 correctness=OK — bit-equal MATLAB R2025b on 20 fingerprints incl. npt/lap/window/odd-order |
