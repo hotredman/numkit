@@ -185,3 +185,24 @@ TEST_F(PitchHarmonicsTest, PitchRangeNVRejectsBadInput)
     } catch (...) { threw = true; }
     EXPECT_TRUE(threw);
 }
+
+// ── Correctness test: harmonic-rich signal, known f0 ─────────────────
+// The other pitch tests use a pure sine — a degenerate input for
+// harmonic pitch detection (no harmonic structure to sum). This test
+// feeds a genuine harmonic signal: a 150 Hz tone with 8 harmonics at
+// 1/k amplitude (sawtooth-like) — exactly what CEP / LHS / PEF / SRH
+// and the NCF default are designed for. The true f0 is known by
+// construction (MATLAB-independent). A correct estimate lands within a
+// couple of Hz of 150; the +/-10 Hz band fails an octave error
+// (75 / 300 Hz) or garbage.
+TEST_F(PitchHarmonicsTest, PitchAllMethodsHarmonic150Hz)
+{
+    eval("x = sin(2*pi*150*t) + sin(2*pi*300*t)/2 + sin(2*pi*450*t)/3"
+         "  + sin(2*pi*600*t)/4 + sin(2*pi*750*t)/5 + sin(2*pi*900*t)/6"
+         "  + sin(2*pi*1050*t)/7 + sin(2*pi*1200*t)/8;");
+    EXPECT_NEAR(evalScalar("mean(pitch(x, fs))"),                  150.0, 10.0); // NCF
+    EXPECT_NEAR(evalScalar("mean(pitch(x, fs, 'Method', 'CEP'))"), 150.0, 10.0);
+    EXPECT_NEAR(evalScalar("mean(pitch(x, fs, 'Method', 'LHS'))"), 150.0, 10.0);
+    EXPECT_NEAR(evalScalar("mean(pitch(x, fs, 'Method', 'PEF'))"), 150.0, 10.0);
+    EXPECT_NEAR(evalScalar("mean(pitch(x, fs, 'Method', 'SRH'))"), 150.0, 10.0);
+}
