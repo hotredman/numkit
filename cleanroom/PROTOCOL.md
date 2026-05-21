@@ -81,7 +81,7 @@ recorded below.
 | pitchSRH | Drugman & Alwan 2011 (Interspeech) | cleanroom/specs/pitchSRH.md | clean-room agent (per spec) | (this commit) | gtest 16/16; parity OK — paper-faithful, srh_first intentionally not MATLAB-matched (re-baselined) |
 | pitchPEF | Gonzalez & Brookes 2011 (EUSIPCO) | cleanroom/specs/pitchPEF.md | clean-room agent (per spec) | (this commit) | gtest 16/16; parity OK — paper-faithful (clean tone ~0.06% vs MATLAB; pef_r_first re-baselined) |
 | designMelFilterBankSlaney | Davis & Mermelstein 1980; Slaney 1998 | cleanroom/specs/designMelFilterBankSlaney.md | clean-room agent (per spec) | (this commit) | gtest 20/20; parity correctness=OK (bit-identical to MATLAB) |
-| adapthisteq | Zuiderveld 1994 (Graphics Gems IV) | (pending) | (pending) | (pending) | (pending) |
+| adapthisteq | Zuiderveld 1994 (Graphics Gems IV); Pizer et al. 1990 / 1987 | cleanroom/specs/adapthisteq.md | clean-room agent (per spec) | (this commit) | gtest 16/16 (incl. 3 MATLAB-independent property tests); parity correctness=OK — clean-room CLAHE functionally equivalent, not bit-identical (interior pixels re-baselined; shape + saturated corners + low-contrast spread kept in fingerprint) |
 | bwmorph | Lam/Lee/Suen 1992; Pratt | (pending) | (pending) | (pending) | (pending) |
 | dpcmopt | Levinson-Durbin / Yule-Walker (textbook) | (pending) | (pending) | (pending) | (pending) |
 | polystab / polyscale | Oppenheim & Schafer | (pending) | (pending) | (pending) | (pending) |
