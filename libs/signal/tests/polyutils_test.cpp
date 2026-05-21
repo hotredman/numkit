@@ -158,6 +158,33 @@ TEST_F(PolyUtilsTest, PolystabEmptyInput)
     EXPECT_EQ(static_cast<int>(evalScalar("numel(b)")), 0);
 }
 
+// Complex-root path cross-checked against MATLAB R2025b. The roots of
+// these polynomials include complex-conjugate pairs (A: one pair
+// outside the unit circle; C: a degree-5 mix of real and complex
+// roots), so they exercise the reflect-and-rebuild path that simple
+// real-root polynomials do not. Expected values are MATLAB R2025b
+// reference output (offline regression guard).
+TEST_F(PolyUtilsTest, PolystabComplexRootsMatchMatlab)
+{
+    // A = poly([1.5+0.5i, 1.5-0.5i, 0.4]) = [1 -3.4 3.7 -1].
+    // The complex pair has |root| = sqrt(2.5) > 1 and is reflected.
+    eval("bA = polystab([1 -3.4 3.7 -1]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(bA)")), 4);
+    EXPECT_NEAR(evalScalar("bA(1)"),  1.00, 1e-12);
+    EXPECT_NEAR(evalScalar("bA(2)"), -1.60, 1e-12);
+    EXPECT_NEAR(evalScalar("bA(3)"),  0.88, 1e-12);
+    EXPECT_NEAR(evalScalar("bA(4)"), -0.16, 1e-12);
+
+    // C: degree-5 polynomial, mixed real/complex roots.
+    eval("bC = polystab([1 -1.2 0.7 -2.1 0.3 0.5]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(bC)")), 6);
+    EXPECT_NEAR(evalScalar("bC(2)"), -0.545088121924205, 1e-12);
+    EXPECT_NEAR(evalScalar("bC(3)"),  0.294451845778127, 1e-12);
+    EXPECT_NEAR(evalScalar("bC(4)"), -0.481271049876727, 1e-12);
+    EXPECT_NEAR(evalScalar("bC(5)"), -0.005815419471494, 1e-12);
+    EXPECT_NEAR(evalScalar("bC(6)"),  0.105904581581909, 1e-12);
+}
+
 // ── MATLAB-independent correctness tests ──────────────────────────────
 // These verify the defining property of each function against a known
 // answer — no reference engine involved.
