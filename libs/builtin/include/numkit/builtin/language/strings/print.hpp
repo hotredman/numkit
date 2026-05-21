@@ -33,7 +33,7 @@ std::string dispFormat(const Value &a);
 /// @param engine  Engine context (provides `outputText()`).
 /// @param args    Values to render.
 /// @see dispFormat, fprintf
-void disp(Engine &engine, Span<const Value> args);
+void disp(Engine &engine, Span<const Value> args);  // lint: engine-io
 
 /// @brief MATLAB `fprintf(...)`.
 ///
@@ -49,6 +49,6 @@ void disp(Engine &engine, Span<const Value> args);
 /// @param args    `(fmt, args…)` or `(fid, fmt, args…)`.
 /// @throws Error  On invalid / non-writable fid or malformed format.
 /// @see disp, dispFormat
-void fprintf(Engine &engine, Span<const Value> args);
+void fprintf(Engine &engine, Span<const Value> args);  // lint: engine-io
 
 } // namespace numkit::builtin
