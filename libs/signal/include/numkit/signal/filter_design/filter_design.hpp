@@ -66,23 +66,47 @@ std::tuple<Value, Value>
 cell2sos(const Value &                C,
          std::pmr::memory_resource *  mr = nullptr);
 
-/// fir2(N, F, A) — arbitrary-response FIR via frequency-sampling +
-/// inverse FFT + Hamming window. Bit-equal MATLAB R2025b on the
-/// 3-arg form (npt=512 default for nn<1024, hamming default window,
-/// lap=floor(npt/25) transition smoothing).
+/// Optional arguments for @ref fir2. Defaults match MATLAB R2025b.
+struct Fir2Options {
+    /// Number of frequency-grid points (MATLAB `npt`). `0` selects the
+    /// default 512 (auto-grown for very long filters). A user value is
+    /// rounded up to the next power of two.
+    int   npt = 0;
+
+    /// Width, in grid points, of the smoothing region applied at a
+    /// duplicated break frequency (MATLAB `lap`). `0` selects the
+    /// default `floor(npt/25)`.
+    int   lap = 0;
+
+    /// Output window, a length-`(N+1)` vector. Empty selects the
+    /// default Hamming window.
+    Value window = Value::Empty;
+};
+
+/// @brief Frequency-sampling FIR filter design
+/// (`b = fir2(n, f, m [, npt] [, lap] [, window])`).
 ///
-/// @param N   Filter order. Output length is N+1.
-/// @param F   Break frequencies in [0, 1]. F(1)=0, F(end)=1, monotonic.
-/// @param A   Desired amplitude at each break frequency.
-/// @param mr  Memory resource (nullptr → process default).
+/// Designs an order-`n` FIR filter whose magnitude response is the
+/// piecewise-linear interpolation of the `(f, m)` breakpoints. The
+/// desired response is sampled on a uniform grid, inverse-transformed,
+/// and windowed (frequency-sampling method). An odd `n` with a non-zero
+/// response at the Nyquist frequency is increased by one.
 ///
-/// KNOWN GAP: optional npt/lap/wind args deferred.
+/// @param n     Filter order (positive integer). Output length is
+///              `n+1`, or `n+2` if `n` is odd-corrected.
+/// @param f     Break frequencies in [0, 1] (1 = Nyquist). `f(1)=0`,
+///              `f(end)=1`, non-decreasing.
+/// @param m     Desired amplitude at each break frequency.
+/// @param opts  Optional `npt` / `lap` / `window`; see @ref Fir2Options.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      Filter coefficients as a row vector.
 ///
 /// @code  Value b = fir2(50, {0,0.3,0.5,0.7,1}, {1,1,0,0,0});  @endcode
-Value fir2(int                          N,
-           const Value &                F,
-           const Value &                A,
-           std::pmr::memory_resource *  mr = nullptr);
+Value fir2(int                          n,
+           const Value &                f,
+           const Value &                m,
+           const Fir2Options &          opts = {},
+           std::pmr::memory_resource *  mr   = nullptr);
 
 /// firpm(N, F, A [, W] [, ftype]) — Parks-McClellan optimal equiripple
 /// FIR (Remez exchange). Returns (b, err) — `b` is the row vector of
