@@ -1,8 +1,15 @@
 // libs/comm/tests/dpcmopt_test.cpp
 //
-// Regression guard for dpcmopt() — DPCM parameter optimiser.
-// Levinson-Durbin from biased autocorrelation + lloyds() on the
-// prediction residual.
+// gtest coverage for dpcmopt() — DPCM parameter optimiser.
+//
+// dpcmopt is a clean-room implementation from public references
+// (Makhoul 1975; Proakis & Manolakis; Jayant & Noll 1984 — see
+// cleanroom/specs/dpcmopt.md): the autocorrelation method of linear
+// prediction (Yule-Walker via Levinson-Durbin) plus lloyds() on the
+// prediction residual. The hardcoded predictor / codebook values are
+// MATLAB R2025b reference output; the property test at the end checks
+// correctness MATLAB-independently (it recovers the coefficients of a
+// known AR process).
 
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
@@ -99,4 +106,30 @@ TEST_F(DpcmOptTest, RejectsTooShortTraining)
         eval("dpcmopt([1 2 3 4], 3);");
     } catch (...) { threw = true; }
     EXPECT_TRUE(threw);
+}
+
+// ── MATLAB-independent correctness test ───────────────────────────────
+// The predictor of an order-p autoregressive signal is, by definition,
+// its AR coefficients. Generate a training signal from a KNOWN AR(2)
+// process  x[n] = 1.4*x[n-1] - 0.5*x[n-2] + e[n]  (a strongly
+// predictable, stable process) and check that dpcmopt(x, 2) recovers a
+// predictor close to [0, 1.4, -0.5], and that the prediction residual
+// has far less energy than the training signal.
+TEST_F(DpcmOptTest, RecoversKnownARProcess)
+{
+    eval("rng(12345);\n"
+         "e = randn(1, 6000);\n"
+         "x = filter(1, [1 -1.4 0.5], e);\n"   // AR(2): a1=1.4, a2=-0.5
+         "p = dpcmopt(x, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("p(1)"), 0.0);
+    // Recovered predictor coefficients ≈ the true AR coefficients.
+    EXPECT_NEAR(evalScalar("p(2)"),  1.4, 0.06);
+    EXPECT_NEAR(evalScalar("p(3)"), -0.5, 0.06);
+
+    // The predictor removes most of the signal energy: the residual
+    // variance is far below the training-signal variance.
+    eval("xhat = filter([0 p(2) p(3)], 1, x);\n"
+         "resid = x - xhat;\n"
+         "vratio = var(resid) / var(x);");
+    EXPECT_LT(evalScalar("vratio"), 0.3);
 }
