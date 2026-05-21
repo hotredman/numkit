@@ -404,6 +404,38 @@ work — rely on them, don't reinvent:
 - The implementation file header cites its references — see
   [§5](#5-cite-original-references-in-the-implementation).
 
+### 19a. Trademark hygiene in published docs
+
+Public Doxygen comments are generated into the published HTML API
+reference — the product's public face. "MATLAB" is a registered
+trademark of The MathWorks, Inc., and numkit is a commercial product;
+treat trademark use in *published* docs with care.
+
+- **Do not narrate behavior through MATLAB.** A `@brief` / `@details`
+  describes what the function *does*, intrinsically — not "MATLAB's
+  `fzero` does X" or "as MATLAB does". The reader wants the function's
+  own contract, not a running comparison.
+- **One centralized compatibility statement.** The factual claim
+  "compatible with MATLAB R2025b semantics", with the trademark
+  attribution, lives **once** on the Doxygen main page
+  (`docs/doxygen_mainpage.dox`) — it is not repeated in every `@brief`.
+- **Nominative mentions are allowed but sparing.** Where naming the
+  reference is genuinely the clearest thing to say — a `@see`, a
+  one-line compatibility note on a specific quirk — a factual mention
+  is fine. The rule bans *narration*, not *facts*.
+- **Internal text is unrestricted.** `.cpp` comments, `PROGRESS.md`,
+  parity specs, `CLAUDE.md`, `CONTRIBUTING.md`, and this document name
+  MATLAB freely — it is the reference engine and must be named there.
+- Clean-room files cite *original papers and standards* as their source
+  ([§5](#5-cite-original-references-in-the-implementation)), never
+  "MATLAB".
+
+**Deliberately not linted.** A mechanical "no MATLAB token" check would
+only push contributors to delete the word to pass the build — a blind
+scrub that destroys provenance information. This is a PR-review item
+(see the checklist), applied with judgement and migrated
+opportunistically, never as a mass find-and-replace.
+
 ## 20. The Engine-adapter pattern
 
 The interpreter reaches a `libs/` function through a thin `*_reg`
@@ -553,6 +585,8 @@ public function added or changed:
           (mr last, native scalars, FnHandle, no Engine*, overload
           split, options struct, full-output return).
 - [ ] §19 Doxygen complete on every public declaration.
+- [ ] §19a Public Doxygen describes the function intrinsically —
+          no new behavior-narration through MATLAB.
 - [ ] Build green; full gtest + smoke suites pass (pre-existing
           failures only).
 ```
