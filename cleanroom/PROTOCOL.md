@@ -77,7 +77,7 @@ recorded below.
 | Function | Public reference | Spec | Implementer | Impl commit | Verification |
 |---|---|---|---|---|---|
 | pitchCEP | Noll 1967 (JASA 41(2)) | cleanroom/specs/pitchCEP.md | clean-room agent (per spec) | (this commit) | gtest 16/16; parity correctness=OK |
-| pitchLHS | Hermes 1988 (JASA 83(1)) | (pending) | (pending) | (pending) | (pending) |
+| pitchLHS | Hermes 1988 (JASA 83(1)) | cleanroom/specs/pitchLHS.md | clean-room agent (per spec) | (this commit) | gtest 16/16; parity correctness=OK |
 | pitchSRH | Drugman & Alwan 2011 (Interspeech) | (pending) | (pending) | (pending) | (pending) |
 | pitchPEF | Gonzalez & Brookes 2011 (EUSIPCO) | (pending) | (pending) | (pending) | (pending) |
 | designMelFilterBankSlaney | Slaney 1998 (Apple TR #45) | (pending) | (pending) | (pending) | (pending) |
