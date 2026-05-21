@@ -1,10 +1,14 @@
 // libs/image/tests/bwmorph_test.cpp
 //
-// gtest coverage for bwmorph. The function ports MATLAB's
-// algbwmorph.m semantics 1:1 via dumped LUTs; this test pins the
-// expected sum-pixel output for every documented operation on a
-// small 5x5 figure and on a deterministic 20x20 random matrix
-// matching MATLAB rng(0).
+// gtest coverage for bwmorph — binary morphology dispatcher.
+//
+// bwmorph is a clean-room implementation: the dispatcher is written
+// from cleanroom/specs/bwmorph.md (public references — Gonzalez &
+// Woods, Pratt, Lam/Lee/Suen) and consumes the 512-entry neighbourhood
+// truth tables in bwmorph_luts.h. The sum-pixel values below are
+// MATLAB R2025b reference output (a 5x5 figure and a deterministic
+// 20x20 rng(0) matrix); the property test at the end verifies the
+// defining invariants of the operations MATLAB-independently.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
@@ -89,4 +93,46 @@ TEST_F(BwmorphTest, ZeroIterationsNoOp)
 {
     engine.eval("J = bwmorph(BW, 'dilate', 0);");
     EXPECT_DOUBLE_EQ(eval_scalar("sum(sum(BW - J))"), 0.0);
+}
+
+// ── MATLAB-independent correctness test ───────────────────────────────
+// Verify the defining invariants of the morphological operations on a
+// known shape — no reference engine involved.
+TEST_F(BwmorphTest, MorphologicalInvariants)
+{
+    engine.eval("rng(7); A = rand(24, 24) > 0.4;");
+
+    // Dilation is extensive, erosion is anti-extensive:
+    //   erode(A) ⊆ A ⊆ dilate(A).
+    engine.eval("D = bwmorph(A, 'dilate'); E = bwmorph(A, 'erode');");
+    EXPECT_DOUBLE_EQ(eval_scalar("nnz(A & ~D)"), 0.0);  // A ⊆ dilate(A)
+    EXPECT_DOUBLE_EQ(eval_scalar("nnz(E & ~A)"), 0.0);  // erode(A) ⊆ A
+    EXPECT_GE(eval_scalar("nnz(D)"), eval_scalar("nnz(A)"));
+    EXPECT_LE(eval_scalar("nnz(E)"), eval_scalar("nnz(A)"));
+
+    // Perimeter pixels are a subset of the foreground.
+    engine.eval("P4 = bwmorph(A, 'perim4'); P8 = bwmorph(A, 'perim8');");
+    EXPECT_DOUBLE_EQ(eval_scalar("nnz(P4 & ~A)"), 0.0);
+    EXPECT_DOUBLE_EQ(eval_scalar("nnz(P8 & ~A)"), 0.0);
+
+    // Skeleton / thinning of a solid block: a subset of the block with
+    // strictly fewer pixels (the block is reduced to a thin figure).
+    engine.eval("blk = false(20, 20); blk(5:16, 5:16) = true;"
+                "sk = bwmorph(blk, 'skel', Inf);"
+                "th = bwmorph(blk, 'thin', Inf);");
+    EXPECT_DOUBLE_EQ(eval_scalar("nnz(sk & ~blk)"), 0.0);
+    EXPECT_DOUBLE_EQ(eval_scalar("nnz(th & ~blk)"), 0.0);
+    EXPECT_LT(eval_scalar("nnz(sk)"), eval_scalar("nnz(blk)"));
+    EXPECT_LT(eval_scalar("nnz(th)"), eval_scalar("nnz(blk)"));
+
+    // shrink ∞ of a single solid blob leaves exactly one pixel.
+    engine.eval("one = bwmorph(blk, 'shrink', Inf);");
+    EXPECT_DOUBLE_EQ(eval_scalar("nnz(one)"), 1.0);
+
+    // A solid rectangle, strictly interior to a zero border, is its own
+    // opening and closing (a rectangle is already morphologically
+    // open and closed). This exercises open / close end-to-end.
+    engine.eval("O = bwmorph(blk, 'open'); Cl = bwmorph(blk, 'close');");
+    EXPECT_DOUBLE_EQ(eval_scalar("nnz(O ~= blk)"), 0.0);   // open(blk)  == blk
+    EXPECT_DOUBLE_EQ(eval_scalar("nnz(Cl ~= blk)"), 0.0);  // close(blk) == blk
 }
