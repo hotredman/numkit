@@ -1,7 +1,7 @@
 // libs/comm/include/numkit/comm/eq/scrambler.hpp
 //
 // Multiplicative bit scrambler / descrambler — the function-form
-// equivalent of MATLAB's comm.Scrambler / comm.Descrambler System
+// equivalent of the comm.Scrambler / comm.Descrambler System
 // Objects.
 
 #pragma once

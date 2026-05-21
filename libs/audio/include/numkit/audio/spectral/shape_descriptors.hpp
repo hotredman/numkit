@@ -1,6 +1,6 @@
 // libs/audio/include/numkit/audio/spectral/shape_descriptors.hpp
 //
-// MATLAB Audio Toolbox spectral shape descriptors.
+// Audio spectral shape descriptors.
 
 #pragma once
 
@@ -10,7 +10,7 @@
 namespace numkit::audio {
 
 /// @file
-/// @brief Spectral-shape descriptors (Audio Toolbox).
+/// @brief Spectral-shape descriptors.
 ///
 /// **Two input forms** (shared by every function in this header):
 /// 1. `(x, fs)` — `x` is a column-vector time-domain signal, `fs` is
@@ -92,9 +92,8 @@ Value spectralFlux(const Value &x, const Value &f, double p = 2.0,
                    std::pmr::memory_resource *mr = nullptr);
 
 // ─────────────────────────────────────────────────────────────────────
-// Cycle I: shape statistics. All match MATLAB R2025b Signal Toolbox.
-// Frequency moments (Kurtosis / Skewness) use the X-weighted
-// central-moment formula from MATLAB's `spectralSkewness.m`.
+// Shape statistics. Frequency moments (kurtosis / skewness) use the
+// standard X-weighted central-moment definition.
 // ─────────────────────────────────────────────────────────────────────
 
 /// @brief Spectral crest — `max(X) / mean(X)` per frame.

@@ -1,6 +1,6 @@
 // libs/signal/include/numkit/signal/spectral_analysis/spectral_metrics.hpp
 //
-// Spectral measurement functions (MATLAB Signal Processing Toolbox).
+// Spectral measurement functions.
 
 #pragma once
 

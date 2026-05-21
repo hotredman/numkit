@@ -411,7 +411,7 @@ prepareSurfaceData(const Value &x, const Value &y, const Value &z, std::pmr::mem
 
 /// @brief Dataset descriptive summary (`datastats(x)`).
 ///
-/// Returns the seven Curve-Fitting-Toolbox descriptors. `NaN` values
+/// Returns the seven curve-fitting descriptors. `NaN` values
 /// propagate via the underlying reductions.
 ///
 /// @param x   Input array.

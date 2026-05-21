@@ -1,7 +1,7 @@
 // libs/stats/include/numkit/stats/distributions/uniform.hpp
 //
 // Continuous uniform distribution on [a, b]. Closed-form throughout.
-// MATLAB defaults: a = 0, b = 1.
+// Defaults: a = 0, b = 1.
 
 #pragma once
 

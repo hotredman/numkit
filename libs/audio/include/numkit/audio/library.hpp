@@ -1,7 +1,6 @@
 // libs/audio/include/numkit/audio/library.hpp
 //
-// Audio Toolbox builtins. Mirrors MATLAB's documentation root
-// `/help/audio/`. Function-form only — no System Object hierarchy.
+// Audio builtins — function-form only, no System Object hierarchy.
 
 #pragma once
 

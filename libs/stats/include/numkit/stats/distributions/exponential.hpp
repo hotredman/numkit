@@ -1,6 +1,6 @@
 // libs/stats/include/numkit/stats/distributions/exponential.hpp
 //
-// Exponential distribution. MATLAB parameterization uses the MEAN μ
+// Exponential distribution. Parameterized by the MEAN μ
 // (NOT the rate λ): f(x; μ) = exp(-x/μ) / μ. Special case Gamma(1, μ).
 
 #pragma once

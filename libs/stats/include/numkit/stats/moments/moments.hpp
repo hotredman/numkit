@@ -1,6 +1,6 @@
 // libs/stats/include/numkit/stats/moments/moments.hpp
 //
-// Higher moments: skewness, kurtosis. MATLAB Statistics Toolbox semantics.
+// Higher moments: skewness, kurtosis.
 
 #pragma once
 

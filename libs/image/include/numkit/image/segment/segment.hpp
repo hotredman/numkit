@@ -1,8 +1,8 @@
 // libs/image/include/numkit/image/segment/segment.hpp
 //
 // Image-segmentation utilities and similarity metrics. The
-// "deep-learning" entries from MATLAB's segment family
-// (segmentAnythingModel, imsegsam, …) are intentionally omitted.
+// "deep-learning" segmentation entries (segmentAnythingModel,
+// imsegsam, …) are intentionally omitted.
 
 #pragma once
 

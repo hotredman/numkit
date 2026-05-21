@@ -1,7 +1,7 @@
 // libs/image/include/numkit/image/arithmetic/arithmetic.hpp
 //
 // Image arithmetic. Element-wise operations on image arrays with
-// MATLAB-style saturation semantics for integer types
+// saturating semantics for integer types
 // (uint8/uint16/int16) and pass-through for floating types.
 //
 // All operations broadcast scalars and accept mismatched-but-castable

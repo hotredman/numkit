@@ -226,7 +226,7 @@ Value wavelength2rgb(const Value &wavelength, const std::string &out_class,
 Value colorangle(const Value &rgb1, const Value &rgb2,
                  std::pmr::memory_resource *mr = nullptr);
 
-// ── Standard MATLAB colormaps ───────────────────────────────────────
+// ── Standard colormaps ───────────────────────────────────────
 //
 // All follow the convention:
 // - `n` defaults to 256 in adapters (we don't track figure state).

@@ -1,7 +1,7 @@
 // libs/stats/include/numkit/stats/distributions/geometric.hpp
 //
 // Geometric distribution (number of failures before the first success).
-// MATLAB convention: f(k; p) = (1-p)^k · p,   k = 0, 1, 2, ...
+// Convention: f(k; p) = (1-p)^k · p,   k = 0, 1, 2, ...
 
 #pragma once
 

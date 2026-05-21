@@ -2,7 +2,7 @@
 //
 // Boolean classifiers for digital filters: isfir / isallpass / isstable /
 // islinphase / isminphase / ismaxphase. All take (b) or (b, a) and
-// return a logical scalar. Tolerances follow MATLAB's defaults.
+// return a logical scalar.
 
 #pragma once
 

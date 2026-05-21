@@ -1,7 +1,7 @@
 // libs/stats/include/numkit/stats/distributions/normal.hpp
 //
 // Normal (Gaussian) distribution functions: pdf / cdf / icdf / rnd /
-// stat — MATLAB Statistics Toolbox parity.
+// stat.
 
 #pragma once
 
