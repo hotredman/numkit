@@ -92,3 +92,33 @@ TEST_F(MelspecDeltaTest, AudioDeltaConstantInputZeroDelta)
     // For constant input, delta should be 0 (after the filter warms up).
     EXPECT_NEAR(evalScalar("d(10)"), 0.0, 1e-12);
 }
+
+// ── Correctness: mel filterbank localises a pure tone ────────────────
+// MATLAB-independent check. A correct mel filterbank, fed a pure tone,
+// must concentrate its energy in the mel band whose centre frequency is
+// nearest the tone, and a higher tone must peak in a higher band. This
+// exercises the triangular mel filterbank end-to-end against a known
+// answer (the tone frequency) rather than a reference engine.
+TEST_F(MelspecDeltaTest, MelSpecLocalizesPureTone)
+{
+    eval("fs = 16000; t = (0:1/fs:0.5)';");
+
+    // Low tone — 500 Hz.
+    eval("xLo = sin(2*pi*500*t);"
+         "[Slo, Flo, Tlo] = melSpectrogram(xLo, fs);"
+         "eLo = sum(Slo, 2);"
+         "[mLo, kLo] = max(eLo);");
+    EXPECT_NEAR(evalScalar("Flo(kLo)"), 500.0, 300.0);   // peak band near 500 Hz
+    EXPECT_GT(evalScalar("mLo / sum(eLo)"), 0.15);       // energy localised
+
+    // High tone — 3000 Hz.
+    eval("xHi = sin(2*pi*3000*t);"
+         "[Shi, Fhi, Thi] = melSpectrogram(xHi, fs);"
+         "eHi = sum(Shi, 2);"
+         "[mHi, kHi] = max(eHi);");
+    EXPECT_NEAR(evalScalar("Fhi(kHi)"), 3000.0, 500.0);
+    EXPECT_GT(evalScalar("mHi / sum(eHi)"), 0.15);
+
+    // Frequency ordering: the higher tone peaks in a higher mel band.
+    EXPECT_GT(evalScalar("kHi"), evalScalar("kLo"));
+}
