@@ -105,87 +105,109 @@ size_t nextPow2(size_t x)
 
 } // anon
 
-// ── pitch CEP method (cycle K) ────────────────────────────────────────
-// Cepstrum-based pitch estimation. Matches MATLAB R2025b
-// audio.internal.pitch.CEP.m exactly:
-//   1. Apply hamming(winLen, 'periodic') to each frame.
-//   2. NFFT = 2^nextpow2(2*winLen - 1) (always power of 2).
-//   3. domain = real(ifft(log(|fft(yw, NFFT)|^2)))
-//   4. edge = round(fs ./ fliplr([minF, maxF]))
-//   5. Find peak of `domain` in lag range [edge[0], edge[1]].
-//   6. f0 = fs / peakLag.
+// ── pitch CEP method ──────────────────────────────────────────────────
+// Cepstrum-based fundamental-frequency (pitch) estimation.
 //
-// Reference: Noll, "Cepstrum Pitch Determination", JASA 41(2), 1967.
-Value pitchCEP(const Value &x, double fs, double minF, double maxF, std::pmr::memory_resource *mr)
+// Reference: A. M. Noll, "Cepstrum Pitch Determination", Journal of the
+// Acoustical Society of America 41(2):293-309, 1967.
+//
+// Clean-room reimplementation — see cleanroom/specs/pitchCEP.md. Per
+// frame: window, zero-pad, DFT, log power spectrum, inverse DFT back to
+// the quefrency domain; the cepstral peak inside the quefrency band for
+// [minF, maxF] gives f0. The frame is zero-padded to nextPow2(2*winLen-1)
+// so the cepstrum is free of time-domain aliasing.
+//
+// Compatibility: MATLAB's CEP reports the period from a 1-based
+// quefrency index, so a cepstrum sample at 0-based array index q
+// corresponds to a period of (q+1) samples; hence f0 = fs/(q+1) and the
+// search band is shifted down by one index.
+Value pitchCEP(const Value &x, double fs, double minF, double maxF,
+               std::pmr::memory_resource *mr)
 {
-    const size_t N = x.numel();
-    const FrameSpec sp = frameSpec(N, fs, 0.052, 0.042);
-    Value out = Value::matrix(sp.numFrames, sp.numFrames == 0 ? 0 : 1,
-                              ValueType::DOUBLE, mr);
-    if (sp.numFrames == 0) return out;
-    // edge = round(fs ./ fliplr([minF, maxF])) = [round(fs/maxF), round(fs/minF)]
-    const size_t edgeLo = static_cast<size_t>(std::round(fs / maxF));
-    const size_t edgeHi = static_cast<size_t>(std::round(fs / minF));
-    if (edgeHi <= edgeLo || edgeHi >= sp.winLen) return out;
+    // Framing — MATLAB pitch defaults: 52 ms window, 42 ms overlap.
+    const std::size_t N = x.numel();
+    const FrameSpec fr = frameSpec(N, fs, 0.052, 0.042);
+    const std::size_t winLen    = fr.winLen;
+    const std::size_t hop       = fr.hop;
+    const std::size_t numFrames = fr.numFrames;
+    if (numFrames == 0 || winLen == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
-    // NFFT = next power of 2 >= 2*winLen - 1 (CEP uses zero-padded FFT).
-    const size_t NFFT = nextPow2(2 * sp.winLen - 1);
+    // Zero-pad to a power of two >= 2*winLen-1 (anti-aliasing the cepstrum).
+    const std::size_t NFFT = nextPow2(2 * winLen - 1);
 
-    ScratchArena scratch(mr);
-    ScratchVec<double> win(sp.winLen, &scratch);
-    hammingPeriodic(win.data(), sp.winLen);
+    ScratchArena arena(mr);
+    ScratchVec<double> win(winLen, &arena);
+    hammingPeriodic(win.data(), winLen);
 
-    // Build batched matrix of windowed frames, NFFT × numFrames (zero-padded).
-    Value framesV = Value::matrix(NFFT, sp.numFrames, ValueType::DOUBLE, mr);
-    double *fd = framesV.doubleDataMut();
-    std::fill(fd, fd + NFFT * sp.numFrames, 0.0);
-    for (size_t f = 0; f < sp.numFrames; ++f) {
-        const size_t start = f * sp.hop;
-        for (size_t i = 0; i < sp.winLen; ++i)
-            fd[i + f * NFFT] = x.elemAsDouble(start + i) * win[i];
-    }
-
-    // FFT along dim 1 (each column independently), then |·|², log, ifft → real.
-    Value Y = signal::fft(framesV, static_cast<int>(NFFT), 1, mr);
-    // Apply log(|Y|²) = 2*log(|Y|). Since input to ifft must be a Value:
-    // build a complex Value of the log-power spectrum (imag=0).
-    Value logPow = Value::matrix(NFFT, sp.numFrames, ValueType::COMPLEX, mr);
-    Complex *lpd = logPow.complexDataMut();
-    const Complex *Yd = Y.complexData();
-    const double tinyLog = std::log(std::numeric_limits<double>::min());
-    for (size_t i = 0; i < NFFT * sp.numFrames; ++i) {
-        const double re = Yd[i].real();
-        const double im = Yd[i].imag();
-        const double pw = re * re + im * im;
-        const double lp = (pw > 0.0) ? std::log(pw) : tinyLog;
-        lpd[i] = Complex(lp, 0.0);
-    }
-
-    // ifft along dim 1.
-    Value cepstrumV = signal::ifft(logPow, static_cast<int>(NFFT), 1, mr);
-    // ifft of real-symmetric input is real. Take real part for the cepstrum domain.
-    // cepstrumV may be returned as DOUBLE (auto-downgraded by libs/signal::ifft)
-    // or COMPLEX. Handle both.
-    auto getReal = [&](size_t idx) -> double {
-        if (cepstrumV.type() == ValueType::COMPLEX)
-            return cepstrumV.complexData()[idx].real();
-        return cepstrumV.doubleData()[idx];
-    };
-
-    // Peak picking per frame in lag range [edgeLo, edgeHi].
-    // MATLAB CEP.m uses 1-based indexing: searches domain(edgeLo:edgeHi),
-    // converts the resulting MATLAB-1-based location to f0 = fs/loc.
-    // In 0-based C++ terms this means: read domain[k-1] for MATLAB index k,
-    // and f0 = fs/k where k is the MATLAB 1-based index.
-    double *od = out.doubleDataMut();
-    for (size_t f = 0; f < sp.numFrames; ++f) {
-        double bestVal = -std::numeric_limits<double>::infinity();
-        size_t bestLag1 = edgeLo;  // MATLAB 1-based index
-        for (size_t k = edgeLo; k <= edgeHi && (k - 1) < NFFT; ++k) {
-            const double v = getReal((k - 1) + f * NFFT);
-            if (v > bestVal) { bestVal = v; bestLag1 = k; }
+    // Column f holds the f-th windowed, zero-padded frame.
+    Value frames = Value::matrix(NFFT, numFrames, ValueType::DOUBLE, &arena);
+    double *fd = frames.doubleDataMut();
+    std::fill(fd, fd + NFFT * numFrames, 0.0);
+    for (std::size_t f = 0; f < numFrames; ++f) {
+        const std::size_t base = f * hop;
+        double *col = fd + f * NFFT;
+        for (std::size_t n = 0; n < winLen; ++n) {
+            const std::size_t idx = base + n;
+            col[n] = (idx < N) ? x.elemAsDouble(idx) * win[n] : 0.0;
         }
-        od[f] = (bestLag1 > 0) ? fs / static_cast<double>(bestLag1) : 0.0;
+    }
+
+    // Forward DFT of every frame, then the log power spectrum.
+    Value Y = signal::fft(frames, static_cast<int>(NFFT), 1, &arena);
+    Value logspec = Value::matrix(NFFT, numFrames, ValueType::DOUBLE, &arena);
+    double *ld = logspec.doubleDataMut();
+    const double kLogFloor = std::log(std::numeric_limits<double>::min());
+    const std::size_t total = NFFT * numFrames;
+    if (Y.type() == ValueType::COMPLEX) {
+        const Complex *yd = Y.complexData();
+        for (std::size_t i = 0; i < total; ++i) {
+            const double re = yd[i].real(), im = yd[i].imag();
+            const double p2 = re * re + im * im;
+            ld[i] = (p2 > 0.0) ? std::log(p2) : kLogFloor;
+        }
+    } else {
+        const double *yd = Y.doubleData();
+        for (std::size_t i = 0; i < total; ++i) {
+            const double p2 = yd[i] * yd[i];
+            ld[i] = (p2 > 0.0) ? std::log(p2) : kLogFloor;
+        }
+    }
+
+    // Real cepstrum c[q] = real(IDFT(logspec)).
+    Value C = signal::ifft(logspec, static_cast<int>(NFFT), 1, &arena);
+    const bool cIsComplex = (C.type() == ValueType::COMPLEX);
+    const Complex *cc = cIsComplex ? C.complexData() : nullptr;
+    const double  *cr = cIsComplex ? nullptr        : C.doubleData();
+
+    // Quefrency search band. A period of p samples gives f0 = fs/p, so the
+    // pitch range [minF, maxF] maps to p in [fs/maxF, fs/minF]. With the
+    // 1-based quefrency convention (period = array index + 1) the array
+    // index range is [round(fs/maxF)-1, round(fs/minF)-1].
+    Value out = Value::matrix(numFrames, 1, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+
+    long qLo = 0, qHi = -1;
+    if (minF > 0.0 && maxF > 0.0) {
+        qLo = static_cast<long>(std::lround(fs / maxF)) - 1;
+        qHi = static_cast<long>(std::lround(fs / minF)) - 1;
+    }
+    if (qLo < 0) qLo = 0;
+    if (qHi > static_cast<long>(NFFT) - 1) qHi = static_cast<long>(NFFT) - 1;
+    const bool rangeValid = (qLo <= qHi);
+
+    for (std::size_t f = 0; f < numFrames; ++f) {
+        if (!rangeValid) { od[f] = 0.0; continue; }
+        const std::size_t colOff = f * NFFT;
+        long   qBest = qLo;
+        double cBest = -std::numeric_limits<double>::infinity();
+        for (long q = qLo; q <= qHi; ++q) {
+            const std::size_t idx = colOff + static_cast<std::size_t>(q);
+            const double cq = cIsComplex ? cc[idx].real() : cr[idx];
+            if (cq > cBest) { cBest = cq; qBest = q; }
+        }
+        // 1-based quefrency convention: period = qBest + 1 samples.
+        od[f] = fs / static_cast<double>(qBest + 1);
     }
     return out;
 }
