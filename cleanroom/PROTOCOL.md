@@ -84,6 +84,6 @@ recorded below.
 | adapthisteq | Zuiderveld 1994 (Graphics Gems IV); Pizer et al. 1990 / 1987 | cleanroom/specs/adapthisteq.md | clean-room agent (per spec) | (this commit) | gtest 16/16 (incl. 3 MATLAB-independent property tests); parity correctness=OK — clean-room CLAHE functionally equivalent, not bit-identical (interior pixels re-baselined; shape + saturated corners + low-contrast spread kept in fingerprint) |
 | bwmorph | Lam/Lee/Suen 1992; Pratt | (pending) | (pending) | (pending) | (pending) |
 | dpcmopt | Levinson-Durbin / Yule-Walker (textbook) | (pending) | (pending) | (pending) | (pending) |
-| polystab / polyscale | Oppenheim & Schafer | (pending) | (pending) | (pending) | (pending) |
+| polystab / polyscale | Oppenheim & Schafer 3e §3.2/§5.6; Markel & Gray 1976; Hayes 1996 | cleanroom/specs/polystab_polyscale.md | clean-room agent (per spec) | (this commit) | gtest 18/18 (incl. 3 MATLAB-independent property tests); parity signal_polyscale + signal_polystab correctness=OK |
 | scaleFilterSections | Jackson, Digital Filters & Signal Processing | (pending) | (pending) | (pending) | (pending) |
 | fir2 | Oppenheim & Schafer (frequency sampling) | (pending) | (pending) | (pending) | (pending) |

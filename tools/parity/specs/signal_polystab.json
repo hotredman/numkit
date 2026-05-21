@@ -1,0 +1,10 @@
+{
+  "name": "signal_polystab",
+  "namespace": "signal",
+  "setup": "a = [1 -2.5 1]; az = [0 1 -2.5 1]; as = [1 -0.5];",
+  "expr": "b = polystab(a); b1 = b(1); b2 = b(2); b3 = b(3); nb = numel(b); bz = polystab(az); bz1 = bz(1); bz2 = bz(2); bz3 = bz(3); nbz = numel(bz); bs = polystab(as); bs1 = bs(1); bs2 = bs(2);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["b1", "b2", "b3", "nb", "bz1", "bz2", "bz3", "nbz", "bs1", "bs2"],
+  "comment": "Signal Processing toolbox polystab — stabilise a polynomial (minimum-phase version): reflect every root with |root| > 1 to its conjugate reciprocal 1/conj(root) inside the unit circle, keeping the magnitude-response shape (scaled by a constant gain). CLEAN-ROOM implementation from public references (Oppenheim & Schafer 3e §5.6 minimum-phase systems / conjugate-reciprocal root reflection; Hayes 1996 spectral factorisation) — see cleanroom/specs/polystab_polyscale.md. Algorithm: roots(a) -> reflect outside roots -> poly() -> multiply by the first non-zero coefficient of a. Matches MATLAB R2025b within tol 1e-12 (the small tolerance absorbs the roots->poly round-trip noise): [1 -2.5 1] -> [1 -1 0.25], leading zeros ignored ([0 1 -2.5 1] gives the same length-3 result), already-stable [1 -0.5] returned unchanged. KNOWN GAP: complex-coefficient input is unsupported because numkit's roots handles real polynomials only (the previous implementation had the same limitation). Octave 11.1.0 does not ship polystab in core — harness reports N/A there."
+}
