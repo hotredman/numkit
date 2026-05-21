@@ -1,135 +1,185 @@
 // libs/comm/src/source/dpcmopt.cpp
 //
-// DPCM parameter optimiser:
-//   predictor                       = dpcmopt(training, ord)
-//   [predictor, codebook, partition] = dpcmopt(training, ord, ini_codebook)
+// DPCM parameter optimiser — clean-room reimplementation.
 //
-// Algorithm (per MATLAB R2025b's dpcmopt.m):
+// Designs an FIR linear predictor of order `ord` from a training
+// signal by the autocorrelation method (Yule-Walker normal equations
+// solved by the Levinson-Durbin recursion), and optionally a Lloyd-Max
+// scalar quantiser for the resulting prediction residual.
 //
-//   1. Estimate autocorrelations r(i) for i = 1..ord+2 using
-//      MATLAB's biased / "denominator (N - i + 1)" formula: in
-//      the source it's `training(1:N-i+1)' * training(i:N) / (N-i)`.
-//      Note: divisor is (N - i), NOT (N - i + 1). This is intentional.
-//
-//   2. Levinson-Durbin recursion to solve the Yule-Walker system,
-//      producing the AR coefficients A(z).
-//
-//   3. The DPCM predictor is `P = [0, p1, ..., pM]` with
-//      `p_k = -a_{k+1}` (after dropping the leading 1 of A(z)).
-//
-//   4. If a codebook is requested, run lloyds() on the prediction
-//      residual to get optimal partition + codebook.
+// Clean-room implementation written from cleanroom/specs/dpcmopt.md and
+// the public references it cites:
+//  - J. Makhoul, "Linear Prediction: A Tutorial Review",
+//    Proc. IEEE 63(4):561-580, 1975 (autocorrelation method +
+//    Levinson-Durbin recursion);
+//  - J. G. Proakis & D. G. Manolakis, "Digital Signal Processing",
+//    4th ed., 2007 (Levinson-Durbin algorithm);
+//  - N. S. Jayant & P. Noll, "Digital Coding of Waveforms", 1984
+//    (DPCM predictive coding, residual quantisation);
+//  - S. P. Lloyd, "Least Squares Quantization in PCM",
+//    IEEE Trans. Inf. Theory 28(2):129-137, 1982.
 
 #include <numkit/comm/source/dpcmopt.hpp>
 #include <numkit/comm/source/lloyds.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
+#include <numkit/core/value.hpp>
 
-#include <algorithm>
-#include <cmath>
-#include <vector>
+#include <cstddef>
+#include <tuple>
+#include <utility>
 
 namespace numkit::comm {
 
 namespace {
 
-void readVec(const Value &v, std::vector<double> &out)
+// Estimate the autocorrelation of `x` (length N) for lags 0..ord using
+// the unbiased, sample-variance-style estimator
+//
+//   r[k] = ( sum_{n=0}^{N-1-k} x[n]*x[n+k] ) / (N - 1 - k)
+//
+// The lag-k sum has N-k terms; the denominator is N-1-k (one less than
+// the term count). The caller guarantees N >= ord + 3 so every
+// denominator (N-1-k for k <= ord) is strictly positive.
+void autocorrelation(const double *x, std::size_t N, int ord, double *r)
 {
-    const size_t N = v.numel();
-    out.resize(N);
-    for (size_t i = 0; i < N; ++i) out[i] = v.elemAsDouble(i);
-}
-
-Value rowFrom(std::pmr::memory_resource *mr,
-              const std::vector<double> &v)
-{
-    Value out = Value::matrix(1, v.size(), ValueType::DOUBLE, mr);
-    if (!v.empty()) std::copy(v.begin(), v.end(), out.doubleDataMut());
-    return out;
-}
-
-} // namespace
-
-DpcmOptResult
-dpcmopt(const Value &training_set, int ord,
-        const Value &ini_codebook,
-        std::pmr::memory_resource *mr)
-{
-    if (ord < 1)
-        throw Error("dpcmopt: ord must be a positive integer",
-                    0, 0, "dpcmopt", "", "m:dpcmopt:InvalidOrd");
-    std::vector<double> training;
-    readVec(training_set, training);
-    const size_t N = training.size();
-    if (N < static_cast<size_t>(ord + 3))
-        throw Error("dpcmopt: training_set too short for given ord",
-                    0, 0, "dpcmopt", "", "m:dpcmopt:InvalidInput");
-
-    // ── Autocorrelation r(i) for i = 1..ord+2 (1-based) ──
-    // r(i) = sum(training(1:N-i+1) .* training(i:N)) / (N - i)
-    std::vector<double> r(static_cast<size_t>(ord + 2), 0.0);
-    for (int i = 1; i <= ord + 2; ++i) {
-        double s = 0.0;
-        const size_t L = N - static_cast<size_t>(i - 1);   // length(1:N-i+1)
-        for (size_t j = 0; j < L; ++j)
-            s += training[j] * training[j + static_cast<size_t>(i - 1)];
-        r[static_cast<size_t>(i - 1)] =
-            s / static_cast<double>(N - static_cast<size_t>(i));
+    for (int k = 0; k <= ord; ++k) {
+        double acc = 0.0;
+        const std::size_t last = N - static_cast<std::size_t>(k);  // N-k terms
+        for (std::size_t n = 0; n < last; ++n)
+            acc += x[n] * x[n + static_cast<std::size_t>(k)];
+        r[k] = acc / static_cast<double>(N - 1 - static_cast<std::size_t>(k));
     }
+}
 
-    // ── Levinson-Durbin recursion ──
-    // predictor (1-based) = [1, 0, 0, ..., 0]; length ord+1.
-    std::vector<double> predictor(static_cast<size_t>(ord + 1), 0.0);
-    predictor[0] = 1.0;
+// Levinson-Durbin recursion: solve the order-`ord` Yule-Walker normal
+// equations for the prediction-error filter A(z) = [1, a1, ..., a_ord].
+//
+// `a` is initialised to [1, 0, ..., 0] and D <- r[0]; then for
+// m = 0..ord-1:
+//   beta = sum_{j=0}^{m} a[j] * r[m+1-j]
+//   K    = -beta / D
+//   a[1..m+1] += K * reverse(a[0..m])     (update in place)
+//   D    = (1 - K*K) * D
+//
+// Scratch `prev` (length ord+1) holds a snapshot of `a` before the
+// in-place update so the reversed term is read from the pre-update
+// coefficients.
+void levinson_durbin(const double *r, int ord, double *a, double *prev)
+{
+    for (int i = 0; i <= ord; ++i)
+        a[i] = 0.0;
+    a[0] = 1.0;
+
     double D = r[0];
+
     for (int m = 0; m < ord; ++m) {
-        // beta = predictor(1:m+1) * r(m+2:-1:2)
-        // i.e. dot(predictor[0..m], r[m+1..1] reversed)
         double beta = 0.0;
         for (int j = 0; j <= m; ++j)
-            beta += predictor[static_cast<size_t>(j)]
-                  * r[static_cast<size_t>(m + 1 - j)];
-        const double K = -beta / D;
-        // predictor(2:m+2) += K * predictor(m+1:-1:1)
-        // i.e. predictor[1..m+1] += K * reverse(predictor[0..m])
-        std::vector<double> upd(static_cast<size_t>(m + 1));
-        for (int j = 0; j <= m; ++j)
-            upd[static_cast<size_t>(j)] =
-                predictor[static_cast<size_t>(m - j)];
-        for (int j = 0; j <= m; ++j)
-            predictor[static_cast<size_t>(j + 1)] +=
-                K * upd[static_cast<size_t>(j)];
+            beta += a[j] * r[m + 1 - j];
+
+        // D == 0 only for a degenerate (all-zero / constant) signal;
+        // guard against a division by zero — K = 0 leaves `a` and D
+        // unchanged, yielding a zero predictor tail.
+        const double K = (D != 0.0) ? (-beta / D) : 0.0;
+
+        for (int i = 0; i <= m; ++i)
+            prev[i] = a[i];
+        // a[1..m+1] += K * reverse(a[0..m])
+        for (int i = 1; i <= m + 1; ++i)
+            a[i] += K * prev[m + 1 - i];
+
         D = (1.0 - K * K) * D;
     }
+}
 
-    // ── DPCM predictor: P = [0, p1, ..., pM] = -A(z) with leading 0 ──
-    predictor[0] = 0.0;
-    for (auto &p : predictor) p = -p;
+}  // namespace
 
-    DpcmOptResult res;
-    res.predictor = rowFrom(mr, predictor);
+DpcmOptResult dpcmopt(const Value &training_set, int ord,
+                      const Value &ini_codebook,
+                      std::pmr::memory_resource *mr)
+{
+    // ── Argument validation ──────────────────────────────────────
+    if (ord < 1)
+        throw numkit::Error("The predictor order must be a positive "
+                            "integer.",
+                            0, 0, "dpcmopt", "", "m:dpcmopt:InvalidOrd");
 
-    if (!ini_codebook.isEmpty()) {
-        // Compute prediction residual.
-        // err(k) = training(ord+1+k) - predictor * training(ord+1+k:-1:1+k)
-        // 0-based: for i = ord..N-1,
-        //   err[i - ord] = training[i] - dot(predictor[1..ord], training[i-1..i-ord])
-        std::vector<double> err(N - static_cast<size_t>(ord));
-        for (size_t i = static_cast<size_t>(ord); i < N; ++i) {
+    const std::size_t N = training_set.numel();
+    // N must be at least ord + 3 so the smallest autocorrelation
+    // denominator (N-1-ord) is >= 2.
+    if (N < static_cast<std::size_t>(ord) + 3)
+        throw numkit::Error("The size of the training set is not large "
+                            "enough for the given predictor order.",
+                            0, 0, "dpcmopt", "", "m:dpcmopt:InvalidInput");
+
+    numkit::ScratchArena arena(mr);
+
+    // ── Read the training signal into contiguous scratch ─────────
+    // elemAsDouble accepts a row or column vector.
+    numkit::ScratchVec<double> x(N, &arena);
+    for (std::size_t i = 0; i < N; ++i)
+        x[i] = training_set.elemAsDouble(i);
+
+    // ── Autocorrelation estimate, lags 0..ord ────────────────────
+    numkit::ScratchVec<double> r(static_cast<std::size_t>(ord) + 1, &arena);
+    autocorrelation(x.data(), N, ord, r.data());
+
+    // ── Levinson-Durbin: prediction-error filter A(z) ────────────
+    // a = [1, a1, ..., a_ord]
+    numkit::ScratchVec<double> a(static_cast<std::size_t>(ord) + 1, &arena);
+    numkit::ScratchVec<double> prev(static_cast<std::size_t>(ord) + 1,
+                                    &arena);
+    levinson_durbin(r.data(), ord, a.data(), prev.data());
+
+    // ── Predictor = [0, -a1, -a2, ..., -a_ord] ───────────────────
+    // The leading 0 occupies the "current sample" slot; predictor[k]
+    // is the weight on x[n-k].
+    DpcmOptResult result;
+    result.predictor = Value::matrix(1, static_cast<std::size_t>(ord) + 1,
+                                     ValueType::DOUBLE, mr);
+    {
+        double *p = result.predictor.doubleDataMut();
+        p[0] = 0.0;
+        for (int k = 1; k <= ord; ++k)
+            p[k] = -a[k];
+    }
+
+    // ── Optional quantiser on the prediction residual ────────────
+    if (ini_codebook.isEmpty()) {
+        // No third argument: codebook / partition stay empty.
+        return result;
+    }
+
+    // Prediction residual, length N - ord:
+    //   e[i-ord] = x[i] - sum_{k=1}^{ord} predictor[k] * x[i-k]
+    const std::size_t resLen = N - static_cast<std::size_t>(ord);
+    const double *p = result.predictor.doubleData();
+
+    Value residual = Value::matrix(1, resLen, ValueType::DOUBLE, mr);
+    {
+        double *e = residual.doubleDataMut();
+        for (std::size_t i = static_cast<std::size_t>(ord); i < N; ++i) {
             double pred = 0.0;
             for (int k = 1; k <= ord; ++k)
-                pred += predictor[static_cast<size_t>(k)]
-                      * training[i - static_cast<size_t>(k)];
-            err[i - static_cast<size_t>(ord)] = training[i] - pred;
+                pred += p[k] * x[i - static_cast<std::size_t>(k)];
+            e[i - static_cast<std::size_t>(ord)] = x[i] - pred;
         }
-        Value err_v = rowFrom(mr, err);
-        auto [partition, codebook, distor, rel] =
-            lloyds(err_v, ini_codebook, 1e-7, mr);
-        res.codebook  = std::move(codebook);
-        res.partition = std::move(partition);
     }
-    return res;
+
+    // Lloyd-Max quantiser. `lloyds` returns (partition, codebook,
+    // distor, rel); ini_codebook is forwarded as-is — lloyds itself
+    // disambiguates a scalar codebook-length from an explicit codebook.
+    auto [partition, codebook, distor, rel] =
+        numkit::comm::lloyds(residual, ini_codebook, 1e-7, mr);
+    (void)distor;
+    (void)rel;
+
+    result.partition = std::move(partition);
+    result.codebook = std::move(codebook);
+    return result;
 }
 
 namespace detail {
