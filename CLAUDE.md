@@ -30,6 +30,16 @@ surface to the user**. Do not silently work on top of someone else's work.
 - Co-authored trailer required (see prior commits for style).
 - `main` is the integration branch. Never force-push.
 
+## Public API conventions
+
+Every public function in `libs/<ns>/include/numkit/<ns>/**` follows
+[docs/LIBRARY_API.md](docs/LIBRARY_API.md) — the authoritative API
+ruleset (argument order, native scalar types vs `const Value &` vs
+`Span<const double>`, `FnHandle` callbacks, no `Engine *` in public
+signatures, magic-polymorphism → typed overloads, multi-output return
+shape). Read it before adding or refactoring any public `libs/`
+function.
+
 ## Smoke tests
 
 - Hand-runnable `.m` smokes live in `libs/<name>/tests/smoke/*_smoke.m`

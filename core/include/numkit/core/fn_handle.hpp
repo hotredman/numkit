@@ -10,7 +10,7 @@
 // `outs.size()` plays the role of MATLAB's `nargout`.
 //
 // Library-side example:
-//   Value fzero(FnHandle fn, const Value &x0, mr);
+//   Value fzero(FnHandle fn, double x0, mr);
 //
 // User-side (C++):
 //   auto root = fzero(
@@ -18,7 +18,7 @@
 //           double x = args[0].toScalar();
 //           outs[0] = Value::scalar(x*x - 2.0, mr);  // honour caller mr
 //       },
-//       Value::matrix(...), mr);
+//       /*x0=*/1.0, mr);
 //
 // Engine-adapter side (libs/optim/src/local/fzero.cpp):
 //   void fzero_reg(args, nargout, outs, ctx) {
