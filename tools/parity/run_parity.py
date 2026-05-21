@@ -74,6 +74,11 @@ class Spec:
     # as text; cells of chars get one element per line. Set on specs
     # whose output is small enough that 1× full-print is acceptable.
     out_var: str = ""
+    # Grouped spec — one engine run validates several functions at once.
+    # When non-empty, PROGRESS rows are updated for every name listed
+    # here (each row gets the same measurement); `name` then only
+    # labels the spec file. Empty → single-function spec keyed by `name`.
+    covers: list[str] = field(default_factory=list)
 
     @classmethod
     def from_json(cls, path: Path) -> "Spec":
@@ -446,7 +451,8 @@ def make_row_finder(name: str) -> re.Pattern:
 
 def update_row(*, name: str, nk: Result | None,
                ml: Result | None, oc: Result | None,
-               correctness: str, comment: str) -> int:
+               correctness: str, comment: str,
+               implemented: bool = False) -> int:
     """Update every row in PROGRESS.md whose function-name matches
     `name`. Returns the number of rows touched. If the function isn't in
     the journal yet (new entry not yet added by regenerate_progress.py),
@@ -468,9 +474,17 @@ def update_row(*, name: str, nk: Result | None,
     def replace(m: re.Match) -> str:
         nonlocal touched
         touched += 1
+        # Status is TODO-seeded and otherwise preserved — but a spec
+        # that actually ran in numkit proves the function is NOT
+        # missing, so self-heal a stale ❌ up to ✅. ⚠️ and ✅ are left
+        # as-is (⚠️ partial is never auto-promoted; only a human
+        # downgrades).
+        cur_status = m.group("status").strip()
+        if implemented and cur_status == "❌":
+            cur_status = "✅"
         return ROW_FMT.format(
             name=name,
-            status=m.group("status").strip(),  # preserve TODO ✅/❌/⚠️
+            status=cur_status,
             nk_ms=fmt_ms(nk_ms),
             vs_M=fmt_ratio(ml_ms, nk_ms),
             vs_O=fmt_ratio(oc_ms, nk_ms),
@@ -578,11 +592,15 @@ def run_one(spec_path: Path, *, no_matlab: bool, no_octave: bool, verbose: bool)
                 correctness = "MISMATCH"
                 status = "DONE"
 
-    n = update_row(
-        name=spec.name,
-        nk=nk, ml=ml, oc=oc,
-        correctness=correctness, comment=spec.comment,
-    )
+    targets = spec.covers or [spec.name]
+    n = 0
+    for nm in targets:
+        n += update_row(
+            name=nm,
+            nk=nk, ml=ml, oc=oc,
+            correctness=correctness, comment=spec.comment,
+            implemented=nk.ok,
+        )
     print(f"  -> status={status}  correctness={correctness}  rows updated: {n}",
           flush=True)
     return 0 if status == "DONE" and correctness in ("OK", "N/A") else 1
