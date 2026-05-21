@@ -865,8 +865,9 @@ Value pitch(const Value &x, double fs, double minF, double maxF, std::pmr::memor
 }
 
 // ── harmonicRatio ─────────────────────────────────────────────────────
-// Matches MATLAB R2025b harmonicRatio.m exactly:
-//   1. Auto low-edge per frame: first sign change of R[k] for k >= 1.
+// Harmonic ratio (MPEG-7 / Peeters 2004), normalized-autocorrelation
+// form. Per frame:
+//   1. Auto low-edge: first sign change of R[k] for k >= 1.
 //   2. Search peak γ in [lowEdge, highEdge=winLen-1].
 //   3. Parabolic interpolation around peak (Smith's quadratic peak).
 //   4. Clip to [0, 1].
@@ -914,7 +915,7 @@ Value harmonicRatio(const Value &x, double fs, std::pmr::memory_resource *mr)
             if (s != prev_sign) { lowEdge = k + 1; break; }
         }
         if (lowEdge < 1) lowEdge = 1;
-        // MATLAB: Gamma(1:max(lowEdge,1),i) = 0  (1-based) → zero 0..lowEdge-1.
+        // Zero the normalized correlation below the low edge (0..lowEdge-1).
         for (size_t k = 0; k < lowEdge && k < mLag; ++k) gamma[k] = 0.0;
 
         // Find peak.

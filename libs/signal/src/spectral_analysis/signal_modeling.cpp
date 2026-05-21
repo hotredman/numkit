@@ -663,16 +663,10 @@ Value lsf2poly(const Value &lsf, std::pmr::memory_resource *mr)
     const int m = static_cast<int>(lv.size());
     if (m == 0) return rowVec(std::vector<double>{1.0}, mr);
 
-    // MATLAB algorithm (Signal Processing Toolbox lsf2poly):
-    //   p_roots = lsf(1:2:end)  (1-indexed odd → 0-indexed even)
-    //   q_roots = lsf(2:2:end)
-    //   For m odd:
-    //     A = poly([p_roots; conj(p_roots)])               degree m+1
-    //     B = poly([q_roots; conj(q_roots); -1; 1])        degree m+1
-    //   For m even:
-    //     A = poly([p_roots; conj(p_roots); -1])           degree m+1
-    //     B = poly([q_roots; conj(q_roots);  1])           degree m+1
-    //   a = ((A + B) / 2)(1:end-1)                         length m+1
+    // LSF -> LPC conversion (Kabal & Ramachandran, IEEE TASSP, 1986).
+    // The LSF angles split into two interleaved sets (even / odd
+    // index) that build the symmetric / antisymmetric polynomials
+    // P and Q; a = ((P + Q) / 2) with the trailing element dropped.
     //
     // Each conjugate-pair root z = e^{±iθ} contributes the real
     // quadratic factor (1 - 2cos(θ) z^-1 + z^-2). The boundary roots
