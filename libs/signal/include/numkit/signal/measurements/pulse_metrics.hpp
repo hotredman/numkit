@@ -1,7 +1,7 @@
 // libs/signal/include/numkit/signal/measurements/pulse_metrics.hpp
 //
 // Pulse and transition metrics for digital / step-shaped time-series.
-// MATLAB Signal Processing Toolbox `risetime / falltime / overshoot /
+// The pulse-metric family: `risetime / falltime / overshoot /
 // undershoot / settlingtime / dutycycle / midcross / pulsewidth /
 // pulseperiod / pulsesep / slewrate / statelevels` family.
 //
@@ -11,7 +11,7 @@
 //     so samples are the time unit. When supplied, returned times are in
 //     seconds.
 //   * Reference levels come from `statelevels(x)` unless explicit levels
-//     are supplied. State boundaries are the canonical MATLAB defaults:
+//     are supplied. State boundaries use the canonical defaults:
 //     10% / 90% for rise / fall, 50% for mid-state, 2% for "settled".
 //   * Outputs are column vectors; empty when no transition / pulse found.
 

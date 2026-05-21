@@ -2,7 +2,7 @@
 //
 // Texture-analysis primitives. The gray-level co-occurrence matrix
 // (GLCM) and its property extractors are the work-horses of
-// MATLAB's Texture Analysis tooling.
+// texture analysis.
 
 #pragma once
 

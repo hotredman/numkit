@@ -1,6 +1,6 @@
 // libs/signal/include/numkit/signal/digital_filtering/shiftdata.hpp
 //
-// MATLAB Signal Toolbox shiftdata + unshiftdata (Phase 4.4):
+// shiftdata + unshiftdata (Phase 4.4):
 // utilities for writing dim-aware functions. shiftdata moves the
 // chosen dim to dim 1 (leading); unshiftdata reverses.
 

@@ -9,8 +9,7 @@ namespace numkit::signal {
 // ─────────────────────────────────────────────────────────────────────
 // Window generators — every function returns an N×1 DOUBLE column.
 //
-// MATLAB compatibility: shapes and values bit-identical to R2025b for
-// the documented forms.
+// Shapes and values are bit-identical for the documented forms.
 // ─────────────────────────────────────────────────────────────────────
 
 /// Hamming window of length N.

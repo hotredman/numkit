@@ -1,7 +1,7 @@
 // libs/control/include/numkit/control/state/place.hpp
 //
 // Pole-placement state-feedback design via Ackermann's formula.
-// SISO only — multi-input MATLAB `place` uses Kautsky–Nichols
+// SISO only — the multi-input `place` variant uses Kautsky–Nichols
 // eigenvector assignment, which we don't support here.
 
 #pragma once

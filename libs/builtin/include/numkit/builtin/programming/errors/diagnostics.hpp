@@ -11,7 +11,7 @@ class Engine;
 
 namespace numkit::builtin {
 
-// ── MATLAB error() ───────────────────────────────────────────────────
+// ── error() ───────────────────────────────────────────────────
 
 /// @brief Throw an Error (`error(...)`).
 ///

@@ -1,6 +1,6 @@
 // libs/stats/include/numkit/stats/distributions/gamma_dist.hpp
 //
-// Gamma distribution Gamma(a, b) — MATLAB convention: a = shape, b = scale.
+// Gamma distribution Gamma(a, b): a = shape, b = scale.
 
 #pragma once
 

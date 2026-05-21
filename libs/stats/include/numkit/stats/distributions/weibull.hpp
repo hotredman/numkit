@@ -1,6 +1,6 @@
 // libs/stats/include/numkit/stats/distributions/weibull.hpp
 //
-// Weibull distribution. MATLAB convention: a = scale, b = shape, so
+// Weibull distribution. Convention: a = scale, b = shape, so
 // f(x) = (b/a)·(x/a)^(b-1)·exp(-(x/a)^b). Note std::weibull_distribution
 // takes (shape, scale) — opposite order.
 

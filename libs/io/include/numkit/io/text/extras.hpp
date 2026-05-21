@@ -1,6 +1,6 @@
 // libs/io/include/numkit/io/text/extras.hpp
 //
-// Modern text-file helpers (R2014b+ MATLAB).
+// Modern text-file helpers.
 
 #pragma once
 

@@ -1,6 +1,6 @@
 // libs/signal/include/numkit/signal/digital_filtering/buffer.hpp
 //
-// MATLAB R2025b Signal Toolbox `buffer` — partition a signal into
+// `buffer` — partition a signal into
 // (possibly overlapping or underlapping) frames.
 
 #pragma once

@@ -1,7 +1,7 @@
 // libs/comm/include/numkit/comm/library.hpp
 //
-// Communications Toolbox builtins. Mirrors MATLAB's documentation root
-// `/help/comm/`. Function-form only — no System Object hierarchy.
+// Communications builtins — function-form only, no System Object
+// hierarchy.
 
 #pragma once
 
