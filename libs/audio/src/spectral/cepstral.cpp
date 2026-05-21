@@ -88,84 +88,73 @@ void slaneyBandEdges(double *edges, size_t numEdges = 42)
         edges[i] = edges[i - 1] * 1.0711703;
 }
 
-// Slaney-style mel filter bank (designDomain='Hz', FilterBankDesignDomain='linear'):
-// Triangles drawn directly in linear-Hz domain over numEdges-2 bands.
-// Normalization='Bandwidth' → divide each band by (edges[k+2]-edges[k])/2.
-// Returns one-sided filterbank H × numBands (column-major), where H=NFFT/2+1.
+// ---------------------------------------------------------------------------
+// designMelFilterBankSlaney — Slaney-style triangular mel filterbank.
 //
-// Algorithm matches audio.internal.designMelFilterBank.m exactly:
-//   linFq = (0..NFFT-1)/NFFT * fs              (full spectrum frequency axis)
-//   p[i]  = first index where linFq[index] > edges[i]   (1-based)
-//   bw[k] = edges[k+1] - edges[k]
-//   For band k = 1..validNumBands:
-//     rising:  j ∈ [p[k], p[k+1]-1]:  fb[j,k] = (linFq[j]-edges[k]) / bw[k]
-//     falling: j ∈ [p[k+1], p[k+2]-1]: fb[j,k] = (edges[k+2]-linFq[j]) / bw[k+1]
-//   Bandwidth norm: fb[:,k] /= (edges[k+2]-edges[k])/2
+// Each band k places one triangular filter spanning three consecutive mel
+// band edges edges[k] < edges[k+1] < edges[k+2]: the filter rises linearly
+// from 0 at edges[k] to 1 at edges[k+1], then falls linearly back to 0 at
+// edges[k+2] (overlapping-triangle filterbank of Davis & Mermelstein 1980).
+// The filter is sampled on the one-sided FFT frequency grid, bin j having
+// frequency f_j = j * fs / NFFT. Weights are bandwidth-normalised: every
+// weight of band k is divided by half its base width, (edges[k+2]-edges[k])/2,
+// giving each triangle unit area (Slaney, Auditory Toolbox v2, 1998 —
+// Normalization='Bandwidth'). Output FB is column-major, length H*(numEdges-2).
 //
-// We compute only the one-sided half (k <= NFFT/2) since input is real and
-// MATLAB calls with keepTwoSided=false (the upper half is zeros).
-void designMelFilterBankSlaney(double *FB, double fs, size_t NFFT,
-                               const double *edges, size_t numEdges,
-                               size_t H /*=NFFT/2+1*/)
+// Clean-room reimplementation — see cleanroom/specs/designMelFilterBankSlaney.md.
+//
+// References:
+//   S. B. Davis and P. Mermelstein, "Comparison of Parametric Representations
+//   for Monosyllabic Word Recognition in Continuously Spoken Sentences",
+//   IEEE Trans. ASSP 28(4):357-366, 1980.
+//   M. Slaney, "Auditory Toolbox, Version 2", Interval Research Corp.
+//   Technical Report #1998-010, 1998.
+// ---------------------------------------------------------------------------
+void designMelFilterBankSlaney(double *FB, double fs, std::size_t NFFT,
+                               const double *edges, std::size_t numEdges,
+                               std::size_t H /* = NFFT/2 + 1 */)
 {
-    if (numEdges < 3 || H == 0 || NFFT == 0) return;
-    const double halfFs = fs * 0.5;
-    const double sqrtEps = std::sqrt(std::numeric_limits<double>::epsilon());
-
-    // validNumEdges: edges <= fs/2 (with sqrt(eps) tolerance)
-    size_t validNumEdges = 0;
-    for (size_t i = 0; i < numEdges; ++i) {
-        if ((edges[i] - halfFs) < sqrtEps) ++validNumEdges;
+    // Early return when there is nothing to construct.
+    if (numEdges < 3 || H == 0 || NFFT == 0) {
+        return;
     }
-    const size_t numBands = numEdges - 2;
-    const size_t validNumBands = (validNumEdges >= 2) ? (validNumEdges - 2) : 0;
 
-    // Initialize to zero.
-    std::fill(FB, FB + H * numBands, 0.0);
+    const std::size_t numBands = numEdges - 2;
 
-    // p[i] = first index in [0..NFFT-1] where linFq[index] > edges[i].
-    // linFq[index] = index / NFFT * fs.
-    // We only need p for indices that fall within the one-sided range [0, H-1].
-    // For edges that lie above fs/2 (validNumEdges < numEdges), p would be in
-    // upper half; those bands are truncated by validNumBands check anyway.
-    auto pIdx = [&](size_t i) -> size_t {
-        // smallest index s.t. index/NFFT*fs > edges[i] → index > edges[i]*NFFT/fs
-        // (1-based in MATLAB, here we keep 0-based but use it as MATLAB's p).
-        // MATLAB uses 1-based loops: for j = p(k):p(k+1)-1.
-        // Here we use 0-based linFq[j] = j/NFFT*fs and j ∈ [p0, p1-1] inclusive.
-        const double t = edges[i] * static_cast<double>(NFFT) / fs;
-        // p(MATLAB,1-based) = first index where linFq > edges[i]; 0-based equivalent
-        // is: smallest j with j > t → j = floor(t) + 1.
-        size_t p = static_cast<size_t>(std::floor(t)) + 1;
-        if (p > H - 1) p = H - 1;
-        return p;
-    };
+    // Zero the whole output buffer first, then fill it.
+    for (std::size_t i = 0; i < H * numBands; ++i) {
+        FB[i] = 0.0;
+    }
 
-    for (size_t k = 0; k < validNumBands; ++k) {
-        const double bw_k  = edges[k + 1] - edges[k];      // rising-side denom
-        const double bw_k1 = edges[k + 2] - edges[k + 1];  // falling-side denom
-        const size_t p0 = pIdx(k);
-        const size_t p1 = pIdx(k + 1);
-        const size_t p2 = pIdx(k + 2);
-        // Rising: j ∈ [p0, p1-1]
-        if (bw_k > 0.0) {
-            for (size_t j = p0; j < p1 && j < H; ++j) {
-                const double fq = static_cast<double>(j) / static_cast<double>(NFFT) * fs;
-                FB[j + k * H] = (fq - edges[k]) / bw_k;
-            }
+    // Hz per FFT bin on the one-sided frequency grid.
+    const double binToHz = fs / static_cast<double>(NFFT);
+
+    for (std::size_t k = 0; k < numBands; ++k) {
+        const double left = edges[k];
+        const double centre = edges[k + 1];
+        const double right = edges[k + 2];
+
+        const double riseWidth = centre - left;   // base of the rising side
+        const double fallWidth = right - centre;  // base of the falling side
+        const double baseWidth = right - left;    // full triangle base
+
+        // Degenerate guards: a zero/negative side width or non-positive base
+        // width leaves this band's column at zero.
+        if (riseWidth <= 0.0 || fallWidth <= 0.0 || baseWidth <= 0.0) {
+            continue;
         }
-        // Falling: j ∈ [p1, p2-1]
-        if (bw_k1 > 0.0) {
-            for (size_t j = p1; j < p2 && j < H; ++j) {
-                const double fq = static_cast<double>(j) / static_cast<double>(NFFT) * fs;
-                FB[j + k * H] = (edges[k + 2] - fq) / bw_k1;
-            }
-        }
-        // Bandwidth normalization
-        const double w = (edges[k + 2] - edges[k]) * 0.5;
-        if (w > 0.0) {
-            const double inv = 1.0 / w;
-            for (size_t j = 0; j < H; ++j) FB[j + k * H] *= inv;
+
+        // Bandwidth normalisation: a unit-height triangle of base baseWidth
+        // has area baseWidth/2; dividing by that yields unit area.
+        const double norm = 2.0 / baseWidth;
+
+        double *column = FB + k * H;
+        for (std::size_t j = 0; j < H; ++j) {
+            const double f = static_cast<double>(j) * binToHz;
+            const double rise = (f - left) / riseWidth;
+            const double fall = (right - f) / fallWidth;
+            const double w = std::max(0.0, std::min(rise, fall));
+            column[j] = w * norm;
         }
     }
 }
