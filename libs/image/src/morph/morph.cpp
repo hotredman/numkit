@@ -5,6 +5,7 @@
 #include <numkit/signal/convolution/convolution.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
@@ -1288,339 +1289,509 @@ void bwhitmiss_reg(Span<const Value> args, size_t /*nargout*/,
 } // namespace detail
 
 // ════════════════════════════════════════════════════════════════════
-// bwmorph — MATLAB-compatible binary morphology dispatcher
+// bwmorph — binary morphology operation dispatcher
 // ════════════════════════════════════════════════════════════════════
 //
-// Each operation works on a column-major LOGICAL buffer of size R×C.
-// The 3×3 neighbourhood index for pixel (r, c) follows MATLAB's
-// `makelut` convention — bit k corresponds to the neighbour at
-// row offset (k%3) - 1 and col offset (k/3) - 1:
+// Clean-room reimplementation written from cleanroom/specs/bwmorph.md
+// and the public references it cites:
+//   * R. C. Gonzalez & R. E. Woods, Digital Image Processing, 4th ed.,
+//     2018 — Ch. 9, binary morphology (dilate / erode / open / close /
+//     hit-or-miss / boundary / thinning / thickening / skeletons);
+//   * W. K. Pratt, Digital Image Processing, 4th ed., 2007 — §14,
+//     morphological processing and 3x3 lookup-table pixel operations;
+//   * L. Lam, S.-W. Lee, C. Y. Suen, "Thinning Methodologies — A
+//     Comprehensive Survey", IEEE Trans. PAMI 14(9), 1992.
 //
-//      bit 0  bit 3  bit 6
-//      bit 1  bit 4  bit 7     (centre is bit 4)
-//      bit 2  bit 5  bit 8
-//
-// Out-of-bounds neighbours read as 0 — same as MATLAB's bwlookup.
+// The 512-entry 3x3-neighbourhood lookup tables are reference data
+// (truth tables of the documented operations) — see bwmorph_luts.h.
+
 namespace {
 
-// One pass of LUT-based lookup. Reads `src` (R×C, uint8 / logical),
-// writes `dst` (same shape). May alias.
+using Lut = std::array<std::uint8_t, 512>;
+
+// ──────────────────────────────────────────────────────────────────
+// The 3x3-neighbourhood lookup primitive.
+//
+// All buffers are column-major uint8 logical (0/1), size R*C; index
+// (r,c) = r + c*R. For every pixel a 9-bit index is formed: bit k is
+// the neighbour at row offset (k%3)-1, col offset (k/3)-1, with bit 4
+// the centre pixel. Neighbours outside the image read as 0. The
+// output pixel is lut[index].
+// ──────────────────────────────────────────────────────────────────
 void bwlookup3x3(const std::uint8_t *src, std::uint8_t *dst,
-                 std::size_t R, std::size_t C,
-                 const std::uint8_t *lut)
+                 std::size_t R, std::size_t C, const Lut &lut)
 {
-    // Walk column by column for cache locality with column-major storage.
-    for (std::size_t c = 0; c < C; ++c) {
-        for (std::size_t r = 0; r < R; ++r) {
-            std::size_t idx = 0;
-            // bit k = src[r + (k%3) - 1, c + (k/3) - 1]
-            for (int dc = -1; dc <= 1; ++dc) {
-                const long long cc = static_cast<long long>(c) + dc;
-                if (cc < 0 || cc >= static_cast<long long>(C)) continue;
-                for (int dr = -1; dr <= 1; ++dr) {
-                    const long long rr = static_cast<long long>(r) + dr;
-                    if (rr < 0 || rr >= static_cast<long long>(R)) continue;
-                    const std::uint8_t v = src[static_cast<std::size_t>(rr) +
-                                              static_cast<std::size_t>(cc) * R];
-                    if (v) {
-                        const int bit = (dr + 1) + 3 * (dc + 1);
-                        idx |= (static_cast<std::size_t>(1) << bit);
+    if (R == 0 || C == 0)
+        return;
+
+    const std::ptrdiff_t Rs = static_cast<std::ptrdiff_t>(R);
+    const std::ptrdiff_t Cs = static_cast<std::ptrdiff_t>(C);
+
+    for (std::ptrdiff_t c = 0; c < Cs; ++c) {
+        for (std::ptrdiff_t r = 0; r < Rs; ++r) {
+            unsigned idx = 0;
+            // bit k = neighbour at (r + (k%3)-1, c + (k/3)-1)
+            for (std::ptrdiff_t dc = -1; dc <= 1; ++dc) {
+                const std::ptrdiff_t cc = c + dc;
+                if (cc < 0 || cc >= Cs)
+                    continue;  // whole column out of bounds → bits stay 0
+                const std::ptrdiff_t colBase = cc * Rs;
+                for (std::ptrdiff_t dr = -1; dr <= 1; ++dr) {
+                    const std::ptrdiff_t rr = r + dr;
+                    if (rr < 0 || rr >= Rs)
+                        continue;
+                    if (src[colBase + rr]) {
+                        const unsigned k =
+                            static_cast<unsigned>((dr + 1) + (dc + 1) * 3);
+                        idx |= (1u << k);
                     }
                 }
             }
-            dst[r + c * R] = lut[idx];
+            dst[c * Rs + r] = lut[idx];
         }
     }
 }
 
-inline void copy_bw(const std::uint8_t *src, std::uint8_t *dst, std::size_t N)
+// ──────────────────────────────────────────────────────────────────
+// Element-wise boolean helpers. Every buffer is treated as a logical
+// 0/1 array of length n.
+// ──────────────────────────────────────────────────────────────────
+void boolAnd(const std::uint8_t *a, const std::uint8_t *b,
+             std::uint8_t *out, std::size_t n)
 {
-    std::memcpy(dst, src, N);
+    for (std::size_t i = 0; i < n; ++i)
+        out[i] = (a[i] && b[i]) ? 1 : 0;
 }
 
-// Boolean reduction utilities operating on logical buffers (uint8 0/1).
-inline void bw_not(const std::uint8_t *src, std::uint8_t *dst, std::size_t N)
+void boolNot(const std::uint8_t *a, std::uint8_t *out, std::size_t n)
 {
-    for (std::size_t i = 0; i < N; ++i) dst[i] = src[i] ? 0u : 1u;
+    for (std::size_t i = 0; i < n; ++i)
+        out[i] = a[i] ? 0 : 1;
 }
-inline void bw_and(const std::uint8_t *a, const std::uint8_t *b,
-                   std::uint8_t *dst, std::size_t N)
+
+// out = a AND (NOT b)
+void boolAndNot(const std::uint8_t *a, const std::uint8_t *b,
+                std::uint8_t *out, std::size_t n)
 {
-    for (std::size_t i = 0; i < N; ++i) dst[i] = (a[i] & b[i]) ? 1u : 0u;
+    for (std::size_t i = 0; i < n; ++i)
+        out[i] = (a[i] && !b[i]) ? 1 : 0;
 }
-inline void bw_or(const std::uint8_t *a, const std::uint8_t *b,
-                  std::uint8_t *dst, std::size_t N)
+
+bool boolEqual(const std::uint8_t *a, const std::uint8_t *b, std::size_t n)
 {
-    for (std::size_t i = 0; i < N; ++i) dst[i] = (a[i] | b[i]) ? 1u : 0u;
-}
-inline void bw_andnot(const std::uint8_t *a, const std::uint8_t *b,
-                      std::uint8_t *dst, std::size_t N)
-{
-    for (std::size_t i = 0; i < N; ++i) dst[i] = (a[i] && !b[i]) ? 1u : 0u;
-}
-inline void bw_xor(const std::uint8_t *a, const std::uint8_t *b,
-                   std::uint8_t *dst, std::size_t N)
-{
-    for (std::size_t i = 0; i < N; ++i) dst[i] = (a[i] ^ b[i]) ? 1u : 0u;
-}
-inline bool bw_equal(const std::uint8_t *a, const std::uint8_t *b, std::size_t N)
-{
-    for (std::size_t i = 0; i < N; ++i) if (a[i] != b[i]) return false;
+    for (std::size_t i = 0; i < n; ++i)
+        if ((a[i] != 0) != (b[i] != 0))
+            return false;
     return true;
 }
 
-// Sub-iteration masks for shrink / spur (per MATLAB algbwmorph.m).
-// Picks every other pixel in a checkerboard pattern, offset (rOff, cOff).
-// Updates dst from src using mask: dst[r,c] = src[r,c] OR (sub[r,c] AND mask)
-// for (r,c) matching the (rOff, cOff) parity.
-void apply_subiter_xor(std::uint8_t *bw, const std::uint8_t *sub,
-                       std::size_t R, std::size_t C,
-                       std::size_t rOff, std::size_t cOff)
+bool anySet(const std::uint8_t *a, std::size_t n)
 {
-    for (std::size_t c = cOff; c < C; c += 2)
-        for (std::size_t r = rOff; r < R; r += 2)
-            bw[r + c * R] ^= sub[r + c * R];
-}
-
-void apply_subiter_assign(std::uint8_t *bw, const std::uint8_t *sub,
-                          std::size_t R, std::size_t C,
-                          std::size_t rOff, std::size_t cOff)
-{
-    for (std::size_t c = cOff; c < C; c += 2)
-        for (std::size_t r = rOff; r < R; r += 2)
-            bw[r + c * R] = sub[r + c * R];
-}
-
-// Run a single bwmorph operation pass on `bw` (R×C logical). Returns
-// `false` and leaves `bw` untouched if `op` is unknown. Internal
-// buffers come from `arena` / std::vector to avoid per-call heap
-// thrashing on the iterated paths.
-bool bwmorphApplyOnce(std::uint8_t *bw, std::size_t R, std::size_t C,
-                      const std::string &op)
-{
-    const std::size_t N = R * C;
-    std::vector<std::uint8_t> tmp(N), tmp2(N), tmp3(N), tmp4(N);
-
-    auto run = [&](const std::array<std::uint8_t, 512> &lut) {
-        bwlookup3x3(bw, tmp.data(), R, C, lut.data());
-        copy_bw(tmp.data(), bw, N);
-    };
-
-    if (op == "dilate")        { run(lutdilate);     return true; }
-    if (op == "erode")         { run(luterode);      return true; }
-    if (op == "bridge")        { run(lutbridge);     return true; }
-    if (op == "clean")         { run(lutclean);      return true; }
-    if (op == "diag")          { run(lutdiag);       return true; }
-    if (op == "endpoints")     { run(lutendpoints);  return true; }
-    if (op == "fatten")        { run(lutfatten);     return true; }
-    if (op == "fill")          { run(lutfill);       return true; }
-    if (op == "hbreak")        { run(luthbreak);     return true; }
-    if (op == "majority")      { run(lutmajority);   return true; }
-    if (op == "perim4")        { run(lutper4);       return true; }
-    if (op == "perim8")        { run(lutper8);       return true; }
-    if (op == "remove")        { run(lutremove);     return true; }
-
-    if (op == "close") {
-        // dilate then erode.
-        bwlookup3x3(bw, tmp.data(), R, C, lutdilate.data());
-        bwlookup3x3(tmp.data(), bw, R, C, luterode.data());
-        return true;
-    }
-    if (op == "open") {
-        // erode then dilate.
-        bwlookup3x3(bw, tmp.data(), R, C, luterode.data());
-        bwlookup3x3(tmp.data(), bw, R, C, lutdilate.data());
-        return true;
-    }
-    if (op == "bothat") {
-        // (close(bw)) AND NOT bw.
-        bwlookup3x3(bw, tmp.data(), R, C, lutdilate.data());
-        bwlookup3x3(tmp.data(), tmp2.data(), R, C, luterode.data());
-        bw_andnot(tmp2.data(), bw, bw, N);
-        return true;
-    }
-    if (op == "tophat") {
-        // bw AND NOT (open(bw)).
-        bwlookup3x3(bw, tmp.data(), R, C, luterode.data());
-        bwlookup3x3(tmp.data(), tmp2.data(), R, C, lutdilate.data());
-        for (std::size_t i = 0; i < N; ++i)
-            bw[i] = (bw[i] && !tmp2[i]) ? 1u : 0u;
-        return true;
-    }
-    if (op == "thin") {
-        // thin1 then thin2.
-        bwlookup3x3(bw, tmp.data(), R, C, lutthin1.data());
-        bwlookup3x3(tmp.data(), bw, R, C, lutthin2.data());
-        return true;
-    }
-    if (op == "skeleton") {
-        // 8 sub-LUTs applied sequentially.
-        const std::array<std::uint8_t, 512> *skels[8] = {
-            &lutskel1, &lutskel2, &lutskel3, &lutskel4,
-            &lutskel5, &lutskel6, &lutskel7, &lutskel8 };
-        for (int i = 0; i < 8; ++i) {
-            bwlookup3x3(bw, tmp.data(), R, C, skels[i]->data());
-            copy_bw(tmp.data(), bw, N);
-        }
-        return true;
-    }
-    if (op == "shrink") {
-        // 4 sub-iterations on a checkerboard pattern.
-        for (int si = 0; si < 4; ++si) {
-            bwlookup3x3(bw, tmp.data(), R, C, lutshrink.data());
-            // sub = bw AND NOT m
-            for (std::size_t i = 0; i < N; ++i)
-                tmp2[i] = (bw[i] && !tmp[i]) ? 1u : 0u;
-            // pattern: si=0: (0,0); si=1: (1,1); si=2: (1,0); si=3: (0,1)
-            // (0-based; MATLAB's 1:2:end / 2:2:end translates to step-2
-            //  starting at 0 or 1).
-            const std::size_t rOff = (si == 1 || si == 2) ? 1u : 0u;
-            const std::size_t cOff = (si == 1 || si == 3) ? 1u : 0u;
-            apply_subiter_assign(bw, tmp2.data(), R, C, rOff, cOff);
-        }
-        return true;
-    }
-    if (op == "spur") {
-        // Complement, find endpoints, remove on checkerboard sub-fields,
-        // complement back.
-        bw_not(bw, bw, N);
-        std::vector<std::uint8_t> endPoints(N);
-        bwlookup3x3(bw, endPoints.data(), R, C, lutspur.data());
-        // First field: (0,0).
-        apply_subiter_xor(bw, endPoints.data(), R, C, 0, 0);
-        // Second: re-evaluate endpoints AND original.
-        bwlookup3x3(bw, tmp.data(), R, C, lutspur.data());
-        for (std::size_t i = 0; i < N; ++i)
-            tmp2[i] = (endPoints[i] & tmp[i]) ? 1u : 0u;
-        apply_subiter_xor(bw, tmp2.data(), R, C, 1, 0);
-        // Third.
-        bwlookup3x3(bw, tmp.data(), R, C, lutspur.data());
-        for (std::size_t i = 0; i < N; ++i)
-            tmp2[i] = (endPoints[i] & tmp[i]) ? 1u : 0u;
-        apply_subiter_xor(bw, tmp2.data(), R, C, 0, 1);
-        // Fourth.
-        bwlookup3x3(bw, tmp.data(), R, C, lutspur.data());
-        for (std::size_t i = 0; i < N; ++i)
-            tmp2[i] = (endPoints[i] & tmp[i]) ? 1u : 0u;
-        apply_subiter_xor(bw, tmp2.data(), R, C, 1, 1);
-        bw_not(bw, bw, N);
-        return true;
-    }
-    if (op == "thicken") {
-        // 1. Isolated pixel boost.
-        std::vector<std::uint8_t> iso(N);
-        bwlookup3x3(bw, iso.data(), R, C, lutiso.data());
-        bool anyIso = false;
-        for (std::size_t i = 0; i < N; ++i) if (iso[i]) { anyIso = true; break; }
-        if (anyIso) {
-            std::vector<std::uint8_t> growMaybe(N), oneNeighbor(N);
-            bwlookup3x3(iso.data(), growMaybe.data(), R, C, lutdilate.data());
-            bwlookup3x3(bw, oneNeighbor.data(), R, C, lutsingle.data());
-            for (std::size_t i = 0; i < N; ++i)
-                if (oneNeighbor[i] && growMaybe[i]) bw[i] = 1u;
-        }
-        // 2. Padded operation: insert 2-pixel symmetric "true" border
-        // around `~bw`, then thin1 + thin2 + diag operations.
-        const std::size_t Rp = R + 4, Cp = C + 4;
-        std::vector<std::uint8_t> c(Rp * Cp, 1u);
-        for (std::size_t cc = 0; cc < C; ++cc)
-            for (std::size_t rr = 0; rr < R; ++rr)
-                c[(rr + 2) + (cc + 2) * Rp] = bw[rr + cc * R] ? 0u : 1u;
-        std::vector<std::uint8_t> cc1(Rp * Cp), cc2(Rp * Cp), d(Rp * Cp);
-        bwlookup3x3(c.data(), cc1.data(), Rp, Cp, lutthin1.data());
-        bwlookup3x3(cc1.data(), cc2.data(), Rp, Cp, lutthin2.data());
-        bwlookup3x3(cc2.data(), d.data(), Rp, Cp, lutdiag.data());
-        // c = (c AND NOT cc2 AND d) OR cc2.
-        for (std::size_t i = 0; i < Rp * Cp; ++i)
-            c[i] = ((c[i] && !cc2[i] && d[i]) || cc2[i]) ? 1u : 0u;
-        // Force a border of true cells in c.
-        for (std::size_t cc = 0; cc < Cp; ++cc) {
-            c[0 + cc * Rp] = 1u;
-            c[1 + cc * Rp] = 1u;
-            c[(Rp - 2) + cc * Rp] = 1u;
-            c[(Rp - 1) + cc * Rp] = 1u;
-        }
-        for (std::size_t rr = 0; rr < Rp; ++rr) {
-            c[rr + 0 * Rp] = 1u;
-            c[rr + 1 * Rp] = 1u;
-            c[rr + (Cp - 2) * Rp] = 1u;
-            c[rr + (Cp - 1) * Rp] = 1u;
-        }
-        // Strip the padded border and complement.
-        for (std::size_t cc = 0; cc < C; ++cc)
-            for (std::size_t rr = 0; rr < R; ++rr)
-                bw[rr + cc * R] = c[(rr + 2) + (cc + 2) * Rp] ? 0u : 1u;
-        return true;
-    }
-    if (op == "branchpoints") {
-        // C = lutbranchpoints
-        std::vector<std::uint8_t> Cset(N), Bset(N), Eset(N), FC(N),
-                                  Vp(N), Vq(N), Dset(N), Mset(N);
-        bwlookup3x3(bw, Cset.data(), R, C, lutbranchpoints.data());
-        bwlookup3x3(bw, Bset.data(), R, C, lutbackcount4.data());
-        for (std::size_t i = 0; i < N; ++i) {
-            Eset[i] = (Bset[i] == 1) ? 1u : 0u;
-            FC[i]   = (!Eset[i] && Cset[i]) ? 1u : 0u;
-            Vp[i]   = ((Bset[i] == 2) && !Eset[i]) ? 1u : 0u;
-            Vq[i]   = ((Bset[i] > 2) && !Eset[i]) ? 1u : 0u;
-        }
-        bwlookup3x3(Vq.data(), Dset.data(), R, C, lutdilate.data());
-        for (std::size_t i = 0; i < N; ++i)
-            Mset[i] = ((FC[i] && Vp[i]) && Dset[i]) ? 1u : 0u;
-        for (std::size_t i = 0; i < N; ++i)
-            bw[i] = (FC[i] && !Mset[i]) ? 1u : 0u;
-        return true;
-    }
+    for (std::size_t i = 0; i < n; ++i)
+        if (a[i])
+            return true;
     return false;
 }
 
-} // anonymous
+// ──────────────────────────────────────────────────────────────────
+// Composite-operation building blocks.
+// ──────────────────────────────────────────────────────────────────
 
-Value bwmorph(const Value &BWin, const std::string &op, int n, std::pmr::memory_resource *mr)
+// open = erode then dilate.  bw is overwritten with the result.
+void opOpen(std::uint8_t *bw, std::size_t R, std::size_t C,
+            std::uint8_t *tmp)
 {
-    const auto &d = BWin.dims();
-    if (d.is3D())
-        throw Error("bwmorph: 2-D input only",
-                    0, 0, "bwmorph", "", "m:bwmorph:unsupportedShape");
-    const std::size_t R = d.rows();
-    const std::size_t C = d.cols();
+    bwlookup3x3(bw, tmp, R, C, luterode);
+    bwlookup3x3(tmp, bw, R, C, lutdilate);
+}
+
+// close = dilate then erode.  bw is overwritten with the result.
+void opClose(std::uint8_t *bw, std::size_t R, std::size_t C,
+             std::uint8_t *tmp)
+{
+    bwlookup3x3(bw, tmp, R, C, lutdilate);
+    bwlookup3x3(tmp, bw, R, C, luterode);
+}
+
+// shrink — four checkerboard sub-iterations.
+//
+// For sub-iteration s = 0..3:
+//   1. m    = lutshrink(bw)
+//   2. cand = bw AND (NOT m)
+//   3. overwrite bw with cand only on the active checkerboard
+//      sub-field — pixels with (r%2,c%2) == (rOff,cOff), stepping by 2.
+// Sub-field offsets in order s = 0,1,2,3: (0,0),(1,1),(1,0),(0,1).
+void opShrink(std::uint8_t *bw, std::size_t R, std::size_t C,
+              std::uint8_t *m, std::uint8_t *cand)
+{
+    static constexpr int rOffTab[4] = {0, 1, 1, 0};
+    static constexpr int cOffTab[4] = {0, 1, 0, 1};
+
+    for (int s = 0; s < 4; ++s) {
+        bwlookup3x3(bw, m, R, C, lutshrink);
+        boolAndNot(bw, m, cand, R * C);
+
+        const std::size_t rOff = static_cast<std::size_t>(rOffTab[s]);
+        const std::size_t cOff = static_cast<std::size_t>(cOffTab[s]);
+        for (std::size_t c = cOff; c < C; c += 2) {
+            const std::size_t colBase = c * R;
+            for (std::size_t r = rOff; r < R; r += 2)
+                bw[colBase + r] = cand[colBase + r];
+        }
+    }
+}
+
+// spur.
+//
+//   1. bw = NOT bw
+//   2. endPoints = lutspur(bw)
+//   3. sub-field 0, offsets (0,0): bw = bw XOR endPoints on that field
+//   4. sub-fields 1,2,3, offsets (1,0),(0,1),(1,1): re-apply lutspur to
+//      the current bw → e; t = e AND endPoints; XOR t into bw on the
+//      sub-field only.
+//   5. bw = NOT bw
+void opSpur(std::uint8_t *bw, std::size_t R, std::size_t C,
+            std::uint8_t *endPoints, std::uint8_t *e, std::uint8_t *t)
+{
+    const std::size_t n = R * C;
+
+    boolNot(bw, bw, n);
+    bwlookup3x3(bw, endPoints, R, C, lutspur);
+
+    static constexpr int rOffTab[4] = {0, 1, 0, 1};
+    static constexpr int cOffTab[4] = {0, 0, 1, 1};
+
+    for (int s = 0; s < 4; ++s) {
+        const std::uint8_t *fieldSrc;
+        if (s == 0) {
+            // XOR endPoints directly on sub-field 0.
+            fieldSrc = endPoints;
+        } else {
+            // Re-evaluate spur end-points on the (now-updated) bw, then
+            // mask against the original endPoints set.
+            bwlookup3x3(bw, e, R, C, lutspur);
+            boolAnd(e, endPoints, t, n);
+            fieldSrc = t;
+        }
+
+        const std::size_t rOff = static_cast<std::size_t>(rOffTab[s]);
+        const std::size_t cOff = static_cast<std::size_t>(cOffTab[s]);
+        for (std::size_t c = cOff; c < C; c += 2) {
+            const std::size_t colBase = c * R;
+            for (std::size_t r = rOff; r < R; r += 2) {
+                const std::size_t i = colBase + r;
+                bw[i] = ((bw[i] != 0) != (fieldSrc[i] != 0)) ? 1 : 0;
+            }
+        }
+    }
+
+    boolNot(bw, bw, n);
+}
+
+// thicken.
+void opThicken(std::uint8_t *bw, std::size_t R, std::size_t C,
+               numkit::ScratchArena &arena)
+{
+    const std::size_t n = R * C;
+
+    // ── Step 1: isolated-pixel boost ──────────────────────────────
+    {
+        numkit::ScratchVec<std::uint8_t> iso(n, &arena);
+        bwlookup3x3(bw, iso.data(), R, C, lutiso);
+        if (anySet(iso.data(), n)) {
+            numkit::ScratchVec<std::uint8_t> grow(n, &arena);
+            numkit::ScratchVec<std::uint8_t> oneNbr(n, &arena);
+            bwlookup3x3(iso.data(), grow.data(), R, C, lutdilate);
+            bwlookup3x3(bw, oneNbr.data(), R, C, lutsingle);
+            for (std::size_t i = 0; i < n; ++i)
+                if (oneNbr[i] && grow[i])
+                    bw[i] = 1;
+        }
+    }
+
+    // ── Step 2: padded thinning of the complement ─────────────────
+    // Build a padded buffer (R+4)×(C+4), all 1, with NOT bw written
+    // into the centre R×C region at offset (2,2).
+    const std::size_t PR = R + 4;
+    const std::size_t PC = C + 4;
+    const std::size_t pn = PR * PC;
+
+    numkit::ScratchVec<std::uint8_t> c(pn, &arena);
+    c.assign(pn, 1);
+    for (std::size_t cc = 0; cc < C; ++cc) {
+        const std::size_t srcBase = cc * R;
+        const std::size_t dstBase = (cc + 2) * PR + 2;
+        for (std::size_t rr = 0; rr < R; ++rr)
+            c[dstBase + rr] = bw[srcBase + rr] ? 0 : 1;
+    }
+
+    numkit::ScratchVec<std::uint8_t> c1(pn, &arena);
+    numkit::ScratchVec<std::uint8_t> c2(pn, &arena);
+    numkit::ScratchVec<std::uint8_t> d(pn, &arena);
+
+    // c1 = thin1(c); c2 = thin2(c1); d = diag(c2)
+    bwlookup3x3(c.data(), c1.data(), PR, PC, lutthin1);
+    bwlookup3x3(c1.data(), c2.data(), PR, PC, lutthin2);
+    bwlookup3x3(c2.data(), d.data(), PR, PC, lutdiag);
+
+    // c = (c AND (NOT c2) AND d) OR c2
+    for (std::size_t i = 0; i < pn; ++i) {
+        const bool keep = c[i] && !c2[i] && d[i];
+        c[i] = (keep || c2[i]) ? 1 : 0;
+    }
+
+    // Force the outer two-pixel border of c back to 1 (all four edges).
+    for (std::size_t cc = 0; cc < PC; ++cc) {
+        const std::size_t colBase = cc * PR;
+        c[colBase + 0] = 1;
+        c[colBase + 1] = 1;
+        c[colBase + (PR - 2)] = 1;
+        c[colBase + (PR - 1)] = 1;
+    }
+    for (std::size_t rr = 0; rr < PR; ++rr) {
+        c[0 * PR + rr] = 1;
+        c[1 * PR + rr] = 1;
+        c[(PC - 2) * PR + rr] = 1;
+        c[(PC - 1) * PR + rr] = 1;
+    }
+
+    // bw = NOT (centre R×C region of c)
+    for (std::size_t cc = 0; cc < C; ++cc) {
+        const std::size_t srcBase = (cc + 2) * PR + 2;
+        const std::size_t dstBase = cc * R;
+        for (std::size_t rr = 0; rr < R; ++rr)
+            bw[dstBase + rr] = c[srcBase + rr] ? 0 : 1;
+    }
+}
+
+// branchpoints.
+void opBranchpoints(std::uint8_t *bw, std::size_t R, std::size_t C,
+                    numkit::ScratchArena &arena)
+{
+    const std::size_t n = R * C;
+
+    numkit::ScratchVec<std::uint8_t> Cset(n, &arena);
+    numkit::ScratchVec<std::uint8_t> Bset(n, &arena);
+
+    // Cset = lutbranchpoints(bw); Bset = lutbackcount4(bw) (small ints).
+    bwlookup3x3(bw, Cset.data(), R, C, lutbranchpoints);
+    bwlookup3x3(bw, Bset.data(), R, C, lutbackcount4);
+
+    numkit::ScratchVec<std::uint8_t> FC(n, &arena);
+    numkit::ScratchVec<std::uint8_t> Vp(n, &arena);
+    numkit::ScratchVec<std::uint8_t> Vq(n, &arena);
+
+    for (std::size_t i = 0; i < n; ++i) {
+        const unsigned b = Bset[i];
+        const bool E = (b == 1);
+        const bool notE = !E;
+        FC[i] = (notE && Cset[i]) ? 1 : 0;
+        Vp[i] = (notE && b == 2) ? 1 : 0;
+        Vq[i] = (notE && b > 2) ? 1 : 0;
+    }
+
+    numkit::ScratchVec<std::uint8_t> Dset(n, &arena);
+    bwlookup3x3(Vq.data(), Dset.data(), R, C, lutdilate);
+
+    // M = FC AND Vp AND Dset;  result = FC AND (NOT M)
+    for (std::size_t i = 0; i < n; ++i) {
+        const bool M = FC[i] && Vp[i] && Dset[i];
+        bw[i] = (FC[i] && !M) ? 1 : 0;
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Single-pass dispatch — runs ONE pass of `op` on `bw` in place.
+// Returns false if `op` is not a recognised operation.
+// ──────────────────────────────────────────────────────────────────
+bool runOnePass(const std::string &op, std::uint8_t *bw,
+                std::size_t R, std::size_t C, std::uint8_t *tmp,
+                numkit::ScratchArena &arena)
+{
+    const std::size_t n = R * C;
+
+    // Single-table operations: one pass of the like-named table.
+    const Lut *single = nullptr;
+    if (op == "dilate")         single = &lutdilate;
+    else if (op == "erode")     single = &luterode;
+    else if (op == "bridge")    single = &lutbridge;
+    else if (op == "clean")     single = &lutclean;
+    else if (op == "diag")      single = &lutdiag;
+    else if (op == "endpoints") single = &lutendpoints;
+    else if (op == "fatten")    single = &lutfatten;
+    else if (op == "fill")      single = &lutfill;
+    else if (op == "hbreak")    single = &luthbreak;
+    else if (op == "majority")  single = &lutmajority;
+    else if (op == "perim4")    single = &lutper4;
+    else if (op == "perim8")    single = &lutper8;
+    else if (op == "remove")    single = &lutremove;
+
+    if (single != nullptr) {
+        bwlookup3x3(bw, tmp, R, C, *single);
+        for (std::size_t i = 0; i < n; ++i)
+            bw[i] = tmp[i];
+        return true;
+    }
+
+    // Composite operations.
+    if (op == "open") {
+        opOpen(bw, R, C, tmp);
+        return true;
+    }
+    if (op == "close") {
+        opClose(bw, R, C, tmp);
+        return true;
+    }
+    if (op == "bothat") {
+        // bottom-hat: close(bw) AND NOT bw
+        numkit::ScratchVec<std::uint8_t> closed(bw, bw + n, &arena);
+        numkit::ScratchVec<std::uint8_t> ctmp(n, &arena);
+        opClose(closed.data(), R, C, ctmp.data());
+        boolAndNot(closed.data(), bw, bw, n);
+        return true;
+    }
+    if (op == "tophat") {
+        // top-hat: bw AND NOT open(bw)
+        numkit::ScratchVec<std::uint8_t> opened(bw, bw + n, &arena);
+        numkit::ScratchVec<std::uint8_t> otmp(n, &arena);
+        opOpen(opened.data(), R, C, otmp.data());
+        boolAndNot(bw, opened.data(), bw, n);
+        return true;
+    }
+    if (op == "thin") {
+        // one pass: thin1 then thin2.
+        bwlookup3x3(bw, tmp, R, C, lutthin1);
+        bwlookup3x3(tmp, bw, R, C, lutthin2);
+        return true;
+    }
+    if (op == "skeleton" || op == "skel") {
+        // one pass: the eight skeleton sub-tables in sequence, each on
+        // the output of the previous.
+        static const Lut *const skel[8] = {
+            &lutskel1, &lutskel2, &lutskel3, &lutskel4,
+            &lutskel5, &lutskel6, &lutskel7, &lutskel8};
+        for (int k = 0; k < 8; ++k) {
+            bwlookup3x3(bw, tmp, R, C, *skel[k]);
+            for (std::size_t i = 0; i < n; ++i)
+                bw[i] = tmp[i];
+        }
+        return true;
+    }
+
+    if (op == "shrink") {
+        numkit::ScratchVec<std::uint8_t> m(n, &arena);
+        numkit::ScratchVec<std::uint8_t> cand(n, &arena);
+        opShrink(bw, R, C, m.data(), cand.data());
+        return true;
+    }
+
+    if (op == "spur") {
+        numkit::ScratchVec<std::uint8_t> endPoints(n, &arena);
+        numkit::ScratchVec<std::uint8_t> e(n, &arena);
+        numkit::ScratchVec<std::uint8_t> t(n, &arena);
+        opSpur(bw, R, C, endPoints.data(), e.data(), t.data());
+        return true;
+    }
+
+    if (op == "thicken") {
+        opThicken(bw, R, C, arena);
+        return true;
+    }
+
+    if (op == "branchpoints") {
+        opBranchpoints(bw, R, C, arena);
+        return true;
+    }
+
+    return false;  // unknown operation
+}
+
+}  // anonymous namespace
+
+// ──────────────────────────────────────────────────────────────────
+// The iteration framework — public entry point.
+// ──────────────────────────────────────────────────────────────────
+Value bwmorph(const Value &BW, const std::string &op, int n,
+              std::pmr::memory_resource *mr)
+{
+    // 2-D input only — reject genuine 3-D volumes / higher-rank tensors.
+    if (BW.dims().ndim() > 2 || BW.dims().is3D())
+        throw numkit::Error("bwmorph: input must be a 2-D binary image",
+                            0, 0, "bwmorph", "",
+                            "m:bwmorph:unsupportedShape");
+
+    const std::size_t R = BW.dims().rows();
+    const std::size_t C = BW.dims().cols();
     const std::size_t N = R * C;
 
-    // Reject "Inf" via n == -1 sentinel (caller maps Inf → -1).
-    const bool iterUntilStable = (n < 0);
-    int iters = iterUntilStable ? 0 : n;
+    numkit::ScratchArena arena(mr);
 
-    // Pack input into a column-major logical buffer.
-    std::vector<std::uint8_t> bw(N);
+    // Pack BW into a column-major logical (0/1) working buffer.
+    numkit::ScratchVec<std::uint8_t> bw(N, &arena);
     for (std::size_t i = 0; i < N; ++i)
-        bw[i] = (BWin.elemAsDouble(i) != 0.0) ? 1u : 0u;
+        bw[i] = (BW.elemAsDouble(i) != 0.0) ? 1 : 0;
 
-    if (n == 0) {
-        // No-op — just convert to logical.
+    // Reject unknown ops up-front so an n == 0 call still validates.
+    {
+        static const char *const known[] = {
+            "dilate", "erode", "bridge", "clean", "diag", "endpoints",
+            "fatten", "fill", "hbreak", "majority", "perim4", "perim8",
+            "remove", "open", "close", "bothat", "tophat", "thin",
+            "skeleton", "skel", "shrink", "spur", "thicken",
+            "branchpoints"};
+        bool recognised = false;
+        for (const char *k : known) {
+            if (op == k) {
+                recognised = true;
+                break;
+            }
+        }
+        if (!recognised)
+            throw numkit::Error("bwmorph: unknown operation '" + op + "'",
+                                0, 0, "bwmorph", "",
+                                "m:bwmorph:badOp");
+    }
+
+    auto emitLogical = [&](const std::uint8_t *buf) -> Value {
         Value out = Value::matrix(R, C, ValueType::LOGICAL, mr);
-        std::uint8_t *od = out.logicalDataMut();
-        std::memcpy(od, bw.data(), N);
+        std::uint8_t *dst = out.logicalDataMut();
+        for (std::size_t i = 0; i < N; ++i)
+            dst[i] = buf[i] ? 1 : 0;
         return out;
-    }
+    };
 
-    std::vector<std::uint8_t> prev(N);
-    int passesDone = 0;
-    const int safetyLimit = iterUntilStable ? 10000 : iters;
-    while (passesDone < safetyLimit) {
-        std::memcpy(prev.data(), bw.data(), N);
-        const bool ok = bwmorphApplyOnce(bw.data(), R, C, op);
+    // n == 0: no-op — return the packed input unchanged.
+    if (n == 0)
+        return emitLogical(bw.data());
+
+    // Iterate: repeat one pass until stable or n times. n == -1 is the
+    // "until stable" sentinel; a safety cap guards non-converging ops.
+    constexpr int kSafetyCap = 10000;
+    const bool untilStable = (n < 0);
+    const int maxPasses = untilStable ? kSafetyCap : n;
+
+    numkit::ScratchVec<std::uint8_t> prev(N, &arena);
+    numkit::ScratchVec<std::uint8_t> tmp(N, &arena);
+
+    for (int pass = 0; pass < maxPasses; ++pass) {
+        for (std::size_t i = 0; i < N; ++i)
+            prev[i] = bw[i];
+
+        // A fresh per-pass arena keeps multi-buffer ops from
+        // accumulating monotonic-arena allocations across passes.
+        numkit::ScratchArena passArena(mr);
+        const bool ok =
+            runOnePass(op, bw.data(), R, C, tmp.data(), passArena);
         if (!ok)
-            throw Error("bwmorph: unknown operation '" + op + "'",
-                        0, 0, "bwmorph", "", "m:bwmorph:badOp");
-        ++passesDone;
-        if (bw_equal(prev.data(), bw.data(), N)) break;        // stable
-        if (!iterUntilStable && passesDone >= iters) break;
+            throw numkit::Error("bwmorph: unknown operation '" + op + "'",
+                                0, 0, "bwmorph", "",
+                                "m:bwmorph:badOp");
+
+        if (boolEqual(bw.data(), prev.data(), N))
+            break;  // fixed point reached
     }
 
-    Value out = Value::matrix(R, C, ValueType::LOGICAL, mr);
-    std::uint8_t *od = out.logicalDataMut();
-    std::memcpy(od, bw.data(), N);
-    return out;
+    return emitLogical(bw.data());
 }
 
 namespace detail {
@@ -1650,4 +1821,5 @@ void bwmorph_reg(Span<const Value> args, std::size_t /*nargout*/,
 }
 
 } // namespace detail
+
 } // namespace numkit::image
