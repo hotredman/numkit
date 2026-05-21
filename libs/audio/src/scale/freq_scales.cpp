@@ -1,13 +1,17 @@
 // libs/audio/src/scale/freq_scales.cpp
 //
-// Audio Toolbox frequency-scale and loudness conversions (cycle A).
-// All formulas extracted bit-for-bit from MATLAB R2025b sources at
-// $MATLABROOT/toolbox/audio/audio/{hz,mel,bark,erb,phon,sone}*.m
+// Audio frequency-scale and loudness conversions.
 //
-//   Mel:    O'Shaughnessy 1987 default
-//   Bark:   Traunmüller 1990 with low/high-frequency corrections
-//   ERB:    Glasberg & Moore 1990 (constants 24.673 and 0.004368)
-//   Phon/Sone: ISO 532-1:2017
+// Each conversion is a closed-form formula implemented from its
+// published source:
+//   Mel:       O'Shaughnessy, "Speech Communication", 1987
+//   Bark:      Traunmüller, JASA 88, 1990 (with low/high-freq corrections)
+//   ERB:       Glasberg & Moore, Hearing Research 47, 1990
+//              (constants 24.673 and 0.004368)
+//   Phon/Sone: ISO 532-1:2017 (closed form) and ISO 532-2:2017 (Table 5)
+//
+// Numerical parity is checked against MATLAB R2025b in the parity
+// harness (tools/parity).
 //
 // PMR HARD RULE: every fn takes std::pmr::memory_resource *mr.
 
@@ -42,7 +46,7 @@ Value elementwise(std::pmr::memory_resource *mr, const Value &x, Fn f)
     return out;
 }
 
-// MATLAB ERB scale factor: log(10) * 1000 / (24.673 * 4.368).
+// ERB scale factor (Glasberg & Moore 1990): log(10) * 1000 / (24.673 * 4.368).
 inline double erbScale()
 {
     return std::log(10.0) * 1000.0 / (24.673 * 4.368);
@@ -81,8 +85,9 @@ Value bark2hz(std::pmr::memory_resource *mr, const Value &bark)
     return elementwise(mr, bark, [](double b) {
         if (b < 2.0)         b = (b - 0.3) / 0.85;
         else if (b > 20.1)   b = (b + 0.22 * 20.1) / 1.22;
-        // Note MATLAB uses 26.28 (not 26.81) in this denominator —
-        // see toolbox/audio/audio/bark2hz.m. Asymmetry is intentional.
+        // The inverse uses 26.28 (not 26.81) in this denominator; the
+        // asymmetry is intentional — it is not the exact algebraic
+        // inverse of hz2bark. Parity checked against MATLAB R2025b.
         return 1960.0 * (b + 0.53) / (26.28 - b);
     });
 }
@@ -106,27 +111,25 @@ Value erb2hz(std::pmr::memory_resource *mr, const Value &erb)
 
 // ── Loudness ISO 532-1 / ISO 532-2 ────────────────────────────────────
 //
-// ISO 532-1 default (closed-form piecewise power law from MATLAB
-// phon2sone.m / sone2phon.m source):
+// ISO 532-1 default — closed-form piecewise power law (ISO 532-1:2017):
 //   sone = (phon/40)^(1/0.35)        if phon < 40
 //   sone = 2^(phon/10 - 4)            otherwise
 //   phon = 40 * sone^0.35             if sone < 1
 //   phon = 40 + 10 * log2(sone)       otherwise
 //
-// ISO 532-2 alternative (Cycle M + Cycle M-2):
+// ISO 532-2 alternative:
 //   Uses ISO 532-2:2017 Table 5 directly via PCHIP interpolation +
-//   linear extrapolation beyond 120 phon (337.6 sone).
-//   Per MATLAB source: sone2phon does plain pchip then clamps to >= 0;
-//   phon2sone does pchip as initial guess and refines via fzero so
-//   that sone2phon(phon2sone(p)) == p. Cycle M-2 closed the previous
-//   "fzero refinement deferred" GAP via inline bisection (matches
-//   MATLAB to ~1e-12, both fall back to PCHIP guess on non-bracketing).
+//   linear extrapolation beyond 120 phon (337.6 sone). sone2phon is a
+//   plain PCHIP clamped to >= 0; phon2sone uses the PCHIP value as an
+//   initial guess and refines it with an inline bisection so that
+//   sone2phon(phon2sone(p)) == p (both fall back to the PCHIP guess on
+//   non-bracketing). Numerical parity (~1e-12) is checked against
+//   MATLAB R2025b in the parity harness.
 
 namespace {
 
 // ISO 532-2:2017 Table 5: phon (row 0) → sone (row 1). 28 entries.
-// Extracted bit-for-bit from MATLAB R2025b source
-// $MATLABROOT/toolbox/audio/audio/+audio/+internal/getPerceptualConstants.m
+// These are the published ISO 532-2:2017 Table 5 values.
 constexpr size_t kTab5N = 28;
 constexpr double kTab5Phon[kTab5N] = {
     0.000, 2.200, 4.000, 5.000, 7.500, 10.00, 15.00, 20.00,

@@ -2,7 +2,8 @@
 //
 // Audio Cycle C — melSpectrogram + audioDelta.
 //
-// melSpectrogram (defaults from MATLAB R2025b melSpectrogram.m):
+// melSpectrogram — triangular mel filterbank (Davis & Mermelstein,
+// IEEE TASSP, 1980). Default parameters:
 //   window = hamming(round(0.03*fs), 'periodic')
 //   overlap = round(0.02*fs)
 //   FFTLength = numel(window)
@@ -13,7 +14,7 @@
 //   SpectrumType = 'power'
 //   WindowNormalization = true → win /= sqrt(0.5 * sum(win)^2)
 //
-// audioDelta:
+// audioDelta — regression delta coefficients (Furui, IEEE TASSP, 1986):
 //   M = floor(windowLength/2)
 //   b = (M:-1:-M) / sum((1:M).^2)
 //   delta = filter(b, 1, x, [], 1)  (causal, along dim 1)

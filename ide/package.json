@@ -2,7 +2,7 @@
   "name": "numkit-ide",
   "version": "2.1.0",
   "private": true,
-  "license": "Apache-2.0",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "scripts": {
     "predev": "node scripts/generate-manifest.js",

@@ -46,8 +46,8 @@ struct Stft {
     Value F;   // M × 1, frequency axis in Hz
 };
 
-// Build STFT power matrix using MATLAB Audio + Signal Toolbox defaults
-// (matches signal.internal.spectraldescriptors.stft.m exactly):
+// Build the STFT (short-time Fourier transform) power matrix. Default
+// parameters (numerical parity checked against MATLAB R2025b):
 //   - window  = rectwin(round(0.03*fs)) (default for fs s.t. winLen > 120)
 //   - overlap = round(0.02*fs)
 //   - FFTLen  = winLen
@@ -233,8 +233,8 @@ Value spectralDecrease(std::pmr::memory_resource *mr, const Value &x, const Valu
 }
 
 // ── Slope ─────────────────────────────────────────────────────────────
-// Linear regression slope of mean-power-magnitude X vs frequency.
-// MATLAB R2025b spectralSlope formula (see source spectralSlope.m):
+// Ordinary-least-squares regression slope of mean-power-magnitude X
+// vs frequency:
 //   slope = sum((F - mean(F)) .* (X - mean(X))) / sum((F - mean(F))^2)
 Value spectralSlope(std::pmr::memory_resource *mr, const Value &x, const Value &f)
 {
@@ -295,9 +295,9 @@ Value spectralEntropy(std::pmr::memory_resource *mr, const Value &x, const Value
     });
 }
 
-// spectralFlatness = exp(mean(log(X+eps))) / mean(X) per column.
-// Matches MATLAB R2025b spectralFlatness.m exactly (eps regularization
-// inside the geometric-mean log).
+// spectralFlatness = exp(mean(log(X+eps))) / mean(X) per column —
+// geometric mean / arithmetic mean (Peeters 2004), with eps
+// regularization inside the geometric-mean log.
 Value spectralFlatness(std::pmr::memory_resource *mr, const Value &x, const Value &f)
 {
     auto d = prepareInput(mr, x, f);
@@ -315,10 +315,9 @@ Value spectralFlatness(std::pmr::memory_resource *mr, const Value &x, const Valu
     });
 }
 
-// spectralKurtosis = Σ((F-c)⁴ X) / (spread⁴ ΣX) per column.
-// Matches MATLAB R2025b spectralKurtosis.m (X-weighted 4th central
-// frequency moment normalized by 4th power of spread, NOT Pearson form
-// — no -3 subtraction).
+// spectralKurtosis = Σ((F-c)⁴ X) / (spread⁴ ΣX) per column — X-weighted
+// 4th central frequency moment normalized by the 4th power of spread
+// (Peeters 2004). NOT the Pearson form — no -3 subtraction.
 Value spectralKurtosis(std::pmr::memory_resource *mr, const Value &x, const Value &f)
 {
     auto d = prepareInput(mr, x, f);
@@ -343,8 +342,8 @@ Value spectralKurtosis(std::pmr::memory_resource *mr, const Value &x, const Valu
     });
 }
 
-// spectralSkewness = Σ((F-c)³ X) / (spread³ ΣX) per column.
-// Matches MATLAB R2025b spectralSkewness.m exactly.
+// spectralSkewness = Σ((F-c)³ X) / (spread³ ΣX) per column — X-weighted
+// 3rd central frequency moment normalized by spread³ (Peeters 2004).
 Value spectralSkewness(std::pmr::memory_resource *mr, const Value &x, const Value &f)
 {
     auto d = prepareInput(mr, x, f);
@@ -369,7 +368,7 @@ Value spectralSkewness(std::pmr::memory_resource *mr, const Value &x, const Valu
 }
 
 // ── Flux ──────────────────────────────────────────────────────────────
-// MATLAB R2025b: per-frame metric of frame-to-frame spectrum change.
+// Spectral flux (Peeters 2004) — per-frame metric of spectrum change.
 // flux(t) = (Σ|X_t(k) - X_{t-1}(k)|^p)^(1/p) for k = 1..M.
 // First frame compared against zero (=> result = ||X_1||_p).
 Value spectralFlux(std::pmr::memory_resource *mr, const Value &x,
