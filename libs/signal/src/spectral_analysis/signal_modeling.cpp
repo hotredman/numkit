@@ -622,6 +622,15 @@ std::vector<double> padLeft(const std::vector<double> &p, int n)
 
 } // anonymous
 
+// AR polynomial A(z) -> line-spectral frequencies.
+// Form the symmetric / antisymmetric pair P(z) = A(z) + z^-(N+1)·A(z^-1)
+// and Q(z) = A(z) - z^-(N+1)·A(z^-1); their roots lie on the unit
+// circle and the LSFs are those roots' angles in (0, π).
+// References: F. Itakura, "Line spectrum representation of linear
+// predictor coefficients of speech signals", J. Acoust. Soc. Am.
+// 57(S1):S35, 1975; P. Kabal & R. P. Ramachandran, "The computation of
+// line spectral frequencies using Chebyshev polynomials", IEEE Trans.
+// ASSP 34(6):1419-1426, 1986.
 Value poly2lsf(const Value &a, std::pmr::memory_resource *mr)
 {
     auto av = readVec(a);
