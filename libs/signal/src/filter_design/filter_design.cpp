@@ -394,7 +394,28 @@ void fir2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         throw Error("fir2: requires (N, F, A)",
                     0, 0, "fir2", "", "m:fir2:nargin");
     const int N = static_cast<int>(args[0].toScalar());
-    outs[0] = fir2(N, args[1], args[2], ctx.engine->resource());
+
+    // Optional trailing arguments fir2(N,F,A[,npt][,lap][,window]):
+    // scalars are npt then lap (in order); a vector argument is the
+    // output window.
+    Fir2Options opts;
+    int scalarsSeen = 0;
+    for (size_t i = 3; i < args.size(); ++i) {
+        const Value &a = args[i];
+        if (a.numel() == 1) {
+            if (scalarsSeen == 0)
+                opts.npt = static_cast<int>(a.toScalar());
+            else if (scalarsSeen == 1)
+                opts.lap = static_cast<int>(a.toScalar());
+            else
+                throw Error("fir2: too many scalar arguments",
+                            0, 0, "fir2", "", "m:fir2:nargin");
+            ++scalarsSeen;
+        } else {
+            opts.window = a;
+        }
+    }
+    outs[0] = fir2(N, args[1], args[2], opts, ctx.engine->resource());
 }
 
 } // namespace detail
@@ -477,155 +498,222 @@ void cell2sos_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-// ── fir2 (Phase 4.9) ──────────────────────────────────────────────────
+// ── fir2 — frequency-sampling FIR filter design ──────────────────────
 //
-// Arbitrary-response FIR via frequency-sampling + iFFT + Hamming window.
-// Matches MATLAB R2025b fir2.m one-to-one for the 3-arg form (N, F, A).
+// Clean-room implementation written from cleanroom/specs/fir2.md and the
+// public references it cites:
+//   * A. V. Oppenheim & R. W. Schafer, Discrete-Time Signal Processing,
+//     3rd ed., 2010 — §7.4-7.5, FIR design by the frequency-sampling
+//     method (sample the desired response on a uniform grid, inverse-
+//     transform, window);
+//   * L. R. Rabiner & B. Gold, Theory and Application of Digital Signal
+//     Processing, 1975 — frequency-sampling FIR design;
+//   * T. W. Parks & C. S. Burrus, Digital Filter Design, 1987.
 //
-// Pipeline:
-//   nn  = N + 1                          (filter length)
-//   npt = 512 if nn < 1024 else 2^ceil(log2(nn))   (FFT half-length)
-//   lap = floor(npt / 25)                (transition smoothing)
-//   wind = hamming(nn)                   (output window)
+//   b = fir2(n, f, m [, npt] [, lap] [, window])
 //
-//   Build H[0..npt] (length npt+1):
-//     H[0] = A[0];  nb = 1 (1-based MATLAB index)
-//     For each segment i (between consecutive break frequencies):
-//       df = F[i+1] - F[i]
-//       if df == 0:  nb = ceil(nb - lap/2);  ne = nb + lap
-//       else:        ne = floor(F[i+1] * (npt+1))
-//       inc = (j - nb) / (ne - nb)  for j ∈ [nb, ne]
-//       H[nb..ne] = inc * A[i+1] + (1 - inc) * A[i]
-//       nb = ne + 1
-//
-//   Fourier time-shift: H *= exp(-j π dt k / npt)  (dt = (nn-1)/2)
-//   Mirror: H_full = [H, conj(H[end-1..1])]   length = 2 * npt
-//   ht = real(ifft(H_full))                   uses power-of-2 ifft
-//   b  = ht[0..nn-1] .* wind
-Value fir2(int N, const Value &Farg, const Value &Aarg,
-           std::pmr::memory_resource *mr)
+// Piecewise-linearly interpolate the desired (f, m) magnitude response
+// onto a uniform DC..Nyquist grid, apply a linear-phase delay, inverse-
+// transform, and window. Full MATLAB argument set: npt, lap, window,
+// plus the odd-order Nyquist correction.
+
+namespace {
+
+// Smallest power of two >= v (for v >= 1).
+int nextPow2Int(int v)
 {
-    if (N < 0)
-        throw Error("fir2: N must be >= 0",
-                    0, 0, "fir2", "", "m:fir2:BadN");
+    int p = 1;
+    while (p < v)
+        p <<= 1;
+    return p;
+}
 
-    ScratchArena scratch(mr);
-    auto Fv = valueToDoubleRow(Farg, scratch);
-    auto Av = valueToDoubleRow(Aarg, scratch);
-    const double *F = Fv.data();
-    const double *A = Av.data();
-    const std::size_t Fn = Fv.size();
-    const std::size_t An = Av.size();
+// Read a short real vector (row or column) into a ScratchVec<double>.
+void readVec(const Value &v, ScratchVec<double> &out)
+{
+    const size_t n = v.numel();
+    out.resize(n);
+    for (size_t i = 0; i < n; ++i)
+        out[i] = v.elemAsDouble(i);
+}
 
-    if (Fn != An)
-        throw Error("fir2: F and A must have same length",
-                    0, 0, "fir2", "", "m:fir2:MismatchedDimensions");
-    if (Fn < 2)
-        throw Error("fir2: F must have at least 2 elements",
-                    0, 0, "fir2", "", "m:fir2:BadFLen");
-    if (std::abs(F[0]) > 1e-12 || std::abs(F[Fn - 1] - 1.0) > 1e-12)
-        throw Error("fir2: F must start at 0 and end at 1",
-                    0, 0, "fir2", "", "m:fir2:InvalidRange");
-    for (std::size_t i = 1; i < Fn; ++i) {
-        if (F[i] < F[i - 1])
-            throw Error("fir2: F must be non-decreasing",
-                        0, 0, "fir2", "", "m:fir2:InvalidFreqVec");
+} // anonymous namespace
+
+Value fir2(int n, const Value &f, const Value &m,
+           const Fir2Options &opts, std::pmr::memory_resource *mr)
+{
+    ScratchArena arena(mr);
+
+    // ── 1. Validate n ──────────────────────────────────────────────────
+    if (n <= 0)
+        throw numkit::Error("n must be a positive integer.", 0, 0, "fir2", "",
+                            "m:fir2:BadN");
+
+    // ── 2. Read and validate f, m ──────────────────────────────────────
+    ScratchVec<double> fv(0, &arena), mv(0, &arena);
+    readVec(f, fv);
+    readVec(m, mv);
+
+    if (fv.size() != mv.size())
+        throw numkit::Error("The frequency and magnitude vectors must be the "
+                            "same length.",
+                            0, 0, "fir2", "", "m:fir2:MismatchedDimensions");
+    if (fv.size() < 2)
+        throw numkit::Error("The frequency vector must have at least 2 "
+                            "elements.",
+                            0, 0, "fir2", "", "m:fir2:BadFLen");
+
+    const size_t nf = fv.size();
+
+    // f must start at 0 and end at 1.
+    if (fv[0] != 0.0 || fv[nf - 1] != 1.0)
+        throw numkit::Error("The first frequency must be 0 and the last 1.",
+                            0, 0, "fir2", "", "m:fir2:InvalidRange");
+
+    // f must be non-decreasing.
+    for (size_t i = 1; i < nf; ++i) {
+        if (fv[i] < fv[i - 1])
+            throw numkit::Error("Frequencies must be non-decreasing.", 0, 0,
+                                "fir2", "", "m:fir2:InvalidFreqVec");
     }
 
-    const std::size_t nn = static_cast<std::size_t>(N) + 1;
-    std::size_t npt = 512;
-    if (nn >= 1024) {
-        npt = 1;
-        while (npt < nn) npt <<= 1;
+    // ── 3. Odd-order correction (spec §2.1) ────────────────────────────
+    // A symmetric FIR filter of odd order has a forced zero at Nyquist.
+    // If n is odd and the requested Nyquist magnitude is non-zero, bump n.
+    if ((n % 2) == 1 && mv[nf - 1] != 0.0)
+        n += 1;
+
+    const int nn = n + 1;  // final filter length
+
+    // ── 4. Grid size npt (spec §2.2) ───────────────────────────────────
+    const bool nptDefaulted = (opts.npt <= 0);
+    int npt = nptDefaulted ? 512 : opts.npt;
+
+    if (!nptDefaulted) {
+        // A user-supplied npt must satisfy 2*npt >= nn.
+        if (2 * npt < nn)
+            throw numkit::Error("The number of grid points must be greater "
+                                "than or equal to ceil(nn/2).",
+                                0, 0, "fir2", "", "m:fir2:InvalidNpt");
+    } else {
+        // Defaulted: grow the request if the filter is longer than 2*512.
+        if (2 * npt < nn)
+            npt = (nn + 1) / 2;  // ceil(nn/2)
     }
-    if (nn > 2 * npt)
-        throw Error("fir2: requested order too large for default npt",
-                    0, 0, "fir2", "", "m:fir2:InvalidNpt");
-    const std::size_t lap = npt / 25;
-    const std::size_t nptP1 = npt + 1;  // length of [DC..Nyquist] grid
 
-    ScratchVec<double> H(nptP1, &scratch);
-    std::fill(H.data(), H.data() + nptP1, 0.0);
-    H[0] = A[0];
+    // Working grid size = requested npt rounded up to a power of two.
+    npt = nextPow2Int(npt);
 
-    // 0-based indexing throughout C++; nb/ne map to MATLAB 1-based via -1.
-    long long nb = 1;  // 1-based
-    for (std::size_t i = 0; i + 1 < Fn; ++i) {
-        const double df = F[i + 1] - F[i];
-        long long ne;
+    // ── 5. lap (spec §2.2 default) ─────────────────────────────────────
+    int lap = (opts.lap > 0) ? opts.lap : (npt / 25);
+
+    // ── 6. Build the half-band response H (spec §2.3) ──────────────────
+    // H has npt+1 points covering DC..Nyquist; grid point j (1-based)
+    // is normalised frequency (j-1)/npt.
+    const int npt1 = npt + 1;
+    ScratchVec<Complex> H(static_cast<size_t>(npt1), &arena);
+    for (int k = 0; k < npt1; ++k)
+        H[k] = Complex(0.0, 0.0);
+
+    // Helper: range-checked 1-based store into H.
+    auto putH = [&](int j1, double val) {
+        if (j1 < 1 || j1 > npt1)
+            throw numkit::Error("Internal grid index out of range.", 0, 0,
+                                "fir2", "", "m:fir2:SignalErr");
+        H[j1 - 1] = Complex(val, 0.0);
+    };
+
+    putH(1, mv[0]);
+    int nb = 1;  // 1-based start of the next segment
+
+    for (size_t i = 0; i + 1 < nf; ++i) {
+        const double df = fv[i + 1] - fv[i];
+        int ne;
         if (df == 0.0) {
-            // Discontinuity: smooth across `lap` samples centered on nb.
-            nb = static_cast<long long>(std::ceil(static_cast<double>(nb) - lap / 2.0));
-            ne = nb + static_cast<long long>(lap);
+            // Duplicated frequency — a response discontinuity. Back up
+            // half the smoothing window, then ramp across `lap` points.
+            nb = static_cast<int>(std::ceil(nb - lap / 2.0));
+            ne = nb + lap;
         } else {
-            // ne (1-based) = floor(F[i+1] * nptP1) per MATLAB fix(...).
-            ne = static_cast<long long>(std::floor(F[i + 1] * static_cast<double>(nptP1)));
+            ne = static_cast<int>(std::floor(fv[i + 1] * npt1));
         }
-        if (nb < 1 || ne > static_cast<long long>(nptP1))
-            throw Error("fir2: internal index out of range",
-                        0, 0, "fir2", "", "m:fir2:SignalErr");
-        if (nb == ne) {
-            H[nb - 1] = A[i + 1];  // single-point segment, write endpoint amp
-        } else {
-            for (long long j = nb; j <= ne; ++j) {
-                const double t = static_cast<double>(j - nb)
-                                  / static_cast<double>(ne - nb);
-                H[j - 1] = t * A[i + 1] + (1.0 - t) * A[i];
-            }
+
+        if (nb < 1 || ne > npt1)
+            throw numkit::Error("Internal grid index out of range.", 0, 0,
+                                "fir2", "", "m:fir2:SignalErr");
+
+        for (int j = nb; j <= ne; ++j) {
+            double inc;
+            if (ne == nb)
+                inc = 0.0;
+            else
+                inc = static_cast<double>(j - nb)
+                      / static_cast<double>(ne - nb);
+            putH(j, inc * mv[i + 1] + (1.0 - inc) * mv[i]);
         }
         nb = ne + 1;
     }
 
-    // Apply Fourier time-shift (linear phase): H *= exp(-jπ·dt·k/npt)
-    // where dt = (nn-1)/2 and k = 0..nptP1-1 = 0..npt.
-    using Cd = std::complex<double>;
-    ScratchVec<Cd> Hc(2 * npt, &scratch);
-    const double dt = 0.5 * static_cast<double>(nn - 1);
-    for (std::size_t k = 0; k < nptP1; ++k) {
-        const double phase = -dt * M_PI * static_cast<double>(k)
-                              / static_cast<double>(npt);
-        const Cd e(std::cos(phase), std::sin(phase));
-        Hc[k] = e * H[k];
-    }
-    // Mirror: H_full[npt+1..2*npt-1] = conj(H[npt-1..1])  (skip DC and Nyquist).
-    // MATLAB: H = [H, conj(H(npt-1:-1:2))] in 1-based → indices 511..2.
-    // 0-based equivalent: positions nptP1..2npt-1 ← conj(positions npt-1..1).
-    for (std::size_t k = 1; k < npt; ++k) {
-        Hc[2 * npt - k] = std::conj(Hc[k]);
+    // ── 7. Linear-phase delay (spec §2.4) ──────────────────────────────
+    // Multiply by a pure delay of dt = (nn-1)/2 samples.
+    const double dt = (nn - 1) / 2.0;
+    for (int k = 0; k <= npt; ++k) {
+        const double phase = -M_PI * dt * k / npt;
+        H[k] *= Complex(std::cos(phase), std::sin(phase));
     }
 
-    // ifft of length 2*npt (power of 2). Use libs/signal::fft via Value
-    // wrapper for IFFT — but the simplest path is direct (we only need
-    // 2*npt real output and 2*npt is power of 2). Use signal::ifft.
-    Value Hv = Value::matrix(2 * npt, 1, ValueType::COMPLEX, mr);
-    {
-        Cd *cd = Hv.complexDataMut();
-        std::copy(Hc.data(), Hc.data() + 2 * npt, cd);
-    }
-    Value htV = numkit::signal::ifft(Hv, static_cast<int>(2 * npt), 1, mr);
+    // ── 8. Mirror, inverse transform (spec §2.5) ───────────────────────
+    // Full 2*npt spectrum by Hermitian mirroring (excl. DC and Nyquist):
+    //   Hfull = [ H[0..npt], conj(H[npt-1]), ..., conj(H[1]) ]
+    const int nFull = 2 * npt;  // power of two
+    Value spectrum =
+        Value::matrix(static_cast<size_t>(nFull), 1, ValueType::COMPLEX, mr);
+    Complex *sp = spectrum.complexDataMut();
+    for (int k = 0; k <= npt; ++k)
+        sp[k] = H[k];
+    for (int k = 1; k < npt; ++k)
+        sp[npt + k] = std::conj(H[npt - k]);
 
-    // Hamming window: w[k] = 0.54 - 0.46*cos(2π·k/(nn-1))  (symmetric)
-    ScratchVec<double> wind(nn, &scratch);
-    if (nn == 1) {
-        wind[0] = 1.0;
-    } else {
-        for (std::size_t k = 0; k < nn; ++k)
-            wind[k] = 0.54 - 0.46 * std::cos(2.0 * M_PI * static_cast<double>(k)
-                                              / static_cast<double>(nn - 1));
-    }
+    // Inverse DFT of length 2*npt (already normalised by the transform).
+    Value timeDom = ifft(spectrum, nFull, 1, &arena);
 
-    // b = ht[0..nn-1] .* wind  (returned as 1×nn row).
-    Value b = Value::matrix(1, nn, ValueType::DOUBLE, mr);
+    // ── 9. Take the first nn samples and window (spec §2.5) ────────────
+    Value b = Value::matrix(1, static_cast<size_t>(nn), ValueType::DOUBLE, mr);
     double *bd = b.doubleDataMut();
-    if (htV.type() == ValueType::COMPLEX) {
-        const Cd *htd = htV.complexData();
-        for (std::size_t k = 0; k < nn; ++k) bd[k] = htd[k].real() * wind[k];
+
+    // The window: user-supplied or a default Hamming of length nn.
+    ScratchVec<double> win(0, &arena);
+    if (!opts.window.isEmpty()) {
+        if (static_cast<int>(opts.window.numel()) != nn)
+            throw numkit::Error("The window length must equal the filter "
+                                "length.",
+                                0, 0, "fir2", "", "m:fir2:BadWindow");
+        readVec(opts.window, win);
     } else {
-        const double *htd = htV.doubleData();
-        for (std::size_t k = 0; k < nn; ++k) bd[k] = htd[k] * wind[k];
+        win.resize(static_cast<size_t>(nn));
+        if (nn == 1) {
+            win[0] = 1.0;
+        } else {
+            for (int k = 0; k < nn; ++k)
+                win[k] = 0.54
+                         - 0.46 * std::cos(2.0 * M_PI * k / (nn - 1));
+        }
     }
+
+    // ifft may return DOUBLE (conjugate-symmetric input) or COMPLEX.
+    if (timeDom.type() == ValueType::COMPLEX) {
+        const Complex *td = timeDom.complexData();
+        for (int k = 0; k < nn; ++k)
+            bd[k] = td[k].real() * win[k];
+    } else {
+        const double *td = timeDom.doubleData();
+        for (int k = 0; k < nn; ++k)
+            bd[k] = td[k] * win[k];
+    }
+
     return b;
 }
+
 
 // ── firpm (Parks-McClellan, Type I only — even N) ────────────────────
 //
