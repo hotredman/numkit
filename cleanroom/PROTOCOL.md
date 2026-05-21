@@ -79,7 +79,7 @@ recorded below.
 | pitchCEP | Noll 1967 (JASA 41(2)) | cleanroom/specs/pitchCEP.md | clean-room agent (per spec) | (this commit) | gtest 16/16; parity correctness=OK |
 | pitchLHS | Hermes 1988 (JASA 83(1)) | cleanroom/specs/pitchLHS.md | clean-room agent (per spec) | (this commit) | gtest 16/16; parity correctness=OK |
 | pitchSRH | Drugman & Alwan 2011 (Interspeech) | cleanroom/specs/pitchSRH.md | clean-room agent (per spec) | (this commit) | gtest 16/16; parity OK — paper-faithful, srh_first intentionally not MATLAB-matched (re-baselined) |
-| pitchPEF | Gonzalez & Brookes 2011 (EUSIPCO) | (pending) | (pending) | (pending) | (pending) |
+| pitchPEF | Gonzalez & Brookes 2011 (EUSIPCO) | cleanroom/specs/pitchPEF.md | clean-room agent (per spec) | (this commit) | gtest 16/16; parity OK — paper-faithful (clean tone ~0.06% vs MATLAB; pef_r_first re-baselined) |
 | designMelFilterBankSlaney | Slaney 1998 (Apple TR #45) | (pending) | (pending) | (pending) | (pending) |
 | adapthisteq | Zuiderveld 1994 (Graphics Gems IV) | (pending) | (pending) | (pending) | (pending) |
 | bwmorph | Lam/Lee/Suen 1992; Pratt | (pending) | (pending) | (pending) | (pending) |
