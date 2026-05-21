@@ -18,13 +18,84 @@ carries. That ergonomic bar drives every rule below.
 
 **Scope.** Rules apply to *public* signatures only. Internal helpers
 (`namespace detail`, anonymous namespaces, `.cpp`-local functions) are
-exempt — see [§14](#14-internal-helpers-are-exempt).
+exempt — see [§19](#19-internal-helpers-are-exempt).
 
 **How to apply.** Follow these rules for every new function and for any
 old function you touch. Do **not** rewrite untouched code wholesale just
 to conform — migrate opportunistically.
 
+The document has two parts:
+
+- **§1-§5 — MATLAB parity & provenance:** which functions we build, how
+  we research and test them, and the clean-room rules.
+- **§6-§19 — C++ signature conventions:** how to shape the public C++
+  signature.
+
 ---
+
+# MATLAB parity & provenance
+
+## 1. Replicate the MATLAB API in full
+
+If a function exists in MATLAB, the numkit implementation must reproduce
+its **entire observable API** — every calling signature, every optional
+and name-value argument, every output, all documented defaults, and the
+documented edge-case behavior — matching **MATLAB R2025b**. When MATLAB
+and Octave disagree, code to MATLAB.
+
+"Replicate the API" governs **observable behavior at the interpreter
+boundary** — what `.m` code may call and what it gets back. The C++
+public signature is a *separate layer*: it stays idiomatic per §6-§19. A
+MATLAB function with a polymorphic argument is split into typed C++
+overloads ([§10](#10-magic-polymorphism--typed-overloads)); the `*_reg`
+adapter ([§18](#18-the-engine-adapter-pattern)) recombines them so the
+interpreter-level function still accepts everything MATLAB accepts.
+
+Partial coverage shipped knowingly is allowed **only** when the gap is
+explicitly recorded in `PROGRESS.md` — never shipped silently as if
+complete.
+
+## 2. Research from MATLAB documentation, not guesswork
+
+Before writing a line of code, probe the reference: run `help <fn>` and
+open `doc <fn>` in MATLAB R2025b. Enumerate every signature, option, and
+edge case from the documentation first; *then* probe actual behavior in
+MATLAB; *then* implement. Working from memory or assumption produces
+wrong-formula iterations — the docs come first.
+
+## 3. Test every signature against MATLAB
+
+A gtest unit test **and** a smoke `.m` are both mandatory (see
+[CLAUDE.md](../CLAUDE.md) for the full four-artefact rule). Together they
+must exercise **every signature and argument combination** the API
+exposes — at minimum one case per documented branch, option, and output.
+
+Expected values are taken from **MATLAB R2025b**, never hand-derived:
+run the function in MATLAB and compare numkit's output case by case.
+Hand-written expectations have shipped real bugs that only the
+cross-engine parity check caught — trust the reference engine, not your
+own arithmetic.
+
+## 4. Never use MATLAB source code
+
+Every implementation is **clean-room**. Reading, copying, transcribing,
+translating, or paraphrasing MATLAB's own `.m` files or built-in source
+— in any form, including decompiled, disassembled, or leaked copies —
+is strictly forbidden. Implement only from public documentation,
+observed black-box behavior, and independent references (§5).
+
+## 5. Cite original references in the implementation
+
+The implementation file states its sources in a header comment: the
+original scientific papers, textbooks, and published standards the
+algorithm is derived from (e.g. Oppenheim & Schafer for a DSP filter,
+the relevant IEEE / RFC standard for a codec). This records the
+clean-room provenance and is **not optional** — a parity function with
+no cited source is incomplete.
+
+---
+
+# C++ signature conventions
 
 ## The parameter decision tree
 
@@ -38,14 +109,12 @@ convenient to extract:
 | Definitionally a flat real vector, shape carries no meaning | `Span<const double>`      |
 | One concept that is *scalar **or** vector* (MATLAB broadcast)| `const Value &`           |
 | One name historically covering *two unrelated* meanings     | split into typed overloads|
-| A user-supplied function handle / callback                  | `FnHandle`                |
-| An interpreter instance (`Engine *`)                        | **never** — see [§7](#7-no-engine--in-the-public-api) |
+| A user-supplied function handle / callback                  | `FnHandle` ([§11](#11-fnhandle-for-callbacks)) |
+| An interpreter instance (`Engine *`)                        | **never** — see [§12](#12-no-engine--in-the-public-api) |
 
-The rest of this document is the long form of that table.
+The rest of this part is the long form of that table.
 
----
-
-## 1. Argument order
+## 6. Argument order
 
 ```cpp
 ReturnType name(<required data>,
@@ -58,7 +127,7 @@ ReturnType name(<required data>,
 **always defaults to `nullptr`**. `ScratchArena` resolves a null `mr` to
 the process-default resource internally — callers never have to.
 
-## 2. Scalar parameters → native C++ types
+## 7. Scalar parameters → native C++ types
 
 A parameter with a single fixed scalar meaning takes a native type, not
 `const Value &`:
@@ -77,7 +146,7 @@ Value zpk(const Value &z, const Value &p, const Value &k, ...);
 Native scalar types: `double`, `int`, `bool`, `std::string` (for string
 flags), `std::complex<double>`.
 
-## 3. Array parameters → `const Value &` or `Span<const double>`
+## 8. Array parameters → `const Value &` or `Span<const double>`
 
 Never a raw `(const T *, size_t)` pair in a public signature.
 
@@ -102,7 +171,7 @@ std::pair<Value,Value> pulstran(Span<const double> t,
                                 Span<const double> d, FnHandle fn, mr);
 ```
 
-## 4. Optional `Value` parameters
+## 9. Optional `Value` parameters
 
 - Default to `const Value &x = Value::Empty` — MATLAB-style `0×0`
   `DOUBLE`.
@@ -113,7 +182,7 @@ std::pair<Value,Value> pulstran(Span<const double> t,
 `Value::Unset` is internal-only (default-constructed, "unset variable"
 for the parser/VM) and must never be a public default.
 
-## 5. Magic-polymorphism → typed overloads
+## 10. Magic-polymorphism → typed overloads
 
 When one `const Value &` parameter historically encoded **two unrelated
 meanings**, split it into overloads with distinct, self-documenting
@@ -138,10 +207,10 @@ Value fzero(FnHandle fn, double a, double b, mr);   // bracket [a,b]
 ```
 
 The interpreter `*_reg` adapter inspects the runtime `Value` and
-dispatches to the right overload (see [§13](#13-the-engine-adapter-pattern)).
+dispatches to the right overload (see
+[§18](#18-the-engine-adapter-pattern)).
 
-### 5a. Caveat — a genuine *scalar-or-vector* concept is **not**
-magic-polymorphism
+### 10a. Caveat — a genuine *scalar-or-vector* concept is **not** magic-polymorphism
 
 If a parameter legitimately accepts "scalar **or** vector" as **one
 coherent concept** — the MATLAB broadcast idiom — keep it a single
@@ -160,7 +229,7 @@ Value movvar(const Value &x, const Value &k, ...);
 The test: **unrelated meanings → overloads; one concept, variable
 arity → one parameter.**
 
-## 6. `FnHandle` for callbacks
+## 11. `FnHandle` for callbacks
 
 Any function that calls back into user-supplied code (`fzero`,
 `integral`, `fminsearch`, `cellfun`, `structfun`, `bootstrp`,
@@ -197,18 +266,18 @@ auto root = numkit::optim::fzero(
     /*x0=*/1.0);
 ```
 
-## 7. No `Engine *` in the public API
+## 12. No `Engine *` in the public API
 
 A `libs/` function must be callable **without an interpreter
 instance**. `Engine *` (and `CallContext &`) must never appear in a
 public `libs/` signature. Anything that previously needed the engine to
-call back into user code now takes a [`FnHandle`](#6-fnhandle-for-callbacks)
-instead.
+call back into user code now takes a
+[`FnHandle`](#11-fnhandle-for-callbacks) instead.
 
 `Engine *` lives **only** in the interpreter glue — the `*_reg`
-adapters — see [§13](#13-the-engine-adapter-pattern).
+adapters — see [§18](#18-the-engine-adapter-pattern).
 
-## 8. Multi-option → options struct
+## 13. Multi-option → options struct
 
 Three or more optional parameters → group them into a struct with
 in-class defaults:
@@ -223,7 +292,7 @@ Value adapthisteq(const Value &I, const AdaptHistEqOptions &opts = {},
                   std::pmr::memory_resource *mr = nullptr);
 ```
 
-## 9. Multi-output — return, never out-pointers
+## 14. Multi-output — return, never out-pointers
 
 - 2 outputs → `std::pair<Value, Value>`
 - 3 outputs → `std::tuple<Value, Value, Value>`
@@ -234,7 +303,7 @@ Value adapthisteq(const Value &I, const AdaptHistEqOptions &opts = {},
 Structured bindings (`auto [a, b] = f(x)`) map 1:1 onto MATLAB's
 `[a, b] = f(x)` and eliminate the null-pointer bug surface.
 
-## 10. Return types — prefer `Value`, native is a soft option
+## 15. Return types — prefer `Value`, native is a soft option
 
 The default return type is `Value` (or `pair` / `tuple` / a named
 struct of `Value`s). This keeps the API uniform with MATLAB parity and
@@ -245,7 +314,7 @@ single scalar **and** is never consumed polymorphically may return a
 native `double` / `bool` directly. This is a judgement call, not a
 mandate — when in doubt, return `Value`.
 
-## 11. `Value` ergonomic constructors
+## 16. `Value` ergonomic constructors
 
 These exist in `core/value.hpp` and are what make literal call syntax
 work — rely on them, don't reinvent:
@@ -258,14 +327,16 @@ work — rely on them, don't reinvent:
 - `Value::view(...)` — non-owning; caller manages lifetime, copy-on-write
   on mutation.
 
-## 12. Documentation
+## 17. Documentation
 
 - Doxygen `///` on every public declaration: `@brief`, `@param`,
   `@return`, `@throws`, and at least one `@code` / `@endcode` example
   for any non-trivial function.
 - Inside `.cpp`: comment **why**, never **what**. The code says what.
+- The implementation file header cites its references — see
+  [§5](#5-cite-original-references-in-the-implementation).
 
-## 13. The Engine-adapter pattern
+## 18. The Engine-adapter pattern
 
 The interpreter reaches a `libs/` function through a thin `*_reg`
 adapter (registered in `libs/<ns>/src/library.cpp`). The adapter is the
@@ -273,7 +344,7 @@ adapter (registered in `libs/<ns>/src/library.cpp`). The adapter is the
 
 1. unpacks runtime `Value` arguments into native types,
 2. dispatches magic-polymorphic call sites to the right overload
-   ([§5](#5-magic-polymorphism--typed-overloads)),
+   ([§10](#10-magic-polymorphism--typed-overloads)),
 3. wraps the engine's function-handle machinery into a stack-resident
    `FnHandle` lambda,
 4. passes `ctx.engine->resource()` as `mr`.
@@ -297,7 +368,7 @@ void fzero_reg(Span<const Value> args, size_t /*nargout*/,
 }
 ```
 
-## 14. Internal helpers are exempt
+## 19. Internal helpers are exempt
 
 Functions in `namespace detail`, anonymous namespaces, or `.cpp`-local
 helpers may use whatever signature is convenient. Only public-facing
