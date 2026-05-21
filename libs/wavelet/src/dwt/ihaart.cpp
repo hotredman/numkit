@@ -21,8 +21,8 @@
 //       integer:     x[2k]   = a[k] - floor(d[k] / 2)
 //                    x[2k+1] = x[2k] + d[k]
 //
-//   * `a` may be complex; `d` MUST be real (MATLAB validates with
-//     `validateattributes(..., {'real','finite'},...)` — we mirror).
+//   * `a` may be complex; `d` MUST be real and finite — a non-real or
+//     non-finite `d` is rejected with an error.
 //   * Empty `a` errors. Negative level errors. level >= Nlevels errors.
 //   * Output orientation: vector-shaped a returns column; matrix
 //     returns matrix (columns reconstructed independently).

@@ -133,11 +133,11 @@ Value randsrc(size_t m, size_t n, const Value &alphabet,
 }
 
 // ── randerr ────────────────────────────────────────────────────────
-// MATLAB's randerr.m algorithm (per row i):
-//   u   = rand(1, 1)             -> pick error count from prob CDF
-//   rs  = rand(1, n)             -> for sort-based random column choice
-//   [~, p] = sort(rs)            -> p(j) = original column of j-th smallest
-//   out(i, j) = (p(j) <= num)    -> num 1s in random columns
+// Random bit-error matrix. Per row i:
+//   - draw the error count from the probability CDF;
+//   - choose that many random column positions by sorting a vector of
+//     random keys and marking the lowest-keyed columns (a standard
+//     random-subset selection).
 //
 // `errspec` is one of:
 //   - scalar k                            -> exactly k errors per row

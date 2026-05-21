@@ -750,7 +750,7 @@ firpm(int N, const Value &Farg, const Value &Aarg, const Value &Warg,
     }
     const std::size_t r     = L + 1;       // # cosine basis coefficients
     const std::size_t nExtr = r + 1;       // # extremal frequencies (= L+2)
-    constexpr int lgrid = 16;              // MATLAB default grid density
+    constexpr int lgrid = 16;              // dense-grid density per extremal
 
     // Total fractional width across all bands (proportional grid alloc).
     double totalWidth = 0.0;
@@ -778,9 +778,9 @@ firpm(int N, const Value &Farg, const Value &Aarg, const Value &Warg,
         std::size_t nb = static_cast<std::size_t>(
             std::ceil(double(gridTarget) * bw / totalWidth));
         if (nb < 4) nb = 4;
-        // MATLAB differentiator (firpmfrf line 61): apply the 1/f
-        // weighting only in NON-ZERO amplitude bands (where A(l+1) >=
-        // 0.0001). Stopbands keep the user weight.
+        // Differentiator: apply the 1/f weighting only in NON-ZERO
+        // amplitude bands (where A(l+1) >= 0.0001). Stopbands keep the
+        // user weight.
         const bool diffActive = isDiff && std::fabs(a2) >= 1e-4;
         for (std::size_t i = 0; i < nb; ++i) {
             const double t = double(i) / double(nb - 1);
@@ -1176,8 +1176,8 @@ firpm(int N, const Value &Farg, const Value &Aarg, const Value &Warg,
         }
     }
 
-    // MATLAB firpm.m line 152-154: "make sure differentiator has correct
-    // sign" — flip the entire impulse response when neg && !hilbert.
+    // Differentiator sign correction: flip the entire impulse response
+    // when neg && !hilbert.
     if (isDiff) {
         for (std::size_t i = 0; i <= static_cast<std::size_t>(N); ++i)
             bd[i] = -bd[i];
