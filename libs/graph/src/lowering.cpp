@@ -30,8 +30,15 @@ namespace {
  *  empty when the slice is out of range. For Phase 1 we slice just
  *  the start line — multi-line statements show only their first line
  *  in the node body; full slicing comes when we wire endLine for
- *  every node. */
-std::string sliceLine(const std::string &source, int line)
+ *  every node.
+ *
+ *  When `firstCommentCol` is set (> 0), the slice is cut at
+ *  column-1 (col is 1-indexed) and trailing whitespace before it is
+ *  trimmed. That removes the trailing `% ...` comment cleanly while
+ *  preserving any `%` inside string literals — the lexer's COMMENT
+ *  emission already handled the MATLAB quote/transpose disambiguation
+ *  upstream. */
+std::string sliceLine(const std::string &source, int line, int firstCommentCol = 0)
 {
     if (line <= 0 || source.empty()) return {};
     int curLine = 1;
@@ -43,8 +50,14 @@ std::string sliceLine(const std::string &source, int line)
     if (curLine != line) return {};
     size_t end = source.find('\n', start);
     if (end == std::string::npos) end = source.size();
-    // Strip trailing \r (Windows line endings).
     while (end > start && (source[end - 1] == '\r')) --end;
+    // Cap at the comment column when provided.
+    if (firstCommentCol > 0) {
+        size_t commentStart = start + static_cast<size_t>(firstCommentCol - 1);
+        if (commentStart < end) end = commentStart;
+        // Trim trailing whitespace left over after the cut.
+        while (end > start && (source[end - 1] == ' ' || source[end - 1] == '\t')) --end;
+    }
     return source.substr(start, end - start);
 }
 
@@ -192,6 +205,16 @@ struct LoweringState {
     std::unordered_map<std::string, int> lastProducer;
     // Source text for slicing per-node sourceText.
     const std::string *source = nullptr;
+    // First COMMENT-token column per source line (1-indexed). Built
+    // from the lexer's COMMENT-token stream. Looked up in sliceLine
+    // to cut trailing `% ...` off the body text. Empty when no
+    // tokens were provided (caller skipped trimming).
+    std::unordered_map<int, int> firstCommentColPerLine;
+
+    int firstCommentColOnLine(int line) const {
+        auto it = firstCommentColPerLine.find(line);
+        return it == firstCommentColPerLine.end() ? 0 : it->second;
+    }
 
     int addNode(Node n)
     {
@@ -229,7 +252,7 @@ void lowerAssign(LoweringState &S, const ASTNode &stmt)
     n.kind = NodeKind::Assignment;
     n.sourceLine = stmt.line;
     n.sourceCol  = stmt.col;
-    n.sourceText = S.source ? sliceLine(*S.source, stmt.line) : "";
+    n.sourceText = S.source ? sliceLine(*S.source, stmt.line, S.firstCommentColOnLine(stmt.line)) : "";
 
     const ASTNode *lhs = nullptr;
     const ASTNode *rhs = nullptr;
@@ -297,7 +320,7 @@ void lowerExprStmt(LoweringState &S, const ASTNode &stmt)
     n.kind = NodeKind::ExprStmt;
     n.sourceLine = stmt.line;
     n.sourceCol  = stmt.col;
-    n.sourceText = S.source ? sliceLine(*S.source, stmt.line) : "";
+    n.sourceText = S.source ? sliceLine(*S.source, stmt.line, S.firstCommentColOnLine(stmt.line)) : "";
     const ASTNode *expr = stmt.children.empty() ? nullptr : stmt.children[0].get();
     auto isKnownVar = [&](const std::string &name) {
         return S.lastProducer.count(name) > 0;
@@ -324,7 +347,7 @@ void lowerGlobalDecl(LoweringState &S, const ASTNode &stmt, NodeKind kind)
     n.kind = kind;
     n.sourceLine = stmt.line;
     n.sourceCol  = stmt.col;
-    n.sourceText = S.source ? sliceLine(*S.source, stmt.line) : "";
+    n.sourceText = S.source ? sliceLine(*S.source, stmt.line, S.firstCommentColOnLine(stmt.line)) : "";
     // Decl names live on paramNames (the parser stores them there).
     n.outputs = stmt.paramNames.empty() ? stmt.returnNames : stmt.paramNames;
     int nid = S.addNode(std::move(n));
@@ -375,11 +398,25 @@ void lowerStatement(LoweringState &S, const ASTNode &stmt)
 
 } // namespace
 
-NodeGraph lowerScript(const ASTNode &root, const std::string &sourceText)
+NodeGraph lowerScript(const ASTNode &root,
+                      const std::string &sourceText,
+                      const std::vector<Token> &tokens)
 {
     LoweringState S;
     S.source = sourceText.empty() ? nullptr : &sourceText;
     S.graph.functionName = "<script>";
+
+    // Build per-line "first COMMENT column" map for sourceText
+    // trimming. Comments come from the lexer (single source of truth
+    // for MATLAB syntax — handles quote/transpose, block comments,
+    // line continuations correctly), passed in by the caller as the
+    // raw token stream. The parser ALREADY pre-filters COMMENT tokens
+    // so the AST is unaffected.
+    for (const auto &t : tokens) {
+        if (t.type != TokenType::COMMENT) continue;
+        auto [it, inserted] = S.firstCommentColPerLine.try_emplace(t.line, t.col);
+        if (!inserted && t.col < it->second) it->second = t.col;
+    }
 
     // Top-level parse() returns a BLOCK whose children are the
     // statements. Some callers may hand us a single statement

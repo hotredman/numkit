@@ -1043,7 +1043,7 @@ void repl_pop_script_origin() {
 // IDE can surface them without throwing across the WASM boundary.
 // ════════════════════════════════════════════════════════════════
 static std::string jsonError(const std::string &message) {
-    // escapeJSON returns escaped-but-unquoted content (see top of file);
+    // escapeJSON returns escaped-but-unquoted content (see line 71);
     // wrap in quotes ourselves so the result is a valid JSON value.
     return std::string("{\"error\":\"") + escapeJSON(message) + "\"}";
 }
@@ -1055,7 +1055,11 @@ std::string buildScriptGraph(const std::string &source) {
         numkit::Parser parser(tokens);
         auto root = parser.parse();
         if (!root) return jsonError("parser returned null AST");
-        auto g = numkit::graph::lowerScript(*root, source);
+        // Pass `tokens` so lowering can use the lexer's COMMENT
+        // positions to trim trailing `% ...` from per-node sourceText.
+        // No second lex; the parser already filtered COMMENT tokens
+        // internally via its centralized advance() helper.
+        auto g = numkit::graph::lowerScript(*root, source, tokens);
         return numkit::graph::toJSON(g);
     } catch (const std::exception &e) {
         return jsonError(e.what());

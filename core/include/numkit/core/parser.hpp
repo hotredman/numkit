@@ -35,6 +35,16 @@ private:
     void skipNewlines();
     void skipTerminators();
 
+    // Single chokepoint for token-position changes. After moving pos_
+    // forward, skips past any COMMENT tokens so the parser never has
+    // to deal with them — COMMENT is purely lexical metadata for
+    // downstream tools (script-graph viewer, formatters, doc
+    // extractors). All `pos_++` sites in parser.cpp go through this
+    // helper, plus the constructor invokes skipPastComments() once
+    // to handle a leading comment.
+    void advance();
+    void skipPastComments();
+
     // — Проверка терминаторов —
     bool isTerminator(std::initializer_list<TokenType> terminators) const;
 
