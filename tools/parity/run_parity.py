@@ -130,21 +130,56 @@ end
 """
 
 
-def build_script(spec: Spec, *, timed: bool) -> str:
-    """Build a MATLAB/Octave/numkit-compatible script.
+def _indent(code: str, n: int) -> str:
+    pad = " " * n
+    return "\n".join(pad + ln for ln in code.splitlines())
 
-    timed=True   → run warmup + iters loop, print elapsed_ms,
-                   fingerprints, and (if out_var is set) a full SAVE
-                   block of the output variable.
-    timed=False  → just produce fingerprints (correctness reference).
+
+def _indent_stmts(code: str, n: int) -> str:
+    """Indent `code` by n spaces, one statement per line.
+
+    Spec `setup` / `expr` are authored as a single `;`-separated line.
+    A very long single line trips a numkit parser bug (statements past
+    a certain length mis-evaluate), so each `;`-separated statement is
+    put on its own line. A `;` inside a `[...]` matrix literal split
+    this way stays valid — a newline is also a row separator there.
+    """
+    return _indent(";\n".join(code.split(";")), n)
+
+
+def _spec_fn(name: str) -> str:
+    """A valid MATLAB identifier for the spec's local function."""
+    return "spec_" + re.sub(r"\W", "_", name)
+
+
+def build_spec_call(spec: Spec) -> str:
+    """The script-body line that runs one spec under a thin try.
+
+    The try wraps only the *call* — the spec's own (possibly complex)
+    code lives in a separate local function. Keeping the try-body to a
+    single call is deliberate: it both contains runtime errors and
+    side-steps an interpreter bug where try-wrapping a large inline
+    block changes how it evaluates.
+    """
+    fn = _spec_fn(spec.name)
+    return (
+        f"fprintf('__SPECBEGIN__ {spec.name}\\n');\n"
+        f"try; {fn}(); "
+        f"catch ME__; fprintf('__SPECERR__ %s\\n', ME__.message); end\n"
+        f"fprintf('__SPECEND__ {spec.name}\\n');\n"
+    )
+
+
+def build_spec_func(spec: Spec, *, engine: str) -> str:
+    """The local-function definition that runs one spec's body.
+
+    Each spec is its own function, so its workspace is fully isolated —
+    no `clear` and no cross-spec leakage.
     """
     # Auto-fp: use the first assigned output as the fingerprint var.
-    # For `[y, jj, kk] = tf2zp(...)` the LHS is `[y, jj, kk]` — strip
-    # the brackets and take only the first name. MATLAB rejects
-    # indexing a literal `[a,b,c](:)` directly.
+    # `[y, jj] = f(...)` → strip brackets, take the first name.
     lhs = spec.expr.split("=")[0].strip()
     if lhs.startswith("[") and lhs.endswith("]"):
-        # multi-output assignment — pick first var name
         first_var = lhs[1:-1].split(",")[0].strip()
     else:
         first_var = lhs
@@ -154,27 +189,56 @@ def build_script(spec: Spec, *, timed: bool) -> str:
         f"{first_var}(end)",
     ]
     fp_print = "\n".join(
-        f"fprintf('FP %d %.17g\\n', {i}, double({e}));"
+        f"    fprintf('FP %d %.17g\\n', {i}, double({e}));"
         for i, e in enumerate(fp_exprs)
     )
+    save_dump = ""
+    if spec.out_var:
+        save_dump = _indent(
+            SAVE_DUMP_TEMPLATE.replace("__VAR__", spec.out_var), 4)
+    reimport = "    import compat.*\n" if engine == "numkit" else ""
+    return (
+        f"function {_spec_fn(spec.name)}()\n"
+        f"{reimport}"
+        f"{_indent_stmts(spec.setup, 4)}\n"
+        f"{_indent_stmts(spec.expr, 4)}\n"    # warmup
+        f"    t0__ = tic;\n"
+        f"    for kk__ = 1:{spec.iters}\n"
+        f"{_indent_stmts(spec.expr, 8)}\n"
+        f"    end\n"
+        f"    elapsed_ms = toc(t0__) * 1000.0 / {spec.iters};\n"
+        f"    fprintf('TIMING %.6f\\n', elapsed_ms);\n"
+        f"{fp_print}\n"
+        f"{save_dump}\n"
+        f"end\n"
+    )
 
-    save_dump = SAVE_DUMP_TEMPLATE.replace("__VAR__", spec.out_var) if spec.out_var else ""
 
-    if timed:
-        return (
-            f"{spec.setup}\n"
-            f"{spec.expr}\n"  # warmup
-            f"t0 = tic;\n"
-            f"for kk__ = 1:{spec.iters}\n"
-            f"    {spec.expr}\n"
-            f"end\n"
-            f"elapsed_ms = toc(t0) * 1000.0 / {spec.iters};\n"
-            f"fprintf('TIMING %.6f\\n', elapsed_ms);\n"
-            f"{fp_print}\n"
-            f"{save_dump}\n"
+def build_batch_script(specs: list[Spec], *, engine: str) -> str:
+    """A whole chunk of specs as one script for a single engine launch.
+
+    Layout: prelude · one call line per spec · one local function per
+    spec (functions last, as MATLAB requires). A *parse* error still
+    aborts its chunk — MATLAB compiles the file before running — which
+    is why specs are chunked rather than run as one giant script.
+    """
+    if engine == "numkit":
+        # libs/{signal,stats,…} fns are aliased into `compat.<name>`;
+        # MATLAB has no compat package so this is numkit-only.
+        prelude = "import compat.*\n"
+    elif engine == "octave":
+        # Octave needs `pkg load` for non-base packages.
+        prelude = (
+            "try; pkg load signal; end_try_catch\n"
+            "try; pkg load statistics; end_try_catch\n"
+            "try; pkg load control; end_try_catch\n"
+            "try; pkg load image; end_try_catch\n"
         )
     else:
-        return f"{spec.setup}\n{spec.expr}\n{fp_print}\n{save_dump}\n"
+        prelude = ""
+    calls = "".join(build_spec_call(s) for s in specs)
+    funcs = "\n".join(build_spec_func(s, engine=engine) for s in specs)
+    return prelude + calls + "\n" + funcs
 
 
 # ───────────────────────── engine runners ────────────────────────────
@@ -267,33 +331,6 @@ def parse_output(out: str) -> tuple[float | None, list[float], SaveBlock]:
     return timing, fp_list, sb
 
 
-def run_numkit(spec: Spec, *, timed: bool) -> Result:
-    if not NUMKIT_EXE.exists():
-        return Result(ok=False, error=f"numkit binary missing: {NUMKIT_EXE}")
-    # numkit-only: many libs/{signal,stats} fns are also aliased into
-    # `compat.<name>` so `import compat.*` brings them flat. MATLAB has
-    # no compat package, so we inject this only for the numkit run.
-    script = "import compat.*\n" + build_script(spec, timed=timed)
-    with tempfile.NamedTemporaryFile("w", suffix=".m", delete=False, encoding="utf-8") as f:
-        f.write(script)
-        path = f.name
-    try:
-        p = subprocess.run([str(NUMKIT_EXE), path], capture_output=True,
-                           text=True, timeout=120)
-    finally:
-        os.unlink(path)
-    timing, fp, sb = parse_output(p.stdout)
-    return Result(
-        ok=(p.returncode == 0 and (not timed or timing is not None) and len(fp) > 0),
-        elapsed_ms=timing,
-        fingerprint=fp,
-        save=sb,
-        raw_stdout=p.stdout,
-        raw_stderr=p.stderr,
-        error="" if p.returncode == 0 else f"exit {p.returncode}",
-    )
-
-
 def _write_script(script: str) -> Path:
     """Write a temp .m file. Caller deletes when done.
 
@@ -308,56 +345,66 @@ def _write_script(script: str) -> Path:
     return Path(f.name)
 
 
-def run_matlab(spec: Spec, *, timed: bool) -> Result:
-    script = build_script(spec, timed=timed)
-    path = _write_script(script)
-    try:
-        # matlab -batch <script-name-without-extension>.
-        # We pass the file's directory via --addpath equivalent; cleaner to
-        # cd into it via run() / matlab's working dir.
-        cmd = [MATLAB_EXE, "-batch", f"run('{path.as_posix()}')"]
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-    finally:
-        path.unlink(missing_ok=True)
-    timing, fp, sb = parse_output(p.stdout)
-    return Result(
-        ok=(p.returncode == 0 and (not timed or timing is not None) and len(fp) > 0),
-        elapsed_ms=timing,
-        fingerprint=fp,
-        save=sb,
-        raw_stdout=p.stdout,
-        raw_stderr=p.stderr,
-        error="" if p.returncode == 0 else f"exit {p.returncode}",
-    )
+def parse_batch(text: str) -> dict[str, Result]:
+    """Split one engine's combined batch output into a Result per spec,
+    delimited by the __SPECBEGIN__ / __SPECEND__ markers."""
+    out: dict[str, Result] = {}
+    cur: str | None = None
+    buf: list[str] = []
+    for line in text.splitlines():
+        st = line.strip()
+        if st.startswith("__SPECBEGIN__ "):
+            cur = st[len("__SPECBEGIN__ "):].strip()
+            buf = []
+        elif st.startswith("__SPECEND__ "):
+            if cur is not None:
+                chunk = "\n".join(buf)
+                err = any(l.strip().startswith("__SPECERR__") for l in buf)
+                timing, fp, sb = parse_output(chunk)
+                out[cur] = Result(
+                    ok=(not err and timing is not None and len(fp) > 0),
+                    elapsed_ms=timing, fingerprint=fp, save=sb,
+                    raw_stdout=chunk,
+                    error=("spec raised" if err else ""),
+                )
+            cur, buf = None, []
+        elif cur is not None:
+            buf.append(line)
+    return out
 
 
-def run_octave(spec: Spec, *, timed: bool) -> Result:
-    # Octave needs `pkg load <name>` for non-base packages (signal,
-    # statistics, control). MATLAB has these built-in so we don't
-    # touch the MATLAB script — only inject for Octave.
-    octave_prelude = (
-        "try; pkg load signal; end_try_catch\n"
-        "try; pkg load statistics; end_try_catch\n"
-        "try; pkg load control; end_try_catch\n"
-        "try; pkg load image; end_try_catch\n"
-    )
-    script = octave_prelude + build_script(spec, timed=timed)
+def run_engine_batch(specs: list[Spec],
+                     engine: str) -> tuple[dict[str, Result], str]:
+    """Run a whole chunk of specs in ONE engine process.
+
+    Returns (results-by-spec-name, error-string). The error string is
+    non-empty only on a whole-process problem (missing binary, timeout,
+    non-zero exit); per-spec runtime errors are captured inside each
+    Result via the __SPECERR__ marker, and partial results from a
+    crashed process are still returned for the specs that completed.
+    """
+    if engine == "numkit" and not NUMKIT_EXE.exists():
+        return {}, f"numkit binary missing: {NUMKIT_EXE}"
+    script = build_batch_script(specs, engine=engine)
     path = _write_script(script)
+    timeout = max(300, 8 * len(specs))  # one launch covers the chunk
     try:
-        cmd = [OCTAVE_EXE, "--no-gui", "--quiet", str(path)]
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        if engine == "numkit":
+            cmd = [str(NUMKIT_EXE), str(path)]
+        elif engine == "matlab":
+            cmd = [MATLAB_EXE, "-batch", f"run('{path.as_posix()}')"]
+        else:
+            cmd = [OCTAVE_EXE, "--no-gui", "--quiet", str(path)]
+        try:
+            p = subprocess.run(cmd, capture_output=True, text=True,
+                               timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return {}, f"{engine}: chunk timed out after {timeout}s"
     finally:
         path.unlink(missing_ok=True)
-    timing, fp, sb = parse_output(p.stdout)
-    return Result(
-        ok=(p.returncode == 0 and (not timed or timing is not None) and len(fp) > 0),
-        elapsed_ms=timing,
-        fingerprint=fp,
-        save=sb,
-        raw_stdout=p.stdout,
-        raw_stderr=p.stderr,
-        error="" if p.returncode == 0 else f"exit {p.returncode}",
-    )
+    results = parse_batch(p.stdout)
+    err = "" if p.returncode == 0 else f"{engine}: exit {p.returncode}"
+    return results, err
 
 
 # ──────────────────────── correctness check ──────────────────────────
@@ -518,104 +565,93 @@ def update_row(*, name: str, nk: Result | None,
     return touched
 
 
+# ──────────────────────── correctness verdict ─────────────────────────
+
+def evaluate(spec: Spec, nk: Result | None, ml: Result | None,
+             oc: Result | None) -> tuple[str, str]:
+    """(status, correctness) for one spec from its three engine Results.
+
+    status      — DONE if numkit ran the spec, FAIL otherwise.
+    correctness — OK / MISMATCH / N/A vs the reference engine
+                  (MATLAB preferred, Octave fallback).
+    """
+    if nk is None or not nk.ok:
+        return "FAIL", "N/A"
+    ref = ml if (ml and ml.ok) else (oc if (oc and oc.ok) else None)
+    if ref is None:
+        return "DONE", "N/A"
+    use_save = (spec.out_var and not nk.save.is_empty()
+                and not ref.save.is_empty())
+    if use_save:
+        ok, _ = save_close(nk.save, ref.save, spec.tol)
+        return "DONE", ("OK" if ok else "MISMATCH")
+    if fp_close(nk.fingerprint, ref.fingerprint, spec.tol):
+        return "DONE", "OK"
+    return "DONE", "MISMATCH"
+
+
 # ─────────────────────────────── main ────────────────────────────────
 
-def run_one(spec_path: Path, *, no_matlab: bool, no_octave: bool, verbose: bool) -> int:
-    spec = Spec.from_json(spec_path)
-    print(f"\n=== {spec.name} ({spec.namespace}) ===", flush=True)
+def run_chunk(specs: list[Spec], *, no_matlab: bool, no_octave: bool,
+              verbose: bool) -> tuple[int, dict[str, int]]:
+    """Run one chunk — a single launch per engine — then score and log
+    every spec. Returns (rc, tally); rc is 1 if any spec failed or
+    mismatched."""
+    nk_res, nk_err = run_engine_batch(specs, "numkit")
+    ml_res, ml_err = (({}, "") if no_matlab
+                      else run_engine_batch(specs, "matlab"))
+    oc_res, oc_err = (({}, "") if no_octave
+                      else run_engine_batch(specs, "octave"))
+    for err in (nk_err, ml_err, oc_err):
+        if err:
+            print(f"  ! {err}", flush=True)
 
-    nk = run_numkit(spec, timed=True)
-    print(f"  numkit:  ok={nk.ok}  ms={fmt_ms(nk.elapsed_ms)}  fp={fp_str(nk.fingerprint)}",
-          flush=True)
-    if not nk.ok:
-        # Always log stderr/stdout when an engine fails so the user
-        # can see why; verbose mode just adds longer excerpts.
-        cap = 2000 if verbose else 500
-        if nk.raw_stderr.strip():
-            print("  numkit stderr:", nk.raw_stderr[:cap].rstrip())
-        if nk.raw_stdout.strip():
-            print("  numkit stdout:", nk.raw_stdout[:cap].rstrip())
-
-    ml = None
-    if not no_matlab:
-        ml = run_matlab(spec, timed=True)
-        print(f"  matlab:  ok={ml.ok}  ms={fmt_ms(ml.elapsed_ms)}  fp={fp_str(ml.fingerprint)}",
-              flush=True)
-        if not ml.ok:
-            cap = 2000 if verbose else 500
-            if ml.raw_stderr.strip():
-                print("  matlab stderr:", ml.raw_stderr[:cap].rstrip())
-            if ml.raw_stdout.strip():
-                print("  matlab stdout:", ml.raw_stdout[:cap].rstrip())
-
-    oc = None
-    if not no_octave:
-        oc = run_octave(spec, timed=True)
-        print(f"  octave:  ok={oc.ok}  ms={fmt_ms(oc.elapsed_ms)}  fp={fp_str(oc.fingerprint)}",
-              flush=True)
-        if not oc.ok:
-            cap = 2000 if verbose else 500
-            if oc.raw_stderr.strip():
-                print("  octave stderr:", oc.raw_stderr[:cap].rstrip())
-            if oc.raw_stdout.strip():
-                print("  octave stdout:", oc.raw_stdout[:cap].rstrip())
-
-    if not nk.ok:
-        status = "FAIL"
-        correctness = "N/A"
-    else:
-        ref = ml if (ml and ml.ok) else (oc if (oc and oc.ok) else None)
-        if ref is None:
-            correctness = "N/A"
-            status = "DONE"
+    rc = 0
+    tally = {"OK": 0, "MISMATCH": 0, "FAIL": 0, "N/A": 0}
+    for spec in specs:
+        nk = nk_res.get(spec.name)
+        ml = ml_res.get(spec.name)
+        oc = oc_res.get(spec.name)
+        status, correctness = evaluate(spec, nk, ml, oc)
+        if status == "FAIL":
+            tally["FAIL"] += 1
+            rc = 1
         else:
-            # Prefer element-wise SAVE-block comparison when both engines
-            # produced one (= spec.out_var is set). Fall back to
-            # fingerprint comparison otherwise.
-            use_save = (spec.out_var
-                        and not nk.save.is_empty()
-                        and not ref.save.is_empty())
-            if use_save:
-                ok, why = save_close(nk.save, ref.save, spec.tol)
-                if ok:
-                    correctness = "OK"
-                    if verbose and why:
-                        print(f"  save-compare: {why}", flush=True)
-                else:
-                    correctness = "MISMATCH"
-                    print(f"  save-mismatch: {why}", flush=True)
-                status = "DONE"
-            elif fp_close(nk.fingerprint, ref.fingerprint, spec.tol):
-                correctness = "OK"
-                status = "DONE"
-            else:
-                correctness = "MISMATCH"
-                status = "DONE"
-
-    targets = spec.covers or [spec.name]
-    n = 0
-    for nm in targets:
-        n += update_row(
-            name=nm,
-            nk=nk, ml=ml, oc=oc,
-            correctness=correctness, comment=spec.comment,
-            implemented=nk.ok,
-        )
-    print(f"  -> status={status}  correctness={correctness}  rows updated: {n}",
-          flush=True)
-    return 0 if status == "DONE" and correctness in ("OK", "N/A") else 1
+            tally[correctness] += 1
+            if correctness == "MISMATCH":
+                rc = 1
+        # Only refresh a row when numkit actually ran the spec. On any
+        # numkit failure (engine crash, parse error, runtime throw)
+        # leave the row intact — don't overwrite a previously-recorded
+        # OK with a transient N/A.
+        rows = 0
+        if nk is not None and nk.ok:
+            for nm in (spec.covers or [spec.name]):
+                rows += update_row(
+                    name=nm, nk=nk, ml=ml, oc=oc,
+                    correctness=correctness, comment=spec.comment,
+                    implemented=nk.ok)
+        flag = "" if (status == "DONE"
+                      and correctness in ("OK", "N/A")) else "  <<"
+        print(f"  {spec.name:<34} {status:<5} {correctness:<9} "
+              f"rows={rows}{flag}", flush=True)
+        if verbose and nk is not None and not nk.ok:
+            print(f"      numkit error: {nk.error}", flush=True)
+    return rc, tally
 
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("specs", nargs="*", help="spec JSON path(s)")
-    p.add_argument("--all", action="store_true", help="run every spec under tools/parity/specs/")
+    p.add_argument("--all", action="store_true",
+                   help="run every spec under tools/parity/specs/")
     p.add_argument("--no-matlab", action="store_true")
     p.add_argument("--no-octave", action="store_true")
+    p.add_argument("--chunk", type=int, default=100,
+                   help="specs per engine launch (default 100)")
     p.add_argument("-v", "--verbose", action="store_true")
     args = p.parse_args()
 
-    targets: list[Path]
     if args.all:
         targets = sorted((Path(__file__).parent / "specs").glob("*.json"))
     else:
@@ -623,15 +659,36 @@ def main():
     if not targets:
         p.error("no specs supplied (use --all or pass paths)")
 
-    rc_total = 0
-    for spec_path in targets:
-        rc = run_one(spec_path,
-                     no_matlab=args.no_matlab,
-                     no_octave=args.no_octave,
-                     verbose=args.verbose)
-        if rc != 0:
-            rc_total = rc
-    return rc_total
+    specs: list[Spec] = []
+    for sp in targets:
+        try:
+            specs.append(Spec.from_json(sp))
+        except Exception as e:  # a malformed spec must not abort the run
+            print(f"  SKIP {sp.name}: bad spec ({e})")
+    if not specs:
+        return 1
+
+    chunk = max(1, args.chunk)
+    nchunks = (len(specs) + chunk - 1) // chunk
+    print(f"{len(specs)} spec(s) · chunk={chunk} · "
+          f"{nchunks} launch(es) per engine", flush=True)
+
+    rc = 0
+    total = {"OK": 0, "MISMATCH": 0, "FAIL": 0, "N/A": 0}
+    for ci in range(nchunks):
+        batch = specs[ci * chunk:(ci + 1) * chunk]
+        print(f"\n── chunk {ci + 1}/{nchunks} ({len(batch)} specs) ──",
+              flush=True)
+        crc, tally = run_chunk(batch, no_matlab=args.no_matlab,
+                               no_octave=args.no_octave,
+                               verbose=args.verbose)
+        rc = rc or crc
+        for k in total:
+            total[k] += tally[k]
+
+    print(f"\nsummary: OK={total['OK']}  MISMATCH={total['MISMATCH']}  "
+          f"FAIL={total['FAIL']}  N/A={total['N/A']}", flush=True)
+    return rc
 
 
 if __name__ == "__main__":
