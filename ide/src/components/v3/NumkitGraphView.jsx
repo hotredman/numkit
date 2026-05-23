@@ -94,8 +94,11 @@ function nodeBody({ title, body, kindClass, inputs, outputs }) {
 }
 
 function AssignmentNode({ data }) {
+  // No title — the LHS variable name is already shown as the output
+  // pin label (right side of card), and the body contains the full
+  // statement including `lhs = …`. Title was duplicate noise.
   return nodeBody({
-    title: data.outputs?.join(', ') || '?',
+    title: '',
     body: data.sourceText || '',
     kindClass: 'ng-node-assignment',
     inputs: data.inputs || [],
@@ -104,7 +107,7 @@ function AssignmentNode({ data }) {
 }
 
 function ExprStmtNode({ data }) {
-  // No LHS → no title row. Source line speaks for itself
+  // No LHS → no title. Source line speaks for itself
   // (`plot(y)`, `clear`, `disp(x)`).
   return nodeBody({
     title: '',
@@ -117,7 +120,9 @@ function ExprStmtNode({ data }) {
 
 function OpaqueNode({ data }) {
   // Phase-1 stubs: GlobalDecl, PersistentDecl, IfRegion, etc. Keep
-  // the kind tag as title so the user can tell it's a placeholder.
+  // the kind tag as title so the user can tell it's a placeholder —
+  // for these nodes the body alone wouldn't make clear it's a region
+  // root vs a regular statement.
   return nodeBody({
     title: data.kind,
     body: data.sourceText || '',
