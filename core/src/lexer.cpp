@@ -245,6 +245,13 @@ void Lexer::insertImplicitComma()
 
 void Lexer::skipBlockComment()
 {
+    // Capture start position + raw text so we can emit a single
+    // COMMENT token spanning the whole block. The parser silently
+    // skips COMMENT tokens; downstream tools (script-graph viewer,
+    // formatters, doc extractors) recover the original text.
+    int startLine = line_, startCol = col_;
+    size_t startPos = pos_;
+
     advance(); // '%'
     advance(); // '{'
 
@@ -277,6 +284,10 @@ void Lexer::skipBlockComment()
 
     while (pos_ < src_.size() && peek() != '\n')
         advance();
+
+    addToken(TokenType::COMMENT,
+             src_.substr(startPos, pos_ - startPos),
+             startLine, startCol);
 }
 
 // ─── skip spaces, comments, line continuation ──────────────────────────
@@ -297,10 +308,21 @@ void Lexer::skipSpacesAndComments()
             if (peek(1) == '{' && isAtLineStart()) {
                 skipBlockComment();
             } else {
+                // Line comment `% ...` — emit as a COMMENT token so
+                // downstream consumers (script-graph viewer, future
+                // formatters) can position around it. Parser ignores.
+                int startLine = line_, startCol = col_;
+                size_t startPos = pos_;
                 while (pos_ < src_.size() && peek() != '\n')
                     advance();
+                addToken(TokenType::COMMENT,
+                         src_.substr(startPos, pos_ - startPos),
+                         startLine, startCol);
             }
         } else if (c == '.' && peek(1) == '.' && peek(2) == '.') {
+            // Line continuation — stays silent (syntactic, not lexical
+            // info; consumers that care can recover it from the source
+            // text directly).
             while (pos_ < src_.size() && peek() != '\n')
                 advance();
             if (pos_ < src_.size())

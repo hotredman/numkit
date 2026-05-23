@@ -20,6 +20,9 @@ Parser::Parser(const std::vector<Token> &tokens)
         eof.col = 0;
         tokens_.push_back(eof);
     }
+    // Skip past any leading COMMENT tokens so current() never returns
+    // one. The advance() helper maintains this invariant from here on.
+    skipPastComments();
 }
 
 // ============================================================
@@ -31,6 +34,22 @@ Parser::SourceLoc Parser::loc() const
     return {current().line, current().col};
 }
 
+// Single chokepoint for forward motion through the token stream.
+// After advancing pos_ by one, skip past any COMMENT tokens — they
+// are pure lexical metadata for downstream tools (script-graph viewer,
+// formatters), not part of script grammar.
+void Parser::advance()
+{
+    if (pos_ < tokens_.size()) ++pos_;
+    skipPastComments();
+}
+
+void Parser::skipPastComments()
+{
+    while (pos_ < tokens_.size() && tokens_[pos_].type == TokenType::COMMENT)
+        ++pos_;
+}
+
 const Token &Parser::current() const
 {
     if (pos_ >= tokens_.size())
@@ -40,10 +59,24 @@ const Token &Parser::current() const
 
 const Token &Parser::peekToken(int off) const
 {
-    // FIX #13: безопасная обработка отрицательных offset
-    long long p = static_cast<long long>(pos_) + off;
-    if (p < 0 || static_cast<size_t>(p) >= tokens_.size())
-        return tokens_.back();
+    // COMMENT-aware lookahead: COMMENT tokens are transparent at the
+    // parser level so peekToken(1) returns the next *real* token,
+    // not the comment between current and next. Negative offsets do
+    // the mirrored skip-backwards.
+    long long p = static_cast<long long>(pos_);
+    if (off == 0) {
+        if (p < 0 || p >= static_cast<long long>(tokens_.size())) return tokens_.back();
+        return tokens_[static_cast<size_t>(p)];
+    }
+    const int dir   = (off > 0) ? 1 : -1;
+    const int steps = (off > 0) ? off : -off;
+    for (int s = 0; s < steps; ++s) {
+        do {
+            p += dir;
+            if (p < 0 || p >= static_cast<long long>(tokens_.size()))
+                return tokens_.back();
+        } while (tokens_[static_cast<size_t>(p)].type == TokenType::COMMENT);
+    }
     return tokens_[static_cast<size_t>(p)];
 }
 
@@ -60,7 +93,7 @@ bool Parser::check(TokenType t) const
 bool Parser::match(TokenType t)
 {
     if (check(t)) {
-        pos_++;
+        advance();
         return true;
     }
     return false;
@@ -68,8 +101,11 @@ bool Parser::match(TokenType t)
 
 Token Parser::consume(TokenType t, const std::string &msg)
 {
-    if (check(t))
-        return tokens_[pos_++];
+    if (check(t)) {
+        Token result = tokens_[pos_];
+        advance();
+        return result;
+    }
     std::string expected = msg.empty() ? ("token type " + std::to_string(static_cast<int>(t)))
                                        : msg;
     throw std::runtime_error("Parse error at line " + std::to_string(current().line) + " col "
@@ -80,14 +116,14 @@ Token Parser::consume(TokenType t, const std::string &msg)
 void Parser::skipNewlines()
 {
     while (!isAtEnd() && (check(TokenType::NEWLINE) || check(TokenType::SEMICOLON)))
-        pos_++;
+        advance();
 }
 
 void Parser::skipTerminators()
 {
     while (!isAtEnd()
            && (check(TokenType::NEWLINE) || check(TokenType::SEMICOLON) || check(TokenType::COMMA)))
-        pos_++;
+        advance();
 }
 
 bool Parser::isTerminator(std::initializer_list<TokenType> terminators) const
@@ -202,14 +238,14 @@ ASTNodePtr Parser::parseStatement()
     case TokenType::KW_BREAK: {
         auto [ln, cl] = loc();
         auto node = makeNode(NodeType::BREAK_STMT, ln, cl);
-        pos_++;
+        advance();
         skipTerminators();
         return node;
     }
     case TokenType::KW_CONTINUE: {
         auto [ln, cl] = loc();
         auto node = makeNode(NodeType::CONTINUE_STMT, ln, cl);
-        pos_++;
+        advance();
         skipTerminators();
         return node;
     }
@@ -217,7 +253,7 @@ ASTNodePtr Parser::parseStatement()
         // MATLAB return не принимает выражения — просто возврат из функции
         auto [ln, cl] = loc();
         auto node = makeNode(NodeType::RETURN_STMT, ln, cl);
-        pos_++;
+        advance();
         skipTerminators();
         return node;
     }
@@ -327,7 +363,7 @@ ASTNodePtr Parser::parseCommandStyleCall()
 
     // Имя функции
     std::string funcName = current().value;
-    pos_++;
+    advance();
 
     auto node = makeNode(NodeType::COMMAND_CALL, ln, cl);
     node->strValue = std::move(funcName);
@@ -340,7 +376,7 @@ ASTNodePtr Parser::parseCommandStyleCall()
            && current().line == cmdLine) {
         auto [aln, acl] = loc();
         std::string argStr = current().value;
-        pos_++;
+        advance();
 
         // Склейка: data.mat, ../dir, path/to/file, signal.*
         while (
@@ -351,17 +387,17 @@ ASTNodePtr Parser::parseCommandStyleCall()
             // — append it and stop gluing further fragments to this arg.
             if (check(TokenType::DOT_STAR)) {
                 argStr += current().value;
-                pos_++;
+                advance();
                 break;
             }
             argStr += current().value;
-            pos_++;
+            advance();
             // После разделителя — следующий фрагмент
             if (!isAtEnd() && current().line == cmdLine
                 && (check(TokenType::IDENTIFIER) || check(TokenType::NUMBER)
                     || check(TokenType::STRING) || check(TokenType::DQSTRING) || check(TokenType::DOT))) {
                 argStr += current().value;
-                pos_++;
+                advance();
             }
         }
 
@@ -395,12 +431,13 @@ ASTNodePtr Parser::parseExpressionStatement()
     auto expr = parseExpression();
 
     if (check(TokenType::ASSIGN)) {
-        pos_++;
+        advance();
 
         // FIX #12: Различаем x = [] (обычное присваивание пустой матрицы)
         // и A(idx) = [] (удаление элементов)
         if (check(TokenType::LBRACKET) && peekToken(1).type == TokenType::RBRACKET) {
-            pos_ += 2;
+            advance();  // [
+            advance();  // ]
             // Если LHS — индексное выражение (CALL или CELL_INDEX),
             // то это удаление элементов. FIELD_ACCESS (s.field = [])
             // — это обычное присваивание пустой матрицы полю структуры.
@@ -446,30 +483,30 @@ ASTNodePtr Parser::tryMultiAssign()
         return nullptr;
 
     auto [startLine, startCol] = loc();
-    pos_++;
+    advance();
 
     std::vector<std::string> names;
 
     // Первый элемент: идентификатор или ~
     if (check(TokenType::IDENTIFIER)) {
         names.push_back(current().value);
-        pos_++;
+        advance();
     } else if (check(TokenType::TILDE)) {
         names.push_back("~");
-        pos_++;
+        advance();
     } else {
         return nullptr;
     }
 
     // Остальные элементы через запятую
     while (check(TokenType::COMMA)) {
-        pos_++;
+        advance();
         if (check(TokenType::IDENTIFIER)) {
             names.push_back(current().value);
-            pos_++;
+            advance();
         } else if (check(TokenType::TILDE)) {
             names.push_back("~");
-            pos_++;
+            advance();
         } else {
             return nullptr;
         }
@@ -477,14 +514,14 @@ ASTNodePtr Parser::tryMultiAssign()
 
     if (!check(TokenType::RBRACKET))
         return nullptr;
-    pos_++;
+    advance();
 
     if (!check(TokenType::ASSIGN))
         return nullptr;
 
     // Точка невозврата: после '=' это точно multi-assign.
     // Ошибка в RHS — реальная синтаксическая ошибка.
-    pos_++;
+    advance();
 
     auto rhs = parseExpression();
     auto node = makeNode(NodeType::MULTI_ASSIGN, startLine, startCol);
@@ -511,7 +548,7 @@ ASTNodePtr Parser::parseIf()
     node->branches.push_back({std::move(cond), std::move(body)});
 
     while (check(TokenType::KW_ELSEIF)) {
-        pos_++;
+        advance();
         auto c = parseExpression();
         skipTerminators();
         auto b = parseBlock({TokenType::KW_ELSEIF, TokenType::KW_ELSE, TokenType::KW_END});
@@ -573,7 +610,7 @@ ASTNodePtr Parser::parseSwitch()
     skipTerminators();
 
     while (check(TokenType::KW_CASE)) {
-        pos_++;
+        advance();
         auto ce = parseExpression();
         skipTerminators();
         auto b = parseBlock({TokenType::KW_CASE, TokenType::KW_OTHERWISE, TokenType::KW_END});
@@ -603,7 +640,7 @@ ASTNodePtr Parser::parseTryCatch()
     if (match(TokenType::KW_CATCH)) {
         if (check(TokenType::IDENTIFIER)) {
             node->strValue = current().value;
-            pos_++;
+            advance();
         }
         skipTerminators();
         node->children.push_back(parseBlock({TokenType::KW_END}));
@@ -620,11 +657,11 @@ ASTNodePtr Parser::parseGlobalPersistent()
     bool isGlobal = check(TokenType::KW_GLOBAL);
     auto [ln, cl] = loc();
     auto node = makeNode(isGlobal ? NodeType::GLOBAL_STMT : NodeType::PERSISTENT_STMT, ln, cl);
-    pos_++;
+    advance();
 
     while (check(TokenType::IDENTIFIER)) {
         node->paramNames.push_back(current().value);
-        pos_++;
+        advance();
     }
 
     skipTerminators();
@@ -668,7 +705,7 @@ ASTNodePtr Parser::parseFunctionDef()
 
     if (hasOutput) {
         if (check(TokenType::LBRACKET)) {
-            pos_++;
+            advance();
             node->returnNames.push_back(consume(TokenType::IDENTIFIER, "return var").value);
             while (match(TokenType::COMMA))
                 node->returnNames.push_back(consume(TokenType::IDENTIFIER, "return var").value);
@@ -695,7 +732,7 @@ ASTNodePtr Parser::parseFunctionDef()
 
     if (check(TokenType::KW_END)) {
         node->endLine = current().line;
-        pos_++;
+        advance();
     } else if (!isAtEnd()) {
         throw std::runtime_error("Expected 'end' for function '" + node->strValue
                                  + "' defined at line " + std::to_string(node->line));
@@ -749,7 +786,7 @@ ASTNodePtr Parser::parseShortCircuitOr()
     while (check(TokenType::OR_SHORT)) {
         auto [ln, cl] = loc();
         std::string op = current().value;
-        pos_++;
+        advance();
         auto n = makeNode(NodeType::BINARY_OP, ln, cl);
         n->strValue = std::move(op);
         n->children.push_back(std::move(left));
@@ -766,7 +803,7 @@ ASTNodePtr Parser::parseShortCircuitAnd()
     while (check(TokenType::AND_SHORT)) {
         auto [ln, cl] = loc();
         std::string op = current().value;
-        pos_++;
+        advance();
         auto n = makeNode(NodeType::BINARY_OP, ln, cl);
         n->strValue = std::move(op);
         n->children.push_back(std::move(left));
@@ -783,7 +820,7 @@ ASTNodePtr Parser::parseElementOr()
     while (check(TokenType::OR)) {
         auto [ln, cl] = loc();
         std::string op = current().value;
-        pos_++;
+        advance();
         auto n = makeNode(NodeType::BINARY_OP, ln, cl);
         n->strValue = std::move(op);
         n->children.push_back(std::move(left));
@@ -800,7 +837,7 @@ ASTNodePtr Parser::parseElementAnd()
     while (check(TokenType::AND)) {
         auto [ln, cl] = loc();
         std::string op = current().value;
-        pos_++;
+        advance();
         auto n = makeNode(NodeType::BINARY_OP, ln, cl);
         n->strValue = std::move(op);
         n->children.push_back(std::move(left));
@@ -817,7 +854,7 @@ ASTNodePtr Parser::parseComparison()
            || check(TokenType::GT) || check(TokenType::LEQ) || check(TokenType::GEQ)) {
         auto [ln, cl] = loc();
         std::string op = current().value;
-        pos_++;
+        advance();
         auto n = makeNode(NodeType::BINARY_OP, ln, cl);
         n->strValue = std::move(op);
         n->children.push_back(std::move(left));
@@ -832,10 +869,10 @@ ASTNodePtr Parser::parseColon()
     auto start = parseAddSub();
     if (check(TokenType::COLON)) {
         auto [ln, cl] = loc();
-        pos_++;
+        advance();
         auto second = parseAddSub();
         if (check(TokenType::COLON)) {
-            pos_++;
+            advance();
             auto n = makeNode(NodeType::COLON_EXPR, ln, cl);
             n->children.push_back(std::move(start));
             n->children.push_back(std::move(second));
@@ -856,7 +893,7 @@ ASTNodePtr Parser::parseAddSub()
     while (check(TokenType::PLUS) || check(TokenType::MINUS)) {
         auto [ln, cl] = loc();
         std::string op = current().value;
-        pos_++;
+        advance();
         auto n = makeNode(NodeType::BINARY_OP, ln, cl);
         n->strValue = std::move(op);
         n->children.push_back(std::move(left));
@@ -874,7 +911,7 @@ ASTNodePtr Parser::parseMulDiv()
            || check(TokenType::DOT_SLASH)) {
         auto [ln, cl] = loc();
         std::string op = current().value;
-        pos_++;
+        advance();
         auto n = makeNode(NodeType::BINARY_OP, ln, cl);
         n->strValue = std::move(op);
         n->children.push_back(std::move(left));
@@ -889,7 +926,7 @@ ASTNodePtr Parser::parseUnary()
 {
     if (check(TokenType::MINUS)) {
         auto [ln, cl] = loc();
-        pos_++;
+        advance();
         auto n = makeNode(NodeType::UNARY_OP, ln, cl);
         n->strValue = "-";
         n->children.push_back(parsePower());
@@ -897,7 +934,7 @@ ASTNodePtr Parser::parseUnary()
     }
     if (check(TokenType::TILDE)) {
         auto [ln, cl] = loc();
-        pos_++;
+        advance();
         auto n = makeNode(NodeType::UNARY_OP, ln, cl);
         n->strValue = "~";
         n->children.push_back(parsePower());
@@ -905,7 +942,7 @@ ASTNodePtr Parser::parseUnary()
     }
     if (check(TokenType::PLUS)) {
         auto [ln, cl] = loc();
-        pos_++;
+        advance();
         auto n = makeNode(NodeType::UNARY_OP, ln, cl);
         n->strValue = "+";
         n->children.push_back(parsePower());
@@ -920,7 +957,7 @@ ASTNodePtr Parser::parsePower()
     if (check(TokenType::CARET) || check(TokenType::DOT_CARET)) {
         auto [ln, cl] = loc();
         std::string op = current().value;
-        pos_++;
+        advance();
         auto n = makeNode(NodeType::BINARY_OP, ln, cl);
         n->strValue = std::move(op);
         n->children.push_back(std::move(left));
@@ -940,7 +977,7 @@ ASTNodePtr Parser::parsePostfix()
             // В MATLAB f(args) может быть как вызовом функции, так и
             // индексацией массива. Различение происходит на этапе интерпретации.
             auto [ln, cl] = loc();
-            pos_++;
+            advance();
             auto cn = makeNode(NodeType::CALL, ln, cl);
             cn->children.push_back(std::move(node));
             if (!check(TokenType::RPAREN)) {
@@ -952,7 +989,7 @@ ASTNodePtr Parser::parsePostfix()
             node = std::move(cn);
         } else if (check(TokenType::LBRACE)) {
             auto [ln, cl] = loc();
-            pos_++;
+            advance();
             auto cn = makeNode(NodeType::CELL_INDEX, ln, cl);
             cn->children.push_back(std::move(node));
             cn->children.push_back(parseExpression());
@@ -962,7 +999,7 @@ ASTNodePtr Parser::parsePostfix()
             node = std::move(cn);
         } else if (check(TokenType::DOT) && peekToken(1).type == TokenType::IDENTIFIER) {
             auto [ln, cl] = loc();
-            pos_++;
+            advance();
             auto fn = makeNode(NodeType::FIELD_ACCESS, ln, cl);
             fn->strValue = consume(TokenType::IDENTIFIER, "field").value;
             fn->children.push_back(std::move(node));
@@ -970,8 +1007,8 @@ ASTNodePtr Parser::parsePostfix()
         } else if (check(TokenType::DOT) && peekToken(1).type == TokenType::LPAREN) {
             // s.(expr) — dynamic field access
             auto [ln, cl] = loc();
-            pos_++; // consume DOT
-            pos_++; // consume LPAREN
+            advance(); // consume DOT
+            advance(); // consume LPAREN
             auto fn = makeNode(NodeType::DYNAMIC_FIELD_ACCESS, ln, cl);
             fn->children.push_back(std::move(node));   // child[0] = object
             fn->children.push_back(parseExpression()); // child[1] = field name expr
@@ -979,14 +1016,14 @@ ASTNodePtr Parser::parsePostfix()
             node = std::move(fn);
         } else if (check(TokenType::APOSTROPHE)) {
             auto [ln, cl] = loc();
-            pos_++;
+            advance();
             auto tn = makeNode(NodeType::UNARY_OP, ln, cl);
             tn->strValue = "'";
             tn->children.push_back(std::move(node));
             node = std::move(tn);
         } else if (check(TokenType::DOT_APOSTROPHE)) {
             auto [ln, cl] = loc();
-            pos_++;
+            advance();
             auto tn = makeNode(NodeType::UNARY_OP, ln, cl);
             tn->strValue = ".'";
             tn->children.push_back(std::move(node));
@@ -1010,59 +1047,59 @@ ASTNodePtr Parser::parsePrimary()
         auto n = makeNode(NodeType::NUMBER_LITERAL, ln, cl);
         n->numValue = parseDouble(current().value, ln, cl);
         n->strValue = current().value;
-        pos_++;
+        advance();
         return n;
     }
     case TokenType::IMAG_NUMBER: {
         auto n = makeNode(NodeType::IMAG_LITERAL, ln, cl);
         n->numValue = parseDouble(current().value, ln, cl);
         n->strValue = current().value;
-        pos_++;
+        advance();
         return n;
     }
     case TokenType::STRING: {
         auto n = makeNode(NodeType::STRING_LITERAL, ln, cl);
         n->strValue = current().value;
-        pos_++;
+        advance();
         return n;
     }
     case TokenType::DQSTRING: {
         auto n = makeNode(NodeType::DQSTRING_LITERAL, ln, cl);
         n->strValue = current().value;
-        pos_++;
+        advance();
         return n;
     }
     case TokenType::KW_TRUE: {
-        pos_++;
+        advance();
         auto n = makeNode(NodeType::BOOL_LITERAL, ln, cl);
         n->boolValue = true;
         return n;
     }
     case TokenType::KW_FALSE: {
-        pos_++;
+        advance();
         auto n = makeNode(NodeType::BOOL_LITERAL, ln, cl);
         n->boolValue = false;
         return n;
     }
     case TokenType::KW_END: {
-        pos_++;
+        advance();
         return makeNode(NodeType::END_VAL, ln, cl);
     }
     case TokenType::IDENTIFIER: {
         auto n = makeNode(NodeType::IDENTIFIER, ln, cl);
         n->strValue = current().value;
-        pos_++;
+        advance();
         return n;
     }
     case TokenType::AT:
         return parseAnonFunc();
     case TokenType::LPAREN: {
-        pos_++;
+        advance();
         auto e = parseExpression();
         // Поддержка (x = expr) — присваивание как выражение.
         // Используется в short-circuit: if cond && (x = 1)
         if (check(TokenType::ASSIGN) && e->type == NodeType::IDENTIFIER) {
-            pos_++;
+            advance();
             auto rhs = parseExpression();
             auto assignNode = makeNode(NodeType::ASSIGN, e->line, e->col);
             assignNode->children.push_back(std::move(e));
@@ -1079,7 +1116,7 @@ ASTNodePtr Parser::parsePrimary()
     case TokenType::LBRACE:
         return parseCellLiteral();
     case TokenType::COLON: {
-        pos_++;
+        advance();
         return makeNode(NodeType::COLON_EXPR, ln, cl);
     }
     default:
@@ -1101,7 +1138,7 @@ ASTNodePtr Parser::parseAnonFunc()
     if (check(TokenType::IDENTIFIER) && peekToken(1).type != TokenType::LPAREN) {
         auto n = makeNode(NodeType::ANON_FUNC, ln, cl);
         n->strValue = current().value;
-        pos_++;
+        advance();
         return n;
     }
 
@@ -1132,7 +1169,7 @@ ASTNodePtr Parser::parseArrayLiteral(TokenType open, TokenType close, NodeType n
     auto node = makeNode(nodeType, ln, cl);
 
     if (check(close)) {
-        pos_++;
+        advance();
         return node;
     }
 
@@ -1145,13 +1182,13 @@ ASTNodePtr Parser::parseArrayLiteral(TokenType open, TokenType close, NodeType n
         if (check(TokenType::SEMICOLON) || check(TokenType::NEWLINE)) {
             node->children.push_back(std::move(row));
             row = makeNode(NodeType::BLOCK, current().line, current().col);
-            pos_++;
+            advance();
             while (!isAtEnd() && (check(TokenType::NEWLINE) || check(TokenType::SEMICOLON)))
-                pos_++;
+                advance();
             if (check(close))
                 break;
         } else if (check(TokenType::COMMA)) {
-            pos_++;
+            advance();
         }
 
         if (!check(close) && !check(TokenType::SEMICOLON) && !check(TokenType::NEWLINE))
