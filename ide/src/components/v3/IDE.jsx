@@ -13,6 +13,7 @@ import ReferencePanel from './Reference';
 import { ALL_DOCS } from './refData';
 import FiguresPane from './FiguresPane';
 import FigureWindow from './FigureWindow';
+import NumkitGraphView from './NumkitGraphView';
 import { adaptVariables, adaptFigures } from './adapters';
 
 import tempFS from '../../temporary';
@@ -333,6 +334,10 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
 
   // Engine version banner
   const [engineVersion, setEngineVersion] = useState(null);
+  // Editor view mode: 'text' = standard code editor, 'graph' = data-flow
+  // node graph (NumkitGraphView). Single-shared state across tabs for
+  // MVP — switching tabs keeps whatever view the user picked last.
+  const [editorView, setEditorView] = useState('text');
   useEffect(() => {
     const v = engine?.version?.();
     if (v) setEngineVersion(v);
@@ -833,14 +838,37 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                   onCloseAll={closeAllTabs}
                   onCloseExcept={closeOtherTabs}
                 />
-                <EditorBody
-                  activeTab={activeTabData}
-                  errorLine={errorLine}
-                  debugLine={debugLine}
-                  breakpoints={activeBreakpoints}
-                  onToggleBp={toggleBreakpoint}
-                  onChange={updateTabCode}
-                />
+                {/* Editor view toggle — text editor vs data-flow node
+                    graph. Read-only graph in MVP; switching back to
+                    `text` is non-destructive (the source string is
+                    the single owner of state). */}
+                <div className="editor-view-toggle">
+                  <button
+                    className={`evt-btn${editorView === 'text' ? ' is-active' : ''}`}
+                    onClick={() => setEditorView('text')}
+                    title="Text editor"
+                  >text</button>
+                  <button
+                    className={`evt-btn${editorView === 'graph' ? ' is-active' : ''}`}
+                    onClick={() => setEditorView('graph')}
+                    title="Data-flow graph (read-only)"
+                  >graph</button>
+                </div>
+                {editorView === 'text' ? (
+                  <EditorBody
+                    activeTab={activeTabData}
+                    errorLine={errorLine}
+                    debugLine={debugLine}
+                    breakpoints={activeBreakpoints}
+                    onToggleBp={toggleBreakpoint}
+                    onChange={updateTabCode}
+                  />
+                ) : (
+                  <NumkitGraphView
+                    source={activeTabData?.code || ''}
+                    engine={engine}
+                  />
+                )}
               </div>
             )}
             {panels.editor && panels.terminal && (
