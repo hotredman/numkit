@@ -246,6 +246,24 @@ export async function createWasmEngine(createModule) {
     reset() { return Module.repl_reset(); },
     workspace() { return Module.repl_workspace(); },
 
+    // Script-graph visualizer — parse + lower the given .m source to
+    // a NodeGraph IR (statement-level data-flow graph). Returns the
+    // already-parsed JS object (or `{ error: '...' }` on failure /
+    // when the WASM binding is missing — older builds simply lack
+    // buildScriptGraph and the caller renders an empty graph).
+    buildScriptGraph(source) {
+      if (typeof Module.buildScriptGraph !== 'function') {
+        return { error: 'buildScriptGraph not available in this WASM build' };
+      }
+      try {
+        const raw = Module.buildScriptGraph(source || '');
+        return JSON.parse(raw);
+      } catch (e) {
+        console.warn('[engine] buildScriptGraph failed', e);
+        return { error: e?.message || String(e) };
+      }
+    },
+
     getVars() {
       if (typeof Module.repl_get_vars === 'function') {
         const raw = Module.repl_get_vars();
@@ -534,6 +552,13 @@ export function createFallbackEngine() {
     },
     getFigureTile() { return null; },          // fallback engine doesn't track figures
     getFigureDisplayTile() { return null; },
+
+    // Script-graph visualizer — fallback has no parser/AST; surface
+    // a stable error-shape so the renderer can show "graph unavailable
+    // in demo mode" instead of crashing.
+    buildScriptGraph() {
+      return { error: 'Graph view requires the WASM engine (demo mode is parser-less)' };
+    },
 
     // ── Debug API (stub for fallback) ──
     get hasDebugger() { return false; },
