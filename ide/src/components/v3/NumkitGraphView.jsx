@@ -37,43 +37,58 @@ import 'reactflow/dist/style.css';
 
 // ── Custom node renderers ───────────────────────────────────────────
 
-/** Header + body shared by all node kinds. `title` may be empty —
- *  in that case the header row is dropped so terminal statements
- *  (plot, clear, …) read as a clean source line without a redundant
- *  bullet placeholder. */
+/** Header + body + ports footer shared by all node kinds. `title`
+ *  may be empty — in that case the header row is dropped so terminal
+ *  statements (plot, clear, …) read as a clean source line without a
+ *  redundant bullet placeholder.
+ *
+ *  Ports footer:
+ *    Each input is one row: handle dot ON the left edge of the card,
+ *    variable name as a tiny label JUST INSIDE the edge.
+ *    Outputs mirror on the right edge.
+ *    Rows stack at PORT_STEP (16 px) so handle Y aligns with label Y.
+ *    Footer height = max(inputs, outputs) × PORT_STEP + a top/bottom
+ *    breathing strip, so the card auto-grows for many ports. */
+const PORT_STEP = 16;
+const PORT_PAD  = 6;  // breathing room above the first port row
+
 function nodeBody({ title, body, kindClass, inputs, outputs }) {
-  // Compact handle stack — first input/output sits at the top of the
-  // card; subsequent ones step down by ~14 px. When the title is
-  // hidden the whole stack rises by ~16 px to stay near the body.
-  const handleTop = title ? 24 : 12;
+  const portRows = Math.max(inputs.length, outputs.length);
+  const footerH  = portRows > 0 ? PORT_PAD * 2 + portRows * PORT_STEP : 0;
   return (
     <div className={`ng-node ${kindClass}${title ? '' : ' ng-node-notitle'}`}>
-      {inputs.map((name, i) => (
-        <Handle key={`in-${i}`} type="target" position={Position.Left}
-                id={`in-${i}`}
-                style={{ top: handleTop + i * 14 }}
-                title={name} />
-      ))}
       {title && <div className="ng-node-title">{title}</div>}
       <div className="ng-node-body">{body}</div>
-      <div className="ng-node-ports">
-        {inputs.length > 0 && (
-          <div className="ng-node-inputs">
-            {inputs.map((n) => <span key={n} className="ng-port-label">{n}</span>)}
-          </div>
-        )}
-        {outputs.length > 0 && (
-          <div className="ng-node-outputs">
-            {outputs.map((n) => <span key={n} className="ng-port-label">{n}</span>)}
-          </div>
-        )}
-      </div>
-      {outputs.map((name, i) => (
-        <Handle key={`out-${i}`} type="source" position={Position.Right}
-                id={`out-${i}`}
-                style={{ top: handleTop + i * 14 }}
-                title={name} />
-      ))}
+      {portRows > 0 && (
+        <div className="ng-node-ports-footer" style={{ height: footerH }}>
+          {inputs.map((name, i) => {
+            const y = PORT_PAD + i * PORT_STEP + PORT_STEP / 2;
+            return (
+              <span key={`in-${i}`}>
+                <Handle type="target" position={Position.Left}
+                        id={`in-${i}`}
+                        style={{ top: y }}
+                        title={name} />
+                <span className="ng-port-inline ng-port-in"
+                      style={{ top: y - 6 }}>{name}</span>
+              </span>
+            );
+          })}
+          {outputs.map((name, i) => {
+            const y = PORT_PAD + i * PORT_STEP + PORT_STEP / 2;
+            return (
+              <span key={`out-${i}`}>
+                <Handle type="source" position={Position.Right}
+                        id={`out-${i}`}
+                        style={{ top: y }}
+                        title={name} />
+                <span className="ng-port-inline ng-port-out"
+                      style={{ top: y - 6 }}>{name}</span>
+              </span>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
