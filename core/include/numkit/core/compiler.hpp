@@ -92,7 +92,22 @@ private:
 
     // Register allocation: variable name → register index
     std::unordered_map<std::string, uint8_t> varRegisters_;
-    uint8_t nextReg_ = 0;
+    // nextReg_ is `int` (not uint8_t) so we can detect overflow (>256)
+    // before it silently wraps. Bytecode reg fields are uint8_t — so we
+    // must throw cleanly when a chunk's allocation hits that hard limit
+    // rather than corrupt low/variable slots. See peakReg_ for the value
+    // stored in BytecodeChunk::numRegisters.
+    int nextReg_ = 0;
+    // High-water mark for nextReg_ across the chunk. Used at end of
+    // compilation to size the runtime register file. Distinct from
+    // nextReg_, which may shrink when compileBlock releases temps at
+    // statement boundaries (see end of compileBlock).
+    int peakReg_ = 0;
+    // Highest variable register reserved so far (exclusive). Slots
+    // [0, maxVarReg_) are pinned to variables and never reclaimable;
+    // [maxVarReg_, nextReg_) are transient temps that compileBlock
+    // releases between statements.
+    int maxVarReg_ = 0;
     int anonCounter_ = 0;
     bool isTopLevel_ = false;
     uint8_t nargoutContext_ = 1; // expected number of outputs (0=statement, 1=expression)
@@ -147,6 +162,10 @@ private:
     // Pre-import global variables before compiling AST
     void preImportGlobals(const ASTNode *ast);
     void collectAllIdentifiers(const ASTNode *node, std::unordered_set<std::string> &out);
+    // Scan AST for names that get ASSIGNED somewhere — preImportGlobals
+    // pre-allocates a low slot for each so vars cluster at the bottom
+    // and don't fragment the slot range under temp pressure.
+    void collectAssignedNames(const ASTNode *node, std::vector<std::string> &out);
     // Allocate a temporary register
     uint8_t tempReg();
 

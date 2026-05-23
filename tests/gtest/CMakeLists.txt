@@ -29,6 +29,7 @@ set(INTEGRATION_TESTS
     integration/matlab_parity_test.cpp
     integration/register_constant_test.cpp
     integration/known_issues_test.cpp
+    integration/try_first_block_bug_test.cpp
 )
 
 # ── The one test binary ───────────────────────────────────────────────────
