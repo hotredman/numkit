@@ -35,6 +35,43 @@ import ReactFlow, {
 import dagre from '@dagrejs/dagre';
 import 'reactflow/dist/style.css';
 
+// ── Source-text helpers ─────────────────────────────────────────────
+
+/** Strip a trailing MATLAB `%` comment from a source line, preserving
+ *  `%` characters inside string literals.
+ *
+ *  Single-quote strings (`'foo'`) are tricky because `'` is also the
+ *  transpose operator. We use the standard MATLAB heuristic: a quote
+ *  opens a string only when the preceding character is whitespace,
+ *  an operator, a bracket, a comma, or start-of-line; otherwise it's
+ *  transpose. Double-quote strings (`"..."`, R2017b+) have no such
+ *  ambiguity.
+ *
+ *  Stripped tail also drops the trailing whitespace before `%` so the
+ *  body doesn't end with stray spaces. */
+function stripTrailingComment(line) {
+  if (!line) return line;
+  let inSingle = false;
+  let inDouble = false;
+  let prev = ' ';
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (!inSingle && !inDouble && c === '%') {
+      let end = i;
+      while (end > 0 && (line[end - 1] === ' ' || line[end - 1] === '\t')) end--;
+      return line.substring(0, end);
+    }
+    if (!inDouble && c === "'") {
+      const canOpen = i === 0 || ' \t(,=+-*/[{;<>~&|!^:\\?'.indexOf(prev) >= 0;
+      if (inSingle || canOpen) inSingle = !inSingle;
+    } else if (!inSingle && c === '"') {
+      inDouble = !inDouble;
+    }
+    prev = c;
+  }
+  return line;
+}
+
 // ── Custom node renderers ───────────────────────────────────────────
 
 /** Header + body + ports footer shared by all node kinds. `title`
@@ -97,9 +134,11 @@ function AssignmentNode({ data }) {
   // No title — the LHS variable name is already shown as the output
   // pin label (right side of card), and the body contains the full
   // statement including `lhs = …`. Title was duplicate noise.
+  // Comments stripped: trailing `% …` on the source line is noise
+  // for data-flow viz; the editor pane still has the full text.
   return nodeBody({
     title: '',
-    body: data.sourceText || '',
+    body: stripTrailingComment(data.sourceText || ''),
     kindClass: 'ng-node-assignment',
     inputs: data.inputs || [],
     outputs: data.outputs || [],
@@ -111,7 +150,7 @@ function ExprStmtNode({ data }) {
   // (`plot(y)`, `clear`, `disp(x)`).
   return nodeBody({
     title: '',
-    body: data.sourceText || '',
+    body: stripTrailingComment(data.sourceText || ''),
     kindClass: 'ng-node-exprstmt',
     inputs: data.inputs || [],
     outputs: [],
@@ -125,7 +164,7 @@ function OpaqueNode({ data }) {
   // root vs a regular statement.
   return nodeBody({
     title: data.kind,
-    body: data.sourceText || '',
+    body: stripTrailingComment(data.sourceText || ''),
     kindClass: 'ng-node-opaque',
     inputs: data.inputs || [],
     outputs: data.outputs || [],
