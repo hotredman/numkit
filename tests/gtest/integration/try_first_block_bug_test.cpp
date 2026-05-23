@@ -115,6 +115,81 @@ TEST_P(CompilerRegisterOverflowTest, OverflowInSingleExpression)
     }
 }
 
+// ── D: end-to-end contract test — a variable assigned via the
+//    canEliminate adopt-temp path in compileAssign must survive any
+//    number of subsequent statements unchanged. Two independent
+//    mechanisms enforce this:
+//      (a) preImportGlobals pre-allocates a low slot for every
+//          assigned name, so adopt-temp almost never fires on normal
+//          variables (the slot is already in varRegisters_).
+//      (b) When adopt-temp DOES fire (e.g. names preImport doesn't
+//          see), it pins the adopted slot in maxVarReg_.
+//    This test guards the OBSERVABLE contract; it intentionally does
+//    not assert which mechanism handled it. Disabling either one
+//    alone keeps this test green, but disabling both regresses it
+//    immediately on any non-trivial script. See ManyStatementsInBlock
+//    above for the load that would force adopt-temp to matter without
+//    pre-allocation.
+TEST_P(CompilerRegisterOverflowTest, AdoptTempPinsVariableSlot)
+{
+    // First-assignment via ADD (eligible for canEliminate adopt-temp).
+    // big_arr lands in whatever high temp slot the RHS ended on.
+    // Then 30 more first-assignments push nextReg_ up.
+    std::string body =
+        "base = ones(1, 100) * 7;\n"
+        "big_arr = base + 1;\n";  // adopt-temp: big_arr claims the ADD's dst slot
+    for (int i = 0; i < 30; ++i)
+        body += "x" + std::to_string(i) + " = " + std::to_string(i) + " * 2;\n";
+    // Read big_arr last — if its slot got reclaimed and overwritten,
+    // size and sum will be wrong.
+    body +=
+        "sz = numel(big_arr);\n"
+        "sm = sum(big_arr);\n";
+    EXPECT_NO_THROW(eval(body));
+    EXPECT_EQ(evalScalar("sz"), 100.0);   // length preserved
+    EXPECT_EQ(evalScalar("sm"), 800.0);   // (7+1)*100 = 800
+}
+
+// ── E: targeted regression for bug #4 — compileBlock's release must
+//    emit runtime CLEAR_VAR for each released slot, otherwise stale
+//    values persist in slots that get reused for new unknown
+//    variables, and ASSERT_DEF wrongly passes.
+//
+//    Trigger: statement that loads a literal into a temp slot S, then
+//    a try/catch over a statement that references an UNDEFINED name —
+//    if the undef gets allocated to slot S and slot S still holds
+//    the literal at runtime, ASSERT_DEF doesn't fire and the catch
+//    doesn't run.
+TEST_P(CompilerRegisterOverflowTest, ReleasedSlotsClearedAtRuntime)
+{
+    eval(R"(
+        result = 0;
+        try
+            try
+                tmp = undefined_a + undefined_b;
+            catch
+                tmp = 99;
+            end
+            % After inner catch's `tmp = 99`, the literal 99 sits in
+            % some now-released temp slot. The next undefined reference
+            % may reuse that slot — ASSERT_DEF must still throw.
+            result = tmp + undefined_c;
+        catch
+            outer_caught = 1;
+            result = result + 1000;
+        end
+    )");
+    // Outer catch MUST fire because `undefined_c` is undefined.
+    // `result + undefined_c` throws BEFORE assigning result, so result
+    // stays at its pre-statement value of 0; the outer catch then
+    // brings it to 0 + 1000 = 1000.
+    EXPECT_EQ(evalScalar("outer_caught"), 1.0)
+        << "outer catch did not fire — ASSERT_DEF saw a stale value "
+           "in the reused slot (bug #4 regressed: compileBlock release "
+           "is not emitting CLEAR_VAR for released slots)";
+    EXPECT_EQ(evalScalar("result"), 1000.0);
+}
+
 INSTANTIATE_TEST_SUITE_P(TW_VM, CompilerRegisterOverflowTest,
                          ::testing::Values(BackendParam::TreeWalker,
                                            BackendParam::VM),
