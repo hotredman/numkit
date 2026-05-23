@@ -37,18 +37,24 @@ import 'reactflow/dist/style.css';
 
 // ── Custom node renderers ───────────────────────────────────────────
 
-/** Header + body shared by all node kinds. */
+/** Header + body shared by all node kinds. `title` may be empty —
+ *  in that case the header row is dropped so terminal statements
+ *  (plot, clear, …) read as a clean source line without a redundant
+ *  bullet placeholder. */
 function nodeBody({ title, body, kindClass, inputs, outputs }) {
+  // Compact handle stack — first input/output sits at the top of the
+  // card; subsequent ones step down by ~14 px. When the title is
+  // hidden the whole stack rises by ~16 px to stay near the body.
+  const handleTop = title ? 24 : 12;
   return (
-    <div className={`ng-node ${kindClass}`}>
-      {/* Input handles — one per input, stacked vertically on the left. */}
+    <div className={`ng-node ${kindClass}${title ? '' : ' ng-node-notitle'}`}>
       {inputs.map((name, i) => (
         <Handle key={`in-${i}`} type="target" position={Position.Left}
                 id={`in-${i}`}
-                style={{ top: 24 + i * 14 }}
+                style={{ top: handleTop + i * 14 }}
                 title={name} />
       ))}
-      <div className="ng-node-title">{title}</div>
+      {title && <div className="ng-node-title">{title}</div>}
       <div className="ng-node-body">{body}</div>
       <div className="ng-node-ports">
         {inputs.length > 0 && (
@@ -62,11 +68,10 @@ function nodeBody({ title, body, kindClass, inputs, outputs }) {
           </div>
         )}
       </div>
-      {/* Output handles — one per output, stacked on the right. */}
       {outputs.map((name, i) => (
         <Handle key={`out-${i}`} type="source" position={Position.Right}
                 id={`out-${i}`}
-                style={{ top: 24 + i * 14 }}
+                style={{ top: handleTop + i * 14 }}
                 title={name} />
       ))}
     </div>
@@ -84,8 +89,10 @@ function AssignmentNode({ data }) {
 }
 
 function ExprStmtNode({ data }) {
+  // No LHS → no title row. Source line speaks for itself
+  // (`plot(y)`, `clear`, `disp(x)`).
   return nodeBody({
-    title: '·',
+    title: '',
     body: data.sourceText || '',
     kindClass: 'ng-node-exprstmt',
     inputs: data.inputs || [],
@@ -94,7 +101,8 @@ function ExprStmtNode({ data }) {
 }
 
 function OpaqueNode({ data }) {
-  // Used for Phase-1 stubs: GlobalDecl, PersistentDecl, IfRegion, etc.
+  // Phase-1 stubs: GlobalDecl, PersistentDecl, IfRegion, etc. Keep
+  // the kind tag as title so the user can tell it's a placeholder.
   return nodeBody({
     title: data.kind,
     body: data.sourceText || '',

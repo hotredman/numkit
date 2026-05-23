@@ -73,8 +73,19 @@ void collectReads(const ASTNode *node,
 {
     if (!node) return;
     if (node->type == NodeType::IDENTIFIER) {
+        // Only record an IDENTIFIER as a variable read when it's a
+        // KNOWN producer in scope (set by an earlier assignment,
+        // global/persistent decl, or — eventually — a function
+        // parameter). Filters out built-in function names + constants
+        // (`pi`, `cos`, `eps`, `clear`) that appear as bare
+        // identifiers but aren't data-flow sources. Same rule we
+        // already apply to CALL/CELL_INDEX/INDEX head identifiers;
+        // generalised here to ALL identifiers so the graph only shows
+        // real data dependencies.
         const auto &name = node->strValue;
-        if (!name.empty() && seen.insert(name).second) order.push_back(name);
+        if (!name.empty() && isKnownVar(name) && seen.insert(name).second) {
+            order.push_back(name);
+        }
         return;
     }
     if (node->type == NodeType::CALL
