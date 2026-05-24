@@ -264,6 +264,22 @@ export async function createWasmEngine(createModule) {
       }
     },
 
+    // Literal parse-tree dump for the IDE's AST inspector view.
+    // Returns the recursive AST JSON (see ast_serialize.cpp schema)
+    // or `{ error: '...' }`.
+    buildAST(source) {
+      if (typeof Module.buildAST !== 'function') {
+        return { error: 'buildAST not available in this WASM build' };
+      }
+      try {
+        const raw = Module.buildAST(source || '');
+        return JSON.parse(raw);
+      } catch (e) {
+        console.warn('[engine] buildAST failed', e);
+        return { error: e?.message || String(e) };
+      }
+    },
+
     getVars() {
       if (typeof Module.repl_get_vars === 'function') {
         const raw = Module.repl_get_vars();
@@ -558,6 +574,9 @@ export function createFallbackEngine() {
     // in demo mode" instead of crashing.
     buildScriptGraph() {
       return { error: 'Graph view requires the WASM engine (demo mode is parser-less)' };
+    },
+    buildAST() {
+      return { error: 'AST view requires the WASM engine (demo mode is parser-less)' };
     },
 
     // ── Debug API (stub for fallback) ──
