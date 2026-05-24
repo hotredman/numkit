@@ -339,7 +339,26 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   // Editor view mode: 'text' = standard code editor, 'graph' = data-flow
   // node graph (NumkitGraphView). Single-shared state across tabs for
   // MVP — switching tabs keeps whatever view the user picked last.
-  const [editorView, setEditorView] = useState('text');
+  // Editor area is a multi-pane split: any combination of
+  // {text, graph, AST} may be active simultaneously. Each active
+  // pane gets equal horizontal flex; the user picks which views
+  // to see via independent toggle buttons. At least one pane must
+  // always be active (the toggle handler refuses to turn off the
+  // last one). Default = just text.
+  const [editorPanes, setEditorPanes] = useState({
+    text: true, graph: false, ast: false,
+  });
+  const toggleEditorPane = useCallback((key) => {
+    setEditorPanes((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      // Always keep at least one pane visible.
+      if (!Object.values(next).some(Boolean)) return prev;
+      return next;
+    });
+  }, []);
+  const ensureEditorPane = useCallback((key) => {
+    setEditorPanes((prev) => prev[key] ? prev : { ...prev, [key]: true });
+  }, []);
   // Caret position in the active editor tab, tracked for bidirectional
   // sync with the AST view (cursor on line N → AST highlights the
   // deepest node whose source range contains line N).
@@ -844,57 +863,72 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                   onCloseAll={closeAllTabs}
                   onCloseExcept={closeOtherTabs}
                 />
-                {/* Editor view toggle — text editor, data-flow node
-                    graph, or literal parse-tree AST. All read-only;
-                    switching is non-destructive (the source string
-                    is the single owner of state). */}
+                {/* Editor view toggle — INDEPENDENT checkboxes for
+                    text / graph / AST. Any combination renders side-
+                    by-side with equal horizontal flex. Click on an
+                    already-active toggle hides that pane (unless
+                    it's the last one). This is also where the
+                    bidirectional cursor sync becomes useful in
+                    real time: turn on text + AST together and the
+                    editor caret highlights the corresponding AST
+                    node as you move it. */}
                 <div className="editor-view-toggle">
                   <button
-                    className={`evt-btn${editorView === 'text' ? ' is-active' : ''}`}
-                    onClick={() => setEditorView('text')}
-                    title="Text editor"
+                    className={`evt-btn${editorPanes.text ? ' is-active' : ''}`}
+                    onClick={() => toggleEditorPane('text')}
+                    title="Text editor pane (toggle)"
                   >text</button>
                   <button
-                    className={`evt-btn${editorView === 'graph' ? ' is-active' : ''}`}
-                    onClick={() => setEditorView('graph')}
-                    title="Data-flow graph (read-only)"
+                    className={`evt-btn${editorPanes.graph ? ' is-active' : ''}`}
+                    onClick={() => toggleEditorPane('graph')}
+                    title="Data-flow graph pane (toggle)"
                   >graph</button>
                   <button
-                    className={`evt-btn${editorView === 'ast' ? ' is-active' : ''}`}
-                    onClick={() => setEditorView('ast')}
-                    title="Parse-tree AST inspector (read-only)"
+                    className={`evt-btn${editorPanes.ast ? ' is-active' : ''}`}
+                    onClick={() => toggleEditorPane('ast')}
+                    title="Parse-tree AST pane (toggle)"
                   >AST</button>
                 </div>
-                {editorView === 'text' ? (
-                  <EditorBody
-                    activeTab={activeTabData}
-                    errorLine={errorLine}
-                    debugLine={debugLine}
-                    breakpoints={activeBreakpoints}
-                    onToggleBp={toggleBreakpoint}
-                    onChange={updateTabCode}
-                    onCursor={(line, col) => setEditorCursor({ line, col })}
-                  />
-                ) : editorView === 'graph' ? (
-                  <NumkitGraphView
-                    source={activeTabData?.code || ''}
-                    engine={engine}
-                  />
-                ) : (
-                  <NumkitASTView
-                    source={activeTabData?.code || ''}
-                    engine={engine}
-                    cursorLine={editorCursor.line}
-                    onNavigate={(line/*, col*/) => {
-                      // Clicking an AST node jumps back to the text
-                      // editor at that source line. The setErrorLine
-                      // path already exists for highlight-and-scroll;
-                      // we reuse it as a lightweight cursor handoff.
-                      setEditorView('text');
-                      setErrorLine(line);
-                    }}
-                  />
-                )}
+                <div className="editor-multi-pane">
+                  {editorPanes.text && (
+                    <div className="editor-pane">
+                      <EditorBody
+                        activeTab={activeTabData}
+                        errorLine={errorLine}
+                        debugLine={debugLine}
+                        breakpoints={activeBreakpoints}
+                        onToggleBp={toggleBreakpoint}
+                        onChange={updateTabCode}
+                        onCursor={(line, col) => setEditorCursor({ line, col })}
+                      />
+                    </div>
+                  )}
+                  {editorPanes.graph && (
+                    <div className="editor-pane">
+                      <NumkitGraphView
+                        source={activeTabData?.code || ''}
+                        engine={engine}
+                      />
+                    </div>
+                  )}
+                  {editorPanes.ast && (
+                    <div className="editor-pane">
+                      <NumkitASTView
+                        source={activeTabData?.code || ''}
+                        engine={engine}
+                        cursorLine={editorCursor.line}
+                        onNavigate={(line/*, col*/) => {
+                          // Make sure text pane is visible so the
+                          // user can see what we're highlighting,
+                          // then mark the line via the existing
+                          // errorLine path (highlight + scroll).
+                          ensureEditorPane('text');
+                          setErrorLine(line);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             {panels.editor && panels.terminal && (

@@ -372,6 +372,27 @@ input, select { font-family: inherit; color: inherit; }
   border-color: var(--accent);
 }
 
+/* Multi-pane container — equal horizontal flex across the active
+   editor panes (text / graph / AST). Children are `.editor-pane`
+   wrappers; each manages its own internal layout. Sibling order
+   in the DOM matches the toggle order (text → graph → AST) so the
+   left-to-right placement is predictable. */
+.editor-multi-pane {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.editor-pane {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--line-soft);
+}
+.editor-pane:last-child { border-right: none; }
+
 /* ── NumkitGraphView (data-flow graph) ─────────────────────────── */
 .numkit-graph-view {
   flex: 1;
