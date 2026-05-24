@@ -630,6 +630,131 @@ TEST(GraphLowering, NestedBreakWiresToInnermostLoop)
     }
 }
 
+// ── Phase 2e: loop-carried merges (φ at the loop header) ────────────
+
+TEST(GraphLowering, ForLoopCarriedVarGetsPhiAtHeader)
+{
+    // s = 0; for k=1:5; s = s + k; end; disp(s);
+    // `s` is loop-carried (exists pre-loop AND written in body) → a
+    // Merge sits at the loop header inside the ForRegion. Wires:
+    //   - s=0           → φ.in[0]   (pre-loop)
+    //   - body assign s → φ.in[1]   (back-edge)
+    //   - φ             → disp(s)   (post-loop external read)
+    //   - φ             → body's s = s + k  (the body read of `s`)
+    auto g = lowerSource("s = 0;\nfor k = 1:5\n  s = s + k;\nend\ndisp(s);\n");
+
+    // Find the Merge node — must live INSIDE the ForRegion.
+    int forId = firstNodeOfKind(g, graph::NodeKind::ForRegion);
+    int phiId = -1;
+    for (size_t i = 0; i < g.nodes.size(); ++i) {
+        if (g.nodes[i].kind == graph::NodeKind::Merge
+         && g.nodes[i].parentRegionId == forId) {
+            phiId = (int)i; break;
+        }
+    }
+    ASSERT_GE(phiId, 0);
+    EXPECT_EQ(g.nodes[phiId].outputs, (std::vector<std::string>{"s"}));
+    EXPECT_EQ(g.nodes[phiId].inputs.size(), 2u);
+
+    // Both φ inputs must be wired.
+    int edgesIntoPhi = 0;
+    for (const auto &e : g.edges) {
+        if (e.varName == "s" && e.target.nodeId == phiId) ++edgesIntoPhi;
+    }
+    EXPECT_EQ(edgesIntoPhi, 2);
+
+    // disp(s) reads through the φ, not directly from the body writer.
+    int dispId = -1;
+    for (size_t i = 0; i < g.nodes.size(); ++i) {
+        if (g.nodes[i].kind == graph::NodeKind::ExprStmt
+         && !g.nodes[i].parentRegionId
+         && g.nodes[i].sourceText.find("disp") != std::string::npos) {
+            dispId = (int)i; break;
+        }
+    }
+    ASSERT_GE(dispId, 0);
+    for (const auto &e : g.edges) {
+        if (e.varName == "s" && e.target.nodeId == dispId) {
+            EXPECT_EQ(e.source.nodeId, phiId);
+        }
+    }
+}
+
+TEST(GraphLowering, ForNewBodyVarDoesNotGetLoopCarriedPhi)
+{
+    // No pre-loop producer → not loop-carried → no φ for `b`.
+    auto g = lowerSource("for k = 1:3\n  b = k * 2;\nend\ndisp(b);\n");
+    int forId = firstNodeOfKind(g, graph::NodeKind::ForRegion);
+    // Walk merges INSIDE the for; none should mention `b`.
+    for (const auto &n : g.nodes) {
+        if (n.kind == graph::NodeKind::Merge && n.parentRegionId == forId) {
+            EXPECT_NE(n.sourceText, "b");
+        }
+    }
+}
+
+TEST(GraphLowering, WhileLoopCarriedVarGetsPhi)
+{
+    auto g = lowerSource("x = 0;\nwhile x < 10\n  x = x + 1;\nend\ndisp(x);\n");
+    int whId  = firstNodeOfKind(g, graph::NodeKind::WhileRegion);
+    int phiId = -1;
+    for (size_t i = 0; i < g.nodes.size(); ++i) {
+        if (g.nodes[i].kind == graph::NodeKind::Merge
+         && g.nodes[i].parentRegionId == whId) {
+            phiId = (int)i; break;
+        }
+    }
+    ASSERT_GE(phiId, 0);
+    EXPECT_EQ(g.nodes[phiId].outputs, (std::vector<std::string>{"x"}));
+}
+
+TEST(GraphLowering, NestedLoopsChainPhiNodes)
+{
+    // Outer creates φ_s, inner creates its own φ_s whose in[0] is
+    // the outer φ_s. After exit, outer φ_s's in[1] is the inner φ_s.
+    auto g = lowerSource(
+        "s = 0;\n"
+        "for i = 1:3\n"
+        "  for j = 1:4\n"
+        "    s = s + i*j;\n"
+        "  end\n"
+        "end\n");
+    // Two ForRegions, two Merge nodes (one per loop).
+    int outerFor = -1, innerFor = -1;
+    int outerPhi = -1, innerPhi = -1;
+    for (size_t i = 0; i < g.nodes.size(); ++i) {
+        const auto &n = g.nodes[i];
+        if (n.kind == graph::NodeKind::ForRegion) {
+            if (outerFor < 0) outerFor = (int)i;
+            else              innerFor = (int)i;
+        } else if (n.kind == graph::NodeKind::Merge) {
+            if (n.parentRegionId == outerFor && outerPhi < 0) outerPhi = (int)i;
+            if (n.parentRegionId == innerFor && innerPhi < 0) innerPhi = (int)i;
+        }
+    }
+    ASSERT_GE(outerPhi, 0);
+    ASSERT_GE(innerPhi, 0);
+    // Outer φ.in[0] ← s=0 (pre-loop, Assignment node).
+    // Outer φ.in[1] ← inner φ (back-edge).
+    bool outerBackFromInner = false;
+    for (const auto &e : g.edges) {
+        if (e.varName == "s" && e.target.nodeId == outerPhi
+         && e.source.nodeId == innerPhi && e.target.portIndex == 1) {
+            outerBackFromInner = true;
+        }
+    }
+    EXPECT_TRUE(outerBackFromInner);
+    // Inner φ.in[0] ← outer φ (pre-inner is outer φ).
+    bool innerFromOuter = false;
+    for (const auto &e : g.edges) {
+        if (e.varName == "s" && e.target.nodeId == innerPhi
+         && e.source.nodeId == outerPhi && e.target.portIndex == 0) {
+            innerFromOuter = true;
+        }
+    }
+    EXPECT_TRUE(innerFromOuter);
+}
+
 // ── Phase 2d: function definitions ──────────────────────────────────
 
 TEST(GraphLowering, FunctionDefBecomesRegionWithParamsAndReturns)
