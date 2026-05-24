@@ -2,11 +2,14 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import CompositePlot from './CompositePlot';
 import Composite3DPlot from './Composite3DPlot';
 import FigureErrorBoundary from './FigureErrorBoundary';
-import PolarPlot, { defaultPolarViewport, nicePolarMax } from './PolarPlot';
+import PolarPlot, { defaultPolarViewport } from './PolarPlot';
 import SubplotGrid from './SubplotGrid';
-import { computeFitViewport,
+import { computeFitViewport, fitCellViewport,
   composeSvgsToString, exportSvgString, exportPngString,
   downloadBlob as utilDownloadBlob } from './plotUtils';
+import { initAxesFromCell, getProp, setProp, setAllAxes, setAxesAt,
+  everyAxes, isOn, onOff,
+  defaultViewport, cellsArrayFromFigure, aggColormap } from './figureSchema';
 
 function renderFigure(figure, props, threeRef) {
   if (figure.kind === 'subplot')     return <SubplotGrid     figure={figure} {...props} />;
@@ -55,68 +58,153 @@ function NumberInput({ value, onCommit, width = 88 }) {
   );
 }
 
-/** Tiny SVG glyph for one display ▾ row. Pure visual hint — keeps the
- *  popover scannable without taking screen space. */
-function DisplayIcon({ kind }) {
-  const s = { stroke: 'currentColor', strokeWidth: 1.2, fill: 'none', strokeLinecap: 'round' };
-  switch (kind) {
-    case 'grid': return (
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <path {...s} d="M0 4h12 M0 8h12 M4 0v12 M8 0v12" />
-      </svg>);
-    case 'grid-min': return (
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <path {...s} d="M0 4h12 M0 8h12 M4 0v12 M8 0v12" />
-        <path stroke="currentColor" strokeWidth="0.5" fill="none" strokeDasharray="1 1"
-              d="M0 2h12 M0 6h12 M0 10h12 M2 0v12 M6 0v12 M10 0v12" />
-      </svg>);
-    case 'logx': return (
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <path {...s} d="M1 11V1 M1 11h11" />
-        <text x="6" y="9" fontSize="6" fill="currentColor" textAnchor="middle">㏒x</text>
-      </svg>);
-    case 'logy': return (
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <path {...s} d="M1 11V1 M1 11h11" />
-        <text x="6" y="9" fontSize="6" fill="currentColor" textAnchor="middle">㏒y</text>
-      </svg>);
-    case 'logz': return (
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <path {...s} d="M1 11V1 M1 11h11 M1 11l4-4" />
-        <text x="6" y="6" fontSize="5.5" fill="currentColor" textAnchor="middle">㏒z</text>
-      </svg>);
-    case 'title': return (
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <path {...s} d="M2 2h8 M6 2v8 M3 10h6" />
-      </svg>);
-    case 'lblx': return (
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <path {...s} d="M1 3v6 M1 9h10 M3.5 11l1.5-1.5 M6 11h2 M9 11l1.5-1.5" />
-      </svg>);
-    case 'lbly': return (
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <path {...s} d="M3 2v8 M3 10h8 M1 3.5l1.5 1.5 M1 6h2 M1 8.5l1.5-1.5" />
-      </svg>);
-    case 'lblz': return (
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <path {...s} d="M2 2h6 M2 2l6 6 M2 8h6" />
-      </svg>);
-    default: return <span />;
-  }
+/** Per-series rows for fit ▾. When `rows.length` is over `threshold`
+ *  (default 5), wraps the list in a side-opening submenu so the
+ *  popover doesn't grow tall. Below the threshold, renders inline.
+ *  Each row is a JSX element produced by the caller.
+ *
+ *  Submenu uses position:fixed with coords computed from the trigger
+ *  button's getBoundingClientRect — bypasses the parent .fw-pop's
+ *  overflow:auto (which would otherwise clip the absolute-positioned
+ *  child and surface a scrollbar instead of opening). */
+/** Side-opening submenu for picking one location value from a fixed
+ *  list. Used by display ▾ for legend / colorbar location pickers.
+ *  `value` is the current selection; null = "follow script". `options`
+ *  is `[{ value, label }]`. ✓ marks the active one. */
+function FwPopLocationSubmenu({ label, value, options, onPick }) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState(null);
+  const triggerRef = useRef(null);
+  useLayoutEffect(() => {
+    if (!open) return;
+    const el = triggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setCoords({ left: r.right + 2, top: r.top - 4 });
+  }, [open]);
+  return (
+    <div className={`fw-pop-sub-wrap ${open ? 'is-open' : ''}`}
+         onMouseEnter={() => setOpen(true)}
+         onMouseLeave={() => setOpen(false)}>
+      <button ref={triggerRef}
+              className="fw-pop-sub-trigger"
+              onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}>
+        <span>{label}</span>
+        <span className="fw-pop-sub-arrow">▶</span>
+      </button>
+      {open && coords && (
+        <div className="fw-pop fw-pop-sub"
+             style={{ position: 'fixed', left: coords.left, top: coords.top }}>
+          {options.map((o) => {
+            const active = (value || null) === o.value;
+            return (
+              <button key={String(o.value)}
+                      className="fw-pop-toggle"
+                      onClick={() => { onPick(o.value); setOpen(false); }}>
+                <span>{o.label}</span>
+                <span className="fw-pop-check">{active ? '✓' : ''}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
-/** Toggle row for the display ▾ popover. Three-column grid:
- *  [ icon | label | ✓ ]. CSS class `is-active` highlights checked rows. */
-function DisplayToggle({ icon, label, active, disabled = false, disabledHint = '', onClick }) {
+function FwPopRowsOrSubmenu({ rows, label, threshold = 5 }) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState(null);
+  const triggerRef = useRef(null);
+  useLayoutEffect(() => {
+    if (!open) return;
+    const el = triggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setCoords({ left: r.right + 2, top: r.top - 4 });
+  }, [open]);
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  if (rows.length <= threshold) {
+    return <>{rows}</>;
+  }
   return (
-    <button className={`fw-pop-toggle ${active ? 'is-active' : ''}`}
+    <div className={`fw-pop-sub-wrap ${open ? 'is-open' : ''}`}
+         onMouseEnter={() => setOpen(true)}
+         onMouseLeave={() => setOpen(false)}>
+      <button ref={triggerRef}
+              className="fw-pop-sub-trigger"
+              onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}>
+        <span>{label}</span>
+        <span className="fw-pop-sub-arrow">▶</span>
+      </button>
+      {open && coords && (
+        <div className="fw-pop fw-pop-sub"
+             style={{ position: 'fixed', left: coords.left, top: coords.top }}>
+          {rows}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Toggle row for the axes / decoration popovers. Two-column grid:
+ *  [ label | ✓ ]. No per-item icon (button-level icon already telegraphs
+ *  the menu's purpose). No active colour tint — only the ✓ marker.
+ *
+ *  `masked` = state-preserving "this toggle is currently no-op because
+ *  another setting masks it" hint. Renders dimmed via `is-masked` CSS
+ *  but stays fully clickable (the user can pre-set a value that'll
+ *  apply once the mask lifts). Distinct from `disabled`, which blocks
+ *  the click entirely. */
+function DisplayToggle({ label, active, disabled = false, disabledHint = '',
+                        masked = false, maskedHint = '', onClick }) {
+  const title = disabled ? disabledHint : (masked ? maskedHint : '');
+  return (
+    <button className={`fw-pop-toggle${masked ? ' is-masked' : ''}`}
             disabled={disabled}
-            title={disabled ? disabledHint : ''}
+            title={title}
             onClick={onClick}>
-      <DisplayIcon kind={icon} />
       <span>{label}</span>
       <span className="fw-pop-check">{active ? '✓' : ''}</span>
     </button>
+  );
+}
+
+/** Header row for any matrix-layout popover section — labels the
+ *  N button columns. Rendered above the per-axis rows so users read
+ *  the column headings once. */
+function MatrixHead({ labels }) {
+  return (
+    <div className="fw-pop-mrow fw-pop-mrow-head">
+      <span className="fw-pop-mrow-label" />
+      {labels.map((l, i) => <span key={i}>{l}</span>)}
+    </div>
+  );
+}
+
+/** Generic per-row matrix toggle. `label` is the row name (axis
+ *  letter); `cols` is an array of column descriptors:
+ *    { active, onClick, disabled?, title? }
+ *  Each column renders as a square checkbox button (✓ when active).
+ *  Used by:
+ *    • grid ▾ matrix — cols = [major, minor]
+ *    • axes ▾ matrix — cols = [reverse, log scale]
+ *  Same `.fw-pop-mbtn` styling. Grid template columns set by the
+ *  parent `.fw-pop-matrix` block based on column count. */
+function MatrixToggleRow({ label, cols }) {
+  return (
+    <div className="fw-pop-mrow">
+      <span className="fw-pop-mrow-label">{label}</span>
+      {cols.map((c, i) => (
+        <button key={i}
+                className={`fw-pop-mbtn${c.active ? ' is-active' : ''}`}
+                disabled={!!c.disabled}
+                title={c.title || ''}
+                onClick={c.onClick}>
+          {c.active ? '✓' : ''}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -146,16 +234,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   // computed by Composite3DPlot via its bbox helper. We start with a
   // safe placeholder ([-1, 1] cube) and fill in the real extent
   // through the onBBox callback below.
-  const figDefault = isSubplot
-    ? null
-    : is3D
-      ? { x: [-1, 1], y: [-1, 1], z: [-1, 1] }
-      : isPolar
-        ? defaultPolarViewport(figure)
-        : (figure.xRange && figure.yRange)
-          ? { x: figure.xRange.slice(), y: figure.yRange.slice() }
-          : { x: [-1, 1], y: [-1, 1] };
-  const [viewport, setViewport]   = useState(figDefault);
+  // figDefault & viewport now live in cells[0].viewport (single source
+  // of truth — see figureCellState.js). The non-subplot getter below
+  // exposes a `viewport` / `setViewport` compat pair for legacy call
+  // sites; subplot uses per-cell viewports inside SubplotGrid.
+  const figDefault = isSubplot ? null : defaultViewport(figure);
   // 3-D bbox cache — Composite3DPlot reports it via onBBox each
   // figure rebuild. Used as the "fit to data" target.
   const [bbox3d, setBbox3d] = useState(null);
@@ -190,68 +273,422 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       };
     });
   }
-  // Major / minor grid state mirrors the script's. Both come from the
-  // engine as independent strings ("on" / "off"); we keep local state
-  // so the toolbar buttons can override without re-running the script,
-  // but re-sync to the script value whenever the underlying figure
-  // changes (so `grid minor` in a re-run propagates).
-  //   2-D figures default to no grid (matches MATLAB).
-  //   3-D figures: adapter forces grid='on' by default since a plain
-  //   wireframe sits in space with no frame otherwise.
-  const [showMajor, setShowMajor] = useState(figure.grid === 'on');
-  const [showMinor, setShowMinor] = useState(figure.gridMinor === 'on');
-  useEffect(() => { setShowMajor(figure.grid === 'on'); }, [figure.grid]);
-  useEffect(() => { setShowMinor(figure.gridMinor === 'on'); }, [figure.gridMinor]);
-  // Legend initial state mirrors what the script asked for: show only
-  // when `legend(...)` (or legend Location) was set — MATLAB parity.
-  // Toolbar toggle then lets the user override.
-  const legendUserAsked = (Array.isArray(figure.legend) && figure.legend.length > 0)
-                       || (figure.legendLocation && figure.legendLocation !== 'none');
-  const [showLegend, setShowLegend] = useState(!!legendUserAsked);
-  useEffect(() => { setShowLegend(!!legendUserAsked); },
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-            [figure.id, figure.legend, figure.legendLocation]);
-  // Log axis toggles — lifted from Heatmap so the toolbar can flip them
-  // alongside grid/minor and the ПКМ menu inside the panel can mirror.
-  // Initialised from figure.xscale/yscale (set by xscale('log') /
-  // yscale('log')) and re-synced when those props change at script time.
-  const [xLog, setXLog] = useState(figure.xscale === 'log');
-  const [yLog, setYLog] = useState(figure.yscale === 'log');
-  // zLog: 3-D-only. Wired through to Composite3DPlot; no script-level
-  // initialiser yet (zscale('log') unimplemented), so state starts off.
-  const [zLog, setZLog] = useState(false);
-  useEffect(() => { setXLog(figure.xscale === 'log'); }, [figure.xscale]);
-  useEffect(() => { setYLog(figure.yscale === 'log'); }, [figure.yscale]);
-
-  // Visibility toggles for title / xlabel / ylabel / zlabel. State is
-  // local — we don't mutate figure data, so the underlying script-set
-  // text survives a re-show. Initialise true: all labels visible by
-  // default, matching MATLAB's "if you set it, you see it" behaviour.
-  const [showTitle,  setShowTitle]  = useState(true);
-  const [showXLabel, setShowXLabel] = useState(true);
-  const [showYLabel, setShowYLabel] = useState(true);
-  const [showZLabel, setShowZLabel] = useState(true);
-  // Re-default to visible on figure-id swap so an earlier "hide" doesn't
-  // leak across unrelated figures landing on the same modal.
+  // ── AXES STATE — MATLAB HG2 schema (single source of truth) ──────
+  //
+  // Schema lives in ./figureSchema.js. We model the figure as an array
+  // of Axes objects (one per cell; non-subplot figures have one).
+  // Property names (XGrid, YGrid, XScale, Title.Visible, ...) match
+  // MATLAB R2025b — see figureSchema.js for the type definition.
+  //
+  // Toolbar setters fan an update across every Axes; ПКМ setters
+  // mutate one. Aggregate ✓ in the toolbar = `every Axes has prop on`.
+  // Reset = re-init from script via initAxesFromCell().
+  const cellsArr = cellsArrayFromFigure(figure);
+  const [axesArr, setAxesArr] = useState(() => cellsArr.map(initAxesFromCell));
+  // Re-init on figure identity / shape change. Same-id same-shape
+  // re-run keeps user toggles (ПКМ tweaks survive script re-runs).
   useEffect(() => {
-    setShowTitle(true); setShowXLabel(true);
-    setShowYLabel(true); setShowZLabel(true);
-  }, [figure.id]);
+    setAxesArr((prev) => {
+      if (prev.length === cellsArr.length) return prev;
+      return cellsArr.map((c, i) => prev[i] || initAxesFromCell(c));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [figure.id, cellsArr.length]);
 
-  // Color-limit override for heatmap window/level autoscale. Lifted so the
-  // toolbar fit menu and the panel's ПКМ menu share one state. null = use
-  // figure.cmin/cmax directly.
-  const [colorOverride, setColorOverride] = useState(null);
-  // Colormap override — null falls back to figure.colormap. The toolbar
-  // combo lets the user switch palettes at runtime without changing the
-  // script.
-  const [colormapOverride, setColormapOverride] = useState(null);
-  // Reset both on figure identity change — old overrides don't apply to a
-  // freshly emitted dataset.
-  useEffect(() => {
-    setColorOverride(null);
-    setColormapOverride(null);
-  }, [figure._raw?.id, figure.id]);
+  // ── Legacy compat layer — reads ──────────────────────────────────
+  // Down-stream code (CompositePlot, SubplotGrid, ПКМ Display submenu
+  // etc.) still consumes flat boolean props (showMajor, xLog, ...).
+  // Derive them from axesArr aggregates. This boundary lets us keep
+  // the canonical state in MATLAB schema while not touching every
+  // call site of the legacy API.
+  // `grid on` in MATLAB lights every axis grid the current axes type
+  // supports — XGrid/YGrid/ZGrid for cartesian + 3-D, RGrid/ThetaGrid
+  // for polar. The combined toolbar "grid" toggle mirrors that: the
+  // aggregate reads true when ANY of those is on; the fan-out
+  // (legacyWrite) sets all of them. Polar fields stay 'off' on
+  // cartesian cells per the schema initializer, so flipping the
+  // combined toggle on a cartesian figure visually lights only X+Y
+  // (R/θ are set in state but their renderer is in PolarPlot).
+  function axisGridOn(axes) {
+    return isOn(axes && axes.XGrid)     || isOn(axes && axes.YGrid)
+        || isOn(axes && axes.ZGrid)
+        || isOn(axes && axes.RGrid)     || isOn(axes && axes.ThetaGrid);
+  }
+  function axisGridMinorOn(axes) {
+    // Minor grids on every axis the schema models — cartesian X/Y/Z
+    // and polar R/θ. Mirrors MATLAB R2025b: `grid minor` lights the
+    // minor grid for every axis the current axes type supports.
+    return isOn(axes && axes.XMinorGrid)     || isOn(axes && axes.YMinorGrid)
+        || isOn(axes && axes.ZMinorGrid)
+        || isOn(axes && axes.RMinorGrid)     || isOn(axes && axes.ThetaMinorGrid);
+  }
+  // Adapter — same shape the old `cells: CellSettings[]` exposed.
+  // Used by SubplotGrid (fed via the cellState renderFigure prop).
+  function axesToLegacyCell(axes) {
+    if (!axes) return {};
+    return {
+      showMajor:    axisGridOn(axes),
+      showMinor:    axisGridMinorOn(axes),
+      // Per-axis grid (preserves XGrid/YGrid info for SubplotGrid →
+      // CompositePlot per-axis renderer split).
+      xGrid:        isOn(axes.XGrid),
+      yGrid:        isOn(axes.YGrid),
+      xMinor:       isOn(axes.XMinorGrid),
+      yMinor:       isOn(axes.YMinorGrid),
+      zMinor:       isOn(axes.ZMinorGrid),
+      rMinor:       isOn(axes.RMinorGrid),
+      thetaMinor:   isOn(axes.ThetaMinorGrid),
+      xLog:         axes.XScale === 'log',
+      yLog:         axes.YScale === 'log',
+      zLog:         axes.ZScale === 'log',
+      showTitle:    isOn(axes.Title    && axes.Title.Visible),
+      showXLabel:   isOn(axes.XLabel   && axes.XLabel.Visible),
+      showYLabel:   isOn(axes.YLabel   && axes.YLabel.Visible),
+      showZLabel:   isOn(axes.ZLabel   && axes.ZLabel.Visible),
+      showLegend:   isOn(axes.Legend   && axes.Legend.Visible),
+      showColorbar: isOn(axes.Colorbar && axes.Colorbar.Visible),
+      showAxis:     isOn(axes.Visible),
+      showBox:      isOn(axes.Box),
+      xReverse:     axes.XDir === 'reverse',
+      yReverse:     axes.YDir === 'reverse',
+      zReverse:     axes.ZDir === 'reverse',
+      // Aspect mode — UI-set value flows to CompositePlot's panel-
+      // shrink path. Defaults to '' (auto) when neither script nor UI
+      // set it. CompositePlot reads `axisMode` prop with fallback to
+      // figure.axisMode (script value).
+      axisMode:     axes.AxisMode || '',
+      legendLocation:   axes.Legend   && axes.Legend.Location,
+      colorbarLocation: axes.Colorbar && axes.Colorbar.Location,
+      colormap:     axes.Colormap || null,
+    };
+  }
+  const cells = axesArr.map(axesToLegacyCell);
+
+  // Compat: viewport / setViewport read-write pair, derived from
+  // axesArr[0]'s XLim/YLim/ZLim (or RLim for polar). For subplot the
+  // figure-level viewport is null — per-cell viewports live inside
+  // each axes entry.
+  const viewport = isSubplot ? null : (viewportFromAxes(axesArr[0]) || figDefault);
+  const setViewport = isSubplot ? null
+    : (vOrFn) => setCellKey(0, 'viewport', vOrFn);
+
+  // Aggregates (read-only views).
+  // ── Legacy ↔ MATLAB schema bridges ───────────────────────────────
+  // Map flat boolean keys used throughout the existing UI / renderer
+  // to MATLAB property paths.
+  function legacyRead(a, key) {
+    if (!a) return undefined;
+    switch (key) {
+      case 'showMajor':    return axisGridOn(a);
+      case 'showMinor':    return axisGridMinorOn(a);
+      case 'xGrid':        return isOn(a.XGrid);
+      case 'yGrid':        return isOn(a.YGrid);
+      case 'zGrid':        return isOn(a.ZGrid);
+      case 'rGrid':        return isOn(a.RGrid);
+      case 'thetaGrid':    return isOn(a.ThetaGrid);
+      case 'xMinor':       return isOn(a.XMinorGrid);
+      case 'yMinor':       return isOn(a.YMinorGrid);
+      case 'zMinor':       return isOn(a.ZMinorGrid);
+      case 'rMinor':       return isOn(a.RMinorGrid);
+      case 'thetaMinor':   return isOn(a.ThetaMinorGrid);
+      case 'xLog':         return a.XScale === 'log';
+      case 'yLog':         return a.YScale === 'log';
+      case 'zLog':         return a.ZScale === 'log';
+      case 'showTitle':    return isOn(a.Title    && a.Title.Visible);
+      case 'showXLabel':   return isOn(a.XLabel   && a.XLabel.Visible);
+      case 'showYLabel':   return isOn(a.YLabel   && a.YLabel.Visible);
+      case 'showZLabel':   return isOn(a.ZLabel   && a.ZLabel.Visible);
+      case 'showLegend':   return isOn(a.Legend   && a.Legend.Visible);
+      case 'showColorbar': return isOn(a.Colorbar && a.Colorbar.Visible);
+      case 'showAxis':     return isOn(a.Visible);
+      case 'showBox':      return isOn(a.Box);
+      case 'xReverse':     return a.XDir === 'reverse';
+      case 'yReverse':     return a.YDir === 'reverse';
+      case 'zReverse':     return a.ZDir === 'reverse';
+      case 'axisMode':     return a.AxisMode || 'auto';
+      case 'legendLocation':   return a.Legend   && a.Legend.Location;
+      case 'colorbarLocation': return a.Colorbar && a.Colorbar.Location;
+      case 'colormap':     return a.Colormap;
+      case 'viewport':     return viewportFromAxes(a);
+      default: return undefined;
+    }
+  }
+  function legacyWrite(a, key, value) {
+    switch (key) {
+      case 'showMajor':    {
+        // Combined "grid" toggle — fan out to every per-axis major
+        // grid we model (MATLAB `grid on` does the same: lights every
+        // grid the axes type supports). Polar fields fan too so polar
+        // figures actually toggle visibly.
+        const f = onOff(!!value);
+        return { ...a, XGrid: f, YGrid: f, ZGrid: f, RGrid: f, ThetaGrid: f };
+      }
+      case 'showMinor':    {
+        // Combined "minor" toggle — fan out to every per-axis minor
+        // grid we model. Same fan rule as showMajor but for the minor
+        // family.
+        const f = onOff(!!value);
+        return { ...a,
+          XMinorGrid: f, YMinorGrid: f, ZMinorGrid: f,
+          RMinorGrid: f, ThetaMinorGrid: f };
+      }
+      case 'xGrid':        return { ...a, XGrid:          onOff(!!value) };
+      case 'yGrid':        return { ...a, YGrid:          onOff(!!value) };
+      case 'zGrid':        return { ...a, ZGrid:          onOff(!!value) };
+      case 'rGrid':        return { ...a, RGrid:          onOff(!!value) };
+      case 'thetaGrid':    return { ...a, ThetaGrid:      onOff(!!value) };
+      case 'xMinor':       return { ...a, XMinorGrid:     onOff(!!value) };
+      case 'yMinor':       return { ...a, YMinorGrid:     onOff(!!value) };
+      case 'zMinor':       return { ...a, ZMinorGrid:     onOff(!!value) };
+      case 'rMinor':       return { ...a, RMinorGrid:     onOff(!!value) };
+      case 'thetaMinor':   return { ...a, ThetaMinorGrid: onOff(!!value) };
+      case 'xLog':         return { ...a, XScale: value ? 'log' : 'linear' };
+      case 'yLog':         return { ...a, YScale: value ? 'log' : 'linear' };
+      case 'zLog':         return { ...a, ZScale: value ? 'log' : 'linear' };
+      case 'showTitle':    return setProp(a, ['Title',    'Visible'], onOff(!!value));
+      case 'showXLabel':   return setProp(a, ['XLabel',   'Visible'], onOff(!!value));
+      case 'showYLabel':   return setProp(a, ['YLabel',   'Visible'], onOff(!!value));
+      case 'showZLabel':   return setProp(a, ['ZLabel',   'Visible'], onOff(!!value));
+      case 'showLegend':   return setProp(a, ['Legend',   'Visible'], onOff(!!value));
+      case 'showColorbar': return setProp(a, ['Colorbar', 'Visible'], onOff(!!value));
+      case 'showAxis':     return { ...a, Visible: onOff(!!value) };
+      case 'showBox':      return { ...a, Box:     onOff(!!value) };
+      case 'xReverse':     return { ...a, XDir: value ? 'reverse' : 'normal' };
+      case 'yReverse':     return { ...a, YDir: value ? 'reverse' : 'normal' };
+      case 'zReverse':     return { ...a, ZDir: value ? 'reverse' : 'normal' };
+      case 'axisMode':     {
+        // Aspect — keeps the AxisMode shorthand in sync with the
+        // derived MATLAB property pair (DataAspectRatioMode /
+        // PlotBoxAspectRatioMode). Mirrors initAxesFromCell's mapping.
+        const v = String(value || 'auto');
+        return { ...a,
+          AxisMode: v,
+          DataAspectRatioMode:    (v === 'equal' || v === 'image') ? 'manual' : 'auto',
+          PlotBoxAspectRatioMode: (v === 'square') ? 'manual' : 'auto',
+        };
+      }
+      case 'legendLocation':   return setProp(a, ['Legend',   'Location'], value);
+      case 'colorbarLocation': return setProp(a, ['Colorbar', 'Location'], value);
+      case 'colormap':     return { ...a, Colormap: value };
+      case 'viewport':     return applyViewport(a, value);
+      default: return a;
+    }
+  }
+  function viewportFromAxes(a) {
+    if (!a) return null;
+    if (Array.isArray(a.RLim)) {
+      return { rmin: a.RLim[0], rmax: a.RLim[1] };
+    }
+    const out = {};
+    if (Array.isArray(a.XLim)) out.x = a.XLim.slice();
+    if (Array.isArray(a.YLim)) out.y = a.YLim.slice();
+    if (Array.isArray(a.ZLim)) out.z = a.ZLim.slice();
+    return Object.keys(out).length > 0 ? out : null;
+  }
+  function applyViewport(a, vp) {
+    if (!vp) return a;
+    const out = { ...a };
+    if (Array.isArray(vp.x)) out.XLim = vp.x.slice();
+    if (Array.isArray(vp.y)) out.YLim = vp.y.slice();
+    if (Array.isArray(vp.z)) out.ZLim = vp.z.slice();
+    if (vp.rmin != null && vp.rmax != null) out.RLim = [vp.rmin, vp.rmax];
+    return out;
+  }
+
+  // ── Legacy aggregate readers ─────────────────────────────────────
+  // `showMajor` ✓ shows when EVERY cell has at least one grid axis on
+  // (cartesian X/Y/Z or polar R/θ). Matches `axisGridOn`'s per-cell
+  // semantics so the toolbar ✓ flips coherently with the click action.
+  const showMajor    = everyAxes(axesArr, ['XGrid'],     isOn)
+                    || everyAxes(axesArr, ['YGrid'],     isOn)
+                    || everyAxes(axesArr, ['ZGrid'],     isOn)
+                    || everyAxes(axesArr, ['RGrid'],     isOn)
+                    || everyAxes(axesArr, ['ThetaGrid'], isOn);
+  // Same shape as showMajor — true iff EVERY cell has at least one
+  // minor-grid axis on. Includes polar (R/θ) so the toolbar minor row
+  // ✓ flips coherently for polar figures too.
+  const showMinor    = everyAxes(axesArr, ['XMinorGrid'],     isOn)
+                    || everyAxes(axesArr, ['YMinorGrid'],     isOn)
+                    || everyAxes(axesArr, ['ZMinorGrid'],     isOn)
+                    || everyAxes(axesArr, ['RMinorGrid'],     isOn)
+                    || everyAxes(axesArr, ['ThetaMinorGrid'], isOn);
+  const xLog         = axesArr.length > 0 && axesArr.every((a) => a.XScale === 'log');
+  const yLog         = axesArr.length > 0 && axesArr.every((a) => a.YScale === 'log');
+  const zLog         = axesArr.length > 0 && axesArr.every((a) => a.ZScale === 'log');
+  const showTitle    = everyAxes(axesArr, ['Title',    'Visible']);
+  const showXLabel   = everyAxes(axesArr, ['XLabel',   'Visible']);
+  const showYLabel   = everyAxes(axesArr, ['YLabel',   'Visible']);
+  const showZLabel   = everyAxes(axesArr, ['ZLabel',   'Visible']);
+  const showLegend   = everyAxes(axesArr, ['Legend',   'Visible']);
+  const showColorbar = everyAxes(axesArr, ['Colorbar', 'Visible']);
+  // Per-axis aggregates — used by the new X grid / Y grid display ▾ rows.
+  const xGrid        = everyAxes(axesArr, ['XGrid'], isOn);
+  const yGrid        = everyAxes(axesArr, ['YGrid'], isOn);
+  const zGrid        = everyAxes(axesArr, ['ZGrid'], isOn);
+  const rGrid        = everyAxes(axesArr, ['RGrid'], isOn);
+  const thetaGrid    = everyAxes(axesArr, ['ThetaGrid'], isOn);
+  // Per-axis MINOR aggregates — fed to the new grid ▾ matrix layout
+  // (one row per axis, two state-buttons per row: major + minor).
+  const xMinor       = everyAxes(axesArr, ['XMinorGrid'],     isOn);
+  const yMinor       = everyAxes(axesArr, ['YMinorGrid'],     isOn);
+  const zMinor       = everyAxes(axesArr, ['ZMinorGrid'],     isOn);
+  const rMinor       = everyAxes(axesArr, ['RMinorGrid'],     isOn);
+  const thetaMinor   = everyAxes(axesArr, ['ThetaMinorGrid'], isOn);
+  // MATLAB Visible / Box / XDir / YDir aggregates.
+  const showAxis     = everyAxes(axesArr, ['Visible'], isOn);
+  const showBox      = everyAxes(axesArr, ['Box'], isOn);
+  const xReverse     = axesArr.length > 0 && axesArr.every((a) => a.XDir === 'reverse');
+  const yReverse     = axesArr.length > 0 && axesArr.every((a) => a.YDir === 'reverse');
+  const zReverse     = axesArr.length > 0 && axesArr.every((a) => a.ZDir === 'reverse');
+  // Aspect aggregate — uniform across cells → that value; mixed → null.
+  // 'auto' (or empty) is the universal default. Drives the radio in
+  // axes ▾ + the fit X/Y disable rule (equal/image lock single-axis fit).
+  const axisModeAgg = (() => {
+    if (axesArr.length === 0) return 'auto';
+    const norm = (a) => (a && a.AxisMode ? a.AxisMode : 'auto');
+    const v0 = norm(axesArr[0]);
+    return axesArr.every((a) => norm(a) === v0) ? v0 : null;
+  })();
+  // Single-axis fit is meaningless under equal/image — both axes are
+  // locked together by DataAspectRatio. Per toolbar=universal policy
+  // we DON'T disable the rows. Instead the click handler upgrades
+  // 'x'/'y'/'z' → 'both' when the cell's aspect locks the axes,
+  // so the button still does something useful (refits both, panel
+  // stays at script aspect). Implemented in applyFit + SubplotGrid's
+  // fitSignal effect with per-cell axisMode awareness.
+  // Legend / colorbar location aggregates — uniform across cells →
+  // that value; mixed → null. null also means "follow script".
+  const legendLocationAgg = (() => {
+    if (axesArr.length === 0) return null;
+    const v0 = axesArr[0].Legend && axesArr[0].Legend.Location;
+    return axesArr.every((a) => (a.Legend && a.Legend.Location) === v0) ? v0 : null;
+  })();
+  const colorbarLocationAgg = (() => {
+    if (axesArr.length === 0) return null;
+    const v0 = axesArr[0].Colorbar && axesArr[0].Colorbar.Location;
+    return axesArr.every((a) => (a.Colorbar && a.Colorbar.Location) === v0) ? v0 : null;
+  })();
+  // Colormap aggregate — uniform across heatmap-bearing axes; mixed → null.
+  const colormapOverride = (() => {
+    if (axesArr.length === 0) return null;
+    const v0 = axesArr[0].Colormap;
+    return axesArr.every((a) => a.Colormap === v0) ? v0 : null;
+  })();
+  // Color autoscale (CLim) — figure-wide for the toolbar.
+  const colorOverride = axesArr.length > 0 && axesArr[0].CLim
+    ? { cmin: axesArr[0].CLim[0], cmax: axesArr[0].CLim[1] }
+    : null;
+  function setColorOverride(v) {
+    const clim = v ? [v.cmin, v.cmax] : null;
+    setAxesArr((prev) => prev.map((a) => ({ ...a, CLim: clim })));
+  }
+
+  // ── Setters (toolbar fan-all + per-cell) ─────────────────────────
+  // Toolbar setters take the React updater shape (value | fn). When a
+  // function we evaluate it against the current AGGREGATE so the
+  // common pattern `(v) => !v` flips from the visible aggregate state.
+  function fanAll(key, updater) {
+    setAxesArr((prev) => {
+      const cur = prev.length > 0 ? !!prev.every((a) => !!legacyRead(a, key)) : false;
+      const next = typeof updater === 'function' ? updater(cur) : updater;
+      return prev.map((a) => legacyWrite(a, key, next));
+    });
+  }
+  const setShowMajor    = (u) => fanAll('showMajor',    u);
+  const setShowMinor    = (u) => fanAll('showMinor',    u);
+  const setXLog         = (u) => fanAll('xLog',         u);
+  const setYLog         = (u) => fanAll('yLog',         u);
+  const setZLog         = (u) => fanAll('zLog',         u);
+  const setShowTitle    = (u) => fanAll('showTitle',    u);
+  const setShowXLabel   = (u) => fanAll('showXLabel',   u);
+  const setShowYLabel   = (u) => fanAll('showYLabel',   u);
+  const setShowZLabel   = (u) => fanAll('showZLabel',   u);
+  const setShowLegend   = (u) => fanAll('showLegend',   u);
+  const setShowColorbar = (u) => fanAll('showColorbar', u);
+  const setShowAxis     = (u) => fanAll('showAxis',     u);
+  const setShowBox      = (u) => fanAll('showBox',      u);
+  const setXReverse     = (u) => fanAll('xReverse',     u);
+  const setYReverse     = (u) => fanAll('yReverse',     u);
+  const setZReverse     = (u) => fanAll('zReverse',     u);
+  const setAxisMode     = (v) => fanAll('axisMode',     v);
+  const setLegendLocation   = (v) => fanAll('legendLocation',   v);
+  const setColorbarLocation = (v) => fanAll('colorbarLocation', v);
+  function setColormapOverride(value) {
+    setAxesArr((prev) => prev.map((a) => ({ ...a, Colormap: value })));
+  }
+  // Path-based setter: writes the same value to every Axes at the
+  // given MATLAB property path. Used by the new per-axis display ▾
+  // rows (X grid, Y grid, ...).
+  function fanAllPath(path, updater) {
+    setAxesArr((prev) => {
+      const cur = prev.length > 0
+                  ? prev.every((a) => isOn(getProp(a, path))) : false;
+      const next = typeof updater === 'function' ? updater(cur) : updater;
+      return prev.map((a) => setProp(a, path, onOff(!!next)));
+    });
+  }
+  const setXGrid     = (u) => fanAllPath(['XGrid'], u);
+  const setYGrid     = (u) => fanAllPath(['YGrid'], u);
+  const setZGrid     = (u) => fanAllPath(['ZGrid'], u);
+  const setRGrid     = (u) => fanAllPath(['RGrid'], u);
+  const setThetaGrid = (u) => fanAllPath(['ThetaGrid'], u);
+  // Per-axis MINOR setters — companions to the major setters above.
+  // Drive the second button column in the new grid ▾ matrix layout.
+  const setXMinor     = (u) => fanAllPath(['XMinorGrid'],     u);
+  const setYMinor     = (u) => fanAllPath(['YMinorGrid'],     u);
+  const setZMinor     = (u) => fanAllPath(['ZMinorGrid'],     u);
+  const setRMinor     = (u) => fanAllPath(['RMinorGrid'],     u);
+  const setThetaMinor = (u) => fanAllPath(['ThetaMinorGrid'], u);
+
+  // Per-cell setters — write to one Axes by index.
+  function setCellKey(idx, key, updater) {
+    setAxesArr((prev) => {
+      const a = prev[idx] || initAxesFromCell(cellsArr[idx]);
+      const cur = legacyRead(a, key);
+      const value = typeof updater === 'function' ? updater(cur) : updater;
+      const out = prev.slice();
+      out[idx] = legacyWrite(a, key, value);
+      return out;
+    });
+  }
+  const makeCellDisplaySetter  = (idx, key) => (u) => setCellKey(idx, key, u);
+  const makeCellColormapSetter = (idx) => (v) => setCellKey(idx, 'colormap', v);
+  const makeCellDisplayReset = (idx) => () => {
+    setAxesArr((prev) => {
+      const init = initAxesFromCell(cellsArr[idx] || {});
+      const cur  = prev[idx] || init;
+      // Reset display flags but keep Colormap, CLim, XLim/YLim/ZLim, View.
+      const next = prev.slice();
+      next[idx] = {
+        ...cur,
+        Visible: init.Visible, Box: init.Box,
+        XGrid: init.XGrid, YGrid: init.YGrid, ZGrid: init.ZGrid,
+        XMinorGrid: init.XMinorGrid, YMinorGrid: init.YMinorGrid, ZMinorGrid: init.ZMinorGrid,
+        RGrid: init.RGrid, ThetaGrid: init.ThetaGrid,
+        RMinorGrid: init.RMinorGrid, ThetaMinorGrid: init.ThetaMinorGrid,
+        XScale: init.XScale, YScale: init.YScale, ZScale: init.ZScale,
+        XDir: init.XDir, YDir: init.YDir, ZDir: init.ZDir,
+        // Aspect — UI-set axisMode override gets cleared back to the
+        // script value (`axis equal/square/image/tight/auto`). Three
+        // schema fields kept in sync: AxisMode (shorthand) and the
+        // two MATLAB-style mode flags.
+        AxisMode:               init.AxisMode,
+        DataAspectRatioMode:    init.DataAspectRatioMode,
+        PlotBoxAspectRatioMode: init.PlotBoxAspectRatioMode,
+        Title: init.Title, Subtitle: init.Subtitle,
+        XLabel: init.XLabel, YLabel: init.YLabel, ZLabel: init.ZLabel, YLabel2: init.YLabel2,
+        Legend: init.Legend, Colorbar: init.Colorbar,
+      };
+      return next;
+    });
+  };
+  const makeCellColormapReset = (idx) => () => {
+    setAxesArr((prev) => {
+      const out = prev.slice();
+      out[idx] = { ...(out[idx] || initAxesFromCell(cellsArr[idx] || {})), Colormap: null };
+      return out;
+    });
+  };
 
   // Compute new color override from a coarse-LOD scan of the visible
   // source-rect. Mirrors Heatmap.fitColorsToVisible. Lives here so the
@@ -309,7 +746,12 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   function toggleAxisLog(axis) {
     if (axis === 'x') {
       const next = !xLog;
-      if (next && (viewport.x[0] <= 0 || viewport.x[1] <= 0)) {
+      // Top-level viewport is null for subplot figures (per-cell
+      // viewports live in SubplotGrid). Skip the clamp when viewport
+      // isn't an object — CompositePlot inside each cell now has a
+      // useEffect on xLog/yLog that does the per-cell clamp.
+      if (next && viewport && Array.isArray(viewport.x)
+          && (viewport.x[0] <= 0 || viewport.x[1] <= 0)) {
         let lo;
         if (isHeatmap) {
           const fullCols = heatmapLayer?.originalCols || 1;
@@ -327,7 +769,8 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       setXLog(next);
     } else {
       const next = !yLog;
-      if (next && (viewport.y[0] <= 0 || viewport.y[1] <= 0)) {
+      if (next && viewport && Array.isArray(viewport.y)
+          && (viewport.y[0] <= 0 || viewport.y[1] <= 0)) {
         let lo;
         if (isHeatmap) {
           const fullRows = heatmapLayer?.originalRows || 1;
@@ -344,12 +787,60 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     }
   }
   const [fitOpen, setFitOpen]     = useState(false);
+  // fitSignal fires every toolbar Fit click. SubplotGrid watches it
+  // (counter-based change detection) and resets every cell's viewport
+  // along the requested axis. Non-subplot figures use the legacy
+  // applyFit path directly; this signal is only consumed by SubplotGrid.
+  const [fitSignal, setFitSignal] = useState({ axis: '', n: 0 });
+  function fitAllCells(axis) {
+    setFitSignal((prev) => ({ axis, n: prev.n + 1 }));
+  }
+  // ── Reset helpers ────────────────────────────────────────────────
+  // Three flavours, each with its own scope:
+  //   • fit ▾ → reset      — viewport only (zoom/pan defaults)
+  //   • display ▾ → reset  — display state + colormap, ALL cells back
+  //                          to script defaults
+  //   • 🏠 Reset toolbar   — viewport + display
+  // Display reset re-inits cells from script defaults — covers every
+  // flag, the colormap, and (now) the viewport in one operation. No
+  // cascade effects, no signal counters.
+  function displayReset() {
+    setAxesArr(cellsArr.map(initAxesFromCell));
+  }
+  function viewportReset() {
+    if (isSubplot) {
+      fitAllCells('both');
+    } else if (is3D) {
+      if (bbox3d) {
+        setViewport({
+          x: [bbox3d.xMin, bbox3d.xMax],
+          y: [bbox3d.yMin, bbox3d.yMax],
+          z: [bbox3d.zMin, bbox3d.zMax],
+        });
+      }
+    } else if (isHeatmap) {
+      setViewport(figDefault);
+      setColorOverride(null);
+    } else {
+      setViewport(figDefault);
+    }
+  }
+  function resetAll() {
+    viewportReset();
+    displayReset();
+  }
+  const [axesOpen, setAxesOpen] = useState(false);
+  const [gridOpen, setGridOpen] = useState(false);
   const [displayOpen, setDisplayOpen] = useState(false);
+  const [cmapOpen, setCmapOpen]   = useState(false);
   const [saveOpen, setSaveOpen]   = useState(false);
   const [viewOpen, setViewOpen]   = useState(false);
   const [maximized, setMaximized] = useState(false);
   const fitRef  = useRef(null);
+  const axesRef = useRef(null);
+  const gridRef = useRef(null);
   const displayRef = useRef(null);
+  const cmapRef = useRef(null);
   const saveRef = useRef(null);
   const viewRef = useRef(null);
 
@@ -360,21 +851,26 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   // cells that can't apply).
   const cellsList = isSubplot && Array.isArray(figure.cells) ? figure.cells : [figure];
   const anyCellHas = (pred) => cellsList.some(pred);
-  const xLogEnabled = anyCellHas((c) => Array.isArray(c.xRange) && c.xRange[1] > 0);
-  const yLogEnabled = anyCellHas((c) => Array.isArray(c.yRange) && c.yRange[1] > 0);
-  // zLog/zLabel: 3-D only. For subplot, enabled if any cell is 3-D.
+  // Find the first heatmap layer ANYWHERE in the figure (top-level or
+  // inside a subplot cell). Drives the toolbar Colormap ▾ visibility +
+  // its "script default" anchor for marking the active palette.
+  const findFirstHeatmap = () => {
+    for (const c of cellsList) {
+      const layers = (c && Array.isArray(c.layers)) ? c.layers : [];
+      const hm = layers.find((l) => l && l.kind === 'heatmap');
+      if (hm) return hm;
+    }
+    return null;
+  };
+  const anyHeatmap = findFirstHeatmap();
+  // has3DCell still used by ПКМ Display submenu Z-row gating in
+  // CompositePlot (passed implicitly via the figure prop). Toolbar
+  // toggles themselves are never disabled — that was deliberately
+  // dropped because the aggregate disabled-rule lied about per-cell
+  // state for fresh subplots.
   const has3DCell = isSubplot
     ? cellsList.some((c) => c.kind === 'composite3d')
     : is3D;
-  // titleEnabled — script-set titles only. The adapter substitutes a
-  // default "Figure N" when the script didn't call title(); titleAuto
-  // marks that case so the toggle stays disabled.
-  const titleEnabled  = anyCellHas((c) => typeof c.title  === 'string' && c.title.length  > 0
-                                          && !c.titleAuto);
-  const xLabelEnabled = anyCellHas((c) => typeof c.xLabel === 'string' && c.xLabel.length > 0);
-  const yLabelEnabled = anyCellHas((c) => typeof c.yLabel === 'string' && c.yLabel.length > 0);
-  const zLabelEnabled = has3DCell
-    && anyCellHas((c) => typeof c.zLabel === 'string' && c.zLabel.length > 0);
   const wrapRef = useRef(null);
   const [size, setSize] = useState({ w: 1100, h: 600 });
 
@@ -390,7 +886,10 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   useEffect(() => {
     function onDoc(e) {
       if (fitRef.current     && !fitRef.current.contains(e.target))     setFitOpen(false);
+      if (axesRef.current    && !axesRef.current.contains(e.target))    setAxesOpen(false);
+      if (gridRef.current    && !gridRef.current.contains(e.target))    setGridOpen(false);
       if (displayRef.current && !displayRef.current.contains(e.target)) setDisplayOpen(false);
+      if (cmapRef.current    && !cmapRef.current.contains(e.target))    setCmapOpen(false);
       if (saveRef.current    && !saveRef.current.contains(e.target))    setSaveOpen(false);
       if (viewRef.current    && !viewRef.current.contains(e.target))    setViewOpen(false);
     }
@@ -692,6 +1191,10 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
 
   function applyFit(mode, axisMode) {
     if (isSubplot) return;                 // subplot fit lives per-cell; close menu
+    // Axis-equal upgrade lives inside fitCellViewport now — see the
+    // shared cartesian dispatch at the bottom of this function.
+    // 3D + polar branches have their own data-extent computation
+    // (bbox / rho-max) so they keep their own dispatch.
     if (is3D) {
       // 3-D fit pulls the data bbox from Composite3DPlot's imperative
       // handle (Composite3DPlot reports it via onBBox each rebuild;
@@ -712,61 +1215,44 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       return;
     }
     if (isPolar) {
-      // Polar fit: pick max |rho| across selected series, round up to a nice
-      // multiple, keep rMin at 0 (or whatever the figure's existing inner
-      // ring is). axisMode is ignored — there's only one axis.
-      const list = mode === 'all' ? figure.series : figure.series.filter((s) => s.name === mode);
-      let m = 0;
-      list.forEach((s) => s.rho?.forEach((v) => {
-        if (Number.isFinite(v) && Math.abs(v) > m) m = Math.abs(v);
-      }));
-      const lo = (Array.isArray(figure.rlim) && figure.rlim.length === 2) ? figure.rlim[0] : 0;
-      setViewport({ r: [lo, nicePolarMax(m || 1)] });
+      // Polar fit — same fitCellViewport unification as the cartesian
+      // branch below. defaultPolarViewport handles rlim/thetalim
+      // priority + data-extent nicePolarMax fallback. Axis aliases:
+      // legacy 'rtheta' → 'both'; unset → 'both'. Cartesian
+      // 'x'/'y'/'z' are NO-OPs (parity with SubplotGrid's per-cell
+      // polar routing — universal toolbar = clickable but does
+      // nothing on inapplicable axes).
+      let polarAxis = axisMode || 'both';
+      if (polarAxis === 'rtheta') polarAxis = 'both';
+      setViewport(fitCellViewport(figure, viewport, polarAxis));
       setFitOpen(false);
       return;
     }
-    if (isComposite && isHeatmap && !hasSeries) {
-      // Pure-heatmap composite: data extent is figure.xRange/yRange. Under
-      // a log axis the natural extent straddles zero (cellH/2 padding) and
-      // would silently flip back to linear. Clamp lo bound to half-cell.
-      const xLogNow = figure.xscale === 'log';
-      const yLogNow = figure.yscale === 'log';
-      const next = { x: viewport.x.slice(), y: viewport.y.slice() };
-      if (axisMode === 'both' || axisMode === 'x') {
-        if (xLogNow) {
-          const fullCols = heatmapLayer.originalCols || 1;
-          const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
-          const lo = Math.max(cellW * 0.5, 1e-6);
-          next.x = [lo, Math.max(lo * 10, figure.xRange[1])];
-        } else {
-          next.x = figure.xRange.slice();
-        }
-      }
-      if (axisMode === 'both' || axisMode === 'y') {
-        if (yLogNow) {
-          const fullRows = heatmapLayer.originalRows || 1;
-          const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
-          const lo = Math.max(cellH * 0.5, 1e-6);
-          next.y = [lo, Math.max(lo * 10, figure.yRange[1])];
-        } else {
-          next.y = figure.yRange.slice();
-        }
-      }
-      setViewport(next);
-      setFitOpen(false);
-      return;
+    // All cartesian (non-3D, non-polar) paths route through the
+    // shared fitCellViewport. Toolbar=universal: this is the SAME
+    // per-cell action SubplotGrid + CompositePlot ПКМ use, so the
+    // outcome doesn't drift between menus.
+    //
+    // Log axes get a half-cell lo-bound override (figure.xRange
+    // straddles zero for heatmap padding and would silently flip
+    // back to linear). Applied after the base fit so axis-equal
+    // upgrade is honoured first.
+    let next = fitCellViewport(figure, viewport, axisMode, { aspectMode: axisModeAgg });
+    const xLogNow = figure.xscale === 'log';
+    const yLogNow = figure.yscale === 'log';
+    if ((axisMode === 'both' || axisMode === 'x') && xLogNow) {
+      const fullCols = (isHeatmap ? heatmapLayer.originalCols : 0) || 1;
+      const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
+      const lo = Math.max(cellW * 0.5, 1e-6);
+      next = { ...next, x: [lo, Math.max(lo * 10, figure.xRange[1])] };
     }
-    if (isComposite) {
-      // Series composite (with or without heatmap underlay): fit to selected
-      // series. computeFitViewport accepts the series list — layer.x/y match
-      // the legacy series shape closely enough.
-      if (seriesLayers.length === 0) { setFitOpen(false); return; }
-      setViewport(computeFitViewport(seriesLayers, mode, axisMode, viewport, figDefault));
-      setFitOpen(false);
-      return;
+    if ((axisMode === 'both' || axisMode === 'y') && yLogNow) {
+      const fullRows = (isHeatmap ? heatmapLayer.originalRows : 0) || 1;
+      const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
+      const lo = Math.max(cellH * 0.5, 1e-6);
+      next = { ...next, y: [lo, Math.max(lo * 10, figure.yRange[1])] };
     }
-    if (!figure.series) return;
-    setViewport(computeFitViewport(figure.series, mode, axisMode, viewport, figDefault));
+    setViewport(next);
     setFitOpen(false);
   }
 
@@ -816,7 +1302,22 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
         </div>
 
         <div className="fw-toolbar">
-          {!isSubplot && (
+          {/* 🏠 Reset — full reset of viewport AND display state. For
+              subplot it fans out to every cell. Standalone toolbar
+              button (not a popover) for one-click access. */}
+          <button className="ve-btn"
+                  onClick={resetAll}
+                  title="Reset viewport + display state"
+                  data-fw-reset="all">
+            <svg width="11" height="11" viewBox="0 0 12 12">
+              <path d="M1 6l5-5 5 5 M2 5v6h8V5"
+                    stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round"/>
+            </svg>
+            reset
+          </button>
+          {/* fit ▾ — always shown, applies to EVERY cell in subplot mode.
+              Per-series rows live in the right-click menu only; the
+              toolbar version is global by design. */}
           <div className="ve-tools-group" ref={fitRef}>
             <button className="ve-btn" onClick={() => setFitOpen((o) => !o)} title="Fit viewport">
               <svg width="11" height="11" viewBox="0 0 12 12">
@@ -824,120 +1325,65 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               </svg>
               fit ▾
             </button>
-            {fitOpen && (is3D ? (
+            {fitOpen && (
               <div className="fw-pop">
                 <div className="fw-pop-section">
+                  <button onClick={() => { viewportReset(); setFitOpen(false); }}>default</button>
+                </div>
+                <div className="fw-pop-section">
+                  {/* `all` sits on its own — it's the "fit everything"
+                      master that resets each cell to its default
+                      viewport regardless of coordinate system. Below
+                      it the per-axis rows split into Cartesian and
+                      Polar so the labels read unambiguously. */}
                   <button onClick={() => {
-                    if (bbox3d) {
-                      setViewport({
-                        x: [bbox3d.xMin, bbox3d.xMax],
-                        y: [bbox3d.yMin, bbox3d.yMax],
-                        z: [bbox3d.zMin, bbox3d.zMax],
-                      });
-                    }
+                    if (isSubplot) fitAllCells('both'); else applyFit('all', 'both');
                     setFitOpen(false);
-                  }}>reset to data extent</button>
+                  }}>all</button>
                 </div>
                 <div className="fw-pop-section">
-                  <div className="fw-pop-head">data extent</div>
-                  <button onClick={() => applyFit('all', 'both')}>all axes</button>
-                  <button onClick={() => applyFit('all', 'x')}>X only</button>
-                  <button onClick={() => applyFit('all', 'y')}>Y only</button>
-                  <button onClick={() => applyFit('all', 'z')}>Z only</button>
+                  <div className="fw-pop-head">Cartesian</div>
+                  {/* Toolbar=universal: per-axis rows are ALWAYS
+                      clickable. For cells with aspect=equal/image
+                      the click handler upgrades single-axis fit to
+                      fit-both (handled per-cell in SubplotGrid /
+                      figure-wide in applyFit). Plain auto/tight
+                      cells get the literal single-axis fit. */}
+                  <button onClick={() => {
+                    if (isSubplot) fitAllCells('x'); else applyFit('all', 'x');
+                    setFitOpen(false);
+                  }}>X</button>
+                  <button onClick={() => {
+                    if (isSubplot) fitAllCells('y'); else applyFit('all', 'y');
+                    setFitOpen(false);
+                  }}>Y</button>
+                  <button onClick={() => {
+                    if (isSubplot) fitAllCells('z'); else applyFit('all', 'z');
+                    setFitOpen(false);
+                  }}>Z</button>
                 </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">Polar</div>
+                  {/* Polar fits use a separate viewport shape
+                      ({r, theta}); cartesian cells ignore the polar
+                      signal — same universal-brush policy. */}
+                  <button onClick={() => {
+                    if (isSubplot) fitAllCells('r'); else applyFit('all', 'r');
+                    setFitOpen(false);
+                  }}>R</button>
+                  <button onClick={() => {
+                    if (isSubplot) fitAllCells('theta'); else applyFit('all', 'theta');
+                    setFitOpen(false);
+                  }}>θ</button>
+                </div>
+                {/* Heatmap colour-fit / reset-colors previously sat
+                    here gated on `isHeatmap`. Dropped from the toolbar
+                    so fit ▾ stays identical across figure kinds —
+                    those operations now live in the ПКМ "Color range"
+                    section (specialised, heatmap-only). */}
               </div>
-            ) : isHeatmap ? (
-              <div className="fw-pop">
-                <div className="fw-pop-section">
-                  <button onClick={() => { setViewport(figDefault); setColorOverride(null); setFitOpen(false); }}>reset to default</button>
-                </div>
-                <div className="fw-pop-section">
-                  <div className="fw-pop-head">data extent</div>
-                  <button onClick={() => applyFit('all', 'both')}>both axes</button>
-                  <button onClick={() => applyFit('all', 'x')}>X only</button>
-                  <button onClick={() => applyFit('all', 'y')}>Y only</button>
-                </div>
-                <div className="fw-pop-section">
-                  <div className="fw-pop-head">colors</div>
-                  <button
-                    onClick={() => { fitColorsToVisible(); setFitOpen(false); }}
-                    disabled={!engine || typeof engine.getFigureTile !== 'function'
-                              || !heatmapLayer || heatmapLayer._figId < 0}>
-                    fit to visible
-                  </button>
-                  <button
-                    onClick={() => { setColorOverride(null); setFitOpen(false); }}
-                    disabled={!colorOverride}>
-                    reset colors
-                  </button>
-                </div>
-              </div>
-            ) : isPolar ? (
-              <div className="fw-pop">
-                <div className="fw-pop-section">
-                  <button onClick={() => { setViewport(figDefault); setFitOpen(false); }}>reset to default</button>
-                </div>
-                <div className="fw-pop-section">
-                  <div className="fw-pop-head">all curves</div>
-                  <button onClick={() => applyFit('all', 'both')}>fit r-range</button>
-                </div>
-                {Array.isArray(figure.series) && figure.series.length > 1
-                  && figure.series.length <= 8 && (
-                  <div className="fw-pop-section">
-                    <div className="fw-pop-head">single curve</div>
-                    {figure.series.map((s) => (
-                      <div key={s.name} className="fw-pop-row">
-                        <span className="fw-pop-name"><i style={{ background: s.color }} />{s.name}</span>
-                        <button onClick={() => applyFit(s.name, 'both')}>fit r</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {Array.isArray(figure.series) && figure.series.length > 8 && (
-                  <div className="fw-pop-section">
-                    <div className="fw-pop-head">single curve</div>
-                    <div className="fw-pop-note">
-                      {figure.series.length} series — per-series fit hidden
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="fw-pop">
-                <div className="fw-pop-section">
-                  <button onClick={() => { setViewport(figDefault); setFitOpen(false); }}>reset to default</button>
-                </div>
-                <div className="fw-pop-section">
-                  <div className="fw-pop-head">all curves</div>
-                  <button onClick={() => applyFit('all', 'both')}>both axes</button>
-                  <button onClick={() => applyFit('all', 'x')}>X only</button>
-                  <button onClick={() => applyFit('all', 'y')}>Y only</button>
-                </div>
-                {seriesLayers.length > 1 && seriesLayers.length <= 8 && (
-                  <div className="fw-pop-section">
-                    <div className="fw-pop-head">single curve</div>
-                    {seriesLayers.map((s) => (
-                      <div key={s.name} className="fw-pop-row">
-                        <span className="fw-pop-name"><i style={{ background: s.color }} />{s.name}</span>
-                        <button onClick={() => applyFit(s.name, 'both')}>xy</button>
-                        <button onClick={() => applyFit(s.name, 'x')}>x</button>
-                        <button onClick={() => applyFit(s.name, 'y')}>y</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {seriesLayers.length > 8 && (
-                  <div className="fw-pop-section">
-                    <div className="fw-pop-head">single curve</div>
-                    <div className="fw-pop-note">
-                      {seriesLayers.length} series — per-series fit hidden
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+            )}
           </div>
-          )}
 
           {/* View presets — 3-D only. Six standard MATLAB camera
               orientations: top (XY plane down), bottom (XY plane up),
@@ -995,81 +1441,318 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               bar now — see below. The toolbar keeps fit / grid / log /
               save / export buttons only. */}
 
+          {/* axes ▾ — every property of the Axes object itself:
+              Visible / Box / XGrid·YGrid·ZGrid / XDir·YDir·ZDir /
+              XScale·YScale·ZScale. Grouping rule: if it's a field on
+              the MATLAB HG2 Axes object, it lives here. Children of
+              the axes (Title, Legend, Colorbar, ...) live in
+              `decoration ▾` next. Both popovers share `displayReset`. */}
+          <div className="ve-tools-group" ref={axesRef}>
+            <button className="ve-btn"
+                    onClick={() => setAxesOpen((o) => !o)}
+                    title="Axes object: visible / grid / direction / scale">
+              <svg width="11" height="11" viewBox="0 0 12 12">
+                <path d="M2 1v10h10" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+              </svg>
+              axes ▾
+            </button>
+            {axesOpen && (
+              <div className="fw-pop">
+                <div className="fw-pop-section">
+                  <button onClick={() => { displayReset(); setAxesOpen(false); }}>default</button>
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">visible</div>
+                  <DisplayToggle label="axis" active={showAxis}
+                                 onClick={() => setShowAxis((v) => !v)} />
+                  {/* MATLAB HG2 rule: Axes.Visible='off' is the master
+                      switch — it hides ticks, axis lines AND the Box.
+                      We honour that: when axis is off the box doesn't
+                      render even with Box='on'. Dim the box row so the
+                      user sees their ✓ is currently no-op; click still
+                      flips the cell-state flag so it'll take effect
+                      once axis is turned back on. */}
+                  <DisplayToggle label="box"  active={showBox}
+                                 masked={!showAxis}
+                                 maskedHint="Box is hidden because axis is off — turn axis on to see it."
+                                 onClick={() => setShowBox((v) => !v)} />
+                </div>
+                {/* Grid sub-sections moved into their own toolbar
+                    button `grid ▾` (next to axes ▾). Keeping them out
+                    of this popover so axes ▾ stays focused on the
+                    HG2 Axes object's non-grid properties (visible /
+                    direction / scale). */}
+                {/* Direction + scale collapsed into a single matrix —
+                    rows = X/Y/Z, columns = reverse / log. Replaces
+                    the two `reverse:` + `log scale:` sections (3 rows
+                    each = 8 lines) with a 4-line block. Same UX
+                    pattern as grid ▾'s matrix (checkbox-style toggle
+                    cells with ✓ on active). */}
+                <div className="fw-pop-section fw-pop-matrix">
+                  <div className="fw-pop-head">reverse · log scale</div>
+                  <MatrixHead labels={['rev', 'log']} />
+                  <MatrixToggleRow label="X" cols={[
+                    { active: xReverse, onClick: () => setXReverse((v) => !v), title: 'reverse direction' },
+                    { active: xLog,     onClick: () => toggleAxisLog('x'),     title: 'log scale' },
+                  ]} />
+                  <MatrixToggleRow label="Y" cols={[
+                    { active: yReverse, onClick: () => setYReverse((v) => !v), title: 'reverse direction' },
+                    { active: yLog,     onClick: () => toggleAxisLog('y'),     title: 'log scale' },
+                  ]} />
+                  <MatrixToggleRow label="Z" cols={[
+                    { active: zReverse, onClick: () => setZReverse((v) => !v), title: 'reverse direction' },
+                    { active: zLog,     onClick: () => setZLog((v) => !v),     title: 'log scale' },
+                  ]} />
+                </div>
+                {/* aspect: MATLAB `axis equal/square/image/tight/auto`
+                    shorthand surfaced as a 5-button radio group.
+                    Mutually-exclusive — clicking one sets it; the
+                    current value is highlighted. `auto` is the default
+                    (panel fills cell, no aspect lock). Active value
+                    flows into CompositePlot's panel-shrink path which
+                    enforces the corresponding contract. */}
+                <div className="fw-pop-section">
+                  {/* Section head names the active aggregate value
+                      (`aspect: equal`) — when cells are mixed we show
+                      `aspect: mixed` so the user sees there's no
+                      uniform value before they look at the pills. */}
+                  <div className="fw-pop-head">
+                    aspect{axisModeAgg === null ? ': mixed'
+                                                : (axisModeAgg && axisModeAgg !== 'auto' ? `: ${axisModeAgg}` : '')}
+                  </div>
+                  <div className="fw-pop-radio-row">
+                    {['auto', 'equal', 'square', 'image', 'tight'].map((m) => {
+                      // Active = uniform aggregate equals m. MIXED
+                      // (axisModeAgg === null) → no pill active so
+                      // the user doesn't think `auto` is the current
+                      // value when really it's different per cell.
+                      // Empty-string aggregate normalises to `auto`.
+                      const isActive = axisModeAgg !== null
+                                    && ((axisModeAgg || 'auto') === m);
+                      return (
+                        <button key={m}
+                                className={`fw-pop-radio${isActive ? ' is-active' : ''}`}
+                                title={({
+                                  auto:   'panel fills cell; no aspect lock',
+                                  equal:  '1 data unit X = 1 data unit Y (DataAspectRatio = [1 1 1])',
+                                  square: 'plot box square regardless of data',
+                                  image:  'equal + tight (default for imshow)',
+                                  tight:  'limits exactly at data extent — no padding',
+                                })[m] || ''}
+                                onClick={() => setAxisMode(m)}>
+                          {m}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* grid ▾ — every per-axis grid the schema models, plus the
+              combined master row. Lives in its own toolbar group
+              (between axes ▾ and decoration ▾) because the grid
+              surface alone is 3 sub-sections (master / Cartesian /
+              Polar) and would dominate the axes ▾ popover otherwise.
+              Mirrors MATLAB R2025b figure toolbar where Grid is a
+              primary control. */}
+          <div className="ve-tools-group" ref={gridRef}>
+            <button className="ve-btn"
+                    onClick={() => setGridOpen((o) => !o)}
+                    title="Grid lines: cartesian (X/Y/Z) + polar (R/θ)">
+              <svg width="11" height="11" viewBox="0 0 12 12">
+                <path d="M4 0v12 M8 0v12 M0 4h12 M0 8h12"
+                      stroke="currentColor" strokeWidth="1.2" fill="none"/>
+              </svg>
+              grid ▾
+            </button>
+            {gridOpen && (
+              <div className="fw-pop">
+                <div className="fw-pop-section">
+                  <button onClick={() => { displayReset(); setGridOpen(false); }}>default</button>
+                </div>
+                {/* Matrix layout: one row per axis, two columns of
+                    state-buttons (major / minor). Replaces the 2-row-
+                    per-axis split (Cartesian: X / Cartesian minor: X)
+                    so adding the minor family doesn't double the
+                    popover height. Per the toolbar=universal policy
+                    every row stays clickable regardless of figure
+                    kind; clicks on inapplicable axes flip the schema
+                    flag without visual effect (parity-clean). */}
+                <div className="fw-pop-section fw-pop-matrix">
+                  <div className="fw-pop-head">grid</div>
+                  <MatrixHead labels={['maj', 'min']} />
+                  <MatrixToggleRow label="all" cols={[
+                    { active: showMajor, onClick: () => setShowMajor((v) => !v), title: 'major' },
+                    { active: showMinor, onClick: () => setShowMinor((v) => !v), title: 'minor' },
+                  ]} />
+                </div>
+                <div className="fw-pop-section fw-pop-matrix">
+                  <div className="fw-pop-head">Cartesian</div>
+                  <MatrixToggleRow label="X" cols={[
+                    { active: xGrid,  onClick: () => setXGrid((v) => !v),  title: 'major' },
+                    { active: xMinor, onClick: () => setXMinor((v) => !v), title: 'minor' },
+                  ]} />
+                  <MatrixToggleRow label="Y" cols={[
+                    { active: yGrid,  onClick: () => setYGrid((v) => !v),  title: 'major' },
+                    { active: yMinor, onClick: () => setYMinor((v) => !v), title: 'minor' },
+                  ]} />
+                  <MatrixToggleRow label="Z" cols={[
+                    { active: zGrid,  onClick: () => setZGrid((v) => !v),  title: 'major' },
+                    { active: zMinor, onClick: () => setZMinor((v) => !v), title: 'minor' },
+                  ]} />
+                </div>
+                <div className="fw-pop-section fw-pop-matrix">
+                  <div className="fw-pop-head">Polar</div>
+                  <MatrixToggleRow label="R" cols={[
+                    { active: rGrid,  onClick: () => setRGrid((v) => !v),  title: 'major' },
+                    { active: rMinor, onClick: () => setRMinor((v) => !v), title: 'minor' },
+                  ]} />
+                  <MatrixToggleRow label="θ" cols={[
+                    { active: thetaGrid,  onClick: () => setThetaGrid((v) => !v),  title: 'major' },
+                    { active: thetaMinor, onClick: () => setThetaMinor((v) => !v), title: 'minor' },
+                  ]} />
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="ve-tools-group" ref={displayRef}>
             <button className="ve-btn"
                     onClick={() => setDisplayOpen((o) => !o)}
-                    title="Toggle grid / scale / labels visibility">
-              display ▾
+                    title="Decoration objects: labels / legend / colorbar">
+              <svg width="11" height="11" viewBox="0 0 12 12">
+                <path d="M2 3h8M2 6h5M2 9h6"
+                      stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
+              </svg>
+              decoration ▾
             </button>
             {displayOpen && (
               <div className="fw-pop">
                 <div className="fw-pop-section">
-                  <div className="fw-pop-head">grid</div>
-                  <DisplayToggle icon="grid" label="grid"  active={showMajor}
-                                 onClick={() => setShowMajor((g) => !g)} />
-                  <DisplayToggle icon="grid-min" label="minor" active={showMinor}
-                                 onClick={() => setShowMinor((g) => !g)} />
-                </div>
-                <div className="fw-pop-section">
-                  <div className="fw-pop-head">scale</div>
-                  <DisplayToggle icon="logx" label="xlog" active={xLog}
-                                 disabled={!xLogEnabled}
-                                 disabledHint="X range has no positive max — log scale undefined"
-                                 onClick={() => toggleAxisLog('x')} />
-                  <DisplayToggle icon="logy" label="ylog" active={yLog}
-                                 disabled={!yLogEnabled}
-                                 disabledHint="Y range has no positive max — log scale undefined"
-                                 onClick={() => toggleAxisLog('y')} />
-                  <DisplayToggle icon="logz" label="zlog" active={zLog}
-                                 disabled={!has3DCell}
-                                 disabledHint="Z log scale only applies to 3-D figures"
-                                 onClick={() => setZLog((v) => !v)} />
+                  <button onClick={() => { displayReset(); setDisplayOpen(false); }}>default</button>
                 </div>
                 <div className="fw-pop-section">
                   <div className="fw-pop-head">labels</div>
-                  <DisplayToggle icon="title" label="title" active={showTitle}
-                                 disabled={!titleEnabled}
-                                 disabledHint="not set"
+                  {/* Pure text children of the Axes (HG2 Title / XLabel
+                      / YLabel / ZLabel objects). No Location picker —
+                      MATLAB Position is set by the renderer. */}
+                  <DisplayToggle label="title" active={showTitle}
                                  onClick={() => setShowTitle((v) => !v)} />
-                  <DisplayToggle icon="lblx" label="xlabel" active={showXLabel}
-                                 disabled={!xLabelEnabled}
-                                 disabledHint="not set"
+                  <DisplayToggle label="X label" active={showXLabel}
                                  onClick={() => setShowXLabel((v) => !v)} />
-                  <DisplayToggle icon="lbly" label="ylabel" active={showYLabel}
-                                 disabled={!yLabelEnabled}
-                                 disabledHint="not set"
+                  <DisplayToggle label="Y label" active={showYLabel}
                                  onClick={() => setShowYLabel((v) => !v)} />
-                  <DisplayToggle icon="lblz" label="zlabel" active={showZLabel}
-                                 disabled={!zLabelEnabled}
-                                 disabledHint={has3DCell ? 'not set' : 'Z label only applies to 3-D figures'}
+                  <DisplayToggle label="Z label" active={showZLabel}
                                  onClick={() => setShowZLabel((v) => !v)} />
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">annotations</div>
+                  {/* Standalone HG2 objects (Legend / Colorbar). Each
+                      carries its own Location so it gets a side-opening
+                      submenu next to the visibility toggle. */}
+                  <DisplayToggle label="legend" active={showLegend}
+                                 onClick={() => setShowLegend((v) => !v)} />
+                  <FwPopLocationSubmenu
+                    label="legend location"
+                    value={legendLocationAgg}
+                    options={[
+                      { value: null,        label: 'default' },
+                      { value: 'best',      label: 'best' },
+                      { value: 'north',     label: 'north' },
+                      { value: 'south',     label: 'south' },
+                      { value: 'east',      label: 'east' },
+                      { value: 'west',      label: 'west' },
+                      { value: 'northeast', label: 'northeast' },
+                      { value: 'northwest', label: 'northwest' },
+                      { value: 'southeast', label: 'southeast' },
+                      { value: 'southwest', label: 'southwest' },
+                    ]}
+                    onPick={(v) => setLegendLocation(v)} />
+                  <DisplayToggle label="colorbar" active={showColorbar}
+                                 onClick={() => setShowColorbar((v) => !v)} />
+                  <FwPopLocationSubmenu
+                    label="colorbar location"
+                    value={colorbarLocationAgg}
+                    options={[
+                      { value: null,    label: 'default' },
+                      { value: 'east',  label: 'east' },
+                      { value: 'west',  label: 'west' },
+                      { value: 'north', label: 'north' },
+                      { value: 'south', label: 'south' },
+                    ]}
+                    onPick={(v) => setColorbarLocation(v)} />
                 </div>
               </div>
             )}
-            {isHeatmap && (
-              <select
-                className="ve-btn fw-cmap-select"
-                value={colormapOverride ?? heatmapLayer.colormap ?? 'parula'}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setColormapOverride(v === (heatmapLayer.colormap ?? 'parula') ? null : v);
-                }}
-                title="Colormap (overrides script-level colormap())">
-                {['parula', 'jet', 'hot', 'cool', 'gray', 'bone', 'copper',
-                  'spring', 'summer', 'autumn', 'winter', 'hsv', 'viridis']
-                  .map((cm) => <option key={cm} value={cm}>{cm}</option>)}
-              </select>
-            )}
-            {/* Legend toggle hidden for pure heatmap (colorbar IS the legend),
-                shown when at least one series layer exists or the figure is
-                a legacy line/polar shape. */}
-            {/* Legend toolbar toggle — shown only when the script
-                actually asked for a legend (so the IDE doesn't dangle
-                a button that toggles nothing on a plain plot()). 3-D
-                figures hide it because the WebGL renderer doesn't
-                draw a legend block. */}
-            {!is3D && legendUserAsked && (hasSeries || (!isHeatmap && !isComposite)) && (
-              <button className={`ve-btn ${showLegend ? 'is-active' : ''}`} onClick={() => setShowLegend((g) => !g)}>legend</button>
+          </div>
+
+          {/* colormap ▾ — figure-wide palette picker. ALWAYS visible
+              per the toolbar policy (universal brush). On a non-
+              heatmap figure the picked palette is written to
+              Axes.Colormap regardless — it has no visible effect now,
+              but if a heatmap is later layered onto the same axes the
+              UI-picked palette wins over the script default.
+              SIBLING of decoration ▾ (NOT nested) so click-outside on
+              the cmap trigger fires `setDisplayOpen(false)` via the
+              shared document-mousedown handler. */}
+          <div className="ve-tools-group" ref={cmapRef}>
+            <button className="ve-btn"
+                    onClick={() => setCmapOpen((o) => !o)}
+                    title="Colormap (figure-wide; overrides per-cell picks)">
+              <svg width="11" height="11" viewBox="0 0 12 12">
+                <rect x="1" y="3" width="10" height="6" fill="none"
+                      stroke="currentColor" strokeWidth="1"/>
+                <rect x="1" y="3" width="2" height="6" fill="currentColor" opacity="0.25"/>
+                <rect x="3" y="3" width="2" height="6" fill="currentColor" opacity="0.5"/>
+                <rect x="5" y="3" width="2" height="6" fill="currentColor" opacity="0.75"/>
+                <rect x="7" y="3" width="2" height="6" fill="currentColor"/>
+                <rect x="9" y="3" width="2" height="6" fill="currentColor" opacity="0.5"/>
+              </svg>
+              colormap ▾
+            </button>
+            {cmapOpen && (
+              <div className="fw-pop">
+                <div className="fw-pop-section">
+                  <button onClick={() => {
+                    // Reset to script palette. setColormapOverride
+                    // writes null to every cell's `colormap` field
+                    // (single source of truth — no separate per-cell
+                    // overrides to clear).
+                    setColormapOverride(null);
+                    setCmapOpen(false);
+                  }}>default</button>
+                </div>
+                <div className="fw-pop-section">
+                  <div className="fw-pop-head">palette</div>
+                  {['parula', 'jet', 'hot', 'cool', 'gray', 'bone', 'copper',
+                    'spring', 'summer', 'autumn', 'winter', 'hsv', 'viridis']
+                    .map((cm) => {
+                      const scriptDefault = (anyHeatmap && anyHeatmap.colormap) || 'parula';
+                      // ✓ shown only when EVERY heatmap-bearing cell
+                      // currently uses this palette (after applying
+                      // per-cell overrides). For non-subplot figures
+                      // it just compares the figure-wide effective
+                      // value. For non-heatmap figures: ✓ tracks the
+                      // user's UI pick alone (no heatmap colormap to
+                      // compare against).
+                      const active = aggColormap(
+                        axesArr.map(axesToLegacyCell), cellsArr, cm);
+                      return (
+                        <button key={cm}
+                                className="fw-pop-toggle"
+                                onClick={() => {
+                                  setColormapOverride(cm === scriptDefault ? null : cm);
+                                  setCmapOpen(false);
+                                }}>
+                          <span>{cm}</span>
+                          <span className="fw-pop-check">{active ? '✓' : ''}</span>
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
             )}
           </div>
 
@@ -1111,18 +1794,45 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
           </div>
         </div>
 
+        {/* sgtitle — figure-level "super-title", set via sgtitle(...).
+            Always rendered so the grid row count stays stable (6 rows,
+            see .fw-window grid-template-rows); CSS `.fw-supertitle:empty
+            { display:none }` collapses the strip when no super-title is
+            set. If we returned null instead, the grid would re-map
+            children-to-rows and shift canvas-wrap into the `auto` slot. */}
+        <div className="fw-supertitle">{figure.superTitle || ''}</div>
+
         <div className="fw-canvas-wrap" ref={wrapRef}>
           <div style={{ position: 'relative', width: '100%', height: '100%' }}>
             {renderFigure(figure, {
               width: size.w, height: size.h,
               viewport, setViewport,
               major: showMajor, minor: showMinor,
+              // Per-axis grid (MATLAB XGrid / YGrid for cartesian +
+              // RGrid / ThetaGrid for polar). For non-subplot the
+              // aggregate is the value (single axes); for subplot
+              // SubplotGrid forwards each cell's own axes-derived value.
+              xGrid: xGrid, yGrid: yGrid,
+              xMinor: xMinor, yMinor: yMinor,
+              rGrid: rGrid, thetaGrid: thetaGrid,
+              rMinor: rMinor, thetaMinor: thetaMinor,
+              // MATLAB Visible / Box / XDir / YDir / ZDir overrides.
+              // Pass only for non-subplot — SubplotGrid resolves per-
+              // cell from each cell's axes (legacy cell prop).
+              ...(isSubplot ? {} : {
+                axisVisible: showAxis,
+                boxOn: showBox,
+                xReverse, yReverse, zReverse,
+                axisMode: axisModeAgg,
+                legendLocation: legendLocationAgg,
+                colorbarLocation: colorbarLocationAgg,
+              }),
               fontScale: 1.15,
               engine,
               xLog, yLog, zLog,
-              setXLog, setYLog,
+              setXLog, setYLog, setZLog,
               colorOverride, setColorOverride,
-              colormapOverride,
+              colormapOverride, setColormapOverride,
               // showLegend gates BOTH the CompositePlot SVG-internal
               // legend block and the (now removed) HTML overlay. One
               // legend, controlled by the toolbar toggle.
@@ -1132,6 +1842,59 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               // the corresponding <text> render path. State lives here
               // (not in figure JSON) so a script re-run doesn't reset.
               showTitle, showXLabel, showYLabel, showZLabel,
+              showColorbar,
+              // Display setters — passed so the right-click ПКМ inside
+              // CompositePlot can surface Axes ▶ + Decoration ▶ submenus
+              // that mirror the toolbar's axes ▾ / decoration ▾ state.
+              // Non-subplot path uses figure-wide fanAll setters (one
+              // axes object); subplot wraps these per-cell in
+              // SubplotGrid via makeCellDisplaySetter.
+              ...(isSubplot ? {} : {
+                setShowMajor, setShowMinor,
+                setXGrid, setYGrid,
+                setRGrid, setThetaGrid,
+                setXMinor, setYMinor, setZMinor,
+                setRMinor, setThetaMinor,
+                setAxisMode,
+                setShowAxis, setShowBox,
+                setXReverse, setYReverse, setZReverse,
+                setShowTitle, setShowXLabel, setShowYLabel, setShowZLabel,
+                setShowLegend, setShowColorbar,
+                setLegendLocation, setColorbarLocation,
+              }),
+              // Top-level Reset + Save/Export bridge for the context
+              // menu. ПКМ surfaces these as a 🏠 Reset row + Save/Export
+              // submenu. Handlers run with no extra wrapping — the menu
+              // closes automatically after the click via ContextMenu's
+              // own onClose path.
+              onResetAll: resetAll,
+              onExportSvg: exportSvg,
+              onExportPng2x: () => exportPng(2),
+              onExportPngPrint85:  () => exportPngPrint(85),
+              onExportPngPrint170: () => exportPngPrint(170),
+              onExportPngPrint210: () => exportPngPrint(210),
+              onExportCsv: exportCsv,
+              onExportTsv: exportTsv,
+              onExportJson: exportJson,
+              // fitSignal — incrementing counter consumed by SubplotGrid
+              // to fit each cell's viewport when the toolbar Fit X/Y/Z
+              // is clicked on a subplot figure.
+              fitSignal,
+              // Per-cell state (single source of truth) lives in
+              // FigureWindow now. SubplotGrid receives the array + per-
+              // cell setter factories and fans them out to each cell's
+              // CompositePlot. Non-subplot CompositePlot uses cells[0]
+              // values flattened into the same prop names already passed
+              // above (showMajor / xLog / ...), and the figure-wide
+              // setters wrap fanAll().
+              cellState: cells,
+              makeCellDisplaySetter, makeCellColormapSetter,
+              makeCellDisplayReset, makeCellColormapReset,
+              // Non-subplot CompositePlot uses these directly (no
+              // SubplotGrid in the chain). For subplot, SubplotGrid
+              // overrides them with per-cell wrappers.
+              onDisplayReset: displayReset,
+              onColormapReset: () => setColormapOverride(null),
               // 3-D specific — Composite3DPlot ignores these for non-3-D.
               // Skip the override on the very first render when viewport
               // is still the [-1,1] placeholder cube (otherwise computeBBox

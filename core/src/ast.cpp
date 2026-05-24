@@ -29,6 +29,7 @@ ASTNodePtr cloneNode(const ASTNode *src)
     dst->line = src->line;
     dst->col = src->col;
     dst->endLine = src->endLine;
+    dst->endCol = src->endCol;
     dst->strValue = src->strValue;
     dst->numValue = src->numValue;
     dst->boolValue = src->boolValue;

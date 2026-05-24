@@ -340,6 +340,564 @@ input, select { font-family: inherit; color: inherit; }
   font-size: 14px; line-height: 1;
 }
 .editor-tab .tab-close:hover { background: var(--bg-4); color: var(--fg-0); }
+
+/* ── Editor view toggle (text | graph) ─────────────────────────── */
+/* Small pill-button row beneath the tab strip, lets the user flip
+   the editor body between the text editor and the data-flow graph
+   view. Read-only graph for MVP. */
+.editor-view-toggle {
+  display: flex;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--line-soft);
+}
+.editor-view-toggle .evt-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--fg-2);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 2px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.editor-view-toggle .evt-btn:hover:not(.is-active) {
+  border-color: var(--accent);
+  color: var(--fg-1);
+}
+.editor-view-toggle .evt-btn.is-active {
+  background: var(--accent);
+  color: var(--bg-1);
+  border-color: var(--accent);
+}
+
+/* Multi-pane container — equal horizontal flex across the active
+   editor panes (text / graph / AST). Children are `.editor-pane`
+   wrappers; each manages its own internal layout. Sibling order
+   in the DOM matches the toggle order (text → graph → AST) so the
+   left-to-right placement is predictable. */
+.editor-multi-pane {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.editor-pane {
+  /* flex set inline from paneFracs so the user's drag positions
+     persist; CSS just provides the base sizing constraints. */
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── NumkitGraphView (data-flow graph) ─────────────────────────── */
+.numkit-graph-view {
+  flex: 1;
+  height: 100%;
+  background: var(--bg-1);
+  position: relative;
+  overflow: hidden;
+}
+.numkit-graph-view .ng-empty {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 100%; padding: 24px;
+  color: var(--fg-3);
+  font-family: var(--font-mono);
+}
+.numkit-graph-view .ng-empty-title {
+  font-size: 13px; color: var(--fg-2); margin-bottom: 4px;
+}
+.numkit-graph-view .ng-empty-msg {
+  font-size: 11px; text-align: center; max-width: 320px;
+  line-height: 1.4;
+}
+
+/* ── NumkitASTView (literal parse-tree inspector) ───────────────── */
+.numkit-ast-view {
+  flex: 1;
+  height: 100%;
+  background: var(--bg-1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.numkit-ast-view .ng-empty {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 100%; padding: 24px;
+  color: var(--fg-3);
+  font-family: var(--font-mono);
+}
+.numkit-ast-view .ng-empty-title {
+  font-size: 13px; color: var(--fg-2); margin-bottom: 4px;
+}
+.numkit-ast-view .ng-empty-msg {
+  font-size: 11px; text-align: center; max-width: 320px;
+  line-height: 1.4;
+}
+
+/* Filter toolbar at the top of the AST view — one chip per node-
+   type category. Click toggles visibility. Active chips have a
+   coloured fill matching their category; inactive chips are muted. */
+.ng-ast-filterbar {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 8px 10px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+  z-index: 2;
+}
+.ng-ast-chip {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-1);
+  color: var(--fg-3);
+  cursor: pointer;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+.ng-ast-chip:hover {
+  border-color: var(--chip-color, var(--fg-2));
+  color: var(--fg-1);
+}
+.ng-ast-chip-on {
+  background: var(--chip-color, var(--accent));
+  border-color: var(--chip-color, var(--accent));
+  color: var(--bg-0);
+  font-weight: 600;
+}
+.ng-ast-filterbar-sep {
+  display: inline-block;
+  width: 1px; height: 18px;
+  background: var(--line);
+  margin: 0 4px;
+}
+.ng-ast-action {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--bg-1);
+  color: var(--fg-2);
+  cursor: pointer;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+.ng-ast-action:hover {
+  border-color: var(--accent);
+  color: var(--fg-0);
+}
+
+/* AST node card — compact pill with type tag + optional value text +
+   chevron toggle. Per-category coloured left border, same idiom as
+   the graph-view region kinds. */
+.ng-ast-node {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-1);
+  cursor: pointer;
+  user-select: none;
+}
+.ng-ast-node:hover { border-color: var(--accent); }
+/* Bidirectional cursor sync — when the editor caret sits on a
+   line inside this AST node's source range, highlight prominently. */
+.ng-ast-node-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(127, 217, 154, 0.55),
+              0 0 14px rgba(127, 217, 154, 0.35);
+  z-index: 10;
+}
+.ng-ast-type {
+  font-weight: 700;
+  color: var(--fg-0);
+}
+.ng-ast-value {
+  color: var(--fg-2);
+  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ng-ast-toggle {
+  margin-left: 4px;
+  padding: 0 4px;
+  background: transparent;
+  border: none;
+  color: var(--fg-3);
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+}
+.ng-ast-toggle:hover { color: var(--accent); }
+
+/* Category left-border colours (mirror CATEGORIES table in JS). */
+.ng-ast-cat-container { border-left: 3px solid #7a8390; }
+.ng-ast-cat-literal   { border-left: 3px solid #7fd99a; }
+.ng-ast-cat-ident     { border-left: 3px solid #7fd0e0; }
+.ng-ast-cat-operator  { border-left: 3px solid #9b8cf2; }
+.ng-ast-cat-access    { border-left: 3px solid #f0b97a; }
+.ng-ast-cat-assign    { border-left: 3px solid #5fb87a; }
+.ng-ast-cat-control   { border-left: 3px solid #d97c7c; }
+.ng-ast-cat-decl      { border-left: 3px solid #c98cf2; }
+.ng-ast-cat-other     { border-left: 3px solid var(--fg-3); }
+
+/* AST edges — thin parent→child lines, no labels. */
+.react-flow__edge.ng-ast-edge .react-flow__edge-path {
+  stroke: var(--line);
+  stroke-width: 1.2;
+}
+
+/* ── NumkitASTTreeView (indented parse-tree, astexplorer-style) ─── */
+.numkit-ast-tree-view {
+  flex: 1;
+  height: 100%;
+  background: var(--bg-1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.numkit-ast-tree-view .ng-empty {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 100%; padding: 24px;
+  color: var(--fg-3);
+  font-family: var(--font-mono);
+}
+.numkit-ast-tree-view .ng-empty-title {
+  font-size: 13px; color: var(--fg-2); margin-bottom: 4px;
+}
+.numkit-ast-tree-view .ng-empty-msg {
+  font-size: 11px; text-align: center; max-width: 320px;
+  line-height: 1.4;
+}
+.ng-ast-tree-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 6px 0;
+}
+/* One row per AST node — fixed line-height, paddingLeft set inline
+   by the renderer based on depth. Coloured left-border per
+   category matches the graph-AST node-card look. */
+.ng-ast-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--fg-1);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  white-space: nowrap;
+}
+.ng-ast-tree-row:hover {
+  background: rgba(127, 217, 154, 0.06);
+}
+.ng-ast-tree-row.is-active {
+  background: rgba(127, 217, 154, 0.15);
+  border-left-color: var(--accent);
+}
+/* Chevron — clickable hot zone for collapse/expand. Leaves (no
+   children) show a faint dot so the column stays aligned. */
+.ng-ast-tree-chev {
+  display: inline-block;
+  width: 12px; text-align: center;
+  color: var(--fg-2);
+  font-size: 9px;
+  flex-shrink: 0;
+  user-select: none;
+}
+.ng-ast-tree-chev:hover { color: var(--accent); }
+.ng-ast-tree-chev.is-leaf { color: var(--fg-3); cursor: default; }
+.ng-ast-tree-chev.is-leaf:hover { color: var(--fg-3); }
+.ng-ast-tree-type {
+  font-weight: 700;
+  color: var(--fg-0);
+}
+.ng-ast-tree-value {
+  color: var(--fg-2);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ng-ast-tree-loc {
+  margin-left: auto;
+  color: var(--fg-3);
+  font-size: 9.5px;
+  padding-left: 10px;
+}
+
+/* Category-coloured left border on tree rows (same palette as the
+   graph AST node-card categories — see `.ng-ast-cat-*` above). */
+.ng-ast-tree-row.ng-ast-cat-container { border-left-color: #7a8390; }
+.ng-ast-tree-row.ng-ast-cat-literal   { border-left-color: #7fd99a; }
+.ng-ast-tree-row.ng-ast-cat-ident     { border-left-color: #7fd0e0; }
+.ng-ast-tree-row.ng-ast-cat-operator  { border-left-color: #9b8cf2; }
+.ng-ast-tree-row.ng-ast-cat-access    { border-left-color: #f0b97a; }
+.ng-ast-tree-row.ng-ast-cat-assign    { border-left-color: #5fb87a; }
+.ng-ast-tree-row.ng-ast-cat-control   { border-left-color: #d97c7c; }
+.ng-ast-tree-row.ng-ast-cat-decl      { border-left-color: #c98cf2; }
+/* Active state border wins over category — render order matters. */
+.ng-ast-tree-row.is-active { border-left-color: var(--accent); }
+
+/* Node base — all NodeKinds share this card shape. Per-kind classes
+   add accent border / header colour. Sizing: `display: inline-block`
+   so the card HUGS its content (code body + ports footer). React
+   Flow's wrapper auto-measures this size; ELK then uses the measured
+   dimensions for layout. No magic JS pixel math anywhere. */
+.ng-node {
+  position: relative;
+  display: inline-block;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  color: var(--fg-1);
+  padding: 6px 8px 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+.ng-node-title {
+  font-size: 11px; font-weight: 700;
+  color: var(--fg-0);
+  padding-bottom: 4px;
+  border-bottom: 1px dashed var(--line-soft);
+  margin-bottom: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Body is rendered as a CODE BLOCK — preserves original formatting
+   (no wrap), monospace, inner background a touch darker than the
+   card so it visually reads as `<pre>`. `display: block` inside the
+   inline-block `.ng-node` parent → the block grows to whatever width
+   the longest source line needs, and the parent picks that up as
+   its own content width. No overflow, no scrollbars. */
+.ng-node-body {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-1);
+  white-space: pre;          /* preserve, do NOT wrap */
+  line-height: 1.3;
+  padding: 6px 8px;
+  margin: 0;
+  background: var(--bg-0);
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+}
+/* Ports footer — fixed-height strip at the bottom of the card that
+   hosts handle dots on the side edges + variable-name labels JUST
+   INSIDE those edges. Each port row is PORT_STEP (16 px) tall so
+   handles and labels stay vertically aligned. Footer height is set
+   inline by the renderer based on max(inputs, outputs) row count. */
+.ng-node-ports-footer {
+  position: relative;
+  margin-top: 6px;
+  border-top: 1px dashed var(--line-soft);
+}
+.ng-port-inline {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--fg-2);
+  line-height: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  /* Cap label width so long var names don't overflow the card. */
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ng-port-in  { left: 12px;  text-align: left;  }
+.ng-port-out { right: 12px; text-align: right; }
+.ng-node-assignment { border-left: 3px solid var(--accent); }
+.ng-node-exprstmt   { border-left: 3px solid #9b8cf2; }
+.ng-node-opaque     { border-left: 3px solid var(--fg-3); opacity: 0.85; }
+
+/* ── Compound region nodes (if/for/while/switch/try/function) ──
+   These act as transparent containers that hold the child statement
+   nodes inside their bounds. The header bar shows the kind + the
+   header source slice (`for k = 1:10`, `if x > 0`, etc.). ELK sizes
+   the region from its children — we just give it a min-width via
+   `elk.nodeSize.minimum` and let CSS draw the frame. */
+.ng-region {
+  position: relative;
+  width:  100%;  height: 100%;     /* ELK sets the actual size on parent */
+  background: rgba(60, 70, 85, 0.18);
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  pointer-events: none;            /* lets children receive clicks */
+}
+/* Header is a positioning shell only — the visible thing is the
+   `.ng-region-source` code-block chip sitting at the top of the
+   region card. Same code-block treatment as `.ng-node-body` so
+   `for n = 0:N-1`, `if x > 0`, `while cond` etc. all read as
+   actual code (monospace, dark inner background, subtle border),
+   visually consistent with the statement nodes inside the region. */
+.ng-region-header {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  padding: 8px 10px;
+  pointer-events: auto;
+}
+.ng-region-source {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-1);
+  white-space: pre;
+  line-height: 1.3;
+  padding: 6px 8px;
+  margin: 0;
+  background: var(--bg-0);
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+}
+/* Per-kind accent border on the LEFT edge (matches leaf nodes). */
+.ng-region-ifregion     { border-left: 3px solid #f0b97a; }
+.ng-region-forregion    { border-left: 3px solid #7fd0e0; }
+.ng-region-whileregion  { border-left: 3px solid #6cb9d0; }
+.ng-region-switchregion { border-left: 3px solid #d0a87f; }
+.ng-region-tryregion    { border-left: 3px solid #d97c7c; }
+.ng-region-functiondef  { border-left: 3px solid var(--accent); }
+
+/* ── Jump nodes (break / continue / return) ── */
+.ng-node-jump {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 0;
+  padding: 4px 10px;
+  background: rgba(200, 80, 80, 0.18);
+  border: 1px solid #d97c7c;
+  border-left-width: 3px;
+  border-radius: 12px;
+  font-family: var(--font-mono); font-size: 10.5px;
+  color: var(--fg-0);
+  box-shadow: none;
+}
+.ng-node-jump-label {
+  font-weight: 700;
+  text-transform: lowercase;
+}
+
+/* ── Merge nodes — Phase 2c ──
+   Hexagonal "join" chip from classic flowchart notation. The shape
+   itself (chevron points on each side) signals "this is where
+   branches converge" — no jargon label needed. Only the merged
+   variable name is shown inside. */
+.ng-node-merge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 18px;
+  background: rgba(176, 140, 242, 0.30);
+  color: var(--fg-0);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  clip-path: polygon(
+    10px 0%,
+    calc(100% - 10px) 0%,
+    100% 50%,
+    calc(100% - 10px) 100%,
+    10px 100%,
+    0% 50%
+  );
+}
+.ng-node-merge-name {
+  color: var(--fg-0);
+}
+
+/* React Flow handle dots — match the IDE palette. */
+.react-flow__handle {
+  width: 6px !important; height: 6px !important;
+  background: var(--accent) !important;
+  border: 1px solid var(--bg-0) !important;
+}
+/* Hide handles that exist purely as edge-routing anchors with no
+   user-facing port label — exception-in/out, jump-in/out, and the
+   internal-passthrough handles inp-N / outt-N which sit at the same
+   pixel position as the regular in-N / out-N and would otherwise
+   render duplicate dots. The connected edges still terminate at
+   these points; we just don't paint the orphan dot. */
+.react-flow__handle[data-handleid="exception-in"],
+.react-flow__handle[data-handleid="exception-out"],
+.react-flow__handle[data-handleid="jump-in"],
+.react-flow__handle[data-handleid="jump-out"],
+.react-flow__handle[data-handleid^="inp-"],
+.react-flow__handle[data-handleid^="outt-"] {
+  opacity: 0;
+}
+/* Edge labels (variable names) — small monospace tag at midpoint. */
+.react-flow__edge-text {
+  font-family: var(--font-mono); font-size: 9px;
+  fill: var(--fg-2);
+}
+.react-flow__edge-textbg {
+  fill: var(--bg-0);
+  fill-opacity: 0.8;
+}
+/* Jump edges (break / continue / return → enclosing region) —
+   dashed line + warm-tinted label so the reader can tell control-
+   flow jumps apart from data-flow at a glance. */
+.react-flow__edge.ng-edge-jump .react-flow__edge-path {
+  stroke: #d97c7c;
+  stroke-dasharray: 4 3;
+}
+.react-flow__edge.ng-edge-jump .react-flow__edge-text {
+  fill: #d97c7c;
+  font-weight: 600;
+}
+.react-flow__edge.ng-edge-jump .react-flow__edge-textbg {
+  fill: var(--bg-0);
+}
+/* Exception edges (try-body last stmt → catch-body first stmt) —
+   amber dashed line, "throws" label. Distinct from Jump (red) so
+   the reader can tell normal jumps from exception flow at a glance. */
+.react-flow__edge.ng-edge-exception .react-flow__edge-path {
+  stroke: #f0a87f;
+  stroke-dasharray: 2 4;
+}
+.react-flow__edge.ng-edge-exception .react-flow__edge-text {
+  fill: #f0a87f;
+  font-weight: 600;
+}
+.react-flow__edge.ng-edge-exception .react-flow__edge-textbg {
+  fill: var(--bg-0);
+}
+/* React Flow controls / minimap — re-tint to the IDE theme. */
+.react-flow__controls {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+.react-flow__controls-button {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--fg-1);
+  fill: var(--fg-1);
+}
+.react-flow__controls-button:hover {
+  background: var(--bg-3);
+}
+.react-flow__minimap {
+  background: var(--bg-2) !important;
+  border: 1px solid var(--line);
+}
+
 .editor-actions {
   margin-left: auto;
   display: flex; align-items: center; gap: 2px;
@@ -625,26 +1183,184 @@ input, select { font-family: inherit; color: inherit; }
   color: var(--fg-3); opacity: 0.4;
   background: transparent; cursor: not-allowed;
 }
-/* `is-active` toggle in display ▾ — checkmark prefix is already in the
-   label; tint slightly so the active row reads at a glance without
-   looking like a hover. */
-.fw-pop button.is-active {
-  color: var(--accent, #7fd99a);
-}
-/* display ▾ rows: icon on the left, label fills the rest, checkmark on
-   the right column. Keeps everything column-aligned regardless of label
-   length. */
+/* display ▾ rows: label fills the row, ✓ marker on the right column.
+   No per-item icon (button-level icon telegraphs the menu kind), no
+   active colour tint — only the ✓ marks active toggles. */
 .fw-pop-toggle {
   display: grid !important;
-  grid-template-columns: 14px 1fr 12px;
+  grid-template-columns: 1fr 12px;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 4px 8px !important;
   text-align: left;
 }
-.fw-pop-toggle svg { color: var(--fg-2); }
-.fw-pop-toggle.is-active svg { color: var(--accent, #7fd99a); }
-.fw-pop-toggle .fw-pop-check { color: var(--accent, #7fd99a); font-weight: 700; }
+.fw-pop-toggle .fw-pop-check { color: var(--fg-1); font-weight: 700; }
+/* Masked state — toggle is currently no-op because another setting
+   masks it (e.g. `box` while `axis=off`). Stays clickable; dimmed so
+   the user reads "I set this but it has no effect right now". Same
+   class used on .ctx-item for ПКМ rows in the same situation. */
+.fw-pop-toggle.is-masked,
+.ctx-item.is-masked { opacity: 0.55; }
+/* Grid ▾ matrix layout — one row per axis, two state-button columns
+   (major / minor). Replaces the 2-row-per-axis split (Cartesian: X /
+   Cartesian minor: X) so adding the minor family doesn't double the
+   popover height. The label column stretches; both button columns are
+   fixed-width for consistent visual rhythm across rows. */
+.fw-pop-matrix .fw-pop-mrow {
+  display: grid !important;
+  /* Label stretches; each button column is fixed-width. Default
+     covers 2-column matrices (grid maj/min, axes reverse/log).
+     auto-sized columns based on the buttons themselves keep
+     alignment tight when column header text varies (`maj`/`rev`). */
+  grid-template-columns: 1fr 30px 30px;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+}
+.fw-pop-matrix .fw-pop-mrow-label {
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-1);
+}
+.fw-pop-matrix .fw-pop-mrow-head {
+  font-family: var(--font-mono); font-size: 9.5px;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--fg-3);
+  padding-top: 2px; padding-bottom: 2px;
+}
+.fw-pop-matrix .fw-pop-mrow-head > span:not(.fw-pop-mrow-label) {
+  text-align: center;
+}
+/* Checkbox-style state buttons used by both the toolbar grid ▾ matrix
+   (.fw-pop .fw-pop-mbtn) and the ПКМ Grid ▶ matrix
+   (.ctx-row-btn.is-toggle). Square frame ALWAYS visible — fixes the
+   "where is the button?" affordance problem with the previous
+   fill-only style. Empty when off, accent-filled + ✓ when on.
+   Classic checkbox metaphor.
+
+   Selectors are extra-specific (`.fw-pop .fw-pop-mbtn` instead of just
+   `.fw-pop-mbtn`) so they beat the generic `.fw-pop button` rule
+   above (which has `border: none` and would erase our frame). */
+.fw-pop .fw-pop-mbtn,
+.ctx-row-btn.is-toggle {
+  width: 18px !important;
+  height: 18px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 1.5px solid var(--line) !important;
+  border-radius: 3px !important;
+  color: var(--fg-1);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  text-align: center !important;
+  box-sizing: border-box;
+}
+.fw-pop .fw-pop-mbtn:hover,
+.ctx-row-btn.is-toggle:hover {
+  border-color: var(--accent) !important;
+  background: var(--bg-2) !important;
+}
+.fw-pop .fw-pop-mbtn.is-active,
+.ctx-row-btn.is-toggle.is-active {
+  background: var(--accent) !important;
+  color: var(--bg-1) !important;
+  border-color: var(--accent) !important;
+}
+/* Aspect radio row inside axes ▾ — mutually-exclusive
+   `auto / equal / square / image / tight`. Pill-style buttons that
+   wrap on narrow popovers. Active pill picks up the accent fill
+   (same paint as the grid-matrix checkbox `is-active` so the two
+   menus feel consistent). */
+.fw-pop-radio-row {
+  display: flex; flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px 8px !important;
+}
+.fw-pop .fw-pop-radio {
+  background: transparent !important;
+  border: 1.5px solid var(--line) !important;
+  border-radius: 3px !important;
+  color: var(--fg-1);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  padding: 2px 8px !important;
+  cursor: pointer;
+  text-align: center !important;
+  line-height: 1.3;
+}
+/* Exclude .is-active from hover so the active pill's accent fill +
+   light text stays intact under the cursor. Without the
+   :not(.is-active) guard the hover background overrode the active
+   background and the active color (set by .is-active rule) bled
+   through as light-on-dark — unreadable on hover. */
+.fw-pop .fw-pop-radio:not(.is-active):hover {
+  border-color: var(--accent) !important;
+  background: var(--bg-2) !important;
+}
+.fw-pop .fw-pop-radio.is-active {
+  background: var(--accent) !important;
+  color: var(--bg-1) !important;
+  border-color: var(--accent) !important;
+}
+/* ПКМ pill-radio row — mirrors the toolbar `.fw-pop-radio-row`
+   shape. Used for aspect (auto/equal/square/image/tight) inside
+   ПКМ Axes ▶ so toolbar + ПКМ render the same radio UI.
+   max-width caps the row so 5 aspect pills wrap to 2 lines (same
+   visual rhythm as the toolbar popover where the narrow min-width
+   forces the same wrap). Without the cap the submenu sizes to its
+   widest sibling (`Save / Export ▶` etc) and all pills fit on one
+   line — visually cramped + harder to scan. */
+.ctx-pill-row {
+  display: flex; flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px 14px;
+  max-width: 180px;
+}
+.ctx-pill {
+  background: transparent;
+  border: 1.5px solid var(--line);
+  border-radius: 3px;
+  color: var(--fg-1);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  padding: 2px 8px;
+  cursor: pointer;
+  text-align: center;
+  line-height: 1.3;
+}
+/* Active pill is excluded from hover paint — see toolbar
+   .fw-pop-radio rule above for the rationale (avoids unreadable
+   dark-on-dark when active+hover combine due to specificity). */
+.ctx-pill:not(.is-active):hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--bg-2);
+}
+.ctx-pill.is-active {
+  background: var(--accent);
+  color: var(--bg-1);
+  border-color: var(--accent);
+}
+.ctx-pill:disabled { opacity: 0.4; cursor: not-allowed; }
+/* ПКМ Grid ▶ matrix mirror — column-header row in a context-menu
+   row layout. ctx-row already lays out [name | btns]; rowHead
+   reuses that with span colhead boxes the same width as buttons. */
+.ctx-row-head {
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+.ctx-row-colhead {
+  font-family: var(--font-mono); font-size: 9.5px;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--fg-3);
+  width: 18px;
+  text-align: center;
+}
 .fw-pop-row {
   display: flex; align-items: center; gap: 4px;
   padding: 2px 4px;
@@ -658,6 +1374,37 @@ input, select { font-family: inherit; color: inherit; }
   padding: 4px 8px;
   font-family: var(--font-mono); font-size: 10.5px;
   color: var(--fg-3); font-style: italic;
+}
+/* Show count next to the "single curve" heading when many series are
+   present, so users see at a glance how many rows are below before
+   scrolling. The outer .fw-pop already caps at 75vh + overflow-y:auto
+   — no inner scroll needed. */
+.fw-pop-count {
+  color: var(--fg-3);
+  font-weight: 400;
+  margin-left: 4px;
+}
+/* Nested submenu inside fit ▾ — used when N series > 5 so the
+   per-series rows don't dominate the parent popover. Same opens-to-
+   the-right behavior as the ctx-menu submenu. */
+.fw-pop-sub-wrap { position: relative; }
+.fw-pop-sub-trigger {
+  background: transparent; border: none;
+  color: var(--fg-1); font-family: var(--font-mono); font-size: 11.5px;
+  text-align: left; padding: 4px 8px; border-radius: 3px; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+  width: 100%;
+}
+.fw-pop-sub-trigger:hover { background: var(--bg-3); color: var(--fg-0); }
+.fw-pop-sub-wrap.is-open .fw-pop-sub-trigger {
+  background: var(--bg-3); color: var(--fg-0);
+}
+.fw-pop-sub-arrow { color: var(--fg-3); margin-left: 12px; font-size: 9px; }
+.fw-pop-sub {
+  /* position + left/top set via inline style; see .ctx-submenu. */
+  z-index: 210;
+  max-height: 70vh;
+  overflow-y: auto;
 }
 .fw-pop-row button {
   font-size: 10px; padding: 2px 6px;
@@ -1218,10 +1965,32 @@ input, select { font-family: inherit; color: inherit; }
   overflow: hidden;
 }
 .ve-body.has-plot {
-  grid-template-columns: 1fr 520px;
+  grid-template-columns: 1fr 6px 520px;
 }
 .ve-body.has-plot .ve-table-wrap {
   border-right: 1px solid var(--line);
+}
+/* Vertical drag handle between the table and the inline plot. 6 px
+   gutter (matches grid track), centered hairline glows on hover. */
+.ve-divider {
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  user-select: none;
+}
+.ve-divider::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: 50%;
+  width: 1px;
+  background: var(--line);
+  transform: translateX(-0.5px);
+}
+.ve-divider:hover::before,
+.ve-divider:active::before {
+  background: var(--accent, #7fd99a);
+  width: 2px;
+  transform: translateX(-1px);
 }
 
 /* Save As menu */
@@ -1331,10 +2100,10 @@ input, select { font-family: inherit; color: inherit; }
   box-shadow: 0 24px 80px oklch(0.05 0.01 220 / 0.6),
               0 0 0 1px oklch(0.78 0.16 145 / 0.08);
   display: grid;
-  /* 5 slots: titlebar | toolbar | canvas (1fr) | range-row (auto, may be
-     absent for subplots — collapses to 0) | status. Was a 4-row grid which
-     squeezed the range-row into the 22px status slot. */
-  grid-template-rows: 38px 40px 1fr auto 22px;
+  /* 6 slots: titlebar | toolbar | sgtitle (auto, collapses when no
+     super-title) | canvas (1fr) | range-row (auto, may be absent for
+     subplots) | status. */
+  grid-template-rows: 38px 40px auto 1fr auto 22px;
   overflow: hidden;
   position: relative;   /* anchor for the absolutely-pinned title-right */
   animation: scalein 160ms ease;
@@ -1383,6 +2152,36 @@ input, select { font-family: inherit; color: inherit; }
   font-size: 11.5px;
 }
 .fw-toolbar .ve-tools-spacer { flex: 1; }
+/* sgtitle strip — figure-level super-title above the canvas. The
+   FigureWindow JSX always emits an `.fw-supertitle` div so the
+   .fw-window grid keeps 6 children mapping to its 6 rows; when the
+   script didn't call sgtitle(...) the div has no text children and
+   `:empty` collapses it via `display:none` (the grid row's `auto`
+   sizing then resolves to 0). */
+.fw-supertitle {
+  padding: 8px 14px;
+  background: var(--bg-1);
+  color: var(--fg-0);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  border-bottom: 1px solid var(--line-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Collapse the strip when empty WITHOUT removing it from grid flow.
+   `display:none` would drop it from auto-placement and shift canvas-
+   wrap up by one row (into the `auto` slot, only 32 px) — visible as
+   a blank figure window. height:0 + zero padding/border keeps the
+   grid-row count stable; the `auto` row's content-size resolves to 0. */
+.fw-supertitle:empty {
+  height: 0;
+  padding: 0;
+  border: none;
+  visibility: hidden;
+}
 .fw-canvas-wrap {
   position: relative;
   background: var(--bg-0);
@@ -1778,6 +2577,11 @@ select.ve-btn.fw-cmap-select {
   border-radius: 6px;
   padding: 4px 0;
   min-width: 180px;
+  /* Cap so long row text (e.g. legend label "measurement of pressure
+     sensor #4 at site B 2024-03-15" in Fit Series ▶) gets truncated
+     by `.ctx-name`'s `text-overflow: ellipsis` instead of stretching
+     the whole menu off-screen. */
+  max-width: 360px;
   max-height: min(560px, 75vh);
   overflow-y: auto;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
@@ -1846,6 +2650,27 @@ select.ve-btn.fw-cmap-select {
   border-color: var(--accent);
 }
 .ctx-row-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ---------- Nested submenu inside ctx-menu ---------- */
+/* The submenu is anchored to its parent row and pops to the right. */
+.ctx-sub-wrap { position: relative; }
+.ctx-sub-trigger {
+  display: flex !important; justify-content: space-between; align-items: center;
+  width: 100%;
+}
+.ctx-sub-arrow { color: var(--fg-3); margin-left: 12px; font-size: 9px; }
+/* Direct child only — nested .ctx-sub-trigger inside the popped submenu
+   (e.g. `legend location ▶` inside Decoration ▶) must NOT inherit the
+   "this submenu is open" highlight from its grandparent wrap. */
+.ctx-sub-wrap.is-open > .ctx-sub-trigger { background: var(--bg-3); color: var(--fg-0); }
+.ctx-submenu {
+  /* position + left/top set via inline style (computed from trigger
+     getBoundingClientRect) so the submenu escapes any ancestor with
+     overflow:auto. */
+  z-index: 2010;
+  max-height: 70vh;
+  overflow-y: auto;
+}
 
 /* ---------- Heatmap "preview · downsampled" banner ---------- */
 /* Surfaces when the engine downsampled an oversized imagesc matrix
