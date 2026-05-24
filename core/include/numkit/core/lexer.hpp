@@ -67,6 +67,13 @@ enum class TokenType {
     KW_GLOBAL,
     KW_PERSISTENT,
     DQSTRING,
+    // `%` line comments and `%{ ... %}` block comments — emitted by
+    // the lexer so downstream consumers (tools, formatters, the
+    // script-graph IDE viewer) can position themselves precisely
+    // around them. The parser silently skips COMMENT tokens through
+    // its centralized advance() helper, so script-level grammar is
+    // unaffected.
+    COMMENT,
     END_OF_INPUT
 };
 

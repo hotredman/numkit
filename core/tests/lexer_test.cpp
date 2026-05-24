@@ -1,5 +1,6 @@
 #include <numkit/core/lexer.hpp>
 #include <gtest/gtest.h>
+#include <algorithm>
 
 using namespace numkit;
 
@@ -7,7 +8,25 @@ using namespace numkit;
 // Вспомогательные функции
 // ============================================================
 
+// Tokenize and FILTER OUT comment tokens. Most existing tests assert
+// grammatical token sequences — comments are lexical metadata that's
+// transparent at the grammar level, so the tests stay readable when
+// the helper hides them. Use `lexAll` below for tests that explicitly
+// want to verify comment emission.
 static std::vector<Token> lex(const std::string &src)
+{
+    Lexer lexer(src);
+    auto tokens = lexer.tokenize();
+    tokens.erase(std::remove_if(tokens.begin(), tokens.end(),
+                                [](const Token &t) { return t.type == TokenType::COMMENT; }),
+                 tokens.end());
+    return tokens;
+}
+
+// Tokenize INCLUDING comment tokens (raw lexer output). Used by
+// LexerCommentEmission tests below that verify COMMENT positions /
+// values / counts directly.
+static std::vector<Token> lexAll(const std::string &src)
 {
     Lexer lexer(src);
     return lexer.tokenize();
@@ -1807,4 +1826,65 @@ TEST(LexerComment, EmptyCommentEndOfFile)
                       TokenType::NUMBER,
                       TokenType::SEMICOLON,
                       TokenType::END_OF_INPUT});
+}
+
+// ============================================================
+// COMMENT emission — verifies the lexer emits COMMENT tokens (added
+// for the script-graph viewer + future formatter / doc tooling).
+// Uses lexAll() because the default lex() filters comments out.
+// ============================================================
+
+TEST(LexerCommentEmission, LineCommentAfterStatement)
+{
+    auto tokens = lexAll("x = 5 % this is a comment");
+    // Expected: IDENT ASSIGN NUMBER COMMENT EOF
+    ASSERT_GE(tokens.size(), 5u);
+    EXPECT_EQ(tokens[0].type, TokenType::IDENTIFIER);
+    EXPECT_EQ(tokens[1].type, TokenType::ASSIGN);
+    EXPECT_EQ(tokens[2].type, TokenType::NUMBER);
+    EXPECT_EQ(tokens[3].type, TokenType::COMMENT);
+    EXPECT_EQ(tokens[3].value, "% this is a comment");
+    EXPECT_EQ(tokens.back().type, TokenType::END_OF_INPUT);
+}
+
+TEST(LexerCommentEmission, LineCommentEntireLine)
+{
+    auto tokens = lexAll("% just a comment\n");
+    // Expected: COMMENT NEWLINE EOF
+    ASSERT_GE(tokens.size(), 2u);
+    EXPECT_EQ(tokens[0].type, TokenType::COMMENT);
+    EXPECT_EQ(tokens[0].value, "% just a comment");
+}
+
+TEST(LexerCommentEmission, BlockCommentEmitsOneToken)
+{
+    auto tokens = lexAll("%{\nblock\ncomment\n%}\nx = 1");
+    int commentCount = 0;
+    for (const auto &t : tokens) if (t.type == TokenType::COMMENT) ++commentCount;
+    EXPECT_EQ(commentCount, 1);
+}
+
+TEST(LexerCommentEmission, CommentPositionsTrackLineCol)
+{
+    auto tokens = lexAll("x = 1; % first\ny = 2; % second");
+    // Should see two COMMENTs at lines 1 and 2.
+    std::vector<Token> comments;
+    for (const auto &t : tokens) if (t.type == TokenType::COMMENT) comments.push_back(t);
+    ASSERT_EQ(comments.size(), 2u);
+    EXPECT_EQ(comments[0].line, 1);
+    EXPECT_EQ(comments[1].line, 2);
+    EXPECT_EQ(comments[0].value, "% first");
+    EXPECT_EQ(comments[1].value, "% second");
+}
+
+TEST(LexerCommentEmission, ParserStillSeesCleanStream)
+{
+    // Parser pre-filters COMMENT tokens via advance() — script grammar
+    // is unaffected. Verify via the public lex() helper which mirrors
+    // what the parser actually consumes.
+    auto tokens = lex("x = 5 % comment\ny = 6");
+    for (const auto &t : tokens) {
+        EXPECT_NE(t.type, TokenType::COMMENT)
+            << "lex() must filter COMMENT (saw value=\"" << t.value << "\")";
+    }
 }

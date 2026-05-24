@@ -1,5 +1,10 @@
 set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/library.cpp
+    # Tiny isolated TU owning the build-timestamp string. Forced to
+    # recompile on every build by the `numkit_build_info` target in
+    # the top-level CMakeLists, so the `version` builtin always
+    # reflects the actual link time instead of stale __DATE__.
+    ${CMAKE_CURRENT_SOURCE_DIR}/version_string.cpp
     # language/ — MATLAB Language Fundamentals
     ${CMAKE_CURRENT_SOURCE_DIR}/language/commands/env.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/operators/binary_ops.cpp
