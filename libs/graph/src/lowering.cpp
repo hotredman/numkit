@@ -838,17 +838,69 @@ void lowerTry(LoweringState &S, const ASTNode &stmt)
                    /*hasFallThrough=*/ false, stmt);
 }
 
+/** Walk up the parentRegionId chain from the innermost active region
+ *  and return the id of the first ancestor whose kind matches one of
+ *  the given kinds. Returns -1 when no such ancestor exists (e.g.
+ *  `break` outside any loop, or `return` at script top level). */
+int findEnclosingRegion(const LoweringState &S,
+                        std::initializer_list<NodeKind> kinds)
+{
+    if (!S.currentRegion) return -1;
+    int rid = *S.currentRegion;
+    while (rid >= 0) {
+        const auto &node = S.graph.nodes[rid];
+        for (auto k : kinds) {
+            if (node.kind == k) return rid;
+        }
+        if (!node.parentRegionId) return -1;
+        rid = *node.parentRegionId;
+    }
+    return -1;
+}
+
 void lowerJump(LoweringState &S, const ASTNode &stmt, NodeKind kind)
 {
-    // Phase 2b will wire jump edges. For now, emit the node so it
-    // appears in the graph with its source line. Inputs/outputs
-    // empty (none of these statements produce or consume data).
+    // Emit the jump leaf with its source text (e.g. `break;`).
     Node n;
     n.kind = kind;
     n.sourceLine = stmt.line;
     n.sourceCol  = stmt.col;
     n.sourceText = S.source ? sliceLine(*S.source, stmt.line, stmt.col, S.sliceCap(stmt.line, stmt.endCol)) : "";
-    S.addNode(std::move(n));
+    int jid = S.addNode(std::move(n));
+
+    // Phase 2b: wire a Jump edge from this node to the relevant
+    // enclosing region:
+    //   - break    → innermost ForRegion / WhileRegion (exit-sink)
+    //   - continue → innermost ForRegion / WhileRegion (loop header)
+    //   - return   → innermost FunctionDef (function exit)
+    // When no such ancestor exists, no edge is emitted — the jump
+    // is dangling, which is itself a useful signal in the view
+    // (`break` at script top level is a semantic error).
+    int target = -1;
+    const char *label = "";
+    switch (kind) {
+        case NodeKind::JumpBreak:
+            target = findEnclosingRegion(S, {NodeKind::ForRegion, NodeKind::WhileRegion});
+            label  = "break";
+            break;
+        case NodeKind::JumpContinue:
+            target = findEnclosingRegion(S, {NodeKind::ForRegion, NodeKind::WhileRegion});
+            label  = "continue";
+            break;
+        case NodeKind::JumpReturn:
+            target = findEnclosingRegion(S, {NodeKind::FunctionDef});
+            label  = "return";
+            break;
+        default: break;
+    }
+    if (target >= 0) {
+        Edge e;
+        e.source   = { jid,    /*portIndex*/ 0, "" };
+        e.target   = { target, /*portIndex*/ 0, "" };
+        e.kind     = EdgeKind::Jump;
+        e.varName  = label;
+        S.graph.edges.push_back(std::move(e));
+    }
 }
 
 void lowerStatement(LoweringState &S, const ASTNode &stmt)
