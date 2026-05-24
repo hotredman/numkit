@@ -209,18 +209,20 @@ function JumpNode({ data }) {
   );
 }
 
-/** Phase-2c φ-node: fans in writers from every branch of an
- *  if/switch/try into a single output. Renders compact — just the
- *  var name as a chip with N input handles on the left and one
- *  output handle on the right. */
+/** Phase-2c merge node: fans in writers from every branch of an
+ *  if/switch/try into a single output. The hexagonal shape (clip-
+ *  path chevron on each side) is the flowchart-style merge visual —
+ *  no jargon labels (`φ`), the shape itself says "this is a join".
+ *  Only the merged variable name is shown inside. */
 function MergeNode({ data }) {
   const inputs  = data.inputs  || [];
   const outputs = data.outputs || [];
-  const inH     = Math.max(inputs.length, 1) * PORT_STEP + PORT_PAD * 2;
+  // Grow the chip vertically when there are many incoming branches
+  // so the input handles don't pile up on top of each other.
+  const minH = Math.max(inputs.length, 1) * PORT_STEP + PORT_PAD * 2;
   return (
-    <div className="ng-node ng-node-merge" style={{ minHeight: inH }}>
-      <span className="ng-node-merge-symbol">φ</span>
-      <span className="ng-node-merge-name">{(outputs[0]) || data.sourceText || ''}</span>
+    <div className="ng-node-merge" style={{ minHeight: minH }}>
+      <span className="ng-node-merge-name">{outputs[0] || data.sourceText || ''}</span>
       {inputs.map((name, i) => {
         const y = PORT_PAD + i * PORT_STEP + PORT_STEP / 2;
         return (
