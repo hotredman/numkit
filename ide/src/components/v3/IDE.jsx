@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 
 import SyntaxEditor from '../SyntaxEditor';
 import OldFigures from '../Figures';
@@ -13,6 +13,9 @@ import ReferencePanel from './Reference';
 import { ALL_DOCS } from './refData';
 import FiguresPane from './FiguresPane';
 import FigureWindow from './FigureWindow';
+import NumkitGraphView from './NumkitGraphView';
+import NumkitASTView from './NumkitASTView';
+import NumkitASTTreeView from './NumkitASTTreeView';
 import { adaptVariables, adaptFigures } from './adapters';
 
 import tempFS from '../../temporary';
@@ -118,9 +121,19 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
 }
 
 /* ─────────────── editor body (gutter + SyntaxEditor) ─────────────── */
-function EditorBody({ activeTab, errorLine, debugLine, breakpoints, onToggleBp, onChange }) {
+// Wrapped in forwardRef so parents (the multi-pane layout in IDE)
+// can call imperative methods on the inner SyntaxEditor — chiefly
+// `setCaret(line, col)` from the AST → editor click handoff.
+const EditorBody = forwardRef(function EditorBody(
+  { activeTab, errorLine, debugLine, breakpoints, onToggleBp, onChange, onCursor },
+  ref,
+) {
   const editorRef = useRef(null);
   const gutterRef = useRef(null);
+  useImperativeHandle(ref, () => ({
+    setCaret: (line, col) => editorRef.current?.setCaret(line, col),
+    focus:    () => editorRef.current?.focus(),
+  }));
 
   const handleScroll = useCallback((scrollTop) => {
     if (gutterRef.current) gutterRef.current.scrollTop = scrollTop;
@@ -175,13 +188,14 @@ function EditorBody({ activeTab, errorLine, debugLine, breakpoints, onToggleBp, 
           value={activeTab?.code || ''}
           onChange={onChange}
           onScroll={handleScroll}
+          onCursor={onCursor}
           errorLine={errorLine}
           debugLine={debugLine}
         />
       </div>
     </div>
   );
-}
+});
 
 /* ─────────────── bottom dock ─────────────── */
 function BottomDock({
@@ -333,6 +347,81 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
 
   // Engine version banner
   const [engineVersion, setEngineVersion] = useState(null);
+  // Editor view mode: 'text' = standard code editor, 'graph' = data-flow
+  // node graph (NumkitGraphView). Single-shared state across tabs for
+  // MVP — switching tabs keeps whatever view the user picked last.
+  // Editor area is a multi-pane split: any subset of {text, graph,
+  // ast, tree} renders side-by-side as horizontal-flex panes. The
+  // user picks which to see via independent toggle buttons; at
+  // least one must stay active (the toggle handler refuses to
+  // turn off the last). Pane order on screen matches EDITOR_PANE_ORDER
+  // (text → graph → AST → tree). Both the on/off state and the
+  // per-pane flex-grow ratios are persisted to localStorage so the
+  // user's layout survives restarts.
+  const STORAGE_PANES = 'numkit.ide.editor.panes';
+  const STORAGE_FRACS = 'numkit.ide.editor.paneFracs';
+  const DEFAULT_PANES = { text: true, graph: false, ast: false, tree: false };
+  const DEFAULT_FRACS = { text: 1,    graph: 1,     ast: 1,     tree: 1     };
+  const [editorPanes, setEditorPanes] = useState(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_PANES);
+      if (raw) return { ...DEFAULT_PANES, ...JSON.parse(raw) };
+    } catch { /* ignore */ }
+    return DEFAULT_PANES;
+  });
+  const [paneFracs, setPaneFracs] = useState(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_FRACS);
+      if (raw) return { ...DEFAULT_FRACS, ...JSON.parse(raw) };
+    } catch { /* ignore */ }
+    return DEFAULT_FRACS;
+  });
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_PANES, JSON.stringify(editorPanes)); }
+    catch { /* ignore */ }
+  }, [editorPanes]);
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_FRACS, JSON.stringify(paneFracs)); }
+    catch { /* ignore */ }
+  }, [paneFracs]);
+  const toggleEditorPane = useCallback((key) => {
+    setEditorPanes((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      if (!Object.values(next).some(Boolean)) return prev;
+      return next;
+    });
+  }, []);
+  const ensureEditorPane = useCallback((key) => {
+    setEditorPanes((prev) => prev[key] ? prev : { ...prev, [key]: true });
+  }, []);
+  const multiPaneRef = useRef(null);
+  // Drag-resize handler factory — returns an onResize(dx) closure
+  // tied to the left+right neighbour pair around a specific
+  // ResizeHandle. The handle shifts flex-grow units between the
+  // two; total stays roughly constant so other panes keep their
+  // share. Min frac 0.1 stops a pane from collapsing to invisible.
+  const onDragPaneBorder = useCallback((leftKey, rightKey) => (dx /*, dy */) => {
+    if (!dx) return;
+    setPaneFracs((prev) => {
+      const containerW = multiPaneRef.current?.clientWidth || 1000;
+      const active = ['text', 'graph', 'ast', 'tree']
+        .filter((k) => editorPanes[k]);
+      const totalFrac = active.reduce((s, k) => s + (prev[k] || 1), 0);
+      const dFrac = (dx / containerW) * totalFrac;
+      const lf = Math.max(0.1, (prev[leftKey]  || 1) + dFrac);
+      const rf = Math.max(0.1, (prev[rightKey] || 1) - dFrac);
+      return { ...prev, [leftKey]: lf, [rightKey]: rf };
+    });
+  }, [editorPanes]);
+  const resetPaneFracs = useCallback(() => setPaneFracs(DEFAULT_FRACS), []);
+  // Caret position in the active editor tab, tracked for bidirectional
+  // sync with the AST view (cursor on line N → AST highlights the
+  // deepest node whose source range contains line N).
+  const [editorCursor, setEditorCursor] = useState({ line: 1, col: 1 });
+  // Imperative handle to the editor body — lets onNavigate (AST →
+  // editor) place the real caret instead of just highlighting the
+  // line via setErrorLine.
+  const editorBodyRef = useRef(null);
   useEffect(() => {
     const v = engine?.version?.();
     if (v) setEngineVersion(v);
@@ -833,14 +922,116 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                   onCloseAll={closeAllTabs}
                   onCloseExcept={closeOtherTabs}
                 />
-                <EditorBody
-                  activeTab={activeTabData}
-                  errorLine={errorLine}
-                  debugLine={debugLine}
-                  breakpoints={activeBreakpoints}
-                  onToggleBp={toggleBreakpoint}
-                  onChange={updateTabCode}
-                />
+                {/* Editor view toggle — INDEPENDENT checkboxes for
+                    text / graph / AST. Any combination renders side-
+                    by-side with equal horizontal flex. Click on an
+                    already-active toggle hides that pane (unless
+                    it's the last one). This is also where the
+                    bidirectional cursor sync becomes useful in
+                    real time: turn on text + AST together and the
+                    editor caret highlights the corresponding AST
+                    node as you move it. */}
+                <div className="editor-view-toggle">
+                  <button
+                    className={`evt-btn${editorPanes.text ? ' is-active' : ''}`}
+                    onClick={() => toggleEditorPane('text')}
+                    title="Text editor pane (toggle)"
+                  >text</button>
+                  <button
+                    className={`evt-btn${editorPanes.graph ? ' is-active' : ''}`}
+                    onClick={() => toggleEditorPane('graph')}
+                    title="Data-flow graph pane (toggle)"
+                  >graph</button>
+                  <button
+                    className={`evt-btn${editorPanes.ast ? ' is-active' : ''}`}
+                    onClick={() => toggleEditorPane('ast')}
+                    title="Parse-tree AST — graph layout (toggle)"
+                  >AST</button>
+                  <button
+                    className={`evt-btn${editorPanes.tree ? ' is-active' : ''}`}
+                    onClick={() => toggleEditorPane('tree')}
+                    title="Parse-tree AST — indented tree (astexplorer-style)"
+                  >tree</button>
+                </div>
+                {(() => {
+                  // Render the active panes in a fixed left-to-right
+                  // order, with a ResizeHandle between each adjacent
+                  // pair. flex-grow per pane is read from paneFracs
+                  // so the user's drag positions persist across
+                  // toggles + restarts.
+                  const ORDER = ['text', 'graph', 'ast', 'tree'];
+                  const active = ORDER.filter((k) => editorPanes[k]);
+                  const renderPane = (k) => {
+                    switch (k) {
+                      case 'text':
+                        return (
+                          <EditorBody
+                            ref={editorBodyRef}
+                            activeTab={activeTabData}
+                            errorLine={errorLine}
+                            debugLine={debugLine}
+                            breakpoints={activeBreakpoints}
+                            onToggleBp={toggleBreakpoint}
+                            onChange={updateTabCode}
+                            onCursor={(line, col) => setEditorCursor({ line, col })}
+                          />
+                        );
+                      case 'graph':
+                        return (
+                          <NumkitGraphView
+                            source={activeTabData?.code || ''}
+                            engine={engine}
+                          />
+                        );
+                      case 'ast':
+                        return (
+                          <NumkitASTView
+                            source={activeTabData?.code || ''}
+                            engine={engine}
+                            cursorLine={editorCursor.line}
+                            onNavigate={(line, col) => {
+                              ensureEditorPane('text');
+                              queueMicrotask(() => {
+                                editorBodyRef.current?.setCaret(line, col || 1);
+                              });
+                            }}
+                          />
+                        );
+                      case 'tree':
+                        return (
+                          <NumkitASTTreeView
+                            source={activeTabData?.code || ''}
+                            engine={engine}
+                            cursorLine={editorCursor.line}
+                            onNavigate={(line, col) => {
+                              ensureEditorPane('text');
+                              queueMicrotask(() => {
+                                editorBodyRef.current?.setCaret(line, col || 1);
+                              });
+                            }}
+                          />
+                        );
+                      default: return null;
+                    }
+                  };
+                  return (
+                    <div className="editor-multi-pane" ref={multiPaneRef}>
+                      {active.map((key, i) => (
+                        <Fragment key={key}>
+                          {i > 0 && (
+                            <ResizeHandle orientation="vertical"
+                              onResize={onDragPaneBorder(active[i - 1], key)}
+                              onDoubleClick={resetPaneFracs} />
+                          )}
+                          <div className="editor-pane"
+                               style={{ flex: `${paneFracs[key] || 1} 1 0` }}>
+                            {renderPane(key)}
+                          </div>
+                        </Fragment>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             )}
             {panels.editor && panels.terminal && (

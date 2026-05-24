@@ -1,19 +1,30 @@
-// display-menu.spec.js — exercise the "display ▾" toolbar popover that
-// consolidates grid / minor / xlog / ylog / zlog / title / xlabel /
-// ylabel / zlabel toggles into one menu (replaces the old inline
-// grid+minor+log buttons).
+// display-menu.spec.js — exercise the toolbar popovers that host
+// grid / scale / title / xlabel / ylabel / zlabel / legend toggles.
+// Two buttons since the Apr-2026 split: axes ▾ (Visible / Box / Dir /
+// Scale) and decoration ▾ (grid / labels / legend / colorbar).
 
 import { test, expect } from '../../helpers/shared.js';
 
-async function openDisplayMenu(page) {
-  // The display ▾ button sits inside the modal toolbar. After clicking
-  // the .fw-pop popover appears as the next sibling.
-  await page.locator('.fw-toolbar .ve-btn', { hasText: /display/i }).click();
+async function openDecorationMenu(page) {
+  // decoration ▾ — grid / labels / legend / colorbar. Regex without ^
+  // anchor (button text starts with whitespace around the SVG icon).
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /decoration/i }).click();
+  await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
+}
+
+async function openAxesMenu(page) {
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();
+  await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
+}
+
+async function openGridMenu(page) {
+  // `grid ▾` lives between axes ▾ and decoration ▾ in the toolbar.
+  await page.locator('.fw-toolbar .ve-btn', { hasText: /grid/i }).click();
   await expect(page.locator('.fw-pop').first()).toBeVisible({ timeout: 2_000 });
 }
 
 test.describe('display ▾ menu — toggle visibility', () => {
-  test('button is always present (incl. for subplot)', async ({ ide, page }) => {
+  test('axes ▾ / grid ▾ / decoration ▾ buttons always present (incl. for subplot)', async ({ ide, page }) => {
     await ide.runScript(
       'import compat.*;\n'
       + 'figure;\n'
@@ -23,8 +34,12 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
-    const displayBtn = page.locator('.fw-toolbar .ve-btn', { hasText: /display/i });
-    await expect(displayBtn).toBeVisible({ timeout: 2_000 });
+    await expect(page.locator('.fw-toolbar .ve-btn',
+      { hasText: /axes/i })).toBeVisible({ timeout: 2_000 });
+    await expect(page.locator('.fw-toolbar .ve-btn',
+      { hasText: /grid/i })).toBeVisible({ timeout: 2_000 });
+    await expect(page.locator('.fw-toolbar .ve-btn',
+      { hasText: /decoration/i })).toBeVisible({ timeout: 2_000 });
   });
 
   test('toggle title hides the figure title text in the SVG', async ({ ide, page }) => {
@@ -42,7 +57,7 @@ test.describe('display ▾ menu — toggle visibility', () => {
     const titleLoc = page.locator('.fw-window svg text', { hasText: 'Hello visibility' });
     await expect(titleLoc).toBeVisible({ timeout: 2_000 });
 
-    await openDisplayMenu(page);
+    await openDecorationMenu(page);
     await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'title' }) }).click();
 
     // Title gone after toggle.
@@ -63,8 +78,8 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await ide.figureCards.first().click();
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
 
-    await openDisplayMenu(page);
-    await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'xlabel' }) }).click();
+    await openDecorationMenu(page);
+    await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'X label' }) }).click();
 
     await expect(page.locator('.fw-window svg text', { hasText: 'the x' })).toHaveCount(0);
     await expect(page.locator('.fw-window svg text', { hasText: 'the y' })).toBeVisible();
@@ -84,15 +99,27 @@ test.describe('display ▾ menu — toggle visibility', () => {
     const beforeCount = await page.locator('.fw-window svg line[stroke*="--plot-grid"]').count();
     expect(beforeCount).toBeGreaterThan(0);
 
-    await openDisplayMenu(page);
-    await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: /^grid$/ }) }).click();
+    // Grid lives in its own toolbar button now (split from axes ▾).
+    // After the matrix-layout refactor the combined master row is a
+    // `.fw-pop-mrow` with label `all` carrying TWO state buttons:
+    // [0] master major, [1] master minor. Click the major button to
+    // flip the figure-wide major-grid bit off.
+    await openGridMenu(page);
+    await page.locator('.fw-pop-matrix .fw-pop-mrow', {
+      has: page.locator('.fw-pop-mrow-label', { hasText: /^all$/ }),
+    }).locator('.fw-pop-mbtn').nth(0).click();
     await page.waitForTimeout(100);
 
     const afterCount = await page.locator('.fw-window svg line[stroke*="--plot-grid"]').count();
     expect(afterCount).toBe(0);
   });
 
-  test('zlog and zlabel are disabled for non-3-D figure', async ({ ide, page }) => {
+  test('Z log and zlabel stay enabled even on 2-D figures', async ({ ide, page }) => {
+    // Per latest UX spec: toolbar doesn't gate Z controls behind a
+    // 3-D check. Toggling them on a 2-D figure is a no-op, but the
+    // buttons are clickable. After the axes/decoration split: Z log
+    // lives in axes ▾ (scale section), zlabel lives in decoration ▾
+    // (labels section).
     await ide.runScript(
       'import compat.*;\n'
       + 'plot(1:10);\n'
@@ -102,18 +129,78 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await ide.figureCards.first().click();
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
 
-    await openDisplayMenu(page);
-    const zlog = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'zlog' }) });
-    const zlabel = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'zlabel' }) });
-    await expect(zlog).toBeDisabled();
-    await expect(zlabel).toBeDisabled();
+    await openAxesMenu(page);
+    // axes ▾ matrix: Z log is row `Z`, column 1 (`log`).
+    const zlog = page.locator('.fw-pop-matrix .fw-pop-mrow', {
+      has: page.locator('.fw-pop-mrow-label', { hasText: /^Z$/ }),
+    }).locator('.fw-pop-mbtn').nth(1);
+    await expect(zlog).toBeEnabled();
+    // Close axes ▾ by clicking its trigger again, then open decoration ▾.
+    await page.locator('.fw-toolbar .ve-btn', { hasText: /axes/i }).click();
+    await page.waitForTimeout(50);
+
+    await openDecorationMenu(page);
+    const zlabel = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'Z label' }) });
+    await expect(zlabel).toBeEnabled();
   });
 
-  test('title button disabled when figure has no title set', async ({ ide, page }) => {
-    // Probe to surface the actual figure.title so the disabled rule is
-    // checked against fresh state. `figure;` forces a new axes; the
-    // explicit title("") + xlabel("") are belt-and-braces in case the
-    // figure manager carries strings across `close all`.
+  test('xlabel ✓ off when script never set xlabel; on when set', async ({ ide, page }) => {
+    // Script with no xlabel — toolbar xlabel ✓ should be empty.
+    await ide.runScript('import compat.*;\nplot(1:10);\n');
+    await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+    await ide.figureCards.first().click();
+    await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+    await openDecorationMenu(page);
+    const xlabelToggle = page.locator('.fw-pop-toggle',
+      { has: page.locator('span', { hasText: 'X label' }) });
+    expect((await xlabelToggle.locator('.fw-pop-check').textContent()).trim()).toBe('');
+  });
+
+  test('xlabel ✓ on when script DID call xlabel', async ({ ide, page }) => {
+    await ide.runScript('import compat.*;\nplot(1:10);\nxlabel("x axis");\n');
+    await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+    await ide.figureCards.first().click();
+    await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+    await openDecorationMenu(page);
+    const xlabelToggle = page.locator('.fw-pop-toggle',
+      { has: page.locator('span', { hasText: 'X label' }) });
+    expect((await xlabelToggle.locator('.fw-pop-check').textContent()).trim()).toBe('✓');
+  });
+
+  test('toolbar axes ▾ / decoration ▾ — no toggle is ever disabled', async ({ ide, page }) => {
+    // Cover the worst-case figure that previously tripped disabled rules:
+    // bare `plot(1:10)` (no title, no xlabel, no ylabel, xRange[0] < 0
+    // due to padding so xlog used to be disabled). After the
+    // disabled-rule deletion every toggle should be clickable. Walk
+    // BOTH popovers since the split moved scale toggles to axes ▾.
+    await ide.runScript('import compat.*;\nplot(1:10);\n');
+    await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
+    await ide.figureCards.first().click();
+    await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
+
+    for (const [open, label] of [[openAxesMenu, /axes/i],
+                                  [openGridMenu, /grid/i],
+                                  [openDecorationMenu, /decoration/i]]) {
+      await open(page);
+      // Match BOTH toggle shapes — `.fw-pop-toggle` (axes ▾, decoration ▾)
+      // and `.fw-pop-mbtn` (grid ▾ matrix layout, two state buttons per
+      // axis row). Both kinds must be clickable per toolbar=universal.
+      const buttons = await page.locator('.fw-pop .fw-pop-toggle, .fw-pop .fw-pop-mbtn').all();
+      expect(buttons.length).toBeGreaterThan(0);
+      for (const btn of buttons) {
+        await expect(btn).toBeEnabled();
+      }
+      // Toggle the trigger to close the popover (Escape would close the
+      // whole modal — onKey listener in FigureWindow).
+      await page.locator('.fw-toolbar .ve-btn', { hasText: label }).click();
+      await page.waitForTimeout(50);
+    }
+  });
+
+  test('title and xlabel toggles stay enabled even when text is unset', async ({ ide, page }) => {
+    // Latest UX rule: toolbar display ▾ NEVER disables anything — the
+    // toolbar is a figure-wide brush. Toggling a label that was never
+    // set is a no-op visually but the cell-state flag still flips.
     await ide.runScript(
       'import compat.*;\n'
       + 'figure;\n'
@@ -124,11 +211,11 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await ide.figureCards.first().click();
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
 
-    await openDisplayMenu(page);
+    await openDecorationMenu(page);
     const titleBtn = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'title' }) });
-    const xlabelBtn = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'xlabel' }) });
-    await expect(titleBtn).toBeDisabled();
-    await expect(xlabelBtn).toBeDisabled();
+    const xlabelBtn = page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'X label' }) });
+    await expect(titleBtn).toBeEnabled();
+    await expect(xlabelBtn).toBeEnabled();
   });
 
   test('subplot — title toggle applies to ALL cells', async ({ ide, page }) => {
@@ -146,7 +233,7 @@ test.describe('display ▾ menu — toggle visibility', () => {
     await expect(page.locator('.fw-window svg text', { hasText: 'Cell A' })).toBeVisible();
     await expect(page.locator('.fw-window svg text', { hasText: 'Cell B' })).toBeVisible();
 
-    await openDisplayMenu(page);
+    await openDecorationMenu(page);
     await page.locator('.fw-pop-toggle', { has: page.locator('span', { hasText: 'title' }) }).click();
     await page.waitForTimeout(100);
 
