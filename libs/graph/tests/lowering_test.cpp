@@ -630,6 +630,148 @@ TEST(GraphLowering, NestedBreakWiresToInnermostLoop)
     }
 }
 
+// ── Phase 2d: function definitions ──────────────────────────────────
+
+TEST(GraphLowering, FunctionDefBecomesRegionWithParamsAndReturns)
+{
+    auto g = lowerSource(
+        "function y = double_it(x)\n"
+        "  y = 2 * x;\n"
+        "end\n");
+    int fId = firstNodeOfKind(g, graph::NodeKind::FunctionDef);
+    ASSERT_GE(fId, 0);
+    EXPECT_EQ(g.nodes[fId].inputs,  (std::vector<std::string>{"x"}));
+    EXPECT_EQ(g.nodes[fId].outputs, (std::vector<std::string>{"y"}));
+}
+
+TEST(GraphLowering, FunctionParamReadsWireFromFunctionDef)
+{
+    // Inside the function body, `x` is a parameter — reads of x must
+    // wire from the FunctionDef region (not be filtered as a built-in
+    // identifier the way bare `x` outside a function would be).
+    auto g = lowerSource(
+        "function y = f(x)\n"
+        "  y = x + 1;\n"
+        "end\n");
+    int fId = firstNodeOfKind(g, graph::NodeKind::FunctionDef);
+    int assignId = -1;
+    for (size_t i = 0; i < g.nodes.size(); ++i) {
+        if (g.nodes[i].kind == graph::NodeKind::Assignment
+         && g.nodes[i].parentRegionId == fId) {
+            assignId = (int)i; break;
+        }
+    }
+    ASSERT_GE(assignId, 0);
+    bool wiredFromFunc = false;
+    for (const auto &e : g.edges) {
+        if (e.varName == "x"
+         && e.source.nodeId == fId
+         && e.target.nodeId == assignId) {
+            wiredFromFunc = true;
+        }
+    }
+    EXPECT_TRUE(wiredFromFunc);
+}
+
+TEST(GraphLowering, FunctionReturnWiresBackToFunctionDef)
+{
+    // The assignment that produces the return value emits a Data
+    // edge writer → FunctionDef.out[0], so the renderer can show
+    // the return value flowing OUT of the function.
+    auto g = lowerSource(
+        "function y = f(x)\n"
+        "  y = x + 1;\n"
+        "end\n");
+    int fId = firstNodeOfKind(g, graph::NodeKind::FunctionDef);
+    int assignId = -1;
+    for (size_t i = 0; i < g.nodes.size(); ++i) {
+        if (g.nodes[i].kind == graph::NodeKind::Assignment
+         && g.nodes[i].parentRegionId == fId) {
+            assignId = (int)i; break;
+        }
+    }
+    ASSERT_GE(assignId, 0);
+    bool returnedToFunc = false;
+    for (const auto &e : g.edges) {
+        if (e.varName == "y"
+         && e.source.nodeId == assignId
+         && e.target.nodeId == fId) {
+            returnedToFunc = true;
+        }
+    }
+    EXPECT_TRUE(returnedToFunc);
+}
+
+TEST(GraphLowering, FunctionMultipleReturnsWireEachOutputPort)
+{
+    auto g = lowerSource(
+        "function [a, b] = swap(x, y)\n"
+        "  a = y;\n"
+        "  b = x;\n"
+        "end\n");
+    int fId = firstNodeOfKind(g, graph::NodeKind::FunctionDef);
+    ASSERT_GE(fId, 0);
+    EXPECT_EQ(g.nodes[fId].outputs, (std::vector<std::string>{"a", "b"}));
+    int returnEdges = 0;
+    for (const auto &e : g.edges) {
+        if (e.target.nodeId == fId
+         && (e.varName == "a" || e.varName == "b")) ++returnEdges;
+    }
+    EXPECT_EQ(returnEdges, 2);
+}
+
+TEST(GraphLowering, ReturnInsideFunctionWiresJumpEdgeToFunctionDef)
+{
+    // Phase 2b's `return` jump edge now has a real ancestor to
+    // target — the enclosing FunctionDef region.
+    auto g = lowerSource(
+        "function y = f(x)\n"
+        "  if x > 0\n"
+        "    y = 1;\n"
+        "    return;\n"
+        "  end\n"
+        "  y = 2;\n"
+        "end\n");
+    int fId = firstNodeOfKind(g, graph::NodeKind::FunctionDef);
+    int retId = firstNodeOfKind(g, graph::NodeKind::JumpReturn);
+    ASSERT_GE(fId, 0);
+    ASSERT_GE(retId, 0);
+    bool wired = false;
+    for (const auto &e : g.edges) {
+        if (e.kind == graph::EdgeKind::Jump
+         && e.source.nodeId == retId
+         && e.target.nodeId == fId) {
+            wired = true;
+            EXPECT_EQ(e.varName, "return");
+        }
+    }
+    EXPECT_TRUE(wired);
+}
+
+TEST(GraphLowering, FunctionLocalsDoNotLeakToScript)
+{
+    // After a function definition, vars assigned INSIDE the function
+    // are not visible at script scope (MATLAB workspace isolation).
+    auto g = lowerSource(
+        "function y = f(x)\n"
+        "  z = x + 1;\n"
+        "  y = z * 2;\n"
+        "end\n"
+        "disp(z);\n");
+    // `z` is local to f → outside, it's not a known producer → the
+    // disp(z) node has zero inputs.
+    int dispId = -1;
+    for (size_t i = 0; i < g.nodes.size(); ++i) {
+        if (g.nodes[i].kind == graph::NodeKind::ExprStmt
+         && !g.nodes[i].parentRegionId
+         && g.nodes[i].sourceText.find("disp") != std::string::npos) {
+            dispId = (int)i; break;
+        }
+    }
+    ASSERT_GE(dispId, 0);
+    EXPECT_TRUE(g.nodes[dispId].inputs.empty());
+}
+
 TEST(GraphLowering, BreakAtScriptTopLevelHasNoJumpEdge)
 {
     // `break` outside any loop is a semantic error in MATLAB. Our
