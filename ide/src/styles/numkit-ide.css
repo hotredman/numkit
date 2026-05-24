@@ -567,6 +567,20 @@ input, select { font-family: inherit; color: inherit; }
   background: var(--accent) !important;
   border: 1px solid var(--bg-0) !important;
 }
+/* Hide handles that exist purely as edge-routing anchors with no
+   user-facing port label — exception-in/out, jump-in/out, and the
+   internal-passthrough handles inp-N / outt-N which sit at the same
+   pixel position as the regular in-N / out-N and would otherwise
+   render duplicate dots. The connected edges still terminate at
+   these points; we just don't paint the orphan dot. */
+.react-flow__handle[data-handleid="exception-in"],
+.react-flow__handle[data-handleid="exception-out"],
+.react-flow__handle[data-handleid="jump-in"],
+.react-flow__handle[data-handleid="jump-out"],
+.react-flow__handle[data-handleid^="inp-"],
+.react-flow__handle[data-handleid^="outt-"] {
+  opacity: 0;
+}
 /* Edge labels (variable names) — small monospace tag at midpoint. */
 .react-flow__edge-text {
   font-family: var(--font-mono); font-size: 9px;
