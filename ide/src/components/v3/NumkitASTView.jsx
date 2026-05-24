@@ -122,6 +122,38 @@ function hasAnyChildren(node) {
   return false;
 }
 
+/** Find the deepest VISIBLE node (per filters + collapsed state)
+ *  whose source range contains `cursorLine`. Returns the path-id of
+ *  that node, or null. Used to sync the editor caret with the AST
+ *  view — moving the cursor in the editor highlights the deepest
+ *  matching AST node so the user can see what construct they're in. */
+function findActiveAstId(astRoot, cursorLine, collapsedSet, filters) {
+  if (!astRoot || !cursorLine || cursorLine < 1) return null;
+  let best = null;
+  function rangeContains(node) {
+    const startL = node.line     || 0;
+    const endL   = node.endLine  || startL;
+    return cursorLine >= startL && cursorLine <= endL;
+  }
+  function visit(node, path) {
+    if (!node || !rangeContains(node)) return;
+    const cat = TYPE_TO_CAT.get(node.type) || 'other';
+    const visible = filters[cat] !== false;
+    if (visible) best = path;          // overwrite — deeper wins
+    if (collapsedSet.has(path)) return;
+    const kids = node.children || [];
+    for (let i = 0; i < kids.length; ++i) visit(kids[i], `${path}/c${i}`);
+    const branches = node.branches || [];
+    for (let i = 0; i < branches.length; ++i) {
+      visit(branches[i].cond, `${path}/b${i}/cond`);
+      visit(branches[i].body, `${path}/b${i}/body`);
+    }
+    if (node.elseBranch) visit(node.elseBranch, `${path}/else`);
+  }
+  visit(astRoot, '0');
+  return best;
+}
+
 /** Compact one-line value preview shown next to the type chip. */
 function valueText(node) {
   if (!node) return '';
@@ -145,7 +177,7 @@ function valueText(node) {
   }
 }
 
-function flattenAST(astRoot, collapsedSet, filters) {
+function flattenAST(astRoot, collapsedSet, filters, activeId) {
   if (!astRoot) return { nodes: [], edges: [] };
   const rfNodes = [];
   const rfEdges = [];
@@ -174,6 +206,7 @@ function flattenAST(astRoot, collapsedSet, filters) {
           category:    categoryOf(node.type),
           hasChildren: hasAnyChildren(node),
           collapsed,
+          active:    id === activeId,
         },
       });
       if (displayParentId != null) {
@@ -226,8 +259,10 @@ function ASTNodeCard({ id, data }) {
   const handleBody = () => {
     if (data.line) onNavigate(data.line, data.col || 1);
   };
+  const classes = `ng-ast-node ng-ast-cat-${data.category}`
+                + (data.active ? ' ng-ast-node-active' : '');
   return (
-    <div className={`ng-ast-node ng-ast-cat-${data.category}`}
+    <div className={classes}
          onClick={handleBody}
          title={`line ${data.line}:${data.col} — click to jump to source`}>
       <Handle type="target" position={Position.Top}    id="parent-in" />
@@ -306,7 +341,7 @@ function applyElkPositions(elkResult, rfNodes) {
 
 // ── Inner component ───────────────────────────────────────────────
 
-function NumkitASTViewInner({ source, engine, onNavigate }) {
+function NumkitASTViewInner({ source, engine, onNavigate, cursorLine }) {
   const [ast, setAst]         = useState(null);
   const [error, setError]     = useState(null);
   const [collapsed, setCollapsed] = useState(() => new Set());
@@ -343,13 +378,19 @@ function NumkitASTViewInner({ source, engine, onNavigate }) {
     }
   }, [source, engine]);
 
-  // Rebuild flat node list on AST / filters / collapsed change.
+  // Pick the deepest visible AST node containing the editor caret —
+  // used to highlight that node + auto-center the view on it.
+  const activeId = useMemo(
+    () => findActiveAstId(ast, cursorLine, collapsed, filters),
+    [ast, cursorLine, collapsed, filters]);
+
+  // Rebuild flat node list on AST / filters / collapsed / active change.
   // flattenAST returns { nodes, edges } — destructure with rename so
   // we can pass them as `nodes` / `edges` to <ReactFlow> further down
   // without shadowing the local `nodes` state.
   const { nodes: flatNodes, edges: flatEdges } = useMemo(() => {
-    return flattenAST(ast, collapsed, filters);
-  }, [ast, collapsed, filters]);
+    return flattenAST(ast, collapsed, filters, activeId);
+  }, [ast, collapsed, filters, activeId]);
 
   // Phase 1 — push unmeasured nodes to RF for DOM measurement.
   useEffect(() => {
@@ -380,6 +421,23 @@ function NumkitASTViewInner({ source, engine, onNavigate }) {
       setError(`Layout failed: ${err.message || err}`);
     });
   }, [nodesInitialized, nodes, edges, laidOut, reactFlow]);
+
+  // Auto-pan to the active node when it changes (cursor moved in
+  // editor, AST highlights a new node). Only after the layout is
+  // applied so positions are valid; preserves the user's current
+  // zoom level (only the center shifts).
+  useEffect(() => {
+    if (!laidOut || !activeId) return;
+    const n = nodes.find((x) => x.id === activeId);
+    if (!n) return;
+    const w = n.width  || 100;
+    const h = n.height || 30;
+    reactFlow.setCenter(
+      n.position.x + w / 2,
+      n.position.y + h / 2,
+      { zoom: reactFlow.getZoom(), duration: 300 },
+    );
+  }, [activeId, laidOut, nodes, reactFlow]);
 
   const onToggleCollapse = useCallback((id) => {
     setCollapsed((prev) => {
