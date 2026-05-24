@@ -838,6 +838,84 @@ void lowerTry(LoweringState &S, const ASTNode &stmt)
                    /*hasFallThrough=*/ false, stmt);
 }
 
+/** Phase 2d: function definition as a proper compound region.
+ *
+ *  Lays out:
+ *    - FunctionDef region with input ports = paramNames and output
+ *      ports = returnNames.
+ *    - Inside the region: every parameter is registered as a
+ *      producer rooted at the FunctionDef itself, so body reads of
+ *      a parameter wire from the corresponding region input port.
+ *    - The function body has its OWN local scope: MATLAB functions
+ *      do not see the enclosing script's variables (no closures).
+ *      So lastProducer is cleared on entry and restored on exit.
+ *    - At function exit, for each return name we look up its last
+ *      writer inside the body and emit a Data edge writer →
+ *      FunctionDef.out[i]. Multi-return functions get one such
+ *      edge per output port.
+ *
+ *  Approximation worth noting: when a body has `return` mid-way
+ *  PLUS code after it that overrides the return var, the last
+ *  in-source-order writer wins — early-return paths are not
+ *  cross-merged with the fall-through writer. That's accepted as
+ *  Phase 2d/e split: proper return-path merging belongs with
+ *  loop-carried merges in Phase 2e. */
+void lowerFunctionDef(LoweringState &S, const ASTNode &stmt)
+{
+    int rid = addRegionNode(S, stmt, NodeKind::FunctionDef, nullptr);
+
+    // Set the region's port lists. params on the left, returns
+    // on the right — the renderer derives handles from these.
+    {
+        auto &reg = S.graph.nodes[rid];
+        reg.inputs  = stmt.paramNames;
+        reg.outputs = stmt.returnNames;
+    }
+
+    // Function body has its own scope — clear lastProducer on entry
+    // so script variables don't bleed in (MATLAB workspace isolation).
+    auto outerProducers = S.lastProducer;
+    auto frame = S.enterRegion(rid);
+    S.lastProducer.clear();
+
+    // Parameters become implicit producers rooted at FunctionDef.
+    // A body read of `x` (where x is a param) wires from
+    // FunctionDef.out[?] — addDataEdge uses portIndex=0 by default
+    // which lands on the FunctionDef's FIRST output, but that's the
+    // wrong semantic: params are INPUTS of the function and their
+    // values originate from the FunctionDef as if it were the caller.
+    // For graph purposes we model each param read as an edge from
+    // the FunctionDef node (its source "port" is the param's
+    // INPUT slot — we use the param index so the renderer can
+    // attach the edge to the correct input handle in a future pass).
+    for (size_t i = 0; i < stmt.paramNames.size(); ++i) {
+        S.lastProducer[stmt.paramNames[i]] = rid;
+    }
+
+    const ASTNode *body = stmt.children.empty() ? nullptr : stmt.children[0].get();
+    lowerBodyInto(S, rid, body);
+
+    // Wire return values: writer → FunctionDef.out[i]. The edge
+    // crosses the region boundary (source is inside, target is the
+    // region itself).
+    for (size_t i = 0; i < stmt.returnNames.size(); ++i) {
+        const auto &rname = stmt.returnNames[i];
+        auto it = S.lastProducer.find(rname);
+        if (it == S.lastProducer.end()) continue;
+        Edge e;
+        e.source  = { it->second, /*portIndex*/ 0, rname };
+        e.target  = { rid,        static_cast<int>(i), rname };
+        e.kind    = EdgeKind::Data;
+        e.varName = rname;
+        S.graph.edges.push_back(std::move(e));
+    }
+
+    S.leaveRegion(frame);
+    // Function-local writes do NOT leak to the outer scope — restore
+    // the pre-function producer state verbatim.
+    S.lastProducer = outerProducers;
+}
+
 /** Walk up the parentRegionId chain from the innermost active region
  *  and return the id of the first ancestor whose kind matches one of
  *  the given kinds. Returns -1 when no such ancestor exists (e.g.
@@ -919,9 +997,7 @@ void lowerStatement(LoweringState &S, const ASTNode &stmt)
     case NodeType::BREAK_STMT:      lowerJump(S, stmt, NodeKind::JumpBreak);    return;
     case NodeType::CONTINUE_STMT:   lowerJump(S, stmt, NodeKind::JumpContinue); return;
     case NodeType::RETURN_STMT:     lowerJump(S, stmt, NodeKind::JumpReturn);   return;
-    // FUNCTION_DEF stays opaque in 2a — Phase 2d wires the inside
-    // as a separate top-level FunctionDef node with its own scope.
-    case NodeType::FUNCTION_DEF:    lowerExprStmt(S, stmt);          return;
+    case NodeType::FUNCTION_DEF:    lowerFunctionDef(S, stmt);       return;
     default:
         // Unrecognised — skip rather than crash. Phase-2 may turn
         // this into an assertion once every statement kind is covered.
