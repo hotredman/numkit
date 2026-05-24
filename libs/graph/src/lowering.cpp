@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -499,21 +500,93 @@ int lowerBodyInto(LoweringState &S, int regionId, const ASTNode *body)
     return static_cast<int>(S.graph.nodes[regionId].childNodeIds.size());
 }
 
-/** Merge per-branch producer snapshots back into S.lastProducer.
- *  Phase 2a uses "last writer wins" — for vars assigned in multiple
- *  branches, the LAST branch's writer overrides earlier ones for any
- *  external read. Phase 2c will replace this with explicit Merge
- *  nodes that fan in from every branch's writer (proper φ). */
-void mergeBranchProducers(
+/** Phase 2c: at the merge point of a branched region (after if /
+ *  switch / try `end`), for each variable assigned in ≥1 branch,
+ *  emit an explicit Merge node — a proper SSA φ that fans in from
+ *  every branch's writer to a single output. External reads of the
+ *  variable then route through this Merge, not directly to any one
+ *  branch's writer (which was the Phase-2a "last-writer-wins"
+ *  costyl).
+ *
+ *  Branch-coverage rules:
+ *    - If a branch HAS a writer for the var → its writer is the
+ *      input for that branch slot.
+ *    - If a branch DOESN'T write the var → the slot takes the
+ *      pre-region producer of the var (the value flows through
+ *      that branch unchanged). When the var didn't exist pre-region
+ *      either, the slot has no edge (undefined-source).
+ *    - `hasFallThrough` adds an extra slot for the "no branch
+ *      matched" case (if without else, switch without otherwise) —
+ *      that slot always reads from the pre-region producer.
+ *
+ *  Side effect: S.lastProducer is reset to preRegionProducers and
+ *  then [name] is rebound to the new Merge node id for every
+ *  affected variable. Callers (lowerIf/Switch/Try) should NOT
+ *  touch lastProducer after calling this. */
+void emitMergeNodes(
         LoweringState &S,
         const std::unordered_map<std::string, int> &preRegionProducers,
-        const std::vector<std::unordered_map<std::string, int>> &branchProducers)
+        const std::vector<std::unordered_map<std::string, int>> &branchProducers,
+        bool hasFallThrough,
+        const ASTNode &stmt)
 {
-    S.lastProducer = preRegionProducers;
+    // Collect names that any branch wrote with a producer DIFFERENT
+    // from the pre-region one (i.e. genuinely modified). Sorted for
+    // deterministic node ordering — graph output reproducibility.
+    std::set<std::string> assigned;
     for (const auto &bp : branchProducers) {
         for (const auto &[name, id] : bp) {
-            S.lastProducer[name] = id;  // last-wins
+            auto pIt = preRegionProducers.find(name);
+            if (pIt == preRegionProducers.end() || pIt->second != id) {
+                assigned.insert(name);
+            }
         }
+    }
+
+    // Start the post-region producer state from the pre-region map.
+    S.lastProducer = preRegionProducers;
+
+    for (const auto &name : assigned) {
+        // Build the per-slot writer id list. One slot per branch in
+        // branchProducers order, plus optional fall-through slot.
+        std::vector<int> writers;
+        std::vector<std::string> labels;
+        writers.reserve(branchProducers.size() + (hasFallThrough ? 1 : 0));
+        labels.reserve(branchProducers.size()  + (hasFallThrough ? 1 : 0));
+
+        auto preIt = preRegionProducers.find(name);
+        int preProd = preIt != preRegionProducers.end() ? preIt->second : -1;
+
+        for (size_t i = 0; i < branchProducers.size(); ++i) {
+            auto it = branchProducers[i].find(name);
+            int wId = (it != branchProducers[i].end()) ? it->second : preProd;
+            writers.push_back(wId);
+            labels.push_back(name);  // same name on every input — the
+                                     // branch is conveyed by port index
+        }
+        if (hasFallThrough) {
+            writers.push_back(preProd);
+            labels.push_back(name);
+        }
+
+        // Spawn the Merge node at the parent scope (S.currentRegion
+        // was already restored to the enclosing region by the caller
+        // via leaveRegion() — so addNode wires parentRegionId for us).
+        Node mn;
+        mn.kind        = NodeKind::Merge;
+        mn.sourceLine  = stmt.endLine > 0 ? stmt.endLine : stmt.line;
+        mn.sourceCol   = 0;
+        mn.sourceText  = name;
+        mn.inputs      = std::move(labels);
+        mn.outputs     = { name };
+        int mid = S.addNode(std::move(mn));
+
+        for (size_t i = 0; i < writers.size(); ++i) {
+            if (writers[i] >= 0) {
+                S.addDataEdge(writers[i], mid, static_cast<int>(i), name);
+            }
+        }
+        S.lastProducer[name] = mid;
     }
 }
 
@@ -573,7 +646,12 @@ void lowerIf(LoweringState &S, const ASTNode &stmt)
     S.leaveRegion(frame);
 
     S.graph.nodes[rid].branchPartitions = std::move(partitions);
-    mergeBranchProducers(S, preProducers, branchProducers);
+    // Phi-style merge at the join point — proper SSA join for vars
+    // written in any branch. If there's no `else`, add a fall-through
+    // slot so the pre-region value of the var participates in the
+    // merge (covers the "no branch matched" case).
+    emitMergeNodes(S, preProducers, branchProducers,
+                   /*hasFallThrough=*/ !stmt.elseBranch, stmt);
 }
 
 void lowerFor(LoweringState &S, const ASTNode &stmt)
@@ -701,7 +779,11 @@ void lowerSwitch(LoweringState &S, const ASTNode &stmt)
     S.leaveRegion(frame);
 
     S.graph.nodes[rid].branchPartitions = std::move(partitions);
-    mergeBranchProducers(S, preProducers, branchProducers);
+    // Switch without an `otherwise` — fall-through slot represents
+    // the "no case matched" path (in MATLAB the switch is a no-op then,
+    // so the pre-region value of the var is what flows out).
+    emitMergeNodes(S, preProducers, branchProducers,
+                   /*hasFallThrough=*/ !stmt.elseBranch, stmt);
 }
 
 void lowerTry(LoweringState &S, const ASTNode &stmt)
@@ -748,7 +830,12 @@ void lowerTry(LoweringState &S, const ASTNode &stmt)
     S.leaveRegion(frame);
 
     S.graph.nodes[rid].branchPartitions = std::move(partitions);
-    mergeBranchProducers(S, preProducers, branchProducers);
+    // Try without `catch`: never happens in practice (parser rejects)
+    // but covered defensively — no fall-through, try body is its own
+    // path. With `catch`, the two branches naturally form the join
+    // (try-succeeds vs caught-exception), no fall-through either.
+    emitMergeNodes(S, preProducers, branchProducers,
+                   /*hasFallThrough=*/ false, stmt);
 }
 
 void lowerJump(LoweringState &S, const ASTNode &stmt, NodeKind kind)

@@ -529,10 +529,31 @@ input, select { font-family: inherit; color: inherit; }
   text-transform: lowercase;
 }
 
-/* ── Merge nodes (Phase 2c placeholder) ── */
+/* ── Merge (φ) nodes — Phase 2c ──
+   Compact pill that fans in writers from every branch of an
+   if/switch/try into a single output. Rendered as a small chip
+   with the φ symbol + the merged var name, NOT as a full code
+   card — to visually distinguish "this is a synthetic SSA join"
+   from real source statements. */
 .ng-node-merge {
-  border-left: 3px solid #b08cf2;
-  opacity: 0.85;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(176, 140, 242, 0.12);
+  border: 1px solid #b08cf2;
+  border-left-width: 3px;
+  border-radius: 14px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-0);
+}
+.ng-node-merge-symbol {
+  color: #b08cf2;
+  font-weight: 700;
+}
+.ng-node-merge-name {
+  color: var(--fg-1);
 }
 
 /* React Flow handle dots — match the IDE palette. */

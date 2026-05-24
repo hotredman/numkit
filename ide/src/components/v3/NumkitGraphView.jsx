@@ -209,11 +209,29 @@ function JumpNode({ data }) {
   );
 }
 
+/** Phase-2c φ-node: fans in writers from every branch of an
+ *  if/switch/try into a single output. Renders compact — just the
+ *  var name as a chip with N input handles on the left and one
+ *  output handle on the right. */
 function MergeNode({ data }) {
+  const inputs  = data.inputs  || [];
+  const outputs = data.outputs || [];
+  const inH     = Math.max(inputs.length, 1) * PORT_STEP + PORT_PAD * 2;
   return (
-    <div className="ng-node ng-node-merge">
-      <div className="ng-node-title">merge</div>
-      <div className="ng-node-body">{data.sourceText || ''}</div>
+    <div className="ng-node ng-node-merge" style={{ minHeight: inH }}>
+      <span className="ng-node-merge-symbol">φ</span>
+      <span className="ng-node-merge-name">{(outputs[0]) || data.sourceText || ''}</span>
+      {inputs.map((name, i) => {
+        const y = PORT_PAD + i * PORT_STEP + PORT_STEP / 2;
+        return (
+          <Handle key={`in-${i}`} type="target" position={Position.Left}
+                  id={`in-${i}`} style={{ top: y }} title={name} />
+        );
+      })}
+      {outputs.map((_, i) => (
+        <Handle key={`out-${i}`} type="source" position={Position.Right}
+                id={`out-${i}`} style={{ top: '50%' }} />
+      ))}
     </div>
   );
 }
