@@ -193,8 +193,16 @@ function RegionNode({ id, data }) {
         const y = 14 + i * PORT_STEP + PORT_STEP / 2;
         return (
           <span key={`rin-${i}`}>
+            {/* External entrant — receives cross-hierarchy edges from
+                producers OUTSIDE the region (target type). */}
             <Handle type="target" position={Position.Left}
                     id={`in-${i}`} style={{ top: y }} title={name} />
+            {/* Internal passthrough source — emits edges to children
+                INSIDE the region (source type) for loop-carried
+                Phase-2e routing: region.in[k] → φ.in[0]. Same
+                position as `in-${i}` so visually it's one port. */}
+            <Handle type="source" position={Position.Left}
+                    id={`inp-${i}`} style={{ top: y }} title={name} />
             <span className="ng-port-inline ng-port-in"
                   style={{ top: y - 6, left: 6 }}>{name}</span>
           </span>
@@ -204,6 +212,13 @@ function RegionNode({ id, data }) {
         const y = 14 + i * PORT_STEP + PORT_STEP / 2;
         return (
           <span key={`rout-${i}`}>
+            {/* Internal passthrough target — receives edges from
+                children INSIDE the region (target type) for the
+                loop-carried Phase-2e routing: φ → region.out[k]. */}
+            <Handle type="target" position={Position.Right}
+                    id={`outt-${i}`} style={{ top: y }} title={name} />
+            {/* External exit — emits cross-hierarchy edges to
+                consumers OUTSIDE the region (source type). */}
             <Handle type="source" position={Position.Right}
                     id={`out-${i}`} style={{ top: y }} title={name} />
             <span className="ng-port-inline ng-port-out"
@@ -323,14 +338,37 @@ function buildInitialNodes(graph) {
 }
 
 function buildEdges(graph) {
+  const nodeById = new Map((graph.nodes || []).map((n) => [n.id, n]));
   return (graph.edges || []).map((e, i) => {
     const kind = e.kind || 'Data';
-    const isJump = kind === 'Jump';
-    const isExc  = kind === 'Exception';
     let sourceHandle = `out-${e.source.portIndex}`;
     let targetHandle = `in-${e.target.portIndex}`;
-    if (isJump) { sourceHandle = 'jump-out';      targetHandle = 'jump-in';      }
-    if (isExc)  { sourceHandle = 'exception-out'; targetHandle = 'exception-in'; }
+    if (kind === 'Jump') {
+      sourceHandle = 'jump-out';
+      targetHandle = 'jump-in';
+    } else if (kind === 'Exception') {
+      sourceHandle = 'exception-out';
+      targetHandle = 'exception-in';
+    } else {
+      // Phase 2e internal passthrough detection: when a Data edge
+      // SOURCE is a region and the TARGET is a child INSIDE that
+      // region, the source is the region's INPUT port acting as an
+      // internal source → use the `inp-N` handle. Mirrored on the
+      // other side: edge from inside-child to its parent region's
+      // OUTPUT port uses `outt-N`.
+      const srcNode = nodeById.get(e.source.nodeId);
+      const tgtNode = nodeById.get(e.target.nodeId);
+      if (srcNode && tgtNode
+       && isRegionKind(srcNode.kind)
+       && tgtNode.parentRegionId === e.source.nodeId) {
+        sourceHandle = `inp-${e.source.portIndex}`;
+      }
+      if (srcNode && tgtNode
+       && isRegionKind(tgtNode.kind)
+       && srcNode.parentRegionId === e.target.nodeId) {
+        targetHandle = `outt-${e.target.portIndex}`;
+      }
+    }
     return {
       id: `e${i}`,
       source: String(e.source.nodeId),
