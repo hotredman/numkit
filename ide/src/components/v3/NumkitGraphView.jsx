@@ -1,21 +1,36 @@
 /**
- * NumkitGraphView — script-graph visualizer (Phase 1b, read-only).
+ * NumkitGraphView — script-graph visualizer (Phase 2a, read-only).
  *
  * Takes a .m source string, runs it through the WASM lowering pass
  * (`engine.buildScriptGraph`), then renders the resulting NodeGraph
- * IR via React Flow. Layout is computed with dagre (LR direction,
- * compound when regions land in Phase 2).
+ * IR via React Flow with ELK as the layout engine.
  *
- * Custom node types (one per NodeKind):
- *   • AssignmentNode  — LHS-name pill on top, RHS text, input handles
- *     on the left (one per inputs[]), output handles on the right
- *     (one per outputs[]).
- *   • ExprStmtNode    — same layout but outputs side is empty (no LHS).
- *   • OpaqueNode      — Phase-1 placeholder for control-flow / jumps /
- *     decls (rendered with a muted style so they're visibly distinct).
+ * Layout strategy: MEASURE then LAYOUT.
  *
- * Phase-2 will add IfRegion / ForRegion / WhileRegion / etc. as
- * compound nodes via React Flow's `parentNode` + `extent: 'parent'`.
+ *   1. The graph IR is converted to React Flow nodes with `position:
+ *      (0, 0)` and the ReactFlow container starts at `opacity: 0`.
+ *   2. React Flow renders and measures every node's actual DOM size
+ *      (via its internal ResizeObserver). The `useNodesInitialized()`
+ *      hook fires when all measurements are in.
+ *   3. We collect each node's measured width/height. For region
+ *      compounds we additionally read the header bar's height from
+ *      the DOM (`[data-region-header={id}]`) so ELK gets the correct
+ *      top inset.
+ *   4. ELK runs `layered` layout with those real sizes.
+ *   5. We apply ELK positions (and region sizes), then fade-in.
+ *
+ *   No magic numbers. CSS owns appearance entirely — change padding,
+ *   font, port-label style freely; JS just reads DOM.
+ *
+ * Custom node kinds — one component per NodeKind family:
+ *   • AssignmentNode / ExprStmtNode — code-block body + input/output
+ *     handles. No header bar (the source line is the title).
+ *   • OpaqueNode — GlobalDecl / PersistentDecl etc. Kind tag + body.
+ *   • RegionNode — IfRegion / ForRegion / WhileRegion / SwitchRegion /
+ *     TryRegion / FunctionDef. Header bar shows the source slice;
+ *     children land inside via ReactFlow's `parentNode`/`extent`.
+ *   • JumpNode — break / continue / return pill.
+ *   • MergeNode — Phase-2c placeholder.
  *
  * Props:
  *   source : string  — the .m text to visualize. Empty → empty graph.
@@ -23,7 +38,7 @@
  *                      (or { error: '...' }).
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -31,32 +46,54 @@ import ReactFlow, {
   ReactFlowProvider,
   Handle,
   Position,
+  useNodesInitialized,
+  useReactFlow,
 } from 'reactflow';
-import dagre from '@dagrejs/dagre';
+import ELK from 'elkjs/lib/elk.bundled.js';
 import 'reactflow/dist/style.css';
+
+const elk = new ELK();
+
+// ── Node kind taxonomy ──────────────────────────────────────────────
+
+const REGION_KINDS = new Set([
+  'IfRegion', 'ForRegion', 'WhileRegion', 'SwitchRegion',
+  'TryRegion', 'FunctionDef',
+]);
+const JUMP_KINDS   = new Set(['JumpBreak', 'JumpContinue', 'JumpReturn']);
+
+const isRegionKind = (k) => REGION_KINDS.has(k);
+const isJumpKind   = (k) => JUMP_KINDS.has(k);
+
+function kindLabel(k) {
+  switch (k) {
+    case 'IfRegion':       return 'if';
+    case 'ForRegion':      return 'for';
+    case 'WhileRegion':    return 'while';
+    case 'SwitchRegion':   return 'switch';
+    case 'TryRegion':      return 'try';
+    case 'FunctionDef':    return 'function';
+    case 'JumpBreak':      return 'break';
+    case 'JumpContinue':   return 'continue';
+    case 'JumpReturn':     return 'return';
+    case 'GlobalDecl':     return 'global';
+    case 'PersistentDecl': return 'persistent';
+    case 'Merge':          return 'merge';
+    default:               return k;
+  }
+}
 
 // ── Custom node renderers ───────────────────────────────────────────
 //
-// sourceText comes pre-trimmed from the C++ lowering — trailing `%`
-// comments are cut using positions emitted by the lexer (which already
-// knows MATLAB quote/transpose syntax). No JS-side parsing needed.
+// Port handles + labels render in a horizontal flex row UNDER the
+// code body. Each port row is PORT_STEP tall so ELK gets sensible
+// padding-free sizes. There are no inline pixel widths anywhere —
+// CSS sizes everything from content, and JS just measures the result.
 
-/** Header + body + ports footer shared by all node kinds. `title`
- *  may be empty — in that case the header row is dropped so terminal
- *  statements (plot, clear, …) read as a clean source line without a
- *  redundant bullet placeholder.
- *
- *  Ports footer:
- *    Each input is one row: handle dot ON the left edge of the card,
- *    variable name as a tiny label JUST INSIDE the edge.
- *    Outputs mirror on the right edge.
- *    Rows stack at PORT_STEP (16 px) so handle Y aligns with label Y.
- *    Footer height = max(inputs, outputs) × PORT_STEP + a top/bottom
- *    breathing strip, so the card auto-grows for many ports. */
 const PORT_STEP = 16;
-const PORT_PAD  = 6;  // breathing room above the first port row
+const PORT_PAD  = 6;
 
-function nodeBody({ title, body, kindClass, inputs, outputs }) {
+function leafBody({ title, body, kindClass, inputs, outputs }) {
   const portRows = Math.max(inputs.length, outputs.length);
   const footerH  = portRows > 0 ? PORT_PAD * 2 + portRows * PORT_STEP : 0;
   return (
@@ -98,12 +135,7 @@ function nodeBody({ title, body, kindClass, inputs, outputs }) {
 }
 
 function AssignmentNode({ data }) {
-  // No title — the LHS variable name is already shown as the output
-  // pin label (right side of card), and the body contains the full
-  // statement including `lhs = …`. Title was duplicate noise.
-  // Comments stripped: trailing `% …` on the source line is noise
-  // for data-flow viz; the editor pane still has the full text.
-  return nodeBody({
+  return leafBody({
     title: '',
     body: data.sourceText || '',
     kindClass: 'ng-node-assignment',
@@ -113,9 +145,7 @@ function AssignmentNode({ data }) {
 }
 
 function ExprStmtNode({ data }) {
-  // No LHS → no title. Source line speaks for itself
-  // (`plot(y)`, `clear`, `disp(x)`).
-  return nodeBody({
+  return leafBody({
     title: '',
     body: data.sourceText || '',
     kindClass: 'ng-node-exprstmt',
@@ -125,12 +155,8 @@ function ExprStmtNode({ data }) {
 }
 
 function OpaqueNode({ data }) {
-  // Phase-1 stubs: GlobalDecl, PersistentDecl, IfRegion, etc. Keep
-  // the kind tag as title so the user can tell it's a placeholder —
-  // for these nodes the body alone wouldn't make clear it's a region
-  // root vs a regular statement.
-  return nodeBody({
-    title: data.kind,
+  return leafBody({
+    title: kindLabel(data.kind),
     body: data.sourceText || '',
     kindClass: 'ng-node-opaque',
     inputs: data.inputs || [],
@@ -138,58 +164,126 @@ function OpaqueNode({ data }) {
   });
 }
 
+/** Compound node for control-flow regions. The header is tagged with
+ *  `data-region-header={id}` so the layout effect can read its
+ *  measured height and feed it to ELK as the top inset. */
+function RegionNode({ id, data }) {
+  const inputs  = data.inputs  || [];
+  const outputs = data.outputs || [];
+  return (
+    <div className={`ng-region ng-region-${data.kind.toLowerCase()}`}>
+      <div className="ng-region-header" data-region-header={id}>
+        <span className="ng-region-source">{data.sourceText || ''}</span>
+      </div>
+      {inputs.map((name, i) => {
+        const y = 14 + i * PORT_STEP + PORT_STEP / 2;
+        return (
+          <span key={`rin-${i}`}>
+            <Handle type="target" position={Position.Left}
+                    id={`in-${i}`} style={{ top: y }} title={name} />
+            <span className="ng-port-inline ng-port-in"
+                  style={{ top: y - 6, left: 6 }}>{name}</span>
+          </span>
+        );
+      })}
+      {outputs.map((name, i) => {
+        const y = 14 + i * PORT_STEP + PORT_STEP / 2;
+        return (
+          <span key={`rout-${i}`}>
+            <Handle type="source" position={Position.Right}
+                    id={`out-${i}`} style={{ top: y }} title={name} />
+            <span className="ng-port-inline ng-port-out"
+                  style={{ top: y - 6, right: 6 }}>{name}</span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function JumpNode({ data }) {
+  return (
+    <div className={`ng-node ng-node-jump ng-node-jump-${data.kind.toLowerCase()}`}>
+      <div className="ng-node-jump-label">{kindLabel(data.kind)}</div>
+    </div>
+  );
+}
+
+function MergeNode({ data }) {
+  return (
+    <div className="ng-node ng-node-merge">
+      <div className="ng-node-title">merge</div>
+      <div className="ng-node-body">{data.sourceText || ''}</div>
+    </div>
+  );
+}
+
 const nodeTypes = {
   assignment: AssignmentNode,
   exprstmt:   ExprStmtNode,
   opaque:     OpaqueNode,
+  region:     RegionNode,
+  jump:       JumpNode,
+  merge:      MergeNode,
 };
 
-// ── Layout (dagre, LR) ──────────────────────────────────────────────
-
-const NODE_W = 220;
-const NODE_H = 80;
-
-function layoutNodes(rawNodes, rawEdges) {
-  const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: 'LR', nodesep: 24, ranksep: 60, marginx: 12, marginy: 12 });
-  g.setDefaultEdgeLabel(() => ({}));
-
-  for (const n of rawNodes) g.setNode(n.id, { width: NODE_W, height: NODE_H });
-  for (const e of rawEdges) g.setEdge(e.sourceId, e.targetId);
-  dagre.layout(g);
-
-  return rawNodes.map((n) => {
-    const p = g.node(n.id);
-    return { ...n, position: { x: p.x - NODE_W / 2, y: p.y - NODE_H / 2 } };
-  });
-}
-
-// ── Graph JSON → React Flow nodes/edges ─────────────────────────────
-
-/** Bucket a NodeKind string into one of our React-Flow custom types. */
 function nodeTypeFor(kind) {
-  if (kind === 'Assignment') return 'assignment';
-  if (kind === 'ExprStmt')   return 'exprstmt';
+  if (kind === 'Assignment')   return 'assignment';
+  if (kind === 'ExprStmt')     return 'exprstmt';
+  if (isRegionKind(kind))      return 'region';
+  if (isJumpKind(kind))        return 'jump';
+  if (kind === 'Merge')        return 'merge';
   return 'opaque';
 }
 
-function buildFlow(graph) {
-  if (!graph || !Array.isArray(graph.nodes)) {
-    return { nodes: [], edges: [] };
+// ── Phase 1: graph IR → unmeasured React Flow nodes ─────────────────
+
+function buildInitialNodes(graph) {
+  if (!graph || !Array.isArray(graph.nodes)) return [];
+  // Bucket by parentRegionId so parents come before children in the
+  // array — React Flow requires parent-first ordering.
+  const byParent = new Map();
+  for (const n of graph.nodes) {
+    const key = n.parentRegionId == null ? null : n.parentRegionId;
+    if (!byParent.has(key)) byParent.set(key, []);
+    byParent.get(key).push(n);
   }
-  const rfNodes = graph.nodes.map((n) => ({
-    id: String(n.id),
-    type: nodeTypeFor(n.kind),
-    position: { x: 0, y: 0 },  // overwritten by dagre below
-    data: {
-      kind: n.kind,
-      sourceText: n.sourceText,
-      sourceLine: n.sourceLine,
-      inputs:  n.inputs  || [],
-      outputs: n.outputs || [],
-    },
-  }));
-  const rfEdges = (graph.edges || []).map((e, i) => ({
+  const out = [];
+  function emit(parentId) {
+    const kids = byParent.get(parentId) || [];
+    for (const n of kids) {
+      const node = {
+        id: String(n.id),
+        type: nodeTypeFor(n.kind),
+        position: { x: 0, y: 0 },
+        data: {
+          kind:       n.kind,
+          sourceText: n.sourceText || '',
+          sourceLine: n.sourceLine,
+          inputs:     n.inputs  || [],
+          outputs:    n.outputs || [],
+        },
+      };
+      if (n.parentRegionId != null) {
+        node.parentNode = String(n.parentRegionId);
+        node.extent     = 'parent';
+      }
+      // Regions need a placeholder size before ELK runs — otherwise
+      // React Flow can't allocate space for children. Replaced after
+      // layout with the ELK-computed size.
+      if (isRegionKind(n.kind)) {
+        node.style = { width: 320, height: 120 };
+      }
+      out.push(node);
+      if (isRegionKind(n.kind)) emit(n.id);
+    }
+  }
+  emit(null);
+  return out;
+}
+
+function buildEdges(graph) {
+  return (graph.edges || []).map((e, i) => ({
     id: `e${i}`,
     source: String(e.source.nodeId),
     target: String(e.target.nodeId),
@@ -199,26 +293,100 @@ function buildFlow(graph) {
     type: 'default',
     className: `ng-edge ng-edge-${(e.kind || 'Data').toLowerCase()}`,
   }));
-  const positioned = layoutNodes(
-    rfNodes.map((n) => ({ id: n.id })),
-    rfEdges.map((e) => ({ sourceId: e.source, targetId: e.target })),
-  );
-  // Merge positions back into rfNodes.
-  const posMap = new Map(positioned.map((p) => [p.id, p.position]));
+}
+
+// ── Phase 2: build ELK graph from MEASURED dimensions ───────────────
+
+function buildElkGraph(graph, sizeById, headerHById) {
+  const byParent = new Map();
+  for (const n of graph.nodes) {
+    const key = n.parentRegionId == null ? null : n.parentRegionId;
+    if (!byParent.has(key)) byParent.set(key, []);
+    byParent.get(key).push(n);
+  }
+  function subtree(parentId) {
+    const kids = byParent.get(parentId) || [];
+    return kids.map((n) => {
+      const id = String(n.id);
+      if (isRegionKind(n.kind)) {
+        // Region: ELK auto-sizes from children + padding. Top inset
+        // is the MEASURED header height (+ a few px breathing room).
+        const headerH = headerHById[id] || 36;
+        return {
+          id,
+          layoutOptions: {
+            'elk.algorithm':                              'layered',
+            'elk.direction':                              'RIGHT',
+            'elk.padding':                                `[top=${headerH + 10},left=14,bottom=14,right=14]`,
+            'elk.spacing.nodeNode':                       '18',
+            'elk.layered.spacing.nodeNodeBetweenLayers':  '40',
+          },
+          children: subtree(n.id),
+        };
+      }
+      // Leaf / jump: take the measured size verbatim from the DOM.
+      // Fallback values are only used if measurement somehow missed
+      // (shouldn't happen because useNodesInitialized gates this).
+      const m = sizeById[id];
+      return { id, width: m?.width ?? 200, height: m?.height ?? 60 };
+    });
+  }
+  const elkEdges = (graph.edges || []).map((e, i) => ({
+    id: `e${i}`,
+    sources: [String(e.source.nodeId)],
+    targets: [String(e.target.nodeId)],
+  }));
   return {
-    nodes: rfNodes.map((n) => ({ ...n, position: posMap.get(n.id) || { x: 0, y: 0 } })),
-    edges: rfEdges,
+    id: 'root',
+    layoutOptions: {
+      'elk.algorithm':                              'layered',
+      'elk.direction':                              'RIGHT',
+      'elk.spacing.nodeNode':                       '32',
+      'elk.layered.spacing.nodeNodeBetweenLayers':  '70',
+      'elk.hierarchyHandling':                      'INCLUDE_CHILDREN',
+    },
+    children: subtree(null),
+    edges: elkEdges,
   };
+}
+
+/** Walk ELK result, return { id → {x, y, width, height} }. */
+function collectElkLayout(elkResult) {
+  const out = new Map();
+  function walk(node) {
+    if (node.id !== 'root') {
+      out.set(node.id, {
+        x:      node.x      ?? 0,
+        y:      node.y      ?? 0,
+        width:  node.width,
+        height: node.height,
+      });
+    }
+    for (const c of node.children || []) walk(c);
+  }
+  walk(elkResult);
+  return out;
 }
 
 // ── Component ───────────────────────────────────────────────────────
 
 function NumkitGraphViewInner({ source, engine }) {
-  const [graph, setGraph]   = useState(null);
-  const [error, setError]   = useState(null);
-  // Bump on every source-string change to force a fresh layout pass.
-  const buildIdRef = useRef(0);
+  const [graph, setGraph]     = useState(null);
+  const [error, setError]     = useState(null);
+  const [nodes, setNodes]     = useState([]);
+  const [edges, setEdges]     = useState([]);
+  // `laidOut` = ELK has positioned everything for the CURRENT graph.
+  // We keep the canvas hidden (opacity 0) until this is true so the
+  // user never sees nodes stacked at (0, 0) during the measure pass.
+  const [laidOut, setLaidOut] = useState(false);
+  // Bumped on every graph change so a stale ELK promise can detect
+  // it's no longer the active layout and bail out.
+  const tokenRef = useRef(0);
 
+  const nodesInitialized = useNodesInitialized();
+  const reactFlow        = useReactFlow();
+
+  // ── Source → graph IR ───────────────────────────────────────────
   useEffect(() => {
     if (!engine || typeof engine.buildScriptGraph !== 'function') {
       setError('engine.buildScriptGraph not available');
@@ -238,10 +406,76 @@ function NumkitGraphViewInner({ source, engine }) {
       setGraph(result);
       setError(null);
     }
-    buildIdRef.current += 1;
   }, [source, engine]);
 
-  const flow = useMemo(() => buildFlow(graph), [graph]);
+  // ── Phase 1: graph → unmeasured nodes (rendered with opacity 0) ──
+  useEffect(() => {
+    tokenRef.current += 1;
+    setLaidOut(false);
+    if (!graph || !graph.nodes || graph.nodes.length === 0) {
+      setNodes([]);
+      setEdges([]);
+      return;
+    }
+    setNodes(buildInitialNodes(graph));
+    setEdges(buildEdges(graph));
+  }, [graph]);
+
+  // ── Phase 2: nodes measured → ELK layout → apply positions ───────
+  useEffect(() => {
+    if (!nodesInitialized || !graph || laidOut) return;
+    if (!nodes.length) return;
+
+    const token = tokenRef.current;
+
+    // Collect MEASURED sizes from React Flow's internal store. Leaf
+    // and jump nodes have correct DOM widths/heights here; regions
+    // still carry the placeholder size from buildInitialNodes (their
+    // real size comes back from ELK).
+    const sizeById = {};
+    for (const rf of reactFlow.getNodes()) {
+      const kind = rf.data?.kind;
+      if (!kind || isRegionKind(kind)) continue;  // regions sized by ELK
+      if (rf.width != null && rf.height != null) {
+        sizeById[rf.id] = { width: rf.width, height: rf.height };
+      }
+    }
+
+    // Measure region headers directly from the DOM — these tell ELK
+    // how much top padding to leave inside each compound. Using
+    // offsetHeight keeps us in CSS pixels (zoom-independent).
+    const headerHById = {};
+    for (const n of graph.nodes) {
+      if (!isRegionKind(n.kind)) continue;
+      const el = document.querySelector(`[data-region-header="${n.id}"]`);
+      if (el) headerHById[String(n.id)] = el.offsetHeight;
+    }
+
+    const elkInput = buildElkGraph(graph, sizeById, headerHById);
+    elk.layout(elkInput).then((result) => {
+      if (tokenRef.current !== token) return;  // a newer graph won
+      const layoutById = collectElkLayout(result);
+      setNodes((prev) => prev.map((n) => {
+        const lay = layoutById.get(n.id);
+        if (!lay) return n;
+        const next = { ...n, position: { x: lay.x, y: lay.y } };
+        // Regions: ELK computed their final size — apply it.
+        // Leaves/jumps: keep their natural (DOM-driven) size, do not
+        // override style.width/height.
+        if (isRegionKind(n.data.kind)
+         && lay.width != null && lay.height != null) {
+          next.style = { ...(n.style || {}), width: lay.width, height: lay.height };
+        }
+        return next;
+      }));
+      setLaidOut(true);
+    }).catch((err) => {
+      if (tokenRef.current !== token) return;
+      // eslint-disable-next-line no-console
+      console.error('ELK layout failed:', err);
+      setError(`Layout failed: ${err.message || err}`);
+    });
+  }, [nodesInitialized, graph, nodes, laidOut, reactFlow]);
 
   if (error) {
     return (
@@ -251,7 +485,7 @@ function NumkitGraphViewInner({ source, engine }) {
       </div>
     );
   }
-  if (!graph || (graph.nodes && graph.nodes.length === 0)) {
+  if (!graph || !graph.nodes || graph.nodes.length === 0) {
     return (
       <div className="numkit-graph-view ng-empty">
         <div className="ng-empty-title">Empty graph</div>
@@ -265,22 +499,28 @@ function NumkitGraphViewInner({ source, engine }) {
   return (
     <div className="numkit-graph-view">
       <ReactFlow
-        nodes={flow.nodes}
-        edges={flow.edges}
+        nodes={nodes}
+        edges={edges}
         nodeTypes={nodeTypes}
         defaultEdgeOptions={{ animated: false }}
-        fitView
+        fitView={laidOut}
         proOptions={{ hideAttribution: true }}
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={true}
+        style={{
+          opacity: laidOut ? 1 : 0,
+          transition: 'opacity 150ms ease-in',
+        }}
       >
         <Background gap={16} size={1} color="var(--line-soft)" />
         <Controls showInteractive={false} />
         <MiniMap pannable zoomable
                  nodeColor={(n) => n.type === 'assignment' ? '#7fd99a'
-                                : n.type === 'exprstmt'   ? '#9b8cf2'
-                                                          : '#888'}
+                                 : n.type === 'exprstmt'   ? '#9b8cf2'
+                                 : n.type === 'region'     ? '#5b6470'
+                                 : n.type === 'jump'       ? '#d97c7c'
+                                                           : '#888'}
                  style={{ background: 'var(--bg-2)' }} />
       </ReactFlow>
     </div>
@@ -288,7 +528,6 @@ function NumkitGraphViewInner({ source, engine }) {
 }
 
 export default function NumkitGraphView(props) {
-  // React Flow needs its Provider in the tree for hooks (zoom, fitView).
   return (
     <ReactFlowProvider>
       <NumkitGraphViewInner {...props} />

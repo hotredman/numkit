@@ -34,6 +34,13 @@ private:
     Token consume(TokenType t, const std::string &msg = "");
     void skipNewlines();
     void skipTerminators();
+    // Consume a statement-terminating SEMICOLON or COMMA token (if
+    // present), recording its position into node.endLine / node.endCol
+    // so downstream tools (the graph viewer's sourceText slicer) can
+    // bound the statement's source range precisely. Returns true iff
+    // a SEMICOLON was consumed (i.e. suppress-output is set); COMMA
+    // returns false (it terminates the stmt but doesn't suppress).
+    bool consumeStmtTerminator(ASTNode &node);
 
     // Single chokepoint for token-position changes. After moving pos_
     // forward, skips past any COMMENT tokens so the parser never has
