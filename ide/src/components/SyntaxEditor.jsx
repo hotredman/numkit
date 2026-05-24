@@ -59,7 +59,41 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({ value, onChange, onScrol
   const C = useTheme();
   const textareaRef = useRef(null);
   const highlightRef = useRef(null);
-  useImperativeHandle(ref, () => ({ get scrollTop() { return textareaRef.current?.scrollTop || 0; }, focus: () => textareaRef.current?.focus() }));
+  useImperativeHandle(ref, () => ({
+    get scrollTop() { return textareaRef.current?.scrollTop || 0; },
+    focus: () => textareaRef.current?.focus(),
+    /** Move the caret to the given 1-indexed (line, col). Counts
+     *  newlines in the current value to find the char offset, then
+     *  uses setSelectionRange + focus so the user sees the cursor
+     *  blink at the target. Centers the line vertically by setting
+     *  scrollTop. Used by the AST → editor click-to-navigate
+     *  handoff so jumping isn't just a highlight, it's a real
+     *  caret move ready for typing/editing. */
+    setCaret(line, col) {
+      const ta = textareaRef.current;
+      if (!ta) return;
+      const v = ta.value || '';
+      const targetLine = Math.max(1, line | 0);
+      const targetCol  = Math.max(1, col  | 0);
+      let pos = 0, ln = 1;
+      while (pos < v.length && ln < targetLine) {
+        if (v[pos] === '\n') ln += 1;
+        pos += 1;
+      }
+      // pos is now at start of targetLine; advance col-1 chars,
+      // clamped to end-of-line so we don't overshoot into the next.
+      const eol = v.indexOf('\n', pos);
+      const lineEnd = eol === -1 ? v.length : eol;
+      pos = Math.min(pos + (targetCol - 1), lineEnd);
+      ta.focus();
+      ta.setSelectionRange(pos, pos);
+      // Center the target line in the viewport (line-height matches
+      // the inline CSS in the textarea below: 20px).
+      const lineHeight = 20;
+      const targetTop = (targetLine - 1) * lineHeight - ta.clientHeight / 2;
+      ta.scrollTop = Math.max(0, targetTop);
+    },
+  }));
 
   /** Convert the textarea's caret char-offset to a 1-indexed
    *  (line, col) pair and fire onCursor. Cheap O(N) scan of the
