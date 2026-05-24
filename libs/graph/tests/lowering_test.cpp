@@ -339,13 +339,16 @@ TEST(GraphLowering, IfRegionRecursesIntoBodies)
 {
     // x = 1; if x > 0; y = 2; else; y = 3; end; disp(y);
     auto g = lowerSource("x = 1;\nif x > 0\n  y = 2;\nelse\n  y = 3;\nend\ndisp(y);\n");
-    // 5 nodes: x=1, IfRegion, y=2 (in branch 0), y=3 (in branch 1), disp(y)
-    ASSERT_EQ(g.nodes.size(), 5u);
+    // 6 nodes: x=1, IfRegion, y=2, y=3, Merge(y), disp(y).
+    // (Phase 2c: the post-branch Merge sits between body assignments
+    //  and disp(y) so the read routes through it.)
+    ASSERT_EQ(g.nodes.size(), 6u);
     EXPECT_EQ(g.nodes[0].kind, graph::NodeKind::Assignment);   // x = 1
     EXPECT_EQ(g.nodes[1].kind, graph::NodeKind::IfRegion);
     EXPECT_EQ(g.nodes[2].kind, graph::NodeKind::Assignment);   // y = 2
     EXPECT_EQ(g.nodes[3].kind, graph::NodeKind::Assignment);   // y = 3
-    EXPECT_EQ(g.nodes[4].kind, graph::NodeKind::ExprStmt);     // disp(y)
+    EXPECT_EQ(g.nodes[4].kind, graph::NodeKind::Merge);        // φ(y)
+    EXPECT_EQ(g.nodes[5].kind, graph::NodeKind::ExprStmt);     // disp(y)
 
     // IfRegion has x as input + children for both branches.
     EXPECT_EQ(g.nodes[1].inputs, (std::vector<std::string>{"x"}));
@@ -356,8 +359,9 @@ TEST(GraphLowering, IfRegionRecursesIntoBodies)
     EXPECT_EQ(g.nodes[2].parentRegionId, std::optional<int>(1));
     EXPECT_EQ(g.nodes[3].parentRegionId, std::optional<int>(1));
 
-    // disp(y) reads y — last-writer-wins → wires to node 3 (else branch).
-    EXPECT_EQ(g.nodes[4].inputs, (std::vector<std::string>{"y"}));
+    // disp(y) reads y → routes through the Merge node (NOT directly
+    // from y=3 as it did under the old last-writer-wins approximation).
+    EXPECT_EQ(g.nodes[5].inputs, (std::vector<std::string>{"y"}));
 }
 
 TEST(GraphLowering, ForRegionRegistersIterVarAsProducer)
@@ -394,11 +398,15 @@ TEST(GraphLowering, SwitchRegionPartitionsCases)
         "  case 2, y = 20;\n"
         "  otherwise, y = 0;\n"
         "end\ndisp(y);\n");
-    ASSERT_EQ(g.nodes.size(), 6u);
+    // 7 nodes: x=1, SwitchRegion, y=10, y=20, y=0, Merge(y), disp(y).
+    ASSERT_EQ(g.nodes.size(), 7u);
     EXPECT_EQ(g.nodes[1].kind, graph::NodeKind::SwitchRegion);
     EXPECT_EQ(g.nodes[1].inputs, (std::vector<std::string>{"x"}));
     EXPECT_EQ(g.nodes[1].branchPartitions, (std::vector<int>{0, 1, 2, 3}));
     EXPECT_EQ(g.nodes[1].childNodeIds.size(), 3u);
+    // Merge sits at parent scope, NOT inside the SwitchRegion.
+    EXPECT_EQ(g.nodes[5].kind, graph::NodeKind::Merge);
+    EXPECT_FALSE(g.nodes[5].parentRegionId.has_value());
 }
 
 TEST(GraphLowering, TryRegionCatchVarVisibleOnlyInCatchScope)
@@ -451,6 +459,95 @@ TEST(GraphLowering, NestedForRegionsShadowIterVar)
     }
     EXPECT_TRUE(sawInnerEdge);
     EXPECT_TRUE(sawOuterEdge);
+}
+
+// ── Phase 2c: merge (φ) nodes at branched join points ─────────────
+
+TEST(GraphLowering, IfElseEmitsMergeNodeForBranchedVar)
+{
+    // x = 0; if x > 0; y = 1; else; y = 2; end; disp(y);
+    // Expected: 6 nodes — x=0, IfRegion, y=1, y=2, Merge(y), disp(y).
+    // disp(y) reads y via the Merge, NOT directly from y=2 (the old
+    // last-writer-wins approximation).
+    auto g = lowerSource("x = 0;\nif x > 0\n  y = 1;\nelse\n  y = 2;\nend\ndisp(y);\n");
+    ASSERT_EQ(g.nodes.size(), 6u);
+    int mergeId = firstNodeOfKind(g, graph::NodeKind::Merge);
+    ASSERT_GE(mergeId, 0);
+    EXPECT_EQ(g.nodes[mergeId].outputs, (std::vector<std::string>{"y"}));
+    // Two inputs into the merge — one per branch.
+    EXPECT_EQ(g.nodes[mergeId].inputs.size(), 2u);
+    // disp(y) wires from the merge, not directly from y=2.
+    int dispId = -1;
+    for (size_t i = 0; i < g.nodes.size(); ++i) {
+        if (g.nodes[i].kind == graph::NodeKind::ExprStmt
+         && g.nodes[i].sourceText.find("disp") != std::string::npos) {
+            dispId = (int)i; break;
+        }
+    }
+    ASSERT_GE(dispId, 0);
+    bool wiredFromMerge = false;
+    for (const auto &e : g.edges) {
+        if (e.varName == "y" && e.target.nodeId == dispId) {
+            EXPECT_EQ(e.source.nodeId, mergeId);
+            wiredFromMerge = true;
+        }
+    }
+    EXPECT_TRUE(wiredFromMerge);
+}
+
+TEST(GraphLowering, IfWithoutElseMergeHasFallThroughSlot)
+{
+    // y = 0; if x > 0; y = 1; end; disp(y);
+    // No `else` → the merge needs a fall-through input from the
+    // pre-region y (`y = 0`). Merge has TWO inputs: the if-branch
+    // writer and the pre-region producer.
+    auto g = lowerSource("x = 0;\ny = 0;\nif x > 0\n  y = 1;\nend\ndisp(y);\n");
+    int mergeId = firstNodeOfKind(g, graph::NodeKind::Merge);
+    ASSERT_GE(mergeId, 0);
+    EXPECT_EQ(g.nodes[mergeId].inputs.size(), 2u);  // 1 branch + 1 fall-through
+    // Two `y` edges land on the merge — from y=1 (branch) and y=0 (pre).
+    int edgesToMerge = 0;
+    for (const auto &e : g.edges) {
+        if (e.varName == "y" && e.target.nodeId == mergeId) ++edgesToMerge;
+    }
+    EXPECT_EQ(edgesToMerge, 2);
+}
+
+TEST(GraphLowering, SwitchEmitsMergeForCaseAssignedVar)
+{
+    auto g = lowerSource(
+        "x = 1;\n"
+        "switch x\n"
+        "  case 1, y = 10;\n"
+        "  case 2, y = 20;\n"
+        "  otherwise, y = 0;\n"
+        "end\ndisp(y);\n");
+    int mergeId = firstNodeOfKind(g, graph::NodeKind::Merge);
+    ASSERT_GE(mergeId, 0);
+    EXPECT_EQ(g.nodes[mergeId].outputs, (std::vector<std::string>{"y"}));
+    // Three case-branches → 3 merge inputs, no fall-through (otherwise covers all).
+    EXPECT_EQ(g.nodes[mergeId].inputs.size(), 3u);
+}
+
+TEST(GraphLowering, TryCatchEmitsMergeForBothBranchAssignments)
+{
+    auto g = lowerSource("try\n  y = 1;\ncatch\n  y = 2;\nend\ndisp(y);\n");
+    int mergeId = firstNodeOfKind(g, graph::NodeKind::Merge);
+    ASSERT_GE(mergeId, 0);
+    EXPECT_EQ(g.nodes[mergeId].outputs, (std::vector<std::string>{"y"}));
+    EXPECT_EQ(g.nodes[mergeId].inputs.size(), 2u);
+}
+
+TEST(GraphLowering, NoMergeWhenVarAssignedInOnlyOneBranch_LegacyNote)
+{
+    // Phase 2a behavior was: write in any branch sets lastProducer.
+    // Phase 2c semantics: even if ONLY one branch writes the var,
+    // we still emit a merge with a fall-through input — because
+    // semantically the other branch leaves the pre-region value
+    // intact, which is a different φ-source.
+    auto g = lowerSource("y = 0;\nif x > 0\n  y = 1;\nend\ndisp(y);\n");
+    // Merge expected (covered by IfWithoutElseMergeHasFallThroughSlot).
+    EXPECT_GE(firstNodeOfKind(g, graph::NodeKind::Merge), 0);
 }
 
 TEST(GraphLowering, BreakAndContinueAreOwnNodes)
