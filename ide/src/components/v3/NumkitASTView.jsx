@@ -50,157 +50,19 @@ import ReactFlow, {
 import ELK from 'elkjs/lib/elk.bundled.js';
 import 'reactflow/dist/style.css';
 
+import {
+  CATEGORIES, TYPE_TO_CAT, categoryOf, categoryColor, defaultFilters,
+  hasAnyChildren, valueText, eachAstChild,
+  findActiveAstId, collectCollapsibleIds,
+} from './astShared';
+
 const elk = new ELK();
-
-// ── NodeType taxonomy → display category ──────────────────────────
-
-const CATEGORIES = [
-  {
-    key:    'container',
-    label:  'Containers',
-    types:  ['BLOCK', 'EXPR_STMT'],
-    color:  '#7a8390',
-    /* ON by default — BLOCK is the script root; filtering it would
-       leave the rendered tree as a forest of disconnected children
-       which `layered` lays out, but the user is better served by
-       seeing the root node as a context anchor. Switch off if you
-       want a pure-expression view. */
-    defaultOn: true,
-  },
-  { key: 'literal',  label: 'Literals',
-    types: ['NUMBER_LITERAL', 'IMAG_LITERAL', 'STRING_LITERAL',
-            'DQSTRING_LITERAL', 'BOOL_LITERAL', 'MATRIX_LITERAL',
-            'CELL_LITERAL'],
-    color: '#7fd99a', defaultOn: true },
-  { key: 'ident',    label: 'Identifiers',
-    types: ['IDENTIFIER', 'END_VAL'],
-    color: '#7fd0e0', defaultOn: true },
-  { key: 'operator', label: 'Operators',
-    types: ['BINARY_OP', 'UNARY_OP', 'COLON_EXPR'],
-    color: '#9b8cf2', defaultOn: true },
-  { key: 'access',   label: 'Calls & access',
-    types: ['CALL', 'COMMAND_CALL', 'INDEX', 'CELL_INDEX',
-            'FIELD_ACCESS', 'DYNAMIC_FIELD_ACCESS', 'ANON_FUNC'],
-    color: '#f0b97a', defaultOn: true },
-  { key: 'assign',   label: 'Assignments',
-    types: ['ASSIGN', 'MULTI_ASSIGN', 'DELETE_ASSIGN'],
-    color: '#5fb87a', defaultOn: true },
-  { key: 'control',  label: 'Control flow',
-    types: ['IF_STMT', 'FOR_STMT', 'WHILE_STMT', 'SWITCH_STMT',
-            'BREAK_STMT', 'CONTINUE_STMT', 'RETURN_STMT', 'TRY_STMT'],
-    color: '#d97c7c', defaultOn: true },
-  { key: 'decl',     label: 'Declarations',
-    types: ['FUNCTION_DEF', 'GLOBAL_STMT', 'PERSISTENT_STMT'],
-    color: '#c98cf2', defaultOn: true },
-];
-
-/** Build a constant Map<typeName, categoryKey> for O(1) lookup. */
-const TYPE_TO_CAT = (() => {
-  const m = new Map();
-  for (const cat of CATEGORIES) for (const t of cat.types) m.set(t, cat.key);
-  return m;
-})();
-
-function categoryOf(type)  { return TYPE_TO_CAT.get(type) || 'other'; }
-function defaultFilters()  {
-  const f = {};
-  for (const cat of CATEGORIES) f[cat.key] = cat.defaultOn;
-  f.other = true;
-  return f;
-}
 
 // ── AST tree → flat React Flow nodes/edges ────────────────────────
 
-/** Walk the AST and gather path-IDs of every VISIBLE node that has
- *  at least one descendant — i.e. the set of nodes the "collapse
- *  all" action should mark as collapsed. Visibility is filter-
- *  dependent so the call needs the current `filters` map. */
-function collectCollapsibleIds(astRoot, filters) {
-  const out = new Set();
-  if (!astRoot) return out;
-  function visit(node, path) {
-    if (!node) return;
-    const cat = TYPE_TO_CAT.get(node.type) || 'other';
-    const visible = filters[cat] !== false;
-    if (visible && hasAnyChildren(node)) out.add(path);
-    const kids = node.children || [];
-    for (let i = 0; i < kids.length; ++i) visit(kids[i], `${path}/c${i}`);
-    const branches = node.branches || [];
-    for (let i = 0; i < branches.length; ++i) {
-      visit(branches[i].cond, `${path}/b${i}/cond`);
-      visit(branches[i].body, `${path}/b${i}/body`);
-    }
-    if (node.elseBranch) visit(node.elseBranch, `${path}/else`);
-  }
-  visit(astRoot, '0');
-  return out;
-}
-
-/** True iff this AST node has at least one descendant to show.
- *  Used to render the collapse chevron only when there's something
- *  to collapse. */
-function hasAnyChildren(node) {
-  if (!node) return false;
-  if (node.children && node.children.length > 0) return true;
-  if (node.branches && node.branches.length > 0) return true;
-  if (node.elseBranch) return true;
-  return false;
-}
-
-/** Find the deepest VISIBLE node (per filters + collapsed state)
- *  whose source range contains `cursorLine`. Returns the path-id of
- *  that node, or null. Used to sync the editor caret with the AST
- *  view — moving the cursor in the editor highlights the deepest
- *  matching AST node so the user can see what construct they're in. */
-function findActiveAstId(astRoot, cursorLine, collapsedSet, filters) {
-  if (!astRoot || !cursorLine || cursorLine < 1) return null;
-  let best = null;
-  function rangeContains(node) {
-    const startL = node.line     || 0;
-    const endL   = node.endLine  || startL;
-    return cursorLine >= startL && cursorLine <= endL;
-  }
-  function visit(node, path) {
-    if (!node || !rangeContains(node)) return;
-    const cat = TYPE_TO_CAT.get(node.type) || 'other';
-    const visible = filters[cat] !== false;
-    if (visible) best = path;          // overwrite — deeper wins
-    if (collapsedSet.has(path)) return;
-    const kids = node.children || [];
-    for (let i = 0; i < kids.length; ++i) visit(kids[i], `${path}/c${i}`);
-    const branches = node.branches || [];
-    for (let i = 0; i < branches.length; ++i) {
-      visit(branches[i].cond, `${path}/b${i}/cond`);
-      visit(branches[i].body, `${path}/b${i}/body`);
-    }
-    if (node.elseBranch) visit(node.elseBranch, `${path}/else`);
-  }
-  visit(astRoot, '0');
-  return best;
-}
-
-/** Compact one-line value preview shown next to the type chip. */
-function valueText(node) {
-  if (!node) return '';
-  switch (node.type) {
-    case 'IDENTIFIER':         return node.strValue || '';
-    case 'NUMBER_LITERAL':     return String(node.numValue ?? '');
-    case 'IMAG_LITERAL':       return `${node.numValue ?? 0}i`;
-    case 'STRING_LITERAL':     return `'${node.strValue ?? ''}'`;
-    case 'DQSTRING_LITERAL':   return `"${node.strValue ?? ''}"`;
-    case 'BOOL_LITERAL':       return node.boolValue ? 'true' : 'false';
-    case 'BINARY_OP':
-    case 'UNARY_OP':           return node.strValue || '';
-    case 'FUNCTION_DEF':       return node.strValue || '';
-    case 'CALL':
-    case 'COMMAND_CALL':       return node.strValue || '';
-    case 'FIELD_ACCESS':
-    case 'DYNAMIC_FIELD_ACCESS': return `.${node.strValue || ''}`;
-    case 'FOR_STMT':           return node.strValue || '';   // iter var
-    case 'TRY_STMT':           return node.strValue || '';   // catch var
-    default:                   return '';
-  }
-}
+// helpers (CATEGORIES, hasAnyChildren, valueText, findActiveAstId,
+// collectCollapsibleIds, eachAstChild) live in `./astShared` so the
+// tree view (NumkitASTTreeView) consumes the exact same taxonomy.
 
 function flattenAST(astRoot, collapsedSet, filters, activeId) {
   if (!astRoot) return { nodes: [], edges: [] };
@@ -251,18 +113,9 @@ function flattenAST(astRoot, collapsedSet, filters, activeId) {
     // their children's parent; filtered-out nodes pass their parent
     // through (children "rise" past them in the rendered tree).
     const parentForChildren = isShown ? id : displayParentId;
-    const kids = node.children || [];
-    for (let i = 0; i < kids.length; ++i) {
-      visit(kids[i], `${path}/c${i}`, parentForChildren);
-    }
-    const branches = node.branches || [];
-    for (let i = 0; i < branches.length; ++i) {
-      visit(branches[i].cond, `${path}/b${i}/cond`, parentForChildren);
-      visit(branches[i].body, `${path}/b${i}/body`, parentForChildren);
-    }
-    if (node.elseBranch) {
-      visit(node.elseBranch, `${path}/else`, parentForChildren);
-    }
+    eachAstChild(node, path, (child, childPath) => {
+      visit(child, childPath, parentForChildren);
+    });
   }
   visit(astRoot, '0', null);
   return { nodes: rfNodes, edges: rfEdges };
@@ -524,11 +377,7 @@ function NumkitASTViewInner({ source, engine, onNavigate, cursorLine }) {
           <Background gap={16} size={1} color="var(--line-soft)" />
           <Controls showInteractive={false} />
           <MiniMap pannable zoomable
-                   nodeColor={(n) => {
-                     const cat = n.data?.category;
-                     const found = CATEGORIES.find((c) => c.key === cat);
-                     return found?.color || '#888';
-                   }}
+                   nodeColor={(n) => categoryColor(n.data?.category)}
                    style={{ background: 'var(--bg-2)' }} />
         </ReactFlow>
       </div>
