@@ -385,8 +385,12 @@ TEST(GraphLowering, WhileRegionHasNoIterVar)
     auto g = lowerSource("x = 0;\nwhile x < 10\n  x = x + 1;\nend\ndisp(x);\n");
     ASSERT_GE(g.nodes.size(), 4u);
     EXPECT_EQ(g.nodes[1].kind, graph::NodeKind::WhileRegion);
-    EXPECT_TRUE(g.nodes[1].outputs.empty());
-    EXPECT_EQ(g.nodes[1].inputs, (std::vector<std::string>{"x"}));
+    // `x` appears once in inputs (cond + loop-carried share the same
+    // port — emitLoopPhis dedupes by name) and once in outputs (the
+    // loop-carried scaffold's output slot). WhileRegion still has no
+    // implicit iter var of its own.
+    EXPECT_EQ(g.nodes[1].inputs,  (std::vector<std::string>{"x"}));
+    EXPECT_EQ(g.nodes[1].outputs, (std::vector<std::string>{"x"}));
 }
 
 TEST(GraphLowering, SwitchRegionPartitionsCases)
@@ -630,20 +634,50 @@ TEST(GraphLowering, NestedBreakWiresToInnermostLoop)
     }
 }
 
+// ── Phase 2e: loop-carried in/out ports ON the region ──────────────
+
+TEST(GraphLowering, ForLoopCarriedVarExposesInOutPortsOnRegion)
+{
+    // Every loop-carried variable becomes EXPLICIT input + output
+    // ports on the ForRegion itself (left + right edges in the view)
+    // in addition to the φ inside. This makes the data flow visible
+    // at the region boundary, not just buried inside.
+    auto g = lowerSource("s = 0;\nfor k = 1:5\n  s = s + k;\nend\ndisp(s);\n");
+    int forId = firstNodeOfKind(g, graph::NodeKind::ForRegion);
+    ASSERT_GE(forId, 0);
+    const auto &reg = g.nodes[forId];
+    // `s` shows up on BOTH sides of the region.
+    EXPECT_NE(std::find(reg.inputs.begin(),  reg.inputs.end(),  "s"), reg.inputs.end());
+    EXPECT_NE(std::find(reg.outputs.begin(), reg.outputs.end(), "s"), reg.outputs.end());
+    // Pre-producer (`s = 0`) wires into the region's `s` input port.
+    int s0 = firstNodeOfKind(g, graph::NodeKind::Assignment);
+    ASSERT_GE(s0, 0);
+    bool wiredIntoRegion = false;
+    for (const auto &e : g.edges) {
+        if (e.varName == "s"
+         && e.source.nodeId == s0
+         && e.target.nodeId == forId) {
+            wiredIntoRegion = true;
+        }
+    }
+    EXPECT_TRUE(wiredIntoRegion);
+}
+
 // ── Phase 2e: loop-carried merges (φ at the loop header) ────────────
 
 TEST(GraphLowering, ForLoopCarriedVarGetsPhiAtHeader)
 {
     // s = 0; for k=1:5; s = s + k; end; disp(s);
-    // `s` is loop-carried (exists pre-loop AND written in body) → a
-    // Merge sits at the loop header inside the ForRegion. Wires:
-    //   - s=0           → φ.in[0]   (pre-loop)
-    //   - body assign s → φ.in[1]   (back-edge)
-    //   - φ             → disp(s)   (post-loop external read)
-    //   - φ             → body's s = s + k  (the body read of `s`)
+    // `s` is loop-carried — Phase 2e wires it through EXPLICIT region
+    // in/out ports plus an internal φ at the loop header. Five edges
+    // for `s` cover the full passthrough:
+    //   (1) s=0          → region.in[s_port]   (cross-hierarchy enter)
+    //   (2) region.in[]  → φ.in[0]             (internal passthrough)
+    //   (3) body assign  → φ.in[1]             (back-edge)
+    //   (4) φ            → region.out[s_port]  (internal passthrough)
+    //   (5) region       → disp(s)             (cross-hierarchy exit)
     auto g = lowerSource("s = 0;\nfor k = 1:5\n  s = s + k;\nend\ndisp(s);\n");
 
-    // Find the Merge node — must live INSIDE the ForRegion.
     int forId = firstNodeOfKind(g, graph::NodeKind::ForRegion);
     int phiId = -1;
     for (size_t i = 0; i < g.nodes.size(); ++i) {
@@ -654,16 +688,14 @@ TEST(GraphLowering, ForLoopCarriedVarGetsPhiAtHeader)
     }
     ASSERT_GE(phiId, 0);
     EXPECT_EQ(g.nodes[phiId].outputs, (std::vector<std::string>{"s"}));
-    EXPECT_EQ(g.nodes[phiId].inputs.size(), 2u);
 
-    // Both φ inputs must be wired.
-    int edgesIntoPhi = 0;
-    for (const auto &e : g.edges) {
-        if (e.varName == "s" && e.target.nodeId == phiId) ++edgesIntoPhi;
-    }
-    EXPECT_EQ(edgesIntoPhi, 2);
+    // ForRegion exposes `s` as both an INPUT and an OUTPUT port (the
+    // explicit loop-carried scaffold).
+    const auto &reg = g.nodes[forId];
+    EXPECT_NE(std::find(reg.inputs.begin(),  reg.inputs.end(),  "s"), reg.inputs.end());
+    EXPECT_NE(std::find(reg.outputs.begin(), reg.outputs.end(), "s"), reg.outputs.end());
 
-    // disp(s) reads through the φ, not directly from the body writer.
+    // disp(s) reads via the REGION (port-routed), not directly from φ.
     int dispId = -1;
     for (size_t i = 0; i < g.nodes.size(); ++i) {
         if (g.nodes[i].kind == graph::NodeKind::ExprStmt
@@ -675,9 +707,16 @@ TEST(GraphLowering, ForLoopCarriedVarGetsPhiAtHeader)
     ASSERT_GE(dispId, 0);
     for (const auto &e : g.edges) {
         if (e.varName == "s" && e.target.nodeId == dispId) {
-            EXPECT_EQ(e.source.nodeId, phiId);
+            EXPECT_EQ(e.source.nodeId, forId);
         }
     }
+
+    // Every input slot of φ must be wired (2 edges).
+    int edgesIntoPhi = 0;
+    for (const auto &e : g.edges) {
+        if (e.varName == "s" && e.target.nodeId == phiId) ++edgesIntoPhi;
+    }
+    EXPECT_EQ(edgesIntoPhi, 2);
 }
 
 TEST(GraphLowering, ForNewBodyVarDoesNotGetLoopCarriedPhi)
@@ -710,8 +749,19 @@ TEST(GraphLowering, WhileLoopCarriedVarGetsPhi)
 
 TEST(GraphLowering, NestedLoopsChainPhiNodes)
 {
-    // Outer creates φ_s, inner creates its own φ_s whose in[0] is
-    // the outer φ_s. After exit, outer φ_s's in[1] is the inner φ_s.
+    // Phase 2e (with explicit region in/out ports): every loop-carried
+    // value passes through the OUTER region's ports, not directly
+    // between the two φs.
+    //
+    // Topology for `s`:
+    //   s=0           → outer_region.in[s]              (entering)
+    //   outer.in[s]   → outer_φ.in[0]                   (passthrough)
+    //   outer_φ       → inner_region.in[s]              (entering inner)
+    //   inner.in[s]   → inner_φ.in[0]                   (passthrough)
+    //   body assign   → inner_φ.in[1]                   (inner back-edge)
+    //   inner_φ       → inner_region.out[s]             (passthrough)
+    //   inner.out[s]  → outer_φ.in[1]                   (outer back-edge)
+    //   outer_φ       → outer_region.out[s]             (passthrough)
     auto g = lowerSource(
         "s = 0;\n"
         "for i = 1:3\n"
@@ -719,7 +769,6 @@ TEST(GraphLowering, NestedLoopsChainPhiNodes)
         "    s = s + i*j;\n"
         "  end\n"
         "end\n");
-    // Two ForRegions, two Merge nodes (one per loop).
     int outerFor = -1, innerFor = -1;
     int outerPhi = -1, innerPhi = -1;
     for (size_t i = 0; i < g.nodes.size(); ++i) {
@@ -734,25 +783,41 @@ TEST(GraphLowering, NestedLoopsChainPhiNodes)
     }
     ASSERT_GE(outerPhi, 0);
     ASSERT_GE(innerPhi, 0);
-    // Outer φ.in[0] ← s=0 (pre-loop, Assignment node).
-    // Outer φ.in[1] ← inner φ (back-edge).
-    bool outerBackFromInner = false;
+
+    // Each region exposes `s` as an in/out port.
+    for (int r : {outerFor, innerFor}) {
+        const auto &reg = g.nodes[r];
+        EXPECT_NE(std::find(reg.inputs.begin(),  reg.inputs.end(),  "s"), reg.inputs.end());
+        EXPECT_NE(std::find(reg.outputs.begin(), reg.outputs.end(), "s"), reg.outputs.end());
+    }
+
+    // Inner φ.in[0] is fed FROM inner_region.in[s] (internal passthrough)
+    // — source = inner_region (since lowering encodes the passthrough
+    // as an Edge whose source is the region itself).
+    bool innerPhiFromRegionIn = false;
     for (const auto &e : g.edges) {
-        if (e.varName == "s" && e.target.nodeId == outerPhi
-         && e.source.nodeId == innerPhi && e.target.portIndex == 1) {
-            outerBackFromInner = true;
+        if (e.varName == "s"
+         && e.source.nodeId == innerFor
+         && e.target.nodeId == innerPhi
+         && e.target.portIndex == 0) {
+            innerPhiFromRegionIn = true;
         }
     }
-    EXPECT_TRUE(outerBackFromInner);
-    // Inner φ.in[0] ← outer φ (pre-inner is outer φ).
-    bool innerFromOuter = false;
+    EXPECT_TRUE(innerPhiFromRegionIn);
+
+    // Outer φ.in[1] is fed BY inner_region (inner's exit value), since
+    // post-inner-loop lastProducer[s] points at innerFor and outer
+    // back-edge wires from there into outer φ slot 1.
+    bool outerBackFromInnerRegion = false;
     for (const auto &e : g.edges) {
-        if (e.varName == "s" && e.target.nodeId == innerPhi
-         && e.source.nodeId == outerPhi && e.target.portIndex == 0) {
-            innerFromOuter = true;
+        if (e.varName == "s"
+         && e.source.nodeId == innerFor
+         && e.target.nodeId == outerPhi
+         && e.target.portIndex == 1) {
+            outerBackFromInnerRegion = true;
         }
     }
-    EXPECT_TRUE(innerFromOuter);
+    EXPECT_TRUE(outerBackFromInnerRegion);
 }
 
 TEST(GraphLowering, TryEmitsExceptionEdgeFromTryToCatch)

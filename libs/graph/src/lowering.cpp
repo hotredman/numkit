@@ -326,8 +326,20 @@ struct LoweringState {
                      const std::string &varName)
     {
         if (producerId < 0) return;
+        // Auto-resolve the source port from the producer's outputs[]
+        // by varName match. Single-output nodes always resolve to 0
+        // (the old behavior); multi-output nodes (e.g. ForRegion with
+        // iter + loop-carried vars) need the right slot picked so the
+        // edge attaches to the correct output handle in the renderer.
+        int sourcePort = 0;
+        if (producerId >= 0 && producerId < static_cast<int>(graph.nodes.size())) {
+            const auto &n = graph.nodes[producerId];
+            for (size_t i = 0; i < n.outputs.size(); ++i) {
+                if (n.outputs[i] == varName) { sourcePort = static_cast<int>(i); break; }
+            }
+        }
         Edge e;
-        e.source = { producerId, /*portIndex*/ 0, varName };
+        e.source = { producerId, sourcePort, varName };
         e.target = { targetId, targetPortIdx, varName };
         e.kind = EdgeKind::Data;
         e.varName = varName;
@@ -705,42 +717,120 @@ void lowerIf(LoweringState &S, const ASTNode &stmt)
                    /*hasFallThrough=*/ !stmt.elseBranch, stmt);
 }
 
-/** Create loop-header φ-nodes for every variable that is BOTH
- *  pre-existing OUTSIDE the loop AND assigned INSIDE the body. Each
- *  φ has two input slots: [0] pre-loop producer, [1] back-edge from
- *  body's last writer (wired by the caller after the body is
- *  lowered). The φ-node is placed INSIDE the loop region (current
- *  S.currentRegion at call time) so the renderer can draw it at the
- *  loop-header position.
+/** Phase 2e: build the loop-carried passthrough scaffolding for a
+ *  for/while region. For each variable that is BOTH pre-existing
+ *  OUTSIDE the loop AND assigned INSIDE the body, we materialise an
+ *  EXPLICIT in/out port pair on the region edge and route data
+ *  through a five-step path:
  *
- *  Returns a map varName → φ-node id. Caller uses it to (a) rewire
- *  body reads to come from φ, (b) wire body's last writer back into
- *  φ.in[1] after body lowering, and (c) expose φ as the post-loop
- *  producer for external reads. */
-std::unordered_map<std::string, int> emitLoopPhis(
+ *    pre-producer → region.in[k]      (cross-hierarchy entering)
+ *    region.in[k] → φ.in[0]           (internal passthrough)
+ *    body writer  → φ.in[1]           (back-edge, wired by caller
+ *                                       after body is lowered)
+ *    φ            → region.out[k]     (internal passthrough)
+ *    region.out[k] → consumer         (cross-hierarchy exiting,
+ *                                       wired by caller via lastProducer)
+ *
+ *  Returns:
+ *    .phiByVar  — map varName → φ-node id (caller wires back-edges
+ *                  and post-loop lastProducer through this)
+ *    .inPort    — map varName → region input port index
+ *    .outPort   — map varName → region output port index
+ *
+ *  Caller responsibilities:
+ *    1. Call this function INSIDE the loop region scope
+ *       (S.currentRegion == regionId).
+ *    2. After body lowering, wire each phi.in[1] from the body's
+ *       last writer for that var.
+ *    3. After body lowering, set lastProducer[var] = regionId so
+ *       post-loop consumers route through the region's output port. */
+struct LoopCarriedScaffold {
+    std::unordered_map<std::string, int> phiByVar;
+    std::unordered_map<std::string, int> inPort;
+    std::unordered_map<std::string, int> outPort;
+};
+
+LoopCarriedScaffold emitLoopPhis(
         LoweringState &S,
+        int regionId,
         const std::unordered_map<std::string, int> &preProducers,
         const std::set<std::string> &assignedInBody,
         const std::string &iterName,
         int loopLine)
 {
-    std::unordered_map<std::string, int> phiByVar;
+    LoopCarriedScaffold sc;
     for (const auto &name : assignedInBody) {
         if (name == iterName) continue;  // for-iter handled separately
         auto preIt = preProducers.find(name);
         if (preIt == preProducers.end()) continue;  // not loop-carried
+
+        // 1. Region input port. REUSE the existing slot if the header
+        //    expression already declared this name (e.g. `while x < 10`
+        //    + loop-carried `x` — same name, same port, addRegionNode
+        //    already wired the pre-producer → region edge). Otherwise
+        //    append a new input port and wire it explicitly.
+        auto &reg = S.graph.nodes[regionId];
+        int inIdx = -1;
+        for (size_t i = 0; i < reg.inputs.size(); ++i) {
+            if (reg.inputs[i] == name) { inIdx = static_cast<int>(i); break; }
+        }
+        if (inIdx < 0) {
+            inIdx = static_cast<int>(reg.inputs.size());
+            reg.inputs.push_back(name);
+            // Cross-hierarchy edge entering the region:
+            //   pre-producer → region.in[inIdx]
+            S.addDataEdge(preIt->second, regionId, inIdx, name);
+        }
+        // Output port — always a fresh slot; regions don't surface
+        // outputs from header processing.
+        int outIdx = static_cast<int>(reg.outputs.size());
+        reg.outputs.push_back(name);
+        sc.inPort[name]  = inIdx;
+        sc.outPort[name] = outIdx;
+
+        // 3. Spawn the φ inside the region.
         Node mn;
-        mn.kind        = NodeKind::Merge;
-        mn.sourceLine  = loopLine;
-        mn.sourceCol   = 0;
-        mn.sourceText  = name;
-        mn.inputs      = { name, name };   // [0] = pre-loop, [1] = back-edge
-        mn.outputs     = { name };
+        mn.kind       = NodeKind::Merge;
+        mn.sourceLine = loopLine;
+        mn.sourceCol  = 0;
+        mn.sourceText = name;
+        mn.inputs     = { name, name };   // [0] pre-loop, [1] back-edge
+        mn.outputs    = { name };
         int phiId = S.addNode(std::move(mn));
-        S.addDataEdge(preIt->second, phiId, /*portIndex=*/ 0, name);
-        phiByVar[name] = phiId;
+        sc.phiByVar[name] = phiId;
+
+        // 4. Internal passthrough region.in[inIdx] → φ.in[0]. Encoded
+        //    as an Edge whose SOURCE is the region but with a port
+        //    index that matches the INPUT slot. The renderer detects
+        //    intra-region passthrough by `target.parent == source` and
+        //    routes through the region's `inp-N` (source-type) handle.
+        Edge e;
+        e.source  = { regionId, inIdx, name };
+        e.target  = { phiId,    0,     name };
+        e.kind    = EdgeKind::Data;
+        e.varName = name;
+        S.graph.edges.push_back(std::move(e));
     }
-    return phiByVar;
+    return sc;
+}
+
+/** Wire the right-hand passthrough φ → region.out[k] for every loop-
+ *  carried var. Called by the loop lowerer AFTER body is lowered. */
+void wireLoopPhiOutputs(
+        LoweringState &S,
+        int regionId,
+        const LoopCarriedScaffold &sc)
+{
+    for (const auto &[name, phiId] : sc.phiByVar) {
+        auto it = sc.outPort.find(name);
+        if (it == sc.outPort.end()) continue;
+        Edge e;
+        e.source  = { phiId,    0,         name };
+        e.target  = { regionId, it->second, name };
+        e.kind    = EdgeKind::Data;
+        e.varName = name;
+        S.graph.edges.push_back(std::move(e));
+    }
 }
 
 void lowerFor(LoweringState &S, const ASTNode &stmt)
@@ -764,15 +854,15 @@ void lowerFor(LoweringState &S, const ASTNode &stmt)
     auto preProducers = S.lastProducer;
     auto frame = S.enterRegion(rid);
 
-    // Phase 2e: emit loop-header φ-nodes for vars that are loop-carried
-    // (pre-existing outside AND assigned in body). Body reads of these
-    // vars get rerouted through φ; back-edges are wired AFTER the body
-    // is lowered (we need to know each var's body-last-writer first).
+    // Phase 2e: emit loop-carried in/out ports on the region with
+    // an internal φ for each. See emitLoopPhis for the 5-step routing
+    // (pre → region.in → φ → region.out → consumer).
     std::set<std::string> assignedInBody;
     if (body) collectAssignedNames(body, assignedInBody);
-    auto phiByVar = emitLoopPhis(S, preProducers, assignedInBody,
-                                 iterName, stmt.line);
-    for (const auto &[name, phiId] : phiByVar) {
+    auto sc = emitLoopPhis(S, rid, preProducers, assignedInBody,
+                           iterName, stmt.line);
+    // Body reads of loop-carried vars resolve to the φ.
+    for (const auto &[name, phiId] : sc.phiByVar) {
         S.lastProducer[name] = phiId;
     }
 
@@ -782,29 +872,32 @@ void lowerFor(LoweringState &S, const ASTNode &stmt)
     lowerBodyInto(S, rid, body);
     auto bodyProducers = S.lastProducer;
 
-    // Wire back-edges: body's last writer of each loop-carried var
-    // feeds φ.in[1]. Skip vars whose body producer IS the φ itself
-    // (no actual write happened — the var was only read).
-    for (const auto &[name, phiId] : phiByVar) {
+    // Back-edges: body's last writer of each loop-carried var feeds
+    // φ.in[1]. Skip vars whose body producer IS the φ itself (no
+    // actual write happened — the var was only read).
+    for (const auto &[name, phiId] : sc.phiByVar) {
         auto it = bodyProducers.find(name);
         if (it != bodyProducers.end() && it->second != phiId) {
             S.addDataEdge(it->second, phiId, /*portIndex=*/ 1, name);
         }
     }
+    // φ → region.out[k] internal passthrough (right side of the loop).
+    wireLoopPhiOutputs(S, rid, sc);
 
     S.leaveRegion(frame);
 
     // Post-loop scope:
-    //   - Loop-carried vars (those with a φ) expose the φ as their
-    //     producer → external reads connect through the merge point.
+    //   - Loop-carried vars route external reads through the REGION
+    //     itself (addDataEdge auto-resolves source port via outputs[]
+    //     name lookup, picking the dedicated output port slot).
     //   - Vars NEW in body (no pre-producer) keep their body-last-writer
-    //     for external reads — that's the only value they could have.
+    //     for external reads — that's their only producer.
     //   - iterName is special — see the shadowing rule below.
     S.lastProducer = preProducers;
     for (const auto &[name, id] : bodyProducers) {
         if (name == iterName) continue;
-        auto phiIt = phiByVar.find(name);
-        S.lastProducer[name] = (phiIt != phiByVar.end()) ? phiIt->second : id;
+        auto phiIt = sc.phiByVar.find(name);
+        S.lastProducer[name] = (phiIt != sc.phiByVar.end()) ? rid : id;
     }
     // Iter-var visibility after the loop:
     //   • If preProducers already bound iterName to an OUTER ForRegion
@@ -838,32 +931,31 @@ void lowerWhile(LoweringState &S, const ASTNode &stmt)
     auto preProducers = S.lastProducer;
     auto frame = S.enterRegion(rid);
 
-    // Phase 2e: same loop-header φ logic as lowerFor — see the
-    // detailed comments there.
     std::set<std::string> assignedInBody;
     if (body) collectAssignedNames(body, assignedInBody);
-    auto phiByVar = emitLoopPhis(S, preProducers, assignedInBody,
-                                 /*iterName=*/ "", stmt.line);
-    for (const auto &[name, phiId] : phiByVar) {
+    auto sc = emitLoopPhis(S, rid, preProducers, assignedInBody,
+                           /*iterName=*/ "", stmt.line);
+    for (const auto &[name, phiId] : sc.phiByVar) {
         S.lastProducer[name] = phiId;
     }
 
     lowerBodyInto(S, rid, body);
     auto bodyProducers = S.lastProducer;
 
-    for (const auto &[name, phiId] : phiByVar) {
+    for (const auto &[name, phiId] : sc.phiByVar) {
         auto it = bodyProducers.find(name);
         if (it != bodyProducers.end() && it->second != phiId) {
             S.addDataEdge(it->second, phiId, /*portIndex=*/ 1, name);
         }
     }
+    wireLoopPhiOutputs(S, rid, sc);
 
     S.leaveRegion(frame);
 
     S.lastProducer = preProducers;
     for (const auto &[name, id] : bodyProducers) {
-        auto phiIt = phiByVar.find(name);
-        S.lastProducer[name] = (phiIt != phiByVar.end()) ? phiIt->second : id;
+        auto phiIt = sc.phiByVar.find(name);
+        S.lastProducer[name] = (phiIt != sc.phiByVar.end()) ? rid : id;
     }
 }
 
