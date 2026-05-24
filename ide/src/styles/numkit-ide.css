@@ -590,6 +590,20 @@ input, select { font-family: inherit; color: inherit; }
 .react-flow__edge.ng-edge-jump .react-flow__edge-textbg {
   fill: var(--bg-0);
 }
+/* Exception edges (try-body last stmt → catch-body first stmt) —
+   amber dashed line, "throws" label. Distinct from Jump (red) so
+   the reader can tell normal jumps from exception flow at a glance. */
+.react-flow__edge.ng-edge-exception .react-flow__edge-path {
+  stroke: #f0a87f;
+  stroke-dasharray: 2 4;
+}
+.react-flow__edge.ng-edge-exception .react-flow__edge-text {
+  fill: #f0a87f;
+  font-weight: 600;
+}
+.react-flow__edge.ng-edge-exception .react-flow__edge-textbg {
+  fill: var(--bg-0);
+}
 /* React Flow controls / minimap — re-tint to the IDE theme. */
 .react-flow__controls {
   background: var(--bg-2);

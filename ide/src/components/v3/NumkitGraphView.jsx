@@ -98,6 +98,15 @@ function leafBody({ title, body, kindClass, inputs, outputs }) {
   const footerH  = portRows > 0 ? PORT_PAD * 2 + portRows * PORT_STEP : 0;
   return (
     <div className={`ng-node ${kindClass}${title ? '' : ' ng-node-notitle'}`}>
+      {/* Phase 2e exception handles — invisible until an Exception
+          edge connects through them. Top = incoming exception (this
+          node receives control if a sibling in try-body throws);
+          Bottom = outgoing exception source. Used only by lowering
+          when emitting EdgeKind::Exception edges inside a try/catch. */}
+      <Handle type="target" position={Position.Top}    id="exception-in"
+              style={{ left: '50%' }} />
+      <Handle type="source" position={Position.Bottom} id="exception-out"
+              style={{ left: '50%' }} />
       {title && <div className="ng-node-title">{title}</div>}
       <div className="ng-node-body">{body}</div>
       {portRows > 0 && (
@@ -315,19 +324,22 @@ function buildInitialNodes(graph) {
 
 function buildEdges(graph) {
   return (graph.edges || []).map((e, i) => {
-    const isJump = e.kind === 'Jump';
+    const kind = e.kind || 'Data';
+    const isJump = kind === 'Jump';
+    const isExc  = kind === 'Exception';
+    let sourceHandle = `out-${e.source.portIndex}`;
+    let targetHandle = `in-${e.target.portIndex}`;
+    if (isJump) { sourceHandle = 'jump-out';      targetHandle = 'jump-in';      }
+    if (isExc)  { sourceHandle = 'exception-out'; targetHandle = 'exception-in'; }
     return {
       id: `e${i}`,
       source: String(e.source.nodeId),
       target: String(e.target.nodeId),
-      // Jump edges connect through dedicated handles on jump leaves
-      // (jump-out) and region nodes (jump-in). Data/Sequence edges
-      // route through the regular per-variable port handles.
-      sourceHandle: isJump ? 'jump-out' : `out-${e.source.portIndex}`,
-      targetHandle: isJump ? 'jump-in'  : `in-${e.target.portIndex}`,
+      sourceHandle,
+      targetHandle,
       label: e.varName,
       type: 'default',
-      className: `ng-edge ng-edge-${(e.kind || 'Data').toLowerCase()}`,
+      className: `ng-edge ng-edge-${kind.toLowerCase()}`,
     };
   });
 }

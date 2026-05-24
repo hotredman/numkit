@@ -755,6 +755,34 @@ TEST(GraphLowering, NestedLoopsChainPhiNodes)
     EXPECT_TRUE(innerFromOuter);
 }
 
+TEST(GraphLowering, TryEmitsExceptionEdgeFromTryToCatch)
+{
+    // try; y=1; catch; y=2; end
+    // One Exception edge from y=1 (last try-body stmt) to y=2
+    // (first catch-body stmt).
+    auto g = lowerSource("try\n  y = 1;\ncatch\n  y = 2;\nend\n");
+    int tryAssignId = -1, catchAssignId = -1;
+    int tryId = firstNodeOfKind(g, graph::NodeKind::TryRegion);
+    for (size_t i = 0; i < g.nodes.size(); ++i) {
+        if (g.nodes[i].kind != graph::NodeKind::Assignment) continue;
+        if (g.nodes[i].parentRegionId != tryId) continue;
+        if (tryAssignId < 0)        tryAssignId   = (int)i;
+        else if (catchAssignId < 0) catchAssignId = (int)i;
+    }
+    ASSERT_GE(tryAssignId,   0);
+    ASSERT_GE(catchAssignId, 0);
+    int excEdges = 0;
+    for (const auto &e : g.edges) {
+        if (e.kind == graph::EdgeKind::Exception
+         && e.source.nodeId == tryAssignId
+         && e.target.nodeId == catchAssignId) {
+            ++excEdges;
+            EXPECT_EQ(e.varName, "throws");
+        }
+    }
+    EXPECT_EQ(excEdges, 1);
+}
+
 // ── Phase 2d: function definitions ──────────────────────────────────
 
 TEST(GraphLowering, FunctionDefBecomesRegionWithParamsAndReturns)

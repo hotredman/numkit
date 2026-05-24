@@ -963,6 +963,31 @@ void lowerTry(LoweringState &S, const ASTNode &stmt)
         branchProducers.push_back(std::move(catchProducers));
         partitions.push_back(static_cast<int>(S.graph.nodes[rid].childNodeIds.size()));
     }
+    // Phase 2e: a single Exception edge from the last try-body
+    // statement to the first catch-body statement, representing
+    // "if anything in try throws, control resumes here". Avoids
+    // per-statement edges (which would clutter the view); the
+    // single arc is enough to convey the try→catch relationship
+    // at the data-flow layer, on top of the TryRegion's branch
+    // partition layout which already shows the structure.
+    if (catchBody && partitions.size() >= 3) {
+        const auto &childIds = S.graph.nodes[rid].childNodeIds;
+        int pTryEnd   = partitions[1];
+        int pCatchEnd = partitions[2];
+        if (pTryEnd > 0
+         && pCatchEnd > pTryEnd
+         && pTryEnd <= static_cast<int>(childIds.size())) {
+            int lastTry    = childIds[pTryEnd - 1];
+            int firstCatch = childIds[pTryEnd];
+            Edge e;
+            e.source  = { lastTry,    /*portIndex*/ 0, "" };
+            e.target  = { firstCatch, /*portIndex*/ 0, "" };
+            e.kind    = EdgeKind::Exception;
+            e.varName = "throws";
+            S.graph.edges.push_back(std::move(e));
+        }
+    }
+
     S.leaveRegion(frame);
 
     S.graph.nodes[rid].branchPartitions = std::move(partitions);
