@@ -344,7 +344,10 @@ function NumkitASTViewInner({ source, engine, onNavigate }) {
   }, [source, engine]);
 
   // Rebuild flat node list on AST / filters / collapsed change.
-  const { rfNodes: flatNodes, rfEdges: flatEdges } = useMemo(() => {
+  // flattenAST returns { nodes, edges } — destructure with rename so
+  // we can pass them as `nodes` / `edges` to <ReactFlow> further down
+  // without shadowing the local `nodes` state.
+  const { nodes: flatNodes, edges: flatEdges } = useMemo(() => {
     return flattenAST(ast, collapsed, filters);
   }, [ast, collapsed, filters]);
 
