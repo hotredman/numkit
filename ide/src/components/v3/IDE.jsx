@@ -14,6 +14,7 @@ import { ALL_DOCS } from './refData';
 import FiguresPane from './FiguresPane';
 import FigureWindow from './FigureWindow';
 import NumkitGraphView from './NumkitGraphView';
+import NumkitASTView from './NumkitASTView';
 import { adaptVariables, adaptFigures } from './adapters';
 
 import tempFS from '../../temporary';
@@ -838,10 +839,10 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                   onCloseAll={closeAllTabs}
                   onCloseExcept={closeOtherTabs}
                 />
-                {/* Editor view toggle — text editor vs data-flow node
-                    graph. Read-only graph in MVP; switching back to
-                    `text` is non-destructive (the source string is
-                    the single owner of state). */}
+                {/* Editor view toggle — text editor, data-flow node
+                    graph, or literal parse-tree AST. All read-only;
+                    switching is non-destructive (the source string
+                    is the single owner of state). */}
                 <div className="editor-view-toggle">
                   <button
                     className={`evt-btn${editorView === 'text' ? ' is-active' : ''}`}
@@ -853,6 +854,11 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                     onClick={() => setEditorView('graph')}
                     title="Data-flow graph (read-only)"
                   >graph</button>
+                  <button
+                    className={`evt-btn${editorView === 'ast' ? ' is-active' : ''}`}
+                    onClick={() => setEditorView('ast')}
+                    title="Parse-tree AST inspector (read-only)"
+                  >AST</button>
                 </div>
                 {editorView === 'text' ? (
                   <EditorBody
@@ -863,10 +869,23 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                     onToggleBp={toggleBreakpoint}
                     onChange={updateTabCode}
                   />
-                ) : (
+                ) : editorView === 'graph' ? (
                   <NumkitGraphView
                     source={activeTabData?.code || ''}
                     engine={engine}
+                  />
+                ) : (
+                  <NumkitASTView
+                    source={activeTabData?.code || ''}
+                    engine={engine}
+                    onNavigate={(line/*, col*/) => {
+                      // Clicking an AST node jumps back to the text
+                      // editor at that source line. The setErrorLine
+                      // path already exists for highlight-and-scroll;
+                      // we reuse it as a lightweight cursor handoff.
+                      setEditorView('text');
+                      setErrorLine(line);
+                    }}
                   />
                 )}
               </div>

@@ -15,6 +15,7 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/graph/node_graph.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/graph/lowering.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/graph/serialize.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/graph/ast_serialize.hpp
 )
 
 set(NUMKIT_LIBS_SOURCES      ${NUMKIT_LIBS_SOURCES}      PARENT_SCOPE)

@@ -395,6 +395,122 @@ input, select { font-family: inherit; color: inherit; }
   line-height: 1.4;
 }
 
+/* ── NumkitASTView (literal parse-tree inspector) ───────────────── */
+.numkit-ast-view {
+  flex: 1;
+  height: 100%;
+  background: var(--bg-1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.numkit-ast-view .ng-empty {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 100%; padding: 24px;
+  color: var(--fg-3);
+  font-family: var(--font-mono);
+}
+.numkit-ast-view .ng-empty-title {
+  font-size: 13px; color: var(--fg-2); margin-bottom: 4px;
+}
+.numkit-ast-view .ng-empty-msg {
+  font-size: 11px; text-align: center; max-width: 320px;
+  line-height: 1.4;
+}
+
+/* Filter toolbar at the top of the AST view — one chip per node-
+   type category. Click toggles visibility. Active chips have a
+   coloured fill matching their category; inactive chips are muted. */
+.ng-ast-filterbar {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 8px 10px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+  z-index: 2;
+}
+.ng-ast-chip {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-1);
+  color: var(--fg-3);
+  cursor: pointer;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+.ng-ast-chip:hover {
+  border-color: var(--chip-color, var(--fg-2));
+  color: var(--fg-1);
+}
+.ng-ast-chip-on {
+  background: var(--chip-color, var(--accent));
+  border-color: var(--chip-color, var(--accent));
+  color: var(--bg-0);
+  font-weight: 600;
+}
+
+/* AST node card — compact pill with type tag + optional value text +
+   chevron toggle. Per-category coloured left border, same idiom as
+   the graph-view region kinds. */
+.ng-ast-node {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-1);
+  cursor: pointer;
+  user-select: none;
+}
+.ng-ast-node:hover { border-color: var(--accent); }
+.ng-ast-type {
+  font-weight: 700;
+  color: var(--fg-0);
+}
+.ng-ast-value {
+  color: var(--fg-2);
+  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ng-ast-toggle {
+  margin-left: 4px;
+  padding: 0 4px;
+  background: transparent;
+  border: none;
+  color: var(--fg-3);
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+}
+.ng-ast-toggle:hover { color: var(--accent); }
+
+/* Category left-border colours (mirror CATEGORIES table in JS). */
+.ng-ast-cat-container { border-left: 3px solid #7a8390; }
+.ng-ast-cat-literal   { border-left: 3px solid #7fd99a; }
+.ng-ast-cat-ident     { border-left: 3px solid #7fd0e0; }
+.ng-ast-cat-operator  { border-left: 3px solid #9b8cf2; }
+.ng-ast-cat-access    { border-left: 3px solid #f0b97a; }
+.ng-ast-cat-assign    { border-left: 3px solid #5fb87a; }
+.ng-ast-cat-control   { border-left: 3px solid #d97c7c; }
+.ng-ast-cat-decl      { border-left: 3px solid #c98cf2; }
+.ng-ast-cat-other     { border-left: 3px solid var(--fg-3); }
+
+/* AST edges — thin parent→child lines, no labels. */
+.react-flow__edge.ng-ast-edge .react-flow__edge-path {
+  stroke: var(--line);
+  stroke-width: 1.2;
+}
+
 /* Node base — all NodeKinds share this card shape. Per-kind classes
    add accent border / header colour. Sizing: `display: inline-block`
    so the card HUGS its content (code body + ports footer). React
