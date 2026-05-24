@@ -576,6 +576,20 @@ input, select { font-family: inherit; color: inherit; }
   fill: var(--bg-0);
   fill-opacity: 0.8;
 }
+/* Jump edges (break / continue / return → enclosing region) —
+   dashed line + warm-tinted label so the reader can tell control-
+   flow jumps apart from data-flow at a glance. */
+.react-flow__edge.ng-edge-jump .react-flow__edge-path {
+  stroke: #d97c7c;
+  stroke-dasharray: 4 3;
+}
+.react-flow__edge.ng-edge-jump .react-flow__edge-text {
+  fill: #d97c7c;
+  font-weight: 600;
+}
+.react-flow__edge.ng-edge-jump .react-flow__edge-textbg {
+  fill: var(--bg-0);
+}
 /* React Flow controls / minimap — re-tint to the IDE theme. */
 .react-flow__controls {
   background: var(--bg-2);

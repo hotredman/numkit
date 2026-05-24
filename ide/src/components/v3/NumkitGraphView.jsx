@@ -175,6 +175,11 @@ function RegionNode({ id, data }) {
       <div className="ng-region-header" data-region-header={id}>
         <span className="ng-region-source">{data.sourceText || ''}</span>
       </div>
+      {/* Jump-target handle for break/continue (loops) and return
+          (function defs). Sits on top edge of region; the Jump edge
+          loops back from a child jump node up to this point. */}
+      <Handle type="target" position={Position.Top} id="jump-in"
+              style={{ left: '50%' }} />
       {inputs.map((name, i) => {
         const y = 14 + i * PORT_STEP + PORT_STEP / 2;
         return (
@@ -202,9 +207,15 @@ function RegionNode({ id, data }) {
 }
 
 function JumpNode({ data }) {
+  // Single source handle for the Jump edge that wires this node to
+  // its enclosing region (for/while for break/continue, function
+  // for return). The renderer styles `ng-edge-jump` as a dashed
+  // warm-tinted line so jumps stand out from data-flow edges.
   return (
     <div className={`ng-node ng-node-jump ng-node-jump-${data.kind.toLowerCase()}`}>
       <div className="ng-node-jump-label">{kindLabel(data.kind)}</div>
+      <Handle type="source" position={Position.Right} id="jump-out"
+              style={{ top: '50%' }} />
     </div>
   );
 }
@@ -303,16 +314,22 @@ function buildInitialNodes(graph) {
 }
 
 function buildEdges(graph) {
-  return (graph.edges || []).map((e, i) => ({
-    id: `e${i}`,
-    source: String(e.source.nodeId),
-    target: String(e.target.nodeId),
-    sourceHandle: `out-${e.source.portIndex}`,
-    targetHandle: `in-${e.target.portIndex}`,
-    label: e.varName,
-    type: 'default',
-    className: `ng-edge ng-edge-${(e.kind || 'Data').toLowerCase()}`,
-  }));
+  return (graph.edges || []).map((e, i) => {
+    const isJump = e.kind === 'Jump';
+    return {
+      id: `e${i}`,
+      source: String(e.source.nodeId),
+      target: String(e.target.nodeId),
+      // Jump edges connect through dedicated handles on jump leaves
+      // (jump-out) and region nodes (jump-in). Data/Sequence edges
+      // route through the regular per-variable port handles.
+      sourceHandle: isJump ? 'jump-out' : `out-${e.source.portIndex}`,
+      targetHandle: isJump ? 'jump-in'  : `in-${e.target.portIndex}`,
+      label: e.varName,
+      type: 'default',
+      className: `ng-edge ng-edge-${(e.kind || 'Data').toLowerCase()}`,
+    };
+  });
 }
 
 // ── Phase 2: build ELK graph from MEASURED dimensions ───────────────

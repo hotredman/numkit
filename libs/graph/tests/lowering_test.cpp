@@ -561,3 +561,87 @@ TEST(GraphLowering, BreakAndContinueAreOwnNodes)
     EXPECT_GE(brk, 0);
     EXPECT_GE(cnt, 0);
 }
+
+// ── Phase 2b: jump edges (break/continue/return → enclosing region) ─
+
+TEST(GraphLowering, BreakWiresJumpEdgeToEnclosingForLoop)
+{
+    auto g = lowerSource("for k = 1:10\n  break;\nend\n");
+    int forId = firstNodeOfKind(g, graph::NodeKind::ForRegion);
+    int brkId = firstNodeOfKind(g, graph::NodeKind::JumpBreak);
+    ASSERT_GE(forId, 0);
+    ASSERT_GE(brkId, 0);
+    int jumpEdges = 0;
+    for (const auto &e : g.edges) {
+        if (e.kind == graph::EdgeKind::Jump
+         && e.source.nodeId == brkId
+         && e.target.nodeId == forId) {
+            ++jumpEdges;
+            EXPECT_EQ(e.varName, "break");
+        }
+    }
+    EXPECT_EQ(jumpEdges, 1);
+}
+
+TEST(GraphLowering, ContinueWiresJumpEdgeToEnclosingWhileLoop)
+{
+    auto g = lowerSource("x = 0;\nwhile x < 10\n  continue;\nend\n");
+    int whId  = firstNodeOfKind(g, graph::NodeKind::WhileRegion);
+    int cntId = firstNodeOfKind(g, graph::NodeKind::JumpContinue);
+    ASSERT_GE(whId, 0);
+    ASSERT_GE(cntId, 0);
+    bool wired = false;
+    for (const auto &e : g.edges) {
+        if (e.kind == graph::EdgeKind::Jump
+         && e.source.nodeId == cntId
+         && e.target.nodeId == whId) {
+            wired = true;
+            EXPECT_EQ(e.varName, "continue");
+        }
+    }
+    EXPECT_TRUE(wired);
+}
+
+TEST(GraphLowering, NestedBreakWiresToInnermostLoop)
+{
+    // Inner break should target the INNER for, not the outer one.
+    auto g = lowerSource(
+        "for i = 1:3\n"
+        "  for j = 1:3\n"
+        "    break;\n"
+        "  end\n"
+        "end\n");
+    int outerFor = -1, innerFor = -1, brkId = -1;
+    for (size_t i = 0; i < g.nodes.size(); ++i) {
+        if (g.nodes[i].kind == graph::NodeKind::ForRegion) {
+            if (outerFor < 0) outerFor = (int)i;
+            else              innerFor = (int)i;
+        }
+        if (g.nodes[i].kind == graph::NodeKind::JumpBreak) brkId = (int)i;
+    }
+    ASSERT_GE(outerFor, 0);
+    ASSERT_GE(innerFor, 0);
+    ASSERT_GE(brkId, 0);
+    for (const auto &e : g.edges) {
+        if (e.kind == graph::EdgeKind::Jump && e.source.nodeId == brkId) {
+            EXPECT_EQ(e.target.nodeId, innerFor);
+            EXPECT_NE(e.target.nodeId, outerFor);
+        }
+    }
+}
+
+TEST(GraphLowering, BreakAtScriptTopLevelHasNoJumpEdge)
+{
+    // `break` outside any loop is a semantic error in MATLAB. Our
+    // lowering doesn't reject it — but it emits the node WITHOUT
+    // any Jump edge, leaving it dangling so the view can highlight
+    // the orphan jump as a code-smell signal.
+    auto g = lowerSource("break;\n");
+    int brkId = firstNodeOfKind(g, graph::NodeKind::JumpBreak);
+    ASSERT_GE(brkId, 0);
+    int jumpEdges = 0;
+    for (const auto &e : g.edges) {
+        if (e.kind == graph::EdgeKind::Jump && e.source.nodeId == brkId) ++jumpEdges;
+    }
+    EXPECT_EQ(jumpEdges, 0);
+}
