@@ -192,6 +192,57 @@ bool lhsIsReadModifyWrite(const ASTNode *lhs)
         || lhs->type == NodeType::DYNAMIC_FIELD_ACCESS;
 }
 
+/** Walk an AST subtree and collect names of variables ASSIGNED
+ *  anywhere inside (ASSIGN, MULTI_ASSIGN, for-iter vars, global /
+ *  persistent decls). Used to identify loop-carried variables —
+ *  the set of names a loop body writes to, which combined with the
+ *  pre-loop producer state tells us which need explicit φ-nodes
+ *  at the loop header (Phase 2e). */
+void collectAssignedNames(const ASTNode *node, std::set<std::string> &out)
+{
+    if (!node) return;
+    if (node->type == NodeType::ASSIGN) {
+        if (!node->children.empty()) {
+            for (const auto &n : assignLhsOutputs(node->children[0].get())) {
+                out.insert(n);
+            }
+        }
+        // RHS could contain anon-funcs etc; recursing into it is safe.
+        for (size_t i = 1; i < node->children.size(); ++i) {
+            collectAssignedNames(node->children[i].get(), out);
+        }
+        return;
+    }
+    if (node->type == NodeType::MULTI_ASSIGN) {
+        for (const auto &n : node->returnNames) {
+            if (!n.empty() && n != "~") out.insert(n);
+        }
+        for (const auto &c : node->children) collectAssignedNames(c.get(), out);
+        return;
+    }
+    if (node->type == NodeType::FOR_STMT && !node->strValue.empty()) {
+        out.insert(node->strValue);  // iter var is an assignment too
+    }
+    if ((node->type == NodeType::GLOBAL_STMT
+      || node->type == NodeType::PERSISTENT_STMT)) {
+        for (const auto &n : node->paramNames)  out.insert(n);
+        for (const auto &n : node->returnNames) out.insert(n);
+    }
+    if (node->type == NodeType::TRY_STMT && !node->strValue.empty()) {
+        // catch var (e.g. ME) — written when the catch fires; we
+        // count it so the outer loop knows the try-region modified
+        // a local name even if the user never assigns to it
+        // explicitly elsewhere. (It still stays scope-local thanks
+        // to the catch-var leak fix in lowerTry.)
+    }
+    for (const auto &c : node->children) collectAssignedNames(c.get(), out);
+    for (const auto &br : node->branches) {
+        collectAssignedNames(br.first.get(),  out);
+        collectAssignedNames(br.second.get(), out);
+    }
+    if (node->elseBranch) collectAssignedNames(node->elseBranch.get(), out);
+}
+
 // ── Lowering state ──────────────────────────────────────────────────
 
 struct LoweringState {
@@ -654,6 +705,44 @@ void lowerIf(LoweringState &S, const ASTNode &stmt)
                    /*hasFallThrough=*/ !stmt.elseBranch, stmt);
 }
 
+/** Create loop-header φ-nodes for every variable that is BOTH
+ *  pre-existing OUTSIDE the loop AND assigned INSIDE the body. Each
+ *  φ has two input slots: [0] pre-loop producer, [1] back-edge from
+ *  body's last writer (wired by the caller after the body is
+ *  lowered). The φ-node is placed INSIDE the loop region (current
+ *  S.currentRegion at call time) so the renderer can draw it at the
+ *  loop-header position.
+ *
+ *  Returns a map varName → φ-node id. Caller uses it to (a) rewire
+ *  body reads to come from φ, (b) wire body's last writer back into
+ *  φ.in[1] after body lowering, and (c) expose φ as the post-loop
+ *  producer for external reads. */
+std::unordered_map<std::string, int> emitLoopPhis(
+        LoweringState &S,
+        const std::unordered_map<std::string, int> &preProducers,
+        const std::set<std::string> &assignedInBody,
+        const std::string &iterName,
+        int loopLine)
+{
+    std::unordered_map<std::string, int> phiByVar;
+    for (const auto &name : assignedInBody) {
+        if (name == iterName) continue;  // for-iter handled separately
+        auto preIt = preProducers.find(name);
+        if (preIt == preProducers.end()) continue;  // not loop-carried
+        Node mn;
+        mn.kind        = NodeKind::Merge;
+        mn.sourceLine  = loopLine;
+        mn.sourceCol   = 0;
+        mn.sourceText  = name;
+        mn.inputs      = { name, name };   // [0] = pre-loop, [1] = back-edge
+        mn.outputs     = { name };
+        int phiId = S.addNode(std::move(mn));
+        S.addDataEdge(preIt->second, phiId, /*portIndex=*/ 0, name);
+        phiByVar[name] = phiId;
+    }
+    return phiByVar;
+}
+
 void lowerFor(LoweringState &S, const ASTNode &stmt)
 {
     // Header = `for k = range`. children[0] = range expr,
@@ -674,21 +763,48 @@ void lowerFor(LoweringState &S, const ASTNode &stmt)
 
     auto preProducers = S.lastProducer;
     auto frame = S.enterRegion(rid);
+
+    // Phase 2e: emit loop-header φ-nodes for vars that are loop-carried
+    // (pre-existing outside AND assigned in body). Body reads of these
+    // vars get rerouted through φ; back-edges are wired AFTER the body
+    // is lowered (we need to know each var's body-last-writer first).
+    std::set<std::string> assignedInBody;
+    if (body) collectAssignedNames(body, assignedInBody);
+    auto phiByVar = emitLoopPhis(S, preProducers, assignedInBody,
+                                 iterName, stmt.line);
+    for (const auto &[name, phiId] : phiByVar) {
+        S.lastProducer[name] = phiId;
+    }
+
     if (!iterName.empty()) {
         S.lastProducer[iterName] = rid;  // body reads of `k` wire to ForRegion
     }
     lowerBodyInto(S, rid, body);
     auto bodyProducers = S.lastProducer;
+
+    // Wire back-edges: body's last writer of each loop-carried var
+    // feeds φ.in[1]. Skip vars whose body producer IS the φ itself
+    // (no actual write happened — the var was only read).
+    for (const auto &[name, phiId] : phiByVar) {
+        auto it = bodyProducers.find(name);
+        if (it != bodyProducers.end() && it->second != phiId) {
+            S.addDataEdge(it->second, phiId, /*portIndex=*/ 1, name);
+        }
+    }
+
     S.leaveRegion(frame);
 
     // Post-loop scope:
-    //   - Vars assigned in body keep their last-writer for external reads
-    //     (last-writer-wins approximation; Phase 2c → merge nodes).
+    //   - Loop-carried vars (those with a φ) expose the φ as their
+    //     producer → external reads connect through the merge point.
+    //   - Vars NEW in body (no pre-producer) keep their body-last-writer
+    //     for external reads — that's the only value they could have.
     //   - iterName is special — see the shadowing rule below.
     S.lastProducer = preProducers;
     for (const auto &[name, id] : bodyProducers) {
-        if (name == iterName) continue;  // iter var handled separately
-        S.lastProducer[name] = id;
+        if (name == iterName) continue;
+        auto phiIt = phiByVar.find(name);
+        S.lastProducer[name] = (phiIt != phiByVar.end()) ? phiIt->second : id;
     }
     // Iter-var visibility after the loop:
     //   • If preProducers already bound iterName to an OUTER ForRegion
@@ -721,13 +837,33 @@ void lowerWhile(LoweringState &S, const ASTNode &stmt)
     // No implicit iter var.
     auto preProducers = S.lastProducer;
     auto frame = S.enterRegion(rid);
+
+    // Phase 2e: same loop-header φ logic as lowerFor — see the
+    // detailed comments there.
+    std::set<std::string> assignedInBody;
+    if (body) collectAssignedNames(body, assignedInBody);
+    auto phiByVar = emitLoopPhis(S, preProducers, assignedInBody,
+                                 /*iterName=*/ "", stmt.line);
+    for (const auto &[name, phiId] : phiByVar) {
+        S.lastProducer[name] = phiId;
+    }
+
     lowerBodyInto(S, rid, body);
     auto bodyProducers = S.lastProducer;
+
+    for (const auto &[name, phiId] : phiByVar) {
+        auto it = bodyProducers.find(name);
+        if (it != bodyProducers.end() && it->second != phiId) {
+            S.addDataEdge(it->second, phiId, /*portIndex=*/ 1, name);
+        }
+    }
+
     S.leaveRegion(frame);
 
     S.lastProducer = preProducers;
     for (const auto &[name, id] : bodyProducers) {
-        S.lastProducer[name] = id;
+        auto phiIt = phiByVar.find(name);
+        S.lastProducer[name] = (phiIt != phiByVar.end()) ? phiIt->second : id;
     }
 }
 
