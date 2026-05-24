@@ -120,7 +120,7 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
 }
 
 /* ─────────────── editor body (gutter + SyntaxEditor) ─────────────── */
-function EditorBody({ activeTab, errorLine, debugLine, breakpoints, onToggleBp, onChange }) {
+function EditorBody({ activeTab, errorLine, debugLine, breakpoints, onToggleBp, onChange, onCursor }) {
   const editorRef = useRef(null);
   const gutterRef = useRef(null);
 
@@ -177,6 +177,7 @@ function EditorBody({ activeTab, errorLine, debugLine, breakpoints, onToggleBp, 
           value={activeTab?.code || ''}
           onChange={onChange}
           onScroll={handleScroll}
+          onCursor={onCursor}
           errorLine={errorLine}
           debugLine={debugLine}
         />
@@ -339,6 +340,10 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   // node graph (NumkitGraphView). Single-shared state across tabs for
   // MVP — switching tabs keeps whatever view the user picked last.
   const [editorView, setEditorView] = useState('text');
+  // Caret position in the active editor tab, tracked for bidirectional
+  // sync with the AST view (cursor on line N → AST highlights the
+  // deepest node whose source range contains line N).
+  const [editorCursor, setEditorCursor] = useState({ line: 1, col: 1 });
   useEffect(() => {
     const v = engine?.version?.();
     if (v) setEngineVersion(v);
@@ -868,6 +873,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                     breakpoints={activeBreakpoints}
                     onToggleBp={toggleBreakpoint}
                     onChange={updateTabCode}
+                    onCursor={(line, col) => setEditorCursor({ line, col })}
                   />
                 ) : editorView === 'graph' ? (
                   <NumkitGraphView
@@ -878,6 +884,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                   <NumkitASTView
                     source={activeTabData?.code || ''}
                     engine={engine}
+                    cursorLine={editorCursor.line}
                     onNavigate={(line/*, col*/) => {
                       // Clicking an AST node jumps back to the text
                       // editor at that source line. The setErrorLine
