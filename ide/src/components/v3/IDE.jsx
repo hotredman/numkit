@@ -15,6 +15,7 @@ import FiguresPane from './FiguresPane';
 import FigureWindow from './FigureWindow';
 import NumkitGraphView from './NumkitGraphView';
 import NumkitASTView from './NumkitASTView';
+import NumkitASTTreeView from './NumkitASTTreeView';
 import { adaptVariables, adaptFigures } from './adapters';
 
 import tempFS from '../../temporary';
@@ -356,7 +357,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   // always be active (the toggle handler refuses to turn off the
   // last one). Default = just text.
   const [editorPanes, setEditorPanes] = useState({
-    text: true, graph: false, ast: false,
+    text: true, graph: false, ast: false, tree: false,
   });
   const toggleEditorPane = useCallback((key) => {
     setEditorPanes((prev) => {
@@ -900,8 +901,13 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                   <button
                     className={`evt-btn${editorPanes.ast ? ' is-active' : ''}`}
                     onClick={() => toggleEditorPane('ast')}
-                    title="Parse-tree AST pane (toggle)"
+                    title="Parse-tree AST — graph layout (toggle)"
                   >AST</button>
+                  <button
+                    className={`evt-btn${editorPanes.tree ? ' is-active' : ''}`}
+                    onClick={() => toggleEditorPane('tree')}
+                    title="Parse-tree AST — indented tree (astexplorer-style)"
+                  >tree</button>
                 </div>
                 <div className="editor-multi-pane">
                   {editorPanes.text && (
@@ -940,6 +946,21 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                           // setCaret runs after React applies the
                           // pane-visibility change, so we wait one
                           // micro-tick for the editor to mount.
+                          ensureEditorPane('text');
+                          queueMicrotask(() => {
+                            editorBodyRef.current?.setCaret(line, col || 1);
+                          });
+                        }}
+                      />
+                    </div>
+                  )}
+                  {editorPanes.tree && (
+                    <div className="editor-pane">
+                      <NumkitASTTreeView
+                        source={activeTabData?.code || ''}
+                        engine={engine}
+                        cursorLine={editorCursor.line}
+                        onNavigate={(line, col) => {
                           ensureEditorPane('text');
                           queueMicrotask(() => {
                             editorBodyRef.current?.setCaret(line, col || 1);

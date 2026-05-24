@@ -561,6 +561,101 @@ input, select { font-family: inherit; color: inherit; }
   stroke-width: 1.2;
 }
 
+/* ── NumkitASTTreeView (indented parse-tree, astexplorer-style) ─── */
+.numkit-ast-tree-view {
+  flex: 1;
+  height: 100%;
+  background: var(--bg-1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.numkit-ast-tree-view .ng-empty {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 100%; padding: 24px;
+  color: var(--fg-3);
+  font-family: var(--font-mono);
+}
+.numkit-ast-tree-view .ng-empty-title {
+  font-size: 13px; color: var(--fg-2); margin-bottom: 4px;
+}
+.numkit-ast-tree-view .ng-empty-msg {
+  font-size: 11px; text-align: center; max-width: 320px;
+  line-height: 1.4;
+}
+.ng-ast-tree-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 6px 0;
+}
+/* One row per AST node — fixed line-height, paddingLeft set inline
+   by the renderer based on depth. Coloured left-border per
+   category matches the graph-AST node-card look. */
+.ng-ast-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--fg-1);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  white-space: nowrap;
+}
+.ng-ast-tree-row:hover {
+  background: rgba(127, 217, 154, 0.06);
+}
+.ng-ast-tree-row.is-active {
+  background: rgba(127, 217, 154, 0.15);
+  border-left-color: var(--accent);
+}
+/* Chevron — clickable hot zone for collapse/expand. Leaves (no
+   children) show a faint dot so the column stays aligned. */
+.ng-ast-tree-chev {
+  display: inline-block;
+  width: 12px; text-align: center;
+  color: var(--fg-2);
+  font-size: 9px;
+  flex-shrink: 0;
+  user-select: none;
+}
+.ng-ast-tree-chev:hover { color: var(--accent); }
+.ng-ast-tree-chev.is-leaf { color: var(--fg-3); cursor: default; }
+.ng-ast-tree-chev.is-leaf:hover { color: var(--fg-3); }
+.ng-ast-tree-type {
+  font-weight: 700;
+  color: var(--fg-0);
+}
+.ng-ast-tree-value {
+  color: var(--fg-2);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ng-ast-tree-loc {
+  margin-left: auto;
+  color: var(--fg-3);
+  font-size: 9.5px;
+  padding-left: 10px;
+}
+
+/* Category-coloured left border on tree rows (same palette as the
+   graph AST node-card categories — see `.ng-ast-cat-*` above). */
+.ng-ast-tree-row.ng-ast-cat-container { border-left-color: #7a8390; }
+.ng-ast-tree-row.ng-ast-cat-literal   { border-left-color: #7fd99a; }
+.ng-ast-tree-row.ng-ast-cat-ident     { border-left-color: #7fd0e0; }
+.ng-ast-tree-row.ng-ast-cat-operator  { border-left-color: #9b8cf2; }
+.ng-ast-tree-row.ng-ast-cat-access    { border-left-color: #f0b97a; }
+.ng-ast-tree-row.ng-ast-cat-assign    { border-left-color: #5fb87a; }
+.ng-ast-tree-row.ng-ast-cat-control   { border-left-color: #d97c7c; }
+.ng-ast-tree-row.ng-ast-cat-decl      { border-left-color: #c98cf2; }
+/* Active state border wins over category — render order matters. */
+.ng-ast-tree-row.is-active { border-left-color: var(--accent); }
+
 /* Node base — all NodeKinds share this card shape. Per-kind classes
    add accent border / header colour. Sizing: `display: inline-block`
    so the card HUGS its content (code body + ports footer). React

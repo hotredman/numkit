@@ -7,24 +7,29 @@ Web-based REPL for the numkit (MATLAB-like) interpreter, built with React + Vite
 - **Terminal** — interactive command line with history, autocomplete, multiline
 - **Plotting** — `plot()`, `bar()`, `scatter()`, `hist()` via D3.js
 - **Script Editor** — multi-tab editor with line numbers, run button
-- **Editor multi-pane (`text` / `graph` / `AST`)** — independent
-  toggles above each tab; any combination renders side-by-side as
-  horizontal-flex panes:
+- **Editor multi-pane (`text` / `graph` / `AST` / `tree`)** —
+  independent toggles above each tab; any combination renders
+  side-by-side as horizontal-flex panes:
   - `text` — syntax-highlighted source editor
   - `graph` — data-flow NodeGraph: if/for/while/switch/try as
     compound regions, SSA φ-merge nodes, break/continue/return as
     dashed jump arcs, try/catch as a dashed exception arc, ELK
     `layered` layout with DOM-measured node sizes
-  - `AST` — literal parse-tree: every NodeType visible, colour-
-    coded by category (Literals / Identifiers / Operators / Calls
-    & access / Assignments / Control flow / Declarations /
-    Containers), per-category filter chips, collapse-all /
-    expand-all, click any chevron to fold its subtree
-- **Bidirectional cursor sync** — when `text` and `AST` panes are
-  both active, moving the caret in the editor highlights the
-  deepest matching AST node and centres it in the AST canvas;
-  clicking an AST node moves the real editor caret to that
-  `line:col` (not just a line highlight).
+  - `AST` — literal parse-tree, graph layout: every NodeType
+    visible as a card connected by parent→child edges,
+    colour-coded by category (Literals / Identifiers / Operators
+    / Calls & access / Assignments / Control flow / Declarations
+    / Containers), per-category filter chips, collapse-all /
+    expand-all
+  - `tree` — same AST data as the `AST` pane but rendered
+    astexplorer-style: indented chevron list with per-row
+    `line:col`, fits more nodes on screen for deep expressions
+- **Bidirectional cursor sync** — when `text` is active alongside
+  either `AST` or `tree`, moving the caret in the editor
+  highlights the deepest matching AST node (centred in the graph
+  canvas, scrolled into view in the tree); clicking any AST node
+  moves the real editor caret to that `line:col` (not just a line
+  highlight).
 - **File I/O** — open/save `.m` files from disk
 - **GitHub Browser** — browse any GitHub repo, preview and run `.m` files
 - **Variable Inspector** — live workspace with types, sizes, previews
