@@ -175,13 +175,36 @@ function OpaqueNode({ data }) {
 
 /** Compound node for control-flow regions. The header is tagged with
  *  `data-region-header={id}` so the layout effect can read its
- *  measured height and feed it to ELK as the top inset. */
+ *  measured height and feed it to ELK as the top inset.
+ *
+ *  Port labels (left/right edges) need to be vertically offset past
+ *  the header chip so they don't overlap its text. The first render
+ *  uses a sensible default (PORT_LABEL_TOP_OFFSET); a ResizeObserver
+ *  on the header ref re-measures after mount and pushes the labels
+ *  to the precise position. */
+const PORT_LABEL_TOP_OFFSET = 44;  // initial estimate; overridden by DOM measurement
+
 function RegionNode({ id, data }) {
   const inputs  = data.inputs  || [];
   const outputs = data.outputs || [];
+  const headerRef = useRef(null);
+  const [headerH, setHeaderH] = useState(PORT_LABEL_TOP_OFFSET);
+  useEffect(() => {
+    if (!headerRef.current) return;
+    // Read once on mount + after every resize. The same header element
+    // is also measured during the layout pass for ELK's top-inset
+    // padding — we just mirror that measurement here for port y's.
+    const update = () => {
+      if (headerRef.current) setHeaderH(headerRef.current.offsetHeight + 12);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(headerRef.current);
+    return () => ro.disconnect();
+  }, []);
   return (
     <div className={`ng-region ng-region-${data.kind.toLowerCase()}`}>
-      <div className="ng-region-header" data-region-header={id}>
+      <div className="ng-region-header" data-region-header={id} ref={headerRef}>
         <span className="ng-region-source">{data.sourceText || ''}</span>
       </div>
       {/* Jump-target handle for break/continue (loops) and return
@@ -190,17 +213,11 @@ function RegionNode({ id, data }) {
       <Handle type="target" position={Position.Top} id="jump-in"
               style={{ left: '50%' }} />
       {inputs.map((name, i) => {
-        const y = 14 + i * PORT_STEP + PORT_STEP / 2;
+        const y = headerH + i * PORT_STEP + PORT_STEP / 2;
         return (
           <span key={`rin-${i}`}>
-            {/* External entrant — receives cross-hierarchy edges from
-                producers OUTSIDE the region (target type). */}
             <Handle type="target" position={Position.Left}
                     id={`in-${i}`} style={{ top: y }} title={name} />
-            {/* Internal passthrough source — emits edges to children
-                INSIDE the region (source type) for loop-carried
-                Phase-2e routing: region.in[k] → φ.in[0]. Same
-                position as `in-${i}` so visually it's one port. */}
             <Handle type="source" position={Position.Left}
                     id={`inp-${i}`} style={{ top: y }} title={name} />
             <span className="ng-port-inline ng-port-in"
@@ -209,16 +226,11 @@ function RegionNode({ id, data }) {
         );
       })}
       {outputs.map((name, i) => {
-        const y = 14 + i * PORT_STEP + PORT_STEP / 2;
+        const y = headerH + i * PORT_STEP + PORT_STEP / 2;
         return (
           <span key={`rout-${i}`}>
-            {/* Internal passthrough target — receives edges from
-                children INSIDE the region (target type) for the
-                loop-carried Phase-2e routing: φ → region.out[k]. */}
             <Handle type="target" position={Position.Right}
                     id={`outt-${i}`} style={{ top: y }} title={name} />
-            {/* External exit — emits cross-hierarchy edges to
-                consumers OUTSIDE the region (source type). */}
             <Handle type="source" position={Position.Right}
                     id={`out-${i}`} style={{ top: y }} title={name} />
             <span className="ng-port-inline ng-port-out"
@@ -343,6 +355,7 @@ function buildEdges(graph) {
     const kind = e.kind || 'Data';
     let sourceHandle = `out-${e.source.portIndex}`;
     let targetHandle = `in-${e.target.portIndex}`;
+    let isInternalPassthrough = false;
     if (kind === 'Jump') {
       sourceHandle = 'jump-out';
       targetHandle = 'jump-in';
@@ -351,22 +364,22 @@ function buildEdges(graph) {
       targetHandle = 'exception-in';
     } else {
       // Phase 2e internal passthrough detection: when a Data edge
-      // SOURCE is a region and the TARGET is a child INSIDE that
-      // region, the source is the region's INPUT port acting as an
-      // internal source → use the `inp-N` handle. Mirrored on the
-      // other side: edge from inside-child to its parent region's
-      // OUTPUT port uses `outt-N`.
+      // SOURCE is a region and the TARGET is a child INSIDE it,
+      // the source is the region's INPUT port acting as an internal
+      // source → use the `inp-N` handle. Mirrored on the other side.
       const srcNode = nodeById.get(e.source.nodeId);
       const tgtNode = nodeById.get(e.target.nodeId);
       if (srcNode && tgtNode
        && isRegionKind(srcNode.kind)
        && tgtNode.parentRegionId === e.source.nodeId) {
         sourceHandle = `inp-${e.source.portIndex}`;
+        isInternalPassthrough = true;
       }
       if (srcNode && tgtNode
        && isRegionKind(tgtNode.kind)
        && srcNode.parentRegionId === e.target.nodeId) {
         targetHandle = `outt-${e.target.portIndex}`;
+        isInternalPassthrough = true;
       }
     }
     return {
@@ -375,7 +388,12 @@ function buildEdges(graph) {
       target: String(e.target.nodeId),
       sourceHandle,
       targetHandle,
-      label: e.varName,
+      // Internal passthrough edges (region.in → φ, φ → region.out)
+      // already share a label with the cross-hierarchy edge meeting
+      // them at the region's port — printing the same `var` four
+      // times along one path is visual noise. Hide labels on the
+      // intra-region segments; the external segments alone carry it.
+      label: isInternalPassthrough ? '' : e.varName,
       type: 'default',
       className: `ng-edge ng-edge-${kind.toLowerCase()}`,
     };
