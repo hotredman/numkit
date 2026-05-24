@@ -13,6 +13,7 @@ import CompositePlot from './CompositePlot';
 import Composite3DPlot from './Composite3DPlot';
 import FigureErrorBoundary from './FigureErrorBoundary';
 import PolarPlot, { defaultPolarViewport } from './PolarPlot';
+import { fitCellViewport } from './plotUtils';
 
 function renderCell(cell, props) {
   if (cell.kind === 'composite3d') {
@@ -60,9 +61,59 @@ export default function SubplotGrid({
   showXLabel = true,
   showYLabel = true,
   showZLabel = true,
+  // Display setters fanned out to each cell so the per-cell right-click
+  // menu can offer the same Display submenu as the toolbar. Toggles
+  // mutate the figure-wide state in FigureWindow, so a click in any cell
+  // updates every cell at once — matches the toolbar semantics.
+  setShowMajor  = null,
+  setShowMinor  = null,
+  setShowTitle  = null,
+  setShowXLabel = null,
+  setShowYLabel = null,
+  setShowLegend = null,
+  // Colorbar visibility — figure-wide; falls through to each cell as
+  // showColorbar prop, with per-cell override pattern (same as
+  // major/minor/title etc.) for the per-cell ПКМ.
+  showColorbar = null,
+  setShowColorbar = null,
+  // Figure-wide colormap override from FigureWindow's toolbar. Used as
+  // the FALLBACK for cells without their own per-cell override; when it
+  // changes (toolbar pick), per-cell overrides are dropped — toolbar
+  // wins ("панель = ко всем").
+  colormapOverride = null,
+  setColormapOverride = null,
+  // ПКМ bridge — top-level reset + save/export handlers. Same per-cell
+  // ContextMenu ends up surfacing them.
+  onResetAll          = null,
+  onExportSvg         = null,
+  onExportPng2x       = null,
+  onExportPngPrint85  = null,
+  onExportPngPrint170 = null,
+  onExportPngPrint210 = null,
+  onExportCsv         = null,
+  onExportTsv         = null,
+  onExportJson        = null,
   xLog,
   yLog,
   zLog,
+  // FigureWindow's fit ▾ button increments fitSignal.n to ask SubplotGrid
+  // to reset every cell's viewport along fitSignal.axis ('both'|'x'|'y'|'z').
+  // Counter pattern so React reliably notices a re-fit even when the same
+  // axis is requested twice in a row.
+  fitSignal = null,
+  // Toolbar Reset / display ▾ Reset increments displayResetSignal.n to
+  // tell SubplotGrid to drop every cell's per-cell display override
+  // back to the figure-wide value. Counter pattern (same as fitSignal).
+  displayResetSignal = null,
+  // Per-cell state (single source of truth) lives in FigureWindow now.
+  // SubplotGrid receives the resolved cellState array + per-cell setter
+  // factories from the parent and fans them out to each cell's
+  // CompositePlot.
+  cellState = [],
+  makeCellDisplaySetter = null,
+  makeCellColormapSetter = null,
+  makeCellDisplayReset = null,
+  makeCellColormapReset = null,
   interactive = true,
   engine = null,
 }) {
@@ -104,6 +155,25 @@ export default function SubplotGrid({
   // every script re-run.
   const lastShapeRef = useRef('');
   const lastDefaultsRef = useRef([]);
+  // Track the last-handled fitSignal counter so the effect doesn't
+  // re-fit on every render — only when n changes.
+  const lastFitNRef = useRef(0);
+  useEffect(() => {
+    if (!fitSignal || fitSignal.n === lastFitNRef.current) return;
+    lastFitNRef.current = fitSignal.n;
+    // All per-cell fit routing lives in plotUtils.fitCellViewport —
+    // single source of truth shared with FigureWindow.applyFit and
+    // CompositePlot ПКМ Fit. Handles axis-equal upgrade + polar/
+    // cartesian dispatch.
+    setViewports((prev) => figure.cells.map((cell, idx) => {
+      const cur = prev[idx] || defaultViewport(cell);
+      return fitCellViewport(cell, cur, fitSignal.axis);
+    }));
+  }, [fitSignal, figure.cells]);
+
+  // Per-cell display + colormap overrides are owned by FigureWindow now
+  // (it needs the data to compute aggregate "✓ on every cell?" marks
+  // for the toolbar). We only consume them here via the props above.
   useEffect(() => {
     const shape = `${figure.id}:${figure.cells.length}:${figure.cells.map((c) => c.kind).join(',')}`;
     const newDefaults = figure.cells.map(defaultViewport);
@@ -182,9 +252,127 @@ export default function SubplotGrid({
                 next[idx] = v;
                 return next;
               }),
-              major, minor,
-              showTitle, showXLabel, showYLabel, showZLabel,
-              xLog, yLog, zLog,
+              ...(() => {
+                // Single source of truth: cellState[idx] is the
+                // FigureWindow-owned axes-derived snapshot for this
+                // cell. For preview-card mode FiguresPane doesn't pass
+                // cellState — every prop falls back to a script-derived
+                // default computed from the raw cell JSON.
+                const s = cellState[idx] || {};
+                const legendUserAsked = (Array.isArray(cell.legend) && cell.legend.length > 0)
+                                     || (cell.legendLocation && cell.legendLocation !== 'none');
+                const colorbarUserAsked = !!cell.colorbarLocation
+                                       && cell.colorbarLocation !== 'off';
+                const pick = (key, fb) => (s[key] !== undefined ? s[key] : fb);
+                // Setter factory dispatchers — guarded so preview mode
+                // (no factories provided) renders statically.
+                const mk   = (fn) => (...a) => fn ? fn(...a) : null;
+                const mks  = mk(makeCellDisplaySetter);
+                const mkc  = mk(makeCellColormapSetter);
+                const mkdr = mk(makeCellDisplayReset);
+                const mkcr = mk(makeCellColormapReset);
+                return {
+                  // Combined grid for legacy paths; per-axis below for
+                  // CompositePlot's renderer split (XGrid / YGrid).
+                  major:  pick('showMajor', cell.grid === 'on'),
+                  minor:  pick('showMinor', cell.gridMinor === 'on'),
+                  xGrid:     pick('xGrid',     cell.grid === 'on'),
+                  yGrid:     pick('yGrid',     cell.grid === 'on'),
+                  // Polar grid (per-axis). Polar cells inherit cell.
+                  // grid only when this cell IS polar — cartesian
+                  // cells get 'off' so RGrid/ThetaGrid don't reach
+                  // them through the cellState aggregate.
+                  rGrid:     pick('rGrid',     cell.grid === 'on' && cell.kind === 'polar'),
+                  thetaGrid: pick('thetaGrid', cell.grid === 'on' && cell.kind === 'polar'),
+                  xMinor:     pick('xMinor',     cell.gridMinor === 'on'),
+                  yMinor:     pick('yMinor',     cell.gridMinor === 'on'),
+                  zMinor:     pick('zMinor',     cell.gridMinor === 'on' && cell.kind === 'composite3d'),
+                  rMinor:     pick('rMinor',     cell.gridMinor === 'on' && cell.kind === 'polar'),
+                  thetaMinor: pick('thetaMinor', cell.gridMinor === 'on' && cell.kind === 'polar'),
+                  // Scale + direction
+                  xLog:     pick('xLog',     cell.xscale === 'log'),
+                  yLog:     pick('yLog',     cell.yscale === 'log'),
+                  zLog:     pick('zLog',     cell.zscale === 'log'),
+                  xReverse: pick('xReverse', cell.xDir === 'reverse'),
+                  yReverse: pick('yReverse', cell.yDir === 'reverse'),
+                  zReverse: pick('zReverse', cell.zDir === 'reverse'),
+                  // Aspect mode — per-cell. Script value is cell.axisMode;
+                  // UI override (via ПКМ Axes ▶ aspect rows) flows through
+                  // cellState too. CompositePlot reads `axisMode` prop with
+                  // fallback to figure.axisMode.
+                  axisMode: pick('axisMode', cell.axisMode || ''),
+                  // Visibility / box
+                  axisVisible: pick('showAxis', cell.axisVisible !== false),
+                  boxOn:       pick('showBox',  cell.boxOn       !== false),
+                  // Labels
+                  showTitle:  pick('showTitle',  !!(cell.title && !cell.titleAuto)),
+                  showXLabel: pick('showXLabel', !!cell.xLabel),
+                  showYLabel: pick('showYLabel', !!cell.yLabel),
+                  showZLabel: pick('showZLabel', !!cell.zLabel),
+                  // Legend / colorbar
+                  showLegend:       pick('showLegend',       !!legendUserAsked),
+                  showColorbar:     pick('showColorbar',     !!colorbarUserAsked),
+                  legendLocation:   pick('legendLocation',   null),
+                  colorbarLocation: pick('colorbarLocation', null),
+                  // Colormap
+                  colormapOverride: s.colormap != null ? s.colormap : null,
+                  // Per-cell setters (no-op in preview mode). Mirrors
+                  // the toolbar's axes ▾ / decoration ▾ surface so the
+                  // ПКМ Axes ▶ / Decoration ▶ submenus inside this
+                  // cell expose the same toggles — but writing only to
+                  // THIS cell, not fanning out.
+                  setShowMajor:    mks(idx, 'showMajor'),
+                  setShowMinor:    mks(idx, 'showMinor'),
+                  setXGrid:        mks(idx, 'xGrid'),
+                  setYGrid:        mks(idx, 'yGrid'),
+                  setRGrid:        mks(idx, 'rGrid'),
+                  setThetaGrid:    mks(idx, 'thetaGrid'),
+                  setXMinor:       mks(idx, 'xMinor'),
+                  setYMinor:       mks(idx, 'yMinor'),
+                  setZMinor:       mks(idx, 'zMinor'),
+                  setRMinor:       mks(idx, 'rMinor'),
+                  setThetaMinor:   mks(idx, 'thetaMinor'),
+                  setShowAxis:     mks(idx, 'showAxis'),
+                  setShowBox:      mks(idx, 'showBox'),
+                  setXReverse:     mks(idx, 'xReverse'),
+                  setYReverse:     mks(idx, 'yReverse'),
+                  setZReverse:     mks(idx, 'zReverse'),
+                  setAxisMode:     mks(idx, 'axisMode'),
+                  setXLog:         mks(idx, 'xLog'),
+                  setYLog:         mks(idx, 'yLog'),
+                  setZLog:         mks(idx, 'zLog'),
+                  setShowTitle:    mks(idx, 'showTitle'),
+                  setShowXLabel:   mks(idx, 'showXLabel'),
+                  setShowYLabel:   mks(idx, 'showYLabel'),
+                  setShowZLabel:   mks(idx, 'showZLabel'),
+                  setShowLegend:   mks(idx, 'showLegend'),
+                  setShowColorbar: mks(idx, 'showColorbar'),
+                  setLegendLocation:   mks(idx, 'legendLocation'),
+                  setColorbarLocation: mks(idx, 'colorbarLocation'),
+                  setColormapOverride: mkc(idx),
+                  onDisplayReset:  mkdr(idx),
+                  onColormapReset: mkcr(idx),
+                };
+              })(),
+              // ПКМ Reset row inside a subplot cell must reset ONLY this
+              // cell — never fan out to siblings. Combine the per-cell
+              // display+colormap resets with a per-cell viewport reset
+              // (defaultViewport for this cell). Toolbar 🏠 Reset still
+              // does figure-wide via FigureWindow's resetAll.
+              onResetAll: () => {
+                if (makeCellDisplayReset)  makeCellDisplayReset(idx)();
+                if (makeCellColormapReset) makeCellColormapReset(idx)();
+                setViewports((prev) => {
+                  const next = prev.slice();
+                  next[idx] = defaultViewport(figure.cells[idx]);
+                  return next;
+                });
+              },
+              // Image + data exports inside a subplot cell must save
+              // ONLY that cell's content. We deliberately DON'T forward
+              // the figure-wide handlers from FigureWindow — CompositePlot
+              // falls back to its local exporters which act on the cell's
+              // own SVG ref + the cell's `figure.layers` data.
               fontScale: subFont,
               interactive,
               engine,

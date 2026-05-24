@@ -17,7 +17,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ContextMenu from './ContextMenu';
-import { exportSvgNode, exportPngNode, exportPngForPrint } from './plotUtils';
+import { fitCellViewport, exportSvgNode, exportPngNode, exportPngForPrint } from './plotUtils';
 
 const PALETTE = ['#7fd99a', '#5fb3d4', '#e9b870', '#9b8cf2', '#e26a6a',
                  '#d4a5e6', '#f2a37e', '#6fcfbf'];
@@ -80,9 +80,49 @@ export default function PolarPlot({
   viewport, setViewport,
   major = true,
   minor = true,
+  // Per-axis polar grid props (MATLAB RGrid / ThetaGrid). When the
+  // parent (FigureWindow) wires them, they take precedence over the
+  // combined `major` flag. Default (undefined) → fall back to `major`
+  // so preview cards and standalone callers keep current behaviour.
+  rGrid: rGridProp,
+  thetaGrid: thetaGridProp,
+  // Per-axis polar MINOR-grid props (MATLAB RMinorGrid / ThetaMinorGrid).
+  // Same per-axis-prop-wins rule as the major pair above; absent →
+  // fall back to the combined `minor` flag.
+  rMinor: rMinorProp,
+  thetaMinor: thetaMinorProp,
+  // ПКМ Grid ▶ setters — when provided (modal context), the right-
+  // click menu surfaces a polar-specialised Grid submenu mirroring
+  // the toolbar grid ▾ Polar section. Absent → submenu omitted.
+  setShowMajor = null,
+  setShowMinor = null,
+  setRGrid     = null,
+  setThetaGrid = null,
+  setRMinor     = null,
+  setThetaMinor = null,
+  // Decoration props — title / legend visibility + legend Location.
+  // PolarPlot now mirrors CompositePlot's Decoration ▶ submenu so the
+  // ПКМ surface is symmetric across plot kinds. Defaults: title shown
+  // when figure.title is set; legend hidden unless the script called
+  // legend(...) (figure.legend non-empty OR legendLocation set).
+  showTitle    = true,
+  showLegend   = true,
+  legendLocation: legendLocationProp,
+  setShowTitle      = null,
+  setShowLegend     = null,
+  setLegendLocation = null,
+  // Top-level Reset + figure-wide displayReset (matches CompositePlot's
+  // ПКМ bridge). FigureWindow wires `resetAll` / `displayReset`.
+  onResetAll     = null,
+  onDisplayReset = null,
   fontScale = 1,
   interactive = true,
 }) {
+  // Resolve per-axis grid: per-axis prop wins, otherwise combined.
+  const rGridOn     = (rGridProp     !== undefined) ? !!rGridProp     : !!major;
+  const thetaGridOn = (thetaGridProp !== undefined) ? !!thetaGridProp : !!major;
+  const rMinorOn     = (rMinorProp     !== undefined) ? !!rMinorProp     : !!minor;
+  const thetaMinorOn = (thetaMinorProp !== undefined) ? !!thetaMinorProp : !!minor;
   const svgRef  = useRef(null);
   const dragRef = useRef(null);
   const [ctxMenu, setCtxMenu] = useState(null);
@@ -106,7 +146,10 @@ export default function PolarPlot({
   const thMax = (thMaxDeg * Math.PI) / 180;
   const isFullSweep = Math.abs((thMaxDeg - thMinDeg) - 360) < 1e-6;
 
-  const padTop = (figure.title ? 28 : 12) * fontScale;
+  // padTop reserves space for the title strip — drop the reserve
+  // when title is either unset OR toggled off via Decoration ▶, so
+  // the polar disk gets the freed pixels back.
+  const padTop = ((figure.title && showTitle) ? 28 : 12) * fontScale;
   const padBot = 12 * fontScale;
   const padX   = 12 * fontScale;
   const cx = width / 2;
@@ -229,47 +272,185 @@ export default function PolarPlot({
     e.preventDefault();
     setCtxMenu({ x: e.clientX, y: e.clientY });
   }
+  // Per-series fit (ПКМ "Fit single curve r") stays a data-scan
+  // analogous to CompositePlot.applyFitSeries — scans ONE series's
+  // rho for the tightest possible r-extent. Different scope from
+  // the "Fit R" button (which is "fit cell to all data") so kept
+  // as its own function. seriesName === 'all' is no longer used
+  // here — the all-series case goes through fitR / fitAllPolar.
   function fitRho(seriesName) {
     if (!setViewport) return;
-    const list = seriesName === 'all'
-      ? figure.series
-      : figure.series.filter((s) => s.name === seriesName);
+    const list = figure.series.filter((s) => s.name === seriesName);
     let m = 0;
     list?.forEach((s) => s.rho?.forEach((v) => {
       if (Number.isFinite(v) && Math.abs(v) > m) m = Math.abs(v);
     }));
     setViewport({ ...vp, r: [vp.r[0], nicePolarMax(m || 1)] });
   }
+  // Cell-level fits — routed through the unified fitCellViewport so
+  // toolbar fit ▾, SubplotGrid.fitSignal, and ПКМ Fit all share one
+  // implementation. defaultPolarViewport encapsulates rlim/thetalim
+  // priority + data-extent fallback.
+  function fitR() {
+    if (!setViewport) return;
+    setViewport(fitCellViewport(figure, vp, 'r'));
+  }
+  function fitTheta() {
+    if (!setViewport) return;
+    setViewport(fitCellViewport(figure, vp, 'theta'));
+  }
+  function fitAllPolar() {
+    if (!setViewport) return;
+    setViewport(fitCellViewport(figure, vp, 'both'));
+  }
   const multiSeries = Array.isArray(figure.series) && figure.series.length > 1;
-  const ctxItems = [
-    { label: 'Reset to default',
-      onClick: () => setViewport && setViewport(defaultPolarViewport(figure)),
-      disabled: !setViewport,
-    },
-    { label: 'Save as SVG (vector)',
+
+  // ✓-prefix helper for active toggle rows — same `tag(active, label)`
+  // pattern CompositePlot's ПКМ uses so toggle rows render checkmarks
+  // identically across plot kinds.
+  const tag = (active, label) => active ? `✓ ${label}` : label;
+
+  // House icon — same path used by the standalone toolbar Reset button
+  // and CompositePlot's ПКМ Reset row. Inlined here so PolarPlot's ПКМ
+  // top row matches the rest of the IDE.
+  const houseIcon = (
+    <svg width="11" height="11" viewBox="0 0 12 12"
+         style={{ verticalAlign: '-1px', marginRight: '6px' }}>
+      <path d="M1 6l5-5 5 5 M2 5v6h8V5"
+            stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round"/>
+    </svg>
+  );
+
+  // ПКМ structure parity with CompositePlot:
+  //   🏠 Reset · Save / Export ▶ · Axes ▶ · ───── · Fit · series rows
+  //
+  // Axes ▶ — polar-specialised, so it carries ONLY the grid section
+  // (master + R + θ + minor). No `visible / box`, no `reverse`, no
+  // `log scale` — those would need renderer support PolarPlot doesn't
+  // ship today.
+
+  const exportItems = [
+    { head: 'image · screen' },
+    { label: 'SVG (vector)',
       onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
-    { label: 'Save as PNG (screen 2×)',
+    { label: 'PNG @2×',
       onClick: () => exportPngNode(svgRef.current, width, height, 2, `figure_${figure.id}.png`) },
-    { head: 'Save for print (300 DPI)' },
+    { head: 'image · print (300 DPI)' },
     { label: 'PNG · 1 column (85 mm)',
       onClick: () => exportPngForPrint(svgRef.current, width, height, 85, 300, `figure_${figure.id}`) },
     { label: 'PNG · 2 columns (170 mm)',
       onClick: () => exportPngForPrint(svgRef.current, width, height, 170, 300, `figure_${figure.id}`) },
     { label: 'PNG · A4 width (210 mm)',
       onClick: () => exportPngForPrint(svgRef.current, width, height, 210, 300, `figure_${figure.id}`) },
-    { separator: true },
-    { head: 'Fit all curves' },
-    { label: 'Fit r-range',
-      onClick: () => fitRho('all'),
-      disabled: !setViewport,
-    },
-    ...(multiSeries ? [
-      { head: 'Fit single curve' },
-      ...figure.series.map((s) => ({
-        row: true, color: s.color, name: s.name,
-        buttons: [{ label: 'fit', onClick: () => fitRho(s.name), disabled: !setViewport }],
+  ];
+
+  // Grid ▶ — mirrors CompositePlot's grid ПКМ split, polar-specialised.
+  // Matrix layout: each axis row carries TWO buttons (major / minor).
+  // Replaces the 2-row-per-axis split (`R` / `R minor`) with a single
+  // row whose two buttons toggle the major / minor bit independently.
+  const gridMatrixRow = (label, major, minor, setMajor, setMinor) => ({
+    row: true, name: label,
+    buttons: [
+      { label: major ? '✓' : '', active: !!major, keepOpen: true, toggle: true,
+        title: 'major grid',
+        onClick: setMajor ? () => setMajor((v) => !v) : null,
+        disabled: !setMajor },
+      { label: minor ? '✓' : '', active: !!minor, keepOpen: true, toggle: true,
+        title: 'minor grid',
+        onClick: setMinor ? () => setMinor((v) => !v) : null,
+        disabled: !setMinor },
+    ],
+  });
+  const gridItems = (setShowMajor || setShowMinor || setRGrid || setThetaGrid) ? [
+    ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
+                          { separator: true }] : []),
+    { head: 'grid' },
+    { rowHead: true, columns: ['maj', 'min'] },
+    gridMatrixRow('all', major, minor, setShowMajor, setShowMinor),
+    { head: 'Polar' },
+    gridMatrixRow('R', rGridOn, rMinorOn, setRGrid, setRMinor),
+    gridMatrixRow('θ', thetaGridOn, thetaMinorOn, setThetaGrid, setThetaMinor),
+  ] : null;
+
+  // Top-level Reset: prefer parent-supplied `onResetAll` (full
+  // viewport + display reset, same as toolbar's 🏠 button). Fall back
+  // to viewport-only when the parent didn't wire one.
+  const onReset = onResetAll || (() => setViewport && setViewport(defaultPolarViewport(figure)));
+
+  // Decoration ▶ — title + legend toggles + legend Location picker.
+  // Mirrors CompositePlot's Decoration ▶ shape but with the
+  // polar-relevant subset (no X/Y/Z labels — polar doesn't model
+  // them; no colorbar — polar isn't a heatmap surface). Sections
+  // labelled the same way for visual parity.
+  const decorationItems = (setShowTitle || setShowLegend) ? [
+    ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
+                          { separator: true }] : []),
+    { head: 'labels' },
+    ...(setShowTitle ? [{
+      label: tag(showTitle, 'title'), keepOpen: true,
+      onClick: () => setShowTitle((v) => !v),
+    }] : []),
+    { head: 'annotations' },
+    ...(setShowLegend ? [{
+      label: tag(showLegend, 'legend'), keepOpen: true,
+      onClick: () => setShowLegend((v) => !v),
+    }] : []),
+    ...(setLegendLocation ? [{
+      submenu: 'legend location',
+      items: [
+        { value: null,        label: 'default' },
+        { value: 'best',      label: 'best' },
+        { value: 'north',     label: 'north' },
+        { value: 'south',     label: 'south' },
+        { value: 'east',      label: 'east' },
+        { value: 'west',      label: 'west' },
+        { value: 'northeast', label: 'northeast' },
+        { value: 'northwest', label: 'northwest' },
+        { value: 'southeast', label: 'southeast' },
+        { value: 'southwest', label: 'southwest' },
+      ].map((o) => ({
+        label: tag((legendLocationProp || null) === o.value, o.label),
+        onClick: () => setLegendLocation(o.value),
+        keepOpen: true,
       })),
-    ] : []),
+    }] : []),
+  ] : null;
+
+  // Fit Series ▶ — per-series fit submenu mirroring CompositePlot's
+  // shape. Filtered to series with ≥2 rho samples (fitting a
+  // single-point series gives a degenerate range). Each row has one
+  // `fit` button driving fitRho(seriesName) — polar's per-series fit
+  // only scales R (θ is global).
+  const fittableSeries = (figure.series || [])
+    .map((s, i) => ({ s, i }))
+    .filter(({ s }) => Array.isArray(s.rho) && s.rho.length >= 2);
+  const seriesSubmenuItems = fittableSeries.length > 0
+    ? fittableSeries.map(({ s, i }) => ({
+        row: true,
+        color: s.color || PALETTE[i % PALETTE.length],
+        name: s.name || `series ${i + 1}`,
+        buttons: [{ label: 'fit r',
+                    onClick: () => fitRho(s.name),
+                    disabled: !setViewport }],
+      }))
+    : null;
+
+  const ctxItems = [
+    { label: <span>{houseIcon}Reset</span>, onClick: onReset },
+    { submenu: 'Save / Export', items: exportItems },
+    ...(gridItems ? [{ submenu: 'Grid', items: gridItems }] : []),
+    ...(decorationItems ? [{ submenu: 'Decoration', items: decorationItems }] : []),
+    ...(seriesSubmenuItems ? [{
+      submenu: `Fit Series${fittableSeries.length > 1 ? ` (${fittableSeries.length})` : ''}`,
+      items: seriesSubmenuItems,
+    }] : []),
+    { separator: true },
+    // ПКМ Fit — figure-wide / data-extent rows. Per-series fit lives
+    // in Fit Series ▶ above (parity with CompositePlot).
+    { head: 'Fit' },
+    { label: 'all', onClick: fitAllPolar, disabled: !setViewport },
+    { label: 'R',   onClick: fitR,        disabled: !setViewport },
+    { label: 'θ',   onClick: fitTheta,    disabled: !setViewport },
   ];
 
   // Wheel listener attached imperatively because React's onWheel is passive.
@@ -315,15 +496,22 @@ export default function PolarPlot({
     >
       <rect x={0} y={0} width={width} height={height} fill="var(--bg-1)" />
 
-      {/* Title */}
-      {figure.title && (
+      {/* Title — gated on showTitle so the ПКМ Decoration ▶ / toolbar
+          decoration ▾ `title` toggle can hide it. Same convention as
+          CompositePlot. */}
+      {figure.title && showTitle && (
         <text x={cx} y={padTop - 10} fill="var(--plot-text-strong)"
           fontSize={12 * fontScale} textAnchor="middle">{figure.title}</text>
       )}
 
       <g transform={`translate(${cx}, ${cy})`}>
-        {/* Minor rings: faint, no labels */}
-        {minor && rTicksMinor.map((rho, i) => {
+        {/* Minor rings: faint, no labels. MATLAB R2025b parity —
+            RMinorGrid is INDEPENDENT of RGrid (set(pax,'RMinorGrid',
+            'on') shows minor rings even with RGrid off). Same for
+            θ. Previously gated on rGridOn AND rMinorOn which made
+            the per-axis minor toggle a no-op when the major was
+            off — visible bug. */}
+        {rMinorOn && rTicksMinor.map((rho, i) => {
           const r = rScale(rho);
           if (r <= 0 || r > radius + 0.5) return null;
           return (
@@ -331,8 +519,10 @@ export default function PolarPlot({
               stroke="var(--plot-grid-min)" />
           );
         })}
-        {/* Minor spokes — every 15°, between the 30° majors */}
-        {minor && Array.from({ length: 12 }, (_, k) => k * 30 + 15).map((deg) => {
+        {/* Minor spokes — every 15°, between the 30° majors.
+            ThetaMinorGrid independent of ThetaGrid (same MATLAB
+            parity rule). */}
+        {thetaMinorOn && Array.from({ length: 12 }, (_, k) => k * 30 + 15).map((deg) => {
           const a = zero + dirSign * (deg * Math.PI / 180);
           const x = Math.cos(a) * radius;
           const y = -Math.sin(a) * radius;
@@ -342,13 +532,18 @@ export default function PolarPlot({
           );
         })}
 
-        {/* Major rings + radial tick labels */}
-        {major && rTicksMajor.map((rho, i) => {
+        {/* Major rings + radial tick labels. MATLAB R2025b parity:
+            RGrid hides ONLY the ring strokes, not the tick labels —
+            labels belong to RAxis.Visible, a separate concern. So we
+            render the labels unconditionally; the ring is gated. */}
+        {rTicksMajor.map((rho, i) => {
           const r = rScale(rho);
           if (r <= 0 || r > radius + 0.5) return null;
           return (
             <g key={`rt${i}`}>
-              <circle cx={0} cy={0} r={r} fill="none" stroke="var(--plot-grid)" strokeDasharray="2 4" />
+              {rGridOn && (
+                <circle cx={0} cy={0} r={r} fill="none" stroke="var(--plot-grid)" strokeDasharray="2 4" />
+              )}
               <text x={3} y={-r - 2} fill="var(--plot-text)" fontSize={9 * fontScale}>
                 {fmtR(rho)}
               </text>
@@ -391,7 +586,9 @@ export default function PolarPlot({
           const yt = -Math.sin(a) * (radius + 14);
           return (
             <g key={`sp${deg}`}>
-              {major && (
+              {/* Spoke gated on ThetaGrid. Label is always shown —
+                  belongs to ThetaAxis.Visible, independent of grid. */}
+              {thetaGridOn && (
                 <line x1={0} y1={0} x2={x} y2={y}
                   stroke="var(--plot-grid)" strokeDasharray="2 4" />
               )}
@@ -488,6 +685,88 @@ export default function PolarPlot({
           })}
         </g>
       </g>
+
+      {/* Legend — ported from CompositePlot. Renders only when:
+            • showLegend toggle is on (toolbar decoration ▾ default), AND
+            • user asked via script (figure.legend non-empty OR explicit
+              legendLocation set — same rule as CompositePlot).
+          Positioning uses width/height as the anchor frame (polar has
+          no padL/W panel rect like cartesian); top-row positions reserve
+          the title strip so the legend doesn't overlap the figure name. */}
+      {(() => {
+        if (showLegend === false) return null;
+        const userAsked = (figure.legend && figure.legend.length > 0)
+                       || (figure.legendLocation && figure.legendLocation !== 'none');
+        if (!userAsked || !Array.isArray(figure.series) || figure.series.length === 0) return null;
+        const labels = (figure.legend && figure.legend.length > 0)
+          ? figure.legend
+          : figure.series.map((s) => s.name).filter(Boolean);
+        const haveLabels = labels.some((s) => s && s.trim() !== '');
+        if (!haveLabels) return null;
+        const items = figure.series.slice(0, labels.length).map((s, i) => ({
+          color: s.color || PALETTE[i % PALETTE.length],
+          text:  labels[i] || s.name || `series ${i + 1}`,
+          mode:  s.mode || 'line',
+        }));
+        if (items.length === 0) return null;
+        const fontSize = 10 * fontScale;
+        const lineH    = fontSize + 4;
+        const swatchW  = 14;
+        const padInner = 6;
+        const longest = items.reduce((m, it) => Math.max(m, it.text.length), 0);
+        const boxW = padInner * 2 + swatchW + 4 + Math.min(longest, 24) * 6.5;
+        const boxH = padInner * 2 + items.length * lineH;
+        const loc = ((legendLocationProp != null ? legendLocationProp : figure.legendLocation) || 'best')
+                    .replace(/outside$/, '');
+        // Anchor inside the FULL svg bounds (polar has no inner panel
+        // rect). Top edge respects padTop so the title strip stays clear.
+        const anchorMargin = 8;
+        const topEdge    = padTop + anchorMargin;
+        const bottomEdge = height - padBot - anchorMargin;
+        let bx, by;
+        switch (loc) {
+          case 'north':     bx = (width - boxW) / 2;          by = topEdge; break;
+          case 'south':     bx = (width - boxW) / 2;          by = bottomEdge - boxH; break;
+          case 'east':      bx = width - boxW - anchorMargin; by = (height - boxH) / 2; break;
+          case 'west':      bx = anchorMargin;                by = (height - boxH) / 2; break;
+          case 'northwest': bx = anchorMargin;                by = topEdge; break;
+          case 'southeast': bx = width - boxW - anchorMargin; by = bottomEdge - boxH; break;
+          case 'southwest': bx = anchorMargin;                by = bottomEdge - boxH; break;
+          case 'none':      return null;
+          // 'best' / 'northeast' / default → top-right.
+          default:          bx = width - boxW - anchorMargin; by = topEdge; break;
+        }
+        return (
+          <g pointerEvents="none">
+            <rect x={bx} y={by} width={boxW} height={boxH}
+              fill="var(--plot-bg)" stroke="var(--plot-frame)" strokeWidth="0.5"
+              rx="3" opacity="0.92" />
+            {items.map((it, i) => {
+              const cyL = by + padInner + i * lineH + lineH / 2;
+              const swX0 = bx + padInner;
+              const swX1 = swX0 + swatchW;
+              let swatch;
+              if (it.mode === 'scatter' || it.mode === 'stem') {
+                swatch = <circle cx={(swX0 + swX1) / 2} cy={cyL} r="3"
+                  fill={it.color} stroke="var(--plot-frame)" strokeWidth="0.6" />;
+              } else if (it.mode === 'bar') {
+                swatch = <rect x={swX0} y={cyL - 4} width={swatchW} height="8"
+                  fill={it.color} stroke={it.color} strokeWidth="1" />;
+              } else {
+                swatch = <line x1={swX0} x2={swX1} y1={cyL} y2={cyL}
+                  stroke={it.color} strokeWidth="2" />;
+              }
+              return (
+                <g key={i}>
+                  {swatch}
+                  <text x={swX1 + 4} y={cyL + fontSize / 3} fontSize={fontSize}
+                    fill="var(--plot-text-strong)">{it.text}</text>
+                </g>
+              );
+            })}
+          </g>
+        );
+      })()}
     </svg>
     </>
   );

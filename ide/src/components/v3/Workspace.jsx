@@ -807,6 +807,43 @@ export function VariableEditor({ variable, onClose, engine }) {
   const [showPlot, setShowPlot]   = useState(false);
   const [saveOpen, setSaveOpen]   = useState(false);
   const [maximized, setMaximized] = useState(false);
+  // Width of the right-hand plot pane (px). User-resizable via the
+  // drag handle that lives between the table and the plot. Persisted
+  // in localStorage so the choice survives across sessions / variable
+  // swaps. Default 520px matches the previous fixed grid template.
+  const [plotWidth, setPlotWidth] = useState(() => {
+    const stored = parseInt(localStorage.getItem('numkit.ve.plotWidth') || '', 10);
+    return Number.isFinite(stored) && stored >= 200 && stored <= 1600 ? stored : 520;
+  });
+  useEffect(() => {
+    localStorage.setItem('numkit.ve.plotWidth', String(plotWidth));
+  }, [plotWidth]);
+  const veBodyRef = useRef(null);
+  // Drag-to-resize: on mousedown grab the pointer, follow mousemove
+  // until mouseup. We compute width from the body's right edge minus
+  // the cursor x, clamped to [200, body-200] so the table never gets
+  // squeezed below ~200 px either.
+  function startDragDivider(e) {
+    e.preventDefault();
+    const body = veBodyRef.current;
+    if (!body) return;
+    const onMove = (ev) => {
+      const rect = body.getBoundingClientRect();
+      const desired = rect.right - ev.clientX;
+      const maxW = Math.max(220, rect.width - 200);
+      setPlotWidth(Math.max(200, Math.min(maxW, desired)));
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }
   const [activeCell, setActiveCell] = useState({ r: 0, c: 0 });
   const [editing, setEditing]     = useState(null);
   const [editVal, setEditVal]     = useState('');
@@ -1231,7 +1268,11 @@ export function VariableEditor({ variable, onClose, engine }) {
           <span className="ve-cell-val">{format(getCellValue(activeCell.r, activeCell.c))}</span>
         </div>
 
-        <div className={`ve-body ${showPlot ? 'has-plot' : ''}`}>
+        <div className={`ve-body ${showPlot ? 'has-plot' : ''}`}
+             ref={veBodyRef}
+             style={showPlot
+               ? { gridTemplateColumns: `1fr 6px ${plotWidth}px` }
+               : undefined}>
           <VirtualTable
             tableRef={tableRef}
             rows={rows} cols={cols}
@@ -1247,12 +1288,24 @@ export function VariableEditor({ variable, onClose, engine }) {
             readOnly={false}
           />
           {showPlot && (
-            <InlinePlot
-              getSlice={getSlice}
-              rows={rows}
-              cols={cols}
-              onClose={() => setShowPlot(false)}
-            />
+            <>
+              {/* Drag handle between table and plot. 6 px wide gutter
+                  (matches grid track). On hover/active the visual
+                  highlights so the user finds it. */}
+              <div className="ve-divider"
+                   role="separator"
+                   aria-orientation="vertical"
+                   aria-label="Resize plot pane"
+                   onMouseDown={startDragDivider}
+                   onDoubleClick={() => setPlotWidth(520)}
+                   title="Drag to resize · double-click to reset" />
+              <InlinePlot
+                getSlice={getSlice}
+                rows={rows}
+                cols={cols}
+                onClose={() => setShowPlot(false)}
+              />
+            </>
           )}
         </div>
 

@@ -4885,17 +4885,16 @@ void GraphicsLibrary::install(Engine &engine)
             }
             outs[0] = Value::empty();
         });
-    // sgtitle — figure-level "super title". numkit doesn't have a
-    // dedicated figure title slot, so v1 routes to the first axes'
-    // title field. Visually equivalent for single-cell figures;
-    // subplot grid figures get the title only on cell 1 — full
-    // figure-level rendering is BACKLOG.
+    // sgtitle — figure-level "super title". Writes to
+    // FigureState.superTitle (a dedicated slot, separate from per-axes
+    // Title.String). For non-subplot figures the IDE still renders it
+    // as the panel's top header; for subplots it spans the whole grid
+    // above the cell row — matching MATLAB R2025b's sgtitle behaviour.
     reg("layout", "sgtitle",
         [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             if (!args.empty()) {
                 auto &fm = ctx.engine->figureManager();
-                if (!fm.current().axes.empty())
-                    fm.current().axes[0].title = argStr(args[0]);
+                fm.current().superTitle = argStr(args[0]);
                 fm.current().modified = true;
                 fm.emitModified();
             }

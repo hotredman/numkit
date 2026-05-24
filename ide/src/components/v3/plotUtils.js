@@ -71,6 +71,72 @@ export function defaultViewport(figure) {
   return { x: [-1, 1], y: [-1, 1] };
 }
 
+/** Axis-equal/-image cells lock the cartesian axes together
+ *  (DataAspectRatio = [1 1 1]) — single-axis fit on them dispatches
+ *  as 'both' to preserve the contract. Takes the EFFECTIVE aspect
+ *  (UI override > script) so the UI's aspect radio is honoured even
+ *  when the script didn't set axis equal. Exposed separately because
+ *  CompositePlot's log-clamp branch needs the upgraded mode to
+ *  decide which axes to clamp. */
+export function upgradeFitAxis(aspectMode, axisMode) {
+  if ((aspectMode === 'equal' || aspectMode === 'image')
+      && (axisMode === 'x' || axisMode === 'y' || axisMode === 'z')) {
+    return 'both';
+  }
+  return axisMode;
+}
+
+/** Single source of truth for "fit this cell on this axis". Used by
+ *  EVERY fit pathway in the IDE — toolbar fit ▾ (figure-wide or
+ *  fan-out across subplot cells), ПКМ Fit submenu, and direct calls
+ *  from per-axis handlers.
+ *
+ *  `cell`     — the figure JSON for ONE cell (cartesian / polar /
+ *               composite3d).
+ *  `currentViewport` — previous viewport (`{x,y[,z]}` or `{r,theta}`).
+ *  `axisMode` — 'both' | 'x' | 'y' | 'z' | 'r' | 'theta'.
+ *
+ *  Behaviour:
+ *    • axis-equal / axis-image cells upgrade single-axis fit to
+ *      'both' (DataAspectRatio = [1 1 1] contract — can't refit one
+ *      axis without the other).
+ *    • Polar cells honour 'r' / 'theta' only (cartesian axes resolve
+ *      to no-op on polar; vice versa). Mirrors the toolbar=universal
+ *      policy where the click on an inapplicable axis is a no-op.
+ *    • Returns the target viewport from `defaultViewport(cell)` for
+ *      the requested axis (script xlim/ylim if set, padded data
+ *      extent otherwise). Always returns a NEW object — callers can
+ *      pass it straight to setViewport.
+ *
+ *  Per-series fit (e.g. ПКМ "Fit single curve") stays in the per-
+ *  plot component because it scans ONE series's data points — a
+ *  different scope.
+ *
+ *  `options.aspectMode` — explicit aspect override (UI radio). Falls
+ *  back to `cell.axisMode` (script value) when not provided.
+ */
+export function fitCellViewport(cell, currentViewport, axisMode, options = {}) {
+  if (!cell) return currentViewport || { x: [-1, 1], y: [-1, 1] };
+  const aspect = (options.aspectMode !== undefined && options.aspectMode !== null)
+    ? options.aspectMode
+    : (cell.axisMode || '');
+  axisMode = upgradeFitAxis(aspect, axisMode);
+  const def = defaultViewport(cell);
+  const cur = currentViewport || def;
+  if (axisMode === 'both') return def;
+  // Polar cells: only r / theta apply.
+  if (cell.kind === 'polar') {
+    if (axisMode === 'r')     return { ...cur, r:     def.r };
+    if (axisMode === 'theta') return { ...cur, theta: def.theta };
+    return cur;
+  }
+  // Cartesian + 3D cells: only x / y / z apply.
+  if (axisMode === 'x') return { ...cur, x: def.x };
+  if (axisMode === 'y') return { ...cur, y: def.y };
+  if (axisMode === 'z') return def.z ? { ...cur, z: def.z } : cur;
+  return cur;
+}
+
 // ── exports ─────────────────────────────────────────────────────────────
 
 export function downloadBlob(blob, name) {

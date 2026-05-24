@@ -892,6 +892,10 @@ export function adaptFigure(fig) {
       kind: 'subplot',
       id: fig.id,
       title: `Figure ${fig.id}`,
+      // Figure-level super-title (sgtitle), separate from per-cell
+      // title. Rendered as a header strip above the cell grid in
+      // SubplotGrid. Empty / missing = no strip drawn.
+      superTitle: fig.superTitle || '',
       grid: [rows, cols],
       cells,
       // linkaxes mode (figure-level state). 'x'/'y'/'xy' = SubplotGrid
@@ -913,6 +917,10 @@ export function adaptFigure(fig) {
     adapted.title = `Figure ${fig.id}`;
     adapted.titleAuto = true;
   }
+  // sgtitle on a single-axes figure: still expose the figure-level
+  // superTitle so the modal header strip can render it (separate from
+  // the axes' own title text).
+  adapted.superTitle = fig.superTitle || '';
   adapted._raw = fig;
   return adapted;
 }
