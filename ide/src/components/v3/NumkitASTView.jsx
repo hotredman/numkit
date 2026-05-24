@@ -60,9 +60,12 @@ const CATEGORIES = [
     label:  'Containers',
     types:  ['BLOCK', 'EXPR_STMT'],
     color:  '#7a8390',
-    /* off by default — BLOCK / EXPR_STMT add noise without much info,
-       the user can switch them back on if they want a literal view. */
-    defaultOn: false,
+    /* ON by default — BLOCK is the script root; filtering it would
+       leave the rendered tree as a forest of disconnected children
+       which `layered` lays out, but the user is better served by
+       seeing the root node as a context anchor. Switch off if you
+       want a pure-expression view. */
+    defaultOn: true,
   },
   { key: 'literal',  label: 'Literals',
     types: ['NUMBER_LITERAL', 'IMAG_LITERAL', 'STRING_LITERAL',
@@ -268,11 +271,14 @@ function buildElkAST(rfNodes, rfEdges, sizeById) {
   return {
     id: 'root',
     layoutOptions: {
-      'elk.algorithm':                              'mrtree',
+      // `layered` handles forests (multiple disconnected roots) and
+      // arbitrary DAGs robustly — important here because the user
+      // may filter out the root BLOCK node, leaving the script's
+      // top-level statements as a forest. `mrtree` is tree-only and
+      // silently fails on disconnected inputs.
+      'elk.algorithm':                              'layered',
       'elk.direction':                              'DOWN',
-      'elk.mrtree.searchOrder':                     'DFS',
       'elk.spacing.nodeNode':                       '20',
-      'elk.mrtree.spacing.nodeNode':                '24',
       'elk.layered.spacing.nodeNodeBetweenLayers':  '40',
     },
     children: rfNodes.map((n) => {
