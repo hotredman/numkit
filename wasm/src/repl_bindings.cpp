@@ -12,6 +12,11 @@
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/debug_session.hpp>
 #include <numkit/core/vfs.hpp>
+#include <numkit/core/lexer.hpp>
+#include <numkit/core/parser.hpp>
+#include <numkit/graph/ast_serialize.hpp>
+#include <numkit/graph/lowering.hpp>
+#include <numkit/graph/serialize.hpp>
 
 // ════════════════════════════════════════════════════════════════
 // Helper: format Value for variable preview
@@ -1032,6 +1037,56 @@ void repl_pop_script_origin() {
     g_session->popScriptOrigin();
 }
 
+// ════════════════════════════════════════════════════════════════
+// Script-graph visualizer — offline AST → NodeGraph IR → JSON.
+// No engine session needed; pure analysis pass over the parsed AST.
+// Errors (parse failures) are returned as {"error":"..."} so the
+// IDE can surface them without throwing across the WASM boundary.
+// ════════════════════════════════════════════════════════════════
+static std::string jsonError(const std::string &message) {
+    // escapeJSON returns escaped-but-unquoted content (see line 71);
+    // wrap in quotes ourselves so the result is a valid JSON value.
+    return std::string("{\"error\":\"") + escapeJSON(message) + "\"}";
+}
+
+std::string buildScriptGraph(const std::string &source) {
+    try {
+        numkit::Lexer lex(source);
+        auto tokens = lex.tokenize();
+        numkit::Parser parser(tokens);
+        auto root = parser.parse();
+        if (!root) return jsonError("parser returned null AST");
+        // Pass `tokens` so lowering can use the lexer's COMMENT
+        // positions to trim trailing `% ...` from per-node sourceText.
+        // No second lex; the parser already filtered COMMENT tokens
+        // internally via its centralized advance() helper.
+        auto g = numkit::graph::lowerScript(*root, source, tokens);
+        return numkit::graph::toJSON(g);
+    } catch (const std::exception &e) {
+        return jsonError(e.what());
+    } catch (...) {
+        return jsonError("unknown exception during graph build");
+    }
+}
+
+/** Literal parse-tree dump for the IDE's AST inspector view. Same
+ *  lex+parse pipeline as buildScriptGraph but emits the raw AST
+ *  instead of the lowered NodeGraph IR. */
+std::string buildAST(const std::string &source) {
+    try {
+        numkit::Lexer lex(source);
+        auto tokens = lex.tokenize();
+        numkit::Parser parser(tokens);
+        auto root = parser.parse();
+        if (!root) return jsonError("parser returned null AST");
+        return numkit::graph::toASTJSON(*root);
+    } catch (const std::exception &e) {
+        return jsonError(e.what());
+    } catch (...) {
+        return jsonError("unknown exception during AST build");
+    }
+}
+
 EMSCRIPTEN_BINDINGS(numkit_ide) {
     emscripten::function("repl_init",      &repl_init);
     emscripten::function("repl_execute",   &repl_execute);
@@ -1056,6 +1111,9 @@ EMSCRIPTEN_BINDINGS(numkit_ide) {
     emscripten::function("repl_push_script_origin_with_dir",
                                                        &repl_push_script_origin_with_dir);
     emscripten::function("repl_pop_script_origin",     &repl_pop_script_origin);
+    // Script-graph visualizer — pure analysis pass, no engine state.
+    emscripten::function("buildScriptGraph",           &buildScriptGraph);
+    emscripten::function("buildAST",                   &buildAST);
     // Legacy (kept for backward compat)
     emscripten::function("repl_debug_execute",         &repl_debug_execute);
 }

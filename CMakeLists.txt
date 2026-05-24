@@ -120,6 +120,37 @@ endif()
 # same `numkit::numkit` target as find_package() consumers do.
 add_library(numkit::numkit ALIAS numkit)
 
+# ── Build-info header (regenerated on every build) ──────────────────
+#
+# Writes <build>/generated/numkit/core/build_info.hpp containing a
+# NUMKIT_BUILD_TIMESTAMP macro with current wall-clock time. The
+# `numkit_build_info` custom target is part of ALL so it runs on
+# every build; libs/builtin/src/version_string.cpp depends on the
+# generated header so only that tiny TU recompiles per build, not
+# the huge library.cpp.
+set(NUMKIT_BUILD_INFO_DIR    "${CMAKE_BINARY_DIR}/generated")
+set(NUMKIT_BUILD_INFO_HEADER "${NUMKIT_BUILD_INFO_DIR}/numkit/core/build_info.hpp")
+# Generate once at CONFIGURE time too — the custom target below
+# refreshes it on every build, but the first-ever build needs the
+# header to exist when version_string.cpp compiles.
+execute_process(COMMAND ${CMAKE_COMMAND}
+    "-DOUT=${NUMKIT_BUILD_INFO_HEADER}"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/gen_build_info.cmake")
+add_custom_target(numkit_build_info ALL
+    COMMAND ${CMAKE_COMMAND}
+        "-DOUT=${NUMKIT_BUILD_INFO_HEADER}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/gen_build_info.cmake"
+    BYPRODUCTS "${NUMKIT_BUILD_INFO_HEADER}"
+    COMMENT    "Generating numkit build timestamp"
+    VERBATIM
+)
+add_dependencies(numkit numkit_build_info)
+target_include_directories(numkit PRIVATE "${NUMKIT_BUILD_INFO_DIR}")
+set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/libs/builtin/src/version_string.cpp"
+    PROPERTIES OBJECT_DEPENDS "${NUMKIT_BUILD_INFO_HEADER}"
+)
+
 # Public include paths — collected from per-area CMakeLists. Wrap each
 # in BUILD_INTERFACE so the export set stays clean for find_package.
 foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS})
@@ -214,7 +245,7 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     # sources via target_sources(numkit_gtest PRIVATE ...).
     add_subdirectory(tests)
     add_subdirectory(core/tests)
-    foreach(_test_lib builtin signal stats graphics io wavelet comm control image audio)
+    foreach(_test_lib builtin signal stats graphics io wavelet comm control image audio graph)
         if(EXISTS ${CMAKE_SOURCE_DIR}/libs/${_test_lib}/tests/CMakeLists.txt)
             add_subdirectory(libs/${_test_lib}/tests)
         endif()

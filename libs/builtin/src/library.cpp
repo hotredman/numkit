@@ -3,6 +3,7 @@
 #include <numkit/builtin/language/types/types.hpp>
 #include <numkit/builtin/math/arithmetic/rounding.hpp>
 
+#include <numkit/core/build_info.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value_type.hpp>
@@ -3169,31 +3170,19 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                             });
 
     // ── version ───────────────────────────────────────────────
-    // numkit-m doesn't carry a SemVer; the build's compile-time
-    // stamp serves as our "version". Returned as ISO-8601 local
-    // time "YYYY-MM-DD HH:MM:SS" so it round-trips through string
-    // ops cleanly. Captured at the time library.cpp is compiled.
+    // numkit-m doesn't carry a SemVer; the build's link-time stamp
+    // serves as our "version". The timestamp lives in a tiny
+    // separate TU (version_string.cpp) that gets recompiled on
+    // every build via the `numkit_build_info` CMake target — so the
+    // value here ALWAYS reflects the actual link time, not stale
+    // __DATE__/__TIME__ macros from whenever library.cpp's .o
+    // happened to last refresh. Declaration lives in the generated
+    // build_info.hpp (alongside the NUMKIT_BUILD_TIMESTAMP macro).
     engine.registerFunction(
         "version",
         [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
-            // __DATE__ format is "Mmm dd yyyy" (fixed 11 chars; day
-            // gets a leading space when single-digit).
-            static const char *const months[12] = {
-                "Jan","Feb","Mar","Apr","May","Jun",
-                "Jul","Aug","Sep","Oct","Nov","Dec"};
-            const char *d = __DATE__;
-            int month = 0;
-            for (int i = 0; i < 12; ++i) {
-                if (d[0] == months[i][0] && d[1] == months[i][1]
-                    && d[2] == months[i][2]) { month = i + 1; break; }
-            }
-            int day  = (d[4] == ' ' ? 0 : (d[4] - '0') * 10) + (d[5] - '0');
-            int year = (d[7]  - '0') * 1000 + (d[8] - '0') * 100
-                     + (d[9]  - '0') *   10 + (d[10] - '0');
-            char buf[32];
-            std::snprintf(buf, sizeof(buf), "%04d-%02d-%02d %s",
-                          year, month, day, __TIME__);
-            outs[0] = Value::fromString(std::string(buf), ctx.engine->resource());
+            outs[0] = Value::fromString(std::string(numkit::buildTimestamp()),
+                                        ctx.engine->resource());
         });
 
     // ── mkdir / rmdir / delete ────────────────────────────────
