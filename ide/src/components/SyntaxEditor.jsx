@@ -55,11 +55,61 @@ function tokenize(code) {
   return tokens;
 }
 
-const SyntaxEditor = forwardRef(function SyntaxEditor({ value, onChange, onScroll, errorLine, debugLine }, ref) {
+const SyntaxEditor = forwardRef(function SyntaxEditor({ value, onChange, onScroll, onCursor, errorLine, debugLine }, ref) {
   const C = useTheme();
   const textareaRef = useRef(null);
   const highlightRef = useRef(null);
-  useImperativeHandle(ref, () => ({ get scrollTop() { return textareaRef.current?.scrollTop || 0; }, focus: () => textareaRef.current?.focus() }));
+  useImperativeHandle(ref, () => ({
+    get scrollTop() { return textareaRef.current?.scrollTop || 0; },
+    focus: () => textareaRef.current?.focus(),
+    /** Move the caret to the given 1-indexed (line, col). Counts
+     *  newlines in the current value to find the char offset, then
+     *  uses setSelectionRange + focus so the user sees the cursor
+     *  blink at the target. Centers the line vertically by setting
+     *  scrollTop. Used by the AST → editor click-to-navigate
+     *  handoff so jumping isn't just a highlight, it's a real
+     *  caret move ready for typing/editing. */
+    setCaret(line, col) {
+      const ta = textareaRef.current;
+      if (!ta) return;
+      const v = ta.value || '';
+      const targetLine = Math.max(1, line | 0);
+      const targetCol  = Math.max(1, col  | 0);
+      let pos = 0, ln = 1;
+      while (pos < v.length && ln < targetLine) {
+        if (v[pos] === '\n') ln += 1;
+        pos += 1;
+      }
+      // pos is now at start of targetLine; advance col-1 chars,
+      // clamped to end-of-line so we don't overshoot into the next.
+      const eol = v.indexOf('\n', pos);
+      const lineEnd = eol === -1 ? v.length : eol;
+      pos = Math.min(pos + (targetCol - 1), lineEnd);
+      ta.focus();
+      ta.setSelectionRange(pos, pos);
+      // Center the target line in the viewport (line-height matches
+      // the inline CSS in the textarea below: 20px).
+      const lineHeight = 20;
+      const targetTop = (targetLine - 1) * lineHeight - ta.clientHeight / 2;
+      ta.scrollTop = Math.max(0, targetTop);
+    },
+  }));
+
+  /** Convert the textarea's caret char-offset to a 1-indexed
+   *  (line, col) pair and fire onCursor. Cheap O(N) scan of the
+   *  value up to the offset — N is bounded by script size which
+   *  is small in practice. */
+  const reportCursor = useCallback(() => {
+    if (!onCursor || !textareaRef.current) return;
+    const pos = textareaRef.current.selectionStart || 0;
+    const v = value || '';
+    let line = 1, col = 1;
+    for (let i = 0; i < pos && i < v.length; ++i) {
+      if (v[i] === '\n') { line += 1; col = 1; }
+      else                col += 1;
+    }
+    onCursor(line, col);
+  }, [value, onCursor]);
 
   const colorMap = { keyword: C.synKeyword, builtin: C.synBuiltin, number: C.synNumber, string: C.synString, comment: C.synComment, operator: C.synOperator, constant: C.synConstant, param: C.synParam, plain: C.text };
 
@@ -98,7 +148,9 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({ value, onChange, onScrol
   return (
     <div style={{ position:'relative',width:'100%',height:'100%',overflow:'hidden' }}>
       <pre ref={highlightRef} aria-hidden="true" style={{position:'absolute',top:0,left:0,right:0,bottom:0,margin:0,padding:8,fontFamily:FONT,fontSize:13,lineHeight:'20px',color:C.text,background:'transparent',border:'none',overflow:'auto',whiteSpace:'pre',pointerEvents:'none',zIndex:2}} dangerouslySetInnerHTML={{__html:html}}/>
-      <textarea ref={textareaRef} value={value} onChange={e=>onChange(e.target.value)} onScroll={syncScroll} spellCheck={false} wrap="off"
+      <textarea ref={textareaRef} value={value} onChange={e=>onChange(e.target.value)} onScroll={syncScroll}
+        onSelect={reportCursor} onKeyUp={reportCursor} onClick={reportCursor}
+        spellCheck={false} wrap="off"
         style={{position:'relative',width:'100%',height:'100%',margin:0,padding:8,fontFamily:FONT,fontSize:13,lineHeight:'20px',color:'transparent',caretColor:C.accent,background:'transparent',border:'none',outline:'none',resize:'none',overflow:'auto',whiteSpace:'pre',zIndex:3}}/>
     </div>
   );

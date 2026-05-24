@@ -57,7 +57,8 @@ test.describe('FigureWindow — 3-D layout', () => {
     await expect(popup.locator('button', { hasText: 'X only' })).toBeVisible();
     await expect(popup.locator('button', { hasText: 'Y only' })).toBeVisible();
     await expect(popup.locator('button', { hasText: 'Z only' })).toBeVisible();
-    await expect(popup.locator('button', { hasText: 'reset to data extent' })).toBeVisible();
+    // After the toolbar fit ▾ overhaul this row is just "reset".
+    await expect(popup.locator('button', { hasText: /^reset$/ })).toBeVisible();
   });
 
   test('Fit · Z only — fires without errors', async ({ ide, page }) => {

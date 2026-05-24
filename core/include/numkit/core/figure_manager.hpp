@@ -272,6 +272,11 @@ struct FigureState
     // unconditionally links every subplot cell in the current figure.
     std::string linkMode;
 
+    // Figure-level "super title" set via sgtitle(...). MATLAB renders
+    // it above the entire subplot grid, separate from per-axes
+    // Title.String. Empty = no super-title (no header strip drawn).
+    std::string superTitle;
+
     /** Get the current axes, creating if needed */
     AxesState &cur()
     {
@@ -417,6 +422,8 @@ public:
             }
             if (!fig.linkMode.empty())
                 os << ",\"linkMode\":\"" << fig.linkMode << "\"";
+            if (!fig.superTitle.empty())
+                os << ",\"superTitle\":\"" << jsonEscapeFig(fig.superTitle) << "\"";
 
             os << ",\"axes\":[";
             for (size_t ai = 0; ai < fig.axes.size(); ++ai) {

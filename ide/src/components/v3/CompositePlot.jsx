@@ -28,8 +28,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { buildHeatmapLUT, renderHeatmapDataURLFromIndices,
          renderHeatmapDataURLFromFlat, getColormap,
          makeCustomColormap } from './colormaps';
-import ContextMenu from './ContextMenu';
-import { computeFitViewport, exportSvgNode, exportPngNode, exportPngForPrint } from './plotUtils';
+import ContextMenu, { foldRowsToSubmenu } from './ContextMenu';
+import { computeFitViewport, fitCellViewport, upgradeFitAxis, exportSvgNode, exportPngNode, exportPngForPrint, downloadBlob } from './plotUtils';
 
 // MATLAB linespec → SVG strokeDasharray. '-' (or absent) means solid;
 // returning undefined keeps the default solid stroke. Pixel patterns
@@ -111,6 +111,19 @@ function MarkerGlyph({ marker, cx, cy, r, color, idx }) {
   }
 }
 
+/** Resolve the display name for one series layer. Priority matches
+ *  MATLAB / the legend block:
+ *    1. `figure.legend[idx]`  — the i-th label passed to legend(...)
+ *    2. `layer.name`          — the script-set DisplayName on the layer
+ *    3. `series ${idx+1}`     — guaranteed-non-empty fallback
+ *  Whitespace-only legend strings are treated as empty (fall through).
+ *  Used by both the in-figure legend block AND the ПКМ Fit Series ▶
+ *  rows so they always agree on what to call each curve. */
+function resolveSeriesName(figure, layer, idx) {
+  const fromLegend = ((figure.legend && figure.legend[idx]) || '').trim();
+  return fromLegend || layer.name || `series ${idx + 1}`;
+}
+
 export default function CompositePlot({
   figure,
   width,
@@ -119,13 +132,79 @@ export default function CompositePlot({
   setViewport,
   major = true,
   minor = true,
+  // Per-axis grid (MATLAB XGrid / YGrid / XMinorGrid / YMinorGrid).
+  // Default = the combined `major` / `minor` so callers that haven't
+  // migrated keep current behaviour. When the parent supplies the
+  // per-axis prop it wins, allowing fine-grained per-axis control.
+  xGrid: xGridProp,
+  yGrid: yGridProp,
+  xMinor: xMinorProp,
+  yMinor: yMinorProp,
+  // MATLAB axis-visibility / box / direction overrides. undefined =
+  // fall back to the figure JSON (script-set value).
+  axisVisible: axisVisibleProp,
+  boxOn: boxOnProp,
+  xReverse: xReverseProp,
+  yReverse: yReverseProp,
+  // Z-direction is a property of Axes too. No visual effect on 2-D,
+  // wired through so ПКМ axes ▶ stays parity-clean with the toolbar.
+  zReverse: zReverseProp,
+  // Legend / colorbar placement overrides — null/undefined = follow
+  // script's figure.legendLocation / figure.colorbarLocation.
+  legendLocation: legendLocationProp,
+  colorbarLocation: colorbarLocationProp,
   showLegend = true,
-  // Visibility flags owned by FigureWindow's `display ▾` menu. Default
+  // Visibility flags owned by FigureWindow's display menus. Default
   // true so non-modal renderers (preview cards, subplot cells without
   // explicit prop forwarding) keep the script's text visible.
   showTitle  = true,
   showXLabel = true,
   showYLabel = true,
+  showZLabel = false,
+  // ПКМ submenu setters — when provided (modal context), the right-
+  // click ПКМ surfaces full Axes ▶ / Decoration ▶ submenus mirroring
+  // the toolbar popovers. In preview cards / subplot cells these
+  // aren't passed; the submenu rows are simply omitted in that case.
+  // Aspect override — user-set axisMode from the axes ▾ aspect radio
+  // / ПКМ Axes ▶ aspect rows. When the parent supplies it, this wins
+  // over the script-set figure.axisMode for panel-shrink decisions.
+  axisMode: axisModeProp,
+  setAxisMode   = null,
+  setShowMajor  = null,
+  setShowMinor  = null,
+  setXGrid      = null,
+  setYGrid      = null,
+  setXMinor     = null,
+  setYMinor     = null,
+  setShowAxis   = null,
+  setShowBox    = null,
+  setXReverse   = null,
+  setYReverse   = null,
+  setZReverse   = null,
+  setShowTitle  = null,
+  setShowXLabel = null,
+  setShowYLabel = null,
+  setShowZLabel = null,
+  setShowLegend = null,
+  setLegendLocation   = null,
+  setColorbarLocation = null,
+  // Colorbar visibility — true → render at script-set location or
+  // 'east' default; false → hide; null → follow script (figure.color
+  // barLocation). Preview cards / standalone use null so they stay in
+  // sync with the script. FigureWindow passes a real boolean.
+  showColorbar = null,
+  setShowColorbar = null,
+  // ПКМ bridge — top-level Reset + Save/Export bound from FigureWindow.
+  // Each is a no-arg handler; absent → corresponding ПКМ row is omitted.
+  onResetAll          = null,
+  onExportSvg         = null,
+  onExportPng2x       = null,
+  onExportPngPrint85  = null,
+  onExportPngPrint170 = null,
+  onExportPngPrint210 = null,
+  onExportCsv         = null,
+  onExportTsv         = null,
+  onExportJson        = null,
   fontScale = 1,
   interactive = true,
   engine = null,
@@ -134,11 +213,21 @@ export default function CompositePlot({
   // figure's xscale/yscale config when no parent provides setters.
   xLog: xLogProp,
   yLog: yLogProp,
+  zLog: zLogProp,
   setXLog: setXLogProp,
   setYLog: setYLogProp,
+  setZLog: setZLogProp,
   colorOverride: colorOverrideProp,
   setColorOverride: setColorOverrideProp,
   colormapOverride = null,
+  setColormapOverride = null,
+  // Per-cell reset callbacks for the ПКМ Display ▶ reset / Colormap ▶
+  // reset rows. SubplotGrid wires these to clear THIS cell's overrides
+  // (cell falls back to figure-wide); for non-subplot CompositePlot the
+  // parent (FigureWindow) wires figure-wide displayReset / setColormap
+  // Override(null) instead.
+  onDisplayReset = null,
+  onColormapReset = null,
 }) {
   // Layers — empty array if none. The renderer walks them in order so the
   // user controls z-order via call sequence (heatmap first, scatter on top,
@@ -147,11 +236,19 @@ export default function CompositePlot({
   const heatmapLayer = layers.find((l) => l.kind === 'heatmap') || null;
   const rgbLayer = layers.find((l) => l.kind === 'image-rgb') || null;
   const seriesLayers = layers.filter((l) => l.kind === 'series');
+  // Resolve per-axis grid flags. Per-axis prop wins; otherwise fall
+  // back to the combined major/minor (legacy behavior).
+  const xGridOn = (xGridProp !== undefined) ? !!xGridProp : !!major;
+  const yGridOn = (yGridProp !== undefined) ? !!yGridProp : !!major;
+  const xMinorOn = (xMinorProp !== undefined) ? !!xMinorProp : !!minor;
+  const yMinorOn = (yMinorProp !== undefined) ? !!yMinorProp : !!minor;
   const textLayers = layers.filter((l) => l.kind === 'text');
   const hasHeatmap = !!heatmapLayer;
   // imshow's defining trait — hide axis ticks/labels/box. Default true
   // preserves the existing wire format for figures that didn't set it.
-  const axisVisible = figure.axisVisible !== false;
+  const axisVisible = (axisVisibleProp !== undefined)
+    ? !!axisVisibleProp : (figure.axisVisible !== false);
+  const boxOn = (boxOnProp !== undefined) ? !!boxOnProp : (figure.boxOn !== false);
 
   // Effective colormap: runtime override (toolbar combo) > script-level
   // colormap on the heatmap layer > default 'parula'. A custom M×3
@@ -217,6 +314,37 @@ export default function CompositePlot({
   const yLog = (yLogProp !== undefined) ? yLogProp : yLogLocal;
   const setXLog = setXLogProp || setXLogLocal;
   const setYLog = setYLogProp || setYLogLocal;
+  // Z scale state — only meaningful for 3-D, but wired through so the
+  // ПКМ axes ▶ submenu (which mirrors the toolbar) can flip it
+  // without a separate code path. No local fallback: the toggle is
+  // simply omitted when the parent doesn't supply setZLog.
+  const zLog = !!zLogProp;
+
+  // Auto-clamp viewport when xLog/yLog flips on but the visible range
+  // includes ≤0 — log mapping needs strictly positive bounds. The ПКМ
+  // path inside CompositePlot used to do this inline, but the toolbar
+  // (and toolbar-fanned subplot updates) only flip the flag, leaving
+  // the per-cell viewport untouched. Effect makes the clamp universal:
+  // any code path that sets xLog/yLog to true with an invalid viewport
+  // gets a sane log range without re-implementing the math.
+  useEffect(() => {
+    if (!xLog || !setViewport || !viewport || !viewport.x) return;
+    const [xMinV, xMaxV] = viewport.x;
+    if (xMinV > 0 && xMaxV > 0) return;
+    const hi = Math.max(figure.xRange?.[1] || xMaxV, 1e-6);
+    const lo = Math.max(hi / 1e4, 1e-6);
+    const hiClamped = Math.max(lo * 10, hi);
+    setViewport({ ...viewport, x: [lo, hiClamped] });
+  }, [xLog]);  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!yLog || !setViewport || !viewport || !viewport.y) return;
+    const [yMinV, yMaxV] = viewport.y;
+    if (yMinV > 0 && yMaxV > 0) return;
+    const hi = Math.max(figure.yRange?.[1] || yMaxV, 1e-6);
+    const lo = Math.max(hi / 1e4, 1e-6);
+    const hiClamped = Math.max(lo * 10, hi);
+    setViewport({ ...viewport, y: [lo, hiClamped] });
+  }, [yLog]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Color-limit override ────────────────────────────────────────────
   // "Fit colors to visible" pulls cmin/cmax from the currently-visible
@@ -279,10 +407,17 @@ export default function CompositePlot({
   let W = W0;
   let H = H0;
 
+  // Effective axis mode — user-set override (via aspect radio in
+  // axes ▾ or ПКМ Axes ▶ → aspect rows) takes precedence over the
+  // script-set figure.axisMode. Empty string normalises to '' (auto).
+  const effectiveAxisMode = (axisModeProp !== undefined && axisModeProp !== null && axisModeProp !== '')
+    ? String(axisModeProp)
+    : (figure.axisMode || '');
+
   // axisMode === 'square' forces the plot box itself to be square
   // (equal screen pixels for both axes' EXTENT, regardless of data).
   // Apply by shrinking the larger dimension to the smaller.
-  if (figure.axisMode === 'square') {
+  if (effectiveAxisMode === 'square') {
     const side = Math.min(W, H);
     W = side; H = side;
   }
@@ -290,17 +425,23 @@ export default function CompositePlot({
   let [xMin, xMax] = viewport.x;
   let [yMin, yMax] = viewport.y;
 
-  // axisMode === 'image' (set by imshow / `axis image`) — equivalent to
-  // `axis equal` + `axis tight`: 1:1 data-unit aspect AND keep the
-  // current data extent (no expansion to fill empty space). We do that
-  // by SHRINKING the panel to match the data aspect, letterboxing the
-  // unused side. This keeps preview and modal pixel-equivalent: a 64×64
-  // image renders as a square in both, regardless of the cell's outer
-  // aspect ratio.
-  if (figure.axisMode === 'image') {
+  // axisMode === 'image' (imshow / `axis image`) AND axisMode ===
+  // 'equal' (`axis equal`) both pin DataAspectRatio = [1 1 1]: 1 data
+  // unit on X must occupy the same number of screen pixels as 1 data
+  // unit on Y. We honour that by SHRINKING the panel to match the data
+  // aspect (letterboxing the unused side) rather than expanding the
+  // viewport — MATLAB R2025b's behaviour when xlim/ylim are explicit
+  // is to keep the limits and resize the plot box.
+  //
+  // The difference between the two modes is in *how* xRange/yRange got
+  // computed (image is also `axis tight`, equal keeps script margins),
+  // not in how the panel is rendered. Both paths shrink the panel.
+  if (effectiveAxisMode === 'image' || effectiveAxisMode === 'equal') {
     const dx = xMax - xMin;
     const dy = yMax - yMin;
-    if (dx > 0 && dy > 0) {
+    if (dx > 0 && dy > 0
+        && !(xLog && xMin > 0 && xMax > 0)
+        && !(yLog && yMin > 0 && yMax > 0)) {
       const dataAspect  = dx / dy;
       const panelAspect = W / H;
       if (panelAspect > dataAspect) {
@@ -331,37 +472,11 @@ export default function CompositePlot({
     padT += Math.max(0, Math.floor((H0 - H) / 2));
   }
 
-  // axisMode === 'equal' forces 1 data unit on the X axis to occupy
-  // the same number of screen pixels as 1 data unit on the Y axis.
-  // We achieve this by EXTENDING the viewport on whichever axis has
-  // more screen space per data unit — extending the visible range
-  // rather than shrinking the plot area keeps the panel size stable
-  // and the user sees the full data plus extra empty space (matches
-  // MATLAB's behaviour). Skipped under log on either axis (the
-  // notion of "equal units" doesn't translate to log space).
-  const wantEqual = figure.axisMode === 'equal'
-                  && !(xLog && xMin > 0 && xMax > 0)
-                  && !(yLog && yMin > 0 && yMax > 0);
-  if (wantEqual) {
-    const dx = xMax - xMin;
-    const dy = yMax - yMin;
-    if (dx > 0 && dy > 0) {
-      const unitX = W / dx;
-      const unitY = H / dy;
-      if (unitX > unitY) {
-        // X has more pixels per unit → extend xRange so unit shrinks to unitY.
-        const targetDx = W / unitY;
-        const xCtr = (xMin + xMax) / 2;
-        xMin = xCtr - targetDx / 2;
-        xMax = xCtr + targetDx / 2;
-      } else if (unitY > unitX) {
-        const targetDy = H / unitX;
-        const yCtr = (yMin + yMax) / 2;
-        yMin = yCtr - targetDy / 2;
-        yMax = yCtr + targetDy / 2;
-      }
-    }
-  }
+  // axis equal: panel-shrink path above already enforces 1 data unit
+  // X = 1 data unit Y by adjusting W/H. The old viewport-EXTENSION
+  // path that used to live here (widening xRange or yRange to fill a
+  // rectangular panel) was reverted — it broke explicit xlim/ylim
+  // calls in MATLAB-parity scripts like communications/qam_constellation.
   // Log axes: viewport bounds are still in original-data coordinates
   // (xMin..xMax = the user-visible range). The screen-mapping is log when
   // the corresponding axis flag is on. Requires lo > 0 — we sanitise by
@@ -372,8 +487,11 @@ export default function CompositePlot({
   // the corresponding axis. xDir='reverse' means x increases right→left;
   // yDir='reverse' means y increases top→bottom (the default for image
   // axes, but here it's an explicit user request, separate from imagesc).
-  const xRev = figure.xDir === 'reverse';
-  const yRev = figure.yDir === 'reverse';
+  const xRev = (xReverseProp !== undefined) ? !!xReverseProp : (figure.xDir === 'reverse');
+  const yRev = (yReverseProp !== undefined) ? !!yReverseProp : (figure.yDir === 'reverse');
+  // zRev: read-only echo for ПКМ axes ▶ ✓ marker. No 2-D renderer
+  // path uses it.
+  const zRev = !!zReverseProp;
   const sx = xLogActive
     ? (xRev
        ? (v) => padL + W - (Math.log(v / xMin) / Math.log(xMax / xMin)) * W
@@ -622,33 +740,28 @@ export default function CompositePlot({
     e.preventDefault();
     setCtxMenu({ x: e.clientX, y: e.clientY });
   }
+  // ПКМ "Fit" (heatmap-like dispatch). Routes through the shared
+  // fitCellViewport so toolbar + ПКМ + SubplotGrid all behave
+  // identically (axis-equal upgrade, default-viewport target). Log
+  // mode overrides the X / Y target with a half-cell lo bound so log
+  // doesn't silently snap back to linear when figure.xRange straddles
+  // zero (cellH/2 heatmap padding). For pure-series figures there's
+  // no half-cell; falls back to a small positive seed.
   function fitAxes(axisMode) {
-    const next = { x: viewport.x.slice(), y: viewport.y.slice() };
-    // Under log mode the figure's natural xRange/yRange straddle zero
-    // for heatmap (cellH/2 padding). Clamp the lo bound to half-cell so
-    // log doesn't silently snap back to linear. For pure-series figures
-    // there's no half-cell; use a small positive seed.
-    if (axisMode === 'both' || axisMode === 'x') {
-      if (xLog) {
-        const cellW = hFullCols > 0
-          ? (figure.xRange[1] - figure.xRange[0]) / hFullCols
-          : 0;
-        const lo = Math.max(cellW * 0.5, figure.xRange[0] > 0 ? figure.xRange[0] : 1e-6);
-        next.x = [lo, Math.max(lo * 10, figure.xRange[1])];
-      } else {
-        next.x = figure.xRange.slice();
-      }
+    const aspect = effectiveAxisMode;
+    const upgraded = upgradeFitAxis(aspect, axisMode);
+    let next = fitCellViewport(figure, viewport, axisMode, { aspectMode: aspect });
+    if ((upgraded === 'both' || upgraded === 'x') && xLog) {
+      const cellW = hFullCols > 0
+        ? (figure.xRange[1] - figure.xRange[0]) / hFullCols : 0;
+      const lo = Math.max(cellW * 0.5, figure.xRange[0] > 0 ? figure.xRange[0] : 1e-6);
+      next = { ...next, x: [lo, Math.max(lo * 10, figure.xRange[1])] };
     }
-    if (axisMode === 'both' || axisMode === 'y') {
-      if (yLog) {
-        const cellH = hFullRows > 0
-          ? (figure.yRange[1] - figure.yRange[0]) / hFullRows
-          : 0;
-        const lo = Math.max(cellH * 0.5, figure.yRange[0] > 0 ? figure.yRange[0] : 1e-6);
-        next.y = [lo, Math.max(lo * 10, figure.yRange[1])];
-      } else {
-        next.y = figure.yRange.slice();
-      }
+    if ((upgraded === 'both' || upgraded === 'y') && yLog) {
+      const cellH = hFullRows > 0
+        ? (figure.yRange[1] - figure.yRange[0]) / hFullRows : 0;
+      const lo = Math.max(cellH * 0.5, figure.yRange[0] > 0 ? figure.yRange[0] : 1e-6);
+      next = { ...next, y: [lo, Math.max(lo * 10, figure.yRange[1])] };
     }
     setViewport(next);
   }
@@ -699,65 +812,470 @@ export default function CompositePlot({
   // Per-series fit (line / scatter): scan x/y of selected layer and shrink
   // viewport to its data extent. Mirrors InteractivePlot's "Fit single
   // curve". `axisMode` is 'both' / 'x' / 'y'.
+  // Per-series fit (ПКМ "Fit single curve") stays a data-scan via
+  // computeFitViewport — scans ONE series's points for tighter bounds
+  // than the cell aggregate. Axis-equal upgrade applies here too so
+  // single-axis per-series fit doesn't break the contract.
   function applyFitSeries(seriesIdx, axisMode) {
+    axisMode = upgradeFitAxis(effectiveAxisMode, axisMode);
     const ly = seriesLayers[seriesIdx];
     if (!ly) return;
     const figDefault = { x: figure.xRange.slice(), y: figure.yRange.slice() };
     setViewport(computeFitViewport([{ name: ly.name, x: ly.x, y: ly.y }],
                                    ly.name, axisMode, viewport, figDefault));
   }
+  // "Fit all series" routes through the shared fitCellViewport so it
+  // matches toolbar + SubplotGrid + ПКМ Fit. For composites with no
+  // series (pure heatmap) delegates to fitAxes which keeps log-clamp.
   function applyFitAllSeries(axisMode) {
     if (seriesLayers.length === 0) return fitAxes(axisMode);
-    const figDefault = { x: figure.xRange.slice(), y: figure.yRange.slice() };
-    const all = seriesLayers.map((s) => ({ name: s.name, x: s.x, y: s.y }));
-    setViewport(computeFitViewport(all, 'all', axisMode, viewport, figDefault));
+    setViewport(fitCellViewport(figure, viewport, axisMode,
+                                { aspectMode: effectiveAxisMode }));
   }
 
   const multiSeries = seriesLayers.length > 1;
-  const ctxItems = [
-    { label: 'Reset to default',
-      onClick: () => {
-        setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() });
-        setColorOverride(null);
-        setXLog(false);
-        setYLog(false);
-      } },
-    { label: 'Save as SVG (vector)',
-      onClick: () => exportSvgNode(svgRef.current, `figure_${figure.id}.svg`) },
-    { label: 'Save as PNG (screen 2×)',
-      onClick: () => exportPngNode(svgRef.current, width, height, 2, `figure_${figure.id}.png`) },
-    { head: 'Save for print (300 DPI)' },
-    { label: 'PNG · 1 column (85 mm)',
-      onClick: () => exportPngForPrint(svgRef.current, width, height, 85, 300, `figure_${figure.id}`) },
-    { label: 'PNG · 2 columns (170 mm)',
-      onClick: () => exportPngForPrint(svgRef.current, width, height, 170, 300, `figure_${figure.id}`) },
-    { label: 'PNG · A4 width (210 mm)',
-      onClick: () => exportPngForPrint(svgRef.current, width, height, 210, 300, `figure_${figure.id}`) },
-    { separator: true },
-    // For figures with series layers (line/scatter), surface "fit all curves"
-    // and per-curve rows like InteractivePlot did. Falls back to data-extent
-    // fit when there are no series (pure heatmap / annotations only).
-    ...(seriesLayers.length > 0 ? [
-      { head: multiSeries ? 'Fit all curves' : 'Fit data extent' },
-      { label: 'Fit both axes', onClick: () => applyFitAllSeries('both') },
-      { label: 'Fit X only',    onClick: () => applyFitAllSeries('x') },
-      { label: 'Fit Y only',    onClick: () => applyFitAllSeries('y') },
-      ...(multiSeries ? [
-        { head: 'Fit single curve' },
-        ...seriesLayers.map((s, i) => ({
-          row: true, color: s.color, name: s.name || `series ${i + 1}`,
-          buttons: [
-            { label: 'xy', onClick: () => applyFitSeries(i, 'both') },
-            { label: 'x',  onClick: () => applyFitSeries(i, 'x') },
-            { label: 'y',  onClick: () => applyFitSeries(i, 'y') },
-          ],
+  // Top-level Reset — prefer parent-supplied handler (modal: full reset
+  // of viewport + display state, fans out to every cell in subplot
+  // mode). Fallback to local viewport-only reset for preview cards
+  // / standalone usage.
+  const onReset = onResetAll || (() => {
+    setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() });
+    setColorOverride(null);
+    setXLog(false);
+    setYLog(false);
+  });
+  // Save/Export — bundle into a submenu when parent provided handlers,
+  // else fall back to local SVG-node exports (preview cards still get
+  // PNG @2× via the local helpers).
+  const useParentExport = !!(onExportSvg || onExportPng2x);
+  const exportItems = useParentExport ? [
+    { head: 'image · screen' },
+    { label: 'SVG (vector)',  onClick: onExportSvg,    disabled: !onExportSvg },
+    { label: 'PNG @2×',       onClick: onExportPng2x,  disabled: !onExportPng2x },
+    { head: 'image · print (300 DPI)' },
+    { label: 'PNG · 1 column (85 mm)',  onClick: onExportPngPrint85,  disabled: !onExportPngPrint85 },
+    { label: 'PNG · 2 columns (170 mm)', onClick: onExportPngPrint170, disabled: !onExportPngPrint170 },
+    { label: 'PNG · A4 width (210 mm)',  onClick: onExportPngPrint210, disabled: !onExportPngPrint210 },
+    { head: 'data' },
+    { label: 'CSV',  onClick: onExportCsv,  disabled: !onExportCsv },
+    { label: 'TSV',  onClick: onExportTsv,  disabled: !onExportTsv },
+    { label: 'JSON', onClick: onExportJson, disabled: !onExportJson },
+  ] : (() => {
+    // Local fallback exporters — used by subplot cells (where parent
+    // handlers would save the WHOLE figure, not just this cell). The
+    // image exporters use the cell's own svgRef; data exporters walk
+    // figure.layers (already cell-scoped when SubplotGrid hands off
+    // each cell as `figure`).
+    //
+    // Filename uses cell.subplotIndex / id when available so multiple
+    // saves from different cells don't collide. Falls back to figure.id.
+    const tag = figure.subplotIndex
+      ? `figure_${figure.id}_cell${figure.subplotIndex}`
+      : `figure_${figure.id}`;
+    // Build a series-row table per layer: alternating x_<name>, y_<name>
+    // columns, blank cells for ragged lengths.
+    const dataLayers = (figure.layers || []).filter(
+      (ly) => ly.kind === 'series' && Array.isArray(ly.x) && Array.isArray(ly.y)
+    );
+    function seriesRows(sep) {
+      if (dataLayers.length === 0) return '';
+      const head = dataLayers
+        .flatMap((ly, i) => [`x_${ly.name || 'series' + (i + 1)}`,
+                             `y_${ly.name || 'series' + (i + 1)}`])
+        .join(sep);
+      const N = dataLayers.reduce((m, ly) => Math.max(m, ly.x.length), 0);
+      const rows = [head];
+      for (let i = 0; i < N; i++) {
+        const cells = dataLayers.flatMap((ly) => [
+          ly.x[i] != null ? String(ly.x[i]) : '',
+          ly.y[i] != null ? String(ly.y[i]) : '',
+        ]);
+        rows.push(cells.join(sep));
+      }
+      return rows.join('\n');
+    }
+    function dumpCsv() {
+      downloadBlob(new Blob([seriesRows(',')], { type: 'text/csv' }), `${tag}.csv`);
+    }
+    function dumpTsv() {
+      downloadBlob(new Blob([seriesRows('\t')], { type: 'text/tab-separated-values' }), `${tag}.tsv`);
+    }
+    function dumpJson() {
+      const payload = {
+        id: figure.id,
+        cellIndex: figure.subplotIndex || null,
+        title: figure.title || '',
+        xLabel: figure.xLabel || '', yLabel: figure.yLabel || '',
+        xRange: figure.xRange, yRange: figure.yRange,
+        layers: (figure.layers || []).map((ly) => {
+          const out = { kind: ly.kind, mode: ly.mode || '', name: ly.name || '',
+                        color: ly.color || '' };
+          if (Array.isArray(ly.x)) out.x = ly.x;
+          if (Array.isArray(ly.y)) out.y = ly.y;
+          if (Array.isArray(ly.z)) out.z = ly.z;
+          return out;
+        }),
+      };
+      downloadBlob(new Blob([JSON.stringify(payload, null, 2)],
+        { type: 'application/json' }), `${tag}.json`);
+    }
+    const dataDisabled = dataLayers.length === 0;
+    return [
+      { head: 'image · screen' },
+      { label: 'SVG (vector)',
+        onClick: () => exportSvgNode(svgRef.current, `${tag}.svg`) },
+      { label: 'PNG @2×',
+        onClick: () => exportPngNode(svgRef.current, width, height, 2, `${tag}.png`) },
+      { head: 'image · print (300 DPI)' },
+      { label: 'PNG · 1 column (85 mm)',
+        onClick: () => exportPngForPrint(svgRef.current, width, height, 85, 300, tag) },
+      { label: 'PNG · 2 columns (170 mm)',
+        onClick: () => exportPngForPrint(svgRef.current, width, height, 170, 300, tag) },
+      { label: 'PNG · A4 width (210 mm)',
+        onClick: () => exportPngForPrint(svgRef.current, width, height, 210, 300, tag) },
+      { head: 'data' },
+      { label: 'CSV',  onClick: dumpCsv,  disabled: dataDisabled },
+      { label: 'TSV',  onClick: dumpTsv,  disabled: dataDisabled },
+      { label: 'JSON', onClick: dumpJson, disabled: dataDisabled },
+    ];
+  })();
+  // ── ПКМ submenus: Axes ▶ / Decoration ▶ ─────────────────────────
+  // Specialised — show only what's relevant to THIS plot. CompositePlot
+  // is always a 2-D context (3-D figures use Composite3DPlot), so Z
+  // toggles are simply absent here. Legend lives in Decoration ▶
+  // only when there's at least one series; colorbar + Location only
+  // when there's a heatmap. The toolbar popovers stay universal —
+  // everything always visible — but ПКМ is per-plot context.
+  //
+  // Every toggle row carries `keepOpen: true` so the user can flip
+  // several values without re-summoning the menu. One-shot rows
+  // (`default`, palette pick, Fit option, Save/Export choice, Location
+  // pick) leave keepOpen unset and close on click per OS convention.
+  const tag = (active, label) => active ? `✓ ${label}` : label;
+
+  // Naming convention across all menus (toolbar + ПКМ):
+  //   • Section head names the ACTIVE state of the toggle group
+  //     (`reverse`, `log scale`) — or the group identity (`grid`,
+  //     `visible`).
+  //   • Row label is the axis name only — `fit` / `grid on` /
+  //     `reverse` / `log scale` are implied by the menu + head
+  //     chain. ПКМ is specialised cartesian-only (CompositePlot),
+  //     so just X/Y here.
+  // Two ПКМ submenus: Axes ▶ (Axes-object props minus grid) and
+  // Grid ▶ (split out, mirrors the toolbar grid ▾ button). Same
+  // split rationale: grid surface is busy enough to deserve its own
+  // group.
+  const axesSubmenuItems = (setShowAxis || setShowBox
+      || setXReverse || setYReverse
+      || setXLog || setYLog) ? [
+    ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
+                          { separator: true }] : []),
+    { head: 'visible' },
+    ...(setShowAxis ? [{ label: tag(axisVisible, 'axis'), keepOpen: true,
+                         onClick: () => setShowAxis((v) => !v) }] : []),
+    // Box is masked when axis is off — MATLAB HG2: Axes.Visible='off'
+    // hides the Box regardless of Box='on'. State is preserved; row
+    // stays clickable so the user can pre-set a value.
+    ...(setShowBox  ? [{ label: tag(boxOn, 'box'), keepOpen: true,
+                         masked: !axisVisible,
+                         maskedHint: 'Box is hidden because axis is off.',
+                         onClick: () => setShowBox((v) => !v) }] : []),
+    // Direction + scale collapsed into a single matrix — rows = X/Y,
+    // columns = reverse / log. Mirrors the toolbar axes ▾ matrix.
+    // Log toggle keeps its viewport-clamp logic inline (positive lo
+    // bound required for the log mapping to apply visibly).
+    ...((setXReverse || setYReverse || setXLogProp || setYLogProp) ? (() => {
+      const xLogClamp = () => {
+        if (!xLog && (xMin <= 0 || xMax <= 0)) {
+          const cellW = hFullCols > 0 ? (figure.xRange[1] - figure.xRange[0]) / hFullCols : 0;
+          const safeLo = Math.max(cellW * 0.5, figure.xRange[0] > 0 ? figure.xRange[0] : 1e-6);
+          const safeHi = Math.max(safeLo * 10, figure.xRange[1]);
+          setViewport({ ...viewport, x: [safeLo, safeHi] });
+        }
+        setXLog((v) => !v);
+      };
+      const yLogClamp = () => {
+        if (!yLog && (yMin <= 0 || yMax <= 0)) {
+          const cellH = hFullRows > 0 ? (figure.yRange[1] - figure.yRange[0]) / hFullRows : 0;
+          const safeLo = Math.max(cellH * 0.5, figure.yRange[0] > 0 ? figure.yRange[0] : 1e-6);
+          const safeHi = Math.max(safeLo * 10, figure.yRange[1]);
+          setViewport({ ...viewport, y: [safeLo, safeHi] });
+        }
+        setYLog((v) => !v);
+      };
+      const matrixRow = (label, cols) => ({
+        row: true, name: label,
+        buttons: cols.map((c) => ({
+          label: c.active ? '✓' : '', active: !!c.active, keepOpen: true, toggle: true,
+          title: c.title || '',
+          onClick: c.onClick,
+          disabled: !c.onClick || !!c.disabled,
         })),
-      ] : []),
+      });
+      return [
+        { head: 'reverse · log scale' },
+        { rowHead: true, columns: ['rev', 'log'] },
+        matrixRow('X', [
+          { active: xRev, onClick: setXReverse ? () => setXReverse((v) => !v) : null,
+            title: 'reverse direction' },
+          { active: xLog, onClick: setXLogProp ? xLogClamp : null,
+            disabled: figure.xRange[1] <= 0, title: 'log scale' },
+        ]),
+        matrixRow('Y', [
+          { active: yRev, onClick: setYReverse ? () => setYReverse((v) => !v) : null,
+            title: 'reverse direction' },
+          { active: yLog, onClick: setYLogProp ? yLogClamp : null,
+            disabled: figure.yRange[1] <= 0, title: 'log scale' },
+        ]),
+      ];
+    })() : []),
+    // aspect: same pill-radio shape as the toolbar axes ▾ aspect row.
+    // Section head names the active value (`aspect: equal`) — matches
+    // the toolbar's `head names state` convention.
+    ...(setAxisMode ? (() => {
+      const cur = effectiveAxisMode || 'auto';
+      return [
+        { head: cur === 'auto' ? 'aspect' : `aspect: ${cur}` },
+        { pillRow: true, options: ['auto', 'equal', 'square', 'image', 'tight'].map((m) => ({
+          label: m,
+          active: cur === m,
+          title: ({
+            auto:   'panel fills cell; no aspect lock',
+            equal:  '1 data unit X = 1 data unit Y (DataAspectRatio = [1 1 1])',
+            square: 'plot box square regardless of data',
+            image:  'equal + tight (default for imshow)',
+            tight:  'limits exactly at data extent — no padding',
+          })[m] || '',
+          onClick: () => setAxisMode(m),
+        })) },
+      ];
+    })() : []),
+  ] : null;
+
+  // Grid ▶ — mirrors the toolbar grid ▾ button, specialised for
+  // CompositePlot (cartesian-only). Matrix layout: each axis row
+  // carries TWO buttons (major / minor). The maj/min header row
+  // labels the columns once; per-row buttons stay compact. Polar
+  // omitted — PolarPlot has its own ПКМ Grid ▶.
+  const gridMatrixRow = (label, major, minor, setMajor, setMinor) => ({
+    row: true, name: label,
+    buttons: [
+      { label: major ? '✓' : '', active: !!major, keepOpen: true, toggle: true,
+        title: 'major grid',
+        onClick: setMajor ? () => setMajor((v) => !v) : null,
+        disabled: !setMajor },
+      { label: minor ? '✓' : '', active: !!minor, keepOpen: true, toggle: true,
+        title: 'minor grid',
+        onClick: setMinor ? () => setMinor((v) => !v) : null,
+        disabled: !setMinor },
+    ],
+  });
+  const gridSubmenuItems = (setShowMajor || setShowMinor
+      || setXGrid || setYGrid) ? [
+    ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
+                          { separator: true }] : []),
+    { head: 'grid' },
+    { rowHead: true, columns: ['maj', 'min'] },
+    gridMatrixRow('all', major, minor, setShowMajor, setShowMinor),
+    { head: 'Cartesian' },
+    gridMatrixRow('X', xGridOn, xMinorOn, setXGrid, setXMinor),
+    gridMatrixRow('Y', yGridOn, yMinorOn, setYGrid, setYMinor),
+  ] : null;
+
+  // Location options shared by legend / colorbar Location submenus.
+  // null → "default" (follow script). Order mirrors the toolbar's
+  // FwPopLocationSubmenu options.
+  const legendLocOptions = [
+    { value: null,        label: 'default' },
+    { value: 'best',      label: 'best' },
+    { value: 'north',     label: 'north' },
+    { value: 'south',     label: 'south' },
+    { value: 'east',      label: 'east' },
+    { value: 'west',      label: 'west' },
+    { value: 'northeast', label: 'northeast' },
+    { value: 'northwest', label: 'northwest' },
+    { value: 'southeast', label: 'southeast' },
+    { value: 'southwest', label: 'southwest' },
+  ];
+  const colorbarLocOptions = [
+    { value: null,    label: 'default' },
+    { value: 'east',  label: 'east' },
+    { value: 'west',  label: 'west' },
+    { value: 'north', label: 'north' },
+    { value: 'south', label: 'south' },
+  ];
+
+  // Decoration ▶ — specialised per figure shape:
+  //   • zlabel:   absent (CompositePlot is 2-D only).
+  //   • legend:   only when seriesLayers.length > 0 (heatmap-only or
+  //               text-only figures don't get a legend).
+  //   • colorbar: only when hasHeatmap (no colorscale without a
+  //               colormap-driven layer).
+  // The annotations head itself is dropped if both legend AND colorbar
+  // are gated out — avoids an empty section header on figures that
+  // have neither.
+  const hasSeriesLayer = seriesLayers.length > 0;
+  // Label rows: never hard-disabled by empty-text alone — use `masked`
+  // instead, so the user can flip Visible state in advance even before
+  // the script sets the text. If `xlabel(...)` is later called, the
+  // pre-set ✓ already takes effect. The only true hard-disable left is
+  // `titleAuto` (MATLAB auto-generated title from data) — that's a
+  // separate semantic, not a no-text condition.
+  //
+  // Naming: per-axis rows read `X foo / Y foo / Z foo` (matches X grid
+  // / X reverse / X log uppercased + spaced).
+  const labelRows = [
+    ...(setShowTitle ? [{
+      label: tag(showTitle, 'title'),
+      keepOpen: true,
+      disabled: !!figure.titleAuto,
+      masked: !figure.title && !figure.titleAuto,
+      maskedHint: 'No title text — set title(...) in your script to add one.',
+      onClick: () => setShowTitle((v) => !v),
+    }] : []),
+    ...(setShowXLabel ? [{
+      label: tag(showXLabel, 'X label'),
+      keepOpen: true,
+      masked: !figure.xLabel,
+      maskedHint: 'No xlabel text — set xlabel(...) in your script to add one.',
+      onClick: () => setShowXLabel((v) => !v),
+    }] : []),
+    ...(setShowYLabel ? [{
+      label: tag(showYLabel, 'Y label'),
+      keepOpen: true,
+      masked: !figure.yLabel,
+      maskedHint: 'No ylabel text — set ylabel(...) in your script to add one.',
+      onClick: () => setShowYLabel((v) => !v),
+    }] : []),
+  ];
+  const annotationRows = [
+    ...(hasSeriesLayer && setShowLegend ? [{
+      label: tag(showLegend, 'legend'),
+      keepOpen: true,
+      onClick: () => setShowLegend((v) => !v),
+    }] : []),
+    ...(hasSeriesLayer && setLegendLocation ? [{
+      submenu: 'legend location',
+      items: legendLocOptions.map((o) => ({
+        label: tag((legendLocationProp || null) === o.value, o.label),
+        onClick: () => setLegendLocation(o.value),
+      })),
+    }] : []),
+    ...(hasHeatmap && setShowColorbar ? [{
+      label: tag(showColorbar, 'colorbar'),
+      keepOpen: true,
+      onClick: () => setShowColorbar((v) => !v),
+    }] : []),
+    ...(hasHeatmap && setColorbarLocation ? [{
+      submenu: 'colorbar location',
+      items: colorbarLocOptions.map((o) => ({
+        label: tag((colorbarLocationProp || null) === o.value, o.label),
+        onClick: () => setColorbarLocation(o.value),
+      })),
+    }] : []),
+  ];
+  const decorationSubmenuItems = (labelRows.length || annotationRows.length) ? [
+    ...(onDisplayReset ? [{ label: 'default', onClick: onDisplayReset },
+                          { separator: true }] : []),
+    ...(labelRows.length      ? [{ head: 'labels' },      ...labelRows]      : []),
+    ...(annotationRows.length ? [{ head: 'annotations' }, ...annotationRows] : []),
+  ] : null;
+
+  // Colormap submenu — list of available palettes; click sets
+  // colormapOverride which propagates back to FigureWindow's state.
+  // Only built when the parent provided the setter (modal mode) AND
+  // there's a heatmap layer to colour. Marks the active palette with ✓.
+  const COLORMAP_NAMES = ['parula', 'jet', 'hot', 'cool', 'gray', 'bone',
+    'copper', 'spring', 'summer', 'autumn', 'winter', 'hsv', 'viridis'];
+  const colormapSubmenuItems = (setColormapOverride && hasHeatmap) ? [
+    // default on top mirrors the toolbar layout. Restores the script
+    // colormap (clears any UI override).
+    ...(onColormapReset ? [{ label: 'default', onClick: onColormapReset },
+                           { separator: true }] : []),
+    ...COLORMAP_NAMES.map((name) => ({
+      label: (effectiveColormap === name ? '✓ ' : '') + name,
+      onClick: () => {
+        const scriptDefault = heatmapLayer?.colormap || 'parula';
+        setColormapOverride(name === scriptDefault ? null : name);
+      },
+    })),
+  ] : null;
+
+  // House icon used for the Reset row. Same SVG as the toolbar
+  // standalone Reset button — uses currentColor so it inherits the
+  // menu text colour (no emoji colour).
+  const houseIcon = (
+    <svg width="11" height="11" viewBox="0 0 12 12"
+         style={{ verticalAlign: '-1px', marginRight: '6px' }}>
+      <path d="M1 6l5-5 5 5 M2 5v6h8V5"
+            stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round"/>
+    </svg>
+  );
+
+  // Series ▶ submenu — per-series fit rows lifted into their own
+  // top-level submenu, matching the Display ▶ / Colormap ▶ layout.
+  // "Series" matches MATLAB legend / docs terminology and is generic
+  // enough for line / scatter / bar / area / stem / quiver layers.
+  //
+  // Filtered to FITTABLE series only:
+  //   • text layers already excluded by the kind === 'series' filter
+  //     above (text has kind === 'text')
+  //   • require ≥2 data points — fitting a viewport to a single point
+  //     gives a degenerate (zero-width) range; skip those rows
+  //
+  // Preserve the ORIGINAL seriesLayers index so applyFitSeries(i, axis)
+  // still targets the right layer after filtering.
+  const fittableSeries = seriesLayers
+    .map((s, i) => ({ s, i }))
+    .filter(({ s }) =>
+      Array.isArray(s.x) && s.x.length >= 2
+      && Array.isArray(s.y) && s.y.length >= 2);
+  const seriesSubmenuItems = fittableSeries.length > 0
+    ? fittableSeries.map(({ s, i }) => ({
+        row: true, color: s.color, name: resolveSeriesName(figure, s, i),
+        buttons: [
+          { label: 'xy', onClick: () => applyFitSeries(i, 'both') },
+          { label: 'x',  onClick: () => applyFitSeries(i, 'x') },
+          { label: 'y',  onClick: () => applyFitSeries(i, 'y') },
+        ],
+      }))
+    : null;
+
+  const ctxItems = [
+    // Order: Reset · Save · Axes · Grid · Decoration · Colormap · Fit Series · Fit All.
+    // Axes ▶ / Decoration ▶ mirror the toolbar's axes ▾ / decoration ▾
+    // split (HG2 object vs. children).
+    { label: <span>{houseIcon}Reset</span>, onClick: onReset },
+    { submenu: 'Save / Export', items: exportItems },
+    ...(axesSubmenuItems ? [{ submenu: 'Axes', items: axesSubmenuItems }] : []),
+    ...(gridSubmenuItems ? [{ submenu: 'Grid', items: gridSubmenuItems }] : []),
+    ...(decorationSubmenuItems ? [{ submenu: 'Decoration', items: decorationSubmenuItems }] : []),
+    ...(colormapSubmenuItems ? [{ submenu: 'Colormap', items: colormapSubmenuItems }] : []),
+    ...(seriesSubmenuItems ? [{
+      submenu: `Fit Series${fittableSeries.length > 1 ? ` (${fittableSeries.length})` : ''}`,
+      items: seriesSubmenuItems,
+    }] : []),
+    { separator: true },
+    // Fit section now carries only figure-wide / data-extent rows;
+    // per-curve fit lives in the Fit Series ▶ submenu above. Head
+    // "Fit All" makes child labels redundant so they shorten to
+    // bare axis names (matches the toolbar fit ▾ popover layout).
+    // ПКМ Fit — specialized to the cell's coordinate system.
+    // CompositePlot is always cartesian (polar uses PolarPlot, 3-D
+    // Composite3DPlot), so we expose only X / Y axes here. No `Z` (no
+    // 3-D context); no `R / θ` (no polar). Rows mirror the toolbar
+    // fit ▾ Cartesian block but specialised to THIS cell. Single-
+    // letter row labels — `fit` implied by section head.
+    ...(seriesLayers.length > 0 ? [
+      { head: 'Fit' },
+      { label: 'all', onClick: () => applyFitAllSeries('both') },
+      { label: 'X',   onClick: () => applyFitAllSeries('x') },
+      { label: 'Y',   onClick: () => applyFitAllSeries('y') },
     ] : [
-      { head: 'Fit data extent' },
-      { label: 'Fit both axes', onClick: () => fitAxes('both') },
-      { label: 'Fit X only',    onClick: () => fitAxes('x') },
-      { label: 'Fit Y only',    onClick: () => fitAxes('y') },
+      { head: 'Fit' },
+      { label: 'all', onClick: () => fitAxes('both') },
+      { label: 'X',   onClick: () => fitAxes('x') },
+      { label: 'Y',   onClick: () => fitAxes('y') },
     ]),
     // Color range — only meaningful for heatmap layers.
     ...(hasHeatmap ? [
@@ -772,35 +1290,6 @@ export default function CompositePlot({
         onClick: resetColors,
         disabled: !colorOverride },
     ] : []),
-    { head: 'Axes' },
-    { label: xLog ? '✓ X axis · log' : 'X axis · log',
-      onClick: () => {
-        // Switching to log requires a strictly-positive xMin. Clamp viewport
-        // up to half-cell-width (the lowest positive cell-centre worth showing)
-        // when currently viewing through zero. For pure-series figures with
-        // no cell grid, fall back to a small positive seed.
-        if (!xLog && (xMin <= 0 || xMax <= 0)) {
-          const cellW = hFullCols > 0 ? (figure.xRange[1] - figure.xRange[0]) / hFullCols : 0;
-          const safeLo = Math.max(cellW * 0.5, figure.xRange[0] > 0 ? figure.xRange[0] : 1e-6);
-          const safeHi = Math.max(safeLo * 10, figure.xRange[1]);
-          setViewport({ ...viewport, x: [safeLo, safeHi] });
-        }
-        setXLog((v) => !v);
-      },
-      disabled: figure.xRange[1] <= 0,
-    },
-    { label: yLog ? '✓ Y axis · log' : 'Y axis · log',
-      onClick: () => {
-        if (!yLog && (yMin <= 0 || yMax <= 0)) {
-          const cellH = hFullRows > 0 ? (figure.yRange[1] - figure.yRange[0]) / hFullRows : 0;
-          const safeLo = Math.max(cellH * 0.5, figure.yRange[0] > 0 ? figure.yRange[0] : 1e-6);
-          const safeHi = Math.max(safeLo * 10, figure.yRange[1]);
-          setViewport({ ...viewport, y: [safeLo, safeHi] });
-        }
-        setYLog((v) => !v);
-      },
-      disabled: figure.yRange[1] <= 0,
-    },
   ];
 
   useEffect(() => {
@@ -931,20 +1420,24 @@ export default function CompositePlot({
   const imgH = Math.abs(syLo - syHi);
 
   /* ─── colorbar — placement honours figure.colorbarLocation ─────
-     'off'  → hidden (explicit user hide). null/'' → default for
-     heatmap = 'east' (IDE convenience; MATLAB requires explicit
-     colorbar call).
+     MATLAB parity: the bar appears ONLY when the script called
+     colorbar() (which sets figure.colorbarLocation to a non-empty
+     placement string) OR when the user enabled it via the toolbar /
+     ПКМ display toggle (showColorbar === true).
      'east' / 'eastoutside'  → vertical bar right of plot
      'west' / 'westoutside'  → vertical bar left of plot
      'north' / 'northoutside' → horizontal bar above plot
      'south' / 'southoutside' → horizontal bar below plot
      We collapse 'inside' / 'outside' variants to the same screen
-     position; 'inside' would overlap data, which is unusual for
-     real-world MATLAB scripts. */
-  const cbarLocRaw = figure.colorbarLocation || '';
-  const cbarLoc = cbarLocRaw === 'off'
-    ? null
-    : (cbarLocRaw || (hasHeatmap ? 'east' : null));
+     position; 'inside' would overlap data. */
+  // colorbarLocationProp override wins — UI submenu can pin the bar
+  // to a specific edge regardless of script's choice.
+  const cbarLocRaw = colorbarLocationProp || figure.colorbarLocation || '';
+  // Resolve "want bar?" — explicit toggle wins; otherwise follow script.
+  const cbarWanted = showColorbar === true
+                  || (showColorbar !== false && !!cbarLocRaw);
+  // When wanted but script didn't set a location, fall back to 'east'.
+  const cbarLoc = cbarWanted ? (cbarLocRaw || 'east') : null;
   // Strip the 'outside' suffix so the placement switch is compact.
   const cbarSide = cbarLoc ? cbarLoc.replace(/outside$/, '') : null;
   const cbarThick = 12;
@@ -1112,20 +1605,25 @@ export default function CompositePlot({
       {/* Optional minor + major grid (faint, over the heatmap).
           axisVisible=false (imshow / `axis off`) suppresses gridlines,
           frame box, and tick labels — image-only viewport. */}
-      {axisVisible && minor && xTicks.minor.map((v, i) => (
+      {/* Grid lines split per MATLAB XGrid / YGrid semantics:
+            X grid → vertical lines at X-tick positions
+            Y grid → horizontal lines at Y-tick positions
+          xMinorOn / yMinorOn (XMinorGrid / YMinorGrid) drive the
+          fainter sub-tick lines independently. */}
+      {axisVisible && xMinorOn && xTicks.minor.map((v, i) => (
         <line key={`mx${i}`} x1={sx(v)} x2={sx(v)} y1={padT} y2={padT + H} stroke="var(--plot-grid-min)" />
       ))}
-      {axisVisible && minor && yTicks.minor.map((v, i) => (
+      {axisVisible && yMinorOn && yTicks.minor.map((v, i) => (
         <line key={`my${i}`} x1={padL} x2={padL + W} y1={sy(v)} y2={sy(v)} stroke="var(--plot-grid-min)" />
       ))}
-      {axisVisible && major && xTicks.major.map((v, i) => (
+      {axisVisible && xGridOn && xTicks.major.map((v, i) => (
         <line key={`gx${i}`} x1={sx(v)} x2={sx(v)} y1={padT} y2={padT + H} stroke="var(--plot-grid)" />
       ))}
-      {axisVisible && major && yTicks.major.map((v, i) => (
+      {axisVisible && yGridOn && yTicks.major.map((v, i) => (
         <line key={`gy${i}`} x1={padL} x2={padL + W} y1={sy(v)} y2={sy(v)} stroke="var(--plot-grid)" />
       ))}
 
-      {axisVisible && (figure.boxOn !== false ? (
+      {axisVisible && (boxOn ? (
         <rect x={padL} y={padT} width={W} height={H} fill="none" stroke="var(--plot-frame)" />
       ) : (
         // box off — only left + bottom edges (MATLAB convention).
@@ -1595,7 +2093,7 @@ export default function CompositePlot({
         if (!haveLabels) return null;
         const items = seriesLayers.slice(0, labels.length).map((l, i) => ({
           color: l.color,
-          text: labels[i] || l.name || `series ${i + 1}`,
+          text: resolveSeriesName(figure, l, i),
           // Mode drives swatch shape: 'circle' for point-like marks,
           // 'rect' for filled-region marks, 'line' for everything else.
           mode: l.mode || 'line',
@@ -1610,7 +2108,7 @@ export default function CompositePlot({
         const longest = items.reduce((m, it) => Math.max(m, it.text.length), 0);
         const boxW = padInner * 2 + swatchW + 4 + Math.min(longest, 24) * 6.5;
         const boxH = padInner * 2 + items.length * lineH;
-        const loc = (figure.legendLocation || 'best')
+        const loc = ((legendLocationProp != null ? legendLocationProp : figure.legendLocation) || 'best')
                     .replace(/outside$/, '');
         // Resolve box anchor to (x, y) inside the panel rect.
         const anchorMargin = 8;
