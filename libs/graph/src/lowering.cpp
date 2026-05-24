@@ -26,36 +26,31 @@ namespace {
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-/** Best-effort source-text slice. Lines/cols are 1-indexed. Returns
- *  empty when the slice is out of range. For Phase 1 we slice just
- *  the start line — multi-line statements show only their first line
- *  in the node body; full slicing comes when we wire endLine for
- *  every node.
- *
- *  When `firstCommentCol` is set (> 0), the slice is cut at
- *  column-1 (col is 1-indexed) and trailing whitespace before it is
- *  trimmed. That removes the trailing `% ...` comment cleanly while
- *  preserving any `%` inside string literals — the lexer's COMMENT
- *  emission already handled the MATLAB quote/transpose disambiguation
- *  upstream. */
-std::string sliceLine(const std::string &source, int line, int firstCommentCol = 0)
+/** Slice a single source line from `startCol` (inclusive) to
+ *  `endCol` (exclusive). Both 1-indexed; 0 / out-of-range values mean
+ *  "no bound on that side". Trailing whitespace after the right cut
+ *  is trimmed so multi-statement lines like `a=1; b=2; c=3;` slice
+ *  to clean `a=1;`, `b=2;`, `c=3;` segments without straggler spaces. */
+std::string sliceLine(const std::string &source, int line,
+                      int startCol = 1, int endCol = 0)
 {
     if (line <= 0 || source.empty()) return {};
     int curLine = 1;
-    size_t start = 0;
-    while (start < source.size() && curLine < line) {
-        if (source[start] == '\n') ++curLine;
-        ++start;
+    size_t lineStart = 0;
+    while (lineStart < source.size() && curLine < line) {
+        if (source[lineStart] == '\n') ++curLine;
+        ++lineStart;
     }
     if (curLine != line) return {};
-    size_t end = source.find('\n', start);
-    if (end == std::string::npos) end = source.size();
-    while (end > start && (source[end - 1] == '\r')) --end;
-    // Cap at the comment column when provided.
-    if (firstCommentCol > 0) {
-        size_t commentStart = start + static_cast<size_t>(firstCommentCol - 1);
-        if (commentStart < end) end = commentStart;
-        // Trim trailing whitespace left over after the cut.
+    size_t lineEnd = source.find('\n', lineStart);
+    if (lineEnd == std::string::npos) lineEnd = source.size();
+    while (lineEnd > lineStart && source[lineEnd - 1] == '\r') --lineEnd;
+    size_t start = lineStart + static_cast<size_t>(std::max(0, startCol - 1));
+    if (start > lineEnd) start = lineEnd;
+    size_t end = lineEnd;
+    if (endCol > 0) {
+        size_t capPos = lineStart + static_cast<size_t>(endCol - 1);
+        if (capPos < end) end = capPos;
         while (end > start && (source[end - 1] == ' ' || source[end - 1] == '\t')) --end;
     }
     return source.substr(start, end - start);
@@ -201,7 +196,8 @@ bool lhsIsReadModifyWrite(const ASTNode *lhs)
 struct LoweringState {
     NodeGraph graph;
     // Most recent node that produced each variable. Edges read from
-    // this; assignments update it on completion.
+    // this; assignments update it on completion. Snapshot/restored
+    // around control-flow region recursion (push/popScope helpers).
     std::unordered_map<std::string, int> lastProducer;
     // Source text for slicing per-node sourceText.
     const std::string *source = nullptr;
@@ -210,17 +206,64 @@ struct LoweringState {
     // to cut trailing `% ...` off the body text. Empty when no
     // tokens were provided (caller skipped trimming).
     std::unordered_map<int, int> firstCommentColPerLine;
+    // Innermost region we're currently lowering INTO. Every node
+    // emitted inherits this as its parentRegionId, and gets pushed
+    // onto the region's childNodeIds. nullopt at script top-level.
+    std::optional<int> currentRegion;
 
     int firstCommentColOnLine(int line) const {
         auto it = firstCommentColPerLine.find(line);
         return it == firstCommentColPerLine.end() ? 0 : it->second;
     }
 
+    /** Pick the effective end-col cap for a slice on `line`. Caller
+     *  passes its own explicit cap (e.g. stmt.endCol from the parser
+     *  for simple statements, or body[0].col for compound headers).
+     *  The trailing-comment col from the lexer is folded in via min,
+     *  so a `% comment` after a statement still gets trimmed even
+     *  when the parser-supplied cap would have kept it. 0 = no cap. */
+    int sliceCap(int line, int explicitEndCol) const {
+        int cap = explicitEndCol;
+        int comm = firstCommentColOnLine(line);
+        if (comm > 0 && (cap == 0 || comm < cap)) cap = comm;
+        return cap;
+    }
+
     int addNode(Node n)
     {
         n.id = static_cast<int>(graph.nodes.size());
+        // Inherit current region as parent so the renderer can
+        // nest us inside its compound frame. The region itself
+        // records us in its childNodeIds (below).
+        if (currentRegion && !n.parentRegionId) {
+            n.parentRegionId = currentRegion;
+        }
         graph.nodes.push_back(std::move(n));
-        return graph.nodes.back().id;
+        int id = graph.nodes.back().id;
+        if (currentRegion) {
+            graph.nodes[*currentRegion].childNodeIds.push_back(id);
+        }
+        return id;
+    }
+
+    // Scope helpers — push/pop currentRegion + snapshot/restore
+    // lastProducer at region boundaries. Used by control-flow
+    // lowering to keep branches isolated from each other and from
+    // the enclosing scope.
+    struct ScopeFrame {
+        std::optional<int> savedRegion;
+        std::unordered_map<std::string, int> savedProducers;
+    };
+    ScopeFrame enterRegion(int regionId)
+    {
+        ScopeFrame f{ currentRegion, lastProducer };
+        currentRegion = regionId;
+        return f;
+    }
+    void leaveRegion(ScopeFrame &f)
+    {
+        currentRegion = f.savedRegion;
+        lastProducer = std::move(f.savedProducers);
     }
 
     /** Wire one data edge from `producer` (-1 = no known producer)
@@ -252,7 +295,7 @@ void lowerAssign(LoweringState &S, const ASTNode &stmt)
     n.kind = NodeKind::Assignment;
     n.sourceLine = stmt.line;
     n.sourceCol  = stmt.col;
-    n.sourceText = S.source ? sliceLine(*S.source, stmt.line, S.firstCommentColOnLine(stmt.line)) : "";
+    n.sourceText = S.source ? sliceLine(*S.source, stmt.line, stmt.col, S.sliceCap(stmt.line, stmt.endCol)) : "";
 
     const ASTNode *lhs = nullptr;
     const ASTNode *rhs = nullptr;
@@ -320,7 +363,7 @@ void lowerExprStmt(LoweringState &S, const ASTNode &stmt)
     n.kind = NodeKind::ExprStmt;
     n.sourceLine = stmt.line;
     n.sourceCol  = stmt.col;
-    n.sourceText = S.source ? sliceLine(*S.source, stmt.line, S.firstCommentColOnLine(stmt.line)) : "";
+    n.sourceText = S.source ? sliceLine(*S.source, stmt.line, stmt.col, S.sliceCap(stmt.line, stmt.endCol)) : "";
     const ASTNode *expr = stmt.children.empty() ? nullptr : stmt.children[0].get();
     auto isKnownVar = [&](const std::string &name) {
         return S.lastProducer.count(name) > 0;
@@ -347,7 +390,7 @@ void lowerGlobalDecl(LoweringState &S, const ASTNode &stmt, NodeKind kind)
     n.kind = kind;
     n.sourceLine = stmt.line;
     n.sourceCol  = stmt.col;
-    n.sourceText = S.source ? sliceLine(*S.source, stmt.line, S.firstCommentColOnLine(stmt.line)) : "";
+    n.sourceText = S.source ? sliceLine(*S.source, stmt.line, stmt.col, S.sliceCap(stmt.line, stmt.endCol)) : "";
     // Decl names live on paramNames (the parser stores them there).
     n.outputs = stmt.paramNames.empty() ? stmt.returnNames : stmt.paramNames;
     int nid = S.addNode(std::move(n));
@@ -359,36 +402,387 @@ void lowerGlobalDecl(LoweringState &S, const ASTNode &stmt, NodeKind kind)
     }
 }
 
+// Forward decl — region lowerings call back into lowerStatement.
+void lowerStatement(LoweringState &S, const ASTNode &stmt);
+
+/** Build a region-node skeleton (kind, source slice, endLine, inputs
+ *  from a "header expression" like an if-cond / for-range / switch-
+ *  expr). Caller adds outputs (iter var) and recurses children. */
+/** First-child source position of a compound's body — used to cap
+ *  the header slice when the body sits on the SAME line as the
+ *  header (compact form: `for k=1:3, body, end`). Returns (0,0) when
+ *  there's no body or its position is unknown. */
+std::pair<int,int> bodyStartPos(const ASTNode &stmt)
+{
+    const ASTNode *body = nullptr;
+    switch (stmt.type) {
+        case NodeType::FOR_STMT:
+        case NodeType::WHILE_STMT:
+        case NodeType::TRY_STMT:
+            body = stmt.children.size() > 1 ? stmt.children[1].get() : nullptr;
+            break;
+        case NodeType::IF_STMT:
+        case NodeType::SWITCH_STMT:
+            if (!stmt.branches.empty()) body = stmt.branches[0].second.get();
+            break;
+        default: break;
+    }
+    if (!body) return {0, 0};
+    if (body->type == NodeType::BLOCK && !body->children.empty()
+     && body->children[0]) {
+        return {body->children[0]->line, body->children[0]->col};
+    }
+    return {body->line, body->col};
+}
+
+int addRegionNode(LoweringState &S, const ASTNode &stmt, NodeKind kind,
+                  const ASTNode *headerExpr)
+{
+    Node n;
+    n.kind = kind;
+    n.sourceLine = stmt.line;
+    n.sourceCol  = stmt.col;
+    n.endLine    = stmt.endLine;
+    // Header slice ends right before the body's first statement when
+    // the body shares the header's line (compact `for k=1:3, ... end`
+    // form). Otherwise → no explicit cap, slice runs to end of line.
+    int headerCap = 0;
+    auto [bLn, bCol] = bodyStartPos(stmt);
+    if (bLn == stmt.line && bCol > stmt.col) headerCap = bCol;
+    n.sourceText = S.source
+        ? sliceLine(*S.source, stmt.line, stmt.col, S.sliceCap(stmt.line, headerCap))
+        : "";
+    // Strip trailing `;` / `,` separator that lived BETWEEN the header
+    // and the body in the compact form (slice left it in even after
+    // ws-trim). For multi-line compounds this is a no-op.
+    while (!n.sourceText.empty()
+        && (n.sourceText.back() == ',' || n.sourceText.back() == ';'
+         || n.sourceText.back() == ' ' || n.sourceText.back() == '\t')) {
+        n.sourceText.pop_back();
+    }
+
+    // Inputs = free vars from the header expression (cond/range/switch-expr).
+    if (headerExpr) {
+        auto isKnownVar = [&](const std::string &name) {
+            return S.lastProducer.count(name) > 0;
+        };
+        n.inputs = collectReads(headerExpr, isKnownVar);
+    }
+    int rid = S.addNode(std::move(n));
+
+    // Wire data edges from lastProducer to each input.
+    auto &nodeRef = S.graph.nodes[rid];
+    for (size_t i = 0; i < nodeRef.inputs.size(); ++i) {
+        auto it = S.lastProducer.find(nodeRef.inputs[i]);
+        if (it != S.lastProducer.end()) {
+            S.addDataEdge(it->second, rid, static_cast<int>(i), nodeRef.inputs[i]);
+        }
+    }
+    return rid;
+}
+
+/** Lower a body BLOCK (or single statement) under the given region.
+ *  Returns the index right after the last child added — caller uses
+ *  this to compute branchPartitions for if/switch. Each statement
+ *  carries its own endCol from the parser, so no extra capping is
+ *  needed here for multi-stmt-on-one-line cases — they Just Work. */
+int lowerBodyInto(LoweringState &S, int regionId, const ASTNode *body)
+{
+    if (!body) return static_cast<int>(S.graph.nodes[regionId].childNodeIds.size());
+    if (body->type == NodeType::BLOCK) {
+        for (const auto &c : body->children) {
+            if (c) lowerStatement(S, *c);
+        }
+    } else {
+        lowerStatement(S, *body);
+    }
+    return static_cast<int>(S.graph.nodes[regionId].childNodeIds.size());
+}
+
+/** Merge per-branch producer snapshots back into S.lastProducer.
+ *  Phase 2a uses "last writer wins" — for vars assigned in multiple
+ *  branches, the LAST branch's writer overrides earlier ones for any
+ *  external read. Phase 2c will replace this with explicit Merge
+ *  nodes that fan in from every branch's writer (proper φ). */
+void mergeBranchProducers(
+        LoweringState &S,
+        const std::unordered_map<std::string, int> &preRegionProducers,
+        const std::vector<std::unordered_map<std::string, int>> &branchProducers)
+{
+    S.lastProducer = preRegionProducers;
+    for (const auto &bp : branchProducers) {
+        for (const auto &[name, id] : bp) {
+            S.lastProducer[name] = id;  // last-wins
+        }
+    }
+}
+
+void lowerIf(LoweringState &S, const ASTNode &stmt)
+{
+    // First branch's cond is the "header expression" for the IfRegion
+    // node. Inputs from cond → region. Subsequent elseif conds are
+    // additional inputs but their free vars merge into the region's
+    // input list (we walk them after the region node is created).
+    const ASTNode *firstCond = nullptr;
+    if (!stmt.branches.empty()) firstCond = stmt.branches[0].first.get();
+    int rid = addRegionNode(S, stmt, NodeKind::IfRegion, firstCond);
+
+    // For each branch: snapshot pre-state, process branch body,
+    // capture per-branch producers, mark branchPartitions boundary.
+    auto preProducers = S.lastProducer;
+    std::vector<std::unordered_map<std::string, int>> branchProducers;
+
+    auto frame = S.enterRegion(rid);
+    // Partition boundaries: each entry = childNodeIds.size() just
+    // BEFORE the branch starts adding children. The renderer slices
+    // childNodeIds by these boundaries to lay out branches in columns.
+    std::vector<int> partitions;
+    partitions.push_back(0);
+
+    for (size_t i = 0; i < stmt.branches.size(); ++i) {
+        S.lastProducer = preProducers;
+        // For elseif (i > 0): walk the elseif's cond for additional reads.
+        // These need to be wired as region inputs too — append + connect.
+        if (i > 0 && stmt.branches[i].first) {
+            auto isKnownVar = [&](const std::string &name) {
+                return preProducers.count(name) > 0;
+            };
+            for (const auto &name : collectReads(stmt.branches[i].first.get(), isKnownVar)) {
+                auto &reg = S.graph.nodes[rid];
+                if (std::find(reg.inputs.begin(), reg.inputs.end(), name) == reg.inputs.end()) {
+                    int portIdx = static_cast<int>(reg.inputs.size());
+                    reg.inputs.push_back(name);
+                    auto it = preProducers.find(name);
+                    if (it != preProducers.end()) {
+                        S.addDataEdge(it->second, rid, portIdx, name);
+                    }
+                }
+            }
+        }
+        lowerBodyInto(S, rid, stmt.branches[i].second.get());
+        branchProducers.push_back(S.lastProducer);
+        partitions.push_back(static_cast<int>(S.graph.nodes[rid].childNodeIds.size()));
+    }
+    // Else branch (no cond).
+    if (stmt.elseBranch) {
+        S.lastProducer = preProducers;
+        lowerBodyInto(S, rid, stmt.elseBranch.get());
+        branchProducers.push_back(S.lastProducer);
+        partitions.push_back(static_cast<int>(S.graph.nodes[rid].childNodeIds.size()));
+    }
+    S.leaveRegion(frame);
+
+    S.graph.nodes[rid].branchPartitions = std::move(partitions);
+    mergeBranchProducers(S, preProducers, branchProducers);
+}
+
+void lowerFor(LoweringState &S, const ASTNode &stmt)
+{
+    // Header = `for k = range`. children[0] = range expr,
+    // children[1] = body BLOCK, strValue = loop var name.
+    const ASTNode *range = stmt.children.size() > 0 ? stmt.children[0].get() : nullptr;
+    const ASTNode *body  = stmt.children.size() > 1 ? stmt.children[1].get() : nullptr;
+    int rid = addRegionNode(S, stmt, NodeKind::ForRegion, range);
+
+    // Register the loop variable as an OUTPUT of the region (port 0) +
+    // a producer in the body scope. MATLAB semantics: k is visible
+    // INSIDE the loop (this iteration's value) AND AFTER the loop
+    // (last iteration's value). So we set lastProducer[k] = rid both
+    // inside the region recursion AND in the post-region state.
+    const std::string &iterName = stmt.strValue;
+    if (!iterName.empty()) {
+        S.graph.nodes[rid].outputs.push_back(iterName);
+    }
+
+    auto preProducers = S.lastProducer;
+    auto frame = S.enterRegion(rid);
+    if (!iterName.empty()) {
+        S.lastProducer[iterName] = rid;  // body reads of `k` wire to ForRegion
+    }
+    lowerBodyInto(S, rid, body);
+    auto bodyProducers = S.lastProducer;
+    S.leaveRegion(frame);
+
+    // Post-loop scope:
+    //   - Vars assigned in body keep their last-writer for external reads
+    //     (last-writer-wins approximation; Phase 2c → merge nodes).
+    //   - iterName is special — see the shadowing rule below.
+    S.lastProducer = preProducers;
+    for (const auto &[name, id] : bodyProducers) {
+        if (name == iterName) continue;  // iter var handled separately
+        S.lastProducer[name] = id;
+    }
+    // Iter-var visibility after the loop:
+    //   • If preProducers already bound iterName to an OUTER ForRegion
+    //     (nested `for k` inside `for k`), restore that outer binding —
+    //     graph-level shadowing keeps the outer body's reads wired to
+    //     the outer loop, not the just-exited inner.
+    //   • Otherwise expose ForRegion as the producer (MATLAB semantic:
+    //     k is visible after the loop with its last iteration value).
+    if (!iterName.empty()) {
+        auto preIt = preProducers.find(iterName);
+        bool shadowingOuterFor = false;
+        if (preIt != preProducers.end()) {
+            int prev = preIt->second;
+            if (prev >= 0 && prev < static_cast<int>(S.graph.nodes.size())
+                && S.graph.nodes[prev].kind == NodeKind::ForRegion) {
+                shadowingOuterFor = true;
+            }
+        }
+        S.lastProducer[iterName] = shadowingOuterFor ? preIt->second : rid;
+    }
+}
+
+void lowerWhile(LoweringState &S, const ASTNode &stmt)
+{
+    // Header = `while cond`. children[0] = cond, children[1] = body.
+    const ASTNode *cond = stmt.children.size() > 0 ? stmt.children[0].get() : nullptr;
+    const ASTNode *body = stmt.children.size() > 1 ? stmt.children[1].get() : nullptr;
+    int rid = addRegionNode(S, stmt, NodeKind::WhileRegion, cond);
+
+    // No implicit iter var.
+    auto preProducers = S.lastProducer;
+    auto frame = S.enterRegion(rid);
+    lowerBodyInto(S, rid, body);
+    auto bodyProducers = S.lastProducer;
+    S.leaveRegion(frame);
+
+    S.lastProducer = preProducers;
+    for (const auto &[name, id] : bodyProducers) {
+        S.lastProducer[name] = id;
+    }
+}
+
+void lowerSwitch(LoweringState &S, const ASTNode &stmt)
+{
+    // Header = `switch x`. children[0] = switch expr, branches[] =
+    // (case-expr, body), elseBranch = otherwise body. Case-expressions
+    // are literals/cells in practice — but we still scan them for
+    // free vars (rare: `case foo` where foo is a variable).
+    const ASTNode *swExpr = stmt.children.size() > 0 ? stmt.children[0].get() : nullptr;
+    int rid = addRegionNode(S, stmt, NodeKind::SwitchRegion, swExpr);
+
+    auto preProducers = S.lastProducer;
+    std::vector<std::unordered_map<std::string, int>> branchProducers;
+    auto frame = S.enterRegion(rid);
+    std::vector<int> partitions;
+    partitions.push_back(0);
+
+    for (const auto &branch : stmt.branches) {
+        S.lastProducer = preProducers;
+        // case-expr free vars → region inputs (uncommon, but cover
+        // it for completeness).
+        if (branch.first) {
+            auto isKnownVar = [&](const std::string &name) {
+                return preProducers.count(name) > 0;
+            };
+            for (const auto &name : collectReads(branch.first.get(), isKnownVar)) {
+                auto &reg = S.graph.nodes[rid];
+                if (std::find(reg.inputs.begin(), reg.inputs.end(), name) == reg.inputs.end()) {
+                    int portIdx = static_cast<int>(reg.inputs.size());
+                    reg.inputs.push_back(name);
+                    auto it = preProducers.find(name);
+                    if (it != preProducers.end()) {
+                        S.addDataEdge(it->second, rid, portIdx, name);
+                    }
+                }
+            }
+        }
+        lowerBodyInto(S, rid, branch.second.get());
+        branchProducers.push_back(S.lastProducer);
+        partitions.push_back(static_cast<int>(S.graph.nodes[rid].childNodeIds.size()));
+    }
+    if (stmt.elseBranch) {
+        S.lastProducer = preProducers;
+        lowerBodyInto(S, rid, stmt.elseBranch.get());
+        branchProducers.push_back(S.lastProducer);
+        partitions.push_back(static_cast<int>(S.graph.nodes[rid].childNodeIds.size()));
+    }
+    S.leaveRegion(frame);
+
+    S.graph.nodes[rid].branchPartitions = std::move(partitions);
+    mergeBranchProducers(S, preProducers, branchProducers);
+}
+
+void lowerTry(LoweringState &S, const ASTNode &stmt)
+{
+    // try body = children[0]; catch body (optional) = children[1];
+    // catch var name (optional) = strValue. The catch var is an
+    // implicit producer in catch scope only — not visible outside.
+    const ASTNode *tryBody   = stmt.children.size() > 0 ? stmt.children[0].get() : nullptr;
+    const ASTNode *catchBody = stmt.children.size() > 1 ? stmt.children[1].get() : nullptr;
+
+    int rid = addRegionNode(S, stmt, NodeKind::TryRegion, nullptr);
+
+    auto preProducers = S.lastProducer;
+    std::vector<std::unordered_map<std::string, int>> branchProducers;
+    auto frame = S.enterRegion(rid);
+    std::vector<int> partitions;
+    partitions.push_back(0);
+
+    // try body
+    S.lastProducer = preProducers;
+    lowerBodyInto(S, rid, tryBody);
+    branchProducers.push_back(S.lastProducer);
+    partitions.push_back(static_cast<int>(S.graph.nodes[rid].childNodeIds.size()));
+
+    // catch body — register catch var (e.g. `ME`) as producer rooted
+    // at the TryRegion (Phase 2c may give it its own sub-port). Only
+    // visible to the catch body scope: we drop it from the branch's
+    // producer snapshot before merging so subsequent code outside the
+    // try/catch can't bind to it.
+    if (catchBody) {
+        S.lastProducer = preProducers;
+        if (!stmt.strValue.empty()) {
+            S.graph.nodes[rid].outputs.push_back(stmt.strValue);
+            S.lastProducer[stmt.strValue] = rid;
+        }
+        lowerBodyInto(S, rid, catchBody);
+        auto catchProducers = S.lastProducer;
+        if (!stmt.strValue.empty()) {
+            catchProducers.erase(stmt.strValue);  // ME doesn't leak past `end`
+        }
+        branchProducers.push_back(std::move(catchProducers));
+        partitions.push_back(static_cast<int>(S.graph.nodes[rid].childNodeIds.size()));
+    }
+    S.leaveRegion(frame);
+
+    S.graph.nodes[rid].branchPartitions = std::move(partitions);
+    mergeBranchProducers(S, preProducers, branchProducers);
+}
+
+void lowerJump(LoweringState &S, const ASTNode &stmt, NodeKind kind)
+{
+    // Phase 2b will wire jump edges. For now, emit the node so it
+    // appears in the graph with its source line. Inputs/outputs
+    // empty (none of these statements produce or consume data).
+    Node n;
+    n.kind = kind;
+    n.sourceLine = stmt.line;
+    n.sourceCol  = stmt.col;
+    n.sourceText = S.source ? sliceLine(*S.source, stmt.line, stmt.col, S.sliceCap(stmt.line, stmt.endCol)) : "";
+    S.addNode(std::move(n));
+}
+
 void lowerStatement(LoweringState &S, const ASTNode &stmt)
 {
     switch (stmt.type) {
     case NodeType::ASSIGN:
-    case NodeType::MULTI_ASSIGN:
-        lowerAssign(S, stmt);
-        return;
-    case NodeType::EXPR_STMT:
-        lowerExprStmt(S, stmt);
-        return;
-    case NodeType::GLOBAL_STMT:
-        lowerGlobalDecl(S, stmt, NodeKind::GlobalDecl);
-        return;
-    case NodeType::PERSISTENT_STMT:
-        lowerGlobalDecl(S, stmt, NodeKind::PersistentDecl);
-        return;
-    // Phase-2 territory — emit as opaque ExprStmt for now so the
-    // node is visible in the graph (sourceText = the header line).
-    // Body recursion + region wiring lands in the next phase.
-    case NodeType::IF_STMT:
-    case NodeType::FOR_STMT:
-    case NodeType::WHILE_STMT:
-    case NodeType::SWITCH_STMT:
-    case NodeType::TRY_STMT:
-    case NodeType::BREAK_STMT:
-    case NodeType::CONTINUE_STMT:
-    case NodeType::RETURN_STMT:
-    case NodeType::FUNCTION_DEF:
-        lowerExprStmt(S, stmt);
-        return;
+    case NodeType::MULTI_ASSIGN:    lowerAssign(S, stmt);            return;
+    case NodeType::EXPR_STMT:       lowerExprStmt(S, stmt);          return;
+    case NodeType::GLOBAL_STMT:     lowerGlobalDecl(S, stmt, NodeKind::GlobalDecl);     return;
+    case NodeType::PERSISTENT_STMT: lowerGlobalDecl(S, stmt, NodeKind::PersistentDecl); return;
+    case NodeType::IF_STMT:         lowerIf(S, stmt);                return;
+    case NodeType::FOR_STMT:        lowerFor(S, stmt);               return;
+    case NodeType::WHILE_STMT:      lowerWhile(S, stmt);             return;
+    case NodeType::SWITCH_STMT:     lowerSwitch(S, stmt);            return;
+    case NodeType::TRY_STMT:        lowerTry(S, stmt);               return;
+    case NodeType::BREAK_STMT:      lowerJump(S, stmt, NodeKind::JumpBreak);    return;
+    case NodeType::CONTINUE_STMT:   lowerJump(S, stmt, NodeKind::JumpContinue); return;
+    case NodeType::RETURN_STMT:     lowerJump(S, stmt, NodeKind::JumpReturn);   return;
+    // FUNCTION_DEF stays opaque in 2a — Phase 2d wires the inside
+    // as a separate top-level FunctionDef node with its own scope.
+    case NodeType::FUNCTION_DEF:    lowerExprStmt(S, stmt);          return;
     default:
         // Unrecognised — skip rather than crash. Phase-2 may turn
         // this into an assertion once every statement kind is covered.

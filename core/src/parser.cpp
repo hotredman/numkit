@@ -126,6 +126,24 @@ void Parser::skipTerminators()
         advance();
 }
 
+bool Parser::consumeStmtTerminator(ASTNode &node)
+{
+    if (check(TokenType::SEMICOLON) || check(TokenType::COMMA)) {
+        // Record the terminator's position into the node BEFORE
+        // advancing past it. endCol = col + 1 because col is the
+        // 1-indexed position OF the terminator char; we want the
+        // column one past it (so a slice [startCol, endCol) includes
+        // the terminator).
+        const Token &tok = current();
+        node.endLine = tok.line;
+        node.endCol  = tok.col + 1;
+        bool isSemi  = tok.type == TokenType::SEMICOLON;
+        advance();
+        return isSemi;
+    }
+    return false;
+}
+
 bool Parser::isTerminator(std::initializer_list<TokenType> terminators) const
 {
     auto cur = current().type;
@@ -239,6 +257,7 @@ ASTNodePtr Parser::parseStatement()
         auto [ln, cl] = loc();
         auto node = makeNode(NodeType::BREAK_STMT, ln, cl);
         advance();
+        consumeStmtTerminator(*node);  // record `;` / `,` pos for graph view
         skipTerminators();
         return node;
     }
@@ -246,6 +265,7 @@ ASTNodePtr Parser::parseStatement()
         auto [ln, cl] = loc();
         auto node = makeNode(NodeType::CONTINUE_STMT, ln, cl);
         advance();
+        consumeStmtTerminator(*node);
         skipTerminators();
         return node;
     }
@@ -254,6 +274,7 @@ ASTNodePtr Parser::parseStatement()
         auto [ln, cl] = loc();
         auto node = makeNode(NodeType::RETURN_STMT, ln, cl);
         advance();
+        consumeStmtTerminator(*node);
         skipTerminators();
         return node;
     }
@@ -406,7 +427,7 @@ ASTNodePtr Parser::parseCommandStyleCall()
         node->children.push_back(std::move(arg));
     }
 
-    node->suppressOutput = match(TokenType::SEMICOLON);
+    node->suppressOutput = consumeStmtTerminator(*node);
     skipNewlines();
     return node;
 }
@@ -445,7 +466,7 @@ ASTNodePtr Parser::parseExpressionStatement()
             if (isIndexedLhs) {
                 auto node = makeNode(NodeType::DELETE_ASSIGN, startLine, startCol);
                 node->children.push_back(std::move(expr));
-                node->suppressOutput = match(TokenType::SEMICOLON);
+                node->suppressOutput = consumeStmtTerminator(*node);
                 skipNewlines();
                 return node;
             } else {
@@ -454,7 +475,7 @@ ASTNodePtr Parser::parseExpressionStatement()
                 auto node = makeNode(NodeType::ASSIGN, startLine, startCol);
                 node->children.push_back(std::move(expr));
                 node->children.push_back(std::move(emptyMat));
-                node->suppressOutput = match(TokenType::SEMICOLON);
+                node->suppressOutput = consumeStmtTerminator(*node);
                 skipNewlines();
                 return node;
             }
@@ -463,14 +484,14 @@ ASTNodePtr Parser::parseExpressionStatement()
         auto node = makeNode(NodeType::ASSIGN, startLine, startCol);
         node->children.push_back(std::move(expr));
         node->children.push_back(std::move(rhs));
-        node->suppressOutput = match(TokenType::SEMICOLON);
+        node->suppressOutput = consumeStmtTerminator(*node);
         skipNewlines();
         return node;
     }
 
     auto stmt = makeNode(NodeType::EXPR_STMT, startLine, startCol);
     stmt->children.push_back(std::move(expr));
-    stmt->suppressOutput = match(TokenType::SEMICOLON);
+    stmt->suppressOutput = consumeStmtTerminator(*stmt);
     skipNewlines();
     return stmt;
 }
@@ -527,7 +548,7 @@ ASTNodePtr Parser::tryMultiAssign()
     auto node = makeNode(NodeType::MULTI_ASSIGN, startLine, startCol);
     node->returnNames = std::move(names);
     node->children.push_back(std::move(rhs));
-    node->suppressOutput = match(TokenType::SEMICOLON);
+    node->suppressOutput = consumeStmtTerminator(*node);
     skipNewlines();
     return node;
 }
@@ -664,6 +685,7 @@ ASTNodePtr Parser::parseGlobalPersistent()
         advance();
     }
 
+    consumeStmtTerminator(*node);  // record `;` / `,` pos for graph view
     skipTerminators();
     return node;
 }
