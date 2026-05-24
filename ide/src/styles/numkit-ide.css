@@ -384,14 +384,13 @@ input, select { font-family: inherit; color: inherit; }
   overflow: hidden;
 }
 .editor-pane {
-  flex: 1 1 0;
+  /* flex set inline from paneFracs so the user's drag positions
+     persist; CSS just provides the base sizing constraints. */
   min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-right: 1px solid var(--line-soft);
 }
-.editor-pane:last-child { border-right: none; }
 
 /* ── NumkitGraphView (data-flow graph) ─────────────────────────── */
 .numkit-graph-view {
