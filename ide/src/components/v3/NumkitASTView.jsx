@@ -111,6 +111,31 @@ function defaultFilters()  {
 
 // ── AST tree → flat React Flow nodes/edges ────────────────────────
 
+/** Walk the AST and gather path-IDs of every VISIBLE node that has
+ *  at least one descendant — i.e. the set of nodes the "collapse
+ *  all" action should mark as collapsed. Visibility is filter-
+ *  dependent so the call needs the current `filters` map. */
+function collectCollapsibleIds(astRoot, filters) {
+  const out = new Set();
+  if (!astRoot) return out;
+  function visit(node, path) {
+    if (!node) return;
+    const cat = TYPE_TO_CAT.get(node.type) || 'other';
+    const visible = filters[cat] !== false;
+    if (visible && hasAnyChildren(node)) out.add(path);
+    const kids = node.children || [];
+    for (let i = 0; i < kids.length; ++i) visit(kids[i], `${path}/c${i}`);
+    const branches = node.branches || [];
+    for (let i = 0; i < branches.length; ++i) {
+      visit(branches[i].cond, `${path}/b${i}/cond`);
+      visit(branches[i].body, `${path}/b${i}/body`);
+    }
+    if (node.elseBranch) visit(node.elseBranch, `${path}/else`);
+  }
+  visit(astRoot, '0');
+  return out;
+}
+
 /** True iff this AST node has at least one descendant to show.
  *  Used to render the collapse chevron only when there's something
  *  to collapse. */
@@ -284,7 +309,7 @@ const nodeTypes = { ast: ASTNodeCard };
 
 // ── Filter bar ────────────────────────────────────────────────────
 
-function ASTFilterBar({ filters, onChange }) {
+function ASTFilterBar({ filters, onChange, onCollapseAll, onExpandAll }) {
   return (
     <div className="ng-ast-filterbar">
       {CATEGORIES.map((cat) => (
@@ -296,6 +321,13 @@ function ASTFilterBar({ filters, onChange }) {
           {cat.label}
         </button>
       ))}
+      <span className="ng-ast-filterbar-sep" />
+      <button className="ng-ast-action"
+              onClick={onCollapseAll}
+              title="Collapse every node that has children">collapse all</button>
+      <button className="ng-ast-action"
+              onClick={onExpandAll}
+              title="Expand all collapsed subtrees">expand all</button>
     </div>
   );
 }
@@ -473,7 +505,9 @@ function NumkitASTViewInner({ source, engine, onNavigate, cursorLine }) {
   return (
     <ASTViewContext.Provider value={{ onToggleCollapse, onNavigate: onNavigateSafe }}>
       <div className="numkit-ast-view">
-        <ASTFilterBar filters={filters} onChange={setFilters} />
+        <ASTFilterBar filters={filters} onChange={setFilters}
+                      onCollapseAll={() => setCollapsed(collectCollapsibleIds(ast, filters))}
+                      onExpandAll={() => setCollapsed(new Set())} />
         <ReactFlow
           nodes={nodes}
           edges={edges}

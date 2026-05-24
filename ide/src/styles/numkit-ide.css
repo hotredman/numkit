@@ -472,6 +472,27 @@ input, select { font-family: inherit; color: inherit; }
   color: var(--bg-0);
   font-weight: 600;
 }
+.ng-ast-filterbar-sep {
+  display: inline-block;
+  width: 1px; height: 18px;
+  background: var(--line);
+  margin: 0 4px;
+}
+.ng-ast-action {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--bg-1);
+  color: var(--fg-2);
+  cursor: pointer;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+.ng-ast-action:hover {
+  border-color: var(--accent);
+  color: var(--fg-0);
+}
 
 /* AST node card — compact pill with type tag + optional value text +
    chevron toggle. Per-category coloured left border, same idiom as

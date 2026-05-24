@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 
 import SyntaxEditor from '../SyntaxEditor';
 import OldFigures from '../Figures';
@@ -120,9 +120,19 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
 }
 
 /* ─────────────── editor body (gutter + SyntaxEditor) ─────────────── */
-function EditorBody({ activeTab, errorLine, debugLine, breakpoints, onToggleBp, onChange, onCursor }) {
+// Wrapped in forwardRef so parents (the multi-pane layout in IDE)
+// can call imperative methods on the inner SyntaxEditor — chiefly
+// `setCaret(line, col)` from the AST → editor click handoff.
+const EditorBody = forwardRef(function EditorBody(
+  { activeTab, errorLine, debugLine, breakpoints, onToggleBp, onChange, onCursor },
+  ref,
+) {
   const editorRef = useRef(null);
   const gutterRef = useRef(null);
+  useImperativeHandle(ref, () => ({
+    setCaret: (line, col) => editorRef.current?.setCaret(line, col),
+    focus:    () => editorRef.current?.focus(),
+  }));
 
   const handleScroll = useCallback((scrollTop) => {
     if (gutterRef.current) gutterRef.current.scrollTop = scrollTop;
@@ -184,7 +194,7 @@ function EditorBody({ activeTab, errorLine, debugLine, breakpoints, onToggleBp, 
       </div>
     </div>
   );
-}
+});
 
 /* ─────────────── bottom dock ─────────────── */
 function BottomDock({
@@ -363,6 +373,10 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   // sync with the AST view (cursor on line N → AST highlights the
   // deepest node whose source range contains line N).
   const [editorCursor, setEditorCursor] = useState({ line: 1, col: 1 });
+  // Imperative handle to the editor body — lets onNavigate (AST →
+  // editor) place the real caret instead of just highlighting the
+  // line via setErrorLine.
+  const editorBodyRef = useRef(null);
   useEffect(() => {
     const v = engine?.version?.();
     if (v) setEngineVersion(v);
@@ -893,6 +907,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                   {editorPanes.text && (
                     <div className="editor-pane">
                       <EditorBody
+                        ref={editorBodyRef}
                         activeTab={activeTabData}
                         errorLine={errorLine}
                         debugLine={debugLine}
@@ -917,13 +932,18 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                         source={activeTabData?.code || ''}
                         engine={engine}
                         cursorLine={editorCursor.line}
-                        onNavigate={(line/*, col*/) => {
-                          // Make sure text pane is visible so the
-                          // user can see what we're highlighting,
-                          // then mark the line via the existing
-                          // errorLine path (highlight + scroll).
+                        onNavigate={(line, col) => {
+                          // Click on an AST node: ensure text pane
+                          // is visible, then move the REAL caret
+                          // (not just a line highlight) so the user
+                          // can immediately type/edit at that spot.
+                          // setCaret runs after React applies the
+                          // pane-visibility change, so we wait one
+                          // micro-tick for the editor to mount.
                           ensureEditorPane('text');
-                          setErrorLine(line);
+                          queueMicrotask(() => {
+                            editorBodyRef.current?.setCaret(line, col || 1);
+                          });
                         }}
                       />
                     </div>
