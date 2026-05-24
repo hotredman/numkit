@@ -481,27 +481,30 @@ input, select { font-family: inherit; color: inherit; }
   border-radius: 6px;
   pointer-events: none;            /* lets children receive clicks */
 }
+/* Header is a positioning shell only — the visible thing is the
+   `.ng-region-source` code-block chip sitting at the top of the
+   region card. Same code-block treatment as `.ng-node-body` so
+   `for n = 0:N-1`, `if x > 0`, `while cond` etc. all read as
+   actual code (monospace, dark inner background, subtle border),
+   visually consistent with the statement nodes inside the region. */
 .ng-region-header {
-  position: absolute; top: 0; left: 0; right: 0;
-  display: flex; align-items: baseline; gap: 8px;
-  padding: 8px 12px;
-  background: rgba(40, 48, 60, 0.55);
-  border-bottom: 1px dashed var(--line);
-  border-radius: 6px 6px 0 0;
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  padding: 8px 10px;
+  pointer-events: auto;
+}
+.ng-region-source {
+  display: inline-block;
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--fg-1);
-  pointer-events: auto;
-}
-.ng-region-tag {
-  font-weight: 700;
-  color: var(--accent);
-  text-transform: lowercase;
-}
-.ng-region-source {
-  flex: 1;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  color: var(--fg-2);
+  white-space: pre;
+  line-height: 1.3;
+  padding: 6px 8px;
+  margin: 0;
+  background: var(--bg-0);
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
 }
 /* Per-kind accent border on the LEFT edge (matches leaf nodes). */
 .ng-region-ifregion     { border-left: 3px solid #f0b97a; }
