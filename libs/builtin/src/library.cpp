@@ -367,7 +367,7 @@ void bandwidth_reg  (Span<const Value>, size_t, Span<Value>, CallContext&);
 // vecnorm_reg → libs/linalg (norms.cpp)
 // language/arrays/linalg_extras.cpp
 void rref_reg       (Span<const Value>, size_t, Span<Value>, CallContext&);
-void rcond_reg      (Span<const Value>, size_t, Span<Value>, CallContext&);
+// rcond_reg → libs/linalg (properties.cpp)
 void planerot_reg   (Span<const Value>, size_t, Span<Value>, CallContext&);
 // language/arrays/ldl.cpp
 void ldl_reg        (Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -458,22 +458,21 @@ void invhilb_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void wilkinson_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void hadamard_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void rosser_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void inv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// inv_reg → libs/linalg (properties.cpp)
 void linsolve_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void pageinv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void trace_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void det_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// trace_reg, det_reg → libs/linalg (properties.cpp)
 void chol_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void topkrows_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void lu_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void qr_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void svd_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void rank_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// rank_reg → libs/linalg (properties.cpp)
 void pinv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void cond_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// cond_reg → libs/linalg (properties.cpp)
 void orth_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void null_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void normest_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// normest_reg → libs/linalg (properties.cpp)
 void eig_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void expm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void logm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -988,22 +987,21 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("wilkinson", &builtin::detail::wilkinson_reg);
     engine.registerFunction("hadamard",  &builtin::detail::hadamard_reg);
     engine.registerFunction("rosser",    &builtin::detail::rosser_reg);
-    engine.registerFunction("inv",       &builtin::detail::inv_reg);
+    // inv registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("linsolve",  &builtin::detail::linsolve_reg);
     engine.registerFunction("pageinv",   &builtin::detail::pageinv_reg);
-    engine.registerFunction("trace",     &builtin::detail::trace_reg);
-    engine.registerFunction("det",       &builtin::detail::det_reg);
+    // trace / det registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("chol",      &builtin::detail::chol_reg);
     engine.registerFunction("topkrows",  &builtin::detail::topkrows_reg);
     engine.registerFunction("lu",        &builtin::detail::lu_reg);
     engine.registerFunction("qr",        &builtin::detail::qr_reg);
     engine.registerFunction("svd",       &builtin::detail::svd_reg);
-    engine.registerFunction("rank",      &builtin::detail::rank_reg);
+    // rank registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("pinv",      &builtin::detail::pinv_reg);
-    engine.registerFunction("cond",      &builtin::detail::cond_reg);
+    // cond registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("orth",      &builtin::detail::orth_reg);
     engine.registerFunction("null",      &builtin::detail::null_reg);
-    engine.registerFunction("normest",   &builtin::detail::normest_reg);
+    // normest registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("eig",       &builtin::detail::eig_reg);
     engine.registerFunction("expm",      &builtin::detail::expm_reg);
     engine.registerFunction("logm",      &builtin::detail::logm_reg);
@@ -1020,14 +1018,9 @@ void BuiltinLibrary::install(Engine &engine)
     // surprises. Functions in the global namespace are already
     // accessible bare; this just adds explicit aliases in compat.
     // compat.norm registered by LinalgLibrary::install (libs/linalg).
-    engine.registerFunction("compat", "normest",   &builtin::detail::normest_reg);
-    engine.registerFunction("compat", "inv",       &builtin::detail::inv_reg);
+    // compat.{inv,trace,det,rank,cond,normest} registered by LinalgLibrary::install.
     engine.registerFunction("compat", "pinv",      &builtin::detail::pinv_reg);
     engine.registerFunction("compat", "linsolve",  &builtin::detail::linsolve_reg);
-    engine.registerFunction("compat", "det",       &builtin::detail::det_reg);
-    engine.registerFunction("compat", "trace",     &builtin::detail::trace_reg);
-    engine.registerFunction("compat", "rank",      &builtin::detail::rank_reg);
-    engine.registerFunction("compat", "cond",      &builtin::detail::cond_reg);
     engine.registerFunction("compat", "chol",      &builtin::detail::chol_reg);
     engine.registerFunction("compat", "lu",        &builtin::detail::lu_reg);
     engine.registerFunction("compat", "qr",        &builtin::detail::qr_reg);
@@ -1244,10 +1237,10 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("compat", "bandwidth",   &builtin::detail::bandwidth_reg);
     // compat.vecnorm registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("rref",       &builtin::detail::rref_reg);
-    engine.registerFunction("rcond",      &builtin::detail::rcond_reg);
+    // rcond registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("planerot",   &builtin::detail::planerot_reg);
     engine.registerFunction("compat", "rref",        &builtin::detail::rref_reg);
-    engine.registerFunction("compat", "rcond",       &builtin::detail::rcond_reg);
+    // compat.rcond registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("compat", "planerot",    &builtin::detail::planerot_reg);
     engine.registerFunction("ldl",        &builtin::detail::ldl_reg);
     engine.registerFunction("compat", "ldl",         &builtin::detail::ldl_reg);

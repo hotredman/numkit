@@ -159,14 +159,17 @@ void magicSinglyEven(double *p, size_t N)
 
 } // anonymous namespace
 
-// ── inv / linsolve / pageinv ─────────────────────────────────────────
+// ── linsolve / pageinv ───────────────────────────────────────────────
+//
+// NOTE: inv migrated to libs/linalg (properties.cpp). linsolve and
+// pageinv still live here (they're tied to the operator `\` and to
+// page-wise builtins respectively) and use la_solve directly.
 
 namespace {
 
 // Solve A_buf (m×n column-major) against B_buf (m×nrhs col-major) and
-// write the result (n×nrhs) into outX. Common helper for inv /
-// linsolve / pageinv. Returns false on singular / rank-deficient /
-// wide A.
+// write the result (n×nrhs) into outX. Returns false on singular /
+// rank-deficient / wide A.
 bool laSolveWrap(const double *A_buf, std::size_t m, std::size_t n, const double *B_buf, std::size_t nrhs, double *outX, std::pmr::memory_resource *mr)
 {
     return detail::la_solve(A_buf, m, n, B_buf, nrhs, outX, mr);
@@ -181,33 +184,6 @@ void fillIdentity(double *buf, std::size_t n)
 }
 
 } // anonymous namespace
-
-Value inv(const Value &A, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2)
-        throw Error("inv: input must be a 2D matrix",
-                    0, 0, "inv", "", "m:inv:notMatrix");
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    if (m != n)
-        throw Error("inv: matrix must be square",
-                    0, 0, "inv", "", "m:inv:notSquare");
-    if (m == 0)
-        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> A_buf(m * n, &scratch);
-    ScratchVec<double> I_buf(n * n, &scratch);
-    // Copy A as column-major (Value::matrix is already col-major).
-    std::copy(A.doubleData(), A.doubleData() + m * n, A_buf.begin());
-    fillIdentity(I_buf.data(), n);
-
-    auto out = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    if (!laSolveWrap(A_buf.data(), m, n, I_buf.data(), n, out.doubleDataMut(), &scratch))
-        throw Error("inv: matrix is singular to working precision",
-                    0, 0, "inv", "", "m:inv:singular");
-    return out;
-}
 
 Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr)
 {
@@ -1243,7 +1219,11 @@ Value eig_values(const Value &A, std::pmr::memory_resource *mr)
     return out;
 }
 
-// ── SVD-dependent: rank / null / pinv / cond / orth / normest ────────
+// ── SVD-dependent: null / pinv / orth ────────────────────────────────
+//
+// NOTE: rank_of / cond_2norm / normest migrated to libs/linalg
+// (properties.cpp). null / pinv / orth still live here pending the
+// "pseudo/subspace" migration group.
 
 namespace {
 
@@ -1256,22 +1236,6 @@ double defaultRankTol(std::size_t m, std::size_t n, double sigma_max)
 }
 
 } // anonymous namespace
-
-Value rank_of(const Value &A, double tol, std::pmr::memory_resource *mr)
-{
-    auto sv = svd_values(A, mr);
-    const std::size_t k = sv.numel();
-    const double *s = sv.doubleData();
-    if (k == 0) return Value::scalar(0.0, mr);
-    const double sigma_max = s[0];
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    const double cutoff = (tol < 0.0) ? defaultRankTol(m, n, sigma_max) : tol;
-    int r = 0;
-    for (std::size_t i = 0; i < k; ++i)
-        if (s[i] > cutoff) ++r;
-    return Value::scalar(static_cast<double>(r), mr);
-}
 
 Value pinv(const Value &A, double tol, std::pmr::memory_resource *mr)
 {
@@ -1325,18 +1289,7 @@ Value pinv(const Value &A, double tol, std::pmr::memory_resource *mr)
     return out;
 }
 
-Value cond_2norm(const Value &A, std::pmr::memory_resource *mr)
-{
-    auto sv = svd_values(A, mr);
-    const std::size_t k = sv.numel();
-    if (k == 0) return Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr);
-    const double *s = sv.doubleData();
-    const double sigma_max = s[0];
-    const double sigma_min = s[k - 1];
-    if (sigma_min <= 0.0)
-        return Value::scalar(std::numeric_limits<double>::infinity(), mr);
-    return Value::scalar(sigma_max / sigma_min, mr);
-}
+// NOTE: cond_2norm migrated to libs/linalg (properties.cpp).
 
 Value orth(const Value &A, double tol, std::pmr::memory_resource *mr)
 {
@@ -1396,12 +1349,7 @@ Value null_basis(const Value &A, double tol, std::pmr::memory_resource *mr)
     return out;
 }
 
-Value normest(const Value &A, std::pmr::memory_resource *mr)
-{
-    auto sv = svd_values(A, mr);
-    if (sv.numel() == 0) return Value::scalar(0.0, mr);
-    return Value::scalar(sv.doubleData()[0], mr);
-}
+// NOTE: normest migrated to libs/linalg (properties.cpp).
 
 // ── lu / qr decompositions ───────────────────────────────────────────
 
@@ -1633,81 +1581,7 @@ Value qr_R_only(const Value &A, std::pmr::memory_resource *mr)
 
 // ── trace / det / chol / topkrows ────────────────────────────────────
 
-Value trace(const Value &A, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2)
-        throw Error("trace: input must be a 2D matrix",
-                    0, 0, "trace", "", "m:trace:notMatrix");
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    const std::size_t k = std::min(m, n);
-    double s = 0.0;
-    const double *p = A.doubleData();
-    for (std::size_t i = 0; i < k; ++i)
-        s += p[i + i * m];
-    return Value::scalar(s, mr);
-}
-
-namespace {
-
-// In-place LU with partial pivoting on a column-major n×n matrix.
-// Returns false on zero pivot (singular). On return, sign holds
-// (-1)^(number of row swaps).
-bool luPartialPivotInplace(double *A, std::size_t n, int &sign)
-{
-    sign = 1;
-    for (std::size_t k = 0; k < n; ++k) {
-        std::size_t pivot = k;
-        double pmax = std::fabs(A[k + k * n]);
-        for (std::size_t i = k + 1; i < n; ++i) {
-            const double v = std::fabs(A[i + k * n]);
-            if (v > pmax) { pmax = v; pivot = i; }
-        }
-        if (pmax == 0.0) return false;
-        if (pivot != k) {
-            for (std::size_t j = 0; j < n; ++j)
-                std::swap(A[k + j * n], A[pivot + j * n]);
-            sign = -sign;
-        }
-        const double inv_pivot = 1.0 / A[k + k * n];
-        for (std::size_t i = k + 1; i < n; ++i) {
-            const double factor = A[i + k * n] * inv_pivot;
-            A[i + k * n] = factor;
-            for (std::size_t j = k + 1; j < n; ++j)
-                A[i + j * n] -= factor * A[k + j * n];
-        }
-    }
-    return true;
-}
-
-} // anonymous namespace
-
-Value det(const Value &A, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2)
-        throw Error("det: input must be a 2D matrix",
-                    0, 0, "det", "", "m:det:notMatrix");
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    if (m != n)
-        throw Error("det: matrix must be square",
-                    0, 0, "det", "", "m:det:notSquare");
-    if (m == 0)
-        return Value::scalar(1.0, mr);
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> A_buf(m * n, &scratch);
-    std::copy(A.doubleData(), A.doubleData() + m * n, A_buf.begin());
-
-    int sign = 1;
-    if (!luPartialPivotInplace(A_buf.data(), n, sign))
-        return Value::scalar(0.0, mr);
-
-    long double prod = static_cast<long double>(sign);
-    for (std::size_t i = 0; i < n; ++i)
-        prod *= static_cast<long double>(A_buf[i + i * n]);
-    return Value::scalar(static_cast<double>(prod), mr);
-}
+// NOTE: trace / det migrated to libs/linalg (properties.cpp).
 
 Value chol(const Value &A, std::pmr::memory_resource *mr)
 {
@@ -3920,13 +3794,7 @@ void rosser_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     outs[0] = rosser(ctx.engine->resource());
 }
 
-void inv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("inv: requires exactly 1 argument",
-                    0, 0, "inv", "", "m:inv:nargin");
-    outs[0] = inv(args[0], ctx.engine->resource());
-}
+// NOTE: inv_reg migrated to libs/linalg (properties.cpp).
 
 void linsolve_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
@@ -3945,21 +3813,7 @@ void pageinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     outs[0] = pageinv(args[0], ctx.engine->resource());
 }
 
-void trace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("trace: requires exactly 1 argument",
-                    0, 0, "trace", "", "m:trace:nargin");
-    outs[0] = trace(args[0], ctx.engine->resource());
-}
-
-void det_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("det: requires exactly 1 argument",
-                    0, 0, "det", "", "m:det:nargin");
-    outs[0] = det(args[0], ctx.engine->resource());
-}
+// NOTE: trace_reg / det_reg migrated to libs/linalg (properties.cpp).
 
 void chol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
@@ -4016,14 +3870,7 @@ void svd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
     }
 }
 
-void rank_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 1 || args.size() > 2)
-        throw Error("rank: requires (A) or (A, tol)",
-                    0, 0, "rank", "", "m:rank:nargin");
-    const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
-    outs[0] = rank_of(args[0], tol, ctx.engine->resource());
-}
+// NOTE: rank_reg migrated to libs/linalg (properties.cpp).
 
 void pinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
@@ -4034,13 +3881,7 @@ void pinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     outs[0] = pinv(args[0], tol, ctx.engine->resource());
 }
 
-void cond_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("cond: requires exactly 1 argument (2-norm only in this revision)",
-                    0, 0, "cond", "", "m:cond:nargin");
-    outs[0] = cond_2norm(args[0], ctx.engine->resource());
-}
+// NOTE: cond_reg migrated to libs/linalg (properties.cpp).
 
 void orth_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
@@ -4060,13 +3901,7 @@ void null_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     outs[0] = null_basis(args[0], tol, ctx.engine->resource());
 }
 
-void normest_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("normest: requires exactly 1 argument",
-                    0, 0, "normest", "", "m:normest:nargin");
-    outs[0] = normest(args[0], ctx.engine->resource());
-}
+// NOTE: normest_reg migrated to libs/linalg (properties.cpp).
 
 void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {

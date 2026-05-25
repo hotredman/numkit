@@ -174,17 +174,7 @@ Value rosser(std::pmr::memory_resource *mr = nullptr);
 
 // ── Solvers and inverses ─────────────────────────────────────────────
 
-/// @brief Matrix inverse via LU (`B = inv(A)`).
-///
-/// Prefer @ref linsolve / `\` for solving `A·x = b`; this function
-/// exists when the inverse itself is needed as a matrix.
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `A^{-1}`.
-/// @throws Error  Non-square or singular (`m:inv:singular`).
-/// @see linsolve, pinv
-Value inv(const Value &A, std::pmr::memory_resource *mr = nullptr);
+// NOTE: inv migrated to libs/linalg (numkit/linalg/properties.hpp).
 
 /// @brief Solve `A·X = B` (`X = linsolve(A, B)`).
 ///
@@ -211,24 +201,7 @@ Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr = n
 /// @throws Error  Non-square or singular page.
 Value pageinv(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Trace = sum of diagonal (`t = trace(A)`).
-///
-/// `sum(diag(A))`. Works for any 2-D matrix (square or rectangular).
-///
-/// @param A   2-D matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar trace.
-Value trace(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Determinant via LU with partial pivoting (`d = det(A)`).
-///
-/// `det(A) = sign(P) · prod(diag(U))` where `A = P·L·U`.
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar determinant.
-/// @throws Error  Non-square (`m:det:notSquare`).
-Value det(const Value &A, std::pmr::memory_resource *mr = nullptr);
+// NOTE: trace / det migrated to libs/linalg (numkit/linalg/properties.hpp).
 
 /// @brief Cholesky factorisation (`R = chol(A)`).
 ///
@@ -324,15 +297,7 @@ svd_decompose(const Value &A, std::pmr::memory_resource *mr = nullptr);
 /// @see svd_decompose
 Value svd_values(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Numerical rank (`r = rank(A, tol)`).
-///
-/// Count of singular values above `tol`. Default `tol = max(size(A))·eps(max(svd(A)))`.
-///
-/// @param A    Input matrix.
-/// @param tol  Tolerance, or `-1.0` for default.
-/// @param mr   Memory resource (nullptr → process default).
-/// @return     Scalar rank.
-Value rank_of(const Value &A, double tol = -1.0, std::pmr::memory_resource *mr = nullptr);
+// NOTE: rank_of migrated to libs/linalg (numkit/linalg/properties.hpp).
 
 /// @brief Moore-Penrose pseudoinverse (`P = pinv(A, tol)`).
 ///
@@ -346,15 +311,7 @@ Value rank_of(const Value &A, double tol = -1.0, std::pmr::memory_resource *mr =
 /// @see inv, lsqminnorm
 Value pinv(const Value &A, double tol = -1.0, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief 2-norm condition number (`c = cond(A)`).
-///
-/// `sigma_max / sigma_min` via SVD. Returns `Inf` for singular `A`.
-///
-/// @param A   Input matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar condition number.
-/// @see rcond, svd_values
-Value cond_2norm(const Value &A, std::pmr::memory_resource *mr = nullptr);
+// NOTE: cond_2norm migrated to libs/linalg (numkit/linalg/properties.hpp).
 
 /// @brief Orthonormal basis for range(A) (`Q = orth(A, tol)`).
 ///
@@ -378,16 +335,7 @@ Value orth(const Value &A, double tol = -1.0, std::pmr::memory_resource *mr = nu
 /// @see orth
 Value null_basis(const Value &A, double tol = -1.0, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief 2-norm estimate (`n = normest(A)`).
-///
-/// Currently equivalent to `svd(A)(1)` — no power-iteration shortcut
-/// yet (correctness over performance).
-///
-/// @param A   Input matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Estimate of largest singular value.
-/// @see svd_values, norm_value
-Value normest(const Value &A, std::pmr::memory_resource *mr = nullptr);
+// NOTE: normest migrated to libs/linalg (numkit/linalg/properties.hpp).
 
 // ── Eigenvalues / eigenvectors ───────────────────────────────────────
 
@@ -641,17 +589,7 @@ Value bandwidthOpt(const Value &A, const std::string &which, std::pmr::memory_re
 std::pair<Value, Value>
 rref(const Value &A, bool have_tol, double tol_user, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Reciprocal 1-norm condition estimate (`c = rcond(A)`).
-///
-/// Cheap path: `1 / (norm(A, 1) · norm(inv(A), 1))`. Returns 0 for
-/// singular `A`. KNOWN GAP: accurate on well-conditioned cases;
-/// differs from LAPACK's `dgecon` on near-singular matrices.
-///
-/// @param A   Input matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar reciprocal condition number.
-/// @see cond_2norm
-Value rcond(const Value &A, std::pmr::memory_resource *mr = nullptr);
+// NOTE: rcond migrated to libs/linalg (numkit/linalg/properties.hpp).
 
 /// @brief Givens plane rotation (`[G, y_out] = planerot([x; y])`).
 ///

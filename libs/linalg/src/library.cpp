@@ -25,6 +25,14 @@ void kron_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // norms.cpp
 void norm_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void vecnorm_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+// properties.cpp
+void inv_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void trace_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void det_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void rank_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cond_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void normest_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void rcond_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::linalg::detail
 
 namespace numkit {
@@ -54,6 +62,15 @@ void LinalgLibrary::install(Engine &engine)
     // ── Norms ────────────────────────────────────────────────────
     reg("norm", "norm",    &linalg::detail::norm_reg);
     reg("norm", "vecnorm", &linalg::detail::vecnorm_reg);
+
+    // ── Properties ───────────────────────────────────────────────
+    reg("prop", "inv",     &linalg::detail::inv_reg);
+    reg("prop", "trace",   &linalg::detail::trace_reg);
+    reg("prop", "det",     &linalg::detail::det_reg);
+    reg("prop", "rank",    &linalg::detail::rank_reg);
+    reg("prop", "cond",    &linalg::detail::cond_reg);
+    reg("prop", "normest", &linalg::detail::normest_reg);
+    reg("prop", "rcond",   &linalg::detail::rcond_reg);
 }
 
 } // namespace numkit
