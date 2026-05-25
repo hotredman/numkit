@@ -471,6 +471,238 @@ Value svd_values(const Value &A, std::pmr::memory_resource *mr)
 }
 
 // ────────────────────────────────────────────────────────────────────────
+// QR rank-1 update / column insert / column delete
+// (Daniel-Gragg-Kaufman-Stewart 1976; Golub & Van Loan §6.5)
+// ────────────────────────────────────────────────────────────────────────
+
+namespace {
+
+// Compute the Givens rotation (c, s) that zeros y in [x; y] → [r; 0].
+// Returns r = hypot(x, y). c = x/r, s = y/r. Edge-case-safe.
+inline void givens(double x, double y, double &c, double &s, double &r)
+{
+    if (y == 0.0) { c = (x >= 0.0) ? 1.0 : -1.0; s = 0.0; r = std::fabs(x); return; }
+    if (x == 0.0) { c = 0.0; s = (y >= 0.0) ? 1.0 : -1.0; r = std::fabs(y); return; }
+    r = std::hypot(x, y);
+    c = x / r;
+    s = y / r;
+}
+
+// Apply Givens rotation (c, s) to rows i and j of an m×n matrix M
+// (column-major). Rotates row i ← c*row_i + s*row_j;
+//                  row j ← -s*row_i + c*row_j.
+void applyGivensRows(double *M, std::size_t leadDim, std::size_t ncols,
+                     std::size_t i, std::size_t j, double c, double s)
+{
+    for (std::size_t k = 0; k < ncols; ++k) {
+        const double a = M[i + k * leadDim];
+        const double b = M[j + k * leadDim];
+        M[i + k * leadDim] =  c * a + s * b;
+        M[j + k * leadDim] = -s * a + c * b;
+    }
+}
+
+// Apply Givens rotation (c, s) to columns i and j of an m×n matrix M
+// (column-major). col_i ← c*col_i + s*col_j; col_j ← -s*col_i + c*col_j.
+void applyGivensCols(double *M, std::size_t leadDim, std::size_t nrows,
+                     std::size_t i, std::size_t j, double c, double s)
+{
+    for (std::size_t k = 0; k < nrows; ++k) {
+        const double a = M[k + i * leadDim];
+        const double b = M[k + j * leadDim];
+        M[k + i * leadDim] =  c * a + s * b;
+        M[k + j * leadDim] = -s * a + c * b;
+    }
+}
+
+} // anonymous namespace
+
+std::tuple<Value, Value>
+qrupdate(const Value &Q, const Value &R, const Value &u, const Value &v,
+         std::pmr::memory_resource *mr)
+{
+    if (Q.dims().ndim() != 2 || R.dims().ndim() != 2)
+        throw Error("qrupdate: Q and R must be 2D matrices",
+                    0, 0, "qrupdate", "", "m:qrupdate:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(Q.dims().dim(0));
+    const std::size_t mq = static_cast<std::size_t>(Q.dims().dim(1));
+    const std::size_t mr2 = static_cast<std::size_t>(R.dims().dim(0));
+    const std::size_t n  = static_cast<std::size_t>(R.dims().dim(1));
+    if (mq != m || mr2 != m)
+        throw Error("qrupdate: Q must be m×m and R must be m×n",
+                    0, 0, "qrupdate", "", "m:qrupdate:badShape");
+    if (u.numel() != m || v.numel() != n)
+        throw Error("qrupdate: length(u) must equal size(R, 1) and length(v) must equal size(R, 2)",
+                    0, 0, "qrupdate", "", "m:qrupdate:badVec");
+
+    auto Q1 = Value::matrix(m, m, ValueType::DOUBLE, mr);
+    auto R1 = Value::matrix(m, n, ValueType::DOUBLE, mr);
+    double *Qd = Q1.doubleDataMut();
+    double *Rd = R1.doubleDataMut();
+    std::copy(Q.doubleData(), Q.doubleData() + m * m, Qd);
+    std::copy(R.doubleData(), R.doubleData() + m * n, Rd);
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> w(m, &scratch);
+    // w = Q' * u
+    for (std::size_t i = 0; i < m; ++i) {
+        double s = 0.0;
+        for (std::size_t k = 0; k < m; ++k) s += Qd[k + i * m] * u.elemAsDouble(k);
+        w[i] = s;
+    }
+
+    // Bring w down to a single non-zero in position 0 via Givens
+    // rotations chained from bottom (m-1) to (0). Apply mirrored
+    // rotations to Q (cols) and R (rows) to preserve A = Q · R.
+    for (std::size_t i = m - 1; i > 0; --i) {
+        double c, s, r;
+        givens(w[i - 1], w[i], c, s, r);
+        w[i - 1] = r;
+        w[i] = 0.0;
+        // Row rotation on R (rows i-1 and i, all n columns)
+        applyGivensRows(Rd, m, n, i - 1, i, c, s);
+        // Mirror on Q (cols i-1 and i) so A = Q*R invariant
+        applyGivensCols(Qd, m, m, i - 1, i, c, s);
+    }
+
+    // R is now upper Hessenberg (one sub-diagonal below). Add
+    // w[0] * v' to the first row: R[0, j] += w[0] * v(j).
+    const double w0 = w[0];
+    for (std::size_t j = 0; j < n; ++j)
+        Rd[0 + j * m] += w0 * v.elemAsDouble(j);
+
+    // Restore upper triangular form: chase the sub-diagonal bulge
+    // top-down with Givens rotations on rows of R + cols of Q.
+    const std::size_t kmax = std::min(m - 1, n);
+    for (std::size_t i = 0; i < kmax; ++i) {
+        double c, s, r;
+        givens(Rd[i + i * m], Rd[i + 1 + i * m], c, s, r);
+        Rd[i + i * m] = r;
+        Rd[i + 1 + i * m] = 0.0;
+        if (i + 1 < n)
+            applyGivensRows(Rd + (i + 1) * m, m, n - i - 1, i, i + 1, c, s);
+        applyGivensCols(Qd, m, m, i, i + 1, c, s);
+    }
+    return std::make_tuple(std::move(Q1), std::move(R1));
+}
+
+std::tuple<Value, Value>
+qrinsert(const Value &Q, const Value &R, std::size_t k_1based, const Value &x,
+         std::pmr::memory_resource *mr)
+{
+    if (Q.dims().ndim() != 2 || R.dims().ndim() != 2)
+        throw Error("qrinsert: Q and R must be 2D matrices",
+                    0, 0, "qrinsert", "", "m:qrinsert:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(Q.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(R.dims().dim(1));
+    if (static_cast<std::size_t>(Q.dims().dim(1)) != m
+        || static_cast<std::size_t>(R.dims().dim(0)) != m)
+        throw Error("qrinsert: Q must be m×m and R must be m×n",
+                    0, 0, "qrinsert", "", "m:qrinsert:badShape");
+    if (x.numel() != m)
+        throw Error("qrinsert: x must have length size(Q, 1)",
+                    0, 0, "qrinsert", "", "m:qrinsert:badX");
+    if (k_1based < 1 || k_1based > n + 1)
+        throw Error("qrinsert: k must be in 1..n+1",
+                    0, 0, "qrinsert", "", "m:qrinsert:badK");
+    const std::size_t k = k_1based - 1;
+
+    // y = Q' * x (length m).
+    ScratchArena scratch(mr);
+    ScratchVec<double> y(m, &scratch);
+    const double *Qd_in = Q.doubleData();
+    for (std::size_t i = 0; i < m; ++i) {
+        double s = 0.0;
+        for (std::size_t r2 = 0; r2 < m; ++r2)
+            s += Qd_in[r2 + i * m] * x.elemAsDouble(r2);
+        y[i] = s;
+    }
+
+    // Build new R (m × n+1) by inserting y at column k between R(:,0:k-1)
+    // and R(:,k:n-1). Q stays m × m (will be updated in place by mirrored
+    // col rotations).
+    auto R1 = Value::matrix(m, n + 1, ValueType::DOUBLE, mr);
+    double *Rd = R1.doubleDataMut();
+    const double *Rd_in = R.doubleData();
+    for (std::size_t j = 0; j < k; ++j)
+        std::copy(Rd_in + j * m, Rd_in + (j + 1) * m, Rd + j * m);
+    std::copy(y.begin(), y.end(), Rd + k * m);
+    for (std::size_t j = k; j < n; ++j)
+        std::copy(Rd_in + j * m, Rd_in + (j + 1) * m, Rd + (j + 1) * m);
+
+    auto Q1 = Value::matrix(m, m, ValueType::DOUBLE, mr);
+    double *Qd = Q1.doubleDataMut();
+    std::copy(Qd_in, Qd_in + m * m, Qd);
+
+    // Column k of R has entries y[k], y[k+1], ..., y[m-1] below the
+    // diagonal. Zero them from bottom up via Givens rotations.
+    for (std::size_t i = m - 1; i > k; --i) {
+        double c, s, r;
+        givens(Rd[(i - 1) + k * m], Rd[i + k * m], c, s, r);
+        Rd[(i - 1) + k * m] = r;
+        Rd[i + k * m] = 0.0;
+        // Rotate rows i-1, i across cols k+1 .. n of R (the new
+        // column count is n+1, so we touch [k+1, n]).
+        if (k + 1 <= n)
+            applyGivensRows(Rd + (k + 1) * m, m, n - k, i - 1, i, c, s);
+        // Mirror on Q's cols i-1, i.
+        applyGivensCols(Qd, m, m, i - 1, i, c, s);
+    }
+    return std::make_tuple(std::move(Q1), std::move(R1));
+}
+
+std::tuple<Value, Value>
+qrdelete(const Value &Q, const Value &R, std::size_t k_1based,
+         std::pmr::memory_resource *mr)
+{
+    if (Q.dims().ndim() != 2 || R.dims().ndim() != 2)
+        throw Error("qrdelete: Q and R must be 2D matrices",
+                    0, 0, "qrdelete", "", "m:qrdelete:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(Q.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(R.dims().dim(1));
+    if (static_cast<std::size_t>(Q.dims().dim(1)) != m
+        || static_cast<std::size_t>(R.dims().dim(0)) != m)
+        throw Error("qrdelete: Q must be m×m and R must be m×n",
+                    0, 0, "qrdelete", "", "m:qrdelete:badShape");
+    if (n == 0)
+        throw Error("qrdelete: R has no columns to delete",
+                    0, 0, "qrdelete", "", "m:qrdelete:empty");
+    if (k_1based < 1 || k_1based > n)
+        throw Error("qrdelete: k must be in 1..n",
+                    0, 0, "qrdelete", "", "m:qrdelete:badK");
+    const std::size_t k = k_1based - 1;
+
+    // New R is m × (n-1) — drop column k, shift columns k+1..n-1 left.
+    auto R1 = Value::matrix(m, n - 1, ValueType::DOUBLE, mr);
+    double *Rd = R1.doubleDataMut();
+    const double *Rd_in = R.doubleData();
+    for (std::size_t j = 0; j < k; ++j)
+        std::copy(Rd_in + j * m, Rd_in + (j + 1) * m, Rd + j * m);
+    for (std::size_t j = k + 1; j < n; ++j)
+        std::copy(Rd_in + j * m, Rd_in + (j + 1) * m, Rd + (j - 1) * m);
+
+    auto Q1 = Value::matrix(m, m, ValueType::DOUBLE, mr);
+    double *Qd = Q1.doubleDataMut();
+    std::copy(Q.doubleData(), Q.doubleData() + m * m, Qd);
+
+    // After dropping column k, rows k..min(m-1, n-1) have a "bulge"
+    // immediately below the diagonal that needs to be chased away
+    // with Givens rotations.
+    const std::size_t lim = std::min(m - 1, n - 1);
+    for (std::size_t i = k; i < lim; ++i) {
+        double c, s, r;
+        givens(Rd[i + i * m], Rd[i + 1 + i * m], c, s, r);
+        Rd[i + i * m] = r;
+        Rd[i + 1 + i * m] = 0.0;
+        if (i + 1 < n - 1)
+            applyGivensRows(Rd + (i + 1) * m, m, (n - 1) - (i + 1),
+                            i, i + 1, c, s);
+        applyGivensCols(Qd, m, m, i, i + 1, c, s);
+    }
+    return std::make_tuple(std::move(Q1), std::move(R1));
+}
+
+// ────────────────────────────────────────────────────────────────────────
 // cholupdate — rank-1 Cholesky update/downdate
 // ────────────────────────────────────────────────────────────────────────
 
@@ -622,6 +854,60 @@ void svd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
     } else {
         outs[0] = svd_values(args[0], mr);
     }
+}
+
+void qrupdate_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 4)
+        throw Error("qrupdate: requires (Q, R, u, v)",
+                    0, 0, "qrupdate", "", "m:qrupdate:nargin");
+    auto [Q1, R1] = qrupdate(args[0], args[1], args[2], args[3], ctx.engine->resource());
+    outs[0] = std::move(Q1);
+    if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(R1);
+}
+
+void qrinsert_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4 || args.size() > 5)
+        throw Error("qrinsert: requires (Q, R, k, x[, 'col']) — row form is not yet supported",
+                    0, 0, "qrinsert", "", "m:qrinsert:nargin");
+    if (args.size() == 5) {
+        if (!(args[4].isChar() || args[4].isString())
+            || args[4].toString() != "col")
+            throw Error("qrinsert: row form not supported in v1 — pass 'col' or omit",
+                        0, 0, "qrinsert", "", "m:qrinsert:rowDeferred");
+    }
+    const double kd = args[2].toScalar();
+    if (kd < 1.0 || kd != std::floor(kd))
+        throw Error("qrinsert: k must be a positive integer",
+                    0, 0, "qrinsert", "", "m:qrinsert:badK");
+    auto [Q1, R1] = qrinsert(args[0], args[1],
+                             static_cast<std::size_t>(kd), args[3],
+                             ctx.engine->resource());
+    outs[0] = std::move(Q1);
+    if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(R1);
+}
+
+void qrdelete_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3 || args.size() > 4)
+        throw Error("qrdelete: requires (Q, R, k[, 'col']) — row form is not yet supported",
+                    0, 0, "qrdelete", "", "m:qrdelete:nargin");
+    if (args.size() == 4) {
+        if (!(args[3].isChar() || args[3].isString())
+            || args[3].toString() != "col")
+            throw Error("qrdelete: row form not supported in v1 — pass 'col' or omit",
+                        0, 0, "qrdelete", "", "m:qrdelete:rowDeferred");
+    }
+    const double kd = args[2].toScalar();
+    if (kd < 1.0 || kd != std::floor(kd))
+        throw Error("qrdelete: k must be a positive integer",
+                    0, 0, "qrdelete", "", "m:qrdelete:badK");
+    auto [Q1, R1] = qrdelete(args[0], args[1],
+                             static_cast<std::size_t>(kd),
+                             ctx.engine->resource());
+    outs[0] = std::move(Q1);
+    if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(R1);
 }
 
 void cholupdate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
