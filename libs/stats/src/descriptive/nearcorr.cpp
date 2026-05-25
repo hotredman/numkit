@@ -24,6 +24,7 @@
 #include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/builtin/language/arrays/matrix.hpp>
+#include <numkit/linalg/eig.hpp>             // eig_symmetric (migrated)
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
@@ -49,7 +50,7 @@ projPSD(const std::vector<double> &M, size_t n, std::pmr::memory_resource *mr)
     Value M_v = Value::matrix(n, n, ValueType::DOUBLE, mr);
     std::copy(Msym.begin(), Msym.end(), M_v.doubleDataMut());
 
-    auto [V, D] = ::numkit::builtin::eig_symmetric(M_v, mr);
+    auto [V, D] = ::numkit::linalg::eig_symmetric(M_v, mr);
     const double *vd = V.doubleData();
     const double *dd = D.doubleData();
 

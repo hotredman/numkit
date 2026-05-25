@@ -230,158 +230,25 @@ Value topkrows(const Value &A, std::size_t k, std::pmr::memory_resource *mr = nu
 
 // NOTE: normest migrated to libs/linalg (numkit/linalg/properties.hpp).
 
-// ── Eigenvalues / eigenvectors ───────────────────────────────────────
-
-/// @brief Symmetric eigendecomposition (`[V, D] = eig(A)`).
-///
-/// Classical Jacobi rotations. Returns `(V, D)` such that `A·V == V·D`,
-/// `V` orthogonal, `D` diagonal. Throws if `A` is not symmetric within
-/// tolerance (general eig is @ref eig_general_VD / @ref eig_general_values).
-///
-/// @param A   Square symmetric matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(V, D)` pair.
-/// @throws Error  Non-symmetric input.
-/// @see eig_values, eig_general_VD
-std::tuple<Value, Value>
-eig_symmetric(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Eigenvalues only (`e = eig(A)` single-output form).
-///
-/// For symmetric `A` returns ascending real eigenvalues.
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Column vector of eigenvalues.
-/// @see eig_symmetric, eig_general_values
-Value eig_values(const Value &A, std::pmr::memory_resource *mr = nullptr);
+// ── Eigenvalues / eigenvectors / matrix functions ───────────────────
+//
+// NOTE: eig family (eig_symmetric, eig_values, eig_general_values,
+//       eig_general_VD), sylvester_sym, schur_sym, hess / hess_H_only,
+//       expm, logm_sym, sqrtm_sym migrated to libs/linalg
+//       (numkit/linalg/{eig,matrix_functions}.hpp).
+// NOTE: subspace migrated to libs/linalg (numkit/linalg/pseudo_subspace.hpp).
+// NOTE: norm_value / norm_inf / norm_fro migrated to libs/linalg
+//       (numkit/linalg/norms.hpp).
 
 /// @brief Characteristic polynomial of a matrix (`p = poly(A)`).
 ///
 /// Souriau-Faddeev-LeVerrier. `p(λ) = λ^n + p(2)·λ^(n-1) + … + p(n+1)`
 /// and `roots(p) == eig(A)`. Square inputs only.
 ///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Coefficient row of length `n + 1`.
+/// Stays in builtin because the `poly()` builtin function dispatches
+/// here for matrix input; linalg has its own copy in
+/// numkit::linalg::poly_of_matrix.
 Value poly_of_matrix(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief General (non-symmetric) eigenvalues (`e = eig(A)` general form).
-///
-/// Via characteristic polynomial + roots. Possibly-complex column.
-/// Less numerically stable than QR iteration but works for moderate `n`.
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Column vector of eigenvalues (possibly COMPLEX).
-/// @see eig_general_VD
-Value eig_general_values(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-// NOTE: subspace migrated to libs/linalg (numkit/linalg/pseudo_subspace.hpp).
-
-/// @brief General `[V, D]` eig for real-eigenvalue asymmetric `A`
-/// (`[V, D] = eig_general_VD(A)`).
-///
-/// For each real eigenvalue `λ_i`, eigenvector `v_i` is the last column
-/// of `V` from `svd(A - λ_i · I)` (right null vector). Throws if any
-/// eigenvalue has non-zero imaginary part (those require Francis QR
-/// iteration for proper complex-eigvec extraction — deferred).
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(V, D)` pair with `A·V == V·D` verified.
-/// @throws Error  Complex eigenvalue encountered.
-/// @see eig_general_values, eig_symmetric
-std::tuple<Value, Value>
-eig_general_VD(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Sylvester equation for symmetric A and B
-/// (`X = sylvester_sym(A, B, C)`).
-///
-/// Solves `A·X + X·B = C` via simultaneous diagonalisation:
-/// `A = V_a·D_a·V_a'`, `B = V_b·D_b·V_b'`, `Y = V_a'·C·V_b`,
-/// `Y_ij /= (d_a_i + d_b_j)`, then `X = V_a·Y·V_b'`.
-///
-/// @param A   Symmetric matrix.
-/// @param B   Symmetric matrix.
-/// @param C   RHS matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Solution `X`.
-/// @throws Error  Non-symmetric A or B; degenerate spectra
-///                (`d_a_i + d_b_j == 0` for some pair).
-Value sylvester_sym(const Value &A, const Value &B, const Value &C, std::pmr::memory_resource *mr = nullptr);
-
-// ── Norms ────────────────────────────────────────────────────────────
-
-// NOTE: norm_value / norm_inf / norm_fro migrated to libs/linalg
-// (numkit/linalg/norms.hpp).
-
-// ── Matrix functions (expm / logm / sqrtm / schur / hess) ────────────
-
-/// @brief Matrix exponential (`B = expm(A)`).
-///
-/// Padé approximation with scaling-and-squaring (Higham 2005). Works
-/// for any square matrix.
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `e^A`.
-/// @see logm_sym, sqrtm_sym
-Value expm(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Matrix logarithm for symmetric positive-definite A
-/// (`B = logm_sym(A)`).
-///
-/// Via eigendecomposition: `logm(A) = V · diag(log(eig)) · V'`.
-/// General `logm` requires complex Schur (deferred).
-///
-/// @param A   Symmetric positive-definite matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `log(A)`.
-/// @see expm
-Value logm_sym(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Matrix square root for symmetric PSD A (`B = sqrtm_sym(A)`).
-///
-/// Via eigendecomposition: `sqrtm(A) = V · diag(sqrt(eig)) · V'`.
-///
-/// @param A   Symmetric positive-semidefinite matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `sqrt(A)`.
-/// @see expm, logm_sym
-Value sqrtm_sym(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Schur decomposition for symmetric A (`[U, T] = schur(A)`).
-///
-/// Equivalent to eigendecomposition: `A = U·T·U'`, `T` diagonal,
-/// `U` orthogonal. General Schur (quasi-triangular `T`) is deferred.
-///
-/// @param A   Symmetric matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(U, T)` pair.
-/// @see eig_symmetric, hess
-std::tuple<Value, Value>
-schur_sym(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Hessenberg reduction (`[P, H] = hess(A)`).
-///
-/// `A = P·H·P'`, `P` orthogonal, `H` upper-Hessenberg (zeros below the
-/// first sub-diagonal). Foundation for general eig and Schur.
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(P, H)` pair.
-/// @see hess_H_only
-std::tuple<Value, Value>
-hess(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Hessenberg-only output (`H = hess(A)` single-output form).
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Upper-Hessenberg `H`.
-/// @see hess
-Value hess_H_only(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
 // ── Matrix predicates ────────────────────────────────────────────────
 

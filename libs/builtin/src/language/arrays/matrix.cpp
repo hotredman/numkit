@@ -16,11 +16,6 @@
 
 #include <numkit/builtin/language/arrays/manip.hpp>     // flip()
 
-// TEMPORARY: eig_general_VD (still in this TU pending eig-family
-// migration) calls svd_decompose (already migrated to libs/linalg).
-// This include drops in the eig-family migration pass (group 5).
-#include <numkit/linalg/decompositions.hpp>
-
 #include <algorithm>
 #include <cmath>
 #include <complex>
@@ -472,8 +467,17 @@ Value svd_values(const Value &A, std::pmr::memory_resource *mr)
 }
 #endif // SVD migrated to libs/linalg
 
-// ── Characteristic polynomial + general eig via roots ───────────────
-
+// NOTE: eig family, hess, schur_sym, sylvester_sym, expm, logm_sym,
+//       sqrtm_sym migrated to libs/linalg/src/{eig,matrix_functions}.cpp.
+//
+// poly_of_matrix below is the ONE exception that stays: builtin's
+// polynomials::poly_reg dispatches matrix-input to characteristic
+// polynomial via this helper, so it has to live in builtin. linalg::
+// eig_general_values has its own copy in linalg/src/eig.cpp — a small
+// DRY violation tolerated because it's a leaf helper (no other state),
+// and the alternative (publishing it from builtin to linalg via a
+// public header) trades one tiny duplication for inter-lib include
+// surface. TODO: consider promoting to libs/builtin/internal/ later.
 Value poly_of_matrix(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
@@ -539,6 +543,9 @@ Value poly_of_matrix(const Value &A, std::pmr::memory_resource *mr)
     }
     return out;
 }
+
+// Below: dead code, kept until cleanup. All migrated to libs/linalg.
+#if 0
 
 Value eig_general_values(const Value &A, std::pmr::memory_resource *mr)
 {
@@ -1173,6 +1180,7 @@ Value eig_values(const Value &A, std::pmr::memory_resource *mr)
     for (std::size_t i = 0; i < n; ++i) o[i] = Ddata[i + i * n];
     return out;
 }
+#endif // eig family + matrix functions migrated to libs/linalg
 
 // NOTE: pinv / orth / null_basis migrated to libs/linalg/src/
 // pseudo_subspace.cpp (group 4 of the libs/linalg extraction).
@@ -3766,6 +3774,10 @@ void pageinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 //       libs/linalg (properties.cpp).
 // NOTE: pinv_reg / orth_reg / null_reg migrated to
 //       libs/linalg (pseudo_subspace.cpp).
+// NOTE: eig_reg / hess_reg / schur_reg / sylvester_reg /
+//       expm_reg / logm_reg / sqrtm_reg migrated to libs/linalg
+//       (eig.cpp, matrix_functions.cpp). Block below disabled.
+#if 0
 
 void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
@@ -3864,6 +3876,7 @@ void hess_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
         outs[0] = hess_H_only(args[0], mr);
     }
 }
+#endif // eig family + matrix functions engine adapters migrated to libs/linalg
 
 void topkrows_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
