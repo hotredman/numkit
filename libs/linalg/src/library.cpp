@@ -33,6 +33,8 @@ void rank_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cond_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void normest_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void rcond_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void condest_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void condeig_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 // decompositions.cpp
 void chol_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lu_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -111,6 +113,8 @@ void LinalgLibrary::install(Engine &engine)
     reg("prop", "cond",    &linalg::detail::cond_reg);
     reg("prop", "normest", &linalg::detail::normest_reg);
     reg("prop", "rcond",   &linalg::detail::rcond_reg);
+    reg("prop", "condest", &linalg::detail::condest_reg);
+    reg("prop", "condeig", &linalg::detail::condeig_reg);
 
     // ── Decompositions ───────────────────────────────────────────
     reg("decomp", "chol", &linalg::detail::chol_reg);

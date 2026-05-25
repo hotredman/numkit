@@ -11,6 +11,7 @@
 
 #include <numkit/builtin/internal/la_solve.hpp>   // detail::la_solve
 #include <numkit/linalg/decompositions.hpp>       // svd_values
+#include <numkit/linalg/eig.hpp>                  // condeig uses eig_symmetric / eig_general_VD
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
@@ -240,6 +241,143 @@ Value rcond(const Value &A, std::pmr::memory_resource *mr)
     return Value::scalar(1.0 / (anorm * inv_norm), mr);
 }
 
+// condest — 1-norm condition estimate. Reciprocal of rcond (cheap path).
+//
+// KNOWN GAP: MATLAB's condest uses Higham 1988's blocked 1-norm power-
+// iteration estimator (LAPACK dlacn1) which approximates norm(inv(A),1)
+// in O(n²) per iteration without forming inv(A). Our impl computes
+// norm(A,1) * norm(inv(A),1) exactly. Matches MATLAB on well-conditioned
+// A; on near-singular A returns the EXACT condition number while MATLAB
+// returns an approximation.
+Value condest(const Value &A, std::pmr::memory_resource *mr)
+{
+    if (A.dims().is3D())
+        throw Error("condest: input must be 2D",
+                    0, 0, "condest", "", "m:condest:Not2D");
+    const size_t M = A.dims().rows();
+    const size_t N = A.dims().cols();
+    if (M != N)
+        throw Error("condest: matrix must be square",
+                    0, 0, "condest", "", "m:condest:NotSquare");
+    if (M == 0)
+        return Value::scalar(0.0, mr);
+
+    const double anorm = matrix_one_norm(A.doubleData(), M, N);
+    if (anorm == 0.0)
+        return Value::scalar(std::numeric_limits<double>::infinity(), mr);
+
+    Value Ainv;
+    try {
+        Ainv = inv(A, mr);
+    } catch (...) {
+        return Value::scalar(std::numeric_limits<double>::infinity(), mr);
+    }
+    const double inv_norm = matrix_one_norm(Ainv.doubleData(), M, N);
+    if (!std::isfinite(inv_norm))
+        return Value::scalar(std::numeric_limits<double>::infinity(), mr);
+    return Value::scalar(anorm * inv_norm, mr);
+}
+
+// condeig — eigenvalue condition numbers.
+//
+// For each eigenvalue λ_i with right eigenvector x_i (unit norm) and
+// left eigenvector y_i (unit norm, satisfying y_i' A = λ_i y_i'), the
+// condition number is
+//   s_i = 1 / |y_i' x_i|
+// which equals 1/|cos θ_i| where θ_i is the angle between x_i and y_i.
+//
+// Implementation: V = right eigvecs from eig; left eigvecs are columns
+// of inv(V)' (LAPACK convention). Compute s_i = ||V(:,i)|| · ||W(:,i)||
+// / |W(:,i)' V(:,i)| where W = inv(V)'. For perfectly conditioned A
+// (symmetric / normal), V is orthogonal and s_i == 1 for every i.
+//
+// Symmetric A short-circuits to a vector of 1s — much cheaper than the
+// general path and bit-equal to MATLAB.
+Value condeig(const Value &A, std::pmr::memory_resource *mr)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("condeig: input must be a 2D matrix",
+                    0, 0, "condeig", "", "m:condeig:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    if (m != n)
+        throw Error("condeig: matrix must be square",
+                    0, 0, "condeig", "", "m:condeig:notSquare");
+    if (n == 0)
+        return Value::matrix(0, 1, ValueType::DOUBLE, mr);
+
+    // Symmetric short-circuit: every eigenvalue is perfectly conditioned.
+    // Tolerance follows the threshold used inside eig_symmetric.
+    auto isSymmetric = [&]() -> bool {
+        const double *p = A.doubleData();
+        const double tol = 1e-10;
+        for (std::size_t i = 0; i < n; ++i)
+            for (std::size_t j = i + 1; j < n; ++j) {
+                const double d = std::fabs(p[i + j * n] - p[j + i * n]);
+                const double s = std::max(std::fabs(p[i + j * n]),
+                                           std::fabs(p[j + i * n]));
+                if (d > tol * (1.0 + s)) return false;
+            }
+        return true;
+    };
+    if (isSymmetric()) {
+        auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+        double *o = out.doubleDataMut();
+        for (std::size_t i = 0; i < n; ++i) o[i] = 1.0;
+        return out;
+    }
+
+    // General path. eig_general_VD returns real-eigenvalue cases only;
+    // complex eigvecs are deferred to Francis QR.
+    auto [V, D] = eig_general_VD(A, mr);
+
+    // W = inv(V)' — its columns are the left eigenvectors. Compute via
+    // la_solve on V to get inv(V) directly without going through pinv.
+    ScratchArena scratch(mr);
+    ScratchVec<double> V_buf(n * n, &scratch);
+    ScratchVec<double> I_buf(n * n, 0.0, &scratch);
+    std::copy(V.doubleData(), V.doubleData() + n * n, V_buf.begin());
+    for (std::size_t i = 0; i < n; ++i) I_buf[i + i * n] = 1.0;
+
+    ScratchVec<double> Vinv(n * n, &scratch);
+    if (!numkit::builtin::detail::la_solve(V_buf.data(), n, n, I_buf.data(), n,
+                                            Vinv.data(), &scratch))
+        throw Error("condeig: right eigenvector matrix is singular",
+                    0, 0, "condeig", "", "m:condeig:singular");
+
+    auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    double *s = out.doubleDataMut();
+    const double *vd = V.doubleData();
+    for (std::size_t i = 0; i < n; ++i) {
+        // Right eigvec V(:, i)
+        double v_norm = 0.0;
+        for (std::size_t k = 0; k < n; ++k)
+            v_norm += vd[k + i * n] * vd[k + i * n];
+        v_norm = std::sqrt(v_norm);
+
+        // Left eigvec = i-th column of W = inv(V)' = i-th ROW of inv(V).
+        double w_norm = 0.0;
+        for (std::size_t k = 0; k < n; ++k) {
+            const double w_k = Vinv[i + k * n];   // inv(V)[i, k]
+            w_norm += w_k * w_k;
+        }
+        w_norm = std::sqrt(w_norm);
+
+        // Inner product y_i' x_i where y_i is the i-th row of inv(V).
+        // Right eigvec V(:, i) is column. So y_i' x_i = sum_k Vinv[i, k] * V[k, i].
+        double dot = 0.0;
+        for (std::size_t k = 0; k < n; ++k)
+            dot += Vinv[i + k * n] * vd[k + i * n];
+
+        if (std::fabs(dot) < 1e-300) {
+            s[i] = std::numeric_limits<double>::infinity();
+        } else {
+            s[i] = v_norm * w_norm / std::fabs(dot);
+        }
+    }
+    return out;
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // Engine adapters — registered in LinalgLibrary::install
 // ════════════════════════════════════════════════════════════════════════
@@ -301,6 +439,62 @@ void rcond_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
         throw Error("rcond: requires (A)",
                     0, 0, "rcond", "", "m:rcond:nargin");
     outs[0] = rcond(args[0], ctx.engine->resource());
+}
+
+void condest_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("condest: requires (A)",
+                    0, 0, "condest", "", "m:condest:nargin");
+    outs[0] = condest(args[0], ctx.engine->resource());
+}
+
+// condeig has three calling forms:
+//   s            = condeig(A)
+//   [V, D, s]    = condeig(A)        — V, D from eig(A), s as above.
+// The 2-output `[V, D] = condeig(A)` is documented in MATLAB only as
+// the same as `eig(A)`. Dispatch matches.
+void condeig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("condeig: requires (A)",
+                    0, 0, "condeig", "", "m:condeig:nargin");
+    auto *mr = ctx.engine->resource();
+    if (nargout <= 1) {
+        outs[0] = condeig(args[0], mr);
+        return;
+    }
+    // [V, D[, s]] form: hand off to eig for the first two, compute s
+    // separately (no shared work yet — refactor candidate when this
+    // becomes a hot path).
+    const Value &A = args[0];
+    // Eig dispatch matches the eig_reg path.
+    auto sym = [&]() -> bool {
+        if (A.dims().ndim() != 2) return false;
+        const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
+        if (n != static_cast<std::size_t>(A.dims().dim(1))) return false;
+        const double *p = A.doubleData();
+        const double tol = 1e-10;
+        for (std::size_t i = 0; i < n; ++i)
+            for (std::size_t j = i + 1; j < n; ++j) {
+                const double d = std::fabs(p[i + j * n] - p[j + i * n]);
+                const double s = std::max(std::fabs(p[i + j * n]),
+                                           std::fabs(p[j + i * n]));
+                if (d > tol * (1.0 + s)) return false;
+            }
+        return true;
+    }();
+    if (sym) {
+        auto [V, D] = eig_symmetric(A, mr);
+        outs[0] = std::move(V);
+        outs[1] = std::move(D);
+    } else {
+        auto [V, D] = eig_general_VD(A, mr);
+        outs[0] = std::move(V);
+        outs[1] = std::move(D);
+    }
+    if (nargout >= 3 && outs.size() >= 3)
+        outs[2] = condeig(A, mr);
 }
 
 } // namespace detail
