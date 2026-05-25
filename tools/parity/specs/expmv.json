@@ -1,0 +1,14 @@
+{
+  "name": "expmv",
+  "namespace": "linalg",
+  "setup": "A_d = diag([1 2 3]); v_d = [1; 1; 1]; A_t = [0.1 0.2 0; 0 0.3 0.4; 0 0 0.5]; v_t = [1; 2; 3];",
+  "expr": "w_d = expmv(0.5, A_d, v_d); w_t = expmv(0.7, A_t, v_t); w_compare = expm(0.7 * A_t) * v_t;",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "w_d(1)", "w_d(2)", "w_d(3)",
+    "max(abs(w_t - w_compare))",
+    "w_t(1)", "w_t(2)", "w_t(3)"
+  ],
+  "comment": "Sig: w = expmv(t, A, v). KNOWN GAP: MATLAB core does NOT ship expmv — only Higham's separate package on File Exchange does. Therefore correctness=N/A vs MATLAB on most engines. Spec checks algebraic identity (matches expm(t*A)*v on a 3×3 triangular A to ulp) which is self-verifying. Diagonal A path: w(i) == exp(t·d(i)) · v(i), trivially correct."
+}

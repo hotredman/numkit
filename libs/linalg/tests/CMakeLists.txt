@@ -7,4 +7,11 @@
 target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/condeig_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/condest_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cholupdate_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/qr_update_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/page_family_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/schur_convert_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/polyeig_ordeig_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/expmv_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cond_pnorm_test.cpp
 )

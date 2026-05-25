@@ -106,19 +106,18 @@ cdf2rdf(const Value &V, const Value &D, std::pmr::memory_resource *mr)
         const double a = lam.real();
         const double b = lam.imag();   // assume b > 0; swap if not
         const double bb = (b >= 0.0) ? b : -b;
-        // 2×2 real block.
+        // 2×2 real block. MATLAB convention is [[a b]; [-b a]] — i.e.
+        // the positive-imag eigenvalue sits in the upper-right.
         dr[i + i * n]         =  a;
-        dr[i + (i + 1) * n]   = -bb;
-        dr[(i + 1) + i * n]   =  bb;
+        dr[i + (i + 1) * n]   =  bb;
+        dr[(i + 1) + i * n]   = -bb;
         dr[(i + 1) + (i + 1) * n] = a;
-        // Real eigvecs. MATLAB convention is VR(:, k+1) = -Im(v)
-        // when D's k-th eigenvalue has positive imaginary part — this
-        // is what makes A = VR · DR · inv(VR) hold with the
-        // [[a -b]; [b a]] block convention. Sign flips for negative b.
+        // Real eigvecs paired with the above block convention:
+        // VR(:, k+1) = +Im(v) for positive b. Flips for negative b.
         for (std::size_t r = 0; r < n; ++r) {
             Complex v = getV(r, i);
             vr[r + i * n]       = v.real();
-            vr[r + (i + 1) * n] = (b >= 0.0) ? -v.imag() : v.imag();
+            vr[r + (i + 1) * n] = (b >= 0.0) ? v.imag() : -v.imag();
         }
         i += 2;
     }
