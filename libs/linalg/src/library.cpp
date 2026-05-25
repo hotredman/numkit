@@ -66,6 +66,7 @@ void rsf2csf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void expm_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void logm_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void sqrtm_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void expmv_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 // predicates.cpp
 void issymmetric_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void ishermitian_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -164,6 +165,7 @@ void LinalgLibrary::install(Engine &engine)
     reg("matfn", "expm",  &linalg::detail::expm_reg);
     reg("matfn", "logm",  &linalg::detail::logm_reg);
     reg("matfn", "sqrtm", &linalg::detail::sqrtm_reg);
+    reg("matfn", "expmv", &linalg::detail::expmv_reg);
 
     // ── Predicates ───────────────────────────────────────────────
     reg("pred", "issymmetric", &linalg::detail::issymmetric_reg);

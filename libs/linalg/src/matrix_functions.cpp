@@ -195,6 +195,105 @@ Value sqrtm_sym(const Value &A, std::pmr::memory_resource *mr)
                             "sqrtm", "m:sqrtm:negativeEigenvalue", mr);
 }
 
+// ────────────────────────────────────────────────────────────────────────
+// expmv — action of matrix exponential on a vector
+// (Sidje 1998 simplified; fixed Krylov dimension)
+// ────────────────────────────────────────────────────────────────────────
+
+Value expmv(double t, const Value &A, const Value &v, std::pmr::memory_resource *mr)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("expmv: A must be a 2D matrix",
+                    0, 0, "expmv", "", "m:expmv:notMatrix");
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
+    if (static_cast<std::size_t>(A.dims().dim(1)) != n)
+        throw Error("expmv: A must be square",
+                    0, 0, "expmv", "", "m:expmv:notSquare");
+    if (v.numel() != n)
+        throw Error("expmv: length(v) must equal size(A, 1)",
+                    0, 0, "expmv", "", "m:expmv:badV");
+    if (n == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
+
+    // beta = ||v||₂
+    double beta = 0.0;
+    for (std::size_t i = 0; i < n; ++i) {
+        const double vi = v.elemAsDouble(i);
+        beta += vi * vi;
+    }
+    beta = std::sqrt(beta);
+    if (beta == 0.0) {
+        auto z = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+        std::fill(z.doubleDataMut(), z.doubleDataMut() + n, 0.0);
+        return z;
+    }
+
+    const std::size_t m = std::min<std::size_t>(30, n);   // Krylov dim
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> V(n * (m + 1), 0.0, &scratch);     // Arnoldi basis
+    ScratchVec<double> H(m * m, 0.0, &scratch);           // square Hessenberg
+    ScratchVec<double> work(n, &scratch);
+
+    // V[:, 0] = v / beta
+    for (std::size_t i = 0; i < n; ++i) V[i + 0 * n] = v.elemAsDouble(i) / beta;
+
+    const double *Ad = A.doubleData();
+    std::size_t m_eff = m;    // may shrink on lucky breakdown
+
+    for (std::size_t j = 0; j < m; ++j) {
+        // work = A · V[:, j]
+        for (std::size_t i = 0; i < n; ++i) {
+            double s = 0.0;
+            for (std::size_t k = 0; k < n; ++k) s += Ad[i + k * n] * V[k + j * n];
+            work[i] = s;
+        }
+        // Modified Gram-Schmidt: orthogonalise against V[:, 0..j].
+        for (std::size_t i = 0; i <= j; ++i) {
+            double hij = 0.0;
+            for (std::size_t k = 0; k < n; ++k) hij += V[k + i * n] * work[k];
+            if (i < m && j < m) H[i + j * m] = hij;
+            for (std::size_t k = 0; k < n; ++k) work[k] -= hij * V[k + i * n];
+        }
+        // Sub-diagonal entry
+        double hjp1 = 0.0;
+        for (std::size_t k = 0; k < n; ++k) hjp1 += work[k] * work[k];
+        hjp1 = std::sqrt(hjp1);
+        if (hjp1 < 1e-14) {
+            // Lucky breakdown — exact eigenspace found.
+            m_eff = j + 1;
+            break;
+        }
+        // Store sub-diagonal into H (within square block: only if j+1 < m).
+        if (j + 1 < m) H[(j + 1) + j * m] = hjp1;
+        // V[:, j+1] = work / hjp1
+        for (std::size_t k = 0; k < n; ++k) V[k + (j + 1) * n] = work[k] / hjp1;
+    }
+
+    // Trim H to m_eff × m_eff if breakdown shortened the basis.
+    Value Hsq = Value::matrix(m_eff, m_eff, ValueType::DOUBLE, mr);
+    double *Hsd = Hsq.doubleDataMut();
+    for (std::size_t j = 0; j < m_eff; ++j)
+        for (std::size_t i = 0; i < m_eff; ++i)
+            Hsd[i + j * m_eff] = (i < m && j < m) ? H[i + j * m] : 0.0;
+
+    // Scale by t: H · t.
+    for (std::size_t k = 0; k < m_eff * m_eff; ++k) Hsd[k] *= t;
+
+    // F = expm(t · H), pick first column. F is m_eff × m_eff.
+    auto F = expm(Hsq, mr);
+    const double *Fd = F.doubleData();
+
+    // w = beta · V[:, 0..m_eff-1] · F[:, 0]
+    auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    double *wd = out.doubleDataMut();
+    for (std::size_t i = 0; i < n; ++i) {
+        double s = 0.0;
+        for (std::size_t k = 0; k < m_eff; ++k) s += V[i + k * n] * Fd[k + 0 * m_eff];
+        wd[i] = beta * s;
+    }
+    return out;
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // Engine adapters — registered in LinalgLibrary::install
 // ════════════════════════════════════════════════════════════════════════
@@ -223,6 +322,18 @@ void sqrtm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
         throw Error("sqrtm: requires exactly 1 argument",
                     0, 0, "sqrtm", "", "m:sqrtm:nargin");
     outs[0] = sqrtm_sym(args[0], ctx.engine->resource());
+}
+
+// MATLAB signature: w = expmv(t, A, v) — three positional args, t first.
+// Some flavours (e.g. expmv from Higham's package) use (A, v) and an
+// optional t; we mirror MATLAB's documented order with t leading.
+void expmv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 3)
+        throw Error("expmv: requires (t, A, v)",
+                    0, 0, "expmv", "", "m:expmv:nargin");
+    const double t = args[0].toScalar();
+    outs[0] = expmv(t, args[1], args[2], ctx.engine->resource());
 }
 
 } // namespace detail
