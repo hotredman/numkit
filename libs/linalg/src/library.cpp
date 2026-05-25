@@ -41,6 +41,9 @@ void lu_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void qr_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void svd_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cholupdate_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void qrupdate_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void qrinsert_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void qrdelete_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 // pseudo_subspace.cpp
 void pinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void orth_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -123,6 +126,9 @@ void LinalgLibrary::install(Engine &engine)
     reg("decomp", "qr",   &linalg::detail::qr_reg);
     reg("decomp", "svd",  &linalg::detail::svd_reg);
     reg("decomp", "cholupdate", &linalg::detail::cholupdate_reg);
+    reg("decomp", "qrupdate",   &linalg::detail::qrupdate_reg);
+    reg("decomp", "qrinsert",   &linalg::detail::qrinsert_reg);
+    reg("decomp", "qrdelete",   &linalg::detail::qrdelete_reg);
 
     // ── Pseudo-inverse / subspace queries ────────────────────────
     reg("pseudo", "pinv",     &linalg::detail::pinv_reg);
