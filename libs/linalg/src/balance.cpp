@@ -1,4 +1,4 @@
-// libs/builtin/src/language/arrays/balance.cpp
+// libs/linalg/src/balance.cpp
 //
 // MATLAB balance: diagonal-similarity scaling for eigenvalue computations.
 // Parlett-Reinsch (1969) algorithm; same as EISPACK `balanc`.
@@ -12,34 +12,20 @@
 // in EISPACK's balanc isolates rows/cols already in upper-triangular
 // form; rare in practice and skipped by 'noperm' anyway).
 //
-// Algorithm (radix = 2):
-//   Iterate until no improvement:
-//     For each row/col i (excluding diagonal):
-//       r = sum |A(i, j)| for j != i
-//       c = sum |A(j, i)| for j != i
-//       Find power-of-radix factor f minimising c/f + r*f
-//       If (c/f + r*f) < 0.95 * (c + r):
-//         A(i, :) /= f
-//         A(:, i) *= f
-//         d[i]    *= f
-//
-// PMR HARD RULE: every fn takes std::pmr::memory_resource *mr.
-//
-// KNOWN GAP: permutation phase (rows/cols with zero off-diagonal blocks)
-// is skipped. Result is identical to MATLAB's balance(A, 'noperm') for
-// matrices without isolated eigenvalues. With 'noperm' explicitly
-// passed, output is fully MATLAB-equivalent.
+// Migrated 2026-05-25 from libs/builtin/src/language/arrays/balance.cpp.
 
-#include <numkit/builtin/language/arrays/matrix.hpp>
+#include <numkit/linalg/balance.hpp>
+
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
+#include <numkit/core/span.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <string>
 
-namespace numkit::builtin {
+namespace numkit::linalg {
 
 namespace {
 
@@ -58,8 +44,8 @@ void balanceScale(double *B, size_t n, double *d)
     while (!done) {
         done = true;
         for (size_t i = 0; i < n; ++i) {
-            double r = 0.0;  // row sum excl. diag
-            double c = 0.0;  // col sum excl. diag
+            double r = 0.0;
+            double c = 0.0;
             for (size_t j = 0; j < n; ++j) {
                 if (j == i) continue;
                 r += std::abs(B[i + j * n]);
@@ -82,9 +68,7 @@ void balanceScale(double *B, size_t n, double *d)
             if ((c + r) / f < threshold * s) {
                 done = false;
                 d[i] *= f;
-                // Row i: divide by f.
                 for (size_t j = 0; j < n; ++j) B[i + j * n] /= f;
-                // Col i: multiply by f.
                 for (size_t j = 0; j < n; ++j) B[j + i * n] *= f;
             }
         }
@@ -93,12 +77,6 @@ void balanceScale(double *B, size_t n, double *d)
 
 } // namespace
 
-// Computes balanced matrix B and the scaling vector d. Caller decides
-// whether to package them as 1-out (B), 2-out ([diag(d), B]), or 3-out
-// ([d, perm, B]) form. (BalanceResult declared in matrix.hpp.)
-//
-// v1: noperm is always effectively true. The arg is kept for signature
-// compat but doesn't change behaviour beyond documentation.
 BalanceResult
 balance_impl(const Value &A, bool /*noperm*/, std::pmr::memory_resource *mr)
 {
@@ -120,19 +98,17 @@ balance_impl(const Value &A, bool /*noperm*/, std::pmr::memory_resource *mr)
 
     if (n == 0) return R;
 
-    // Copy A into B, then balance in place.
     std::copy(A.doubleData(), A.doubleData() + n * n, R.B.doubleDataMut());
 
     ScratchArena scratch(mr);
     ScratchVec<double> d(n, &scratch);
     balanceScale(R.B.doubleDataMut(), n, d.data());
 
-    // Pack outputs.
     double *dd = R.d_col.doubleDataMut();
     double *pd = R.perm_col.doubleDataMut();
     for (size_t i = 0; i < n; ++i) {
         dd[i] = d[i];
-        pd[i] = static_cast<double>(i + 1);  // identity perm
+        pd[i] = static_cast<double>(i + 1);
     }
     return R;
 }
@@ -161,7 +137,6 @@ void balance_reg(Span<const Value> args, size_t nargout,
     const size_t n = R.B.dims().rows();
 
     if (nargout <= 1) {
-        // 1-out: just B.
         outs[0] = std::move(R.B);
         return;
     }
@@ -178,7 +153,7 @@ void balance_reg(Span<const Value> args, size_t nargout,
         return;
     }
 
-    // 3-out: [S, P, B] where S = column of scalings, P = column of perms.
+    // 3-out: [S, P, B].
     outs[0] = std::move(R.d_col);
     outs[1] = std::move(R.perm_col);
     if (outs.size() >= 3) outs[2] = std::move(R.B);
@@ -186,4 +161,4 @@ void balance_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace numkit::linalg

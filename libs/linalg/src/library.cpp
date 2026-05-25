@@ -43,6 +43,10 @@ void pinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void orth_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void null_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void subspace_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+// balance.cpp
+void balance_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+// ldl.cpp
+void ldl_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::linalg::detail
 
 namespace numkit {
@@ -93,6 +97,10 @@ void LinalgLibrary::install(Engine &engine)
     reg("pseudo", "orth",     &linalg::detail::orth_reg);
     reg("pseudo", "null",     &linalg::detail::null_reg);
     reg("pseudo", "subspace", &linalg::detail::subspace_reg);
+
+    // ── Specialty decompositions ─────────────────────────────────
+    reg("decomp", "balance", &linalg::detail::balance_reg);
+    reg("decomp", "ldl",     &linalg::detail::ldl_reg);
 }
 
 } // namespace numkit

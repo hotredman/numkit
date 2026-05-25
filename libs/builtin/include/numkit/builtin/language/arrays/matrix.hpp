@@ -500,41 +500,9 @@ planerot(const Value &xy, std::pmr::memory_resource *mr = nullptr);
 /// @see pinv, linsolve
 Value lsqminnorm(const Value &A, const Value &B, bool have_tol, double tol_user, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Result of @ref balance_impl.
-struct BalanceResult {
-    Value B;         ///< Balanced matrix.
-    Value d_col;     ///< Column of scaling factors.
-    Value perm_col;  ///< Column of permutation indices (1..n in v1).
-};
-
-/// @brief Diagonal-similarity balancing for eigenvalue computations
-/// (`[B, d, p] = balance(A, noperm)`).
-///
-/// Parlett-Reinsch (1969). v1 implements only the scaling phase
-/// (permutation phase deferred; behaves like `balance(A, 'noperm')`).
-/// Dispatch in `balance_reg` picks 1/2/3-output forms.
-///
-/// @param A       Square matrix.
-/// @param noperm  Skip permutation phase (currently always `true`).
-/// @param mr      Memory resource (nullptr → process default).
-/// @return        `{B, d_col, perm_col}` struct.
-BalanceResult balance_impl(const Value &A, bool noperm, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Block LDL' factorisation (`[L, D, P] = ldl(A, upper_form, p_as_vector)`).
-///
-/// v1 implements Crout LDL' without pivoting (works for PD/ND and most
-/// indefinite matrices). `P` is identity in v1. Bunch-Kaufman 2×2
-/// pivoting and the sparse `[L, D, P, C]` form are deferred.
-///
-/// @param A             Symmetric matrix.
-/// @param upper_form    When `true`, return upper-triangular `L`.
-/// @param p_as_vector   When `true`, return `P` as a `1 × n` permutation
-///                      vector instead of a matrix.
-/// @param mr            Memory resource (nullptr → process default).
-/// @return              `(L, D, P)` triple.
-/// @see chol
-std::tuple<Value, Value, Value>
-ldl(const Value &A, bool upper_form, bool p_as_vector, std::pmr::memory_resource *mr = nullptr);
+// NOTE: BalanceResult / balance_impl migrated to libs/linalg
+//       (numkit/linalg/balance.hpp).
+// NOTE: ldl migrated to libs/linalg (numkit/linalg/ldl.hpp).
 
 // ── Shape / size queries ─────────────────────────────────────────────
 

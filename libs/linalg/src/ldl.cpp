@@ -1,55 +1,40 @@
-// libs/builtin/src/language/arrays/ldl.cpp
+// libs/linalg/src/ldl.cpp
 //
 // MATLAB ldl: block LDL' factorization. v1 implements the Crout LDL'
 // algorithm WITHOUT pivoting -- works for all positive- and negative-
 // definite matrices, and for indefinite matrices whose principal
-// minors avoid zero (most cases in practice). For matrices that
-// strictly need Bunch-Kaufman 2x2 pivoting (very rare for small n),
-// throws "needs Bunch-Kaufman pivoting" -- see KNOWN GAP at end.
+// minors avoid zero. For matrices that strictly need Bunch-Kaufman
+// 2x2 pivoting (very rare for small n), throws "needs Bunch-Kaufman
+// pivoting" -- see KNOWN GAP at end.
 //
 //   L * D * L' = A
 //
-// Where:
-//   L is unit lower triangular (1's on diagonal, zeros above)
-//   D is diagonal (in v1; full block-diagonal with 2x2 blocks needs
-//     Bunch-Kaufman, deferred)
-//
-// Forms:
-//   L            = ldl(A)             1-out: just unit-lower L
-//   [L, D]       = ldl(A)             2-out: factors
-//   [L, D, P]    = ldl(A)             3-out: P = identity matrix in v1
-//   [L, D, p]    = ldl(A, 'vector')   p = 1-based perm vector (1:n in v1)
-//   ldl(A, 'upper')                   returns U (unit upper) such that A = U'*D*U
-//
-// PMR HARD RULE: every fn takes std::pmr::memory_resource *mr.
-// Scratch allocated through ScratchArena/ScratchVec.
+// Migrated 2026-05-25 from libs/builtin/src/language/arrays/ldl.cpp.
 //
 // KNOWN GAP: complex Hermitian, sparse input, [L,D,P,C] 4-output sparse
 // scaling form, 'tol' arg, and Bunch-Kaufman pivoting (P != I) all
 // deferred to v2.
 
-#include <numkit/builtin/language/arrays/matrix.hpp>
+#include <numkit/linalg/ldl.hpp>
+
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
+#include <numkit/core/span.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <string>
 
-namespace numkit::builtin {
+namespace numkit::linalg {
 
 namespace {
 
 // Run Crout LDL' factorization on a square symmetric matrix.
-// On entry: A_in is the column-major n x n input (read-only).
-// On exit: L_out is unit lower triangular (n x n, col-major); D_out is
-// the diagonal of D as a length-n vector. Throws if a near-zero pivot
-// is encountered (would require Bunch-Kaufman pivoting).
 void croutLDL(const double *A_in, size_t n,
               double *L_out, double *D_out)
 {
-    // Tolerance for pivot smallness: scale by ||A||_F * eps.
     double anorm = 0.0;
     for (size_t k = 0; k < n * n; ++k) anorm += A_in[k] * A_in[k];
     anorm = std::sqrt(anorm);
@@ -60,7 +45,6 @@ void croutLDL(const double *A_in, size_t n,
     std::fill(L_out, L_out + n * n, 0.0);
 
     for (size_t k = 0; k < n; ++k) {
-        // D[k] = A(k,k) - sum_{i<k} L(k,i)^2 * D[i]
         double s = A_in[k + k * n];
         for (size_t i = 0; i < k; ++i)
             s -= L_out[k + i * n] * L_out[k + i * n] * D_out[i];
@@ -71,10 +55,8 @@ void croutLDL(const double *A_in, size_t n,
                         "Bunch-Kaufman pivoting; not supported in v1)",
                         0, 0, "ldl", "", "m:ldl:NeedsBKPivoting");
 
-        // L(k, k) = 1
         L_out[k + k * n] = 1.0;
 
-        // For j > k: L(j, k) = (A(j, k) - sum_{i<k} L(j,i)*L(k,i)*D[i]) / D[k]
         const double inv_dk = 1.0 / D_out[k];
         for (size_t j = k + 1; j < n; ++j) {
             double t = A_in[j + k * n];
@@ -85,8 +67,6 @@ void croutLDL(const double *A_in, size_t n,
     }
 }
 
-// Symmetrise a matrix in place: A_sym = (A + A')/2. Guards against
-// tiny FP asymmetry on otherwise-symmetric input.
 void symmetrise(double *A, size_t n)
 {
     for (size_t j = 0; j < n; ++j)
@@ -99,10 +79,6 @@ void symmetrise(double *A, size_t n)
 
 } // namespace
 
-// 3-output ldl: returns L (unit triangular), D (diagonal), and P
-// (identity permutation in v1). Whether L is lower (default) or upper
-// is controlled by `upper_form`. P is returned as a matrix unless
-// `p_as_vector` is true.
 std::tuple<Value, Value, Value>
 ldl(const Value &A, bool upper_form, bool p_as_vector, std::pmr::memory_resource *mr)
 {
@@ -134,11 +110,9 @@ ldl(const Value &A, bool upper_form, bool p_as_vector, std::pmr::memory_resource
     ScratchVec<double> D_buf(n, &scratch);
     croutLDL(A_sym.data(), n, L_buf.data(), D_buf.data());
 
-    // Pack outputs.
     Value L = Value::matrix(n, n, ValueType::DOUBLE, mr);
     double *Ld = L.doubleDataMut();
     if (upper_form) {
-        // U = L' (unit upper triangular). A = U' * D * U.
         std::fill(Ld, Ld + n * n, 0.0);
         for (size_t j = 0; j < n; ++j)
             for (size_t i = 0; i <= j; ++i)
@@ -199,4 +173,4 @@ void ldl_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace numkit::linalg
