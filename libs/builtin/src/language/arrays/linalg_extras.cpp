@@ -174,36 +174,7 @@ rref(const Value &A, bool have_tol, double tol_user, std::pmr::memory_resource *
 // will produce slightly different values on near-singular matrices
 // because the LAPACK estimator approximates ||inv(A)||_1 without
 // computing inv(A) itself.
-Value rcond(const Value &A, std::pmr::memory_resource *mr)
-{
-    if (A.dims().is3D())
-        throw Error("rcond: input must be 2D",
-                    0, 0, "rcond", "", "m:rcond:Not2D");
-    const size_t M = A.dims().rows();
-    const size_t N = A.dims().cols();
-    if (M != N)
-        throw Error("rcond: matrix must be square",
-                    0, 0, "rcond", "", "m:rcond:NotSquare");
-    if (M == 0)
-        return Value::scalar(std::numeric_limits<double>::infinity(), mr);
-    if (A.isComplex())
-        throw Error("rcond: complex input not supported in v1",
-                    0, 0, "rcond", "", "m:rcond:NoComplex");
-
-    const double anorm = matrix_one_norm(A.doubleData(), M, N);
-    if (anorm == 0.0) return Value::scalar(0.0, mr);  // zero matrix
-
-    Value Ainv;
-    try {
-        Ainv = inv(A, mr);
-    } catch (...) {
-        return Value::scalar(0.0, mr);
-    }
-    const double inv_norm = matrix_one_norm(Ainv.doubleData(), M, N);
-    if (!std::isfinite(inv_norm) || inv_norm == 0.0)
-        return Value::scalar(0.0, mr);
-    return Value::scalar(1.0 / (anorm * inv_norm), mr);
-}
+// NOTE: rcond migrated to libs/linalg (properties.cpp).
 
 // ── planerot ──────────────────────────────────────────────────────────
 //
@@ -265,14 +236,7 @@ void rref_reg(Span<const Value> args, size_t nargout,
     if (nargout >= 2 && outs.size() >= 2) outs[1] = jb;
 }
 
-void rcond_reg(Span<const Value> args, size_t /*nargout*/,
-               Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("rcond: requires (A)",
-                    0, 0, "rcond", "", "m:rcond:nargin");
-    outs[0] = rcond(args[0], ctx.engine->resource());
-}
+// NOTE: rcond_reg migrated to libs/linalg (properties.cpp).
 
 void planerot_reg(Span<const Value> args, size_t nargout,
                   Span<Value> outs, CallContext &ctx)
