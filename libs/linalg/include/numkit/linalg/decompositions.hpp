@@ -50,4 +50,25 @@ svd_decompose(const Value &A, std::pmr::memory_resource *mr = nullptr);
 /// @brief Singular values only (`s = svd(A)` single-output form).
 Value svd_values(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Rank-1 Cholesky update / downdate
+/// (`R1 = cholupdate(R, x[, sign])`).
+///
+/// Given an upper-triangular `R` from `chol(A)`, returns `R1` such that
+/// `R1' * R1 == R' * R + sign * x * x'` where `sign` is `+1` (default,
+/// update) or `-1` (downdate; may fail if the result is not
+/// positive-definite).
+///
+/// Update path uses the standard Givens-rotation rank-1 update
+/// (O(n²)). Downdate path forms `R'·R − x·x'` and re-cholesky's
+/// (O(n³)) — see KNOWN GAP in the source.
+///
+/// @param R       Upper-triangular Cholesky factor.
+/// @param x       Update vector, length n.
+/// @param sign    `+1` for update, `-1` for downdate.
+/// @param mr      Memory resource.
+/// @return        Updated upper-triangular factor.
+/// @throws Error  Shape mismatch, or downdate breaks positive-definiteness.
+Value cholupdate(const Value &R, const Value &x, int sign = 1,
+                 std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::linalg

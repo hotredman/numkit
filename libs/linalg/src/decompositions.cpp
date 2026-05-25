@@ -470,6 +470,99 @@ Value svd_values(const Value &A, std::pmr::memory_resource *mr)
     return sv;
 }
 
+// ────────────────────────────────────────────────────────────────────────
+// cholupdate — rank-1 Cholesky update/downdate
+// ────────────────────────────────────────────────────────────────────────
+
+Value cholupdate(const Value &R, const Value &x, int sign,
+                 std::pmr::memory_resource *mr)
+{
+    if (R.dims().ndim() != 2)
+        throw Error("cholupdate: R must be a 2D matrix",
+                    0, 0, "cholupdate", "", "m:cholupdate:notMatrix");
+    const std::size_t n = static_cast<std::size_t>(R.dims().dim(0));
+    if (n != static_cast<std::size_t>(R.dims().dim(1)))
+        throw Error("cholupdate: R must be square",
+                    0, 0, "cholupdate", "", "m:cholupdate:notSquare");
+    if (x.numel() != n)
+        throw Error("cholupdate: x must have length equal to size(R, 1)",
+                    0, 0, "cholupdate", "", "m:cholupdate:badX");
+    if (sign != 1 && sign != -1)
+        throw Error("cholupdate: sign must be '+' (1) or '-' (-1)",
+                    0, 0, "cholupdate", "", "m:cholupdate:badSign");
+    if (n == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    if (sign == 1) {
+        // Rank-1 update (Golub & Van Loan, Algorithm 6.5.1).
+        // For k = 0..n-1:
+        //   r = sqrt(R(k,k)^2 + x(k)^2)
+        //   c = R(k,k) / r,  s = x(k) / r
+        //   R(k,k) = r
+        //   for j = k+1..n-1:
+        //     R(k,j)' = c*R(k,j) + s*x(j)
+        //     x(j)'   = c*x(j) - s*R(k,j)
+        auto out = Value::matrix(n, n, ValueType::DOUBLE, mr);
+        double *Rd = out.doubleDataMut();
+        std::copy(R.doubleData(), R.doubleData() + n * n, Rd);
+
+        ScratchArena scratch(mr);
+        ScratchVec<double> xb(n, &scratch);
+        for (std::size_t i = 0; i < n; ++i) xb[i] = x.elemAsDouble(i);
+
+        for (std::size_t k = 0; k < n; ++k) {
+            const double Rkk = Rd[k + k * n];
+            const double xk  = xb[k];
+            const double r   = std::hypot(Rkk, xk);
+            if (r == 0.0) continue;
+            const double c = Rkk / r;
+            const double s = xk  / r;
+            Rd[k + k * n] = r;
+            for (std::size_t j = k + 1; j < n; ++j) {
+                const double Rkj = Rd[k + j * n];
+                Rd[k + j * n] = c * Rkj + s * xb[j];
+                xb[j]         = c * xb[j] - s * Rkj;
+            }
+        }
+        return out;
+    }
+
+    // Downdate.
+    //
+    // KNOWN GAP: MATLAB uses LINPACK's stable Saunders 1972 method
+    // (solve R'·p = x; Givens rotations on [α; p]). We use the
+    // straight-forward O(n³) path: form B = R'·R − x·x' and chol(B).
+    // Algebraically identical, numerically equivalent at machine
+    // precision for well-conditioned R, and clearly signals
+    // non-PD via chol's existing throw.
+    ScratchArena scratch(mr);
+    ScratchVec<double> B(n * n, &scratch);
+    const double *Rd = R.doubleData();
+    // B = R'·R
+    for (std::size_t j = 0; j < n; ++j)
+        for (std::size_t i = 0; i < n; ++i) {
+            double sum = 0.0;
+            for (std::size_t k = 0; k < n; ++k)
+                sum += Rd[k + i * n] * Rd[k + j * n];
+            B[i + j * n] = sum;
+        }
+    // B -= x·x'
+    for (std::size_t j = 0; j < n; ++j) {
+        const double xj = x.elemAsDouble(j);
+        for (std::size_t i = 0; i < n; ++i)
+            B[i + j * n] -= x.elemAsDouble(i) * xj;
+    }
+    // Wrap B in a Value to feed chol().
+    auto Btmp = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    std::copy(B.begin(), B.end(), Btmp.doubleDataMut());
+    try {
+        return chol(Btmp, mr);
+    } catch (const Error &) {
+        throw Error("cholupdate: downdate would break positive-definiteness",
+                    0, 0, "cholupdate", "", "m:cholupdate:downdateFailed");
+    }
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // Engine adapters — registered in LinalgLibrary::install
 // ════════════════════════════════════════════════════════════════════════
@@ -529,6 +622,26 @@ void svd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
     } else {
         outs[0] = svd_values(args[0], mr);
     }
+}
+
+void cholupdate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2 || args.size() > 3)
+        throw Error("cholupdate: requires (R, x[, sign])",
+                    0, 0, "cholupdate", "", "m:cholupdate:nargin");
+    int sign = 1;
+    if (args.size() == 3) {
+        if (args[2].isChar() || args[2].isString()) {
+            std::string s = args[2].toString();
+            if      (s == "+") sign = 1;
+            else if (s == "-") sign = -1;
+            else throw Error("cholupdate: sign must be '+' or '-'",
+                             0, 0, "cholupdate", "", "m:cholupdate:badSign");
+        } else {
+            sign = (args[2].toScalar() >= 0.0) ? 1 : -1;
+        }
+    }
+    outs[0] = cholupdate(args[0], args[1], sign, ctx.engine->resource());
 }
 
 } // namespace detail
