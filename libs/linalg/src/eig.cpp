@@ -619,11 +619,87 @@ polyeig_VE(Span<const Value> coeffs, std::pmr::memory_resource *mr)
     return std::make_tuple(std::move(V), std::move(e));
 }
 
+// ────────────────────────────────────────────────────────────────────────
+// ordeig — read eigenvalues off a (quasi-)triangular Schur factor
+// in their stored order (no sorting)
+// ────────────────────────────────────────────────────────────────────────
+
+Value ordeig(const Value &T, std::pmr::memory_resource *mr)
+{
+    if (T.dims().ndim() != 2)
+        throw Error("ordeig: T must be a 2D matrix",
+                    0, 0, "ordeig", "", "m:ordeig:notMatrix");
+    const std::size_t n = static_cast<std::size_t>(T.dims().dim(0));
+    if (n != static_cast<std::size_t>(T.dims().dim(1)))
+        throw Error("ordeig: T must be square",
+                    0, 0, "ordeig", "", "m:ordeig:notSquare");
+    if (n == 0)
+        return Value::matrix(0, 1, ValueType::DOUBLE, mr);
+
+    const double *Td = T.doubleData();
+
+    // First pass: detect 2×2 blocks (non-zero sub-diagonal entries
+    // T(i+1, i)). Eigenvalues from them are complex conjugate pairs.
+    // Real diagonal entries pass through.
+    bool any_complex = false;
+    std::vector<Complex> out_complex;
+    out_complex.reserve(n);
+
+    std::size_t i = 0;
+    while (i < n) {
+        const double sub = (i + 1 < n) ? Td[(i + 1) + i * n] : 0.0;
+        if (std::fabs(sub) <= 1e-14 * (1.0 + std::fabs(Td[i + i * n]))) {
+            // Real eigenvalue (diagonal entry).
+            out_complex.emplace_back(Td[i + i * n], 0.0);
+            ++i;
+        } else {
+            // 2×2 block at (i, i+1):
+            //   [[a c]; [d a']] → eigvals = ((a + a') ± √((a − a')² + 4cd)) / 2
+            const double a  = Td[i + i * n];
+            const double ap = Td[(i + 1) + (i + 1) * n];
+            const double c  = Td[i + (i + 1) * n];
+            const double d  = sub;
+            const double disc_re = (a - ap) * (a - ap) + 4.0 * c * d;
+            const double mean = 0.5 * (a + ap);
+            if (disc_re >= 0.0) {
+                const double half_sqrt = 0.5 * std::sqrt(disc_re);
+                out_complex.emplace_back(mean + half_sqrt, 0.0);
+                out_complex.emplace_back(mean - half_sqrt, 0.0);
+            } else {
+                const double half_imag = 0.5 * std::sqrt(-disc_re);
+                out_complex.emplace_back(mean,  half_imag);
+                out_complex.emplace_back(mean, -half_imag);
+                any_complex = true;
+            }
+            i += 2;
+        }
+    }
+
+    if (any_complex) {
+        auto out = Value::matrix(n, 1, ValueType::COMPLEX, mr);
+        Complex *od = out.complexDataMut();
+        for (std::size_t k = 0; k < n; ++k) od[k] = out_complex[k];
+        return out;
+    }
+    auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    for (std::size_t k = 0; k < n; ++k) od[k] = out_complex[k].real();
+    return out;
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // Engine adapters — registered in LinalgLibrary::install
 // ════════════════════════════════════════════════════════════════════════
 
 namespace detail {
+
+void ordeig_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() != 1)
+        throw Error("ordeig: requires (T)",
+                    0, 0, "ordeig", "", "m:ordeig:nargin");
+    outs[0] = ordeig(args[0], ctx.engine->resource());
+}
 
 void polyeig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {

@@ -44,6 +44,16 @@ Value rank_of(const Value &A, double tol = -1.0, std::pmr::memory_resource *mr =
 /// `sigma_max / sigma_min` via SVD. Returns `Inf` for singular `A`.
 Value cond_2norm(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief General p-norm condition number (`c = cond(A, p)`).
+///
+/// `cond(A, p) = norm(A, p) · norm(inv(A), p)` for `p` in {1, Inf,
+/// "fro"}. `p == 2` routes through @ref cond_2norm. Returns `Inf`
+/// for singular `A`.
+///
+/// `p_kind`: 1 → 1-norm, 2 → 2-norm, 3 → Inf-norm, 4 → Frobenius.
+/// (Integer enum to avoid a string allocation in the hot path.)
+Value cond_pnorm(const Value &A, int p_kind, std::pmr::memory_resource *mr = nullptr);
+
 /// @brief 2-norm estimate (`n = normest(A)`).
 ///
 /// Currently equivalent to `svd(A)(1)` — no power-iteration shortcut

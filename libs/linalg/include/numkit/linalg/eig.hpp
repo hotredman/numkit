@@ -94,4 +94,18 @@ Value polyeig_values(Span<const Value> coeffs, std::pmr::memory_resource *mr = n
 std::tuple<Value, Value>
 polyeig_VE(Span<const Value> coeffs, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Eigenvalues from a (quasi-)triangular Schur factor
+/// (`e = ordeig(T)`).
+///
+/// Returns eigenvalues in the order they appear in `T`. For a true
+/// triangular `T` (real eigenvalues only — e.g. diagonal symmetric
+/// Schur factor) returns `diag(T)`. For a real quasi-triangular
+/// Schur factor, 2×2 sub-diagonal blocks emit conjugate-pair complex
+/// eigenvalues from `(a ± √(c·d))` where the block is `[[a c]; [d a]]`.
+///
+/// Unlike `eig(T)`, `ordeig` does NOT sort; the result preserves the
+/// diagonal/block ordering of `T` exactly — useful for reading off
+/// eigenvalues from a manually-reordered Schur factor.
+Value ordeig(const Value &T, std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::linalg

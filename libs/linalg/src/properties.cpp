@@ -12,6 +12,7 @@
 #include <numkit/builtin/internal/la_solve.hpp>   // detail::la_solve
 #include <numkit/linalg/decompositions.hpp>       // svd_values
 #include <numkit/linalg/eig.hpp>                  // condeig uses eig_symmetric / eig_general_VD
+#include <numkit/linalg/norms.hpp>                // cond_pnorm uses norm_*
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
@@ -194,6 +195,51 @@ Value cond_2norm(const Value &A, std::pmr::memory_resource *mr)
     if (sigma_min <= 0.0)
         return Value::scalar(std::numeric_limits<double>::infinity(), mr);
     return Value::scalar(sigma_max / sigma_min, mr);
+}
+
+// cond(A, p) — generic p-norm condition number.
+//   cond(A, p) = ||A||_p · ||inv(A)||_p
+// p_kind: 1 → 1-norm, 2 → 2-norm, 3 → Inf-norm, 4 → Frobenius.
+Value cond_pnorm(const Value &A, int p_kind, std::pmr::memory_resource *mr)
+{
+    if (p_kind == 2) return cond_2norm(A, mr);
+
+    if (A.dims().ndim() != 2)
+        throw Error("cond: input must be a 2D matrix",
+                    0, 0, "cond", "", "m:cond:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    if (m != n)
+        throw Error("cond: matrix must be square for non-2-norm forms",
+                    0, 0, "cond", "", "m:cond:notSquare");
+    if (m == 0)
+        return Value::scalar(0.0, mr);
+
+    auto norm_for_kind = [&](const Value &X) -> double {
+        switch (p_kind) {
+        case 1: return norm_value(X, 1.0, mr).toScalar();
+        case 3: return norm_inf(X, mr).toScalar();
+        case 4: return norm_fro(X, mr).toScalar();
+        default:
+            throw Error("cond: p must be 1, 2, Inf, or 'fro'",
+                        0, 0, "cond", "", "m:cond:badP");
+        }
+    };
+
+    const double an = norm_for_kind(A);
+    if (an == 0.0)
+        return Value::scalar(std::numeric_limits<double>::infinity(), mr);
+
+    Value Ainv;
+    try {
+        Ainv = inv(A, mr);
+    } catch (...) {
+        return Value::scalar(std::numeric_limits<double>::infinity(), mr);
+    }
+    const double in = norm_for_kind(Ainv);
+    if (!std::isfinite(in))
+        return Value::scalar(std::numeric_limits<double>::infinity(), mr);
+    return Value::scalar(an * in, mr);
 }
 
 Value normest(const Value &A, std::pmr::memory_resource *mr)
@@ -419,10 +465,31 @@ void rank_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 
 void cond_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() != 1)
-        throw Error("cond: requires exactly 1 argument (2-norm only in this revision)",
+    if (args.empty() || args.size() > 2)
+        throw Error("cond: requires (A) or (A, p)",
                     0, 0, "cond", "", "m:cond:nargin");
-    outs[0] = cond_2norm(args[0], ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 1) {
+        outs[0] = cond_2norm(args[0], mr);
+        return;
+    }
+    const Value &p = args[1];
+    int p_kind = 2;
+    if (p.isChar() || p.isString()) {
+        const std::string s = p.toString();
+        if      (s == "fro" || s == "Fro") p_kind = 4;
+        else if (s == "inf" || s == "Inf") p_kind = 3;
+        else throw Error("cond: string p must be 'fro' or 'inf'",
+                         0, 0, "cond", "", "m:cond:badStringP");
+    } else {
+        const double pv = p.toScalar();
+        if      (pv == 1.0) p_kind = 1;
+        else if (pv == 2.0) p_kind = 2;
+        else if (std::isinf(pv)) p_kind = 3;
+        else throw Error("cond: numeric p must be 1, 2, or Inf",
+                         0, 0, "cond", "", "m:cond:badP");
+    }
+    outs[0] = cond_pnorm(args[0], p_kind, mr);
 }
 
 void normest_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
