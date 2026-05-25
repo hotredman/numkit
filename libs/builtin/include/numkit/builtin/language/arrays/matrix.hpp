@@ -481,38 +481,8 @@ Value sylvester_sym(const Value &A, const Value &B, const Value &C, std::pmr::me
 
 // ── Norms ────────────────────────────────────────────────────────────
 
-/// @brief Vector / matrix p-norm (`n = norm(x, p)`).
-///
-/// Vector input: `norm(v, p) = (Σ |v|^p)^(1/p)`; `p = 1` → sum of abs,
-/// `p = 2` → Euclidean. Matrix input: `p = 1` → max column sum, `p = 2`
-/// → largest singular value.
-///
-/// @param x   Input array (vector or matrix).
-/// @param p   Norm order (positive real).
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar norm.
-/// @see norm_inf, norm_fro, vecnorm
-Value norm_value(const Value &x, double p, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Inf-norm (`n = norm(x, inf)`).
-///
-/// Vector: `max(|v|)`. Matrix: max row sum.
-///
-/// @param x   Input array.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar norm.
-/// @see norm_value
-Value norm_inf(const Value &x, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Frobenius norm (`n = norm(A, 'fro')`).
-///
-/// `sqrt(sum(A.^2))`.
-///
-/// @param x   Input matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar Frobenius norm.
-/// @see norm_value
-Value norm_fro(const Value &x, std::pmr::memory_resource *mr = nullptr);
+// NOTE: norm_value / norm_inf / norm_fro migrated to libs/linalg
+// (numkit/linalg/norms.hpp).
 
 // ── Matrix functions (expm / logm / sqrtm / schur / hess) ────────────
 
@@ -656,18 +626,7 @@ bandwidth(const Value &A, std::pmr::memory_resource *mr = nullptr);
 /// @throws Error  Unknown `which` value.
 Value bandwidthOpt(const Value &A, const std::string &which, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Vector p-norm along a dim (`y = vecnorm(A, p, dim)`).
-///
-/// Defaults: `p = 2`, `dim = 0` (first non-singleton). `p = Inf` →
-/// `max(|A|)`, `p = -Inf` → `min(|A|)`.
-///
-/// @param A    Input array.
-/// @param p    Norm order (default 2).
-/// @param dim  1-based dimension (0 → first non-singleton).
-/// @param mr   Memory resource (nullptr → process default).
-/// @return     Norms reduced along `dim`.
-/// @see norm_value
-Value vecnorm(const Value &A, double p = 2.0, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+// NOTE: vecnorm migrated to libs/linalg (numkit/linalg/norms.hpp).
 
 /// @brief Reduced row echelon form (`[R, jb] = rref(A, have_tol, tol)`).
 ///
