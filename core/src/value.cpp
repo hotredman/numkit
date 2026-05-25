@@ -1075,9 +1075,16 @@ Value Value::indexGet3D(const size_t *rowIdx, size_t nrows,
 
     ValueType t = type();
 
+    // MATLAB convention: trailing singleton dims are stripped from a
+    // slice (`A(:,:,k)` is 2-D, not [m,n,1]). Middle singletons stay
+    // (`A(:,k,:)` is [m,1,p]). Arrays are always ≥ 2-D, so we never
+    // strip below 2.
+    const bool squeezePage = (npages == 1);
+
     if (t == ValueType::CELL) {
         auto &d = dims();
-        auto result = Value::cell3D(nrows, ncols, npages);
+        auto result = squeezePage ? Value::cell(nrows, ncols)
+                                  : Value::cell3D(nrows, ncols, npages);
         Dims rd(nrows, ncols, npages);
         for (size_t p = 0; p < npages; ++p)
             for (size_t c = 0; c < ncols; ++c)
@@ -1093,7 +1100,8 @@ Value Value::indexGet3D(const size_t *rowIdx, size_t nrows,
             std::string("indexGet3D not supported for type '") + mtypeName(t) + "'");
 
     auto &d = dims();
-    auto result = Value::matrix3d(nrows, ncols, npages, t, mr);
+    auto result = squeezePage ? Value::matrix(nrows, ncols, t, mr)
+                              : Value::matrix3d(nrows, ncols, npages, t, mr);
     const char *src = static_cast<const char *>(rawData());
     char *dst = static_cast<char *>(result.rawDataMut());
     Dims rd(nrows, ncols, npages);
@@ -1129,11 +1137,16 @@ Value Value::indexGetND(const size_t *const *perDimIdx,
             std::string("indexGetND not supported for type '") + mtypeName(t) + "'");
 
     // Build output shape from perDimCount; trailing zero-extent dims
-    // produce an empty tensor.
+    // produce an empty tensor. MATLAB convention: trailing singleton
+    // dims are stripped from a slice (so `A(:,:,k,1)` on a 4-D array
+    // squeezes to 2-D). Middle singletons stay (`A(:,k,:)` is [m,1,p]).
+    // Arrays are always ≥ 2-D, so we never strip below 2.
     size_t totalOut = 1;
     for (int i = 0; i < nd; ++i) totalOut *= perDimCount[i];
-    auto result = isCell ? Value::cellND(perDimCount, nd)
-                         : Value::matrixND(perDimCount, nd, t, mr);
+    int outNd = nd;
+    while (outNd > 2 && perDimCount[outNd - 1] == 1) --outNd;
+    auto result = isCell ? Value::cellND(perDimCount, outNd)
+                         : Value::matrixND(perDimCount, outNd, t, mr);
     if (totalOut == 0) return result;
 
     // Source strides (column-major) for the existing tensor's actual rank.
