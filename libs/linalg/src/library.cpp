@@ -78,7 +78,14 @@ void lsqnonneg_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rref_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void planerot_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 // page_ops.cpp
-void pageinv_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void pageinv_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void pageeig_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void pagesvd_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void pagepinv_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void pagenorm_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void pagemldivide_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void pagemrdivide_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void pagelsqminnorm_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::linalg::detail
 
 namespace numkit {
@@ -170,7 +177,14 @@ void LinalgLibrary::install(Engine &engine)
     reg("misc", "planerot", &linalg::detail::planerot_reg);
 
     // ── Page ops ─────────────────────────────────────────────────
-    reg("page", "pageinv", &linalg::detail::pageinv_reg);
+    reg("page", "pageinv",        &linalg::detail::pageinv_reg);
+    reg("page", "pageeig",        &linalg::detail::pageeig_reg);
+    reg("page", "pagesvd",        &linalg::detail::pagesvd_reg);
+    reg("page", "pagepinv",       &linalg::detail::pagepinv_reg);
+    reg("page", "pagenorm",       &linalg::detail::pagenorm_reg);
+    reg("page", "pagemldivide",   &linalg::detail::pagemldivide_reg);
+    reg("page", "pagemrdivide",   &linalg::detail::pagemrdivide_reg);
+    reg("page", "pagelsqminnorm", &linalg::detail::pagelsqminnorm_reg);
 }
 
 } // namespace numkit
