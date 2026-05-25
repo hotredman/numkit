@@ -16,6 +16,7 @@
 #include <numkit/linalg/eig.hpp>
 
 #include <numkit/linalg/decompositions.hpp>           // svd_decompose
+#include <numkit/linalg/properties.hpp>               // inv (for polyeig)
 #include <numkit/builtin/math/poly/polynomials.hpp>   // roots
 #include <numkit/builtin/language/arrays/matrix.hpp>  // (header path; symbols moved)
 #include <numkit/core/engine.hpp>
@@ -500,11 +501,144 @@ Value sylvester_sym(const Value &A, const Value &B, const Value &C,
     return out;
 }
 
+// ────────────────────────────────────────────────────────────────────────
+// polyeig — polynomial eigenvalue problem via companion linearisation
+// ────────────────────────────────────────────────────────────────────────
+
+namespace {
+
+// Build the (k·n × k·n) companion matrix L for the polynomial
+// p(λ) = A0 + λ·A1 + … + λ^k·Ak. L has the block form
+//
+//   L = | 0      I        0      …  0      |
+//       | 0      0        I      …  0      |
+//       | …                                 |
+//       | 0      0        0      …  I      |
+//       | -B0    -B1      -B2    …  -B_{k-1} |
+//
+// where Bi = inv(Ak) * Ai. Eigenvalues of L equal the polynomial
+// eigenvalues; right eigenvectors have Kronecker structure
+// [x; λ x; λ² x; …; λ^{k-1} x], so the first n rows yield x.
+Value buildCompanion(Span<const Value> coeffs, std::pmr::memory_resource *mr)
+{
+    const std::size_t k = coeffs.size() - 1;          // degree
+    const std::size_t n = static_cast<std::size_t>(coeffs[0].dims().dim(0));
+    const std::size_t N = k * n;
+
+    // B = inv(Ak) * Ai  for i = 0..k-1.
+    // Compute via la_solve once per i — cheaper than forming inv(Ak)
+    // explicitly when n is moderate. Here we do form inv() for clarity.
+    Value Ak_inv = inv(coeffs[k], mr);
+
+    auto L = Value::matrix(N, N, ValueType::DOUBLE, mr);
+    double *Ld = L.doubleDataMut();
+    std::fill(Ld, Ld + N * N, 0.0);
+
+    // Upper-diagonal blocks: L[i*n .. (i+1)*n - 1, (i+1)*n .. (i+2)*n - 1] = I.
+    for (std::size_t i = 0; i + 1 < k; ++i) {
+        for (std::size_t r = 0; r < n; ++r) {
+            const std::size_t row = i * n + r;
+            const std::size_t col = (i + 1) * n + r;
+            Ld[row + col * N] = 1.0;
+        }
+    }
+
+    // Bottom row of blocks: -Ak_inv * Ai for i = 0..k-1.
+    // Compute block product directly into L.
+    const double *Akid = Ak_inv.doubleData();
+    for (std::size_t i = 0; i < k; ++i) {
+        const double *Aid = coeffs[i].doubleData();
+        for (std::size_t r = 0; r < n; ++r)
+            for (std::size_t c = 0; c < n; ++c) {
+                double s = 0.0;
+                for (std::size_t p = 0; p < n; ++p)
+                    s += Akid[r + p * n] * Aid[p + c * n];
+                const std::size_t row = (k - 1) * n + r;
+                const std::size_t col = i * n + c;
+                Ld[row + col * N] = -s;
+            }
+    }
+    return L;
+}
+
+void validatePolyeigCoeffs(Span<const Value> coeffs)
+{
+    if (coeffs.size() < 2)
+        throw Error("polyeig: requires at least 2 coefficient matrices (A0, A1, ...)",
+                    0, 0, "polyeig", "", "m:polyeig:nargin");
+    const std::size_t n = static_cast<std::size_t>(coeffs[0].dims().dim(0));
+    if (n != static_cast<std::size_t>(coeffs[0].dims().dim(1)))
+        throw Error("polyeig: coefficient matrices must be square",
+                    0, 0, "polyeig", "", "m:polyeig:notSquare");
+    for (std::size_t i = 1; i < coeffs.size(); ++i) {
+        if (coeffs[i].dims().ndim() != 2
+            || static_cast<std::size_t>(coeffs[i].dims().dim(0)) != n
+            || static_cast<std::size_t>(coeffs[i].dims().dim(1)) != n)
+            throw Error("polyeig: all coefficient matrices must be n × n with matching n",
+                        0, 0, "polyeig", "", "m:polyeig:shapeMismatch");
+    }
+}
+
+} // anonymous namespace
+
+Value polyeig_values(Span<const Value> coeffs, std::pmr::memory_resource *mr)
+{
+    validatePolyeigCoeffs(coeffs);
+    Value L = buildCompanion(coeffs, mr);
+    // Eigenvalues of L are the polynomial eigenvalues.
+    // The companion is generally non-symmetric → use char-poly path
+    // (returns complex column when needed).
+    return eig_general_values(L, mr);
+}
+
+std::tuple<Value, Value>
+polyeig_VE(Span<const Value> coeffs, std::pmr::memory_resource *mr)
+{
+    validatePolyeigCoeffs(coeffs);
+    const std::size_t k = coeffs.size() - 1;
+    const std::size_t n = static_cast<std::size_t>(coeffs[0].dims().dim(0));
+    const std::size_t N = k * n;
+
+    Value L = buildCompanion(coeffs, mr);
+    auto [V_big, D_big] = eig_general_VD(L, mr);   // throws on complex eigvals
+
+    // V is N × N; the polynomial eigenvectors are the top n rows of
+    // each column of V_big. Output V: n × N.
+    auto V = Value::matrix(n, N, ValueType::DOUBLE, mr);
+    auto e = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+    double *Vd = V.doubleDataMut();
+    double *ed = e.doubleDataMut();
+    const double *Vbd = V_big.doubleData();
+    const double *Dbd = D_big.doubleData();
+
+    for (std::size_t j = 0; j < N; ++j) {
+        ed[j] = Dbd[j + j * N];
+        for (std::size_t r = 0; r < n; ++r)
+            Vd[r + j * n] = Vbd[r + j * N];
+    }
+    return std::make_tuple(std::move(V), std::move(e));
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // Engine adapters — registered in LinalgLibrary::install
 // ════════════════════════════════════════════════════════════════════════
 
 namespace detail {
+
+void polyeig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("polyeig: requires at least 2 coefficient matrices",
+                    0, 0, "polyeig", "", "m:polyeig:nargin");
+    auto *mr = ctx.engine->resource();
+    if (nargout >= 2) {
+        auto [V, e] = polyeig_VE(args, mr);
+        outs[0] = std::move(V);
+        outs[1] = std::move(e);
+    } else {
+        outs[0] = polyeig_values(args, mr);
+    }
+}
 
 void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
