@@ -464,15 +464,10 @@ void pageinv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void topkrows_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 // rank_reg, cond_reg, normest_reg → libs/linalg (properties.cpp)
 // pinv_reg, orth_reg, null_reg → libs/linalg (pseudo_subspace.cpp)
-void eig_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void expm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void logm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void sqrtm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void schur_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void hess_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// eig_reg, expm_reg, logm_reg, sqrtm_reg, schur_reg, hess_reg,
+// sylvester_reg → libs/linalg (eig.cpp, matrix_functions.cpp)
 // subspace_reg → libs/linalg (pseudo_subspace.cpp)
 // norm_reg → libs/linalg (norms.cpp)
-void sylvester_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void size_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void length_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void numel_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -986,14 +981,10 @@ void BuiltinLibrary::install(Engine &engine)
     // chol / lu / qr / svd registered by LinalgLibrary::install (libs/linalg).
     // rank / cond / normest registered by LinalgLibrary::install.
     // pinv / orth / null / subspace registered by LinalgLibrary::install.
-    engine.registerFunction("eig",       &builtin::detail::eig_reg);
-    engine.registerFunction("expm",      &builtin::detail::expm_reg);
-    engine.registerFunction("logm",      &builtin::detail::logm_reg);
-    engine.registerFunction("sqrtm",     &builtin::detail::sqrtm_reg);
-    engine.registerFunction("schur",     &builtin::detail::schur_reg);
-    engine.registerFunction("hess",      &builtin::detail::hess_reg);
+    // eig / expm / logm / sqrtm / schur / hess registered by
+    // LinalgLibrary::install (libs/linalg).
     // norm registered by LinalgLibrary::install (libs/linalg).
-    engine.registerFunction("sylvester", &builtin::detail::sylvester_reg);
+    // sylvester registered by LinalgLibrary::install (libs/linalg).
 
     // Linalg basics also exposed under `compat.*` so user code that
     // qualifies them as compat.norm / compat.inv (e.g. when porting
@@ -1005,13 +996,8 @@ void BuiltinLibrary::install(Engine &engine)
     // compat.{pinv,chol,lu,qr,svd,orth,null,subspace} registered by
     // LinalgLibrary::install (libs/linalg).
     engine.registerFunction("compat", "linsolve",  &builtin::detail::linsolve_reg);
-    engine.registerFunction("compat", "eig",       &builtin::detail::eig_reg);
-    engine.registerFunction("compat", "expm",      &builtin::detail::expm_reg);
-    engine.registerFunction("compat", "logm",      &builtin::detail::logm_reg);
-    engine.registerFunction("compat", "sqrtm",     &builtin::detail::sqrtm_reg);
-    engine.registerFunction("compat", "schur",     &builtin::detail::schur_reg);
-    engine.registerFunction("compat", "hess",      &builtin::detail::hess_reg);
-    engine.registerFunction("compat", "sylvester", &builtin::detail::sylvester_reg);
+    // compat.{eig,expm,logm,sqrtm,schur,hess,sylvester} registered by
+    // LinalgLibrary::install (libs/linalg).
     engine.registerFunction("size",      &builtin::detail::size_reg);
     engine.registerFunction("length",    &builtin::detail::length_reg);
     engine.registerFunction("numel",     &builtin::detail::numel_reg);

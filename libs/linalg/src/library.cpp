@@ -47,6 +47,15 @@ void subspace_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void balance_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 // ldl.cpp
 void ldl_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+// eig.cpp
+void eig_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void hess_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void schur_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void sylvester_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+// matrix_functions.cpp
+void expm_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void logm_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void sqrtm_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::linalg::detail
 
 namespace numkit {
@@ -101,6 +110,17 @@ void LinalgLibrary::install(Engine &engine)
     // ── Specialty decompositions ─────────────────────────────────
     reg("decomp", "balance", &linalg::detail::balance_reg);
     reg("decomp", "ldl",     &linalg::detail::ldl_reg);
+
+    // ── Eig family + Hessenberg + Schur + Sylvester ──────────────
+    reg("eig", "eig",       &linalg::detail::eig_reg);
+    reg("eig", "hess",      &linalg::detail::hess_reg);
+    reg("eig", "schur",     &linalg::detail::schur_reg);
+    reg("eig", "sylvester", &linalg::detail::sylvester_reg);
+
+    // ── Matrix functions ─────────────────────────────────────────
+    reg("matfn", "expm",  &linalg::detail::expm_reg);
+    reg("matfn", "logm",  &linalg::detail::logm_reg);
+    reg("matfn", "sqrtm", &linalg::detail::sqrtm_reg);
 }
 
 } // namespace numkit
