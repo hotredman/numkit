@@ -1,0 +1,20 @@
+{
+  "name": "qrupdate",
+  "namespace": "linalg",
+  "setup": "A = [1 2 3; 4 5 6; 7 8 10; 1 1 1]; [Q, R] = qr(A); u = [1; 1; 1; 1]; v = [1; 0; 0]; x = [9; 8; 7; 6];",
+  "expr": "[Q1, R1] = qrupdate(Q, R, u, v); [Q2, R2] = qrinsert(Q, R, 2, x); [Q3, R3] = qrdelete(Q, R, 2);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "max(max(abs(Q1*R1 - (A + u*v'))))",
+    "max(max(abs(Q1'*Q1 - eye(4))))",
+    "max(max(abs(R1 - triu(R1))))",
+    "max(max(abs(Q2*R2 - [A(:,1) x A(:,2:3)])))",
+    "max(max(abs(Q2'*Q2 - eye(4))))",
+    "max(max(abs(R2 - triu(R2))))",
+    "max(max(abs(Q3*R3 - [A(:,1) A(:,3)])))",
+    "max(max(abs(Q3'*Q3 - eye(4))))",
+    "max(max(abs(R3 - triu(R3))))"
+  ],
+  "comment": "Sig: [Q1, R1] = qrupdate(Q, R, u, v) — rank-1 update A→A+uv'. qrinsert(Q, R, k, x) — insert column. qrdelete(Q, R, k) — drop column. All three use Givens rotations (Daniel-Gragg-Kaufman-Stewart 1976). Fingerprint uses algebraic identities (reconstruction norm, Q orthogonality, R upper-triangularity) rather than literal entries — Givens-rotation Q/R outputs are unique only up to column sign convention which may differ from MATLAB."
+}

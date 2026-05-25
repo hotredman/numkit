@@ -1,0 +1,12 @@
+{
+  "name": "cond_pnorm",
+  "namespace": "linalg",
+  "setup": "A = [1 0; 0 1e-3];",
+  "expr": "c1 = cond(A, 1); c2 = cond(A, 2); cInf = cond(A, Inf); cFro = cond(A, 'fro');",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "c1", "c2", "cInf", "cFro"
+  ],
+  "comment": "Sig: c = cond(A, p) for p ∈ {1, 2, Inf, 'fro'}. Closes the ⚠️ gap in PROGRESS where cond was 2-norm only. p=2 routes through cond_2norm (sigma_max/sigma_min); other p via norm(A,p)·norm(inv(A),p). Diagonal A = diag(1, 1e-3) gives exactly 1e3 for p=1,2,Inf and slightly above for 'fro' (sqrt(1+1e-6) · sqrt(1+1e6) ≈ 1e3 + 0.5e-3)."
+}
