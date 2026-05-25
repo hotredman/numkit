@@ -462,24 +462,17 @@ void rosser_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void linsolve_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void pageinv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 // trace_reg, det_reg → libs/linalg (properties.cpp)
-void chol_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// chol_reg, lu_reg, qr_reg, svd_reg → libs/linalg (decompositions.cpp)
 void topkrows_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void lu_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void qr_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void svd_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-// rank_reg → libs/linalg (properties.cpp)
-void pinv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-// cond_reg → libs/linalg (properties.cpp)
-void orth_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void null_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-// normest_reg → libs/linalg (properties.cpp)
+// rank_reg, cond_reg, normest_reg → libs/linalg (properties.cpp)
+// pinv_reg, orth_reg, null_reg → libs/linalg (pseudo_subspace.cpp)
 void eig_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void expm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void logm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void sqrtm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void schur_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void hess_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void subspace_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// subspace_reg → libs/linalg (pseudo_subspace.cpp)
 // norm_reg → libs/linalg (norms.cpp)
 void sylvester_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void size_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -991,24 +984,16 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("linsolve",  &builtin::detail::linsolve_reg);
     engine.registerFunction("pageinv",   &builtin::detail::pageinv_reg);
     // trace / det registered by LinalgLibrary::install (libs/linalg).
-    engine.registerFunction("chol",      &builtin::detail::chol_reg);
     engine.registerFunction("topkrows",  &builtin::detail::topkrows_reg);
-    engine.registerFunction("lu",        &builtin::detail::lu_reg);
-    engine.registerFunction("qr",        &builtin::detail::qr_reg);
-    engine.registerFunction("svd",       &builtin::detail::svd_reg);
-    // rank registered by LinalgLibrary::install (libs/linalg).
-    engine.registerFunction("pinv",      &builtin::detail::pinv_reg);
-    // cond registered by LinalgLibrary::install (libs/linalg).
-    engine.registerFunction("orth",      &builtin::detail::orth_reg);
-    engine.registerFunction("null",      &builtin::detail::null_reg);
-    // normest registered by LinalgLibrary::install (libs/linalg).
+    // chol / lu / qr / svd registered by LinalgLibrary::install (libs/linalg).
+    // rank / cond / normest registered by LinalgLibrary::install.
+    // pinv / orth / null / subspace registered by LinalgLibrary::install.
     engine.registerFunction("eig",       &builtin::detail::eig_reg);
     engine.registerFunction("expm",      &builtin::detail::expm_reg);
     engine.registerFunction("logm",      &builtin::detail::logm_reg);
     engine.registerFunction("sqrtm",     &builtin::detail::sqrtm_reg);
     engine.registerFunction("schur",     &builtin::detail::schur_reg);
     engine.registerFunction("hess",      &builtin::detail::hess_reg);
-    engine.registerFunction("subspace",  &builtin::detail::subspace_reg);
     // norm registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("sylvester", &builtin::detail::sylvester_reg);
 
@@ -1019,21 +1004,15 @@ void BuiltinLibrary::install(Engine &engine)
     // accessible bare; this just adds explicit aliases in compat.
     // compat.norm registered by LinalgLibrary::install (libs/linalg).
     // compat.{inv,trace,det,rank,cond,normest} registered by LinalgLibrary::install.
-    engine.registerFunction("compat", "pinv",      &builtin::detail::pinv_reg);
+    // compat.{pinv,chol,lu,qr,svd,orth,null,subspace} registered by
+    // LinalgLibrary::install (libs/linalg).
     engine.registerFunction("compat", "linsolve",  &builtin::detail::linsolve_reg);
-    engine.registerFunction("compat", "chol",      &builtin::detail::chol_reg);
-    engine.registerFunction("compat", "lu",        &builtin::detail::lu_reg);
-    engine.registerFunction("compat", "qr",        &builtin::detail::qr_reg);
-    engine.registerFunction("compat", "svd",       &builtin::detail::svd_reg);
     engine.registerFunction("compat", "eig",       &builtin::detail::eig_reg);
     engine.registerFunction("compat", "expm",      &builtin::detail::expm_reg);
     engine.registerFunction("compat", "logm",      &builtin::detail::logm_reg);
     engine.registerFunction("compat", "sqrtm",     &builtin::detail::sqrtm_reg);
     engine.registerFunction("compat", "schur",     &builtin::detail::schur_reg);
     engine.registerFunction("compat", "hess",      &builtin::detail::hess_reg);
-    engine.registerFunction("compat", "orth",      &builtin::detail::orth_reg);
-    engine.registerFunction("compat", "null",      &builtin::detail::null_reg);
-    engine.registerFunction("compat", "subspace",  &builtin::detail::subspace_reg);
     engine.registerFunction("compat", "sylvester", &builtin::detail::sylvester_reg);
     engine.registerFunction("size",      &builtin::detail::size_reg);
     engine.registerFunction("length",    &builtin::detail::length_reg);

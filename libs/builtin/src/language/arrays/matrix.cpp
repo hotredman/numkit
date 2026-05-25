@@ -16,6 +16,11 @@
 
 #include <numkit/builtin/language/arrays/manip.hpp>     // flip()
 
+// TEMPORARY: eig_general_VD (still in this TU pending eig-family
+// migration) calls svd_decompose (already migrated to libs/linalg).
+// This include drops in the eig-family migration pass (group 5).
+#include <numkit/linalg/decompositions.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <complex>
@@ -248,20 +253,11 @@ Value pageinv(const Value &A, std::pmr::memory_resource *mr)
     return out;
 }
 
-// ── SVD (one-sided Jacobi) ───────────────────────────────────────────
-
+// NOTE: SVD (one-sided Jacobi) migrated to libs/linalg/src/decompositions.cpp.
+// Block below kept disabled until removal.
+#if 0
 namespace {
 
-// One-sided Jacobi SVD: rotates columns of A_work (which contains a
-// copy of A) until off-diagonal of A_work^T * A_work is below tol.
-// On return:
-//   - A_work has orthogonal columns; ||A_work(:,k)|| = sigma_k
-//   - V_work holds the right singular vectors
-// Caller normalises columns and assembles U, S, V.
-//
-// Loop convergence: standard Jacobi sweep until the largest off-
-// diagonal is < tol*sqrt(diag_i*diag_j). Bounded by max_sweeps to
-// prevent pathological non-convergence.
 void jacobiSvdInplace(double *A, std::size_t m, std::size_t n,
                       double *V, std::size_t maxSweeps, double tol)
 {
@@ -474,6 +470,7 @@ Value svd_values(const Value &A, std::pmr::memory_resource *mr)
         out[i] = S_data[i + i * m];
     return sv;
 }
+#endif // SVD migrated to libs/linalg
 
 // ── Characteristic polynomial + general eig via roots ───────────────
 
@@ -611,7 +608,7 @@ eig_general_VD(const Value &A, std::pmr::memory_resource *mr)
         for (std::size_t i = 0; i < n; ++i) AL[i + i * n] -= lam;
         // Right null vector = last column of V from svd(Ali).
         // Singular values are descending; smallest = last index.
-        auto [Us, Ss, Vs] = svd_decompose(Ali, mr);
+        auto [Us, Ss, Vs] = numkit::linalg::svd_decompose(Ali, mr);
         const std::size_t nv = static_cast<std::size_t>(Vs.dims().dim(0));
         const double *Vsdata = Vs.doubleData();
         // Eigenvector = Vs(:, n-1) (the column corresponding to smallest sigma).
@@ -708,49 +705,7 @@ Value sylvester_sym(const Value &A, const Value &B, const Value &C, std::pmr::me
 
 // NOTE: norm_value / norm_inf / norm_fro migrated to libs/linalg/src/norms.cpp.
 
-Value subspace(const Value &A, const Value &B, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2 || B.dims().ndim() != 2)
-        throw Error("subspace: inputs must be 2D matrices",
-                    0, 0, "subspace", "", "m:subspace:notMatrix");
-    const std::size_t mA = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t mB = static_cast<std::size_t>(B.dims().dim(0));
-    if (mA != mB)
-        throw Error("subspace: inputs must have the same number of rows",
-                    0, 0, "subspace", "", "m:subspace:dimMismatch");
-
-    auto Qa = orth(A, -1.0, mr);
-    auto Qb = orth(B, -1.0, mr);
-    const std::size_t na = static_cast<std::size_t>(Qa.dims().dim(1));
-    const std::size_t nb = static_cast<std::size_t>(Qb.dims().dim(1));
-    if (na == 0 || nb == 0) return Value::scalar(0.0, mr);
-
-    // M = Qa' * Qb (na × nb).
-    ScratchArena scratch(mr);
-    auto Mout = Value::matrix(na, nb, ValueType::DOUBLE, mr);
-    double *M = Mout.doubleDataMut();
-    const double *Qad = Qa.doubleData();
-    const double *Qbd = Qb.doubleData();
-    for (std::size_t i = 0; i < na; ++i)
-        for (std::size_t j = 0; j < nb; ++j) {
-            double s = 0.0;
-            for (std::size_t k = 0; k < mA; ++k)
-                s += Qad[k + i * mA] * Qbd[k + j * mB];
-            M[i + j * na] = s;
-        }
-
-    // SVD of M -- singular values are cosines of principal angles.
-    auto s = svd_values(Mout, mr);
-    const std::size_t k = s.numel();
-    if (k == 0) return Value::scalar(0.0, mr);
-    const double *sd = s.doubleData();
-    double smin = sd[0];
-    for (std::size_t i = 1; i < k; ++i)
-        if (sd[i] < smin) smin = sd[i];
-    if (smin > 1.0) smin = 1.0;
-    if (smin < 0.0) smin = 0.0;
-    return Value::scalar(std::acos(smin), mr);
-}
+// NOTE: subspace migrated to libs/linalg (pseudo_subspace.cpp).
 
 // ── Hessenberg reduction (Phase 2c foundation) ──────────────────────
 
@@ -1219,22 +1174,17 @@ Value eig_values(const Value &A, std::pmr::memory_resource *mr)
     return out;
 }
 
-// ── SVD-dependent: null / pinv / orth ────────────────────────────────
-//
-// NOTE: rank_of / cond_2norm / normest migrated to libs/linalg
-// (properties.cpp). null / pinv / orth still live here pending the
-// "pseudo/subspace" migration group.
-
+// NOTE: pinv / orth / null_basis migrated to libs/linalg/src/
+// pseudo_subspace.cpp (group 4 of the libs/linalg extraction).
+// Block below kept disabled until cleanup pass.
+#if 0
 namespace {
-
-// Compute default tolerance for rank-cutoff: max(m,n) * eps(sigma_max).
 double defaultRankTol(std::size_t m, std::size_t n, double sigma_max)
 {
     return static_cast<double>(std::max(m, n))
          * sigma_max
          * std::numeric_limits<double>::epsilon();
 }
-
 } // anonymous namespace
 
 Value pinv(const Value &A, double tol, std::pmr::memory_resource *mr)
@@ -1351,16 +1301,11 @@ Value null_basis(const Value &A, double tol, std::pmr::memory_resource *mr)
 
 // NOTE: normest migrated to libs/linalg (properties.cpp).
 
-// ── lu / qr decompositions ───────────────────────────────────────────
+// ── lu / qr / chol — migrated to libs/linalg/src/decompositions.cpp.
+//    Block below kept disabled until cleanup pass.
 
 namespace {
 
-// In-place LU with partial pivoting on a column-major n×n matrix.
-// On return:
-//   - LU contains L (unit-lower-triangular, below diagonal) and U
-//     (upper, including diagonal) packed
-//   - piv[k] = row originally at position piv[k] swapped into row k
-// Returns false on singular A.
 bool luPivotInplace(double *LU, std::int32_t *piv, std::size_t n)
 {
     for (std::size_t k = 0; k < n; ++k) {
@@ -1623,6 +1568,7 @@ Value chol(const Value &A, std::pmr::memory_resource *mr)
     }
     return R;
 }
+#endif // pinv/orth/null/lu/qr/chol migrated to libs/linalg
 
 Value topkrows(const Value &A, std::size_t k, std::pmr::memory_resource *mr)
 {
@@ -3814,94 +3760,12 @@ void pageinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 }
 
 // NOTE: trace_reg / det_reg migrated to libs/linalg (properties.cpp).
-
-void chol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("chol: requires exactly 1 argument",
-                    0, 0, "chol", "", "m:chol:nargin");
-    outs[0] = chol(args[0], ctx.engine->resource());
-}
-
-void lu_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("lu: requires exactly 1 argument",
-                    0, 0, "lu", "", "m:lu:nargin");
-    auto *mr = ctx.engine->resource();
-    if (nargout >= 2) {
-        auto [L, U, P] = lu_decompose(args[0], mr);
-        outs[0] = std::move(L);
-        outs[1] = std::move(U);
-        if (nargout >= 3) outs[2] = std::move(P);
-    } else {
-        outs[0] = lu_combined(args[0], mr);
-    }
-}
-
-void qr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("qr: requires exactly 1 argument",
-                    0, 0, "qr", "", "m:qr:nargin");
-    auto *mr = ctx.engine->resource();
-    if (nargout >= 2) {
-        auto [Q, R] = qr_decompose(args[0], mr);
-        outs[0] = std::move(Q);
-        outs[1] = std::move(R);
-    } else {
-        outs[0] = qr_R_only(args[0], mr);
-    }
-}
-
-void svd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("svd: requires exactly 1 argument",
-                    0, 0, "svd", "", "m:svd:nargin");
-    auto *mr = ctx.engine->resource();
-    if (nargout >= 2) {
-        auto [U, S, V] = svd_decompose(args[0], mr);
-        outs[0] = std::move(U);
-        outs[1] = std::move(S);
-        if (nargout >= 3) outs[2] = std::move(V);
-    } else {
-        outs[0] = svd_values(args[0], mr);
-    }
-}
-
-// NOTE: rank_reg migrated to libs/linalg (properties.cpp).
-
-void pinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 1 || args.size() > 2)
-        throw Error("pinv: requires (A) or (A, tol)",
-                    0, 0, "pinv", "", "m:pinv:nargin");
-    const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
-    outs[0] = pinv(args[0], tol, ctx.engine->resource());
-}
-
-// NOTE: cond_reg migrated to libs/linalg (properties.cpp).
-
-void orth_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 1 || args.size() > 2)
-        throw Error("orth: requires (A) or (A, tol)",
-                    0, 0, "orth", "", "m:orth:nargin");
-    const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
-    outs[0] = orth(args[0], tol, ctx.engine->resource());
-}
-
-void null_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 1 || args.size() > 2)
-        throw Error("null: requires (A) or (A, tol)",
-                    0, 0, "null", "", "m:null:nargin");
-    const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
-    outs[0] = null_basis(args[0], tol, ctx.engine->resource());
-}
-
-// NOTE: normest_reg migrated to libs/linalg (properties.cpp).
+// NOTE: chol_reg / lu_reg / qr_reg / svd_reg migrated to
+//       libs/linalg (decompositions.cpp).
+// NOTE: rank_reg / cond_reg / normest_reg migrated to
+//       libs/linalg (properties.cpp).
+// NOTE: pinv_reg / orth_reg / null_reg migrated to
+//       libs/linalg (pseudo_subspace.cpp).
 
 void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
@@ -3984,13 +3848,7 @@ void sylvester_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 
 // NOTE: norm_reg migrated to libs/linalg/src/norms.cpp.
 
-void subspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 2)
-        throw Error("subspace: requires (A, B)",
-                    0, 0, "subspace", "", "m:subspace:nargin");
-    outs[0] = subspace(args[0], args[1], ctx.engine->resource());
-}
+// NOTE: subspace_reg migrated to libs/linalg (pseudo_subspace.cpp).
 
 void hess_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {

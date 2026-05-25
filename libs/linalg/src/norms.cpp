@@ -3,13 +3,12 @@
 // Vector / matrix norms — implementations and engine adapters.
 // Migrated from libs/builtin/src/language/arrays/{matrix,predicates}.cpp.
 //
-// `norm_value` for the matrix 2-norm still routes through
-// builtin's `svd_values`; until SVD migrates here, this TU includes
-// libs/builtin's matrix.hpp purely for that one symbol.
+// `norm_value` for the matrix 2-norm routes through the SVD kernel
+// in numkit/linalg/decompositions.hpp.
 
 #include <numkit/linalg/norms.hpp>
 
-#include <numkit/builtin/language/arrays/matrix.hpp> // svd_values
+#include <numkit/linalg/decompositions.hpp> // svd_values
 #include <numkit/core/engine.hpp>
 #include <numkit/core/span.hpp>
 #include <numkit/core/types.hpp>
@@ -65,7 +64,7 @@ Value norm_value(const Value &x, double p, std::pmr::memory_resource *mr)
 
     if (p == 2.0) {
         // Largest singular value.
-        auto sv = numkit::builtin::svd_values(x, mr);
+        auto sv = svd_values(x, mr);
         if (sv.numel() == 0) return Value::scalar(0.0, mr);
         return Value::scalar(sv.doubleData()[0], mr);
     }
