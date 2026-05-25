@@ -364,7 +364,7 @@ void isdiag_reg     (Span<const Value>, size_t, Span<Value>, CallContext&);
 void istril_reg     (Span<const Value>, size_t, Span<Value>, CallContext&);
 void istriu_reg     (Span<const Value>, size_t, Span<Value>, CallContext&);
 void bandwidth_reg  (Span<const Value>, size_t, Span<Value>, CallContext&);
-void vecnorm_reg    (Span<const Value>, size_t, Span<Value>, CallContext&);
+// vecnorm_reg → libs/linalg (norms.cpp)
 // language/arrays/linalg_extras.cpp
 void rref_reg       (Span<const Value>, size_t, Span<Value>, CallContext&);
 void rcond_reg      (Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -481,7 +481,7 @@ void sqrtm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void schur_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void hess_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void subspace_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void norm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// norm_reg → libs/linalg (norms.cpp)
 void sylvester_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void size_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void length_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -1011,7 +1011,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("schur",     &builtin::detail::schur_reg);
     engine.registerFunction("hess",      &builtin::detail::hess_reg);
     engine.registerFunction("subspace",  &builtin::detail::subspace_reg);
-    engine.registerFunction("norm",      &builtin::detail::norm_reg);
+    // norm registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("sylvester", &builtin::detail::sylvester_reg);
 
     // Linalg basics also exposed under `compat.*` so user code that
@@ -1019,7 +1019,7 @@ void BuiltinLibrary::install(Engine &engine)
     // from a project that namespaces all calls) works without
     // surprises. Functions in the global namespace are already
     // accessible bare; this just adds explicit aliases in compat.
-    engine.registerFunction("compat", "norm",      &builtin::detail::norm_reg);
+    // compat.norm registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("compat", "normest",   &builtin::detail::normest_reg);
     engine.registerFunction("compat", "inv",       &builtin::detail::inv_reg);
     engine.registerFunction("compat", "pinv",      &builtin::detail::pinv_reg);
@@ -1233,7 +1233,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("istril",     &builtin::detail::istril_reg);
     engine.registerFunction("istriu",     &builtin::detail::istriu_reg);
     engine.registerFunction("bandwidth",  &builtin::detail::bandwidth_reg);
-    engine.registerFunction("vecnorm",    &builtin::detail::vecnorm_reg);
+    // vecnorm registered by LinalgLibrary::install (libs/linalg).
     // compat aliases — same fns reachable via `import compat.*`.
     engine.registerFunction("compat", "issymmetric", &builtin::detail::issymmetric_reg);
     engine.registerFunction("compat", "ishermitian", &builtin::detail::ishermitian_reg);
@@ -1242,7 +1242,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("compat", "istril",      &builtin::detail::istril_reg);
     engine.registerFunction("compat", "istriu",      &builtin::detail::istriu_reg);
     engine.registerFunction("compat", "bandwidth",   &builtin::detail::bandwidth_reg);
-    engine.registerFunction("compat", "vecnorm",     &builtin::detail::vecnorm_reg);
+    // compat.vecnorm registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("rref",       &builtin::detail::rref_reg);
     engine.registerFunction("rcond",      &builtin::detail::rcond_reg);
     engine.registerFunction("planerot",   &builtin::detail::planerot_reg);

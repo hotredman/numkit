@@ -22,23 +22,38 @@ namespace numkit::linalg::detail {
 void cross_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void dot_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void kron_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+// norms.cpp
+void norm_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void vecnorm_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::linalg::detail
 
 namespace numkit {
 
 void LinalgLibrary::install(Engine &engine)
 {
-    // Mirror libs/stats/library.cpp pattern: every function lives at
-    // linalg.<sub>.<name> AND is aliased into compat.<name>.
+    // Every function lands in THREE places:
+    //   1. Bare global name `<name>`           — matches MATLAB, which
+    //      exposes the entire linalg surface unqualified (`eig(A)` works
+    //      with no import). Also what BuiltinLibrary did for these
+    //      functions before they migrated here.
+    //   2. Namespaced `linalg.<sub>.<name>`    — addressable explicitly
+    //      after `import linalg.*` or as a fully qualified call.
+    //   3. `compat.<name>`                     — picked up by the standard
+    //      `import compat.*` test fixture (libs/{stats,signal} pattern).
     auto reg = [&](const char *sub, const char *name, ExternalFunc fn) {
-        engine.registerFunction(std::string("linalg.") + sub, name, fn);
-        engine.registerFunction("compat", name, fn);
+        engine.registerFunction(name, fn);                                    // 1
+        engine.registerFunction(std::string("linalg.") + sub, name, fn);      // 2
+        engine.registerFunction("compat", name, fn);                          // 3
     };
 
     // ── Vector ops ───────────────────────────────────────────────
     reg("vector", "cross", &linalg::detail::cross_reg);
     reg("vector", "dot",   &linalg::detail::dot_reg);
     reg("vector", "kron",  &linalg::detail::kron_reg);
+
+    // ── Norms ────────────────────────────────────────────────────
+    reg("norm", "norm",    &linalg::detail::norm_reg);
+    reg("norm", "vecnorm", &linalg::detail::vecnorm_reg);
 }
 
 } // namespace numkit

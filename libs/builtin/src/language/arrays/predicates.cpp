@@ -229,97 +229,7 @@ Value bandwidthOpt(const Value &A, const std::string &which, std::pmr::memory_re
                 0, 0, "bandwidth", "", "m:bandwidth:BadOpt");
 }
 
-// ── vecnorm ───────────────────────────────────────────────────────────
-// vecnorm(A [, p [, dim]]) — vector p-norm along dim.
-//   defaults: p = 2, dim = first non-singleton dimension.
-//   p = Inf  → max(|A|)
-//   p = -Inf → min(|A|)
-//   else     → (sum |A|^p) ^ (1/p)
-//
-// Output shape matches A with the reduced dim collapsed to length 1.
-Value vecnorm(const Value &A, double p, int dim, std::pmr::memory_resource *mr)
-{
-    if (A.dims().is3D())
-        throw Error("vecnorm: 3-D arrays not supported",
-                    0, 0, "vecnorm", "", "m:vecnorm:3D");
-    const size_t R = A.dims().rows();
-    const size_t C = A.dims().cols();
-
-    // Default dim: first non-singleton (1-based). Empties default to 1.
-    if (dim == 0) {
-        if (R == 0 && C == 0) dim = 1;
-        else if (R != 1)      dim = 1;
-        else                  dim = 2;
-    }
-    if (dim != 1 && dim != 2)
-        throw Error("vecnorm: dim must be 1 or 2",
-                    0, 0, "vecnorm", "", "m:vecnorm:BadDim");
-
-    auto p_norm = [&](auto getAbs, size_t n) -> double {
-        if (n == 0) return 0.0;
-        if (std::isinf(p) && p > 0) {
-            double m = 0.0;
-            for (size_t k = 0; k < n; ++k) {
-                double v = getAbs(k);
-                if (std::isnan(v)) return std::numeric_limits<double>::quiet_NaN();
-                if (v > m) m = v;
-            }
-            return m;
-        }
-        if (std::isinf(p) && p < 0) {
-            double m = std::numeric_limits<double>::infinity();
-            for (size_t k = 0; k < n; ++k) {
-                double v = getAbs(k);
-                if (std::isnan(v)) return std::numeric_limits<double>::quiet_NaN();
-                if (v < m) m = v;
-            }
-            return m;
-        }
-        if (p == 2.0) {
-            double s = 0.0;
-            for (size_t k = 0; k < n; ++k) {
-                double v = getAbs(k);
-                s += v * v;
-            }
-            return std::sqrt(s);
-        }
-        double s = 0.0;
-        for (size_t k = 0; k < n; ++k) s += std::pow(getAbs(k), p);
-        return std::pow(s, 1.0 / p);
-    };
-
-    auto getAbs = [&](size_t i, size_t j) -> double {
-        if (A.isComplex()) return std::abs(A.complexElem(i, j));
-        return std::abs(A.elemAsDouble(lin(i, j, R)));
-    };
-
-    // Special case: completely empty input (0×0) produces scalar 0
-    // (matches MATLAB convention: vecnorm([]) → 0, not 0×0 empty).
-    if (R == 0 && C == 0)
-        return Value::scalar(0.0, mr);
-
-    if (dim == 1) {
-        // Reduce along rows: output is (1 × C). For 0×N input, produces
-        // a row of zeros (empty-norm convention). For M×0 input, output
-        // is 1×0 (no columns to fill).
-        Value out = Value::matrix(1, C, ValueType::DOUBLE, mr);
-        if (C == 0) return out;
-        double *od = out.doubleDataMut();
-        for (size_t j = 0; j < C; ++j) {
-            od[j] = p_norm([&](size_t k){ return getAbs(k, j); }, R);
-        }
-        return out;
-    }
-    // dim == 2: reduce along cols, output (R × 1). For 0×N → 0×1; for
-    // M×0 → M×1 col of zeros.
-    Value out = Value::matrix(R, 1, ValueType::DOUBLE, mr);
-    if (R == 0) return out;
-    double *od = out.doubleDataMut();
-    for (size_t i = 0; i < R; ++i) {
-        od[i] = p_norm([&](size_t k){ return getAbs(i, k); }, C);
-    }
-    return out;
-}
+// NOTE: vecnorm migrated to libs/linalg/src/norms.cpp.
 
 namespace detail {
 
@@ -412,18 +322,7 @@ void bandwidth_reg(Span<const Value> args, size_t nargout,
     outs[0] = bandwidthOpt(args[0], args[1].toString(), ctx.engine->resource());
 }
 
-void vecnorm_reg(Span<const Value> args, size_t /*nargout*/,
-                 Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("vecnorm: requires (A [, p [, dim]])",
-                    0, 0, "vecnorm", "", "m:vecnorm:nargin");
-    double p = 2.0;
-    int dim = 0;
-    if (args.size() >= 2) p = args[1].toScalar();
-    if (args.size() >= 3) dim = static_cast<int>(args[2].toScalar());
-    outs[0] = vecnorm(args[0], p, dim, ctx.engine->resource());
-}
+// NOTE: vecnorm_reg migrated to libs/linalg/src/norms.cpp.
 
 } // namespace detail
 

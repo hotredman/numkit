@@ -730,103 +730,7 @@ Value sylvester_sym(const Value &A, const Value &B, const Value &C, std::pmr::me
     return out;
 }
 
-// ── norm (vector + matrix forms) ─────────────────────────────────────
-
-namespace {
-
-bool isVectorShape(const Value &x)
-{
-    if (x.dims().ndim() != 2) return false;
-    return x.dims().dim(0) == 1 || x.dims().dim(1) == 1;
-}
-
-} // anonymous namespace
-
-Value norm_value(const Value &x, double p, std::pmr::memory_resource *mr)
-{
-    if (x.numel() == 0) return Value::scalar(0.0, mr);
-
-    if (isVectorShape(x)) {
-        const std::size_t n = x.numel();
-        const double *d = x.doubleData();
-        if (p == 2.0) {
-            double s = 0.0;
-            for (std::size_t i = 0; i < n; ++i) s += d[i] * d[i];
-            return Value::scalar(std::sqrt(s), mr);
-        } else if (p == 1.0) {
-            double s = 0.0;
-            for (std::size_t i = 0; i < n; ++i) s += std::fabs(d[i]);
-            return Value::scalar(s, mr);
-        } else {
-            double s = 0.0;
-            for (std::size_t i = 0; i < n; ++i) s += std::pow(std::fabs(d[i]), p);
-            return Value::scalar(std::pow(s, 1.0 / p), mr);
-        }
-    }
-
-    // Matrix forms.
-    if (x.dims().ndim() != 2)
-        throw Error("norm: input must be vector or 2D matrix",
-                    0, 0, "norm", "", "m:norm:badShape");
-    const std::size_t m = static_cast<std::size_t>(x.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(x.dims().dim(1));
-    const double *d = x.doubleData();
-
-    if (p == 2.0) {
-        // Largest singular value.
-        auto sv = svd_values(x, mr);
-        if (sv.numel() == 0) return Value::scalar(0.0, mr);
-        return Value::scalar(sv.doubleData()[0], mr);
-    }
-    if (p == 1.0) {
-        double mx = 0.0;
-        for (std::size_t j = 0; j < n; ++j) {
-            double s = 0.0;
-            for (std::size_t i = 0; i < m; ++i) s += std::fabs(d[i + j * m]);
-            mx = std::max(mx, s);
-        }
-        return Value::scalar(mx, mr);
-    }
-    throw Error("norm: matrix p-norms only support 1, 2, inf, 'fro'",
-                0, 0, "norm", "", "m:norm:badP");
-}
-
-Value norm_inf(const Value &x, std::pmr::memory_resource *mr)
-{
-    if (x.numel() == 0) return Value::scalar(0.0, mr);
-    if (isVectorShape(x)) {
-        const std::size_t n = x.numel();
-        const double *d = x.doubleData();
-        double mx = 0.0;
-        for (std::size_t i = 0; i < n; ++i)
-            mx = std::max(mx, std::fabs(d[i]));
-        return Value::scalar(mx, mr);
-    }
-    // Matrix inf-norm: max row sum.
-    if (x.dims().ndim() != 2)
-        throw Error("norm: input must be vector or 2D matrix",
-                    0, 0, "norm", "", "m:norm:badShape");
-    const std::size_t m = static_cast<std::size_t>(x.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(x.dims().dim(1));
-    const double *d = x.doubleData();
-    double mx = 0.0;
-    for (std::size_t i = 0; i < m; ++i) {
-        double s = 0.0;
-        for (std::size_t j = 0; j < n; ++j) s += std::fabs(d[i + j * m]);
-        mx = std::max(mx, s);
-    }
-    return Value::scalar(mx, mr);
-}
-
-Value norm_fro(const Value &x, std::pmr::memory_resource *mr)
-{
-    const std::size_t n = x.numel();
-    if (n == 0) return Value::scalar(0.0, mr);
-    const double *d = x.doubleData();
-    double s = 0.0;
-    for (std::size_t i = 0; i < n; ++i) s += d[i] * d[i];
-    return Value::scalar(std::sqrt(s), mr);
-}
+// NOTE: norm_value / norm_inf / norm_fro migrated to libs/linalg/src/norms.cpp.
 
 Value subspace(const Value &A, const Value &B, std::pmr::memory_resource *mr)
 {
@@ -4243,37 +4147,7 @@ void sylvester_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     outs[0] = sylvester_sym(args[0], args[1], args[2], ctx.engine->resource());
 }
 
-void norm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty() || args.size() > 2)
-        throw Error("norm: requires (X) or (X, p)",
-                    0, 0, "norm", "", "m:norm:nargin");
-    auto *mr = ctx.engine->resource();
-    if (args.size() == 1) {
-        outs[0] = norm_value(args[0], 2.0, mr);
-        return;
-    }
-    const Value &p = args[1];
-    if (p.isChar() || p.isString()) {
-        const auto s = p.toString();
-        if (s == "fro" || s == "Fro") {
-            outs[0] = norm_fro(args[0], mr);
-            return;
-        }
-        if (s == "inf" || s == "Inf") {
-            outs[0] = norm_inf(args[0], mr);
-            return;
-        }
-        throw Error("norm: string p must be 'fro' or 'inf'",
-                    0, 0, "norm", "", "m:norm:badStringP");
-    }
-    const double pv = p.toScalar();
-    if (std::isinf(pv)) {
-        outs[0] = norm_inf(args[0], mr);
-        return;
-    }
-    outs[0] = norm_value(args[0], pv, mr);
-}
+// NOTE: norm_reg migrated to libs/linalg/src/norms.cpp.
 
 void subspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
