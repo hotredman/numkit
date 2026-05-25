@@ -358,16 +358,8 @@ void issortedrows_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isuniform_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 // issymmetric / ishermitian / isbanded / isdiag / istril / istriu /
 // bandwidth _reg adapters → libs/linalg (predicates.cpp)
-// vecnorm_reg → libs/linalg (norms.cpp)
-// language/arrays/linalg_extras.cpp
-void rref_reg       (Span<const Value>, size_t, Span<Value>, CallContext&);
-// rcond_reg → libs/linalg (properties.cpp)
-void planerot_reg   (Span<const Value>, size_t, Span<Value>, CallContext&);
-// ldl_reg → libs/linalg (ldl.cpp)
-// language/arrays/lsq.cpp
-void lsqminnorm_reg (Span<const Value>, size_t, Span<Value>, CallContext&);
-void lsqnonneg_reg  (Span<const Value>, size_t, Span<Value>, CallContext&);
-// balance_reg → libs/linalg (balance.cpp)
+// vecnorm_reg, rref_reg, rcond_reg, planerot_reg, ldl_reg,
+// lsqminnorm_reg, lsqnonneg_reg, balance_reg all migrated to libs/linalg.
 void flintmax_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void intmax_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void intmin_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -450,9 +442,8 @@ void invhilb_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void wilkinson_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void hadamard_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void rosser_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-// inv_reg → libs/linalg (properties.cpp)
-void linsolve_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void pageinv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// inv_reg / linsolve_reg → libs/linalg (properties.cpp, solvers.cpp)
+// pageinv_reg → libs/linalg (page_ops.cpp)
 // trace_reg, det_reg → libs/linalg (properties.cpp)
 // chol_reg, lu_reg, qr_reg, svd_reg → libs/linalg (decompositions.cpp)
 void topkrows_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -968,8 +959,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("hadamard",  &builtin::detail::hadamard_reg);
     engine.registerFunction("rosser",    &builtin::detail::rosser_reg);
     // inv registered by LinalgLibrary::install (libs/linalg).
-    engine.registerFunction("linsolve",  &builtin::detail::linsolve_reg);
-    engine.registerFunction("pageinv",   &builtin::detail::pageinv_reg);
+    // linsolve / pageinv registered by LinalgLibrary::install (libs/linalg).
     // trace / det registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("topkrows",  &builtin::detail::topkrows_reg);
     // chol / lu / qr / svd registered by LinalgLibrary::install (libs/linalg).
@@ -989,7 +979,7 @@ void BuiltinLibrary::install(Engine &engine)
     // compat.{inv,trace,det,rank,cond,normest} registered by LinalgLibrary::install.
     // compat.{pinv,chol,lu,qr,svd,orth,null,subspace} registered by
     // LinalgLibrary::install (libs/linalg).
-    engine.registerFunction("compat", "linsolve",  &builtin::detail::linsolve_reg);
+    // compat.linsolve registered by LinalgLibrary::install (libs/linalg).
     // compat.{eig,expm,logm,sqrtm,schur,hess,sylvester} registered by
     // LinalgLibrary::install (libs/linalg).
     engine.registerFunction("size",      &builtin::detail::size_reg);
@@ -1183,17 +1173,11 @@ void BuiltinLibrary::install(Engine &engine)
     // compat.{issymmetric,ishermitian,isbanded,isdiag,istril,istriu,bandwidth}
     // registered by LinalgLibrary::install (libs/linalg).
     // compat.vecnorm registered by LinalgLibrary::install (libs/linalg).
-    engine.registerFunction("rref",       &builtin::detail::rref_reg);
-    // rcond registered by LinalgLibrary::install (libs/linalg).
-    engine.registerFunction("planerot",   &builtin::detail::planerot_reg);
-    engine.registerFunction("compat", "rref",        &builtin::detail::rref_reg);
-    // compat.rcond registered by LinalgLibrary::install (libs/linalg).
-    engine.registerFunction("compat", "planerot",    &builtin::detail::planerot_reg);
+    // rref / planerot + compat aliases registered by
+    // LinalgLibrary::install (libs/linalg).
     // ldl / compat.ldl registered by LinalgLibrary::install (libs/linalg).
-    engine.registerFunction("lsqminnorm", &builtin::detail::lsqminnorm_reg);
-    engine.registerFunction("lsqnonneg",  &builtin::detail::lsqnonneg_reg);
-    engine.registerFunction("compat", "lsqminnorm",  &builtin::detail::lsqminnorm_reg);
-    engine.registerFunction("compat", "lsqnonneg",   &builtin::detail::lsqnonneg_reg);
+    // lsqminnorm / lsqnonneg + compat aliases registered by
+    // LinalgLibrary::install (libs/linalg).
     // balance registered by LinalgLibrary::install (libs/linalg).
     // compat.balance registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("flintmax",   &builtin::detail::flintmax_reg);

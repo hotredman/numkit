@@ -14,10 +14,8 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/manip.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/nd_manip.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/accum.cpp
-    # predicates.cpp migrated to libs/linalg.
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/linalg_extras.cpp
-    # ldl / balance migrated to libs/linalg.
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/lsq.cpp
+    # predicates.cpp / linalg_extras.cpp / ldl.cpp / balance.cpp /
+    # lsq.cpp all migrated to libs/linalg.
     ${CMAKE_CURRENT_SOURCE_DIR}/language/types/types.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/strings.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/regex.cpp
