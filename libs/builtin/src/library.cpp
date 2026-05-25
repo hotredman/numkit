@@ -506,7 +506,7 @@ void horzcat_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void vertcat_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void meshgrid_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void ndgrid_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void kron_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// kron_reg → libs/linalg (vector_ops.cpp)
 void cumsum_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void cumprod_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void cummax_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -515,8 +515,7 @@ void diff_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void any_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void all_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void xor_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void cross_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void dot_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// cross_reg, dot_reg → libs/linalg (vector_ops.cpp)
 
 // Pack 11: operator-named function adapters (binary + unary).
 // Defined in language/operators/{binary,unary}_ops.cpp.
@@ -1090,7 +1089,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("vertcat",   &builtin::detail::vertcat_reg);
     engine.registerFunction("meshgrid",  &builtin::detail::meshgrid_reg);
     engine.registerFunction("ndgrid",    &builtin::detail::ndgrid_reg);
-    engine.registerFunction("kron",      &builtin::detail::kron_reg);
+    // kron / cross / dot registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("cumsum",    &builtin::detail::cumsum_reg);
     engine.registerFunction("cumprod",   &builtin::detail::cumprod_reg);
     engine.registerFunction("cummax",    &builtin::detail::cummax_reg);
@@ -1099,8 +1098,6 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("any",       &builtin::detail::any_reg);
     engine.registerFunction("all",       &builtin::detail::all_reg);
     engine.registerFunction("xor",       &builtin::detail::xor_reg);
-    engine.registerFunction("cross",     &builtin::detail::cross_reg);
-    engine.registerFunction("dot",       &builtin::detail::dot_reg);
 
     // ── Phase 6c: math/elementary/complex.cpp public-API-backed built-ins ──────────
     engine.registerFunction("real",    &builtin::detail::real_reg);

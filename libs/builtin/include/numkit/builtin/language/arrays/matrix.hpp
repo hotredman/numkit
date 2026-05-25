@@ -1109,20 +1109,6 @@ ndgrid(const Value &x, const Value &y, std::pmr::memory_resource *mr = nullptr);
 std::tuple<Value, Value, Value>
 ndgrid(const Value &x, const Value &y, const Value &z, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Kronecker product (`K = kron(A, B)`).
-///
-/// Output is `(rA·rB) × (cA·cB)`; the `(i, j)`-th block (`rB × cB`)
-/// equals `A(i, j) · B`. Vector inputs are treated as matrices of
-/// their natural orientation. DOUBLE only (integer / logical / single
-/// promoted; complex throws).
-///
-/// @param a   First operand.
-/// @param b   Second operand.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Kronecker product.
-/// @throws Error  COMPLEX input not supported.
-Value kron(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
-
 // ── Cumulative ops and diff ──────────────────────────────────────────
 
 /// @brief Cumulative sum, auto-dim (`y = cumsum(x)`).
@@ -1198,26 +1184,8 @@ Value allOf(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr
 /// @see logicalAnd, logicalOr
 Value xorOf(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Cross product of 3-vectors (`c = cross(a, b)`).
-///
-/// Row vector output.
-///
-/// @param a   First 3-vector.
-/// @param b   Second 3-vector.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Row 3-vector cross product.
-/// @see dot
-Value cross(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Dot product (`d = dot(a, b)`).
-///
-/// Two vectors of equal length.
-///
-/// @param a   First vector.
-/// @param b   Second vector.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar dot product.
-/// @see cross
-Value dot(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+// NOTE: cross / dot / kron migrated to libs/linalg (see
+// numkit/linalg/vector_ops.hpp). Engine registration also moved
+// from BuiltinLibrary::install → LinalgLibrary::install.
 
 } // namespace numkit::builtin
