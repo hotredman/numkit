@@ -58,6 +58,7 @@ void eig_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void hess_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void schur_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void sylvester_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void polyeig_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 // schur_convert.cpp
 void cdf2rdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rsf2csf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -157,6 +158,7 @@ void LinalgLibrary::install(Engine &engine)
     reg("eig", "sylvester", &linalg::detail::sylvester_reg);
     reg("eig", "cdf2rdf",   &linalg::detail::cdf2rdf_reg);
     reg("eig", "rsf2csf",   &linalg::detail::rsf2csf_reg);
+    reg("eig", "polyeig",   &linalg::detail::polyeig_reg);
 
     // ── Matrix functions ─────────────────────────────────────────
     reg("matfn", "expm",  &linalg::detail::expm_reg);

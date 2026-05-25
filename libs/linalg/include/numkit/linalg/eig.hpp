@@ -62,4 +62,36 @@ schur_sym(const Value &A, std::pmr::memory_resource *mr = nullptr);
 Value sylvester_sym(const Value &A, const Value &B, const Value &C,
                     std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Polynomial eigenvalue problem
+/// (`e = polyeig(A0, A1, ..., Ak)`, possibly `[V, e]`).
+///
+/// Finds scalars `λ` and non-zero vectors `x` such that
+/// `(A0 + λ·A1 + λ²·A2 + … + λ^k·Ak) · x = 0`.
+///
+/// Implementation: linearisation via the standard companion matrix
+/// of size `k·n × k·n`; eigenvalues of the companion are the
+/// polynomial eigenvalues. Right eigenvectors of the companion
+/// have a Kronecker structure `[x; λ x; λ² x; …]`; the first `n`
+/// rows give `x`.
+///
+/// Eigenvalue-only form returns a column of `k·n` values; the matrix
+/// form `[V, e] = polyeig(...)` returns the eigenvectors in an
+/// `n × k·n` matrix. The matrix form requires real eigenvalues
+/// (Francis QR for complex pairs is deferred).
+///
+/// @param coeffs   Span of `k+1` polynomial coefficient matrices,
+///                 ordered constant first: `[A0, A1, ..., Ak]`.
+///                 All `n × n`, same size. `Ak` (leading) must be
+///                 non-singular.
+/// @param mr       Memory resource.
+/// @return         Eigenvalue column of length `k·n` (possibly COMPLEX).
+Value polyeig_values(Span<const Value> coeffs, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Polynomial eigenvalue problem, eigenvectors + eigenvalues
+/// (`[V, e] = polyeig(A0, ..., Ak)`).
+///
+/// Throws if any eigenvalue is complex (needs Francis QR).
+std::tuple<Value, Value>
+polyeig_VE(Span<const Value> coeffs, std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::linalg
