@@ -64,6 +64,15 @@ void isdiag_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void istril_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void istriu_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bandwidth_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+// solvers.cpp
+void linsolve_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lsqminnorm_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lsqnonneg_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+// misc.cpp
+void rref_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void planerot_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+// page_ops.cpp
+void pageinv_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::linalg::detail
 
 namespace numkit {
@@ -138,6 +147,18 @@ void LinalgLibrary::install(Engine &engine)
     reg("pred", "istril",      &linalg::detail::istril_reg);
     reg("pred", "istriu",      &linalg::detail::istriu_reg);
     reg("pred", "bandwidth",   &linalg::detail::bandwidth_reg);
+
+    // ── Solvers ──────────────────────────────────────────────────
+    reg("solve", "linsolve",   &linalg::detail::linsolve_reg);
+    reg("solve", "lsqminnorm", &linalg::detail::lsqminnorm_reg);
+    reg("solve", "lsqnonneg",  &linalg::detail::lsqnonneg_reg);
+
+    // ── Misc utilities ───────────────────────────────────────────
+    reg("misc", "rref",     &linalg::detail::rref_reg);
+    reg("misc", "planerot", &linalg::detail::planerot_reg);
+
+    // ── Page ops ─────────────────────────────────────────────────
+    reg("page", "pageinv", &linalg::detail::pageinv_reg);
 }
 
 } // namespace numkit

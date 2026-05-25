@@ -159,94 +159,9 @@ void magicSinglyEven(double *p, size_t N)
 
 } // anonymous namespace
 
-// ── linsolve / pageinv ───────────────────────────────────────────────
-//
-// NOTE: inv migrated to libs/linalg (properties.cpp). linsolve and
-// pageinv still live here (they're tied to the operator `\` and to
-// page-wise builtins respectively) and use la_solve directly.
-
-namespace {
-
-// Solve A_buf (m×n column-major) against B_buf (m×nrhs col-major) and
-// write the result (n×nrhs) into outX. Returns false on singular /
-// rank-deficient / wide A.
-bool laSolveWrap(const double *A_buf, std::size_t m, std::size_t n, const double *B_buf, std::size_t nrhs, double *outX, std::pmr::memory_resource *mr)
-{
-    return detail::la_solve(A_buf, m, n, B_buf, nrhs, outX, mr);
-}
-
-// Build an n×n identity into a contiguous column-major buffer.
-void fillIdentity(double *buf, std::size_t n)
-{
-    std::fill(buf, buf + n * n, 0.0);
-    for (std::size_t i = 0; i < n; ++i)
-        buf[i + i * n] = 1.0;
-}
-
-} // anonymous namespace
-
-Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2 || B.dims().ndim() != 2)
-        throw Error("linsolve: A and B must be 2D matrices",
-                    0, 0, "linsolve", "", "m:linsolve:notMatrix");
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    const std::size_t mb = static_cast<std::size_t>(B.dims().dim(0));
-    const std::size_t nrhs = static_cast<std::size_t>(B.dims().dim(1));
-    if (m != mb)
-        throw Error("linsolve: A and B must have the same number of rows",
-                    0, 0, "linsolve", "", "m:linsolve:badDims");
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> A_buf(m * n, &scratch);
-    ScratchVec<double> B_buf(m * nrhs, &scratch);
-    std::copy(A.doubleData(), A.doubleData() + m * n, A_buf.begin());
-    std::copy(B.doubleData(), B.doubleData() + m * nrhs, B_buf.begin());
-
-    auto out = Value::matrix(n, nrhs, ValueType::DOUBLE, mr);
-    if (!laSolveWrap(A_buf.data(), m, n, B_buf.data(), nrhs, out.doubleDataMut(), &scratch))
-        throw Error("linsolve: A is singular or rank-deficient",
-                    0, 0, "linsolve", "", "m:linsolve:singular");
-    return out;
-}
-
-Value pageinv(const Value &A, std::pmr::memory_resource *mr)
-{
-    const auto &dims = A.dims();
-    const int nd = dims.ndim();
-    if (nd < 2 || nd > 3)
-        throw Error("pageinv: input must be 2D or 3D",
-                    0, 0, "pageinv", "", "m:pageinv:badDim");
-    const std::size_t m = static_cast<std::size_t>(dims.dim(0));
-    const std::size_t n = static_cast<std::size_t>(dims.dim(1));
-    if (m != n)
-        throw Error("pageinv: each page must be square",
-                    0, 0, "pageinv", "", "m:pageinv:notSquare");
-    const std::size_t pages = (nd == 2) ? 1 : static_cast<std::size_t>(dims.dim(2));
-    const std::size_t pageStride = m * n;
-
-    auto out = (nd == 2)
-        ? Value::matrix(m, n, ValueType::DOUBLE, mr)
-        : createMatrix({m, n, pages}, ValueType::DOUBLE, mr);
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> A_buf(pageStride, &scratch);
-    ScratchVec<double> I_buf(n * n, &scratch);
-    const double *src = A.doubleData();
-    double *dst = out.doubleDataMut();
-
-    for (std::size_t p = 0; p < pages; ++p) {
-        std::copy(src + p * pageStride,
-                  src + (p + 1) * pageStride,
-                  A_buf.begin());
-        fillIdentity(I_buf.data(), n);
-        if (!laSolveWrap(A_buf.data(), m, n, I_buf.data(), n, dst + p * pageStride, &scratch))
-            throw Error("pageinv: page is singular",
-                        0, 0, "pageinv", "", "m:pageinv:singular");
-    }
-    return out;
-}
+// NOTE: inv / linsolve migrated to libs/linalg (properties.cpp, solvers.cpp).
+//       pageinv migrated to libs/linalg (page_ops.cpp).
+//       The internal helpers laSolveWrap / fillIdentity went with them.
 
 // NOTE: SVD (one-sided Jacobi) migrated to libs/linalg/src/decompositions.cpp.
 // Block below kept disabled until removal.
@@ -3750,22 +3665,8 @@ void rosser_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 
 // NOTE: inv_reg migrated to libs/linalg (properties.cpp).
 
-void linsolve_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2 || args.size() > 3)
-        throw Error("linsolve: requires (A, B[, opts])",
-                    0, 0, "linsolve", "", "m:linsolve:nargin");
-    // 3rd arg (opts struct) accepted for MATLAB-compat but ignored.
-    outs[0] = linsolve(args[0], args[1], ctx.engine->resource());
-}
-
-void pageinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("pageinv: requires exactly 1 argument",
-                    0, 0, "pageinv", "", "m:pageinv:nargin");
-    outs[0] = pageinv(args[0], ctx.engine->resource());
-}
+// NOTE: linsolve_reg migrated to libs/linalg (solvers.cpp).
+// NOTE: pageinv_reg  migrated to libs/linalg (page_ops.cpp).
 
 // NOTE: trace_reg / det_reg migrated to libs/linalg (properties.cpp).
 // NOTE: chol_reg / lu_reg / qr_reg / svd_reg migrated to

@@ -1,53 +1,57 @@
-// libs/builtin/src/language/arrays/lsq.cpp
+// libs/linalg/src/solvers.cpp
 //
-// MATLAB linalg cycle 4 — least-squares variants:
-//
-//   lsqminnorm(A, B [, tol])  Minimum-norm solution to A*X = B for
-//                             rank-deficient A (uses pinv internally).
-//   lsqnonneg(C, d)           Non-negative least squares: minimize
-//                             ||C*x - d|| subject to x >= 0.
-//                             Lawson-Hanson active-set algorithm.
-//
-// PMR HARD RULE: every fn takes std::pmr::memory_resource *mr; all
-// scratch through ScratchArena/ScratchVec.
-//
-// KNOWN GAPs:
-//   lsqminnorm: 'rankWarn' / 'RegularizationFactor' name-value args
-//               not implemented (warning toggle / Tikhonov regularization).
-//   lsqnonneg:  'options' input (optimset structure), 'problem' input,
-//               and the 6th output 'lambda' (Lagrange multipliers)
-//               not implemented. The 5-output form returns x, resnorm,
-//               residual, exitflag, output struct.
+// linsolve / lsqminnorm / lsqnonneg — and engine adapters.
+// Migrated 2026-05-25 from libs/builtin/src/language/arrays/{matrix,lsq}.cpp.
 
-#include <numkit/builtin/language/arrays/matrix.hpp>
-#include <numkit/builtin/language/operators/binary_ops.hpp>
+#include <numkit/linalg/solvers.hpp>
+
+#include <numkit/linalg/pseudo_subspace.hpp>      // pinv
+#include <numkit/builtin/internal/la_solve.hpp>   // detail::la_solve
+#include <numkit/builtin/language/operators/binary_ops.hpp>  // mtimes
+
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
+#include <numkit/core/span.hpp>
 #include <numkit/core/types.hpp>
-
-// TEMPORARY: lsqminnorm calls pinv (migrated to libs/linalg in the
-// "decomp+pseudo" pass). This entire file will migrate to libs/linalg
-// in the "solvers" pass (group 9), at which point this include can
-// drop. Tracked: PROGRESS.md, libs/linalg migration plan.
-#include <numkit/linalg/pseudo_subspace.hpp>
-
-#include "language/operators/la_solve.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <limits>
 #include <string>
 #include <vector>
 
-namespace numkit::builtin {
+namespace numkit::linalg {
 
-// ── lsqminnorm ────────────────────────────────────────────────────────
-// Minimum-norm least-squares: X = pinv(A, tol) * B.
-//
-// For full-rank A this collapses to the same answer as A\B; for
-// rank-deficient A it returns the unique min-norm solution to the
-// least-squares problem.
-Value lsqminnorm(const Value &A, const Value &B, bool have_tol, double tol_user, std::pmr::memory_resource *mr)
+Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr)
+{
+    if (A.dims().ndim() != 2 || B.dims().ndim() != 2)
+        throw Error("linsolve: A and B must be 2D matrices",
+                    0, 0, "linsolve", "", "m:linsolve:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    const std::size_t mb = static_cast<std::size_t>(B.dims().dim(0));
+    const std::size_t nrhs = static_cast<std::size_t>(B.dims().dim(1));
+    if (m != mb)
+        throw Error("linsolve: A and B must have the same number of rows",
+                    0, 0, "linsolve", "", "m:linsolve:badDims");
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> A_buf(m * n, &scratch);
+    ScratchVec<double> B_buf(m * nrhs, &scratch);
+    std::copy(A.doubleData(), A.doubleData() + m * n, A_buf.begin());
+    std::copy(B.doubleData(), B.doubleData() + m * nrhs, B_buf.begin());
+
+    auto out = Value::matrix(n, nrhs, ValueType::DOUBLE, mr);
+    if (!numkit::builtin::detail::la_solve(A_buf.data(), m, n, B_buf.data(), nrhs,
+                                            out.doubleDataMut(), &scratch))
+        throw Error("linsolve: A is singular or rank-deficient",
+                    0, 0, "linsolve", "", "m:linsolve:singular");
+    return out;
+}
+
+Value lsqminnorm(const Value &A, const Value &B, bool have_tol, double tol_user,
+                 std::pmr::memory_resource *mr)
 {
     if (A.dims().is3D() || B.dims().is3D())
         throw Error("lsqminnorm: inputs must be 2D",
@@ -61,46 +65,24 @@ Value lsqminnorm(const Value &A, const Value &B, bool have_tol, double tol_user,
         throw Error("lsqminnorm: A and B must have same number of rows",
                     0, 0, "lsqminnorm", "", "m:lsqminnorm:DimMismatch");
 
-    // pinv now lives in libs/linalg (migrated 2026-05-25).
-    Value Ap = numkit::linalg::pinv(A, have_tol ? tol_user : -1.0, mr);
-    return mtimes(Ap, B, mr);
+    Value Ap = pinv(A, have_tol ? tol_user : -1.0, mr);
+    return numkit::builtin::mtimes(Ap, B, mr);
 }
 
 // ── lsqnonneg ─────────────────────────────────────────────────────────
-//
-// Lawson-Hanson active-set NNLS (Algorithm NNLS, "Solving Least
-// Squares Problems", 1974).
-//
-//   minimize  ||C*x - d||^2  subject to x >= 0
-//
-// State:
-//   P (passive set) — indices where x > 0
-//   Z (active set)  — indices where x == 0
-//   x — current solution
-//
-// Outer loop:
-//   w = C' * (d - C*x)
-//   if Z empty or max(w(Z)) <= tol: stop
-//   Move index t of max w(Z) from Z to P
-//
-//   Inner loop:
-//     Solve C(:, P)' * C(:, P) * s_P = C(:, P)' * d
-//     If all s_P > 0: x = (s_P pad with zeros), break inner
-//     Else find alpha = min_{j in P, s(j)<=0}  x(j) / (x(j) - s(j))
-//          x = x + alpha * (s - x)
-//          Move all P-indices where x ~= 0 to Z
-//
+// Lawson-Hanson active-set NNLS.
+
 struct NnlsResult {
     Value x;
     double resnorm;
-    Value residual;     // d - C*x
-    int exitflag;       // 1 = success
-    int iterations;     // outer loop count
+    Value residual;
+    int exitflag;
+    int iterations;
     std::string algorithm;
     std::string message;
 };
 
-NnlsResult
+static NnlsResult
 lsqnonneg_impl(const Value &C, const Value &d, std::pmr::memory_resource *mr)
 {
     if (C.dims().is3D() || d.dims().is3D())
@@ -136,43 +118,39 @@ lsqnonneg_impl(const Value &C, const Value &d, std::pmr::memory_resource *mr)
     ScratchArena scratch(mr);
     const double *Cd = C.doubleData();
 
-    // Tolerance: 10 * eps * norm(C, inf) * max(M, N)  (matches Lawson-Hanson book)
     double cnorm = 0.0;
     for (size_t k = 0; k < M * N; ++k) cnorm = std::max(cnorm, std::abs(Cd[k]));
     const double tol = 10.0 * std::numeric_limits<double>::epsilon()
                             * std::max(cnorm, 1.0)
                             * static_cast<double>(std::max(M, N));
 
-    // Active set Z (true if index is in Z), passive P = !Z.
     ScratchVec<uint8_t> in_Z(N, &scratch);
-    std::fill(in_Z.begin(), in_Z.end(), 1);  // start: all in Z (x = 0)
+    std::fill(in_Z.begin(), in_Z.end(), 1);
 
-    // Working buffers reused across iterations.
-    ScratchVec<double> w(N, &scratch);          // C' * (d - C*x)
-    ScratchVec<double> s(N, &scratch);          // trial solution (full size)
-    ScratchVec<size_t> Pidx(0, &scratch);       // current passive indices
-    ScratchVec<double> CP_buf(0, &scratch);     // submatrix C(:, P), col-major (M × |P|)
-    ScratchVec<double> CtC(0, &scratch);        // C(:, P)' * C(:, P), |P| × |P|
-    ScratchVec<double> Ctd(0, &scratch);        // C(:, P)' * d, length |P|
-    ScratchVec<double> sP(0, &scratch);         // sub-solution, length |P|
+    ScratchVec<double> w(N, &scratch);
+    ScratchVec<double> s(N, &scratch);
+    ScratchVec<size_t> Pidx(0, &scratch);
+    ScratchVec<double> CP_buf(0, &scratch);
+    ScratchVec<double> CtC(0, &scratch);
+    ScratchVec<double> Ctd(0, &scratch);
+    ScratchVec<double> sP(0, &scratch);
 
     const int max_outer = 3 * static_cast<int>(N);
     int outer_iter = 0;
 
     auto compute_w = [&]() {
-        // residual r = d - C*x  is already in rd
         for (size_t j = 0; j < N; ++j) {
-            double s = 0.0;
-            for (size_t i = 0; i < M; ++i) s += Cd[i + j * M] * rd[i];
-            w[j] = s;
+            double sum = 0.0;
+            for (size_t i = 0; i < M; ++i) sum += Cd[i + j * M] * rd[i];
+            w[j] = sum;
         }
     };
 
     auto recompute_residual = [&]() {
         for (size_t i = 0; i < M; ++i) {
-            double s = 0.0;
-            for (size_t j = 0; j < N; ++j) s += Cd[i + j * M] * xd[j];
-            rd[i] = d.elemAsDouble(i) - s;
+            double sum = 0.0;
+            for (size_t j = 0; j < N; ++j) sum += Cd[i + j * M] * xd[j];
+            rd[i] = d.elemAsDouble(i) - sum;
         }
         R.resnorm = 0.0;
         for (size_t i = 0; i < M; ++i) R.resnorm += rd[i] * rd[i];
@@ -181,21 +159,17 @@ lsqnonneg_impl(const Value &C, const Value &d, std::pmr::memory_resource *mr)
     while (outer_iter < max_outer) {
         compute_w();
 
-        // Find max w(Z).
-        size_t t = N;  // sentinel: no candidate
-        double max_w = tol;  // strict >
+        size_t t = N;
+        double max_w = tol;
         for (size_t j = 0; j < N; ++j) {
             if (in_Z[j] && w[j] > max_w) { max_w = w[j]; t = j; }
         }
-        if (t == N) break;  // no improving direction; KKT satisfied
+        if (t == N) break;
         ++outer_iter;
 
-        // Move t from Z to P.
         in_Z[t] = 0;
 
-        // Inner loop: solve LS on current P, restore feasibility.
         for (int inner = 0; inner < max_outer; ++inner) {
-            // Build P index list and submatrix CP.
             Pidx.clear();
             for (size_t j = 0; j < N; ++j) if (!in_Z[j]) Pidx.push_back(j);
             const size_t p = Pidx.size();
@@ -204,7 +178,6 @@ lsqnonneg_impl(const Value &C, const Value &d, std::pmr::memory_resource *mr)
                 const double *src = Cd + Pidx[k] * M;
                 std::copy(src, src + M, CP_buf.data() + k * M);
             }
-            // Normal equations: (CP' * CP) * sP = CP' * d
             CtC.assign(p * p, 0.0);
             Ctd.assign(p, 0.0);
             for (size_t a = 0; a < p; ++a) {
@@ -219,19 +192,16 @@ lsqnonneg_impl(const Value &C, const Value &d, std::pmr::memory_resource *mr)
                     sum += CP_buf[i + a * M] * d.elemAsDouble(i);
                 Ctd[a] = sum;
             }
-            // Solve CtC * sP = Ctd via la_solve (LU on small system).
             sP.assign(p, 0.0);
-            if (!detail::la_solve(CtC.data(), p, p, Ctd.data(), 1, sP.data(), &scratch)) {
-                // Singular sub-system — bail with whatever feasible x we have.
+            if (!numkit::builtin::detail::la_solve(CtC.data(), p, p, Ctd.data(), 1,
+                                                    sP.data(), &scratch)) {
                 R.exitflag = 1;
                 break;
             }
 
-            // s = full-size, zero on Z
             std::fill(s.begin(), s.end(), 0.0);
             for (size_t k = 0; k < p; ++k) s[Pidx[k]] = sP[k];
 
-            // If all s(P) > 0: accept and break inner loop.
             bool all_pos = true;
             for (size_t k = 0; k < p; ++k) if (sP[k] <= 0.0) { all_pos = false; break; }
             if (all_pos) {
@@ -239,7 +209,6 @@ lsqnonneg_impl(const Value &C, const Value &d, std::pmr::memory_resource *mr)
                 break;
             }
 
-            // Otherwise: find alpha = min over j in P with s(j)<=0  of x(j)/(x(j)-s(j))
             double alpha = std::numeric_limits<double>::infinity();
             for (size_t k = 0; k < p; ++k) {
                 size_t j = Pidx[k];
@@ -252,9 +221,7 @@ lsqnonneg_impl(const Value &C, const Value &d, std::pmr::memory_resource *mr)
                 }
             }
             if (!std::isfinite(alpha)) { R.exitflag = 1; break; }
-            // x = x + alpha * (s - x)
             for (size_t j = 0; j < N; ++j) xd[j] += alpha * (s[j] - xd[j]);
-            // Move all j in P with x(j) <= tol to Z.
             for (size_t k = 0; k < p; ++k) {
                 size_t j = Pidx[k];
                 if (std::abs(xd[j]) < tol) {
@@ -270,7 +237,20 @@ lsqnonneg_impl(const Value &C, const Value &d, std::pmr::memory_resource *mr)
     return R;
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// Engine adapters
+// ════════════════════════════════════════════════════════════════════════
+
 namespace detail {
+
+void linsolve_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2 || args.size() > 3)
+        throw Error("linsolve: requires (A, B[, opts])",
+                    0, 0, "linsolve", "", "m:linsolve:nargin");
+    // 3rd arg (opts struct) accepted for MATLAB-compat but ignored.
+    outs[0] = linsolve(args[0], args[1], ctx.engine->resource());
+}
 
 void lsqminnorm_reg(Span<const Value> args, size_t /*nargout*/,
                     Span<Value> outs, CallContext &ctx)
@@ -303,7 +283,6 @@ void lsqnonneg_reg(Span<const Value> args, size_t nargout,
         out_struct.structFields()["iterations"] =
             Value::scalar(static_cast<double>(R.iterations),
                           ctx.engine->resource());
-        // MATLAB returns these as char arrays (not double-quoted strings).
         out_struct.structFields()["algorithm"] =
             Value::fromString(R.algorithm, ctx.engine->resource());
         out_struct.structFields()["message"] =
@@ -314,4 +293,4 @@ void lsqnonneg_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace numkit::linalg
