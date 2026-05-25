@@ -14,7 +14,7 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/manip.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/nd_manip.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/accum.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/predicates.cpp
+    # predicates.cpp migrated to libs/linalg.
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/linalg_extras.cpp
     # ldl / balance migrated to libs/linalg.
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/lsq.cpp

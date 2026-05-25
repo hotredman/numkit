@@ -20,6 +20,7 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/ldl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/eig.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/matrix_functions.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/predicates.hpp
 )
 
 set(NUMKIT_LIBS_SOURCES      ${NUMKIT_LIBS_SOURCES}      PARENT_SCOPE)

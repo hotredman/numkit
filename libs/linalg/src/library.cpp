@@ -56,6 +56,14 @@ void sylvester_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void expm_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void logm_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void sqrtm_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+// predicates.cpp
+void issymmetric_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void ishermitian_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void isbanded_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void isdiag_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void istril_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void istriu_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bandwidth_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::linalg::detail
 
 namespace numkit {
@@ -121,6 +129,15 @@ void LinalgLibrary::install(Engine &engine)
     reg("matfn", "expm",  &linalg::detail::expm_reg);
     reg("matfn", "logm",  &linalg::detail::logm_reg);
     reg("matfn", "sqrtm", &linalg::detail::sqrtm_reg);
+
+    // ── Predicates ───────────────────────────────────────────────
+    reg("pred", "issymmetric", &linalg::detail::issymmetric_reg);
+    reg("pred", "ishermitian", &linalg::detail::ishermitian_reg);
+    reg("pred", "isbanded",    &linalg::detail::isbanded_reg);
+    reg("pred", "isdiag",      &linalg::detail::isdiag_reg);
+    reg("pred", "istril",      &linalg::detail::istril_reg);
+    reg("pred", "istriu",      &linalg::detail::istriu_reg);
+    reg("pred", "bandwidth",   &linalg::detail::bandwidth_reg);
 }
 
 } // namespace numkit

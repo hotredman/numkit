@@ -1,4 +1,4 @@
-// libs/builtin/src/language/arrays/predicates.cpp
+// libs/linalg/src/predicates.cpp
 //
 // MATLAB matrix-structure predicates and bandwidth queries.
 //
@@ -10,18 +10,14 @@
 //   istriu(A)                    bool — same as isbanded(A, 0, n-1)
 //   bandwidth(A)                 [lower, upper] (or just lower if 1-out)
 //   bandwidth(A, 'lower'|'upper')  scalar
-//   vecnorm(A [, p [, dim]])     vector p-norm along dim
 //
-// All entries comparisons are exact (== 0). MATLAB documents these as
-// exact predicates: even 1e-300 in an off-diagonal entry makes
-// isdiag/istril/istriu return false.
-//
-// PMR HARD RULE: every fn takes std::pmr::memory_resource *mr. No std::vector
-// scratch — all transient buffers go through ScratchArena/ScratchVec. These
-// fns are O(n²) read-only scans, so almost no scratch is needed anyway.
+// All entries comparisons are exact (== 0).
+// Migrated 2026-05-25 from libs/builtin/src/language/arrays/predicates.cpp.
 
-#include <numkit/builtin/language/arrays/matrix.hpp>
+#include <numkit/linalg/predicates.hpp>
+
 #include <numkit/core/engine.hpp>
+#include <numkit/core/span.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
@@ -29,14 +25,12 @@
 #include <complex>
 #include <string>
 
-namespace numkit::builtin {
+namespace numkit::linalg {
 
 namespace {
 
-// Helper: column-major linear indexing.
 inline size_t lin(size_t i, size_t j, size_t R) { return i + j * R; }
 
-// Matrix-only sanity: 2D, no 3-D pages.
 inline void requireMatrix(const Value &A, const char *who)
 {
     if (A.dims().is3D())
@@ -44,11 +38,6 @@ inline void requireMatrix(const Value &A, const char *who)
                     0, 0, who, "", std::string("m:") + who + ":Not2D");
 }
 
-} // namespace
-
-// ── isbanded ──────────────────────────────────────────────────────────
-// True iff A(i,j) == 0 for all (j - i > upper) and (i - j > lower).
-// Non-square inputs are allowed (MATLAB accepts m≠n).
 bool isbandedImpl(const Value &A, long lower, long upper)
 {
     const long R = static_cast<long>(A.dims().rows());
@@ -77,45 +66,6 @@ bool isbandedImpl(const Value &A, long lower, long upper)
     return true;
 }
 
-Value isbanded(const Value &A, long lower, long upper, std::pmr::memory_resource *mr)
-{
-    requireMatrix(A, "isbanded");
-    if (lower < 0 || upper < 0)
-        throw Error("isbanded: bandwidths must be non-negative",
-                    0, 0, "isbanded", "", "m:isbanded:NegBand");
-    return Value::logicalScalar(isbandedImpl(A, lower, upper), mr);
-}
-
-// ── isdiag / istril / istriu ──────────────────────────────────────────
-Value isdiag(const Value &A, std::pmr::memory_resource *mr)
-{
-    requireMatrix(A, "isdiag");
-    return Value::logicalScalar(isbandedImpl(A, 0, 0), mr);
-}
-
-Value istril(const Value &A, std::pmr::memory_resource *mr)
-{
-    requireMatrix(A, "istril");
-    const long R = static_cast<long>(A.dims().rows());
-    // Lower-triangular: upper bandwidth == 0.
-    return Value::logicalScalar(isbandedImpl(A, R, 0), mr);
-}
-
-Value istriu(const Value &A, std::pmr::memory_resource *mr)
-{
-    requireMatrix(A, "istriu");
-    const long C = static_cast<long>(A.dims().cols());
-    // Upper-triangular: lower bandwidth == 0.
-    return Value::logicalScalar(isbandedImpl(A, 0, C), mr);
-}
-
-// ── issymmetric ───────────────────────────────────────────────────────
-// Default: A == A.'  (transpose, no conjugation).
-// 'skew' opt: A == -A.'
-//
-// Note: complex inputs use straight transpose (no conj). [1+1i 2; 2 1-1i]
-// is symmetric in MATLAB's sense because its (1,2) and (2,1) entries are
-// equal as-is.
 bool issymmetricImpl(const Value &A, bool skew)
 {
     requireMatrix(A, "issymmetric");
@@ -142,14 +92,6 @@ bool issymmetricImpl(const Value &A, bool skew)
     return true;
 }
 
-Value issymmetric(const Value &A, bool skew, std::pmr::memory_resource *mr)
-{
-    return Value::logicalScalar(issymmetricImpl(A, skew), mr);
-}
-
-// ── ishermitian ───────────────────────────────────────────────────────
-// Default: A == A'  (conjugate transpose).
-// 'skew' opt: A == -A'
 bool ishermitianImpl(const Value &A, bool skew)
 {
     requireMatrix(A, "ishermitian");
@@ -167,18 +109,9 @@ bool ishermitianImpl(const Value &A, bool skew)
             }
         return true;
     }
-    // Real case: hermitian == symmetric, skew-hermitian == antisymmetric.
     return issymmetricImpl(A, skew);
 }
 
-Value ishermitian(const Value &A, bool skew, std::pmr::memory_resource *mr)
-{
-    return Value::logicalScalar(ishermitianImpl(A, skew), mr);
-}
-
-// ── bandwidth ─────────────────────────────────────────────────────────
-// Returns (lower, upper) bandwidths: max distance from diagonal to a
-// non-zero entry, in each direction.
 std::pair<long, long> bandwidthImpl(const Value &A)
 {
     const long R = static_cast<long>(A.dims().rows());
@@ -210,6 +143,47 @@ std::pair<long, long> bandwidthImpl(const Value &A)
     return {lower, upper};
 }
 
+} // anonymous namespace
+
+Value isbanded(const Value &A, long lower, long upper, std::pmr::memory_resource *mr)
+{
+    requireMatrix(A, "isbanded");
+    if (lower < 0 || upper < 0)
+        throw Error("isbanded: bandwidths must be non-negative",
+                    0, 0, "isbanded", "", "m:isbanded:NegBand");
+    return Value::logicalScalar(isbandedImpl(A, lower, upper), mr);
+}
+
+Value isdiag(const Value &A, std::pmr::memory_resource *mr)
+{
+    requireMatrix(A, "isdiag");
+    return Value::logicalScalar(isbandedImpl(A, 0, 0), mr);
+}
+
+Value istril(const Value &A, std::pmr::memory_resource *mr)
+{
+    requireMatrix(A, "istril");
+    const long R = static_cast<long>(A.dims().rows());
+    return Value::logicalScalar(isbandedImpl(A, R, 0), mr);
+}
+
+Value istriu(const Value &A, std::pmr::memory_resource *mr)
+{
+    requireMatrix(A, "istriu");
+    const long C = static_cast<long>(A.dims().cols());
+    return Value::logicalScalar(isbandedImpl(A, 0, C), mr);
+}
+
+Value issymmetric(const Value &A, bool skew, std::pmr::memory_resource *mr)
+{
+    return Value::logicalScalar(issymmetricImpl(A, skew), mr);
+}
+
+Value ishermitian(const Value &A, bool skew, std::pmr::memory_resource *mr)
+{
+    return Value::logicalScalar(ishermitianImpl(A, skew), mr);
+}
+
 std::pair<Value, Value>
 bandwidth(const Value &A, std::pmr::memory_resource *mr)
 {
@@ -229,11 +203,12 @@ Value bandwidthOpt(const Value &A, const std::string &which, std::pmr::memory_re
                 0, 0, "bandwidth", "", "m:bandwidth:BadOpt");
 }
 
-// NOTE: vecnorm migrated to libs/linalg/src/norms.cpp.
+// ════════════════════════════════════════════════════════════════════════
+// Engine adapters
+// ════════════════════════════════════════════════════════════════════════
 
 namespace detail {
 
-// Helper: decode optional 'skew' string opt for is{symmetric,hermitian}.
 static bool parseSkewOpt(const Value &v, const char *who)
 {
     if (!v.isChar() && !v.isString())
@@ -308,22 +283,17 @@ void bandwidth_reg(Span<const Value> args, size_t nargout,
         throw Error("bandwidth: requires (A) or (A, opt)",
                     0, 0, "bandwidth", "", "m:bandwidth:nargin");
     if (args.size() == 1) {
-        // Two-output canonical form. Single-output returns lower bandwidth
-        // (matches MATLAB behaviour: x = bandwidth(A) → first output).
         auto [lo, up] = bandwidth(args[0], ctx.engine->resource());
         outs[0] = lo;
         if (nargout >= 2 && outs.size() >= 2) outs[1] = up;
         return;
     }
-    // (A, 'lower' | 'upper') form.
     if (!args[1].isChar() && !args[1].isString())
         throw Error("bandwidth: option must be 'lower' or 'upper'",
                     0, 0, "bandwidth", "", "m:bandwidth:BadOpt");
     outs[0] = bandwidthOpt(args[0], args[1].toString(), ctx.engine->resource());
 }
 
-// NOTE: vecnorm_reg migrated to libs/linalg/src/norms.cpp.
-
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace numkit::linalg
