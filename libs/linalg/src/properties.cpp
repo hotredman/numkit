@@ -3,14 +3,14 @@
 // inv / det / trace / rank / cond / normest / rcond — and engine adapters.
 // Migrated from libs/builtin/src/language/arrays/{matrix,linalg_extras}.cpp.
 //
-// rank_of / cond_2norm / normest call `numkit::builtin::svd_values`
-// until SVD migrates here (group 4). The include of builtin's
-// matrix.hpp covers that one external dependency.
+// rank_of / cond_2norm / normest call the SVD kernel from
+// numkit/linalg/decompositions.hpp. inv / rcond use the la_solve
+// kernel still living in libs/builtin.
 
 #include <numkit/linalg/properties.hpp>
 
-#include <numkit/builtin/internal/la_solve.hpp>          // detail::la_solve
-#include <numkit/builtin/language/arrays/matrix.hpp>     // svd_values
+#include <numkit/builtin/internal/la_solve.hpp>   // detail::la_solve
+#include <numkit/linalg/decompositions.hpp>       // svd_values
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
@@ -168,7 +168,7 @@ Value det(const Value &A, std::pmr::memory_resource *mr)
 
 Value rank_of(const Value &A, double tol, std::pmr::memory_resource *mr)
 {
-    auto sv = numkit::builtin::svd_values(A, mr);
+    auto sv = svd_values(A, mr);
     const std::size_t k = sv.numel();
     const double *s = sv.doubleData();
     if (k == 0) return Value::scalar(0.0, mr);
@@ -184,7 +184,7 @@ Value rank_of(const Value &A, double tol, std::pmr::memory_resource *mr)
 
 Value cond_2norm(const Value &A, std::pmr::memory_resource *mr)
 {
-    auto sv = numkit::builtin::svd_values(A, mr);
+    auto sv = svd_values(A, mr);
     const std::size_t k = sv.numel();
     if (k == 0) return Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr);
     const double *s = sv.doubleData();
@@ -197,7 +197,7 @@ Value cond_2norm(const Value &A, std::pmr::memory_resource *mr)
 
 Value normest(const Value &A, std::pmr::memory_resource *mr)
 {
-    auto sv = numkit::builtin::svd_values(A, mr);
+    auto sv = svd_values(A, mr);
     if (sv.numel() == 0) return Value::scalar(0.0, mr);
     return Value::scalar(sv.doubleData()[0], mr);
 }

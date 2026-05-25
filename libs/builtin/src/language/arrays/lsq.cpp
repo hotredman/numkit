@@ -25,6 +25,12 @@
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
+// TEMPORARY: lsqminnorm calls pinv (migrated to libs/linalg in the
+// "decomp+pseudo" pass). This entire file will migrate to libs/linalg
+// in the "solvers" pass (group 9), at which point this include can
+// drop. Tracked: PROGRESS.md, libs/linalg migration plan.
+#include <numkit/linalg/pseudo_subspace.hpp>
+
 #include "language/operators/la_solve.hpp"
 
 #include <algorithm>
@@ -55,8 +61,8 @@ Value lsqminnorm(const Value &A, const Value &B, bool have_tol, double tol_user,
         throw Error("lsqminnorm: A and B must have same number of rows",
                     0, 0, "lsqminnorm", "", "m:lsqminnorm:DimMismatch");
 
-    // Existing pinv signature: pinv(mr, A, tol) where tol < 0 means default.
-    Value Ap = pinv(A, have_tol ? tol_user : -1.0, mr);
+    // pinv now lives in libs/linalg (migrated 2026-05-25).
+    Value Ap = numkit::linalg::pinv(A, have_tol ? tol_user : -1.0, mr);
     return mtimes(Ap, B, mr);
 }
 

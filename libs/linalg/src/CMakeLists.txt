@@ -8,6 +8,8 @@ set(LINALGLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/vector_ops.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/norms.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/properties.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/decompositions.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/pseudo_subspace.cpp
 )
 
 set(LINALGLIB_SOURCES ${LINALGLIB_SOURCES} PARENT_SCOPE)

@@ -203,16 +203,7 @@ Value pageinv(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
 // NOTE: trace / det migrated to libs/linalg (numkit/linalg/properties.hpp).
 
-/// @brief Cholesky factorisation (`R = chol(A)`).
-///
-/// Returns the upper-triangular `R` such that `R' · R == A`.
-///
-/// @param A   Symmetric positive-definite matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Upper-triangular factor `R`.
-/// @throws Error  Non-square or not positive-definite (`m:chol:notPosDef`).
-/// @see ldl
-Value chol(const Value &A, std::pmr::memory_resource *mr = nullptr);
+// NOTE: chol migrated to libs/linalg (numkit/linalg/decompositions.hpp).
 
 /// @brief Top-`k` rows sorted descending (`T = topkrows(A, k)`).
 ///
@@ -228,112 +219,14 @@ Value topkrows(const Value &A, std::size_t k, std::pmr::memory_resource *mr = nu
 
 // ── LU / QR / SVD ────────────────────────────────────────────────────
 
-/// @brief LU with partial pivoting (`[L, U, P] = lu_decompose(A)`).
-///
-/// `P · A == L · U` where `L` is unit-lower-triangular, `U` is
-/// upper-triangular, `P` is a permutation matrix. The single-output
-/// `LU = lu(A)` form lives in @ref lu_combined.
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(L, U, P)` triple.
-/// @throws Error  Non-square (`m:lu:notSquare`).
-/// @see lu_combined, linsolve
-std::tuple<Value, Value, Value>
-lu_decompose(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Combined L+U output (`LU = lu(A)` single-output form).
-///
-/// Strict lower triangle is `L` (unit diagonal implicit); upper
-/// triangle (including diagonal) is `U`. Rows are already permuted.
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Combined L+U matrix.
-/// @see lu_decompose
-Value lu_combined(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief QR via Householder reflections (`[Q, R] = qr_decompose(A)`).
-///
-/// Full-size form (not `"econ"`). `A == Q · R`. `Q` is `m × m`
-/// orthogonal, `R` is `m × n` upper-triangular.
-///
-/// @param A   `m × n` matrix with `m >= n`.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(Q, R)` pair.
-/// @throws Error  Wide matrix (`m:qr:wide`).
-/// @see qr_R_only
-std::tuple<Value, Value>
-qr_decompose(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief R-only QR output (`R = qr(A)` single-output form).
-///
-/// @param A   `m × n` matrix with `m >= n`.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Upper-triangular `R`.
-/// @see qr_decompose
-Value qr_R_only(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Singular value decomposition (`[U, S, V] = svd_decompose(A)`).
-///
-/// `A = U · S · V'`. One-sided Jacobi rotations; converges to
-/// orthogonal columns. For `m × n` `A` with `m >= n`: `U` is `m × m`
-/// orthogonal, `S` is `m × n` diagonal (sigma >= 0, descending), `V`
-/// is `n × n` orthogonal. `m < n` cases transpose internally.
-///
-/// @param A   Input matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(U, S, V)` triple.
-/// @see svd_values, pinv
-std::tuple<Value, Value, Value>
-svd_decompose(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Singular values only (`s = svd(A)` single-output form).
-///
-/// @param A   Input matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Column vector of singular values, length `min(m, n)`,
-///            descending order.
-/// @see svd_decompose
-Value svd_values(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-// NOTE: rank_of migrated to libs/linalg (numkit/linalg/properties.hpp).
-
-/// @brief Moore-Penrose pseudoinverse (`P = pinv(A, tol)`).
-///
-/// Via SVD: `pinv(A) = V · S⁺ · U'` where `S⁺` inverts non-zero
-/// singular values above `tol`.
-///
-/// @param A    Input matrix.
-/// @param tol  Tolerance, or `-1.0` for default.
-/// @param mr   Memory resource (nullptr → process default).
-/// @return     Pseudoinverse.
-/// @see inv, lsqminnorm
-Value pinv(const Value &A, double tol = -1.0, std::pmr::memory_resource *mr = nullptr);
+// NOTE: lu_decompose / lu_combined / qr_decompose / qr_R_only /
+//       svd_decompose / svd_values / rank_of / pinv migrated to
+//       libs/linalg (numkit/linalg/decompositions.hpp,
+//       numkit/linalg/properties.hpp, numkit/linalg/pseudo_subspace.hpp).
 
 // NOTE: cond_2norm migrated to libs/linalg (numkit/linalg/properties.hpp).
 
-/// @brief Orthonormal basis for range(A) (`Q = orth(A, tol)`).
-///
-/// Columns of `U` from SVD whose corresponding sigma exceeds `tol`.
-///
-/// @param A    Input matrix.
-/// @param tol  Tolerance, or `-1.0` for default.
-/// @param mr   Memory resource (nullptr → process default).
-/// @return     `m × rank(A)` orthonormal basis.
-/// @see null_basis
-Value orth(const Value &A, double tol = -1.0, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Orthonormal basis for null(A) (`N = null(A, tol)`).
-///
-/// Columns of `V` from SVD whose corresponding sigma is below `tol`.
-///
-/// @param A    Input matrix.
-/// @param tol  Tolerance, or `-1.0` for default.
-/// @param mr   Memory resource (nullptr → process default).
-/// @return     `n × (n - rank(A))` orthonormal basis.
-/// @see orth
-Value null_basis(const Value &A, double tol = -1.0, std::pmr::memory_resource *mr = nullptr);
+// NOTE: orth / null_basis migrated to libs/linalg (numkit/linalg/pseudo_subspace.hpp).
 
 // NOTE: normest migrated to libs/linalg (numkit/linalg/properties.hpp).
 
@@ -384,16 +277,7 @@ Value poly_of_matrix(const Value &A, std::pmr::memory_resource *mr = nullptr);
 /// @see eig_general_VD
 Value eig_general_values(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Subspace angle (`theta = subspace(A, B)`).
-///
-/// `theta = acos(min(svd(orth(A)' · orth(B))))`. Returns radians in
-/// `[0, π/2]`.
-///
-/// @param A   First matrix.
-/// @param B   Second matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar angle (radians).
-Value subspace(const Value &A, const Value &B, std::pmr::memory_resource *mr = nullptr);
+// NOTE: subspace migrated to libs/linalg (numkit/linalg/pseudo_subspace.hpp).
 
 /// @brief General `[V, D]` eig for real-eigenvalue asymmetric `A`
 /// (`[V, D] = eig_general_VD(A)`).

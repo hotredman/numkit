@@ -14,6 +14,8 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/vector_ops.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/norms.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/properties.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/decompositions.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/pseudo_subspace.hpp
 )
 
 set(NUMKIT_LIBS_SOURCES      ${NUMKIT_LIBS_SOURCES}      PARENT_SCOPE)

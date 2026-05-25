@@ -33,6 +33,16 @@ void rank_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cond_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void normest_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void rcond_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+// decompositions.cpp
+void chol_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lu_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void qr_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void svd_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+// pseudo_subspace.cpp
+void pinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void orth_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void null_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void subspace_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::linalg::detail
 
 namespace numkit {
@@ -71,6 +81,18 @@ void LinalgLibrary::install(Engine &engine)
     reg("prop", "cond",    &linalg::detail::cond_reg);
     reg("prop", "normest", &linalg::detail::normest_reg);
     reg("prop", "rcond",   &linalg::detail::rcond_reg);
+
+    // ── Decompositions ───────────────────────────────────────────
+    reg("decomp", "chol", &linalg::detail::chol_reg);
+    reg("decomp", "lu",   &linalg::detail::lu_reg);
+    reg("decomp", "qr",   &linalg::detail::qr_reg);
+    reg("decomp", "svd",  &linalg::detail::svd_reg);
+
+    // ── Pseudo-inverse / subspace queries ────────────────────────
+    reg("pseudo", "pinv",     &linalg::detail::pinv_reg);
+    reg("pseudo", "orth",     &linalg::detail::orth_reg);
+    reg("pseudo", "null",     &linalg::detail::null_reg);
+    reg("pseudo", "subspace", &linalg::detail::subspace_reg);
 }
 
 } // namespace numkit
