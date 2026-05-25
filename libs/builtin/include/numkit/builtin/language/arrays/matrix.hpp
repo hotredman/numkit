@@ -251,79 +251,10 @@ Value topkrows(const Value &A, std::size_t k, std::pmr::memory_resource *mr = nu
 Value poly_of_matrix(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
 // ── Matrix predicates ────────────────────────────────────────────────
-
-/// @brief Banded structure test (`tf = isbanded(A, lower, upper)`).
-///
-/// True iff entries outside the `[-lower, +upper]` diagonal band are
-/// exactly zero. Exact comparison (no tolerance).
-///
-/// @param A      Input matrix.
-/// @param lower  Allowed sub-diagonal width.
-/// @param upper  Allowed super-diagonal width.
-/// @param mr     Memory resource (nullptr → process default).
-/// @return       LOGICAL scalar.
-/// @see isdiag, istril, istriu, bandwidth
-Value isbanded(const Value &A, long lower, long upper, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Diagonal structure (`tf = isdiag(A)`). True iff `isbanded(A, 0, 0)`.
-/// @param A   Input matrix. @param mr  Memory resource. @return  LOGICAL scalar.
-Value isdiag(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Lower-triangular structure (`tf = istril(A)`).
-/// @param A   Input matrix. @param mr  Memory resource. @return  LOGICAL scalar.
-/// @see istriu
-Value istril(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Upper-triangular structure (`tf = istriu(A)`).
-/// @param A   Input matrix. @param mr  Memory resource. @return  LOGICAL scalar.
-/// @see istril
-Value istriu(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Symmetry test (`tf = issymmetric(A, skew)`).
-///
-/// `skew == false` (default): `A == A.'` (transpose, no conj).
-/// `skew == true`: `A == -A.'`.
-///
-/// @param A     Input matrix.
-/// @param skew  Skew-symmetric flag.
-/// @param mr    Memory resource (nullptr → process default).
-/// @return      LOGICAL scalar.
-/// @see ishermitian
-Value issymmetric(const Value &A, bool skew = false, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Hermitian test (`tf = ishermitian(A, skew)`).
-///
-/// `A == A'` (conjugate transpose); `skew == true` → `A == -A'`.
-///
-/// @param A     Input matrix.
-/// @param skew  Skew-Hermitian flag.
-/// @param mr    Memory resource (nullptr → process default).
-/// @return      LOGICAL scalar.
-/// @see issymmetric
-Value ishermitian(const Value &A, bool skew = false, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Bandwidth pair (`[lower, upper] = bandwidth(A)`).
-///
-/// Single-output form returns just the lower bandwidth
-/// (`x = bandwidth(A)`).
-///
-/// @param A   Input matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(lower, upper)` pair.
-/// @see bandwidthOpt, isbanded
-std::pair<Value, Value>
-bandwidth(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Single-output bandwidth selector (`x = bandwidth(A, which)`).
-///
-/// `which` is `"lower"` or `"upper"`.
-///
-/// @param A      Input matrix.
-/// @param which  `"lower"` or `"upper"`.
-/// @param mr     Memory resource (nullptr → process default).
-/// @return       Scalar bandwidth.
-/// @throws Error  Unknown `which` value.
-Value bandwidthOpt(const Value &A, const std::string &which, std::pmr::memory_resource *mr = nullptr);
+//
+// NOTE: isbanded / isdiag / istril / istriu / issymmetric / ishermitian /
+//       bandwidth / bandwidthOpt migrated to libs/linalg
+//       (numkit/linalg/predicates.hpp).
 
 // NOTE: vecnorm migrated to libs/linalg (numkit/linalg/norms.hpp).
 

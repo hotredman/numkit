@@ -356,14 +356,8 @@ void ismatrix_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void issorted_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void issortedrows_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isuniform_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-// language/arrays/predicates.cpp
-void issymmetric_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void ishermitian_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void isbanded_reg   (Span<const Value>, size_t, Span<Value>, CallContext&);
-void isdiag_reg     (Span<const Value>, size_t, Span<Value>, CallContext&);
-void istril_reg     (Span<const Value>, size_t, Span<Value>, CallContext&);
-void istriu_reg     (Span<const Value>, size_t, Span<Value>, CallContext&);
-void bandwidth_reg  (Span<const Value>, size_t, Span<Value>, CallContext&);
+// issymmetric / ishermitian / isbanded / isdiag / istril / istriu /
+// bandwidth _reg adapters → libs/linalg (predicates.cpp)
 // vecnorm_reg → libs/linalg (norms.cpp)
 // language/arrays/linalg_extras.cpp
 void rref_reg       (Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -1182,22 +1176,12 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("issorted",   &builtin::detail::issorted_reg);
     engine.registerFunction("issortedrows",&builtin::detail::issortedrows_reg);
     engine.registerFunction("isuniform",  &builtin::detail::isuniform_reg);
-    engine.registerFunction("issymmetric",&builtin::detail::issymmetric_reg);
-    engine.registerFunction("ishermitian",&builtin::detail::ishermitian_reg);
-    engine.registerFunction("isbanded",   &builtin::detail::isbanded_reg);
-    engine.registerFunction("isdiag",     &builtin::detail::isdiag_reg);
-    engine.registerFunction("istril",     &builtin::detail::istril_reg);
-    engine.registerFunction("istriu",     &builtin::detail::istriu_reg);
-    engine.registerFunction("bandwidth",  &builtin::detail::bandwidth_reg);
+    // issymmetric / ishermitian / isbanded / isdiag / istril / istriu /
+    // bandwidth registered by LinalgLibrary::install (libs/linalg).
     // vecnorm registered by LinalgLibrary::install (libs/linalg).
     // compat aliases — same fns reachable via `import compat.*`.
-    engine.registerFunction("compat", "issymmetric", &builtin::detail::issymmetric_reg);
-    engine.registerFunction("compat", "ishermitian", &builtin::detail::ishermitian_reg);
-    engine.registerFunction("compat", "isbanded",    &builtin::detail::isbanded_reg);
-    engine.registerFunction("compat", "isdiag",      &builtin::detail::isdiag_reg);
-    engine.registerFunction("compat", "istril",      &builtin::detail::istril_reg);
-    engine.registerFunction("compat", "istriu",      &builtin::detail::istriu_reg);
-    engine.registerFunction("compat", "bandwidth",   &builtin::detail::bandwidth_reg);
+    // compat.{issymmetric,ishermitian,isbanded,isdiag,istril,istriu,bandwidth}
+    // registered by LinalgLibrary::install (libs/linalg).
     // compat.vecnorm registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("rref",       &builtin::detail::rref_reg);
     // rcond registered by LinalgLibrary::install (libs/linalg).
