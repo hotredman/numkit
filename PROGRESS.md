@@ -2103,7 +2103,14 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 
 
-**Namespace:** `linalg.*` (future) — 12 ✅ + 0 ⚠️ / 82 = 15%
+**Namespace:** `linalg.*` — 12 ✅ + 0 ⚠️ / 82 = 15%
+
+> Library is live (libs/linalg/, 2026-05-25). User-facing surface migrated
+> from libs/builtin — see commits `30b06660`..`d71b472c`. Functions still
+> marked **deferred — libs/linalg** below are not-yet-implemented (the
+> library is the destination, not the blocker). 22 ❌ on this page wait
+> on first-time implementation; the per-function migration is complete
+> for everything that was previously shipped.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
