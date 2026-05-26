@@ -63,8 +63,7 @@ check_U(const Value &U, std::size_t d_expected, const char *fn)
 double extract_rho_2x2(const Value &R, const char *fn)
 {
     if (R.dims().rows() != 2 || R.dims().cols() != 2)
-        throw Error(std::string(fn) + ": Gaussian/t copula currently "
-                    "implemented for d = 2 (R must be 2 × 2)",
+        throw Error(std::string(fn) + ": expected 2 × 2 R",
                     0, 0, fn, "", std::string("m:") + fn + ":dimR");
     const double r00 = R.elemAsDouble(0);
     const double r10 = R.elemAsDouble(1);
@@ -81,6 +80,64 @@ double extract_rho_2x2(const Value &R, const char *fn)
         throw Error(std::string(fn) + ": ρ must lie strictly in (-1, 1)",
                     0, 0, fn, "", std::string("m:") + fn + ":Rrange");
     return rho;
+}
+
+// Generic R validation + dimension extraction (any d ≥ 2).
+std::size_t check_R_dim(const Value &R, const char *fn)
+{
+    if (R.dims().rows() != R.dims().cols() || R.dims().rows() < 2)
+        throw Error(std::string(fn) + ": R must be a square d × d "
+                    "matrix with d ≥ 2",
+                    0, 0, fn, "", std::string("m:") + fn + ":dimR");
+    const std::size_t d = R.dims().rows();
+    // Diagonal must be 1; matrix must be symmetric.
+    for (std::size_t i = 0; i < d; ++i) {
+        if (std::fabs(R.elemAsDouble(i * d + i) - 1.0) > 1e-9)
+            throw Error(std::string(fn) + ": R must have unit diagonal",
+                        0, 0, fn, "", std::string("m:") + fn + ":Rdiag");
+        for (std::size_t j = i + 1; j < d; ++j) {
+            if (std::fabs(R.elemAsDouble(j * d + i) - R.elemAsDouble(i * d + j))
+                > 1e-9)
+                throw Error(std::string(fn) + ": R must be symmetric",
+                            0, 0, fn, "", std::string("m:") + fn + ":Rsym");
+        }
+    }
+    return d;
+}
+
+// In-place Cholesky (lower) of R (row-major). Returns det R via diag product.
+double chol_lower_inplace(double *R, std::size_t d, const char *fn)
+{
+    double det = 1.0;
+    for (std::size_t j = 0; j < d; ++j) {
+        double diag = R[j * d + j];
+        for (std::size_t k = 0; k < j; ++k)
+            diag -= R[j * d + k] * R[j * d + k];
+        if (!(diag > 0.0))
+            throw Error(std::string(fn) + ": R must be positive definite",
+                        0, 0, fn, "", std::string("m:") + fn + ":notPD");
+        const double Ljj = std::sqrt(diag);
+        R[j * d + j] = Ljj;
+        det *= diag;
+        for (std::size_t i = j + 1; i < d; ++i) {
+            double s = R[i * d + j];
+            for (std::size_t k = 0; k < j; ++k)
+                s -= R[i * d + k] * R[j * d + k];
+            R[i * d + j] = s / Ljj;
+        }
+        for (std::size_t k = j + 1; k < d; ++k) R[j * d + k] = 0.0;
+    }
+    return det;
+}
+
+// Solve L · y = b in place; L row-major lower-tri.
+void chol_lower_solve(const double *L, double *y, std::size_t d)
+{
+    for (std::size_t i = 0; i < d; ++i) {
+        double s = y[i];
+        for (std::size_t k = 0; k < i; ++k) s -= L[i * d + k] * y[k];
+        y[i] = s / L[i * d + i];
+    }
 }
 
 // Scalar Φ^{-1} via norminv.
@@ -188,31 +245,37 @@ inline double U_at(const Value &U, std::size_t row, std::size_t j, std::size_t n
 
 } // anonymous
 
-// ── Gaussian copula ─────────────────────────────────────────────────
+// ── Gaussian copula (any d ≥ 2) ─────────────────────────────────────
 
 Value copulapdf_gaussian(const Value &U, const Value &R,
                          std::pmr::memory_resource *mr)
 {
-    auto [n, d] = check_U(U, 2, "copulapdf");
-    const double rho = extract_rho_2x2(R, "copulapdf");
+    const std::size_t d = check_R_dim(R, "copulapdf");
+    auto [n, dU] = check_U(U, d, "copulapdf");
     auto out = make_out(n, mr);
     if (n == 0) return out;
-    const double det_R = 1.0 - rho * rho;
-    const double inv_det = 1.0 / det_R;
-    // (R^{-1} - I) for 2×2 with diag = 1: M = R^{-1} - I.
-    // R^{-1} = (1/det) [[1, -ρ], [-ρ, 1]].
-    // M_11 = 1/det - 1, M_22 = same, M_12 = -ρ/det.
-    const double m11 = 1.0 / det_R - 1.0;
-    const double m12 = -rho / det_R;
+
+    // Lower Cholesky of R; det_R = ∏ diag(L)².
+    std::vector<double> L(d * d);
+    for (std::size_t i = 0; i < d; ++i)
+        for (std::size_t j = 0; j < d; ++j)
+            L[i * d + j] = R.elemAsDouble(j * d + i);   // col-major → row-major
+    const double det_R = chol_lower_inplace(L.data(), d, "copulapdf");
     const double pref = 1.0 / std::sqrt(det_R);
     double *od = out.doubleDataMut();
+    std::vector<double> z(d), y(d);
     for (std::size_t i = 0; i < n; ++i) {
-        const double u1 = U_at(U, i, 0, n);
-        const double u2 = U_at(U, i, 1, n);
-        const double z1 = phi_inv(u1, mr);
-        const double z2 = phi_inv(u2, mr);
-        const double quad = m11 * (z1 * z1 + z2 * z2) + 2.0 * m12 * z1 * z2;
-        od[i] = pref * std::exp(-0.5 * quad);
+        for (std::size_t j = 0; j < d; ++j)
+            z[j] = phi_inv(U_at(U, i, j, n), mr);
+        // Solve L · y = z, then z' R^{-1} z = y' y.
+        y = z;
+        chol_lower_solve(L.data(), y.data(), d);
+        double yty = 0.0;
+        for (std::size_t j = 0; j < d; ++j) yty += y[j] * y[j];
+        double ztz = 0.0;
+        for (std::size_t j = 0; j < d; ++j) ztz += z[j] * z[j];
+        // Quad form for (R^{-1} - I) z = y'y - z'z.
+        od[i] = pref * std::exp(-0.5 * (yty - ztz));
     }
     return out;
 }
@@ -220,18 +283,34 @@ Value copulapdf_gaussian(const Value &U, const Value &R,
 Value copulacdf_gaussian(const Value &U, const Value &R,
                          std::pmr::memory_resource *mr)
 {
-    auto [n, d] = check_U(U, 2, "copulacdf");
-    const double rho = extract_rho_2x2(R, "copulacdf");
+    const std::size_t d = check_R_dim(R, "copulacdf");
+    auto [n, dU] = check_U(U, d, "copulacdf");
     auto out = make_out(n, mr);
     if (n == 0) return out;
     double *od = out.doubleDataMut();
-    for (std::size_t i = 0; i < n; ++i) {
-        const double u1 = U_at(U, i, 0, n);
-        const double u2 = U_at(U, i, 1, n);
-        const double z1 = phi_inv(u1, mr);
-        const double z2 = phi_inv(u2, mr);
-        od[i] = bivnormcdf(z1, z2, rho);
+
+    if (d == 2) {
+        // Fast bivariate path (Drezner-Wesolowsky).
+        const double rho = extract_rho_2x2(R, "copulacdf");
+        for (std::size_t i = 0; i < n; ++i) {
+            const double z1 = phi_inv(U_at(U, i, 0, n), mr);
+            const double z2 = phi_inv(U_at(U, i, 1, n), mr);
+            od[i] = bivnormcdf(z1, z2, rho);
+        }
+        return out;
     }
+
+    // d ≥ 3: build Z = norminv(U) row-by-row and call mvncdf via
+    // existing engine API. Build X as n × d.
+    Value Xz = Value::matrix(n, d, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < n; ++i)
+        for (std::size_t j = 0; j < d; ++j)
+            Xz.doubleDataMut()[j * n + i] = phi_inv(U_at(U, i, j, n), mr);
+    // mvncdf(X, mu=zeros, Sigma=R). Call typed API.
+    Value mu0 = Value::matrix(1, d, ValueType::DOUBLE, mr);
+    for (std::size_t j = 0; j < d; ++j) mu0.doubleDataMut()[j] = 0.0;
+    Value Pv = mvncdf(Xz, mu0, R, mr);
+    for (std::size_t i = 0; i < n; ++i) od[i] = Pv.elemAsDouble(i);
     return out;
 }
 
@@ -240,39 +319,52 @@ Value copulacdf_gaussian(const Value &U, const Value &R,
 Value copulapdf_t(const Value &U, const Value &R, double nu,
                   std::pmr::memory_resource *mr)
 {
-    auto [n, d] = check_U(U, 2, "copulapdf");
-    const double rho = extract_rho_2x2(R, "copulapdf");
+    const std::size_t d = check_R_dim(R, "copulapdf");
+    auto [n, dU] = check_U(U, d, "copulapdf");
     if (!(nu > 0.0))
         throw Error("copulapdf: nu must be positive",
                     0, 0, "copulapdf", "", "m:copulapdf:badNu");
     auto out = make_out(n, mr);
     if (n == 0) return out;
-    const double det_R = 1.0 - rho * rho;
-    // Bivariate t pdf prefactor and marginal t pdf prefactor.
-    const double log_norm_biv = std::lgamma(0.5 * (nu + 2.0))
-                              - std::lgamma(0.5 * nu)
-                              - std::log(nu * M_PI)
-                              - 0.5 * std::log(det_R);
+
+    // Multivariate t pdf:
+    //   f(z; R, ν) = Γ((ν+d)/2) / [Γ(ν/2) · (νπ)^{d/2} · √det R]
+    //              · (1 + z'R^{-1}z/ν)^{-(ν+d)/2}
+    // Marginal t pdf:
+    //   f(z_j; ν) = Γ((ν+1)/2) / [Γ(ν/2) · √(νπ)] · (1 + z_j²/ν)^{-(ν+1)/2}
+    // log c(u; R, ν) = log f_d(z; R, ν) - Σ log f_1(z_j; ν)
+
+    std::vector<double> L(d * d);
+    for (std::size_t i = 0; i < d; ++i)
+        for (std::size_t j = 0; j < d; ++j)
+            L[i * d + j] = R.elemAsDouble(j * d + i);
+    const double det_R = chol_lower_inplace(L.data(), d, "copulapdf");
+
+    const double dD = static_cast<double>(d);
+    const double log_norm_mv = std::lgamma(0.5 * (nu + dD))
+                             - std::lgamma(0.5 * nu)
+                             - 0.5 * dD * std::log(nu * M_PI)
+                             - 0.5 * std::log(det_R);
     const double log_norm_uni = std::lgamma(0.5 * (nu + 1.0))
                               - std::lgamma(0.5 * nu)
                               - 0.5 * std::log(nu * M_PI);
+
     double *od = out.doubleDataMut();
+    std::vector<double> z(d), y(d);
     for (std::size_t i = 0; i < n; ++i) {
-        const double u1 = U_at(U, i, 0, n);
-        const double u2 = U_at(U, i, 1, n);
-        const double z1 = t_inv(u1, nu, mr);
-        const double z2 = t_inv(u2, nu, mr);
-        // log f_biv(z; ρ, ν) = log_norm_biv − (ν+2)/2 · log(1 + Q/ν)
-        // where Q = (z1² − 2ρ z1 z2 + z2²)/(1−ρ²).
-        const double Q = (z1 * z1 - 2.0 * rho * z1 * z2 + z2 * z2) / det_R;
-        const double log_biv = log_norm_biv
-                             - 0.5 * (nu + 2.0) * std::log1p(Q / nu);
-        // log f_uni(z) = log_norm_uni − (ν+1)/2 · log(1 + z²/ν).
-        const double log_uni1 = log_norm_uni
-                              - 0.5 * (nu + 1.0) * std::log1p(z1 * z1 / nu);
-        const double log_uni2 = log_norm_uni
-                              - 0.5 * (nu + 1.0) * std::log1p(z2 * z2 / nu);
-        od[i] = std::exp(log_biv - log_uni1 - log_uni2);
+        for (std::size_t j = 0; j < d; ++j)
+            z[j] = t_inv(U_at(U, i, j, n), nu, mr);
+        y = z;
+        chol_lower_solve(L.data(), y.data(), d);
+        double yty = 0.0;
+        for (std::size_t j = 0; j < d; ++j) yty += y[j] * y[j];
+        const double log_mv = log_norm_mv
+                            - 0.5 * (nu + dD) * std::log1p(yty / nu);
+        double log_unis = 0.0;
+        for (std::size_t j = 0; j < d; ++j)
+            log_unis += log_norm_uni
+                      - 0.5 * (nu + 1.0) * std::log1p(z[j] * z[j] / nu);
+        od[i] = std::exp(log_mv - log_unis);
     }
     return out;
 }
@@ -280,21 +372,31 @@ Value copulapdf_t(const Value &U, const Value &R, double nu,
 Value copulacdf_t(const Value &U, const Value &R, double nu,
                   std::pmr::memory_resource *mr)
 {
-    auto [n, d] = check_U(U, 2, "copulacdf");
-    const double rho = extract_rho_2x2(R, "copulacdf");
+    const std::size_t d = check_R_dim(R, "copulacdf");
+    auto [n, dU] = check_U(U, d, "copulacdf");
     if (!(nu > 0.0))
         throw Error("copulacdf: nu must be positive",
                     0, 0, "copulacdf", "", "m:copulacdf:badNu");
     auto out = make_out(n, mr);
     if (n == 0) return out;
     double *od = out.doubleDataMut();
-    for (std::size_t i = 0; i < n; ++i) {
-        const double u1 = U_at(U, i, 0, n);
-        const double u2 = U_at(U, i, 1, n);
-        const double z1 = t_inv(u1, nu, mr);
-        const double z2 = t_inv(u2, nu, mr);
-        od[i] = bivtcdf(z1, z2, rho, nu);
+    if (d == 2) {
+        // Fast bivariate path.
+        const double rho = extract_rho_2x2(R, "copulacdf");
+        for (std::size_t i = 0; i < n; ++i) {
+            const double z1 = t_inv(U_at(U, i, 0, n), nu, mr);
+            const double z2 = t_inv(U_at(U, i, 1, n), nu, mr);
+            od[i] = bivtcdf(z1, z2, rho, nu);
+        }
+        return out;
     }
+    // d ≥ 3: stack Z = tinv(U) and call mvtcdf.
+    Value Xz = Value::matrix(n, d, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < n; ++i)
+        for (std::size_t j = 0; j < d; ++j)
+            Xz.doubleDataMut()[j * n + i] = t_inv(U_at(U, i, j, n), nu, mr);
+    Value Pv = mvtcdf(Xz, R, nu, 0.005, mr);
+    for (std::size_t i = 0; i < n; ++i) od[i] = Pv.elemAsDouble(i);
     return out;
 }
 
