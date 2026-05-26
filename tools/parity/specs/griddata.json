@@ -1,0 +1,14 @@
+{
+  "name": "griddata",
+  "namespace": "interp",
+  "setup": "x = [1 2 3 4 5]; y = [1 2 3 4 5]; v = [1 4 9 16 25]; xq = 2.5; yq = 2.5;",
+  "expr": "vq = griddata(x, y, v, xq, yq); [Xq, Yq] = meshgrid(2:0.5:4, 2:0.5:4); Vq = griddata(x, y, v, Xq, Yq);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "vq",
+    "Vq(1,1)", "Vq(3,3)", "Vq(end,end)",
+    "size(Vq, 1)", "size(Vq, 2)"
+  ],
+  "comment": "Sig: vq = griddata(x, y, v, xq, yq) — scattered-data interpolation onto a 2-D grid (default linear, via Delaunay triangulation). Scalar query + meshgrid query. Bit-comparable (1e-9 tol) with MATLAB R2025b on collinear input — points lie on y=x line, vq is interp on the line. Method argument ('linear'/'cubic'/'nearest'/'natural'/'v4') and 3-D form deferred."
+}
