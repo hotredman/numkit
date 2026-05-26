@@ -192,12 +192,12 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `ans` | ✅ | 0.003 | 22.95× | 5.71× | OK | Sig: ans(...). Spec-extension batch 2026-05-09. |
-| `clc` | ✅ | 0.017 | 29.52× | 29.94× | OK | Sig: clc — clear command window. Spec-extension batch 2026-05-09 (cycle 41). |
+| `ans` | ✅ | 0.000 | 129.46× |  | OK | Sig: ans(...). Spec-extension batch 2026-05-09. |
+| `clc` | ✅ | 0.002 | 51.78× |  | OK | Sig: clc — clear command window. Spec-extension batch 2026-05-09 (cycle 41). |
 | `commandhistory` | ❌ |  |  |  |  | IDE-only |
 | `commandwindow` | ❌ |  |  |  |  | IDE-only |
 | `diary` | ❌ |  |  |  |  | session log |
-| `format` | ✅ | 0.017 | 28.08× | 34.13× | OK | Sig: format <style>. Display-only side effect. Spec-extension batch 2026-05-09 (cycle 41). |
+| `format` | ✅ | 0.002 |  |  | N/A | Sig: format <style>. Display-only side effect. Spec-extension batch 2026-05-09 (cycle 41). |
 | `home` | ✅ | 0.015 | 40.89× | 26.35× | OK | Sig: home — move cursor home in command window. Spec-extension batch 2026-05-09 (cycle 41). |
 | `iskeyword` | ✅ | 0.004 | 61.39× | 2.81× | OK | Sig: r = iskeyword(...). Spec-extension batch 2026-05-09. |
 | `more` | ❌ |  |  |  |  | pager |
@@ -208,20 +208,20 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `blkdiag` | ✅ | 0.006 | 164.09× | 25.78× | OK | Sig: r = blkdiag(...). Spec-extension batch 2026-05-09. |
-| `cat` | ✅ | 0.005 | 27.22× | 27.64× | OK | Sig: r = cat(...). Shape op. Spec-extension batch 2026-05-09. |
-| `circshift` | ✅ | 0.004 | 63.17× | 24.66× | OK | Sig: r = circshift(...). Shape op. Spec-extension batch 2026-05-09. |
+| `blkdiag` | ✅ | 0.003 | 352.07× |  | OK | Sig: r = blkdiag(...). Spec-extension batch 2026-05-09. |
+| `cat` | ✅ | 0.001 | 37.85× |  | OK | Sig: r = cat(...). Shape op. Spec-extension batch 2026-05-09. |
+| `circshift` | ✅ | 0.001 | 71.00× |  | OK | Sig: r = circshift(...). Shape op. Spec-extension batch 2026-05-09. |
 | `colon` | ⚠️ |  |  |  |  | works as `:` (range) operator; not callable as named fn |
 | `combinations` | ❌ |  |  |  |  | all combinations |
-| `ctranspose` | ✅ | 0.006 | 33.05× | 5.67× | OK | Sig: r = ctranspose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
-| `diag` | ✅ | 0.003 | 33.41× | 21.29× | OK | Sig: r = diag(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `end` | ✅ | 0.002 | 45.40× | 14.79× | OK | Sig: end — last index in subscript context, also closes block constructs. Spec-extension batch 2026-05-09 (cycle 41). |
-| `eye` | ✅ | 0.006 | 30.64× | 10.07× | OK | Sig: r = eye(...). Spec-extension batch 2026-05-09. |
-| `false` | ✅ | 0.004 |  | 10.64× | OK | Sig: r = false(...). Spec-extension batch 2026-05-09. |
-| `flip` | ✅ | 0.004 | 31.23× | 28.96× | OK | Sig: r = flip(...). Shape op. Spec-extension batch 2026-05-09. |
-| `fliplr` | ✅ | 0.004 | 47.08× | 12.41× | OK | Sig: r = fliplr(...). Shape op. Spec-extension batch 2026-05-09. |
-| `flipud` | ✅ | 0.004 | 38.89× | 24.00× | OK | Sig: r = flipud(...). Shape op. Spec-extension batch 2026-05-09. |
-| `freqspace` | ✅ | 0.003 | 68.71× |  | OK | Sig: f = freqspace(N). KNOWN GAP: numkit returns shorter vector than MATLAB for freqspace(8) — different size convention. Only structural numel pinned. Documented as separate ТЗ. |
+| `ctranspose` | ✅ | 0.002 | 34.78× |  | OK | Sig: r = ctranspose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
+| `diag` | ✅ | 0.001 | 34.89× |  | OK | Sig: r = diag(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `end` | ✅ | 0.001 | 42.03× |  | OK | Sig: end — last index in subscript context, also closes block constructs. Spec-extension batch 2026-05-09 (cycle 41). |
+| `eye` | ✅ | 0.002 |  |  | N/A | Sig: r = eye(...). Spec-extension batch 2026-05-09. |
+| `false` | ✅ | 0.003 |  |  | N/A | Sig: r = false(...). Spec-extension batch 2026-05-09. |
+| `flip` | ✅ | 0.001 |  |  | N/A | Sig: r = flip(...). Shape op. Spec-extension batch 2026-05-09. |
+| `fliplr` | ✅ | 0.001 |  |  | N/A | Sig: r = fliplr(...). Shape op. Spec-extension batch 2026-05-09. |
+| `flipud` | ✅ | 0.001 |  |  | N/A | Sig: r = flipud(...). Shape op. Spec-extension batch 2026-05-09. |
+| `freqspace` | ✅ | 0.002 |  |  | N/A | Sig: f = freqspace(N). KNOWN GAP: numkit returns shorter vector than MATLAB for freqspace(8) — different size convention. Only structural numel pinned. Documented as separate ТЗ. |
 | `head` | ✅ | 0.000 | 133.94× |  | OK | Sig: Y = head(X, K). First 100 elements. 10000 iters. |
 | `horzcat` | ✅ | 0.004 | 32.62× | 39.86× | OK | Sig: r = horzcat(...). Shape op. Spec-extension batch 2026-05-09. |
 | `ind2sub` | ✅ | 0.004 | 80.45× | 5.06× | OK | Sig: r = ind2sub(...). Spec-extension batch 2026-05-09. |
@@ -270,10 +270,10 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `break` | ✅ | 0.003 | 49.39× | 51.26× | OK | Sig: break — exits innermost for/while loop. Spec-extension batch 2026-05-09 (cycle 41). |
-| `continue` | ✅ | 0.003 | 52.19× | 58.62× | OK | Sig: continue — skips to next iteration of innermost loop. Spec-extension batch 2026-05-09 (cycle 41). |
-| `end` | ✅ | 0.002 | 45.40× | 14.79× | OK | Sig: end — last index in subscript context, also closes block constructs. Spec-extension batch 2026-05-09 (cycle 41). |
-| `for` | ✅ | 0.003 | 40.32× | 69.65× | OK | Sig: for var = expr, body, end. Spec-extension batch 2026-05-09 (cycle 41). |
+| `break` | ✅ | 0.001 | 63.67× |  | OK | Sig: break — exits innermost for/while loop. Spec-extension batch 2026-05-09 (cycle 41). |
+| `continue` | ✅ | 0.001 | 67.48× |  | OK | Sig: continue — skips to next iteration of innermost loop. Spec-extension batch 2026-05-09 (cycle 41). |
+| `end` | ✅ | 0.001 | 42.03× |  | OK | Sig: end — last index in subscript context, also closes block constructs. Spec-extension batch 2026-05-09 (cycle 41). |
+| `for` | ✅ | 0.001 |  |  | N/A | Sig: for var = expr, body, end. Spec-extension batch 2026-05-09 (cycle 41). |
 | `if` | ✅ | 0.003 | 37.39× | 48.72× | OK | Sig: if cond, body, [elseif cond, body,] [else body,] end. Spec-extension batch 2026-05-09 (cycle 41). |
 | `parfor` | ❌ |  |  |  |  | parallel — out of scope |
 | `pause` | ✅ | 0.000 | 572.10× | 38.50× | OK | Sig: pause(N). N=0 (no-op). 100k iters. |
@@ -288,12 +288,12 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `allfinite` | ✅ | 0.005 | 30.26× |  | OK | Sig: r = allfinite(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `anynan` | ✅ | 0.004 | 30.55× |  | OK | Sig: r = anynan(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `cast` | ✅ | 0.004 | 39.24× | 36.59× | OK | Sig: r = cast(...). Spec-extension batch 2026-05-09. |
-| `double` | ✅ | 0.004 | 63.28× | 40.71× | OK | Sig: r = double(...). Type conversion. Spec-extension batch 2026-05-09. KNOWN GAP: numkit rejects double("string") with error; MATLAB returns NaN, Octave returns ASCII codes — both differ from numkit. String→double documented as separate gap; only int/logical/numeric paths pinned here. |
+| `allfinite` | ✅ | 0.004 | 15.66× |  | OK | Sig: r = allfinite(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `anynan` | ✅ | 0.003 | 17.68× |  | OK | Sig: r = anynan(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `cast` | ✅ | 0.003 | 19.29× |  | OK | Sig: r = cast(...). Spec-extension batch 2026-05-09. |
+| `double` | ✅ | 0.003 | 11.60× |  | OK | Sig: r = double(...). Type conversion. Spec-extension batch 2026-05-09. KNOWN GAP: numkit rejects double("string") with error; MATLAB returns NaN, Octave returns ASCII codes — both differ from numkit. String→double documented as separate gap; only int/logical/numeric paths pinned here. |
 | `eps` | ✅ | 0.003 | 31.96× | 20.85× | OK | Sig: r = eps([x]). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on scalar-1 input. KNOWN GAPS (separate ТЗ): eps() with no args returns empty (should return eps(1)); eps(fractional) is parser-confused as indexing; eps(vector) segfaults. Pinned only the working scalar path here. |
-| `flintmax` | ✅ | 0.004 | 32.19× | 4.64× | OK | Sig: r = flintmax(...). Spec-extension batch 2026-05-09. |
+| `flintmax` | ✅ | 0.001 |  |  | N/A | Sig: r = flintmax(...). Spec-extension batch 2026-05-09. |
 | `inf` | ✅ | 0.003 | 37.86× | 17.10× | OK | Sig: inf(...). Spec-extension batch 2026-05-09. |
 | `int16` | ✅ | 0.004 | 30.99× | 19.68× | OK | Sig: r = int16(...). Type conversion. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `int32` | ✅ | 0.004 | 31.40× | 47.14× | OK | Sig: r = int32(...). Type conversion. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
@@ -324,25 +324,25 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `append` | ✅ | 0.005 | 34.81× |  | OK | Sig: r = append(...). Spec-extension batch 2026-05-09. |
-| `blanks` | ✅ | 0.003 | 55.42× |  | OK | Sig: r = blanks(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `cellstr` | ✅ | 0.005 | 37.20× | 28.39× | OK | Sig: r = cellstr(...). Spec-extension batch 2026-05-09. |
-| `char` | ✅ | 0.004 | 35.71× | 34.91× | OK | Sig: r = char(...). Type conversion. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `compose` | ✅ | 0.005 | 31.59× |  | OK | Sig: r = compose(...). Spec-extension batch 2026-05-09. |
-| `contains` | ✅ | 0.005 | 33.67× |  | OK | Sig: r = contains(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `convertcharstostrings` | ✅ | 0.004 | 35.24× | 24.95× | OK | Sig: r = convertcharstostrings(...). Spec-extension batch 2026-05-09. |
-| `convertcontainedstringstochars` | ✅ | 0.004 | 47.63× |  | OK | Sig: r = convertcontainedstringstochars(...). Spec-extension batch 2026-05-09. |
-| `convertstringstochars` | ✅ | 0.004 | 39.05× | 18.00× | OK | Sig: r = convertstringstochars(...). Spec-extension batch 2026-05-09. |
-| `count` | ✅ | 0.007 | 155.06× |  | OK | Sig: r = count(...). Spec-extension batch 2026-05-09. |
-| `deblank` | ✅ | 0.005 | 40.42× |  | OK | Sig: r = deblank(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. FP uses double(strcmp(...)) booleans because the harness compares numerics. |
-| `double` | ✅ | 0.004 | 63.28× | 40.71× | OK | Sig: r = double(...). Type conversion. Spec-extension batch 2026-05-09. KNOWN GAP: numkit rejects double("string") with error; MATLAB returns NaN, Octave returns ASCII codes — both differ from numkit. String→double documented as separate gap; only int/logical/numeric paths pinned here. |
-| `endsWith` | ✅ | 0.005 | 29.28× | 94.11× | OK | Sig: r = endsWith(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `erase` | ✅ | 0.005 | 34.09× | 27.26× | OK | Sig: r = erase(...). Spec-extension batch 2026-05-09. |
-| `erasebetween` | ✅ | 0.004 | 45.74× |  | OK | Sig: position-based string op (MATLAB canonical: eraseBetween). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
-| `extract` | ✅ | 0.004 | 35.70× |  | OK | Sig: r = extract(...). Spec-extension batch 2026-05-09. |
-| `extractafter` | ✅ | 0.004 | 36.04× |  | OK | Sig: position-based string op (MATLAB canonical: extractAfter). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
-| `extractbefore` | ✅ | 0.004 | 35.32× |  | OK | Sig: position-based string op (MATLAB canonical: extractBefore). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
-| `extractbetween` | ✅ | 0.004 | 30.22× |  | OK | Sig: position-based string op (MATLAB canonical: extractBetween). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
+| `append` | ✅ | 0.003 | 21.27× |  | OK | Sig: r = append(...). Spec-extension batch 2026-05-09. |
+| `blanks` | ✅ | 0.002 | 60.10× |  | OK | Sig: r = blanks(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `cellstr` | ✅ | 0.003 | 17.35× |  | OK | Sig: r = cellstr(...). Spec-extension batch 2026-05-09. |
+| `char` | ✅ | 0.002 | 15.67× |  | OK | Sig: r = char(...). Type conversion. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `compose` | ✅ | 0.003 | 25.68× |  | OK | Sig: r = compose(...). Spec-extension batch 2026-05-09. |
+| `contains` | ✅ | 0.002 | 52.60× |  | OK | Sig: r = contains(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `convertcharstostrings` | ✅ | 0.002 | 24.25× |  | OK | Sig: r = convertcharstostrings(...). Spec-extension batch 2026-05-09. |
+| `convertcontainedstringstochars` | ✅ | 0.004 | 19.98× |  | OK | Sig: r = convertcontainedstringstochars(...). Spec-extension batch 2026-05-09. |
+| `convertstringstochars` | ✅ | 0.002 | 25.53× |  | OK | Sig: r = convertstringstochars(...). Spec-extension batch 2026-05-09. |
+| `count` | ✅ | 0.001 | 41.94× |  | OK | Sig: r = count(...). Spec-extension batch 2026-05-09. |
+| `deblank` | ✅ | 0.006 | 14.30× |  | OK | Sig: r = deblank(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. FP uses double(strcmp(...)) booleans because the harness compares numerics. |
+| `double` | ✅ | 0.003 | 11.60× |  | OK | Sig: r = double(...). Type conversion. Spec-extension batch 2026-05-09. KNOWN GAP: numkit rejects double("string") with error; MATLAB returns NaN, Octave returns ASCII codes — both differ from numkit. String→double documented as separate gap; only int/logical/numeric paths pinned here. |
+| `endsWith` | ✅ | 0.002 | 38.13× |  | OK | Sig: r = endsWith(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `erase` | ✅ | 0.004 | 14.18× |  | OK | Sig: r = erase(...). Spec-extension batch 2026-05-09. |
+| `erasebetween` | ✅ | 0.003 | 17.80× |  | OK | Sig: position-based string op (MATLAB canonical: eraseBetween). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
+| `extract` | ✅ | 0.002 |  |  | N/A | Sig: r = extract(...). Spec-extension batch 2026-05-09. |
+| `extractafter` | ✅ | 0.002 |  |  | N/A | Sig: position-based string op (MATLAB canonical: extractAfter). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
+| `extractbefore` | ✅ | 0.002 |  |  | N/A | Sig: position-based string op (MATLAB canonical: extractBefore). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
+| `extractbetween` | ✅ | 0.002 |  |  | N/A | Sig: position-based string op (MATLAB canonical: extractBetween). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
 | `insertafter` | ✅ | 0.004 | 32.50× |  | OK | Sig: position-based string op (MATLAB canonical: insertAfter). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
 | `insertbefore` | ✅ | 0.004 | 31.66× |  | OK | Sig: position-based string op (MATLAB canonical: insertBefore). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
 | `iscellstr` | ✅ | 0.004 | 43.78× | 39.07× | OK | Sig: r = iscellstr(...). Spec-extension batch 2026-05-09. |
@@ -396,9 +396,9 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `arrayfun` | ✅ | 0.004 | 43.43× | 30.22× | OK | Sig: r = arrayfun(fn, x). Spec-extension batch 2026-05-09. KNOWN GAP: numkit's arrayfun does NOT apply the function — returns input unchanged for both lambda (@(x) x*2) and named functions (@sin). Real bug, separate ТЗ. Only structural shape pinned here (numel preserved). |
-| `cell2struct` | ✅ | 0.005 | 25.72× | 5.63× | OK | Sig: r = cell2struct(...). Spec-extension batch 2026-05-09. |
-| `fieldnames` | ✅ | 0.006 | 34.45× | 20.46× | OK | Sig: r = fieldnames(...). Spec-extension batch 2026-05-09. |
+| `arrayfun` | ✅ | 0.002 | 29.08× |  | OK | Sig: r = arrayfun(fn, x). Spec-extension batch 2026-05-09. KNOWN GAP: numkit's arrayfun does NOT apply the function — returns input unchanged for both lambda (@(x) x*2) and named functions (@sin). Real bug, separate ТЗ. Only structural shape pinned here (numel preserved). |
+| `cell2struct` | ✅ | 0.002 | 23.65× |  | OK | Sig: r = cell2struct(...). Spec-extension batch 2026-05-09. |
+| `fieldnames` | ✅ | 0.005 |  |  | N/A | Sig: r = fieldnames(...). Spec-extension batch 2026-05-09. |
 | `getfield` | ✅ | 0.003 | 83.91× | 10.29× | OK | Sig: r = getfield(...). Spec-extension batch 2026-05-09. |
 | `isfield` | ✅ | 0.005 | 29.36× | 36.85× | OK | Sig: r = isfield(...). Spec-extension batch 2026-05-09. |
 | `isstruct` | ✅ | 0.005 | 32.06× | 18.78× | OK | Sig: r = isstruct(...). Predicate. Spec-extension batch 2026-05-09. |
@@ -417,14 +417,14 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `cell` | ✅ | 0.005 | 35.02× | 22.12× | OK | Sig: r = cell(...). Spec-extension batch 2026-05-09. |
-| `cell2mat` | ✅ | 0.005 | 116.04× | 19.63× | OK | Sig: r = cell2mat(...). Spec-extension batch 2026-05-09. |
-| `cell2struct` | ✅ | 0.005 | 25.72× | 5.63× | OK | Sig: r = cell2struct(...). Spec-extension batch 2026-05-09. |
+| `cell` | ✅ | 0.003 | 23.60× |  | OK | Sig: r = cell(...). Spec-extension batch 2026-05-09. |
+| `cell2mat` | ✅ | 0.002 | 244.13× |  | OK | Sig: r = cell2mat(...). Spec-extension batch 2026-05-09. |
+| `cell2struct` | ✅ | 0.002 | 23.65× |  | OK | Sig: r = cell2struct(...). Spec-extension batch 2026-05-09. |
 | `cell2table` | ❌ |  |  |  |  |  |
-| `celldisp` | ✅ | 0.015 | 234.86× | 36.63× | OK | Sig: celldisp(c). Display cell array contents (output goes to stdout). Side-effect-only function -- spec just verifies it runs without error. Output format matches MATLAB R2025b qualitatively. |
-| `cellfun` | ✅ | 0.006 | 37.44× | 25.86× | OK | Sig: r = cellfun(...). Spec-extension batch 2026-05-09. |
+| `celldisp` | ✅ | 0.005 | 494.14× |  | OK | Sig: celldisp(c). Display cell array contents (output goes to stdout). Side-effect-only function -- spec just verifies it runs without error. Output format matches MATLAB R2025b qualitatively. |
+| `cellfun` | ✅ | 0.004 | 19.64× |  | OK | Sig: r = cellfun(...). Spec-extension batch 2026-05-09. |
 | `cellplot` | ❌ |  |  |  |  |  |
-| `cellstr` | ✅ | 0.005 | 37.20× | 28.39× | OK | Sig: r = cellstr(...). Spec-extension batch 2026-05-09. |
+| `cellstr` | ✅ | 0.003 | 17.35× |  | OK | Sig: r = cellstr(...). Spec-extension batch 2026-05-09. |
 | `iscell` | ✅ | 0.004 | 36.79× | 40.90× | OK | Sig: r = iscell(...). Predicate. Spec-extension batch 2026-05-09. |
 | `iscellstr` | ✅ | 0.004 | 43.78× | 39.07× | OK | Sig: r = iscellstr(...). Spec-extension batch 2026-05-09. |
 | `mat2cell` | ✅ | 0.005 | 151.95× | 42.57× | OK | Sig: r = mat2cell(...). Spec-extension batch 2026-05-09. |
@@ -441,7 +441,7 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `feval` | ✅ | 0.003 | 45.00× | 28.73× | OK | Sig: r = feval(...). Spec-extension batch 2026-05-09. |
+| `feval` | ✅ | 0.001 |  |  | N/A | Sig: r = feval(...). Spec-extension batch 2026-05-09. |
 | `func2str` | ✅ | 0.005 | 27.70× |  | OK | Sig: r = func2str(...). Spec-extension batch 2026-05-09. |
 | `function_handle` | ❌ |  |  |  |  | OOP class |
 | `functions` | ✅ | 0.004 | 42.03× | 31.78× | OK | Sig: info = functions(fnHandle). Returns struct with {function, type, file} fields. Bit-identical with MATLAB R2025b on probed handle (3 fields). |
@@ -459,7 +459,7 @@ together.
 | `categories` | ❌ |  |  |  |  |  |
 | `combinations` | ❌ |  |  |  |  | all combinations |
 | `countcats` | ❌ |  |  |  |  |  |
-| `discretize` | ✅ | 0.004 | 128.91× |  | OK | Sig: r = discretize(...). Spec-extension batch 2026-05-09. |
+| `discretize` | ✅ | 0.002 | 154.93× |  | OK | Sig: r = discretize(...). Spec-extension batch 2026-05-09. |
 | `iscategory` | ❌ |  |  |  |  |  |
 | `isordinal` | ❌ |  |  |  |  |  |
 | `isprotected` | ❌ |  |  |  |  |  |
@@ -484,7 +484,7 @@ together.
 | `cell2table` | ❌ |  |  |  |  |  |
 | `computebygroup` | ❌ |  |  |  |  |  |
 | `convertvars` | ❌ |  |  |  |  |  |
-| `fillmissing` | ⚠️ | 0.005 | 605.57× | 115.13× | OK | Sig: y = fillmissing(x, method[, value]). MATLAB-canonical methods: 'previous', 'next', 'constant'. Numkit also supports 'mean'/'median' as convenience (undocumented). Other MATLAB methods deferred. |
+| `fillmissing` | ⚠️ | 0.003 |  |  | N/A | Sig: y = fillmissing(x, method[, value]). MATLAB-canonical methods: 'previous', 'next', 'constant'. Numkit also supports 'mean'/'median' as convenience (undocumented). Other MATLAB methods deferred. |
 | `findgroups` | ❌ |  |  |  |  |  |
 | `groupcounts` | ❌ |  |  |  |  |  |
 | `groupfilter` | ❌ |  |  |  |  |  |
@@ -548,13 +548,13 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bitand` | ✅ | 0.003 | 35.07× | 35.12× | OK | Sig: r = bitand(...). Bitwise integer op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `bitcmp` | ✅ | 0.003 | 31.42× | 25.64× | OK | Sig: r = bitcmp(...). Bitwise integer op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `bitget` | ✅ | 0.004 | 37.19× | 50.27× | OK | Sig: r = bitget(...). Bitwise integer op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on scalar-k inputs. |
-| `bitor` | ✅ | 0.003 | 32.23× | 45.50× | OK | Sig: r = bitor(...). Bitwise integer op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `bitset` | ✅ | 0.003 | 36.36× | 106.04× | OK | Sig: r = bitset(...). Bitwise integer op. Spec-extension batch 2026-05-09. |
-| `bitshift` | ✅ | 0.003 | 28.66× | 6.92× | OK | Sig: r = bitshift(...). Bitwise integer op. Spec-extension batch 2026-05-09. |
-| `bitxor` | ✅ | 0.003 | 40.67× | 24.23× | OK | Sig: r = bitxor(...). Bitwise integer op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `bitand` | ✅ | 0.001 | 41.75× |  | OK | Sig: r = bitand(...). Bitwise integer op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `bitcmp` | ✅ | 0.001 | 38.77× |  | OK | Sig: r = bitcmp(...). Bitwise integer op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `bitget` | ✅ | 0.003 | 35.80× |  | OK | Sig: r = bitget(...). Bitwise integer op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on scalar-k inputs. |
+| `bitor` | ✅ | 0.001 | 39.18× |  | OK | Sig: r = bitor(...). Bitwise integer op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `bitset` | ✅ | 0.001 | 62.66× |  | OK | Sig: r = bitset(...). Bitwise integer op. Spec-extension batch 2026-05-09. |
+| `bitshift` | ✅ | 0.001 | 35.68× |  | OK | Sig: r = bitshift(...). Bitwise integer op. Spec-extension batch 2026-05-09. |
+| `bitxor` | ✅ | 0.001 | 42.40× |  | OK | Sig: r = bitxor(...). Bitwise integer op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `swapbytes` | ✅ | 0.027 | 2.94× | 19.98× | OK | Sig: Y = swapbytes(X). Already has int32 spec; this checks uint16 path. 1000 iters. |
 
 ### Set Operations
@@ -563,7 +563,7 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `allunique` | ✅ | 0.005 | 61.95× |  | OK | Sig: r = allunique(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `allunique` | ✅ | 0.004 | 46.74× |  | OK | Sig: r = allunique(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `innerjoin` | ❌ |  |  |  |  |  |
 | `intersect` | ✅ | 0.005 | 333.24× | 82.01× | OK | Sig: r = intersect(...). Set op. Spec-extension batch 2026-05-09. |
 | `ismember` | ✅ | 0.005 | 121.13× | 50.29× | OK | Sig: r = ismember(...). Set op. Spec-extension batch 2026-05-09. |
@@ -583,14 +583,14 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bsxfun` | ✅ | 2.146 | 0.56× | 1.02× | OK | Sig: D = bsxfun(@op, A, B). Broadcast 1x1k + 1kx1 → 1k×1k. 100 iters. |
-| `ceil` | ✅ | 0.003 | 34.79× | 58.10× | OK | Sig: r = ceil(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `ctranspose` | ✅ | 0.006 | 33.05× | 5.67× | OK | Sig: r = ctranspose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
-| `cumprod` | ✅ | 0.003 | 28.38× | 10.35× | OK | Sig: r = cumprod(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `cumsum` | ✅ | 0.003 | 44.11× | 20.85× | OK | Sig: r = cumsum(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `diff` | ✅ | 0.004 | 32.12× | 7.58× | OK | Sig: r = diff(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `fix` | ✅ | 0.003 | 36.93× | 40.46× | OK | Sig: r = fix(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `floor` | ✅ | 0.003 | 37.25× | 53.24× | OK | Sig: r = floor(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `bsxfun` | ✅ | 2.207 | 0.51× |  | OK | Sig: D = bsxfun(@op, A, B). Broadcast 1x1k + 1kx1 → 1k×1k. 100 iters. |
+| `ceil` | ✅ | 0.000 | 102.29× |  | OK | Sig: r = ceil(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `ctranspose` | ✅ | 0.002 | 34.78× |  | OK | Sig: r = ctranspose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
+| `cumprod` | ✅ | 0.001 | 49.37× |  | OK | Sig: r = cumprod(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `cumsum` | ✅ | 0.001 | 48.03× |  | OK | Sig: r = cumsum(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `diff` | ✅ | 0.001 | 33.97× |  | OK | Sig: r = diff(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `fix` | ✅ | 0.000 |  |  | N/A | Sig: r = fix(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `floor` | ✅ | 0.000 |  |  | N/A | Sig: r = floor(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `idivide` | ✅ | 0.004 | 98.00× | 25.67× | OK | Sig: idivide(...). Spec-extension batch 2026-05-09. |
 | `ldivide` | ✅ | 0.005 | 28.42× | 40.83× | OK | Sig: r = ldivide(...). Arithmetic op. Spec-extension batch 2026-05-09. Fingerprints scalar-only. |
 | `minus` | ✅ | 0.004 | 34.18× | 31.11× | OK | Sig: r = minus(...). Arithmetic op. Spec-extension batch 2026-05-09. Fingerprints scalar-only. |
@@ -601,8 +601,8 @@ together.
 | `mrdivide` | ✅ | 0.007 | 28.95× | 32.85× | OK | Sig: X = mrdivide(A,B) ↔ A/B  ↔ X·B = A. Composes via the standard transpose trick X = (B'\A')'. So uses the same LU/QR primitives as mldivide. matrix/scalar is elementwise. scalar/matrix ERRORS with m:mrdivide:dim per MATLAB R2025b (verified: `2/[1 2; 3 4]` → 'Matrix dimensions must agree'). |
 | `mtimes` | ✅ | 0.006 | 25.52× | 24.13× | OK | Sig: r = mtimes(...). Arithmetic op. Spec-extension batch 2026-05-09. |
 | `pagectranspose` | ✅ | 0.220 | 0.22× | 0.20× | OK | 128x64x8 real-valued — pagectranspose equals pagetranspose. 100 iters. |
-| `pagemldivide` | ❌ |  |  |  |  |  |
-| `pagemrdivide` | ❌ |  |  |  |  |  |
+| `pagemldivide` | ✅ | 0.017 | 57.58× |  | OK | Sig: page-wise wrappers (pageeig, pagesvd, pagepinv, pagenorm, pagemldivide, pagemrdivide, pagelsqminnorm, pageinv). All iterate the corresponding 2-D linalg op per page. Fingerprints pin shapes + a handful of values (we use pageinv = inv per page, pageeig on symmetric input that gives exact eigvals [5 5 5] for one page, etc.). pagelsqminnorm not in fingerprint — it uses pinv which goes through SVD whose sign convention may differ at machine precision. |
+| `pagemrdivide` | ✅ | 0.017 | 57.58× |  | OK | Sig: page-wise wrappers (pageeig, pagesvd, pagepinv, pagenorm, pagemldivide, pagemrdivide, pagelsqminnorm, pageinv). All iterate the corresponding 2-D linalg op per page. Fingerprints pin shapes + a handful of values (we use pageinv = inv per page, pageeig on symmetric input that gives exact eigvals [5 5 5] for one page, etc.). pagelsqminnorm not in fingerprint — it uses pinv which goes through SVD whose sign convention may differ at machine precision. |
 | `pagemtimes` | ✅ | 0.019 | 0.57× |  | OK | Sig: C = pagemtimes(A, B). 20×20×20 batch matmul. 100 iters. |
 | `pagetranspose` | ✅ | 0.081 | 0.45× | 0.63× | OK | 128x64x8 array, page-wise transpose. 100 iters. |
 | `plus` | ✅ | 0.005 | 30.18× | 11.25× | OK | Sig: r = plus(...). Arithmetic op. Spec-extension batch 2026-05-09. Fingerprints scalar-only. |
@@ -624,39 +624,39 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `acos` | ✅ | 0.003 | 36.57× | 16.11× | OK | Sig: y = acos(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
-| `acosd` | ✅ | 0.003 | 32.46× | 31.98× | OK | Sig: y = acosd(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
-| `acosh` | ✅ | 0.003 | 36.41× | 3.07× | OK | Sig: y = acosh(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
-| `acot` | ✅ | 0.003 | 30.72× | 52.94× | OK | Sig: y = acot(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
-| `acotd` | ✅ | 0.003 | 33.49× | 10.60× | OK | Sig: y = acotd(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
-| `acoth` | ✅ | 0.003 | 31.05× | 15.65× | OK | Sig: y = acoth(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
-| `acsc` | ✅ | 0.003 | 29.06× | 56.13× | OK | Sig: y = acsc(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
-| `acscd` | ✅ | 0.003 | 30.28× | 64.14× | OK | Sig: y = acscd(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
-| `acsch` | ✅ | 0.003 | 33.10× | 37.77× | OK | Sig: y = acsch(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
-| `asec` | ✅ | 0.003 | 33.09× | 37.06× | OK | Sig: y = asec(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
-| `asecd` | ✅ | 0.003 | 30.06× | 46.38× | OK | Sig: y = asecd(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
-| `asech` | ✅ | 0.003 | 35.45× | 50.75× | OK | Sig: y = asech(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
-| `asin` | ✅ | 0.003 | 33.43× | 64.85× | OK | Sig: y = asin(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
-| `asind` | ✅ | 0.003 | 43.59× | 4.47× | OK | Sig: y = asind(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
-| `asinh` | ✅ | 0.003 | 46.27× | 66.27× | OK | Sig: y = asinh(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
-| `atan` | ✅ | 0.003 | 36.80× | 19.33× | OK | Sig: y = atan(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
-| `atan2` | ✅ | 0.003 | 34.32× | 28.67× | OK | Sig: r = atan2(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `atan2d` | ✅ | 0.003 | 33.87× | 26.35× | OK | Sig: r = atan2d(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `atand` | ✅ | 0.003 | 38.74× | 50.69× | OK | Sig: y = atand(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
-| `atanh` | ✅ | 0.003 | 33.62× | 53.96× | OK | Sig: y = atanh(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
-| `cart2pol` | ✅ | 0.006 | 44.45× | 38.88× | OK | Sig: r = cart2pol(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `cart2sph` | ✅ | 0.006 | 41.49× | 26.14× | OK | Sig: r = cart2sph(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `cos` | ✅ | 0.003 | 45.03× | 2.28× | OK | Sig: y = cos(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `cosd` | ✅ | 0.003 | 44.43× | 49.71× | OK | Sig: y = cosd(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `cosh` | ✅ | 0.003 | 42.13× | 24.69× | OK | Sig: y = cosh(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `cospi` | ✅ | 0.003 | 34.73× | 55.58× | OK | Sig: r = cospi(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `cot` | ✅ | 0.003 | 36.20× | 60.41× | OK | Sig: y = cot(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `cotd` | ✅ | 0.003 | 37.81× | 39.33× | OK | Sig: y = cotd(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `coth` | ✅ | 0.003 | 39.58× | 30.06× | OK | Sig: y = coth(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `csc` | ✅ | 0.003 | 40.41× | 74.08× | OK | Sig: y = csc(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `cscd` | ✅ | 0.003 | 51.26× | 43.68× | OK | Sig: y = cscd(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `csch` | ✅ | 0.003 | 59.68× | 38.85× | OK | Sig: y = csch(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `deg2rad` | ✅ | 0.003 | 52.99× | 35.06× | OK | Sig: r = deg2rad(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `acos` | ✅ | 0.001 | 56.70× |  | OK | Sig: y = acos(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
+| `acosd` | ✅ | 0.001 | 43.08× |  | OK | Sig: y = acosd(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
+| `acosh` | ✅ | 0.001 | 52.00× |  | OK | Sig: y = acosh(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
+| `acot` | ✅ | 0.001 | 48.50× |  | OK | Sig: y = acot(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
+| `acotd` | ✅ | 0.001 | 58.97× |  | OK | Sig: y = acotd(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
+| `acoth` | ✅ | 0.001 | 42.03× |  | OK | Sig: y = acoth(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
+| `acsc` | ✅ | 0.001 | 54.85× |  | OK | Sig: y = acsc(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
+| `acscd` | ✅ | 0.001 | 42.76× |  | OK | Sig: y = acscd(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
+| `acsch` | ✅ | 0.001 | 53.09× |  | OK | Sig: y = acsch(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: "no major gap detected" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences). |
+| `asec` | ✅ | 0.001 | 54.24× |  | OK | Sig: y = asec(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
+| `asecd` | ✅ | 0.001 | 42.68× |  | OK | Sig: y = asecd(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
+| `asech` | ✅ | 0.001 | 45.06× |  | OK | Sig: y = asech(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
+| `asin` | ✅ | 0.001 | 58.58× |  | OK | Sig: y = asin(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
+| `asind` | ✅ | 0.001 | 57.41× |  | OK | Sig: y = asind(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
+| `asinh` | ✅ | 0.001 | 46.86× |  | OK | Sig: y = asinh(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
+| `atan` | ✅ | 0.001 | 52.47× |  | OK | Sig: y = atan(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
+| `atan2` | ✅ | 0.000 | 132.33× |  | OK | Sig: r = atan2(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `atan2d` | ✅ | 0.001 | 56.39× |  | OK | Sig: r = atan2d(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `atand` | ✅ | 0.001 | 54.82× |  | OK | Sig: y = atand(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
+| `atanh` | ✅ | 0.001 | 61.63× |  | OK | Sig: y = atanh(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b on domain edges. |
+| `cart2pol` | ✅ | 0.001 | 147.25× |  | OK | Sig: r = cart2pol(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `cart2sph` | ✅ | 0.001 | 111.13× |  | OK | Sig: r = cart2sph(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `cos` | ✅ | 0.000 | 114.50× |  | OK | Sig: y = cos(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `cosd` | ✅ | 0.001 | 46.71× |  | OK | Sig: y = cosd(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `cosh` | ✅ | 0.001 | 42.65× |  | OK | Sig: y = cosh(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `cospi` | ✅ | 0.001 | 39.72× |  | OK | Sig: r = cospi(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `cot` | ✅ | 0.001 | 48.44× |  | OK | Sig: y = cot(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `cotd` | ✅ | 0.001 | 50.29× |  | OK | Sig: y = cotd(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `coth` | ✅ | 0.001 | 41.19× |  | OK | Sig: y = coth(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `csc` | ✅ | 0.001 | 60.10× |  | OK | Sig: y = csc(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `cscd` | ✅ | 0.001 | 47.71× |  | OK | Sig: y = cscd(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `csch` | ✅ | 0.001 | 43.03× |  | OK | Sig: y = csch(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `deg2rad` | ✅ | 0.001 | 108.32× |  | OK | Sig: r = deg2rad(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `hypot` | ✅ | 0.003 | 35.90× | 6.22× | OK | Sig: r = hypot(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `pol2cart` | ✅ | 0.004 | 58.19× | 46.39× | OK | Sig: r = pol2cart(...). Spec-extension batch 2026-05-09. |
 | `rad2deg` | ✅ | 0.003 | 56.15× | 58.95× | OK | Sig: r = rad2deg(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
@@ -678,8 +678,8 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `exp` | ✅ | 0.003 | 39.73× | 63.28× | OK | Sig: r = exp(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `expm1` | ✅ | 0.003 | 34.68× | 62.01× | OK | Sig: r = expm1(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `exp` | ✅ | 0.000 |  |  | N/A | Sig: r = exp(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `expm1` | ✅ | 0.001 |  |  | N/A | Sig: r = expm1(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `log` | ✅ | 0.003 | 32.34× | 35.91× | OK | Sig: r = log(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `log10` | ✅ | 0.003 | 34.08× | 68.52× | OK | Sig: r = log10(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `log1p` | ✅ | 0.003 | 45.85× | 64.37× | OK | Sig: r = log1p(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
@@ -698,24 +698,24 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `airy` | ✅ | 0.005 | 19.77× | 5.14× | OK | Sig: r = airy(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `besselh` | ✅ | 0.003 | 42.38× | 10.94× | OK | Sig: r = besselh(...). Bessel function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `besseli` | ✅ | 0.003 | 32.69× | 5.78× | OK | Sig: r = besseli(...). Bessel function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `besselj` | ✅ | 0.003 | 33.03× | 55.23× | OK | Sig: r = besselj(...). Bessel function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `besselk` | ✅ | 0.003 | 34.28× | 23.49× | OK | Sig: r = besselk(...). Bessel function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `bessely` | ✅ | 0.003 | 32.77× | 37.74× | OK | Sig: r = bessely(...). Bessel function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `beta` | ✅ | 0.004 | 81.54× | 15.90× | OK | Sig: r = beta(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `betainc` | ✅ | 0.004 | 26.23× | 50.55× | OK | Sig: r = betainc(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `betaincinv` | ✅ | 0.006 | 17.82× | 422.13× | OK | Sig: r = betaincinv(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `betaln` | ✅ | 0.003 | 53.84× | 60.17× | OK | Sig: r = betaln(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `ellipj` | ✅ | 0.005 | 228.55× | 12.13× | OK | Sig: r = ellipj(...). Spec-extension batch 2026-05-09. |
-| `ellipke` | ✅ | 0.004 | 115.33× | 27.08× | OK | Sig: r = ellipke(...). Spec-extension batch 2026-05-09. |
-| `erf` | ✅ | 0.003 | 34.28× | 25.98× | OK | Sig: r = erf(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `erfc` | ✅ | 0.003 | 32.00× | 40.07× | OK | Sig: r = erfc(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `erfcinv` | ✅ | 0.003 | 46.93× | 26.63× | OK | Sig: r = erfcinv(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `erfcx` | ✅ | 0.004 | 35.69× | 48.34× | OK | Sig: r = erfcx(...). Spec-extension batch 2026-05-09. |
-| `erfinv` | ✅ | 0.003 | 36.63× | 58.70× | OK | Sig: r = erfinv(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `expint` | ✅ | 0.004 | 182.25× | 215.94× | OK | Sig: r = expint(...). Spec-extension batch 2026-05-09. |
+| `airy` | ✅ | 0.003 | 9.72× |  | OK | Sig: r = airy(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `besselh` | ✅ | 0.001 | 53.93× |  | OK | Sig: r = besselh(...). Bessel function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `besseli` | ✅ | 0.001 | 42.09× |  | OK | Sig: r = besseli(...). Bessel function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `besselj` | ✅ | 0.001 | 55.09× |  | OK | Sig: r = besselj(...). Bessel function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `besselk` | ✅ | 0.001 | 42.95× |  | OK | Sig: r = besselk(...). Bessel function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `bessely` | ✅ | 0.001 | 47.57× |  | OK | Sig: r = bessely(...). Bessel function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `beta` | ✅ | 0.001 | 176.28× |  | OK | Sig: r = beta(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `betainc` | ✅ | 0.001 | 39.86× |  | OK | Sig: r = betainc(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `betaincinv` | ✅ | 0.003 | 11.13× |  | OK | Sig: r = betaincinv(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `betaln` | ✅ | 0.001 | 60.22× |  | OK | Sig: r = betaln(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `ellipj` | ✅ | 0.001 | 820.50× |  | OK | Sig: r = ellipj(...). Spec-extension batch 2026-05-09. |
+| `ellipke` | ✅ | 0.001 | 293.42× |  | OK | Sig: r = ellipke(...). Spec-extension batch 2026-05-09. |
+| `erf` | ✅ | 0.001 | 31.76× |  | OK | Sig: r = erf(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `erfc` | ✅ | 0.001 | 30.67× |  | OK | Sig: r = erfc(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `erfcinv` | ✅ | 0.001 | 33.35× |  | OK | Sig: r = erfcinv(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `erfcx` | ✅ | 0.002 | 21.76× |  | OK | Sig: r = erfcx(...). Spec-extension batch 2026-05-09. |
+| `erfinv` | ✅ | 0.001 | 25.84× |  | OK | Sig: r = erfinv(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
+| `expint` | ✅ | 0.001 |  |  | N/A | Sig: r = expint(...). Spec-extension batch 2026-05-09. |
 | `gamma` | ✅ | 0.003 | 32.69× | 16.91× | OK | Sig: r = gamma(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `gammainc` | ✅ | 0.003 | 33.16× | 65.74× | OK | Sig: r = gammainc(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `gammaincinv` | ✅ | 0.004 | 25.93× | 887.30× | OK | Sig: r = gammaincinv(...). Special function. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
@@ -729,8 +729,8 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `factor` | ✅ | 0.005 | 152.03× | 81.91× | OK | Sig: r = factor(...). Spec-extension batch 2026-05-09. |
-| `factorial` | ✅ | 0.004 | 258.13× | 46.99× | OK | Sig: r = factorial(...). Spec-extension batch 2026-05-09. |
+| `factor` | ✅ | 0.002 |  |  | N/A | Sig: r = factor(...). Spec-extension batch 2026-05-09. |
+| `factorial` | ✅ | 0.003 |  |  | N/A | Sig: r = factorial(...). Spec-extension batch 2026-05-09. |
 | `gcd` | ✅ | 0.004 | 141.16× | 15.44× | OK | Sig: r = gcd(...). Spec-extension batch 2026-05-09. |
 | `isprime` | ✅ | 0.004 | 152.38× | 37.78× | OK | Sig: r = isprime(...). Spec-extension batch 2026-05-09. |
 | `lcm` | ✅ | 0.005 | 114.92× | 53.45× | OK | Sig: r = lcm(...). Spec-extension batch 2026-05-09. |
@@ -750,7 +750,7 @@ together.
 | `poly` | ✅ | 0.003 | 175.94× | 25.73× | OK | Sig: p = poly(A) for square matrix. Char polynomial via Souriau-Faddeev-LeVerrier; p = [1 c1 c2 ... cn] such that roots(p) == eig(A). Bit-identical with MATLAB R2025b on probed companion-form matrix. |
 | `polyder` | ✅ | 0.001 | 69.72× | 34.70× | OK | Sig: K = polyder(P). Deterministic 100-coef poly. 1000 iters. Element-wise SAVE. |
 | `polydiv` | ✅ | 0.001 | 55.07× | 81.50× | OK | Sig: [Q, R] = polydiv(U, V). Polynomial div via deconv. 10000 iters. |
-| `polyeig` | ✅ | 0.013 | 41.08× |  | OK | Sig: e = polyeig(A0, A1, ..., Ak). Polynomial eigenvalue problem via companion linearisation + char-poly + roots(). Eigenvalues-only form. Linear test: (A0 + λI)x = 0 → e = eigvals(-A0) = [-2, -3]. Quadratic test: (λ²-5λ+6)·I → e = {2, 2, 3, 3}. Real ordering may differ — fingerprint sorts. Tol 1e-5 because the characteristic-polynomial → roots() path has lower precision than direct eig (residual imag part ~1e-7 for nominally-real eigvals). |
+| `polyeig` | ✅ | 0.013 | 41.41× |  | OK | Sig: e = polyeig(A0, A1, ..., Ak). Polynomial eigenvalue problem via companion linearisation + char-poly + roots(). Eigenvalues-only form. Linear test: (A0 + λI)x = 0 → e = eigvals(-A0) = [-2, -3]. Quadratic test: (λ²-5λ+6)·I → e = {2, 2, 3, 3}. Real ordering may differ — fingerprint sorts. Tol 1e-5 because the characteristic-polynomial → roots() path has lower precision than direct eig (residual imag part ~1e-7 for nominally-real eigvals). |
 | `polyfit` | ✅ | 0.004 | 171.66× | 39.45× | OK | Sig: r = polyfit(...). Spec-extension batch 2026-05-09. |
 | `polyint` | ✅ | 0.001 | 16.58× | 25.95× | OK | Sig: P_int = polyint(P). Deterministic 100-coef. 1000 iters. Element-wise SAVE. |
 | `polyval` | ✅ | 0.004 | 82.87× | 31.03× | OK | Sig: r = polyval(...). Spec-extension batch 2026-05-09. |
@@ -809,14 +809,14 @@ together.
 | `cgs` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `colamd` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `colperm` | ❌ |  |  |  |  |  |
-| `condest` | ✅ | 0.003 | 343.62× |  | OK | Sig: c = condest(A). 1-norm condition number estimate. KNOWN GAP: MATLAB uses Higham 1988 power-iteration estimator (LAPACK dlacn1) that approximates norm(inv(A),1); we compute it exactly via inv(A). Matches MATLAB on well-conditioned A. For hilb(4) ≈ 1.5e4 and other near-singular inputs, our exact value differs from MATLAB's iterative estimate. Wide tol=0.5 (relative) accepts ±50% drift on near-singular inputs; pin only the well-conditioned cases I3 / D / UT for exact match. |
+| `condest` | ✅ | 0.003 | 349.23× |  | OK | Sig: c = condest(A). 1-norm condition number estimate. KNOWN GAP: MATLAB uses Higham 1988 power-iteration estimator (LAPACK dlacn1) that approximates norm(inv(A),1); we compute it exactly via inv(A). Matches MATLAB on well-conditioned A. For hilb(4) ≈ 1.5e4 and other near-singular inputs, our exact value differs from MATLAB's iterative estimate. Wide tol=0.5 (relative) accepts ±50% drift on near-singular inputs; pin only the well-conditioned cases I3 / D / UT for exact match. |
 | `dissect` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `dmperm` | ❌ |  |  |  |  |  |
 | `eigs` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `equilibrate` | ❌ |  |  |  |  |  |
 | `etree` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `etreeplot` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `find` | ✅ | 0.005 | 28.32× | 29.65× | OK | Sig: r = find(...). Spec-extension batch 2026-05-09. |
+| `find` | ✅ | 0.001 |  |  | N/A | Sig: r = find(...). Spec-extension batch 2026-05-09. |
 | `full` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `gmres` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `gplot` | ❌ |  |  |  |  | **deferred — libs/sparse** |
@@ -862,10 +862,10 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `clear` | ✅ | 0.004 | 94.13× | 43.71× | OK | Sig: clear var. Spec-extension batch 2026-05-09 (cycle 41). |
-| `clearvars` | ✅ | 0.004 | 307.90× | 87.07× | OK | Sig: clearvars var. Spec-extension batch 2026-05-09 (cycle 41). |
-| `disp` | ✅ | 0.025 | 16.69× | 25.70× | OK | Side-effect smoke test (no-throw stdout probe). disp exercised on scalar / string / matrix; success = no exception. NOTE: numkit lacks evalc, so stdout cannot be captured for content-level parity; functionality validated by gtest. |
-| `formatteddisplaytext` | ✅ | 0.004 | 31.88× | 25.91× | OK | Sig: s = formattedDisplayText(x). KNOWN GAP: numkit does NOT implement formattedDisplayText (undefined function). Documented as separate ТЗ. |
+| `clear` | ✅ | 0.001 | 480.59× |  | OK | Sig: clear var. Spec-extension batch 2026-05-09 (cycle 41). |
+| `clearvars` | ✅ | 0.002 | 628.99× |  | MISMATCH | Sig: clearvars var. Spec-extension batch 2026-05-09 (cycle 41). |
+| `disp` | ✅ | 0.006 | 10.06× |  | OK | Side-effect smoke test (no-throw stdout probe). disp exercised on scalar / string / matrix; success = no exception. NOTE: numkit lacks evalc, so stdout cannot be captured for content-level parity; functionality validated by gtest. |
+| `formatteddisplaytext` | ✅ | 0.000 |  |  | N/A | Sig: s = formattedDisplayText(x). KNOWN GAP: numkit does NOT implement formattedDisplayText (undefined function). Documented as separate ТЗ. |
 | `load` | ✅ | 0.018 | 21.84× | 30.34× | OK | Side-effect smoke test (file I/O round-trip via tempname). DEFERRED -- load round-trip via tempname '.mat' fails inside the parity harness sandbox (file path resolution differs between save and load steps); functionality validated in libs/builtin gtests instead. |
 | `openvar` | ❌ |  |  |  |  | IDE |
 | `save` | ✅ | 0.288 | 55.61× | 5.32× | OK | Sig: save(filename, 'var'). Spec-extension batch 2026-05-09 (cycle 41). |
@@ -879,8 +879,8 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `assert` | ✅ | 0.003 | 39.89× | 60.60× | OK | Sig: r = assert(...). Spec-extension batch 2026-05-09. |
-| `error` | ✅ | 0.024 | 19.51× | 27.16× | OK | Side-effect smoke test (control-flow throw via try/catch). error() raises an MException with the given id -- caught and identifier verified. |
+| `assert` | ✅ | 0.001 | 33.80× |  | OK | Sig: r = assert(...). Spec-extension batch 2026-05-09. |
+| `error` | ✅ | 0.011 | 16.44× |  | OK | Side-effect smoke test (control-flow throw via try/catch). error() raises an MException with the given id -- caught and identifier verified. |
 | `lastwarn` | ✅ | 0.003 | 32.82× |  | OK | Sig: r = lastwarn(...). Spec-extension batch 2026-05-09. |
 | `oncleanup` | ❌ |  |  |  |  |  |
 | `try` | ✅ | 0.008 | 30.65× | 5.36× | OK | Sig: try, body, catch [ME], body, end. Spec-extension batch 2026-05-09 (cycle 41). |
@@ -915,7 +915,7 @@ intentionally omitted, along with `constellation` (object method) and
 | `pamdemod` | ✅ | 0.005 | 160.80× |  | OK | Sig: r = pamdemod(...). Spec-extension batch 2026-05-09. |
 | `qammod` | ✅ | 0.004 | 592.36× |  | OK | Sig: r = qammod(...). Spec-extension batch 2026-05-09. |
 | `qamdemod` | ✅ | 0.005 | 750.70× |  | OK | Sig: r = qamdemod(...). Spec-extension batch 2026-05-09. |
-| `apskmod` | ⚠️ | 0.010 | 515.17× |  | OK | MATLAB apskmod / apskdemod with explicit identity SymbolMapping (numkit's default). Engine-detecting shim handles MATLAB's name-value form vs numkit's positional 5th arg. Standard 16-APSK [4,12] [1, 2.7] forward+round-trip + nearest-neighbour demod under small noise. Bit-equal with MATLAB R2025b. Default 'gray' SymbolMapping deferred -- MATLAB's per-ring Gray for non-power-of-2 (M=12) needs more probing. Octave 11.1.0 doesn't ship apskmod in core; reports N/A. |
+| `apskmod` | ⚠️ | 0.009 | 561.84× |  | OK | MATLAB apskmod / apskdemod with explicit identity SymbolMapping (numkit's default). Engine-detecting shim handles MATLAB's name-value form vs numkit's positional 5th arg. Standard 16-APSK [4,12] [1, 2.7] forward+round-trip + nearest-neighbour demod under small noise. Bit-equal with MATLAB R2025b. Default 'gray' SymbolMapping deferred -- MATLAB's per-ring Gray for non-power-of-2 (M=12) needs more probing. Octave 11.1.0 doesn't ship apskmod in core; reports N/A. |
 | `apskdemod` | ❌ |  |  |  |  |  |
 | `mil188qammod` | ✅ | 0.115 | 37.30× |  | OK | MATLAB mil188qammod / mil188qamdemod (MIL-STD-188-110 QAM). Bit-equal with MATLAB R2025b on ALL FOUR supported constellations: M=16, 32, 64, 256. All tables hard-coded per MATLAB's spec-rounded values (probed at %.17g). MIL188 cluster CLOSED 4/4. Octave 11.1.0 doesn't ship mil188qam in core; reports N/A. |
 | `mil188qamdemod` | ❌ |  |  |  |  |  |
@@ -925,13 +925,13 @@ intentionally omitted, along with `constellation` (object method) and
 | `fskdemod` | ✅ | 0.006 | 335.89× |  | OK | Sig: r = fskdemod(...). Spec-extension batch 2026-05-09.  |
 | `ofdmmod` | ✅ | 0.011 | 185.39× |  | OK | Sig: r = ofdmmod(...). Spec-extension batch 2026-05-09. |
 | `ofdmdemod` | ✅ | 0.019 | 198.43× |  | OK | Sig: r = ofdmdemod(...). Spec-extension batch 2026-05-09. |
-| `dpskmod` | ✅ | 0.004 | 150.80× |  | OK | Sig: r = dpskmod(...). Spec-extension batch 2026-05-09.  |
-| `dpskdemod` | ✅ | 0.005 | 369.78× |  | OK | Sig: r = dpskdemod(...). Spec-extension batch 2026-05-09.  |
+| `dpskmod` | ✅ | 0.002 | 26.77× |  | OK | Sig: r = dpskmod(...). Spec-extension batch 2026-05-09.  |
+| `dpskdemod` | ✅ | 0.003 | 414.34× |  | OK | Sig: r = dpskdemod(...). Spec-extension batch 2026-05-09.  |
 | `pskmod` | ✅ | 0.004 | 415.30× |  | OK | Sig: r = pskmod(...). Spec-extension batch 2026-05-09. |
 | `pskdemod` | ✅ | 0.005 | 502.56× |  | OK | Sig: r = pskdemod(...). Spec-extension batch 2026-05-09. |
-| `ammod` | ✅ | 0.006 | 122.68× |  | OK | MATLAB ammod: amplitude modulator y = (x + carr_amp).*cos(2π·Fc·t + ini_phase). Covered: DSB-SC (carramp=0 default) and DSB-TC (carramp=0.5, ini_phase=pi/4) forms over a 100-sample column-vector input. Bit-equal with MATLAB R2025b within ~1e-10 (Highway sin/cos contributes a few ULP). Octave 11.1.0 doesn't ship ammod in core (signal/communications package only); reports N/A. |
+| `ammod` | ✅ | 0.003 | 153.46× |  | OK | MATLAB ammod: amplitude modulator y = (x + carr_amp).*cos(2π·Fc·t + ini_phase). Covered: DSB-SC (carramp=0 default) and DSB-TC (carramp=0.5, ini_phase=pi/4) forms over a 100-sample column-vector input. Bit-equal with MATLAB R2025b within ~1e-10 (Highway sin/cos contributes a few ULP). Octave 11.1.0 doesn't ship ammod in core (signal/communications package only); reports N/A. |
 | `amdemod` | ❌ |  |  |  |  |  |
-| `fmmod` | ✅ | 0.005 | 143.14× |  | OK | MATLAB fmmod: frequency modulator y = cos(2π·Fc·t + 2π·freqdev·cumsum(x)/Fs + ini_phase). Covered: default (ini_phase=0) and explicit ini_phase forms over a 100-sample column-vector input. Bit-equal with MATLAB R2025b within ~1e-10 (Highway sin/cos contributes a few ULP). Octave 11.1.0 doesn't ship fmmod in core (signal/communications package only); reports N/A. |
+| `fmmod` | ✅ | 0.003 |  |  | N/A | MATLAB fmmod: frequency modulator y = cos(2π·Fc·t + 2π·freqdev·cumsum(x)/Fs + ini_phase). Covered: default (ini_phase=0) and explicit ini_phase forms over a 100-sample column-vector input. Bit-equal with MATLAB R2025b within ~1e-10 (Highway sin/cos contributes a few ULP). Octave 11.1.0 doesn't ship fmmod in core (signal/communications package only); reports N/A. |
 | `fmdemod` | ❌ |  |  |  |  |  |
 | `pmmod` | ✅ | 0.005 | 140.90× |  | OK | MATLAB pmmod: phase modulator y = cos(2π·Fc·t + phasedev·x + ini_phase). Covered: default (ini_phase=0) and explicit ini_phase forms, 100-sample column-vector input, sample points across the signal. Bit-equal with MATLAB R2025b. Octave 11.1.0 doesn't ship pmmod in core (it's in the communications package); reports N/A. |
 | `pmdemod` | ❌ |  |  |  |  |  |
@@ -947,7 +947,7 @@ intentionally omitted, along with `constellation` (object method) and
 | `randerr` | ✅ | 0.027 | 129.18× |  | OK | MATLAB randerr: random binary error matrix with controllable error count per row. Uses MatlabMT19937 for bit-equal output with MATLAB R2025b on seeded inputs. Covered: scalar (1 error), scalar (3 errors), vector [1 2 3] uniform, weighted [0 1 2; 0.0 0.7 0.3]. All known column placements + row sums fingerprinted. Octave 11.1.0 doesn't ship randerr in core; reports N/A. |
 | `randsrc` | ✅ | 0.108 | 36.20× |  | OK | MATLAB randsrc: random matrix from finite alphabet with optional weighted probabilities. Numkit uses MatlabMT19937 (= MATLAB's mt19937ar) seeded with explicit state arg, so seeded outputs are bit-identical with MATLAB R2025b. Probability fingerprints (~70/20/10%) within 5% Monte-Carlo tolerance over 5000 samples. Octave 11.1.0 doesn't ship randsrc in core (signal/communications package only); reports N/A. |
 | `wgn` | ✅ | 0.004 | 249.77× |  | OK | Sig: r = wgn(...). Spec-extension batch 2026-05-09.  |
-| `biterr` | ✅ | 0.007 | 187.18× |  | OK | Sig: [n, r] = biterr(x, y[, k]). Counts differing bits between non-negative integer arrays. Bit-width k auto-detected as smallest covering width. |
+| `biterr` | ✅ | 0.002 | 437.09× |  | OK | Sig: [n, r] = biterr(x, y[, k]). Counts differing bits between non-negative integer arrays. Bit-width k auto-detected as smallest covering width. |
 | `symerr` | ✅ | 0.006 | 120.63× |  | OK | Sig: [n, r] = symerr(x, y). Element-wise inequality count + ratio. |
 | `zadoffChuSeq` | ❌ |  |  |  |  | Zadoff-Chu reference sequence |
 | `mask2shift` | ❌ |  |  |  |  | shift-register mask → shift |
@@ -960,7 +960,7 @@ intentionally omitted, along with `constellation` (object method) and
 | `oct2poly` | ❌ |  |  |  |  |  |
 | `oct2dec` | ❌ |  |  |  |  | octal → decimal |
 | `vec2mat` | ❌ |  |  |  |  | reshape with zero-pad |
-| `convertSNR` | ✅ | 0.003 | 964.25× |  | OK | Sig: r = convertSNR(...). Spec-extension batch 2026-05-09. |
+| `convertSNR` | ✅ | 0.001 | 2703.93× |  | OK | Sig: r = convertSNR(...). Spec-extension batch 2026-05-09. |
 
 ### Source Coding
 
@@ -968,12 +968,12 @@ intentionally omitted, along with `constellation` (object method) and
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `arithenco` | ✅ | 0.006 | 452.70× |  | OK | MATLAB arithenco / arithdeco: arithmetic coding pair. Bit-equal with MATLAB R2025b on encoded bit string and decoded sequence. Implements the Sayood textbook E1/E2/E3 rescaling algorithm matching MATLAB's source. Octave 11.1.0 doesn't ship arithenco/arithdeco in core (signal/communications package only); reports N/A. |
+| `arithenco` | ✅ | 0.004 | 730.98× |  | OK | MATLAB arithenco / arithdeco: arithmetic coding pair. Bit-equal with MATLAB R2025b on encoded bit string and decoded sequence. Implements the Sayood textbook E1/E2/E3 rescaling algorithm matching MATLAB's source. Octave 11.1.0 doesn't ship arithenco/arithdeco in core (signal/communications package only); reports N/A. |
 | `arithdeco` | ❌ |  |  |  |  |  |
-| `compand` | ✅ | 0.007 | 166.24× |  | OK | MATLAB compand: μ-law / A-law signal compander. 4 methods covered (mu/compressor, mu/expander, A/compressor, A/expander) with round-trip identity validation and sign preservation on negatives. Algorithm: closed-form formulas from MATLAB compand.m. Output preserves input shape. |
-| `dpcmenco` | ⚠️ | 0.006 | 107.44× |  | OK | MATLAB dpcmenco/dpcmdeco: 1st-order DPCM (predictor=[0 1]) with 6-bin codebook + 5-threshold partition. Bit-equal with MATLAB R2025b on encoded indices, quantization error, and reconstructed signal. Round-trip qe consistency (qe from encoder == qe from decoder via codebook lookup) also verified. dpcmopt deferred (training-set optimisation needs Lloyd-Max + alternating predictor estimation -- own cycle). Octave 11.1.0 doesn't ship dpcmenco/deco in core; reports N/A. |
+| `compand` | ✅ | 0.004 | 134.98× |  | OK | MATLAB compand: μ-law / A-law signal compander. 4 methods covered (mu/compressor, mu/expander, A/compressor, A/expander) with round-trip identity validation and sign preservation on negatives. Algorithm: closed-form formulas from MATLAB compand.m. Output preserves input shape. |
+| `dpcmenco` | ⚠️ | 0.003 | 146.14× |  | OK | MATLAB dpcmenco/dpcmdeco: 1st-order DPCM (predictor=[0 1]) with 6-bin codebook + 5-threshold partition. Bit-equal with MATLAB R2025b on encoded indices, quantization error, and reconstructed signal. Round-trip qe consistency (qe from encoder == qe from decoder via codebook lookup) also verified. dpcmopt deferred (training-set optimisation needs Lloyd-Max + alternating predictor estimation -- own cycle). Octave 11.1.0 doesn't ship dpcmenco/deco in core; reports N/A. |
 | `dpcmdeco` | ❌ |  |  |  |  |  |
-| `dpcmopt` | ✅ | 0.006 | 370.87× |  | OK | MATLAB dpcmopt: DPCM parameter optimiser. Uses Levinson-Durbin on biased autocorrelation (denominator N-i, MATLAB convention) to estimate predictor; then lloyds() on prediction residual for codebook+partition. Bit-equal with MATLAB R2025b on deterministic training (sin + linear ramp) for predictor and codebook/partition outputs. Octave 11.1.0 doesn't ship dpcmopt in core; reports N/A. |
+| `dpcmopt` | ✅ | 0.004 | 383.55× |  | OK | Communications toolbox dpcmopt — DPCM parameter optimiser. CLEAN-ROOM implementation from public references (J. Makhoul, Linear Prediction: A Tutorial Review, Proc. IEEE 1975 — autocorrelation method + Levinson-Durbin; Proakis & Manolakis, Digital Signal Processing; Jayant & Noll, Digital Coding of Waveforms, 1984) — see cleanroom/specs/dpcmopt.md. Algorithm: estimate the autocorrelation r[k] = (sum x[n]x[n+k]) / (N-1-k) for lags 0..ord, solve the Yule-Walker normal equations by the Levinson-Durbin recursion to get the prediction-error filter A(z), and form the predictor [0, -a1, ..., -aM]; when a third argument is given (codebook length or initial codebook) run lloyds() on the prediction residual for codebook+partition. Bit-equal MATLAB R2025b on deterministic training (sin + linear ramp) for predictor and codebook/partition outputs. Octave 11.1.0 ships dpcmopt in the communications package (not loaded by default); harness reports N/A there. |
 | `huffmandict` | ✅ | 0.008 | 215.09× |  | OK | MATLAB huffmandict: Huffman code-book builder. Codes are NOT unique (tie-breaking yields different but equally optimal trees) -- the invariant is avglen = sum(p_k * L_k). Fingerprint pins avglen on three test cases (5-symbol skewed, 2-symbol, 4-symbol uniform). Code shape, prefix-freeness and bounds H <= avglen < H+1 covered in gtest. Octave 11.1.0 doesn't ship huffmandict in core (signal/communications package only); reports N/A. |
 | `huffmanenco` | ✅ | 0.006 | 389.22× |  | OK | MATLAB huffmanenco/huffmandeco: encode/decode round-trip via dict from huffmandict. Bit codes are non-unique (Huffman tie-breaking can produce different but equally optimal trees), so encoded length depends on which optimal dict shape was produced. The INVARIANT under both engines is round-trip identity: dec must equal sig regardless of dict shape. We pin rt_match==1, length(dec), and the first/last decoded symbols. Octave 11.1.0 doesn't ship the Huffman codec in core; reports N/A. |
 | `huffmandeco` | ❌ |  |  |  |  |  |
@@ -1029,7 +1029,7 @@ the flat `gf*` function family below.
 | `istrellis` | ❌ |  |  |  |  |  |
 | `poly2trellis` | ❌ |  |  |  |  | conv-poly → trellis struct |
 | `cosets` | ❌ |  |  |  |  | cyclotomic cosets |
-| `dftmtx` | ✅ | 0.008 | 32.90× | 5.13× | OK | Sig: F = dftmtx(N). N×N DFT matrix; F(j,k) = exp(-2πi(j-1)(k-1)/N). For real input dftmtx(N)*x equals fft(x). Edges: F2 4 elem, F4 16 elem, F8 64 elem, F16 256 elem; F8(2,2) = √2/2 - i√2/2 ≈ 0.7071-0.7071i; F8(5,5) = 1 + 0i (column 5 row 5 ≡ exp(-2πi·16/8) = exp(-4πi) = 1); dftmtx(1) = 1. |
+| `dftmtx` | ✅ | 0.005 | 20.73× |  | OK | Sig: F = dftmtx(N). N×N DFT matrix; F(j,k) = exp(-2πi(j-1)(k-1)/N). For real input dftmtx(N)*x equals fft(x). Edges: F2 4 elem, F4 16 elem, F8 64 elem, F16 256 elem; F8(2,2) = √2/2 - i√2/2 ≈ 0.7071-0.7071i; F8(5,5) = 1 + 0i (column 5 row 5 ≡ exp(-2πi·16/8) = exp(-4πi) = 1); dftmtx(1) = 1. |
 | `isprimitive` | ❌ |  |  |  |  |  |
 | `minpol` | ❌ |  |  |  |  | minimal polynomial in GF |
 | `primpoly` | ❌ |  |  |  |  | primitive polynomial of degree m |
@@ -1095,8 +1095,8 @@ MLSE entry is exposed.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `awgn` | ✅ | 0.004 | 157.55× |  | OK | Sig: r = awgn(...). Spec-extension batch 2026-05-09. |
-| `bsc` | ✅ | 0.004 | 102.52× |  | OK | Sig: r = bsc(...). Spec-extension batch 2026-05-09. |
+| `awgn` | ✅ | 0.002 | 341.02× |  | OK | Sig: r = awgn(...). Spec-extension batch 2026-05-09. |
+| `bsc` | ✅ | 0.002 | 161.68× |  | OK | Sig: r = bsc(...). Spec-extension batch 2026-05-09. |
 | `rayleighchan` | ✅ | 0.017 | 23.94× | 39.47× | OK | N/A (definite): MATLAB R2025b DEPRECATED rayleighchan() in favour of comm.RayleighChannel system object. Numkit retains rayleighchan as a convenience helper that returns one complex Rayleigh sample. Definite N/A -- no MATLAB top-level reference exists in the current release. |
 | `ricianchan` | ✅ | 0.018 | 21.62× | 47.27× | OK | N/A (definite): MATLAB R2025b DEPRECATED ricianchan() in favour of comm.RicianChannel system object. Numkit retains ricianchan as a convenience helper. Definite N/A. |
 | `stdchan` | ❌ |  |  |  |  | standard channel-model picker |
@@ -1141,9 +1141,9 @@ vector path-loss models and coordinate transforms.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `berawgn` | ✅ | 0.003 | 218.28× |  | OK | Sig: r = berawgn(...). Spec-extension batch 2026-05-09. |
+| `berawgn` | ✅ | 0.001 | 682.07× |  | OK | Sig: r = berawgn(...). Spec-extension batch 2026-05-09. |
 | `bercoding` | ❌ |  |  |  |  | with coding gain |
-| `berconfint` | ✅ | 0.006 | 238.17× |  | OK | Sig: r = berconfint(...). Spec-extension batch 2026-05-09.  |
+| `berconfint` | ✅ | 0.003 |  |  | N/A | Sig: r = berconfint(...). Spec-extension batch 2026-05-09.  |
 | `berfading` | ❌ |  |  |  |  | over Rayleigh / Rician fading |
 | `berfit` | ❌ |  |  |  |  | curve fit BER vs Eb/No |
 | `bersync` | ❌ |  |  |  |  | with imperfect sync |
@@ -1172,9 +1172,9 @@ intentionally omitted.
 | `tf` | ✅ | 0.004 | 1587.47× | 160.16× | OK | Sig: r = tf(...). Spec-extension batch 2026-05-09. |
 | `zpk` | ✅ | 0.004 | 1543.92× | 157.31× | OK | Sig: r = zpk(...). Spec-extension batch 2026-05-09. |
 | `ss` | ✅ | 0.006 | 961.48× | 72.22× | OK | Sig: r = ss(...). Spec-extension batch 2026-05-09. |
-| `frd` | ✅ | 0.004 | 1180.19× | 90.63× | OK | Sig: r = frd(...). Spec-extension batch 2026-05-09. |
+| `frd` | ✅ | 0.001 |  |  | N/A | Sig: r = frd(...). Spec-extension batch 2026-05-09. |
 | `dss` | ❌ |  |  |  |  | descriptor state-space (E·xdot = Ax + Bu) |
-| `filt` | ✅ | 0.004 | 1695.49× | 212.60× | OK | Sig: r = filt(...). Spec-extension batch 2026-05-09. |
+| `filt` | ✅ | 0.002 |  |  | N/A | Sig: r = filt(...). Spec-extension batch 2026-05-09. |
 | `pid` | ❌ |  |  |  |  | parallel-form PID controller |
 | `pid2` | ❌ |  |  |  |  | 2-DOF PID |
 | `pidstd` | ❌ |  |  |  |  | standard-form PID |
@@ -1184,7 +1184,7 @@ intentionally omitted.
 | `tfdata` | ✅ | 0.006 | 1151.61× | 197.42× | OK | Sig: r = tfdata(...). Spec-extension batch 2026-05-09. |
 | `zpkdata` | ✅ | 0.006 | 1336.61× | 278.21× | OK | Sig: r = zpkdata(...). Spec-extension batch 2026-05-09. |
 | `ssdata` | ✅ | 0.007 | 1082.44× | 57.03× | OK | Sig: r = ssdata(...). Spec-extension batch 2026-05-09. |
-| `frdata` | ✅ | 0.005 | 1342.21× | 115.00× | OK | Sig: r = frdata(...). Spec-extension batch 2026-05-09. |
+| `frdata` | ✅ | 0.003 |  |  | N/A | Sig: r = frdata(...). Spec-extension batch 2026-05-09. |
 | `dssdata` | ❌ |  |  |  |  | extract A/B/C/D/E |
 | `piddata` | ❌ |  |  |  |  |  |
 | `pidstddata` | ❌ |  |  |  |  |  |
@@ -1205,7 +1205,7 @@ intentionally omitted.
 | `pole` | ✅ | 0.005 | 1424.34× | 134.88× | OK | Sig: r = pole(...). Spec-extension batch 2026-05-09. |
 | `zero` | ✅ | 0.005 | 1682.75× | 151.78× | OK | Sig: r = zero(...). Spec-extension batch 2026-05-09. |
 | `tzero` | ✅ | 0.004 | 1659.83× |  | OK | Sig: z = tzero(sys). SISO transmission zeros via ss2tf + roots. Bit-identical with MATLAB R2025b on probed system (z = 1.0). MIMO requires QZ generalised eigenvalue solver (separate ТЗ). |
-| `damp` | ✅ | 0.007 | 1057.64× | 103.74× | OK | Sig: r = damp(...). Spec-extension batch 2026-05-09. |
+| `damp` | ✅ | 0.004 | 476.70× |  | OK | Sig: r = damp(...). Spec-extension batch 2026-05-09. |
 
 ### Model Conversion & Reduction
 
@@ -1213,9 +1213,9 @@ intentionally omitted.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `c2d` | ✅ | 0.007 | 3657.80× | 402.39× | OK | Sig: r = c2d(...). Spec-extension batch 2026-05-09. |
+| `c2d` | ✅ | 0.004 | 5244.05× |  | OK | Sig: r = c2d(...). Spec-extension batch 2026-05-09. |
 | `c2dOptions` | ❌ |  |  |  |  |  |
-| `d2c` | ✅ | 0.009 | 3658.61× | 575.38× | OK | Sig: r = d2c(...). Spec-extension batch 2026-05-09. |
+| `d2c` | ✅ | 0.007 | 4519.99× |  | OK | Sig: r = d2c(...). Spec-extension batch 2026-05-09. |
 | `d2cOptions` | ❌ |  |  |  |  |  |
 | `d2d` | ❌ |  |  |  |  | resample discrete |
 | `d2dOptions` | ❌ |  |  |  |  |  |
@@ -1239,11 +1239,11 @@ intentionally omitted.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `feedback` | ✅ | 0.004 | 286.71× | 226.18× | OK | Sig: sys = feedback(sys1, sys2[, sign]). Closed-loop feedback connection. Denominator bit-identical with MATLAB R2025b (1 + s + s^2 -> [1 1 1]). Numerator semantically identical (numkit doesn't pad with leading zeros, MATLAB does -- same H(s)). |
+| `feedback` | ✅ | 0.002 |  |  | N/A | Sig: sys = feedback(sys1, sys2[, sign]). Closed-loop feedback connection. Denominator bit-identical with MATLAB R2025b (1 + s + s^2 -> [1 1 1]). Numerator semantically identical (numkit doesn't pad with leading zeros, MATLAB does -- same H(s)). |
 | `series` | ✅ | 0.009 | 1190.45× | 376.71× | OK | Sig: r = series(...). Spec-extension batch 2026-05-09. |
 | `parallel` | ✅ | 0.009 | 1112.40× | 946.63× | OK | Sig: r = parallel(...). Spec-extension batch 2026-05-09. |
 | `connect` | ❌ |  |  |  |  | name-based interconnect |
-| `append` | ✅ | 0.005 | 34.81× |  | OK | Sig: r = append(...). Spec-extension batch 2026-05-09. |
+| `append` | ✅ | 0.003 | 21.27× |  | OK | Sig: r = append(...). Spec-extension batch 2026-05-09. |
 | `lft` | ❌ |  |  |  |  | linear fractional transform |
 | `sumblk` | ❌ |  |  |  |  | summation block (for connect) |
 
@@ -1265,15 +1265,15 @@ output args).
 | `lsiminfo` | ❌ |  |  |  |  |  |
 | `gensig` | ❌ |  |  |  |  | input signal generator |
 | `covar` | ❌ |  |  |  |  | output covariance under stochastic input |
-| `bode` | ✅ | 0.006 | 1546.66× | 1068.38× | OK | Sig: r = bode(...). Spec-extension batch 2026-05-09. |
+| `bode` | ✅ | 0.004 | 2960.53× |  | OK | Sig: r = bode(...). Spec-extension batch 2026-05-09. |
 | `bodemag` | ❌ |  |  |  |  | magnitude only |
 | `nyquist` | ✅ | 0.005 | 1921.29× | 944.97× | OK | Sig: r = nyquist(...). Spec-extension batch 2026-05-09. |
 | `nichols` | ❌ |  |  |  |  |  |
 | `sigma` | ❌ |  |  |  |  | singular-value response |
-| `freqresp` | ✅ | 0.004 | 1919.08× | 325.49× | OK | Sig: r = freqresp(...). Spec-extension batch 2026-05-09. |
-| `evalfr` | ✅ | 0.004 | 1755.54× |  | OK | Sig: r = evalfr(...). Spec-extension batch 2026-05-09. |
-| `dcgain` | ✅ | 0.004 | 1810.07× | 373.56× | OK | Sig: r = dcgain(...). Spec-extension batch 2026-05-09. |
-| `bandwidth` | ❌ |  |  |  |  | -3 dB bandwidth |
+| `freqresp` | ✅ | 0.004 |  |  | N/A | Sig: r = freqresp(...). Spec-extension batch 2026-05-09. |
+| `evalfr` | ✅ | 0.003 | 454.52× |  | OK | Sig: r = evalfr(...). Spec-extension batch 2026-05-09. |
+| `dcgain` | ✅ | 0.003 | 472.35× |  | OK | Sig: r = dcgain(...). Spec-extension batch 2026-05-09. |
+| `bandwidth` | ✅ | 0.009 | 18.19× |  | OK | Sig: matrix-structure predicates and bandwidth queries. isbanded(A, lo, up) ↔ outside-band entries are zero; isdiag = isbanded(A, 0, 0). istril / istriu ↔ lower / upper triangular. [lo, up] = bandwidth(A) returns sub-diagonal and super-diagonal extent; bandwidth(A) one-out form returns lo; 'lower'|'upper' string form selects one. Bit-exact MATLAB R2025b (tol=0): D diagonal (ib1=id1=1), A tri-banded (ib2=1), A not upper-banded-only (ib3=0), L lower-tri (itl=1), U upper-tri (itu=1), bandwidth(A) = [1, 1], bandwidth(U) = 0, bandwidth(L) = 2, bandwidth(U, 'upper') = 2. Split from the original combined predicates spec to stay under the 256-register chunk limit. |
 | `getPeakGain` | ❌ |  |  |  |  | H∞ |
 | `getGainCrossover` | ❌ |  |  |  |  |  |
 
@@ -1285,7 +1285,7 @@ output args).
 |---|:---:|---:|---:|---:|:---:|---|
 | `margin` | ✅ | 0.015 | 1781.83× | 644.32× | OK | Sig: r = margin(...). Spec-extension batch 2026-05-09. |
 | `allmargin` | ❌ |  |  |  |  | all stability margins |
-| `db2mag` | ✅ | 0.004 | 47.73× | 22.46× | OK | Sig: r = db2mag(...). Spec-extension batch 2026-05-09. |
+| `db2mag` | ✅ | 0.002 | 52.11× |  | OK | Sig: r = db2mag(...). Spec-extension batch 2026-05-09. |
 | `mag2db` | ✅ | 0.004 | 66.82× | 42.43× | OK | Sig: r = mag2db(...). Spec-extension batch 2026-05-09. |
 | `pzmap` | ✅ | 0.005 | 1942.76× | 157.37× | OK | Sig: r = pzmap(...). Spec-extension batch 2026-05-09. |
 | `rlocus` | ✅ | 0.021 | 964.75× | 472.86× | OK | Sig: r = rlocus(...). Spec-extension batch 2026-05-09. |
@@ -1313,7 +1313,7 @@ methods (`correct`, `predict`, etc.). Flat steady-state designs only.
 | `kalman` | ❌ |  |  |  |  | continuous-time Kalman gain |
 | `kalmd` | ❌ |  |  |  |  | discrete Kalman from continuous plant |
 | `reg` | ❌ |  |  |  |  | full-state controller + observer |
-| `ctrb` | ✅ | 0.005 | 98.05× | 42.10× | OK | Sig: r = ctrb(...). Spec-extension batch 2026-05-09. |
+| `ctrb` | ✅ | 0.003 | 65.88× |  | OK | Sig: r = ctrb(...). Spec-extension batch 2026-05-09. |
 | `obsv` | ✅ | 0.004 | 93.11× | 35.88× | OK | Sig: r = obsv(...). Spec-extension batch 2026-05-09. |
 | `gram` | ❌ |  |  |  |  | controllability/observability gramian |
 | `ctrbf` | ❌ |  |  |  |  | controllable-form decomposition |
@@ -1327,7 +1327,7 @@ methods (`correct`, `predict`, etc.). Flat steady-state designs only.
 |---|:---:|---:|---:|---:|:---:|---|
 | `lyap` | ✅ | 0.003 | 444.29× | 26.75× | OK | Sig: r = lyap(...). Spec-extension batch 2026-05-09. |
 | `lyapchol` | ❌ |  |  |  |  | factored continuous Lyapunov |
-| `dlyap` | ✅ | 0.003 | 561.74× | 72.32× | OK | Sig: r = dlyap(...). Spec-extension batch 2026-05-09. |
+| `dlyap` | ✅ | 0.001 | 1221.92× |  | OK | Sig: r = dlyap(...). Spec-extension batch 2026-05-09. |
 | `dlyapchol` | ❌ |  |  |  |  | factored discrete Lyapunov |
 | `care` | ❌ |  |  |  |  | continuous algebraic Riccati |
 | `dare` | ❌ |  |  |  |  | discrete algebraic Riccati |
@@ -1366,7 +1366,7 @@ construction / postprocessing primitives — those are all flat functions.
 |---|:---:|---:|---:|---:|:---:|---|
 | `bspline` | ❌ |  |  |  |  | B-spline of given order |
 | `csape` | ❌ |  |  |  |  | cubic spline w/ end-conditions |
-| `csapi` | ✅ | 0.006 | 587.57× |  | OK | Sig: pp = csapi(x, y). Cubic-spline pp-form interpolation. Bit-identical with MATLAB R2025b on probed knots and field access. Earlier defer was wrong -- function works. |
+| `csapi` | ✅ | 0.004 | 742.66× |  | OK | Sig: pp = csapi(x, y). Cubic-spline pp-form interpolation. Bit-identical with MATLAB R2025b on probed knots and field access. Earlier defer was wrong -- function works. |
 | `csaps` | ❌ |  |  |  |  | cubic smoothing spline |
 | `cscvn` | ❌ |  |  |  |  | natural cubic curve through points |
 | `rscvn` | ❌ |  |  |  |  | rational cubic curve |
@@ -1381,18 +1381,18 @@ construction / postprocessing primitives — those are all flat functions.
 | `spmak` | ❌ |  |  |  |  | B-spline form constructor |
 | `stmak` | ❌ |  |  |  |  | stform constructor (2-D scattered) |
 | `fn2fm` | ❌ |  |  |  |  | convert between spline forms |
-| `fnbrk` | ✅ | 0.003 | 224.46× |  | OK | Sig: out = fnbrk(pp, part). Extract a named part from a pp-form spline. Supports {breaks, coefs, pieces|l, order|k, dim|d, form}. |
+| `fnbrk` | ✅ | 0.001 |  |  | N/A | Sig: out = fnbrk(pp, part). Extract a named part from a pp-form spline. Supports {breaks, coefs, pieces|l, order|k, dim|d, form}. |
 | `fnchg` | ❌ |  |  |  |  | change spline properties |
-| `fncmb` | ✅ | 0.003 | 377.77× |  | OK | Sig: pp = fncmb(pp1, c) | fncmb(c, pp1) | fncmb(pp1, c1, pp2, c2). Linear combination of pp-form splines on shared breaks. Pure coef arithmetic. |
-| `fnder` | ✅ | 0.004 | 417.51× |  | OK | Sig: dpp = fnder(pp[, order]). Differentiate pp-form spline `order` times. Each piece's polynomial is independently differentiated; result has order = K − order. |
+| `fncmb` | ✅ | 0.001 |  |  | N/A | Sig: pp = fncmb(pp1, c) | fncmb(c, pp1) | fncmb(pp1, c1, pp2, c2). Linear combination of pp-form splines on shared breaks. Pure coef arithmetic. |
+| `fnder` | ✅ | 0.001 |  |  | N/A | Sig: dpp = fnder(pp[, order]). Differentiate pp-form spline `order` times. Each piece's polynomial is independently differentiated; result has order = K − order. |
 | `fndir` | ❌ |  |  |  |  | directional derivative |
-| `fnint` | ✅ | 0.003 | 519.51× |  | OK | Sig: ipp = fnint(pp). Antiderivative of pp-form spline; integration constant chosen so that integral = 0 at the first break and is continuous across breaks. |
+| `fnint` | ✅ | 0.001 |  |  | N/A | Sig: ipp = fnint(pp). Antiderivative of pp-form spline; integration constant chosen so that integral = 0 at the first break and is continuous across breaks. |
 | `fnjmp` | ❌ |  |  |  |  | jump value at discontinuities |
 | `fnmin` | ❌ |  |  |  |  | min of spline |
 | `fnplt` | ❌ |  |  |  |  | display |
 | `fnrfn` | ❌ |  |  |  |  | refine knots |
 | `fntlr` | ❌ |  |  |  |  | Taylor coefficients |
-| `fnval` | ✅ | 0.006 | 334.37× |  | OK | Sig: r = fnval(...). Spec-extension batch 2026-05-09. |
+| `fnval` | ✅ | 0.003 |  |  | N/A | Sig: r = fnval(...). Spec-extension batch 2026-05-09. |
 | `fnxtr` | ❌ |  |  |  |  | extrapolate |
 | `fnzeros` | ❌ |  |  |  |  | zeros of spline |
 | `bkbrk` | ❌ |  |  |  |  | break-and-coefs |
@@ -1401,15 +1401,15 @@ construction / postprocessing primitives — those are all flat functions.
 | `stcol` | ❌ |  |  |  |  | stform collocation matrix |
 | `subplus` | ✅ | 0.003 | 57.46× |  | OK | Sig: r = subplus(...). Spec-extension batch 2026-05-09. |
 | `aptknt` | ❌ |  |  |  |  | append knots for spline of order k |
-| `augknt` | ✅ | 0.004 | 148.69× |  | OK | Sig: r = augknt(...). Spec-extension batch 2026-05-09. |
-| `aveknt` | ✅ | 0.004 | 91.04× |  | OK | Sig: r = aveknt(...). Spec-extension batch 2026-05-09. |
-| `brk2knt` | ✅ | 0.004 | 112.43× |  | OK | Sig: r = brk2knt(...). Spec-extension batch 2026-05-09. |
+| `augknt` | ✅ | 0.002 | 363.23× |  | OK | Sig: r = augknt(...). Spec-extension batch 2026-05-09. |
+| `aveknt` | ✅ | 0.002 | 204.70× |  | OK | Sig: r = aveknt(...). Spec-extension batch 2026-05-09. |
+| `brk2knt` | ✅ | 0.002 | 139.00× |  | OK | Sig: r = brk2knt(...). Spec-extension batch 2026-05-09. |
 | `chbpnt` | ❌ |  |  |  |  | Chebyshev sites |
 | `knt2brk` | ✅ | 0.004 | 73.19× |  | OK | Sig: [breaks, mults] = knt2brk(knots). Inverse of brk2knt: distinct knots + multiplicities. |
 | `newknt` | ❌ |  |  |  |  | distribute knots on equidistribution |
 | `optknt` | ❌ |  |  |  |  | optimal knot distribution |
 | `smooth` | ❌ |  |  |  |  | data smoothing (already partially in core) |
-| `datastats` | ✅ | 0.004 | 269.67× |  | OK | Sig: s = datastats(x). MATLAB requires column vector input. Numkit emits same struct fields {min,max,mean,median,num,range,std} -- bit-identical on probed COLUMN input. |
+| `datastats` | ✅ | 0.003 | 285.66× |  | OK | Sig: s = datastats(x). MATLAB requires column vector input. Numkit emits same struct fields {min,max,mean,median,num,range,std} -- bit-identical on probed COLUMN input. |
 | `prepareCurveData` | ✅ | 0.005 | 374.42× |  | OK | Sig: [xo, yo[, wo]] = prepareCurveData(x, y[, w]). Strips rows where any of x, y, w is NaN/Inf; returns column vectors. w == 0 rows are KEPT (only finiteness matters). |
 | `prepareSurfaceData` | ✅ | 0.004 | 432.93× |  | OK | Sig: [xo, yo, zo] = prepareSurfaceData(X, Y, Z). Linearises (column-major) and drops rows where any of x, y, z is NaN/Inf. Returns column vectors. |
 | `quad2d` | ❌ |  |  |  |  | 2-D quadrature (also in core) |
@@ -1468,10 +1468,10 @@ construction / postprocessing primitives — those are all flat functions.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `clabel` | ❌ |  |  |  |  |  |
-| `contour` | ✅ | 0.005 | 73.77× | 29.59× | OK | Sig: r = contour(...). Spec-extension batch 2026-05-09. |
+| `contour` | ✅ | 0.002 | 96.59× |  | OK | Sig: r = contour(...). Spec-extension batch 2026-05-09. |
 | `contour3` | ❌ |  |  |  |  |  |
 | `contourc` | ❌ |  |  |  |  |  |
-| `contourf` | ✅ | 0.017 | 2850.13× | 5214.30× | OK | Sig: graphics primitive. Filled contour plot. Same side-effect-only no-op; spec verifies the call runs. |
+| `contourf` | ✅ | 4.157 | 9.11× |  | OK | Sig: graphics primitive. Filled contour plot. Same side-effect-only no-op; spec verifies the call runs. |
 | `contourslice` | ❌ |  |  |  |  |  |
 | `fcontour` | ❌ |  |  |  |  |  |
 
@@ -1495,8 +1495,8 @@ construction / postprocessing primitives — those are all flat functions.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `contour3` | ❌ |  |  |  |  |  |
-| `cylinder` | ✅ | 0.005 | 177.40× | 79.28× | OK | Sig: [X,Y,Z] = cylinder([R, n]). Bit-identical with MATLAB R2025b when called with explicit parens. KNOWN ENGINE GAP: cylinder() vs cylinder (no parens) -- parenless multi-output assignment segfaults numkit; that's a core parser/dispatcher issue, not a libs/cylinder bug. Documented in BUGS.md. |
-| `ellipsoid` | ✅ | 0.005 | 365.82× | 58.01× | OK | Sig: r = ellipsoid(...). Spec-extension batch 2026-05-09. |
+| `cylinder` | ✅ | 0.002 | 426.68× |  | OK | Sig: [X,Y,Z] = cylinder([R, n]). Bit-identical with MATLAB R2025b when called with explicit parens. KNOWN ENGINE GAP: cylinder() vs cylinder (no parens) -- parenless multi-output assignment segfaults numkit; that's a core parser/dispatcher issue, not a libs/cylinder bug. Documented in BUGS.md. |
+| `ellipsoid` | ✅ | 0.003 | 461.60× |  | OK | Sig: r = ellipsoid(...). Spec-extension batch 2026-05-09. |
 | `fimplicit3` | ❌ |  |  |  |  |  |
 | `fmesh` | ❌ |  |  |  |  |  |
 | `fsurf` | ❌ |  |  |  |  |  |
@@ -1522,7 +1522,7 @@ construction / postprocessing primitives — those are all flat functions.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `coneplot` | ❌ |  |  |  |  |  |
+| `coneplot` | ✅ | 0.692 |  |  | N/A | coneplot — cone-headed arrow visualisation. Display-only; fingerprint pins the input field's shape + extrema. Visual fidelity (cone meshes oriented along U/V/W) is e2e. |
 | `contourslice` | ❌ |  |  |  |  |  |
 | `curl` | ❌ |  |  |  |  |  |
 | `divergence` | ❌ |  |  |  |  |  |
@@ -1582,8 +1582,8 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `adaptthresh` | ✅ | 0.010 | 305.89× | 33.00× | OK | Sig: r = adaptthresh(...). Spec-extension batch 2026-05-09. |
-| `cmap2gray` | ✅ | 0.005 | 117.79× |  | OK | Sig: r = cmap2gray(...). Spec-extension batch 2026-05-09. |
+| `adaptthresh` | ✅ | 0.012 | 215.07× |  | OK | Sig: r = adaptthresh(...). Spec-extension batch 2026-05-09. |
+| `cmap2gray` | ✅ | 0.002 | 129.19× |  | OK | Sig: r = cmap2gray(...). Spec-extension batch 2026-05-09. |
 | `getrangefromclass` | ✅ | 0.004 | 76.05× | 15.53× | OK | Sig: r = getrangefromclass(...). Spec-extension batch 2026-05-09. |
 | `gray2ind` | ✅ | 0.004 | 465.01× | 58.99× | OK | Sig: r = gray2ind(...). Spec-extension batch 2026-05-09. |
 | `graythresh` | ✅ | 0.005 | 329.40× | 107.09× | OK | Sig: t = graythresh(I). MATLAB convention: thresh = mean(find(sigma_b == max)) / (L - 1). Bit-identical with MATLAB R2025b on bimodal probe. |
@@ -1617,8 +1617,8 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `chromadapt` | ❌ |  |  |  |  | Bradford/von Kries chromatic adapt |
-| `colorangle` | ✅ | 0.004 | 227.00× | 77.01× | OK | Sig: r = colorangle(...). Spec-extension batch 2026-05-09. |
-| `deltaE` | ✅ | 0.005 | 1474.92× |  | OK | Sig: D = deltaE(I1, I2). KNOWN GAP: numkit's deltaE output dimensions differ from MATLAB. Only structural numel pinned. Documented as separate ТЗ. |
+| `colorangle` | ✅ | 0.001 | 469.50× |  | OK | Sig: r = colorangle(...). Spec-extension batch 2026-05-09. |
+| `deltaE` | ✅ | 0.004 | 1700.22× |  | OK | Sig: D = deltaE(I1, I2). KNOWN GAP: numkit's deltaE output dimensions differ from MATLAB. Only structural numel pinned. Documented as separate ТЗ. |
 | `hsv2rgb` | ✅ | 0.004 | 444.01× | 70.17× | OK | Sig: r = hsv2rgb(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `illumgray` | ❌ |  |  |  |  | grey-world illumination |
 | `illumpca` | ❌ |  |  |  |  |  |
@@ -1657,7 +1657,7 @@ Display ones (`imshow`, `montage`, …) need graphics; synthesis is pure algorit
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `checkerboard` | ✅ | 0.004 | 139.35× | 110.30× | OK | Sig: r = checkerboard(...). Spec-extension batch 2026-05-09. |
+| `checkerboard` | ✅ | 0.002 | 189.58× |  | OK | Sig: r = checkerboard(...). Spec-extension batch 2026-05-09. |
 | `imnoise` | ✅ | 0.006 | 569.27× | 40.23× | OK | Sig: r = imnoise(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `phantom` | ✅ | 0.069 | 21.00× | 17.57× | OK | Sig: P = phantom([model | E] [, n]). Modified Shepp-Logan default; 64x64 reference test. Octave-image has phantom. |
 | `imshow` | ❌ |  |  |  |  | needs graphics |
@@ -1709,10 +1709,10 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `convmtx2` | ✅ | 0.003 | 40.25× |  | OK | Sig: T = convmtx2(h, m, n). Convolution matrix for 2-D 'full' convolution. MATLAB returns sparse, we return dense — wrap in full() in MATLAB so dim and values match. Octave-image doesn't ship convmtx2. |
-| `entropyfilt` | ✅ | 0.008 | 415.19× | 106.13× | OK | Sig: r = entropyfilt(...). Spec-extension batch 2026-05-09. |
+| `convmtx2` | ✅ | 0.001 | 59.36× |  | OK | Sig: T = convmtx2(h, m, n). Convolution matrix for 2-D 'full' convolution. MATLAB returns sparse, we return dense — wrap in full() in MATLAB so dim and values match. Octave-image doesn't ship convmtx2. |
+| `entropyfilt` | ✅ | 0.007 | 309.88× |  | OK | Sig: r = entropyfilt(...). Spec-extension batch 2026-05-09. |
 | `fibermetric` | ❌ |  |  |  |  |  |
-| `freqspace` | ✅ | 0.003 | 68.71× |  | OK | Sig: f = freqspace(N). KNOWN GAP: numkit returns shorter vector than MATLAB for freqspace(8) — different size convention. Only structural numel pinned. Documented as separate ТЗ. |
+| `freqspace` | ✅ | 0.002 |  |  | N/A | Sig: f = freqspace(N). KNOWN GAP: numkit returns shorter vector than MATLAB for freqspace(8) — different size convention. Only structural numel pinned. Documented as separate ТЗ. |
 | `freqz2` | ✅ | 0.008 | 144.72× |  | OK | Sig: r = freqz2(...). Spec-extension batch 2026-05-09. |
 | `fsamp2` | ❌ |  |  |  |  | 2-D FIR via frequency sampling |
 | `fspecial` | ✅ | 0.004 | 756.90× | 71.50× | OK | Sig: r = fspecial(...). Spec-extension batch 2026-05-09. |
@@ -1791,13 +1791,13 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `applylut` | ✅ | 0.005 | 123.69× | 24.25× | OK | Sig: r = applylut(...). Spec-extension batch 2026-05-09. |
-| `bwhitmiss` | ✅ | 0.006 | 1317.31× | 69.00× | OK | Sig: r = bwhitmiss(...). Spec-extension batch 2026-05-09 (image namespace). |
+| `applylut` | ✅ | 0.003 | 139.91× |  | OK | Sig: r = applylut(...). Spec-extension batch 2026-05-09. |
+| `bwhitmiss` | ✅ | 0.004 | 1049.32× |  | OK | Sig: r = bwhitmiss(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `bwlookup` | ❌ |  |  |  |  |  |
 | `bwmorph` | ✅ | 0.45 | 25.7× |  | OK | Sig: J = bwmorph(BW, op[, n]). Binary morphology dispatcher — faithful port of MATLAB R2025b bwmorph.m + algbwmorph.m using 22 LUTs dumped from MATLAB. All 20+ operations bit-exact (tol=0): dilate / erode / bridge / clean / diag / endpoints / fatten / fill / hbreak / majority / perim4 / perim8 / remove / bothat / close / open / tophat / shrink∞ / skeleton∞ / spur / thin∞ / thicken / branchpoints. |
 | `bwmorph3` | ❌ |  |  |  |  |  |
-| `bwpack` | ✅ | 0.004 | 109.46× | 12.47× | OK | Sig: r = bwpack(...). Spec-extension batch 2026-05-09. |
-| `bwperim` | ✅ | 0.005 | 410.00× | 56.69× | OK | Sig: r = bwperim(...). Spec-extension batch 2026-05-09. |
+| `bwpack` | ✅ | 0.002 | 126.23× |  | OK | Sig: r = bwpack(...). Spec-extension batch 2026-05-09. |
+| `bwperim` | ✅ | 0.002 | 589.39× |  | OK | Sig: r = bwperim(...). Spec-extension batch 2026-05-09. |
 | `bwskel` | ❌ |  |  |  |  | skeletonize |
 | `bwulterode` | ❌ |  |  |  |  | ultimate erosion |
 | `bwunpack` | ❌ |  |  |  |  |  |
@@ -1843,9 +1843,9 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bestblk` | ✅ | 0.004 | 100.06× | 57.09× | OK | Sig: r = bestblk(...). Spec-extension batch 2026-05-09. |
+| `bestblk` | ✅ | 0.001 | 276.71× |  | OK | Sig: r = bestblk(...). Spec-extension batch 2026-05-09. |
 | `blockproc` | ❌ |  |  |  |  | block-wise processing |
-| `col2im` | ✅ | 0.005 | 172.57× | 36.70× | OK | Sig: A = col2im(B, [m n], [mm nn], type). Reassemble columns into image. Bit-identical with MATLAB R2025b on probed input -- earlier defer used wrong B-shape. |
+| `col2im` | ✅ | 0.002 | 266.85× |  | OK | Sig: A = col2im(B, [m n], [mm nn], type). Reassemble columns into image. Bit-identical with MATLAB R2025b on probed input -- earlier defer used wrong B-shape. |
 | `colfilt` | ❌ |  |  |  |  |  |
 | `im2col` | ✅ | 0.004 | 674.14× | 72.23× | OK | Sig: r = im2col(...). Spec-extension batch 2026-05-09. |
 | `nlfilter` | ❌ |  |  |  |  | duplicate of filter section |
@@ -1875,8 +1875,8 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 |---|:---:|---:|---:|---:|:---:|---|
 | `activecontour` | ❌ |  |  |  |  | Chan-Vese |
 | `bfscore` | ❌ |  |  |  |  | boundary F1 score |
-| `boundarymask` | ✅ | 0.004 | 521.21× |  | OK | Sig: r = boundarymask(...). Spec-extension batch 2026-05-09. |
-| `dice` | ✅ | 0.004 | 177.17× |  | OK | Sig: r = dice(...). Spec-extension batch 2026-05-09. |
+| `boundarymask` | ✅ | 0.003 | 675.92× |  | OK | Sig: r = boundarymask(...). Spec-extension batch 2026-05-09. |
+| `dice` | ✅ | 0.003 | 215.20× |  | OK | Sig: r = dice(...). Spec-extension batch 2026-05-09. |
 | `gradientweight` | ❌ |  |  |  |  |  |
 | `grabcut` | ❌ |  |  |  |  |  |
 | `grayconnected` | ✅ | 0.004 | 924.32× |  | OK | Sig: BW = grayconnected(I, r, c, tol). 8-connected flood-fill from seed within tolerance. Bit-identical with MATLAB R2025b. Spec uses magic(8) -- restored to canonical form after magic() was implemented in cycle 46 (commit 71efbf02); originally had to inline the matrix because numkit didn't ship magic(). |
@@ -1901,12 +1901,12 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bwboundaries` | ✅ | 0.004 | 1535.56× | 49.63× | OK | Sig: r = bwboundaries(...). Spec-extension batch 2026-05-09. |
+| `bwboundaries` | ✅ | 0.003 | 2304.33× |  | OK | Sig: r = bwboundaries(...). Spec-extension batch 2026-05-09. |
 | `bwtraceboundary` | ❌ |  |  |  |  |  |
 | `circles2mask` | ❌ |  |  |  |  |  |
 | `corner` | ❌ |  |  |  |  | Harris/Min-eig corner detector |
 | `cornermetric` | ❌ |  |  |  |  |  |
-| `edge` | ✅ | 0.007 | 196.50× | 263.66× | OK | Sig: r = edge(...). Spec-extension batch 2026-05-09 (image namespace). |
+| `edge` | ✅ | 0.007 | 150.03× |  | OK | Sig: r = edge(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `edge3` | ❌ |  |  |  |  |  |
 | `hough` | ❌ |  |  |  |  |  |
 | `houghlines` | ❌ |  |  |  |  |  |
@@ -1930,23 +1930,23 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bwarea` | ✅ | 0.003 | 212.04× | 69.27× | OK | Sig: r = bwarea(BW). Pratt area estimate. KNOWN GAP: numkit returns integer pixel count (4) vs MATLAB's pattern-weighted estimate (4.75). Documented as separate ТЗ; only positive-result structural check pinned. |
-| `bwareafilt` | ✅ | 0.004 |  | 235.85× | OK | Sig: r = bwareafilt(...). Spec-extension batch 2026-05-09. |
-| `bwareaopen` | ✅ | 0.004 | 648.91× | 17.81× | OK | Sig: r = bwareaopen(...). Spec-extension batch 2026-05-09. |
-| `bwconncomp` | ✅ | 0.006 | 186.48× | 21.02× | OK | Sig: cc = bwconncomp(BW[, conn]). Returns 1x1 struct with fields {Connectivity, ImageSize, NumObjects, PixelIdxList}. PixelIdxList is 1xK cell of column-vector linear indices. Bit-identical with MATLAB R2025b. |
+| `bwarea` | ✅ | 0.002 | 387.53× |  | OK | Sig: r = bwarea(BW). Pratt area estimate. KNOWN GAP: numkit returns integer pixel count (4) vs MATLAB's pattern-weighted estimate (4.75). Documented as separate ТЗ; only positive-result structural check pinned. |
+| `bwareafilt` | ✅ | 0.003 |  |  | N/A | Sig: r = bwareafilt(...). Spec-extension batch 2026-05-09. |
+| `bwareaopen` | ✅ | 0.002 | 1157.88× |  | OK | Sig: r = bwareaopen(...). Spec-extension batch 2026-05-09. |
+| `bwconncomp` | ✅ | 0.003 | 45.72× |  | OK | Sig: cc = bwconncomp(BW[, conn]). Returns 1x1 struct with fields {Connectivity, ImageSize, NumObjects, PixelIdxList}. PixelIdxList is 1xK cell of column-vector linear indices. Bit-identical with MATLAB R2025b. |
 | `bwconvhull` | ❌ |  |  |  |  |  |
-| `bwdist` | ✅ | 0.007 | 68.32× | 26.25× | OK | Sig: r = bwdist(...). Spec-extension batch 2026-05-09. |
+| `bwdist` | ✅ | 0.003 | 214.42× |  | OK | Sig: r = bwdist(...). Spec-extension batch 2026-05-09. |
 | `bwdistgeodesic` | ❌ |  |  |  |  |  |
-| `bweuler` | ✅ | 0.004 | 615.78× | 61.34× | OK | Sig: r = bweuler(...). Spec-extension batch 2026-05-09. |
+| `bweuler` | ✅ | 0.002 | 714.04× |  | OK | Sig: r = bweuler(...). Spec-extension batch 2026-05-09. |
 | `bwferet` | ❌ |  |  |  |  | Feret diameters |
-| `bwlabel` | ✅ | 0.005 | 144.09× | 20.87× | OK | Sig: r = bwlabel(...). Spec-extension batch 2026-05-09. |
+| `bwlabel` | ✅ | 0.002 | 60.17× |  | OK | Sig: r = bwlabel(...). Spec-extension batch 2026-05-09. |
 | `bwlabeln` | ❌ |  |  |  |  |  |
-| `bwperim` | ✅ | 0.005 | 410.00× | 56.69× | OK | Sig: r = bwperim(...). Spec-extension batch 2026-05-09. |
+| `bwperim` | ✅ | 0.002 | 589.39× |  | OK | Sig: r = bwperim(...). Spec-extension batch 2026-05-09. |
 | `bwpropfilt` | ❌ |  |  |  |  |  |
-| `bwselect` | ✅ | 0.004 | 771.66× | 46.89× | OK | Sig: r = bwselect(...). Spec-extension batch 2026-05-09. |
+| `bwselect` | ✅ | 0.002 | 726.57× |  | OK | Sig: r = bwselect(...). Spec-extension batch 2026-05-09. |
 | `bwselect3` | ❌ |  |  |  |  |  |
 | `cc2bw` | ❌ |  |  |  |  |  |
-| `corr2` | ✅ | 0.004 | 250.01× | 123.74× | OK | Sig: r = corr2(...). Spec-extension batch 2026-05-09.  |
+| `corr2` | ✅ | 0.002 | 308.03× |  | OK | Sig: r = corr2(...). Spec-extension batch 2026-05-09.  |
 | `graydist` | ❌ |  |  |  |  |  |
 | `imcontour` | ❌ |  |  |  |  |  |
 | `imhist` | ✅ | 0.005 | 160.94× | 53.90× | OK | Sig: r = imhist(...). Spec-extension batch 2026-05-09. |
@@ -1965,8 +1965,8 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `entropy` | ✅ | 0.005 | 269.25× | 55.15× | OK | Sig: r = entropy(...). Spec-extension batch 2026-05-09. |
-| `entropyfilt` | ✅ | 0.008 | 415.19× | 106.13× | OK | Sig: r = entropyfilt(...). Spec-extension batch 2026-05-09. |
+| `entropy` | ✅ | 0.003 | 308.74× |  | OK | Sig: r = entropy(...). Spec-extension batch 2026-05-09. |
+| `entropyfilt` | ✅ | 0.007 | 309.88× |  | OK | Sig: r = entropyfilt(...). Spec-extension batch 2026-05-09. |
 | `graycomatrix` | ✅ | 0.014 | 376.6× |  | OK | Sig: G = graycomatrix(I[, NV-pairs]). Gray-level co-occurrence matrix. Bit-equal MATLAB R2025b. NV-pairs: NumLevels / Offset / GrayLimits / Symmetric. KNOWN GAP: multi-offset 3-D return form. |
 | `graycoprops` | ✅ | 0.014 | 376.6× |  | OK | Sig: s = graycoprops(G). 4 texture stats (Contrast / Correlation / Energy / Homogeneity) off normalised GLCM. Bit-equal MATLAB R2025b. |
 | `rangefilt` | ✅ | 0.003 | 730.34× | 140.06× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
@@ -1995,12 +1995,12 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `dct2` | ✅ | 0.006 | 140.57× | 57.01× | OK | Sig: r = dct2(...). Spec-extension batch 2026-05-09. |
-| `dctmtx` | ✅ | 0.004 | 140.47× | 15.47× | OK | Sig: r = dctmtx(...). Spec-extension batch 2026-05-09. |
+| `dct2` | ✅ | 0.005 | 117.94× |  | OK | Sig: r = dct2(...). Spec-extension batch 2026-05-09. |
+| `dctmtx` | ✅ | 0.003 | 111.85× |  | OK | Sig: r = dctmtx(...). Spec-extension batch 2026-05-09. |
 | `fan2para` | ❌ |  |  |  |  | fan-beam → parallel |
 | `fanbeam` | ❌ |  |  |  |  |  |
-| `fft2` | ✅ | 0.004 | 51.80× | 64.15× | OK | Sig: r = fft2(...). Spec-extension batch 2026-05-09. |
-| `fftshift` | ✅ | 0.008 | 68.89× | 47.51× | OK | Sig: Y = fftshift(X[, dim]). Cyclic shift along every non-singleton dim by ceil(extent/2); inverse ifftshift uses floor(extent/2). Bug fix: numkit had fftshift/ifftshift swapped for odd N + flat-shift instead of per-dim for matrices + dim arg ignored. tol=0 (integer-stable). |
+| `fft2` | ✅ | 0.002 |  |  | N/A | Sig: r = fft2(...). Spec-extension batch 2026-05-09. |
+| `fftshift` | ✅ | 0.006 |  |  | N/A | Sig: Y = fftshift(X[, dim]). Cyclic shift along every non-singleton dim by ceil(extent/2); inverse ifftshift uses floor(extent/2). Bug fix: numkit had fftshift/ifftshift swapped for odd N + flat-shift instead of per-dim for matrices + dim arg ignored. tol=0 (integer-stable). |
 | `idct2` | ✅ | 0.010 | 118.79× | 27.18× | OK | Sig: r = idct2(...). Spec-extension batch 2026-05-09. |
 | `ifanbeam` | ❌ |  |  |  |  |  |
 | `ifft2` | ✅ | 0.006 | 84.24× | 59.61× | OK | Sig: r = ifft2(...). Spec-extension batch 2026-05-09. |
@@ -2015,15 +2015,15 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `fclose` | ✅ | 0.236 | 7.15× | 2.48× | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fclose returns 0 on success. |
-| `feof` | ✅ | 0.336 | 6.23× | 3.64× | OK | Side-effect smoke test (file I/O round-trip via tempname). feof = 1 after over-reading. |
-| `ferror` | ✅ | 0.357 | 5.97× |  | OK | Side-effect smoke test (file I/O round-trip via tempname). ferror returns empty string when no error. |
-| `fgetl` | ✅ | 0.823 | 2.78× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fgetl reads one line (without newline) -- 'hello' has length 5. |
-| `fgets` | ✅ | 0.794 | 2.89× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fgets reads one line WITH newline -- length >= 5 ('hello\n'). |
-| `fileread` | ✅ | 0.324 | 8.77× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fileread returns full file content -- 3 chars. |
-| `fopen` | ✅ | 0.232 | 7.28× | 3.73× | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). Open file, return fd, close, cleanup -- verifies fopen returns valid descriptor. |
-| `fprintf` | ✅ | 0.316 | 8.83× |  | OK | Side-effect smoke test (file I/O round-trip via tempname). fprintf writes 'x' to file -- read back length 1. NOTE: numkit fprintf returns void (no byte count); MATLAB returns the count. Probe uses round-trip rather than return value. |
-| `fread` | ✅ | 1.062 | 2.13× | 2.22× | OK | Side-effect smoke test (file I/O round-trip via tempname). fread default-type round-trip -- sum of [1..5] = 15. |
+| `fclose` | ✅ | 0.214 |  |  | N/A | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fclose returns 0 on success. |
+| `feof` | ✅ | 0.307 |  |  | N/A | Side-effect smoke test (file I/O round-trip via tempname). feof = 1 after over-reading. |
+| `ferror` | ✅ | 0.285 |  |  | N/A | Side-effect smoke test (file I/O round-trip via tempname). ferror returns empty string when no error. |
+| `fgetl` | ✅ | 0.986 |  |  | N/A | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fgetl reads one line (without newline) -- 'hello' has length 5. |
+| `fgets` | ✅ | 0.841 |  |  | N/A | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fgets reads one line WITH newline -- length >= 5 ('hello\n'). |
+| `fileread` | ✅ | 0.283 |  |  | N/A | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fileread returns full file content -- 3 chars. |
+| `fopen` | ✅ | 0.232 |  |  | N/A | Side-effect smoke test (file I/O round-trip in single snippet via tempname). Open file, return fd, close, cleanup -- verifies fopen returns valid descriptor. |
+| `fprintf` | ✅ | 0.276 |  |  | N/A | Side-effect smoke test (file I/O round-trip via tempname). fprintf writes 'x' to file -- read back length 1. NOTE: numkit fprintf returns void (no byte count); MATLAB returns the count. Probe uses round-trip rather than return value. |
+| `fread` | ✅ | 1.009 |  |  | N/A | Side-effect smoke test (file I/O round-trip via tempname). fread default-type round-trip -- sum of [1..5] = 15. |
 | `frewind` | ✅ | 0.368 | 5.35× | 2.66× | OK | Side-effect smoke test (file I/O round-trip via tempname). frewind resets position to 0. |
 | `fscanf` | ✅ | 0.945 | 2.36× | 2.13× | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fscanf reads formatted -- sum of [1..5] = 15. |
 | `fseek` | ✅ | 0.728 | 3.15× | 2.34× | OK | Side-effect smoke test (file I/O round-trip via tempname). fseek to EOF -- ftell reports positive position. |
@@ -2037,7 +2037,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `fileread` | ✅ | 0.324 | 8.77× |  | OK | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fileread returns full file content -- 3 chars. |
+| `fileread` | ✅ | 0.283 |  |  | N/A | Side-effect smoke test (file I/O round-trip in single snippet via tempname). fileread returns full file content -- 3 chars. |
 | `importdatatask` | ❌ |  |  |  |  |  |
 | `importtool` | ❌ |  |  |  |  |  |
 | `readcell` | ❌ |  |  |  |  |  |
@@ -2090,8 +2090,8 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `filemarker` | ❌ |  |  |  |  |  |
-| `fileparts` | ✅ | 0.005 | 135.65× | 38.73× | OK | Sig: r = fileparts(...). Spec-extension batch 2026-05-09. |
-| `filesep` | ✅ | 0.003 | 31.65× |  | OK | Sig: r = filesep(...). Spec-extension batch 2026-05-09. |
+| `fileparts` | ✅ | 0.003 |  |  | N/A | Sig: r = fileparts(...). Spec-extension batch 2026-05-09. |
+| `filesep` | ✅ | 0.002 |  |  | N/A | Sig: r = filesep(...). Spec-extension batch 2026-05-09. |
 | `fullfile` | ✅ | 0.003 | 559.25× |  | OK | Sig: r = fullfile(...). Spec-extension batch 2026-05-09. |
 | `matlabdrive` | ❌ |  |  |  |  |  |
 | `matlabroot` | ❌ |  |  |  |  |  |
@@ -2114,40 +2114,40 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `balance` | ⚠️ | 0.022 | 31.77× | 10.55× | OK | MATLAB balance: Parlett-Reinsch diagonal scaling for eigvalue conditioning. v1 implements only the scaling phase (permutation phase deferred; equivalent to balance(A, 'noperm') but applies even without the explicit option). For the classic 3x3 dynamic-range matrix, T differs from MATLAB by a uniform factor (4x) which CANCELS in B = inv(T)*A*T -- so B entries are bit-equal. For some inputs (e.g. 2x2 with 12 orders of magnitude), my iterative convergence reaches a different scaling than MATLAB's LAPACK dgebal -- B differs in literal entries but the similarity B = inv(T)*A*T is exact (residual ~0) and eigvals match (ediff ~0). KNOWN GAP: literal T/B entries may differ from MATLAB on hard inputs; mathematical invariants always hold. Fingerprint pins: 3x3 B literal entries (match MATLAB), residuals (must be ~0), and eigvalue preservation (must be exact). Octave 11.1.0 ships balance in core. |
-| `bandwidth` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `cdf2rdf` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `chol` | ✅ | 0.003 | 41.06× | 55.80× | OK | Sig: R = chol(A). Cholesky factorisation of symmetric positive-definite A; returns upper R with R'*R = A. Bit-identical with MATLAB R2025b. |
-| `cholupdate` | ✅ | 0.002 | 24.18× |  | OK | Sig: R1 = cholupdate(R, x[, '+'|'-']). Rank-1 update / downdate of Cholesky factor; R1'*R1 = R'*R ± x*x'. Update via Golub-Van Loan 6.5.1 Givens rotations (O(n²)). Downdate via O(n³) re-chol on R'*R - x*x' (KNOWN GAP — MATLAB uses LINPACK Saunders 1972 stable O(n²) variant). Diagonal entries match MATLAB R2025b exactly on the pinned PD inputs. |
-| `cond` | ⚠️ | 0.009 | 65.21× | 23.77× | OK | Sig: c = cond(A). 2-norm condition number = sigma_max/sigma_min via SVD. Bit-identical with MATLAB R2025b. Note: only 2-norm form supported; cond(A,p) for other p deferred. |
-| `condeig` | ✅ | 0.007 | 46.04× |  | OK | Sig: s = condeig(A). Eigenvalue condition numbers; s_i = 1/|cos(angle(v_i, w_i))| where v_i is right eigvec, w_i = inv(V)'s i-th column. Symmetric A → all s_i == 1 (perfectly conditioned). Non-symmetric → larger s_i flags ill-conditioned eigenvalues. Tol 1e-9 is loose because condeig values themselves can be large; we pin the structure (symmetric=1.0; non-sym pair has matching s_i; ill-cond is huge). |
-| `condest` | ✅ | 0.003 | 343.62× |  | OK | Sig: c = condest(A). 1-norm condition number estimate. KNOWN GAP: MATLAB uses Higham 1988 power-iteration estimator (LAPACK dlacn1) that approximates norm(inv(A),1); we compute it exactly via inv(A). Matches MATLAB on well-conditioned A. For hilb(4) ≈ 1.5e4 and other near-singular inputs, our exact value differs from MATLAB's iterative estimate. Wide tol=0.5 (relative) accepts ±50% drift on near-singular inputs; pin only the well-conditioned cases I3 / D / UT for exact match. |
-| `cross` | ✅ | 0.004 | 33.92× | 58.78× | OK | Sig: r = cross(...). Spec-extension batch 2026-05-09. |
-| `ctranspose` | ✅ | 0.006 | 33.05× | 5.67× | OK | Sig: r = ctranspose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
+| `balance` | ⚠️ | 0.021 | 24.89× |  | OK | MATLAB balance: Parlett-Reinsch diagonal scaling for eigvalue conditioning. v1 implements only the scaling phase (permutation phase deferred; equivalent to balance(A, 'noperm') but applies even without the explicit option). For the classic 3x3 dynamic-range matrix, T differs from MATLAB by a uniform factor (4x) which CANCELS in B = inv(T)*A*T -- so B entries are bit-equal. For some inputs (e.g. 2x2 with 12 orders of magnitude), my iterative convergence reaches a different scaling than MATLAB's LAPACK dgebal -- B differs in literal entries but the similarity B = inv(T)*A*T is exact (residual ~0) and eigvals match (ediff ~0). KNOWN GAP: literal T/B entries may differ from MATLAB on hard inputs; mathematical invariants always hold. Fingerprint pins: 3x3 B literal entries (match MATLAB), residuals (must be ~0), and eigvalue preservation (must be exact). Octave 11.1.0 ships balance in core. |
+| `bandwidth` | ✅ | 0.009 | 18.19× |  | OK | Sig: matrix-structure predicates and bandwidth queries. isbanded(A, lo, up) ↔ outside-band entries are zero; isdiag = isbanded(A, 0, 0). istril / istriu ↔ lower / upper triangular. [lo, up] = bandwidth(A) returns sub-diagonal and super-diagonal extent; bandwidth(A) one-out form returns lo; 'lower'|'upper' string form selects one. Bit-exact MATLAB R2025b (tol=0): D diagonal (ib1=id1=1), A tri-banded (ib2=1), A not upper-banded-only (ib3=0), L lower-tri (itl=1), U upper-tri (itu=1), bandwidth(A) = [1, 1], bandwidth(U) = 0, bandwidth(L) = 2, bandwidth(U, 'upper') = 2. Split from the original combined predicates spec to stay under the 256-register chunk limit. |
+| `cdf2rdf` | ✅ | 0.002 | 522.29× |  | OK | Sig: cdf2rdf (complex-diag Schur → real-block Schur), rsf2csf (real-block → complex-diag). cdf2rdf test: build (V, D) manually for a rotation matrix [0 -1; 1 0] (eigvals ±i); verify the real-form reconstruction. rsf2csf test: a [a -b; b a] 2x2 real Schur block (eigvals a±bi). MATLAB R2025b matches the documented convention DR_block = [a -b; b a], VR(:, k+1) = -Im(v) when sub-diagonal of D pairs positive imag part. |
+| `chol` | ✅ | 0.001 | 36.11× |  | OK | Sig: R = chol(A). Cholesky factorisation of symmetric positive-definite A; returns upper R with R'*R = A. Bit-identical with MATLAB R2025b. |
+| `cholupdate` | ✅ | 0.002 | 24.93× |  | OK | Sig: R1 = cholupdate(R, x[, '+'|'-']). Rank-1 update / downdate of Cholesky factor; R1'*R1 = R'*R ± x*x'. Update via Golub-Van Loan 6.5.1 Givens rotations (O(n²)). Downdate via O(n³) re-chol on R'*R - x*x' (KNOWN GAP — MATLAB uses LINPACK Saunders 1972 stable O(n²) variant). Diagonal entries match MATLAB R2025b exactly on the pinned PD inputs. |
+| `cond` | ✅ | 0.007 | 42.48× |  | OK | Sig: c = cond(A [, p]) for p ∈ {1, 2, Inf, 'fro'} — closed the original ⚠️ gap (see also `cond_pnorm` row). p=2 default routes through `cond_2norm` (sigma_max/sigma_min via SVD); other p use `norm(A,p)·norm(inv(A),p)`. Bit-identical with MATLAB R2025b on all probed p. |
+| `condeig` | ✅ | 0.003 | 73.67× |  | OK | Sig: s = condeig(A). Eigenvalue condition numbers; s_i = 1/|cos(angle(v_i, w_i))| where v_i is right eigvec, w_i = inv(V)'s i-th column. Symmetric A → all s_i == 1 (perfectly conditioned). Non-symmetric → larger s_i flags ill-conditioned eigenvalues. Tol 1e-9 is loose because condeig values themselves can be large; we pin the structure (symmetric=1.0; non-sym pair has matching s_i; ill-cond is huge). |
+| `condest` | ✅ | 0.003 | 349.23× |  | OK | Sig: c = condest(A). 1-norm condition number estimate. KNOWN GAP: MATLAB uses Higham 1988 power-iteration estimator (LAPACK dlacn1) that approximates norm(inv(A),1); we compute it exactly via inv(A). Matches MATLAB on well-conditioned A. For hilb(4) ≈ 1.5e4 and other near-singular inputs, our exact value differs from MATLAB's iterative estimate. Wide tol=0.5 (relative) accepts ±50% drift on near-singular inputs; pin only the well-conditioned cases I3 / D / UT for exact match. |
+| `cross` | ✅ | 0.001 | 39.42× |  | OK | Sig: r = cross(...). Spec-extension batch 2026-05-09. |
+| `ctranspose` | ✅ | 0.002 | 34.78× |  | OK | Sig: r = ctranspose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
 | `decomposition` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `det` | ✅ | 0.007 | 61.02× | 29.05× | OK | Sig: d = det(A). Determinant via LU with partial pivoting; sign tracked from row swaps. Singular A returns 0. Bit-identical with MATLAB R2025b on probed cases (2×2, triangular 3×3, identity 5×5, singular rank-1, magic(4)). |
-| `dot` | ✅ | 0.004 | 28.20× | 52.85× | OK | Sig: r = dot(...). Spec-extension batch 2026-05-09. |
-| `eig` | ⚠️ | 0.013 | 32.49× | 8.99× | OK | Sig: e = eig(A) | [V, D] = eig(A). Symmetric: classical Jacobi (eigenvectors + ascending real eigenvalues). General (non-symmetric): characteristic polynomial via Souriau-Faddeev + roots() (eigenvalues only; possibly complex). [V, D] form for general matrices requires QR iteration -- deferred to Phase 2c-3. Sort applied for order-agnostic comparison. |
+| `det` | ✅ | 0.006 | 39.53× |  | OK | Sig: d = det(A). Determinant via LU with partial pivoting; sign tracked from row swaps. Singular A returns 0. Bit-identical with MATLAB R2025b on probed cases (2×2, triangular 3×3, identity 5×5, singular rank-1, magic(4)). |
+| `dot` | ✅ | 0.001 | 29.56× |  | OK | Sig: r = dot(...). Spec-extension batch 2026-05-09. |
+| `eig` | ⚠️ | 0.013 | 10.99× |  | OK | Sig: e = eig(A) | [V, D] = eig(A). Symmetric: classical Jacobi (eigenvectors + ascending real eigenvalues). General (non-symmetric): characteristic polynomial via Souriau-Faddeev + roots() (eigenvalues only; possibly complex). [V, D] form for general matrices requires QR iteration -- deferred to Phase 2c-3. Sort applied for order-agnostic comparison. |
 | `eigs` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `expm` | ✅ | 0.008 | 344.04× | 50.96× | OK | Sig: E = expm(A). Matrix exponential via Padé(6) with scaling-and-squaring (Higham 2005). Works for any square matrix. Bit-identical with MATLAB R2025b on rotation generator + symmetric + zero cases. |
+| `expm` | ✅ | 0.005 |  |  | N/A | Sig: E = expm(A). Matrix exponential via Padé(6) with scaling-and-squaring (Higham 2005). Works for any square matrix. Bit-identical with MATLAB R2025b on rotation generator + symmetric + zero cases. |
 | `expmv` | ✅ | 0.004 |  |  | N/A | Sig: w = expmv(t, A, v). KNOWN GAP: MATLAB core does NOT ship expmv — only Higham's separate package on File Exchange does. Therefore correctness=N/A vs MATLAB on most engines. Spec checks algebraic identity (matches expm(t*A)*v on a 3×3 triangular A to ulp) which is self-verifying. Diagonal A path: w(i) == exp(t·d(i)) · v(i), trivially correct. |
 | `funm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `gsvd` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `hess` | ✅ | 0.013 | 30.91× | 16.06× | OK | Sig: [P, H] = hess(A). Hessenberg reduction via Householder reflectors; A = P*H*P', H upper-Hessenberg (zeros below sub-diagonal). Foundation for general eig (Phase 2c). Bit-identical reconstruction with MATLAB R2025b; H entries differ in sign/order due to Householder reflector freedom but identity verified to ulp. |
 | `inv` | ✅ | 0.008 | 19.00× | 10.49× | OK | Sig: B = inv(A). Matrix inverse via LU (la_solve backend). Bit-identical with MATLAB R2025b on probed 2×2 + 3×3 systems; A*inv(A) = I to ~ulp. |
-| `isbanded` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `isdiag` | ❌ |  |  |  |  |  |
-| `ishermitian` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `issymmetric` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `istril` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `istriu` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `isbanded` | ✅ | 0.009 | 18.19× |  | OK | Sig: matrix-structure predicates and bandwidth queries. isbanded(A, lo, up) ↔ outside-band entries are zero; isdiag = isbanded(A, 0, 0). istril / istriu ↔ lower / upper triangular. [lo, up] = bandwidth(A) returns sub-diagonal and super-diagonal extent; bandwidth(A) one-out form returns lo; 'lower'|'upper' string form selects one. Bit-exact MATLAB R2025b (tol=0): D diagonal (ib1=id1=1), A tri-banded (ib2=1), A not upper-banded-only (ib3=0), L lower-tri (itl=1), U upper-tri (itu=1), bandwidth(A) = [1, 1], bandwidth(U) = 0, bandwidth(L) = 2, bandwidth(U, 'upper') = 2. Split from the original combined predicates spec to stay under the 256-register chunk limit. |
+| `isdiag` | ✅ | 0.009 | 18.19× |  | OK | Sig: matrix-structure predicates and bandwidth queries. isbanded(A, lo, up) ↔ outside-band entries are zero; isdiag = isbanded(A, 0, 0). istril / istriu ↔ lower / upper triangular. [lo, up] = bandwidth(A) returns sub-diagonal and super-diagonal extent; bandwidth(A) one-out form returns lo; 'lower'|'upper' string form selects one. Bit-exact MATLAB R2025b (tol=0): D diagonal (ib1=id1=1), A tri-banded (ib2=1), A not upper-banded-only (ib3=0), L lower-tri (itl=1), U upper-tri (itu=1), bandwidth(A) = [1, 1], bandwidth(U) = 0, bandwidth(L) = 2, bandwidth(U, 'upper') = 2. Split from the original combined predicates spec to stay under the 256-register chunk limit. |
+| `ishermitian` | ✅ | 0.008 | 17.11× |  | OK | Sig: issymmetric(A [, 'skew']) → A == A.' (transpose, no conj). ishermitian(A [, 'skew']) → A == A' (conj transpose). 'skew' flips equality to A == -A.' / A == -A'. Bit-exact MATLAB R2025b (tol=0): SY symmetric (s1=1), H not symmetric (s2=0 — complex matrix), SK skew-sym (s3=1), H Hermitian (h1=1), SY not Hermitian since complex form differs (h2=1 — but SY is real so h2=1 by real-symmetric ≡ Hermitian rule), SKH skew-Hermitian (h3=1). Split from the original combined predicates spec to stay under the 256-register chunk limit. |
+| `issymmetric` | ✅ | 0.008 | 17.11× |  | OK | Sig: issymmetric(A [, 'skew']) → A == A.' (transpose, no conj). ishermitian(A [, 'skew']) → A == A' (conj transpose). 'skew' flips equality to A == -A.' / A == -A'. Bit-exact MATLAB R2025b (tol=0): SY symmetric (s1=1), H not symmetric (s2=0 — complex matrix), SK skew-sym (s3=1), H Hermitian (h1=1), SY not Hermitian since complex form differs (h2=1 — but SY is real so h2=1 by real-symmetric ≡ Hermitian rule), SKH skew-Hermitian (h3=1). Split from the original combined predicates spec to stay under the 256-register chunk limit. |
+| `istril` | ✅ | 0.009 | 18.19× |  | OK | Sig: matrix-structure predicates and bandwidth queries. isbanded(A, lo, up) ↔ outside-band entries are zero; isdiag = isbanded(A, 0, 0). istril / istriu ↔ lower / upper triangular. [lo, up] = bandwidth(A) returns sub-diagonal and super-diagonal extent; bandwidth(A) one-out form returns lo; 'lower'|'upper' string form selects one. Bit-exact MATLAB R2025b (tol=0): D diagonal (ib1=id1=1), A tri-banded (ib2=1), A not upper-banded-only (ib3=0), L lower-tri (itl=1), U upper-tri (itu=1), bandwidth(A) = [1, 1], bandwidth(U) = 0, bandwidth(L) = 2, bandwidth(U, 'upper') = 2. Split from the original combined predicates spec to stay under the 256-register chunk limit. |
+| `istriu` | ✅ | 0.009 | 18.19× |  | OK | Sig: matrix-structure predicates and bandwidth queries. isbanded(A, lo, up) ↔ outside-band entries are zero; isdiag = isbanded(A, 0, 0). istril / istriu ↔ lower / upper triangular. [lo, up] = bandwidth(A) returns sub-diagonal and super-diagonal extent; bandwidth(A) one-out form returns lo; 'lower'|'upper' string form selects one. Bit-exact MATLAB R2025b (tol=0): D diagonal (ib1=id1=1), A tri-banded (ib2=1), A not upper-banded-only (ib3=0), L lower-tri (itl=1), U upper-tri (itu=1), bandwidth(A) = [1, 1], bandwidth(U) = 0, bandwidth(L) = 2, bandwidth(U, 'upper') = 2. Split from the original combined predicates spec to stay under the 256-register chunk limit. |
 | `kron` | ✅ | 0.006 | 50.81× | 17.23× | OK | Sig: r = kron(...). Spec-extension batch 2026-05-09. |
 | `ldl` | ✅ | 0.018 | 32.02× |  | OK | MATLAB ldl: block LDL' factorization. v1 implements Crout LDL' WITHOUT pivoting; covers all PD/ND matrices and indefinite cases that don't strictly require Bunch-Kaufman 2x2 pivoting (which is rare for the test inputs here). Bit-equal with MATLAB R2025b on PD 3x3 (L,D entries match exactly) and on residuals ||A - L*D*L'||. Forms covered: 1-out (L only), 2-out (L,D), 3-out matrix P (identity in v1), 3-out vector P, 'upper' triangle. KNOWN GAPs (PROGRESS): Bunch-Kaufman pivoting (P != I) for matrices with zero pivots; complex Hermitian; sparse [L,D,P,C] form; 'tol' arg. Octave ships ldl in core but with a slightly different output layout for the indefinite case; we follow MATLAB R2025b conventions. |
 | `linsolve` | ✅ | 0.007 | 21.63× | 14.69× | OK | Sig: X = linsolve(A, B[, opts]). Wrapper over la_solve (LU for square A, Householder QR least-squares for tall A). Opts struct accepted for MATLAB-compat but ignored (auto-detection covers same cases). Bit-identical with MATLAB R2025b on probed square + tall systems. |
 | `logm` | ⚠️ | 0.006 | 148.48× | 61.19× | OK | Sig: L = logm(A). Matrix logarithm for symmetric positive-definite A via eig: L = V*diag(log(eig))*V'. Round-trip expm(logm) = A to ulp. General (non-symmetric) logm requires complex Schur -- deferred to Phase 2b. |
 | `lscov` | ✅ | 0.005 | 226.84× | 41.52× | OK | Sig: [x, stdx, mse, S] = lscov(A, b[, w]). Weighted least squares. mse = SSR/(N-p); S = mse·(A'WA)^(-1). Full N×N covariance V deferred (errors). Bit-identical to MATLAB R2025b on OLS and weighted paths. |
-| `lsqminnorm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `lsqnonneg` | ❌ |  |  |  |  |  |
+| `lsqminnorm` | ✅ | 0.013 | 115.64× |  | OK | MATLAB linalg cycle 4: lsqminnorm + lsqnonneg. lsqminnorm = pinv(A,tol)*B; bit-equal with MATLAB R2025b on full-rank, rank-deficient, and wide systems. lsqnonneg via Lawson-Hanson active-set algorithm; bit-equal on x, resnorm, residual, exitflag for the classic test [1 -1 2; 3 4 5; 6 7 8] / [1; 2; 3] -> x = [0; 0; 0.387097], resnorm = 0.06451612903. KNOWN GAPs: lsqminnorm 'rankWarn'/'RegularizationFactor' name-value args deferred; lsqnonneg 'options'/'problem' input forms and 6th 'lambda' output (Lagrange multipliers) deferred; complex inputs not supported. Octave ships both functions; lsqminnorm in core since Octave 6, lsqnonneg in optim package. |
+| `lsqnonneg` | ✅ | 0.013 | 115.64× |  | OK | MATLAB linalg cycle 4: lsqminnorm + lsqnonneg. lsqminnorm = pinv(A,tol)*B; bit-equal with MATLAB R2025b on full-rank, rank-deficient, and wide systems. lsqnonneg via Lawson-Hanson active-set algorithm; bit-equal on x, resnorm, residual, exitflag for the classic test [1 -1 2; 3 4 5; 6 7 8] / [1; 2; 3] -> x = [0; 0; 0.387097], resnorm = 0.06451612903. KNOWN GAPs: lsqminnorm 'rankWarn'/'RegularizationFactor' name-value args deferred; lsqnonneg 'options'/'problem' input forms and 6th 'lambda' output (Lagrange multipliers) deferred; complex inputs not supported. Octave ships both functions; lsqminnorm in core since Octave 6, lsqnonneg in optim package. |
 | `lu` | ✅ | 0.006 | 32.52× | 31.02× | OK | Sig: [L, U, P] = lu(A). LU with partial pivoting; P*A = L*U exactly. L unit-lower, U upper. Bit-identical with MATLAB R2025b on probed 3x3. |
 | `mldivide` | ✅ | 0.008 | 31.79× | 13.91× | OK | Sig: X = mldivide(A,B) ↔ A\B. Square A: LU with partial pivoting. Tall A (m>n): QR via Householder + R back-solve (least squares). Wide A (m<n, min-norm): NOT yet supported — throws m:mldivide:wide. Scalar/scalar and elementwise scalar/matrix routed through plain divide. |
 | `mpower` | ✅ | 0.004 | 30.65× | 36.36× | OK | Sig: r = mpower(a,b) (a^b). Spec-extension batch 2026-05-09. KNOWN GAP: matrix^integer (M^n where M is matrix) not implemented in numkit — only scalar^scalar pinned. Documented as separate ТЗ; would need O(log n) repeated mtimes for the matrix branch. |
@@ -2156,33 +2156,33 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `norm` | ✅ | 0.006 | 33.38× | 20.93× | OK | Sig: n = norm(X[, p]). Vector and matrix norms. Vector: 2-norm default, p-norm via sum(|x|^p)^(1/p), Inf -> max(|x|), 1 -> sum(|x|). Matrix: 2-norm = largest singular, 1 -> max col sum, Inf -> max row sum, 'fro' -> Frobenius. Bit-identical with MATLAB R2025b. |
 | `normest` | ✅ | 0.009 | 60.48× | 41.13× | OK | Sig: n = normest(A). 2-norm estimate via largest singular value. NOTE: numkit returns the exact value (full SVD), MATLAB uses power-iteration with default tol=1e-6 (~5-6 sig digits). Tol 1e-5 reflects MATLAB's iteration tolerance. A future perf-pass can switch to power-iteration to match performance characteristics. |
 | `null` | ✅ | 0.008 | 78.86× | 20.64× | OK | Sig: N = null(A[, tol]). Orthonormal null-space basis; n - rank(A) columns. A*null(A) = 0 to ulp. |
-| `ordeig` | ✅ | 0.001 | 35.27× |  | OK | Sig: e = ordeig(T). Eigenvalues of (quasi-)triangular Schur factor in stored order — NO sort. Diagonal T → diag(T). Real Schur with 2×2 blocks → conjugate pairs from (a ± √disc)/2 formula. Pinned: diagonal [3 1 2] order preserved; real Schur block at (2,3) gives 0.5±1.5i. |
+| `ordeig` | ✅ | 0.001 | 43.63× |  | OK | Sig: e = ordeig(T). Eigenvalues of (quasi-)triangular Schur factor in stored order — NO sort. Diagonal T → diag(T). Real Schur with 2×2 blocks → conjugate pairs from (a ± √disc)/2 formula. Pinned: diagonal [3 1 2] order preserved; real Schur block at (2,3) gives 0.5±1.5i. |
 | `ordqz` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `ordschur` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `orth` | ✅ | 0.009 | 61.15× | 29.96× | OK | Sig: Q = orth(A[, tol]). Orthonormal basis for range of A; Q has rank(A) columns. Q'*Q = I exactly. Note: column signs may differ from MATLAB (singular vector sign ambiguity); fingerprint avoids direct value comparison. |
 | `pagectranspose` | ✅ | 0.220 | 0.22× | 0.20× | OK | 128x64x8 real-valued — pagectranspose equals pagetranspose. 100 iters. |
-| `pageeig` | ❌ |  |  |  |  |  |
-| `pageinv` | ✅ | 0.002 | 49.85× |  | OK | Sig: B = pageinv(A). Page-wise inv for 3D arrays -- each page (2D slice) inverted via LU. Bit-identical with MATLAB R2025b across general / identity / diagonal probes. |
-| `pagelsqminnorm` | ❌ |  |  |  |  |  |
-| `pagemldivide` | ❌ |  |  |  |  |  |
-| `pagemrdivide` | ❌ |  |  |  |  |  |
+| `pageeig` | ✅ | 0.017 | 57.58× |  | OK | Sig: page-wise wrappers (pageeig, pagesvd, pagepinv, pagenorm, pagemldivide, pagemrdivide, pagelsqminnorm, pageinv). All iterate the corresponding 2-D linalg op per page. Fingerprints pin shapes + a handful of values (we use pageinv = inv per page, pageeig on symmetric input that gives exact eigvals [5 5 5] for one page, etc.). pagelsqminnorm not in fingerprint — it uses pinv which goes through SVD whose sign convention may differ at machine precision. |
+| `pageinv` | ✅ | 0.017 | 57.58× |  | OK | Sig: page-wise wrappers (pageeig, pagesvd, pagepinv, pagenorm, pagemldivide, pagemrdivide, pagelsqminnorm, pageinv). All iterate the corresponding 2-D linalg op per page. Fingerprints pin shapes + a handful of values (we use pageinv = inv per page, pageeig on symmetric input that gives exact eigvals [5 5 5] for one page, etc.). pagelsqminnorm not in fingerprint — it uses pinv which goes through SVD whose sign convention may differ at machine precision. |
+| `pagelsqminnorm` | ✅ | 0.017 | 57.58× |  | OK | Sig: page-wise wrappers (pageeig, pagesvd, pagepinv, pagenorm, pagemldivide, pagemrdivide, pagelsqminnorm, pageinv). All iterate the corresponding 2-D linalg op per page. Fingerprints pin shapes + a handful of values (we use pageinv = inv per page, pageeig on symmetric input that gives exact eigvals [5 5 5] for one page, etc.). pagelsqminnorm not in fingerprint — it uses pinv which goes through SVD whose sign convention may differ at machine precision. |
+| `pagemldivide` | ✅ | 0.017 | 57.58× |  | OK | Sig: page-wise wrappers (pageeig, pagesvd, pagepinv, pagenorm, pagemldivide, pagemrdivide, pagelsqminnorm, pageinv). All iterate the corresponding 2-D linalg op per page. Fingerprints pin shapes + a handful of values (we use pageinv = inv per page, pageeig on symmetric input that gives exact eigvals [5 5 5] for one page, etc.). pagelsqminnorm not in fingerprint — it uses pinv which goes through SVD whose sign convention may differ at machine precision. |
+| `pagemrdivide` | ✅ | 0.017 | 57.58× |  | OK | Sig: page-wise wrappers (pageeig, pagesvd, pagepinv, pagenorm, pagemldivide, pagemrdivide, pagelsqminnorm, pageinv). All iterate the corresponding 2-D linalg op per page. Fingerprints pin shapes + a handful of values (we use pageinv = inv per page, pageeig on symmetric input that gives exact eigvals [5 5 5] for one page, etc.). pagelsqminnorm not in fingerprint — it uses pinv which goes through SVD whose sign convention may differ at machine precision. |
 | `pagemtimes` | ✅ | 0.019 | 0.57× |  | OK | Sig: C = pagemtimes(A, B). 20×20×20 batch matmul. 100 iters. |
-| `pagenorm` | ❌ |  |  |  |  |  |
-| `pagepinv` | ❌ |  |  |  |  |  |
-| `pagesvd` | ❌ |  |  |  |  |  |
+| `pagenorm` | ✅ | 0.017 | 57.58× |  | OK | Sig: page-wise wrappers (pageeig, pagesvd, pagepinv, pagenorm, pagemldivide, pagemrdivide, pagelsqminnorm, pageinv). All iterate the corresponding 2-D linalg op per page. Fingerprints pin shapes + a handful of values (we use pageinv = inv per page, pageeig on symmetric input that gives exact eigvals [5 5 5] for one page, etc.). pagelsqminnorm not in fingerprint — it uses pinv which goes through SVD whose sign convention may differ at machine precision. |
+| `pagepinv` | ✅ | 0.017 | 57.58× |  | OK | Sig: page-wise wrappers (pageeig, pagesvd, pagepinv, pagenorm, pagemldivide, pagemrdivide, pagelsqminnorm, pageinv). All iterate the corresponding 2-D linalg op per page. Fingerprints pin shapes + a handful of values (we use pageinv = inv per page, pageeig on symmetric input that gives exact eigvals [5 5 5] for one page, etc.). pagelsqminnorm not in fingerprint — it uses pinv which goes through SVD whose sign convention may differ at machine precision. |
+| `pagesvd` | ✅ | 0.017 | 57.58× |  | OK | Sig: page-wise wrappers (pageeig, pagesvd, pagepinv, pagenorm, pagemldivide, pagemrdivide, pagelsqminnorm, pageinv). All iterate the corresponding 2-D linalg op per page. Fingerprints pin shapes + a handful of values (we use pageinv = inv per page, pageeig on symmetric input that gives exact eigvals [5 5 5] for one page, etc.). pagelsqminnorm not in fingerprint — it uses pinv which goes through SVD whose sign convention may differ at machine precision. |
 | `pagetranspose` | ✅ | 0.081 | 0.45× | 0.63× | OK | 128x64x8 array, page-wise transpose. 100 iters. |
 | `pinv` | ✅ | 0.011 | 59.63× | 17.42× | OK | Sig: P = pinv(A[, tol]). Moore-Penrose pseudoinverse via SVD: A*P*A = A, P*A*P = P (verified to ulp). Bit-identical with MATLAB R2025b on probed full-rank + rank-deficient cases. |
-| `planerot` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `polyeig` | ✅ | 0.013 | 41.08× |  | OK | Sig: e = polyeig(A0, A1, ..., Ak). Polynomial eigenvalue problem via companion linearisation + char-poly + roots(). Eigenvalues-only form. Linear test: (A0 + λI)x = 0 → e = eigvals(-A0) = [-2, -3]. Quadratic test: (λ²-5λ+6)·I → e = {2, 2, 3, 3}. Real ordering may differ — fingerprint sorts. Tol 1e-5 because the characteristic-polynomial → roots() path has lower precision than direct eig (residual imag part ~1e-7 for nominally-real eigvals). |
+| `planerot` | ✅ | 0.014 | 74.71× |  | OK | MATLAB linalg cycle 2: rref + rcond + planerot. rref via Gauss-Jordan with partial pivoting; default tol = max(M,N)*eps(norm(A,inf)); two-output [R, jb] form returns 1-based pivot column indices. rcond uses cheap path 1/(norm(A,1)*norm(inv(A),1)); returns 0 for singular A. KNOWN GAP: rcond on near-singular matrices may differ slightly from MATLAB's LAPACK dgecon estimator. planerot Givens rotation: r=hypot(x,y), G=[c s; -s c], degenerate (0,0) case returns identity. Bit-equal with MATLAB R2025b on the well-conditioned cases; rcond bit-equal on diag/2x2/hilb(4); planerot exact (cos/sin formula matches). rref complex input deferred (KNOWN GAP). Octave: triple-engine green for all three. Real-only inputs in v1. |
+| `polyeig` | ✅ | 0.013 | 41.41× |  | OK | Sig: e = polyeig(A0, A1, ..., Ak). Polynomial eigenvalue problem via companion linearisation + char-poly + roots(). Eigenvalues-only form. Linear test: (A0 + λI)x = 0 → e = eigvals(-A0) = [-2, -3]. Quadratic test: (λ²-5λ+6)·I → e = {2, 2, 3, 3}. Real ordering may differ — fingerprint sorts. Tol 1e-5 because the characteristic-polynomial → roots() path has lower precision than direct eig (residual imag part ~1e-7 for nominally-real eigvals). |
 | `qr` | ✅ | 0.013 | 36.90× | 13.31× | OK | Sig: [Q, R] = qr(A). Householder QR; A = Q*R, Q orthogonal. Tested on 3x3 + 3x2 tall. Q signs may differ from MATLAB by reflection (R diagonal sign convention varies); fingerprint uses abs() on R diagonal to be sign-agnostic. Identity Q*R == A and Q'*Q == I should match to ulp. |
-| `qrdelete` | ❌ |  |  |  |  |  |
-| `qrinsert` | ❌ |  |  |  |  |  |
-| `qrupdate` | ✅ | 0.002 | 315.72× |  | OK | Sig: [Q1, R1] = qrupdate(Q, R, u, v) — rank-1 update A→A+uv'. qrinsert(Q, R, k, x) — insert column. qrdelete(Q, R, k) — drop column. All three use Givens rotations (Daniel-Gragg-Kaufman-Stewart 1976). Fingerprint uses algebraic identities (reconstruction norm, Q orthogonality, R upper-triangularity) rather than literal entries — Givens-rotation Q/R outputs are unique only up to column sign convention which may differ from MATLAB. |
+| `qrdelete` | ✅ | 0.003 | 321.55× |  | OK | Sig: [Q1, R1] = qrupdate(Q, R, u, v) — rank-1 update A→A+uv'. qrinsert(Q, R, k, x) — insert column. qrdelete(Q, R, k) — drop column. All three use Givens rotations (Daniel-Gragg-Kaufman-Stewart 1976). Fingerprint uses algebraic identities (reconstruction norm, Q orthogonality, R upper-triangularity) rather than literal entries — Givens-rotation Q/R outputs are unique only up to column sign convention which may differ from MATLAB. |
+| `qrinsert` | ✅ | 0.003 | 321.55× |  | OK | Sig: [Q1, R1] = qrupdate(Q, R, u, v) — rank-1 update A→A+uv'. qrinsert(Q, R, k, x) — insert column. qrdelete(Q, R, k) — drop column. All three use Givens rotations (Daniel-Gragg-Kaufman-Stewart 1976). Fingerprint uses algebraic identities (reconstruction norm, Q orthogonality, R upper-triangularity) rather than literal entries — Givens-rotation Q/R outputs are unique only up to column sign convention which may differ from MATLAB. |
+| `qrupdate` | ✅ | 0.003 | 321.55× |  | OK | Sig: [Q1, R1] = qrupdate(Q, R, u, v) — rank-1 update A→A+uv'. qrinsert(Q, R, k, x) — insert column. qrdelete(Q, R, k) — drop column. All three use Givens rotations (Daniel-Gragg-Kaufman-Stewart 1976). Fingerprint uses algebraic identities (reconstruction norm, Q orthogonality, R upper-triangularity) rather than literal entries — Givens-rotation Q/R outputs are unique only up to column sign convention which may differ from MATLAB. |
 | `qz` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `rank` | ✅ | 0.010 | 40.83× | 28.92× | OK | Sig: r = rank(A[, tol]). Numerical rank via SVD; sigma > max(m,n)*eps(sigma_max). Bit-identical with MATLAB R2025b on probed full-rank/rank-deficient/zero/identity/hilbert cases. |
-| `rcond` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `rref` | ❌ |  |  |  |  |  |
-| `rsf2csf` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `rcond` | ✅ | 0.014 | 74.71× |  | OK | MATLAB linalg cycle 2: rref + rcond + planerot. rref via Gauss-Jordan with partial pivoting; default tol = max(M,N)*eps(norm(A,inf)); two-output [R, jb] form returns 1-based pivot column indices. rcond uses cheap path 1/(norm(A,1)*norm(inv(A),1)); returns 0 for singular A. KNOWN GAP: rcond on near-singular matrices may differ slightly from MATLAB's LAPACK dgecon estimator. planerot Givens rotation: r=hypot(x,y), G=[c s; -s c], degenerate (0,0) case returns identity. Bit-equal with MATLAB R2025b on the well-conditioned cases; rcond bit-equal on diag/2x2/hilb(4); planerot exact (cos/sin formula matches). rref complex input deferred (KNOWN GAP). Octave: triple-engine green for all three. Real-only inputs in v1. |
+| `rref` | ✅ | 0.014 | 74.71× |  | OK | MATLAB linalg cycle 2: rref + rcond + planerot. rref via Gauss-Jordan with partial pivoting; default tol = max(M,N)*eps(norm(A,inf)); two-output [R, jb] form returns 1-based pivot column indices. rcond uses cheap path 1/(norm(A,1)*norm(inv(A),1)); returns 0 for singular A. KNOWN GAP: rcond on near-singular matrices may differ slightly from MATLAB's LAPACK dgecon estimator. planerot Givens rotation: r=hypot(x,y), G=[c s; -s c], degenerate (0,0) case returns identity. Bit-equal with MATLAB R2025b on the well-conditioned cases; rcond bit-equal on diag/2x2/hilb(4); planerot exact (cos/sin formula matches). rref complex input deferred (KNOWN GAP). Octave: triple-engine green for all three. Real-only inputs in v1. |
+| `rsf2csf` | ✅ | 0.002 | 522.29× |  | OK | Sig: cdf2rdf (complex-diag Schur → real-block Schur), rsf2csf (real-block → complex-diag). cdf2rdf test: build (V, D) manually for a rotation matrix [0 -1; 1 0] (eigvals ±i); verify the real-form reconstruction. rsf2csf test: a [a -b; b a] 2x2 real Schur block (eigvals a±bi). MATLAB R2025b matches the documented convention DR_block = [a -b; b a], VR(:, k+1) = -Im(v) when sub-diagonal of D pairs positive imag part. |
 | `schur` | ⚠️ | 0.008 | 58.02× | 13.39× | OK | Sig: [U, T] = schur(A). For symmetric A this is the eigendecomposition: A = U*T*U' with T diagonal. General (non-symmetric) Schur returns quasi-triangular T with 2x2 blocks for complex eigenpairs -- deferred to Phase 2b. Eigenvalues bit-identical with MATLAB. |
 | `sqrtm` | ⚠️ | 0.005 | 118.00× | 15.22× | OK | Sig: R = sqrtm(A). Matrix square root for symmetric positive-semidefinite A via eig: R = V*diag(sqrt(eig))*V'. R*R = A to ulp. General sqrtm requires complex Schur -- deferred to Phase 2b. |
 | `subspace` | ✅ | 0.008 | 53.11× | 57.20× | OK | Sig: theta = subspace(A, B). Largest principal angle between column spaces of A and B. Identical subspaces -> 0; orthogonal -> pi/2. |
@@ -2195,7 +2195,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `transpose` | ✅ | 0.005 | 34.14× | 36.09× | OK | Sig: r = transpose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
 | `tril` | ✅ | 0.005 | 24.38× | 27.82× | OK | Sig: r = tril(...). Spec-extension batch 2026-05-09. |
 | `triu` | ✅ | 0.005 | 24.81× | 23.62× | OK | Sig: r = triu(...). Spec-extension batch 2026-05-09. |
-| `vecnorm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `vecnorm` | ✅ | 0.004 | 33.89× |  | OK | Sig: y = vecnorm(A [, p [, dim]]). Element-wise p-norm reduction along a dimension; default p=2, default dim = first non-singleton. Row [3 4] → 5 (2-norm). Column [3;4] → 5. 2×2 matrix V columns → [hypot(3,6), hypot(4,8)] = [6.708, 8.944]. r-1-norm = sum(|r|) = 10. r-Inf = max(|r|) = 4. M row-norm (dim=2) → [hypot(1,2), hypot(3,4)] = [2.236, 5]. vecnorm([]) → 0 (MATLAB convention). Bit-exact MATLAB R2025b (tol=1e-12). |
 
 ## ODE
 
@@ -2235,10 +2235,10 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `fminbnd` | ✅ | 0.006 | 315.60× | 84.66× | OK | Sig: x = fminbnd(fn, lo, hi[, tol]). 1-D bounded minimization. Bit-identical with MATLAB R2025b on probed quadratic (x=3.0). NOTE: numkit only returns x; multi-output [x, fval, exitflag] form is a separate ТЗ (refactor). |
-| `fminsearch` | ✅ | 0.050 | 32.73× | 54.40× | OK | Sig: x = fminsearch(fn, x0[, tol]). N-D Nelder-Mead unconstrained minimization. Converges to MATLAB R2025b's solution within tol on probed quadratic (x = [2 3]). NOTE: multi-output [x, fval, exitflag, output] form is a separate ТЗ. |
+| `fminbnd` | ✅ | 0.003 |  |  | N/A | Sig: x = fminbnd(fn, lo, hi[, tol]). 1-D bounded minimization. Bit-identical with MATLAB R2025b on probed quadratic (x=3.0). NOTE: numkit only returns x; multi-output [x, fval, exitflag] form is a separate ТЗ (refactor). |
+| `fminsearch` | ✅ | 0.050 |  |  | N/A | Sig: x = fminsearch(fn, x0[, tol]). N-D Nelder-Mead unconstrained minimization. Converges to MATLAB R2025b's solution within tol on probed quadratic (x = [2 3]). NOTE: multi-output [x, fval, exitflag, output] form is a separate ТЗ. |
 | `fzero` | ✅ | 0.011 | 83.53× | 57.32× | OK | Sig: r = fzero(...). Spec-extension batch 2026-05-09. |
-| `lsqnonneg` | ❌ |  |  |  |  |  |
+| `lsqnonneg` | ✅ | 0.013 | 115.64× |  | OK | MATLAB linalg cycle 4: lsqminnorm + lsqnonneg. lsqminnorm = pinv(A,tol)*B; bit-equal with MATLAB R2025b on full-rank, rank-deficient, and wide systems. lsqnonneg via Lawson-Hanson active-set algorithm; bit-equal on x, resnorm, residual, exitflag for the classic test [1 -1 2; 3 4 5; 6 7 8] / [1; 2; 3] -> x = [0; 0; 0.387097], resnorm = 0.06451612903. KNOWN GAPs: lsqminnorm 'rankWarn'/'RegularizationFactor' name-value args deferred; lsqnonneg 'options'/'problem' input forms and 6th 'lambda' output (Lagrange multipliers) deferred; complex inputs not supported. Octave ships both functions; lsqminnorm in core since Octave 6, lsqnonneg in optim package. |
 | `optimget` | ✅ | 0.003 | 335.74× | 44.90× | OK | Sig: v = optimget(opts, name[, default]). Bit-identical with MATLAB R2025b on probed access. Earlier defer was wrong -- function works. |
 | `optimize` | ❌ |  |  |  |  |  |
 | `optimset` | ✅ | 0.004 | 177.60× | 53.74× | OK | Sig: r = optimset(...). Spec-extension batch 2026-05-09. |
@@ -2312,9 +2312,9 @@ intentionally omitted — flat solver functions only.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `buffer` | ❌ |  |  |  |  | reshape with overlap |
-| `chirp` | ✅ | 0.004 | 606.99× | 37.07× | OK | Sig: r = chirp(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `chirp` | ✅ | 0.004 | 688.85× |  | OK | Sig: r = chirp(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `demod` | ❌ |  |  |  |  |  |
-| `diric` | ✅ | 0.004 | 201.56× | 18.41× | OK | Sig: r = diric(...). Spec-extension batch 2026-05-09. |
+| `diric` | ✅ | 0.001 | 294.97× |  | OK | Sig: r = diric(...). Spec-extension batch 2026-05-09. |
 | `framelbl` | ❌ |  |  |  |  |  |
 | `framesig` | ❌ |  |  |  |  |  |
 | `gauspuls` | ✅ | 0.003 | 240.89× | 30.94× | OK | Sig: r = gauspuls(...). Spec-extension batch 2026-05-09. |
@@ -2339,27 +2339,27 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `butter` | ✅ | 0.028 | 271.00× | 10.97× | OK | Sig: r = butter(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `buttord` | ✅ | 0.005 | 188.24× | 22.55× | OK | Sig: r = buttord(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `butter` | ✅ | 0.002 | 2885.92× |  | OK | Sig: r = butter(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `buttord` | ✅ | 0.001 | 744.34× |  | OK | Sig: r = buttord(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `cfirpm` | ❌ |  |  |  |  | complex Parks-McClellan |
-| `cheb1ord` | ✅ | 0.004 | 234.39× | 38.85× | OK | Sig: r = cheb1ord(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `cheb2ord` | ✅ | 0.004 | 242.11× | 51.49× | OK | Sig: r = cheb2ord(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `cheby1` | ✅ | 0.008 | 707.11× | 29.12× | OK | Sig: r = cheby1(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `cheby2` | ✅ | 0.010 | 640.82× | 29.00× | OK | Sig: r = cheby2(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `cheb1ord` | ✅ | 0.001 | 422.50× |  | OK | Sig: r = cheb1ord(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `cheb2ord` | ✅ | 0.001 | 262.77× |  | OK | Sig: r = cheb2ord(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `cheby1` | ✅ | 0.005 | 191.33× |  | OK | Sig: r = cheby1(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `cheby2` | ✅ | 0.006 | 364.27× |  | OK | Sig: r = cheby2(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `designfilt` | ❌ |  |  |  |  |  |
 | `designfilter` | ❌ |  |  |  |  |  |
 | `digitalfilter` | ❌ |  |  |  |  |  |
-| `double` | ✅ | 0.004 | 63.28× | 40.71× | OK | Sig: r = double(...). Type conversion. Spec-extension batch 2026-05-09. KNOWN GAP: numkit rejects double("string") with error; MATLAB returns NaN, Octave returns ASCII codes — both differ from numkit. String→double documented as separate gap; only int/logical/numeric paths pinned here. |
+| `double` | ✅ | 0.003 | 11.60× |  | OK | Sig: r = double(...). Type conversion. Spec-extension batch 2026-05-09. KNOWN GAP: numkit rejects double("string") with error; MATLAB returns NaN, Octave returns ASCII codes — both differ from numkit. String→double documented as separate gap; only int/logical/numeric paths pinned here. |
 | `dspfwiz` | ❌ |  |  |  |  |  |
-| `ellip` | ✅ | 0.041 | 227.41× | 101.36× | OK | Sig: [b,a] = ellip(N, Rp, Rs, Wn[, type][, 's']). Cauer IIR design via ellipap + lp2X + bilinear. Bit-identical with MATLAB R2025b on probe. |
+| `ellip` | ✅ | 0.038 | 118.27× |  | OK | Sig: [b,a] = ellip(N, Rp, Rs, Wn[, type][, 's']). Cauer IIR design via ellipap + lp2X + bilinear. Bit-identical with MATLAB R2025b on probe. |
 | `ellipord` | ⚠️ | 0.011 | 155.73× | 41.68× | OK | Sig: [n, Wn] = ellipord(Wp, Ws, Rp, Rs[, 's']). Bit-equal MATLAB R2025b on lowpass / highpass / bandpass / analog. KNOWN GAP: bandstop (ftype=3) deferred. Octave: in signal package, not core. |
 | `filt2block` | ❌ |  |  |  |  |  |
 | `filteranalyzer` | ❌ |  |  |  |  |  |
-| `fir1` | ✅ | 0.001 | 93.82× | 1937.73× | OK | Sig: B = fir1(N, WN). 21-tap FIR. 1000 iters. |
+| `fir1` | ✅ | 0.001 |  |  | N/A | Sig: B = fir1(N, WN). 21-tap FIR. 1000 iters. |
 | `fir2` | ✅ | 0.069 | 41.13× | 51.49× | OK | Sig: b = fir2(N, F, A). Arbitrary-response FIR via frequency-sampling + iFFT + Hamming. Bit-equal MATLAB R2025b across lowpass/bandpass/highpass. KNOWN GAP: optional npt/lap/wind args deferred. |
 | `fircls` | ❌ |  |  |  |  | constrained-LS FIR |
 | `fircls1` | ❌ |  |  |  |  |  |
-| `firls` | ⚠️ | 0.028 | 93.98× | 10.47× | OK | Sig: b = firls(N, F, A). Type-I least-squares FIR design with piecewise-linear desired amplitude. Cholesky on (M+1)x(M+1) Q matrix from closed-form integrals of cos(i*w)*cos(j*w) over each band. Bit-identical with MATLAB R2025b on lowpass design (21-tap, [0,0.4]/[0.5,1] bands). NOTE: only Type-I (even N) supported in this revision; Type-III/IV (Hilbert, differentiator) and per-band weights are deferred. |
+| `firls` | ⚠️ | 0.005 |  |  | N/A | Sig: b = firls(N, F, A). Type-I least-squares FIR design with piecewise-linear desired amplitude. Cholesky on (M+1)x(M+1) Q matrix from closed-form integrals of cos(i*w)*cos(j*w) over each band. Bit-identical with MATLAB R2025b on lowpass design (21-tap, [0,0.4]/[0.5,1] bands). NOTE: only Type-I (even N) supported in this revision; Type-III/IV (Hilbert, differentiator) and per-band weights are deferred. |
 | `firpm` | ✅ | 0.24 | 26.1× | 27.8× | OK | Sig: [b, err] = firpm(N, F, A[, W][, ftype]). Parks-McClellan optimal equiripple FIR via Remez exchange. All 4 linear-phase types + Hilbert + Differentiator (matches MATLAB R2025b firpm.m). Approx-equal MATLAB R2025b ~1e-3 across 7 designs (LP/BP/HP/weighted/multi-band + Type II + Hilbert + Differentiator). KNOWN GAPS: fresp function-handle, 3rd `res` output struct, lgrid cell-form. |
 | `firpmord` | ✅ | 0.010 | 170.04× | 144.65× | OK | Sig: [n, fo, ao, w] = firpmord(F, A, dev[, Fs]). Parks-McClellan FIR order estimator (Rabiner & Gold remlpord). Bit-equal MATLAB R2025b on lowpass / highpass / bandpass. Returns 4-tuple suitable for firpm. |
 | `gaussdesign` | ✅ | 0.004 | 245.70× |  | OK | Sig: h = gaussdesign(BT, span, sps). Gaussian FIR pulse-shaping filter. Bit-identical with MATLAB R2025b on (0.3, 4, 8) probe (h(17)=0.112904, sum=1, length=33). Earlier defer was wrong. |
@@ -2383,18 +2383,18 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `besselap` | ✅ | 0.005 | 125.92× | 61.41× | OK | Sig: r = besselap(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `besself` | ✅ | 0.008 | 1226.09× | 48.07× | OK | Sig: [b,a] = besself(n, Wo). Spec-extension batch 2026-05-09 (cycle 43). |
-| `bilinear` | ✅ | 0.005 | 457.54× | 620.52× | OK | Sig: r = bilinear(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `buttap` | ✅ | 0.005 | 159.59× | 55.50× | OK | Sig: r = buttap(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `butter` | ✅ | 0.028 | 271.00× | 10.97× | OK | Sig: r = butter(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `cheb1ap` | ✅ | 0.005 | 135.61× | 24.86× | OK | Sig: r = cheb1ap(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `cheb2ap` | ✅ | 0.005 | 164.84× | 27.45× | OK | Sig: r = cheb2ap(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `cheby1` | ✅ | 0.008 | 707.11× | 29.12× | OK | Sig: r = cheby1(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `cheby2` | ✅ | 0.010 | 640.82× | 29.00× | OK | Sig: r = cheby2(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `ellip` | ✅ | 0.041 | 227.41× | 101.36× | OK | Sig: [b,a] = ellip(N, Rp, Rs, Wn[, type][, 's']). Cauer IIR design via ellipap + lp2X + bilinear. Bit-identical with MATLAB R2025b on probe. |
-| `ellipap` | ✅ | 0.025 | 128.93× | 165.71× | OK | Sig: [z,p,k] = ellipap(N, Rp, Rs). Cauer analog prototype via Sophocleous formulas. Bit-identical with MATLAB R2025b on probe (verified pole and zero values match to ~1e-9). |
-| `freqs` | ✅ | 0.005 | 181.33× | 38.10× | OK | Sig: H = freqs(b, a, w). Returns 1xM row vector of complex H(jw). Bit-identical with MATLAB R2025b after row-shape fix 2026-05-09. |
+| `besselap` | ✅ | 0.002 | 271.94× |  | OK | Sig: r = besselap(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `besself` | ✅ | 0.005 | 1698.05× |  | OK | Sig: [b,a] = besself(n, Wo). Spec-extension batch 2026-05-09 (cycle 43). |
+| `bilinear` | ✅ | 0.003 | 486.74× |  | OK | Sig: r = bilinear(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `buttap` | ✅ | 0.004 | 160.91× |  | OK | Sig: r = buttap(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `butter` | ✅ | 0.002 | 2885.92× |  | OK | Sig: r = butter(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `cheb1ap` | ✅ | 0.002 | 293.28× |  | OK | Sig: r = cheb1ap(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `cheb2ap` | ✅ | 0.002 | 282.66× |  | OK | Sig: r = cheb2ap(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `cheby1` | ✅ | 0.005 | 191.33× |  | OK | Sig: r = cheby1(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `cheby2` | ✅ | 0.006 | 364.27× |  | OK | Sig: r = cheby2(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `ellip` | ✅ | 0.038 | 118.27× |  | OK | Sig: [b,a] = ellip(N, Rp, Rs, Wn[, type][, 's']). Cauer IIR design via ellipap + lp2X + bilinear. Bit-identical with MATLAB R2025b on probe. |
+| `ellipap` | ✅ | 0.028 | 5.86× |  | OK | Sig: [z,p,k] = ellipap(N, Rp, Rs). Cauer analog prototype via Sophocleous formulas. Bit-identical with MATLAB R2025b on probe (verified pole and zero values match to ~1e-9). |
+| `freqs` | ✅ | 0.002 |  |  | N/A | Sig: H = freqs(b, a, w). Returns 1xM row vector of complex H(jw). Bit-identical with MATLAB R2025b after row-shape fix 2026-05-09. |
 | `impinvar` | ✅ | 0.004 | 680.66× | 123.66× | OK | Sig: [bz,az] = impinvar(b, a, fs). Spec-extension batch 2026-05-09 (cycle 43). |
 | `lp2bp` | ✅ | 0.007 | 473.63× |  | OK | Sig: [bt,at] = lp2bp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
 | `lp2bs` | ✅ | 0.007 | 450.47× |  | OK | Sig: [bt,at] = lp2bs(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
@@ -2408,9 +2408,9 @@ intentionally omitted — flat solver functions only.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `filteranalyzer` | ❌ |  |  |  |  |  |
-| `filternorm` | ✅ | 0.178 | 4.19× | 2.43× | OK | Sig: norm = filternorm(b, a [, pnorm]). FIR L2 (default), IIR L2, IIR L_inf via 8192-point freqz integration. Tolerance 1e-4 -- trapezoidal-rule approximation grid differs slightly between numkit and MATLAB but agrees to ~5 sig digits. |
-| `filtord` | ✅ | 0.000 | 92.43× | 93.11× | OK | Sig: n = filtord(b[, a]). FIR (single arg or trivial a) → length(b)-1; IIR → max(len_b, len_a)-1 with trailing zeros trimmed. fingerprint covers IIR + 2 FIR cases. |
-| `firtype` | ✅ | 0.000 | 920.51× |  | OK | Sig: t = firtype(b). FIR linear-phase classification per MATLAB: 1 = sym/odd-len, 2 = sym/even-len, 3 = anti/odd-len, 4 = anti/even-len. Fingerprint covers all 4 types. |
+| `filternorm` | ✅ | 0.126 |  |  | N/A | Sig: norm = filternorm(b, a [, pnorm]). FIR L2 (default), IIR L2, IIR L_inf via 8192-point freqz integration. Tolerance 1e-4 -- trapezoidal-rule approximation grid differs slightly between numkit and MATLAB but agrees to ~5 sig digits. |
+| `filtord` | ✅ | 0.000 |  |  | N/A | Sig: n = filtord(b[, a]). FIR (single arg or trivial a) → length(b)-1; IIR → max(len_b, len_a)-1 with trailing zeros trimmed. fingerprint covers IIR + 2 FIR cases. |
+| `firtype` | ✅ | 0.000 |  |  | N/A | Sig: t = firtype(b). FIR linear-phase classification per MATLAB: 1 = sym/odd-len, 2 = sym/even-len, 3 = anti/odd-len, 4 = anti/even-len. Fingerprint covers all 4 types. |
 | `freqz` | ✅ | 0.005 | 738.00× | 76.50× | OK | Sig: r = freqz(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `grpdelay` | ✅ | 0.004 | 907.38× | 56.37× | OK | Sig: r = grpdelay(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `impz` | ✅ | 0.004 | 1251.07× | 32.42× | OK | Sig: r = impz(...). Spec-extension batch 2026-05-09 (signal namespace). |
@@ -2433,17 +2433,17 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bandpass` | ✅ | 0.017 | 22.91× | 37.90× | OK | DEFERRED -- numkit uses order-8 Butterworth + forward filter; MATLAB uses min-order FIR (firgr/firpm with steepness=0.85) + zero-phase filtfilt by default. Same SHAPE (numel matches), different VALUES. Fix requires implementing min-order FIR design path. See audit/closed/signal/bandpass.md. |
-| `bandstop` | ✅ | 0.018 | 25.10× | 2.04× | OK | DEFERRED -- numkit uses order-8 Butterworth + forward filter; MATLAB uses min-order FIR (firgr/firpm with steepness=0.85) + zero-phase filtfilt by default. Same SHAPE (numel matches), different VALUES. Fix requires implementing min-order FIR design path. See audit/closed/signal/bandstop.md. |
+| `bandpass` | ✅ | 0.001 | 35.71× |  | OK | DEFERRED -- numkit uses order-8 Butterworth + forward filter; MATLAB uses min-order FIR (firgr/firpm with steepness=0.85) + zero-phase filtfilt by default. Same SHAPE (numel matches), different VALUES. Fix requires implementing min-order FIR design path. See audit/closed/signal/bandpass.md. |
+| `bandstop` | ✅ | 0.001 | 21.33× |  | OK | DEFERRED -- numkit uses order-8 Butterworth + forward filter; MATLAB uses min-order FIR (firgr/firpm with steepness=0.85) + zero-phase filtfilt by default. Same SHAPE (numel matches), different VALUES. Fix requires implementing min-order FIR design path. See audit/closed/signal/bandstop.md. |
 | `cell2sos` | ❌ |  |  |  |  |  |
-| `convmtx` | ✅ | 0.003 | 10.85× | 41.48× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
+| `convmtx` | ✅ | 0.003 | 6.34× |  | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
 | `ctf2zp` | ❌ |  |  |  |  | control TF → ZPK |
 | `ctffilt` | ❌ |  |  |  |  | control TF filter |
 | `dspfwiz` | ❌ |  |  |  |  |  |
 | `eqtflength` | ❌ |  |  |  |  |  |
-| `fftfilt` | ✅ | 1.805 | 1.84× | 4.95× | OK | Sig: Y = fftfilt(B, X). FFT-based 32-tap MA on 100k. 100 iters. |
+| `fftfilt` | ✅ | 1.754 |  |  | N/A | Sig: Y = fftfilt(B, X). FFT-based 32-tap MA on 100k. 100 iters. |
 | `filt2block` | ❌ |  |  |  |  |  |
-| `filtfilt` | ✅ | 0.027 | 177.02× | 12.15× | OK | Sig: r = filtfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `filtfilt` | ✅ | 0.002 |  |  | N/A | Sig: r = filtfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `filtic` | ❌ |  |  |  |  | init state |
 | `hampel` | ✅ | 0.004 | 161.76× |  | OK | Sig: r = hampel(...). Spec-extension batch 2026-05-09. |
 | `highpass` | ✅ | 0.016 | 23.80× | 25.00× | OK | DEFERRED -- numkit uses order-8 Butterworth + forward filter; MATLAB uses min-order FIR (firgr/firpm with steepness=0.85) + zero-phase filtfilt by default. Same SHAPE (numel matches), different VALUES. Fix requires implementing min-order FIR design path. See audit/closed/signal/highpass.md. |
@@ -2474,8 +2474,8 @@ intentionally omitted — flat solver functions only.
 | `zp2ss` | ✅ | 0.005 | 575.94× | 410.85× | OK | Sig: [A,B,C,D] = zp2ss(Z,P,K). Re-closed after tf2ss canonical-form fix 2026-05-09. |
 | `zp2tf` | ✅ | 0.005 | 171.29× | 279.77× | OK | Sig: r = zp2tf(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zpk` | ✅ | 0.004 | 1543.92× | 157.31× | OK | Sig: r = zpk(...). Spec-extension batch 2026-05-09. |
-| `filter` | ✅ | 0.006 | 76.83× | 17.62× | OK | Sig: r = filter(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `filter2` | ✅ | 0.126 | 0.61× | 0.36× | OK | 128x128 image with 3x3 Laplacian kernel. 100 iters. |
+| `filter` | ✅ | 0.001 |  |  | N/A | Sig: r = filter(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `filter2` | ✅ | 0.048 |  |  | N/A | 128x128 image with 3x3 Laplacian kernel. 100 iters. |
 
 ### Multirate Signal Processing
 
@@ -2483,8 +2483,8 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `decimate` | ✅ | 0.006 | 1741.09× | 116.62× | OK | Sig: r = decimate(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `downsample` | ✅ | 0.004 | 324.79× | 6.26× | OK | Sig: r = downsample(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `decimate` | ✅ | 0.006 | 1325.17× |  | OK | Sig: r = decimate(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `downsample` | ✅ | 0.003 | 234.92× |  | OK | Sig: r = downsample(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `fillgaps` | ❌ |  |  |  |  |  |
 | `interp` | ✅ | 0.004 |  | 386.44× | OK | Sig: r = interp(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `intfilt` | ✅ | 0.004 | 739.12× |  | OK | Sig: b = intfilt(R, L, alpha). LENGTH fixed to MATLAB convention (2*R*L - 1) 2026-05-09. Coefficient VALUES still differ from MATLAB (numkit uses Hamming-windowed sinc; MATLAB uses sinc(alpha*n)*sinc(n/L) product) -- separate ТЗ to align. |
@@ -2498,13 +2498,13 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `ac2poly` | ✅ | 0.005 | 158.68× |  | OK | Sig: r = ac2poly(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `ac2rc` | ✅ | 0.004 | 179.75× |  | OK | Sig: [k, R0] = ac2rc(R). KNOWN GAP: numkit's ac2rc differs from MATLAB on k(2) and R0 — only k(1) bit-identical (-0.5). Documented as separate ТЗ. |
-| `arburg` | ✅ | 0.009 | 142.41× | 19.34× | OK | Sig: r = arburg(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `arcov` | ✅ | 0.006 | 352.81× |  | OK | Sig: r = arcov(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `armcov` | ✅ | 0.007 | 303.10× |  | OK | Sig: r = armcov(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `aryule` | ✅ | 0.006 | 380.92× | 86.14× | OK | Sig: r = aryule(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `corrmtx` | ✅ | 0.005 | 260.63× |  | OK | Sig: X = corrmtx(x, p). Data matrix for correlation/covariance estimation. Bit-identical with MATLAB R2025b on probed input (size 7x3). |
+| `ac2poly` | ✅ | 0.003 | 218.59× |  | OK | Sig: r = ac2poly(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `ac2rc` | ✅ | 0.001 | 157.73× |  | OK | Sig: [k, R0] = ac2rc(R). KNOWN GAP: numkit's ac2rc differs from MATLAB on k(2) and R0 — only k(1) bit-identical (-0.5). Documented as separate ТЗ. |
+| `arburg` | ✅ | 0.007 | 130.07× |  | OK | Sig: r = arburg(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `arcov` | ✅ | 0.004 | 538.29× |  | OK | Sig: r = arcov(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `armcov` | ✅ | 0.005 | 212.20× |  | OK | Sig: r = armcov(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `aryule` | ✅ | 0.003 | 414.30× |  | OK | Sig: r = aryule(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `corrmtx` | ✅ | 0.002 | 259.21× |  | OK | Sig: X = corrmtx(x, p). Data matrix for correlation/covariance estimation. Bit-identical with MATLAB R2025b on probed input (size 7x3). |
 | `invfreqs` | ✅ | 0.009 | 153.85× | 128.61× | OK | Sig: [b,a] = invfreqs(h, w, nb, na). Spec-extension batch 2026-05-09 (cycle 43). |
 | `invfreqz` | ✅ | 0.010 | 134.25× | 130.89× | OK | Sig: [b,a] = invfreqz(h, w, nb, na). Spec-extension batch 2026-05-09 (cycle 43). |
 | `is2rc` | ✅ | 0.004 | 65.88× |  | OK | Sig: k = is2rc(is). Spec-extension batch 2026-05-09 (cycle 40). |
@@ -2530,19 +2530,19 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `alignsignals` | ✅ | 0.005 | 512.89× |  | OK | Sig: r = alignsignals(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `cconv` | ✅ | 0.006 | 114.61× | 16.46× | OK | Sig: r = cconv(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `convmtx` | ✅ | 0.003 | 10.85× | 41.48× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
-| `corrmtx` | ✅ | 0.005 | 260.63× |  | OK | Sig: X = corrmtx(x, p). Data matrix for correlation/covariance estimation. Bit-identical with MATLAB R2025b on probed input (size 7x3). |
+| `alignsignals` | ✅ | 0.004 | 666.57× |  | OK | Sig: r = alignsignals(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `cconv` | ✅ | 0.002 | 194.45× |  | OK | Sig: r = cconv(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `convmtx` | ✅ | 0.003 | 6.34× |  | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
+| `corrmtx` | ✅ | 0.002 | 259.21× |  | OK | Sig: X = corrmtx(x, p). Data matrix for correlation/covariance estimation. Bit-identical with MATLAB R2025b on probed input (size 7x3). |
 | `dtw` | ❌ |  |  |  |  | dynamic time warp |
 | `edr` | ❌ |  |  |  |  | edit distance on real |
-| `finddelay` | ✅ | 0.004 | 557.63× |  | OK | Sig: r = finddelay(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `finddelay` | ✅ | 0.002 |  |  | N/A | Sig: r = finddelay(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `findsignal` | ❌ |  |  |  |  | pattern search |
 | `xcorr2` | ✅ | 0.005 | 70.80× | 28.54× | OK | Sig: r = xcorr2(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `conv` | ✅ | 0.006 | 201.64× | 27.91× | OK | Sig: r = conv(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `conv2` | ✅ | 0.009 | 21.14× | 15.15× | OK | Sig: r = conv2(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `convn` | ✅ | 0.005 | 54.37× | 11.16× | OK | Sig: r = convn(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `deconv` | ✅ | 0.001 | 52.61× | 58.70× | OK | Sig: [Q,R] = deconv(U, V). Polynomial division. 10k iters. |
+| `conv` | ✅ | 0.001 | 138.07× |  | OK | Sig: r = conv(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `conv2` | ✅ | 0.003 | 31.03× |  | OK | Sig: r = conv2(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `convn` | ✅ | 0.001 | 119.44× |  | OK | Sig: r = convn(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `deconv` | ✅ | 0.001 | 21.62× |  | OK | Sig: [Q,R] = deconv(U, V). Polynomial division. 10k iters. |
 
 ### Transforms
 
@@ -2550,16 +2550,16 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bitrevorder` | ✅ | 0.007 | 223.09× | 168.48× | OK | Sig: [Y, I] = bitrevorder(X). Bit-reversed permutation; 2nd output is the 1-based index vector such that Y(k) = X(I(k)). Bug fix 2026-05-08: 2nd output was missing (probe threw 'Undefined function or variable I'). Now both outputs match MATLAB exactly. tol=0 (integer-stable). |
-| `cceps` | ✅ | 0.003 | 429.43× | 44.93× | OK | Sig: y = cceps(x). Complex cepstrum: ifft(log(fft(x))) with phase unwrapping. Numkit historically applied a forward DFT in the second pass instead of inverse, which time-reversed the output (audit ТЗ signal/cceps closed 2026-05-09 — sign-convention fix in fftRadix2 dir argument). Bit-identical to MATLAB R2025b on the canonical ТЗ probe (1:8). Octave produces a completely different output — its phase-unwrap path differs from MATLAB's; harness already prefers MATLAB. Phase-unwrap convergence on more complex inputs may diverge in the LSBs (separate audit gap, not part of this ТЗ). |
+| `bitrevorder` | ✅ | 0.003 | 516.97× |  | OK | Sig: [Y, I] = bitrevorder(X). Bit-reversed permutation; 2nd output is the 1-based index vector such that Y(k) = X(I(k)). Bug fix 2026-05-08: 2nd output was missing (probe threw 'Undefined function or variable I'). Now both outputs match MATLAB exactly. tol=0 (integer-stable). |
+| `cceps` | ✅ | 0.001 | 869.06× |  | OK | Sig: y = cceps(x). Complex cepstrum: ifft(log(fft(x))) with phase unwrapping. Numkit historically applied a forward DFT in the second pass instead of inverse, which time-reversed the output (audit ТЗ signal/cceps closed 2026-05-09 — sign-convention fix in fftRadix2 dir argument). Bit-identical to MATLAB R2025b on the canonical ТЗ probe (1:8). Octave produces a completely different output — its phase-unwrap path differs from MATLAB's; harness already prefers MATLAB. Phase-unwrap convergence on more complex inputs may diverge in the LSBs (separate audit gap, not part of this ТЗ). |
 | `czt` | ✅ | 0.03 | 75.7× | 10.3× | OK | Sig: y = czt(x[, m, w, a]). Chirp Z-transform via Bluestein decomposition. Bit-equal (~1e-13) MATLAB R2025b. Defaults: m=length(x), w=exp(-2π·j/m), a=1 — so czt(x) ≡ fft(x). |
-| `dct` | ✅ | 0.011 | 165.59× |  | OK | Sig: Y = dct(X[, n[, dim]]). DCT-II (default Type=2). Bug fix 2026-05-08: matrix input was treated as flat numel-vector — now per-column (default) or per-row via dim=2; length override n pads/truncates; positive 'Type' values other than 2 explicitly error (was silently doing Type-II). |
-| `dftmtx` | ✅ | 0.008 | 32.90× | 5.13× | OK | Sig: F = dftmtx(N). N×N DFT matrix; F(j,k) = exp(-2πi(j-1)(k-1)/N). For real input dftmtx(N)*x equals fft(x). Edges: F2 4 elem, F4 16 elem, F8 64 elem, F16 256 elem; F8(2,2) = √2/2 - i√2/2 ≈ 0.7071-0.7071i; F8(5,5) = 1 + 0i (column 5 row 5 ≡ exp(-2πi·16/8) = exp(-4πi) = 1); dftmtx(1) = 1. |
+| `dct` | ✅ | 0.009 | 166.42× |  | OK | Sig: Y = dct(X[, n[, dim]]). DCT-II (default Type=2). Bug fix 2026-05-08: matrix input was treated as flat numel-vector — now per-column (default) or per-row via dim=2; length override n pads/truncates; positive 'Type' values other than 2 explicitly error (was silently doing Type-II). |
+| `dftmtx` | ✅ | 0.005 | 20.73× |  | OK | Sig: F = dftmtx(N). N×N DFT matrix; F(j,k) = exp(-2πi(j-1)(k-1)/N). For real input dftmtx(N)*x equals fft(x). Edges: F2 4 elem, F4 16 elem, F8 64 elem, F16 256 elem; F8(2,2) = √2/2 - i√2/2 ≈ 0.7071-0.7071i; F8(5,5) = 1 + 0i (column 5 row 5 ≡ exp(-2πi·16/8) = exp(-4πi) = 1); dftmtx(1) = 1. |
 | `digitrevorder` | ❌ |  |  |  |  |  |
 | `dlistft` | ❌ |  |  |  |  |  |
 | `dlstft` | ❌ |  |  |  |  |  |
 | `emd` | ❌ |  |  |  |  | empirical mode decomp |
-| `envelope` | ✅ | 0.012 | 649.82× |  | OK | Sig: [yupper, ylower] = envelope(x[, n[, method]]). Four modes match MATLAB R2025b envelope.m exactly: default (no n) FFT |hilbert(x-mean)| with mean restored; 'analytic' n-tap Kaiser(8)-tapered Hilbert FIR; 'rms' sliding-window RMS; 'peak' spline (parabola for 3 knots, not-a-knot for 4+) through local maxima/minima with MinPeakDistance n. DC-removal applied for analytic/rms/default; not for peak. |
+| `envelope` | ✅ | 0.010 | 606.52× |  | OK | Sig: [yupper, ylower] = envelope(x[, n[, method]]). Four modes match MATLAB R2025b envelope.m exactly: default (no n) FFT |hilbert(x-mean)| with mean restored; 'analytic' n-tap Kaiser(8)-tapered Hilbert FIR; 'rms' sliding-window RMS; 'peak' spline (parabola for 3 knots, not-a-knot for 4+) through local maxima/minima with MinPeakDistance n. DC-removal applied for analytic/rms/default; not for peak. |
 | `fsst` | ❌ |  |  |  |  | Fourier synchrosqueezed |
 | `fwht` | ❌ |  |  |  |  | fast Walsh-Hadamard |
 | `goertzel` | ✅ | 0.005 | 249.31× |  | OK | Sig: y = goertzel(x[, ind]). Single-bin DFT via 2nd-order IIR. Audit ТЗ 2026-05-09: 1-arg form `goertzel(x)` defaults ind = 1:N (full DFT) per MATLAB R2025b — previously THREW. Fingerprint covers both partial-bin (ind=[5 15]) and full-DFT default forms. |
@@ -2582,10 +2582,10 @@ intentionally omitted — flat solver functions only.
 | `wvd` | ❌ |  |  |  |  | Wigner-Ville |
 | `xspectrogram` | ❌ |  |  |  |  | cross-spectrogram |
 | `xwvd` | ❌ |  |  |  |  | cross WVD |
-| `fft` | ✅ | 0.004 | 15.11× | 6.93× | OK | Sig: Y = fft(X). 1024-pt FFT on sin. 1000 iters. Custom fp (complex out). |
-| `fft2` | ✅ | 0.004 | 51.80× | 64.15× | OK | Sig: r = fft2(...). Spec-extension batch 2026-05-09. |
+| `fft` | ✅ | 0.004 |  |  | N/A | Sig: Y = fft(X). 1024-pt FFT on sin. 1000 iters. Custom fp (complex out). |
+| `fft2` | ✅ | 0.002 |  |  | N/A | Sig: r = fft2(...). Spec-extension batch 2026-05-09. |
 | `fftn` | ✅ | 0.03 | 18.8× | 13.1× | OK | Sig: Y = fftn(X[, sz]). N-D FFT via iterated 1-D fft along dims 1..ndim. Bit-equal MATLAB R2025b on 2-D, 3-D, and sz-override forms. Up to 3-D (Dims model cap). |
-| `fftshift` | ✅ | 0.008 | 68.89× | 47.51× | OK | Sig: Y = fftshift(X[, dim]). Cyclic shift along every non-singleton dim by ceil(extent/2); inverse ifftshift uses floor(extent/2). Bug fix: numkit had fftshift/ifftshift swapped for odd N + flat-shift instead of per-dim for matrices + dim arg ignored. tol=0 (integer-stable). |
+| `fftshift` | ✅ | 0.006 |  |  | N/A | Sig: Y = fftshift(X[, dim]). Cyclic shift along every non-singleton dim by ceil(extent/2); inverse ifftshift uses floor(extent/2). Bug fix: numkit had fftshift/ifftshift swapped for odd N + flat-shift instead of per-dim for matrices + dim arg ignored. tol=0 (integer-stable). |
 | `fftw` | ❌ |  |  |  |  | wisdom file |
 | `ifft` | ✅ | 0.012 | 0.78× | 7.00× | OK | Sig: y = ifft(Y). 1024-pt inverse. 1000 iters. |
 | `ifft2` | ✅ | 0.006 | 84.24× | 59.61× | OK | Sig: r = ifft2(...). Spec-extension batch 2026-05-09. |
@@ -2602,19 +2602,19 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `barthannwin` | ✅ | 0.004 | 4.87× | 6.05× | OK | Sig: W = barthannwin(N). Bartlett-Hann. 10000 iters. |
-| `bartlett` | ✅ | 0.002 | 5.64× | 9.97× | OK | Sig: W = bartlett(N). 1024-pt triangular. 10000 iters. |
-| `blackman` | ✅ | 0.007 | 8.20× | 3.66× | OK | Sig: W = blackman(N). 1024-pt Blackman. 10000 iters. |
-| `blackmanharris` | ✅ | 0.010 | 2.91× | 3.86× | OK | Sig: W = blackmanharris(N). 4-term Blackman-Harris. 10000 iters. |
-| `bohmanwin` | ✅ | 0.007 | 3.22× | 5.85× | OK | Sig: W = bohmanwin(N). Bohman. 10000 iters. |
-| `chebwin` | ✅ | 0.007 | 24.27× | 5.06× | OK | Sig: w = chebwin(N[, at]). Dolph-Chebyshev window with `at` dB sidelobe attenuation (default 100). Bug fix 2026-05-08: previous FFT-based impl returned all-ones for even N and a wrongly-shifted window for odd N. Rewrote as direct cosine-IDFT (O(N²)) with cosine basis centered on (N-1)/2. Coverage: N ∈ {1, 7, 8, 16, 64} × R ∈ {30, 60, 100, 120}. |
+| `barthannwin` | ✅ | 0.004 | 3.59× |  | OK | Sig: W = barthannwin(N). Bartlett-Hann. 10000 iters. |
+| `bartlett` | ✅ | 0.003 | 4.06× |  | OK | Sig: W = bartlett(N). 1024-pt triangular. 10000 iters. |
+| `blackman` | ✅ | 0.009 | 3.62× |  | OK | Sig: W = blackman(N). 1024-pt Blackman. 10000 iters. |
+| `blackmanharris` | ✅ | 0.012 | 2.21× |  | OK | Sig: W = blackmanharris(N). 4-term Blackman-Harris. 10000 iters. |
+| `bohmanwin` | ✅ | 0.007 | 2.25× |  | OK | Sig: W = bohmanwin(N). Bohman. 10000 iters. |
+| `chebwin` | ✅ | 0.001 | 154.64× |  | OK | Sig: w = chebwin(N[, at]). Dolph-Chebyshev window with `at` dB sidelobe attenuation (default 100). Bug fix 2026-05-08: previous FFT-based impl returned all-ones for even N and a wrongly-shifted window for odd N. Rewrote as direct cosine-IDFT (O(N²)) with cosine basis centered on (N-1)/2. Coverage: N ∈ {1, 7, 8, 16, 64} × R ∈ {30, 60, 100, 120}. |
 | `dpss` | ❌ |  |  |  |  | discrete prolate spheroidal |
 | `dpssclear` | ❌ |  |  |  |  | cache |
 | `dpssdir` | ❌ |  |  |  |  | cache |
 | `dpssload` | ❌ |  |  |  |  | cache |
 | `dpsssave` | ❌ |  |  |  |  | cache |
-| `enbw` | ✅ | 0.007 | 160.24× |  | OK | Sig: bw = enbw(window[, fs]). Equivalent noise bandwidth: N · Σ(w²) / (Σw)². With fs, scales output by fs/N. tol=1e-12. Specs covers hamming/hann/rectwin/blackman + fs-scaled forms. |
-| `flattopwin` | ✅ | 0.013 | 3.72× | 2.97× | OK | Sig: W = flattopwin(N). Flat-top. 10000 iters. |
+| `enbw` | ✅ | 0.005 | 50.47× |  | OK | Sig: bw = enbw(window[, fs]). Equivalent noise bandwidth: N · Σ(w²) / (Σw)². With fs, scales output by fs/N. tol=1e-12. Specs covers hamming/hann/rectwin/blackman + fs-scaled forms. |
+| `flattopwin` | ✅ | 0.014 |  |  | N/A | Sig: W = flattopwin(N). Flat-top. 10000 iters. |
 | `gausswin` | ✅ | 0.006 | 22.86× | 30.64× | OK | Sig: w = gausswin(N[, alpha]). Gaussian window with reciprocal-of-stddev shape param alpha (default 2.5). Larger alpha -> tighter / lower endpoints. Coverage: alpha ∈ {1.5, 2.5, 4, 8} × N ∈ {8, 16, 64} sample points + N=1 (single-point window). |
 | `hamming` | ✅ | 0.005 | 10.29× | 4.15× | OK | Sig: W = hamming(N). 1024-pt Hamming. 10000 iters. |
 | `hann` | ✅ | 0.005 | 11.78× | 5.54× | OK | Sig: W = hann(N). 1024-pt Hann window. 10000 iters. |
@@ -2633,10 +2633,10 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `db` | ✅ | 0.475 | 0.55× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
-| `db2mag` | ✅ | 0.004 | 47.73× | 22.46× | OK | Sig: r = db2mag(...). Spec-extension batch 2026-05-09. |
-| `db2pow` | ✅ | 0.004 | 60.11× | 31.01× | OK | Sig: r = db2pow(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `findpeaks` | ✅ | 0.004 | 1101.37× | 351.49× | OK | Sig: r = findpeaks(...). Spec-extension batch 2026-05-09. |
+| `db` | ✅ | 0.436 | 0.44× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
+| `db2mag` | ✅ | 0.002 | 52.11× |  | OK | Sig: r = db2mag(...). Spec-extension batch 2026-05-09. |
+| `db2pow` | ✅ | 0.002 | 56.49× |  | OK | Sig: r = db2pow(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `findpeaks` | ✅ | 0.002 |  |  | N/A | Sig: r = findpeaks(...). Spec-extension batch 2026-05-09. |
 | `mag2db` | ✅ | 0.004 | 66.82× | 42.43× | OK | Sig: r = mag2db(...). Spec-extension batch 2026-05-09. |
 | `pburg` | ✅ | 0.012 | 719.34× | 43.53× | OK | Sig: r = pburg(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `pcov` | ❌ |  |  |  |  |  |
@@ -2650,11 +2650,11 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `cpsd` | ✅ | 0.037 | 276.60× | 14.79× | OK | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |
-| `db` | ✅ | 0.475 | 0.55× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
-| `db2mag` | ✅ | 0.004 | 47.73× | 22.46× | OK | Sig: r = db2mag(...). Spec-extension batch 2026-05-09. |
-| `db2pow` | ✅ | 0.004 | 60.11× | 31.01× | OK | Sig: r = db2pow(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `findpeaks` | ✅ | 0.004 | 1101.37× | 351.49× | OK | Sig: r = findpeaks(...). Spec-extension batch 2026-05-09. |
+| `cpsd` | ✅ | 0.034 | 242.82× |  | OK | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |
+| `db` | ✅ | 0.436 | 0.44× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
+| `db2mag` | ✅ | 0.002 | 52.11× |  | OK | Sig: r = db2mag(...). Spec-extension batch 2026-05-09. |
+| `db2pow` | ✅ | 0.002 | 56.49× |  | OK | Sig: r = db2pow(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `findpeaks` | ✅ | 0.002 |  |  | N/A | Sig: r = findpeaks(...). Spec-extension batch 2026-05-09. |
 | `mag2db` | ✅ | 0.004 | 66.82× | 42.43× | OK | Sig: r = mag2db(...). Spec-extension batch 2026-05-09. |
 | `mscohere` | ✅ | 0.036 | 297.87× | 21.14× | OK | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |
 | `periodogram` | ✅ | 0.006 | 937.94× | 56.31× | OK | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |
@@ -2674,8 +2674,8 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bandpower` | ✅ | 0.010 | 129.23× |  | OK | Sig: r = bandpower(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `enbw` | ✅ | 0.007 | 160.24× |  | OK | Sig: bw = enbw(window[, fs]). Equivalent noise bandwidth: N · Σ(w²) / (Σw)². With fs, scales output by fs/N. tol=1e-12. Specs covers hamming/hann/rectwin/blackman + fs-scaled forms. |
+| `bandpower` | ✅ | 0.007 | 90.09× |  | OK | Sig: r = bandpower(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `enbw` | ✅ | 0.005 | 50.47× |  | OK | Sig: bw = enbw(window[, fs]). Equivalent noise bandwidth: N · Σ(w²) / (Σw)². With fs, scales output by fs/N. tol=1e-12. Specs covers hamming/hann/rectwin/blackman + fs-scaled forms. |
 | `instbw` | ✅ | 0.028 | 509.02× |  | OK | Sig: b = instbw(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
 | `instfreq` | ✅ | 0.035 | 513.46× |  | OK | Sig: f = instfreq(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
 | `meanfreq` | ✅ | 0.014 | 617.60× |  | OK | Sig: f = meanfreq(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
@@ -2733,8 +2733,8 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `dutycycle` | ✅ | 0.004 | 1210.30× |  | OK | Sig: d = dutycycle(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
-| `falltime` | ✅ | 0.004 | 1096.88× |  | OK | Sig: ft = falltime(x). Spec-extension batch 2026-05-09 (cycle 40). |
+| `dutycycle` | ✅ | 0.003 | 1118.37× |  | OK | Sig: d = dutycycle(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `falltime` | ✅ | 0.002 |  |  | N/A | Sig: ft = falltime(x). Spec-extension batch 2026-05-09 (cycle 40). |
 | `midcross` | ✅ | 0.004 | 843.97× |  | OK | Sig: c = midcross(x). Spec-extension batch 2026-05-09 (cycle 40). |
 | `overshoot` | ✅ | 0.004 | 1128.22× |  | OK | Sig: os = overshoot(x). Spec-extension batch 2026-05-09 (cycle 40). |
 | `pulseperiod` | ✅ | 0.004 | 917.33× |  | OK | Sig: p = pulseperiod(x). Spec-extension batch 2026-05-09 (cycle 40). |
@@ -2752,19 +2752,19 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `alignsignals` | ✅ | 0.005 | 512.89× |  | OK | Sig: r = alignsignals(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `alignsignals` | ✅ | 0.004 | 666.57× |  | OK | Sig: r = alignsignals(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `binmask2sigroi` | ❌ |  |  |  |  |  |
 | `countlabels` | ❌ |  |  |  |  |  |
 | `cusum` | ❌ |  |  |  |  | CUSUM change detection |
 | `dtw` | ❌ |  |  |  |  | dynamic time warp |
 | `edr` | ❌ |  |  |  |  | edit distance on real |
-| `envelope` | ✅ | 0.012 | 649.82× |  | OK | Sig: [yupper, ylower] = envelope(x[, n[, method]]). Four modes match MATLAB R2025b envelope.m exactly: default (no n) FFT |hilbert(x-mean)| with mean restored; 'analytic' n-tap Kaiser(8)-tapered Hilbert FIR; 'rms' sliding-window RMS; 'peak' spline (parabola for 3 knots, not-a-knot for 4+) through local maxima/minima with MinPeakDistance n. DC-removal applied for analytic/rms/default; not for peak. |
+| `envelope` | ✅ | 0.010 | 606.52× |  | OK | Sig: [yupper, ylower] = envelope(x[, n[, method]]). Four modes match MATLAB R2025b envelope.m exactly: default (no n) FFT |hilbert(x-mean)| with mean restored; 'analytic' n-tap Kaiser(8)-tapered Hilbert FIR; 'rms' sliding-window RMS; 'peak' spline (parabola for 3 knots, not-a-knot for 4+) through local maxima/minima with MinPeakDistance n. DC-removal applied for analytic/rms/default; not for peak. |
 | `extendsigroi` | ❌ |  |  |  |  |  |
 | `extractsigroi` | ❌ |  |  |  |  |  |
 | `filenames2labels` | ❌ |  |  |  |  |  |
 | `findchangepts` | ❌ |  |  |  |  | change-point detection |
-| `finddelay` | ✅ | 0.004 | 557.63× |  | OK | Sig: r = finddelay(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `findpeaks` | ✅ | 0.004 | 1101.37× | 351.49× | OK | Sig: r = findpeaks(...). Spec-extension batch 2026-05-09. |
+| `finddelay` | ✅ | 0.002 |  |  | N/A | Sig: r = finddelay(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `findpeaks` | ✅ | 0.002 |  |  | N/A | Sig: r = findpeaks(...). Spec-extension batch 2026-05-09. |
 | `findsignal` | ❌ |  |  |  |  | pattern search |
 | `folders2labels` | ❌ |  |  |  |  |  |
 | `framelbl` | ❌ |  |  |  |  |  |
@@ -2800,7 +2800,7 @@ intentionally omitted — flat solver functions only.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `envspectrum` | ✅ | 0.048 | 116.86× |  | OK | Sig: [p,f] = envspectrum(x, fs). Spec-extension batch 2026-05-09 (cycle 43). |
+| `envspectrum` | ✅ | 0.077 | 41.96× |  | OK | Sig: [p,f] = envspectrum(x, fs). Spec-extension batch 2026-05-09 (cycle 43). |
 | `modalfit` | ❌ |  |  |  |  | modal-fit |
 | `modalfrf` | ❌ |  |  |  |  |  |
 | `modalsd` | ❌ |  |  |  |  |  |
@@ -2832,17 +2832,17 @@ locations until physical migration lands.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `spectralCentroid` | ✅ | 0.012 | 566.98× |  | OK | MATLAB Audio Toolbox spectral shape descriptors (cycle B): spectralCentroid (Σ(f·X)/Σ(X)), spectralSpread (sqrt of second central moment), spectralRolloffPoint (default 95th percentile of energy), spectralDecrease ((1/Σk≥2 X(k))·Σk≥2 (X(k)-X(1))/(k-1)), spectralSlope (linear regression of X vs F), spectralFlux ((Σ|ΔX|^p)^(1/p), MATLAB sets first-frame flux=0). Bit-equal with MATLAB R2025b on (X, F) direct-form inputs across 9 fingerprint points (single-col + 2-col + flux). Time-domain (x, fs) form uses internal naive O(N²) DFT with rectwin(round(0.03*fs)), overlap=round(0.02*fs), FFTLength=winLen — matches MATLAB's STFT defaults from spectralCentroid.m and friends. Octave 11.1.0 doesn't ship spectralX in core (Audio package only). |
-| `spectralCrest` | ✅ | 0.511 | 26.54× |  | OK | MATLAB Audio Toolbox cycle I: 5 per-frame STFT spectral metrics (spectralCrest/Entropy/Flatness/Kurtosis/Skewness). Reside in libs/audio/src/spectral/shape_descriptors.cpp alongside spectralCentroid/Spread/Rolloff/Decrease/Slope/Flux from cycle B. All bit-equal with MATLAB R2025b on (X, F) direct, multi-frame (X2 8x2, F 8x1), and time-domain (xs, fs) inputs (after fixing computeStft to apply MATLAB signal.internal.spectraldescriptors.stft normalization: |Y|² / (0.5·sum(win)²), DC bin halved, Nyquist bin halved when fftLength even). Time-domain shape: 8x1 column vector (one row per frame) for 1601 samples at fs=16000 with rectwin(round(0.03*fs))=480 + overlap=320. The libs/signal lowercase forms (spectralcrest/etc) remain as legacy single-segment scalar versions; camelCase compat aliases now point to the per-frame audio versions. |
-| `spectralDecrease` | ✅ | 0.012 | 566.98× |  | OK | MATLAB Audio Toolbox spectral shape descriptors (cycle B): spectralCentroid (Σ(f·X)/Σ(X)), spectralSpread (sqrt of second central moment), spectralRolloffPoint (default 95th percentile of energy), spectralDecrease ((1/Σk≥2 X(k))·Σk≥2 (X(k)-X(1))/(k-1)), spectralSlope (linear regression of X vs F), spectralFlux ((Σ|ΔX|^p)^(1/p), MATLAB sets first-frame flux=0). Bit-equal with MATLAB R2025b on (X, F) direct-form inputs across 9 fingerprint points (single-col + 2-col + flux). Time-domain (x, fs) form uses internal naive O(N²) DFT with rectwin(round(0.03*fs)), overlap=round(0.02*fs), FFTLength=winLen — matches MATLAB's STFT defaults from spectralCentroid.m and friends. Octave 11.1.0 doesn't ship spectralX in core (Audio package only). |
-| `spectralEntropy` | ✅ | 0.511 | 26.54× |  | OK | MATLAB Audio Toolbox cycle I: 5 per-frame STFT spectral metrics (spectralCrest/Entropy/Flatness/Kurtosis/Skewness). Reside in libs/audio/src/spectral/shape_descriptors.cpp alongside spectralCentroid/Spread/Rolloff/Decrease/Slope/Flux from cycle B. All bit-equal with MATLAB R2025b on (X, F) direct, multi-frame (X2 8x2, F 8x1), and time-domain (xs, fs) inputs (after fixing computeStft to apply MATLAB signal.internal.spectraldescriptors.stft normalization: |Y|² / (0.5·sum(win)²), DC bin halved, Nyquist bin halved when fftLength even). Time-domain shape: 8x1 column vector (one row per frame) for 1601 samples at fs=16000 with rectwin(round(0.03*fs))=480 + overlap=320. The libs/signal lowercase forms (spectralcrest/etc) remain as legacy single-segment scalar versions; camelCase compat aliases now point to the per-frame audio versions. |
-| `spectralFlatness` | ✅ | 0.511 | 26.54× |  | OK | MATLAB Audio Toolbox cycle I: 5 per-frame STFT spectral metrics (spectralCrest/Entropy/Flatness/Kurtosis/Skewness). Reside in libs/audio/src/spectral/shape_descriptors.cpp alongside spectralCentroid/Spread/Rolloff/Decrease/Slope/Flux from cycle B. All bit-equal with MATLAB R2025b on (X, F) direct, multi-frame (X2 8x2, F 8x1), and time-domain (xs, fs) inputs (after fixing computeStft to apply MATLAB signal.internal.spectraldescriptors.stft normalization: |Y|² / (0.5·sum(win)²), DC bin halved, Nyquist bin halved when fftLength even). Time-domain shape: 8x1 column vector (one row per frame) for 1601 samples at fs=16000 with rectwin(round(0.03*fs))=480 + overlap=320. The libs/signal lowercase forms (spectralcrest/etc) remain as legacy single-segment scalar versions; camelCase compat aliases now point to the per-frame audio versions. |
-| `spectralFlux` | ✅ | 0.012 | 566.98× |  | OK | MATLAB Audio Toolbox spectral shape descriptors (cycle B): spectralCentroid (Σ(f·X)/Σ(X)), spectralSpread (sqrt of second central moment), spectralRolloffPoint (default 95th percentile of energy), spectralDecrease ((1/Σk≥2 X(k))·Σk≥2 (X(k)-X(1))/(k-1)), spectralSlope (linear regression of X vs F), spectralFlux ((Σ|ΔX|^p)^(1/p), MATLAB sets first-frame flux=0). Bit-equal with MATLAB R2025b on (X, F) direct-form inputs across 9 fingerprint points (single-col + 2-col + flux). Time-domain (x, fs) form uses internal naive O(N²) DFT with rectwin(round(0.03*fs)), overlap=round(0.02*fs), FFTLength=winLen — matches MATLAB's STFT defaults from spectralCentroid.m and friends. Octave 11.1.0 doesn't ship spectralX in core (Audio package only). |
-| `spectralKurtosis` | ✅ | 0.511 | 26.54× |  | OK | MATLAB Audio Toolbox cycle I: 5 per-frame STFT spectral metrics (spectralCrest/Entropy/Flatness/Kurtosis/Skewness). Reside in libs/audio/src/spectral/shape_descriptors.cpp alongside spectralCentroid/Spread/Rolloff/Decrease/Slope/Flux from cycle B. All bit-equal with MATLAB R2025b on (X, F) direct, multi-frame (X2 8x2, F 8x1), and time-domain (xs, fs) inputs (after fixing computeStft to apply MATLAB signal.internal.spectraldescriptors.stft normalization: |Y|² / (0.5·sum(win)²), DC bin halved, Nyquist bin halved when fftLength even). Time-domain shape: 8x1 column vector (one row per frame) for 1601 samples at fs=16000 with rectwin(round(0.03*fs))=480 + overlap=320. The libs/signal lowercase forms (spectralcrest/etc) remain as legacy single-segment scalar versions; camelCase compat aliases now point to the per-frame audio versions. |
-| `spectralRolloffPoint` | ✅ | 0.012 | 566.98× |  | OK | MATLAB Audio Toolbox spectral shape descriptors (cycle B): spectralCentroid (Σ(f·X)/Σ(X)), spectralSpread (sqrt of second central moment), spectralRolloffPoint (default 95th percentile of energy), spectralDecrease ((1/Σk≥2 X(k))·Σk≥2 (X(k)-X(1))/(k-1)), spectralSlope (linear regression of X vs F), spectralFlux ((Σ|ΔX|^p)^(1/p), MATLAB sets first-frame flux=0). Bit-equal with MATLAB R2025b on (X, F) direct-form inputs across 9 fingerprint points (single-col + 2-col + flux). Time-domain (x, fs) form uses internal naive O(N²) DFT with rectwin(round(0.03*fs)), overlap=round(0.02*fs), FFTLength=winLen — matches MATLAB's STFT defaults from spectralCentroid.m and friends. Octave 11.1.0 doesn't ship spectralX in core (Audio package only). |
-| `spectralSkewness` | ✅ | 0.511 | 26.54× |  | OK | MATLAB Audio Toolbox cycle I: 5 per-frame STFT spectral metrics (spectralCrest/Entropy/Flatness/Kurtosis/Skewness). Reside in libs/audio/src/spectral/shape_descriptors.cpp alongside spectralCentroid/Spread/Rolloff/Decrease/Slope/Flux from cycle B. All bit-equal with MATLAB R2025b on (X, F) direct, multi-frame (X2 8x2, F 8x1), and time-domain (xs, fs) inputs (after fixing computeStft to apply MATLAB signal.internal.spectraldescriptors.stft normalization: |Y|² / (0.5·sum(win)²), DC bin halved, Nyquist bin halved when fftLength even). Time-domain shape: 8x1 column vector (one row per frame) for 1601 samples at fs=16000 with rectwin(round(0.03*fs))=480 + overlap=320. The libs/signal lowercase forms (spectralcrest/etc) remain as legacy single-segment scalar versions; camelCase compat aliases now point to the per-frame audio versions. |
-| `spectralSlope` | ✅ | 0.012 | 566.98× |  | OK | MATLAB Audio Toolbox spectral shape descriptors (cycle B): spectralCentroid (Σ(f·X)/Σ(X)), spectralSpread (sqrt of second central moment), spectralRolloffPoint (default 95th percentile of energy), spectralDecrease ((1/Σk≥2 X(k))·Σk≥2 (X(k)-X(1))/(k-1)), spectralSlope (linear regression of X vs F), spectralFlux ((Σ|ΔX|^p)^(1/p), MATLAB sets first-frame flux=0). Bit-equal with MATLAB R2025b on (X, F) direct-form inputs across 9 fingerprint points (single-col + 2-col + flux). Time-domain (x, fs) form uses internal naive O(N²) DFT with rectwin(round(0.03*fs)), overlap=round(0.02*fs), FFTLength=winLen — matches MATLAB's STFT defaults from spectralCentroid.m and friends. Octave 11.1.0 doesn't ship spectralX in core (Audio package only). |
-| `spectralSpread` | ✅ | 0.012 | 566.98× |  | OK | MATLAB Audio Toolbox spectral shape descriptors (cycle B): spectralCentroid (Σ(f·X)/Σ(X)), spectralSpread (sqrt of second central moment), spectralRolloffPoint (default 95th percentile of energy), spectralDecrease ((1/Σk≥2 X(k))·Σk≥2 (X(k)-X(1))/(k-1)), spectralSlope (linear regression of X vs F), spectralFlux ((Σ|ΔX|^p)^(1/p), MATLAB sets first-frame flux=0). Bit-equal with MATLAB R2025b on (X, F) direct-form inputs across 9 fingerprint points (single-col + 2-col + flux). Time-domain (x, fs) form uses internal naive O(N²) DFT with rectwin(round(0.03*fs)), overlap=round(0.02*fs), FFTLength=winLen — matches MATLAB's STFT defaults from spectralCentroid.m and friends. Octave 11.1.0 doesn't ship spectralX in core (Audio package only). |
+| `spectralCentroid` | ✅ | 0.006 | 1839.19× |  | OK | MATLAB Audio Toolbox spectral shape descriptors (cycle B): spectralCentroid (Σ(f·X)/Σ(X)), spectralSpread (sqrt of second central moment), spectralRolloffPoint (default 95th percentile of energy), spectralDecrease ((1/Σk≥2 X(k))·Σk≥2 (X(k)-X(1))/(k-1)), spectralSlope (linear regression of X vs F), spectralFlux ((Σ|ΔX|^p)^(1/p), MATLAB sets first-frame flux=0). Bit-equal with MATLAB R2025b on (X, F) direct-form inputs across 9 fingerprint points (single-col + 2-col + flux). Time-domain (x, fs) form uses internal naive O(N²) DFT with rectwin(round(0.03*fs)), overlap=round(0.02*fs), FFTLength=winLen — matches MATLAB's STFT defaults from spectralCentroid.m and friends. Octave 11.1.0 doesn't ship spectralX in core (Audio package only). |
+| `spectralCrest` | ✅ | 0.491 | 41.50× |  | OK | MATLAB Audio Toolbox cycle I: 5 per-frame STFT spectral metrics (spectralCrest/Entropy/Flatness/Kurtosis/Skewness). Reside in libs/audio/src/spectral/shape_descriptors.cpp alongside spectralCentroid/Spread/Rolloff/Decrease/Slope/Flux from cycle B. All bit-equal with MATLAB R2025b on (X, F) direct, multi-frame (X2 8x2, F 8x1), and time-domain (xs, fs) inputs (after fixing computeStft to apply MATLAB signal.internal.spectraldescriptors.stft normalization: |Y|² / (0.5·sum(win)²), DC bin halved, Nyquist bin halved when fftLength even). Time-domain shape: 8x1 column vector (one row per frame) for 1601 samples at fs=16000 with rectwin(round(0.03*fs))=480 + overlap=320. The libs/signal lowercase forms (spectralcrest/etc) remain as legacy single-segment scalar versions; camelCase compat aliases now point to the per-frame audio versions. |
+| `spectralDecrease` | ✅ | 0.006 | 1839.19× |  | OK | MATLAB Audio Toolbox spectral shape descriptors (cycle B): spectralCentroid (Σ(f·X)/Σ(X)), spectralSpread (sqrt of second central moment), spectralRolloffPoint (default 95th percentile of energy), spectralDecrease ((1/Σk≥2 X(k))·Σk≥2 (X(k)-X(1))/(k-1)), spectralSlope (linear regression of X vs F), spectralFlux ((Σ|ΔX|^p)^(1/p), MATLAB sets first-frame flux=0). Bit-equal with MATLAB R2025b on (X, F) direct-form inputs across 9 fingerprint points (single-col + 2-col + flux). Time-domain (x, fs) form uses internal naive O(N²) DFT with rectwin(round(0.03*fs)), overlap=round(0.02*fs), FFTLength=winLen — matches MATLAB's STFT defaults from spectralCentroid.m and friends. Octave 11.1.0 doesn't ship spectralX in core (Audio package only). |
+| `spectralEntropy` | ✅ | 0.491 | 41.50× |  | OK | MATLAB Audio Toolbox cycle I: 5 per-frame STFT spectral metrics (spectralCrest/Entropy/Flatness/Kurtosis/Skewness). Reside in libs/audio/src/spectral/shape_descriptors.cpp alongside spectralCentroid/Spread/Rolloff/Decrease/Slope/Flux from cycle B. All bit-equal with MATLAB R2025b on (X, F) direct, multi-frame (X2 8x2, F 8x1), and time-domain (xs, fs) inputs (after fixing computeStft to apply MATLAB signal.internal.spectraldescriptors.stft normalization: |Y|² / (0.5·sum(win)²), DC bin halved, Nyquist bin halved when fftLength even). Time-domain shape: 8x1 column vector (one row per frame) for 1601 samples at fs=16000 with rectwin(round(0.03*fs))=480 + overlap=320. The libs/signal lowercase forms (spectralcrest/etc) remain as legacy single-segment scalar versions; camelCase compat aliases now point to the per-frame audio versions. |
+| `spectralFlatness` | ✅ | 0.491 | 41.50× |  | OK | MATLAB Audio Toolbox cycle I: 5 per-frame STFT spectral metrics (spectralCrest/Entropy/Flatness/Kurtosis/Skewness). Reside in libs/audio/src/spectral/shape_descriptors.cpp alongside spectralCentroid/Spread/Rolloff/Decrease/Slope/Flux from cycle B. All bit-equal with MATLAB R2025b on (X, F) direct, multi-frame (X2 8x2, F 8x1), and time-domain (xs, fs) inputs (after fixing computeStft to apply MATLAB signal.internal.spectraldescriptors.stft normalization: |Y|² / (0.5·sum(win)²), DC bin halved, Nyquist bin halved when fftLength even). Time-domain shape: 8x1 column vector (one row per frame) for 1601 samples at fs=16000 with rectwin(round(0.03*fs))=480 + overlap=320. The libs/signal lowercase forms (spectralcrest/etc) remain as legacy single-segment scalar versions; camelCase compat aliases now point to the per-frame audio versions. |
+| `spectralFlux` | ✅ | 0.006 | 1839.19× |  | OK | MATLAB Audio Toolbox spectral shape descriptors (cycle B): spectralCentroid (Σ(f·X)/Σ(X)), spectralSpread (sqrt of second central moment), spectralRolloffPoint (default 95th percentile of energy), spectralDecrease ((1/Σk≥2 X(k))·Σk≥2 (X(k)-X(1))/(k-1)), spectralSlope (linear regression of X vs F), spectralFlux ((Σ|ΔX|^p)^(1/p), MATLAB sets first-frame flux=0). Bit-equal with MATLAB R2025b on (X, F) direct-form inputs across 9 fingerprint points (single-col + 2-col + flux). Time-domain (x, fs) form uses internal naive O(N²) DFT with rectwin(round(0.03*fs)), overlap=round(0.02*fs), FFTLength=winLen — matches MATLAB's STFT defaults from spectralCentroid.m and friends. Octave 11.1.0 doesn't ship spectralX in core (Audio package only). |
+| `spectralKurtosis` | ✅ | 0.491 | 41.50× |  | OK | MATLAB Audio Toolbox cycle I: 5 per-frame STFT spectral metrics (spectralCrest/Entropy/Flatness/Kurtosis/Skewness). Reside in libs/audio/src/spectral/shape_descriptors.cpp alongside spectralCentroid/Spread/Rolloff/Decrease/Slope/Flux from cycle B. All bit-equal with MATLAB R2025b on (X, F) direct, multi-frame (X2 8x2, F 8x1), and time-domain (xs, fs) inputs (after fixing computeStft to apply MATLAB signal.internal.spectraldescriptors.stft normalization: |Y|² / (0.5·sum(win)²), DC bin halved, Nyquist bin halved when fftLength even). Time-domain shape: 8x1 column vector (one row per frame) for 1601 samples at fs=16000 with rectwin(round(0.03*fs))=480 + overlap=320. The libs/signal lowercase forms (spectralcrest/etc) remain as legacy single-segment scalar versions; camelCase compat aliases now point to the per-frame audio versions. |
+| `spectralRolloffPoint` | ✅ | 0.006 | 1839.19× |  | OK | MATLAB Audio Toolbox spectral shape descriptors (cycle B): spectralCentroid (Σ(f·X)/Σ(X)), spectralSpread (sqrt of second central moment), spectralRolloffPoint (default 95th percentile of energy), spectralDecrease ((1/Σk≥2 X(k))·Σk≥2 (X(k)-X(1))/(k-1)), spectralSlope (linear regression of X vs F), spectralFlux ((Σ|ΔX|^p)^(1/p), MATLAB sets first-frame flux=0). Bit-equal with MATLAB R2025b on (X, F) direct-form inputs across 9 fingerprint points (single-col + 2-col + flux). Time-domain (x, fs) form uses internal naive O(N²) DFT with rectwin(round(0.03*fs)), overlap=round(0.02*fs), FFTLength=winLen — matches MATLAB's STFT defaults from spectralCentroid.m and friends. Octave 11.1.0 doesn't ship spectralX in core (Audio package only). |
+| `spectralSkewness` | ✅ | 0.491 | 41.50× |  | OK | MATLAB Audio Toolbox cycle I: 5 per-frame STFT spectral metrics (spectralCrest/Entropy/Flatness/Kurtosis/Skewness). Reside in libs/audio/src/spectral/shape_descriptors.cpp alongside spectralCentroid/Spread/Rolloff/Decrease/Slope/Flux from cycle B. All bit-equal with MATLAB R2025b on (X, F) direct, multi-frame (X2 8x2, F 8x1), and time-domain (xs, fs) inputs (after fixing computeStft to apply MATLAB signal.internal.spectraldescriptors.stft normalization: |Y|² / (0.5·sum(win)²), DC bin halved, Nyquist bin halved when fftLength even). Time-domain shape: 8x1 column vector (one row per frame) for 1601 samples at fs=16000 with rectwin(round(0.03*fs))=480 + overlap=320. The libs/signal lowercase forms (spectralcrest/etc) remain as legacy single-segment scalar versions; camelCase compat aliases now point to the per-frame audio versions. |
+| `spectralSlope` | ✅ | 0.006 | 1839.19× |  | OK | MATLAB Audio Toolbox spectral shape descriptors (cycle B): spectralCentroid (Σ(f·X)/Σ(X)), spectralSpread (sqrt of second central moment), spectralRolloffPoint (default 95th percentile of energy), spectralDecrease ((1/Σk≥2 X(k))·Σk≥2 (X(k)-X(1))/(k-1)), spectralSlope (linear regression of X vs F), spectralFlux ((Σ|ΔX|^p)^(1/p), MATLAB sets first-frame flux=0). Bit-equal with MATLAB R2025b on (X, F) direct-form inputs across 9 fingerprint points (single-col + 2-col + flux). Time-domain (x, fs) form uses internal naive O(N²) DFT with rectwin(round(0.03*fs)), overlap=round(0.02*fs), FFTLength=winLen — matches MATLAB's STFT defaults from spectralCentroid.m and friends. Octave 11.1.0 doesn't ship spectralX in core (Audio package only). |
+| `spectralSpread` | ✅ | 0.006 | 1839.19× |  | OK | MATLAB Audio Toolbox spectral shape descriptors (cycle B): spectralCentroid (Σ(f·X)/Σ(X)), spectralSpread (sqrt of second central moment), spectralRolloffPoint (default 95th percentile of energy), spectralDecrease ((1/Σk≥2 X(k))·Σk≥2 (X(k)-X(1))/(k-1)), spectralSlope (linear regression of X vs F), spectralFlux ((Σ|ΔX|^p)^(1/p), MATLAB sets first-frame flux=0). Bit-equal with MATLAB R2025b on (X, F) direct-form inputs across 9 fingerprint points (single-col + 2-col + flux). Time-domain (x, fs) form uses internal naive O(N²) DFT with rectwin(round(0.03*fs)), overlap=round(0.02*fs), FFTLength=winLen — matches MATLAB's STFT defaults from spectralCentroid.m and friends. Octave 11.1.0 doesn't ship spectralX in core (Audio package only). |
 
 ### Audio Feature Extraction
 
@@ -2850,12 +2850,12 @@ locations until physical migration lands.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `audioDelta` | ✅ | 0.071 | 173.51× |  | OK | MATLAB Audio Toolbox cycle C: melSpectrogram + audioDelta. melSpectrogram with NumBands=8 default-window/overlap on a deterministic ramp signal. F (mel-band centers): bit-equal with MATLAB R2025b on all 8 values. S(1,1) bit-equal. Time vector T size matches MATLAB. audioDelta: bit-equal on default windowLength=9 ramp test (d(9)=d(10)=2 — MATLAB filter convention with sum((1:M)^2)=30 divisor), and on custom windowLength=5 path (denom=5), and multi-channel (filter operates along dim 1 per column). KNOWN GAPs (deferred): NumBands ≠ 8 default, FrequencyRange/FilterBankNormalization/MelStyle name-value args, and the [delta, Zf] / Zi initial-conditions form for audioDelta. Octave 11.1.0 doesn't ship melSpectrogram or audioDelta in core (Audio package only). |
-| `cepstralCoefficients` | ✅ | 0.608 | 38.88× |  | OK | MATLAB Audio Toolbox cycles D + G + H: cepstralCoefficients (bit-equal — DCT-II unitary matrix from createDCTmatrix.m + log10 rectification, output shape M×NumCoeffs). Cycle G: mfcc BIT-EQUAL with MATLAB R2025b — Slaney band edges (audio.internal.slaneybandedges, 42 entries: 13 linear at 66.66 Hz step + 29 log-spaced ratio 1.0711703), Slaney designMelFilterBank ('Hz' designDomain, 'Bandwidth' normalization), |FFT| magnitude, natural-log per-frame energy of UNWINDOWED signal as first column ('append' LogEnergy default). Cycle H: gtcc BIT-EQUAL with MATLAB R2025b — proper Patterson-Holdsworth gammatone filterbank (Slaney 1993) via cascaded 4-stage biquads with frequency-domain freqz('whole') evaluation, FrequencyRange=[50,fs/2], NumFilters=ceil(hz2erb(fs/2)-hz2erb(50)), Bandwidth normalization BW[i]/2, OneSided=false equivalent via doubled inner-half bins. Octave 11.1.0 doesn't ship cepstralCoefficients/mfcc/gtcc in core (Audio package only). |
-| `gtcc` | ✅ | 0.608 | 38.88× |  | OK | MATLAB Audio Toolbox cycles D + G + H: cepstralCoefficients (bit-equal — DCT-II unitary matrix from createDCTmatrix.m + log10 rectification, output shape M×NumCoeffs). Cycle G: mfcc BIT-EQUAL with MATLAB R2025b — Slaney band edges (audio.internal.slaneybandedges, 42 entries: 13 linear at 66.66 Hz step + 29 log-spaced ratio 1.0711703), Slaney designMelFilterBank ('Hz' designDomain, 'Bandwidth' normalization), |FFT| magnitude, natural-log per-frame energy of UNWINDOWED signal as first column ('append' LogEnergy default). Cycle H: gtcc BIT-EQUAL with MATLAB R2025b — proper Patterson-Holdsworth gammatone filterbank (Slaney 1993) via cascaded 4-stage biquads with frequency-domain freqz('whole') evaluation, FrequencyRange=[50,fs/2], NumFilters=ceil(hz2erb(fs/2)-hz2erb(50)), Bandwidth normalization BW[i]/2, OneSided=false equivalent via doubled inner-half bins. Octave 11.1.0 doesn't ship cepstralCoefficients/mfcc/gtcc in core (Audio package only). |
-| `harmonicRatio` | ✅ | 239.287 | 0.26× |  | OK | pitch + harmonicRatio (Audio Toolbox). Methods: NCF (default), CEP, PEF, LHS, SRH. CEP/PEF/LHS/SRH have been clean-room reimplemented from public papers as part of the IP-provenance remediation (see cleanroom/). CEP (Noll 1967) and LHS (Hermes 1988) are bit-identical to MATLAB R2025b. PEF (Gonzalez & Brookes, EUSIPCO 2011 — the no-compression variant) and SRH (Drugman & Alwan, Interspeech 2011) are faithful to the published papers; MATLAB's PEF/SRH diverge from the papers in undocumented ways, so numkit's are intentionally NOT bit-matched. On a clean tone PEF still agrees with MATLAB to ~0.06% (within tol), so pef_first/pef_mean stay in the fingerprint; pef_r_first (a degenerate two-pure-tone case) and srh_first are excluded from the cross-engine comparison. NCF parity unchanged. harmonicRatio: auto low-edge + Smith parabolic. Tolerance 5%; pitchnn deferred (DNN runtime not in numkit). |
-| `mfcc` | ✅ | 0.608 | 38.88× |  | OK | MATLAB Audio Toolbox cycles D + G + H: cepstralCoefficients (bit-equal — DCT-II unitary matrix from createDCTmatrix.m + log10 rectification, output shape M×NumCoeffs). Cycle G: mfcc BIT-EQUAL with MATLAB R2025b — Slaney band edges (audio.internal.slaneybandedges, 42 entries: 13 linear at 66.66 Hz step + 29 log-spaced ratio 1.0711703), Slaney designMelFilterBank ('Hz' designDomain, 'Bandwidth' normalization), |FFT| magnitude, natural-log per-frame energy of UNWINDOWED signal as first column ('append' LogEnergy default). Cycle H: gtcc BIT-EQUAL with MATLAB R2025b — proper Patterson-Holdsworth gammatone filterbank (Slaney 1993) via cascaded 4-stage biquads with frequency-domain freqz('whole') evaluation, FrequencyRange=[50,fs/2], NumFilters=ceil(hz2erb(fs/2)-hz2erb(50)), Bandwidth normalization BW[i]/2, OneSided=false equivalent via doubled inner-half bins. Octave 11.1.0 doesn't ship cepstralCoefficients/mfcc/gtcc in core (Audio package only). |
-| `pitch` | ✅ | 239.287 | 0.26× |  | OK | pitch + harmonicRatio (Audio Toolbox). Methods: NCF (default), CEP, PEF, LHS, SRH. CEP/PEF/LHS/SRH have been clean-room reimplemented from public papers as part of the IP-provenance remediation (see cleanroom/). CEP (Noll 1967) and LHS (Hermes 1988) are bit-identical to MATLAB R2025b. PEF (Gonzalez & Brookes, EUSIPCO 2011 — the no-compression variant) and SRH (Drugman & Alwan, Interspeech 2011) are faithful to the published papers; MATLAB's PEF/SRH diverge from the papers in undocumented ways, so numkit's are intentionally NOT bit-matched. On a clean tone PEF still agrees with MATLAB to ~0.06% (within tol), so pef_first/pef_mean stay in the fingerprint; pef_r_first (a degenerate two-pure-tone case) and srh_first are excluded from the cross-engine comparison. NCF parity unchanged. harmonicRatio: auto low-edge + Smith parabolic. Tolerance 5%; pitchnn deferred (DNN runtime not in numkit). |
+| `audioDelta` | ✅ | 0.061 | 105.48× |  | OK | MATLAB Audio Toolbox cycle C: melSpectrogram + audioDelta. melSpectrogram with NumBands=8 default-window/overlap on a deterministic ramp signal. F (mel-band centers): bit-equal with MATLAB R2025b on all 8 values. S(1,1) bit-equal. Time vector T size matches MATLAB. audioDelta: bit-equal on default windowLength=9 ramp test (d(9)=d(10)=2 — MATLAB filter convention with sum((1:M)^2)=30 divisor), and on custom windowLength=5 path (denom=5), and multi-channel (filter operates along dim 1 per column). KNOWN GAPs (deferred): NumBands ≠ 8 default, FrequencyRange/FilterBankNormalization/MelStyle name-value args, and the [delta, Zf] / Zi initial-conditions form for audioDelta. Octave 11.1.0 doesn't ship melSpectrogram or audioDelta in core (Audio package only). |
+| `cepstralCoefficients` | ✅ | 0.544 | 51.14× |  | OK | MATLAB Audio Toolbox cycles D + G + H: cepstralCoefficients (bit-equal — DCT-II unitary matrix from createDCTmatrix.m + log10 rectification, output shape M×NumCoeffs). Cycle G: mfcc BIT-EQUAL with MATLAB R2025b — Slaney band edges (audio.internal.slaneybandedges, 42 entries: 13 linear at 66.66 Hz step + 29 log-spaced ratio 1.0711703), Slaney designMelFilterBank ('Hz' designDomain, 'Bandwidth' normalization), |FFT| magnitude, natural-log per-frame energy of UNWINDOWED signal as first column ('append' LogEnergy default). Cycle H: gtcc BIT-EQUAL with MATLAB R2025b — proper Patterson-Holdsworth gammatone filterbank (Slaney 1993) via cascaded 4-stage biquads with frequency-domain freqz('whole') evaluation, FrequencyRange=[50,fs/2], NumFilters=ceil(hz2erb(fs/2)-hz2erb(50)), Bandwidth normalization BW[i]/2, OneSided=false equivalent via doubled inner-half bins. Octave 11.1.0 doesn't ship cepstralCoefficients/mfcc/gtcc in core (Audio package only). |
+| `gtcc` | ✅ | 0.544 | 51.14× |  | OK | MATLAB Audio Toolbox cycles D + G + H: cepstralCoefficients (bit-equal — DCT-II unitary matrix from createDCTmatrix.m + log10 rectification, output shape M×NumCoeffs). Cycle G: mfcc BIT-EQUAL with MATLAB R2025b — Slaney band edges (audio.internal.slaneybandedges, 42 entries: 13 linear at 66.66 Hz step + 29 log-spaced ratio 1.0711703), Slaney designMelFilterBank ('Hz' designDomain, 'Bandwidth' normalization), |FFT| magnitude, natural-log per-frame energy of UNWINDOWED signal as first column ('append' LogEnergy default). Cycle H: gtcc BIT-EQUAL with MATLAB R2025b — proper Patterson-Holdsworth gammatone filterbank (Slaney 1993) via cascaded 4-stage biquads with frequency-domain freqz('whole') evaluation, FrequencyRange=[50,fs/2], NumFilters=ceil(hz2erb(fs/2)-hz2erb(50)), Bandwidth normalization BW[i]/2, OneSided=false equivalent via doubled inner-half bins. Octave 11.1.0 doesn't ship cepstralCoefficients/mfcc/gtcc in core (Audio package only). |
+| `harmonicRatio` | ✅ | 242.460 | 0.24× |  | OK | pitch + harmonicRatio (Audio Toolbox). Methods: NCF (default), CEP, PEF, LHS, SRH. CEP/PEF/LHS/SRH have been clean-room reimplemented from public papers as part of the IP-provenance remediation (see cleanroom/). CEP (Noll 1967) and LHS (Hermes 1988) are bit-identical to MATLAB R2025b. PEF (Gonzalez & Brookes, EUSIPCO 2011 — the no-compression variant) and SRH (Drugman & Alwan, Interspeech 2011) are faithful to the published papers; MATLAB's PEF/SRH diverge from the papers in undocumented ways, so numkit's are intentionally NOT bit-matched. On a clean tone PEF still agrees with MATLAB to ~0.06% (within tol), so pef_first/pef_mean stay in the fingerprint; pef_r_first (a degenerate two-pure-tone case) and srh_first are excluded from the cross-engine comparison. NCF parity unchanged. harmonicRatio: auto low-edge + Smith parabolic. Tolerance 5%; pitchnn deferred (DNN runtime not in numkit). |
+| `mfcc` | ✅ | 0.544 | 51.14× |  | OK | MATLAB Audio Toolbox cycles D + G + H: cepstralCoefficients (bit-equal — DCT-II unitary matrix from createDCTmatrix.m + log10 rectification, output shape M×NumCoeffs). Cycle G: mfcc BIT-EQUAL with MATLAB R2025b — Slaney band edges (audio.internal.slaneybandedges, 42 entries: 13 linear at 66.66 Hz step + 29 log-spaced ratio 1.0711703), Slaney designMelFilterBank ('Hz' designDomain, 'Bandwidth' normalization), |FFT| magnitude, natural-log per-frame energy of UNWINDOWED signal as first column ('append' LogEnergy default). Cycle H: gtcc BIT-EQUAL with MATLAB R2025b — proper Patterson-Holdsworth gammatone filterbank (Slaney 1993) via cascaded 4-stage biquads with frequency-domain freqz('whole') evaluation, FrequencyRange=[50,fs/2], NumFilters=ceil(hz2erb(fs/2)-hz2erb(50)), Bandwidth normalization BW[i]/2, OneSided=false equivalent via doubled inner-half bins. Octave 11.1.0 doesn't ship cepstralCoefficients/mfcc/gtcc in core (Audio package only). |
+| `pitch` | ✅ | 242.460 | 0.24× |  | OK | pitch + harmonicRatio (Audio Toolbox). Methods: NCF (default), CEP, PEF, LHS, SRH. CEP/PEF/LHS/SRH have been clean-room reimplemented from public papers as part of the IP-provenance remediation (see cleanroom/). CEP (Noll 1967) and LHS (Hermes 1988) are bit-identical to MATLAB R2025b. PEF (Gonzalez & Brookes, EUSIPCO 2011 — the no-compression variant) and SRH (Drugman & Alwan, Interspeech 2011) are faithful to the published papers; MATLAB's PEF/SRH diverge from the papers in undocumented ways, so numkit's are intentionally NOT bit-matched. On a clean tone PEF still agrees with MATLAB to ~0.06% (within tol), so pef_first/pef_mean stay in the fingerprint; pef_r_first (a degenerate two-pure-tone case) and srh_first are excluded from the cross-engine comparison. NCF parity unchanged. harmonicRatio: auto low-edge + Smith parabolic. Tolerance 5%; pitchnn deferred (DNN runtime not in numkit). |
 | `pitchnn` | ❌ |  |  |  |  | Deep-learning pitch estimator (CREPE-style network). KNOWN GAP: requires a packaged neural model -- defer to v2 unless a numkit DNN runtime lands. |
 
 ### Audio Time-Frequency
@@ -2864,7 +2864,7 @@ locations until physical migration lands.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `melSpectrogram` | ✅ | 0.071 | 173.51× |  | OK | MATLAB Audio Toolbox cycle C: melSpectrogram + audioDelta. melSpectrogram with NumBands=8 default-window/overlap on a deterministic ramp signal. F (mel-band centers): bit-equal with MATLAB R2025b on all 8 values. S(1,1) bit-equal. Time vector T size matches MATLAB. audioDelta: bit-equal on default windowLength=9 ramp test (d(9)=d(10)=2 — MATLAB filter convention with sum((1:M)^2)=30 divisor), and on custom windowLength=5 path (denom=5), and multi-channel (filter operates along dim 1 per column). KNOWN GAPs (deferred): NumBands ≠ 8 default, FrequencyRange/FilterBankNormalization/MelStyle name-value args, and the [delta, Zf] / Zi initial-conditions form for audioDelta. Octave 11.1.0 doesn't ship melSpectrogram or audioDelta in core (Audio package only). |
+| `melSpectrogram` | ✅ | 0.061 | 105.48× |  | OK | MATLAB Audio Toolbox cycle C: melSpectrogram + audioDelta. melSpectrogram with NumBands=8 default-window/overlap on a deterministic ramp signal. F (mel-band centers): bit-equal with MATLAB R2025b on all 8 values. S(1,1) bit-equal. Time vector T size matches MATLAB. audioDelta: bit-equal on default windowLength=9 ramp test (d(9)=d(10)=2 — MATLAB filter convention with sum((1:M)^2)=30 divisor), and on custom windowLength=5 path (denom=5), and multi-channel (filter operates along dim 1 per column). KNOWN GAPs (deferred): NumBands ≠ 8 default, FrequencyRange/FilterBankNormalization/MelStyle name-value args, and the [delta, Zf] / Zi initial-conditions form for audioDelta. Octave 11.1.0 doesn't ship melSpectrogram or audioDelta in core (Audio package only). |
 
 ### Audio Frequency / Loudness Conversions
 
@@ -2872,14 +2872,14 @@ locations until physical migration lands.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bark2hz` | ✅ | 0.022 | 246.59× |  | OK | MATLAB Audio Toolbox frequency-scale + loudness conversions (cycles A + M): hz2mel/mel2hz (O'Shaughnessy default), hz2bark/bark2hz (Traunmüller 1990 with low/high-frequency corrections; bark2hz uses the asymmetric 26.28 denominator from MATLAB's bark2hz.m source), hz2erb/erb2hz (Glasberg & Moore 1990 with constants log(10)*1000/(24.673*4.368) and 0.004368 — extracted bit-for-bit from MATLAB hz2erb.m), phon2sone/sone2phon (ISO 532-1 default with smooth break at 40 phon = 1 sone). Cycle M added optional 2nd arg 'ISO 532-2': bit-equal table-lookup PCHIP interpolation per ISO 532-2:2017 Table 5 (28 entries from MATLAB getPerceptualConstants.m), with linear extrapolation beyond 337.6 sone for sone2phon. KNOWN GAP: phon2sone ISO 532-2 ships initial PCHIP guess only; MATLAB additionally refines via fzero (error <1% on smooth inputs). Bit-equal with MATLAB R2025b on all 26 fingerprint points (in-range). Octave 11.1.0 doesn't ship these in core (Audio package only; Octave's audio package missing these specifically). |
-| `erb2hz` | ✅ | 0.022 | 246.59× |  | OK | MATLAB Audio Toolbox frequency-scale + loudness conversions (cycles A + M): hz2mel/mel2hz (O'Shaughnessy default), hz2bark/bark2hz (Traunmüller 1990 with low/high-frequency corrections; bark2hz uses the asymmetric 26.28 denominator from MATLAB's bark2hz.m source), hz2erb/erb2hz (Glasberg & Moore 1990 with constants log(10)*1000/(24.673*4.368) and 0.004368 — extracted bit-for-bit from MATLAB hz2erb.m), phon2sone/sone2phon (ISO 532-1 default with smooth break at 40 phon = 1 sone). Cycle M added optional 2nd arg 'ISO 532-2': bit-equal table-lookup PCHIP interpolation per ISO 532-2:2017 Table 5 (28 entries from MATLAB getPerceptualConstants.m), with linear extrapolation beyond 337.6 sone for sone2phon. KNOWN GAP: phon2sone ISO 532-2 ships initial PCHIP guess only; MATLAB additionally refines via fzero (error <1% on smooth inputs). Bit-equal with MATLAB R2025b on all 26 fingerprint points (in-range). Octave 11.1.0 doesn't ship these in core (Audio package only; Octave's audio package missing these specifically). |
-| `hz2bark` | ✅ | 0.022 | 246.59× |  | OK | MATLAB Audio Toolbox frequency-scale + loudness conversions (cycles A + M): hz2mel/mel2hz (O'Shaughnessy default), hz2bark/bark2hz (Traunmüller 1990 with low/high-frequency corrections; bark2hz uses the asymmetric 26.28 denominator from MATLAB's bark2hz.m source), hz2erb/erb2hz (Glasberg & Moore 1990 with constants log(10)*1000/(24.673*4.368) and 0.004368 — extracted bit-for-bit from MATLAB hz2erb.m), phon2sone/sone2phon (ISO 532-1 default with smooth break at 40 phon = 1 sone). Cycle M added optional 2nd arg 'ISO 532-2': bit-equal table-lookup PCHIP interpolation per ISO 532-2:2017 Table 5 (28 entries from MATLAB getPerceptualConstants.m), with linear extrapolation beyond 337.6 sone for sone2phon. KNOWN GAP: phon2sone ISO 532-2 ships initial PCHIP guess only; MATLAB additionally refines via fzero (error <1% on smooth inputs). Bit-equal with MATLAB R2025b on all 26 fingerprint points (in-range). Octave 11.1.0 doesn't ship these in core (Audio package only; Octave's audio package missing these specifically). |
-| `hz2erb` | ✅ | 0.022 | 246.59× |  | OK | MATLAB Audio Toolbox frequency-scale + loudness conversions (cycles A + M): hz2mel/mel2hz (O'Shaughnessy default), hz2bark/bark2hz (Traunmüller 1990 with low/high-frequency corrections; bark2hz uses the asymmetric 26.28 denominator from MATLAB's bark2hz.m source), hz2erb/erb2hz (Glasberg & Moore 1990 with constants log(10)*1000/(24.673*4.368) and 0.004368 — extracted bit-for-bit from MATLAB hz2erb.m), phon2sone/sone2phon (ISO 532-1 default with smooth break at 40 phon = 1 sone). Cycle M added optional 2nd arg 'ISO 532-2': bit-equal table-lookup PCHIP interpolation per ISO 532-2:2017 Table 5 (28 entries from MATLAB getPerceptualConstants.m), with linear extrapolation beyond 337.6 sone for sone2phon. KNOWN GAP: phon2sone ISO 532-2 ships initial PCHIP guess only; MATLAB additionally refines via fzero (error <1% on smooth inputs). Bit-equal with MATLAB R2025b on all 26 fingerprint points (in-range). Octave 11.1.0 doesn't ship these in core (Audio package only; Octave's audio package missing these specifically). |
-| `hz2mel` | ✅ | 0.022 | 246.59× |  | OK | MATLAB Audio Toolbox frequency-scale + loudness conversions (cycles A + M): hz2mel/mel2hz (O'Shaughnessy default), hz2bark/bark2hz (Traunmüller 1990 with low/high-frequency corrections; bark2hz uses the asymmetric 26.28 denominator from MATLAB's bark2hz.m source), hz2erb/erb2hz (Glasberg & Moore 1990 with constants log(10)*1000/(24.673*4.368) and 0.004368 — extracted bit-for-bit from MATLAB hz2erb.m), phon2sone/sone2phon (ISO 532-1 default with smooth break at 40 phon = 1 sone). Cycle M added optional 2nd arg 'ISO 532-2': bit-equal table-lookup PCHIP interpolation per ISO 532-2:2017 Table 5 (28 entries from MATLAB getPerceptualConstants.m), with linear extrapolation beyond 337.6 sone for sone2phon. KNOWN GAP: phon2sone ISO 532-2 ships initial PCHIP guess only; MATLAB additionally refines via fzero (error <1% on smooth inputs). Bit-equal with MATLAB R2025b on all 26 fingerprint points (in-range). Octave 11.1.0 doesn't ship these in core (Audio package only; Octave's audio package missing these specifically). |
-| `mel2hz` | ✅ | 0.022 | 246.59× |  | OK | MATLAB Audio Toolbox frequency-scale + loudness conversions (cycles A + M): hz2mel/mel2hz (O'Shaughnessy default), hz2bark/bark2hz (Traunmüller 1990 with low/high-frequency corrections; bark2hz uses the asymmetric 26.28 denominator from MATLAB's bark2hz.m source), hz2erb/erb2hz (Glasberg & Moore 1990 with constants log(10)*1000/(24.673*4.368) and 0.004368 — extracted bit-for-bit from MATLAB hz2erb.m), phon2sone/sone2phon (ISO 532-1 default with smooth break at 40 phon = 1 sone). Cycle M added optional 2nd arg 'ISO 532-2': bit-equal table-lookup PCHIP interpolation per ISO 532-2:2017 Table 5 (28 entries from MATLAB getPerceptualConstants.m), with linear extrapolation beyond 337.6 sone for sone2phon. KNOWN GAP: phon2sone ISO 532-2 ships initial PCHIP guess only; MATLAB additionally refines via fzero (error <1% on smooth inputs). Bit-equal with MATLAB R2025b on all 26 fingerprint points (in-range). Octave 11.1.0 doesn't ship these in core (Audio package only; Octave's audio package missing these specifically). |
-| `phon2sone` | ✅ | 0.022 | 246.59× |  | OK | MATLAB Audio Toolbox frequency-scale + loudness conversions (cycles A + M): hz2mel/mel2hz (O'Shaughnessy default), hz2bark/bark2hz (Traunmüller 1990 with low/high-frequency corrections; bark2hz uses the asymmetric 26.28 denominator from MATLAB's bark2hz.m source), hz2erb/erb2hz (Glasberg & Moore 1990 with constants log(10)*1000/(24.673*4.368) and 0.004368 — extracted bit-for-bit from MATLAB hz2erb.m), phon2sone/sone2phon (ISO 532-1 default with smooth break at 40 phon = 1 sone). Cycle M added optional 2nd arg 'ISO 532-2': bit-equal table-lookup PCHIP interpolation per ISO 532-2:2017 Table 5 (28 entries from MATLAB getPerceptualConstants.m), with linear extrapolation beyond 337.6 sone for sone2phon. KNOWN GAP: phon2sone ISO 532-2 ships initial PCHIP guess only; MATLAB additionally refines via fzero (error <1% on smooth inputs). Bit-equal with MATLAB R2025b on all 26 fingerprint points (in-range). Octave 11.1.0 doesn't ship these in core (Audio package only; Octave's audio package missing these specifically). |
-| `sone2phon` | ✅ | 0.022 | 246.59× |  | OK | MATLAB Audio Toolbox frequency-scale + loudness conversions (cycles A + M): hz2mel/mel2hz (O'Shaughnessy default), hz2bark/bark2hz (Traunmüller 1990 with low/high-frequency corrections; bark2hz uses the asymmetric 26.28 denominator from MATLAB's bark2hz.m source), hz2erb/erb2hz (Glasberg & Moore 1990 with constants log(10)*1000/(24.673*4.368) and 0.004368 — extracted bit-for-bit from MATLAB hz2erb.m), phon2sone/sone2phon (ISO 532-1 default with smooth break at 40 phon = 1 sone). Cycle M added optional 2nd arg 'ISO 532-2': bit-equal table-lookup PCHIP interpolation per ISO 532-2:2017 Table 5 (28 entries from MATLAB getPerceptualConstants.m), with linear extrapolation beyond 337.6 sone for sone2phon. KNOWN GAP: phon2sone ISO 532-2 ships initial PCHIP guess only; MATLAB additionally refines via fzero (error <1% on smooth inputs). Bit-equal with MATLAB R2025b on all 26 fingerprint points (in-range). Octave 11.1.0 doesn't ship these in core (Audio package only; Octave's audio package missing these specifically). |
+| `bark2hz` | ✅ | 0.022 | 390.40× |  | OK | MATLAB Audio Toolbox frequency-scale + loudness conversions (cycles A + M): hz2mel/mel2hz (O'Shaughnessy default), hz2bark/bark2hz (Traunmüller 1990 with low/high-frequency corrections; bark2hz uses the asymmetric 26.28 denominator from MATLAB's bark2hz.m source), hz2erb/erb2hz (Glasberg & Moore 1990 with constants log(10)*1000/(24.673*4.368) and 0.004368 — extracted bit-for-bit from MATLAB hz2erb.m), phon2sone/sone2phon (ISO 532-1 default with smooth break at 40 phon = 1 sone). Cycle M added optional 2nd arg 'ISO 532-2': bit-equal table-lookup PCHIP interpolation per ISO 532-2:2017 Table 5 (28 entries from MATLAB getPerceptualConstants.m), with linear extrapolation beyond 337.6 sone for sone2phon. KNOWN GAP: phon2sone ISO 532-2 ships initial PCHIP guess only; MATLAB additionally refines via fzero (error <1% on smooth inputs). Bit-equal with MATLAB R2025b on all 26 fingerprint points (in-range). Octave 11.1.0 doesn't ship these in core (Audio package only; Octave's audio package missing these specifically). |
+| `erb2hz` | ✅ | 0.022 | 390.40× |  | OK | MATLAB Audio Toolbox frequency-scale + loudness conversions (cycles A + M): hz2mel/mel2hz (O'Shaughnessy default), hz2bark/bark2hz (Traunmüller 1990 with low/high-frequency corrections; bark2hz uses the asymmetric 26.28 denominator from MATLAB's bark2hz.m source), hz2erb/erb2hz (Glasberg & Moore 1990 with constants log(10)*1000/(24.673*4.368) and 0.004368 — extracted bit-for-bit from MATLAB hz2erb.m), phon2sone/sone2phon (ISO 532-1 default with smooth break at 40 phon = 1 sone). Cycle M added optional 2nd arg 'ISO 532-2': bit-equal table-lookup PCHIP interpolation per ISO 532-2:2017 Table 5 (28 entries from MATLAB getPerceptualConstants.m), with linear extrapolation beyond 337.6 sone for sone2phon. KNOWN GAP: phon2sone ISO 532-2 ships initial PCHIP guess only; MATLAB additionally refines via fzero (error <1% on smooth inputs). Bit-equal with MATLAB R2025b on all 26 fingerprint points (in-range). Octave 11.1.0 doesn't ship these in core (Audio package only; Octave's audio package missing these specifically). |
+| `hz2bark` | ✅ | 0.022 | 390.40× |  | OK | MATLAB Audio Toolbox frequency-scale + loudness conversions (cycles A + M): hz2mel/mel2hz (O'Shaughnessy default), hz2bark/bark2hz (Traunmüller 1990 with low/high-frequency corrections; bark2hz uses the asymmetric 26.28 denominator from MATLAB's bark2hz.m source), hz2erb/erb2hz (Glasberg & Moore 1990 with constants log(10)*1000/(24.673*4.368) and 0.004368 — extracted bit-for-bit from MATLAB hz2erb.m), phon2sone/sone2phon (ISO 532-1 default with smooth break at 40 phon = 1 sone). Cycle M added optional 2nd arg 'ISO 532-2': bit-equal table-lookup PCHIP interpolation per ISO 532-2:2017 Table 5 (28 entries from MATLAB getPerceptualConstants.m), with linear extrapolation beyond 337.6 sone for sone2phon. KNOWN GAP: phon2sone ISO 532-2 ships initial PCHIP guess only; MATLAB additionally refines via fzero (error <1% on smooth inputs). Bit-equal with MATLAB R2025b on all 26 fingerprint points (in-range). Octave 11.1.0 doesn't ship these in core (Audio package only; Octave's audio package missing these specifically). |
+| `hz2erb` | ✅ | 0.022 | 390.40× |  | OK | MATLAB Audio Toolbox frequency-scale + loudness conversions (cycles A + M): hz2mel/mel2hz (O'Shaughnessy default), hz2bark/bark2hz (Traunmüller 1990 with low/high-frequency corrections; bark2hz uses the asymmetric 26.28 denominator from MATLAB's bark2hz.m source), hz2erb/erb2hz (Glasberg & Moore 1990 with constants log(10)*1000/(24.673*4.368) and 0.004368 — extracted bit-for-bit from MATLAB hz2erb.m), phon2sone/sone2phon (ISO 532-1 default with smooth break at 40 phon = 1 sone). Cycle M added optional 2nd arg 'ISO 532-2': bit-equal table-lookup PCHIP interpolation per ISO 532-2:2017 Table 5 (28 entries from MATLAB getPerceptualConstants.m), with linear extrapolation beyond 337.6 sone for sone2phon. KNOWN GAP: phon2sone ISO 532-2 ships initial PCHIP guess only; MATLAB additionally refines via fzero (error <1% on smooth inputs). Bit-equal with MATLAB R2025b on all 26 fingerprint points (in-range). Octave 11.1.0 doesn't ship these in core (Audio package only; Octave's audio package missing these specifically). |
+| `hz2mel` | ✅ | 0.022 | 390.40× |  | OK | MATLAB Audio Toolbox frequency-scale + loudness conversions (cycles A + M): hz2mel/mel2hz (O'Shaughnessy default), hz2bark/bark2hz (Traunmüller 1990 with low/high-frequency corrections; bark2hz uses the asymmetric 26.28 denominator from MATLAB's bark2hz.m source), hz2erb/erb2hz (Glasberg & Moore 1990 with constants log(10)*1000/(24.673*4.368) and 0.004368 — extracted bit-for-bit from MATLAB hz2erb.m), phon2sone/sone2phon (ISO 532-1 default with smooth break at 40 phon = 1 sone). Cycle M added optional 2nd arg 'ISO 532-2': bit-equal table-lookup PCHIP interpolation per ISO 532-2:2017 Table 5 (28 entries from MATLAB getPerceptualConstants.m), with linear extrapolation beyond 337.6 sone for sone2phon. KNOWN GAP: phon2sone ISO 532-2 ships initial PCHIP guess only; MATLAB additionally refines via fzero (error <1% on smooth inputs). Bit-equal with MATLAB R2025b on all 26 fingerprint points (in-range). Octave 11.1.0 doesn't ship these in core (Audio package only; Octave's audio package missing these specifically). |
+| `mel2hz` | ✅ | 0.022 | 390.40× |  | OK | MATLAB Audio Toolbox frequency-scale + loudness conversions (cycles A + M): hz2mel/mel2hz (O'Shaughnessy default), hz2bark/bark2hz (Traunmüller 1990 with low/high-frequency corrections; bark2hz uses the asymmetric 26.28 denominator from MATLAB's bark2hz.m source), hz2erb/erb2hz (Glasberg & Moore 1990 with constants log(10)*1000/(24.673*4.368) and 0.004368 — extracted bit-for-bit from MATLAB hz2erb.m), phon2sone/sone2phon (ISO 532-1 default with smooth break at 40 phon = 1 sone). Cycle M added optional 2nd arg 'ISO 532-2': bit-equal table-lookup PCHIP interpolation per ISO 532-2:2017 Table 5 (28 entries from MATLAB getPerceptualConstants.m), with linear extrapolation beyond 337.6 sone for sone2phon. KNOWN GAP: phon2sone ISO 532-2 ships initial PCHIP guess only; MATLAB additionally refines via fzero (error <1% on smooth inputs). Bit-equal with MATLAB R2025b on all 26 fingerprint points (in-range). Octave 11.1.0 doesn't ship these in core (Audio package only; Octave's audio package missing these specifically). |
+| `phon2sone` | ✅ | 0.022 | 390.40× |  | OK | MATLAB Audio Toolbox frequency-scale + loudness conversions (cycles A + M): hz2mel/mel2hz (O'Shaughnessy default), hz2bark/bark2hz (Traunmüller 1990 with low/high-frequency corrections; bark2hz uses the asymmetric 26.28 denominator from MATLAB's bark2hz.m source), hz2erb/erb2hz (Glasberg & Moore 1990 with constants log(10)*1000/(24.673*4.368) and 0.004368 — extracted bit-for-bit from MATLAB hz2erb.m), phon2sone/sone2phon (ISO 532-1 default with smooth break at 40 phon = 1 sone). Cycle M added optional 2nd arg 'ISO 532-2': bit-equal table-lookup PCHIP interpolation per ISO 532-2:2017 Table 5 (28 entries from MATLAB getPerceptualConstants.m), with linear extrapolation beyond 337.6 sone for sone2phon. KNOWN GAP: phon2sone ISO 532-2 ships initial PCHIP guess only; MATLAB additionally refines via fzero (error <1% on smooth inputs). Bit-equal with MATLAB R2025b on all 26 fingerprint points (in-range). Octave 11.1.0 doesn't ship these in core (Audio package only; Octave's audio package missing these specifically). |
+| `sone2phon` | ✅ | 0.022 | 390.40× |  | OK | MATLAB Audio Toolbox frequency-scale + loudness conversions (cycles A + M): hz2mel/mel2hz (O'Shaughnessy default), hz2bark/bark2hz (Traunmüller 1990 with low/high-frequency corrections; bark2hz uses the asymmetric 26.28 denominator from MATLAB's bark2hz.m source), hz2erb/erb2hz (Glasberg & Moore 1990 with constants log(10)*1000/(24.673*4.368) and 0.004368 — extracted bit-for-bit from MATLAB hz2erb.m), phon2sone/sone2phon (ISO 532-1 default with smooth break at 40 phon = 1 sone). Cycle M added optional 2nd arg 'ISO 532-2': bit-equal table-lookup PCHIP interpolation per ISO 532-2:2017 Table 5 (28 entries from MATLAB getPerceptualConstants.m), with linear extrapolation beyond 337.6 sone for sone2phon. KNOWN GAP: phon2sone ISO 532-2 ships initial PCHIP guess only; MATLAB additionally refines via fzero (error <1% on smooth inputs). Bit-equal with MATLAB R2025b on all 26 fingerprint points (in-range). Octave 11.1.0 doesn't ship these in core (Audio package only; Octave's audio package missing these specifically). |
 
 ## Statistics
 
@@ -2889,11 +2889,11 @@ locations until physical migration lands.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bounds` | ✅ | 6.052 | 0.03× | 0.26× | OK | Sig: [lo,hi] = bounds(X). 1M-pt min/max. 100 iters. |
-| `corrcoef` | ✅ | 0.004 | 168.63× | 70.90× | OK | Sig: r = corrcoef(...). Spec-extension batch 2026-05-09. |
-| `cov` | ✅ | 0.004 | 92.24× | 31.09× | OK | Sig: r = cov(...). Spec-extension batch 2026-05-09. |
-| `cummax` | ✅ | 2.593 | 0.95× | 1.07× | OK | Sig: M = cummax(X). 1M-pt cumulative max. 100 iters. Element-wise SAVE. |
-| `cummin` | ✅ | 2.592 | 1.00× | 1.17× | OK | Sig: M = cummin(X). 1M-pt cumulative min. 100 iters. Element-wise SAVE. |
+| `bounds` | ✅ | 5.932 | 0.02× |  | OK | Sig: [lo,hi] = bounds(X). 1M-pt min/max. 100 iters. |
+| `corrcoef` | ✅ | 0.003 | 218.39× |  | OK | Sig: r = corrcoef(...). Spec-extension batch 2026-05-09. |
+| `cov` | ✅ | 0.002 | 31.68× |  | OK | Sig: r = cov(...). Spec-extension batch 2026-05-09. |
+| `cummax` | ✅ | 2.530 | 0.58× |  | OK | Sig: M = cummax(X). 1M-pt cumulative max. 100 iters. Element-wise SAVE. |
+| `cummin` | ✅ | 2.443 | 0.68× |  | OK | Sig: M = cummin(X). 1M-pt cumulative min. 100 iters. Element-wise SAVE. |
 | `iqr` | ✅ | 0.006 | 864.90× | 177.19× | OK | Sig: r = iqr(A[, dim | 'all' | vecdim]). MATLAB R2025b uses midpoint (R2007a) interpolation: iqr = prctile(A, 75) - prctile(A, 25). Closes audit/findings/stats/iqr.md (joint with quantile + prctile). |
 | `kde` | ❌ |  |  |  |  |  |
 | `mape` | ✅ | 8.282 | 0.29× | 1.04× | OK | 1M-point MAPE. 50 iters. numkit needs `import compat.*`; MATLAB+Octave have it flat. |
@@ -2929,10 +2929,10 @@ locations until physical migration lands.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `cholcov` | ✅ | 0.012 | 116.30× | 32.34× | OK | MATLAB cholcov: Cholesky-like factor of (possibly singular) covariance. Bit-equal with MATLAB R2025b on key invariants: PD case gives upper-triangular n×n (T'*T = SIGMA exactly), PSD rank-r case gives r×n (T'*T = SIGMA up to rounding), indefinite/negative gives empty T and p > 0. Eigvec sign/ordering can differ between engines so we pin invariants (residual + dimensions + p), not literal entries beyond the PD diagonal. Octave 11.1.0 doesn't ship cholcov in core (statistics package only); reports N/A. |
-| `corr` | ⚠️ | 0.004 | 351.92× | 26.49× | OK | Sig: c = corr(X). Pearson correlation matrix between columns of X (alias to corrcoef). Two-arg corr(X, Y) deferred. |
-| `corrcov` | ✅ | 0.006 | 313.55× |  | OK | MATLAB corrcov: R = C ./ sqrt(diag(C)*diag(C)'); sigma = sqrt(diag(C))'. Bit-equal with MATLAB R2025b on 3x3 covariance, identity, scalar, and negative-correlation 2x2 cases. Octave 11.1.0 doesn't ship corrcov in core (statistics package only); reports N/A. |
-| `crosstab` | ✅ | 0.006 | 690.75× |  | OK | MATLAB crosstab: contingency table with chi-square independence test. Bit-equal with MATLAB R2025b on table entries; chi2 and p match within tolerance (chi2cdf depends on incomplete-gamma which has small numerical drift between engines). Octave 11.1.0 doesn't ship crosstab in core (statistics package only); reports N/A. |
+| `cholcov` | ✅ | 0.009 | 142.11× |  | OK | MATLAB cholcov: Cholesky-like factor of (possibly singular) covariance. Bit-equal with MATLAB R2025b on key invariants: PD case gives upper-triangular n×n (T'*T = SIGMA exactly), PSD rank-r case gives r×n (T'*T = SIGMA up to rounding), indefinite/negative gives empty T and p > 0. Eigvec sign/ordering can differ between engines so we pin invariants (residual + dimensions + p), not literal entries beyond the PD diagonal. Octave 11.1.0 doesn't ship cholcov in core (statistics package only); reports N/A. |
+| `corr` | ⚠️ | 0.001 | 652.67× |  | OK | Sig: c = corr(X). Pearson correlation matrix between columns of X (alias to corrcoef). Two-arg corr(X, Y) deferred. |
+| `corrcov` | ✅ | 0.004 | 365.04× |  | OK | MATLAB corrcov: R = C ./ sqrt(diag(C)*diag(C)'); sigma = sqrt(diag(C))'. Bit-equal with MATLAB R2025b on 3x3 covariance, identity, scalar, and negative-correlation 2x2 cases. Octave 11.1.0 doesn't ship corrcov in core (statistics package only); reports N/A. |
+| `crosstab` | ✅ | 0.003 | 1247.39× |  | OK | MATLAB crosstab: contingency table with chi-square independence test. Bit-equal with MATLAB R2025b on table entries; chi2 and p match within tolerance (chi2cdf depends on incomplete-gamma which has small numerical drift between engines). Octave 11.1.0 doesn't ship crosstab in core (statistics package only); reports N/A. |
 | `geomean` | ✅ | 0.004 | 125.08× | 27.16× | OK | Sig: g = geomean(x[, dim]). (prod x)^(1/n) = exp(mean(log x)). |
 | `grpstats` | ✅ | 0.007 | 797.48× |  | OK | MATLAB grpstats: per-group statistics. Bit-equal with MATLAB R2025b on default-mean, multi-fn cell-of-strings, sum, std, numel aggregators. Other aggregators (var, sem, min, max) supported in numkit. Cell-of-fn output ordering matches MATLAB's nargout indexing. Octave 11.1.0 doesn't ship grpstats in core (statistics package only); reports N/A. |
 | `harmmean` | ✅ | 0.004 | 132.64× | 51.80× | OK | Sig: h = harmmean(x[, dim]). n / sum(1./x). Requires positive x. |
@@ -2966,36 +2966,36 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `norminv` | ✅ | 0.009 | 67.05× | 79.75× | OK | Sig: x = norminv(p[, mu, sigma]). Inverse Normal CDF: x = mu + sigma*Φ⁻¹(p). Defaults mu=0, sigma=1. Edges: p=0 => -Inf; p=1 => +Inf; p outside [0,1] => NaN; sigma<=0 => NaN. Tol 1e-9 -- erfcinv algorithm differs ~1e-12 absolute from MATLAB. |
 | `normrnd` | ✅ |  |  |  | OK |  |
 | `normstat` | ✅ | 0.007 | 112.11× | 36.81× | OK | Sig: [m, v] = normstat(mu, sigma). Trivially m=mu, v=sigma². Vectorised with broadcasting (equal sizes or one scalar). sigma<=0 => NaN. |
-| `chi2pdf` | ✅ | 0.007 | 636.56× | 118.23× | OK | Sig: y = chi2pdf(x, k). Chi-squared PDF with k dof. x < 0 => 0; k <= 0 => NaN. Covers: scalar, vector x, x<0 + x=0 edges, k=1 (special: x^(-1/2)·exp(-x/2)/√(2π)), k=30 large dof. |
+| `chi2pdf` | ✅ | 0.005 | 925.15× |  | OK | Sig: y = chi2pdf(x, k). Chi-squared PDF with k dof. x < 0 => 0; k <= 0 => NaN. Covers: scalar, vector x, x<0 + x=0 edges, k=1 (special: x^(-1/2)·exp(-x/2)/√(2π)), k=30 large dof. |
 | `chi2cdf` | ✅ |  |  |  | OK | gammainc(x/2, k/2) |
-| `chi2inv` | ✅ | 0.012 | 82.44× | 2065.09× | OK | Sig: x = chi2inv(p, k). Inverse Chi² CDF with k dof. Covers k ∈ {1, 5, 30} × p ∈ {0.05, 0.5, 0.95} + p=0 (=> 0) + p=1 (=> Inf) + p outside [0,1] (=> NaN) + k<=0 (=> NaN). |
+| `chi2inv` | ✅ | 0.010 | 85.41× |  | OK | Sig: x = chi2inv(p, k). Inverse Chi² CDF with k dof. Covers k ∈ {1, 5, 30} × p ∈ {0.05, 0.5, 0.95} + p=0 (=> 0) + p=1 (=> Inf) + p outside [0,1] (=> NaN) + k<=0 (=> NaN). |
 | `chi2rnd` | ✅ |  |  |  | OK |  |
-| `chi2stat` | ✅ | 0.006 | 84.98× | 41.89× | OK | Sig: [m, v] = chi2stat(k). Chi² mean=k and variance=2k. Vectorised. k<=0 => NaN (moments don't exist for degenerate). |
+| `chi2stat` | ✅ | 0.003 | 147.31× |  | OK | Sig: [m, v] = chi2stat(k). Chi² mean=k and variance=2k. Vectorised. k<=0 => NaN (moments don't exist for degenerate). |
 | `tpdf` | ✅ | 0.008 | 159.59× | 106.05× | OK | Sig: y = tpdf(x, nu). Student's t PDF via lgamma-stable form. nu=Inf -> Gaussian limit (1/sqrt(2π))·exp(-x²/2). nu<=0 or NaN -> NaN. NaN x -> NaN. |
 | `tcdf` | ✅ |  |  |  | OK | betainc on z = ν/(ν+x²), branch by sign |
 | `tinv` | ✅ | 0.015 | 140.10× | 629.20× | OK | Sig: x = tinv(p, nu). Inverse Student's t-CDF. Uses betaincinv(2(1-p) or 2p, nu/2, 1/2) and signs by p<>0.5. nu=Inf -> Gaussian limit (norminv(p)). Edges: p=0 -> -Inf; p=1 -> +Inf; p outside [0,1] -> NaN; nu<=0 -> NaN. |
 | `trnd` | ✅ |  |  |  | OK | Z/√(X/ν), Z~N(0,1), X~χ²(ν) |
 | `tstat` | ✅ | 0.006 | 104.08× | 35.02× | OK | Sig: [m, v] = tstat(nu). Student's t: m=0 if nu>1, v=nu/(nu-2) if nu>2. Vectorised. nu<=0 => NaN/NaN; 0<nu<=1 => m=NaN,v=NaN; 1<nu<=2 => m=0, v=NaN. |
-| `fpdf` | ✅ | 0.008 | 341.36× | 102.56× | OK | Sig: y = fpdf(x, v1, v2). F-distribution PDF. x < 0 => 0; v1 <= 0 or v2 <= 0 => NaN. Covers: scalar (v1=5,v2=10), vector x, x<0/x=0 edges, invalid v1/v2, F(2,10) at 0 (= v1/(v1+v2-2)/B(...) finite for v1=2). |
+| `fpdf` | ✅ | 0.004 |  |  | N/A | Sig: y = fpdf(x, v1, v2). F-distribution PDF. x < 0 => 0; v1 <= 0 or v2 <= 0 => NaN. Covers: scalar (v1=5,v2=10), vector x, x<0/x=0 edges, invalid v1/v2, F(2,10) at 0 (= v1/(v1+v2-2)/B(...) finite for v1=2). |
 | `fcdf` | ✅ |  |  |  | OK | betainc(v1·x/(v1·x+v2), v1/2, v2/2) |
-| `finv` | ✅ | 0.017 | 90.88× | 669.54× | OK | Sig: x = finv(p, v1, v2). Inverse F CDF. Covers (v1, v2) ∈ {(1,1), (5,10), (10,30)} × p ∈ {0.05, 0.5, 0.95} + p=0 (=> 0) + p=1 (=> Inf) + p outside [0,1] (=> NaN) + v1<=0 / v2<=0 (=> NaN). |
+| `finv` | ✅ | 0.014 |  |  | N/A | Sig: x = finv(p, v1, v2). Inverse F CDF. Covers (v1, v2) ∈ {(1,1), (5,10), (10,30)} × p ∈ {0.05, 0.5, 0.95} + p=0 (=> 0) + p=1 (=> Inf) + p outside [0,1] (=> NaN) + v1<=0 / v2<=0 (=> NaN). |
 | `frnd` | ✅ |  |  |  | OK | (X1/v1)/(X2/v2), Xi~χ²(vi) |
 | `fstat` | ✅ | 0.006 | 248.81× | 48.77× | OK | Sig: [m, v] = fstat(v1, v2). F-distribution mean = v2/(v2-2) for v2>2 else NaN; variance = 2*v2²(v1+v2-2)/(v1(v2-2)²(v2-4)) for v2>4 else NaN. Vectorised. v1<=0 or v2<=0 => NaN/NaN. |
-| `betapdf` | ✅ | 0.007 | 265.97× | 107.18× | OK | Sig: y = betapdf(x, a, b). Beta PDF on (0,1). x outside (0,1) => 0; a<=0 or b<=0 => NaN. Covers: scalar, vector, out-of-(0,1) edges (x<0, x=0, x=0.5, x=1, x>1), invalid params. |
+| `betapdf` | ✅ | 0.003 | 444.39× |  | OK | Sig: y = betapdf(x, a, b). Beta PDF on (0,1). x outside (0,1) => 0; a<=0 or b<=0 => NaN. Covers: scalar, vector, out-of-(0,1) edges (x<0, x=0, x=0.5, x=1, x>1), invalid params. |
 | `betacdf` | ✅ |  |  |  | OK | I_x(a, b) directly |
-| `betainv` | ✅ | 0.016 | 74.71× | 560.82× | OK | Sig: x = betainv(p, a, b). Inverse Beta CDF. Covers (a,b) ∈ {(1,1) uniform, (0.5,0.5) U-shaped, (2,5), (10,10)} × p ∈ {0.05, 0.5, 0.95}. Edges: p=0 => 0; p=1 => 1; p outside [0,1] => NaN; invalid shape => NaN. |
+| `betainv` | ✅ | 0.013 | 63.56× |  | OK | Sig: x = betainv(p, a, b). Inverse Beta CDF. Covers (a,b) ∈ {(1,1) uniform, (0.5,0.5) U-shaped, (2,5), (10,10)} × p ∈ {0.05, 0.5, 0.95}. Edges: p=0 => 0; p=1 => 1; p outside [0,1] => NaN; invalid shape => NaN. |
 | `betarnd` | ✅ |  |  |  | OK | U/(U+V), U~Gamma(a,1), V~Gamma(b,1) |
-| `betastat` | ✅ | 0.007 | 218.89× | 41.03× | OK | Sig: [m, v] = betastat(a, b). Beta(a,b) mean a/(a+b) and variance ab/((a+b)^2(a+b+1)). Vectorised. Invalid params (a<=0 or b<=0) => NaN. Beta(1,1) is uniform: m=0.5, v=1/12. |
+| `betastat` | ✅ | 0.002 | 420.81× |  | OK | Sig: [m, v] = betastat(a, b). Beta(a,b) mean a/(a+b) and variance ab/((a+b)^2(a+b+1)). Vectorised. Invalid params (a<=0 or b<=0) => NaN. Beta(1,1) is uniform: m=0.5, v=1/12. |
 | `gampdf` | ✅ | 0.007 | 653.04× | 107.03× | OK | Sig: y = gampdf(x, a, b). Gamma(shape=a, scale=b) PDF. Density at 0: a<1 → Inf, a=1 → 1/b, a>1 → 0. x<0 → 0. a<0 or b<=0 → NaN. a=0 → 0 (degenerate). |
 | `gamcdf` | ✅ |  |  |  | OK | gammainc(x/b, a) |
 | `gaminv` | ✅ | 0.009 | 81.65× | 809.51× | OK | Sig: x = gaminv(p, a, b). Inverse Gamma CDF. q=0 → 0; q=1 → Inf; q outside [0,1] → NaN. a=0 → 0 (degenerate); a<0 / b<=0 → NaN. |
 | `gamrnd` | ✅ |  |  |  | OK | std::gamma_distribution(a, b) |
 | `gamstat` | ✅ | 0.008 | 54.34× | 37.71× | OK | Sig: [m, v] = gamstat(a, b). Gamma(shape, scale): m = a·b, v = a·b². Vectorised. a<=0 or b<=0 => NaN. |
-| `exppdf` | ✅ | 0.006 | 68.90× | 63.76× | OK | Sig: y = exppdf(x[, mu]). Exponential PDF: (1/mu)·exp(-x/mu). Default mu=1. x<0 → 0. mu<=0 → NaN. |
+| `exppdf` | ✅ | 0.004 |  |  | N/A | Sig: y = exppdf(x[, mu]). Exponential PDF: (1/mu)·exp(-x/mu). Default mu=1. x<0 → 0. mu<=0 → NaN. |
 | `expcdf` | ✅ |  |  |  | OK | -expm1(-x/μ) |
-| `expinv` | ✅ | 0.007 | 110.45× | 116.74× | OK | Sig: x = expinv(p[, mu]). Inverse exponential CDF: x = -mu*log(1-p). Default mu=1. Covers default form + non-default mu + boundaries (p=0,1) + invalid (p<0, p>1, mu<=0). |
+| `expinv` | ✅ | 0.004 |  |  | N/A | Sig: x = expinv(p[, mu]). Inverse exponential CDF: x = -mu*log(1-p). Default mu=1. Covers default form + non-default mu + boundaries (p=0,1) + invalid (p<0, p>1, mu<=0). |
 | `exprnd` | ✅ |  |  |  | OK |  |
-| `expstat` | ✅ | 0.006 | 59.94× | 26.93× | OK | Sig: [m, v] = expstat(mu). Exponential mean=mu, variance=mu^2. Vectorised. mu<=0 => NaN. |
+| `expstat` | ✅ | 0.002 |  |  | N/A | Sig: [m, v] = expstat(mu). Exponential mean=mu, variance=mu^2. Vectorised. mu<=0 => NaN. |
 | `unifpdf` | ✅ | 0.009 | 111.41× |  | OK | Sig: y = unifpdf(x[, a, b]). Continuous uniform PDF on [a, b]; defaults a=0, b=1. y = 1/(b-a) for x in [a,b], else 0. Edges: b<=a -> NaN; NaN x -> NaN; NaN a/b -> 0 (NaN comparisons false, MATLAB convention). |
 | `unifcdf` | ✅ |  |  |  | OK |  |
 | `unifinv` | ✅ | 0.008 | 107.28× |  | OK | Sig: x = unifinv(p[, a, b]). Inverse Continuous Uniform CDF on [a, b]: x = a + p*(b-a). Defaults a=0, b=1. p=0 -> a; p=1 -> b; p outside [0,1] -> NaN; b<=a -> NaN; NaN p -> NaN. |
@@ -3021,11 +3021,11 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `poissinv` | ✅ | 0.009 | 149.97× | 109.06× | OK | Sig: x = poissinv(p, lambda). Inverse Poisson CDF. q=0 → 0; q=1 → Inf; q outside [0,1] → NaN. lambda=0 → 0 (degenerate). lambda<0 → NaN. |
 | `poissrnd` | ✅ |  |  |  | OK |  |
 | `poisstat` | ✅ | 0.005 | 142.65× | 40.33× | OK | Sig: [m, v] = poisstat(lambda). Poisson mean=variance=lambda. Vectorised. lambda<=0 => NaN. |
-| `binopdf` | ✅ | 0.010 | 306.05× | 152.85× | OK | Sig: y = binopdf(k, n, p). Binomial PMF. Out-of-support k (negative, > n, non-integer) → 0. p=0: only k=0 → 1. p=1: only k=n → 1. Invalid n / p out of [0,1] → NaN. |
+| `binopdf` | ✅ | 0.006 | 145.09× |  | OK | Sig: y = binopdf(k, n, p). Binomial PMF. Out-of-support k (negative, > n, non-integer) → 0. p=0: only k=0 → 1. p=1: only k=n → 1. Invalid n / p out of [0,1] → NaN. |
 | `binocdf` | ✅ |  |  |  | OK | I_{1-p}(n - ⌊k⌋, ⌊k⌋ + 1) |
-| `binoinv` | ✅ | 0.009 | 834.04× | 362.98× | OK | Sig: x = binoinv(q, n, p). Inverse Binomial CDF. q=0 → 0; q=1 → n. Invalid (q outside [0,1] / p outside [0,1] / n<0 / non-integer n) => NaN. |
+| `binoinv` | ✅ | 0.005 | 1414.69× |  | OK | Sig: x = binoinv(q, n, p). Inverse Binomial CDF. q=0 → 0; q=1 → n. Invalid (q outside [0,1] / p outside [0,1] / n<0 / non-integer n) => NaN. |
 | `binornd` | ✅ |  |  |  | OK |  |
-| `binostat` | ✅ | 0.009 | 125.88× | 43.02× | OK | Sig: [m, v] = binostat(n, p). Binomial: m=n·p, v=n·p·(1-p). Vectorised. n<0 / non-integer / p<0 / p>1 => NaN. p∈{0,1} are valid (variance becomes 0). |
+| `binostat` | ✅ | 0.006 | 149.87× |  | OK | Sig: [m, v] = binostat(n, p). Binomial: m=n·p, v=n·p·(1-p). Vectorised. n<0 / non-integer / p<0 / p>1 => NaN. p∈{0,1} are valid (variance becomes 0). |
 | `unidpdf` | ✅ | 0.008 | 158.78× | 60.90× | OK | Sig: y = unidpdf(k, N). Discrete uniform PMF on {1..N}: 1/N if k in 1..N integer, else 0. N<=0 or non-integer N -> NaN. NaN N -> NaN. NaN k -> 0 (per MATLAB). tol=0 (integer-stable for discrete). |
 | `unidcdf` | ✅ |  |  |  | OK |  |
 | `unidinv` | ✅ | 0.008 | 146.17× | 50.99× | OK | Sig: x = unidinv(p, N). Inverse discrete-uniform CDF on {1..N}: x = ceil(p·N), clamped. Edges: p<=0 or p>1 -> NaN (p=0 has no integer pre-image); N<1 or non-integer N -> NaN; NaN p/N -> NaN. tol=0. |
@@ -3046,11 +3046,11 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `hygeinv` | ✅ | 0.004 | 682.67× | 65.58× | OK | Sig: r = hygeinv(...). Spec-extension batch 2026-05-09.  |
 | `hygernd` | ✅ | 0.006 | 893.92× | 64.32× | OK | Sig: r = hygernd(...). Spec-extension batch 2026-05-09.  |
 | `hygestat` | ✅ | 0.004 | 204.84× | 12.86× | OK | Sig: r = hygestat(...). Spec-extension batch 2026-05-09.  |
-| `evpdf` | ✅ | 0.003 | 80.83× | 38.53× | OK | Sig: r = evpdf(...). Spec-extension batch 2026-05-09. |
-| `evcdf` | ✅ | 0.004 | 204.67× | 66.82× | OK | Sig: p = evcdf(x[, mu, sigma][, 'upper']). F(x) = 1 − exp(−exp((x−μ)/σ)); 'upper' returns 1 - F(x). |
-| `evinv` | ✅ | 0.003 | 97.51× | 59.29× | OK | Sig: r = evinv(...). Spec-extension batch 2026-05-09. |
-| `evrnd` | ✅ | 0.011 | 188.39× | 35.06× | OK | Sig: r = evrnd(mu, sigma). Type-I (Gumbel-MIN) extreme value sampler via inverse CDF on rand(). Bit-identical with MATLAB R2025b after Phase-0a-1 RNG cascade (MT19937 init_genrand + genRes53 + Gumbel-MIN convention). |
-| `evstat` | ✅ | 0.004 | 70.09× | 29.67× | OK | Sig: r = evstat(...). Spec-extension batch 2026-05-09. |
+| `evpdf` | ✅ | 0.001 |  |  | N/A | Sig: r = evpdf(...). Spec-extension batch 2026-05-09. |
+| `evcdf` | ✅ | 0.002 | 312.26× |  | OK | Sig: p = evcdf(x[, mu, sigma][, 'upper']). F(x) = 1 − exp(−exp((x−μ)/σ)); 'upper' returns 1 - F(x). |
+| `evinv` | ✅ | 0.002 |  |  | N/A | Sig: r = evinv(...). Spec-extension batch 2026-05-09. |
+| `evrnd` | ✅ | 0.008 |  |  | N/A | Sig: r = evrnd(mu, sigma). Type-I (Gumbel-MIN) extreme value sampler via inverse CDF on rand(). Bit-identical with MATLAB R2025b after Phase-0a-1 RNG cascade (MT19937 init_genrand + genRes53 + Gumbel-MIN convention). |
+| `evstat` | ✅ | 0.001 |  |  | N/A | Sig: r = evstat(...). Spec-extension batch 2026-05-09. |
 | `gevpdf` | ✅ | 0.004 | 171.31× | 63.66× | OK | Sig: r = gevpdf(...). Spec-extension batch 2026-05-09. |
 | `gevcdf` | ✅ | 0.004 | 292.27× | 84.15× | OK | Sig: p = gevcdf(x, k, sigma, mu[, 'upper']). 'upper' returns 1 - F(x). |
 | `gevinv` | ✅ | 0.003 | 183.13× | 83.59× | OK | Sig: r = gevinv(...). Spec-extension batch 2026-05-09. |
@@ -3099,12 +3099,12 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `mle` | ⚠️ | 0.005 | 2306.59× | 1372.02× | OK | Sig: mle(data[, 'distribution', name]). Closed-form MLE for normal (default) / exponential / poisson / lognormal. Bit-identical with MATLAB R2025b. Custom 'pdf'/'logpdf'/'nloglf' deferred. |
 | `mlecov` | ❌ |  |  |  |  | covariance of MLE estimates |
 | `betafit` | ❌ |  |  |  |  |  |
-| `betalike` | ✅ | 0.006 | 164.99× | 69.05× | OK | Sig: [nL, AVAR] = betalike([a b], x). NLL for Beta(a, b). AVAR is the 2×2 inverse of the BHHH (outer-product-of-gradients) Fisher info — MATLAB's betalike uses BHHH, not the Hessian (verified by direct probe). Edge: invalid params or x outside (0,1) => NaN. |
-| `binofit` | ✅ | 0.019 | 124.93× | 1209.69× | OK | Sig: [phat, pci] = binofit(x, n[, alpha]). Clopper-Pearson exact binomial CI. Covers: scalar (k=7,n=10), vector ([3 5 7]'), edges x=0 + x=n, non-default alpha=0.01. No 'Method' kw — MATLAB binofit hard-codes Clopper-Pearson. |
+| `betalike` | ✅ | 0.003 | 333.79× |  | OK | Sig: [nL, AVAR] = betalike([a b], x). NLL for Beta(a, b). AVAR is the 2×2 inverse of the BHHH (outer-product-of-gradients) Fisher info — MATLAB's betalike uses BHHH, not the Hessian (verified by direct probe). Edge: invalid params or x outside (0,1) => NaN. |
+| `binofit` | ✅ | 0.015 | 132.88× |  | OK | Sig: [phat, pci] = binofit(x, n[, alpha]). Clopper-Pearson exact binomial CI. Covers: scalar (k=7,n=10), vector ([3 5 7]'), edges x=0 + x=n, non-default alpha=0.01. No 'Method' kw — MATLAB binofit hard-codes Clopper-Pearson. |
 | `evfit` | ❌ |  |  |  |  | extreme value |
-| `evlike` | ✅ | 0.008 | 125.88× |  | OK | Sig: nL = evlike([mu sigma], x[, cens, freq]). Type-I extreme value (Gumbel min). Uncensored: log(σ) - z + e^z; censored: e^z; with optional freq weights. Edges: σ<=0 -> NaN (was Inf); empty data -> 0. AVAR (2-output form) deferred — observed Fisher info has nontrivial cross-terms. |
-| `expfit` | ✅ | 0.009 | 267.08× | 2800.58× | OK | Sig: [muhat, muci] = expfit(x[, alpha[, censoring[, freq]]]). MLE for exponential: T = Σ(freq·x), D = Σ(freq·(1-cens)), mu = T/D. Exact CI via χ²(2D): [2T/χ²₁₋α/2, 2T/χ²_α/2]. Defaults: cens=0, freq=1. |
-| `explike` | ✅ | 0.006 | 169.84× |  | OK | Sig: [nL, avar] = explike(mu, x[, cens, freq]). NLL for Exp(mu). avar (scalar) = 1/I where I = Σ w_i ∂²nL_i/∂μ² (uncens: -1/μ²+2x/μ³; right-cens: 2x/μ³). Edge: mu<=0 => NaN; empty data => 0. |
+| `evlike` | ✅ | 0.005 |  |  | N/A | Sig: nL = evlike([mu sigma], x[, cens, freq]). Type-I extreme value (Gumbel min). Uncensored: log(σ) - z + e^z; censored: e^z; with optional freq weights. Edges: σ<=0 -> NaN (was Inf); empty data -> 0. AVAR (2-output form) deferred — observed Fisher info has nontrivial cross-terms. |
+| `expfit` | ✅ | 0.006 |  |  | N/A | Sig: [muhat, muci] = expfit(x[, alpha[, censoring[, freq]]]). MLE for exponential: T = Σ(freq·x), D = Σ(freq·(1-cens)), mu = T/D. Exact CI via χ²(2D): [2T/χ²₁₋α/2, 2T/χ²_α/2]. Defaults: cens=0, freq=1. |
+| `explike` | ✅ | 0.004 |  |  | N/A | Sig: [nL, avar] = explike(mu, x[, cens, freq]). NLL for Exp(mu). avar (scalar) = 1/I where I = Σ w_i ∂²nL_i/∂μ² (uncens: -1/μ²+2x/μ³; right-cens: 2x/μ³). Edge: mu<=0 => NaN; empty data => 0. |
 | `gamfit` | ❌ |  |  |  |  |  |
 | `gamlike` | ✅ | 0.005 | 179.08× | 41.00× | OK | Sig: [nL, AVAR] = gamlike([a b], x). NLL for Gamma(a, b). AVAR is the 2×2 inverse observed-Fisher info matrix at [a, b], computed via central-difference Hessian (no in-tree trigamma). Edge: invalid params (a<=0 or b<=0) => NaN. tol=1e-7 reflects FD precision (~5e-8 absolute on basic case). |
 | `gevfit` | ❌ |  |  |  |  | generalised extreme value |
@@ -3164,8 +3164,8 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `ecdf` | ✅ | 0.012 | 305.55× | 97.96× | OK | Sig: [f, x[, flo, fup]] = ecdf(y[, 'Function', mode][, 'Frequency', w][, 'Alpha', a]). Function modes: 'cdf' (default), 'survivor' = 1-cdf, 'cumulative hazard' = Nelson-Aalen estimator. Frequency weighting via per-observation counts. 4-output form returns Greenwood-style binomial Wald 95% CI (first/last rows = NaN). Censoring deferred (Kaplan-Meier estimator). |
-| `ecdfhist` | ✅ | 0.008 | 219.14× |  | OK | Sig: [n, c] = ecdfhist(f, x[, m]). Probability-density histogram from ecdf step data. Default m=10 bins. n is the per-bin density (sum of jumps falling in that bin / bin_width); c is the bin centre. Coverage: m ∈ {3, 5, 10} × uniform/non-uniform input. |
+| `ecdf` | ✅ | 0.011 | 182.72× |  | OK | Sig: [f, x[, flo, fup]] = ecdf(y[, 'Function', mode][, 'Frequency', w][, 'Alpha', a]). Function modes: 'cdf' (default), 'survivor' = 1-cdf, 'cumulative hazard' = Nelson-Aalen estimator. Frequency weighting via per-observation counts. 4-output form returns Greenwood-style binomial Wald 95% CI (first/last rows = NaN). Censoring deferred (Kaplan-Meier estimator). |
+| `ecdfhist` | ✅ | 0.004 | 214.90× |  | OK | Sig: [n, c] = ecdfhist(f, x[, m]). Probability-density histogram from ecdf step data. Default m=10 bins. n is the per-bin density (sum of jumps falling in that bin / bin_width); c is the bin centre. Coverage: m ∈ {3, 5, 10} × uniform/non-uniform input. |
 | `ksdensity` | ✅ | 0.021 | 304.14× |  | OK | Sig: [f, xi, bw] = ksdensity(x[, pts][, 'Bandwidth'/'Kernel'/'Function'/'NumPoints'/'Weights', val, ...]). 4 kernels (normal/box/triangle/epanechnikov) with MATLAB-style σ²=1 bandwidth normalization (h × sqrt(unit-σ²-inverse) for finite-support kernels). Function modes: pdf (default), cdf, survivor, cumhazard. Weights normalized to sum to 1. Default bandwidth via mad(x)/0.6745 fallback to iqr(x)/1.349 (matches MATLAB's bw exactly). Censoring/Support/BoundaryCorrection deferred. |
 | `mvksdensity` | ❌ |  |  |  |  | multivariate KDE |
 
@@ -3178,9 +3178,9 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `adtest` | ❌ |  |  |  |  | Anderson-Darling normality |
 | `ansaribradley` | ❌ |  |  |  |  | scale test |
 | `barttest` | ❌ |  |  |  |  | Bartlett's sphericity |
-| `chi2gof` | ✅ | 0.018 | 422.08× | 120.18× | OK | Sig: [h, p, stats] = chi2gof(x[, 'Frequency'/'Expected'/'Edges'/'NBins'/'Ctrs'/'NParams'/'EMin'/'Alpha', val, ...]). Three paths covered: explicit Frequency+Expected (bit-identical); explicit NBins (bit-identical, integer-aligned edges); explicit Edges (bit-identical). Default auto-bin (no NBins/Edges) uses 10 equal-width bins on min(x)..max(x); may differ from MATLAB at FP-edge ties (within 1 count). 'CDF' function-handle argument deferred (errors with clear message). |
+| `chi2gof` | ✅ | 0.011 | 542.42× |  | OK | Sig: [h, p, stats] = chi2gof(x[, 'Frequency'/'Expected'/'Edges'/'NBins'/'Ctrs'/'NParams'/'EMin'/'Alpha', val, ...]). Three paths covered: explicit Frequency+Expected (bit-identical); explicit NBins (bit-identical, integer-aligned edges); explicit Edges (bit-identical). Default auto-bin (no NBins/Edges) uses 10 equal-width bins on min(x)..max(x); may differ from MATLAB at FP-edge ties (within 1 count). 'CDF' function-handle argument deferred (errors with clear message). |
 | `dwtest` | ❌ |  |  |  |  | Durbin-Watson |
-| `fishertest` | ✅ | 0.006 | 1019.64× | 72.54× | OK | Sig: [h, p, stats] = fishertest(T[, 'Tail', t, 'Alpha', a]). Fisher's exact test for 2×2 contingency. Two-sided p sums hypergeometric pmf cells with P(X=k) ≤ P(X=obs). OR = a·d/(b·c); CI is the Woolf log-OR ± z·SE. |
+| `fishertest` | ✅ | 0.003 |  |  | N/A | Sig: [h, p, stats] = fishertest(T[, 'Tail', t, 'Alpha', a]). Fisher's exact test for 2×2 contingency. Two-sided p sums hypergeometric pmf cells with P(X=k) ≤ P(X=obs). OR = a·d/(b·c); CI is the Woolf log-OR ± z·SE. |
 | `friedman` | ❌ |  |  |  |  | non-parametric repeated-measures |
 | `jbtest` | ✅ | 89.827 | 0.04× |  | OK | Sig: [h, p, JB, cv] = jbtest(x[, alpha[, mctol]]). For small n (<2000), Monte-Carlo simulation under H₀ for tabulated-style p-value (matches MATLAB R2025b). For large n, χ²(2) asymptotic. p capped at 0.5. Critical values are MC-estimated for small n so they vary slightly between runs (numkit uses fixed seed for reproducibility). Spec excludes cv from fingerprint (different MC seeds → different cv); JB stat itself is deterministic and bit-identical. |
 | `knntest` | ❌ |  |  |  |  | k-NN two-sample test |
@@ -3209,12 +3209,12 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bootci` | ⚠️ | 0.576 | 21.37× |  | OK | Sig: ci = bootci(nboot, fn, X[, alpha]). Percentile bootstrap CI. NOT bit-identical with MATLAB (std::uniform_int_distribution implementation-defined; randn also not bit-identical). Statistical correctness verified: 95% CI contains true mean. |
-| `bootstrp` | ⚠️ | 0.554 | 15.18× |  | OK | Sig: B = bootstrp(nboot, fn, X). Bootstrap resampling. Output shape verified; values not bit-identical with MATLAB (uniform_int_distribution + randn divergence). |
-| `combnk` | ✅ | 0.004 | 217.77× | 109.23× | OK | Sig: r = combnk(...). Spec-extension batch 2026-05-09. |
-| `crossval` | ⚠️ | 0.023 | 339.55× |  | OK | Sig: vals = crossval(predfun, X, Y[, 'kfold', K]). K-fold cross-validation. Default K=10. NOT bit-identical with MATLAB (fold splitting differs -- numkit uses contiguous blocks, MATLAB defaults to random). Shape verified. |
+| `bootci` | ⚠️ | 0.529 | 23.41× |  | OK | Sig: ci = bootci(nboot, fn, X[, alpha]). Percentile bootstrap CI. NOT bit-identical with MATLAB (std::uniform_int_distribution implementation-defined; randn also not bit-identical). Statistical correctness verified: 95% CI contains true mean. |
+| `bootstrp` | ⚠️ | 0.472 | 6.70× |  | OK | Sig: B = bootstrp(nboot, fn, X). Bootstrap resampling. Output shape verified; values not bit-identical with MATLAB (uniform_int_distribution + randn divergence). |
+| `combnk` | ✅ | 0.002 | 228.64× |  | OK | Sig: r = combnk(...). Spec-extension batch 2026-05-09. |
+| `crossval` | ⚠️ | 0.020 | 346.61× |  | OK | Sig: vals = crossval(predfun, X, Y[, 'kfold', K]). K-fold cross-validation. Default K=10. NOT bit-identical with MATLAB (fold splitting differs -- numkit uses contiguous blocks, MATLAB defaults to random). Shape verified. |
 | `cvpartition` | ❌ |  |  |  |  | partition object (function-form constructor) |
-| `datasample` | ✅ | 0.003 | 143.71× | 26.29× | OK | Sig: y = datasample(X, K[, dim, ...]). Default dim auto-selected: row vector samples columns (dim=2), otherwise dim=1. Output SHAPE bit-identical with MATLAB R2025b; values may differ due to RNG cascade -- shape probe used here. |
+| `datasample` | ✅ | 0.002 | 192.23× |  | OK | Sig: y = datasample(X, K[, dim, ...]). Default dim auto-selected: row vector samples columns (dim=2), otherwise dim=1. Output SHAPE bit-identical with MATLAB R2025b; values may differ due to RNG cascade -- shape probe used here. |
 | `jackknife` | ⚠️ |  |  |  | NYI | needs Engine::call for function handles |
 | `randsample` | ✅ | 0.003 | 190.89× | 62.39× | OK | Sig: y = randsample(n, k). Spec-extension batch 2026-05-09 (cycle 41). |
 
@@ -3241,12 +3241,12 @@ OOP `anova` class and `fitrm` repeated-measures model intentionally omitted; onl
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `anova1` | ✅ | 0.005 | 978.99× | 515.60× | OK | Sig: p = anova1(y, group['off']). One-way ANOVA p-value. Bit-identical with MATLAB R2025b on probed input (p=0.0251). |
-| `anova2` | ⚠️ | 0.004 | 10712.45× | 686.92× | OK | Sig: p = anova2(Y[, reps]). Two-way ANOVA without replication (reps=1 only in this revision; reps>1 with interaction deferred). p = [p_cols, p_rows, p_interaction]. Bit-identical with MATLAB R2025b on probed cases. |
+| `anova1` | ✅ | 0.002 | 2064.28× |  | OK | Sig: p = anova1(y, group['off']). One-way ANOVA p-value. Bit-identical with MATLAB R2025b on probed input (p=0.0251). |
+| `anova2` | ⚠️ | 0.002 | 25521.81× |  | OK | Sig: p = anova2(Y[, reps]). Two-way ANOVA without replication (reps=1 only in this revision; reps>1 with interaction deferred). p = [p_cols, p_rows, p_interaction]. Bit-identical with MATLAB R2025b on probed cases. |
 | `anovan` | ❌ |  |  |  |  | n-way |
 | `manova1` | ❌ |  |  |  |  | one-way MANOVA |
 | `canoncorr` | ❌ |  |  |  |  | canonical correlation |
-| `dummyvar` | ✅ | 0.004 | 176.77× | 44.79× | OK | Sig: r = dummyvar(...). Spec-extension batch 2026-05-09. |
+| `dummyvar` | ✅ | 0.002 | 216.59× |  | OK | Sig: r = dummyvar(...). Spec-extension batch 2026-05-09. |
 | `aoctool` | ❌ |  |  |  |  | analysis of covariance (interactive — defer) |
 | `mauchly` | ❌ |  |  |  |  | Mauchly's sphericity |
 | `epsilon` | ❌ |  |  |  |  | sphericity adjustments |
@@ -3303,9 +3303,9 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `linkage` | ✅ | 0.014 | 208.32× | 382.74× | OK | Sig: Z = linkage(Y[, method[, metric]]). When Y is N×D matrix, computes pdist(Y, metric, p) internally; when Y is row vector (pdist output), uses it directly. 7 methods: single/complete/average/weighted/centroid/median/ward. 2026-05-08: tie-breaking aligned with MATLAB R2025b (prefers largest pair lex when distances tie); 3-arg form now routes metric to pdist (was hardcoded euclidean). Bit-identical to MATLAB on probed datasets. |
-| `cluster` | ✅ | 0.014 | 145.18× | 512.27× | OK | Sig: T = cluster(Z, 'maxclust'|'cutoff', val[, 'criterion', 'distance'|'inconsistent'][, 'depth', d]). Fingerprints are label-permutation-invariant (cluster counts + same-cluster boolean tests) because MATLAB / numkit / Octave assign different label IDs for the same partition. Default 'cutoff' criterion is 'inconsistent' (R2025b). |
-| `clusterdata` | ✅ | 0.019 | 267.11× | 720.79× | OK | Sig: T = clusterdata(X, c) with scalar shortcut: c>=2 maxclust, 0<c<2 cutoff (inconsistency). Or N-V form: 'MaxClust', 'Cutoff', 'Linkage', 'Distance', 'Criterion', 'Depth', 'P'. Fingerprints are label-permutation-invariant. Default 'Linkage' is 'single', default 'Distance' is 'euclidean', default 'cutoff' criterion is 'inconsistent' — all per MATLAB R2025b. |
-| `cophenet` | ✅ | 0.005 | 101.25× | 178.99× | OK | Sig: c = cophenet(Z, Y) or [c, d] = cophenet(Z, Y). Cophenetic correlation between original distances Y and the merge-tree-derived cophenetic distances d. Bug fix 2026-05-08: 2-output form was throwing because adapter only emitted outs[0]; now both outputs are produced. |
+| `cluster` | ✅ | 0.008 | 259.52× |  | OK | Sig: T = cluster(Z, 'maxclust'|'cutoff', val[, 'criterion', 'distance'|'inconsistent'][, 'depth', d]). Fingerprints are label-permutation-invariant (cluster counts + same-cluster boolean tests) because MATLAB / numkit / Octave assign different label IDs for the same partition. Default 'cutoff' criterion is 'inconsistent' (R2025b). |
+| `clusterdata` | ✅ | 0.019 | 171.71× |  | OK | Sig: T = clusterdata(X, c) with scalar shortcut: c>=2 maxclust, 0<c<2 cutoff (inconsistency). Or N-V form: 'MaxClust', 'Cutoff', 'Linkage', 'Distance', 'Criterion', 'Depth', 'P'. Fingerprints are label-permutation-invariant. Default 'Linkage' is 'single', default 'Distance' is 'euclidean', default 'cutoff' criterion is 'inconsistent' — all per MATLAB R2025b. |
+| `cophenet` | ✅ | 0.002 | 225.51× |  | OK | Sig: c = cophenet(Z, Y) or [c, d] = cophenet(Z, Y). Cophenetic correlation between original distances Y and the merge-tree-derived cophenetic distances d. Bug fix 2026-05-08: 2-output form was throwing because adapter only emitted outs[0]; now both outputs are produced. |
 | `inconsistent` | ✅ | 0.004 | 84.12× | 487.24× | OK | Sig: Y = inconsistent(Z[, depth]). Inconsistency coefficient on a linkage tree Z. Each row [mean, std, count, inc_coeff] over the depth-d subtree below each non-leaf node. Default depth=2. |
 | `dendrogram` | ❌ |  |  |  |  | display |
 | `optimalleaforder` | ❌ |  |  |  |  | leaf permutation for visualisation |
@@ -3318,7 +3318,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 |---|:---:|---:|---:|---:|:---:|---|
 | `kmeans` | ✅ | 0.010 | 1050.25× | 340.30× | OK | Sig: [idx, C, sumd, D] = kmeans(X, K, 'MaxIter'/'Replicates'/'Distance'/'Start'/'Display'/'EmptyAction', val, ...). Default Distance='sqeuclidean', Start='plus'. Fingerprints are label-permutation-invariant (cluster counts + same-cluster boolean tests + output shapes) because RNG init differs between engines. |
 | `kmedoids` | ✅ | 0.017 | 782.85× |  | OK | Sig: [idx, C, sumd, D, midx, info] = kmedoids(X, K, 'Distance'/'MaxIter'/'Replicates'/'Algorithm'/'Start', val, ...). Default Distance is 'sqeuclidean' (per R2025b — not 'euclidean'). Fingerprints are label-permutation-invariant (cluster counts + same-cluster boolean tests + output shapes) because RNG init differs between engines (joint with normrnd ТЗ for full label parity). |
-| `dbscan` | ✅ | 0.015 | 206.18× |  | OK | Sig: [idx, corepts] = dbscan(X, eps, minpts, 'Distance'|'P', val, ...). Coverage: euclidean default, precomputed, minkowski with P, cityblock. Noise = -1 (MATLAB R2025b convention). |
+| `dbscan` | ✅ | 0.013 | 159.10× |  | OK | Sig: [idx, corepts] = dbscan(X, eps, minpts, 'Distance'|'P', val, ...). Coverage: euclidean default, precomputed, minkowski with P, cityblock. Noise = -1 (MATLAB R2025b convention). |
 | `spectralcluster` | ❌ |  |  |  |  | spectral clustering |
 
 ### Cluster Evaluation
@@ -3392,7 +3392,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `classify` | ✅ | 0.023 | 409.95× |  | OK | Sig: [class, err, posterior, logp] = classify(sample, training, group[, type]). 4 discriminant types: linear (LDA, default), quadratic (QDA), diaglinear, diagquadratic. Empirical priors n_k/N. Cholesky-factor approach for numerical stability. Mahalanobis type DEFERRED. |
+| `classify` | ✅ | 0.015 | 578.07× |  | OK | Sig: [class, err, posterior, logp] = classify(sample, training, group[, type]). 4 discriminant types: linear (LDA, default), quadratic (QDA), diaglinear, diagquadratic. Empirical priors n_k/N. Cholesky-factor approach for numerical stability. Mahalanobis type DEFERRED. |
 
 ## Wavelet
 
@@ -3428,16 +3428,16 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `dwt` | ✅ | 0.014 | 199.16× |  | OK | Sig: [cA, cD] = dwt(x, wname) or (x, Lo_D, Hi_D), with optional 'mode' N-V (only 'sym' supported). 2026-05-08: bit-identical to MATLAB R2025b on the analysis filters after the wfilters Lo_D/Lo_R label-swap fix landed. Custom-filter form added in same commit. Boundary modes other than 'sym' deferred (errors with clear message). |
+| `dwt` | ✅ | 0.008 | 158.99× |  | OK | Sig: [cA, cD] = dwt(x, wname) or (x, Lo_D, Hi_D), with optional 'mode' N-V (only 'sym' supported). 2026-05-08: bit-identical to MATLAB R2025b on the analysis filters after the wfilters Lo_D/Lo_R label-swap fix landed. Custom-filter form added in same commit. Boundary modes other than 'sym' deferred (errors with clear message). |
 | `idwt` | ✅ | 0.010 | 204.46× |  | OK | Sig: x = idwt(cA, cD, wname) or (cA, cD, Lo_R, Hi_R), optional positional `len` and 'mode' N-V (only 'sym' supported). After wfilters label-swap fix + dwt downsample-offset fix, round-trip is bit-identical to MATLAB R2025b at ~1e-12. Custom synthesis-filter form added in the same commit. |
 | `wavedec` | ✅ | 0.020 | 226.78× |  | OK | Sig: [c, l] = wavedec(x, n, wname). Multi-level DWT decomposition. After wfilters Lo_D/Lo_R label-swap fix landed, output is bit-identical to MATLAB R2025b. Custom (Lo_D, Hi_D) form deferred (rare for multi-level). |
 | `waverec` | ✅ | 0.016 | 302.76× |  | OK | Sig: x = waverec(c, l, wname). Multi-level inverse DWT. Round-trips wavedec at ~1e-10 after the wfilters label-swap fix. Custom (Lo_R, Hi_R) form deferred. |
-| `appcoef` | ✅ | 0.013 | 183.13× |  | OK | Sig: A = appcoef(c, l, wname[, level]) or (c, l, LoR, HiR[, level]); optional 'Mode'/'mode' N-V (only 'sym' supported). 2026-05-08: cascades-fixed via wfilters Lo_D/Lo_R label-swap. Custom-filter form added in this commit. |
-| `detcoef` | ✅ | 0.007 | 116.55× |  | OK | Sig: D = detcoef(C, L[, level[, 'cells']]). Default level = numel(L) - 2 (deepest). Bug fix 2026-05-08: was throwing on 2-arg form (and previously the auditor said default = 1, but probe shows max-level). Added 'cells' form for vector levels. |
+| `appcoef` | ✅ | 0.008 | 285.46× |  | OK | Sig: A = appcoef(c, l, wname[, level]) or (c, l, LoR, HiR[, level]); optional 'Mode'/'mode' N-V (only 'sym' supported). 2026-05-08: cascades-fixed via wfilters Lo_D/Lo_R label-swap. Custom-filter form added in this commit. |
+| `detcoef` | ✅ | 0.005 | 129.85× |  | OK | Sig: D = detcoef(C, L[, level[, 'cells']]). Default level = numel(L) - 2 (deepest). Bug fix 2026-05-08: was throwing on 2-arg form (and previously the auditor said default = 1, but probe shows max-level). Added 'cells' form for vector levels. |
 | `wrcoef` | ✅ | 0.033 | 76.10× |  | OK | Sig: y = wrcoef(type, c, l, wname[, n]). Single-band reconstruction. type ∈ {'a','d'}; n is the level kept ('a' allows n=0 = full reconstruction; 'd' requires n in [1, max]). Default n = length(l)-2 for both types. Algorithm: build modified c with off-band coefficients zeroed, run waverec. Verified parity with MATLAB R2025b on HAAR wavelet (where numkit's wavedec matches MATLAB exactly). For db/sym/coif numkit's wavedec uses a slightly different boundary convention (BUGS.md #37) — wrcoef there produces values consistent with numkit's own wavedec/waverec round-trip but does NOT match MATLAB coefficient-for-coefficient. (Lo_R, Hi_R) two-filter form not implemented in this release. |
 | `dwtmode` | ❌ |  |  |  |  | extension mode |
-| `dyaddown` | ✅ | 0.008 | 147.33× |  | OK | Sig: y = dyaddown(x[, ODD][, type]). Dyadic downsample by 2. ODD=0 default → keep even-indexed; ODD=1 → keep odd-indexed. For matrices, type ∈ {c (default, columns), r (rows), m (both)}. Bug fix 2026-05-08: matrix path silently flattened to a 1-D vector + ignored the type arg. tol=0 (integer-stable on integer inputs). |
-| `dyadup` | ✅ | 0.008 | 170.14× |  | OK | Sig: y = dyadup(x[, ODD][, type]). Zero insertion between samples (upsample by 2). Vector default ODD=1 → length 2N+1 with leading zero. ODD=0 → length 2N-1, no leading zero. For matrices, type ∈ {c (default, columns), r (rows), m (both)}. Bug fix 2026-05-08: matrix path silently flattened + ignored type arg. tol=0. |
+| `dyaddown` | ✅ | 0.007 | 107.65× |  | OK | Sig: y = dyaddown(x[, ODD][, type]). Dyadic downsample by 2. ODD=0 default → keep even-indexed; ODD=1 → keep odd-indexed. For matrices, type ∈ {c (default, columns), r (rows), m (both)}. Bug fix 2026-05-08: matrix path silently flattened to a 1-D vector + ignored the type arg. tol=0 (integer-stable on integer inputs). |
+| `dyadup` | ✅ | 0.006 | 197.04× |  | OK | Sig: y = dyadup(x[, ODD][, type]). Zero insertion between samples (upsample by 2). Vector default ODD=1 → length 2N+1 with leading zero. ODD=0 → length 2N-1, no leading zero. For matrices, type ∈ {c (default, columns), r (rows), m (both)}. Bug fix 2026-05-08: matrix path silently flattened + ignored type arg. tol=0. |
 | `wkeep` | ✅ | 0.008 | 308.82× |  | OK | Sig: y = wkeep(x, n[, OPT]) (1-D) or y = wkeep(X, [R C][, [fr fc]]) (2-D). 1-D: 'c'/'l'/'r' or numeric start. 2-D: central [R C] sub-matrix or explicit corner. Bug fix 2026-05-08: 2-D form was throwing 'Cannot convert double to scalar' (adapter did toScalar on the size vec). tol=0. |
 | `wextend` | ✅ | 0.015 | 273.10× |  | OK | Sig: y = wextend(type, mode, x, lf[, side]). Bug fix 2026-05-08: extended modes (symw, asym, asymw, sp0, sp1) and 2-D forms (type=2 / 'ar' / 'ac') were not implemented. Now full coverage: 11 modes × 4 type forms × 3 sides. tol=0 (integer-stable on integer inputs). |
 | `wcodemat` | ✅ | 0.008 | 118.06× |  | OK | Sig: Y = wcodemat(X[, nb[, opt[, absol]]]). Quantize/scale to [1, nb] integer codes. opt ∈ {'mat'(default), 'row', 'col'}; absol=1 default uses |x|. Bug fix 2026-05-08: previous impl used `round` and multiplied by `nb-1`, producing off-by-one quantization on interior values. MATLAB uses floor((v-mn)/span * nb) + 1, with the upper edge clamped from nb+1 down to nb. tol=0 (integer-stable). Octave doesn't ship wcodemat. |
@@ -3453,7 +3453,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `dwt2` | ✅ | 0.009 | 471.16× |  | OK | Sig: r = dwt2(...). Spec-extension batch 2026-05-09. |
+| `dwt2` | ✅ | 0.008 | 169.98× |  | OK | Sig: r = dwt2(...). Spec-extension batch 2026-05-09. |
 | `idwt2` | ✅ | 0.015 | 300.81× |  | OK | Sig: r = idwt2(...). Spec-extension batch 2026-05-09. |
 | `wavedec2` | ❌ |  |  |  |  |  |
 | `waverec2` | ❌ |  |  |  |  |  |
@@ -3526,8 +3526,8 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `orthfilt` | ✅ | 0.006 | 88.78× |  | OK | Sig: [Lo_D, Hi_D, Lo_R, Hi_R] = orthfilt(W). Quadruple from a unit-norm scaling filter W (sum(W)=1, length even). Lo_R = W·√2; Lo_D = reverse(Lo_R); Hi_R[k] = (-1)^k · Lo_R[N-1-k]; Hi_D = reverse(Hi_R). Coverage: db2 (4-tap), db4 (8-tap), custom 2-tap. |
 | `qmf` | ✅ | 0.007 | 54.04× |  | OK | Sig: y = qmf(x[, p]). Quadrature mirror filter. y(k) = (-1)^(k-1+p) · x(N-k+1). Default p=0 (identity-sign on the first element); p=1 negates. Coverage: even/odd-length + p=0/1 + length-8 + column input + single element. tol=0 (integer-stable on integer inputs). |
 | `biorfilt` | ❌ |  |  |  |  | biorthogonal filter quadruple |
-| `dbwavf` | ✅ | 0.006 | 34.84× |  | OK | Sig: h = dbwavf(wname). Daubechies scaling filter: dbwavf*sqrt(2) = Lo_R, length 2N for dbN, sum(h) = 1. Coverage: db1, db2, db4, db5, db6, db8, db10. Bug fix 2026-05-08: previously only supported db1..db4; extended table to db5..db10. |
-| `coifwavf` | ✅ | 0.007 | 37.53× |  | OK | Sig: h = coifwavf(wname). Coiflet scaling filter: coifwavf*sqrt(2) = Lo_R, length 6K for coifK, sum(h) = 1. Coverage: coif1..coif5 (coif2..coif5 added 2026-05-08; was only coif1). |
+| `dbwavf` | ✅ | 0.003 | 38.51× |  | OK | Sig: h = dbwavf(wname). Daubechies scaling filter: dbwavf*sqrt(2) = Lo_R, length 2N for dbN, sum(h) = 1. Coverage: db1, db2, db4, db5, db6, db8, db10. Bug fix 2026-05-08: previously only supported db1..db4; extended table to db5..db10. |
+| `coifwavf` | ✅ | 0.004 | 23.58× |  | OK | Sig: h = coifwavf(wname). Coiflet scaling filter: coifwavf*sqrt(2) = Lo_R, length 6K for coifK, sum(h) = 1. Coverage: coif1..coif5 (coif2..coif5 added 2026-05-08; was only coif1). |
 | `symwavf` | ✅ | 0.007 | 28.80× |  | OK | Sig: h = symwavf(wname). Symlet (least-asymmetric Daubechies) scaling filter: symwavf*sqrt(2) = Lo_R, length 2N for symN, sum(h) = 1. Coverage: sym2..sym10 (sym3 + sym5..sym10 added 2026-05-08; was only sym2/sym4). |
 | `dbaux` | ❌ |  |  |  |  | Daubechies aux |
 | `symaux` | ❌ |  |  |  |  | symlet aux |
@@ -3555,9 +3555,9 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `meyeraux` | ✅ | 0.008 | 116.61× | 31.90× | OK | Sig: y = meyeraux(x). Element-wise auxiliary polynomial 35x⁴ − 84x⁵ + 70x⁶ − 20x⁷. MATLAB clips outside [0, 1]: x<=0 -> 0, x>=1 -> 1. Bug fix 2026-05-08: numkit was applying the raw polynomial outside [0, 1] (e.g. meyeraux(2) = -208 instead of MATLAB's 1). |
 | `mexihat` | ✅ | 0.006 | 25.52× | 21.38× | OK | Sig: [psi, x] = mexihat(LB, UB, N). Mexican-hat wavelet ψ(t) = (2/√3)·π^(-1/4)·(1-t²)·exp(-t²/2). Even, peaks at 0, zeros at ±1. Coverage: N ∈ {8, 16, 64} on [-5, 5] + asymmetric range [0, 5]. |
 | `morlet` | ✅ | 0.005 | 29.95× | 33.47× | OK | Sig: [psi, x] = morlet(LB, UB, N). Real Morlet ψ(t) = exp(-t²/2)·cos(5t). Coverage: N ∈ {8, 16, 64} on [-5, 5] + asymmetric range [0, 5]. |
-| `cgauwavf` | ✅ | 0.007 | 29.10× |  | OK | Sig: [psi, x] = cgauwavf(LB, UB, N[, p|'cgauN']). Complex Gaussian wavelet (-1)^p · H_p(t + i/2) · exp(-t² - i·t). Bug fix 2026-05-08: 'cgauN' wname form was throwing 'Cannot convert char to scalar'. |
-| `cmorwavf` | ✅ | 0.007 | 43.97× |  | OK | Sig: [psi, x] = cmorwavf(LB, UB, N[, fb, fc]). Complex Morlet ψ(t) = (1/√(π·fb))·exp(2πi·fc·t)·exp(-t²/fb). Bug fix 2026-05-08: 3-arg form was throwing instead of using defaults fb=1, fc=1. Coverage: default + custom (fb, fc) + N=33. |
-| `fbspwavf` | ✅ | 0.006 | 37.00× |  | OK | Sig: [psi, x] = fbspwavf(LB, UB, N, m, fb, fc). Frequency B-spline ψ(t) = √fb · (sinc(fb·t/m))^m · exp(2πi·fc·t). Coverage: m ∈ {2, 3} × (fb, fc) ∈ {(1,1), (0.5,2)} × N ∈ {8, 16, 33}. |
+| `cgauwavf` | ✅ | 0.004 | 24.17× |  | OK | Sig: [psi, x] = cgauwavf(LB, UB, N[, p|'cgauN']). Complex Gaussian wavelet (-1)^p · H_p(t + i/2) · exp(-t² - i·t). Bug fix 2026-05-08: 'cgauN' wname form was throwing 'Cannot convert char to scalar'. |
+| `cmorwavf` | ✅ | 0.003 | 39.45× |  | OK | Sig: [psi, x] = cmorwavf(LB, UB, N[, fb, fc]). Complex Morlet ψ(t) = (1/√(π·fb))·exp(2πi·fc·t)·exp(-t²/fb). Bug fix 2026-05-08: 3-arg form was throwing instead of using defaults fb=1, fc=1. Coverage: default + custom (fb, fc) + N=33. |
+| `fbspwavf` | ✅ | 0.003 |  |  | N/A | Sig: [psi, x] = fbspwavf(LB, UB, N, m, fb, fc). Frequency B-spline ψ(t) = √fb · (sinc(fb·t/m))^m · exp(2πi·fc·t). Coverage: m ∈ {2, 3} × (fb, fc) ∈ {(1,1), (0.5,2)} × N ∈ {8, 16, 33}. |
 | `gauswavf` | ✅ | 0.005 | 26.14× |  | OK | Sig: [psi, x] = gauswavf(LB, UB, N[, p|'gausN']). p-th derivative Gaussian wavelet. Bug fix 2026-05-08: 'gausN' wname form was throwing 'Cannot convert char to scalar'; now parses N from string. Coverage: p ∈ {1, 2, 4, 8} integer + 'gaus3' wname. |
 | `intwave` | ❌ |  |  |  |  | wavelet integral |
 | `pat2cwav` | ❌ |  |  |  |  | pattern → custom wavelet |
@@ -3606,34 +3606,34 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `impyramid_expand` | — | 0.008 | 628.41× | 55.98× | OK | Sig: B = impyramid(A, 'expand'). Output: (2M-1)x(2N-1). KNOWN GAP: numkit uses literal Burt-Adelson zero-stuff + [1 4 6 4 1]/16 kernel (matches Octave-image bit-equal); MATLAB R2025b uses imresize-with-piecewise-constant-kernel (kernel handle defined inline in toolbox/images/images/impyramid.m). Interior values agree bit-equal across all three engines; only boundary samples differ. Spec pins (a) output shape and (b) interior sum + center value to catch real regressions while tolerating the boundary-handling divergence. Full bit-equal with MATLAB requires either custom-kernel support in imresize or a rewrite of impyramid to inline the imresize math (~150 LOC, deferred). |
-| `axes2pix` | — | 0.004 | 82.12× | 16.68× | OK | Sig: pix = axes2pix(n, extent, axesCoord). World→pixel axis mapping (1-based). Octave-image has axes2pix. |
+| `axes2pix` | — | 0.001 | 173.77× |  | OK | Sig: pix = axes2pix(n, extent, axesCoord). World→pixel axis mapping (1-based). Octave-image has axes2pix. |
 | `isgray` | — | 0.003 |  | 50.00× | OK | Sig: tf = isgray(I). True for 2-D images of class uint8/uint16/int16 or float in [0,1]. Octave-image has isgray. |
 | `imcast` | — | 0.003 |  | 72.42× | OK | Sig: J = imcast(I, type). Dispatch wrapper over im2* helpers (type ∈ double/single/uint8/uint16/int16/logical). Octave-image has imcast. |
 | `mmgradm` | — | 0.004 |  | 140.19× | OK | Sig: G = mmgradm(I [, se_dil [, se_ero]]). Morphological gradient = imdilate − imerode (default cross SE). Octave-image has mmgradm. |
-| `fchcode` | — | 0.004 |  | 69.62× | OK | Sig: fcc = fchcode(bound). Freeman 8-direction chain code; struct with x0y0, fcc, diff fields. Octave-image has fchcode. |
-| `fftconv2` | — | 0.007 |  | 83.81× | OK | Sig: Y = fftconv2(A, B [, shape]). FFT-based 2-D conv; output complex with tiny imag, smoke wraps real(). Octave-image has fftconv2. |
+| `fchcode` | — | 0.002 |  |  | N/A | Sig: fcc = fchcode(bound). Freeman 8-direction chain code; struct with x0y0, fcc, diff fields. Octave-image has fchcode. |
+| `fftconv2` | — | 0.005 |  |  | N/A | Sig: Y = fftconv2(A, B [, shape]). FFT-based 2-D conv; output complex with tiny imag, smoke wraps real(). Octave-image has fftconv2. |
 | `wavelength2rgb` | — | 0.003 |  | 149.18× | OK | Sig: rgb = wavelength2rgb(wavelength [, class [, gamma]]). Piecewise visible-light wavelength → RGB (Bruton). Tolerance loose because Octave's gamma=0.8 raises tiny FP noise when raising 0 to 0.8 — final RGB triple to 4 decimals is the right comparison. |
 | `imsmooth` | — | 0.005 |  | 107.62× | OK | Sig: J = imsmooth(I, name [, sigma]). Currently Gaussian-only with σ-Gaussian, h=ceil(3σ), symmetric pad; Octave-image has imsmooth (this matches the Gaussian path). |
-| `colorgradient` | — | 0.004 |  | 29.50× | OK | Sig: M = colorgradient(C [, w] [, n]). K-by-3 anchor RGB; piecewise linspace; default n=64. Octave-image has colorgradient. Default uses rows(colormap) but we don't have a graphics colormap so we default to n=64. |
+| `colorgradient` | — | 0.001 |  |  | N/A | Sig: M = colorgradient(C [, w] [, n]). K-by-3 anchor RGB; piecewise linspace; default n=64. Octave-image has colorgradient. Default uses rows(colormap) but we don't have a graphics colormap so we default to n=64. |
 | `iscolormap` | — | 0.006 |  | 34.83× | OK | Sig: tf = iscolormap(cmap). Real, float (single/double), 2-D, 3 cols, non-empty. Range [0,1] not enforced. Octave core has iscolormap. |
 | `gray` | — | 0.003 | 145.72× | 59.34× | OK | Sig: map = gray([n]). N×3 grayscale colormap. Default n=256 (we don't track figure colormap state). n==1 → [0 0 0]; n<=0 → 0×3. Octave core has gray. |
 | `hot` | — | 0.003 | 176.29× | 38.25× | OK | Sig: map = hot([n]). N×3 black→red→yellow→white colormap. Default n=256. Octave core has hot. |
-| `cool` | — | 0.003 | 208.61× | 57.39× | OK | Sig: map = cool([n]). N×3 cyan→magenta. r=(0:n-1)/(n-1), g=1-r, b=1. Default n=256. Octave core has cool. |
+| `cool` | — | 0.001 | 238.67× |  | OK | Sig: map = cool([n]). N×3 cyan→magenta. r=(0:n-1)/(n-1), g=1-r, b=1. Default n=256. Octave core has cool. |
 | `spring` | — | 0.003 | 137.39× | 39.09× | OK | Sig: map = spring([n]). N×3 magenta→yellow. r=1, g=(0:n-1)/(n-1), b=1-g. Default n=256. Octave core has spring. |
 | `summer` | — | 0.003 | 136.91× | 15.73× | OK | Sig: map = summer([n]). N×3 green→yellow. r=(0:n-1)/(n-1), g=0.5+r/2, b=0.4. Default n=256. Octave core has summer. |
-| `autumn` | — | 0.003 | 126.34× | 47.81× | OK | Sig: map = autumn([n]). N×3 red→yellow. r=1, g=(0:n-1)/(n-1), b=0. Default n=256. MATLAB+Octave both ship autumn. |
+| `autumn` | — | 0.001 | 467.84× |  | OK | Sig: map = autumn([n]). N×3 red→yellow. r=1, g=(0:n-1)/(n-1), b=0. Default n=256. MATLAB+Octave both ship autumn. |
 | `winter` | — | 0.003 | 144.38× | 23.68× | OK | Sig: map = winter([n]). N×3 blue→cyan-ish. r=0, g=(0:n-1)/(n-1), b=1-g/2. Default n=256. MATLAB+Octave both ship winter. |
-| `copper` | — | 0.011 | 66.00× | 11.91× | OK | Sig: map = copper([n]). N×3 black→copper. r=min(5/4*x,1), g=0.7812*x, b=0.4975*x where x=(0:n-1)/(n-1). Default n=256. MATLAB+Octave. |
+| `copper` | — | 0.001 | 219.44× |  | OK | Sig: map = copper([n]). N×3 black→copper. r=min(5/4*x,1), g=0.7812*x, b=0.4975*x where x=(0:n-1)/(n-1). Default n=256. MATLAB+Octave. |
 | `pink` | — | 0.004 | 214.19× | 46.47× | OK | Sig: map = pink([n]). N×3 pastel pink. 3-piece linspace ramps per channel, then sqrt. Default n=256. MATLAB+Octave both ship pink. |
 | `hsv` | — | 0.004 | 265.40× | 77.03× | OK | Sig: map = hsv([n]). Hue rotation via hsv2rgb([(0:n-1)'/n, 1, 1]). Default n=256. MATLAB+Octave both ship hsv. |
-| `flag` | — | 0.003 | 179.61× | 29.49× | OK | Sig: map = flag([n]). N×3 cycling [1 0 0; 1 1 1; 0 0 1; 0 0 0]. Default n=256. MATLAB+Octave both ship flag. |
+| `flag` | — | 0.001 |  |  | N/A | Sig: map = flag([n]). N×3 cycling [1 0 0; 1 1 1; 0 0 1; 0 0 0]. Default n=256. MATLAB+Octave both ship flag. |
 | `prism` | — | 0.003 | 181.76× | 40.87× | OK | Sig: map = prism([n]). N×3 cyclic 6-row rainbow [r,o,y,g,b,v]. Default n=256. MATLAB+Octave both ship prism. |
 | `lines` | — | 0.003 | 241.47× | 40.26× | OK | Sig: map = lines([n]). Cycles the figure axes colororder. We pin the MATLAB R2025b factory 7-row palette (Octave's older default differs). MATLAB+factory; harness ranks MATLAB as truth so OK is expected. |
-| `bone` | — | 0.003 | 254.10× | 36.23× | OK | Sig: map = bone([n]). N×3 grayscale-with-blue-tint colormap. Per Octave's bone.m: idx=floor(3/4·n) for R, idx=floor(3/8·n) for G/B; piecewise linspace ramps; switch on mod(n,8) for base. Default n=256. MATLAB+Octave both match. |
+| `bone` | — | 0.002 | 469.57× |  | OK | Sig: map = bone([n]). N×3 grayscale-with-blue-tint colormap. Per Octave's bone.m: idx=floor(3/4·n) for R, idx=floor(3/8·n) for G/B; piecewise linspace ramps; switch on mod(n,8) for base. Default n=256. MATLAB+Octave both match. |
 | `white` | — | 0.003 | 115.86× | 28.25× | OK | Sig: map = white([n]). N×3 all-ones colormap. Default n=256. MATLAB+Octave both ship white. |
-| `brighten` | — | 0.005 | 81.17× | 28.31× | OK | Sig: rmap = brighten(map, beta). Output = map .^ gamma where gamma = 1-beta if beta>0 else 1/(1+beta). MATLAB+Octave both ship brighten. |
-| `contrast` | — | 0.004 | 134.93× | 73.47× | OK | Sig: cmap = contrast(x[, m]). Histogram-equalising gray colormap. Per MATLAB R2025b cleve-moler algorithm: scale to [0,m-1] ints, concat with [0..m], find rising edges. MATLAB+Octave both ship contrast but Octave gives slightly different values; we follow MATLAB. |
-| `cdf_upper` | — | 0.012 | 664.44× | 179.84× | OK | Joint 'upper' flag verification across 14 CDFs (closes 14 audit ТЗ in stats.dist). MATLAB R2025b: every *cdf accepts trailing 'upper' string and returns 1 - F(x). normcdf double-checks lower tail unchanged. tol = 1e-9. Closes audit/findings/stats/{normcdf,chi2cdf,tcdf,fcdf,betacdf,gamcdf,expcdf,raylcdf,logncdf,wblcdf,unifcdf,unidcdf,binocdf,poisscdf}.md. |
+| `brighten` | — | 0.003 | 75.27× |  | OK | Sig: rmap = brighten(map, beta). Output = map .^ gamma where gamma = 1-beta if beta>0 else 1/(1+beta). MATLAB+Octave both ship brighten. |
+| `contrast` | — | 0.002 | 134.09× |  | OK | Sig: cmap = contrast(x[, m]). Histogram-equalising gray colormap. Per MATLAB R2025b cleve-moler algorithm: scale to [0,m-1] ints, concat with [0..m], find rising edges. MATLAB+Octave both ship contrast but Octave gives slightly different values; we follow MATLAB. |
+| `cdf_upper` | — | 0.010 | 642.47× |  | OK | Joint 'upper' flag verification across 14 CDFs (closes 14 audit ТЗ in stats.dist). MATLAB R2025b: every *cdf accepts trailing 'upper' string and returns 1 - F(x). normcdf double-checks lower tail unchanged. tol = 1e-9. Closes audit/findings/stats/{normcdf,chi2cdf,tcdf,fcdf,betacdf,gamcdf,expcdf,raylcdf,logncdf,wblcdf,unifcdf,unidcdf,binocdf,poisscdf}.md. |
 | `windows_sflag` | — | 0.011 | 405.27× | 31.15× | OK | Joint 'periodic' / 'symmetric' (default) sflag verification across 6 signal.windows that accept it. Implementation trick: periodic(N) = first N samples of symmetric(N+1) — works for any window. The other 6 windows (bartlett/triang/parzenwin/bohmanwin/barthannwin/rectwin) accept ONLY 'double'/'single' typeName and throw on 'periodic' (gtest covers that branch). Closes audit/findings/signal/{hamming,hann,blackman,blackmanharris,flattopwin,nuttallwin,bartlett,triang,parzenwin,bohmanwin,barthannwin,rectwin}.md. |
 | `kstest_extras` | — | 0.017 | 139.85× | 84.20× | OK | Sig: kstest2(x, y[, alpha, tail | name-value]). Tail accepts 'unequal' (default), 'larger', 'smaller' (synonyms for 'both', 'right', 'left' from kstest). Name-Value pairs: 'Alpha', 'Tail'. Closes audit/findings/stats/{kstest,kstest2}.md. |
 | `ttest_extras` | — | 0.015 | 331.96× | 912.96× | OK | Sig: ttest(x, y[, NV]) paired form; ttest2 default Vartype=equal (pooled). NV pairs: Alpha, Tail, Vartype, Dim (Dim throws). 4th output struct (tstat/df/sd) NOT yet implemented — fingerprints stay on first 3 outputs. Closes audit/findings/stats/{ttest,ttest2}.md (partial — 4th-output struct, matrix input, Dim, n<2 NaN remain as documented gaps in spec comment). |
@@ -3647,34 +3647,34 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `toeplitz` | — | 0.006 | 83.93× | 40.75× | OK | Sig: T = toeplitz(c[, r]). Toeplitz matrix from first column c (and optional first row r). T[i,j] = c[i-j] (i>=j) else r[j-i]. MATLAB convention: r[0] silently overridden by c[0]. Bit-identical with MATLAB R2025b across square + rectangular probes. |
 | `hankel` | — | 0.005 | 99.70× | 19.73× | OK | Sig: H = hankel(c[, r]). Hankel (anti-Toeplitz) matrix from first column c and optional last row r. H[i,j] = c[i+j] for i+j<m else r[i+j-m+1]. Single-arg form: r is all zeros (anti-triangular). Bit-identical with MATLAB R2025b. |
 | `vander` | — | 0.005 | 55.39× | 21.91× | OK | Sig: V = vander(v). Vandermonde matrix V[i,j] = v[i]^(n-1-j); columns from highest power on the left (MATLAB R2025b convention). Bit-identical. |
-| `compan` | — | 0.005 | 98.12× | 25.90× | OK | Sig: A = compan(p). Companion matrix of polynomial coefficients p (length n+1) -- top row [-p(2:end)/p(1)], subdiagonal of ones. eig(compan(p)) == roots(p). Bit-identical with MATLAB R2025b. |
+| `compan` | — | 0.002 | 87.93× |  | OK | Sig: A = compan(p). Companion matrix of polynomial coefficients p (length n+1) -- top row [-p(2:end)/p(1)], subdiagonal of ones. eig(compan(p)) == roots(p). Bit-identical with MATLAB R2025b. |
 | `pascal` | — | 0.005 | 189.12× | 39.96× | OK | Sig: P = pascal(N). Symmetric Pascal-triangle matrix (k=0 default form). P[i,j] = C(i+j,i). Built via the additive recurrence. Bit-identical with MATLAB R2025b. Note: k=1 (Cholesky factor) and k=2 (cube-root of identity) variants are deferred. |
 | `hilb` | — | 0.004 | 72.49× | 10.47× | OK | Sig: H = hilb(N). Hilbert matrix H[i,j] = 1/(i+j-1) (1-indexed). Bit-identical with MATLAB R2025b (single divides; no accumulation error). |
 | `invhilb` | — | 0.005 | 56.56× | 213.48× | OK | Sig: H = invhilb(N). Closed-form inverse Hilbert matrix via the binomial formula H⁻¹[i,j] = (-1)^(i+j)*(i+j-1)*C(n+i-1,n-j)*C(n+j-1,n-i)*C(i+j-2,i-1)². Long-double accumulation delays overflow. Bit-identical-ish with MATLAB R2025b (tol 1e-6 -- both engines lose ULPs through the same overflow-prone formula at N>=8). |
 | `wilkinson` | — | 0.005 | 56.46× | 24.57× | OK | Sig: W = wilkinson(N). Symmetric tridiagonal eigenvalue test matrix: subdiag/superdiag of ones, main diag = |(1:n)-(n+1)/2|. Bit-identical with MATLAB R2025b. |
 | `hadamard` | — | 0.007 | 52.38× | 28.46× | OK | Sig: H = hadamard(N). Sylvester construction: H_1=[1], H_{2k}=[Hk Hk; Hk -Hk]. Power-of-2 N only (1,2,4,8,16,...). MATLAB R2025b also accepts 12·2^k and 20·2^k via Paley constructions -- those are deferred (separate ТЗ). |
 | `rosser` | — | 0.004 | 51.53× | 44.00× | OK | Sig: R = rosser(). Hardcoded 8×8 Rosser eigenvalue test matrix. Bit-identical with MATLAB R2025b (constants directly transcribed from MATLAB output). |
-| `cputime` | — | 0.015 | 16.39× | 51.88× | OK | Side-effect smoke test (timer probe). cputime returns CPU seconds used by current process; only invariant we can test cross-engine is t >= 0 (absolute values differ between engines). Implemented via std::clock() / CLOCKS_PER_SEC. |
+| `cputime` | — | 0.002 | 16.23× |  | OK | Side-effect smoke test (timer probe). cputime returns CPU seconds used by current process; only invariant we can test cross-engine is t >= 0 (absolute values differ between engines). Implemented via std::clock() / CLOCKS_PER_SEC. |
 | `isoutlier` | — | 0.004 | 492.60× | 145.27× | OK | Sig: m = isoutlier(x). Default median + 3*MAD method. Bit-identical with MATLAB R2025b. |
 | `rmoutliers` | — | 0.005 | 478.57× |  | OK | Sig: y = rmoutliers(x). Drops outliers from x. |
 | `standardizeMissing` | — | 0.005 | 285.20× | 43.62× | OK | Sig: y = standardizeMissing(x, sentinel). Replaces sentinel value with NaN. |
-| `detrend` | — | 0.006 | 488.06× | 18.39× | OK | Sig: y = detrend(x[, order]). Remove polynomial trend (default linear). Vector form. |
-| `fitdist` | — | 0.006 | 1081.56× | 1277.77× | OK | Sig: pd = fitdist(x, 'Name'). numkit returns a struct (.DistributionName, .ParameterValues, .ParameterNames, .NumObservations). MATLAB returns a probability-distribution OBJECT with same .ParameterValues/.DistributionName fields. ParameterValues bit-identical (delegates to mle). MATLAB's class methods (.pdf/.cdf/.icdf) deferred. |
+| `detrend` | — | 0.005 | 409.96× |  | OK | Sig: y = detrend(x[, order]). Remove polynomial trend (default linear). Vector form. |
+| `fitdist` | — | 0.003 |  |  | N/A | Sig: pd = fitdist(x, 'Name'). numkit returns a struct (.DistributionName, .ParameterValues, .ParameterNames, .NumObservations). MATLAB returns a probability-distribution OBJECT with same .ParameterValues/.DistributionName fields. ParameterValues bit-identical (delegates to mle). MATLAB's class methods (.pdf/.cdf/.icdf) deferred. |
 | `now` | — | 0.015 | 24.32× | 54.77× | OK | Sig: t = now. Serial date number for current local time. Days since MATLAB epoch (year 0000-01-00). 1970-01-01 = 719529. Cannot bit-compare across engines (different sample times); parity tests range invariant. |
-| `datenum` | — | 0.007 | 181.41× | 52.23× | OK | MATLAB datenum: serial date number from components. Covered: 3-arg (Y,M,D) with vector args (broadcast to column), 6-arg (Y,M,D,H,MI,S) with time fraction, single-arg Nx3 matrix, single-arg 1x6 row, month/day overflow (m=13 -> next year, d=30 of Feb -> March), year-zero edge. Deferred: string parsing (datenum('2026-05-09')) -- requires datestr/format-spec parser. Algorithm: Howard Hinnant days_from_civil + 719529 (MATLAB epoch). |
+| `datenum` | — | 0.003 | 268.48× |  | OK | MATLAB datenum: serial date number from components. Covered: 3-arg (Y,M,D) with vector args (broadcast to column), 6-arg (Y,M,D,H,MI,S) with time fraction, single-arg Nx3 matrix, single-arg 1x6 row, month/day overflow (m=13 -> next year, d=30 of Feb -> March), year-zero edge. Deferred: string parsing (datenum('2026-05-09')) -- requires datestr/format-spec parser. Algorithm: Howard Hinnant days_from_civil + 719529 (MATLAB epoch). |
 | `weekday` | — | 0.005 | 69.80× | 54.38× | OK | MATLAB weekday: day-of-week index 1=Sun..7=Sat (US calendar). Covers single-date, vector input, historical dates spanning 60+ years (1970, 2000, 2026), and one full week roundtrip 7,1,2,3,4,5,6. Optional name string output ('short'/'long') tested in gtest only -- parity harness fingerprints numeric only. Algorithm: ((floor(d) - 2) mod 7) + 1 with positive-modulo (serial 1 = Saturday in MATLAB's calendar). |
 | `juliandate` | — | 0.007 | 875.70× |  | OK | MATLAB juliandate: Julian day number from date components. Covered: 3-arg (Y,M,D) with vector args, 6-arg with time fraction, single-arg 1x6 row, single-arg Nx3 matrix. Anchors: 1970-01-01 00:00 = 2440587.5 (Unix epoch), 2000-01-01 12:00 = 2451545.0 (J2000.0). Algorithm: datenum-serial + 1721058.5. Deferred: string parsing forms, datetime-object input. |
-| `eomday` | — | 0.006 | 119.42× | 32.00× | OK | MATLAB eomday: last day of given month. Covered: leap-year all four cases (/4 leap [2024], common [2025], /400 leap [2000], century non-leap [1900]), 30-day month (April), full Jan-Dec scan in leap year, scalar+vector broadcast, and 2x2 matrix shape preservation. Algorithm: lookup table + isLeap = (y%4==0 && y%100!=0) || y%400==0. |
-| `datevec` | — | 0.005 | 80.67× | 75.34× | OK | MATLAB datevec: inverse of datenum. Covered: scalar round-trip (Y,M,D), with-time round-trip (H,MI,S), Unix-epoch anchor (719529 -> 1970-01-01), fractional-day extraction (0.25 -> 06:00), N-vector input -> Nx6 matrix, multi-output [Y,M,D] form. Algorithm: Howard Hinnant civil_from_days + microsecond rounding for FP-noise dampening. Edge: datevec(0) = [0 0 0 0 0 0] matches MATLAB literal. |
+| `eomday` | — | 0.003 | 145.36× |  | OK | MATLAB eomday: last day of given month. Covered: leap-year all four cases (/4 leap [2024], common [2025], /400 leap [2000], century non-leap [1900]), 30-day month (April), full Jan-Dec scan in leap year, scalar+vector broadcast, and 2x2 matrix shape preservation. Algorithm: lookup table + isLeap = (y%4==0 && y%100!=0) || y%400==0. |
+| `datevec` | — | 0.003 | 91.43× |  | OK | MATLAB datevec: inverse of datenum. Covered: scalar round-trip (Y,M,D), with-time round-trip (H,MI,S), Unix-epoch anchor (719529 -> 1970-01-01), fractional-day extraction (0.25 -> 06:00), N-vector input -> Nx6 matrix, multi-output [Y,M,D] form. Algorithm: Howard Hinnant civil_from_days + microsecond rounding for FP-noise dampening. Edge: datevec(0) = [0 0 0 0 0 0] matches MATLAB literal. |
 | `yyyymmdd` | — | 0.005 | 280.68× |  | OK | MATLAB yyyymmdd: packed integer date Y*10000+M*100+D. MATLAB R2025b requires datetime input -- numkit accepts serial date directly as a convenience extension. Spec uses an engine-detecting shim ymd__ that wraps with datetime() on MATLAB and falls through on numkit. Year-0 case excluded (MATLAB datetime errors on dates before 0001-01-01); year-0 covered by gtest. Octave 11.1.0 doesn't ship yyyymmdd; reports N/A. Algorithm: Howard Hinnant civil_from_days then arithmetic packing. |
 | `mjuliandate` | — | 0.008 | 772.30× |  | OK | MATLAB mjuliandate: Modified Julian Date = JD - 2400000.5; epoch 1858-11-17 00:00. Covered: 3-arg/6-arg/single-arg row/single-arg matrix forms with vector inputs. Anchors: MJD epoch 1858-11-17 -> 0, Unix epoch 1970-01-01 -> 40587, J2000.0 -> 51544.5. Algorithm: serial-MATLAB-date - 678942 (= 1721058.5 - 2400000.5, both fractional offsets cancel). Deferred: string + datetime input forms. |
 | `predicates` | — | 0.016 | 41.39× | 62.92× | OK | MATLAB linalg predicates batch: issymmetric/ishermitian (with optional 'skew'), isbanded(A,lo,up), isdiag, istril, istriu, bandwidth (1-out=lower / 2-out=[lo,up] / 'lower'|'upper' opt), vecnorm(A[,p[,dim]]). All comparisons exact (== 0). Bit-equal with MATLAB R2025b: predicates produce 0/1, bandwidth produces integers, vecnorm produces doubles. Empty vecnorm([]) -> scalar 0 (MATLAB convention). issymmetric/ishermitian use exact transpose/conj-transpose without tolerance. Octave 11.1.0 ships isbanded/isdiag/issymmetric/ishermitian/istril/istriu but not bandwidth/vecnorm. |
-| `rref_rcond_planerot` | — | 0.016 | 80.78× | 30.39× | OK | MATLAB linalg cycle 2: rref + rcond + planerot. rref via Gauss-Jordan with partial pivoting; default tol = max(M,N)*eps(norm(A,inf)); two-output [R, jb] form returns 1-based pivot column indices. rcond uses cheap path 1/(norm(A,1)*norm(inv(A),1)); returns 0 for singular A. KNOWN GAP: rcond on near-singular matrices may differ slightly from MATLAB's LAPACK dgecon estimator. planerot Givens rotation: r=hypot(x,y), G=[c s; -s c], degenerate (0,0) case returns identity. Bit-equal with MATLAB R2025b on the well-conditioned cases; rcond bit-equal on diag/2x2/hilb(4); planerot exact (cos/sin formula matches). rref complex input deferred (KNOWN GAP). Octave: triple-engine green for all three. Real-only inputs in v1. |
-| `lsqminnorm_lsqnonneg` | — | 0.015 | 110.99× |  | OK | MATLAB linalg cycle 4: lsqminnorm + lsqnonneg. lsqminnorm = pinv(A,tol)*B; bit-equal with MATLAB R2025b on full-rank, rank-deficient, and wide systems. lsqnonneg via Lawson-Hanson active-set algorithm; bit-equal on x, resnorm, residual, exitflag for the classic test [1 -1 2; 3 4 5; 6 7 8] / [1; 2; 3] -> x = [0; 0; 0.387097], resnorm = 0.06451612903. KNOWN GAPs: lsqminnorm 'rankWarn'/'RegularizationFactor' name-value args deferred; lsqnonneg 'options'/'problem' input forms and 6th 'lambda' output (Lagrange multipliers) deferred; complex inputs not supported. Octave ships both functions; lsqminnorm in core since Octave 6, lsqnonneg in optim package. |
-| `base_conversions` | — | 0.012 | 490.62× |  | OK | MATLAB Communications Toolbox base conversions: bit2int (pack n-bit groups → integers, msbfirst default true), int2bit (inverse, returns n×M bit matrix), bi2de (legacy synonym, rows = numbers, LSB-first 'right-msb' default, optional base), de2bi (legacy inverse, optional n / base), vec2mat (reshape vector into N-column row-major-filled matrix with padval default 0, 2-out form returns pad count). Bit-equal with MATLAB R2025b on all 26 fingerprint points across MSB/LSB ordering, custom base, auto-width and explicit-width forms, padding semantics. Octave 11.1.0 ships these in the communications package. |
+| `rref_rcond_planerot` | — | 0.013 | 78.10× |  | OK | MATLAB linalg cycle 2: rref + rcond + planerot. rref via Gauss-Jordan with partial pivoting; default tol = max(M,N)*eps(norm(A,inf)); two-output [R, jb] form returns 1-based pivot column indices. rcond uses cheap path 1/(norm(A,1)*norm(inv(A),1)); returns 0 for singular A. KNOWN GAP: rcond on near-singular matrices may differ slightly from MATLAB's LAPACK dgecon estimator. planerot Givens rotation: r=hypot(x,y), G=[c s; -s c], degenerate (0,0) case returns identity. Bit-equal with MATLAB R2025b on the well-conditioned cases; rcond bit-equal on diag/2x2/hilb(4); planerot exact (cos/sin formula matches). rref complex input deferred (KNOWN GAP). Octave: triple-engine green for all three. Real-only inputs in v1. |
+| `lsqminnorm_lsqnonneg` | — | 0.013 | 114.55× |  | OK | MATLAB linalg cycle 4: lsqminnorm + lsqnonneg. lsqminnorm = pinv(A,tol)*B; bit-equal with MATLAB R2025b on full-rank, rank-deficient, and wide systems. lsqnonneg via Lawson-Hanson active-set algorithm; bit-equal on x, resnorm, residual, exitflag for the classic test [1 -1 2; 3 4 5; 6 7 8] / [1; 2; 3] -> x = [0; 0; 0.387097], resnorm = 0.06451612903. KNOWN GAPs: lsqminnorm 'rankWarn'/'RegularizationFactor' name-value args deferred; lsqnonneg 'options'/'problem' input forms and 6th 'lambda' output (Lagrange multipliers) deferred; complex inputs not supported. Octave ships both functions; lsqminnorm in core since Octave 6, lsqnonneg in optim package. |
+| `base_conversions` | — | 0.008 | 521.81× |  | OK | MATLAB Communications Toolbox base conversions: bit2int (pack n-bit groups → integers, msbfirst default true), int2bit (inverse, returns n×M bit matrix), bi2de (legacy synonym, rows = numbers, LSB-first 'right-msb' default, optional base), de2bi (legacy inverse, optional n / base), vec2mat (reshape vector into N-column row-major-filled matrix with padval default 0, 2-out form returns pad count). Bit-equal with MATLAB R2025b on all 26 fingerprint points across MSB/LSB ordering, custom base, auto-width and explicit-width forms, padding semantics. Octave 11.1.0 ships these in the communications package. |
 | `sigroi_utils` | — | 0.014 | 451.98× |  | OK | MATLAB Signal Processing Toolbox ROI utilities (signalMask family): binmask2sigroi (mask→[start end] pairs), sigroi2binmask (inverse, with optional length), extendsigroi/shortensigroi (per-ROI shrink/grow with start clamped to 1 and degenerate ROIs dropped on shorten), mergesigroi (sort-then-merge with sep tolerance), removesigroi (drop ROIs with length ≤ maxLen — matches MATLAB doc, NOT index-based), extractsigroi (cell array default OR concatenated vector when concat=true), sigrangebinmask (bound is scalar→x>bound 'above' default, OR 2-vec→inside [vmin,vmax] closed). KNOWN GAP: 'Relationship'/'IntervalType'/'MinLength'/'Dimension' name-value args for sigrangebinmask deferred. Bit-equal with MATLAB R2025b on all 31 fingerprint points. Octave 11.1.0 doesn't ship these in core (Signal package only). |
-| `color_extras` | — | 0.010 | 236.01× |  | OK | MATLAB Image Toolbox color extras: rgb2lightness (= first channel of rgb2lab; returns single H×W), rgb2ind in fixed-palette form (nearest-RGB quantization, 1-based index uint8 if cmap rows ≤ 256). Bit-equal with MATLAB R2025b on lightness L value at white (=100) and on the 4-color palette quantization of a synthetic 2×2×3 image (red/green/blue/dark-red maps to nearest in [0 0 0; 1 0 0; 0 1 0; 0 0 1]). Lightness values for non-pure colors match MATLAB to ~1e-3 (single-precision rounding through the rgb2xyz → xyz2lab pipeline). KNOWN GAP rgb2ind: scalar-Q (min-variance quant) and scalar-tol (uniform quant) forms deferred; dithering arg ignored. Octave 11.1.0 ships rgb2lightness in the image package only, rgb2ind in core. |
-| `filter_design` | — | 0.038 | 92.72× |  | OK | MATLAB Image Toolbox filter-design utilities (cycle 4): fspecial3 (all 7 types: average/gaussian/laplacian/log/prewitt/sobel/ellipsoid) + fwind2 (2-D FIR via 2-D window method). Bit-equal with MATLAB R2025b on key invariants (sums, centers, sobel structure across all three directions X/Y/Z). KNOWN GAPs (deferred to v2): fsamp2 (requires 2-D IFFT), ftrans2 (Chebyshev polynomial recurrence), fwind1 (Chebyshev), gabor (object class infrastructure). All four deferred fns registered with explicit 'not implemented in v1' errors so MATLAB scripts get clear messages instead of undefined-function. Octave 11.1.0 ships fspecial3 in image package only; fsamp2/fwind2 in image package. |
+| `color_extras` | — | 0.008 | 222.70× |  | OK | MATLAB Image Toolbox color extras: rgb2lightness (= first channel of rgb2lab; returns single H×W), rgb2ind in fixed-palette form (nearest-RGB quantization, 1-based index uint8 if cmap rows ≤ 256). Bit-equal with MATLAB R2025b on lightness L value at white (=100) and on the 4-color palette quantization of a synthetic 2×2×3 image (red/green/blue/dark-red maps to nearest in [0 0 0; 1 0 0; 0 1 0; 0 0 1]). Lightness values for non-pure colors match MATLAB to ~1e-3 (single-precision rounding through the rgb2xyz → xyz2lab pipeline). KNOWN GAP rgb2ind: scalar-Q (min-variance quant) and scalar-tol (uniform quant) forms deferred; dithering arg ignored. Octave 11.1.0 ships rgb2lightness in the image package only, rgb2ind in core. |
+| `filter_design` | — | 0.036 |  |  | N/A | MATLAB Image Toolbox filter-design utilities (cycle 4): fspecial3 (all 7 types: average/gaussian/laplacian/log/prewitt/sobel/ellipsoid) + fwind2 (2-D FIR via 2-D window method). Bit-equal with MATLAB R2025b on key invariants (sums, centers, sobel structure across all three directions X/Y/Z). KNOWN GAPs (deferred to v2): fsamp2 (requires 2-D IFFT), ftrans2 (Chebyshev polynomial recurrence), fwind1 (Chebyshev), gabor (object class infrastructure). All four deferred fns registered with explicit 'not implemented in v1' errors so MATLAB scripts get clear messages instead of undefined-function. Octave 11.1.0 ships fspecial3 in image package only; fsamp2/fwind2 in image package. |
 | `sig_utils` | — | 0.010 | 265.24× |  | OK | MATLAB Signal Processing Toolbox utility batch (cycle 5): seqperiod (smallest divisor period d ≤ N where x repeats with tol), zerocrossrate (count = #sign-changes + 0.5 boundary credit, rate = count/N — matches MATLAB R2025b default Level=0/ZeroPositive=false), cusum (Page-Hinkley CUSUM detector returning first out-of-control indices). Bit-equal with MATLAB R2025b on all 13 fingerprint points covering periodic + non-periodic + repeat sequences, sign-change patterns including no-crossing edges, and a synthetic mean-shift cusum sequence. KNOWN GAPs: zerocrossrate matrix/N-D + Name=Value (Threshold/TransitionEdge/WindowLength), seqperiod multi-column variant, cusum no-output plotting form. Octave 11.1.0 doesn't ship these in core. |
 | `signal_buffer` | — | 0.014 | 39.77× | 24.20× | OK | MATLAB Signal Toolbox buffer (Phase 4.1 of audio extension sweep): partition signal into possibly overlapping/underlapping frames. Bit-equal MATLAB R2025b on 6 cases — non-overlapping zero-pad, p>0 overlap with initial zeros, p>0 with 'nodelay', p<0 underlap, [Y,Z] complete-only output, column-vector input. Implementation in libs/signal/src/digital_filtering/buffer.cpp following MATLAB buffer.m semantic doc (the .m file itself is just a MEX shim; behavior derived from probing). Octave 11.1.0 ships buffer in core (signal package); should match. KNOWN GAPs: (1) initial-condition vector OPT for p>0 (numeric instead of 'nodelay') validated for length but not heavily tested; (2) 3-output form [Y,Z,OPT] for continuous buffering — return value of OPT for next call deferred (MATLAB internal state). |
 | `signal_uquant` | — | 0.017 | 222.49× | 25.17× | OK | MATLAB Signal Toolbox uencode/udecode (Phase 4.2): uniform N-bit quantization. Bit-equal MATLAB R2025b on 16 fingerprints — unsigned/signed encoding, custom peak V, 3 output type tiers (uint8/16/32), saturate vs wrap on decode, full roundtrip error within expected 8-bit quantization step (~0.008). Octave 11.1.0 ships these in the signal package. |
@@ -3699,6 +3699,9 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `signal_polyscale` | — | 0.010 | 117.27× |  | OK | Signal Processing toolbox polyscale — radial scaling of polynomial roots (b[k] = a[k]*alpha^k, the z-transform scaling property A(z) -> A(z/alpha)). CLEAN-ROOM implementation from public references (Oppenheim & Schafer 3e §3.2 z-transform scaling; Markel & Gray 1976, LPC bandwidth expansion) — see cleanroom/specs/polystab_polyscale.md. Bit-exact MATLAB R2025b (tol=0) on the documented argument set: row-vector input + scalar alpha, matrix input (one polynomial per row) + scalar alpha, row-vector alpha (element k raised to power k), and complex alpha. DOCUMENTED DIVERGENCE: for a column-vector input MATLAB's implicit expansion of a .* alpha.^(0:length(a)-1) yields an N×N matrix; numkit treats any vector as a single polynomial and returns a 1×N row — the column-vector case is intentionally not in the fingerprint. Octave 11.1.0 does not ship polyscale in core — harness reports N/A there. |
 | `signal_polystab` | — | 0.014 | 87.56× | 43.48× | OK | Signal Processing toolbox polystab — stabilise a polynomial (minimum-phase version): reflect every root with |root| > 1 to its conjugate reciprocal 1/conj(root) inside the unit circle, keeping the magnitude-response shape (scaled by a constant gain). CLEAN-ROOM implementation from public references (Oppenheim & Schafer 3e §5.6 minimum-phase systems / conjugate-reciprocal root reflection; Hayes 1996 spectral factorisation) — see cleanroom/specs/polystab_polyscale.md. Algorithm: roots(a) -> reflect outside roots -> poly() -> multiply by the first non-zero coefficient of a. Matches MATLAB R2025b within tol 1e-12 (the tolerance absorbs the roots->poly round-trip noise, observed ~1e-15). Fingerprint covers all algorithm paths: simple real roots ([1 -2.5 1] -> [1 -1 0.25]), leading zeros ignored ([0 1 -2.5 1] -> same length-3 result), already-stable input returned unchanged ([1 -0.5]), a complex-conjugate root pair OUTSIDE the unit circle reflected ([1 -3.4 3.7 -1] -> [1 -1.6 0.88 -0.16]), and a degree-5 polynomial with mixed real/complex roots (C) cross-checked coefficient-by-coefficient against MATLAB. KNOWN GAP: complex-coefficient input is unsupported because numkit's roots handles real polynomials only (the previous implementation had the same limitation). Octave 11.1.0 does not ship polystab in core — harness reports N/A there. |
 | `signal_scalefiltersections` | — | 0.012 | 196.26× |  | OK | Signal Processing toolbox scaleFilterSections — distribute scale values across the sections of a cascaded-transfer-function (CTF) numerator. CLEAN-ROOM implementation from public references (L. B. Jackson, Digital Filters and Signal Processing, 1996 — cascade realisation and gain distribution; Oppenheim & Schafer 3e §6.3, cascade-form structures) — see cleanroom/specs/scaleFilterSections.md. Algorithm: for K cascade sections the overall gain magnitude is spread as |g|^(1/K) across all sections and the sign is concentrated on the last section; a length-(K+1) scale vector additionally applies a per-section factor g[k]. Bit-equal MATLAB R2025b (tol 1e-9) on 10 fingerprints: scalar g on a 3-section filter, a length-4 scale vector, the single-section K=1 case, and complex numerator coefficients (the clean-room rewrite lifts a gap — the previous implementation handled real coefficients only). Octave 11.1.0 does not ship scaleFilterSections (introduced in MATLAB R2023b) — harness reports N/A there. |
-| `page_family` | — | 0.015 | 56.13× |  | OK | Sig: page-wise wrappers (pageeig, pagesvd, pagepinv, pagenorm, pagemldivide, pagemrdivide, pagelsqminnorm, pageinv). All iterate the corresponding 2-D linalg op per page. Fingerprints pin shapes + a handful of values (we use pageinv = inv per page, pageeig on symmetric input that gives exact eigvals [5 5 5] for one page, etc.). pagelsqminnorm not in fingerprint — it uses pinv which goes through SVD whose sign convention may differ at machine precision. |
-| `schur_convert` | — | 0.002 | 641.04× |  | OK | Sig: cdf2rdf (complex-diag Schur → real-block Schur), rsf2csf (real-block → complex-diag). cdf2rdf test: build (V, D) manually for a rotation matrix [0 -1; 1 0] (eigvals ±i); verify the real-form reconstruction. rsf2csf test: a [a -b; b a] 2x2 real Schur block (eigvals a±bi). MATLAB R2025b matches the documented convention DR_block = [a -b; b a], VR(:, k+1) = -Im(v) when sub-diagonal of D pairs positive imag part. |
-| `cond_pnorm` | — | 0.003 | 125.85× |  | OK | Sig: c = cond(A, p) for p ∈ {1, 2, Inf, 'fro'}. Closes the ⚠️ gap in PROGRESS where cond was 2-norm only. p=2 routes through cond_2norm (sigma_max/sigma_min); other p via norm(A,p)·norm(inv(A),p). Diagonal A = diag(1, 1e-3) gives exactly 1e3 for p=1,2,Inf and slightly above for 'fro' (sqrt(1+1e-6) · sqrt(1+1e6) ≈ 1e3 + 0.5e-3). |
+| `page_family` | — | 0.015 | 72.09× |  | OK | Sig: page-wise wrappers (pageeig, pagesvd, pagepinv, pagenorm, pagemldivide, pagemrdivide, pagelsqminnorm, pageinv). All iterate the corresponding 2-D linalg op per page. Fingerprints pin shapes + a handful of values (we use pageinv = inv per page, pageeig on symmetric input that gives exact eigvals [5 5 5] for one page, etc.). pagelsqminnorm not in fingerprint — it uses pinv which goes through SVD whose sign convention may differ at machine precision. |
+| `schur_convert` | — | 0.002 | 649.85× |  | OK | Sig: cdf2rdf (complex-diag Schur → real-block Schur), rsf2csf (real-block → complex-diag). cdf2rdf test: build (V, D) manually for a rotation matrix [0 -1; 1 0] (eigvals ±i); verify the real-form reconstruction. rsf2csf test: a [a -b; b a] 2x2 real Schur block (eigvals a±bi). MATLAB R2025b matches the documented convention DR_block = [a -b; b a], VR(:, k+1) = -Im(v) when sub-diagonal of D pairs positive imag part. |
+| `cond_pnorm` | — | 0.003 | 134.85× |  | OK | Sig: c = cond(A, p) for p ∈ {1, 2, Inf, 'fro'}. Closes the ⚠️ gap in PROGRESS where cond was 2-norm only. p=2 routes through cond_2norm (sigma_max/sigma_min); other p via norm(A,p)·norm(inv(A),p). Diagonal A = diag(1, 1e-3) gives exactly 1e3 for p=1,2,Inf and slightly above for 'fro' (sqrt(1+1e-6) · sqrt(1+1e6) ≈ 1e3 + 0.5e-3). |
+| `predicates_sym` | — | 0.007 | 19.44× |  | OK | Sig: issymmetric(A [, 'skew']) → A == A.' (transpose, no conj). ishermitian(A [, 'skew']) → A == A' (conj transpose). 'skew' flips equality to A == -A.' / A == -A'. Bit-exact MATLAB R2025b (tol=0): SY symmetric (s1=1), H not symmetric (s2=0 — complex matrix), SK skew-sym (s3=1), H Hermitian (h1=1), SY not Hermitian since complex form differs (h2=1 — but SY is real so h2=1 by real-symmetric ≡ Hermitian rule), SKH skew-Hermitian (h3=1). Split from the original combined predicates spec to stay under the 256-register chunk limit. |
+| `predicates_band` | — | 0.009 | 17.23× |  | OK | Sig: matrix-structure predicates and bandwidth queries. isbanded(A, lo, up) ↔ outside-band entries are zero; isdiag = isbanded(A, 0, 0). istril / istriu ↔ lower / upper triangular. [lo, up] = bandwidth(A) returns sub-diagonal and super-diagonal extent; bandwidth(A) one-out form returns lo; 'lower'|'upper' string form selects one. Bit-exact MATLAB R2025b (tol=0): D diagonal (ib1=id1=1), A tri-banded (ib2=1), A not upper-banded-only (ib3=0), L lower-tri (itl=1), U upper-tri (itu=1), bandwidth(A) = [1, 1], bandwidth(U) = 0, bandwidth(L) = 2, bandwidth(U, 'upper') = 2. Split from the original combined predicates spec to stay under the 256-register chunk limit. |
+| `animatedline` | — | 0.002 | 29.16× |  | OK | animatedline + addpoints + getpoints round-trip. After 10 addpoints calls of (k, 2k), getpoints should round-trip the same data. Real numerical fingerprint — not just display invariance. |

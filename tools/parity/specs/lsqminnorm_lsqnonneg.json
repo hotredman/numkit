@@ -1,6 +1,7 @@
 {
   "name": "lsqminnorm_lsqnonneg",
-  "namespace": "builtin",
+  "covers": ["lsqminnorm", "lsqnonneg"],
+  "namespace": "linalg",
   "setup": "A1 = [1 2; 3 4]; B1 = [5; 11]; A2 = [1 2; 2 4; 3 6]; B2 = [3; 6; 9]; A3 = [1 2 3; 4 5 6]; B3 = [6; 15]; C1 = [1 -1 2; 3 4 5; 6 7 8]; d1 = [1; 2; 3];",
   "expr": "x_min1 = lsqminnorm(A1, B1); x_min2 = lsqminnorm(A2, B2); x_min3 = lsqminnorm(A3, B3); rA2 = norm(A2*x_min2 - B2); nA2 = norm(x_min2); rA3 = norm(A3*x_min3 - B3); nA3 = norm(x_min3); [xnn1, rn1, res1, ef1] = lsqnonneg(C1, d1); [xnn2] = lsqnonneg(eye(2), [3; -2]); [xnn3] = lsqnonneg([1 0; 0 1; 1 1], [1; 2; 3]); [xnn4, rn4] = lsqnonneg([1 2; 3 4], [0; 0]);",
   "iters": 5,

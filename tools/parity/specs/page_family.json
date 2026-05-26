@@ -1,5 +1,6 @@
 {
   "name": "page_family",
+  "covers": ["pageinv", "pageeig", "pagesvd", "pagepinv", "pagenorm", "pagemldivide", "pagemrdivide", "pagelsqminnorm"],
   "namespace": "linalg",
   "setup": "A3 = reshape(1:24, 2, 3, 4) + reshape(0:23, 2, 3, 4); S3 = zeros(3,3,2); S3(:,:,1) = [4 1 0; 1 3 0; 0 0 2]; S3(:,:,2) = eye(3)*5; B3 = repmat(eye(3) + 0.1*reshape(1:9,3,3), [1 1 5]);",
   "expr": "n_pg = pagenorm(A3, 'fro'); s_pg = pagesvd(A3); ev_pg = pageeig(S3); p_pg = pagepinv(A3); inv_pg = pageinv(B3); Ap = repmat([2 0; 0 3], [1 1 2]); Bp = reshape(1:8, 2, 2, 2); X_pg = pagemldivide(Ap, Bp); Xr_pg = pagemrdivide(Bp, Ap);",
