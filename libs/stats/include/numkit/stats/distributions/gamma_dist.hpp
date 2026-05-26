@@ -72,4 +72,34 @@ Value gamrnd(double a, double b, size_t rows = 1, size_t cols = 1, std::pmr::mem
 /// @see gampdf
 std::tuple<double, double> gamstat(double a, double b);
 
+/// @brief Raw gamma(shape, 1) RNG (`r = randg(shape [, rows, cols])`).
+///
+/// MATLAB's undocumented-but-widely-used "raw" gamma sampler. Equivalent
+/// to `gamrnd(shape, 1.0, rows, cols)`; uses the shared MT19937 stream
+/// so `rng(seed)` reproduces the draw sequence.
+///
+/// @param shape  Shape parameter (`shape > 0`); array-valued shape is
+///               supported via the adapter-only entry — see `randg_reg`.
+/// @param rows   Output rows (default 1).
+/// @param cols   Output columns (default 1).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `rows × cols` matrix of Gamma(shape, 1) samples.
+/// @see gamrnd
+Value randg(double shape, size_t rows = 1, size_t cols = 1,
+            std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Per-element gamma RNG (`r = randg(shapeArray)`).
+///
+/// Draws one sample per entry of `shapeArray`, with shape = element value.
+/// Negative / zero shape entries produce NaN in the output (MATLAB
+/// convention).
+///
+/// @param shapeArray  Array-valued shape parameter.
+/// @param mr          Memory resource (nullptr → process default).
+/// @return            Array same size as `shapeArray`, one Gamma(shape, 1)
+///                    draw per entry.
+/// @see randg
+Value randg(const Value &shapeArray,
+            std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats
