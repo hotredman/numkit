@@ -436,7 +436,49 @@ Value nbinfit(const Value &x, std::pmr::memory_resource *mr)
     return out;
 }
 
+// Generalised EV-min NLL with right-censoring and frequency weights.
+// Censoring indicator: cens_i = 1 if x_i is right-censored.
+// Weighted contribution per observation:
+//   uncens: f_i · [log σ − t_i + exp(t_i)]
+//   cens  : f_i · [exp(t_i)]
+// where t_i = (x_i − μ)/σ. Combined:
+//   NLL = (Σf_i (1−c_i)) · log σ − Σf_i (1−c_i) t_i + Σf_i exp(t_i).
+static double nll_ev_full(double mu, double sigma,
+                          const std::vector<double> &xv,
+                          const std::vector<double> &cens,
+                          const std::vector<double> &freq)
+{
+    if (!(sigma > 0.0)) return std::numeric_limits<double>::infinity();
+    const std::size_t n = xv.size();
+    // Shift by max(t_i) to keep exp from overflowing.
+    double t_max = -std::numeric_limits<double>::infinity();
+    for (std::size_t i = 0; i < n; ++i) {
+        const double t = (xv[i] - mu) / sigma;
+        if (t > t_max) t_max = t;
+    }
+    double nuw = 0.0;        // Σ f_i (1 - c_i)
+    double Suw = 0.0;        // Σ f_i (1 - c_i) t_i
+    double Wexp = 0.0;       // Σ f_i · exp(t_i - t_max)
+    for (std::size_t i = 0; i < n; ++i) {
+        const double t = (xv[i] - mu) / sigma;
+        const double f = freq[i];
+        const double u = 1.0 - cens[i];
+        nuw  += f * u;
+        Suw  += f * u * t;
+        Wexp += f * std::exp(t - t_max);
+    }
+    // Adding back the shift: Σ f exp(t) = exp(t_max) · Wexp.
+    // log σ · nuw - Suw + exp(t_max) · Wexp.
+    return nuw * std::log(sigma) - Suw + std::exp(t_max) * Wexp;
+}
+
 Value evfit(const Value &x, std::pmr::memory_resource *mr)
+{
+    return evfit(x, Value::Empty, Value::Empty, mr);
+}
+
+Value evfit(const Value &x, const Value &censoring, const Value &freq,
+            std::pmr::memory_resource *mr)
 {
     auto xv = toFlat(x);
     const std::size_t n = xv.size();
@@ -448,53 +490,152 @@ Value evfit(const Value &x, std::pmr::memory_resource *mr)
             throw Error("evfit: observations must be finite",
                         0, 0, "evfit", "", "m:evfit:notFinite");
     }
-    double sum = 0.0;
-    for (double v : xv) sum += v;
-    const double mean = sum / static_cast<double>(n);
-    double var2 = 0.0;
-    for (double v : xv) {
-        const double d = v - mean;
-        var2 += d * d;
+    // Parse censoring (zeros if empty) and freq (ones if empty).
+    std::vector<double> cens(n, 0.0), wf(n, 1.0);
+    if (!censoring.isEmpty()) {
+        if (censoring.numel() != n)
+            throw Error("evfit: censoring must match data length",
+                        0, 0, "evfit", "", "m:evfit:censLen");
+        for (std::size_t i = 0; i < n; ++i)
+            cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
     }
-    var2 /= static_cast<double>(n);
-    if (!(var2 > 0.0))
-        throw Error("evfit: zero variance (data constant)",
-                    0, 0, "evfit", "", "m:evfit:zeroVariance");
-
-    // Initial guess: var = σ² · π²/6.
-    double sigma = std::sqrt(6.0 * var2) / 3.141592653589793;
-    if (!(sigma > 0.0) || !std::isfinite(sigma)) sigma = 1.0;
-
-    double x_max = xv[0];
-    for (double v : xv) if (v > x_max) x_max = v;
-
-    // Newton on f(σ) = U/T - mean - σ = 0,
-    // with U = Σ x_i e^{(x_i - x_max)/σ}, T = Σ e^{(x_i - x_max)/σ}.
-    // f'(σ) = -Var_w(x)/σ² - 1   (Cauchy-Schwarz ⇒ always negative).
-    double T = 0.0;
-    for (int it = 0; it < 100; ++it) {
-        T = 0.0; double U = 0.0, V = 0.0;
-        for (double v : xv) {
-            const double e = std::exp((v - x_max) / sigma);
-            T += e;
-            U += v * e;
-            V += v * v * e;
+    if (!freq.isEmpty()) {
+        if (freq.numel() != n)
+            throw Error("evfit: freq must match data length",
+                        0, 0, "evfit", "", "m:evfit:freqLen");
+        for (std::size_t i = 0; i < n; ++i) {
+            wf[i] = freq.elemAsDouble(i);
+            if (!(wf[i] >= 0.0))
+                throw Error("evfit: freq must be non-negative",
+                            0, 0, "evfit", "", "m:evfit:freqNeg");
         }
-        const double meanW = U / T;
-        const double varW  = V / T - meanW * meanW;       // ≥ 0
-        const double f  = meanW - mean - sigma;
-        const double fp = -varW / (sigma * sigma) - 1.0;
-        if (!(std::fabs(fp) > 1e-300)) break;
-        const double step = f / fp;
-        const double newS = sigma - step;
-        if (newS > 0.0) sigma = newS;
-        else            sigma *= 0.5;
-        if (std::fabs(step) < 1e-12 * std::max(sigma, 1.0)) break;
     }
-    // Recompute T with final σ for μ.
-    T = 0.0;
-    for (double v : xv) T += std::exp((v - x_max) / sigma);
-    const double mu = x_max + sigma * (std::log(T) - std::log(static_cast<double>(n)));
+
+    // Effective weights / counts.
+    double sum_fw = 0.0, sum_uw = 0.0;
+    double sum_fwx = 0.0, sum_uwx = 0.0;
+    double sum_uwxx = 0.0;
+    for (std::size_t i = 0; i < n; ++i) {
+        const double f = wf[i];
+        const double u = 1.0 - cens[i];
+        sum_fw   += f;
+        sum_uw   += f * u;
+        sum_fwx  += f * xv[i];
+        sum_uwx  += f * u * xv[i];
+        sum_uwxx += f * u * xv[i] * xv[i];
+    }
+    if (sum_uw < 2.0)
+        throw Error("evfit: need at least 2 uncensored observations",
+                    0, 0, "evfit", "", "m:evfit:tooFewUncens");
+    const double mean_uw = sum_uwx / sum_uw;
+    double var_uw = sum_uwxx / sum_uw - mean_uw * mean_uw;
+    // Constant uncensored data is degenerate (no info about σ).
+    if (!(var_uw > 0.0)) {
+        // Treat truly constant data (no freq weighting or all-equal
+        // uncensored values) as an error to match MATLAB's behaviour
+        // on degenerate input.
+        bool freq_trivial = true;
+        for (std::size_t i = 0; i < n; ++i)
+            if (wf[i] != 1.0) { freq_trivial = false; break; }
+        const bool has_cens_local = (sum_uw < sum_fw);
+        if (!has_cens_local && freq_trivial)
+            throw Error("evfit: zero variance (data constant)",
+                        0, 0, "evfit", "", "m:evfit:zeroVariance");
+        var_uw = 1.0;
+    }
+
+    // Initial guess: σ from weighted/uncensored variance moment.
+    // For Gumbel-min, E[X] = μ - γ_E·σ ⇒ μ = E[X] + γ_E·σ.
+    double sigma = std::sqrt(6.0 * var_uw) / 3.141592653589793;
+    if (!(sigma > 0.0) || !std::isfinite(sigma)) sigma = 1.0;
+    double mu = mean_uw + 0.57721566490153286 * sigma;
+
+    // Check if censoring or non-trivial freq is present — if not,
+    // dispatch to the existing fast closed-form path.
+    const bool has_cens = (sum_uw < sum_fw);
+    bool freq_trivial = true;
+    for (std::size_t i = 0; i < n; ++i)
+        if (wf[i] != 1.0) { freq_trivial = false; break; }
+
+    if (!has_cens && freq_trivial) {
+        // Closed-form (existing path): profile μ via log-sum-exp.
+        double sum = 0.0;
+        for (double v : xv) sum += v;
+        const double mean = sum / static_cast<double>(n);
+        double x_max = xv[0];
+        for (double v : xv) if (v > x_max) x_max = v;
+        double T = 0.0;
+        for (int it = 0; it < 100; ++it) {
+            T = 0.0; double U = 0.0, V = 0.0;
+            for (double v : xv) {
+                const double e = std::exp((v - x_max) / sigma);
+                T += e;  U += v * e;  V += v * v * e;
+            }
+            const double meanW = U / T;
+            const double varW  = V / T - meanW * meanW;
+            const double f  = meanW - mean - sigma;
+            const double fp = -varW / (sigma * sigma) - 1.0;
+            if (!(std::fabs(fp) > 1e-300)) break;
+            const double step = f / fp;
+            const double newS = sigma - step;
+            if (newS > 0.0) sigma = newS;
+            else            sigma *= 0.5;
+            if (std::fabs(step) < 1e-12 * std::max(sigma, 1.0)) break;
+        }
+        T = 0.0;
+        for (double v : xv) T += std::exp((v - x_max) / sigma);
+        mu = x_max + sigma * (std::log(T) - std::log(static_cast<double>(n)));
+    } else {
+        // 2-D Newton with FD gradient/Hessian.
+        auto grad = [&](double m, double s, double &gm, double &gs) {
+            const double hm = std::max(std::fabs(m), 1.0) * 1e-6;
+            const double hs = std::max(std::fabs(s), 1.0) * 1e-6;
+            gm = (nll_ev_full(m + hm, s, xv, cens, wf)
+                - nll_ev_full(m - hm, s, xv, cens, wf)) / (2 * hm);
+            gs = (nll_ev_full(m, s + hs, xv, cens, wf)
+                - nll_ev_full(m, s - hs, xv, cens, wf)) / (2 * hs);
+        };
+        double f_cur = nll_ev_full(mu, sigma, xv, cens, wf);
+        for (int it = 0; it < 100; ++it) {
+            double gm, gs;
+            grad(mu, sigma, gm, gs);
+            if (std::sqrt(gm * gm + gs * gs) < 1e-12) break;
+            // FD-Hessian on gradient.
+            const double hm = std::max(std::fabs(mu), 1.0) * 1e-5;
+            const double hs = std::max(std::fabs(sigma), 1.0) * 1e-5;
+            double gm_mp, gs_mp, gm_mm, gs_mm, gm_sp, gs_sp, gm_sm, gs_sm;
+            grad(mu + hm, sigma, gm_mp, gs_mp);
+            grad(mu - hm, sigma, gm_mm, gs_mm);
+            grad(mu, sigma + hs, gm_sp, gs_sp);
+            grad(mu, sigma - hs, gm_sm, gs_sm);
+            const double Hmm = (gm_mp - gm_mm) / (2 * hm);
+            const double Hss = (gs_sp - gs_sm) / (2 * hs);
+            const double Hms = 0.5 * ((gm_sp - gm_sm) / (2 * hs)
+                                    + (gs_mp - gs_mm) / (2 * hm));
+            const double det = Hmm * Hss - Hms * Hms;
+            if (std::fabs(det) < 1e-300) break;
+            const double dm = (-gm * Hss + gs * Hms) / det;
+            const double ds = (-gs * Hmm + gm * Hms) / det;
+            double step = 1.0;
+            bool ok = false;
+            for (int bt = 0; bt < 30; ++bt) {
+                const double mu_new = mu + step * dm;
+                const double s_new  = sigma + step * ds;
+                if (s_new > 0.0) {
+                    const double f_new = nll_ev_full(mu_new, s_new, xv, cens, wf);
+                    if (std::isfinite(f_new) && f_new < f_cur - 1e-15) {
+                        mu = mu_new;  sigma = s_new;  f_cur = f_new;
+                        ok = true;
+                        break;
+                    }
+                }
+                step *= 0.5;
+            }
+            if (!ok) break;
+            if (std::fabs(step * dm) + std::fabs(step * ds)
+                < 1e-12 * (std::fabs(mu) + std::fabs(sigma) + 1.0)) break;
+        }
+    }
 
     auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     out.doubleDataMut()[0] = mu;
@@ -899,11 +1040,30 @@ Value nbinfit_ci(const Value &x, double alpha, std::pmr::memory_resource *mr)
 
 Value evfit_ci(const Value &x, double alpha, std::pmr::memory_resource *mr)
 {
+    return evfit_ci(x, alpha, Value::Empty, Value::Empty, mr);
+}
+
+Value evfit_ci(const Value &x, double alpha,
+               const Value &censoring, const Value &freq,
+               std::pmr::memory_resource *mr)
+{
     auto xv = toFlat(x);
-    Value parm = evfit(x, mr);
+    const std::size_t n = xv.size();
+    std::vector<double> cens(n, 0.0), wf(n, 1.0);
+    if (!censoring.isEmpty()) {
+        for (std::size_t i = 0; i < n; ++i)
+            cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
+    }
+    if (!freq.isEmpty()) {
+        for (std::size_t i = 0; i < n; ++i)
+            wf[i] = freq.elemAsDouble(i);
+    }
+    Value parm = evfit(x, censoring, freq, mr);
     const double mu_hat    = parm.elemAsDouble(0);
     const double sigma_hat = parm.elemAsDouble(1);
-    return wald_ci_2d([&](double mu, double sigma) { return nll_ev(mu, sigma, xv); },
+    return wald_ci_2d([&](double mu, double sigma) {
+                          return nll_ev_full(mu, sigma, xv, cens, wf);
+                      },
                       mu_hat, sigma_hat, CITransform::LINEAR, CITransform::LOG,
                       alpha, mr);
 }
@@ -983,11 +1143,15 @@ void evfit_reg(Span<const Value> args, size_t nargout,
                Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("evfit: requires (x[, alpha])",
+        throw Error("evfit: requires (x[, alpha[, cens[, freq[, options]]]])",
                     0, 0, "evfit", "", "m:evfit:nargin");
     auto *mr = ctx.engine->resource();
-    outs[0] = evfit(args[0], mr);
-    if (nargout >= 2) outs[1] = evfit_ci(args[0], parse_alpha(args), mr);
+    const Value cens = (args.size() > 2) ? args[2] : Value::Empty;
+    const Value freq = (args.size() > 3) ? args[3] : Value::Empty;
+    // args[4] = options struct — currently no-op (parsed for compat).
+    outs[0] = evfit(args[0], cens, freq, mr);
+    if (nargout >= 2)
+        outs[1] = evfit_ci(args[0], parse_alpha(args), cens, freq, mr);
 }
 
 void gpfit_reg(Span<const Value> args, size_t nargout,
