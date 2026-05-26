@@ -324,6 +324,7 @@ void dwtest_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void signtest_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void signrank_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ranksum_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ansaribradley_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void runstest_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void vartestn_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void chi2gof_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -691,6 +692,7 @@ void StatsLibrary::install(Engine &engine)
     reg("test", "signtest", &stats::detail::signtest_reg);
     reg("test", "signrank", &stats::detail::signrank_reg);
     reg("test", "ranksum",  &stats::detail::ranksum_reg);
+    reg("test", "ansaribradley", &stats::detail::ansaribradley_reg);
     reg("test", "runstest", &stats::detail::runstest_reg);
     reg("test", "vartestn", &stats::detail::vartestn_reg);
     reg("test", "chi2gof",    &stats::detail::chi2gof_reg);

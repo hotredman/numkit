@@ -1397,6 +1397,196 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, const
 }
 
 // ════════════════════════════════════════════════════════════════════
+// ansaribradley — Ansari-Bradley two-sample scale (dispersion) test
+// ════════════════════════════════════════════════════════════════════
+
+std::tuple<Value, Value, Value, Value>
+ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
+              std::pmr::memory_resource *mr)
+{
+    const size_t nx = x.numel();
+    const size_t ny = y.numel();
+    if (nx == 0 || ny == 0) {
+        return std::make_tuple(
+            Value::scalar(0.0, mr),
+            Value::scalar(1.0, mr),
+            Value::scalar(0.0, mr),
+            Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr));
+    }
+
+    // Pool: store (value, is_x). Drop NaN.
+    struct Item { double v; bool is_x; };
+    std::vector<Item> items;
+    items.reserve(nx + ny);
+    for (size_t i = 0; i < nx; ++i) {
+        const double v = x.elemAsDouble(i);
+        if (!std::isnan(v)) items.push_back({v, true});
+    }
+    for (size_t i = 0; i < ny; ++i) {
+        const double v = y.elemAsDouble(i);
+        if (!std::isnan(v)) items.push_back({v, false});
+    }
+    const size_t N = items.size();
+    size_t m = 0, n = 0;
+    for (auto &it : items) (it.is_x ? m : n) += 1;
+    if (m == 0 || n == 0) {
+        return std::make_tuple(
+            Value::scalar(0.0, mr),
+            Value::scalar(1.0, mr),
+            Value::scalar(0.0, mr),
+            Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr));
+    }
+
+    // Sort pooled by value (ascending).
+    std::vector<size_t> ord(N);
+    for (size_t i = 0; i < N; ++i) ord[i] = i;
+    std::sort(ord.begin(), ord.end(),
+              [&](size_t a, size_t b) { return items[a].v < items[b].v; });
+
+    // Assign V-shaped Ansari rank to each sorted POSITION, then average
+    // (mid-rank) across tied groups.
+    // Raw position-rank: pos i (1..N) → min(i, N+1-i).
+    std::vector<double> rraw(N);
+    for (size_t i = 0; i < N; ++i) {
+        const size_t pos = i + 1;             // 1-based
+        const size_t alt = N + 1 - pos;
+        rraw[i] = static_cast<double>(std::min(pos, alt));
+    }
+    // Walk in sorted order, distribute mean rank within each tie group.
+    std::vector<double> rsorted(N);
+    {
+        size_t i = 0;
+        while (i < N) {
+            size_t j = i + 1;
+            while (j < N && items[ord[j]].v == items[ord[i]].v) ++j;
+            // Group [i, j). Mean of raw V-ranks in this group.
+            double s = 0.0;
+            for (size_t k = i; k < j; ++k) s += rraw[k];
+            const double mr_avg = s / static_cast<double>(j - i);
+            for (size_t k = i; k < j; ++k) rsorted[k] = mr_avg;
+            i = j;
+        }
+    }
+
+    // W = sum of ranks for x (in original-pool order via ord^-1).
+    std::vector<double> ranks(N);
+    for (size_t k = 0; k < N; ++k) ranks[ord[k]] = rsorted[k];
+    double W = 0.0;
+    for (size_t k = 0; k < N; ++k)
+        if (items[k].is_x) W += ranks[k];
+
+    // ── Choose exact vs asymptotic ─────────────────────────────────
+    // Exact path mirrors MATLAB's small-sample threshold (uses exact
+    // permutation distribution conditional on observed ranks). Use
+    // exact when min(m, n) ≤ 10. Compute scale = LCM of tie-group
+    // sizes so scaled ranks are exact integers (mid-rank in a tie
+    // group of size k has denominator k).
+    const bool exact_path = (std::min(m, n) <= 10);
+    long long scale = 1;
+    if (exact_path) {
+        // Build set of unique tie-group sizes by walking sorted order.
+        std::vector<long long> grp_sizes;
+        size_t ii = 0;
+        while (ii < N) {
+            size_t jj = ii + 1;
+            while (jj < N && items[ord[jj]].v == items[ord[ii]].v) ++jj;
+            grp_sizes.push_back(static_cast<long long>(jj - ii));
+            ii = jj;
+        }
+        auto lcm = [](long long a, long long b) -> long long {
+            if (a == 0 || b == 0) return 0;
+            long long g = a, h = b;
+            while (h != 0) { long long t = g % h; g = h; h = t; }
+            return a / g * b;
+        };
+        for (long long s : grp_sizes) scale = lcm(scale, s);
+        if (scale > 10000) scale = 10000;   // safety bound
+    }
+
+    // Asymptotic moments (conditional-permutation form — handles ties
+    // automatically). E[W] = m·mean(r); V[W] = m·n / (N − 1) · σ²(r),
+    // with σ² = (1/N) Σ(rᵢ − r̄)².
+    double sum_r = 0.0;
+    for (double r : rsorted) sum_r += r;
+    const double Nd = static_cast<double>(N);
+    const double mean_r = sum_r / Nd;
+    double ss = 0.0;
+    for (double r : rsorted) {
+        const double d = r - mean_r;
+        ss += d * d;
+    }
+    const double sigma2_r = ss / Nd;
+    const double EW = static_cast<double>(m) * mean_r;
+    const double VW = static_cast<double>(m) * static_cast<double>(n)
+                    / (Nd - 1.0) * sigma2_r;
+    const double sd = std::sqrt(std::max(VW, 0.0));
+    const double Wstar = (sd > 0.0) ? (W - EW) / sd : 0.0;
+
+    // ── Tail convention for ansaribradley ──────────────────────────
+    // MATLAB inverts the natural rank-tail mapping: larger W means
+    // x clustered toward the centre of the pool → x is LESS dispersed
+    // than y. So:
+    //   alt 'right' (var x > var y)  ⇒  W small  ⇒  p = P(W ≤ obs)
+    //   alt 'left'  (var x < var y)  ⇒  W large  ⇒  p = P(W ≥ obs)
+    double p_val;
+    if (exact_path) {
+        // Scale ranks by `scale` (LCM of tie-group sizes) for exact
+        // integer DP.
+        std::vector<long long> rk2(N);
+        long long total2 = 0;
+        for (size_t k = 0; k < N; ++k) {
+            rk2[k] = static_cast<long long>(
+                std::llround(rsorted[k] * static_cast<double>(scale)));
+            total2 += rk2[k];
+        }
+        const size_t S = static_cast<size_t>(total2 + 1);
+        std::vector<std::vector<double>> dp(m + 1, std::vector<double>(S, 0.0));
+        dp[0][0] = 1.0;
+        for (size_t k = 0; k < N; ++k) {
+            const long long r = rk2[k];
+            for (long long kk = static_cast<long long>(m) - 1; kk >= 0; --kk) {
+                for (long long s = static_cast<long long>(S) - 1; s >= r; --s)
+                    dp[kk + 1][s] += dp[kk][s - r];
+            }
+        }
+        const long long W_scaled = static_cast<long long>(
+            std::llround(W * static_cast<double>(scale)));
+        double total = 0.0;
+        for (size_t s = 0; s < S; ++s) total += dp[m][s];
+        double cdfLE = 0.0, cdfGE = 0.0;
+        for (long long s = 0; s <= W_scaled && s < static_cast<long long>(S); ++s)
+            cdfLE += dp[m][s];
+        for (long long s = W_scaled; s < static_cast<long long>(S); ++s)
+            cdfGE += dp[m][s];
+        cdfLE /= total;
+        cdfGE /= total;
+        switch (tail) {
+            case TestTail::Both:
+                p_val = std::min(1.0, 2.0 * std::min(cdfLE, cdfGE));
+                break;
+            case TestTail::Right: p_val = cdfLE; break;  // var x > var y → W ↓
+            case TestTail::Left:  p_val = cdfGE; break;  // var x < var y → W ↑
+        }
+    } else {
+        Value zV = Value::scalar(Wstar, mr);
+        const double Phi = normcdf(zV, 0.0, 1.0, mr).toScalar();
+        switch (tail) {
+            case TestTail::Both:  p_val = 2.0 * std::min(Phi, 1.0 - Phi); break;
+            case TestTail::Right: p_val = Phi;       break;  // P(W ≤ obs)
+            case TestTail::Left:  p_val = 1.0 - Phi; break;  // P(W ≥ obs)
+        }
+    }
+    p_val = std::min(1.0, std::max(0.0, p_val));
+
+    const int h = (p_val < alpha) ? 1 : 0;
+    return std::make_tuple(
+        Value::scalar(static_cast<double>(h), mr),
+        Value::scalar(p_val, mr),
+        Value::scalar(W, mr),
+        Value::scalar(Wstar, mr));
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -2378,6 +2568,43 @@ void lillietest_reg(Span<const Value> args, size_t nargout,
     if (nargout > 1) outs[1] = Value::scalar(p_val,  mr);
     if (nargout > 2) outs[2] = Value::scalar(D,      mr);
     if (nargout > 3) outs[3] = Value::scalar(D_crit, mr);
+}
+
+void ansaribradley_reg(Span<const Value> args, size_t nargout,
+                       Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("ansaribradley: requires (X, Y[, alpha or name-value])",
+                    0, 0, "ansaribradley", "", "m:ansaribradley:nargin");
+    auto *mr = ctx.engine->resource();
+
+    double alpha = 0.05;
+    TestTail tail = TestTail::Both;
+
+    size_t i = 2;
+    if (i < args.size() && !args[i].isChar() && !args[i].isString()) {
+        alpha = args[i].toScalar();
+        ++i;
+    }
+    while (i + 1 < args.size()) {
+        if (!args[i].isChar() && !args[i].isString()) break;
+        std::string name = args[i].toString();
+        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        const Value &v = args[i + 1];
+        if      (name == "alpha") alpha = v.toScalar();
+        else if (name == "tail")  tail  = parse_tail(v.toString(), TestTail::Both);
+        i += 2;
+    }
+
+    auto [h, p, W, Wstar] = ansaribradley(args[0], args[1], alpha, tail, mr);
+    outs[0] = std::move(h);
+    if (nargout > 1) outs[1] = std::move(p);
+    if (nargout > 2) {
+        Value s = Value::structure(mr);
+        s.field("W")     = W;
+        s.field("Wstar") = Wstar;
+        outs[2] = std::move(s);
+    }
 }
 
 } // namespace detail
