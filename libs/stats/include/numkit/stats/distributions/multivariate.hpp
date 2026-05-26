@@ -38,4 +38,29 @@ namespace numkit::stats {
 Value mvnrnd(const Value &mu, const Value &Sigma, std::size_t n = 0,
              std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Multivariate normal CDF (`p = mvncdf(X, mu, Sigma)`).
+///
+/// Returns the probability `P(Y ≤ X)` for `Y ~ N(mu, Sigma)`,
+/// row-wise (each row of `X` is one evaluation point).
+///
+/// Algorithm by dimension:
+///   - `d = 1` → direct `normcdf`.
+///   - `d = 2` → Owen's tetrachoric / Drezner-Wesolowsky numerical
+///               integration (16-point Gauss-Legendre).
+///   - `d ≥ 3` → Monte Carlo with antithetic sampling (10000 draws by
+///               default). KNOWN GAP: Genz separation-of-variables
+///               quasi-MC is more accurate but not yet in v1.
+///
+/// Mu may be omitted (defaults to zero vector). Sigma defaults to
+/// identity. The standard-normal one-arg form `mvncdf(X)` is the
+/// most common usage in practice.
+///
+/// @param X      `n × d` evaluation points (each row one query).
+/// @param mu     `1 × d` mean (may be empty → zero).
+/// @param Sigma  `d × d` covariance (may be empty → identity).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `n × 1` column of cumulative probabilities.
+Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
+              std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats

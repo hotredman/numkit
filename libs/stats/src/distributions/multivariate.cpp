@@ -24,6 +24,10 @@
 #include <random>
 #include <vector>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 namespace numkit::stats {
 
 namespace {
@@ -136,7 +140,170 @@ Value mvnrnd(const Value &mu, const Value &Sigma, std::size_t n,
     return out;
 }
 
+namespace {
+
+// Standard normal CDF.
+double phiCdf(double x) { return 0.5 * std::erfc(-x / std::sqrt(2.0)); }
+
+// 16-point Gauss-Legendre quadrature on [0, 1] for the bivariate
+// normal CDF via the parametric integral
+//   Φ_2(h, k; ρ) = Φ(h) · Φ(k) + ∫_0^ρ φ_2(h, k; t) dt
+// where φ_2 is the bivariate normal pdf.
+double bivariateCdf(double h, double k, double rho)
+{
+    // Clamp ρ to avoid issues at the boundary.
+    if (rho >  1.0 - 1e-12) rho =  1.0 - 1e-12;
+    if (rho < -1.0 + 1e-12) rho = -1.0 + 1e-12;
+
+    // Gauss-Legendre 16-point on [0, 1].
+    static constexpr double GL_X[16] = {
+        0.0052995325041750, 0.0277124884633837, 0.0671843988060841,
+        0.1222977958224985, 0.1910618777986781, 0.2709916111713863,
+        0.3591982246103705, 0.4524937450811813, 0.5475062549188187,
+        0.6408017753896295, 0.7290083888286137, 0.8089381222013219,
+        0.8777022041775015, 0.9328156011939160, 0.9722875115366163,
+        0.9947004674958250
+    };
+    static constexpr double GL_W[16] = {
+        0.0135762297058770, 0.0311267619693239, 0.0475792558412464,
+        0.0623144856277781, 0.0747979944082885, 0.0845782596975013,
+        0.0913017075224618, 0.0947253052275342, 0.0947253052275342,
+        0.0913017075224618, 0.0845782596975013, 0.0747979944082885,
+        0.0623144856277781, 0.0475792558412464, 0.0311267619693239,
+        0.0135762297058770
+    };
+
+    double integral = 0.0;
+    for (int i = 0; i < 16; ++i) {
+        const double t = rho * GL_X[i];   // map [0, 1] → [0, ρ]
+        const double r2 = 1.0 - t * t;
+        // φ_2(h, k; t) at point (h, k) with corr t.
+        const double quad = (h * h - 2.0 * t * h * k + k * k) / (2.0 * r2);
+        const double pdf = std::exp(-quad) / (2.0 * M_PI * std::sqrt(r2));
+        integral += GL_W[i] * pdf;
+    }
+    integral *= rho;
+    return phiCdf(h) * phiCdf(k) + integral;
+}
+
+// Monte Carlo CDF (d ≥ 3): sample from N(mu, Sigma), count how many
+// fall componentwise <= q. Antithetic sampling improves variance.
+double monteCarloCdf(const double *L, std::size_t d,
+                      const double *mu, const double *q,
+                      std::size_t N, std::mt19937 &gen)
+{
+    std::normal_distribution<double> Nz(0.0, 1.0);
+    std::size_t below = 0;
+    std::vector<double> z(d), sample(d);
+    const std::size_t halfN = N / 2;
+    for (std::size_t s = 0; s < halfN; ++s) {
+        for (std::size_t k = 0; k < d; ++k) z[k] = Nz(gen);
+        // sample1 = mu + L * z, sample2 = mu - L * z  (antithetic).
+        for (int sign = 0; sign < 2; ++sign) {
+            const double sz = (sign == 0) ? 1.0 : -1.0;
+            bool ok = true;
+            for (std::size_t j = 0; j < d; ++j) {
+                double v = mu[j];
+                for (std::size_t k = 0; k <= j; ++k)
+                    v += sz * L[j * d + k] * z[k];
+                if (v > q[j]) { ok = false; break; }
+            }
+            if (ok) ++below;
+        }
+    }
+    const std::size_t total = halfN * 2;
+    return static_cast<double>(below) / static_cast<double>(total);
+}
+
+} // namespace
+
+Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
+              std::pmr::memory_resource *mr)
+{
+    const std::size_t n = X.dims().rows();
+    const std::size_t d = X.dims().cols();
+    if (d == 0)
+        throw Error("mvncdf: X must have at least 1 column",
+                    0, 0, "mvncdf", "", "m:mvncdf:badX");
+
+    // Resolve mu (default: zeros).
+    std::vector<double> muv(d, 0.0);
+    if (!mu.isEmpty()) {
+        if (mu.numel() != d)
+            throw Error("mvncdf: mu must have length d",
+                        0, 0, "mvncdf", "", "m:mvncdf:shapeMu");
+        for (std::size_t i = 0; i < d; ++i) muv[i] = mu.elemAsDouble(i);
+    }
+
+    // Resolve Sigma (default: identity). Store row-major Cholesky factor.
+    std::vector<double> L(d * d, 0.0);
+    if (Sigma.isEmpty()) {
+        for (std::size_t i = 0; i < d; ++i) L[i * d + i] = 1.0;
+    } else {
+        if (Sigma.dims().rows() != d || Sigma.dims().cols() != d)
+            throw Error("mvncdf: Sigma must be d × d",
+                        0, 0, "mvncdf", "", "m:mvncdf:shapeSigma");
+        // Copy col-major Sigma to row-major buffer.
+        std::vector<double> S(d * d);
+        for (std::size_t i = 0; i < d; ++i)
+            for (std::size_t j = 0; j < d; ++j)
+                S[i * d + j] = Sigma.elemAsDouble(j * d + i);
+        choleskyLowerInPlace(S.data(), d);
+        L = S;
+    }
+
+    auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+
+    if (d == 1) {
+        // Univariate: (q - mu) / sqrt(Sigma).
+        const double sd = L[0];
+        for (std::size_t i = 0; i < n; ++i) {
+            const double q = X.elemAsDouble(i);
+            od[i] = phiCdf((q - muv[0]) / sd);
+        }
+        return out;
+    }
+    if (d == 2) {
+        // Bivariate: standardise (q - mu) and compute the correlation.
+        // Sigma = L · L', so std-devs are diag entries of L (only the
+        // diagonal of L is the standard deviation when L is lower-tri).
+        // Actually the std devs are sqrt of diagonal of Sigma. Get them
+        // from Sigma directly.
+        const double s1 = Sigma.isEmpty() ? 1.0 : std::sqrt(Sigma.elemAsDouble(0));
+        const double s2 = Sigma.isEmpty() ? 1.0 : std::sqrt(Sigma.elemAsDouble(3));
+        const double s12 = Sigma.isEmpty() ? 0.0 : Sigma.elemAsDouble(2);
+        const double rho = (s1 > 0 && s2 > 0) ? s12 / (s1 * s2) : 0.0;
+        for (std::size_t i = 0; i < n; ++i) {
+            const double h = (X.elemAsDouble(0 * n + i) - muv[0]) / s1;
+            const double k = (X.elemAsDouble(1 * n + i) - muv[1]) / s2;
+            od[i] = bivariateCdf(h, k, rho);
+        }
+        return out;
+    }
+
+    // d ≥ 3: Monte Carlo.
+    std::mt19937 gen(12345);   // deterministic seed for reproducibility
+    std::vector<double> q(d);
+    for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t j = 0; j < d; ++j)
+            q[j] = X.elemAsDouble(j * n + i);
+        od[i] = monteCarloCdf(L.data(), d, muv.data(), q.data(), 20000, gen);
+    }
+    return out;
+}
+
 namespace detail {
+
+void mvncdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("mvncdf: requires (X [, mu, Sigma])",
+                    0, 0, "mvncdf", "", "m:mvncdf:nargin");
+    const Value muV    = (args.size() >= 2) ? args[1] : Value::empty();
+    const Value sigmaV = (args.size() >= 3) ? args[2] : Value::empty();
+    outs[0] = mvncdf(args[0], muV, sigmaV, ctx.engine->resource());
+}
 
 void mvnrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
