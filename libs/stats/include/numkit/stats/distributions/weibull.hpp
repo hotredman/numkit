@@ -78,4 +78,21 @@ Value wblrnd(double a, double b, size_t rows = 1, size_t cols = 1,
 /// @see wblpdf
 std::tuple<double, double> wblstat(double a, double b);
 
+/// @brief Weibull MLE fit (`[ahat, bhat] = wblfit(x)`).
+///
+/// Solves the MLE system for `Weibull(a, b)` (`a` = scale, `b` =
+/// shape). The shape `b` satisfies the implicit equation
+///
+///   `1/b + mean(log x) - Σ x_i^b · log(x_i) / Σ x_i^b = 0`
+///
+/// solved via Newton iteration on `b` starting from the moment-based
+/// initial guess. Scale follows as `a = (Σ x_i^b / n)^{1/b}`.
+///
+/// KNOWN GAP: confidence intervals (`bci` second output) deferred.
+///
+/// @param x   Positive sample data.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `[ahat, bhat]` as a `1 × 2` row (scale, shape).
+Value wblfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats

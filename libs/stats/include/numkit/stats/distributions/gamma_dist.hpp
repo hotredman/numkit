@@ -102,4 +102,20 @@ Value randg(double shape, size_t rows = 1, size_t cols = 1,
 Value randg(const Value &shapeArray,
             std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Gamma distribution MLE fit (`[ahat, bhat] = gamfit(x)`).
+///
+/// Solves the MLE system for `Gamma(a, b)` on positive data. The
+/// shape `a` is found by Newton iteration on `log a - ψ(a) = s` where
+/// `s = log(mean(x)) - mean(log(x))` (Minka 2002 initial guess +
+/// digamma/trigamma Newton); the scale `b = mean(x) / a`.
+///
+/// Returns a 2-element vector `[ahat, bhat]`. KNOWN GAP: confidence
+/// intervals (`bci` second output) deferred — MATLAB ships them but
+/// the v1 numkit form is single-output.
+///
+/// @param x   Positive sample data (1-D vector or matrix; flattened).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `[ahat, bhat]` as a `1 × 2` row.
+Value gamfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats

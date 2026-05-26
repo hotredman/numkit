@@ -1,0 +1,16 @@
+{
+  "name": "dist_fits",
+  "covers": ["gamfit", "wblfit"],
+  "namespace": "stats",
+  "setup": "rng(0); xg = gamrnd(2.0, 3.0, 3000, 1); xw = wblrnd(3.0, 2.0, 3000, 1);",
+  "expr": "fg = gamfit(xg); err_a = abs(fg(1) - 2.0); err_b = abs(fg(2) - 3.0); fw = wblfit(xw); err_aw = abs(fw(1) - 3.0); err_bw = abs(fw(2) - 2.0);",
+  "iters": 3,
+  "tol": 0.1,
+  "fingerprint": [
+    "double(err_a < 0.4)", "double(err_b < 0.5)",
+    "double(err_aw < 0.4)", "double(err_bw < 0.4)",
+    "size(fg, 1)", "size(fg, 2)",
+    "size(fw, 1)", "size(fw, 2)"
+  ],
+  "comment": "Sig: [ahat, bhat] = gamfit(x) — Gamma(shape, scale) MLE via Minka 2002 init + digamma/trigamma Newton on the shape, scale follows from b = mean(x)/a. [ahat, bhat] = wblfit(x) — Weibull(scale, shape) MLE via Newton on the implicit shape equation, scale = (Σ x^b / n)^(1/b). KNOWN GAP: confidence intervals (`bci` second output) deferred in v1. Spec uses stochastic samples — fingerprint pins error bounds and output shape rather than literal values (engine RNG diverges)."
+}
