@@ -193,6 +193,107 @@ Value ncfpdf(const Value &x, double nu1, double nu2, double delta,
     return elementwise(x, [&](double xi) { return ncfpdf_one(xi, nu1, nu2, delta); }, mr);
 }
 
+namespace {
+
+inline double betainc_scalar(double y, double a, double b,
+                             std::pmr::memory_resource *mr)
+{
+    Value yv = Value::scalar(y, mr);
+    Value av = Value::scalar(a, mr);
+    Value bv = Value::scalar(b, mr);
+    return ::numkit::builtin::betainc(yv, av, bv, mr).toScalar();
+}
+
+double ncfcdf_one(double x, double nu1, double nu2, double delta,
+                  std::pmr::memory_resource *mr)
+{
+    if (!(nu1 > 0.0) || !(nu2 > 0.0) || delta < 0.0)
+        return std::numeric_limits<double>::quiet_NaN();
+    if (x <= 0.0) return 0.0;
+    const double y = (nu1 * x) / (nu1 * x + nu2);
+    if (delta == 0.0)
+        return betainc_scalar(y, 0.5 * nu1, 0.5 * nu2, mr);
+
+    const double L = 0.5 * delta;
+    double Pj = std::exp(-L);
+    double sum = 0.0;
+    constexpr int kMax = 2000;
+    for (int k = 0; k < kMax; ++k) {
+        const double I = betainc_scalar(y, 0.5 * nu1 + double(k), 0.5 * nu2, mr);
+        const double t = Pj * I;
+        sum += t;
+        if (k > 5 && t < 1e-16 * (sum + 1e-300)) break;
+        Pj *= L / double(k + 1);
+    }
+    if (sum > 1.0) sum = 1.0;
+    if (sum < 0.0) sum = 0.0;
+    return sum;
+}
+
+double ncfinv_one(double p, double nu1, double nu2, double delta,
+                  std::pmr::memory_resource *mr)
+{
+    if (!(nu1 > 0.0) || !(nu2 > 0.0) || delta < 0.0
+        || std::isnan(p) || p < 0.0 || p > 1.0)
+        return std::numeric_limits<double>::quiet_NaN();
+    if (p == 0.0) return 0.0;
+    if (p == 1.0) return std::numeric_limits<double>::infinity();
+
+    // Initial guess: central finv (or rough fallback for δ > 0).
+    double x;
+    {
+        Value pv = Value::scalar(p, mr);
+        x = finv(pv, nu1, nu2, mr).toScalar();
+        if (!(x > 0.0) || !std::isfinite(x)) x = 1.0;
+    }
+    // Heuristic right-shift for δ > 0: noncentral F has larger mean.
+    if (delta > 0.0) x *= (1.0 + delta / nu1);
+
+    double lo = 0.0;
+    double hi = std::max(x + 1.0, 50.0 * x + 50.0);
+    while (ncfcdf_one(hi, nu1, nu2, delta, mr) < p) {
+        hi *= 2.0;
+        if (!std::isfinite(hi)) break;
+    }
+
+    for (int it = 0; it < 80; ++it) {
+        const double F  = ncfcdf_one(x, nu1, nu2, delta, mr);
+        const double f  = ncfpdf_one(x, nu1, nu2, delta);
+        const double err = F - p;
+        if (std::fabs(err) < 1e-14) return x;
+        if (err > 0.0) hi = x; else lo = x;
+        double x_new;
+        if (f > 1e-300) {
+            x_new = x - err / f;
+            if (!std::isfinite(x_new) || x_new <= lo || x_new >= hi)
+                x_new = 0.5 * (lo + hi);
+        } else {
+            x_new = 0.5 * (lo + hi);
+        }
+        if (std::fabs(x_new - x) < 1e-14 * std::max(1.0, std::fabs(x_new)))
+            return x_new;
+        x = x_new;
+    }
+    return x;
+}
+
+} // anonymous
+
+Value ncfcdf(const Value &x, double nu1, double nu2, double delta,
+             bool upper, std::pmr::memory_resource *mr)
+{
+    return elementwise(x, [&](double xi) {
+        const double F = ncfcdf_one(xi, nu1, nu2, delta, mr);
+        return upper ? 1.0 - F : F;
+    }, mr);
+}
+
+Value ncfinv(const Value &p, double nu1, double nu2, double delta,
+             std::pmr::memory_resource *mr)
+{
+    return elementwise(p, [&](double pi) { return ncfinv_one(pi, nu1, nu2, delta, mr); }, mr);
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -247,6 +348,26 @@ void ncfpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
         throw Error("ncfpdf: requires (x, nu1, nu2, delta)",
                     0, 0, "ncfpdf", "", "m:ncfpdf:nargin");
     outs[0] = ncfpdf(args[0], args[1].toScalar(), args[2].toScalar(),
+                     args[3].toScalar(), ctx.engine->resource());
+}
+
+void ncfcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    bool upper = false;
+    const size_t n = stripUpperFlag(args, upper);
+    if (n < 4)
+        throw Error("ncfcdf: requires (x, nu1, nu2, delta[, 'upper'])",
+                    0, 0, "ncfcdf", "", "m:ncfcdf:nargin");
+    outs[0] = ncfcdf(args[0], args[1].toScalar(), args[2].toScalar(),
+                     args[3].toScalar(), upper, ctx.engine->resource());
+}
+
+void ncfinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("ncfinv: requires (p, nu1, nu2, delta)",
+                    0, 0, "ncfinv", "", "m:ncfinv:nargin");
+    outs[0] = ncfinv(args[0], args[1].toScalar(), args[2].toScalar(),
                      args[3].toScalar(), ctx.engine->resource());
 }
 

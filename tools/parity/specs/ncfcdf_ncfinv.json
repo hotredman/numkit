@@ -1,0 +1,16 @@
+{
+  "name": "ncfcdf_ncfinv",
+  "covers": ["ncfcdf", "ncfinv"],
+  "namespace": "stats",
+  "setup": "x = [0.5 1.0 1.5 2.0 3.0]; p = [0.1 0.3 0.5 0.7 0.9]; nu1 = 5; nu2 = 10; delta = 3;",
+  "expr": "yc = ncfcdf(x, nu1, nu2, delta); yc_up = ncfcdf(1.5, nu1, nu2, delta, 'upper'); central = ncfcdf(1.5, nu1, nu2, 0); central_f = fcdf(1.5, nu1, nu2); xinv = ncfinv(p, nu1, nu2, delta); rt = ncfcdf(xinv, nu1, nu2, delta); rt_err = max(abs(rt - p));",
+  "iters": 5,
+  "tol": 1e-08,
+  "fingerprint": [
+    "yc(1)", "yc(2)", "yc(3)", "yc(4)", "yc(5)",
+    "yc_up", "central", "central_f",
+    "xinv(1)", "xinv(2)", "xinv(3)", "xinv(4)", "xinv(5)",
+    "double(rt_err < 1e-08)"
+  ],
+  "comment": "Sig: ncfcdf(x, nu1, nu2, delta[, 'upper']) — noncentral F cdf via Poisson-mixture in regularised incomplete beta: F(x) = Σ_k Poisson(k; δ/2) · I_y(ν₁/2+k, ν₂/2), y = ν₁x/(ν₁x+ν₂). ncfinv(p, nu1, nu2, delta) — Newton on ncfcdf with central finv as warm start, bracketed bisection fallback. delta=0 reduces to central fcdf/finv. Verified bit-equal to MATLAB R2025b at 1e-8 tol (ncfcdf bit-identical, ncfinv to ~1e-6 via Newton convergence). KNOWN GAPs: ncfstat, ncfrnd next cycles."
+}
