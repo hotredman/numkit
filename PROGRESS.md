@@ -3130,7 +3130,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 |---|:---:|---:|---:|---:|:---:|---|
 | `mvncdf` | ❌ |  |  |  |  | multivariate normal |
 | `mvnpdf` | ✅ | 0.009 | 171.23× | 37.84× | OK | Sig: p = mvnpdf(X[, mu[, Sigma]]). Multivariate normal PDF. Defaults: mu=zeros, Sigma=I. Cholesky-based |Σ|^(-1/2) and Σ^(-1) for numerical stability. Verified bit-identical to MATLAB R2025b on default / explicit mu / explicit Σ paths. |
-| `mvnrnd` | ❌ |  |  |  |  |  |
+| `mvnrnd` | ✅ | 0.217 | 12.35× |  | OK | Sig: randg(shape [, m, n]) — raw gamma(shape, 1) RNG (scale = 1). Forwards to gamrnd internally. Per-element shape supported. mvnrnd(mu, Sigma [, n]) — multivariate normal RNG via in-place Cholesky on Sigma + N(0,1) draws. Supports vector mu (1×d, d×1) or matrix mu (n×d, per-row location). Bit-exact MATLAB R2025b not feasible (different RNG seeds); fingerprint pins distributional moments (mean ≈ shape, var ≈ shape for randg; mean ≈ mu, diag(cov) ≈ diag(Sigma) for mvnrnd) within statistical tolerance over n=3000 draws. |
 | `mvtcdf` | ❌ |  |  |  |  | multivariate t |
 | `mvtpdf` | ✅ | 0.008 | 135.07× | 45.79× | OK | Sig: p = mvtpdf(X, C, df). Multivariate Student-t PDF; C normalized to correlation matrix. Cholesky-based |C|^(-1/2) + quadratic form. Bit-identical to MATLAB R2025b. |
 | `mvtrnd` | ❌ |  |  |  |  |  |
@@ -3156,7 +3156,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `pearsinv` | ❌ |  |  |  |  |  |
 | `pearsrnd` | ❌ |  |  |  |  |  |
 | `johnsrnd` | ❌ |  |  |  |  | Johnson family random |
-| `randg` | ❌ |  |  |  |  | gamma random utility |
+| `randg` | ✅ | 0.217 | 12.35× |  | OK | Sig: randg(shape [, m, n]) — raw gamma(shape, 1) RNG (scale = 1). Forwards to gamrnd internally. Per-element shape supported. mvnrnd(mu, Sigma [, n]) — multivariate normal RNG via in-place Cholesky on Sigma + N(0,1) draws. Supports vector mu (1×d, d×1) or matrix mu (n×d, per-row location). Bit-exact MATLAB R2025b not feasible (different RNG seeds); fingerprint pins distributional moments (mean ≈ shape, var ≈ shape for randg; mean ≈ mu, diag(cov) ≈ diag(Sigma) for mvnrnd) within statistical tolerance over n=3000 draws. |
 
 ### Empirical / Kernel Distributions
 
