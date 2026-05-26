@@ -402,6 +402,34 @@ Value contrast(const Value &x, int m, std::pmr::memory_resource *mr = nullptr);
 
 // ── Colour difference / whitepoints / utility ───────────────────────
 
+/// @brief BT.2020 / BT.2100 wide-gamut RGB → YCbCr
+/// (`ycbcr = rgbwide2ycbcr(RGB, bps)`).
+///
+/// Non-constant-luminance YCbCr per ITU-R BT.2020-2 / BT.2100-2
+/// (10-bit or 12-bit narrow-range). `bps` must be 10 or 12. Input
+/// `RGB` is UINT16 with values in `[64, 940]` (10-bit) or
+/// `[256, 3760]` (12-bit); out-of-range pixels are mapped via the
+/// same affine transform but the result is no longer guaranteed to
+/// land in the nominal YCbCr range.
+///
+/// Algorithm:
+///   * Normalise: `rgbN = (RGB − blackLevel) / nominalRange`
+///   * `Y'  = 0.2627·R + 0.6780·G + 0.0593·B`
+///   * `Cb = (B − Y')/1.8814,  Cr = (R − Y')/1.4746`
+///   * Quantise: `Y_out  = uint16((219·Y'  + 16 )·2^(bps−8))`,
+///               `Cb_out = uint16((224·Cb + 128)·2^(bps−8))`,
+///               `Cr_out = uint16((224·Cr + 128)·2^(bps−8))`
+///
+/// Accepts `p × 3` colour lists (returned as `p × 3`) and
+/// `H × W × 3` images.
+///
+/// @param RGB             UINT16 wide-gamut RGB.
+/// @param bits_per_sample 10 or 12.
+/// @param mr              Memory resource (nullptr → process default).
+/// @return                UINT16 YCbCr, same shape as `RGB`.
+Value rgbwide2ycbcr(const Value &RGB, int bits_per_sample,
+                    std::pmr::memory_resource *mr = nullptr);
+
 /// @brief CIE94 / CIEDE2000 colour difference
 /// (`dE = imcolordiff(I1, I2, ...)`).
 ///

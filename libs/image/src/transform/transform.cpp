@@ -512,25 +512,67 @@ Value otf2psf(const Value &OTF, Span<const size_t> outsize, std::pmr::memory_res
     const size_t inW = d.cols();
     const bool is1D = (inH == 1 || inW == 1);
 
+    // Resolve target output shape.
+    //   no outsize             → same as OTF (no cropping)
+    //   1-element outsize      → 1-D vector of that length (matching the
+    //                            non-singleton orientation), or L×L if
+    //                            OTF is 2-D
+    //   2-element outsize      → use directly
+    size_t outH = inH;
+    size_t outW = inW;
+    if (outsize.size() == 1) {
+        const size_t L = outsize[0];
+        if (is1D) {
+            if (inH == 1) { outH = 1; outW = L; }
+            else          { outH = L; outW = 1; }
+        } else { outH = L; outW = L; }
+    } else if (outsize.size() >= 2) {
+        outH = outsize[0];
+        outW = outsize[1];
+    }
+    if (outH > inH || outW > inW)
+        throw Error("otf2psf: OUTSIZE must not exceed the size of the OTF "
+                    "array in any dimension",
+                    0, 0, "otf2psf", "", "m:otf2psf:outsize");
+
     // Inverse FFT.
     Value psf = is1D ? signal::ifft(OTF, -1, 0, mr)
                      : signal::ifft2(OTF, -1, -1, mr);
 
-    // Circular shift by +floor(insize / 2) (inverse of psf2otf shift).
-    const auto &dp = psf.dims();
-    const int64_t shiftR =  static_cast<int64_t>(dp.rows() / 2);
-    const int64_t shiftC =  static_cast<int64_t>(dp.cols() / 2);
+    // Circular shift by +floor(OUTSIZE / 2), matching MATLAB's
+    // otf2psf source (NOT floor(insize/2) — the shift amount depends
+    // on the requested output size). With outsize == insize this
+    // reduces to the standard "ifftshift" behaviour.
+    const int64_t shiftR = static_cast<int64_t>(outH / 2);
+    const int64_t shiftC = static_cast<int64_t>(outW / 2);
     Value shifted;
     if (is1D) {
-        shifted = builtin::circshift(psf, (dp.rows() == 1) ? shiftC : shiftR, mr);
+        shifted = builtin::circshift(psf, (inH == 1) ? shiftC : shiftR, mr);
     } else {
         shifted = builtin::circshift(psf, shiftR, shiftC, mr);
     }
 
-    // Note: optional outsize-based cropping not yet implemented;
-    // typical use is OTF the same size as the desired PSF.
-    (void)outsize;
-    return shifted;
+    // Crop to the requested outsize (top-left sub-matrix). After the
+    // circshift the PSF support lands at the top-left corner.
+    if (outH == inH && outW == inW) return shifted;
+
+    const bool is_complex = shifted.isComplex();
+    Value cropped = Value::matrix(outH, outW,
+        is_complex ? ValueType::COMPLEX : ValueType::DOUBLE, mr);
+    if (is_complex) {
+        const Complex *src = shifted.complexData();
+        Complex *dst = cropped.complexDataMut();
+        for (size_t j = 0; j < outW; ++j)
+            for (size_t i = 0; i < outH; ++i)
+                dst[j * outH + i] = src[j * inH + i];
+    } else {
+        const double *src = shifted.doubleData();
+        double *dst = cropped.doubleDataMut();
+        for (size_t j = 0; j < outW; ++j)
+            for (size_t i = 0; i < outH; ++i)
+                dst[j * outH + i] = src[j * inH + i];
+    }
+    return cropped;
 }
 
 Value normxcorr2(const Value &templ, const Value &img, std::pmr::memory_resource *mr)

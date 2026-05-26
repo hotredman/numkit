@@ -176,4 +176,99 @@ void rgb2ind_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
+// ── rgbwide2ycbcr (BT.2020 / BT.2100 narrow-range) ─────────────────
+//
+// Reference: ITU-R Rec. BT.2020-2 (10/2015) and BT.2100-2 (07/2018)
+// — non-constant-luminance YCbCr encoding for wide-gamut UHDTV /
+// HDR-TV. Algorithm transliterated verbatim from MATLAB R2025b
+// `images/colorspaces/+images/+color/+internal/rgbwide2ycbcrImpl.m`
+// (column-major / non-codegen path).
+//
+// Pipeline (per pixel):
+//   1. blackLevel    = 64 (bps = 10) or 256 (bps = 12)
+//      nominalPeak   = 940       or 3760
+//      nominalRange  = peak − black
+//   2. R_n = (R − black)/range, G_n same, B_n same.
+//   3. Y'  = 0.2627·R_n + 0.6780·G_n + 0.0593·B_n   (BT.2020 luma).
+//   4. Cb  = (B_n − Y')/1.8814,  Cr = (R_n − Y')/1.4746.
+//   5. Quantise (uint16):
+//        Y_out  = round((219·Y'  + 16 )·2^(bps − 8))
+//        Cb_out = round((224·Cb + 128)·2^(bps − 8))
+//        Cr_out = round((224·Cr + 128)·2^(bps − 8))
+Value rgbwide2ycbcr(const Value &RGB, int bits_per_sample,
+                    std::pmr::memory_resource *mr)
+{
+    if (bits_per_sample != 10 && bits_per_sample != 12)
+        throw Error("rgbwide2ycbcr: BPS must be 10 or 12",
+                    0, 0, "rgbwide2ycbcr", "", "m:rgbwide2ycbcr:bps");
+    if (RGB.type() != ValueType::UINT16)
+        throw Error("rgbwide2ycbcr: RGB must be UINT16",
+                    0, 0, "rgbwide2ycbcr", "", "m:rgbwide2ycbcr:class");
+
+    const auto &d = RGB.dims();
+    // Two shapes: p × 3 colour list, or H × W × 3 image.
+    const bool is_image = d.is3D();
+    if (is_image) {
+        if (d.pages() != 3)
+            throw Error("rgbwide2ycbcr: H×W×3 image expected",
+                        0, 0, "rgbwide2ycbcr", "", "m:rgbwide2ycbcr:shape");
+    } else {
+        if (d.cols() != 3)
+            throw Error("rgbwide2ycbcr: p×3 colour list expected",
+                        0, 0, "rgbwide2ycbcr", "", "m:rgbwide2ycbcr:shape");
+    }
+
+    const double blackLevel  = (bits_per_sample == 10) ?  64.0 : 256.0;
+    const double nominalPeak = (bits_per_sample == 10) ? 940.0 : 3760.0;
+    const double nominalRange = nominalPeak - blackLevel;
+    const double scale        = (bits_per_sample == 10) ?  4.0 :  16.0; // 2^(bps-8)
+
+    const std::size_t H = is_image ? d.rows() : d.rows();
+    const std::size_t W = is_image ? d.cols() : 1;
+    const std::size_t N = H * W;
+
+    Value out;
+    if (is_image) out = Value::matrix3d(H, W, 3, ValueType::UINT16, mr);
+    else          out = Value::matrix(H, 3, ValueType::UINT16, mr);
+
+    const uint16_t *src = RGB.uint16Data();
+    uint16_t *dst = out.uint16DataMut();
+
+    // For the p × 3 list, channels are columns (stride = H = p).
+    // For the H × W × 3 image, channels are pages (stride = H · W = N).
+    const std::size_t ch_stride = is_image ? N : H;
+
+    auto clamp_round = [](double v) -> uint16_t {
+        if (v < 0.0)        return 0;
+        if (v > 65535.0)    return 65535;
+        return static_cast<uint16_t>(v + 0.5);   // round-half-up
+    };
+
+    for (std::size_t k = 0; k < (is_image ? N : H); ++k) {
+        const double R = (static_cast<double>(src[0 * ch_stride + k]) - blackLevel) / nominalRange;
+        const double G = (static_cast<double>(src[1 * ch_stride + k]) - blackLevel) / nominalRange;
+        const double B = (static_cast<double>(src[2 * ch_stride + k]) - blackLevel) / nominalRange;
+        const double Y  = 0.2627 * R + 0.6780 * G + 0.0593 * B;
+        const double Cb = (B - Y) / 1.8814;
+        const double Cr = (R - Y) / 1.4746;
+        dst[0 * ch_stride + k] = clamp_round((219.0 * Y  +  16.0) * scale);
+        dst[1 * ch_stride + k] = clamp_round((224.0 * Cb + 128.0) * scale);
+        dst[2 * ch_stride + k] = clamp_round((224.0 * Cr + 128.0) * scale);
+    }
+    return out;
+}
+
+namespace detail {
+
+void rgbwide2ycbcr_reg(Span<const Value> args, size_t /*nargout*/,
+                       Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("rgbwide2ycbcr: requires (RGB, BPS)",
+                    0, 0, "rgbwide2ycbcr", "", "m:rgbwide2ycbcr:nargin");
+    const int bps = static_cast<int>(args[1].toScalar());
+    outs[0] = rgbwide2ycbcr(args[0], bps, ctx.engine->resource());
+}
+
+} // namespace detail
 } // namespace numkit::image
