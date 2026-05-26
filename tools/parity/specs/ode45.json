@@ -1,0 +1,27 @@
+{
+  "name": "ode45",
+  "namespace": "ode",
+  "setup": "f = @(t,y) -y; ts = linspace(0,2,11); opts = odeset('RelTol',1e-8,'AbsTol',1e-10);",
+  "expr": "[t,y] = ode45(f, ts, 1, opts);",
+  "iters": 3,
+  "tol": 1e-7,
+  "fingerprint": [
+    "size(y,1)",
+    "size(y,2)",
+    "size(t,1)",
+    "size(t,2)",
+    "y(1)",
+    "y(end)",
+    "y(6)",
+    "t(end)",
+    "abs(y(end) - exp(-2)) < 1e-7"
+  ],
+  "covers": [
+    "ode45(f, tspan, y0)            scalar IVP, explicit tspan",
+    "ode45(f, tspan, y0, opts)      with odeset() opts",
+    "RelTol / AbsTol propagation",
+    "dense-output interpolation at explicit tspan points",
+    "[t, y] output shape  (n × 1, n × d)"
+  ],
+  "comment": "Sig 1+2: ode45(@f, tspan, y0) and ode45(@f, tspan, y0, opts). MATLAB R2025b runs Dormand-Prince 5(4) with Shampine's 4-th order free interpolant for dense output; numkit ode45 implements the same RK tableau (Hairer-Norsett-Wanner Vol I, p.178) and the same Shampine 1986 interpolant. With explicit tspan + tight tols, numkit and MATLAB land identically on the requested sample points (verified to ~1e-9). The fingerprint also exercises shape (n=11, d=1) and analytical solution exp(-2). Refine, MaxStep, multi-variable, reverse integration, and additional opts are covered by gtest + smoke."
+}
