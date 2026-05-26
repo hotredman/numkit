@@ -43,30 +43,36 @@ A worked example to copy is linked at the end.
 
 # MATLAB parity & provenance
 
-## 0. Scope — functions only, no MATLAB-style classes
+## 0. Scope — no object-returning MATLAB functions
 
-numkit `libs/` ships **MATLAB functions only**. Out of scope:
+A MATLAB function is **in scope** when both its inputs and its outputs
+are tagged-variant data (numeric / logical / string / cell / struct).
+It is **out of scope** at the current stage when:
 
-  * MATLAB-style OOP classes (`classdef`, methods, properties, events,
-    inheritance). Examples: `table`, `timetable`, `categorical`,
-    `containers.Map`, `dictionary`, `datetime`, `duration`,
-    `function_handle` class methods, `cvpartition` object,
-    `qrandstream` object, `digraph`/`graph` objects, all
-    `*` System Objects, `gpuArray`, etc.
-  * Anything that requires `obj = ClassName(...)` plus
-    `obj.method(...)` syntax on user-defined types.
+  * It **returns a MATLAB object** (anything constructed via `classdef`
+    — `table`, `timetable`, `categorical`, `dictionary`, `datetime`,
+    `duration`, `cvpartition`, `qrandstream`, `sobolset`, `haltonset`,
+    `digraph`, `graph`, `containers.Map`, System Objects, `gpuArray`,
+    `tform2d`, `imref2d`, etc.).
+  * It **takes such an object as an argument** (e.g. `randn(rng_obj)`
+    using a `RandStream`, `seqcompare(seqobj1, seqobj2)`).
+  * It is a **method on a MATLAB class** rather than a free function
+    (`obj.method(args)` syntax).
 
-When a MATLAB function NAME exists but is class-bound (e.g.
-`readtable` returns a `table`), it stays out of scope until the
-relevant class is in scope — mark `❌` with the note "needs <class>"
-in PROGRESS.md. Plain functions that *consume* numeric/cell/struct
-arrays remain fully in scope.
+When a function name exists but is object-bound (e.g. `readtable`
+returns a `table`, `cvpartition` returns a `cvpartition`), mark `❌`
+in PROGRESS.md with the note "needs <class>". Free functions that
+operate on numeric / cell / struct arrays remain fully in scope.
 
-Rationale: numkit's value type is a tagged variant; adding user-OOP
-would multiply the type-dispatch surface, fragment the calling
-convention, and conflict with §13 (no `Engine` in the public API).
-Helper structs returned by parity functions (e.g. `RobustfitResult`,
-`GlmfitResult`) are **plain aggregates**, not classes — see §15.
+Internal C++ classes inside numkit (`Engine`, `Value`, scratch arenas)
+and **plain aggregate result structs** returned by parity functions
+(`RobustfitResult`, `GlmfitResult`, `NlinfitResult`, etc.) are fine —
+they are not MATLAB-exposed OOP.
+
+Rationale: numkit's value type is a tagged variant. Adding
+MATLAB-OOP would multiply the dispatch surface, fragment the
+calling convention, and require dragging the Engine into class
+state — see §13.
 
 ## 1. Replicate the MATLAB API in full
 
