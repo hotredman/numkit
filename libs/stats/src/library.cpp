@@ -76,6 +76,7 @@ void nanmax_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nanmin_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nanvar_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nanstd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void nancov_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 // distributions/normal.cpp
 void normpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void normcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -569,6 +570,7 @@ void StatsLibrary::install(Engine &engine)
     reg("nan", "nanmin",    &stats::detail::nanmin_reg);
     reg("nan", "nanvar",    &stats::detail::nanvar_reg);
     reg("nan", "nanstd",    &stats::detail::nanstd_reg);
+    reg("nan", "nancov",    &stats::detail::nancov_reg);
 
     reg("moving", "movmean",    &stats::detail::movmean_reg);
     reg("moving", "movsum",     &stats::detail::movsum_reg);
