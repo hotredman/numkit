@@ -619,47 +619,110 @@ Value iwishrnd(const Value &Tau, double df,
 
 // ── mvtcdf ──────────────────────────────────────────────────────────
 
-Value mvtcdf(const Value &X, const Value &C, double df,
-             std::pmr::memory_resource *mr)
-{
-    if (!(df > 0.0))
-        throw Error("mvtcdf: df must be positive",
-                    0, 0, "mvtcdf", "", "m:mvtcdf:badDf");
-    // Determine dimension d from C (must be square).
-    if (C.dims().rows() != C.dims().cols())
-        throw Error("mvtcdf: C must be square",
-                    0, 0, "mvtcdf", "", "m:mvtcdf:notSquareC");
-    const std::size_t d = C.dims().rows();
-    if (d == 0)
-        return Value::matrix(0, 1, ValueType::DOUBLE, mr);
+namespace {
 
-    // X can be length-d row or n × d.
+// Validate C square, infer d. Return (d, n).
+std::pair<std::size_t, std::size_t>
+mvtcdf_shape_check(const Value &X, const Value &C, const char *fn)
+{
+    if (C.dims().rows() != C.dims().cols())
+        throw Error(std::string(fn) + ": C must be square",
+                    0, 0, fn, "", std::string("m:") + fn + ":notSquareC");
+    const std::size_t d = C.dims().rows();
+    if (d == 0) return {0, 0};
     std::size_t n;
     if (X.isScalar()) {
         if (d != 1)
-            throw Error("mvtcdf: X is scalar but d > 1",
-                        0, 0, "mvtcdf", "", "m:mvtcdf:shapeX");
+            throw Error(std::string(fn) + ": X is scalar but d > 1",
+                        0, 0, fn, "", std::string("m:") + fn + ":shapeX");
         n = 1;
     } else if (X.dims().rows() == 1 && X.dims().cols() == d) {
         n = 1;
     } else if (X.dims().cols() == d) {
         n = X.dims().rows();
     } else {
-        throw Error("mvtcdf: X must be 1×d or n×d",
-                    0, 0, "mvtcdf", "", "m:mvtcdf:shapeX");
+        throw Error(std::string(fn) + ": X must be 1×d or n×d",
+                    0, 0, fn, "", std::string("m:") + fn + ":shapeX");
     }
+    return {d, n};
+}
+
+// Sample-count from tol: standard error of indicator MC ≈ 1/(2·sqrt(N))
+// for p near 0.5; pick N = max(10000, 1/tol²).
+int mvtcdf_N_from_tol(double tol)
+{
+    if (!(tol > 0.0)) tol = 0.01;
+    const double n_d = 1.0 / (tol * tol);
+    int N = (n_d > 1e7) ? 10000000 : static_cast<int>(std::ceil(n_d));
+    if (N < 10000) N = 10000;
+    if (N % 2) ++N;   // antithetic pairs
+    return N;
+}
+
+// Core MC: hits when L[row] < y < U[row] componentwise, antithetic.
+// Lvec / Uvec are length-d (-Inf / +Inf allowed). Returns probability.
+template <typename FetchLU>
+double mvtcdf_mc(const std::vector<double> &Lchol, std::size_t d,
+                 double df, int N, std::mt19937_64 &gen,
+                 FetchLU &&fetch_LU /* (j) -> {Lj, Uj} */)
+{
+    std::normal_distribution<double> Nz(0.0, 1.0);
+    std::chi_squared_distribution<double> Chi(df);
+    std::vector<double> z(d), y(d), Lvec(d), Uvec(d);
+    for (std::size_t j = 0; j < d; ++j) {
+        auto [lj, uj] = fetch_LU(j);
+        Lvec[j] = lj; Uvec[j] = uj;
+    }
+    int hits = 0;
+    for (int k = 0; k < N / 2; ++k) {
+        for (std::size_t j = 0; j < d; ++j) z[j] = Nz(gen);
+        const double scale = std::sqrt(df / Chi(gen));
+        // Pass 1: z direct.
+        for (std::size_t j = 0; j < d; ++j) {
+            double s = 0.0;
+            for (std::size_t k2 = 0; k2 <= j; ++k2)
+                s += Lchol[j * d + k2] * z[k2];
+            y[j] = s * scale;
+        }
+        bool inside = true;
+        for (std::size_t j = 0; j < d; ++j) {
+            if (y[j] < Lvec[j] || y[j] > Uvec[j]) { inside = false; break; }
+        }
+        if (inside) ++hits;
+        // Pass 2: -z antithetic.
+        for (std::size_t j = 0; j < d; ++j) {
+            double s = 0.0;
+            for (std::size_t k2 = 0; k2 <= j; ++k2)
+                s -= Lchol[j * d + k2] * z[k2];
+            y[j] = s * scale;
+        }
+        inside = true;
+        for (std::size_t j = 0; j < d; ++j) {
+            if (y[j] < Lvec[j] || y[j] > Uvec[j]) { inside = false; break; }
+        }
+        if (inside) ++hits;
+    }
+    return static_cast<double>(hits) / static_cast<double>(N);
+}
+
+} // anonymous
+
+Value mvtcdf(const Value &X, const Value &C, double df, double tol,
+             std::pmr::memory_resource *mr)
+{
+    if (!(df > 0.0))
+        throw Error("mvtcdf: df must be positive",
+                    0, 0, "mvtcdf", "", "m:mvtcdf:badDf");
+    auto [d, n] = mvtcdf_shape_check(X, C, "mvtcdf");
+    if (d == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
 
     auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     if (n == 0) return out;
     double *od = out.doubleDataMut();
 
-    // d = 1: direct tcdf.
     if (d == 1) {
         for (std::size_t i = 0; i < n; ++i) {
             const double xi = X.elemAsDouble(i);
-            // tcdf via I_z(ν/2, 1/2): use the existing scalar form via Value.
-            // Cheaper: call a local scalar from students_t conventions.
-            // Use I_z = betainc(ν/(ν+x²), ν/2, 1/2); cdf = 1 - I/2 (x≥0) else I/2.
             const double z = df / (df + xi * xi);
             Value zv = Value::scalar(z, mr);
             Value av = Value::scalar(0.5 * df, mr);
@@ -670,61 +733,82 @@ Value mvtcdf(const Value &X, const Value &C, double df,
         return out;
     }
 
-    // d ≥ 2: deterministic Monte Carlo via Y = Z·L' / sqrt(W/df).
-    // L = chol(C, 'lower') row-major.
     std::vector<double> L(d * d);
     for (std::size_t i = 0; i < d; ++i)
         for (std::size_t j = 0; j < d; ++j)
             L[i * d + j] = C.elemAsDouble(j * d + i);
     choleskyLowerInPlace(L.data(), d);
 
-    constexpr int N = 10000;
+    const int N = mvtcdf_N_from_tol(tol);
     std::mt19937_64 mc_gen(12345ULL);
-    std::normal_distribution<double> Nz(0.0, 1.0);
-    std::chi_squared_distribution<double> Chi(df);
+    const double NEG_INF = -std::numeric_limits<double>::infinity();
 
-    std::vector<double> z(d), y(d);
-    // Pre-generate antithetic-pair scaffolding: for each draw we evaluate
-    // both Z and -Z (sharing the same W draw) to reduce variance.
     for (std::size_t row = 0; row < n; ++row) {
-        // Read X[row, :].
-        std::vector<double> xrow(d);
-        for (std::size_t j = 0; j < d; ++j) {
-            // X stored col-major.
-            xrow[j] = (X.isScalar()) ? X.toScalar()
-                                     : X.elemAsDouble(j * n + row);
+        auto fetch = [&](std::size_t j) -> std::pair<double, double> {
+            const double xj = X.isScalar() ? X.toScalar()
+                                           : X.elemAsDouble(j * n + row);
+            return {NEG_INF, xj};
+        };
+        od[row] = mvtcdf_mc(L, d, df, N, mc_gen, fetch);
+    }
+    return out;
+}
+
+Value mvtcdf_box(const Value &Lb, const Value &Ub, const Value &C, double df,
+                 double tol, std::pmr::memory_resource *mr)
+{
+    if (!(df > 0.0))
+        throw Error("mvtcdf: df must be positive",
+                    0, 0, "mvtcdf", "", "m:mvtcdf:badDf");
+    auto [d, n] = mvtcdf_shape_check(Lb, C, "mvtcdf");
+    if (d == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
+    // Ub must have the same shape as Lb.
+    if (Ub.numel() != Lb.numel())
+        throw Error("mvtcdf: L and U must have the same shape",
+                    0, 0, "mvtcdf", "", "m:mvtcdf:shapeUL");
+
+    auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    if (n == 0) return out;
+    double *od = out.doubleDataMut();
+
+    if (d == 1) {
+        // 1-D box: P(L ≤ Y ≤ U) = F(U) - F(L).
+        Value tu = Value::scalar(df, mr);
+        for (std::size_t i = 0; i < n; ++i) {
+            const double Lv = Lb.elemAsDouble(i);
+            const double Uv = Ub.elemAsDouble(i);
+            auto cdf_one = [&](double x) -> double {
+                if (std::isinf(x)) return (x > 0) ? 1.0 : 0.0;
+                const double z = df / (df + x * x);
+                Value zv = Value::scalar(z, mr);
+                Value av = Value::scalar(0.5 * df, mr);
+                Value bv = Value::scalar(0.5, mr);
+                const double I = ::numkit::builtin::betainc(zv, av, bv, mr).toScalar();
+                return (x >= 0.0) ? 1.0 - 0.5 * I : 0.5 * I;
+            };
+            od[i] = std::max(0.0, cdf_one(Uv) - cdf_one(Lv));
         }
-        int hits = 0;
-        for (int k = 0; k < N / 2; ++k) {
-            for (std::size_t j = 0; j < d; ++j) z[j] = Nz(mc_gen);
-            const double scale = std::sqrt(df / Chi(mc_gen));
-            // y = (L·z)·scale.
-            // Pass 1 — z direct.
-            for (std::size_t j = 0; j < d; ++j) {
-                double s = 0.0;
-                for (std::size_t k2 = 0; k2 <= j; ++k2)
-                    s += L[j * d + k2] * z[k2];
-                y[j] = s * scale;
-            }
-            bool all_below = true;
-            for (std::size_t j = 0; j < d; ++j) {
-                if (y[j] > xrow[j]) { all_below = false; break; }
-            }
-            if (all_below) ++hits;
-            // Pass 2 — antithetic (-z).
-            for (std::size_t j = 0; j < d; ++j) {
-                double s = 0.0;
-                for (std::size_t k2 = 0; k2 <= j; ++k2)
-                    s -= L[j * d + k2] * z[k2];
-                y[j] = s * scale;
-            }
-            all_below = true;
-            for (std::size_t j = 0; j < d; ++j) {
-                if (y[j] > xrow[j]) { all_below = false; break; }
-            }
-            if (all_below) ++hits;
-        }
-        od[row] = static_cast<double>(hits) / static_cast<double>(N);
+        return out;
+    }
+
+    std::vector<double> Lc(d * d);
+    for (std::size_t i = 0; i < d; ++i)
+        for (std::size_t j = 0; j < d; ++j)
+            Lc[i * d + j] = C.elemAsDouble(j * d + i);
+    choleskyLowerInPlace(Lc.data(), d);
+
+    const int N = mvtcdf_N_from_tol(tol);
+    std::mt19937_64 mc_gen(12345ULL);
+
+    for (std::size_t row = 0; row < n; ++row) {
+        auto fetch = [&](std::size_t j) -> std::pair<double, double> {
+            const double lj = Lb.isScalar() ? Lb.toScalar()
+                                            : Lb.elemAsDouble(j * n + row);
+            const double uj = Ub.isScalar() ? Ub.toScalar()
+                                            : Ub.elemAsDouble(j * n + row);
+            return {lj, uj};
+        };
+        od[row] = mvtcdf_mc(Lc, d, df, N, mc_gen, fetch);
     }
     return out;
 }
@@ -801,11 +885,22 @@ void iwishrnd_reg(Span<const Value> args, size_t nargout,
 
 void mvtcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 3)
-        throw Error("mvtcdf: requires (X, C, df)",
+    auto *mr = ctx.engine->resource();
+    // 3 args: mvtcdf(X, C, df) — upper-tail form.
+    // 4 args: mvtcdf(L, U, C, df) — box form.
+    // 5 args: mvtcdf(L, U, C, df, tol) — box form with tolerance.
+    if (args.size() == 3) {
+        outs[0] = mvtcdf(args[0], args[1], args[2].toScalar(), 0.01, mr);
+    } else if (args.size() == 4) {
+        outs[0] = mvtcdf_box(args[0], args[1], args[2],
+                             args[3].toScalar(), 0.01, mr);
+    } else if (args.size() == 5) {
+        outs[0] = mvtcdf_box(args[0], args[1], args[2],
+                             args[3].toScalar(), args[4].toScalar(), mr);
+    } else {
+        throw Error("mvtcdf: requires (X, C, df) or (L, U, C, df[, tol])",
                     0, 0, "mvtcdf", "", "m:mvtcdf:nargin");
-    const double df = args[2].toScalar();
-    outs[0] = mvtcdf(args[0], args[1], df, ctx.engine->resource());
+    }
 }
 
 } // namespace detail

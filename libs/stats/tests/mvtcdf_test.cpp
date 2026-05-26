@@ -77,3 +77,59 @@ TEST_F(MvtcdfTest, BadDfThrows)
 {
     EXPECT_THROW(eval("mvtcdf(0.5, 1, -1);"), std::exception);
 }
+
+// ── Box form [LB, UB] + tol option ──────────────────────────────────
+
+TEST_F(MvtcdfTest, BoxFormMatchesUpperTailWithMinusInfLB)
+{
+    // P([-inf, -inf] ≤ Y ≤ [0.5, 0.3]) == P(Y ≤ [0.5, 0.3]).
+    eval(R"(
+        C = [1 0.5; 0.5 1];
+        a = mvtcdf([0.5 0.3], C, 5);
+        b = mvtcdf([-inf -inf], [0.5 0.3], C, 5);
+    )");
+    EXPECT_NEAR(evalScalar("a"), evalScalar("b"), 1e-12);
+}
+
+TEST_F(MvtcdfTest, Box1DEqualsCdfDiff)
+{
+    // 1-D box: P(L ≤ Y ≤ U) = tcdf(U) - tcdf(L).
+    eval(R"(
+        a = mvtcdf(-1, 1, 5);
+        b = mvtcdf(0.5, 1, 5);
+        p = mvtcdf(-1, 0.5, 1, 5);
+    )");
+    EXPECT_NEAR(evalScalar("p"), evalScalar("b") - evalScalar("a"), 1e-12);
+}
+
+TEST_F(MvtcdfTest, BoxFormTolOption)
+{
+    // Box form supports 5-arg with tighter tol → tighter result.
+    // P(-inf < Y < [0.5, 0.3]) ≈ upper-tail mvtcdf(0.5,0.3,C,5) ≈ 0.4910.
+    eval(R"(
+        C = [1 0.5; 0.5 1];
+        loose = mvtcdf([-inf -inf], [0.5 0.3], C, 5);
+        tight = mvtcdf([-inf -inf], [0.5 0.3], C, 5, 0.002);
+        err_loose = abs(loose - 0.4909888137);
+        err_tight = abs(tight - 0.4909888137);
+    )");
+    EXPECT_LE(evalScalar("err_tight"), evalScalar("err_loose") + 1e-3);
+}
+
+TEST_F(MvtcdfTest, BoxFormSymmetric)
+{
+    // For C symmetric and centered box [-a, a], the probability is the
+    // same regardless of sign of a (by symmetry).
+    eval(R"(
+        C = [1 0.4; 0.4 1];
+        p1 = mvtcdf([-1 -1], [1 1], C, 5);
+        p2 = mvtcdf([-2 -2], [2 2], C, 5);
+    )");
+    EXPECT_GT(evalScalar("p2"), evalScalar("p1"));   // wider box ⇒ more mass
+}
+
+TEST_F(MvtcdfTest, BoxFormBadShapeThrows)
+{
+    EXPECT_THROW(eval("mvtcdf([0 0], [1 1 1], [1 0.5; 0.5 1], 5);"),
+                 std::exception);
+}
