@@ -402,6 +402,10 @@ void fncmb_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 // qmc/qmc.cpp
 void haltonset_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void net_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// sampling/lhs.cpp
+void lhsdesign_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void lhsnorm_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -756,6 +760,9 @@ void StatsLibrary::install(Engine &engine)
 
     reg("qmc", "haltonset", &stats::detail::haltonset_reg);
     reg("qmc", "net",       &stats::detail::net_reg);
+
+    reg("sampling", "lhsdesign", &stats::detail::lhsdesign_reg);
+    reg("sampling", "lhsnorm",   &stats::detail::lhsnorm_reg);
 }
 
 } // namespace numkit
