@@ -1,0 +1,12 @@
+{
+  "name": "griddatan",
+  "namespace": "interp",
+  "setup": "X2 = [1 0; 0 0; 1 1; 0 1]; v = [1; 0; 2; 1]; X3 = [0 0 0; 1 0 0; 0 1 0; 0 0 1]; v3 = [1; 2; 3; 4];",
+  "expr": "vlin = griddatan(X2, v, [0.5 0.5]); vnear2 = griddatan(X2, v, [0.4 0.4], 'nearest'); vnear3 = griddatan(X3, v3, [0.1 0.1 0.1], 'nearest');",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "vlin", "vnear2", "vnear3"
+  ],
+  "comment": "Sig: vi = griddatan(X, v, xi [, method]) — N-D scattered-data interpolation. X is m×n data points, v is m×1 values, xi is k×n queries. v1 supports 'nearest' for any n (brute-force Euclidean NN) and 'linear' for n=2 only (delegates to 2-D barycentric/Delaunay, same as griddata). KNOWN GAP: 'linear' for n≥3 needs a real N-D Delaunay (Qhull-style); not in v1 — errors with a clear pointer message. Default method = 'linear' (MATLAB-compat). Bit-exact MATLAB R2025b on the supported method+dim combinations."
+}

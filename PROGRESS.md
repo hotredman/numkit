@@ -779,14 +779,14 @@ together.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `griddata` | ✅ | 0.003 |  |  | N/A | Sig: vq = griddata(x, y, v, xq, yq) — scattered-data interpolation onto a 2-D grid (default linear, via Delaunay triangulation). Scalar query + meshgrid query. Bit-comparable (1e-9 tol) with MATLAB R2025b on collinear input — points lie on y=x line, vq is interp on the line. Method argument ('linear'/'cubic'/'nearest'/'natural'/'v4') and 3-D form deferred. |
-| `griddatan` | ❌ |  |  |  |  |  |
+| `griddatan` | ✅ | 0.004 |  |  | N/A | Sig: vi = griddatan(X, v, xi [, method]) — N-D scattered-data interpolation. X is m×n data points, v is m×1 values, xi is k×n queries. v1 supports 'nearest' for any n (brute-force Euclidean NN) and 'linear' for n=2 only (delegates to 2-D barycentric/Delaunay, same as griddata). KNOWN GAP: 'linear' for n≥3 needs a real N-D Delaunay (Qhull-style); not in v1 — errors with a clear pointer message. Default method = 'linear' (MATLAB-compat). Bit-exact MATLAB R2025b on the supported method+dim combinations. |
 | `griddedinterpolant` | ❌ |  |  |  |  |  |
 | `interp1` | ✅ | 0.005 | 152.37× | 289.71× | OK | Sig: r = interp1(...). Spec-extension batch 2026-05-09. |
 | `interp2` | ✅ | 0.005 | 388.33× | 128.09× | OK | Sig: r = interp2(...). Spec-extension batch 2026-05-09. |
 | `interp3` | ✅ | 0.003 | 652.59× | 150.18× | OK | Sig: V = interp3(X, Y, Z, V, Xq, Yq, Zq). N-D linear interpolation. Bit-identical with MATLAB R2025b. readGridAxis now auto-detects meshgrid vs ndgrid orientation. |
 | `interpft` | ✅ | 0.007 | 226.04× | 101.20× | OK | Sig: Y = interpft(X, n[, dim]). Band-limited (FFT-based) interpolation to n samples. Default dim = first non-singleton. Vector form preserves originals at integer multiples of original spacing. Matrix dim=1 interpolates each column; dim=2 interpolates each row. tol=1e-12. |
 | `interpn` | ✅ | 0.003 | 636.49× | 97.42× | OK | Sig: V = interpn(X1, ..., Xn, V, Xq1, ..., Xqn). N-D linear interpolation (ndgrid form). Dispatches to interp3 internally; bit-identical with MATLAB R2025b. |
-| `makima` | ❌ |  |  |  |  |  |
+| `makima` | ✅ | 0.003 | 644.33× |  | OK | Sig: yq = makima(x, y, xq) — modified Akima cubic Hermite interpolation. Weight w1 = |m_{i+1} - m_i| + |m_{i+1} + m_i| / 2 (the modified term avoids zero-weight degeneracies on flat data, vs original Akima 1970). Boundary slopes via Akima quadratic extrapolation. Hermite passes through data exactly (ydp == y). Flat data round-trips to the constant value. KNOWN GAP: 2-arg pp-form pp = makima(x, y) not yet supported. Bit-exact MATLAB R2025b (tol=1e-12) on the documented signature. |
 | `meshgrid` | ✅ | 0.005 | 78.48× | 39.56× | OK | Sig: r = meshgrid(...). Spec-extension batch 2026-05-09. |
 | `mkpp` | ✅ | 0.000 | 6.90× | 56.90× | OK | Sig: PP = mkpp(BREAKS, COEFS). 4-piece linear. 10000 iters. |
 | `ndgrid` | ✅ | 0.005 | 244.62× | 51.89× | OK | Sig: r = ndgrid(...). Spec-extension batch 2026-05-09. |

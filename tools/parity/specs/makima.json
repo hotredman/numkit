@@ -1,0 +1,15 @@
+{
+  "name": "makima",
+  "namespace": "interp",
+  "setup": "x = 1:5; y = [1 4 9 16 25]; xq = 1:0.5:5; xf = [1 2 3 4 5]; yf = [3 3 3 3 3];",
+  "expr": "yq = makima(x, y, xq); ydp = makima(x, y, x); yflat = makima(xf, yf, 2.5); yi = makima(x, y, 2.5);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "yi",
+    "yq(1)", "yq(3)", "yq(5)", "yq(end)",
+    "ydp(1)", "ydp(3)", "ydp(end)",
+    "yflat"
+  ],
+  "comment": "Sig: yq = makima(x, y, xq) — modified Akima cubic Hermite interpolation. Weight w1 = |m_{i+1} - m_i| + |m_{i+1} + m_i| / 2 (the modified term avoids zero-weight degeneracies on flat data, vs original Akima 1970). Boundary slopes via Akima quadratic extrapolation. Hermite passes through data exactly (ydp == y). Flat data round-trips to the constant value. KNOWN GAP: 2-arg pp-form pp = makima(x, y) not yet supported. Bit-exact MATLAB R2025b (tol=1e-12) on the documented signature."
+}

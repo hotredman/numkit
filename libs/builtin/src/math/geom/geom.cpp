@@ -15,6 +15,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <map>
 #include <set>
 #include <sstream>
@@ -725,6 +726,167 @@ void griddata_reg(Span<const Value> args, size_t /*nargout*/,
         if (!found) dst[q] = std::nan("");
     }
     outs[0] = std::move(out);
+}
+
+// ── griddatan ────────────────────────────────────────────────────────
+//
+// griddatan(X, v, xi [, method]) — N-D scattered-data interpolation.
+//   X  is m×n  (m data points in n-dim space)
+//   v  is m×1  (values at those points)
+//   xi is k×n  (k query points)
+// Returns vi (k×1).
+//
+// v1 method support:
+//   'nearest' — nearest-neighbour by Euclidean distance. Works for
+//               any n. O(m·k·n) brute-force search; fine for typical
+//               sizes (full kd-tree is a future-work backlog item).
+//   'linear'  — only n == 2 is supported (delegates to the same
+//               brute-force Delaunay code as griddata). KNOWN GAP:
+//               n ≥ 3 linear needs a real N-D Delaunay (Qhull-style),
+//               which is not in v1.
+//
+// Default method is 'linear' (MATLAB-compatible) — so a call without
+// the method arg on n ≥ 3 errors out with a clear pointer to the gap.
+void griddatan_reg(Span<const Value> args, size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("griddatan: requires (X, v, xi [, method])",
+                     0, 0, "griddatan", "", "m:griddatan:nargin");
+    const auto &Xv = args[0];
+    const auto &vv = args[1];
+    const auto &xi = args[2];
+    std::string method = "linear";
+    if (args.size() >= 4 && args[3].isChar())
+        method = args[3].toString();
+
+    // Shape: X is m×n, xi is k×n. Use rows/cols directly so a row
+    // vector `xi = [a b]` reads as 1×n (one query point in n-D), and
+    // a column vector `xi = [a; b]` reads as 2×1 (two queries in 1-D).
+    const std::size_t m = Xv.dims().rows();
+    const std::size_t n = Xv.dims().cols();
+    if (vv.numel() != m)
+        throw Error("griddatan: length(v) must equal rows(X)",
+                     0, 0, "griddatan", "", "m:griddatan:shape");
+    const std::size_t k    = xi.dims().rows();
+    const std::size_t nQry = xi.dims().cols();
+    if (nQry != n)
+        throw Error("griddatan: cols(xi) must equal cols(X)",
+                     0, 0, "griddatan", "", "m:griddatan:queryDim");
+
+    auto *mr = ctx.engine->resource();
+    auto out = Value::matrix(k, 1, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+
+    if (method == "nearest") {
+        // Brute-force NN. Read X column-major as m × n.
+        ScratchArena scratch(mr);
+        ScratchVec<double> Xd(m * n, &scratch);
+        for (std::size_t r = 0; r < m; ++r)
+            for (std::size_t c = 0; c < n; ++c)
+                Xd[c * m + r] = Xv.elemAsDouble(c * m + r);
+        ScratchVec<double> Vd(m, &scratch);
+        for (std::size_t i = 0; i < m; ++i) Vd[i] = vv.elemAsDouble(i);
+        for (std::size_t q = 0; q < k; ++q) {
+            double best = std::numeric_limits<double>::infinity();
+            std::size_t bestIdx = 0;
+            for (std::size_t i = 0; i < m; ++i) {
+                double d2 = 0.0;
+                for (std::size_t c = 0; c < n; ++c) {
+                    const double qc = xi.elemAsDouble(c * k + q);
+                    const double dc = qc - Xd[c * m + i];
+                    d2 += dc * dc;
+                }
+                if (d2 < best) { best = d2; bestIdx = i; }
+            }
+            dst[q] = Vd[bestIdx];
+        }
+        outs[0] = std::move(out);
+        return;
+    }
+
+    if (method == "linear") {
+        if (n != 2)
+            throw Error("griddatan: 'linear' method requires n == 2 (use "
+                        "'nearest' for higher dimensions; N-D Delaunay "
+                        "is a v1 KNOWN GAP)",
+                         0, 0, "griddatan", "",
+                         "m:griddatan:linearNDUnsupported");
+        // Delegate to griddata-style barycentric. Repack: X(:,1) = x,
+        // X(:,2) = y, then reuse the brute-force logic by constructing
+        // a temporary call.
+        // Quick inline implementation since the input shape differs.
+        ScratchArena scratch(mr);
+        ScratchVec<double> X(m, &scratch), Y(m, &scratch), V(m, &scratch);
+        for (std::size_t i = 0; i < m; ++i) {
+            X[i] = Xv.elemAsDouble(0 * m + i);
+            Y[i] = Xv.elemAsDouble(1 * m + i);
+            V[i] = vv.elemAsDouble(i);
+        }
+        if (m < 3) {
+            for (std::size_t q = 0; q < k; ++q) dst[q] = std::nan("");
+            outs[0] = std::move(out);
+            return;
+        }
+        auto signedArea2 = [&](std::size_t a, std::size_t b, std::size_t c) {
+            return (X[b] - X[a]) * (Y[c] - Y[a]) - (Y[b] - Y[a]) * (X[c] - X[a]);
+        };
+        auto inCircle = [&](std::size_t a, std::size_t b, std::size_t c,
+                            std::size_t p) {
+            const double ax = X[a] - X[p], ay = Y[a] - Y[p];
+            const double bx = X[b] - X[p], by = Y[b] - Y[p];
+            const double cx = X[c] - X[p], cy = Y[c] - Y[p];
+            const double a2 = ax * ax + ay * ay;
+            const double b2 = bx * bx + by * by;
+            const double c2 = cx * cx + cy * cy;
+            return ax * (by * c2 - cy * b2)
+                 - ay * (bx * c2 - cx * b2)
+                 + a2 * (bx * cy - cx * by);
+        };
+        std::vector<std::array<std::size_t, 3>> tris;
+        tris.reserve(2 * m);
+        for (std::size_t a = 0; a < m; ++a)
+            for (std::size_t b = a + 1; b < m; ++b)
+                for (std::size_t c = b + 1; c < m; ++c) {
+                    const double sa2 = signedArea2(a, b, c);
+                    if (std::abs(sa2) < 1e-15) continue;
+                    std::size_t va = a, vb = b, vc = c;
+                    if (sa2 < 0) std::swap(vb, vc);
+                    bool ok = true;
+                    for (std::size_t p = 0; p < m; ++p) {
+                        if (p == va || p == vb || p == vc) continue;
+                        if (inCircle(va, vb, vc, p) > 1e-12) { ok = false; break; }
+                    }
+                    if (ok) tris.push_back({ va, vb, vc });
+                }
+        for (std::size_t q = 0; q < k; ++q) {
+            const double Xq = xi.elemAsDouble(0 * k + q);
+            const double Yq = xi.elemAsDouble(1 * k + q);
+            bool found = false;
+            for (const auto &t : tris) {
+                const double xa = X[t[0]], ya = Y[t[0]];
+                const double xb = X[t[1]], yb = Y[t[1]];
+                const double xc = X[t[2]], yc = Y[t[2]];
+                const double denom = (yb - yc) * (xa - xc) + (xc - xb) * (ya - yc);
+                if (std::abs(denom) < 1e-15) continue;
+                const double l1 = ((yb - yc) * (Xq - xc) + (xc - xb) * (Yq - yc)) / denom;
+                const double l2 = ((yc - ya) * (Xq - xc) + (xa - xc) * (Yq - yc)) / denom;
+                const double l3 = 1.0 - l1 - l2;
+                if (l1 >= -1e-9 && l2 >= -1e-9 && l3 >= -1e-9) {
+                    dst[q] = l1 * V[t[0]] + l2 * V[t[1]] + l3 * V[t[2]];
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) dst[q] = std::nan("");
+        }
+        outs[0] = std::move(out);
+        return;
+    }
+
+    throw Error("griddatan: unknown method '" + method
+                + "' (supported: 'linear', 'nearest')",
+                 0, 0, "griddatan", "", "m:griddatan:badMethod");
 }
 
 } // namespace detail

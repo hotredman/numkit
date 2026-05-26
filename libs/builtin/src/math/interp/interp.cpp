@@ -217,6 +217,86 @@ interpPchip(const double *x, const double *y, size_t n, const double *xq, size_t
     return yq;
 }
 
+// ── Modified Akima (`makima`) ─────────────────────────────────────────
+//
+// Akima 1970 cubic Hermite interpolation with the Akima-2 / "modified"
+// weight that adds `|m_{i+1} + m_i| / 2` to the standard weight
+// `|m_{i+1} - m_i|`. The extra |sum|/2 term avoids zero-weight
+// degeneracies on flat (m == 0) or co-linear data.
+//
+// Weights per interior derivative d_i (using slopes m_{-1}..m_{n+1}):
+//   w1 = |m_{i+1} - m_i|     + |m_{i+1} + m_i|     / 2
+//   w2 = |m_{i-1} - m_{i-2}| + |m_{i-1} + m_{i-2}| / 2
+//   d_i = (w1 * m_{i-1} + w2 * m_i) / (w1 + w2)     [0 if w1+w2 == 0]
+//
+// Boundary slopes m_{-1}, m_0, m_n, m_{n+1} use Akima's quadratic
+// extrapolation: m_0 = 2*m_1 - m_2; m_{-1} = 2*m_0 - m_1; symmetric at
+// the right edge.
+ScratchVec<double>
+interpMakima(const double *x, const double *y, size_t n,
+              const double *xq, size_t nq, std::pmr::memory_resource *mr)
+{
+    if (n < 2)
+        throw Error("makima: need at least 2 data points",
+                     0, 0, "makima", "", "m:makima:tooFewPoints");
+    if (n < 3)
+        return interpLinear(x, y, n, xq, nq, mr);
+
+    const size_t nm1 = n - 1;
+
+    ScratchVec<double> h(nm1, mr);
+    for (size_t i = 0; i < nm1; ++i)
+        h[i] = x[i + 1] - x[i];
+
+    // Slopes m[0..n-2] = (y[i+1] - y[i]) / h[i]. Extend by 2 on each
+    // side using Akima's quadratic extrapolation. Store in mExt of
+    // length n+3 with indexing offset = 2 (so mExt[2 + i] == m[i] for
+    // i ∈ [-2 .. n], where m[-1], m[-2], m[n-1], m[n] are extrapolated).
+    ScratchVec<double> mExt(n + 3, mr);
+    for (size_t i = 0; i < nm1; ++i)
+        mExt[2 + i] = (y[i + 1] - y[i]) / h[i];
+
+    // Quadratic extrapolation at the left:  m[-1] = 2*m[0] - m[1]
+    //                                       m[-2] = 2*m[-1] - m[0]
+    mExt[1] = 2.0 * mExt[2] - mExt[3];
+    mExt[0] = 2.0 * mExt[1] - mExt[2];
+    // Right side: m[n-1] = 2*m[n-2] - m[n-3]
+    //             m[n]   = 2*m[n-1] - m[n-2]
+    mExt[2 + nm1]     = 2.0 * mExt[2 + nm1 - 1] - mExt[2 + nm1 - 2];
+    mExt[2 + nm1 + 1] = 2.0 * mExt[2 + nm1]     - mExt[2 + nm1 - 1];
+
+    // Derivative at each data point i ∈ [0..n-1].
+    ScratchVec<double> d(n, mr);
+    for (size_t i = 0; i < n; ++i) {
+        // mExt indices for the 4 slopes around point i:
+        //   ml2 = m[i - 2], ml1 = m[i - 1], mr1 = m[i], mr2 = m[i + 1]
+        const double ml2 = mExt[i];
+        const double ml1 = mExt[i + 1];
+        const double mr1 = mExt[i + 2];
+        const double mr2 = mExt[i + 3];
+        const double w1 = std::abs(mr2 - mr1) + std::abs(mr2 + mr1) * 0.5;
+        const double w2 = std::abs(ml1 - ml2) + std::abs(ml1 + ml2) * 0.5;
+        const double wsum = w1 + w2;
+        d[i] = (wsum == 0.0) ? 0.0 : (w1 * ml1 + w2 * mr1) / wsum;
+    }
+
+    // Evaluate with cubic Hermite basis (same as pchip).
+    ScratchVec<double> yq(nq, mr);
+    for (size_t k = 0; k < nq; ++k) {
+        const size_t i = findInterval(x, n, xq[k]);
+        const double t = (xq[k] - x[i]) / h[i];
+        const double t2 = t * t;
+        const double t3 = t2 * t;
+        const double h00 =  2.0 * t3 - 3.0 * t2 + 1.0;
+        const double h10 =        t3 - 2.0 * t2 + t;
+        const double h01 = -2.0 * t3 + 3.0 * t2;
+        const double h11 =        t3 -       t2;
+        yq[k] = h00 * y[i]     + h10 * h[i] * d[i]
+              + h01 * y[i + 1] + h11 * h[i] * d[i + 1];
+    }
+    return yq;
+}
+
 // Helper for interp1 / spline / pchip — pack a yq buffer into a Value
 // preserving xq's row/column orientation.
 Value packInterpResult(const double *yq, std::size_t nq,
@@ -265,6 +345,10 @@ Value interp1(const Value &x, const Value &y, const Value &xq, const std::string
     }
     if (method == "pchip") {
         auto yq = interpPchip(xd, yd, n, xqd, nq, &scratch);
+        return packInterpResult(yq.data(), yq.size(), xq, mr);
+    }
+    if (method == "makima") {
+        auto yq = interpMakima(xd, yd, n, xqd, nq, &scratch);
         return packInterpResult(yq.data(), yq.size(), xq, mr);
     }
     throw Error("interp1: unknown method '" + method + "'",
@@ -676,6 +760,27 @@ Value pchip(const Value &x, const Value &y, const Value &xq, std::pmr::memory_re
     return packInterpResult(yq.data(), yq.size(), xq, mr);
 }
 
+// ── makima (modified Akima) ───────────────────────────────────────────
+//
+// Same call shape as pchip / spline. v1 supports the explicit 3-arg
+// form `yi = makima(x, y, xq)`; the 2-arg pp-form is a documented gap.
+Value makima(const Value &x, const Value &y, const Value &xq,
+             std::pmr::memory_resource *mr)
+{
+    const size_t n = x.numel();
+    if (n != y.numel())
+        throw Error("makima: x and y must have same length",
+                     0, 0, "makima", "", "m:makima:lengthMismatch");
+    if (n < 2)
+        throw Error("makima: need at least 2 data points",
+                     0, 0, "makima", "", "m:makima:tooFewPoints");
+
+    ScratchArena scratch(mr);
+    auto yq = interpMakima(x.doubleData(), y.doubleData(), n,
+                            xq.doubleData(), xq.numel(), &scratch);
+    return packInterpResult(yq.data(), yq.size(), xq, mr);
+}
+
 // polyfit / polyval moved to math/elementary/polynomials.cpp
 // trapz moved to math/integration/integration.cpp
 
@@ -887,6 +992,14 @@ void pchip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
         throw Error("pchip: requires 3 arguments",
                      0, 0, "pchip", "", "m:pchip:nargin");
     outs[0] = pchip(args[0], args[1], args[2], ctx.engine->resource());
+}
+
+void makima_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("makima: requires 3 arguments — pp-form (2-arg) not yet supported",
+                     0, 0, "makima", "", "m:makima:nargin");
+    outs[0] = makima(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 // interpn — dispatch to interp2 / interp3 based on V's ndim. Form A
