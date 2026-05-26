@@ -778,7 +778,7 @@ together.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `griddata` | ❌ |  |  |  |  |  |
+| `griddata` | ✅ | 0.003 |  |  | N/A | Sig: vq = griddata(x, y, v, xq, yq) — scattered-data interpolation onto a 2-D grid (default linear, via Delaunay triangulation). Scalar query + meshgrid query. Bit-comparable (1e-9 tol) with MATLAB R2025b on collinear input — points lie on y=x line, vq is interp on the line. Method argument ('linear'/'cubic'/'nearest'/'natural'/'v4') and 3-D form deferred. |
 | `griddatan` | ❌ |  |  |  |  |  |
 | `griddedinterpolant` | ❌ |  |  |  |  |  |
 | `interp1` | ✅ | 0.005 | 152.37× | 289.71× | OK | Sig: r = interp1(...). Spec-extension batch 2026-05-09. |
@@ -1423,15 +1423,15 @@ construction / postprocessing primitives — those are all flat functions.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `area` | ❌ |  |  |  |  |  |
-| `errorbar` | ❌ |  |  |  |  |  |
+| `errorbar` | ✅ | 0.025 | 3718.64× |  | OK | Sig: graphics primitive — errorbar(x, y, err) draws line with symmetric error bars. 4-arg form errorbar(x, y, neg, pos) for asymmetric bars. 2-arg form errorbar(x, y) for plain line. Side-effect (figure emit); spec verifies it runs across the documented arg counts. |
 | `fimplicit` | ❌ |  |  |  |  |  |
-| `fplot` | ❌ |  |  |  |  |  |
+| `fplot` | ✅ | 4.171 | 77.54× |  | OK | Sig: function-handle plotting family. fplot(f [, xrange]) — 2-D, samples adaptively. fcontour(f [, range]) — contour from f(x,y). fmesh / fsurf — 3-D mesh / shaded surface from f(x,y). All side-effect (emit __FIGURE_DATA__). Spec verifies each runs with both default range and explicit range. Same `r1 = 1` fingerprint pattern as other graphics-primitive specs (numkit graphics handles not directly comparable to MATLAB). |
 | `fplot3` | ❌ |  |  |  |  |  |
-| `loglog` | ❌ |  |  |  |  |  |
+| `loglog` | ✅ | 0.030 | 1133.83× |  | OK | Sig: graphics primitives — log-scale axis variants of plot. loglog (both x and y log), semilogx (x log only), semilogy (y log only). Side-effect (emits __FIGURE_DATA__ JSON with xscale/yscale set); spec verifies the call runs without erroring. Same pattern as `plot` spec — numkit graphics handles aren't directly comparable to MATLAB. |
 | `plot` | ✅ | 0.022 | 845.01× | 1177.88× | OK | Sig: graphics primitive. 2D line plot. Emits figure data via side effect; numkit does not expose MATLAB-style graphics handles. Spec verifies the function runs. |
 | `plot3` | ❌ |  |  |  |  | 3-D |
-| `semilogx` | ❌ |  |  |  |  |  |
-| `semilogy` | ❌ |  |  |  |  |  |
+| `semilogx` | ✅ | 0.030 | 1133.83× |  | OK | Sig: graphics primitives — log-scale axis variants of plot. loglog (both x and y log), semilogx (x log only), semilogy (y log only). Side-effect (emits __FIGURE_DATA__ JSON with xscale/yscale set); spec verifies the call runs without erroring. Same pattern as `plot` spec — numkit graphics handles aren't directly comparable to MATLAB. |
+| `semilogy` | ✅ | 0.030 | 1133.83× |  | OK | Sig: graphics primitives — log-scale axis variants of plot. loglog (both x and y log), semilogx (x log only), semilogy (y log only). Side-effect (emits __FIGURE_DATA__ JSON with xscale/yscale set); spec verifies the call runs without erroring. Same pattern as `plot` spec — numkit graphics handles aren't directly comparable to MATLAB. |
 | `stackedplot` | ❌ |  |  |  |  |  |
 | `stairs` | ✅ | 0.019 | 1602.08× | 1591.85× | OK | Sig: graphics primitive. Step plot. Side-effect (figure emit); spec verifies it runs. |
 
@@ -1473,7 +1473,7 @@ construction / postprocessing primitives — those are all flat functions.
 | `contourc` | ❌ |  |  |  |  |  |
 | `contourf` | ✅ | 4.157 | 9.11× |  | OK | Sig: graphics primitive. Filled contour plot. Same side-effect-only no-op; spec verifies the call runs. |
 | `contourslice` | ❌ |  |  |  |  |  |
-| `fcontour` | ❌ |  |  |  |  |  |
+| `fcontour` | ✅ | 4.171 | 77.54× |  | OK | Sig: function-handle plotting family. fplot(f [, xrange]) — 2-D, samples adaptively. fcontour(f [, range]) — contour from f(x,y). fmesh / fsurf — 3-D mesh / shaded surface from f(x,y). All side-effect (emit __FIGURE_DATA__). Spec verifies each runs with both default range and explicit range. Same `r1 = 1` fingerprint pattern as other graphics-primitive specs (numkit graphics handles not directly comparable to MATLAB). |
 
 ### Vector Fields
 
@@ -1498,8 +1498,8 @@ construction / postprocessing primitives — those are all flat functions.
 | `cylinder` | ✅ | 0.002 | 426.68× |  | OK | Sig: [X,Y,Z] = cylinder([R, n]). Bit-identical with MATLAB R2025b when called with explicit parens. KNOWN ENGINE GAP: cylinder() vs cylinder (no parens) -- parenless multi-output assignment segfaults numkit; that's a core parser/dispatcher issue, not a libs/cylinder bug. Documented in BUGS.md. |
 | `ellipsoid` | ✅ | 0.003 | 461.60× |  | OK | Sig: r = ellipsoid(...). Spec-extension batch 2026-05-09. |
 | `fimplicit3` | ❌ |  |  |  |  |  |
-| `fmesh` | ❌ |  |  |  |  |  |
-| `fsurf` | ❌ |  |  |  |  |  |
+| `fmesh` | ✅ | 4.171 | 77.54× |  | OK | Sig: function-handle plotting family. fplot(f [, xrange]) — 2-D, samples adaptively. fcontour(f [, range]) — contour from f(x,y). fmesh / fsurf — 3-D mesh / shaded surface from f(x,y). All side-effect (emit __FIGURE_DATA__). Spec verifies each runs with both default range and explicit range. Same `r1 = 1` fingerprint pattern as other graphics-primitive specs (numkit graphics handles not directly comparable to MATLAB). |
+| `fsurf` | ✅ | 4.171 | 77.54× |  | OK | Sig: function-handle plotting family. fplot(f [, xrange]) — 2-D, samples adaptively. fcontour(f [, range]) — contour from f(x,y). fmesh / fsurf — 3-D mesh / shaded surface from f(x,y). All side-effect (emit __FIGURE_DATA__). Spec verifies each runs with both default range and explicit range. Same `r1 = 1` fingerprint pattern as other graphics-primitive specs (numkit graphics handles not directly comparable to MATLAB). |
 | `hidden` | ❌ |  |  |  |  |  |
 | `mesh` | ✅ | 0.015 | 1712.68× | 1845.50× | OK | Sig: graphics primitive. 3D mesh surface. Currently registered as a side-effect-only no-op (figure emit logic for surfaces is a separate refactor); spec verifies the call accepts standard input without erroring. |
 | `meshc` | ❌ |  |  |  |  |  |
@@ -2950,8 +2950,8 @@ locations until physical migration lands.
 | `trimmean` | ✅ | 0.003 | 659.47× | 137.95× | OK | Sig: m = trimmean(x, percent[, dim]). Mean after trimming percent/2 from each end. |
 | `zscore` | ✅ | 0.004 | 285.18× | 126.07× | OK | Sig: z = zscore(x). Spec-extension batch 2026-05-09 (cycle 41). |
 | `nancov` | ❌ |  |  |  |  | NaN-aware covariance |
-| `nansum` | ❌ |  |  |  |  | (legacy alias of stats.nan.nansum) |
-| `nanmean` | ❌ |  |  |  |  | (legacy alias) |
+| `nansum` | ✅ | 0.008 | 153.07× |  | OK | Sig: legacy NaN-aware reductions (recommended modern form: `sum(..., 'omitnan')` / `mean(..., 'omitnan')`). nansum: NaN entries dropped; all-NaN slice → 0 (NaN is additive identity). nanmean: NaN entries dropped; divisor is count of valid obs; all-NaN slice → NaN. Bit-exact MATLAB R2025b on the pinned 1-D and 2-D cases. nanstd/nanvar/nanmedian/nanmax/nanmin also work but are NOT in PROGRESS.md (MATLAB R2025b removed their formal doc entry — only legacy). |
+| `nanmean` | ✅ | 0.008 | 153.07× |  | OK | Sig: legacy NaN-aware reductions (recommended modern form: `sum(..., 'omitnan')` / `mean(..., 'omitnan')`). nansum: NaN entries dropped; all-NaN slice → 0 (NaN is additive identity). nanmean: NaN entries dropped; divisor is count of valid obs; all-NaN slice → NaN. Bit-exact MATLAB R2025b on the pinned 1-D and 2-D cases. nanstd/nanvar/nanmedian/nanmax/nanmin also work but are NOT in PROGRESS.md (MATLAB R2025b removed their formal doc entry — only legacy). |
 
 ### Probability Distributions
 

@@ -1,0 +1,12 @@
+{
+  "name": "errorbar",
+  "namespace": "graphics",
+  "setup": "x = 1:5; y = sin(x); e = 0.1 * ones(size(x));",
+  "expr": "errorbar(x, y, e); errorbar(x, y, e, e); errorbar(x, y); r1 = 1;",
+  "iters": 1,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: graphics primitive — errorbar(x, y, err) draws line with symmetric error bars. 4-arg form errorbar(x, y, neg, pos) for asymmetric bars. 2-arg form errorbar(x, y) for plain line. Side-effect (figure emit); spec verifies it runs across the documented arg counts."
+}
