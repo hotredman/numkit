@@ -138,6 +138,8 @@ void polyint_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void poly_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void polyvalm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void polydiv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void residue_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void residuez_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void padecoef_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void tf2zp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void zp2tf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -682,6 +684,8 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("poly",      &builtin::detail::poly_reg);
     engine.registerFunction("polyvalm",  &builtin::detail::polyvalm_reg);
     engine.registerFunction("polydiv",   &builtin::detail::polydiv_reg);
+    engine.registerFunction("residue",   &builtin::detail::residue_reg);
+    engine.registerFunction("residuez",  &builtin::detail::residuez_reg);
     engine.registerFunction("padecoef",  &builtin::detail::padecoef_reg);
     engine.registerFunction("tf2zp",     &builtin::detail::tf2zp_reg);
     engine.registerFunction("zp2tf",     &builtin::detail::zp2tf_reg);
