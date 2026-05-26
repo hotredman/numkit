@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+namespace numkit { class Engine; }
+
 namespace numkit::stats {
 
 /// @brief Ordinary least-squares regression
@@ -71,5 +73,80 @@ Value ridge(const Value &y, const Value &X, const Value &k, bool scaled,
 std::tuple<Value, Value, Value, Value>
 lscov(const Value &A, const Value &b, const Value &w,
       std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Nonlinear least-squares fit result
+/// (`[beta, R, J, CovB, MSE] = nlinfit(X, y, fun, beta0)`).
+struct NlinfitResult {
+    Value beta;   ///< Parameter estimates (`p × 1`).
+    Value R;      ///< Residuals (`n × 1`).
+    Value J;      ///< Jacobian at `beta` (`n × p`).
+    Value CovB;   ///< Parameter covariance (`p × p`).
+    Value MSE;    ///< Mean squared error (scalar).
+};
+
+/// @brief Nonlinear least-squares fit via Levenberg-Marquardt.
+///
+/// Fits `y ≈ fun(beta, X)` by minimising `||y - fun(beta, X)||²`.
+/// `fun` is a function handle taking `(beta, X)` and returning a
+/// length-`n` predicted vector.
+///
+/// Algorithm: classical LM with adaptive damping (λ scaled by 10× on
+/// rejected steps, by 0.1× on accepted steps), numerical Jacobian via
+/// central differences with relative step `1e-7 · max(|β|, 1)`.
+///
+/// KNOWN GAPs: name-value `'Weights'`, `'ErrorModel'`, `'Options'` not
+/// supported. Returns `MSE = SSE / (n - p)`.
+///
+/// @param X      Predictor data (`n × k`).
+/// @param y      Response vector (`n × 1`).
+/// @param fun    Function handle `fun(beta, X)` returning predictions.
+/// @param beta0  Initial parameter estimate.
+/// @param engine Engine pointer for `callFunctionHandle` (required —
+///               adapters pass `ctx.engine`).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `{beta, R, J, CovB, MSE}`.
+NlinfitResult nlinfit(const Value &X, const Value &y,
+                      const Value &fun, const Value &beta0,
+                      ::numkit::Engine *engine,
+                      std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Parameter confidence intervals from an nlinfit fit
+/// (`ci = nlparci(beta, R, J [, alpha])`).
+///
+/// `ci(i, :) = beta(i) ± t_{α/2, n-p} · se(i)` where
+/// `se(i) = sqrt(MSE · ((J'·J)^{-1})_{ii})`.
+///
+/// @param beta   Parameter vector from nlinfit (`p × 1`).
+/// @param R      Residuals from nlinfit (`n × 1`).
+/// @param J      Jacobian from nlinfit (`n × p`).
+/// @param alpha  Significance level (default 0.05 → 95% CI).
+/// @param mr     Memory resource.
+/// @return       `p × 2` CI matrix; `[lower, upper]` per row.
+Value nlparci(const Value &beta, const Value &R, const Value &J,
+              double alpha = 0.05,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Prediction confidence intervals from an nlinfit fit
+/// (`[ypred, delta] = nlpredci(fun, X, beta, R, J [, alpha])`).
+///
+/// For each row of `X`, returns `ypred(i) = fun(beta, X(i,:))` and
+/// `delta(i) = t_{α/2, n-p} · sqrt(MSE · g_i' · (J'·J)^{-1} · g_i)`
+/// where `g_i = ∂fun/∂beta` at `X(i,:)`.
+///
+/// @param fun    Function handle.
+/// @param X      Query points (`m × k`).
+/// @param beta   Parameter vector.
+/// @param R      Residuals from the fit.
+/// @param J      Jacobian from the fit (`n × p`).
+/// @param alpha  Significance level (default 0.05).
+/// @param engine Engine pointer (adapter passes `ctx.engine`).
+/// @param mr     Memory resource.
+/// @return       Tuple `(ypred, delta)` — predictions and CI half-widths.
+std::tuple<Value, Value>
+nlpredci(const Value &fun, const Value &X, const Value &beta,
+         const Value &R, const Value &J,
+         double alpha,
+         ::numkit::Engine *engine,
+         std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

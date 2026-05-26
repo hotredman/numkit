@@ -3279,9 +3279,9 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `nlinfit` | ❌ |  |  |  |  | nonlinear LSQ |
-| `nlparci` | ❌ |  |  |  |  | parameter CIs |
-| `nlpredci` | ❌ |  |  |  |  | predicted-value CIs |
+| `nlinfit` | ✅ | 0.101 | 72.56× |  | OK | Sig: nlinfit(X, y, fun, beta0) — Levenberg-Marquardt NLS with numerical (central-diff) Jacobian. Returns [beta, R, J, CovB, MSE]. nlparci(beta, R, J [, alpha]) — Wald-style parameter CIs via t-quantile · sqrt(diag(MSE · (J'J)^-1)). nlpredci(fun, X, beta, R, J [, alpha]) — prediction CIs via delta-method on the per-query Jacobian. KNOWN GAPs: name-value 'Weights'/'ErrorModel'/'Options' not supported. Spec uses deterministic noise (sin-based) to make parity reproducible; pins recoverability + CI containment + shape invariants. |
+| `nlparci` | ✅ | 0.101 | 72.56× |  | OK | Sig: nlinfit(X, y, fun, beta0) — Levenberg-Marquardt NLS with numerical (central-diff) Jacobian. Returns [beta, R, J, CovB, MSE]. nlparci(beta, R, J [, alpha]) — Wald-style parameter CIs via t-quantile · sqrt(diag(MSE · (J'J)^-1)). nlpredci(fun, X, beta, R, J [, alpha]) — prediction CIs via delta-method on the per-query Jacobian. KNOWN GAPs: name-value 'Weights'/'ErrorModel'/'Options' not supported. Spec uses deterministic noise (sin-based) to make parity reproducible; pins recoverability + CI containment + shape invariants. |
+| `nlpredci` | ✅ | 0.101 | 72.56× |  | OK | Sig: nlinfit(X, y, fun, beta0) — Levenberg-Marquardt NLS with numerical (central-diff) Jacobian. Returns [beta, R, J, CovB, MSE]. nlparci(beta, R, J [, alpha]) — Wald-style parameter CIs via t-quantile · sqrt(diag(MSE · (J'J)^-1)). nlpredci(fun, X, beta, R, J [, alpha]) — prediction CIs via delta-method on the per-query Jacobian. KNOWN GAPs: name-value 'Weights'/'ErrorModel'/'Options' not supported. Spec uses deterministic noise (sin-based) to make parity reproducible; pins recoverability + CI containment + shape invariants. |
 | `statset` | ❌ |  |  |  |  | options struct setter |
 | `statget` | ❌ |  |  |  |  | options struct getter |
 
