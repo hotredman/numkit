@@ -151,3 +151,56 @@ TEST_F(CopulasTest, IndependenceLimits)
     EXPECT_NEAR(evalScalar("y"), 1.0, 1e-6);
     EXPECT_NEAR(evalScalar("p"), 0.25, 1e-3);
 }
+
+// ── 3-D Gaussian and t (closes the d≥3 gap) ─────────────────────────
+
+TEST_F(CopulasTest, Gaussian3DPdfMatchesMatlab)
+{
+    eval(R"(
+        U3 = [0.3 0.4 0.5; 0.6 0.7 0.2];
+        R3 = [1 0.5 0.3; 0.5 1 0.4; 0.3 0.4 1];
+        y = copulapdf('Gaussian', U3, R3);
+    )");
+    EXPECT_NEAR(evalScalar("y(1)"), 1.2926, 1e-3);
+    EXPECT_NEAR(evalScalar("y(2)"), 0.9590, 1e-3);
+}
+
+TEST_F(CopulasTest, Gaussian3DCdfMatchesMatlab)
+{
+    // d≥3 CDF uses mvncdf (MC); ~5e-3 tolerance.
+    eval(R"(
+        U3 = [0.3 0.4 0.5; 0.6 0.7 0.2];
+        R3 = [1 0.5 0.3; 0.5 1 0.4; 0.3 0.4 1];
+        p = copulacdf('Gaussian', U3, R3);
+    )");
+    EXPECT_NEAR(evalScalar("p(1)"), 0.1372, 5e-3);
+    EXPECT_NEAR(evalScalar("p(2)"), 0.1396, 5e-3);
+}
+
+TEST_F(CopulasTest, T3DPdfMatchesMatlab)
+{
+    eval(R"(
+        U3 = [0.3 0.4 0.5; 0.6 0.7 0.2];
+        R3 = [1 0.5 0.3; 0.5 1 0.4; 0.3 0.4 1];
+        y = copulapdf('t', U3, R3, 5);
+    )");
+    EXPECT_NEAR(evalScalar("y(1)"), 1.6129, 1e-3);
+    EXPECT_NEAR(evalScalar("y(2)"), 0.9340, 1e-3);
+}
+
+TEST_F(CopulasTest, T3DCdfMatchesMatlab)
+{
+    eval(R"(
+        U3 = [0.3 0.4 0.5; 0.6 0.7 0.2];
+        R3 = [1 0.5 0.3; 0.5 1 0.4; 0.3 0.4 1];
+        p = copulacdf('t', U3, R3, 5);
+    )");
+    EXPECT_NEAR(evalScalar("p(1)"), 0.1373, 5e-3);
+    EXPECT_NEAR(evalScalar("p(2)"), 0.1344, 5e-3);
+}
+
+TEST_F(CopulasTest, NonPDRThrows)
+{
+    EXPECT_THROW(eval("copulapdf('Gaussian', [0.5 0.5], [1 1.5; 1.5 1]);"),
+                 std::exception);
+}
