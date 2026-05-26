@@ -11,6 +11,7 @@
 namespace numkit::ode::detail {
 
 void ode45_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ode23_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void odeset_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void odeget_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 
@@ -26,6 +27,7 @@ void OdeLibrary::install(Engine &engine)
     };
 
     reg("solvers", "ode45",  &ode::detail::ode45_reg);
+    reg("solvers", "ode23",  &ode::detail::ode23_reg);
     reg("options", "odeset", &ode::detail::odeset_reg);
     reg("options", "odeget", &ode::detail::odeget_reg);
 }
