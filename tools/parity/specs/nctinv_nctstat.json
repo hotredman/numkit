@@ -1,0 +1,17 @@
+{
+  "name": "nctinv_nctstat",
+  "covers": ["nctinv", "nctstat"],
+  "namespace": "stats",
+  "setup": "p = [0.1 0.3 0.5 0.7 0.9]; nu = 10; delta = 2;",
+  "expr": "x = nctinv(p, nu, delta); [m, v] = nctstat(nu, delta); [m5, v5] = nctstat(5, 1.5); rt = nctcdf(x, nu, delta); rt_err = max(abs(rt - p)); central = nctinv(0.7, 10, 0); central_t = tinv(0.7, 10);",
+  "iters": 5,
+  "tol": 1e-08,
+  "fingerprint": [
+    "x(1)", "x(2)", "x(3)", "x(4)", "x(5)",
+    "m", "v",
+    "m5", "v5",
+    "double(rt_err < 1e-08)",
+    "central", "central_t"
+  ],
+  "comment": "Sig: nctinv(p, nu, delta) — inverse cdf via Newton on nctcdf with central tinv shifted by delta as warm start, safeguarded by bracketing bisection. nctstat(nu, delta) — closed form m = δ √(ν/2) Γ((ν-1)/2)/Γ(ν/2) for ν > 1; v = ν(1+δ²)/(ν-2) - m² for ν > 2; NaN otherwise. Verified bit-equal to MATLAB R2025b at tol=1e-8. KNOWN GAPs: nctrnd next batch."
+}

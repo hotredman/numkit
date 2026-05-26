@@ -111,4 +111,32 @@ Value nctpdf(const Value &x, double nu, double delta,
 Value nctcdf(const Value &x, double nu, double delta, bool upper = false,
              std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Noncentral t inverse cdf (`x = nctinv(p, nu, delta)`).
+///
+/// Returns `x` such that `nctcdf(x, ν, δ) = p`. Newton iteration on
+/// `nctcdf` using `nctpdf` as derivative; safeguarded by bisection if
+/// Newton steps oscillate. Initial guess from the central
+/// `tinv(p, ν)` shifted by `δ`.
+///
+/// @param p      Probability levels in `[0, 1]` (any shape).
+/// @param nu     Degrees of freedom (`nu > 0`).
+/// @param delta  Noncentrality parameter.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Quantile array, same shape as `p`.
+/// @see nctcdf
+Value nctinv(const Value &p, double nu, double delta,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Noncentral t mean and variance (`[m, v] = nctstat(nu, delta)`).
+///
+/// Closed-form moments:
+///   `m = δ · sqrt(ν/2) · Γ((ν-1)/2) / Γ(ν/2)`    for `ν > 1` (else NaN),
+///   `v = ν(1 + δ²)/(ν - 2) − m²`                  for `ν > 2` (else NaN).
+///
+/// @param nu     Degrees of freedom.
+/// @param delta  Noncentrality parameter.
+/// @return       `{mean, variance}` (NaN where undefined).
+/// @see nctpdf
+std::tuple<double, double> nctstat(double nu, double delta);
+
 } // namespace numkit::stats

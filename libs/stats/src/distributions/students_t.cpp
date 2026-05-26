@@ -321,6 +321,103 @@ Value nctcdf(const Value &x, double nu, double delta, bool upper,
     }, mr);
 }
 
+namespace {
+
+// Central tinv (scalar): inverse of central t-cdf via betaincinv.
+double tinv_scalar(double p, double nu, std::pmr::memory_resource *mr)
+{
+    if (p <= 0.0) return -std::numeric_limits<double>::infinity();
+    if (p >= 1.0) return  std::numeric_limits<double>::infinity();
+    if (p == 0.5) return 0.0;
+    // betaincinv(2·min(p,1-p), ν/2, ½) → y; then x = sign·sqrt(ν(1/y - 1)).
+    const bool lower_half = (p < 0.5);
+    const double tail = lower_half ? 2.0 * p : 2.0 * (1.0 - p);
+    Value tv = Value::scalar(tail, mr);
+    Value av = Value::scalar(0.5 * nu, mr);
+    Value bv = Value::scalar(0.5, mr);
+    const double y = ::numkit::builtin::betaincinv(tv, av, bv, mr).toScalar();
+    if (y <= 0.0) return lower_half ? -std::numeric_limits<double>::infinity()
+                                     :  std::numeric_limits<double>::infinity();
+    if (y >= 1.0) return 0.0;
+    const double x = std::sqrt(nu * (1.0 / y - 1.0));
+    return lower_half ? -x : x;
+}
+
+double nctinv_one(double p, double nu, double delta,
+                  std::pmr::memory_resource *mr)
+{
+    if (!(nu > 0.0)) return std::numeric_limits<double>::quiet_NaN();
+    if (std::isnan(p) || p < 0.0 || p > 1.0)
+        return std::numeric_limits<double>::quiet_NaN();
+    if (p == 0.0) return -std::numeric_limits<double>::infinity();
+    if (p == 1.0) return  std::numeric_limits<double>::infinity();
+    if (delta == 0.0) return tinv_scalar(p, nu, mr);
+
+    // Initial guess: central tinv shifted by δ.
+    double x = tinv_scalar(p, nu, mr) + delta;
+    if (!std::isfinite(x)) x = delta;
+
+    // Establish a bracket [lo, hi] for fallback bisection.
+    // Find any x_lo with cdf < p and any x_hi with cdf > p.
+    double lo = std::min(x - 1.0, delta - 50.0);
+    double hi = std::max(x + 1.0, delta + 50.0);
+    while (nctcdf_one(lo, nu, delta, mr) > p) {
+        lo -= std::max(1.0, std::fabs(lo));
+        if (!std::isfinite(lo)) break;
+    }
+    while (nctcdf_one(hi, nu, delta, mr) < p) {
+        hi += std::max(1.0, std::fabs(hi));
+        if (!std::isfinite(hi)) break;
+    }
+
+    // Newton + bisection guard, ≤ 60 iterations.
+    for (int it = 0; it < 60; ++it) {
+        const double F  = nctcdf_one(x, nu, delta, mr);
+        const double f  = nctpdf_one(x, nu, delta, mr);
+        const double err = F - p;
+        if (std::fabs(err) < 1e-14) return x;
+        // Bisect endpoint update.
+        if (err > 0.0) hi = x; else lo = x;
+        double x_new;
+        if (f > 1e-300) {
+            x_new = x - err / f;
+            // Reject Newton step outside bracket — bisect instead.
+            if (!std::isfinite(x_new) || x_new <= lo || x_new >= hi)
+                x_new = 0.5 * (lo + hi);
+        } else {
+            x_new = 0.5 * (lo + hi);
+        }
+        if (std::fabs(x_new - x) < 1e-14 * std::max(1.0, std::fabs(x_new)))
+            return x_new;
+        x = x_new;
+    }
+    return x;
+}
+
+} // anonymous
+
+Value nctinv(const Value &p, double nu, double delta,
+             std::pmr::memory_resource *mr)
+{
+    return elementwise(p, [&](double pi) { return nctinv_one(pi, nu, delta, mr); }, mr);
+}
+
+std::tuple<double, double> nctstat(double nu, double delta)
+{
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    if (!(nu > 0.0)) return {nan, nan};
+    double m = nan, v = nan;
+    if (nu > 1.0) {
+        // m = δ · sqrt(ν/2) · Γ((ν-1)/2) / Γ(ν/2)
+        const double log_ratio = std::lgamma(0.5 * (nu - 1.0)) - std::lgamma(0.5 * nu);
+        m = delta * std::sqrt(0.5 * nu) * std::exp(log_ratio);
+    }
+    if (nu > 2.0) {
+        v = nu * (1.0 + delta * delta) / (nu - 2.0) - m * m;
+    }
+    return {m, v};
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -386,6 +483,26 @@ void nctcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
                     0, 0, "nctcdf", "", "m:nctcdf:nargin");
     outs[0] = nctcdf(args[0], args[1].toScalar(), args[2].toScalar(), upper,
                      ctx.engine->resource());
+}
+
+void nctinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("nctinv: requires (p, nu, delta)",
+                    0, 0, "nctinv", "", "m:nctinv:nargin");
+    outs[0] = nctinv(args[0], args[1].toScalar(), args[2].toScalar(),
+                     ctx.engine->resource());
+}
+
+void nctstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("nctstat: requires (nu, delta)",
+                    0, 0, "nctstat", "", "m:nctstat:nargin");
+    auto [m, v] = nctstat(args[0].toScalar(), args[1].toScalar());
+    outs[0] = Value::scalar(m, ctx.engine->resource());
+    if (nargout >= 2)
+        outs[1] = Value::scalar(v, ctx.engine->resource());
 }
 
 } // namespace detail
