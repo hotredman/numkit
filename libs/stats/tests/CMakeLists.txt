@@ -8,6 +8,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/robust_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/glm_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/mvncdf_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lasso_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/moving_extras_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/moving_extras_v2_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/quantile_test.cpp

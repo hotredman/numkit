@@ -1,0 +1,17 @@
+{
+  "name": "lasso",
+  "covers": ["lasso", "lassoglm"],
+  "namespace": "stats",
+  "setup": "n = 300; X = randn(n, 5); beta_true = [2.0; 0.0; 3.0; 0.0; 0.0]; y = X * beta_true + 0.3 * sin((1:n)' * 0.7); y2 = double(0.5 * X(:, 1) + 1.5 * X(:, 3) > 0);",
+  "expr": "[B0, ~, ~] = lasso(X, y, 0, 1.0); err0_1 = abs(B0(1) - 2.0); err0_3 = abs(B0(3) - 3.0); [B1, ~, ~] = lasso(X, y, 0.1, 1.0); nz1 = (B1(2) == 0) && (B1(4) == 0) && (B1(5) == 0); [Bg, ~, ~] = lassoglm(X, y2, 'binomial', 0.05, 1.0);",
+  "iters": 3,
+  "tol": 0.1,
+  "fingerprint": [
+    "double(err0_1 < 0.1)", "double(err0_3 < 0.1)",
+    "double(nz1)",
+    "size(B1, 1)", "size(Bg, 1)",
+    "double(abs(Bg(1)) > 0.1)",
+    "double(abs(Bg(3)) > 0.1)"
+  ],
+  "comment": "Sig: [B, Intercept, Lambda] = lasso(X, y, lambdas [, alpha]) — coordinate-descent L1/elastic-net linear regression. lassoglm extends to GLM families (normal/binomial/poisson) via IRLS+coord-descent inner loop. Standardisation internal; coefficients returned in original units with auto-fit intercept. KNOWN GAPs: no auto λ-path, no CV, no observation weights, no 'standardize' name-value pair. Spec uses deterministic noise (sin-based) + step-threshold binary response for reproducible parity; pins coefficient recovery + zero-out structure at the documented λ values."
+}
