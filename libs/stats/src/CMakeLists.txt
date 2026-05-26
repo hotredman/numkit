@@ -19,6 +19,7 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/fisher_f.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/beta.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/gamma_dist.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/distributions/multivariate.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/exponential.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/extreme_value.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/gev.cpp

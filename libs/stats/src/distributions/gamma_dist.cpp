@@ -163,5 +163,55 @@ void gamstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
                        [](double a, double b) { return gamstat(a, b); });
 }
 
+// ── randg — undocumented but very widely used "raw" gamma RNG ─────────
+//
+// `randg(shape, ...)` is shorthand for gamma(shape, 1) — i.e. scale = 1.
+// Forms:
+//   r = randg(shape)            — scalar (or per-element if shape is an
+//                                  array)
+//   r = randg(shape, n)         — n×n matrix
+//   r = randg(shape, m, n)      — m×n matrix
+//   r = randg(shape, [m n])     — same
+//
+// Implementation: delegate to gamrnd with b = 1. When shape is an array
+// and no explicit size args are given, draw one sample per shape entry
+// (each with its own shape parameter).
+void randg_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    auto *mr = ctx.engine->resource();
+    if (args.empty()) {
+        // randg() → single standard-exponential sample (shape=1, scale=1).
+        outs[0] = gamrnd(1.0, 1.0, 1, 1, mr);
+        return;
+    }
+    const Value &shape = args[0];
+
+    // Per-element form: array shape AND no extra size args.
+    if (!shape.isScalar() && args.size() == 1) {
+        const std::size_t rows = shape.dims().rows();
+        const std::size_t cols = shape.dims().cols();
+        auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        const std::size_t n = rows * cols;
+        auto &gen = ::numkit::builtin::sharedEngine();
+        auto &mtx = ::numkit::builtin::rngMutex();
+        std::lock_guard<std::mutex> lk(mtx);
+        for (std::size_t i = 0; i < n; ++i) {
+            const double a = shape.elemAsDouble(i);
+            if (a <= 0.0) { od[i] = std::numeric_limits<double>::quiet_NaN(); continue; }
+            std::gamma_distribution<double> gd(a, 1.0);
+            od[i] = gd(gen);
+        }
+        outs[0] = std::move(out);
+        return;
+    }
+
+    // Scalar shape — pull size from the remaining args (or default 1×1).
+    const double a = shape.toScalar();
+    std::size_t rows = 1, cols = 1;
+    parse_rng_size(args, 1, rows, cols);
+    outs[0] = gamrnd(a, 1.0, rows, cols, mr);
+}
+
 } // namespace detail
 } // namespace numkit::stats

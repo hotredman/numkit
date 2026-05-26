@@ -1,0 +1,21 @@
+{
+  "name": "randg_mvnrnd",
+  "covers": ["randg", "mvnrnd"],
+  "namespace": "stats",
+  "setup": "rng(0); a = 3.0; mu = [1 2 3]; Sigma = [4 1 0; 1 9 0; 0 0 16];",
+  "expr": "R = randg(a, 3000, 1); m_R = mean(R); v_R = var(R); finite_R = all(isfinite(R)); pos_R = all(R >= 0); RM = mvnrnd(mu, Sigma, 3000); n_RM = size(RM, 1); d_RM = size(RM, 2); m_RM = mean(RM); v_RM = var(RM);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "double(finite_R)", "double(pos_R)",
+    "double(abs(m_R - 3.0) < 0.3)", "double(abs(v_R - 3.0) < 0.5)",
+    "n_RM", "d_RM",
+    "double(abs(m_RM(1) - 1) < 0.3)",
+    "double(abs(m_RM(2) - 2) < 0.4)",
+    "double(abs(m_RM(3) - 3) < 0.5)",
+    "double(abs(v_RM(1) - 4)  < 1)",
+    "double(abs(v_RM(2) - 9)  < 1.5)",
+    "double(abs(v_RM(3) - 16) < 2.5)"
+  ],
+  "comment": "Sig: randg(shape [, m, n]) — raw gamma(shape, 1) RNG (scale = 1). Forwards to gamrnd internally. Per-element shape supported. mvnrnd(mu, Sigma [, n]) — multivariate normal RNG via in-place Cholesky on Sigma + N(0,1) draws. Supports vector mu (1×d, d×1) or matrix mu (n×d, per-row location). Bit-exact MATLAB R2025b not feasible (different RNG seeds); fingerprint pins distributional moments (mean ≈ shape, var ≈ shape for randg; mean ≈ mu, diag(cov) ≈ diag(Sigma) for mvnrnd) within statistical tolerance over n=3000 draws."
+}
